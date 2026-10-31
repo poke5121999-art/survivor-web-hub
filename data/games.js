@@ -1170,5 +1170,23 @@ window.HUB_GAMES = [
     // games/fish-bowl/tools (README). Bump rev with: node games/fish-bowl/tools/stamp.js <rev>. Kiểm: node test/fish-bowl-play.js <1..5>.
     status: "available",
     tags: ["Mô phỏng", "Khám phá", "Màn ngang"]
+  },
+  {
+    id: "battle-cats",
+    title: "The Battle Cats",
+    tagline: "Thả mèo tràn qua sân phá căn cứ địch; nuôi ví tiền để tung quân mạnh dần.",
+    desc: "Làm lại The Battle Cats (bản EN 15.7) bằng JS thuần, không Unity, dùng sprite và số liệu gốc bóc từ APK. Thả mèo từ căn cứ tràn qua sân phá tháp địch; tiền tự hồi và rơi ra từ quái bị diệt. Sưu tầm 60 mèo qua gacha, nâng cấp từng con và Cat Base, chơi 24 màn ba chương có trùm. Có Cat Cannon và Worker như bản gốc.",
+    genre: "chien-thuat",
+    accent: "#ff8c1a",
+    en: { title: "The Battle Cats", tagline: "Send cats swarming across the field to smash the enemy base; grow your wallet to field stronger units.", desc: "The Battle Cats (EN 15.7) remade in plain JS, no Unity, using original sprites and stats ripped from the APK. Send cats from your base across the field to break the enemy tower; money regenerates and drops from slain foes. Collect 60 cats via gacha, level each one and the Cat Base, clear 24 stages across three chapters with bosses. Cat Cannon and Worker as in the original." },
+    thumbnail: "assets/thumbnails/battle-cats.png",
+    path: "games/battle-cats/index.html",
+    rev: "20261031d",
+    // JS thuan (khong Unity WebGL), solo. Sprite + so lieu goc boc tu APK EN 15.7 o D:/battlecats-ref (DECODE.md).
+    // Engine: js/sim.js (lane battle 30fps), js/sprite.js (mamodel+maanim), js/render.js, js/save.js (localStorage).
+    // Noi dung: tools/export_data.py + rebalance -> data/{cats,enemies,stages,roster}.json. Plan: brain/plans/battle-cats.md.
+    // Kiem: node games/battle-cats/test/sim-smoke.js ; node games/battle-cats/test/flow-shot.js (BC_URL=<Pages>).
+    status: "available",
+    tags: ["Chiến thuật", "Thủ thành", "Sưu tầm"]
   }
 ];

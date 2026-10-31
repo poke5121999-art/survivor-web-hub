@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>The Battle Cats</title>
+<style>
+  :root { --hud: 124px; --accent: #ffd34d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #0e1017; overflow: hidden;
+    font-family: system-ui, "Segoe UI", sans-serif; color: #eef; }
+  #app { position: fixed; inset: 0; }
+  .scr { position: absolute; inset: 0; display: none; flex-direction: column; }
+  button { font-family: inherit; }
+
+  /* ---- shared chrome ---- */
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: linear-gradient(#20233140, #0e101700); flex-shrink: 0; }
+  .topbar .back { background: #2a2f44; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .topbar h2 { margin: 0; font-size: 17px; flex: 1; }
+  .pill { background: #0d0f16; border: 1px solid #333a52; border-radius: 20px;
+    padding: 5px 12px; font-size: 13px; font-weight: 700; }
+  .pill.food { color: #8be36b; } .pill.xp { color: #6cc4ff; }
+
+  /* ---- menu ---- */
+  #scr-menu { align-items: center; justify-content: center;
+    background: radial-gradient(120% 90% at 50% 0%, #26406b, #0e1017 70%); }
+  #scr-menu .logo { font-size: 34px; font-weight: 800; letter-spacing: .5px;
+    color: var(--accent); text-shadow: 0 3px 0 #a9792a, 0 0 24px #ffd34d55; margin-bottom: 4px; }
+  #scr-menu .sub { color: #9fb0d0; margin-bottom: 22px; font-size: 13px; }
+  #scr-menu .stats { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; justify-content: center; }
+  .menu-btns { display: flex; flex-direction: column; gap: 12px; width: min(320px, 82vw); }
+  .menu-btns button { font-size: 19px; font-weight: 700; padding: 16px; border: none;
+    border-radius: 14px; cursor: pointer; color: #10131c;
+    box-shadow: 0 4px 0 rgba(0,0,0,.35); }
+  #go-play { background: linear-gradient(#ffdf6e, #ffbe2e); }
+  #go-upgrade { background: linear-gradient(#9fe3ff, #58b6ec); }
+  #go-gacha { background: linear-gradient(#ffc4e6, #ff7fc4); }
+
+  /* ---- map ---- */
+  #map-list { flex: 1; overflow-y: auto; padding: 8px 14px 24px; }
+  .ch-head { font-size: 15px; font-weight: 800; color: var(--accent); margin: 16px 2px 8px;
+    border-left: 4px solid var(--accent); padding-left: 8px; }
+  .stage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; }
+  .stage { text-align: left; background: #171a26; border: 1px solid #2c3146; border-radius: 10px;
+    padding: 10px; cursor: pointer; color: #eef; display: flex; justify-content: space-between; align-items: center; }
+  .stage.boss { border-color: #b5485f; background: #241620; }
+  .stage.locked { opacity: .4; cursor: default; }
+  .stage .st-nm { font-size: 13px; font-weight: 600; }
+  .stage .st-ic { font-size: 18px; }
+
+  /* ---- equip ---- */
+  #eq-cats { flex: 1; overflow-y: auto; padding: 8px 12px 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(92px,1fr)); gap: 8px; align-content: start; }
+  .eqcard { position: relative; background: #0d0f16; border: 2px solid #333a52; border-radius: 10px;
+    padding: 4px 2px 6px; cursor: pointer; color: #eef; display: flex; flex-direction: column; align-items: center; }
+  .eqcard.on { border-color: var(--accent); background: #1d1a0e; }
+  .eqcard canvas { width: 78px; height: 66px; }
+  .eqcard .nm { font-size: 10px; line-height: 1.15; height: 24px; overflow: hidden; text-align: center; }
+  .eqcard .meta { font-size: 10px; color: #9fb0d0; }
+  .eqcard .slotno { position: absolute; top: 3px; left: 3px; min-width: 18px; height: 18px;
+    background: var(--accent); color: #10131c; border-radius: 50%; font-size: 12px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; }
+  .eqcard .slotno:empty { display: none; }
+  .eq-foot { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    background: #141722; border-top: 1px solid #2c3146; }
+  #eq-start { flex: 1; font-size: 17px; font-weight: 800; padding: 13px; border: none;
+    border-radius: 12px; background: linear-gradient(#ffdf6e, #ffbe2e); color: #10131c; cursor: pointer; }
+  #eq-start:disabled { opacity: .4; }
+
+  /* ---- upgrade ---- */
+  #up-cats { flex: 1; overflow-y: auto; padding: 6px 12px 16px; }
+  .up-base { display: flex; align-items: center; gap: 10px; margin: 6px 14px 4px; padding: 10px;
+    background: #171a26; border: 1px solid #2c3146; border-radius: 10px; }
+  .up-base b { flex: 1; }
+  .uprow { display: flex; align-items: center; gap: 10px; padding: 6px; border-bottom: 1px solid #22263699; }
+  .uprow canvas { width: 62px; height: 54px; flex-shrink: 0; }
+  .uprow .info { flex: 1; min-width: 0; }
+  .uprow .info .nm { font-size: 13px; font-weight: 600; }
+  .uprow .info .lv { font-size: 11px; color: #9fb0d0; }
+  .upbtn, .up-base button { background: #58b6ec; color: #06121c; border: none; border-radius: 8px;
+    padding: 9px 12px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .upbtn:disabled, .up-base button:disabled { opacity: .4; }
+
+  /* ---- gacha ---- */
+  #scr-gacha { align-items: center; }
+  #g-result { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  #g-result .g-nm { font-size: 20px; font-weight: 800; }
+  #g-result .g-tag { font-size: 14px; color: var(--accent); }
+  #g-roll { margin: 0 0 26px; font-size: 17px; font-weight: 800; padding: 16px 28px; border: none;
+    border-radius: 14px; background: linear-gradient(#ffc4e6, #ff7fc4); color: #2a0f20; cursor: pointer; }
+  #g-roll:disabled { opacity: .45; }
+
+  /* ---- battle ---- */
+  #scr-battle { }
+  #field { flex: 1; position: relative; min-height: 0; }
+  #field canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { height: var(--hud); background: linear-gradient(#20222e, #171922);
+    border-top: 2px solid #3a3f52; display: flex; align-items: stretch; gap: 6px; padding: 6px; }
+  #left { display: flex; flex-direction: column; gap: 4px; width: 116px; flex-shrink: 0; }
+  #money { font-weight: 700; font-size: 15px; color: var(--accent); text-align: center;
+    background: #0d0f16; border-radius: 6px; padding: 4px; }
+  .sysbtn { flex: 1; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; padding: 2px; }
+  #worker { background: #2f8f5b; } #cannon { background: #b4863a; }
+  .sysbtn:disabled { opacity: .45; }
+  #cats { flex: 1; display: flex; gap: 6px; overflow-x: auto; }
+  .catbtn { position: relative; width: 84px; flex-shrink: 0; border: 2px solid #444a60; border-radius: 8px;
+    background: #0d0f16; color: #fff; cursor: pointer; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; padding-top: 2px; }
+  .catbtn canvas { position: static; width: 70px; height: 56px; }
+  .catbtn .nm { font-size: 9px; line-height: 1.1; height: 20px; overflow: hidden; width: 100%; text-align: center; }
+  .catbtn .cost { font-size: 11px; font-weight: 700; color: var(--accent); }
+  .catbtn .cd { position: absolute; inset: 0; background: rgba(0,0,0,.6);
+    display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; }
+  .catbtn:disabled { opacity: .6; }
+  #speed { position: absolute; right: 8px; bottom: 8px; z-index: 4; background: rgba(0,0,0,.5);
+    border: 1px solid #556; color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+  #bt-quit { position: absolute; left: 8px; top: 8px; z-index: 4; background: rgba(0,0,0,.5);
+    border: 1px solid #556; color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  #bt-load { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: #0e1017; font-size: 17px; color: #9aa; z-index: 6; }
+  #bt-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.7); z-index: 5; flex-direction: column; gap: 14px; text-align: center; }
+  #bt-overlay h1 { margin: 0; font-size: 42px; }
+  #bt-reward { color: #cfe; font-size: 15px; line-height: 1.5; }
+  .ov-btns { display: flex; gap: 10px; }
+  #bt-overlay .ov-btns button { font-size: 16px; padding: 10px 22px; border: none; border-radius: 10px;
+    background: #4a7ddf; color: #fff; cursor: pointer; }
+  #bt-next { background: linear-gradient(#ffdf6e, #ffbe2e) !important; color: #10131c !important; }
+
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #9aa; z-index: 10; background: #0e1017; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- MENU -->
+  <div class="scr" id="scr-menu">
+    <div class="logo">THE BATTLE CATS</div>
+    <div class="sub">Bản web · dàn mèo gốc</div>
+    <div class="stats">
+      <span class="pill food">🍖 <span id="m-food">0</span></span>
+      <span class="pill xp">XP <span id="m-xp">0</span></span>
+      <span class="pill">🐱 <span id="m-owned">0</span></span>
+      <span class="pill">Màn <span id="m-prog">0/0</span></span>
+    </div>
+    <div class="menu-btns">
+      <button id="go-play">▶ Xuất trận</button>
+      <button id="go-upgrade">⬆ Nâng cấp</button>
+      <button id="go-gacha">🎰 Quay mèo</button>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="scr" id="scr-map">
+    <div class="topbar"><button class="back" id="map-back">‹ Menu</button><h2>Chọn màn</h2></div>
+    <div id="map-list"></div>
+  </div>
+
+  <!-- EQUIP -->
+  <div class="scr" id="scr-equip">
+    <div class="topbar"><button class="back" id="eq-back">‹ Màn</button>
+      <h2>Đội hình · <span id="eq-stage"></span></h2>
+      <span class="pill">Đã chọn <span id="eq-count">0/10</span></span></div>
+    <div id="eq-cats"></div>
+    <div class="eq-foot"><button id="eq-start">XUẤT TRẬN</button></div>
+  </div>
+
+  <!-- UPGRADE -->
+  <div class="scr" id="scr-upgrade">
+    <div class="topbar"><button class="back" id="up-back">‹ Menu</button><h2>Nâng cấp</h2>
+      <span class="pill xp">XP <span id="up-xp">0</span></span></div>
+    <div class="up-base"><b id="up-base">Cat Base Lv1</b><button id="up-base-btn">Nâng</button></div>
+    <div id="up-cats"></div>
+  </div>
+
+  <!-- GACHA -->
+  <div class="scr" id="scr-gacha">
+    <div class="topbar" style="width:100%"><button class="back" id="g-back">‹ Menu</button><h2>Quay mèo</h2>
+      <span class="pill food">🍖 <span id="g-food">0</span></span></div>
+    <div id="g-result"></div>
+    <button id="g-roll">Quay</button>
+  </div>
+
+  <!-- BATTLE -->
+  <div class="scr" id="scr-battle">
+    <div id="field">
+      <canvas id="cv"></canvas>
+      <button id="bt-quit">✕ Thoát</button>
+      <button id="speed">2×</button>
+      <div id="bt-load">Đang vào trận…</div>
+      <div id="bt-overlay">
+        <h1 id="bt-result"></h1>
+        <div id="bt-reward"></div>
+        <div class="ov-btns">
+          <button id="bt-retry">Chơi lại</button>
+          <button id="bt-next">Về bản đồ</button>
+        </div>
+      </div>
+    </div>
+    <div id="hud">
+      <div id="left">
+        <div id="money">¥0</div>
+        <button class="sysbtn" id="worker">Worker</button>
+        <button class="sysbtn" id="cannon">Cat Cannon</button>
+      </div>
+      <div id="cats"></div>
+    </div>
+  </div>
+
+  <div id="loading">Đang tải…</div>
+</div>
+
+<script src="js/sprite.js?v=20261031d"></script>
+<script src="js/sim.js?v=20261031d"></script>
+<script src="js/render.js?v=20261031d"></script>
+<script src="js/save.js?v=20261031d"></script>
+<script src="js/main.js?v=20261031d"></script>
+</body>
+</html>
