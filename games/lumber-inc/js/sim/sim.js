@@ -4,6 +4,8 @@ import { statusOf, settle } from './buildings.js';
 import { Forest, WOOD } from './forest.js';
 import { Pack } from './pack.js';
 import { apply, invertAffine, compose } from './math.js';
+import { Crew } from './workers.js';
+import { Missions } from './missions.js';
 
 export const PEELED = 101, SQUARE = 102;
 const STEP = 0.02; // fixed physics step: pads, deposits and pickups move one unit per step (EC 6, 13, 14)
@@ -12,6 +14,8 @@ const FACTORY = { in: 48, out: 12, poll: 0.5, feed: 0.5 }; // EC 12, 17
 const STORE_CAP = 84; // EC 21
 const TRUCK = { base: 3, leadIn: 0.5, load: 0.12, queue: 9, speed: 5, gap: 5.5 }; // EC 22-25
 const EXP = { unlockBuilding: 5 }; // EC 28
+const STAR_GEMS = 10; // senior machine in UpgradeBuildingStarPanel_Item (AddPlayerItem -10 Gem)
+const STAR_AD = { IncomeAdd: 'IncomeAddAd', CapacitAdd: 'CapacitAddAd', ProdSpdAddUI: 'ProdSpdAddAdUI' };
 const SWING = 1.6667 / 2.5; // chop clip length / speed (CC B2)
 
 // Upgrade tracks (AbstractUpgradeHandler, CC D): value = rows[level-1], cost of the next level = rows[level].CostVal.
@@ -56,12 +60,14 @@ export class Sim {
       bought: s.bought || {}, paid: s.paid || {}, up: s.up || {}, guideMoney: s.guideMoney || false,
       stock: s.stock || {}, piles: s.piles || {}, firstTruck: s.firstTruck || false,
       player: s.player || { x: -1.5, z: 9, dir: 0 }, packItems: s.packItems || [], t: 0,
+      hired: s.hired || {}, empLv: s.empLv || {}, stars: s.stars || {}, starAd: s.starAd || {}, task: s.task || 0,
     };
     this.events = [];
     this.up = new Upgrades(config, this.state.up);
     this.role = config.RoleConf.find(r => r.Id === 1);
     this.pack = new Pack(this.up.value(this.role.PackUpId), this.state.packItems);
     this.state.packItems = this.pack.items;
+    this.playerRole = { pack: this.pack };
     this.forest = new Forest(world.trees);
     this.levels = config.PlayerLevelUpgradeConf.filter(r => r.MapId === 0);
     this.factoryConf = new Map(config.FactoryConf.map(r => [r.Id, r]));
@@ -74,7 +80,130 @@ export class Sim {
     this.stepAcc = 0;
     this.swingT = 0;
     this.chopping = false;
+    this.mover = null;
+    this.shown = () => true;
     settle(world, this.state);
+    this.crew = new Crew(this);
+    this.missions = new Missions(this);
+    this.research = new Map();
+    for (const r of config.ResearchUpgradeConf) {
+      if (!this.research.has(r.BuildingId)) this.research.set(r.BuildingId, []);
+      this.research.get(r.BuildingId).push(r);
+    }
+    for (const rows of this.research.values()) rows.sort((a, b) => a.Progress - b.Progress);
+  }
+
+  // ---- research stars ("Modify", ResearchUpgradeConf; rules/economy.md C20): 4 stars per machine or station, each
+  // adding income per item, cutting seconds per item (the cumulative ProdSpdAddUI column) and output room.
+  stars(id) { return this.state.stars[id] || 0; }
+  starRow(id, n = this.stars(id)) { const r = this.research.get(id); return r && n > 0 ? r[Math.min(n, r.length) - 1] : null; }
+  nextStar(id) { const r = this.research.get(id); return r ? r[this.stars(id)] || null : null; }
+  starBlocked(id) {
+    const r = this.nextStar(id);
+    if (!r) return 'max';
+    if (!this.active(id)) return 'locked';
+    if (r.UnlockPreBuilding && (!this.active(r.UnlockPreBuilding) || this.stars(r.UnlockPreBuilding) < r.PreBuildingLevel)) return 'pre';
+    if (this.state.level < r.UnlockPlayerLv) return 'level';
+    return null;
+  }
+  buyStar(id) {
+    const r = this.nextStar(id);
+    if (this.starBlocked(id) || this.state.coins < r.Cost) return false;
+    this.state.coins -= r.Cost;
+    this.gainStar(id);
+    return true;
+  }
+  // The star is paid on the research frame like an unlock pad (ResearchUpgadeRecorder.UpdateNeed); UpgradeBuildingStarPanel
+  // then offers the machine for it: the normal one, or the senior one (the "Ad" columns) for 10 gems or an ad.
+  gainStar(id) {
+    delete this.state.paid[`r${id}`];
+    this.state.stars[id] = this.stars(id) + 1;
+    this.state.starAd[id] = false;
+    this.addExp(4); // UpgradeFactory exp (EC 28)
+    this.emit({ type: 'star', id, stars: this.stars(id) });
+  }
+  // UpgradeBuildingStarPanel_Item.OnClickChoice: 0 normal, 1 senior for 10 gems, 2 senior for an ad (the hub grants it at once).
+  chooseMachine(id, index) {
+    const r = this.starRow(id);
+    if (!r || this.state.starAd[id]) return false;
+    if (index === 0) return true;
+    if (index === 1) {
+      if (this.state.gems < STAR_GEMS) return false;
+      this.state.gems -= STAR_GEMS;
+    }
+    this.state.starAd[id] = true;
+    this.addExp(r.StarAddAd);
+    this.emit({ type: 'machine', id });
+    return true;
+  }
+  // A star column, or its senior-machine twin when that machine was chosen.
+  starVal(id, col) {
+    const r = this.starRow(id);
+    return r ? r[this.state.starAd[id] ? STAR_AD[col] : col] : 0;
+  }
+  outCap(id) { return FACTORY.out + this.starVal(id, 'CapacitAdd'); }
+
+  // ---- world services for roles (player and workers)
+  moveBody(o, dx, dz) {
+    if (this.mover) this.mover.step(o, dx, dz, this.shown, 0.35);
+    else { o.x += dx; o.z += dz; }
+  }
+
+  // The forest a work line chops: line 1 (and 0) -> forest building 1.
+  lineForest(line) {
+    const forests = [...this.world.buildings.values()].filter(b => b.kind === 'forest' && this.active(b.id));
+    return (forests.find(f => f.line === line) || forests[0] || { id: 1 }).id;
+  }
+
+  // FarmMgr.GetCarryInBuildingId: an active building of the line that takes this item and has room.
+  carryIn(type, line) {
+    let best = null;
+    for (const b of this.world.buildings.values()) {
+      if (!this.active(b.id) || b.line !== line) continue;
+      if (b.kind === 'factory' && b.typeIn === type && this.stock(`${b.id}:in`) < FACTORY.in) {
+        if (!best || this.stock(`${b.id}:in`) < this.stock(`${best.id}:in`)) best = b;
+      } else if (b.kind === 'warehouse' && b.type === type && this.stock(`${b.id}:in`) < STORE_CAP && !best) best = b;
+    }
+    return best;
+  }
+
+  // FarmMgr.GetCarryOutBuildingId: the fullest output of the line holding one of these items, in preference order.
+  carryOut(types, line) {
+    for (const type of types) {
+      let best = null;
+      for (const b of this.world.buildings.values()) {
+        if (b.kind !== 'factory' || !this.active(b.id) || b.line !== line || b.typeOut !== type) continue;
+        if (this.stock(`${b.id}:out`) > 0 && this.carryIn(type, line) && (!best || this.stock(`${b.id}:out`) > this.stock(`${best.id}:out`))) best = b;
+      }
+      if (best) return best;
+    }
+    return null;
+  }
+
+  station(line) {
+    return [...this.world.buildings.values()].find(b => b.kind === 'truckStation' && b.line === line && this.active(b.id)) || null;
+  }
+
+  // One item from a role's pack into a building (machine input pays its income at deposit, EC 15).
+  deposit(b, pack) {
+    if (b.kind === 'factory') {
+      if (this.stock(`${b.id}:in`) >= FACTORY.in || !pack.take(b.typeIn)) return false;
+      this.addStock(`${b.id}:in`, 1);
+      this.pileAdd(b.id, this.income(b.id));
+    } else if (b.kind === 'warehouse') {
+      if (this.stock(`${b.id}:in`) >= STORE_CAP || !pack.take(b.type)) return false;
+      this.addStock(`${b.id}:in`, 1);
+    } else return false;
+    this.emit({ type: 'deposit', id: b.id, item: b.typeIn || b.type });
+    return true;
+  }
+
+  take(b, pack) {
+    if (b.kind !== 'factory' || this.stock(`${b.id}:out`) <= 0 || pack.full) return false;
+    this.addStock(`${b.id}:out`, -1);
+    pack.add(b.typeOut);
+    this.emit({ type: 'pickup', id: b.id, item: b.typeOut });
+    return true;
   }
 
   status(b) { return statusOf(b, this.state); }
@@ -145,16 +274,18 @@ export class Sim {
       this.swingT += dt;
       if (this.swingT >= SWING) {
         this.swingT -= SWING;
-        this.forest.swing(p, this.damage, forestOpen, ev);
+        this.forest.swing(p, this.damage, forestOpen, ev, this.playerRole);
       }
     } else {
       this.swingT = SWING * 0.56; // the clip's hit event sits at 0.735 / 1.667 of the swing
     }
     this.forest.tick(dt, (tree, n) => {
+      const pack = (tree.chopper || this.playerRole).pack;
       let took = 0;
-      while (took < n && !this.pack.full) { this.pack.add(WOOD); took++; }
+      while (took < n && !pack.full) { pack.add(WOOD); took++; }
       return took;
     }, ev);
+    this.crew.tick(dt);
     if (this.forest.near(p, 1.2).some(t => t.ground > 0)) {
       const got = this.forest.pickup(p, this.pack.room, ev);
       for (let i = 0; i < got; i++) this.pack.add(WOOD);
@@ -169,26 +300,51 @@ export class Sim {
 
     this.tickMachines(dt);
     this.tickTrucks(dt);
+    const z = this.zoneAt(p);
+    const key = z ? `${z.kind}:${z.id}` : null;
+    if (key !== this.zoneKey) {
+      this.zoneKey = key;
+      this.emit({ type: 'zone', zone: z });
+    }
+  }
+
+  // The panel zone the player stands in: a worker hut or the player cabin.
+  zoneAt(p) {
+    for (const b of this.world.buildings.values()) {
+      if (!this.active(b.id)) continue;
+      if ((b.kind === 'employeeHouse' || b.kind === 'playerHouse') && b.showBox && b.showBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
+    }
+    return null;
+  }
+
+  // What the player pays into where they stand: an open unlock pad, or the research frame of a machine whose next star
+  // is open. Partial payments stay in state.paid under the building id, or r<id> for a star.
+  payTarget(p) {
+    for (const [id, f] of this.pads) {
+      const b = this.world.buildings.get(id);
+      if (onPad(f, p) && this.status(b) === 'locked') return { key: id, cost: b.cost, done: () => this.buy(b) };
+    }
+    for (const b of this.world.buildings.values()) {
+      if (!b.researchBox || !this.research.has(b.id) || this.starBlocked(b.id) || !b.researchBox.contains(p)) continue;
+      return { key: `r${b.id}`, cost: this.nextStar(b.id).Cost, done: () => this.gainStar(b.id) };
+    }
+    return null;
   }
 
   fixedStep(p, idle) {
     const s = this.state;
     // Unlock pad (EC 6-8): pay = ceil(min(coins, remaining) * min(spd, 0.5)); spd ramps 0.004 per step from 0.01.
-    let on = null;
-    for (const [id, f] of this.pads) {
-      const b = this.world.buildings.get(id);
-      if (onPad(f, p) && this.status(b) === 'locked') { on = b; break; }
-    }
-    if ((on && on.id) !== this.onPadId) { this.padSpd = PAD.init; this.onPadId = on && on.id; }
+    const on = this.payTarget(p);
+    if ((on && on.key) !== this.onPadId) { this.padSpd = PAD.init; this.onPadId = on && on.key; }
     if (on && idle) {
       this.padSpd += PAD.inc;
-      const remaining = on.cost - (s.paid[on.id] || 0);
+      const remaining = on.cost - (s.paid[on.key] || 0);
       const pay = Math.ceil(Math.min(s.coins, remaining) * Math.min(this.padSpd, PAD.cap));
       if (pay > 0) {
         s.coins -= pay;
-        s.paid[on.id] = (s.paid[on.id] || 0) + pay;
-        this.emit({ type: 'padPay', id: on.id, n: pay });
-        if (s.paid[on.id] >= on.cost) this.buy(on);
+        s.paid[on.key] = (s.paid[on.key] || 0) + pay;
+        this.emit({ type: 'padPay', id: on.key, n: pay });
+        if (s.paid[on.key] >= on.cost) on.done();
       }
     }
     if (!idle) return;
@@ -235,12 +391,12 @@ export class Sim {
 
   income(id) {
     const c = this.factoryConf.get(id);
-    return c ? this.up.value(c.IncomeUpId) : 0;
+    return (c ? this.up.value(c.IncomeUpId) : 0) + this.starVal(id, 'IncomeAdd');
   }
 
   duration(id) {
     const c = this.factoryConf.get(id);
-    return Math.max(0.1, c ? this.up.value(c.EfficiencyUpId) : 6);
+    return Math.max(0.1, (c ? this.up.value(c.EfficiencyUpId) : 6) - this.starVal(id, 'ProdSpdAddUI'));
   }
 
   // One machine per factory: every 0.5 s it takes one input if output has room, then feeds (0.5 s) and processes
@@ -261,7 +417,7 @@ export class Sim {
       m.poll -= dt;
       if (m.poll > 0) continue;
       m.poll = FACTORY.poll;
-      if (this.stock(`${b.id}:in`) > 0 && this.stock(`${b.id}:out`) < FACTORY.out) {
+      if (this.stock(`${b.id}:in`) > 0 && this.stock(`${b.id}:out`) < this.outCap(b.id)) {
         this.addStock(`${b.id}:in`, -1);
         m.left = FACTORY.feed + this.duration(b.id);
         m.total = m.left;
@@ -296,7 +452,7 @@ export class Sim {
             this.emit({ type: 'truckArrive', id: b.id, cap: t.cap });
           }
         } else if (t.phase === 'bay') {
-          const there = b.inBox && b.inBox.contains(p, 0.4);
+          const there = (b.inBox && b.inBox.contains(p, 0.4)) || this.crew.workers.some(w => w.atCounter === b.id);
           const store = b.storeId;
           if (there && t.load < t.cap && this.stock(`${store}:in`) > 0) {
             t.t -= dt;
@@ -325,14 +481,14 @@ export class Sim {
 
   truckIncome(id) {
     const c = this.factoryConf.get(id);
-    return c ? this.up.value(c.IncomeUpId) : 20;
+    return (c ? this.up.value(c.IncomeUpId) : 20) + this.starVal(id, 'IncomeAdd');
   }
 
   save() {
     const s = this.state;
     return { v: 1, coins: s.coins, gems: s.gems, exp: s.exp, level: s.level, bought: s.bought, paid: s.paid, up: s.up,
       guideMoney: s.guideMoney, stock: s.stock, piles: s.piles, firstTruck: s.firstTruck, player: s.player,
-      packItems: this.pack.items };
+      packItems: this.pack.items, hired: s.hired, empLv: s.empLv, stars: s.stars, starAd: s.starAd, task: s.task };
   }
 }
 

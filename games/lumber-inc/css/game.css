@@ -19,3 +19,5 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #18210f; tou
 .tag.price { display: flex; align-items: center; gap: 0.2em; font-size: calc(30 * var(--u)); font-weight: 700; color: #fff;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 3px rgba(0, 0, 0, 0.5); }
 .tag.price img { width: 1.3em; height: 1.3em; object-fit: contain; }
+.ui-root .n.pulse { animation: pulse 0.8s ease-in-out infinite alternate; }
+@keyframes pulse { from { scale: 1; } to { scale: 1.1; } }

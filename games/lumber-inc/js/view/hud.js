@@ -7,7 +7,7 @@ import { setSlider } from './ui.js';
 // Nodes the original switches on at runtime for features this build does not have yet (resident coin, town, events,
 // phone, ad boxes, buffs...).
 const HIDE = ['residentCoin', 'tickets', 'hometown', 'sponCoin', 'PackData', 'packItem', 'SpecialOrderRoot', 'BtnEaster', 'BtnCoin',
-  'BtnPhone', 'buffRoot', 'guideTips', 'BtnBuildTips', 'MainTaskRoot', 'btnMoto', 'MapSelectBtn', 'Pre_UIRedpoint',
+  'BtnPhone', 'buffRoot', 'guideTips', 'BtnBuildTips', 'btnMoto', 'MapSelectBtn', 'Pre_UIRedpoint',
   'imgAdd'];
 
 export function fmt(n) {
@@ -44,6 +44,19 @@ export class Hud {
     this.max = p.get('txtMax');
     this.zoom = p.get('btnScaling');
     if (this.zoom) this.zoom.addEventListener('click', e => { e.stopPropagation(); this.onZoom && this.onZoom(); });
+    // Main task bar (GamingPanelMainTask): description, progress, coin reward; tap to claim when complete.
+    this.task = p.get('MainTaskRoot');
+    if (this.task) {
+      this.taskDes = this.task.querySelector('[data-name="TxtDes"]');
+      this.taskProg = this.task.querySelector('[data-name="TxtProgress"]');
+      this.taskReward = this.task.querySelector('[data-name="TxtReward"]');
+      this.taskBar = this.task.querySelector('[data-name="Slider (1)"]');
+      this.taskDone = this.task.querySelector('[data-name="complete"]');
+      this.taskTips = this.task.querySelector('[data-name="tips"]');
+      this.task.classList.add('btn');
+      this.task.addEventListener('click', e => { e.stopPropagation(); this.sim.missions.claim(); });
+      this.task.addEventListener('pointerdown', e => e.stopPropagation());
+    }
     this.last = {};
   }
 
@@ -63,31 +76,55 @@ export class Hud {
     this.set(this.exp, 'exp', need ? `${S.exp}/${need}` : 'MAX');
     if (this.lvBar && this.last.bar !== S.exp) { this.last.bar = S.exp; setSlider(this.lvBar, need ? S.exp / need : 1); }
     if (this.max) this.max.style.display = this.sim.pack.full ? 'flex' : 'none';
+    this.updateTask();
     this.updatePadTags();
   }
 
-  // Price over each open pad: coin icon + coins still to pay.
+  updateTask() {
+    if (!this.task) return;
+    const M = this.sim.missions, m = M.current;
+    this.task.style.display = m ? 'block' : 'none';
+    if (!m) return;
+    const [v, t] = M.progress(m);
+    const done = v >= t;
+    this.set(this.taskDes, 'tdes', this.ui.t(m.MissionDes));
+    this.set(this.taskProg, 'tprog', done ? this.ui.t('Finish') : `${v}/${t}`);
+    this.set(this.taskReward, 'trew', `+${fmt(m.RewardNum)}`);
+    if (this.taskDone) this.taskDone.style.display = done ? 'block' : 'none';
+    if (this.task._skin) this.task._skin.style.display = done ? 'none' : '';
+    if (this.taskTips) this.taskTips.style.display = done ? 'block' : 'none';
+    this.task.classList.toggle('pulse', done);
+    if (this.taskBar && this.last.tbar !== `${m.Id}:${v}`) { this.last.tbar = `${m.Id}:${v}`; setSlider(this.taskBar, t ? v / t : 0); }
+  }
+
+  // Price over each open pad and each research frame whose next star is open: coin icon + coins still to pay.
   updatePadTags() {
     const w = this.host.clientWidth, h = this.host.clientHeight;
     const v = new THREE.Vector3();
+    const sim = this.sim;
+    const spots = [];
     for (const b of this.world.buildings.values()) {
-      if (!b.pad) continue;
-      const open = this.sim.status(b) === 'locked';
-      let el = this.padTags.get(b.id);
-      if (!open) { if (el) el.style.display = 'none'; continue; }
+      if (b.pad) spots.push({ key: b.id, at: b.pad.center, cost: sim.status(b) === 'locked' ? b.cost : null });
+      if (b.researchBox && sim.research.has(b.id)) {
+        spots.push({ key: `r${b.id}`, at: b.researchBox.middle, cost: sim.starBlocked(b.id) ? null : sim.nextStar(b.id).Cost });
+      }
+    }
+    for (const { key, at, cost } of spots) {
+      let el = this.padTags.get(key);
+      if (cost == null) { if (el) el.style.display = 'none'; continue; }
       if (!el) {
         el = document.createElement('div');
         el.className = 'tag price';
         el.innerHTML = `<img src="${this.ui.url('common_money_icon_01')}" alt=""><span></span>`;
         this.tags.appendChild(el);
-        this.padTags.set(b.id, el);
+        this.padTags.set(key, el);
       }
-      v.set(b.pad.center.x, 0.2, b.pad.center.z).project(this.camera);
+      v.set(at.x, 0.2, at.z).project(this.camera);
       const off = v.z > 1 || Math.abs(v.x) > 1.2 || Math.abs(v.y) > 1.2;
       el.style.display = off ? 'none' : 'flex';
       if (off) continue;
       el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -50%)`;
-      const left = b.cost - (this.sim.state.paid[b.id] || 0);
+      const left = cost - (sim.state.paid[key] || 0);
       const span = el.lastChild;
       const s = fmt(left);
       if (span.textContent !== s) span.textContent = s;

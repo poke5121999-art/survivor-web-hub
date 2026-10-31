@@ -1038,7 +1038,7 @@ window.HUB_GAMES = [
     en: { title: "Lumber Inc", tagline: "Chop trees, debark and square the logs, then sell to the trucks to grow your sawmill.", desc: "Lumber Inc (Seikami) remade from the Android 0.6.5 release, running straight in the browser on the original assets. Grab the startup cash, unlock the peeler and the forest gate, stand by a tree to chop it, feed logs to the machine for money, take the peeled logs to the squarer and stack the squares for the trucks. Pads, prices, machine times and truck loads follow the original rules. Drag to walk, saved in the browser." },
     thumbnail: "assets/thumbnails/lumber-inc.png",
     path: "games/lumber-inc/index.html",
-    rev: "20261031a",
+    rev: "20261031b",
     // three.js r160 vendor, no build step; map 1 rebuilt from the APK (D:/lumber-ref) by games/lumber-inc/tools.
     // Bump rev with: node games/lumber-inc/tools/stamp.js <rev>. Kiểm: node test/lumber-inc-sim.js, test/lumber-inc-play.js.
     status: "available",

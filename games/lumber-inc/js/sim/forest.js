@@ -41,17 +41,43 @@ export class Forest {
   }
 
   // One swing (the chop clip's EvtGetWood event): damage every choppable tree in reach.
-  swing(p, dmg, forestOpen, events) {
-    for (const t of this.choppable(p, forestOpen)) {
-      t.hp -= dmg;
-      events.push({ type: 'treeHit', tree: t.i });
-      if (t.hp <= 0) {
-        t.state = TREE.FALLING;
-        t.timer = FALL_SEC;
-        t.chopper = p;
-        events.push({ type: 'treeFall', tree: t.i });
-      }
+  swing(p, dmg, forestOpen, events, chopper) {
+    for (const t of this.choppable(p, forestOpen)) this.hit(t, dmg, chopper, events);
+  }
+
+  hit(t, dmg, chopper, events) {
+    if (t.state !== TREE.STAND) return;
+    t.hp -= dmg;
+    events.push({ type: 'treeHit', tree: t.i });
+    if (t.hp <= 0) {
+      t.state = TREE.FALLING;
+      t.timer = FALL_SEC;
+      t.chopper = chopper;
+      events.push({ type: 'treeFall', tree: t.i });
     }
+  }
+
+  // FarmMgr.GetNearestAvailableTree + ShowChopDesire: a worker books the nearest standing tree nobody else booked.
+  reserve(w, forestId) {
+    let best = null, bd = Infinity;
+    for (const t of this.trees) {
+      if (t.state !== TREE.STAND || t.forest !== forestId || (t.res && t.res !== w)) continue;
+      const d = (t.pos.x - w.x) ** 2 + (t.pos.z - w.z) ** 2;
+      if (d < bd) { bd = d; best = t; }
+    }
+    this.release(w);
+    if (best) best.res = w;
+    return best;
+  }
+
+  release(w) {
+    for (const t of this.trees) if (t.res === w) t.res = null;
+  }
+
+  pickupTree(t, room) {
+    const n = Math.min(room, t.ground);
+    t.ground -= n;
+    return n;
   }
 
   // Advances falls and regrowth. give(tree, n) hands logs to the tree's chopper and returns how many it took.

@@ -8,6 +8,8 @@ import { Props } from './view/props.js';
 import { GameView } from './view/game.js';
 import { UI } from './view/ui.js';
 import { Hud } from './view/hud.js';
+import { Sound } from './view/sound.js';
+import { HirePanel, UpgradePanel, StarPanel } from './view/panels.js';
 import { describeWorld } from './sim/world.js';
 import { Mover } from './sim/move.js';
 import { Sim } from './sim/sim.js';
@@ -66,6 +68,8 @@ try {
 
 async function start() {
   const uiP = Promise.all([json(`${ART}/ui/sprites.json`), json(`${ART}/ui/lang-en.json`), json(`${ART}/ui/panels/gamingpanel.json`),
+    json(`${ART}/ui/panels/employeeupgradepanel.json`), json(`${ART}/ui/panels/skinpanel.json`),
+    json(`${ART}/ui/panels/upgradebuildingstarpanel.json`),
     document.fonts.load('20px LumberUI').catch(() => null)]);
   const [config, worldJson, worldGlb] = await Promise.all([
     json(`${BASE}data/config.json`), json(`${ART}/world1/scene.json`), glb(`${ART}/world1/geo.glb`)]);
@@ -98,17 +102,31 @@ async function start() {
   setStage(4, 'animation');
 
   const pad = worldJson.materials.find(m => m.gizmo && m.gizmo.kind === 'SizableFrameLocked2');
-  const game = new GameView({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo: pad.gizmo });
+  const game = new GameView({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo: pad.gizmo, chars, lib });
   game.syncStatus();
   const mover = new Mover(world);
   const shown = i => {
     for (let j = i; j >= 0; j = world.nodes[j].p) if (!view.objects[j].visible) return false;
     return true;
   };
+  sim.mover = mover;
+  sim.shown = shown;
 
-  const [sprites, lang, gaming] = await uiP;
+  const sound = new Sound(`${ART}/sfx`, await json(`${ART}/sfx/sfx.json`));
+  const [sprites, lang, gaming, empPanel, skinPanel, starPanel] = await uiP;
   const ui = new UI(`${ART}/ui`, sprites, lang);
   const hud = new Hud(hudEl, ui, { gamingpanel: gaming }, sim, world, camera);
+  // Standing in a hut's or the cabin's trigger opens its panel (EmployeeHouseCtrller / PlayerHouseCtrller show trigger).
+  const hire = new HirePanel(hudEl, ui, empPanel, sim);
+  const upgrade = new UpgradePanel(hudEl, ui, skinPanel, sim);
+  // A star paid on a research frame opens the machine choice.
+  const star = new StarPanel(hudEl, ui, starPanel, sim);
+  const panels = [hire, upgrade, star];
+  const onZone = z => {
+    if (!z) return;
+    if (z.kind === 'employeeHouse') hire.open(z.id);
+    else if (z.kind === 'playerHouse') upgrade.open();
+  };
   hud.onZoom = () => { zoomIndex = (zoomIndex + 1) % 3; };
   LI.setZoom = i => { zoomIndex = i; };
 
@@ -154,14 +172,22 @@ async function start() {
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000) * (LI.speed || 1);
     last = now;
-    const mv = input();
+    // An open panel holds the player: no walking, and no paying into the pad or frame underfoot.
+    const busy = panels.some(pnl => pnl.isOpen);
+    const mv = busy ? null : input();
     if (mv) {
       mover.step(p, mv.x * sim.speed * dt, mv.z * sim.speed * dt, shown);
       p.dir = Math.atan2(mv.x, mv.z);
     }
-    sim.tick(dt, !!mv);
+    sim.tick(dt, !!mv || busy);
     if (sim.events.some(e => e.type === 'status')) game.syncStatus();
     LI.events && LI.events.push(...sim.events);
+    sound.events(sim.events, now / 1000);
+    for (const e of sim.events) {
+      if (e.type === 'zone') onZone(e.zone);
+      else if (e.type === 'star') star.open(e.id);
+    }
+    for (const pnl of panels) if (pnl.isOpen) pnl.update();
     sim.events.length = 0;
     if (mv) rig.playRole('run');
     else if (sim.chopping) rig.playChop('chopWood');
@@ -178,7 +204,7 @@ async function start() {
     hud.update();
     requestAnimationFrame(frame);
   }
-  Object.assign(LI, { sim, world, game, hud, persist, ready: true });
+  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, ready: true });
   setStage(0, 'ready');
   requestAnimationFrame(frame);
 

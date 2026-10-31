@@ -108,6 +108,15 @@ export function describeWorld(scene) {
         b.showNode = ref(c.m_TriggerShow);
         b.showBox = volume(b.showNode);
       }
+      // Research ("Modify") frame: the Pre_LockFrame under m_TransResearchRoot opens UpgradeBuildingStarPanel.
+      const rr = ref(c.m_TransResearchRoot);
+      if (rr != null) {
+        const f = [rr, ...descendants(rr)].find(j => nodes[j].n === 'Pre_LockFrame');
+        b.researchNode = rr;
+        // The frame quad lies on the floor (rotated about X), so a 1.25 m circle around it stands in for its trigger.
+        const c = f != null ? pos(f) : null;
+        b.researchBox = c && { middle: c, contains(p, r = 0) { return (p.x - c.x) ** 2 + (p.z - c.z) ** 2 <= (1.25 + r) ** 2; } };
+      }
       buildings.set(b.id, b);
     }
   });

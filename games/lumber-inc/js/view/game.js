@@ -6,14 +6,18 @@ import { frameMaterial } from './lowpoly.js';
 import { Pile } from './props.js';
 import { TREE } from '../sim/forest.js';
 import { pathAt } from '../sim/sim.js';
+import { clone as skClone } from '../../vendor/SkeletonUtils.js';
+import { Rig } from './anim.js';
 
 // Height of one item on a stack (ItemConf BackPosOffset y, rules/chop-carry.md C6).
 const STEP_Y = { 10: 0.5, 101: 0.5, 102: 0.35, 1: 0.12 };
 const TRUCKS = ['Pre_Car_Truck1', 'Pre_Car_Truck2', 'Pre_Car_Truck3'];
 
 export class GameView {
-  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo }) {
-    Object.assign(this, { scene3, view, world, sim, props, playerObj, rig, tool });
+  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo, chars, lib }) {
+    Object.assign(this, { scene3, view, world, sim, props, playerObj, rig, tool, lib });
+    this.charTemplates = new Map((chars ? chars.root.children : []).map(o => [o.name, o]));
+    this.workerViews = new Map();
     const W = new THREE.Vector3();
     this.worldPos = i => view.objects[i].getWorldPosition(W.clone());
 
@@ -85,6 +89,65 @@ export class GameView {
     }
   }
 
+  // Items on a back point, rebuilt only when the pack changes (RoleBackpackComponent.SetObjectToPack).
+  stack(group, shown, items) {
+    if (items.length === shown.length && items.every((t, i) => shown[i].type === t)) return shown;
+    shown.forEach(o => group.remove(o.obj));
+    let y = 0;
+    return items.map(type => {
+      const obj = this.props.item(type) || new THREE.Group();
+      obj.position.set(0, y, 0);
+      obj.rotation.y = Math.PI / 2;
+      y += STEP_Y[type] || 0.4;
+      group.add(obj);
+      return { type, obj };
+    });
+  }
+
+  // Hired workers: a clone of their EmployeeConf prefab (or the nearest exported look-alike) with its own rig.
+  workerView(w) {
+    let v = this.workerViews.get(w);
+    if (v) return v;
+    const pool = w.kind === 'carrier' ? ['Pre_Carrier001', 'Pre_Carrier002'] : ['Pre_Timber001', 'Pre_Timber002', 'Pre_Timber003', 'Pre_Timber004'];
+    const name = this.charTemplates.has(w.prefab) ? w.prefab : pool[w.index % pool.length];
+    const src = this.charTemplates.get(name);
+    if (!src) return null;
+    const obj = skClone(src);
+    obj.position.set(0, 0, 0);
+    obj.visible = true;
+    this.scene3.add(obj);
+    let animObj = obj;
+    obj.traverse(o => { if (animObj === obj && o.userData.node && o.userData.node.k && o.userData.node.k.Animator) animObj = o; });
+    const rig = new Rig(this.lib, animObj, this.lib.role(name));
+    const back = new THREE.Group();
+    back.position.set(0, 1.0, 0.42);
+    obj.add(back);
+    let tool = null;
+    const hand = obj.getObjectByName('+ R Hand');
+    if (w.kind === 'timber' && hand && this.tool) {
+      tool = this.tool.clone(true);
+      hand.add(tool);
+    }
+    v = { obj, rig, back, items: [], tool };
+    this.workerViews.set(w, v);
+    return v;
+  }
+
+  updateWorkers(dt) {
+    for (const w of this.sim.crew.workers) {
+      const v = this.workerView(w);
+      if (!v) continue;
+      v.obj.position.set(w.x, 0, w.z);
+      v.obj.rotation.y = w.dir + Math.PI;
+      if (w.moving) v.rig.playRole('run');
+      else if (w.chopping) v.rig.playChop('chopWood');
+      else v.rig.playRole('idle');
+      v.rig.update(dt);
+      if (v.tool) v.tool.visible = w.chopping;
+      v.items = this.stack(v.back, v.items, w.pack.items);
+    }
+  }
+
   update(dt) {
     const sim = this.sim, S = sim.state;
     for (const [id, pad] of this.pads) {
@@ -115,20 +178,8 @@ export class GameView {
       }
     });
 
-    // Back stack: rebuild only when the pack changes.
-    const items = sim.pack.items;
-    if (items.length !== this.backItems.length || items.some((t, i) => this.backItems[i].type !== t)) {
-      this.backItems.forEach(o => this.back.remove(o.obj));
-      let y = 0;
-      this.backItems = items.map(type => {
-        const obj = this.props.item(type) || new THREE.Group();
-        obj.position.set(0, y, 0);
-        obj.rotation.y = Math.PI / 2;
-        y += STEP_Y[type] || 0.4;
-        this.back.add(obj);
-        return { type, obj };
-      });
-    }
+    this.backItems = this.stack(this.back, this.backItems, sim.pack.items);
+    this.updateWorkers(dt);
 
     for (const [key, pile] of this.piles) {
       const [id, kind] = key.split(':');

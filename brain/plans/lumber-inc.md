@@ -19,10 +19,10 @@ Mọi công trình kế thừa `BuildingCtrller`: id, lockRoot/activeRoot, ô tr
 1. [x] Tải, bóc, dump IL2CPP, giải catalog.
 2. [x] `tools/export_world.py world1` (sửa từ export_store của casual-farm, thêm splat): 4573 node, geo.glb 2,7 MB.
 3. [x] `tools/export_data.py`: data/config.json (61 bảng), data/lang-en.json.
-4. [ ] Nhân vật + hoạt ảnh (Animancer, RoleAnimSO) -> art/chars, art/props, art/anim.
-5. [ ] UI sprite + layout panel, font, tiếng -> art/ui, art/sfx.
-6. [ ] Decompile Ghidra phần GameWish.* -> luật chơi có dẫn nguồn.
-7. [ ] Sim thuần JS: công trình (ẩn -> chờ mở -> đang chạy), cây, chặt, ba lô, máy, xe tải, tiền, nhân viên, nâng cấp, hướng dẫn, cấp người chơi, lưu.
-8. [ ] View: thế giới, nhân vật, chồng gỗ, ô trả tiền, HUD, panel nâng cấp; khung dọc 750:1334.
-9. [ ] Test trình duyệt thật (bot chơi: chặt -> kho -> máy -> xe tải -> tiền -> mở máy), thẻ hub, deploy, chơi thử trên Pages.
-10. [ ] Sau mốc đầu: thị trấn xây nhà, map 2-3, nghiên cứu, quản lý, cửa hàng.
+4. [x] Nhân vật + hoạt ảnh (Animancer, RoleAnimSO) -> art/chars, art/props, art/anim.
+5. [x] UI sprite + layout panel, font, tiếng -> art/ui, art/sfx.
+6. [x] Decompile Ghidra phần GameWish.* -> luật chơi có dẫn nguồn (D:/lumber-ref/rules).
+7. [x] Sim thuần JS: công trình, cây, chặt, ba lô, máy, xe tải, tiền, thợ, nâng người chơi, nhiệm vụ, cấp, sao nghiên cứu, lưu.
+8. [x] View: thế giới, nhân vật, chồng gỗ, ô trả tiền, HUD, bảng thuê thợ / nâng người chơi / chọn máy; khung dọc 750:1334.
+9. [x] Thẻ hub, deploy (108b9de2, rev 20261031a), test Pages 14/14. Rev 20261031b thêm bảng thuê, bảng nâng, sao nghiên cứu.
+10. [ ] Sau mốc đầu: đổi model máy theo sao (NewPrefab), mở lại bảng chọn máy ở trigger show của nhà máy, tiền bay, mũi tên hướng dẫn, thợ xây và thị trấn, map 2-3, cửa hàng.

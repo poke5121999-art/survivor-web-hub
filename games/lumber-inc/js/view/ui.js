@@ -38,6 +38,22 @@ export class UI {
     return out;
   }
 
+  // Builds one node of a prefab (and its children) at its own size inside `host` (a box that is already in the DOM), for
+  // list-item templates. `name` is a node name or a path suffix. Returns {root, get, byName, els, find} like panel().
+  instance(pj, prefab, name, host, opts = {}) {
+    const nodes = pj.prefabs[prefab || pj.main];
+    const i = nodes.findIndex(n => n.name === name || n.path.endsWith(`/${name}`));
+    if (i < 0) throw new Error(`prefab node ${name} not found`);
+    const sd = nodes[i].rect.sizeDelta;
+    const b = { x: 0, y: 0, w: sd[0], h: sd[1] };
+    const out = { nodes, els: new Map(), byName: new Map(), fits: [] };
+    out.root = this.build(nodes, i, host, b, b, out, new Set(opts.hide || []), new Set(opts.show || []));
+    out.fits.forEach(([el, n]) => this.fit(el, n));
+    out.get = n => (out.byName.get(n) || [])[0];
+    out.find = path => [...out.els.values()].find(el => el.dataset.path.endsWith(path));
+    return out;
+  }
+
   box(n, p) {
     const r = n.rect, amin = r.anchorMin, amax = r.anchorMax, ap = r.anchoredPosition, sd = r.sizeDelta, pv = r.pivot;
     const w = (amax[0] - amin[0]) * p.w + sd[0], h = (amax[1] - amin[1]) * p.h + sd[1];
@@ -73,33 +89,46 @@ export class UI {
     return res;
   }
 
+  // The sprite goes on its own layer (el._skin) under the node's children: in uGUI an Image's color alpha, 9-slice
+  // border and fill amount touch that image only, while a CSS border or opacity on el would shift and fade the children.
   sprite(el, im) {
     const s = this.SPR[im.sprite];
     if (!s) return;
     const url = this.url(im.sprite);
     const tint = im.color;
     const white = tint[0] === 1 && tint[1] === 1 && tint[2] === 1;
-    el.style.opacity = tint[3];
+    const k = el._skin || el.insertBefore(document.createElement('div'), el.firstChild);
+    el._skin = k;
+    k.className = 'skin';
+    k.style.cssText = `position:absolute;inset:0;box-sizing:border-box;pointer-events:none;opacity:${tint[3]}`;
     const bl = s.border;
     if (im.type === 'sliced' && (bl[0] || bl[1] || bl[2] || bl[3])) {
       const [l, bo, r, t] = bl;
-      el.style.borderStyle = 'solid';
-      el.style.borderColor = 'transparent';
-      el.style.borderImage = `url("${url}") ${t} ${r} ${bo} ${l} fill / ${t}px ${r}px ${bo}px ${l}px stretch`;
-      el.style.borderWidth = `${t}px ${r}px ${bo}px ${l}px`;
+      k.style.borderStyle = 'solid';
+      k.style.borderColor = 'transparent';
+      k.style.borderImage = `url("${url}") ${t} ${r} ${bo} ${l} fill / ${t}px ${r}px ${bo}px ${l}px stretch`;
+      k.style.borderWidth = `${t}px ${r}px ${bo}px ${l}px`;
     } else {
-      el.style.backgroundImage = `url("${url}")`;
-      el.style.backgroundSize = '100% 100%';
+      k.style.backgroundImage = `url("${url}")`;
+      k.style.backgroundSize = '100% 100%';
     }
-    if (!white) el.style.filter = `drop-shadow(0 0 0 transparent)`;
     if (!white) {
-      el.style.backgroundColor = col([tint[0], tint[1], tint[2], 1]);
-      el.style.backgroundBlendMode = 'multiply';
-      el.style.webkitMaskImage = `url("${url}")`;
-      el.style.webkitMaskSize = '100% 100%';
-      el.style.maskImage = `url("${url}")`;
-      el.style.maskSize = '100% 100%';
+      k.style.backgroundColor = col([tint[0], tint[1], tint[2], 1]);
+      k.style.backgroundBlendMode = 'multiply';
+      k.style.webkitMaskImage = `url("${url}")`;
+      k.style.webkitMaskSize = '100% 100%';
+      k.style.maskImage = `url("${url}")`;
+      k.style.maskSize = '100% 100%';
     }
+    if (im.type === 'filled' && im.fillMethod === 'horizontal') k.style.clipPath = `inset(0 ${(1 - im.fillAmount) * 100}% 0 0)`;
+  }
+
+  // Swaps the sprite of a node built with an Image (keeps its tint and type); no name hides it.
+  setSprite(el, name) {
+    if (!el) return;
+    const im = el._node && el._node.image;
+    if (!name || !this.SPR[name] || !im) { if (el._skin) el._skin.style.display = 'none'; return; }
+    this.sprite(el, { ...im, sprite: name });
   }
 
   fit(el, n) {
@@ -135,7 +164,6 @@ export class UI {
     const im = n.image;
     if (im && im.sprite && im.enabled !== false) {
       this.sprite(el, im);
-      if (im.type === 'filled' && im.fillMethod === 'horizontal') el.style.clipPath = `inset(0 ${(1 - im.fillAmount) * 100}% 0 0)`;
     } else if (im && !im.sprite && im.color[3] > 0 && im.enabled !== false && !im.rawTexture) {
       el.style.backgroundColor = col(im.color);
     }
@@ -198,6 +226,9 @@ export class UI {
 
 // Slider fill (anchorMax.x = value) on an element built from a node with a slider.
 export function setSlider(el, v) {
+  // Unity's Slider drives the fill rect's anchorMax.x; here the fill spans its Fill Area from the left edge.
   const fill = el.querySelector('[data-name="Fill"]');
-  if (fill) fill.style.width = `${Math.max(0, Math.min(1, v)) * 100}%`;
+  if (!fill) return;
+  Object.assign(fill.style, { left: '0', top: '0', height: '100%', width: `${Math.max(0, Math.min(1, v)) * 100}%` });
+  fill.style.display = v > 0.001 ? '' : 'none';
 }
