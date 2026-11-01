@@ -258,7 +258,8 @@ def material_ref(path):
         S.mat_groups[key].add(S.group)
         return key
     docs = read_yaml(path)
-    doc = next(iter(docs.values()), None)
+    # URP materials put an AssetVersion MonoBehaviour before the Material document
+    doc = next((x for x in docs.values() if x.cls == 21), None)
     if not doc:
         return None
     d = doc.d
@@ -276,15 +277,22 @@ def material_ref(path):
     if lit:
         # the shader hard-codes its blend state, so the material's leftover _SrcBlend/_DstBlend are not used
         out["src"], out["dst"] = lit
+    real = APK_MATERIAL_SHADER.get(key)
+    if real:
+        out["shader"] = real
+        if real in APK_SHADER_BLEND:
+            out["src"], out["dst"] = APK_SHADER_BLEND[real]
     kw = d.get("m_ValidKeywords") or d.get("m_ShaderKeywords") or []
     if isinstance(kw, str):
         kw = kw.split()
     if kw:
         out["kw"] = kw
-    for tn in ("_MainTex", "_BaseMap"):
+    for tn in ("_MainTex", "_BaseMap", "_Texture2D"):
         t = texs.get(tn) or {}
         ref = t.get("m_Texture") or {}
-        if ref.get("guid") and ref["guid"] in G2P:
+        if not ref.get("guid"):
+            continue
+        if ref["guid"] in G2P:
             tp = G2P[ref["guid"]]
             if tp.lower().endswith((".png", ".jpg", ".tga")) and "SDF" not in tp:
                 out["_texpath"] = tp
@@ -312,6 +320,23 @@ def material_ref(path):
 
 _shader_cache = {}
 _shader_blend = {}
+
+# The rip points these materials at Sprites/Default or at a fake shader; the shaders the APK build really uses
+# (data.unity3d, Material.m_Shader -> Shader.m_ParsedForm.m_Name) and their hard-coded blend (rtBlend0), measured
+# 2026-10-31 with UnityPy. Sprites/Default premultiplies in the fragment (One/OneMinusSrcAlpha) = straight alpha.
+APK_SHADER_BLEND = {"Mobile/Particles/Additive": (5, 1), "Mobile/Particles/Alpha Blended": (5, 10),
+                    "Sprites/Default": (5, 10), "Shader Graphs/Particles": (5, 1), "Custom/UI/Flash": (5, 1),
+                    "Custom/UI/Additive": (5, 1)}
+APK_MATERIAL_SHADER = {"particle_circle": "Mobile/Particles/Additive", "particle_impact": "Mobile/Particles/Additive",
+                       "particle_bubble": "Mobile/Particles/Additive", "particle_spark": "Sprites/Default",
+                       "particle_missile_spark": "Sprites/Default", "particle_missile_bomb": "Sprites/Default",
+                       "particle_health": "Shader Graphs/Particles", "particle_skull": "Shader Graphs/Particles",
+                       "particle_blood": "Universal Render Pipeline/Particles/Unlit",
+                       "UIParticleReward": "Universal Render Pipeline/Particles/Unlit",
+                       "UIParticleSleep": "Custom/UI/Flash", "UIFlash": "Custom/UI/Flash"}
+APK_MATERIAL_SHADER.update({"particle_death_" + k: "Mobile/Particles/Alpha Blended" for k in (
+    "ananas", "apple", "banana", "broccoli", "burger", "croissant", "donut", "dummy", "maki", "melon", "pepper",
+    "pickle", "pizza", "potato", "pumpkin", "steak", "tomato")})
 BLEND_NAMES = {"Zero": 0, "One": 1, "DstColor": 2, "SrcColor": 3, "OneMinusDstColor": 4, "SrcAlpha": 5,
                "OneMinusSrcColor": 6, "DstAlpha": 7, "OneMinusDstAlpha": 8, "SrcAlphaSaturate": 9, "OneMinusSrcAlpha": 10}
 
@@ -577,7 +602,7 @@ def conv_ps(ctx, d, rnd_doc):
     if ini.get("rotation3D"):
         out["main"]["rot3d"] = [mmc(ini.get("startRotationX")), mmc(ini.get("startRotationY")), mmc(ini.get("startRotation"))]
     used = []
-    if on("EmissionModule"):
+    if isinstance(d.get("EmissionModule"), dict):
         e = d["EmissionModule"]
         bursts = []
         for b in e.get("m_Bursts") or []:
@@ -585,7 +610,8 @@ def conv_ps(ctx, d, rnd_doc):
                            {"m": 3, "s": b.get("maxCount", 0), "mn": b.get("minCount", 0)},
                            "cycles": b.get("cycleCount", 1), "interval": rnd(b.get("repeatInterval", 0.01)),
                            "p": rnd(b.get("probability", 1))})
-        out["emission"] = {"rate": mmc(e.get("rateOverTime")), "dist": mmc(e.get("rateOverDistance")), "bursts": bursts}
+        out["emission"] = {"on": e.get("enabled", 0), "rate": mmc(e.get("rateOverTime")),
+                           "dist": mmc(e.get("rateOverDistance")), "bursts": bursts}
         used.append("emission")
     if on("ShapeModule"):
         s = d["ShapeModule"]
@@ -606,7 +632,9 @@ def conv_ps(ctx, d, rnd_doc):
     if on("ClampVelocityModule"):
         v = d["ClampVelocityModule"]
         out["limit"] = {"v": mmc(v.get("magnitude")), "damp": rnd(v.get("dampen", 0)), "drag": mmc(v.get("drag")),
-                        "separate": v.get("separateAxis", 0), "world": v.get("inWorldSpace", 0)}
+                        "separate": v.get("separateAxis", 0), "world": v.get("inWorldSpace", 0),
+                        "dragSize": v.get("multiplyDragByParticleSize", 1),
+                        "dragVel": v.get("multiplyDragByParticleVelocity", 1)}
         used.append("limit")
     if on("ForceModule"):
         v = d["ForceModule"]
@@ -653,7 +681,8 @@ def conv_ps(ctx, d, rnd_doc):
         out["coll"] = {"type": c.get("type", 0), "dampen": mmc(c.get("m_Dampen")), "bounce": mmc(c.get("m_Bounce")),
                        "lifetimeLoss": mmc(c.get("m_EnergyLossOnCollision")), "minKill": rnd(c.get("minKillSpeed", 0)),
                        "radius": rnd(c.get("radiusScale", 1)), "planes": [ctx.ref(p) for p in c.get("m_Planes") or []],
-                       "mode": c.get("collisionMode", 0)}
+                       "mode": c.get("collisionMode", 0), "mask": (c.get("collidesWith") or {}).get("m_Bits", -1),
+                       "maxKill": rnd(c.get("maxKillSpeed", 10000))}
         used.append("coll")
     if on("SubModule"):
         out["sub"] = [{"ps": ctx.ref(s.get("emitter")), "type": s.get("type", 0), "props": s.get("properties", 0),

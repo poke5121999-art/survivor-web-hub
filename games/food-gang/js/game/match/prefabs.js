@@ -39,10 +39,15 @@ export class PrefabPool {
   }
 
   // stop emitting now, remove once the last particles had time to fade (Destroy(go, 2f) after StopEmitting)
-  softDestroy(inst, delay = 2) {
+  // QuantumBulletView.SoftDestroySmoke: Stop(StopEmitting) then Destroy(go, duration + startLifetime)
+  softDestroy(inst) {
     if (!inst) return;
-    for (const ps of inst.root.inChildren('ParticleSystem')) if (ps.runtime) ps.runtime.stop(false);
-    this.fx.push({ inst, die: this.engine.time + delay });
+    let delay = 0;
+    for (const ps of inst.root.inChildren('ParticleSystem')) {
+      if (ps.runtime) ps.runtime.stop(false);
+      delay = Math.max(delay, (ps.dur || 0) + maxOf(ps.main && ps.main.life));
+    }
+    this.fx.push({ inst, die: this.engine.time + (delay || 2) });
   }
 
   clear() {
@@ -51,9 +56,13 @@ export class PrefabPool {
   }
 }
 
+const maxOf = (c) => (c ? (c.m === 0 ? c.s : c.m === 3 ? Math.max(c.s, c.mn) : c.s) : 0);
+
 function lifetime(inst) {
+  // DestroyAfterDelay (every Fx_hit_* / Fx_death_* root) despawns the FX at m_delay, whatever its particles do
+  const dad = inst.root.script && inst.root.script('DestroyAfterDelay');
+  if (dad && dad.fields && dad.fields.m_delay > 0) return dad.fields.m_delay;
   let t = 0.5;
-  const maxOf = (c) => (c ? (c.m === 0 ? c.s : c.m === 3 ? Math.max(c.s, c.mn) : c.s) : 0);
   for (const ps of inst.root.inChildren('ParticleSystem')) {
     if (ps.loop) continue;
     t = Math.max(t, (ps.dur || 0) + maxOf(ps.main && ps.main.life) + maxOf(ps.delay));

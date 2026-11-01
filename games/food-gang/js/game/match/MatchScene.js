@@ -8,6 +8,9 @@ import { Hud } from './Hud.js';
 import { T } from '../text.js';
 
 const TARGET_OFFSET_Y = 1.5;
+// CinemachineGroupManager.AspectBaseDistance: 20 at 16:9 and wider, pulled back 16.5 per unit of aspect below 16:9
+const aspectBaseDistance = (aspect) => 20 + Math.max(0, 16 / 9 - aspect) * 16.5;
+const easeOutCubic = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 const MODE_TEXT = {
   [GoalType.DeathMatch]: ['mission.dm.ffa', 'mission.dm.2vs2'],
   [GoalType.Kill5]: ['mission.kill.ffa', 'mission.kill.2vs2'],
@@ -15,6 +18,8 @@ const MODE_TEXT = {
   [GoalType.KillBoss]: ['mission.killboss.1vs3', 'mission.killboss.1vs3'],
 };
 
+// building a scene is synchronous: one per frame keeps the loading spinner turning (rAF, or 50 ms in a hidden tab)
+const nextFrame = () => new Promise((res) => { const t = setTimeout(res, 50); requestAnimationFrame(() => { clearTimeout(t); res(); }); });
 const wait = (engine, s) => new Promise((res) => { const end = engine.realTime + s; const f = () => { if (engine.realTime >= end) res(); else setTimeout(f, 16); }; f(); });
 
 export class MatchScene {
@@ -40,7 +45,7 @@ export class MatchScene {
     // map + HUD scenes, then every prefab this match can spawn (atlases of this map only)
     const prefabNames = app.viewDb.prefabsFor(db, skinIdx);
     const [mapInst, gameInst] = await Promise.all([engine.assets.scene(mapName), engine.assets.scene('SceneGame'), app.prefabs.preload(prefabNames)])
-      .then(async () => [await engine.loadScene(mapName), await engine.loadScene('SceneGame')]);
+      .then(async () => { const m = await engine.loadScene(mapName); await nextFrame(); const g = await engine.loadScene('SceneGame'); await nextFrame(); return [m, g]; });
     this.mapInst = mapInst; this.gameInst = gameInst;
     app.audio.preload(app.viewDb.sfxKeysFor(db, skinIdx));
 
@@ -69,8 +74,11 @@ export class MatchScene {
     this.hudRoot = gameInst.root;
     this.camTarget = gameInst.root.find('CameraTargetGroup');
     this.composer = engine.cine ? engine.cine.comp : null;
-    this.baseDistance = this.composer ? this.composer.distance || 20 : 20;
-    this.distanceExtra = 0;
+    // HandleEnableGameQuantum: the boss player sees 5 units further
+    const me = runner.localAgent;
+    this.distanceExtra = req.goal === GoalType.KillBoss && me && me.isBoss ? 5 : 0;
+    this.introExtra = 0;
+    this.camIntro = null;
     if (engine.cine && this.camTarget) engine.cine.setFollow(this.camTarget);
     this.updateCamera(0);
     if (engine.cine) engine.cine.pos = null;
@@ -127,27 +135,53 @@ export class MatchScene {
 
   stageName() { return T('stage.' + this.app.simDb.maps[this.req.mapIndex].stageId); }
 
-  // versus screen -> READY? -> BATTLE! (GameController.DisplayReady / DisplayStart)
-  // searching: the bots' cells spin until BotFillAt (1 s) like the lobby of the clip, then the VS screen
-  async runStart(intro = true, searching = false) {
+  // versus screen -> READY? -> BATTLE! (QuantumGameStartSequence.RunStartSequence): the VS panel goes off at the intro
+  // frame, READY at +1.5 s, BATTLE! and the sim start at +2.5 s, BATTLE! off at +3 s; the camera intro runs meanwhile.
+  // searching: the bots' cells spin until BotFillAt (1 s) like the lobby of the clip, then the VS screen.
+  // intro false (URL &intro=0, test runs): no VS, no countdown, the match starts at once.
+  async runStart(intro = true, searching = false, tutorial = false) {
     const { engine, hud, app } = this;
     this.phase = 'intro';
     app.audio.playMusic('Music', 0.45);
-    if (intro) {
+    if (intro && !tutorial) {
       hud.showVersus(this.names, this.modeLabel(), this.stageName(), searching);
       if (searching) { this.phase = 'searching'; await wait(engine, 1.0); hud.revealVersus(); this.phase = 'intro'; }
       await wait(engine, 2.2);
-      hud.hideVersus();
+    }
+    hud.hideVersus();
+    if (intro) {
+      this.startCameraIntro();
+      await wait(engine, 1.5);
       hud.displayReady();
       await wait(engine, 1.0);
-    } else hud.hideVersus();
+    }
     hud.displayStart();
     this.runner.start();
     this.phase = 'match';
     if (this.tutorial) this.updateTutoText();
     this.startedAt = engine.realTime;
-    await wait(engine, 1.0);
+    await wait(engine, intro ? 0.5 : 1.0);
     if (this.phase === 'match') hud.hideStart();
+  }
+
+  // CinemachineGroupManager.HandleEnableGameQuantum. FFA (FFACameraIntro): 10 units further back until +1.5 s, then in
+  // to the player over 1 s. Teams (ScrollToPlayerQuantum) and the tutorial (TutorialCameraIntroQuantum): the follow
+  // target jumps to an opponent (the right-most dummy in the tutorial), waits until +2 s, then scrolls to the player over
+  // 1.5 s; both ease 1 - (1 - t)^3 and the composer damping smooths the jump.
+  startCameraIntro() {
+    const r = this.runner, s = r.state, me = r.localAgent;
+    if (!me) return;
+    if (this.tutorial || s.teams !== TeamConfig.FreeForAll) {
+      let from = null;
+      if (this.tutorial) { for (const a of s.agents) if (a.isDummy && (!from || a.pos.x > from.x)) from = a.pos; }
+      // [ĐỀ XUẤT] which opponent the original starts on is not readable in the decompile: the nearest one
+      else for (const a of s.agents) if (a.team !== me.team && a.slot >= 0 && (!from || Math.abs(a.pos.x - me.pos.x) < Math.abs(from.x - me.pos.x))) from = a.pos;
+      const fx = from ? from.x : me.pos.x + (me.pos.x < 0 ? 15 : -15), fy = from ? from.y : me.pos.y;
+      this.camIntro = { kind: 'scroll', from: [fx, fy + TARGET_OFFSET_Y], t: 0, wait: 2.0, dur: 1.5 };
+    } else {
+      this.camIntro = { kind: 'zoom', t: 0, wait: 1.5, dur: 1.0 };
+      this.introExtra = 10;
+    }
   }
 
   // resolves with the outcome once the end banner was shown (the app then opens SceneGameOver)
@@ -276,12 +310,21 @@ export class MatchScene {
     const p = [0, 0, 0];
     if (id >= 0 && this.camTarget) {
       r.agentPos(id, p);
-      this.camTarget.lp[0] = p[0]; this.camTarget.lp[1] = p[1] + TARGET_OFFSET_Y; this.camTarget.lp[2] = 0;
+      let tx = p[0], ty = p[1] + TARGET_OFFSET_Y;
+      const ci = this.camIntro;
+      if (ci) {
+        ci.t += this.engine.rawDt;
+        const k = easeOutCubic((ci.t - ci.wait) / ci.dur);
+        if (ci.kind === 'scroll') { tx = ci.from[0] + (tx - ci.from[0]) * k; ty = ci.from[1] + (ty - ci.from[1]) * k; }
+        else this.introExtra = 10 - 10 * k;
+        if (ci.t >= ci.wait + ci.dur) { this.camIntro = null; this.introExtra = 0; }
+      }
+      this.camTarget.lp[0] = tx; this.camTarget.lp[1] = ty; this.camTarget.lp[2] = 0;
       this.camTarget.updateWorld(null);
     }
     const c = this.engine.canvas;
     const aspect = c.height > 0 ? c.width / c.height : 16 / 9;
-    if (this.composer) this.composer.distance = this.baseDistance * Math.max(1, (16 / 9) / Math.max(0.5, aspect)) + this.distanceExtra;
+    if (this.composer) this.composer.distance = aspectBaseDistance(aspect) + this.distanceExtra + this.introExtra;
     if (this.camTarget) { this.app.audio.listener[0] = this.camTarget.lp[0]; this.app.audio.listener[1] = this.camTarget.lp[1]; }
   }
 
@@ -331,6 +374,7 @@ export class MatchScene {
   dispose() {
     const { engine, app } = this;
     for (const d of this.disposers) d();
+    if (this.hud) this.hud.dispose();
     engine.hooks.update = engine.hooks.update.filter((f) => f !== this.upd);
     engine.hooks.late = engine.hooks.late.filter((f) => f !== this.late);
     engine.pointerHooks = [];

@@ -298,7 +298,8 @@ class App {
     this.match = m;
     const ts = Number(Q.get('timescale')) || req.timeScale || 1;
     const load = async () => {
-      await m.load(req, { timeScale: ts, ...(opts.runnerOptions || {}) });
+      // runnerOptions stays one object: MatchScene.load builds the host / client runner from opts.runnerOptions
+      await m.load(req, { timeScale: ts, runnerOptions: opts.runnerOptions || null });
       if (opts.loading) opts.loading.close();
       this.closeAll();
     };
@@ -307,7 +308,7 @@ class App {
     const goPreload = opts.tutorial ? Promise.resolve() : Promise.all([engine.assets.scene('SceneGameOver'), this.prefabs.preload(['GameOverCell1', 'GameOverCell2', 'GameOverCell3'])]).catch((e) => console.error(e));
     this.screen = 'match';
     const done = m.finished();
-    await m.runStart(Q.get('intro') !== '0' && !opts.tutorial, !!opts.searching);
+    await m.runStart(Q.get('intro') !== '0', !!opts.searching, !!opts.tutorial);
     const outcome = await done;
     await goPreload;
     const now = new Date();

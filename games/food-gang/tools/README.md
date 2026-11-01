@@ -62,12 +62,12 @@ ParticleSystem (chỉ giữ module bật):
 ```
 { type:'ParticleSystem', dur, loop, prewarm, delay:MMC, playOnAwake, space:0 local|1 world, scaling, maxP, seed?,
   main:{ life:MMC, speed:MMC, size:MMC, size3d?, rot:MMC, color:MMG, gravity:MMC, flipRot },
-  emission?:{ rate:MMC, dist:MMC, bursts:[{t, n:MMC, cycles, interval, p}] },
+  emission?:{ on, rate:MMC, dist:MMC, bursts:[{t, n:MMC, cycles (0 = vô hạn), interval, p}] },   // xuất cả khi tắt: clip bật lại
   shape?:{ kind, radius, thick, angle, arc, len, box:[x,y,z], pos, rot, scale, randDir, sphereDir },
-  vel?:{ x,y,z:MMC, world, orbital?, radial? }, limit?:{ v:MMC, damp, drag? }, force?:{x,y,z,world},
+  vel?:{ x,y,z:MMC, world, orbital?, radial? }, limit?:{ v:MMC, damp, drag?, dragSize, dragVel }, force?:{x,y,z,world},
   col?:MMG, sizeL?:MMC, sizeSpeed?, rotL?:MMC, rotSpeed?:MMC, noise?:{strength, freq, scroll, damping},
   uv?:{ tiles:[x,y], mode, frame:MMC, startFrame:MMC, cycles, rowMode, row },
-  coll?:{ type, dampen, bounce, lifetimeLoss, planes },
+  coll?:{ type, mode (1 = 2D), dampen, bounce, lifetimeLoss, minKill, maxKill, radius, mask (collidesWith), planes },
   sub?: [...], r:{ mode (0 billboard,1 stretch,3 vertical...), mat, sortMode, layer, order, lenScale, velScale, minSize, maxSize, pivot } }
 MMC = { m:0|1|2|3, s:scalar, mn:minScalar, c?:curve, c2?:curveMin }   // MinMaxCurve
 MMG = { m:0..4, a:color, b:color, g?:Grad, g2?:Grad }                  // MinMaxGradient
@@ -149,7 +149,7 @@ Kiểm: `node test/food-gang-render.js` (3 map, ảnh ở `shots/food-gang/`).
 - Vòng điểm đội và nút điều khiển trong clip xanh thép, sprite bản 2.2.4 cyan: clip là bản game cũ, đừng chỉnh màu theo.
 - Shader giả trong `fg-unity/Assets/Shader` ghi cứng `Blend`: exporter đọc dòng đó thay vì `_SrcBlend/_DstBlend` còn sót
   trong material (UIFlash ghi One/Zero sẽ thành ô trắng đặc).
-- Thiếu: viền kem từng đĩa ở Dining (mặt trên đĩa bị che với camera ngang tầm, xem `docs/PLAYTEST.md`); particle collision/sub-emitter chỉ xuất chưa mô phỏng; TrailRenderer
+- Thiếu: viền kem từng đĩa ở Dining (mặt trên đĩa bị che với camera ngang tầm, xem `docs/PLAYTEST.md`); TrailRenderer
   không có trong prefab trận.
 
 ## Trận chơi được `js/game/` [ĐO TRONG REPO 2026-10-30]
@@ -279,6 +279,32 @@ So với clip (skill parity-compare, `D:/foodgang-ref/parity-ui`, tour `test/foo
 nền popup (`background_blur` của rip sáng hơn clip 1,42-1,49 lần ở dải trên; profile PostProcessMenu không có vignette), trang Fighters
 kiểu băng chuyền, lớp đen + tên chế độ trên bảng VS, menu không có panel tối bên phải.
 
+## Hiệu ứng hạt [ĐO TRONG REPO 2026-10-31] (chi tiết + bảng so clip: `docs/VFX.md`)
+Kiểm: `node test/food-gang-vfx.js` (A: luật Shuriken trong node; B: khung hình từng FX ở 3 cỡ màn; C: trận bot thời gian thật).
+- **Shader thật của material hạt nằm trong APK, không phải rip.** Rip gán `builtin:10753` (Sprites/Default) cho mọi material
+  hạt; APK `data.unity3d` cho biết impact/circle/bubble dùng `Mobile/Particles/Additive` (SrcAlpha One), mảnh chết dùng
+  `Mobile/Particles/Alpha Blended`, spark/missile dùng `Sprites/Default` (One OneMinusSrcAlpha + nhân alpha trong shader =
+  trộn alpha thường, KHÔNG cộng), heal/skull dùng `Shader Graphs/Particles` (SrcAlpha One). Bảng `APK_MATERIAL_SHADER` +
+  `APK_SHADER_BLEND` trong exporter. Bóc lại: UnityPy `Material.m_Shader.read().m_ParsedForm.m_Name`, blend ở
+  `m_SubShaders[0].m_Passes[0].m_State.rtBlend0`.
+- Bẫy: material URP có một MonoBehaviour (AssetVersion) đứng TRƯỚC tài liệu Material trong .mat: lấy tài liệu đầu là mất cả
+  texture lẫn shader (particle_blood ra ô trắng). `material_ref` chọn tài liệu lớp 21.
+- Bẫy: vòng tìm texture `_MainTex`/`_BaseMap` từng `break` ngay khi gặp ô rỗng; Shader Graph dùng `_Texture2D`.
+  Heal/skull/blood từng vẽ thành ô vuông trắng.
+- Bẫy: texture bị cắt viền trong suốt khi xếp atlas (`ox, oy, ow, oh`). Unity trải CẢ texture lên quad: dải spark 32 px trong
+  texture 128 px chỉ chiếm 1/4 quad, ô texture-sheet chia theo bề rộng gốc. `particles.js draw` cắt quad theo phần còn lại
+  (trước đó spark dày gấp 4–8, mảnh chết bị xén lệch thành nửa miếng).
+- Bẫy: `cycleCount 0` là vô hạn (khói đuôi tên lửa 5 hạt mỗi 0,01 s, tia lửa đuôi 1 mỗi 0,05 s, bụi chạy 3 mỗi 0,5 s);
+  đọc `cycles || 1` thì chỉ ra một lần. Lịch burst chạy theo giờ hệ hạt cả khi module tắt, bật lại không bắn bù.
+- Drag của Limit Velocity: `multiplyDragByParticleVelocity` bật ở mọi spark nên giảm tốc = drag × v² (phương trình kéo),
+  không phải `v *= 1 - drag·dt`: tia lửa 20 u/s dừng sau ~0,4 u thay vì bay 1,4 u.
+- Mô phỏng World + scaling Hierarchy/Local: scale transform nhân cả vị trí shape, tốc độ đầu và cỡ hạt (chết của boss ×1,5).
+- Collision World 2D: hạt là hình tròn `size/2 × radiusScale`, va BoxCollider2D của map trên layer `collidesWith` (Floor,
+  tường, kệ là layer Default; `Block` layer 1 không va). Hạt sinh ra trong collider đi xuyên như CircleCast của Unity.
+- Sub-emitter (chỉ `Fx_area_pizza_special`): kiểu 2 = Death; hệ con không tự phát, phát burst của nó tại chỗ hạt cha chết.
+- `UIParticleSystem` (khói tủ lạnh, sao thưởng, chữ Z ngủ): vẽ bằng `m_Material` + `particleSprite` + `m_Color` của Graphic
+  trong không gian RectTransform, renderer của hệ hạt không dùng.
+
 ## Bẫy tìm ra khi tự chơi (2026-10-31, `docs/PLAYTEST.md`)
 - ParticleSystem dưới canvas camera (sao lấp lánh bục VICTORY) vẽ trong lượt UI (`ui.drawParticles`). `scalingMode` Local
   (1) bỏ mọi scale cha: dùng `ls` của node nhân pixel/đơn vị của camera canvas (`H / (2·orthoSize)`), không dùng `node.world`
@@ -291,3 +317,45 @@ kiểu băng chuyền, lớp đen + tên chế độ trên bảng VS, menu khôn
 - Viền đen tiêu đề font Tobi không phải outline (`_OutlineWidth` 0) mà là underlay giãn (`_UnderlayDilate` 1, lệch y -0,5):
   glyph dự phòng (Ả Rập, CJK) phải vẽ 8 bản quanh độ giãn, một bản lệch thì không thấy viền.
 - Game gốc có 13 ngôn ngữ, không có tiếng Thái.
+
+## Máy tính: che trận, phím, vòng xoay chờ, độ phân giải, camera (2026-10-31, `test/food-gang-pc.js`)
+Chủ dự án chơi trên Pages rev 20261031c bằng máy tính: "bị che lúc mới vào trận, không biết nút cast skill, màn loading
+mmk bị đơ, không xoay". Đo lại trên Pages (`shots/food-gang/pc-bugs/`, `shots/food-gang/pc/pages-report.json`) `[ĐO TRONG REPO]`:
+- Che trận: chỉ ở đường ghép trận online (Pages mặc định online; playtest cũ chạy `?offline=1` nên không thấy). `SceneLoadingGame`
+  còn mở lúc trận nạp, Main Camera của nó cùng depth -1 với camera SceneGame; `setupCameraRig` lấy `mainCamera()` nên rig
+  Cinemachine bám camera màn chờ, màn chờ đóng thì rig đẩy một camera đã huỷ còn camera đang vẽ đứng yên ở gốc map
+  (x = 0) suốt trận: người chơi ở x = -17..-19 nằm ngoài khung, giữa màn là cái bếp. Sửa: rig lấy Camera cùng scene với
+  CinemachineCamera, `mainCamera()` trả camera của rig.
+- Vòng xoay đứng: `AutoRotate` (m_speed -500 độ/s, `Update`: euler z += m_speed·Time.deltaTime) chưa có trong engine; không
+  phải luồng chính bị chặn (0 long task, 0 khoảng rAF > 50 ms trong 14 s chờ). `engine.js` chạy `AutoRotate` cho cả
+  "Searching opponents..." lẫn ô chờ trên bảng VS.
+- Nút chiêu: gốc chỉ có nút trên màn; nút chiêu chỉ hiện khi skin cấp 5 trở lên (`buildPowers`, power 38 SpecialUnlocked), như gốc.
+- Camera đầu trận theo `CinemachineGroupManager` + `QuantumGameStartSequence`: bảng VS tắt là "intro frame"; READY ở +1,5 s,
+  BATTLE! và sim chạy ở +2,5 s, tắt chữ BATTLE! ở +3 s. FFA: lùi thêm 10 đơn vị tới +1,5 s rồi vào trong 1 s; đội và hướng dẫn:
+  điểm bám nhảy sang đối thủ (hướng dẫn: hình nộm bên phải nhất), chờ tới +2 s rồi cuộn về người chơi trong 1,5 s, ease
+  1-(1-t)^3. Khoảng cách `AspectBaseDistance` = 20 + max(0, 16/9 - rộng/cao)·16,5 (bản cũ nhân 20·(16/9)/aspect, lệch ở 4:3 và
+  16:10), boss là người chơi thì +5. FOV 25, khoảng cách 20 ở 16:9 trở lên: khung trên máy tính 16:9 đúng gốc; clip quay trên
+  điện thoại 19,5:9 nên thấy rộng ngang hơn, không phải web khép chặt hơn. `&intro=0` (bộ test) bỏ VS, đếm ngược và intro camera.
+- Độ phân giải: máy tính vẽ đúng `devicePixelRatio` (đọc lại mỗi khung nên zoom Ctrl +/- và đổi màn hình vẫn nét), chỉ hạ khi
+  trung vị thời gian khung 2 s > 1000/55 ms: mỗi lần 80 %, không dưới 1 điểm ảnh/CSS px, ghi `fgEngineStats.ratioCap`. Điện thoại
+  giữ trần 2. HUD theo CanvasScaler gốc: tham chiếu 1280x720, Expand = min(w/1280, h/720).
+
+**[ĐỀ XUẤT]** (gốc là game cảm ứng, không có):
+- Máy tính (pointer fine, không coarse) có nhãn phím trên nút trên màn: A / D hai bên cần điều khiển, Space dưới nút nhảy, J dưới
+  nút bắn, K dưới nút chiêu. DOM `#fg-keys` trên canvas, `pointer-events: none`, font Tobi; ẩn khi chết chờ hồi sinh, hết trận.
+  Một lần chạm màn hình là gỡ hẳn (máy lai cảm ứng). Điện thoại không có.
+- Lần đầu chiêu hồi xong trong trận: bong bóng vàng viền đen "Press K for your special attack!" trên nút chiêu, tắt khi bấm K hoặc
+  sau 7 s, nhớ ở `localStorage['fg-hint-special']`. Chữ tiếng Anh (file chữ gốc không có câu này).
+- Intro camera đội: không đọc được gốc chọn đối thủ nào làm điểm đầu; web chọn đối thủ gần nhất.
+
+Bẫy đã sập:
+- Mọi scene menu/popup đều có Main Camera depth -1: chọn camera "cao nhất" khi nhiều scene cùng mở là chọn bừa theo thứ tự nạp.
+- Kiểm bằng `?offline=1` bỏ sót đường ghép trận online, là đường người chơi Pages đi.
+- `js/game/match/*.js` và `app.js` là CRLF, `engine.js` là LF: script vá phải giữ đúng đầu dòng từng tệp.
+- `engine.spawn` gọi `updateWorld()` giữa khung: prefab sinh trong `hooks.update` (đạn, FX) đặt lại transform gốc của canvas HUD,
+  đọc `ui.screenRect` sau đó ra hình chữ nhật 0 (nhãn phím nhảy về góc trái dưới). Thứ gì đặt theo rect UI chạy ở `hooks.post`
+  (sau lượt vẽ canvas).
+- Long task lúc khởi động (150-280 ms, dựng SceneMenu / scene trận) vẫn còn, rơi vào lúc logo intro đứng yên, không có vòng xoay.
+
+Kiểm: `node test/food-gang-pc.js` (8 cỡ màn 1024x768..3440x1440 + 1280x720@2x, đổi cỡ giữa trận, online, hướng dẫn, chiêu,
+điện thoại), `FG_RUNS=5`, `FG_URL=<Pages>` để đo bản đang chạy.

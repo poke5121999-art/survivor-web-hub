@@ -22,6 +22,8 @@ export class Writer {
   }
   u8(v) { this.need(1); this.buf[this.n++] = v & 255; }
   uv(v) {
+    // a negative or fractional value would come out as bytes the reader parses into a different message layout
+    if (!(v >= 0) || v !== Math.floor(v)) throw new Error(`varint out of range: ${v}`);
     this.need(8);
     while (v >= 128) { this.buf[this.n++] = (v % 128) | 128; v = Math.floor(v / 128); }
     this.buf[this.n++] = v;

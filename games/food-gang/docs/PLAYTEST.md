@@ -120,3 +120,106 @@ Chạy ở bản trong cây (rev 20261031c), 2026-10-31 `[ĐO TRONG REPO]`:
 
 Sau khi deploy rev c: chạy lại `FG_URL=<Pages> node test/food-gang-playtest.js` (trận riêng qua Relay thật lần đầu) và
 `FG_URL=<Pages>/net.html node test/food-gang-net.js --browser`.
+
+## 5. Vòng Linux, rev 20261031c → 20261031d (2026-10-31, máy Linux, Chromium 1243 + ANGLE Vulkan trên RTX 3050)
+
+Test chạy trên Linux: các bộ dùng `--use-angle=vulkan` khi không phải Windows (trên Windows giữ `d3d11`), Playwright qua
+`PLAYWRIGHT=~/.cache/pw-node/node_modules/playwright-core`. Máy dùng chung, tải 23–40 trên 12 nhân: cổng fps / long-task
+chỉ tin được khi chạy từng bộ một.
+
+### 5.1 Các mục còn hở ở mục 3
+
+| Mục 3 | Kết quả | Bằng chứng |
+|---|---|---|
+| 1. Trận riêng qua Relay thật | Sửa một lỗi nặng, xem 5.4 | Về sảnh sau trận chạy đúng qua Relay. Nhưng soi kỹ thì hai trang chưa bao giờ chơi chung một trận |
+| 2. Khăn bàn / rèm / viền kem đĩa phòng ăn | Không sửa, nhãn `version` | Cả 3 clip đăng 30/4–14/5/2020 (yt-dlp `upload_date`), bản rip là 2.2.4 build Unity 6000.4: clip cũ ~5 năm, khác đạo cụ (clip có ly rượu, ấm, máy nướng; web có chai sâm panh). Đo cùng lớp màu (đỏ bão hoà dưới = khăn, trên = rèm, vàng = tường) trên `tch_Ki8G95E` 4:43–5:36 và ảnh `food-gang-play`: phòng ăn web sáng hơn 7–13 %, Kitchen 0–9 %, Pantry **tối hơn** 10–18 %. Lệch hai chiều theo map nên không có một tham số exposure / tint nào đúng; chỉnh theo clip là khớp một bản game khác |
+| 3. Chữ dự phòng đậm nhạt khác | Sửa | Xem 5.2 |
+| 4. Điện thoại thật | Giả lập thêm, chưa có máy thật | Xem 5.3 |
+
+### 5.2 Chữ dự phòng là SDF thật
+
+Gốc rễ: bản gốc dự phòng bằng NotoSans*-Bold **SDF** vẽ cùng material Tobi (underlay giãn 1), còn web vẽ glyph Canvas2D thô
+rồi giả viền bằng 8 bản lệch. Viền giả không co giãn như viền SDF: đo khối tối của viền (Р Cyrillic, glyph Tobi OTF không
+có trong atlas, so P Latin trong atlas, cùng hình) được 1,06 ở 1x nhưng 0,62 ở 3x; nét mặt chữ mỏng hơn 13 %.
+
+Sửa (`js/engine/text.js`, `js/engine/ui.js`): glyph dự phòng vẫn rasterize bằng Canvas2D nhưng được đổi thành trường
+khoảng cách (EDT Felzenszwalb, bù cạnh theo độ phủ khử răng cưa) với spread = spread của atlas tính theo em
+(`_GradientScale × 64 / pointSize`), rồi vẽ bằng `progSdf` với đúng uniform của material. Bold, `_FaceDilate`, viền, underlay
+giờ áp như glyph atlas; bỏ hẳn đường vẽ 8 bản lệch. Kết quả: khối viền Р/P 1,05 ở 1x, 1,02 ở 3x; nét mặt 27,7 / 27,5 px.
+
+Tiếng Thái (`NotoSansThai-Bold SDF` có trong danh sách dự phòng gốc, dù gốc không có bản dịch Thái; tên người chơi có thể là
+chữ Thái): cụm grapheme (`Intl.Segmenter`) có dấu kết hợp là một glyph dự phòng, nên nguyên âm trên/dưới và dấu thanh nằm
+đúng tầng trên chữ gốc; chữ Thái không có dấu cách nên chỗ ngắt dòng là đầu từ theo `Intl.Segmenter('th', word)`. Cùng
+cơ chế giữ dấu tổ hợp rời (NFD) và emoji ZWJ thành một khối.
+
+Kiểm mới trong `food-gang-ui-engine`: `ที่นี่` ra 2 quad; câu Thái dài chỉ ngắt giữa từ (`ที่นี่ภาษา | ไทย | สวัสดี | ครับผู้ | เล่น`);
+khối viền Р/P trong 0,85–1,15 (cách cũ ra 0,6 hoặc 1,84 tùy cỡ).
+
+Còn lại: RTLTMPro gốc đổi chữ số sang chữ số Ả Rập-Ấn và lật căn lề; scene xuất ra không có component RTL nào để biết text
+nào bật, cần mã gốc `fg-unity` mới làm đúng.
+
+### 5.3 Điện thoại
+
+- `SafeArea` (field `ignoreVerticalSafeArea` 1) nằm trên panel của mọi màn và trên `Controls` / HUD của `SceneGame`; web
+  trước đây bỏ qua nên trên iPhone cầm ngang, joystick và nút nằm dưới tai thỏ. Giờ `ui.js` đọc `env(safe-area-inset-*)`
+  qua phần tử `#fg-safe` (khi cửa sổ đổi cỡ) và đặt anchor ngang của các node `SafeArea` theo vùng an toàn.
+  `SafeAreaMargin` (khoảng đệm rỗng ở hai đầu danh sách ngang Shop / Missions) rộng `baseSize` + inset phía nó `[SUY]`:
+  chưa có mã C# để đối chiếu.
+  Kiểm mới trong `food-gang-pc` (touch): đặt inset 47/47/21 px như iPhone 14 → joystick 0 → 47 px, mép phải nút 783 → 736.
+- Quét 7 cỡ máy cảm ứng (640x360@3, 667x375@2, 800x360@2.75, 844x390@3, 932x430@3, iPad 1180x820@2, 1133x744@2): vào trận,
+  nút nằm trong màn, không chồng nhau, cạnh nhỏ nhất 80–148 px CSS, không lỗi console. Mở trang lúc cầm dọc (hiện gợi ý
+  xoay) rồi xoay ngang giữa trận: gợi ý tắt, backing store 1688x780, trận chạy tiếp.
+- Vẫn chưa có máy thật: cảm giác ngón tay, Safari iOS (`dvh`, thanh địa chỉ), âm thanh lần chạm đầu cần thử tay.
+
+### 5.4 Trận online trong app là hai trận offline song song (lỗi nặng, có từ rev c trở về trước)
+
+Lộ ra khi check "hai trang cùng hòa / không hòa" đỏ 1/3 lượt qua Relay thật: chủ phòng DRAW, khách DEFEAT dù **cùng đội**.
+Ghi sự kiện ở hai trang: `GameOverTriggered` cùng tick 5402 nhưng `int` (đội thắng) khác nhau, cả luồng sự kiện cũng khác
+hẳn, và runner của trang khách là `MatchRunner` (sim cục bộ) chứ không phải `ClientRunner`, dù phiên có `role: 'client'`.
+
+Gốc rễ: `app.playMatch` gọi `m.load(req, { timeScale, ...(opts.runnerOptions || {}) })`, tức trải các khoá của
+`runnerOptions` ra ngoài, còn `MatchScene.load` đọc `opts.runnerOptions` nên luôn nhận `null` và dựng `MatchRunner` offline.
+Hệ quả: mọi trận online qua menu (quick match có người thật, trận riêng) là mỗi trang tự chạy một sim riêng, mỗi trang lái
+cả hai nhân vật người bằng bàn phím của mình; host không gửi snapshot nào. `food-gang-net` vẫn 145/145 vì nó dựng trận
+qua harness `net.html`, không qua `app.playMatch`; các check trận riêng cũ chỉ so kết quả nên trùng hợp là qua.
+
+Sửa: `app.js` truyền nguyên `runnerOptions`. Check mới trong `food-gang-playtest` (party): khách phải là `ClientRunner`
+và bảng kill cuối hai trang phải trùng. Cây cũ: đỏ cả hai vòng (`client false`, vòng 2 kill `[5,3,1,2]` / `[0,0,0,5]`);
+cây mới qua BroadcastChannel: 14/14, kill `[6,6,0,0]` = `[6,6,0,0]`, `[5,4,2,1]` = `[5,4,2,1]`.
+
+### 5.5 Bộ kiểm, rev 20261031d (Linux, chạy tuần tự từng bộ)
+
+| Bộ | Kết quả | Ghi chú |
+|---|---|---|
+| `node test/food-gang-sim.js --skip-unit --skip-trace` | PASS, 200 trận bot | so vết C# từng bit cần `D:\foodgang-ref\simtest` (chỉ có trên Windows); `js/sim`, `js/meta`, `simdata.json`, `metadata.json` giống hệt rev c (sha256 159 file) |
+| `node test/food-gang-meta.js --no-dump` | 97 943 assert, 0 lỗi | bản đầy đủ 189 196 cần dump C# trên Windows |
+| `node test/food-gang-render.js` | 28/28 | |
+| `node test/food-gang-ui-engine.js` | 39/39 | mới: Thái 2 check, khối viền dự phòng/SDF |
+| `node test/food-gang-ui-tour.js` | 9 ảnh, 0 lỗi | |
+| `node test/food-gang-play.js` | 347/347 | |
+| `node test/food-gang-meta-ui.js` | 66/66 | đỏ 2 lần khi chạy chồng với playtest (check tên người chơi chỉ chờ 300 ms); 3 lần chạy riêng đều xanh |
+| `node test/food-gang-net.js` | 145/145 → 152/152 (rev e) | rev d: 1 lần trong 3 đỏ ở B/private4 (`packet truncated`); nguyên nhân và cách sửa ở 5.6 |
+| `node test/food-gang-pc.js` | 282/282 | mới: tai thỏ; cổng long-task 100 ms đỏ khi máy tải cao (114–155 ms) |
+| `node test/food-gang-vfx.js` | 70/70 | cổng fps ≥ 50 đỏ khi chạy song song với bộ khác |
+| `FG_NET=loop node test/food-gang-playtest.js` | 24/24, 18 trận | mới: khách là `ClientRunner` cùng bảng kill; "người chơi" giả lập giờ biết xuống kệ khi bia ở ngay dưới (trước kẹt tới hết 150 s, 2/6 lượt) |
+| `FG_PARTS=party FG_RUN=relay node test/food-gang-playtest.js` | 15/15 (Relay thật), thêm 3 lượt 14/14 | |
+
+### 5.6 `packet truncated` khi chủ phòng rời (rev 20261031d → 20261031e)
+
+Triệu chứng (B/private4 qua Relay thật, 1/3 lượt): cả 3 khách thiếu đúng 1 event (724/725), ném `packet truncated`,
+chủ phòng chờ đủ 4000 ms rồi rời bỏ cả 3.
+
+Gốc rễ: `HostMatchNet.flushIdle` (gửi lại khi sim đã ngừng bước, để event cuối vẫn tới khách) dùng lại `lastCap`, bản
+chụp state của snapshot 30 Hz gần nhất (tick chẵn). Nếu sim dừng ở tick lẻ ngay sau một event mang tick lẻ đó, event
+mới hơn snapshot: `writeEvent` ghi `tick - e.tick` = −1 bằng varint không dấu, `Writer.uv(-1)` ra byte 0xFF (bit nối
+dài bật), bên đọc lệch toàn bộ field phía sau rồi chạy quá cuối gói. Không liên quan cỡ gói hay `relay.js`.
+
+Sửa: `flushIdle` chụp lại state hiện tại khi tick đã vượt `lastCap` và gửi cho mọi khách; `Writer.uv` ném
+`varint out of range` với số âm/lẻ thay vì gửi byte rác.
+
+Check mới: part A (node) dựng `HostMatchNet` với link giả, dừng ở tick lẻ có event, giải mã gói gửi lại (cây cũ:
+`packet truncated`); part B mọi kịch bản dừng chủ phòng ngay sau một event mới hơn snapshot cuối (tự nhiên, hoặc sau
+15 s chép event thật gần nhất vào tick lẻ) và check "idle resend path ran" bắt buộc tình huống này xảy ra. Trước đó 4
+lượt private4 đều dừng ở tick chẵn, tức đường lỗi chưa từng chạy. Cây cũ + check mới (loopback): đỏ đúng chữ ký trên
+(722/723, chờ 4000 ms, 3 `packet truncated`). Cây mới: private4 loopback 1/1, Relay 3/3, cả bộ 152/152 (Relay thật),
+`FG_NET=loop FG_PARTS=party node test/food-gang-playtest.js` 15/15, render 28/28.

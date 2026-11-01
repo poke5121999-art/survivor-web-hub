@@ -21,6 +21,9 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; oversc
   #rotate .phone { width: 46px; height: 80px; border: 4px solid #fff; border-radius: 10px; animation: fg-rot 1.6s ease-in-out infinite; }
 }
 @keyframes fg-rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+/* safe-area probe read by the UI layout (Screen.safeArea for the SafeArea panels) */
+#fg-safe { position: fixed; inset: 0; visibility: hidden; pointer-events: none; z-index: -1;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 /* SceneSystem.StartFadeInOut */
 #fg-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 4; }
 #fg-fade.on { opacity: 1; pointer-events: auto; }
@@ -41,3 +44,16 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; oversc
 .fg-board .ach li.done { background: #7bd13a; }
 .fg-board .ach i { width: 140px; height: 12px; background: #1b1b1b; border-radius: 6px; overflow: hidden; }
 .fg-board .ach u { display: block; height: 100%; background: #ffd23e; }
+/* [ĐỀ XUẤT] desktop key labels on the on-screen controls + first special hint (Hud.js KeyLabels) */
+#fg-keys { position: fixed; inset: 0; pointer-events: none; z-index: 2; font-family: 'Tobi', system-ui, sans-serif; }
+#fg-keys .k { position: absolute; display: none; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; }
+#fg-keys .k b { display: inline-block; min-width: 1.1em; padding: .22em .42em .12em; border-radius: .32em; background: #1b1b1b; border: .12em solid #fff;
+  color: #fff; font-weight: normal; line-height: 1; text-align: center; box-shadow: 0 .14em 0 #000; }
+#fg-keys .hint { transform: translate(-82%, -100%); padding: .45em .8em .35em; border: .18em solid #1b1b1b; border-radius: .6em;
+  background: linear-gradient(#ffd23e, #f59d16); box-shadow: 0 .2em 0 #1b1b1b; color: #fff; line-height: 1.1;
+  text-shadow: -.08em -.08em 0 #1b1b1b, .08em -.08em 0 #1b1b1b, -.08em .08em 0 #1b1b1b, .08em .08em 0 #1b1b1b, 0 .14em 0 #1b1b1b;
+  animation: fg-hint-pop .25s ease-out, fg-hint-bob 1.2s ease-in-out .25s infinite; }
+#fg-keys .hint b { margin: 0 .25em; text-shadow: none; }
+#fg-keys .hint::after { content: ''; position: absolute; right: 12%; bottom: -.62em; border: .5em solid transparent; border-top-color: #1b1b1b; border-bottom: 0; }
+@keyframes fg-hint-pop { from { transform: translate(-82%, -100%) scale(.4); opacity: 0; } to { transform: translate(-82%, -100%) scale(1); opacity: 1; } }
+@keyframes fg-hint-bob { 50% { transform: translate(-82%, -112%); } }

@@ -75,6 +75,41 @@ function clusterArabic(items) {
       out.push(run);
     } else { run = null; out.push(it); }
   }
+  return clusterMarks(out);
+}
+
+// Combining marks (Thai vowels and tones, decomposed accents...) and ZWJ emoji sequences stay with their base character:
+// a grapheme cluster that does not compose to one code point is one fallback item, so the canvas stacks the marks.
+// Thai has no spaces: word starts from Intl.Segmenter become break opportunities (`brk`), like ICU in TMP's fallback.
+export const isThai = (c) => c >= 0x0E00 && c <= 0x0E7F;
+const SEG = typeof Intl !== 'undefined' && Intl.Segmenter ? { g: new Intl.Segmenter('und', { granularity: 'grapheme' }), w: new Intl.Segmenter('th', { granularity: 'word' }) } : null;
+const NEEDS_CLUSTER = /[\p{M}‍️]/u;
+function clusterMarks(items) {
+  if (!SEG || !items.some((it) => !it.rtl && (NEEDS_CLUSTER.test(it.ch) || isThai(it.ch.codePointAt(0))))) return items;
+  const out = [];
+  for (let i = 0; i < items.length;) {
+    const it = items[i];
+    if (it.rtl || it.ch === '\n') { out.push(it); i++; continue; }
+    // the run of plain items with one style, re-segmented into grapheme clusters
+    let j = i, str = '';
+    while (j < items.length && !items[j].rtl && items[j].ch !== '\n' && items[j].color === it.color && items[j].bold === it.bold && items[j].size === it.size) str += items[j++].ch;
+    for (const { segment } of SEG.g.segment(str)) {
+      const nfc = segment.normalize('NFC');
+      const one = [...nfc].length === 1;
+      out.push({ ch: one ? nfc : segment, color: it.color, bold: it.bold, size: it.size, cluster: !one });
+    }
+    i = j;
+  }
+  // Thai word starts (not the first cluster of a run) allow a line break before them
+  for (let i = 0; i < out.length;) {
+    if (!isThai(out[i].ch.codePointAt(0))) { i++; continue; }
+    let j = i, str = '';
+    const starts = new Set();
+    while (j < out.length && isThai(out[j].ch.codePointAt(0))) str += out[j++].ch;
+    for (const { index } of SEG.w.segment(str)) starts.add(index);
+    for (let k = i, at = 0; k < j; at += out[k].ch.length, k++) if (k > i && starts.has(at)) out[k].brk = true;
+    i = j;
+  }
   return out;
 }
 
@@ -84,10 +119,10 @@ const V_TOP = 256, V_MID = 512, V_BOT = 1024, V_BASE = 2048, V_GEOM = 4096, V_CA
 const MIRROR = { '(': ')', ')': '(', '[': ']', ']': '[', '{': '}', '}': '{', '<': '>', '>': '<', '«': '»', '»': '«' };
 
 function glyphFor(font, c, code) {
-  if (c.rtl) return fbGlyph(font, c.ch, c.bold, true);
+  if (c.rtl || c.cluster) return fbGlyph(font, c.ch, !!c.rtl);
   let g = font.glyphs.get(code);
   if (!g && code === 0xA0) g = font.glyphs.get(32);
-  if (!g) g = fbGlyph(font, c.ch, c.bold, false);
+  if (!g) g = fbGlyph(font, c.ch, false);
   return g || font.glyphs.get(9633) || font.glyphs.get(32);
 }
 
@@ -154,6 +189,7 @@ export function layout(font, chars, size, rectW, wrap, cfg) {
     // CJK has no spaces: a break may fall between any two characters unless kinsoku forbids it
     const pg = line.glyphs[line.glyphs.length - 1];
     if (pg && pg.ch !== ' ' && c.ch !== ' ' && (isCJK(pg.code) || isCJK(code)) && !NO_START.has(c.ch) && !NO_END.has(pg.ch)) lastBreak = line.glyphs.length - 1;
+    if (pg && c.brk) lastBreak = line.glyphs.length - 1;
     if (wrap && rectW > 0 && x + g[4] * ssc + g[7] * ssc > rectW + 0.01 && c.ch !== ' ' && line.glyphs.length) {
       if (lastBreak >= 0) {
         const carry = line.glyphs.splice(lastBreak + 1);
@@ -246,14 +282,20 @@ export function preferredSize(font, comp) {
 
 
 // ------------------------------------------------------------------------------------------------ Fallback glyphs
-// The original falls back to NotoSans*-Bold SDF fonts (many MB). Here a missing character is rasterized by Canvas2D and
-// packed into 1024x1024 alpha pages that grow by adding pages. Characters covered by the shipped Tobi OTF (accents the
-// SDF atlas was not baked with) use that face so they look like the rest; everything else uses a bold system sans-serif.
-// Metrics come from measureText and are scaled to the TMP point size (RASTER px = one em = face.pointSize points), so
-// advance, bearings, alignment, autoSize and wrapping behave like SDF glyphs. Glyph records match the SDF layout
-// [x, y(bottom-up), w, h, bearingX, bearingY, advance, w, h] + { fb, page, pad, padPx }.
-const RASTER = 64, PAGE = 1024, GPAD = 2;
+// The original falls back to NotoSans*-Bold SDF fonts (many MB) drawn with the same TMP material as Tobi. Here a missing
+// character is rasterized by Canvas2D, turned into a signed distance field with the font's own spread, and packed into
+// 1024x1024 pages that grow by adding pages; ui.js draws them with the SDF shader and the text's material, so weight,
+// bold, underlay rim and outline match the atlas glyphs at every size. Characters covered by the shipped Tobi OTF
+// (accents the SDF atlas was not baked with) use that face so they look like the rest; everything else uses a bold
+// system sans-serif. Metrics come from measureText and are scaled to the TMP point size (RASTER px = one em =
+// face.pointSize points), so advance, bearings, alignment, autoSize and wrapping behave like SDF glyphs. Glyph records
+// match the SDF layout [x, y(bottom-up), w, h, bearingX, bearingY, advance, w, h] + { fb, page, pad, padPx }.
+const RASTER = 64, PAGE = 1024;
 const STACK = "'Noto Sans', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans TC', 'Noto Sans Arabic', 'Noto Sans Thai', 'Segoe UI', 'Microsoft YaHei', 'Yu Gothic', 'Malgun Gothic', Tahoma, sans-serif";
+
+// SDF spread of fallback pages in page texels: the atlas spread (_GradientScale texels at face.pointSize texels per em)
+// at RASTER texels per em, so one SDF unit is the same fraction of an em in both
+export const fallbackSpread = (font) => (font.material?.props?._GradientScale ?? 10) * RASTER / font.face.pointSize;
 
 export const fallbackState = { pages: [], glyphs: new Map(), cover: null, family: null, ctx: null };
 
@@ -319,35 +361,85 @@ function alloc(w, h) {
   return r;
 }
 
-function fbGlyph(font, str, bold, run) {
+// 1D squared Euclidean distance transform (Felzenszwalb & Huttenlocher) over f[off + i * step], i < n
+function edt1d(f, off, step, n, v, z, d) {
+  v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+  for (let q = 0; q < n; q++) d[q] = f[off + q * step];
+  for (let q = 1, k = 0; q < n; q++) {
+    let s;
+    do { const r = v[k]; s = (d[q] - d[r] + q * q - r * r) / (q - r) / 2; } while (s <= z[k] && --k > -1);
+    k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+  }
+  for (let q = 0, k = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    const r = v[k];
+    f[off + q * step] = d[r] + (q - r) * (q - r);
+  }
+}
+
+// coverage (0..1, w x h) -> TMP-style distance values: 0.5 on the edge, 0 at `spread` texels outside, 1 inside
+function toSdf(cov, w, h, spread) {
+  const n = w * h, outer = new Float64Array(n), inner = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = cov[i];
+    if (a >= 1) { outer[i] = 0; inner[i] = 1e20; } else if (a <= 0) { outer[i] = 1e20; inner[i] = 0; } else {
+      const e = 0.5 - a;   // sub-texel edge from the antialiased coverage
+      outer[i] = e > 0 ? e * e : 0; inner[i] = e < 0 ? e * e : 0;
+    }
+  }
+  const m = Math.max(w, h), v = new Int32Array(m), z = new Float64Array(m + 1), d = new Float64Array(m);
+  for (const g of [outer, inner]) {
+    for (let x = 0; x < w; x++) edt1d(g, x, w, h, v, z, d);
+    for (let y = 0; y < h; y++) edt1d(g, y * w, 1, w, v, z, d);
+  }
+  const out = new Uint8ClampedArray(n * 4);
+  for (let i = 0; i < n; i++) {
+    const dist = Math.sqrt(outer[i]) - Math.sqrt(inner[i]);
+    const val = Math.round(Math.min(1, Math.max(0, 0.5 - dist / (2 * spread))) * 255);
+    out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = val; out[i * 4 + 3] = 255;
+  }
+  return out;
+}
+
+function fbGlyph(font, str, run) {
   if (typeof document === 'undefined') return null;
-  const code = str.codePointAt(0);
-  const tobi = !run && inTobi(code);
-  const key = (tobi ? 'T' : run ? 'R' : 'N') + (bold && !tobi ? 'b' : '') + str + font.face.pointSize;
+  const tobi = !run && [...str].every((ch) => inTobi(ch.codePointAt(0)));
+  const spread = fallbackSpread(font);
+  const key = (tobi ? 'T' : run ? 'R' : 'N') + str + font.face.pointSize + '/' + spread;
   const st = fallbackState;
   let g = st.glyphs.get(key);
   if (g !== undefined) return g;
-  if (!st.ctx) st.ctx = document.createElement('canvas').getContext('2d');
+  if (!st.ctx) st.ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
   const ctx = st.ctx;
-  ctx.font = tobi ? `${RASTER}px ${st.family}` : `bold ${RASTER}px ${STACK}`;
+  const font2d = tobi ? `${RASTER}px ${st.family}` : `bold ${RASTER}px ${STACK}`;
+  ctx.font = font2d;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.direction = run ? 'rtl' : 'ltr';
   const mt = ctx.measureText(str);
   const k = font.face.pointSize / RASTER;
+  const pad = Math.ceil(spread) + 1;   // texels around the glyph: the field reaches 0 inside the cell
   const L = Math.ceil(Math.max(0, mt.actualBoundingBoxLeft)), Rr = Math.ceil(Math.max(0, mt.actualBoundingBoxRight));
   const asc = Math.ceil(mt.actualBoundingBoxAscent), desc = Math.ceil(Math.max(0, mt.actualBoundingBoxDescent));
   const wpx = Rr + L, hpx = asc + desc;
   g = [0, 0, 0, 0, 0, 0, mt.width * k, 0, 0];
-  g.fb = true; g.pad = GPAD * k; g.padPx = GPAD; g.page = null;
-  if (wpx > 0 && hpx > 0 && wpx < PAGE - 8 && hpx < PAGE - 8) {
-    const cell = alloc(wpx + GPAD * 2, hpx + GPAD * 2);
+  g.fb = true; g.pad = pad * k; g.padPx = pad; g.page = null;
+  if (wpx > 0 && hpx > 0 && wpx < PAGE - 2 * pad && hpx < PAGE - 2 * pad) {
+    const cw = wpx + pad * 2, ch = hpx + pad * 2;
+    const cv = ctx.canvas;
+    if (cv.width < cw || cv.height < ch) { cv.width = Math.max(cv.width, cw); cv.height = Math.max(cv.height, ch); }
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.font = font2d; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.direction = run ? 'rtl' : 'ltr';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(str, pad + L, pad + asc);
+    const px = ctx.getImageData(0, 0, cw, ch).data;
+    const cov = new Float32Array(cw * ch);
+    for (let i = 0; i < cov.length; i++) cov[i] = px[i * 4 + 3] / 255;
+    const cell = alloc(cw, ch);
     const pg = cell.page;
-    pg.ctx.font = ctx.font; pg.ctx.textAlign = 'left'; pg.ctx.textBaseline = 'alphabetic'; pg.ctx.direction = ctx.direction;
-    pg.ctx.fillStyle = '#fff';
-    pg.ctx.fillText(str, cell.x + GPAD + L, cell.y + GPAD + asc);
+    pg.ctx.putImageData(new ImageData(toSdf(cov, cw, ch, spread), cw, ch), cell.x, cell.y);
     pg.dirty = true;
-    g[0] = cell.x + GPAD; g[1] = PAGE - (cell.y + GPAD + hpx); g[2] = wpx; g[3] = hpx;
+    g[0] = cell.x + pad; g[1] = PAGE - (cell.y + pad + hpx); g[2] = wpx; g[3] = hpx;
     g[4] = -L * k; g[5] = asc * k; g[7] = wpx * k; g[8] = hpx * k;
     g.page = pg;
   }

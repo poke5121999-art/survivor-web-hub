@@ -1,7 +1,7 @@
 // uGUI: RectTransform layout, CanvasScaler, layout groups, ContentSizeFitter, Image (simple/sliced/tiled/filled),
 // TMP text, RectMask2D/Mask (scissor), CanvasGroup, Button colour/sprite transitions and pointer routing.
 import { trs, mul, mat4, xform, invert } from './math.js';
-import { buildText, preferredSize, fallbackTexture } from './text.js';
+import { buildText, preferredSize, fallbackTexture, fallbackSpread } from './text.js';
 import { stats } from './assets.js';
 import { packColor } from './render.js';
 
@@ -197,6 +197,25 @@ export class UISystem {
     this.activeInput = null;
   }
 
+  // Screen.safeArea as fractions of the canvas, from CSS env(safe-area-inset-*) on the #fg-safe probe (css/game.css),
+  // re-read when the window resizes: a notched phone held sideways keeps SafeArea panels and controls out of the notch
+  safeArea() {
+    if (typeof document === 'undefined') return null;
+    if (!this.safeEl) {
+      this.safeEl = document.createElement('div');
+      this.safeEl.id = 'fg-safe';
+      document.body.appendChild(this.safeEl);
+      addEventListener('resize', () => { this.safe = null; });
+    }
+    if (!this.safe) {
+      const cs = getComputedStyle(this.safeEl), rc = this.engine.canvas.getBoundingClientRect();
+      const f = (v, o, d) => (d > 0 ? Math.min(0.45, Math.max(0, parseFloat(v) - o) / d) : 0);
+      this.safe = { l: f(cs.paddingLeft, rc.left, rc.width), r: f(cs.paddingRight, innerWidth - rc.right, rc.width),
+        b: f(cs.paddingBottom, innerHeight - rc.bottom, rc.height), t: f(cs.paddingTop, rc.top, rc.height) };
+    }
+    return this.safe;
+  }
+
   canvases() {
     return this.engine.canvases.filter((c) => c.enabled && c.node.activeInHierarchy && !c.node.parent?.closestCanvas?.());
   }
@@ -228,6 +247,20 @@ export class UISystem {
     if (!n.activeSelf) return;
     if (n.rect && parent.r) {
       const R = n.rect, pw = parent.r.w, ph = parent.r.h, pp = parent.rect ? parent.rect.pivot : [0.5, 0.5];
+      // SafeArea (every menu panel, the match HUD and controls; parents span the screen): anchors = the safe rect,
+      // horizontal only with ignoreVerticalSafeArea. SafeAreaMargin (empty spacer at either end of a horizontal shop /
+      // missions list): baseSize + the inset on its side, so the list starts clear of the notch but scrolls under it [SUY]
+      const sa = n.script('SafeArea'), sm = !sa && n.script('SafeAreaMargin');
+      if ((sa || sm) && this.safeArea()) {
+        const z = this.safe;
+        if (sa) {
+          R.amin[0] = z.l; R.amax[0] = 1 - z.r;
+          if (!sa.fields.ignoreVerticalSafeArea) { R.amin[1] = z.b; R.amax[1] = 1 - z.t; }
+        } else {
+          const first = parent.children.find((c) => c.activeSelf) === n;
+          R.size[0] = (sm.fields.baseSize || 0) + (first ? z.l : z.r) * cv.node.r.w;
+        }
+      }
       // AspectRatioFitter: Fit/EnvelopeParent stretch to the parent then size to the ratio, Width/Height controls the other side
       const arf = n.get('AspectRatioFitter');
       if (arf && arf.enabled && arf.mode && arf.ratio > 0) {
@@ -896,45 +929,44 @@ export function drawTextQuads(R, f, c, b, m, ox, oy, alpha, scissor, depth) {
   const P = mat.props || {};
   const img = f.images[0];
   if (!img) return;
-  const tex = R.imageTex('font:' + f.name, img, false);
-  const aw = f.aw, ah = f.ah;
   const ratioA = P._ScaleRatioA ?? 1, ratioC = P._ScaleRatioC ?? 1, grad = P._GradientScale ?? 10;
   const ulOn = (mat.kw || []).includes('UNDERLAY_ON') ? 1 : 0;
-  const extra = mat._sdfExtra || (mat._sdfExtra = {
-    key: mat.key,
-    uniforms(gl, u) {
-      gl.uniform2f(u.uTexSize, aw, ah);
-      gl.uniform1f(u.uGrad, grad);
-      gl.uniform4fv(u.uFace, P._FaceColor || [1, 1, 1, 1]);
-      gl.uniform4fv(u.uOutCol, P._OutlineColor || [0, 0, 0, 1]);
-      gl.uniform1f(u.uOutW, (P._OutlineWidth || 0) * ratioA * 0.5);
-      gl.uniform1f(u.uSoft, (P._OutlineSoftness || 0) * ratioA * 0.5);
-      gl.uniform1f(u.uDilate, (P._FaceDilate || 0) * ratioA * 0.5);
-      gl.uniform4fv(u.uUlCol, P._UnderlayColor || [0, 0, 0, 0.5]);
-      gl.uniform2f(u.uUlOff, -(P._UnderlayOffsetX || 0) * ratioC * grad / aw, (P._UnderlayOffsetY || 0) * ratioC * grad / ah);
-      gl.uniform1f(u.uUlDilate, (P._UnderlayDilate || 0) * ratioC * 0.5);
-      gl.uniform1f(u.uUlSoft, (P._UnderlaySoftness || 0) * ratioC * 0.5);
-      gl.uniform1f(u.uUlOn, ulOn);
-    },
-  });
-  let ex = extra;
-  if (scissor) {
+  // one uniform set per (material, texture size, spread): the font atlas, and the Canvas2D fallback pages whose
+  // distance fields use the same spread per em (text.js fallbackSpread), so every material value means the same thing
+  const sdfExtra = (aw, ah, g) => {
+    const cache = mat._sdfExtra || (mat._sdfExtra = new Map());
+    const k = aw + 'x' + ah + '/' + g;
+    let extra = cache.get(k);
+    if (!extra) cache.set(k, extra = {
+      key: mat.key + '|' + k,
+      uniforms(gl, u) {
+        gl.uniform2f(u.uTexSize, aw, ah);
+        gl.uniform1f(u.uGrad, g);
+        gl.uniform4fv(u.uFace, P._FaceColor || [1, 1, 1, 1]);
+        gl.uniform4fv(u.uOutCol, P._OutlineColor || [0, 0, 0, 1]);
+        gl.uniform1f(u.uOutW, (P._OutlineWidth || 0) * ratioA * 0.5);
+        gl.uniform1f(u.uSoft, (P._OutlineSoftness || 0) * ratioA * 0.5);
+        gl.uniform1f(u.uDilate, (P._FaceDilate || 0) * ratioA * 0.5);
+        gl.uniform4fv(u.uUlCol, P._UnderlayColor || [0, 0, 0, 0.5]);
+        gl.uniform2f(u.uUlOff, -(P._UnderlayOffsetX || 0) * ratioC * g / aw, (P._UnderlayOffsetY || 0) * ratioC * g / ah);
+        gl.uniform1f(u.uUlDilate, (P._UnderlayDilate || 0) * ratioC * 0.5);
+        gl.uniform1f(u.uUlSoft, (P._UnderlaySoftness || 0) * ratioC * 0.5);
+        gl.uniform1f(u.uUlOn, ulOn);
+      },
+    });
+    if (!scissor) return extra;
     extra._sc = extra._sc || new Map();
-    ex = extra._sc.get(scissor.key);
+    let ex = extra._sc.get(scissor.key);
     if (!ex) { ex = Object.assign(Object.create(extra), { scissor: scissor.scissor, key: extra.key + scissor.key }); extra._sc.set(scissor.key, ex); }
-  }
-  let nFb = 0;
-  for (const q of b.quads) if (q.page) nFb++;
-  const sdfQuads = nFb < b.quads.length;
-  R.setState(R.progSdf, tex, 1, 10, depth, ex);
+    return ex;
+  };
   const col = c.color;
   const p = [0, 0, 0];
   const wb = (f.weights?.bold ?? 0.75);
-  if (sdfQuads) for (const q of b.quads) {
-    if (q.page) continue;
+  const put = (q, tw, th) => {
     const cc = q.color || col;
     const pc = packColor(cc[0], cc[1], cc[2], cc[3] * (q.color ? col[3] : 1) * alpha);
-    const u0 = q.u0 / aw, u1 = q.u1 / aw, v0 = 1 - q.v0 / ah, v1 = 1 - q.v1 / ah;
+    const u0 = q.u0 / tw, u1 = q.u1 / tw, v0 = 1 - q.v0 / th, v1 = 1 - q.v1 / th;
     const e = q.bold ? wb : 0;
     R.reserve(4, 6);
     xform(m, ox + q.x0, oy + q.y0, 0, p); const a = R.vert(p[0], p[1], p[2], u0, v0, pc, 0, e);
@@ -942,53 +974,18 @@ export function drawTextQuads(R, f, c, b, m, ox, oy, alpha, scissor, depth) {
     xform(m, ox + q.x1, oy + q.y0, 0, p); R.vert(p[0], p[1], p[2], u1, v0, pc, 0, e);
     xform(m, ox + q.x1, oy + q.y1, 0, p); R.vert(p[0], p[1], p[2], u1, v1, pc, 0, e);
     R.quadIdx(a);
+  };
+  let pages = null;
+  for (const q of b.quads) if (q.page) (pages || (pages = new Map())).set(q.page, true);
+  if (!pages || pages.size < b.quads.length) {
+    R.setState(R.progSdf, R.imageTex('font:' + f.name, img, false), 1, 10, depth, sdfExtra(f.aw, f.ah, grad));
+    for (const q of b.quads) if (!q.page) put(q, f.aw, f.ah);
   }
-  if (nFb) drawFallbackQuads(R, c, b, m, ox, oy, alpha, scissor, depth, P, mat, ratioA, ratioC, grad, ulOn);
-}
-
-// Quads made of Canvas2D fallback glyphs (alpha pages, regular sprite shader). Underlay and outline are approximated by
-// extra tinted copies (outline: 8 offsets of the outline width) drawn before the face, all outlines before all faces.
-function drawFallbackQuads(R, c, b, m, ox, oy, alpha, scissor, depth, P, mat, ratioA, ratioC, grad, ulOn) {
-  const col = c.color, face = P._FaceColor || [1, 1, 1, 1];
-  const p = [0, 0, 0];
-  const pages = new Map();
-  for (const q of b.quads) if (q.page) { if (!pages.has(q.page)) pages.set(q.page, []); pages.get(q.page).push(q); }
-  const outW = (P._OutlineWidth || 0) * ratioA * grad, oc = P._OutlineColor || [0, 0, 0, 1];
-  const ulC = P._UnderlayColor || [0, 0, 0, 0.5];
-  for (const [page, list] of pages) {
-    const tex = fallbackTexture(R, page);
-    R.setState(R.progSprite, tex, 5, 10, depth, scissor || null);
-    const put = (q, dx, dy, pc) => {
-      const u0 = q.u0 / 1024, u1 = q.u1 / 1024, v0 = 1 - q.v0 / 1024, v1 = 1 - q.v1 / 1024;
-      R.reserve(4, 6);
-      xform(m, ox + q.x0 + dx, oy + q.y0 + dy, 0, p); const a = R.vert(p[0], p[1], p[2], u0, v0, pc, 0);
-      xform(m, ox + q.x0 + dx, oy + q.y1 + dy, 0, p); R.vert(p[0], p[1], p[2], u0, v1, pc, 0);
-      xform(m, ox + q.x1 + dx, oy + q.y0 + dy, 0, p); R.vert(p[0], p[1], p[2], u1, v0, pc, 0);
-      xform(m, ox + q.x1 + dx, oy + q.y1 + dy, 0, p); R.vert(p[0], p[1], p[2], u1, v1, pc, 0);
-      R.quadIdx(a);
-    };
-    if (ulOn) {
-      const ux = (P._UnderlayOffsetX || 0) * ratioC * grad, uy = (P._UnderlayOffsetY || 0) * ratioC * grad;
-      const pc = packColor(ulC[0], ulC[1], ulC[2], ulC[3] * col[3] * alpha);
-      // _UnderlayDilate grows the shadow by up to half the SDF spread: the Tobi title material has no outline, its
-      // black rim is a dilated underlay (dilate 1), which a single offset copy does not show
-      const ud = (P._UnderlayDilate || 0) * ratioC * grad * 0.5;
-      for (const q of list) {
-        put(q, ux * q.s, uy * q.s, pc);
-        if (ud > 0.2) for (let i = 0; i < 8; i++) put(q, (ux + Math.cos(i * Math.PI / 4) * ud) * q.s, (uy + Math.sin(i * Math.PI / 4) * ud) * q.s, pc);
-      }
-    }
-    if (outW > 0.2) {
-      const pc = packColor(oc[0], oc[1], oc[2], oc[3] * col[3] * alpha);
-      for (const q of list) {
-        const r = Math.min(outW * q.s, q.s * 12);
-        for (let i = 0; i < 8; i++) put(q, Math.cos(i * Math.PI / 4) * r, Math.sin(i * Math.PI / 4) * r, pc);
-      }
-    }
-    for (const q of list) {
-      const cc = q.color || col;
-      put(q, 0, 0, packColor(cc[0] * face[0], cc[1] * face[1], cc[2] * face[2], cc[3] * (q.color ? col[3] : 1) * (face[3] ?? 1) * alpha));
-      stats.fbQuads++;
+  if (pages) {
+    const ex = sdfExtra(1024, 1024, fallbackSpread(f));
+    for (const page of pages.keys()) {
+      R.setState(R.progSdf, fallbackTexture(R, page), 1, 10, depth, ex);
+      for (const q of b.quads) if (q.page === page) { put(q, 1024, 1024); stats.fbQuads++; }
     }
   }
 }

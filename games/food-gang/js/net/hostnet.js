@@ -173,6 +173,16 @@ export class HostMatchNet {
     const t = now();
     const idle = this.closing || t - (this.lastStepAt || 0) >= IDLE_AFTER;
     if (!this.lastCap || !idle || t - (this.lastIdleSend || 0) < IDLE_RESEND) return this.unacked().length;
+    // The sim may have stepped past the last snapshot tick (it stops on an odd tick): events raised since then are
+    // newer than lastCap, and an event is written as an offset back from the snapshot tick, so capture the state as it
+    // stands now. Every client then needs this capture.
+    const s = this.runner && this.runner.state;
+    if (s && s.tick !== this.lastCap.tick) {
+      this.lastCap = capture(s);
+      this.capSeq = this.send(this.lastCap, (c) => !c.gone);
+      this.lastIdleSend = t; this.stats.idleSends = (this.stats.idleSends || 0) + 1;
+      return this.unacked().length;
+    }
     const behind = new Set(this.unacked());
     if (behind.size) { this.lastIdleSend = t; this.send(this.lastCap, (c) => behind.has(c)); this.stats.idleSends = (this.stats.idleSends || 0) + 1; }
     return behind.size;

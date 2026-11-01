@@ -70,7 +70,7 @@ class BulletView {
       const dur = (this.impulse.ImpulseDuration || 0.2) + ((this.impulse.TimeEnvelope && this.impulse.TimeEnvelope.DecayTime) || 0) * 0.5;
       if (amp > 0.05 && this.ctx.engine.cine) this.ctx.engine.cine.shake(0.12 * amp * this.vb.impulseType, dur);
     }
-    if (this.smoke) this.ctx.prefabs.softDestroy(this.smoke, 2);
+    if (this.smoke) this.ctx.prefabs.softDestroy(this.smoke);
     this.smoke = null;
     this.root.destroy();
   }
@@ -143,7 +143,8 @@ export class FxListener {
         if (t.isBoss) off *= SimConst.BossScale;
         x = t.pos.x; y = t.pos.y + off;
       }
-      if (prefabs.spawnFx(prefab, [x, y, 0])) this.count++;
+      // QuantumAgentView.OnTookDamage scales the melee hit FX x1.5 when the target is a boss
+      if (prefabs.spawnFx(prefab, [x, y, 0], t && t.isBoss ? SimConst.BossScale : 1)) this.count++;
     }
   }
 }

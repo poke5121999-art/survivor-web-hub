@@ -23,13 +23,18 @@ export class Engine {
     this.roots = [];
     this.instances = [];
     this.spriteRenderers = []; this.meshRenderers = []; this.particles = []; this.animators = []; this.animations = [];
-    this.canvases = []; this.cameras = []; this.texts = []; this.audioSources = []; this.buttons = []; this.vcams = [];
-    this.hooks = { fixed: [], update: [], late: [] };
+    this.canvases = []; this.cameras = []; this.texts = []; this.audioSources = []; this.buttons = []; this.vcams = []; this.autoRotates = [];
+    this.hooks = { fixed: [], update: [], late: [], post: [] };
     this.time = 0; this.dt = 0; this.timeScale = 1; this.frame = 0; this.realTime = 0; this.rawDt = 0;
     this.acc = 0;
     this.post = null;
     this.clearColor = [0, 0, 0, 1];
-    this.pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+    // touch devices keep the 2x cap; desktop renders at the real devicePixelRatio (re-read every frame, so browser
+    // zoom and moving the window to another screen stay sharp) unless the frame rate falls under 55 (adaptRatio)
+    this.coarse = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+    this.ratioScale = 1;
+    this.frameMs = [];
+    this.pixelRatio = this.coarse ? Math.min(2, window.devicePixelRatio || 1) : window.devicePixelRatio || 1;
     this.onAnimEvent = null;
     this.bloomScale = 0;
     window.fgEngineStats = stats;
@@ -137,6 +142,7 @@ export class Engine {
         c.ref = (r) => inst.ref(r);
         if (c.script === 'ScrollRect') this.ui.initScroll(c, n, inst);
         else if (c.script === 'TMP_InputField') this.ui.initInput(c, n, inst);
+        else if (c.script === 'AutoRotate') this.autoRotates.push(c);
         break;
       default: break;
     }
@@ -174,7 +180,7 @@ export class Engine {
 
   prune() {
     if (!this.dirtyLists) return;
-    for (const k of ['spriteRenderers', 'meshRenderers', 'particles', 'animators', 'animations', 'canvases', 'cameras', 'texts', 'audioSources', 'buttons', 'vcams']) {
+    for (const k of ['spriteRenderers', 'meshRenderers', 'particles', 'animators', 'animations', 'canvases', 'cameras', 'texts', 'audioSources', 'buttons', 'vcams', 'autoRotates']) {
       this[k] = this[k].filter((c) => !c.node.destroyed);
     }
     this.dirtyLists = false;
@@ -183,8 +189,11 @@ export class Engine {
   // ------------------------------------------------------------------------------------------------ camera rig
 
   setupCameraRig() {
-    const vc = this.vcams.find((v) => v.enabled && v.node.activeInHierarchy);
-    const cam = this.mainCamera();
+    const vc = this.vcams.find((v) => v.enabled && v.node.activeInHierarchy && !v.node.destroyed);
+    // the Camera of the vcam's own scene: a menu / loading scene still open while the match loads has a Main Camera of the
+    // same depth, and binding the rig to it left the match camera parked at the map origin once that scene closed
+    const rootOf = (n) => { while (n.parent) n = n.parent; return n; };
+    const cam = vc ? this.cameras.find((c) => c.enabled && !c.node.destroyed && rootOf(c.node) === rootOf(vc.node)) || this.mainCamera() : null;
     if (!vc || !cam) return;
     const n = vc.node;
     const composer = n.get('CinemachinePositionComposer');
@@ -196,6 +205,7 @@ export class Engine {
       box = { min: [cx - s[0] / 2, cy - s[1] / 2, cz - s[2] / 2], max: [cx + s[0] / 2, cy + s[1] / 2, cz + s[2] / 2] };
     }
     this.cine = new CinemachineRuntime(this, cam.node, vc, composer, conf ? { box } : null);
+    this.cine.camComp = cam;
     this.post = null;
     for (const n2 of this.allNodes()) {
       const v = n2.get('Volume');
@@ -217,6 +227,9 @@ export class Engine {
   }
 
   mainCamera() {
+    // the camera the rig moves is the one that renders, whatever other scene is open
+    const rc = this.cine && this.cine.camComp;
+    if (rc && rc.enabled && rc.node.activeInHierarchy && !rc.node.destroyed) return rc;
     let best = null;
     for (const c of this.cameras) if (c.enabled && c.node.activeInHierarchy && !c.node.destroyed && (!best || c.depth > best.depth)) best = c;
     return best;
@@ -230,6 +243,7 @@ export class Engine {
       // FPSSettings: 60 caps the loop on high refresh screens, 0 = every animation frame
       if (this.maxFps && now - last < 1000 / this.maxFps - 2) { this.raf = requestAnimationFrame(tick); return; }
       const dt = Math.min(0.1, (now - last) / 1000);
+      if (!this.coarse) this.adaptRatio(now - last);
       last = now;
       try { this.step(dt); } catch (e) { stats.errors.push(String(e && e.stack || e)); console.error(e); }
       this.raf = requestAnimationFrame(tick);
@@ -251,6 +265,12 @@ export class Engine {
     while (this.acc >= FIXED_DT && n++ < 8) { for (const f of this.hooks.fixed) f(FIXED_DT); this.acc -= FIXED_DT; }
     for (const f of this.hooks.update) f(dt);
     this.updateButtons(rawDt);
+    // AutoRotate.Update: local euler z += m_speed * Time.deltaTime (loading spinners)
+    for (const r of this.autoRotates) {
+      if (!r.enabled || !r.node.activeInHierarchy) continue;
+      const e = r.node.le;
+      r.node.setEuler(e[0], e[1], (e[2] + (r.fields.m_speed || 0) * dt) % 360);
+    }
     for (const a of this.animators) if (a.node.activeInHierarchy && a.runtime) a.runtime.update(a.unscaled ? rawDt : dt);
     for (const a of this.animations) if (a.node.activeInHierarchy && a.runtime) a.runtime.update(dt);
     for (const f of this.hooks.late) f(dt);
@@ -260,14 +280,35 @@ export class Engine {
     stats.uiParticles = 0;
     for (const p of this.particles) if (p.node.activeInHierarchy && p.runtime) p.runtime.step(dt);
     this.render();
+    // after the canvas pass: UI rects are laid out for this frame (a prefab spawned mid-frame resets root transforms)
+    for (const f of this.hooks.post) f(dt);
     this.input.endFrame();
     stats.frames++;
   }
 
   resize() {
-    const c = this.canvas;
-    const w = Math.max(1, Math.round(c.clientWidth * this.pixelRatio)), h = Math.max(1, Math.round(c.clientHeight * this.pixelRatio));
+    const c = this.canvas, dpr = window.devicePixelRatio || 1;
+    this.pixelRatio = this.coarse ? Math.min(2, dpr) : Math.max(Math.min(1, dpr), dpr * this.ratioScale);
+    const r = c.getBoundingClientRect();
+    const w = Math.max(1, Math.round(r.width * this.pixelRatio)), h = Math.max(1, Math.round(r.height * this.pixelRatio));
     this.R.resize(w, h);
+  }
+
+  // median frame time over 2 s above 1000/55 ms with a backing store bigger than CSS pixels: render 20 % fewer pixels
+  // per axis (never below 1 per CSS pixel). A median ignores single long frames (asset loads, tab switches).
+  adaptRatio(ms) {
+    if (document.hidden || ms > 250) { this.frameMs.length = 0; return; }
+    const f = this.frameMs;
+    f.push(ms);
+    if (f.length < 120) return;
+    const med = f.slice().sort((a, b) => a - b)[60];
+    f.length = 0;
+    const dpr = window.devicePixelRatio || 1;
+    if (med > 1000 / 55 && dpr * this.ratioScale > 1.001 && (!this.maxFps || this.maxFps >= 55)) {
+      this.ratioScale = Math.max(1 / dpr, this.ratioScale * 0.8);
+      stats.ratioCap = { dpr, scale: this.ratioScale, ratio: dpr * this.ratioScale, frameMs: Math.round(med * 10) / 10 };
+      console.info('food-gang: render scale capped', stats.ratioCap);
+    }
   }
 
   updateWorld() { for (const r of this.roots) r.updateWorld(null); }

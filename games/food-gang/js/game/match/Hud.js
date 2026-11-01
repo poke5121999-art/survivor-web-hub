@@ -107,6 +107,13 @@ export class Hud {
     this.lifeBars = new Map();
     this.lbOffsetY = mb('QuantumLifeBarManager').fields.m_lifeBarOffsetY || 1.8;
     this.killsShown = 0;
+    this.keys = KeyLabels.wanted() ? new KeyLabels(this) : null;
+    if (this.keys) { this.postHook = (dt) => { if (this.keys) this.keys.update(dt); }; ctx.engine.hooks.post.push(this.postHook); }
+  }
+
+  dispose() {
+    if (this.postHook) { const h = this.ctx.engine.hooks; h.post = h.post.filter((f) => f !== this.postHook); this.postHook = null; }
+    if (this.keys) { this.keys.dispose(); this.keys = null; }
   }
 
   *allNodes() { const st = [this.root]; while (st.length) { const n = st.pop(); yield n; for (const c of n.children) st.push(c); } }
@@ -486,6 +493,93 @@ export class Hud {
   buttonOf(n) { for (let x = n; x; x = x.parent) { const b = this.vbuttons.find((q) => q.node === x); if (b) return b; } return null; }
   isUnder(n, root) { for (let x = n; x; x = x.parent) if (x === root) return true; return false; }
   inRect(n, x, y) { const r = this.ctx.engine.ui.screenRect(n); return x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3]; }
+}
+
+// [ĐỀ XUẤT] desktop only (the original is a touch game with on-screen controls alone): the keyboard key on each on-screen
+// control (A / D by the joystick, Space jump, J attack, K special) and, the first time the special is ready in a match, a
+// bubble saying which key fires it. DOM over the canvas, never takes the pointer; a touch anywhere removes it for good.
+const HINT_KEY = 'fg-hint-special';
+const HINT_SECONDS = 7;
+class KeyLabels {
+  static wanted() {
+    if (KeyLabels.touched || !window.matchMedia) return false;
+    return matchMedia('(pointer: fine)').matches && !matchMedia('(pointer: coarse)').matches;
+  }
+
+  constructor(hud) {
+    this.hud = hud;
+    const root = this.root = document.createElement('div');
+    root.id = 'fg-keys';
+    const mk = (cls, html) => { const d = document.createElement('div'); d.className = 'k ' + cls; d.innerHTML = html; root.appendChild(d); d.shown = false; return d; };
+    this.el = { a: mk('joy', '<b>A</b>'), d: mk('joy', '<b>D</b>'), 0: mk('jump', '<b>Space</b>'), 1: mk('action', '<b>J</b>'), 2: mk('special', '<b>K</b>') };
+    this.hint = mk('hint', 'Press <b>K</b> for your special attack!');
+    let seen = false;
+    try { seen = localStorage.getItem(HINT_KEY) === '1'; } catch (e) { /* private mode */ }
+    this.hintState = seen ? 'done' : 'wait';
+    this.hintT = 0;
+    document.body.appendChild(root);
+    this.onTouch = () => { KeyLabels.touched = true; this.hud.dispose(); };
+    window.addEventListener('touchstart', this.onTouch, { passive: true });
+  }
+
+  dispose() {
+    window.removeEventListener('touchstart', this.onTouch);
+    this.root.remove();
+  }
+
+  place(el, on, x, y, size) {
+    if (on && !(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(size))) on = false;
+    if (el.shown !== on) { el.shown = on; el.style.display = on ? 'flex' : 'none'; }
+    if (!on) return;
+    const k = Math.round(x) + ',' + Math.round(y) + ',' + Math.round(size);
+    if (el.at === k) return;
+    el.at = k;
+    el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; el.style.fontSize = Math.round(size) + 'px';
+  }
+
+  update(dt) {
+    const h = this.hud, e = h.ctx.engine, c = e.canvas, ui = e.ui;
+    const r = h.ctx.runner, s = r && r.state;
+    const on = !!(s && s.phase === GamePhase.Playing && h.controlsShown && h.hudGame.activeInHierarchy);
+    const k = c.getBoundingClientRect();
+    const sx = k.width / c.width, sy = k.height / c.height;
+    // canvas rect (pixels, y up) -> page box {x, y, w, h}
+    // a control re-activated this frame has no layout until the canvas pass: zero rect, skip the frame
+    const box = (n) => { const q = ui.screenRect(n); if (!(q[2] >= 1 && q[3] >= 1)) return null; return { x: k.left + q[0] * sx, y: k.top + (c.height - q[1] - q[3]) * sy, w: q[2] * sx, h: q[3] * sy }; };
+    let special = null;
+    for (const b of h.vbuttons) {
+      const img = b.node.children.find((ch) => ch.get('Image')) || b.node;
+      const vis = on && b.node.activeInHierarchy && !!img.r;
+      const q = vis ? box(img) : null;
+      if (!q) { this.place(this.el[b.type], false); continue; }
+      this.place(this.el[b.type], true, q.x + q.w / 2, q.y + q.h * 0.98, Math.max(12, q.h * 0.17));
+      if (b.type === 2) special = q;
+    }
+    const j = h.joy && h.joy.bg;
+    const jq = on && j && j.activeInHierarchy && j.r ? box(j) : null;
+    if (jq) {
+      const q = jq, fs = Math.max(12, q.h * 0.15);
+      this.place(this.el.a, true, q.x + q.w * 0.06, q.y + q.h / 2, fs);
+      this.place(this.el.d, true, q.x + q.w * 0.94, q.y + q.h / 2, fs);
+    } else { this.place(this.el.a, false); this.place(this.el.d, false); }
+    this.updateHint(dt, on, special);
+  }
+
+  updateHint(dt, on, special) {
+    const a = this.hud.ctx.runner.localAgent, input = this.hud.ctx.input;
+    if (this.hintState === 'wait' && on && special && a && a.cooldownSpecial <= 0) { this.hintState = 'show'; this.hintT = 0; }
+    if (this.hintState === 'show') {
+      this.hintT += dt;
+      const used = input.input.key('KeyK') || input.virtual.special || (a && a.isActioning && a.currentIsSpecial);
+      if (used || this.hintT > HINT_SECONDS || !special) {
+        this.hintState = 'done';
+        try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* private mode */ }
+      }
+    }
+    const show = this.hintState === 'show' && on && !!special;
+    if (show) this.place(this.hint, true, special.x + special.w / 2, special.y - special.h * 0.12, Math.max(14, special.h * 0.16));
+    else this.place(this.hint, false);
+  }
 }
 
 // Mathf.SmoothDamp(cur, goal, ref vel, 0.35) for the delayed (white) part of a life bar; jumps up at once
