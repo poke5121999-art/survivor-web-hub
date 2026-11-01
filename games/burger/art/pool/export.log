@@ -1,0 +1,18 @@
+prefab 3638 -> Money
+prefab 3461 -> EmptyCup
+prefab 3458 -> Burger1
+prefab 3451 -> Package1
+prefab 3648 -> Customer
+prefab 3655 -> CustomerVIP
+prefab 3520 -> Garbage01
+prefab 3518 -> Garbage02
+prefab 3519 -> Garbage03
+prefab 3654 -> Car01
+prefab 3660 -> Car02
+prefab 3649 -> Car03
+prefab 3644 -> Car04
+prefab 3652 -> Car05
+prefab 3101 -> Waypoint Arrow
+  tex Money_USA_0-b73993f9 64x64 RGB
+  tex Cafe_idle_colormap_base-531a2ab4 128x128 RGB
+  tex Cafe_idle_colormap_base-d5cbc19b 128x128 RGB
