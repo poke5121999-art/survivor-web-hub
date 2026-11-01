@@ -6,7 +6,8 @@ BGMId, ambientBgmSrcs by AmbientBGMId. Decodes each AudioClip (FSB5 Vorbis) with
 with ffmpeg (every browser plays MP3). Writes art/audio/<name>.mp3 and art/audio/audio.json {sfx: {SoundId: file},
 bgm: {BGMId: file}, ambient: file}.
 
-Stage 1 only needs BGM USA (Counter.OnEnable plays MainBGMId.USA) and the ambient loop, so only those are exported.
+Main and expand BGMs of USA, France, UK (Counter.OnEnable plays MainBGMId.* / ExpandBGMId.*; BGMArea boxes switch to
+the expand one inside zone 2) and the ambient loop are exported, music at 64 kbps.
 """
 import json, os, subprocess, sys, tempfile
 
@@ -17,7 +18,7 @@ import mm
 
 SOUND_ID = ["BuildComplete", "GetMoney", "GaugeFill", "GaugeMoneyFill", "CarHorns", "Trash", "Upgrade", "Roulette1", "Roulette2"]
 BGM_ID = ["USA", "USA_Expand", "France", "France_Expand", "UK", "UK_Expand", "WorldMap", "SkinRoom", "Hawaii"]
-WANT_BGM = {"USA"}
+WANT_BGM = {"USA", "France", "UK", "USA_Expand", "France_Expand", "UK_Expand"}  # main BGM of the stage countries (stages cycle USA, France, UK [GUESS])
 WANT_SFX = {"BuildComplete", "GetMoney", "GaugeFill", "GaugeMoneyFill", "CarHorns", "Trash", "Upgrade"}
 
 
@@ -46,7 +47,7 @@ def encode(clip, name, out_dir, music):
         t.write(wav)
         t.flush()
         dst = os.path.join(out_dir, name + ".mp3")
-        args = ["-b:a", "96k"] if music else ["-b:a", "96k", "-ac", "1"]
+        args = ["-b:a", "64k"] if music else ["-b:a", "96k", "-ac", "1"]
         subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", t.name, *args, dst],
                        check=True, timeout=300)
     return os.path.basename(dst)

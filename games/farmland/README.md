@@ -24,12 +24,25 @@ rebuilt on three.js r160 and plain ES modules. No build step.
   (game id `farmland`); `pull()` before the save is read (newer `meta.savedAt` wins; another account's local save is parked under
   `farmland-bak-<owner>` and the game starts fresh), `push()` at most every 20 s, forced on page hide and island change.
   Guests / no Supabase: every call is a no-op. Worst case (4 islands, all parcels open) ~19.6 KB of the 100 KB cap.
+- `js/sim/meta.js` + `js/view/metaview.js` account layer (rules: `farmland-ref/rules/MONETIZATION.md`), saved in `meta.fs`:
+  diamonds (HC, 30 at start), PetSpot (cat x1.25 sale coins / dog x1.3 barn collect; free 1 h trial once, then 50 HC for 5 h;
+  pets follow with PetController numbers), BikeSpot (free 1 h trial once, then 50 HC for 5 h; x1.7 speed, HUD mount button,
+  LT_Bike_* clips), piggy bank (+5 HC per parcel unlock, cap 600 + 150 x level, Ready above 360).
+  Substitutions as in casual-farm [ĐỀ XUẤT]: no ads or real money on the web, so the piggy bank cracks for free once Ready
+  and permanent IAP pets / bike / VIP / HC packs are left out. The bike stays upright at its prefab rest pose (the riding
+  clips raise and pitch the pelvis it hangs from).
+- Gacha skins: `art/skins` (33 of the 52 GC.HumanSkinsNames + BasePlayer; `data/skins.json` lists the pool and the 19 left
+  out: lookalikes of licensed characters, brands or real people). Skins button -> SkinSelector: browse/wear owned skins,
+  Unlock = HC `round5(min(300, 40 + 8 x owned))`, uniform among locked, worn at once, "New Character Unlocked!".
+  `GameView.setSkin(id)` swaps the player body (own tools, bike, rig). Not in: the GachaRoot reveal diorama, worker skins.
 - `js/sim/` rules without THREE (node-testable): `farm.js` (fields, parcels, merchants, trees, animals, barns, save),
   `workers.js` (barn workers), `path.js`, `bot.js`.
 - `js/view/` three.js + DOM: `scene.js` (scene.json -> Object3D, SkinnedMesh, sprites), `shaders.js` (the game's custom shaders
   rebuilt from decoded GLSL), `world.js` (island; static transforms frozen), `game.js`, `fieldbatch.js` (one field = merged soil
   + InstancedMesh plants), `anim.js` (humanoid clip player: blend tree + tool layer + state clips), `stage.js` (camera rig pitch 50 /
   distance 20 / fov 60), `input.js`, `sound.js`.
+- `art/anim/animals.json` Generic clips of AC_Cow/Hen/Rooster/Pig/Elephant/Fox/Gazelle/Tortoise/Cat/Dog/Parrot/Goldfish/Sheep
+  (`tools/export_generic.py`); `art/anim/plane.json` the seaplane trip RoadToNewWorld (with its camera tracks and events).
 - `art/anim/stickman.json` player/worker/merchant clips as per-bone quaternions (from `tools/export_anim.py`).
 - `tools/` regenerate everything from the extraction (paths point at the HDD copy `/run/media/bui-thanh-thuong/C0E02AC6E02AC310/farmland-ref`;
   run Python with `-I`, e.g. `~/unity-decode-kit/.venv/bin/python -I`):
@@ -59,14 +72,15 @@ rebuilt on three.js r160 and plain ES modules. No build step.
 - `node test/farmland-play.js`: headless Chromium drives the page (load, ?v=, animated walk, buy, field cycle, sell, barn popup,
   worker skin, reload, frame, perf guard: all parcels open + every field grown < 3000 matrix updates and < 400 draw calls,
   seaplane to Japan and back through the map button).
+- `node test/farmland-meta.js`: account-layer rules and their effect on a real Farm (cat sale, dog barn, bike speed).
 - `node test/farmland-cloud.js`: fake HubSave rows in the test process; upload, restore on a second device, upload before an
   island change, newer-wins, other account parks the save, payload size.
+- `node test/skinshot.js`: every skin worn and walking (shots/skins-sheet*.png). `node test/animalshot.js`, `node test/flightshot.js`.
 - `node test/animshot.js`: close-up renders of every player clip (shots/anim/, contact sheet via PIL).
 
 ## Known gaps
 
 - Humanoid retarget skips Mecanim's twist distribution (ArmTwist/LegTwist 0.5) and IK goals; on the stickman this is not visible.
-  Animals (Generic clips) are still static.
 - Minigames (shake the tree, milk the cow, shear the sheep, fishing) are replaced by walking up / standing near.
-- The seaplane flight itself is a fade + reload (no plane animation); boat, pets, bike, rain, shop and other monetization are not in.
+- Not in: boat, rain, Super Farmer (RV golden tools), shop / HC packs / VIP / starter pack (real money), free chest, parrot (VIP).
 - Start coins of islands 2-4 = 7 like Regulier (inferred; WorldSave starts empty and the clip only shows Regulier).

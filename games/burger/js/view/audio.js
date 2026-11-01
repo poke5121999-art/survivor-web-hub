@@ -9,7 +9,10 @@ const KEY = 'bp-sound';
 const GAP = { GaugeFill: 0.07, GaugeMoneyFill: 0.09, GetMoney: 0.25, Trash: 0.15, CarHorns: 1.5, BuildComplete: 0.3, Upgrade: 0.3 };
 
 export class Sound {
-  constructor(base, meta) {
+  // Stage music: StageData has no BGM column; the stages repeat a 3-step pattern (money_unit, prices, offline rate)
+  // that matches MainBGMId USA, France, UK, so stage N plays [USA, France, UK][(N - 1) % 3] [GUESS].
+  constructor(base, meta, stage = 1) {
+    this.bgmId = ['USA', 'France', 'UK'][(stage - 1) % 3];
     this.base = base;
     this.meta = meta;
     this.buffers = {};
@@ -48,7 +51,22 @@ export class Sound {
       return a;
     };
     if (this.meta.ambient) loop(this.meta.ambient, 0.35, true);
-    if (this.meta.bgm.USA) this.bgm = loop(this.meta.bgm.USA, 0.5, this.bgmWanted);
+    const bgm = this.meta.bgm[this.bgmId] || this.meta.bgm.USA;
+    if (bgm) this.bgm = this.mainBgm = loop(bgm, 0.5, this.bgmWanted);
+    const ex = this.meta.bgm[`${this.bgmId}_Expand`];
+    if (ex) this.expandBgm = loop(ex, 0.5, false);
+    if (this.zone === 2 && this.expandBgm) this.setZone(2, true);
+  }
+
+  // Inside the zone-2 BGMArea the expand BGM plays instead of the main one.
+  setZone(z, force = false) {
+    if (z === this.zone && !force) return;
+    this.zone = z;
+    if (!this.mainBgm || !this.expandBgm) return;
+    const next = z === 2 ? this.expandBgm : this.mainBgm, prev = z === 2 ? this.mainBgm : this.expandBgm;
+    prev.pause();
+    this.bgm = next;
+    if (this.bgmWanted && this.on) next.play().catch(() => {});
   }
 
   // The stage music runs once the counter is built (Counter.OnEnable -> PlayBGM).
@@ -64,7 +82,8 @@ export class Sound {
     if (this.gain) this.gain.gain.value = this.on ? 1 : 0;
     for (const a of this.music) {
       a.muted = !this.on;
-      if (this.on && a.paused && (a !== this.bgm || this.bgmWanted)) a.play().catch(() => {});
+      const isMusic = a === this.mainBgm || a === this.expandBgm;
+      if (this.on && a.paused && (!isMusic || (a === this.bgm && this.bgmWanted))) a.play().catch(() => {});
     }
     return this.on;
   }

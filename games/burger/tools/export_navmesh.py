@@ -54,6 +54,11 @@ def tiles(data):
         yield (tx, ty), verts, polys
 
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from xform import Xform
+
+
 def quat_mul(a, b):
     ax, ay, az, aw = a
     bx, by, bz, bw = b
@@ -89,27 +94,25 @@ def world(nodes, i, cache):
 
 def obstacles():
     nodes = json.load(io.open(SCENE, encoding="utf-8"))["nodes"]
-    cache, out = {}, []
+    X, out = Xform(nodes), []
     for i, n in enumerate(nodes):
         o = n.get("k", {}).get("NavMeshObstacle")
         if not o:
             continue
-        pos, q, s = world(nodes, i, cache)
         c = o["m_Center"]
         # m_Center is Unity-space while scene.json TRS is three.js-space: flip its z like every other Unity vector.
-        lc = (c["x"] * s[0], c["y"] * s[1], -c["z"] * s[2])
-        lc = rot(q, lc)
+        lc = (c["x"], c["y"], -c["z"])
         e = o.get("m_Extents") or {"x": 0, "y": 0, "z": 0}
         if o["m_Shape"] == 1:
-            size = [2 * e["x"] * abs(s[0]), 2 * e["y"] * abs(s[1]), 2 * e["z"] * abs(s[2])]
-            shape = "box"
+            half, shape = (e["x"], e["y"], e["z"]), "box"
         else:  # capsule: radius, height in the (Extents-less) fields
             r_, h_ = o.get("m_Radius", 0), o.get("m_Height", 0)
-            size = [2 * r_ * abs(s[0]), h_ * abs(s[1]), 2 * r_ * abs(s[2])]
-            shape = "capsule"
+            half, shape = (r_, h_ / 2, r_), "capsule"
+        center, size, yaw = X.box(i, lc, half)
+        # rot: a pure yaw quaternion (nav.js only reads the yaw); sizes are along the box's own axes.
+        q = (0.0, math.sin(yaw / 2), 0.0, math.cos(yaw / 2))
         out.append({"name": n["n"], "node": i, "on": bool(o.get("m_Enabled", 1)), "shape": shape, "carve": bool(o.get("m_Carve")),
-                    "center": [round(pos[0] + lc[0], 4), round(pos[1] + lc[1], 4), round(pos[2] + lc[2], 4)],
-                    "size": [round(v, 4) for v in size], "rot": [round(v, 6) for v in q]})
+                    "center": [round(v, 4) for v in center], "size": [round(v, 4) for v in size], "rot": [round(v, 6) for v in q]})
     return out
 
 

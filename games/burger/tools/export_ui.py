@@ -17,7 +17,7 @@ sys.path.insert(0, HERE)
 import mm
 
 OUT = os.path.join(GAME, "art", "ui")
-SKIP_COMPONENTS = {"ParticleSystem", "ParticleSystemRenderer", "UIParticleSystem"}
+SKIP_COMPONENTS = {"ParticleSystem", "ParticleSystemRenderer", "UIParticleSystem", "SkinRoom", "Camera", "BurgerPlease.PlayerSkin"}
 
 
 def r2(v):
@@ -196,6 +196,7 @@ def main():
     u = mm.read(um)
     go_rt = lambda go_pid: next(c.component.deref() for c in f[go_pid].read().m_Component if c.component.deref().type.name == "RectTransform")
     W = Walker(f)
+    go_rt_in = lambda ff, go_pid: next(c.component.deref() for c in ff[go_pid].read().m_Component if c.component.deref().type.name == "RectTransform")
     roots = {
         "upgrade": u["playerTotalUpgradeSlots"]["upgradeUI"]["m_PathID"],
         "hr": u["workerUpgradeSlots"]["upgradeUI"]["m_PathID"],
@@ -214,6 +215,39 @@ def main():
     # Tutorial line: UIManager._guideText (GuideText) under Canvas/SafeArea/UICanvasGroup/UpperUI (full-screen parents).
     gt = f[u["_guideText"]["m_PathID"]]
     out["roots"]["guide"] = W.node(go_rt(mm.read(gt)["m_GameObject"]["m_PathID"]))
+    # World map stage popups (Canvas_WorldMap/WorldMap): an open stage (name, Enter) and a locked one.
+    for key, name in (("stagePopup", "StagePopup"), ("stageLocked", "StageLockedPopup"), ("skinView", "SkinView")):
+        g = next(o for o in f.values() if o.type.name == "GameObject" and o.read().m_Name == name)
+        out["roots"][key] = W.node(go_rt(g.path_id))
+    # Skin shop cell (SkinView._prefabSkinForm, a prefab in another file) and the sprites SkinView/SkinForm swap in.
+    sv = next(o for o in f.values() if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "BurgerPlease.SkinView")
+    svd = mm.read(sv)
+    ptr = svd["_prefabSkinForm"]
+    pf = F(W.f_by_ptr(ptr))
+    pf.assets_file_name = mm.ext_names(f.sf)[ptr["m_FileID"] - 1]
+    pf.sf = next(iter(pf.values())).assets_file
+    PW = Walker(pf)
+    PW.sprites = W.sprites
+    form = pf[ptr["m_PathID"]]
+    fd = mm.read(form)
+    out["roots"]["skinForm"] = PW.node(go_rt_in(pf, fd["m_GameObject"]["m_PathID"]))
+    spr = {}
+    for k in ("_assetLabelPink", "_assetLabelGreen", "_assetLabelBlue", "_assetLabelOrange", "_assetLabelPurple"):
+        s = W.sprite(svd[k])
+        spr[k[1:]] = s and s["s"]
+    for k in ("_assetMoneyBuyable", "_assetJewelBuyable", "_assetTokenBuyable", "_assetUnbuyable"):
+        s = PW.sprite(fd[k])
+        spr[k[1:]] = s and s["s"]
+    out["skinSprites"] = spr
+    # Store logos per stage (pro_logo_stageNN_256), shown in the stage popups.
+    want = {f"pro_logo_stage{n:02d}_256": n for n in range(1, 11)}
+    logos = {}
+    for o in mm.load().objects:
+        if o.type.name == "Sprite" and o.peek_name() in want:
+            n = want[o.peek_name()]
+            o.read().image.save(os.path.join(OUT, f"logo_stage{n:02d}.png"))
+            logos[n] = f"logo_stage{n:02d}.png"
+    out["logos"] = [logos.get(n) for n in range(1, 11)]
     out["balloons"] = balloons(f, W)
     with open(os.path.join(OUT, "ui.json"), "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))

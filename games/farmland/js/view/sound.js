@@ -2,6 +2,8 @@
 // touch/key (browsers block audio until then), and the music/ambience loops stream through <audio> after that.
 const SFX = {
   seed: ['Seeding1', 'Seeding2', 'Seeding3'], water: ['Water'], harvest: ['ScytheSwing1', 'ScytheSwing2'],
+  bikeOn: ['BikeBell'], bikeOff: ['GroundThud'], buy: ['PurchaseCompleteJingle'], hc: ['HCCollect'], gacha: ['Gacha'],
+  charUnlock: ['CharUnlock'], plane: ['Plane'],
   pick: ['CropPlop'], sell: ['SingleCoin'], donate: ['SingleCoin'], unlock: ['ParcelUnlock'], bridge: ['BridgeUnlock'],
   tree: ['TreeShake1', 'TreeShake2', 'TreeShake3'], grow: ['PlantGrowing'], step: ['FootStepGrass'],
   Milk: ['Moo1', 'Moo2', 'Moo3'], Wool: ['Sheep1', 'Sheep2'], Egg: ['Chicken', 'Chick'], Honey: ['PlopAigu'],
@@ -69,6 +71,11 @@ export class Sound {
       case 'donate': this.play('donate', { minGap: 0.09, vol: 0.4 }); break;
       case 'unlock': this.play(farm.parcels[e.p].d.bridge ? 'bridge' : 'unlock'); break;
       case 'tree': if (!e.ripe) this.play('tree'); break;
+      // account layer (meta.js events): PlayerController.ToggleBike BikeBell 0.7 / GroundThud 0.1, purchases, diamonds
+      case 'bikeToggle': this.play(e.on ? 'bikeOn' : 'bikeOff', { vol: e.on ? 0.7 : 0.1 }); break;
+      case 'pet': case 'bike': this.play('buy', { vol: 0.7 }); break;
+      case 'piggy': this.play('hc'); break;
+      case 'skin': this.play('charUnlock'); break;
       case 'animal': if (!e.ready) this.play(farm.animals[e.a].d.loot, { vol: 0.7 }); break;
       default: break;
     }

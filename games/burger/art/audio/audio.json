@@ -9,7 +9,12 @@
   "Upgrade": "sfx_Upgrade.mp3"
  },
  "bgm": {
-  "USA": "bgm_USA.mp3"
+  "USA": "bgm_USA.mp3",
+  "USA_Expand": "bgm_USA_Expand.mp3",
+  "France": "bgm_France.mp3",
+  "France_Expand": "bgm_France_Expand.mp3",
+  "UK": "bgm_UK.mp3",
+  "UK_Expand": "bgm_UK_Expand.mp3"
  },
  "ambient": "ambient.mp3",
  "source": "sharedassets1.assets AudioStorage"

@@ -20,6 +20,7 @@ import glob, json, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
+from xform import Xform, apply as xf_apply, apply_dir as xf_dir
 REF = os.environ.get("BP_REF", "/run/media/bui-thanh-thuong/C0E02AC6E02AC310/burger-ref")
 
 
@@ -68,40 +69,23 @@ def qrot(q, v):
 
 
 class World:
+    """Stage-space positions, headings and floor boxes of scene.json nodes (full matrices, see xform.py)."""
     def __init__(self, scene):
         self.N = scene["nodes"]
-        self.cache = {}
-
-    def tr(self, i):
-        """(position, rotation, scale) of node i in stage space."""
-        if i in self.cache:
-            return self.cache[i]
-        n = self.N[i]
-        t, r, s = n.get("t", [0, 0, 0]), n.get("r", [0, 0, 0, 1]), n.get("s", [1, 1, 1])
-        if n["p"] < 0:
-            out = (t, r, s)
-        else:
-            pt, pr, ps = self.tr(n["p"])
-            p = qrot(pr, [t[0] * ps[0], t[1] * ps[1], t[2] * ps[2]])
-            out = ([pt[0] + p[0], pt[1] + p[1], pt[2] + p[2]], qmul(pr, r), [ps[0] * s[0], ps[1] * s[1], ps[2] * s[2]])
-        self.cache[i] = out
-        return out
+        self.X = Xform(self.N)
 
     def pos(self, i):
-        return [round(x, 3) for x in self.tr(i)[0]]
+        return [round(x, 3) for x in xf_apply(self.X.m(i), (0, 0, 0))]
 
     def yaw(self, i):
-        q = self.tr(i)[1]
-        f = qrot(q, [0, 0, 1])
+        f = xf_dir(self.X.m(i), (0, 0, 1))
         return round(math.atan2(f[0], f[2]), 4)
 
     def box(self, i):
         """BoxCollider of node i as an axis-aligned [cx, cz, hx, hz] on the floor (rotations are multiples of 90 degrees)."""
         b = self.N[i]["k"]["BoxCollider"]
-        p, q, s = self.tr(i)
-        c = qrot(q, [b["m_Center"]["x"] * s[0], 0, -b["m_Center"]["z"] * s[2]])
-        e = qrot(q, [b["m_Size"]["x"] * s[0] / 2, 0, b["m_Size"]["z"] * s[2] / 2])
-        return [round(p[0] + c[0], 3), round(p[2] + c[2], 3), round(abs(e[0]), 3), round(abs(e[2]), 3)]
+        r = self.X.aabb(i, (b["m_Center"]["x"], 0, -b["m_Center"]["z"]), (b["m_Size"]["x"] / 2, 0, b["m_Size"]["z"] / 2))
+        return [round(v, 3) for v in r]
 
 
 def ref(v):
@@ -114,6 +98,9 @@ def main():
     scene = json.load(open(os.path.join(GAME, "art", stage, "scene.json"), encoding="utf-8"))
     W = World(scene)
     N = scene["nodes"]
+    # Stage0N/Stage/StageObjects* hold every pad and machine node (one group in Stage01, StageObjects1/2 = main and
+    # expand zone in later stages).
+    SO = {i for i, n in enumerate(N) if n["n"].startswith("StageObjects") and n["p"] >= 0 and N[n["p"]]["n"] == "Stage" and N[n["p"]]["p"] == 0}
     comp = lambda i, c: N[i].get("k", {}).get(c)
 
     objdata = {r["key"]: r for r in table("StageObjectData_23")}
@@ -132,16 +119,17 @@ def main():
         r = objdata[key]
         out = []
         for g in ("ability_group_level0_id", "ability_group_level1_id", "ability_group_level2_id"):
-            rows = [v for t, k, v in abil.get(r[g], []) if k == kind and t == 1]
+            rows = [v for t, k, v in abil.get(r.get(g), []) if k == kind and t == 1]
             out.append(rows[0] if rows else None)
         return out
 
     def level_values(key, kind):
         r = objdata[key]
-        return [v for t, k, v in sorted(abil.get(r["ability_group_level0_id"], [])) if k == kind]
+        return [v for t, k, v in sorted(abil.get(r.get("ability_group_level0_id"), [])) if k == kind]
 
     sd = next(r for r in table("StageData_37") if int(r["id"]) == sid)
-    price_key = sd["zone_item_price_data_key"].split("&")[0]
+    price_keys = sd["zone_item_price_data_key"].split("&")
+    price_key = price_keys[0]
 
     import mm
     mm.load()
@@ -168,6 +156,7 @@ def main():
                                     "carSpawnTime", "maxCarCount", "driveCarType")}
     out = {"stage": sid, "name": sd["stage_name"], "tuning": out_stage,
            "price": cost_list(price_key)[0],
+           "moneyIndex": int(sd["money_index"]),
            "offline": {"rate": num(sd["offline_reward"]), "plusKey": sd["offline_reward_plus_key"],
                        "plusStart": num(sd["offline_reward_price_start"]), "plusStep": num(sd["offline_reward_price_step"]),
                        "plus": num(sd["offline_reward_plus"]), "plusStepValue": num(sd["offline_reward_plus_step"]),
@@ -189,7 +178,7 @@ def main():
 
     def pad_vis(i):
         """The pad's own floor graphic: the component's _transform when the pad node also holds what it builds."""
-        for c in ("TableArea", "DoorCreateArea", "HRUpgradeAreaOpenArea", "PlayerUpgradeAreaOpenArea", "KioskArea"):
+        for c in ("TableArea", "DoorCreateArea", "HRUpgradeAreaOpenArea", "PlayerUpgradeAreaOpenArea", "KioskArea", "RestRoomArea", "SkinRoomArea"):
             k = comp(i, c)
             if k and ref(k.get("_transform")) is not None:
                 return ref(k["_transform"])
@@ -211,7 +200,8 @@ def main():
 
     # Starting cash pile and door
     for i, n in enumerate(N):
-        if n["p"] == 65 and "MoneyArea" in n.get("k", {}):
+        # The starting cash pile: the MoneyArea of StageObjects* with a preset moneyCount (none on some stages).
+        if n["p"] in SO and "MoneyArea" in n.get("k", {}) and (n["k"]["MoneyArea"]["moneyCount"] or "startMoney" not in out):
             out["startMoney"] = {"node": i, "pos": W.pos(i), "amount": n["k"]["MoneyArea"]["moneyCount"]}
         if "DoorCreateArea" in n.get("k", {}):
             d = n["k"]["DoorCreateArea"]
@@ -221,7 +211,7 @@ def main():
     # Grills (CoffeeMachineNode + CoffeeMachineData)
     for i, n in enumerate(N):
         c = n.get("k", {}).get("CoffeeMachineNode")
-        if not c or n["p"] != 65:
+        if not c or n["p"] not in SO:
             continue
         data = so(c["coffeeMachineData"])
         key = data["_upgradableObjectDataKey"]
@@ -238,7 +228,7 @@ def main():
     # Counters (CounterNode + CounterData)
     for i, n in enumerate(N):
         c = n.get("k", {}).get("CounterNode")
-        if not c or n["p"] != 65:
+        if not c or n["p"] not in SO:
             continue
         data = so(c["counterData"])
         key = data["_upgradableObjectDataKey"]
@@ -281,7 +271,7 @@ def main():
     out["packers"] = []
     for i, n in enumerate(N):
         c = n.get("k", {}).get("PackageTableNode")
-        if not c or n["p"] != 65:
+        if not c or n["p"] not in SO:
             continue
         data = so(c["packageTableData"])
         key = data["_upgradableObjectDataKey"]
@@ -309,7 +299,7 @@ def main():
     out["packagePrice"] = cost_list(pkg_key)[0]
     for i, n in enumerate(N):
         c = n.get("k", {}).get("DriveCarCounterNode")
-        if not c or n["p"] != 65:
+        if not c or n["p"] not in SO:
             continue
         data = so(c["driveCarCounterData"])
         key = data["_upgradableObjectDataKey"]
@@ -345,6 +335,86 @@ def main():
         e["pad"] = pad("kiosk", i, e["cost"][0], target=e["id"])
         out["kiosks"].append(e)
     out["tuning"].update(kioskCustomerSpawnTime=st["kioskCustomerSpawnTime"], maxKioskCustomerCount=st["maxKioskCustomerCount"])
+
+    # BGMArea boxes: inside the zone-2 one the stage plays its expand BGM (BGMArea.OnTriggerEnter, _zone).
+    out["bgmAreas"] = [{"zone": n["k"]["BGMArea"].get("_zone", 0), "box": W.box(i)} for i, n in enumerate(N)
+                       if "BGMArea" in n.get("k", {}) and "BoxCollider" in n["k"]]
+
+    # Restroom (RestRoomArea + RestRoom): toilets with doors, a trash box each (10 garbage steps), dirty/clean signs,
+    # a waiting line and its own money pile.
+    out["restrooms"] = []
+    for i, n in enumerate(N):
+        ra = n.get("k", {}).get("RestRoomArea")
+        if not ra:
+            continue
+        ri = ref(ra["restroom"])
+        rc = comp(ri, "RestRoom")
+        toilets = []
+        for k_, tp in enumerate(rc["toiletPoint"]):
+            tb = ref(rc["restRoomTrashBox"][k_])
+            toilets.append({"pos": W.pos(ref(tp)), "node": ref(tp), "door": ref(rc["toiletDoor"][k_]), "trash": tb,
+                            "trashBox": W.box(tb) if "BoxCollider" in N[tb].get("k", {}) else None, "trashPos": W.pos(tb),
+                            "garbage": [ref(g) for g in comp(tb, "RestRoomTrashBox")["_garbageObjects"]],
+                            "dirty": ref(rc["dirtyToilet"][k_]), "clean": ref(rc["cleanSign"][k_])})
+        e = {"id": f"r{len(out['restrooms']) + 1}", "key": ra["_upgradableObjectDataKey"], "node": i, "room": ri, "toilets": toilets,
+             "wait": [W.pos(ref(w)) for w in rc["customerWaitPoint"]], "money": W.box(ref(rc["moneyArea"])), "moneyNode": ref(rc["moneyArea"]),
+             "cost": [c["cost"][0]["itemCount"] for c in ra["levelCost"]]}
+        e["pad"] = pad("restroom", i, e["cost"][0], target=e["id"])
+        out["restrooms"].append(e)
+
+    # Cleaner bot (CleanerArea + Cleaner): a charging pad and the robot that cleans tables.
+    out["cleaners"] = []
+    for i, n in enumerate(N):
+        cl = n.get("k", {}).get("Cleaner")
+        if not cl or ref(cl.get("cleanerArea")) is None:
+            continue
+        ai = ref(cl["cleanerArea"])
+        out["cleaners"].append({"id": f"b{len(out['cleaners']) + 1}", "node": i, "root": N[i]["p"], "area": ai, "areaBox": W.box(ai),
+                                "home": W.pos(i), "zone": cl.get("_zone", 0), "gauge": ref(comp(ai, "CleanerArea").get("chargeBalloonGauge"))})
+
+    # Skin room (SkinRoomArea + SkinRoom trigger).
+    out["skinrooms"] = []
+    for i, n in enumerate(N):
+        sa_ = n.get("k", {}).get("SkinRoomArea")
+        if not sa_:
+            continue
+        ri = ref(sa_["skinRoom"])
+        e = {"id": f"s{len(out['skinrooms']) + 1}", "node": i, "room": ri, "box": W.box(ri) if "BoxCollider" in N[ri].get("k", {}) else None,
+             "cost": [c["cost"][0]["itemCount"] for c in sa_["levelCost"]]}
+        e["pad"] = pad("skinroom", i, e["cost"][0], target=e["id"])
+        out["skinrooms"].append(e)
+
+    # Zones and foods. Stage._foodTypes (ZoneFoodType per Zone) is empty in the prefabs and filled at run time, and the
+    # counters/package table keep the prefab default _itemTypes [2, 18, 19]. What the prefabs do get right is each grill's
+    # _ingredientType, so: zone 2 = objects whose _upgradableObjectDataKey has "_Expand_" (the "Mac" expand area);
+    # zone 2 sells what its grills cook, zone 1 sells
+    # Burger<N> (ItemType 2N, the Stage_N_Burger_Price key); the package is Package<N> (2N + 1). Prices: the
+    # zone_item_price_data_key pair (zone 1 & zone 2) [INFERRED from key names; StageData is not decompiled].
+    zone = lambda key: 2 if "_Expand_" in key else 1
+    from collections import Counter as _C
+    foods = {}
+    for z in (1, 2):
+        c = _C(m["item"] for m in out["machines"] if zone(m["key"]) == z)
+        # Zone 1 is always Burger<N>: Stage07/09 grills still carry Stage06's Burger6 from a copied prefab.
+        foods[z] = (c.most_common(1)[0][0] if c else None) if z == 2 else 2 * sid
+    out["foods"] = {str(z): f for z, f in foods.items() if f is not None}
+    out["zonePrice"] = {"1": cost_list(price_keys[0])[0]}
+    if len(price_keys) > 1 and price_keys[1] in objdata:
+        out["zonePrice"]["2"] = cost_list(price_keys[1])[0]
+    for m in out["machines"]:
+        m["z"] = zone(m["key"])
+        m["item"] = foods[m["z"]] or m["item"]
+    for c in out["counters"]:
+        c["z"] = zone(c["key"])
+        c["items"] = [foods[c["z"]]]
+        c["price"] = out["zonePrice"].get(str(c["z"]), out["price"])
+    for k in out["packers"]:
+        k["ingredients"] = [foods[1]]
+        k["item"] = 2 * sid + 1
+    for k in out["drives"]:
+        k["item"] = 2 * sid + 1
+    for k in out["kiosks"]:
+        k["itemTypes"] = [f for f in (foods[1], foods.get(2)) if f is not None]
 
     for i, n in enumerate(N):
         k = n.get("k", {})
@@ -388,6 +458,10 @@ def main():
     out["star"] = [{"level": int(r["level"]), "exp": int(r["exp"]), "money": int(r["currency_reward_value_1"]) if r["currency_reward_type1"] == "1" else 0,
                     "rewards": [int(r[f"reward_type_{k}"]) for k in range(1, 6) if int(r[f"reward_type_{k}"])]} for r in rows]
     out["expPerBuild"] = int(table("StarExpData_9")[0]["exp"])
+    # EStarLevelRewardType 6 = NewStage: reaching that level opens stage N + 1 on the world map (GameManager, StarLevelHelper.GetNewStageLevel).
+    out["newStageStar"] = next((r["level"] for r in out["star"] if 6 in r["rewards"]), None)
+    # EStarLevelRewardType 26 = CleanBotUnlock: the cleaner robots work from that star level on.
+    out["cleanBotStar"] = next((r["level"] for r in out["star"] if 26 in r["rewards"]), None)
     order = [ref(r) for r in dc["_districtAreas"]] + [ref(r) for r in dc["_specialDistrictAreas"]]
     for d_ in out["districts"]:
         k = order.index(d_["node"])
@@ -408,8 +482,11 @@ def main():
             if c and c.get("upgradeAreaActiveGuideIndex") and ref(c.get("upgradeArea")) is not None:
                 out["guideUpgrade"][str(ref(c["upgradeArea"]))] = c["upgradeAreaActiveGuideIndex"]
     # Features with no web counterpart yet: their subtrees stay off and flow checks on them count as done.
-    feats = ("RestRoomArea", "SkinRoomArea", "CleanerArea", "SkinRoom")
-    out["unbuiltFeatures"] = [i for i, n in enumerate(N) if n["p"] in (0, 65) and n["n"] in feats]
+    # SkinRoom at the stage root is the interior the skin shop UI shows, not a gameplay object.
+    feats = ("SkinRoom",)
+    feat_comps = {"GoodsTableCreateArea", "SelfDrinkArea", "ParkingArea", "TakeOutTableArea"}
+    out["unbuiltFeatures"] = [i for i, n in enumerate(N) if (n["p"] == 0 or n["p"] in SO)
+                              and (n["n"] in feats or feat_comps & set(n.get("k", {})))]
 
     # Parent and prefab active flag of every node, so the sim knows which NavMeshObstacles are live.
     out["tree"] = [[n["p"], 0 if n.get("a", 1) == 0 else 1] for n in N]
@@ -427,6 +504,9 @@ def main():
     # WorldMapManager..ctor (libil2cpp VA 0x18D3F08) stores OFFLINE_REWARD_UNIT = 10.0 s (constant at VA 0x91B13C) and
     # OFFLINE_REWARD_MAX_UNIT = 6; read with capstone, see README.
     out["offline"].update(minMinutes=gm["_offlineMinMinutes"], maxMinutes=gm["_offlineMaxMinutes"], unit=10.0, maxUnit=6)
+    # VIP customers / cars (GameManager fields in level1).
+    out["vip"] = {"priceRate": gm["_vipPriceRate"], "sellTimeRate": gm["_vipFoodSellTimeRate"], "eatTimeRate": gm["_vipFoodEatTimeRate"],
+                  "customerRate": st["customerVIPRate"], "carRate": st["driveCarVIPRate"]}
     out["view"] = {"offset": [off["x"], off["y"], -off["z"]], "ortho": cam["orthographic size"],
                    "background": [bg["r"], bg["g"], bg["b"]], "lightRot": light.get("r", [0, 0, 0, 1]),
                    "lightColor": [light["k"]["Light"]["m_Color"][c] for c in "rgb"], "lightIntensity": light["k"]["Light"]["m_Intensity"],

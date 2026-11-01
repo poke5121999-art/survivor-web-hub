@@ -35,6 +35,9 @@ export class UiLayer {
     for (const p of this.panels) p.layout(this.cw, this.ch);
   }
 
+  // A panel the caller places and lays out itself (list cells such as the skin shop's SkinForm).
+  cell(name) { return new Panel(this, this.ui.roots[name]); }
+
   // A panel per exported root; its DOM lives inside the canvas layer.
   panel(name) {
     const p = new Panel(this, this.ui.roots[name]);
@@ -45,7 +48,7 @@ export class UiLayer {
   }
 }
 
-class Panel {
+export class Panel {
   constructor(layer, root) {
     this.layer = layer;
     this.root = root;

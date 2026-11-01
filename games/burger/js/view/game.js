@@ -7,13 +7,14 @@ import { ITEM } from '../sim/sim.js';
 
 // Pool prefab roots in art/pool/scene.json (tools/export_store.py sharedassets1.assets pool --prefabs ...).
 // Cars: ObjectPoolManager._carObjectData[Stage.driveCarType] = Car01..Car05.
-const POOL = { money: 0, cup: 2, burger: 4, package: 6, customer: 19, customerVip: 66, garbage: [116, 121, 126], cars: [135, 138, 141, 144, 147], arrow: 150 };
+// Pool prefabs by GameObject name (art/pool, tools/export_items.py); items by ItemType through data/items.json.
+const POOL = { customer: 'Customer', customerVip: 'CustomerVIP', garbage: ['Garbage01', 'Garbage02', 'Garbage03'],
+  cars: ['Car01', 'Car02', 'Car03', 'Car04', 'Car05'], vipCars: ['CarVIP01', 'CarVIP02'], arrow: 'Waypoint Arrow' };
 // Guide arrow (sharedassets1 "Waypoint Arrow", GuideArrow): hangs over the current guide step's transform and bobs
 // (a DOTween on _modelTransform; height and bob [GUESS], the tween values are not in the data).
 const ARROW_Y = 2.2, ARROW_BOB = 0.3, ARROW_HZ = 1.2;
-// Item.itemSizeY / CurrencyItem.itemSizeY of those prefabs: the step between two stacked items (PackageItem 0.5).
-const STEP = { [ITEM.burger]: 0.35, [ITEM.cup]: 0.3, [ITEM.money]: 0.1, [ITEM.package]: 0.5 };
-const PROTO = { [ITEM.money]: POOL.money, [ITEM.cup]: POOL.cup, [ITEM.burger]: POOL.burger, [ITEM.package]: POOL.package };
+// Stack step = Item/PackageItem.itemSizeY of the item's prefab; money bills (CurrencyItem) 0.1 [GUESS], cups 0.3.
+const STEP_FALLBACK = { [ITEM.money]: 0.1, [ITEM.cup]: 0.3 };
 const MONEY_BILL = 5;   // one bill on a money pile per this much cash (the original stacks one bill per sale unit)
 
 const v3 = new THREE.Vector3();
@@ -24,7 +25,10 @@ const PRICE_FONT = "'Bumpo', 'Bakbak One', 'Arial Black', sans-serif";
 const PRICE_H = 0.9, PRICE_W = 2.4;
 
 export class GameView {
-  constructor({ world, pool, sim, anim, scene3 }) {
+  constructor({ world, pool, sim, anim, scene3, items }) {
+    this.roots = new Map();
+    pool.objects.forEach((o, i) => { const n = o.userData.node; if (n && n.p < 0 && !this.roots.has(n.n)) this.roots.set(n.n, i); });
+    this.itemNames = items.items;
     this.world = world;
     this.pool = pool;
     this.sim = sim;
@@ -67,7 +71,22 @@ export class GameView {
   }
 
   // A fresh copy of a pool prefab (skinned ones keep their own skeleton) with its Animator playing.
+  // Pool root index of a prefab name, or of an ItemType number.
+  root(nameOrItem) {
+    const name = typeof nameOrItem === 'number' ? this.itemNames[nameOrItem] : nameOrItem;
+    const i = this.roots.get(name);
+    if (i == null) throw new Error(`pool prefab missing: ${name}`);
+    return i;
+  }
+
+  itemStep(item) {
+    const k = this.pool.objects[this.root(item)].userData.node.k || {};
+    const c = k.Item || k.PackageItem;
+    return c && c.itemSizeY ? c.itemSizeY : STEP_FALLBACK[item] ?? 0.35;
+  }
+
   prefab(i) {
+    if (typeof i === 'string') i = this.root(i);
     const src = this.pool.objects[i];
     const o = SkeletonUtils.clone(src);
     o.visible = true;
@@ -139,8 +158,8 @@ export class GameView {
       this.stacks.set(key, st);
     }
     if (st.item !== item) { while (st.list.length) st.parent.remove(st.list.pop()); st.item = item; }
-    const proto = PROTO[item] ?? POOL.burger;
-    const cols = opt.cols || 1, step = STEP[item], max = opt.max || 60;
+    const proto = this.root(item);
+    const cols = opt.cols || 1, step = this.itemStep(item), max = opt.max || 60;
     n = Math.min(n, max);
     while (st.list.length > n) st.parent.remove(st.list.pop());
     while (st.list.length < n) {
@@ -172,7 +191,7 @@ export class GameView {
     if (this.playerRig) { this.playerRig.play(s.player.moving ? 'Run' : 'Idle'); }
     const pk = this.d.player.node;
     const hand = this.handOf(this.player);
-    this.stack('p', hand, s.player.carry[0] ?? ITEM.burger, s.player.carry.length);
+    this.stack('p', hand, s.player.carry[0] ?? ITEM.cup, s.player.carry.length);
     this.playerTray.visible = s.player.carry.length > 0;
     this.stack('start', this.startPile, ITEM.money, Math.ceil(s.startPile / MONEY_BILL), { cols: 4, max: 60 });
 
@@ -184,7 +203,7 @@ export class GameView {
     for (const c of d.counters) {
       const st = s.counter[c.id];
       if (!st) continue;
-      this.stack(`c${c.id}`, this.O[c.storageNode], ITEM.burger, st.n, { cols: 2, y: 1.0, gx: 0.5, max: 40 });
+      this.stack(`c${c.id}`, this.O[c.storageNode], c.items[0], st.n, { cols: 2, y: 1.0, gx: 0.5, max: 40 });
       this.stack(`$${c.id}`, this.O[c.moneyNode], ITEM.money, Math.ceil(st.money / MONEY_BILL), { cols: 4, max: 80 });
     }
     // Package table: burgers waiting on the storage side, boxes on the pickup side, and the box being filled on the
@@ -192,11 +211,11 @@ export class GameView {
     for (const k of d.packers) {
       const st = s.packer[k.id];
       if (!st) continue;
-      this.stack(`pi${k.id}`, this.O[k.burgersNode], ITEM.burger, st.in, { cols: 2, gx: 0.45, max: 50 });
-      this.stack(`po${k.id}`, this.O[k.itemsNode], ITEM.package, st.out, { max: 20 });
+      this.stack(`pi${k.id}`, this.O[k.burgersNode], k.ingredients[0], st.in, { cols: 2, gx: 0.45, max: 50 });
+      this.stack(`po${k.id}`, this.O[k.itemsNode], k.item, st.out, { max: 20 });
       let tray = this.trays.get(k.id);
       if (!tray) {
-        tray = this.prefab(POOL.package);
+        tray = this.prefab(this.root(k.item));
         tray.userData.slots = [];
         tray.traverse(c => { if (/^Coffee/.test(c.name)) tray.userData.slots.push(c); });
         this.O[k.trayNode].add(tray);
@@ -211,22 +230,45 @@ export class GameView {
     for (const k of d.drives) {
       const st = s.drive[k.id];
       if (!st) continue;
-      this.stack(`di${k.id}`, this.O[k.itemsNode], ITEM.package, st.n, { cols: 2, gx: 0.5, max: 50 });
+      this.stack(`di${k.id}`, this.O[k.itemsNode], k.item, st.n, { cols: 2, gx: 0.5, max: 50 });
       this.stack(`d$${k.id}`, this.O[k.moneyNode], ITEM.money, Math.ceil(st.money / MONEY_BILL), { cols: 4, max: 80 });
     }
     // Kiosk: burgers waiting in the machine, its money pile.
     for (const k of d.kiosks) {
       const st = s.kiosk[k.id];
       if (!st) continue;
-      this.stack(`ki${k.id}`, this.O[k.itemsNode], ITEM.burger, st.n, { cols: 2, gx: 0.45, max: 50 });
+      this.stack(`ki${k.id}`, this.O[k.itemsNode], k.itemTypes[0], st.n, { cols: 2, gx: 0.45, max: 50 });
       this.stack(`k$${k.id}`, this.O[k.moneyNode], ITEM.money, Math.ceil(st.money / MONEY_BILL), { cols: 4, max: 80 });
     }
+    // Restroom: dirty toilet / clean sign per stall (RestRoom.ToiletRefresh), garbage in its trash box, money pile.
+    for (const r of d.restrooms || []) {
+      const st = s.restroom[r.id];
+      if (!st) continue;
+      r.toilets.forEach((t, k) => {
+        const dirty = st.dirty[k] > 0;
+        if (this.O[t.dirty]) this.O[t.dirty].visible = dirty;
+        if (this.O[t.clean]) this.O[t.clean].visible = !dirty;
+        t.garbage.forEach(g => { if (this.O[g]) this.O[g].visible = dirty; });
+      });
+      this.stack(`r$${r.id}`, this.O[r.moneyNode], ITEM.money, Math.ceil(st.money / MONEY_BILL), { cols: 4, max: 80 });
+    }
+    // Cleaner robots: shown from the CleanBotUnlock star level, moving with the sim; garbage on board while carrying.
+    const unlocked = sim.cleanerUnlocked();
+    d.cleaners.forEach((c, i) => {
+      if (this.O[c.root]) this.O[c.root].visible = unlocked;
+      const b = s.bots[i], o = this.O[c.node];
+      if (!b || !o) return;
+      this.place(o, b);
+      const gk = (o.userData.node.k.Cleaner || {})._garbage;
+      const g = gk && this.findNode(o, gk);
+      if (g) g.visible = b.carry > 0;
+    });
     const carsAlive = new Set();
     for (const c of s.cars) {
       carsAlive.add(c.id);
       let o = this.cars.get(c.id);
       if (!o) {
-        o = this.prefab(POOL.cars[c.type] ?? POOL.cars[0]);
+        o = this.prefab(c.vip ? POOL.vipCars[c.type % 2] : POOL.cars[c.type] ?? POOL.cars[0]);
         this.world.root.add(o);
         this.cars.set(c.id, o);
       }
@@ -260,11 +302,12 @@ export class GameView {
       alive.add(x.id);
       let o = this.people.get(x.id);
       if (!o) {
-        o = this.prefab(POOL.customer);
+        o = this.prefab(x.vip ? POOL.customerVip : POOL.customer);
         this.world.root.add(o);
         this.people.set(x.id, o);
       }
       this.place(o, x);
+      o.visible = x.state !== 'inToilet';
       const rig = o.userData.rigInst;
       const sitting = x.state === 'eat';
       if (rig) rig.play(sitting ? 'Sit' : x.moving ? 'Run' : 'Idle');
@@ -274,8 +317,8 @@ export class GameView {
       }
       const carrying = x.kiosk ? (x.state === 'exit' ? x.want : x.got)
         : x.state === 'toSeat' || x.state === 'seat' ? x.want : x.state === 'queue' ? x.got : 0;
-      this.stack(`x${x.id}`, this.handOf(o), ITEM.burger, carrying);
-      const tray = o.userData.trayObj ?? (o.userData.trayObj = this.findNode(o, (o.userData.node.k.CustomerNormal || {})._tray));
+      this.stack(`x${x.id}`, this.handOf(o), x.item ?? this.d.foods['1'], carrying);
+      const tray = o.userData.trayObj ?? (o.userData.trayObj = this.findNode(o, (o.userData.node.k.CustomerNormal || o.userData.node.k.CustomerVIP || {})._tray));
       if (tray) tray.visible = carrying > 0;
       if (rig) rig.update(dt);
     }
@@ -293,7 +336,7 @@ export class GameView {
       this.place(o, w);
       const r = this.rigUnder(o);
       if (r) r.play(w.moving ? 'Run' : 'Idle');
-      this.stack(`w${k}`, this.handOf(o), w.carry[0] ?? ITEM.burger, w.carry.length);
+      this.stack(`w${k}`, this.handOf(o), w.carry[0] ?? ITEM.cup, w.carry.length);
     });
 
     for (const r of this.world.rigs) r.update(dt);

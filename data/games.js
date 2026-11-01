@@ -1193,16 +1193,16 @@ window.HUB_GAMES = [
     id: "farmland",
     title: "Farm Land",
     tagline: "Đi khắp nông trại: trồng trọt, nuôi thú, thuê thợ, mở khoá đất rồi bay sang đảo mới.",
-    desc: "Làm lại Farm Land (LolTap) từ bản Android 3.28.12, chạy thẳng trên web bằng asset gốc. Đi bộ quanh nông trại: gieo hạt và tưới nước cho ruộng, nuôi bò, cừu và gà, chặt cây, mang nông sản bán cho thương lái lấy xu. Dùng xu mở khoá từng ô đất để mở rộng, thuê thợ cho kho và ruộng, nâng ba lô. Qua cầu ra bến thủy phi cơ bay sang các đảo mới: Nhật Bản, Savana và Mùa Đông, mỗi đảo một bảng màu và loại tiền riêng. Lưu lên tài khoản hub để chơi tiếp trên máy khác. Kéo để đi, màn dọc cho điện thoại. Đang mở rộng thêm thú cưng, máy gacha và hoạt ảnh.",
+    desc: "Làm lại Farm Land (LolTap) từ bản Android 3.28.12, chạy thẳng trên web bằng asset gốc. Đi bộ quanh nông trại: gieo hạt và tưới nước cho ruộng, nuôi bò, cừu và gà, chặt cây, mang nông sản bán cho thương lái lấy xu. Dùng xu mở khoá từng ô đất để mở rộng, thuê thợ cho kho và ruộng, nâng ba lô. Qua cầu ra bến thủy phi cơ bay sang các đảo mới: Nhật Bản, Savana và Mùa Đông, mỗi đảo một bảng màu và loại tiền riêng. Lưu lên tài khoản hub để chơi tiếp trên máy khác. Có thú cưng (mèo, chó) đi theo, xe đạp tăng tốc, heo đất, kim cương và máy gacha mở 33 skin; thú vật có hoạt ảnh riêng. Kéo để đi, màn dọc cho điện thoại.",
     genre: "thu-gian",
     accent: "#7cb342",
-    en: { title: "Farm Land", tagline: "Walk your farm: plant, raise animals, hire workers, unlock land and fly to new islands.", desc: "Farm Land (LolTap) remade from the Android 3.28.12 release, running straight in the browser on the original assets. Walk around the farm: seed and water the fields, raise cows, sheep and chickens, chop trees, and sell crops to the merchant for coins. Spend coins to unlock parcels and expand, hire workers for the barn and fields, and upgrade your pack. Cross the bridge to the seaplane and fly to new islands, Japan, Savana and Winter, each with its own palette and currency. Saved to your hub account to continue on another device. Drag to walk, portrait for phones. Pets, gacha and animations still expanding." },
+    en: { title: "Farm Land", tagline: "Walk your farm: plant, raise animals, hire workers, unlock land and fly to new islands.", desc: "Farm Land (LolTap) remade from the Android 3.28.12 release, running straight in the browser on the original assets. Walk around the farm: seed and water the fields, raise cows, sheep and chickens, chop trees, and sell crops to the merchant for coins. Spend coins to unlock parcels and expand, hire workers for the barn and fields, and upgrade your pack. Cross the bridge to the seaplane and fly to new islands, Japan, Savana and Winter, each with its own palette and currency. Saved to your hub account to continue on another device. Drag to walk, portrait for phones. Pets that follow you, a speed bike, a piggy bank, diamonds and a 33-skin gacha, with animals on their own clips." },
     thumbnail: "assets/thumbnails/farmland.png",
     path: "games/farmland/index.html",
-    rev: "20261031m",
+    rev: "20261101d",
     // three.js r160 vendor, no build step; rebuilt from the Android XAPK (com.loltap.farmland 3.28.12, Unity 6000.3.9f1
     // IL2CPP) by games/farmland/tools. Humanoid Mecanim clips retargeted offline; cloud save via the hub js/ scripts like
-    // casual-farm. Bump rev: node games/farmland/tools/stamp.js <rev>. Kiem: farmland-sim.js, farmland-play.js, farmland-cloud.js.
+    // casual-farm. Bump rev: node games/farmland/tools/stamp.js <rev>. Kiem: farmland-sim.js, farmland-play.js, farmland-meta.js, farmland-cloud.js.
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
   },
@@ -1210,16 +1210,16 @@ window.HUB_GAMES = [
     id: "burger",
     title: "Burger Please!",
     tagline: "Mở quán burger: nấu, giao khách tại quầy, drive-thru và kiosk, nâng cấp rồi mở rộng.",
-    desc: "Làm lại Burger Please! (Supercent) từ bản Android 31.8.0, chạy thẳng trên web bằng asset gốc. Nhặt vốn, mở cửa, nướng burger rồi giao cho khách ở quầy. Mở drive-thru cho xe mua theo hộp, bàn đóng gói gộp burger thành hộp, và kiosk bán mang đi; bong bóng trên đầu khách báo đơn. Thuê nhân viên đứng quầy, đóng gói và thu ngân, nâng sức chứa, tốc độ và giá bán, mở thêm quận để lên sao. Nhận tiền lúc vắng mặt. Theo đúng hướng dẫn tân thủ của bản gốc. Kéo để đi, màn dọc cho điện thoại. Hiện có nhà hàng đầu; đang dựng thêm các màn sau.",
+    desc: "Làm lại Burger Please! (Supercent) từ bản Android 31.8.0, chạy thẳng trên web bằng asset gốc. Nhặt vốn, mở cửa, nướng burger rồi giao cho khách ở quầy. Mở drive-thru cho xe mua theo hộp, bàn đóng gói gộp burger thành hộp, và kiosk bán mang đi; bong bóng trên đầu khách báo đơn. Thuê nhân viên đứng quầy, đóng gói và thu ngân, nâng sức chứa, tốc độ và giá bán, mở thêm quận để lên sao. Nhận tiền lúc vắng mặt. Đủ 10 màn, mỗi màn có món, giá, quận và mức sao riêng; thêm khách VIP (trả gấp đôi), nhà vệ sinh, robot dọn và phòng skin 10 bộ đồng phục. Màn 1 có hướng dẫn tân thủ. Kéo để đi, màn dọc cho điện thoại.",
     genre: "thu-gian",
     accent: "#e8a33d",
-    en: { title: "Burger Please!", tagline: "Run a burger shop: cook, serve at the counter, drive-thru and kiosk, upgrade and expand.", desc: "Burger Please! (Supercent) remade from the Android 31.8.0 release, running straight in the browser on the original assets. Grab the startup cash, open up, grill burgers and hand them to customers at the counter. Open a drive-thru for cars buying boxes, a package table that bundles burgers into boxes, and a take-away kiosk; balloons over each head show the order. Hire counter, packer and cashier staff, upgrade capacity, speed and price, and open new districts to earn stars. Collect idle income while away. Follows the original tutorial. Drag to walk, portrait for phones. The first restaurant is in; later stages are being built." },
+    en: { title: "Burger Please!", tagline: "Run a burger shop: cook, serve at the counter, drive-thru and kiosk, upgrade and expand.", desc: "Burger Please! (Supercent) remade from the Android 31.8.0 release, running straight in the browser on the original assets. Grab the startup cash, open up, grill burgers and hand them to customers at the counter. Open a drive-thru for cars buying boxes, a package table that bundles burgers into boxes, and a take-away kiosk; balloons over each head show the order. Hire counter, packer and cashier staff, upgrade capacity, speed and price, and open new districts to earn stars. Collect idle income while away. Follows the original tutorial. Drag to walk, portrait for phones. All 10 campaign stages are in, each with its own foods, prices, districts and stars, plus VIP customers, a restroom, cleaner robots and a skin room." },
     thumbnail: "assets/thumbnails/burger.png",
     path: "games/burger/index.html",
-    rev: "20261101a",
+    rev: "20261101c",
     // three.js vendor, no build step; rebuilt from the Android XAPK (io.supercent.burgeridle 31.8.0, Unity 2022.3.62f3
     // IL2CPP) by games/burger/tools, rules from the Ghidra decompile. Bump rev: node games/burger/tools/stamp.js <rev>.
-    // Kiem: burger-sim.js, burger-play.js. Stage 1 xong; stage 2-10 dang lam.
+    // Kiem: burger-sim.js, burger-stages.js, burger-play.js. Stage 1-10 + VIP/restroom/cleaner/skin xong.
     status: "available",
     tags: ["Quản lý", "Nhàn rỗi", "Màn dọc"]
   }

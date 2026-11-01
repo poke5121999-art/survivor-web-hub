@@ -24,6 +24,14 @@ const CAR_SPEED = 6, CAR_GAP = 3.5;
 // Kiosk [CODE Kiosk..ctor sellTimer 0.25; Kiosk.GetTargetPos CustomerSpawner.customerSize 1.2 per slot]. The kiosk
 // hands one stored item per sellTimer to the head customer of each line by itself (WorkerSell1/2 start in OnEnable).
 const KIOSK_SELL = 0.25, KIOSK_GAP = 1.2;
+// Restroom [CODE RestRoom..ctor RESTROOM_COUNT 3, MAX_GARBAGE_COUNT 1, REST_TIME 30, PRICE_RATE 3; CustomerMovement.Exit:
+// after eating a customer goes when Random.Range(0, 100) <= 19, a VIP always]. [GUESS] a visit lasts REST_TIME, leaves the
+// toilet dirty and pays the zone-1 price x PRICE_RATE; standing at a dirty toilet's trash box cleans it in 1 s.
+const REST = { chance: 20, time: 30, priceRate: 3, maxGarbage: 1, cleanTime: 1 };
+// Cleaner robot [CODE GameManager..ctor cleanerChargeTimeFirst 180, cleanerChargeTimePlus 10, cleanerMoveSpeedFirst 1.0,
+// cleanerMoveSpeedPlus 0.1, MaxCleanerSpeedLevel 5; CleanerChargeReward]. The original charges it from a rewarded
+// video or jewels; this build charges it free by standing on its charging pad while it is empty.
+const CLEANER = { timeFirst: 180, timePlus: 10, speedFirst: 1.0, speedPlus: 0.1, maxSpeedLevel: 5 };
 const CUSTOMER_SPEED = 3.5;   // [DATA] Customer prefab NavMeshAgent.m_Speed
 // Staff speed is WorkerData._moveSpeed[level] in m/s, set straight on NavMeshAgent.speed [CODE Stage.WorkerMoveSpeed,
 // Stage.c:5861; GameManager.c:5704].
@@ -32,7 +40,7 @@ const MAX_CUSTOMERS = 24;
 
 const GUIDE_STEPS = new Set(['PickUp_Money', 'Create_Door', 'Create_Table', 'Create_Coffee_Machine', 'Create_Counter', 'PickUp_Coffee',
   'Put_It_Counter', 'Sell_Coffee', 'Clean_Table', 'Throw_EmptyCup', 'Hire_Cashier', 'Open_DistrictArea', 'Open_HROffice', 'Open_UpgradeOffice',
-  'Create_DriveThru', 'Create_PackageTable', 'Put_It_PackageTable', 'PickUp_CoffeePackage', 'Put_It_Kiosk']);
+  'Create_DriveThru', 'Create_PackageTable', 'Put_It_PackageTable', 'PickUp_CoffeePackage', 'Put_It_Kiosk', 'Clean_Toilet']);
 const BUILD_STEP = { door: 'Create_Door', table: 'Create_Table', machine: 'Create_Coffee_Machine', counter: 'Create_Counter',
   district: 'Open_DistrictArea', hr: 'Open_HROffice', office: 'Open_UpgradeOffice', drive: 'Create_DriveThru', packer: 'Create_PackageTable' };
 
@@ -58,6 +66,9 @@ function rng(seed) {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
+// ESkinAbilityType
+export const SKIN = { speed: 1, cap: 2, price: 3, packagePrice: 4, staffSpeed: 5, staffCap: 6, staffMore: 7, machine: 8 };
+
 export class Sim {
   constructor(data, nav = null, save = null, seed = 7) {
     this.d = data;
@@ -66,7 +77,9 @@ export class Sim {
     this.events = [];
     this.pads = new Map(data.pads.map(p => [p.id, p]));
     this.byTarget = new Map();
-    for (const list of [data.machines, data.counters, data.tables, data.packers, data.drives, data.kiosks]) for (const o of list) this.byTarget.set(o.id, o);
+    this.skin = { rows: [], sel: 1, owned: [1] };
+    this.inSkinRoom = null;
+    for (const list of [data.machines, data.counters, data.tables, data.packers, data.drives, data.kiosks, data.restrooms || [], data.skinrooms || []]) for (const o of list) this.byTarget.set(o.id, o);
     // Guide steps 24/25 reuse the counter texts (Put_It_Counter, Sell_Coffee) but point at the drive-thru window.
     this.driveNodes = new Set(data.drives.flatMap(x => [x.itemsNode, x.boardNode]));
     // The kiosk's guide steps (the PickUp_Coffee before Put_It_Kiosk, then Put_It_Kiosk) only wake once a kiosk exists:
@@ -101,6 +114,8 @@ export class Sim {
       const gr = s.grade[e.id] || 0;
       if (on && e.grades) e.grades.forEach((n, k) => { if (n != null) o.set(n, k === gr); });
     }
+    // Restroom / skin room models appear once their pad is paid (RestRoomArea / SkinRoomArea create them).
+    for (const r of [...(d.restrooms || []), ...(d.skinrooms || [])]) o.set(r.room, !!s.built[r.pad]);
     // Kiosk.InitFoodList switches on foodParent[n - 1] for a stage with n food kinds (one, burgers, on stage 1).
     for (const k of d.kiosks) if (s.built[k.pad]) o.set(k.foodNode, true);
     o.set(d.hr.room, !!s.built.hr1);
@@ -174,6 +189,11 @@ export class Sim {
       packer: {},         // package table id -> { in: burgers waiting, out: boxes ready, t }
       drive: {},          // drive-thru id -> { n: boxes in the window, sellT, money }
       kiosk: {},          // kiosk id -> { n: burgers stored, money }
+      restroom: {},       // restroom id -> { money, dirty: [garbage per toilet], cleanT: [] }
+      cleaner: { timer: 0, speedLv: 0, timeLv: 0 },
+      bots: [],           // cleaner robots: { id, pos, carry, task }
+      vipRate: this.d.vip ? this.d.vip.customerRate : 0,   // CustomerSpawner.Init: customerVIPRate = Stage.customerVIPRate
+      carVipRate: 0,                                       // DriveCarSpawner..ctor: driveCarVIPRate 0
       customers: [],
       cars: [],
       workers: [],
@@ -195,9 +215,10 @@ export class Sim {
     s.cars = [];
     for (const c of Object.values(s.drive)) c.sellT = 0;
     for (const k of Object.values(s.kiosk)) k.sellT = [0, 0];
+    s.bots = (s.bots || []).map(b => ({ id: b.id, pos: b.pos, carry: 0, task: null }));
     for (const c of Object.values(s.counter)) c.sellT = 0;
     for (const t of Object.values(s.table)) t.seats = t.seats.map(() => null);
-    s.workers = s.workers.map(w => ({ id: w.id, pos: w.pos, carry: [], task: null, pickT: 0 }));
+    s.workers = s.workers.filter(w => !w.skin).map(w => ({ id: w.id, pos: w.pos, carry: [], task: null, pickT: 0 }));
     s.player.carry = s.player.carry.filter(i => i !== ITEM.money);
     return s;
   }
@@ -210,12 +231,32 @@ export class Sim {
     return s;
   }
 
+  // ---- skins (SkinManager) ----
+  // The equipped skin's abilities (Skin.ability) plus the unlock bonus of every owned skin (Skin.unlock_ability, summed
+  // into SkinManager._unlockAbility*). Capacities take the integer part of each (Player/Stage: (int)skin + (int)unlock).
+  setSkin(rows, sel, owned) { this.skin = { rows: rows || [], sel, owned: owned || [] }; }
+  skinRow(id) { return this.skin.rows.find(r => r.id === id); }
+  skinAb(type) { const r = this.skinRow(this.skin.sel); return r ? r.ab.reduce((a, [t, v]) => a + (t === type ? v : 0), 0) : 0; }
+  skinUnlock(type) {
+    let a = 0;
+    for (const id of this.skin.owned) { const r = this.skinRow(id); if (r) for (const [t, v] of r.unlock) if (t === type) a += v; }
+    return a;
+  }
+  skinAdd(type) { return this.skinAb(type) + this.skinUnlock(type); }
+  skinInt(type) { return Math.trunc(this.skinAb(type)) + Math.trunc(this.skinUnlock(type)); }
+
   // ---- derived values ----
-  get price() { return this.d.price + this.d.player.priceUp[this.s.lv.price]; }
-  get speed() { return this.d.player.speed[this.s.lv.speed]; }
-  get cap() { return this.d.player.cap[this.s.lv.cap]; }
-  workerSpeed() { return WORKER_BASE * this.d.worker.speed[this.s.wlv.speed]; }
-  workerCap() { return this.d.worker.cap[this.s.wlv.cap]; }
+  get price() { return this.d.price + this.d.player.priceUp[this.s.lv.price] + this.skinAdd(SKIN.price); }
+  // Each zone's counter sells at its own zone_item_price (zone 2 = the expand area), plus the office price upgrade.
+  counterPrice(c) { return (c.price ?? this.d.price) + this.d.player.priceUp[this.s.lv.price] + this.skinAdd(SKIN.price); }
+  get packagePrice() { return this.d.packagePrice + this.skinAdd(SKIN.packagePrice); }
+  get speed() { return this.d.player.speed[this.s.lv.speed] + this.skinAdd(SKIN.speed); }
+  get cap() { return this.d.player.cap[this.s.lv.cap] + this.skinInt(SKIN.cap); }
+  workerSpeed() { return WORKER_BASE * this.d.worker.speed[this.s.wlv.speed] + this.skinAdd(SKIN.staffSpeed); }
+  workerCap() { return this.d.worker.cap[this.s.wlv.cap] + this.skinInt(SKIN.staffCap); }
+  // CoffeeMachine: production speed x (1 + skin MachineSpeedUp + unlock MachineSpeedUp).
+  machineRate() { return 1 + this.skinAdd(SKIN.machine); }
+  hired() { return this.s.workers.filter(w => !w.skin).length; }
   isBuilt(id) { return !!this.s.built[this.byTarget.get(id)?.pad || id]; }
 
   // Pads shown now: a create pad while its GameObject is active and not built yet (Node.Update), a grade pad while its
@@ -264,8 +305,20 @@ export class Sim {
     this.stepCars(dt);
     this.spawnKiosk(dt);
     this.stepKiosk(dt);
+    this.stepRestrooms(dt);
+    this.stepCleaners(dt);
     this.stepWorkers(dt);
     this.carryZones(this.s.player, dt, this.cap);
+    this.stepSkinRoom();
+  }
+
+  // SkinRoom: walking into the built room opens the skin shop (SkinRoom trigger -> UIManager SkinView); leaving it
+  // closes the shop. Edge-triggered so the popup opens once per visit.
+  stepSkinRoom() {
+    const r = (this.d.skinrooms || []).find(x => this.s.built[x.pad] && inBox(this.s.player.pos, x.box));
+    const id = r ? r.id : null;
+    if (id !== this.inSkinRoom) this.events.push({ type: 'skinroom', id, open: !!id });
+    this.inSkinRoom = id;
   }
 
   movePlayer(dt, input) {
@@ -334,8 +387,9 @@ export class Sim {
       if (p.kind === 'packer') s.packer[p.target] = { in: 0, out: 0, t: 0 };
       if (p.kind === 'drive') s.drive[p.target] = { n: 0, sellT: 0, money: 0 };
       if (p.kind === 'kiosk') s.kiosk[p.target] = { n: 0, money: 0, sellT: [0, 0] };
+      if (p.kind === 'restroom') s.restroom[p.target] = { money: 0, dirty: this.byTarget.get(p.target).toilets.map(() => 0), cleanT: [] };
     }
-    if (p.kind === 'hr' && !s.workers.length) this.hire();
+    if (p.kind === 'hr' && !this.hired()) this.hire();
     if (BUILD_STEP[p.kind]) this.advanceGuide(BUILD_STEP[p.kind]);
     this.stepFlows();
     this.refreshNav();
@@ -360,6 +414,8 @@ export class Sim {
 
   // False while the current guide step waits for a feature that is not there yet (its line is hidden meanwhile).
   guideActive() {
+    const g = this.d.guide[this.s.guide];
+    if (g && g.text === 'Clean_Toilet') return (this.d.restrooms || []).some(r => this.s.built[r.pad]);
     return this.s.guide < this.kioskGuideFrom || this.d.kiosks.some(k => this.s.built[k.pad]);
   }
 
@@ -386,7 +442,8 @@ export class Sim {
       const max = m.max[g];
       if (st.n >= max) { st.t = 0; continue; }
       st.t += dt;
-      if (st.t >= m.delay[g]) { st.t -= m.delay[g]; st.n++; this.events.push({ type: 'cook', id: m.id }); }
+      const delay = m.delay[g] / this.machineRate();
+      if (st.t >= delay) { st.t -= delay; st.n++; this.events.push({ type: 'cook', id: m.id }); }
     }
   }
 
@@ -495,16 +552,16 @@ export class Sim {
       if (!head || !st.n || !this.cashierHere(c)) { st.sellT = 0; continue; }
       const g = this.s.grade[c.id] || 0;
       st.sellT += dt;
-      if (st.sellT < c.sell[g]) continue;
+      if (st.sellT < c.sell[g] * (head.vip ? this.d.vip.sellTimeRate : 1)) continue;
       st.sellT = 0;
       st.n--; head.got++;
       this.events.push({ type: 'sell', id: c.id, customer: head.id });
       if (head.got >= head.want) {
-        const pay = this.price * head.want;
+        const pay = this.counterPrice(c) * head.want * (head.vip ? this.d.vip.priceRate : 1);
         st.money += pay;
         this.s.served++;
         head.state = 'seat';
-        this.events.push({ type: 'paid', id: c.id, n: pay, customer: head.id });
+        this.events.push({ type: 'paid', id: c.id, n: pay, customer: head.id, vip: !!head.vip, items: head.want });
         this.advanceGuide('Sell_Coffee');
       }
     }
@@ -521,8 +578,14 @@ export class Sim {
       this.nextSpawn -= dt;
       if (this.nextSpawn > 0) continue;
       this.nextSpawn = T.customerSpawnTime;
-      const want = ORDER.min + Math.floor(this.rand() * (ORDER.max - ORDER.min + 1));
-      s.customers.push({ id: s.nextId++, counter: c.id, state: 'queue', want, got: 0, pos: [...c.path[0]], way: 1, slot: line, arrived: false, seat: null, eatT: 0 });
+      let want = ORDER.min + Math.floor(this.rand() * (ORDER.max - ORDER.min + 1));
+      // VIP [CODE CustomerSpawner]: roll Random.Range(0, 100) < customerVIPRate; a VIP resets the rate to 0, any other
+      // customer adds 1 up to Stage.customerVIPRate. A VIP orders max + a normal roll [CODE Car.FoodOrderSet; the
+      // counter's Order.PlaceOrder is not decompiled, same rule assumed].
+      let vip = false;
+      if (this.vipAllowed() && this.rand() * 100 < s.vipRate) { vip = true; s.vipRate = 0; want += ORDER.max; }
+      else s.vipRate = Math.min(this.d.vip.customerRate, s.vipRate + 1);
+      s.customers.push({ id: s.nextId++, counter: c.id, item: c.items[0], vip, state: 'queue', want, got: 0, pos: [...c.path[0]], way: 1, slot: line, arrived: false, seat: null, eatT: 0 });
     }
   }
 
@@ -535,13 +598,13 @@ export class Sim {
       line.forEach((x, i) => { x.slot = i; });
     }
     for (const x of s.customers) {
-      if (x.kiosk) continue;
+      if (x.kiosk || (x.rest && x.state !== 'exit')) continue;
       const c = this.byTarget.get(x.counter);
       if (x.state === 'queue') {
         const target = this.queueSpot(c, x.slot);
         x.arrived = this.walkPath(x, c.path, target, CUSTOMER_SPEED * dt);
       } else if (x.state === 'seat') {
-        const seat = this.freeSeat();
+        const seat = this.freeSeat(c.z ?? 1);
         if (!seat) { x.waiting = true; continue; }
         x.waiting = false;
         s.table[seat.t].seats[seat.i] = x.id;
@@ -550,7 +613,7 @@ export class Sim {
         const t = this.byTarget.get(x.seat.t);
         if (this.goTo(x, t.seats[x.seat.i].pos, CUSTOMER_SPEED * dt)) {
           x.state = 'eat';
-          x.eatT = t.eat[s.grade[t.id] || 0] * x.want;
+          x.eatT = t.eat[s.grade[t.id] || 0] * x.want * (x.vip ? this.d.vip.eatTimeRate : 1);
         }
       } else if (x.state === 'eat') {
         x.eatT -= dt;
@@ -559,7 +622,7 @@ export class Sim {
           st.seats[x.seat.i] = null;
           st.cups += x.want;
           this.events.push({ type: 'leave', customer: x.id, table: x.seat.t });
-          x.state = 'exit';
+          x.state = this.toRestroom(x) ? 'restWait' : 'exit';
         }
       } else if (x.state === 'exit') {
         const exit = c.out;
@@ -584,7 +647,7 @@ export class Sim {
       this.nextKiosk = T.kioskCustomerSpawnTime;
       const line = free[1];
       const want = ORDER.min + Math.floor(this.rand() * (ORDER.max - ORDER.min + 1));
-      s.customers.push({ id: s.nextId++, kiosk: k.id, line, state: 'kq', want, got: 0, pos: [...k.paths[line][0]], way: 1, slot: counts[line],
+      s.customers.push({ id: s.nextId++, kiosk: k.id, item: k.itemTypes[0], line, state: 'kq', want, got: 0, pos: [...k.paths[line][0]], way: 1, slot: counts[line],
         arrived: false, orderT: 0 });
     }
   }
@@ -628,6 +691,112 @@ export class Sim {
       for (const x of s.customers) if (x.kiosk === k.id && x.state === 'exit' && this.goTo(x, k.out, CUSTOMER_SPEED * dt)) done.push(x);
     }
     if (done.length) s.customers = s.customers.filter(x => !done.includes(x));
+  }
+
+  // GameManager.CheckVIPCustomerTime: any stage after the first, else once stage 1's first flow is past progress 1
+  // [GUESS: which flow CLEANER/VIP checks index is not readable; flow 0].
+  vipAllowed() { return this.d.stage > 1 || this.s.flows[0] > 1; }
+
+  // ---- restroom ----
+  restroomOpen() { return (this.d.restrooms || []).find(r => this.s.built[r.pad]); }
+
+  toRestroom(x) {
+    const r = this.restroomOpen();
+    if (!r || !(x.vip || this.rand() * 100 < REST.chance)) return false;
+    const waiting = this.s.customers.filter(y => y.rest === r.id && y.state === 'restWait').length;
+    if (waiting >= r.wait.length) return false;
+    x.rest = r.id;
+    return true;
+  }
+
+  stepRestrooms(dt) {
+    const s = this.s;
+    for (const r of this.d.restrooms || []) {
+      const st = s.restroom[r.id];
+      if (!st) continue;
+      const people = s.customers.filter(x => x.rest === r.id && x.state !== 'exit');
+      const busy = new Set(people.filter(x => x.toilet != null).map(x => x.toilet));
+      const line = people.filter(x => x.state === 'restWait');
+      line.forEach((x, i) => {
+        x.arrived = this.goTo(x, r.wait[Math.min(i, r.wait.length - 1)], CUSTOMER_SPEED * dt);
+        if (i !== 0 || !x.arrived) return;
+        // RestRoom.GetRestRoomUseableIndex: a free toilet whose trash box is under MAX_GARBAGE_COUNT, picked at random.
+        const free = r.toilets.map((_, k) => k).filter(k => !busy.has(k) && st.dirty[k] < REST.maxGarbage);
+        if (!free.length) return;
+        x.toilet = free[Math.floor(this.rand() * free.length)];
+        busy.add(x.toilet);
+        x.state = 'toToilet';
+      });
+      for (const x of people) {
+        if (x.state === 'toToilet' && this.goTo(x, r.toilets[x.toilet].pos, CUSTOMER_SPEED * dt)) { x.state = 'inToilet'; x.restT = REST.time; }
+        else if (x.state === 'inToilet') {
+          x.restT -= dt;
+          if (x.restT > 0) continue;
+          st.dirty[x.toilet] = Math.min(REST.maxGarbage, st.dirty[x.toilet] + 1);
+          const pay = this.price * REST.priceRate;
+          st.money += pay;
+          this.events.push({ type: 'paid', id: r.id, n: pay, customer: x.id, restroom: true });
+          x.toilet = null;
+          x.state = 'exit';
+        }
+      }
+      // Cleaning: the player or a worker standing in a dirty toilet's trash box trigger (RestRoomTrashBox.Cleaning).
+      r.toilets.forEach((t, k) => {
+        if (!st.dirty[k]) { st.cleanT[k] = 0; return; }
+        const here = inBox(s.player.pos, t.trashBox, 0.3) || s.workers.some(w => w.task && w.task.kind === 'toilet' && w.task.idx === k && inBox(w.pos, t.trashBox, 0.4));
+        st.cleanT[k] = here ? (st.cleanT[k] || 0) + dt : 0;
+        if (st.cleanT[k] < REST.cleanTime) return;
+        st.dirty[k] = 0; st.cleanT[k] = 0;
+        this.events.push({ type: 'trash', who: 'toilet', restroom: r.id, toilet: k });
+        this.advanceGuide('Clean_Toilet');
+      });
+      if (st.money > 0 && inBox(s.player.pos, r.money, 0.3)) { this.gain(st.money, r.id); st.money = 0; }
+    }
+  }
+
+  // ---- cleaner robots ----
+  cleanerUnlocked() { return this.d.cleanBotStar != null && this.s.star >= this.d.cleanBotStar; }
+  cleanerSpeed() { return CLEANER.speedFirst + CLEANER.speedPlus * this.s.cleaner.speedLv; }
+
+  stepCleaners(dt) {
+    const s = this.s, C = s.cleaner;
+    if (!this.cleanerUnlocked()) return;
+    if (s.bots.length !== this.d.cleaners.length) s.bots = this.d.cleaners.map(c => ({ id: c.id, pos: [...c.home], carry: 0, task: null }));
+    // Charging: stand on a charging pad while the robots are out of time (CleanerChargeReward).
+    if (C.timer <= 0 && this.d.cleaners.some(c => inBox(s.player.pos, c.areaBox, 0.1))) {
+      C.timer = CLEANER.timeFirst + CLEANER.timePlus * C.timeLv;
+      C.total = C.timer;
+      if (C.speedLv < CLEANER.maxSpeedLevel) C.speedLv++; else C.timeLv++;
+      this.events.push({ type: 'charge', timer: C.timer });
+    }
+    if (C.timer > 0) C.timer = Math.max(0, C.timer - dt);
+    const step = this.cleanerSpeed() * dt;
+    const taken = new Set([...s.workers, ...s.bots].filter(o => o.task && o.task.table).map(o => o.task.table));
+    s.bots.forEach((b, i) => {
+      const home = this.d.cleaners[i].home;
+      if (C.timer <= 0) { b.task = null; b.moving = !this.goTo(b, home, step); return; }
+      if (!b.task) {
+        const t = this.d.tables.find(x => s.table[x.id] && s.table[x.id].cups > 0 && !taken.has(x.id));
+        if (t) { b.task = { table: t.id, phase: 'get' }; taken.add(t.id); }
+        else if (b.carry) b.task = { phase: 'dump' };
+      }
+      if (!b.task) { b.moving = !this.goTo(b, home, step); return; }
+      if (b.task.phase === 'get') {
+        const t = this.byTarget.get(b.task.table);
+        if (this.goTo(b, [t.zone[0], 0, t.zone[1] + t.zone[3] + 0.3], step)) {
+          b.carry += s.table[t.id].cups; s.table[t.id].cups = 0;
+          this.events.push({ type: 'pick', who: b.id, from: t.id, item: ITEM.cup });
+          b.task = { phase: 'dump' };
+        }
+      } else {
+        const tb = this.d.trash.find(x => x.active);
+        if (this.goTo(b, [tb.box[0], 0, tb.box[1] + tb.box[3] + 0.3], step)) {
+          if (b.carry) this.events.push({ type: 'trash', who: b.id });
+          b.carry = 0; b.task = null;
+        }
+      }
+      b.moving = true;
+    });
   }
 
   // Order balloons (OrderBalloonManager keeps one per counter zone, per car lane and per kiosk line): who is waiting at
@@ -705,11 +874,12 @@ export class Sim {
     return true;
   }
 
-  freeSeat() {
+  // Customers of a zone sit at that zone's tables (the expand area has its own, "_Expand_" keys).
+  freeSeat(zone = 1) {
     const s = this.s;
     for (const t of this.d.tables) {
       const st = s.table[t.id];
-      if (!st || st.cups > 0) continue;
+      if (!st || st.cups > 0 || (t.expand ? 2 : 1) !== zone) continue;
       // A table seats a new group only once the last one has left and it is cleaned.
       const i = st.seats.findIndex(v => v === null);
       if (i >= 0) return { t: t.id, i };
@@ -761,11 +931,11 @@ export class Sim {
       st.n--; head.got++;
       this.events.push({ type: 'sell', id: k.id, car: head.id });
       if (head.got >= head.want) {
-        const pay = this.d.packagePrice * head.want;
+        const pay = this.packagePrice * head.want * (head.vip ? this.d.vip.priceRate : 1);
         st.money += pay;
         this.s.carsServed = (this.s.carsServed || 0) + 1;
         head.state = 'out'; head.s = 0;
-        this.events.push({ type: 'paid', id: k.id, n: pay, car: head.id });
+        this.events.push({ type: 'paid', id: k.id, n: pay, car: head.id, vip: !!head.vip, boxes: head.want });
         this.advanceGuide('Sell_Coffee', k.boardNode);
       }
     }
@@ -784,8 +954,11 @@ export class Sim {
       this.nextCar = T.carSpawnTime;
       let want = CAR_ORDER.min + Math.floor(this.rand() * (CAR_ORDER.max - CAR_ORDER.min + 1));
       if (s.guide < CAR_ORDER.tutorialBelow) want = 1;
-      const type = T.driveCarType[Math.floor(this.rand() * T.driveCarType.length)];
-      s.cars.push({ id: s.nextId++, drive: k.id, type, state: 'wait', want, got: 0, s: 0, slot: line, arrived: false,
+      let type = T.driveCarType[Math.floor(this.rand() * T.driveCarType.length)], vip = false;
+      // VIP car [CODE DriveCarSpawner, Car.FoodOrderSet]: same ramp on driveCarVIPRate; orders max + roll.
+      if (this.vipAllowed() && this.rand() * 100 < s.carVipRate) { vip = true; s.carVipRate = 0; want = CAR_ORDER.max + want; type = Math.floor(this.rand() * 2); }
+      else s.carVipRate = Math.min(this.d.vip.carRate, s.carVipRate + 1);
+      s.cars.push({ id: s.nextId++, drive: k.id, type, vip, state: 'wait', want, got: 0, s: 0, slot: line, arrived: false,
         pos: [...k.pathIn[0]], dir: 0 });
       this.events.push({ type: 'car', id: k.id });
     }
@@ -813,14 +986,20 @@ export class Sim {
   // ---- staff (HR office) ----
   hire() {
     const s = this.s;
-    if (s.workers.length > this.d.worker.max) return false;
-    s.workers.push({ id: `w${s.workers.length + 1}`, pos: [...this.d.hr.spawn], carry: [], task: null, pickT: 0 });
-    this.events.push({ type: 'hire', n: s.workers.length });
+    const n = this.hired();
+    if (n > this.d.worker.max) return false;
+    s.workers.splice(n, 0, { id: `w${n + 1}`, pos: [...this.d.hr.spawn], carry: [], task: null, pickT: 0 });
+    this.events.push({ type: 'hire', n: n + 1 });
     return true;
   }
 
   stepWorkers(dt) {
     const s = this.s;
+    // StaffMore skins (HRUpgradeAreaOpenArea): extra staff on top of the hired ones while the HR office stands.
+    const extra = s.built.hr1 && this.hired() ? this.skinInt(SKIN.staffMore) : 0;
+    let have = s.workers.length - this.hired();
+    while (have < extra) s.workers.push({ id: `ws${++have}`, skin: true, pos: [...this.d.hr.spawn], carry: [], task: null, pickT: 0 });
+    while (have > extra) { s.workers.pop(); have--; }
     for (const w of s.workers) {
       const step = this.workerSpeed() * dt;
       const cap = this.workerCap();
@@ -852,6 +1031,10 @@ export class Sim {
           this.carryZones(w, dt, cap);
           if (!w.carry.length || s.drive[dv.id].n >= dv.maxItems) w.task = null;
         }
+      } else if (T.kind === 'toilet') {
+        const r = this.byTarget.get(T.rest), tb = r.toilets[T.idx].trashBox;
+        this.goTo(w, [tb[0], 0, tb[1]], step);
+        if (!s.restroom[r.id].dirty[T.idx]) w.task = null;
       } else if (T.kind === 'clean') {
         const t = this.byTarget.get(T.table);
         if (T.phase === 'get') {
@@ -875,19 +1058,33 @@ export class Sim {
     const taken = new Set(s.workers.filter(o => o !== w && o.task).map(o => o.task.table || o.task.from));
     const dirty = this.d.tables.find(t => s.table[t.id] && s.table[t.id].cups > 0 && !taken.has(t.id));
     if (dirty) return { kind: 'clean', table: dirty.id, phase: 'get' };
+    // Dirty toilets (RestRoom._cleaningWorker).
+    for (const r of this.d.restrooms || []) {
+      const st = s.restroom[r.id];
+      if (!st) continue;
+      const k = st.dirty.findIndex((g, i) => g > 0 && !s.workers.some(o => o !== w && o.task && o.task.kind === 'toilet' && o.task.idx === i));
+      if (k >= 0) return { kind: 'toilet', rest: r.id, idx: k };
+    }
     // [GUESS] order after cleaning: keep the counter stocked, carry boxes to the drive-thru, feed the package table
     // (EWorkingType lists CounterCheck, DriveThruCheck, PackageTableItemCheck; Worker's Idle state is not decompiled).
-    const c = this.d.counters.find(k => s.counter[k.id] && s.counter[k.id].n < 12);
-    const m = this.d.machines.filter(k => s.machine[k.id] && s.machine[k.id].n > 0 && !taken.has(k.id)).sort((a, b) => s.machine[b.id].n - s.machine[a.id].n)[0];
-    if (c && m) return { kind: 'burger', from: m.id, to: c.id, phase: 'get' };
+    // A grill with food ready for a place that takes that food (zone 1 burgers, zone 2 its own menu).
+    const grill = items => this.d.machines.filter(k => s.machine[k.id] && s.machine[k.id].n > 0 && !taken.has(k.id) && items.includes(k.item))
+      .sort((a, b) => s.machine[b.id].n - s.machine[a.id].n)[0];
+    for (const c of this.d.counters) {
+      if (!s.counter[c.id] || s.counter[c.id].n >= 12) continue;
+      const m = grill(c.items);
+      if (m) return { kind: 'burger', from: m.id, to: c.id, phase: 'get' };
+    }
     const dv = this.d.drives.find(k => s.drive[k.id] && s.drive[k.id].n < 12);
     const pk = this.d.packers.find(k => s.packer[k.id] && s.packer[k.id].out > 0 && !taken.has(k.id));
     if (dv && pk) return { kind: 'package', from: pk.id, to: dv.id, phase: 'get' };
     const feed = this.d.packers.find(k => s.packer[k.id] && s.packer[k.id].in < 2 * PACK_SIZE);
-    if (feed && m) return { kind: 'burger', from: m.id, to: feed.id, phase: 'get' };
+    const mf = feed && grill(feed.ingredients);
+    if (mf) return { kind: 'burger', from: mf.id, to: feed.id, phase: 'get' };
     // Worker_State MoveToKiosk / KioskStorage restock the kiosk.
     const ko = this.d.kiosks.find(k => s.kiosk[k.id] && s.kiosk[k.id].n < 10);
-    if (ko && m) return { kind: 'burger', from: m.id, to: ko.id, phase: 'get' };
+    const mk = ko && grill(ko.itemTypes);
+    if (mk) return { kind: 'burger', from: mk.id, to: ko.id, phase: 'get' };
     return null;
   }
 
@@ -897,7 +1094,7 @@ export class Sim {
     const row = (lv, costs, values) => ({ level: lv, value: values[lv], next: values[lv + 1] ?? null, cost: costs[lv] ?? null });
     return {
       player: { speed: row(s.lv.speed, p.speedCost, p.speed), cap: row(s.lv.cap, p.capCost, p.cap), price: row(s.lv.price, p.priceCost, p.priceUp) },
-      worker: { employ: { level: s.workers.length, cost: w.employCost[s.workers.length] ?? null, max: w.max }, speed: row(s.wlv.speed, w.speedCost, w.speed), cap: row(s.wlv.cap, w.capCost, w.cap) },
+      worker: { employ: { level: this.hired(), cost: w.employCost[this.hired()] ?? null, max: w.max }, speed: row(s.wlv.speed, w.speedCost, w.speed), cap: row(s.wlv.cap, w.capCost, w.cap) },
     };
   }
 

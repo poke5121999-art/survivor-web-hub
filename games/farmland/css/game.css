@@ -16,7 +16,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #123047; tou
 .land { top: calc(env(safe-area-inset-top) + 76 * var(--u)); }
 .money.pop { animation: pop 0.18s ease-out; }
 @keyframes pop { 50% { transform: scale(1.1); } }
-.gear { position: absolute; left: calc(18 * var(--u)); top: calc(env(safe-area-inset-top) + 146 * var(--u)); width: calc(50 * var(--u));
+.gear { position: absolute; left: calc(18 * var(--u)); top: calc(env(safe-area-inset-top) + 208 * var(--u)); width: calc(50 * var(--u));
   height: calc(50 * var(--u)); pointer-events: auto; cursor: pointer; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25)); }
 .gear.off { opacity: 0.45; }
 .bag { position: absolute; right: calc(12 * var(--u)); top: calc(env(safe-area-inset-top) + 14 * var(--u)); display: flex; flex-direction: column;
@@ -64,9 +64,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #123047; tou
 .panel button img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); }
 .panel button:disabled { background: #bdbdbd; box-shadow: 0 calc(4 * var(--u)) 0 #9a9a9a; cursor: default; }
 /* World selector (WorldSelectorPicto): map button under the gear, one picto per reached island */
-.map { position: absolute; left: calc(14 * var(--u)); top: calc(env(safe-area-inset-top) + 214 * var(--u)); width: calc(58 * var(--u));
+.map { position: absolute; left: calc(14 * var(--u)); top: calc(env(safe-area-inset-top) + 276 * var(--u)); width: calc(58 * var(--u));
   height: calc(58 * var(--u)); pointer-events: auto; cursor: pointer; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25)); }
 .worlds { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); display: flex; gap: calc(18 * var(--u)); padding: calc(20 * var(--u));
   background: #fff; border-radius: calc(28 * var(--u)); box-shadow: 0 calc(6 * var(--u)) 0 rgba(0, 0, 0, 0.2); pointer-events: auto; animation: fadein 0.2s ease-out; }
 .worlds img { width: calc(120 * var(--u)); height: calc(120 * var(--u)); cursor: pointer; border-radius: 50%; }
 .worlds img.cur { outline: calc(6 * var(--u)) solid #4cd137; }
+/* seaplane trip: only the Skip button (Hydravion EnableSkipButton) stays */
+#hud.flying > :not(.skip) { display: none; }
+.skip { position: absolute; right: calc(24 * var(--u)); bottom: calc(env(safe-area-inset-bottom) + 60 * var(--u)); pointer-events: auto;
+  border: 0; border-radius: calc(20 * var(--u)); padding: calc(14 * var(--u)) calc(34 * var(--u)); background: #fff; color: #3b3b3b;
+  font: 700 calc(34 * var(--u)) Roboto, sans-serif; box-shadow: 0 calc(5 * var(--u)) 0 rgba(0, 0, 0, 0.2); cursor: pointer; }
+/* account layer: diamonds pill, piggy bank (fill = balance / capacity), bike mount button */
+.hc { position: absolute; left: calc(12 * var(--u)); top: calc(env(safe-area-inset-top) + 138 * var(--u)); }
+.piggy { position: absolute; right: calc(14 * var(--u)); bottom: calc(env(safe-area-inset-bottom) + 300 * var(--u)); width: calc(96 * var(--u));
+  pointer-events: auto; cursor: pointer; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25)); }
+.piggy img { width: 100%; display: block; }
+.piggy i { display: block; height: calc(10 * var(--u)); margin-top: calc(4 * var(--u)); background: #ffd23f; border-radius: calc(5 * var(--u));
+  box-shadow: 0 0 0 calc(3 * var(--u)) rgba(255, 255, 255, 0.85); max-width: 100%; }
+.piggy.ready { animation: wiggle 1.2s ease-in-out infinite; }
+@keyframes wiggle { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-8deg); } 90% { transform: rotate(8deg); } }
+.bikebtn { position: absolute; left: calc(18 * var(--u)); bottom: calc(env(safe-area-inset-bottom) + 300 * var(--u)); width: calc(110 * var(--u));
+  height: calc(107 * var(--u)); background-size: 100% 100%; pointer-events: auto; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.bikebtn img { height: 80%; }
+.skinsbtn { position: absolute; right: calc(14 * var(--u)); bottom: calc(env(safe-area-inset-bottom) + 430 * var(--u)); width: calc(110 * var(--u));
+  pointer-events: auto; cursor: pointer; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25)); }
+.panel .skinname { text-align: center; font-size: calc(34 * var(--u)); }

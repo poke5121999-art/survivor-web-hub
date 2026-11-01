@@ -86,3 +86,73 @@ export class Rig {
     this.hips.o.position.copy(va);
   }
 }
+
+// ---- Generic animal clips (art/anim/animals.json, tools/export_generic.py) ------------------------------------------
+// AC_<Animal>.controller: default "Idle A"; the remake plays Idle A and now and then Idle B / Idle C / Munch-Peck once,
+// and Bounce once when the animal is collected.
+let GEN = null;
+export async function loadGeneric(url) { GEN = await fetch(url).then(r => r.json()); }
+export const genericControllers = () => (GEN ? Object.keys(GEN.controllers) : []);
+
+const IDLE_EXTRA = ['Idle B', 'Idle C', 'Munch/Peck'];
+
+export class GenericRig {
+  // holder: the object that carried the Animator (tracks are paths below it); ctrl: 'AC_Cow' ...
+  constructor(holder, ctrl) {
+    this.c = GEN?.controllers[ctrl];
+    this.ok = !!this.c;
+    if (!this.ok) return;
+    this.holder = holder;
+    this.bound = new Map();   // clip name -> [[object, kind, frames]]
+    this.state = null;
+    this.play(this.c.default || 'Idle A');
+    this.t = Math.random() * 2;
+  }
+
+  bind(name) {
+    if (!this.bound.has(name)) {
+      const list = [];
+      for (const [path, kind, ...frames] of GEN.clips[name].tracks) {
+        let o = this.holder;
+        for (const seg of path ? path.split('/') : []) { o = o?.children.find(c => c.name === seg); if (!o) break; }
+        if (o) list.push([o, kind, frames]);
+      }
+      this.bound.set(name, list);
+    }
+    return this.bound.get(name);
+  }
+
+  play(state, once = false) {
+    const st = this.c.states[state];
+    if (!st) return;
+    this.state = state; this.once = once; this.t = 0;
+    this.clip = GEN.clips[st.clip]; this.speed = st.speed || 1; this.tracks = this.bind(st.clip);
+  }
+
+  update(dt) {
+    if (!this.ok || !this.clip) return;
+    this.t += dt * this.speed;
+    const d = this.clip.dur;
+    if (this.t >= d) {
+      if (this.once || this.state === 'Idle A') {
+        // back to Idle A; after an Idle A loop, sometimes one of the other idles
+        const extra = !this.once && Math.random() < 0.3 ? IDLE_EXTRA[Math.floor(Math.random() * 3)] : null;
+        if (extra && this.c.states[extra]) this.play(extra, true); else this.play(this.c.default || 'Idle A');
+      } else this.t %= d;
+    }
+    const f = Math.min(this.t, d) * GEN.fps;
+    for (const [o, kind, a] of this.tracks) {
+      const w = kind === 'q' ? 4 : 3, n = a.length / w;
+      const i = Math.min(n - 1, Math.floor(f)), j = Math.min(n - 1, i + 1), k = n > 1 ? f - i : 0;
+      if (kind === 'q') {
+        qa.set(a[i * 4], a[i * 4 + 1], a[i * 4 + 2], a[i * 4 + 3]);
+        if (k > 0) qa.slerp(qc.set(a[j * 4], a[j * 4 + 1], a[j * 4 + 2], a[j * 4 + 3]), k);
+        o.quaternion.copy(qa);
+      } else {
+        va.set(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]);
+        if (k > 0) va.lerp(vb.set(a[j * 3], a[j * 3 + 1], a[j * 3 + 2]), k);
+        (kind === 'p' ? o.position : o.scale).copy(va);
+      }
+    }
+  }
+}

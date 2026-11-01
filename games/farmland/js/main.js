@@ -1,13 +1,16 @@
 // Farm Land (web remake): boot, loop, HUD, save. ?fresh ignores the save, ?bot lets the bot play, ?speed=N fast-forwards.
 import { Stage } from './view/stage.js';
 import { SceneData, loadSprites, applyColorPreset } from './view/scene.js';
-import { loadAnims } from './view/anim.js';
+import { loadAnims, loadGeneric } from './view/anim.js';
 import { GameView, fmt } from './view/game.js';
 import { Input } from './view/input.js';
 import { Farm } from './sim/farm.js';
 import { Bot } from './sim/bot.js';
 import { Sound } from './view/sound.js';
 import { pull, push, owner, META_KEY } from './cloud.js';
+import { Flight, loadFlight } from './view/flight.js';
+import { Meta } from './sim/meta.js';
+import { MetaView } from './view/metaview.js';
 
 const q = new URLSearchParams(location.search);
 // WorldController.WorldDescs order (FarmScene): each World keeps its own WorldSave (coins, parcels, ...)
@@ -60,6 +63,7 @@ const [data, worldSD, propsSD] = await Promise.all([
   SceneData.load('art/props'),
   loadSprites('art/sprites/sprites.json'),
   loadAnims('art/anim/stickman.json'),
+  loadGeneric('art/anim/animals.json'),
 ]);
 fl.stage = 'loaded';
 fl.presetSlots = applyColorPreset(worldSD, data.colors) + applyColorPreset(propsSD, data.colors);
@@ -67,6 +71,15 @@ const farm = new Farm(data, { save: readSave() });
 const view = new GameView(stage, worldSD, propsSD, data, farm, hud);
 const input = new Input(stageEl, hud);
 view.sound = new Sound();
+// account layer (diamonds, pets, bike, piggy bank, skins): lives in the meta record, so it follows the cloud save
+const skinData = await fetch('data/skins.json').then(r => r.json()).catch(() => ({ pool: [] }));
+const metaSim = new Meta(meta.fs, skinData.pool);
+meta.fs = metaSim.fs;
+const metaView = new MetaView(view, metaSim, hud);
+metaView.loadSkins = () => SceneData.load('art/skins');
+if (metaSim.fs.skin !== 'BasePlayer') metaView.preview(metaSim.fs.skin);
+view.onEvent = e => metaView.event(e);
+fl.meta2 = metaSim; fl.metaView = metaView;
 let bot = q.has('bot') ? new Bot(farm) : null;
 fl.useBot = () => { bot = new Bot(farm); };
 fl.stopBot = () => { bot = null; };
@@ -120,7 +133,26 @@ fl.cloud = cloudState;
 fl.pushNow = () => push(true);
 fl.world = WORLD;
 fl.meta = meta;
-view.onTravel = () => { if (WI + 1 < WORLDS.length) setTimeout(() => goWorld(WI + 1), 400); };
+// The seaplane flies RoadToNewWorld (camera included); Skip shows at EnableSkipButton, OnTravelComplete changes world.
+let flight = null;
+view.onTravel = async () => {
+  if (WI + 1 >= WORLDS.length || flight) return;
+  const holder = view.world.obj(data.final?.plane);
+  try { if (!holder) throw new Error('no plane'); await loadFlight('art/anim/plane.json'); } catch { goWorld(WI + 1); return; }
+  writeSave(farm);
+  view.avatar.visible = false;
+  hud.classList.add('flying');
+  const next = () => { if (fl.flight) { fl.flight = null; goWorld(WI + 1); } };
+  flight = fl.flight = new Flight(view.world, holder, {
+    onSkip: () => {
+      const b = document.createElement('button');
+      b.className = 'skip'; b.textContent = 'Skip';
+      b.addEventListener('click', next);
+      hud.appendChild(b);
+    },
+    onDone: next,
+  });
+};
 if (meta.reached > 0) {
   hud.insertAdjacentHTML('beforeend', `<img class="map ui" src="art/ui/Icon_Map.png" alt="map">`);
   hud.querySelector('.map').addEventListener('click', () => {
@@ -154,11 +186,12 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   for (let k = 0; k < fl.speed; k++) {
-    const inp = bot ? bot.input(dt) : worldInput(input.read());
+    const inp = flight ? { x: 0, z: 0 } : bot ? bot.input(dt) : worldInput(input.read());
     farm.step(dt, inp);
   }
+  metaView.update(dt);
   view.update(dt);
-  stage.follow(view.avatar.position, dt);
+  if (flight) { if (!flight.update(dt, stage.camera)) flight = null; } else stage.follow(view.avatar.position, dt);
   stage.render();
   drawHud();
   saveT += dt;

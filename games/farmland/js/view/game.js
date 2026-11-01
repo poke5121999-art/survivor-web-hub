@@ -1,7 +1,7 @@
 // Draws the Farm sim: parcels (open / on offer / hidden), field cells and plants, drops, avatar, HUD tags.
 import * as THREE from 'three';
 import { WorldView } from './world.js';
-import { Rig } from './anim.js';
+import { Rig, GenericRig, genericControllers } from './anim.js';
 import { FieldBatch } from './fieldbatch.js';
 import { RULES } from '../sim/farm.js';
 
@@ -57,8 +57,25 @@ export class GameView {
       return o;
     });
     this.barnPanel = null;
+    // Animals: the skinned model's parent carried the Animator (AC_<Model>); tracks are paths below it
+    const ctrls = new Set(genericControllers());
+    this.animalRigs = [];
+    const seen = new Set();
+    this.world.root.traverse(o => {
+      if (!o.isSkinnedMesh) return;
+      const model = o.parent, holder = model?.parent, ac = `AC_${model?.name}`;
+      if (!holder || !ctrls.has(ac) || seen.has(holder)) return;
+      seen.add(holder);
+      const rig = new GenericRig(holder, ac);
+      if (rig.ok) this.animalRigs.push({ rig, holder });
+    });
+    // animal i of the sim -> its rigs (the AnimalController node is an ancestor of the model)
+    this.animalOf = farm.animals.map(a => {
+      const root = this.world.obj(a.d.node);
+      return root ? this.animalRigs.filter(r => { for (let p = r.holder; p; p = p.parent) if (p === root) return true; return false; }) : [];
+    });
     // locked-sprite pops and tree shakes re-sync their frozen matrices through world.touch()
-    const f = farm, dyn = [...this.workerObjs];
+    const f = farm, dyn = [...this.workerObjs, ...this.animalRigs.map(r => r.holder)];
     for (const m of f.merchants) dyn.push(this.world.obj(m.d.node)?.getObjectByName('LolTapStickman'));
     this.frozen = this.world.freeze(dyn);
   }
@@ -80,23 +97,48 @@ export class GameView {
   }
 
   buildAvatar() {
-    const i = this.props.find('LolTapStickman', this.props.find('Loltap_Player'));
     this.avatar = new THREE.Object3D();
-    this.avatarBody = i >= 0 ? this.props.build(i, { all: true }) : new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1), new THREE.MeshLambertMaterial({ color: 0x7100e9 }));
-    this.avatarBody.position.set(0, 0, 0);
-    // Bone-attached props: the bike and fishing rod only show in their modes; tools follow the field state
-    // (PlayerController.FieldTool: seed bag, watering can, scythe).
-    for (const n of ['Bike', 'FishingRod']) { const o = this.avatarBody.getObjectByName(n); if (o) o.visible = false; }
-    this.tools = { seed: this.avatarBody.getObjectByName('SeedCup'), water: this.avatarBody.getObjectByName('NormalCan'),
-      scythe: this.avatarBody.getObjectByName('Sythe') };
-    // a tool's own node may sit under a hidden parent (SeedCup -> Sythe -> NormalCan): reparent each to the hand bone
-    this.avatarBody.updateMatrixWorld(true);
-    const hand = this.tools.seed?.parent;
-    for (const t of Object.values(this.tools)) if (t && hand && t.parent !== hand) hand.attach(t);
-    this.shownTool = undefined;
-    this.rig = new Rig(this.avatarBody);
-    this.avatar.add(this.avatarBody);
+    this.setSkin('BasePlayer');
     this.stage.scene.add(this.avatar);
+  }
+
+  // HumanController.SetSkin: the player's body is a skin prefab (Resources/skins/<id>, art/skins); BasePlayer is the
+  // Loltap_Player's own LolTapStickman (props). Skins carry their own tools and bike; returns false when unknown.
+  setSkin(id, skinsSD = this.skinsSD) {
+    const own = !id || id === 'BasePlayer' || !skinsSD;
+    const sd = own ? this.props : skinsSD;
+    const i = own ? this.props.find('LolTapStickman', this.props.find('Loltap_Player')) : skinsSD.find(id);
+    if (i < 0) return false;
+    if (this.avatarBody) this.avatar.remove(this.avatarBody);
+    const body = this.avatarBody = sd.build(i, { all: true });
+    body.position.set(0, 0, 0);   // some skin prefabs keep an authoring offset on their root (CharacterGreen 7.15, 0, 17.89)
+    this.skinId = own ? 'BasePlayer' : id;
+    const find = re => { let r = null; body.traverse(o => { if (!r && re.test(o.name)) r = o; }); return r; };
+    // the bike, fishing rod and the worker's grain bag only show in their modes
+    for (const re of [/^Bike$/, /^FishingRod$/, /^WorkerGrainBag$/]) { const o = find(re); if (o) o.visible = false; }
+    // tools follow the field state (PlayerController.FieldTool: seed bag, watering can, scythe)
+    this.tools = { seed: find(/^SeedCup/), water: find(/^NormalCan$/), scythe: find(/^Sythe/) };
+    body.updateMatrixWorld(true);
+    if (own) {
+      // LolTapStickman nests them (SeedCup -> Sythe -> NormalCan): reparent each to the hand bone
+      const hand = this.tools.seed?.parent;
+      for (const t of Object.values(this.tools)) if (t && hand && t.parent !== hand) hand.attach(t);
+    } else {
+      // skins hang each tool under an inactive holder (WateringCan (1)): open the holders, the tool itself decides
+      for (const t of Object.values(this.tools)) for (let a = t?.parent; a && a !== body; a = a.parent) if (!a.isBone && !/^(root|pelvis|spine|clavicle|upperarm|lowerarm|hand|index|thumb|neck|head|thigh|calf|foot)/.test(a.name)) a.visible = true;
+      for (const t of Object.values(this.tools)) if (t) t.visible = false;
+    }
+    this.shownTool = undefined;
+    this.rig = new Rig(body);
+    // the bike hangs under the pelvis (pelvis/BikeModel); the riding clips raise and pitch the pelvis, so the remake keeps
+    // the bike where the prefab's rest pose puts it (upright, wheels on the ground) relative to the character root
+    this.bikeModel = find(/^BikeModel/);
+    this.avatarBike = this.bikeModel?.getObjectByName('Bike') || null;
+    this.bikeRel = null;
+    if (this.bikeModel) this.bikeRel = body.matrixWorld.clone().invert().multiply(this.bikeModel.matrixWorld);
+    body.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    this.avatar.add(body);
+    return true;
   }
 
   // ---- parcels -------------------------------------------------------------------------------------------------
@@ -174,6 +216,7 @@ export class GameView {
   // ---- events --------------------------------------------------------------------------------------------------
   handle(e) {
     const f = this.farm;
+    this.onEvent?.(e);
     this.sound?.event(e, f);
     switch (e.type) {
       case 'cell': {
@@ -196,6 +239,9 @@ export class GameView {
       }
       case 'unlock':
         this.refreshParcels();
+        break;
+      case 'animal':
+        for (const r of this.animalOf[e.a] || []) r.rig.play('Bounce', true);
         break;
       case 'travel':
         this.onTravel?.();
@@ -274,7 +320,15 @@ export class GameView {
     let d = want - this.avatar.rotation.y;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     this.avatar.rotation.y += d * Math.min(1, dt * 12);
-    if (this.rig.ok) this.rig.update(dt, pl.moving ? RULES.speed * (pl.slow ? RULES.fieldSlow : 1) : 0, pl.tool);
+    // on the bike (BaseCharacter Bike-Idle / Driving) the bike clips replace the locomotion blend tree
+    const bike = f.mods.speed > 1 ? (pl.moving ? 'LT_Bike_Driving' : 'LT_Bike_Idle') : null;
+    if (this.rig.ok) this.rig.update(dt, pl.moving ? RULES.speed * (pl.slow ? RULES.fieldSlow : 1) : 0, pl.tool, bike);
+    if (bike && this.bikeRel) {
+      this.avatar.updateMatrixWorld(true);
+      const bm = this.bikeModel;
+      bm.matrixAutoUpdate = false;
+      bm.matrix.copy(bm.parent.matrixWorld).invert().multiply(this.avatarBody.matrixWorld).multiply(this.bikeRel);
+    }
     else {
       this.walkT = (this.walkT || 0) + (pl.moving ? dt * 10 : 0);
       this.avatarBody.position.y = pl.moving ? Math.abs(Math.sin(this.walkT)) * 0.12 : 0;
@@ -302,6 +356,10 @@ export class GameView {
       pp.o.scale.setScalar(Math.max(0.01, back * pp.to));
       this.world.touch(pp.o);   // inside a frozen subtree: re-sync explicitly
       if (pp.t >= 1) this.pops.splice(k, 1);
+    }
+    // animals on open parcels within ~40 u of the player play their clips (off-screen ones keep their last pose)
+    for (const r of this.animalRigs) {
+      if (tmp.setFromMatrixPosition(r.holder.matrixWorld).distanceTo(this.avatar.position) < 40) r.rig.update(dt);
     }
     f.merchants.forEach((m, i) => {
       const rig = this.merchantRigs[i];

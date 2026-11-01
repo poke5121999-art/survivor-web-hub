@@ -65,6 +65,8 @@ export class Farm {
     const s = data.playerStart;
     this.player = { x: s[0], z: s[2], dirX: 0, dirZ: 1, moving: false, tool: null, slow: false };
     this.donating = null;
+    // account-wide modifiers set by the meta layer (js/sim/meta.js): cat x1.25 sale coins, dog x1.3 barn collect, bike x1.7
+    this.mods = { coin: 1, barn: 1, speed: 1 };
     // SectionFinal: once its bridge parcels are open the player can walk to the Hydravion (SphereCollider r 2.76),
     // which flies to the next World (Hydravion.c:96, WorldController.ChangeWorld(min(index + 1, last)))
     this.final = data.final ? { parcels: data.final.parcels.map(i => this.parcels[i]), x: data.final.planePos[0], z: data.final.planePos[2] } : null;
@@ -160,7 +162,7 @@ export class Farm {
     const len = Math.hypot(input.x, input.z);
     pl.moving = len > 0.05;
     if (!pl.moving) return;
-    const sp = RULES.speed * (pl.slow ? RULES.fieldSlow : 1) * Math.min(1, len);
+    const sp = RULES.speed * this.mods.speed * (pl.slow ? RULES.fieldSlow : 1) * Math.min(1, len);
     pl.dirX = input.x / len; pl.dirZ = input.z / len;
     const vx = pl.dirX * sp * dt, vz = pl.dirZ * sp * dt;
     if (this.walkable(pl.x + vx, pl.z + vz)) { pl.x += vx; pl.z += vz; }
@@ -296,7 +298,7 @@ export class Farm {
       const sold = Math.min(n, count);
       this.bag[crop] -= sold;
       if (!this.bag[crop]) delete this.bag[crop];
-      const gain = sold * this.cropPrice(crop);
+      const gain = Math.round(sold * this.cropPrice(crop) * this.mods.coin);
       this.coins += gain;
       m.happy = m.d.happy;
       this.events.push({ type: 'sell', m: m.i, crop, n: sold, value: gain });
@@ -386,8 +388,9 @@ export class Farm {
       if (!b.parcel?.open || !this.barnNear(b)) continue;
       for (const [crop, n] of Object.entries(b.stock)) {
         if (!n) continue;
-        this.bag[crop] = (this.bag[crop] || 0) + n;
-        this.events.push({ type: 'barnOut', b: b.i, crop, n });
+        const got = Math.floor(n * this.mods.barn);   // Barn.TransferToPlayer: (int)(qty * DogBarnMultiplier) with the dog
+        this.bag[crop] = (this.bag[crop] || 0) + got;
+        this.events.push({ type: 'barnOut', b: b.i, crop, n: got });
       }
       b.stock = {};
     }

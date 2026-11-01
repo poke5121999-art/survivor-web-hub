@@ -11,7 +11,12 @@ const v = new THREE.Vector3();
 const POINT = ['rgba(188,183,168,1)', 'rgba(116,211,7,1)'];
 
 export class Hud {
-  constructor(root, { sim, text, camera, canvas, ui, uiBase, sound }) {
+  constructor(root, { sim, text, camera, canvas, ui, uiBase, sound, stage = 1, meta = null, stageData = null, enter = null, skins = null }) {
+    this.skins = skins;
+    this.stageN = stage;
+    this.meta = meta;
+    this.stageData = stageData;
+    this.enter = enter;
     this.sim = sim;
     this.text = text;
     this.camera = camera;
@@ -20,7 +25,9 @@ export class Hud {
     root.innerHTML = `
       <div class="tags" id="tags"></div>
       <div class="balloons" id="balloons"></div>
-      <button class="snd" id="snd" title="Sound"></button>`;
+      <button class="snd" id="snd" title="Sound"></button>
+      <button class="map" id="map" title="Burger Map"></button>
+      <div class="mapnav" id="mapnav" hidden><button id="prev">◀</button><button id="next">▶</button></div>`;
     this.el = id => root.querySelector(`#${id}`);
     this.tags = new Map();
     this.balloons = new Map();
@@ -45,6 +52,192 @@ export class Hud {
     this.setupOffice();
     this.setupHr();
     this.setupOffline();
+    this.setupStages();
+    if (skins) this.setupSkins();
+  }
+
+  // ---- skin shop (SkinView + one SkinForm cell per skin) ----
+  // Listed: the stage-reward uniforms (cost_stage, free: "open on stage N", then TAKE IT), the token skins (Skin.cost_type
+  // 8, bought with tokens the web build has no source for: grey cost button) and the VIP one (subscription: locked).
+  // Battle-pass, eating-challenge, renovation and event skins come from features the web build lacks and are left out.
+  setupSkins() {
+    const k = this.skins, sp = this.ui.skinSprites;
+    const p = this.skinPanel = this.layer.panel('skinView');
+    this.localise(p);
+    p.el.id = 'skinview';
+    this.click(p.q('Menu/Top/BtnClose'), () => this.hideSkins());
+    // Preview: the original turns a 3D PlayerSkin model on the stand; here the skin's own thumbnail stands in.
+    const stand = p.q('Stand');
+    const pv = this.skinPreview = document.createElement('div');
+    pv.className = 'u skinpv';
+    stand.appendChild(pv);
+    const place = () => {
+      const h = parseFloat(stand.style.height) || this.layer.ch;
+      Object.assign(pv.style, { left: `${(parseFloat(stand.style.width) || this.layer.cw) / 2 - 260}px`, top: `${h - 1180}px`, width: '400px', height: '480px' });
+    };
+    this.skinPlace = place;
+    const vp = p.q('Menu/Bottom/ScrSkin/Viewport');
+    const row = this.skinRow = document.createElement('div');
+    row.className = 'skinrow';
+    vp.appendChild(row);
+    vp.classList.add('skinvp');
+    this.skinCells = [];
+    const list = k.lib.rows.filter(r => !r.battle_path && !r.eating_challenge && !r.renovation && r.cost_stage !== 1000);
+    for (const r of list) {
+      const c = this.layer.cell('skinForm');
+      const wrap = document.createElement('div');
+      wrap.className = 'skincell';
+      wrap.dataset.id = r.id;
+      wrap.appendChild(c.el);
+      row.appendChild(wrap);
+      c.layout(180, 370);
+      const th = c.q('Grp/PnlThumb/Mask/ImgThumb');
+      const tf = k.lib.thumbs[r.id - 1];
+      if (th && tf) Object.assign(th.style, { backgroundImage: `url("${this.uiBase}/${tf}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom' });
+      c.set('Grp/BtnShop/Txt', this.t('SKIN_TAKE_IT'));
+      c.q('Grp/PnlCond/Txt').classList.add('wrap');   // TMP word wrap: "open on stage N" breaks inside the panel
+      this.click(c.q('Grp'), () => this.pickSkin(r.id));
+      this.click(c.q('Grp/BtnShop'), () => { k.take(r.id); this.pickSkin(r.id); });
+      this.skinCells.push({ r, c });
+    }
+    this.skinSel = k.state.sel;
+    p.show('', false);
+    this.labelFor = t => sp[t <= 2 ? 'assetLabelPink' : t <= 4 ? 'assetLabelGreen' : t <= 7 ? 'assetLabelBlue' : 'assetLabelOrange'];
+  }
+
+  // A skin's state for the cell: owned / takeable (stage reached) / locked by stage / token / vip.
+  skinState(r) {
+    const k = this.skins;
+    if (k.state.owned.includes(r.id)) return 'owned';
+    if (r.vip) return 'vip';
+    if (r.cost_type === 8) return 'token';
+    if (r.cost_type === 0 && r.cost_stage >= 0) return k.maxStage() - 1 >= r.cost_stage ? 'take' : 'stage';
+    return 'locked';
+  }
+
+  showSkins() {
+    if (!this.skinPanel) return;
+    this.skinPanel.show('', true);
+    document.body.classList.add('skins');
+    this.skinPanel.layout(this.layer.cw, this.layer.ch);
+    this.skinPlace();
+    this.skinSel = this.skins.state.sel;
+    this.refreshSkins();
+    const cur = this.skinCells.find(x => x.r.id === this.skinSel);
+    if (cur) cur.c.el.parentNode.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
+
+  hideSkins() { if (this.skinPanel) this.skinPanel.show('', false); document.body.classList.remove('skins'); }
+
+  get skinsOpen() { return !!this.skinPanel && !this.skinPanel.el.hidden; }
+
+  // Tapping a cell previews it; tapping an owned one also wears it (SkinManager.ChangeSkin).
+  pickSkin(id) {
+    this.skinSel = id;
+    const r = this.skins.lib.rows.find(x => x.id === id);
+    if (r && this.skinState(r) === 'owned' && this.skins.state.sel !== id) this.skins.equip(id);
+    this.refreshSkins();
+  }
+
+  refreshSkins() {
+    const k = this.skins, sp = this.ui.skinSprites, p = this.skinPanel;
+    for (const { r, c } of this.skinCells) {
+      const st = this.skinState(r);
+      c.show('Grp/PnlThumb/ObjSelect', r.id === this.skinSel);
+      c.show('Grp/PnlThumb/IconVip', r.vip);
+      c.show('Grp/PnlThumb/IconLock', st !== 'owned' && st !== 'take');
+      c.show('Grp/PnlCond', st === 'stage');
+      if (st === 'stage') c.set('Grp/PnlCond/Txt', this.t('SKIN_OPEN').replace('{0}', r.cost_stage + 1));
+      c.show('Grp/ObjSelect', st === 'owned');
+      c.show('Grp/ObjSelect/IconCheck', k.state.sel === r.id);
+      c.show('Grp/BtnShop', st === 'take');
+      c.show('Grp/BtnCost', st === 'token');
+      c.show('Grp/BtnRv', false);
+      c.show('Grp/BtnJewel', false);
+      if (st === 'token') {
+        c.show('Grp/BtnCost/IconToken', true);
+        c.set('Grp/BtnCost/Txt', r.cost_value);
+        const b = c.q('Grp/BtnCost').querySelector(':scope > i.sl');
+        if (b && sp.assetUnbuyable) b.style.borderImageSource = `url("${this.uiBase}/${sp.assetUnbuyable}")`;
+      }
+      c.el.parentNode.dataset.state = st;
+    }
+    const r = k.lib.rows.find(x => x.id === this.skinSel);
+    if (!r) return;
+    p.set('Stand/Name/TxtName', this.t(`SKIN_NAME_${r.id}`));
+    const tf = k.lib.thumbs[r.id - 1];
+    this.skinPreview.style.backgroundImage = tf ? `url("${this.uiBase}/${tf}")` : '';
+    for (let i = 1; i <= 3; i++) {
+      const ab = r.ab[i - 1];
+      p.show(`Stand/GrpAbility/Info_${i}`, !!ab);
+      if (!ab) continue;
+      p.set(`Stand/GrpAbility/Info_${i}/TxtName`, this.t(`SKIN_ABILITY_${ab[0]}`));
+      p.set(`Stand/GrpAbility/Info_${i}/TxtValue`, `+${ab[1]}`);
+      const b = p.q(`Stand/GrpAbility/Info_${i}`).querySelector(':scope > i.sl');
+      const lab = this.labelFor(ab[0]);
+      if (b && lab) b.style.borderImageSource = `url("${this.uiBase}/${lab}")`;
+    }
+  }
+
+  // World map stage popups (StagePopup / StageLockedPopup), browsed with arrows from the store-logo button.
+  setupStages() {
+    this.stagePanel = this.layer.panel('stagePopup');
+    this.lockedPanel = this.layer.panel('stageLocked');
+    this.localise(this.stagePanel);
+    this.localise(this.lockedPanel);
+    this.stagePanel.show('Slot/HRRoomButton', false);
+    this.stagePanel.show('Slot/OfflineRewardPlus/PnlThumb', false);
+    const logo = n => `url("${this.uiBase}/${this.ui.logos[n - 1]}")`;
+    this.el('map').style.backgroundImage = logo(this.stageN);
+    this.el('map').addEventListener('click', () => this.showStage(this.stageN));
+    this.click(this.stagePanel.q('Slot/ButtonClose'), () => this.hideStages());
+    this.click(this.lockedPanel.q('ButtonClose'), () => this.hideStages());
+    this.click(this.stagePanel.q('Slot/EnterButton'), () => {
+      if (this.browse === this.stageN) this.hideStages();
+      else if (this.enter) this.enter(this.browse);
+    });
+    this.stagePanel.q('Slot/EnterButton').id = 'enter';
+    this.el('prev').addEventListener('click', () => this.showStage(Math.max(1, this.browse - 1)));
+    this.el('next').addEventListener('click', () => this.showStage(Math.min(10, this.browse + 1)));
+    this.logo = logo;
+  }
+
+  hideStages() {
+    this.browse = null;
+    this.stagePanel.show('', false);
+    this.lockedPanel.show('', false);
+    this.el('mapnav').hidden = true;
+  }
+
+  async showStage(n) {
+    this.browse = n;
+    const open = !this.meta || !!this.meta.open[n];
+    this.el('mapnav').hidden = false;
+    this.stagePanel.show('', open);
+    this.lockedPanel.show('', !open);
+    if (!open) {
+      for (const k of ['Logo']) { const e = this.lockedPanel.q(k); if (e) e.style.backgroundImage = this.logo(n); }
+      this.lockedPanel.set('Desc', this.t('STAGE_OPEN_CONDITION_DESC'));
+      this.lockedPanel.layout(this.layer.cw, this.layer.ch);
+      return;
+    }
+    const p = this.stagePanel;
+    p.set('Slot/Slot (1)/PlaceNameText', `${this.t('Stage')} ${n}`);
+    const lg = p.q('Slot/Slot (1)/PlaceNameText/Logo');
+    if (lg) lg.style.backgroundImage = this.logo(n);
+    p.set('Slot/EnterButton/Text', n === this.stageN ? 'OK' : this.t('Enter'));
+    p.layout(this.layer.cw, this.layer.ch);
+    // Offline income of that stage: offline_reward_plus per 10 s, capped at _offlineMaxMinutes x plus x 6.
+    if (this.stageData) {
+      try {
+        const d = await this.stageData(n);
+        if (this.browse !== n) return;
+        const o = d.offline;
+        p.set('Slot/OfflineRewardPlus/Text', 'per 10s');
+        p.set('Slot/OfflineRewardPlus/Box/CafeIncomText', fmt(o.plus));
+        p.set('Slot/OfflineRewardPlus/Box (1)/MaxIncomText', fmt(o.maxMinutes * o.plus * o.maxUnit));
+      } catch (e) { /* stage data missing: keep the defaults */ }
+    }
   }
 
   t(key) { return this.text[key] || key; }
