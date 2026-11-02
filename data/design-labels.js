@@ -432,6 +432,8 @@
         "fireRangeMax": { label: "Tầm tia lửa tối đa (phòng rộng)", unit: "ô", min: 1 },
         "gasRange": { label: "Tầm khí độc", unit: "ô", min: 1 },
         "gasRangeMax": { label: "Tầm khí độc tối đa (phòng rộng)", unit: "ô", min: 1 },
+        "poisonDps": { label: "Độc: máu mất mỗi giây", unit: "máu/giây", min: 0, help: "Vũng độc (đứng trên) và lúc đang trúng độc của vòi phun khí. Áp cho cả người lẫn quái, không hất lùi, không làm hỏng đồ." },
+        "poisonSeconds": { label: "Trúng độc từ vòi phun khí kéo dài", unit: "giây", min: 0, help: "Dính mây của vòi phun khí độc thì bị trúng độc bấy nhiêu giây, mỗi giây mất số máu ở ô trên." },
         "decorLightFadeIn": { label: "Ánh sáng decor: hiện ra trong", unit: "giây", min: 0, help: "Đèn pin soi trúng decor phát sáng thì vòng sáng của nó hiện dần trong ngần này giây." },
         "decorLightFadeOut": { label: "Ánh sáng decor: tắt dần trong", unit: "giây", min: 0, help: "Đèn pin rời khỏi decor thì vòng sáng tắt dần trong ngần này giây." },
         "smartLook": { label: "Tự xoay (điện thoại một cần)", help: "Điện thoại: cần trái để đi, hướng nhìn tự quay về con quái đang khoá, không có quái thì theo hướng đi. Người chơi bật/tắt trong Cài đặt, nhóm Điều khiển. PC không dùng." },
