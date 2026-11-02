@@ -1,0 +1,87 @@
+{
+"007_Powerup upgrade 35": {
+"dur": 0.876,
+"file": "007_Powerup_upgrade_35.mp3",
+"music": false
+},
+"040_balloon_popping": {
+"dur": 0.444,
+"file": "040_balloon_popping.mp3",
+"music": false
+},
+"SFX_Pop_Mouth_Med_1": {
+"dur": 0.125,
+"file": "SFX_Pop_Mouth_Med_1.mp3",
+"music": false
+},
+"028_normal_03": {
+"dur": 126.308,
+"file": "028_normal_03.mp3",
+"music": true
+},
+"030_normal_05": {
+"dur": 101.052,
+"file": "030_normal_05.mp3",
+"music": true
+},
+"006_Notification sound 15": {
+"dur": 3.541,
+"file": "006_Notification_sound_15.mp3",
+"music": false
+},
+"027_normal_02": {
+"dur": 130.0,
+"file": "027_normal_02.mp3",
+"music": true
+},
+"Cat meow 3": {
+"dur": 0.496,
+"file": "Cat_meow_3.mp3",
+"music": false
+},
+"029_normal_04": {
+"dur": 149.538,
+"file": "029_normal_04.mp3",
+"music": true
+},
+"UI_ForestUpgrade": {
+"dur": 2.674,
+"file": "UI_ForestUpgrade.mp3",
+"music": false
+},
+"Cat meow 1": {
+"dur": 0.572,
+"file": "Cat_meow_1.mp3",
+"music": false
+},
+"Cat meow 2": {
+"dur": 0.753,
+"file": "Cat_meow_2.mp3",
+"music": false
+},
+"042_purring": {
+"dur": 2.43,
+"file": "042_purring.mp3",
+"music": false
+},
+"048_bubble pop": {
+"dur": 4.176,
+"file": "048_bubble_pop.mp3",
+"music": false
+},
+"002_Coins 2": {
+"dur": 0.709,
+"file": "002_Coins_2.mp3",
+"music": false
+},
+"026_normal_01": {
+"dur": 82.457,
+"file": "026_normal_01.mp3",
+"music": true
+},
+"001_Water Boiling Loop 4": {
+"dur": 2.859,
+"file": "001_Water_Boiling_Loop_4.mp3",
+"music": false
+}
+}

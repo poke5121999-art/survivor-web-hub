@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Mèo &amp; Súp – xem prefab</title>
+<style>html,body{margin:0;background:#6d8e54;overflow:hidden}canvas{display:block}#l{position:fixed;left:4px;top:4px;font:12px monospace;color:#fff}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+</head>
+<body>
+<div id="l"></div>
+<script type="module">
+// viewer.html?lib=probe[&keys=a,b][&size=1.7][&cols=4] lays the roots of one export on a grid under the game camera
+// (yaw 135 deg, pitch 30 deg, orthographic, from level2 "cam/Main Camera"). window.__ready turns true once sharp.
+import * as THREE from 'three';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+import MeshoptDecoder from './vendor/meshopt_decoder.js';
+import { loadLib } from './js/view/world.js';
+import { AnimLibrary, Rig } from './js/view/anim.js';
+
+const q = new URLSearchParams(location.search);
+const lib = await loadLib('.', q.get('lib') || 'probe', GLTFLoader, MeshoptDecoder);
+const keys = q.get('keys') ? q.get('keys').split(',') : lib.keys();
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(new THREE.Color(0.4274, 0.5569, 0.3294));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const cols = +(q.get('cols') || Math.ceil(Math.sqrt(keys.length)));
+const gap = +(q.get('gap') || 1.2);
+const rigs = [];
+const animLib = q.get('anim') ? await AnimLibrary.load('.') : null;
+keys.forEach((k, i) => {
+  const o = lib.instantiate(k);
+  if (animLib && o.userData.node.k && o.userData.node.k.Animator) rigs.push(new Rig(animLib, o));
+  o.position.set((i % cols) * gap, 0, Math.floor(i / cols) * gap);
+  scene.add(o);
+  if (q.get('bounds')) {
+    o.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(o);
+    (window.__info ||= {})[k] = [b.min.toArray().map(v => +(v - (v === b.min.x ? o.position.x : 0)).toFixed(3)), b.max.toArray().map(v => +v.toFixed(3))].concat([o.position.toArray()]);
+  }
+});
+const size = +(q.get('size') || 1.7) * Math.max(1, cols / 2);
+const aspect = innerWidth / innerHeight;
+const cam = new THREE.OrthographicCamera(-size * aspect, size * aspect, size, -size, -50, 100);
+const c = new THREE.Vector3(((cols - 1) * gap) / 2, 0, ((Math.ceil(keys.length / cols) - 1) * gap) / 2);
+const fwd = new THREE.Vector3(0.6124, -0.5, 0.6124);
+cam.position.copy(c).addScaledVector(fwd, -10);
+cam.lookAt(c);
+document.getElementById('l').textContent = keys.join('  ');
+renderer.render(scene, cam);
+await lib.ready();
+if (animLib) {
+  await Promise.all(rigs.map(r => r.play(q.get('anim'), 0)));
+  rigs.forEach(r => r.update(+(q.get('t') || 0.4)));
+}
+renderer.render(scene, cam);
+window.__ready = true;
+</script>
+</body>
+</html>
