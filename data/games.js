@@ -1239,5 +1239,22 @@ window.HUB_GAMES = [
     // Bump rev: node games/cats-soup/tools/stamp.js <rev>. Kiem: test/cats-soup-sim.js, test/cats-soup-play.js (CS_URL=<Pages>).
     status: "available",
     tags: ["Nhàn rỗi", "Quản lý", "Màn dọc"]
+  },
+  {
+    id: "snail-ride",
+    title: "Snail Ride",
+    tagline: "Ốc sên cưỡi cành cây cong vô tận: chạm để lật sang mặt kia, né gai và bọ, gom bong bóng.",
+    desc: "Làm lại Snail Ride (Bloop) từ bản Android 1.2, chạy thẳng trên web bằng hình, tiếng và số liệu gốc. Ốc sên bò trên một cành cây uốn lượn không có điểm cuối; chạm màn hình hoặc bấm Space để lật sang mặt bên kia của cành, né gai, bọ rùa, dế, ruồi và ong. Gom bong bóng làm tiền, ăn vỏ ốc thưởng thì lao nhanh gấp bốn trong 8 giây và húc vỡ mọi chướng ngại để cộng combo. Có một lớp khiên đỡ một cú chạm, trời đổi màu và đổ mưa theo lượt chơi. Hết lượt nhận quà theo giờ, bỏ 500 bong bóng chơi máy gắp thú để mở skin ốc mới; có 48 skin, nhiệm vụ và 10 ngôn ngữ. Nút xem quảng cáo bấm là nhận. Đang làm tiếp cho đủ game; lưu trong trình duyệt.",
+    genre: "hanh-dong",
+    accent: "#7bbf3a",
+    en: { title: "Snail Ride", tagline: "A snail rides an endless winding vine: tap to flip to the other side, dodge spikes and bugs, grab bubbles.", desc: "Snail Ride (Bloop) remade from the Android 1.2 release, running in the browser on the original art, sound and numbers. The snail crawls along a vine that winds forever; tap or press Space to flip to the other side, dodging spikes, ladybugs, crickets, flies and bees. Bubbles are your currency, and the bonus shell sends you four times faster for 8 seconds, smashing every obstacle for combo points. One shield absorbs a hit, and the sky changes colour and turns to rain as you play. After a run, collect timed gifts and spend 500 bubbles on the claw machine to win new snail skins; there are 48 skins, missions and 10 languages. Ad buttons grant the reward instantly. Still being completed; saved in the browser." },
+    thumbnail: "assets/thumbnails/snail-ride.png",
+    path: "games/snail-ride/index.html",
+    rev: "20261102a",
+    // three.js r160 vendor + DOM UI, no build step; rebuilt from the APK (com.bloop.snail 1.2, Unity 2018.3.7f1 Mono) on the
+    // linux box (~/snail-ride-ref, ~/snail-ride-work) by games/snail-ride/tools. Bump rev: python3 games/snail-ride/tools/stamp.py.
+    // Kiem: ~/snail-ride-work/test/e2e.mjs on linux.
+    status: "available",
+    tags: ["Vô tận", "Phản xạ", "Màn dọc"]
   }
 ];

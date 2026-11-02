@@ -1,0 +1,25 @@
+/* uGUI DOM layer (js/engine/ui.js). Everything inside a .ui-canvas is in canvas units. */
+.ui-root {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  overflow: hidden; pointer-events: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent; touch-action: none;
+}
+.ui-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.ui-canvas, .ui-n { position: absolute; left: 0; top: 0; pointer-events: none; transform-origin: 0 0; box-sizing: border-box; }
+.ui-mask { overflow: hidden; }
+.ui-g {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  box-sizing: border-box; pointer-events: none;
+  background-repeat: no-repeat; background-position: center; background-size: 100% 100%;
+}
+.ui-g.ray { pointer-events: auto; }
+.ui-noray .ui-g.ray { pointer-events: none; }
+.ui-text {
+  display: flex; flex-direction: column;
+  font-family: "Linotte Bold", sans-serif; font-weight: normal; font-kerning: normal;
+  -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
+  cursor: default;
+}
+.ui-tx { flex: none; overflow-wrap: break-word; }
+.ui-slice { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
