@@ -1,7 +1,7 @@
 // Builds three.js objects from art/<id>/scene.json + geo.glb (tools/export_prefabs.py). Each export holds several
 // prefab roots; instantiate(key) clones one. Nodes keep Unity names, hierarchy and active flags.
 import * as THREE from 'three';
-import { makeMaterial, texture } from './shaders.js';
+import { makeMaterial, texture, want } from './shaders.js';
 
 export class PrefabLib {
   constructor(scene, gltf, texBase) {
@@ -28,6 +28,25 @@ export class PrefabLib {
       this.spriteMats.set(key, makeMaterial(e, this.texBase, this.scene.textures, { sprite: true, spriteTex: n.spr.tex, color: n.spr.c }));
     }
     return this.spriteMats.get(key);
+  }
+
+  // Start loading the textures one root will show (nodes whose whole chain is active) without building it, so a facility's
+  // textures are on the wire while the rest of the page is still booting.
+  want(key) {
+    const r = this.roots.get(key);
+    if (!r) return;
+    const nodes = this.scene.nodes, vis = [];
+    for (let i = r.node; i < r.end; i++) {
+      const n = nodes[i];
+      vis[i] = n.a !== 0 && (i === r.node || n.p < 0 || vis[n.p] !== false);
+      if (!vis[i]) continue;
+      const mats = n.spr ? [n.spr.mt && n.spr.mt[0]] : n.m != null ? n.mt : n.sk ? n.sk.mt : [];
+      for (const mi of mats || []) {
+        const m = mi != null && this.materials[mi];
+        if (m && m.mat.uniforms && m.mat.uniforms.map && !n.spr) want(m.mat.uniforms.map.value);
+      }
+      if (n.spr && n.spr.tex != null) texture(this.texBase, this.scene.textures[n.spr.tex].name);
+    }
   }
 
   geometryOf(mi) {
@@ -70,6 +89,12 @@ export class PrefabLib {
       if (n.sk) this.addSkinned(o, n, objects, r.node);
     }
     root.userData.objects = objects;
+    // The textures of what this instance shows (active node chain, visible mesh) jump the load queue; the ones of
+    // inactive variants (skins, seasonal props) stay in the library's low-priority queue (shaders.js).
+    root.traverseVisible(o => {
+      const m = o.material;
+      if (o.isMesh && o.visible && m && m.uniforms && m.uniforms.map) want(m.uniforms.map.value);
+    });
     return root;
   }
 

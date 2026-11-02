@@ -26,7 +26,7 @@ export default {
     this.tx = (key, fb, ...a) => (ctx.lang[key] != null ? ctx.t(key, ...a) : fb);
     this.dots = {};
     this.since = 1;
-    this.shown = true;
+    this.shown = false;
     const box = find(ctx.root, BOX);
     if (!box) return;
     box.style.display = '';

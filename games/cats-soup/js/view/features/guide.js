@@ -137,7 +137,10 @@ export default {
     switch (target) {
       case 'dish': return rect(hud.shelf.querySelector('.dish'));
       case 'build': return panel ? rect(panel.querySelector('.row .price:not(.off)')) : union(find(root, 'mainUI/set_bottomRight/bt_build'));
-      case 'recipe': return panel ? rect(panel.querySelector('.row .price.energy:not(.off)')) : union(find(root, 'mainUI/set_bottomRight/bt_recipe'));
+      case 'recipe':
+        // The facility card (from the upgrade step) hides the HUD; the recipe step starts with it closed.
+        if (!panel && hud.selected) hud.select(null);
+        return panel ? rect(panel.querySelector('.row .price.energy:not(.off)')) : union(find(root, 'mainUI/set_bottomRight/bt_recipe'));
       case 'expand': return rect(hud.expandBtn);
       case 'up': return rect(hud.card.querySelector('.up'));
       case 'work': {

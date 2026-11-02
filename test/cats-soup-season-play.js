@@ -50,12 +50,16 @@ function serve() {
   await ready();
   check('no feature failed to load', (await page.evaluate(() => window.__failed())).length === 0);
   const vis = n => page.locator(`[data-n="${n}"]`).first().evaluate(e => getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden');
+  const boxOff = async () => !(await vis('bt_eventSeason')) || (await page.locator('[data-n="set_eventBox"]').evaluate(e => getComputedStyle(e).display)) === 'none';
+  check('event box starts folded like the original', await boxOff());
+  await btn('bt_eventOpen').click();
+  await page.waitForTimeout(700);
   check('event box shows the shop, mission and play-point buttons', (await vis('bt_eventSeason')) && (await vis('bt_eventPass_Season')) && (await vis('bt_playPoint')));
   check('calendars and soup pass stay hidden below 3 cats', !(await vis('bt_eventMain')) && !(await vis('bt_soupPass')));
   await shot('01-hud');
   await btn('bt_eventOpen').click();
   await page.waitForTimeout(700);
-  check('bt_eventOpen folds the event box away', !(await vis('bt_eventSeason')) || (await page.locator('[data-n="set_eventBox"]').evaluate(e => getComputedStyle(e).display)) === 'none');
+  check('bt_eventOpen folds the event box away', await boxOff());
   await btn('bt_eventOpen').click();
   await page.waitForTimeout(700);
   check('and brings it back', await vis('bt_eventSeason'));

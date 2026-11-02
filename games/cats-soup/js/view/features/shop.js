@@ -476,8 +476,11 @@ export default {
       setText(sp, 'bt_ads/txt', ctx.t('doubleSpeedCook'));
       setText(sp, 'bt_ads/txt_ads', ctx.t('showAds'));
       hide(sp, 'bt_ads/txt_adsT', 'bt_ads/Sprite');
+      // The longer Vietnamese lines keep inside the green button
+      for (const [k, fs] of [['bt_ads/txt', 30], ['bt_ads/txt_ads', 27]]) { const b = find(sp, k).box; Object.assign(b.style, { width: '240px', left: '-120px', fontSize: `${fs}px`, textAlign: 'center' }); }
     }
-    if (sp) { sp.style.left = '-420px'; sp.style.top = '-215px'; } // above the food shelf, left of the recipe button
+    // Bottom right on the wooden bar like the original (centre 148 px in from the right edge, 75 px above the bottom; the prefab's own x is a design leftover)
+    if (sp) { sp.style.left = '-132px'; sp.style.top = '-75px'; }
     this.speed = sp;
     this.ef = find(ctx.root, BTN.speedEf);
     const shopBtn = find(ctx.root, BTN.shop);

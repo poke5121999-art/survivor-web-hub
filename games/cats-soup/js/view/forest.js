@@ -51,6 +51,34 @@ export class Forest {
     const layer1 = m0.mat.clone();
     layer1.uniforms = { ...m0.mat.uniforms, map: { value: texture(texBase, ground.base2).tex } };
     map.fallback = { mat: layer1, outline: m0.outline, colored: (m) => m };
+    this.texBase = texBase;
+    this.far = ground;
+  }
+
+  // Far-tree sprite (GameMapManager.SetFarTreeSprite: Resources tree/tree_theme<k>). The prefab's own quad is the 311x201
+  // picnic_tree06 bush; the pine is a 332x440 pivot-bottom sprite, so the quad is rebuilt from rect / pixelsToUnits / pivot.
+  setFarTree(rec) {
+    this.far = rec;
+    const inst = this.group.children.find(c => c.isInstancedMesh);
+    if (inst) this.paintFarTree(inst);
+  }
+
+  paintFarTree(inst) {
+    const r = this.far;
+    if (!r || !r.farTree) return;
+    if (r.farSize && r.farPivot) {
+      const ppu = r.farPpu || 100, w = r.farSize[0] / ppu, h = r.farSize[1] / ppu, [px, py] = r.farPivot;
+      // Real-unit float quad (the exported prefab geometry is quantised and carries its scale in the mesh matrix).
+      const g = new THREE.BufferGeometry();
+      const x0 = -px * w, x1 = (1 - px) * w, y0 = -py * h, y1 = (1 - py) * h;
+      g.setAttribute('position', new THREE.Float32BufferAttribute([x0, y0, 0, x1, y0, 0, x1, y1, 0, x0, y1, 0], 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+      g.setIndex([0, 1, 2, 0, 2, 3]);
+      g.computeBoundingSphere();
+      inst.geometry = g;
+    }
+    if (inst.material.uniforms && inst.material.uniforms.map) inst.material.uniforms.map.value = texture(this.texBase, r.farTree).tex;
   }
 
   // fields: cells [[x, y]...] of the current colour map; works: Map "x,y" -> baseTile index for occupied cells.
@@ -111,10 +139,12 @@ export class Forest {
       const k = Math.abs(gx + 2 * gy) % 4;
       world.makeTranslation((gx - 0.1) * CELL, 0.2105, -(gy + 0.1) * CELL);
       local.compose(new THREE.Vector3(TREE_P[k][0], TREE_P[k][1], -TREE_P[k][2]), q, new THREE.Vector3(...TREE_S[k]));
-      m.multiplyMatrices(world, local).multiply(mesh.matrix);
+      m.multiplyMatrices(world, local);
+      if (!(this.far && this.far.farSize)) m.multiply(mesh.matrix);
       inst.setMatrixAt(i, m);
     });
     inst.frustumCulled = false;
+    this.paintFarTree(inst);
     this.group.add(inst);
   }
 }

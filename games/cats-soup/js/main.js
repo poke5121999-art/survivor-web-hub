@@ -8,7 +8,7 @@ import { loadLib } from './view/world.js';
 import { Forest } from './view/forest.js';
 import { GameCamera } from './view/camera.js';
 import { NGUI } from './view/ngui.js';
-import { env } from './view/shaders.js';
+import { env, settled } from './view/shaders.js';
 import { AnimLibrary } from './view/anim.js';
 import { GameView } from './view/game.js';
 import { Hud } from './view/hud.js';
@@ -89,6 +89,13 @@ const placeLib = work => {
 };
 const view = new GameView({ game, scene, forest, placeLib, catLib, animLib, lampLib, catTypes: cats, texBase: `${BASE}/art/tex` });
 view.rebuildForest();
+// Boot order matters on a slow link: the facilities' libraries and textures go on the wire first, and the HUD (about 6 MB of
+// atlases) starts after the scene's textures are in (or 6 s), instead of splitting the connection with them.
+const warm = [...new Set(game.state.works.map(w => w.a))].map(a => placeLib(a).then(lib => lib && lib.want(`places/place${a}`)).catch(() => {}));
+catLib.want(catLib.keys()[0]);
+lampLib.want('lamp/lamp0');
+const sceneDone = Promise.all(warm).then(() => settled());
+await Promise.race([sceneDone, new Promise(r => setTimeout(r, 6000))]);
 
 const ng = await NGUI.load(BASE, lang);
 const hudTree = await json('art/ui/hud.json');
@@ -166,7 +173,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) save(
 
 // Night (game.isNight) dims the shader ambient toward blue and darkens the clear colour over ~2 s.
 const DAY = { amb: [0.5, 0.5, 0.5], sky: [0.4274, 0.5569, 0.3294] };
-const NIGHT = { amb: [0.3, 0.32, 0.46], sky: [0.16, 0.22, 0.24] };
+const NIGHT = { amb: [0.32, 0.315, 0.5], sky: [0.16, 0.22, 0.24] };
 let dusk = game.isNight() ? 1 : 0;
 const sky = new THREE.Color();
 function light(dt) {
@@ -207,4 +214,9 @@ window.__hud = hud;
 window.__move = move;
 window.__failed = () => [...failed].map(v => v.id);
 window.__cloud = cloud.from;
-setTimeout(() => { window.__ready = true; }, 3000);
+// __ready: the first frame is complete, i.e. every texture the scene and the HUD asked for is sharp (shaders.js hi queue, the
+// HUD atlases), after at least 2 s for the features to mount, and never later than 25 s.
+Promise.race([
+  Promise.all([settled(), new Promise(r => setTimeout(r, 2000)), ...[...ng.urls.values()].map(p => p.catch(() => null))]),
+  new Promise(r => setTimeout(r, 25000)),
+]).then(() => { window.__ready = true; });

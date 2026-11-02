@@ -1233,7 +1233,7 @@ window.HUB_GAMES = [
     en: { title: "Cats & Soup", tagline: "Cats cook soup in the forest: build kitchens, chop vegetables, rest, sell dishes and grow the forest.", desc: "Cats&Soup (HIDEA) remade from the Android 5.3.0 release, running in the browser on the original assets. Every facility brings a new cat: cooks make soup, juice and stir-fry, prep cats chop ingredients and rest to earn recipe points. Sell dishes, upgrade (hold to repeat), learn recipes, grow the forest through 9 sizes, with a tutorial. Treasure chest, lucky jar, balloon, claw machine, elephant trader, basketball, music player, special orders; fishing and aquarium; missions and attendance; cats with hearts, skills, gifts; outfits on the 3D cats; cat tower; furniture and cat rooms; collection, picture book, storage; facility skins, 19 themes, lanterns; kittens roaming the forest and travelling; telescope and observatory; minigames (butterflies, whack-a-mole, Cooking Lab, magnet board); monthly events and soup pass; profile and photo mode; visiting guests, frog prince, deco blocks; moving facilities; day and night; the original particle effects; gem shop (ads pay at once). Saved to the hub account." },
     thumbnail: "assets/thumbnails/cats-soup.png",
     path: "games/cats-soup/index.html",
-    rev: "20261102g",
+    rev: "20261102h",
     // three.js r160 vendor, no build step; rebuilt from the XAPK (com.hidea.cat 5.3.0, Unity 6000.0.60f1 IL2CPP ARMv7,
     // D:/catsoup-ref) by games/cats-soup/tools, rules from the Ghidra decompile (D:/catsoup-ref/rules).
     // Bump rev: node games/cats-soup/tools/stamp.js <rev>. Kiem: test/cats-soup-sim.js, test/cats-soup-play.js (CS_URL=<Pages>).

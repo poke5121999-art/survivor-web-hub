@@ -149,11 +149,10 @@ function setupJar() {
   if (!jar || !jini || !sp) return;
   const yes = find(sp, 'bt_yes');
   const ads = yes.cloneNode(true);
-  ads.style.top = '150px';
+  ads.style.top = '-230px';   // under the gift button: the jar now sits on the shelf edge, so the old spot (150 px below) is over the dishes
   yes.parentElement.appendChild(ads);
   for (const n of [ads, ...ads.querySelectorAll('.ng')]) { const b = [...n.children].find(k => k.classList.contains('w')); if (b) n.box = b; }
-  // The shelf of dishes sits where the original had the jar icon: lift the icon above it.
-  jar.style.top = `${parseFloat(jar.style.top) - 200}px`;
+  // The jar icon keeps the original's place (set_jar t=[60,230]) on the edge of the shelf; the shelf lets taps through to it.
   jarBubble = { jar, jini, yes, ads, shown: false };
   find(sp, 'txt_title').box.textContent = C.t('jarGift');
   find(sp, 'num_foodCount').style.display = 'none';

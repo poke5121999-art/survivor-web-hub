@@ -59,6 +59,7 @@ def image(key):
             if best is None or o.type.name == "Sprite":
                 best = t
     stem, im = save_image(best.image, best.m_Name, TEXDIR)
+    image.last = best
     return stem, im
 
 
@@ -69,7 +70,7 @@ def export_ground():
     for theme in range(19):
         rec = {}
         for field, key in (("base", f"ground/ground_base{theme}"), ("base2", f"ground/ground_base{theme}_2"),
-                           ("back", f"ground/ground_back{theme}"), ("farTree", f"tree/picnic_tree06_theme{theme}")):
+                           ("back", f"ground/ground_back{theme}"), ("farTree", f"tree/tree_theme{theme}")):
             if key not in RES:
                 log(f"  theme {theme}: {key} is not in Resources")
                 continue
@@ -77,6 +78,9 @@ def export_ground():
             rec[field] = stem
             if field == "farTree":
                 rec["farSize"] = list(im.size)
+                sp = image.last   # Sprite: SetFarTreeSprite(tree/tree_theme<k>); quad = rect / pixelsToUnits around the pivot
+                rec["farPivot"] = [round(sp.m_Pivot.x, 4), round(sp.m_Pivot.y, 4)]
+                rec["farPpu"] = sp.m_PixelsToUnits or 100
             if field == "back":
                 rec["_im"] = im
         stems[theme] = rec

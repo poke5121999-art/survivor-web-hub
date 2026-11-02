@@ -44,8 +44,17 @@ const serve = () => new Promise(res => {
   const steam = await live('pt_steam', pot);
   check('a cooked dish puffs the steam (pt_steam burst of 1)', steam === 1, `${steam} live`);
   await page.screenshot({ path: path.join(SHOTS, 'pot.png') });
-  const lamp = await page.evaluate(() => window.__particles.systems().filter(s => s.name === 'pt_firebase' && s.live).length);
-  check('pot glow and lantern flames have live particles', lamp >= 2, `${lamp} systems`);
+  const flames = () => page.evaluate(() => window.__particles.systems().filter(s => s.name === 'pt_firebase' && s.live).length);
+  check('by day only the pot glow burns, the lantern is unlit (HandLightOn)', await flames() === 1, `${await flames()} systems`);
+  const ff0 = await live('pt_firefly', -1);
+  check('no fireflies by day', ff0 === 0, `${ff0} live`);
+  await page.evaluate(() => { window.__game.state.timeCount = 7; });
+  await page.waitForTimeout(4000);
+  let lamp = 0;
+  for (let i = 0; i < 12; i++) { lamp = Math.max(lamp, await flames()); await page.waitForTimeout(150); }   // rate 1/s, life 1 s: sample over 2 s
+  const ff = await live('pt_firefly', -1);
+  check('at night the pot glow and the lantern flames have live particles', lamp >= 2, `${lamp} systems`);
+  check('at night fireflies (Spawn.pt_fireFly, level2 scene system) drift over the clearing', ff >= 20, `${ff} live`);
   const total = await page.evaluate(() => window.__particles.total());
   check('live total under the cap of 1500', total > 0 && total <= 1500, `${total}`);
   const frames = () => page.evaluate(() => new Promise(res => { let n = 0; const t0 = performance.now(); const f = () => { if (++n < 40) requestAnimationFrame(f); else res((performance.now() - t0) / n); }; requestAnimationFrame(f); }));

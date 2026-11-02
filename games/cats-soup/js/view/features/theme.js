@@ -80,6 +80,7 @@ export default {
     set(map.materials[1].mat.uniforms, gr.back);
     set(map.fallback.mat.uniforms, gr.base2);
     this.farTree = gr.farTree;
+    this.farRec = gr;
     this.bg = gr.bg;
     this.sky = null;
     if (!first) this.paintTrees();
@@ -88,8 +89,7 @@ export default {
 
   // The far trees are one InstancedMesh per forest build whose sprite material is shared; its texture follows the theme.
   paintTrees() {
-    const inst = this.view.forest.group.children.find(c => c.isInstancedMesh);
-    if (inst && this.farTree && inst.material.uniforms && inst.material.uniforms.map) inst.material.uniforms.map.value = texture(this.texBase, this.farTree).tex;
+    if (this.farRec) this.view.forest.setFarTree(this.farRec);
   },
 
   // Camera colour of the theme (Spawn.ChangeMainCamBgColor); main.js sets the clear colour of theme 0 itself, other themes

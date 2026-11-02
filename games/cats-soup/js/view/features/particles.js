@@ -188,6 +188,8 @@ class PSystem {
     this.hier = m.scaling === 0;
     this.local = m.scaling === 1;
     this.simSpeed = m.simSpeed;
+    // Noise module (fireflies): a small wandering displacement; amplitude `strength`, angular rate 2 rad/s x frequency.
+    this.noise = def.noise ? { s: avg(def.noise.strength) * 2 * (def.noise.frequency || 1), w: 2 * (def.noise.frequency || 1) } : null;
     this.shape = def.shape;
     if (this.shape) {
       _e.set(THREE.MathUtils.degToRad(this.shape.rot[0]), THREE.MathUtils.degToRad(this.shape.rot[1]), THREE.MathUtils.degToRad(this.shape.rot[2]), 'YXZ');
@@ -207,7 +209,7 @@ class PSystem {
     const tc = mat && ((mat.c && (mat.c._TintColor || mat.c._Color)) || null);
     const amb = mat && /Ambient/.test(mat.shader);
     this.material = new THREE.ShaderMaterial({
-      vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthTest: r.mode === 2, depthWrite: false, side: THREE.DoubleSide,   // ground glow (horizontal quad) hides behind solid meshes like Unity ZTest LEqual
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: BLEND[blend[0]] ?? THREE.SrcAlphaFactor,
       blendDst: BLEND[blend[1]] ?? THREE.OneMinusSrcAlphaFactor,
       uniforms: {
@@ -381,6 +383,10 @@ class PSystem {
       if (this.f.vel) { ox = this.f.vel.x(T, p.r1); oy = this.f.vel.y(T, p.r1); oz = this.f.vel.z(T, p.r1); sm = this.f.vel.mod(T, p.r2); }
       p.vx += ax * dt; p.vy += ay * dt; p.vz += az * dt;
       p.x += (p.vx * sm + ox) * dt; p.y += (p.vy * sm + oy) * dt; p.z += (p.vz * sm + oz) * dt;
+      if (this.noise) {
+        const a = p.age * this.noise.w + p.r1 * 40;
+        p.x += Math.cos(a) * this.noise.s * dt; p.y += Math.cos(a * 1.3 + 2) * this.noise.s * 0.5 * dt; p.z += Math.sin(a * 0.9 + 1) * this.noise.s * dt;
+      }
       if (this.f.rotOL) p.rot += this.f.rotOL(T, p.r3) * dt;
     }
     void d;
@@ -467,11 +473,34 @@ function attach(entry) {
       const s = new PSystem(def, node, C.base);
       s.workId = entry.w.id;
       s.root = entry.obj;
+      if (root.name === 'lamp0') { s.mesh.renderOrder = -0.2; s.nightOnly = true; }   // the lantern glow sits behind the glass jar sprite (renderOrder 0), not over it
       group.add(s.mesh);
       systems.add(s);
       if (!byWork.has(entry.w.id)) byWork.set(entry.w.id, []);
       byWork.get(entry.w.id).push(s);
     }
+  }
+}
+
+// Spawn.pt_fireFly: a level2 scene system riding on the camera; its world pose is a horizontal 10 x 10 rectangle 0.5 above the
+// view centre (camera rig numbers composed in the exporter: tools/export_particles.py --scene). Simulated in world space,
+// emitted at night only (the existing sparks fade out over their 1-3 s life when day comes).
+let fireNode = null;
+function mountFireflies() {
+  const defs = data['scene/pt_fireFly'];
+  if (!defs) return;
+  fireNode = new THREE.Object3D();
+  fireNode.name = 'pt_fireFly';
+  fireNode.rotation.x = -Math.PI / 2;     // the box shape lies in the node's XY plane; lay it on the ground plane
+  C.scene.add(fireNode);
+  for (const def of Object.values(defs)) {
+    const s = new PSystem(def, fireNode, C.base);
+    s.workId = -1;
+    s.root = fireNode;
+    s.nightEmit = true;
+    s.mesh.renderOrder = 5;
+    group.add(s.mesh);
+    systems.add(s);
   }
 }
 
@@ -484,6 +513,7 @@ export default {
     ctx.scene.add(group);
     data = await ctx.json('data/particles.json');
     for (const e of pending.splice(0)) attach(e);
+    mountFireflies();
     window.__particles = {
       systems: () => [...systems].map(s => ({ work: s.workId, name: s.name, live: s.live, playing: s.playing, mode: s.mode, shown: s.mesh.visible })),
       live: (name, work) => [...systems].filter(s => (!name || s.name === name) && (work == null || s.workId === work)).reduce((a, s) => a + s.live, 0),
@@ -518,7 +548,8 @@ export default {
         s.dispose();
         continue;
       }
-      if (hidden(s.node)) { s.mesh.visible = false; continue; }
+      if (s.nightEmit) fireNode.position.set(C.camera.target.x, 0.5, C.camera.target.z);
+      if (hidden(s.node) || (s.nightOnly && !C.game.isNight())) { s.mesh.visible = false; continue; }   // HandLightOn: the lantern is lit at night only
       s.node.updateWorldMatrix(true, false);
       ndc.setFromMatrixPosition(s.node.matrixWorld).project(cam);
       if (Math.abs(ndc.x) > 1.5 || Math.abs(ndc.y) > 1.5) { s.mesh.visible = false; continue; }
@@ -527,7 +558,7 @@ export default {
         if (s.def.main.prewarm && s.loop) for (let t = 0; t < Math.min(3, Math.max(0.1, maxOf(s.def.main.life))); t += 0.1) { budget = s.emit(0.1, budget); s.step(0.1); }
       }
       const d = dt * s.simSpeed;
-      budget = s.emit(d, budget);
+      if (!s.nightEmit || C.game.isNight()) budget = s.emit(d, budget);
       s.step(d);
       s.write();
     }

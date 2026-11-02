@@ -140,6 +140,8 @@ function serve() {
   const rb = await page.evaluate(() => { const e = document.querySelector('[data-n="bt_recipe"]'); const r = [...e.querySelectorAll('.w')].map(w => w.getBoundingClientRect()).filter(r => r.width > 2); return [(Math.min(...r.map(x => x.left)) + Math.max(...r.map(x => x.right))) / 2, (Math.min(...r.map(x => x.top)) + Math.max(...r.map(x => x.bottom))) / 2]; });
   check('the hand points at the RECIPE button', near(await handAt(), rb, 60), `${await handAt()} vs ${rb}`);
   await shot('10-recipe-hand');
+  await page.mouse.click(30, 400);   // the upgrade window hides the HUD like the original: tap its backdrop to close it first
+  await page.waitForTimeout(300);
   await page.locator('[data-n="bt_recipe"] .w').first().click();
   await page.waitForTimeout(500);
   check('with the panel open the hand moves to the learn button', near(await handAt(), await centre('.panel .row .price.energy:not(.off)'), 90));

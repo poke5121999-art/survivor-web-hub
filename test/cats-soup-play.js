@@ -94,6 +94,10 @@ function serve() {
   s = await st();
   check('upgrade raises the level', s.lv[0] === 2, JSON.stringify(s.lv));
   await shot('05-card');
+  // the upgrade window hides the HUD like the original: tap the dimmed backdrop to close it
+  await page.mouse.click(30, 400);
+  await page.waitForTimeout(300);
+  check('tapping the backdrop closes the card', await page.locator('.card').evaluate(e => getComputedStyle(e).display) === 'none');
 
   await page.locator('[data-n="bt_recipe"] .w').first().click();
   await page.waitForTimeout(400);

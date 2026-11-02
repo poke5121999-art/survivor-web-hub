@@ -11,30 +11,81 @@ const texCache = new Map();
 export const env = { ambient: { value: new THREE.Vector4(0.5, 0.5, 0.5, 1) } };
 
 // Every texture starts as its 16 px .lq.webp and swaps to the full image when it arrives (casual-farm/toon.js).
-export function texture(base, name) {
-  if (texCache.has(name)) return texCache.get(name);
+// Loading is prioritised: a texture asked for by code (texture(base, name)) or wanted by an instance that is about to be seen
+// (entry.want(), PrefabLib.instantiate) goes to the "hi" queue, 12 requests at a time. Textures that only sit in a material
+// of a library (a facility chunk holds the skins and seasonal variants of 12 facilities: ~300 textures) wait in the "lo"
+// queue, which starts only after the hi queue has been idle for LO_DELAY ms and then runs 2 at a time, so the visible
+// facilities, ground and trees never queue behind hundreds of requests for things nobody sees.
+const HI_MAX = 12, LO_MAX = 2, LO_DELAY = 1200;
+const hiQ = [], loQ = [];
+let hiActive = 0, loActive = 0, lastHi = 0, loTimer = 0;
+const settleWaiters = [];
+const byTex = new WeakMap();
+// Ask for the texture behind a material map now (hi queue) instead of waiting for the lo queue.
+export const want = t => { const e = t && byTex.get(t); if (e) e.want(); };
+
+function pump() {
+  while (hiActive < HI_MAX && hiQ.length) run(hiQ.shift(), true);
+  if (hiQ.length || hiActive) return;
+  if (settleWaiters.length) { setTimeout(() => { if (!hiQ.length && !hiActive) settleWaiters.splice(0).forEach(r => r()); }, 150); }
+  const wait = lastHi + LO_DELAY - performance.now();
+  if (loQ.length && wait > 0) { clearTimeout(loTimer); loTimer = setTimeout(pump, wait + 5); return; }
+  while (loActive < LO_MAX && loQ.length) run(loQ.shift(), false);
+}
+function run(entry, hi) {
+  entry.started = true;
+  if (hi) hiActive++; else loActive++;
+  entry.start(hi).finally(() => {
+    if (hi) { hiActive--; lastHi = performance.now(); } else loActive--;
+    pump();
+  });
+}
+
+// Resolves once every texture that has been asked for so far is sharp (the lo queue is not waited for).
+export function settled() {
+  return new Promise(r => { settleWaiters.push(r); pump(); });
+}
+
+export function texture(base, name, lazy = false) {
+  if (texCache.has(name)) {
+    const e = texCache.get(name);
+    if (!lazy) e.want();
+    return e;
+  }
   const t = new THREE.Texture();
   t.colorSpace = THREE.NoColorSpace;
   t.flipY = false;
   t.magFilter = THREE.LinearFilter;
   t.minFilter = THREE.LinearFilter;
   t.generateMipmaps = false;
-  const entry = { tex: t, full: null, sharp: false };
-  loader.load(`${base}/${name}.lq.webp`, img => {
-    if (entry.sharp) return;
-    t.image = img;
-    t.needsUpdate = true;
-  });
-  entry.full = new Promise(resolve => {
+  const entry = { tex: t, full: null, sharp: false, started: false, queued: false, name };
+  let done;
+  entry.full = new Promise(r => { done = r; });
+  entry.start = hi => new Promise(resolve => {
+    if (hi) loader.load(`${base}/${name}.lq.webp`, img => {
+      if (entry.sharp) return;
+      t.image = img;
+      t.needsUpdate = true;
+    });
     loader.load(`${base}/${name}.webp`, img => {
       entry.sharp = true;
       t.dispose();
       t.image = img;
       t.needsUpdate = true;
+      done();
       resolve();
-    }, undefined, () => resolve());
+    }, undefined, () => { done(); resolve(); });
   });
+  entry.want = () => {
+    if (entry.started) return;
+    const i = loQ.indexOf(entry);
+    if (i >= 0) loQ.splice(i, 1);
+    if (!hiQ.includes(entry)) { hiQ.push(entry); lastHi = performance.now(); }
+    pump();
+  };
   texCache.set(name, entry);
+  byTex.set(t, entry);
+  if (lazy) { loQ.push(entry); pump(); } else entry.want();
   return entry;
 }
 
@@ -207,7 +258,7 @@ const outlineVert2 = SKIN_PARS + `
 
 // One material entry of scene.json -> { mat, outline?, colored(geometry) }.
 export function makeMaterial(e, texBase, textures, opts = {}) {
-  const tex = i => (i == null ? null : texture(texBase, textures[i].name).tex);
+  const tex = i => (i == null ? null : texture(texBase, textures[i].name, true).tex);
   const c = e.c || {}, f = e.f || {};
   const sh = e.shader || '';
   const af = f._AmbientFactor ?? 1;

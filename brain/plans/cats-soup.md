@@ -39,7 +39,9 @@ Khung: mỗi hệ thống là một cặp module `js/sim/features/<id>.js` + `js
 - Đợt 1 (song song): `specials` (rương 3, bảng tin 8, khinh khí cầu 12, máy gắp 14, voi bán hàng 87, máy nhạc 90, bóng rổ 97, HUD hũ), `fishing` (câu cá 10, bể cá 33, Fish), `missions` (nhiệm vụ ngày, Quest, quà điểm danh, thành tựu), `cats` (danh sách mèo, thông tin, tim, kỹ năng, quà mèo, đổi mèo), `equip` (Equip: kho đồ, phòng thử đồ, đồ trên người mèo 3D, phần thưởng loại 5).
 - [x] Đợt 2 lên Pages rev 20261102e (commit 0a4a3bb8): tower, furniture, collection, shop, guide, theme; test online qua. Nút của feature đi qua menu "thêm" (`hud.addMenu`), không thả nổi trên HUD.
 - [x] Đợt 3 lên Pages rev 20261102f (commit 0e47be5c), test online qua. Core thêm `itemCount`/`spendItem` + `bag`, `mult('upgrade')`, `onTapAt`, `onWork`, `hud.moveActions`.
-- [ ] Đợt 4 đang chạy: particles (hạt từ ParticleSystem gốc), integration (voi bán nội thất, gói shop trang phục/nội thất/skin, bảng nam châm, thưởng bướm, thưởng bộ cá), mèo con đi trong rừng.
+- [x] Đợt 4 lên Pages rev 20261102g (commit aced62ff): particles, integration, mèo con đi dạo; test online qua (minigame-play chập chờn khi máy tải nặng, chạy lại qua).
+- [ ] Đợt 5: so hình với clip gốc (PARITY.md), sửa các khác biệt nổi nhất.
+- (cũ) Đợt 4: particles (hạt từ ParticleSystem gốc), integration (voi bán nội thất, gói shop trang phục/nội thất/skin, bảng nam châm, thưởng bướm, thưởng bộ cá), mèo con đi trong rừng.
 - (cũ) Đợt 3: kitty (mèo con + du lịch), telescope (+ cây sao), minigame, season (sự kiện theo lịch máy), profile (+ chụp ảnh), guests (khách + khối trang trí).
 - Đợt 2: nội thất + tháp mèo (Furniture, TowerProp, đồng xu), đèn + ngày đêm (Lamp), bộ sưu tập + sách tranh, cửa hàng (gem, gói quà; quảng cáo bấm là nhận), hướng dẫn đầu game, dời trạm, chủ đề trạm (WorkSkin, SignSkin, Theme).
 - Đợt 3: du lịch (Travel*), kính viễn vọng (Telescope), cây sao (StarTree*), minigame (MiniGame, Magnet, Dice, Block), sự kiện mùa (Season*, Event*), soup pass.

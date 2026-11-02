@@ -17,25 +17,38 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #2b3a22; tou
 /* HUD layer over #ui (same 1080x1920 space). Colours sampled from the video: paper #f6efe3, brown ink #6b5444. */
 .hud { position: absolute; inset: 0; z-index: 5; pointer-events: none; font-family: 'Gaegu', 'Mali', system-ui, sans-serif; color: #5b4636; }
 .hud .spr { display: inline-block; flex: none; }
-.shelf { position: absolute; left: 20px; right: 230px; bottom: 30px; height: 150px; display: flex; gap: 6px; align-items: flex-end; pointer-events: auto; }
-.dish { width: 112px; display: flex; flex-direction: column; align-items: center; cursor: pointer; animation: dishIn 0.35s ease-out; }
-.dish .bowl { width: 104px; height: 80px; }
-.dish b { font-size: 30px; color: #5b4636; text-shadow: 0 1px 0 #fff8; }
-.dish b::before { content: ''; display: inline-block; width: 26px; height: 26px; margin-right: 4px; vertical-align: -3px; border-radius: 50%;
+/* Shelf: bowl + food + price like ui/stage/set_food; the shelf itself lets taps through to the lucky jar behind it. */
+.shelf { position: absolute; left: 14px; right: 14px; bottom: 46px; height: 160px; display: flex; gap: 2px; align-items: flex-end; pointer-events: none; }
+.dish { width: 124px; flex: none; display: flex; flex-direction: column; align-items: center; cursor: pointer; pointer-events: auto; animation: dishIn 0.35s ease-out; }
+.stack { position: relative; width: 118px; height: 118px; }
+.stack .full { position: absolute; left: 0; top: 0; }
+.full { position: relative; flex: none; }
+.dish b { margin-top: -22px; font-size: 28px; line-height: 30px; color: #5b4636; text-shadow: 0 1px 0 #fff8; }
+.dish b::before { content: ''; display: inline-block; width: 24px; height: 24px; margin-right: 4px; vertical-align: -3px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #ffe57a, #e6b52a); border: 2px solid #b48a1c; }
 @keyframes dishIn { from { transform: translateY(40px) scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
-.card { display: none; position: absolute; left: 24px; bottom: 300px; width: 210px; padding: 12px 10px 14px; flex-direction: column; align-items: center; gap: 6px;
-  background: #f6efe3; border: 5px solid #8a6b56; border-radius: 26px; box-shadow: 0 6px 0 #0003; pointer-events: auto; }
-.card .lv { font-size: 34px; font-weight: 700; }
-.card .icon { width: 150px; height: 120px; }
-.card .name { font-size: 28px; text-align: center; }
-.card .up { background: #7fdcb6; border: 4px solid #4b9b7c; border-radius: 18px; padding: 4px 16px; font-size: 34px; font-weight: 700; color: #3b5e50; cursor: pointer; }
-.card .up span { color: #2d7fd3; }
-.card .up.off { filter: grayscale(0.8) brightness(0.95); }
-.card .x { position: absolute; right: -14px; top: -14px; width: 44px; height: 44px; border-radius: 50%; background: #e9765c; color: #fff; font-size: 36px;
-  line-height: 40px; text-align: center; cursor: pointer; }
-.panel { position: absolute; left: 70px; right: 70px; top: 250px; bottom: 300px; display: flex; flex-direction: column; pointer-events: auto;
-  background: #e9dfd0; border: 8px solid #7d6252; border-radius: 34px; box-shadow: 0 0 0 2000px #0008; }
+.hud .coin { width: 38px; height: 38px; vertical-align: -9px; }
+.hud .mini { width: 34px; height: 34px; vertical-align: -7px; }
+.hud .lk { width: 56px; height: 56px; filter: brightness(0); opacity: 0.28; }
+
+/* Windows cover the world: the HUD goes (only the money bar stays) and the screen dims blue-grey, like the original. */
+.root.cover [data-n="mainUI"] { visibility: hidden; }
+.root.cover [data-n="mainUI"] [data-n="topbar"], .root.cover [data-n="mainUI"] [data-n="topbar"] * { visibility: visible; }
+.hud.cover > .shelf, .hud.cover > .expand, .hud.cover > .th-open { display: none !important; }
+.hud.pan > .card { display: none !important; }
+.hud.cover > .th-skin { left: 540px; bottom: 468px; transform: translateX(-50%); }
+
+/* Facility upgrade window: the original ui/facility/set_upgrade (600x800 card) in the middle of the dimmed screen. */
+.card { display: none; position: absolute; inset: 0; z-index: 5; background: rgba(30, 48, 84, 0.7); pointer-events: auto; }
+.cardroot { position: absolute; left: 540px; top: 960px; width: 0; height: 0; }
+.card .coin { width: 40px; height: 40px; vertical-align: -10px; }
+.card .up.off { filter: grayscale(0.85) brightness(0.96); }
+.lvup { position: absolute; left: -400px; top: -660px; width: 800px; text-align: center; font-size: 46px; line-height: 1.15; color: #fff; white-space: pre-line; opacity: 0;
+  text-shadow: 0 3px 0 #0006, 2px 0 0 #0006, -2px 0 0 #0006; pointer-events: none; }
+.lvup.on { animation: lvup 1.4s ease-out forwards; }
+@keyframes lvup { 0% { opacity: 0; transform: translateY(30px); } 12% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-40px); } }
+.panel { position: absolute; left: 70px; right: 70px; top: 400px; bottom: 380px; display: flex; flex-direction: column; pointer-events: auto;
+  background: #e9dfd0; border: 8px solid #7d6252; border-radius: 34px; box-shadow: 0 0 0 2000px rgba(30, 48, 84, 0.7); }
 .panel .ttl { position: absolute; left: 0; right: 0; top: -150px; text-align: center; color: #fff; }
 .panel h1 { margin: 0; font-size: 76px; letter-spacing: 2px; text-shadow: 0 4px 0 #0005; white-space: nowrap; }
 .panel h1.long { font-size: 56px; letter-spacing: 0; }
@@ -46,7 +59,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #2b3a22; tou
 .panel .tabs div.on { background: #f6efe3; }
 .panel .list { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; background: #f6efe3; border-radius: 0 0 26px 26px; }
 .panel .row { display: flex; align-items: center; gap: 16px; padding: 14px; background: #fffaf2; border-radius: 18px; box-shadow: 0 3px 0 #0001; }
-.panel .row.locked { justify-content: center; color: #9c8a7a; background: #e6dccd; border: 4px dashed #cdbfae; font-size: 32px; min-height: 90px; }
+.panel .row.locked { justify-content: center; color: #9c8a7a; background: #e6dccd; border: 4px dashed #cdbfae; font-size: 32px; min-height: 120px; }
+.panel .row.locked small { white-space: pre-line; text-align: center; font-size: 26px; line-height: 1.2; }
 .panel .row.head { background: #ffe9a6; }
 .panel .row .icon { width: 150px; height: 120px; border: 4px solid #7d6252; border-radius: 12px; background-color: #efe4d4; }
 .panel .row .txt { flex: 1; display: flex; flex-direction: column; gap: 6px; }
@@ -68,3 +82,50 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #2b3a22; tou
 @keyframes floatUp { from { transform: translate(-50%, 0); opacity: 1; } to { transform: translate(-50%, -90px); opacity: 0; } }
 .hud.moving > *:not(.panel):not(.toast) { display: none !important; }
 .row.move { justify-content: flex-start; gap: 18px; cursor: pointer; }
+
+/* CRAFT / RECIPE rows and the Recommend box under the RECIPE window. */
+.panel .row.rcp .pic { width: 130px; height: 124px; flex: none; display: flex; align-items: center; justify-content: center; }
+.panel .row .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 28px; color: #8b7766; }
+.panel .row .chip { font-style: normal; margin-left: 8px; padding: 0 12px; border-radius: 10px; background: #9fd6df; color: #40717b; font-size: 26px; }
+.panel .row .buy .price { white-space: nowrap; text-align: center; min-width: 150px; box-sizing: border-box; }
+.panel .row.head { justify-content: space-between; }
+.panel .row.head .plank { width: 240px; height: 84px; flex: none; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(#d6ad7b, #b98b59); border-radius: 14px; }
+.panel .row.head .plank .full { position: absolute; bottom: 10px; }
+.panel .rec { position: absolute; left: 0; right: 0; top: calc(100% + 48px); height: 200px; box-sizing: border-box; padding-top: 44px; background: #f1e8de;
+  border: 6px solid #8a6b56; border-radius: 30px; box-shadow: 0 5px 0 #0003; }
+.panel .rec .tag { position: absolute; top: -34px; left: 50%; transform: translateX(-50%); padding: 2px 90px; background: #e8928a; border: 5px solid #c4645c; border-radius: 14px; color: #fff; font-size: 36px; }
+.panel .rec .body { display: flex; align-items: center; gap: 20px; padding: 0 26px; }
+.panel .rec .pic { width: 126px; height: 118px; flex: none; display: flex; align-items: center; justify-content: center; }
+.panel .rec .txt { flex: 1; display: flex; flex-direction: column; }
+.panel .rec .txt b { font-size: 38px; }
+.panel .rec .txt small { font-size: 28px; color: #8b7766; }
+.panel .rec .price { background: #7fdcb6; border: 4px solid #4b9b7c; border-radius: 16px; padding: 14px 24px; font-size: 36px; font-weight: 700; color: #34584a; cursor: pointer; min-width: 220px; text-align: center; }
+.panel .rec .price.off { background: #c9c1b6; border-color: #9a9087; color: #6c645c; }
+
+/* Facility window (the skins panel of a selected facility): picture, arrows to the neighbours, Level tab. */
+.panel.fac { top: 330px; bottom: 270px; }
+.panel .fhead { position: relative; flex: none; height: 400px; border-radius: 26px 26px 0 0; background: linear-gradient(#a9c97d, #84ab5c); display: flex; align-items: center; justify-content: center; }
+.panel .fhead .fimg { margin-top: -40px; padding: 14px; background: #efe4d4; border: 6px solid #7d6252; border-radius: 22px; box-shadow: 0 5px 0 #0003; }
+.panel .fhead .finfo { position: absolute; left: 0; right: 0; top: 18px; text-align: center; color: #fff; font-size: 30px; text-shadow: 0 2px 0 #0005; }
+.panel .fhead .fnav { position: absolute; top: 140px; width: 66px; height: 100px; box-sizing: border-box; background: #f6efe3; border: 5px solid #7d6252; border-radius: 18px;
+  text-align: center; line-height: 90px; font-size: 38px; color: #7d6252; cursor: pointer; z-index: 3; }
+.panel .fhead .fnav.l { left: -42px; }
+.panel .fhead .fnav.r { right: -42px; }
+.panel .lvtab { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 16px 10px; }
+.panel .lvtab .eff { font-size: 38px; }
+.panel .lvtab .cmp { display: flex; align-items: center; gap: 14px; }
+.panel .lvtab .cmp i { font-style: normal; font-size: 40px; color: #7fae54; }
+.panel .lvtab .lvc { width: 300px; padding: 12px 0; background: #fffbf4; border: 4px solid #cdbcb7; border-radius: 30px; text-align: center; display: flex; flex-direction: column; }
+.panel .lvtab .lvc small { font-size: 30px; color: #8b7766; }
+.panel .lvtab .lvc b { font-size: 44px; }
+.panel .lvtab .lvc.nxt b { color: #f0a323; }
+.panel .lvtab .up2 { min-width: 330px; box-sizing: border-box; text-align: center; padding: 10px 34px; background: #4aa3e0; border: 5px solid #2f78b4; border-radius: 22px; font-size: 46px; color: #fff; cursor: pointer; }
+.panel .lvtab .up2.off { filter: grayscale(0.85); }
+.panel .lvtab .mults { display: flex; gap: 20px; }
+.panel .lvtab .mu { min-width: 130px; text-align: center; padding: 6px 0; background: #cdbcaa; border: 4px solid #7d6252; border-radius: 18px; font-size: 36px; cursor: pointer; }
+.panel .lvtab .mu.on { background: #4aa3e0; color: #fff; }
+.panel .lvtab .note { font-size: 24px; color: #8b7766; text-align: center; }
+.panel .lvtab .maxlv { font-size: 34px; color: #8b7766; }
+#ui > .root.cover { z-index: 6; }
+.panel .tabs { position: relative; z-index: 4; }
+.panel.rcp { bottom: 560px; }

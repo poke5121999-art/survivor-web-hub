@@ -268,8 +268,44 @@ def prefab(key, f, pid, out, notes):
         out[key] = res
 
 
+def scene_systems():
+    """Particle systems that live in the level2 scene (Spawn.pt_fireFly ... ), merged into data/particles.json under
+    "scene/<name>": {"scene/<name>/<node name>": system + "cam": [x, y, z, qx, qy, qz, qw]} where cam is the Transform
+    local to its parent "Main Camera" (the firefly system rides on the camera, 9.6 units in front)."""
+    files = ep.deps(["level2"])
+    load = getattr(cns, "env")
+    uenv = load(*files)
+    objs = {(o.assets_file.name, o.path_id): o for o in uenv.objects}
+    path = os.path.join(GAME, "data", "particles.json")
+    out = json.load(open(path, encoding="utf-8"))
+    notes = set()
+    for name, pid in (("pt_fireFly", 1589),):
+        ps = objs[("level2", pid)]
+        go = ps.read().m_GameObject.read()
+        rend = tf = None
+        for c in go.m_Component:
+            ob = c.component.read()
+            if ob.object_reader.type.name == "ParticleSystemRenderer":
+                rend = ob
+            elif ob.object_reader.type.name == "Transform":
+                tf = ob.object_reader.read_typetree()
+        sysd = system(ps.read_typetree(), rend, notes)
+        sysd["name"] = go.m_Name
+        sysd["idx"] = 0
+        lp, lq = tf["m_LocalPosition"], tf["m_LocalRotation"]
+        sysd["cam"] = [round(lp["x"], 5), round(lp["y"], 5), round(lp["z"], 5), round(lq["x"], 5), round(lq["y"], 5), round(lq["z"], 5), round(lq["w"], 5)]
+        out[f"scene/{name}"] = {f"scene/{name}/{go.m_Name}": sysd}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(out, fh, separators=(",", ":"))
+    print("scene systems ->", path)
+    for x in sorted(notes):
+        print("note:", x)
+
+
 def main():
     os.makedirs(TEXDIR, exist_ok=True)
+    if sys.argv[1:] == ["--scene"]:
+        return scene_systems()
     keys_ = sys.argv[1:]
     if not keys_:
         for sub in sorted(os.listdir(os.path.join(GAME, "art"))):

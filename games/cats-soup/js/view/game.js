@@ -63,6 +63,9 @@ export class GameView {
         const plane = new THREE.Mesh(new THREE.PlaneGeometry(5, 5),
           new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
         plane.renderOrder = 10;
+        // The wooden plaque's text_lv origin is at the board foot (measured: the number landed under the legs); the board
+        // face is ~0.09 world units up, 3 units of this 0.03-scaled plane. The cloth flag already centres on its text node.
+        if (a.type !== 2) plane.position.set(-1.2, 4, 5);
         (t || sign).add(plane);
         e.sign = { c, tex, flag: a.type === 2 };
       }
@@ -71,7 +74,13 @@ export class GameView {
     if (p && a.haveLamp) {
       // art/lamp (tools/export_prefabs.py lamp lamp/lamp0): the jar lantern sprite of Lamp.json row 0.
       const lib = this.lampLib;
-      if (lib && lib.roots.has('lamp/lamp0')) (p.getObjectByName('p') || p).add(lib.instantiate('lamp/lamp0'));
+      // handLight is scaled 0.3 and the lamp prefab 0.3 again; measured against the clips (LdkzNl0Bv3A t=9) the jar stands about
+      // as tall as the stool, i.e. a net 0.3, so the node that carries it cancels the parent's scale once.
+      if (lib && lib.roots.has('lamp/lamp0')) {
+        const lp = p.getObjectByName('p') || p;
+        lp.scale.set(1 / p.scale.x, 1 / p.scale.y, 1 / p.scale.z);
+        lp.add(lib.instantiate('lamp/lamp0'));
+      }
     }
   }
 

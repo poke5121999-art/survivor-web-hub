@@ -12,8 +12,11 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
 const D = JSON.parse(fs.readFileSync(path.join(G, 'data', 'particles.json'), 'utf8'));
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-const n = Object.values(D).reduce((a, v) => a + Object.keys(v).length, 0);
-check('every main-forest prefab with particle nodes plus lamp0: 129 prefabs, 666 systems', Object.keys(D).length === 129 && n === 666, `${Object.keys(D).length} / ${n}`);
+const prefabs = Object.keys(D).filter(k => !k.startsWith('scene/'));
+const n = prefabs.reduce((a, k) => a + Object.keys(D[k]).length, 0);
+check('every main-forest prefab with particle nodes plus lamp0: 129 prefabs, 666 systems', prefabs.length === 129 && n === 666, `${prefabs.length} / ${n}`);
+const ffd = D['scene/pt_fireFly'] && D['scene/pt_fireFly']['scene/pt_fireFly/pt_firefly'];
+check('level2 scene system Spawn.pt_fireFly: world space box 10x10, rate 50, size 0.02..0.1, additive pt_glow_dot, camera-local pose', !!ffd && ffd.main.space === 1 && eq(ffd.shape.scale, [10, 10, 0]) && ffd.emission.rate === 50 && eq(ffd.main.size[0].r, [0.02, 0.1]) && eq(ffd.renderer.materials[0].blend, [5, 1]) && ffd.cam.length === 7, ffd ? JSON.stringify(ffd.cam) : 'missing');
 check('keyed by prefab and node path', !!D['places/place0']['place0/targetObj/pt_steam'] && !!D['lamp/lamp0']['lamp0/pt_firebase']);
 
 // soup pot steam (place0 targetObj/pt_steam): one 8 s puff of a 4x4 smoke sheet, ambient alpha-blend material pt_smoke2

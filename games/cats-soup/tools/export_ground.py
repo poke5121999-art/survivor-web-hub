@@ -27,6 +27,7 @@ def image(key):
             if best is None or o.type.name == "Sprite":
                 best = t
     stem, _ = save_image(best.image, best.m_Name, os.path.join(GAME, "art", "tex"))
+    image.last = best
     return stem
 
 
@@ -34,6 +35,9 @@ out_path = os.path.join(GAME, "data", "ground.json")
 out = json.load(open(out_path)) if os.path.exists(out_path) else {}
 for theme in [int(x) for x in sys.argv[1:]] or [0]:
     out[str(theme)] = {"base": image(f"ground/ground_base{theme}"), "base2": image(f"ground/ground_base{theme}_2"),
-                       "back": image(f"ground/ground_back{theme}"), "farTree": image(f"tree/picnic_tree06_theme{theme}")}
+                       "back": image(f"ground/ground_back{theme}"), "farTree": image(f"tree/tree_theme{theme}")}
+    sp = image.last   # SetFarTreeSprite: Resources tree/tree_theme<k>, quad = rect / pixelsToUnits around the pivot
+    out[str(theme)].update(farSize=[int(sp.m_Rect.width), int(sp.m_Rect.height)],
+                           farPivot=[round(sp.m_Pivot.x, 4), round(sp.m_Pivot.y, 4)], farPpu=sp.m_PixelsToUnits or 100)
     print(theme, out[str(theme)])
 json.dump(out, open(out_path, "w"), indent=1)
