@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* Screenshot a page of games/cats-soup in a real browser once window.__ready is true.
  *   node test/cats-soup-shot.js "viewer.html?lib=probe" out.png [width height]
+ *   node test/cats-soup-shot.js "https://.../games/cats-soup/index.html" out.png   (a full URL is opened as is)
  */
 'use strict';
 const http = require('http');
@@ -34,10 +35,11 @@ function serve() {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://localhost:${srv.address().port}/games/cats-soup/${page0}`);
+  await page.goto(/^https?:/.test(page0) ? page0 : `http://localhost:${srv.address().port}/games/cats-soup/${page0}`);
   try {
     await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 });
   } catch (e) { errors.push('never ready'); }
+  if (process.env.CS_WAIT) await page.waitForTimeout(+process.env.CS_WAIT);
   await page.screenshot({ path: out });
   const info = await page.evaluate(() => window.__info || null);
   if (info) console.log(JSON.stringify(info));

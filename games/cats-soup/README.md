@@ -32,3 +32,16 @@ Làm lại Cats&Soup 5.3.0 (HIDEA, `com.hidea.cat`) bằng three.js r160 và Jav
 - `[BẪY ĐÃ SẬP]` Mặt mèo thủng một lỗ màu nền: submesh mắt dùng `Custom/EyeAmbient` là `Blend SrcAlpha OneMinusSrcAlpha`, ZWrite Off. Vẽ nó như vật đục thì chỗ trong suốt của texture mắt ghi đè lông mặt. Render state giờ đi theo `passes` của từng shader.
 - `[BẪY ĐÃ SẬP]` `ResourceManager` của level2 đọc bằng type tree sinh ra thì lỗi `read_int out of bounds`; đọc PPtr thô theo thứ tự field trong `dump.cs` (`D:\catsoup-ref\resourcemanager.json`).
 - `[BẪY ĐÃ SẬP]` Animator trong prefab mèo có `m_Controller` rỗng (gán lúc chạy từ `ResourceManager.controller_cat`), nên runtime phải tự gắn controller `cat1`.
+- `[BẪY ĐÃ SẬP]` Mèo nằm nghiêng: clip của game này lưu Euler theo thứ tự quaternion `qZ·qY·qX`, không phải `qY·qX·qZ` như My Mini Mart. Đo bằng cách quay rest pose của xương Pelvis qua cả 6 thứ tự rồi so với quaternion của Transform; Z·Y·X lệch 0,004, các thứ tự khác lệch trên 0,3. Sửa ở `export_anim.py`.
+- `[BẪY ĐÃ SẬP]` Giá món ra 0: tính `10^costDigit`, `10^icpt`, `10^(L·slope)` riêng rồi nhân thì BigNumber cắt số lẻ ở bước giữa. Gộp số mũ rồi gọi `pow10` một lần (`gradeRaw` trong `js/sim/economy.js`).
+- `[BẪY ĐÃ SẬP]` `gradeValue` gốc cộng thêm 400 (và cộng cấp khi dưới 1e4). Rules đánh dấu chưa chắc; clip `LdkzNl0Bv3A` xác nhận: tô súp đầu bán 446 = (5,5 + 400 + 1) x 1,1. Hệ số giá nâng cấp x10 khớp `8las9YPqbvk` ("Lv.91 18b").
+- `[BẪY ĐÃ SẬP]` Đèn lồng to gấp chục lần khi bù scale của cha. Gắn thẳng vào `handLight/p` như prefab gốc, không bù.
+- `[BẪY ĐÃ SẬP]` Số cấp trên biển không thấy: `text_lv` có scale 0,03, nên mặt phẳng chữ phải là 5x5 trong không gian của nó.
+- `[BẪY ĐÃ SẬP]` Mèo đi giật lùi: lúc đi, hướng là `atan2(dx, dz) + π` (mặt mèo ở -z của rig). Mèo đứng ở trạm thì chép quaternion của anchor, không lật.
+- `[BẪY ĐÃ SẬP]` Súp màu cam: `OutlineLightColor` nhân màu với `_MainColor` của material, không phải `_Color`.
+
+## Deploy
+
+- Tăng rev: `node games/cats-soup/tools/stamp.js <rev>` (ghi `?v=` vào import map, `globalThis.CS_V` cho fetch), sửa `rev:` của thẻ trong `data/games.js`.
+- Cây làm việc chung có thay đổi chưa commit của agent khác, nên commit bằng index tạm dựng từ `origin/main` (`read-tree`, `git add` đúng các path của game, `commit-tree -p origin/main`, push `<sha>:refs/heads/main`). Thẻ hub thêm vào bản `data/games.js` của `origin/main`, không lấy bản trong cây làm việc.
+- Kiểm trên Pages: `CS_URL=https://poke5121999-art.github.io/survivor-web-hub/games/cats-soup/index.html node test/cats-soup-play.js`. Chụp bản online: `CS_WAIT=8000 node test/cats-soup-shot.js "<URL đầy đủ>" out.png 540 960` (HUD tải atlas qua mạng chậm hơn `__ready`).

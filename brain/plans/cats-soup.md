@@ -21,9 +21,12 @@ Chủ dự án giao 2026-11-02: `C:\Users\tamph\Downloads\Cats&Soup_+Relaxing+Co
 ## Các bước
 
 1. [x] Bóc, dump IL2CPP, index MonoBehaviour, xuất 117 bảng, chữ 3 thứ tiếng, clip chuẩn.
-2. [ ] Decompile Ghidra (linux) -> luật chơi có dẫn nguồn ở `D:\catsoup-ref\rules\*.md`.
-3. [ ] Bộ xuất art: place prefab (mesh + sprite + texture) -> glb/json; cây, nền, đèn; rig mèo + clip; UI sprite.
-4. [ ] Sim thuần JS (node chạy được): trạm, mèo làm việc, súp, kệ bán, vàng/năng lượng/gem, công thức, mở rừng, lưu.
-5. [ ] View three.js khung dọc 750:1334, HUD, menu CRAFT/RECIPE/mèo.
-6. [ ] Thẻ hub, thumbnail, deploy, kiểm trên Pages.
-7. [ ] Full: trang bị, nội thất, câu cá, minigame, sự kiện mùa, tháp mèo...
+2. [x] Decompile Ghidra (linux) -> luật chơi có dẫn nguồn ở `D:\catsoup-ref\rules\*.md`.
+3. [x] Bộ xuất art: place prefab (mesh + sprite + texture) -> glb/json; cây, nền, đèn; rig mèo + clip; UI sprite.
+4. [x] Sim thuần JS (node chạy được): trạm, mèo làm việc, súp, kệ bán, vàng/năng lượng/gem, công thức, mở rừng, lưu.
+5. [x] View three.js khung dọc 750:1334, HUD, menu CRAFT/RECIPE/mèo.
+6. [x] Thẻ hub, thumbnail, deploy, kiểm trên Pages: rev 20261102a, commit a356b7de, `test/cats-soup-play.js` trên Pages 10/10.
+7. [ ] Lưu đám mây (HubSave như casual-farm `cloud.js`).
+8. [ ] Trạm đặc biệt còn lại: rương + trang bị, bóng bay, câu cá, máy gacha.
+9. [ ] Nhiệm vụ, hướng dẫn đầu game, dời trạm, đồ nghề trên tay mèo, particle.
+10. [ ] Full: trang bị, nội thất, câu cá, minigame, sự kiện mùa, tháp mèo...

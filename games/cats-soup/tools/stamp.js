@@ -21,6 +21,6 @@ const map = `<script type="importmap">\n${JSON.stringify({ imports }, null, 1)}\
 const page = path.join(G, 'index.html');
 let html = fs.readFileSync(page, 'utf8');
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>/, map)
-  .replace(/(href|src)="(\.\/[^"?]+\.(?:css|js))(\?v=[^"]*)?"/g, (m, a, u) => `${a}="${u}?v=${rev}"`);
+  .replace(/(href|src)="((?:\.\/|(?:\.\.\/)+)[^"?]+\.(?:css|js))(\?v=[^"]*)?"/g, (m, a, u) => `${a}="${u}?v=${rev}"`);
 fs.writeFileSync(page, html);
 console.log(`index.html: ${files.length} modules stamped ?v=${rev}`);

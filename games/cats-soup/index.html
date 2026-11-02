@@ -5,30 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Mèo &amp; Súp</title>
-<link rel="stylesheet" href="./css/game.css?v=20261102a">
+<link rel="stylesheet" href="./css/game.css?v=20261102b">
 <script type="importmap">
 {
  "imports": {
-  "three": "./vendor/three.module.min.js?v=20261102a",
-  "./js/main.js": "./js/main.js?v=20261102a",
-  "./js/sim/big.js": "./js/sim/big.js?v=20261102a",
-  "./js/sim/cats.js": "./js/sim/cats.js?v=20261102a",
-  "./js/sim/economy.js": "./js/sim/economy.js?v=20261102a",
-  "./js/sim/game.js": "./js/sim/game.js?v=20261102a",
-  "./js/view/anim.js": "./js/view/anim.js?v=20261102a",
-  "./js/view/camera.js": "./js/view/camera.js?v=20261102a",
-  "./js/view/forest.js": "./js/view/forest.js?v=20261102a",
-  "./js/view/game.js": "./js/view/game.js?v=20261102a",
-  "./js/view/hud.js": "./js/view/hud.js?v=20261102a",
-  "./js/view/ngui.js": "./js/view/ngui.js?v=20261102a",
-  "./js/view/shaders.js": "./js/view/shaders.js?v=20261102a",
-  "./js/view/sound.js": "./js/view/sound.js?v=20261102a",
-  "./js/view/world.js": "./js/view/world.js?v=20261102a",
-  "./vendor/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js?v=20261102a",
-  "./vendor/GLTFLoader.js": "./vendor/GLTFLoader.js?v=20261102a",
-  "./vendor/SkeletonUtils.js": "./vendor/SkeletonUtils.js?v=20261102a",
-  "./vendor/meshopt_decoder.js": "./vendor/meshopt_decoder.js?v=20261102a",
-  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261102a"
+  "three": "./vendor/three.module.min.js?v=20261102b",
+  "./js/cloud.js": "./js/cloud.js?v=20261102b",
+  "./js/main.js": "./js/main.js?v=20261102b",
+  "./js/sim/big.js": "./js/sim/big.js?v=20261102b",
+  "./js/sim/cats.js": "./js/sim/cats.js?v=20261102b",
+  "./js/sim/economy.js": "./js/sim/economy.js?v=20261102b",
+  "./js/sim/game.js": "./js/sim/game.js?v=20261102b",
+  "./js/view/anim.js": "./js/view/anim.js?v=20261102b",
+  "./js/view/camera.js": "./js/view/camera.js?v=20261102b",
+  "./js/view/forest.js": "./js/view/forest.js?v=20261102b",
+  "./js/view/game.js": "./js/view/game.js?v=20261102b",
+  "./js/view/hud.js": "./js/view/hud.js?v=20261102b",
+  "./js/view/ngui.js": "./js/view/ngui.js?v=20261102b",
+  "./js/view/shaders.js": "./js/view/shaders.js?v=20261102b",
+  "./js/view/sound.js": "./js/view/sound.js?v=20261102b",
+  "./js/view/world.js": "./js/view/world.js?v=20261102b",
+  "./vendor/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js?v=20261102b",
+  "./vendor/GLTFLoader.js": "./vendor/GLTFLoader.js?v=20261102b",
+  "./vendor/SkeletonUtils.js": "./vendor/SkeletonUtils.js?v=20261102b",
+  "./vendor/meshopt_decoder.js": "./vendor/meshopt_decoder.js?v=20261102b",
+  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261102b"
  }
 }
 </script>
@@ -36,6 +37,10 @@
 <body>
 <div id="stage"><canvas id="game"></canvas><div id="ui"><div class="root"></div></div></div>
 <a class="hub" href="../../index.html">← Hub</a>
-<script type="module" src="./js/main.js?v=20261102a"></script>
+<script src="../../js/session.js?v=20261102b"></script>
+<script src="../../js/supabase-config.js?v=20261102b"></script>
+<script src="../../js/supabase-auth.js?v=20261102b"></script>
+<script src="../../js/save-sync.js?v=20261102b"></script>
+<script type="module" src="./js/main.js?v=20261102b"></script>
 </body>
 </html>

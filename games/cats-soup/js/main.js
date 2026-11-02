@@ -16,6 +16,7 @@ import { Game } from './sim/game.js';
 import { cellPos } from './view/forest.js';
 import { Sound } from './view/sound.js';
 import * as B from './sim/big.js';
+import { pull, push, owner } from './cloud.js';
 
 const BASE = '.';
 // Every data fetch carries the page's ?v=<rev> (tools/stamp.js) so a new build never mixes with cached data.
@@ -50,8 +51,14 @@ const [sfx, tables, fields, ground, places, lang, cats, map, catLib, animLib] = 
 
 const game = new Game(tables, fields);
 let saved = null;
-try { saved = q.has('fresh') || q.has('size') ? null : JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { saved = null; }
+// ?size and ?demo build throwaway states for tests and screenshots and never write the save; ?fresh starts over for real.
+const testing = q.has('size') || q.has('demo');
+const skipSave = testing || q.has('fresh');
+try { saved = skipSave ? null : JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { saved = null; }
+const cloud = skipSave ? { save: null, from: 'off' } : await pull(SAVE_KEY, saved);
+saved = cloud.save;
 if (saved) game.load(saved); else game.fresh();
+if (owner()) game.state.owner = owner();
 if (q.has('size')) { game.state.mapSize = game.state.maxMapSize = +q.get('size'); }
 // ?demo=N (testing and screenshots): build the first N facilities of the table with free gold, expanding as needed.
 if (q.has('demo')) {
@@ -86,6 +93,7 @@ const root = uiEl.querySelector('.root');
 for (const n of hudTree.roots) root.appendChild(ng.build(n));
 const focus = w => { cellPos(w.pos[0], w.pos[1], camera.target); camera.update(); };
 const hud = new Hud({ game, ng, root, lang, onBuilt: w => focus(w) });
+if (!q.has('demo')) focus(game.state.works[0]);
 camera.onTap = (x, y) => {
   const w = view.pick(camera.ground(x, y));
   if (w && w.a === 5 && w.v >= 1) game.claimJar(w);
@@ -116,12 +124,15 @@ function floater(text, x, y, color) {
   setTimeout(() => d.remove(), 1200);
 }
 
-function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(game.save())); } catch (e) { /* storage full or blocked */ }
+function save(force = false) {
+  if (testing) return;
+  const s = game.save();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) { /* storage full or blocked */ }
+  push(s, force);
 }
 setInterval(save, 10000);
-addEventListener('pagehide', save);
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+addEventListener('pagehide', () => save(true));
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
 
 env.ambient.value.set(0.5, 0.5, 0.5, 1);
 const speed = +(q.get('speed') || 1);
@@ -148,4 +159,5 @@ renderer.setAnimationLoop(t => {
 canvas.style.filter = '';
 window.__game = game;
 window.__hud = hud;
+window.__cloud = cloud.from;
 setTimeout(() => { window.__ready = true; }, 3000);
