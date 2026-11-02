@@ -265,7 +265,12 @@ export class Game {
 
   catOf(work) { return this.state.cats.find(c => c.work === work.id); }
 
-  upgradePrice(work) { return E.upgradeCost(this.work.get(work.a), work.lv); }
+  // GetWorkUpgradeCost x every feature's mult('upgrade', work) (guest collection discount, ...).
+  upgradePrice(work) {
+    const c = E.upgradeCost(this.work.get(work.a), work.lv);
+    const m = this.mult('upgrade', work);
+    return m === 1 ? c : B.mul(c, m);
+  }
 
   upgrade(work, times = 1) {
     let done = 0;
@@ -306,6 +311,27 @@ export class Game {
 
   learned(line) {
     return Object.keys(this.state.recipes).map(Number).filter(i => this.food.get(i).type === line);
+  }
+
+  // Items kept as plain counts by features (each exposes its {type: n} map as bag(game)): one count and one spend
+  // across all of them, so a feature never reaches into another's state (DataManager.GetItemCount / UseItem).
+  itemCount(type) {
+    let n = 0;
+    for (const f of this.features) if (f.bag) n += f.bag(this)[type] || 0;
+    return n;
+  }
+
+  spendItem(type, n = 1) {
+    if (n <= 0 || this.itemCount(type) < n) return false;
+    let left = n;
+    for (const f of this.features) {
+      if (!f.bag || !left) continue;
+      const b = f.bag(this);
+      const d = Math.min(b[type] || 0, left);
+      if (d) { b[type] -= d; left -= d; }
+    }
+    this.emit('spendItem', { item: type, count: n });
+    return true;
   }
 
   // Factor from every feature's mult(game, kind, arg) (fish book, equipment abilities, ...): 'price' with the Food row,

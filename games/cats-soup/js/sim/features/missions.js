@@ -166,6 +166,7 @@ export function pending(g) {
 
 export default {
   id: 'missions',
+  bag: g => S(g).bag,
   data: ['missions'],
   rewards,
   init(g) {

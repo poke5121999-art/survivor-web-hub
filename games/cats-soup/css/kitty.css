@@ -1,0 +1,56 @@
+/* Feature "kitty": the kitty house window (trip, dance stage, album, magnets, travel shop). Same paper/brown palette as css/cats.css. */
+.ky-pop { position: absolute; inset: 0; z-index: 21; background: #0008; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+.ky-pop.res { z-index: 23; }
+.ky-pop .box { position: relative; width: 940px; max-height: 1600px; padding: 100px 36px 36px; box-sizing: border-box; background: #f6efe3;
+  border: 8px solid #7d6252; border-radius: 40px; box-shadow: 0 8px 0 #0004; display: flex; flex-direction: column; gap: 18px; }
+.ky-pop .ttl { position: absolute; left: 0; right: 0; top: 22px; text-align: center; font-size: 58px; font-weight: 700; color: #5b4636; }
+.ky-pop .x { position: absolute; right: -14px; top: -14px; width: 70px; height: 70px; border-radius: 50%; background: #e9765c; color: #fff; font-size: 62px;
+  line-height: 64px; text-align: center; cursor: pointer; border: 4px solid #fff; }
+.ky-pop .tabs { display: flex; gap: 10px; }
+.ky-pop .tab { flex: 1; padding: 12px 6px; text-align: center; font-size: 30px; font-weight: 700; border-radius: 20px 20px 0 0; background: #d8ccbc; color: #8b7766; cursor: pointer; }
+.ky-pop .tab.on { background: #fffaf2; color: #5b4636; box-shadow: 0 4px 0 #f0577c inset; }
+.ky-pop .body { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; min-height: 900px; max-height: 1300px; }
+.ky-pop .note { font-size: 32px; color: #8b7766; text-align: center; white-space: pre-line; }
+.ky-pop .btn { align-self: center; min-width: 280px; padding: 14px 30px; border-radius: 24px; font-size: 38px; font-weight: 700; text-align: center;
+  cursor: pointer; border: 5px solid #0003; box-shadow: 0 5px 0 #0003; color: #fff; text-shadow: 0 2px 0 #0004; background: #4b95e8; }
+.ky-pop .btn.green { background: #5cbf7b; }
+.ky-pop .btn.red { background: #e9765c; }
+.ky-pop .btn.off { background: #b9b0a4; box-shadow: none; cursor: default; }
+.ky-pop .btns { display: flex; gap: 20px; justify-content: center; }
+.ky-houses { display: flex; gap: 12px; }
+.ky-house { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border-radius: 24px; background: #fffaf2; border: 5px solid transparent; cursor: pointer; font-size: 26px; text-align: center; }
+.ky-house.on { border-color: #f0577c; }
+.ky-house.lock { background: #e6dccd; color: #8b7766; }
+.ky-house b { font-size: 28px; }
+.ky-cat { flex: none; }
+.ky-heart { display: flex; align-items: center; gap: 10px; width: 100%; }
+.ky-heart .bar { position: relative; flex: 1; height: 30px; background: #d8ccbc; border-radius: 15px; overflow: hidden; border: 3px solid #8a6b56; }
+.ky-heart .fill { height: 100%; background: linear-gradient(#ff8fa8, #f0577c); }
+.ky-heart .lbl { position: absolute; inset: 0; text-align: center; font-size: 22px; line-height: 30px; color: #fff; text-shadow: 0 2px 0 #0007; }
+.ky-card { padding: 18px 22px; background: #fffaf2; border-radius: 24px; display: flex; flex-direction: column; gap: 12px; font-size: 32px; }
+.ky-card h3 { margin: 0; font-size: 36px; color: #5b4636; }
+.ky-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.ky-item { position: relative; width: 190px; padding: 8px 4px; border-radius: 20px; background: #f0e6d6; border: 5px solid transparent; text-align: center; font-size: 24px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ky-item.on { border-color: #4b95e8; background: #e1eefc; }
+.ky-item.none { opacity: .45; cursor: default; }
+.ky-item .n { position: absolute; right: 8px; top: 4px; font-size: 28px; font-weight: 700; color: #c0476a; }
+.ky-item .p { display: flex; align-items: center; gap: 4px; font-size: 28px; font-weight: 700; }
+.ky-time { font-size: 56px; font-weight: 700; text-align: center; color: #c0476a; font-variant-numeric: tabular-nums; }
+.ky-photo { position: relative; width: 100%; aspect-ratio: 512 / 358; background: #cdbfa9 center / cover no-repeat; border-radius: 20px; overflow: hidden; border: 5px solid #fff; box-shadow: 0 4px 0 #0003; }
+.ky-photo .k { position: absolute; bottom: 4%; height: 40%; transform: translateX(-50%); }
+.ky-photo .k.flip { transform: translateX(-50%) scaleX(-1); }
+.ky-photo .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 10px; font-size: 24px; color: #fff; background: #0006; text-align: center; }
+.ky-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.ky-grid .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 26px; text-align: center; }
+.ky-grid .cell.empty .ky-photo { filter: grayscale(1) brightness(.5); }
+.ky-mag { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 18px; background: #fffaf2; font-size: 24px; text-align: center; position: relative; }
+.ky-mag.empty { opacity: .35; }
+.ky-mag .n { position: absolute; right: 10px; top: 6px; font-size: 30px; font-weight: 700; color: #c0476a; }
+.ky-bal { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 40px; font-weight: 700; }
+.ky-line { display: flex; align-items: center; gap: 14px; }
+.ky-line .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ky-line .txt small { font-size: 24px; color: #8b7766; }
+.ky-fish { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 18px; background: #f0e6d6; cursor: pointer; font-size: 28px; font-weight: 700; }
+
+.ky-pop.res .ttl { font-size: 38px; top: 30px; padding: 0 20px; }
+.ky-pop .ky-line { font-size: 34px; }

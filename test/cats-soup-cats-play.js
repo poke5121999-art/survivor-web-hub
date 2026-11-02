@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Meo & Sup feature "cats" on the real page: the profile slot opens the cat list, a row opens the cat info window with
+/* Meo & Sup feature "cats" on the real page: the quick menu opens the cat list, a row opens the cat info window with
  * hearts and skills, the heart and skill popups open, swapping trades two cats' facilities, "move all" fits skills, a
  * fishHeart event raises a heart level, and the gift bubble opens the three-box gift window that pays.
  *   node test/cats-soup-cats-play.js
@@ -54,7 +54,9 @@ function serve() {
   check('profile slot shows the cat count', (await page.locator('[data-n="CatNum"] [data-n="num"] .w').first().textContent()).trim() === String(cats0));
 
   // cat list
-  await page.locator('[data-n="set_cat"] .w').first().click();
+  await page.locator('[data-n="bt_more"] .w:visible').first().click();
+  await page.waitForTimeout(400);
+  await page.locator('.sh-more', { hasText: /^\s*Những con mèo\s*$/ }).first().click();
   await wait(500);
   const rows = await page.locator('.panel .crow').count();
   check('cat list has one row per cat', rows === cats0, `${rows}`);

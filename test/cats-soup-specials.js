@@ -162,9 +162,9 @@ const eq = (name, a, b) => check(name, a === b, `${a} vs ${b}`);
   r = S.buyTrader(g, 6);
   check('ticket bought: price paid, ticket stored', r.given && t6.bought && g.state.gem === 1000 - t6.cost && sp.tickets[t6.type] === 1, `gem ${g.state.gem}`);
   check('slot cannot be bought twice', S.buyTrader(g, 6) === null);
-  const gold0 = g.state.gold;
-  S.useTicket(g, 1101);
+  S.useTicket(g, 1101);                // spends any 1101 the trader stock happened to sell
   sp.tickets[1101] = 1;
+  const gold0 = g.state.gold;
   const used = S.useTicket(g, 1101);
   check('gold ticket 1h pays avgGold x 3600', used && Math.abs(B.toNumber(B.sub(g.state.gold, gold0)) / (B.toNumber(avg) * 3600) - 1) < 1e-6 && sp.tickets[1101] === 0);
   sp.skewMs = at(19, 5) - Date.now();

@@ -42,7 +42,11 @@ export class MoveMode {
     this.wrap.appendChild(this.el);
     this.root.parentElement.appendChild(this.wrap);
     const hide = p => { const n = find(this.el, p); if (n) n.style.display = 'none'; };
-    ['root/set_storage/bt_blockStorage', 'root/set_storage/bt_blockShop', 'root/set_keep_all/bt_changeForest', 'root/set_topLeft',
+    const acts = this.hud.moveActions || {};
+    for (const b of ['bt_blockStorage', 'bt_blockShop']) {
+      if (acts[b]) this.bind(`root/set_storage/${b}`, acts[b]); else hide(`root/set_storage/${b}`);
+    }
+    ['root/set_keep_all/bt_changeForest', 'root/set_topLeft',
       'root/set_bottom/panelKeep', 'root/set_bt'].forEach(hide);
     const label = find(this.el, 'root/set_center/set_title/Label');
     if (label && label.box) label.box.textContent = this.hud.t('title_forestdeco');
@@ -118,7 +122,8 @@ export class MoveMode {
         const cat = find(info, 'icon_cat');
         if (cat) cat.style.display = 'none';
         const tab = a.type === 3 ? 'tab_buildType1' : a.type === 4 ? 'tab_buildType2' : 'tab_buildType0';
-        for (const [p, k] of [['text_title', `title_build${a.index}`], ['text_type', tab]]) {
+        const title = a.type === 21 ? `decoblockName${a.index}` : `title_build${a.index}`;
+        for (const [p, k] of [['text_title', title], ['text_type', tab]]) {
           const n = find(info, p);
           if (n && n.box) { n.box.textContent = this.hud.t(k); n.box.style.whiteSpace = 'nowrap'; n.box.style.overflow = 'hidden'; }
         }

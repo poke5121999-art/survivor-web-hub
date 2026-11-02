@@ -258,7 +258,8 @@ export default {
     };
 
     // ---- HUD slots ----
-    hud.bind('mainUI/set_topLeft/set_cat', () => openList());
+    // The HUD profile slot opens the player profile (UI_Stage.UIOn_UserProfile, profile feature); the roster is in the quick menu.
+    hud.addMenu({ sec: 'cat', key: 'title_cats', sprite: 'icon_cat', run: () => openList() });
     hud.bind('mainUI/set_bottomRight/rightBottomSide/bt_unitGift', () => openGift());
     const giftBtn = find(root, 'mainUI/set_bottomRight/rightBottomSide/bt_unitGift');
     const face = find(root, 'mainUI/set_topLeft/set_cat/set_userProfileSlot/imagePrimary');

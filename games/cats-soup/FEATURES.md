@@ -45,6 +45,8 @@ your report. No git command that writes (add, commit, stash, checkout, reset); t
   feature whose `rewards` lists the type (registry order).
 - `mult(game, kind, arg)` on a sim feature: a factor core multiplies into `price(food)` (kind `'price'`, arg = Food row)
   and rest energy (kind `'energy'`, arg = rest work record). Use it for any "+x % price / energy" effect.
+- Items kept as counts: a sim feature that stores items exposes `bag(game)` (its `{type: n}` map); everyone counts and
+  spends through `game.itemCount(type)` / `game.spendItem(type, n)`, never another feature's state.
 - `game.isNight()` (day/night clock in core), `game.feat.<id>` for another feature's actions (check it exists).
 - Facility layout: `game.moveWork`, `keepWork`, `keepOut`, `setMapSize`; stored facilities sit in `game.state.storage`.
 - Events (`onEvent`): core emits `sell`, `food`, `build`, `upgrade`, `recipe`, `energy`, `jar`, `expand`,
@@ -70,3 +72,11 @@ your report. No git command that writes (add, commit, stash, checkout, reset); t
   `node test/cats-soup-play.js` still pass.
 - A screenshot of each new panel (`node test/cats-soup-shot.js "index.html?..." out.png 540 960`) has been looked at.
 - Every process you start has a timeout (`timeout 300 node ...`).
+
+## HUD entry points
+
+The original reaches most windows through facilities (tap -> your view's `onTap`) or the "more" quick menu (`bt_more`).
+Do not add free-floating HUD buttons: register a quick-menu entry with
+`ctx.hud.addMenu({ sec: 'cat' | 'forest' | 'minigame' | 'shop' | 'etc', key: '<lang key>', sprite: '<atlas sprite>', run })`.
+Bind an existing HUD node of `art/ui/hud.json` with `ctx.hud.bind(path, fn)` when the original has one. In move mode
+every child of `.hud` except `.panel` / `.toast` is hidden.

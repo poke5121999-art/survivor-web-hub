@@ -3,6 +3,7 @@
 //     id,
 //     mount(ctx),          // once after the HUD is built; bind HUD buttons, add DOM, load art
 //     update(dt),          // every frame after the HUD update
+//     onTapAt(x, y) -> bool, // any tap on the 3D view (client pixels) before facility picking; true = handled
 //     onTap(work) -> bool, // a tapped facility; true = handled (the facility card does not open)
 //     onEvent(e),          // every sim event of the frame
 //   }
@@ -21,5 +22,11 @@ import collection from './features/collection.js';
 import shop from './features/shop.js';
 import guide from './features/guide.js';
 import theme from './features/theme.js';
+import kitty from './features/kitty.js';
+import telescope from './features/telescope.js';
+import minigame from './features/minigame.js';
+import season from './features/season.js';
+import profile from './features/profile.js';
+import guests from './features/guests.js';
 
-export const VIEWS = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme];
+export const VIEWS = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests];

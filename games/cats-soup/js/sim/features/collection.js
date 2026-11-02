@@ -188,6 +188,7 @@ const rewards = { ...Object.fromEntries(HELD.map(t => [t, hold(t)])), ...Object.
 
 export default {
   id: 'collection',
+  bag: g => g.state.collection.items,
   data: ['collection'],
 
   init(g) {

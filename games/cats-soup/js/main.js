@@ -101,6 +101,7 @@ const move = new MoveMode({ game, view, scene, camera, hud, ng, root, json });
 hud.onMove = () => move.enter();
 camera.onLongPress = (x, y) => { const w = view.pick(camera.ground(x, y)); if (w && !move.on) move.enter(w); };
 camera.onTap = (x, y) => {
+  if (!move.on && VIEWS.some(v => safe(v, 'onTapAt', x, y) === true)) return;
   const w = view.pick(camera.ground(x, y));
   if (move.on) { move.select(w || null); return; }
   if (w && VIEWS.some(v => safe(v, 'onTap', w) === true)) return;

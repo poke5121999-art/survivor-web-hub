@@ -8,6 +8,8 @@
 //                               // result = {seconds, gold, energy} core paid
 //     onEvent(game, e),         // every game.emit(type, data) (sell, build, upgrade, recipe, energy, jar, reward, ...)
 //     rewards: { <type>: (game, value, extra) => given | null },  // reward types beyond 1-4 (specials.md)
+//     mult(game, kind, arg),    // factor for 'price' (Food row), 'energy' (rest work), 'upgrade' (work being upgraded)
+//     bag(game),                // {type: n} items this feature keeps; game.itemCount / spendItem go across all bags
 //     ...actions                // plain functions taking game first, called by the view as game.feat[id].fn(game, ...)
 //   }
 // Rules stay pure: no DOM, no THREE, so node tests run the same code.
@@ -22,5 +24,11 @@ import collection from './features/collection.js';
 import shop from './features/shop.js';
 import guide from './features/guide.js';
 import theme from './features/theme.js';
+import kitty from './features/kitty.js';
+import telescope from './features/telescope.js';
+import minigame from './features/minigame.js';
+import season from './features/season.js';
+import profile from './features/profile.js';
+import guests from './features/guests.js';
 
-export const FEATURES = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme];
+export const FEATURES = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests];

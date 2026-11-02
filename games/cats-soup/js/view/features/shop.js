@@ -360,7 +360,6 @@ function entries() {
   };
   const hud = (path, fb) => () => { const h = handler(path); if (h) h(); else if (fb) fb(); };
   return [
-    { sec: 'cat', key: 'title_cats', sprite: 'icon_cat', path: 'mainUI/set_topLeft/set_cat' },
     { sec: 'cat', key: 'title_unitGift', sprite: 'icon_player', path: 'mainUI/set_bottomRight/rightBottomSide/bt_unitGift' },
     { sec: 'forest', key: 'title_build', sprite: 'icon_build', path: 'mainUI/set_bottomRight/bt_build' },
     { sec: 'forest', key: 'title_recipe', sprite: 'icon_recipe', path: 'mainUI/set_bottomRight/bt_recipe' },
