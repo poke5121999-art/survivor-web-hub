@@ -322,7 +322,7 @@ export class GameView {
     this.avatar.rotation.y += d * Math.min(1, dt * 12);
     // on the bike (BaseCharacter Bike-Idle / Driving) the bike clips replace the locomotion blend tree
     const bike = f.mods.speed > 1 ? (pl.moving ? 'LT_Bike_Driving' : 'LT_Bike_Idle') : null;
-    if (this.rig.ok) this.rig.update(dt, pl.moving ? RULES.speed * (pl.slow ? RULES.fieldSlow : 1) : 0, pl.tool, bike);
+    if (this.rig.ok) this.rig.update(dt, (pl.speed || 0) / (f.mods.speed || 1), pl.tool, bike);
     if (bike && this.bikeRel) {
       this.avatar.updateMatrixWorld(true);
       const bm = this.bikeModel;

@@ -40,6 +40,10 @@ export class FieldBatch {
     this.state = new Array(n).fill(-1);
     this.grow = new Array(n).fill(1);
     this.shown = new Array(n).fill(null);
+    this.placed = new Array(n).fill(null);   // kind whose instances for cell k are non-zero
+    this.colors = new Array(n).fill(null);   // last soil colour written for cell k
+    this.dirty = new Set();                  // meshes whose instanceMatrix changed this frame
+    this.soilDirty = false;
     this.kinds = new Map();   // prefab name -> [{ mesh: InstancedMesh, locals }]
     this.buildSoil();
   }
@@ -72,11 +76,13 @@ export class FieldBatch {
     this.group.add(this.soil);
   }
 
+  // wet/dry soil colour of cell k; skipped when unchanged, uploaded once per frame in flush()
   setColor(k, color) {
-    if (!this.soil) return;
+    if (!this.soil || (this.colors[k] && this.colors[k].equals(color))) return;
+    this.colors[k] = color.clone();
     const a = this.soil.geometry.attributes.color, base = k * this.vertsPerCell;
     for (let i = 0; i < this.vertsPerCell; i++) a.setXYZ(base + i, color.r, color.g, color.b);
-    a.needsUpdate = true;
+    this.soilDirty = true;
   }
 
   kind(name) {
@@ -105,13 +111,28 @@ export class FieldBatch {
   place(k, name, g) {
     const c = this.f.cells[k];
 
-    mA.compose(v.set(c.x, 0, c.z), q.setFromAxisAngle(Y, this.angle[k]), s.setScalar(Math.max(0.01, g)));
-    for (const [kn, parts] of this.kinds) {
-      for (const p of parts) {
-        p.locals.forEach((l, j) => p.mesh.setMatrixAt(k * p.locals.length + j, kn === name ? mB.multiplyMatrices(mA, l) : ZERO));
-        p.mesh.instanceMatrix.needsUpdate = true;
+    // only the kind shown now and the kind shown before are touched; every other kind already holds zeros for k
+    const prev = this.placed[k];
+    if (prev && prev !== name) {
+      for (const p of this.kinds.get(prev) || []) {
+        for (let j = 0; j < p.locals.length; j++) p.mesh.setMatrixAt(k * p.locals.length + j, ZERO);
+        this.dirty.add(p.mesh);
       }
     }
+    this.placed[k] = name;
+    if (!name) return;
+    mA.compose(v.set(c.x, 0, c.z), q.setFromAxisAngle(Y, this.angle[k]), s.setScalar(Math.max(0.01, g)));
+    for (const p of this.kinds.get(name) || []) {
+      for (let j = 0; j < p.locals.length; j++) p.mesh.setMatrixAt(k * p.locals.length + j, mB.multiplyMatrices(mA, p.locals[j]));
+      this.dirty.add(p.mesh);
+    }
+  }
+
+  // one GPU upload per changed mesh per frame
+  flush() {
+    for (const m of this.dirty) m.instanceMatrix.needsUpdate = true;
+    this.dirty.clear();
+    if (this.soilDirty) { this.soil.geometry.attributes.color.needsUpdate = true; this.soilDirty = false; }
   }
 
   // state 0 = bare (dry), 1 = planted (_S, dry), 2 = grown (_M, wet); new plants pop in
@@ -128,15 +149,22 @@ export class FieldBatch {
       for (const p of parts) p.mesh.visible = any;
     }
     this.grow[k] = name ? 0 : 1;
+    if (name) this.growing = (this.growing || 0) + 1;
     this.place(k, name, name ? 0.01 : 1);
   }
 
   // DOScale(1, 0.25) with an overshoot, as the old per-object tween
   update(dt) {
-    for (let k = 0; k < this.n; k++) {
-      if (this.grow[k] >= 1) continue;
-      const g = this.grow[k] = Math.min(1, this.grow[k] + dt * 4);
-      this.place(k, this.shown[k], g * (1 + Math.sin(g * Math.PI) * 0.25));
+    if (this.growing) {
+      let still = 0;
+      for (let k = 0; k < this.n; k++) {
+        if (this.grow[k] >= 1) continue;
+        const g = this.grow[k] = Math.min(1, this.grow[k] + dt * 4);
+        this.place(k, this.shown[k], g * (1 + Math.sin(g * Math.PI) * 0.25));
+        if (g < 1) still++;
+      }
+      this.growing = still;
     }
+    if (this.dirty.size || this.soilDirty) this.flush();
   }
 }

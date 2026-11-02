@@ -10,6 +10,7 @@ export const RULES = {
   startCoins: 7,           // seen in the first frame of a fresh game (clip buyciZObYbc t=0); GameController ctor says 0, the save sets it
   speed: 7,                // FarmScene PlayerController.BaseSpeed
   fieldSlow: 0.4,          // GameController.GetSpeedMultiplierForDetectableType(FieldCell) (GameController.c:18060)
+  slowEase: 0.15,          // remake: seconds to ease 1 <-> fieldSlow (the original switches at once; a hard switch read as "stuck")
   planeR: 2.76 + 0.5,       // Hydravion SphereCollider radius + the player's reach (inferred)
   reach: 1.2,              // tool boxes sit at position + forward*1.2 (PlayerController.c:7564)
   toolR: [0.7, 0.9, 1.75], // seed box (1.2 wide), water box (0.8-1.5), harvest sphere 1.75 (PlayerController.c:~8410)
@@ -160,9 +161,14 @@ export class Farm {
   movePlayer(dt, input) {
     const pl = this.player;
     const len = Math.hypot(input.x, input.z);
+    // field slow-down factor eases toward its target (RULES.slowEase) instead of snapping 1 -> 0.4
+    const target = pl.slow ? RULES.fieldSlow : 1, rate = (1 - RULES.fieldSlow) / RULES.slowEase * dt;
+    pl.slowF = pl.slowF == null ? target : pl.slowF + Math.max(-rate, Math.min(rate, target - pl.slowF));
     pl.moving = len > 0.05;
+    pl.speed = 0;
     if (!pl.moving) return;
-    const sp = RULES.speed * this.mods.speed * (pl.slow ? RULES.fieldSlow : 1) * Math.min(1, len);
+    const sp = RULES.speed * this.mods.speed * pl.slowF * Math.min(1, len);
+    pl.speed = sp;
     pl.dirX = input.x / len; pl.dirZ = input.z / len;
     const vx = pl.dirX * sp * dt, vz = pl.dirZ * sp * dt;
     if (this.walkable(pl.x + vx, pl.z + vz)) { pl.x += vx; pl.z += vz; }
@@ -170,7 +176,9 @@ export class Farm {
     else if (this.walkable(pl.x, pl.z + vz)) pl.z += vz;
   }
 
-  // Player tool boxes: centre = position + forward * 1.2; the cell under the player sets FieldTool and the slow-down.
+  // Player tool boxes: centre = position + forward * 1.2; the cell under the player sets FieldTool.
+  // Remake divergence: the original slows the player (x0.4) on any field cell; here the slow-down only applies while a
+  // cell of the field's current state is inside the tool box, so crossing a finished field walks at full speed.
   updateFields(dt) {
     const pl = this.player;
     pl.tool = null; pl.slow = false;
@@ -179,8 +187,8 @@ export class Farm {
       if (!f.parcel?.open) continue;
       if (Math.abs(pl.x - f.d.pos[0]) > 3.4 || Math.abs(pl.z - f.d.pos[2]) > 3.4) continue;
       const over = Math.abs(pl.x - f.d.pos[0]) < 2.6 && Math.abs(pl.z - f.d.pos[2]) < 2.6;
-      if (over) { pl.slow = true; pl.tool = ['seed', 'water', 'scythe'][f.state]; }
-      this.workField(f, cx, cz, RULES.toolR[f.state], dt, null);
+      if (over) pl.tool = ['seed', 'water', 'scythe'][f.state];
+      if (this.workField(f, cx, cz, RULES.toolR[f.state], dt, null) > 0) pl.slow = true;
     }
   }
 

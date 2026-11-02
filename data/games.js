@@ -1199,7 +1199,7 @@ window.HUB_GAMES = [
     en: { title: "Farm Land", tagline: "Walk your farm: plant, raise animals, hire workers, unlock land and fly to new islands.", desc: "Farm Land (LolTap) remade from the Android 3.28.12 release, running straight in the browser on the original assets. Walk around the farm: seed and water the fields, raise cows, sheep and chickens, chop trees, and sell crops to the merchant for coins. Spend coins to unlock parcels and expand, hire workers for the barn and fields, and upgrade your pack. Cross the bridge to the seaplane and fly to new islands, Japan, Savana and Winter, each with its own palette and currency. Saved to your hub account to continue on another device. Drag to walk, portrait for phones. Pets that follow you, a speed bike, a piggy bank, diamonds and a 33-skin gacha, with animals on their own clips." },
     thumbnail: "assets/thumbnails/farmland.png",
     path: "games/farmland/index.html",
-    rev: "20261101d",
+    rev: "20261101e",
     // three.js r160 vendor, no build step; rebuilt from the Android XAPK (com.loltap.farmland 3.28.12, Unity 6000.3.9f1
     // IL2CPP) by games/farmland/tools. Humanoid Mecanim clips retargeted offline; cloud save via the hub js/ scripts like
     // casual-farm. Bump rev: node games/farmland/tools/stamp.js <rev>. Kiem: farmland-sim.js, farmland-play.js, farmland-meta.js, farmland-cloud.js.

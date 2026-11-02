@@ -39,7 +39,8 @@ rebuilt on three.js r160 and plain ES modules. No build step.
   `workers.js` (barn workers), `path.js`, `bot.js`.
 - `js/view/` three.js + DOM: `scene.js` (scene.json -> Object3D, SkinnedMesh, sprites), `shaders.js` (the game's custom shaders
   rebuilt from decoded GLSL), `world.js` (island; static transforms frozen), `game.js`, `fieldbatch.js` (one field = merged soil
-  + InstancedMesh plants), `anim.js` (humanoid clip player: blend tree + tool layer + state clips), `stage.js` (camera rig pitch 50 /
+  + InstancedMesh plants; only cells/kinds that changed are rewritten, one GPU upload per changed mesh per frame, soil colour
+  skipped when unchanged), `anim.js` (humanoid clip player: blend tree + tool layer + state clips), `stage.js` (camera rig pitch 50 /
   distance 20 / fov 60), `input.js`, `sound.js`.
 - `art/anim/animals.json` Generic clips of AC_Cow/Hen/Rooster/Pig/Elephant/Fox/Gazelle/Tortoise/Cat/Dog/Parrot/Goldfish/Sheep
   (`tools/export_generic.py`); `art/anim/plane.json` the seaplane trip RoadToNewWorld (with its camera tracks and events).
@@ -57,7 +58,10 @@ rebuilt on three.js r160 and plain ES modules. No build step.
 
 - Field 5x5 cells, Seed -> Water -> Harvest -> Seed; a touched cell advances after `Crop.Timers[state]` s (0.5/0.5/0.1);
   fewer than 4 cells left in Seed/Water finish themselves; harvest drops `Random(Min..Max)` items, each lands in the bag after 0.2 s.
-- Player speed 7, x0.4 over field cells; tool = field state (seed bag, watering can, scythe), tool box 1.2 ahead.
+- Player speed 7; tool = field state (seed bag, watering can, scythe), tool box 1.2 ahead. Field slow-down x0.4
+  (GameController FieldCell multiplier). **Remake divergence (feel fix, rev 20261101e):** the original slows the player on any
+  field cell; here x0.4 applies only while a cell of the field's current state is inside the tool box (crossing worked or
+  finished cells is full speed), and the factor eases 1 <-> 0.4 over 0.15 s instead of snapping (RULES.slowEase).
 - Parcel: on offer when its dependencies are open; stand at its edge to donate `price*dt/4` per frame (x3.5 every 2 s);
   wallet persists; unlocking adds a land point and raises the level (price) of the parcel's crop.
 - Merchant: sells one crop type per frame, `(98*clamp01(count/500)+2)` items; price `DropValue + LevelExtraValue*(level-1)`.
