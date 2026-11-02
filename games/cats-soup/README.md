@@ -40,6 +40,15 @@ Làm lại Cats&Soup 5.3.0 (HIDEA, `com.hidea.cat`) bằng three.js r160 và Jav
 - `[BẪY ĐÃ SẬP]` Mèo đi giật lùi: lúc đi, hướng là `atan2(dx, dz) + π` (mặt mèo ở -z của rig). Mèo đứng ở trạm thì chép quaternion của anchor, không lật.
 - `[BẪY ĐÃ SẬP]` Súp màu cam: `OutlineLightColor` nhân màu với `_MainColor` của material, không phải `_Color`.
 
+## Full game: feature module
+
+- Mỗi hệ thống của bản gốc là một cặp `js/sim/features/<id>.js` + `js/view/features/<id>.js` (19 feature: specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests, particles). Hợp đồng, hook core và luật làm ở `FEATURES.md`; luật có dẫn nguồn ở `D:\catsoup-refules\<id>.md`.
+- Mỗi feature có `test/cats-soup-<id>.js` (node) và `test/cats-soup-<id>-play.js` (Playwright, nhận `CS_URL=<Pages>`). Chạy cả 39 bộ trước khi deploy; chạy song song nhiều trình duyệt trên máy bận thì vài bộ chập chờn, chạy lại riêng.
+- So với bản gốc: `PARITY.md` (ảnh ghép clip|web ở `shots/cats-soup-parity/`), skill `.claude/skills/parity-compare`.
+- `[BẪY ĐÃ SẬP]` Hai agent cùng giành một nút HUD (ô hồ sơ): nút nào bản gốc có thì chỉ một feature `hud.bind`; còn lại đi qua menu "thêm" (`hud.addMenu`).
+- `[BẪY ĐÃ SẬP]` Feature đọc thẳng state của feature khác (vé, bướm vàng, bánh mồi) thì vỡ khi chủ sở hữu đổi hình dạng state; vật phẩm luôn qua `game.itemCount` / `spendItem` + `bag(game)`.
+- `[BẪY ĐÃ SẬP]` Test bám mốc giờ cố định (nhấn giữ 800 ms, chờ 1,5 s) trượt trên Pages từ máy này (Fastly chậm, `__ready` ~36 s): chờ điều kiện bằng `waitForFunction`.
+
 ## Deploy
 
 - Tăng rev: `node games/cats-soup/tools/stamp.js <rev>` (ghi `?v=` vào import map, `globalThis.CS_V` cho fetch), sửa `rev:` của thẻ trong `data/games.js`.

@@ -40,7 +40,7 @@ Khung: mỗi hệ thống là một cặp module `js/sim/features/<id>.js` + `js
 - [x] Đợt 2 lên Pages rev 20261102e (commit 0a4a3bb8): tower, furniture, collection, shop, guide, theme; test online qua. Nút của feature đi qua menu "thêm" (`hud.addMenu`), không thả nổi trên HUD.
 - [x] Đợt 3 lên Pages rev 20261102f (commit 0e47be5c), test online qua. Core thêm `itemCount`/`spendItem` + `bag`, `mult('upgrade')`, `onTapAt`, `onWork`, `hud.moveActions`.
 - [x] Đợt 4 lên Pages rev 20261102g (commit aced62ff): particles, integration, mèo con đi dạo; test online qua (minigame-play chập chờn khi máy tải nặng, chạy lại qua).
-- [ ] Đợt 5: so hình với clip gốc (PARITY.md), sửa các khác biệt nổi nhất.
+- [x] Đợt 5 lên Pages rev 20261102h (commit 43e6928d): cây thông, bảng theo prefab gốc, kệ có bát, đom đóm, tải ưu tiên; 39/39 bộ test local, test online qua. Còn lệch: xem PARITY.md (vòng lửa dưới nồi là mesh particle, ảnh 3D trạm trong FACILITY, 8 minigame phiêu lưu thiếu dữ liệu 3D).
 - (cũ) Đợt 4: particles (hạt từ ParticleSystem gốc), integration (voi bán nội thất, gói shop trang phục/nội thất/skin, bảng nam châm, thưởng bướm, thưởng bộ cá), mèo con đi trong rừng.
 - (cũ) Đợt 3: kitty (mèo con + du lịch), telescope (+ cây sao), minigame, season (sự kiện theo lịch máy), profile (+ chụp ảnh), guests (khách + khối trang trí).
 - Đợt 2: nội thất + tháp mèo (Furniture, TowerProp, đồng xu), đèn + ngày đêm (Lamp), bộ sưu tập + sách tranh, cửa hàng (gem, gói quà; quảng cáo bấm là nhận), hướng dẫn đầu game, dời trạm, chủ đề trạm (WorkSkin, SignSkin, Theme).

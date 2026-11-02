@@ -57,10 +57,11 @@ function serve() {
   let [x, y] = await screenOf(aId);
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);   // the 0.5 s long-press timer can run late while textures still decode on a slow link
   await page.mouse.up();
   await page.waitForTimeout(800);
-  check('long-press on a facility opens move mode', await page.evaluate(() => window.__move.on && !!document.querySelector('.movemode')));
+  const opened = await page.waitForFunction(() => window.__move.on && !!document.querySelector('.movemode'), null, { timeout: 8000 }).then(() => true, () => false);
+  check('long-press on a facility opens move mode', opened);
   await page.screenshot({ path: path.join(OUT, '01-open.png') });
 
   const empty = await page.evaluate(() => window.__game.emptyCells()[0]);
