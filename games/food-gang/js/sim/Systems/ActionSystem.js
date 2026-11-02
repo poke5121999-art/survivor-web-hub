@@ -1,10 +1,11 @@
 // AgentActionSystem: attack / special state machine, melee, shoot and buff events (spec Part 3).
 import { f, SMath, Vec2 } from '../Core/Vec2.js';
 import { next } from '../Core/SimRng.js';
-import { ActionType, GamePhase, PowerType, StatusFlags } from '../Data/Enums.js';
+import { ActionType, GamePhase, GoalType, PowerType, StatusFlags } from '../Data/Enums.js';
 import { SimEventType } from '../State/SimEvent.js';
 import { has, hpRatio, hasPower, power } from '../State/MatchState.js';
-import { SimConst, isSameTeam, agentCenter, agentHitRadius } from './GameRules.js';
+import { SimConst, isSameTeam, agentCenter, agentHitRadius, triggerGameOver } from './GameRules.js';
+import { HOUSE_ID, houseDistance, damageHouse } from './Objectives.js';
 import { addTimedFlag, applyDamage, applyHeal, levelCoef } from './LifeSystem.js';
 import { spawnBullet } from './BulletSystem.js';
 
@@ -319,6 +320,9 @@ function applyMeleeDamage(c, a, asset) {
     }
     addMeleeHit(a, t.id);
   }
+  // Siege (Objectives.js): the melee box reaching the fridge
+  if (c.s.goal === GoalType.Siege && !meleeAlreadyHit(a, HOUSE_ID) && houseDistance(c.s, hit) <= size
+      && damageHouse(c, a.id, asset.damage, hit, triggerGameOver)) addMeleeHit(a, HOUSE_ID);
 }
 
 function processBuffEvents(c, a, asset, elapsed) {

@@ -271,13 +271,15 @@ export class Engine {
       const e = r.node.le;
       r.node.setEuler(e[0], e[1], (e[2] + (r.fields.m_speed || 0) * dt) % 360);
     }
-    for (const a of this.animators) if (a.node.activeInHierarchy && a.runtime) a.runtime.update(a.unscaled ? rawDt : dt);
-    for (const a of this.animations) if (a.node.activeInHierarchy && a.runtime) a.runtime.update(dt);
+    // culled: a list item scrolled out of its mask (UISystem.cullItem)
+    for (const a of this.animators) if (!a.culled && a.node.activeInHierarchy && a.runtime) a.runtime.update(a.unscaled ? rawDt : dt);
+    for (const a of this.animations) if (!a.culled && a.node.activeInHierarchy && a.runtime) a.runtime.update(dt);
     for (const f of this.hooks.late) f(dt);
     this.updateWorld();
     if (this.cine) { this.cine.update(dt, this.canvas.width / this.canvas.height); this.updateWorld(); }
     stats.particles = 0;
     stats.uiParticles = 0;
+    stats.uiCulled = 0;
     for (const p of this.particles) if (p.node.activeInHierarchy && p.runtime) p.runtime.step(dt);
     this.render();
     // after the canvas pass: UI rects are laid out for this frame (a prefab spawned mid-frame resets root transforms)

@@ -39,7 +39,7 @@ function serve() {
   fs.mkdirSync(SHOTS, { recursive: true });
   const srv = process.env.FG_URL ? null : await serve();
   const base = process.env.FG_URL || `http://localhost:${srv.address().port}/games/food-gang/test-ui.html`;
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu'] });
   const killer = setTimeout(() => { console.log('  FAIL timeout (180 s)'); process.exit(2); }, 180000);
   const errors = [];
   const open = async (scene) => {
@@ -249,6 +249,42 @@ function serve() {
     });
     check('Russian privacy button text shrinks instead of cutting a word (2 lines)', priv.lines === 2, `${JSON.stringify(priv.text)} ${priv.lines} lines at ${priv.size && priv.size.toFixed ? priv.size.toFixed(1) : priv.size}`);
     check('Discord icon centred on its button (layout group narrower than the icon)', Math.abs(priv.icon - priv.btn) < 2 && priv.iconW <= priv.btnW + 1, `icon centre ${priv.icon.toFixed(0)} button ${priv.btn.toFixed(0)}, width ${priv.iconW.toFixed(0)}/${priv.btnW.toFixed(0)}`);
+    // Thai (NotoSansThai-Bold is in the original fallback list): vowels / tones stay on their base letter, and with no
+    // spaces a line may break only between words
+    const thai = await page.evaluate(async () => {
+      const { engine } = window.tui;
+      const mod = await import('./js/engine/text.js');
+      const f = [...engine.assets.fontsReady.values()][0];
+      const text = 'ที่นี่ภาษาไทยสวัสดีครับผู้เล่น';
+      const stack = mod.buildText(f, { text: 'ที่นี่', size: 32, wrap: 0, align: 257, richText: 1 }, 600, 100);
+      const L = mod.layout(f, mod.parseRich(text, true), 32, 110, true, {});
+      const words = new Set([...new Intl.Segmenter('th', { granularity: 'word' }).segment(text)].map((s) => s.index));
+      let at = 0;
+      const cuts = L.lines.map((ln) => { const s = ln.glyphs.map((q) => q.ch).join(''); const ok = words.has(at); at += s.length; return ok; });
+      return { stackQuads: stack.quads.length, lines: L.lines.length, cutsOk: cuts.every(Boolean), rows: L.lines.map((ln) => ln.glyphs.map((q) => q.ch).join('')) };
+    });
+    check('Thai: tone and vowel marks drawn with their base letter (ที่นี่ -> 2 quads)', thai.stackQuads === 2, `${thai.stackQuads} quads`);
+    check('Thai wraps only between words', thai.lines >= 2 && thai.cutsOk, thai.rows.join(' | '));
+    // fallback glyphs are distance fields drawn with the text's material, so the dilated-underlay rim matches the atlas
+    // glyphs: Cyrillic Р (Tobi OTF, not in the SDF atlas) against Latin P (SDF), same outline. Offset copies of a plain
+    // raster gave 1.06 here at 1x but 0.62 at 3x, half-thickness rims gave 0.6, a full-thickness copy rim 1.84 at 1x
+    const rimOf = async (s) => {
+      await page.evaluate((s) => { const l = window.tui.inst.nodes.map((x) => x.script('Localize')).find((q) => q && q.fields.m_key === 'title.settings'); window.tui.inst.ref(l.fields.m_text).setText(s); }, s);
+      await page.waitForTimeout(300);
+      const r = await page.evaluate(() => { const l = window.tui.inst.nodes.map((x) => x.script('Localize')).find((q) => q && q.fields.m_key === 'title.settings'); const n = window.tui.inst.ref(l.fields.m_text).node; const c = window.tui.engine.canvas; const k = c.getBoundingClientRect().width / c.width; const q = window.tui.engine.ui.screenRect(n); return { x: q[0] * k, y: (c.height - q[1] - q[3]) * k, w: q[2] * k, h: q[3] * k }; });
+      const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.w, height: r.h } });
+      return page.evaluate(async (b64) => {
+        const bm = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+        const cv = new OffscreenCanvas(bm.width, bm.height), cx = cv.getContext('2d');
+        cx.drawImage(bm, 0, 0);
+        const d = cx.getImageData(0, 0, bm.width, bm.height).data;
+        let rim = 0;   // dark mass: antialiased rim pixels count by how dark they are (the title sits on yellow)
+        for (let i = 0; i < d.length; i += 4) rim += Math.max(0, 160 - Math.max(d[i], d[i + 1], d[i + 2])) / 160;
+        return Math.round(rim);
+      }, png.toString('base64'));
+    };
+    const rimSdf = await rimOf('PPPP'), rimFb = await rimOf('РРРР');
+    check('fallback glyph rim as thick as the SDF rim (Р vs P)', rimFb / rimSdf > 0.85 && rimFb / rimSdf < 1.15, `dark mass ${rimFb} / ${rimSdf} = ${(rimFb / rimSdf).toFixed(2)}`);
     await page.evaluate((id) => window.tui.txt.setLanguage(id), 'English');
     await page.close();
     check('no console / page errors', errors.length === 0, errors.slice(0, 4).join(' | '));

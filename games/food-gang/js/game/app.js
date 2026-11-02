@@ -2,14 +2,13 @@
 // SceneLoadingGame -> match -> SceneGameOver -> SceneMenu, popups stacked over the menu (PopupSceneManager).
 // Profile in localStorage (LocalStorageProfileStore), meta clock ticking every second while the page is open.
 // URL overrides for testing (any of them skips the menu and plays matches back to back, as the match test expects):
-//   ?mode=dm2v2|dm1v1|dmffa|kill5|kill5ffa|lastSurvivor|ls2v2|killBoss &map=kitchen|dining|pantry|0..2
+//   ?mode=dm2v2|dm1v1|dmffa|kill5|kill5ffa|lastSurvivor|ls2v2|killBoss|payload|siege &map=kitchen|dining|pantry|0..2
 //   &skin=BRO|broccoli|1..16 &level=1..20 &seed=N &slot=0..3 ; &timescale=N &intro=0 work everywhere
 //   (&seed=N seeds both the sim and the matchmaking RNG, so the same URL gives the same slots and bots)
 import { Engine, stats } from '../engine/engine.js';
 import { GameDb, GoalType, TeamConfig } from '../sim/index.js';
 import { MetaDb, MetaService, MetaRng, ProfileJson, LocalStorageProfileStore } from '../meta/index.js';
-import { MatchOutcome, MatchSlot } from '../meta/events.js';
-import { teamForSlot } from '../meta/matchmaking.js';
+import { MatchOutcome } from '../meta/events.js';
 import { ViewDb } from './viewdb.js';
 import { GameAudio } from './audio.js';
 import { LocalInput } from './match/LocalInput.js';
@@ -26,6 +25,8 @@ import { RewardScreen } from './screens/Reward.js';
 import { SystemsScreen } from './screens/Systems.js';
 import { Settings } from './settings.js';
 import { Net } from './net.js';
+import { installFullscreen } from './fullscreen.js';
+import { applyMode, applyChoice } from './modes.js';
 
 const Q = new URLSearchParams(location.search);
 const REV = document.documentElement.dataset.rev || '';
@@ -36,6 +37,9 @@ const MODES = {
   lastsurvivor: [GoalType.LastSurvivor, TeamConfig.FreeForAll], ls: [GoalType.LastSurvivor, TeamConfig.FreeForAll],
   ls2v2: [GoalType.LastSurvivor, TeamConfig.TwoVersusTwo], killboss: [GoalType.KillBoss, TeamConfig.OneVersusThree],
   boss: [GoalType.KillBoss, TeamConfig.OneVersusThree],
+  // web-only objective modes (js/sim/Systems/Objectives.js)
+  payload: [GoalType.Payload, TeamConfig.TwoVersusTwo], push: [GoalType.Payload, TeamConfig.TwoVersusTwo],
+  siege: [GoalType.Siege, TeamConfig.TwoVersusTwo], defend: [GoalType.Siege, TeamConfig.TwoVersusTwo],
 };
 const MAPS = { kitchen: 0, dining: 1, pantry: 2 };
 const DIRECT = ['mode', 'map', 'skin', 'level', 'seed', 'slot'].some((k) => Q.has(k));
@@ -85,6 +89,7 @@ class App {
     setLoad(0.3);
     this.trackFps();
     engine.onClick((b) => this.routeClick(b));
+    installFullscreen();
     engine.start();
     this.systems = await new SystemsScreen(this).open();
     if (Q.get('intro') !== '0') await this.intro();
@@ -187,7 +192,7 @@ class App {
     for (;;) {
       const act = await this.menu();
       if (!act) continue;
-      if (act.type === 'play') await this.quickPlay(act.mission ?? -1);
+      if (act.type === 'play') await this.quickPlay(act.mission ?? -1, act.modeChoice || 0);
       else if (act.type === 'private') await this.privateMatch(act);
       else if (act.type === 'reload') { location.reload(); return; }
     }
@@ -220,10 +225,12 @@ class App {
   // MenuController.Play / MissionDisplay.StartMission -> matchmaking -> match. Offline (the original path vs bots):
   // the match loads behind a fade and its VS panel plays the lobby, the bots' cells spinning "Searching opponents..."
   // until BotFillAt (clip frames). Online (Net.available): SceneLoadingGame counts real players until the session starts.
-  async quickPlay(missionIndex = -1) {
+  async quickPlay(missionIndex = -1, modeChoice = 0) {
     const r = this.meta.buildMatchRequest(this.profile, new Date(), rng(), missionIndex);
     if (!r.ok) { this.toast(r.error); return; }
-    const req = r.request;
+    // Play -> mode picker (js/game/modes.js): 0 keeps the deck's draw
+    const req = missionIndex < 0 ? applyChoice(r.request, modeChoice, this.meta.db) : r.request;
+    req.modeChoice = missionIndex < 0 ? modeChoice : 0;
     this.screen = 'matchmaking';
     if (this.net.available() && missionIndex < 0) {
       const lg = new LoadingGameScreen(this, req);
@@ -268,22 +275,8 @@ class App {
     if (Q.has('level')) local.level = Math.max(1, Math.min(20, Number(Q.get('level')) | 0));
     if (mode) {
       const [goal, team, players] = mode;
-      req.goal = goal; req.team = team;
-      req.bossOnLeft = goal === GoalType.KillBoss ? false : req.bossOnLeft;
-      const bots = req.slots.filter((s) => s && s !== local);
-      let localSlot = Q.has('slot') ? Math.max(0, Math.min(3, Number(Q.get('slot')) | 0)) : req.localSlot;
-      if (players === 2) localSlot = 0;
-      else if (goal === GoalType.KillBoss && localSlot === (req.bossOnLeft ? 0 : 3)) localSlot = 0;
-      const order = [];
-      for (let s = 0; s < (players || 4); s++) order.push(s);
-      req.slots = [null, null, null, null];
-      let bi = 0;
-      for (const s of order) {
-        const src = s === localSlot ? local : bots[bi++];
-        req.slots[s] = new MatchSlot({ ...src, slot: s, team: teamForSlot(s, team, req.bossOnLeft) });
-      }
-      req.localSlot = localSlot;
-      for (const s of req.slots) if (s && s.isBot) s.isAlly = team !== TeamConfig.FreeForAll && s.team === req.slots[localSlot].team;
+      const text = goal === GoalType.Payload ? 'web.mode.payload' : goal === GoalType.Siege ? 'web.mode.siege' : null;
+      applyMode(req, goal, team, { players: players || 4, text, slot: Q.has('slot') ? Number(Q.get('slot')) : null });
     }
     return req;
   }

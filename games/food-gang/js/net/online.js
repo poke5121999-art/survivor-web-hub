@@ -70,6 +70,8 @@ function playerInfo(profile) {
   return { name: String(profile.name || 'Player').slice(0, 16), skin, level: Math.max(1, Profile.level(profile, skin)) };
 }
 const bracketOf = (level) => Math.max(0, Math.min(3, Math.floor((level - 1) / 5)));
+// quick rooms also split by the Play -> mode picker choice (0 = random, js/game/modes.js): N1 = bracket + 10 x choice
+const quickBracket = (level, request) => bracketOf(level) + 10 * ((request && request.modeChoice) | 0);
 
 function errorCode(e) {
   const st = e && e.status;
@@ -177,7 +179,7 @@ class Session {
 
   async quick(request, joinId = null) {
     const b = this.backend;
-    const bracket = bracketOf(this.me.level);
+    const bracket = quickBracket(this.me.level, request);
     if (++this.attempts > 4) throw new Error('matchmaking gave up after 4 rooms');
     const ids = joinId ? [{ id: joinId }] : await b.findRooms({ bracket, protocol: PROTOCOL }).catch(() => []);
     for (const r of ids) {
@@ -383,7 +385,7 @@ class HostRole extends Role {
     if (this.onMerge && !this.peers.size && el < BOT_FILL_AT - 2 && t - this.lastPoll > MERGE_POLL * 1000 && !this.polling) {
       this.lastPoll = t;
       this.polling = true;
-      this.s.backend.findRooms({ bracket: bracketOf(this.s.me.level), protocol: PROTOCOL }).then((rows) => {
+      this.s.backend.findRooms({ bracket: quickBracket(this.s.me.level, this.request), protocol: PROTOCOL }).then((rows) => {
         this.polling = false;
         const older = rows.find((r) => r.id !== this.room.id && r.created < this.room.created);
         if (!older || this.peers.size || this.launched || this.disposed) return;

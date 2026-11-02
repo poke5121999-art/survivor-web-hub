@@ -210,7 +210,10 @@ export class AgentView {
     if (this.blinkHit > 0) this.blinkHit = Math.max(0, this.blinkHit - dt * 5);
     if (this.blinkRed > 0) this.blinkRed = Math.max(0, this.blinkRed - dt * this.blinkRedSpeed);
     if (this.blinkHeal > 0) this.blinkHeal = Math.max(0, this.blinkHeal - dt * 0.75);
-    const flash = Math.min(1, Math.max(this.blinkHit, this.blinkInv, this.blinkHeal, this.blinkRed, this.blinkPoison));
+    // comfort caps (Settings.apply): the invincibility / poison triangle waves are a 2.5 Hz strobe, kept faint [ĐỀ XUẤT]
+    const cf = this.ctx.engine && this.ctx.engine.comfort;
+    const fc = cf ? cf.flash : 1, sc = cf ? cf.strobe : 1;
+    const flash = Math.min(1, Math.max(this.blinkHit * fc, this.blinkInv * sc, this.blinkHeal * fc, this.blinkRed * fc, this.blinkPoison * sc));
     const col = this.blinkHeal > 0 ? HEAL : this.blinkRed > 0 ? RED : this.blinkPoison > 0 ? POISON : WHITE;
     // invisible: enemies lose visual_root; allies swap to Custom/Sprites/Invisibility, whose _Color (0,0,0,0.5)
     // draws a half-dark silhouette (flash goes to white over it); turning invisible flashes once (blinkHit 1)

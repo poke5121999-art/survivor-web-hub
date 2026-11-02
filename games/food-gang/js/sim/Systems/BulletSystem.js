@@ -2,10 +2,11 @@
 import { f, Vec2, SMath, DEG2RAD } from '../Core/Vec2.js';
 import { sinf, cosf } from '../Core/CrtMath.js';
 import { next } from '../Core/SimRng.js';
-import { DestroyType, GamePhase, PowerType, StatusFlags, Trajectory } from '../Data/Enums.js';
+import { DestroyType, GamePhase, GoalType, PowerType, StatusFlags, Trajectory } from '../Data/Enums.js';
 import { SimEventType } from '../State/SimEvent.js';
 import { createBulletState, has, isDead, hasPower, power } from '../State/MatchState.js';
-import { SimConst, isSameTeam, agentCenter, agentHitRadius } from './GameRules.js';
+import { SimConst, isSameTeam, agentCenter, agentHitRadius, triggerGameOver } from './GameRules.js';
+import { HOUSE_ID, inHouse, houseDistance, damageHouse, defenderTeam } from './Objectives.js';
 import { linecast, MASK_NO_WALL } from './Physics2D.js';
 import { applyDamage, applyHeal, levelCoef } from './LifeSystem.js';
 
@@ -175,6 +176,7 @@ export function update(c) {
         }
         b.distanceTraveled = f(b.distanceTraveled + Vec2.distance(b.pos, prev));
         if (checkAgentHits(c, b, data)) continue;
+        if (c.s.goal === GoalType.Siege && checkHouseHit(c, b, data)) continue;
         if (checkObstacleHit(c, b, data, prev)) continue;
       }
     } else {
@@ -269,6 +271,20 @@ function checkAgentHits(c, b, data) {
   return false;
 }
 
+// Siege (Objectives.js): an attacker's bullet reaching the fridge damages it like an enemy; defenders' bullets pass
+function checkHouseHit(c, b, data) {
+  if (data.destroyType === DestroyType.Lifetime || hasBeenHit(b, HOUSE_ID)) return false;
+  const src = c.agent(b.source);
+  if (src == null || src.team === defenderTeam(c.s) || !inHouse(c.s, b.pos, hitRadius(b, data))) return false;
+  if (data.explosionRadius <= 0) damageHouse(c, b.source, b.damageAmount, b.pos, triggerGameOver);
+  if (!data.comeBack && !b.forcePierce && (data.destroyType === DestroyType.OnHit || data.destroyType === DestroyType.OnHitPlayerOnly)) {
+    destroyBullet(c, b, b.pos, false, Vec2.zero());
+    return true;
+  }
+  addHit(b, HOUSE_ID);
+  return false;
+}
+
 function applyPoison(t, b, data) {
   if (has(t, StatusFlags.Invincibility)) return;
   const dur = data.onHitPoisonDuration > 0 ? data.onHitPoisonDuration : DEFAULT_POISON_DURATION;
@@ -343,6 +359,7 @@ const isEnemy = (c, a, b) => a !== b.id && !isSameTeam(c.s, c.agent(a), b);
 
 function applyExplosionDamage(c, b, data, pos) {
   const R = f(data.explosionRadius * (b.fromBoss ? SimConst.BossScale : 1));
+  if (c.s.goal === GoalType.Siege && houseDistance(c.s, pos) <= R) damageHouse(c, b.source, b.damageAmount, pos, triggerGameOver);
   for (const t of c.s.agents) {
     if (!isEnemy(c, b.source, t)) continue;
     if ((t.flags & (StatusFlags.Dead | StatusFlags.Invincibility)) !== 0) continue;

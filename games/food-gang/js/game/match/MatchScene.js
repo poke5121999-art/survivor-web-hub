@@ -5,6 +5,7 @@ import { MatchRunner, BotSource } from './MatchRunner.js';
 import { AgentView } from './AgentView.js';
 import { BulletViews, FxListener } from './BulletView.js';
 import { Hud } from './Hud.js';
+import { ObjectiveView } from './ObjectiveView.js';
 import { T } from '../text.js';
 
 const TARGET_OFFSET_Y = 1.5;
@@ -16,6 +17,9 @@ const MODE_TEXT = {
   [GoalType.Kill5]: ['mission.kill.ffa', 'mission.kill.2vs2'],
   [GoalType.LastSurvivor]: ['mission.survive.ffa', 'mission.survive.2vs2'],
   [GoalType.KillBoss]: ['mission.killboss.1vs3', 'mission.killboss.1vs3'],
+  // web-only objective modes (js/game/modes.js)
+  [GoalType.Payload]: ['web.mode.payload', 'web.mode.payload'],
+  [GoalType.Siege]: ['web.mode.siege', 'web.mode.siege'],
 };
 
 // building a scene is synchronous: one per frame keeps the loading spinner turning (rAF, or 50 ms in a hidden tab)
@@ -69,6 +73,8 @@ export class MatchScene {
     });
     this.bullets = new BulletViews(ctx);
     this.fx = new FxListener(ctx);
+    // web-only objective modes (Push / Defend the Fridge): the fridge, finish lines, life bar
+    this.objective = runner.state.goal === GoalType.Payload || runner.state.goal === GoalType.Siege ? new ObjectiveView(ctx) : null;
     this.hud = new Hud(ctx, gameInst);
     this.hud.tutorial = !!this.tutorial;
     this.hudRoot = gameInst.root;
@@ -192,6 +198,7 @@ export class MatchScene {
     if (e.agent >= 0 && e.type <= SimEventType.AgentRespawned) { const v = this.views[e.agent]; if (v) v.onEvent(e); }
     this.bullets.onEvent(e);
     this.fx.onEvent(e);
+    if (this.objective) this.objective.onEvent(e);
     this.hud.onEvent(e);
     const local = e.agent >= 0 && r.agent(e.agent) && r.agent(e.agent).slot === r.localSlot;
     switch (e.type) {
@@ -288,6 +295,7 @@ export class MatchScene {
   lateUpdate(dt) {
     for (const v of this.views) v.update(dt);
     this.bullets.update();
+    if (this.objective) this.objective.update(dt);
     this.app.prefabs.update();
     this.updateCamera(dt);
     this.hud.updateLifeBars(this.views, dt);
@@ -338,7 +346,7 @@ export class MatchScene {
       timerText: this.hud.timerText ? this.hud.timerText.text : '', goal: s.goal, teams: s.teams, map: s.mapIndex, localSlot: r.localSlot,
       scores: [1, 2, 3, 4].map((t) => s.agents.some((a) => a.team === t) ? this.hud.teams.find((x) => x.team === t)?.text?.text ?? null : null),
       teamKills: [1, 2, 3, 4].map((t) => { let k = 0; for (let sl = 0; sl < 4; sl++) if (s.agents.some((a) => a.slot === sl && a.team === t)) k += s.killSlot[sl]; return k; }),
-      winnerTeam: s.winnerTeam, winnerSlot: s.winnerSlot, timeOut: s.timeOut,
+      winnerTeam: s.winnerTeam, winnerSlot: s.winnerSlot, timeOut: s.timeOut, objective: this.objective ? this.objective.debug() : null,
       agents: s.agents.map((a) => ({ id: a.id, slot: a.slot, team: a.team, skin: db.skins[a.skin].name, hp: Math.round(a.hpCurrent), hpMax: Math.round(a.hpMax),
         x: Math.round(a.pos.x * 1000) / 1000, y: Math.round(a.pos.y * 1000) / 1000, alive: !isDead(a), bot: a.isBot, boss: a.isBoss, kills: a.killCount, deaths: a.deathCount,
         action: a.isActioning ? (a.currentIsSpecial ? 'special' : 'action') : 'none', grounded: a.grounded, facingLeft: a.facingLeft,
@@ -380,6 +388,7 @@ export class MatchScene {
     engine.pointerHooks = [];
     engine.onAnimEvent = null;
     this.bullets.clear();
+    if (this.objective) { this.objective.dispose(); this.objective = null; }
     app.prefabs.clear();
     for (const v of this.views) v.destroy();
     for (const r of [...this.mapInst.roots, ...this.gameInst.roots]) r.destroy();

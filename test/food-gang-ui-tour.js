@@ -22,13 +22,16 @@ const note = (k, good, d) => { console.log(`  ${good ? 'PASS' : 'FAIL'} ${k}${d 
   fs.mkdirSync(OUT, { recursive: true });
   const srv = process.env.FG_URL ? null : await new Promise((res) => { const s = http.createServer((q, r) => { const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); fs.readFile(f, (e, b) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(b); }); }).listen(0, () => res(s)); });
   const base = process.env.FG_URL || `http://localhost:${srv.address().port}/games/food-gang/index.html`;
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu', '--ignore-gpu-blocklist'] });
   const killer = setTimeout(() => { console.log('  FAIL timeout'); process.exit(2); }, 600000);
   const page = await browser.newPage({ viewport: { width: 1280, height: 592 }, deviceScaleFactor: 1 });
   const ev = (f, a) => page.evaluate(f, a);
   const until = async (f, ms, a) => { const e = Date.now() + ms; for (;;) { const v = await ev(f, a).catch(() => null); if (v) return v; if (Date.now() > e) return null; await sleep(60); } };
   const shot = async (k) => { await page.screenshot({ path: path.join(OUT, k + '.png') }); note(k, true); };
-  const press = async (m, s, n) => { const b = await ev(([m2, s2, n2]) => (window.fgButtons(s2) || []).find((x) => x.method.split(',').includes(m2) && (!n2 || x.name === n2)), [m, s, n]); if (!b) return false; await page.mouse.click(b.pos[0], b.pos[1]); return true; };
+  const press = async (m, s, n) => { const b = await ev(([m2, s2, n2]) => (window.fgButtons(s2) || []).find((x) => x.method.split(',').includes(m2) && (!n2 || x.name === n2)), [m, s, n]); if (!b) return false; await page.mouse.click(b.pos[0], b.pos[1]);
+    // BATTLE! opens the Play -> mode picker (ScenePrivateConfiguration, rev 20261102b): press its BATTLE! (choice kept, Random by default)
+    if (m === 'Play' && s === 'SceneMenu') { for (let i = 0; i < 80; i++) { const u = await ev(() => { const x = window.fgDebug().ui[0]; return x && x.scene === 'ScenePrivateConfiguration' && x.battleButton ? x.battleButton : null; }).catch(() => null); if (u) { await page.mouse.click(u[0], u[1]); return true; } await sleep(100); } return false; }
+    return true; };
   const topIs = (s) => until((x) => { const u = window.fgDebug().ui[0]; return u && u.scene === x ? u : null; }, 15000, s);
   try {
     await page.goto(base.replace('index.html', 'dev.html'));

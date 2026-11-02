@@ -3,6 +3,7 @@ import { f, SMath } from '../Core/Vec2.js';
 import { GoalType, TeamConfig, GamePhase, StatusFlags } from '../Data/Enums.js';
 import { SimEventType } from '../State/SimEvent.js';
 import { has, isDead } from '../State/MatchState.js';
+import { timeOutWinner } from './Objectives.js';
 
 export const SimConst = Object.freeze({
   BossScale: 1.5,
@@ -21,16 +22,20 @@ export const SimConst = Object.freeze({
 });
 
 /** How a goal ends the match before the timer (CheckEndConditions dispatch). */
-export const EndRule = Object.freeze({ TimerOnly: 0, KillTarget: 1, LastSurvivor: 2, BossDeath: 3 });
+export const EndRule = Object.freeze({ TimerOnly: 0, KillTarget: 1, LastSurvivor: 2, BossDeath: 3, Objective: 4 });
 
 /** Who wins when the timer runs out (ResolveTimerWinner). */
-export const TimeOutRule = Object.freeze({ TopScore: 0, BossTeam: 1 });
+export const TimeOutRule = Object.freeze({ TopScore: 0, BossTeam: 1, Objective: 2 });
 
 const Goals = Object.freeze([
   Object.freeze({ goal: GoalType.DeathMatch, timerMax: 90, end: EndRule.TimerOnly, timeOut: TimeOutRule.TopScore }),
   Object.freeze({ goal: GoalType.Kill5, timerMax: 0, end: EndRule.KillTarget, timeOut: TimeOutRule.TopScore }),
   Object.freeze({ goal: GoalType.LastSurvivor, timerMax: 0, end: EndRule.LastSurvivor, timeOut: TimeOutRule.TopScore }),
   Object.freeze({ goal: GoalType.KillBoss, timerMax: 60, end: EndRule.BossDeath, timeOut: TimeOutRule.BossTeam }),
+  null,   // 4 = "Random" (client side only)
+  // web-only objective modes (Objectives.js): the objective, not kills, ends them
+  Object.freeze({ goal: GoalType.Payload, timerMax: 120, end: EndRule.Objective, timeOut: TimeOutRule.Objective }),
+  Object.freeze({ goal: GoalType.Siege, timerMax: 90, end: EndRule.Objective, timeOut: TimeOutRule.Objective }),
 ]);
 
 export const goalRule = (g) => Goals[g];
@@ -148,6 +153,7 @@ function checkKillBoss(c) {
 }
 
 export function resolveTimerWinner(s) {
+  if (goalRule(s.goal).timeOut === TimeOutRule.Objective) return timeOutWinner(s);
   if (goalRule(s.goal).timeOut === TimeOutRule.BossTeam) {
     if (s.teams === TeamConfig.OneVersusThree || s.teams === TeamConfig.TwoVersusTwo) return s.bossOnLeft ? 1 : 2;
     return s.bossOnLeft ? 1 : 4;

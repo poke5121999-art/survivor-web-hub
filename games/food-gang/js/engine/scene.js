@@ -81,7 +81,8 @@ export class Node {
   updateWorld(parentWorld, dirty) {
     trs(this.local, this.lp, this.lq, this.ls);
     if (parentWorld) mul(this.world, parentWorld, this.local); else this.world.set(this.local);
-    for (const c of this.children) c.updateWorld(this.world, dirty);
+    // a list item scrolled out of its mask (UISystem.cullItem): nothing reads its children until it is back in range
+    if (!this.uiCulled) for (const c of this.children) c.updateWorld(this.world, dirty);
   }
 
   worldPos() { return [this.world[12], this.world[13], this.world[14]]; }

@@ -104,6 +104,35 @@ async function partA() {
     check('delta snapshots are smaller than full ones', deltaB < fullB * 0.8, `${(fullB / n).toFixed(0)} -> ${(deltaB / n).toFixed(0)} B`);
   }
 
+  // host stops on an odd tick right after an event (the match screen closed, the host is leaving): the idle resend
+  // must carry that event in a snapshot the client can decode (it used to reuse the even-tick capture, so the event's
+  // tick offset went negative and every client threw 'packet truncated')
+  {
+    const { HostMatchNet } = await imp('js/net/hostnet.js');
+    const sent = [];
+    const host = new HostMatchNet({ link: { send: (to, b) => sent.push(b) } });
+    host.addClient('c1', 1);
+    const m = new sim.Match(db);
+    const setup = sim.createMatchSetup({ seed: 5, mapIndex: 1, goal: 0, teams: 2 });
+    for (let s = 0; s < 4; s++) sim.addSlot(setup, s, 1 + s * 3, 12, true, 0.8);
+    const st = m.create(setup);
+    host.runner = { state: st };
+    let stopAt = 0;
+    for (let t = 0; t < 3600 && !stopAt; t++) {
+      m.step(st, []);
+      const ev = m.drainEvents();
+      host.onStep(st, ev);
+      if (st.tick % 2 && ev.length && host.seq > 2) stopAt = st.tick;
+    }
+    host.closing = true;
+    const before = sent.length;
+    let behind = -1, err = '', got = null;
+    try { behind = host.flushIdle(); got = codec.decodeSnapshot(sent[sent.length - 1], () => null); } catch (e) { err = e.message; }
+    const last = got && got.events.length ? got.events[got.events.length - 1].seq : 0;
+    check('codec: the idle resend after an odd-tick stop decodes and carries the newest event', !!stopAt && !err && sent.length > before
+      && behind === 1 && last === host.eventSeq && got.h.tick === stopAt, err || `stop tick ${stopAt}, resend tick ${got && got.h.tick}, event ${last}/${host.eventSeq}`);
+  }
+
   let chan = 0;
   const profile = (name, skin = 1, level = 3) => {
     const p = meta.newProfile(new Date(), new metaM.MetaRng(7));
@@ -328,7 +357,7 @@ async function partB() {
   fs.mkdirSync(SHOTS, { recursive: true });
   const server = process.env.FG_URL ? null : await serve();
   const URL0 = process.env.FG_URL || `http://localhost:${server.address().port}/games/food-gang/net.html`;
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const shared = LOOP ? await browser.newContext() : null;
   if (shared) await shared.addInitScript(hiddenTabEmulation);
   const errors = [];
@@ -467,14 +496,39 @@ async function partB() {
         await c0.screenshot({ path: path.join(SHOTS, `${name}-client-end.png`) });
       }
       // teardown like the game: the match screen stops stepping, the host leaves right away; clients must still get
-      // every event before the host's bye
-      const E = await hostP.evaluate(() => { const p = window.fgNet.player; p.stop(); if (p.runner) p.runner.running = false; return p.net.net.eventSeq; });
+      // every event before the host's bye. Worst case on purpose: stop right after a step that raised an event newer than
+      // the last 30 Hz snapshot (an odd tick), so only the idle resend can carry it; plain stop if none comes in 15 s.
+      const stop = await hostP.evaluate(() => new Promise((done) => {
+        const p = window.fgNet.player, r = p.runner, n = p.net.net;
+        let how = 'natural';
+        const halt = () => {
+          p.stop(); if (p.runner) p.runner.running = false;
+          const cap = n.lastCap ? n.lastCap.tick : 0;
+          done({ E: n.eventSeq, tick: r ? r.state.tick : -1, cap, newer: n.events.filter((x) => x.e.tick > cap).length, how });
+        };
+        if (!r) return halt();
+        const orig = r.onStep, cap = () => (n.lastCap ? n.lastCap.tick : 0);
+        let forced = false;
+        const t = setTimeout(() => { forced = true; }, 15000);
+        r.onStep = (ev) => {
+          orig(ev);
+          if (!ev.some((e) => e.tick > cap()) && !(forced && r.state.tick % 2 && n.events.length)) return;
+          if (!ev.some((e) => e.tick > cap())) {
+            // none came naturally (they are rare once the match is over): this tick raises a copy of the newest real event
+            how = 'injected';
+            n.events.push({ seq: ++n.eventSeq, e: { ...n.events[n.events.length - 1].e, tick: r.state.tick } });
+          }
+          clearTimeout(t); r.onStep = orig; halt();
+        };
+      }));
+      const E = stop.E;
+      check(`B/${name}: the host stopped with events newer than its last snapshot (the idle resend path ran)`, stop.newer > 0, `tick ${stop.tick}, snapshot ${stop.cap}, ${stop.newer} newer, ${stop.how}`);
       await hostP.evaluate(() => window.fgNet.leave());
       const liveClients = live.filter((p) => clientPs.includes(p));
       const fin = await until(async () => { const r = await Promise.all(liveClients.map(info)); return r.every((x) => x && x.closed) ? r : null; }, 10000, 100);
       const lg = await hostP.evaluate(() => window.fgNet.player.session.linger || null);
       check(`B/${name}: after the host leaves, every client holds all ${E} events, then sees the host go`, !!fin && fin.every((x) => x.lastEvent === E && x.closed === 'host-left'),
-        (fin || []).map((x) => `${x.lastEvent} ${x.closed}`).join(', ') + (lg ? `; host lingered ${lg.ms} ms for ${lg.behind}, ${lg.left} left` : '; nothing to linger for'));
+        (fin || []).map((x) => `${x.lastEvent} ${x.closed}`).join(', ') + (lg ? `; host lingered ${lg.ms} ms for ${lg.behind}, ${lg.left} left` : '; nothing to linger for') + `; stopped at tick ${stop.tick}, last snapshot ${stop.cap}, ${stop.newer} newer events (${stop.how})`);
       const errs = errors.slice(errs0);
       check(`B/${name}: no page errors`, errs.length === 0, errs.slice(0, 4).join(' | '));
     } finally {

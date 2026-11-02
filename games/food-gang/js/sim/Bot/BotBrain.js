@@ -8,6 +8,7 @@ import { has, isDead } from '../State/MatchState.js';
 import { SimConst, isSameTeam, agentCenter, agentHitRadius } from '../Systems/GameRules.js';
 import { linecast as physLinecast, MASK_ALL } from '../Systems/Physics2D.js';
 import { bestJumpNodeToward } from './NavGraph.js';
+import { isObjective, botObjective } from '../Systems/Objectives.js';
 
 const OFFENSIVE_SPECIAL_RETRY_DELAY = f(0.75);
 const DEFAULT_RANGE_MAX = 10;
@@ -67,6 +68,8 @@ export function think(c, a) {
     bot.navIndex = 0;
   }
   applyMovement(c, a, elapsed);
+  // objective modes: at the fridge, face it and strike when the action is ready
+  if (bot.objAttack && !a.isActioning && !a.isBusy && a.cooldownAction <= 0 && a.grounded) { a.directionX = bot.objAttack; a.action = true; }
   if (s.botNoMove) { a.directionX = 0; a.jump = false; }
   if (s.botNoAction) a.action = a.special = a.actionHeld = a.specialHeld = false;
   return desiredAsInput(a);
@@ -284,6 +287,19 @@ function evaluateMove(c, a, elapsed) {
   const mos = meleeOrShootMode(a);
   if (!M && hp < (bot.target < 0 ? 0.75 : F065) && tryMoveToHealZone(c, a, elapsed)) return;
   if (tryAvoidDangerZone(c, a, elapsed)) return;
+  // web-only objective modes (Objectives.js): go for the cart / fridge unless an enemy is close
+  if (isObjective(c.s.goal)) {
+    const tgt = bot.target >= 0 ? c.agent(bot.target) : null;
+    const o = botObjective(c, a, tgt != null && Vec2.distance(tgt.pos, a.pos) < 7);
+    bot.objAttack = o && o.attack ? o.face : 0;
+    if (o) {
+      bot.destination = Vec2.copy(o.dest);
+      bot.timeSinceLastDestination = elapsed;
+      bot.timeRefreshDestination = 0.5;
+      requestPath(c, a, bot.destination);
+      return;
+    }
+  }
 
   const map = c.map;
   const nodes = map.nav;

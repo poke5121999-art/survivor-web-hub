@@ -21,6 +21,21 @@ export class SettingsScreen extends Screen {
       if (am) this.mutes.push({ n, f: am.fields, kind: am.fields.m_type === 1 ? 'music' : 'sfx' });
       if (vm) { if (!st.canVibrate) n.setActive(false); else this.mutes.push({ n, f: vm.fields, kind: 'vibration' }); }
     }
+    // SCREEN SHAKE [ĐỀ XUẤT]: a copy of the HAPTIC FEEDBACK button next to it (shown on every device)
+    const vb = this.find('Button_Vibration');
+    if (vb) {
+      const c = this.clone(vb);
+      const kids = vb.parent.children; kids.splice(kids.indexOf(c.root), 1); kids.splice(kids.indexOf(vb) + 1, 0, c.root);
+      c.root.name = 'Button_ScreenShake';
+      c.root.setActive(true);
+      const vm = c.root.script('VibrationMute');
+      if (vm) { vm.enabled = false; this.mutes.push({ n: c.root, f: vm.fields, kind: 'shake', inst: c }); }
+      const b = c.root.get('Button'); if (b) b.onClickResolved = [];
+      const label = c.root.findDeep('Label');
+      const loc = label && label.script('Localize'); if (loc) loc.fields.m_key = '';
+      this.shakeLabel = label && label.inChildren('Text')[0];
+      this.shakeBtn = c.root;
+    }
     for (const m of this.mutes) this.onNode(m.n, () => this.switchMute(m));
     this.on('SwitchFPS', () => { st.setFps(st.fps !== 60 ? 60 : 120); this.updateDisplay(); });
     this.on('Open', (o, b) => { const f = b.node.script('OpenUrl'); if (f) window.open(f.fields.m_urlAndroid, '_blank', 'noopener'); });
@@ -50,6 +65,7 @@ export class SettingsScreen extends Screen {
     const st = this.app.settings;
     if (m.kind === 'music') st.setMusicMute(!st.musicMute);
     else if (m.kind === 'sfx') st.setSfxMute(!st.sfxMute);
+    else if (m.kind === 'shake') st.setScreenShake(!st.screenShake);
     else { st.setVibrationMute(!st.vibrationMute); st.vibrate(30); }
     this.updateDisplay();
   }
@@ -58,10 +74,13 @@ export class SettingsScreen extends Screen {
   updateDisplay() {
     const st = this.app.settings;
     for (const m of this.mutes) {
-      const muted = m.kind === 'music' ? st.musicMute : m.kind === 'sfx' ? st.sfxMute : st.vibrationMute;
-      const img = this.ref(m.f.m_image); if (img) img.setSprite(muted ? m.f.m_off : m.f.m_on);
-      this.text(m.f.m_text, T(muted ? 'general.no' : 'general.yes'));
+      const muted = m.kind === 'music' ? st.musicMute : m.kind === 'sfx' ? st.sfxMute : m.kind === 'shake' ? !st.screenShake : st.vibrationMute;
+      // the copy's field refs resolve inside the copy
+      const ref = (r) => (m.inst ? m.inst.ref(r) : this.ref(r));
+      const img = ref(m.f.m_image); if (img) img.setSprite(muted ? m.f.m_off : m.f.m_on);
+      const tx = ref(m.f.m_text); if (tx && tx.setText) tx.setText(T(muted ? 'general.no' : 'general.yes'));
     }
+    if (this.shakeLabel) this.shakeLabel.setText(T('web.settings.shake'));
     const fps = this.script('FPSSettings'); if (fps) this.text(fps.fields.m_text, String(st.fps));
     if (this.langBtn) {
       const id = getLanguage ? getLanguage() : 'English';
@@ -90,7 +109,7 @@ export class SettingsScreen extends Screen {
 
   debug() {
     const st = this.app.settings;
-    return { music: !st.musicMute, sfx: !st.sfxMute, fps: st.fps, language: getLanguage(), name: this.app.profile.name,
+    return { music: !st.musicMute, sfx: !st.sfxMute, fps: st.fps, shake: st.screenShake, shakeButton: this.btnPos(this.shakeBtn), language: getLanguage(), name: this.app.profile.name,
       languageButton: this.btnPos(this.langBtn), field: this.field ? this.btnPos(this.field.node) : null };
   }
 }

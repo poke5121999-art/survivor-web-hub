@@ -13,6 +13,7 @@ import * as LifeSystem from './Systems/LifeSystem.js';
 import * as MoveSystem from './Systems/MoveSystem.js';
 import * as ActionSystem from './Systems/ActionSystem.js';
 import * as BulletSystem from './Systems/BulletSystem.js';
+import * as Objectives from './Systems/Objectives.js';
 import { think } from './Bot/BotBrain.js';
 import { NavGraph } from './Bot/NavGraph.js';
 
@@ -67,6 +68,8 @@ export class Match {
     if (setup.mapIndex < 0 || setup.mapIndex >= this.db.maps.length) throw new Error('map index ' + setup.mapIndex + ' not in GameDb');
     if (setup.slots.length === 0 || setup.slots.length > 4) throw new Error('slot count ' + setup.slots.length + ' outside 1..4');
     if (setup.goal === GoalType.KillBoss && setup.teams !== TeamConfig.OneVersusThree) throw new Error('KillBoss needs TeamConfig.OneVersusThree');
+    if (Objectives.isObjective(setup.goal) && setup.teams !== TeamConfig.TwoVersusTwo) throw new Error('objective modes need TeamConfig.TwoVersusTwo');
+    if (GameRules.goalRule(setup.goal) == null) throw new Error('goal ' + setup.goal + ' not in GameRules');
 
     const s = createMatchState();
     s.seed = setup.seed | 0;
@@ -84,6 +87,7 @@ export class Match {
     s.phase = GamePhase.WaitingToStart;
     s.winnerSlot = -1;
     s.timerMax = setup.noTimer ? 0 : GameRules.goalRule(setup.goal).timerMax;
+    if (Objectives.isObjective(s.goal)) Objectives.init(s);
     const c = this._bind(s);
 
     const slots = dotnetSort(setup.slots.slice(), (a, b) => compareNum(a.slot, b.slot));
@@ -136,6 +140,7 @@ export class Match {
     for (const a of s.agents) MoveSystem.update(c, a);
     for (const a of s.agents) ActionSystem.update(c, a);
     BulletSystem.update(c);
+    if (Objectives.isObjective(s.goal)) Objectives.update(c, GameRules.triggerGameOver);
   }
 
   /** Copies pending events into `into` and clears them. */

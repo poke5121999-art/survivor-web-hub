@@ -403,7 +403,7 @@ async function parityRun(browser, base) {
   const srv = process.env.FG_URL ? null : await serve();
   const base = process.env.FG_URL || `http://localhost:${srv.address().port}/games/food-gang/index.html`;
   // hardware ANGLE: swiftshader caps a 1280x720 WebGL page near 20 fps whatever the page does
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const only = process.env.FG_ONLY ? process.env.FG_ONLY.split(',').map((s) => s.split(':')) : null;
   const budget = Number(process.env.FG_TIMEOUT || 1500) * 1000;
   const killer = setTimeout(() => { console.log(`  FAIL timeout (${budget / 1000} s)`); process.exit(2); }, budget);

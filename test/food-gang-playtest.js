@@ -67,7 +67,9 @@ function helpers(page, tag) {
     if (touch) await touch.tap(pos[0], pos[1]); else await page.mouse.click(pos[0], pos[1]);
     await sleep(180);
   };
-  const press = async (method, scene, name) => { const b = await button(method, scene, name); if (!b) return false; await clickAt(b.pos); return true; };
+  // BATTLE! opens the Play -> mode picker (ScenePrivateConfiguration, rev 20261102b): press its BATTLE! (choice kept, Random by default)
+  const pickBattle = async () => { const u = await until(() => { const x = window.fgDebug().ui[0]; return x && x.scene === 'ScenePrivateConfiguration' && x.battleButton ? x.battleButton : null; }, 8000, null, 80); if (u) await clickAt(u); return !!u; };
+  const press = async (method, scene, name) => { const b = await button(method, scene, name); if (!b) return false; await clickAt(b.pos); if (method === 'Play' && scene === 'SceneMenu') return pickBattle(); return true; };
   const back = async (scene) => { const ok = await press('Close', scene) || await press('OnClickBack', scene); await sleep(600); return ok; };
   const shot = async (name) => { fs.mkdirSync(OUT, { recursive: true }); const p = path.join(OUT, `${tag}_${name}.png`); await page.screenshot({ path: p }); return path.relative(ROOT, p).replace(/\\/g, '/'); };
   const tapRewards = async (shotName) => {
@@ -114,10 +116,10 @@ async function fight(page, h, { touch = null, scale = 1, maxMs = 240000, tag = '
   const t0 = Date.now();
   const keys = new Set();
   const setKey = async (k, on) => { if (on && !keys.has(k)) { keys.add(k); await page.keyboard.down(k); } else if (!on && keys.has(k)) { keys.delete(k); await page.keyboard.up(k); } };
-  let plats = null, ctl = null, lastX = null, stuck = 0, jumpFor = -2, fps = [], shots = 0, sawMatch = false, sfx0 = null, special = 0, attackT = 0;
+  let plats = null, ctl = null, lastX = null, stuck = 0, jumpFor = -2, fps = [], shots = 0, sawMatch = false, sfx0 = null, special = 0, attackT = 0, last = '';
   const releaseAll = async () => { for (const k of [...keys]) await setKey(k, false); if (touch) await touch.send([]); };
   for (;;) {
-    if (Date.now() - t0 > maxMs) { await releaseAll(); return { timeout: true, ms: Date.now() - t0, fps }; }
+    if (Date.now() - t0 > maxMs) { await releaseAll(); return { timeout: true, ms: Date.now() - t0, fps, last }; }
     const d = await h.ev(() => {
       const d = window.fgDebug(); const m = d.match;
       if (!m) return { screen: d.screen, phase: d.phase };
@@ -167,10 +169,17 @@ async function fight(page, h, { touch = null, scale = 1, maxMs = 240000, tag = '
             if (Math.abs(ex - me.x) < 0.5) { jump = true; dir = 0; } else dir = Math.sign(ex - me.x);
           }
         } else jump = me.grounded;
+      } else if (dy < -1.1 && me.grounded) {
+        // foe below a shelf the player stands on (a tutorial dummy under it): walk off the nearer edge and drop
+        // the body overhangs a shelf edge by ~0.5 while still standing on it (stuck at x 11.5 on a 5..11 shelf)
+        const C = plats.find((p) => Math.abs(p.top - me.y) < 0.3 && me.x >= p.l - 0.7 && me.x <= p.r + 0.7);
+        if (C && Math.abs(dx) <= 1.6) dir = Math.sign((me.x - C.l < C.r - me.x ? C.l - 0.8 : C.r + 0.8) - me.x);
+        else if (!C && Math.abs(dx) <= 1.6) dir = Math.sign(dx) || 1;
       }
     }
     if (dir && lastX !== null && Math.abs(me.x - lastX) < 0.02 && me.grounded) { if (++stuck > 4) { jump = true; stuck = 0; } } else stuck = 0;
     lastX = me.x;
+    last = `me ${me.x.toFixed(1)},${me.y.toFixed(1)} g${me.grounded ? 1 : 0} foes ${foes.map((f) => f.x.toFixed(1) + ',' + f.y.toFixed(1)).join(' ')} dir ${dir} jump ${jump}`;
     if (process.env.FG_TRACE) console.log(`    t${((Date.now() - t0) / 1000).toFixed(1)} me ${me.x.toFixed(1)},${me.y.toFixed(1)} g${me.grounded ? 1 : 0} foes ${foes.map((f) => f.x.toFixed(0) + ',' + f.y.toFixed(0)).join(' ')} dir ${dir} jump ${jump} atk ${attack}`);
     // a jump is a press: held 2 loops, then released 2 loops so the next one is a new press
     if (jump && jumpFor <= -2) jumpFor = 2;
@@ -324,7 +333,7 @@ async function desktop(browser, base) {
   const tt = Date.now();
   const tr = await fight(page, h, { maxMs: 150000, tag: 'tuto' });
   const te = await h.until(() => (window.fgDebug().screen === 'tutoend' && window.fgDebug().ui[0] && window.fgDebug().ui[0].scene === 'SceneTutoEnd' ? window.fgDebug().ui[0] : null), 20000);
-  check('tutorial finished by playing (5 dummies destroyed with the keyboard)', !!te && !tr.timeout, `${Math.round((Date.now() - tt) / 1000)} s`);
+  check('tutorial finished by playing (5 dummies destroyed with the keyboard)', !!te && !tr.timeout, `${Math.round((Date.now() - tt) / 1000)} s${tr.timeout ? '; stuck at ' + tr.last : ''}`);
   if (!te) return page;
   await sleep(900);
   await h.shot('02_tutoend');
@@ -383,7 +392,7 @@ async function phone(browser, base) {
   await h.shot('01_tutorial');
   const tr = await fight(page, h, { touch, maxMs: 150000, tag: 'tuto' });
   const te = await h.until(() => (window.fgDebug().ui[0] && window.fgDebug().ui[0].scene === 'SceneTutoEnd' ? window.fgDebug().ui[0] : null), 20000);
-  check('phone: tutorial finished with the on-screen joystick and buttons', !!te && !tr.timeout);
+  check('phone: tutorial finished with the on-screen joystick and buttons', !!te && !tr.timeout, tr.timeout ? 'stuck at ' + tr.last : '');
   if (te) { await sleep(800); await h.shot('02_tutoend'); await h.press('Load', 'SceneTutoEnd'); }
   for (let k = 1; k <= 2; k++) {
     if (k > 1 && !(await h.press('Play', 'SceneMenu'))) { check('phone: BATTLE!', false); break; }
@@ -468,9 +477,12 @@ async function party(browser, base) {
     // each page reads its own result screen as soon as its match ends (the friend-room result only stays ~4 s)
     const res = await Promise.all([A, B].map(async (P, i) => {
       await fight(P.page, P.h, { maxMs: 200000, tag: i ? '' : `round${round}` });
-      return P.h.until(() => { const d = window.fgDebug(); return d.screen === 'gameover' && d.gameOver ? { ...d.gameOver, teams: d.match ? d.match.teams : null } : null; }, 30000, null, 60);
+      return P.h.until(() => { const d = window.fgDebug(); const m = window.fgApp.match || window.fgApp.lastMatch, r = m && m.runner; return d.screen === 'gameover' && d.gameOver ? { ...d.gameOver, teams: d.match ? d.match.teams : null, teamKills: d.teamKills, client: !!(r && r.isClient) } : null; }, 30000, null, 60);
     }));
     check(`party round ${round}: result on both pages, no trophies (friend room)`, res.every((g) => g && g.friend), JSON.stringify(res.map((g) => g && { t: g.title, f: g.friend, tr: g.trophies, teams: g.teams })));
+    // one match on two screens: the guest plays the host's snapshots back (ClientRunner), so the final kills are the host's.
+    // Both pages used to run their own offline sim (app.playMatch spread runnerOptions away) and still passed the rest.
+    if (res.every(Boolean)) check(`party round ${round}: the guest plays the host's match back (ClientRunner, same final kills)`, !res[0].client && res[1].client && JSON.stringify(res[0].teamKills) === JSON.stringify(res[1].teamKills), `host ${JSON.stringify(res[0].teamKills)} guest ${JSON.stringify(res[1].teamKills)} client ${res[1].client}`);
     // a draw is a draw on every page; the guest used to read DRAW off its late snapshot while the host showed VICTORY
     // team modes: a draw is a draw on every page (FFA ranks 2-3 are a DRAW by GameOver's rule, so only team modes)
     if (res.every(Boolean) && res[0].teams !== 0) check(`party round ${round}: both pages agree on draw / no draw (team mode)`, (res[0].title === 'DRAW') === (res[1].title === 'DRAW'), res.map((g) => g.title).join(' / '));
@@ -495,7 +507,7 @@ else (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = process.env.FG_URL ? null : await serve();
   const base = process.env.FG_URL || `http://localhost:${srv.address().port}/games/food-gang/index.html`;
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const budget = Number(process.env.FG_TIMEOUT || 3600) * 1000;
   const killer = setTimeout(() => { console.log(`  FAIL timeout (${budget / 1000} s)`); fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 1)); process.exit(2); }, budget);
   try {

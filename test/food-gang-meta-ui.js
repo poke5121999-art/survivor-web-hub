@@ -48,7 +48,7 @@ function serve() {
   fs.mkdirSync(SHOTS, { recursive: true });
   const srv = process.env.FG_URL ? null : await serve();
   const base = process.env.FG_URL || `http://localhost:${srv.address().port}/games/food-gang/index.html`;
-  const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=vulkan', '--enable-features=Vulkan']), '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const budget = Number(process.env.FG_TIMEOUT || 1500) * 1000;
   const killer = setTimeout(() => { console.log(`  FAIL timeout (${budget / 1000} s)`); process.exit(2); }, budget);
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
@@ -64,7 +64,9 @@ function serve() {
   const topIs = (scene, ms = 15000) => until((s) => { const u = window.fgDebug().ui; return u[0] && u[0].scene === s ? u[0] : null; }, ms, scene);
   const button = (method, scene, name) => ev(([m, s, n]) => (window.fgButtons(s) || []).find((x) => x.method.split(',').includes(m) && (!n || x.name === n)), [method, scene, name]);
   const clickAt = async (pos) => { await page.mouse.click(pos[0], pos[1]); await sleep(150); };
-  const press = async (method, scene, name) => { const b = await button(method, scene, name); if (!b) return false; await clickAt(b.pos); return true; };
+  // BATTLE! opens the Play -> mode picker (ScenePrivateConfiguration, rev 20261102b): press its BATTLE! (choice kept, Random by default)
+  const pickBattle = async () => { const u = await until(() => { const x = window.fgDebug().ui[0]; return x && x.scene === 'ScenePrivateConfiguration' && x.battleButton ? x.battleButton : null; }, 8000); if (u) await clickAt(u); return !!u; };
+  const press = async (method, scene, name) => { const b = await button(method, scene, name); if (!b) return false; await clickAt(b.pos); if (method === 'Play' && scene === 'SceneMenu') return pickBattle(); return true; };
   const back = async (scene) => { const ok = await press('Close', scene) || await press('OnClickBack', scene); await sleep(500); return ok; };
   // SceneReward: tap through every reward until the popup closes
   const tapRewards = async (tag) => {

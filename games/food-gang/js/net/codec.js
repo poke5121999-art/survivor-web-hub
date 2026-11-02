@@ -8,7 +8,8 @@
 import { createBulletState } from '../sim/index.js';
 
 export const MSG = Object.freeze({ CTRL: 1, INPUT: 2, SNAP: 3 });
-export const PROTOCOL = 1;
+// 2: objective-mode globals (cartT, cartPush, objHp) appended to GLOBAL
+export const PROTOCOL = 2;
 // Relay messages ride one WebSocket frame; mini-mart-coop keeps frames under 1100 bytes and so do we.
 export const MAX_PACKET = 1100;
 
@@ -51,6 +52,7 @@ export class Reader {
 
 const num = (k, q) => [(o) => Math.round(o[k] * q), (o, v) => { o[k] = v / q; }];
 const sub = (k, j, q) => [(o) => Math.round(o[k][j] * q), (o, v) => { o[k][j] = v / q; }];
+const opt = (k, q) => [(o) => Math.round((o[k] || 0) * q), (o, v) => { o[k] = v / q; }];
 const flag = (k) => [(o) => (o[k] ? 1 : 0), (o, v) => { o[k] = v !== 0; }];
 const bits = (keys) => [
   (o) => { let m = 0; for (let i = 0; i < keys.length; i++) if (o[keys[i]]) m |= 1 << i; return m; },
@@ -74,6 +76,8 @@ export const GLOBAL = [
   num('phase', 1), num('timerElapsed', 60), num('timerMax', 60), num('winnerSlot', 1), num('winnerTeam', 1), flag('timeOut'),
   ...[0, 1, 2, 3].map((i) => sub('killSlot', i, 1)), ...[0, 1, 2, 3].map((i) => sub('deathSlot', i, 1)),
   ...[0, 1, 2, 3].map((i) => sub('lastKillSeq', i, 1)), ...[0, 1, 2, 3].map((i) => sub('lastDeathSeq', i, 1)),
+  // objective modes (Objectives.js); absent from the state of the original goals, sent as 0
+  opt('cartT', 256), opt('cartPush', 1), opt('objHp', 1), opt('objHpMax', 1),
 ];
 
 export const BULLET = [

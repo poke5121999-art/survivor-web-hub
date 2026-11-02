@@ -8,6 +8,16 @@ const EN = {
   'stage.1': 'Kitchen', 'stage.2': 'Dining table', 'stage.3': 'Pantry', 'info.searching': 'Searching opponents...',
   'info.exit': 'EXIT', 'reward.open.free': 'CLAIM', 'reward.open.ad': 'CLAIM', 'info.playagain': 'PLAY AGAIN',
   'lucky.fridge': 'Lucky fridge!', 'super.lucky.fridge': 'Super Lucky fridge!',
+  // web build only (no key in the original tables)
+  'web.settings.shake': 'SCREEN SHAKE',
+  'web.mode.payload': 'Push the Fridge', 'web.mode.siege': 'Defend the Fridge',
+  'web.mode.desc.random': 'Random battle: the game deals the mode',
+  'web.mode.desc.dm.2vs2': '2 vs 2: most team kills in 90 seconds', 'web.mode.desc.dm.ffa': 'Free for all: most kills in 90 seconds',
+  'web.mode.desc.kill.2vs2': '2 vs 2: first team to 9 kills', 'web.mode.desc.kill.ffa': 'Free for all: first to 5 kills',
+  'web.mode.desc.survive.2vs2': '2 vs 2: 3 lives each, last team standing', 'web.mode.desc.survive.ffa': 'Free for all: 3 lives, last one standing',
+  'web.mode.desc.killboss.1vs3': '1 boss vs 3: take the boss down in 60 seconds',
+  'web.mode.desc.payload': '2 vs 2: push the fridge over the enemy line (2 min)',
+  'web.mode.desc.siege': '2 vs 2: break their fridge, or guard yours for 90 seconds',
 };
 
 

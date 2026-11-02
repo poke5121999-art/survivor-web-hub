@@ -1,6 +1,7 @@
 // FG.Sim enums as frozen int maps (same numeric values as the C# enums, so state JSON diffs field by field).
 
-export const GoalType = Object.freeze({ DeathMatch: 0, Kill5: 1, LastSurvivor: 2, KillBoss: 3 });
+// Payload / Siege: web-only objective modes (Systems/Objectives.js); 4 is the client's "Random" in GameMode.json
+export const GoalType = Object.freeze({ DeathMatch: 0, Kill5: 1, LastSurvivor: 2, KillBoss: 3, Payload: 5, Siege: 6 });
 
 export const TeamConfig = Object.freeze({ FreeForAll: 0, OneVersusThree: 1, TwoVersusTwo: 2 });
 

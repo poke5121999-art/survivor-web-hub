@@ -303,7 +303,8 @@ export class UISystem {
         fn.rect.amax = d === 0 ? [v, 1] : d === 2 ? [1, v] : [1, 1];
       }
     }
-    for (const c of n.children) this.layoutNode(c, n, cv);
+    // a list item scrolled well out of its mask (drawNode decides, see cullItem): only its own rect is laid out
+    if (!n.uiCulled || !n.uiLaidOut) { for (const c of n.children) this.layoutNode(c, n, cv); n.uiLaidOut = true; }
   }
 
   // ----------------------------------------------------------------------------------------------- drawing
@@ -341,7 +342,29 @@ export class UISystem {
       else if (c.type === 'RawImage') this.drawImage(n, c, R, alpha, clip);
       else if (c.type === 'Text') this.drawText(n, c, R, alpha, clip);
     }
-    for (const ch of n.children) this.drawNode(ch, R, alpha, myClip);
+    // items of a layout group under a Mask / RectMask2D (scroll lists: fighters, shop, missions) more than one item size
+    // outside the mask are skipped: not drawn, children not laid out, animators paused (RectMask2D culling + Animator
+    // culling in Unity). The margin re-enables an item a frame before it scrolls in, so its children are laid out again.
+    const list = myClip && (n.get('HorizontalLayoutGroup') || n.get('VerticalLayoutGroup') || n.get('GridLayoutGroup'));
+    for (const ch of n.children) {
+      if (list && ch.r && ch.activeSelf && this.cullItem(ch, myClip)) continue;
+      this.drawNode(ch, R, alpha, myClip);
+    }
+  }
+
+  cullItem(n, clip) {
+    const r = this.screenRect(n);
+    // a list that just opened settles (layout groups, scroll position) over its first frames: never cull before
+    // the item has been drawn 3 times, so its children always have a laid-out rect (tests read button positions)
+    n.uiDrawn = (n.uiDrawn || 0) + 1;
+    const off = n.uiDrawn > 3 && (r[0] + 2 * r[2] < clip[0] || r[0] - r[2] > clip[0] + clip[2] || r[1] + 2 * r[3] < clip[1] || r[1] - r[3] > clip[1] + clip[3]);
+    if (n.uiCulled !== off) {
+      n.uiCulled = off;
+      for (const a of n.inChildren('Animator')) a.culled = off;
+      for (const a of n.inChildren('Animation')) a.culled = off;
+    }
+    if (off) stats.uiCulled = (stats.uiCulled || 0) + 1;
+    return off;
   }
 
   drawSpriteRenderer(sr, R, alpha) {
