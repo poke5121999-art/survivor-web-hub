@@ -135,6 +135,11 @@
 .dz-grid > tbody > tr:first-child > td { border-top: 0; }
 .dz-grid__name { min-width: 150px; }
 .dz-row__title { display: block; font-weight: 600; padding-top: 7px; }
+.dz-row__sprite { --dz-sprite: 48px; box-sizing: content-box; float: left; width: var(--dz-sprite); height: var(--dz-sprite); margin: 2px 10px 2px 0; overflow: hidden;
+  border-radius: 6px; background: var(--bg-elev); border: 1px solid var(--border); }
+.dz-row__sprite[hidden] { display: none; }
+.dz-grid__name:has(.dz-row__sprite) { min-width: 240px; }
+.dz-row__sprite img { display: block; height: var(--dz-sprite); width: auto; max-width: none; image-rendering: pixelated; }
 .dz-row__id { display: block; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text-dim); }
 .dz-row.is-changed .dz-row__title::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--chg); vertical-align: 1px; }
 .dz-grid__more { width: 1%; white-space: nowrap; text-align: right; }

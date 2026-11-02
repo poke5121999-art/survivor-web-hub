@@ -521,8 +521,10 @@
 
     loot_items: {
       title: "Giá từng món đồ",
-      blurb: "Khoảng giá và chỗ rơi của từng món trong các bộ loot riêng (vampire, pyramid, spacestation, asylum).",
+      blurb: "Khoảng giá và chỗ rơi của từng món trong các bộ loot riêng (vampire, pyramid, vietnam, spacestation, asylum).",
       effect: RUN,
+      // Hình của dòng: ô thứ <slot> trong dải loot-<bộ>-<cỡ>.png, ô vuông xếp ngang. Hub nhận dải từ Tools/Agent/hub.sh của Repo_client.
+      rowSprite: { src: "games/repo2d-unity/loot/loot-{set}-{size}.png", names: { size: ["nho", "vua", "to"] }, cell: "slot" },
       fields: {
         "_id": { label: "Mã", help: "<bộ>/<tên prefab>, chỉ để không trùng. Giữ nguyên." },
         "set": { label: "Bộ loot", help: "Khoá nhận diện món cùng với cỡ và ô; đổi là game không tìm thấy món." },

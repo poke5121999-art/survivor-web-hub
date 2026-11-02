@@ -358,6 +358,24 @@
     return doc._id;
   }
 
+  // Square cell <doc[spec.cell]> of a horizontal strip; null when the table declares none or the row lacks a key.
+  function rowSprite(table, doc) {
+    var spec = (LABELS[table] || {}).rowSprite;
+    if (!spec || typeof doc[spec.cell] !== "number") return null;
+    var missing = false;
+    var src = spec.src.replace(/\{(\w+)\}/g, function (_, k) {
+      var v = spec.names && spec.names[k] ? spec.names[k][doc[k]] : doc[k];
+      if (v === undefined || v === null) missing = true;
+      return v;
+    });
+    if (missing) return null;
+    var img = h("img", { src: src, alt: "", loading: "lazy", decoding: "async" });
+    img.style.marginLeft = "calc(var(--dz-sprite) * " + -doc[spec.cell] + ")";
+    var box = h("span", { class: "dz-row__sprite", "data-sprite": src + "#" + doc[spec.cell] }, img);
+    img.addEventListener("error", function () { box.hidden = true; });
+    return box;
+  }
+
   // Split a list table into the sections its labels declare. Fields no section lists
   // land in a final "Khác" section so nothing is hidden. null = no sections declared.
   function sectionsOf(table, docs) {
@@ -691,7 +709,7 @@
       var tr = h("tr", { class: "dz-row", "data-id": doc._id });
       tr._fields = sec ? sec.fields : null;
       tr._search = (title + " " + doc._id).toLowerCase();
-      tr.appendChild(h("td", { class: "dz-grid__name" }, h("span", { class: "dz-row__title", text: title }),
+      tr.appendChild(h("td", { class: "dz-grid__name" }, rowSprite(table, doc), h("span", { class: "dz-row__title", text: title }),
         title !== doc._id ? h("span", { class: "dz-row__id", text: doc._id }) : null));
       cols.forEach(function (c) {
         var td = h("td", { "data-label": colLabel[c] });
