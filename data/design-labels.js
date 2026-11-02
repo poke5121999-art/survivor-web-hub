@@ -12,7 +12,7 @@
   window.DESIGN_LABELS = {
     wallet_start: {
       title: "Gói khởi đầu",
-      blurb: "Tài khoản mới nhận gì khi vào game lần đầu, và quà khi chơi hết màn hướng dẫn.",
+      blurb: "Tài khoản mới nhận gì khi vào game lần đầu, và quà mỗi cell của popup Hướng dẫn.",
       effect: "Chỉ áp cho tài khoản tạo SAU khi lưu.",
       fields: {
         "_id": CFG_ID,
@@ -24,7 +24,13 @@
         "mateTactics": { label: "Chiến thuật 4 ô đồng đội", items: ["Ô 1", "Ô 2", "Ô 3", "Ô 4"], help: "Mã chiến thuật: loot, thu, soi, baoke, cuuho, nhu, san, tiepte." },
         "tutorialGold": { label: "Quà hướng dẫn: vàng", unit: "vàng", min: 0, int: true, help: "Trao một lần duy nhất, khi người chơi chơi hết màn hướng dẫn lần đầu. 0 = không tặng." },
         "tutorialGem": { label: "Quà hướng dẫn: ngọc", unit: "ngọc", min: 0, int: true, help: "Trao cùng lúc với vàng quà hướng dẫn. 0 = không tặng." },
-        "tutorialTicketX": { label: "Quà hướng dẫn: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." }
+        "tutorialTicketX": { label: "Quà hướng dẫn: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." },
+        "tutorialCell2Gold": { label: "Hướng dẫn cell 2: vàng", unit: "vàng", min: 0, int: true, help: "Popup Hướng dẫn: trao một lần khi người chơi xong cell 2 (đánh quái, ném đồ, kỹ năng). Quà cell 1 là ba ô Quà hướng dẫn ở trên. 0 = không tặng." },
+        "tutorialCell2Gem": { label: "Hướng dẫn cell 2: ngọc", unit: "ngọc", min: 0, int: true, help: "Như trên." },
+        "tutorialCell2TicketX": { label: "Hướng dẫn cell 2: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." },
+        "tutorialCell3Gold": { label: "Hướng dẫn cell 3: vàng", unit: "vàng", min: 0, int: true, help: "Popup Hướng dẫn: trao một lần khi người chơi xong cell 3 (shop trong ca, trang bị, hồi sinh). 0 = không tặng." },
+        "tutorialCell3Gem": { label: "Hướng dẫn cell 3: ngọc", unit: "ngọc", min: 0, int: true, help: "Như trên." },
+        "tutorialCell3TicketX": { label: "Hướng dẫn cell 3: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." }
       }
     },
 
