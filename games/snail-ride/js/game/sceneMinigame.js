@@ -1,11 +1,11 @@
 // SceneMinigame (level2) port: MinigameSystem + MinigameSkin (claw machine that wins snail skins).
-import { THREE, buildNode, sceneRoots, worldAdapter } from '../engine/world.js?v=20261102a';
-import { A, refKey } from '../engine/assets.js?v=20261102a';
-import { SceneGame } from './sceneGame.js?v=20261102a';
-import { publish, subscribe, clearScope } from './events.js?v=20261102a';
-import { Game, saveUser, timestamp, rnd, rndi } from './user.js?v=20261102a';
-import * as SFX from './audio.js?v=20261102a';
-import { randomSkin, NEW_SKIN_TEMPLATE } from './systems.js?v=20261102a';
+import { THREE, buildNode, sceneRoots, worldAdapter } from '../engine/world.js?v=20261102c';
+import { A, refKey } from '../engine/assets.js?v=20261102c';
+import { SceneGame } from './sceneGame.js?v=20261102c';
+import { publish, subscribe, clearScope } from './events.js?v=20261102c';
+import { Game, saveUser, timestamp, rnd, rndi } from './user.js?v=20261102c';
+import * as SFX from './audio.js?v=20261102c';
+import { randomSkin, NEW_SKIN_TEMPLATE } from './systems.js?v=20261102c';
 
 export class SceneMinigame {
   constructor(app) {
@@ -120,13 +120,14 @@ export class SceneMinigame {
     this.freeRetry = freeRetry;
     this.ui && this.ui.setMenu(true);
     if (this.skinCatched) for (let i = this.skins.length - 1; i >= 0; i--) if (this.skins[i].catched) { this.skins[i].t.obj.removeFromParent(); if (this.skins[i].shadow) this.skins[i].shadow.go.obj.removeFromParent(); this.skins.splice(i, 1); }
-    this.hook.obj.position.y = this.hookDiveOriginY || this.hook.obj.position.y;
+    this.app.blurReset && this.app.blurReset(); // BlurSystem.BlurStop
+    this.hook.obj.position.y = this.hookDiveOriginY;
     this.diving = false; this.skinCatched = null; this.snapped = false; this.hookCoef = 1; this.catch = false;
     this.ui && this.ui.setRetry(false);
     this.hookAnimator.setBool('Blink', true);
     this.ui && this.ui.setHookIcon(freeRetry);
     if (this.hookSprite) this.hookSprite.setSprite(freeRetry ? A.game.hook.m_hookDouble : A.game.hook.m_hookNormal);
-    this.hookNet && this.hookNet.go.setActive(!freeRetry); this.hookNet2 && this.hookNet2.go.setActive(freeRetry);
+    const goOf = x => x && (x.go || x); goOf(this.hookNet) && goOf(this.hookNet).setActive(!freeRetry); goOf(this.hookNet2) && goOf(this.hookNet2).setActive(freeRetry);
   }
   retryPay() {
     const u = Game.User;

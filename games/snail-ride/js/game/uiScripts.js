@@ -1,13 +1,13 @@
 // UI MonoBehaviours of Snail Ride ported onto the DOM UI runtime (engine/ui.js).
 // Each factory gets ctx {u: UINode, c: component dict, S: UIScripts} and returns a behaviour object.
-import { A, tr, refKey } from '../engine/assets.js?v=20261102a';
-import { Animator, LegacyAnimation } from '../engine/anim.js?v=20261102a';
-import { spriteKeyFromRef } from '../engine/world.js?v=20261102a';
-import { publish, subscribe } from './events.js?v=20261102a';
-import { Game, saveUser, addCurrency, resetUser, skinById, timestamp, rnd } from './user.js?v=20261102a';
-import * as SFX from './audio.js?v=20261102a';
-import * as Sys from './systems.js?v=20261102a';
-import { MinigameLoop } from './sceneMinigame.js?v=20261102a';
+import { A, tr, refKey } from '../engine/assets.js?v=20261102c';
+import { Animator, LegacyAnimation } from '../engine/anim.js?v=20261102c';
+import { spriteKeyFromRef } from '../engine/world.js?v=20261102c';
+import { publish, subscribe } from './events.js?v=20261102c';
+import { Game, saveUser, addCurrency, resetUser, skinById, timestamp, rnd } from './user.js?v=20261102c';
+import * as SFX from './audio.js?v=20261102c';
+import * as Sys from './systems.js?v=20261102c';
+import { MinigameLoop } from './sceneMinigame.js?v=20261102c';
 
 const U = () => Game.User;
 
@@ -34,8 +34,9 @@ export class UIScripts {
     u.walk(n => {
       if (n.tree !== u.tree) return;
       for (const c of n.compList) {
-        if (c.type === 'Animator' && refKey(c.m_Controller)) { const a = new Animator(n, uiAdapter, refKey(c.m_Controller)); c.animator = a; this.behs.push({ u: n, update: dt => n.activeInHierarchy && a.update(dt) }); }
-        if (c.type === 'Animation') { const a = new LegacyAnimation(n, uiAdapter, c); c.anim = a; this.behs.push({ u: n, update: dt => a.update(dt) }); }
+        const onEvent = e => { for (const k of n.compList) if (k.beh && typeof k.beh[e.fn] === 'function') k.beh[e.fn](e.str || e.int || e.float); };
+        if (c.type === 'Animator' && refKey(c.m_Controller)) { const a = new Animator(n, uiAdapter, refKey(c.m_Controller), { onEvent }); c.animator = a; this.behs.push({ u: n, update: dt => n.activeInHierarchy && a.update(dt) }); }
+        if (c.type === 'Animation') { const a = new LegacyAnimation(n, uiAdapter, c, { onEvent }); c.anim = a; this.behs.push({ u: n, update: dt => a.update(dt) }); }
         const f = SCRIPTS[c.type];
         if (f) { const b = f({ u: n, c, S: this }); if (b) { b.u = b.u || n; b.c = c; c.beh = b; this.byId.set(c.id, b); created.push(b); this.behs.push(b); } }
       }
@@ -45,7 +46,12 @@ export class UIScripts {
     this.runPending(created);
     return u;
   }
-  beh(ref, from) { const id = ref && (ref.$ || ref); return id ? this.byId.get(id) || null : null; }
+  // Component behaviour by reference, resolved inside the referencing instance (prefab clones share ids).
+  beh(ref, from) {
+    const id = ref && (ref.$ || ref); if (!id) return null;
+    if (from) { const n = from.findById(id); const c = n && n.compList.find(x => x.id === id); if (c) return c.beh || null; }
+    return this.byId.get(id) || null;
+  }
   node(ref, from) { const id = ref && (ref.$ || ref); return id && from ? from.findById(id) : null; }
   comp(ref, from) { const id = ref && (ref.$ || ref); const n = this.node(id, from); return n ? (n.id === id ? null : n.compList.find(c => c.id === id)) : null; }
   click(n, call) {
@@ -135,8 +141,9 @@ const SCRIPTS = {
   AnimatorSetState({ c, S, u }) { return { start() { const a = S.comp(c.m_animator, u); a && a.animator && a.animator.crossFade(c.m_state, 0, 0, 0); } }; },
   AudioEmitter({ c }) { return { Trigger() { SFX.playSFX(c.m_key); } }; },
   FollowTarget() { return null; },
-  Leaderboard({ u }) { return { start() { }, Open() { /* Google Play leaderboards are not available on the web */ } }; },
-  RestorePurchase() { return { Restore() {} }; },
+  // Google Play leaderboards and in-app purchases do not exist on the web: hide their buttons.
+  Leaderboard({ u }) { return { start() { if (u.btn) u.setActive(false); else topOf(u).findAll('Leaderboard').forEach(n => n.btn && n.setActive(false)); }, Open() {} }; },
+  RestorePurchase({ u }) { return { start() { u.setActive(false); }, Reset() {} }; },
   GenerateItem({ u, c, S }) {
     return { Generate() {
       const tpl = A.scene.prefabs[refKey(c.m_item)]; const parent = S.node(c.m_parent, u); const tr0 = S.node(c.m_transform, u);
@@ -216,7 +223,7 @@ const SCRIPTS = {
       },
       DisplayMission(t = 2) {
         S.node(c.m_rootMission, u)?.setActive(true); S.node(c.m_rootMessage, u)?.setActive(false);
-        const md = S.beh(c.m_missionDisplay); md && md.SetMission(Sys.missionCurrent());
+        const md = S.beh(c.m_missionDisplay, u); md && md.SetMission(Sys.missionCurrent());
         if (type !== 2) { type = 2; const p = u.getAnchoredPos(); u.setAnchoredPos(p[0], 128); }
         time = t; yT = 0; aT = 1;
       },
@@ -327,8 +334,8 @@ const SCRIPTS = {
         b.UpdateDisplay();
       },
       UpdateDisplay() {
-        const get = r => S.beh(r); const node = r => S.node(r, u);
-        for (const k of ['m_minigameController', 'm_giftController', 'm_missionController', 'm_adRewardController', 'm_shareScreenshot']) get(c[k])?.UpdateDisplay?.();
+        const get = (r, from = u) => S.beh(r, from); const node = r => S.node(r, u);
+        for (const k of ['m_minigameController', 'm_giftController', 'm_missionController', 'm_adRewardController', 'm_shareScreenshot']) get(c[k], u)?.UpdateDisplay?.();
         let fl = A.game.skins.some(s => s.availability === 0 && !U().m_skins.includes(s.id)) && U().m_currency >= A.game.priceMinigame;
         const m = Sys.missionCurrent();
         if (f.mission && m && m._success) fl = false; else if (f.gift && Sys.giftRemaining() <= 0) fl = false;
@@ -351,7 +358,7 @@ const SCRIPTS = {
         setTxt(S, c.m_textMinigame, u, tr('minigame.available').replace('[X]', String(p)));
         setTxt(S, c.m_priceMinigame, u, p);
         S.node(c.m_button, u)?.setActive(avail);
-        S.beh(c.m_buttonDisplay)?.SetEnable?.(avail);
+        S.beh(c.m_buttonDisplay, u)?.SetEnable?.(avail);
       } };
     return b;
   },
@@ -360,7 +367,7 @@ const SCRIPTS = {
     const n = r => S.node(r, u);
     const b = { always: false,
       start() { S.sub('WatchAdEvent', e => { if (e.type === 'DoubleReward') { dbl = true; b.anim(); } }, b); b.UpdateDisplay(); b.anim(); },
-      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false); n(c.m_buttonRoot)?.setActive(false);
+      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX, u)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false); n(c.m_buttonRoot)?.setActive(false);
         setTimeout(() => publish('CurrencyUpdateEvent'), 1500); setTimeout(() => b.enable(), 2500); },
       enable() {
         n(c.m_buttonContinue)?.setActive(true); n(c.m_buttonRoot)?.setActive(true);
@@ -398,7 +405,7 @@ const SCRIPTS = {
     const n = r => S.node(r, u);
     const b = {
       start() { S.sub('MissionStackUpdateEvent', () => b.UpdateDisplay(), b); S.sub('WatchAdEvent', e => { if (e.type === 'NewMission') b.UpdateDisplay(); if (e.type === 'DoubleReward') { dbl = true; b.anim(); } }, b); b.UpdateDisplay(); b.anim(); },
-      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false); n(c.m_buttonRoot)?.setActive(false);
+      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX, u)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false); n(c.m_buttonRoot)?.setActive(false);
         setTimeout(() => publish('CurrencyUpdateEvent'), 1500); setTimeout(() => b.enable(), 2500); },
       enable() {
         const f1 = !dbl, f2 = Sys.missionRemaining() > 0;
@@ -411,7 +418,7 @@ const SCRIPTS = {
       UpdateDisplay() {
         const m = Sys.missionCurrent();
         n(c.m_rootNew)?.setActive(!m && Sys.missionRemaining() > 0); n(c.m_buttonNew)?.setActive(true); n(c.m_rootCurrent)?.setActive(!!m);
-        if (m) { S.beh(c.m_missionDisplay)?.SetMission(m); n(c.m_buttonClaim)?.setActive(!!m._success); n(c.m_buttonReplace)?.setActive(!m._success && !replaced && m.m_gameCount > 1); }
+        if (m) { S.beh(c.m_missionDisplay, u)?.SetMission(m); n(c.m_buttonClaim)?.setActive(!!m._success); n(c.m_buttonReplace)?.setActive(!m._success && !replaced && m.m_gameCount > 1); }
       },
       Replace() { replaced = true; Sys.replaceMission(); Sys.watchAd('ReplaceMission'); saveUser(); b.UpdateDisplay(); },
       Claim() {
@@ -431,7 +438,7 @@ const SCRIPTS = {
     const n = r => S.node(r, u);
     const b = {
       start() { b.UpdateDisplay(); b.anim(); },
-      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false);
+      anim() { const a = S.comp(c.m_animation, u); if (!a || !a.anim) return; a.anim.play(); S.beh(c.m_rewardFX, u)?.Generate(); SFX.playSFX('Reward'); n(c.m_buttonContinue)?.setActive(false);
         setTimeout(() => publish('CurrencyUpdateEvent'), 1500); setTimeout(() => n(c.m_buttonContinue)?.setActive(true), 2500); },
       UpdateDisplay() { setTxt(S, c.m_label, u, tr('info.morecurrency')); },
       Watch() { // the ad is granted instantly on the web
@@ -460,20 +467,20 @@ const SCRIPTS = {
     let s = null;
     const n = r => S.node(r, u);
     const b = {
-      start() { s = Sys.promoteSkin(); if (!s) { u.setActive(false); return; } S.beh(c.m_display)?.SetSetting(s); b.buttons(); },
+      start() { s = Sys.promoteSkin(); if (!s) { u.setActive(false); return; } S.beh(c.m_display, u)?.SetSetting(s); b.buttons(); },
       buttons() {
         const av = s.availability;
         n(c.m_lockedFacebook)?.setActive(av === 2); n(c.m_lockedGame)?.setActive(av === 3 || av === 5);
-        n(c.m_lockedPay)?.setActive(av === 4 || av === 6 || av === 0); n(c.m_lockedPayCurrency)?.setActive(av === 6 && s.price > 0);
+        n(c.m_lockedPay)?.setActive(false); n(c.m_lockedPayCurrency)?.setActive(av === 6 && s.price > 0); // no IAP on the web
         n(c.m_infoDownloadGame)?.setActive(av === 3); n(c.m_infoRateGame)?.setActive(av === 5); n(c.m_infoFacebook)?.setActive(av === 2);
         n(c.m_doubleMinigame)?.setActive(s.id === 46); n(c.m_doubleCurrency)?.setActive(s.id === 45);
-        S.beh(c.m_buttonPayCurrency)?.SetEnable(U().m_currency >= s.price);
+        S.beh(c.m_buttonPayCurrency, u)?.SetEnable(U().m_currency >= s.price);
         if (s.icon) n(c.m_iconGame)?.setSprite(s.icon);
         setTxt(S, c.m_lockedPrice, u, Sys.iapPrice(s));
         if (av === 6) setTxt(S, c.m_lockedCurrencyPrice, u, Sys.formatNumber(s.price));
       },
       Unlock() { Sys.unlockPromoted(s); S.app.loadScene('SceneGame'); },
-      Pay() { Sys.unlockPaid(s); S.app.loadScene('SceneGame'); },
+      Pay() { /* IAP not available on the web */ },
       PayCurrency() { if (Sys.payCurrency(s)) { publish('CurrencyUpdateEvent'); S.app.loadScene('SceneGame'); } } };
     return b;
   },
@@ -492,10 +499,10 @@ const SCRIPTS = {
         setTxt(S, c.m_specialHint, u, Sys.skinHint(s));
         const color = unknown ? (s.availability === 1 ? [0, 0, 0, 1] : col(c.m_colorUnknownState)) : [1, 1, 1, 1];
         const im = S.node(c.m_image, u); if (im) im.setColor(color);
-        const d = S.beh(c.m_display); if (d) { d.SetSkin(s); d.SetTint(color); }
+        const d = S.beh(c.m_display, u); if (d) { d.SetSkin(s); d.SetTint(color); }
         b.skin = s;
       },
-      Hide(h) { const d = S.beh(c.m_display); d && d.u.setActive(!h); S.node(c.m_image, u)?.setActive(!h); },
+      Hide(h) { const d = S.beh(c.m_display, u); d && d.u.setActive(!h); S.node(c.m_image, u)?.setActive(!h); },
       Share() { if (navigator.share) navigator.share({ text: tr('share.skin').replace('[X]', s.name), url: location.href }).catch(() => {}); U().m_shareCount++; saveUser(); publish('ShareSkinEvent'); } };
     return b;
   },
@@ -518,9 +525,9 @@ const SCRIPTS = {
   },
   Mute({ u, c, S }) {
     let mute = false;
-    const b = { start() { mute = c.m_type === 0 ? U().m_musicMute : U().m_sfxMute; b.upd(); },
+    const b = { start() { mute = c.m_type === 1 ? U().m_musicMute : U().m_sfxMute; b.upd(); },
       upd() { S.node(c.m_image, u)?.setSprite(refKey(mute ? c.m_off : c.m_on)); },
-      SwitchMute() { mute = !mute; b.upd(); if (c.m_type === 0) { U().m_musicMute = mute; SFX.applyMute(); } else U().m_sfxMute = mute; saveUser(); } };
+      SwitchMute() { mute = !mute; b.upd(); if (c.m_type === 1) { U().m_musicMute = mute; SFX.applyMute(); } else U().m_sfxMute = mute; saveUser(); } };
     return b;
   },
   ResetData({ u, c, S }) {

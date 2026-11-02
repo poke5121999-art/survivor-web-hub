@@ -1,7 +1,7 @@
 // Mini Unity-like world runtime on three.js (orthographic, 2D).
 // Unity (x, y, z) maps to three (x, y, -z); camera looks down three -z like Unity's +z.
-import * as THREE from '../../vendor/three.module.min.js?v=20261102a';
-import { A, texImage, spriteInfo, refKey } from './assets.js?v=20261102a';
+import * as THREE from '../../vendor/three.module.min.js?v=20261102c';
+import { A, texImage, spriteInfo, refKey } from './assets.js?v=20261102c';
 
 export { THREE };
 

@@ -1,8 +1,8 @@
 // Meta systems ported from the decompiled C#: RandomSkin, MissionSystem, GiftSystem, AdRewardSystem, MinigameSystem helpers,
 // MenuController.CheckSpecialSkin. Numbers come from the code (see ~/snail-ride-ref/CODE.md).
-import { A, tr } from '../engine/assets.js?v=20261102a';
-import { Game, addCurrency, saveUser, timestamp, rnd, rndi, skinById } from './user.js?v=20261102a';
-import { publish } from './events.js?v=20261102a';
+import { A, tr } from '../engine/assets.js?v=20261102c';
+import { Game, addCurrency, saveUser, timestamp, rnd, rndi, skinById } from './user.js?v=20261102c';
+import { publish } from './events.js?v=20261102c';
 
 const U = () => Game.User;
 
@@ -183,7 +183,8 @@ export function formatNumber(n) { return n ? String(n).replace(/\B(?=(\d{3})+(?!
 
 // ---------- Promote / skin purchase (IAP replaced: paid skins unlock directly on the web) ----------
 let loopPromote = 0;
-export function hasPromoteSkin() { return A.game.skins.some(s => s.availability !== 1 && s.rarity !== 0 && !U().m_skins.includes(s.id)); }
+// Promote.HasPromoteSkin also requires IAPSystem.IsInitialized(); there is no store on the web, so it is false.
+export function hasPromoteSkin() { return false && A.game.skins.some(s => s.availability !== 1 && s.rarity !== 0 && !U().m_skins.includes(s.id)); }
 export function promoteSkin() {
   const l = A.game.skins.filter(s => s.availability !== 0 && s.availability !== 1 && !U().m_skins.includes(s.id));
   const l2 = A.game.skins.filter(s => s.availability === 0 && s.rarity === 1 && !U().m_skins.includes(s.id));

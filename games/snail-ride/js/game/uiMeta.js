@@ -1,10 +1,10 @@
 // Collection (skin carousel), HorizontalScrollSnap and the minigame HUD bridge.
-import { A, refKey, tr } from '../engine/assets.js?v=20261102a';
-import { registerScript } from './uiScripts.js?v=20261102a';
-import { publish } from './events.js?v=20261102a';
-import { Game, saveUser } from './user.js?v=20261102a';
-import * as SFX from './audio.js?v=20261102a';
-import * as Sys from './systems.js?v=20261102a';
+import { A, refKey, tr } from '../engine/assets.js?v=20261102c';
+import { registerScript } from './uiScripts.js?v=20261102c';
+import { publish } from './events.js?v=20261102c';
+import { Game, saveUser } from './user.js?v=20261102c';
+import * as SFX from './audio.js?v=20261102c';
+import * as Sys from './systems.js?v=20261102c';
 
 const U = () => Game.User;
 
@@ -64,7 +64,7 @@ registerScript('Collection', ({ u, c, S }) => {
       if (c.m_root) setTimeout(() => b.build(), 0);
     },
     alert() { n(c.m_alert)?.setActive(U().m_newSkin >= 0 && U().m_newSkin !== 0); },
-    snap() { return S.beh(refKey(c.m_horizontalScrollSnap)); },
+    snap() { return S.beh(c.m_horizontalScrollSnap, u); },
     build() {
       const hs = b.snap(); if (!hs) return;
       hs.AddChild(A.scene.prefabs[refKey(c.m_prefabRandom)]);
@@ -83,7 +83,7 @@ registerScript('Collection', ({ u, c, S }) => {
       index = ni;
       const off = ['m_locked', 'm_lockedFacebook', 'm_lockedGame', 'm_lockedPay', 'm_share', 'm_shareLocked'];
       if (index === 0) {
-        n(c.m_random)?.setActive(true); S.beh(refKey(c.m_display))?.u.setActive(false); n(c.m_display)?.setActive(false);
+        n(c.m_random)?.setActive(true); S.beh(c.m_display, u)?.u.setActive(false); n(c.m_display)?.setActive(false);
         root.children[0]?.findComp('Image')?.setActive(false);
         for (const k of off) n(c[k])?.setActive(false);
         n(c.m_lockedPayCurrency)?.setActive(false); n(c.m_play)?.setActive(true);
@@ -96,14 +96,14 @@ registerScript('Collection', ({ u, c, S }) => {
       b.cellDisplay(index)?.Hide(true);
       const s = skins()[index - 1]; const av = s.availability;
       n(c.m_new)?.setActive(s.id === U().m_newSkin);
-      S.beh(refKey(c.m_display))?.SetSetting(s);
+      S.beh(c.m_display, u)?.SetSetting(s);
       const own = U().m_skins.includes(s.id);
       n(c.m_locked)?.setActive(!own && av === 1);
       n(c.m_lockedFacebook)?.setActive(!own && av === 2);
       n(c.m_lockedGame)?.setActive(!own && (av === 3 || av === 5));
-      n(c.m_lockedPay)?.setActive(!own && (av === 4 || av === 6 || av === 0));
+      n(c.m_lockedPay)?.setActive(false); // in-app purchase button: IAP is not available on the web
       n(c.m_lockedPayCurrency)?.setActive(!own && av === 6 && s.price > 0);
-      S.beh(refKey(c.m_buttonPayCurrency))?.SetEnable(U().m_currency >= s.price);
+      S.beh(c.m_buttonPayCurrency, u)?.SetEnable(U().m_currency >= s.price);
       n(c.m_play)?.setActive(own); n(c.m_share)?.setActive(own); n(c.m_shareLocked)?.setActive(!own);
       n(c.m_special)?.setActive(!own && av === 1);
       n(c.m_infoDownloadGame)?.setActive(!own && av === 3); n(c.m_infoRateGame)?.setActive(!own && av === 5); n(c.m_infoFacebook)?.setActive(!own && av === 2);
@@ -120,7 +120,7 @@ registerScript('Collection', ({ u, c, S }) => {
       S.app.loadScene('SceneGame');
     },
     Unlock() { Sys.unlockPromoted(skins()[index - 1]); S.app.loadScene('SceneGame'); },
-    Pay() { Sys.unlockPaid(skins()[index - 1]); S.app.loadScene('SceneGame'); },
+    Pay() { /* IAP not available on the web */ },
     PayCurrency() { if (Sys.payCurrency(skins()[index - 1])) { publish('CurrencyUpdateEvent'); S.app.loadScene('SceneGame'); } },
     _destroy() { if (c.m_root) { U().m_newSkin = -1; saveUser(); publish('DisplayCollectionEvent'); } },
   };

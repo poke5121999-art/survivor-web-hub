@@ -1,6 +1,6 @@
 // Animation clip sampling, legacy Animation player and Animator state machine.
 // Clip data: data/clips.json (tools/export_anim.py + combine_anim.py).
-import { A } from './assets.js?v=20261102a';
+import { A } from './assets.js?v=20261102c';
 
 export function clip(key) { return A.clips && A.clips.clips[key]; }
 export function controller(key) { return A.clips && A.clips.controllers[key]; }
@@ -27,15 +27,26 @@ function bindingKey(c) { return `${c.path}|${c.type}|${c.prop}|${c.comp ?? ''}`;
 
 export class Binder {
   constructor(root, adapter) { this.root = root; this.ad = adapter; this.cache = new Map(); this.defaults = new Map(); }
-  target(path) { if (!this.cache.has(path)) this.cache.set(path, this.ad.resolve(this.root, path)); return this.cache.get(path); }
-  apply(c, v) { const t = this.target(c.path); if (t) this.ad.set(t, c.type, c.prop, c.comp, v); }
+  // Targets are resolved lazily and never cached while missing: Animators are created before their children exist.
+  target(path) { let t = this.cache.get(path); if (!t) { t = this.ad.resolve(this.root, path) || null; if (t) this.cache.set(path, t); } return t; }
+  apply(c, v) {
+    if (this.frame) { this.frame.set(bindingKey(c), [c, v]); return; }
+    const t = this.target(c.path); if (t) this.ad.set(t, c.type, c.prop, c.comp, v);
+  }
+  // Batch one frame: defaults + every layer's samples, then write each property once.
+  beginFrame() { this.frame = new Map(); }
+  endFrame() { const f = this.frame; this.frame = null; for (const [c, v] of f.values()) this.apply(c, v); }
   captureDefault(c) {
     const k = bindingKey(c);
     if (this.defaults.has(k)) return;
-    const t = this.target(c.path);
-    this.defaults.set(k, { c, v: t ? this.ad.get(t, c.type, c.prop, c.comp) : undefined });
+    this.defaults.set(k, { c, v: undefined, done: false });
   }
-  writeDefaults() { for (const { c, v } of this.defaults.values()) if (v !== undefined) this.apply(c, v); }
+  writeDefaults() {
+    for (const d of this.defaults.values()) {
+      if (!d.done) { const t = this.target(d.c.path); if (!t) continue; d.v = this.ad.get(t, d.c.type, d.c.prop, d.c.comp); d.done = true; }
+      if (d.v !== undefined) this.apply(d.c, d.v);
+    }
+  }
   sample(cl, time, weightApply = true) {
     if (!cl) return;
     for (const c of cl.curves) this.apply(c, evalKeys(c.keys, time));
@@ -122,6 +133,7 @@ export class Animator {
   }
   update(dt) {
     if (!this.ctrl || !this.enabled) return;
+    this.binder.beginFrame();
     this.binder.writeDefaults();
     for (let li = 0; li < this.layers.length; li++) {
       const l = this.layers[li]; let s = l.L.states[l.state];
@@ -151,5 +163,6 @@ export class Animator {
         this.binder.sample(cc, t);
       }
     }
+    this.binder.endFrame();
   }
 }

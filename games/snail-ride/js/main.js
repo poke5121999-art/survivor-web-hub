@@ -1,22 +1,27 @@
 // Boot, portrait frame, main loop, scene switching (SceneSystem), and scene <-> UI wiring.
-import { A, loadData, refKey, setLanguage } from './engine/assets.js?v=20261102a';
-import { THREE } from './engine/world.js?v=20261102a';
-import { UIRoot } from './engine/ui.js?v=20261102a';
-import { SceneGame } from './game/sceneGame.js?v=20261102a';
-import { SceneMinigame } from './game/sceneMinigame.js?v=20261102a';
-import { UIScripts, registerScript } from './game/uiScripts.js?v=20261102a';
-import { setupMinigameUI, setupCollection } from './game/uiMeta.js?v=20261102a';
-import { loadUser, saveUser, Game } from './game/user.js?v=20261102a';
-import { publish, subscribe } from './game/events.js?v=20261102a';
-import * as SFX from './game/audio.js?v=20261102a';
-import * as Sys from './game/systems.js?v=20261102a';
+import { A, loadData, refKey, setLanguage, getLanguage, texImage } from './engine/assets.js?v=20261102c';
+import { THREE } from './engine/world.js?v=20261102c';
+import { UIRoot } from './engine/ui.js?v=20261102c';
+import { SceneGame } from './game/sceneGame.js?v=20261102c';
+import { SceneMinigame } from './game/sceneMinigame.js?v=20261102c';
+import { UIScripts, registerScript } from './game/uiScripts.js?v=20261102c';
+import { setupMinigameUI, setupCollection } from './game/uiMeta.js?v=20261102c';
+import { loadUser, saveUser, Game } from './game/user.js?v=20261102c';
+import { publish, subscribe } from './game/events.js?v=20261102c';
+import * as SFX from './game/audio.js?v=20261102c';
+import * as Sys from './game/systems.js?v=20261102c';
 
-export const REV = '20261102a';
-const ASPECT = 640 / 1136; // CanvasScaler reference resolution, portrait
+export const REV = '20261102c';
+const ASPECT = 640 / 1136;
+const TIMESCALE = Math.max(1, Math.min(8, +(new URLSearchParams(location.search).get('timescale') || 1))); // CanvasScaler reference resolution, portrait
 const frame = document.getElementById('frame');
 const canvas = frame.querySelector('canvas.world');
 const app = { scene: null, sceneName: null, renderer: null, particles: null, ui: null, scripts: null, w: 0, h: 0, time: 0 };
 window.__app = app;
+window.__user = () => JSON.parse(JSON.stringify(Game.User)); // test hooks
+window.__setUser = o => Object.assign(Game.User, o);
+window.__lang = () => getLanguage();
+window.__skinIndex = id => A.game.skins.findIndex(s => s.id === id);
 
 function layout() {
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -32,6 +37,7 @@ window.addEventListener('resize', layout);
 
 // BlurSystem: blur + darken the world behind popups
 let blurCount = 0;
+app.blurReset = () => { blurCount = 0; canvas.style.filter = ''; };
 app.blur = on => { blurCount = Math.max(0, blurCount + (on ? 1 : -1)); canvas.style.filter = blurCount ? 'blur(6px) brightness(0.85)' : ''; };
 
 // SceneSystem fade
@@ -42,10 +48,10 @@ app.loadScene = async name => {
   if (loading) return; loading = true;
   const target = /minigame/i.test(name) ? 'SceneMinigame' : 'SceneGame';
   fadeEl.style.pointerEvents = 'auto';
-  await fadeTo(1, 250);
+  await fadeTo(1, 150); // SceneSystem.m_time 0.15 s
   saveUser();
   openScene(target);
-  await fadeTo(0, 250);
+  await fadeTo(0, 150);
   fadeEl.style.pointerEvents = 'none'; loading = false;
 };
 
@@ -65,7 +71,12 @@ function openScene(name) {
   if (app.scene) app.scene.dispose();
   clearUI();
   app.sceneName = name;
-  if (name === 'SceneMinigame') {
+  if (name === 'SceneIntro') {
+    app.scene = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0.3, 1000), clearColor: { r: 1, g: 1, b: 1 }, state: {},
+      update() {}, applyCamera() {}, dispose() {}, pointerDown() {}, music: null };
+    app.scripts.instantiate(A.scene.scenes.level0.find(r => r.name === 'Intro'));
+    return;
+  } else if (name === 'SceneMinigame') {
     app.scene = new SceneMinigame(app);
     const hud = A.scene.scenes.level2.find(r => r.name === 'HUDMinigame');
     const u = app.scripts.instantiate(hud);
@@ -77,7 +88,7 @@ function openScene(name) {
     wireGameHUD(u);
   }
   SFX.setMuteAll(false);
-  SFX.playMusic(app.scene.music);
+  if (app.scene.music) SFX.playMusic(app.scene.music);
 }
 
 function wireGameHUD(hud) {
@@ -122,14 +133,23 @@ async function boot() {
   window.addEventListener('pointerdown', unlock, { capture: true });
   window.addEventListener('keydown', unlock, { capture: true });
   try { await document.fonts.load('20px "Linotte Bold"'); } catch (e) {}
-  openScene('SceneGame');
+  // Preload every texture the intro + first game scene + HUD reference, so the first frame fades in complete.
+  const texs = new Set();
+  const visit = v => { if (!v || typeof v !== 'object') return; if (Array.isArray(v)) { v.forEach(visit); return; }
+    if (v.$) { const sp = A.art.sprites[v.$]; if (sp) texs.add(sp.tex); else if (A.art.textures[v.$]) texs.add(v.$); else { const m = A.scene.materials[v.$]; if (m) Object.values(m.tex).forEach(t => t && t.$ && texs.add(t.$)); } return; }
+    for (const k in v) visit(v[k]); };
+  visit(A.scene.scenes.level0); visit(A.scene.scenes.level1); for (const e of A.game.environments) texs.add(e.curve);
+  let done = 0; const list = [...texs].filter(k => A.art.textures[k]);
+  await Promise.race([Promise.all(list.map(k => texImage(k).catch(() => null).then(() => { done++; bootEl.textContent = `Loading… ${Math.round(100 * done / list.length)}%`; }))), new Promise(r => setTimeout(r, 15000))]);
+  openScene(new URLSearchParams(location.search).has('skipintro') ? 'SceneGame' : 'SceneIntro');
   bootEl.style.opacity = 0; setTimeout(() => bootEl.remove(), 450);
   let last = performance.now();
   const loop = now => {
     const dt = Math.min(1 / 3, (now - last) / 1000); last = now; app.time += dt;
     if (app.scene) {
-      app.scene.update(dt);
-      app.scripts && app.scripts.update(app.scene.state && app.scene.state.resuming ? 0 : dt);
+      // ?timescale=N (tests only): N x speed in <= 1/60 s substeps so triggers cannot tunnel
+      const total = dt * TIMESCALE; const n = Math.max(1, Math.ceil(total / (1 / 60)));
+      for (let i = 0; i < n; i++) { const st = total / n; app.scene.update(st); app.bot && app.bot(st); app.scripts && app.scripts.update(app.scene.state && app.scene.state.resuming ? 0 : st); }
       app.scene.applyCamera(app.w / app.h);
       const cc = app.scene.clearColor; if (cc) app.renderer.setClearColor(new THREE.Color(cc.r, cc.g, cc.b), 1); else app.renderer.setClearColor(0x000000, 1);
       app.renderer.render(app.scene.scene, app.scene.cam);

@@ -1,5 +1,5 @@
 // Bridges scenes to the particle simulator (engine/particles.js).
-import { attachParticles, updateParticles } from '../engine/particles.js?v=20261102a';
+import { attachParticles, updateParticles } from '../engine/particles.js?v=20261102c';
 export function makeParticleHost() {
   const byScene = new WeakMap();
   const lists = s => { if (!byScene.has(s)) byScene.set(s, new Map()); return byScene.get(s); };

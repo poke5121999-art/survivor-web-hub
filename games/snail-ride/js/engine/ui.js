@@ -1,7 +1,7 @@
 // DOM renderer for Unity uGUI trees (data/scene.json nodes): RectTransform math, Image, Text,
 // Button, layout groups, ContentSizeFitter, CanvasGroup, Mask, ScrollRect, Slider, SafeArea.
 // Everything is laid out in canvas units inside one scaled div per Canvas root.
-import { A, spriteURL, spriteCanvas, spriteInfo, spriteByName, tr } from './assets.js?v=20261102a';
+import { A, spriteURL, spriteCanvas, spriteInfo, spriteByName, tr } from './assets.js?v=20261102c';
 
 const CSS_URL = new URL('../../css/ui.css', import.meta.url).href;
 const FONT_URL = new URL('../../art/fonts/linotte-bold.ttf', import.meta.url).href;
@@ -204,7 +204,7 @@ export class UINode {
     this.ui = ui; this.node = node; this.name = node.name; this.id = node.id;
     this.parent = parent; this.children = []; this.tree = tree;
     this.uid = ++nodeSeq;
-    this.compList = node.c || [];
+    this.compList = (node.c || []).map(c => ({ ...c })); // per-instance copies: game scripts attach state to components
     this.comps = {};
     for (const c of this.compList) if (!(c.type in this.comps)) this.comps[c.type] = c;
     this.active = node.active !== false && node.active !== 0;

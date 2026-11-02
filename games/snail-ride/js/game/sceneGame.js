@@ -1,13 +1,13 @@
 // SceneGame (level1) port: curve, player, obstacles, camera, environment, scoring.
 // Every number comes from the decompiled scripts or the scene data (see ~/snail-ride-ref/CODE.md).
 import { THREE, GO, buildNode, prefab, sceneRoots, colliderShape, overlap, COLLIDERS, worldAdapter, threeTexture,
-  builtinMesh, attachMeshRenderer, forMaterial } from '../engine/world.js?v=20261102a';
-import { A, refKey } from '../engine/assets.js?v=20261102a';
-import { LegacyAnimation, Animator, clip } from '../engine/anim.js?v=20261102a';
-import { publish, subscribe, clearScope } from './events.js?v=20261102a';
-import { Game, addCurrency, saveUser, skinSelected, rnd, rndi } from './user.js?v=20261102a';
-import * as SFX from './audio.js?v=20261102a';
-import { randomSkin, missionUpdate, missionCurrent, missionOnCollect, missionOnDodge, missionOnDestroy, missionResetSession, missionData } from './systems.js?v=20261102a';
+  builtinMesh, attachMeshRenderer, forMaterial } from '../engine/world.js?v=20261102c';
+import { A, refKey } from '../engine/assets.js?v=20261102c';
+import { LegacyAnimation, Animator, clip } from '../engine/anim.js?v=20261102c';
+import { publish, subscribe, clearScope } from './events.js?v=20261102c';
+import { Game, addCurrency, saveUser, skinSelected, rnd, rndi } from './user.js?v=20261102c';
+import * as SFX from './audio.js?v=20261102c';
+import { randomSkin, missionUpdate, missionCurrent, missionOnCollect, missionOnDodge, missionOnDestroy, missionResetSession, missionData } from './systems.js?v=20261102c';
 
 const Left = 1, Right = 2, Center = 0;
 const DEG = Math.PI / 180;

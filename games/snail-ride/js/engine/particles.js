@@ -5,8 +5,8 @@
 // Not implemented (no system enables them): Noise, TextureSheetAnimation, InheritVelocity, Collision,
 // Trigger, SubEmitters, Lights, Trails module, CustomData, ExternalForces.
 // Space: Unity (x, y, z) maps to three (x, y, -z). One draw call per system: CPU-built quads.
-import { THREE, sharedMaterial } from './world.js?v=20261102a';
-import { A, refKey } from './assets.js?v=20261102a';
+import { THREE, sharedMaterial } from './world.js?v=20261102c';
+import { A, refKey } from './assets.js?v=20261102c';
 
 const TAU = Math.PI * 2;
 const GRAVITY = -9.81;

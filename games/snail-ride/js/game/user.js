@@ -1,5 +1,5 @@
 // UserData port + save/load in localStorage (original: encrypted JSON in user.dat).
-import { A } from '../engine/assets.js?v=20261102a';
+import { A } from '../engine/assets.js?v=20261102c';
 const KEY = 'snailride.user.v1';
 export function newUser() {
   return {
