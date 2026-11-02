@@ -116,7 +116,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 42</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 43</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -157,6 +157,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
           <button type="button" id="tool-fill" aria-pressed="false" title="Bấm một lần xoá cả mảng cùng màu">Tẩy vùng</button>
           <button type="button" id="tool-restore" aria-pressed="false" title="Tô để lấy lại chỗ đã tẩy. Giữ Alt khi tẩy cũng là trả lại">Trả lại</button>
           <button type="button" id="tool-paint" aria-pressed="false" title="Tô màu đè lên hình. Phím B">Tô màu</button>
+          <button type="button" id="tool-heal" aria-pressed="false" title="Bấm lên chấm trắng lạc: cả cụm sáng và viền mờ quanh nó được tô bằng màu xuất hiện nhiều nhất xung quanh. Chỗ bấm không có chấm trắng, hoặc giữ Shift khi bấm, thì vá đúng vùng cọ (ô xám, vết bẩn khác màu). Phím J">Vá chấm</button>
         </div>
         <input type="color" id="pen-color" value="#ff3b30" title="Màu tô và màu điểm" aria-label="Màu tô và màu điểm">
         <label class="hint" for="st-size">Cỡ cọ</label>
@@ -294,7 +295,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030g"></script>
+<script src="vendor/jszip.min.js?v=20261102a"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -688,7 +689,7 @@ sheet.addEventListener("pointerdown", e => {
   if (bgPicking) { pickBackground(e); return; }
   if (ERASE_TOOLS.has(S.stackTool)) {
     sheet.setPointerCapture(e.pointerId);
-    sheetErasing = eraseDown(S.stackTool, { x: 0, y: 0, w: imgW(), h: imgH() }, toImg(e), e.altKey);
+    sheetErasing = eraseDown(S.stackTool, { x: 0, y: 0, w: imgW(), h: imgH() }, toImg(e), e.altKey, e.shiftKey);
     return;
   }
   const p = toImg(e), all = cells(), h = handleCell();
@@ -761,6 +762,7 @@ document.addEventListener("keydown", e => {
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
     if (k === "e") { pickEraser(e.shiftKey); return; }
     if (k === "b") { setStackTool("paint"); return; }
+    if (k === "j") { setStackTool("heal"); return; }
     if (k === "v") { setStackTool("move"); return; }
   }
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -893,7 +895,7 @@ function renderList(fr) {
 const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 const HANDLE_CURSOR = { "-1,-1": "nwse-resize", "1,1": "nwse-resize", "1,-1": "nesw-resize", "-1,1": "nesw-resize", "0,-1": "ns-resize", "0,1": "ns-resize", "-1,0": "ew-resize", "1,0": "ew-resize" };
 let stackBox = null, stackHover = null;
-const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "bgerase", "fill", "restore", "paint"]), BRUSHES = new Set(["erase", "bgerase", "restore", "paint"]);
+const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "bgerase", "fill", "restore", "paint", "heal"]), BRUSHES = new Set(["erase", "bgerase", "restore", "paint", "heal"]);
 S.stackZoom = "fit";
 
 function handleAt(e) {
@@ -933,7 +935,7 @@ stack.addEventListener("pointerdown", e => {
   }
   if (ERASE_TOOLS.has(S.stackTool)) {
     const f = stackFrame(); if (!f) return;
-    if (eraseDown(S.stackTool, f, stackSrcPoint(e, f), e.altKey)) stackDrag = { kind: "erase" };
+    if (eraseDown(S.stackTool, f, stackSrcPoint(e, f), e.altKey, e.shiftKey)) stackDrag = { kind: "erase" };
     return;
   }
   if (S.stackTool === "mark") {
@@ -1015,7 +1017,7 @@ stack.addEventListener("contextmenu", e => {
   if (!m) return;
   e.preventDefault(); S.marks.splice(S.marks.indexOf(m), 1); changed();
 });
-const TOOLS = ["move", "mark", "erase", "bgerase", "fill", "restore", "paint"], ERASERS = ["erase", "bgerase", "fill"];
+const TOOLS = ["move", "mark", "erase", "bgerase", "fill", "restore", "paint", "heal"], ERASERS = ["erase", "bgerase", "fill"];
 function setStackTool(t) {
   S.stackTool = t;
   if (ERASERS.includes(t)) S.lastEraser = t;
@@ -1489,6 +1491,11 @@ function stamp(x, y, s) {
   brushRows(x, y, s.size, s.shape, (x0, py, w) => stampRect(s, x0, py, w, 1));
 }
 function paintStroke(s, from) {
+  if (s.rgba) {
+    const W = S.src.width, c = s.rgba;
+    s.pix.forEach((n, k) => stampRect(c[k * 4 + 3] ? { color: `rgb(${c[k * 4]},${c[k * 4 + 1]},${c[k * 4 + 2]})` } : {}, n % W, Math.floor(n / W), 1, 1));
+    return;
+  }
   if (s.pix) {
     const W = S.src.width;
     for (const n of s.pix) stampRect(s, n % W, Math.floor(n / W), 1, 1);
@@ -1569,11 +1576,16 @@ function bgDab(x, y) {
     }
   });
 }
-function eraseDown(tool, f, p, alt) {
+function eraseDown(tool, f, p, alt, shift) {
   S.redo = [];
   if (tool === "fill") {
     const pix = fillPixels(p, f);
     if (pix) { S.strokes.push({ pix }); paintStroke(S.strokes.at(-1), 0); editsChanged(); }
+    return false;
+  }
+  if (tool === "heal") {
+    const s = healPixels(p, f, shift);
+    if (s) { S.strokes.push(s); paintStroke(s, 0); editsChanged(); }
     return false;
   }
   if (tool === "bgerase") {
@@ -1625,6 +1637,89 @@ function fillPixels(p, f) {
       if (m >= 0 && m < w * h && !seen[m] && near(m)) { seen[m] = 1; out.push(m); }
   }
   return Int32Array.from(out, n => (y0 + Math.floor(n / w)) * W + x0 + n % w);
+}
+// Vá chấm, kiểu Spot Healing Brush của Photoshop, cho chấm trắng lạc mà AI hay ảnh chụp màn hình để lại giữa hình.
+// Chấm là mọi cụm pixel rất sáng không sắc (ba kênh từ 200, lệch nhau tới 40) chạm vùng cọ, cùng vòng 1px quanh cụm;
+// pixel vòng chỉ bị vá khi nó lẫn trắng (sáng hơn màu vá), để nét viền đậm sát chấm không bị gọt.
+// Mỗi pixel vá lấy màu thắng phiếu trong bán kính HEAL_R, bỏ chính vùng vá, phiếu chia theo 1/khoảng cách.
+// Lấy màu thắng thay vì trung bình vì trung bình ra màu nhoè mới. Phiếu gom theo ô màu 8 mức mỗi kênh để ảnh JPEG hay
+// ảnh chụp màn hình nhiễu vẫn có ô thắng, rồi lấy màu có thật nhiều phiếu nhất trong ô đó, nên không sinh màu mới.
+// Quanh chỗ bấm không có pixel nào như vậy, cụm lớn hơn HEAL_MAX (mảng trắng của hình, không phải chấm), hoặc giữ Shift, thì vá đúng vùng cọ.
+const HEAL_R = 6, HEAL_MAX = 1024;
+function healPixels(p, f, whole) {
+  const W = S.img.width, H = S.img.height;
+  const x0 = Math.max(0, Math.floor(f.x)), y0 = Math.max(0, Math.floor(f.y)), x1 = Math.min(W, f.x + f.w), y1 = Math.min(H, f.y + f.h);
+  const sx = Math.floor(p.x), sy = Math.floor(p.y);
+  if (sx < x0 || sy < y0 || sx >= x1 || sy >= y1) return null;
+  const w = x1 - x0, h = y1 - y0, c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cx = c.getContext("2d", { willReadFrequently: true });
+  cx.drawImage(S.img, -x0, -y0);
+  const d = cx.getImageData(0, 0, w, h).data;
+  const speck = n => { const i = n * 4, lo = Math.min(d[i], d[i + 1], d[i + 2]); return d[i + 3] >= 128 && lo >= 200 && Math.max(d[i], d[i + 1], d[i + 2]) - lo <= 40; };
+  const lx = sx - x0, ly = sy - y0, reach = Math.ceil(S.edSize / 2) + 1;
+  const zone = new Uint8Array(w * h);
+  let core = [];
+  if (!whole) for (let v = Math.max(0, ly - reach); v <= Math.min(h - 1, ly + reach); v++)
+    for (let u = Math.max(0, lx - reach); u <= Math.min(w - 1, lx + reach); u++)
+      if ((u - lx) ** 2 + (v - ly) ** 2 <= reach * reach && speck(v * w + u)) { zone[v * w + u] = 1; core.push(v * w + u); }
+  if (core.length) {
+    for (let k = 0; k < core.length && core.length <= HEAL_MAX; k++) {
+      const n = core[k], u = n % w, v = (n - u) / w;
+      for (let b = Math.max(0, v - 1); b <= Math.min(h - 1, v + 1); b++)
+        for (let a = Math.max(0, u - 1); a <= Math.min(w - 1, u + 1); a++) {
+          const m = b * w + a;
+          if (!zone[m] && speck(m)) { zone[m] = 1; core.push(m); }
+        }
+    }
+    if (core.length > HEAL_MAX) { for (const n of core) zone[n] = 0; core = []; }
+  }
+  const ring = [];
+  if (core.length) {
+    for (const n of core) {
+      const u = n % w, v = (n - u) / w;
+      for (let b = Math.max(0, v - 1); b <= Math.min(h - 1, v + 1); b++)
+        for (let a = Math.max(0, u - 1); a <= Math.min(w - 1, u + 1); a++)
+          if (!zone[b * w + a]) { zone[b * w + a] = 2; ring.push(b * w + a); }
+    }
+  } else brushRows(p.x, p.y, S.edSize, S.edShape, (bx, py, bw) => {
+    const v = py - y0;
+    if (v < 0 || v >= h) return;
+    for (let u = Math.max(0, bx - x0); u < Math.min(w, bx - x0 + bw); u++) if (!zone[v * w + u]) { zone[v * w + u] = 1; core.push(v * w + u); }
+  });
+  const vote = n => {
+    const u = n % w, v = (n - u) / w, tally = new Map();
+    for (let b = Math.max(0, v - HEAL_R); b <= Math.min(h - 1, v + HEAL_R); b++)
+      for (let a = Math.max(0, u - HEAL_R); a <= Math.min(w - 1, u + HEAL_R); a++) {
+        const dd = (a - u) ** 2 + (b - v) ** 2, m = b * w + a, i = m * 4;
+        if (!dd || dd > HEAL_R * HEAL_R || zone[m]) continue;
+        const wt = 1 / Math.sqrt(dd), key = d[i + 3] < 128 ? -1 : (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | d[i + 2] >> 3;
+        const t = tally.get(key) || tally.set(key, { wt: 0, exact: new Map() }).get(key), c = d[i] << 16 | d[i + 1] << 8 | d[i + 2];
+        t.wt += wt; t.exact.set(c, (t.exact.get(c) || 0) + wt);
+      }
+    let win = null, top = 0;
+    for (const [key, t] of tally) if (t.wt > top) { top = t.wt; win = key < 0 ? -1 : t; }
+    if (win === -1) return [0, 0, 0, 0];
+    if (!win) return null;
+    let c = 0; top = 0;
+    for (const [k, wt] of win.exact) if (wt > top) { top = wt; c = k; }
+    return [c >> 16, c >> 8 & 255, c & 255, 255];
+  };
+  const pix = [], rgba = [];
+  const put = (n, col) => {
+    const i = n * 4;
+    if (!col || (col[0] === d[i] && col[1] === d[i + 1] && col[2] === d[i + 2] && col[3] === d[i + 3])) return;
+    pix.push((y0 + Math.floor(n / w)) * W + x0 + n % w); rgba.push(...col);
+  };
+  for (const n of core) put(n, vote(n));
+  for (const n of ring) {
+    const col = vote(n), i = n * 4;
+    if (!col || !col[3] || d[i + 3] < 128) continue;
+    let lift = 0, dark = false;
+    for (let k = 0; k < 3; k++) { lift += d[i + k] - col[k]; if (d[i + k] < col[k] - 8) dark = true; }
+    if (!dark && lift >= 30) put(n, col);
+  }
+  return pix.length ? { pix: Int32Array.from(pix), rgba: Uint8ClampedArray.from(rgba) } : null;
 }
 function setBrush(v) {
   S.edSize = Math.max(1, Math.min(64, v));
