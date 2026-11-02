@@ -30,5 +30,6 @@ import minigame from './features/minigame.js';
 import season from './features/season.js';
 import profile from './features/profile.js';
 import guests from './features/guests.js';
+import particles from './features/particles.js';
 
-export const FEATURES = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests];
+export const FEATURES = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests, particles];

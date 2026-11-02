@@ -182,6 +182,15 @@ function serve() {
   await wait(400);
   await shot('13-trader-bought');
   check('buying a slot pays its gem price', (await st(() => window.__game.state.gem)) === gem1 - priceOfLast, `${gem1} - ${priceOfLast}`);
+  // furniture (type 6) and item slots are stocked now that the furniture / item owners exist
+  check('trader stock has no empty slot: 9 slots, 2-3 furniture (type 6, 300-400 gems)', stock.length === 9 && stock.every(Boolean) && stock[2].type === 6 && stock[3].type === 6 && [300, 400].includes(stock[2].cost), JSON.stringify(stock.map(x => x && [x.type, x.cost])));
+  const furCost = stock[2].cost;
+  const fur0 = await st(() => ({ n: window.__game.feat.furniture.count(window.__game, window.__game.state.specials.trader.slots[2].value), gem: window.__game.state.gem }));
+  if (await page.locator('.sp-pop').count()) { await page.locator('.sp-pop').first().click({ force: true, position: { x: 5, y: 5 } }); await wait(300); }
+  await page.locator('.sp-slot:not(.gap)').nth(2).click();
+  await wait(400);
+  await shot('13b-trader-furniture');
+  check('buying the furniture slot adds the furniture and pays its gems', await st(() => window.__game.feat.furniture.count(window.__game, window.__game.state.specials.trader.slots[2].value)) === fur0.n + 1 && (await st(() => window.__game.state.gem)) === fur0.gem - furCost);
   await closeDialog();
 
   // ---- music ----

@@ -21,6 +21,11 @@ const DEFAULT_BGM = [1, 2];
 const CURRENCY = { 3: 'gem', 4: 'coin' };  // costType of tables: 3 gems, 4 furniture coins
 
 const init = (g, i) => g.t.Init[i].value;
+
+// Fish collection set bonuses (Ability type 11, subIndex 1001-1006; collection.md): +x % on the jar fairy gold (1002), the balloon
+// gold (1003) and the special order reward (1004). Read through the collection feature; 1 when it is not installed.
+export const SUB = { photo: 1001, jar: 1002, balloon: 1003, order: 1004, offline: 1005, frog: 1006 };
+export const subFactor = (g, sub) => 1 + (g.feat.collection && g.feat.collection.subPercent ? g.feat.collection.subPercent(g, sub) : 0) / 100;
 export const nowMs = g => Date.now() + (g.state.specials ? g.state.specials.skewMs : 0);
 const dayKey = ms => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const pickIndex = (g, n) => Math.min(n - 1, Math.floor(g.rng() * n));
@@ -42,6 +47,23 @@ const REWARDS = {
   23: (g, v) => { g.state.specials.pudding += Number(v); return { type: 23, value: v }; },
 };
 for (const t of Object.keys(TICKET_SECONDS)) REWARDS[t] = (g, v) => { const k = g.state.specials.tickets; k[t] = (k[t] || 0) + Number(v); return { type: Number(t), value: v }; };
+
+// Items this feature keeps as counts (game.itemCount / spendItem): the gold / recipe tickets 1101-1103, 1201-1203 and the pudding 23.
+// The pudding lives in state.specials.pudding, so the map the game core spends from is a view over both.
+const BAGS = new WeakMap();
+export function bag(g) {
+  const sp = g.state.specials;
+  if (!sp) return {};
+  let p = BAGS.get(sp);
+  if (!p) {
+    p = new Proxy(sp.tickets, {
+      get: (t, k) => (k === '23' ? sp.pudding : t[k]),
+      set: (t, k, v) => { if (k === '23') sp.pudding = v; else t[k] = v; return true; },
+    });
+    BAGS.set(sp, p);
+  }
+  return p;
+}
 
 // Whether game.reward(type, ..) can pay: 1-4 are core, the rest need a feature that lists the type (equip 5, fishing 6002/7).
 export const canGive = (g, type) => type <= 4 || !!g.features.find(f => f.rewards && f.rewards[type]);
@@ -73,7 +95,7 @@ function drawStock(g, ms) {
   const sea = season(ms);
   const picked = new Set();
   return TRADER_CAT.map((cat, slot) => {
-    let pool = rows.filter(r => r[2] === cat && (r[1] === 0 || r[1] === sea) && !picked.has(r[3] * 1e6 + r[4]) && canGive(g, r[3]) && (REWARDS[r[3]] || r[3] === 5));
+    let pool = rows.filter(r => r[2] === cat && (r[1] === 0 || r[1] === sea) && !picked.has(r[3] * 1e6 + r[4]) && canGive(g, r[3]));
     if (!pool.length) return null;
     const r = TRADER_WEIGHTED[slot] ? weightedPick(g, pool, x => x[7]) : pool[pickIndex(g, pool.length)];
     picked.add(r[3] * 1e6 + r[4]);
@@ -104,9 +126,7 @@ export function buyTrader(g, i) {
 }
 
 export function useTicket(g, type) {
-  const k = g.state.specials.tickets;
-  if (!(k[type] > 0)) return null;
-  k[type] -= 1;
+  if (!TICKET_SECONDS[type] || !g.spendItem(type, 1)) return null;
   return g.reward(type >= 1200 ? 102 : 101, TICKET_SECONDS[type]);
 }
 
@@ -137,7 +157,17 @@ export function openChest(g, work, how = 'free') {
 }
 
 // ---- jar fairy (work 5): the free bubble button pays 1/20 of the jar gold, the ad button all of it ----
-export function jarGold(g, divisor = 1) { return B.div(B.mul(g.averageIncome(), init(g, INIT.jar)), divisor); }
+export function jarGold(g, divisor = 1) { return B.div(B.mul(B.mul(g.averageIncome(), init(g, INIT.jar)), subFactor(g, SUB.jar)), divisor); }
+// The ad button: the whole jar (core game.claimJar pays the same without the collection bonus).
+export function claimJarAds(g, work) {
+  if (work.a !== WORK.jar || work.v < 1) return null;
+  work.v = 0;
+  work.t = 0;
+  const gold = jarGold(g, 1);
+  g.state.gold = B.add(g.state.gold, gold);
+  g.emit('jar', { work, gold });
+  return gold;
+}
 export function claimJarFree(g, work) {
   if (work.a !== WORK.jar || work.v < 1) return null;
   work.v = 0;
@@ -150,7 +180,7 @@ export function claimJarFree(g, work) {
 
 // ---- search light / balloon (work 12): Init[7] taps, gold = avgGold x Init[9] s ----
 export const balloonTaps = g => init(g, INIT.balloonTaps);
-export const balloonGold = g => B.mul(g.averageIncome(), init(g, INIT.balloon));
+export const balloonGold = g => B.mul(B.mul(g.averageIncome(), init(g, INIT.balloon)), subFactor(g, SUB.balloon));
 export function popBalloon(g, work) {
   if (work.a !== WORK.light || work.v < 1) return null;
   work.v -= 1;
@@ -224,7 +254,7 @@ export function selectBgm(g, index) {
 }
 
 // ---- special order board (work 8): sell Init-random 3..6 of one learned dish, gold = avgGold x Init[10] s ----
-export const orderGold = g => B.mul(g.averageIncome(), init(g, INIT.order));
+export const orderGold = g => B.mul(B.mul(g.averageIncome(), init(g, INIT.order)), subFactor(g, SUB.order));
 export function refreshOrder(g) {
   const foods = [0, 1, 2].filter(l => g.cookBuilt(l)).flatMap(l => g.learned(l));
   const o = g.state.specials.order;
@@ -255,6 +285,7 @@ function newDay(g) {
 export default {
   id: 'specials',
   data: ['specials'],
+  bag,
   init(g) {
     const s = g.state;
     if (!s.specials) {
@@ -280,5 +311,5 @@ export default {
     if (o.need && e.item.a === o.food && o.have < o.need) o.have += 1;
   },
   rewards: REWARDS,
-  claimJarFree, openChest, popBalloon, playCrane, startBasket, finishBasket, buyBgm, selectBgm, claimOrder, buyTrader, useTicket,
+  claimJarFree, claimJarAds, openChest, popBalloon, playCrane, startBasket, finishBasket, buyBgm, selectBgm, claimOrder, buyTrader, useTicket,
 };

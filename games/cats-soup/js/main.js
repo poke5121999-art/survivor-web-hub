@@ -130,6 +130,8 @@ const safe = (v, name, ...args) => {
   } catch (err) { failed.add(v); console.error(`feature ${v.id}.${name}`, err); return undefined; }
 };
 for (const v of VIEWS) safe(v, 'mount', ctx);
+view.onWork = e => { for (const v of VIEWS) safe(v, 'onWork', e); };
+for (const e of view.works.values()) view.onWork(e);
 const soundBtn = root.querySelector('[data-n="set_option"]');
 if (soundBtn) for (const b of soundBtn.querySelectorAll('.w')) { b.style.pointerEvents = 'auto'; b.style.cursor = 'pointer'; b.onclick = () => sound.toggle(); }
 

@@ -12,7 +12,8 @@ export const SPECIAL_PER_DAY = 1;         // Special_ScreenShot_Count (row 72)
 export const SPECIAL_RATE = 50;           // Special_ScreenShot_Rate (row 73), percent
 export const MISSION_EVERY = 4;           // Spawn.TimeFlow: a photo mission is offered when timeCount % 4 == 1
 export const MISSION_SPECIAL_RATE = 30;   // JudgeRate 30 (0x41f00000) in Spawn+_TimeFlow_d__177.c
-export const PHOTO_ABILITY = 1001;        // cat sub skill "photo reward" (abilityS_1001)
+export const PHOTO_ABILITY = 1001;        // sub skill "photo reward" (abilityS_1001): Ability.subIndex of the cat sub skill row 1100 and the fish collection row 500
+const CAT_SUB_FIRST = 1100;               // Ability.index of the first cat sub skill (type 102); subIndex 1001 is row 1100, 1002 row 1101, ...
 
 export const DEFAULT_ALIAS = 'noName';
 
@@ -108,10 +109,16 @@ export function tick(g) {
   }
 }
 
+// Cat sub skills (row 1100 = subIndex 1001) plus the fish collection set bonus (Ability type 11, subIndex 1001; collection.md).
+export function photoPercent(g) {
+  const cat = g.feat.cats && g.feat.cats.subSkillPercent ? g.feat.cats.subSkillPercent(g, CAT_SUB_FIRST + PHOTO_ABILITY - 1001) : 0;
+  const col = g.feat.collection && g.feat.collection.subPercent ? g.feat.collection.subPercent(g, PHOTO_ABILITY) : 0;
+  return cat + col;
+}
+
 // GetScreenShotGold: avgGoldIncome x seconds x (1 + photo ability % / 100).
 export function photoGold(g, special) {
-  const pct = g.feat.cats && g.feat.cats.subSkillPercent ? g.feat.cats.subSkillPercent(g, PHOTO_ABILITY) : 0;
-  return B.mul(B.mul(g.averageIncome(), special ? SPECIAL_SECONDS : PHOTO_SECONDS), 1 + pct / 100);
+  return B.mul(B.mul(g.averageIncome(), special ? SPECIAL_SECONDS : PHOTO_SECONDS), 1 + photoPercent(g) / 100);
 }
 
 // A photo was taken (saved). opt.day (days since epoch) and opt.special (force the special roll) are for tests.
@@ -136,6 +143,6 @@ export function photo(g, opt = {}) {
 export default {
   id: 'profile', data: ['profile'], init, tick,
   unlockedTitles, ownsTitle, ownsImage, ownsOutline, ownsSticker, ownsFrame, row, isOwned,
-  nickname, setNick, setIntro, setTitle, setImage, setFrame, stats, photoGold, photo,
+  nickname, setNick, setIntro, setTitle, setImage, setFrame, stats, photoGold, photoPercent, photo,
   NICK_MAX, INTRO_MAX,
 };

@@ -99,6 +99,15 @@ export function addStageKitty(g) {
   return addKitty(g, STAGE);
 }
 
+// ---- kittens in the forest (CatAI.tickKittens walks them; rules/kitty.md section 12) ----
+// Unit scale of a kitten: DEFINE.KITTY_SCALE (0.67, 0.64, 0.67), applied to the unit transform in UnitFactory.c:3850.
+export const KITTY_SCALE = [0.67, 0.64, 0.67];
+// A kitten on a trip is not in the forest (its house work is busy, Spawn+_Kitty_Play: `_currentValue != 0` returns).
+export const walkers = g => S(g).kitties.filter(k => !k.trip).map(k => ({
+  id: `kitty${k.id}`, kitty: k.id, type: k.type, house: k.house, stage: k.house === STAGE,
+  wander: (D(g).unlock[0] || {}).wander || 50, scale: KITTY_SCALE,
+}));
+
 // ---- hearts: fish are the food (UI_UnitInfo gives Fish.heartValue, UnitInfo.c:13156) ----
 export function addHeart(g, k, value) {
   k = typeof k === 'object' ? k : kitty(g, k);
@@ -245,10 +254,34 @@ export function choosePhoto(g, keepNew) {
 }
 export const albumList = g => D(g).dests.filter(d => S(g).album[d.index]).map(d => S(g).album[d.index]);
 export const magnetCount = g => Object.values(S(g).magnets).reduce((a, n) => a + n, 0);
+// The magnet board (minigame feature) reads the magnets through these: { <Magnet index>: count } and the item type of one magnet,
+// MAGNET * 1000 + index, under which game.itemCount / game.spendItem see it (a bare index would clash with the reward types).
+export const MAGNET_ITEM = MAGNET * 1000;
+export const magnetItem = index => MAGNET_ITEM + index;
+export const magnets = g => ({ ...S(g).magnets });
+
+// The bag: held items by reward type, plus every magnet as item type magnetItem(index) over the magnets map.
+const BAGS = new WeakMap();
+function bag(g) {
+  const s = S(g);
+  if (!s) return {};
+  let p = BAGS.get(s);
+  if (!p) {
+    p = new Proxy(s.held, {
+      get: (t, k) => (+k >= MAGNET_ITEM ? s.magnets[+k - MAGNET_ITEM] : t[k]),
+      set: (t, k, v) => {
+        if (+k >= MAGNET_ITEM) { if (v > 0) s.magnets[+k - MAGNET_ITEM] = v; else delete s.magnets[+k - MAGNET_ITEM]; } else t[k] = v;
+        return true;
+      },
+    });
+    BAGS.set(s, p);
+  }
+  return p;
+}
 
 export default {
   id: 'kitty',
-  bag: g => S(g).held,
+  bag,
   data: ['kitty'],
 
   init(g) {
@@ -279,5 +312,6 @@ export default {
   item, itemType, dest, pic, ability, count, itemCount, kitties, kitty, inHouse, stageKitties, heart, randomType, addKitty,
   canBuildHouse, buildHouse, nextHouse, canBuildStage, buildStage, slotCost, addStageKitty, stageNeedsBuilt,
   addHeart, feed, bonus, butterflyBonus, buy, tripSeconds, validItems, canTravel, travel, tripDone, cancel,
-  pickDest, noMagnetPercent, pickMagnet, tokensFor, collect, choosePhoto, albumList, magnetCount,
+  walkers, KITTY_SCALE,
+  pickDest, noMagnetPercent, pickMagnet, tokensFor, collect, choosePhoto, albumList, magnetCount, magnets, magnetItem, MAGNET_ITEM,
 };

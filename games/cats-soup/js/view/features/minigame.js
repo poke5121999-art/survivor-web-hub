@@ -378,18 +378,221 @@ function finish(m, root, res, ui) {
   window.__mgResult = r;
 }
 
+
+// ---- magnet board: set_magnetboard (themes, frame, board switch), set_magnetinven (the collection), set_magnetpopup (sell / put on) ----
+// The magnets come from the kitty feature (S.magnetOwned). The board is a 780 x 1180 px area (the prefab's Board box) where a placed
+// magnet is a sprite of atlas_magnet_atlas that can be dragged; its position is kept as 0..1 of that area. Tap a placed magnet
+// without dragging to take it off the board (back to the inventory).
+const MAGNET_ATLAS = 'atlas_magnet_atlas';
+const BOARD_W = 780, BOARD_H = 1180;
+const mag = { board: 0, tab: 0, theme: false, themeSel: null, sel: -1 };
+const has = k => C.hud.lang[k] != null;
+const tx = (k, fb) => (has(k) ? C.t(k) : fb);
+const magName = row => tx(`title_${row.name}`, tx(row.name, tx(`title_${row.resName}`, row.resName)));
+const magSprite = (row, cls = 'mg-mag') => C.hud.sprite(MAGNET_ATLAS, row.resName, cls);
+
+function openMagnetBoard(board = mag.board) {
+  const g = C.game;
+  mag.board = Math.min(Math.max(0, board), S.boardRows(g).length - 1);
+  mag.theme = false;
+  mag.sel = -1;
+  const root = build(P.mboard);
+  open(root, { x: false });
+  layer.el.classList.add('mg-nodim');
+  root.classList.add('mg-mb');
+  cur = { type: 'magnet', close() {} };
+  const bd = () => S.boardOf(g, mag.board);
+  const SM = 'top_right_hide_anchor /set_selectMenu';       // the prefab's node name ends with a space
+  for (const n of ['bt_guide', 'BgButton', 'bottom_fixed_anchor2/set_MagnetBoardCats', 'bottom_left_hide_anchor/set_left/bt_cat', 'bottom_right_hide_anchor/set_right/bt_picture',
+    'bottom_right_hide_anchor/set_right/bt_magnetInven/new', 'bottom_left_fixed_anchor', `${SM}/bt3`]) show(root, n, false);
+  setText(root, 'top_fixed_anchor/set_title/lb_title_main', C.t('Magnet_hud_07'));
+  press(find(root, 'bottom_right_hide_anchor/bt_exit'), () => close());
+  press(find(root, 'bottom_right_hide_anchor/set_right/bt_magnetInven'), () => openMagnetInven());
+  press(find(root, 'bottom_left_hide_anchor/set_left/bt_theme'), () => { mag.theme = !mag.theme; mag.themeSel = null; draw(); });
+  const mb = 'bottom_fixed_anchor2/PanelMagnetBoard/MagnetBoard';
+  const area = find(root, `${mb}/MagnetRoot`);
+  const surface = el('mg-surface');
+  area.appendChild(surface);
+  const lock = el('mg-lockbox');
+  surface.appendChild(lock);
+  const scale = () => (surface.getBoundingClientRect().width / BOARD_W) || 1;
+  const n5 = S.boardRows(g).length;
+  const go = d => () => { mag.board = (mag.board + d + n5) % n5; mag.sel = -1; mag.theme = false; draw(); };
+  press(find(root, `${mb}/bt_l`), go(-1));
+  press(find(root, `${mb}/bt_r`), go(1));
+  const menu = (i, fn) => press(find(root, `${SM}/bt${i}`), fn);
+  menu(1, () => { if (mag.sel >= 0) { S.removeMagnet(g, mag.board, mag.sel); mag.sel = -1; draw(); } });
+  menu(2, () => { S.clearBoard(g, mag.board); mag.sel = -1; draw(); });
+  menu(4, () => { const it = bd().items[mag.sel]; if (it) { S.moveMagnet(g, mag.board, mag.sel, it.x, it.y, ((it.dir || 0) + 15) % 360); draw(); } });
+  menu(5, () => { mag.sel = -1; draw(); });
+  function draw() {
+    const open1 = S.boardOpen(g, mag.board);
+    const b = bd();
+    const themeNow = b ? b.theme : 0;
+    for (const t of [0, 1, 2]) {
+      show(root, `ThemeBgRoot/ThemeBg_Theme0${t}`, t === themeNow);
+      show(root, `${mb}/Frame_Theme0${t}`, t === themeNow);
+    }
+    setText(root, 'top_fixed_anchor/set_title/lb_title_sub', C.t(`title_magneticboard_0${mag.board + 1}`));
+    show(root, SM, open1 && mag.sel >= 0);
+    // a board not bought yet: a lock and its price
+    lock.textContent = '';
+    lock.style.display = open1 ? 'none' : '';
+    if (!open1) {
+      const row = S.boardRows(g)[mag.board];
+      lock.appendChild(C.hud.sprite('atlas_ui1_atlas', 'icon_lock_s', 'mg-lockico'));
+      const buy = el('mg-buy', `${C.t('gem')}  ${row.cost}`);
+      buy.onclick = () => {
+        const r = S.buyBoard(g, row.index);
+        if (r && r.short) return C.hud.toast(C.t('msg_shortGem'));
+        if (r) { C.hud.toast(C.t('info_magneticboard_unlock')); draw(); }
+      };
+      lock.appendChild(buy);
+    }
+    // theme panel (bottom): picture, name, buy or select
+    const th = show(root, 'bottom_fixed_anchor/set_theme', mag.theme && open1);
+    if (th && mag.theme && open1) {
+      const t = S.themeRows(g).find(r => r.index === (mag.themeSel ?? themeNow)) || S.themeRows(g)[0];
+      mag.themeSel = t.index;
+      const owned = S.themeOwned(g, t.index);
+      setText(th, 'txt_title', tx(t.resName, t.resName));
+      show(th, 'set_buy', !owned);
+      show(th, 'v', owned && t.index === themeNow);
+      show(th, 'bt_select', owned && t.index !== themeNow);
+      setText(th, 'set_buy/bt_buy/Label', String(t.cost));
+      setText(th, 'bt_select/Label', C.t('select'));
+      const step = d => () => { mag.themeSel = (t.index + d + 3) % 3; draw(); };
+      press(find(th, 'bt_side/bt_l'), step(-1));
+      press(find(th, 'bt_side/bt_r'), step(1));
+      press(find(th, 'bt_select'), () => { if (S.setBoardTheme(g, mag.board, t.index)) draw(); });
+      press(find(th, 'set_buy/bt_buy'), () => {
+        const r = S.buyTheme(g, t.index);
+        if (r && r.short) return C.hud.toast(C.t('msg_shortGem'));
+        if (r) { S.setBoardTheme(g, mag.board, t.index); draw(); }
+      });
+    }
+    // placed magnets: drag to move, tap to select (the right menu then removes or turns it)
+    for (const d of [...surface.querySelectorAll('.mg-mag')]) d.remove();
+    if (!b) return;
+    b.items.forEach((it, n) => {
+      const row = S.magnetRow(g, it.m);
+      if (!row) return;
+      const d = magSprite(row, `mg-mag placed${n === mag.sel ? ' sel' : ''}`);
+      d.style.left = `${it.x * BOARD_W}px`;
+      d.style.top = `${it.y * BOARD_H}px`;
+      d.style.transform = `rotate(${it.dir || 0}deg)`;
+      d.dataset.n = String(n);
+      d.onpointerdown = e => {
+        e.stopPropagation();
+        const k = scale();
+        const sx = e.clientX, sy = e.clientY, ox = it.x, oy = it.y;
+        d.setPointerCapture(e.pointerId);
+        d.onpointermove = ev => {
+          const dx = (ev.clientX - sx) / k, dy = (ev.clientY - sy) / k;
+          S.moveMagnet(g, mag.board, n, ox + dx / BOARD_W, oy + dy / BOARD_H);
+          d.style.left = `${it.x * BOARD_W}px`; d.style.top = `${it.y * BOARD_H}px`;
+        };
+        d.onpointerup = () => { d.onpointermove = d.onpointerup = null; mag.sel = n; draw(); };
+      };
+      surface.appendChild(d);
+    });
+  }
+  draw();
+  window.__magnetBoard = { draw, surface };
+}
+
+function openMagnetInven() {
+  const g = C.game;
+  const root = build(P.minven);
+  open(root, { x: true });
+  root.classList.add('mg-mi');
+  cur = { type: 'magnetInven', close() {} };
+  for (const n of ['a/scroll/table/bt_magnet', 'disableTabs', 'bg/Label']) show(root, n, false);
+  setText(root, 'set_title/lb_title_main', C.t('Magnet_hud_09'));
+  setText(root, 'set_title/lb_title_sub', C.t('Magnet_hud_10'));
+  const tabs = [['t1', S.MAGNET_TAB.normal, 'Magnet_hud_04'], ['t3', S.MAGNET_TAB.special, 'Magnet_hud_06'], ['t4', 'board', 'Magnet_hud_07']];
+  const grid = el('mg-mgrid');
+  find(root, 'a').appendChild(grid);
+  const draw = () => {
+    for (const [n, , key] of tabs) setText(root, `tabs/${n}/txt`, C.t(key));
+    for (const [n, type] of tabs) {
+      const bg = find(root, `tabs/${n}/bg`);
+      if (bg && bg.box) C.ng.paint(bg.box, 'atlas_ui1_atlas', type === mag.tab ? 'tab_on' : 'tab_off', true);
+    }
+    const type = mag.tab;
+    const list = S.magnetRows(g).filter(m => m.type === type && (S.magnetOwned(g)[m.index] || 0) > 0);
+    setText(root, 'bg/txt_info', `${S.magnetTotal(g, type)} / ${S.MAGNET_MAX}`);
+    grid.textContent = '';
+    if (!list.length) grid.appendChild(el('mg-empty', C.t('Magnet_hud_22')));
+    for (const row of list) {
+      const own = S.magnetOwned(g)[row.index] || 0;
+      const c = el('mg-card');
+      c.dataset.magnet = String(row.index);
+      c.appendChild(magSprite(row, 'mg-mag'));
+      c.appendChild(el('mg-cnt', `${S.magnetFree(g, row.index)} / ${own}`, 'span'));
+      if (S.magnetNew(g, row.index)) c.appendChild(el('mg-new', 'N', 'span'));
+      c.onclick = () => openMagnetPopup(row.index, draw);
+      grid.appendChild(c);
+    }
+  };
+  for (const [n, type] of tabs) press(find(root, `tabs/${n}`), () => { if (type === 'board') { openMagnetBoard(); return; } mag.tab = type; draw(); });
+  draw();
+  window.__magnetInven = { draw };
+}
+
+function openMagnetPopup(index, back) {
+  const g = C.game;
+  const row = S.magnetRow(g, index);
+  if (!row) return;
+  S.seeMagnet(g, index);
+  const root = build(P.mpopup);
+  const wrap = el('mg-popup');
+  const dim = el('mg-dim2');
+  dim.onclick = () => { wrap.remove(); back(); };
+  const holder = el('mg-holder2');
+  holder.appendChild(root);
+  wrap.append(dim, holder);
+  layer.el.appendChild(wrap);
+  const own = S.magnetOwned(g)[index] || 0;
+  const icon = find(root, 'icon');
+  if (icon && icon.box) C.ng.paint(icon.box, MAGNET_ATLAS, row.resName, false);
+  setText(root, 'txt_title', magName(row));
+  setText(root, 'txt_info', row.type === S.MAGNET_TAB.special ? C.t('magnet_public_info01') : '');
+  const sellable = S.magnetSellable(g, index);
+  setText(root, 'txt_sellInfo', sellable ? `${C.t('Magnet_hud_11')}  ${row.sell}` : C.t('Magnet_hud_27'));
+  setText(root, 'bt_sell/txt', C.t('Magnet_hud_12'));
+  setText(root, 'bt_deploy/txt', C.t('Magnet_hud_07'));
+  setText(root, 'bt_deploy/txt_count', `${S.magnetFree(g, index)} / ${own}`);
+  show(root, 'bt_cancel_deploy', false);
+  show(root, 'bt_sell', sellable);
+  press(find(root, 'bt_sell'), () => {
+    const r = S.sellMagnet(g, index);
+    if (!r) return C.hud.toast(C.t('Magnet_hud_23'));
+    C.hud.toast(`+${r.tokens}`);
+    wrap.remove(); back();
+  });
+  press(find(root, 'bt_deploy'), () => {
+    const it = S.deployMagnet(g, mag.board, index, 0.2 + g.rng() * 0.6, 0.2 + g.rng() * 0.6);
+    if (!it) return C.hud.toast(C.t('Magnet_hud_23'));
+    wrap.remove();
+    openMagnetBoard(mag.board);
+  });
+}
+
 export default {
   id: 'minigame',
   async mount(ctx) {
     ctx.css('css/minigame.css');
     C = ctx;
-    const [enter, mole, fly, idx] = await Promise.all([ctx.panel('set_subgameenterui'), ctx.panel('set_subgame_02_mole'), ctx.panel('set_subgame_01_butterfly'), ctx.json('art/minigame/index.json')]);
-    P = { enter, set_subgame_02_mole: mole, set_subgame_01_butterfly: fly };
+    const [enter, mole, fly, idx, mboard, minven, mpopup] = await Promise.all([ctx.panel('set_subgameenterui'), ctx.panel('set_subgame_02_mole'), ctx.panel('set_subgame_01_butterfly'), ctx.json('art/minigame/index.json'),
+      ctx.panel('set_magnetboard'), ctx.panel('set_magnetinven'), ctx.panel('set_magnetpopup')]);
+    P = { enter, set_subgame_02_mole: mole, set_subgame_01_butterfly: fly, mboard, minven, mpopup };
     TEX = idx;
     ctx.hud.addMenu({ sec: 'minigame', key: TITLE[1], sprite: 'icon_butterfly', run: () => openEnter(1) });
     ctx.hud.addMenu({ sec: 'minigame', key: TITLE[2], sprite: 'mole', run: () => openEnter(2) });
     ctx.hud.addMenu({ sec: 'minigame', key: 'title_adventure', sprite: 'event_subGame', run: () => openEnter(S.MINI.cook, 'mini') });
-    window.__minigame = { openEnter, close, cur: () => cur };
+    ctx.hud.addMenu({ sec: 'minigame', key: 'Magnet_hud_07', sprite: 'icon_magnetboard', run: () => openMagnetBoard() });
+    window.__minigame = { openEnter, close, cur: () => cur, openMagnetBoard, openMagnetInven };
   },
   update(dt) {
     if (cur && cur.step) cur.step(dt);

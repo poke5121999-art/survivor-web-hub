@@ -1,6 +1,6 @@
 """Export the Cats&Soup shop feature: data/shop.json (tables) and art/shop/notice/*.webp (notice banners).
 
-usage: py -3.12 -I tools/export_shop.py
+usage: py -3.12 -I tools/export_shop.py [--tables]   (--tables: data/shop.json only, no banners)
 
 data/shop.json
   items   Shop.json rows the shop lists (shopType 2 = "Vat pham" goods, 0/1 = real-money specials and subscriptions,
@@ -38,6 +38,18 @@ def main():
         st = r["shopType"]
         if st == 2 or (st in (0, 1) and r["costType"] == 5 and r["eventType"] == 0):
             items.append(item(r))
+    # gem packages (Shop rewardType 9, costType 3, subIndex = Package rows): costumes, furniture, skins and gems. Listed in the goods
+    # tab as one row with `pack` = [[rewardType, rewardValue], ...]; the shop lists the ones every part of which a feature can pay.
+    pk = {r["index"]: r for r in table("Package")}
+    slot = 100
+    for r in table("Shop"):
+        if r["costType"] == 3 and r["rewardType"] == 9 and r["cost"] > 0 and r["eventType"] == 0:
+            it = item(r)
+            it["shopType"] = 2
+            it["slot"] = slot
+            slot += 1
+            it["pack"] = [[pk[int(i)]["rewardType"], pk[int(i)]["rewardValue"]] for i in r["subIndex"].split(",")]
+            items.append(it)
     init = {r["index"]: r["value"] for r in table("Init")}
     ads = [{"index": r["index"], "category": r["category"], "require": r["requireValue"], "rewardType": r["rewardType"],
             "rewardValue": r["rewardValue"], "slot": r["slotIndex"]} for r in table("ShopAds")]
@@ -54,6 +66,8 @@ def main():
     with open(os.path.join(GAME, "data", "shop.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
     print("items", len(items), "ads", len(ads), "notice groups", len(notices))
+    if "--tables" in sys.argv:
+        return  # data only, no banner extraction
 
     # notice banners: Resources "notice/<name>" is one file holding a Texture2D
     import cns

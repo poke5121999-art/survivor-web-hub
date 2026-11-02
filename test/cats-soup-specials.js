@@ -154,7 +154,17 @@ const eq = (name, a, b) => check(name, a === b, `${a} vs ${b}`);
   eq('9 slots', stock.length, 9);
   check('slot 0-1 equip 500+ gems, slots 6-7 tickets, slot 8 pudding', stock[0].type === 5 && stock[0].costType === 3 && stock[0].cost >= 500
     && [1101, 1102, 1103, 1201, 1202, 1203].includes(stock[6].type) && stock[8].type === 23 && stock[8].cost === 200, JSON.stringify([stock[0], stock[6], stock[8]]));
-  check('slots 2-5 (furniture, item) are empty: no feature pays them', stock.slice(2, 6).every(x => x === null));
+  check('slots 2-3 are furniture (type 6, 300 gems), slots 4-5 items (type 201, 400 gems) now that furniture and item owners exist',
+    JSON.stringify(stock.slice(2, 6).map(x => [x.type, x.costType, x.cost])) === '[[6,3,300],[6,3,300],[201,3,400],[201,3,400]]', JSON.stringify(stock.slice(2, 6)));
+  check('no slot is empty', stock.every(x => x));
+  g.state.gem = 1000;
+  const fur = g.feat.furniture, f0 = fur.count(g, stock[2].value), gemT = g.state.gem;
+  r = S.buyTrader(g, 2);
+  check('furniture slot 2 paid 300 gems and added the furniture', r && r.given.type === 6 && g.state.gem === gemT - 300 && fur.count(g, stock[2].value) === f0 + 1, JSON.stringify(r));
+  r = S.buyTrader(g, 4);
+  check('item slot 4 paid 400 gems and was handed over', r && r.given && g.state.gem === gemT - 700, JSON.stringify(r));
+  // every item reward type of the trader table that some feature pays can be drawn: lamp 14, theme 22, work skin 26, cookies 7106, observatory 1402
+  check('canGive: 6 14 22 26 1402 7106 yes, 201 yes, 28 32 15 17 no', [6, 14, 22, 26, 1402, 7106, 201].every(t => S.canGive(g, t)) && [28, 32, 15, 17].every(t => !S.canGive(g, t)));
   const t6 = stock[6];
   g.state.gem = 10;
   check('short of gems', S.buyTrader(g, 6).short === 'gem' && !t6.bought);
@@ -167,8 +177,26 @@ const eq = (name, a, b) => check(name, a === b, `${a} vs ${b}`);
   const gold0 = g.state.gold;
   const used = S.useTicket(g, 1101);
   check('gold ticket 1h pays avgGold x 3600', used && Math.abs(B.toNumber(B.sub(g.state.gold, gold0)) / (B.toNumber(avg) * 3600) - 1) < 1e-6 && sp.tickets[1101] === 0);
+  // items go through game.itemCount / spendItem: tickets and pudding are this feature's bag
+  const pud0 = g.itemCount(23), t1102 = g.itemCount(1102);
+  g.reward(23, 2);
+  g.reward(1102, 3);
+  check('bag: pudding +2 and ticket 1102 +3 counted by the core', g.itemCount(23) === pud0 + 2 && g.itemCount(1102) === t1102 + 3 && S.default.bag(g)[1102] === t1102 + 3 && S.default.bag(g)[23] === pud0 + 2);
+  check('spendItem takes the pudding and the tickets from the bag', g.spendItem(23, 1) && g.spendItem(1102, 2) && sp.pudding === pud0 + 1 && sp.tickets[1102] === t1102 + 1 && !g.spendItem(23, pud0 + 2));
   sp.skewMs = at(19, 5) - Date.now();
   check('dinner window draws new stock', S.traderStock(g) !== stock && sp.trader.win.endsWith('#1'));
+
+  // ---- fish collection set bonuses (sub 1002 jar, 1003 balloon, 1004 order): +5 % each, here forced through the collection feature ----
+  const colSub = g.feat.collection.subPercent;
+  g.feat.collection.subPercent = (_g, sub) => ({ 1002: 5, 1003: 10, 1004: 20 }[sub] || 0);
+  const near = (a, b) => Math.abs(B.toNumber(a) / B.toNumber(b) - 1) < 1e-6;
+  check('jar free = avgGold x 3600 x 1.05 / 20, ad = x 1.05', near(S.jarGold(g, 20), B.div(B.mul(avg, 3600 * 1.05), 20)) && near(S.jarGold(g, 1), B.mul(avg, 3600 * 1.05)));
+  check('balloon = avgGold x 20 x 1.10', near(S.balloonGold(g), B.mul(avg, 22)));
+  check('special order = avgGold x 1000 x 1.20', near(S.orderGold(g), B.mul(avg, 1200)));
+  const jar2 = add(5); jar2.v = 1;
+  const gj = g.state.gold;
+  check('ad button (claimJarAds) pays the jar with the bonus', near(B.sub(S.claimJarAds(g, jar2), B.ZERO), B.mul(avg, 3780)) && B.cmp(g.state.gold, gj) > 0);
+  g.feat.collection.subPercent = colSub;
 
   // ---- music ----
   eq('free tracks owned at start', sp.bgmOwned.join(','), '1,2');

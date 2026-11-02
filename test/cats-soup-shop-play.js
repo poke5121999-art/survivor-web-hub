@@ -64,7 +64,7 @@ function serve() {
   await page.waitForSelector('.sh-list .sh-card');
   await shot('01-shop-goods');
   const cards = await page.locator('.sh-list .sh-card').count();
-  check('goods tab lists 21 cards (25 rows minus 3 furniture rows and the telescope-ticket row)', cards === 21, `${cards}`);
+  check('goods tab lists 26 cards (25 rows minus 3 furniture rows and the telescope-ticket row, plus 5 payable gem packages)', cards === 26, `${cards}`);
   const gem0 = await page.evaluate(() => window.__game.state.gem);
   await click(page, '.sh-list .sh-card:nth-child(1) .sh-b');
   await page.waitForTimeout(300);
@@ -79,6 +79,21 @@ function serve() {
   check('gold 1 h costs 100 gems', after.gem === gem1 - 100, `${after.gem}`);
   check('...and adds gold', num(after.gold) > gold0 + 1000, `${num(after.gold)}`);
   await shot('02-shop-bought');
+  // gem packages: the last card is package 222 (2000 gems, forest theme 3); 1045 is an outfit + 500 gems
+  await page.evaluate(() => { window.__game.state.gem = 20000; });
+  const pk0 = await page.evaluate(() => window.__game.state.gem);
+  await click(page, '.sh-list .sh-card:last-child .sh-b');
+  await page.waitForTimeout(300);
+  check('gem package 222 costs 2000 gems and adds theme 3', await page.evaluate(() => [window.__game.state.gem, window.__game.feat.theme.ownTheme(window.__game, 3)].join()) === `${pk0 - 2000},true`);
+  check('...and shows a check mark (bought once)', await page.locator('.sh-list .sh-card:last-child .sh-done').count() === 1);
+  await page.evaluate(() => { const l = document.querySelector('.sh-list'); l.scrollTop = l.scrollHeight; });
+  await shot('02b-shop-packages');
+  await click(page, '.sh-list .sh-card:nth-last-child(5) .sh-b');
+  await page.waitForTimeout(300);
+  check('package 1045 (7500 gems, +500 back) gives outfit 357', await page.evaluate(() => [window.__game.state.gem, window.__game.feat.equip.owned(window.__game, 357)].join()) === `${pk0 - 2000 - 7500 + 500},true`);
+  await page.evaluate(g => { window.__game.state.gem = g; document.querySelector('.sh-list').scrollTop = 0; }, after.gem);
+  if (await page.getByText('OK', { exact: true }).count()) await page.getByText('OK', { exact: true }).first().click({ force: true });   // the outfit level-up card of the equip feature
+  await page.waitForTimeout(400);
   const iapCard = await page.evaluate(() => [...document.querySelectorAll('.sh-list .sh-card')].findIndex(c => /₩/.test(c.textContent)) + 1);
   check('a real-money gem pack is on the list', iapCard > 0, `${iapCard}`);
   await click(page, `.sh-list .sh-card:nth-child(${iapCard}) .sh-b`);
@@ -86,7 +101,7 @@ function serve() {
   check('...shown disabled, tapping it changes nothing', (await page.evaluate(() => window.__game.state.gem)) === after.gem);
   await click(page, '[data-n="t1"] .w');
   await page.waitForTimeout(200);
-  check('special tab: 14 real-money goods, all disabled', (await page.locator('.sh-list .sh-card .sh-b.off').count()) === 14);
+  check('special tab: 14 real-money goods, all disabled', (await page.locator('.sh-list .sh-card .sh-b.off').count()) === 14, `${await page.locator('.sh-list .sh-card .sh-b.off').count()} off of ${await page.locator('.sh-list .sh-card').count()}`);
   await shot('03-shop-special');
   await click(page, '[data-n="t4"] .w');
   await page.waitForTimeout(300);

@@ -4,6 +4,8 @@
 // State game.state.shop = { day, bought: { <Shop index>: { n, day, at } }, stamps, stampDay, stampToday, adsBought: { <ShopAds index>: 1 }, doubleSec }
 // The offline result of this session (not saved) is read with away(game); the ad x2 pays through claimOfflineAds.
 
+import * as B from '../big.js';
+
 const S = g => g.state.shop;
 const D = g => g.data.shop;
 
@@ -23,6 +25,26 @@ export const TAB = { special: 0, term: 1, goods: 2 };
 // ---- rewards the shop can hand over ----
 // Types that game.reward can pay: 1-4 core, others only when some feature lists them (specials: 101, 102, tickets).
 export const canGive = (g, type) => type <= 4 || !!g.features.find(f => f.rewards && f.rewards[type]);
+
+// ---- offline time bonus of the fish collection (Ability type 11, subIndex 1005 "offline time", collection.md) ----
+// LimitOfflineRewardTime = (1 + bonus / 100) x the base window (DataManager.c:121242, economy.md 166). The core pays the base window
+// at load; when the player was away longer than it, the extra part of the window is paid here in proportion to what the base paid.
+export const OFFLINE_SUB = 1005;
+export const offlinePercent = g => (g.feat.collection && g.feat.collection.subPercent ? g.feat.collection.subPercent(g, OFFLINE_SUB) : 0);
+export function offlineExtra(g, sec, raw, r) {
+  const pct = offlinePercent(g);
+  if (!r || pct <= 0 || raw <= sec) return 0;
+  const extra = Math.min(raw, sec * (1 + pct / 100)) - sec;
+  if (extra <= 0) return 0;
+  const k = extra / sec;
+  const gold = B.mul(r.gold, k), energy = B.mul(r.energy, k);
+  g.reward(1, gold);
+  g.reward(2, energy);
+  r.gold = B.add(r.gold, gold);
+  r.energy = B.add(r.energy, energy);
+  r.seconds = sec + extra;
+  return extra;
+}
 
 // ---- offline result of this session ----
 const AWAY = new WeakMap();
@@ -51,14 +73,20 @@ function rollover(g, now = Date.now()) {
   return true;
 }
 
-const haveTickets = (g, type) => (g.state.specials && g.state.specials.tickets[type]) || 0;
+const haveTickets = (g, type) => g.itemCount(type);
 const priceOf = row => (row.costType === COST.ad ? 0 : row.cost);
+
+// Gem packages (rewardType 9, Package rows in row.pack = [[type, value], ...]): costumes (5), furniture (6), skins (14 lamp, 22 theme,
+// 26 work skin, 27 sign skin) and gems. Listed only when every part has a feature that can pay it (a part of value 0 of a type
+// nobody pays, e.g. 19, keeps the package out).
+export const packPayable = (g, row) => !!row.pack && row.pack.length > 0 && row.pack.every(([t]) => canGive(g, t));
 
 // Why an item cannot be bought now: 'iap' (real money), 'unsupported' (reward or cost not in this port), 'owned', 'gem', 'coin', 'ticket'.
 export function blocked(g, row) {
   if (row.iap || row.costType === 5) return 'iap';
   // rewardType 6 (rows 24-26) has rewardValue -1 = no fixed furniture: the furniture feature sells its own stock, so it stays out of here
-  if (row.rewardType === 6 || !canGive(g, row.rewardType)) return 'unsupported';
+  if (row.pack) { if (!packPayable(g, row)) return 'unsupported'; }
+  else if (row.rewardType === 6 || !canGive(g, row.rewardType)) return 'unsupported';
   if (row.costType !== COST.gem && row.costType !== COST.coin && row.costType !== COST.ad && !TICKET_COST.has(row.costType)) return 'unsupported';
   if (row.duration !== 0 && boughtCount(g, row) >= row.limit) return 'owned';
   if (row.costType === COST.gem && g.state.gem < row.cost) return 'gem';
@@ -77,12 +105,13 @@ export function buy(g, index) {
   const s = g.state;
   if (row.costType === COST.gem) s.gem -= row.cost;
   else if (row.costType === COST.coin) s.coin -= row.cost;
-  else if (TICKET_COST.has(row.costType)) s.specials.tickets[row.costType] -= row.cost;
-  const given = g.reward(row.rewardType, row.rewardValue);
-  if (!given) { // the reward vanished (should not happen after blocked()): give the price back
+  else if (TICKET_COST.has(row.costType)) g.spendItem(row.costType, row.cost);
+  // a package hands over every part (an equipment part names its outfit through extra.equip, DataManager.GetReward_Inner type 5)
+  const given = row.pack ? row.pack.map(([t, v]) => g.reward(t, t === 5 ? 1 : v, { equip: v, from: 'shop' })) : g.reward(row.rewardType, row.rewardValue);
+  if (!given || (row.pack && !given.some(Boolean))) { // nothing was paid (should not happen after blocked()): give the price back
     if (row.costType === COST.gem) s.gem += row.cost;
     else if (row.costType === COST.coin) s.coin += row.cost;
-    else if (TICKET_COST.has(row.costType)) s.specials.tickets[row.costType] += row.cost;
+    else if (TICKET_COST.has(row.costType)) g.reward(row.costType, row.cost);
     return { row, why: 'unsupported' };
   }
   if (row.duration !== 0) {
@@ -180,8 +209,9 @@ export default {
   // Keeps what core paid for the offline popup and its x2 ad.
   offline(g, sec, raw, r) {
     rollover(g);
+    offlineExtra(g, sec, raw, r);
     if (r && (r.gold.f || r.energy.f)) AWAY.set(g, { seconds: r.seconds, gold: r.gold, energy: r.energy, doubled: false });
   },
   listed, itemRow, boughtCount, blocked, buy, watchStamp, stampRows, buyStamp, away, clearAway, claimOfflineAds, doubleLeft, doubleActive,
-  startDouble, doubleAvailable, canGive, rollover,
+  startDouble, doubleAvailable, canGive, rollover, packPayable, offlinePercent, offlineExtra,
 };

@@ -164,6 +164,61 @@ function serve() {
   check('house 403 built', await ev(() => window.__game.state.kitty.houses.join()) === '402,403');
   await shot('13-second-house');
 
+  // ---- kittens walk the forest (CatAI.kits drawn by GameView.updateKittens) ----
+  await ev(() => window.__kitty.close());
+  await wait(400);
+  const KV = () => ev(() => {
+    const V = window.__kitty.view.ctx.view, g = window.__game;
+    const walkers = g.feat.kitty.walkers(g).map(w => w.id);
+    const out = { walkers, kits: [...V.kits.keys()], inScene: 0, tex: [], scale: [], vis: 0, pos: {}, phase: {}, skinned: 0 };
+    for (const [id, e] of V.kits) {
+      if (e.obj.parent === V.root) out.inScene++;
+      if (e.obj.visible) out.vis++;
+      out.scale.push(e.obj.scale.x.toFixed(2) + '/' + e.obj.scale.y.toFixed(2));
+      out.pos[id] = [e.obj.position.x, e.obj.position.z];
+      out.phase[id] = g.ai.kits.get(id).phase;
+      let sk = 0, tex = null;
+      e.obj.traverse(o => { if (o.isSkinnedMesh) { sk++; const u = o.material.uniforms; if (u && u.map && u.fragMode && u.fragMode.value === 0) tex = u.map.value && u.map.value.image && u.map.value.image.currentSrc || (u.map.value && u.map.value.uuid); } });
+      out.skinned += sk > 0 ? 1 : 0;
+      out.tex.push(tex);
+    }
+    return out;
+  });
+  const kv0 = await KV();
+  check('a kitten mesh is in the scene for every kitty that is home (4 kitties)', kv0.walkers.length === 4 && kv0.kits.length === 4 && kv0.inScene === 4 && kv0.vis === 4 && kv0.skinned === 4, JSON.stringify([kv0.walkers.length, kv0.kits.length, kv0.inScene, kv0.vis, kv0.skinned]));
+  check('kittens are drawn at DEFINE.KITTY_SCALE (0.67 wide, 0.64 tall)', kv0.scale.every(s => s === '0.67/0.64'), kv0.scale.join());
+  const bodyTex = await ev(() => { const V = window.__kitty.view.ctx.view, g = window.__game, out = []; for (const [id, e] of V.kits) { const c = g.ai.kits.get(id); out.push([c.type, V.catTypes[c.type].tex, e.obj.children.length]); } return out; });
+  check('their body textures are the kitty CatType bodies (body1_NN), not the worker cat body', bodyTex.every(b => /^body1_/.test(b[1])), JSON.stringify(bodyTex.map(b => b[1])));
+  // walk: poll the real page for up to 90 s until a kitten has moved clearly and run phases were seen
+  const phases = new Set(), moved = {};
+  const first = kv0.pos;
+  for (let i = 0; i < 90; i++) {
+    const kv = await KV();
+    for (const [id, p] of Object.entries(kv.pos)) { moved[id] = Math.max(moved[id] || 0, Math.hypot(p[0] - first[id][0], p[1] - first[id][1])); phases.add(kv.phase[id]); }
+    if (Math.max(...Object.values(moved)) > 1.5 && phases.has('walk')) break;
+    await wait(1000);
+  }
+  check('a kitten walks across the forest (moved at least one cell, 1.5 world units, walk phase seen)', Math.max(...Object.values(moved)) >= 1.49 && phases.has('walk'), `${JSON.stringify(moved)} ${[...phases]}`);
+  // close-up of the kitten that is walking
+  await ev(() => {
+    const V = window.__kitty.view.ctx.view, C = window.__kitty.view.ctx.camera, g = window.__game;
+    const pick = [...V.kits].find(([id]) => g.ai.kits.get(id).phase === 'walk') || [...V.kits][0];
+    window.__shotKit = pick[0];
+    C.target.set(pick[1].obj.position.x, 0, pick[1].obj.position.z); C.size = 1.0; C.update();
+  });
+  await wait(400);
+  await shot('14-kitten-closeup');
+  // a trip takes a kitten out of the forest, the cancel brings it back
+  const away = await ev(() => { const g = window.__game, k = g.state.kitty.kitties.find(x => x.house === 402); k.trip = { items: [], left: 99999, total: 99999 }; return `kitty${k.id}`; });
+  await wait(600);
+  const kv1 = await KV();
+  check('a kitten on a trip is not in the forest (no mesh, no AI state, removed from the scene)', !kv1.kits.includes(away) && kv1.kits.length === 3 && kv1.inScene === 3 && !(await ev(id => window.__game.ai.kits.has(id), away)));
+  await ev(() => { const g = window.__game, k = g.state.kitty.kitties.find(x => x.house === 402); g.feat.kitty.cancel(g, k.id); });
+  await wait(600);
+  const kv2 = await KV();
+  check('after the trip it is back in the forest, at home', kv2.kits.includes(away) && kv2.inScene === 4 && kv2.phase[away] === 'home', kv2.phase[away]);
+  await ev(() => { const C = window.__kitty.view.ctx.camera; C.size = 2.5; C.update(); });
+
   check('no feature failed at the end', (await failed()).length === 0, JSON.stringify(await failed()));
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   console.log(`\n${pass} passed, ${fail} failed`);

@@ -93,6 +93,13 @@ const eq = (name, got, want) => check(name, JSON.stringify(got) === JSON.stringi
   g.state.profile.mission = 2;
   r = P.photo(g, { day: 101, special: true });
   eq('next day allows it again', r.special, true);
+  // fish collection set bonus on the photo (sub 1001) and the cat sub skill row 1100 (+10 %) add up: 600 x (1 + 0.15 + 0.10)
+  const subCol = g.feat.collection.subPercent, subCat = g.feat.cats.subSkillPercent;
+  g.feat.collection.subPercent = (_g, sub) => (sub === 1001 ? 15 : 0);
+  g.feat.cats.subSkillPercent = (_g, idx) => (idx === 1100 ? 10 : 0);
+  g.state.profile.mission = 1;
+  eq('photo gold x (1 + 15 % collection + 10 % cat) = 750', [P.photoPercent(g), num(P.photoGold(g, false))], [25, 750]);
+  g.feat.collection.subPercent = subCol; g.feat.cats.subSkillPercent = subCat;
   g.state.profile.mission = 1;
   g.events.length = 0;
   P.photo(g, { day: 101 });

@@ -63,3 +63,25 @@
 .mg-rc.got { opacity: 1; }
 .mg-rc .mg-ico { width: 90px; height: 90px; }
 .mg-rc small { font-size: 34px; }
+
+/* magnet board (set_magnetboard / set_magnetinven / set_magnetpopup) */
+.mg-surface { position: absolute; left: -390px; top: -20px; width: 780px; height: 1180px; pointer-events: auto; z-index: 300; }
+.mg-mag { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; background-size: 100% 100%; touch-action: none; cursor: grab; filter: drop-shadow(0 6px 4px #0005); }
+.mg-mag.placed { z-index: 5; }
+.mg-mb .ng.mg-sel > .w { filter: brightness(1.25); }
+.mg-mb .ng.mg-lock > .w { filter: grayscale(0.8) brightness(0.8); }
+.mg-mgrid { position: absolute; left: -400px; top: -590px; width: 800px; height: 1200px; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 14px; pointer-events: auto; scrollbar-width: none; z-index: 400; }
+.mg-card { position: relative; width: 180px; height: 200px; background: #fffaf2; border: 4px solid #d9cbb8; border-radius: 20px; cursor: pointer; flex: none; box-sizing: border-box; }
+.mg-card .mg-mag { position: absolute; left: 90px; top: 84px; cursor: pointer; }
+.mg-cnt { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 36px; font-weight: 700; color: #5b4636; }
+.mg-new { position: absolute; right: 6px; top: 4px; background: #ff5b5b; color: #fff; font-size: 30px; border-radius: 14px; padding: 0 10px; }
+.mg-empty { width: 100%; text-align: center; font-size: 42px; margin-top: 200px; color: #8a7765; }
+.mg-popup { position: absolute; inset: 0; z-index: 800; pointer-events: none; }
+.mg-dim2 { position: absolute; inset: 0; background: #0008; pointer-events: auto; }
+.mg-holder2 { position: absolute; left: 540px; top: 960px; width: 0; height: 0; pointer-events: none; }
+.mg-holder2 .ng.btn > .w { pointer-events: auto; cursor: pointer; }
+.mg-nodim > .mg-dim { background: transparent; }
+.mg-mag.sel { filter: drop-shadow(0 0 10px #ffe06b) drop-shadow(0 0 4px #fff); z-index: 9; }
+.mg-lockbox { position: absolute; left: 0; top: 0; width: 780px; height: 1180px; background: #000a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; z-index: 20; }
+.mg-lockico { width: 120px; height: 120px; background-size: 100% 100%; }
+.mg-buy { background: #5fb4f0; border: 5px solid #fff; border-radius: 28px; padding: 12px 44px; font-size: 56px; font-weight: 700; color: #fff; cursor: pointer; }

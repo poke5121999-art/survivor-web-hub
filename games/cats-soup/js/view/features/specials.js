@@ -43,6 +43,11 @@ export function describe(r) {
     const q = r.equip != null ? equipSprite(r.equip) : null;
     return q ? { atlas: q[0], sprite: q[1], text: q[2] || 'x1' } : { atlas: UI, sprite: 'multiCard', text: `x${fmt(v)}` };
   }
+  if (ty === 6) { // furniture: the icon of the furniture feature's atlases, named by its Furniture row
+    const fr = C.game.feat.furniture && C.game.feat.furniture.row(C.game, Number(r.value));
+    const at = fr && ['atlas_furniture1_atlas', 'atlas_furniture2_atlas'].find(a => C.ng.spriteInfo(a, fr.resName));
+    if (at) return { atlas: at, sprite: fr.resName, text: C.t(`name_${fr.resName}`) === `name_${fr.resName}` ? `x1` : C.t(`name_${fr.resName}`) };
+  }
   return { atlas: UI, sprite: 'icon_treasure', text: `x${fmt(v)}` };
 }
 const iconOf = (d, cls = 'ic') => { const i = C.hud.sprite(d.atlas, d.sprite, cls); return i; };
@@ -156,7 +161,7 @@ function setupJar() {
   const pay = free => () => {
     const w = works(5);
     if (!w) return;
-    const g = free ? S.claimJarFree(C.game, w) : C.game.claimJar(w);
+    const g = free ? S.claimJarFree(C.game, w) : S.claimJarAds(C.game, w);
     if (g) floater(`+${B.format(g)}`, 560, 900);
     toggleJar(false);
   };

@@ -6,6 +6,7 @@
 //     onTapAt(x, y) -> bool, // any tap on the 3D view (client pixels) before facility picking; true = handled
 //     onTap(work) -> bool, // a tapped facility; true = handled (the facility card does not open)
 //     onEvent(e),          // every sim event of the frame
+//     onWork(entry),       // a facility's 3D object was created ({obj, anchor, w}); also called for those built before mount
 //   }
 // ctx = { game, hud, ng, root, lang, view, scene, camera, sound, base, json(path), panel(name), css(href), t(key, ...args) }
 //   hud.bind(path, fn) binds an NGUI button of art/ui/hud.json, hud.open(title, sub, tabs, draw) opens a list panel,
@@ -28,5 +29,6 @@ import minigame from './features/minigame.js';
 import season from './features/season.js';
 import profile from './features/profile.js';
 import guests from './features/guests.js';
+import particles from './features/particles.js';
 
-export const VIEWS = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests];
+export const VIEWS = [specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests, particles];

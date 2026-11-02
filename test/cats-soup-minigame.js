@@ -142,6 +142,39 @@ const eq = (name, a, b) => check(name, JSON.stringify(a) === JSON.stringify(b), 
   const gw = S.claimMini(g, 5, 1);
   check('claim pays', !!gw);
 
+  // ---- magnet board: magnets come from the kitty feature (reward 3500), read through kitty.magnets(g) ----
+  const K = g.feat.kitty;
+  eq('tables: 36 magnets, boards cost 0/200/400/800/1200, themes 0/800/800 gems', [D.magnets.length, S.boardRows(g).map(r => r.cost), S.themeRows(g).map(r => [r.cost, r.costType])], [36, [0, 200, 400, 800, 1200], [[0, 0], [800, 3], [800, 3]]]);
+  eq('fresh: board 0 open and theme 0 owned, others closed', [Object.keys(mg.magnet.boards), mg.magnet.themes, S.boardOpen(g, 1)], [['0'], [0], false]);
+  eq('no magnet yet: inventory empty, no new mark', [S.magnetOwned(g), S.hasNewMagnet(g)], [{}, false]);
+  for (let i = 0; i < 3; i++) g.reward(3500, 9);
+  g.reward(3500, 18);
+  eq('3 x asia01 (9) and the commemorative 18 read through kitty.magnets', [S.magnetOwned(g), K.magnets(g)], [{ 9: 3, 18: 1 }, { 9: 3, 18: 1 }]);
+  eq('item API: itemCount(3500009) = 3 over the same map', [g.itemCount(K.magnetItem(9)), K.magnetItem(9)], [3, 3500009]);
+  eq('type totals: normal 3, special 1; new mark on', [S.magnetTotal(g, 0), S.magnetTotal(g, 2), S.hasNewMagnet(g)], [3, 1, true]);
+  const it = S.deployMagnet(g, 0, 9, 0.25, 0.75);
+  eq('deploy asia01 at (0.25, 0.75): 1 placed, 2 free, seen', [it && [it.m, it.x, it.y], S.magnetPlaced(g, 9), S.magnetFree(g, 9), S.magnetNew(g, 9)], [[9, 0.25, 0.75], 1, 2, false]);
+  S.deployMagnet(g, 0, 18, 2, -1);
+  eq('x, y clamp to 0..1; a second copy of 18 has no free one', [mg.magnet.boards[0].items[1].x, mg.magnet.boards[0].items[1].y, S.deployMagnet(g, 0, 18), S.deployMagnet(g, 3, 9)], [1, 0, null, null]);
+  const tok0 = g.itemCount(96);
+  eq('sell asia01: +30 souvenir tokens, 2 owned', [S.sellMagnet(g, 9).tokens, g.itemCount(96) - tok0, S.magnetOwned(g)[9]], [30, 30, 2]);
+  eq('the last one stands on the board: no free copy to sell; 18 is commemorative (sell -1)', [S.sellMagnet(g, 9) && 1, S.sellMagnet(g, 18), S.magnetRow(g, 18).sell], [1, null, -1]);
+  eq('now none free', [S.magnetFree(g, 9), S.sellMagnet(g, 9)], [0, null]);
+  g.state.gem = 100;
+  eq('board 2 (400) / board 1 (200) with 100 gems: short', [S.buyBoard(g, 2), S.buyBoard(g, 1)], [{ short: 'gem' }, { short: 'gem' }]);
+  g.state.gem = 1000;
+  eq('board 1 costs 200 gems; once only', [S.buyBoard(g, 1), g.state.gem, S.buyBoard(g, 1)], [{ board: 1 }, 800, null]);
+  eq('theme 1 costs 800 gems and sets on board 1; theme 2 not owned', [S.buyTheme(g, 1), g.state.gem, S.setBoardTheme(g, 1, 1), S.setBoardTheme(g, 1, 2), mg.magnet.boards[1].theme], [{ theme: 1 }, 0, true, false, 1]);
+  K.magnets(g); g.state.kitty.magnets[9] = 150;
+  eq('150 magnets of a type fill the inventory (GetMagnetMaxInven 0x96)', [S.magnetFull(g, 0), S.magnetFull(g, 2)], [true, false]);
+  g.state.kitty.magnets[9] = 1;
+  g.spendItem(K.magnetItem(9), 1);
+  for (let i = 0; i < 3; i++) g.tick(0.5);
+  eq('spent elsewhere: the placed copy leaves the board', [mg.magnet.boards[0].items.map(x => x.m), S.magnetOwned(g)], [[18], { 18: 1 }]);
+  const g2 = await makeGame(async p => JSON.parse(fs.readFileSync(path.join(G, p), 'utf8')), rng);
+  g2.load(JSON.parse(JSON.stringify(g.save())));
+  eq('save/load keeps boards, themes and magnets', [Object.keys(g2.state.minigame.magnet.boards), g2.state.minigame.magnet.themes, g2.state.minigame.magnet.boards[0].items.length, g2.feat.minigame.magnetOwned(g2)], [['0', '1'], [0, 1], 1, { 18: 1 }]);
+
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

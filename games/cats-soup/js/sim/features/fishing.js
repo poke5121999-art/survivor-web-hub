@@ -26,6 +26,8 @@ export const isBookFish = id => id < 100 || id >= 400;   // RegistFishBook skips
 
 export default {
   id: 'fishing',
+  // Star-candy bait (6002) is a plain counter of this slice; exposed as a count map for game.itemCount / spendItem.
+  bag: g => ({ get 6002() { return g.state.fishing.bait; }, set 6002(v) { g.state.fishing.bait = v; } }),
   data: ['fishing'],
 
   init(game) {

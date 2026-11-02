@@ -81,6 +81,19 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   const fv = g.fishTable.get(101).heartValue;
   const before = F.kitty(g, k2.id).exp;
   check('feeding a fish adds its heartValue to the kitty and eats the fish', F.feed(g, k2.id, 101) === fv && F.kitty(g, k2.id).exp === before + fv && !g.state.fishing.inv[101], `heartValue ${fv}`);
+  // golden butterfly bonus: the guests feature pays 10 + kitty.butterflyBonus(g) (DataManager AddButterflyPoint), x2 by ad; the
+  // collection holds the butterflies (reward 98) and the magnets are items too (itemCount of type 3500 * 1000 + index)
+  { const kk = F.kitty(g, k2.id), exp0 = kk.exp; kk.exp = 1e6;
+    const b0 = g.itemCount(98);
+    g.state.guests.butterfly.ready = true;
+    const pts = g.feat.guests.claimButterfly(g);
+    check('butterfly bonus: heart level 10 kitty in house 403 gives +10 -> 20 golden butterflies', F.butterflyBonus(g) === 10 && pts === 20 && g.itemCount(98) - b0 === 20, `bonus ${F.butterflyBonus(g)} points ${pts}`);
+    g.state.guests.butterfly.ready = true;
+    check('...and 40 by the ad button', g.feat.guests.claimButterfly(g, true) === 40);
+    g.spendItem(98, g.itemCount(98) - b0);                // leave the butterflies as the shop tests below count them
+    kk.exp = exp0; }
+  g.reward(3500, 9);
+  check('magnet 9 is item 3500009: itemCount 1, magnets(g) {9: 1}, spendItem takes it', g.itemCount(F.magnetItem(9)) === 1 && JSON.stringify(F.magnets(g)) === '{"9":1}' && g.spendItem(F.magnetItem(9), 1) && F.magnetCount(g) === 0);
   check('feeding with no fish fails', F.feed(g, k2.id, 101) === null);
 
   // ---- shop ----
@@ -191,6 +204,80 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   delete old3.kitty;
   g3.load(old3);
   check('an old save without the slice gets an empty one', g3.state.kitty.kitties.length === 0 && g3.state.kitty.houses.length === 0);
+
+  // ---- kittens in the forest (CatAI second list, rules/kitty.md section 12) ----
+  {
+    const h = await mk();
+    const HF = h.feat.kitty;
+    check('no kitties: no walkers and no kitten state in the cat AI', HF.walkers(h).length === 0 && h.ai.kits.size === 0);
+    const ka = HF.buildHouse(h, 402), kb = HF.buildHouse(h, 403);
+    check('walkers = kitties off a trip, scaled by DEFINE.KITTY_SCALE 0.67/0.64/0.67', HF.walkers(h).length === 2 && HF.walkers(h)[0].scale.join() === '0.67,0.64,0.67' && HF.walkers(h)[0].type === ka.type);
+    const cat0 = JSON.stringify(h.ai.cats.get(h.state.cats[0].id) || null);
+    const seen = new Set(), pos = [], maxStep = { v: 0 };
+    let last = null, restPaid = 0;
+    for (let i = 0; i < 4 * 600; i++) {
+      h.tick(0.25);
+      const c = h.ai.kits.get(`kitty${ka.id}`);
+      if (!c) continue;
+      seen.add(c.phase);
+      if (last) maxStep.v = Math.max(maxStep.v, Math.hypot(c.x - last[0], c.y - last[1]) / 0.25);
+      last = [c.x, c.y];
+      pos.push(last);
+      if (i === 0) check('the kitten starts at home on a free field cell', h.inField(Math.round(c.x), Math.round(c.y)) && !h.workAt(Math.round(c.x), Math.round(c.y)) && c.phase === 'home');
+    }
+    check('in 600 s a kitten sleeps, walks and idles (Home / Play phases)', ['home', 'walk', 'idle'].every(p => seen.has(p)), [...seen].join());
+    check('kitten speed never above 1.2 world units/s = 0.8 cells/s', maxStep.v <= 0.8 + 1e-6, maxStep.v.toFixed(3));
+    const xs = pos.map(p => p[0]), ys = pos.map(p => p[1]);
+    check('the kitten covers ground (spread of its path over 1 cell)', Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys) > 1);
+    check('without a kitty-rest prop (Work 405 is not built here) nobody rests (ChoiceKittyBehavior falls back to Home / Play)', !seen.has('rest'));
+    check('kittens live in ai.kits, the worker-cat map ai.cats keeps only the soup cat', h.ai.cats.size === 1 && typeof cat0 === 'string');
+
+    // a trip takes the kitten out of the forest and the return puts it back at home
+    check('travel needs a house kitten', HF.travel(h, ka.id, []) !== null);
+    h.tick(0.25);
+    check('a kitten on a trip is not a walker and has no AI state', !HF.walkers(h).some(w => w.kitty === ka.id) && !h.ai.kits.has(`kitty${ka.id}`) && h.ai.kits.has(`kitty${kb.id}`));
+    ka.trip.left = 0;
+    HF.collect(h, ka.id);
+    h.tick(0.25);
+    const back = h.ai.kits.get(`kitty${ka.id}`);
+    check('after the trip the kitten is back in the forest asleep at home', back && back.phase === 'home');
+
+    // Rest: a kitty-rest prop (Work type 14, 405) pays AddEnergyByRest when a kitten finishes the visit
+    const rw = h.place(405, h.autoCell(), 0);
+    check('Work 405 is a type 14 prop', h.work.get(405).type === 14);
+    rw.v = 3;
+    h.state.energy = B.ZERO;
+    let rested = false, visits = 0;
+    const startE = h.state.energy;
+    for (let i = 0; i < 4 * 900 && !rested; i++) {
+      h.tick(0.25);
+      for (const c of h.ai.kits.values()) if (c.phase === 'rest') visits++;
+      if (rw.v === 0) rested = true;
+    }
+    const paid = B.sub(h.state.energy, startE);
+    check('a kitten walks to the prop, rests there and AddEnergyByRest pays the stored charges', rested && visits > 0 && B.toNumber(paid) > 0, `energy ${B.toNumber(paid)}, rest ticks ${visits}`);
+    check('after the visit the prop is empty and the kitten leaves it', rw.v === 0 && ![...h.ai.kits.values()].some(c => c.rest === rw.id && c.phase !== 'rest'));
+
+    // Dance stage: kitties roam 50 s then gather and dance together
+    const s2 = await mk();
+    const SF = s2.feat.kitty;
+    s2.state.gold = B.big(9, 40);
+    while (s2.copies(22) < 1 && s2.canBuild(22)) s2.build(22);
+    if (s2.copies(22) < 1) s2.place(22, s2.autoCell(), 0);
+    s2.state.gold = B.big(1, 25);
+    SF.buildStage(s2); s2.state.gem = 2000; SF.addStageKitty(s2);
+    check('two stage kitties are walkers flagged stage with wander 50', SF.walkers(s2).length === 2 && SF.walkers(s2).every(w => w.stage && w.wander === 50));
+    let danced = 0, gatherAt = -1, st = [];
+    for (let i = 0; i < 4 * 130; i++) {
+      s2.tick(0.25);
+      if (s2.ai.stage.mode === 'gather' && gatherAt < 0) gatherAt = i / 4;
+      if ([...s2.ai.kits.values()].every(c => c.phase === 'dance') && s2.ai.kits.size === 2) danced++;
+      for (const c of s2.ai.kits.values()) if (c.phase === 'rest') st.push(1);
+    }
+    check('the stage kitties wander 50 s, then gather', gatherAt >= 49.5 && gatherAt <= 52, `gather at ${gatherAt}s`);
+    check('both dance together for a while and then disperse (mode back to wander)', danced > 4 * 4 && s2.ai.stage.mode === 'wander', `${danced / 4}s dancing, mode ${s2.ai.stage.mode}`);
+    check('stage kitties never choose Home/Rest (no rest prop): no rest phase', st.length === 0);
+  }
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

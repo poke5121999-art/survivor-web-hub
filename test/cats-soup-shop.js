@@ -29,7 +29,10 @@ const eq = (name, got, want) => check(name, JSON.stringify(got) === JSON.stringi
   // ---- tables ----
   eq('real-money specials (shopType 0) listed: 14', s.listed(g, 0).length, 14);
   eq('real-money subscriptions / packages (shopType 1): 8', s.listed(g, 1).length, 8);
-  eq('goods tab (shopType 2): 25 rows', s.listed(g, 2).length, 25);
+  eq('goods tab (shopType 2): 25 rows + 8 gem packages', s.listed(g, 2).length, 33);
+  eq('gem packages with every part payable: 222 (theme 3), 1045, 1052, 1062 (outfit + 500 gems), 1067 (work skin 37 + 500 gems)',
+    s.listed(g, 2).filter(r => r.pack && s.blocked(g, r) !== 'unsupported').map(r => r.index).sort((a, b) => a - b), [222, 1045, 1052, 1062, 1067]);
+  eq('packages 77, 88, 1043 hold parts nobody pays (16/17/19)', [77, 88, 1043].map(i => s.blocked(g, s.itemRow(g, i))), ['unsupported', 'unsupported', 'unsupported']);
   eq('Init: offline ad factor 2, double speed 0.5, 10 stamps a view, 1000 a day',
     [g.data.shop.init.offlineAdsFactor, g.data.shop.init.doubleSpeedFactor, g.data.shop.init.perViewStamp, g.data.shop.init.maxStampPerDay], [2, 0.5, 10, 1000]);
   eq('every real-money row refuses with iap', [...s.listed(g, 0), ...s.listed(g, 1), s.itemRow(g, 10), s.itemRow(g, 14)].map(r => s.blocked(g, r)).filter(x => x !== 'iap'), []);
@@ -109,6 +112,32 @@ const eq = (name, got, want) => check(name, JSON.stringify(got) === JSON.stringi
   eq('...and only once', g.feat.shop.claimOfflineAds(g), null);
   g = await mk();
   eq('no offline time, no popup data', [g.offline(10), g.feat.shop.away(g)], [null, null]);
+
+  // ---- offline time bonus of the fish collection (sub 1005): window x (1 + 20 %) ----
+  g = await mk();
+  g.feat.collection.subPercent = (_g, sub) => (sub === 1005 ? 20 : 0);
+  const goldA = num(g.state.gold);
+  const o2 = g.offline(14400);
+  eq('4 h away with +20 % window: 3 h x 1.2 = 12960 s, gold 158776 x 1.2 = 190531', [Math.round(num(o2.gold)), o2.seconds, Math.round(num(g.state.gold) - goldA)], [190531, 12960, 190531]);
+  g = await mk();
+  g.feat.collection.subPercent = (_g, sub) => (sub === 1005 ? 20 : 0);
+  const goldB = num(g.state.gold), o3 = g.offline(3600);
+  eq('under the base window nothing is added: 3600 s, gold paid once', [o3.seconds, Math.round(num(g.state.gold) - goldB) === Math.round(num(o3.gold)), g.feat.shop.offlinePercent(g)], [3600, true, 20]);
+
+  // ---- gem packages: costumes, skins, themes through game.reward ----
+  g = await mk();
+  g.state.gem = 8000;
+  r = s.buy(g, 222);
+  eq('package 222 (2000 gems): theme 3 added', [r.given.map(x => x && x.type), g.state.gem, g.feat.theme.ownTheme(g, 3)], [[22], 6000, true]);
+  eq('bought once: "owned"', s.buy(g, 222).why, 'owned');
+  g.state.gem = 20000;
+  r = s.buy(g, 1045);
+  eq('package 1045 (7500 gems): outfit 357 + 500 gems', [r.given.map(x => x && x.type), g.state.gem, g.feat.equip.owned(g, 357)], [[5, 3], 13000, true]);
+  g.state.gem = 8000;
+  r = s.buy(g, 1067);
+  eq('package 1067 (6000 gems): work skin 37 + 500 gems', [r.given.map(x => x && x.type), g.state.gem, g.feat.theme.ownSkin(g, 37)], [[26, 3], 2500, true]);
+  g.state.gem = 100;
+  eq('short of gems: nothing given', [s.buy(g, 1052).why, g.feat.equip.owned(g, 360)], ['gem', false]);
 
   // ---- double speed: cook time x 0.5 for 300 s ----
   const cooked = (gm, ticks) => { gm.events.length = 0; for (let i = 0; i < ticks; i++) gm.tick(0.5); return gm.events.filter(e => e.type === 'food').length; };

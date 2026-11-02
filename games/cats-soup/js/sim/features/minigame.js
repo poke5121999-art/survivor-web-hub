@@ -286,6 +286,100 @@ export function endMini(g, ses, won = false) {
   return res;
 }
 
+
+// ---- magnet board (UI_MagnetBoard / UI_MagnetInven / UI_MagnetPopup, rules/minigame.md section 5) ----
+// Magnets are collected by the kitty feature (reward 3500, travel return) and read from it: kitty.magnets(g) = { Magnet index: count }.
+// Inventory = every magnet owned (MagnetInvenData); one that stands on a board has isBoard set (DataManager.DeployMagnetBoard
+// :86069), here "placed" counts per index. State: s.minigame.magnet = { boards: { <board>: { theme, items: [{ m, x, y, dir }] } },
+// themes: [owned ThemeMagnet], seen: { <magnet index>: 1 } }.
+export const MAGNET_MAX = 150;              // DataManager.GetMagnetMaxInven (:45158) = 0x96 per magnet type; IsFullMagnetInven (:27377) at >= 150
+export const MAGNET_TAB = { normal: 0, special: 2 };   // Magnet.type: 0 travel magnets (sold for 30 tokens), 2 commemorative (sell -1: not for sale)
+export const TOKEN_REWARD = 96;             // DataManager.SellMagnet (:112317) -> AddSouvenirToken(Magnet.sell)
+const MAG = g => g.state.minigame.magnet;
+const kit = g => g.feat.kitty;
+export const magnetRows = g => D(g).magnets;
+export const magnetRow = (g, i) => D(g).magnets.find(m => m.index === i) || null;
+export const magnetOwned = g => (kit(g) && kit(g).magnets ? kit(g).magnets(g) : {});
+export const magnetPlaced = (g, i) => Object.values(MAG(g).boards).reduce((a, b) => a + b.items.filter(it => it.m === i).length, 0);
+export const magnetFree = (g, i) => Math.max(0, (magnetOwned(g)[i] || 0) - magnetPlaced(g, i));
+export const magnetTotal = (g, type) => magnetRows(g).filter(m => m.type === type).reduce((a, m) => a + (magnetOwned(g)[m.index] || 0), 0);
+export const magnetFull = (g, type) => magnetTotal(g, type) >= MAGNET_MAX;
+export const magnetSellable = (g, i) => { const r = magnetRow(g, i); return !!r && r.sell >= 0 && r.type === MAGNET_TAB.normal; };
+export const boardRows = g => D(g).boards;
+export const boardOpen = (g, b) => !!MAG(g).boards[b];
+export const boardOf = (g, b) => MAG(g).boards[b] || null;
+export const themeRows = g => D(g).themes;
+export const themeOwned = (g, t) => MAG(g).themes.includes(t);
+export const magnetNew = (g, i) => (magnetOwned(g)[i] || 0) > 0 && !MAG(g).seen[i];
+export const hasNewMagnet = g => magnetRows(g).some(m => magnetNew(g, m.index));
+export function seeMagnet(g, i) { MAG(g).seen[i] = 1; }
+
+// Surplus placements (the item was spent elsewhere) go back to the inventory.
+function trimBoards(g) {
+  const own = magnetOwned(g);
+  const left = {};
+  for (const b of Object.values(MAG(g).boards)) {
+    b.items = b.items.filter(it => { left[it.m] = (left[it.m] || 0) + 1; return left[it.m] <= (own[it.m] || 0); });
+  }
+}
+
+// A new board costs MagnetBoard.cost (0/200/400/800/1200); the unit is gems (inferred: GetMoneyCost with the gem type, like the theme).
+export function buyBoard(g, b) {
+  const row = boardRows(g).find(r => r.index === b);
+  if (!row || boardOpen(g, b)) return null;
+  if (g.state.gem < row.cost) return { short: 'gem' };
+  g.state.gem -= row.cost;
+  MAG(g).boards[b] = { theme: 0, items: [] };
+  g.emit('magnetBoard', { board: b });
+  return { board: b };
+}
+// ThemeMagnet: costType 3 = gems, theme 0 free (UI_MagnetBoard.SetThemeUI :5316 shows GetMoneyCost(costType, cost)).
+export function buyTheme(g, t) {
+  const row = themeRows(g).find(r => r.index === t);
+  if (!row || themeOwned(g, t)) return null;
+  if (row.costType === 3 && g.state.gem < row.cost) return { short: 'gem' };
+  if (row.costType === 3) g.state.gem -= row.cost;
+  MAG(g).themes.push(t);
+  g.emit('magnetTheme', { theme: t });
+  return { theme: t };
+}
+export function setBoardTheme(g, b, t) {
+  if (!boardOpen(g, b) || !themeOwned(g, t)) return false;
+  boardOf(g, b).theme = t;
+  return true;
+}
+// Puts one free magnet of the inventory on a board at (x, y) in 0..1 of the board (UI_MagnetPopup deploy, DataManager.DeployMagnetBoard).
+export function deployMagnet(g, b, i, x = 0.5, y = 0.5, dir = 0) {
+  if (!boardOpen(g, b) || !magnetRow(g, i) || magnetFree(g, i) < 1) return null;
+  const it = { m: i, x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)), dir };
+  boardOf(g, b).items.push(it);
+  seeMagnet(g, i);
+  g.emit('magnetDeploy', { board: b, magnet: i });
+  return it;
+}
+export function moveMagnet(g, b, n, x, y, dir) {
+  const it = boardOf(g, b) && boardOf(g, b).items[n];
+  if (!it) return false;
+  it.x = Math.min(1, Math.max(0, x)); it.y = Math.min(1, Math.max(0, y));
+  if (dir != null) it.dir = dir;
+  return true;
+}
+export function removeMagnet(g, b, n) {
+  const bd = boardOf(g, b);
+  if (!bd || !bd.items[n]) return null;
+  return bd.items.splice(n, 1)[0];
+}
+export function clearBoard(g, b) { if (boardOf(g, b)) boardOf(g, b).items.length = 0; }
+// Sells one free magnet for Magnet.sell souvenir tokens; commemorative ones (sell -1) cannot be sold (Magnet_hud_27).
+export function sellMagnet(g, i) {
+  const row = magnetRow(g, i);
+  if (!row || !magnetSellable(g, i) || magnetFree(g, i) < 1) return null;
+  if (!g.spendItem(kit(g).magnetItem(i), 1)) return null;
+  const given = g.reward(TOKEN_REWARD, row.sell, { from: 'magnet' });
+  g.emit('magnetSell', { magnet: i, tokens: row.sell });
+  return { tokens: row.sell, given };
+}
+
 const fresh = () => ({ day: '', free: DAILY_FREE, ads: DAILY_ADS, total: 0, top: 0, claimed: [], collected: [], collectRewarded: false });
 
 export default {
@@ -296,6 +390,10 @@ export default {
     const s = g.state;
     if (!s.minigame) s.minigame = { sub: { 1: fresh(), 2: fresh() }, mini: {}, bag: {}, acc: 0 };
     if (!s.minigame.mini) s.minigame.mini = {};
+    const mg = s.minigame.magnet ||= { boards: {}, themes: [], seen: {} };
+    mg.boards ||= {}; mg.themes ||= []; mg.seen ||= {};
+    if (!mg.boards[0]) mg.boards[0] = { theme: 0, items: [] };      // MagnetBoard 0 costs nothing
+    if (!mg.themes.includes(0)) mg.themes.push(0);                // ThemeMagnet 0 is free
     for (const gt of [MINI.cook]) { if (!s.minigame.mini[gt]) s.minigame.mini[gt] = { day: '', tries: MINI_TRIES, total: 0, top: 0, claimed: [] }; refreshMini(g, gt); }
     for (const t of [1, 2]) { if (!s.minigame.sub[t]) s.minigame.sub[t] = fresh(); refreshTries(g, t); }
   },
@@ -307,8 +405,11 @@ export default {
     for (const t of [1, 2]) refreshTries(g, t);
     refreshMini(g, MINI.cook);
     flushBag(g);
+    trimBoards(g);
   },
   rewards: {},
   startSub, stepSub, tapHole, tapButterfly, endSub, claimPeriod, claimAll, periodState, triesLeft, singleRewards, periodRewards, collectRow,
+  magnetRows, magnetRow, magnetOwned, magnetPlaced, magnetFree, magnetTotal, magnetFull, magnetSellable, boardRows, boardOpen, boardOf, themeRows,
+  themeOwned, magnetNew, hasNewMagnet, seeMagnet, buyBoard, buyTheme, setBoardTheme, deployMagnet, moveMagnet, removeMagnet, clearBoard, sellMagnet,
   startMini, cookGuess, endMini, claimMini, miniPeriodState, miniTries, miniSingle, miniPeriod, miniGroup,
 };

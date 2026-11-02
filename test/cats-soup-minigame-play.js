@@ -205,6 +205,45 @@ function serve() {
   await shot('13-cook-enter');
   await page.evaluate(() => window.__minigame.close());
 
+  // ---- magnet board: kitty magnets are put on the board, sold for souvenir tokens; real clicks from the quick menu ----
+  await page.evaluate(() => { const g = window.__game; for (const m of [9, 9, 2, 18]) g.reward(3500, m); });
+  await click('[data-n="bt_more"] .w');
+  await page.waitForSelector('.sh-more');
+  await page.locator('.sh-more', { hasText: 'Bảng Từ Tính' }).first().click({ force: true });
+  await page.waitForSelector('.mg-mb .mg-surface', { state: 'attached' });
+  await page.waitForTimeout(300);
+  await shot('14-magnet-board');
+  check('quick menu entry "Bảng Từ Tính" opens the empty board 1', await page.evaluate(() => window.__game.state.minigame.magnet.boards[0].items.length) === 0 && await page.locator('.mg-mb .mg-mag').count() === 0);
+  await click('.mg-mb [data-n="bt_magnetInven"] .w:visible');
+  await page.waitForSelector('.mg-card', { state: 'attached' });
+  await shot('15-magnet-inven');
+  check('inventory lists 2 normal magnets (9 x2, 2 x1) and the count 3 / 150', await page.locator('.mg-card').count() === 2 && (await page.locator('.mg-mi [data-n="txt_info"]').first().innerText()).trim() === '3 / 150');
+  await click('.mg-card[data-magnet="9"]');
+  await page.waitForSelector('.mg-popup [data-n="bt_deploy"]', { state: 'attached' });
+  await shot('16-magnet-popup');
+  const tok0 = await page.evaluate(() => window.__game.itemCount(96));
+  await click('.mg-popup [data-n="bt_deploy"] .w');
+  await page.waitForSelector('.mg-mb .mg-mag.placed', { state: 'attached' });
+  check('"put on board" places one magnet 9: 1 placed, 1 free', await page.evaluate(() => { const S = window.__game.feat.minigame, g = window.__game; return [S.magnetPlaced(g, 9), S.magnetFree(g, 9)]; }).then(a => a.join()) === '1,1');
+  // drag it to the lower right of the board
+  const box = await page.locator('.mg-mb .mg-mag.placed').first().boundingBox();
+  const sur = await page.locator('.mg-surface').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sur.x + sur.width * 0.9, sur.y + sur.height * 0.9, { steps: 6 });
+  await page.mouse.up();
+  const it = await page.evaluate(() => window.__game.state.minigame.magnet.boards[0].items[0]);
+  check('dragging moves the magnet to ~(0.9, 0.9) of the board', Math.abs(it.x - 0.9) < 0.08 && Math.abs(it.y - 0.9) < 0.08, JSON.stringify(it));
+  await shot('17-magnet-dragged');
+  await click('.mg-mb [data-n="bt_magnetInven"] .w:visible');
+  await page.waitForSelector('.mg-card', { state: 'attached' });
+  await click('.mg-card[data-magnet="9"]');
+  await page.waitForSelector('.mg-popup [data-n="bt_sell"]', { state: 'attached' });
+  await click('.mg-popup [data-n="bt_sell"] .w');
+  check('selling the free magnet 9 pays 30 souvenir tokens and leaves the placed one', await page.evaluate(t => [window.__game.itemCount(96) - t, window.__game.feat.minigame.magnetOwned(window.__game)[9]], tok0).then(a => a.join()) === '30,1');
+  await shot('18-magnet-sold');
+  await page.evaluate(() => window.__minigame.close());
+
   // ---- save survives a reload ----
   const saved = await page.evaluate(() => { const m = window.__game.state.minigame; return [m.sub[1].total, m.sub[2].total, m.mini[5].total, m.sub[1].claimed.length, m.mini[5].claimed.length]; });
   await page.evaluate(() => dispatchEvent(new Event('pagehide')));

@@ -15,6 +15,7 @@ export class GameView {
     Object.assign(this, { game, scene, forest, placeLib, catLib, animLib, lampLib, catTypes, texBase });
     this.works = new Map();   // work id -> { obj, anchor }
     this.cats = new Map();    // cat id -> { obj, rig, state }
+    this.kits = new Map();    // kitten walker id -> { obj, rig, anim } (CatAI.kits, drawn like cats at the scale the feature gives)
     this.root = new THREE.Group();
     scene.add(this.root);
     this.pending = new Set();
@@ -39,6 +40,7 @@ export class GameView {
     const entry = { obj, anchor, w, sign: null, lv: 0 };
     this.decorate(entry);
     this.works.set(w.id, entry);
+    if (this.onWork) this.onWork(entry);
     obj.scale.setScalar(0.01);
     obj.userData.pop = 0;
   }
@@ -93,8 +95,14 @@ export class GameView {
 
   ensureCat(cat) {
     if (this.cats.has(cat.id)) return this.cats.get(cat.id);
+    const e = this.makeCat(cat.type);
+    this.cats.set(cat.id, e);
+    return e;
+  }
+
+  makeCat(type) {
     const obj = this.catLib.instantiate(this.catLib.keys()[0]);
-    const info = this.catTypes[cat.type];
+    const info = this.catTypes[type];
     if (info) {
       // Body submesh (OutlineUnit, fragMode 0) takes this cat's fur; the eye submesh and the outline keep theirs.
       const tex = texture(this.texBase, info.tex).tex;
@@ -108,9 +116,45 @@ export class GameView {
     }
     const rig = new Rig(this.animLib, obj);
     this.root.add(obj);
-    const e = { obj, rig, anim: null };
-    this.cats.set(cat.id, e);
-    return e;
+    return { obj, rig, anim: null, type };
+  }
+
+  // Kittens (CatAI.tickKittens): same rig and clips as a worker cat, the body texture of their own CatType, scaled by
+  // walker.scale (DEFINE.KITTY_SCALE). Away on a trip they leave CatAI.kits and are removed here.
+  updateKittens(dt) {
+    const g = this.game;
+    for (const [id, e] of this.kits) if (!g.ai.kits.has(id)) { this.root.remove(e.obj); this.kits.delete(id); }
+    for (const [id, c] of g.ai.kits) {
+      let e = this.kits.get(id);
+      if (!e) {
+        e = this.makeCat(c.type);
+        this.root.add(e.obj);
+        this.kits.set(id, e);
+        e.obj.rotation.set(0, Math.PI, 0);
+      }
+      const s = (c.w && c.w.scale) || [1, 1, 1];
+      e.obj.scale.set(s[0], s[1], s[2]);
+      e.obj.visible = true;
+      const prop = c.phase === 'rest' && c.rest ? this.works.get(c.rest) : null;
+      if (prop) {
+        prop.anchor.getWorldPosition(v3);
+        e.obj.position.copy(v3);
+        prop.anchor.getWorldQuaternion(q1);
+        e.obj.quaternion.copy(q1);
+        this.play(e, this.workAnim(prop.w));
+      } else {
+        cellPos(c.x, c.y, e.obj.position);
+        e.obj.position.y = 0;
+        if (c.phase === 'walk') {
+          const dx = c.to[0] - c.from[0], dz = -(c.to[1] - c.from[1]);
+          if (dx || dz) e.obj.rotation.set(0, Math.atan2(dx, dz) + Math.PI, 0);
+          this.play(e, 'run');
+        } else if (c.phase === 'home') this.play(e, 'doze');           // sleeps at home (inferred clip)
+        else if (c.phase === 'dance') this.play(e, 'huladance');       // joint dance (inferred clip)
+        else this.play(e, 'idle0');
+      }
+      e.rig.update(dt);
+    }
   }
 
   play(e, state) {
@@ -169,6 +213,7 @@ export class GameView {
       }
       e.rig.update(dt);
     }
+    this.updateKittens(dt);
   }
 
   cookOf(w) {

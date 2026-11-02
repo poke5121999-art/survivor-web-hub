@@ -161,12 +161,11 @@ export function itemCount(g, type) {
   const s = g.state;
   if (type === 3) return s.gem;                                      // freeGem; paid gems (88) do not exist in this port
   if (type === 4) return s.coin;
-  if (type === 23) return (s.specials && s.specials.pudding) || 0;
-  if (type === 6002) return (s.fishing && s.fishing.bait) || 0;
-  if (type === 98 || type === 99) return (S(g).items[type] || 0) + ((s.missions && s.missions.bag && s.missions.bag[type]) || 0);
-  if (s.specials && s.specials.tickets && s.specials.tickets[type] != null && (type >= 1101 && type <= 1203)) return s.specials.tickets[type];
-  if (type >= 7102 && type <= 7109) { const v = s.fishing && s.fishing.inv[type - 7000]; return v ? v.n : (S(g).items[type] || 0); }
-  return S(g).items[type] || 0;
+  // 6002 (star-candy bait) and the fish cookies 7102-7109 sit in the fishing feature, which exposes no bag(): read as before.
+  if (type === 6002) return g.itemCount(6002);
+  if (type >= 7102 && type <= 7109) { const v = s.fishing && s.fishing.inv[type - 7000]; return v ? v.n : g.itemCount(type); }
+  // everything else (pudding 23, gold / recipe tickets, butterflies 98, play points 99, the held types) is one count across the bags
+  return g.itemCount(type);
 }
 // MakeData_Item: rows with a count, plus the DisplayAtZero rows at 0. Display order = table order.
 export function storageRows(g) {

@@ -106,6 +106,11 @@ function describe(row) {
   }
   if (t === 88) return { sprite: row.res, name: `${v} ${C.t('gem')}`, info: row.bonus ? `+${row.bonus} ${C.t('gem')}` : '' };
   if (t === 6) return { sprite: 'icon_furnitureshop', name: tx('saleFurniture', row.res), info: '' };
+  if (row.pack) { // gem package: the outfit of its first equipment part gives the picture and, without a lang title, the name
+    const eq = row.pack.find(([pt]) => pt === 5), q = eq && equipSprite(eq[1]);
+    const gem = row.pack.filter(([pt]) => pt === 3).reduce((a, [, n]) => a + n, 0);
+    return { sprite: row.res, equip: q, name: tx(`goods${row.index}_title`, q ? q[2] : row.res), info: gem ? `+${gem} ${C.t('gem')}` : '' };
+  }
   // packages, subscriptions, specials: the original name and description of the goods
   return { sprite: row.res, name: tx(`goods${row.index}_title`, tx(`title_${row.res}`, tx(row.res, row.res))),
     info: tx(`goods${row.index}_info0`, tx(`info_${row.res}`, tx(`${row.res}_info0`, ''))) };
@@ -141,7 +146,7 @@ function shopCard(row, redraw) {
   const d = el('sh-card');
   const info = describe(row);
   const ic = el('sh-pic');
-  ic.appendChild(icon(info.sprite, 'sh-icon'));
+  ic.appendChild(info.equip ? C.hud.sprite(info.equip[0], info.equip[1], 'sh-icon') : icon(info.sprite, 'sh-icon'));
   d.appendChild(ic);
   const txt = el('sh-txt');
   txt.append(el('', info.name, 'b'), el('', info.info, 'small'));
