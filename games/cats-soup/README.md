@@ -42,7 +42,7 @@ Làm lại Cats&Soup 5.3.0 (HIDEA, `com.hidea.cat`) bằng three.js r160 và Jav
 
 ## Full game: feature module
 
-- Mỗi hệ thống của bản gốc là một cặp `js/sim/features/<id>.js` + `js/view/features/<id>.js` (19 feature: specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests, particles). Hợp đồng, hook core và luật làm ở `FEATURES.md`; luật có dẫn nguồn ở `D:\catsoup-refules\<id>.md`.
+- Mỗi hệ thống của bản gốc là một cặp `js/sim/features/<id>.js` + `js/view/features/<id>.js` (18 feature: specials, fishing, missions, cats, equip, tower, furniture, collection, shop, guide, theme, kitty, telescope, minigame, season, profile, guests, particles). Hợp đồng, hook core và luật làm ở `FEATURES.md`; luật có dẫn nguồn ở `D:\catsoup-ref\rules\<id>.md`.
 - Mỗi feature có `test/cats-soup-<id>.js` (node) và `test/cats-soup-<id>-play.js` (Playwright, nhận `CS_URL=<Pages>`). Chạy cả 39 bộ trước khi deploy; chạy song song nhiều trình duyệt trên máy bận thì vài bộ chập chờn, chạy lại riêng.
 - So với bản gốc: `PARITY.md` (ảnh ghép clip|web ở `shots/cats-soup-parity/`), skill `.claude/skills/parity-compare`.
 - `[BẪY ĐÃ SẬP]` Hai agent cùng giành một nút HUD (ô hồ sơ): nút nào bản gốc có thì chỉ một feature `hud.bind`; còn lại đi qua menu "thêm" (`hud.addMenu`).
