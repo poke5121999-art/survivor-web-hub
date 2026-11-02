@@ -1181,7 +1181,7 @@ window.HUB_GAMES = [
     en: { title: "The Battle Cats", tagline: "Send cats swarming across the field to smash the enemy base; grow your wallet to field stronger units.", desc: "The Battle Cats (EN 15.7) remade in plain JS, no Unity, using original sprites and stats ripped from the APK. Send cats from your base across the field to break the enemy tower; money regenerates and drops from slain foes. Collect 60 cats via gacha, level each one and the Cat Base, clear 24 stages across three chapters with bosses. Cat Cannon and Worker as in the original." },
     thumbnail: "assets/thumbnails/battle-cats.png",
     path: "games/battle-cats/index.html",
-    rev: "20261031d",
+    rev: "20261102a",
     // JS thuan (khong Unity WebGL), solo. Sprite + so lieu goc boc tu APK EN 15.7 o D:/battlecats-ref (DECODE.md).
     // Engine: js/sim.js (lane battle 30fps), js/sprite.js (mamodel+maanim), js/render.js, js/save.js (localStorage).
     // Noi dung: tools/export_data.py + rebalance -> data/{cats,enemies,stages,roster}.json. Plan: brain/plans/battle-cats.md.

@@ -5,7 +5,7 @@
   var cats, enemies, stagesDoc, rosterDoc;
   var save = BCSave.load();
   var assets = { models: {} };
-  var sim, renderer, running = false, speed = 2;
+  var sim, renderer, running = false, paused = false, speed = 2;
   var cur = { stage: null, flat: [] };   // current battle stage + flat stage list
 
   var cv = document.getElementById('cv');
@@ -102,26 +102,82 @@
     $('m-prog').textContent = done + '/' + total;
   }
 
-  // ---------- MAP (chapters + stages) ----------
+  // ---------- MAP (world map: themed strips with a winding node path) ----------
+  var MAP_THEMES = [
+    { sky: ['#8fd0ff', '#d4efff'], ground: '#8ec36a', band: '#6aa847', banner: '#2f6d2a' },
+    { sky: ['#ffc98f', '#ffe6c2'], ground: '#c79a5c', band: '#a87c42', banner: '#8a4a1e' },
+    { sky: ['#3a3e6e', '#6b6fa8'], ground: '#4a4668', band: '#36324f', banner: '#241f3e' },
+  ];
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function globalNextIndex() {
+    for (var i = 0; i < cur.flat.length; i++) {
+      if (stageUnlocked(i) && !save.cleared[cur.flat[i].st.id]) return i;
+    }
+    return -1;
+  }
+
   function renderMap() {
     var wrap = $('map-list'); wrap.innerHTML = '';
+    var nextIdx = globalNextIndex();
     var idx = 0;
     stagesDoc.chapters.forEach(function (ch, ci) {
-      var h = document.createElement('div'); h.className = 'ch-head'; h.textContent = ch.name;
-      wrap.appendChild(h);
-      var grid = document.createElement('div'); grid.className = 'stage-grid';
-      ch.stages.forEach(function (st) {
+      var th = MAP_THEMES[ci % MAP_THEMES.length];
+      var sec = document.createElement('section'); sec.className = 'chapter';
+
+      var stars = 0; ch.stages.forEach(function (s) { if (save.cleared[s.id]) stars++; });
+      var banner = document.createElement('div'); banner.className = 'ch-banner';
+      banner.style.background = 'linear-gradient(' + th.banner + 'e6, ' + th.banner + '88)';
+      banner.innerHTML = '<span>' + ch.name + '</span><span class="stars">★ ' + stars + '/' + ch.stages.length + '</span>';
+      sec.appendChild(banner);
+
+      var track = document.createElement('div'); track.className = 'ch-track';
+      track.style.background = 'linear-gradient(' + th.sky[0] + ',' + th.sky[1] + ')';
+      var inner = document.createElement('div'); inner.className = 'ch-inner';
+      var spacing = 132, x0 = 72, n = ch.stages.length;
+      inner.style.width = (x0 + n * spacing + 20) + 'px';
+
+      // ground strip
+      var ground = document.createElement('div');
+      ground.style.cssText = 'position:absolute;left:0;right:0;bottom:0;height:46%;background:' +
+        th.ground + ';border-top:4px solid ' + th.band + ';';
+      inner.appendChild(ground);
+
+      // path connecting the node centers
+      var pts = [];
+      for (var k = 0; k < n; k++) pts.push([x0 + k * spacing, k % 2 ? 128 : 74]);
+      var svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('class', 'path');
+      var pl = document.createElementNS(SVGNS, 'polyline');
+      pl.setAttribute('points', pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '));
+      pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', 'rgba(255,255,255,.75)');
+      pl.setAttribute('stroke-width', '4'); pl.setAttribute('stroke-dasharray', '2 9');
+      pl.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(pl); inner.appendChild(svg);
+
+      ch.stages.forEach(function (st, si) {
         var i = idx++;
-        var b = document.createElement('button'); b.className = 'stage' + (st.boss ? ' boss' : '');
-        var unlocked = stageUnlocked(i);
-        var cleared = !!save.cleared[st.id];
-        b.innerHTML = '<div class="st-nm">' + st.name + '</div>' +
-          '<div class="st-ic">' + (cleared ? '★' : st.boss ? '☠' : '▶') + '</div>';
-        if (!unlocked) { b.classList.add('locked'); b.disabled = true; b.querySelector('.st-ic').textContent = '🔒'; }
+        var unlocked = stageUnlocked(i), cleared = !!save.cleared[st.id];
+        var b = document.createElement('button'); b.className = 'node';
+        if (st.boss) b.classList.add('boss');
+        if (cleared) b.classList.add('cleared');
+        if (!unlocked) b.classList.add('locked');
+        if (i === nextIdx) b.classList.add('next');
+        b.style.left = pts[si][0] + 'px'; b.style.top = pts[si][1] + 'px';
+        var label = st.boss ? '☠' : (si + 1);
+        b.innerHTML = (cleared ? '<span class="n-star">★</span>' : '') +
+          '<span class="n-no">' + (unlocked ? label : '🔒') + '</span>' +
+          '<span class="n-nm">' + st.name.replace(ch.name + ' ', '') + '</span>';
+        if (!unlocked) b.disabled = true;
         b.onclick = function () { cur.stage = st; show('equip'); };
-        grid.appendChild(b);
+        inner.appendChild(b);
       });
-      wrap.appendChild(grid);
+
+      track.appendChild(inner); sec.appendChild(track); wrap.appendChild(sec);
+      // auto-scroll a chapter that holds the next stage so the pin is visible
+      if (nextIdx >= 0 && cur.flat[nextIdx] && cur.flat[nextIdx].ci === ci) {
+        var localNext = nextIdx; for (var q = 0; q < ci; q++) localNext -= stagesDoc.chapters[q].stages.length;
+        track.scrollLeft = Math.max(0, pts[localNext][0] - 160);
+      }
     });
   }
 
@@ -139,7 +195,7 @@
           var ic = document.createElement('canvas'); ic.width = 78; ic.height = 66; drawIcon(ic, key);
           var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = c.name;
           var meta = document.createElement('div'); meta.className = 'meta';
-          meta.textContent = 'Lv' + (save.levels[uid] || 1) + ' · ¥' + c.forms[0].cost;
+          meta.textContent = 'Lv' + (save.levels[uid] || 1) + ' · ' + c.forms[0].cost + '¢';
           var slot = document.createElement('div'); slot.className = 'slotno';
           card.appendChild(ic); card.appendChild(nm); card.appendChild(meta); card.appendChild(slot);
           card.onclick = function () { toggleLineup(uid); };
@@ -193,38 +249,44 @@
       });
       renderer = new BCRender.Renderer(cv, assets);
       window.__sim = sim;   // debug/test hook
-      fit(); buildHud(); $('bt-load').style.display = 'none';
+      fit(); buildHud();
+      $('stage-name').textContent = st.name;
+      $('pause').textContent = '⏸'; paused = false;
+      $('bt-load').style.display = 'none';
       $('bt-overlay').style.display = 'none'; running = true;
+      if (!save.tutDone) showBattleHint();
     });
   }
 
   var catBtns = [];
+  var CANNON_CD = BCSim.FPS * 8;
   function buildHud() {
     var wrap = $('cats'); wrap.innerHTML = ''; catBtns = [];
-    selLineup.forEach(function (uid, slot) {
-      var c = cats[uid], key = pad(uid) + '_f';
+    for (var slot = 0; slot < 10; slot++) {
       var b = document.createElement('button'); b.className = 'catbtn';
-      var icon = document.createElement('canvas'); icon.width = 70; icon.height = 62; drawIcon(icon, key, 0.1);
-      var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = c.name;
-      var cost = document.createElement('div'); cost.className = 'cost'; cost.textContent = '¥' + c.forms[0].cost;
-      var cd = document.createElement('div'); cd.className = 'cd'; cd.style.display = 'none';
-      b.appendChild(icon); b.appendChild(nm); b.appendChild(cost); b.appendChild(cd);
-      b.onclick = function () { sim && sim.deploy(slot); };
+      if (slot >= selLineup.length) { b.classList.add('empty'); b.disabled = true; wrap.appendChild(b); continue; }
+      var uid = selLineup[slot], c = cats[uid], key = pad(uid) + '_f';
+      var icon = document.createElement('canvas'); icon.width = 80; icon.height = 60; drawIcon(icon, key);
+      var cost = document.createElement('div'); cost.className = 'cost'; cost.textContent = c.forms[0].cost + '¢';
+      var cd = document.createElement('div'); cd.className = 'cd';
+      b.appendChild(icon); b.appendChild(cost); b.appendChild(cd);
+      (function (s) { b.onclick = function () { sim && sim.deploy(s); }; })(slot);
       wrap.appendChild(b);
-      catBtns.push({ el: b, cd: cd, slot: slot, cost: c.forms[0].cost });
-    });
+      catBtns.push({ el: b, cd: cd, slot: slot, cost: c.forms[0].cost, maxcd: Math.max(1, c.forms[0].recharge * 2) });
+    }
   }
   function updateHud() {
-    $('money').textContent = '¥' + Math.floor(sim.money);
-    var w = $('worker');
-    w.disabled = sim.workerLvl >= 8 || sim.money < BCSim.regenCost(sim.workerLvl);
-    w.textContent = sim.workerLvl >= 8 ? 'Worker MAX' : 'Worker ¥' + BCSim.regenCost(sim.workerLvl);
-    $('cannon').disabled = (sim.cannonCd || 0) > 0;
+    $('money').textContent = Math.floor(sim.money) + '/' + BCSim.walletCap(sim.workerLvl) + '¢';
+    var w = $('worker'), atMax = sim.workerLvl >= 8;
+    w.disabled = atMax || sim.money < BCSim.regenCost(sim.workerLvl);
+    w.innerHTML = '<b>Lv ' + (sim.workerLvl + 1) + '</b><span>' + (atMax ? 'MAX' : BCSim.regenCost(sim.workerLvl) + '¢') + '</span>';
+    var cn = $('cannon'), ccd = sim.cannonCd || 0;
+    cn.disabled = ccd > 0;
+    cn.innerHTML = '<b>⚡</b><span>' + (ccd > 0 ? Math.ceil(ccd / BCSim.FPS) + 's' : 'Cannon') + '</span>';
     catBtns.forEach(function (cb) {
       var cool = sim.cooldowns[cb.slot] || 0;
       cb.el.disabled = cool > 0 || sim.money < cb.cost;
-      if (cool > 0) { cb.cd.style.display = 'flex'; cb.cd.textContent = Math.ceil(cool / BCSim.FPS); }
-      else cb.cd.style.display = 'none';
+      cb.cd.style.height = cool > 0 ? (100 * Math.min(1, cool / cb.maxcd)) + '%' : '0';
     });
   }
 
@@ -258,6 +320,7 @@
   function frame(t) {
     requestAnimationFrame(frame);
     if (!running || !sim) { last = t; return; }
+    if (paused) { last = t; return; }
     if (!last) last = t;
     var dt = Math.min(100, t - last); last = t; acc += dt;
     var stepMs = 1000 / BCSim.FPS, steps = 0;
@@ -273,7 +336,7 @@
     $('up-base').textContent = 'Cat Base Lv' + save.baseLvl;
     var bcost = baseUpgradeCost(save.baseLvl);
     var bb = $('up-base-btn');
-    bb.textContent = 'Nâng ¥' + bcost + ' XP';
+    bb.textContent = 'Nâng · ' + bcost + ' XP';
     bb.disabled = save.xp < bcost || save.baseLvl >= 20;
     if (save.baseLvl >= 20) bb.textContent = 'MAX';
     bb.onclick = function () {
@@ -292,7 +355,7 @@
           ' · ATK ' + Math.round(c.forms[0].atk * catLevelMult(lvl)) + '</div>';
         var btn = document.createElement('button'); btn.className = 'upbtn';
         if (lvl >= 30) { btn.textContent = 'MAX'; btn.disabled = true; }
-        else { btn.textContent = '+Lv ¥' + cost; btn.disabled = save.xp < cost; }
+        else { btn.textContent = '+Lv · ' + cost + ' XP'; btn.disabled = save.xp < cost; }
         btn.onclick = function () {
           var cc = catUpgradeCost(save.levels[uid] || 1);
           if ((save.levels[uid] || 1) < 30 && save.xp >= cc) {
@@ -325,7 +388,7 @@
     loadModel(pad(uid) + '_f').then(function () {
       var box = $('g-result');
       box.innerHTML = '';
-      var ic = document.createElement('canvas'); ic.width = 150; ic.height = 130;
+      var ic = document.createElement('canvas'); ic.width = 150; ic.height = 130; ic.className = 'g-cap';
       drawIcon(ic, pad(uid) + '_f', 0.21);
       var nm = document.createElement('div'); nm.className = 'g-nm'; nm.textContent = cats[uid].name;
       var tag = document.createElement('div'); tag.className = 'g-tag';
@@ -333,6 +396,32 @@
       box.appendChild(ic); box.appendChild(nm); box.appendChild(tag);
       renderGacha();
     });
+  }
+
+  // ---------- FTUE (first-time user experience) ----------
+  function showFtue() {
+    $('ftue-text').innerHTML = 'Chào mừng tới <b>The Battle Cats</b>!<br><br>' +
+      'Thả <b>mèo</b> từ hàng nút phía dưới để tiến ra trận. Diệt quái để nhặt <b>tiền ¢</b>, ' +
+      'nâng <b>Worker</b> cho tiền về nhanh hơn, và bắn <b>Cat Cannon</b> khi bị dồn.<br><br>' +
+      'Phá <b>Căn cứ địch</b> ở cuối màn là THẮNG!';
+    $('ftue').style.display = 'flex';
+  }
+  function showBattleHint() {
+    save.tutDone = true; BCSave.save(save);
+    var tips = ['👇 Chạm một nút mèo để thả quân ra trận',
+                '💰 Nâng Worker (vòng trái) để kiếm tiền nhanh hơn',
+                '⚡ Bị dồn thì bắn Cat Cannon (vòng phải)'];
+    var el = document.createElement('div'); el.id = 'bt-hint';
+    el.style.cssText = 'position:absolute;left:50%;top:13%;transform:translateX(-50%);z-index:7;max-width:82%;' +
+      'background:rgba(255,244,218,.96);border:3px solid #3a2a12;border-radius:14px;padding:10px 16px;' +
+      'font-weight:800;color:#3a2a12;text-align:center;box-shadow:0 4px 0 rgba(58,42,18,.4);';
+    el.textContent = tips[0]; $('field').appendChild(el);
+    var i = 0, iv = setInterval(function () {
+      i++;
+      if (i >= tips.length) { clearInterval(iv); el.style.transition = 'opacity .5s'; el.style.opacity = '0';
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600); return; }
+      el.textContent = tips[i];
+    }, 2600);
   }
 
   // ---------- wiring ----------
@@ -346,20 +435,27 @@
     $('up-back').onclick = function () { show('menu'); };
     $('g-back').onclick = function () { show('menu'); };
     $('g-roll').onclick = rollGacha;
-    $('bt-quit').onclick = function () { running = false; show('map'); };
+    $('bt-quit').onclick = function () { running = false; paused = false; show('map'); };
+    $('pause').onclick = function () { if (!running) return; paused = !paused; $('pause').textContent = paused ? '▶' : '⏸'; };
     $('bt-retry').onclick = function () { startBattle(); };
     $('bt-next').onclick = function () { show('map'); };
     $('worker').onclick = function () { sim && sim.upgradeWorker(); };
     $('cannon').onclick = function () { sim && sim.fireCannon(); };
     var sp = $('speed');
     sp.onclick = function () { speed = speed === 1 ? 2 : speed === 2 ? 3 : 1; sp.textContent = speed + '×'; };
+    $('ftue-ok').onclick = function () {
+      $('ftue').style.display = 'none';
+      if (!save.seenIntro) { save.seenIntro = true; BCSave.save(save); }
+    };
   }
 
   // ---------- boot ----------
   Promise.all([loadJSON('data/cats.json'), loadJSON('data/enemies.json'),
-    loadJSON('data/stages.json'), loadJSON('data/roster.json')])
+    loadJSON('data/stages.json'), loadJSON('data/roster.json'),
+    loadImg('assets/bg/catbase.png')])
     .then(function (r) {
       cats = r[0]; enemies = r[1]; stagesDoc = r[2]; rosterDoc = r[3];
+      assets.catbase = r[4];
       cur.flat = flatStages();
       if (!save.owned.length) {
         save.owned = rosterDoc.startOwned.slice();
@@ -370,5 +466,6 @@
       wire();
       $('loading').style.display = 'none';
       show('menu');
+      if (!save.seenIntro) showFtue();
     });
 })();

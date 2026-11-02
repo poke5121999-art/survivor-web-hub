@@ -61,7 +61,11 @@
     this.canonFired = false;
     this.catBaseX = 0;
     this.enemyBaseX = this.stage.length;
+    this.fx = [];                // transient visual events drained by the renderer
   };
+
+  // Emit a visual event. Pure data; has no effect on simulation outcome.
+  Sim.prototype.emit = function (ev) { if (this.fx) this.fx.push(ev); };
 
   Sim.prototype.catBaseline = function () { return this.catBaseX + 80; };
   Sim.prototype.enemyBaseline = function () { return this.enemyBaseX - 80; };
@@ -76,6 +80,7 @@
     var u = new Unit('cat', e.stat, this.catBaseline(), e.uid, e.form);
     this.units.push(u);
     this.cooldowns[slot] = e.stat.recharge * 2; // recharge stored in half-frames-ish
+    this.emit({ t: 'deploy', x: u.x, side: 'cat' });
     return true;
   };
 
@@ -88,6 +93,7 @@
       if (o.side !== 'enemy') continue;
       if (o.x <= reach) { this.hurt(o, 1000); if (!o.dead) { o.state = 'kb'; o.t = 0; } }
     }
+    this.emit({ t: 'cannon', x0: this.catBaseline(), x1: reach });
     return true;
   };
 
@@ -139,21 +145,26 @@
       targets.sort(function (a, b) { return (a.x - u.x) * u.dir - (b.x - u.x) * u.dir; });
       targets = [targets[0]];
     }
-    for (var j = 0; j < targets.length; j++) this.hurt(targets[j], u.stat.atk);
-    if (hitBase && (u.stat.area || targets.length === 0)) {
-      if (u.side === 'cat') this.enemyBaseHp -= u.stat.atk;
-      else this.catBaseHp -= u.stat.atk;
-    } else if (hitBase && !u.stat.area && targets.length === 0) {
+    for (var j = 0; j < targets.length; j++) {
+      this.emit({ t: 'hit', x: targets[j].x, side: u.side, area: !!u.stat.area });
+      this.hurt(targets[j], u.stat.atk);
+    }
+    var dmgBase = hitBase && (u.stat.area || targets.length === 0);
+    if (dmgBase) {
       if (u.side === 'cat') this.enemyBaseHp -= u.stat.atk; else this.catBaseHp -= u.stat.atk;
+      this.emit({ t: 'baseHit', side: u.side === 'cat' ? 'enemy' : 'cat', x: baseX });
     }
   };
 
   Sim.prototype.hurt = function (o, dmg) {
     o.hp -= dmg;
+    o.flash = 3;                 // frames of white hit-flash (read by renderer)
     if (o.hp <= 0) {
       o.dead = true; o.state = 'dead';
+      this.emit({ t: 'death', x: o.x, side: o.side, boss: !!o.boss });
       if (o.side === 'enemy' && o.stat.money) {
         this.money = Math.min(walletCap(this.workerLvl), this.money + o.stat.money);
+        this.emit({ t: 'coin', x: o.x, amount: o.stat.money });
       }
       return;
     }
