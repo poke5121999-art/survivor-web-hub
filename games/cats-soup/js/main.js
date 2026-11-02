@@ -80,8 +80,10 @@ const away = saved ? game.offline((Date.now() - saved.savedAt) / 1000) : null;
 const forest = new Forest(map, ground['0'], `${BASE}/art/tex`);
 scene.add(forest.group);
 const chunkLibs = new Map();
+// Works outside the main-forest export (data/places.json: eventType 0) have no model here; a feature may draw them.
 const placeLib = work => {
   const k = places[work];
+  if (k == null) return Promise.resolve(null);
   if (!chunkLibs.has(k)) chunkLibs.set(k, loadLib(BASE, `places${k}`, GLTFLoader, MeshoptDecoder));
   return chunkLibs.get(k);
 };
@@ -106,7 +108,7 @@ camera.onTap = (x, y) => {
   hud.select(w || null);
 };
 fit();
-if (away && (away.gold.f || away.energy.f)) hud.toast(`+${B.format(away.gold)} 💰  +${B.format(away.energy)} ⚡`);
+if (away && (away.gold.f || away.energy.f) && !game.feat.shop) hud.toast(`+${B.format(away.gold)} 💰  +${B.format(away.energy)} ⚡`);
 const sound = new Sound(BASE, sfx);
 const css = href => {
   const l = document.createElement('link');
@@ -180,7 +182,7 @@ renderer.setAnimationLoop(t => {
   for (const e of game.events) {
     sound.event(e);
     if (['expand', 'build', 'resize', 'move', 'keep', 'keepOut'].includes(e.type)) view.rebuildForest();
-    if (e.type === 'expand') { camera.target.set(0, 0, 0); camera.update(); hud.toast(hud.t('guide_expandNow')); }
+    if (e.type === 'expand') { camera.target.set(0, 0, 0); camera.update(); }
     if (e.type === 'sell' && !e.auto) floater(`+${B.format(e.gold)}`, 300, 1700, '#ffe066');
     if ((e.type === 'energy' || e.type === 'jar') && view.works.get(e.work.id)) {
       const [x, y] = uiPoint(view.works.get(e.work.id).obj);

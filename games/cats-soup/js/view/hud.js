@@ -50,7 +50,12 @@ export class Hud {
     this.expandBtn.onclick = () => this.game.expand();
     this.el.appendChild(this.expandBtn);
     this.shelfKey = '';
+    this.menu = [];
   }
+
+  // Entries of the "more" quick menu (bt_more, built by the shop feature) for windows that have no HUD button of their
+  // own in the original: { sec: 'cat' | 'forest' | 'minigame' | 'shop' | 'etc', key (lang) or fallback, sprite, run, ok? }.
+  addMenu(entry) { this.menu.push(entry); }
 
   t(key, ...args) {
     let s = this.lang[key] ?? key;

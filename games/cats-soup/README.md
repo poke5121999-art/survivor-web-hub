@@ -43,5 +43,5 @@ Làm lại Cats&Soup 5.3.0 (HIDEA, `com.hidea.cat`) bằng three.js r160 và Jav
 ## Deploy
 
 - Tăng rev: `node games/cats-soup/tools/stamp.js <rev>` (ghi `?v=` vào import map, `globalThis.CS_V` cho fetch), sửa `rev:` của thẻ trong `data/games.js`.
-- Cây làm việc chung có thay đổi chưa commit của agent khác, nên commit bằng index tạm dựng từ `origin/main` (`read-tree`, `git add` đúng các path của game, `commit-tree -p origin/main`, push `<sha>:refs/heads/main`). Thẻ hub thêm vào bản `data/games.js` của `origin/main`, không lấy bản trong cây làm việc.
+- Cây làm việc chung có thay đổi chưa commit của agent khác, nên commit bằng `py -3.12 -I games/cats-soup/tools/deploy.py <rev> "<message>" [--stub=<feature đang dở>] [--desc=<vi>||<en>] --push` (index tạm dựng từ `origin/main`, thẻ hub sửa trên bản `data/games.js` của `origin/main`). Chạy không `--push` trước, `git archive <sha>` ra thư mục tạm và chạy test trình duyệt trên đó.
 - Kiểm trên Pages: `CS_URL=https://poke5121999-art.github.io/survivor-web-hub/games/cats-soup/index.html node test/cats-soup-play.js`. Chụp bản online: `CS_WAIT=8000 node test/cats-soup-shot.js "<URL đầy đủ>" out.png 540 960` (HUD tải atlas qua mạng chậm hơn `__ready`).

@@ -123,7 +123,7 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   check('closing ends the gift and restarts the wait', !F.giftReady(g));
   const pud = g.t.CatGift.find(r => r.rewardType === 24);
   const out = F.payGift(g, pud);
-  check('macaron (type 24) with no granting feature waits in the stash', out.stashed === true && g.state.cats_ext.stash[24] === 1);
+  check('macaron (type 24) goes to the collection storage (Kho)', !out.stashed && g.state.collection.items[24] >= 1, JSON.stringify(out));
 
   // save round trip keeps hearts and skills
   const saved = JSON.parse(JSON.stringify(g.save()));

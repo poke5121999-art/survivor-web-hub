@@ -4,7 +4,8 @@
 //     data: ['<name>', ...],    // data/<name>.json files the module needs; boot puts them in game.data[name]
 //     init(game),               // after fresh() and load(): create game.state[id] when missing (must be idempotent)
 //     tick(game, dt),           // every frame, dt seconds of game time
-//     offline(game, sec, raw),  // once after load: sec = capped offline seconds, raw = real seconds away
+//     offline(game, sec, raw, result),  // once after load: sec = capped seconds, raw = real seconds away,
+//                               // result = {seconds, gold, energy} core paid
 //     onEvent(game, e),         // every game.emit(type, data) (sell, build, upgrade, recipe, energy, jar, reward, ...)
 //     rewards: { <type>: (game, value, extra) => given | null },  // reward types beyond 1-4 (specials.md)
 //     ...actions                // plain functions taking game first, called by the view as game.feat[id].fn(game, ...)

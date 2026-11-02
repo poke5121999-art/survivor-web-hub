@@ -503,7 +503,8 @@ export class Game {
     s.energy = B.add(s.energy, energy);
     this.events = this.events.filter(e => e.type !== 'food' && e.type !== 'sell');
     s.timeCount += Math.floor(seconds / DAY_STEP_SECONDS);
-    for (const f of this.features) if (f.offline) f.offline(this, sec, seconds);
-    return { seconds: sec, gold, energy };
+    const result = { seconds: sec, gold, energy };
+    for (const f of this.features) if (f.offline) f.offline(this, sec, seconds, result);
+    return result;
   }
 }

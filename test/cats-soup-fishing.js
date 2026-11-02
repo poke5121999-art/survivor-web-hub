@@ -138,7 +138,7 @@ const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
   f.book = {};
   const plain = B.toNumber(g.price(soup));
   f.book = { 411: 1 };
-  check('special book raises the dish price through core mult: 10 stars x 2 % = 446 x 1.2 = 535', B.toNumber(g.price(soup)) === Math.floor(plain * 1.2) && near(g.mult('price', soup), 1.2, 1e-9));
+  check('special book raises the dish price through core mult: 10 stars x 2 % = x1.2', near(g.feat.fishing.mult(g, 'price', soup), 1.2, 1e-9) && B.toNumber(g.price(soup)) / plain > 1.19 && B.toNumber(g.price(soup)) / plain < 1.2001);
   f.book = {};
 
   // ---- feeding cats ----

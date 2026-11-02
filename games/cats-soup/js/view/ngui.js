@@ -131,6 +131,8 @@ export class NGUI {
         else if (w.color.length > 7) box.style.opacity = parseInt(w.color.slice(7, 9), 16) / 255;
       }
       if (w.k === 'sprite' && w.atlas) this.paint(box, w.atlas, w.sprite, (w.ty ?? w.type) === 1, w.color || '#ffffff');
+      // UISprite.Flip 1 horizontal, 2 vertical, 3 both.
+      if (w.flip) box.style.transform = `scale(${w.flip & 1 ? -1 : 1}, ${w.flip & 2 ? -1 : 1})`;
       if (w.k === 'label') {
         box.textContent = this.text(w);
         box.style.fontSize = `${w.fs || w.fontSize || 30}px`;

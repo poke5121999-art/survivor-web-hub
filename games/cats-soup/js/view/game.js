@@ -31,7 +31,7 @@ export class GameView {
     this.pending.add(w.id);
     const lib = await this.placeLib(w.a);
     this.pending.delete(w.id);
-    const obj = lib.instantiate(`places/place${w.a}`);
+    const obj = lib ? lib.instantiate(`places/place${w.a}`) : new THREE.Group();
     obj.userData.workId = w.id;
     cellPos(w.pos[0], w.pos[1], obj.position);
     this.root.add(obj);
