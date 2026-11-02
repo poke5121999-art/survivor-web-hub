@@ -46,6 +46,13 @@ export class FieldBatch {
     this.soilDirty = false;
     this.kinds = new Map();   // prefab name -> [{ mesh: InstancedMesh, locals }]
     this.buildSoil();
+    // build this field's plant meshes now and keep them visible (all instances zero-scale) for the first frames, so their
+    // shader programs (instanced, and the shadow depth variant) compile at field creation, not on the first sown cell
+    const pre = view.data.crops[field.crop]?.prefabs || [];
+    // frustumCulled off during the warm frames: the shadow pass culls against the small sun camera around the player,
+    // which left the instanced depth programs to compile mid-sowing (2 programs measured on the first pass)
+    for (const name of pre.slice(0, 2)) if (name) for (const p of this.kind(name)) { p.mesh.visible = true; p.mesh.frustumCulled = false; }
+    this.warm = 4;   // visible for 3 rendered frames (the first frame has no shadow map yet)
   }
 
   buildSoil() {
@@ -128,6 +135,14 @@ export class FieldBatch {
     }
   }
 
+  // a kind no cell shows is hidden, so its zero-scale instances cost no vertex work
+  refreshVisible() {
+    for (const [kn, parts] of this.kinds) {
+      const any = this.shown.includes(kn);
+      for (const p of parts) { p.mesh.visible = any; p.mesh.frustumCulled = true; }
+    }
+  }
+
   // one GPU upload per changed mesh per frame
   flush() {
     for (const m of this.dirty) m.instanceMatrix.needsUpdate = true;
@@ -143,11 +158,7 @@ export class FieldBatch {
     const name = state === 1 ? prefabs[0] : state === 2 ? prefabs[1] : null;
     if (name) this.kind(name);
     this.shown[k] = name;
-    // a kind no cell shows is hidden, so its zero-scale instances cost no vertex work
-    for (const [kn, parts] of this.kinds) {
-      const any = this.shown.includes(kn);
-      for (const p of parts) p.mesh.visible = any;
-    }
+    if (!this.warm) this.refreshVisible();
     this.grow[k] = name ? 0 : 1;
     if (name) this.growing = (this.growing || 0) + 1;
     this.place(k, name, name ? 0.01 : 1);
@@ -155,6 +166,7 @@ export class FieldBatch {
 
   // DOScale(1, 0.25) with an overshoot, as the old per-object tween
   update(dt) {
+    if (this.warm && --this.warm === 0) this.refreshVisible();
     if (this.growing) {
       let still = 0;
       for (let k = 0; k < this.n; k++) {

@@ -9,12 +9,17 @@ export const RULES = {
   fieldSide: 5,            // Field.NB_FIELD_CELLS_SIDE
   startCoins: 7,           // seen in the first frame of a fresh game (clip buyciZObYbc t=0); GameController ctor says 0, the save sets it
   speed: 7,                // FarmScene PlayerController.BaseSpeed
-  fieldSlow: 0.4,          // GameController.GetSpeedMultiplierForDetectableType(FieldCell) (GameController.c:18060)
+  // Planting pace: remake divergence on user feel-test (rev 20261101f), the original values are in the comments.
+  // Target (user): sow AND water while walking, one smooth pass covers the whole field, almost no slow-down.
+  fieldSlow: 0.95,         // original 0.4: GameController.GetSpeedMultiplierForDetectableType(FieldCell) (GameController.c:18060)
+  plantTimerScale: 0.1,    // player's Seed/Water cell timers x0.1 (CropData.Timers 0.5 s -> 0.05 s); harvest and workers unchanged
   slowEase: 0.15,          // remake: seconds to ease 1 <-> fieldSlow (the original switches at once; a hard switch read as "stuck")
   planeR: 2.76 + 0.5,       // Hydravion SphereCollider radius + the player's reach (inferred)
   reach: 1.2,              // tool boxes sit at position + forward*1.2 (PlayerController.c:7564)
-  toolR: [0.7, 0.9, 1.75], // seed box (1.2 wide), water box (0.8-1.5), harvest sphere 1.75 (PlayerController.c:~8410)
-  autoComplete: 4,         // < 4 cells left in Seed/Water complete themselves (Field.c:6218)
+  toolR: [2.2, 2.2, 1.75],  // original seed box 0.7 (1.2 wide), water 0.9 (0.8-1.5); harvest sphere 1.75 kept (PlayerController.c:~8410)
+  growBeat: 1.2,           // remake: a freshly watered field can be harvested after 1.2 s, so one fast pass sows + waters
+                           // but does not cut the plants it just grew (the original's slow tools made this implicit)
+  autoComplete: 13,        // original 4: fewer than N cells left in Seed/Water complete themselves (Field.c:6218)
   dropDelay: 0.2,          // Drop.Collect(0.2, 1) (FieldCell+__c.c:42)
   donateNear: 1.0,         // player overlap sphere vs the LockedSprite trigger (radius not recovered, inferred)
   donateSlice: 4,          // price * dt / 4 per frame (Parcel.c:20349)
@@ -194,7 +199,9 @@ export class Farm {
 
   // FieldCell.Interact for every cell in reach (FieldCell.c:1041): timer runs while touched, Upgrade at Timers[state].
   workField(f, cx, cz, r, dt, worker) {
-    const timers = this.data.crops[f.crop]?.timers || [0.5, 0.5, 0.1];
+    const base = this.data.crops[f.crop]?.timers || [0.5, 0.5, 0.1];
+    const timers = worker ? base : [base[0] * RULES.plantTimerScale, base[1] * RULES.plantTimerScale, base[2]];
+    if (f.state === 2 && this.time < (f.readyAt || 0)) return 0;   // growBeat
     let touched = 0;
     for (const c of f.cells) {
       if (c.state !== f.state) continue;
@@ -228,6 +235,7 @@ export class Farm {
     }
     if (f.cells.every(c => c.state !== f.state)) {
       f.state = (f.state + 1) % 3;
+      if (f.state === 2) f.readyAt = this.time + RULES.growBeat;
       this.events.push({ type: 'field', f: f.i, state: f.state });
     }
   }

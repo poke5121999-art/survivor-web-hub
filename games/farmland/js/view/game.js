@@ -129,6 +129,9 @@ export class GameView {
       for (const t of Object.values(this.tools)) if (t) t.visible = false;
     }
     this.shownTool = undefined;
+    // show every tool for the first 3 frames so their shaders (main + shadow depth) compile now, not on the first field
+    // step; the very first frame renders before the sun's shadow map exists, so one frame alone compiles the wrong variant
+    this.toolWarm = 4;
     this.rig = new Rig(body);
     // the bike hangs under the pelvis (pelvis/BikeModel); the riding clips raise and pitch the pelvis, so the remake keeps
     // the bike where the prefab's rest pose puts it (upright, wheels on the ground) relative to the character root
@@ -333,7 +336,11 @@ export class GameView {
       this.walkT = (this.walkT || 0) + (pl.moving ? dt * 10 : 0);
       this.avatarBody.position.y = pl.moving ? Math.abs(Math.sin(this.walkT)) * 0.12 : 0;
     }
-    if (this.shownTool !== pl.tool) {
+    if (this.toolWarm) {
+      this.toolWarm--;
+      for (const t of Object.values(this.tools)) if (t) { t.visible = this.toolWarm > 0; t.traverse(o => { o.frustumCulled = this.toolWarm === 0; }); }
+      this.shownTool = undefined;
+    } else if (this.shownTool !== pl.tool) {
       this.shownTool = pl.tool;
       for (const [k, o] of Object.entries(this.tools)) if (o) o.visible = k === pl.tool;
     }

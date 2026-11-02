@@ -56,12 +56,15 @@ rebuilt on three.js r160 and plain ES modules. No build step.
 
 ## Rules (source: `farmland-ref/rules/RULES.md`, cited `File.c:line` of the decompile)
 
-- Field 5x5 cells, Seed -> Water -> Harvest -> Seed; a touched cell advances after `Crop.Timers[state]` s (0.5/0.5/0.1);
-  fewer than 4 cells left in Seed/Water finish themselves; harvest drops `Random(Min..Max)` items, each lands in the bag after 0.2 s.
-- Player speed 7; tool = field state (seed bag, watering can, scythe), tool box 1.2 ahead. Field slow-down x0.4
-  (GameController FieldCell multiplier). **Remake divergence (feel fix, rev 20261101e):** the original slows the player on any
-  field cell; here x0.4 applies only while a cell of the field's current state is inside the tool box (crossing worked or
-  finished cells is full speed), and the factor eases 1 <-> 0.4 over 0.15 s instead of snapping (RULES.slowEase).
+- Field 5x5 cells, Seed -> Water -> Harvest -> Seed; a touched cell advances after `Crop.Timers[state]` s (original 0.5/0.5/0.1,
+  see the planting note below for the remake's faster values); fewer than N cells left in Seed/Water finish themselves; harvest drops `Random(Min..Max)` items, each lands in the bag after 0.2 s.
+- Player speed 7; tool = field state (seed bag, watering can, scythe), tool box 1.2 ahead.
+  **Planting is deliberately faster and smoother than the original (user feel-test, rev 20261101f): sow and water while
+  walking.** Original -> remake: field slow-down x0.4 -> x0.95, only while a workable cell is in the tool box, eased over
+  0.15 s; Seed/Water cell timer 0.5 s -> 0.05 s (player only, workers keep 0.5 s); seed box 0.7 -> 2.2, water 0.9 -> 2.2;
+  auto-complete below 4 -> below 13 cells left. One straight pass sows and waters a whole 5x5 field (~0.7 s). Harvest keeps the
+  original scythe (sphere 1.75, 0.1 s); new growBeat: a freshly watered field can be cut after 1.2 s, so the same pass does not
+  cut what it just grew. Field and tool shaders are compiled at load (warm frames) so the first sowing does not hitch.
 - Parcel: on offer when its dependencies are open; stand at its edge to donate `price*dt/4` per frame (x3.5 every 2 s);
   wallet persists; unlocking adds a land point and raises the level (price) of the parcel's crop.
 - Merchant: sells one crop type per frame, `(98*clamp01(count/500)+2)` items; price `DropValue + LevelExtraValue*(level-1)`.
