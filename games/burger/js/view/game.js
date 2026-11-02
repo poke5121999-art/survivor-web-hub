@@ -23,6 +23,7 @@ const fmt = n => (n >= 10000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}K` : `
 // canvas texture on a quad at that node, so it lies on the floor like the original. TMP size 6 ~ 0.6 world units.
 const PRICE_FONT = "'Bumpo', 'Bakbak One', 'Arial Black', sans-serif";
 const PRICE_H = 0.9, PRICE_W = 2.4;
+const qTmp = new THREE.Quaternion();
 
 export class GameView {
   constructor({ world, pool, sim, anim, scene3, items }) {
@@ -105,8 +106,19 @@ export class GameView {
 
   // ---- GameObject switches ----
   syncNodes(first = false) {
-    const sim = this.sim;
-    for (const [i, on] of sim.overrides()) {
+    const sim = this.sim, ov = sim.overrides();
+    // A node that was overridden last time but is not any more (e.g. a tutorial step's hide list moved on) goes back to
+    // its prefab active flag; without this it stayed hidden for good (the burger machine pad at Create_Coffee_Machine).
+    for (const i of this.lastOv || []) {
+      if (ov.has(i)) continue;
+      const o = this.O[i];
+      if (!o) continue;
+      const on = sim.d.tree[i][1] !== 0;
+      if (on && !o.visible && !first) this.appear(o);
+      o.visible = on;
+    }
+    this.lastOv = [...ov.keys()];
+    for (const [i, on] of ov) {
       const o = this.O[i];
       if (!o) continue;
       if (on && !o.visible && !first) this.appear(o);
@@ -178,6 +190,8 @@ export class GameView {
   update(dt) {
     const sim = this.sim, s = sim.s, d = this.d;
     for (const e of sim.events) if (e.type === 'build' || e.type === 'grade' || e.type === 'hire') this.dirty = true;
+    if (sim.rev !== this.syncedRev) { this.dirty = true; this.syncedRev = sim.rev; }
+    if (this.fx) this.effects(sim.events, dt);
     if (this.dirty) { this.syncNodes(); this.dirty = false; }
     else {
       const vis = new Set(sim.visiblePads());
@@ -193,6 +207,18 @@ export class GameView {
     const hand = this.handOf(this.player);
     this.stack('p', hand, s.player.carry[0] ?? ITEM.cup, s.player.carry.length);
     this.playerTray.visible = s.player.carry.length > 0;
+    // level1 "Max" (SpriteRenderer MaxText 200 x 87 px at 100 ppu, scale 0.4, FollowTarget offset (-1, 4.5, -1) on the
+    // player): shown while the player carries a full stack.
+    if (!this.maxSprite) {
+      const t = new THREE.TextureLoader().load(`${this.fxBase || 'art/fx'}/max.png`);
+      t.colorSpace = THREE.NoColorSpace;
+      this.maxSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }));
+      this.maxSprite.scale.set(0.8, 0.348, 1);
+      this.maxSprite.renderOrder = 81;
+      this.world.root.add(this.maxSprite);
+    }
+    this.maxSprite.visible = s.player.carry.length >= sim.cap && s.player.carry.length > 0;
+    if (this.maxSprite.visible) this.maxSprite.position.set(s.player.pos[0] - 1, 4.5, s.player.pos[2] + 1);
     this.stack('start', this.startPile, ITEM.money, Math.ceil(s.startPile / MONEY_BILL), { cols: 4, max: 60 });
 
     // Grills, counter, money
@@ -320,6 +346,19 @@ export class GameView {
       this.stack(`x${x.id}`, this.handOf(o), x.item ?? this.d.foods['1'], carrying);
       const tray = o.userData.trayObj ?? (o.userData.trayObj = this.findNode(o, (o.userData.node.k.CustomerNormal || o.userData.node.k.CustomerVIP || {})._tray));
       if (tray) tray.visible = carrying > 0;
+      // TableCleanBalloon ("No Seat!", TextMeshPro size 3.2, black) while the customer waits for a clean seat.
+      let bal = o.userData.noSeat;
+      if (bal === undefined) { bal = o.userData.noSeat = null; o.traverse(c => { if (!bal && c.name === 'TableCleanBalloon') bal = o.userData.noSeat = c; }); }
+      if (bal) {
+        bal.visible = !!x.waiting && x.state === 'seat';
+        if (bal.visible && !bal.userData.txt) bal.add(bal.userData.txt = this.textQuad('No Seat!', '#000', 1.5, 0.6));
+        // FollowCameraAngle: keep the prefab's camera-facing rotation whatever way the customer turns.
+        if (bal.visible) {
+          if (!bal.userData.q0) bal.userData.q0 = bal.quaternion.clone();
+          bal.parent.getWorldQuaternion(qTmp);
+          bal.quaternion.copy(qTmp.invert().multiply(this.world.root.quaternion).multiply(bal.userData.q0));
+        }
+      }
       if (rig) rig.update(dt);
     }
     for (const [id, o] of this.people) if (!alive.has(id)) {
@@ -346,12 +385,47 @@ export class GameView {
     const sim = this.sim, step = this.d.guide[sim.s.guide];
     const target = step && step.text && sim.guideActive() && step.node != null ? this.O[step.node] : null;
     this.arrow.visible = !!target;
+    this.guideTarget = null;
     if (!target) return;
     this.arrowT += dt;
     target.updateWorldMatrix(true, false);
     target.getWorldPosition(v3);
+    this.guideTarget = v3.clone();
     this.world.root.worldToLocal(v3);
     this.arrow.position.set(v3.x, v3.y + ARROW_Y + ARROW_BOB * (0.5 + 0.5 * Math.sin(this.arrowT * Math.PI * 2 * ARROW_HZ)), v3.z);
+  }
+
+  // Original particle effects on gameplay events (ParticleType): BuildEffect on a pad's purchase, UpgradeEffect on a
+  // grade, SmileEffect over a customer who sits down to eat (EatBalloon, 2.92 m up), DollerEffect over a customer who
+  // pays at the counter or kiosk [GUESS: which call site plays DollerEffect is not decompiled].
+  effects(events, dt) {
+    const sim = this.sim, HEAD = 2.92;
+    const padAt = id => { const p = sim.pads.get(id); return p && [p.box[0], 0.3, p.box[1]]; };
+    for (const e of events) {
+      if (e.type === 'build') { const p = padAt(e.pad); if (p) this.fx.play('BuildEffect', p); }
+      else if (e.type === 'grade') { const p = this.d.pads.find(q => q.target === e.id); if (p) this.fx.play('UpgradeEffect', [p.box[0], 0.2, p.box[1]]); }
+      else if (e.type === 'eat' || (e.type === 'paid' && e.customer != null && !e.car)) {
+        const x = sim.s.customers.find(c => c.id === e.customer);
+        if (x) this.fx.play(e.type === 'eat' ? 'SmileEffect' : 'DollerEffect', [x.pos[0], HEAD, x.pos[2]]);
+      }
+    }
+    this.fx.update(dt);
+  }
+
+  // A world-space text label (TextMeshPro stand-in) drawn on a canvas quad; w x h in world units.
+  textQuad(text, color, w, h) {
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = Math.round(256 * h / w);
+    const g = cv.getContext('2d');
+    g.font = `${Math.round(cv.height * 0.62)}px ${PRICE_FONT}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = color;
+    g.fillText(text, cv.width / 2, cv.height / 2 + 2, cv.width - 8);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.NoColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    m.position.z = 0.05;
+    m.renderOrder = 61;
+    return m;
   }
 
   // Remaining price on every visible pad (district pads below their star level show the lock instead, see hud.js).
@@ -369,7 +443,7 @@ export class GameView {
         const cv = document.createElement('canvas');
         cv.width = 256; cv.height = 96;
         const tex = new THREE.CanvasTexture(cv);
-        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.colorSpace = THREE.NoColorSpace;
         m = new THREE.Mesh(new THREE.PlaneGeometry(PRICE_W, PRICE_H),
           new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
         m.renderOrder = 60;

@@ -20,7 +20,7 @@ html, body { margin: 0; height: 100%; background: #1d2a24; overflow: hidden; fon
 .ui .u.t > span { flex-shrink: 0; }
 .ui .u.b { pointer-events: auto; cursor: pointer; }
 .ui .u.b:active { filter: brightness(0.9); }
-.map { position: absolute; top: 40px; left: 8px; z-index: 3; width: 44px; height: 44px; border: 0; background: transparent center / contain no-repeat; cursor: pointer; pointer-events: auto; }
+.map { position: absolute; top: 72px; left: 8px; z-index: 3; width: 44px; height: 44px; border: 0; background: transparent center / contain no-repeat; cursor: pointer; pointer-events: auto; }
 .mapnav[hidden] { display: none; }
 .mapnav { position: absolute; left: 0; right: 0; bottom: 37%; display: flex; justify-content: space-between; padding: 0 10px; z-index: 4; pointer-events: none; }
 .mapnav button { pointer-events: auto; border: 0; border-radius: 50%; width: 44px; height: 44px; font-size: 22px; color: #fff; background: rgba(0,0,0,.45); cursor: pointer; }
@@ -36,3 +36,5 @@ html, body { margin: 0; height: 100%; background: #1d2a24; overflow: hidden; fon
 .ui .u.t.wrap { white-space: normal; }
 .ui .u.t.wrap > span { flex-shrink: 1; max-width: 100%; }
 body.skins .map { display: none; }
+#settings { pointer-events: auto; }
+#settings [data-n="dimd"] { background: rgba(0,0,0,.55); pointer-events: auto; }

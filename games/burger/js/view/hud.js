@@ -11,8 +11,9 @@ const v = new THREE.Vector3();
 const POINT = ['rgba(188,183,168,1)', 'rgba(116,211,7,1)'];
 
 export class Hud {
-  constructor(root, { sim, text, camera, canvas, ui, uiBase, sound, stage = 1, meta = null, stageData = null, enter = null, skins = null }) {
+  constructor(root, { sim, text, camera, canvas, ui, uiBase, sound, stage = 1, meta = null, stageData = null, enter = null, skins = null, view = null }) {
     this.skins = skins;
+    this.view = view;
     this.stageN = stage;
     this.meta = meta;
     this.stageData = stageData;
@@ -54,6 +55,73 @@ export class Hud {
     this.setupOffline();
     this.setupStages();
     if (skins) this.setupSkins();
+    this.setupTopBar();
+  }
+
+  // ---- original HUD pieces: star-level bar (StarProgressUI), settings gear + SettingView, joystick ----
+  setupTopBar() {
+    this.starBar = this.layer.panel('starProgress');
+    this.starBar.show('BTN_Level/GO_Reddot', false);
+    this.starGauge = this.starBar.q('Progress/Gauge');
+    this.gear = this.layer.panel('setting');
+    this.gear.el.id = 'gear';
+    const sv = this.settingView = this.layer.panel('settingView');
+    sv.el.id = 'settings';
+    this.localise(sv);
+    sv.show('', false);
+    // Rows the web build has no backend for: language, purchase restore, SNS follow rewards, web indexing.
+    for (const n of ['RTF_Contents/TDRD_Language', 'RTF_Contents/BTN_Restore', 'RTF_Contents/line', 'RTF_Contents/line_1',
+      'RTF_Contents/TMP_FollowUs', 'RTF_Contents/LIST_CLS_Setting (2)']) sv.show(n, false);
+    for (const [, { el, n }] of sv.nodes) if (/^SNSFollowPopupItemView/.test(n.n)) el.hidden = true;
+    const close = () => sv.show('', false);
+    this.click(sv.q('RTF_Contents/BTN_Close'), close);
+    this.click(sv.q('dimd'), close);
+    this.click(this.gear.el, () => { sv.show('', true); sv.layout(this.layer.cw, this.layer.ch); this.refreshSettings(); });
+    // SOUND switches the game's audio (same as before); HAPTIC is kept as a preference only (navigator.vibrate on pads).
+    this.click(sv.q('RTF_Contents/LIST_CLS_Setting/BTN_Self'), () => { if (this.sound) { this.sound.unlock(); this.sound.toggle(); } this.refreshSettings(); });
+    this.click(sv.q('RTF_Contents/LIST_CLS_Setting (1)/BTN_Self'), () => {
+      try { localStorage.setItem('bp-haptic', this.haptic ? '0' : '1'); } catch (e) { /* storage blocked */ }
+      this.refreshSettings();
+    });
+    this.el('snd').hidden = true;
+    this.joy = this.layer.panel('joystick');
+    this.joyBg = this.joy.q('Background');
+    this.joyHandle = this.joy.q('Background/Handle');
+  }
+
+  get haptic() { try { return localStorage.getItem('bp-haptic') !== '0'; } catch (e) { return true; } }
+
+  refreshSettings() {
+    const sv = this.settingView, on = !!(this.sound && this.sound.on);
+    sv.show('RTF_Contents/LIST_CLS_Setting/GO_On', on);
+    sv.show('RTF_Contents/LIST_CLS_Setting/GO_Off', !on);
+    sv.show('RTF_Contents/LIST_CLS_Setting (1)/GO_On', this.haptic);
+    sv.show('RTF_Contents/LIST_CLS_Setting (1)/GO_Off', !this.haptic);
+  }
+
+  updateTopBar(stick) {
+    const s = this.sim.s, rows = this.sim.d.star || [], need = rows[s.star] && rows[s.star + 1] ? rows[s.star].exp : null;
+    this.starBar.set('BTN_Level/LevelText', s.star + 1);
+    this.starBar.set('ExpText', need ? `${Math.floor(s.exp)}/${need}` : 'MAX');
+    // StarProgressUI stretches the fill's anchorMax.x to exp / need (sizeDelta -20 x -19 inside the 428 x 84 frame).
+    const r = need ? Math.min(1, s.exp / need) : 1;
+    if (this.starGauge) Object.assign(this.starGauge.style, { left: '10px', top: '10px', width: `${Math.max(0, r * 428 - 20)}px`, height: '65px' });
+    // Joystick: rests where the prefab puts it, jumps under the finger while dragging, handle follows up to the ring.
+    if (this.joyBg) {
+      if (!this.joyHome) this.joyHome = { left: this.joyBg.style.left, top: this.joyBg.style.top };
+      const k = this.layer.k, box = this.joy.el;
+      if (stick && stick.on) {
+        const ox = parseFloat(box.style.left) || 0, oy = parseFloat(box.style.top) || 0;
+        Object.assign(this.joyBg.style, { left: `${stick.x0 / k - ox - 64}px`, top: `${stick.y0 / k - oy - 64}px` });
+        let dx = (stick.x - stick.x0) / k, dy = (stick.y - stick.y0) / k;
+        const l = Math.hypot(dx, dy);
+        if (l > 64) { dx *= 64 / l; dy *= 64 / l; }
+        Object.assign(this.joyHandle.style, { left: `${32 + dx}px`, top: `${32 + dy}px` });
+      } else {
+        Object.assign(this.joyBg.style, this.joyHome);
+        Object.assign(this.joyHandle.style, { left: '32px', top: '32px' });
+      }
+    }
   }
 
   // ---- skin shop (SkinView + one SkinForm cell per skin) ----
@@ -292,8 +360,9 @@ export class Hud {
     this.click(get, () => { p.show('', false); const f = this.onClaim; this.onClaim = null; if (f) f(); });
   }
 
-  update() {
+  update(stick) {
     const sim = this.sim, s = sim.s;
+    this.updateTopBar(stick);
     this.money.set('ItemCount', fmt(s.money));
     const step = sim.d.guide[s.guide];
     const g = step && step.text && sim.guideActive() ? this.t(step.text) : '';
@@ -302,6 +371,37 @@ export class Hud {
     this.updateTags();
     this.updateBalloons();
     this.updateMenu();
+    this.updateGuideArrowUi();
+  }
+
+  // GuideArrow.SetArrowUIActive: while the guide target is outside the camera frustum (IsTargetVisible), the pooled
+  // GuideArrowUI prefab (a 100 x 100 pivot with the arrow sprite 100 units above it) sits on the player and turns
+  // toward the target (LookArrow). Its offset from the player (ARROW_UI_POSITION) is not in the data: the prefab's own
+  // 50-unit lift is used.
+  updateGuideArrowUi() {
+    const v = this.view;
+    if (!v) return;
+    if (!this.arrowUi) {
+      this.arrowUi = this.layer.panel('guideArrowUI');
+      this.arrowUi.el.id = 'guidearrow';
+    }
+    const el = this.arrowUi.el, t = v.guideTarget;
+    const W = this.canvas.clientWidth, H = this.canvas.clientHeight;
+    let show = false;
+    if (t) {
+      const p = t.clone().project(this.camera);
+      show = p.x < -1 || p.x > 1 || p.y < -1 || p.y > 1 || p.z > 1;
+      if (show) {
+        const pl = v.player.getWorldPosition(new THREE.Vector3()).project(this.camera);
+        const k = this.layer.k;
+        const px = (pl.x + 1) / 2 * W / k, py = (1 - pl.y) / 2 * H / k - 50;
+        const tx = (p.x + 1) / 2 * W / k, ty = (1 - p.y) / 2 * H / k;
+        const deg = Math.atan2(tx - px, -(ty - py)) * 180 / Math.PI;
+        Object.assign(el.style, { left: `${px - 50}px`, top: `${py - 50}px`, transform: `rotate(${deg.toFixed(1)}deg)`, transformOrigin: '50% 50%' });
+        el.dataset.deg = deg.toFixed(0);
+      }
+    }
+    el.hidden = !show;
   }
 
   // Order balloons (OrderBalloonManager): one over the customer or car at the head of each line, a sliced

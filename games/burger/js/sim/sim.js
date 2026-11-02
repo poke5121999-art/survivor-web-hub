@@ -128,6 +128,10 @@ export class Sim {
     return o;
   }
 
+  // Every change to the active-flag state bumps rev, so the view re-syncs the scene even when no build event fired
+  // (a tutorial step or a flow progress hides/shows objects on its own).
+  invalidate() { this._ov = null; this.rev = (this.rev || 0) + 1; }
+
   nodeOn(i) {
     const tree = this.d.tree, o = this._ov || (this._ov = this.overrides());
     for (let j = i; j >= 0; j = tree[j][0]) {
@@ -152,7 +156,7 @@ export class Sim {
       this.d.flows.forEach((f, fi) => {
         const p = f[s.flows[fi]];
         if (!p || (p.star && s.star < p.star)) return;
-        this._ov = null;
+        this.invalidate();
         if (!p.check.every(n => this.skipCheck(n) || this.nodeOn(n))) return;
         for (const n of [...p.create, ...p.upgrade]) s.flowSet[n] = true;
         for (const n of p.disable) s.flowSet[n] = false;
@@ -161,12 +165,12 @@ export class Sim {
         again = changed = true;
       });
     }
-    this._ov = null;
+    this.invalidate();
     return changed;
   }
 
   refreshNav() {
-    this._ov = null;
+    this.invalidate();
     if (this.grid) this.grid.update(i => this.nodeOn(i));
     for (const a of [...this.s.customers, ...this.s.workers]) a.route = null;
   }
@@ -428,7 +432,7 @@ export class Sim {
     while (g[i] && !g[i].text) i++;
     if (g[i] && !GUIDE_STEPS.has(g[i].text)) i = g.length;
     this.s.guide = i;
-    this._ov = null;
+    this.invalidate();
     this.stepFlows();
     this.refreshNav();
   }
@@ -613,6 +617,7 @@ export class Sim {
         const t = this.byTarget.get(x.seat.t);
         if (this.goTo(x, t.seats[x.seat.i].pos, CUSTOMER_SPEED * dt)) {
           x.state = 'eat';
+          this.events.push({ type: 'eat', customer: x.id });   // Customer.EatBalloon: ParticleBalloon SmileEffect
           x.eatT = t.eat[s.grade[t.id] || 0] * x.want * (x.vip ? this.d.vip.eatTimeRate : 1);
         }
       } else if (x.state === 'eat') {

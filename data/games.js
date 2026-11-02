@@ -1216,7 +1216,7 @@ window.HUB_GAMES = [
     en: { title: "Burger Please!", tagline: "Run a burger shop: cook, serve at the counter, drive-thru and kiosk, upgrade and expand.", desc: "Burger Please! (Supercent) remade from the Android 31.8.0 release, running straight in the browser on the original assets. Grab the startup cash, open up, grill burgers and hand them to customers at the counter. Open a drive-thru for cars buying boxes, a package table that bundles burgers into boxes, and a take-away kiosk; balloons over each head show the order. Hire counter, packer and cashier staff, upgrade capacity, speed and price, and open new districts to earn stars. Collect idle income while away. Follows the original tutorial. Drag to walk, portrait for phones. All 10 campaign stages are in, each with its own foods, prices, districts and stars, plus VIP customers, a restroom, cleaner robots and a skin room." },
     thumbnail: "assets/thumbnails/burger.png",
     path: "games/burger/index.html",
-    rev: "20261101c",
+    rev: "20261101d",
     // three.js vendor, no build step; rebuilt from the Android XAPK (io.supercent.burgeridle 31.8.0, Unity 2022.3.62f3
     // IL2CPP) by games/burger/tools, rules from the Ghidra decompile. Bump rev: node games/burger/tools/stamp.js <rev>.
     // Kiem: burger-sim.js, burger-stages.js, burger-play.js. Stage 1-10 + VIP/restroom/cleaner/skin xong.

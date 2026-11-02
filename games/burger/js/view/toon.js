@@ -41,7 +41,7 @@ export function texture(base, name) {
 }
 
 function setup(t) {
-  t.colorSpace = THREE.SRGBColorSpace;
+  t.colorSpace = THREE.NoColorSpace;   // Gamma colour space: sampled values are used raw (see main.js)
   t.flipY = false;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.LinearFilter;
@@ -125,7 +125,7 @@ const outlineFrag = /* glsl */`
     #include <colorspace_fragment>
   }`;
 
-const srgb = c => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+const srgb = c => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.LinearSRGBColorSpace);
 
 // One THREE material (plus an outline material or null) per scene.json material entry.
 export function makeMaterial(entry, texBase, textures, { skinned = false } = {}) {

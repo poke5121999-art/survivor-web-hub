@@ -219,6 +219,11 @@ def main():
     for key, name in (("stagePopup", "StagePopup"), ("stageLocked", "StageLockedPopup"), ("skinView", "SkinView")):
         g = next(o for o in f.values() if o.type.name == "GameObject" and o.read().m_Name == name)
         out["roots"][key] = W.node(go_rt(g.path_id))
+    # HUD pieces: the star-level bar (StarProgressUI), the joystick (Joystick), the settings gear (SettingButton).
+    for key, name, comp in (("starProgress", "StarProgress", "StarProgressUI"), ("joystick", "Joystick", "Joystick"),
+                            ("setting", "SettingButton", "UnityEngine.UI.Button"), ("settingView", "SettingView", "SettingView")):
+        g = next(o for o in f.values() if o.type.name == "GameObject" and o.read().m_Name == name and any(c.endswith(comp) for c in W.comps(o.read())))
+        out["roots"][key] = W.node(go_rt(g.path_id))
     # Skin shop cell (SkinView._prefabSkinForm, a prefab in another file) and the sprites SkinView/SkinForm swap in.
     sv = next(o for o in f.values() if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "BurgerPlease.SkinView")
     svd = mm.read(sv)
@@ -239,6 +244,19 @@ def main():
         s = PW.sprite(fd[k])
         spr[k[1:]] = s and s["s"]
     out["skinSprites"] = spr
+    # Off-screen guide arrow (ObjectPoolManager._guideArrowUIObjectData prefab, a GuideArrowUI image; GuideArrow shows it
+    # near the player, turned toward the guide target, while the target is outside the camera frustum).
+    opm = next(o for o in f.values() if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "ObjectPoolManager")
+    gp = mm.read(opm)["_guideArrowUIObjectData"]["prefab"]
+    gf = F(W.f_by_ptr(gp))
+    gf.assets_file_name = mm.ext_names(f.sf)[gp["m_FileID"] - 1]
+    gf.sf = next(iter(gf.values())).assets_file
+    GW = Walker(gf)
+    GW.sprites = W.sprites
+    out["roots"]["guideArrowUI"] = GW.node(gf[gp["m_PathID"]])
+    gui = next(mm.read(o) for o in gf.values() if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "GuideArrowUI"
+               and mm.read(o)["m_GameObject"]["m_PathID"] == gf[gp["m_PathID"]].read().m_GameObject.path_id)
+    out["guideArrowColors"] = [[r2(c["r"]), r2(c["g"]), r2(c["b"]), r2(c["a"])] for c in gui["_arrowColors"]]
     # Store logos per stage (pro_logo_stageNN_256), shown in the stage popups.
     want = {f"pro_logo_stage{n:02d}_256": n for n in range(1, 11)}
     logos = {}

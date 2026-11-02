@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { makeMaterial, addSmoothNormals, lighting, texture } from './toon.js';
 
 const DEBUG = new Set((new URLSearchParams(location.search).get('debug') || '').split(','));
-const srgb = c => new THREE.Color().setRGB(c.r, c.g, c.b, THREE.SRGBColorSpace);
+const srgb = c => new THREE.Color().setRGB(c.r, c.g, c.b, THREE.LinearSRGBColorSpace);
 
 // gltf-transform's meshopt step quantizes positions and moves the dequantize offset/scale into the glTF node transform.
 function dequant(src) {
@@ -99,7 +99,7 @@ export function buildWorld(scene, gltf, { texBase }) {
     if (!mat) {
       const tex = texture(texBase, scene.textures[sp.tex].name).tex;
       mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-        color: new THREE.Color().setRGB(n.spr.c[0], n.spr.c[1], n.spr.c[2], THREE.SRGBColorSpace), opacity: n.spr.c[3] });
+        color: new THREE.Color().setRGB(n.spr.c[0], n.spr.c[1], n.spr.c[2], THREE.LinearSRGBColorSpace), opacity: n.spr.c[3] });
       sprMats.set(key, mat);
     }
     const [w, h] = n.spr.size && n.spr.mode ? n.spr.size : [sp.w, sp.h];

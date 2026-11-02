@@ -9,6 +9,7 @@ import { AnimLibrary, attachRigs } from './view/anim.js';
 import { GameView } from './view/game.js';
 import { Hud } from './view/hud.js';
 import { PlayerSkins } from './view/skins.js';
+import { Fx } from './view/fx.js';
 import { Sound } from './view/audio.js';
 import { Sim } from './sim/sim.js';
 import { Bot } from './sim/bot.js';
@@ -36,7 +37,10 @@ const store_ = v => writeJson(SAVE_KEY, v);
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+// The Unity project renders in Gamma colour space (PlayerSettings.m_ActiveColorSpace 0): shaders multiply the sRGB
+// values as they are and write them out unconverted. Textures and colours therefore stay raw (NoColorSpace /
+// LinearSRGB = no conversion) and the output is not encoded again.
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 const scene3 = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.3, 1000);
 const game = window.__game = { stage: 'boot', errors: [] };
@@ -63,7 +67,6 @@ const keys = new Set();
 addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 const stick = { on: false, x0: 0, y0: 0, x: 0, y: 0 };
-const knob = document.getElementById('stick');
 canvas.addEventListener('pointerdown', e => { stick.on = true; stick.x0 = stick.x = e.clientX; stick.y0 = stick.y = e.clientY; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', e => { if (stick.on) { stick.x = e.clientX; stick.y = e.clientY; } });
 const up = () => { stick.on = false; };
@@ -80,9 +83,7 @@ function readInput(view) {
     const dx = stick.x - stick.x0, dy = stick.y - stick.y0, r = 60;
     const l = Math.hypot(dx, dy);
     if (l > 6) { sx = dx / Math.max(l, r); sy = -dy / Math.max(l, r); }
-    knob.hidden = false;
-    knob.style.transform = `translate(${stick.x0}px, ${stick.y0}px)`;
-  } else knob.hidden = true;
+  }
   // Screen axes on the floor: the camera looks along -offset.
   const f = view.fwd, rgt = view.right;
   return { x: rgt.x * sx + f.x * sy, z: rgt.z * sx + f.z * sy };
@@ -102,10 +103,10 @@ async function main() {
   // Camera, light and ambient of the shared scene (level1: FollowCamera._offset, Main Camera, Directional Light).
   const V3 = data.view;
   ORTHO = V3.ortho;
-  scene3.background = new THREE.Color().setRGB(...V3.background, THREE.SRGBColorSpace);
+  scene3.background = new THREE.Color().setRGB(...V3.background, THREE.LinearSRGBColorSpace);
   lighting.dir.set(0, 0, 1).applyQuaternion(new THREE.Quaternion().fromArray(V3.lightRot)).normalize();
-  lighting.color.setRGB(...V3.lightColor, THREE.SRGBColorSpace).multiplyScalar(V3.lightIntensity);
-  lighting.ambient.setRGB(...V3.ambient, THREE.SRGBColorSpace);
+  lighting.color.setRGB(...V3.lightColor, THREE.LinearSRGBColorSpace).multiplyScalar(V3.lightIntensity);
+  lighting.ambient.setRGB(...V3.ambient, THREE.LinearSRGBColorSpace);
   resize();
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
@@ -127,6 +128,9 @@ async function main() {
     writeJson(META_KEY, meta);
   };
   const view = new GameView({ world, pool, sim, anim, scene3, items });
+  const fxData = await json(`${ART}/fx/fx.json`).catch(() => null);
+  if (fxData) view.fx = new Fx(world.root, `${ART}/fx`, fxData);
+  view.fxBase = `${ART}/fx`;
   // Skins (SkinManager) are campaign-wide: the worn one and the owned ones live in the meta save. A free uniform is
   // offered once the stage of its Skin.cost_stage (0-based) has been opened.
   const [skinLib, skinGlb] = await Promise.all([json(`${ART}/pool/playerskins.json`), glb(`${ART}/pool/playerskins.glb`)]).catch(() => [null, null]);
@@ -148,7 +152,7 @@ async function main() {
   view.right = new THREE.Vector3().crossVectors(view.fwd, new THREE.Vector3(0, 1, 0)).normalize();
   const sound = audioMeta ? new Sound(`${ART}/audio`, audioMeta, STAGE_N) : null;
   const hud = new Hud(document.getElementById('hud'), { sim, text, camera, canvas, sound, ui, uiBase: `${ART}/ui`, stage: STAGE_N, meta,
-    stageData: n => json(`${BASE}data/stage${n}.json`), skins, enter: n => { if (!game.noSave) saveAll(); location.search = `?stage=${n}`; } });
+    stageData: n => json(`${BASE}data/stage${n}.json`), skins, view, enter: n => { if (!game.noSave) saveAll(); location.search = `?stage=${n}`; } });
   Object.assign(game, { sim, view, hud, world, THREE, camera, sound, bot: params.has('bot') ? new Bot(sim) : null, stage: 'ready',
     setBot: (on, opt) => { game.bot = on ? new Bot(sim, opt) : null; }, save: saveAll, meta, stageN: STAGE_N, wear, skinLib, steps: +(params.get('speed') || 1) });
 
@@ -171,7 +175,7 @@ async function main() {
       for (const e of sim.events) if (e.type === 'skinroom') { if (e.open) hud.showSkins(); else hud.hideSkins(); }
       sim.events.length = 0;
     }
-    hud.update();
+    hud.update(stick);
     if (sound) {
       sound.setMusic(sim.d.counters.some(c => sim.s.built[c.pad]));
       const pp = sim.s.player.pos, inZ2 = (sim.d.bgmAreas || []).some(a => a.zone === 1 && Math.abs(pp[0] - a.box[0]) <= a.box[2] && Math.abs(pp[2] - a.box[1]) <= a.box[3]);
