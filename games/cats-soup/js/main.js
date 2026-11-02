@@ -12,7 +12,9 @@ import { env } from './view/shaders.js';
 import { AnimLibrary } from './view/anim.js';
 import { GameView } from './view/game.js';
 import { Hud } from './view/hud.js';
-import { Game } from './sim/game.js';
+import { makeGame } from './sim/boot.js';
+import { VIEWS } from './view/registry.js';
+import { MoveMode } from './view/move.js';
 import { cellPos } from './view/forest.js';
 import { Sound } from './view/sound.js';
 import * as B from './sim/big.js';
@@ -43,13 +45,12 @@ function fit() {
 addEventListener('resize', fit);
 
 const json = p => fetch(`${BASE}/${p}${globalThis.CS_V}`).then(r => r.json());
-const [sfx, tables, fields, ground, places, lang, cats, map, catLib, animLib] = await Promise.all([
-  json('art/sfx/sfx.json'), json('data/tables.json'), json('data/fields.json'), json('data/ground.json'), json('data/places.json'),
+const [game, sfx, ground, places, lang, cats, map, catLib, animLib, lampLib] = await Promise.all([
+  makeGame(json), json('art/sfx/sfx.json'), json('data/ground.json'), json('data/places.json'),
   json('data/lang-vi.json'), json('data/cats.json'),
-  loadLib(BASE, 'map', GLTFLoader, MeshoptDecoder), loadLib(BASE, 'cat', GLTFLoader, MeshoptDecoder), AnimLibrary.load(BASE),
+  loadLib(BASE, 'map', GLTFLoader, MeshoptDecoder), loadLib(BASE, 'cat', GLTFLoader, MeshoptDecoder), AnimLibrary.load(BASE), loadLib(BASE, 'lamp', GLTFLoader, MeshoptDecoder),
 ]);
 
-const game = new Game(tables, fields);
 let saved = null;
 // ?size and ?demo build throwaway states for tests and screenshots and never write the save; ?fresh starts over for real.
 const testing = q.has('size') || q.has('demo');
@@ -84,7 +85,7 @@ const placeLib = work => {
   if (!chunkLibs.has(k)) chunkLibs.set(k, loadLib(BASE, `places${k}`, GLTFLoader, MeshoptDecoder));
   return chunkLibs.get(k);
 };
-const view = new GameView({ game, scene, forest, placeLib, catLib, animLib, catTypes: cats, texBase: `${BASE}/art/tex` });
+const view = new GameView({ game, scene, forest, placeLib, catLib, animLib, lampLib, catTypes: cats, texBase: `${BASE}/art/tex` });
 view.rebuildForest();
 
 const ng = await NGUI.load(BASE, lang);
@@ -94,14 +95,38 @@ for (const n of hudTree.roots) root.appendChild(ng.build(n));
 const focus = w => { cellPos(w.pos[0], w.pos[1], camera.target); camera.update(); };
 const hud = new Hud({ game, ng, root, lang, onBuilt: w => focus(w) });
 if (!q.has('demo')) focus(game.state.works[0]);
+const move = new MoveMode({ game, view, scene, camera, hud, ng, root, json });
+hud.onMove = () => move.enter();
+camera.onLongPress = (x, y) => { const w = view.pick(camera.ground(x, y)); if (w && !move.on) move.enter(w); };
 camera.onTap = (x, y) => {
   const w = view.pick(camera.ground(x, y));
+  if (move.on) { move.select(w || null); return; }
+  if (w && VIEWS.some(v => safe(v, 'onTap', w) === true)) return;
   if (w && w.a === 5 && w.v >= 1) game.claimJar(w);
   hud.select(w || null);
 };
 fit();
 if (away && (away.gold.f || away.energy.f)) hud.toast(`+${B.format(away.gold)} 💰  +${B.format(away.energy)} ⚡`);
 const sound = new Sound(BASE, sfx);
+const css = href => {
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = `${BASE}/${href}${globalThis.CS_V}`;
+  document.head.appendChild(l);
+};
+const ctx = { game, hud, ng, root, lang, view, scene, camera, sound, base: BASE, json, css,
+  panel: name => json(`art/ui/panels/${name}.json`), t: (k, ...a) => hud.t(k, ...a) };
+// One feature failing must not take the game down: each hook call is isolated and its first error is logged once.
+const failed = new Set();
+const safe = (v, name, ...args) => {
+  if (!v[name] || failed.has(v)) return undefined;
+  try {
+    const r = v[name](...args);
+    if (r && r.catch) r.catch(err => { failed.add(v); console.error(`feature ${v.id}.${name}`, err); });
+    return r;
+  } catch (err) { failed.add(v); console.error(`feature ${v.id}.${name}`, err); return undefined; }
+};
+for (const v of VIEWS) safe(v, 'mount', ctx);
 const soundBtn = root.querySelector('[data-n="set_option"]');
 if (soundBtn) for (const b of soundBtn.querySelectorAll('.w')) { b.style.pointerEvents = 'auto'; b.style.cursor = 'pointer'; b.onclick = () => sound.toggle(); }
 
@@ -134,7 +159,18 @@ setInterval(save, 10000);
 addEventListener('pagehide', () => save(true));
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
 
-env.ambient.value.set(0.5, 0.5, 0.5, 1);
+// Night (game.isNight) dims the shader ambient toward blue and darkens the clear colour over ~2 s.
+const DAY = { amb: [0.5, 0.5, 0.5], sky: [0.4274, 0.5569, 0.3294] };
+const NIGHT = { amb: [0.3, 0.32, 0.46], sky: [0.16, 0.22, 0.24] };
+let dusk = game.isNight() ? 1 : 0;
+const sky = new THREE.Color();
+function light(dt) {
+  dusk = THREE.MathUtils.clamp(dusk + (game.isNight() ? dt : -dt) / 2, 0, 1);
+  const mix = (a, b, i) => a[i] + (b[i] - a[i]) * dusk;
+  env.ambient.value.set(mix(DAY.amb, NIGHT.amb, 0), mix(DAY.amb, NIGHT.amb, 1), mix(DAY.amb, NIGHT.amb, 2), 1);
+  renderer.setClearColor(sky.setRGB(mix(DAY.sky, NIGHT.sky, 0), mix(DAY.sky, NIGHT.sky, 1), mix(DAY.sky, NIGHT.sky, 2)));
+}
+light(0);
 const speed = +(q.get('speed') || 1);
 let last = performance.now();
 renderer.setAnimationLoop(t => {
@@ -143,7 +179,7 @@ renderer.setAnimationLoop(t => {
   game.tick(dt * speed);
   for (const e of game.events) {
     sound.event(e);
-    if (e.type === 'expand' || e.type === 'build') view.rebuildForest();
+    if (['expand', 'build', 'resize', 'move', 'keep', 'keepOut'].includes(e.type)) view.rebuildForest();
     if (e.type === 'expand') { camera.target.set(0, 0, 0); camera.update(); hud.toast(hud.t('guide_expandNow')); }
     if (e.type === 'sell' && !e.auto) floater(`+${B.format(e.gold)}`, 300, 1700, '#ffe066');
     if ((e.type === 'energy' || e.type === 'jar') && view.works.get(e.work.id)) {
@@ -151,13 +187,19 @@ renderer.setAnimationLoop(t => {
       floater(e.type === 'energy' ? `⚡${B.format(e.energy)}` : `+${B.format(e.gold)}`, x, y, e.type === 'energy' ? '#b6ff7a' : '#ffe066');
     }
   }
+  for (const v of VIEWS) for (const e of game.events) safe(v, 'onEvent', e);
   game.events.length = 0;
+  light(dt);
   view.update(dt * speed);
   hud.update();
+  for (const v of VIEWS) safe(v, 'update', dt * speed);
+  move.update();
   renderer.render(scene, camera.cam);
 });
 canvas.style.filter = '';
 window.__game = game;
 window.__hud = hud;
+window.__move = move;
+window.__failed = () => [...failed].map(v => v.id);
 window.__cloud = cloud.from;
 setTimeout(() => { window.__ready = true; }, 3000);

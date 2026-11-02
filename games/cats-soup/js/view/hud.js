@@ -24,7 +24,8 @@ export class Hud {
     nums[4].style.display = 'none';
     // Event and IAP widgets of the original HUD that this build has no feature behind yet.
     for (const p of ['mainUI/set_top/NewContent', 'mainUI/set_top/set_newbieGuide', 'mainUI/set_top/set_buff', 'mainUI/set_topLeft/set_side',
-      'mainUI/set_topRight/buttons/set_eventBox', 'mainUI/set_hideBottomLeft', 'mainUI/set_hideUI']) {
+      'mainUI/set_topRight/buttons/set_eventBox', 'mainUI/set_hideBottomLeft', 'mainUI/set_hideUI',
+      'mainUI/set_bottomRight/bt_catTower/accReward']) {
       const n = find(root, p);
       if (n) n.style.display = 'none';
     }
@@ -136,7 +137,7 @@ export class Hud {
     const up = document.createElement('div');
     up.className = `up ${B.gte(g.state.gold, price) ? '' : 'off'}`;
     up.innerHTML = `<span>▲</span> ${B.format(price)}`;
-    up.onclick = e => { e.stopPropagation(); if (!g.upgrade(w, 1)) this.toast(this.t('msg_shortGold')); };
+    up.onpointerdown = e => { e.stopPropagation(); this.holdUpgrade(w); };
     this.card.appendChild(up);
     const x = document.createElement('div');
     x.className = 'x';
@@ -145,6 +146,28 @@ export class Hud {
     this.card.appendChild(x);
   }
 
+  // Holding the upgrade button repeats it, faster the longer it is held (guide_longPress: "bạn có thể giữ nó!").
+  holdUpgrade(w) {
+    this.stopHold();
+    const once = () => {
+      if (this.game.upgrade(w, 1)) return true;
+      this.toast(this.t('msg_shortGold'));
+      this.stopHold();
+      return false;
+    };
+    if (!once()) return;
+    let delay = 400, n = 0;
+    const next = () => { this.hold = setTimeout(() => { if (once()) { n++; delay = Math.max(40, 150 - n * 8); next(); } }, delay); };
+    next();
+    if (!this.holdEnd) {
+      this.holdEnd = () => this.stopHold();
+      addEventListener('pointerup', this.holdEnd);
+      addEventListener('pointercancel', this.holdEnd);
+    }
+  }
+
+  stopHold() { clearTimeout(this.hold); this.hold = null; }
+
   // ---- panels ----
   open(title, sub, tabs, draw) {
     this.close();
@@ -152,6 +175,7 @@ export class Hud {
     p.className = 'panel';
     p.innerHTML = `<div class="ttl"><h1></h1><h2></h2></div><div class="tabs"></div><div class="list"></div><div class="close">×</div>`;
     p.querySelector('h1').textContent = title;
+    if (title.length > 14) p.querySelector('h1').classList.add('long');
     p.querySelector('h2').textContent = sub;
     p.querySelector('.close').onclick = () => this.close();
     const tabEl = p.querySelector('.tabs');
@@ -184,6 +208,16 @@ export class Hud {
     const g = this.game;
     const tabs = TABS.map(t => ({ ...t, title: this.t(t.label) }));
     this.open(this.t('title_build'), '', tabs, (list, tab) => {
+      if (this.onMove) {
+        const mv = document.createElement('div');
+        mv.className = 'row move btn';
+        mv.appendChild(this.sprite('atlas_ui1_atlas', 'icon_forest_exit', 'icon'));
+        const b = document.createElement('b');
+        b.textContent = this.t('title_forestdeco');
+        mv.appendChild(b);
+        mv.onclick = () => this.onMove();
+        list.appendChild(mv);
+      }
       const all = g.buildList();
       const frontier = all.findIndex(o => o.n === 0);
       let lockedShown = false;

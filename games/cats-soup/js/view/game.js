@@ -11,8 +11,8 @@ const q1 = new THREE.Quaternion();
 const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 export class GameView {
-  constructor({ game, scene, forest, placeLib, catLib, animLib, catTypes, texBase }) {
-    Object.assign(this, { game, scene, forest, placeLib, catLib, animLib, catTypes, texBase });
+  constructor({ game, scene, forest, placeLib, catLib, animLib, lampLib, catTypes, texBase }) {
+    Object.assign(this, { game, scene, forest, placeLib, catLib, animLib, lampLib, catTypes, texBase });
     this.works = new Map();   // work id -> { obj, anchor }
     this.cats = new Map();    // cat id -> { obj, rig, state }
     this.root = new THREE.Group();
@@ -67,13 +67,9 @@ export class GameView {
     }
     const p = e.obj.getObjectByName('handLight');
     if (p && a.haveLamp) {
-      const key = 'lamp/lamp0';
-      if (map.roots.has(key)) {
-        const lamp = map.instantiate(key);
-        const at = p.getObjectByName('p') || p;
-        at.add(lamp);
-
-      }
+      // art/lamp (tools/export_prefabs.py lamp lamp/lamp0): the jar lantern sprite of Lamp.json row 0.
+      const lib = this.lampLib;
+      if (lib && lib.roots.has('lamp/lamp0')) (p.getObjectByName('p') || p).add(lib.instantiate('lamp/lamp0'));
     }
   }
 
@@ -134,6 +130,8 @@ export class GameView {
     for (const [id, e] of this.works) {
       if (!g.state.works.some(w => w.id === id)) { this.root.remove(e.obj); this.works.delete(id); continue; }
       this.drawLevel(e);
+      if (e.drag) e.obj.position.copy(e.drag);
+      else cellPos(e.w.pos[0], e.w.pos[1], e.obj.position);
       if (e.obj.userData.pop < 1) {
         e.obj.userData.pop = Math.min(1, e.obj.userData.pop + dt * 3);
         const k = e.obj.userData.pop;

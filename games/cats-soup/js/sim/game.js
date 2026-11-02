@@ -9,11 +9,18 @@ const FIRST_CATS = [23, 26, 14];                                 // cats.md: the
 const LINE_BONUS = { 0: 104, 1: 105, 2: 106 };                    // Herb Stand / Ice Cave / Sauce Fountain
 const JAR = 5;                                                   // lucky jar work (specials.md 2.2)
 const JAR_SECONDS = 3600;                                        // Init 8
+// Day and night: Spawn.TimeFlow adds to GameData.timeCount (starts at 1, GameData.c:413) and DataManager.IsNight
+// (DataManager.c:27951) is timeCount % BALANCE.DayTimeLength (Init 14 = 10) > 6, so 3 steps of 10 are night. The step
+// length was not resolved from the decompile; one step a minute is inferred (a 10-minute day, 3 minutes of night).
+const DAY_LENGTH = 10;
+const DAY_STEP_SECONDS = 60;
 export const SAVE_VERSION = 1;
+const toBig = v => (typeof v === 'number' ? B.fromNumber(v) : v);
 
 export class Game {
   // tables: data/tables.json; fields: data/fields.json; rng: () => [0, 1)
-  constructor(tables, fields, rng = Math.random) {
+  // features: sim modules of js/sim/features (registry js/sim/registry.js); data: {name: data/<name>.json} they declared.
+  constructor(tables, fields, rng = Math.random, features = [], data = {}) {
     this.t = tables;
     this.fields = fields;
     this.rng = rng;
@@ -24,7 +31,13 @@ export class Game {
     this.events = [];
     this.state = null;
     this.ai = new CatAI(this);
+    this.features = features;
+    this.data = data;
+    this.feat = Object.fromEntries(features.map(f => [f.id, f]));
   }
+
+  // Every feature's init runs after fresh() and load(); it must add its own state slice only when missing (old saves).
+  initFeatures() { for (const f of this.features) if (f.init) f.init(this); }
 
   // ---- state ----
   fresh() {
@@ -32,17 +45,21 @@ export class Game {
       v: SAVE_VERSION, savedAt: Date.now(), clock: 0,
       gold: B.fromNumber(START.gold), energy: B.fromNumber(START.energy), gem: START.gem, coin: START.coin,
       mapSize: 0, maxMapSize: 0, rewardSize: 0, nextId: 1,
-      works: [], cats: [], recipes: { 1: 1 }, shelf: [], stats: { sold: 0, built: 0, upgraded: 0, expanded: 0 },
+      works: [], storage: [], cats: [], timeCount: 1, timeAcc: 0, recipes: { 1: 1 }, shelf: [], stats: { sold: 0, built: 0, upgraded: 0, expanded: 0 },
     };
     this.state = s;
     this.place(0, this.emptyCells()[0], 0);
+    this.initFeatures();
     return s;
   }
 
   load(s) {
     if (!s || s.v !== SAVE_VERSION) return this.fresh();
     this.state = s;
+    if (!s.storage) s.storage = [];
+    if (s.timeCount == null) { s.timeCount = 1; s.timeAcc = 0; }
     this.ai.reset();
+    this.initFeatures();
     return s;
   }
 
@@ -51,7 +68,28 @@ export class Game {
     return JSON.parse(JSON.stringify(this.state));
   }
 
-  emit(type, data = {}) { this.events.push({ type, ...data }); }
+  emit(type, data = {}) {
+    const e = { type, ...data };
+    this.events.push(e);
+    for (const f of this.features) if (f.onEvent) f.onEvent(this, e);
+  }
+
+  // Grant one reward of DataManager.GetReward_Inner's type (specials.md): 1 gold, 2 energy, 3 gems, 4 furniture coins;
+  // other types go to the feature that lists the type in its \`rewards\`. Returns what was given (for popups) or null.
+  reward(type, value, extra = {}) {
+    const s = this.state;
+    let out = null;
+    if (type === 1) { s.gold = B.add(s.gold, toBig(value)); out = { type, value }; }
+    else if (type === 2) { s.energy = B.add(s.energy, toBig(value)); out = { type, value }; }
+    else if (type === 3) { s.gem += Number(value); out = { type, value }; }
+    else if (type === 4) { s.coin += Number(value); out = { type, value }; }
+    else {
+      const f = this.features.find(x => x.rewards && x.rewards[type]);
+      if (f) out = f.rewards[type](this, value, extra);
+    }
+    if (out) this.emit('reward', { reward: out });
+    return out;
+  }
 
   // ---- map ----
   field() { return this.fields[Math.min(8, this.state.mapSize)].field; }
@@ -63,7 +101,81 @@ export class Game {
     if (!c.length) return null;
     return this.state.mapSize % 2 === 0 ? c[c.length - 1] : c[0];
   }
-  ownedCount() { return this.state.works.filter(w => this.work.get(w.a).type !== 21).length; }
+  // DataManager.OwnedFacilityCount counts stored facilities too (map.md section 4).
+  ownedCount() { return [...this.state.works, ...this.state.storage].filter(w => this.work.get(w.a).type !== 21).length; }
+  inField(x, y) { return this.field().some(c => c[0] === x && c[1] === y); }
+
+  // ---- move mode (map.md section 3: MoveModeCMD_MoveWork / SwapWork / KeepWork / KeepOut / KeepAllWork) ----
+  // A stored facility leaves state.works for state.storage: it keeps its level and cat but neither works nor shows.
+  moveWork(w, cell) {
+    if (!this.inField(cell[0], cell[1])) return false;
+    const o = this.workAt(cell[0], cell[1]);
+    if (o === w) return true;
+    if (o) o.pos = w.pos.slice();
+    w.pos = cell.slice();
+    this.emit('move', { work: w, swap: o || null });
+    return true;
+  }
+
+  keepWork(w) {
+    const s = this.state;
+    const i = s.works.indexOf(w);
+    if (i < 0) return false;
+    s.works.splice(i, 1);
+    s.storage.push(w);
+    for (const c of s.cats) if (c.work === w.id) this.ai.cats.delete(c.id);
+    this.emit('keep', { work: w });
+    return true;
+  }
+
+  keepAll() {
+    for (const w of this.state.works.slice()) this.keepWork(w);
+    return true;
+  }
+
+  // Spawn.PickAutoPlacePos: the empty cell nearest to the last touched cell within 3 cells, else the legacy pick.
+  keepOut(id, near = null) {
+    const s = this.state;
+    const w = s.storage.find(o => o.id === id);
+    const cand = this.emptyCells();
+    if (!w || !cand.length) return null;
+    let pos = null;
+    if (near) {
+      const d = c => (c[0] - near[0]) ** 2 + (c[1] - near[1]) ** 2;
+      const best = cand.filter(c => d(c) <= 9).sort((a, b) => d(a) - d(b));
+      if (best.length) pos = best[0];
+    }
+    pos = pos || (s.mapSize % 2 === 0 ? cand[cand.length - 1] : cand[0]);
+    s.storage.splice(s.storage.indexOf(w), 1);
+    w.pos = pos.slice();
+    s.works.push(w);
+    for (const c of s.cats) if (c.work === w.id) this.ai.cats.delete(c.id);
+    this.emit('keepOut', { work: w });
+    return w;
+  }
+
+  // DataManager.SetMapSize: any size up to maxMapSize; facilities outside the new field go to storage
+  // (UI_ForestSizePreview.StoreWorksOutsideField).
+  setMapSize(n) {
+    const s = this.state;
+    if (n < 0 || n > 8 || n > s.maxMapSize || n === s.mapSize) return false;
+    s.mapSize = n;
+    for (const w of s.works.slice()) if (!this.inField(w.pos[0], w.pos[1])) this.keepWork(w);
+    this.emit('resize', { size: n });
+    return true;
+  }
+
+  // Positions and storage membership, for the move mode's undo.
+  layout() { return { works: this.state.works.map(w => [w.id, w.pos.slice()]), storage: this.state.storage.map(w => w.id), size: this.state.mapSize }; }
+  restoreLayout(l) {
+    const s = this.state;
+    const all = new Map([...s.works, ...s.storage].map(w => [w.id, w]));
+    s.mapSize = l.size;
+    s.works = l.works.map(([id, pos]) => { const w = all.get(id); w.pos = pos.slice(); return w; });
+    s.storage = l.storage.map(id => all.get(id));
+    this.ai.reset();
+    this.emit('resize', { size: s.mapSize });
+  }
 
   canExpand() {
     const s = this.state;
@@ -90,7 +202,7 @@ export class Game {
   }
 
   // ---- works ----
-  copies(a) { return this.state.works.filter(w => w.a === a).length; }
+  copies(a) { return [...this.state.works, ...this.state.storage].filter(w => w.a === a).length; }
   cookBuilt(line) { return this.state.works.some(w => w.a === E.COOKS[line]); }
 
   // How many copies a work may have: prep works one per cooking line built, everything else one.
@@ -180,7 +292,9 @@ export class Game {
       if (!a.needUnit || w.line !== line || (a.type !== 1 && a.type !== 2)) continue;
       const cat = this.catOf(w);
       if (!cat) continue;
-      sum = B.add(sum, B.mul(E.gradeValue(a, w.lv), 1 + E.HEART_MATERIAL[cat.heart] / 100));
+      // Unit._skillFactor_normal (cats-full.md section 6): 1 + skill % when the cat's main skill matches the facility.
+      const skill = this.feat.cats && this.feat.cats.skillFactor ? this.feat.cats.skillFactor(this, cat, w) : 1;
+      sum = B.add(sum, B.mul(E.gradeValue(a, w.lv), (1 + E.HEART_MATERIAL[cat.heart] / 100) * skill));
     }
     return sum;
   }
@@ -194,8 +308,18 @@ export class Game {
     return Object.keys(this.state.recipes).map(Number).filter(i => this.food.get(i).type === line);
   }
 
+  // Factor from every feature's mult(game, kind, arg) (fish book, equipment abilities, ...): 'price' with the Food row,
+  // 'energy' with the rest work record.
+  mult(kind, arg) {
+    let m = 1;
+    for (const f of this.features) if (f.mult) m *= f.mult(this, kind, arg) || 1;
+    return m;
+  }
+
   price(food, stars = this.stars(food.type)) {
-    return E.foodPrice(food, this.state.recipes[food.index] || 1, stars, this.lineBonus(food.type));
+    const p = E.foodPrice(food, this.state.recipes[food.index] || 1, stars, this.lineBonus(food.type));
+    const m = this.mult('price', food);
+    return m === 1 ? p : B.mul(p, m);
   }
 
   averagePrice(line) {
@@ -291,13 +415,16 @@ export class Game {
 
   // ---- rest and specials ----
   restEnergy(work) {
-    return B.mul(E.energyAmount(this.work.get(work.a), work.lv), work.v);
+    return B.mul(E.energyAmount(this.work.get(work.a), work.lv, this.isNight()), work.v * this.mult('energy', work));
   }
 
   // A cat finished resting here: AddEnergyByRest pays every charge accumulated so far.
-  claimRest(work) {
+  // AddEnergyByRest; the visiting cat's heart level adds UnitHeart.energyUp % (cats-full.md section 6, inferred).
+  claimRest(work, cat = null) {
     if (!work.v) return B.ZERO;
-    const e = this.restEnergy(work);
+    let e = this.restEnergy(work);
+    const up = cat && this.feat.cats && this.feat.cats.heartBonus ? Number(this.feat.cats.heartBonus(this, cat, 'energyUp')) || 0 : 0;
+    if (up) e = B.mul(e, 1 + up / 100);
     work.v = 0;
     this.state.energy = B.add(this.state.energy, e);
     this.emit('energy', { work, energy: e });
@@ -317,9 +444,18 @@ export class Game {
   }
 
   // ---- time ----
+  isNight() { return this.state.timeCount % DAY_LENGTH > 6; }
+
   tick(dt) {
     const s = this.state;
     s.clock += dt;
+    s.timeAcc += dt;
+    while (s.timeAcc >= DAY_STEP_SECONDS) {
+      s.timeAcc -= DAY_STEP_SECONDS;
+      const was = this.isNight();
+      s.timeCount += 1;
+      if (this.isNight() !== was) this.emit(was ? 'day' : 'night');
+    }
     for (const w of s.works) {
       const a = this.work.get(w.a);
       if (a.type === 1) {
@@ -336,6 +472,7 @@ export class Game {
       }
     }
     this.ai.tick(dt);
+    for (const f of this.features) if (f.tick) f.tick(this, dt);
   }
 
   // UpdateWorkTimeAll on return (economy.md section 6): dishes up to the free shelf slots, the rest sold at half the
@@ -357,7 +494,7 @@ export class Game {
       } else if (a.type === 3) {
         const n = Math.floor((w.t + sec) / E.REST_TICK);
         w.t = (w.t + sec) % E.REST_TICK;
-        energy = B.add(energy, B.mul(E.energyAmount(a, w.lv), n * E.SALE_FACTOR));
+        energy = B.add(energy, B.mul(E.energyAmount(a, w.lv), n * E.SALE_FACTOR * this.mult('energy', w)));
       } else if (a.type === 4 && a.completeTime > 0 && !a.dailyCount) {
         w.v = Math.min(a.maxValue, w.v + Math.floor((w.t + sec) / a.completeTime));
       }
@@ -365,6 +502,8 @@ export class Game {
     s.gold = B.add(s.gold, gold);
     s.energy = B.add(s.energy, energy);
     this.events = this.events.filter(e => e.type !== 'food' && e.type !== 'sell');
+    s.timeCount += Math.floor(seconds / DAY_STEP_SECONDS);
+    for (const f of this.features) if (f.offline) f.offline(this, sec, seconds);
     return { seconds: sec, gold, energy };
   }
 }

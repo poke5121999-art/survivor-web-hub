@@ -1,6 +1,7 @@
 """Export the Cats&Soup NGUI interface: atlases and the level2 HUD layout.
 
 usage: py -3.12 -I export_ui.py                 atlases -> art/ui/<tex>.webp + art/ui/atlases.json
+       py -3.12 -I export_ui.py --prefab ui/unit/set_units ...   Resources UI prefabs -> art/ui/panels/<name>.json
        py -3.12 -I export_ui.py --layout level2 "UI Root/mainUI" "UI Root/set_speech" -> art/ui/hud.json
 
 atlases.json = {atlasName: {tex: stem, w, h, sprites: {name: [x, y, w, h, bl, br, bt, bb, pl, pr, pt, pb]}}}
@@ -257,8 +258,27 @@ def export_layout(scene, paths):
     print("nodes", L.count, "uiroot", uiroot, "warnings", list(L.warn))
 
 
+def export_prefab(rpaths):
+    """--prefab ui/unit/set_units [...]: one Resources UI prefab per file -> art/ui/panels/<last path part>.json
+    ({roots: [node]}, same node format as hud.json; the prefab root sits at its own origin)."""
+    res = {k: f for k, f, *_ in json.load(open("D:/catsoup-ref/resources.json", encoding="utf-8"))}
+    os.makedirs(os.path.join(OUT, "panels"), exist_ok=True)
+    for rp in rpaths:
+        if rp not in res:
+            print("not in resources.json", rp)
+            continue
+        L = Layout(res[rp])
+        roots = [L.node(g) for g in L.tr.gos if L.tr.parent.get(g) is None]
+        name = rp.split("/")[-1]
+        json.dump({"roots": roots}, open(os.path.join(OUT, "panels", name + ".json"), "w", encoding="utf-8"),
+                  separators=(",", ":"), ensure_ascii=False)
+        print(name, "nodes", L.count, "warnings", list(L.warn))
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--layout":
+    if len(sys.argv) > 1 and sys.argv[1] == "--prefab":
+        export_prefab(sys.argv[2:])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--layout":
         export_layout(sys.argv[2], sys.argv[3:] or ["UI Root/mainUI", "UI Root/set_speech"])
     else:
         export_atlases()

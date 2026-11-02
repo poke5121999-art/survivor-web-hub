@@ -12,13 +12,11 @@ let pass = 0, fail = 0;
 const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `  (${detail})` : ''}`); ok ? pass++ : fail++; };
 
 (async () => {
-  const { Game } = await import(pathToFileURL(path.join(G, 'js/sim/game.js')).href);
+  const { makeGame } = await import(pathToFileURL(path.join(G, 'js/sim/boot.js')).href);
   const B = await import(pathToFileURL(path.join(G, 'js/sim/big.js')).href);
-  const tables = JSON.parse(fs.readFileSync(path.join(G, 'data/tables.json'), 'utf8'));
-  const fields = JSON.parse(fs.readFileSync(path.join(G, 'data/fields.json'), 'utf8'));
   let seed = 7;
   const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const g = new Game(tables, fields, rng);
+  const g = await makeGame(async p => JSON.parse(fs.readFileSync(path.join(G, p), 'utf8')), rng);
   g.fresh();
   check('fresh save has the soup pot and its cat', g.state.works.length === 1 && g.state.works[0].a === 0 && g.state.cats.length === 1);
   const minutes = +(process.env.CS_MINUTES || 60);
@@ -51,9 +49,9 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   check('recipes learned beyond thin soup', Object.keys(s.recipes).length > 1);
   if (minutes >= 60) check('forest expanded at least once', s.mapSize >= 1, `size ${s.mapSize}`);
   check('works sit on distinct field cells', new Set(s.works.map(w => w.pos.join())).size === s.works.length &&
-    s.works.every(w => fields[s.mapSize].field.some(c => c[0] === w.pos[0] && c[1] === w.pos[1])));
+    s.works.every(w => g.fields[s.mapSize].field.some(c => c[0] === w.pos[0] && c[1] === w.pos[1])));
   const saved = g.save();
-  const g2 = new Game(tables, fields, rng);
+  const g2 = await makeGame(async p => JSON.parse(fs.readFileSync(path.join(G, p), 'utf8')), rng);
   g2.load(JSON.parse(JSON.stringify(saved)));
   check('save round-trips', JSON.stringify(g2.save().works) === JSON.stringify(saved.works) && B.cmp(g2.state.gold, s.gold) === 0);
   const before = s.gold;

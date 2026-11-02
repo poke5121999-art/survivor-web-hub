@@ -1,5 +1,7 @@
 // The game camera: orthographic, yaw 135 deg and pitch 30 deg (level2 "cam" + "Main Camera" transforms), looking at a
 // point on the ground. Drag pans along the ground, wheel or pinch zooms the orthographic half-height.
+// onGrab(x, y) -> true takes a one-finger drag for itself (move mode): onDrag(x, y) while it moves, onDrop(x, y) at the
+// end, and no pan. onLongPress(x, y) fires after a still 0.5 s press.
 import * as THREE from 'three';
 
 const FWD = new THREE.Vector3(0.6124, -0.5, 0.6124);
@@ -16,6 +18,8 @@ export class GameCamera {
     this.pointers = new Map();
     this.moved = 0;
     this.onTap = null;
+    this.onGrab = this.onDrag = this.onDrop = this.onLongPress = null;
+    this.grabbed = false;
     this.bind();
     this.update();
   }
@@ -73,12 +77,21 @@ export class GameCamera {
     el.addEventListener('pointerdown', e => {
       el.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.pointers.size === 1) this.moved = 0;
+      if (this.pointers.size === 1) {
+        this.moved = 0;
+        this.grabbed = !!(this.onGrab && this.onGrab(e.clientX, e.clientY));
+        clearTimeout(this.longTimer);
+        const x = e.clientX, y = e.clientY;
+        if (this.onLongPress && !this.grabbed) this.longTimer = setTimeout(() => { if (this.moved < 8 && this.pointers.size === 1) { this.moved = 1e9; this.onLongPress(x, y); } }, 500);
+      } else this.grabbed = false;
     });
     el.addEventListener('pointermove', e => {
       const p = this.pointers.get(e.pointerId);
       if (!p) return;
-      if (this.pointers.size === 1) {
+      if (this.pointers.size === 1 && this.grabbed) {
+        this.moved += Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y);
+        if (this.onDrag) this.onDrag(e.clientX, e.clientY);
+      } else if (this.pointers.size === 1) {
         this.pan(e.clientX - p.x, e.clientY - p.y);
         this.moved += Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y);
       } else if (this.pointers.size === 2) {
@@ -98,6 +111,8 @@ export class GameCamera {
     const up = e => {
       if (!this.pointers.has(e.pointerId)) return;
       this.pointers.delete(e.pointerId);
+      clearTimeout(this.longTimer);
+      if (this.grabbed) { this.grabbed = false; if (this.onDrop) this.onDrop(e.clientX, e.clientY, this.moved); return; }
       if (this.pointers.size === 0 && this.moved < 8 && this.onTap) this.onTap(e.clientX, e.clientY);
     };
     el.addEventListener('pointerup', up);

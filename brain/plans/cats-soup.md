@@ -26,7 +26,15 @@ Chủ dự án giao 2026-11-02: `C:\Users\tamph\Downloads\Cats&Soup_+Relaxing+Co
 4. [x] Sim thuần JS (node chạy được): trạm, mèo làm việc, súp, kệ bán, vàng/năng lượng/gem, công thức, mở rừng, lưu.
 5. [x] View three.js khung dọc 750:1334, HUD, menu CRAFT/RECIPE/mèo.
 6. [x] Thẻ hub, thumbnail, deploy, kiểm trên Pages: rev 20261102a, commit a356b7de, `test/cats-soup-play.js` trên Pages 10/10.
-7. [ ] Lưu đám mây (HubSave như casual-farm `cloud.js`).
+7. [x] Lưu đám mây: `js/cloud.js` (HubSave, hàng `game_saves` id `cats-soup`), rev 20261102b, commit 6f6a8a1e. Đường khách (`off`) đã chạy trên Pages; đường có tài khoản chưa chạy thử vì test không có tài khoản.
 8. [ ] Trạm đặc biệt còn lại: rương + trang bị, bóng bay, câu cá, máy gacha.
 9. [ ] Nhiệm vụ, hướng dẫn đầu game, dời trạm, đồ nghề trên tay mèo, particle.
 10. [ ] Full: trang bị, nội thất, câu cá, minigame, sự kiện mùa, tháp mèo...
+
+## Full game (giao 2026-11-02 "làm full game đi")
+
+Khung: mỗi hệ thống là một cặp module `js/sim/features/<id>.js` + `js/view/features/<id>.js`, đăng ký ở `js/sim/registry.js` / `js/view/registry.js` (hợp đồng ghi ở đầu hai file). Dữ liệu riêng `data/<id>.json` do `tools/export_<id>.py` xuất; layout bảng gốc `art/ui/panels/<tên>.json` do `tools/export_ui.py --prefab ui/...` xuất; luật `D:\catsoup-ref\rules\<id>.md`. Core chỉ có hook: `game.reward(type, value)`, `emit` gọi `onEvent`, `tick`/`offline`/`init` của từng feature. Mỗi agent chỉ sửa file của feature mình; ai cần đổi core thì ghi vào báo cáo.
+
+- Đợt 1 (song song): `specials` (rương 3, bảng tin 8, khinh khí cầu 12, máy gắp 14, voi bán hàng 87, máy nhạc 90, bóng rổ 97, HUD hũ), `fishing` (câu cá 10, bể cá 33, Fish), `missions` (nhiệm vụ ngày, Quest, quà điểm danh, thành tựu), `cats` (danh sách mèo, thông tin, tim, kỹ năng, quà mèo, đổi mèo), `equip` (Equip: kho đồ, phòng thử đồ, đồ trên người mèo 3D, phần thưởng loại 5).
+- Đợt 2: nội thất + tháp mèo (Furniture, TowerProp, đồng xu), đèn + ngày đêm (Lamp), bộ sưu tập + sách tranh, cửa hàng (gem, gói quà; quảng cáo bấm là nhận), hướng dẫn đầu game, dời trạm, chủ đề trạm (WorkSkin, SignSkin, Theme).
+- Đợt 3: du lịch (Travel*), kính viễn vọng (Telescope), cây sao (StarTree*), minigame (MiniGame, Magnet, Dice, Block), sự kiện mùa (Season*, Event*), soup pass.

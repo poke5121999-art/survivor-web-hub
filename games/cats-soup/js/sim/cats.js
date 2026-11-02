@@ -42,9 +42,9 @@ export class CatAI {
   tick(dt) {
     const g = this.game;
     for (const cat of g.state.cats) {
-      const c = this.ensure(cat);
       const home = this.workOf(cat);
       if (!home) continue;
+      const c = this.ensure(cat);
       const a = g.work.get(home.a);
       if (a.type === 1) {
         c.phase = 'work';
@@ -68,7 +68,7 @@ export class CatAI {
         if (rest) { c.rest = rest.id; this.walk(c, rest.pos, 'rest'); } else this.walk(c, home.pos, 'reload');
       } else if (c.phase === 'rest' && c.t >= REST_SECONDS) {
         const rest = g.state.works.find(w => w.id === c.rest);
-        if (rest) g.claimRest(rest);
+        if (rest) g.claimRest(rest, cat);
         c.rest = null;
         this.walk(c, home.pos, 'reload');
       } else if (c.phase === 'reload' && c.t >= RELOAD_SECONDS) {
