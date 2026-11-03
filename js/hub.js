@@ -381,8 +381,46 @@
     init();
   }
 
+  // Lời nhắn khi tài khoản chưa đủ quyền chơi. Hiện khi session.role là pending/blocked,
+  // hoặc khi cổng game đá về đây kèm ?gate=<role>. Chèn ngay trên lưới game.
+  function renderGateNotice() {
+    var grid = document.getElementById("game-grid");
+    var host = grid && grid.parentNode;
+    if (!host) return;
+    var box = document.getElementById("hub-gate-notice");
+    var s = window.HubSession && window.HubSession.get();
+    var role = (s && s.role) || new URLSearchParams(location.search).get("gate");
+    if (role !== "pending" && role !== "blocked") { if (box) box.parentNode.removeChild(box); return; }
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "hub-gate-notice";
+      box.setAttribute("role", "status");
+      box.style.cssText = "margin:16px auto;max-width:960px;padding:12px 16px;border-radius:10px;" +
+        "background:rgba(255,196,0,.12);border:1px solid rgba(255,196,0,.5);color:#ffd86b;font-size:15px;line-height:1.5";
+      host.parentNode.insertBefore(box, host);
+    }
+    box.textContent = role === "pending"
+      ? "Tài khoản của bạn đang chờ duyệt — chơi được game sau khi quản trị viên duyệt."
+      : "Tài khoản của bạn bị khoá, hiện không chơi được game. Hãy liên hệ quản trị viên.";
+  }
+
+  // Dập lại role từ profiles khi ghé hub, để admin duyệt/khoá có hiệu lực ở lần ghé
+  // kế, và để session đăng nhập trước khi có cột role cũng nhận được role.
+  function refreshRole() {
+    var s = window.HubSession && window.HubSession.get();
+    if (!s || s.kind !== "member" || !window.HubProfile || !window.HubProfile.getRole) return;
+    window.HubProfile.getRole().then(function (p) {
+      if (p && p.role) {
+        var cur = window.HubSession.get();
+        if (cur && cur.role !== p.role) { cur.role = p.role; window.HubSession.set(cur); }
+      }
+      renderGateNotice();
+    }, function () {});
+  }
+
   function init() {
     renderAccount();
+    renderGateNotice();
 
     var grid = document.getElementById("game-grid");
     if (!grid) return;
@@ -425,11 +463,12 @@
     var s = window.HubSession && window.HubSession.get();
     if (!s || s.kind !== "member" || !window.HubAuth || !window.HubSession.isExpired()) {
       render();
+      refreshRole();
       return;
     }
     window.HubAuth.refresh(s).then(function (r) {
-      if (r && r.ok) { window.HubSession.set(r.session); render(); }
-      else if (r && r.unreachable) { render(); }
+      if (r && r.ok) { window.HubSession.set(r.session); render(); refreshRole(); }
+      else if (r && r.unreachable) { render(); refreshRole(); }
       else { window.HubSession.clear(); location.replace("login.html"); }
     });
   }

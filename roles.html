@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Game Hub — Duyệt tài khoản</title>
+  <meta name="description" content="Admin: duyệt tài khoản mới và điều chỉnh role (ai được chơi game)." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+
+  <!-- Cổng: cần member là admin (role 'admin' trong DB, hoặc email trong adminEmails để
+       bootstrap). Chưa cấu hình dịch vụ thì không có role để quản lý → vẫn vào được để
+       thấy lời nhắn. RLS phía server mới là chốt thật; cổng này chỉ là UX. -->
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return; // chưa cấu hình → không gác
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") { location.replace("login.html?next=roles.html"); return; }
+      var allow = c.adminEmails || [];
+      var isAdmin = s.role === "admin" || (allow.length && allow.indexOf(s.email) !== -1);
+      if (!isAdmin) { location.replace("index.html"); }
+    })();
+  </script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner admin-header__inner">
+      <div>
+        <h1 class="hub-title">Duyệt tài khoản</h1>
+        <p class="hub-subtitle">Tài khoản mới vào trạng thái <code>pending</code> — duyệt thành <code>member</code> mới chơi được game.</p>
+      </div>
+      <a class="btn btn--ghost" href="admin.html">← Admin</a>
+      <a class="btn btn--ghost" href="index.html">Về trang chơi</a>
+    </div>
+  </header>
+
+  <main class="admin-main" style="max-width:960px;margin:0 auto;padding:16px">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <button class="btn btn--ghost" id="roles-refresh" type="button">↻ Tải lại</button>
+      <span id="roles-summary" class="hub-subtitle"></span>
+    </div>
+    <p id="roles-msg" class="hub-subtitle" hidden></p>
+    <div id="roles-table"></div>
+  </main>
+
+  <script src="js/supabase-auth.js"></script>
+  <script src="js/hub-profile.js"></script>
+  <script src="js/hub-roles.js"></script>
+  <script src="js/roles-admin.js"></script>
+</body>
+</html>

@@ -71,7 +71,20 @@
   function enterHub(session) {
     window.HubSession.set(session);
     var next = new URLSearchParams(location.search).get("next") || "";
-    location.replace(/^(?:[a-z0-9-]+\.html|games\/[a-z0-9-]+\/index\.html)$/.test(next) ? next : "index.html");
+    var go = function () {
+      location.replace(/^(?:[a-z0-9-]+\.html|games\/[a-z0-9-]+\/index\.html)$/.test(next) ? next : "index.html");
+    };
+    // Dập role (profiles.role) vào session NGAY khi đăng nhập, để cổng game đọc được
+    // mà không phải gọi mạng. Lỗi/chưa cấu hình → đi tiếp không role; cổng grandfather
+    // theo kind (session member cũ vẫn chơi được). Chỉ member mới có profile để đọc.
+    if (session.kind === "member" && window.HubProfile && window.HubProfile.getRole) {
+      window.HubProfile.getRole().then(function (p) {
+        if (p && p.role) { session.role = p.role; window.HubSession.set(session); }
+        go();
+      }, go);
+    } else {
+      go();
+    }
   }
 
   // Shared "service down → offer guest" message.

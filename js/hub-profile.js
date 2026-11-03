@@ -101,6 +101,20 @@
       });
     },
 
+    // The signed-in player's role (profiles.role). Tách riêng khỏi getProfile để KHÔNG
+    // kéo theo nhau: nếu DB chưa chạy db/roles.sql thì cột role chưa có, call này 400 và
+    // trả role:null (cổng game grandfather theo kind), còn getProfile vẫn chạy bình thường.
+    // Resolves { ok:true, role } | { ok:true, role:null } (chưa migrate / lỗi mềm).
+    getRole: function () {
+      return withMember(function (s) {
+        return rest("GET", "/profiles?select=role", null, s).then(function (r) {
+          if (!r.ok || r.unreachable) return { ok: true, role: null };
+          var row = Array.isArray(r.data) && r.data.length ? r.data[0] : null;
+          return { ok: true, role: row && row.role ? row.role : null };
+        });
+      }).then(function (res) { return res && res.ok ? res : { ok: true, role: null }; });
+    },
+
     // Rename the player. The new name is stored in the shared DB, so it follows them across
     // devices and games. Resolves { ok:true, displayName } or { ok:false, reason }.
     updateDisplayName: function (name) {
