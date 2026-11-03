@@ -8,7 +8,7 @@
 
   var OUT_RUN = ["wallet_start", "crew", "tactics", "upgrade", "passives", "gacha_banners", "gacha_rules",
     "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons", "coop_rules", "modes"];
-  var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
+  var IN_RUN = ["stage_houses", "stage_theme_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
     "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights", "pvp_maps"];
   var GROUPS = [["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
@@ -112,10 +112,26 @@
     return f[path.map(function (p) { return isNum(p) ? "*" : p; }).join(".")] || null;
   }
 
+  // Display name of id from another table's rows (live rows when the table is on GameSpark, else the game's defaults).
+  function nameFrom(nf, id) {
+    var t = S.tables[nf.table];
+    var src = (t && t.remote && t.remote.exists ? t.remote.docs : DEFAULTS[nf.table]) || [];
+    var hit = src.filter(function (d) { return d._id === id; })[0];
+    return hit && hit[nf.field] ? hit[nf.field] : null;
+  }
+
   function fieldMeta(table, path) {
     var last = path[path.length - 1];
     var m = rawLabel(table, path);
     if (m) return Object.assign({ label: m.label || last }, m);
+    // Key of an id-keyed map (gacha_banners.weights.<crewId>): the parent's keyNames names the key, "<parent>.*" gives
+    // the rest (min, int, help); without a name the key itself is the label.
+    var mapOf = path.length > 1 && !isNum(last) ? rawLabel(table, path.slice(0, -1)) : null;
+    if (mapOf && mapOf.keyNames) {
+      var each = rawLabel(table, path.slice(0, -1).concat("*")) || {};
+      var nm = nameFrom(mapOf.keyNames, last);
+      return Object.assign({}, each, { label: nm ? nm + " (" + last + ")" : last });
+    }
     if (isNum(last) && path.length > 1) {
       var parent = rawLabel(table, path.slice(0, -1));
       var i = Number(last);
@@ -378,24 +394,42 @@
     return box;
   }
 
-  // Split a list table into the sections its labels declare. Fields no section lists
-  // land in a final "Khác" section so nothing is hidden. null = no sections declared.
+  // Split a list table into the sections its labels declare. A section may list `rows` (doc _ids) to show only those
+  // docs; otherwise it shows every doc. Fields no section lists land in a final "Khác" section, and docs no section
+  // shows land in a final "Dòng khác" section, so nothing is hidden. null = no sections declared.
   function sectionsOf(table, docs) {
     var L = LABELS[table] || {};
     if (!L.sections || !L.sections.length) return null;
-    var listed = {}, extra = [];
-    L.sections.forEach(function (s) { s.fields.forEach(function (k) { listed[k] = 1; }); });
+    var listed = {}, extra = [], shown = {}, allRows = false;
+    L.sections.forEach(function (s) {
+      s.fields.forEach(function (k) { listed[k] = 1; });
+      if (!s.rows) allRows = true;
+      else s.rows.forEach(function (id) { shown[id] = 1; });
+    });
     docs.forEach(function (d) {
       Object.keys(d).forEach(function (k) { if (k !== "_id" && !listed[k] && extra.indexOf(k) < 0) extra.push(k); });
     });
     var res = L.sections.map(function (s, i) { return Object.assign({ idx: i }, s); });
     if (extra.length) res.push({ idx: res.length, title: "Khác", fields: extra });
+    var orphans = allRows ? [] : docs.filter(function (d) { return !shown[d._id]; });
+    if (orphans.length) {
+      var keys = [];
+      orphans.forEach(function (d) { Object.keys(d).forEach(function (k) { if (k !== "_id" && keys.indexOf(k) < 0) keys.push(k); }); });
+      res.push({ idx: res.length, title: "Dòng khác", rows: orphans.map(function (d) { return d._id; }), fields: keys });
+    }
     return res;
   }
 
-  function sectionOfField(table, docs, key) {
+  // Docs one section shows: its `rows` in that order (ids missing from docs skipped), else all docs.
+  function sectionDocs(sec, docs) {
+    if (!sec || !sec.rows) return docs;
+    return sec.rows.map(function (id) { return docs.filter(function (d) { return d._id === id; })[0]; }).filter(Boolean);
+  }
+
+  // The section that shows field `key` of doc `docId` (a section with `rows` only counts for its own rows).
+  function sectionOfField(table, docs, key, docId) {
     var secs = sectionsOf(table, docs);
-    return secs && secs.filter(function (s) { return s.fields.indexOf(key) >= 0; })[0] || null;
+    return secs && secs.filter(function (s) { return s.fields.indexOf(key) >= 0 && (!s.rows || docId === undefined || s.rows.indexOf(docId) >= 0); })[0] || null;
   }
 
   // Section note; noteWhen picks the text from a boolean field of another table's draft.
@@ -417,10 +451,8 @@
 
     if (meta.readonly && isScalar(value)) {
       // readonly scalar: shown as text; namesFrom maps an id to the display name found in another table's rows.
-      var nf = meta.namesFrom, src = nf && (S.tables[nf.table] && S.tables[nf.table].remote && S.tables[nf.table].remote.exists
-        ? S.tables[nf.table].remote.docs : DEFAULTS[nf.table]) || [];
-      var hit = nf && src.filter(function (d) { return d._id === value; })[0];
-      box.appendChild(h("span", { class: "dz-readonly", "data-readonly": path.join("."), text: hit && hit[nf.field] ? hit[nf.field] : fmtVal(value, meta) }));
+      var nm = meta.namesFrom ? nameFrom(meta.namesFrom, value) : null;
+      box.appendChild(h("span", { class: "dz-readonly", "data-readonly": path.join("."), text: nm || fmtVal(value, meta) }));
     } else if (typeof value === "boolean") {
       input = h("input", { type: "checkbox", class: "dz-switch", role: "switch", "aria-label": meta.label });
       input.checked = value;
@@ -641,7 +673,7 @@
         pane.appendChild(h("section", { class: "dz-section" },
           h("h3", { class: "dz-section__title", text: sec.title }),
           note ? h("p", { class: "dz-section__note", text: note }) : null,
-          listGrid(n, docs, sec)));
+          listGrid(n, sectionDocs(sec, docs), sec)));
       });
     }
     updateMarks();
@@ -1436,13 +1468,14 @@
     var settings = isSettings(docs);
     var meta = rowMeta(n, d._id, d.path);
     var doc = (S.tables[n].draft.filter(function (x) { return x._id === d._id; })[0]) || { _id: d._id };
-    var sec = settings ? null : sectionOfField(n, S.tables[n].draft, d.path[0]);
+    var sec = settings ? null : sectionOfField(n, S.tables[n].draft, d.path[0], d._id);
     // A value inside a list item is named by that item (quest text, else its id), not just by its column.
     var at = -1;
     d.path.forEach(function (k, i) { if (at < 0 && isNum(k)) at = i; });
     var item = at < 0 ? null : getAt(doc, d.path.slice(0, at + 1)) || getAt(baseDoc(n, d._id), d.path.slice(0, at + 1));
     var itemName = isObj(item) ? (item.text || item.id || "Dòng " + (Number(d.path[at]) + 1)) + " · " : "";
-    return (settings ? "" : rowTitle(n, doc, sec) + " · ") + itemName + meta.label + ": " +
+    // A section with `group` (rows of one theme…) names the group first: rows of two sections may share a title.
+    return (settings ? "" : (sec && sec.group ? sec.group + " · " : "") + rowTitle(n, doc, sec) + " · ") + itemName + meta.label + ": " +
       fmtVal(d.before, meta) + " → " + fmtVal(d.after, meta);
   }
 

@@ -8,6 +8,32 @@
   var CFG_ID = { label: "Mã", help: "Bảng tham số chỉ có một bản ghi tên default. Giữ nguyên." };
   var NOT_READ = "Game chưa đọc ô này từ bảng; đổi ở đây không có tác dụng.";
   var MINMAX = ["Ít nhất", "Nhiều nhất"];
+  var HOUSES = ["Nhà 1", "Nhà 2", "Nhà 3", "Nhà 4", "Nhà 5"];
+  // Theme của bảng Các nhà trong ải (stage_houses _id → tên lúc tách bảng 2026-11-03), cho các phần của Nhà theo theme.
+  var THEMES = [["1", "Lâu đài vampire"], ["2", "Kim tự tháp Ai Cập"], ["3", "Khu vui chơi bỏ hoang"], ["4", "Trạm vũ trụ"], ["5", "Bệnh viện tâm thần"]];
+  var HOUSE_ROOMS = ["extractRooms", "privateRooms", "sharedRooms", "shortCorridors", "longCorridors", "specialExtract", "mediumRatio", "largeRatio"];
+  var HOUSE_FOES = ["level", "hpMul", "dmgMul", "quotaMul", "foeCount", "kindCount", "foes"];
+
+  // Hai phần mỗi theme (phòng và hành lang, độ khó và quái), mỗi phần chỉ hiện 5 dòng "<theme>-1".."<theme>-5" của theme đó.
+  function themeHouseSections() {
+    var out = [];
+    THEMES.forEach(function (t) {
+      var rows = [], names = {};
+      HOUSES.forEach(function (label, i) { var id = t[0] + "-" + (i + 1); rows.push(id); names[id] = label; });
+      var group = "Theme " + t[0] + " · " + t[1];
+      out.push({
+        title: group + " · Phòng và hành lang", group: group, rows: rows, rowLabels: names, inline: 5,
+        note: "Mỗi nhà luôn có 1 phòng xe tải, cộng các phòng dưới đây. Theme này rơi vào nhà thứ n của ca thì dùng dòng Nhà n.",
+        fields: HOUSE_ROOMS
+      });
+      out.push({
+        title: group + " · Độ khó và quái", group: group, rows: rows, rowLabels: names,
+        note: "Nhà sau nên khó hơn nhà trước: theme nào cũng có thể rơi vào bất kỳ vị trí nào khi bật xáo.",
+        fields: HOUSE_FOES
+      });
+    });
+    return out;
+  }
 
   window.DESIGN_LABELS = {
     wallet_start: {
@@ -174,7 +200,10 @@
         "hard": { label: "Bảo hiểm cứng", unit: "lần", min: 1, int: true, help: "Số lượt tối đa trước khi chắc chắn ra 5★." },
         "pity4": { label: "Bảo hiểm 4★", unit: "lần", min: 1, int: true, help: "Cứ bấy nhiêu lượt chắc có ít nhất một 4★." },
         "chars": { label: "Xác độc quyền", help: "Mã xác chỉ băng này có. Trống = băng thường." },
-        "chars.*": { label: "Mã xác" }
+        "chars.*": { label: "Mã xác" },
+        "weights": { label: "Tỉ lệ ra từng xác (trong cùng hạng sao)", keyNames: { table: "crew", field: "name" },
+          help: "Số tương đối trong nhóm cùng sao: xác 2 ra gấp đôi xác 1. Tỉ lệ thật = tỉ lệ sao × phần của xác. 0 = không bao giờ ra." },
+        "weights.*": { label: "Trọng số", min: 0 }
       }
     },
 
@@ -352,23 +381,9 @@
 
     stage_houses: {
       title: "Các nhà trong ải",
-      blurb: "Bảng chia ba phần: phòng và hành lang, độ khó và quái (hai phần này theo vị trí nhà, không xáo), và theme (tên, kiểu nhà, loot, boss; xáo mỗi ca).",
+      blurb: "Theme của nhà: tên, kiểu nhà, loot, chất liệu, giá đồ, quái đặc trưng và boss; xáo mỗi ca. Số phòng, hành lang, độ khó và quái của Nhà 1–5 đã chuyển sang bảng \"Nhà theo theme\": mỗi theme một bộ riêng.",
       effect: RUN,
       sections: [
-        {
-          title: "Phòng và hành lang (theo vị trí nhà, không xáo)",
-          note: "Mỗi nhà luôn có 1 phòng xe tải, cộng các phòng dưới đây. Nhà thứ n luôn dùng dòng n.",
-          rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
-          inline: 5,
-          fields: ["extractRooms", "privateRooms", "sharedRooms", "shortCorridors", "longCorridors", "specialExtract",
-            "mediumRatio", "largeRatio"]
-        },
-        {
-          title: "Độ khó và quái (theo vị trí nhà, không xáo)",
-          note: "Nhà sau luôn khó hơn nhà trước, dù theme nào rơi vào.",
-          rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
-          fields: ["level", "hpMul", "dmgMul", "quotaMul", "foeCount", "kindCount", "foes"]
-        },
         {
           title: "Theme (xáo ngẫu nhiên mỗi ca)",
           note: "Theme gồm tên, kiểu nhà, loot, chất liệu, giá đồ, quái đặc trưng và boss.",
@@ -382,27 +397,37 @@
         }
       ],
       fields: {
-        "_id": { label: "Thứ tự nhà", help: "1 = nhà đầu. Giữ nguyên." },
+        "_id": { label: "Mã theme", help: "Mã theme, cũng là phần đầu mã dòng của bảng Nhà theo theme. Giữ nguyên." },
         "name": { label: "Tên nhà" },
-        "level": { label: "Mức độ", min: 1, max: 20, int: true, help: "Chỉ tiêu, trần loot, rương và giấc ngủ đầu ca của quái đi theo số này." },
         "houseStyle": { label: "Kiểu nhà", int: true, help: "Mã theme sàn/tường (hiện dùng 17–21). -1 = bốc ngẫu nhiên." },
-        "foes": { label: "Loài quái", help: "Mã loài có thể gặp trong nhà. Để trống = game tự bốc." },
-        "foes.*": { label: "Mã loài" },
-        "foeCount": { label: "Số chỗ đặt quái", min: 0, int: true, help: "0 = mỗi loài một chỗ." },
-        "kindCount": { label: "Số loài mỗi ca", min: 0, int: true, help: "Bốc bấy nhiêu loài từ mọi loài đã mở tới nhà này. 0 = dùng nguyên danh sách." },
         "ownFoes": { label: "Quái đặc trưng", help: "Kiểu nhà này rơi vào vị trí đã mở loài đó thì loài đó luôn có mặt." },
         "ownFoes.*": { label: "Mã loài" },
         "boss": { label: "Boss", help: "Mã loài boss, đúng một con. Trống = không có boss." },
         "bossFromHouse": { label: "Boss có từ nhà thứ", min: 1, int: true, help: "Boss đi theo theme nhưng chỉ xuất hiện khi theme rơi vào nhà thứ này trở đi." },
-        "hpMul": { label: "Hệ số máu quái", min: 0 },
-        "dmgMul": { label: "Hệ số sát thương quái", min: 0 },
         "materials": { label: "Tỉ trọng chất liệu đồ", items: ["Gốm", "Gỗ", "Kim loại"], min: 0, help: "Để trống = chia đều." },
         "giaTriMul": { label: "Hệ số giá đồ", min: 0 },
-        "loot": { label: "Bộ hình loot", help: "vampire, pyramid, spacestation, asylum. Để trống = hình chung." },
+        "loot": { label: "Bộ hình loot", help: "vampire, pyramid, spacestation, asylum. Để trống = hình chung." }
+      }
+    },
+
+    stage_theme_houses: {
+      title: "Nhà theo theme",
+      blurb: "Mỗi theme một bộ Nhà 1–5: số phòng, hành lang, độ khó và quái. Ca chơi xáo theme vào vị trí nhà; theme rơi vào nhà thứ n thì dùng dòng Nhà n của chính theme đó.",
+      effect: RUN,
+      sections: themeHouseSections(),
+      fields: {
+        "_id": { label: "Mã", help: "<theme>-<nhà>: theme là mã ở bảng Các nhà trong ải, nhà là vị trí 1..5 trong ca. Giữ nguyên." },
+        "level": { label: "Mức độ", min: 1, max: 20, int: true, help: "Chỉ tiêu, rương và giấc ngủ đầu ca của quái đi theo số này. Trần loot không theo số này: xem bảng Trần loot (Nhà 1–5)." },
+        "foes": { label: "Loài quái", help: "Mã loài có thể gặp trong nhà. Để trống = game tự bốc." },
+        "foes.*": { label: "Mã loài" },
+        "foeCount": { label: "Số chỗ đặt quái", min: 0, int: true, help: "0 = mỗi loài một chỗ." },
+        "kindCount": { label: "Số loài mỗi ca", min: 0, int: true, help: "Bốc bấy nhiêu loài từ mọi loài đã mở tới nhà này. 0 = dùng nguyên danh sách." },
+        "hpMul": { label: "Hệ số máu quái", min: 0 },
+        "dmgMul": { label: "Hệ số sát thương quái", min: 0 },
+        "quotaMul": { label: "Hệ số chỉ tiêu", min: 0 },
         "specialExtract": { label: "Bệ giao nằm trong phòng đặc biệt", help: "Bật = mọi bệ giao nằm trong phòng SpecialExtract." },
         "mediumRatio": { label: "Thiên hướng phòng vừa", min: 0, max: 1, help: "Không phải tỉ lệ chính xác: số càng cao càng hay bốc phòng cỡ vừa." },
         "largeRatio": { label: "Thiên hướng phòng to", min: 0, max: 1 },
-        "quotaMul": { label: "Hệ số chỉ tiêu", min: 0 },
         "extractRooms": { label: "Phòng extract", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng lá có bệ giao, không tính phòng xe tải. Số bệ giao của nhà = số này + 1 (bệ đầu nằm ở phòng xe tải)." },
         "privateRooms": { label: "Phòng loot riêng", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng private loot của nhà này." },
         "sharedRooms": { label: "Phòng loot chung", unit: "phòng", min: 0, max: 40, int: true, help: "Phòng share loot. Tổng phòng của nhà = 1 phòng xe tải + extract + riêng + chung." },
@@ -474,15 +499,14 @@
 
     loot_cap: {
       title: "Trần loot",
-      blurb: "Trần tổng giá trị và số món loot theo mức độ nhà, và tỉ lệ ra đồ nhỏ/vừa/to.",
+      blurb: "Trần tổng giá trị và số món loot của Nhà 1–5 (vị trí nhà trong ca, theme nào cũng thế), và tỉ lệ ra đồ nhỏ/vừa/to.",
       effect: RUN,
       fields: {
         "_id": CFG_ID,
-        "capLevel": { label: "Mức độ chạm trần", min: 2, int: true, help: "Từ mức độ này trần loot không tăng nữa; giữa mức 1 và mức này game nội suy." },
-        "value": { label: "Tổng giá trị loot", items: ["Mức độ 1", "Mức độ trần"], min: 0, int: true },
-        "count": { label: "Số món tối đa", items: ["Mức độ 1", "Mức độ trần"], min: 0, int: true },
-        "big": { label: "Số món to tối đa", items: ["Mức độ 1", "Mức độ trần"], min: 0, int: true },
-        "med": { label: "Số món vừa tối đa", items: ["Mức độ 1", "Mức độ trần"], min: 0, int: true },
+        "value": { label: "Tổng giá trị loot", items: HOUSES, min: 1, int: true, help: "Nhà Vô Tận sau Nhà 5 dùng Nhà 5 × hệ số tăng (Vô Tận: lootGrowth, tới trần nhân)." },
+        "count": { label: "Số món tối đa", items: HOUSES, min: 0, int: true, help: "Nhà Vô Tận sau Nhà 5 dùng Nhà 5 × hệ số tăng." },
+        "big": { label: "Số món to tối đa", items: HOUSES, min: 0, int: true, help: "Nhà Vô Tận sau Nhà 5 dùng Nhà 5 × hệ số tăng." },
+        "med": { label: "Số món vừa tối đa", items: HOUSES, min: 0, int: true, help: "Nhà Vô Tận sau Nhà 5 dùng Nhà 5 × hệ số tăng." },
         "sizeSplit": { label: "Chia cỡ đồ", help: "Game rút số ngẫu nhiên 0–100%: dưới mốc nhỏ ra đồ nhỏ, dưới mốc vừa ra đồ vừa, còn lại ra đồ to." },
         "sizeSplit.small": { label: "Mốc đồ nhỏ", pct: true, min: 0, max: 1 },
         "sizeSplit.medium": { label: "Mốc đồ vừa", pct: true, min: 0, max: 1, help: "Phải lớn hơn mốc đồ nhỏ." }

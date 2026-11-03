@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 37 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 37,
+  check("list names", list.status === 200 && names.length === 38 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 38,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
