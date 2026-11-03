@@ -1,0 +1,248 @@
+{
+ "_note": "PLACEHOLDER NUMBERS. Every value below is tuned by hand for the first slice, not recovered from the original. The real values live in compiled C++ (Scene_Stage::Init_Data / Init_Scenario / SCH_PLAY_BY_SCENARIO in libMyGame.so) and replace these once disassembled. Layout/flow follow the gameplay clips (~/handoff/dragon-storm-clips.md).",
+ "id": "stage02",
+ "number": 2,
+ "title": "BEGINNING OF A JOURNEY",
+ "background": "bg_d_01",
+ "pad": "bg_t_01",
+ "padOffset": -56,
+ "next": null,
+ "hero": {
+  "hp": 100,
+  "damage": [
+   20,
+   28
+  ],
+  "range": 100,
+  "attackTime": 0.22,
+  "missLock": 0.45,
+  "lunge": 0,
+  "hurtTime": 0.25,
+  "skillDamage": 99,
+  "skillEvery": 12,
+  "skillStart": 0,
+  "potions": 0,
+  "shields": 0,
+  "potionHeal": 0.5,
+  "shieldTime": 5,
+  "armorTier": "01",
+  "swordTier": "01",
+  "_sprite_note": "Start tier 01/01 = bare body + wooden sword: what a new player has on Stage 1 in both clips (c1 0:00, c2 1:50); tiers rise with the stage-prep sword/helmet upgrades (not built). Override with ?tier=06 or ?armor=06&sword=06. Sprite is mirrored around pivotX (measured: clip c1 frame left x 188 facing right, 166 facing left). weaponOffset = where the original draws the weapon layer relative to the body in slash frames, per armor tier, measured on clip c1 0:51-0:52 (tier 01 only; other tiers line up at the same origin and are unmeasured). lunge 0: the body does not move on a slash in the clip.",
+  "sprite": {
+   "pivotX": 53,
+   "weaponOffset": {
+    "01": {
+     "6": [
+      46,
+      10
+     ],
+     "7": [
+      46,
+      8
+     ],
+     "8": [
+      47,
+      6
+     ],
+     "9": [
+      47,
+      6
+     ]
+    }
+   }
+  }
+ },
+ "monsters": {
+  "goblin_swordman": {
+   "sheet": "m_goblin_swordman",
+   "hp": 18,
+   "speed": 80,
+   "atk": 10,
+   "atkEvery": 1.2,
+   "contact": 54,
+   "score": 5,
+   "gold": 1,
+   "attackSfx": "goblin_attack"
+  },
+  "wolf": {
+   "sheet": "m_wolf",
+   "hp": 40,
+   "speed": 150,
+   "atk": 8,
+   "atkEvery": 0.9,
+   "contact": 58,
+   "score": 8,
+   "gold": 2,
+   "attackSfx": "wolf_attack"
+  }
+ },
+ "_score_note": "score bar fills to scoreBar; the 1/2/3-star marks sit at 27%/54%/82% of the bar (measured on in_board_score)",
+ "scoreBar": 300,
+ "starMarks": [
+  0.27,
+  0.54,
+  0.82
+ ],
+ "waves": [
+  {
+   "t": 0.5,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 1.6,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 2.6,
+   "side": "R",
+   "type": "wolf"
+  },
+  {
+   "t": 3.6,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 4.2,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 5.0,
+   "side": "L",
+   "type": "wolf"
+  },
+  {
+   "t": 5.8,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 6.2,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 7.0,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 7.4,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 8.2,
+   "side": "L",
+   "type": "wolf"
+  },
+  {
+   "t": 8.8,
+   "side": "R",
+   "type": "wolf"
+  },
+  {
+   "t": 9.6,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 10.0,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 10.6,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 11.2,
+   "side": "L",
+   "type": "wolf"
+  },
+  {
+   "t": 11.8,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 12.2,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 12.8,
+   "side": "R",
+   "type": "wolf"
+  },
+  {
+   "t": 13.4,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 13.8,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 14.4,
+   "side": "L",
+   "type": "wolf"
+  },
+  {
+   "t": 15.0,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 15.4,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 16.0,
+   "side": "R",
+   "type": "wolf"
+  },
+  {
+   "t": 16.6,
+   "side": "L",
+   "type": "wolf"
+  },
+  {
+   "t": 17.2,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 17.6,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 18.2,
+   "side": "R",
+   "type": "wolf"
+  },
+  {
+   "t": 18.8,
+   "side": "L",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 19.2,
+   "side": "R",
+   "type": "goblin_swordman"
+  },
+  {
+   "t": 19.8,
+   "side": "L",
+   "type": "wolf"
+  }
+ ]
+}

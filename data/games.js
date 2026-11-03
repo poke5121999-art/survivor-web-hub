@@ -1138,6 +1138,20 @@ window.HUB_GAMES = [
     tags: ["Hành động", "Một ngón", "Màn dọc"]
   },
   {
+    id: "dragon-storm",
+    title: "Dragon Storm",
+    tagline: "Hiệp sĩ thủ làng: chạm để chém, né và tung chiêu chặn quái tràn vào từng màn.",
+    desc: "Làm lại Dragon Storm (com.spcomes.dstorm) - action RPG thủ làng - chạy thẳng trên web bằng Canvas 2D, không engine. Hiệp sĩ dựng từ art gốc trong APK: thân giáp theo cấp nâng cấp chồng lớp kiếm, đòn chém khớp clip gốc. Bản đầu (slice) có Stage 1-2 chơi được: ra trận, chém quái, né, dùng chiêu, thắng hoặc thua. Còn thiếu: số liệu cân bằng là tạm, bản đồ thế giới, màn chuẩn bị, nâng cấp và boss chưa dựng.",
+    genre: "hanh-dong",
+    accent: "#d9532b",
+    en: { title: "Dragon Storm", tagline: "A knight defends the village: tap to slash, dodge and cast to stop each wave of monsters.", desc: "Dragon Storm (com.spcomes.dstorm), a lane-defense action RPG, remade in plain Canvas 2D on the web, no engine. The knight is built from the original APK art: an armor body per upgrade tier with the sword layered on top, the slash matched to the source clip. This first slice plays Stage 1-2: enter a stage, slash monsters, dodge, cast, win or lose. Not yet built: balance numbers are placeholders, and the world map, stage prep, upgrades and boss are missing." },
+    thumbnail: "assets/thumbnails/dragon-storm.png",
+    path: "games/dragon-storm/index.html",
+    rev: "20261103a",
+    status: "available",
+    tags: ["Hành động", "Nhập vai", "Thủ làng"]
+  },
+  {
     id: "food-gang",
     title: "Food Gang",
     tagline: "Đội đồ ăn đấu súng: chạy, nhảy, bắn nhau trên bếp, bàn ăn và kho bếp.",
