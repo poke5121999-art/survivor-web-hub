@@ -846,20 +846,20 @@ window.HUB_GAMES = [
     id: "sprite-cutter",
     title: "Bàn Cắt Sprite",
     tagline: "Cắt sprite sheet thành từng frame PNG, canh khung và xem chạy thử ngay.",
-    desc: "Nhập hoặc dán sprite sheet, chia lưới, kéo từng khung cho khớp, xếp chồng các frame để canh tâm. Xoá nền màu đặc, tẩy tay bằng cọ tròn hoặc vuông, vá chấm trắng lạc bằng màu xung quanh, chấm điểm mốc. Cắt ra .zip gồm PNG từng frame, sheet mới và tệp JSON toạ độ.",
+    desc: "Nhập hoặc dán sprite sheet, chia lưới, kéo từng khung cho khớp, xếp chồng các frame để canh tâm. Xoá nền màu đặc, tẩy tay bằng cọ tròn hoặc vuông, vá chấm trắng lạc bằng màu xung quanh, chấm điểm mốc. Cắt ra .zip gồm PNG từng frame, sheet mới và tệp JSON toạ độ. Chế độ Đặt tên file: kéo thư mục hoặc hình vào, sửa tên từng tệp rồi lưu lại.",
     genre: "cong-cu",
     accent: "#3a55e0",
-    en: { title: "Sprite Cutter", tagline: "Slice a sprite sheet into PNG frames, align them and preview the animation.", desc: "Import or paste a sprite sheet, set the grid, drag each frame into place and onion-skin the frames to align them. Remove a flat background, erase by hand with a round or square brush, heal stray white specks with the surrounding colour, and drop anchor points. Export a .zip of per-frame PNGs, a repacked sheet and a JSON of frame rects." },
+    en: { title: "Sprite Cutter", tagline: "Slice a sprite sheet into PNG frames, align them and preview the animation.", desc: "Import or paste a sprite sheet, set the grid, drag each frame into place and onion-skin the frames to align them. Remove a flat background, erase by hand with a round or square brush, heal stray white specks with the surrounding colour, and drop anchor points. Export a .zip of per-frame PNGs, a repacked sheet and a JSON of frame rects. A Rename files mode lets you drop a folder or images, edit each file name and save them back." },
     thumbnail: "assets/thumbnails/sprite-cutter.png",
     path: "games/sprite-cutter/index.html",
-    rev: "20261102a",
+    rev: "20261103a",
     // Một trang HTML thuần, không bước build. Nguồn ở ~/REPO_MOBI/notes/sprite-cutter/index.html (cũng là
     // artifact claude.ai 5DtELwnoaDC6ZA5WrSxzQy); chép sang đây bằng `sh build-hub.sh <rev>` trong thư mục đó,
     // nhớ tăng `rev` ở đây cho trùng. JSZip 3.10.1 (MIT) vendor ở games/sprite-cutter/vendor.
     //
     // Kiểm: sh ~/REPO_MOBI/notes/sprite-cutter/run-test.sh
     status: "available",
-    tags: ["Công cụ", "Cắt sprite", "Xoá nền", "Pixel art"]
+    tags: ["Công cụ", "Cắt sprite", "Xoá nền", "Đổi tên tệp", "Pixel art"]
   },
   {
     id: "tron-tim",

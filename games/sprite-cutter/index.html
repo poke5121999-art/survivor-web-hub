@@ -112,13 +112,45 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 #stack { display: block; touch-action: none; cursor: grab; }
 @media (max-width: 700px) { .stack-wrap { grid-template-columns: minmax(0, 1fr); } .flist { max-height: 210px; } .stack-box { height: 340px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+.rn-drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 16px; text-align: center; color: var(--mute); }
+#rename-view.drop .rn-drop { border-color: var(--accent); color: var(--accent); }
+.rn-root { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rn-root input { flex: 1 1 240px; min-width: 0; }
+.rn-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rn-list li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.rn-list li.bad { border-color: var(--bad); }
+.rn-thumb { width: 52px; height: 52px; border-radius: 6px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 12px 12px; display: grid; place-items: center; font: 600 11px var(--f-num); color: var(--mute); }
+.rn-name { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.rn-name input { flex: 1 1 auto; min-width: 0; font-family: var(--f-num); }
+.rn-name .ext { font-family: var(--f-num); color: var(--mute); }
+.rn-meta { font: 11px var(--f-num); color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-meta .why { color: var(--bad); font-family: var(--f-ui); }
 </style>
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 43</small></h1>
-    <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 44</small></h1>
+    <div class="seg" role="tablist" aria-label="Công cụ" id="app-mode">
+      <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button>
+    </div>
+    <p id="app-blurb">Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
+
+  <section id="rename-view" aria-label="Đặt tên file" hidden>
+    <div class="bar">
+      <button type="button" id="rn-pick-dir">Chọn thư mục…</button>
+      <button type="button" id="rn-pick-files">Chọn hình…</button>
+      <input type="file" id="rn-dir" webkitdirectory multiple hidden>
+      <input type="file" id="rn-files" multiple accept="image/*" hidden>
+      <span class="grow num" id="rn-info"></span>
+      <button type="button" id="rn-clear">Xoá danh sách</button>
+      <button type="button" class="primary" id="rn-save" disabled>Lưu với tên mới</button>
+    </div>
+    <label class="rn-root" id="rn-root-box" hidden><span class="hint">Tên thư mục</span><input type="text" id="rn-root" spellcheck="false"></label>
+    <div class="rn-drop" id="rn-drop">Kéo một thư mục hình hoặc vài tấm hình vào đây. Enter để sang tên kế tiếp.</div>
+    <ol class="rn-list" id="rn-list"></ol>
+    <p class="status" id="rn-status" role="status"></p>
+  </section>
 
   <div class="cols">
     <section aria-label="Sprite sheet đã nhập">
@@ -295,7 +327,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261102a"></script>
+<script src="vendor/jszip.min.js?v=20261103a"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -755,6 +787,7 @@ sheet.addEventListener("pointercancel", endDrag);
 
 document.addEventListener("keydown", e => {
   const t = e.target;
+  if (!$("rename-view").hidden) return;
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "y") && !(t.matches && t.matches("input[type=text], input[type=number]"))) { e.preventDefault(); k === "y" || e.shiftKey ? redoEdit() : undoEdit(); return; }
   if (t.matches && t.matches("input[type=number], input[type=text], select")) return;
@@ -1812,7 +1845,7 @@ box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("d
 box.addEventListener("dragleave", () => box.classList.remove("drop"));
 box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("drop"); loadFile(e.dataTransfer.files[0]); });
 document.addEventListener("paste", e => {
-  const d = e.clipboardData; if (!d || performance.now() - panEnded < 500) return;
+  const d = e.clipboardData; if (!d || performance.now() - panEnded < 500 || !$("rename-view").hidden) return;
   const file = [...d.files].find(f => f.type.startsWith("image/"))
     || [...d.items].find(i => i.kind === "file" && i.type.startsWith("image/"))?.getAsFile();
   if (!file) {
@@ -1837,7 +1870,7 @@ $("btn-paste").onclick = async () => {
 const downloadsP = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
 let thumbUrls = [];
 function pasteNote(msg, kind) { const el = $("paste-status"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); el.hidden = !msg; }
-function status(msg, kind) { const el = $("status"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
+function status(msg, kind, id = "status") { const el = $(id); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
 function clearThumbs() { thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = []; $("thumbs").replaceChildren(); }
 
 function cutFrame(f) {
@@ -1856,23 +1889,24 @@ const saveMsg = {
 const NO_SAVE = "Không tải được: claude.ai chỉ cho thành viên tổ chức của người đăng trang tải tệp về. Mở trang bằng tài khoản trong tổ chức đó, hoặc nhờ người đăng cắt rồi gửi tệp.";
 // Mở thẳng tệp HTML trên máy (không qua claude.ai) thì không có window.claude: tải kiểu thường của trình duyệt.
 const standalone = !window.claude?.use;
-async function offer(filename, data) {
+// out là id dòng báo nhận kết quả lưu: #status của bàn cắt, #rn-status của Đặt tên file.
+async function offer(filename, data, out = "status") {
   if (standalone) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(data); a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-    status(`Đã tải ${filename}.`, "ok"); return;
+    status(`Đã tải ${filename}.`, "ok", out); return;
   }
   const dl = await downloadsP;
-  if (!dl) { noSave(); return; }
-  try { await dl.save({ filename, data }); status(`Đã lưu ${filename}.`, "ok"); }
-  catch (err) { if (saveMsg[err?.code]) status(saveMsg[err.code], "bad"); else noSave(); }
+  if (!dl) { noSave(out); return; }
+  try { await dl.save({ filename, data }); status(`Đã lưu ${filename}.`, "ok", out); }
+  catch (err) { if (saveMsg[err?.code]) status(saveMsg[err.code], "bad", out); else noSave(out); }
 }
-async function noSave() {
+async function noSave(out = "status") {
   const perms = window.claude?.use ? await window.claude.use("permissions").catch(() => null) : null;
-  if (!perms || await perms.state("downloads").catch(() => "") !== "denied") { status(NO_SAVE, "bad"); return; }
+  if (!perms || await perms.state("downloads").catch(() => "") !== "denied") { status(NO_SAVE, "bad", out); return; }
   const b = document.createElement("button"); b.type = "button"; b.textContent = "Bật lại quyền tải";
-  b.onclick = () => perms.manage().catch(() => status("Không mở được bảng quyền. Mở menu Permissions của trang rồi bật Downloads.", "bad"));
-  const el = $("status"); el.className = "status bad";
+  b.onclick = () => perms.manage().catch(() => status("Không mở được bảng quyền. Mở menu Permissions của trang rồi bật Downloads.", "bad", out));
+  const el = $(out); el.className = "status bad";
   el.replaceChildren("Bạn đã tắt quyền tải của trang này. Bấm ", b, " để bật lại.");
 }
 
@@ -1914,6 +1948,146 @@ $("btn-cut").onclick = async () => {
   status(`Đã cắt ${fr.length} frame ${fw}×${fh} và xếp thành sheet mới ${cols}×${rows} ô. Đang mở hộp lưu…`);
   await offer(`${prefix}.zip`, zb);
 };
+
+/* ---------- Đặt tên file ---------- */
+// Mỗi tệp giữ nguyên nội dung và đuôi; chỉ phần tên (base) đổi. dir là đường thư mục con tính từ thư mục gốc, "" nếu nằm ngay gốc.
+// R.root là tên thư mục gốc khi kéo vào đúng một thư mục, null khi kéo hình lẻ (hoặc nhiều thư mục cùng lúc, lúc đó tên thư mục nằm trong dir).
+const R = { root: null, items: [] };
+const BAD_CHARS = /[\\/:*?"<>|]/;
+const splitName = n => { const i = n.lastIndexOf("."); return i > 0 ? [n.slice(0, i), n.slice(i)] : [n, ""]; };
+function rnItem(file, dir) {
+  const [base, ext] = splitName(file.name);
+  return { file, dir, base, ext, url: file.type.startsWith("image/") ? URL.createObjectURL(file) : null };
+}
+function rnReset() { for (const it of R.items) if (it.url) URL.revokeObjectURL(it.url); R.root = null; R.items = []; }
+// Lý do một tên không lưu được, hoặc "" nếu ổn. Hai tệp trùng tên trong cùng thư mục thì cả hai bị báo.
+function rnProblems() {
+  const seen = new Map(), why = new Map();
+  for (const it of R.items) {
+    const k = (it.dir + "/" + it.base.trim() + it.ext).toLowerCase();
+    if (!it.base.trim()) why.set(it, "tên trống");
+    else if (BAD_CHARS.test(it.base)) why.set(it, "có ký tự \\ / : * ? \" < > |");
+    else if (seen.has(k)) { why.set(it, "trùng tên"); why.set(seen.get(k), "trùng tên"); }
+    seen.set(k, it);
+  }
+  if (R.root !== null && (!R.root.trim() || BAD_CHARS.test(R.root))) why.set(R, "tên thư mục trống hoặc có ký tự cấm");
+  return why;
+}
+function rnCheck() {
+  const why = rnProblems(), list = $("rn-list").children;
+  R.items.forEach((it, k) => {
+    const li = list[k], w = why.get(it) || "";
+    li.classList.toggle("bad", !!w);
+    li.querySelector(".why").textContent = w ? " · " + w : "";
+    li.querySelector(".was").textContent = it.base.trim() + it.ext === it.file.name ? "" : " · gốc: " + it.file.name;
+  });
+  const n = R.items.length, renamed = R.items.filter(it => it.base.trim() + it.ext !== it.file.name).length;
+  $("rn-info").textContent = n ? `${n} tệp, đổi tên ${renamed}` : "";
+  $("rn-save").disabled = !n || why.size > 0;
+  if (why.size) status(why.has(R) ? "Tên thư mục trống hoặc có ký tự cấm." : `${why.size} tên chưa lưu được (viền đỏ).`, "bad", "rn-status");
+  else if ($("rn-status").classList.contains("bad")) status("", "", "rn-status");
+}
+function rnRender() {
+  $("rn-root-box").hidden = R.root === null;
+  if (R.root !== null && document.activeElement !== $("rn-root")) $("rn-root").value = R.root;
+  $("rn-drop").hidden = R.items.length > 0;
+  $("rn-list").replaceChildren(...R.items.map(it => {
+    const li = document.createElement("li");
+    const th = document.createElement(it.url ? "img" : "div"); th.className = "rn-thumb";
+    if (it.url) { th.src = it.url; th.alt = ""; th.loading = "lazy"; } else th.textContent = (it.ext || "?").slice(1, 5).toUpperCase();
+    const body = document.createElement("div");
+    const row = document.createElement("div"); row.className = "rn-name";
+    const inp = document.createElement("input"); inp.type = "text"; inp.value = it.base; inp.spellcheck = false; inp.setAttribute("aria-label", "Tên mới của " + it.file.name);
+    inp.oninput = () => { it.base = inp.value; rnCheck(); };
+    inp.onkeydown = e => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const all = [...$("rn-list").querySelectorAll("input")], next = all[all.indexOf(inp) + (e.shiftKey ? -1 : 1)];
+      if (next) { next.focus(); next.select(); }
+    };
+    const ext = document.createElement("span"); ext.className = "ext"; ext.textContent = it.ext;
+    row.append(inp, ext);
+    const meta = document.createElement("div"); meta.className = "rn-meta";
+    const where = document.createElement("span"); where.textContent = (R.root !== null ? R.root + "/" : "") + (it.dir ? it.dir + "/" : "");
+    const was = document.createElement("span"); was.className = "was";
+    const why = document.createElement("span"); why.className = "why";
+    meta.append(where, was, why);
+    body.append(row, meta); li.append(th, body);
+    return li;
+  }));
+  rnCheck();
+}
+const byPath = (a, b) => (a.dir + "/" + a.file.name).localeCompare(b.dir + "/" + b.file.name, undefined, { numeric: true });
+// Thêm tệp lấy từ thả hay hộp chọn. paths là đường tương đối của từng tệp, "root/sub/x.png" hoặc "x.png".
+// Cả lô nằm trong đúng một thư mục thì đó là thư mục gốc và thay danh sách cũ; hình lẻ thì nối vào danh sách hình lẻ đang có.
+function rnAdd(files, paths) {
+  if (!files.length) return;
+  const tops = new Set(paths.map(p => p.includes("/") ? p.split("/")[0] : ""));
+  const oneDir = tops.size === 1 && !tops.has("");
+  if (oneDir || R.root !== null) rnReset();
+  if (oneDir) R.root = [...tops][0];
+  files.forEach((f, k) => {
+    const parts = paths[k].split("/").slice(oneDir ? 1 : 0, -1);
+    R.items.push(rnItem(f, parts.join("/")));
+  });
+  R.items.sort(byPath);
+  status("", "", "rn-status"); rnRender();
+}
+// readEntries trả từng đợt (Chrome tối đa 100 mục), nên đọc tới khi hết.
+async function readTree(entry, path, out) {
+  if (entry.isFile) { out.push([await new Promise((ok, no) => entry.file(ok, no)), path + entry.name]); return; }
+  const rd = entry.createReader();
+  for (;;) {
+    const batch = await new Promise((ok, no) => rd.readEntries(ok, no));
+    if (!batch.length) return;
+    for (const e of batch) await readTree(e, path + entry.name + "/", out);
+  }
+}
+const rnView = $("rename-view");
+rnView.addEventListener("dragover", e => { e.preventDefault(); rnView.classList.add("drop"); });
+rnView.addEventListener("dragleave", e => { if (!rnView.contains(e.relatedTarget)) rnView.classList.remove("drop"); });
+rnView.addEventListener("drop", async e => {
+  e.preventDefault(); rnView.classList.remove("drop");
+  // Lấy entry và tệp ngay trong sự kiện thả: qua một lần await là DataTransfer đã bị trình duyệt dọn.
+  const entries = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const plain = [...e.dataTransfer.files].map(f => [f, f.name]);
+  let out = [];
+  try { for (const en of entries) await readTree(en, "", out); }
+  catch {
+    // Trang mở thẳng từ tệp trên máy (file://) thì Chrome chặn đọc entry (EncodingError). Hình lẻ vẫn lấy được qua files, thư mục thì không.
+    if (entries.some(en => en.isDirectory)) { status("Trình duyệt không cho đọc thư mục kéo vào khi trang mở từ tệp trên máy. Bấm Chọn thư mục… rồi chọn thư mục đó.", "bad", "rn-status"); return; }
+    out = plain;
+  }
+  if (!entries.length) out = plain;
+  if (!out.length) { status("Thư mục trống.", "bad", "rn-status"); return; }
+  rnAdd(out.map(x => x[0]), out.map(x => x[1]));
+});
+$("rn-pick-dir").onclick = () => $("rn-dir").click();
+$("rn-pick-files").onclick = () => $("rn-files").click();
+$("rn-dir").onchange = e => { const fs = [...e.target.files]; rnAdd(fs, fs.map(f => f.webkitRelativePath || f.name)); e.target.value = ""; };
+$("rn-files").onchange = e => { const fs = [...e.target.files]; rnAdd(fs, fs.map(f => f.name)); e.target.value = ""; };
+$("rn-root").oninput = e => { R.root = e.target.value; rnRender(); };
+$("rn-clear").onclick = () => { rnReset(); status("", "", "rn-status"); rnRender(); };
+// Thư mục: <tên thư mục>.zip chứa đúng thư mục đó. Một hình lẻ: lưu thẳng tệp. Nhiều hình lẻ: doi_ten.zip.
+$("rn-save").onclick = async () => {
+  if (rnProblems().size || !R.items.length) return;
+  const nameOf = it => it.base.trim() + it.ext;
+  if (R.root === null && R.items.length === 1 && !R.items[0].dir) { await offer(nameOf(R.items[0]), R.items[0].file, "rn-status"); return; }
+  const zip = new JSZip(), top = R.root !== null ? R.root.trim() + "/" : "";
+  for (const it of R.items) zip.file(top + (it.dir ? it.dir + "/" : "") + nameOf(it), it.file, { date: new Date(it.file.lastModified || Date.now()) });
+  status(`Đang gói ${R.items.length} tệp…`, "", "rn-status");
+  const zb = await zip.generateAsync({ type: "blob" });
+  await offer(R.root !== null ? R.root.trim() + ".zip" : "doi_ten.zip", zb, "rn-status");
+};
+const BLURB = { cut: $("app-blurb").textContent, rename: "Kéo thư mục hình hoặc vài tấm hình vào, sửa tên từng tệp, rồi lưu lại với tên mới. Nội dung hình giữ nguyên." };
+for (const b of $("app-mode").children) b.onclick = () => {
+  const m = b.dataset.mode;
+  for (const x of $("app-mode").children) x.setAttribute("aria-selected", x === b);
+  document.querySelector(".cols").hidden = m !== "cut"; rnView.hidden = m !== "rename";
+  $("app-blurb").textContent = BLURB[m];
+  if (m === "cut") redrawAll();
+};
+rnRender();
 
 /* ---------- khởi động ---------- */
 S.src = S.img = makeSample();
