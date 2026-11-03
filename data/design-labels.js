@@ -498,7 +498,7 @@
         "_id": { label: "Mã", help: "Mã game dùng (có dấu). Giữ nguyên." },
         "order": { label: "Thứ tự", int: true, help: NOT_READ },
         "r": { label: "Bán kính", unit: "pixel", min: 1 },
-        "mass": { label: "Khối lượng", min: 0 },
+        "mass": { label: "Khối lượng", min: 0, help: "Món thuộc bộ loot riêng lấy độ nặng ở bảng Giá từng món đồ." },
         "vmin": { label: "Giá thấp nhất", min: 0, int: true, help: "Nhà có bộ loot riêng thì giá theo bảng loot_items." },
         "vmax": { label: "Giá cao nhất", min: 0, int: true }
       }
@@ -527,6 +527,9 @@
       effect: RUN,
       // Hình của dòng: ô thứ <slot> trong dải loot-<bộ>-<cỡ>.png, ô vuông xếp ngang. Hub nhận dải từ Tools/Agent/hub.sh của Repo_client.
       rowSprite: { src: "games/repo2d-unity/loot/loot-{set}-{size}.png", names: { size: ["nho", "vua", "to"] }, cell: "slot" },
+      // Bảng trên GameSpark dán trước khi có mat/mass: hai cột hiện với số gốc của game, lưu lần đầu là ghi vào bảng.
+      fillMissing: true,
+      inline: 8,
       fields: {
         "_id": { label: "Mã", help: "<bộ>/<tên prefab>, chỉ để không trùng. Giữ nguyên." },
         "set": { label: "Bộ loot", help: "Khoá nhận diện món cùng với cỡ và ô; đổi là game không tìm thấy món." },
@@ -534,7 +537,10 @@
         "slot": { label: "Ô trong dải hình", int: true, help: "Khoá nhận diện món, đừng đổi." },
         "vmin": { label: "Giá thấp nhất", min: 0 },
         "vmax": { label: "Giá cao nhất", min: 0 },
-        "place": { label: "Chỗ rơi", help: "Anywhere = đâu cũng được, Floor = chỉ dưới đất, Table = chỉ trên mặt bàn." }
+        "place": { label: "Chỗ rơi", help: "Anywhere = đâu cũng được, Floor = chỉ dưới đất, Table = chỉ trên mặt bàn." },
+        "mat": { label: "Chất liệu", help: "Theo theme = bốc theo tỉ lệ chất liệu của theme mỗi lần món rơi. Chất liệu quyết độ giòn và màu (bảng Chất liệu đồ).",
+          choices: [{ v: "", label: "Theo theme" }, { v: "gốm", label: "Gốm" }, { v: "gỗ", label: "Gỗ" }, { v: "kim loại", label: "Kim loại" }] },
+        "mass": { label: "Độ nặng", min: 0, max: 1000, help: "Khối lượng khi kéo, vác, chất xe. Số gốc bằng độ nặng của cỡ (nhỏ 8, vừa 24, to 58). 0 = theo bảng Cỡ đồ." }
       }
     },
 

@@ -180,7 +180,22 @@
     var t = S.tables[n];
     return t && t.remote && t.remote.exists ? t.remote.docs : (DEFAULTS[n] || []);
   }
+  // A field the game gained after this table was pasted on GameSpark shows with its default value, so it can be set.
+  function withNewFields(n, remote) {
+    if (!(LABELS[n] || {}).fillMissing || !remote || !remote.exists) return remote;
+    var seed = {};
+    (DEFAULTS[n] || []).forEach(function (d) { seed[d._id] = d; });
+    var docs = remote.docs.map(function (d) {
+      var s = seed[d._id];
+      if (!s) return d;
+      var out = Object.assign({}, d);
+      Object.keys(s).forEach(function (k) { if (out[k] === undefined) out[k] = clone(s[k]); });
+      return out;
+    });
+    return Object.assign({}, remote, { docs: docs });
+  }
   function setRemote(n, remote) {
+    remote = withNewFields(n, remote);
     S.tables[n] = { remote: remote, draft: clone(remote && remote.exists ? remote.docs : (DEFAULTS[n] || [])) };
     S.conflict[n] = null;
     S.errors[n] = {};
@@ -684,7 +699,7 @@
     });
     if (sec) cols.sort(function (a, b) { return sec.fields.indexOf(a) - sec.fields.indexOf(b); });
     // A section is already a curated subset: show all of it inline instead of hiding some behind "Chi tiết".
-    cols = cols.slice(0, (sec && sec.inline) || MAX_INLINE_COLS);
+    cols = cols.slice(0, (sec && sec.inline) || (LABELS[table] || {}).inline || MAX_INLINE_COLS);
     var wrap = h("div", { class: "dz-list" });
     var tbody = h("tbody");
 
