@@ -15,7 +15,7 @@ import { SettingsScreen } from './Settings.js';
 import { PrivateBattleScreen, PrivateLobbyScreen } from './Private.js';
 import { CustomMatchOptions } from '../../meta/events.js';
 import { LeaderboardScreen } from './Leaderboard.js';
-import { ModeSelectScreen } from './ModeSelect.js';
+import { ModePicker } from './ModePicker.js';
 
 export class MenuScreen extends Screen {
   constructor(app) { super(app, 'SceneMenu', 0); }
@@ -86,20 +86,19 @@ export class MenuScreen extends Screen {
     if (this.closed || this.picking) return;
     const { app } = this;
     // BATTLE! -> mode picker (Random keeps the original deck draw); a weekly mission plays its own mode [ĐỀ XUẤT]
-    let modeChoice = 0;
+    let modeChoice = 0, mapIndex = -1;
     if (missionIndex < 0) {
       this.picking = true;
       try {
-        const s = await app.popup(ModeSelectScreen);
-        const r = await s.done();
+        const r = await new ModePicker(app).open().done;
         if (!r || this.closed) return;
-        modeChoice = r.choice;
+        modeChoice = r.choice; mapIndex = r.mapIndex;
       } finally { this.picking = false; }
     }
     app.audio.stopMusic();
     app.audio.sfx('Play');
     app.settings.vibrate(30);
-    this.result = { type: 'play', mission: missionIndex, modeChoice };
+    this.result = { type: 'play', mission: missionIndex, modeChoice, mapIndex };
     this.close();
   }
 

@@ -10,6 +10,7 @@ const EN = {
   'lucky.fridge': 'Lucky fridge!', 'super.lucky.fridge': 'Super Lucky fridge!',
   // web build only (no key in the original tables)
   'web.settings.shake': 'SCREEN SHAKE',
+  'web.picker.title': 'CHOOSE BATTLE', 'web.picker.new': 'New Event in:', 'web.picker.random': 'RANDOM',
   'web.mode.payload': 'Push the Fridge', 'web.mode.siege': 'Defend the Fridge',
   'web.mode.desc.random': 'Random battle: the game deals the mode',
   'web.mode.desc.dm.2vs2': '2 vs 2: most team kills in 90 seconds', 'web.mode.desc.dm.ffa': 'Free for all: most kills in 90 seconds',

@@ -192,7 +192,7 @@ class App {
     for (;;) {
       const act = await this.menu();
       if (!act) continue;
-      if (act.type === 'play') await this.quickPlay(act.mission ?? -1, act.modeChoice || 0);
+      if (act.type === 'play') await this.quickPlay(act.mission ?? -1, act.modeChoice || 0, act.mapIndex ?? -1);
       else if (act.type === 'private') await this.privateMatch(act);
       else if (act.type === 'reload') { location.reload(); return; }
     }
@@ -225,12 +225,14 @@ class App {
   // MenuController.Play / MissionDisplay.StartMission -> matchmaking -> match. Offline (the original path vs bots):
   // the match loads behind a fade and its VS panel plays the lobby, the bots' cells spinning "Searching opponents..."
   // until BotFillAt (clip frames). Online (Net.available): SceneLoadingGame counts real players until the session starts.
-  async quickPlay(missionIndex = -1, modeChoice = 0) {
+  async quickPlay(missionIndex = -1, modeChoice = 0, mapIndex = -1) {
     const r = this.meta.buildMatchRequest(this.profile, new Date(), rng(), missionIndex);
     if (!r.ok) { this.toast(r.error); return; }
     // Play -> mode picker (js/game/modes.js): 0 keeps the deck's draw
     const req = missionIndex < 0 ? applyChoice(r.request, modeChoice, this.meta.db) : r.request;
     req.modeChoice = missionIndex < 0 ? modeChoice : 0;
+    // a picker card plays its rotating map (ModePicker.rotation); Random keeps the original map draw
+    if (missionIndex < 0 && modeChoice > 0 && mapIndex >= 0 && mapIndex < this.meta.db.maps.length) { req.mapIndex = mapIndex; req.stageId = this.meta.db.maps[mapIndex].stageId; }
     this.screen = 'matchmaking';
     if (this.net.available() && missionIndex < 0) {
       const lg = new LoadingGameScreen(this, req);
