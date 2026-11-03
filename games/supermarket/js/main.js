@@ -1,6 +1,6 @@
 // Boot, input, interactions and the frame loop.
 import { Sim } from './sim/sim.js';
-import { LAYOUT, solids } from './sim/layout.js';
+import { LAYOUT, solids, slotById } from './sim/layout.js';
 import { World } from './view/world.js';
 import { UI } from './view/ui.js';
 import { money } from './view/icons.js';
@@ -38,7 +38,8 @@ async function boot() {
   const world = new World(document.getElementById('view'), sim);
   const ui = new UI(sim, sfx);
   const player = { x: 0, z: 1.2, dir: Math.PI, moving: false, atRegister: false };
-  const walls = solids();
+  let walls = [], wallSig = '';
+  const refreshWalls = () => { const sig = sim.sections + '|' + sim.s.shelves.map(s => s.id).join(','); if (sig !== wallSig) { wallSig = sig; walls = solids(sim.sections, sim.s.shelves.map(s => s.id)); } };
   Object.assign(state, { sim, world, ui, player, data });
 
   // ---- input --------------------------------------------------------------------------------------------------
@@ -76,8 +77,11 @@ async function boot() {
   let focus = null;
   function interactables() {
     const out = [], carry = sim.carried();
-    LAYOUT.shelves.forEach((S, i) => out.push({ kind: 'shelf', id: sim.s.shelves[i].id, x: S.front.x, z: S.front.z, r: 1.0,
-      label: carry ? 'Stock shelf' : 'Shelf · prices' }));
+    for (const sh of sim.s.shelves) { const sl = slotById(sh.id, sim.sections); if (sl) out.push({ kind: 'shelf', id: sh.id, x: sl.front.x, z: sl.front.z, r: 0.75, label: carry ? 'Stock shelf' : 'Shelf · prices' }); }
+    if (sim.s.toPlace.length && !carry) {
+      const name = sim.data.furniture.find(f => f.id === sim.s.toPlace[0]).name;
+      for (const f of sim.freeSlots()) out.push({ kind: 'place', id: f.id, x: f.front.x, z: f.front.z, r: 0.7, label: `Place ${name} here` });
+    }
     out.push({ kind: 'register', x: LAYOUT.register.stand.x, z: LAYOUT.register.stand.z, r: 1.0, label: 'Use register' });
     out.push({ kind: 'computer', x: LAYOUT.computer.stand.x, z: LAYOUT.computer.stand.z, r: 1.0, label: 'Use computer (order stock)' });
     if (carry) out.push({ kind: 'trash', x: LAYOUT.trash.x, z: LAYOUT.trash.z, r: 1.1, label: carry.count ? 'Trash (box is not empty)' : 'Throw away empty box' });
@@ -99,6 +103,7 @@ async function boot() {
     else if (it.kind === 'computer') ui.openComputer();
     else if (it.kind === 'trash') { const r = sim.trashBox(); if (r.ok) { sfx.play('put'); ui.toast('Empty box thrown away'); } else ui.toast(r.why, 'bad'); }
     else if (it.kind === 'register') enterRegister();
+    else if (it.kind === 'place') { const r = sim.place(it.id); if (r.ok) { sfx.play('put'); ui.toast('Placed! Stock it with matching products.', 'good'); } else ui.toast(r.why, 'bad'); }
   }
   function drop() {
     if (!sim.carried()) return;
@@ -115,7 +120,10 @@ async function boot() {
   // ---- sim events -> feedback --------------------------------------------------------------------------------
   function drainEvents() {
     for (const ev of sim.events.splice(0)) {
-      if (ev.type === 'levelup') { ui.toast(`⭐ Store level ${ev.level}!`, 'good'); sfx.play('level'); }
+      if (ev.type === 'expand') ui.toast('🏗️ New section open — the store is bigger!', 'good');
+      else if (ev.type === 'license') ui.toast(`📜 ${sim.lic(ev.id).name}: new products in the market`, 'good');
+      else if (ev.type === 'furniture') ui.toast('📦 Walk to a glowing spot and press E to place it');
+      else if (ev.type === 'levelup') { ui.toast(`⭐ Store level ${ev.level}!`, 'good'); sfx.play('level'); }
       else if (ev.type === 'delivered') ui.toast(`🚚 Delivery: ${ev.boxes} box${ev.boxes > 1 ? 'es' : ''} of ${sim.P.get(ev.pid).name}`);
       else if (ev.type === 'closing') ui.toast('22:00 — no new customers. Finish the queue.');
       else if (ev.type === 'report') { if (ui.isOpen('register')) player.atRegister = false; ui.openReport(); writeSave(sim); }
@@ -143,13 +151,14 @@ async function boot() {
       const nx = player.x + ax, nz = player.z + az;
       if (!walls.some(([x0, z0, x1, z1]) => nx > x0 - rad && nx < x1 + rad && nz > z0 - rad && nz < z1 + rad)) { player.x = nx; player.z = nz; }
     }
-    player.x = Math.max(-12, Math.min(12, player.x)); player.z = Math.max(-6, Math.min(10, player.z));
+    player.x = Math.max(-30, Math.min(12, player.x)); player.z = Math.max(-6, Math.min(10, player.z));
     player.dir = Math.atan2(mx, mz);
   }
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const steps = state.fast || 1;
     for (let i = 0; i < steps; i++) sim.step(dt);
+    refreshWalls();
     movePlayer(dt);
     drainEvents();
     focus = player.atRegister || (ui.panel && ui.panel.kind !== 'shelf') ? null : nearest();

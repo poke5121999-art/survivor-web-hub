@@ -1,9 +1,10 @@
 // Shop rules with no THREE: day clock, customers, shelves, orders, register, day report. Runs in node for tests.
 // Positions are metres on the floor plane (x right, z towards the street). Money is in cents, as in the data.
-import { LAYOUT } from './layout.js';
+import { LAYOUT, slots, slotById } from './layout.js';
 
 export const DENOMS = [1, 5, 10, 25, 50, 100, 500, 1000, 2000, 5000];
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
+export const SHELF_KINDS = { 302: 'White shelves', 303: 'Small refrigerator', 305: 'Yellow shelves' };
 
 function mulberry(seed) {
   let a = seed >>> 0;
@@ -29,9 +30,9 @@ export class Sim {
   fresh() {
     const S = this.data.settings;
     this.s = {
-      v: SAVE_VERSION, day: 1, money: S.initialMoney, exp: 0, time: S.dayStart, phase: 'prep',
-      prices: {}, ordered: {}, served: 0,
-      shelves: LAYOUT.shelves.map((sh, i) => ({ id: 'sh' + i, kind: 302, layers: [null, null, null, null] })),
+      v: SAVE_VERSION, day: 1, money: S.initialMoney, exp: 0, level: 1, time: S.dayStart, phase: 'prep',
+      prices: {}, ordered: {}, served: 0, licenses: [], toPlace: [],
+      shelves: LAYOUT.startShelves.map(id => ({ id, kind: 302, layers: [null, null, null, null] })),
       boxes: [], deliveries: [], carry: null, nextBox: 1,
       stats: this.blankStats(), lastReport: null,
     };
@@ -47,6 +48,13 @@ export class Sim {
   save() { return JSON.parse(JSON.stringify(this.s)); }
   load(save) {
     this.fresh();
+    if (save && save.v === 1) { // Drop 1 saves: shelves sh0/sh1 stood on the back-row slots b3/b2
+      save = { ...save, v: 2, licenses: [], toPlace: [], shelves: save.shelves.map((sh, i) => ({ ...sh, id: LAYOUT.startShelves[i] })) };
+    }
+    if (save && save.v === 2 && save.level == null) { // Drop 1 kept total exp: replay it through the per-level rule
+      let e = save.exp, l = 1; while (e >= (this.data.levels[l - 1] ?? Infinity)) { e -= this.data.levels[l - 1]; l++; }
+      save = { ...save, exp: e, level: l };
+    }
     if (!save || save.v !== SAVE_VERSION) return;
     Object.assign(this.s, save);
     if (this.s.phase === 'open' || this.s.phase === 'closing') this.s.phase = this.s.time >= this.data.settings.dayEnd ? 'closing' : 'open';
@@ -55,21 +63,67 @@ export class Sim {
   emit(type, o = {}) { this.events.push({ type, ...o }); }
 
   // ---- derived -------------------------------------------------------------------------------------------------
-  get level() { let l = 1; for (const t of this.data.levels) { if (this.s.exp >= t) l++; else break; } return l; }
-  levelSpan() {
-    const L = this.data.levels, l = this.level;
-    const lo = l === 1 ? 0 : L[l - 2], hi = L[l - 1] ?? lo;
-    return { lo, hi, level: l };
-  }
+  // CashDeskSystem.AddShopExp @0xC60E54: exp = max(exp + n, 0); while exp >= ShopExpConfig[level].pro_exp:
+  // exp -= need; level++ — each level needs its own pro_exp (exp restarts at 0 every level).
+  get level() { return this.s.level; }
+  levelNeed(l = this.s.level) { return this.data.levels[l - 1] ?? Infinity; }
+  levelSpan() { return { lo: 0, hi: this.levelNeed(), level: this.s.level }; }
   price(pid) { return this.s.prices[pid] ?? this.P.get(pid).rec; }
   market(pid) { return this.P.get(pid).rec; }
-  boxPrice(pid) { const p = this.P.get(pid); return p.cost * p.load; } // guess: unit cost x box load
+  boxPrice(pid) { const p = this.P.get(pid); return p.cost * p.load; } // ItemSystem.GetAllPrice @0xC8E648: cost x load_num
   hour() { return Math.floor(this.s.time / 3600); }
-  unlocked(pid) { const p = this.P.get(pid); return p.shop === 101 && p.license === 0; }
+  unlocked(pid) { const p = this.P.get(pid); return p.shop === 101 && (p.license === 0 || this.s.licenses.includes(p.license)); }
+  get sections() { return this.s.licenses.filter(id => this.lic(id) && this.lic(id).kind === 'section').length; }
+  lic(id) { return this.data.licenses.find(l => l.id === id); }
+  licenseState(id) { // 'owned' | 'buy' | why it cannot be bought
+    const L = this.lic(id);
+    if (this.s.licenses.includes(id)) return 'owned';
+    if (L.requires && !this.s.licenses.includes(L.requires)) return `needs ${this.lic(L.requires).name}`;
+    if (this.level < L.level) return `store level ${L.level}`;
+    if (this.s.money < L.price) return 'not enough money';
+    return 'buy';
+  }
+  buyLicense(id) {
+    const st = this.licenseState(id);
+    if (st !== 'buy') return { ok: false, why: st };
+    const L = this.lic(id);
+    this.s.money -= L.price; this.s.stats.upgrade += L.price; this.s.licenses.push(id);
+    this.emit(L.kind === 'section' ? 'expand' : 'license', { id });
+    return { ok: true };
+  }
+  // ---- furniture (ShopItemConfig shop 102): bought on the computer, then placed on a free slot -----------------
+  furnitureShop() { return this.data.furniture.filter(f => SHELF_KINDS[f.sub]); }
+  buyFurniture(itemId) {
+    const f = this.data.furniture.find(x => x.id === itemId);
+    if (!f || !SHELF_KINDS[f.sub]) return { ok: false, why: 'not for sale' };
+    if (this.s.money < f.price) return { ok: false, why: 'not enough money' };
+    if (!this.freeSlots().length) return { ok: false, why: 'no free space — buy a new section' };
+    this.s.money -= f.price; this.s.stats.upgrade += f.price; this.s.toPlace.push(itemId);
+    this.emit('furniture', { itemId });
+    return { ok: true };
+  }
+  freeSlots() { const used = new Set(this.s.shelves.map(s => s.id)); return slots(this.sections).filter(s => !used.has(s.id)); }
+  place(slotId, itemId = this.s.toPlace[0]) {
+    const i = this.s.toPlace.indexOf(itemId);
+    if (i < 0) return { ok: false, why: 'nothing to place' };
+    if (!this.freeSlots().some(s => s.id === slotId)) return { ok: false, why: 'slot is taken' };
+    const f = this.data.furniture.find(x => x.id === itemId);
+    this.s.toPlace.splice(i, 1);
+    this.s.shelves.push({ id: slotId, kind: f.sub, layers: [null, null, null, null] });
+    this.emit('placed', { slotId, kind: f.sub });
+    return { ok: true };
+  }
+  speedUp(i) { // SettingConfig.DeliverySpeedUpCash
+    const d = this.s.deliveries[i], cost = this.data.settings.deliverySpeedUpCash;
+    if (!d) return { ok: false, why: 'no such delivery' };
+    if (this.s.money < cost) return { ok: false, why: 'not enough money' };
+    this.s.money -= cost; this.s.stats.cost += cost; d.remain = 0;
+    return { ok: true };
+  }
   catalogue() { return this.data.products.filter(p => p.shop === 101); }
   addExp(n) {
-    const before = this.level; this.s.exp += n; this.s.stats.expGained += n;
-    if (this.level > before) this.emit('levelup', { level: this.level });
+    this.s.exp = Math.max(0, this.s.exp + n); this.s.stats.expGained += n;
+    while (this.s.exp >= this.levelNeed()) { this.s.exp -= this.levelNeed(); this.s.level++; this.emit('levelup', { level: this.s.level }); }
   }
 
   // ---- boxes, deliveries, stocking -------------------------------------------------------------------------------
@@ -129,7 +183,7 @@ export class Sim {
     const b = this.carried(); if (!b) return 'carry a box first';
     if (b.count <= 0) return 'the box is empty';
     const sh = this.s.shelves.find(s => s.id === shelfId), p = this.P.get(b.pid);
-    if (p.shelf !== sh.kind) return 'needs a different shelf';
+    if (p.shelf !== sh.kind) return `needs ${SHELF_KINDS[p.shelf]}`;
     const L = sh.layers[li];
     if (L && L.pid !== b.pid && L.count > 0) return 'layer holds another product';
     if (L && L.pid === b.pid && L.count >= p.cap) return 'layer is full';
@@ -170,11 +224,10 @@ export class Sim {
     }
   }
   shelfFront(pid) { // where a customer stands to take pid
-    for (let i = 0; i < this.s.shelves.length; i++) {
-      const sh = this.s.shelves[i];
-      if (sh.layers.some(L => L && L.pid === pid && L.count > 0)) return { ...LAYOUT.shelves[i].front, shelf: sh.id };
-    }
-    return null;
+    const opts = this.s.shelves.filter(sh => sh.layers.some(L => L && L.pid === pid && L.count > 0));
+    if (!opts.length) return null;
+    const sh = opts[this.ri(0, opts.length)], sl = slotById(sh.id, this.sections);
+    return { ...sl.front, shelf: sh.id };
   }
 
   // ---- day -------------------------------------------------------------------------------------------------------
@@ -299,7 +352,7 @@ export class Sim {
   layoutQueue() {
     const q = this.customers.filter(c => c.state === 'queue' || c.state === 'toQueue' || c.state === 'register');
     q.sort((a, b) => (a.qn ?? 1e9) - (b.qn ?? 1e9) || a.id - b.id);
-    q.forEach((c, i) => { c.qn = i; const p = LAYOUT.queue(i); if (c.state !== 'register') { c.target = p; c.path = []; } });
+    q.forEach((c, i) => { c.qn = i; const p = LAYOUT.queue(i); if (c.state !== 'register') { c.target = p; c.path = c.state === 'toQueue' ? LAYOUT.route(c, p) : []; } });
   }
 
   customerStep(c, dt) {
@@ -336,7 +389,7 @@ export class Sim {
         c.wait += dt;
         if (c.qn === 0 && !this.register) this.startRegister(c);
         else if (c.qn > 0) this.walk(c, dt);
-        if (c.wait > this.data.shopping.patience && c.qn > 0) {
+        if (this.data.shopping.patience != null && c.wait > this.data.shopping.patience && c.qn > 0) {
           this.say(c, 'Waited too long', 'bad');
           for (const it of c.cart) this.returnToShelf(it.pid, it.n);
           c.cart = []; c.qn = null; this.leave(c); this.layoutQueue();
@@ -379,13 +432,12 @@ export class Sim {
     if (R.method === 'cash') R.paid = this.cashFor(R.total);
     this.emit('pay', { method: R.method, paid: R.paid, total: R.total });
   }
-  // Npc_GiveChange ["0_0","5_100","500_1000","2000_4000","5000_9500"] — guess: for a total >= a, the customer hands
-  // over the total plus up to b cents, rounded up to whole dollars.
+  // NpcTakeoutCashNode.CreateMoney @0xDAB88C: pick one Npc_GiveChange tier "a_b" uniformly at random
+  // (Random.Range(0, tiers)), add Random.Range(a, b) cents to the total, round UP to whole dollars (x100).
   cashFor(total) {
-    let extra = 0;
-    for (const [a, b] of this.data.settings.giveChange) if (total >= a) extra = b;
-    const paid = Math.ceil((total + this.ri(0, extra + 1)) / 100) * 100;
-    return Math.max(paid, Math.ceil(total / 100) * 100);
+    const T = this.data.settings.giveChange, [a, b] = T[this.ri(0, T.length)];
+    const extra = b > a ? this.ri(a, b) : a;
+    return Math.max(100, Math.ceil((total + extra) / 100) * 100);
   }
   card(cents) {
     const R = this.register; if (!R || R.phase !== 'pay' || R.method !== 'card') return { ok: false, why: 'not a card payment' };

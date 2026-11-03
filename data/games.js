@@ -1147,7 +1147,7 @@ window.HUB_GAMES = [
     en: { title: "Corner Mart", tagline: "Order stock, fill shelves, set prices and work the till: scan, card, give change.", desc: "A small 3D supermarket sim straight in the browser (under 1 MB). Carry boxes to shelves, price against the market, open for waves of customers, scan every item, key in card payments, count out change for cash (short change upsets them), reorder on the computer, and read the profit report at closing. Rules and prices from Shop Simulator's data. Keys or drag to walk, saved in the browser." },
     thumbnail: "assets/thumbnails/supermarket.png",
     path: "games/supermarket/index.html",
-    rev: "20261103a",
+    rev: "20261103b",
     status: "available",
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
   },

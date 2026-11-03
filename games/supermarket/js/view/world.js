@@ -1,6 +1,6 @@
 // three.js view of the store. All meshes are built in code (original low-poly look).
 import * as THREE from 'three';
-import { LAYOUT, ROOM, DOOR } from '../sim/layout.js';
+import { LAYOUT, DOOR, roomFor, slots, slotById, SHELF } from '../sim/layout.js';
 import { iconOf } from './icons.js';
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -27,8 +27,10 @@ export class World {
     const sun = new THREE.DirectionalLight('#fff4e0', 1.4); sun.position.set(-4, 10, 6); this.scene.add(sun);
     this.sun = sun;
     this.prodMat = new Map(); this.prodGeo = new THREE.BoxGeometry(1, 1, 1);
-    this.buildRoom();
+    this.roomGroup = null; this.builtSections = -1;
     this.buildFurniture();
+    this.shelfObjs = new Map(); this.ghosts = new THREE.Group(); this.scene.add(this.ghosts); this.ghostSig = '';
+    this.buildOutside();
     this.player = this.person('#2e86de', '#1b4f72', true);
     this.player.position.set(0, 0, 1);
     this.scene.add(this.player);
@@ -48,8 +50,28 @@ export class World {
     this.camera.updateProjectionMatrix();
   }
 
-  buildRoom() {
-    const R = ROOM, W = R.x1 - R.x0, D = R.z1 - R.z0;
+  buildOutside() {
+    const walk = new THREE.Mesh(new THREE.PlaneGeometry(40, 6), lam('#c8c6c0'));
+    walk.rotation.x = -Math.PI / 2; walk.position.set(0, -0.01, 6 + 3); this.scene.add(walk);
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(60, 10), lam('#55595e'));
+    road.rotation.x = -Math.PI / 2; road.position.set(0, -0.02, 6 + 11); this.scene.add(road);
+    for (let x = -28; x < 30; x += 4) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.2), lam('#f1f1f1')); m.rotation.x = -Math.PI / 2; m.position.set(x, -0.01, 6 + 11); this.scene.add(m); }
+    const grass = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), lam('#7cb26b'));
+    grass.rotation.x = -Math.PI / 2; grass.position.set(0, -0.03, 0); this.scene.add(grass);
+
+    // a few trees outside
+    for (const [x, z] of [[9.5, 7.6], [12, -2], [10.5, 3], [13, 5.5], [-4, -8.5], [-15, -8.2], [6, -8.4], [-24, 2], [-25, -4]]) {
+      const t = new THREE.Group(); t.position.set(x, 0, z);
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8), lam('#8b5a2b')); tr.position.y = 0.6; t.add(tr);
+      const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 0), lam('#4f9d4f', { flatShading: true })); top.position.y = 1.7; t.add(top);
+      this.scene.add(t);
+    }
+  }
+
+  buildRoom(sections) {
+    if (this.roomGroup) this.scene.remove(this.roomGroup);
+    const G = this.roomGroup = new THREE.Group(); this.scene.add(G); this.builtSections = sections;
+    const R = roomFor(sections), W = R.x1 - R.x0, D = R.z1 - R.z0;
     const tiles = canvasTex(256, 256, (g, w, h) => {
       for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = (x + y) % 2 ? '#ece6da' : '#f7f3ea'; g.fillRect(x * 64, y * 64, 64, 64); }
       g.strokeStyle = 'rgba(0,0,0,0.06)'; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke(); }
@@ -57,17 +79,9 @@ export class World {
     tiles.wrapS = tiles.wrapT = THREE.RepeatWrapping; tiles.repeat.set(W / 2, D / 2);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), lam('#ffffff', { map: tiles }));
     floor.rotation.x = -Math.PI / 2; floor.position.set((R.x0 + R.x1) / 2, 0, (R.z0 + R.z1) / 2);
-    this.scene.add(floor);
-    const walk = new THREE.Mesh(new THREE.PlaneGeometry(40, 6), lam('#c8c6c0'));
-    walk.rotation.x = -Math.PI / 2; walk.position.set(0, -0.01, R.z1 + 3); this.scene.add(walk);
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(60, 10), lam('#55595e'));
-    road.rotation.x = -Math.PI / 2; road.position.set(0, -0.02, R.z1 + 11); this.scene.add(road);
-    for (let x = -28; x < 30; x += 4) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.2), lam('#f1f1f1')); m.rotation.x = -Math.PI / 2; m.position.set(x, -0.01, R.z1 + 11); this.scene.add(m); }
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), lam('#7cb26b'));
-    grass.rotation.x = -Math.PI / 2; grass.position.set(0, -0.03, 0); this.scene.add(grass);
-
+    G.add(floor);
     const wallM = lam('#f3e9d2'), band = lam('#2a9d8f'), H = R.h;
-    const wall = (w, h, d, x, y, z, m = wallM) => { const o = new THREE.Mesh(box(w, h, d), m); o.position.set(x, y, z); this.scene.add(o); return o; };
+    const wall = (w, h, d, x, y, z, m = wallM) => { const o = new THREE.Mesh(box(w, h, d), m); o.position.set(x, y, z); G.add(o); return o; };
     wall(W + 0.3, H, 0.15, (R.x0 + R.x1) / 2, H / 2, R.z0 - 0.075);
     wall(W + 0.3, 0.35, 0.17, (R.x0 + R.x1) / 2, 1.0, R.z0 - 0.06, band);
     // side walls are cut low so the camera always sees in
@@ -83,42 +97,20 @@ export class World {
     wall(fl, 1.2, 0.05, R.x0 + fl / 2, 1.1, R.z1 + 0.075, glass);
     wall(fr, 1.2, 0.05, DOOR.x1 + fr / 2, 1.1, R.z1 + 0.075, glass);
     for (const x of [R.x0, DOOR.x0, DOOR.x1, R.x1]) wall(0.12, 1.75, 0.18, x, 0.87, R.z1 + 0.075, lam('#3d5a80'));
-    const mat = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.2), lam('#3d5a80')); mat.rotation.x = -Math.PI / 2; mat.position.set(4, 0.005, R.z1 - 0.3); this.scene.add(mat);
+    const mat = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.2), lam('#3d5a80')); mat.rotation.x = -Math.PI / 2; mat.position.set(4, 0.005, R.z1 - 0.3); G.add(mat);
     // sign
     const sign = canvasTex(512, 96, (g, w, h) => {
       g.fillStyle = '#e76f51'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#fff'; g.font = 'bold 56px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('CORNER MART', w / 2, h / 2 + 3);
     });
-    const s = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.75), new THREE.MeshBasicMaterial({ map: sign })); s.position.set(0, 2.6, R.z0 + 0.02); this.scene.add(s);
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.75), new THREE.MeshBasicMaterial({ map: sign })); s.position.set(0, 2.6, R.z0 + 0.02); G.add(s);
     // delivery zone
     const D2 = LAYOUT.delivery;
     const dz = new THREE.Mesh(new THREE.PlaneGeometry(D2.cols * D2.dx + 0.3, D2.rows * D2.dz + 0.3), lam('#f4d35e', { transparent: true, opacity: 0.55 }));
-    dz.rotation.x = -Math.PI / 2; dz.position.set(D2.x + (D2.cols - 1) * D2.dx / 2, 0.006, D2.z + (D2.rows - 1) * D2.dz / 2); this.scene.add(dz);
-    // a few trees outside
-    for (const [x, z] of [[-9, 9], [9.5, 8], [-12, 3], [12, -2], [-11, -5]]) {
-      const t = new THREE.Group(); t.position.set(x, 0, z);
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8), lam('#8b5a2b')); tr.position.y = 0.6; t.add(tr);
-      const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 0), lam('#4f9d4f', { flatShading: true })); top.position.y = 1.7; t.add(top);
-      this.scene.add(t);
-    }
+    dz.rotation.x = -Math.PI / 2; dz.position.set(D2.x + (D2.cols - 1) * D2.dx / 2, 0.006, D2.z + (D2.rows - 1) * D2.dz / 2); G.add(dz);
   }
 
   buildFurniture() {
-    const metal = lam('#9aa5b1'), board = lam('#dfe4ea');
-    this.shelfObjs = LAYOUT.shelves.map((S) => {
-      const g = new THREE.Group(); g.position.set(S.x, 0, S.z);
-      for (const sx of [-1, 1]) { const p = new THREE.Mesh(box(0.05, 1.9, S.d), metal); p.position.set(sx * (S.w / 2 - 0.025), 0.95, 0); g.add(p); }
-      const back = new THREE.Mesh(box(S.w, 1.9, 0.03), lam('#c9d1d9')); back.position.set(0, 0.95, -S.d / 2 + 0.015); g.add(back);
-      const layers = [];
-      for (let i = 0; i < 4; i++) {
-        const y = 0.12 + i * 0.44;
-        const b = new THREE.Mesh(box(S.w - 0.06, 0.03, S.d), board); b.position.set(0, y, 0); g.add(b);
-        const lg = new THREE.Group(); lg.position.set(0, y + 0.015, 0); g.add(lg); layers.push(lg);
-        const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.06), new THREE.MeshBasicMaterial({ color: '#ffffff' })); tag.position.set(0, y - 0.015, S.d / 2 + 0.002); g.add(tag);
-      }
-      this.scene.add(g);
-      return { g, layers, sig: [] };
-    });
     // register
     const r = LAYOUT.register;
     const reg = new THREE.Group(); reg.position.set(r.x, 0, r.z);
@@ -143,6 +135,34 @@ export class World {
     this.scene.add(desk);
     // trash bin
     const t = LAYOUT.trash, bin = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.7, 12), lam('#27ae60')); bin.position.set(t.x, 0.35, t.z); this.scene.add(bin);
+  }
+
+  makeShelf(slotId, kind) {
+    const sl = slotById(slotId, this.sim.sections); if (!sl) return null;
+    const S = SHELF, g = new THREE.Group(); g.position.set(sl.x, 0, sl.z);
+    const frame = lam(kind === 305 ? '#f2c14e' : kind === 303 ? '#f5f6fa' : '#9aa5b1'), board = lam(kind === 305 ? '#ffe08a' : '#dfe4ea');
+    if (kind === 303) { // fridge: white body, dark inside, glass door
+      for (const sx of [-1, 1]) { const sd = new THREE.Mesh(box(0.05, 1.95, S.d), lam('#ffffff')); sd.position.set(sx * (S.w / 2 - 0.025), 0.975, 0); g.add(sd); }
+      const bot = new THREE.Mesh(box(S.w, 0.1, S.d), lam('#ffffff')); bot.position.set(0, 0.05, 0); g.add(bot);
+      const inner = new THREE.Mesh(box(S.w - 0.1, 1.75, S.d - 0.06), lam('#dfe9f0', { side: THREE.BackSide })); inner.position.set(0, 0.97, 0.01); g.add(inner);
+      const back = new THREE.Mesh(box(S.w - 0.1, 1.75, 0.02), lam('#b8d4e6')); back.position.set(0, 0.97, -S.d / 2 + 0.04); g.add(back);
+      const top = new THREE.Mesh(box(S.w, 0.18, S.d + 0.02), lam('#74b9ff')); top.position.set(0, 1.86, 0); g.add(top);
+    } else {
+      for (const sx of [-1, 1]) { const p = new THREE.Mesh(box(0.05, 1.9, S.d), frame); p.position.set(sx * (S.w / 2 - 0.025), 0.95, 0); g.add(p); }
+      const back = new THREE.Mesh(box(S.w, 1.9, 0.03), lam(kind === 305 ? '#e9b949' : '#c9d1d9')); back.position.set(0, 0.95, -S.d / 2 + 0.015); g.add(back);
+    }
+    const layers = [];
+    for (let i = 0; i < 4; i++) {
+      const y = 0.12 + i * 0.44;
+      const b = new THREE.Mesh(box(S.w - 0.06, 0.03, S.d), kind === 303 ? lam('#dfe6e9', { transparent: true, opacity: 0.6 }) : board); b.position.set(0, y, 0);
+      if (kind === 305) b.rotation.x = 0.35;
+      g.add(b);
+      const lg = new THREE.Group(); lg.position.set(0, y + 0.015, 0); if (kind === 305) lg.rotation.x = 0.35; g.add(lg); layers.push(lg);
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.06), new THREE.MeshBasicMaterial({ color: '#ffffff' })); tag.position.set(0, y - 0.015, S.d / 2 + 0.012); g.add(tag);
+    }
+    if (kind === 303) { const glass = new THREE.Mesh(new THREE.PlaneGeometry(S.w - 0.06, 1.7), lam('#dff3ff', { transparent: true, opacity: 0.22, depthWrite: false })); glass.position.set(0, 0.97, S.d / 2 + 0.01); g.add(glass); }
+    this.scene.add(g);
+    return { g, layers, sig: [], kind };
   }
 
   matFor(pid) {
@@ -194,17 +214,29 @@ export class World {
     const cb = sim.carried();
     this.carryBox.visible = !!cb; if (cb) this.setBoxLabel(this.carryBox, cb.pid);
 
+    if (this.builtSections !== sim.sections) {
+      this.buildRoom(sim.sections);
+      for (const [, o] of this.shelfObjs) this.scene.remove(o.g);
+      this.shelfObjs.clear(); this.ghostSig = '';
+    }
     // shelves
-    s.shelves.forEach((sh, si) => {
-      const obj = this.shelfObjs[si]; if (!obj) return;
+    for (const sh of s.shelves) if (!this.shelfObjs.has(sh.id)) { const o = this.makeShelf(sh.id, sh.kind); if (o) this.shelfObjs.set(sh.id, o); }
+    // free slots glow while furniture waits to be placed
+    const gsig = s.toPlace.length ? sim.freeSlots().map(f => f.id).join(',') : '';
+    if (gsig !== this.ghostSig) {
+      this.ghostSig = gsig; this.ghosts.clear();
+      if (gsig) for (const f of sim.freeSlots()) { const m = new THREE.Mesh(new THREE.PlaneGeometry(SHELF.w, SHELF.d), new THREE.MeshBasicMaterial({ color: '#2a9d8f', transparent: true, opacity: 0.35 })); m.rotation.x = -Math.PI / 2; m.position.set(f.x, 0.012, f.z); this.ghosts.add(m); }
+    }
+    s.shelves.forEach((sh) => {
+      const obj = this.shelfObjs.get(sh.id); if (!obj) return;
       sh.layers.forEach((L, li) => {
         const sig = L ? L.pid + ':' + L.count : '';
         if (obj.sig[li] === sig) return;
         obj.sig[li] = sig;
         const grp = obj.layers[li]; grp.clear();
         if (!L || !L.count) return;
-        const p = sim.P.get(L.pid), [w, h, d] = p.foot.map(v => v / 100), S = LAYOUT.shelves[si];
-        const nx = Math.max(1, Math.floor(0.92 / w)), nz = Math.max(1, Math.floor(0.38 / d)), ny = p.stack ? Math.max(1, Math.floor(0.30 / h)) : 1;
+        const p = sim.P.get(L.pid), [w, h, d] = p.foot.map(v => v / 100), S = SHELF, LW = sh.kind === 305 ? 0.90 : 0.92;
+        const nx = Math.max(1, Math.floor(LW / w)), nz = Math.max(1, Math.floor(0.38 / d)), ny = p.stack ? Math.max(1, Math.floor(0.30 / h)) : 1;
         const sx = Math.min(1, (S.w - 0.12) / (nx * w)), m = this.matFor(L.pid);
         let k = 0;
         for (let y = 0; y < ny && k < L.count; y++) for (let z = 0; z < nz && k < L.count; z++) for (let x = 0; x < nx && k < L.count; x++, k++) {

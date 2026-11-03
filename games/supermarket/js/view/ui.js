@@ -16,6 +16,7 @@ export class UI {
   }
 
   toast(text, kind = '') {
+    while (this.toastBox.children.length >= 2) this.toastBox.firstChild.remove();
     const t = h('div', 'toast ' + kind, text); this.toastBox.appendChild(t);
     setTimeout(() => t.classList.add('out'), 2200); setTimeout(() => t.remove(), 2700);
   }
@@ -50,6 +51,9 @@ export class UI {
     if (sim.register && !this.isOpen('register')) return '🧾 A customer is waiting — go to the register';
     if (s.day === 1 && s.served >= 2 && !Object.keys(s.ordered).length && s.money >= 1000) return '🖥️ Use the computer to order more stock';
     if (s.phase === 'closing') return '🌙 Closing time — serve the last customers';
+    if (s.toPlace.length) return '🗄️ Walk to a glowing spot and press E to place your furniture';
+    const next = sim.data.licenses.find(L => L.kind === 'product' && !s.licenses.includes(L.id));
+    if (next && sim.licenseState(next.id) === 'buy' && s.phase !== 'open') return `📜 ${next.name} is ready — buy it on the computer for new products`;
     return '';
   }
 
@@ -73,40 +77,90 @@ export class UI {
   }
 
   // ---- computer: market -------------------------------------------------------------------------------------------
-  openComputer() {
-    const sim = this.sim;
+  openComputer(tab = this.compTab || 'products') {
+    const sim = this.sim; this.compTab = tab;
     this.open('computer', card => {
-      this.head(card, '🖥️ Market', 'Order boxes. They arrive at the yellow delivery zone.');
+      this.head(card, '🖥️ Computer', `Balance ${money(sim.s.money)} · Store level ${sim.level}`);
+      const tabs = h('div', 'tabs');
+      for (const [k, label] of [['products', '🛒 Products'], ['licenses', '📜 Licenses'], ['furniture', '🗄️ Furniture'], ['sections', '🏗️ Sections']]) {
+        const b = h('button', k === this.compTab ? 'on' : '', label); b.dataset.tab = k; b.onclick = () => { this.compTab = k; this.refresh(); }; tabs.appendChild(b);
+      }
+      card.appendChild(tabs);
       const list = h('div', 'scroll'); card.appendChild(list);
-      for (const p of sim.catalogue()) {
-        const un = sim.unlocked(p.id), lic = sim.data.licenses.find(l => l.id === p.license);
-        const row = h('div', 'row' + (un ? '' : ' locked'));
-        const n = this.cart[p.id] || 0;
-        row.innerHTML = `${chip(p)}<div class="grow"><b>${p.name}</b><small>${un ? `${p.load} per box · unit ${money(p.cost)} · stock ${sim.stockOf(p.id)}` : `🔒 ${lic ? lic.name : 'License'} (next update)`}</small></div>` +
-          (un ? `<div class="price">${money(sim.boxPrice(p.id))}</div>` : '');
-        if (un) {
-          const q = h('div', 'qty');
-          const minus = h('button', '', '−'), plus = h('button', '', '+'), num = h('span', '', String(n));
-          minus.onclick = () => { this.cart[p.id] = Math.max(0, n - 1); this.refresh(); };
-          plus.onclick = () => { this.cart[p.id] = n + 1; this.refresh(); };
-          plus.dataset.add = p.id;
-          q.append(minus, num, plus); row.appendChild(q);
+      const T = this.compTab;
+      if (T === 'products') {
+        for (const p of sim.catalogue()) {
+          const un = sim.unlocked(p.id), lic = sim.lic(p.license);
+          const row = h('div', 'row' + (un ? '' : ' locked'));
+          const n = this.cart[p.id] || 0;
+          const where = p.shelf === 303 ? ' · ❄️ fridge' : p.shelf === 305 ? ' · 🍎 yellow shelf' : '';
+          row.innerHTML = `${chip(p)}<div class="grow"><b>${p.name}</b><small>${un ? `${p.load} per box · unit ${money(p.cost)} · stock ${sim.stockOf(p.id)}${where}` : `🔒 ${lic ? lic.name : 'License'}`}</small></div>` +
+            (un ? `<div class="price">${money(sim.boxPrice(p.id))}</div>` : '');
+          if (un) {
+            const q = h('div', 'qty');
+            const minus = h('button', '', '−'), plus = h('button', '', '+'), num = h('span', '', String(n));
+            minus.onclick = () => { this.cart[p.id] = Math.max(0, n - 1); this.refresh(); };
+            plus.onclick = () => { this.cart[p.id] = n + 1; this.refresh(); };
+            plus.dataset.add = p.id;
+            q.append(minus, num, plus); row.appendChild(q);
+          }
+          list.appendChild(row);
         }
-        list.appendChild(row);
+      } else if (T === 'licenses' || T === 'sections') {
+        const kind = T === 'licenses' ? 'product' : 'section';
+        for (const L of sim.data.licenses.filter(l => l.kind === kind)) {
+          const st = sim.licenseState(L.id), row = h('div', 'row' + (st === 'owned' ? ' owned' : ''));
+          const what = kind === 'product' ? sim.catalogue().filter(p => p.license === L.id).map(p => iconOf(p).emoji).join(' ') : `+${2.4} m of floor, more shelf space`;
+          row.innerHTML = `<span class="ico" style="background:${kind === 'product' ? '#ffe8a3' : '#c7ecee'}">${kind === 'product' ? '📜' : '🏗️'}</span><div class="grow"><b>${L.name}</b><small>${what}</small><small>Lv ${L.level}${L.requires ? ' · after ' + sim.lic(L.requires).name : ''}</small></div>`;
+          if (st === 'owned') row.appendChild(h('span', 'tag good', '✓ Owned'));
+          else {
+            const b = h('button', st === 'buy' ? 'primary' : '', L.price ? money(L.price) : 'Free'); b.disabled = st !== 'buy'; b.title = st; b.dataset.buy = L.id;
+            b.onclick = () => { const r = sim.buyLicense(L.id); if (r.ok) this.sfx.play('cash'); else this.toast(r.why, 'bad'); this.refresh(); };
+            const w = h('div', 'buycol'); w.appendChild(b); if (st !== 'buy') w.appendChild(h('small', 'bad', st)); row.appendChild(w);
+          }
+          list.appendChild(row);
+        }
+      } else if (T === 'furniture') {
+        const free = sim.freeSlots().length;
+        list.appendChild(h('div', 'note', `${free} free spot${free === 1 ? '' : 's'} on the floor${sim.s.toPlace.length ? ` · ${sim.s.toPlace.length} waiting to be placed` : ''}`));
+        for (const f of sim.furnitureShop()) {
+          const row = h('div', 'row');
+          const use = { 302: 'Shelf for most goods', 303: 'Cold goods: drinks, milk, meat, fish', 305: 'Fruit' }[f.sub];
+          const mine = sim.s.shelves.filter(x => x.kind === f.sub).length;
+          row.innerHTML = `<span class="ico" style="background:${f.sub === 303 ? '#dff3ff' : f.sub === 305 ? '#f2c14e' : '#dfe4ea'}">${f.sub === 303 ? '🧊' : f.sub === 305 ? '🍎' : '🗄️'}</span><div class="grow"><b>${f.name}</b><small>${use} · you have ${mine}</small></div>`;
+          const b = h('button', 'primary', money(f.price)); b.dataset.furn = f.id;
+          b.disabled = sim.s.money < f.price || !free;
+          b.onclick = () => { const r = sim.buyFurniture(f.id); if (r.ok) { this.sfx.play('cash'); this.close(); } else { this.toast(r.why, 'bad'); this.refresh(); } };
+          row.appendChild(b); list.appendChild(row);
+        }
       }
       const total = Object.entries(this.cart).reduce((a, [pid, n]) => a + sim.boxPrice(Number(pid)) * n, 0);
       const foot = h('div', 'pfoot');
-      const pend = sim.s.deliveries.map(d => `${chip(sim.P.get(d.pid))} ×${d.boxes} ${Math.ceil(d.remain)}s`).join(' ');
-      foot.innerHTML = `<div class="grow"><small>${pend ? 'On the way: ' + pend : 'Balance ' + money(sim.s.money)}</small><b>Cart ${money(total)}</b></div>`;
-      const go = h('button', 'primary', 'Order'); go.dataset.act = 'order';
-      go.disabled = !total || total > sim.s.money;
-      go.onclick = () => {
-        const r = sim.order(this.cart);
-        if (r.ok) { this.cart = {}; this.toast(`Ordered for ${money(r.total)}. Delivery soon.`, 'good'); this.sfx.play('cash'); }
-        else this.toast(r.why, 'bad');
-        this.refresh();
-      };
-      foot.appendChild(go); card.appendChild(foot);
+      const info = h('div', 'grow');
+      if (sim.s.deliveries.length) {
+        const sm = h('small', '');
+        sim.s.deliveries.forEach((d, i) => {
+          const it = h('span', 'deliv', `${chip(sim.P.get(d.pid))}×${d.boxes} ${Math.ceil(d.remain)}s`);
+          const fast = h('button', 'mini', `⚡ ${money(sim.data.settings.deliverySpeedUpCash)}`); fast.dataset.fast = i;
+          fast.onclick = () => { const r = sim.speedUp(i); if (!r.ok) this.toast(r.why, 'bad'); this.refresh(); };
+          it.appendChild(fast); sm.appendChild(it);
+        });
+        info.appendChild(sm);
+      }
+      if (T === 'products') info.appendChild(h('b', '', `Cart ${money(total)}`));
+      foot.appendChild(info);
+      if (T === 'products') {
+        const go = h('button', 'primary', 'Order'); go.dataset.act = 'order';
+        go.disabled = !total || total > sim.s.money;
+        go.onclick = () => {
+          const r = sim.order(this.cart);
+          if (r.ok) { this.cart = {}; this.toast(`Ordered for ${money(r.total)}. Delivery soon.`, 'good'); this.sfx.play('cash'); }
+          else this.toast(r.why, 'bad');
+          this.refresh();
+        };
+        foot.appendChild(go);
+      }
+      card.appendChild(foot);
     });
   }
 
@@ -222,7 +276,7 @@ export class UI {
         ['Customers', `${r.served} served / ${r.customers} came`], ['Satisfaction', `${r.satisfaction}`],
         ["Couldn't find", r.unableFind], ['Too expensive', r.tooExpensive], ['Short change', r.lessMoney],
         ['Income', money(r.income)], ['Stock cost', '−' + money(r.cost)], ['Upgrades', '−' + money(r.upgrade)],
-        ['Rent', '−' + money(r.rent) + ' <small>(placeholder)</small>'], ['Salary', '−' + money(r.salary)],
+        ['Rent', '−' + money(r.rent)], ['Salary', '−' + money(r.salary)],
         ['Profit', `<b class="${r.profit >= 0 ? 'good' : 'bad'}">${money(r.profit)}</b>`], ['Balance', money(r.balance)],
         ['Store level', `Lv ${r.level} · ${r.exp} exp (+${r.expGained})`],
       ];

@@ -29,15 +29,17 @@ def name_of(i):
     return lang.get(g['name']['key'], g['name']['key']).strip() if g else str(i)
 
 
-# Shelf layer plane of the white shelf prefab (MultiLayerItemLayout S_JH_01..04 planeSize 0.92 x 0.30 x 0.38 m).
-LAYER = (92, 30, 38)
+# Shelf layer planes (MultiLayerItemLayout.planeSize, cm): white shelf Shelves_01 S_JH_01..04 92x30x38, yellow
+# shelf Shelves_02 S_JH_05..08 90x30x38 (tilted -20 deg, fruit), fridge Binggui_01 BG_JH_04..07 92x30x38.
+LAYERS = {302: (92, 30, 38), 303: (92, 30, 38), 305: (90, 30, 38)}
 
 
 def shelf_cap(p):
+    L = LAYERS.get(p['type'], LAYERS[302])
     w, h, d = p['shelve_volume']
-    n = (LAYER[0] // w) * (LAYER[2] // d)
+    n = (L[0] // w) * (L[2] // d)
     if p['shelve_can_stack']:
-        n *= max(1, LAYER[1] // h)
+        n *= max(1, L[1] // h)
     return max(1, n)
 
 
@@ -106,12 +108,13 @@ waves = {str(c['value']): wave(c['nodeIds'][0]) for c in sw['conditions']}
 waves['default'] = wave(sw['_childs'][0])
 
 data = {
-    '_about': 'Numbers from Shop Simulator v1.411 configs/graphs. Money in cents. PLACEHOLDER = not in the data.',
+    '_about': 'Numbers from Shop Simulator v1.411 configs/graphs/code. Money in cents. PLACEHOLDER = not in the data.',
     'settings': {
         'dayStart': setting['MinGameTime'], 'dayEnd': setting['MaxGameTime'], 'timeRate': setting['GameTimeRate'],
         'initialMoney': setting['InitialMoney'], 'initialItem': setting['InitalItem'],
         'expPerCheckout': setting['OnceCashExp'], 'expPerOrder': setting['OnceOrderExp'],
         'giveChange': [[int(a), int(b)] for a, b in (s.split('_') for s in setting['Npc_GiveChange'])],
+        '_src_giveChange': 'NpcTakeoutCashNode.CreateMoney @0xDAB88C: random tier, +Random.Range(a,b) cents, ceil to x100',
         'deliverySpeedUpCash': setting['DeliverySpeedUpCash'], 'deliverySpeedUpEnergy': setting['DeliverySpeedUpEnergy'],
         'hireCashierCost': setting['HireCashierCost_Market'], 'hireCashierTime': setting['HireCashierTime'],
         'stockClerk': setting['StockClerkEmployee'][0], 'priceWarOpenDay': setting['PriceWarOpenDay'],
@@ -131,15 +134,18 @@ data = {
         'day4': {'units': [5, 7], 'unitsLate': [7, 9], 'lateFromDay': 7, 'perProduct': [1, 3], 'refuse': [10, 30],
                  '_src': 'graph MoreShopping #10346 DAY<7, #10347/#10238 SL, #10240 GM, #10362 vs YiJia'},
         'pickTime': [1.0, 1.5], 'walkSpeed': 2.0,
-        'patience': 60, 'patience_PLACEHOLDER': 'NpcRunAwayFromLineNode threshold is native code',
+        'patience': None,
+        '_src_patience': 'NpcRunAwayFromLineNode.GetChild @0xDA5944: returns runAway only when FireSystem.IsFiringStatus(),'
+                         ' else Line; the line graphs loop with 1 s waits, so customers never leave the queue for waiting',
         'satisfaction': {r['id']: r['satisfaction'] for r in cfg('NpcSatisfactionConfig')},
         '_src_sat': 'NpcSatisfactionConfig 1 cannot find -1, 2 too expensive -1, 3 short change -3',
         'firstDayPay': ['cash', 'card'],
         '_src_pay': 'graph CheckoutAiGraph #10067 day 1: 1st checkout cash (#10077), 2nd card (#10082), then random',
     },
-    'levels': levels, '_src_levels': 'ShopExpConfig pro_exp (treated as cumulative exp, guess)',
+    'levels': levels, '_src_levels': 'ShopExpConfig pro_exp = exp needed for each level (CashDeskSystem.AddShopExp @0xC60E54 subtracts it)',
     'products': products, 'furniture': furniture, 'licenses': licenses,
-    'rent': 0, 'rent_PLACEHOLDER': 'DailyUI.Rent exists, amount is native code',
+    'rent': 0, '_src_rent': 'DailySettleSystem.AddRent @0xC6C0F0, AddSalary @0xC6C124, AddLoan @0xC6C158 have no call'
+                           ' sites in libil2cpp (BL/B/BLX scan); set_Rent is only called by the save bridge -> always 0',
 }
 os.makedirs(os.path.dirname(out), exist_ok=True)
 json.dump(data, open(out, 'w'), ensure_ascii=False, separators=(',', ':'))

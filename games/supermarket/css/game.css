@@ -28,7 +28,7 @@ kbd { background: #fff; color: var(--ink); border-radius: 5px; padding: 1px 6px;
 .bubble { position: absolute; left: 0; top: 0; background: #fff; border-radius: 12px; padding: 5px 10px; font-size: 13px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,.2); white-space: nowrap; }
 .bubble.bad { color: var(--bad); } .bubble.good { color: var(--good); }
 
-#toasts { position: fixed; left: 50%; top: 34%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; z-index: 30; }
+#toasts { position: fixed; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 54px); transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; z-index: 30; }
 .toast { background: rgba(31,45,61,.92); color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .4s, transform .4s; max-width: 90vw; text-align: center; }
 .toast.good { background: rgba(46,157,88,.95); color: #fff; } .toast.bad { background: rgba(214,69,69,.95); color: #fff; } .toast.out { opacity: 0; transform: translateY(-8px); }
 
@@ -89,3 +89,10 @@ button.primary { background: var(--accent); color: #fff; border: 0; border-radiu
 @media (max-width: 520px) { .reg { flex-direction: column; } .belt { min-height: 60px; } .lvlbox { width: 120px; } .pill.right { font-size: 17px; } .panel .card { max-height: 72vh; } .panel.register .card { max-height: 80vh; } }
 .goal { max-width: 300px; background: rgba(255,255,255,.92); border-left: 4px solid var(--accent2); border-radius: 10px; padding: 7px 10px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .goal:empty { display: none; }
+.tabs { display: flex; gap: 4px; padding: 6px 10px 0; overflow-x: auto; }
+.tabs button { border: 0; background: #edf0f3; border-radius: 10px 10px 0 0; padding: 8px 10px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.tabs button.on { background: var(--accent); color: #fff; }
+.row.owned { opacity: .7; } .tag { font-size: 12px; font-weight: 800; } .buycol { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; } .buycol small { font-size: 11px; }
+.note { font-size: 12px; color: var(--muted); padding: 6px 4px; }
+.deliv { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+button.mini { border: 0; background: #ffe8a3; border-radius: 8px; padding: 3px 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
