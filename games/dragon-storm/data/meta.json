@@ -133,13 +133,13 @@
     "GOBLIN ATTACKS VILLAGE!",
     "BEGINNING OF A JOURNEY",
     "ATTACK OF THE STARVING WOLVES",
-    "HOSTAGES FROM THE VILLAGE",
     "THE BLITZ OF THE GOBLIN ARMY",
     "SHAMANKING THE LEADER",
+    "HOSTAGES FROM THE VILLAGE",
     "THE ATTACK OF GIANT OGRE",
     "THE CAVE OF GRIMROCKS"
    ],
-   "src": "GAME_INFO_TEXT::textsetting() @0x4d9a7c.. in code order. Note: clip c1 8:14 labels SHAMANKING as STAGE 5, so one of entries 4-5 is a special stage or the clip is another version; only 1-3 are used in Drop 1."
+   "src": "GAME_INFO_TEXT::textsetting() @0x4d9a80: stage-name slots +0x168.. in stage order (stage 4 = THE BLITZ OF THE GOBLIN ARMY, stage 5 = SHAMANKING THE LEADER, matching clip c1 8:14). The earlier list was in .rodata string order, which is not stage order."
   },
   "region": {
    "value": "NAMELESS LAND",

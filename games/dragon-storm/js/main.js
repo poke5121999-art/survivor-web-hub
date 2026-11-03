@@ -19,8 +19,8 @@ const SPEED = Math.max(0.1, Math.min(20, +Q.get('speed') || 1));
 const MANUAL = Q.has('manual');
 const SEED = +Q.get('seed') || 1;
 const STEP = 1 / 60;
-const BUILT_STAGES = ['stage01', 'stage02'];
-const MAP_STAGES = ['stage01', 'stage02', 'stage03', 'stage04']; // stages placed on the map (clip c2 5:20)
+const BUILT_STAGES = ['stage01', 'stage02', 'stage03', 'stage04', 'stage05'];
+const MAP_STAGES = BUILT_STAGES; // stages placed on the map (clip c2 5:20, stage 5 clip c1 7:52)
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -67,6 +67,7 @@ const SFX = {
   kill: () => 'sword_kill',
   miss: () => 'sword_miss',
   monsterAttack: e => sim.stage.monsters[e.mtype].attackSfx,
+  alert: () => 'boss_alert',
   heroDie: () => 'hero_die',
   skill: () => 'skill',
   potion: () => 'potion',
@@ -81,7 +82,7 @@ function startStage(id = stageId) {
   stageId = id;
   applyTiers();
   const st = meta.stats();
-  sim = ds.sim = createSim(stages[id], SEED + runs++, { hp: st.hp, atk: st.atk, crit: st.crit });
+  sim = ds.sim = createSim(stages[id], SEED + runs++, { hp: st.hp, atk: st.atk, crit: st.crit, def: st.def });
   sim.inputFlash = inputFlash;
   resultInfo = { best: meta.stageInfo(id).best, hasNext: false };
   ds.scene = 'stage';

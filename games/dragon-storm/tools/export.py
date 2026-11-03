@@ -31,6 +31,19 @@ IMAGES = {
     # monsters: 2 columns; 0-3 walk, 4 severed head, 5 headless body, 6-9 attack
     'm_goblin_swordman': ('M_goblin_swordman_01(110x74).png', 110, 74, 10),
     'm_wolf': ('M_wolf_01(110x85).png', 110, 85, 10),
+    'm_goblin_archer': ('M_goblin_archer_01(110x74).png', 110, 74, 10),  # 6-9 = draw and shoot
+    'm_goblin_flag': ('M_goblin_flag_01(110x74).png', 110, 74, 10),
+    'm_goblin_shaman': ('M_goblin_shaman_01(110x85).png', 110, 85, 12),  # Shamanking (stage 5 boss), 10-11 cast
+    'm_archer_arrow': ('M_archer_arrow(56x16).png', None, None, 1),
+    # stage 3-5 (Scene_UI::FUC_SET_BACKGROUD_IMAGE @0x5f6560) and stage 1's real pad
+    'bg_d_02': ('bg_d_02(480x460).jpg', None, None, 1),
+    'bg_t_07': ('bg_t_07(480x424).png', None, None, 1),
+    # boss HP bar under the stage title, boss-wave alert, wolf warning (Scene_UI::EFF_MARK_ALERT)
+    'board_hp_boss': ('in_board_hp_boss(366x22).png', None, None, 1),
+    'gauge_hp_boss': ('gauge_hp_boss(350x6).png', None, None, 1),
+    'eff_alert': ('in_eff_alert(100x100).png', None, None, 1),
+    'eff_warning_wolf': ('in_eff_warning_wolf(64x64).png', None, None, 1),
+    'eff_warning': ('in_eff_warning(32x32).png', None, None, 1),
     'gauge_monster': ('gauge_monster(44x6).png', 44, 6, 2),  # 0 = back, 1 = red fill
     # HUD
     'board_target': ('in_board_target(186x102).png', None, None, 1),  # book + coin counters (top right)
@@ -115,6 +128,8 @@ AUDIO = {
     'coin': 'S_GET_GOLD.wav',
     'potion': 'S_POTION.wav',
     'gold': 'S_gold.wav',
+    'arrow': 'S_ARROW.wav',
+    'boss_alert': 'S_BOSS_ALERT.wav',
 }
 
 

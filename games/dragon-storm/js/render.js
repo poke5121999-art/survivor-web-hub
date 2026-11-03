@@ -249,7 +249,7 @@ export function createRenderer(ctx, art) {
   function monsterFrame(m, def) {
     if (m.state === 'dead') return 5;
     if (m.state === 'attack') return 6 + Math.min(3, Math.floor((m.st / 0.45) * 4));
-    if (m.state === 'walk') return Math.floor(m.st * (def.speed > 120 ? 14 : 9)) % 4;
+    if (m.state === 'walk') return Math.floor(m.st * (m.speed > 150 ? 14 : 9)) % 4;
     return 0;
   }
 
@@ -257,19 +257,39 @@ export function createRenderer(ctx, art) {
     for (const m of s.monsters) {
       const def = s.stage.monsters[m.type];
       const a = img(def.sheet);
-      const x = m.x - a.fw / 2;
-      const y = GROUND_Y - a.fh + 2;
+      const sc = def.scale || 1;
+      const fw = (a.fw || a.w) * sc;
+      const fh = (a.fh || a.h) * sc;
+      const x = m.x - fw / 2;
+      // arrows fly at chest height; everything else stands on the ground strip
+      const y = def.projectileOf ? GROUND_Y - 52 : GROUND_Y - fh + 2;
       const flip = m.side > 0; // sheets face right; the right lane walks left
-      const f = monsterFrame(m, def);
-      const alpha = m.state === 'dead' ? Math.max(0, 1 - m.st / 0.7) : 1;
-      frame(def.sheet, f, x, y, { flip, alpha });
-      if (m.flash > 0) frame(def.sheet, f, x, y, { flip, add: true, alpha: 0.9 });
-      if (m.state !== 'dead') { // thin red HP bar under the monster (clip c1 2:21)
+      const f = def.projectileOf ? 0 : monsterFrame(m, def);
+      const alpha = m.state === 'dead' ? (m.spent ? 0 : Math.max(0, 1 - m.st / 0.7)) : 1;
+      frame(def.sheet, f, x, y, { flip, alpha, scale: sc });
+      if (m.flash > 0) frame(def.sheet, f, x, y, { flip, add: true, alpha: 0.9, scale: sc });
+      if (m.state !== 'dead' && !def.projectileOf && def.ai !== 4) { // thin red HP bar under the monster (clip c1 2:21)
         const gx = Math.round(m.x - 22);
         const gy = GROUND_Y + 2;
         frame('gauge_monster', 0, gx, gy);
         const w = Math.max(0, (44 * m.hp) / m.hpMax);
         ctx.drawImage(img('gauge_monster').img, 0, 6, w, 6, gx, gy, w, 6);
+      }
+    }
+  }
+
+  // boss-wave alert (in_eff_alert blinking at the entry side) and the wolf-pack warning at the screen edge
+  // (Scene_UI::EFF_MARK_ALERT; placed as in clip c1 8:14: wolf heads at the right edge with a red arrow)
+  function drawAlerts(s) {
+    for (const a of s.alerts) {
+      if (a.k === 'alert') {
+        const on = Math.floor(a.t / 0.3) % 2 === 0;
+        if (on) ctx.drawImage(img('eff_alert').img, a.side > 0 ? W - 110 : 10, GROUND_Y - 160);
+      } else {
+        const i = s.alerts.filter(b => b.k === 'wolf' && b.side === a.side).indexOf(a);
+        const y = GROUND_Y - 190 + i * 30 + a.dy;
+        const x = a.side > 0 ? W - 72 : 8;
+        frame('eff_warning_wolf', 0, x, y, { flip: a.side > 0 }); // red arrow points out toward the incoming side
       }
     }
   }
@@ -284,6 +304,11 @@ export function createRenderer(ctx, art) {
     tileX('bg_top', 0);
     plain(`STAGE ${s.stage.number}`, 14, 34, 19);
     plain(s.stage.title, 14, 62, 19);
+    if (s.boss) { // boss HP bar under the title (clip c1 8:14; Scene_UI::FUC_SET_MONSTER_HP_BAR)
+      ctx.drawImage(img('board_hp_boss').img, 6, 68);
+      const frac = Math.max(0, s.boss.hp / s.boss.hpMax);
+      if (frac > 0) ctx.drawImage(img('gauge_hp_boss').img, 0, 0, 350 * frac, 6, 14, 76, 350 * frac, 6);
+    }
     const bx = 356;
     const by = 16;
     const sc = 0.64;
@@ -426,12 +451,14 @@ export function createRenderer(ctx, art) {
     ctx.fillRect(0, 0, W, H);
     ctx.save();
     if (shake > 0) ctx.translate((rand() - 0.5) * 8 * (shake / 0.2), (rand() - 0.5) * 6 * (shake / 0.2));
-    // the pad's rock wall goes first so the lane background can cover its grass lip where the stage has none
-    const pad = img(s.stage.pad);
-    ctx.drawImage(pad.img, 0, PAD_TOP + (s.stage.padOffset || 0), pad.dw || pad.w, pad.dh || pad.h);
+    // lane background first, then the pad (bg_t_*) on top: its top strip (stage 1 stone pavement, grass elsewhere) is
+    // the ground the hero stands on (clip c2 1:10 stage 1, c1 8:14 stage 5)
     const bg = img(s.stage.background); // stored at half resolution, shown at its 480x460 display size
     ctx.drawImage(bg.img, 0, -8, bg.dw || bg.w, bg.dh || bg.h);
+    const pad = img(s.stage.pad);
+    ctx.drawImage(pad.img, 0, PAD_TOP + (s.stage.padOffset || 0), pad.dw || pad.w, pad.dh || pad.h);
     drawMonsters(s);
+    drawAlerts(s);
     drawHero(s);
     ctx.restore();
     drawPad(s);

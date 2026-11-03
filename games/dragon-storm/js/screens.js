@@ -5,7 +5,8 @@ import { W, H } from './sim.js';
 
 // stage button centres on map_00_01 (map pixels), clip c2 5:20: stages 1-4 and the reward chest. The original only
 // draws stages that are open, so nothing past the last open stage is placed.
-export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579]]; // stage 1 sits on the map art's red X
+// stage 5: the locked boss-stage marker on clip c1 7:52 (map shown 1:1 there, scrolled 51 px: map y = clip y + 51)
+export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579], [211, 516]]; // stage 1 sits on the map art's red X
 export const MAP_CHEST = [161, 577];
 const MAP_H = 1024;
 const TAB_Y = 712;

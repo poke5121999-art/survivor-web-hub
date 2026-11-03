@@ -76,6 +76,100 @@
    "cols": 2,
    "frames": 10
   },
+  "m_goblin_archer": {
+   "file": "art/m_goblin_archer.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_archer_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_goblin_flag": {
+   "file": "art/m_goblin_flag.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_flag_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_goblin_shaman": {
+   "file": "art/m_goblin_shaman.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_shaman_01(110x85).png",
+   "fw": 110,
+   "fh": 85,
+   "cols": 2,
+   "frames": 12
+  },
+  "m_archer_arrow": {
+   "file": "art/m_archer_arrow.png",
+   "w": 56,
+   "h": 16,
+   "src": "M_archer_arrow(56x16).png",
+   "dw": 56,
+   "dh": 16
+  },
+  "bg_d_02": {
+   "file": "art/bg_d_02.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_02(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_t_07": {
+   "file": "art/bg_t_07.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_07(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "board_hp_boss": {
+   "file": "art/board_hp_boss.png",
+   "w": 366,
+   "h": 22,
+   "src": "in_board_hp_boss(366x22).png",
+   "dw": 366,
+   "dh": 22
+  },
+  "gauge_hp_boss": {
+   "file": "art/gauge_hp_boss.png",
+   "w": 350,
+   "h": 6,
+   "src": "gauge_hp_boss(350x6).png",
+   "dw": 350,
+   "dh": 6
+  },
+  "eff_alert": {
+   "file": "art/eff_alert.png",
+   "w": 100,
+   "h": 100,
+   "src": "in_eff_alert(100x100).png",
+   "dw": 100,
+   "dh": 100
+  },
+  "eff_warning_wolf": {
+   "file": "art/eff_warning_wolf.png",
+   "w": 64,
+   "h": 64,
+   "src": "in_eff_warning_wolf(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
+  "eff_warning": {
+   "file": "art/eff_warning.png",
+   "w": 32,
+   "h": 32,
+   "src": "in_eff_warning(32x32).png",
+   "dw": 32,
+   "dh": 32
+  },
   "gauge_monster": {
    "file": "art/gauge_monster.png",
    "w": 44,
@@ -901,6 +995,14 @@
   "gold": {
    "file": "art/sfx/S_gold.wav",
    "src": "S_gold.wav"
+  },
+  "arrow": {
+   "file": "art/sfx/S_ARROW.wav",
+   "src": "S_ARROW.wav"
+  },
+  "boss_alert": {
+   "file": "art/sfx/S_BOSS_ALERT.wav",
+   "src": "S_BOSS_ALERT.wav"
   }
  }
 }
