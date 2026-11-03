@@ -530,14 +530,15 @@
       // Bảng trên GameSpark dán trước khi có mat/mass: hai cột hiện với số gốc của game, lưu lần đầu là ghi vào bảng.
       fillMissing: true,
       inline: 8,
+      wide: true,
       fields: {
         "_id": { label: "Mã", help: "<bộ>/<tên prefab>, chỉ để không trùng. Giữ nguyên." },
-        "set": { label: "Bộ loot", help: "Khoá nhận diện món cùng với cỡ và ô; đổi là game không tìm thấy món." },
-        "size": { label: "Cỡ", int: true, help: "0 nhỏ, 1 vừa, 2 to. Khoá nhận diện món, đừng đổi." },
-        "slot": { label: "Ô trong dải hình", int: true, help: "Khoá nhận diện món, đừng đổi." },
+        "set": { label: "Bộ loot", readonly: true, help: "Khoá nhận diện món cùng với cỡ và ô; đổi là game không tìm thấy món." },
+        "size": { label: "Cỡ", int: true, readonly: true, help: "0 nhỏ, 1 vừa, 2 to. Khoá nhận diện món." },
+        "slot": { label: "Ô trong dải", int: true, readonly: true, help: "Khoá nhận diện món." },
         "vmin": { label: "Giá thấp nhất", min: 0 },
         "vmax": { label: "Giá cao nhất", min: 0 },
-        "place": { label: "Chỗ rơi", help: "Anywhere = đâu cũng được, Floor = chỉ dưới đất, Table = chỉ trên mặt bàn." },
+        "place": { label: "Chỗ rơi", choices: [{ v: "Anywhere", label: "Mọi nơi" }, { v: "Floor", label: "Dưới đất" }, { v: "Table", label: "Trên bàn" }] },
         "mat": { label: "Chất liệu", help: "Theo theme = bốc theo tỉ lệ chất liệu của theme mỗi lần món rơi. Chất liệu quyết độ giòn và màu (bảng Chất liệu đồ).",
           choices: [{ v: "", label: "Theo theme" }, { v: "gốm", label: "Gốm" }, { v: "gỗ", label: "Gỗ" }, { v: "kim loại", label: "Kim loại" }] },
         "mass": { label: "Độ nặng", min: 0, max: 1000, help: "Khối lượng khi kéo, vác, chất xe. Số gốc bằng độ nặng của cỡ (nhỏ 8, vừa 24, to 58). 0 = theo bảng Cỡ đồ." }

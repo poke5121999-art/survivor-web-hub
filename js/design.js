@@ -619,6 +619,7 @@
   function renderMain() {
     var n = S.current, pane = $("dz-pane");
     pane.textContent = "";
+    document.querySelector(".dz-main").classList.toggle("dz-main--wide", !!(n && (LABELS[n] || {}).wide));
     if (!n) return;
     if (n === GUARD) { renderGuard(pane); return; }
     if (n === GATE) { renderGate(pane); return; }

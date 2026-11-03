@@ -8,6 +8,12 @@
 
 .dz-header__inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .dz-main { max-width: 1280px; padding-bottom: 120px; }
+/* A table whose columns do not fit 1280px (labels: wide) takes the whole window and packs its cells tighter. */
+.dz-main--wide { max-width: none; }
+@media (min-width: 821px) { .dz-main--wide .dz-layout { grid-template-columns: 220px minmax(0, 1fr); } }
+.dz-main--wide .dz-grid__name:has(.dz-row__sprite) { min-width: 190px; }
+.dz-main--wide .dz-grid .dz-input { min-width: 64px; }
+.dz-main--wide .dz-grid select.dz-input { min-width: 116px; }
 
 .dz-banner {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
