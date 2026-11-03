@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Corner Mart</title>
+<meta name="description" content="Run a small supermarket: order stock, fill shelves, set prices and work the register.">
+<link rel="stylesheet" href="./css/game.css?v=20261103a">
+<!-- IMPORTMAP:BEGIN (tools/stamp.py) -->
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.min.js?v=20261103a",
+  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261103a",
+  "./js/main.js": "./js/main.js?v=20261103a",
+  "./js/sim/layout.js": "./js/sim/layout.js?v=20261103a",
+  "./js/sim/sim.js": "./js/sim/sim.js?v=20261103a",
+  "./js/view/icons.js": "./js/view/icons.js?v=20261103a",
+  "./js/view/ui.js": "./js/view/ui.js?v=20261103a",
+  "./js/view/world.js": "./js/view/world.js?v=20261103a"
+} }
+</script>
+<!-- IMPORTMAP:END -->
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="hud">
+  <div class="pill left"><b id="day">Day 1</b><span id="clock">06:00</span><span id="status" class="status prep">Closed</span></div>
+  <div class="pill right"><span id="money">$0.00</span></div>
+  <div class="lvlbox"><b id="lvl">Lv 1</b><div class="bar"><i id="expbar"></i></div><small id="explbl"></small></div>
+  <div class="leftcol"><div id="goal" class="goal"></div><span id="deliv" class="chipk"></span><span id="queue" class="chipk"></span></div>
+  <button id="openbtn" class="openbtn">🔓 Open store</button>
+</div>
+<div id="bubbles"></div>
+<div id="prompt"></div>
+<div id="joy"><div id="knob"></div></div>
+<button id="actbtn" class="round act">E</button>
+<button id="dropbtn" class="round drop">⬇</button>
+<div id="panel" class="panel" style="display:none"></div>
+<div id="toasts"></div>
+<div id="loading">Loading…</div>
+<script>window.SM_REV = '20261103a';</script>
+<script type="module" src="./js/main.js?v=20261103a"></script>
+</body>
+</html>

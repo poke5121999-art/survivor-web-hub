@@ -1138,6 +1138,20 @@ window.HUB_GAMES = [
     tags: ["Hành động", "Một ngón", "Màn dọc"]
   },
   {
+    id: "supermarket",
+    title: "Corner Mart",
+    tagline: "Nhập hàng, xếp kệ, đặt giá và tự đứng quầy: quét mã, quẹt thẻ, thối tiền cho từng khách.",
+    desc: "Mô phỏng siêu thị nhỏ 3D chạy thẳng trên web (dưới 1 MB). Bê thùng hàng lên kệ, đặt giá so với giá thị trường, mở cửa đón khách theo từng đợt, quét từng món ở quầy, gõ số tiền khi khách quẹt thẻ, lấy tiền thối khi khách trả tiền mặt (thối thiếu là khách phàn nàn), đặt thêm hàng trên máy tính, cuối ngày xem báo cáo lãi lỗ và lên cấp cửa hàng. Luật và giá lấy từ dữ liệu game Shop Simulator. Bàn phím hoặc kéo để đi, lưu trong trình duyệt.",
+    genre: "thu-gian",
+    accent: "#e76f51",
+    en: { title: "Corner Mart", tagline: "Order stock, fill shelves, set prices and work the till: scan, card, give change.", desc: "A small 3D supermarket sim straight in the browser (under 1 MB). Carry boxes to shelves, price against the market, open for waves of customers, scan every item, key in card payments, count out change for cash (short change upsets them), reorder on the computer, and read the profit report at closing. Rules and prices from Shop Simulator's data. Keys or drag to walk, saved in the browser." },
+    thumbnail: "assets/thumbnails/supermarket.png",
+    path: "games/supermarket/index.html",
+    rev: "20261103a",
+    status: "available",
+    tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
+  },
+  {
     id: "dragon-storm",
     title: "Dragon Storm",
     tagline: "Hiệp sĩ thủ làng: chạm để chém, né và tung chiêu chặn quái tràn vào từng màn.",
