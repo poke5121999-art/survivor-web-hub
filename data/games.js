@@ -1152,6 +1152,20 @@ window.HUB_GAMES = [
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
   },
   {
+    id: "petshop",
+    title: "Pet Shop",
+    tagline: "Mở tiệm thú cưng: nhập hàng, xếp kệ, đặt giá rồi tự đứng quầy quét mã, thối tiền cho khách.",
+    desc: "Mô phỏng tiệm thú cưng 3D chạy thẳng trên web. Đặt hàng trên laptop, chờ giao, bê thùng lên kệ, đặt giá so với giá thị trường, mở cửa đón khách, quét từng món ở quầy, thối tiền mặt hoặc quẹt thẻ, cuối ngày xem báo cáo lãi lỗ (trừ 5% thuế) rồi lên cấp mở thêm license và khu vực. Thú cưng (mèo Xiêm, Husky) bán từ chuồng. Luật và giá lấy từ dữ liệu game gốc. Bàn phím hoặc kéo để đi, nhắm + E để tương tác, lưu trong trình duyệt.",
+    genre: "thu-gian",
+    accent: "#8a63d2",
+    en: { title: "Pet Shop", tagline: "Run a pet store: order stock, fill shelves, set prices and work the till — scan and give change.", desc: "A 3D pet-shop sim straight in the browser. Order on the laptop, wait for delivery, carry boxes to shelves, price against the market, open for customers, scan each item at the till, give cash change or take card, and read the profit report (minus 5% tax) at closing, then level up to unlock licenses and new sections. Pets (Siamese, Husky) sell from the cage. Rules and prices from the original game's data. Keys or drag to walk, aim + E to interact, saved in the browser." },
+    thumbnail: "assets/thumbnails/petshop.png",
+    path: "games/petshop/index.html",
+    rev: "20261103a",
+    status: "available",
+    tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
+  },
+  {
     id: "dragon-storm",
     title: "Dragon Storm",
     tagline: "Hiệp sĩ thủ làng: chạm để chém, né và tung chiêu chặn quái tràn vào từng màn.",

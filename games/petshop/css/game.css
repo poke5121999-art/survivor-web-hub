@@ -1,0 +1,33 @@
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+#stage { position: fixed; inset: 0; }
+#game { width: 100%; height: 100%; display: block; touch-action: none; }
+#hud { position: absolute; inset: 0; pointer-events: none; }
+.hub { position: fixed; left: 8px; bottom: 8px; color: #fff; font: 12px system-ui; opacity: .6; text-decoration: none; z-index: 50; }
+.ui { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; z-index: 2; }
+.ui .u { position: absolute; }
+.ui .u[hidden] { display: none !important; }
+.ui .u > i.sl { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; }
+.ui .u.t { display: flex; white-space: pre; line-height: 1; letter-spacing: 0.01em; }
+.ui .u.t > span { flex-shrink: 0; }
+.ui .u.b { pointer-events: auto; cursor: pointer; }
+.ui .u.b:active { filter: brightness(0.9); }
+.map { position: absolute; top: 72px; left: 8px; z-index: 3; width: 44px; height: 44px; border: 0; background: transparent center / contain no-repeat; cursor: pointer; pointer-events: auto; }
+.mapnav[hidden] { display: none; }
+.mapnav { position: absolute; left: 0; right: 0; bottom: 37%; display: flex; justify-content: space-between; padding: 0 10px; z-index: 4; pointer-events: none; }
+.mapnav button { pointer-events: auto; border: 0; border-radius: 50%; width: 44px; height: 44px; font-size: 22px; color: #fff; background: rgba(0,0,0,.45); cursor: pointer; }
+.snd { position: absolute; top: 8px; left: 72px; z-index: 3; pointer-events: auto; border: 0; background: rgba(0,0,0,.4); color: #fff; border-radius: 8px; padding: 2px 8px; font-size: 16px; cursor: pointer; }
+#stick { position: absolute; left: -36px; top: -36px; width: 72px; height: 72px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); pointer-events: none; }
+/* Skin shop: the SkinForm cells sit in one horizontal scrolling row (SkinScrollRect) inside ScrSkin/Viewport. */
+.skinvp { overflow-x: auto; overflow-y: hidden; pointer-events: auto; }
+.skinrow { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center; gap: 14px; padding: 0 20px; }
+.skincell { position: relative; flex: none; width: 180px; height: 370px; }
+.skinpv { background-size: contain; background-repeat: no-repeat; background-position: center bottom; }
+#skinview { pointer-events: auto; }
+.ui .u.t.wrap { white-space: normal; }
+.ui .u.t.wrap > span { flex-shrink: 1; max-width: 100%; }
+.ui .u.t { font-stretch: 75%; font-weight: 700; }
+.pos { position: fixed; left: 50%; top: 12%; transform: translateX(-50%); background: #0d2430e6; color: #7cf9a0; font: 700 20px/1.25 'Courier New', monospace;
+  padding: 10px 18px; border: 3px solid #1f4d63; border-radius: 8px; white-space: pre; z-index: 5; pointer-events: none; text-align: right; }
+.timer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: 700 34px 'Noto Sans', sans-serif; font-stretch: 75%; }
+.obj { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 24px 0 120px; color: #333; font: 700 30px 'Noto Sans', sans-serif; font-stretch: 75%; }
+.crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 2px #000; z-index: 4; pointer-events: none; }
