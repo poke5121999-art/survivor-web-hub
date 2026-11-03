@@ -18,7 +18,10 @@ const MON_ATTACK_TIME = 0.45;
 const MON_ATTACK_HIT = 0.25;
 const DEAD_BODY_TIME = 0.7;
 
-export function createSim(stage, seed = 1) {
+// opts (from the meta save): hp = max HP (knightStats.hpByArmorLevel), atk = ATK (atkByWeaponLevel), crit = CRIT
+// (critByWeaponLevel). Real values; how ATK turns into damage is still the placeholder range scaled by atk/10 until
+// the C++ damage formula (Scene_UI::FUC_CALCULATE_DAMAGE_*) is recovered in M4.
+export function createSim(stage, seed = 1, opts = {}) {
   const h = stage.hero;
   let r = (seed * 48271) % 2147483647 || 1;
   return {
@@ -28,7 +31,9 @@ export function createSim(stage, seed = 1) {
     t: 0,
     clock: 0,
     paused: false,
-    hero: { x: HERO_X, offX: 0, hp: h.hp, hpMax: h.hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0 },
+    atkScale: opts.atk ? opts.atk / 10 : 1,
+    crit: opts.crit ?? null,
+    hero: { x: HERO_X, offX: 0, hp: opts.hp ?? h.hp, hpMax: opts.hp ?? h.hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0 },
     monsters: [],
     nextWave: 0,
     nextId: 1,
@@ -87,7 +92,12 @@ export function attack(s, side) {
   s.combo++;
   s.maxCombo = Math.max(s.maxCombo, s.combo);
   const [lo, hi] = H_.damage;
-  return damageMonster(s, target, Math.round(lo + s.rng() * (hi - lo)), side);
+  let dmg = Math.round((lo + s.rng() * (hi - lo)) * s.atkScale);
+  // critical: rand()%100 < CRIT + 15 doubles the hit (Scene_Stage::update @0x590ef8, EFF_CRITICAL)
+  let crit = false;
+  if (s.crit !== null && Math.floor(s.rng() * 100) < s.crit + 15) { dmg *= 2; crit = true; }
+  s.lastCrit = crit;
+  return damageMonster(s, target, dmg, side);
 }
 
 // the red button: slash the way the hero is facing
@@ -100,7 +110,7 @@ function damageMonster(s, m, dmg, side) {
     m.kx = side * 260; // knocked back away from the hero
     m.state = 'walk';
     m.st = 0;
-    emit(s, 'hit', { id: m.id, x: m.x, side, dmg });
+    emit(s, 'hit', { id: m.id, x: m.x, side, dmg, crit: !!s.lastCrit });
     return 'hit';
   }
   killMonster(s, m, side, dmg);
@@ -117,7 +127,7 @@ function killMonster(s, m, side, dmg) {
   s.score += pts;
   s.gold += def.gold;
   if (s.kills % s.stage.hero.skillEvery === 0) { s.skillCharges++; emit(s, 'skillCharge', { charges: s.skillCharges }); }
-  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold: def.gold });
+  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold: def.gold, crit: !!s.lastCrit });
 }
 
 // Blue button. Placeholder for Sword Storm: spend one charge, hit every monster on screen.
@@ -125,6 +135,7 @@ export function skill(s) {
   const hero = s.hero;
   if (s.phase !== 'play' || s.paused || hero.state === 'dead' || s.skillCharges <= 0) return false;
   s.skillCharges--;
+  s.lastCrit = false;
   emit(s, 'skill', {});
   for (const m of living(s)) {
     if (m.x > -20 && m.x < W + 20) damageMonster(s, m, s.stage.hero.skillDamage, m.x < hero.x ? -1 : 1);

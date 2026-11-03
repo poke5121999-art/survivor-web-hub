@@ -1,0 +1,165 @@
+{
+ "_note": "Meta data recovered from libMyGame.so (Dragon Storm v90) with tools/ds_dis.py, tools/ctor_fields.py, tools/xref_*.py. Every value carries its source: C++ function + address (initial value set via secureSet::setInt in that function), or 'clip' for something only observed in gameplay footage, or PLACEHOLDER. secureSet stores 2*v+0x54c (secureSet::setInt @0x619e40 / getInt @0x619e08), so the setInt literals are the real values.",
+ "startGold": {
+  "value": 100,
+  "src": "LoadGold() @0x61c700: UserDefault 'AV_987' default 0x546=1350, gold = raw/3 - 350 (SaveGold() @0x61ef20 writes 3*gold+1050)"
+ },
+ "upgrade": {
+  "maxLevel": {
+   "value": 9,
+   "src": "Scene_WorldMap::Call_Back_Upgrade_Weapon @0x55ddc4 / Call_Back_Upgrade_Armor: refuse (FUC_FLASH_POPUP 4) when level > 8; levels 0..9"
+  },
+  "startLevel": {
+   "value": 0,
+   "src": "GameData::GameData() @0x622498: g_Data+0x9648 (weapon) / +0x95b8 (armor) per character set to 0"
+  },
+  "labelLevel": {
+   "value": "level + 2 (the level the card buys)",
+   "src": "Scene_WorldMap::FUC_SET_FONT() @0x548fd4: createWithFormat('Lv.%d', level + 2); matches clip c1 4:42 (level 1 -> 'Lv.3' 400)"
+  },
+  "weapon": {
+   "levelField": "g_Data+0x9648+char*8",
+   "priceByLevel": [
+    200,
+    400,
+    600,
+    1000,
+    1600,
+    2600,
+    4200,
+    6800,
+    11000
+   ],
+   "price_src": "GameData::GameData() @0x622498: table g_Data+0x9338..0x9380 = [100, 200, 400, 600, 1000, 1600, 2600, 4200, 6800, 11000]; Call_Back_Upgrade_Weapon reads g_Data+0x9340+level*8 (= entry level+1)"
+  },
+  "armor": {
+   "levelField": "g_Data+0x95b8+char*8",
+   "priceByLevel": [
+    200,
+    400,
+    600,
+    1000,
+    1600,
+    2600,
+    4200,
+    6800,
+    11000
+   ],
+   "price_src": "GameData::GameData() @0x622498: table g_Data+0x92e8..0x9330 = [100, 200, 400, 600, 1000, 1600, 2600, 4200, 6800, 11000]; Call_Back_Upgrade_Armor reads g_Data+0x92f0+level*8"
+  },
+  "pay_src": "Call_Back_Upgrade_Weapon: if gold < price -> Call_Back_PopUp02(2) (not enough gold), else gold -= price, level++ , SaveGold(), SaveCharacter(); S_gold.wav"
+ },
+ "knightStats": {
+  "_note": "Character 0 (knight), indexed by level 0..9. Field roles from use sites: ATK passed to Scene_UI::FUC_CALCULATE_DAMAGE_* (Scene_Stage::update @0x590ec4); CRIT: rand()%100 < CRIT+15 doubles the hit with EFF_CRITICAL (@0x590ef8); DEF read by Scene_Stage::FUC_HIT_BY_MONSTER; HP float (player+0x548). Loaded by Scene_UI::FUC_INIT_PLAYER @0x5f1b6c.",
+  "atkByWeaponLevel": {
+   "value": [
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55
+   ],
+   "src": "GameData::GameData() @0x622498: g_Data+0x9798 + char*0x50 + level*8 -> player+0x53c"
+  },
+  "critByWeaponLevel": {
+   "value": [
+    10,
+    13,
+    16,
+    19,
+    22,
+    25,
+    28,
+    31,
+    34,
+    37
+   ],
+   "src": "GameData::GameData() @0x622498: g_Data+0x9978 + char*0x50 + level*8 -> player+0x540 (percent, +15 in the hit roll)"
+  },
+  "defByArmorLevel": {
+   "value": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+   ],
+   "src": "GameData::GameData() @0x622498: g_Data+0x9b58 + char*0x50 + level*8 -> player+0x544"
+  },
+  "hpByArmorLevel": {
+   "value": [
+    130,
+    180,
+    230,
+    280,
+    330,
+    380,
+    430,
+    480,
+    530,
+    580
+   ],
+   "src": "GameData::GameData() @0x622498: g_Data+0x9d38 + char*0x50 + level*8 -> player+0x548 (float)"
+  }
+ },
+ "levelToTier": {
+  "value": [
+   "01",
+   "02",
+   "03",
+   "04",
+   "05",
+   "06",
+   "07",
+   "08",
+   "09",
+   "10"
+  ],
+  "src": "inferred: Scene_Stage::Init_Data loads armor_cha_01_01..10 then 20,30,40,50,11 (texture order); clip c1 4:42 shows level 1 wearing tier-02 art (steel sword, grey boots). Tiers 11/20-50 are not reachable by level upgrades."
+ },
+ "stages": {
+  "titles": {
+   "value": [
+    "GOBLIN ATTACKS VILLAGE!",
+    "BEGINNING OF A JOURNEY",
+    "ATTACK OF THE STARVING WOLVES",
+    "HOSTAGES FROM THE VILLAGE",
+    "THE BLITZ OF THE GOBLIN ARMY",
+    "SHAMANKING THE LEADER",
+    "THE ATTACK OF GIANT OGRE",
+    "THE CAVE OF GRIMROCKS"
+   ],
+   "src": "GAME_INFO_TEXT::textsetting() @0x4d9a7c.. in code order. Note: clip c1 8:14 labels SHAMANKING as STAGE 5, so one of entries 4-5 is a special stage or the clip is another version; only 1-3 are used in Drop 1."
+  },
+  "region": {
+   "value": "NAMELESS LAND",
+   "src": "GAME_INFO_TEXT::textsetting() @0x4d995c (clip map art reads 'NAMELESS FOREST' painted on the parchment: that is map art, not text)"
+  },
+  "unlockRule": {
+   "value": "clearing stage N unlocks N+1",
+   "src": "clip c2 5:20 (stages 1-3 cleared with stars, 4 open); not traced in C++ - PLACEHOLDER-grade"
+  },
+  "itemsUnlockText": {
+   "value": "AVAILABLE AFTER: CLEAR STAGE 4",
+   "src": "GAME_INFO_TEXT::textsetting() @0x4e1284; clip c1 4:42"
+  }
+ },
+ "hearts": {
+  "value": "10 FULL (display only)",
+  "src": "clip c2 5:20; energy timer (Scene_WorldMap::Init_HEART_TIME) not built - decision: hearts are never spent"
+ },
+ "gems": {
+  "value": 0,
+  "src": "decision: gems locked (cash currency, Scene_Shop billing)"
+ }
+}

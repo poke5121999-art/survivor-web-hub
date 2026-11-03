@@ -16,6 +16,7 @@ export const BTN = {
   shield: { x: 0, y: 456, w: 112, h: 102 },
   potion: { x: 368, y: 456, w: 112, h: 102 },
   pause: { x: 12, y: 726, w: 50, h: 50 },
+  close: { x: 428, y: 112, w: 50, h: 50 },
   retry: { x: 22, y: 487, w: 214, h: 64 },
   next: { x: 244, y: 487, w: 214, h: 64 },
   map: { x: 3, y: 600, w: 474, h: 60 },
@@ -98,6 +99,7 @@ export function createRenderer(ctx, art) {
     const mid = GROUND_Y - 36;
     if (e.type === 'hit') {
       fx.push({ k: 'eff_hit', x: e.x - 32, y: mid - 32, t: 0, dur: 0.3, add: true });
+      if (e.crit) fx.push({ text: 'eff_critical', x: e.x - 85, y: GROUND_Y - 150, t: 0, dur: 0.7 });
       fx.push({ num: e.dmg, x: e.x, y: mid - 40, t: 0, dur: 0.7 });
     } else if (e.type === 'kill') {
       const sheet = s.stage.monsters[e.mtype].sheet;
@@ -112,7 +114,7 @@ export function createRenderer(ctx, art) {
       for (let i = 0; i < e.gold; i++) {
         fx.push({ coin: true, x: e.x, y: mid, vx: (rand() - 0.5) * 140 + e.side * 40, vy: -260 - rand() * 120, t: -i * 0.06, dur: 1.25, gy: GROUND_Y - 8 });
       }
-      if (e.combo >= 10 && e.combo % 10 === 0) fx.push({ text: 'eff_critical', x: W / 2 - 85, y: 200, t: 0, dur: 0.9 });
+      if (e.crit) fx.push({ text: 'eff_critical', x: e.x - 85, y: GROUND_Y - 150, t: 0, dur: 0.7 });
       shake = 0.12;
     } else if (e.type === 'heroHurt') {
       shake = 0.18;
@@ -286,6 +288,7 @@ export function createRenderer(ctx, art) {
     const by = 16;
     const sc = 0.64;
     ctx.drawImage(img('board_target').img, bx, by, 186 * sc, 102 * sc);
+    frameC('icon_mode', 0, bx - 22, by + 16, { scale: 0.85 }); // difficulty skull (NORMAL), clip c2 1:10
     frameC('icon_bag', 2, bx + 18, by + 15, { scale: 0.7 });
     frameC('icon_bag', 1, bx + 18, by + 46, { scale: 0.62 });
     plain(String(s.books), bx + 108, by + 15, 18, '#fff', 'right');
@@ -388,13 +391,14 @@ export function createRenderer(ctx, art) {
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#16120f';
     ctx.fillRect(0, 672, W, H - 672);
-    tileX('bg_top', -70);
+    tileX('bg_top', 0);
     for (let i = 0; i < 3; i++) {
       const on = i < s.stars && t > 0.3 + i * 0.25;
-      frameC('result_star', on ? 1 : 0, W / 2 + (i - 1) * 98, 52, { scale: 1.1 });
+      frameC('result_star', on ? 1 : 0, W / 2 + (i - 1) * 77, 44, { scale: 0.85 });
     }
     ctx.drawImage(img('popup_result').img, 0, 92);
     plain(s.phase === 'result' && s.hero.state === 'dead' ? 'FAILED' : 'RESULT', W / 2, 140, 26, '#fff', 'center');
+    frame('btn_option', 6, BTN.close.x, BTN.close.y); // teal X (clip c1 5:53), same as TO WORLDMAP
     plain('SCORE :', W / 2, 192, 18, '#fff', 'center');
     digits('no_score', s.score, W / 2, 206, 'center', 1);
     plain(`BEST SCORE : ${Math.max(info.best || 0, s.score)}`, W / 2, 262, 17, '#fff', 'center');
@@ -405,8 +409,10 @@ export function createRenderer(ctx, art) {
     frameC('icon_bag', 1, W / 2 + 4, 444, { scale: 0.62 });
     plain(String(s.gold), W / 2 + 22, 444, 19, '#d8e84a', 'left');
     button('btn_r', BTN.retry, 'RETRY');
-    button('btn_r', BTN.next, info.hasNext ? 'NEXT  ▶' : 'NEXT', !info.hasNext);
-    button('btn_long', BTN.map, 'TO TITLE');
+    button('btn_r', BTN.next, 'NEXT', !info.hasNext);
+    if (info.hasNext) ctx.drawImage(img('btn_menu').img, 40, 10, 44, 44, BTN.next.x + BTN.next.w - 50, BTN.next.y + 11, 42, 42);
+    button('btn_long', BTN.map, 'TO WORLDMAP');
+    frameC('icons', 1, BTN.map.x + 112, BTN.map.y + BTN.map.h / 2, { scale: 0.55 });
     plain('NORMAL', 14, 704, 17, '#fff');
     const three = s.stars === 3;
     const untouched = s.damageTaken === 0 && s.hero.state !== 'dead';
@@ -440,5 +446,8 @@ export function createRenderer(ctx, art) {
     if (s.phase === 'result') drawResult(s, s.t, info);
   }
 
-  return { drawTitle, drawStage, onEvent, fx, heroPose, setTiers: t => { tierOverride = { ...t }; } };
+  return {
+    drawTitle, drawStage, onEvent, fx, heroPose, setTiers: t => { tierOverride = { ...t }; },
+    gfx: { ctx, img, frame, frameC, digits, label, plain, tileX },
+  };
 }

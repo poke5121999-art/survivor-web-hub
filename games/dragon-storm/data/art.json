@@ -350,6 +350,192 @@
    "cols": 4,
    "frames": 13
   },
+  "map_00_01": {
+   "file": "art/map_00_01.jpg",
+   "w": 480,
+   "h": 1024,
+   "src": "map_00_01(480x1024).jpg",
+   "dw": 480,
+   "dh": 1024
+  },
+  "btn_stage": {
+   "file": "art/btn_stage.png",
+   "w": 512,
+   "h": 584,
+   "src": "btn_stage_00(72x72).png",
+   "fw": 73,
+   "fh": 73,
+   "cols": 7,
+   "frames": 56
+  },
+  "star_map": {
+   "file": "art/star_map.png",
+   "w": 70,
+   "h": 90,
+   "src": "icon_star_map(70x30).png",
+   "fw": 70,
+   "fh": 30,
+   "cols": 1,
+   "frames": 3
+  },
+  "chapter_tab": {
+   "file": "art/chapter_tab.png",
+   "w": 160,
+   "h": 320,
+   "src": "chapter_tab(80x64).png",
+   "fw": 80,
+   "fh": 64,
+   "cols": 2,
+   "frames": 10
+  },
+  "icon_mode": {
+   "file": "art/icon_mode.png",
+   "w": 64,
+   "h": 96,
+   "src": "icon_mode(64x32).png",
+   "fw": 64,
+   "fh": 32,
+   "cols": 1,
+   "frames": 3
+  },
+  "lock_tab": {
+   "file": "art/lock_tab.png",
+   "w": 96,
+   "h": 74,
+   "src": "lock_bg_btn_r(96x74).png",
+   "dw": 96,
+   "dh": 74
+  },
+  "popup_prep": {
+   "file": "art/popup_prep.png",
+   "w": 480,
+   "h": 512,
+   "src": "popup_00(480x512).png",
+   "dw": 480,
+   "dh": 512
+  },
+  "bg_upgrade": {
+   "file": "art/bg_upgrade.png",
+   "w": 448,
+   "h": 228,
+   "src": "bg_upgrade(448x228).png",
+   "dw": 448,
+   "dh": 228
+  },
+  "btn_upgrade": {
+   "file": "art/btn_upgrade.png",
+   "w": 128,
+   "h": 128,
+   "src": "btn_upgrade(128x128).png",
+   "dw": 128,
+   "dh": 128
+  },
+  "icon_sword": {
+   "file": "art/icon_sword.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_01(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_armor": {
+   "file": "art/icon_armor.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_01(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "lock_items": {
+   "file": "art/lock_items.png",
+   "w": 450,
+   "h": 184,
+   "src": "lock_bg_booster(450x184).png",
+   "dw": 450,
+   "dh": 184
+  },
+  "btn_mode": {
+   "file": "art/btn_mode.png",
+   "w": 152,
+   "h": 120,
+   "src": "btn_mode(76x60).png",
+   "fw": 76,
+   "fh": 60,
+   "cols": 2,
+   "frames": 4
+  },
+  "icon_check": {
+   "file": "art/icon_check.png",
+   "w": 32,
+   "h": 32,
+   "src": "icon_check(32x32).png",
+   "dw": 32,
+   "dh": 32
+  },
+  "btn_menu": {
+   "file": "art/btn_menu.png",
+   "w": 120,
+   "h": 64,
+   "src": "btn_menu(120x64).png",
+   "dw": 120,
+   "dh": 64
+  },
+  "btn_more": {
+   "file": "art/btn_more.png",
+   "w": 64,
+   "h": 42,
+   "src": "btn_more(64x42).png",
+   "dw": 64,
+   "dh": 42
+  },
+  "btn_r180": {
+   "file": "art/btn_r180.png",
+   "w": 180,
+   "h": 50,
+   "src": "btn_r(180x50).png",
+   "dw": 180,
+   "dh": 50
+  },
+  "shop_bg": {
+   "file": "art/shop_bg.png",
+   "w": 480,
+   "h": 800,
+   "src": "shop_bg(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "list_shop": {
+   "file": "art/list_shop.png",
+   "w": 444,
+   "h": 68,
+   "src": "bg_list_shop(444x68).png",
+   "dw": 444,
+   "dh": 68
+  },
+  "board_money": {
+   "file": "art/board_money.png",
+   "w": 444,
+   "h": 52,
+   "src": "board_money(222x52).png",
+   "fw": 222,
+   "fh": 52,
+   "cols": 2,
+   "frames": 2
+  },
+  "icon_gem": {
+   "file": "art/icon_gem.png",
+   "w": 100,
+   "h": 100,
+   "src": "icon_gem(50x50).png",
+   "fw": 50,
+   "fh": 50,
+   "cols": 2,
+   "frames": 3
+  },
   "hero_armor_01": {
    "file": "art/hero_armor_01.png",
    "w": 512,
@@ -660,6 +846,10 @@
    "file": "art/sfx/S_BG_D00.mp3",
    "src": "S_BG_D00.mp3"
   },
+  "bgm_ui": {
+   "file": "art/sfx/BG_UI.mp3",
+   "src": "BG_UI.mp3"
+  },
   "result_win": {
    "file": "art/sfx/S_RESULT01.mp3",
    "src": "S_RESULT01.mp3"
@@ -707,6 +897,10 @@
   "potion": {
    "file": "art/sfx/S_POTION.wav",
    "src": "S_POTION.wav"
+  },
+  "gold": {
+   "file": "art/sfx/S_gold.wav",
+   "src": "S_gold.wav"
   }
  }
 }
