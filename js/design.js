@@ -358,10 +358,12 @@
     return doc._id;
   }
 
-  // Square cell <doc[spec.cell]> of a horizontal strip; null when the table declares none or the row lacks a key.
+  // Square cell of a horizontal strip: spec.cell is a fixed index or the field holding it.
+  // null when the table declares none or the row lacks a key.
   function rowSprite(table, doc) {
     var spec = (LABELS[table] || {}).rowSprite;
-    if (!spec || typeof doc[spec.cell] !== "number") return null;
+    var idx = spec && (typeof spec.cell === "number" ? spec.cell : doc[spec.cell]);
+    if (typeof idx !== "number") return null;
     var missing = false;
     var src = spec.src.replace(/\{(\w+)\}/g, function (_, k) {
       var v = spec.names && spec.names[k] ? spec.names[k][doc[k]] : doc[k];
@@ -370,8 +372,8 @@
     });
     if (missing) return null;
     var img = h("img", { src: src, alt: "", loading: "lazy", decoding: "async" });
-    img.style.marginLeft = "calc(var(--dz-sprite) * " + -doc[spec.cell] + ")";
-    var box = h("span", { class: "dz-row__sprite", "data-sprite": src + "#" + doc[spec.cell] }, img);
+    img.style.marginLeft = "calc(var(--dz-sprite) * " + -idx + ")";
+    var box = h("span", { class: "dz-row__sprite" + (spec.smooth ? " dz-row__sprite--smooth" : ""), "data-sprite": src + "#" + idx }, img);
     img.addEventListener("error", function () { box.hidden = true; });
     return box;
   }

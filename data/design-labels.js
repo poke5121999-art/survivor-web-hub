@@ -646,6 +646,8 @@
       title: "Quái",
       blurb: "Máu, sát thương, hồi đòn, tốc độ của từng loài quái.",
       effect: RUN,
+      // Ảnh 96 px một loài, cắt từ dải art của Repo_client bằng Tools/HubArt/foe_faces.py (Tools/Agent/hub.sh chạy lại mỗi lần đẩy bản).
+      rowSprite: { src: "games/repo2d-unity/foe/{_id}.png", cell: 0, smooth: true },
       rowLabels: {
         gunner: "Kẻ bắn", rook: "Kẻ húc", banger: "Bom con", gnome: "Gnome", mimic: "Rương răng", ghost: "Hồn ma",
         wallhand: "Bàn tay quỷ dị", mummy: "Xác ướp", brat: "Con nít ranh", headthrower: "Kẻ ném đầu", minelayer: "Kẻ gài mìn",
