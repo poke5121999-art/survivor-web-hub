@@ -129,7 +129,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 44</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 45</small></h1>
     <div class="seg" role="tablist" aria-label="Công cụ" id="app-mode">
       <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button>
     </div>
@@ -142,6 +142,11 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
       <button type="button" id="rn-pick-files">Chọn hình…</button>
       <input type="file" id="rn-dir" webkitdirectory multiple hidden>
       <input type="file" id="rn-files" multiple accept="image/*" hidden>
+      <span class="bar" id="rn-auto-box" hidden>
+        <button type="button" id="rn-auto" title="Claude xem từng hình rồi đặt tên theo nội dung. Dùng hạn mức Claude của bạn; lần đầu claude.ai hỏi bạn có cho phép không.">Đặt tên tự động</button>
+        <select id="rn-lang" aria-label="Ngôn ngữ của tên tự động"><option value="vi" selected>tiếng Việt không dấu</option><option value="en">tiếng Anh</option></select>
+        <button type="button" id="rn-undo-auto" hidden>Trả tên trước khi đặt tự động</button>
+      </span>
       <span class="grow num" id="rn-info"></span>
       <button type="button" id="rn-clear">Xoá danh sách</button>
       <button type="button" class="primary" id="rn-save" disabled>Lưu với tên mới</button>
@@ -327,7 +332,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261103a"></script>
+<script src="vendor/jszip.min.js?v=20261104a"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -2031,6 +2036,7 @@ function rnAdd(files, paths) {
     R.items.push(rnItem(f, parts.join("/")));
   });
   R.items.sort(byPath);
+  autoBefore = null; $("rn-undo-auto").hidden = true;
   status("", "", "rn-status"); rnRender();
 }
 // readEntries trả từng đợt (Chrome tối đa 100 mục), nên đọc tới khi hết.
@@ -2067,7 +2073,7 @@ $("rn-pick-files").onclick = () => $("rn-files").click();
 $("rn-dir").onchange = e => { const fs = [...e.target.files]; rnAdd(fs, fs.map(f => f.webkitRelativePath || f.name)); e.target.value = ""; };
 $("rn-files").onchange = e => { const fs = [...e.target.files]; rnAdd(fs, fs.map(f => f.name)); e.target.value = ""; };
 $("rn-root").oninput = e => { R.root = e.target.value; rnRender(); };
-$("rn-clear").onclick = () => { rnReset(); status("", "", "rn-status"); rnRender(); };
+$("rn-clear").onclick = () => { if (autoCtl) autoCtl.abort(); rnReset(); autoBefore = null; $("rn-undo-auto").hidden = true; status("", "", "rn-status"); rnRender(); };
 // Thư mục: <tên thư mục>.zip chứa đúng thư mục đó. Một hình lẻ: lưu thẳng tệp. Nhiều hình lẻ: doi_ten.zip.
 $("rn-save").onclick = async () => {
   if (rnProblems().size || !R.items.length) return;
@@ -2079,6 +2085,91 @@ $("rn-save").onclick = async () => {
   const zb = await zip.generateAsync({ type: "blob" });
   await offer(R.root !== null ? R.root.trim() + ".zip" : "doi_ten.zip", zb, "rn-status");
 };
+// Đặt tên tự động: Claude (capability sample) xem hình theo từng đợt, mỗi đợt tối đa limits().images.maxCount hình.
+// Đợt sau được báo tên các đợt trước để cả thư mục frame giữ cùng chủ thể và đánh số liên tiếp.
+// Không có sample (hub, bản tệp trên máy, người xem chưa cho phép) thì nút bị giấu.
+const AUTO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+let sampleFn = null, autoMax = 0, autoCtl = null, autoBefore = null;
+const toFileName = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[đĐ]/g, "d").toLowerCase()
+  .replace(/\.(png|jpe?g|webp|gif)$/, "").replace(/[^a-z0-9_-]+/g, "_").replace(/_+/g, "_").replace(/^[_-]+|[_-]+$/g, "").slice(0, 60);
+// Tên mới trùng một tệp khác cùng thư mục và cùng đuôi thì thêm _2, _3…
+function uniqueBase(it, base) {
+  const taken = new Set(R.items.filter(o => o !== it && o.dir === it.dir && o.ext.toLowerCase() === it.ext.toLowerCase()).map(o => o.base.trim().toLowerCase()));
+  let b = base, k = 2;
+  while (taken.has(b.toLowerCase())) b = base + "_" + k++;
+  return b;
+}
+function autoPrompt(batch, done, withFolder) {
+  const lang = $("rn-lang").value === "en" ? "tiếng Anh" : "tiếng Việt không dấu";
+  return [
+    `Bạn đặt tên tệp cho hình dùng trong game 2D (nhân vật, quái, frame hoạt ảnh, vật phẩm, icon, nền). Có ${batch.length} hình đính kèm, theo đúng thứ tự dưới đây.`,
+    `Mỗi hình một tên ngắn mô tả nội dung theo mẫu <chủ thể>_<hành động hoặc trạng thái>. Các hình là frame liên tiếp của cùng một hoạt ảnh thì dùng chung một tên và thêm _<số hai chữ số> theo thứ tự (00, 01, 02…).`,
+    `Viết bằng ${lang}, chữ thường, không dấu, nối bằng dấu gạch dưới, chỉ dùng a-z 0-9 _, tối đa 40 ký tự, không có đuôi tệp.`,
+    R.root !== null ? `Các hình nằm trong thư mục "${R.root}".` : "",
+    "Tên gốc của từng hình (có thể không đúng nội dung, chỉ để tham khảo):",
+    ...batch.map((it, k) => `${k + 1}. ${(it.dir ? it.dir + "/" : "") + it.file.name}`),
+    done.length ? `Các hình trước trong cùng lô đã được đặt tên như sau. Hình cùng hoạt ảnh thì giữ đúng chủ thể, kiểu tên và đánh số tiếp theo:\n${done.join("\n")}` : "",
+    `Chỉ trả về một JSON: {${withFolder ? '"folder": "<tên thư mục cho cả lô>", ' : ""}"names": ["<tên hình 1>", …]} với đúng ${batch.length} tên.`,
+  ].filter(Boolean).join("\n");
+}
+const AUTO_ERR = {
+  not_granted: "Bạn chưa cho trang dùng Claude nên không đặt tên tự động được.",
+  sampling_disabled: "Tài khoản này không dùng được Claude cho trang.",
+  rate_limited: "Claude đang bận hoặc bạn đã chạm hạn mức. Đợi một lúc rồi bấm lại.",
+  image_rejected: "Có hình Claude không nhận (sai loại hoặc quá lớn).",
+  refused: "Claude từ chối đặt tên cho lô hình này.",
+  invalid_json: "Claude trả lời sai dạng. Bấm lại để thử lần nữa.",
+  session_expired: "Phiên claude.ai đã hết. Đăng nhập lại rồi bấm lại.",
+};
+async function autoName() {
+  if (autoCtl) { autoCtl.abort(); return; }
+  const todo = R.items.filter(it => AUTO_TYPES.has(it.file.type));
+  if (!todo.length) { status("Danh sách không có hình PNG, JPG, WebP hay GIF để đặt tên.", "bad", "rn-status"); return; }
+  autoBefore = { root: R.root, bases: R.items.map(it => it.base) };
+  autoCtl = new AbortController();
+  const btn = $("rn-auto"), done = [];
+  btn.textContent = "Dừng"; $("rn-undo-auto").hidden = true;
+  let named = 0;
+  try {
+    for (let i = 0; i < todo.length; i += autoMax) {
+      const batch = todo.slice(i, i + autoMax), withFolder = R.root !== null && i === 0;
+      status(`Claude đang xem hình ${i + 1}-${i + batch.length} / ${todo.length}…`, "", "rn-status");
+      const out = await sampleFn.json(autoPrompt(batch, done, withFolder), { images: batch.map(it => it.file), signal: autoCtl.signal });
+      const names = Array.isArray(out?.names) ? out.names : [];
+      if (withFolder && toFileName(out.folder)) R.root = toFileName(out.folder);
+      batch.forEach((it, k) => {
+        const b = toFileName(names[k]);
+        if (!b) return;
+        it.base = uniqueBase(it, b); named++;
+        done.push(`${(it.dir ? it.dir + "/" : "") + it.file.name} -> ${it.base}`);
+      });
+      rnRender();
+    }
+    status(`Đã đặt tên tự động ${named} / ${todo.length} hình. Sửa lại ô nào chưa ưng rồi bấm Lưu.`, "ok", "rn-status");
+  } catch (e) {
+    rnRender();
+    const head = named ? `Đã đặt ${named} / ${todo.length} hình rồi dừng. ` : "";
+    if (e?.code === "cancelled") status(head || "Đã dừng.", "", "rn-status");
+    else status(head + (AUTO_ERR[e?.code] || "Claude không trả lời được. Bấm lại để thử lần nữa."), "bad", "rn-status");
+    if (e?.code === "not_granted" || e?.code === "sampling_disabled") $("rn-auto-box").hidden = true;
+  } finally {
+    autoCtl = null; btn.textContent = "Đặt tên tự động";
+    $("rn-undo-auto").hidden = !named;
+  }
+}
+$("rn-auto").onclick = autoName;
+$("rn-undo-auto").onclick = () => {
+  if (!autoBefore || autoBefore.bases.length !== R.items.length) return;
+  R.root = autoBefore.root; R.items.forEach((it, k) => { it.base = autoBefore.bases[k]; });
+  $("rn-undo-auto").hidden = true; status("Đã trả tên như trước khi đặt tự động.", "", "rn-status"); rnRender();
+};
+(async () => {
+  const s = window.claude?.use ? await window.claude.use("sample").catch(() => null) : null;
+  const lim = s && await s.limits().catch(() => null);
+  if (!lim?.images?.maxCount) return;
+  sampleFn = s; autoMax = Math.max(1, Math.min(lim.images.maxCount, 20));
+  $("rn-auto-box").hidden = false;
+})();
 const BLURB = { cut: $("app-blurb").textContent, rename: "Kéo thư mục hình hoặc vài tấm hình vào, sửa tên từng tệp, rồi lưu lại với tên mới. Nội dung hình giữ nguyên." };
 for (const b of $("app-mode").children) b.onclick = () => {
   const m = b.dataset.mode;
