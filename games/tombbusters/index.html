@@ -17,6 +17,7 @@ canvas{display:block;width:100vw;height:100vh}
 #hud .lbl{font-size:12px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
 #loot{position:absolute;right:16px;top:16px;text-align:right;color:var(--gold);font-weight:600}
 #loot small{display:block;color:var(--dim);font-weight:400}
+#mini{width:130px;height:130px;position:absolute;right:16px;top:64px;background:#0b0907cc;border:1px solid #3a3326;border-radius:4px}
 #obj{position:absolute;left:16px;top:16px;color:var(--dim);max-width:46ch}
 #prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);color:var(--ink);text-shadow:0 1px 4px #000;font-size:16px}
 #cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#e8dcc0aa}
@@ -50,7 +51,7 @@ kbd{background:#201b13;border:1px solid #3a3326;border-radius:3px;padding:0 6px}
 <canvas id="c"></canvas>
 <div id="hud">
   <div id="dmg"></div><div id="cross"></div>
-  <div id="obj"></div><div id="loot"></div><div id="msg"></div><div id="prompt"></div>
+  <div id="obj"></div><canvas id="mini" width="130" height="130"></canvas><div id="loot"></div><div id="msg"></div><div id="prompt"></div>
   <div class="bar">
     <div class="lbl">HP <span id="hpn"></span></div><div class="meter" id="hp"><i></i></div>
     <div class="lbl">Pin đèn <span id="batn"></span></div><div class="meter" id="bat"><i></i></div>
@@ -70,9 +71,9 @@ kbd{background:#201b13;border:1px solid #3a3326;border-radius:3px;padding:0 6px}
   <div class="stat"><div><b id="sBank">0</b>铲铲币 trong kho</div><div><b id="sRuns">0</b>chuyến</div><div><b id="sOut">0</b>thoát được</div></div>
   <p class="dim">Chuột: nhìn · <kbd>WASD</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>F</kbd> đèn pin · <kbd>E</kbd> giữ để mở/nhặt/thoát · <kbd>Chuột trái</kbd> xẻng · <kbd>Esc</kbd> thả chuột</p>
   <button id="go">Vào hầm mộ</button><button class="alt" id="reset">Xoá save</button>
-  <p class="dim" style="margin-top:22px;font-size:12px">Drop 1 · bản solo offline. Số liệu quái/bẫy/giá trị loot lấy từ APK và wiki.biligame.com/chaoziran; chỗ nào chưa có số thật được đánh dấu PLACEHOLDER trong js/data.js.</p>
+  <p class="dim" style="margin-top:22px;font-size:12px">Drop 2 · bản solo offline. Số liệu quái/bẫy/giá trị loot lấy từ APK và wiki.biligame.com/chaoziran; chỗ nào chưa có số thật được đánh dấu PLACEHOLDER trong js/data.js.</p>
 </div></div>
 <div class="screen hide" id="end"><div class="card" id="endCard"></div></div>
-<script type="module" src="js/game.js?v=20261104a"></script>
+<script type="module" src="js/game.js?v=20261104b"></script>
 </body>
 </html>

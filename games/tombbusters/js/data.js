@@ -57,6 +57,21 @@ export const PUPPET = { // WIKI 木偶
   meshNote: 'PLACEHOLDER mesh — Puppet model not extracted yet',
 };
 
+export const SPIDER = { // WIKI 蜘蛛 (https://wiki.biligame.com/chaoziran)
+  hp: 150,              // WIKI 血量 150
+  hit: 90,              // WIKI 伤害 90 HP per hit
+  length: 1.8, height: 0.9, // WIKI tested model size 1.8 m long, 0.9 m tall
+  speed: 3.0,           // PLACEHOLDER m/s (wiki rank 2 of 5 for speed; chase value invented)
+  hitCd: 1.5,           // PLACEHOLDER
+  dropTime: 0.5,        // PLACEHOLDER: time to climb down from the ceiling
+  senseUnder: 3.2,      // PLACEHOLDER: "walking right under it" triggers the chase (WIKI: passing under it)
+  watchRange: 14,       // PLACEHOLDER: WIKI "观察": stops to stare at a far player and never aggros if you keep distance
+  webRadius: 1.15,      // PLACEHOLDER
+  webSlow: 0.45,        // PLACEHOLDER: WIKI says webs slow prey; the factor is not given
+};
+export const COFFIN_GOLD = { // WIKI 金椁: always a gold-tier item, floor = Golden Goblet. Real art not found: the bronze mesh, tinted (PLACEHOLDER tint)
+  holdSec: 2.2, rolls: [['flute', 0.35]], floor: 'goblet',
+};
 export const SPIKES = { dmg: 45, delay: 0.5, up: 0.7, cd: 1.4 }; // WIKI 地刺 45HP/hit; delay/up/cd PLACEHOLDER
 export const CROSSBOW = { dmgMin: 20, dmgMax: 30, lock: 0.7, range: 14, cd: 1.8, arc: 1.2 }; // WIKI 连弩 20-30 HP; lock/range/cd/arc PLACEHOLDER
 

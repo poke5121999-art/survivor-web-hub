@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { PLAYER, FLASHLIGHT, LOOT, COFFIN, TOAD, PUPPET, SPIKES, CROSSBOW, EXTRACT, SAVE_KEY } from './data.js';
+import { PLAYER, FLASHLIGHT, LOOT, COFFIN, COFFIN_GOLD, TOAD, PUPPET, SPIDER, SPIKES, CROSSBOW, EXTRACT, SAVE_KEY } from './data.js';
 
-const REV = '20261104a';
+const REV = '20261104b';
 const $ = (id) => document.getElementById(id);
 const S = 12, WALL_T = 0.5, WALL_H = 3.4, DOOR_W = 3.2;
 
@@ -11,9 +11,14 @@ function loadSave() { try { return Object.assign(blank(), JSON.parse(localStorag
 function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) { /* private mode */ } }
 let save = loadSave();
 
-// ---------- layout: 4 rooms, A-B-C-D ----------
-const ROOMS = { A: [0, 0], B: [1, 0], C: [1, 1], D: [2, 1] };
-const LINKS = [['A', 'B'], ['B', 'C'], ['C', 'D']];
+// ---------- layout: 7 rooms, two loops ----------
+//   A - B - E        A start/exit, B thorns, E spider den, C toad, D puppet/crossbow, F thorns + crossbow, G vault
+//       |   |
+//       C - D
+//       |   |
+//       F - G
+const ROOMS = { A: [0, 0], B: [1, 0], E: [2, 0], C: [1, 1], D: [2, 1], F: [1, 2], G: [2, 2] };
+const LINKS = [['A', 'B'], ['B', 'E'], ['B', 'C'], ['E', 'D'], ['C', 'D'], ['C', 'F'], ['D', 'G'], ['F', 'G']];
 const center = (k) => [ROOMS[k][0] * S, ROOMS[k][1] * S];
 const roomAt = (x, z) => { for (const k in ROOMS) { const [cx, cz] = center(k); if (Math.abs(x - cx) < S / 2 && Math.abs(z - cz) < S / 2) return k; } return null; };
 
@@ -95,6 +100,21 @@ async function loadMesh(name, opt = {}) {
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: opt.rough ?? 0.8, metalness: opt.metal ?? 0, side: THREE.DoubleSide });
   return { geo: g, mat };
 }
+const texCache = {};
+const loadTex = (n) => texCache[n] || (texCache[n] = new Promise((res) => new THREE.TextureLoader().load(`art/${n}.webp?v=${REV}`, (t) => { t.colorSpace = THREE.SRGBColorSpace; res(t); })));
+// Drop 2 art: {parts:[{p,u,i,t}]}, one texture per part (spider2 is a hair-card texture with alpha)
+async function loadParts(name, opt = {}) {
+  const j = await (await fetch(`art/${name}.json?v=${REV}`)).json(); const parts = [];
+  for (const pt of j.parts) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pt.p, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(pt.u, 2));
+    g.setIndex(pt.i); g.computeVertexNormals();
+    const map = await loadTex(pt.t);
+    parts.push({ geo: g, mat: new THREE.MeshStandardMaterial({ map, roughness: opt.rough ?? 0.8, metalness: opt.metal ?? 0, side: THREE.DoubleSide, alphaTest: pt.t === 'spider2' ? 0.5 : 0 }) });
+  }
+  return parts;
+}
+const partsObj = (parts) => { const g = new THREE.Group(); for (const p of parts) g.add(new THREE.Mesh(p.geo, p.mat)); return g; };
 let ART = {};
 
 // ---------- game state ----------
@@ -103,7 +123,7 @@ const G = {
   pos: new THREE.Vector3(1, 0, 1), yaw: 0, pitch: 0, vel: new THREE.Vector3(),
   carried: [], lootValue: 0, shovelCd: 0, hold: 0, holdTarget: null, dmgFlash: 0, msg: '', msgT: 0,
   keys: {}, extract: { x: -3.5, z: -3.5, r: 1.7 }, stats: { spikes: 0, arrows: 0, toad: 0, puppet: 0 }, cause: '',
-  coffins: [], pickups: [], spikes: [], bow: null, toad: null, puppet: null, tracers: [], swung: false, seenPuppet: false,
+  coffins: [], pickups: [], spikes: [], bows: [], webs: [], toad: null, puppet: null, spider: null, tracers: [], swung: false, seenPuppet: false, visited: {}, puppetRoom: 'D',
 };
 const dyn = new THREE.Group(); scene.add(dyn);
 const hitVec = new THREE.Vector3();
@@ -123,48 +143,62 @@ function addPickup(id, x, z, extra = {}) {
   const p = Object.assign({ id, x, z, mesh, taken: false }, extra); G.pickups.push(p); return p;
 }
 
-function buildRun() {
-  clearRun(); G.coffins = []; G.pickups = []; G.spikes = []; G.tracers = []; G.toad = null; G.puppet = null; G.bow = null;
-  // coffins (REAL mesh DG_BronzeCoffin01A_MD + texture)
-  for (const [x, z, rot] of [[14.6, 16.2, 0.3], [27.8, 7.6, 1.57], [28.2, 16.6, -1.2]]) {
-    const m = new THREE.Mesh(ART.coffin.geo, ART.coffin.mat);
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+let rng = Math.random;
+const pick = (a) => a[Math.floor(rng() * a.length)];
+function webTex() { // PLACEHOLDER web: no real web art extracted
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.strokeStyle = 'rgba(235,235,235,.85)'; g.lineWidth = 1.4;
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(64, 64); g.lineTo(64 + Math.cos(a) * 62, 64 + Math.sin(a) * 62); g.stroke(); }
+  for (let r = 12; r < 64; r += 12) { g.beginPath(); for (let i = 0; i <= 12; i++) { const a = i / 12 * Math.PI * 2, rr = r + (i % 2 ? -3 : 3); g.lineTo(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr); } g.stroke(); }
+  return new THREE.CanvasTexture(c);
+}
+const LOOSE_SLOTS = { B: [[14.6, -3.6], [8.2, -4.2]], E: [[28.4, 3.2], [20.6, -4.4]], C: [[7.4, 17.8], [15.8, 8.8]], D: [[21.4, 8.6], [20.8, 15.6]], F: [[16, 21.4], [15.8, 28]], G: [[21, 27.4], [28, 21.8]] };
+const LOOSE_TABLE = [['abacus', 3], ['mirror', 3], ['lantern', 3], ['bracelet', 2], ['ring', 1]];
+function rollLoose() { let t = LOOSE_TABLE.reduce((a, b) => a + b[1], 0) * rng(); for (const [id, w] of LOOSE_TABLE) { if ((t -= w) <= 0) return id; } return 'abacus'; }
+
+function buildRun(seed) {
+  clearRun(); G.coffins = []; G.pickups = []; G.spikes = []; G.tracers = []; G.toad = null; G.puppet = null; G.bows = []; G.webs = []; G.spider = null; G.visited = {};
+  G.seed = seed ?? ((Math.random() * 2 ** 31) | 0); rng = mulberry32(G.seed);
+  // coffins: REAL mesh DG_BronzeCoffin01A_MD; the gold one (金椁) reuses it tinted — PLACEHOLDER until its own art is found
+  const mkCoffin = (x, z, rot, gold) => {
+    const m = new THREE.Mesh(ART.coffin.geo, gold ? ART.coffinGold : ART.coffin.mat);
     m.scale.setScalar(2.4 / (ART.coffin.geo.boundingBox.max.x - ART.coffin.geo.boundingBox.min.x));
-    m.position.set(x, 0, z); m.rotation.y = rot; dyn.add(m);
-    addBox(x, z, 2.3, 1.2, 'coffin');
-    G.coffins.push({ x, z, mesh: m, open: false });
-  }
-  // loose loot (real names/values)
-  addPickup('lantern', 14.6, -3.6); addPickup('abacus', 8.2, -4.2); addPickup('mirror', 21.4, 8.6); addPickup('bracelet', 7.4, 17.8);
+    m.position.set(x, 0, z); m.rotation.y = rot; dyn.add(m); addBox(x, z, 2.3, 1.2, 'coffin');
+    G.coffins.push({ x, z, mesh: m, open: false, gold });
+  };
+  for (const [x, z, rot] of [[14.6, 16.2, 0.3], [27.8, 7.6, 1.57], [28.2, 16.6, -1.2], [26.6, -4.4, 0.6], [9.0, 27.8, 1.2]]) mkCoffin(x, z, rot, false);
+  mkCoffin(24, 28.8, 0, true);
+  // loose loot: randomised per run (each slot 75% filled, item from the real value list)
+  for (const k in LOOSE_SLOTS) for (const [x, z] of LOOSE_SLOTS[k]) if (rng() < 0.75) addPickup(rollLoose(), x, z);
   // toad mound guarding the Ghost Seal (wiki: "a Ghost Seal next to a croaking mound")
   const mx = 9.4, mz = 15.4;
   const mound = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 1 }));
   mound.scale.set(1.2, 0.8, 1.2); mound.position.set(mx, 0, mz); dyn.add(mound);
   const tm = new THREE.Mesh(ART.toad.geo, ART.toad.mat); tm.position.set(mx, -2.4, mz); dyn.add(tm);
-  const seal = addPickup('seal', mx + 1.0, mz + 0.4, { guarded: true });
+  addPickup('seal', mx + 1.0, mz + 0.4, { guarded: true });
   G.toad = { state: 'mound', x: mx, z: mz, yaw: 0, hp: TOAD.hp, t: 0, miss: 0, spat: false, mound, mesh: tm, tongue: null, home: [mx, mz] };
-  // spikes (3 plates in room B on the A→C route)
-  for (const [x, z] of [[9.2, 2.0], [10.8, 3.6], [11.4, 1.0]]) {
-    const g = new THREE.Group(); g.position.set(x, 0, z);
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 2.2), new THREE.MeshStandardMaterial({ color: 0x5b4a2f, roughness: 0.7, metalness: 0.4 })); plate.position.y = 0.03; g.add(plate);
-    const spikes = new THREE.Group();
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.9, 6), new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.8, roughness: 0.35 })); c.position.set(i * 0.6, 0.45, j * 0.6); spikes.add(c); }
-    spikes.scale.y = 0.02; g.add(spikes); dyn.add(g);
-    G.spikes.push({ x, z, g, spikes, state: 'idle', t: 0, hit: false });
+  // floor thorns: REAL DG_FloorThorns01 A-D
+  for (const [x, z] of [[9.2, 2.0], [10.8, 3.6], [11.4, 1.0], [13.2, 20.6], [15.2, 22.8], [16.6, 25.2], [24, 20.4], [22.2, 22.6]]) {
+    const g = partsObj(ART.thorns); g.position.set(x, 0, z); g.scale.y = 0.02; dyn.add(g);
+    G.spikes.push({ x, z, g, spikes: g, state: 'idle', t: 0, hit: false });
   }
-  // crossbow (PLACEHOLDER mesh) on D's east wall, sweeping
-  const bg = new THREE.Group(); bg.position.set(29.4, 1.5, 12);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x6b4a26, roughness: 0.8 });
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 0.22), mat); stock.position.x = -0.4; bg.add(stock);
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 1.5), mat); bar.position.x = -0.95; bg.add(bar);
-  dyn.add(bg); G.bow = { x: 29.4, z: 12, g: bg, base: Math.PI, t: 0, lock: 0, cd: 0, yaw: Math.PI, on: false };
-  // puppet (PLACEHOLDER mesh)
-  const pg = new THREE.Group();
-  const pm = new THREE.MeshStandardMaterial({ color: 0x3b1d1d, roughness: 0.9 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 4, 10), pm); body.position.y = 0.95; pg.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), new THREE.MeshStandardMaterial({ color: 0xe9e2d0, roughness: 0.5 })); head.position.y = 1.88; pg.add(head);
-  for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.9, 3, 6), pm); arm.position.set(s * 0.42, 1.1, 0); arm.rotation.z = s * 0.2; pg.add(arm); }
-  pg.position.set(27.4, 0, 15.2); dyn.add(pg);
-  G.puppet = { g: pg, x: 27.4, z: 15.2, active: false, cd: 0, moving: false };
+  // crossbows: REAL DG_Crossbow01 A-C, freestanding on its pedestal, sweeping
+  for (const [x, z, base] of [[28.4, 12, Math.PI], [7.2, 24, 0], [28.6, 24, Math.PI]]) {
+    const g = partsObj(ART.crossbow); g.position.set(x, 0, z); dyn.add(g); addBox(x, z, 1.3, 1.3, 'bow');
+    G.bows.push({ x, z, g, base, t: rng() * 6, lock: 0, cd: 0, yaw: base, room: roomAt(x, z) });
+  }
+  // puppet: REAL Mod_Npc_Pupper, spawns in D or G (random per run)
+  G.puppetRoom = rng() < 0.5 ? 'D' : 'G';
+  const pg = partsObj(ART.puppet); const [px, pz] = G.puppetRoom === 'D' ? [27.4, 15.2] : [27.2, 27.4]; pg.position.set(px, 0, pz); dyn.add(pg);
+  G.puppet = { g: pg, x: px, z: pz, active: false, cd: 0, moving: false };
+  // spider: REAL Mod_Npc_Spider_2, hangs from E's ceiling among its webs (webs are a PLACEHOLDER texture)
+  const sg = partsObj(ART.spider); sg.position.set(27, WALL_H - 0.02, -3.2); sg.rotation.z = Math.PI; dyn.add(sg);
+  G.spider = { g: sg, x: 27, z: -3.2, state: 'perch', t: 0, hp: SPIDER.hp, cd: 0 };
+  const wt = webTex();
+  for (const [x, z] of [[19.8, 0.4], [22.4, -2.2], [24.6, 2.6], [26.4, 0.6]]) {
+    const w = new THREE.Mesh(new THREE.CircleGeometry(SPIDER.webRadius, 24), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    w.rotation.x = -Math.PI / 2; w.position.set(x, 0.03, z); dyn.add(w); G.webs.push({ x, z, mesh: w, broken: false });
+  }
   // extraction marker in A
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 40), new THREE.MeshBasicMaterial({ color: 0x6fbf73, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(G.extract.x, 0.03, G.extract.z); dyn.add(ring);
@@ -217,29 +251,30 @@ function updateSpikes(dt) {
     } else if (s.state === 'cool') { s.spikes.scale.y = Math.max(0.02, s.spikes.scale.y - dt * 4); s.t -= dt; if (s.t <= 0) s.state = 'idle'; }
   }
 }
-function updateBow(dt) {
-  const b = G.bow; if (!b) return;
-  b.on = G.pos.x > 18;
-  if (!b.on) return;
-  b.t += dt; b.cd -= dt;
-  const dx = G.pos.x - b.x, dz = G.pos.z - b.z, dist = Math.hypot(dx, dz), want = Math.atan2(dz, dx);
-  const sweep = b.base + Math.sin(b.t * 0.9) * CROSSBOW.arc;
-  const seen = dist < CROSSBOW.range && los(b.x, b.z, G.pos.x, G.pos.z) && Math.abs(angDiff(want, sweep)) < 0.55;
-  if (seen && b.cd <= 0) { b.lock += dt; b.yaw = want; if (b.lock >= CROSSBOW.lock) { fireBow(want); b.lock = 0; b.cd = CROSSBOW.cd; } }
-  else { b.lock = Math.max(0, b.lock - dt * 2); b.yaw = b.lock > 0 ? b.yaw : sweep; }
-  b.g.rotation.y = -b.yaw + Math.PI; // mesh points along local -x
+function updateBows(dt) {
+  const here = roomAt(G.pos.x, G.pos.z);
+  for (const b of G.bows) {
+    b.t += dt; b.cd -= dt;
+    if (b.room !== here) { b.lock = 0; continue; }
+    const dx = G.pos.x - b.x, dz = G.pos.z - b.z, dist = Math.hypot(dx, dz), want = Math.atan2(dz, dx);
+    const sweep = b.base + Math.sin(b.t * 0.9) * CROSSBOW.arc;
+    const seen = dist < CROSSBOW.range && los(b.x, b.z, G.pos.x, G.pos.z) && Math.abs(angDiff(want, sweep)) < 0.55;
+    if (seen && b.cd <= 0) { b.lock += dt; b.yaw = want; if (b.lock >= CROSSBOW.lock) { fireBow(b, want); b.lock = 0; b.cd = CROSSBOW.cd; } }
+    else { b.lock = Math.max(0, b.lock - dt * 2); b.yaw = b.lock > 0 ? b.yaw : sweep; }
+    b.g.rotation.y = Math.PI / 2 - b.yaw; // model muzzle points along local +z
+  }
 }
 const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
-function fireBow(ang) {
-  const b = G.bow; const ok = los(b.x, b.z, G.pos.x, G.pos.z);
-  const pts = [new THREE.Vector3(b.x, 1.5, b.z), new THREE.Vector3(b.x + Math.cos(ang) * CROSSBOW.range, 1.4, b.z + Math.sin(ang) * CROSSBOW.range)];
-  const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffd27a })); dyn.add(ln); G.tracers.push({ ln, t: 0.25 });
-  if (ok) { const d = Math.round(CROSSBOW.dmgMin + Math.random() * (CROSSBOW.dmgMax - CROSSBOW.dmgMin)); G.stats.arrows++; hurt(d, `Liên nỗ (${d} HP)`); say(`Mũi tên! -${d} HP`); }
+function fireBow(b, ang) {
+  const ok = los(b.x, b.z, G.pos.x, G.pos.z);
+  const a = new THREE.Vector3(b.x, 1.4, b.z), z = new THREE.Vector3(b.x + Math.cos(ang) * CROSSBOW.range, 1.4, b.z + Math.sin(ang) * CROSSBOW.range);
+  const bolt = partsObj(ART.bolt); bolt.rotation.y = Math.PI / 2 - ang; bolt.position.copy(a); dyn.add(bolt); G.tracers.push({ mesh: bolt, a, z, t: 0.3, T: 0.3 });
+  if (ok) { const d = Math.round(CROSSBOW.dmgMin + rng() * (CROSSBOW.dmgMax - CROSSBOW.dmgMin)); G.stats.arrows++; hurt(d, `Liên nỗ (${d} HP)`); say(`Mũi tên! -${d} HP`); }
 }
 
 function updatePuppet(dt) {
   const p = G.puppet; if (!p) return;
-  if (!p.active && G.pos.x > 18.5) { p.active = true; say('Có gì đó vừa nhúc nhích…'); }
+  if (!p.active && roomAt(G.pos.x, G.pos.z) === G.puppetRoom) { p.active = true; say('Có gì đó vừa nhúc nhích…'); }
   if (!p.active) return;
   p.cd -= dt;
   const dx = G.pos.x - p.x, dz = G.pos.z - p.z, dist = Math.hypot(dx, dz);
@@ -251,6 +286,32 @@ function updatePuppet(dt) {
   if (dist < 1.15 && p.cd <= 0 && p.moving) { p.cd = PUPPET.hitCd; G.stats.puppet++; hurt(PUPPET.hit, 'Mộc ngẫu (90 HP)'); say('Mộc ngẫu! -90 HP'); }
   p.g.position.set(p.x, 0, p.z); p.g.rotation.y = Math.atan2(dx, dz);
   p.g.position.y = p.moving ? Math.sin(G.t * 18) * 0.04 : 0;
+}
+
+function updateSpider(dt) {
+  const sp = G.spider; if (!sp || sp.state === 'dead') return;
+  const dx = G.pos.x - sp.x, dz = G.pos.z - sp.z, dist = Math.hypot(dx, dz), here = roomAt(G.pos.x, G.pos.z) === 'E';
+  sp.cd -= dt;
+  if (G.swung) { // the shovel breaks a web it is aimed at; that also alerts the spider (WIKI: touch or destroy its web)
+    for (const w of G.webs) if (!w.broken && Math.hypot(w.x - G.pos.x, w.z - G.pos.z) < 2.2 && aimedAt(w.x, w.z, 8)) { w.broken = true; w.mesh.visible = false; }
+    if (sp.state !== 'perch' && dist < PLAYER.shovelReach + 0.9 && aimedAt(sp.x, sp.z, 5)) { sp.hp -= PLAYER.shovelDmg; say(`Trúng nhện (${Math.max(0, sp.hp)}/${SPIDER.hp})`, 1); }
+  }
+  if (sp.hp <= 0) { sp.state = 'dead'; sp.g.rotation.z = Math.PI; sp.g.position.y = 0.1; say('Con nhện đã gục.'); return; }
+  const onWeb = G.webs.some((w) => !w.broken && Math.hypot(w.x - G.pos.x, w.z - G.pos.z) < SPIDER.webRadius);
+  const brokeWeb = G.webs.some((w) => w.broken);
+  if (sp.state === 'perch') {
+    if (here && (onWeb || brokeWeb || dist < SPIDER.senseUnder)) { sp.state = 'drop'; sp.t = 0; say('Nhện đang xuống!'); }
+    else if (here && dist < SPIDER.watchRange && los(sp.x, sp.z, G.pos.x, G.pos.z)) sp.g.rotation.y = Math.atan2(dx, dz); // 观察: stares, never aggros if you keep away
+  } else if (sp.state === 'drop') {
+    sp.t += dt; const k = Math.min(1, sp.t / SPIDER.dropTime); sp.g.position.y = (WALL_H - 0.02) * (1 - k); sp.g.rotation.z = Math.PI * (1 - k);
+    if (k >= 1) { sp.state = 'chase'; sp.t = 0; }
+  } else if (sp.state === 'chase') {
+    sp.g.rotation.y = Math.atan2(dx, dz);
+    if (dist > 1.15) { const o = { x: sp.x, z: sp.z }; moveTo(o, G.pos.x, G.pos.z, SPIDER.speed * dt, 0.6); sp.x = o.x; sp.z = o.z; }
+    if (dist < 1.3 && sp.cd <= 0) { sp.cd = SPIDER.hitCd; G.stats.spider = (G.stats.spider || 0) + 1; hurt(SPIDER.hit, 'Nhện (90 HP)'); say('Nhện cắn! -90 HP'); }
+    sp.g.position.set(sp.x, 0, sp.z);
+  }
+  if (sp.state === 'drop') sp.g.position.set(sp.x, sp.g.position.y, sp.z);
 }
 
 function updateToad(dt) {
@@ -325,17 +386,17 @@ function completeHold(tg) {
   if (tg.kind === 'pickup') { grant(tg.o.id, tg.o); tg.o.mesh.visible = false; }
   else if (tg.kind === 'coffin') {
     tg.o.open = true; tg.o.mesh.rotation.z = 0.05;
-    let id = COFFIN.floor; for (const [k, p] of COFFIN.rolls) if (Math.random() < p) { id = k; break; }
+    const cf = tg.o.gold ? COFFIN_GOLD : COFFIN; let id = cf.floor; for (const [k, p] of cf.rolls) if (rng() < p) { id = k; break; }
     grant(id);
   } else if (tg.kind === 'exit') { if (G.carried.length === 0) { say('Chưa có gì trong túi — vẫn thoát được, nhưng làm vậy để làm gì?'); } endRun(true); }
 }
-const holdTime = (tg) => (tg.kind === 'coffin' ? COFFIN.holdSec : tg.kind === 'exit' ? EXTRACT.holdSec : 0.45);
+const holdTime = (tg) => (tg.kind === 'coffin' ? (tg.o.gold ? COFFIN_GOLD.holdSec : COFFIN.holdSec) : tg.kind === 'exit' ? EXTRACT.holdSec : 0.45);
 
 // ---------- run lifecycle ----------
-function startRun() {
-  Object.assign(G, { mode: 'run', t: 0, hp: PLAYER.hp, bat: FLASHLIGHT.seconds, torchOn: true, carried: [], lootValue: 0, hold: 0, holdTarget: null, shovelCd: 0, dmgFlash: 0, cause: '', stats: { spikes: 0, arrows: 0, toad: 0, puppet: 0 } });
+function startRun(seed) {
+  Object.assign(G, { mode: 'run', t: 0, hp: PLAYER.hp, bat: FLASHLIGHT.seconds, torchOn: true, carried: [], lootValue: 0, hold: 0, holdTarget: null, shovelCd: 0, dmgFlash: 0, cause: '', stats: { spikes: 0, arrows: 0, toad: 0, puppet: 0, spider: 0 } });
   G.pos.set(1, 0, 1); G.yaw = Math.PI * 0.75; G.pitch = 0; G.vel.set(0, 0, 0);
-  buildRun(); say('Tìm kho báu. Ra vòng xanh ở phòng đầu để thoát.', 4);
+  buildRun(typeof seed === 'number' ? seed : undefined); say('Tìm kho báu. Ra vòng xanh ở phòng đầu để thoát.', 4);
   $('menu').classList.add('hide'); $('end').classList.add('hide'); $('hud').style.display = 'block';
   try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (e) { /* headless */ }
   save.runs++; writeSave(save);
@@ -352,7 +413,7 @@ function endRun(extracted) {
     : `<h2 class="dead">Bạn đã chết</h2><p class="dim">${G.cause || ''}</p><p>Mất sạch đồ chuyến này:</p><table>${rows}</table><p>Mất <b>${v.toLocaleString()}</b> 铲铲币 · Kho giữ nguyên: <b>${save.bank.toLocaleString()}</b></p>`;
   $('endCard').innerHTML += '<button id="again">Vào lại</button>';
   $('end').classList.remove('hide'); $('hud').style.display = 'none';
-  $('again').onclick = startRun; refreshMenu();
+  $('again').onclick = () => startRun(); refreshMenu();
 }
 // Desktop key legend, same idea as food-gang's KeyLabels: keycaps on screen while playing, desktop only, a touch removes
 // them for good, plus a one-time bubble for the key that does most of the work (E). Never takes the pointer.
@@ -377,7 +438,8 @@ function update(dt) {
   let ix = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0), iz = (k.KeyS ? 1 : 0) - (k.KeyW ? 1 : 0);
   if (k.ArrowLeft) G.yaw += 1.8 * dt; if (k.ArrowRight) G.yaw -= 1.8 * dt;
   G.crouch = !!(k.ControlLeft || k.KeyC);
-  const sp = stuck ? 0 : (G.crouch ? 1.8 : (k.ShiftLeft ? PLAYER.sprint : PLAYER.walk));
+  G.onWeb = G.webs.some((w) => !w.broken && Math.hypot(w.x - G.pos.x, w.z - G.pos.z) < SPIDER.webRadius);
+  const sp = (stuck ? 0 : (G.crouch ? 1.8 : (k.ShiftLeft ? PLAYER.sprint : PLAYER.walk))) * (G.onWeb ? SPIDER.webSlow : 1);
   const l = Math.hypot(ix, iz) || 1; ix /= l; iz /= l;
   const c = Math.cos(G.yaw), s = Math.sin(G.yaw);
   const vx = (ix * c + iz * s) * sp, vz = (-ix * s + iz * c) * sp;
@@ -390,14 +452,30 @@ function update(dt) {
   if (k.KeyE && tg && !stuck) { if (!G.holdTarget || G.holdTarget.o !== tg.o || G.holdTarget.kind !== tg.kind) { G.holdTarget = tg; G.hold = 0; } G.hold += dt; if (G.hold >= holdTime(tg)) { const h = G.holdTarget; G.holdTarget = null; G.hold = 0; k.KeyE = false; completeHold(h); } }
   else { G.holdTarget = null; G.hold = 0; }
   G.promptTarget = tg;
-  updateSpikes(dt); updateBow(dt); updatePuppet(dt); updateToad(dt);
+  updateSpikes(dt); updateBows(dt); updatePuppet(dt); updateToad(dt); updateSpider(dt); G.visited[roomAt(G.pos.x, G.pos.z)] = true;
   G.swung = false;
-  for (const tr of G.tracers) { tr.t -= dt; if (tr.t <= 0) dyn.remove(tr.ln); } G.tracers = G.tracers.filter((x) => x.t > 0);
+  for (const tr of G.tracers) { tr.t -= dt; tr.mesh.position.lerpVectors(tr.a, tr.z, 1 - Math.max(0, tr.t) / tr.T); if (tr.t <= 0) dyn.remove(tr.mesh); } G.tracers = G.tracers.filter((x) => x.t > 0);
   for (const p of G.pickups) if (!p.taken) { p.mesh.rotation.y += dt * 1.6; p.mesh.position.y = 0.55 + Math.sin(G.t * 2 + p.x) * 0.06; }
   G.dmgFlash = Math.max(0, G.dmgFlash - dt * 1.6); G.msgT -= dt;
 }
 function swing() {
   if (G.mode !== 'run' || G.shovelCd > 0) return; G.shovelCd = PLAYER.shovelCd; G.swung = true;
+}
+
+// minimap: rooms you have entered are lit, neighbours you have not seen are only outlined
+const mini = $('mini'), mg = mini.getContext('2d');
+function drawMini() {
+  const c = 38, ox = 8, oz = 8; mg.clearRect(0, 0, 130, 130);
+  const cell = (k) => [ox + ROOMS[k][0] * c, oz + ROOMS[k][1] * c];
+  for (const [a, b] of LINKS) { if (!G.visited[a] && !G.visited[b]) continue; const [ax, az] = cell(a), [bx, bz] = cell(b); mg.strokeStyle = '#6b5d44'; mg.lineWidth = 3; mg.beginPath(); mg.moveTo(ax + 13, az + 13); mg.lineTo(bx + 13, bz + 13); mg.stroke(); }
+  for (const k in ROOMS) {
+    const [x, z] = cell(k), v = G.visited[k], adj = LINKS.some(([a, b]) => (a === k && G.visited[b]) || (b === k && G.visited[a]));
+    if (!v && !adj) continue;
+    mg.fillStyle = v ? (k === 'A' ? '#2f5a38' : '#3a3326') : '#14110c'; mg.strokeStyle = v ? '#8d8470' : '#3a3326'; mg.lineWidth = 1.5; mg.fillRect(x, z, 26, 26); mg.strokeRect(x, z, 26, 26);
+    if (v) { mg.fillStyle = '#8d8470'; mg.font = '10px sans-serif'; mg.fillText(k, x + 3, z + 11); }
+  }
+  mg.fillStyle = '#e6b84a'; mg.beginPath(); mg.arc(ox + 13 + (G.pos.x / S) * c, oz + 13 + (G.pos.z / S) * c, 3.2, 0, 7); mg.fill();
+  const [fx, fz] = fwd(); mg.strokeStyle = '#e6b84a'; mg.beginPath(); mg.moveTo(ox + 13 + (G.pos.x / S) * c, oz + 13 + (G.pos.z / S) * c); mg.lineTo(ox + 13 + (G.pos.x / S) * c + fx * 7, oz + 13 + (G.pos.z / S) * c + fz * 7); mg.stroke();
 }
 
 // ---------- render ----------
@@ -416,10 +494,10 @@ function render() {
     $('hp').firstElementChild.style.width = (G.hp / PLAYER.hp) * 100 + '%'; $('hpn').textContent = Math.ceil(G.hp);
     $('bat').firstElementChild.style.width = (G.bat / FLASHLIGHT.seconds) * 100 + '%'; $('batn').textContent = Math.ceil(G.bat) + 's' + (G.torchOn ? '' : ' · tắt');
     $('loot').innerHTML = `${G.lootValue.toLocaleString()} 铲铲币<small>${G.carried.length} món trong túi — chết là mất</small>`;
-    $('dmg').style.opacity = G.dmgFlash;
+    $('dmg').style.opacity = G.dmgFlash; drawMini();
     $('msg').textContent = G.msgT > 0 ? G.msg : '';
     const tg = G.promptTarget; let pr = '';
-    if (tg) { const lab = tg.kind === 'coffin' ? 'Giữ E mở quan tài' : tg.kind === 'exit' ? 'Giữ E để thoát' : `Giữ E nhặt ${LOOT[tg.o.id].name}`; pr = G.holdTarget ? `${lab} · ${Math.round(G.hold / holdTime(tg) * 100)}%` : lab; }
+    if (tg) { const lab = tg.kind === 'coffin' ? (tg.o.gold ? 'Giữ E mở quan tài vàng' : 'Giữ E mở quan tài') : tg.kind === 'exit' ? 'Giữ E để thoát' : `Giữ E nhặt ${LOOT[tg.o.id].name}`; pr = G.holdTarget ? `${lab} · ${Math.round(G.hold / holdTime(tg) * 100)}%` : lab; }
     $('prompt').textContent = pr;
     $('obj').textContent = G.carried.length ? 'Mang đồ ra vòng xanh ở phòng đầu.' : 'Tìm kho báu: quan tài đồng và món đồ trên sàn.';
   }
@@ -447,13 +525,14 @@ $('reset').onclick = () => { save = blank(); writeSave(save); refreshMenu(); };
 
 // ---------- boot ----------
 (async function boot() {
-  const [coffin, toad] = await Promise.all([loadMesh('coffin', { metal: 0.5, rough: 0.55 }), loadMesh('toad')]);
-  ART = { coffin, toad, toadYaw: 0 };
+  const [coffin, toad, puppet, spider, thorns, crossbow, bolt] = await Promise.all([loadMesh('coffin', { metal: 0.5, rough: 0.55 }), loadMesh('toad'), loadParts('puppet'), loadParts('spider'), loadParts('thorns', { metal: 0.3 }), loadParts('crossbow'), loadParts('bolt')]);
+  const coffinGold = coffin.mat.clone(); coffinGold.color.setHex(0xffd060); coffinGold.metalness = 0.85;
+  ART = { coffin, coffinGold, toad, puppet, spider, thorns, crossbow, bolt, toadYaw: 0 };
   refreshMenu();
   // test/debug hooks: headless tests drive the same code the player does
   window.__tb = {
     G, rev: REV, save: () => save, THREE, ART,
-    start: startRun, swing, keys: () => ({ shown: $('tb-keys').style.display, hint: $('tbHint').style.display, text: $('tb-keys').innerText }), advance(sec, step = 1 / 30) { G.manual = true; for (let t = 0; t < sec; t += step) update(step); render(); },
+    start: (seed) => startRun(seed), addPickup, swing, roomAt, ROOMS, LINKS, S, keys: () => ({ shown: $('tb-keys').style.display, hint: $('tbHint').style.display, text: $('tb-keys').innerText }), advance(sec, step = 1 / 30) { G.manual = true; for (let t = 0; t < sec; t += step) update(step); render(); },
     tp(x, z, yaw) { G.pos.set(x, 0, z); if (yaw !== undefined) G.yaw = yaw; },
     ready: true,
   };

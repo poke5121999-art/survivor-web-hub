@@ -793,7 +793,7 @@ window.HUB_GAMES = [
     en: { title: "Tomb Busters", tagline: "A dark tomb, you and a flashlight. Grab loot and get out — die and lose it all.", desc: "Solo offline Tomb Busters. Drop 1 is one full run: 4 connected rooms, a 140 s flashlight, a toad disguised as a dirt mound, a puppet that only freezes when watched, floor spikes and a crossbow. Open bronze coffins, grab loot at real values, extract at the green ring to bank it; die and the run's loot is gone. Saved in the browser." },
     thumbnail: "assets/thumbnails/tombbusters.png",
     path: "games/tombbusters/index.html",
-    rev: "20261104a",
+    rev: "20261104b",
     status: "available",
     tags: ["Kinh dị", "Extraction", "Solo", "3D"]
   },
