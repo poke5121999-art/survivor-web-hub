@@ -89,9 +89,14 @@ export class Panel {
           maskSize: im.keep ? 'contain' : '100% 100%', webkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
           webkitMaskPosition: 'center', maskPosition: 'center', backgroundColor: rgba(im.c) });
       } else {
-        Object.assign(el.style, { backgroundImage: url, backgroundSize: im.keep ? 'contain' : '100% 100%', backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center' });
-        if (im.c[3] < 1) el.style.opacity = im.c[3];
+        const bgStyle = { backgroundImage: url, backgroundSize: im.keep ? 'contain' : '100% 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+        if (im.c[3] < 1) {
+          // the Image's alpha fades only its own sprite: on a layer of its own, CSS opacity would hide the children too
+          const bg = document.createElement('i');
+          bg.className = 'sl';
+          Object.assign(bg.style, bgStyle, { opacity: im.c[3] });
+          el.appendChild(bg);
+        } else Object.assign(el.style, bgStyle);
       }
     }
     if (n.txt && n.txt.on !== false) {

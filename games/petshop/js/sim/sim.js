@@ -6,6 +6,7 @@
 // Space: three.js world coordinates (Unity z negated, done by the exporters).
 import { NavGrid } from './nav.js';
 import { Placer } from './place.js';
+import { Tutorial } from './tutorial.js';
 
 export const ST = { None: 0, Rack: 1, Fridge: 2, Pet: 3, Reptile: 4, Fish: 5, Bird: 6 };
 const SAVE_V = 1;
@@ -61,7 +62,9 @@ export class Sim {
     this.placer = opts.colliders ? new Placer(opts.colliders) : null;
     this.solids = opts.solids || (() => []);
     this.events = [];
+    this.tut = new Tutorial(this);
     this.points = this.scenePoints();
+    this.opts0 = opts;
     this.reset(opts.save);
   }
 
@@ -86,10 +89,20 @@ export class Sim {
     const [, spawn] = comp('SpawnDeliveryHelper');
     const pt = r => { const t = wp(r.n).t; return [t[0], t[2]]; };
     const [, cs] = comp('CashierSystem');
+    const [ti, tutK] = comp('Tutorial');
+    let tutBox = null;
+    if (tutK && tutK.deliveryBoxInterable) {
+      const bi = tutK.deliveryBoxInterable.n, pb = N[bi].k.ProductDeliveryBox, t = wp(bi).t;
+      const r = wp(bi).r;
+      tutBox = { x: t[0], z: t[2], yaw: 2 * Math.atan2(r[1], r[3]), type: pb.productType || 1, n: pb.itemCount || (pb.positionList || []).length, node: bi };
+    }
+    const tutPts = {};
+    if (tutK) for (const [k, v] of Object.entries(tutK)) if (v && v.n != null && /^(tut_|arrow|hudElement)/.test(k)) tutPts[k] = wp(v.n).t;
     const pts = l => (l || []).map(pt);
     return {
       cashier: cs ? { homeToHiring: pts(cs.homeToHiringList), hiringToHome: pts(cs.hiringToHomeList),
         hiringToCounter: pts(cs.hiringToCounterList), counterToHome: pts(cs.counterToHomeList) } : null,
+      tutBox, tut: tutPts, counter: wp(N.findIndex(n => n.k && n.k.CheckOutCounter)).t,
       enter: npc.enterPathList.map(path), exit: npc.exitPathList.map(path),
       queue: chk.standPosList.map(pt),
       counterItems: chk.productPosList.map(r => wp(r.n).t),
@@ -97,7 +110,7 @@ export class Sim {
     };
   }
 
-  reset(save) {
+  reset(save, opts0 = this.opts0 || {}) {
     const G = this.G, S = G.start;
     const s = this.s = save && save.v === SAVE_V ? save : {
       v: SAVE_V, cash: S.coins, energy: S.energy, level: S.storeLevel, points: S.storePoints, day: 1,
@@ -110,6 +123,10 @@ export class Sim {
     // Drop 2 fields (older saves get the defaults)
     const D2 = { storageService: false, cashierService: false, hire: null, task: 1, taskN: 0, color: 0, claims: {}, placing: null, boosts: 0 };
     for (const [k, v] of Object.entries(D2)) if (s[k] === undefined) s[k] = v;
+    // GameSaveData.tutorialDone defaults to 0: a save without the field (Drop 1/2 had no tutorial) runs the tutorial,
+    // as Tutorial.CheckTutorial does; the scene's tutorial box is there again for it
+    const needTut = !!save && s.tutorialDone === undefined && !opts0.noTutorial;
+    if (s.tutorialDone === undefined) Object.assign(s, { tutorialDone: true, tutStep: 0, tutCap: null, tutBox: 0, tutDelivered: [] });
     if (!save) {
       for (const f of S.furnitureDataList) {
         const p = { x: f.position.x, y: f.position.y, z: -f.position.z };
@@ -120,6 +137,11 @@ export class Sim {
     // has w = 0, which Unity reads as identity). Saves from Drop 1 get it too.
     if (!s.furniture.some(f => f.kind === 's')) {
       for (const f of S.storageDataList || []) this.addFurniture('s', f.type, f.position.x, -f.position.z, 0);
+    }
+    if (!save || needTut) {
+      // Tutorial: saveData.tutorialDone 0, tutorialStep 1; the scene's tutorial box (12 Dog Food) is the first stock
+      if (opts0.noTutorial) Object.assign(s, { tutorialDone: true, tutStep: 0, tutCap: null, tutBox: 0, tutDelivered: [] });
+      else this.tut.setupFresh(this.addTutorialBox());
     }
     // runtime only
     this.customers = [];
@@ -134,6 +156,19 @@ export class Sim {
   }
 
   // payload "type" fields (product / license type) are kept as "what"
+  // UI-side tutorial events (language confirmed, welcome tapped, name panel closed, look / move input, price panel
+  // closed, counter entered / left, laptop opened)
+  tutEvent(name, data) { this.tut.event(name, data); }
+
+  addTutorialBox() {
+    const tb = this.points.tutBox, s = this.s;
+    if (!tb) return null;
+    const prod = this.prod.get(tb.type);
+    const box = { id: s.nextId++, bt: prod.box, kind: 'p', type: tb.type, n: tb.n, x: tb.x, y: 0.02, z: tb.z, yaw: tb.yaw, open: false, held: false };
+    s.boxes.push(box);
+    return box;
+  }
+
   emit(type, data) { this.events.push(Object.assign({}, data, data && data.type !== undefined ? { what: data.type } : null, { type })); }
 
   // --- catalogue & money ---------------------------------------------------------------------------------------
@@ -166,6 +201,7 @@ export class Sim {
     this.emit('cartBought');
     // CartUIHelper.InvokeFurnitureProductEvent: a cart line with deliveryBoxType < 10 (a shelf) fires OnFurnitureBuyAction
     if (lines.some(l => l.kind === 'f')) this.taskDone(3);
+    this.tut.event('cartBought');
     return { ok: true, dollars };
   }
 
@@ -176,18 +212,36 @@ export class Sim {
 
   unitCost(l) { const i = this.lineInfo(l); return i.cost * (l.kind === 'p' ? i.perBox : 1); }
 
-  // DeliveryUI.InstantDelivery: pays reqBoostCount energy (the original raises it per boost up to maxBoostCount;
-  // the rule of that rise is not decoded [GUESS: +1 per boost, capped]).
+  // DeliveryUI.UpdateTimerText: reqBoostCount = max(1, min(maxBoostCount, ceil(remaining * maxBoostCount / full time)))
+  boostCost() {
+    const p = this.s.pending[0];
+    if (!p) return 0;
+    const M = this.G.delivery.maxBoost;
+    return Math.max(1, Math.min(M, Math.ceil(Math.max(0, p.left) * M / Math.max(1, p.wait))));
+  }
+
+  // DeliveryUI.InstantDelivery: energy >= reqBoostCount -> pay it, the timer ends at once
   boost() {
     const p = this.s.pending[0];
     if (!p) return false;
-    const cost = Math.min((this.s.boosts || 0) + 1, this.G.delivery.maxBoost);
+    const cost = this.boostCost();
     if (this.s.energy < cost) { this.emit('lowEnergy'); return false; }
     this.s.energy -= cost;
-    this.s.boosts = (this.s.boosts || 0) + 1;
     p.left = 0;
     this.emit('energy', { delta: -cost });
+    this.emit('boosted', { cost });
     return true;
+  }
+
+  // DeliveryUI.InstantAdDelivery (rewarded ad "Free" skip): free once a day here, like the other ad rewards [PLACEHOLDER]
+  skipDelivery() {
+    const p = this.s.pending[0], s = this.s;
+    if (!p) return { ok: false };
+    if (s.claims.deliverySkip === s.day) return { ok: false, why: 'claimed' };
+    s.claims.deliverySkip = s.day;
+    p.left = 0;
+    this.emit('boosted', { cost: 0 });
+    return { ok: true };
   }
 
   // SpawnDeliveryHelper.SpawnDelivery: the boxes of one cart line appear at the delivery points.
@@ -204,6 +258,7 @@ export class Sim {
         x: at[0], y: 0.02 + stack * 0.36, z: at[2], yaw: 0, open: false, held: false, dropFrom: at[1] });
     }
     this.emit('delivered', { bt: p.bt, kind: p.kind, type: p.type });
+    if (this.tut.active()) { this.s.tutDelivered = this.s.boxes.slice(-p.boxes).map(b => b.id); this.tut.event('delivered'); }
   }
 
   // --- furniture & cabinets ----------------------------------------------------------------------------------------
@@ -241,16 +296,22 @@ export class Sim {
     if (b.kind !== 'p') return { ok: false, why: 'notProduct' };
     const prod = this.prod.get(b.type);
     if (prod.storage !== c.lay.storage) return { ok: false, why: 'wrongStorage', need: prod.storage };
-    if (!b.open) return { ok: false, why: 'closed' };
+    // AnimalDeliveryBox has no IOpenBox: the animal goes straight from the carried box into the cage
+    if (!b.open && !this.isAnimalBox(b)) return { ok: false, why: 'closed' };
     if (b.n <= 0) return { ok: false, why: 'Alert_BoxEmpty' };
     if (c.st.n >= c.lay.slots.length) return { ok: false, why: 'Alert_CabinetFull' };
     if (c.st.n > 0 && c.st.p !== b.type) return { ok: false, why: 'Alert_ItemMissMatch' };
+    if (!this.tut.canPlace(fid, i)) return { ok: false };
     c.st.p = b.type;
     c.st.n++;
     b.n--;
     this.emit('placed', { fid, i, type: b.type });
+    this.tut.event('productAdded');
+    if (b.n === 0 && b.id === this.s.tutBox) this.tut.event('tutBoxEmpty');   // BaseDeliveryBox.OnBoxEmptyAction
     return { ok: true };
   }
+
+  isAnimalBox(b) { return (this.L.boxes[b.bt] || {}).kind === 'AnimalDeliveryBox'; }
 
   // --- boxes in hand ------------------------------------------------------------------------------------------------
   heldBox() { return this.s.held ? this.s.boxes.find(b => b.id === this.s.held) : null; }
@@ -267,10 +328,12 @@ export class Sim {
     b.held = true;
     this.s.held = id;
     this.emit('pick', { id });
+    this.tut.event('pickTutBox', id);
+    this.tut.event('pickDelivered', id);
     return true;
   }
 
-  setOpen(open) { const b = this.heldBox(); if (b && b.kind === 'p') { b.open = open; this.emit(open ? 'open' : 'close'); } }
+  setOpen(open) { const b = this.heldBox(); if (b && b.kind === 'p' && !this.isAnimalBox(b)) { b.open = open; this.emit(open ? 'open' : 'close'); } }
 
   // PlayerDeliveryBoxHandler.DropDeliveryBox: thrown forward from the hold point.
   drop(x, y, z, yaw) {
@@ -291,6 +354,7 @@ export class Sim {
     this.s.boxes = this.s.boxes.filter(x => x !== b);
     this.s.held = null;
     this.emit('trash');
+    this.tut.event('trash');   // TrashBin.OnTrashColledEvent
     return { ok: true };
   }
 
@@ -349,6 +413,7 @@ export class Sim {
   // although the tutorial text promises "bonus XP").
   taskDone(n) {
     const s = this.s;
+    if (!s.tutorialDone) return;   // TaskManager subscribes only after Tutorial.OnTutorialCompletedAction
     if (s.task !== n) return;
     // TaskData.count of task 1 is 5
     if (n === 1 && ++s.taskN < 5) { this.emit('task', { task: 1, n: s.taskN }); return; }
@@ -555,6 +620,7 @@ export class Sim {
     s.open = !s.open;
     if (s.open) s.running = true;
     this.emit(s.open ? 'storeOpen' : 'storeClose');
+    if (s.open) this.tut.event('storeOpen');
     return true;
   }
 
@@ -645,10 +711,10 @@ export class Sim {
     switch (c.st) {
       case 'enter':   // CustomerWonderState along the enter path, then CustomerShopEnterDecision at its end
         if (!this.walk(c, dt)) return;
-        if (s.open && this.insideCount() < 4 && !s.tooLate && this.nonEmptyCabinets().length) {
+        if (s.open && this.insideCount() < this.tut.capacity(4) && !s.tooLate && this.nonEmptyCabinets().length) {
           // CustomerShopEnterSuccess: shuffled copy of the non-empty cabinets; CustomerResetState sized the basket.
           c.inside = true;
-          c.want = clamp(rangeInt(this.rnd, 2, Math.min(s.level + 1, 10)), 2, 10);
+          c.want = this.tut.basket(clamp(rangeInt(this.rnd, 2, Math.min(s.level + 1, 10)), 2, 10));
           c.cabs = shuffle(this.nonEmptyCabinets().map(x => [x.f.id, x.i]), this.rnd);
           c.st = 'decide';
           this.emit('customerEnter', { id: c.id });
@@ -707,7 +773,15 @@ export class Sim {
         return;
       }
       case 'atCounter': case 'pay':
+        if (c.animT > 0 && (c.animT -= dt) <= 0) c.anim = c.st === 'pay' ? 'GiveCard' : 'Idle';
         return;              // the player scans and takes the payment (CustomerWaitForTransactionState / GivePayment)
+      case 'paid':
+        if ((c.t -= dt) > 0) return;
+        c.st = 'exitFull'; c.anim = 'BagWalk';
+        this.navTo(c, ...this.points.exit[c.pi][0]);
+        c.path = c.path.concat(this.points.exit[c.pi].slice(1));
+        this.emit('checkoutChime');   // CheckOutRotine after processCheckOutTime: SoundManager.checkoutSuccessClip
+        return;
       case 'exitFull': case 'exitEmpty': case 'leave':
         if (!this.walk(c, dt)) return;
         if (c.st === 'exitFull' || c.st === 'exitEmpty' || c.st === 'leave') {
@@ -735,8 +809,11 @@ export class Sim {
     const k = this.checkout;
     k.cur = c.id; k.items = c.cart.map(it => ({ type: it.type, price: it.price, scanned: false }));
     k.scanned = 0; k.bill = 0; k.phase = 'scan'; k.fails = 0; k.given = 0; k.card = '';
+    c.pay = this.tut.payMethod(c.pay);
     c.st = 'atCounter'; c.anim = 'Idle';
-    this.emit('submit', { id: c.id });
+    this.emit('submit', { id: c.id, types: k.items.map(it => it.type) });   // BaseProduct.OnMoveToCheckOut per item
+    // CheckOutCounter.FirstCustomerScenerio: the only customer drops products while nobody is at the register -> bell
+    if (k.queue.length === 1 && !k.using) this.emit('bell');
   }
 
   // CheckOutCounter.ScanProducts: tapping a product on the counter adds its price to the bill.
@@ -769,7 +846,7 @@ export class Sim {
     if (c.pay === 1) {
       // CashPayment.ShowPaymentScreen: change = first of the shuffled changeList; customer hands bill + change.
       const list = shuffle(this.G.cash.changeList.slice(), this.rnd);
-      k.change = list[0];
+      k.change = this.tut.change(list[0]);
       k.received = k.bill + k.change;
       k.given = 0;
     } else {
@@ -806,10 +883,14 @@ export class Sim {
     if (!ok) {
       k.fails++;
       c.reaction = 'WrongPayment';
+      // CustomerReactionHelper.WrongPaymentReaction: wrongPaymentClip + CrossFade(HeadNo, 0.2)
+      c.anim = 'HeadNo'; c.animT = 1.5;
+      this.emit('reaction', { id: c.id, kind: 'WrongPayment', model: c.model });
       this.emit('payFail', { fails: k.fails, hint: k.fails >= this.G.checkout.maxFailedAttempts });
       return { ok: false, fails: k.fails };
     }
     c.reaction = extra ? 'FreeCash' : 'NormalCheckout';
+    if (extra) this.emit('extraCash', { cents: k.given - k.change });   // CashPayment.ShowExtraCashAlert
     this.completeCheckout(c, extra);
     return { ok: true, extra };
   }
@@ -824,13 +905,16 @@ export class Sim {
     s.stats.customers++;
     this.addPoints(this.G.level.pointsPerCheckout);
     this.taskDone(1);      // CheckOutCounter.OnPaymentSuccesfull -> TaskManager sub task
+    this.tut.event('paid');   // PaymentManager.OnPaymentSuccessAction
     this.emit('cash', { delta: dollars });
     this.emit('checkout', { id: c.id, bill: k.bill, dollars, extra });
     k.queue = k.queue.filter(id => id !== c.id);
     k.cur = null; k.phase = 'idle'; k.items = []; k.wait = this.G.checkout.processTime + this.G.checkout.nextCustomerWait;
-    c.st = 'exitFull'; c.anim = 'BagWalk'; c.inside = false;
-    this.navTo(c, ...this.points.exit[c.pi][0]);
-    c.path = c.path.concat(this.points.exit[c.pi].slice(1));
+    // CustomerReactionHelper.ShowReaction: thanks (HeadYes) or extra change (Happy) at the confirm tap; the customer stays
+    // for processCheckOutTime (2 s) before going home with the bag, and the checkout chime plays then
+    c.st = 'paid'; c.t = this.G.checkout.processTime; c.inside = false;
+    c.anim = extra ? 'Happy' : 'HeadYes';
+    this.emit('reaction', { id: c.id, kind: extra ? 'FreeCash' : 'NormalCheckout', model: c.model });
   }
 
   // --- cashier (CashierSystem / CashierNPC / CashierUIHelper / AutoCheckoutHelper) -----------------------------------
@@ -956,10 +1040,11 @@ export class Sim {
     if (this.checkout.wait > 0) this.checkout.wait -= dt;
     for (const c of this.customers.slice()) this.customerStep(c, dt);
     this.cashierStep(dt);
+    this.tut.step(dt);
   }
 
   // Day can be closed from the HUD (GameHudUIHelper EndDay button) once the clock has run out and the store is empty.
-  canEndDay() { return this.s.ended && !this.customers.some(c => c.inside || c.st === 'queue' || c.st === 'atCounter' || c.st === 'pay'); }
+  canEndDay() { return this.s.ended && !this.customers.some(c => c.inside || c.st === 'queue' || c.st === 'atCounter' || c.st === 'pay' || c.st === 'paid'); }
 
   save() { return JSON.parse(JSON.stringify(this.s)); }
 }

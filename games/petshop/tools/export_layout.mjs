@@ -88,7 +88,9 @@ pool.storage.forEach((ri, j) => { layout.storage[j + 1] = furniture(ri); });
 pool.products.forEach((ri, j) => {
   const r = roots[ri];
   const bp = sub(r).map(i => N[i].k || {}).map(k => Object.entries(k).find(([c]) => /Product$/.test(c))).find(Boolean);
-  layout.products[bp ? bp[1].type : j + 1] = { root: ri, name: N[r].n, kind: bp ? bp[0] : null };
+  // BaseProduct move-to-rack / move-to-counter AudioClip (asset id; art/audio name mapped in main.js)
+  const clipC = sub(r).map(i => N[i].k || {}).flatMap(k => Object.values(k)).find(v => v && v.moveToRackClip !== undefined);
+  layout.products[bp ? bp[1].type : j + 1] = { root: ri, name: N[r].n, kind: bp ? bp[0] : null, clip: clipC && clipC.moveToRackClip ? clipC.moveToRackClip.id : null };
 });
 pool.boxes.forEach((ri) => {
   const r = roots[ri];

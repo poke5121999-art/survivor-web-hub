@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { childAt } from './pool.js';
 
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
-const CUSTOMER_ANIM = { Walk: 'Walk', BasketWalk: 'BasketWalk', BagWalk: 'BagWalk', Idle: 'Idle', PickProduct: 'PickProduct', GiveCard: 'GiveCard', HeadNo: 'HeadNo', Happy: 'Happy' };
+const CUSTOMER_ANIM = { Walk: 'Walk', BasketWalk: 'BasketWalk', BagWalk: 'BagWalk', Idle: 'Idle', PickProduct: 'PickProduct', GiveCard: 'GiveCard', HeadNo: 'HeadNo', HeadYes: 'HeadYes', Happy: 'Happy' };
 
 function hitBox(size, center, hit) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), HIT_MAT);
@@ -71,6 +71,29 @@ export class GameView {
     this.boundMesh.visible = false;
     scene3.add(this.boundMesh);
     this.cashierObj = null;
+    // tutorial: the 3D arrow (@Holders/Tutorial/Arrow; its Mesh child spins -180 deg per 2 s linear, incremental, and
+    // bobs 0.25 m per 1 s InOutSine yoyo, DOTweenAnimation) and the scene's own tutorial Dog Food box, which the sim
+    // replaces with a real box (hidden here always)
+    this.arrow = store.byName.get('Arrow');
+    this.arrowMesh = this.arrow && this.arrow.children.find(c => c.name === 'Mesh');
+    if (this.arrow) this.arrow.visible = false;
+    this.arrowT = 0;
+    const tb = N.find(o => o.name === '1_DogFood' && o.parent && o.parent.name === 'Tutorial');
+    if (tb) tb.visible = false;
+  }
+
+  // Tutorial.ShowArrowAtPosition(pos, offset); null hides it
+  showArrow(p) {
+    if (!this.arrow) return;
+    this.arrow.visible = !!p;
+    if (p) this.arrow.position.set(p[0], p[1], p[2]);
+  }
+  animArrow(dt) {
+    if (!this.arrowMesh || !this.arrow.visible) return;
+    this.arrowT += dt;
+    this.arrowMesh.rotation.y = -Math.PI * (this.arrowT / 2);
+    const k = (this.arrowT % 2) / 1, ph = k <= 1 ? k : 2 - k;   // yoyo 0..1..0
+    this.arrowMesh.position.y = 0.25 * (0.5 - 0.5 * Math.cos(Math.PI * ph));
   }
 
   makeBoard(node) {
@@ -251,7 +274,7 @@ export class GameView {
         if (e.rig) e.rig.play(b.open ? 'Open' : 'Close', 0.1);
       }
       // items visible inside an opened product box
-      const want = b.kind === 'p' && b.open ? b.n : 0;
+      const want = b.kind === 'p' && (b.open || this.sim.isAnimalBox(b)) ? b.n : 0;   // an animal box shows its animal
       while (e.items.length > want) e.items.pop().removeFromParent();
       while (e.items.length < want && lay.slots[e.items.length]) {
         const pl = this.L.products[b.type];
@@ -288,7 +311,7 @@ export class GameView {
       }
       e.obj.position.set(c.x, 0, c.z);
       e.obj.rotation.set(0, c.yaw, 0);
-      if (e.rig) e.rig.play(CUSTOMER_ANIM[c.anim] || 'Idle');
+      if (e.rig) e.rig.play(CUSTOMER_ANIM[c.anim] || 'Idle', 0.2);   // CrossFade 0.2 s
       e.hit.visible = c.st === 'pay';
       this.showStuff(e, c);
     }
@@ -316,7 +339,7 @@ export class GameView {
       const shopping = c.inside && c.st !== 'exitFull';
       if (basket) basket.visible = shopping && c.st !== 'atCounter' && c.st !== 'pay';
       if (stuff) stuff.visible = shopping && c.cart.length > 0 && c.st !== 'atCounter' && c.st !== 'pay';
-      if (bag) bag.visible = c.st === 'exitFull';
+      if (bag) bag.visible = c.st === 'exitFull' || c.st === 'paid';
     }
     if (e.pay) {
       const k = e.pay.k;
@@ -468,6 +491,7 @@ export class GameView {
     this.syncCounter();
     this.syncPlacing();
     this.syncCashier();
+    this.animArrow(dt);
     for (const r of this.rigs) r.update(dt);
   }
 }

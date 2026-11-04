@@ -14,6 +14,10 @@ want = {}
 import json
 scene = json.load(open(os.path.join(os.path.dirname(HERE), "art", "store", "scene.json")))
 lr = next(n["k"]["LevelRewardUIHelper"] for n in scene["nodes"] if n.get("k") and "LevelRewardUIHelper" in n["k"])
+# Tutorial.stepDataList stepIcon sprites -> art/ui/tut_<pathId>.png (objective icons during the tutorial)
+tut = next(n["k"]["Tutorial"] for n in scene["nodes"] if n.get("k") and "Tutorial" in n["k"])
+for d in tut["stepDataList"]:
+    if d.get("stepIcon"): want[d["stepIcon"]["id"]] = f"tut_{d['stepIcon']['id']}.png"
 for r in lr["rewardDataList"]:
     for x in r["subRewardList"]:
         if x.get("rewardSprite"): want[x["rewardSprite"]["id"]] = f"reward_{x['rewardSprite']['id']}.png"

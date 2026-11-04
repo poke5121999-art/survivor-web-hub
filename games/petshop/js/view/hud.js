@@ -10,6 +10,8 @@
 import { UiLayer } from './ui.js';
 
 const money = c => `$${(c / 100).toFixed(2)}`;
+// DeliveryCatalogItem.FormatTime / DeliveryUI: "{0:00}:{1:00}" of minutes and seconds
+const fmtTime = sec => { const t = Math.max(0, Math.ceil(sec)); return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
 const dollars = d => `$${d}`;
 // Alerts are I2 terms (data/text.json, en / vi). Keys the original passes that are not in its term table (it would show
 // nothing) and states the original never alerts get an English line [PLACEHOLDER text].
@@ -20,6 +22,8 @@ const FALLBACK = {
 };
 const USE = { 1: 'Rack', 2: 'Fridge', 3: 'AnimalCage', 4: 'RaptileCage', 5: 'Aquarium', 6: 'BirdCage' };
 const STORAGE_NAME = { 1: 'Rack', 2: 'Fridge', 3: 'Animal Cage', 4: 'Reptile Cage', 5: 'Aquarium', 6: 'Bird Cage' };
+// I2 LanguageSourceAsset column order (= the Language Screen's button order)
+const LANGS = ['en', 'pt', 'id', 'ar', 'ru', 'es', 'th', 'it', 'fr', 'nl', 'zh', 'ko', 'vi', 'ja', 'tr', 'de', 'uk'];
 const readLS = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const writeLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } };
 
@@ -49,6 +53,23 @@ export class Hud {
       vis.forEach((k, i) => { k.rt.pos = [slots[0][0] + (i % cols) * dx, slots[0][1] + Math.floor(i / cols) * dy]; });
       c.rt.size[1] = Math.ceil(vis.length / cols) * -dy + 40;
     }
+    // PricePanelHelper tweens its panel from panelHidePos (536, -1200) to panelShowPos (536, -57) (.ctor constants);
+    // the serialized rect is the hidden one
+    const pp = node('Panels/PricePanel/Panel');
+    if (pp) pp.rt.pos = [536, -57];
+    // delivery boost buttons (HorizontalLayoutGroup, serialized at zero width): Get It Now and Free side by side, gap 10
+    // [GUESS: the spacing], in the side bar and in the catalogue cell prefab
+    const row = n => {
+      if (!n) return;
+      const [w, h] = n.kids[0].rt.size, gap = 10;
+      n.rt = Object.assign({}, n.rt, { size: [2 * w + gap, h] });
+      n.kids.forEach((k, i) => { k.rt = Object.assign({}, k.rt, { a0: [0.5, 0.5], a1: [0.5, 0.5], pv: [0.5, 0.5], pos: [(i - 0.5) * (w + gap), 0] }); });
+    };
+    row(node('HudUI/DeliveryUI/TimerSideBar/TimerArea/Buttons'));
+    row(['UIContainer', 'Right', 'Buttons'].reduce((n, k) => n && (n.kids || []).find(x => x.n === k), ui.roots.catalogCell));
+    // Finger pointer: its root becomes a full-screen layer so the pointer can sit on any button (placeFinger)
+    const fg = ui.roots.canvas.kids.find(k => k.n === 'Finger');
+    if (fg) fg.rt = { a0: [0, 0], a1: [1, 1], pos: [0, 0], size: [0, 0], pv: [0.5, 0.5], sc: [1, 1], rot: 0 };
     // Settings content: VerticalLayoutGroup (sections stacked from the top, centred; spacing 30 [GUESS]); Haptics dropped
     const sc = node('Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content');
     if (sc) {
@@ -62,7 +83,9 @@ export class Hud {
     }
     // language: saved choice, else the browser's (vi -> Vietnamese, anything else -> English)
     this.text = ctx.text || {};
-    this.settings = Object.assign({ lang: (navigator.language || 'en').toLowerCase().startsWith('vi') ? 'vi' : 'en', sens: 1, sfx: 1, music: 1 }, readLS('ps-settings', {}));
+    const nav = (navigator.language || 'en').toLowerCase().slice(0, 2);
+    this.settings = Object.assign({ lang: LANGS.includes(nav) ? nav : 'en', sens: 1, sfx: 1, music: 1 }, readLS('ps-settings', {}));
+    if (!LANGS.includes(this.settings.lang)) this.settings.lang = 'en';
     this.T = k => { const e = this.text[k]; return e ? (e[this.settings.lang] || e.en) : null; };
     this.layer = new UiLayer(host, ui, base);
     this.p = this.layer.panel('canvas');
@@ -98,14 +121,15 @@ export class Hud {
 
   applyLang() {
     this.p.translate(this.T);
-    const lt = this.q('Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content/Language/LanguageButton/languageIcon');
-    if (lt) lt.style.backgroundImage = `url("${this.base}/${this.settings.lang === 'vi' ? 'vietnam.webp' : 'usa.webp'}")`;
-    const ln = this.q('Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content/Language/LanguageButton/languageText');
-    if (ln) {
-      ln.style.backgroundImage = this.settings.lang === 'vi' ? 'none' : `url("${this.base}/ENGLISH.webp")`;
-      if (!ln._t) { ln._t = document.createElement('b'); ln._t.className = 'lang'; ln.appendChild(ln._t); }
-      ln._t.textContent = this.settings.lang === 'vi' ? 'TIẾNG VIỆT' : '';
-    }
+    // the Settings language button shows the chosen language's flag and name sprites (from its Language Screen button)
+    const C = this.layer.ui.roots.canvas;
+    const cont = ['Panels', 'Language Screen', 'Screen', 'Scroll View', 'Viewport', 'Content'].reduce((n, k) => n && n.kids.find(x => x.n === k), C);
+    const b = cont && cont.kids[LANGS.indexOf(this.settings.lang)];
+    const spr = name => { const k = b && b.kids.find(x => x.n === name); return k && k.img && k.img.s; };
+    const base = 'Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content/Language/LanguageButton/';
+    const lt = this.q(`${base}languageIcon`), ln = this.q(`${base}languageText`);
+    if (lt && spr('Flag')) lt.style.backgroundImage = `url("${this.base}/${spr('Flag')}")`;
+    if (ln && spr('Language')) ln.style.backgroundImage = `url("${this.base}/${spr('Language')}")`;
   }
 
   q(path) { return this.p.q(path); }
@@ -127,7 +151,13 @@ export class Hud {
     this.on('HudUI/PlayerControls/CartButton', () => this.openStore());
     this.on('HudUI/CheckOutCounter/ExitCheckOut', () => c.exitCheckout());
     this.on('HudUI/RightSide/EndDay', () => this.openDayEnd());
-    this.on('HudUI/DeliveryUI/TimerSideBar/Button', () => { if (!c.sim.boost()) this.alert('Alert_LowEnergy'); });
+    // DeliveryUI: the side bar's transparent Button opens the Delivery Queue (openCataLogButton); UseBoost pays
+    // reqBoostCount energy (InstantDelivery); SkipDeliveryAd is the rewarded-ad skip (free once a day here)
+    this.on('HudUI/DeliveryUI/TimerSideBar/Button', () => this.openCatalog());
+    this.on('HudUI/DeliveryUI/TimerSideBar/TimerArea/Buttons/UseBoost', () => this.useBoost());
+    this.on('HudUI/DeliveryUI/TimerSideBar/TimerArea/Buttons/SkipDeliveryAd', () => this.skipAd());
+    this.on('Panels/DeliveryCatalogueUIHelper/Panel/CrossButton', () => this.closeCatalog());
+    this.on('Panels/DeliveryCatalogueUIHelper/Bg', () => this.closeCatalog());
     // laptop store
     this.on('Store/Store/Cross', () => this.closeStore());
     this.on('Store/Store/LeftButtons/Store', () => this.storeSection('Products'));
@@ -167,7 +197,8 @@ export class Hud {
   alert(key, arg) {
     let t = key === 'wrongStorage' ? this.T(`Alert_AlertUse${USE[arg]}`) : null;
     if (t == null) t = this.T(key) ?? FALLBACK[key] ?? key;
-    if (arg != null) t = t.replace('{x}', arg);
+    // ExtraCash: "You gave extra change of x"
+    if (arg != null) t = key === 'ExtraCash' ? t.replace(/x\s*$/, arg) : t.replace('{x}', arg);
     this.p.show('AlertBar', true);
     this.p.set('AlertBar/Text (TMP)', t);
     this.alertT = 2.2;
@@ -177,7 +208,17 @@ export class Hud {
     this.closeModal(); this.modal = name; this.p.show(name, true); this.ctx.uiOpen(true);
     this.layer.resize();   // TMP auto-size of the panel's texts needs them laid out while visible
   }
-  closeModal() { if (!this.modal) return; this.p.show(this.modal, false); if (this.modal === 'Panels/PricePanel') this.p.show('Panels', true); this.modal = null; this.ctx.uiOpen(!!this.over); }
+  closeModal() {
+    if (!this.modal) return;
+    const m = this.modal;
+    this.p.show(m, false);
+    if (m === 'Panels/PricePanel') this.p.show('Panels', true);
+    this.modal = null;
+    this.ctx.uiOpen(!!this.over || !!this.tutModal);
+    // tutorial: StoreNameChangeHelper.OnPanelCloseEventAction, PricePanelHelper.OnPricePanelClose
+    if (m === 'Panels/Name your Store') this.ctx.sim.tutEvent('nameClosed');
+    if (m === 'Panels/PricePanel') this.ctx.sim.tutEvent('priceClose');
+  }
 
   // ---------- laptop store ----------
   openStore() { this.openModal('Store'); this.storeSection('Products'); this.renderCart(); }
@@ -269,14 +310,16 @@ export class Hud {
     const upd = () => { cell.set('BottomObjects/bg/Text (TMP)', String(n)); cell.set('BottomObjects/Buy/Text (TMP)', money(unit * per * n)); };
     upd();
     const btn = (p, fn) => { const el = cell.q(p); if (el) { el.classList.add('b'); el.addEventListener('click', e => { e.stopPropagation(); fn(); }); } };
-    btn('BottomObjects/plus', () => { n = Math.min(n + 1, 99); upd(); });
+    // tutorial CloseMarketPlace (step 18): ItemUIScript.UpdateBoxCount keeps the quantity at 1
+    btn('BottomObjects/plus', () => { n = sim.tut.type() === 18 ? 1 : Math.min(n + 1, 99); upd(); });
     btn('BottomObjects/minus', () => { n = Math.max(1, n - 1); upd(); });
     btn('BottomObjects/Buy', () => { this.addToCart(r.kind, r.type, n); n = 1; upd(); });
   }
 
   addToCart(kind, type, n) {
     const e = this.cart.find(x => x.kind === kind && x.type === type);
-    if (e) e.boxes += n; else this.cart.push({ kind, type, boxes: n });
+    if (this.ctx.sim.tut.type() === 18) n = 1;
+    if (e) e.boxes = this.ctx.sim.tut.type() === 18 ? 1 : e.boxes + n; else this.cart.push({ kind, type, boxes: n });
     this.ctx.sound && this.ctx.sound.sfx('42_CartBuy');
     this.renderCart();
   }
@@ -306,7 +349,7 @@ export class Hud {
       cell.set('Price', money(cents));
       cell.set('Bg/Text (TMP)', String(l.boxes));
       const btn = (p, fn) => { const el = cell.q(p); if (el) { el.classList.add('b'); el.addEventListener('click', e => { e.stopPropagation(); fn(); }); } };
-      btn('Plus', () => { l.boxes++; this.renderCart(); });
+      btn('Plus', () => { if (sim.tut.type() !== 18) l.boxes++; this.renderCart(); });
       btn('Mins', () => { l.boxes--; if (l.boxes <= 0) this.cart.splice(this.cart.indexOf(l), 1); this.renderCart(); });
     });
     content.style.height = `${12 + this.cart.length * 72}px`;
@@ -371,7 +414,8 @@ export class Hud {
     this.p.set('Panels/PricePanel/Panel/Top/CostText', `COST: ${money(p.cost)}`);
     this.p.set('Panels/PricePanel/Panel/MarketPriceText', `Market Price: ${money(p.market)}`);
     this.icon(this.q('Panels/PricePanel/Panel/Top/ImageContainer/ItemIcon'), p.icon);
-    this.p.show('Panels/PricePanel/Panel/Container/Slider/hand', false);
+    // PricePanelHelper.ShowHand during the SetItemsPrice tutorial step
+    this.p.show('Panels/PricePanel/Panel/Container/Slider/hand', this.ctx.sim.tut.type() === 11);
     const slider = this.q('Panels/PricePanel/Panel/Container/Slider');
     if (slider && !slider._bound) {
       slider._bound = true;
@@ -434,8 +478,8 @@ export class Hud {
 
   confirmPay() {
     const r = this.ctx.sim.confirmPayment();
-    if (r.ok) this.ctx.sound && this.ctx.sound.sfx('10_CheckoutSuccess');
-    else { this.ctx.sound && this.ctx.sound.sfx('11.1_CheckoutFailed'); this.alert('wrongPay'); }
+    // the customer's voice answers (main.js 'reaction'); the checkout chime plays 2 s later ('checkoutChime')
+    if (!r.ok) this.alert('wrongPay');
   }
 
   // ---------- day end ----------
@@ -464,6 +508,71 @@ export class Hud {
   }
 
   taskTick() { this.tickT = 1.5; }
+
+  useBoost() { const r = this.ctx.sim.boost(); if (r) this.ctx.sound && this.ctx.sound.sfx('34_SuccessSound'); }
+  skipAd() { const r = this.ctx.sim.skipDelivery(); if (!r.ok) { if (r.why) this.alert(r.why); return; } this.ctx.sound && this.ctx.sound.sfx('34_SuccessSound'); }
+
+  // DeliveriesCatalogUIHelper ("Delivery Queue"): opens only after the tutorial and with at least one pending delivery;
+  // one catalogCell per pending delivery in purchase order, the first is the active one (coloured icon and bar, Skip
+  // Delivery + Get It Now buttons), the rest are queued (grey icon, full grey bar, "Previous orders needs to delivered
+  // first!"); closes itself when the queue empties
+  openCatalog() {
+    const { sim } = this.ctx;
+    if (!sim.s.tutorialDone || !sim.s.pending.length) return;
+    this.openModal('Panels/DeliveryCatalogueUIHelper');
+    this.p.show('Panels', true);
+    this.catKey = null;
+    this.renderCatalog();
+  }
+  closeCatalog() { if (this.modal === 'Panels/DeliveryCatalogueUIHelper') this.closeModal(); }
+
+  renderCatalog() {
+    const { sim } = this.ctx, s = sim.s;
+    if (!s.pending.length) { this.closeCatalog(); return; }
+    const vp = this.q('Panels/DeliveryCatalogueUIHelper/Panel/Scroll View/Viewport');
+    if (!vp) return;
+    const content = [...vp.children].find(e => e._n);
+    vp.style.overflowY = 'auto'; vp.style.pointerEvents = 'auto';
+    const key = s.pending.map(p => `${p.kind}${p.type}x${p.boxes}`).join(',');
+    const W = 651, H = 186, GAP = 12;
+    if (this.catKey !== key) {
+      this.catKey = key;
+      content.querySelectorAll('[data-cat]').forEach(e => e.remove());
+      this.catCells = s.pending.map((p, i) => {
+        const cell = this.layer.cell('catalogCell');
+        cell.el.hidden = false; cell.el._cell = true; cell.el.dataset.cat = i;
+        content.appendChild(cell.el);
+        cell.layout(W, H);
+        Object.assign(cell.el.style, { left: '50%', marginLeft: `${-W / 2}px`, top: `${10 + i * (H + GAP)}px` });
+        cell.p = p;
+        const btn = (path, fn) => { const el = cell.q(path); if (el) { el.classList.add('b'); el.addEventListener('click', e => { e.stopPropagation(); fn(); }); } };
+        btn('UIContainer/Right/Buttons/UseBoost', () => this.useBoost());
+        btn('UIContainer/Right/Buttons/SkipDeliveryAd', () => this.skipAd());
+        cell.translate && cell.translate(this.T);
+        // the active / queued parts first, then the layout: TMP auto-size measures only visible texts
+        const active = i === 0;
+        cell.show('UIContainer/Right/MiddleText', active);
+        cell.show('UIContainer/Right/Buttons', active);
+        cell.show('UIContainer/Right/Text (TMP)', !active);
+        cell.layout(W, H);
+        Object.assign(cell.el.style, { left: '50%', marginLeft: `${-W / 2}px`, top: `${10 + i * (H + GAP)}px` });
+        return cell;
+      });
+      content.style.height = `${20 + s.pending.length * (H + GAP)}px`;
+    }
+    this.catCells.forEach((cell, i) => {
+      const p = s.pending[i], active = i === 0, info = sim.lineInfo(p);
+      this.icon(cell.q('UIContainer/Left/Icon'), active ? info.icon : (info.grey || info.icon));
+      cell.set('UIContainer/Left/Text (TMP)', `X${p.boxes}`);
+      cell.set('UIContainer/Right/FillImage/Text (TMP)', fmtTime(active ? p.left : p.wait));
+      const fb = cell.q('UIContainer/Right/FillImage/FillBar');
+      if (fb) { fb.style.transformOrigin = 'left center'; fb.style.transform = `scaleX(${active ? Math.max(0, p.left) / Math.max(1, p.wait) : 1})`; fb.style.filter = active ? '' : 'grayscale(1)'; }
+      cell.show('UIContainer/Right/MiddleText', active);
+      cell.show('UIContainer/Right/Buttons', active);
+      cell.show('UIContainer/Right/Text (TMP)', !active);
+      if (active) cell.set('UIContainer/Right/Buttons/UseBoost/Text (TMP)', String(sim.boostCost()));
+    });
+  }
 
   levelUp(level) {
     this.pendingLevel = level;
@@ -562,11 +671,8 @@ export class Hud {
     this.on('Panels/Name your Store/Screen/Confirm', () => { c.sim.setStoreName(this.nameInput.value, this.nameColor); c.saveNow(); this.closeModal(); });
     // settings
     this.on('Panels/SettingUIPanel/Panel/Header/Close', () => { writeLS('ps-settings', this.settings); this.closeModal(); });
-    this.on('Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content/Language/LanguageButton', () => {
-      this.settings.lang = this.settings.lang === 'vi' ? 'en' : 'vi';
-      writeLS('ps-settings', this.settings);
-      this.applyLang();
-    });
+    // Settings -> language: the same Language Screen (LanguageUIHelper.OnClickShowScreen)
+    this.on('Panels/SettingUIPanel/Panel/Middle/Left/Scroll View/Viewport/Content/Language/LanguageButton', () => this.showLanguage(null));
     this.on('Panels/LevelRewardPanel/Panel/KeepPlaying', () => this.closeModal());
     // MoveObjButtons (PlayerObjectMover): rotate +-90, place, sell (storage racks), cancel
     const M = 'HudUI/PlayerControls/MoveObjButtons/Container';
@@ -704,6 +810,80 @@ export class Hud {
     });
   }
 
+  // ---------- tutorial screens (Tutorial component's UI) ----------
+  // Language Screen (LanguageUIHelper): the 17 original language buttons (flag + name sprites), in the I2 column order;
+  // the chosen one is marked [GUESS: the selected sprite is not exported, a glow stands in]. Confirm applies it.
+  showLanguage(onDone) {
+    const P = this.p, path = 'Panels/Language Screen';
+    P.show('Panels', true); P.show(path, true);
+    this.tutModal = path; this.ctx.uiOpen(true); this.layer.resize();
+    const content = this.q(`${path}/Screen/Scroll View/Viewport/Content`);
+    const vp = content && content.parentElement;
+    if (vp) { vp.style.overflowY = 'auto'; vp.style.pointerEvents = 'auto'; }
+    const btns = [...content.children].filter(e => e._n);
+    const mark = () => btns.forEach((b, i) => { b.style.filter = LANGS[i] === this.settings.lang ? 'drop-shadow(0 0 6px #ffe14d) brightness(1.15)' : ''; });
+    btns.forEach((b, i) => {
+      if (b._lang) return;
+      b._lang = LANGS[i];
+      b.classList.add('b');
+      b.addEventListener('click', e => { e.stopPropagation(); this.settings.lang = LANGS[i]; writeLS('ps-settings', this.settings); this.applyLang(); mark(); });
+    });
+    mark();
+    this.onLang = onDone;
+    this.bindOnce(`${path}/Screen/Confirm`, () => {
+      P.show(path, false); this.tutModal = null; this.ctx.uiOpen(!!this.modal);
+      const f = this.onLang; this.onLang = null; if (f) f();
+    });
+  }
+
+  // a Tutorial UI screen (Welcome Screen, Change Name Tip, Follow Objective, MoveCamera, Move JoyStick); onTap for the
+  // screens that wait for a tap / button, null for the guide overlays that wait for a movement
+  tutScreen(name, on, onTap) {
+    const path = `Tutorial/${name}`;
+    this.p.show('Tutorial', true);
+    this.p.show(path, on);
+    if (!on) { if (this.tutModal === path) { this.tutModal = null; this.ctx.uiOpen(!!this.modal); } return; }
+    this.layer.resize();
+    if (!onTap) return;
+    this.tutModal = path; this.ctx.uiOpen(true);
+    this.tutTap = onTap;
+    const btn = { 'Welcome Screen': 'Button', 'Change Name Tip': 'Screen/Confirm', 'Follow Objective': 'Screen/Confirm' }[name];
+    if (name === 'Welcome Screen') { this.p.show(`${path}/Button`, true); this.p.show(`${path}/Panel/Screen/LoweText`, true); }
+    this.bindOnce(`${path}/${btn}`, () => { const f = this.tutTap; this.tutTap = null; this.tutScreen(name, false); if (f) f(); });
+  }
+
+  // GenericFingerPointer: the hand that points at a UI button (path) during the tutorial; null hides it
+  finger(path) {
+    const f = this.q('Finger');
+    if (!f) return;
+    if (!path) { f.hidden = true; this.fingerAt = null; return; }
+    this.fingerAt = path;
+    f.hidden = false;
+  }
+  // HUD Navigation off-screen indicator (IndicatorPrefab not exported: the original's UpUIArrow sprite at the edge)
+  navArrow(p) {
+    if (!this.nav) {
+      this.nav = document.createElement('div');
+      this.nav.className = 'navarrow';
+      this.nav.style.backgroundImage = `url("${this.base}/UpUIArrow.webp")`;
+      document.body.appendChild(this.nav);
+    }
+    this.nav.hidden = !p;
+    if (p) this.nav.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) rotate(${(p.angle + Math.PI / 2).toFixed(3)}rad)`;
+  }
+
+  placeFinger() {
+    if (!this.fingerAt) return;
+    const at = this.fingerAt, isPt = at && typeof at === 'object' && 'x' in at && !(at instanceof Element);
+    const t = isPt ? null : typeof at === 'string' ? this.q(at) : at, f = this.q('Finger/GenericFingerPointer');
+    if ((!t && !isPt) || !f) return;
+    const r = isPt ? { left: at.x, top: at.y, width: 1, height: 1 } : t.getBoundingClientRect(), k = this.layer.k, hr = this.layer.host.getBoundingClientRect();
+    if (!r.width) { this.q('Finger').hidden = true; return; }
+    this.q('Finger').hidden = false;
+    const x = (r.left + r.width / 2 - hr.left) / k, y = (r.top + r.height / 2 - hr.top) / k;
+    Object.assign(f.style, { left: `${x - 50}px`, top: `${y - 50}px`, transform: `rotate(35deg) translateY(${8 * Math.sin(performance.now() / 160)}px)` });
+  }
+
   // ---------- floating joystick + touch look ----------
   joystick() {
     const host = this.layer.host;
@@ -757,8 +937,9 @@ export class Hud {
     const placing = s.placing;
     P.show('HudUI/PlayerControls', !inChk && !this.modal);
     // a furniture / storage box opens into placement (FurnitureDeliveryBox.OpenBox); while placing only MoveObjButtons
-    P.show('HudUI/PlayerControls/BoxButtons/Open', !!held && !placing && (held.kind !== 'p' || !held.open));
-    P.show('HudUI/PlayerControls/BoxButtons/Closed', !!held && !placing && held.kind === 'p' && held.open);
+    const animal = !!held && sim.isAnimalBox(held);
+    P.show('HudUI/PlayerControls/BoxButtons/Open', !!held && !placing && !animal && (held.kind !== 'p' || !held.open));
+    P.show('HudUI/PlayerControls/BoxButtons/Closed', !!held && !placing && !animal && held.kind === 'p' && held.open);
     P.show('HudUI/PlayerControls/BoxButtons/Throw', !!held && !placing);
     P.show('HudUI/PlayerControls/Interact', !!st.target && !placing);
     P.show('HudUI/PlayerControls/CartButton', !placing);
@@ -805,14 +986,24 @@ export class Hud {
       const txt = lines.join('\n');
       if (this.pos.textContent !== txt) this.pos.textContent = txt;
     }
-    // delivery timer
+    // delivery side bar (DeliveryUI): truck badge = queue length, icon + "x{boxes}", fill = remaining / full, mm:ss,
+    // UseBoost shows reqBoostCount
     const head = s.pending[0];
     P.show('HudUI/DeliveryUI/TimerSideBar', !!head);
     if (head) {
-      const t = Math.ceil(head.left);
-      const ta = this.q('HudUI/DeliveryUI/TimerSideBar/TimerArea');
-      if (ta) { if (!ta._txt) { ta._txt = document.createElement('b'); ta._txt.className = 'timer'; ta.appendChild(ta._txt); } ta._txt.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}  x${s.pending.length}`; }
+      const B = 'HudUI/DeliveryUI/TimerSideBar/';
+      const info = sim.lineInfo(head);
+      P.set(`${B}Truck/CountBg/CountText`, String(s.pending.length));
+      this.icon(this.q(`${B}TimerArea/Icon`), info.icon);
+      P.set(`${B}TimerArea/Icon/Text (TMP)`, `x${head.boxes}`);
+      P.set(`${B}TimerArea/FillImage/Text (TMP)`, fmtTime(head.left));
+      const fb = this.q(`${B}TimerArea/FillImage/FillBar`);
+      if (fb) { fb.style.transformOrigin = 'left center'; fb.style.transform = `scaleX(${Math.max(0, head.left) / Math.max(1, head.wait)})`; }
+      P.set(`${B}TimerArea/Buttons/UseBoost/Text (TMP)`, String(sim.boostCost()));
+      const ad = this.q(`${B}TimerArea/Buttons/SkipDeliveryAd`);
+      if (ad) ad.style.filter = sim.s.claims.deliverySkip === s.day ? 'grayscale(1) brightness(0.8)' : '';
     }
+    if (this.modal === 'Panels/DeliveryCatalogueUIHelper') this.renderCatalog();
     // objective + end day
     P.show('HudUI/RightSide/EndDay', sim.canEndDay() && !this.modal);
     // ObjectiveBar: GameHudUIHelper swaps the icon (open sign / normal / sad / checkout / day end) and the description.
@@ -821,6 +1012,15 @@ export class Hud {
     P.set('HudUI/RightSide/ObjectiveBar/TextArea/StatArea/Description', obj.text);
     // ObjectiveUIHelper.UpdateObjectiveUI: "{0}/{1}" and the fill bar for counted tasks
     P.show('HudUI/RightSide/ObjectiveBar/TextArea/StatArea/FillBarBg', !!obj.count);
+    // StatArea is a VerticalLayoutGroup: with the fill bar on top the description takes the space below it
+    const de = this.q('HudUI/RightSide/ObjectiveBar/TextArea/StatArea/Description');
+    if (de && de._withBar !== !!obj.count) {
+      de._withBar = !!obj.count;
+      de._n.rt = obj.count ? { a0: [0, 0], a1: [1, 1], pos: [0, -20], size: [-10, -50], pv: [0.5, 0.5], sc: [1, 1], rot: 0 }
+        : { a0: [0, 0], a1: [1, 1], pos: [0, 0], size: [-10, -10], pv: [0.5, 0.5], sc: [1, 1], rot: 0 };
+      const sa = de.parentElement;
+      this.p.layout(parseFloat(sa.style.width), parseFloat(sa.style.height), de);
+    }
     if (obj.count) {
       P.set('HudUI/RightSide/ObjectiveBar/TextArea/StatArea/FillBarBg/ProgressText', `${obj.n}/${obj.count}`);
       const fb = this.q('HudUI/RightSide/ObjectiveBar/TextArea/StatArea/FillBarBg/FillBar');
@@ -829,8 +1029,20 @@ export class Hud {
     P.show('HudUI/RightSide/ObjectiveBar/TextArea/tick', (this.tickT || 0) > 0);
     if (this.tickT > 0) this.tickT -= dt;
     const ic = this.q('HudUI/RightSide/ObjectiveBar/TextArea/IconImage');
-    const icon = this.layer.ui.hudIcons[obj.icon];
+    const icon = obj.iconFile || this.layer.ui.hudIcons[obj.icon];
     if (ic && icon && ic._icon !== icon) { ic._icon = icon; ic.style.backgroundImage = `url("${this.base}/${icon}")`; }
     if (this.alertT > 0 && (this.alertT -= dt) <= 0) P.show('AlertBar', false);
+    // tutorial: the HUD parts each step enables (Tutorial stepDataList OnStartEvent SetActive calls), the finger
+    const tv = st.tutVis;
+    if (tv) {
+      P.show('HudUI', tv.hud); P.show('TopBar', tv.hud);
+      if (!tv.cart) P.show('HudUI/PlayerControls/CartButton', false);
+      if (!tv.interact) P.show('HudUI/PlayerControls/Interact', false);
+      if (tv.exit === false) P.show('HudUI/CheckOutCounter/ExitCheckOut', false);   // CheckOutCounter.HideExitButton
+    } else if (this.tutVisWas) { P.show('HudUI', true); P.show('TopBar', true); }
+    this.tutVisWas = !!tv;
+    this.navArrow(tv && tv.nav);
+    if (st.finger !== undefined && st.finger !== this.fingerAt) this.finger(st.finger);
+    this.placeFinger();
   }
 }

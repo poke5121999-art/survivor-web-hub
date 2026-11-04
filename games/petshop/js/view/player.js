@@ -70,6 +70,8 @@ export class Player {
     this.joy = { x: 0, y: 0 };
     this.locked = false;
     this.enabled = true;
+    this.canLook = true; this.canMove = true;   // tutorial: look from MoveCamera, walk from MoveJoyStick
+    this.onLook = null; this.onMove = null;
     this.lookDrag = null;
     addEventListener('keydown', e => { this.keys.add(e.code); });
     addEventListener('keyup', e => { this.keys.delete(e.code); });
@@ -82,6 +84,8 @@ export class Player {
   }
 
   look(dx, dy) {
+    if (!this.canLook) return;
+    if (this.onLook && (dx || dy)) this.onLook();
     const k = 0.0025 * (this.sens / 0.5) * (this.sensMul ?? 1);
     this.yaw -= dx * k;
     this.pitch = Math.max(-50 * Math.PI / 180, Math.min(50 * Math.PI / 180, this.pitch - dy * k));
@@ -89,7 +93,7 @@ export class Player {
 
   update(dt, grid) {
     let fx = 0, fz = 0;
-    if (this.enabled) {
+    if (this.enabled && this.canMove) {
       const K = this.keys;
       if (K.has('KeyW') || K.has('ArrowUp')) fz += 1;
       if (K.has('KeyS') || K.has('ArrowDown')) fz -= 1;
@@ -100,6 +104,7 @@ export class Player {
     const len = Math.hypot(fx, fz);
     if (len > 1) { fx /= len; fz /= len; }
     if (len > 0.01) {
+      if (this.onMove) this.onMove();
       // forward is -z of the camera (three.js); yaw rotates about +y
       const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
       const dx = (-s * fz + c * fx) * this.speed * dt, dz = (-c * fz - s * fx) * this.speed * dt;

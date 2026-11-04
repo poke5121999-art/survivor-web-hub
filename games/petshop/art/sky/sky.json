@@ -1,0 +1,38 @@
+{
+ "name": "Sky",
+ "shader": "Skybox/6 Sided",
+ "faces": {
+  "_BackTex": "back.webp",
+  "_DownTex": "down.webp",
+  "_FrontTex": "front.webp",
+  "_LeftTex": "left.webp",
+  "_RightTex": "right.webp",
+  "_UpTex": "up.webp"
+ },
+ "floats": {
+  "_BumpScale": 1.0,
+  "_Cutoff": 0.5,
+  "_DetailNormalMapScale": 1.0,
+  "_DstBlend": 0.0,
+  "_Exposure": 1.0,
+  "_GlossMapScale": 1.0,
+  "_Glossiness": 0.5,
+  "_GlossyReflections": 1.0,
+  "_Metallic": 0.0,
+  "_Mode": 0.0,
+  "_OcclusionStrength": 1.0,
+  "_Parallax": 0.019999999552965164,
+  "_Rotation": -0.0,
+  "_SmoothnessTextureChannel": 0.0,
+  "_SpecularHighlights": 1.0,
+  "_SrcBlend": 1.0,
+  "_UVSec": 0.0,
+  "_ZWrite": 1.0
+ },
+ "tint": {
+  "r": 0.3803921639919281,
+  "g": 0.4901960790157318,
+  "b": 0.5568627715110779,
+  "a": 0.501960813999176
+ }
+}

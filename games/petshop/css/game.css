@@ -33,4 +33,18 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-f
 .crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 2px #000; z-index: 4; pointer-events: none; }
 .name-input { position: absolute; inset: 8% 6%; width: 88%; height: 84%; border: 0; background: transparent; color: #222; font: 700 44px 'Noto Sans', sans-serif;
   font-stretch: 75%; text-transform: uppercase; text-align: center; outline: none; pointer-events: auto; }
-.lang { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: 700 30px 'Noto Sans', sans-serif; font-stretch: 75%; }
+/* [ĐỀ XUẤT] desktop key caps on the on-screen controls + first movement hint (keys.js, same look as games/food-gang) */
+#ps-keys { position: fixed; inset: 0; pointer-events: none; z-index: 6; font-family: 'Noto Sans', system-ui, sans-serif; font-weight: 700; }
+#ps-keys .k { position: absolute; display: none; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; }
+#ps-keys .k b { display: inline-block; min-width: 1.1em; padding: .22em .42em .12em; border-radius: .32em; background: #1b1b1b; border: .12em solid #fff;
+  color: #fff; font-weight: 700; line-height: 1; text-align: center; box-shadow: 0 .14em 0 #000; }
+#ps-keys .hint { transform: translate(-50%, -100%); padding: .45em .8em .35em; border: .18em solid #1b1b1b; border-radius: .6em;
+  background: linear-gradient(#ffd23e, #f59d16); box-shadow: 0 .2em 0 #1b1b1b; color: #fff; line-height: 1.1;
+  text-shadow: -.08em -.08em 0 #1b1b1b, .08em -.08em 0 #1b1b1b, -.08em .08em 0 #1b1b1b, .08em .08em 0 #1b1b1b, 0 .14em 0 #1b1b1b;
+  animation: ps-hint-pop .25s ease-out, ps-hint-bob 1.2s ease-in-out .25s infinite; }
+#ps-keys .hint b { margin: 0 .12em; text-shadow: none; }
+#ps-keys .hint::after { content: ''; position: absolute; left: 50%; bottom: -.62em; margin-left: -.5em; border: .5em solid transparent; border-top-color: #1b1b1b; border-bottom: 0; }
+@keyframes ps-hint-pop { from { transform: translate(-50%, -100%) scale(.4); opacity: 0; } to { transform: translate(-50%, -100%) scale(1); opacity: 1; } }
+@keyframes ps-hint-bob { 50% { transform: translate(-50%, -112%); } }
+.navarrow { position: fixed; left: 0; top: 0; width: 64px; height: 64px; background: center / contain no-repeat; pointer-events: none; z-index: 5; filter: drop-shadow(0 2px 2px #0008); }
+.navarrow[hidden] { display: none; }

@@ -1,4 +1,4 @@
-"""I2 Localization terms of Pet Shop Simulator -> data/text.json {term: {"en": ..., "vi": ...}}.
+"""I2 Localization terms of Pet Shop Simulator -> data/text.json {term: {lang: text}} for all 17 languages.
 
 Usage: python -I tools/export_text.py
 The LanguageSourceAsset (resources.assets) does not read through the generated type tree, so its TermData list is
@@ -53,7 +53,7 @@ while p < len(b) - 8:
     t = term_at(p)
     if t:
         name, vals, p = t
-        out[name] = {"en": vals[0], "vi": vals[12]}
+        out[name] = {lang: v for lang, v in zip(LANGS, vals) if v}
     else:
         p += 4
 json.dump(out, open(os.path.join(os.path.dirname(HERE), "data", "text.json"), "w"), ensure_ascii=False, indent=0)

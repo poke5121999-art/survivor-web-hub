@@ -779,7 +779,7 @@ window.HUB_GAMES = [
     en: { title: "Pet Shop", tagline: "Run a pet store: order stock, fill shelves, set prices and work the till — scan and give change.", desc: "A 3D pet-shop sim straight in the browser. Order on the laptop, wait for delivery, carry boxes to shelves, price against the market, open for customers, scan each item at the till, give cash change or take card, and read the profit report (minus 5% tax) at closing, then level up to unlock licenses and new sections. Pets (Siamese, Husky) sell from the cage. Rules and prices from the original game's data. Keys or drag to walk, aim + E to interact, saved in the browser." },
     thumbnail: "assets/thumbnails/petshop.png",
     path: "games/petshop/index.html",
-    rev: "20261104a",
+    rev: "20261106a",
     status: "available",
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
   },
