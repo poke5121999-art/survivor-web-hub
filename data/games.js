@@ -784,6 +784,20 @@ window.HUB_GAMES = [
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
   },
   {
+    id: "tombbusters",
+    title: "Tomb Busters",
+    tagline: "Hầm mộ tối, một mình với đèn pin. Lấy đồ rồi ra cửa — chết là mất sạch.",
+    desc: "Bản solo offline của Tomb Busters. Drop 1: một chuyến đủ vòng lặp — 4 phòng nối nhau, đèn pin 140 giây, ếch ngụy trang thành đống đất, mộc ngẫu chỉ đứng yên khi bị nhìn, gai sàn và liên nỗ. Mở quan tài đồng, nhặt đồ theo giá thật, ra vòng xanh để mang về kho; chết thì mất hết đồ chuyến đó. Lưu trong trình duyệt.",
+    genre: "kinh-di",
+    accent: "#e6b84a",
+    en: { title: "Tomb Busters", tagline: "A dark tomb, you and a flashlight. Grab loot and get out — die and lose it all.", desc: "Solo offline Tomb Busters. Drop 1 is one full run: 4 connected rooms, a 140 s flashlight, a toad disguised as a dirt mound, a puppet that only freezes when watched, floor spikes and a crossbow. Open bronze coffins, grab loot at real values, extract at the green ring to bank it; die and the run's loot is gone. Saved in the browser." },
+    thumbnail: "assets/thumbnails/tombbusters.png",
+    path: "games/tombbusters/index.html",
+    rev: "20261104a",
+    status: "available",
+    tags: ["Kinh dị", "Extraction", "Solo", "3D"]
+  },
+  {
     id: "dragon-storm",
     title: "Dragon Storm",
     tagline: "Hiệp sĩ thủ làng: chạm để chém, né và tung chiêu chặn quái tràn vào từng màn.",
