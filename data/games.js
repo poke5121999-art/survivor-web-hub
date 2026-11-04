@@ -756,20 +756,6 @@ window.HUB_GAMES = [
     tags: ["Hành động", "Một ngón", "Màn dọc"]
   },
   {
-    id: "supermarket",
-    title: "Corner Mart",
-    tagline: "Nhập hàng, xếp kệ, đặt giá và tự đứng quầy: quét mã, quẹt thẻ, thối tiền cho từng khách.",
-    desc: "Mô phỏng siêu thị nhỏ 3D chạy thẳng trên web (dưới 1 MB). Bê thùng hàng lên kệ, đặt giá so với giá thị trường, mở cửa đón khách theo từng đợt, quét từng món ở quầy, gõ số tiền khi khách quẹt thẻ, lấy tiền thối khi khách trả tiền mặt (thối thiếu là khách phàn nàn), đặt thêm hàng trên máy tính, cuối ngày xem báo cáo lãi lỗ và lên cấp cửa hàng. Luật và giá lấy từ dữ liệu game Shop Simulator. Bàn phím hoặc kéo để đi, lưu trong trình duyệt.",
-    genre: "thu-gian",
-    accent: "#e76f51",
-    en: { title: "Corner Mart", tagline: "Order stock, fill shelves, set prices and work the till: scan, card, give change.", desc: "A small 3D supermarket sim straight in the browser (under 1 MB). Carry boxes to shelves, price against the market, open for waves of customers, scan every item, key in card payments, count out change for cash (short change upsets them), reorder on the computer, and read the profit report at closing. Rules and prices from Shop Simulator's data. Keys or drag to walk, saved in the browser." },
-    thumbnail: "assets/thumbnails/supermarket.png",
-    path: "games/supermarket/index.html",
-    rev: "20261104a",
-    status: "available",
-    tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
-  },
-  {
     id: "petshop",
     title: "Pet Shop",
     tagline: "Mở tiệm thú cưng: nhập hàng, xếp kệ, đặt giá rồi tự đứng quầy quét mã, thối tiền cho khách.",
@@ -782,20 +768,6 @@ window.HUB_GAMES = [
     rev: "20261109a",
     status: "available",
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
-  },
-  {
-    id: "tombbusters",
-    title: "Tomb Busters",
-    tagline: "Hầm mộ tối, một mình với đèn pin. Lấy đồ rồi ra cửa — chết là mất sạch.",
-    desc: "Bản solo offline của Tomb Busters. Drop 1: một chuyến đủ vòng lặp — 4 phòng nối nhau, đèn pin 140 giây, ếch ngụy trang thành đống đất, mộc ngẫu chỉ đứng yên khi bị nhìn, gai sàn và liên nỗ. Mở quan tài đồng, nhặt đồ theo giá thật, ra vòng xanh để mang về kho; chết thì mất hết đồ chuyến đó. Lưu trong trình duyệt.",
-    genre: "kinh-di",
-    accent: "#e6b84a",
-    en: { title: "Tomb Busters", tagline: "A dark tomb, you and a flashlight. Grab loot and get out — die and lose it all.", desc: "Solo offline Tomb Busters. Drop 1 is one full run: 4 connected rooms, a 140 s flashlight, a toad disguised as a dirt mound, a puppet that only freezes when watched, floor spikes and a crossbow. Open bronze coffins, grab loot at real values, extract at the green ring to bank it; die and the run's loot is gone. Saved in the browser." },
-    thumbnail: "assets/thumbnails/tombbusters.png",
-    path: "games/tombbusters/index.html",
-    rev: "20261104c",
-    status: "available",
-    tags: ["Kinh dị", "Extraction", "Solo", "3D"]
   },
   {
     id: "dragon-storm",
