@@ -1,8 +1,8 @@
 {
  "_note": "Meta data recovered from libMyGame.so (Dragon Storm v90) with tools/ds_dis.py, tools/ctor_fields.py, tools/xref_*.py. Every value carries its source: C++ function + address (initial value set via secureSet::setInt in that function), or 'clip' for something only observed in gameplay footage, or PLACEHOLDER. secureSet stores 2*v+0x54c (secureSet::setInt @0x619e40 / getInt @0x619e08), so the setInt literals are the real values.",
  "startGold": {
-  "value": 100,
-  "src": "LoadGold() @0x61c700: UserDefault 'AV_987' default 0x546=1350, gold = raw/3 - 350 (SaveGold() @0x61ef20 writes 3*gold+1050)"
+  "value": 0,
+  "src": "fresh install: Scene_Title::Call_Back_Move_Scene_WorldMap @0x4c6974 first-run block (GameData+0x4bc8 == 0) writes gold 0 (LoadGold() @0x61c700 would default to 100, but the first-run block overwrites it)"
  },
  "upgrade": {
   "maxLevel": {
@@ -155,12 +155,17 @@
   }
  },
  "hearts": {
-  "value": "10 FULL (display only)",
-  "src": "clip c2 5:20; energy timer (Scene_WorldMap::Init_HEART_TIME) not built - decision: hearts are never spent"
+  "value": {
+   "start": 10,
+   "max": 10,
+   "regenSec": 600,
+   "freeStageIdx": 4
+  },
+  "src": "LoadHeart @0x61ccb4: hearts 10 / max 10 (tickets the same). Regen 10 min per heart while below max (Scene_WorldMap::SCH_HEART_SEC @0x53f654, device clock: GameData::getCurrentLocalTimeGMT, the web-time calls are empty stubs). A stage needs >= 1 heart to start (Call_Back_Game_Start @0x55d9c4, \"CAN NOT ENTER: NO MORE HEART\"); the heart is taken at the result, win or lose (FUC_SHOW_RESULT @0x5fa4ac) except stage index <= 4 (stages 1-5 are free)."
  },
  "gems": {
   "value": 0,
-  "src": "decision: gems locked (cash currency, Scene_Shop billing)"
+  "src": "fresh install: gems 0 (LoadJewel @0x61c69c default raw 0x41a -> 0); GameData+0x4c58. No gem drops in stages (FUC_SELECT_GEM is a coin drop); free sources: +1 per day (dailyGem), rewarded video +2 (no ads in the web version)"
  },
  "boosters": {
   "items": {
@@ -275,5 +280,565 @@
    },
    "src": "per stage, star table GameData+0x4f88[stage] = mode*3 + stars, kept at its max (FUC_SHOW_RESULT_STAR_ANI @0x600174 writes 1/4/7 for the first star in NORMAL/HARD/HELL); UNTOUCHED per mode at GameData+0x5758 + mode*0x7d0 + stage*8 = 9999 after a clear in that mode with the UNTOUCHED flag (FUC_SHOW_RESULT_END @0x5fba50). Opening the prep picks the highest open mode (Scene_WorldMap::onTouchesEnded @0x56f940): HARD when star table >= 3 and NORMAL untouched, HELL when star table >= 6 and HARD untouched. Texts \"HARD MODE UNLOCKED\", \"HELL MODE UNLOCKED\". UNTOUCHED = cleared without taking a hit (game text \"USE THE DIVINE SHIELD TO HELP CLEAR STAGE WITH NO HIT\")."
   }
+ },
+ "shop": {
+  "jewelPacks": {
+   "value": [
+    {
+     "gems": 10,
+     "usd": 0.99,
+     "badge": ""
+    },
+    {
+     "gems": 60,
+     "usd": 2.99,
+     "badge": "(10 BENEFIT!)"
+    },
+    {
+     "gems": 130,
+     "usd": 4.99,
+     "badge": "(30 BENEFIT!)"
+    },
+    {
+     "gems": 420,
+     "usd": 9.99,
+     "badge": "(120 BENEFIT!)"
+    },
+    {
+     "gems": 750,
+     "usd": 29.99,
+     "badge": "(250 BENEFIT!)"
+    },
+    {
+     "gems": 1600,
+     "usd": 49.99,
+     "badge": "(600 BIG BENEFIT!)"
+    }
+   ],
+   "src": "Scene_Shop JEWEL tab: .rodata 0x35b848 gems, 0x35b7a0 USD, 0x35b7d0 badges; real-money billing (purchaseIABJNI via Call_Back_Buy_Cash_Item_For_Korea_or_Mobirix @0x73139c) - shown, not sold in the web version"
+  },
+  "goldPacks": {
+   "value": [
+    {
+     "gems": 5,
+     "gold": 2500
+    },
+    {
+     "gems": 10,
+     "gold": 6000
+    },
+    {
+     "gems": 20,
+     "gold": 13000
+    },
+    {
+     "gems": 30,
+     "gold": 21000
+    },
+    {
+     "gems": 50,
+     "gold": 35000
+    },
+    {
+     "gems": 100,
+     "gold": 75000
+    }
+   ],
+   "src": "Scene_Shop GOLD tab (ids 6-11): .rodata 0x35b830 gem cost / 0x35b818 gold; Scene_Shop::Call_Back_Bought_Product @0x732ed0; \"PURCHASE %d GOLD WITH %d JEWEL\""
+  },
+  "etc": {
+   "value": [
+    {
+     "key": "heart1",
+     "label": "1 HEART",
+     "gems": 1
+    },
+    {
+     "key": "heartFull",
+     "label": "HEART FULL",
+     "gems": 5
+    },
+    {
+     "key": "heartMax",
+     "label": "MAX HEART+1",
+     "gems": 5
+    },
+    {
+     "key": "ticket1",
+     "label": "1 TICKET",
+     "gems": 1
+    },
+    {
+     "key": "ticketFull",
+     "label": "TICKET FULL",
+     "gems": 5
+    },
+    {
+     "key": "ticketMax",
+     "label": "MAX TICKET+1",
+     "gems": 5
+    }
+   ],
+   "src": "Scene_Shop ETC tab (ids 12-17): cost table .rodata 0x35b860 = {1,5,5,1,5,5}; Call_Back_Bought_Product @0x733308 (+1 if below max), @0x7333c8 (fill), @0x733134 (max+1 and +1, no cap)"
+  },
+  "messages": {
+   "value": {
+    "noGems": "NOT ENOUGH JEWEL",
+    "heartMax": "HEART COUNT IS ALREADY MAX",
+    "ticketMax": "TICKET COUNT IS ALREADY MAX",
+    "noHeart": "CAN NOT ENTER: NO MORE HEART",
+    "dailyGem": "YOU CAN GET 1 JEWEL EVERYDAY!"
+   },
+   "src": "GAME_INFO_TEXT indices 0x274, 0x276, 0x277, 0x2c2, 0x342"
+  },
+  "dailyGem": {
+   "value": 1,
+   "src": "Scene_MAP_UI::FUC_GET_JEWLE_ONCE_FOR_A_DAY @0x74b3b4: +1 gem once per day, device time"
+  }
+ },
+ "items": {
+  "_note": "ITEM tab (Scene_Bag). Kinds decoded from the jump table of Game_Item::createGame_Item @0x6c56ec (names T[380+id], GAME_INFO_TEXT::textsetting @0x4cf998). Stats a stage uses come from getPlayerInfo @0x620794: main kind 0 ATK +v, 1 HP +v, 2 skill cooldown -v s (floor 5), 3 crit % +v (cap 30); option kinds 0 ATK, 1 HP, 2 crit (cap 30), 3 skill power. Other kinds feed systems not in the web version (in-stage pickups, guardians, expedition, cosmetic BG/BGM).",
+  "kinds": {
+   "value": [
+    {
+     "id": 0,
+     "name": "Poisoned Arrow",
+     "slot": 0,
+     "main": 0,
+     "value": 1
+    },
+    {
+     "id": 1,
+     "name": "Shuriken of Assassin",
+     "slot": 0,
+     "main": 0,
+     "value": 2
+    },
+    {
+     "id": 2,
+     "name": "Staff of Wizard",
+     "slot": 0,
+     "main": 0,
+     "value": 3
+    },
+    {
+     "id": 3,
+     "name": "War Bow",
+     "slot": 0,
+     "main": 0,
+     "value": 1
+    },
+    {
+     "id": 4,
+     "name": "Sword of Hero",
+     "slot": 0,
+     "main": 0,
+     "value": 2
+    },
+    {
+     "id": 5,
+     "name": "War Hammer",
+     "slot": 0,
+     "main": 0,
+     "value": 3
+    },
+    {
+     "id": 6,
+     "name": "Mjolnir",
+     "slot": 0,
+     "main": 0,
+     "value": 2
+    },
+    {
+     "id": 7,
+     "name": "Golf Club",
+     "slot": 0,
+     "main": 0,
+     "value": 2
+    },
+    {
+     "id": 8,
+     "name": "Butcher Knife",
+     "slot": 0,
+     "main": 0,
+     "value": 2
+    },
+    {
+     "id": 9,
+     "name": "Arrow Without Owner",
+     "slot": 0,
+     "main": -1,
+     "value": -1
+    },
+    {
+     "id": 10,
+     "name": "Leather Armor",
+     "slot": 1,
+     "main": 1,
+     "value": 5
+    },
+    {
+     "id": 11,
+     "name": "Metal Armor",
+     "slot": 1,
+     "main": 1,
+     "value": 10
+    },
+    {
+     "id": 12,
+     "name": "Red Cape",
+     "slot": 1,
+     "main": 10,
+     "value": 200
+    },
+    {
+     "id": 13,
+     "name": "Blue Cape",
+     "slot": 1,
+     "main": 11,
+     "value": 200
+    },
+    {
+     "id": 14,
+     "name": "Robe of Wizard",
+     "slot": 1,
+     "main": 2,
+     "value": 1
+    },
+    {
+     "id": 15,
+     "name": "Marriage Armor",
+     "slot": 1,
+     "main": 3,
+     "value": 2
+    },
+    {
+     "id": 16,
+     "name": "Helm of Thor",
+     "slot": 1,
+     "main": 1,
+     "value": 10
+    },
+    {
+     "id": 17,
+     "name": "Office Lady Look",
+     "slot": 1,
+     "main": 1,
+     "value": 10
+    },
+    {
+     "id": 18,
+     "name": "Dead Mask",
+     "slot": 1,
+     "main": 1,
+     "value": 10
+    },
+    {
+     "id": 19,
+     "name": "Clothes of Apprentice",
+     "slot": 1,
+     "main": -1,
+     "value": -1
+    },
+    {
+     "id": 20,
+     "name": "Ring of Valor",
+     "slot": 2,
+     "main": 15,
+     "value": 1
+    },
+    {
+     "id": 21,
+     "name": "Ring of Armor",
+     "slot": 2,
+     "main": 16,
+     "value": 1
+    },
+    {
+     "id": 22,
+     "name": "Ring of Trickster",
+     "slot": 2,
+     "main": 14,
+     "value": 1
+    },
+    {
+     "id": 23,
+     "name": "Ring of Eagle",
+     "slot": 2,
+     "main": 18,
+     "value": 1
+    },
+    {
+     "id": 24,
+     "name": "Ring of Lamb",
+     "slot": 2,
+     "main": 19,
+     "value": 1
+    },
+    {
+     "id": 25,
+     "name": "Ring of Recent",
+     "slot": 2,
+     "main": 19,
+     "value": 2
+    },
+    {
+     "id": 26,
+     "name": "Ring of Middle-Age",
+     "slot": 2,
+     "main": 19,
+     "value": 3
+    },
+    {
+     "id": 27,
+     "name": "Ring of Lunar Landing",
+     "slot": 2,
+     "main": 4,
+     "value": 0
+    },
+    {
+     "id": 28,
+     "name": "Ring of Monkey",
+     "slot": 2,
+     "main": 4,
+     "value": 0
+    },
+    {
+     "id": 29,
+     "name": "Old Ring of Copper",
+     "slot": 2,
+     "main": -1,
+     "value": -1
+    },
+    {
+     "id": 30,
+     "name": "Necklace of BunnyDoll",
+     "slot": 3,
+     "main": 6,
+     "value": 1
+    },
+    {
+     "id": 31,
+     "name": "Necklace of TeddyBear",
+     "slot": 3,
+     "main": 6,
+     "value": 2
+    },
+    {
+     "id": 32,
+     "name": "Necklace of a Mexicana",
+     "slot": 3,
+     "main": 7,
+     "value": 3
+    },
+    {
+     "id": 33,
+     "name": "Necklace of Pearl",
+     "slot": 3,
+     "main": 7,
+     "value": 2
+    },
+    {
+     "id": 34,
+     "name": "Necklace of Girl Doll",
+     "slot": 3,
+     "main": 6,
+     "value": 3
+    },
+    {
+     "id": 35,
+     "name": "Necklace of Gold Key",
+     "slot": 3,
+     "main": 8,
+     "value": 2
+    },
+    {
+     "id": 36,
+     "name": "Necklace of Shield",
+     "slot": 3,
+     "main": 8,
+     "value": 1
+    },
+    {
+     "id": 37,
+     "name": "Necklace of Meteor",
+     "slot": 3,
+     "main": 5,
+     "value": 0
+    },
+    {
+     "id": 38,
+     "name": "Necklace of Snow Flake",
+     "slot": 3,
+     "main": 5,
+     "value": 0
+    },
+    {
+     "id": 39,
+     "name": "Chain Without Pendent",
+     "slot": 3,
+     "main": -1,
+     "value": -1
+    },
+    {
+     "id": 40,
+     "name": "Necklace of Pharaoh",
+     "slot": 3,
+     "main": 1,
+     "value": 15
+    },
+    {
+     "id": 41,
+     "name": "Ring of Pharaoh",
+     "slot": 2,
+     "main": 0,
+     "value": 5
+    }
+   ],
+   "src": "Game_Item::createGame_Item @0x6c56ec (meta/re_notes/item_wing.md 1.2)"
+  },
+  "slotNames": {
+   "value": [
+    "WEAPON",
+    "ARMOR",
+    "RING",
+    "NECKLACE"
+   ],
+   "src": "T[371+f0]"
+  },
+  "mainText": {
+   "value": {
+    "0": "ATK +%d",
+    "1": "HP +%d",
+    "2": "SKILL COOL TIME -%d SEC",
+    "3": "CRITICAL RATE +%d%%",
+    "4": "CHANGES THE STAGE BACKGROUND",
+    "5": "CHANGES THE STAGE MUSIC",
+    "6": "GUARDIAN CRITICAL +%d%%",
+    "7": "GUARDIAN EXP +%d%%",
+    "8": "ITEM DROP +%d%%",
+    "10": "2X ATK ITEM +%d PTS",
+    "11": "2X DEF ITEM +%d PTS",
+    "14": "2X SCORE TIME +%d SEC",
+    "15": "2X ATK TIME +%d SEC",
+    "16": "2X DEF TIME +%d SEC",
+    "18": "BERSERKER TIME +%d SEC",
+    "19": "GEM DROP +%d%%"
+   },
+   "src": "web wording of the effect per main kind (the original descriptions T[422+2*id] were not dumped); kinds 2/3 floors from getPlayerInfo @0x620794"
+  },
+  "optionText": {
+   "value": [
+    "ATK +%d",
+    "HP +%d",
+    "CRITICAL RATE +%d%%",
+    "SKILL ATTACK +%d",
+    "HP POTION +%d%%",
+    "SWORD BLAST TIME +0.%d SEC",
+    "SWORD BLAST ATK +%d",
+    "GUARDIAN EXPEDITION EXP +%d%%",
+    "EXPEDITION ABILITY +%d",
+    "SKILL COOL TIME -%d SEC"
+   ],
+   "src": "T[585+kind]"
+  },
+  "optionRoll": {
+   "value": {
+    "mod": [
+     12,
+     21,
+     5,
+     10,
+     5,
+     3,
+     21,
+     11,
+     16,
+     3
+    ],
+    "base": [
+     1,
+     5,
+     1,
+     1,
+     1,
+     1,
+     10,
+     10,
+     5,
+     1
+    ]
+   },
+   "src": "value = rand()%mod[k] + base[k], rodata 0x35a404 / 0x35a42c"
+  },
+  "boxGems": {
+   "value": 20,
+   "src": "Scene_Bag FUC_OPENBOX_ANI01 @0x696358 -> actualCreateBoxItem @0x696b90: 20 jewels, id rand()%42, two different option kinds (the tutorial box forces id 11 Metal Armor)"
+  },
+  "sellGold": {
+   "value": 500,
+   "src": "Scene_Bag::Call_Back_Sell_Item @0x684e50: +500 gold"
+  },
+  "intenGold": {
+   "value": {
+    "main": 4000,
+    "none": 1000
+   },
+   "src": "Scene_Bag::actualIntenItem @0x696e14: gold 4000*(lv+1), 1000*(lv+1) for items without a main stat; one other item is used up"
+  },
+  "intenStep": {
+   "value": {
+    "1": 5,
+    "3": 2,
+    "big": 500,
+    "other": 1
+   },
+   "src": "actualIntenItem: main value +5 for HP, +2 for crit, +500 for kinds 9..13, +1 otherwise"
+  },
+  "slots": {
+   "value": {
+    "start": 30,
+    "max": 50,
+    "step": 5,
+    "gems": 10
+   },
+   "src": "LoadSlot @0x61bf54 (30); Scene_Bag::Call_Back_Slot_Extension @0x67a82c: 10 jewels -> +5, max 50"
+  },
+  "statCaps": {
+   "value": {
+    "crit": 30,
+    "cooldownMin": 5
+   },
+   "src": "getPlayerInfo @0x620794"
+  }
+ },
+ "tabs": {
+  "value": [
+   {
+    "name": "ITEM",
+    "afterStage": 5,
+    "locked": "AVAILABLE AFTER: CLEAR STAGE 5",
+    "unlocked": "UNLOCKED: INVENTORY"
+   },
+   {
+    "name": "TOWER",
+    "afterStage": 6,
+    "locked": "TOWER OF DEATH is available after: CLEAR STAGE 6",
+    "unlocked": "UNLOCKED: TOWER OF DEATH"
+   },
+   {
+    "name": "WING",
+    "afterStage": 10,
+    "locked": "GUARDIAN WING is available after: CLEAR STAGE 10",
+    "unlocked": "UNLOCKED: GUARDIAN WING"
+   },
+   {
+    "name": "EXPLORE",
+    "afterStage": 15,
+    "locked": "EXPEDITION is available after: CLEAR STAGE 15",
+    "unlocked": "UNLOCKED: EXPEDITION"
+   }
+  ],
+  "src": "Scene_WorldMap::onTouchesEnded @0x56c9a4 tests GD+0x4fa8 / 0x4fb0 / 0x4fd0 (stage 5 / 6 / 10 cleared) and stage 15; texts T[1256..1265] (FUC_FLASH_POPUP 9/0xa/0xb/0x11, unlock 0xc..0x12)"
  }
 }

@@ -45,7 +45,11 @@ export function createSim(stage, seed = 1, opts = {}) {
     def: opts.def ?? 5,
     power: opts.skill ?? opts.crit ?? 10,
     wlv: opts.wlv ?? 0,
-    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0, dashCd: 0, dashMax: h.dash.cooldown, dashT: 0 },
+    // equipped items: crit % added to the knight's 1 (cap 30), "SKILL COOL TIME -v" off the dash timer (floor 5 s)
+    // (getPlayerInfo @0x620794). opts.dashStartCd: the stage-1 tutorial starts with the dash charging (TUTO06 fires when
+    // the gauge fills; inferred: main.js sets hero.dashCd = dashMax)
+    critChance: Math.min(30, h.critChance + (opts.critBonus || 0)),
+    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0, dashMax: Math.max(Math.min(5, h.dash.cooldown), h.dash.cooldown - (opts.cdCut || 0)), dashCd: 0, dashT: 0 },
     boss: null,
     zzol: null, // boss minion script in progress { pat, t0, next }
     zzolStart: null, // pending summon { pat, at }
@@ -73,6 +77,10 @@ export function createSim(stage, seed = 1, opts = {}) {
     atkMul: opts.atkMul ?? 1,
     walkMul: opts.walkMul ?? 1,
     coinValue: opts.coin ?? 1,
+    autoOpen: !!opts.autoOpen, // AUTO play available for this stage + mode
+    auto: false,
+    won: false,
+    tutoHold: false,
     storm: null, // Sword Storm in progress { timer, acc }
     swords: [], // flying storm swords { k, t, x, y }
     used: { potion: 0, shield: 0, storm: 0 },
@@ -91,6 +99,7 @@ const isRanged = def => !!def.ranged;
 const isProjectile = def => !!def.projectileOf;
 
 function setPhase(s, phase) {
+  if (phase === 'clear') s.won = true;
   s.phase = phase;
   s.t = 0;
   emit(s, 'phase', { phase });
@@ -138,7 +147,7 @@ export function attack(s, side) {
   for (const m of targets) {
     let dmg = calcDamage(s.atk, defOf(s, m).def, s.rng);
     // "PERFECT": rand()%100 < player+0x560 (1 for the knight) doubles the hit (Scene_Stage::update @0x592744)
-    const crit = Math.floor(s.rng() * 100) < H_.critChance;
+    const crit = Math.floor(s.rng() * 100) < (s.critChance ?? H_.critChance);
     if (crit) dmg *= 2;
     if (damageMonster(s, m, dmg, side, crit) === 'kill') res = 'kill';
   }
@@ -516,7 +525,7 @@ function finishStage(s) {
 }
 
 export function update(s, dt) {
-  if (s.paused) return;
+  if (s.paused || s.tutoHold) return; // tutoHold: a tutorial step is on screen (js/ftue.js, FUC_UI_PAUSE)
   s.t += dt;
   switch (s.phase) {
     case 'ready':
@@ -545,6 +554,23 @@ export function update(s, dt) {
     default:
       break;
   }
+}
+
+// AUTO play (Scene_Stage::FUC_AUTO_PLAY @0x59854c, run from update while GameData+0x4b42 is set): the nearest monster on
+// each side; when its hit box meets the attack area the knight slashes that way (Call_Back_Attack_Left / _Right). No
+// dash, no items, no misses.
+export function autoPlay(s) {
+  if (!s.auto || s.phase !== 'play' || s.paused || s.hero.state === 'dead' || s.hero.lock > 0 || s.hero.dashT > 0) return;
+  let best = null;
+  for (const side of [-1, 1]) for (const m of inArea(s, side)) if (!best || Math.abs(m.x - s.hero.x) < Math.abs(best.m.x - s.hero.x)) best = { m, side };
+  if (best) attack(s, best.side);
+}
+
+export function toggleAuto(s) {
+  if (!s.autoOpen || s.phase === 'result') return false;
+  s.auto = !s.auto;
+  emit(s, 'auto', { on: s.auto });
+  return true;
 }
 
 // Auto-player for ?bot and the tests. opts.react: seconds before reacting to a monster entering the area,

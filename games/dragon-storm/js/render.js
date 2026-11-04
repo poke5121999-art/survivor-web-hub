@@ -16,6 +16,7 @@ export const BTN = {
   shield: { x: 0, y: 456, w: 112, h: 102 },
   potion: { x: 368, y: 456, w: 112, h: 102 },
   pause: { x: 12, y: 726, w: 50, h: 50 },
+  auto: { x: 74, y: 732, w: 76, h: 38 },
   close: { x: 428, y: 112, w: 50, h: 50 },
   retry: { x: 22, y: 487, w: 214, h: 64 },
   next: { x: 244, y: 487, w: 214, h: 64 },
@@ -391,12 +392,12 @@ export function createRenderer(ctx, art) {
   function drawBottomBar(s) {
     tileX('bg_bottom', H - 140 + 28);
     frame('btn_option', 8, BTN.pause.x, BTN.pause.y);
-    // AUTO toggle: locked early in the game (clip c1 2:21 shows it dark red)
+    // AUTO toggle: dark red while locked (clip c1 2:21), lit red once this stage + mode has AUTO (clip c2 3:30)
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(74, 732, 76, 38);
+    ctx.fillStyle = s.auto ? 'rgba(90,0,0,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(BTN.auto.x, BTN.auto.y, BTN.auto.w, BTN.auto.h);
     ctx.restore();
-    label('AUTO', 112, 751, 15, '#6e1111', 'center', false);
+    label('AUTO', 112, 751, 15, s.auto ? '#ff4a2a' : s.autoOpen ? '#c0302a' : '#6e1111', 'center', !!s.auto);
     // SCORE board
     const { x: bx, y: by } = SCORE_BOARD;
     ctx.drawImage(img('board_score').img, bx, by);

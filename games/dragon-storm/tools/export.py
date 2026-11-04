@@ -109,6 +109,23 @@ IMAGES = {
     'list_shop': ('bg_list_shop(444x68).png', None, None, 1),
     'board_money': ('board_money(222x52).png', 222, 52, 2),  # 0 = gold bar, 1 = gem bar
     'icon_gem': ('icon_gem(50x50).png', 50, 50, 3),
+    # Drop 5: map shop / upgrade buttons, daily free gem, FTUE (Scene_UI / Scene_WorldMap FUC_TUTO*), ITEM tab (Scene_Bag)
+    'btn_shop': ('btn_shop(110x74).png', 110, 74, 2),  # 0 = lit wood plate, 1 = dark
+    'btn_free': ('btn_free.png', None, None, 1),  # "Ad FREE!" (daily gem)
+    'tuto_bg_01': ('tuto_bg_01(480x800).png', None, None, 1),  # spotlight on stage 1 (hole centre 174,546 r80)
+    'tuto_bg_03': ('tuto_bg_03(480x800).png', None, None, 1),  # spotlight on the hero (240,376 r90)
+    'tuto_bg_08': ('tuto_bg_08(480x800).png', None, None, 1),  # inventory explainer dim
+    'tuto_bg_13': ('tuto_bg_13(480x800).png', None, None, 1),  # gold pickup (109,393 r55) + gem ranking
+    'tuto_chat': ('tuto_chat_bg(140x90).png', None, None, 1),  # red bubble pointer, tail down
+    'tuto_chat_w': ('tuto_chat_bg(256x64).png', None, None, 1),  # wide red bubble
+    'tuto_obj': ('tuto_obj(88x18).png', None, None, 1),  # red dotted line (attack range)
+    'bag_bg': ('bag_bg(480x800).png', None, None, 1),
+    'item_weapon': ('item_weapon(82x82).png', 82, 82, 10),
+    'item_armor': ('item_armor(82x82).png', 82, 82, 10),
+    'item_ring': ('item_ring(82x82).png', 82, 82, 14),
+    'item_necklace': ('item_necklace(82x82).png', 82, 82, 14),
+    'bag_slot': ('item_slot(450x90).png', 90, 90, 5),
+    'slot_item': ('slot_item(180x180).png', 90, 90, 4),
 }
 
 # Knight upgrade tiers. The suffix is the upgrade tier (01 bare starter with a wooden sword ... 06 full plate +

@@ -1,25 +1,29 @@
 // Dragon Storm web remake - boot, scenes, game loop, input, and the window.__ds hook the tests drive.
-// Flow: title -> world map -> stage prep (upgrade sword / helmet with gold) -> stage -> result -> world map; the "+"
-// next to gold / gems opens the shop (buying turned off). Progress lives in this browser (js/meta.js).
-// URL flags: ?mute  ?bot (auto-play)  ?speed=N  ?manual (no auto stepping; tests call __ds.step(ms))
+// Flow: title -> world map -> stage prep (upgrade sword / helmet with gold) -> stage -> result -> world map. From the
+// map: SHOP (gold and hearts for jewels, js/metaui.js), UPGRADE popup, ITEM tab after stage 5. First run: the original
+// guided steps (js/ftue.js). Progress lives in this browser (js/meta.js).
+// URL flags: ?mute  ?bot (auto-play)  ?speed=N  ?manual (no auto stepping; tests call __ds.step(ms))  ?notuto (no FTUE)
 //   ?stage[=stage02] (skip title + map)  ?seed=N  ?fresh (wipe the save)  ?tier=06 | ?armor=06&sword=06 (preview art).
 // Combat input (clips: 4 touch zones, no joystick): left / right triangles slash that way, the red button slashes
 // the way the hero faces (the knight's dash), the blue button fires Sword Storm; the potion corner heals; the Divine
 // Shield corner only shows the count (it fires by itself when a monster hits).
 // Keyboard: arrows or A/D slash, X or Enter = red button (dash), Space/Up/W = Sword Storm, E = potion, P/Esc = pause.
 // On desktop the keys are labelled on the controls during play (js/keys.js, as games/food-gang).
-import { createSim, update, attack, attackFacing, skill, usePotion, useShield, createBot, W, H } from './sim.js';
+import { createSim, update, attack, attackFacing, skill, usePotion, useShield, createBot, autoPlay, toggleAuto, W, H } from './sim.js';
 import { createRenderer, BTN, PAD_TOP } from './render.js';
 import { createAudio } from './audio.js';
 import { createMeta } from './meta.js';
-import { createScreens, MAP_NODES, MAP_BTN, PREP_BTN, SHOP_BTN } from './screens.js';
+import { createScreens, MAP_NODES, MAP_BTN, PREP_BTN } from './screens.js';
 import { createKeyLabels } from './keys.js';
+import { createMetaUI, SHOP_LAYOUT, BAG_LAYOUT, UPG_LAYOUT } from './metaui.js';
+import { createFtue } from './ftue.js';
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
 const Q = new URLSearchParams(location.search);
 const SPEED = Math.max(0.1, Math.min(20, +Q.get('speed') || 1));
 const MANUAL = Q.has('manual');
+const NOTUTO = Q.has('notuto');
 const SEED = +Q.get('seed') || 1;
 const STEP = 1 / 60;
 const BUILT_STAGES = ['stage01', 'stage02', 'stage03', 'stage04', 'stage05'];
@@ -52,6 +56,9 @@ let art;
 let metaData;
 let meta;
 let screens;
+let metaUI;
+let ftue;
+let popup = null; // 'upgrade' over the map
 const stages = {};
 let renderer;
 let keyLabels = null;
@@ -86,14 +93,26 @@ function applyTiers() {
 }
 
 function startStage(id = stageId, mode = id === stageId ? stageMode : 0) {
+  // a stage needs a heart to start (Call_Back_Game_Start @0x55d9c4); stages 1-5 never take one
+  if (!meta.canEnter()) { screens.toast(metaData.shop.messages.value.noHeart); return false; }
+  if (ftue) ftue.drop();
   stageId = id;
   stageMode = meta.modeOpen(id, mode) ? mode : 0;
   applyTiers();
   const st = meta.stats();
+  // easy first stages while their tutorials are not done (Scene_UI::FUC_INIT_PLAYER code at 0x5f20cc): stage 1
+  // ATK x2, dash power x2, DEF x3; stage 2 +3 / +10 / +3 (player+0x53c / +0x540 / +0x544)
+  const idx = MAP_STAGES.indexOf(id);
+  const tuto = !NOTUTO && ((idx === 0 && !meta.tutoDone(3)) || (idx === 1 && !meta.tutoDone(16)));
+  const boost = !tuto ? (v => v) : idx === 0 ? ((v, k) => v * { atk: 2, skill: 2, def: 3 }[k]) : ((v, k) => v + { atk: 3, skill: 10, def: 3 }[k]);
   sim = ds.sim = createSim(stages[id], SEED + runs++, {
-    hp: st.hp, atk: st.atk, skill: st.skill, def: st.def, wlv: st.wlv,
-    ...meta.modeSettings(id, stageMode), ...meta.stageBoosters(),
+    hp: st.hp, atk: boost(st.atk, 'atk'), skill: boost(st.skill, 'skill'), def: boost(st.def, 'def'), wlv: st.wlv,
+    critBonus: st.critBonus, cdCut: st.cdCut,
+    ...meta.modeSettings(id, stageMode), ...meta.stageBoosters(), autoOpen: meta.autoOpen(id, stageMode),
   });
+  // TUTO06 fires when the dash gauge fills for the first time, so that first run starts with it charging (inferred)
+  if (!NOTUTO && !meta.tutoDone(6)) sim.hero.dashCd = sim.hero.dashMax;
+  sim.firstCoin = false;
   sim.inputFlash = inputFlash;
   resultInfo = { best: meta.stageInfo(id).best, hasNext: false };
   ds.scene = 'stage';
@@ -101,6 +120,7 @@ function startStage(id = stageId, mode = id === stageId ? stageMode : 0) {
   ds.prep = null;
   audio.music('bgm_stage');
   audio.play('start');
+  return true;
 }
 
 function toTitle() {
@@ -112,6 +132,11 @@ function toTitle() {
 }
 
 function toMap(prepIdx = null) {
+  // leaving stage 2's result sets TUTO15..20 (the original's retry guard in FUC_SHOW_RESULT; the TUTO17-20 pickup
+  // explainers are not built, so this is also what lets the upgrade steps TUTO21/22 start)
+  if (sim && MAP_STAGES.indexOf(stageId) === 1 && sim.phase === 'result') meta.setTuto(15, 16, 17, 18, 19, 20);
+  if (ftue) ftue.drop();
+  popup = null;
   sim = ds.sim = null;
   ds.scene = 'map';
   ds.prep = prepIdx;
@@ -121,9 +146,15 @@ function toMap(prepIdx = null) {
   audio.music('bgm_ui');
 }
 
-function toShop(from) {
+function toShop(from, tab = 'GOLD') {
   shopReturn = from;
+  metaUI.st.tab = tab;
   ds.scene = 'shop';
+  audio.music('bgm_ui');
+}
+function toBag() {
+  metaUI.st.sel = null;
+  ds.scene = 'bag';
   audio.music('bgm_ui');
 }
 
@@ -135,6 +166,7 @@ function press(side) {
 
 function bankRun(cleared) {
   meta.finishRun(stageId, { cleared, stars: sim.stars, score: sim.score, gold: sim.gold, mode: stageMode, untouched: sim.damageTaken === 0 });
+  meta.spendHeart(stageId); // win or lose, except stages 1-5 (FUC_SHOW_RESULT @0x5fa4ac)
   const i = MAP_STAGES.indexOf(stageId);
   resultInfo.hasNext = cleared && i >= 0 && i + 1 < MAP_STAGES.length;
 }
@@ -149,6 +181,7 @@ function handleEvents() {
     if (e.type === 'shieldUsed') meta.spendBooster('shield');
     if (e.type === 'skill') meta.spendBooster('sword');
     if (e.type === 'kill') setTimeout(() => audio.play('coin', 0.6), MANUAL ? 0 : 900 / SPEED);
+    if (e.type === 'kill' && e.gold > 0) sim.firstCoin = true;
     if (e.type === 'phase' && e.phase === 'clear') { audio.music(null); audio.play('result_win'); bankRun(true); }
     if (e.type === 'phase' && e.phase === 'fail') { audio.music(null); audio.play('result_fail'); bankRun(false); }
   }
@@ -158,11 +191,36 @@ function handleEvents() {
 function stepSim(dt) {
   sceneT += dt;
   if (!sim) { titleT += dt; return; }
-  if (bot) bot(sim, dt);
+  if (bot && !sim.tutoHold) bot(sim, dt);
+  if (!sim.tutoHold) autoPlay(sim);
   update(sim, dt);
   inputFlash.left = Math.max(0, inputFlash.left - dt);
   inputFlash.right = Math.max(0, inputFlash.right - dt);
   handleEvents();
+}
+
+// rects the tutorial bubbles point at
+function ftueLayout() {
+  const r = c => ({ x: c.cx - c.r, y: c.cy - c.r, w: c.r * 2, h: c.r * 2 });
+  return {
+    shopBtn: MAP_BTN.shop, itemTab: MAP_BTN.tabs[1], start: PREP_BTN.start, weapon: PREP_BTN.weapon, armor: PREP_BTN.armor,
+    box: BAG_LAYOUT.box, cell0: BAG_LAYOUT.cell(0), equipBtn: BAG_LAYOUT.equipBtn,
+    right: BTN.right, left: BTN.left, red: r(BTN.red), next: BTN.next, lane: { y: 252, h: PAD_TOP - 252 }, // lit band, clip c2 1:44 (CLIP-MEASURED)
+  };
+}
+function ftueStep(dt) {
+  if (!ftue) return;
+  const scroll = screens.state.scroll ?? 0;
+  const ui = {
+    scene: ds.scene, prep: ds.prep, popup: ds.scene === 'bag' ? metaUI.st.sel !== null : popup, sim,
+    stageIdx: MAP_STAGES.indexOf(stageId), L: ftueLayout(), firstCoin: !!(sim && sim.firstCoin), mapNode0: [MAP_NODES[0][0], MAP_NODES[0][1] - scroll],
+  };
+  const c = ftue.cur;
+  // a step whose screen is gone is dropped (its flag stays unset, so it shows again next time)
+  if (c && (c.sim ? c.sim !== sim || ds.scene !== 'stage' : c.where !== `${ui.scene}:${ui.prep}:${!!ui.popup}`)) ftue.drop();
+  if (!ftue.cur) { const s = ftue.check(ui); if (s && !s.sim) s.where = `${ui.scene}:${ui.prep}:${!!ui.popup}`; }
+  ftue.draw(dt);
+  ds.tuto = ftue.cur ? ftue.cur.id : null;
 }
 
 function draw(dt) {
@@ -171,8 +229,11 @@ function draw(dt) {
     applyTiers();
     screens.drawMap(dt, sceneT);
     if (ds.prep !== null) { screens.drawPrep(ds.prep, sceneT); screens.drawToast(0); }
-  } else if (ds.scene === 'shop') screens.drawShop(dt);
+    if (popup === 'upgrade') { metaUI.drawUpgrade(screens.drawCard, screens.drawKnight); screens.drawToast(0); }
+  } else if (ds.scene === 'shop') metaUI.drawShop(dt);
+  else if (ds.scene === 'bag') metaUI.drawBag(dt);
   else if (sim) renderer.drawStage(sim, dt, resultInfo);
+  ftueStep(MANUAL ? Math.max(dt, 1 / 60) : dt);
   ds.frames++;
 }
 
@@ -188,24 +249,49 @@ const inCorner = (p, b, leftSide) => inside(p, b) && (leftSide ? (p.x - b.x) / b
 
 function tapMenu(p) {
   if (ds.scene === 'shop') {
-    const r = screens.shopTap(p);
-    if (r && r.back) { ds.scene = 'map'; audio.music('bgm_ui'); return 'shop-back'; }
-    return null;
+    const r = metaUI.shopTap(p);
+    if (!r) return null;
+    if (r.back) { ds.scene = 'map'; audio.music('bgm_ui'); return 'shop-back'; }
+    if (r.buy) { if (r.result === 'ok') audio.play('gold'); return `shop-buy-${r.buy}-${r.result}`; }
+    if (r.free) { if (r.free === 'ok') audio.play('gold'); return `shop-free-${r.free}`; }
+    return r.tab ? `shop-tab-${r.tab}` : null;
+  }
+  if (ds.scene === 'bag') {
+    const r = metaUI.bagTap(p);
+    if (!r) return null;
+    if (r.back) { toMap(); return 'bag-back'; }
+    if (r.box) { if (r.box === 'ok') audio.play('gold'); return `bag-box-${r.box}${r.free ? '-free' : ''}`; }
+    if (r.equip !== undefined) { if (r.on) audio.play('shield'); return `bag-${r.on ? 'equip' : 'unequip'}`; }
+    if (r.sell !== undefined) { audio.play('gold'); return 'bag-sell'; }
+    if (r.inten !== undefined) { if (r.result === 'ok') audio.play('gold'); return `bag-inten-${r.result}`; }
+    if (r.expand) return `bag-expand-${r.expand}`;
+    return `bag-${Object.keys(r)[0]}`;
+  }
+  if (popup === 'upgrade') {
+    const r = metaUI.upgradeTap(p);
+    if (!r) return null;
+    if (r.close) { popup = null; return 'upgrade-close'; }
+    if (r.result === 'ok') audio.play('gold');
+    return `upgrade-${r.upgrade}-${r.result}`;
   }
   if (ds.prep !== null) {
     const r = screens.prepTap(p, ds.prep);
     if (!r) return null;
     if (r.close) { ds.prep = null; return 'prep-close'; }
     if (r.upgrade) { if (r.result === 'ok') audio.play('gold'); return `upgrade-${r.upgrade}-${r.result}`; }
-    if (r.shop) { toShop('map'); return 'shop'; }
-    if (r.start) { startStage(r.stage, r.mode); return 'start-stage'; }
+    if (r.shop) { toShop('map', r.shop); return 'shop'; }
+    if (r.start) return startStage(r.stage, r.mode) ? 'start-stage' : 'no-heart';
     if (r.buy) { if (r.result === 'ok') audio.play('gold'); return `buy-${r.buy}-${r.result}`; }
     if (r.mode !== undefined) return `mode-${r.mode}${r.locked ? '-locked' : ''}`;
     return Object.keys(r)[0];
   }
   const r = screens.mapTap(p);
-  if (r && r.stage !== undefined) { ds.prep = r.stage; return `prep-${MAP_STAGES[r.stage]}`; }
-  return r && r.tab ? `tab-${r.tab}` : null;
+  if (!r) return null;
+  if (r.stage !== undefined) { ds.prep = r.stage; return `prep-${MAP_STAGES[r.stage]}`; }
+  if (r.shop) { toShop('map', r.shop); return 'shop'; }
+  if (r.upgrade) { popup = 'upgrade'; return 'upgrade'; }
+  if (r.tab === 'ITEM' && r.open) { toBag(); return 'bag'; }
+  return `tab-${r.tab}${r.open ? '' : '-locked'}`;
 }
 
 function tapStage(p) {
@@ -217,6 +303,7 @@ function tapStage(p) {
   }
   if (sim.paused) { sim.paused = false; return 'resume'; }
   if (inside(p, BTN.pause)) { if (sim.phase === 'play') sim.paused = true; return 'pause'; }
+  if (inside(p, BTN.auto)) { return toggleAuto(sim) ? `auto-${sim.auto ? 'on' : 'off'}` : 'auto-locked'; }
   if (inCircle(p, BTN.red)) { attackFacing(sim); return 'red'; }
   if (inCircle(p, BTN.blue)) { skill(sim); return 'blue'; }
   if (inCorner(p, BTN.shield, true)) { useShield(sim); return 'shield'; }
@@ -229,7 +316,8 @@ function tapStage(p) {
 function tap(p) {
   audio.unlock();
   if (ds.scene === 'title') { toMap(); return 'title-start'; }
-  if (ds.scene === 'map' || ds.scene === 'shop') return tapMenu(p);
+  if (ftue && ftue.tap(p) === 'block') return 'tuto';
+  if (ds.scene === 'map' || ds.scene === 'shop' || ds.scene === 'bag') return tapMenu(p);
   if (!sim) return null;
   return tapStage(p);
 }
@@ -239,8 +327,8 @@ let drag = null;
 canvas.addEventListener('pointerdown', ev => {
   ev.preventDefault();
   const p = toCanvas(ev);
-  if (ds.scene === 'map' && ds.prep === null) { drag = { y: p.y, moved: 0, p }; return; }
-  if (ds.scene === 'map' || ds.scene === 'shop') { drag = { y: p.y, moved: 0, p, noScroll: true }; return; }
+  if (ds.scene === 'map' && ds.prep === null && !popup && !(ftue && ftue.active())) { drag = { y: p.y, moved: 0, p }; return; }
+  if (ds.scene === 'map' || ds.scene === 'shop' || ds.scene === 'bag') { drag = { y: p.y, moved: 0, p, noScroll: true }; return; }
   ds.lastTap = tap(p);
 });
 canvas.addEventListener('pointermove', ev => {
@@ -260,7 +348,9 @@ window.addEventListener('keydown', ev => {
   audio.unlock();
   const k = ev.key;
   if (ds.scene === 'title' && (k === 'Enter' || k === ' ')) { toMap(); return; }
-  if (ds.scene === 'shop') { if (k === 'Escape') ds.scene = 'map'; return; }
+  if (ftue && ftue.key(k) === 'block') return;
+  if (ds.scene === 'shop' || ds.scene === 'bag') { if (k === 'Escape') toMap(); return; }
+  if (ds.scene === 'map' && popup) { if (k === 'Escape') popup = null; return; }
   if (ds.scene === 'map') {
     if (ds.prep !== null && k === 'Escape') ds.prep = null;
     else if (ds.prep !== null && k === 'Enter' && stages[MAP_STAGES[ds.prep]]) startStage(MAP_STAGES[ds.prep]);
@@ -345,6 +435,12 @@ Object.assign(ds, {
   setTiers: t => { urlTiers = { ...t }; renderer.setTiers(t); },
   btn: BTN,
   mapScroll: () => screens.state.scroll,
+  shop: tab => toShop('map', tab),
+  bag: toBag,
+  upgradePopup: () => { popup = 'upgrade'; },
+  popup: () => popup,
+  ftue: () => (ftue && ftue.cur ? ftue.cur.id : null),
+  ftueRect: () => ftue && ftue.cur && ftue.cur.target,
 });
 
 async function boot() {
@@ -356,7 +452,10 @@ async function boot() {
   renderer = createRenderer(ctx, art);
   meta = createMeta(metaData, MAP_STAGES);
   if (Q.has('fresh')) meta.reset();
-  screens = createScreens(renderer.gfx, meta, stages, metaData);
+  const hooks = { toast: t => screens.toast(t), drawToast: dt => screens.drawToast(dt), freeBox: () => !NOTUTO && !meta.tutoDone(26) };
+  metaUI = createMetaUI(renderer.gfx, meta, metaData, hooks);
+  screens = createScreens(renderer.gfx, meta, stages, metaData, metaUI);
+  if (!NOTUTO) ftue = createFtue(renderer.gfx, meta);
   // ?tier=06 sets both knight layers, ?armor= / ?sword= set one (art preview; the save's levels pick the tier otherwise)
   const tierQ = k => { const v = Q.get(k) || Q.get('tier'); return v && art.images[`hero_${k}_${v.padStart(2, '0')}`] ? v.padStart(2, '0') : undefined; };
   urlTiers = { armor: tierQ('armor'), sword: tierQ('sword') };
@@ -364,7 +463,7 @@ async function boot() {
   ds.stages = stages;
   ds.meta = meta;
   ds.metaData = metaData;
-  ds.layout = { MAP_NODES, MAP_BTN, PREP_BTN, SHOP_BTN };
+  ds.layout = { MAP_NODES, MAP_BTN, PREP_BTN, SHOP: SHOP_LAYOUT, BAG: BAG_LAYOUT, UPG: UPG_LAYOUT };
   const st = Q.get('stage');
   if (Q.has('stage')) startStage(stages[st] ? st : BUILT_STAGES[0]); else toTitle();
   keyLabels = createKeyLabels(canvas, BTN);

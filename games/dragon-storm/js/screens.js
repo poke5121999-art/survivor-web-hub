@@ -12,8 +12,16 @@ export const MAP_CHEST = [161, 577];
 export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579], MAP_CHEST]; // stage 1 sits on the map art's red X
 const MAP_H = 1024;
 const TAB_Y = 712;
+// Drop 5: the shop and the upgrade are on the map itself (owner QA: they were only reachable from the stage prep).
+// The original map has no fixed SHOP / UPGRADE buttons in this version; btn_shop / btn_upgrade are the original art,
+// the positions are web layout. The gold / gem boards with "+" open the shop on the GOLD / JEWEL tab.
 export const MAP_BTN = {
   tabs: ['STORY', 'ITEM', 'TOWER', 'WING', 'EXPLORE'].map((name, i) => ({ name, x: 4 + i * 95, y: TAB_Y, w: 92, h: 80 })),
+  tabIcons: { STORY: 1, ITEM: 2, TOWER: 9, WING: 42, EXPLORE: 4 },
+  shop: { x: 12, y: 584, w: 110, h: 74 },
+  upgrade: { x: 368, y: 566, w: 100, h: 92 },
+  goldPlus: { x: 418, y: 14, w: 52, h: 46 },
+  gemPlus: { x: 418, y: 64, w: 52, h: 46 },
 };
 export const PREP_BTN = {
   close: { x: 428, y: 108, w: 50, h: 50 },
@@ -26,9 +34,7 @@ export const PREP_BTN = {
   start: { x: 247, y: 580, w: 228, h: 56 },
   auto: { x: 389, y: 648, w: 86, h: 68 },
 };
-export const SHOP_BTN = { back: { x: 123, y: 700, w: 234, h: 64 } };
-
-export function createScreens(gfx, meta, stages, metaData) {
+export function createScreens(gfx, meta, stages, metaData, metaUI) {
   const { ctx, img, frame, frameC, digits, label, plain, tileX } = gfx;
   const titles = metaData.stages.titles.value;
   const stageTitle = i => (stages[meta.stageIds[i]] ? stages[meta.stageIds[i]].title : titles[i] || '');
@@ -38,6 +44,7 @@ export function createScreens(gfx, meta, stages, metaData) {
   const ABILITY = { x: 16, y: 395, w: 88, h: 80 };
   const BUY = { x: 370, y: 478, w: 86, h: 72 };
 
+  const inside = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
   const nodeOpen = i => i < meta.stageIds.length && meta.unlocked(meta.stageIds[i]);
   const heroNode = () => Math.max(0, meta.lastCleared());
   function clampScroll(v) { return Math.max(0, Math.min(MAP_H - H, v)); }
@@ -106,15 +113,29 @@ export function createScreens(gfx, meta, stages, metaData) {
     });
     const [hx, hy] = MAP_NODES[heroNode()];
     drawKnight(hx, hy - s - 29, 0.75);
-    // top bar: chapter 1 dragon, hearts (display only)
+    // top bar: chapter 1 dragon, hearts with the time to the next one (clip c2 1:02 "10 / 00:00"), gold / gems
     tileX('bg_top', 0);
     frame('chapter_tab', 0, 33, 38, { scale: 0.94 });
-    frame('icons', 33, 2, 126, { scale: 1.0 });
-    digits('no_score', 10, 36, 138, 'left', 0.8, -4);
-    // bottom tabs: STORY open, the rest locked
+    frame('icons', 32, 2, 126, { scale: 1.0 });
+    digits('no_score', meta.hearts(), 36, 138, 'left', 0.8, -4);
+    const left = meta.tickHearts();
+    label(`${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`, 8, 180, 17, '#fff', 'left');
+    metaUI.boards(258, 14);
+    // SHOP and UPGRADE buttons (owner QA: make them obvious); "!" bobs on UPGRADE while an upgrade is affordable
+    const sb = MAP_BTN.shop;
+    frame('btn_shop', 0, sb.x, sb.y);
+    frameC('icons', 30, sb.x + 30, sb.y + 36, { scale: 0.62 });
+    label('SHOP', sb.x + 74, sb.y + 37, 18, '#ffd23a');
+    const ub = MAP_BTN.upgrade;
+    ctx.drawImage(img('btn_upgrade').img, ub.x, ub.y, ub.w, ub.h);
+    frameC('icon_sword', Math.min(13, meta.level('weapon') + 1), ub.x + ub.w / 2, ub.y + 40, { scale: 0.62 });
+    label('UPGRADE', ub.x + ub.w / 2, ub.y + 80, 13, '#fff');
+    const can = ['weapon', 'armor'].some(k => !meta.isMax(k) && meta.price(k) <= meta.gold());
+    if (can) frameC('icons', 52, ub.x + ub.w - 6, ub.y + 8 + Math.sin(t * 6) * 4, { scale: 0.7 });
+    // bottom tabs: STORY, ITEM once stage 5 is cleared; TOWER / WING / EXPLORE need stages 6 / 10 / 15
     tileX('bg_bottom', TAB_Y - 52);
     for (const tb of MAP_BTN.tabs) {
-      if (tb.name === 'STORY') {
+      if (tb.name === 'STORY' || meta.tabOpen(tb.name)) {
         ctx.save();
         ctx.fillStyle = '#17120e';
         ctx.fillRect(tb.x, tb.y, tb.w, tb.h);
@@ -122,8 +143,8 @@ export function createScreens(gfx, meta, stages, metaData) {
         ctx.lineWidth = 2;
         ctx.strokeRect(tb.x + 1, tb.y + 1, tb.w - 2, tb.h - 2);
         ctx.restore();
-        frameC('icons', 1, tb.x + tb.w / 2, tb.y + 30, { scale: 0.8 });
-        plain('STORY', tb.x + tb.w / 2, tb.y + 66, 16, '#fff', 'center');
+        frameC('icons', MAP_BTN.tabIcons[tb.name], tb.x + tb.w / 2, tb.y + 30, { scale: 0.8 });
+        plain(tb.name, tb.x + tb.w / 2, tb.y + 66, 16, '#fff', 'center');
       } else {
         ctx.drawImage(img('lock_tab').img, tb.x, tb.y, tb.w, tb.h);
         plain(tb.name, tb.x + tb.w / 2, tb.y + 66, 15, 'rgba(160,150,140,0.55)', 'center');
@@ -138,10 +159,15 @@ export function createScreens(gfx, meta, stages, metaData) {
       const [x, y] = MAP_NODES[i];
       if (nodeOpen(i) && (p.x - x) ** 2 + (p.y - (y - s)) ** 2 <= 32 * 32) return { stage: i };
     }
+    if (inside(p, MAP_BTN.shop)) return { shop: 'GOLD' };
+    if (inside(p, MAP_BTN.goldPlus)) return { shop: 'GOLD' };
+    if (inside(p, MAP_BTN.gemPlus)) return { shop: 'JEWEL' };
+    if (inside(p, MAP_BTN.upgrade)) return { upgrade: true };
     for (const tb of MAP_BTN.tabs) {
-      if (p.x >= tb.x && p.x <= tb.x + tb.w && p.y >= tb.y && p.y <= tb.y + tb.h) {
-        if (tb.name !== 'STORY') toast(`${tb.name} IS LOCKED`);
-        return { tab: tb.name };
+      if (inside(p, tb)) {
+        const open = tb.name === 'STORY' || meta.tabOpen(tb.name);
+        if (!open) toast(meta.tabInfo(tb.name).locked.toUpperCase());
+        return { tab: tb.name, open };
       }
     }
     return null;
@@ -149,7 +175,6 @@ export function createScreens(gfx, meta, stages, metaData) {
   const mapScrollBy = dy => { state.scroll = clampScroll((state.scroll ?? defaultScroll()) - dy); };
 
   // ---------------- stage prep panel (over the map) ----------------
-  const inside = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
   function drawCard(kind, b) {
     ctx.drawImage(img('btn_upgrade').img, b.x, b.y, b.w, b.h);
     const max = meta.isMax(kind);
@@ -223,7 +248,7 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.drawImage(img('btn_r180').img, PREP_BTN.character.x, PREP_BTN.character.y);
     plain('CHARACTER', PREP_BTN.character.x + 90, PREP_BTN.character.y + 25, 19, '#fff', 'center');
     plain(String(meta.gold()), 384, 203, 19, '#f3e04a', 'right');
-    plain('0', 384, 245, 19, '#5fe0f0', 'right');
+    plain(String(meta.gems()), 384, 245, 19, '#5fe0f0', 'right');
     ctx.drawImage(img('btn_more').img, PREP_BTN.goldPlus.x, PREP_BTN.goldPlus.y);
     ctx.drawImage(img('btn_more').img, PREP_BTN.gemPlus.x, PREP_BTN.gemPlus.y);
     drawCard('weapon', PREP_BTN.weapon);
@@ -271,7 +296,8 @@ export function createScreens(gfx, meta, stages, metaData) {
       else if (r === 'max') toast('MAX LEVEL');
       return { upgrade: kind, result: r };
     }
-    if (inside(p, PREP_BTN.goldPlus) || inside(p, PREP_BTN.gemPlus)) return { shop: true };
+    if (inside(p, PREP_BTN.goldPlus)) return { shop: 'GOLD' };
+    if (inside(p, PREP_BTN.gemPlus)) return { shop: 'JEWEL' };
     if (inside(p, PREP_BTN.character)) { toast('OTHER HEROES ARE NOT BUILT YET'); return { character: true }; }
     const mi = PREP_BTN.modes.findIndex(b => inside(p, b));
     if (mi >= 0) {
@@ -300,32 +326,8 @@ export function createScreens(gfx, meta, stages, metaData) {
     return null;
   }
 
-  // ---------------- shop (buying turned off) ----------------
-  function drawShop(dt) {
-    const sb = img('shop_bg');
-    ctx.drawImage(sb.img, 0, 0, sb.dw || sb.w, sb.dh || sb.h);
-    tileX('bg_top', -70);
-    label('SHOP', W / 2, 46, 30, '#ffd23a');
-    frame('board_money', 0, 8, 120);
-    frame('board_money', 1, 250, 120);
-    plain(String(meta.gold()), 216, 146, 20, '#f3e04a', 'right');
-    plain('0', 458, 146, 20, '#5fe0f0', 'right');
-    const lines = ['GEM AND GOLD PACKS ARE SOLD FOR', 'REAL MONEY IN THE ORIGINAL GAME', '(PRICES COME FROM THE APP STORE).', 'BUYING IS TURNED OFF IN THE WEB VERSION.', 'EARN GOLD BY CLEARING STAGES.'];
-    lines.forEach((ln, i) => {
-      const y = 240 + i * 78;
-      ctx.drawImage(img('list_shop').img, 18, y);
-      frameC('icon_gem', i % 3, 52, y + 34, { scale: 0.8 });
-      plain(ln, 84, y + 34, 15, '#e8e0cc');
-    });
-    const b = SHOP_BTN.back;
-    ctx.drawImage(img('btn_r').img, b.x, b.y);
-    plain('BACK', b.x + b.w / 2, b.y + b.h / 2, 24, '#ffe9a8', 'center');
-    drawToast(dt);
-  }
-  const shopTap = p => (inside(p, SHOP_BTN.back) ? { back: true } : null);
-
   return {
-    state, drawMap, mapTap, mapScrollBy, drawPrep, prepTap, drawShop, shopTap, toast, drawToast,
+    state, drawMap, mapTap, mapScrollBy, drawPrep, prepTap, toast, drawToast, drawCard, drawKnight,
     resetScroll: () => { state.scroll = null; state.prepIdx = null; },
   };
 }

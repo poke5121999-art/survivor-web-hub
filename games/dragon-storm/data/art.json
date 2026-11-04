@@ -678,6 +678,146 @@
    "cols": 2,
    "frames": 3
   },
+  "btn_shop": {
+   "file": "art/btn_shop.png",
+   "w": 220,
+   "h": 74,
+   "src": "btn_shop(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 2
+  },
+  "btn_free": {
+   "file": "art/btn_free.png",
+   "w": 125,
+   "h": 59,
+   "src": "btn_free.png"
+  },
+  "tuto_bg_01": {
+   "file": "art/tuto_bg_01.png",
+   "w": 240,
+   "h": 400,
+   "src": "tuto_bg_01(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_03": {
+   "file": "art/tuto_bg_03.png",
+   "w": 240,
+   "h": 400,
+   "src": "tuto_bg_03(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_08": {
+   "file": "art/tuto_bg_08.png",
+   "w": 480,
+   "h": 800,
+   "src": "tuto_bg_08(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_13": {
+   "file": "art/tuto_bg_13.png",
+   "w": 480,
+   "h": 800,
+   "src": "tuto_bg_13(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_chat": {
+   "file": "art/tuto_chat.png",
+   "w": 140,
+   "h": 90,
+   "src": "tuto_chat_bg(140x90).png",
+   "dw": 140,
+   "dh": 90
+  },
+  "tuto_chat_w": {
+   "file": "art/tuto_chat_w.png",
+   "w": 256,
+   "h": 64,
+   "src": "tuto_chat_bg(256x64).png",
+   "dw": 256,
+   "dh": 64
+  },
+  "tuto_obj": {
+   "file": "art/tuto_obj.png",
+   "w": 118,
+   "h": 18,
+   "src": "tuto_obj(88x18).png",
+   "dw": 88,
+   "dh": 18
+  },
+  "bag_bg": {
+   "file": "art/bag_bg.png",
+   "w": 480,
+   "h": 800,
+   "src": "bag_bg(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "item_weapon": {
+   "file": "art/item_weapon.png",
+   "w": 512,
+   "h": 164,
+   "src": "item_weapon(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 10
+  },
+  "item_armor": {
+   "file": "art/item_armor.png",
+   "w": 512,
+   "h": 164,
+   "src": "item_armor(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 10
+  },
+  "item_ring": {
+   "file": "art/item_ring.png",
+   "w": 512,
+   "h": 512,
+   "src": "item_ring(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 14
+  },
+  "item_necklace": {
+   "file": "art/item_necklace.png",
+   "w": 512,
+   "h": 512,
+   "src": "item_necklace(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 14
+  },
+  "bag_slot": {
+   "file": "art/bag_slot.png",
+   "w": 450,
+   "h": 90,
+   "src": "item_slot(450x90).png",
+   "fw": 90,
+   "fh": 90,
+   "cols": 5,
+   "frames": 5
+  },
+  "slot_item": {
+   "file": "art/slot_item.png",
+   "w": 180,
+   "h": 180,
+   "src": "slot_item(180x180).png",
+   "fw": 90,
+   "fh": 90,
+   "cols": 2,
+   "frames": 4
+  },
   "hero_armor_01": {
    "file": "art/hero_armor_01.png",
    "w": 512,
