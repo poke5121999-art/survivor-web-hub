@@ -107,6 +107,58 @@ sw = birth[10512][1]
 waves = {str(c['value']): wave(c['nodeIds'][0]) for c in sw['conditions']}
 waves['default'] = wave(sw['_childs'][0])
 
+# ---- Drop 3: missions, Fund, staff, price drift -------------------------------------------------------------------
+def reward_of(rid):
+    g = items.get(rid)
+    if not g: return None
+    fp = json.loads(g['useFeatureParam'] or '{}'); r = {'id': rid}
+    for e in fp.get('rewardCustom', []):
+        i, n = map(int, e.split('_'))
+        if i == 1010001: r['cash'] = r.get('cash', 0) + n
+        elif i == 1040001: r['exp'] = r.get('exp', 0) + n
+        elif i == 1050001: r['energy'] = r.get('energy', 0) + n
+        elif 4030001 <= i <= 4030199: r.setdefault('licenses', []).append(i)
+    for e in fp.get('rewardBox', []):
+        pool, n = map(int, e.split('_'))
+        rows = [x for x in cfg('RandomRewardConfig') if x['pool_id'] == pool]
+        shop = {x['id']: x for x in cfg('ShopItemConfig')}
+        r.setdefault('boxes', []).append({'pool': [[shop[x['shop_id']]['item_id'], x['weight']] for x in rows], 'n': n})
+    return r
+
+tasks = cfg('TaskConfig')
+rewards = {}
+for t in tasks: rewards[str(t['reward_id'])] = reward_of(t['reward_id'])
+fund = [{'id': f['id'], 'level': f['condition'][1], 'reward': f['reward_id']} for f in cfg('FundConfig') if f['condition'][0] == 100001]
+for f in fund: rewards[str(f['reward'])] = reward_of(f['reward'])
+# Daily tasks that need ads, IAP or systems this remake does not have are left out (see RECON / STATUS).
+DAILY_OUT = {200006, 200008, 200010, 200011, 200016, 200017, 200018, 200021, 200022, 200023, 200024, 200025, 200026}
+missions = {
+    'main': [{'id': t['id'], 'n': i + 1, 'cond': t['task_condition'], 'reward': t['reward_id'], 'next': t['next_task']}
+             for i, t in enumerate(x for x in tasks if x['group_id'] == 0)],
+    'daily': [{'id': t['id'], 'group': t['group_id'], 'cond': t['task_condition'], 'reward': t['reward_id']}
+              for t in tasks if t['group_id'] > 0 and t['task_condition'][0] not in DAILY_OUT
+              and not (t['task_condition'][0] == 200015 and t['task_condition'][1] != 1001)],
+    'dailyLeftOut': [t['id'] for t in tasks if t['group_id'] > 0 and (t['task_condition'][0] in DAILY_OUT or (t['task_condition'][0] == 200015 and t['task_condition'][1] != 1001))],
+    'slotWeights': [setting['Task_0%d_weight' % i] for i in range(1, 6)],
+    'text': {k.split('_')[0]: lang[k] for k in lang if re.match(r'^\d{6}_Task$', k)},
+    '_src': 'TaskConfig; TaskSystem.StartDailyTask @0xCA0A84 makes 5 daily tasks, slot i weighted by Task_0i_weight over groups 1..3;'
+            ' Condition_200007.m_boxCompute @0xF3C0CC matches GameItemConfig.sub_type (furniture), Condition_200004 the shop tab id',
+}
+data_fund = {'levels': fund, '_src': 'FundConfig 400xx (level track). BattlePassSystem.ProgressChange @0xC57EB0 has no IAP gate; the 500xx ADS track is left out'}
+staff = {
+    'cashier': {'npc': 1001, 'cost': {'cash': int(setting['SupermarketEmployee'][0].split('_')[1])}, 'time': setting['EmployeTime'],
+                'level': setting['HireCashierLevel_Market_High'], 'lazy': 0, 'scanPerItem': 0.5, 'scanPerItem_PLACEHOLDER': 'NpcSwipGoodsNode speed is an animation',
+                '_src': 'EmploeeUI.btnBuy_HighHire_Click @0xD00594: SupermarketEmployee[0] 1010001_15000, EmployeTime (0x128) 180 s, CreatANpcEmployer(1001); NpcConfig 1001 npc_parameter 0 = LazyTime'},
+    'clerk': {'npc': 1004, 'cost': {'energy': int(setting['StockClerkEmployee'][0].split('_')[1])}, 'time': setting['Deliveryman_01'],
+              'level': setting['HireCashierLevel_Deliveryman'], 'putEvery': 0.3, 'walk': [1.3, 1.4],
+              '_src': 'EmploeeUI.btnBuy_Other_Click @0xD03478: StockClerkEmployee[0] 1050001_10, Deliveryman_01 (0x160) 120 s, npc 1004; graph HandlingNpc: put 1 good / 0.3 s, walk 1.3-1.4'},
+    'extraSlots': 'ads only (SupermarketEmployee[1..] = "ads") - left out',
+}
+price_war = {'openDay': setting['PriceWarOpenDay'], 'count': [8, 11], 'ownedShare': 0.4, 'nextShare': 0.6,
+             '_src': 'ItemSystem.Refresh_Today_PriceData @0xC8A168 (Random.Range(8,11), 0.4 owned licences / 0.6 next licence,'
+                     ' skip yesterday), CalculateDiscountData @0xC8B974: cost=floor(round2(R(1-cost_min%,1+cost_max%))*cost_price),'
+                     ' market=clamp(floor(round2(R(1-market_min%,1+market_max%))*recommend_price), min_price, limit_price)'}
+
 data = {
     '_about': 'Numbers from Shop Simulator v1.411 configs/graphs/code. Money in cents. PLACEHOLDER = not in the data.',
     'settings': {
@@ -144,6 +196,8 @@ data = {
     },
     'levels': levels, '_src_levels': 'ShopExpConfig pro_exp = exp needed for each level (CashDeskSystem.AddShopExp @0xC60E54 subtracts it)',
     'products': products, 'furniture': furniture, 'licenses': licenses,
+    'missions': missions, 'rewards': rewards, 'fund': data_fund, 'staff': staff, 'priceWar': price_war,
+    'energyItem': 1050001,
     'rent': 0, '_src_rent': 'DailySettleSystem.AddRent @0xC6C0F0, AddSalary @0xC6C124, AddLoan @0xC6C158 have no call'
                            ' sites in libil2cpp (BL/B/BLX scan); set_Rent is only called by the save bridge -> always 0',
 }

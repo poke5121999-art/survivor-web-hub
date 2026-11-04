@@ -1,9 +1,10 @@
 // Shop rules with no THREE: day clock, customers, shelves, orders, register, day report. Runs in node for tests.
 // Positions are metres on the floor plane (x right, z towards the street). Money is in cents, as in the data.
 import { LAYOUT, slots, slotById } from './layout.js';
+import { Meta } from './meta.js';
 
 export const DENOMS = [1, 5, 10, 25, 50, 100, 500, 1000, 2000, 5000];
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 export const SHELF_KINDS = { 302: 'White shelves', 303: 'Small refrigerator', 305: 'Yellow shelves' };
 
 function mulberry(seed) {
@@ -21,6 +22,7 @@ export class Sim {
     this.nextId = 1;
     this.register = null;
     if (opts.save) this.load(opts.save); else this.fresh();
+    this.initMeta();
   }
 
   // ---- random helpers: ranges are [min, max) like UnityEngine.Random.Range(int, int) ----------------------------
@@ -51,7 +53,8 @@ export class Sim {
     if (save && save.v === 1) { // Drop 1 saves: shelves sh0/sh1 stood on the back-row slots b3/b2
       save = { ...save, v: 2, licenses: [], toPlace: [], shelves: save.shelves.map((sh, i) => ({ ...sh, id: LAYOUT.startShelves[i] })) };
     }
-    if (save && save.v === 2 && save.level == null) { // Drop 1 kept total exp: replay it through the per-level rule
+    if (save && save.v === 2) save = { ...save, v: 3 }; // Drop 3 fields get their defaults in initMeta()
+    if (save && save.v === 3 && save.level == null) { // Drop 1 kept total exp: replay it through the per-level rule
       let e = save.exp, l = 1; while (e >= (this.data.levels[l - 1] ?? Infinity)) { e -= this.data.levels[l - 1]; l++; }
       save = { ...save, exp: e, level: l };
     }
@@ -69,8 +72,10 @@ export class Sim {
   levelNeed(l = this.s.level) { return this.data.levels[l - 1] ?? Infinity; }
   levelSpan() { return { lo: 0, hi: this.levelNeed(), level: this.s.level }; }
   price(pid) { return this.s.prices[pid] ?? this.P.get(pid).rec; }
-  market(pid) { return this.P.get(pid).rec; }
-  boxPrice(pid) { const p = this.P.get(pid); return p.cost * p.load; } // ItemSystem.GetAllPrice @0xC8E648: cost x load_num
+  // ItemSystem.GetProductPrice_Cost/_Market: today's drifted value when the price war is on, else the config value
+  cost(pid) { const t = this.todayPrice && this.todayPrice(pid); return t ? t.cost : this.P.get(pid).cost; }
+  market(pid) { const t = this.todayPrice && this.todayPrice(pid); return t ? t.market : this.P.get(pid).rec; }
+  boxPrice(pid) { return this.cost(pid) * this.P.get(pid).load; } // ItemSystem.GetAllPrice @0xC8E648: cost x load_num
   hour() { return Math.floor(this.s.time / 3600); }
   unlocked(pid) { const p = this.P.get(pid); return p.shop === 101 && (p.license === 0 || this.s.licenses.includes(p.license)); }
   get sections() { return this.s.licenses.filter(id => this.lic(id) && this.lic(id).kind === 'section').length; }
@@ -99,6 +104,7 @@ export class Sim {
     if (this.s.money < f.price) return { ok: false, why: 'not enough money' };
     if (!this.freeSlots().length) return { ok: false, why: 'no free space — buy a new section' };
     this.s.money -= f.price; this.s.stats.upgrade += f.price; this.s.toPlace.push(itemId);
+    this.track(200007, f.sub); this.track(200004, 102);
     this.emit('furniture', { itemId });
     return { ok: true };
   }
@@ -118,6 +124,7 @@ export class Sim {
     if (!d) return { ok: false, why: 'no such delivery' };
     if (this.s.money < cost) return { ok: false, why: 'not enough money' };
     this.s.money -= cost; this.s.stats.cost += cost; d.remain = 0;
+    this.track(200013);
     return { ok: true };
   }
   catalogue() { return this.data.products.filter(p => p.shop === 101); }
@@ -150,6 +157,7 @@ export class Sim {
       this.s.ordered[pid] = true;
       this.s.deliveries.push({ pid, boxes: n, remain: t, total: t });
       this.addExp(this.data.settings.expPerOrder);
+      this.track(200002, null, n);
     }
     this.emit('order', { total });
     return { ok: true, total };
@@ -174,6 +182,7 @@ export class Sim {
     const b = this.carried(); if (!b) return { ok: false, why: 'nothing carried' };
     if (b.count > 0) return { ok: false, why: 'box is not empty' };
     this.s.boxes = this.s.boxes.filter(o => o !== b); this.s.carry = null;
+    this.track(200014);
     this.emit('trash');
     return { ok: true };
   }
@@ -203,6 +212,7 @@ export class Sim {
     const p = this.P.get(pid);
     const c = Math.round(cents);
     if (c < p.min || c > p.max) return { ok: false, why: `price must be ${p.min}..${p.max}` };
+    if (this.s.prices[pid] !== c) this.track(200012);
     this.s.prices[pid] = c;
     return { ok: true };
   }
@@ -241,6 +251,9 @@ export class Sim {
     if (this.s.phase !== 'report') return { ok: false, why: 'the day is not over' };
     this.s.day++; this.s.time = this.data.settings.dayStart; this.s.phase = 'prep';
     this.s.stats = this.blankStats();
+    this.track(200009);
+    this.rollDaily();
+    this.refreshPrices();
     this.emit('newday', { day: this.s.day });
     return { ok: true };
   }
@@ -260,6 +273,7 @@ export class Sim {
       this.emit('delivered', { pid: d.pid, boxes: d.boxes });
     }
     this.s.deliveries = this.s.deliveries.filter(d => d.remain > 0);
+    this.staffStep(dt);
 
     if (this.s.phase === 'open' || this.s.phase === 'closing') {
       this.s.time = Math.min(S.dayEnd, this.s.time + dt * S.timeRate);
@@ -466,6 +480,7 @@ export class Sim {
     const R = this.register, c = this.customers.find(o => o.id === R.cid);
     this.s.money += net; this.s.stats.income += net; this.s.stats.served++; this.s.served++;
     this.addExp(this.data.settings.expPerCheckout);
+    this.track(200003); this.track(200019, null, net);
     if (c) { this.say(c, 'Check out successful', 'good'); c.qn = null; this.leave(c); }
     this.register = null;
     this.emit('sale', { net, total: R.total });
@@ -482,3 +497,4 @@ export class Sim {
     this.emit('report', this.s.lastReport);
   }
 }
+Object.assign(Sim.prototype, Meta);

@@ -34,8 +34,13 @@ export class World {
     this.player = this.person('#2e86de', '#1b4f72', true);
     this.player.position.set(0, 0, 1);
     this.scene.add(this.player);
-    this.carryBox = this.cardboard(); this.carryBox.position.set(0, 1.05, 0.38); this.player.add(this.carryBox); this.carryBox.visible = false;
+    this.player.visible = false; // first person: the body is not drawn, the carried box hangs in front of the camera
+    this.camera.rotation.order = 'YXZ'; this.scene.add(this.camera);
+    this.carryBox = this.cardboard(); this.carryBox.position.set(0.05, -0.62, -0.75); this.carryBox.rotation.x = 0.15; this.camera.add(this.carryBox); this.carryBox.visible = false;
     this.people = new Map(); this.boxMeshes = new Map(); this.layerGroups = [];
+    this.cashierNpc = this.person('#6c5ce7', '#2d3436', true); this.cashierNpc.visible = false; this.scene.add(this.cashierNpc);
+    this.clerkNpc = this.person('#00b894', '#2d3436', true); this.clerkNpc.visible = false; this.scene.add(this.clerkNpc);
+    this.clerkBox = this.cardboard(); this.clerkBox.position.set(0, 1.05, 0.38); this.clerkNpc.add(this.clerkBox);
     this.highlight = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 32), new THREE.MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
     this.highlight.rotation.x = -Math.PI / 2; this.highlight.position.y = 0.02; this.highlight.visible = false;
     this.scene.add(this.highlight);
@@ -46,7 +51,7 @@ export class World {
     const w = this.renderer.domElement.clientWidth || window.innerWidth, h = this.renderer.domElement.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    this.camera.fov = w < h ? 62 : 48;
+    this.camera.fov = w < h ? 80 : 68;
     this.camera.updateProjectionMatrix();
   }
 
@@ -84,19 +89,21 @@ export class World {
     const wall = (w, h, d, x, y, z, m = wallM) => { const o = new THREE.Mesh(box(w, h, d), m); o.position.set(x, y, z); G.add(o); return o; };
     wall(W + 0.3, H, 0.15, (R.x0 + R.x1) / 2, H / 2, R.z0 - 0.075);
     wall(W + 0.3, 0.35, 0.17, (R.x0 + R.x1) / 2, 1.0, R.z0 - 0.06, band);
-    // side walls are cut low so the camera always sees in
-    wall(0.15, 1.1, D, R.x0 - 0.075, 0.55, (R.z0 + R.z1) / 2);
-    wall(0.15, 1.1, D, R.x1 + 0.075, 0.55, (R.z0 + R.z1) / 2);
-    wall(0.17, 0.08, D, R.x0 - 0.075, 1.12, (R.z0 + R.z1) / 2, band);
-    wall(0.17, 0.08, D, R.x1 + 0.075, 1.12, (R.z0 + R.z1) / 2, band);
+    wall(0.15, H, D, R.x0 - 0.075, H / 2, (R.z0 + R.z1) / 2);
+    wall(0.15, H, D, R.x1 + 0.075, H / 2, (R.z0 + R.z1) / 2);
+    wall(0.17, 0.35, D, R.x0 - 0.06, 1.0, (R.z0 + R.z1) / 2, band);
+    wall(0.17, 0.35, D, R.x1 + 0.06, 1.0, (R.z0 + R.z1) / 2, band);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.3, D + 0.3), lam('#fbf8f2')); ceil.rotation.x = Math.PI / 2; ceil.position.set((R.x0 + R.x1) / 2, H, (R.z0 + R.z1) / 2); G.add(ceil);
+    for (let x = R.x0 + 1.5; x < R.x1 - 0.5; x += 3) for (let z = R.z0 + 2; z < R.z1; z += 4) { const l = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.25), new THREE.MeshBasicMaterial({ color: '#ffffff' })); l.rotation.x = Math.PI / 2; l.position.set(x, H - 0.01, z); G.add(l); }
     // front: low wall + glass so the camera sees in
     const glass = lam('#bfe6ff', { transparent: true, opacity: 0.18, depthWrite: false });
     const fl = DOOR.x0 - R.x0, fr = R.x1 - DOOR.x1;
     wall(fl, 0.5, 0.15, R.x0 + fl / 2, 0.25, R.z1 + 0.075);
     wall(fr, 0.5, 0.15, DOOR.x1 + fr / 2, 0.25, R.z1 + 0.075);
-    wall(fl, 1.2, 0.05, R.x0 + fl / 2, 1.1, R.z1 + 0.075, glass);
-    wall(fr, 1.2, 0.05, DOOR.x1 + fr / 2, 1.1, R.z1 + 0.075, glass);
-    for (const x of [R.x0, DOOR.x0, DOOR.x1, R.x1]) wall(0.12, 1.75, 0.18, x, 0.87, R.z1 + 0.075, lam('#3d5a80'));
+    wall(fl, 1.9, 0.05, R.x0 + fl / 2, 1.45, R.z1 + 0.075, glass);
+    wall(fr, 1.9, 0.05, DOOR.x1 + fr / 2, 1.45, R.z1 + 0.075, glass);
+    wall(W + 0.3, H - 2.4, 0.15, (R.x0 + R.x1) / 2, (H + 2.4) / 2, R.z1 + 0.075);
+    for (const x of [R.x0, DOOR.x0, DOOR.x1, R.x1]) wall(0.12, 2.4, 0.18, x, 1.2, R.z1 + 0.075, lam('#3d5a80'));
     const mat = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.2), lam('#3d5a80')); mat.rotation.x = -Math.PI / 2; mat.position.set(4, 0.005, R.z1 - 0.3); G.add(mat);
     // sign
     const sign = canvasTex(512, 96, (g, w, h) => {
@@ -283,6 +290,18 @@ export class World {
     }
     for (const [id, m] of this.people) if (!live.has(id)) { this.scene.remove(m); this.people.delete(id); }
 
+    // staff
+    const cashierOn = s.staff && s.staff.cashier > 0 && !player.atRegister;
+    this.cashierNpc.visible = cashierOn;
+    if (cashierOn) { this.cashierNpc.position.set(LAYOUT.register.stand.x, 0, LAYOUT.register.stand.z); this.cashierNpc.rotation.y = 0; }
+    const ck = s.clerk;
+    this.clerkNpc.visible = !!ck;
+    if (ck) {
+      const moved = Math.hypot(ck.x - this.clerkNpc.position.x, ck.z - this.clerkNpc.position.z) > 0.001;
+      this.clerkNpc.position.set(ck.x, 0, ck.z); if (ck.dir != null) this.clerkNpc.rotation.y = ck.dir;
+      this.clerkNpc.userData.body.position.y = 0.62 + (moved ? Math.abs(Math.sin(performance.now() / 120)) * 0.04 : 0);
+      const cb = ck.box ? sim.box(ck.box) : null; this.clerkBox.visible = !!cb; if (cb) this.setBoxLabel(this.clerkBox, cb.pid);
+    }
     // belt shows unscanned items
     const R = sim.register, bsig = R ? R.cid + ':' + R.belt.length : '';
     if (this.beltSig !== bsig) {
@@ -297,19 +316,13 @@ export class World {
     this.sun.intensity = 1.4 - 0.8 * k;
 
     // camera follows the player
-    // camera follows the player; at the register it frames the counter in the top half (the panel covers the rest)
-    const fx = player.atRegister ? LAYOUT.register.x + 0.6 : player.x, fz = player.atRegister ? LAYOUT.register.z + 2.6 : player.z + 1.4;
-    const portrait = this.camera.aspect < 1, up = player.atRegister ? 5.2 : portrait ? 13 : 11, back = player.atRegister ? 3.4 : portrait ? 7.5 : 7.8;
-    const want = new THREE.Vector3(fx, up, fz + back);
-    if (!this.camInit) { this.camera.position.copy(want); this.camInit = true; }
-    this.camera.position.lerp(want, 1 - Math.exp(-dt * 6));
-    this.camLook = this.camLook || new THREE.Vector3(fx, 0.6, fz);
-    this.camLook.lerp(new THREE.Vector3(fx, 0.6, fz), 1 - Math.exp(-dt * 6));
-    this.camera.lookAt(this.camLook);
+    // first-person camera at eye height (CharacterController ~1.6 m)
+    this.camera.position.set(player.x, 1.6 + (player.moving ? Math.sin(performance.now() / 110) * 0.025 : 0), player.z);
+    this.camera.rotation.set(player.pitch, player.yaw, 0);
     this.renderer.render(this.scene, this.camera);
   }
 
-  markAt(p) { if (!p) { this.highlight.visible = false; return; } this.highlight.visible = true; this.highlight.position.x = p.x; this.highlight.position.z = p.z; }
+  markAt(p) { if (!p) { this.highlight.visible = false; return; } this.highlight.visible = true; this.highlight.position.x = p.ax ?? p.x; this.highlight.position.z = p.az ?? p.z; }
   screenOf(x, y, z) {
     const v = new THREE.Vector3(x, y, z).project(this.camera);
     const el = this.renderer.domElement;

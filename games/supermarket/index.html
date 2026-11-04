@@ -5,18 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Corner Mart</title>
 <meta name="description" content="Run a small supermarket: order stock, fill shelves, set prices and work the register.">
-<link rel="stylesheet" href="./css/game.css?v=20261103b">
+<link rel="stylesheet" href="./css/game.css?v=20261104a">
 <!-- IMPORTMAP:BEGIN (tools/stamp.py) -->
 <script type="importmap">
 { "imports": {
-  "three": "./vendor/three.module.min.js?v=20261103b",
-  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261103b",
-  "./js/main.js": "./js/main.js?v=20261103b",
-  "./js/sim/layout.js": "./js/sim/layout.js?v=20261103b",
-  "./js/sim/sim.js": "./js/sim/sim.js?v=20261103b",
-  "./js/view/icons.js": "./js/view/icons.js?v=20261103b",
-  "./js/view/ui.js": "./js/view/ui.js?v=20261103b",
-  "./js/view/world.js": "./js/view/world.js?v=20261103b"
+  "three": "./vendor/three.module.min.js?v=20261104a",
+  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261104a",
+  "./js/main.js": "./js/main.js?v=20261104a",
+  "./js/sim/layout.js": "./js/sim/layout.js?v=20261104a",
+  "./js/sim/meta.js": "./js/sim/meta.js?v=20261104a",
+  "./js/sim/sim.js": "./js/sim/sim.js?v=20261104a",
+  "./js/view/icons.js": "./js/view/icons.js?v=20261104a",
+  "./js/view/keys.js": "./js/view/keys.js?v=20261104a",
+  "./js/view/ui.js": "./js/view/ui.js?v=20261104a",
+  "./js/view/world.js": "./js/view/world.js?v=20261104a"
 } }
 </script>
 <!-- IMPORTMAP:END -->
@@ -25,7 +27,8 @@
 <canvas id="view"></canvas>
 <div id="hud">
   <div class="pill left"><b id="day">Day 1</b><span id="clock">06:00</span><span id="status" class="status prep">Closed</span></div>
-  <div class="pill right"><span id="money">$0.00</span></div>
+  <div class="pill right"><span id="energy" title="Energy">⚡0</span><span id="money">$0.00</span></div>
+  <button id="taskbtn" class="taskbtn">📋 Tasks<i id="taskdot"></i></button>
   <div class="lvlbox"><b id="lvl">Lv 1</b><div class="bar"><i id="expbar"></i></div><small id="explbl"></small></div>
   <div class="leftcol"><div id="goal" class="goal"></div><span id="deliv" class="chipk"></span><span id="queue" class="chipk"></span></div>
   <button id="openbtn" class="openbtn">🔓 Open store</button>
@@ -33,12 +36,14 @@
 <div id="bubbles"></div>
 <div id="prompt"></div>
 <div id="joy"><div id="knob"></div></div>
+<div id="joyhint"><div></div></div>
+<div id="crosshair"></div>
 <button id="actbtn" class="round act">E</button>
 <button id="dropbtn" class="round drop">⬇</button>
 <div id="panel" class="panel" style="display:none"></div>
 <div id="toasts"></div>
 <div id="loading">Loading…</div>
-<script>window.SM_REV = '20261103b';</script>
-<script type="module" src="./js/main.js?v=20261103b"></script>
+<script>window.SM_REV = '20261104a';</script>
+<script type="module" src="./js/main.js?v=20261104a"></script>
 </body>
 </html>

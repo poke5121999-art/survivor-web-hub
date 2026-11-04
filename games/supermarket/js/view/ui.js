@@ -11,8 +11,13 @@ export class UI {
     this.sim = sim; this.sfx = sfx; this.panel = null; this.cart = {};
     this.hud = $('#hud'); this.prompt = $('#prompt'); this.toastBox = $('#toasts'); this.bubbles = $('#bubbles');
     this.layer = $('#panel');
+    $('#taskbtn').onclick = () => this.openTasks();
     $('#openbtn').onclick = () => { const r = sim.openStore(); if (r.ok) { this.toast('Store is open! Customers are coming.'); sfx.play('open'); } };
     this.bubbleEls = new Map();
+    // a rebuild between pointerdown and pointerup swallows the click: hold rebuilds until the press ends
+    this.layer.addEventListener('pointerdown', () => { this.pressing = true; });
+    const release = () => { this.pressing = false; if (this.pendingRefresh) setTimeout(() => { this.pendingRefresh = false; this.refresh(); }, 0); };
+    addEventListener('pointerup', release, true); addEventListener('pointercancel', release, true);
   }
 
   toast(text, kind = '') {
@@ -29,6 +34,8 @@ export class UI {
     $('#clock').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
     $('#status').textContent = status; $('#status').className = 'status ' + s.phase;
     $('#money').textContent = money(s.money);
+    $('#energy').textContent = '⚡' + s.energy;
+    const rc = this.sim.readyCount(); $('#taskdot').textContent = rc; $('#taskdot').className = rc ? 'on' : '';
     $('#lvl').textContent = `Lv ${span.level}`;
     $('#expbar').style.width = Math.max(0, Math.min(100, pct)) + '%';
     $('#explbl').textContent = `${s.exp} / ${span.hi} exp`;
@@ -51,9 +58,11 @@ export class UI {
     if (sim.register && !this.isOpen('register')) return '🧾 A customer is waiting — go to the register';
     if (s.day === 1 && s.served >= 2 && !Object.keys(s.ordered).length && s.money >= 1000) return '🖥️ Use the computer to order more stock';
     if (s.phase === 'closing') return '🌙 Closing time — serve the last customers';
+    if (sim.readyCount()) return '🎁 A reward is ready — open 📋 Tasks';
     if (s.toPlace.length) return '🗄️ Walk to a glowing spot and press E to place your furniture';
     const next = sim.data.licenses.find(L => L.kind === 'product' && !s.licenses.includes(L.id));
     if (next && sim.licenseState(next.id) === 'buy' && s.phase !== 'open') return `📜 ${next.name} is ready — buy it on the computer for new products`;
+    if (s.tasks.main.id && s.phase !== 'report') return `⭐ ${sim.taskText(s.tasks.main)} (${sim.taskProgress(s.tasks.main).p}/${sim.taskProgress(s.tasks.main).target})`;
     return '';
   }
 
@@ -68,7 +77,7 @@ export class UI {
     this.panel.card = card; this.panel.build = build;
     build(card);
   }
-  refresh() { if (this.panel) { const sc = this.panel.card.querySelector('.scroll'); const top = sc ? sc.scrollTop : 0; this.panel.card.innerHTML = ''; this.panel.build(this.panel.card); const sc2 = this.panel.card.querySelector('.scroll'); if (sc2) sc2.scrollTop = top; } }
+  refresh() { if (this.pressing) { this.pendingRefresh = true; return; } if (this.panel) { const sc = this.panel.card.querySelector('.scroll'); const top = sc ? sc.scrollTop : 0; this.panel.card.innerHTML = ''; this.panel.build(this.panel.card); const sc2 = this.panel.card.querySelector('.scroll'); if (sc2) sc2.scrollTop = top; } }
   close() { if (this.panel && this.panel.onClose) this.panel.onClose(); this.panel = null; this.layer.style.display = 'none'; this.layer.innerHTML = ''; }
   isOpen(kind) { return this.panel && (!kind || this.panel.kind === kind); }
   head(card, title, sub = '') {
@@ -82,7 +91,7 @@ export class UI {
     this.open('computer', card => {
       this.head(card, '🖥️ Computer', `Balance ${money(sim.s.money)} · Store level ${sim.level}`);
       const tabs = h('div', 'tabs');
-      for (const [k, label] of [['products', '🛒 Products'], ['licenses', '📜 Licenses'], ['furniture', '🗄️ Furniture'], ['sections', '🏗️ Sections']]) {
+      for (const [k, label] of [['products', '🛒 Products'], ['prices', '📈 Prices'], ['licenses', '📜 Licenses'], ['furniture', '🗄️ Furniture'], ['sections', '🏗️ Sections'], ['staff', '🧑‍💼 Staff']]) {
         const b = h('button', k === this.compTab ? 'on' : '', label); b.dataset.tab = k; b.onclick = () => { this.compTab = k; this.refresh(); }; tabs.appendChild(b);
       }
       card.appendChild(tabs);
@@ -94,7 +103,7 @@ export class UI {
           const row = h('div', 'row' + (un ? '' : ' locked'));
           const n = this.cart[p.id] || 0;
           const where = p.shelf === 303 ? ' · ❄️ fridge' : p.shelf === 305 ? ' · 🍎 yellow shelf' : '';
-          row.innerHTML = `${chip(p)}<div class="grow"><b>${p.name}</b><small>${un ? `${p.load} per box · unit ${money(p.cost)} · stock ${sim.stockOf(p.id)}${where}` : `🔒 ${lic ? lic.name : 'License'}`}</small></div>` +
+          row.innerHTML = `${chip(p)}<div class="grow"><b>${p.name}</b><small>${un ? `${p.load} per box · unit ${money(sim.cost(p.id))}${this.arrow(sim.cost(p.id), p.cost)} · stock ${sim.stockOf(p.id)}${where}` : `🔒 ${lic ? lic.name : 'License'}`}</small></div>` +
             (un ? `<div class="price">${money(sim.boxPrice(p.id))}</div>` : '');
           if (un) {
             const q = h('div', 'qty');
@@ -120,6 +129,30 @@ export class UI {
           }
           list.appendChild(row);
         }
+      } else if (T === 'prices') {
+        if (!sim.priceWarOn()) list.appendChild(h('div', 'empty', `📈 Prices start to move on day ${sim.data.priceWar.openDay}.`));
+        else {
+          list.appendChild(h('div', 'note', `Today ${sim.s.pw.list.length} products have a new cost and market price. Others keep their normal prices.`));
+          for (const it of sim.s.pw.list) {
+            const p = sim.P.get(it.pid), un = sim.unlocked(p.id), hist = (sim.s.pwHist[p.id] || []).map(x => x[2]);
+            const row = h('div', 'row' + (un ? '' : ' locked'));
+            row.innerHTML = `${chip(p)}<div class="grow"><b>${p.name}</b><small>cost ${money(it.cost)}${this.arrow(it.cost, p.cost)} · market ${money(it.market)}${this.arrow(it.market, p.rec)} · yours ${money(sim.price(p.id))}</small>${hist.length > 1 ? `<small>market trend ${hist.map(v => money(v)).join(' → ')}</small>` : ''}</div>`;
+            if (un) { const b = h('button', '', 'Adjust'); b.dataset.adjust = p.id; b.onclick = () => this.openPrice(p.id, () => this.openComputer('prices')); row.appendChild(b); }
+            else row.appendChild(h('small', '', '🔒 ' + (sim.lic(p.license) || {}).name));
+            list.appendChild(row);
+          }
+        }
+      } else if (T === 'staff') {
+        for (const [k, name, icon, what] of [['cashier', 'Cashier', '🧑‍💼', 'Works the register while you are away from it'], ['clerk', 'Stock clerk', '📦', 'Carries delivered boxes to the shelves']]) {
+          const S = sim.data.staff[k], st = sim.hireState(k), left = Math.ceil(sim.s.staff[k]);
+          const row = h('div', 'staffcard');
+          row.innerHTML = `<span class="ico" style="background:#e3f2fd">${icon}</span><div class="grow"><b>${name}</b><small>${what} · ${S.time} s per hire</small>${left ? `<small class="timer" data-timer="${k}">⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left</small>` : ''}</div>`;
+          const b = h('button', st === 'hire' ? 'primary' : '', S.cost.cash ? money(S.cost.cash) : `${S.cost.energy} ⚡`); b.dataset.hire = k; b.disabled = st !== 'hire'; b.title = st;
+          b.onclick = () => { const r = sim.hire(k); if (r.ok) { this.sfx.play('cash'); this.toast(`${name} hired`, 'good'); } else this.toast(r.why, 'bad'); this.refresh(); };
+          const w = h('div', 'buycol'); w.appendChild(b); if (st !== 'hire') w.appendChild(h('small', 'bad', st)); row.appendChild(w);
+          list.appendChild(row);
+        }
+        list.appendChild(h('div', 'note', 'More staff slots in the original need ads, so they are not here. Energy ⚡ comes from mission rewards.'));
       } else if (T === 'furniture') {
         const free = sim.freeSlots().length;
         list.appendChild(h('div', 'note', `${free} free spot${free === 1 ? '' : 's'} on the floor${sim.s.toPlace.length ? ` · ${sim.s.toPlace.length} waiting to be placed` : ''}`));
@@ -140,7 +173,7 @@ export class UI {
       if (sim.s.deliveries.length) {
         const sm = h('small', '');
         sim.s.deliveries.forEach((d, i) => {
-          const it = h('span', 'deliv', `${chip(sim.P.get(d.pid))}×${d.boxes} ${Math.ceil(d.remain)}s`);
+          const it = h('span', 'deliv', `${chip(sim.P.get(d.pid))}×${d.boxes} <span data-dremain="${i}">${Math.ceil(d.remain)}s</span>`);
           const fast = h('button', 'mini', `⚡ ${money(sim.data.settings.deliverySpeedUpCash)}`); fast.dataset.fast = i;
           fast.onclick = () => { const r = sim.speedUp(i); if (!r.ok) this.toast(r.why, 'bad'); this.refresh(); };
           it.appendChild(fast); sm.appendChild(it);
@@ -161,6 +194,63 @@ export class UI {
         foot.appendChild(go);
       }
       card.appendChild(foot);
+    });
+  }
+
+  // Live panels: rebuild only when what they show changes (a rebuild under the pointer eats the click);
+  // countdowns are updated in place.
+  tick() {
+    if (!this.panel) return;
+    const sim = this.sim, k = this.panel.kind;
+    let sig = null;
+    if (k === 'computer') sig = [this.compTab, sim.s.deliveries.length, sim.s.money >= 0 && Math.sign(sim.s.staff.cashier), Math.sign(sim.s.staff.clerk), sim.s.energy].join('|');
+    else if (k === 'tasks') sig = [this.taskTab, sim.readyCount(), sim.s.tasks.main.id, sim.s.tasks.main.p, ...sim.s.tasks.daily.map(t => t.p + (t.claimed ? 'c' : '')), sim.level, sim.s.fundClaimed.length].join('|');
+    if (sig != null) { if (this.panel.sig !== undefined && this.panel.sig !== sig) this.refresh(); this.panel.sig = sig; }
+    for (const el of this.layer.querySelectorAll('[data-dremain]')) { const d = sim.s.deliveries[Number(el.dataset.dremain)]; if (d) el.textContent = Math.ceil(d.remain) + 's'; }
+    for (const el of this.layer.querySelectorAll('[data-timer]')) { const left = Math.ceil(sim.s.staff[el.dataset.timer]); el.textContent = `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left`; }
+  }
+
+  arrow(now, base) { return now > base ? ' <span class="up">▲</span>' : now < base ? ' <span class="down">▼</span>' : ''; }
+
+  // ---- tasks: missions, daily, level rewards (Fund) -------------------------------------------------------------
+  openTasks(tab = this.taskTab || 'main') {
+    const sim = this.sim; this.taskTab = tab;
+    this.open('tasks', card => {
+      this.head(card, '📋 Tasks', 'Finish goals, then claim the reward');
+      const tabs = h('div', 'tabs');
+      for (const [k, label] of [['main', '⭐ Missions'], ['daily', '📅 Daily'], ['fund', '🎁 Level rewards']]) {
+        const b = h('button', k === this.taskTab ? 'on' : '', label); b.dataset.ttab = k; b.onclick = () => { this.taskTab = k; this.refresh(); }; tabs.appendChild(b);
+      }
+      card.appendChild(tabs);
+      const list = h('div', 'scroll'); card.appendChild(list);
+      const rewardText = rid => { const r = sim.data.rewards[String(rid)] || {}; const a = [];
+        if (r.cash) a.push(money(r.cash)); if (r.energy) a.push(r.energy + ' ⚡'); if (r.exp) a.push(r.exp + ' exp');
+        for (const id of r.licenses || []) a.push(sim.lic(id).name); for (const b of r.boxes || []) a.push(`${b.n} box${b.n > 1 ? 'es' : ''} of ${sim.P.get(b.pool[0][0]).name}`); return a.join(', '); };
+      const taskRow = (task, title) => {
+        const def = sim.taskDef(task.id), pr = sim.taskProgress(task), ready = sim.taskReady(task);
+        const row = h('div', 'row');
+        row.innerHTML = `<span class="ico" style="background:${task.claimed ? '#c8f2d6' : '#fff3c4'}">${task.claimed ? '✓' : '🎯'}</span><div class="grow"><b>${title ? title + ' · ' : ''}${sim.taskText(task)}</b><small>${sim.data.missions.main.some(m => m.id === task.id) || true ? pr.p + ' / ' + pr.target : ''} · reward ${rewardText(def.reward)}</small><div class="prog"><i style="width:${Math.min(100, pr.p / pr.target * 100)}%"></i></div></div>`;
+        if (!task.claimed) { const b = h('button', ready ? 'primary' : '', ready ? 'Claim' : '…'); b.disabled = !ready; b.dataset.claim = task.id;
+          b.onclick = () => { const r = sim.claimTask(task.id); if (r.ok) { this.sfx.play('level'); this.toast('🎁 ' + r.got.join(', '), 'good'); } this.refresh(); }; row.appendChild(b); }
+        list.appendChild(row);
+      };
+      if (this.taskTab === 'main') {
+        const T = sim.s.tasks.main;
+        if (!T.id) list.appendChild(h('div', 'empty', '🏆 All 42 missions done!'));
+        else { const n = sim.data.missions.main.find(m => m.id === T.id).n; taskRow(T, `Mission ${n}/42`); }
+      } else if (this.taskTab === 'daily') {
+        list.appendChild(h('div', 'note', `Day ${sim.s.day} — new daily tasks every morning.`));
+        for (const t of sim.s.tasks.daily) taskRow(t);
+      } else {
+        for (const f of sim.data.fund.levels) {
+          const st = sim.fundState(f), row = h('div', 'row' + (st === 'locked' ? ' locked' : ''));
+          row.innerHTML = `<span class="ico" style="background:#ffe8a3">Lv${f.level}</span><div class="grow"><b>Store level ${f.level}</b><small>${rewardText(f.reward)}</small></div>`;
+          if (st === 'claimed') row.appendChild(h('span', 'tag good', '✓'));
+          else { const b = h('button', st === 'ready' ? 'primary' : '', st === 'ready' ? 'Claim' : '🔒'); b.disabled = st !== 'ready'; b.dataset.fund = f.id;
+            b.onclick = () => { const r = sim.claimFund(f.id); if (r.ok) { this.sfx.play('level'); this.toast('🎁 ' + r.got.join(', '), 'good'); } this.refresh(); }; row.appendChild(b); }
+          list.appendChild(row);
+        }
+      }
     });
   }
 
@@ -200,8 +290,8 @@ export class UI {
       this.head(card, `🏷️ ${p.name}`, `Range ${money(p.min)} ~ ${money(p.max)}`);
       const prem = Math.floor((v - sim.market(pid)) * 100 / sim.market(pid));
       const body = h('div', 'pricebody');
-      body.innerHTML = `<div class="kv"><span>Cost</span><b>${money(p.cost)}</b></div><div class="kv"><span>Market price</span><b>${money(sim.market(pid))}</b></div>
-        <div class="kv"><span>Profit per item</span><b class="${v - p.cost >= 0 ? 'good' : 'bad'}">${money(v - p.cost)}</b></div>
+      body.innerHTML = `<div class="kv"><span>Cost today</span><b>${money(sim.cost(pid))}${this.arrow(sim.cost(pid), p.cost)}</b></div><div class="kv"><span>Market price today</span><b>${money(sim.market(pid))}${this.arrow(sim.market(pid), p.rec)}</b></div>
+        <div class="kv"><span>Profit per item</span><b class="${v - sim.cost(pid) >= 0 ? 'good' : 'bad'}">${money(v - sim.cost(pid))}</b></div>
         <div class="bigprice">${money(v)}</div><div class="hint ${prem >= 5 ? 'bad' : ''}">${prem > 0 ? `${prem}% above market — some customers will say it is too expensive` : prem < 0 ? `${-prem}% below market` : 'Same as market price'}</div>`;
       const sl = h('input'); sl.type = 'range'; sl.min = p.min; sl.max = p.max; sl.value = v; sl.className = 'slider';
       sl.oninput = () => { v = Number(sl.value); this.refresh(); };

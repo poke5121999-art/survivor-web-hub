@@ -3,7 +3,10 @@
 Game mô phỏng siêu thị nhỏ viết bằng three.js r160 và JavaScript thuần, không có bước build. Luật chơi và con số lấy từ config của APK `supermarket.store.simulator.shop.cashier.games` v1.411 ("Shop Simulator"). Tên game, hình 3D, icon và bố cục cửa hàng đều tự làm, không lấy art từ APK. Recon: `~/handoff/supermarket-RECON.md`.
 
 - Chạy: mở `index.html`. `?fresh` bỏ qua bản lưu. Bản lưu nằm ở localStorage `supermarket-v1`.
-- Điều khiển: WASD/mũi tên hoặc kéo trên màn hình để đi, `E`/nút tròn để tương tác, `Q`/nút ⬇ để đặt thùng xuống, `Esc` để đóng bảng. Ở máy POS có thể gõ số bằng bàn phím.
+- **Góc nhìn thứ nhất** như bản gốc (StarterAssets FirstPersonController: `Player/Move`, `Player/Look`). Camera đặt ở tầm mắt 1,6 m, không vẽ thân người chơi, thùng đang bê hiện trước mặt.
+- Điều khiển trên máy tính: WASD/mũi tên để đi, click vào màn hình để khoá chuột rồi di chuột để nhìn (nếu trình duyệt không cho khoá thì kéo chuột), `E`/Space để tương tác với thứ ở tâm ngắm, `Q` để đặt thùng xuống, `Tab` để mở Tasks, `Esc` để đóng bảng. Ở máy POS có thể gõ số bằng bàn phím.
+- Điều khiển cảm ứng: kéo ở nửa trái màn hình để đi, kéo ở nửa phải để nhìn, nút E và nút ⬇.
+- Nhãn phím trên màn hình làm giống `games/food-gang` (Hud.js `KeyLabels`): nhãn keycap gắn lên nút ảo, chỉ hiện khi dùng chuột, chạm màn hình là ẩn. Lần đầu chơi có bong bóng vàng "Click to look around". Code ở `js/view/keys.js`.
 
 ## Vòng chơi
 
@@ -20,14 +23,20 @@ Game mô phỏng siêu thị nhỏ viết bằng three.js r160 và JavaScript th
 11. **Cuối ngày**: báo cáo khách, satisfaction, không tìm thấy, chê đắt, thối thiếu, thu, chi, nâng cấp, tiền thuê, lương, lãi, số dư, cấp. Tiền thuê, lương và nợ luôn bằng 0 vì `AddRent`/`AddSalary`/`AddLoan` không có chỗ nào gọi trong libil2cpp.
 12. **Cấp cửa hàng**: mỗi cấp cần đúng `pro_exp` của cấp đó, exp về 0 khi lên cấp (`CashDeskSystem.AddShopExp` @0xC60E54).
 
-Chưa làm (Drop sau): nhân viên, nhiệm vụ, quà theo cấp (Fund), giá trôi theo ngày / price war, cháy, quầy shawarma, gian Halloween. Không làm: quảng cáo, IAP, battle pass, chat NPC online.
+13. **Nhiệm vụ** (nút 📋 Tasks): đủ 42 nhiệm vụ chính nối tiếp nhau (`TaskConfig` group 0), và 5 nhiệm vụ hằng ngày (`TaskSystem.StartDailyTask`: ô thứ i chọn nhóm theo `Task_0i_weight`). Bỏ 12 nhiệm vụ hằng ngày cần quảng cáo hoặc cần hệ thống chưa có, danh sách ở `data/game.json` `missions.dailyLeftOut`. Phần thưởng gồm tiền, exp, năng lượng ⚡, giấy phép, thùng hàng (`rewardBox` 111/112 = thùng nước khoáng / bánh quy).
+14. **Quà theo cấp** (tab Level rewards = `FundConfig` 400xx): từ LV2 tới LV40 nhận giấy phép, khu hoặc tiền, miễn phí. `BattlePassSystem.ProgressChange` không có cổng IAP nào. Nhánh ADS 500xx bỏ ra.
+15. **Nhân viên** (tab Staff): thu ngân $150 làm 180 s, tự tính tiền khi mình không đứng quầy. Nhân viên kho 10⚡ làm 120 s, tự bê thùng lên kệ (0,3 s một món) rồi vứt thùng rỗng. Thuê lại thì cộng thêm thời gian. Các ô thuê thêm của bản gốc chỉ mở bằng quảng cáo nên bỏ. Tốc độ quét của thu ngân là PLACEHOLDER 0,5 s/món, vì `NpcSwipGoodsNode` chạy theo hoạt ảnh.
+16. **Giá trôi** (tab Prices, từ ngày 3 = `PriceWarOpenDay`): mỗi ngày chọn 8–10 món, 40 % từ hàng đã có giấy phép và 60 % từ hàng của giấy phép kế tiếp, bỏ các món đã chọn hôm qua. Giá vốn và giá thị trường của ngày tính theo `CalculateDiscountData`. Giá thùng và mức "đắt" của khách dùng giá của ngày.
+
+Chưa làm (Drop sau): cháy và bình chữa cháy, quầy shawarma, gian Halloween. Không làm: quảng cáo, IAP, nhánh ADS của battle pass, chat NPC online, giảm giá cửa hàng (`DiscountMin/Max` không có code nào đọc).
 
 ## Bố cục
 
 - `tools/export_data.py <ref> data/game.json`: đọc `ref/cfg/*.json` (TextAsset của bundle `f14c…`, giải XOR 0x40) và `ref/graphs/*.json` (MicroGraph), ghi các bảng cần dùng kèm `_src`. Lệnh: `python3 -I tools/export_data.py ~/supermarket-work/ref data/game.json`.
 - `tools/stamp.py <rev>`: gắn `?v=<rev>` cho mọi module qua import map, cho css và data. Chạy mỗi lần tăng rev.
 - `js/sim/` là luật chơi thuần, không dùng THREE, chạy được bằng node: `sim.js` (ngày, khách, kệ, đặt hàng, quầy, báo cáo) và `layout.js` (mặt bằng cửa hàng, vật cản).
-- `js/view/`: `world.js` (cảnh three.js dựng hoàn toàn bằng code), `ui.js` (HUD và các bảng DOM), `icons.js` (emoji và màu cho từng món).
+- `js/sim/meta.js`: nhiệm vụ, Fund, nhân viên, giá trôi (gắn vào `Sim`).
+- `js/view/`: `world.js` (cảnh three.js dựng hoàn toàn bằng code, góc nhìn thứ nhất), `ui.js` (HUD và các bảng DOM), `keys.js` (nhãn phím), `icons.js` (emoji và màu cho từng món).
 - `js/main.js`: input, tương tác, vòng frame, lưu.
 
 ## Kiểm

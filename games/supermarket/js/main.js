@@ -4,6 +4,7 @@ import { LAYOUT, solids, slotById } from './sim/layout.js';
 import { World } from './view/world.js';
 import { UI } from './view/ui.js';
 import { money } from './view/icons.js';
+import { KeyLabels } from './view/keys.js';
 
 const SAVE_KEY = 'supermarket-v1';
 const params = new URLSearchParams(location.search);
@@ -37,7 +38,9 @@ async function boot() {
   const sim = new Sim(data, { save: loadSave() });
   const world = new World(document.getElementById('view'), sim);
   const ui = new UI(sim, sfx);
-  const player = { x: 0, z: 1.2, dir: Math.PI, moving: false, atRegister: false };
+  // First person, as the original (StarterAssets FirstPersonController: Player/Move, Player/Look, CharacterController).
+  // yaw 0 looks into the store (-z); forward = (-sin yaw, -cos yaw).
+  const player = { x: 2.2, z: 3.2, yaw: -Math.PI / 2, pitch: -0.25, dir: Math.PI / 2, moving: false, atRegister: false };
   let walls = [], wallSig = '';
   const refreshWalls = () => { const sig = sim.sections + '|' + sim.s.shelves.map(s => s.id).join(','); if (sig !== wallSig) { wallSig = sig; walls = solids(sim.sections, sim.s.shelves.map(s => s.id)); } };
   Object.assign(state, { sim, world, ui, player, data });
@@ -51,24 +54,42 @@ async function boot() {
     if (e.key === 'e' || e.key === 'E' || e.key === ' ') { act(); e.preventDefault(); }
     if (e.key === 'q' || e.key === 'Q') drop();
     if (e.key === 'Escape') closePanel();
+    if (e.key === 'Tab') { e.preventDefault(); ui.panel ? closePanel() : (unlock(), ui.openTasks()); }
   });
   addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   const pad = document.getElementById('joy'), knob = document.getElementById('knob');
   const view = document.getElementById('view');
+  const look = { id: null, x: 0, y: 0 };
+  const SENS = 0.0026;
+  const turn = (dx, dy) => { player.yaw -= dx * SENS; player.pitch = Math.max(-1.25, Math.min(1.1, player.pitch - dy * SENS)); };
+  const locked = () => document.pointerLockElement === view;
   view.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY;
-    pad.style.display = 'block'; pad.style.left = e.clientX + 'px'; pad.style.top = e.clientY + 'px';
+    if (e.pointerType === 'mouse') {
+      if (e.button !== 0) return;
+      if (!ui.panel && view.requestPointerLock) { try { const r = view.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* not allowed here */ } }
+      look.id = e.pointerId; look.x = e.clientX; look.y = e.clientY; return; // drag-to-look when the lock is refused
+    }
+    if (e.clientX < innerWidth * 0.45 && joy.id == null) { // touch: left side = move stick, right side = look
+      joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY;
+      pad.style.display = 'block'; pad.style.left = e.clientX + 'px'; pad.style.top = e.clientY + 'px';
+    } else if (look.id == null) { look.id = e.pointerId; look.x = e.clientX; look.y = e.clientY; }
     view.setPointerCapture(e.pointerId);
   });
   view.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse' && locked()) { turn(e.movementX, e.movementY); return; }
+    if (e.pointerId === look.id) { turn(e.clientX - look.x, e.clientY - look.y); look.x = e.clientX; look.y = e.clientY; return; }
     if (e.pointerId !== joy.id) return;
     let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), R = 50;
     if (d > R) { dx *= R / d; dy *= R / d; }
     joy.x = dx / R; joy.z = dy / R; knob.style.transform = `translate(${dx}px, ${dy}px)`;
   });
-  const endJoy = e => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.z = 0; pad.style.display = 'none'; knob.style.transform = ''; };
-  view.addEventListener('pointerup', endJoy); view.addEventListener('pointercancel', endJoy);
+  const endPtr = e => {
+    if (e.pointerId === look.id) look.id = null;
+    if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.z = 0; pad.style.display = 'none'; knob.style.transform = '';
+  };
+  view.addEventListener('pointerup', endPtr); view.addEventListener('pointercancel', endPtr);
+  const unlock = () => { if (locked()) document.exitPointerLock(); };
+  const keyLabels = KeyLabels.wanted() ? new KeyLabels(view) : null;
   document.getElementById('actbtn').onclick = () => act();
   document.getElementById('dropbtn').onclick = () => drop();
   addEventListener('resize', () => world.resize());
@@ -77,13 +98,13 @@ async function boot() {
   let focus = null;
   function interactables() {
     const out = [], carry = sim.carried();
-    for (const sh of sim.s.shelves) { const sl = slotById(sh.id, sim.sections); if (sl) out.push({ kind: 'shelf', id: sh.id, x: sl.front.x, z: sl.front.z, r: 0.75, label: carry ? 'Stock shelf' : 'Shelf · prices' }); }
+    for (const sh of sim.s.shelves) { const sl = slotById(sh.id, sim.sections); if (sl) out.push({ kind: 'shelf', id: sh.id, x: sl.front.x, z: sl.front.z, ax: sl.x, az: sl.z, r: 0.75, label: carry ? 'Stock shelf' : 'Shelf · prices' }); }
     if (sim.s.toPlace.length && !carry) {
       const name = sim.data.furniture.find(f => f.id === sim.s.toPlace[0]).name;
-      for (const f of sim.freeSlots()) out.push({ kind: 'place', id: f.id, x: f.front.x, z: f.front.z, r: 0.7, label: `Place ${name} here` });
+      for (const f of sim.freeSlots()) out.push({ kind: 'place', id: f.id, x: f.front.x, z: f.front.z, ax: f.x, az: f.z, r: 0.7, label: `Place ${name} here` });
     }
-    out.push({ kind: 'register', x: LAYOUT.register.stand.x, z: LAYOUT.register.stand.z, r: 1.0, label: 'Use register' });
-    out.push({ kind: 'computer', x: LAYOUT.computer.stand.x, z: LAYOUT.computer.stand.z, r: 1.0, label: 'Use computer (order stock)' });
+    out.push({ kind: 'register', x: LAYOUT.register.stand.x, z: LAYOUT.register.stand.z, ax: LAYOUT.register.x, az: LAYOUT.register.z, r: 1.0, label: 'Use register' });
+    out.push({ kind: 'computer', x: LAYOUT.computer.stand.x, z: LAYOUT.computer.stand.z, ax: LAYOUT.computer.x, az: LAYOUT.computer.z, r: 1.0, label: 'Use computer (order stock)' });
     if (carry) out.push({ kind: 'trash', x: LAYOUT.trash.x, z: LAYOUT.trash.z, r: 1.1, label: carry.count ? 'Trash (box is not empty)' : 'Throw away empty box' });
     else for (const b of sim.s.boxes) if (b.where === 'floor') {
       const top = !sim.s.boxes.some(o => o.where === 'floor' && o.x === b.x && o.z === b.z && o.y > b.y);
@@ -91,13 +112,21 @@ async function boot() {
     }
     return out;
   }
+  // What the player looks at: within reach and close to the view direction; else whatever stands right at the feet.
   function nearest() {
-    let best = null, bd = 1e9;
-    for (const it of interactables()) { const d = Math.hypot(it.x - player.x, it.z - player.z); if (d < it.r && d < bd) { bd = d; best = it; } }
-    return best;
+    const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+    let best = null, bs = 1e9, near = null, nd = 1e9;
+    for (const it of interactables()) {
+      const ax = it.ax ?? it.x, az = it.az ?? it.z, dx = ax - player.x, dz = az - player.z, d = Math.hypot(dx, dz);
+      const ang = d < 0.05 ? 0 : Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d)));
+      if (d < 2.4 && ang < 0.55) { const sc = ang + d * 0.15; if (sc < bs) { bs = sc; best = it; } }
+      const df = Math.hypot(it.x - player.x, it.z - player.z); if (df < it.r * 0.8 && df < nd) { nd = df; near = it; }
+    }
+    return best || near;
   }
   function act(it = focus) {
     if (!it || player.atRegister) return;
+    if (it.kind !== 'box' && it.kind !== 'trash' && it.kind !== 'place') unlock(); // panels need the mouse
     if (it.kind === 'box') { if (sim.pickBox(it.id).ok) sfx.play('put'); }
     else if (it.kind === 'shelf') ui.openShelf(it.id);
     else if (it.kind === 'computer') ui.openComputer();
@@ -111,7 +140,7 @@ async function boot() {
     sim.dropBox(Math.round(x * 10) / 10, Math.round(z * 10) / 10); sfx.play('put');
   }
   function enterRegister() {
-    player.atRegister = true; player.x = LAYOUT.register.stand.x; player.z = LAYOUT.register.stand.z; player.dir = 0;
+    player.atRegister = true; player.x = LAYOUT.register.stand.x; player.z = LAYOUT.register.stand.z; player.yaw = Math.PI; player.pitch = innerWidth < innerHeight ? -0.75 : -0.32; // the panel covers the lower part; portrait needs the customer higher
     ui.openRegister(() => { player.atRegister = false; });
   }
   function closePanel() { if (ui.isOpen('register')) player.atRegister = false; ui.close(); }
@@ -120,7 +149,11 @@ async function boot() {
   // ---- sim events -> feedback --------------------------------------------------------------------------------
   function drainEvents() {
     for (const ev of sim.events.splice(0)) {
-      if (ev.type === 'expand') ui.toast('🏗️ New section open — the store is bigger!', 'good');
+      if (ev.type === 'hired') { if (ui.isOpen('computer')) ui.refresh(); }
+      else if (ev.type === 'staffEnd') ui.toast(ev.kind === 'cashier' ? '🧑‍💼 The cashier finished the shift' : '📦 The stock clerk finished the shift');
+      else if (ev.type === 'prices') ui.toast(`📈 ${ev.n} prices changed today — see Prices on the computer`);
+      else if (ev.type === 'taskDone' || ev.type === 'fund') { /* toast shown by the panel */ }
+      else if (ev.type === 'expand') ui.toast('🏗️ New section open — the store is bigger!', 'good');
       else if (ev.type === 'license') ui.toast(`📜 ${sim.lic(ev.id).name}: new products in the market`, 'good');
       else if (ev.type === 'furniture') ui.toast('📦 Walk to a glowing spot and press E to place it');
       else if (ev.type === 'levelup') { ui.toast(`⭐ Store level ${ev.level}!`, 'good'); sfx.play('level'); }
@@ -136,12 +169,14 @@ async function boot() {
   let last = performance.now(), saveT = 0, hudT = 0;
   const speed = 3.4, rad = 0.28;
   function movePlayer(dt) {
-    let mx = 0, mz = 0;
-    if (keys.has('w') || keys.has('arrowup')) mz -= 1;
-    if (keys.has('s') || keys.has('arrowdown')) mz += 1;
-    if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
-    if (keys.has('d') || keys.has('arrowright')) mx += 1;
-    mx += joy.x; mz += joy.z;
+    let f = 0, r = 0;
+    if (keys.has('w') || keys.has('arrowup')) f += 1;
+    if (keys.has('s') || keys.has('arrowdown')) f -= 1;
+    if (keys.has('a') || keys.has('arrowleft')) r -= 1;
+    if (keys.has('d') || keys.has('arrowright')) r += 1;
+    f -= joy.z; r += joy.x;
+    const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+    const mx = -sy * f + cy * r, mz = -cy * f - sy * r;
     const len = Math.hypot(mx, mz);
     player.moving = len > 0.05 && !player.atRegister && !(ui.panel && ui.panel.kind !== 'shelf');
     if (!player.moving) return;
@@ -152,23 +187,29 @@ async function boot() {
       if (!walls.some(([x0, z0, x1, z1]) => nx > x0 - rad && nx < x1 + rad && nz > z0 - rad && nz < z1 + rad)) { player.x = nx; player.z = nz; }
     }
     player.x = Math.max(-30, Math.min(12, player.x)); player.z = Math.max(-6, Math.min(10, player.z));
-    player.dir = Math.atan2(mx, mz);
   }
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const steps = state.fast || 1;
+    sim.playerAtRegister = player.atRegister;
     for (let i = 0; i < steps; i++) sim.step(dt);
     refreshWalls();
     movePlayer(dt);
+    player.dir = Math.atan2(-Math.sin(player.yaw), -Math.cos(player.yaw));
+    if (ui.panel && ui.panel.kind !== 'shelf') unlock();
     drainEvents();
     focus = player.atRegister || (ui.panel && ui.panel.kind !== 'shelf') ? null : nearest();
     world.markAt(focus);
     ui.setPrompt(focus ? `<kbd>E</kbd> ${focus.label}` : sim.carried() ? `<kbd>Q</kbd> Put the box down` : '');
-    document.getElementById('actbtn').style.display = focus ? '' : 'none';
+    const playing = !ui.panel || ui.panel.kind === 'shelf';
+    const ab = document.getElementById('actbtn');
+    ab.style.display = focus || (keyLabels && !keyLabels.disposed && playing && !player.atRegister) ? '' : 'none'; ab.classList.toggle('dim', !focus);
+    document.getElementById('crosshair').style.display = playing && !player.atRegister ? '' : 'none';
+    if (keyLabels) keyLabels.update(playing && !player.atRegister);
     document.getElementById('dropbtn').style.display = sim.carried() && !player.atRegister ? '' : 'none';
     world.sync(dt, player);
     ui.updateBubbles(world);
-    if ((hudT -= dt) <= 0) { ui.updateHud(); hudT = 0.2; if (ui.isOpen('computer') && sim.s.deliveries.length) ui.refresh(); }
+    if ((hudT -= dt) <= 0) { ui.updateHud(); hudT = 0.2; ui.tick(); }
     if ((saveT += dt) > 5) { saveT = 0; writeSave(sim); }
     requestAnimationFrame(frame);
   }

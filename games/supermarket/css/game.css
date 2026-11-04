@@ -6,7 +6,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 
 #hud { position: fixed; inset: 0; pointer-events: none; padding: max(10px, env(safe-area-inset-top)) 12px 0; }
 .pill { position: absolute; top: max(10px, env(safe-area-inset-top)); background: rgba(255,255,255,.92); border-radius: 999px; padding: 7px 14px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-variant-numeric: tabular-nums; }
-.pill.left { left: 12px; } .pill.right { right: 12px; font-size: 20px; font-weight: 800; color: var(--good); }
+.pill.left { left: 12px; } #energy { color: #d98a00; font-size: 15px; } .pill.right { right: 12px; font-size: 20px; font-weight: 800; color: var(--good); }
 .status { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #ddd; }
 .status.open { background: #c8f2d6; color: #166534; } .status.closing { background: #ffe3b3; color: #8a4b00; } .status.prep, .status.report { background: #f9d0d0; color: #8b1d1d; }
 .lvlbox { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 46px); right: 12px; width: 150px; background: rgba(255,255,255,.92); border-radius: 12px; padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
@@ -96,3 +96,33 @@ button.primary { background: var(--accent); color: #fff; border: 0; border-radiu
 .note { font-size: 12px; color: var(--muted); padding: 6px 4px; }
 .deliv { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
 button.mini { border: 0; background: #ffe8a3; border-radius: 8px; padding: 3px 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+.taskbtn { pointer-events: auto; position: absolute; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 122px); border: 0; border-radius: 12px; padding: 8px 12px; font-size: 14px; font-weight: 800; background: rgba(255,255,255,.95); box-shadow: 0 2px 8px rgba(0,0,0,.15); cursor: pointer; position: absolute; }
+.taskbtn i { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--bad); color: #fff; font-size: 12px; font-style: normal; display: none; place-items: center; padding: 0 5px; }
+.taskbtn i.on { display: grid; }
+.prog { height: 7px; background: #e5e9ee; border-radius: 9px; overflow: hidden; margin-top: 4px; } .prog i { display: block; height: 100%; background: var(--accent); }
+.up { color: var(--bad); font-weight: 800; } .down { color: var(--good); font-weight: 800; }
+.staffcard { display: flex; gap: 10px; align-items: center; padding: 10px 4px; border-bottom: 1px solid #f2f4f6; }
+.timer { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--accent); }
+
+/* first-person crosshair */
+#crosshair { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(0,0,0,.35); pointer-events: none; z-index: 3; }
+.round.act.dim { opacity: .45; }
+/* desktop: a static stick like the touch one, so the WASD keycaps have something to sit on */
+#joyhint { position: fixed; left: 34px; bottom: max(34px, calc(env(safe-area-inset-bottom) + 24px)); width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,.22); border: 2px solid rgba(255,255,255,.6); display: none; pointer-events: none; }
+#joyhint div { position: absolute; left: 30px; top: 30px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.7); }
+/* key labels on the on-screen controls, same look as games/food-gang (#fg-keys, Hud.js KeyLabels) */
+#sm-keys { position: fixed; inset: 0; pointer-events: none; z-index: 4; font-family: system-ui, sans-serif; }
+#sm-keys .k { position: absolute; display: none; align-items: center; justify-content: center; gap: .35em; transform: translate(-50%, -50%); white-space: nowrap; color: #fff; text-shadow: 0 1px 2px #000; font-weight: 700; }
+#sm-keys .k b { display: inline-block; min-width: 1.1em; padding: .22em .42em .12em; border-radius: .32em; background: #1b1b1b; border: .12em solid #fff;
+  color: #fff; font-weight: normal; line-height: 1; text-align: center; box-shadow: 0 .14em 0 #000; text-shadow: none; }
+#sm-keys .btn { transform: translate(-50%, 0); }
+#sm-keys .k.btn:nth-child(7) { transform: translate(-110%, -50%); }
+#sm-keys .hint { transform: translate(-50%, -100%); padding: .45em .8em .35em; border: .18em solid #1b1b1b; border-radius: .6em;
+  background: linear-gradient(#ffd23e, #f59d16); box-shadow: 0 .2em 0 #1b1b1b; color: #fff; line-height: 1.1;
+  text-shadow: -.08em -.08em 0 #1b1b1b, .08em -.08em 0 #1b1b1b, -.08em .08em 0 #1b1b1b, .08em .08em 0 #1b1b1b, 0 .14em 0 #1b1b1b;
+  animation: sm-hint-pop .25s ease-out, sm-hint-bob 1.2s ease-in-out .25s infinite; }
+#sm-keys .hint b { margin: 0 .25em; text-shadow: none; }
+#sm-keys .hint::after { content: ''; position: absolute; left: 50%; margin-left: -.5em; bottom: -.62em; border: .5em solid transparent; border-top-color: #1b1b1b; border-bottom: 0; }
+@keyframes sm-hint-pop { from { transform: translate(-50%, -100%) scale(.4); opacity: 0; } to { transform: translate(-50%, -100%) scale(1); opacity: 1; } }
+@keyframes sm-hint-bob { 50% { transform: translate(-50%, -112%); } }
