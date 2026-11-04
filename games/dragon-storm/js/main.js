@@ -4,13 +4,16 @@
 // URL flags: ?mute  ?bot (auto-play)  ?speed=N  ?manual (no auto stepping; tests call __ds.step(ms))
 //   ?stage[=stage02] (skip title + map)  ?seed=N  ?fresh (wipe the save)  ?tier=06 | ?armor=06&sword=06 (preview art).
 // Combat input (clips: 4 touch zones, no joystick): left / right triangles slash that way, the red button slashes
-// the way the hero faces, the blue button fires the skill; corner slots use the winged shield / potion.
-// Keyboard: arrows or A/D slash, X or Enter = red button, Space/Up/W = skill, Q = shield, E = potion, P/Esc = pause.
+// the way the hero faces (the knight's dash), the blue button fires Sword Storm; the potion corner heals; the Divine
+// Shield corner only shows the count (it fires by itself when a monster hits).
+// Keyboard: arrows or A/D slash, X or Enter = red button (dash), Space/Up/W = Sword Storm, E = potion, P/Esc = pause.
+// On desktop the keys are labelled on the controls during play (js/keys.js, as games/food-gang).
 import { createSim, update, attack, attackFacing, skill, usePotion, useShield, createBot, W, H } from './sim.js';
 import { createRenderer, BTN, PAD_TOP } from './render.js';
 import { createAudio } from './audio.js';
 import { createMeta } from './meta.js';
 import { createScreens, MAP_NODES, MAP_BTN, PREP_BTN, SHOP_BTN } from './screens.js';
+import { createKeyLabels } from './keys.js';
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
@@ -51,8 +54,10 @@ let meta;
 let screens;
 const stages = {};
 let renderer;
+let keyLabels = null;
 let sim = null;
 let stageId = BUILT_STAGES[0];
+let stageMode = 0; // 0 NORMAL, 1 HARD, 2 HELL (GameData+0x92e0)
 let resultInfo = {};
 let bot = Q.has('bot') ? createBot({ react: 0.1, err: 0.05 }) : null;
 let titleT = 0;
@@ -72,6 +77,7 @@ const SFX = {
   heroDie: () => 'hero_die',
   skill: () => 'skill',
   potion: () => 'potion',
+  shieldUsed: () => 'shield',
 };
 
 function applyTiers() {
@@ -79,11 +85,15 @@ function applyTiers() {
   renderer.setTiers({ armor: urlTiers.armor || t.armor, sword: urlTiers.sword || t.sword });
 }
 
-function startStage(id = stageId) {
+function startStage(id = stageId, mode = id === stageId ? stageMode : 0) {
   stageId = id;
+  stageMode = meta.modeOpen(id, mode) ? mode : 0;
   applyTiers();
   const st = meta.stats();
-  sim = ds.sim = createSim(stages[id], SEED + runs++, { hp: st.hp, atk: st.atk, skill: st.skill, def: st.def, wlv: st.wlv });
+  sim = ds.sim = createSim(stages[id], SEED + runs++, {
+    hp: st.hp, atk: st.atk, skill: st.skill, def: st.def, wlv: st.wlv,
+    ...meta.modeSettings(id, stageMode), ...meta.stageBoosters(),
+  });
   sim.inputFlash = inputFlash;
   resultInfo = { best: meta.stageInfo(id).best, hasNext: false };
   ds.scene = 'stage';
@@ -106,6 +116,7 @@ function toMap(prepIdx = null) {
   ds.scene = 'map';
   ds.prep = prepIdx;
   sceneT = 0;
+  if (meta.claimGift()) { screens.state.giftBanner = true; screens.toast(metaData.boosters.freeGift.value.text); audio.play('gold'); }
   screens.resetScroll();
   audio.music('bgm_ui');
 }
@@ -123,7 +134,7 @@ function press(side) {
 }
 
 function bankRun(cleared) {
-  meta.finishRun(stageId, { cleared, stars: sim.stars, score: sim.score, gold: sim.gold });
+  meta.finishRun(stageId, { cleared, stars: sim.stars, score: sim.score, gold: sim.gold, mode: stageMode, untouched: sim.damageTaken === 0 });
   const i = MAP_STAGES.indexOf(stageId);
   resultInfo.hasNext = cleared && i >= 0 && i + 1 < MAP_STAGES.length;
 }
@@ -133,6 +144,10 @@ function handleEvents() {
     renderer.onEvent(e, sim);
     const f = SFX[e.type];
     if (f) audio.play(f(e));
+    // a booster used in the stage is spent from the save at once (SaveBoosterItemAndDestiny after each use)
+    if (e.type === 'potion') meta.spendBooster('potion');
+    if (e.type === 'shieldUsed') meta.spendBooster('shield');
+    if (e.type === 'skill') meta.spendBooster('sword');
     if (e.type === 'kill') setTimeout(() => audio.play('coin', 0.6), MANUAL ? 0 : 900 / SPEED);
     if (e.type === 'phase' && e.phase === 'clear') { audio.music(null); audio.play('result_win'); bankRun(true); }
     if (e.type === 'phase' && e.phase === 'fail') { audio.music(null); audio.play('result_fail'); bankRun(false); }
@@ -183,7 +198,9 @@ function tapMenu(p) {
     if (r.close) { ds.prep = null; return 'prep-close'; }
     if (r.upgrade) { if (r.result === 'ok') audio.play('gold'); return `upgrade-${r.upgrade}-${r.result}`; }
     if (r.shop) { toShop('map'); return 'shop'; }
-    if (r.start) { startStage(r.stage); return 'start-stage'; }
+    if (r.start) { startStage(r.stage, r.mode); return 'start-stage'; }
+    if (r.buy) { if (r.result === 'ok') audio.play('gold'); return `buy-${r.buy}-${r.result}`; }
+    if (r.mode !== undefined) return `mode-${r.mode}${r.locked ? '-locked' : ''}`;
     return Object.keys(r)[0];
   }
   const r = screens.mapTap(p);
@@ -262,28 +279,59 @@ window.addEventListener('keydown', ev => {
   else if (k === 'ArrowRight' || k === 'd' || k === 'D') press(1);
   else if (k === 'x' || k === 'X' || k === 'Enter') attackFacing(sim);
   else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') skill(sim);
-  else if (k === 'q' || k === 'Q') useShield(sim);
   else if (k === 'e' || k === 'E') usePotion(sim);
 });
 
 // ---- loop ----
 let last = 0;
 let acc = 0;
+// the next frame is booked first, so one exception can never stop the loop (Drop 3 froze for good on any throw)
 function frame(now) {
+  requestAnimationFrame(frame);
   const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
   last = now;
-  if (!MANUAL) {
-    acc += dt * SPEED;
-    let n = 0;
-    while (acc >= STEP && n++ < 240) { stepSim(STEP); acc -= STEP; }
+  try {
+    if (!MANUAL) {
+      acc += dt * SPEED;
+      let n = 0;
+      while (acc >= STEP && n++ < 240) { stepSim(STEP); acc -= STEP; }
+    }
+    draw(MANUAL ? 0 : dt * SPEED);
+    if (keyLabels) keyLabels.update(sim, dt);
+  } catch (e) {
+    reportError(e);
   }
-  draw(MANUAL ? 0 : dt * SPEED);
-  requestAnimationFrame(frame);
+  if (ds.errors.length) drawErrorBar();
+}
+
+// errors go to __ds.errors, the console, and a red bar on the canvas (so a player can read them out)
+function reportError(e) {
+  const msg = String((e && e.message) || e);
+  if (!ds.errors.includes(msg)) { ds.errors.push(msg); console.error(e); }
+}
+function drawErrorBar() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(150,0,0,0.85)';
+  ctx.fillRect(0, H - 46, W, 46);
+  ctx.fillStyle = '#fff';
+  ctx.font = '13px sans-serif';
+  ctx.fillText(`ERROR (rev ${ds.rev}): ${ds.errors[ds.errors.length - 1]}`.slice(0, 70), 8, H - 28);
+  ctx.fillText('Please send this text with the bug report.', 8, H - 10);
+  ctx.restore();
+}
+function drawBootText(lines, color) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = color;
+  ctx.font = '18px sans-serif';
+  ctx.textAlign = 'center';
+  lines.forEach((t, i) => ctx.fillText(t, W / 2, H / 2 + i * 26));
+  ctx.textAlign = 'left';
 }
 
 // test hooks
 Object.assign(ds, {
-  start: id => startStage(id || BUILT_STAGES[0]),
+  start: (id, mode = 0) => startStage(id || BUILT_STAGES[0], mode),
   title: toTitle,
   map: toMap,
   press,
@@ -319,7 +367,13 @@ async function boot() {
   ds.layout = { MAP_NODES, MAP_BTN, PREP_BTN, SHOP_BTN };
   const st = Q.get('stage');
   if (Q.has('stage')) startStage(stages[st] ? st : BUILT_STAGES[0]); else toTitle();
+  keyLabels = createKeyLabels(canvas, BTN);
+  ds.keyLabels = keyLabels;
   ds.ready = true;
   requestAnimationFrame(frame);
 }
-boot().catch(e => { ds.errors.push(String(e.message || e)); console.error(e); });
+drawBootText(['LOADING...'], '#ccc');
+boot().catch(e => {
+  reportError(e);
+  drawBootText(['DRAGON STORM COULD NOT LOAD', String((e && e.message) || e).slice(0, 48), `rev ${ds.rev}`], '#ff8a7a');
+});

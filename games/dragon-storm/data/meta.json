@@ -161,5 +161,119 @@
  "gems": {
   "value": 0,
   "src": "decision: gems locked (cash currency, Scene_Shop billing)"
+ },
+ "boosters": {
+  "items": {
+   "value": [
+    {
+     "key": "potion",
+     "name": "HP POTION",
+     "icon": 55,
+     "price": 200,
+     "stageCap": 3,
+     "field": "0x8e98",
+     "text": [
+      "Restores 30% of HP immediately when",
+      "use. Can equip up to 3"
+     ]
+    },
+    {
+     "key": "sword",
+     "name": "SPIRIT OF THE SWORD",
+     "icon": 41,
+     "price": 500,
+     "stageCap": 2,
+     "field": "0x8e88",
+     "text": [
+      "Spirit of The Sword will burst and swipe",
+      "the monsters. Can equip up to 2"
+     ]
+    },
+    {
+     "key": "shield",
+     "name": "DIVINE SHIELD",
+     "icon": 42,
+     "price": 400,
+     "stageCap": 3,
+     "field": "0x8e90",
+     "text": [
+      "Divine Shield will protect you once",
+      "from the enemy. Can equip up to 3"
+     ]
+    },
+    {
+     "key": "relic",
+     "name": "DESTINY",
+     "icon": 44,
+     "price": 500,
+     "stageCap": 0,
+     "field": "0x8e80",
+     "text": [
+      "Gives character a various booster",
+      "effect randomly."
+     ],
+     "notBuilt": true
+    }
+   ],
+   "src": "owned counts: GameData+0x8e98 HP potion / +0x8e88 Spirit of the Sword / +0x8e90 Divine Shield / +0x8e80 random \"destiny\" booster (LoadBoosterItemAndDestiny @0x61cdd4, UserDefault BT_815..BT_860, default 0). A stage takes min(owned, cap): potion 3, sword 2, shield 3 (4 with the shield-carrying hero) (Scene_Stage::Init_Data @0x5760cc); using one subtracts it from the owned count and saves (onTouchesBegan @0x5c5b04 potion / @0x5c5d3c sword, EFF_HOLLY_SHIELD @0x59694c shield). Prices: Call_Back_Buy_Booster_Item @0x567b14: potion 200, shield 400, sword 500, destiny 500, each minus a discount field (GameData+0x93b0..0x93c8, never set at start = 0), times the quantity picked. Texts: libMyGame.so strings. The destiny booster (FUC_SELECT_DESTINY) is not built."
+  },
+  "freeGift": {
+   "value": {
+    "each": 3,
+    "items": [
+     "potion",
+     "sword",
+     "shield"
+    ],
+    "afterStage": 4,
+    "text": "UNLOCKED: BOOSTER\n(3 BOOSTERS GIVEN OUT FOR FREE)"
+   },
+   "src": "Scene_WorldMap::Call_Back_Top_Star @0x55ce44: once (flag GameData+0x4b82), when stage 4 has stars (GameData+0x4fa0 = star table [3] >= 1) and stage 5 has none (+0x4fa8 <= 0): +3 to each of +0x8e88, +0x8e90, +0x8e98, SaveBoosterItemAndDestiny, popup 15 (GAME_INFO_TEXT @0x4e1324). Clip c1 7:57 shows the prep banner and potion 3 / sword 3 / shield 3; in the stage potion 3 / shield 3 / sword 2 (cap)."
+  },
+  "shield": {
+   "value": {
+    "invulnerable": 0.7
+   },
+   "src": "Divine Shield is not tapped: Scene_Stage::FUC_HIT_BY_MONSTER @0x5b9de4 calls EFF_HOLLY_SHIELD on every hit; with a shield left it takes one, the hit does no damage and keeps the combo, and the knight goes into UNDEAD mode for DelayTime(0.7) (@0x5b9e9c)."
+  }
+ },
+ "difficulty": {
+  "modes": {
+   "value": [
+    {
+     "name": "NORMAL",
+     "label": "NORMAL",
+     "atkMul": 1,
+     "walkMul": 1,
+     "coin": 1
+    },
+    {
+     "name": "HARD",
+     "label": "HARD (GOLD x2)",
+     "atkMul": 1.5,
+     "walkMul": 1,
+     "coin": 2
+    },
+    {
+     "name": "HELL",
+     "label": "HELL (GOLD x3)",
+     "labelAll": "HELL (GOLD x4)",
+     "atkMul": 2,
+     "walkMul": 0.85,
+     "coin": 3,
+     "coinAll": 4
+    }
+   ],
+   "src": "mode = GameData+0x92e0 (0 NORMAL, 1 HARD, 2 HELL). Monster::Init_Monster001 @0x5729e8: HARD ATK = trunc(ATK*1.5); HELL ATK = trunc(ATK*2) and walkTime *0.85 (HP, DEF, score unchanged). Coin value per drop (Scene_UI::FUC_SELECT_ITEM @0x5eda54): 1 / 2 (HARD) / 3 (HELL), 4 in HELL once that stage has both HELL challenges (star table >= 9 and HELL UNTOUCHED). Labels: libMyGame.so strings \"HARD (GOLD x2)\", \"HELL (GOLD x3)\", \"HELL (GOLD x4)\". The score target T has no mode index (Info_MissionTarget), so stars use the same marks."
+  },
+  "challenges": {
+   "value": {
+    "starTableStep": 3,
+    "hardNeeds": 3,
+    "hellNeeds": 6,
+    "allNeeds": 9
+   },
+   "src": "per stage, star table GameData+0x4f88[stage] = mode*3 + stars, kept at its max (FUC_SHOW_RESULT_STAR_ANI @0x600174 writes 1/4/7 for the first star in NORMAL/HARD/HELL); UNTOUCHED per mode at GameData+0x5758 + mode*0x7d0 + stage*8 = 9999 after a clear in that mode with the UNTOUCHED flag (FUC_SHOW_RESULT_END @0x5fba50). Opening the prep picks the highest open mode (Scene_WorldMap::onTouchesEnded @0x56f940): HARD when star table >= 3 and NORMAL untouched, HELL when star table >= 6 and HARD untouched. Texts \"HARD MODE UNLOCKED\", \"HELL MODE UNLOCKED\". UNTOUCHED = cleared without taking a hit (game text \"USE THE DIVINE SHIELD TO HELP CLEAR STAGE WITH NO HIT\")."
+  }
  }
 }

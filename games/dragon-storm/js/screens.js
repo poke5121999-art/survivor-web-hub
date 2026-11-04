@@ -32,7 +32,11 @@ export function createScreens(gfx, meta, stages, metaData) {
   const { ctx, img, frame, frameC, digits, label, plain, tileX } = gfx;
   const titles = metaData.stages.titles.value;
   const stageTitle = i => (stages[meta.stageIds[i]] ? stages[meta.stageIds[i]].title : titles[i] || '');
-  const state = { scroll: null, toast: null, toastT: 0 };
+  const state = { scroll: null, toast: null, toastT: 0, prepIdx: null, mode: 0, sel: 'potion', giftBanner: false };
+  // booster row slots (clip c1 7:57): ABILITY then the four boosters, the BUY tile under the last one
+  const SLOT = i => ({ x: 105 + i * 90, y: 393, w: 90, h: 82 });
+  const ABILITY = { x: 16, y: 395, w: 88, h: 80 };
+  const BUY = { x: 370, y: 478, w: 86, h: 72 };
 
   const nodeOpen = i => i < meta.stageIds.length && meta.unlocked(meta.stageIds[i]);
   const heroNode = () => Math.max(0, meta.lastCleared());
@@ -48,17 +52,26 @@ export function createScreens(gfx, meta, stages, metaData) {
     frame(`hero_sword_${t.sword}`, f, left, top, { scale });
   }
 
-  function toast(text) { state.toast = text; state.toastT = 1.6; }
+  function toast(text) { state.toast = text; state.toastT = String(text).includes('\n') ? 2.6 : 1.6; }
   function drawToast(dt) {
     if (!state.toast) return;
     state.toastT -= dt;
     if (state.toastT <= 0) { state.toast = null; return; }
+    // one or more lines ("\n"), each shrunk until it fits the box
+    const lines = String(state.toast).split('\n');
+    const h = 28 + lines.length * 24;
     ctx.save();
     ctx.globalAlpha = Math.min(1, state.toastT * 3);
     ctx.fillStyle = 'rgba(0,0,0,0.78)';
-    ctx.fillRect(40, 372, W - 80, 56);
+    ctx.fillRect(24, 400 - h / 2, W - 48, h);
     ctx.restore();
-    label(state.toast, W / 2, 400, 18, '#ffd23a');
+    lines.forEach((ln, i) => {
+      let size = 18;
+      const fnt = z => `900 ${z}px "Arial Black", Arial, sans-serif`;
+      ctx.font = fnt(size);
+      while (size > 10 && ctx.measureText(ln).width > W - 76) { size--; ctx.font = fnt(size); }
+      label(ln, W / 2, 400 - ((lines.length - 1) * 24) / 2 + i * 24, size, '#ffd23a');
+    });
   }
 
   // ---------------- world map ----------------
@@ -147,14 +160,55 @@ export function createScreens(gfx, meta, stages, metaData) {
     plain(max ? '-' : String(pr), b.x + b.w - 12, b.y + 94, 18, !max && pr > meta.gold() ? '#ff6a5a' : '#fff', 'right');
   }
 
+  // booster row (clip c1 7:57): locked until stage 4 is cleared (lock_bg_booster, 91% black, over the faint row as in
+  // clip c1 4:42), then live: owned counts, the selected booster's description and price, BUY.
+  function drawBoosterRow() {
+    const open = meta.boosterRowOpen();
+    const sel = meta.items.find(i => i.key === state.sel) || meta.items[0];
+    ctx.drawImage(img('item_row').img, 15, 393);
+    ctx.drawImage(img('booster_red').img, ABILITY.x, ABILITY.y, ABILITY.w, ABILITY.h);
+    frameC('icons', 23, 60, 422, { scale: 0.8 });
+    plain('ABILITY', 60, 462, 13, '#fff', 'center');
+    meta.items.forEach((it, i) => {
+      const b = SLOT(i);
+      frameC('icons', it.icon, b.x + 45, 432);
+      plain(String(open ? meta.owned(it.key) : 0), b.x + 75, 410, 14, '#fff', 'right');
+    });
+    const si = meta.items.indexOf(sel);
+    ctx.drawImage(img('booster_select').img, SLOT(si).x, 393);
+    plain(sel.name, 30, 496, 16, '#fff');
+    plain(sel.text[0], 30, 522, 14, '#cfc7bd');
+    plain(sel.text[1], 30, 542, 14, '#cfc7bd');
+    ctx.drawImage(img('booster_red').img, BUY.x, BUY.y, BUY.w, BUY.h);
+    frameC('icons', sel.icon, BUY.x + 35, 505, { scale: 0.7 });
+    plain('BUY', BUY.x + 43, 540, 15, '#fff', 'center');
+    if (open) {
+      frameC('icon_bag', 1, 300, 494, { scale: 0.6 });
+      plain(String(sel.price), 360, 496, 16, sel.price > meta.gold() ? '#ff6a5a' : '#f3e04a', 'right');
+      if (state.giftBanner) { // clip c1 7:57: blue banner over the row the first time
+        ctx.fillStyle = 'rgba(20,40,160,0.85)';
+        ctx.fillRect(110, 424, 300, 46);
+        const g = metaData.boosters.freeGift.value.text.split('\n');
+        plain(g[0], 260, 440, 14, '#fff', 'center');
+        plain(g[1], 260, 459, 13, '#fff', 'center');
+      }
+    } else {
+      ctx.drawImage(img('lock_items').img, 15, 391, 450, 168);
+      plain(metaData.stages.itemsUnlockText.value, W / 2, 512, 17, '#fff', 'center');
+    }
+  }
+
   function drawPrep(stageIdx, t) {
     const id = meta.stageIds[stageIdx];
     const info = meta.stageInfo(id);
+    if (state.prepIdx !== stageIdx) { state.prepIdx = stageIdx; state.mode = meta.defaultMode(id); }
+    const mode = state.mode;
     const built = !!stages[id];
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, W, H);
     tileX('bg_top', 0);
-    for (let i = 0; i < 3; i++) frameC('result_star', i < info.stars ? 1 : 0, 164 + i * 77, 44, { scale: 0.85 });
+    const mStars = meta.modeStars(id, mode);
+    for (let i = 0; i < 3; i++) frameC('result_star', i < mStars ? 1 : 0, 164 + i * 77, 44, { scale: 0.85 });
     ctx.drawImage(img('popup_prep').img, 0, 96);
     ctx.fillStyle = '#16120f';
     ctx.fillRect(0, 608, W, H - 608);
@@ -174,37 +228,18 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.drawImage(img('btn_more').img, PREP_BTN.gemPlus.x, PREP_BTN.gemPlus.y);
     drawCard('weapon', PREP_BTN.weapon);
     drawCard('armor', PREP_BTN.armor);
-    // booster row as in clip c1 7:57 (ABILITY, HP potion, sword spirit, winged shield, relic; HP potion selected with its
-    // game-text description and BUY tile), then lock_bg_booster (alpha 232/255) over it, so it shows through faintly as
-    // in clip c1 4:42. Counts are 0 before boosters exist; prices are left out (not recovered).
-    ctx.drawImage(img('item_row').img, 15, 393);
-    ctx.drawImage(img('booster_red').img, 16, 395, 88, 80);
-    frameC('icons', 23, 60, 422, { scale: 0.8 });
-    plain('ABILITY', 60, 462, 13, '#fff', 'center');
-    [55, 41, 42, 44].forEach((f, i) => {
-      const cx = 150 + i * 90;
-      frameC('icons', f, cx, 432);
-      plain('0', cx + 30, 410, 14, '#fff', 'right');
-    });
-    ctx.drawImage(img('booster_select').img, 105, 393);
-    plain('HP POTION', 30, 496, 16, '#fff');
-    plain('Restores 30% of HP immediately when', 30, 522, 14, '#cfc7bd');
-    plain('use. Can equip up to 3', 30, 542, 14, '#cfc7bd');
-    ctx.drawImage(img('booster_red').img, 370, 478, 86, 72);
-    frameC('icons', 55, 405, 505, { scale: 0.7 });
-    plain('BUY', 413, 540, 15, '#fff', 'center');
-    ctx.drawImage(img('lock_items').img, 15, 391, 450, 168);
-    plain(metaData.stages.itemsUnlockText.value, W / 2, 512, 17, '#fff', 'center');
-    // NORMAL / HARD / HELL: NORMAL selected, the others locked
+    drawBoosterRow();
+    // NORMAL / HARD / HELL (btn_mode 0-2 = 1-3 skulls, 3 = padlock): open modes keep their frame, the picked one gets
+    // the check; a mode opens after GET 3 STAR + UNTOUCHED in the one before (data/meta.json difficulty.challenges)
     PREP_BTN.modes.forEach((b, i) => {
-      // locked HARD / HELL keep their teal frame, darkened, under the padlock (clip c1 4:42)
-      if (i > 0) {
-        frame('btn_mode', i, b.x, b.y, { scale: 0.9 });
+      const open = meta.modeOpen(id, i);
+      frame('btn_mode', i, b.x, b.y, { scale: 0.9 });
+      if (!open) {
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.fillRect(b.x + 3, b.y + 3, 76 * 0.9 - 6, 60 * 0.9 - 6);
+        frame('btn_mode', 3, b.x, b.y, { scale: 0.9 });
       }
-      frame('btn_mode', i === 0 ? 0 : 3, b.x, b.y, { scale: 0.9 });
-      if (i === 0) frameC('icon_check', 0, b.x + 34, b.y + 27, { scale: 1.25 });
+      if (i === mode) frameC('icon_check', 0, b.x + 34, b.y + 27, { scale: 1.25 });
     });
     const sb = PREP_BTN.start;
     ctx.save();
@@ -214,10 +249,12 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.drawImage(bm, 40, 10, 44, 44, sb.x + sb.w - 56, sb.y + 7, 42, 42);
     ctx.restore();
     label(built ? 'START' : 'SOON', sb.x + 96, sb.y + sb.h / 2, 26, built ? '#ff9b1a' : '#999', 'center', false);
-    plain('NORMAL', 16, 668, 17, '#fff');
-    const three = info.stars === 3;
+    plain(meta.modeLabel(id, mode), 16, 668, 17, mode === 0 ? '#fff' : mode === 1 ? '#7fd0ff' : '#ff7a6a');
+    // this mode's two challenges (lit when done): 3 stars, a clear without taking a hit
+    const three = mStars === 3;
+    const unt = info.untouched[mode];
     plain(`${three ? '★' : '☆'} GET 3 STAR`, 16, 703, 18, three ? '#ffd23a' : '#9a9a9a');
-    plain('♡ UNTOUCHED', 186, 703, 18, '#9a9a9a');
+    plain(`${unt ? '♥' : '♡'} UNTOUCHED`, 186, 703, 18, unt ? '#ffd23a' : '#9a9a9a');
     ctx.drawImage(img('lock_tab').img, PREP_BTN.auto.x, PREP_BTN.auto.y, PREP_BTN.auto.w, PREP_BTN.auto.h);
     plain('AUTO', PREP_BTN.auto.x + 43, PREP_BTN.auto.y + 58, 14, 'rgba(160,150,140,0.6)', 'center');
     if (!built) plain('THIS STAGE IS NOT IN THE WEB VERSION YET', W / 2, 760, 14, '#ffb35a', 'center');
@@ -226,7 +263,7 @@ export function createScreens(gfx, meta, stages, metaData) {
 
   function prepTap(p, stageIdx) {
     const id = meta.stageIds[stageIdx];
-    if (inside(p, PREP_BTN.close)) return { close: true };
+    if (inside(p, PREP_BTN.close)) { state.prepIdx = null; state.giftBanner = false; return { close: true }; }
     if (inside(p, PREP_BTN.weapon) || inside(p, PREP_BTN.armor)) {
       const kind = inside(p, PREP_BTN.weapon) ? 'weapon' : 'armor';
       const r = meta.upgrade(kind);
@@ -236,11 +273,29 @@ export function createScreens(gfx, meta, stages, metaData) {
     }
     if (inside(p, PREP_BTN.goldPlus) || inside(p, PREP_BTN.gemPlus)) return { shop: true };
     if (inside(p, PREP_BTN.character)) { toast('OTHER HEROES ARE NOT BUILT YET'); return { character: true }; }
-    if (PREP_BTN.modes.some((b, i) => i > 0 && inside(p, b))) { toast('HARD / HELL ARE LOCKED'); return { mode: true }; }
+    const mi = PREP_BTN.modes.findIndex(b => inside(p, b));
+    if (mi >= 0) {
+      if (meta.modeOpen(id, mi)) { state.mode = mi; return { mode: mi }; }
+      toast(`${meta.modes[mi].name}: GET 3 STAR + UNTOUCHED IN ${meta.modes[mi - 1].name} FIRST`);
+      return { mode: mi, locked: true };
+    }
+    if (meta.boosterRowOpen()) {
+      const si = meta.items.findIndex((it, i) => inside(p, SLOT(i)));
+      if (si >= 0) { state.sel = meta.items[si].key; state.giftBanner = false; return { booster: state.sel }; }
+      if (inside(p, BUY)) {
+        const r = meta.buyBooster(state.sel);
+        if (r === 'gold') toast('NOT ENOUGH GOLD');
+        else if (r === 'notbuilt') toast('DESTINY BOOSTER\nIS NOT IN THE WEB VERSION YET');
+        state.giftBanner = false;
+        return { buy: state.sel, result: r };
+      }
+      if (inside(p, ABILITY)) { toast('ABILITY IS NOT BUILT YET'); return { ability: true }; }
+    }
     if (inside(p, PREP_BTN.auto)) { toast('AUTO IS LOCKED'); return { auto: true }; }
     if (inside(p, PREP_BTN.start)) {
       if (!stages[id]) { toast('COMING SOON'); return { start: false }; }
-      return { start: true, stage: id };
+      state.giftBanner = false;
+      return { start: true, stage: id, mode: state.mode };
     }
     return null;
   }
@@ -271,6 +326,6 @@ export function createScreens(gfx, meta, stages, metaData) {
 
   return {
     state, drawMap, mapTap, mapScrollBy, drawPrep, prepTap, drawShop, shopTap, toast, drawToast,
-    resetScroll: () => { state.scroll = null; },
+    resetScroll: () => { state.scroll = null; state.prepIdx = null; },
   };
 }

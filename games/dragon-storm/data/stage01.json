@@ -17,7 +17,6 @@
   "potions": 0,
   "shields": 0,
   "potionHeal": 0.3,
-  "shieldTime": 5,
   "armorTier": "01",
   "swordTier": "01",
   "_sprite_note": "Start tier 01/01 = bare body + wooden sword: what a new player has on Stage 1 in both clips (c1 0:00, c2 1:50); tiers rise with the stage-prep sword/helmet upgrades (not built). Override with ?tier=06 or ?armor=06&sword=06. Sprite is mirrored around pivotX (measured: clip c1 frame left x 188 facing right, 166 facing left). weaponOffset = where the original draws the weapon layer relative to the body in slash frames, per armor tier, measured on clip c1 0:51-0:52 (tier 01 only; other tiers line up at the same origin and are unmeasured). lunge 0: the body does not move on a slash in the clip.",
@@ -57,11 +56,23 @@
    "_src": "red button = the knight class skill (Scene_Stage::Call_Back_Ready_To_Skill -> FUC_SKILL_START @0x5be038, EFF_DASH): the knight dashes along the facing side and every monster his collision box meets takes FUC_CALCULATE_DAMAGE(skill power = player+0x540 = knightStats.skillByWeaponLevel, monster DEF) (Scene_Stage::update @0x591a28: while dashing, each frame the knight sprite box is tested against every monster hit box; a monster is hit once (Monster+0x5cc set, cleared again in FUC_MONSTER_ATTACK); the web hits every monster on the facing side, the dash path itself is a web value). Re-armed by SCH_CHECK_MISSION_TARGET_TIME @0x58c018 counting a timer down 0.1 per 0.1 s tick; the timer max (+0xcb4) is written by a store this pass could not find, so cooldown 10.0 s is CLIP-MEASURED (ring refill c1 7:30.5 -> 7:40, 2 fps)."
   },
   "swordStorm": {
-   "_src": "blue button = Sword Storm (Call_Back_Ready_To_Sword_Storm). Uses come only from prep boosters (no in-stage gain: the clip shows 0 through stages 1-4 with 40+ kills); the booster row is locked in this build, so it stays 0.",
-   "damage": 99,
-   "_damage": "per sword: FUC_CALCULATE_DAMAGE(ceil(ATK/2) + trunc(ceil(ATK/2) * GameData+0x9480 * 0.01), DEF), GameData+0x9480 = 0 at start (Guardian_Bullet type 4, SCH_CREATE_STORM_SWORD @0x58c39c); swords spawn every 0.08 s (Scene_Stage::init schedule @0x575b10) on 13 angles 90..-90 deg, each with a 50% roll, while a timer > 0 counts down 0.24 per tick. The timer start value was not found, so the web keeps damage 99 to every monster on screen: PLACEHOLDER (booster-only, 0 charges in this build)"
+   "timer": 5.0,
+   "timerStep": 0.24,
+   "tick": 0.08,
+   "angles": 13,
+   "angleStep": 15,
+   "chance": 0.5,
+   "flight": 0.6,
+   "startX": 240,
+   "startY": 400,
+   "w": 35,
+   "h": 58,
+   "monsterY": 416,
+   "_src": "blue button = Sword Storm, one Spirit of the Sword booster per use (stage cap 2). Call_Back_Ready_To_Sword_Storm @0x5c3844: timer = 5 + GameData+0x9460 + GameData+0x9478 (both 0). SCH_CREATE_STORM_SWORD @0x58c158, scheduled every 0.08 s (Scene_Stage::init @0x575b10): while timer > 0 it adds -0.24 and, for k = 0..12, on rand()&1 makes a Guardian_Bullet type 4 (bullert_sword 35x58) at the screen centre (W/2, H/2 = cocos y 400 -> screen y 400), rotated 90-15k deg, MoveTo(0.6 s) to centre + W*(cos 15k, sin 15k). Its ATK = ceil(ATK/2) + trunc(ceil(ATK/2) * GameData+0x9480 * 0.01) (+0x9480 = 0) (@0x58c398); on the first monster hit box it touches: FUC_CALCULATE_DAMAGE(ATK, DEF, 0, 0) (Scene_Stage::update @0x590fe8), then the sword is removed (@0x591150). monsterY 416 = monster position GameData+0x124b8 = 0.48*H from the bottom; hit box centred on it (assumed)."
   },
-  "_potion_src": "heal = percent table * 0.01 * max HP (Scene_UI::FUC_USE_POTION @0x60812c); the game text says \"Restores 30% of HP immediately\" (libMyGame.so string)"
+  "_potion_src": "heal = percent table * 0.01 * max HP (Scene_UI::FUC_USE_POTION @0x60812c); the game text says \"Restores 30% of HP immediately\" (libMyGame.so string)",
+  "shieldInvuln": 0.7,
+  "_shield_src": "Divine Shield fires by itself: FUC_HIT_BY_MONSTER @0x5b9de4 -> EFF_HOLLY_SHIELD: one shield used, no damage, combo kept, FUC_ANI_UNDEADMODE + DelayTime(0.7) (@0x5b9e9c). Counts come from the boosters (data/meta.json)."
  },
  "monsters": {
   "goblin_swordman": {

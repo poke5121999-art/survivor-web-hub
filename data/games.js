@@ -793,7 +793,7 @@ window.HUB_GAMES = [
     en: { title: "Dragon Storm", tagline: "A knight defends the village: tap to slash, dodge and cast to stop each wave of monsters.", desc: "Dragon Storm (com.spcomes.dstorm), a lane-defense action RPG, remade in plain Canvas 2D on the web, no engine. The knight is built from the original APK art: an armor body per upgrade tier with the sword layered on top, the slash matched to the source clip. It has a world map to pick stages, a stage-prep panel that upgrades the sword and armor with gold earned in battle (prices taken from the original game), and a shop. Stage 1-2 are playable: enter a stage, slash, dodge, cast, win or lose, and upgrades change the knight look and stats. Progress saves in the browser. Not yet built: combat balance numbers are placeholders, and the boss and later stages are in progress." },
     thumbnail: "assets/thumbnails/dragon-storm.png",
     path: "games/dragon-storm/index.html",
-    rev: "20261104b",
+    rev: "20261104d",
     status: "available",
     tags: ["Hành động", "Nhập vai", "Thủ làng"]
   },

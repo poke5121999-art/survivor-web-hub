@@ -466,6 +466,20 @@ export function createRenderer(ctx, art) {
     plain(`${untouched ? '♥' : '♡'} UNTOUCHED`, 190, 740, 18, untouched ? '#ff7a7a' : '#888');
   }
 
+  // Sword Storm swords: bullert_sword, rotated 90 - 15k deg (cocos, clockwise) so it points along its flight
+  function drawSwords(s) {
+    if (!s.swords.length) return;
+    const sw = img('storm_sword');
+    const step = s.stage.hero.swordStorm.angleStep;
+    for (const b of s.swords) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(((90 - step * b.k) * Math.PI) / 180);
+      ctx.drawImage(sw.img, -sw.w / 2, -sw.h / 2, sw.w, sw.h);
+      ctx.restore();
+    }
+  }
+
   function drawStage(s, dt, info = {}) {
     updateFx(dt);
     ctx.fillStyle = '#000';
@@ -481,6 +495,7 @@ export function createRenderer(ctx, art) {
     drawMonsters(s);
     drawAlerts(s);
     drawHero(s);
+    drawSwords(s);
     ctx.restore();
     drawPad(s);
     drawHeroHp(s);

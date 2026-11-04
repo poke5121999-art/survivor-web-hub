@@ -48,6 +48,8 @@ IMAGES = {
     # world-map stage-5 slot: the reward chest over a spinning light (Scene_WorldMap::FUC_SET_REWARD_CHEST_POSITION)
     'eff_flash01': ('Eff_Flash_01(512x512).png', None, None, 1),
     'icon_clear_bonus': ('icon_clear_bonus(64x64).png', None, None, 1),
+    # Sword Storm sword (SCH_CREATE_STORM_SWORD @0x58c2cc, rect 35x58)
+    'storm_sword': ('bullert_sword(35x58).png', None, None, 1),
     # HUD
     'board_target': ('in_board_target(186x102).png', None, None, 1),  # book + coin counters (top right)
     'board_score': ('in_board_score(282x86).png', None, None, 1),  # SCORE board with 3 star marks (bottom right)
@@ -137,6 +139,7 @@ AUDIO = {
     'arrow': 'S_ARROW.wav',
     'boss_alert': 'S_BOSS_ALERT.wav',
     'dash': 'S_START_SKILL.wav',  # Scene_Stage::onTouchesBegan @0x5c59d0 (red button)
+    'shield': 'S_HOLLY_SHIELD.wav',  # Scene_Stage::EFF_HOLLY_SHIELD @0x5968c8
 }
 
 
