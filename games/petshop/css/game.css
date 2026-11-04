@@ -31,3 +31,6 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-f
 .timer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: 700 34px 'Noto Sans', sans-serif; font-stretch: 75%; }
 .obj { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 24px 0 120px; color: #333; font: 700 30px 'Noto Sans', sans-serif; font-stretch: 75%; }
 .crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 2px #000; z-index: 4; pointer-events: none; }
+.name-input { position: absolute; inset: 8% 6%; width: 88%; height: 84%; border: 0; background: transparent; color: #222; font: 700 44px 'Noto Sans', sans-serif;
+  font-stretch: 75%; text-transform: uppercase; text-align: center; outline: none; pointer-events: auto; }
+.lang { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: 700 30px 'Noto Sans', sans-serif; font-stretch: 75%; }

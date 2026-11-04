@@ -1,0 +1,730 @@
+{
+"Tutorial_1": {
+"en": "Select Language",
+"vi": "Chọn ngôn ngữ"
+},
+"Tutorial_1_1": {
+"en": "Confirm",
+"vi": "Xác nhận"
+},
+"WelcomeScreenHeader": {
+"en": "Olivia",
+"vi": "Olivia"
+},
+"WelcomeScreenMiddleText": {
+"en": "Hello, I’m Olivia and congratulations on opening new Pet Shop! I will guide you in your journey.",
+"vi": "Xin chào, tôi là Olivia và xin chúc mừng bạn đã mở Pet Shop mới! Tôi sẽ đồng hành cùng bạn trên hành trình này."
+},
+"Tutorial_2_2": {
+"en": "Tap for next...",
+"vi": "Nhấn để xem tiếp..."
+},
+"Tutorial_3": {
+"en": "Name your Store",
+"vi": "Đặt tên cho Cửa hàng của bạn"
+},
+"Tutorial_3_1": {
+"en": "Tip : Max 15 Characters a-z & 0-9 only",
+"vi": "Mẹo: Chỉ tối đa 15 ký tự a-z và 0-9"
+},
+"Tutorial_3_2": {
+"en": "Background Color",
+"vi": "Màu nền"
+},
+"Tutorial_3_3": {
+"en": "Done",
+"vi": "Xong"
+},
+"Tutorial_4": {
+"en": "You can change the name by looking at <color=#00FF00>store name board</color> from outside!",
+"vi": "Bạn có thể thay đổi tên bằng cách nhìn vào <color=#00FF00>bảng tên cửa hàng</color> từ bên ngoài!"
+},
+"Tutorial_4_1": {
+"en": "Next",
+"vi": "Kế tiếp"
+},
+"Tutorial_5": {
+"en": "Follow the <color=#00FF00>instructions</color> here!",
+"vi": "Làm theo <color=#00FF00>hướng dẫn</color> tại đây!"
+},
+"Tutorial_5_1": {
+"en": "Follow The Objectives",
+"vi": "Thực hiện các mục tiêu"
+},
+"Tutorial_5_2": {
+"en": "Follow the objectives to gain <color=#00ff00>bonus XP</color> and level up faster!",
+"vi": "Thực hiện các mục tiêu để nhận <color=#00ff00>XP thưởng</color> và lên cấp nhanh hơn!"
+},
+"Tutorial_5_3": {
+"en": "Confirm",
+"vi": "Xác nhận"
+},
+"MoveCamera": {
+"en": "Look around.",
+"vi": "Nhìn xung quanh."
+},
+"MoveCamera_Header": {
+"en": "GUIDE LOOK AROUND",
+"vi": "HƯỚNG DẪN XEM XUNG QUANH"
+},
+"MoveCamera_Desc": {
+"en": "Use <color=#FFFF00>right thumb</color> to look around",
+"vi": "Sử dụng <color=#FFFF00>ngón cái phải</color> để nhìn xung quanh"
+},
+"MoveJoyStick": {
+"en": "Move around.",
+"vi": "Di chuyển xung quanh."
+},
+"MoveJoystick_Header": {
+"en": "GUIDE MOVE AROUND",
+"vi": "HƯỚNG DẪN DI CHUYỂN"
+},
+"MoveJoystick_Desc": {
+"en": "Use <color=#FFFF00>left thumb</color> to move around",
+"vi": "Sử dụng <color=#FFFF00>ngón cái bên trái</color> để di chuyển xung quanh"
+},
+"PickUpBox": {
+"en": "Pick up the box.",
+"vi": "Nhấc hộp lên."
+},
+"PlaceItems": {
+"en": "Place products in the Rack.",
+"vi": "Đặt sản phẩm vào giá."
+},
+"PutBoxInTrash": {
+"en": "Throw in the trash.",
+"vi": "Vứt vào thùng rác."
+},
+"SetItemsPrice": {
+"en": "Tap the tag on the rack to adjust the price.",
+"vi": "Chạm vào thẻ trên giá để điều chỉnh giá."
+},
+"Tutorial_11_1": {
+"en": "Enter Price",
+"vi": "Nhập giá"
+},
+"OpenStore": {
+"en": "Open the store for customers.",
+"vi": "Mở cửa hàng đón khách."
+},
+"GoToCheckOut": {
+"en": "Tap on cash counter to serve customers.",
+"vi": "Chạm vào quầy thu ngân để phục vụ khách hàng."
+},
+"CustomerCheckOut_1": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"CustomerCheckOut_2": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"LeaveCheckOut": {
+"en": "Leave cash counter.",
+"vi": "Rời khỏi quầy thu ngân."
+},
+"OpenMarketPlace": {
+"en": "Your pet cage is empty use laptop to order cat.",
+"vi": "Lồng thú cưng của bạn đang trống, hãy sử dụng máy tính xách tay để đặt mua mèo."
+},
+"CloseMarketPlace": {
+"en": "Now close laptop.",
+"vi": "Bây giờ hãy đóng máy tính xách tay lại."
+},
+"BoostDeliveryItem": {
+"en": "Speed up delivery.",
+"vi": "Tăng tốc độ giao hàng."
+},
+"PickUpSecondBox": {
+"en": "Pick cat from cargo area.",
+"vi": "Nhặt mèo ở khu vực chứa hàng."
+},
+"PlaceInCage": {
+"en": "Place cat in the pet cage.",
+"vi": "Đặt mèo vào lồng thú cưng."
+},
+"Task_1_0": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"Task_1_1": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"Task_1_2": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"Task_1_3": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"Task_1_4": {
+"en": "Complete checkouts.",
+"vi": "Hoàn tất thanh toán."
+},
+"Task_2": {
+"en": "Buy a license to unlock more products.",
+"vi": "Mua giấy phép để mở khóa thêm nhiều sản phẩm."
+},
+"Task_3": {
+"en": "Buy a fridge and place in the store.",
+"vi": "Mua một chiếc tủ lạnh và đặt trong cửa hàng."
+},
+"Task_4": {
+"en": "Buy a new Expansion to increase size of store.",
+"vi": "Mua bản mở rộng mới để tăng quy mô cửa hàng."
+},
+"Task_5": {
+"en": "Expand your <color=#00FF00>store</color> to offer more products for sale!",
+"vi": "Mở rộng <color=#00FF00>cửa hàng</color> của bạn để cung cấp nhiều sản phẩm hơn nữa!"
+},
+"Tutorial_Word": {
+"en": "Tutorial!",
+"vi": "Hướng dẫn!"
+},
+"Objective_Word": {
+"en": "Objective!",
+"vi": "Khách quan!"
+},
+"EnterPrice": {
+"en": "Enter Price",
+"vi": "Nhập giá"
+},
+"MarketPrice": {
+"en": "Market Price",
+"vi": "Giá thị trường"
+},
+"Profit_Word": {
+"en": "Profit",
+"vi": "Lợi nhuận"
+},
+"Price_Word": {
+"en": "Price",
+"vi": "Giá"
+},
+"Ok_Word": {
+"en": "OK",
+"vi": "ĐƯỢC RỒI"
+},
+"Store_Word": {
+"en": "Store",
+"vi": "Cửa hàng"
+},
+"Manage_Word": {
+"en": "Manage",
+"vi": "Quản lý"
+},
+"Service_Wrod": {
+"en": "Service",
+"vi": "Dịch vụ"
+},
+"Bank_Word": {
+"en": "Bank",
+"vi": "Ngân hàng"
+},
+"Products_Word": {
+"en": "Products",
+"vi": "Các sản phẩm"
+},
+"Animals_Word": {
+"en": "Animals",
+"vi": "Động vật"
+},
+"Furniture_Word": {
+"en": "Furniture",
+"vi": "Nội thất"
+},
+"Item_Word": {
+"en": "Item",
+"vi": "Mục"
+},
+"Unit_Word": {
+"en": "Unit",
+"vi": "Đơn vị"
+},
+"Total_Word": {
+"en": "Total",
+"vi": "Tổng cộng"
+},
+"Buy_Word": {
+"en": "Buy",
+"vi": "Mua"
+},
+"License_Word": {
+"en": "License",
+"vi": "Giấy phép"
+},
+"Expansion_Word": {
+"en": "Expansion",
+"vi": "Mở rộng"
+},
+"RequiredLicense": {
+"en": "Reqired License",
+"vi": "Giấy phép bắt buộc"
+},
+"StoreLevel": {
+"en": "Store Level",
+"vi": "Cấp độ cửa hàng"
+},
+"Owned_Word": {
+"en": "Owned",
+"vi": "Sở hữu"
+},
+"UnlockAtLevel": {
+"en": "Unlock at level",
+"vi": "Mở khóa ở cấp độ"
+},
+"Section_Word": {
+"en": "Section",
+"vi": "Phần"
+},
+"AllLicenses": {
+"en": "All Licenses",
+"vi": "Tất cả các giấy phép"
+},
+"AllSections": {
+"en": "All Sections",
+"vi": "Tất cả các phần"
+},
+"Day_Word": {
+"en": "Day",
+"vi": "Ngày"
+},
+"Level_Word": {
+"en": "Level",
+"vi": "Mức độ"
+},
+"EndDay": {
+"en": "End Day",
+"vi": "Ngày kết thúc"
+},
+"LeaveCheckout": {
+"en": "Leave Checkout",
+"vi": "Rời khỏi thanh toán"
+},
+"DeliveryTime": {
+"en": "Next Delivery In",
+"vi": "Giao hàng tiếp theo trong"
+},
+"GetItNow": {
+"en": "Get It Now",
+"vi": "Nhận ngay bây giờ"
+},
+"Free_Word": {
+"en": "Free",
+"vi": "Miễn phí"
+},
+"DeliveryArrived": {
+"en": "Your Delivery Arrived",
+"vi": "Giao hàng của bạn đã đến"
+},
+"Alert_Word": {
+"en": "Alert!",
+"vi": "Báo động!"
+},
+"ItemCount": {
+"en": "Item Count",
+"vi": "Số lượng mặt hàng"
+},
+"Setting_Word": {
+"en": "Setting",
+"vi": "Cài đặt"
+},
+"NoThanks": {
+"en": "No Thanks",
+"vi": "Không, cảm ơn"
+},
+"AdBreak": {
+"en": "Ad Break",
+"vi": "Nghỉ quảng cáo"
+},
+"NotEnoughCash": {
+"en": "Not Enough Cash",
+"vi": "Không đủ tiền mặt"
+},
+"Reward_Word": {
+"en": "Reward",
+"vi": "Phần thưởng"
+},
+"CashPack": {
+"en": "Cash Pack",
+"vi": "Gói tiền mặt"
+},
+"EnergyPack": {
+"en": "Energy Pack",
+"vi": "Gói năng lượng"
+},
+"GiveTheChange": {
+"en": "Give The Change",
+"vi": "Đưa tiền thừa"
+},
+"StarterPack": {
+"en": "Starter Pack",
+"vi": "Gói khởi đầu"
+},
+"Language_Word": {
+"en": "Language",
+"vi": "Ngôn ngữ"
+},
+"Audio_Word": {
+"en": "Audio",
+"vi": "Âm thanh"
+},
+"SFXVolume": {
+"en": "SFX Volume",
+"vi": "Âm lượng SFX"
+},
+"MusicVolume": {
+"en": "Music Volume",
+"vi": "Âm lượng nhạc"
+},
+"Controls_Word": {
+"en": "Controls",
+"vi": "Kiểm soát"
+},
+"Sensitivity_Word": {
+"en": "Sensitivity",
+"vi": "Độ nhạy"
+},
+"RestorePurchase": {
+"en": "Restore Purchase",
+"vi": "Khôi phục mua hàng"
+},
+"PrivacyPolicy": {
+"en": "Privacy Policy",
+"vi": "Chính sách bảo mật"
+},
+"Support_Word": {
+"en": "Support",
+"vi": "Ủng hộ"
+},
+"Discord_Word": {
+"en": "Discord",
+"vi": "Bất hòa"
+},
+"ServiceDiscardBoxes": {
+"en": "Discard Boxes",
+"vi": "Hộp bỏ đi"
+},
+"ServiceCashier": {
+"en": "Service Cashier",
+"vi": "Thu ngân dịch vụ"
+},
+"ServiceStorage": {
+"en": "Storage",
+"vi": "Kho"
+},
+"ServiceCounter": {
+"en": "Extra Counter",
+"vi": "Quầy bổ sung"
+},
+"IAP_ValuePack": {
+"en": "Value Pack",
+"vi": "Gói giá trị"
+},
+"IAP_RemoveAds": {
+"en": "Remove Ads",
+"vi": "Xóa quảng cáo"
+},
+"IAP_InstantDelivery": {
+"en": "Instant Delivery",
+"vi": "Giao hàng ngay lập tức"
+},
+"IA_FreeCash": {
+"en": "Free Cash",
+"vi": "Tiền mặt miễn phí"
+},
+"IA_FreeEnergy": {
+"en": "Free Energy",
+"vi": "Năng lượng miễn phí"
+},
+"IA_SpecialPack": {
+"en": "Special Pack",
+"vi": "Gói đặc biệt"
+},
+"IAP_ValueText": {
+"en": "Top value",
+"vi": "Giá trị hàng đầu"
+},
+"Tip_StoreClosed": {
+"en": "Your store is closed. Open it and sell products ",
+"vi": "Cửa hàng của bạn đã đóng cửa. Hãy mở cửa hàng và bán sản phẩm."
+},
+"Tip_StoreEmpty": {
+"en": "Store is empty, fill them with items.",
+"vi": "Cửa hàng trống rỗng, hãy lấp đầy chúng bằng các mặt hàng."
+},
+"Tip_DayEnd_1": {
+"en": "<color=#FF0000>No new customer will come at night</color>",
+"vi": "<color=#FF0000>Sẽ không có khách hàng mới nào đến vào ban đêm</color>"
+},
+"Tip_DayEnd_2": {
+"en": "<color=#FF0000>Can't close yet! there are customers</color> still inside the store",
+"vi": "<color=#FF0000>Vẫn chưa thể đóng cửa! Vẫn còn khách hàng bên trong cửa hàng</color>"
+},
+"Tip_DayEnd_3": {
+"en": "Click on <color=#00FF00>day end button</color> to start a new day!",
+"vi": "Nhấp vào <color=#00FF00>nút kết thúc ngày</color> để bắt đầu một ngày mới!"
+},
+"Tip_LoadingInterAd_3": {
+"en": "Let's take a ad break in : <color=#00FF00>3</color>",
+"vi": "Chúng ta hãy tạm dừng quảng cáo trong: <color=#00FF00>3</color>"
+},
+"Tip_LoadingInterAd_2": {
+"en": "Let's take a ad break in : <color=#00FF00>2</color>",
+"vi": "Chúng ta hãy tạm dừng quảng cáo trong: <color=#00FF00>2</color>"
+},
+"Tip_LoadingInterAd_1": {
+"en": "Let's take a ad break in : <color=#00FF00>1</color>",
+"vi": "Chúng ta hãy tạm dừng quảng cáo trong: <color=#00FF00>1</color>"
+},
+"Tip_LoadingInterAd_0": {
+"en": "Let's take a ad break in : <color=#00FF00>0</color>",
+"vi": "Chúng ta hãy tạm dừng quảng cáo trong: <color=#00FF00>0</color>"
+},
+"Tip_TeaBreak_2": {
+"en": "Ad break",
+"vi": "Nghỉ quảng cáo"
+},
+"Alert_OpenStore": {
+"en": "Tap to open store!",
+"vi": "Nhấn để mở cửa hàng!"
+},
+"Alert_CloseStore": {
+"en": "Tap to close store!",
+"vi": "Nhấn để đóng cửa hàng!"
+},
+"Alert_Checkout": {
+"en": "Tap to use checout counter!",
+"vi": "Chạm để sử dụng quầy thanh toán!"
+},
+"Alert_Laptop": {
+"en": "Tap to open market store!",
+"vi": "Nhấn để mở cửa hàng!"
+},
+"Alert_Trashbin": {
+"en": "Throw empty boxes in the bin!",
+"vi": "Vứt những chiếc hộp rỗng vào thùng rác!"
+},
+"Alert_MoveFurniture": {
+"en": "Hold to move furniture!",
+"vi": "Giữ để di chuyển đồ đạc!"
+},
+"Alert_PricePlate": {
+"en": "Tap to set product price!",
+"vi": "Nhấn để đặt giá sản phẩm!"
+},
+"Alert_PickDelivery": {
+"en": "Tap to pick your delivery!",
+"vi": "Nhấn để chọn đơn hàng giao của bạn!"
+},
+"Alert_LowCash": {
+"en": "You need more cash!",
+"vi": "Bạn cần thêm tiền mặt!"
+},
+"Alert_LowEnergy": {
+"en": "You need more energy!",
+"vi": "Bạn cần nhiều năng lượng hơn!"
+},
+"Alert_CartEmpty": {
+"en": "Your cart is empty!",
+"vi": "Giỏ hàng của bạn đang trống!"
+},
+"Alert_CartBought": {
+"en": "Items purchased successfully!",
+"vi": "Đã mua hàng thành công!"
+},
+"Alert_LowLevel": {
+"en": "Warning!: Your level is low.",
+"vi": "Cảnh báo!: Cấp độ của bạn thấp."
+},
+"Alert_LicenseBought": {
+"en": "License purchased successfully!",
+"vi": "Đã mua giấy phép thành công!"
+},
+"Alert_ExpansionBought": {
+"en": "Expansion purchased successfully!",
+"vi": "Đã mua thành công bản mở rộng!"
+},
+"Alert_CabinetFull": {
+"en": "The cabinet is full. No more space available!",
+"vi": "Tủ đã đầy rồi. Không còn chỗ trống nữa!"
+},
+"Alert_ItemMissMatch": {
+"en": "Only same items can place here!",
+"vi": "Chỉ có những vật phẩm giống nhau mới có thể đặt ở đây!"
+},
+"Alert_WrongFurniture": {
+"en": "This item can not place here!",
+"vi": "Không thể đặt sản phẩm này ở đây!"
+},
+"Alert_BoxEmpty": {
+"en": "The delivery box is empty!",
+"vi": "Hộp giao hàng trống rỗng!"
+},
+"Alert_BoxNotEmpty": {
+"en": "Warning!: Box is not empty.",
+"vi": "Cảnh báo!: Hộp không rỗng."
+},
+"Alert_StoreBoard": {
+"en": "Tap to change store name!",
+"vi": "Nhấn để thay đổi tên cửa hàng!"
+},
+"Alert_NoEmptyBox": {
+"en": "No empty box found",
+"vi": "Không tìm thấy hộp trống"
+},
+"Alert_BoxesDiscard": {
+"en": "{x} empty boxes discarded!",
+"vi": "{x} ô trống đã bị loại bỏ!"
+},
+"TotalBill": {
+"en": "Total Bill",
+"vi": "Tổng hóa đơn"
+},
+"CashPayment": {
+"en": "Cash Payment",
+"vi": "Thanh toán bằng tiền mặt"
+},
+"RecievedWithColon": {
+"en": "Recieved :",
+"vi": "Đã nhận:"
+},
+"TotalWithColon": {
+"en": "Total :",
+"vi": "Tổng cộng :"
+},
+"ChangeWithColon": {
+"en": "Change :",
+"vi": "Thay đổi :"
+},
+"GivingWithColon": {
+"en": "Giving :",
+"vi": "Cho đi:"
+},
+"CardPayment": {
+"en": "Card Payment",
+"vi": "Thanh toán bằng thẻ"
+},
+"InputTotalValueTip": {
+"en": "Input The total value in terminal",
+"vi": "Đầu vào Tổng giá trị trong thiết bị đầu cuối"
+},
+"Get20Percent": {
+"en": "Get 20 % Extra",
+"vi": "Nhận thêm 20%"
+},
+"NotEnoughEnergy": {
+"en": "Not enough energy",
+"vi": "Không đủ năng lượng"
+},
+"RateUs": {
+"en": "Rate Us",
+"vi": "Đánh giá chúng tôi"
+},
+"ExtraCash": {
+"en": "You gave extra change of x",
+"vi": "Bạn đã trả thêm tiền thừa là x"
+},
+"WatchAdToGet": {
+"en": "Watch video ad <color=#FFB900>to get</color>",
+"vi": "Xem quảng cáo video <color=#FFB900>để nhận</color>"
+},
+"Get_Word": {
+"en": "Get",
+"vi": "Lấy"
+},
+"Alert_Atm": {
+"en": "Get free cash from atm",
+"vi": "Nhận tiền mặt miễn phí từ máy ATM"
+},
+"Haptics_Word": {
+"en": "Haptics",
+"vi": "Haptics"
+},
+"Vibration_Word": {
+"en": "Vibration",
+"vi": "Rung động"
+},
+"On_Word": {
+"en": "On",
+"vi": "TRÊN"
+},
+"Off_Word": {
+"en": "Off",
+"vi": "Tắt"
+},
+"Animal_Cage": {
+"en": "Animal Cage",
+"vi": "Lồng động vật"
+},
+"RemoveAdTip": {
+"en": "Remove forced ad interruptions and banner ads",
+"vi": "Xóa quảng cáo gián đoạn bắt buộc và quảng cáo biểu ngữ"
+},
+"FiftyPercentOff": {
+"en": "50% Off",
+"vi": "Giảm giá 50%"
+},
+"Alert_AlertUseRack": {
+"en": "This can not place here! Use Rack",
+"vi": "Không thể đặt ở đây! Sử dụng Rack"
+},
+"Alert_AlertUseFridge": {
+"en": "This can not place here! Use Fridge",
+"vi": "Không thể đặt ở đây! Sử dụng tủ lạnh"
+},
+"Alert_AlertUseAnimalCage": {
+"en": "This can not place here! Use Animal Cage",
+"vi": "Không thể đặt ở đây! Sử dụng Lồng Động Vật"
+},
+"Alert_AlertUseRaptileCage": {
+"en": "This can not place here! Use Raptile Cage",
+"vi": "Không thể đặt ở đây! Sử dụng Raptile Cage"
+},
+"Alert_AlertUseAquarium": {
+"en": "This can not place here! Use Aquarium",
+"vi": "Không thể đặt ở đây! Sử dụng Aquarium"
+},
+"Alert_AlertUseBirdCage": {
+"en": "This can not place here! Use Bird Cage",
+"vi": "Không thể đặt ở đây! Sử dụng Bird Cage"
+},
+"SendBugReport": {
+"en": "Send Bug Report",
+"vi": "Gửi báo cáo lỗi"
+},
+"BugReport": {
+"en": "Bug Report",
+"vi": "Báo cáo lỗi"
+},
+"BugReportMiddleText": {
+"en": "Hi, press the <i>Share</i> button to send your bug report via email at <color=#00aa00><i>dodgersmax11@gmail.com</i></color> or join our <color=#00aa00><i>Discord server</i></color> to share it in a private DM with the server owner.",
+"vi": "Xin chào, hãy nhấn nút <i>Chia sẻ</i> để gửi báo cáo lỗi qua email tại <color=#00aa00><i>dodgersmax11@gmail.com</i></color> hoặc tham gia <color=#00aa00><i>máy chủ Discord</i></color> của chúng tôi để chia sẻ trong tin nhắn trực tiếp riêng tư với chủ sở hữu máy chủ."
+},
+"Share": {
+"en": "Share",
+"vi": "Chia sẻ"
+},
+"Discord": {
+"en": "Discord",
+"vi": "Bất hòa"
+},
+"Alert_FreeCash": {
+"en": "Interact to get free cash!",
+"vi": "Tương tác để nhận tiền mặt miễn phí!"
+},
+"Alert_FreeEnergy": {
+"en": "Interact to get free energy!",
+"vi": "Tương tác để nhận năng lượng miễn phí!"
+},
+"NoInternet": {
+"en": "No Internet",
+"vi": "Không có Internet"
+},
+"InternetInstructions": {
+"en": "Please check your internet connection or try again later.",
+"vi": "Vui lòng kiểm tra kết nối internet của bạn hoặc thử lại sau."
+}
+}

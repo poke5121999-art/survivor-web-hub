@@ -124,6 +124,14 @@ class Walker:
             sc = cs.get("StringChange")
             if sc is not None:
                 n["txt"]["key"] = mm.read(sc).get("id")
+            loc = cs.get("I2.Loc.Localize")
+            if loc is not None:
+                try:
+                    term = mm.read(loc).get("mTerm")
+                    if term:
+                        n["txt"]["term"] = term
+                except Exception:
+                    pass
         if "UnityEngine.UI.Button" in cs:
             n["btn"] = 1
         kids = []

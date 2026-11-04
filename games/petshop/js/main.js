@@ -48,10 +48,11 @@ function resize() {
 addEventListener('resize', resize);
 
 (async () => {
-  const [storeJ, storeG, poolJ, poolG, ui, G, L, nav, col, clips, ctrls] = await Promise.all([
+  const [storeJ, storeG, poolJ, poolG, ui, G, L, nav, col, clips, ctrls, text, rewards] = await Promise.all([
     json(`${ART}/store/scene.json`), glb(`${ART}/store/geo.glb`), json(`${ART}/pool/scene.json`), glb(`${ART}/pool/geo.glb`),
     json(`${ART}/ui/ui.json`), json(`${BASE}data/game.json`), json(`${BASE}data/layout.json`), json(`${ART}/store/navmesh.json`),
-    json(`${ART}/store/colliders.json`), json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`)]);
+    json(`${ART}/store/colliders.json`), json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`),
+    json(`${BASE}data/text.json`), json(`${BASE}data/rewards.json`)]);
   const store = buildWorld(storeJ, storeG, { texBase: `${ART}/tex` });
   scene3.add(store.root);
   const lib = new AnimLibrary(clips, ctrls);
@@ -75,8 +76,12 @@ addEventListener('resize', resize);
   for (const o of store.objects) { const k = o.userData.node.k && o.userData.node.k.RestrictAreaHelper; if (k && k.restrictArea && k.restrictArea.n != null) store.objects[k.restrictArea.n].visible = false; }
 
   const fresh = params.has('fresh');
-  const sim = new Sim(G, L, storeJ, nav, { save: fresh ? null : readJson(SAVE_KEY) });
-  const view = new GameView({ scene3, store, pool, sim, G, L, camera });
+  // an object is active when it and all its parents are visible (walls of the current expansion, the storage shutter...)
+  const isOn = node => { let o = store.objects[node]; while (o) { if (!o.visible) return false; o = o.parent; } return true; };
+  // FurniturePlaceHelper's BoundingBoxDetector tests every active collider: the scene BoxColliders that are on now
+  const solids = () => col.boxes.filter(b => isOn(b.node)).map(b => ({ c: b.c, size: b.size, yaw: b.yaw }));
+  const sim = new Sim(G, L, storeJ, nav, { save: fresh ? null : readJson(SAVE_KEY), colliders: col, solids });
+  const view = new GameView({ scene3, store, pool, sim, G, L, camera, uiBase: `${ART}/ui` });
   const P0 = storeJ.nodes.find(n => n.n === 'Player' && n.k && n.k['StarterAssets.FirstPersonController']);
   const fpc = P0.k['StarterAssets.FirstPersonController'];
   const yaw0 = 2 * Math.atan2(P0.r ? P0.r[1] : 0, P0.r ? P0.r[3] : 1);
@@ -91,8 +96,11 @@ addEventListener('resize', resize);
   const lastGive = [];
 
   const ctx = {
-    sim, G, L, player, sound, lastGive,
+    sim, G, L, player, sound, lastGive, text, rewards,
     interact: () => interact(),
+    press: () => press(), release: () => release(),
+    openBox: () => openBox(),
+    place: a => placeAction(a),
     throwBox: () => throwBox(),
     exitCheckout: () => setCheckout(false),
     inCheckout: () => mode.checkout,
@@ -109,7 +117,45 @@ addEventListener('resize', resize);
     player.pitch = Math.atan2(dy, Math.hypot(dx, dz));
   };
 
+  // PlayerObjectMover: tap = interact, holding thresholdTime 1.25 s on a placed furniture picks it up to move it.
+  const HOLD = 1.25;
+  let pressT = null, pressTarget = null;
+  const movable = t => t && (t.kind === 'cab' || t.kind === 'plate' || t.kind === 'scab' || t.kind === 'furn') && !sim.heldBox() && !sim.s.placing;
+  function press() {
+    if (mode.ui || mode.checkout) return;
+    if (sim.s.placing) { placeAction('place'); return; }
+    if (movable(target)) { pressT = 0; pressTarget = target; return; }
+    interact();
+  }
+  function release() {
+    if (pressT != null && pressT < HOLD && pressTarget) interact(pressTarget);
+    pressT = null; pressTarget = null;
+  }
+  function openBox() {
+    const b = sim.heldBox();
+    if (!b) return;
+    if (b.kind === 'f' || b.kind === 's') { if (sim.beginPlaceBox()) sound.sfx('5_BoxOpen'); }
+    else sim.setOpen(!b.open);
+  }
+  function placeAction(a) {
+    if (!sim.s.placing) return;
+    if (a === 'right') sim.rotatePlacing(-1);
+    else if (a === 'left') sim.rotatePlacing(1);
+    else if (a === 'cancel') sim.cancelPlace();
+    else if (a === 'sell') { const r = sim.sellPlacing(); if (r.ok) sound.sfx('34_SuccessSound'); else if (r.why) hud.alert(r.why); }
+    else if (a === 'place') { const r = sim.confirmPlace(); if (r.ok) sound.sfx('6_ItemPlacement'); else hud.alert(r.why); }
+  }
+  // StayFrontHelper: the held furniture sits where the camera ray meets the floor (surface layers), 0.135..10 m away
+  const floorPoint = () => {
+    const d = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    let t = d.y < -1e-3 ? -camera.position.y / d.y : 10;
+    const flat = Math.hypot(d.x, d.z) || 1;
+    const dist = Math.max(1.0, Math.min(t * flat, 4.5));   // [GUESS clamp for a mouse/touch camera]
+    return [camera.position.x + d.x / flat * dist, camera.position.z + d.z / flat * dist];
+  };
+
   function throwBox() {
+    if (sim.s.placing) return;
     const d = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const x = player.x + d.x * 0.9, z = player.z + d.z * 0.9;
     sim.drop(x, 0, z, player.yaw);
@@ -139,7 +185,18 @@ addEventListener('resize', resize);
       }
       case 'plate': { const c = sim.cab(t.fid, t.i); if (c && c.st.p) hud.openPrice(c.st.p); break; }
       case 'laptop': if (!held) hud.openStore(); break;
-      case 'counter': if (!held) setCheckout(true); break;
+      case 'counter': if (held) break; if (sim.cashierWorking()) hud.alert('cashierBusy'); else setCheckout(true); break;
+      case 'scab': if (held) { const r = sim.storeBox(t.fid, t.i); if (r.ok) sound.sfx('6_ItemPlacement'); else if (r.why) hud.alert(r.why); } break;
+      case 'storageLocked': hud.alert('Alert_LowLevel'); hud.openStore(); hud.storeSection('Service'); break;
+      case 'cashier':
+        if (!sim.s.cashierService) { hud.alert('service'); break; }
+        hud.openHire(); break;
+      case 'atm': case 'cashMachine': case 'energyMachine': {
+        const r = sim.claim(t.kind);
+        if (r.ok) { sound.sfx('34_SuccessSound'); hud.alert(r.what === 'cash' ? 'Alert_FreeCash' : 'Alert_FreeEnergy'); } else hud.alert(r.why);
+        break;
+      }
+      case 'board': hud.openStoreName(); break;
       case 'sign': if (sim.toggleOpen()) sound.sfx(sim.s.open ? '14.1_ShopOpen' : '13_ShopClosed'); else hud.alert('Alert_CloseStore'); break;
       case 'trash': { const r = sim.trash(); if (r.ok) sound.sfx('15_TrashThrow'); else if (r.why) hud.alert(r.why); break; }
       case 'scan': if (sim.scan(t.idx)) sound.sfx('7_ItemScan'); break;
@@ -149,11 +206,17 @@ addEventListener('resize', resize);
 
   // keyboard
   addEventListener('keydown', e => {
-    if (e.code === 'KeyE') interact();
-    if (e.code === 'KeyF') { const b = sim.heldBox(); if (b) sim.setOpen(!b.open); }
+    if (e.repeat) return;
+    if (e.code === 'KeyE') press();
+    if (e.code === 'KeyF') openBox();
     if (e.code === 'KeyG') throwBox();
-    if (e.code === 'Escape') { if (hud.modal) hud.closeModal(); else if (mode.checkout) setCheckout(false); }
+    if (e.code === 'KeyR') placeAction('right');
+    if (e.code === 'KeyQ') placeAction('left');
+    if (e.code === 'Escape') { if (hud.over) hud.overlay(hud.over, false); else if (hud.modal) hud.closeModal(); else if (sim.s.placing) sim.cancelPlace(); else if (mode.checkout) setCheckout(false); }
   });
+  addEventListener('keyup', e => { if (e.code === 'KeyE') release(); });
+  canvas.addEventListener('mousedown', e => { if (e.button === 0 && document.pointerLockElement && !mode.checkout) press(); });
+  addEventListener('mouseup', e => { if (e.button === 0) release(); });
   canvas.addEventListener('click', e => {
     sound.unlock();
     if (mode.ui) return;
@@ -166,21 +229,19 @@ addEventListener('resize', resize);
       return;
     }
     if (e.pointerType !== 'touch' && !document.pointerLockElement && matchMedia('(pointer: fine)').matches) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
-    if (document.pointerLockElement) interact();
   });
 
-  // Objective line. The original TaskManager chain (5 checkouts -> buy furniture -> license -> expansion) is Drop 2;
-  // these hints use GameHudUIHelper's icons (open sign, normal, sad, checkout, day end) with paraphrased text [PLACEHOLDER].
+  // ObjectiveBar (TaskManager + GameHudUIHelper): day-end tips, the store-empty / store-closed tips, else the current task
+  // (Task_1_n "Complete checkouts." with n/5, Task_2..Task_5). Texts are the I2 terms in the chosen language.
   function objective() {
-    const s = sim.s;
-    if (sim.canEndDay()) return { text: 'The day is over, end the day', icon: 'dayEndIcon' };
-    if (!sim.cabinets().some(c => c.st.n > 0) && !s.boxes.length && !s.pending.length) return { text: 'Store is empty! Order products on the laptop', icon: 'sadIcon' };
-    if (s.pending.length && !s.boxes.length && !sim.cabinets().some(c => c.st.n > 0)) return { text: 'Waiting for the delivery', icon: 'normalIcon' };
-    if (sim.heldBox()) return { text: sim.heldBox().n > 0 ? (sim.heldBox().open ? 'Put the items on a shelf' : 'Open the box') : 'Throw the empty box in the trash bin', icon: 'normalIcon' };
-    if (s.boxes.some(b => !b.held)) return { text: 'Pick up the delivery box', icon: 'normalIcon' };
-    if (!s.open && !s.ended) return { text: 'Open the store', icon: 'openSignIcon' };
-    if (sim.checkout.queue.length && !mode.checkout) return { text: 'Customers are waiting at the checkout', icon: 'checkOutIcon' };
-    return null;
+    const s = sim.s, T = hud.T;
+    if (sim.canEndDay()) return { text: T('Tip_DayEnd_3'), icon: 'dayEndIcon' };
+    if (s.ended) return { text: T('Tip_DayEnd_2'), icon: 'dayEndIcon' };
+    if (s.tooLate && s.open) return { text: T('Tip_DayEnd_1'), icon: 'dayEndIcon' };
+    if (!sim.cabinets().some(c => c.st.n > 0)) return { text: T('Tip_StoreEmpty'), icon: 'sadIcon' };
+    if (!s.open) return { text: T('Tip_StoreClosed'), icon: 'openSignIcon' };
+    if (s.task === 1) return { text: T(`Task_1_${s.taskN}`), icon: 'checkOutIcon', n: s.taskN, count: 5 };
+    return { text: T(`Task_${s.task}`), icon: 'normalIcon' };
   }
 
   // events -> sounds, alerts, level up
@@ -188,8 +249,10 @@ addEventListener('resize', resize);
     for (const ev of sim.events.splice(0)) {
       if (ev.type === 'delivered') sound.sfx('2_OrderArrival');
       if (ev.type === 'levelUp') { sound.sfx('26_LevelUp'); hud.levelUp(ev.level); }
-      if (ev.type === 'lowEnergy') hud.alert('Alert_LowEnergy');
-      if (ev.type === 'lowCash') hud.alert('Alert_LowCash');
+      if (ev.type === 'lowEnergy') hud.lowEnergy();
+      if (ev.type === 'lowCash') hud.lowCash();
+      if (ev.type === 'taskComplete') { sound.sfx('34_SuccessSound'); hud.taskTick(); writeJson(SAVE_KEY, sim.save()); }
+      if (ev.type === 'furniturePlaced' || ev.type === 'service' || ev.type === 'hired' || ev.type === 'sold') writeJson(SAVE_KEY, sim.save());
       if (ev.type === 'customerEnter') sound.sfx('32_CustomerEnter');
       if (ev.type === 'checkout') { sound.sfx('39_RecieptClip'); writeJson(SAVE_KEY, sim.save()); }
       if (ev.type === 'dayEnd') { sound.sfx('14_DayEnd'); }
@@ -208,25 +271,38 @@ addEventListener('resize', resize);
     const dt = Math.min(clock.getDelta(), 0.1);
     for (let i = 0; i < speed; i++) sim.step(dt);
     drainEvents();
-    // walls of bought expansions are gone: their colliders too
-    const isOn = node => { let o = store.objects[node]; while (o) { if (!o.visible) return false; o = o.parent; } return true; };
+    // only the current expansion's walls and a closed storage shutter are solid
     grid.update(isOn, sim.s.furniture.map(f => { const lay = sim.layoutOf(f); const c = lay.collider; if (!c) return null; const [x, z] = sim.toWorld(f, c.c); return { c: [x, z], size: [c.size[0], c.size[2]], yaw: f.yaw + c.yaw }; }).filter(Boolean));
     if (mode.checkout) {
       view.counterCam.updateMatrixWorld(true);
       view.counterCam.getWorldPosition(camera.position);
       view.counterCam.getWorldQuaternion(camera.quaternion);
     } else player.update(dt, grid);
+    if (sim.s.placing) { const [x, z] = floorPoint(); sim.movePlacing(x, z); }
+    if (pressT != null) {
+      pressT += dt;
+      if (pressT >= HOLD && pressTarget) { sim.beginMove(pressTarget.fid); sound.sfx('4_BoxPick'); pressT = null; pressTarget = null; }
+    }
     view.update(dt);
     // centre ray (PlayerInteraction.CheckInteractable)
     target = null;
-    if (!mode.checkout && !mode.ui) {
+    if (!mode.checkout && !mode.ui && !sim.s.placing) {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
       const held = sim.heldBox();
       const hits = ray.intersectObjects(view.targets(), false);
+      // a furniture's outer collider is hit before its shelves: prefer a shelf / plate / storage cabinet of the same
+      // furniture further along the ray
+      const valid = t => !(t.kind === 'cab' && !held && !(sim.cab(t.fid, t.i) || { st: {} }).st.n) && !(t.kind === 'scab' && !held);
       for (const h of hits) {
-        const t = h.object.userData.hit;
+        let t = h.object.userData.hit;
+        if (t.kind === 'furn') {
+          const inner = hits.find(x => { const u = x.object.userData.hit; return u.fid === t.fid && u.kind !== 'furn' && valid(u); });
+          if (inner) t = inner.object.userData.hit;
+          else if (held) continue;
+        }
         if (t.kind === 'scan' || t.kind === 'pay') continue;
-        if (held && (t.kind === 'box' || t.kind === 'laptop' || t.kind === 'counter')) continue;
+        if (held && (t.kind === 'box' || t.kind === 'laptop' || t.kind === 'counter' || t.kind === 'cashier' || t.kind === 'board')) continue;
+        if (!held && t.kind === 'scab') continue;
         if (!held && t.kind === 'trash') continue;
         if (t.kind === 'cab' && !held && !(sim.cab(t.fid, t.i) || { st: {} }).st.n) continue;
         target = t; break;
@@ -236,7 +312,8 @@ addEventListener('resize', resize);
     if (target && target.kind === 'cab' && sim.heldBox() && (player.keys.has('KeyE') || game.holdInteract)) {
       holdT -= dt; if (holdT <= 0) { interact(); holdT = 0.15; }
     } else holdT = 0.3;
-    hud.update(dt, { target, pointsToNext: pointsToNext(G, sim.s.level), objective: objective() });
+    hud.update(dt, { target, pointsToNext: pointsToNext(G, sim.s.level), objective: objective(), placeOk: view.placeOk,
+      hold: pressT != null && pressTarget ? Math.min(1, pressT / HOLD) : 0 });
     game.target = target;
     if ((saveT -= dt) <= 0) { saveT = 5; writeJson(SAVE_KEY, sim.save()); }
     renderer.render(scene3, camera);

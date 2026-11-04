@@ -16,8 +16,8 @@ function hitBox(size, center, hit) {
 }
 
 export class GameView {
-  constructor({ scene3, store, pool, sim, G, L, camera }) {
-    Object.assign(this, { scene3, store, pool, sim, G, L, camera });
+  constructor({ scene3, store, pool, sim, G, L, camera, uiBase }) {
+    Object.assign(this, { scene3, store, pool, sim, G, L, camera, uiBase });
     this.rigs = new Set();
     this.hits = [];          // meshes the ray tests, rebuilt lazily per frame from the live state
     this.furn = new Map();   // furniture id -> { inst, items: [[...product objs] per cabinet], plates: [] }
@@ -43,6 +43,66 @@ export class GameView {
     this.walls = G.expansions.map(e => ({ type: e.type, nodes: e.walls.map(i => N[i]) }));
     this.counterPos = sim.points.counterItems;
     this.priceCanvas = new Map();
+    // storage room (StorageSystem): shutter + inner door; their fake interactables say the unlock level until bought
+    const ss = this.byComp('StorageSystem').userData.node.k.StorageSystem;
+    this.shutter = N[ss.storageShutter.n]; this.door = N[ss.storageDoor.n];
+    this.lockHits = ss.fakeInteractList.map(r => this.addHitFromNode(N[r.n], { kind: 'storageLocked' }));
+    this.doorY = this.door.position.y; this.shutterY = this.shutter.position.y; this.openT = sim.s.storageService ? 1 : 0;
+    // free reward machines (AtmMachine / RewardMachine: showAtLevel 2, objectList shown from that level)
+    this.machines = [];
+    for (const o of store.objects) {
+      const k = o.userData.node.k || {};
+      const m = k.AtmMachine ? ['atm', k.AtmMachine] : k.RewardMachine ? [k.RewardMachine.isCashReward ? 'cashMachine' : 'energyMachine', k.RewardMachine] : null;
+      if (!m) continue;
+      const objs = (m[1].objectList || []).map(r => N[r.n]).filter(Boolean);
+      this.machines.push({ kind: m[0], level: m[1].showAtLevel, objs, hit: this.addHitFromNode(o, { kind: m[0] }) });
+    }
+    // store board (StoreNameChangeHelper): the board sprite (1005 x 245 px, 100 px/unit) with the store name drawn on
+    const nh = this.byComp('StoreNameChangeHelper').userData.node.k.StoreNameChangeHelper;
+    this.board = this.makeBoard(N[nh.bgImage.n]);
+    const boardHit = N.find(o => o.userData.node.k && o.userData.node.k.GenericInteracable && o.parent === N[nh.bgImage.n].parent);
+    if (boardHit) this.addHitFromNode(boardHit, { kind: 'board' });
+    // RestrictAreaHelper: the red no-placement zone shows while furniture is moved
+    const ra = this.byComp('RestrictAreaHelper');
+    this.restrict = ra && ra.userData.node.k.RestrictAreaHelper.restrictArea ? N[ra.userData.node.k.RestrictAreaHelper.restrictArea.n] : null;
+    // placement preview: the furniture model + its BoundingBoxDetector box tinted green / red
+    this.preview = null;
+    this.boundMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.25, depthWrite: false }));
+    this.boundMesh.visible = false;
+    scene3.add(this.boundMesh);
+    this.cashierObj = null;
+  }
+
+  makeBoard(node) {
+    const cv = document.createElement('canvas');
+    cv.width = 1005; cv.height = 245;
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.NoColorSpace;
+    // the exported SpriteRenderer quad of Bg shows the serialized (red) board: it is hidden and replaced by a quad of the
+    // same size, 1 cm in front, carrying the chosen colour's board sprite + the name (TMP BoardName is not exported)
+    node.traverse(o => { if (o.isMesh && o.parent === node) o.visible = false; });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(10.05, 2.45), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }));
+    m.position.z = 0.013;
+    node.add(m);
+    return { cv, tex, key: null, imgs: [] };
+  }
+
+  drawBoard() {
+    const s = this.sim.s, b = this.board;
+    const key = `${s.storeName}|${s.color}`;
+    if (b.key === key) return;
+    const img = b.imgs[s.color] || (b.imgs[s.color] = Object.assign(new Image(), { src: `${this.uiBase}/board_${s.color}.webp` }));
+    if (!img.complete) { img.onload = () => { b.key = null; }; return; }
+    b.key = key;
+    const g = b.cv.getContext('2d');
+    g.clearRect(0, 0, b.cv.width, b.cv.height);
+    g.drawImage(img, 0, 0, b.cv.width, b.cv.height);
+    g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '900 120px "Noto Sans", sans-serif';
+    g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 10;
+    g.strokeText(s.storeName, b.cv.width / 2, b.cv.height / 2 + 6);
+    g.fillText(s.storeName, b.cv.width / 2, b.cv.height / 2 + 6);
+    b.tex.needsUpdate = true;
   }
 
   sceneHit(comp, hit) {
@@ -73,7 +133,7 @@ export class GameView {
         this.scene3.add(inst);
         e = { inst, items: lay.cabinets.map(() => []), plates: [], hits: [] };
         lay.cabinets.forEach((c, i) => {
-          if (c.coll) { const h = hitBox(c.coll.size, c.coll.c, { kind: 'cab', fid: f.id, i }); inst.add(h); e.hits.push(h); }
+          if (c.coll) { const h = hitBox(c.coll.size, c.coll.c, { kind: f.kind === 's' ? 'scab' : 'cab', fid: f.id, i }); inst.add(h); e.hits.push(h); }
           if (c.plate) {
             const plate = this.makePlate();
             plate.position.set(c.plate[0], c.plate[1], c.plate[2] - 0.012);
@@ -83,11 +143,16 @@ export class GameView {
             inst.add(h); e.hits.push(h);
           }
         });
+        // the furniture's own BoxCollider: PlayerObjectMover holds it to move (cab / plate hits inside take priority)
+        if (lay.collider) { const h = hitBox(lay.collider.size, lay.collider.c, { kind: 'furn', fid: f.id }); h.rotation.y = lay.collider.yaw; inst.add(h); e.hits.push(h); }
         this.furn.set(f.id, e);
       }
-      e.inst.position.set(f.x, 0.047, f.z);
-      e.inst.rotation.set(0, f.yaw, 0);
-      lay.cabinets.forEach((c, i) => this.syncShelf(e, f, c, i));
+      const pl = this.sim.s.placing;
+      const mv = f.moving && pl && pl.fid === f.id;
+      e.inst.position.set(mv ? pl.x : f.x, 0.047, mv ? pl.z : f.z);
+      e.inst.rotation.set(0, mv ? this.yawShown(pl.yaw) : f.yaw, 0);
+      for (const h of e.hits) h.visible = !mv;
+      if (f.kind === 'f') lay.cabinets.forEach((c, i) => this.syncShelf(e, f, c, i));
     }
     for (const [id, e] of this.furn) if (!seen.has(id)) { e.inst.removeFromParent(); this.furn.delete(id); }
   }
@@ -157,7 +222,17 @@ export class GameView {
         e = { inst, rig, items: [], open: null, hit: h };
         this.boxes.set(b.id, e);
       }
-      if (b.held) {
+      const pl = this.sim.s.placing;
+      e.inst.visible = !(pl && pl.src === 'box' && pl.box === b.id);
+      if (b.stored) {   // on a storage rack: follows the rack while it is being moved
+        const f = this.sim.s.furniture.find(x => x.id === b.stored.fid);
+        const fe = f && this.furn.get(f.id);
+        if (fe) {
+          const sl = this.sim.layoutOf(f).cabinets[b.stored.i].slots[0];
+          if (e.inst.parent !== fe.inst) { fe.inst.add(e.inst); }
+          e.inst.position.set(sl[0], sl[1], sl[2]); e.inst.rotation.set(0, 0, 0);
+        }
+      } else if (b.held) {
         if (e.inst.parent !== this.holder) { this.holder.add(e.inst); e.inst.position.set(0, 0, 0); e.inst.rotation.set(0, Math.PI, 0); }
       } else {
         if (e.inst.parent !== this.scene3) this.scene3.add(e.inst);
@@ -277,15 +352,109 @@ export class GameView {
     const s = this.sim.s;
     if (this.signOpen) this.signOpen.visible = s.open;
     if (this.signClose) this.signClose.visible = !s.open;
-    for (const w of this.walls) for (const n of w.nodes) n.visible = !s.expansions.includes(w.type);
+    // StoreExpandHelper.OnExpansionUnlocked: the walls (block volumes) of the largest owned expansion only
+    const on = this.sim.wallsOn();
+    for (const w of this.walls) for (const n of w.nodes) n.visible = w.type === on;
+    // StorageSystem.UnlockStorage: SetActive(false) on the shutter's fake interact, DOMove of the door
+    // [GUESS: 2.6 m up over 1 s, then both hidden so their colliders are gone]
+    if (s.storageService && this.openT < 1) this.openT = Math.min(1, this.openT + this.dt);
+    const up = this.openT * 2.6;
+    this.shutter.position.y = this.shutterY + up;
+    this.door.position.y = this.doorY + up;
+    this.shutter.visible = this.door.visible = this.openT < 1;
+    for (const h of this.lockHits) h.visible = !s.storageService;
+    for (const m of this.machines) { const v = s.level >= m.level; for (const o of m.objs) o.visible = v; m.hit.visible = v; }
+    if (this.restrict) this.restrict.visible = !!s.placing;
+    this.drawBoard();
+  }
+
+  // MoveObjButtons rotate: rotationSpeed 700 deg/s towards the target yaw
+  yawShown(target) {
+    if (this.shownYaw == null) this.shownYaw = target;
+    const d = target - this.shownYaw, step = 700 * Math.PI / 180 * this.dt;
+    this.shownYaw = Math.abs(d) <= step ? target : this.shownYaw + Math.sign(d) * step;
+    return this.shownYaw;
+  }
+
+  syncPlacing() {
+    const p = this.sim.s.placing;
+    if (!p) {
+      if (this.padOn) { this.padOn.visible = false; this.padOn = null; }
+      if (this.preview) { this.preview.removeFromParent(); this.preview = null; }
+      this.boundMesh.visible = false; this.shownYaw = null;
+      return;
+    }
+    const lay = (p.kind === 'f' ? this.L.furniture : this.L.storage)[p.type];
+    if (p.src === 'box') {
+      if (!this.preview || this.preview.userData.key !== `${p.kind}${p.type}`) {
+        if (this.preview) this.preview.removeFromParent();
+        this.preview = this.pool.instance(lay.root);
+        this.preview.userData.key = `${p.kind}${p.type}`;
+        this.scene3.add(this.preview);
+      }
+      this.preview.position.set(p.x, 0.047, p.z);
+      this.preview.rotation.set(0, this.yawShown(p.yaw), 0);
+    }
+    const ok = this.sim.placeOk();
+    this.placeOk = ok;
+    // the prefab's own "Pad" (ObjectPickedMat, green 0.38/1/0 at 39 % alpha, inactive in the prefab) marks the footprint
+    // while it is held; it turns red when CanPlace fails [GUESS: the red tint's exact colour]
+    const inst = p.src === 'box' ? this.preview : (this.furn.get(p.fid) || {}).inst;
+    let pad = null;
+    if (inst) inst.traverse(o => { if (!pad && o.name === 'Pad') pad = o; });
+    if (pad) {
+      if (this.padOn && this.padOn !== pad) this.padOn.visible = false;
+      this.padOn = pad;
+      pad.visible = true;
+      pad.traverse(o => {
+        if (!o.isMesh) return;
+        // unlit copy: under the rebuilt ambient the lit transparent material washes out to white
+        if (!o.userData.padMat) { o.material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.3922, depthWrite: false }); o.userData.padMat = true; }
+        o.material.color.setRGB(ok ? 0.38 : 1, ok ? 1 : 0.1, ok ? 0 : 0.05);
+      });
+      this.boundMesh.visible = false;
+      return;
+    }
+    if (lay.bound) {
+      const yaw = this.shownYaw ?? p.yaw, c = Math.cos(yaw), sn = Math.sin(yaw), b = lay.bound;
+      this.boundMesh.visible = true;
+      this.boundMesh.position.set(p.x + c * b.c[0] + sn * b.c[2], 0.047 + b.c[1], p.z - sn * b.c[0] + c * b.c[2]);
+      this.boundMesh.rotation.set(0, yaw, 0);
+      this.boundMesh.scale.set(b.size[0], b.size[1], b.size[2]);
+      this.boundMesh.material.color.setHex(ok ? 0x00ff00 : 0xff0000);
+    }
+  }
+
+  // CashierNPC (pool "cashier" prefab, Cashier controller: Waving_0 at the hiring spot, Walk, Idle / Checkout at work)
+  syncCashier() {
+    const k = this.sim.cashier;
+    if (!k) { if (this.cashierObj) this.cashierObj.obj.visible = false; return; }
+    if (!this.cashierObj) {
+      const obj = this.pool.root(this.L.cashier);
+      if (obj.parent !== this.scene3) this.scene3.add(obj);
+      const rig = obj.userData.rig || (obj.userData.rig = this.pool.rig(obj));
+      if (rig) this.rigs.add(rig);
+      const hit = hitBox([0.8, 1.8, 0.8], [0, 0.9, 0], { kind: 'cashier' });
+      obj.add(hit);
+      this.cashierObj = { obj, rig, hit };
+    }
+    const e = this.cashierObj;
+    e.obj.visible = true;
+    e.obj.position.set(k.x, 0, k.z);
+    e.obj.rotation.set(0, k.yaw, 0);
+    if (e.rig) e.rig.play(k.anim);
+    e.hit.visible = k.st === 'hiring';
   }
 
   // All hit meshes that are live right now.
   targets() {
-    const out = this.hits.slice();
-    for (const e of this.furn.values()) out.push(...e.hits);
+    const out = this.hits.filter(h => h.visible && !this.lockHits.includes(h) && !this.machines.some(m => m.hit === h));
+    for (const e of this.furn.values()) out.push(...e.hits.filter(h => h.visible));
     for (const e of this.boxes.values()) if (e.hit.visible) out.push(e.hit);
     for (const e of this.custs.values()) if (e.hit.visible) out.push(e.hit);
+    if (this.cashierObj && this.cashierObj.hit.visible && this.cashierObj.obj.visible) out.push(this.cashierObj.hit);
+    for (const h of this.lockHits) if (h.visible) out.push(h);
+    for (const m of this.machines) if (m.hit.visible) out.push(m.hit);
     for (const o of this.counter) if (o.visible) out.push(o.userData.hitMesh);
     return out;
   }
@@ -297,6 +466,8 @@ export class GameView {
     this.syncBoxes();
     this.syncCustomers();
     this.syncCounter();
+    this.syncPlacing();
+    this.syncCashier();
     for (const r of this.rigs) r.update(dt);
   }
 }

@@ -5,6 +5,7 @@
 // Units: product/furniture prices are cents; cash, licenses, expansions are whole dollars (original GameEconomy.Cash int).
 // Space: three.js world coordinates (Unity z negated, done by the exporters).
 import { NavGrid } from './nav.js';
+import { Placer } from './place.js';
 
 export const ST = { None: 0, Rack: 1, Fridge: 2, Pet: 3, Reptile: 4, Fish: 5, Bird: 6 };
 const SAVE_V = 1;
@@ -55,6 +56,10 @@ export class Sim {
     for (const f of G.furniture) this.byBox.set(f.box, { kind: 'f', type: f.type });
     for (const f of G.storage) this.byBox.set(f.box, { kind: 's', type: f.type });
     this.nav = nav ? new NavGrid(nav) : null;
+    // furniture placement test (FurniturePlaceHelper.CanPlace) over art/store/colliders.json; solids() = the scene's
+    // BoxColliders that are active right now (main.js passes the visible ones: walls of the current expansion etc.)
+    this.placer = opts.colliders ? new Placer(opts.colliders) : null;
+    this.solids = opts.solids || (() => []);
     this.events = [];
     this.points = this.scenePoints();
     this.reset(opts.save);
@@ -80,7 +85,11 @@ export class Sim {
     const [, chk] = comp('CheckOutCounter');
     const [, spawn] = comp('SpawnDeliveryHelper');
     const pt = r => { const t = wp(r.n).t; return [t[0], t[2]]; };
+    const [, cs] = comp('CashierSystem');
+    const pts = l => (l || []).map(pt);
     return {
+      cashier: cs ? { homeToHiring: pts(cs.homeToHiringList), hiringToHome: pts(cs.hiringToHomeList),
+        hiringToCounter: pts(cs.hiringToCounterList), counterToHome: pts(cs.counterToHomeList) } : null,
       enter: npc.enterPathList.map(path), exit: npc.exitPathList.map(path),
       queue: chk.standPosList.map(pt),
       counterItems: chk.productPosList.map(r => wp(r.n).t),
@@ -98,21 +107,34 @@ export class Sim {
       stats: { customers: 0, income: 0, supply: 0 }, all: { days: 1, customers: 0, income: 0, supply: 0, profit: 0, tax: 0 },
       storeName: S.storeName, deliverIdx: 0, enterIdx: 0,
     };
+    // Drop 2 fields (older saves get the defaults)
+    const D2 = { storageService: false, cashierService: false, hire: null, task: 1, taskN: 0, color: 0, claims: {}, placing: null, boosts: 0 };
+    for (const [k, v] of Object.entries(D2)) if (s[k] === undefined) s[k] = v;
     if (!save) {
       for (const f of S.furnitureDataList) {
         const p = { x: f.position.x, y: f.position.y, z: -f.position.z };
         this.addFurniture('f', f.type, p.x, p.z, unityYaw(f.rotation));
       }
     }
+    // GameSavingManager.saveData.storageDataList: the Big Storage rack in the back room (identity rotation; the save
+    // has w = 0, which Unity reads as identity). Saves from Drop 1 get it too.
+    if (!s.furniture.some(f => f.kind === 's')) {
+      for (const f of S.storageDataList || []) this.addFurniture('s', f.type, f.position.x, -f.position.z, 0);
+    }
     // runtime only
     this.customers = [];
     this.spawnT = 0;
     this.poolNext = 0;
     this.checkout = { queue: [], cur: null, phase: 'idle', items: [], scanned: 0, bill: 0, change: 0, given: 0, card: '', fails: 0, wait: 0, using: false };
+    this.cashier = null;       // the CashierNPC (runtime; s.hire keeps the paid shift)
+    s.placing = null;          // a half-done placement is not resumed after a reload
+    for (const f of s.furniture) delete f.moving;
+    for (const b of s.boxes) if (b.held && b.id !== s.held) b.held = false;
     this.rebuildNav();
   }
 
-  emit(type, data) { this.events.push(Object.assign({ type }, data)); }
+  // payload "type" fields (product / license type) are kept as "what"
+  emit(type, data) { this.events.push(Object.assign({}, data, data && data.type !== undefined ? { what: data.type } : null, { type })); }
 
   // --- catalogue & money ---------------------------------------------------------------------------------------
   price(type) {
@@ -142,6 +164,8 @@ export class Sim {
     });
     this.emit('cash', { delta: -dollars });
     this.emit('cartBought');
+    // CartUIHelper.InvokeFurnitureProductEvent: a cart line with deliveryBoxType < 10 (a shelf) fires OnFurnitureBuyAction
+    if (lines.some(l => l.kind === 'f')) this.taskDone(3);
     return { ok: true, dollars };
   }
 
@@ -185,7 +209,8 @@ export class Sim {
   // --- furniture & cabinets ----------------------------------------------------------------------------------------
   addFurniture(kind, type, x, z, yaw) {
     const lay = (kind === 'f' ? this.L.furniture : this.L.storage)[type];
-    const f = { id: this.s.nextId++, kind, type, x, z, yaw, cab: lay.cabinets.map(() => ({ p: 0, n: 0 })) };
+    // StorageCabinet holds one ProductDeliveryBox (positionList has one point); shelves hold product count + type.
+    const f = { id: this.s.nextId++, kind, type, x, z, yaw, cab: lay.cabinets.map(() => (kind === 's' ? { box: 0 } : { p: 0, n: 0 })) };
     this.s.furniture.push(f);
     this.rebuildNav();
     return f;
@@ -234,6 +259,11 @@ export class Sim {
     if (this.s.held) return false;
     const b = this.s.boxes.find(x => x.id === id);
     if (!b) return false;
+    if (b.stored) {        // StorageCabinet.RemoveBox when the box is picked off the rack
+      const f = this.s.furniture.find(x => x.id === b.stored.fid);
+      if (f) f.cab[b.stored.i].box = 0;
+      delete b.stored;
+    }
     b.held = true;
     this.s.held = id;
     this.emit('pick', { id });
@@ -292,6 +322,7 @@ export class Sim {
     this.s.licenses.push(type);
     this.emit('cash', { delta: -l.price });
     this.emit('license', { type });
+    this.taskDone(2);
     return { ok: true };
   }
 
@@ -304,7 +335,203 @@ export class Sim {
     this.s.expansions.push(type);
     this.emit('cash', { delta: -e.price });
     this.emit('expansion', { type });
+    this.taskDone(4);
     return { ok: true };
+  }
+
+  // StoreExpandHelper.OnExpansionUnlocked: only the walls of the largest owned expansion are active.
+  wallsOn() { return Math.max(...this.s.expansions); }
+
+  // --- tasks (TaskManager) -------------------------------------------------------------------------------------------
+  // taskDataList: 1 "5 checkouts" (count 5, Task_1_0..4), 2 buy a license (LicenseManager.OnProductLicenseUnlockEvent),
+  // 3 buy a shelf (CartUIHelper.OnFurnitureBuyAction), 4 buy an expansion (OnExpansionLicenseUnlockEvent), 5 the endless
+  // "grow your store". CompleteTask only plays the UI tick and saves; no XP or cash is granted (none found in the code,
+  // although the tutorial text promises "bonus XP").
+  taskDone(n) {
+    const s = this.s;
+    if (s.task !== n) return;
+    // TaskData.count of task 1 is 5
+    if (n === 1 && ++s.taskN < 5) { this.emit('task', { task: 1, n: s.taskN }); return; }
+    s.task = n + 1; s.taskN = 0;
+    this.emit('taskComplete', { task: n });
+  }
+
+  // --- furniture placement (PlayerObjectMover + FurniturePlaceHelper) --------------------------------------------------
+  // FurnitureDeliveryBox / StorageDeliveryBox.OpenBox: the furniture leaves its box and follows the player
+  // (StayFrontHelper) until Place (CanPlace true) or Cancel (back into the box in hand).
+  beginPlaceBox() {
+    const b = this.heldBox();
+    if (!b || (b.kind !== 'f' && b.kind !== 's') || this.s.placing) return false;
+    this.s.placing = { src: 'box', box: b.id, kind: b.kind, type: b.type, x: 0, z: 0, yaw: 0 };
+    this.emit('placeStart', { kind: b.kind });
+    return true;
+  }
+
+  // Holding interact for thresholdTime (1.25 s) on a placed furniture picks it up (Alert_MoveFurniture).
+  beginMove(fid) {
+    const f = this.s.furniture.find(x => x.id === fid);
+    if (!f || this.s.held || this.s.placing) return false;
+    f.moving = true;
+    this.s.placing = { src: 'move', fid, kind: f.kind, type: f.type, x: f.x, z: f.z, yaw: f.yaw, orig: { x: f.x, z: f.z, yaw: f.yaw } };
+    this.rebuildNav();
+    this.emit('placeStart', { kind: f.kind });
+    return true;
+  }
+
+  movePlacing(x, z) { const p = this.s.placing; if (p) { p.x = x; p.z = z; } }
+  rotatePlacing(dir) { const p = this.s.placing; if (p) p.yaw += dir * Math.PI / 2; }
+
+  solidBoxes(exceptId) {
+    const out = this.solids().slice();
+    for (const f of this.s.furniture) {
+      if (f.id === exceptId) continue;
+      const c = this.layoutOf(f).collider;
+      if (!c) continue;
+      const [x, z] = this.toWorld(f, c.c);
+      out.push({ c: [x, z], size: [c.size[0], c.size[2]], yaw: f.yaw + c.yaw });
+    }
+    return out;
+  }
+
+  placeOk() {
+    const p = this.s.placing;
+    if (!p || !this.placer) return !!p;
+    const lay = (p.kind === 'f' ? this.L.furniture : this.L.storage)[p.type];
+    return this.placer.canPlace(lay, p.x, p.z, p.yaw, this.solidBoxes(p.fid));
+  }
+
+  confirmPlace() {
+    const s = this.s, p = s.placing;
+    if (!p) return { ok: false };
+    if (!this.placeOk()) return { ok: false, why: 'Alert_WrongFurniture' };
+    if (p.src === 'box') {
+      s.boxes = s.boxes.filter(b => b.id !== p.box);
+      s.held = null;
+      this.addFurniture(p.kind, p.type, p.x, p.z, p.yaw);
+    } else {
+      const f = s.furniture.find(x => x.id === p.fid);
+      Object.assign(f, { x: p.x, z: p.z, yaw: p.yaw });
+      delete f.moving;
+      for (const b of s.boxes) if (b.stored && b.stored.fid === f.id) this.storedPos(b);
+    }
+    s.placing = null;
+    this.rebuildNav();
+    this.emit('furniturePlaced', { kind: p.kind, type: p.type });
+    return { ok: true };
+  }
+
+  cancelPlace() {
+    const s = this.s, p = s.placing;
+    if (!p) return false;
+    if (p.src === 'move') { const f = s.furniture.find(x => x.id === p.fid); delete f.moving; }
+    s.placing = null;
+    this.rebuildNav();
+    this.emit('placeCancel');
+    return true;
+  }
+
+  // MoveObjButtons "Sell" (storage racks only, StorageDeliveryBox.OnBoxContentSell): SellPrice = floor(cost / 100 * 0.5)
+  // dollars. A rack still holding boxes is refused [GUESS: the boxes would be lost otherwise]. The cash credit call was
+  // not found in the disassembly [GUESS: Cash += SellPrice].
+  sellPlacing() {
+    const s = this.s, p = s.placing;
+    if (!p || p.kind !== 's') return { ok: false };
+    const info = this.G.storage.find(x => x.type === p.type);
+    const price = Math.floor(info.cost / 100 * 0.5);
+    if (p.src === 'move') {
+      const f = s.furniture.find(x => x.id === p.fid);
+      if (f.cab.some(c => c.box)) return { ok: false, why: 'Alert_BoxNotEmpty' };
+      s.furniture = s.furniture.filter(x => x !== f);
+    } else {
+      s.boxes = s.boxes.filter(b => b.id !== p.box);
+      s.held = null;
+    }
+    s.placing = null;
+    s.cash += price;
+    this.rebuildNav();
+    this.emit('cash', { delta: price });
+    this.emit('sold', { price });
+    return { ok: true, price };
+  }
+
+  // --- storage room (StorageSystem / StorageCabinet) --------------------------------------------------------------------
+  // StorageCabinetInteractable.Interact with a ProductDeliveryBox in hand: a full cabinet or an empty box is refused
+  // (alert keys "StorageCabinetFull" / "StorageBoxEmpty", not in the I2 term table); otherwise the box leaves the hand
+  // and sits on the cabinet. Animal boxes are AnimalDeliveryBox, not ProductDeliveryBox: they cannot be stored.
+  storeBox(fid, i) {
+    const s = this.s, b = this.heldBox();
+    const f = s.furniture.find(x => x.id === fid);
+    if (!b || !f || f.kind !== 's') return { ok: false };
+    if (b.kind !== 'p' || (this.L.boxes[b.bt] || {}).kind !== 'ProductDeliveryBox') return { ok: false, why: 'Alert_WrongFurniture' };
+    if (f.cab[i].box) return { ok: false, why: 'StorageCabinetFull' };
+    if (b.n <= 0) return { ok: false, why: 'StorageBoxEmpty' };
+    f.cab[i].box = b.id;
+    b.held = false; b.open = false; b.stored = { fid, i };
+    s.held = null;
+    this.storedPos(b);
+    this.emit('stored', { id: b.id });
+    return { ok: true };
+  }
+
+  storedPos(b) {
+    const f = this.s.furniture.find(x => x.id === b.stored.fid);
+    const sl = this.layoutOf(f).cabinets[b.stored.i].slots[0];
+    const [x, z] = this.toWorld(f, sl);
+    Object.assign(b, { x, y: sl[1] + 0.047, z, yaw: f.yaw });
+    delete b.dropFrom;
+  }
+
+  // StorageSystem.UnlockStorage (Service tab): store level >= reqLevel 11 and reqEnergy 25; the shutter opens.
+  // CashierSystem: requiredLevel 10, requireEnergy 30. The Discard Boxes service removes every empty box lying around.
+  buyService(kind) {
+    const s = this.s;
+    const def = kind === 'storage' ? { level: this.G.storageService.level, energy: this.G.storageService.energy, key: 'storageService' }
+      : { level: this.G.cashier.level, energy: this.G.cashier.serviceEnergy, key: 'cashierService' };
+    if (s[def.key]) return { ok: false };
+    if (s.level < def.level) return { ok: false, why: 'Alert_LowLevel' };
+    if (s.energy < def.energy) { this.emit('lowEnergy'); return { ok: false, why: 'Alert_LowEnergy' }; }
+    s.energy -= def.energy;
+    s[def.key] = true;
+    this.emit('energy', { delta: -def.energy });
+    this.emit('service', { kind });
+    return { ok: true };
+  }
+
+  // Discard Boxes (Service tab): no energy deduction exists in its handler, although the card shows 10 (kept as found).
+  discardEmptyBoxes() {
+    const s = this.s;
+    const empty = s.boxes.filter(b => b.kind === 'p' && b.n <= 0 && !b.held && !b.stored);
+    if (!empty.length) return { ok: false, why: 'Alert_NoEmptyBox' };
+    s.boxes = s.boxes.filter(b => !empty.includes(b));
+    this.emit('discard', { n: empty.length });
+    return { ok: true, n: empty.length };
+  }
+
+  // --- free rewards (rewarded ads in the original) ---------------------------------------------------------------------
+  // AtmMachine (showAtLevel 2, $50), RewardMachine cash $30 / energy 10 (showAtLevel 2), ATM panel $20, LowCash +$10,
+  // LowEnergy +10, Bank Free Cash $20 / Free Energy 10. Each was "watch an ad" with no limit; offline they are free and
+  // limited to one claim per source per day [PLACEHOLDER policy].
+  claim(src) {
+    const R = this.G.rewards, s = this.s;
+    const table = { atm: ['cash', R.atmMachine], cashMachine: ['cash', R.machines[0].value], energyMachine: ['energy', R.machines[1].value],
+      lowCash: ['cash', R.lowCash], lowEnergy: ['energy', R.lowEnergy], bankCash: ['cash', R.freeCash], bankEnergy: ['energy', R.freeEnergy] };
+    const t = table[src];
+    if (!t) return { ok: false };
+    if ((src === 'atm' || src.endsWith('Machine')) && s.level < R.atmLevel) return { ok: false, why: 'Alert_LowLevel' };
+    if (s.claims[src] === s.day) return { ok: false, why: 'claimed' };
+    s.claims[src] = s.day;
+    s[t[0]] += t[1];
+    this.emit(t[0], { delta: t[1] });
+    return { ok: true, what: t[0], value: t[1] };
+  }
+  claimable(src) { return this.s.claims[src] !== this.s.day; }
+
+  // --- store name (StoreNameChangeHelper): max 15 characters a-z 0-9 (the panel tip), 6 board colours -------------------
+  setStoreName(name, color) {
+    const n = String(name || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 15).trim();
+    if (n) this.s.storeName = n;
+    if (color != null) this.s.color = color;
+    this.emit('storeName');
   }
 
   // --- level ------------------------------------------------------------------------------------------------------
@@ -596,6 +823,7 @@ export class Sim {
     s.stats.income += dollars;
     s.stats.customers++;
     this.addPoints(this.G.level.pointsPerCheckout);
+    this.taskDone(1);      // CheckOutCounter.OnPaymentSuccesfull -> TaskManager sub task
     this.emit('cash', { delta: dollars });
     this.emit('checkout', { id: c.id, bill: k.bill, dollars, extra });
     k.queue = k.queue.filter(id => id !== c.id);
@@ -603,6 +831,102 @@ export class Sim {
     c.st = 'exitFull'; c.anim = 'BagWalk'; c.inside = false;
     this.navTo(c, ...this.points.exit[c.pi][0]);
     c.path = c.path.concat(this.points.exit[c.pi].slice(1));
+  }
+
+  // --- cashier (CashierSystem / CashierNPC / CashierUIHelper / AutoCheckoutHelper) -----------------------------------
+  // From store level spawnLevel 2 the cashier walks homeToHiring and waits at the hiring spot. With the Cashier Service
+  // bought (level 10, 30 energy) talking to him opens HIRE CASHIER: salary slider between 0.6 x and 1 x hirePrice $320,
+  // energy = CalculateEnergy(salary); HIRE pays both, he walks hiringToCounter and runs the counter for the 720 s shift
+  // (12:00 "hours" on the panel), then walks counterToHome and comes back to be hired again.
+  hireRange() { const P = this.G.cashier.price; return { min: Math.round(P * 0.6), mid: Math.round(P * 0.8), max: P }; }
+  hireEnergy(salary) {
+    const { min, mid, max } = this.hireRange();
+    if (salary >= mid) return Math.round(5 * (1 - (salary - mid) / Math.max(1, max - mid)));
+    return Math.round(10 + (5 - 10) * (salary - min) / Math.max(1, mid - min));
+  }
+
+  hire(salary) {
+    const s = this.s, k = this.cashier;
+    if (!k || k.st !== 'hiring' || s.hire) return { ok: false };
+    if (!s.cashierService) return { ok: false, why: 'service' };
+    const { min, max } = this.hireRange();
+    salary = clamp(Math.round(salary), min, max);
+    const e = this.hireEnergy(salary);
+    if (s.cash < salary) { this.emit('lowCash'); return { ok: false, why: 'Alert_LowCash' }; }
+    if (s.energy < e) { this.emit('lowEnergy'); return { ok: false, why: 'Alert_LowEnergy' }; }
+    s.cash -= salary; s.energy -= e;
+    s.hire = { left: this.G.cashier.shift, salary };
+    k.st = 'toCounter'; k.path = this.points.cashier.hiringToCounter.slice(); k.anim = 'Walk';
+    this.emit('cash', { delta: -salary });
+    if (e) this.emit('energy', { delta: -e });
+    this.emit('hired', { salary, energy: e });
+    return { ok: true, salary, energy: e };
+  }
+
+  cashierWorking() { return !!(this.cashier && this.cashier.st === 'work'); }
+
+  cashierStep(dt) {
+    const s = this.s, C = this.G.cashier, P = this.points.cashier;
+    if (!P) return;
+    let k = this.cashier;
+    if (!k) {
+      if (s.level < C.spawnLevel) return;
+      // a reload during a paid shift puts him straight back at the counter
+      const at = s.hire ? P.hiringToCounter[P.hiringToCounter.length - 1] : P.homeToHiring[0];
+      k = this.cashier = { x: at[0], z: at[1], yaw: 0, path: s.hire ? [] : P.homeToHiring.slice(1), st: s.hire ? 'work' : 'toHiring', anim: 'Walk', t: 0 };
+    }
+    const walk = () => {
+      let left = C.speed * dt;
+      while (left > 0 && k.path.length) {
+        const [tx, tz] = k.path[0], dx = tx - k.x, dz = tz - k.z, d = Math.hypot(dx, dz);
+        if (d <= left) { k.x = tx; k.z = tz; k.path.shift(); left -= d; } else { k.x += dx / d * left; k.z += dz / d * left; left = 0; }
+        if (d > 1e-4) k.yaw = Math.atan2(dx, dz);
+      }
+      return !k.path.length;
+    };
+    switch (k.st) {
+      case 'toHiring': if (walk()) { k.st = 'hiring'; k.anim = 'Waving_0'; } return;
+      case 'hiring': k.anim = 'Waving_0'; return;
+      case 'toCounter':
+        if (walk()) { k.st = 'work'; k.anim = 'Idle'; const ci = this.points.counterItems[0]; k.yaw = Math.atan2(ci[0] - k.x, ci[2] - k.z); }
+        return;
+      case 'work': {
+        if (s.running && s.hire) s.hire.left -= dt;
+        const ch = this.checkout;
+        if (ch.cur == null) {
+          k.anim = 'Idle';
+          if (!s.hire || s.hire.left <= 0) {
+            s.hire = null; k.st = 'toHome'; k.path = P.counterToHome.slice(); k.anim = 'Walk';
+            this.emit('shiftOver');
+          }
+          return;
+        }
+        this.autoCheckout(k, dt);
+        return;
+      }
+      case 'toHome': if (walk()) { this.cashier = null; } return;
+    }
+  }
+
+  // AutoCheckoutHelper: one item scanned every 1.5 s, 5 s to collect the payment, 5 s to process it.
+  autoCheckout(k, dt) {
+    const ch = this.checkout, C = this.G.cashier;
+    k.anim = 'Checkout';
+    k.t += dt;
+    if (ch.phase === 'scan') {
+      if (k.t >= C.scan) { k.t = 0; const i = ch.items.findIndex(it => !it.scanned); if (i >= 0) this.scan(i); }
+    } else if (ch.phase === 'offer') {
+      if (k.t >= C.collect) { k.t = 0; ch.phase = 'auto'; }
+    } else if (ch.phase === 'auto') {
+      if (k.t >= C.process) {
+        k.t = 0;
+        const c = this.customers.find(x => x.id === ch.cur);
+        c.reaction = 'NormalCheckout';
+        this.completeCheckout(c, false);
+      }
+    } else if (ch.phase === 'pay') {   // the player had opened the payment screen: the cashier finishes it
+      ch.phase = 'auto'; k.t = 0;
+    }
   }
 
   // --- main step ---------------------------------------------------------------------------------------------------
@@ -631,6 +955,7 @@ export class Sim {
     }
     if (this.checkout.wait > 0) this.checkout.wait -= dt;
     for (const c of this.customers.slice()) this.customerStep(c, dt);
+    this.cashierStep(dt);
   }
 
   // Day can be closed from the HUD (GameHudUIHelper EndDay button) once the clock has run out and the store is empty.

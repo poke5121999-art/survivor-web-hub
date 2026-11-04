@@ -58,6 +58,7 @@ def active(gpid):
     return lv[gpid].read_typetree()["m_IsActive"]
 
 segs = set()
+floors = []     # StoreFloor (layer 9) / StorageFloor (layer 10) MeshCollider triangles in 2D: what furniture may stand on
 H = (0.5, 1.2)
 nmesh = 0
 for o in lv.values():
@@ -69,6 +70,7 @@ for o in lv.values():
     go = mc.m_GameObject.read()
     if not go.m_IsActive:
         continue
+    floor_layer = go.m_Layer if go.m_Layer in (9, 10) else 0
     tr = next(c.component for c in go.m_Component if c.component.deref().type.name == "Transform")
     m = world(tr.m_PathID)
     mesh = mc.m_Mesh.read()
@@ -84,6 +86,9 @@ for o in lv.values():
         tri = idx[first:first + sm.indexCount]
         for k in range(0, len(tri) - 2, 3):
             a, b, c = (wv[tri[k] + (sm.baseVertex or 0)], wv[tri[k + 1] + (sm.baseVertex or 0)], wv[tri[k + 2] + (sm.baseVertex or 0)])
+            if floor_layer:
+                floors.append([floor_layer] + [round(v, 3) for p in (a, b, c) for v in (p[0], -p[2])])
+                continue
             for y in H:
                 pts = []
                 for p, q in ((a, b), (b, c), (c, a)):
@@ -93,6 +98,6 @@ for o in lv.values():
                 if len(pts) == 2 and math.dist(pts[0], pts[1]) > 0.01:
                     s = tuple(round(x, 2) for x in pts[0] + pts[1])
                     segs.add(s)
-out = {"boxes": boxes, "segs": sorted(segs)}
+out = {"boxes": boxes, "segs": sorted(segs), "floors": floors}
 json.dump(out, open(os.path.join(OUT, "colliders.json"), "w"), separators=(",", ":"))
-print("boxes", len(boxes), "mesh colliders", nmesh, "segments", len(segs))
+print("boxes", len(boxes), "mesh colliders", nmesh, "segments", len(segs), "floor triangles", len(floors))

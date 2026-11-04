@@ -149,11 +149,33 @@ export class Panel {
     }
   }
 
+  // TMP rich text: <color=#rrggbb> runs become coloured spans, other tags are dropped.
   text(el, n, value) {
-    const v = String(value).replace(/<[^>]+>/g, '');
-    if (el._span.textContent === v) return;
-    el._span.textContent = v;
+    const raw = String(value);
+    if (el._raw === raw) return;
+    el._raw = raw;
+    const span = el._span;
+    span.textContent = '';
+    let color = null;
+    for (const part of raw.split(/(<[^>]+>)/)) {
+      if (!part) continue;
+      const m = /^<color=(#[0-9a-fA-F]{6,8})>$/.exec(part);
+      if (m) { color = m[1].slice(0, 7); continue; }
+      if (/^<\/color>$/.test(part)) { color = null; continue; }
+      if (part[0] === '<' && part[part.length - 1] === '>') continue;
+      if (color) { const c = document.createElement('span'); c.style.color = color; c.textContent = part; span.appendChild(c); }
+      else span.appendChild(document.createTextNode(part));
+    }
     this.fit(el);
+  }
+
+  // I2 Localize: every text with a term gets the term's translation (T returns null for unknown terms).
+  translate(T) {
+    for (const { el, n } of this.nodes.values()) {
+      if (!el._span || !n.txt || !n.txt.term) continue;
+      const v = T(n.txt.term);
+      if (v != null) this.text(el, n, v);
+    }
   }
 
   // q('Frame/UpgradeFrame1/Name') -> element (path below the root, first match).

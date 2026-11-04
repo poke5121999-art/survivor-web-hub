@@ -63,6 +63,19 @@ function furniture(rootIdx) {
         plateNode: c.pricePlate ? c.pricePlate.n - r : null, holder: c.productsHolder ? c.productsHolder.n - r : null });
     }
   }
+  // FurniturePlaceHelper.CanPlace: every floorDetector (RaycastDetector, straight down, targetLayer) hits the floor
+  // layer and the BoundingBoxDetector box overlaps no collider.
+  for (const i of sub(r)) {
+    const k = N[i].k || {};
+    if (k.RaycastDetector) {
+      (out.detectors || (out.detectors = [])).push(r3(app(rel(i, r), [0, 0, 0])));
+      out.floorMask = k.RaycastDetector.targetLayer.m_Bits;
+    }
+    if (k.BoundingBoxDetector) {
+      const m = rel(i, r), bs = k.BoundingBoxDetector.boxSize;
+      out.bound = { c: r3(app(m, [0, 0, 0])), size: r3([bs.x, bs.y, bs.z]) };
+    }
+  }
   const k = N[r].k || {};
   if (k.NavMeshObstacle) { const o = k.NavMeshObstacle; out.obstacle = box(r, r, { m_Center: o.m_Center, m_Size: o.m_Extents ? { x: 2 * o.m_Extents.x, y: 2 * o.m_Extents.y, z: 2 * o.m_Extents.z } : o.m_Size }); }
   if (k.BoxCollider) out.collider = box(r, r, Array.isArray(k.BoxCollider) ? k.BoxCollider[0] : k.BoxCollider);

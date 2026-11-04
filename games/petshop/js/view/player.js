@@ -82,7 +82,7 @@ export class Player {
   }
 
   look(dx, dy) {
-    const k = 0.0025 * (this.sens / 0.5);
+    const k = 0.0025 * (this.sens / 0.5) * (this.sensMul ?? 1);
     this.yaw -= dx * k;
     this.pitch = Math.max(-50 * Math.PI / 180, Math.min(50 * Math.PI / 180, this.pitch - dy * k));
   }
