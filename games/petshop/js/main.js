@@ -368,6 +368,26 @@ addEventListener('resize', resize);
     const r = canvas.getBoundingClientRect();
     return { x: r.left + (x + 1) / 2 * r.width, y: r.top + (1 - y) / 2 * r.height, angle: Math.atan2(-y, x) };
   }
+  // TaskManager.StartTaskTwo/Three/Four: ButtonMarkerHelper.ShowMark on the buttons that lead to the task
+  // (cart 0x38, furniture tab 0x40, store 0x48, manage 0x50, expansion tab 0x58, License 2 / Expansion 2 Buy)
+  const TASK_MARKS = {
+    2: ['HudUI/PlayerControls/CartButton/mark', 'Store/Store/LeftButtons/Manage/mark', 'Store/Store/License/Panels/License/Viewport/Content/License_2/Buy/mark'],
+    3: ['HudUI/PlayerControls/CartButton/mark', 'Store/Store/LeftButtons/Store/mark', 'Store/Store/Products/TopButtons/Furniture/mark'],
+    4: ['HudUI/PlayerControls/CartButton/mark', 'Store/Store/LeftButtons/Manage/mark', 'Store/Store/License/TopButtons/Expansion/mark', 'Store/Store/License/Panels/Expansion/Viewport/Content/License_2/Buy/mark'],
+  };
+  const taskMarks = () => (sim.s.tutorialDone && TASK_MARKS[sim.s.task]) || [];
+  // Tutorial.tutorialCamera (level1 "TutorialCamera", Unity (-9.57, 3.5, -2.22), yaw 80 deg) is the view during the
+  // language and welcome screens; Cinemachine then blends to the player camera [GUESS: 1 s ease in-out, lens 60 deg]
+  const TUT_CAM = { p: new THREE.Vector3(-9.57, 3.5, 2.22), q: new THREE.Quaternion(0, -0.6434559, 0, 0.7654833) };
+  let camBlend = 1;
+  function tutCamera(dt) {
+    const t = sim.tut.active() ? TUT_STEPS[sim.s.tutStep] : 99;
+    if (t <= 2) camBlend = 0; else if (camBlend < 1) camBlend = Math.min(1, camBlend + dt);
+    if (camBlend >= 1) return;
+    const e = camBlend < 0.5 ? 2 * camBlend * camBlend : 1 - Math.pow(-2 * camBlend + 2, 2) / 2;
+    camera.position.lerpVectors(TUT_CAM.p, camera.position, e);
+    camera.quaternion.slerpQuaternions(TUT_CAM.q, camera.quaternion.clone(), e);
+  }
   function tutFrame(dt) {
     if (lookTw) {
       lookTw.t += dt;
@@ -380,7 +400,10 @@ addEventListener('resize', resize);
     const s = sim.s;
     if (!sim.tut.active()) {
       player.canLook = player.canMove = true;
-      return { vis: null, finger: s.task === 1 && mode.checkout ? payFinger() : null };
+      // PaymentManager.ShowPaymentScreen starts the payment hint in the first task; CheckPaymentStatus after
+      // maxFailedAttempts (2) wrong payments
+      const hint = mode.checkout && (s.task === 1 || sim.checkout.fails >= G.checkout.maxFailedAttempts);
+      return { vis: null, finger: hint ? payFinger() : null, marks: taskMarks() };
     }
     const tt = TUT_STEPS[s.tutStep];
     player.canLook = tt >= 5 && !lookTw;
@@ -414,7 +437,7 @@ addEventListener('resize', resize);
       else { const vp = hud.q('Store/Store/Products/Panels/Animals/Scroll View/Viewport'); const b = vp && vp.firstElementChild.firstElementChild; finger = b ? b.querySelector('[data-n="Buy"]') : null; if (vp) vp.style.overflowY = 'hidden'; }
     }
     if (cur === 19 && s.pending.length) finger = 'HudUI/DeliveryUI/TimerSideBar/TimerArea/Buttons/UseBoost';   // DeliveryUI.finger
-    return { vis, finger };
+    return { vis, finger, marks: [] };
   }
 
   // ObjectiveBar (TaskManager + GameHudUIHelper): day-end tips, the store-empty / store-closed tips, else the current task
@@ -440,11 +463,11 @@ addEventListener('resize', resize);
 
   // CustomerReactionHelper clips per customer prefab (thankYou / extraPayment / wrongPayment asset ids 974/984/973 on the
   // men, 989/988/983 on the women, 981/979/sharedassets0#63 on the kids) -> art/audio names [GUESS: id -> name by
-  // grouping; the kids' wrong-payment clip is not among the exported files, the men's is used]
+  // grouping]; sharedassets0 #63 reads as the AudioClip "11.1_CheckoutFailed"
   const VOICE = {
     male: { NormalCheckout: 'MaleThanks', FreeCash: 'MaleFreeCash', WrongPayment: '40_Male_WrongAmount' },
     female: { NormalCheckout: 'FemaleThanks', FreeCash: 'FemaleFreeCash', WrongPayment: '41_FemaleWrongAmount' },
-    kid: { NormalCheckout: 'KidThanks', FreeCash: 'KidFreeCash', WrongPayment: '40_Male_WrongAmount' },
+    kid: { NormalCheckout: 'KidThanks', FreeCash: 'KidFreeCash', WrongPayment: '11.1_CheckoutFailed' },
   };
   const voiceOf = model => { const n = (L.customers[model] || {}).name || ''; return /^Kid/.test(n) ? 'kid' : /^Female/.test(n) ? 'female' : 'male'; };
   game.voiceOf = voiceOf;
@@ -457,7 +480,7 @@ addEventListener('resize', resize);
   // events -> sounds, alerts, level up
   function drainEvents() {
     for (const ev of sim.events.splice(0)) {
-      if (ev.type === 'delivered') sound.sfx('2_OrderArrival');
+      if (ev.type === 'delivered') { sound.sfx('2_OrderArrival'); hud.deliveryArrived(sim.lineInfo({ kind: ev.kind, type: ev.what })); }
       if (ev.type === 'levelUp') { sound.sfx('26_LevelUp'); hud.levelUp(ev.level); }
       if (ev.type === 'lowEnergy') hud.lowEnergy();
       if (ev.type === 'lowCash') hud.lowCash();
@@ -497,7 +520,7 @@ addEventListener('resize', resize);
       view.counterCam.updateMatrixWorld(true);
       view.counterCam.getWorldPosition(camera.position);
       view.counterCam.getWorldQuaternion(camera.quaternion);
-    } else player.update(dt, grid);
+    } else { player.update(dt, grid); tutCamera(dt); }
     if (sim.s.placing) { const [x, z] = floorPoint(); sim.movePlacing(x, z); }
     if (pressT != null) {
       pressT += dt;
@@ -541,7 +564,7 @@ addEventListener('resize', resize);
     } else holdT = 0.3;
     const tf = tutFrame(dt);
     if (keyLabels) keyLabels.update(dt, { canMove: player.canMove && !mode.checkout && !mode.ui, moved: movedOnce, locked: player.locked });
-    hud.update(dt, { target, pointsToNext: pointsToNext(G, sim.s.level), objective: objective(), placeOk: view.placeOk, tutVis: tf.vis, finger: tf.finger,
+    hud.update(dt, { target, pointsToNext: pointsToNext(G, sim.s.level), objective: objective(), placeOk: view.placeOk, tutVis: tf.vis, finger: tf.finger, marks: tf.marks,
       hold: pressT != null && pressTarget ? Math.min(1, pressT / HOLD) : 0 });
     game.target = target;
     if ((saveT -= dt) <= 0) { saveT = 5; writeJson(SAVE_KEY, sim.save()); }

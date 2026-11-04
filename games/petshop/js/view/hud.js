@@ -509,6 +509,41 @@ export class Hud {
 
   taskTick() { this.tickT = 1.5; }
 
+  // ButtonMarkerHelper: the red dot on each button of the current task's path, hidden once that button is pressed
+  // [GUESS: the hide-on-click]; all go when the task changes
+  taskMarks(paths) {
+    const key = paths.join('|');
+    if (key !== this.markKey) {
+      for (const p of this.markShown || []) this.p.show(p, false);
+      this.markKey = key; this.markShown = paths; this.markDone = new Set();
+      for (const p of paths) {
+        const el = this.q(p), btn = el && el.parentElement;
+        if (btn && !btn._markBound) { btn._markBound = true; btn.addEventListener('click', () => { if (this.markShown && this.markShown.includes(p)) { this.markDone.add(p); this.p.show(p, false); } }); }
+      }
+    }
+    for (const p of paths) this.p.show(p, !this.markDone.has(p));
+  }
+
+  // DeliveryUI.ShowTopAlertBar: "Your Delivery Arrived" with the item icon slides down 0.5 s (OutSine), stays 1.5 s,
+  // slides back up 500 px in 0.5 s (InSine); the arrival sound plays with it
+  deliveryArrived(info) {
+    this.p.show('HudUI/DeliveryUI/AlertTopBar', true);
+    if (info) this.icon(this.q('HudUI/DeliveryUI/AlertTopBar/Icon'), info.icon);
+    this.topBarT = 0;
+  }
+  slideTopBar(dt) {
+    const el = this.q('HudUI/DeliveryUI/AlertTopBar');
+    if (!el || this.topBarT == null) return;
+    this.topBarT += dt;
+    const t = this.topBarT;
+    let y;
+    if (t < 0.5) y = -500 * (1 - Math.sin(t / 0.5 * Math.PI / 2));
+    else if (t < 2.0) y = 0;
+    else if (t < 2.5) y = -500 * (1 - Math.cos((t - 2.0) / 0.5 * Math.PI / 2));
+    else { this.p.show('HudUI/DeliveryUI/AlertTopBar', false); this.topBarT = null; el.style.translate = ''; return; }
+    el.style.translate = `0 ${y.toFixed(1)}px`;
+  }
+
   useBoost() { const r = this.ctx.sim.boost(); if (r) this.ctx.sound && this.ctx.sound.sfx('34_SuccessSound'); }
   skipAd() { const r = this.ctx.sim.skipDelivery(); if (!r.ok) { if (r.why) this.alert(r.why); return; } this.ctx.sound && this.ctx.sound.sfx('34_SuccessSound'); }
 
@@ -848,7 +883,14 @@ export class Hud {
     this.tutModal = path; this.ctx.uiOpen(true);
     this.tutTap = onTap;
     const btn = { 'Welcome Screen': 'Button', 'Change Name Tip': 'Screen/Confirm', 'Follow Objective': 'Screen/Confirm' }[name];
-    if (name === 'Welcome Screen') { this.p.show(`${path}/Button`, true); this.p.show(`${path}/Panel/Screen/LoweText`, true); }
+    if (name === 'Welcome Screen') {
+      this.p.show(`${path}/Button`, true); this.p.show(`${path}/Panel/Screen/LoweText`, true);
+      // upper / lower black bars: sizeDelta (0, 0) -> (0, 125) in 1.0 s
+      for (const b of ['UpperBar', 'LowerBar']) {
+        const el = this.q(`${path}/${b}`);
+        if (el && el.animate) el.animate([{ height: '0px' }, { height: '125px' }], { duration: 1000, easing: 'ease-out' });
+      }
+    }
     this.bindOnce(`${path}/${btn}`, () => { const f = this.tutTap; this.tutTap = null; this.tutScreen(name, false); if (f) f(); });
   }
 
@@ -1042,6 +1084,8 @@ export class Hud {
     } else if (this.tutVisWas) { P.show('HudUI', true); P.show('TopBar', true); }
     this.tutVisWas = !!tv;
     this.navArrow(tv && tv.nav);
+    this.taskMarks(st.marks || []);
+    this.slideTopBar(dt);
     if (st.finger !== undefined && st.finger !== this.fingerAt) this.finger(st.finger);
     this.placeFinger();
   }

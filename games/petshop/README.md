@@ -42,6 +42,21 @@ Làm lại *Pet Shop Simulator: Pet Games* (`com.pet.shop.simulator.games.max` 1
   - Ảnh nền bán trong suốt không còn làm ẩn chữ/ô bên trong (nút "No Thanks", ô phần thưởng cấp, danh sách ngôn ngữ).
   - Chữ mục tiêu không còn đè lên thanh tiến độ.
 
+## Drop 5: lấp các khoảng trống còn lại
+
+- **Camera mở màn của hướng dẫn** (`Tutorial.tutorialCamera` = "TutorialCamera" trong level1, Unity (−9,57; 3,5; −2,22), quay 80°): góc nhìn ở màn chọn ngôn ngữ và màn chào, rồi chuyển về camera người chơi trong 1 s [GUESS thời gian chuyển, góc ống kính 60°].
+- **Thanh đen màn chào** trượt vào từ 0 lên 125 px trong 1,0 s (`DOSizeDelta`).
+- **"Your Delivery Arrived"** (`DeliveryUI.ShowTopAlertBar`): mỗi lần hàng tới, thanh kèm icon trượt xuống 0,5 s, đứng 1,5 s, trượt lên 0,5 s.
+- **Thú ngồi trên quầy** (`AnimalProduct.OnAnimalMoveToCounter` → `Animator.Play("Sit")`), rồi chuyển sang `SitLoop` [GUESS sau 1 s].
+- **Giọng sai tiền của trẻ em**: clip gốc `sharedassets0 #63` đọc ra là `11.1_CheckoutFailed`, không còn mượn giọng nam.
+- **Gợi ý thanh toán sau 2 lần trả sai** (`PaymentManager.CheckPaymentStatus`, `maxFailedAttempts` 2), ngoài lúc hướng dẫn và nhiệm vụ đầu.
+- **Chấm đỏ chỉ đường của nhiệm vụ** (`TaskManager.StartTaskTwo/Three/Four` → `ButtonMarkerHelper.ShowMark`):
+  - Nhiệm vụ 2: giỏ, Manage, nút Buy của License 2.
+  - Nhiệm vụ 3: giỏ, Store, tab Furniture.
+  - Nhiệm vụ 4: giỏ, Manage, tab Expansion, nút Buy của Expansion 2.
+  - Bấm nút nào thì chấm của nút đó tắt [GUESS].
+- Bong bóng gợi ý WASD chỉ hiện khi người chơi đang đi lại được (không còn hiện lúc đứng quầy).
+
 ## Drop 4: FTUE đầy đủ, giọng khách, Delivery Queue
 
 - **FTUE chạy với mọi người chơi chưa xong hướng dẫn**:
@@ -96,13 +111,12 @@ Nguồn: `data/game.json` (có trường `src` cho mỗi hằng đọc từ mã 
 ## Khoảng trống có ghi nhãn
 
 - Hướng dẫn:
-  - Camera điện ảnh của màn chào (`tutorialCamera`) không có trong dữ liệu xuất → giữ camera người chơi. [GAP]
   - Thanh đen điện ảnh hiện ngay, không tween 1 s.
   - Mũi tên mép màn hình dùng sprite `UpUIArrow` vì prefab chỉ báo gốc (`IndicatorPrefab`) không có trong dữ liệu xuất; chỉ hiện khi đích ra khỏi màn hình. [GUESS hình]
   - Ngón tay ở quầy (món cần quét, tiền trên tay khách) là cách vẽ lại điểm nhấn gốc ở `SubmitProducts` / `FirstCustomerScenerio`. [GUESS hình]
   - Phần HUD bật/tắt theo bước là suy ra từ các lệnh SetActive không xuất được: ẩn HUD ở bước 1–3, chưa đi được trước bước MoveJoyStick, nút Interact/giỏ hiện từ PickUpBox. [GUESS]
   - Tải lại giữa chừng thì tiếp tục từ bước đang làm; gốc không lưu bước nên sẽ chạy lại từ đầu với thế giới đã thay đổi. [ĐỀ XUẤT]
-- Giọng: id clip → tên file suy theo nhóm (nam / nữ / trẻ em); clip "sai tiền" của trẻ em không có trong dữ liệu xuất nên dùng của nam. Tiếng thú: id clip → tên file suy theo loài; cá và bò sát không có clip trong gốc. [GUESS]
+- Giọng: id clip → tên file suy theo nhóm (nam / nữ / trẻ em). Tiếng thú: id clip → tên file suy theo loài; cá và bò sát không có clip trong gốc. [GUESS]
   - Ô ngôn ngữ đang chọn: sprite "đã chọn" không có trong dữ liệu xuất → viền sáng. [GUESS]
 - Ngày–đêm: chiều quay `_Rotation` của bầu trời. [GUESS]
 - Bảng phím: là phần thêm cho bản web (gốc chỉ có cảm ứng). [ĐỀ XUẤT]
@@ -118,7 +132,7 @@ Nguồn: `data/game.json` (có trường `src` cho mỗi hằng đọc từ mã 
 - Nhiệm vụ không thưởng XP (mã `CompleteTask` không cộng gì, dù chữ hướng dẫn hứa "bonus XP") → giữ như mã.
 - Bảng LevelReward dùng `rewardDataList[cấp − 1]` y nguyên dữ liệu gốc, kể cả chỗ lệch (ví dụ "New Expansion" ở cấp 3 trong khi Expansion 2 mở ở cấp 5).
 - Extra Counter: tắt trong gốc → không có.
-- Chưa làm: hoạt ảnh "Sit" của thú trên quầy, bảng thông báo "Your Delivery Arrived" trượt xuống.
+- Không làm (gốc là quảng cáo / mua trong ứng dụng / dịch vụ ngoài): StarterPanel, RemoveAdPanel, RateUsPanel, quảng cáo xen giữa, Bug Report, Discord.
 - **Chăm thú: game gốc không có** (`AnimalEatState` rỗng, `AnimalHealth.AddHealth/DecreaseHealth` không có lời gọi nào). Thú là hàng trong chuồng; 2 con chó trong "Training Area" chỉ để trang trí. Bản web giữ đúng như vậy.
 - Quảng cáo thưởng của gốc → nhận miễn phí: phần thưởng lên cấp ($50 + 10 energy), Tax Free (hoàn thuế). Các nút quảng cáo/IAP khác bị ẩn. [PLACEHOLDER chính sách]
 - Màn POS 3D ở quầy (TextMeshPro trong không gian) được vẽ lại thành ô chữ DOM.

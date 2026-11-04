@@ -354,11 +354,17 @@ export class GameView {
     const k = this.sim.checkout;
     const want = k.items || [];
     if (this.counter.length !== want.length || this.counter.some((o, i) => o.userData.ptype !== want[i].type)) {
-      for (const o of this.counter) o.removeFromParent();
+      for (const o of this.counter) { o.removeFromParent(); if (o.userData.rig) this.rigs.delete(o.userData.rig); }
       this.counter = want.map((it, i) => {
         const pl = this.L.products[it.type];
         const o = pl ? this.pool.instance(pl.root) : new THREE.Group();
         o.userData.ptype = it.type;
+        // AnimalProduct.OnAnimalMoveToCounter: Animator.Play("Sit"), then its loop
+        const rig = pl && pl.kind === 'AnimalProduct' ? this.pool.rig(o) : null;
+        if (rig) {
+          this.rigs.add(rig); o.userData.rig = rig;
+          if (rig.has('Sit')) { rig.play('Sit', 0); o.userData.sitT = 1.0; }
+        }
         const p = this.counterPos[i % this.counterPos.length];
         o.position.set(p[0], p[1], p[2]);
         const h = hitBox([0.3, 0.3, 0.3], [0, 0.12, 0], { kind: 'scan', idx: i });
@@ -368,7 +374,11 @@ export class GameView {
         return o;
       });
     }
-    want.forEach((it, i) => { this.counter[i].visible = !it.scanned; });
+    want.forEach((it, i) => {
+      const o = this.counter[i];
+      o.visible = !it.scanned;
+      if (o.userData.sitT > 0 && (o.userData.sitT -= this.dt) <= 0 && o.userData.rig.has('SitLoop')) o.userData.rig.play('SitLoop', 0.2);   // [GUESS: Sit -> SitLoop after 1 s]
+    });
   }
 
   syncScene() {

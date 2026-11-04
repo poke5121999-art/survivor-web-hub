@@ -83,7 +83,7 @@ export class KeyLabels {
         try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* private mode */ }
       }
     }
-    const show = this.hintState === 'show' && !this.hud.modal;
+    const show = this.hintState === 'show' && !this.hud.modal && st.canMove;
     if (show) {
       const vi = this.hud.settings.lang === 'vi';
       const html = st.locked
