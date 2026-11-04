@@ -45,6 +45,13 @@ kbd{background:#201b13;border:1px solid #3a3326;border-radius:3px;padding:0 6px}
 #tb-keys .hint b{margin:0 .25em;text-shadow:none;color:#fff}
 #tb-keys .hint::after{content:'';position:absolute;right:14%;bottom:-.62em;border:.5em solid transparent;border-top-color:#1b1b1b;border-bottom:0}
 @keyframes tb-pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}@keyframes tb-bob{50%{transform:translateY(-6px)}}
+.hide{display:none!important}
+.gold{color:var(--gold)}
+.shoprow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #2a251c}
+.shoprow small{display:block;font-size:12px}.shoprow button{margin:2px 0 2px 6px;padding:6px 12px;font-size:13px}
+.dexgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}.dexcard{border:1px solid #2a251c;border-radius:4px;padding:10px;background:#0d0b08}.dexcard b{display:block;color:var(--gold)}.dexcard small{display:block;margin-top:4px;font-size:12px}.dexcard.locked{opacity:.5}
+#menu .card{max-height:100vh;overflow:auto}
+@media(max-width:560px){.dexgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -55,6 +62,7 @@ kbd{background:#201b13;border:1px solid #3a3326;border-radius:3px;padding:0 6px}
   <div class="bar">
     <div class="lbl">HP <span id="hpn"></span></div><div class="meter" id="hp"><i></i></div>
     <div class="lbl">Pin đèn <span id="batn"></span></div><div class="meter" id="bat"><i></i></div>
+    <div class="lbl" id="kit" style="text-transform:none;letter-spacing:0"></div>
   </div>
 </div>
 <div id="tb-keys">
@@ -64,16 +72,23 @@ kbd{background:#201b13;border:1px solid #3a3326;border-radius:3px;padding:0 6px}
   <div class="row"><b>F</b> đèn pin</div>
   <div class="row"><b>E</b> giữ: mở / nhặt / thoát</div>
   <div class="row"><b>Chuột trái</b> xẻng (cắt lưỡi ếch)</div>
+  <div class="row hide" id="kGourd"><b>G</b> giữ: hút quái vào Gourd</div>
+  <div class="row hide" id="kStun"><b>R</b> giữ: súng điện</div>
+  <div class="row hide" id="kLaser"><b>L</b> bút laser (tắt liên nỗ)</div>
 </div>
 <div class="screen" id="menu"><div class="card">
+  <div id="mainPanel">
   <h1>TOMB BUSTERS</h1>
   <p class="dim">Hầm mộ tối. Một mình. Lấy đồ, ra cửa trước khi chúng lấy bạn. Chết là mất sạch đồ trong chuyến này.</p>
   <div class="stat"><div><b id="sBank">0</b>铲铲币 trong kho</div><div><b id="sRuns">0</b>chuyến</div><div><b id="sOut">0</b>thoát được</div></div>
-  <p class="dim">Chuột: nhìn · <kbd>WASD</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>F</kbd> đèn pin · <kbd>E</kbd> giữ để mở/nhặt/thoát · <kbd>Chuột trái</kbd> xẻng · <kbd>Esc</kbd> thả chuột</p>
-  <button id="go">Vào hầm mộ</button><button class="alt" id="reset">Xoá save</button>
-  <p class="dim" style="margin-top:22px;font-size:12px">Drop 2 · bản solo offline. Số liệu quái/bẫy/giá trị loot lấy từ APK và wiki.biligame.com/chaoziran; chỗ nào chưa có số thật được đánh dấu PLACEHOLDER trong js/data.js.</p>
+  <p class="dim">Chuột: nhìn · <kbd>WASD</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Ctrl</kbd> cúi · <kbd>F</kbd> đèn pin · <kbd>E</kbd> giữ để mở/nhặt/thoát · <kbd>Chuột trái</kbd> xẻng · <kbd>G</kbd> giữ: hút quái (có Gourd) · <kbd>R</kbd> giữ: súng điện · <kbd>L</kbd> bút laser · <kbd>Esc</kbd> thả chuột</p>
+  <button id="go">Vào hầm mộ</button><button class="alt" id="openShop">Cửa hàng</button><button class="alt" id="openDex">Sổ quái</button><button class="alt" id="reset">Xoá save</button>
+  <p class="dim" style="margin-top:22px;font-size:12px">Drop 3 · bản solo offline. Số liệu quái/bẫy/đồ nghề/giá loot lấy từ APK và wiki.biligame.com/chaoziran; chỗ nào chưa có số thật được đánh dấu PLACEHOLDER trong js/data.js.</p>
+  </div>
+  <div id="shopPanel" class="hide"></div>
+  <div id="dexPanel" class="hide"></div>
 </div></div>
 <div class="screen hide" id="end"><div class="card" id="endCard"></div></div>
-<script type="module" src="js/game.js?v=20261104b"></script>
+<script type="module" src="js/game.js?v=20261104c"></script>
 </body>
 </html>
