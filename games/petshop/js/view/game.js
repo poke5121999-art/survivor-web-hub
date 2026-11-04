@@ -443,7 +443,8 @@ export class GameView {
         if (!o.isMesh) return;
         // unlit copy: under the rebuilt ambient the lit transparent material washes out to white
         if (!o.userData.padMat) { o.material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.3922, depthWrite: false }); o.userData.padMat = true; }
-        o.material.color.setRGB(ok ? 0.38 : 1, ok ? 1 : 0.1, ok ? 0 : 0.05);
+        // FurniturePlaceHelper greenColor (0.38039, 1, 0, 0.39216) / redColor (1, 0, 0, 0.39216)
+        o.material.color.setRGB(ok ? 0.38039 : 1, ok ? 1 : 0, 0);
       });
       this.boundMesh.visible = false;
       return;

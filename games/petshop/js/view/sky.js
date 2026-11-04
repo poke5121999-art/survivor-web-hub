@@ -28,7 +28,8 @@ export class DayNight {
     Object.assign(this, { camera, dn, probe, equator, ground });
     this.group = new THREE.Group();
     this.group.renderOrder = -1;
-    const R = 150;
+    // inside the camera's far plane (69 m; corners at R * sqrt 3); drawn first without depth, so the size is not seen
+    const R = 30;
     const loader = new THREE.TextureLoader();
     const tex = name => { const t = loader.load(`${base}/${sky.faces[name]}`); t.colorSpace = THREE.NoColorSpace; return t; };
     // Facing the Front face, Left is on the left, Right on the right, Back behind (the faces join seamlessly that way).

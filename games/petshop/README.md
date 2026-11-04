@@ -42,6 +42,24 @@ Làm lại *Pet Shop Simulator: Pet Games* (`com.pet.shop.simulator.games.max` 1
   - Ảnh nền bán trong suốt không còn làm ẩn chữ/ô bên trong (nút "No Thanks", ô phần thưởng cấp, danh sách ngôn ngữ).
   - Chữ mục tiêu không còn đè lên thanh tiến độ.
 
+## Drop 8: camera gốc, thu ngân, bán kệ kho
+
+- **Ống kính camera** đọc thẳng từ byte của `CinemachineVirtualCamera.m_Lens`, vì typetree sinh ra đọc hỏng:
+  - PlayerVirtual Camera và TutorialCamera: FOV 50°, near 0,01, far 69.
+  - CounterCamera: 50° / 0,1 / 100.
+  - Bản web trước dùng 60° (GUESS). Skybox thu vào trong far 69 m; nó vẽ đầu tiên và không dùng depth nên kích thước không lộ ra.
+- **Chuyển cảnh camera** theo `MainCameraBlends` (sharedassets1 #23542), kiểu EaseInOut = 3t² − 2t³:
+  - Tutorial → người chơi: 3,5 s (trước là 1 s).
+  - Người chơi → quầy: 0,75 s.
+  - Quầy → người chơi: 1,0 s.
+  - Trước đây quầy cắt cảnh tức thì.
+- **Thu ngân** (đọc từ IL2CPP):
+  - Ca 720 s trừ `Time.deltaTime` mọi lúc (`CashierWorkingState.UpdateState`), không chỉ khi ngày đang chạy.
+  - Người chơi vẫn vào quầy được khi thu ngân đang làm (`CheckOutInteractable.Interact` không kiểm tra). Khi thu ngân bắt đầu thanh toán một khách mới, người chơi bị đẩy ra khỏi quầy (`AutoCheckoutHelper.StartAutoCheckout` → `ExitCheckOut`).
+  - Energy làm tròn kiểu C# `Math.Round` (nửa về số chẵn). Bước ±$1 khớp mã: `min((max−min)×0,01, 1)`.
+- **Bán kệ kho**: `StorageFurniture.CanSellDirectly` không xét hàng bên trong. Kệ còn thùng vẫn bán được, thùng mất theo kệ.
+- **Màu đế khi đặt kệ**: `FurniturePlaceHelper` greenColor (0,38; 1; 0) / redColor (1; 0; 0), alpha 0,39.
+
 ## Drop 7: ánh sáng toàn cảnh (ambient Trilight)
 
 - Chủ dự án báo cả cửa hàng chói trắng. Đo ảnh mặt trước tủ lạnh (`test/petshop-fridge-shot.js` ... `back`): 65% điểm ảnh có kênh cháy 255; tường trái 100%, sàn 89%.
@@ -67,7 +85,7 @@ Làm lại *Pet Shop Simulator: Pet Games* (`com.pet.shop.simulator.games.max` 1
 
 ## Drop 5: lấp các khoảng trống còn lại
 
-- **Camera mở màn của hướng dẫn** (`Tutorial.tutorialCamera` = "TutorialCamera" trong level1, Unity (−9,57; 3,5; −2,22), quay 80°): góc nhìn ở màn chọn ngôn ngữ và màn chào, rồi chuyển về camera người chơi trong 1 s [GUESS thời gian chuyển, góc ống kính 60°].
+- **Camera mở màn của hướng dẫn** (`Tutorial.tutorialCamera` = "TutorialCamera" trong level1, Unity (−9,57; 3,5; −2,22), quay 80°): góc nhìn ở màn chọn ngôn ngữ và màn chào, rồi chuyển về camera người chơi (Drop 8: 3,5 s EaseInOut theo `MainCameraBlends`, ống kính 50°).
 - **Thanh đen màn chào** trượt vào từ 0 lên 125 px trong 1,0 s (`DOSizeDelta`).
 - **"Your Delivery Arrived"** (`DeliveryUI.ShowTopAlertBar`): mỗi lần hàng tới, thanh kèm icon trượt xuống 0,5 s, đứng 1,5 s, trượt lên 0,5 s.
 - **Thú ngồi trên quầy** (`AnimalProduct.OnAnimalMoveToCounter` → `Animator.Play("Sit")`), rồi chuyển sang `SitLoop` [GUESS sau 1 s].
@@ -148,10 +166,9 @@ Nguồn: `data/game.json` (có trường `src` cho mỗi hằng đọc từ mã 
 - `AtmPanel` ($20) không dùng: bấm máy ATM nhận thẳng $50 (`AtmMachine.Reward`).
 - Kho: cảnh báo "StorageBoxEmpty"/"StorageCabinetFull" không có trong bảng term (gốc sẽ hiện rỗng) → chữ tiếng Anh. [PLACEHOLDER]; gốc dùng hai key này ngược chỗ nhau, bản web hiện đúng nghĩa.
 - Cửa kho mở: tween DOMove gốc, độ cao 2,6 m trong 1 s rồi ẩn. [GUESS]
-- Bán kệ kho: lệnh cộng tiền không tìm thấy trong mã → cộng `SellPrice`; kệ còn thùng thì không cho bán. [GUESS]
-- Thu ngân: ca 720 s đếm khi ngày đang chạy; nút ± lương bước $1; khi thu ngân đang làm, người chơi không vào quầy. [GUESS]
-- Đặt kệ: khoảng cách tâm nhìn – sàn kẹp 1–4,5 m cho chuột/cảm ứng (gốc 0,135–10 m). [GUESS]; màu đỏ khi không đặt được. [GUESS]
-- Độ nhạy 0,25×–2×. [GUESS]
+- Bán kệ kho: lệnh cộng tiền không tìm thấy trong mã → cộng `SellPrice` [GUESS]; kệ còn thùng vẫn bán được (`CanSellDirectly`, Drop 8).
+- Thu ngân: đã giải trong Drop 8 (ca 720 s đếm mọi lúc, bước ±$1, người chơi bị đẩy ra khi thu ngân bắt đầu thanh toán).
+- Đặt kệ: khoảng cách tâm nhìn – sàn kẹp 1–4,5 m cho chuột/cảm ứng (gốc 0,135–10 m). [GUESS]; màu xanh/đỏ của đế lấy từ `FurniturePlaceHelper` (Drop 8).
 - Nhiệm vụ không thưởng XP (mã `CompleteTask` không cộng gì, dù chữ hướng dẫn hứa "bonus XP") → giữ như mã.
 - Bảng LevelReward dùng `rewardDataList[cấp − 1]` y nguyên dữ liệu gốc, kể cả chỗ lệch (ví dụ "New Expansion" ở cấp 3 trong khi Expansion 2 mở ở cấp 5).
 - Extra Counter: tắt trong gốc → không có.
@@ -159,9 +176,9 @@ Nguồn: `data/game.json` (có trường `src` cho mỗi hằng đọc từ mã 
 - **Chăm thú: game gốc không có** (`AnimalEatState` rỗng, `AnimalHealth.AddHealth/DecreaseHealth` không có lời gọi nào). Thú là hàng trong chuồng; 2 con chó trong "Training Area" chỉ để trang trí. Bản web giữ đúng như vậy.
 - Quảng cáo thưởng của gốc → nhận miễn phí: phần thưởng lên cấp ($50 + 10 energy), Tax Free (hoàn thuế). Các nút quảng cáo/IAP khác bị ẩn. [PLACEHOLDER chính sách]
 - Màn POS 3D ở quầy (TextMeshPro trong không gian) được vẽ lại thành ô chữ DOM.
-- Ánh sáng: level1 không có đèn và lightmap; dựng lại ambient Trilight (sky/equator/ground ×1.05). [GUESS] độ sáng
-- FOV camera 60° [GUESS], vì lens Cinemachine không giải được (Main Camera lưu 50°).
-- Boost giao hàng: giá energy tăng 1 mỗi lần, trần `maxBoostCount` 5. [GUESS]
+- Ánh sáng: level1 không có đèn và lightmap; ambient Trilight dựng thành LightProbe (Drop 7). [GUESS] cách nội suy gradient
+- Độ nhạy: gốc nhân `TouchDist × RotationSpeed 10 × sensitivity (mặc định 10) × dt`; khoảng của thanh trượt không có trong dữ liệu xuất nên bản web giữ 0,25×–2× cho chuột. [GUESS]
+- Boost giao hàng: giá = max(1, min(5, ceil(thời gian còn × 5 / tổng))) theo `DeliveryUI.UpdateTimerText` (Drop 4).
 - Bảng ngày gốc ghi "Tax(-10%)" nhưng mã tính 5%; bản web giữ cả hai như gốc.
 
 ## Bố cục

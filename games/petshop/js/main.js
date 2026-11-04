@@ -32,8 +32,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 // Gamma colour space project (PlayerSettings.m_ActiveColorSpace 0): raw values in, raw values out.
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 const scene3 = new THREE.Scene();
-// Cinemachine lens of "PlayerVirtual Camera" did not decode; 60 deg vertical FOV [GUESS] (Main Camera serializes 50).
-const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.05, 400);
+// CinemachineVirtualCamera.m_Lens (raw read, the generated typetree fails on it): PlayerVirtual Camera and
+// TutorialCamera FieldOfView 50 (vertical, as in three.js), NearClipPlane 0.01, FarClipPlane 69; CounterCamera 50 / 0.1 / 100
+const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.01, 69);
 scene3.add(camera);
 const game = window.__game = { stage: 'boot', errors: [] };
 window.addEventListener('error', e => game.errors.push(String(e.message)));
@@ -195,7 +196,8 @@ addEventListener('resize', resize);
       }
       case 'plate': { const c = sim.cab(t.fid, t.i); if (c && c.st.p) hud.openPrice(c.st.p); break; }
       case 'laptop': if (!held) { hud.openStore(); sim.tutEvent('laptop'); } break;   // LaptopDesk.OnLaptopInteractEvent
-      case 'counter': if (held) break; if (sim.cashierWorking()) hud.alert('cashierBusy'); else setCheckout(true); break;
+      // CheckOutInteractable.Interact has no cashier check: the player may use the register while the cashier works
+      case 'counter': if (held) break; setCheckout(true); break;
       case 'scab': if (held) { const r = sim.storeBox(t.fid, t.i); if (r.ok) sound.sfx('6_ItemPlacement'); else if (r.why) hud.alert(r.why); } break;
       case 'storageLocked': hud.alert('Alert_LowLevel'); hud.openStore(); hud.storeSection('Service'); break;
       case 'cashier':
@@ -377,17 +379,33 @@ addEventListener('resize', resize);
   };
   const taskMarks = () => (sim.s.tutorialDone && TASK_MARKS[sim.s.task]) || [];
   // Tutorial.tutorialCamera (level1 "TutorialCamera", Unity (-9.57, 3.5, -2.22), yaw 80 deg) is the view during the
-  // language and welcome screens; Cinemachine then blends to the player camera [GUESS: 1 s ease in-out, lens 60 deg]
+  // language and welcome screens.
   const TUT_CAM = { p: new THREE.Vector3(-9.57, 3.5, 2.22), q: new THREE.Quaternion(0, -0.6434559, 0, 0.7654833) };
-  let camBlend = 1;
-  function tutCamera(dt) {
+  // CinemachineBrain.m_CustomBlends = "MainCameraBlends" (sharedassets1 #23542): EaseInOut TutorialCamera -> player
+  // 3.5 s, player -> CounterCamera 0.75 s, CounterCamera -> player 1.0 s; the UICamera pairs and player -> tutorial cut.
+  // EaseInOut = AnimationCurve.EaseInOut(0, 0, 1, 1) = 3t^2 - 2t^3. The blend starts from the outgoing view as it was.
+  const BLENDS = { 'tutorial>player': 3.5, 'player>counter': 0.75, 'counter>player': 1.0 };
+  const cam = { live: null, from: null, t: 0, dur: 0 };
+  function vcamPose() {
     const t = sim.tut.active() ? TUT_STEPS[sim.s.tutStep] : 99;
-    if (t <= 2) camBlend = 0; else if (camBlend < 1) camBlend = Math.min(1, camBlend + dt);
-    if (camBlend >= 1) return;
-    const e = camBlend < 0.5 ? 2 * camBlend * camBlend : 1 - Math.pow(-2 * camBlend + 2, 2) / 2;
-    camera.position.lerpVectors(TUT_CAM.p, camera.position, e);
-    camera.quaternion.slerpQuaternions(TUT_CAM.q, camera.quaternion.clone(), e);
+    if (t <= 2) { camera.position.copy(TUT_CAM.p); camera.quaternion.copy(TUT_CAM.q); return 'tutorial'; }
+    return mode.checkout ? 'counter' : 'player';
   }
+  function blendCamera(dt, live) {
+    if (live !== cam.live) {
+      const dur = cam.live ? BLENDS[`${cam.live}>${live}`] || 0 : 0;
+      cam.from = dur ? { p: (cam.shown || camera).position.clone(), q: (cam.shown || camera).quaternion.clone() } : null;
+      cam.live = live; cam.t = 0; cam.dur = dur;
+    }
+    if (cam.from && cam.t < cam.dur) {
+      cam.t = Math.min(cam.dur, cam.t + dt);
+      const x = cam.t / cam.dur, e = x * x * (3 - 2 * x);
+      camera.position.lerpVectors(cam.from.p, camera.position, e);
+      camera.quaternion.slerpQuaternions(cam.from.q, camera.quaternion.clone(), e);
+    }
+    cam.shown = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+  }
+  game.camBlend = () => (cam.from && cam.t < cam.dur ? cam.t / cam.dur : 1);
   function tutFrame(dt) {
     if (lookTw) {
       lookTw.t += dt;
@@ -484,6 +502,7 @@ addEventListener('resize', resize);
       if (ev.type === 'levelUp') { sound.sfx('26_LevelUp'); hud.levelUp(ev.level); }
       if (ev.type === 'lowEnergy') hud.lowEnergy();
       if (ev.type === 'lowCash') hud.lowCash();
+      if (ev.type === 'exitCheckout' && mode.checkout) setCheckout(false);
       if (ev.type === 'tutStep') tutEnter(ev.step);
       if (ev.type === 'tutDone') { tutLeave(ev.step); sound.sfx('28_Tut_Step_Completed'); hud.taskTick(); }
       if (ev.type === 'tutFinished') { tutArrow = null; writeJson(SAVE_KEY, sim.save()); }
@@ -520,7 +539,8 @@ addEventListener('resize', resize);
       view.counterCam.updateMatrixWorld(true);
       view.counterCam.getWorldPosition(camera.position);
       view.counterCam.getWorldQuaternion(camera.quaternion);
-    } else { player.update(dt, grid); tutCamera(dt); }
+    } else player.update(dt, grid);
+    blendCamera(dt, vcamPose());
     if (sim.s.placing) { const [x, z] = floorPoint(); sim.movePlacing(x, z); }
     if (pressT != null) {
       pressT += dt;

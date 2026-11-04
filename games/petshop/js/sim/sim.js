@@ -495,9 +495,10 @@ export class Sim {
     return true;
   }
 
-  // MoveObjButtons "Sell" (storage racks only, StorageDeliveryBox.OnBoxContentSell): SellPrice = floor(cost / 100 * 0.5)
-  // dollars. A rack still holding boxes is refused [GUESS: the boxes would be lost otherwise]. The cash credit call was
-  // not found in the disassembly [GUESS: Cash += SellPrice].
+  // MoveObjButtons "Sell" (storage racks only): StorageFurniture.Start sets SellPrice = floor(costPrice / 100 * 0.5)
+  // dollars; CanSellDirectly returns true without looking at the boxes inside and OnSellAction just drops the rack's
+  // save entry, so boxes on a sold rack go with it. The cash credit call was not found in the disassembly
+  // [GUESS: Cash += SellPrice].
   sellPlacing() {
     const s = this.s, p = s.placing;
     if (!p || p.kind !== 's') return { ok: false };
@@ -505,8 +506,8 @@ export class Sim {
     const price = Math.floor(info.cost / 100 * 0.5);
     if (p.src === 'move') {
       const f = s.furniture.find(x => x.id === p.fid);
-      if (f.cab.some(c => c.box)) return { ok: false, why: 'Alert_BoxNotEmpty' };
       s.furniture = s.furniture.filter(x => x !== f);
+      s.boxes = s.boxes.filter(b => !(b.stored && b.stored.fid === f.id));   // the stored boxes go with the rack
     } else {
       s.boxes = s.boxes.filter(b => b.id !== p.box);
       s.held = null;
@@ -923,10 +924,16 @@ export class Sim {
   // energy = CalculateEnergy(salary); HIRE pays both, he walks hiringToCounter and runs the counter for the 720 s shift
   // (12:00 "hours" on the panel), then walks counterToHome and comes back to be hired again.
   hireRange() { const P = this.G.cashier.price; return { min: Math.round(P * 0.6), mid: Math.round(P * 0.8), max: P }; }
+  // CashierHireUIHelper.CalculateEnergy (maxEnergy 10, h = 5): >= max -> 0, <= min -> 10, else piecewise linear
+  // through h at mid; C# Math.Round rounds halves to even
   hireEnergy(salary) {
     const { min, mid, max } = this.hireRange();
-    if (salary >= mid) return Math.round(5 * (1 - (salary - mid) / Math.max(1, max - mid)));
-    return Math.round(10 + (5 - 10) * (salary - min) / Math.max(1, mid - min));
+    const c01 = v => Math.max(0, Math.min(1, v));
+    if (salary >= max) return 0;
+    if (salary <= min) return 10;
+    const v = salary >= mid ? 5 * (1 - c01((salary - mid) / (max - mid))) : 10 + (5 - 10) * c01((salary - min) / (mid - min));
+    const f = Math.floor(v), r = v - f;
+    return r > 0.5 || (r === 0.5 && f % 2 === 1) ? f + 1 : f;
   }
 
   hire(salary) {
@@ -975,7 +982,8 @@ export class Sim {
         if (walk()) { k.st = 'work'; k.anim = 'Idle'; const ci = this.points.counterItems[0]; k.yaw = Math.atan2(ci[0] - k.x, ci[2] - k.z); }
         return;
       case 'work': {
-        if (s.running && s.hire) s.hire.left -= dt;
+        // CashierWorkingState.UpdateState: remainingShiftTime -= Time.deltaTime, no store-open or day check
+        if (s.hire) s.hire.left -= dt;
         const ch = this.checkout;
         if (ch.cur == null) {
           k.anim = 'Idle';
@@ -985,6 +993,8 @@ export class Sim {
           }
           return;
         }
+        // AutoCheckoutHelper.StartAutoCheckout: if the player is using the register, ExitCheckOut first
+        if (k.autoCur !== ch.cur) { k.autoCur = ch.cur; if (ch.using) this.emit('exitCheckout'); }
         this.autoCheckout(k, dt);
         return;
       }
