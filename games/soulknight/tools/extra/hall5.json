@@ -1,8 +1,0 @@
-{
- "bundles": [
-  "hero_room/common"
- ],
- "prefabs": [
-  "arcade_machine"
- ]
-}

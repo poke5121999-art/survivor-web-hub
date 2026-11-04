@@ -1,9 +1,0 @@
-{
- "bundles": [
-  "levelcommon"
- ],
- "prefabs": [
-  "signs_tip",
-  "chest00"
- ]
-}

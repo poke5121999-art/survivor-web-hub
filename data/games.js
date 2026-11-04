@@ -42,105 +42,6 @@
  */
 window.HUB_GAMES = [
   {
-    id: "dragonproj",
-    title: "Săn Rồng",
-    tagline: "Săn quái một ngón: kéo để chạy, chạm để bắn, vẩy để né.",
-    desc: "Mang ba thợ săn vào ải và đổi qua lại ngay giữa trận. Sáu lớp vũ khí, từ súng săn cận chiến tới cung nạp lực, mỗi lớp mạnh đúng một kiểu. 38 ải, cuối mỗi ải là một con Behemoth. Gacha ra 43 nhân vật.",
-    genre: "hanh-dong",
-    accent: "#f59e0b",
-    en: { title: "Dragon Hunt", tagline: "One-finger monster hunting: drag to run, tap to shoot, flick to dodge.", desc: "Take three hunters into each stage and swap between them mid-fight. Six weapon classes, from close-range shotguns to charged bows, each best at one thing. 38 stages, each ending with a Behemoth. The gacha pulls from 43 characters." },
-    thumbnail: "assets/thumbnails/dragonproj.png",
-    path: "games/dragonproj/index.html",
-    rev: "20260901a",
-    // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
-    // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
-    // cho di động, 1-4 người.
-    // KHÔNG dùng một file ảnh/âm thanh nào của game gốc. Cái được lấy là DỮ LIỆU
-    // THIẾT KẾ, đọc từ Official Dragon Project Wiki (154 trang, qua api.php), bài
-    // 4Gamer 2016-06-20 mô tả bản đồ thao tác ぷにコン, wiki Shironeko Project (game
-    // cùng hệ điều khiển, nơi Punicon ra đời), và ảnh chụp HUD trong wiki dùng để dựng
-    // lại bố cục. Ghi chép đầy đủ kèm nguồn: games/dragonproj/RESEARCH.md.
-    // ART: nhân vật, quái, boss, nền và vật trang trí là SPRITE THẬT lấy từ kho
-    // D:\HoloCureAssets (rip từ HoloCure) — chỗ để vẽ đè lên sau. Trước đây mọi thứ vẽ
-    // bằng code hình học; đổi vì hình vẽ-bằng-code không ra cảm giác nào cả. Đường ống
-    // trong js/atlas.js + _tools/pack.py cố ý giữ một luật: ĐỔI ART = THAY FILE PNG +
-    // SỬA assets/asset-map.json, KHÔNG ĐỤNG CODE — trong code không có lấy một tên
-    // sprite nào, chỉ có khoá kiểu 'mobs.purun.idle'. Thiếu ảnh thì tự rơi về hình học
-    // cũ chứ không vỡ. Danh mục và lý do chọn từng sprite: games/dragonproj/assets/ASSETS.md.
-    // Vũ khí trên tay + trong kho đồ là biểu tượng của Sephiria (sephiria.page),
-    // tra theo LỚP x HỆ: 5 x 7 = 35 ô, không ô nào trống. Ba số rot/len/grip căn ảnh
-    // vào bàn tay nằm trong manifest, không nằm trong code. Lưỡi QUÉT theo cung của
-    // đòn đang ra (cùng công thức handAngle mà thân dùng), và vệt chém là một dải
-    // vuốt nhọn bám đúng mép dẫn đó — hai thứ đi cùng một nhịp, không còn cảnh lưỡi
-    // đứng im trong khi vệt chém quét ngang.
-    // Boss tra ảnh theo DÁNG THÂN (21 dáng cho 56 con), hệ nói bằng quầng sáng dưới
-    // chân chứ không nhuộm nguyên con.
-    // Kho đồ: GIỮ một món rồi KÉO lên khe để lắp. Giữ-rồi-mới-kéo (180ms) là để
-    // không giết mất thao tác cuộn danh sách; khe chỉ sáng khi nhận được đúng loại;
-    // kéo tới sát mép trên thì khung tự cuộn cho khe trang bị lên tới nơi.
-    // VFX vẫn vẽ bằng code (Canvas 2D thuần) — xem games/dragonproj/REMAKE.md.
-    // NHÂN VẬT (data/heroes.js): 43 người lấy từ dàn sprite HoloCure. Mỗi người gắn
-    // CỨNG một lớp vũ khí — tức gắn cứng một bộ move set và hai kỹ năng — cộng một hệ.
-    // Gắn cứng chứ không cho tự chọn, vì nếu ai cũng cầm được mọi thứ thì nhân vật chỉ
-    // còn là một bộ chỉ số và một tấm ảnh; gắn cứng thì đội hình ba người mới là một
-    // quyết định thật. Mỗi người TỰ GIỮ trang bị của mình (một ô vũ khí đúng lớp + bốn
-    // ô giáp) và một món chỉ nằm ở một người. Ba khe đổi-giữa-trận có sẵn từ trước giờ
-    // là ba NGƯỜI: đổi khe là đổi ảnh, đổi lớp, đổi kỹ năng, đổi cả thanh máu.
-    // Gacha KHÔNG còn quay ra đồ, chỉ quay ra người; trùng người thì thành Lõi Rồng.
-    // Hồ sơ cũ (ba khe vũ khí của một người) tự chuyển thành đội hình ba người, chọn
-    // theo đúng ba lớp đang dùng — có test khoá lại.
-    // 2026-09-01: ĐỔI TỪ CẬN CHIẾN SANG BẮN, và hạ thang sát thương. Lý do đo được
-    // chứ không phải cảm tính: quái thường đang chết trong 0,5-1,0 phát suốt cả game
-    // (0,60 ở cấp 1 · 1,01 ở cấp 10 · 0,51 ở cấp 40), vì sát thương cộng dồn từ ba
-    // nguồn đều lớn trong khi máu quái chỉ là 32+14/cấp. Sau khi sửa: TTK 0,95-2,34
-    // giây, đúng dải chuẩn của thể loại, và số phát để giết giữ ổn định theo cấp.
-    // Phần lớn việc rescale do TỐC ĐỘ BẮN gánh chứ không phải do chia sát thương:
-    // chuỗi combo cũ ra ~2 nhát/giây, súng trường bắn 5 phát/giây.
-    // Sáu lớp: rifle (DPS bền) · shotgun (burst cận cảnh, tầm 149px ngắn nhất game) ·
-    // sniper (tầm + xuyên hàng) · bow (nạp bốn nấc + DẢI CHÍ MẠNG: đứng đúng tầm thì
-    // mỗi mũi đau gấp rưỡi) · staff (năm tia toè quạt, niệm NGẮT ĐƯỢC) · launcher
-    // (dọn đám, đạn chậm cố ý, không bao giờ chí mạng).
-    // Kèm theo: hệ THẺ ĐÁNH (tối đa 3 con được ra đòn cùng lúc, số còn lại vẫn doạ
-    // nhưng không đánh), đạn quái to gấp 2,5 và chậm bằng đúng tốc chạy người chơi,
-    // hitstop hạ từ 50-210ms xuống thang 1/10/20/50/100ms, và đạn hiện dần 140ms chưa
-    // có hitbox. Ghi chép đầy đủ kèm nguồn: games/dragonproj/SHOOTER.md
-    // Trọng tâm vẫn là PUNICON, hệ điều khiển một-ngón của COLOPL: kéo = chạy,
-    // chạm = bắn, giữ = ba nghĩa tuỳ lớp (rải / nạp lực / ghì súng), vẩy = né,
-    // giữ-rồi-trượt-về-nút = dồn rồi xả kỹ năng.
-    // KỸ NĂNG (js/skills.js): 6 lớp × 2 = MƯỜI HAI kỹ năng, và mười hai cái là mười hai
-    // trình phát riêng biệt — có test khoá lại luật đó, vì bệnh cũ của bản trước đúng là
-    // 40 viên Magi dùng chung 3 nhánh code nên xả cái nào cũng thấy y hệt nhau.
-    // Sức mạnh giờ tính theo D×R×T×K (sát thương đòn thường × phát/giây × hồi chiêu ×
-    // hệ số) thay vì hệ số 1,8–3,4 cũ — thấp hơn chuẩn thể loại cả chục lần, và đó là
-    // lý do không ai buồn bấm kỹ năng. Chồng lên là LỚP NGUYÊN TỐ (6 hệ): lôi kiếm lướt tới để lại vệt điện, chém
-    // trúng thì điện nảy sang mục tiêu bên cạnh; hoả thì đốt, thuỷ thì đóng băng trơn
-    // trượt, thổ thì hất văng và rung đất, quang thì làm loá, ám thì hút máu.
-    // HỆ MAGI ĐÃ XOÁ SẠCH — nó là thứ làm loãng phần vũ khí. Ô Magi, kho Magi, quầy quay
-    // Magi và mọi chỉ số phụ thuộc nó đều đi theo.
-    // Số liệu CÓ NGUỒN: tỉ lệ gacha (SS 3 / S 15 / A 55 / B 27), tỉ lệ rơi đồ của quái
-    // thường và quái elite, thang chỉ số trang bị hạng SS, bảng thưởng nhiệm vụ ngày/tuần,
-    // và luật thưởng tối đa 4 Gem mỗi con boss.
-    // Máu boss và sát thương từng đòn KHÔNG nguồn nào công bố nên là tái dựng, cân theo
-    // thang chỉ số trên.
-    // BỐN CHỖ CỐ Ý LỆCH BẢN GỐC (ba chỗ đầu: RESEARCH.md mục 13; chỗ thứ tư: REMAKE.md):
-    //   1. Đi ẢI đánh số thay cho map nối map + Quest Gacha ra boss — 38 ải, mỗi ải là
-    //      dọn quái rồi Behemoth cuối ải ra ngay tại chỗ. Trùm leo B → A → S → SS.
-    //   2. Gacha ra THẲNG trang bị (giữ nguyên tỉ lệ SS 3 / S 15 / A 55 / B 27), bỏ khâu
-    //      Tablet + lò rèn. Nguyên liệu để NÂNG CẤP vẫn phải cày trong ải.
-    //   3. Quay trúng món đã có thì ra LÕI RỒNG — thứ duy nhất mở được bậc Tiến hoá, và
-    //      không rơi ở bất kỳ bảng nào (có test quét toàn bộ bảng rơi để chốt luật này).
-    //   4. Kỹ năng gắn vào VŨ KHÍ chứ không phải vào một hệ rune riêng: cây nào lên Lv.8
-    //      thì mở kỹ năng thứ hai của chính nó. Chọn vũ khí = chọn lối đánh, không phải
-    //      chọn xong rồi còn đi lắp rune.
-    // Co-op 1-4 người của bản gốc KHÔNG được dựng lại, và cũng không có NPC đồng đội:
-    // vào ải MỘT MÌNH, bù lại có 3 lượt tự đứng dậy.
-    // Ships with an in-game bot bắn PointerEvent thật lên canvas — tức là đi qua đúng con
-    // đường mà ngón tay người chơi đi qua (js/punicon.js), nên ngưỡng tap/flick/hold sai là
-    // bot hỏng ngay. test/dragonproj-suite.js lái nó và kiểm luật.
-    status: "available",
-    tags: ["Bắn súng", "Săn quái", "Gacha", "Một ngón", "Solo"]
-  },
-  {
     id: "survivor",
     title: "Survivor",
     tagline: "Chỉ việc chạy né, vũ khí tự bắn. Sống sót qua từng đợt quái.",
@@ -175,29 +76,6 @@ window.HUB_GAMES = [
     // (shaders, particles, lighting) without breaking the build.
     status: "available",
     tags: ["Thủ thành", "Đánh trùm", "Solo"]
-  },
-  {
-    id: "mmorpg",
-    // WORKING TITLE — the owner has not named this game yet; only the folder name
-    // (mmorpg_survivor) is settled. Change `title` here when they do; `id` is the
-    // folder under games/ and should stay put.
-    title: "Survivor MMO",
-    tagline: "Thế giới mở với lối đánh tự bắn của Survivor. Cày bãi quái, về lúc nào tuỳ bạn.",
-    desc: "Cùng lối đánh tự bắn của Survivor, nhưng trong một thế giới được lưu lại. Đi dọc hành lang đấu trường, dọn các bãi quái tự hồi sinh theo giờ riêng, cày đủ thì rời đi.",
-    genre: "nhap-vai",
-    accent: "#818cf8",
-    en: { title: "Survivor MMO", tagline: "Survivor's auto-shooter combat in a persistent world. Farm camps, leave anytime.", desc: "The same auto-shooter combat as Survivor, in a world that remembers. Walk up the arena corridor, clear mob camps that respawn on their own timers, and leave once you have farmed enough." },
-    thumbnail: "assets/thumbnails/mmorpg.svg",
-    path: "games/mmorpg/index.html",
-    // available since 2026-08-08: a real WebGL build (69 MB, Unity 6000.0.59f2) built from
-    // the mmorpg_survivor fork at 169509c34. No match clock, no win/lose, no level-up skill
-    // choice, no co-op; a level grants +1 ATK / +1 HP; gear drops from kills with its own
-    // rolled stats. Progress uses the same hub-account save contract as the other two games.
-    // NOT yet eyes-on verified: nobody has played a match. Everything claimed above is a
-    // green compile plus 905 passing unit tests, which is exactly the evidence that has
-    // missed build-only breakage on this hub before (see Kingfall, patch-16).
-    status: "available",
-    tags: ["MMORPG", "Tự bắn", "Cày quái"]
   },
   {
     id: "rung-toi",
@@ -440,83 +318,6 @@ window.HUB_GAMES = [
     tags: ["Hành động", "Extraction", "Kinh dị", "Solo"]
   },
   {
-    id: "orbit",
-    title: "Quỹ Đạo — Mốc 1",
-    tagline: "Bản dựng thử: so hai cách chở hàng trên cùng một dây chuyền.",
-    desc: "Chưa phải game hoàn chỉnh. Bản A nối máy với máy bằng hai cú chạm, bản B dùng kho chung kiểu Deep Town. Chơi cả hai trong 3 phút rồi xem bản nào vừa tay hơn.",
-    genre: "khac",
-    accent: "#94a3b8",
-    en: { title: "Orbit — Milestone 1", tagline: "A prototype comparing two ways to move goods on one production line.", desc: "Not a full game yet. Version A links machine to machine with two taps, version B uses a shared store like Deep Town. Play both for 3 minutes and see which feels better." },
-    thumbnail: "assets/thumbnails/orbit.svg",
-    path: "games/orbit/index.html",
-    // 2026-08-31. Dụng cụ đo cho games/orbit/RESEARCH.md muc 9 (Moc 1) - the question is
-    // whether a factory graph survives a portrait screen and a single centre joystick once
-    // conveyor dragging is removed. Both variants share map seed, recipes, craft times and
-    // controls; only the transport layer differs. It is a measuring tool rather than a
-    // finished game — but it runs, so it is available rather than build-pending; the
-    // "Dựng thử" tag is what tells a player what they are opening.
-    // Checks: node games/orbit/tools/smoke.js
-    status: "available",
-    tags: ["Dây chuyền", "Dựng thử", "Màn dọc", "Một tay"]
-  },
-  {
-    id: "slimeclash",
-    title: "SlimeClash",
-    tagline: "Ghép slime trên lưới 6×6, gộp lên cấp và bắn hạ con quái khổng lồ.",
-    desc: "Mỗi lượt ba bước kéo quân. Xếp ba con cùng loại cùng cấp thành hàng để gộp lên cấp. Hết bước, cả sân bắn vào quái, rồi quái nện xuống cột nó đã báo trước. Mười ngày một chương, trùm ở ngày 5 và ngày 10.",
-    genre: "chien-thuat",
-    accent: "#34d399",
-    en: { title: "SlimeClash", tagline: "Merge slimes on a 6×6 grid, level them up and blast a giant monster.", desc: "Three moves per turn. Line up three slimes of the same kind and level to merge them up. Then the whole board fires at the monster, and it slams the column it warned you about. Ten days per chapter, bosses on day 5 and day 10." },
-    thumbnail: "assets/thumbnails/slimeclash.png",
-    path: "games/slimeclash/index.html",
-    // Cơ chế GỘP + tiến trình + kinh tế của Slime Legion (Perfeggs, 2023), bỏ hẳn pha thủ
-    // thành auto-battle, thay bằng trận theo lượt lấy cảm hứng từ Might & Magic: Clash of
-    // Heroes (Capybara/Ubisoft, 2009).
-    //
-    // Bản đầu dựng đúng theo Clash of Heroes — HAI sân đối đầu, mỗi quân một bộ đếm lượt
-    // nạp trên đầu — và đã bị bỏ: hai sân đối đầu là hình dạng của một game PvP chứ không
-    // phải PvE. Bản đang chạy chỉ người chơi có sân; đối thủ là MỘT con quái có thanh máu
-    // riêng, đánh trả vào một cột đã báo trước, và đòn của nó đếm theo BƯỚC chứ không theo
-    // lượt — càng thao tác nhiều thì đòn tới càng nhanh.
-    //
-    // SỐ CÂN BẰNG LÀ SỐ ĐO THẬT, không phải phỏng đoán: mổ APK Slime Legion 4.5.0 rồi đọc
-    // ba bộ cấu hình quên mã hoá (config_t1, config_t3, dungeon, elitechapter). Từ đó ra:
-    // lưới 6x6 (BoardInitColumnCount/RowCount), ngân sách bước 10/10/6 mỗi ngày, máu quái
-    // x1.15/ngày nhưng sát thương quái KHÔNG tăng (attack_ratio = 1), trần giảm sát thương
-    // 80%, boss báo trước 10 bước (boss_forecast_step), máu thành 1000 bất biến ở cả 1744
-    // dòng cấu hình ải, trần vàng/mảnh theo chương (coin_max 220->1800, hero_card_max
-    // 25/35/45), bảng trọng số rơi hộp kỹ năng, xác suất thưởng khi gộp 3 ô và 4 ô (đều
-    // 0.5), và 96 hero kèm id + slug. Mỗi hero còn có đủ 6 khung sprite theo cấp trong
-    // res/heroes — gộp lên cấp là thấy con vật lột xác ngay, đó là phần thưởng thị giác
-    // của cả cơ chế.
-    // Ghi chép đầy đủ kèm cách lấy: games/slimeclash/_research/ (12 tài liệu).
-    //
-    // CHƯA LẤY ĐƯỢC: chỉ số gốc từng hero, giá nâng cấp, tỉ lệ gacha, stamina — nằm trong
-    // config/table.bytes mã hoá XXTEA, khoá chưa dò ra (đã vét literal C#, metadata IL2CPP,
-    // mọi section của libil2cpp.so, 12 thư viện .so khác, 9 file DEX). Bốn agent research
-    // wiki xác nhận các số này KHÔNG tồn tại ở bất kỳ nguồn công khai nào. Nên chỉ số quân
-    // trong js/data.js dựng theo thang 38 unit của Clash of Heroes, và header file đó GHI RÕ
-    // rằng đấy không phải số của Slime Legion — đừng ai đọc nhầm.
-    //
-    // IAP: giữ nguyên bộ máy gói nạp kích-theo-hành-vi của bản gốc (gói tân thủ, gói sau 3
-    // lần thua, gói khi thiếu vàng) nhưng mua đều MIỄN PHÍ. Bỏ giá đi thì cooldown một mình
-    // cho phép ~276 lượt mở gói/ngày và game sụp trong một buổi chiều, nên phần thưởng đi
-    // qua đúng trần chương của bản gốc, cộng ngân sách "Phiếu Ưu Đãi" 8/ngày và trần kim
-    // cương 180/ngày. Lý lẽ đầy đủ: _research/economy-design.md.
-    //
-    // Kiểm: node games/slimeclash/_test/sim.js — kiểm luật gộp, kiểm bất biến bàn cờ, rồi
-    // cho bot chơi và đo tỉ lệ thắng theo chương/ngày (cấp Hero trong mô phỏng SUY TỪ trần
-    // vàng [APK], không bịa). Và node games/slimeclash/_test/browser.js — Chrome headless
-    // qua DevTools Protocol, không cần npm: kiểm kéo thả thật sự đổi bàn cờ và tốn bước,
-    // bấm Đánh thì quái mất máu, và màn trận không tràn quá một màn hình.
-    //
-    // Mô phỏng bắt được bốn lỗi cân bằng mà đọc code không thấy — đáng chú ý nhất:
-    // gradePowerMul PHẢI lớn hơn minRun, để 2.2 với minRun 3 thì gộp là LỖ và nước đi tối
-    // ưu thành "không bao giờ gộp". Suy dẫn ghi ngay trong js/config.js.
-    status: "available",
-    tags: ["Ghép ô", "Theo lượt", "Màn dọc", "Một tay", "Chiến thuật"]
-  },
-  {
     id: "chuyen-tau",
     title: "Chuyến Tàu Cuối",
     tagline: "Giữ đoàn tàu hơi nước sống sót qua sa mạc Viễn Tây đầy xác sống.",
@@ -570,68 +371,6 @@ window.HUB_GAMES = [
     // Kiểm: node test/chuyen-tau-suite.js
     status: "available",
     tags: ["Bắn súng", "Nhìn từ trên xuống", "Màn ngang", "Roguelite", "Gacha", "Viễn Tây"]
-  },
-  {
-    id: "deepcore",
-    title: "Lõi Sâu",
-    tagline: "Đào sâu xuống hang, để mười linh thú tự đánh thay bạn.",
-    desc: "Một cần gạt, màn hình dọc. Bạn không tự đánh, mỗi món mang theo là một linh thú tự chọn mục tiêu. Việc của bạn là đi, đào và đứng đúng chỗ. Mỗi ván một tầng khoảng mười phút, hạ chủ hang rồi chạy về khoang thoát.",
-    genre: "hanh-dong",
-    accent: "#f472b6",
-    en: { title: "Deep Core", tagline: "Dig deep into the caves and let ten companion beasts fight for you.", desc: "One joystick, portrait screen. You never attack, every item you carry is a beast that picks its own targets. Your job is to move, dig and stand in the right place. Each run is one floor of about ten minutes: beat the cave boss, then race to the escape pod." },
-    thumbnail: "assets/thumbnails/deepcore.png",
-    path: "games/deepcore/index.html",
-    rev: "20260907f",
-    // Trộn ba game: Deep Rock Galactic (nhịp đi hang, nhiệm vụ, bầy có báo trước,
-    // chạy thoát) + Deep Rock Galactic: Survivor (lên cấp chọn 1 trong 3, vũ khí tự
-    // đánh, tự đào) + Core Keeper (đá đặc, khoét hang, vỉa quặng, bóng tối, art).
-    // Ghi chép đầy đủ kèm nguồn: games/deepcore/research/ (bốn tài liệu, ~4.000 dòng,
-    // hơn 340 nhãn [NGUỒN] kèm URL) và games/deepcore/DESIGN.md.
-    //
-    // ART: sprite THẬT rút từ Core Keeper đang cài trên máy
-    // (D:\Steam\steamapps\common\Core Keeper). 6.969 texture + 7.642 sprite được
-    // bóc bằng UnityPy, lọc còn 478 khoá đóng thành 2,45 MB atlas. Đường ống giữ đúng
-    // luật của dragonproj: TRONG CODE KHÔNG CÓ MỘT TÊN TỆP ẢNH NÀO, chỉ có khoá kiểu
-    // 'mob.caveling.move'. Đổi art = sửa danh mục trong _tools/build_atlas.py rồi chạy
-    // lại, không đụng code.
-    //
-    // Ba chỗ phải giải mã mới dùng được bộ art (xem games/deepcore/assets/ASSETS.md):
-    //   1. Nhân vật là PAPERDOLL: 293 lớp trang bị cùng khổ 234x156, cùng một bảng
-    //      39 khung 26x26. Nhờ thế "đội mũ vào thì thấy cái mũ" là chuyện miễn phí —
-    //      chỉ là vẽ thêm một lớp nữa, không phải hiệu ứng.
-    //   2. Nhiều sinh vật (chó, mèo, rùa, bọ cuộn, slime...) được tô màu bằng BẢNG
-    //      DẢI MÀU: ảnh gốc chỉ là mặt nạ độ sáng, màu thật nằm trong một texture
-    //      256x1 tên gm_<tên>. Không áp bảng thì cả đàn vẽ ra thành khối đen.
-    //   3. Số khung của mỗi dải anim không nằm trong dữ liệu nào đọc được (game dùng
-    //      ECS chứ không dùng AnimationClip của Unity), nên phải DÒ bằng ảnh: ba dấu
-    //      hiệu cộng lại (khe cắt, lệch tâm, tỉ lệ), sai chỗ nào thì ghi đè tay.
-    //
-    // BỐN CHỖ CỐ Ý LỆCH BẢN GỐC:
-    //   1. MỘT TẦNG chứ không leo năm tầng như DRG:Survivor — giống DRG gốc hơn, và
-    //      một ván mười phút trên điện thoại không chứa nổi năm đường cong độ khó.
-    //   2. QUÁI KHÔNG RƠI VIÊN KINH NGHIỆM. Kinh nghiệm cộng thẳng, và phần lớn đến
-    //      từ ĐÀO chứ không từ giết — nên cây cuốc không bao giờ là việc phụ, và
-    //      không ai phải hút sạch sàn sau mỗi đợt bằng một ngón cái.
-    //   3. NGƯỜI CHƠI KHÔNG TỰ ĐÁNH. Cả sát thương đến từ linh thú (lớp summoner).
-    //      Để việc đó vẫn có chiều sâu: quái đứng trong 120px quanh người chơi thì ăn
-    //      thêm 25% sát thương (chép Meat Shield của Path of Exile), nên VỊ TRÍ thay
-    //      cho việc ngắm. Một nút duy nhất: GỌI — gom bầy về, hồi cho chúng, và cộng
-    //      35% sát thương trong hai giây.
-    //   4. Glurch tách ra slime con khi máu ≤ 50%. Bản gốc chỉ có MỘT chiêu (nhảy vồ
-    //      + vũng nhớt), đủ cho một sandbox nhưng phẳng lì khi nó là cao trào đóng màn
-    //      của một ván mười phút.
-    //
-    // CÂN BẰNG ĐO BẰNG MÁY chứ không đoán: _tools/soak.js chạy trọn một ván không vẽ,
-    // với một người chơi giả biết né đòn báo trước và giữ quái ở tầm trung. Sáu lượt
-    // ải 1: thắng 4/6, ván trung bình 6 phút 38, cấp 17,7. Bốn lỗi nặng chỉ bị lộ nhờ
-    // bộ đo này chứ không nhờ chơi tay: quặng do CHÍNH người chơi đào không được tính
-    // vào nhiệm vụ; đào đá thường không cho kinh nghiệm nên vòng tiến bộ không khởi
-    // động được; mảnh linh thú rơi cho cả mười con thay vì chỉ đội đã ra trận; và 60
-    // giây chạy thoát là không đủ băng qua bản đồ.
-    //
-    // Kiểm: node test/deepcore-suite.js
-    status: "available",
-    tags: ["Đào hầm", "Nhìn từ trên xuống", "Màn dọc", "Roguelite", "Triệu hồi", "Gacha"]
   },
   {
     id: "ghe-nong",
@@ -759,70 +498,6 @@ window.HUB_GAMES = [
     tags: ["Lặn biển", "Kéo đồ", "Kiểu REPO", "Gacha", "Crew", "Pixel art", "3D", "Màn ngang"]
   },
   {
-    id: "pokeone",
-    title: "PokéOne",
-    tagline: "Bắt Pokémon từ Pallet Town, đi theo ô và đấu theo lượt như PRO.",
-    desc: "Tạo nhân vật, nhận Pokémon đầu tiên từ Giáo sư Oak rồi đi qua Route 1 tới Viridian City. Trận đấu chạy luật Gen 7 trên Pokémon Showdown. Lập đội tối đa 3 người để đánh chủ gym, đấu giá Pokémon ở chợ trời.",
-    genre: "nhap-vai",
-    accent: "#facc15",
-    en: { title: "PokéOne", tagline: "Catch Pokémon from Pallet Town, walk the grid and battle turn by turn like PRO.", desc: "Create your trainer, get your first Pokémon from Professor Oak and head through Route 1 to Viridian City. Battles run Gen 7 rules on Pokémon Showdown. Team up with up to 3 players for gym leaders, and auction Pokémon at the marketplace." },
-    thumbnail: "assets/thumbnails/pokeone.png",
-    path: "games/pokeone/index.html",
-    rev: "20260928b",
-    // @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild) vendor sẵn trong games/pokeone/vendor, không có bước build.
-    // ART + TIẾNG + UI: rút từ client PRO (D:\PROClient_64.zip, Unity 2023.1) theo yêu cầu của chủ dự án ngày
-    // 2026-09-28, bằng các công cụ trong games/pokeone/tools/pro (tile 32px, sprite Pokémon trước/sau/đi theo, lớp
-    // nhân vật, NPC, nền trận, hoạt ảnh chiêu, atlas UI NGUI, tiếng hiệu ứng). Nhạc và tiếng kêu vẫn từ PokéOne.
-    // Bản đồ không có trong client (máy chủ gửi) nên Pallet/Route 1/Viridian dựng tay bằng tile PRO.
-    // Đây không phải tài sản của repo: muốn gỡ thì xoá games/pokeone/art, games/pokeone/audio và games/pokeone/data.
-    // Mạng: Supabase Realtime (chat, boss) + bảng chợ ở db/pokeone-market.sql. Thiết kế: games/pokeone/NET.md.
-    // Kiến trúc: games/pokeone/ARCH.md.
-    //
-    // Kiểm: node test/pokeone-engine.js, pokeone-battle.js, pokeone-world.js, pokeone-shell.js, pokeone-social.js
-    status: "available",
-    tags: ["Pokémon", "Nhập vai", "Bắt Pokémon", "Đấu theo lượt", "2D", "Đi theo ô", "Chat", "Đánh boss", "Chợ trời"]
-  },
-  {
-    id: "soulknight",
-    title: "Hiệp Sĩ Linh Hồn",
-    tagline: "Soul Knight trên web: bắn tự ngắm, dọn phòng, hạ trùm cuối mỗi tầng.",
-    desc: "Qua Rừng, Lâu Đài, Núi Lửa từ 1-1 tới 3-5. 42 nhân vật có kỹ năng riêng, 361 vũ khí, 12 trùm, lái buôn, tượng và buff. Thêm chế độ mùa giải Thoát khỏi Monkia. Số liệu lấy thẳng từ Soul Knight 8.6.",
-    genre: "hanh-dong",
-    accent: "#60a5fa",
-    en: { title: "Soul Knight", tagline: "Soul Knight on the web: auto-aim shooting, room clearing, a boss on every floor.", desc: "Fight from 1-1 to 3-5 through the Forest, Castle and Volcano. 42 characters with their own skills, 361 weapons, 12 bosses, merchants, statues and buffs. Includes the Escape from Monkia season mode. Stats come straight from Soul Knight 8.6." },
-    thumbnail: "assets/thumbnails/soulknight.png",
-    path: "games/soulknight/index.html",
-    rev: "20261015a",
-    // Plain canvas/JS, không engine. ART + CẤU HÌNH: bóc từ Soul Knight 8.5.1 (ChillyRoom) theo yêu cầu
-    // của chủ dự án ngày 2026-09-29, bằng games/soulknight/tools/build_sk.py (máu/tốc độ/AI/súng của quái,
-    // 711 hoạt ảnh gốc, 282 mẫu phòng kèm cấu hình đợt quái, rương/cửa/cổng/vật phẩm). Chỉ số vũ khí,
-    // nhân vật, trùm lấy từ wiki cộng đồng vì các bundle ấy không còn trên máy.
-    // Đây không phải tài sản của repo: muốn gỡ thì xoá games/soulknight/art và games/soulknight/data.
-    //
-    // Kiểm: node test/soulknight-smoke.js (cần server tĩnh ở cổng 8811 tại gốc repo)
-    status: "available",
-    tags: ["Roguelike", "Bắn súng", "Hầm ngục", "Pixel art", "Tự ngắm", "Soul Knight"]
-  },
-  {
-    id: "diablo2",
-    title: "Ác Quỷ II",
-    tagline: "Diablo II làm lại trên web: đủ 5 act, bảy lớp nhân vật, ba độ khó.",
-    desc: "Dùng hình, tiếng, bản đồ và số liệu gốc. 131 khu sinh ngẫu nhiên mỗi lần vào, từ Rogue Encampment tới Worldstone Chamber, có lính đánh thuê, waypoint và trùm cả 5 act. Chuột trái đi và đánh, chuột phải dùng kỹ năng. Điện thoại xoay ngang có cần điều khiển.",
-    genre: "nhap-vai",
-    accent: "#dc2626",
-    en: { title: "Diablo II", tagline: "Diablo II remade for the web: all 5 acts, seven classes, three difficulties.", desc: "Built from the original art, sound, maps and numbers. 131 areas generated fresh each visit, from the Rogue Encampment to the Worldstone Chamber, with mercenaries, waypoints and every act boss. Left click to move and attack, right click for skills. Phones in landscape get a joystick." },
-    thumbnail: "assets/thumbnails/diablo2.png",
-    path: "games/diablo2/index.html",
-    rev: "20261009a",
-    // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-06: dùng asset + config của Diablo II từ bản D2R
-    // trên máy (D:/Diablo2, giải nén ở D:/d2r-ref). Art 2D cổ (DCC/DT1/DS1/DC6) bóc từ kho CASC, số liệu từ
-    // excel 3.1. Lever ở games/diablo2/_tools/, hợp đồng ở brain/plans/diablo2-d2r.md, ghi chép ở README.md.
-    //
-    // Kiểm: node test/diablo2-rules.js, diablo2-drlg.js, diablo2-suite.js
-    status: "available",
-    tags: ["Nhập vai hành động", "Hầm ngục", "Isometric", "Nhặt đồ", "Diablo II"]
-  },
-  {
     id: "gia-pha",
     title: "Cây Gia Phả",
     tagline: "Dựng cây gia phả dòng họ, có nhạc nền, tủ truyện gia đình và chế độ cây tự kể chuyện.",
@@ -860,26 +535,6 @@ window.HUB_GAMES = [
     // Kiểm: sh ~/REPO_MOBI/notes/sprite-cutter/run-test.sh
     status: "available",
     tags: ["Công cụ", "Cắt sprite", "Xoá nền", "Đổi tên tệp", "Pixel art"]
-  },
-  {
-    id: "tron-tim",
-    title: "Trốn Tìm",
-    tagline: "Trốn tìm 10 người với bot: núp bụi, né bo, chạy ra cổng cùng đồng đội.",
-    desc: "7 người trốn, 3 người tìm trên bản đồ ghép ngẫu nhiên. Người tìm đóng giả người trốn trong 5 giây đầu. Bo co qua 4 vòng, cuối cùng cổng mở. Tám nhân vật Soul Knight, mỗi người một kỹ năng như tàng hình, mồi nhử, dịch chuyển.",
-    genre: "hanh-dong",
-    accent: "#a3e635",
-    en: { title: "Hide & Seek", tagline: "10-player hide and seek with bots: hide in bushes, beat the zone, reach the gate together.", desc: "7 hiders and 3 seekers on a randomly stitched map. Seekers pose as hiders for the first 5 seconds. The zone shrinks over 4 rounds, then the gate opens. Eight Soul Knight characters, each with a skill like invisibility, decoys or teleport." },
-    thumbnail: "assets/thumbnails/tron-tim.png",
-    path: "games/tron-tim/index.html",
-    rev: "20261006a",
-    // Plain canvas/JS, không engine. Dựng lại Hide And Seek (Heallios, 2021), game trường cũ của chủ dự
-    // án, từ APK đã bóc ở D:\phanminhtam-ref (ngoài git): luật, số liệu, bố cục bản đồ và toàn bộ UI là
-    // của game gốc (dump RectTransform vẽ lại bằng ugui.js). Nhân vật, hoạt ảnh, kỹ năng, VFX, tiếng và
-    // ô bản đồ lấy từ Soul Knight qua games/tron-tim/tools/extract_sk.js. Thiết kế: games/tron-tim/DESIGN.md.
-    //
-    // Kiểm: node test/tron-tim-core.js, tron-tim-skills.js, tron-tim-ui.js (server tĩnh cổng 8814/8815)
-    status: "available",
-    tags: ["Trốn tìm", "Bot", "Bo co dần", "Pixel art", "Soul Knight", "Solo"]
   },
   {
     id: "dredge",
@@ -974,26 +629,6 @@ window.HUB_GAMES = [
     tags: ["Đua xe", "Drift", "Kart", "Phun nitro", "Bot", "3D", "Màn ngang"]
   },
   {
-    id: "maplestory",
-    title: "MapleStory",
-    tagline: "MapleStory v83 chơi một mình trên trình duyệt: Henesys, quái, kỹ năng, nhiệm vụ.",
-    desc: "Bản v83 dựng lại cho web, dữ liệu gốc của game. Tạo nhân vật trên đảo Maple, đánh quái, nhặt đồ, lên cấp, chuyển nghề ở Henesys, Ellinia, Perion, Kerning. Kỹ năng nghề 1 và 2, nhiệm vụ qua NPC, cửa hàng, taxi. Chơi bằng phím hoặc cảm ứng, lưu trong trình duyệt.",
-    genre: "nhap-vai",
-    accent: "#f7a325",
-    en: { title: "MapleStory", tagline: "MapleStory v83 solo in the browser: Henesys, monsters, skills and quests.", desc: "The v83 game rebuilt for the web from its original data. Make a character on Maple Island, hunt, loot, level up and take your job advancement in Henesys, Ellinia, Perion or Kerning. 1st and 2nd job skills, NPC quests, shops and taxis. Keyboard or touch, saved in the browser." },
-    thumbnail: "assets/thumbnails/maplestory.png",
-    path: "games/maplestory/index.html",
-    rev: "20261011b",
-    // Vite build of D:/MapleStoryLocal/web (own repo, outside git here), copied from its dist-hub/ by `npx vite build --mode hub`.
-    // The 1.8 GB of decoded WZ assets lives in three Pages sites, poke5121999-art/maple-assets-1..3, routed by
-    // top-level folder in web/.env.hub. Solo world in the tab (Cosmic server rules, no backend); online seam is
-    // web/src/protocol.ts. Art and sound are Nexon's.
-    //
-    // Kiểm: python verify/game/play.py <url> in D:/MapleStoryLocal/web
-    status: "available",
-    tags: ["MMORPG", "Nhập vai", "Màn ngang", "Kỹ năng", "Solo"]
-  },
-  {
     id: "casual-farm",
     title: "My Mini Mart",
     tagline: "Trồng rau, nuôi gà bò, xếp kệ, đứng quầy, thuê nhân viên rồi lái xe van mở 14 siêu thị.",
@@ -1084,23 +719,6 @@ window.HUB_GAMES = [
     // Kiểm: test/world-of-slime-{intro,quest,quest2,combat,tame,larus,mobile,hud,slice}.js (WOS_BASE=<url game> WOS_ASSETS=).
     status: "available",
     tags: ["Nhập vai", "Bắt quái", "Nhìn từ trên xuống"]
-  },
-  {
-    id: "walking-trade",
-    title: "Chuyến Buôn Xác Sống",
-    tagline: "The Walking Trade: mở quán giữa thời xác sống, bán đồ lấy pin — và thủ quán khi raid tới.",
-    desc: "Lát cắt vòng quán của The Walking Trade, dựng lại bằng Unity WebGL. Sáng mua hàng của thương nhân, đặt giá rồi mở quán. Khách xem kệ, chê đắt khi giá quá 2,25 lần giá gốc, mang món ưng ra quầy trả bằng pin. Sau 19 giờ đóng quán đi ngủ, xem tổng kết rồi sang ngày mới. Ngày 3 rồi mỗi 4 ngày có RAID 09:30: xác sống tràn vào theo từng đợt, cầm vũ khí trong kho (dao, cung, búa) chạm để đánh, trụ hết đợt thì được loot, thua thì mất pin.",
-    genre: "thu-gian",
-    accent: "#e8b04a",
-    en: { title: "The Walking Trade", tagline: "Run a shop at the end of the world, sell your stock for batteries, and defend it when a raid hits.", desc: "The shop loop of The Walking Trade, rebuilt in Unity WebGL. In the morning, buy from the merchant, set your prices and open up. Customers browse the shelf, refuse anything over 2.25 times its base value, and pay in batteries at the counter. After 7 pm, close up and sleep, read the day summary and start a new day. On day 3 and every 4 days after, a 09:30 RAID sends waves of zombies in: wield a weapon from your stock (knife, bow, hammer) and tap to fight, survive every wave for loot, or lose batteries if you fall." },
-    thumbnail: "assets/thumbnails/walking-trade.png",
-    path: "games/walking-trade/index.html",
-    rev: "20261025c",
-    // Unity 6 WebGL, project ngoài git ở D:\walking-trade-ref	wt-webgl. Luật khách, giá và ngày đọc từ bản decode
-    // IL2CPP của game gốc (D:\walking-trade-ref); hình tự vẽ bằng khối màu, không ship art gốc. Số nào tự đặt và
-    // cách build: games/walking-trade/README.md. Kiểm: node test/walking-trade-play.js (TWT_URL=<gốc hub> chạy trên Pages).
-    status: "available",
-    tags: ["Quản lý", "Sinh tồn", "Chiến đấu", "Unity"]
   },
   {
     id: "restaurant-city",

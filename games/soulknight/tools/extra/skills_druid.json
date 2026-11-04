@@ -1,4 +1,0 @@
-{
-  "bundles": ["mount/bear", "pet/vine", "bullet"],
-  "prefabs": ["mbear", "show_effect_bear", "druid_vine", "bullet_50_c11"]
-}

@@ -1,4 +1,0 @@
-{
-  "bundles": ["common", "bullet"],
-  "prefabs": ["funnel_robot_3", "funnel_robot_4", "funnel_robot_skill1_melee", "robot_whirl_wind", "robot_skill1_melee_bullet"]
-}

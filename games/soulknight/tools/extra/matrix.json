@@ -1,4 +1,0 @@
-{
-  "bundles": ["common"],
-  "prefabs": ["npc_gambler", "npc_seller", "npc_prophet"]
-}
