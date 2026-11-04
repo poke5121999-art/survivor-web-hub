@@ -5,9 +5,11 @@ import { W, H } from './sim.js';
 
 // stage button centres on map_00_01 (map pixels), clip c2 5:20: stages 1-4 and the reward chest. The original only
 // draws stages that are open, so nothing past the last open stage is placed.
-// stage 5: the locked boss-stage marker on clip c1 7:52 (map shown 1:1 there, scrolled 51 px: map y = clip y + 51)
-export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579], [211, 516]]; // stage 1 sits on the map art's red X
+// stage 5 is the reward-chest slot (FUC_SET_REWARD_CHEST_POSITION puts the chest on every slot with index % 5 == 4;
+// clip c1 7:56: after stage 4 the player taps the chest and the SHAMANKING prep opens). The framed square above
+// node 4 in that clip is frame_photo_map, a friend's profile photo (social data), not a stage.
 export const MAP_CHEST = [161, 577];
+export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579], MAP_CHEST]; // stage 1 sits on the map art's red X
 const MAP_H = 1024;
 const TAB_Y = 712;
 export const MAP_BTN = {
@@ -67,17 +69,25 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.fillRect(0, 0, W, H);
     const m = img('map_00_01');
     ctx.drawImage(m.img, 0, -s, m.dw || m.w, m.dh || m.h);
-    // reward chest (clip: shown once stage 3 is cleared): btn_stage frame 51 (dark orb in the gold pronged ring) with
-    // the chest icon; the reward itself is not built
+    // stage-5 slot = reward chest (clip c2 5:20: shown once stage 3 is cleared): btn_stage frame 51 (the gold pronged
+    // ring), Eff_Flash_01 turning once every 5 s (RotateBy(5, 360) forever) and icon_clear_bonus on top
+    // (Scene_WorldMap::FUC_SET_REWARD_CHEST_POSITION @0x557778). The light is drawn at its 128 px file size, which is
+    // what the clip shows (CLIP-MEASURED; the C++ scales it by the scene scale). The reward itself is not built.
     if (meta.lastCleared() >= 2) {
       const [x, y] = MAP_CHEST;
       frameC('btn_stage', 51, x, y - s, { scale: 1.15 });
-      frameC('icons', 8, x, y - s, { scale: 0.85 });
+      const fl = img('eff_flash01');
+      ctx.save();
+      ctx.translate(x, y - s);
+      ctx.rotate(((t % 5) / 5) * Math.PI * 2);
+      ctx.drawImage(fl.img, -fl.w / 2, -fl.h / 2, fl.w, fl.h);
+      ctx.restore();
+      frameC('icon_clear_bonus', 0, x, y - s);
     }
     // open stages: numbered button, stars under cleared ones
     MAP_NODES.forEach(([x, y], i) => {
       if (!nodeOpen(i)) return;
-      frameC('btn_stage', i + 1, x, y - s, { scale: 0.85 });
+      if (MAP_NODES[i] !== MAP_CHEST) frameC('btn_stage', i + 1, x, y - s, { scale: 0.85 }); // the chest is stage 5's button
       const info = meta.stageInfo(meta.stageIds[i]);
       if (info.stars > 0) frameC('star_map', info.stars - 1, x, y - s + 47, { scale: 0.85 });
     });
@@ -155,7 +165,7 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.drawImage(img('bg_upgrade').img, 16, 180);
     drawKnight(112, 322, 0.85);
     const st = meta.stats();
-    plain(`ATK ${st.atk}  CRIT ${st.crit}  DEF ${st.def}  HP ${st.hp}`, 28, 198, 12, '#fff');
+    plain(`ATK ${st.atk}  SKILL ${st.skill}  DEF ${st.def}  HP ${st.hp}`, 28, 198, 12, '#fff');
     ctx.drawImage(img('btn_r180').img, PREP_BTN.character.x, PREP_BTN.character.y);
     plain('CHARACTER', PREP_BTN.character.x + 90, PREP_BTN.character.y + 25, 19, '#fff', 'center');
     plain(String(meta.gold()), 384, 203, 19, '#f3e04a', 'right');
@@ -164,10 +174,35 @@ export function createScreens(gfx, meta, stages, metaData) {
     ctx.drawImage(img('btn_more').img, PREP_BTN.gemPlus.x, PREP_BTN.gemPlus.y);
     drawCard('weapon', PREP_BTN.weapon);
     drawCard('armor', PREP_BTN.armor);
+    // booster row as in clip c1 7:57 (ABILITY, HP potion, sword spirit, winged shield, relic; HP potion selected with its
+    // game-text description and BUY tile), then lock_bg_booster (alpha 232/255) over it, so it shows through faintly as
+    // in clip c1 4:42. Counts are 0 before boosters exist; prices are left out (not recovered).
+    ctx.drawImage(img('item_row').img, 15, 393);
+    ctx.drawImage(img('booster_red').img, 16, 395, 88, 80);
+    frameC('icons', 23, 60, 422, { scale: 0.8 });
+    plain('ABILITY', 60, 462, 13, '#fff', 'center');
+    [55, 41, 42, 44].forEach((f, i) => {
+      const cx = 150 + i * 90;
+      frameC('icons', f, cx, 432);
+      plain('0', cx + 30, 410, 14, '#fff', 'right');
+    });
+    ctx.drawImage(img('booster_select').img, 105, 393);
+    plain('HP POTION', 30, 496, 16, '#fff');
+    plain('Restores 30% of HP immediately when', 30, 522, 14, '#cfc7bd');
+    plain('use. Can equip up to 3', 30, 542, 14, '#cfc7bd');
+    ctx.drawImage(img('booster_red').img, 370, 478, 86, 72);
+    frameC('icons', 55, 405, 505, { scale: 0.7 });
+    plain('BUY', 413, 540, 15, '#fff', 'center');
     ctx.drawImage(img('lock_items').img, 15, 391, 450, 168);
     plain(metaData.stages.itemsUnlockText.value, W / 2, 512, 17, '#fff', 'center');
     // NORMAL / HARD / HELL: NORMAL selected, the others locked
     PREP_BTN.modes.forEach((b, i) => {
+      // locked HARD / HELL keep their teal frame, darkened, under the padlock (clip c1 4:42)
+      if (i > 0) {
+        frame('btn_mode', i, b.x, b.y, { scale: 0.9 });
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(b.x + 3, b.y + 3, 76 * 0.9 - 6, 60 * 0.9 - 6);
+      }
       frame('btn_mode', i === 0 ? 0 : 3, b.x, b.y, { scale: 0.9 });
       if (i === 0) frameC('icon_check', 0, b.x + 34, b.y + 27, { scale: 1.25 });
     });

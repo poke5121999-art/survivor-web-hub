@@ -41,7 +41,10 @@ export function createMeta(meta, stageIds, storage) {
     tiers: () => ({ armor: meta.levelToTier.value[save.alv], sword: meta.levelToTier.value[save.wlv] }),
     stats: () => ({
       atk: K.atkByWeaponLevel.value[save.wlv],
+      // player+0x540: shown as CRIT in Drop 1, really the dash skill's power (Scene_Stage::update @0x591a28)
+      skill: K.critByWeaponLevel.value[save.wlv],
       crit: K.critByWeaponLevel.value[save.wlv],
+      wlv: save.wlv,
       def: K.defByArmorLevel.value[save.alv],
       hp: K.hpByArmorLevel.value[save.alv],
     }),

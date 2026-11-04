@@ -45,6 +45,9 @@ IMAGES = {
     'eff_warning_wolf': ('in_eff_warning_wolf(64x64).png', None, None, 1),
     'eff_warning': ('in_eff_warning(32x32).png', None, None, 1),
     'gauge_monster': ('gauge_monster(44x6).png', 44, 6, 2),  # 0 = back, 1 = red fill
+    # world-map stage-5 slot: the reward chest over a spinning light (Scene_WorldMap::FUC_SET_REWARD_CHEST_POSITION)
+    'eff_flash01': ('Eff_Flash_01(512x512).png', None, None, 1),
+    'icon_clear_bonus': ('icon_clear_bonus(64x64).png', None, None, 1),
     # HUD
     'board_target': ('in_board_target(186x102).png', None, None, 1),  # book + coin counters (top right)
     'board_score': ('in_board_score(282x86).png', None, None, 1),  # SCORE board with 3 star marks (bottom right)
@@ -89,7 +92,10 @@ IMAGES = {
     'btn_upgrade': ('btn_upgrade(128x128).png', None, None, 1),  # red upgrade card with coin price bar
     'icon_sword': ('sword_cha_01(64x64).png', 64, 64, 14),  # card icon, frame = level + 1 (the level bought)
     'icon_armor': ('armor_cha_01(64x64).png', 64, 64, 14),
-    'lock_items': ('lock_bg_booster(450x184).png', None, None, 1),  # item row, locked
+    'lock_items': ('lock_bg_booster(450x184).png', None, None, 1),  # item row, locked (91% black: the row shows through)
+    'item_row': ('item_slot(450x90).png', None, None, 1),  # 5 booster slots under the lock
+    'booster_red': ('btn_booster(88x86).png', None, None, 1),  # ABILITY tile / BUY tile
+    'booster_select': ('btn_booster_select(90x88).png', None, None, 1),  # yellow frame of the selected booster
     'btn_mode': ('btn_mode(76x60).png', 76, 60, 4),  # NORMAL / HARD / HELL toggles, 3 = locked
     'icon_check': ('icon_check(32x32).png', None, None, 1),  # red tick on the selected mode
     'btn_menu': ('btn_menu(120x64).png', None, None, 1),  # red button with the yellow arrow (START)
@@ -130,6 +136,7 @@ AUDIO = {
     'gold': 'S_gold.wav',
     'arrow': 'S_ARROW.wav',
     'boss_alert': 'S_BOSS_ALERT.wav',
+    'dash': 'S_START_SKILL.wav',  # Scene_Stage::onTouchesBegan @0x5c59d0 (red button)
 }
 
 

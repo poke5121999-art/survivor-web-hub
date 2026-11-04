@@ -79,7 +79,7 @@
     34,
     37
    ],
-   "src": "GameData::GameData() @0x622498: g_Data+0x9978 + char*0x50 + level*8 -> player+0x540 (percent, +15 in the hit roll)"
+   "src": "GameData::GameData() @0x622498: g_Data+0x9978 + char*0x50 + level*8 -> player+0x540 (percent, +15 in the hit roll) | CORRECTION (Drop 3): player+0x540 is not the slash crit. The knight slash crit is player+0x560 = GameData+0x9618[knight] = 1 (Scene_Stage::update @0x592744, FUC_INIT_PLAYER @0x5f1cdc); +0x540 is the power of the dash skill (Scene_Stage::update @0x591a28) and the guardian crit roll (+15, @0x590ef8). Shown as SKILL."
   },
   "defByArmorLevel": {
    "value": [

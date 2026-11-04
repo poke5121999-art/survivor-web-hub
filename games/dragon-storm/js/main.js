@@ -68,6 +68,7 @@ const SFX = {
   miss: () => 'sword_miss',
   monsterAttack: e => sim.stage.monsters[e.mtype].attackSfx,
   alert: () => 'boss_alert',
+  dash: () => 'dash',
   heroDie: () => 'hero_die',
   skill: () => 'skill',
   potion: () => 'potion',
@@ -82,7 +83,7 @@ function startStage(id = stageId) {
   stageId = id;
   applyTiers();
   const st = meta.stats();
-  sim = ds.sim = createSim(stages[id], SEED + runs++, { hp: st.hp, atk: st.atk, crit: st.crit, def: st.def });
+  sim = ds.sim = createSim(stages[id], SEED + runs++, { hp: st.hp, atk: st.atk, skill: st.skill, def: st.def, wlv: st.wlv });
   sim.inputFlash = inputFlash;
   resultInfo = { best: meta.stageInfo(id).best, hasNext: false };
   ds.scene = 'stage';
@@ -199,7 +200,7 @@ function tapStage(p) {
   }
   if (sim.paused) { sim.paused = false; return 'resume'; }
   if (inside(p, BTN.pause)) { if (sim.phase === 'play') sim.paused = true; return 'pause'; }
-  if (inCircle(p, BTN.red)) { inputFlash[sim.hero.facing < 0 ? 'left' : 'right'] = 0.12; attackFacing(sim); return 'red'; }
+  if (inCircle(p, BTN.red)) { attackFacing(sim); return 'red'; }
   if (inCircle(p, BTN.blue)) { skill(sim); return 'blue'; }
   if (inCorner(p, BTN.shield, true)) { useShield(sim); return 'shield'; }
   if (inCorner(p, BTN.potion, false)) { usePotion(sim); return 'potion'; }

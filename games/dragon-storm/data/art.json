@@ -180,6 +180,22 @@
    "cols": 1,
    "frames": 2
   },
+  "eff_flash01": {
+   "file": "art/eff_flash01.png",
+   "w": 128,
+   "h": 128,
+   "src": "Eff_Flash_01(512x512).png",
+   "dw": 512,
+   "dh": 512
+  },
+  "icon_clear_bonus": {
+   "file": "art/icon_clear_bonus.png",
+   "w": 64,
+   "h": 64,
+   "src": "icon_clear_bonus(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
   "board_target": {
    "file": "art/board_target.png",
    "w": 186,
@@ -551,6 +567,30 @@
    "src": "lock_bg_booster(450x184).png",
    "dw": 450,
    "dh": 184
+  },
+  "item_row": {
+   "file": "art/item_row.png",
+   "w": 450,
+   "h": 90,
+   "src": "item_slot(450x90).png",
+   "dw": 450,
+   "dh": 90
+  },
+  "booster_red": {
+   "file": "art/booster_red.png",
+   "w": 88,
+   "h": 80,
+   "src": "btn_booster(88x86).png",
+   "dw": 88,
+   "dh": 86
+  },
+  "booster_select": {
+   "file": "art/booster_select.png",
+   "w": 90,
+   "h": 82,
+   "src": "btn_booster_select(90x88).png",
+   "dw": 90,
+   "dh": 88
   },
   "btn_mode": {
    "file": "art/btn_mode.png",
@@ -1003,6 +1043,10 @@
   "boss_alert": {
    "file": "art/sfx/S_BOSS_ALERT.wav",
    "src": "S_BOSS_ALERT.wav"
+  },
+  "dash": {
+   "file": "art/sfx/S_START_SKILL.wav",
+   "src": "S_START_SKILL.wav"
   }
  }
 }

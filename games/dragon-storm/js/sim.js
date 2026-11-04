@@ -1,9 +1,8 @@
 // Dragon Storm stage simulation: pure logic, no DOM, so node tests can drive it directly.
-// Per the gameplay clips (~/handoff/dragon-storm-clips.md): one side-view lane, the hero is fixed in the centre and
-// never walks, monsters walk in from both edges, the player slashes left or right. Method names mirror the
-// original's Scene_Stage (FUC_ATTACKING_LEFT_START, FUC_HIT_MONSTER_FROM_LEFT,
-// FUC_FINISH_DELAY_FOR_ATTACKING_MISS, FUC_MONSTER_RUSH_LEFT_RIGHT ...); numbers come from data/stageNN.json, generated
-// from libMyGame.so by tools/gen_stages.py (each value tagged with its C++ source there; PLACEHOLDER keys say so).
+// One side-view lane, the knight is fixed in the centre, monsters walk in from both edges, the player slashes left or
+// right (triangle pads), dashes with the red button (the knight's class skill) and uses Sword Storm with the blue one.
+// Every number comes from data/stageNN.json, generated from libMyGame.so by tools/gen_stages.py; each value there is
+// tagged with its C++ source (Scene_Stage / Scene_UI function + address) or marked PLACEHOLDER / CLIP-MEASURED.
 
 export const W = 480;
 export const H = 800;
@@ -15,9 +14,8 @@ const QUEUE_GAP = 46; // web layout: melee monsters in one lane queue this far a
 const READY_TIME = 1.0;
 const FIGHT_TIME = 0.6;
 const END_TIME = 2.0;
-const MON_ATTACK_TIME = 0.45;
-const MON_ATTACK_HIT = 0.25;
 const DEAD_BODY_TIME = 0.7;
+const DASH_TIME = 0.45; // web animation length of the dash (the original's EFF_DASH timing was not traced)
 
 // Scene_UI::FUC_CALCULATE_DAMAGE @0x607ee0 (no element bonus: both sides element 0 in stages 1-5):
 // max(1, 4*atk - 2*def + (atk >= 3 ? (rand() % atk) / 4 : 1))
@@ -26,8 +24,9 @@ export function calcDamage(atk, def, rng) {
   return Math.max(1, 4 * atk - 2 * def + r);
 }
 
-// opts (from the meta save): hp = max HP (knightStats.hpByArmorLevel), atk = ATK (atkByWeaponLevel), crit = CRIT
-// (critByWeaponLevel), def = DEF (defByArmorLevel). Defaults = the level-0 knight (130 / 10 / 10 / 5).
+// opts (from the meta save): hp (knightStats.hpByArmorLevel), atk (atkByWeaponLevel), skill (skillByWeaponLevel:
+// player+0x540, the dash's power), def (defByArmorLevel), wlv (weapon level: widens the attack area).
+// Defaults = the level-0 knight.
 export function createSim(stage, seed = 1, opts = {}) {
   const h = stage.hero;
   let r = (seed * 48271) % 2147483647 || 1;
@@ -41,13 +40,16 @@ export function createSim(stage, seed = 1, opts = {}) {
     paused: false,
     atk: opts.atk ?? 10,
     def: opts.def ?? 5,
-    crit: opts.crit ?? 10,
-    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0 },
+    power: opts.skill ?? opts.crit ?? 10,
+    wlv: opts.wlv ?? 0,
+    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0, dashCd: 0, dashMax: h.dash.cooldown, dashT: 0 },
     boss: null,
-    zzol: null, // boss minion script in progress { pat, t0 }
-    zzolNext: 0, // next pattern index
-    zzolAt: 0, // clock time of the next pattern call
-    alerts: [], // boss-wave alerts and wolf warnings for the renderer
+    zzol: null, // boss minion script in progress { pat, t0, next }
+    zzolStart: null, // pending summon { pat, at }
+    zzolPhase: 0,
+    alerts: [], // boss-wave alerts and edge warnings for the renderer
+    pending: [], // alerted waves waiting to spawn { w, at }
+    finalPassed: false,
     monsters: [],
     nextWave: 0,
     nextId: 1,
@@ -61,7 +63,7 @@ export function createSim(stage, seed = 1, opts = {}) {
     misses: 0,
     attacks: 0,
     damageTaken: 0,
-    skillCharges: h.skillStart,
+    skillCharges: opts.storms ?? 0,
     potions: h.potions,
     shields: h.shields,
     stars: 0,
@@ -72,10 +74,11 @@ export function createSim(stage, seed = 1, opts = {}) {
 const emit = (s, type, data = {}) => s.events.push({ ...data, type });
 export const living = s => s.monsters.filter(m => m.state !== 'dead');
 export const totalMonsters = s => s.stage.waves.length;
+// stars at T/3, T/2, T with integer division (Scene_UI::FUC_GET_SCORE @0x603100)
+export const starScores = st => st.starMarks.map(f => Math.floor(f * st.scoreBar));
 const defOf = (s, m) => s.stage.monsters[m.type];
 const isRanged = def => !!def.ranged;
 const isProjectile = def => !!def.projectileOf;
-export const starScores = st => st.starMarks.map(f => Math.round(f * st.scoreBar));
 
 function setPhase(s, phase) {
   s.phase = phase;
@@ -83,21 +86,36 @@ function setPhase(s, phase) {
   emit(s, 'phase', { phase });
 }
 
-// Slash toward side (-1 left, +1 right). Returns 'hit' | 'kill' | 'miss' | null (input ignored).
+// the knight's attack area on one side: [near, far] distance from the hero (Init_Player @0x57a1b8,
+// FUC_SET_PLAYER_ATTAKING_COLLISION @0x5e4dd0)
+export function attackArea(s) {
+  const a = s.stage.hero.attackArea;
+  const near = a.gap * W;
+  return { near, far: near + W * (a.width + a.perLevel * Math.min(s.wlv, a.maxLevel)) };
+}
+
+// monsters whose hit box overlaps the attack area on `side`
+export function inArea(s, side) {
+  const { near, far } = attackArea(s);
+  return living(s).filter(m => {
+    const d = (m.x - s.hero.x) * side;
+    const half = defOf(s, m).box / 2;
+    return d + half > near && d - half < far;
+  });
+}
+
+// Slash toward side (-1 left, +1 right). Returns 'hit' | 'kill' | 'miss' | null (input ignored). Every monster in the
+// area takes a hit (Scene_Stage::update tests each against the collision sprite).
 export function attack(s, side) {
   const hero = s.hero;
-  if (s.phase !== 'play' || s.paused || hero.state === 'dead' || hero.lock > 0) return null;
+  if (s.phase !== 'play' || s.paused || hero.state === 'dead' || hero.lock > 0 || hero.dashT > 0) return null;
   const H_ = s.stage.hero;
   hero.facing = side;
   hero.state = 'attack';
   hero.st = 0;
   s.attacks++;
-  let target = null;
-  for (const m of living(s)) {
-    const d = (m.x - hero.x) * side;
-    if (d > -10 && d <= defOf(s, m).contact + H_.reach && (!target || d < (target.x - hero.x) * side)) target = m;
-  }
-  if (!target) {
+  const targets = inArea(s, side);
+  if (!targets.length) {
     hero.lock = hero.lockMax = H_.missLock;
     s.misses++;
     s.combo = 0;
@@ -106,63 +124,100 @@ export function attack(s, side) {
   }
   hero.lock = hero.lockMax = H_.attackTime;
   s.hits++;
-  s.combo++;
-  s.maxCombo = Math.max(s.maxCombo, s.combo);
-  // knight ATK vs monster DEF (Scene_Stage::update @0x59273c)
-  let dmg = calcDamage(s.atk, defOf(s, target).def, s.rng);
-  // critical: rand()%100 < CRIT + 15 doubles the hit (Scene_Stage::update @0x590ef8, EFF_CRITICAL)
-  let crit = false;
-  if (Math.floor(s.rng() * 100) < s.crit + 15) { dmg *= 2; crit = true; }
-  s.lastCrit = crit;
-  return damageMonster(s, target, dmg, side);
-}
-
-// the red button: slash the way the hero is facing
-export const attackFacing = s => attack(s, s.hero.facing);
-
-function damageMonster(s, m, dmg, side) {
-  m.hp -= dmg;
-  m.flash = 0.12;
-  if (m.hp > 0) {
-    m.kx = side * 260; // knocked back away from the hero
-    m.state = 'walk';
-    m.st = 0;
-    emit(s, 'hit', { id: m.id, x: m.x, side, dmg, crit: !!s.lastCrit });
-    return 'hit';
+  let res = 'hit';
+  for (const m of targets) {
+    let dmg = calcDamage(s.atk, defOf(s, m).def, s.rng);
+    // "PERFECT": rand()%100 < player+0x560 (1 for the knight) doubles the hit (Scene_Stage::update @0x592744)
+    const crit = Math.floor(s.rng() * 100) < H_.critChance;
+    if (crit) dmg *= 2;
+    if (damageMonster(s, m, dmg, side, crit) === 'kill') res = 'kill';
   }
-  killMonster(s, m, side, dmg);
-  return 'kill';
+  return res;
 }
 
-function killMonster(s, m, side, dmg) {
-  const def = s.stage.monsters[m.type];
-  m.hp = 0;
-  m.state = 'dead';
-  m.st = 0;
-  s.kills++;
-  // kill score = monster score + current combo (Scene_UI::FUC_GET_SCORE @0x602c30; combo before this hit)
-  const pts = def.score + Math.max(0, s.combo - 1);
-  s.score += pts;
-  s.gold += def.gold;
-  if (s.kills % s.stage.hero.skillEvery === 0) { s.skillCharges++; emit(s, 'skillCharge', { charges: s.skillCharges }); }
-  if (s.boss === m) emit(s, 'bossDown', { id: m.id });
-  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold: def.gold, crit: !!s.lastCrit });
-}
-
-// Blue button. Placeholder for Sword Storm: spend one charge, hit every monster on screen.
-export function skill(s) {
+// red button: the knight's dash (FUC_SKILL_START, EFF_DASH): runs along the facing side and hits every monster on
+// that side of the screen with FUC_CALCULATE_DAMAGE(skill power, DEF) (Scene_Stage::update @0x591a28)
+export function dash(s, side = s.hero.facing) {
   const hero = s.hero;
-  if (s.phase !== 'play' || s.paused || hero.state === 'dead' || s.skillCharges <= 0) return false;
-  s.skillCharges--;
-  s.lastCrit = false;
-  emit(s, 'skill', {});
+  if (s.phase !== 'play' || s.paused || hero.state === 'dead' || hero.dashCd > 0 || hero.dashT > 0) return false;
+  hero.facing = side;
+  hero.dashCd = hero.dashMax;
+  hero.dashT = DASH_TIME;
+  hero.lock = 0;
+  emit(s, 'dash', { side });
   for (const m of living(s)) {
-    if (m.x > -20 && m.x < W + 20) damageMonster(s, m, s.stage.hero.skillDamage, m.x < hero.x ? -1 : 1);
+    const d = (m.x - hero.x) * side;
+    if (d > -20 && m.x > -10 && m.x < W + 10) damageMonster(s, m, calcDamage(s.power, defOf(s, m).def, s.rng), side, false);
   }
   return true;
 }
 
-// Corner items (counts are 0 at stage 1 start, as in the clips): potion heals, winged shield blocks hits a while.
+// the red button
+export const attackFacing = s => dash(s);
+
+function damageMonster(s, m, dmg, side, crit) {
+  m.hp -= dmg;
+  m.flash = 0.12;
+  const def = defOf(s, m);
+  if (m.hp > 0) {
+    if (!isProjectile(def)) m.kx = side * 260; // knocked back (web; FUC_MONSTER_PUSHING not modelled)
+    if (m.state === 'attack') { m.state = 'wait'; m.st = 0; m.atkCd = def.atkDelay; }
+    emit(s, 'hit', { id: m.id, x: m.x, side, dmg, crit });
+    if (m === s.boss) bossHit(s);
+    return 'hit';
+  }
+  killMonster(s, m, side, dmg, crit);
+  return 'kill';
+}
+
+function killMonster(s, m, side, dmg, crit) {
+  const def = defOf(s, m);
+  m.hp = 0;
+  m.state = 'dead';
+  m.st = 0;
+  s.kills++;
+  // kill score = monster score + the combo so far, then the combo counts this kill (FUC_HIT_MONSTER_FROM_LEFT @0x594f54:
+  // Scene_UI::FUC_GET_SCORE, then FUC_GET_COMBO)
+  const pts = def.score + s.combo;
+  s.score += pts;
+  s.combo++;
+  s.maxCombo = Math.max(s.maxCombo, s.combo);
+  // coins: rand()%10001 < GameData+0x7698[stage]; a boss always drops 5; projectiles (AI 3) drop nothing
+  // (Scene_UI::FUC_SELECT_ITEM @0x5ed398 / @0x5ed40c)
+  const gold = isProjectile(def) ? 0 : def.ai === 4 ? s.stage.bossCoins : (s.rng() < s.stage.coinChance ? 1 : 0);
+  s.gold += gold;
+  if (s.boss === m) emit(s, 'bossDown', { id: m.id });
+  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold, crit });
+  checkClear(s, m);
+}
+
+// FUC_HIT_MONSTER_FROM_LEFT/RIGHT @0x595248: a required monster dying after the end (9999) or final (7777) marker
+// with no other required monster alive clears the stage; so does a boss dying after 7777. FUC_CLEAR_PROCCESS then
+// kills what is left.
+function checkClear(s, m) {
+  if (s.phase !== 'play') return;
+  const ended = s.clock >= s.stage.scriptEnd && s.nextWave >= s.stage.waves.length && !s.pending.length;
+  let clear = false;
+  if (m.required) clear = (ended || s.finalPassed) && !living(s).some(o => o.required) && !s.pending.some(p => p.w.required);
+  else if (s.finalPassed && defOf(s, m).ai === 4) clear = true;
+  if (!clear) return;
+  for (const o of living(s)) { o.hp = 0; o.state = 'dead'; o.st = 0; }
+  finishStage(s);
+}
+
+// Blue button: Sword Storm, only with a booster charge (none in this build). PLACEHOLDER damage.
+export function skill(s) {
+  const hero = s.hero;
+  if (s.phase !== 'play' || s.paused || hero.state === 'dead' || s.skillCharges <= 0) return false;
+  s.skillCharges--;
+  emit(s, 'skill', {});
+  for (const m of living(s)) {
+    if (m.x > -20 && m.x < W + 20) damageMonster(s, m, s.stage.hero.swordStorm.damage, m.x < hero.x ? -1 : 1, false);
+  }
+  return true;
+}
+
+// Corner items (0 without boosters, as in the clips): potion heals, winged shield blocks hits a while.
 export function usePotion(s) {
   const hero = s.hero;
   if (s.phase !== 'play' || s.paused || hero.state === 'dead' || s.potions <= 0 || hero.hp >= hero.hpMax) return false;
@@ -181,36 +236,45 @@ export function useShield(s) {
   return true;
 }
 
-// walk speed that covers spawn -> stop point in the recovered MoveTo duration (walkTime, / fastDiv on fast waves)
-function walkSpeed(def, fromX, stopDist, fast) {
-  const t = fast ? def.walkTime / def.fastDiv : def.walkTime;
-  return Math.max(1, Math.abs(fromX - HERO_X) - stopDist) / t;
+// where a monster stops: melee at contact, archers at W - 0.3*frameW*scale (FUC_START_MONSTER_AI @0x59b7a0)
+function stopDist(def, fw) {
+  if (isRanged(def)) return W / 2 - def.ranged.stopFrac * fw * def.scale;
+  return def.contact;
 }
 
 function spawn(s, w, at) {
   const def = s.stage.monsters[w.type];
   const side = w.side === 'L' ? -1 : 1;
   const x = at ?? (side < 0 ? -SPAWN_OUT : W + SPAWN_OUT);
-  const stop = isRanged(def) ? def.ranged.stopFromHero : def.contact;
+  const stop = isProjectile(def) ? def.contact : stopDist(def, def.contact * 2 / def.scale);
+  // walk speed covers spawn -> stop point in walkTime (/ fastDiv on fast waves)
+  const t = w.fast ? def.walkTime / def.fastDiv : def.walkTime;
   const m = {
-    id: s.nextId++, type: w.type, side, x, speed: walkSpeed(def, x, stop, w.fast),
-    hp: def.hp, hpMax: def.hp, state: 'walk', st: 0, atkCd: 0.35, flash: 0, kx: 0, hitDone: false,
+    id: s.nextId++, type: w.type, side, x, speed: Math.max(1, Math.abs(x - HERO_X) - stop) / t, stop,
+    hp: def.hp, hpMax: def.hp, state: 'walk', st: 0, atkCd: def.atkDelay, flash: 0, kx: 0, hitDone: false,
+    required: !!w.required,
   };
   s.monsters.push(m);
   emit(s, 'spawn', { id: m.id, mtype: m.type, side });
-  if (w.alert) { // mode 1: S_BOSS_ALERT + blinking in_eff_alert at the entry side (SCH_PLAY_BY_SCENARIO @0x59f4c4)
-    s.alerts.push({ k: 'alert', side, t: 0, dur: 1.2 });
-    emit(s, 'alert', { side });
-  }
-  if (def.typeId === 1 || def.typeId === 23) { // wolves: Scene_UI::EFF_MARK_ALERT @0x612288 (kind 1 / 23)
-    s.alerts.push({ k: 'wolf', side, id: m.id, t: 0, dur: 3, dy: [0, 10, 20][Math.floor(s.rng() * 3)] });
+  if (!isProjectile(def) && (x < 0 || x > W)) {
+    // incoming warning at the edge (Scene_UI::EFF_MARK_ALERT @0x612288: wolf head for kinds 1 / 23, "!" otherwise)
+    const wolf = def.typeId === 1 || def.typeId === 23;
+    if (!isProjectile(def)) s.alerts.push({ k: wolf ? 'wolf' : 'warn', side, id: m.id, t: 0, dur: 3, dy: [0, 10, 20][Math.floor(s.rng() * 3)] });
   }
   if (def.ai === 4 && !s.boss) {
     s.boss = m;
-    if (s.stage.zzol) s.zzolAt = s.clock + (s.stage.zzol.first ?? s.stage.zzol.every);
     emit(s, 'boss', { id: m.id });
   }
   return m;
+}
+
+// a wave entry: mode 1 / 3 waves raise the alert first and spawn after `delay` (SCH_PLAY_BY_SCENARIO @0x59f478 / @0x59f408)
+function playWave(s, w) {
+  if (w.alert) {
+    s.alerts.push({ k: 'alert', side: w.side === 'L' ? -1 : 1, t: 0, dur: w.delay });
+    emit(s, 'alert', { side: w.side });
+    s.pending.push({ w, at: s.clock + w.delay });
+  } else spawn(s, w);
 }
 
 function hurtHero(s, m) {
@@ -256,6 +320,51 @@ function walkTo(m, stopX, dt) {
   return true;
 }
 
+// FUC_MONSTER_ATTACK loop: Delay(atkDelay) -> frames, the hit lands after atkHitAt frames -> rest + atkPause -> again
+function attackCycle(s, m, def, dt, canAct, onHit) {
+  if (m.state === 'attack') {
+    if (!m.hitDone && m.st >= def.atkHitAt * def.atkFrame) { m.hitDone = true; if (canAct) onHit(); }
+    if (m.st >= def.atkFrames * def.atkFrame + def.atkPause) { m.state = 'wait'; m.st = 0; m.atkCd = def.atkDelay; }
+    return;
+  }
+  if (!canAct) return;
+  m.atkCd -= dt;
+  if (m.atkCd <= 0) {
+    m.state = 'attack'; m.st = 0; m.hitDone = false;
+    emit(s, 'monsterAttack', { id: m.id, mtype: m.type });
+  }
+}
+
+// AI 2 archer (FUC_MONSTER_ATTACK @0x598180): walk in to the stop point, "!" (EFF_ALERT02) + aim 2 frames x 0.06 s,
+// DelayTime(0.66), one arrow (CREATE_SHOOTING_OBJECT) while EaseExponentialOut(MoveBy(walkTime*3, W/2 away)),
+// DelayTime(0.2), FUC_REMOVE_MONSTER (gone, no kill)
+function archerStep(s, m, def, dt, canAct) {
+  const r = def.ranged;
+  stepCommon(m, dt);
+  if (m.state === 'walk' || m.state === 'wait' && !m.aimed) {
+    if (!walkTo(m, s.hero.x + m.side * m.stop, dt)) return;
+    m.aimed = true; m.state = 'aim'; m.st = 0;
+    s.alerts.push({ k: 'aim', side: m.side, id: m.id, t: 0, dur: r.aimFrames * r.aimFrame + r.shootDelay });
+    emit(s, 'monsterAttack', { id: m.id, mtype: m.type });
+    return;
+  }
+  if (m.state === 'aim' && m.st >= r.aimFrames * r.aimFrame + r.shootDelay) {
+    m.state = 'retreat'; m.st = 0; m.x0 = m.x;
+    if (canAct) {
+      m.shots = (m.shots || 0) + 1;
+      const a = spawn(s, { type: r.projectile, side: m.side > 0 ? 'R' : 'L' }, m.x);
+      emit(s, 'shoot', { id: m.id, arrow: a.id });
+    }
+    return;
+  }
+  if (m.state === 'retreat') {
+    const T = def.walkTime * r.retreatTimeMul;
+    const f = Math.min(1, m.st / T);
+    m.x = m.x0 + m.side * W * r.retreat * (f >= 1 ? 1 : 1 - Math.pow(2, -10 * f));
+    if (m.st >= T + r.removeDelay) { m.hp = 0; m.state = 'dead'; m.st = DEAD_BODY_TIME; m.gone = true; emit(s, 'gone', { id: m.id }); }
+  }
+}
+
 function updateMonsters(s, dt) {
   const hero = s.hero;
   const canAct = hero.state !== 'dead' && s.phase === 'play';
@@ -268,45 +377,18 @@ function updateMonsters(s, dt) {
       const dir = -side;
       const stopX = i === 0 ? hero.x - dir * def.contact : limit - dir * QUEUE_GAP;
       stepCommon(m, dt);
-      if (m.state === 'attack') {
-        if (!m.hitDone && m.st >= MON_ATTACK_HIT) {
-          m.hitDone = true;
-          if (i === 0 && Math.abs(m.x - hero.x) <= def.contact + 6) hurtHero(s, m);
-        }
-        if (m.st >= MON_ATTACK_TIME) { m.state = 'wait'; m.st = 0; m.atkCd = def.atkEvery - MON_ATTACK_TIME; }
-      } else if (walkTo(m, stopX, dt) && i === 0 && canAct) {
-        m.atkCd -= dt;
-        if (m.atkCd <= 0) {
-          m.state = 'attack'; m.st = 0; m.hitDone = false;
-          emit(s, 'monsterAttack', { id: m.id, mtype: m.type });
-        }
+      if (m.state === 'attack' || walkTo(m, stopX, dt)) {
+        if (i === 0 || m.state === 'attack') attackCycle(s, m, def, dt, canAct && i === 0, () => {
+          if (Math.abs(m.x - hero.x) <= def.contact + 6) hurtHero(s, m);
+        });
       }
       limit = m.x;
     });
   }
-  // archers: stop at range and shoot arrows; arrows fly to the hero and hit once
   for (const m of living(s)) {
     const def = defOf(s, m);
-    if (isRanged(def)) {
-      stepCommon(m, dt);
-      if (m.state === 'attack') {
-        if (!m.hitDone && m.st >= MON_ATTACK_HIT) {
-          m.hitDone = true;
-          if (canAct) {
-            const a = spawn(s, { type: def.ranged.projectile, side: m.side > 0 ? 'R' : 'L' }, m.x);
-            m.shots = (m.shots || 0) + 1;
-            emit(s, 'shoot', { id: m.id, arrow: a.id });
-          }
-        }
-        if (m.st >= MON_ATTACK_TIME) { m.state = 'wait'; m.st = 0; m.atkCd = def.atkEvery - MON_ATTACK_TIME; }
-      } else if (walkTo(m, hero.x + m.side * ((m.shots || 0) >= def.ranged.shots ? def.contact : def.ranged.stopFromHero), dt) && canAct) {
-        m.atkCd -= dt;
-        if (m.atkCd <= 0) {
-          m.state = 'attack'; m.st = 0; m.hitDone = false;
-          emit(s, 'monsterAttack', { id: m.id, mtype: m.type });
-        }
-      }
-    } else if (isProjectile(def)) {
+    if (isRanged(def)) archerStep(s, m, def, dt, canAct);
+    else if (isProjectile(def)) { // arrows fly to the hero and hit once
       stepCommon(m, dt);
       if (walkTo(m, hero.x + m.side * def.contact, dt)) {
         if (canAct) hurtHero(s, m);
@@ -318,28 +400,40 @@ function updateMonsters(s, dt) {
   s.monsters = s.monsters.filter(m => m.state !== 'dead' || m.st < DEAD_BODY_TIME);
   for (const a of s.alerts) {
     a.t += dt;
-    if (a.k === 'wolf') { // the warning leaves once its wolf is on screen
+    if (a.id) { // an edge warning leaves once its monster is on screen; an archer's "!" goes with the archer
       const m = s.monsters.find(x => x.id === a.id);
-      if (!m || m.state === 'dead' || (m.x > 0 && m.x < W)) a.t = Math.max(a.t, a.dur);
+      if (!m || m.state === 'dead' || (a.k !== 'aim' && m.x > 0 && m.x < W)) a.t = Math.max(a.t, a.dur);
     }
   }
   s.alerts = s.alerts.filter(a => a.t < a.dur);
 }
 
-// boss minions: Init_ZZoL_Scenario patterns (see stage05.json zzol for what is recovered and what is PLACEHOLDER)
+// boss minions: each HP phase calls one Init_ZZoL_Scenario script once, after DelayTime(boss walkTime)
+function bossHit(s) {
+  const z = s.stage.zzol;
+  if (!z || s.zzol || s.zzolStart || s.zzolPhase >= z.phases.length) return;
+  const b = s.boss;
+  const raw = b.hpMax * 2; // the C++ compares with the raw GameData HP (x2)
+  const ph = z.phases[s.zzolPhase];
+  if (b.hp > raw * ph.hpLo && b.hp <= raw * ph.hpHi) {
+    const pat = ph.pattern === 'rand3' ? Math.floor(s.rng() * 3) : ph.pattern;
+    s.zzolPhase++;
+    s.zzolStart = { pat, at: s.clock + defOf(s, b).walkTime };
+  }
+}
+
 function updateZzol(s) {
   const z = s.stage.zzol;
-  if (!z || !s.boss) return;
-  if (s.boss.state === 'dead') { s.zzol = null; return; }
-  if (!s.zzol && s.clock >= s.zzolAt) {
-    s.zzol = { pat: s.zzolNext % z.patterns.length, t0: s.clock, next: 0 };
-    s.zzolNext++;
+  if (!z) return;
+  if (s.zzolStart && s.clock >= s.zzolStart.at) {
+    s.zzol = { pat: s.zzolStart.pat, t0: s.clock, next: 0 };
+    s.zzolStart = null;
     emit(s, 'summon', { pattern: s.zzol.pat });
   }
   if (s.zzol) {
     const pat = z.patterns[s.zzol.pat];
     while (s.zzol.next < pat.length && s.zzol.t0 + pat[s.zzol.next].k * z.tick <= s.clock) spawn(s, pat[s.zzol.next++]);
-    if (s.clock >= s.zzol.t0 + z.end[s.zzol.pat] * z.tick) { s.zzol = null; s.zzolAt = s.clock + z.every; }
+    if (s.clock >= s.zzol.t0 + z.end[s.zzol.pat] * z.tick) s.zzol = null;
   }
 }
 
@@ -350,9 +444,16 @@ function updateHero(s, dt) {
   hero.lock = Math.max(0, hero.lock - dt);
   hero.hurt = Math.max(0, hero.hurt - dt);
   hero.shield = Math.max(0, hero.shield - dt);
+  if (s.phase === 'play') hero.dashCd = Math.max(0, hero.dashCd - dt);
+  if (hero.dashT > 0) {
+    hero.dashT = Math.max(0, hero.dashT - dt);
+    const p = 1 - hero.dashT / DASH_TIME;
+    hero.offX = hero.facing * (W / 2 - 40) * Math.sin(Math.PI * p);
+    hero.state = hero.dashT > 0 ? 'dash' : 'idle';
+    return;
+  }
   if (hero.state === 'attack' && hero.st >= H_.attackTime) { hero.state = 'idle'; hero.st = 0; }
-  // the hero stays planted; a slash lunges the sprite toward the target and back
-  hero.offX = hero.state === 'attack' ? hero.facing * H_.lunge * Math.sin(Math.PI * Math.min(1, hero.st / H_.attackTime)) : 0;
+  hero.offX = 0;
 }
 
 function finishStage(s) {
@@ -372,13 +473,13 @@ export function update(s, dt) {
     case 'play': {
       s.clock += dt;
       const waves = s.stage.waves;
-      while (s.nextWave < waves.length && waves[s.nextWave].t <= s.clock) spawn(s, waves[s.nextWave++]);
+      while (s.nextWave < waves.length && waves[s.nextWave].t <= s.clock) playWave(s, waves[s.nextWave++]);
+      if (s.stage.finalMarker !== undefined && s.clock >= s.stage.finalMarker) s.finalPassed = true;
+      for (const p of s.pending.filter(q => q.at <= s.clock)) spawn(s, p.w);
+      s.pending = s.pending.filter(q => q.at > s.clock);
       updateZzol(s);
       updateHero(s, dt);
       updateMonsters(s, dt);
-      // clear: the script's 9999 end marker has passed and nothing is left alive
-      const done = s.nextWave >= waves.length && s.clock >= (s.stage.scriptEnd || 0) && !s.zzol;
-      if (s.phase === 'play' && done && living(s).length === 0) finishStage(s);
       break;
     }
     case 'clear':
@@ -392,21 +493,27 @@ export function update(s, dt) {
   }
 }
 
-// Auto-player for ?bot and the tests. opts.react: seconds before reacting to a monster entering range,
-// opts.err: chance of slashing the wrong way, rng: () => [0,1).
+// Auto-player for ?bot and the tests. opts.react: seconds before reacting to a monster entering the area,
+// opts.err: chance of slashing the wrong way, rng: () => [0,1). Dashes toward a side with 2+ monsters on screen.
 export function createBot(opts = {}, rng = Math.random) {
   const react = opts.react ?? 0;
   const err = opts.err ?? 0;
   const seen = new Map();
   return function bot(s, dt) {
-    if (s.phase !== 'play' || s.paused || s.hero.state === 'dead') return;
+    if (s.phase !== 'play' || s.paused || s.hero.state === 'dead' || s.hero.dashT > 0) return;
     if (s.skillCharges > 0 && living(s).filter(m => Math.abs(m.x - s.hero.x) < 160).length >= 3) { skill(s); return; }
+    if (s.hero.dashCd <= 0) { // the dash pays off on a crowded side
+      for (const side of [-1, 1]) {
+        const n = living(s).filter(m => (m.x - s.hero.x) * side > 0 && m.x > 0 && m.x < W && !s.stage.monsters[m.type].projectileOf).length;
+        if (n >= 2) { dash(s, side); return; }
+      }
+    }
     let best = null;
-    for (const m of living(s)) {
-      const d = Math.abs(m.x - s.hero.x);
-      if (d > s.stage.monsters[m.type].contact + s.stage.hero.reach) { seen.delete(m.id); continue; }
-      seen.set(m.id, (seen.get(m.id) || 0) + dt);
-      if (seen.get(m.id) >= react && (!best || d < Math.abs(best.x - s.hero.x))) best = m;
+    for (const side of [-1, 1]) {
+      for (const m of inArea(s, side)) {
+        seen.set(m.id, (seen.get(m.id) || 0) + dt);
+        if (seen.get(m.id) >= react && (!best || Math.abs(m.x - s.hero.x) < Math.abs(best.x - s.hero.x))) best = m;
+      }
     }
     if (best && s.hero.lock <= 0) {
       let side = best.x < s.hero.x ? -1 : 1;

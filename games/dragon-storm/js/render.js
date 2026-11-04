@@ -184,6 +184,7 @@ export function createRenderer(ctx, art) {
   function heroFrame(s) {
     const h = s.hero;
     if (h.state === 'dead') return 11;
+    if (h.state === 'dash') return 10; // dash frame (clip c1 7:29)
     if (h.state === 'attack') return 6 + Math.min(3, Math.floor((h.st / s.stage.hero.attackTime) * 4));
     if (h.hurt > 0) return 10;
     return Math.floor(h.st * 7) % 6;
@@ -248,7 +249,9 @@ export function createRenderer(ctx, art) {
 
   function monsterFrame(m, def) {
     if (m.state === 'dead') return 5;
-    if (m.state === 'attack') return 6 + Math.min(3, Math.floor((m.st / 0.45) * 4));
+    if (m.state === 'attack') return 6 + Math.min(3, Math.floor(m.st / def.atkFrame));
+    if (m.state === 'aim') return 6 + Math.min(1, Math.floor(m.st / def.ranged.aimFrame)); // 2 aim frames x 0.06 s
+    if (m.state === 'retreat') return m.st < def.ranged.aimFrame ? 8 : Math.floor(m.st * 9) % 4; // shot frame, then backs off
     if (m.state === 'walk') return Math.floor(m.st * (m.speed > 150 ? 14 : 9)) % 4;
     return 0;
   }
@@ -283,8 +286,26 @@ export function createRenderer(ctx, art) {
   function drawAlerts(s) {
     for (const a of s.alerts) {
       if (a.k === 'alert') {
-        const on = Math.floor(a.t / 0.3) % 2 === 0;
-        if (on) ctx.drawImage(img('eff_alert').img, a.side > 0 ? W - 110 : 10, GROUND_Y - 160);
+        // red tint fading in/out at both edges (FadeIn/FadeOut 0.3 s, SCH_PLAY_BY_SCENARIO @0x59f500) and the "!" pulsing
+        // at screen centre (ScaleTo 0.3 s, @0x59f6ac), as in clip c1 7:27
+        const p = (a.t % 0.6) / 0.6;
+        const tint = p < 0.5 ? p * 2 : (1 - p) * 2;
+        for (const [x0, x1] of [[0, 120], [W, W - 120]]) {
+          const g = ctx.createLinearGradient(x0, 0, x1, 0);
+          g.addColorStop(0, `rgba(220,30,30,${0.55 * tint})`);
+          g.addColorStop(1, 'rgba(220,30,30,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(Math.min(x0, x1), 70, 120, GROUND_Y - 40);
+        }
+        frameC('eff_alert', 0, W / 2, 220, { scale: 0.8 + 0.2 * tint });
+      } else if (a.k === 'warn') {
+        // "!" bubble at the edge for an incoming monster (Scene_UI::EFF_MARK_ALERT default art, clip c1 7:20)
+        frame('eff_warning', 0, a.side > 0 ? W - 40 : 8, GROUND_Y - 120 + a.dy);
+      } else if (a.k === 'aim') {
+        // "!" over an archer about to shoot (Scene_Stage::EFF_ALERT02 @0x5bb0f0, clip c1 8:16-8:24)
+        const m = s.monsters.find(x => x.id === a.id);
+        // shown ~56 px wide over the archer's head in the clip (in_eff_warning is 32 px): scale 1.75, CLIP-MEASURED
+        if (m) frameC('eff_warning', 0, Math.max(30, Math.min(W - 30, m.x)), GROUND_Y - 72, { scale: 1.75 });
       } else {
         const i = s.alerts.filter(b => b.k === 'wolf' && b.side === a.side).indexOf(a);
         const y = GROUND_Y - 190 + i * 30 + a.dy;
@@ -346,12 +367,12 @@ export function createRenderer(ctx, art) {
       ctx.drawImage(img(`btn_${k}`).img, b.x, b.y);
       ctx.restore();
     }
-    // red slash button with the swing cooldown sweep (clip c1 0:46)
+    // red button = the knight's dash skill, with its cooldown sweep (clip c1 0:46, 7:30)
     const red = BTN.red;
     circleBtn(red, 0.84, 'icon_skill', 0, 1.18, false);
     const h = s.hero;
-    if (h.lock > 0) {
-      const p = h.lock / h.lockMax;
+    if (h.dashCd > 0) {
+      const p = h.dashCd / h.dashMax;
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.beginPath();
