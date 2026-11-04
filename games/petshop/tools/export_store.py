@@ -201,6 +201,11 @@ def material_entry(m, textures):
                     "mode": int(f.get("_Mode", 0)), "spec": "Specular" in sh}
         if "_EMISSION" in kw and "_EmissionColor" in c:
             e["emit"] = c["_EmissionColor"][:3]
+            # Standard: emission = _EmissionColor * tex2D(_EmissionMap, uv of _MainTex_ST); no map = white
+            em = tex.get("_EmissionMap")
+            if em is not None:
+                e["emap"] = "main" if slot and em.m_Texture.m_PathID == tex[slot].m_Texture.m_PathID \
+                    else textures(em.m_Texture)
     queue = m.m_CustomRenderQueue
     if "_ALPHATEST_ON" in kw:
         e["alpha"] = "MASK"

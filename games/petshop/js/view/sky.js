@@ -4,6 +4,7 @@
 // at startHour (next day). Values come from the store scene's DayNightCycle component; the sky is level1's material
 // "Sky" (Skybox/6 Sided, art/sky, tools/export_sky.py).
 import * as THREE from 'three';
+import { setTrilight } from './trilight.js';
 
 // AnimationCurve.Evaluate for non-weighted keys: cubic Hermite between keys with outSlope / inSlope.
 export function evalCurve(curve, t) {
@@ -23,8 +24,8 @@ const lerpC = (a, b, c) => [a.r + (b.r - a.r) * c, a.g + (b.g - a.g) * c, a.b + 
 
 export class DayNight {
   // dn = DayNightCycle component (scene.json), sky = art/sky/sky.json, base = art/sky URL
-  constructor({ scene3, camera, dn, sky, base, ambient, hemi, equator, ground }) {
-    Object.assign(this, { camera, dn, ambient, hemi, equator, ground });
+  constructor({ scene3, camera, dn, sky, base, probe, equator, ground }) {
+    Object.assign(this, { camera, dn, probe, equator, ground });
     this.group = new THREE.Group();
     this.group.renderOrder = -1;
     const R = 150;
@@ -65,9 +66,10 @@ export class DayNight {
     // _Rotation in degrees about +y; three.js is right-handed with z negated [GUESS: the sign]
     this.group.rotation.y = -THREE.MathUtils.degToRad(t * 360 * dn.rotationSpeed);
     this.group.position.copy(this.camera.position);
-    // Trilight ambient: equator everywhere + hemisphere (sky - equator) / (ground - equator); only the sky colour moves
+    // Trilight ambient: only the sky colour moves (RenderSettings.ambientSkyColor); Unity rebuilds the ambient probe
     const sky = lerpC(dn.daySkyColor, dn.nightSkyColor, c);
-    if (this.hemi) this.hemi.color.setRGB(sky[0] - this.equator.r, sky[1] - this.equator.g, sky[2] - this.equator.b);
+    this.sky = sky;
+    if (this.probe) setTrilight(this.probe, sky, this.equator, this.ground);
     return this.state;
   }
 }

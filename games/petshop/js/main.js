@@ -13,6 +13,7 @@ import { Player, CollisionGrid } from './view/player.js';
 import { Hud } from './view/hud.js';
 import { Sound } from './view/audio.js';
 import { DayNight } from './view/sky.js';
+import { setTrilight } from './view/trilight.js';
 import { KeyLabels } from './view/keys.js';
 import { Sim, pointsToNext } from './sim/sim.js';
 import { TUT_STEPS, TUT_NAME } from './sim/tutorial.js';
@@ -62,22 +63,21 @@ addEventListener('resize', resize);
   const poolW = buildWorld(poolJ, poolG, { texBase: `${ART}/tex` });
   scene3.add(poolW.root);
   const pool = new Pool(poolW, lib);
-  // Lighting: level1 has no Light and no lightmaps; RenderSettings ambient is Trilight (sky / equator / ground) x
-  // m_AmbientIntensity. Unity adds albedo * ambient; three.js divides indirect diffuse by PI (BRDF_Lambert), hence the PI.
-  // Trilight = equator everywhere + a hemisphere of (sky - equator) above / (ground - equator) below.
+  // Lighting: level1 has no Light and no lightmaps; RenderSettings ambient is Trilight (sky / equator / ground), which
+  // Unity turns into an SH ambient probe -> one THREE.LightProbe holding the same gradient (see view/trilight.js).
+  // m_AmbientIntensity (1.05) is not applied: Unity uses it for the Skybox ambient source only.
   const R = storeJ.render || {};
   const rgb = c => new THREE.Color(c.r, c.g, c.b);
-  const amb = R.m_AmbientIntensity ?? 1;
   const eq = rgb(R.m_AmbientEquatorColor || { r: 0.8, g: 0.8, b: 0.8 });
-  const ambient = new THREE.AmbientLight(eq, Math.PI * amb);
-  scene3.add(ambient);
-  const hemi = new THREE.HemisphereLight(rgb(R.m_AmbientSkyColor || { r: 1, g: 1, b: 1 }).sub(eq), rgb(R.m_AmbientGroundColor || { r: 0.1, g: 0.1, b: 0.1 }).sub(eq), Math.PI * amb);
-  scene3.add(hemi);
-  game.lights = { ambient, hemi };
+  const ground = rgb(R.m_AmbientGroundColor || { r: 0.1, g: 0.1, b: 0.1 });
+  const probe = new THREE.LightProbe();
+  setTrilight(probe, rgb(R.m_AmbientSkyColor || { r: 1, g: 1, b: 1 }), eq, ground);
+  scene3.add(probe);
+  game.lights = { probe };
+  game.THREE = THREE;   // tests read the probe with three vectors
   scene3.background = new THREE.Color(0.53, 0.71, 0.88);   // behind the skybox faces only while they load
   const dnComp = storeJ.nodes.find(n => n.k && n.k.DayNightCycle).k.DayNightCycle;
-  const dayNight = new DayNight({ scene3, camera, dn: dnComp, sky: skyJ, base: `${ART}/sky`, ambient, hemi, equator: eq,
-    ground: rgb(R.m_AmbientGroundColor || { r: 0.1, g: 0.1, b: 0.1 }) });
+  const dayNight = new DayNight({ scene3, camera, dn: dnComp, sky: skyJ, base: `${ART}/sky`, probe, equator: eq, ground });
   // RestrictAreaHelper.Start hides the red no-placement zone; it only shows while furniture is being moved.
   for (const o of store.objects) { const k = o.userData.node.k && o.userData.node.k.RestrictAreaHelper; if (k && k.restrictArea && k.restrictArea.n != null) store.objects[k.restrictArea.n].visible = false; }
 

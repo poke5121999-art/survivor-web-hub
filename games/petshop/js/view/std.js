@@ -63,7 +63,14 @@ export function makeMaterial(e, texBase, textures) {
       texture(texBase, textures[e.tex].name).full.then(() => { m.image = map.image; m.needsUpdate = true; });
     } else p.map = map;
   }
-  if (e.emit && (e.emit[0] || e.emit[1] || e.emit[2])) p.emissive = new THREE.Color(e.emit[0], e.emit[1], e.emit[2]);
+  // Standard: emission = _EmissionColor * tex2D(_EmissionMap) with the _MainTex tiling. Almost every emissive material
+  // here uses its albedo texture as the emission map ("emap": "main"); a flat colour instead lifts every texel by the
+  // same grey and washes the fridge, walls and animals out to white.
+  if (e.emit && (e.emit[0] || e.emit[1] || e.emit[2])) {
+    p.emissive = new THREE.Color(e.emit[0], e.emit[1], e.emit[2]);
+    if (e.emap === 'main') p.emissiveMap = p.map;
+    else if (e.emap != null && textures[e.emap]) p.emissiveMap = texture(texBase, textures[e.emap].name).tex;
+  }
   if (e.alpha === 'BLEND') {
     p.transparent = true;
     p.opacity = c[3];

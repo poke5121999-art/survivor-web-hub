@@ -42,6 +42,29 @@ Làm lại *Pet Shop Simulator: Pet Games* (`com.pet.shop.simulator.games.max` 1
   - Ảnh nền bán trong suốt không còn làm ẩn chữ/ô bên trong (nút "No Thanks", ô phần thưởng cấp, danh sách ngôn ngữ).
   - Chữ mục tiêu không còn đè lên thanh tiến độ.
 
+## Drop 7: ánh sáng toàn cảnh (ambient Trilight)
+
+- Chủ dự án báo cả cửa hàng chói trắng. Đo ảnh mặt trước tủ lạnh (`test/petshop-fridge-shot.js` ... `back`): 65% điểm ảnh có kênh cháy 255; tường trái 100%, sàn 89%.
+- Hai đèn cũ (`AmbientLight(equator)` + `HemisphereLight(sky−equator, ground−equator)`, mỗi cái ×π×1,05) **không** cộng trùng, vì đèn bán cầu chỉ mang phần chênh. Nhưng nó sai ở hai chỗ:
+  - Ở mặt đứng, `equator` bị triệt tiêu: tường nhận (sky+ground)/2 = 1,44 thay vì khoảng 1,0.
+  - `m_AmbientIntensity` 1,05 bị nhân vào, trong khi Unity chỉ dùng nó cho nguồn Skybox (theo tài liệu Unity).
+- Thay bằng một `THREE.LightProbe` (`js/view/trilight.js`) chiếu gradient trilight lên SH bậc 2. Mặt đứng nhận chủ yếu màu equator, sàn nhận màu sky kéo về equator, trần nhận màu ground. DayNightCycle dựng lại probe mỗi khung khi `ambientSkyColor` đổi.
+- Số đo cùng góc chụp, trước → sau:
+  - Phần ảnh cháy: 65% → 7%.
+  - Tường trái: (255, 255, 186) → (208, 156, 106).
+  - Sàn: (247, 208, 144) → (223, 148, 102).
+  - Đế tủ lạnh: (118, 168, 229) → (77, 109, 147).
+- Tone mapping: không có, vẫn là `NoToneMapping`, giống Unity Gamma không post-process. `_Exposure` của skybox chỉ đổi màu nền trời, không chiếu sáng vật nên giữ nguyên.
+- [GUESS] Cách Unity nội suy gradient: tuyến tính theo y, giữ màu ở gamma. `m_AmbientProbe` trong level1 toàn số 0 vì probe được tính lúc chạy, nên không có số gốc để khớp.
+- [GAP] Vẫn chưa có ảnh chụp trong game thật. Ảnh trên Google Play là tranh quảng cáo vẽ lại, không dùng làm mốc đo được.
+
+## Drop 6: ánh sáng tủ lạnh (emission của Standard)
+
+- **Nguyên nhân tủ lạnh trắng bệch**: shader Standard của Unity tính emission = `_EmissionColor` × `tex2D(_EmissionMap)`. Đọc lại material trong `sharedassets1` thì mọi material phát sáng có texture (27 trong pool, 10 trong store) đều dùng chính `_MainTex` làm `_EmissionMap` (Fridge_1, tường, trần, thú, khách...). Bản web cũ cộng một màu xám phẳng (Fridge_1: 0,31) lên mọi texel nên vùng tối cũng bị nâng lên và tủ thành khối trắng.
+- Sửa: `tools/export_store.py` xuất `"emap"` (`"main"` khi trùng `_MainTex`), `js/view/std.js` đặt `emissiveMap`. `art/pool|store/scene.json` được vá đúng trường đó (so lại thì ngoài `emap` không đổi gì).
+- Đo trên ảnh chụp mặt trước tủ (`test/petshop-fridge-shot.js`, 1280×720): đế xanh (130, 170, 230) thay vì (178, 216, 253); khung trên hết cháy trắng.
+- **Chưa so được với ảnh gốc**: 6 clip YouTube tên "Pet Shop Simulator: Pet Games" đều là game khác (HUD khác), nên chưa có cặp gốc|web. Độ sáng tổng thể (ambient Trilight, trời 2,74) giữ nguyên. [GAP: cần ảnh chụp game thật]
+
 ## Drop 5: lấp các khoảng trống còn lại
 
 - **Camera mở màn của hướng dẫn** (`Tutorial.tutorialCamera` = "TutorialCamera" trong level1, Unity (−9,57; 3,5; −2,22), quay 80°): góc nhìn ở màn chọn ngôn ngữ và màn chào, rồi chuyển về camera người chơi trong 1 s [GUESS thời gian chuyển, góc ống kính 60°].
