@@ -907,16 +907,16 @@ window.HUB_GAMES = [
     id: "walking-trade-bevy",
     title: "The Walking Trade",
     tagline: "Mở tiệm giữa thời xác sống: nhập hàng, đặt giá, bán lấy pin, đêm xuống thì giữ cửa.",
-    desc: "The Walking Trade viết lại bằng Bevy (Rust), chạy WebAssembly ngay trong trình duyệt, dùng hình, tiếng và số liệu của game gốc. Nhìn góc thứ nhất: dọn tiệm bỏ hoang, nhập hàng của thương nhân, bày kệ và đặt giá, mở cửa bán cho khách lấy pin. Thuê người làm, học kỹ năng, chế đồ, xem bản đồ thế giới và ra ngoài lục lọi; đêm có xác sống kéo tới phá cửa. Save lưu trong trình duyệt. Cần máy tính có card đồ hoạ, nên chạy Chrome hoặc Edge; lần đầu tải khoảng 140 MB, có màn hình chờ, mất khoảng 2 phút trên mạng nhanh, lần mở sau nhanh hơn. Log lỗi tự gửi về cho người làm game.",
+    desc: "The Walking Trade viết lại bằng Bevy (Rust), chạy WebAssembly ngay trong trình duyệt, dùng hình, tiếng và số liệu của game gốc. Nhìn góc thứ nhất: dọn tiệm bỏ hoang, nhập hàng của thương nhân, bày kệ và đặt giá, mở cửa bán cho khách lấy pin. Thuê người làm, học kỹ năng, chế đồ, xem bản đồ thế giới và ra ngoài lục lọi; đêm có xác sống kéo tới phá cửa. Save lưu trong trình duyệt. Cần máy tính có card đồ hoạ, nên chạy Chrome hoặc Edge; lần đầu tải khoảng 140 MB, có màn hình chờ, mất khoảng 1,5 phút trên mạng nhanh, lần mở sau nhanh hơn. Log lỗi tự gửi về cho người làm game.",
     genre: "chien-thuat",
     accent: "#d9a441",
-    en: { title: "The Walking Trade", tagline: "Run a shop in the zombie apocalypse: buy stock, set prices, sell for batteries, hold the door at night.", desc: "The Walking Trade rewritten in Bevy (Rust) and running as WebAssembly in the browser, on the original game's art, sound and numbers. First person: clear out an abandoned shop, buy from the trader, stock the shelves and set prices, then open up and sell for batteries. Hire staff, learn skills, craft, check the world map and go scavenging; at night the dead come for your door. Saves stay in the browser. Needs a desktop with a graphics card, best in Chrome or Edge; the first load is about 140 MB behind a loading screen and takes about two minutes on a fast connection, less on the next visit. Error logs are sent to the developers automatically." },
+    en: { title: "The Walking Trade", tagline: "Run a shop in the zombie apocalypse: buy stock, set prices, sell for batteries, hold the door at night.", desc: "The Walking Trade rewritten in Bevy (Rust) and running as WebAssembly in the browser, on the original game's art, sound and numbers. First person: clear out an abandoned shop, buy from the trader, stock the shelves and set prices, then open up and sell for batteries. Hire staff, learn skills, craft, check the world map and go scavenging; at night the dead come for your door. Saves stay in the browser. Needs a desktop with a graphics card, best in Chrome or Edge; the first load is about 140 MB behind a loading screen and takes about a minute and a half on a fast connection, less on the next visit. Error logs are sent to the developers automatically." },
     thumbnail: "assets/thumbnails/walking-trade-bevy.png",
     // Bevy 0.20 build for wasm32 (WebGL2), host ở repo Pages riêng poke5121999-art/twt-bevy-web (408 MB asset).
     // Nguồn: repo twt-bevy trên ssh linux2, nhánh web; dựng lại bằng tools/web/build-web.sh, kiểm bằng
     // TWT_URL=<Pages> TWT_HEADED=1 node tools/web/smoke.cjs (Chrome thật, GPU máy này).
     path: "https://poke5121999-art.github.io/twt-bevy-web/",
-    rev: "20261105b",
+    rev: "20261105c",
     status: "available",
     tags: ["Kinh doanh", "Sinh tồn", "Góc nhìn thứ nhất", "Máy tính"]
   }
