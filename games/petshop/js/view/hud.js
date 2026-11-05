@@ -40,8 +40,10 @@ export class Hud {
     // Bank: only the Free Pack stays (IAP packs hidden); it moves to the first slot of the horizontal list.
     const fp = node('Store/Store/Bank/Panels/Scroll View/Viewport/Content/Free Pack');
     if (fp) fp.rt.pos[0] = 200;
-    // License / Expansion grids (GridLayoutGroup): the IAP "UnlockAll" cell is removed, the rest reflow into the grid
-    // of the first row's pitch (the serialized positions of the later cells are stale editor values).
+    // License / Expansion grids: the IAP "UnlockAll" cell is removed and the cells after it move up one slot.
+    // Expansion's Content has a GridLayoutGroup (4 columns, cell 355 x 435, spacing 15, padding left 25), so every cell
+    // reflows. License's Content has no layout group: Licenses 1-5 sit in the 3-column rows of 411-wide cells and
+    // Licenses 6-11 in their own 2-column rows of 571-wide cells (level1), so only the narrow cells take the free slot.
     for (const t of ['License', 'Expansion']) {
       const c = node(`Store/Store/License/Panels/${t}/Viewport/Content`);
       if (!c) continue;
@@ -50,8 +52,9 @@ export class Hud {
       const dx = slots[1][0] - slots[0][0], dy = slots[cols][1] - slots[0][1];
       const vis = c.kids.filter(k => k.n !== 'UnlockAll');
       c.kids.find(k => k.n === 'UnlockAll').on = false;
-      vis.forEach((k, i) => { k.rt.pos = [slots[0][0] + (i % cols) * dx, slots[0][1] + Math.floor(i / cols) * dy]; });
-      c.rt.size[1] = Math.ceil(vis.length / cols) * -dy + 40;
+      const w0 = vis[0].rt.size[0];
+      vis.filter(k => t === 'Expansion' || k.rt.size[0] === w0).forEach((k, i) => { k.rt.pos = [slots[0][0] + (i % cols) * dx, slots[0][1] + Math.floor(i / cols) * dy]; });
+      c.rt.size[1] = Math.max(...vis.map(k => -k.rt.pos[1] + k.rt.size[1] / 2)) + 40;
     }
     // PricePanelHelper tweens its panel from panelHidePos (536, -1200) to panelShowPos (536, -57) (.ctor constants);
     // the serialized rect is the hidden one
@@ -108,7 +111,12 @@ export class Hud {
     P.show('TopBar/Cash/plus', false);
     const BANK = 'Store/Store/Bank/Panels/Scroll View/Viewport/Content';
     for (const x of ['Value Pack', 'Pack_1', 'Special Pack', 'Cahs_IAPPack', 'Energy_IAPPack']) P.show(`${BANK}/${x}`, false);
-    for (const x of ['LowCashPanel', 'LowEnergyPanel']) P.show(`Panels/${x}/Panel/Content/CashBundle`, false);
+    for (const x of ['LowCashPanel', 'LowEnergyPanel']) {
+      P.show(`Panels/${x}/Panel/Content/CashBundle`, false);
+      // [ĐỀ XUẤT] with the IAP pack (CashBundle) gone, the free card moves from x 529.5 to the middle of Content (695 wide)
+      const free = this.q(`Panels/${x}/Panel/Content/Cash`) || this.q(`Panels/${x}/Panel/Content/Energy`);
+      if (free && free._n) free._n.rt = Object.assign({}, free._n.rt, { pos: [347.5, free._n.rt.pos[1]] });
+    }
     const SET = 'Panels/SettingUIPanel/Panel';
     for (const x of ['BugReport', 'Discord', 'Restore Purchase', 'Privacy Policy', 'RateUs']) P.show(`${SET}/Middle/Right/Buttons/${x}`, false);
     P.show(`${SET}/Middle/Left/Scroll View/Viewport/Content/Haptics`, false);   // no haptics in a browser
@@ -159,7 +167,10 @@ export class Hud {
     this.on('Panels/DeliveryCatalogueUIHelper/Panel/CrossButton', () => this.closeCatalog());
     this.on('Panels/DeliveryCatalogueUIHelper/Bg', () => this.closeCatalog());
     // laptop store
-    this.on('Store/Store/Cross', () => this.closeStore());
+    // [ĐỀ XUẤT] the close X is Store's first child, so the Products / Service / Bank panels drawn after it covered it
+    // completely (no way to close the laptop store by touch); it is lifted above them
+    const cross = this.on('Store/Store/Cross', () => this.closeStore());
+    if (cross) { cross.style.zIndex = '4'; if (cross._n) cross._n.rt = Object.assign({}, cross._n.rt, { pos: [830, 352] }); }   // on the panel's corner, off the cart's UNIT header
     this.on('Store/Store/LeftButtons/Store', () => this.storeSection('Products'));
     this.on('Store/Store/LeftButtons/Manage', () => this.storeSection('License'));
     for (const t of ['Products', 'Animals', 'Furniture']) this.on(`Store/Store/Products/TopButtons/${t}`, () => this.storeTab(t));
@@ -633,10 +644,12 @@ export class Hud {
     if (!sl) return () => {};
     const draw = () => {
       const f = Math.max(0, Math.min(1, get()));
+      // UnityEngine.UI.Slider drives the anchors at run time: Fill (0, 0)-(value, 1), Handle (value, 0)-(value, 1); the
+      // serialized rects have zero height, which left the settings sliders empty
       const fill = this.q(`${path}/Fill Area/Fill`);
-      if (fill) fill.style.width = `${(f * 100).toFixed(1)}%`;
+      if (fill) Object.assign(fill.style, { left: '0', top: '0', height: '100%', width: `${(f * 100).toFixed(1)}%` });
       const h = this.q(`${path}/Handle Slide Area/Handle`);
-      if (h) h.style.left = `calc(${(f * 100).toFixed(1)}% - ${parseFloat(h.style.width) / 2}px)`;
+      if (h) Object.assign(h.style, { top: '0', height: '100%', left: `calc(${(f * 100).toFixed(1)}% - ${parseFloat(h.style.width) / 2}px)` });
     };
     if (!sl._bound) {
       sl._bound = true; sl.classList.add('b'); sl.style.pointerEvents = 'auto';
@@ -750,20 +763,17 @@ export class Hud {
   lowCash() { if (this.over !== 'Panels/LowCashPanel') this.overlay('Panels/LowCashPanel', true); }
   lowEnergy() { if (this.over !== 'Panels/LowEnergyPanel') this.overlay('Panels/LowEnergyPanel', true); }
 
-  // CashierServiceBoughtPanel / StorageServiceBoughtPanel: two tip pictures, tap for next, then closed
+  // CashierServiceBoughtPanel / StorageServiceBoughtPanel (Buy*ServiceHelper.storageTipPanel): both tip pictures side by
+  // side (ImagesPanel/1 and /2 at x +-256); successPanelButton -> CloseCashierSuccessPanel, so one tap closes it
   serviceBought(kind) {
     const name = kind === 'cashier' ? 'CashierServiceBoughtPanel' : 'StorageServiceBoughtPanel';
     this.closeModal();
-    this.tipPage = 1;
     this.openModal(`Panels/${name}`);
     this.p.show('Panels', true);
     this.p.show(`Panels/${name}/Panel/ImagesPanel/1`, true);
-    this.p.show(`Panels/${name}/Panel/ImagesPanel/2`, false);
+    this.p.show(`Panels/${name}/Panel/ImagesPanel/2`, true);
   }
-  tipNext(name) {
-    if (this.tipPage === 1) { this.tipPage = 2; this.p.show(`Panels/${name}/Panel/ImagesPanel/1`, false); this.p.show(`Panels/${name}/Panel/ImagesPanel/2`, true); }
-    else this.closeModal();
-  }
+  tipNext() { this.closeModal(); }
 
   // CashierUIHelper: salary slider 0.6x .. 1x hirePrice, starts at the middle (0.8x); HIRE shows the energy cost
   openHire() {
@@ -839,7 +849,8 @@ export class Hud {
       cell.el.hidden = false; cell.el._cell = true;
       mid.appendChild(cell.el);
       cell.layout(W, H);
-      Object.assign(cell.el.style, { left: `${(i - (list.length - 1) / 2) * (W + GAP) - W / 2}px`, top: `${-H / 2}px` });
+      // Middle is 261 high with its own top-left as origin: the cells fill it (top 0); x is centred on its zero width
+      Object.assign(cell.el.style, { left: `${(i - (list.length - 1) / 2) * (W + GAP) - W / 2}px`, top: '0px' });
       cell.set('Text (TMP)', r.name);
       if (r.icon) { const ic = cell.q('IconImage'); if (ic) ic.style.backgroundImage = `url("${this.base}/${r.icon}")`; }
     });
@@ -885,6 +896,8 @@ export class Hud {
     const btn = { 'Welcome Screen': 'Button', 'Change Name Tip': 'Screen/Confirm', 'Follow Objective': 'Screen/Confirm' }[name];
     if (name === 'Welcome Screen') {
       this.p.show(`${path}/Button`, true); this.p.show(`${path}/Panel/Screen/LoweText`, true);
+      // [ĐỀ XUẤT] "Tap for next..." sits where the LowerBar (drawn later) covers its lower half; keep it readable above it
+      const lt = this.q(`${path}/Panel/Screen/LoweText`); if (lt) lt.style.zIndex = '3';
       // upper / lower black bars: sizeDelta (0, 0) -> (0, 125) in 1.0 s
       for (const b of ['UpperBar', 'LowerBar']) {
         const el = this.q(`${path}/${b}`);
@@ -927,14 +940,18 @@ export class Hud {
   }
 
   // ---------- floating joystick + touch look ----------
+  // The listeners sit on #stage: #hud has pointer-events none and is a sibling of the canvas, so touches on the canvas
+  // never reached it (no walking or looking on a phone at all). Only touches that start on the canvas steer: one on a
+  // HUD button is that button's.
   joystick() {
-    const host = this.layer.host;
+    const host = this.layer.host.parentElement || this.layer.host;
+    const onCanvas = e => e.target && e.target.tagName === 'CANVAS';
     const bg = this.q('HudUI/PlayerControls/Floating Joystick/Background');
     const knob = bg && bg.firstElementChild;
     let joyId = null, lookId = null, origin = null, last = null;
     if (bg) bg.hidden = true;
     host.addEventListener('pointerdown', e => {
-      if (e.pointerType === 'mouse' || this.modal || this.ctx.inCheckout()) return;
+      if (e.pointerType === 'mouse' || this.modal || this.ctx.inCheckout() || !onCanvas(e)) return;
       if (e.clientX < host.clientWidth * 0.45 && joyId == null) {
         joyId = e.pointerId; origin = [e.clientX, e.clientY];
         if (bg) { bg.hidden = false; const r = bg.getBoundingClientRect(); bg.style.transform = `translate(${e.clientX - r.left - r.width / 2}px, ${e.clientY - r.top - r.height / 2}px)`; }
@@ -959,9 +976,37 @@ export class Hud {
   }
 
   // ---------- per frame ----------
+  // Unity Scrollbar driven by its ScrollRect: the Handle's anchors are [v * (1 - size), v * (1 - size) + size] along
+  // the bar, size = viewport / content, v = normalized position (1 = top for a vertical bar); its 20-unit sizeDelta
+  // stays. The serialized Handle rect is a stale editor value, so it is set from the scroll position every frame.
+  syncScrollbars() {
+    if (!this.modal && !this.over) return;
+    if (!this._bars) {
+      this._bars = [...this.layer.el.querySelectorAll('[data-n^="Scrollbar"]')].map(bar => {
+        const vp = [...bar.parentElement.children].find(e => e.dataset.n === 'Viewport');
+        const h = bar.querySelector('[data-n="Handle"]');
+        const rt = bar._n && bar._n.rt;
+        return vp && h ? { vp, h, bar, horiz: !!rt && rt.a0[1] === rt.a1[1] } : null;
+      }).filter(Boolean);
+    }
+    for (const b of this._bars) {
+      if (!b.bar.offsetParent) continue;
+      const { vp, h } = b;
+      const len = b.horiz ? vp.scrollWidth : vp.scrollHeight, view = b.horiz ? vp.clientWidth : vp.clientHeight;
+      if (!len || !view) continue;
+      const size = Math.min(1, Math.max(0.05, view / len));
+      const pos = b.horiz ? vp.scrollLeft : vp.scrollTop, max = len - view;
+      const along = max > 0 ? pos / max : 0;   // 0 = top / left
+      const st = `${(along * (1 - size) * 100).toFixed(2)}%`, ln = `${(size * 100).toFixed(2)}%`;
+      if (b.horiz) Object.assign(h.style, { left: `calc(${st} - 10px)`, width: `calc(${ln} + 20px)`, right: 'auto' });
+      else Object.assign(h.style, { top: `calc(${st} - 10px)`, height: `calc(${ln} + 20px)`, bottom: 'auto' });
+    }
+  }
+
   update(dt, st) {
     const { sim, G } = this.ctx;
     const s = sim.s, P = this.p;
+    this.syncScrollbars();
     // TopBar
     P.set('TopBar/Calender/DayText', `DAY ${s.day}`);
     const h = Math.floor(s.time), m = Math.floor((s.time - h) * 60);
@@ -1017,7 +1062,7 @@ export class Hud {
     P.show('HudUI/CheckOutCounter/CashPayment', inChk && k.phase === 'pay' && k.method === 1);
     P.show('HudUI/CheckOutCounter/CardPayment', inChk && k.phase === 'pay' && k.method === 2);
     if (k.phase === 'pay' && k.method === 2) P.set('HudUI/CheckOutCounter/CardPayment/Panel/Top/billText', k.card ? `$${k.card}` : money(0));
-    this.pos.hidden = !inChk;
+    this.pos.hidden = !inChk || !!this.modal || !!this.over;   // the register screen sits in 3D, under any panel
     if (inChk) {
       const lines = [`TOTAL ${money(k.bill || 0)}`];
       if (k.phase === 'pay' && k.method === 1) lines.push(`RECEIVED ${money(k.received)}`, `CHANGE ${money(k.change)}`, `GIVING ${money(k.given)}`);
@@ -1083,6 +1128,9 @@ export class Hud {
       if (tv.exit === false) P.show('HudUI/CheckOutCounter/ExitCheckOut', false);   // CheckOutCounter.HideExitButton
     } else if (this.tutVisWas) { P.show('HudUI', true); P.show('TopBar', true); }
     this.tutVisWas = !!tv;
+    // SettingUIHelper.ShowPanel calls topBarUIHelper.HidePanel, HidePanel's tween end calls ShowPanel again
+    const setOpen = this.modal === 'Panels/SettingUIPanel';
+    if (setOpen !== this.settingsWas) { if (!tv || tv.hud) P.show('TopBar', !setOpen); this.settingsWas = setOpen; }
     this.navArrow(tv && tv.nav);
     this.taskMarks(st.marks || []);
     this.slideTopBar(dt);

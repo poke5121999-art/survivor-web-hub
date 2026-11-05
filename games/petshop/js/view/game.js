@@ -242,6 +242,11 @@ export class GameView {
         if (rig) this.rigs.add(rig);
         const h = lay.coll ? hitBox(lay.coll.size, lay.coll.c, { kind: 'box', id: b.id }) : hitBox([0.6, 0.35, 0.5], [0, 0.17, 0], { kind: 'box', id: b.id });
         inst.add(h);
+        // the box prefabs were saved with their items already under the product holder (BaseDeliveryBox.itemList,
+        // which GetLastItem / BoxItemsCountSet shrink as items leave); the items drawn below stand in for that list,
+        // so the saved copies are hidden
+        const hold = lay.holder != null ? childAt(inst, lay.holder) : null;
+        if (hold && hold !== inst) for (const c of hold.children) c.visible = false;
         e = { inst, rig, items: [], open: null, hit: h };
         this.boxes.set(b.id, e);
       }

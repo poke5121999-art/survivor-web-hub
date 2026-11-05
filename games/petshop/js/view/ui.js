@@ -146,7 +146,11 @@ export class Panel {
     const t = el._n.txt;
     let fs = t.auto ? t.max : t.fs;
     el.style.fontSize = `${fs}px`;
-    if (!t.auto || !el.isConnected || !el._span.offsetWidth) return;
+    if (!t.auto) return;
+    // a hidden text cannot be measured: it would stay at fontSizeMax (the Vietnamese "ĐƯỢC RỒI" on the give-change OK
+    // button ran over the C button); it is fitted again when show() reveals it
+    if (!el.isConnected || !el._span.offsetWidth) { (this.unfit ||= new Set()).add(el); return; }
+    if (this.unfit) this.unfit.delete(el);
     const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
     for (let i = 0; i < 40 && fs > t.min && (el._span.offsetWidth > w + 0.5 || el._span.offsetHeight > h + 0.5); i++) {
       fs = Math.max(t.min, fs * 0.92);
@@ -190,5 +194,17 @@ export class Panel {
   }
 
   set(path, value) { const el = this.q(path); if (el && el._span) this.text(el, el._n, value); }
-  show(path, on) { const el = path ? this.q(path) : this.el; if (el) el.hidden = !on; }
+  show(path, on) {
+    const el = path ? this.q(path) : this.el;
+    if (!el) return;
+    const was = el.hidden;
+    el.hidden = !on;
+    if (on && was) this.refit();   // only on a hidden -> shown change: HUD code calls show() every frame
+  }
+
+  // texts that were laid out while hidden get their auto-size now that they may be visible
+  refit() {
+    if (!this.unfit || !this.unfit.size) return;
+    for (const t of [...this.unfit]) if (t.isConnected && t._span.offsetWidth) this.fit(t);
+  }
 }

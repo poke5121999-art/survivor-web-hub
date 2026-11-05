@@ -8,6 +8,13 @@ export const W = 480;
 export const H = 800;
 export const GROUND_Y = 430;
 export const HERO_X = 240;
+// guardians: fly in after DelayTime(2.0) + MoveTo(0.3) (Init_Guardian @0x57a730); station height and patrol are web values
+const GUARD_Y = 230;
+const GUARD_DELAY = 2.3;
+const GBULLET_SPEED = 280; // MoveTo(5.0 s) over the 1400 px from the guardian to y = -800 (cocos), Guardian_Bullet
+const SLASH_BAND = 80; // how far above the lane a flyer can still be slashed (not measured: inferred)
+const LANE_Y = 0.48; // monster centre height (GameData+0x124b8 = 0.48*H from the bottom)
+const BOMB_R = 60; // explosion radius (FUC_CHECK_BOMB_AREA_AND_HIT_MONSTERS @0x59e8d4; rect size not recovered: web value)
 // spawn point: x = W + W / spawnDiv (right) or -W / spawnDiv (left), spawnDiv 2.0 (SCH_CREATE_MONSTER01 @0x598f8c)
 const SPAWN_OUT = W / 2;
 const QUEUE_GAP = 46; // web layout: melee monsters in one lane queue this far apart (the original lets them overlap)
@@ -49,7 +56,9 @@ export function createSim(stage, seed = 1, opts = {}) {
     // (getPlayerInfo @0x620794). opts.dashStartCd: the stage-1 tutorial starts with the dash charging (TUTO06 fires when
     // the gauge fills; inferred: main.js sets hero.dashCd = dashMax)
     critChance: Math.min(30, h.critChance + (opts.critBonus || 0)),
-    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0, dashMax: Math.max(Math.min(5, h.dash.cooldown), h.dash.cooldown - (opts.cdCut || 0)), dashCd: 0, dashT: 0 },
+    // skill cooldown: the hero table says 20 s (35 s Elizabeth; GD+0x95e8, shown as SKILL COOL 20) but the gauge refills in
+    // 10 s in the clip, so the clip time scales by hero (inferred: the timer runs at twice the stat)
+    hero: { x: HERO_X, offX: 0, hp, hpMax: hp, facing: 1, state: 'idle', st: 0, lock: 0, lockMax: 1, hurt: 0, shield: 0, dashMax: Math.max(Math.min(5, h.dash.cooldown * (opts.cooldown || 20) / 20), h.dash.cooldown * (opts.cooldown || 20) / 20 - (opts.cdCut || 0)), dashCd: 0, dashT: 0 },
     boss: null,
     zzol: null, // boss minion script in progress { pat, t0, next }
     zzolStart: null, // pending summon { pat, at }
@@ -81,15 +90,31 @@ export function createSim(stage, seed = 1, opts = {}) {
     auto: false,
     won: false,
     tutoHold: false,
+    // equipped guardians (WING tab): [{ side 'L'|'R', kind, lv, style, tier, crit }] -> flying helpers (Init_Guardian @0x57a730)
+    guardians: (opts.guardians || []).map(g => ({ ...g, x: g.side === 'L' ? 60 : W - 60, y: GUARD_Y, fireT: 0, t: -GUARD_DELAY })),
+    gbullets: [],
+    gexp: 0, // guardian EXP earned this stage (FUC_GET_SCORE @0x602bc4)
+    // pickups (FUC_SELECT_ITEM02): seconds left per effect; durations 10 + ability level (BERSERKER 13 + level)
+    buffs: { score: 0, atk: 0, def: 0, berserk: 0 },
+    buffTime: { score: 10, atk: 10, def: 10, berserk: 13, ...(opts.buffTime || {}) },
+    pickups: [], // flying pickups { type, x, t }
+    berserkT: 0,
+    reviveOffer: !!opts.reviveOffer, revives: 0, offer: null, baseHp: opts.baseHp ?? hp,
+    goldMul: opts.goldMul ?? 1, // Destiny 2x GOLD (x2), Teresa x2
+    boosterBonus: opts.boosterBonus ?? 0, // Destiny DROPS BOOSTER OFTEN: +2000 / 10001
+    forcedDrops: opts.forcedDrops || null, // stage-2 tutorial: { killCount: type }
+    destiny: opts.destiny ?? null,
+    gems: [], // big coins flying (render)
     storm: null, // Sword Storm in progress { timer, acc }
     swords: [], // flying storm swords { k, t, x, y }
     used: { potion: 0, shield: 0, storm: 0 },
     stars: 0,
     events: [],
+    tally: {}, // event counts for the tests
   };
 }
 
-const emit = (s, type, data = {}) => s.events.push({ ...data, type });
+const emit = (s, type, data = {}) => { s.events.push({ ...data, type }); s.tally[type] = (s.tally[type] || 0) + 1; };
 export const living = s => s.monsters.filter(m => m.state !== 'dead');
 export const totalMonsters = s => s.stage.waves.length;
 // stars at T/3, T/2, T with integer division (Scene_UI::FUC_GET_SCORE @0x603100)
@@ -100,6 +125,7 @@ const isProjectile = def => !!def.projectileOf;
 
 function setPhase(s, phase) {
   if (phase === 'clear') s.won = true;
+  if (phase === 'clear' || phase === 'fail') s.hero.held = null;
   s.phase = phase;
   s.t = 0;
   emit(s, 'phase', { phase });
@@ -117,8 +143,10 @@ export function attackArea(s) {
 export function inArea(s, side) {
   const { near, far } = attackArea(s);
   return living(s).filter(m => {
+    const def = defOf(s, m);
+    if (def.untargetable || m.ghost || (!def.bandFree && (m.dy || 0) < -SLASH_BAND)) return false;
     const d = (m.x - s.hero.x) * side;
-    const half = defOf(s, m).box / 2;
+    const half = def.box / 2;
     return d + half > near && d - half < far;
   });
 }
@@ -129,11 +157,20 @@ export function attack(s, side) {
   const hero = s.hero;
   if (s.phase !== 'play' || s.paused || hero.state === 'dead' || hero.lock > 0 || hero.dashT > 0) return null;
   const H_ = s.stage.hero;
+  if (hero.held) { // held by a dark-tree arm: two alternating taps break free (FUC_AUTO_PLAY counts them)
+    if (hero.held.last !== side) hero.held.taps++;
+    hero.held.last = side;
+    hero.facing = side;
+    emit(s, 'struggle', { taps: hero.held.taps });
+    if (hero.held.taps >= hero.held.need) { hero.held.arm.armT = Math.max(hero.held.arm.armT, 99); hero.held = null; emit(s, 'free'); }
+    return 'struggle';
+  }
   hero.facing = side;
   hero.state = 'attack';
   hero.st = 0;
   s.attacks++;
   const targets = inArea(s, side);
+  if (!targets.length && s.buffs.berserk > 0) { hero.lock = hero.lockMax = H_.attackTime; return 'swing'; } // BERSERKER: no miss
   if (!targets.length) {
     hero.lock = hero.lockMax = H_.missLock;
     s.misses++;
@@ -145,7 +182,7 @@ export function attack(s, side) {
   s.hits++;
   let res = 'hit';
   for (const m of targets) {
-    let dmg = calcDamage(s.atk, defOf(s, m).def, s.rng);
+    let dmg = calcDamage(s.atk * (s.buffs.atk > 0 ? 2 : 1), defOf(s, m).def, s.rng); // x2 ATK pickup
     // "PERFECT": rand()%100 < player+0x560 (1 for the knight) doubles the hit (Scene_Stage::update @0x592744)
     const crit = Math.floor(s.rng() * 100) < (s.critChance ?? H_.critChance);
     if (crit) dmg *= 2;
@@ -166,20 +203,26 @@ export function dash(s, side = s.hero.facing) {
   emit(s, 'dash', { side });
   for (const m of living(s)) {
     const d = (m.x - hero.x) * side;
-    if (d > -20 && m.x > -10 && m.x < W + 10) damageMonster(s, m, calcDamage(s.power, defOf(s, m).def, s.rng), side, false);
+    if (d > -20 && m.x > -10 && m.x < W + 10) damageMonster(s, m, calcDamage(s.power * (s.buffs.atk > 0 ? 2 : 1), defOf(s, m).def, s.rng), side, false);
   }
   return true;
 }
 
 // the red button
-export const attackFacing = s => dash(s);
+export const attackFacing = s => (s.hero.held ? attack(s, s.hero.held.last === -1 ? 1 : -1) : dash(s)); // held: the red button struggles too
 
 function damageMonster(s, m, dmg, side, crit) {
   m.hp -= dmg;
   m.flash = 0.12;
   const def = defOf(s, m);
   if (m.hp > 0) {
-    if (!isProjectile(def)) m.kx = side * 260; // knocked back (web; FUC_MONSTER_PUSHING not modelled)
+    if (!isProjectile(def) && !def.noKnockback && !def.move) m.kx = side * 260; // knocked back (web; FUC_MONSTER_PUSHING not modelled)
+    if (def.collapse && !isProjectile(def)) m.collapse = def.collapse.time; // skeleton falls to bones and rebuilds
+    if (def.move) m.harmless = true; // rushers / swoopers: a slash makes them harmless until the next pass
+    if (def.counter && s.rng() < def.counter.chance) { // mummy throws a bandage ball back
+      const b = spawn(s, { type: def.counter.projectile, side: m.side > 0 ? 'R' : 'L' }, m.x);
+      emit(s, 'shoot', { id: m.id, arrow: b.id });
+    }
     if (m.state === 'attack') { m.state = 'wait'; m.st = 0; m.atkCd = def.atkDelay; }
     emit(s, 'hit', { id: m.id, x: m.x, side, dmg, crit });
     if (m === s.boss) bossHit(s);
@@ -197,26 +240,57 @@ function killMonster(s, m, side, dmg, crit) {
   s.kills++;
   // kill score = monster score + the combo so far, then the combo counts this kill (FUC_HIT_MONSTER_FROM_LEFT @0x594f54:
   // Scene_UI::FUC_GET_SCORE, then FUC_GET_COMBO)
-  const pts = def.score + s.combo;
+  const pts = (def.score + s.combo) * (s.buffs.score > 0 ? 2 : 1); // x2 SCORE pickup
   s.score += pts;
+  // guardian EXP: kill points * 0.1 for monsters whose class field is 6 (Scene_UI::FUC_GET_SCORE @0x602bc4; inferred meaning)
+  if (def.cls === 6 || def.cls2 === 6) s.gexp += pts * 0.1 * (s.gexpMul || 1); // x2 with DESTINY 2x G WING EXP
   s.combo++;
   s.maxCombo = Math.max(s.maxCombo, s.combo);
   // coins: rand()%10001 < GameData+0x7698[stage]; a boss always drops 5; projectiles (AI 3) drop nothing
   // (Scene_UI::FUC_SELECT_ITEM @0x5ed398 / @0x5ed40c)
   const coins = isProjectile(def) ? 0 : def.ai === 4 ? s.stage.bossCoins : (s.rng() < s.stage.coinChance ? 1 : 0);
-  const gold = coins * s.coinValue; // each coin is worth 1 / 2 (HARD) / 3 or 4 (HELL)
+  let gold = coins * s.coinValue * s.goldMul; // each coin is worth 1 / 2 (HARD) / 3 or 4 (HELL), x2 with 2x GOLD
+  // big coin (a gem worth 10 / 20 / 30 gold): Scene_UI::FUC_SELECT_GEM @0x5ee5b8, rolled on every kill
+  if (!isProjectile(def) && s.stage.bigCoinChance && s.rng() < s.stage.bigCoinChance) {
+    const r = Math.floor(s.rng() * 1000);
+    const k = r < 500 ? 0 : r < 800 ? 1 : 2;
+    const v = s.stage.bigCoinValues[k] * s.coinValue * s.goldMul;
+    gold += v;
+    s.gemDrops = (s.gemDrops || 0) + 1;
+    emit(s, 'gem', { x: m.x, kind: k, value: v });
+  }
   s.gold += gold;
+  // booster pickup: 2.5% per kill (+20% with DROPS BOOSTER OFTEN, cap 30%); type rand()%5 with 3 rerolled
+  if (!isProjectile(def)) {
+    let type = s.forcedDrops ? s.forcedDrops[s.kills] : undefined;
+    if (type === undefined && s.rng() < Math.min(0.3, (s.stage.boosterChance || 0) + s.boosterBonus)) {
+      do type = Math.floor(s.rng() * 5); while (type === 3);
+    }
+    if (type !== undefined) { s.pickups.push({ type, x: m.x, t: 0 }); emit(s, 'drop', { ptype: type, x: m.x }); }
+  }
   if (s.boss === m) emit(s, 'bossDown', { id: m.id });
-  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold, crit });
+  emit(s, 'kill', { id: m.id, mtype: m.type, x: m.x, side, combo: s.combo, dmg, pts, gold, coins, crit });
   checkClear(s, m);
 }
 
 // FUC_HIT_MONSTER_FROM_LEFT/RIGHT @0x595248: a required monster dying after the end (9999) or final (7777) marker
 // with no other required monster alive clears the stage; so does a boss dying after 7777. FUC_CLEAR_PROCCESS then
 // kills what is left.
+// The script has run out (9999 passed), every required monster that came is dead and none is waiting: clear. The C++
+// clear test runs on a required kill after the end marker (FUC_HIT_MONSTER_FROM_LEFT/RIGHT @0x595248); a required boss
+// that dies before the marker (stage 10's dark tree) would never meet it, so the web also checks when the script ends
+// (inferred: the flags at +0x4a / +0x4b were not traced).
+function endOfScript(s) {
+  if (!s.requiredDied || s.phase !== 'play') return;
+  const ended = s.clock >= s.stage.scriptEnd && s.nextWave >= s.stage.waves.length && !s.pending.length;
+  if (ended && !living(s).some(o => o.required)) { for (const o of living(s)) { o.hp = 0; o.state = 'dead'; o.st = 0; } finishStage(s); }
+}
+
 function checkClear(s, m) {
+  if (m.required) s.requiredDied = true;
   if (s.phase !== 'play') return;
   const ended = s.clock >= s.stage.scriptEnd && s.nextWave >= s.stage.waves.length && !s.pending.length;
+  if (s.stage.tower) return; // the tower moves floor by floor (towerStep)
   let clear = false;
   if (m.required) clear = (ended || s.finalPassed) && !living(s).some(o => o.required) && !s.pending.some(p => p.w.required);
   else if (s.finalPassed && defOf(s, m).ai === 4) clear = true;
@@ -309,9 +383,11 @@ function spawn(s, w, at) {
     hp: def.hp, hpMax: def.hp, state: 'walk', st: 0, atkCd: def.atkDelay, flash: 0, kx: 0, hitDone: false,
     required: !!w.required,
   };
+  if (def.move) initMove(s, m, def, w);
+  if (def.lob) { m.x0 = m.x; m.dy = 0; m.lt = 0; }
   s.monsters.push(m);
   emit(s, 'spawn', { id: m.id, mtype: m.type, side });
-  if (!isProjectile(def) && (x < 0 || x > W)) {
+  if (!isProjectile(def) && !def.untargetable && (x < 0 || x > W)) {
     // incoming warning at the edge (Scene_UI::EFF_MARK_ALERT @0x612288: wolf head for kinds 1 / 23, "!" otherwise)
     const wolf = def.typeId === 1 || def.typeId === 23;
     if (!isProjectile(def)) s.alerts.push({ k: wolf ? 'wolf' : 'warn', side, id: m.id, t: 0, dur: 3, dy: [0, 10, 20][Math.floor(s.rng() * 3)] });
@@ -345,19 +421,38 @@ function hurtHero(s, m) {
   }
   const def = s.stage.monsters[m.type];
   // monster ATK (x1.5 HARD, x2 HELL) vs knight DEF (Scene_Stage::FUC_HIT_BY_MONSTER @0x5b9dd4)
-  const dmg = calcDamage(Math.trunc(def.atk * s.atkMul), s.def, s.rng);
+  // x2 DEF pickup doubles DEF and keeps the combo ("2x DEF will also protect you from combo break", loading tip)
+  const dmg = calcDamage(Math.trunc(def.atk * s.atkMul), s.def * (s.buffs.def > 0 ? 2 : 1), s.rng);
   hero.hp = Math.max(0, hero.hp - dmg);
   s.damageTaken += dmg;
-  s.combo = 0;
+  if (!(s.buffs.def > 0)) s.combo = 0;
   hero.hurt = s.stage.hero.hurtTime;
   emit(s, 'heroHurt', { id: m.id, dmg });
   if (hero.hp <= 0) {
     hero.state = 'dead';
     hero.st = 0;
     emit(s, 'heroDie', {});
-    setPhase(s, 'fail');
+    // the revive offer (USE POTION OF LIFE TO RESURRECT NOW, FUC_REVIVAL @0x592dc4) holds the stage until it is answered
+    if (s.reviveOffer) { s.offer = { cost: 5 * (s.revives + 1), t: 0 }; emit(s, 'reviveOffer', { cost: s.offer.cost }); }
+    else setPhase(s, 'fail');
   }
 }
+
+// Revive: full base HP (armor table, no equipment), a burst that hits the monsters around, a short invulnerability, and
+// every pickup effect cleared (Scene_Stage::FUC_REVIVAL @0x592dc4, FUC_CHECK_REVIVAL_AREA_AND_HIT_MONSTERS @0x5c4530)
+export function revive(s) {
+  if (!s.offer) return false;
+  const hero = s.hero;
+  s.offer = null;
+  s.revives++;
+  hero.hp = hero.hpMax = s.baseHp;
+  hero.state = 'idle'; hero.st = 0; hero.shield = 2.0;
+  for (const k of Object.keys(s.buffs)) s.buffs[k] = 0;
+  for (const m of living(s)) if (Math.abs(m.x - hero.x) < 160 && !defOf(s, m).untargetable) damageMonster(s, m, calcDamage(s.atk * 2, defOf(s, m).def, s.rng), m.x < hero.x ? -1 : 1, false); // burst radius / power: web values
+  emit(s, 'revive', {});
+  return true;
+}
+export function declineRevive(s) { if (!s.offer) return false; s.offer = null; setPhase(s, 'fail'); return true; }
 
 function stepCommon(m, dt) {
   m.flash = Math.max(0, m.flash - dt);
@@ -431,7 +526,7 @@ function updateMonsters(s, dt) {
   const hero = s.hero;
   const canAct = hero.state !== 'dead' && s.phase === 'play';
   for (const side of [-1, 1]) {
-    const lane = living(s).filter(m => m.side === side && !isRanged(defOf(s, m)) && !isProjectile(defOf(s, m)))
+    const lane = living(s).filter(m => m.side === side && !isRanged(defOf(s, m)) && !isProjectile(defOf(s, m)) && !defOf(s, m).move)
       .sort((a, b) => Math.abs(a.x - hero.x) - Math.abs(b.x - hero.x));
     let limit = null;
     lane.forEach((m, i) => {
@@ -439,6 +534,7 @@ function updateMonsters(s, dt) {
       const dir = -side;
       const stopX = i === 0 ? hero.x - dir * def.contact : limit - dir * QUEUE_GAP;
       stepCommon(m, dt);
+      if (m.collapse > 0) { m.collapse -= dt; limit = m.x; return; }
       if (m.state === 'attack' || walkTo(m, stopX, dt)) {
         if (i === 0 || m.state === 'attack') attackCycle(s, m, def, dt, canAct && i === 0, () => {
           if (Math.abs(m.x - hero.x) <= def.contact + 6) hurtHero(s, m);
@@ -449,11 +545,13 @@ function updateMonsters(s, dt) {
   }
   for (const m of living(s)) {
     const def = defOf(s, m);
-    if (isRanged(def)) archerStep(s, m, def, dt, canAct);
+    if (def.move) moveStep(s, m, def, dt, canAct);
+    else if (isRanged(def)) archerStep(s, m, def, dt, canAct);
+    else if (def.lob) lobStep(s, m, def, dt, canAct);
     else if (isProjectile(def)) { // arrows fly to the hero and hit once
       stepCommon(m, dt);
       if (walkTo(m, hero.x + m.side * def.contact, dt)) {
-        if (canAct) hurtHero(s, m);
+        if (canAct) { hurtHero(s, m); if (def.blind) s.blind = def.blind.time; }
         m.hp = 0; m.state = 'dead'; m.st = 0; m.spent = true;
       }
     }
@@ -506,6 +604,7 @@ function updateHero(s, dt) {
   hero.lock = Math.max(0, hero.lock - dt);
   hero.hurt = Math.max(0, hero.hurt - dt);
   hero.shield = Math.max(0, hero.shield - dt);
+  s.blind = Math.max(0, (s.blind || 0) - dt);
   if (s.phase === 'play') hero.dashCd = Math.max(0, hero.dashCd - dt);
   if (hero.dashT > 0) {
     hero.dashT = Math.max(0, hero.dashT - dt);
@@ -525,7 +624,7 @@ function finishStage(s) {
 }
 
 export function update(s, dt) {
-  if (s.paused || s.tutoHold) return; // tutoHold: a tutorial step is on screen (js/ftue.js, FUC_UI_PAUSE)
+  if (s.paused || s.tutoHold || s.offer) return; // tutoHold: a tutorial step is on screen (js/ftue.js, FUC_UI_PAUSE); offer: revive popup
   s.t += dt;
   switch (s.phase) {
     case 'ready':
@@ -543,6 +642,10 @@ export function update(s, dt) {
       updateHero(s, dt);
       updateMonsters(s, dt);
       updateStorm(s, dt);
+      updateGuardians(s, dt);
+      updatePickups(s, dt);
+      if (s.stage.tower) towerStep(s);
+      else endOfScript(s);
       break;
     }
     case 'clear':
@@ -561,6 +664,7 @@ export function update(s, dt) {
 // dash, no items, no misses.
 export function autoPlay(s) {
   if (!s.auto || s.phase !== 'play' || s.paused || s.hero.state === 'dead' || s.hero.lock > 0 || s.hero.dashT > 0) return;
+  if (s.hero.held) { attack(s, s.hero.held.last === -1 ? 1 : -1); return; }
   let best = null;
   for (const side of [-1, 1]) for (const m of inArea(s, side)) if (!best || Math.abs(m.x - s.hero.x) < Math.abs(best.m.x - s.hero.x)) best = { m, side };
   if (best) attack(s, best.side);
@@ -581,6 +685,7 @@ export function createBot(opts = {}, rng = Math.random) {
   const seen = new Map();
   return function bot(s, dt) {
     if (s.phase !== 'play' || s.paused || s.hero.state === 'dead' || s.hero.dashT > 0) return;
+    if (s.hero.held) { attack(s, s.hero.held.last === -1 ? 1 : -1); return; } // break free: alternate sides
     if (s.potions > 0 && s.hero.hp < s.hero.hpMax * 0.4) usePotion(s);
     if (s.skillCharges > 0 && living(s).filter(m => Math.abs(m.x - s.hero.x) < 160).length >= 3) { skill(s); return; }
     if (s.hero.dashCd <= 0) { // the dash pays off on a crowded side
@@ -602,4 +707,287 @@ export function createBot(opts = {}, rng = Math.random) {
       attack(s, side);
     }
   };
+}
+
+// Guardians (WING tab). Each one patrols its side above the lane and fires by style (SCH_CREATE_MISSILE_* @0x58c5f8 ...):
+// straight / homing every 0.12 s (0.0843 s for LEGEND), bomb every 0.7 s, item maker: pickups are not built (no shot).
+// Bullet damage 2*(level+1); tier >= 1 crits x2 when rand()%100 < crit + 15; a guardian bullet never takes a monster
+// below 1 HP (FUC_CALCULATE_DAMAGE_FOR_GUARDAIN @0x607e84): the knight lands the kill.
+function updateGuardians(s, dt) {
+  if (!s.guardians.length && !s.gbullets.length) return;
+  const F = { interval: [0.12, 0.12, 0.7, null], legend: 0.0843 };
+  for (const g of s.guardians) {
+    g.t += dt;
+    if (g.t < 0) continue;
+    const dir = g.side === 'L' ? -1 : 1;
+    g.x = HERO_X + dir * (125 + 70 * Math.sin(g.t * 1.3)); // patrol (FUC_START_LEFT_GUARDIAN_MOVE @0x58db1c; path is a web value)
+    g.y = GUARD_Y + 10 * Math.sin(g.t * 2.1);
+    // ITEM style: makes a booster every max(10, 20 - 0.5 * level) s (Init_Guardian @0x57a730); the type uses the kill-drop
+    // roll (rand()%5, 3 rerolled) - inferred, the maker's own roll was not traced
+    const iv = g.tier === 2 ? F.legend : g.style === 3 ? Math.max(10, 20 - 0.5 * g.lv) : F.interval[g.style];
+    if (!iv) continue;
+    if (g.style === 3) {
+      if (g.fireT === 0) g.fireT = iv; // the first item comes one interval after the guardian arrives
+      g.fireT -= dt;
+      if (g.fireT > 0) continue;
+      g.fireT += iv;
+      let type;
+      do type = Math.floor(s.rng() * 5); while (type === 3);
+      s.pickups.push({ type, x: g.x, t: 0 });
+      emit(s, 'drop', { ptype: type, x: g.x, guardian: true });
+      continue;
+    }
+    g.fireT -= dt;
+    if (g.fireT > 0) continue;
+    g.fireT += iv;
+    const shot = dx => s.gbullets.push({ x: g.x + dx, y: g.y + 20, style: g.style, tier: g.tier, crit: g.crit, dmg: 2 * (g.lv + 1), side: g.side, vx: 0, vy: GBULLET_SPEED, t: 0 });
+    shot(0);
+    if (g.kind === 24) shot(-18); // DRAGONVALKYRIE: double shot (createGuardian_Bullet, tier 2)
+  }
+  const hitOne = (b, m) => {
+    let dmg = Math.max(1, b.dmg);
+    const crit = b.tier >= 1 && Math.floor(s.rng() * 100) < b.crit + 15;
+    if (crit) dmg *= 2;
+    m.hp = Math.max(1, m.hp - dmg);
+    emit(s, 'ghit', { id: m.id, x: m.x, dmg, crit });
+  };
+  const live = s.monsters.filter(m => m.state !== 'dead' && !isProjectile(defOf(s, m)));
+  for (const b of s.gbullets) {
+    b.t += dt;
+    if (b.style === 1) { // homing: steer toward the closest monster
+      let best = null;
+      for (const m of live) if (!best || Math.abs(m.x - b.x) < Math.abs(best.x - b.x)) best = m;
+      if (best) {
+        const dx = best.x - b.x;
+        const dy = GROUND_Y - 40 - b.y;
+        const d = Math.hypot(dx, dy) || 1;
+        b.vx = (dx / d) * GBULLET_SPEED;
+        b.vy = (dy / d) * GBULLET_SPEED;
+      }
+    }
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    if (b.y < GROUND_Y - 90) continue;
+    const m = live.find(o => Math.abs(o.x - b.x) <= (defOf(s, o).box || 50) / 2 + 6);
+    if (b.style === 2 && (m || b.y >= GROUND_Y - 20)) {
+      for (const o of live) if (Math.abs(o.x - b.x) <= BOMB_R) hitOne(b, o);
+      emit(s, 'gbomb', { x: b.x });
+      b.dead = true;
+    } else if (m) { hitOne(b, m); b.dead = true; }
+    if (b.y > GROUND_Y + 40 || b.t > 5) b.dead = true;
+  }
+  s.gbullets = s.gbullets.filter(b => !b.dead);
+}
+
+// DEATH TOWER: a floor is done when its script has run out and nothing spawned is left (the last entry carries mode 1 on
+// most floors); then the lift goes up (FUC_MOVE_TO_NEXT_FLOOR @0x70709c ... 04, S_GOINGUP) and the next floor's script
+// starts. Floors are min(floor, 49) in the original; the web stops after the last floor it has (finishStage = clear).
+function towerStep(s) {
+  const T = s.stage.tower;
+  const ended = s.clock >= s.stage.scriptEnd && s.nextWave >= s.stage.waves.length && !s.pending.length;
+  if (!ended || living(s).length) return;
+  if (T.floor + 1 >= T.floors.length) { s.towerTop = true; finishStage(s); return; }
+  T.floor++;
+  const f = T.floors[T.floor];
+  s.stage.waves = f.waves;
+  s.stage.scriptEnd = f.scriptEnd;
+  s.nextWave = 0;
+  s.clock = -T.lift; // the lift ride before the next floor's first entry
+  s.score += T.floorBonus;
+  emit(s, 'floor', { floor: T.floor + 1 });
+}
+
+// ---- stages 6-15 movers (meta/re_notes/monsters_6_15.md). Heights are cocos fractions of H (y up); m.dy is the screen
+// offset from the lane (negative = higher). ----
+const dyOf = yf => (LANE_Y - yf) * H;
+const bez = (p0, c1, c2, p1, t) => { const u = 1 - t; return u * u * u * p0 + 3 * u * u * t * c1 + 3 * u * t * t * c2 + t * t * t * p1; };
+function initMove(s, m, def, w) {
+  const mv = def.move;
+  const fw = def.fw || def.contact * 2;
+  const T = (w.fast ? def.walkTime / def.fastDiv : def.walkTime) * s.walkMul;
+  m.mv = { ph: 'in', t: 0, T };
+  if (mv.kind === 'fly') {
+    const [fx, fy] = mv.from[m.side > 0 ? 'R' : 'L'];
+    m.x0 = fx * W; m.y0 = dyOf(fy); m.x = m.x0; m.dy = m.y0;
+    m.x1 = HERO_X + m.side * def.contact; m.y1 = dyOf(mv.toY);
+  } else if (mv.kind === 'swoop') {
+    m.dy = dyOf(mv.y0);
+  } else if (mv.kind === 'tree') {
+    m.x = HERO_X; m.side = 1; m.dy = 300;
+    m.y1 = -(0.48 * H + 50 + 0.6 * 271 - LANE_Y * H); // trunk centre at 0.48H + 50 + 0.6*271 (CREATE_BOSS @0x5a05d8)
+    m.mv.armsAt = mv.armsAt; m.mv.next = mv.armsAt + mv.armIn; // the left arm's MoveTo(0.5 s) calls the first pass
+    m.ghost = true; // FUC_RESUME_UPDATE comes after the rise: no hits until then (inferred)
+  } else if (mv.kind === 'lich') {
+    m.ghost = true; m.mv.k = 0; m.mv.ph = 'flicker'; m.alpha = 0;
+  } else if (mv.kind === 'arm') {
+    m.dy = dyOf(0.5); m.armT = 99;
+  }
+  if (mv.kind === 'rush' || mv.kind === 'swoop') {
+    m.mv.edge = m.side > 0 ? W - (mv.edgeFrac ?? mv.toEdge) * fw : (mv.edgeFrac ?? mv.toEdge) * fw;
+    m.speed = Math.abs(m.x - m.mv.edge) / (mv.kind === 'swoop' ? 0.6 : T); // the swoop's first MoveTo is 0.3 s from its spawn spot (web: 0.3 s x2 from off screen)
+  }
+}
+function contactHit(s, m, canAct, reach = 34) {
+  if (!canAct || m.harmless || m.hitPass) return;
+  if (Math.abs(m.x - s.hero.x) < reach && (m.dy || 0) > -SLASH_BAND) { m.hitPass = true; hurtHero(s, m); }
+}
+function moveStep(s, m, def, dt, canAct) {
+  const mv = def.move;
+  const st = m.mv;
+  m.flash = Math.max(0, m.flash - dt);
+  st.t += dt;
+  m.st += dt;
+  const fw = def.fw || def.contact * 2;
+  if (mv.kind === 'rush') { // walk to the edge, "!", wind-up, dash across, reappear on the other side
+    if (st.ph === 'in') {
+      if (walkTo(m, st.edge, dt)) { st.ph = 'pause'; st.t = 0; m.state = 'aim'; s.alerts.push({ k: 'aim', side: m.side, id: m.id, t: 0, dur: mv.pause }); }
+    } else if (st.ph === 'pause' && st.t >= mv.pause) { st.ph = 'wind'; st.t = 0; m.state = 'attack'; m.st = 0; emit(s, 'monsterAttack', { id: m.id, mtype: m.type }); }
+    else if (st.ph === 'wind' && st.t >= mv.wind) { st.ph = 'dash'; st.t = 0; m.st = 0.12; }
+    else if (st.ph === 'dash') {
+      m.x -= m.side * (W / st.T) * dt;
+      contactHit(s, m, canAct);
+      if (st.t >= st.T) { // RESET: the other side, off screen, flipped
+        m.side = -m.side; m.x = m.side > 0 ? W + fw : -fw; st.edge = m.side > 0 ? W - mv.edgeFrac * fw : mv.edgeFrac * fw;
+        st.ph = 'in'; st.t = 0; m.harmless = false; m.hitPass = false; m.state = 'walk'; m.speed = Math.abs(st.edge - m.x) / st.T;
+      }
+    }
+    return;
+  }
+  if (mv.kind === 'swoop') { // to the edge at 0.75H, wait, Bezier dip across the knight, flip, again
+    if (st.ph === 'in') {
+      m.x += Math.sign(st.edge - m.x) * Math.min(Math.abs(st.edge - m.x), m.speed * dt * 2);
+      if (Math.abs(st.edge - m.x) < 1) { st.ph = 'wait'; st.t = 0; }
+    } else if (st.ph === 'wait' && st.t >= mv.wait) { st.ph = 'swoop'; st.t = 0; st.x0 = m.x; m.state = 'walk'; }
+    else if (st.ph === 'swoop') {
+      const p = Math.min(1, st.t / st.T);
+      const x1 = W - st.x0;
+      const y0 = mv.y0 * H;
+      m.x = bez(st.x0, x1, HERO_X, x1, p);
+      m.dy = dyOf(bez(y0, y0, mv.ctrlY * H, y0, p) / H);
+      contactHit(s, m, canAct, 40);
+      if (p >= 1) { m.side = -m.side; st.ph = 'wait'; st.t = 0; m.harmless = false; m.hitPass = false; }
+    }
+    return;
+  }
+  if (mv.kind === 'fly') { // straight MoveTo to the knight's side at 0.5H, then the walker attack loop
+    if (st.ph === 'in') {
+      const p = Math.min(1, st.t / st.T);
+      m.x = m.x0 + (m.x1 - m.x0) * p;
+      m.dy = m.y0 + (m.y1 - m.y0) * p;
+      m.state = 'walk';
+      if (p >= 1) { st.ph = 'fight'; m.state = 'wait'; m.st = 0; }
+    } else attackCycle(s, m, def, dt, canAct, () => { if (Math.abs(m.x - s.hero.x) <= def.contact + 6) hurtHero(s, m); });
+    return;
+  }
+  if (mv.kind === 'tree') { // rises from below (Delay 1.0, MoveTo 3.0 s), then sends an arm at the knight every 2.9 s
+    const [d0, rise] = mv.rise;
+    const p = Math.max(0, Math.min(1, (st.t - d0) / rise));
+    m.dy = 300 + (m.y1 - 300) * p;
+    if (st.t >= d0 + rise) m.ghost = false;
+    if (!st.arms && st.t >= st.armsAt) {
+      st.arms = ['L', 'R'].map(sd => spawn(s, { type: def.armType || 'tree_arm', side: sd }, sd === 'L' ? -128 + 0.1 * W : W + 128 - 0.1 * W));
+    }
+    if (st.arms && st.t >= st.next) {
+      st.next = st.t + mv.armEvery;
+      const arm = st.arms[Math.floor(s.rng() * 2)];
+      if (arm && arm.state !== 'dead') arm.armT = 0;
+    }
+    if (st.arms) for (const a of st.arms) if (a.state !== 'dead') armStep(s, a, mv, dt, canAct);
+    return;
+  }
+  if (mv.kind === 'lich') return lichStep(s, m, def, mv, dt, canAct);
+}
+// a dark-tree arm: in over 0.4 s to x = W/2 -+ 128 (its tip at the knight), hold 1.0 s, back over 0.4 s; touching the
+// knight holds him (FUC_SHAKE_MONSTER_FOR_HOLDING @0x5baebc; no damage found)
+function armStep(s, a, mv, dt, canAct) {
+  const rest = a.side < 0 ? -128 + 0.1 * W : W + 128 - 0.1 * W;
+  const peak = a.side < 0 ? 0.5 * W - 128 : 0.5 * W + 128;
+  a.armT += dt;
+  const tin = 0.4;
+  const t = a.armT;
+  const p = t < tin ? t / tin : t < tin + mv.armHold ? 1 : t < 2 * tin + mv.armHold ? 1 - (t - tin - mv.armHold) / tin : 0;
+  a.x = rest + (peak - rest) * p;
+  a.state = p > 0 ? 'attack' : 'wait';
+  if (p >= 1 && canAct && !s.hero.held && !a.grabbed) {
+    a.grabbed = true;
+    s.hero.held = { arm: a, taps: 0, need: mv.freeTaps, last: 0 };
+    s.hero.dashT = 0; s.hero.offX = 0; s.hero.state = 'idle'; // the hold stops whatever the knight was doing
+    emit(s, 'held', { side: a.side });
+  }
+  if (p === 0) a.grabbed = false;
+}
+// lich: four attack-less flickers, then random left/right x high/low spots; the low spots slide in and attack
+function lichStep(s, m, def, mv, dt, canAct) {
+  const st = m.mv;
+  const fw = def.fw || 124;
+  const spot = k => ({ x: k & 1 ? W - fw / 2 : fw / 2, side: k & 1 ? 1 : -1, high: !(k & 2) });
+  if (st.ph === 'flicker') {
+    const order = [0, 1, 3, 2]; // left-high, right-high, right-low, left-low
+    const sp = spot(order[st.k]);
+    m.x = sp.x; m.side = sp.side; m.dy = sp.high ? dyOf(mv.highY) : 0;
+    const u = st.t;
+    m.alpha = u < 0.1 ? 0 : u < 0.35 ? (u - 0.1) / 0.25 : u < 0.6 ? 1 - (u - 0.35) / 0.25 : 0;
+    m.ghost = true;
+    if (u === dt) emit(s, 'ghost');
+    if (u >= mv.flicker) { st.k++; st.t = 0; if (st.k >= mv.flickers) { st.ph = 'pick'; } }
+    return;
+  }
+  if (st.ph === 'pick') {
+    const sp = spot(Math.floor(s.rng() * 4));
+    Object.assign(st, { ph: 'appear', t: 0, sp, x0: sp.x });
+    m.x = sp.x; m.side = sp.side; m.dy = sp.high ? dyOf(mv.highY) : 0;
+    return;
+  }
+  const atkT = def.atkDelay + 3 * def.atkFrame;
+  if (st.ph === 'appear') {
+    m.alpha = Math.min(1, st.t / mv.fade);
+    if (!st.sp.high) m.x = st.x0 - st.sp.side * fw * mv.lowIn * Math.min(1, st.t / mv.lowTime);
+    if (st.t >= (st.sp.high ? mv.fade : mv.lowTime)) { st.ph = 'attack'; st.t = 0; m.state = 'attack'; m.st = 0; m.hitDone = false; m.ghost = false; emit(s, 'monsterAttack', { id: m.id, mtype: m.type }); }
+    return;
+  }
+  if (st.ph === 'attack') {
+    if (!m.hitDone && st.t >= def.atkDelay + 2 * def.atkFrame) { m.hitDone = true; if (canAct && !st.sp.high) hurtHero(s, m); }
+    if (st.t >= atkT) { st.ph = 'fade'; st.t = 0; m.state = 'wait'; }
+    return;
+  }
+  if (st.ph === 'fade') {
+    m.alpha = Math.max(0, 1 - st.t / mv.fade);
+    if (st.t >= mv.fade) m.ghost = true;
+    if (st.t >= mv.fade + mv.rest) { st.ph = 'pick'; st.t = 0; }
+  }
+}
+// bandage ball: BezierTo(3.0 s) from the mummy to the knight, high arc; harmless for the first 1.1 s
+function lobStep(s, m, def, dt, canAct) {
+  m.flash = Math.max(0, m.flash - dt);
+  m.lt += dt;
+  m.st += dt;
+  const p = Math.min(1, m.lt / def.lob.time);
+  const dir = -m.side;
+  const y0 = LANE_Y * H;
+  m.x = bez(m.x0, m.x0 + dir * 0.4 * W, m.x0 + dir * 0.4 * W, HERO_X, p);
+  m.dy = dyOf(bez(y0, y0, y0 + 0.4 * H, y0, p) / H);
+  if (p >= 1) {
+    if (canAct) hurtHero(s, m);
+    m.hp = 0; m.state = 'dead'; m.st = 0; m.spent = true;
+  }
+}
+
+const PICKUP_KEYS = ['score', 'atk', 'def', null, 'berserk'];
+// pickups: tossed for 0.5 s (BezierTo), then collected by themselves (no tap) and applied; re-picking resets the timer
+// (FUC_ITEM_DISSAPPEAR_AND_APPLY_EFFECT @0x5eff08). BERSERKER: the knight keeps slashing the way he faces, never missing.
+function updatePickups(s, dt) {
+  for (const p of s.pickups) {
+    p.t += dt;
+    if (p.t >= 0.5 && !p.got) {
+      p.got = true;
+      const k = PICKUP_KEYS[p.type];
+      if (k) { s.buffs[k] = s.buffTime[k]; emit(s, 'pickup', { ptype: p.type, key: k }); }
+    }
+  }
+  s.pickups = s.pickups.filter(p => p.t < 0.9);
+  for (const k of Object.keys(s.buffs)) s.buffs[k] = Math.max(0, s.buffs[k] - dt);
+  if (s.buffs.berserk > 0 && s.hero.state !== 'dead' && s.hero.lock <= 0 && !s.hero.held && s.hero.dashT <= 0) {
+    s.berserkT -= dt;
+    if (s.berserkT <= 0 && inArea(s, s.hero.facing).length) { s.berserkT = 0.15; attack(s, s.hero.facing); }
+  }
 }

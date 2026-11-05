@@ -27,10 +27,12 @@ function resolve(root, path) {
 const TRACK = { position: THREE.VectorKeyframeTrack, scale: THREE.VectorKeyframeTrack, quaternion: THREE.QuaternionKeyframeTrack };
 
 export class Rig {
-  constructor(lib, root, controller) {
+  // avatar: the Animator's m_Avatar path id; humanoid clips have one variant per Avatar (tools/export_humanoid.py)
+  constructor(lib, root, controller, avatar = null) {
     this.lib = lib;
     this.root = root;
     this.ctrl = controller;
+    this.avatar = avatar;
     this.mixer = new THREE.AnimationMixer(root);
     this.layer = controller.layers[0];
     this.actions = new Map();
@@ -42,11 +44,11 @@ export class Rig {
   action(stateName) {
     if (this.actions.has(stateName)) return this.actions.get(stateName);
     const st = this.layer.states[stateName];
-    const src = st && st.clip && this.lib.clips[st.clip];
+    const src = st && st.clip && ((this.avatar != null && this.lib.clips[`${st.clip}|${this.avatar}`]) || this.lib.clips[st.clip]);
     if (!src) { this.actions.set(stateName, null); return null; }
     const tracks = [];
     for (const t of src.tracks) {
-      const o = resolve(this.root, t.path);
+      const o = resolve(this.root, t.path) || this.resolveHuman(t.path);
       if (!o) continue;
       tracks.push(new TRACK[t.prop](`${o.uuid}.${t.prop}`, t.times, t.values));
     }
@@ -57,6 +59,21 @@ export class Rig {
     a.timeScale = st.speed ?? 1;
     this.actions.set(stateName, a);
     return a;
+  }
+
+  // Humanoid tracks name the Avatar's bones from the model root ("mixamorig:Hips/..."), and the Animator may sit on a
+  // parent of that model (customers: CashualMale_1 / "fianl chr low@T-Pose" / mixamorig:Hips). Unity binds human
+  // bones by name, so the path is resolved below the node that holds its first bone.
+  resolveHuman(path) {
+    const first = path.split('/')[0];
+    if (!this.humanBase) this.humanBase = new Map();
+    if (!this.humanBase.has(first)) {
+      let hit = null;
+      this.root.traverse(o => { if (!hit && o.name === first && o.parent) hit = o.parent; });
+      this.humanBase.set(first, hit);
+    }
+    const base = this.humanBase.get(first);
+    return base ? resolve(base, path) : null;
   }
 
   has(stateName) {
@@ -87,7 +104,7 @@ export function attachRigs(lib, world) {
     if (!a) return;
     const ctrl = lib.controller(a.m_Controller);
     if (!ctrl || !ctrl.layers.length) return;
-    const rig = new Rig(lib, o, ctrl);
+    const rig = new Rig(lib, o, ctrl, a.m_Avatar ? a.m_Avatar.id : null);
     o.userData.rig = rig;
     rigs.push(rig);
   });

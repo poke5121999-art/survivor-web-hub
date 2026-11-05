@@ -35,6 +35,33 @@ IMAGES = {
     'm_goblin_flag': ('M_goblin_flag_01(110x74).png', 110, 74, 10),
     'm_goblin_shaman': ('M_goblin_shaman_01(110x85).png', 110, 85, 12),  # Shamanking (stage 5 boss), 10-11 cast
     'm_archer_arrow': ('M_archer_arrow(56x16).png', None, None, 1),
+    # Drop 6: stages 6-15 monsters (Scene_Stage::Init_Image texture switch, meta/re_notes/monsters_6_15.md); 2-column
+    # grids: 0-3 walk, 4 head, 5 dead, 6-8 attack, 9 hurt (10-12 bone pile on the skeleton sheets)
+    'm_grimlock_warrior': ('M_grimlock_warrior_01(124x85).png', 124, 85, 12),
+    'm_grimlock_spear': ('M_grimlock_spear_01(124x85).png', 124, 85, 12),
+    'm_ogre': ('M_ogre_01(180x94).png', 180, 94, 10),
+    'm_mandrake': ('M_mandrake_01(180x94).png', 180, 94, 10),
+    'm_mandrake_arrow': ('M_mandrake_arrow(147x98).png', 147, 98, 6),
+    'm_darktree': ('M_darktree_01(435x271).png', None, None, 1),
+    'm_darktree_arm': ('M_darktree_01_arrow(256x100).png', None, None, 1),
+    'm_bat_01': ('M_bat_01(90x54).png', 90, 54, 10),
+    'm_bat_02': ('M_bat_02(90x54).png', 90, 54, 10),
+    'm_skell_warrior': ('M_skell_warrior_01(110x74).png', 110, 74, 14),
+    'm_skell_archer': ('M_skell_archer_01(110x74).png', 110, 74, 14),
+    'm_mummy': ('M_mummy(128x94).png', 128, 94, 10),
+    'm_mummy_arrow': ('M_mummy_arrow(41x41).png', 41, 41, 2),
+    'm_lich': ('M_lich(124x85).png', 124, 85, 12),
+    'eff_dark': ('eff_dark(480x800).png', None, None, 1),  # ink blob hit (FUC_HIT_BY_MONSTER @0x5ba000)
+    'bg_d_09': ('bg_d_09(480x460).jpg', None, None, 1),
+    'bg_d_12': ('bg_d_12(480x460).jpg', None, None, 1),
+    'bg_d_13': ('bg_d_13(480x460).jpg', None, None, 1),
+    'bg_d_17': ('bg_d_17(480x460).jpg', None, None, 1),
+    'bg_d_18': ('bg_d_18(480x460).jpg', None, None, 1),
+    'bg_d_19': ('bg_d_19(480x460).jpg', None, None, 1),
+    'bg_t_02': ('bg_t_02(480x424).png', None, None, 1),
+    'bg_t_05': ('bg_t_05(480x424).png', None, None, 1),
+    'bg_t_08': ('bg_t_08(480x424).png', None, None, 1),
+    'map_00_02': ('map_00_02(480x1024).jpg', None, None, 1),
     # stage 3-5 (Scene_UI::FUC_SET_BACKGROUD_IMAGE @0x5f6560) and stage 1's real pad
     'bg_d_02': ('bg_d_02(480x460).jpg', None, None, 1),
     'bg_t_07': ('bg_t_07(480x424).png', None, None, 1),
@@ -48,6 +75,11 @@ IMAGES = {
     # world-map stage-5 slot: the reward chest over a spinning light (Scene_WorldMap::FUC_SET_REWARD_CHEST_POSITION)
     'eff_flash01': ('Eff_Flash_01(512x512).png', None, None, 1),
     'icon_clear_bonus': ('icon_clear_bonus(64x64).png', None, None, 1),
+    # CLEAR BONUS picker on the map: closed / glowing / open chest (2x2 sheet), the bobbing arrow, blue rays on open
+    'eff_itembox': ('eff_itembox.png', 256, 256, 4),
+    'icon_select': ('icon_select(64x64).png', None, None, 1),
+    'eff_flash03': ('Eff_Flash_03(512x512).png', None, None, 1),
+    'icon_reward': ('icon_reward(128x128).png', 128, 128, 7),  # 1 gold sack, 2 jewel sack
     # Sword Storm sword (SCH_CREATE_STORM_SWORD @0x58c2cc, rect 35x58)
     'storm_sword': ('bullert_sword(35x58).png', None, None, 1),
     # HUD
@@ -126,6 +158,54 @@ IMAGES = {
     'item_necklace': ('item_necklace(82x82).png', 82, 82, 14),
     'bag_slot': ('item_slot(450x90).png', 90, 90, 5),
     'slot_item': ('slot_item(180x180).png', 90, 90, 4),
+    # Drop 6: WING (Scene_Pet), EXPLORE (Scene_Adventure), TOWER (Scene_Tower / Scene_Stage_Tower)
+    'slot_guardian': ('slot_guardian(86x100).png', None, None, 1),
+    'guardian_bullet_01': ('guardian_bullet_01(18x18).png', 18, 18, 5),  # straight, frame = element
+    'guardian_bullet_02': ('guardian_bullet_02(20x20).png', 20, 20, 5),  # homing
+    'guardian_bullet_03': ('guardian_bullet_03(36x36).png', 36, 36, 5),  # bomb
+    'guardian_bullet_04': ('guardian_bullet_04(64x64).png', None, None, 1),  # item maker
+    'explore_bg': ('explore_bg(480x800).png', None, None, 1),
+    'list_bg_explore': ('list_bg_explore(448x82).png', None, None, 1),
+    'icon_explore': ('icon_explore(68x68).png', 68, 68, 6),  # 0 lock, 1-5 areas
+    'tower_00': ('tower_00(480x800).jpg', None, None, 1),  # lobby
+    'bg_tower_01': ('bg_tower_01(480x800).jpg', None, None, 1),  # floor
+    'btn_enter_tower': ('btn_enter_tower(180x180).png', None, None, 1),
+    'btn_go': ('btn_go(234x64).png', 234, 64, 2),
+    'slot_tower_level': ('slot_tower_level(66x66).png', None, None, 1),
+    # Drop 7: pickups (Scene_UI::FUC_SELECT_ITEM02 / FUC_SELECT_GEM), revive, ability shop, clear bonus
+    'in_item': ('in_item(50x50).png', 50, 50, 18),  # row = pickup type (0 SCORE, 1 ATK, 2 DEF, 3 -, 4 BERSERK, 5 attribute, 8 potion); col 1 = HUD/ability icon
+    'eff_doublescore': ('in_eff_doublescore(128x128).png', None, None, 1),
+    'eff_berserk_bg': ('in_eff_berserker_bg(480x460).png', None, None, 1),  # 64 px strip tiled over the lane
+    'eff_shield': ('in_eff_shield(128x128).png', None, None, 1),  # x2 DEF bubble round the knight (clip n7SeP1LzYs8 t=5130)
+    'eff_doubleattack': ('in_eff_doubleattack(157x181).png', 78, 90, 6),  # x2 ATK flame
+    'eff_revival': ('in_eff_revival_01(128x128).png', 128, 128, 16),
+    'tuto_bg_14': ('tuto_bg_14(480x800).png', None, None, 1),  # pickup explainer spotlight (240,270)
+    'guardian_00': ('guardian_00(82x82).png', 82, 82, 4),
+    'guardian_01': ('guardian_01(82x82).png', 82, 82, 4),
+    'guardian_02': ('guardian_02(82x82).png', 82, 82, 4),
+    'guardian_03': ('guardian_03(82x82).png', 82, 82, 4),
+    'guardian_04': ('guardian_04(82x82).png', 82, 82, 4),
+    'guardian_05': ('guardian_05(82x82).png', 82, 82, 4),
+    'guardian_06': ('guardian_06(82x82).png', 82, 82, 4),
+    'guardian_07': ('guardian_07(82x82).png', 82, 82, 4),
+    'guardian_08': ('guardian_08(82x82).png', 82, 82, 4),
+    'guardian_09': ('guardian_09(82x82).png', 82, 82, 4),
+    'guardian_10': ('guardian_10(82x82).png', 82, 82, 4),
+    'guardian_11': ('guardian_11(82x82).png', 82, 82, 4),
+    'guardian_12': ('guardian_12(82x82).png', 82, 82, 4),
+    'guardian_13': ('guardian_13(82x82).png', 82, 82, 4),
+    'guardian_14': ('guardian_14(82x82).png', 82, 82, 4),
+    'guardian_15': ('guardian_15(82x82).png', 82, 82, 4),
+    'guardian_16': ('guardian_16(82x82).png', 82, 82, 4),
+    'guardian_17': ('guardian_17(82x82).png', 82, 82, 4),
+    'guardian_18': ('guardian_18(82x82).png', 82, 82, 4),
+    'guardian_19': ('guardian_19(82x82).png', 82, 82, 4),
+    'guardian_20': ('guardian_20(82x82).png', 82, 82, 4),
+    'guardian_21': ('guardian_21(82x82).png', 82, 82, 4),
+    'guardian_22': ('guardian_22(82x82).png', 82, 82, 4),
+    'guardian_23': ('guardian_23(82x82).png', 82, 82, 4),
+    'guardian_24': ('guardian_24(82x82).png', 82, 82, 4),
+    'guardian_25': ('guardian_25(82x82).png', 82, 82, 4),
 }
 
 # Knight upgrade tiers. The suffix is the upgrade tier (01 bare starter with a wooden sword ... 06 full plate +
@@ -136,7 +216,25 @@ for _t in KNIGHT_TIERS:
     IMAGES[f'hero_armor_{_t}'] = (f'armor_cha_01_{_t}(128x128).png', 128, 128, 12)
     IMAGES[f'hero_sword_{_t}'] = (f'sword_cha_01_{_t}(128x128).png', 128, 128, 12)
 
+# the other five heroes: roster idx 1..5 = armor_cha_02 Teresa, 03 Bombery, 04 Elizabeth, 05 Flashare, 07 Warrior Skeleton
+# (06 is a witch that is in no roster text; the skeleton matches the clip portrait OtA5hxMT0rg t=432). Same 12-frame layout.
+# 04 / 05 ship real art only for tiers 01 and 10+ (02-09 are 2x2 placeholders); 07 has tiers 01-10.
+HERO_SETS = {'02': KNIGHT_TIERS[:10] + KNIGHT_TIERS[11:], '03': KNIGHT_TIERS[:10] + KNIGHT_TIERS[11:],
+             '04': ['01', '10', '20', '30', '40', '50'], '05': ['01', '10', '20', '30', '40', '50'], '07': KNIGHT_TIERS[:10]}
+for _c, _ts in HERO_SETS.items():
+    IMAGES[f'icon_armor_c{_c}'] = (f'armor_cha_{_c}(64x64).png', 64, 64, 14)
+    IMAGES[f'icon_sword_c{_c}'] = (f'sword_cha_{_c}(64x64).png', 64, 64, 14)
+    for _t in _ts:
+        IMAGES[f'hero_armor_c{_c}_{_t}'] = (f'armor_cha_{_c}_{_t}(128x128).png', 128, 128, 12)
+        IMAGES[f'hero_sword_c{_c}_{_t}'] = (f'sword_cha_{_c}_{_t}(128x128).png', 128, 128, 12)
+
 AUDIO = {
+    'gem': 'S_GET_GEM.wav',
+    'revival': 'S_REVIVAL.wav',
+    'quake': 'S_EARTHQUAKE02.wav',
+    'ghost': 'S_GHOST.wav',
+    'bgm_tower': 'S_BG_TOWER.mp3',
+    'recall': 'S_RECALL01.wav',
     'bgm_title': 'BG_TITLE.mp3',
     'bgm_stage': 'S_BG_D00.mp3',
     'bgm_ui': 'BG_UI.mp3',

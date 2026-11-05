@@ -19,6 +19,8 @@ export const BTN = {
   auto: { x: 74, y: 732, w: 76, h: 38 },
   close: { x: 428, y: 112, w: 50, h: 50 },
   retry: { x: 22, y: 487, w: 214, h: 64 },
+  reviveBuy: { x: 120, y: 470, w: 240, h: 60 },
+  reviveClose: { x: 360, y: 262, w: 50, h: 50 },
   next: { x: 244, y: 487, w: 214, h: 64 },
   map: { x: 3, y: 600, w: 474, h: 60 },
 };
@@ -98,6 +100,21 @@ export function createRenderer(ctx, art) {
   // ---- events from the sim become visual effects ----
   function onEvent(e, s) {
     const mid = GROUND_Y - 36;
+    if (e.type === 'gem') { // big coin: a gem (icon_gem yellow / green / red = 10 / 20 / 30 gold) that pops and flies to the coin counter
+      fx.push({ gem: e.kind, x: e.x, y: mid, vx: (rand() - 0.5) * 120, vy: -320, t: 0, dur: 1.2, gy: GROUND_Y - 8 });
+      fx.push({ num: `+${e.value}`, x: e.x, y: mid - 70, t: 0, dur: 0.9, gold: true });
+      return;
+    }
+    if (e.type === 'miss') { // web feedback: a missed slash locks the knight 0.45 s (missLock); say so where he swung
+      fx.push({ banner: 'MISS', small: true, x: W / 2 + e.side * 90, y: GROUND_Y - 110, t: 0, dur: 0.45 });
+      return;
+    }
+    if (e.type === 'pickup') { // the name shows in the buff indicator over the knight (drawBuffs), which pops in
+      return;
+    }
+    if (e.type === 'revive') { fx.push({ k: 'eff_revival', x: W / 2 - 128, y: GROUND_Y - 190, t: 0, dur: 0.8, add: true, scale: 2, frames: 16 }); return; }
+    if (e.type === 'ghit') { fx.push({ num: e.dmg, x: e.x + (rand() - 0.5) * 30, y: mid - 60, t: 0, dur: 0.5 }); return; }
+    if (e.type === 'gbomb') { fx.push({ k: 'eff_pang', x: e.x - 40, y: GROUND_Y - 90, t: 0, dur: 0.5, add: true, scale: 1.3 }); return; }
     if (e.type === 'hit') {
       fx.push({ k: 'eff_hit', x: e.x - 32, y: mid - 32, t: 0, dur: 0.3, add: true });
       if (e.crit) fx.push({ text: 'eff_critical', x: e.x - 85, y: GROUND_Y - 150, t: 0, dur: 0.7 });
@@ -112,7 +129,7 @@ export function createRenderer(ctx, art) {
       for (let i = 0; i < 14; i++) {
         fx.push({ blood: true, x: e.x, y: mid, vx: e.side * (60 + rand() * 220), vy: -120 - rand() * 260, t: 0, dur: 0.7 + rand() * 0.3, size: 3 + rand() * 3 });
       }
-      for (let i = 0; i < e.gold; i++) {
+      for (let i = 0; i < Math.min(5, e.coins ?? e.gold); i++) {
         fx.push({ coin: true, x: e.x, y: mid, vx: (rand() - 0.5) * 140 + e.side * 40, vy: -260 - rand() * 120, t: -i * 0.06, dur: 1.25, gy: GROUND_Y - 8 });
       }
       if (e.crit) fx.push({ text: 'eff_critical', x: e.x - 85, y: GROUND_Y - 150, t: 0, dur: 0.7 });
@@ -136,7 +153,7 @@ export function createRenderer(ctx, art) {
         f.x += f.vx * dt;
         f.y += f.vy * dt;
         if (f.head) f.rot += f.vr * dt;
-      } else if (f.coin) {
+      } else if (f.coin || f.gem !== undefined) {
         if (f.t < 0.8) {
           f.vy += 1200 * dt;
           f.x += f.vx * dt;
@@ -160,6 +177,9 @@ export function createRenderer(ctx, art) {
       if (f.head) frame(f.k, f.f, f.x, f.y, { rot: f.rot, flip: f.flip, alpha: p > 0.8 ? (1 - p) * 5 : 1 });
       else if (f.blood) { ctx.fillStyle = `rgba(190,0,0,${1 - p})`; ctx.fillRect(f.x, f.y, f.size, f.size); }
       else if (f.coin) frameC('icon_bag', 1, f.x, f.y, { scale: 0.6 });
+      else if (f.gem !== undefined) frameC('icon_gem', f.gem, f.x, f.y, { scale: 0.62 });
+      else if (f.banner) label(f.banner, f.x, f.y - p * 30, f.small ? 16 : 26, f.small ? '#c8c8c8' : f.banner === 'BERSERK' ? '#ff6a4a' : '#ffe94a', 'center', true);
+      else if (f.gold) label(f.num, f.x, f.y - p * 30, 18, '#f3e04a', 'center', true);
       else if (f.num !== undefined) digits('no_r', f.num, f.x, f.y - p * 34, 'center', 1, -3, p > 0.6 ? (1 - p) / 0.4 : 1);
       else if (f.text) frame(f.text, 0, f.x, f.y - p * 20, { alpha: p > 0.7 ? (1 - p) / 0.3 : 1 });
       else {
@@ -199,6 +219,8 @@ export function createRenderer(ctx, art) {
     armor: tierOverride.armor || s.stage.hero.armorTier || '01',
     sword: tierOverride.sword || s.stage.hero.swordTier || '01',
   });
+  // roster heroes use their own sheets (hero_armor_c02_06 ...); the knight keeps hero_armor_06
+  const heroKey = (part, tier) => (tierOverride.set && tierOverride.set !== '01' ? `hero_${part}_c${tierOverride.set}_${tier}` : `hero_${part}_${tier}`);
   function heroPose(s) {
     const h = s.hero;
     const sp = s.stage.hero.sprite || {};
@@ -211,7 +233,7 @@ export function createRenderer(ctx, art) {
     const off = ((sp.weaponOffset || {})[t.armor] || {})[f] || [0, 0];
     return {
       f, flip, bodyX, bodyY, swordX: bodyX + h.facing * off[0], swordY: bodyY + off[1],
-      armorKey: `hero_armor_${t.armor}`, swordKey: `hero_sword_${t.sword}`,
+      armorKey: heroKey('armor', t.armor), swordKey: heroKey('sword', t.sword),
     };
   }
 
@@ -227,6 +249,8 @@ export function createRenderer(ctx, art) {
     frame(p.armorKey, p.f, p.bodyX, p.bodyY, { flip: p.flip });
     frame(p.swordKey, p.f, p.swordX, p.swordY, { flip: p.flip });
     if (h.hurt > 0 && Math.floor(h.hurt * 30) % 2 === 0) frame(p.armorKey, p.f, p.bodyX, p.bodyY, { flip: p.flip, add: true, alpha: 0.6 });
+    if (s.buffs && s.buffs.def > 0) frameC('eff_shield', 0, h.x, GROUND_Y - 50, { scale: 1.15 + 0.04 * Math.sin(s.t * 8), add: true }); // x2 DEF bubble
+    if (s.buffs && s.buffs.atk > 0) frameC('eff_doubleattack', Math.floor(s.t * 14) % 6, h.x, GROUND_Y - 58, { scale: 1.2, add: true, alpha: 0.85 }); // x2 ATK flame
     if (h.shield > 0) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -250,31 +274,57 @@ export function createRenderer(ctx, art) {
 
   function monsterFrame(m, def) {
     if (m.state === 'dead') return 5;
+    if (m.collapse > 0) { const c = def.collapse.time - m.collapse; return c < 0.21 ? 12 - Math.floor(c / 0.07) : m.collapse < 0.21 ? 10 + Math.floor((0.21 - m.collapse) / 0.07) : 10; }
+    if (m.state === 'attack' && def.holdFrame) return m.st < 1.1 ? 6 : m.st < 1.2 ? 7 : 8; // ogre: hold the wind-up 1.0 s
+    if (m.state === 'attack' && def.move) return 6 + Math.min(2, Math.floor(m.st / 0.1));
     if (m.state === 'attack') return 6 + Math.min(3, Math.floor(m.st / def.atkFrame));
-    if (m.state === 'aim') return 6 + Math.min(1, Math.floor(m.st / def.ranged.aimFrame)); // 2 aim frames x 0.06 s
+    if (m.state === 'aim') return def.ranged ? 6 + Math.min(1, Math.floor(m.st / def.ranged.aimFrame)) : 0; // 2 aim frames x 0.06 s; a rusher stands
     if (m.state === 'retreat') return m.st < def.ranged.aimFrame ? 8 : Math.floor(m.st * 9) % 4; // shot frame, then backs off
-    if (m.state === 'walk') return Math.floor(m.st * (m.speed > 150 ? 14 : 9)) % 4;
+    if (m.state === 'walk') return Math.floor(m.st * (def.move && (def.move.kind === 'fly' || def.move.kind === 'swoop') ? 13.3 : m.speed > 150 ? 14 : 9)) % 4;
     return 0;
   }
 
   function drawMonsters(s) {
+    // the dark tree stands behind everything (z -1), rising from below; its trunk centre is m.dy above the lane centre
     for (const m of s.monsters) {
       const def = s.stage.monsters[m.type];
+      if (!def.move || def.move.kind !== 'tree') continue;
+      const a = img(def.sheet);
+      const sc = def.scale || 1;
+      const cy = GROUND_Y - 14 + m.dy;
+      ctx.save();
+      ctx.globalAlpha = m.state === 'dead' ? Math.max(0, 1 - m.st / 0.7) : 1;
+      ctx.drawImage(a.img, m.x - (a.w * sc) / 2, cy - (a.h * sc) / 2, a.w * sc, a.h * sc);
+      if (m.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5; ctx.drawImage(a.img, m.x - (a.w * sc) / 2, cy - (a.h * sc) / 2, a.w * sc, a.h * sc); }
+      ctx.restore();
+    }
+    for (const m of s.monsters) {
+      const def = s.stage.monsters[m.type];
+      if (def.move && def.move.kind === 'tree') continue;
+      if (def.move && def.move.kind === 'arm') { // tree arm: one 256x100 image, flipped on the right
+        const a = img(def.sheet);
+        ctx.save();
+        ctx.translate(m.x, GROUND_Y - 30);
+        if (m.side > 0) ctx.scale(-1, 1);
+        ctx.drawImage(a.img, -a.w / 2, -a.h / 2);
+        ctx.restore();
+        continue;
+      }
       const a = img(def.sheet);
       const sc = def.scale || 1;
       const fw = (a.fw || a.w) * sc;
       const fh = (a.fh || a.h) * sc;
       const x = m.x - fw / 2;
       // arrows fly at chest height; everything else stands on the ground strip
-      const y = def.projectileOf ? GROUND_Y - 52 : GROUND_Y - fh + 2;
+      const y = (def.projectileOf ? GROUND_Y - 52 : GROUND_Y - fh + 2) + (m.dy || 0);
       const flip = m.side > 0; // sheets face right; the right lane walks left
-      const f = def.projectileOf ? 0 : monsterFrame(m, def);
-      const alpha = m.state === 'dead' ? (m.spent ? 0 : Math.max(0, 1 - m.st / 0.7)) : 1;
+      const f = def.projectileOf ? (a.frames > 1 ? Math.floor(m.st * 10) % a.frames : 0) : monsterFrame(m, def);
+      const alpha = (m.state === 'dead' ? (m.spent ? 0 : Math.max(0, 1 - m.st / 0.7)) : 1) * (m.alpha ?? 1);
       frame(def.sheet, f, x, y, { flip, alpha, scale: sc });
       if (m.flash > 0) frame(def.sheet, f, x, y, { flip, add: true, alpha: 0.9, scale: sc });
       if (m.state !== 'dead' && !def.projectileOf && def.ai !== 4) { // thin red HP bar under the monster (clip c1 2:21)
         const gx = Math.round(m.x - 22);
-        const gy = GROUND_Y + 2;
+        const gy = GROUND_Y + 2 + (m.dy || 0);
         frame('gauge_monster', 0, gx, gy);
         const w = Math.max(0, (44 * m.hp) / m.hpMax);
         ctx.drawImage(img('gauge_monster').img, 0, 6, w, 6, gx, gy, w, 6);
@@ -324,8 +374,13 @@ export function createRenderer(ctx, art) {
 
   function drawTopBar(s) {
     tileX('bg_top', 0);
-    plain(`STAGE ${s.stage.number}`, 14, 34, 19);
-    plain(s.stage.title, 14, 62, 19);
+    if (s.stage.tower) { // DEATH TOWER: floor box top-left instead of the stage title (clip c1 13:24 "1F")
+      ctx.drawImage(img('slot_tower_level').img, 10, 10, 56, 56);
+      label(`${s.stage.tower.floor + 1}F`, 38, 39, 18, '#fff');
+    } else {
+      plain(`STAGE ${s.stage.number}`, 14, 34, 19);
+      plain(s.stage.title, 14, 62, 19);
+    }
     if (s.boss) { // boss HP bar under the title (clip c1 8:14; Scene_UI::FUC_SET_MONSTER_HP_BAR)
       ctx.drawImage(img('board_hp_boss').img, 6, 68);
       const frac = Math.max(0, s.boss.hp / s.boss.hpMax);
@@ -450,8 +505,8 @@ export function createRenderer(ctx, art) {
     digits('no_score', s.score, W / 2, 206, 'center', 1);
     plain(`BEST SCORE : ${Math.max(info.best || 0, s.score)}`, W / 2, 262, 17, '#fff', 'center');
     const tier = tiersOf(s);
-    frame(`hero_armor_${tier.armor}`, 0, W / 2 - 64, 290);
-    frame(`hero_sword_${tier.sword}`, 0, W / 2 - 64, 290);
+    frame(heroKey('armor', tier.armor), 0, W / 2 - 64, 290);
+    frame(heroKey('sword', tier.sword), 0, W / 2 - 64, 290);
     plain('GOLD :', W / 2 - 20, 444, 19, '#d8e84a', 'right');
     frameC('icon_bag', 1, W / 2 + 4, 444, { scale: 0.62 });
     plain(String(s.gold), W / 2 + 22, 444, 19, '#d8e84a', 'left');
@@ -460,6 +515,15 @@ export function createRenderer(ctx, art) {
     if (info.hasNext) ctx.drawImage(img('btn_menu').img, 40, 10, 44, 44, BTN.next.x + BTN.next.w - 50, BTN.next.y + 11, 42, 42);
     button('btn_long', BTN.map, 'TO WORLDMAP');
     frameC('icons', 1, BTN.map.x + 112, BTN.map.y + BTN.map.h / 2, { scale: 0.55 });
+    if (s.stage.tower) { // tower result: score and best only (FUC_SHOW_RESULT tower branch @0x5fa2e0)
+      plain(`DEATH TOWER  FLOOR ${s.stage.tower.floor + 1}${s.towerTop ? ' (TOP OF THE WEB VERSION)' : ''}`, 14, 704, 17, '#fff');
+      if (info.newBest) plain('NEW RECORD!', 14, 740, 18, '#ffd23a');
+      return;
+    }
+    if (!s.won && s.t > 0.6) { // a failed run points at what helps (original texts: TUTO21 1229 and the loading tips)
+      const tips = ['CHARACTER WILL GET STRONGER AS YOU UPGRADE WITH GOLDS', 'USE THE DIVINE SHIELD TO HELP CLEAR STAGE WITH NO HIT', 'YOU LOST ONE HEART WHEN YOU FAILED IN STAGES'];
+      label(`TIP: ${tips[(s.stage.number || 0) % (s.stage.number > 5 ? 3 : 1)]}`, W / 2, 670, 13, '#ffd23a');
+    }
     plain('NORMAL', 14, 704, 17, '#fff');
     const three = s.stars === 3;
     const untouched = s.damageTaken === 0 && s.hero.state !== 'dead';
@@ -481,6 +545,78 @@ export function createRenderer(ctx, art) {
     }
   }
 
+  // guardians: guardian_NN 4-frame idle (0.1 s), facing the lane; bullets guardian_bullet_0(style+1), frame = element 0
+  function drawGuardians(s) {
+    for (const b of s.gbullets) {
+      const k = `guardian_bullet_0${b.style + 1}`;
+      if (!img(k)) continue;
+      const a = img(k);
+      if (a.fw) frameC(k, 0, b.x, b.y, { scale: 0.9 });
+      else ctx.drawImage(a.img, b.x - a.w / 4, b.y - a.h / 4, a.w / 2, a.h / 2);
+    }
+    for (const g of s.guardians) {
+      if (g.t < -0.3) continue;
+      const k = `guardian_${String(g.kind).padStart(2, '0')}`;
+      const y = g.t < 0 ? g.y - 200 * (-g.t / 0.3) : g.y;
+      frameC(k, Math.floor((g.t + 10) * 10) % 4, g.x, y, { flip: g.side === 'L' });
+    }
+  }
+
+  // pickups tossed in an arc for 0.5 s, then pulled into the knight (in_item, row = type)
+  function drawPickups(s) {
+    for (const p of s.pickups) {
+      const u = Math.min(1, p.t / 0.5);
+      const x = p.x + (W / 2 - p.x) * (p.t < 0.5 ? u * 0.4 : 0.4 + (p.t - 0.5) / 0.4 * 0.6);
+      const y = GROUND_Y - 60 - Math.sin(Math.PI * u) * 90;
+      frameC('in_item', p.type * 2, x, y, { scale: 0.9, alpha: p.t > 0.5 ? Math.max(0, 1 - (p.t - 0.5) / 0.4) : 1 });
+    }
+  }
+  // active pickup effects: icon + seconds bar under the top bar (in_item column 1)
+  // active pickups: icon, name and time bar over the knight's head, side by side when several run (clip n7SeP1LzYs8 t=5130
+  // "2X DEF", t=5330 "BERSERK"; heights measured from the clips, the original's offsets were not traced)
+  const BUFF_NAMES = ['2X SCORE', '2X ATK', '2X DEF', null, 'BERSERK'];
+  function drawBuffs(s) {
+    const keys = ['score', 'atk', 'def', null, 'berserk'];
+    const on = keys.map((k, type) => ({ k, type })).filter(b => b.k && s.buffs[b.k] > 0);
+    if (!on.length || s.phase !== 'play') return;
+    const hx = Math.max(50, Math.min(W - 50, s.hero.x));
+    on.forEach((b, i) => {
+      const x = Math.max(40, Math.min(W - 40, hx + (i - (on.length - 1) / 2) * 92));
+      const y = GROUND_Y - 200;
+      const left = s.buffs[b.k];
+      const blink = left < 2 && Math.floor(left * 6) % 2 === 0; // about to run out
+      const pop = 1 + Math.max(0, left - (s.buffTime[b.k] - 0.35)) * 2; // swells in when picked up
+      frameC('in_item', b.type * 2 + 1, x, y, { scale: 0.8 * pop, alpha: blink ? 0.4 : 1 });
+      label(BUFF_NAMES[b.type], x, y + 34, Math.round(14 * pop), b.k === 'berserk' ? '#ff8a6a' : '#fff');
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(x - 32, y + 46, 64, 6);
+      ctx.fillStyle = b.k === 'berserk' ? '#ff5a3a' : '#ffd23a';
+      ctx.fillRect(x - 32, y + 46, 64 * Math.min(1, left / s.buffTime[b.k]), 6);
+    });
+  }
+  // revive offer (FUC_REVIVAL popup: "USE POTION OF LIFE TO RESURRECT NOW / COST : n" + BUY)
+  function drawRevive(s, info) {
+    if (!s.offer) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#1b1022';
+    ctx.fillRect(70, 262, 340, 290);
+    ctx.strokeStyle = '#a052ff';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(70, 262, 340, 290);
+    frame('btn_option', 6, BTN.reviveClose.x, BTN.reviveClose.y);
+    frameC('in_item', 6, W / 2, 330, { scale: 1.6 });
+    plain('USE POTION OF LIFE', W / 2, 392, 18, '#fff', 'center');
+    plain('TO RESURRECT NOW', W / 2, 416, 18, '#fff', 'center');
+    frameC('icons', 6, W / 2 - 30, 446, { scale: 0.45 });
+    plain(`COST : ${s.offer.cost}`, W / 2 + 10, 446, 18, '#5fe0f0', 'center');
+    const b = BTN.reviveBuy;
+    ctx.drawImage(img('btn_r').img, b.x, b.y, b.w, b.h);
+    const enough = (info.gems ?? 0) >= s.offer.cost;
+    plain(enough ? 'BUY' : 'GET JEWELS FREE + BUY', b.x + b.w / 2, b.y + b.h / 2, enough ? 22 : 15, enough ? '#ffe9a8' : '#7fff7f', 'center');
+    plain(`JEWEL ${info.gems ?? 0}`, W / 2, 545, 13, '#cfc7bd', 'center');
+  }
+
   function drawStage(s, dt, info = {}) {
     updateFx(dt);
     ctx.fillStyle = '#000';
@@ -490,23 +626,49 @@ export function createRenderer(ctx, art) {
     // lane background first, then the pad (bg_t_*) on top: its top strip (stage 1 stone pavement, grass elsewhere) is
     // the ground the hero stands on (clip c2 1:10 stage 1, c1 8:14 stage 5)
     const bg = img(s.stage.background); // stored at half resolution, shown at its 480x460 display size
-    ctx.drawImage(bg.img, 0, -8, bg.dw || bg.w, bg.dh || bg.h);
-    const pad = img(s.stage.pad);
-    ctx.drawImage(pad.img, 0, PAD_TOP + (s.stage.padOffset || 0), pad.dw || pad.w, pad.dh || pad.h);
+    if (s.stage.pad) {
+      ctx.drawImage(bg.img, 0, -8, bg.dw || bg.w, bg.dh || bg.h);
+      const pad = img(s.stage.pad);
+      ctx.drawImage(pad.img, 0, PAD_TOP + (s.stage.padOffset || 0), pad.dw || pad.w, pad.dh || pad.h);
+    } else ctx.drawImage(bg.img, 0, 0, bg.dw || bg.w, bg.dh || bg.h); // the tower floor art covers the whole screen (bg_tower_01 480x800)
+    if (s.buffs.berserk > 0) { // BERSERKER: red strip tiled over the lane (in_eff_berserker_bg), pulsing
+      ctx.save();
+      // multiplied: the grey top darkens the sky, the red bottom reddens the ground (clip n7SeP1LzYs8 t=5330: dim grey sky,
+      // red lane); the blend mode is read from the clip, not traced
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.9 + 0.1 * Math.sin(s.t * 10);
+      const bb = img('eff_berserk_bg');
+      for (let x = 0; x < W; x += bb.w) ctx.drawImage(bb.img, x, 0, bb.w, PAD_TOP);
+      ctx.restore();
+    }
     drawMonsters(s);
     drawAlerts(s);
     drawHero(s);
     drawSwords(s);
+    drawGuardians(s);
+    drawPickups(s);
     ctx.restore();
     drawPad(s);
     drawHeroHp(s);
     drawBottomBar(s);
     drawTopBar(s);
+    drawBuffs(s);
     ctx.save();
     if (shake > 0) ctx.translate((rand() - 0.5) * 8 * (shake / 0.2), 0);
     drawFx();
     ctx.restore();
+    if (s.stage.tower && s.phase === 'play') { // floor counter (Scene_UI::FUC_ACTIVE_INFO_TOWER_FLOOR) and the lift banner
+      if (s.clock < 0) label(`FLOOR ${s.stage.tower.floor + 1}`, W / 2, 260, 34, '#fff');
+    }
+    if (s.blind > 0) { // ink blob: eff_dark over the screen (FUC_HIT_BY_MONSTER @0x5ba000), fading at the end
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, s.blind / 0.5);
+      ctx.drawImage(img('eff_dark').img, 0, 0, W, H);
+      ctx.restore();
+    }
+    if (s.hero.held && s.phase === 'play') label('TAP LEFT AND RIGHT TO BREAK FREE!', W / 2, 300, 18, '#ff9b9b');
     drawPhaseText(s);
+    drawRevive(s, info);
     if (s.phase === 'result') drawResult(s, s.t, info);
   }
 

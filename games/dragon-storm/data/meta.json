@@ -211,13 +211,12 @@
      "name": "DESTINY",
      "icon": 44,
      "price": 500,
-     "stageCap": 0,
+     "stageCap": 1,
      "field": "0x8e80",
      "text": [
       "Gives character a various booster",
       "effect randomly."
-     ],
-     "notBuilt": true
+     ]
     }
    ],
    "src": "owned counts: GameData+0x8e98 HP potion / +0x8e88 Spirit of the Sword / +0x8e90 Divine Shield / +0x8e80 random \"destiny\" booster (LoadBoosterItemAndDestiny @0x61cdd4, UserDefault BT_815..BT_860, default 0). A stage takes min(owned, cap): potion 3, sword 2, shield 3 (4 with the shield-carrying hero) (Scene_Stage::Init_Data @0x5760cc); using one subtracts it from the owned count and saves (onTouchesBegan @0x5c5b04 potion / @0x5c5d3c sword, EFF_HOLLY_SHIELD @0x59694c shield). Prices: Call_Back_Buy_Booster_Item @0x567b14: potion 200, shield 400, sword 500, destiny 500, each minus a discount field (GameData+0x93b0..0x93c8, never set at start = 0), times the quantity picked. Texts: libMyGame.so strings. The destiny booster (FUC_SELECT_DESTINY) is not built."
@@ -394,6 +393,13 @@
   "dailyGem": {
    "value": 1,
    "src": "Scene_MAP_UI::FUC_GET_JEWLE_ONCE_FOR_A_DAY @0x74b3b4: +1 gem once per day, device time"
+  },
+  "noAds": {
+   "value": {
+    "sku": "rf.dseal.noad",
+    "usd": 2.99
+   },
+   "src": "IAP SKU list (classes2.dex IAP); the web has no ads"
   }
  },
  "items": {
@@ -840,5 +846,908 @@
    }
   ],
   "src": "Scene_WorldMap::onTouchesEnded @0x56c9a4 tests GD+0x4fa8 / 0x4fb0 / 0x4fd0 (stage 5 / 6 / 10 cleared) and stage 15; texts T[1256..1265] (FUC_FLASH_POPUP 9/0xa/0xb/0x11, unlock 0xc..0x12)"
+ },
+ "guardians": {
+  "_note": "WING tab (Scene_Pet) and guardians in a stage. meta/re_notes/item_wing.md section 2. Kinds: Game_Guardian::createGame_Guardian @0x697210 (0-4 straight, 5-9 homing, 10-14 bomb, 15-19 item-maker, COMMON; 20-23 RARE same four styles; 24 LEGEND straight double shot, 25 LEGEND homing); names T[119+kind].",
+  "kinds": {
+   "value": [
+    {
+     "id": 0,
+     "name": "YUNA",
+     "style": 0,
+     "tier": 0
+    },
+    {
+     "id": 1,
+     "name": "HEEYA",
+     "style": 0,
+     "tier": 0
+    },
+    {
+     "id": 2,
+     "name": "HUNTY",
+     "style": 0,
+     "tier": 0
+    },
+    {
+     "id": 3,
+     "name": "CHOI",
+     "style": 0,
+     "tier": 0
+    },
+    {
+     "id": 4,
+     "name": "FAME",
+     "style": 0,
+     "tier": 0
+    },
+    {
+     "id": 5,
+     "name": "SHURIEL",
+     "style": 1,
+     "tier": 0
+    },
+    {
+     "id": 6,
+     "name": "ELLA",
+     "style": 1,
+     "tier": 0
+    },
+    {
+     "id": 7,
+     "name": "SAGE",
+     "style": 1,
+     "tier": 0
+    },
+    {
+     "id": 8,
+     "name": "KIRI",
+     "style": 1,
+     "tier": 0
+    },
+    {
+     "id": 9,
+     "name": "KYAMI",
+     "style": 1,
+     "tier": 0
+    },
+    {
+     "id": 10,
+     "name": "DEMIAN",
+     "style": 2,
+     "tier": 0
+    },
+    {
+     "id": 11,
+     "name": "SECUEN",
+     "style": 2,
+     "tier": 0
+    },
+    {
+     "id": 12,
+     "name": "ALIAS",
+     "style": 2,
+     "tier": 0
+    },
+    {
+     "id": 13,
+     "name": "RAYARCH",
+     "style": 2,
+     "tier": 0
+    },
+    {
+     "id": 14,
+     "name": "PHIS",
+     "style": 2,
+     "tier": 0
+    },
+    {
+     "id": 15,
+     "name": "GIVEANN",
+     "style": 3,
+     "tier": 0
+    },
+    {
+     "id": 16,
+     "name": "LORIENE",
+     "style": 3,
+     "tier": 0
+    },
+    {
+     "id": 17,
+     "name": "JJPP",
+     "style": 3,
+     "tier": 0
+    },
+    {
+     "id": 18,
+     "name": "LIV",
+     "style": 3,
+     "tier": 0
+    },
+    {
+     "id": 19,
+     "name": "BLUM",
+     "style": 3,
+     "tier": 0
+    },
+    {
+     "id": 20,
+     "name": "KITTY",
+     "style": 0,
+     "tier": 1
+    },
+    {
+     "id": 21,
+     "name": "CATHERINE",
+     "style": 1,
+     "tier": 1
+    },
+    {
+     "id": 22,
+     "name": "PANKY",
+     "style": 2,
+     "tier": 1
+    },
+    {
+     "id": 23,
+     "name": "ORAKEE",
+     "style": 3,
+     "tier": 1
+    },
+    {
+     "id": 24,
+     "name": "DRAGONVALKYRIE",
+     "style": 0,
+     "tier": 2
+    },
+    {
+     "id": 25,
+     "name": "SPIRIT OF THE SWORD",
+     "style": 1,
+     "tier": 2
+    }
+   ],
+   "src": "createGame_Guardian @0x697210"
+  },
+  "styleNames": {
+   "value": [
+    "STRAIGHT",
+    "HOMING",
+    "BOMB",
+    "ITEM"
+   ],
+   "src": "T[103+style]"
+  },
+  "styleText": {
+   "value": [
+    "fires bullet in one direction",
+    "fires bullet to the closest target",
+    "fires strong and explosive bullet",
+    "creates item"
+   ],
+   "src": "T[170+3k]"
+  },
+  "tierNames": {
+   "value": [
+    "COMMON",
+    "RARE",
+    "LEGEND"
+   ],
+   "src": "T[113+tier]"
+  },
+  "summonGold": {
+   "value": {
+    "gold": 2500,
+    "commonPct": 80
+   },
+   "src": "Scene_Pet::onTouchesEnded @0x6c1c4c -> actualCreateGuardian @0x6a924c, mode 0: 2500 gold; r=rand()%100 < 80 -> kind rand()%20 else 19+rand()%5"
+  },
+  "summonGems": {
+   "value": {
+    "gems": 20,
+    "exp": [
+     4800,
+     7800,
+     12600,
+     20400
+    ],
+    "levelBase": 6
+   },
+   "src": "mode 1: 20 jewels, kind 20+rand()%6, EXP {4800,7800,12600,20400}[rand&3], level 6+(rand&3)"
+  },
+  "expTable": {
+   "value": [
+    0,
+    300,
+    600,
+    1200,
+    1800,
+    3000,
+    4800,
+    7800,
+    12600,
+    20400
+   ],
+   "src": "GameData ctor GD+0xa0f8+8*i; FUC_SHOW_RESULT_END @0x5fb8d8 levels 0..9 by EXP"
+  },
+  "expPerKill": {
+   "value": 0.1,
+   "src": "Scene_UI::FUC_GET_SCORE @0x602bc4: kill points * 0.1 to the stage guardian EXP when the monster class field is 6 (inferred meaning)"
+  },
+  "mixMax": {
+   "value": 19,
+   "src": "actualSynthGuardian @0x6c5580: equal levels, level <= 18 -> left +1, right removed; max level 19 (Lv.20)"
+  },
+  "sellGold": {
+   "value": 500,
+   "src": "Scene_Pet::Call_Back_Sell_Guardian @0x6ad7c0"
+  },
+  "slots": {
+   "value": {
+    "start": 30,
+    "max": 50,
+    "step": 5,
+    "gems": 10
+   },
+   "src": "LoadSlot @0x61bf54 (GD+0x4c68 = 30); Call_Back_Slot_Extension @0x6ada74 (by symmetry with items, inferred)"
+  },
+  "fire": {
+   "value": {
+    "interval": [
+     0.12,
+     0.12,
+     0.7,
+     null
+    ],
+    "legendInterval": 0.0843,
+    "itemEvery": {
+     "base": 20,
+     "perLevel": 0.5,
+     "min": 10
+    },
+    "flight": 5.0,
+    "startDelay": 2.3
+   },
+   "src": "Scene_Stage::Init_Guardian @0x57a730: DelayTime 2.0 + MoveTo 0.3, then SCH_CREATE_MISSILE_* every 0.12 s (0.0843 for tier 2), bomb 0.7 s, item max(10, 20-0.5*level) s; bullet MoveTo(5.0 s) down the screen"
+  },
+  "damage": {
+   "value": {
+    "base": 2,
+    "critPlus": 15
+   },
+   "src": "Guardian_Bullet::createGuardian_Bullet @0x69758c: damage = 2*(level+1); FUC_CALCULATE_DAMAGE_FOR_GUARDAIN @0x607e84: crit x2 only for tier >= 1 when rand()%100 < crit+15; monster HP never goes below 1 (guardian bullets never kill)"
+  }
+ },
+ "explore": {
+  "_note": "EXPLORE tab (Scene_Adventure). meta/re_notes/tower_explore.md section 2. Only the knight exists in the web version, so one expedition runs at a time (the original sends one character per area).",
+  "areas": {
+   "value": [
+    {
+     "min": 120,
+     "gold": [
+      500,
+      100,
+      1001
+     ],
+     "exp": 1100,
+     "items": {
+      "rolls": 0
+     },
+     "icon": 1,
+     "name": "NAMELESS FOREST",
+     "text": "Near Tapioca village, nameless forest.\nSome gold can be found by many adventurers."
+    },
+    {
+     "min": 240,
+     "gold": [
+      2000,
+      200,
+      2001
+     ],
+     "exp": 2200,
+     "items": {
+      "rolls": 1,
+      "chance": 10,
+      "perTier": 5
+     },
+     "icon": 4,
+     "name": "UNKNOWN VALLEY",
+     "text": "No man have visited this valley.\nSome gold and some items can be rarely found."
+    },
+    {
+     "min": 360,
+     "gold": [
+      3000,
+      300,
+      3001
+     ],
+     "exp": 4300,
+     "items": {
+      "rolls": 1,
+      "chance": 25,
+      "perTier": 5
+     },
+     "icon": 3,
+     "name": "NORTHEAST CAVE",
+     "text": "Cave area located northeast of Tapioca village.\nGold and items can be found."
+    },
+    {
+     "min": 720,
+     "gold": [
+      6000,
+      600,
+      6001
+     ],
+     "exp": 10000,
+     "items": {
+      "two": 70
+     },
+     "icon": 2,
+     "name": "LAND OF THE SUN",
+     "text": "Land where the sun never set for 100 days.\nReasonable amount of gold and items can be found without fail."
+    },
+    {
+     "min": 1440,
+     "gold": [
+      9000,
+      900,
+      9001
+     ],
+     "exp": 22000,
+     "items": {
+      "three": 20
+     },
+     "icon": 5,
+     "name": "LAND WITHOUT LIGHT",
+     "text": "Land without light. Very cold and dark.\nGood amount of gold and items can be found without fail."
+    }
+   ],
+   "src": "durations Call_Back_Area_Info_Open @0x65f304; gold = base + tier*mult + rand()%mod (.rodata 0x35a18c / 0x35a178 / 0x35a164); EXP @0x65b3c4; items @0x65c1d0 (area 3: r = rand()%21 + 20t, r < 70 -> 1 item else 2; area 4: r < 20 -> 2 else 3); descriptions T[541..545]. Area names are web labels (the original names are drawn in images); icon frames of icon_explore are matched to the descriptions (inferred)"
+  },
+  "tiers": {
+   "value": {
+    "cuts": [
+     60,
+     70,
+     80,
+     110
+    ],
+    "labels": [
+     "IT WILL BE A VERY HARD EXPEDITION",
+     "IT WILL BE A HARD EXPEDITION",
+     "IT WILL BE A NOT BAD EXPEDITION",
+     "IT WILL BE A EASY EXPEDITION",
+     "IT WILL BE A PLEASANT EXPEDITION"
+    ]
+   },
+   "src": "Call_Back_Result_Adventure @0x65bfd8: S<60 -> 0, <70 -> 1, <80 -> 2, <110 -> 3, else 4; labels T[553..557] (order inferred)"
+  },
+  "ability": {
+   "value": {
+    "base": 4,
+    "perLevel": 2
+   },
+   "src": "Select_Cha_Complete @0x6616b0: ability = 2*(weapon level + armor level) + 4 (+ attached guardians, card bonuses not built)"
+  },
+  "finishGems": {
+   "value": 30,
+   "src": "Call_Back_Complete_Explore_with_jewel @0x662514: ceil(remaining minutes / 30) jewels"
+  }
+ },
+ "tower": {
+  "_note": "TOWER tab = DEATH TOWER (Scene_Tower / Scene_Stage_Tower). meta/re_notes/tower_explore.md section 1.",
+  "cost": {
+   "value": {
+    "tickets": 1
+   },
+   "src": "Scene_Tower::Call_Back_Game_Start @0x6e9314: GD[0x4be0] (tickets) >= 1, minus 1"
+  },
+  "tick": {
+   "value": 0.07,
+   "src": "SCH_PLAY_BY_SCENARIO @0x70f6a8 scheduled every 0.07 s (FUC_START_GAME @0x71f6a0)"
+  },
+  "scale": {
+   "value": {
+    "atkMul": 2,
+    "walkMul": 0.8
+   },
+   "src": "Monster::Init_Monster001 @0x57248c (tower flag): ATK x2, walkTime x0.8"
+  },
+  "chest": {
+   "value": {
+    "fromFloor": 5,
+    "chance": 50,
+    "spread": 5
+   },
+   "src": "FUC_MOVE_TO_NEXT_FLOOR04 @0x724d58 (reward table not decoded: not built)"
+  }
+ },
+ "ability": {
+  "_note": "ABILITY (5 slots per character): Scene_WorldMap::Call_Back_Upgrade_Booster(int) @0x55e0b8, popup @0x560c60; meta/re_notes/iap_pickups.md B3",
+  "slots": {
+   "value": [
+    {
+     "id": 62,
+     "pickup": "score",
+     "icon": 1,
+     "name": "2X SCORE",
+     "text": "duration time of 2x SCORE increases",
+     "base": 10
+    },
+    {
+     "id": 63,
+     "pickup": "atk",
+     "icon": 3,
+     "name": "2X ATK",
+     "text": "duration time of 2x ATK increases",
+     "base": 10
+    },
+    {
+     "id": 64,
+     "pickup": "def",
+     "icon": 5,
+     "name": "2X DEF",
+     "text": "duration time of 2x DEF increases",
+     "base": 10
+    },
+    {
+     "id": 65,
+     "pickup": null,
+     "icon": 11,
+     "name": "CHANGE ATTRIBUTE",
+     "text": "upgrades a pickup that never drops (no effect in the original either)",
+     "base": 10
+    },
+    {
+     "id": 66,
+     "pickup": "berserk",
+     "icon": 9,
+     "name": "BERSERK",
+     "text": "duration time of BERSERK increases",
+     "base": 13
+    }
+   ],
+   "src": "GD+0x9678 / 0x96a8 / 0x96d8 / 0x9708 / 0x9738 per character; effect = base + level seconds"
+  },
+  "cost": {
+   "value": {
+    "perLevel": 1500,
+    "max": 8
+   },
+   "src": "1500*(L+1) gold, L 0..7"
+  }
+ },
+ "destiny": {
+  "value": {
+   "rolls": [
+    "2x G WING EXP",
+    "2x GOLD",
+    "DROPS BOOSTER OFTEN",
+    "START SKILL GAUGE FULL"
+   ],
+   "boosterBonus": 2000
+  },
+  "src": "Scene_WorldMap::FUC_SELECT_DESTINY @0x55929c: rand()%4 at the stage start (texts 0x2db+roll); flags Scene_UI+0x1a5f..0x1a62; DROPS BOOSTER OFTEN = +2000/10001 booster chance"
+ },
+ "revive": {
+  "value": {
+   "base": 5
+  },
+  "src": "Scene_Stage::FUC_REVIVAL @0x592dc4: 5*(n+1) jewels, n = revives used this stage, no cap; full base HP, burst, invulnerability, pickups cleared"
+ },
+ "ads": {
+  "value": {
+   "rewardedJewels": 2
+  },
+  "src": "cppOKtoGiveV4VCReward @0x642b00: +2 jewels per rewarded video (shop btn_free @0x734df0, map free button @0x75b594), once per scene visit. The web plays no ad: the reward is instant."
+ },
+ "roster": {
+  "_note": "SELECT CHARACTER (Scene_WorldMap FUC_SET_CHARACTER / Call_Back_Buy_Selected_Cha @0x73b098); stat tables GameData::GameData() @0x622498 per character (+char*0x50); weapon/armor/ability levels are kept per character (g_Data+0x9648+char*8). meta/re_notes/iap_pickups.md A3. Sprite sets: 06 is a witch in no roster text, so idx 5 uses 07 (matches the clip skeleton). Mission unlocks: clip shows MISSION and its popup for the skeleton; that a met mission owns the hero at once is inferred.",
+  "chars": {
+   "value": [
+    {
+     "name": "Paul, The Weak Warrior",
+     "set": "01",
+     "bio": "Out of curiosity releases the sealed dragon.\nWeak, but faithful to the basics.",
+     "bioSrc": "clip OtA5hxMT0rg t=421",
+     "unlock": {
+      "kind": "start"
+     },
+     "atk": [
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55
+     ],
+     "skill": [
+      10,
+      13,
+      16,
+      19,
+      22,
+      25,
+      28,
+      31,
+      34,
+      37
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+     ],
+     "hp": [
+      130,
+      180,
+      230,
+      280,
+      330,
+      380,
+      430,
+      480,
+      530,
+      580
+     ],
+     "cooldown": 20,
+     "crit": 1
+    },
+    {
+     "name": "Teresa, The Sword Master",
+     "set": "02",
+     "bio": "Set upon the journey to seal the mistakenly\nreleased Dragon again. Doubles the earned GOLD",
+     "bioSrc": "clip OtA5hxMT0rg t=425",
+     "unlock": {
+      "kind": "buy",
+      "gems": 60
+     },
+     "atk": [
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55
+     ],
+     "skill": [
+      10,
+      13,
+      16,
+      19,
+      22,
+      25,
+      28,
+      31,
+      34,
+      37
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+     ],
+     "hp": [
+      130,
+      180,
+      230,
+      280,
+      330,
+      380,
+      430,
+      480,
+      530,
+      580
+     ],
+     "cooldown": 20,
+     "crit": 1,
+     "goldMul": 2,
+     "slot5": "crit"
+    },
+    {
+     "name": "Bombery, The Dwarf",
+     "set": "03",
+     "bio": "A dwarf with a hammer bigger than himself.\nFinishes an expedition in half time.",
+     "bioSrc": "web text from the loading tip 'Dwarf Bombery can finish expedition in half time' (clip t~440); the original bio was not read",
+     "unlock": {
+      "kind": "buy",
+      "gems": 45
+     },
+     "atk": [
+      50,
+      55,
+      60,
+      65,
+      70,
+      75,
+      80,
+      85,
+      90,
+      95
+     ],
+     "skill": [
+      60,
+      80,
+      100,
+      130,
+      160,
+      190,
+      220,
+      260,
+      280,
+      320
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+     ],
+     "hp": [
+      260,
+      360,
+      460,
+      560,
+      660,
+      760,
+      860,
+      960,
+      1060,
+      1160
+     ],
+     "cooldown": 20,
+     "crit": 1,
+     "expedHalf": true
+    },
+    {
+     "name": "Elizabeth, The Fighter",
+     "set": "04",
+     "bio": "A fighter who goes in with her bare fists.\nHer skill comes back slowly.",
+     "bioSrc": "web text (original bio not read); her skill cooldown is 35 s",
+     "unlock": {
+      "kind": "mission",
+      "rule": "allStages",
+      "text": "If you clear all stages, you can get Elizabeth"
+     },
+     "atk": [
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55
+     ],
+     "skill": [
+      10,
+      13,
+      16,
+      19,
+      22,
+      25,
+      28,
+      31,
+      34,
+      37
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+     ],
+     "hp": [
+      130,
+      180,
+      230,
+      280,
+      330,
+      380,
+      430,
+      480,
+      530,
+      580
+     ],
+     "cooldown": 35,
+     "crit": 1,
+     "berserkBase": 6
+    },
+    {
+     "name": "Flashare, The Dragon",
+     "set": "05",
+     "bio": "The dragon who was sealed, now at your side.\nA strong critical hit.",
+     "bioSrc": "web text (original bio not read); ability slot 5 = critical chance",
+     "unlock": {
+      "kind": "mission",
+      "rule": "allStars",
+      "text": "If you get 3 stars in all normal stages, you can get Flashare"
+     },
+     "atk": [
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      60
+     ],
+     "skill": [
+      10,
+      13,
+      16,
+      19,
+      22,
+      25,
+      28,
+      31,
+      34,
+      40
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      15
+     ],
+     "hp": [
+      130,
+      180,
+      230,
+      280,
+      330,
+      380,
+      430,
+      480,
+      530,
+      670
+     ],
+     "cooldown": 20,
+     "crit": 1,
+     "slot5": "crit"
+    },
+    {
+     "name": "WARRIOR SKELETON",
+     "set": "07",
+     "bio": "A WARRIOR SKELETON FROM THE CITY OF THE DEAD.\nHe's always faithful to the basics.",
+     "bioSrc": "text 1105 / clip OtA5hxMT0rg t=432",
+     "unlock": {
+      "kind": "mission",
+      "rule": "stage15",
+      "text": "If you clear stage 15, you can get a Warrior Skeleton"
+     },
+     "atk": [
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55
+     ],
+     "skill": [
+      10,
+      13,
+      16,
+      19,
+      22,
+      25,
+      28,
+      31,
+      34,
+      37
+     ],
+     "def": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+     ],
+     "hp": [
+      130,
+      180,
+      230,
+      280,
+      330,
+      380,
+      430,
+      480,
+      530,
+      580
+     ],
+     "cooldown": 20,
+     "crit": 1
+    }
+   ],
+   "src": "meta/iap_pickups.json roster"
+  },
+  "tiersReal": {
+   "value": {
+    "04": [
+     "01",
+     "10",
+     "20",
+     "30",
+     "40",
+     "50"
+    ],
+    "05": [
+     "01",
+     "10",
+     "20",
+     "30",
+     "40",
+     "50"
+    ],
+    "07": [
+     "01",
+     "02",
+     "03",
+     "04",
+     "05",
+     "06",
+     "07",
+     "08",
+     "09",
+     "10"
+    ]
+   },
+   "src": "asset sizes: armor_cha_04/05_02..09 are 2x2 placeholders"
+  }
  }
 }

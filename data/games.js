@@ -765,7 +765,7 @@ window.HUB_GAMES = [
     en: { title: "Pet Shop", tagline: "Run a pet store: order stock, fill shelves, set prices and work the till — scan and give change.", desc: "A 3D pet-shop sim straight in the browser. Order on the laptop, wait for delivery, carry boxes to shelves, price against the market, open for customers, scan each item at the till, give cash change or take card, and read the profit report (minus 5% tax) at closing, then level up to unlock licenses and new sections. Pets (Siamese, Husky) sell from the cage. Rules and prices from the original game's data. Keys or drag to walk, aim + E to interact, saved in the browser." },
     thumbnail: "assets/thumbnails/petshop.png",
     path: "games/petshop/index.html",
-    rev: "20261110a",
+    rev: "20261113a",
     status: "available",
     tags: ["Thư giãn", "Mô phỏng", "Quản lý"]
   },
@@ -779,7 +779,7 @@ window.HUB_GAMES = [
     en: { title: "Dragon Storm", tagline: "A knight defends the village: tap to slash, dodge and cast to stop each wave of monsters.", desc: "Dragon Storm (com.spcomes.dstorm), a lane-defense action RPG, remade in plain Canvas 2D on the web, no engine. The knight is built from the original APK art: an armor body per upgrade tier with the sword layered on top, the slash matched to the source clip. It has a world map to pick stages, a stage-prep panel that upgrades the sword and armor with gold earned in battle (prices taken from the original game), and a shop. Stage 1-2 are playable: enter a stage, slash, dodge, cast, win or lose, and upgrades change the knight look and stats. Progress saves in the browser. Not yet built: combat balance numbers are placeholders, and the boss and later stages are in progress." },
     thumbnail: "assets/thumbnails/dragon-storm.png",
     path: "games/dragon-storm/index.html",
-    rev: "20261104e",
+    rev: "20261104h",
     status: "available",
     tags: ["Hành động", "Nhập vai", "Thủ làng"]
   },

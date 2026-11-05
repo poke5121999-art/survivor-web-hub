@@ -13,6 +13,15 @@ function dequant(src) {
   return src.matrix.clone();
 }
 
+// Unity's Renderer pairs material i with submesh i. Submeshes past the last material are not drawn (static-batched and
+// combined meshes carry an extra submesh that is the whole mesh again: the checkout counter's 4th submesh repeats the
+// other three and drew them all in flat grey "lambert1"); materials past the last submesh draw that submesh again.
+function subMats(prims, mt) {
+  const out = prims.slice(0, mt.length).map((p, k) => [p, mt[k]]);
+  for (let k = prims.length; k < mt.length && prims.length; k++) out.push([prims[prims.length - 1], mt[k]]);
+  return out;
+}
+
 export function buildWorld(scene, gltf, { texBase }) {
   const geoMeshes = [];
   gltf.scene.children.forEach(o => { geoMeshes[+o.name.slice(1)] = o; });
@@ -39,8 +48,7 @@ export function buildWorld(scene, gltf, { texBase }) {
     // matrix as it is at load keeps the vertices in place while later scale pops still pivot on the node.
     const prims = n.sb ? all.slice(n.sb[0], n.sb[0] + n.sb[1]) : all;
     const unbatch = n.sb ? (root.updateMatrixWorld(true), objects[i].matrixWorld.clone().invert()) : null;
-    prims.forEach((prim, k) => {
-      const mi = n.mt[Math.min(k, n.mt.length - 1)];
+    subMats(prims, n.mt).forEach(([prim, mi]) => {
       if (mi == null) return;
       const m = materials[mi];
       const mesh = new THREE.Mesh(prim.geometry, m.mat);
@@ -69,8 +77,7 @@ export function buildWorld(scene, gltf, { texBase }) {
     const prims = src.isMesh ? [src] : src.children;
     const q = dequant(src);
     const skeleton = new THREE.Skeleton(n.sk.bones.map(b => objects[b]), info.bind.map(a => new THREE.Matrix4().fromArray(a).multiply(q)));
-    prims.forEach((prim, k) => {
-      const mi = n.sk.mt[Math.min(k, n.sk.mt.length - 1)];
+    subMats(prims, n.sk.mt).forEach(([prim, mi]) => {
       if (mi == null) return;
       const m = materials[mi];
       const add = material => {

@@ -19,6 +19,56 @@ const CAPS = [
   ['HudUI/PlayerControls/MoveObjButtons/Container/Cancel', 'Esc'],
 ];
 
+// [ĐỀ XUẤT] what the interact button does on the thing in the crosshair ("[E] Pick up box"): the original shows only
+// the hand icon, so a new player cannot tell picking up from stocking, pricing, scanning or paying. Always on (touch
+// players get the text without the key cap); hidden while a panel is open or the checkout screen runs its own HUD.
+const PROMPTS = {
+  pickBox: ['Pick up box', 'Nhặt thùng hàng'],
+  stock: ['Put on the shelf', 'Xếp hàng lên kệ'],
+  price: ['Set the price', 'Đặt giá bán'],
+  laptop: ['Order stock (laptop)', 'Đặt hàng (máy tính)'],
+  counter: ['Use the register', 'Vào quầy thu ngân'],
+  storeBox: ['Put the box in storage', 'Cất thùng vào kệ kho'],
+  storageLocked: ['Storage room (locked)', 'Kho (chưa mở khoá)'],
+  cashier: ['Hire the cashier', 'Thuê thu ngân'],
+  cash: ['Collect free cash', 'Nhận tiền miễn phí'],
+  energy: ['Collect free energy', 'Nhận năng lượng miễn phí'],
+  board: ['Name your store', 'Đặt tên cửa hàng'],
+  open: ['Open the store', 'Mở cửa hàng'],
+  close: ['Close the store', 'Đóng cửa hàng'],
+  trash: ['Throw the box away', 'Bỏ thùng vào thùng rác'],
+  scan: ['Scan the item', 'Quét món hàng'],
+  pay: ['Take the payment', 'Nhận tiền của khách'],
+  // what the interact button would refuse (the original answers with an alert after the tap): said before the tap,
+  // without the key cap, in amber
+  boxEmpty: ['Box is empty: throw it in the trash bin', 'Thùng đã hết hàng: bỏ vào thùng rác', 'warn'],
+  boxClosed: ['Open the box first', 'Mở thùng ra trước đã', 'warn'],
+  shelfFull: ['This shelf is full', 'Kệ này đã đầy', 'warn'],
+  wrongShelf: ['This product does not go here', 'Mặt hàng này không xếp ở đây', 'warn'],
+};
+
+export class AimPrompt {
+  constructor(hud) {
+    this.hud = hud;
+    const el = this.el = document.createElement('div');
+    el.id = 'ps-aim';
+    el.hidden = true;
+    document.body.appendChild(el);
+  }
+
+  // key: a PROMPTS key or null; withKey: show the E cap (desktop)
+  update(key, withKey) {
+    const p = key && PROMPTS[key];
+    this.key = p ? key : null;
+    const html = p ? `${withKey && !p[2] ? '<b>E</b>' : ''}<span>${p[this.hud.settings.lang === 'vi' ? 1 : 0]}</span>` : '';
+    if (html === this.html) return;
+    this.html = html;
+    this.el.innerHTML = html;
+    this.el.hidden = !html;
+    this.el.classList.toggle('warn', !!(p && p[2]));
+  }
+}
+
 export class KeyLabels {
   static wanted() {
     if (KeyLabels.touched || !window.matchMedia) return false;

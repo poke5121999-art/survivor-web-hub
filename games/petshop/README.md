@@ -42,6 +42,63 @@ Làm lại *Pet Shop Simulator: Pet Games* (`com.pet.shop.simulator.games.max` 1
   - Ảnh nền bán trong suốt không còn làm ẩn chữ/ô bên trong (nút "No Thanks", ô phần thưởng cấp, danh sách ngôn ngữ).
   - Chữ mục tiêu không còn đè lên thanh tiến độ.
 
+## Drop 11: bot chơi nhiều ngày, lỗi tìm ra khi chơi
+
+- `test/petshop-bot.js <ngày> [notut|mid]` giờ chơi tiếp sau hướng dẫn, vẫn chỉ bằng cảm ứng. Mỗi lượt nó chọn một việc như người chơi: bảng đang mở (lên cấp, kết thúc ngày), khách chờ ở quầy (quét, nhận tiền, thối tiền ít tờ nhất hoặc gõ số thẻ), thùng đang cầm (mở, xếp lên kệ đúng loại, bỏ vỏ vào thùng rác), thùng nằm ngoài, đặt hàng theo chỗ trống trên kệ, mua giấy phép, mở cửa hàng. Mỗi việc được ghi log, và mỗi ngày, mỗi lần lên cấp, mỗi giấy phép đều được chụp lại.
+  - `notut` bắt đầu từ save đã qua hướng dẫn.
+  - `mid` thêm save giữa game (cấp 12, $3000, 200 năng lượng) để bot mua dịch vụ thu ngân, thuê thu ngân, mua mở rộng, mua và đặt nội thất.
+  - Lúc chỉ chờ khách hay chờ xe hàng thì không tính là kẹt. Kẹt là khi bot làm cùng một việc suốt 240 s mà không có gì đổi.
+- Lỗi bot tìm ra, đã sửa:
+  - **Ô giấy phép 6–11 đè lên nhau**: `Content` của License không có layout group. Giấy phép 1–5 là ô 411 px xếp 3 cột, 6–11 là ô 571 px xếp 2 cột trên hàng riêng (level1). Bản web ép cả 11 ô vào lưới 3 cột. Giờ chỉ các ô hẹp dời lên chỗ của ô IAP "UnlockAll"; ô rộng giữ vị trí gốc. Expansion có `GridLayoutGroup` thật (4 cột, ô 355 × 435) nên vẫn dàn lại như cũ.
+  - **Màn hình máy tính tiền nổi trên bảng LEVEL UP**: chữ "TOTAL / NEXT CUSTOMER" của màn hình quầy đè lên huy hiệu cấp và lớp tối. Giờ chữ này ẩn khi có bảng mở.
+  - **Thanh cuộn đứng im**: `Scrollbar` của Unity đặt anchor cho `Handle` theo vị trí cuộn (`size` = viewport / content). Trước đây tay nắm nằm im ở rect lưu sẵn, kể cả khi đã cuộn tới cuối. Giờ áp cho mọi danh sách: cửa hàng, giấy phép, dịch vụ, ngân hàng, ngôn ngữ.
+  - **Thùng rỗng vẫn đầy hàng**: prefab thùng giao hàng lưu sẵn 12 bản "(Clone)" trong `ProductHolder`. Đó chính là `BaseDeliveryBox.itemList` của bản gốc, danh sách này vơi dần khi lấy hàng ra. Bản web vẽ hàng theo số lượng nhưng để nguyên 12 bản lưu sẵn, nên xếp hết hàng rồi thùng vẫn trông đầy. Giờ các bản lưu sẵn bị ẩn. `petshop-qa3.js` đếm mesh hàng ở 12 / 5 / 0 món: bản Drop 10 ra 24 / 17 / 12, bản này ra 12 / 5 / 0.
+  - [ĐỀ XUẤT] **Gợi ý dưới tâm ngắm nói đúng việc sẽ xảy ra**: cầm thùng rỗng nhắm vào kệ thì không còn hiện "Xếp hàng lên kệ" nữa. Gợi ý giờ kiểm cùng các điều kiện như `sim.place`, theo đúng thứ tự, và báo bằng chữ vàng: "Thùng đã hết hàng: bỏ vào thùng rác", "Mở thùng ra trước đã", "Kệ này đã đầy", "Mặt hàng này không xếp ở đây". Bản gốc chỉ báo lỗi (alert) sau khi đã chạm.
+- Đã xét mà không đổi: thuế cuối ngày là 5% × |thu − chi|, tính cả ngày lỗ, dù nhãn ghi "Tax(-10%)". Đó là công thức của `DayEndUIHelper.SetDataOnDayEnd` bản gốc. Giới hạn cúi nhìn ±50° cũng là của bản gốc: đứng quá sát thùng thì phải lùi lại mới nhắm trúng.
+- `petshop-uiaudit.js`:
+  - Màn "manage-license" trước đây gọi `storeSection('Manage')`, một tên không tồn tại, nên audit đo một cửa hàng trống và vẫn báo sạch. Giờ mỗi màn phải chứng minh là đã mở (phần tử chính đang hiện), nếu không thì tính là lỗi.
+  - Thêm phép kiểm "ô cùng danh sách đè nhau", tính cả ô đã cuộn khuất. Chạy trên bản Drop 10 nó báo 4 cặp ô đè; bản này báo 0.
+  - Thêm màn "manage-license-end" (cuộn tới cuối danh sách giấy phép).
+
+## Drop 10: rà giao diện, gợi ý hành động
+
+- `test/petshop-uiaudit.js <en|vi>` mở 20 màn (HUD, các tab cửa hàng, quản lý, dịch vụ, ngân hàng, đặt giá, kết thúc ngày, lên cấp, phần thưởng, cài đặt, ngôn ngữ, đặt tên, thiếu tiền / năng lượng, dịch vụ đã mua, màn chào). Trên những gì thực sự hiện ra, nó đo chữ tràn khỏi khung, chữ đè chữ, chữ đè nút và phần bị mép màn hình cắt. Hai ngôn ngữ đều về 0 lỗi.
+- **Cài đặt**: `SettingUIHelper.ShowPanel` gọi `topBarUIHelper.HidePanel`, đóng xong thì `ShowPanel` lại. Bản web trước để TopBar đè lên tiêu đề "SETTING".
+- **Thanh trượt** (độ nhạy, âm lượng): `Slider` của Unity tự đặt anchor cho Fill (0..giá trị, 0..1) và Handle khi chạy. Rect lưu sẵn có chiều cao 0, nên trước đây thanh trượt trống trơn.
+- **Phần thưởng lên cấp**: ô "New License" bị đẩy lên 130 px, đè vào "Store Level : 02". `Middle` lấy góc trên-trái làm gốc, nên ô phải đặt ở top 0.
+- **Dịch vụ Storage / Cashier đã mua**: hai ảnh hiện cạnh nhau, chạm một lần là đóng (`successPanelButton` → `CloseCashierSuccessPanel`). Trước đây lật từng trang [GUESS sai].
+- [ĐỀ XUẤT] **Thiếu tiền / năng lượng**: gói IAP bị ẩn, nên thẻ "miễn phí" dời vào giữa thay vì để nửa bảng trống.
+- [ĐỀ XUẤT] **Màn chào**: "Tap for next..." nổi lên trên dải đen (dải đen trong layout gốc che nửa dưới dòng chữ).
+- [ĐỀ XUẤT] **Gợi ý hành động dưới tâm ngắm** (`AimPrompt`, `js/view/keys.js`): "[E] Nhặt thùng hàng", "Xếp hàng lên kệ", "Đặt giá bán", "Cất thùng vào kệ kho", "Mở / Đóng cửa hàng", "Bỏ thùng vào thùng rác"... theo đúng việc mà `interact()` sẽ làm. Máy cảm ứng thì không có ô phím.
+- **Tự chơi bằng cảm ứng** (`test/petshop-bot.js`): bot chỉ chạm và kéo qua CDP `Input.dispatchTouchEvent`, giống người chơi điện thoại. Nó chơi hết hướng dẫn 19 bước từ save mới, không kẹt lần nào. Trên đường đi, bot tìm ra ba lỗi chặn người chơi:
+  - **Điện thoại không đi được và không xoay camera được**: joystick và vùng xoay lắng nghe trên `#hud` (`pointer-events: none`, là anh em chứ không phải cha của canvas), nên cú chạm trên canvas không bao giờ tới. Lỗi này có từ Drop 1. Giờ listener nằm ở `#stage`, và chỉ nhận chạm bắt đầu trên canvas.
+  - **Nút trong danh sách cuộn không nhận chạm hay click thật** (Buy của tab Animals): Viewport đặt `pointer-events: auto` inline để cuộn, giá trị này di truyền xuống, và một `Content` mẫu trong layout đè lên các ô. Giờ mọi phần tử UI không phải nút đều `pointer-events: none`.
+  - [ĐỀ XUẤT] **Nút đóng cửa hàng (X)**: là con đầu tiên của `Store` nên bị các bảng vẽ sau che kín. Giờ được đưa lên trên, đặt ở góc bảng.
+- [ĐỀ XUẤT] **Mũi tên ở bước 11** (chạm thẻ giá trên kệ): lúc đó người chơi thường đứng ngoài, cạnh thùng rác, và bản gốc không có mũi tên cho bước này.
+- `petshop-uiaudit.js` kiểm thêm "nút bị che": chạm vào tâm mọi nút đang hiện phải rơi đúng vào nút đó.
+- Đã xét mà không đổi: nút "Ngày kết thúc" sát mép phải là layout gốc (anchor / pivot = 1). Số liệu bảng kết thúc ngày dùng màu gốc.
+
+## Drop 9: QA của chủ dự án (quầy xám, khách trượt, nút "ĐƯỢC RỒI")
+
+- **Quầy và màn hình xám trơn**: mesh `Cahsier_Table_05` có 4 submesh nhưng chỉ 3 material. Submesh thứ 4 là bản gộp của 3 cái kia (5928 + 11607 + 12 = 17547 index).
+  - Unity không vẽ submesh không có material. Web cũ lấy material cuối (`lambert1`, xám 0,4) vẽ đè lên cả quầy.
+  - `js/view/world.js` (`subMats`) giờ làm đúng luật của Unity: submesh thừa không vẽ, material thừa vẽ lại submesh cuối.
+  - Áp cho cả mesh tĩnh và mesh có xương. Có 10 node bị ảnh hưởng (quầy, một số tủ, `ReptileBox`).
+- **Khách đi trượt (moonwalk)**: mọi clip của người (khách, thu ngân) là clip Humanoid, lưu theo muscle chứ không theo Transform, nên `export_anim.py` xuất ra 0 track. Người trong game vì vậy đứng cứng một tư thế ở mọi trạng thái.
+  - `tools/humanoid.py` + `tools/export_humanoid.py` đổi muscle → xoay từng xương cho mỗi Avatar:
+    - SwingTwist: theo ShaderMotion.
+    - PreQ / PostQ / Sgn / giới hạn: lấy từ `AvatarConstant`.
+    - Khung thân (đường hông + đường vai): khớp đúng `m_RootX.q` của Avatar.
+  - Mỗi clip có một biến thể cho mỗi Avatar, khoá `clip|avatarId`, tổng 123 biến thể. Rig chọn biến thể theo `m_Avatar` của Animator, và gắn xương người theo tên như Unity.
+  - Đo bằng `test/petshop-walk.js`: chân trụ trượt 0,24–0,58 m/s ở tốc độ 1,25 m/s (trước là 1,25 m/s, chân không cử động).
+  - Phần trượt còn lại có cả ở bản gốc: clip Walk không có tham số tốc độ, nên tốc độ sải chân không khớp hẳn tốc độ NavMesh.
+  - [GUESS] Hai chỗ còn đoán:
+    - Vị trí thân = trọng tâm theo khối lượng xương, cộng độ lệch đo ở T-pose.
+    - Chưa chia twist cánh tay/chân theo `m_ArmTwist` / `m_LegTwist`.
+- **Nút "ĐƯỢC RỒI" đè nút C**: chữ TMP auto-size được dịch khi hộp thối tiền còn ẩn, nên không đo được và giữ cỡ tối đa 118,9 px.
+  - `js/view/ui.js` ghi lại các chữ chưa co được, và co lại khi `show()` chuyển một phần tử từ ẩn sang hiện.
+  - Áp chung cho mọi chữ auto-size (kể cả nút "LEAVE CHECKOUT").
+
 ## Drop 8: camera gốc, thu ngân, bán kệ kho
 
 - **Ống kính camera** đọc thẳng từ byte của `CinemachineVirtualCamera.m_Lens`, vì typetree sinh ra đọc hỏng:

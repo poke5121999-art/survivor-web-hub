@@ -9,14 +9,16 @@
 // Shield corner only shows the count (it fires by itself when a monster hits).
 // Keyboard: arrows or A/D slash, X or Enter = red button (dash), Space/Up/W = Sword Storm, E = potion, P/Esc = pause.
 // On desktop the keys are labelled on the controls during play (js/keys.js, as games/food-gang).
-import { createSim, update, attack, attackFacing, skill, usePotion, useShield, createBot, autoPlay, toggleAuto, W, H } from './sim.js';
+import { createSim, update, attack, attackFacing, skill, usePotion, useShield, createBot, autoPlay, toggleAuto, revive, declineRevive, W, H } from './sim.js';
 import { createRenderer, BTN, PAD_TOP } from './render.js';
 import { createAudio } from './audio.js';
 import { createMeta } from './meta.js';
 import { createScreens, MAP_NODES, MAP_BTN, PREP_BTN } from './screens.js';
 import { createKeyLabels } from './keys.js';
-import { createMetaUI, SHOP_LAYOUT, BAG_LAYOUT, UPG_LAYOUT } from './metaui.js';
+import { createMetaUI, SHOP_LAYOUT, BAG_LAYOUT, UPG_LAYOUT, ABIL_LAYOUT, BONUS_LAYOUT } from './metaui.js';
 import { createFtue } from './ftue.js';
+import { createWingUI, WING_LAYOUT, EXP_LAYOUT, TOWER_LAYOUT } from './wingui.js';
+import { createCharUI, CHAR_LAYOUT } from './charui.js';
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
@@ -24,9 +26,10 @@ const Q = new URLSearchParams(location.search);
 const SPEED = Math.max(0.1, Math.min(20, +Q.get('speed') || 1));
 const MANUAL = Q.has('manual');
 const NOTUTO = Q.has('notuto');
+const NOREVIVE = Q.has('norevive'); // tests: a death goes straight to the result
 const SEED = +Q.get('seed') || 1;
 const STEP = 1 / 60;
-const BUILT_STAGES = ['stage01', 'stage02', 'stage03', 'stage04', 'stage05'];
+const BUILT_STAGES = Array.from({ length: 15 }, (_, i) => `stage${String(i + 1).padStart(2, '0')}`);
 const MAP_STAGES = BUILT_STAGES; // stages placed on the map (clip c2 5:20, stage 5 clip c1 7:52)
 
 const canvas = document.getElementById('game');
@@ -57,8 +60,13 @@ let metaData;
 let meta;
 let screens;
 let metaUI;
+let wingUI;
 let ftue;
-let popup = null; // 'upgrade' over the map
+let popup = null; // 'upgrade' | 'ability' | 'bonus' | 'char' over the map
+let charUI = null;
+let bonus = null, pendingBonus = null; // CLEAR BONUS: earned at the result, opened on the next world-map visit
+let towerOpen = null; // opens the DEATH TOWER lobby (set at boot when data/tower.json is there)
+let towerData = null;
 const stages = {};
 let renderer;
 let keyLabels = null;
@@ -85,17 +93,24 @@ const SFX = {
   skill: () => 'skill',
   potion: () => 'potion',
   shieldUsed: () => 'shield',
+  gem: () => 'gem',
+  pickup: () => 'skill',
+  ghost: () => 'ghost',
+  held: () => 'quake',
+  boss: e => (sim.stage.monsters[sim.monsters.find(m => m.id === e.id)?.type]?.move?.kind === 'tree' ? 'quake' : null),
+  floor: () => 'gold',
 };
 
 function applyTiers() {
   const t = meta.tiers();
-  renderer.setTiers({ armor: urlTiers.armor || t.armor, sword: urlTiers.sword || t.sword });
+  renderer.setTiers({ armor: urlTiers.armor || t.armor, sword: urlTiers.sword || t.sword, set: t.set });
 }
 
 function startStage(id = stageId, mode = id === stageId ? stageMode : 0) {
   // a stage needs a heart to start (Call_Back_Game_Start @0x55d9c4); stages 1-5 never take one
   if (!meta.canEnter()) { screens.toast(metaData.shop.messages.value.noHeart); return false; }
   if (ftue) ftue.drop();
+  screens.state.toast = null; // a map toast left running would come back frozen on the next map visit
   stageId = id;
   stageMode = meta.modeOpen(id, mode) ? mode : 0;
   applyTiers();
@@ -107,9 +122,11 @@ function startStage(id = stageId, mode = id === stageId ? stageMode : 0) {
   const boost = !tuto ? (v => v) : idx === 0 ? ((v, k) => v * { atk: 2, skill: 2, def: 3 }[k]) : ((v, k) => v + { atk: 3, skill: 10, def: 3 }[k]);
   sim = ds.sim = createSim(stages[id], SEED + runs++, {
     hp: st.hp, atk: boost(st.atk, 'atk'), skill: boost(st.skill, 'skill'), def: boost(st.def, 'def'), wlv: st.wlv,
-    critBonus: st.critBonus, cdCut: st.cdCut,
+    critBonus: st.critBonus, cdCut: st.cdCut, guardians: meta.stageGuardians(),
     ...meta.modeSettings(id, stageMode), ...meta.stageBoosters(), autoOpen: meta.autoOpen(id, stageMode),
+    ...runExtras(idx),
   });
+  applyDestiny();
   // TUTO06 fires when the dash gauge fills for the first time, so that first run starts with it charging (inferred)
   if (!NOTUTO && !meta.tutoDone(6)) sim.hero.dashCd = sim.hero.dashMax;
   sim.firstCoin = false;
@@ -131,17 +148,25 @@ function toTitle() {
   audio.music('bgm_title');
 }
 
+function mapGreetings() {
+  // a hero whose mission is now met joins (Warrior Skeleton after stage 15 ...)
+  for (const i of meta.checkMissions()) { screens.toast(`YOU GET ${meta.roster()[i].name.toUpperCase()}!`); audio.play('gem'); }
+  // YOU CAN GET 1 JEWEL EVERYDAY! (Scene_MAP_UI::FUC_GET_JEWLE_ONCE_FOR_A_DAY @0x74b3b4): given on the first map visit of the day
+  if (meta.lastCleared() >= 0 && meta.claimDailyGem()) { screens.toast(`${metaData.shop.messages.value.dailyGem}\n+${metaData.shop.dailyGem.value} JEWEL`); audio.play('gem'); }
+  if (meta.claimGift()) { screens.state.giftBanner = true; screens.toast(metaData.boosters.freeGift.value.text); audio.play('gold'); }
+}
 function toMap(prepIdx = null) {
   // leaving stage 2's result sets TUTO15..20 (the original's retry guard in FUC_SHOW_RESULT; the TUTO17-20 pickup
   // explainers are not built, so this is also what lets the upgrade steps TUTO21/22 start)
   if (sim && MAP_STAGES.indexOf(stageId) === 1 && sim.phase === 'result') meta.setTuto(15, 16, 17, 18, 19, 20);
   if (ftue) ftue.drop();
   popup = null;
+  if (pendingBonus) { bonus = pendingBonus; pendingBonus = null; popup = 'bonus'; }
   sim = ds.sim = null;
   ds.scene = 'map';
   ds.prep = prepIdx;
   sceneT = 0;
-  if (meta.claimGift()) { screens.state.giftBanner = true; screens.toast(metaData.boosters.freeGift.value.text); audio.play('gold'); }
+  if (popup !== 'bonus') mapGreetings(); // else after the CLEAR BONUS closes, so its toasts do not sit on the chests
   screens.resetScroll();
   audio.music('bgm_ui');
 }
@@ -149,9 +174,12 @@ function toMap(prepIdx = null) {
 function toShop(from, tab = 'GOLD') {
   shopReturn = from;
   metaUI.st.tab = tab;
+  metaUI.st.adUsed = false; // one rewarded video per shop visit
   ds.scene = 'shop';
   audio.music('bgm_ui');
 }
+function toWing() { wingUI.st.sel = null; wingUI.st.mix = null; ds.scene = 'wing'; audio.music('bgm_ui'); }
+function toExplore() { wingUI.st.exSel = null; wingUI.st.result = null; ds.scene = 'explore'; audio.music('bgm_ui'); }
 function toBag() {
   metaUI.st.sel = null;
   ds.scene = 'bag';
@@ -164,9 +192,74 @@ function press(side) {
   return attack(sim, side);
 }
 
+// DEATH TOWER run: 1 ticket, a copy of the tower stage (its floors replace the waves as it climbs), tower scaling
+function startTower() {
+  if (!meta.spendTicket()) { screens.toast('NO TICKET: BUY ONE IN THE SHOP\nOR WAIT FOR THE NEXT ONE'); return false; }
+  if (ftue) ftue.drop();
+  stageId = 'tower';
+  stageMode = 0;
+  applyTiers();
+  const st = meta.stats();
+  const stage = JSON.parse(JSON.stringify(towerData));
+  stage.waves = stage.tower.floors[0].waves;
+  stage.scriptEnd = stage.tower.floors[0].scriptEnd;
+  const T = metaData.tower.scale.value;
+  sim = ds.sim = createSim(stage, SEED + runs++, {
+    hp: st.hp, atk: st.atk, skill: st.skill, def: st.def, wlv: st.wlv, critBonus: st.critBonus, cdCut: st.cdCut,
+    cooldown: st.cooldown, goldMul: st.goldMul, guardians: meta.stageGuardians(), mode: 0, atkMul: T.atkMul, walkMul: T.walkMul, coin: 1, ...meta.stageBoosters(), autoOpen: false,
+  });
+  sim.inputFlash = inputFlash;
+  sim.firstCoin = true;
+  Object.assign(sim, { buffTime: meta.buffTime(), reviveOffer: !NOREVIVE, baseHp: st.hp - meta.itemBonus().hp });
+  resultInfo = { best: meta.towerBest(), hasNext: false, tower: true };
+  ds.scene = 'stage';
+  ds.stageId = 'tower';
+  ds.prep = null;
+  audio.music('bgm_tower');
+  audio.play('start');
+  return true;
+}
+
+// what every run carries besides stats: pickup durations (ABILITY + items), the revive offer, the base HP a revive restores,
+// the stage-2 tutorial pickups (FUC_SELECT_ITEM02 counters: kill 2 x2 SCORE, 4 x2 ATK, 11 x2 DEF, 16 BERSERKER), DESTINY
+let destinyRoll = null;
+function runExtras(idx) {
+  const st = meta.stats();
+  const forced = {};
+  if (!NOTUTO && idx === 1) [[2, 0, 17], [4, 1, 18], [11, 2, 19], [16, 4, 20]].forEach(([k, t, n]) => { if (!meta.tutoDone(n)) forced[k] = t; });
+  destinyRoll = meta.rollDestiny();
+  return {
+    buffTime: meta.buffTime(), reviveOffer: !NOREVIVE, baseHp: st.hp - meta.itemBonus().hp,
+    forcedDrops: Object.keys(forced).length ? forced : null,
+    goldMul: (destinyRoll === 1 ? 2 : 1) * st.goldMul, // DESTINY 2x GOLD and Teresa x2 multiply (FUC_SELECT_ITEM)
+    cooldown: st.cooldown,
+    boosterBonus: destinyRoll === 2 ? metaData.destiny.value.boosterBonus / 10001 : 0,
+  };
+}
+function applyDestiny() {
+  if (destinyRoll === null || !sim) return;
+  if (destinyRoll === 0) sim.gexpMul = 2;
+  if (destinyRoll === 3) sim.hero.dashCd = 0; // START SKILL GAUGE FULL
+  sim.destiny = destinyRoll;
+  screens.toast(`DESTINY: ${metaData.destiny.value.rolls[destinyRoll]}`);
+}
+
 function bankRun(cleared) {
+  // CLEAR BONUS chests after the first clear of a chest stage (5, 10, 15 ...)
+  const idx0 = MAP_STAGES.indexOf(stageId);
+  if (cleared && idx0 % 5 === 4 && stageId !== 'tower' && !meta.stageInfo(stageId).cleared) pendingBonus = { pick: null, got: null, t: 0 };
+  if (stageId === 'tower') {
+    meta.addGold(sim.gold);
+    resultInfo.newBest = meta.setTowerBest(sim.score);
+    resultInfo.floor = sim.stage.tower.floor + 1;
+    meta.addGuardianExp(Math.floor(sim.gexp));
+    return;
+  }
   meta.finishRun(stageId, { cleared, stars: sim.stars, score: sim.score, gold: sim.gold, mode: stageMode, untouched: sim.damageTaken === 0 });
   meta.spendHeart(stageId); // win or lose, except stages 1-5 (FUC_SHOW_RESULT @0x5fa4ac)
+  // equipped guardians take the stage's EXP (FUC_SHOW_RESULT_END @0x5fb8d8)
+  const ups = meta.addGuardianExp(Math.floor(sim.gexp));
+  if (ups.length) screens.toast(ups.map(g => `${meta.gkind(g.kind).name} Lv.${g.lv + 1}!`).join('\n'));
   const i = MAP_STAGES.indexOf(stageId);
   resultInfo.hasNext = cleared && i >= 0 && i + 1 < MAP_STAGES.length;
 }
@@ -175,13 +268,15 @@ function handleEvents() {
   for (const e of sim.events) {
     renderer.onEvent(e, sim);
     const f = SFX[e.type];
-    if (f) audio.play(f(e));
+    const sk = f && f(e);
+    if (sk) audio.play(sk);
     // a booster used in the stage is spent from the save at once (SaveBoosterItemAndDestiny after each use)
     if (e.type === 'potion') meta.spendBooster('potion');
     if (e.type === 'shieldUsed') meta.spendBooster('shield');
     if (e.type === 'skill') meta.spendBooster('sword');
     if (e.type === 'kill') setTimeout(() => audio.play('coin', 0.6), MANUAL ? 0 : 900 / SPEED);
     if (e.type === 'kill' && e.gold > 0) sim.firstCoin = true;
+    if (e.type === 'pickup') (sim.pickupQueue || (sim.pickupQueue = [])).push(e.ptype);
     if (e.type === 'phase' && e.phase === 'clear') { audio.music(null); audio.play('result_win'); bankRun(true); }
     if (e.type === 'phase' && e.phase === 'fail') { audio.music(null); audio.play('result_fail'); bankRun(false); }
   }
@@ -230,9 +325,18 @@ function draw(dt) {
     screens.drawMap(dt, sceneT);
     if (ds.prep !== null) { screens.drawPrep(ds.prep, sceneT); screens.drawToast(0); }
     if (popup === 'upgrade') { metaUI.drawUpgrade(screens.drawCard, screens.drawKnight); screens.drawToast(0); }
+    if (popup === 'ability') { metaUI.drawAbility(); screens.drawToast(0); }
+    if (popup === 'char') { charUI.draw(MANUAL ? Math.max(dt, 1 / 60) : dt); screens.drawToast(0); }
+    if (popup === 'bonus') metaUI.drawBonus(bonus, MANUAL ? Math.max(dt, 1 / 60) : dt);
   } else if (ds.scene === 'shop') metaUI.drawShop(dt);
   else if (ds.scene === 'bag') metaUI.drawBag(dt);
-  else if (sim) renderer.drawStage(sim, dt, resultInfo);
+  else if (ds.scene === 'wing') wingUI.drawWing(dt);
+  else if (ds.scene === 'tower') wingUI.drawTower(dt);
+  else if (ds.scene === 'explore') wingUI.drawExplore(dt);
+  else if (sim) {
+    resultInfo.gems = meta.gems();
+    renderer.drawStage(sim, dt, resultInfo);
+  }
   ftueStep(MANUAL ? Math.max(dt, 1 / 60) : dt);
   ds.frames++;
 }
@@ -243,6 +347,7 @@ function toCanvas(ev) {
   return { x: ((ev.clientX - r.left) / r.width) * W, y: ((ev.clientY - r.top) / r.height) * H };
 }
 const inside = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+const C2 = b => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 const inCircle = (p, b) => (p.x - b.cx) ** 2 + (p.y - b.cy) ** 2 <= b.r * b.r;
 // corner slots are triangles hugging the outer edge: the half above the slot's diagonal
 const inCorner = (p, b, leftSide) => inside(p, b) && (leftSide ? (p.x - b.x) / b.w + (p.y - b.y) / b.h <= 1 : (b.x + b.w - p.x) / b.w + (p.y - b.y) / b.h <= 1);
@@ -267,12 +372,58 @@ function tapMenu(p) {
     if (r.expand) return `bag-expand-${r.expand}`;
     return `bag-${Object.keys(r)[0]}`;
   }
+  if (ds.scene === 'tower') {
+    const r = wingUI.towerTap(p);
+    if (!r) return null;
+    if (r.back) { toMap(); return 'tower-back'; }
+    if (r.shop) { toShop('map', 'ETC'); return 'shop'; }
+    if (r.enter) return startTower() ? 'tower-start' : 'no-ticket';
+    return null;
+  }
+  if (ds.scene === 'wing') {
+    const r = wingUI.wingTap(p);
+    if (!r) return null;
+    if (r.back) { toMap(); return 'wing-back'; }
+    if (r.summon !== undefined) { if (r.result === 'ok') audio.play('recall'); return `wing-summon${r.summon}-${r.result}`; }
+    if (r.equip) return `wing-${r.on ? 'equip' : 'unequip'}-${r.equip}`;
+    if (r.mix) return `wing-mix-${r.mix}`;
+    if (r.sell !== undefined) { audio.play('gold'); return 'wing-sell'; }
+    if (r.expand) return `wing-expand-${r.expand}`;
+    return `wing-${Object.keys(r)[0]}`;
+  }
+  if (ds.scene === 'explore') {
+    const r = wingUI.exploreTap(p);
+    if (!r) return null;
+    if (r.back) { toMap(); return 'explore-back'; }
+    if (r.send) return `explore-send-${r.send}`;
+    if (r.collect !== undefined) { audio.play('gold'); return 'explore-collect'; }
+    if (r.finish) return `explore-finish-${r.finish}`;
+    if (r.cancel) return 'explore-cancel';
+    return `explore-${Object.keys(r)[0]}`;
+  }
+  if (popup === 'bonus') {
+    if (sceneT < 0.4) return null; // the map has to show before a box can be picked
+    const r = metaUI.bonusTap(bonus, p);
+    if (!r) return null;
+    if (r.done) { popup = null; bonus = null; mapGreetings(); return 'bonus-done'; }
+    audio.play('gold');
+    setTimeout(() => audio.play('gem'), 700);
+    return 'bonus-chest';
+  }
+  if (popup === 'char') return charResult(charUI.tap(p));
   if (popup === 'upgrade') {
     const r = metaUI.upgradeTap(p);
     if (!r) return null;
     if (r.close) { popup = null; return 'upgrade-close'; }
     if (r.result === 'ok') audio.play('gold');
     return `upgrade-${r.upgrade}-${r.result}`;
+  }
+  if (popup === 'ability') {
+    const r = metaUI.abilityTap(p);
+    if (!r) return null;
+    if (r.close) { popup = null; return 'ability-close'; }
+    if (r.result === 'ok') audio.play('gold');
+    return `ability-${r.ability}-${r.result}`;
   }
   if (ds.prep !== null) {
     const r = screens.prepTap(p, ds.prep);
@@ -283,6 +434,8 @@ function tapMenu(p) {
     if (r.start) return startStage(r.stage, r.mode) ? 'start-stage' : 'no-heart';
     if (r.buy) { if (r.result === 'ok') audio.play('gold'); return `buy-${r.buy}-${r.result}`; }
     if (r.mode !== undefined) return `mode-${r.mode}${r.locked ? '-locked' : ''}`;
+    if (r.ability) { popup = 'ability'; return 'ability'; }
+    if (r.character) { charUI.open(); popup = 'char'; return 'char'; }
     return Object.keys(r)[0];
   }
   const r = screens.mapTap(p);
@@ -291,14 +444,41 @@ function tapMenu(p) {
   if (r.shop) { toShop('map', r.shop); return 'shop'; }
   if (r.upgrade) { popup = 'upgrade'; return 'upgrade'; }
   if (r.tab === 'ITEM' && r.open) { toBag(); return 'bag'; }
+  if (r.tab === 'WING' && r.open) { toWing(); return 'wing'; }
+  if (r.tab === 'EXPLORE' && r.open) { toExplore(); return 'explore'; }
+  if (r.tab === 'TOWER' && r.open && towerOpen) { towerOpen(); return 'tower'; }
   return `tab-${r.tab}${r.open ? '' : '-locked'}`;
+}
+
+function charResult(r) {
+  if (!r) return null;
+  if (r.close) { popup = null; return 'char-close'; }
+  if (r.shop) { popup = null; toShop('map', r.shop); return 'shop'; }
+  if (r.select !== undefined) { applyTiers(); audio.play('gold'); return `char-select-${r.select}`; }
+  if (r.buy !== undefined) { applyTiers(); if (r.result === 'ok') audio.play('gem'); return `char-buy-${r.buy}-${r.result}`; }
+  if (r.mission !== undefined) return `char-mission-${r.mission}`;
+  if (r.selected !== undefined) return `char-selected-${r.selected}`;
+  return `char-${r.idx}`;
 }
 
 function tapStage(p) {
   if (sim.phase === 'result') {
+    if (inside(p, BTN.retry) && stageId === 'tower') { return startTower() ? 'retry' : 'no-ticket'; }
     if (inside(p, BTN.retry)) { startStage(stageId); return 'retry'; }
     if (inside(p, BTN.next) && resultInfo.hasNext) { toMap(MAP_STAGES.indexOf(stageId) + 1); return 'next'; }
     if (inside(p, BTN.map) || inside(p, BTN.close)) { toMap(); return 'worldmap'; }
+    return null;
+  }
+  if (sim.offer) { // revive popup: BUY (with free jewels from the fake shop when short) or close
+    if (inside(p, BTN.reviveBuy)) {
+      const cost = sim.offer.cost;
+      if (meta.gems() < cost) { meta.buyJewelPack(cost > 10 ? 1 : 0); screens.toast(`+${metaData.shop.jewelPacks.value[cost > 10 ? 1 : 0].gems} JEWEL (FREE IN THE WEB VERSION)`); }
+      meta.spendGems(cost);
+      revive(sim);
+      audio.play('revival');
+      return 'revive';
+    }
+    if (inside(p, BTN.reviveClose)) { declineRevive(sim); return 'revive-no'; }
     return null;
   }
   if (sim.paused) { sim.paused = false; return 'resume'; }
@@ -317,7 +497,7 @@ function tap(p) {
   audio.unlock();
   if (ds.scene === 'title') { toMap(); return 'title-start'; }
   if (ftue && ftue.tap(p) === 'block') return 'tuto';
-  if (ds.scene === 'map' || ds.scene === 'shop' || ds.scene === 'bag') return tapMenu(p);
+  if (['map', 'shop', 'bag', 'wing', 'explore', 'tower'].includes(ds.scene)) return tapMenu(p);
   if (!sim) return null;
   return tapStage(p);
 }
@@ -328,7 +508,7 @@ canvas.addEventListener('pointerdown', ev => {
   ev.preventDefault();
   const p = toCanvas(ev);
   if (ds.scene === 'map' && ds.prep === null && !popup && !(ftue && ftue.active())) { drag = { y: p.y, moved: 0, p }; return; }
-  if (ds.scene === 'map' || ds.scene === 'shop' || ds.scene === 'bag') { drag = { y: p.y, moved: 0, p, noScroll: true }; return; }
+  if (['map', 'shop', 'bag', 'wing', 'explore', 'tower'].includes(ds.scene)) { drag = { y: p.y, moved: 0, p, noScroll: true }; return; }
   ds.lastTap = tap(p);
 });
 canvas.addEventListener('pointermove', ev => {
@@ -349,7 +529,9 @@ window.addEventListener('keydown', ev => {
   const k = ev.key;
   if (ds.scene === 'title' && (k === 'Enter' || k === ' ')) { toMap(); return; }
   if (ftue && ftue.key(k) === 'block') return;
-  if (ds.scene === 'shop' || ds.scene === 'bag') { if (k === 'Escape') toMap(); return; }
+  if (['shop', 'bag', 'wing', 'explore', 'tower'].includes(ds.scene)) { if (k === 'Escape') toMap(); return; }
+  if (ds.scene === 'map' && popup === 'bonus') { if (k === 'Enter' || k === ' ') ds.lastTap = tap(C2(bonus.got ? BONUS_LAYOUT.ok : BONUS_LAYOUT.chest(1))); return; } // CLEAR BONUS: Enter picks the middle box, then continues
+  if (ds.scene === 'map' && popup === 'char') { ds.lastTap = charResult(charUI.key(k)); return; }
   if (ds.scene === 'map' && popup) { if (k === 'Escape') popup = null; return; }
   if (ds.scene === 'map') {
     if (ds.prep !== null && k === 'Escape') ds.prep = null;
@@ -363,6 +545,7 @@ window.addEventListener('keydown', ev => {
     else if (k === 'Escape') toMap();
     return;
   }
+  if (sim.offer) { if (k === 'Enter') tapStage(C2(BTN.reviveBuy)); else if (k === 'Escape') tapStage(C2(BTN.reviveClose)); return; }
   if (k === 'p' || k === 'P' || k === 'Escape') { if (sim.phase === 'play') sim.paused = !sim.paused; return; }
   if (sim.paused) return;
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') press(-1);
@@ -434,11 +617,17 @@ Object.assign(ds, {
   heroPose: () => sim && renderer.heroPose(sim),
   setTiers: t => { urlTiers = { ...t }; renderer.setTiers(t); },
   btn: BTN,
-  mapScroll: () => screens.state.scroll,
+  mapScroll: () => screens.scroll(),
+  mapScrollTo: v => screens.mapScrollBy(screens.scroll() - v), // drag the map so its top shows map y = v
   shop: tab => toShop('map', tab),
   bag: toBag,
+  wing: () => toWing(),
+  explore: () => toExplore(),
+  tower: () => { ds.scene = 'tower'; },
+  startTower: () => startTower(),
   upgradePopup: () => { popup = 'upgrade'; },
   popup: () => popup,
+  bonus: () => bonus,
   ftue: () => (ftue && ftue.cur ? ftue.cur.id : null),
   ftueRect: () => ftue && ftue.cur && ftue.cur.target,
 });
@@ -455,6 +644,10 @@ async function boot() {
   const hooks = { toast: t => screens.toast(t), drawToast: dt => screens.drawToast(dt), freeBox: () => !NOTUTO && !meta.tutoDone(26) };
   metaUI = createMetaUI(renderer.gfx, meta, metaData, hooks);
   screens = createScreens(renderer.gfx, meta, stages, metaData, metaUI);
+  charUI = createCharUI(renderer.gfx, meta, metaData, hooks);
+  charUI.setDrawHero((...a) => screens.drawKnight(...a));
+  wingUI = createWingUI(renderer.gfx, meta, metaData, { ...hooks, itemIcon: (...a) => metaUI.itemIcon(...a), towerFloors: () => (towerData ? towerData.tower.floors.length : 0) });
+  try { towerData = await json('data/tower.json'); towerOpen = () => { ds.scene = 'tower'; audio.music('bgm_tower'); }; } catch (e) { towerData = null; }
   if (!NOTUTO) ftue = createFtue(renderer.gfx, meta);
   // ?tier=06 sets both knight layers, ?armor= / ?sword= set one (art preview; the save's levels pick the tier otherwise)
   const tierQ = k => { const v = Q.get(k) || Q.get('tier'); return v && art.images[`hero_${k}_${v.padStart(2, '0')}`] ? v.padStart(2, '0') : undefined; };
@@ -463,7 +656,7 @@ async function boot() {
   ds.stages = stages;
   ds.meta = meta;
   ds.metaData = metaData;
-  ds.layout = { MAP_NODES, MAP_BTN, PREP_BTN, SHOP: SHOP_LAYOUT, BAG: BAG_LAYOUT, UPG: UPG_LAYOUT };
+  ds.layout = { ABIL: ABIL_LAYOUT, BONUS: BONUS_LAYOUT, CHAR: CHAR_LAYOUT, MAP_NODES, MAP_BTN, PREP_BTN, SHOP: SHOP_LAYOUT, BAG: BAG_LAYOUT, UPG: UPG_LAYOUT, WING: WING_LAYOUT, EXP: EXP_LAYOUT, TOWER: TOWER_LAYOUT };
   const st = Q.get('stage');
   if (Q.has('stage')) startStage(stages[st] ? st : BUILT_STAGES[0]); else toTitle();
   keyLabels = createKeyLabels(canvas, BTN);

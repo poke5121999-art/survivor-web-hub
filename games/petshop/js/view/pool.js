@@ -31,7 +31,7 @@ export class Pool {
       const a = o.userData.node && o.userData.node.k && o.userData.node.k.Animator;
       if (!a) return;
       const ctrl = this.lib && this.lib.controller(a.m_Controller);
-      if (ctrl && ctrl.layers.length) hit = new Rig(this.lib, o, ctrl);
+      if (ctrl && ctrl.layers.length) hit = new Rig(this.lib, o, ctrl, a.m_Avatar ? a.m_Avatar.id : null);
     });
     return hit;
   }

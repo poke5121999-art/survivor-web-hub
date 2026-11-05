@@ -8,9 +8,17 @@ import { W, H } from './sim.js';
 // stage 5 is the reward-chest slot (FUC_SET_REWARD_CHEST_POSITION puts the chest on every slot with index % 5 == 4;
 // clip c1 7:56: after stage 4 the player taps the chest and the SHAMANKING prep opens). The framed square above
 // node 4 in that clip is frame_photo_map, a friend's profile photo (social data), not a stage.
-export const MAP_CHEST = [161, 577];
-export const MAP_NODES = [[176, 772], [299, 761], [378, 667], [293, 579], MAP_CHEST]; // stage 1 sits on the map art's red X
-const MAP_H = 1024;
+// Drop 6: the chapter map is one tall layer (map_00_01 at the bottom, map_00_02 above it: Scene_WorldMap, cocos y up).
+// Web map y runs top-down over both images: map_00_02 = 0..1023, map_00_01 = 1024..2047. Stages 6-15 are the original
+// button positions (fractions of 480x800 per map image, meta/re_notes/stages_6_15.md); stages 1-5 keep the clip-measured
+// positions. Every stage with index % 5 == 4 (5, 10, 15) is a reward-chest slot.
+const M1 = 1024;
+export const MAP_CHEST = [161, 577 + M1];
+export const MAP_NODES = [[176, 772 + M1], [299, 761 + M1], [378, 667 + M1], [293, 579 + M1], MAP_CHEST, // stage 1 on the red X
+  [136, 458 + M1], [266, 427 + M1], [308, 306 + M1], [151, 267 + M1], [288, 166 + M1], [172, 126 + M1], [110, 28 + M1],
+  [103, 922], [234, 1006], [358, 982]];
+const isChest = i => i % 5 === 4;
+const MAP_H = 2048;
 const TAB_Y = 712;
 // Drop 5: the shop and the upgrade are on the map itself (owner QA: they were only reachable from the stage prep).
 // The original map has no fixed SHOP / UPGRADE buttons in this version; btn_shop / btn_upgrade are the original art,
@@ -49,14 +57,16 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
   const heroNode = () => Math.max(0, meta.lastCleared());
   function clampScroll(v) { return Math.max(0, Math.min(MAP_H - H, v)); }
   // clip c2 5:20: the view puts the hero's stage at screen y ~607 (map scroll 60 with stage 3 current)
-  function defaultScroll() { return clampScroll(MAP_NODES[heroNode()][1] - 607); }
+  // stages 6+ sit mid-screen so the SHOP / UPGRADE buttons do not cover their buttons (web layout)
+  function defaultScroll() { return clampScroll(MAP_NODES[heroNode()][1] - (heroNode() < 5 ? 607 : 420)); }
 
-  function drawKnight(cx, feetY, scale, f = 0) {
-    const t = meta.tiers();
+  // the hero in use at its tiers (t = { armor, sword, set } overrides it, e.g. for the SELECT CHARACTER portraits)
+  function drawKnight(cx, feetY, scale, f = 0, t = meta.tiers(), alpha = 1) {
     const left = cx - 53 * scale;
     const top = feetY - 122 * scale;
-    frame(`hero_armor_${t.armor}`, f, left, top, { scale });
-    frame(`hero_sword_${t.sword}`, f, left, top, { scale });
+    const key = (part, tier) => (t.set && t.set !== '01' ? `hero_${part}_c${t.set}_${tier}` : `hero_${part}_${tier}`);
+    frame(key('armor', t.armor), f, left, top, { scale, alpha });
+    frame(key('sword', t.sword), f, left, top, { scale, alpha });
   }
 
   function toast(text) { state.toast = text; state.toastT = String(text).includes('\n') ? 2.6 : 1.6; }
@@ -87,14 +97,17 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
     const s = state.scroll;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
-    const m = img('map_00_01');
-    ctx.drawImage(m.img, 0, -s, m.dw || m.w, m.dh || m.h);
+    for (const [k, y0] of [['map_00_02', 0], ['map_00_01', M1]]) {
+      const m = img(k);
+      if (y0 - s < H && y0 - s + 1024 > 0) ctx.drawImage(m.img, 0, y0 - s, m.dw || m.w, m.dh || m.h);
+    }
     // stage-5 slot = reward chest (clip c2 5:20: shown once stage 3 is cleared): btn_stage frame 51 (the gold pronged
     // ring), Eff_Flash_01 turning once every 5 s (RotateBy(5, 360) forever) and icon_clear_bonus on top
     // (Scene_WorldMap::FUC_SET_REWARD_CHEST_POSITION @0x557778). The light is drawn at its 128 px file size, which is
     // what the clip shows (CLIP-MEASURED; the C++ scales it by the scene scale). The reward itself is not built.
-    if (meta.lastCleared() >= 2) {
-      const [x, y] = MAP_CHEST;
+    for (let ci = 4; ci < MAP_NODES.length; ci += 5) {
+      if (meta.lastCleared() < ci - 2) continue;
+      const [x, y] = MAP_NODES[ci];
       frameC('btn_stage', 51, x, y - s, { scale: 1.15 });
       const fl = img('eff_flash01');
       ctx.save();
@@ -105,9 +118,16 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
       frameC('icon_clear_bonus', 0, x, y - s);
     }
     // open stages: numbered button, stars under cleared ones
+    // stages ahead are drawn as grey buttons (btn_stage frame 0) up to the next reward chest (clip c1 13:00: grey
+    // buttons for 7-9 above a cleared 6)
+    const nextOpen = meta.lastCleared() + 1;
+    const chestAhead = nextOpen + ((4 - (nextOpen % 5)) + 5) % 5;
+    MAP_NODES.forEach(([x, y], i) => {
+      if (!nodeOpen(i) && i <= chestAhead && !isChest(i)) frameC('btn_stage', 0, x, y - s, { scale: 0.85 });
+    });
     MAP_NODES.forEach(([x, y], i) => {
       if (!nodeOpen(i)) return;
-      if (MAP_NODES[i] !== MAP_CHEST) frameC('btn_stage', i + 1, x, y - s, { scale: 0.85 }); // the chest is stage 5's button
+      if (!isChest(i)) frameC('btn_stage', i + 1, x, y - s, { scale: 0.85 }); // a chest slot is that stage's button
       const info = meta.stageInfo(meta.stageIds[i]);
       if (info.stars > 0) frameC('star_map', info.stars - 1, x, y - s + 47, { scale: 0.85 });
     });
@@ -155,10 +175,7 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
 
   function mapTap(p) {
     const s = state.scroll ?? defaultScroll();
-    for (let i = 0; i < MAP_NODES.length; i++) {
-      const [x, y] = MAP_NODES[i];
-      if (nodeOpen(i) && (p.x - x) ** 2 + (p.y - (y - s)) ** 2 <= 32 * 32) return { stage: i };
-    }
+    // the bars and buttons drawn over the map take the tap first; a stage button under them cannot be hit
     if (inside(p, MAP_BTN.shop)) return { shop: 'GOLD' };
     if (inside(p, MAP_BTN.goldPlus)) return { shop: 'GOLD' };
     if (inside(p, MAP_BTN.gemPlus)) return { shop: 'JEWEL' };
@@ -169,6 +186,11 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
         if (!open) toast(meta.tabInfo(tb.name).locked.toUpperCase());
         return { tab: tb.name, open };
       }
+    }
+    if (p.y < 112 || p.y > TAB_Y - 52) return null;
+    for (let i = 0; i < MAP_NODES.length; i++) {
+      const [x, y] = MAP_NODES[i];
+      if (nodeOpen(i) && (p.x - x) ** 2 + (p.y - (y - s)) ** 2 <= 32 * 32) return { stage: i };
     }
     return null;
   }
@@ -298,7 +320,7 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
     }
     if (inside(p, PREP_BTN.goldPlus)) return { shop: 'GOLD' };
     if (inside(p, PREP_BTN.gemPlus)) return { shop: 'JEWEL' };
-    if (inside(p, PREP_BTN.character)) { toast('OTHER HEROES ARE NOT BUILT YET'); return { character: true }; }
+    if (inside(p, PREP_BTN.character)) return { character: true };
     const mi = PREP_BTN.modes.findIndex(b => inside(p, b));
     if (mi >= 0) {
       if (meta.modeOpen(id, mi)) { state.mode = mi; return { mode: mi }; }
@@ -315,7 +337,7 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
         state.giftBanner = false;
         return { buy: state.sel, result: r };
       }
-      if (inside(p, ABILITY)) { toast('ABILITY IS NOT BUILT YET'); return { ability: true }; }
+      if (inside(p, ABILITY)) return { ability: true };
     }
     if (inside(p, PREP_BTN.auto)) { toast('AUTO IS LOCKED'); return { auto: true }; }
     if (inside(p, PREP_BTN.start)) {
@@ -329,5 +351,6 @@ export function createScreens(gfx, meta, stages, metaData, metaUI) {
   return {
     state, drawMap, mapTap, mapScrollBy, drawPrep, prepTap, toast, drawToast, drawCard, drawKnight,
     resetScroll: () => { state.scroll = null; state.prepIdx = null; },
+    scroll: () => state.scroll ?? defaultScroll(),
   };
 }

@@ -19,7 +19,37 @@ MONSTERS = {
     200: ('arrow', 'm_archer_arrow', None),
     14: ('goblin_flag', 'm_goblin_flag', 'goblin_attack'),
     5: ('shamanking', 'm_goblin_shaman', 'goblin_attack'),
+    # stages 6-15 (Scene_Stage::Init_Image texture switch; meta/monsters_6_15.json, meta/re_notes/monsters_6_15.md)
+    9: ('grimlock', 'm_grimlock_warrior', 'goblin_attack'),
+    10: ('grimlock_spear', 'm_grimlock_spear', 'goblin_attack'),
+    16: ('grimlock_spear_big', 'm_grimlock_spear', 'goblin_attack'),
+    11: ('ogre', 'm_ogre', 'goblin_attack'),
+    19: ('ogre_small', 'm_ogre', 'goblin_attack'),
+    12: ('mandrake', 'm_mandrake', 'arrow'),
+    201: ('ink_blob', 'm_mandrake_arrow', None),
+    13: ('dark_tree', 'm_darktree', None),
+    202: ('tree_arm', 'm_darktree_arm', None),
+    17: ('bat', 'm_bat_01', 'wolf_attack'),
+    32: ('bat_strong', 'm_bat_01', 'wolf_attack'),
+    18: ('bat_glide', 'm_bat_01', 'wolf_attack'),
+    33: ('bat_glide_strong', 'm_bat_01', 'wolf_attack'),
+    30: ('giant_bat', 'm_bat_02', 'wolf_attack'),
+    34: ('giant_bat_2', 'm_bat_02', 'wolf_attack'),
+    20: ('skeleton', 'm_skell_warrior', 'goblin_attack'),
+    21: ('skeleton_big', 'm_skell_warrior', 'goblin_attack'),
+    22: ('skeleton_huge', 'm_skell_warrior', 'goblin_attack'),
+    23: ('dire_wolf', 'm_wolf', 'wolf_attack'),
+    24: ('skeleton_archer', 'm_skell_archer', 'arrow'),
+    25: ('bone_arrow', 'm_archer_arrow', None),
+    26: ('bandage_ball', 'm_mummy_arrow', None),
+    27: ('mummy', 'm_mummy', 'goblin_attack'),
+    28: ('mummy_big', 'm_mummy', 'goblin_attack'),
+    29: ('mummy_huge', 'm_mummy', 'goblin_attack'),
+    31: ('lich', 'm_lich', 'goblin_attack'),
 }
+NEW_TYPES = {9, 10, 16, 11, 19, 12, 201, 13, 202, 17, 32, 18, 33, 30, 34, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31}
+# who shoots what (FUC_MONSTER_SHOOTHING / CREATE_SHOOTING_OBJECT; monsters_6_15.json "projectile")
+SHOOTS = {2: 200, 12: 201, 24: 25, 27: 26, 28: 26, 29: 26}
 
 # Scene_UI::FUC_SET_BACKGROUD_IMAGE @0x5f6560: switch on the stage index -> (bg_d, bg_t)
 BACKGROUNDS = {0: ('bg_d_16', 'bg_t_07'), 1: ('bg_d_01', 'bg_t_01'), 2: ('bg_d_01', 'bg_t_01'),
@@ -99,8 +129,13 @@ def monster_def(row, key, sheet, sfx):
             'attack': f"FUC_MONSTER_ATTACK loop: Delay(GameData+0x11b58 = {row['atkDelay']}) + {atk['frames']} frames x {atk['frame']} s, hit after frame {atk['hitAt']}, + {atk['pause']} s",
         },
     }
+    d['cls'] = cls
+    d['cls2'] = row['ai'][2] if 'ai' in row else 100
+    t = row['kind']
+    if t in NEW_TYPES:
+        add_behaviour(d, t, row)
     if d['ai'] == 2:
-        d['ranged'] = {'projectile': 'arrow', 'stopFrac': 0.3, 'shots': 1,
+        d['ranged'] = {'projectile': MONSTERS[SHOOTS.get(t, 200)][0], 'stopFrac': 0.3, 'shots': 1,
                        'aimFrames': 2, 'aimFrame': 0.06, 'shootDelay': 0.66,
                        'retreat': 0.5, 'retreatTimeMul': 3, 'removeDelay': 0.2,
                        '_src': 'AI 2 (FUC_START_MONSTER_AI @0x59b7a0): MoveTo(walkTime) to x = W - 0.3*frameW*k (right) / '
@@ -111,7 +146,61 @@ def monster_def(row, key, sheet, sfx):
                                'FUC_REMOVE_MONSTER): one arrow, then the archer backs off screen and is removed (no kill, no score)'}
     if key == 'arrow':
         d['projectileOf'] = 'goblin_archer'
+    if t in (25, 201, 26):
+        d['projectileOf'] = {25: 'skeleton_archer', 201: 'mandrake', 26: 'mummy'}[t]
     return d
+
+
+def add_behaviour(d, t, row):
+    """Stages 6-15 monster behaviour, from meta/monsters_6_15.json (FUC_START_MONSTER_AI @0x59a868 switch on Monster+0x5b0)."""
+    ai, cls = d['ai'], d['cls']
+    # the stop point ignores the sprite scale (FUC_START_MONSTER_AI: W/2 -+ 0.5*fw); stages 1-5 keep fw*scale/2
+    d['contact'] = round(row['fw'] / 2)
+    d['fw'] = row['fw']
+    if ai == 5 and row['groundY'] < 0.6:
+        d['move'] = {'kind': 'rush', 'edgeFrac': 0.3, 'pause': 0.6, 'wind': 0.1,
+                     '_src': 'FUC_MONSTER_RUSH02 @0x5b0400: MoveTo(walkTime) to 0.3*fw from the edge, "!" + 0.6 s, frame 6 0.1 s, '
+                             'MoveBy(walkTime, W) across the screen (frames 7,8), then reappears on the other side; body contact only, a slash '
+                             'makes it harmless until the next pass; no knock-back'}
+        d['noKnockback'] = True
+    elif ai == 5:
+        d['move'] = {'kind': 'swoop', 'y0': 0.75, 'ctrlY': 0.2, 'toEdge': 0.3, 'wait': 0.3,
+                     '_src': 'FUC_MONSTER_RUSH02 @0x5b0a60 / @0x5b07dc: MoveTo(0.3 s) to the edge at 0.75H, 0.3 s, BezierTo(walkTime) to the other '
+                             'edge with c1 (0.5fw, 0.75H), c2 (W/2, 0.2H) (lowest about 0.54H at the knight), flip, repeat; body contact only'}
+        d['noKnockback'] = True
+    elif ai in (8, 9):
+        d['move'] = {'kind': 'fly', 'from': {'R': [1.1, 1.3], 'L': [-0.2, 1.3]} if ai == 8 else {'R': [1.5, 0.9], 'L': [-0.5, 0.9]}, 'toY': 0.5,
+                     '_src': 'SCH_CREATE_MONSTER01 @0x5992a0 (spawn above / beside the screen), FUC_START_MONSTER_AI @0x59a844: MoveTo(walkTime) '
+                             'to (W/2 -+ 0.5fw, 0.5H), then the walker attack loop (frames 6,7,hit,8 x 0.06 s)'}
+    elif ai == 4 and t == 13:
+        d['move'] = {'kind': 'tree', 'rise': [1.0, 3.0], 'armsAt': 4.0, 'armEvery': 2.9, 'armIn': 0.5, 'armHold': 1.0, 'freeTaps': 2,
+                     '_src': 'CREATE_BOSS @0x5a0540 stage-index-9 branch: rises from below (Delay 1.0, MoveTo 3.0 s), then CREATE_DARK_TREE_ARMS '
+                             '@0x5a7dbc; FUC_MONSTER_RUSH_LEFT_RIGHT @0x5b2850 every 2.9 s sends one arm (rand()&1) at the knight; an arm that '
+                             'touches the knight holds him (FUC_SHAKE_MONSTER_FOR_HOLDING @0x5baebc) until 2 alternating taps (FUC_AUTO_PLAY); '
+                             'no damage path found on the tree or the arms (inferred); the trunk takes slashes from both sides'}
+        d['noKnockback'] = True
+        d['bandFree'] = True  # its hit box is reachable from the lane although the trunk stands high (inferred)
+    elif ai == 4 and t == 31:
+        d['move'] = {'kind': 'lich', 'flickers': 4, 'flicker': 1.2, 'highY': 0.7, 'lowIn': 1 / 1.7, 'lowTime': 0.75, 'fade': 0.25, 'rest': 0.3,
+                     '_src': 'CREATE_BOSS stage-index-14 branch @0x5a10b4, FUC_ANI02_MONSTER_FOR_BOSS @0x5a8604: four attack-less flickers '
+                             '(left-high, right-high, right-low, left-low), then rand()&3 picks left/right x high/low; the low spots slide fw/1.7 '
+                             'inward in 0.75 s and attack (frames 6,7,hit,8 x 0.06 s); it can be hit only while attacking (+0x5cc); a high attack '
+                             'cannot reach the knight (box overlap test; inferred)'}
+        d['noKnockback'] = True
+    elif ai == 100:
+        d['move'] = {'kind': 'arm'}
+        d['untargetable'] = True
+    if cls == 6 and ai != 2:  # ogres: Delay(atkDelay), f6 0.1 s, hold 1.0 s, f7 0.1 s, hit, f8 0.1 s (FUC_MONSTER_ATTACK @0x597cc8)
+        d.update(atkFrame=0.1, atkHitAt=12, atkFrames=13, atkPause=0.0, noKnockback=True, holdFrame=6)
+        d['_src']['attack'] = 'class 6 walker: Delay(atkDelay) + f6 0.1 s + hold 1.0 s + f7 0.1 s, hit, f8 0.1 s (FUC_MONSTER_ATTACK @0x597cc8)'
+    if cls == 24:
+        d['collapse'] = {'time': 1.42, '_src': 'Scene_UI::FUC_MONSTER_PUSHING @0x6053e0: after a knock-back the skeleton falls to bones (frames 12,11,10 x 0.07 s), lies 1.0 s, rebuilds'}
+    if cls == 11:
+        d['counter'] = {'chance': 0.51, 'projectile': 'bandage_ball', '_src': 'FUC_HIT_MONSTER_FROM_LEFT @0x594ab8: slashed and still alive -> 51% throws type 26'}
+    if t == 26:
+        d['lob'] = {'time': 3.0, 'safe': 1.1, '_src': 'FUC_START_MONSTER_AI @0x59aa98: BezierTo(3.0 s) to the knight, harmless for walkTime/3 + 0.1 s'}
+    if t == 201:
+        d['blind'] = {'time': 3.0, '_src': 'FUC_HIT_BY_MONSTER @0x5ba000: eff_dark over the screen'}
 
 
 def waves_for(rows, keys):
@@ -142,6 +231,21 @@ def waves_for(rows, keys):
 
 def main(src, game):
     re_ = json.load(open(src))
+    # stages 6-15: written by the stage-script pass (meta/re_notes/stages_6_15.md), merged over the stage 1-5 data
+    re6 = json.load(open(os.path.join(os.path.dirname(src), 're_stage_data_6_15.json')))
+    for k in ('waves', 'scriptEnd'):
+        re_[k] = {**re_[k], **re6[k]}
+    for i, v in re6['backgrounds'].items():
+        BACKGROUNDS[int(i)] = tuple(v)
+    for i, v in sorted(re6['titles'].items(), key=lambda x: int(x[0])):
+        if int(i) == len(TITLES):
+            TITLES.append(v)
+    for i, v in sorted(re6['starTarget'].items(), key=lambda x: int(x[0])):
+        if int(i) == len(STAR_TARGET):
+            STAR_TARGET.append(v)
+    coin_chance = {int(i): v for i, v in re6['coinChance'].items()}
+    pk = json.load(open(os.path.join(os.path.dirname(src), 'iap_pickups.json')))['pickups']
+    big_chance = pk['bigCoin']['chanceBasisPointsByStage']
     mons = {int(k): v for k, v in re_['monsters'].items()}
     old = json.load(open(os.path.join(game, 'data', 'stage01.json')))
     hero = dict(old['hero'])
@@ -178,14 +282,17 @@ def main(src, game):
                             'from Scene_Stage::update @0x59273c with player ATK +0x53c); x2 "PERFECT" when rand()%100 < player+0x560 = '
                             'GameData+0x9618[knight] = 1 (@0x592744; FUC_INIT_PLAYER @0x5f1cdc). Monster -> knight uses the same formula '
                             'with monster ATK vs knight DEF (FUC_HIT_BY_MONSTER @0x5b9dd4).')
-    for idx in range(5):
+    for idx in range(15):
         sl = {int(k): v for k, v in re_['stageLists'][str(idx)].items()}
         rows = re_['waves'][str(idx)]
         used = sorted({r['type'] for r in rows if r['type'] in MONSTERS})
         if idx == 4:
             used = sorted(set(used) | {t for pat in ZZOL for _, t, _ in pat})
-        if 2 in used:
-            used = sorted(set(used) | {200})
+        for shooter, proj in SHOOTS.items():
+            if shooter in used:
+                used = sorted(set(used) | {proj})
+        if 13 in used:
+            used = sorted(set(used) | {202})
         keys = {t: MONSTERS[t][0] for t in used}
         monsters = {MONSTERS[t][0]: monster_def(mons[t], *MONSTERS[t]) for t in used}
         bg, pad = BACKGROUNDS[idx]
@@ -202,16 +309,21 @@ def main(src, game):
             'pad': pad,
             '_bg_src': 'Scene_UI::FUC_SET_BACKGROUD_IMAGE @0x5f6560 (stage index switch, table .rodata 0x359892)',
             'padOffset': old.get('padOffset', -48),
-            'next': f'stage{idx + 2:02d}' if idx < 4 else None,
+            'next': f'stage{idx + 2:02d}' if idx < 14 else None,
             'hero': hero,
             'monsters': monsters,
             'scriptEnd': re_['scriptEnd'][str(idx)],
             '_clear_src': ('Clear = Scene_Stage::FUC_CLEAR_PROCCESS (kills what is left) called from FUC_HIT_MONSTER_FROM_LEFT/RIGHT @0x595248: '
                            'when a required monster (wave mode != -1) dies after the 9999 end marker (+0x4b, SCH_PLAY_BY_SCENARIO @0x59ffbc) '
                            'or the 7777 marker (+0x4a, @0x59ffcc) and no other required monster is alive; or a boss dies after 7777.'),
-            'coinChance': COIN_CHANCE / 10001,
+            'coinChance': coin_chance.get(idx, COIN_CHANCE) / 10001,
             'bossCoins': 5,
-            '_coin_src': 'GameData+0x7698[stage] = 5000, rand()%10001 < chance -> 1 coin; boss 5 (Scene_UI::FUC_SELECT_ITEM @0x5ed40c)',
+            'bigCoinChance': big_chance[idx] / 10001,
+            'bigCoinValues': [10, 20, 30],
+            '_bigcoin_src': f'Scene_UI::FUC_SELECT_GEM @0x5ee5b8: rand()%10001 < GameData+0x7e68[stage] = {big_chance[idx]} -> a gem worth 10 / 20 / 30 gold (rand()%1000 < 500 / < 800 / else), x the mode coin value; S_GET_GEM.wav',
+            'boosterChance': 250 / 10001,
+            '_booster_src': 'Scene_UI::FUC_SELECT_ITEM02 @0x5ef0d0: rand()%10001 < GameData+0x8638[stage] = 250 (+2000 with DROPS BOOSTER OFTEN, cap 3000); type rand()%5 with 3 rerolled: x2 SCORE / x2 ATK / x2 DEF / BERSERKER; auto-collected',
+            '_coin_src': f'GameData+0x7698[stage] = {coin_chance.get(idx, COIN_CHANCE)}, rand()%10001 < chance -> 1 coin; boss 5 (Scene_UI::FUC_SELECT_ITEM @0x5ed40c)',
             'scoreBar': STAR_TARGET[idx],
             'starMarks': [1 / 3, 1 / 2, 1],
             '_score_src': f'target T = {STAR_TARGET[idx]} (Info_MissionTarget @0x573060 +0x5dc0); stars at T/3, T/2, T (Scene_UI::FUC_GET_SCORE @0x603100); the gauge fills to T',
@@ -220,6 +332,8 @@ def main(src, game):
         fm = [r['t'] for r in rows if r['type'] == 7777]
         if fm:
             st['finalMarker'] = fm[0]
+        elif re6['finalMarker'].get(str(idx)) is not None:
+            st['finalMarker'] = re6['finalMarker'][str(idx)]
         if idx == 4:
             st['zzol'] = {
                 '_src': ('Scene_Stage::Init_ZZoL_Scenario() @0x58bd8c (4 scripts), played one entry per 0.1 s by SCH_CREATE_ZZOL_BY_SCENARIO @0x5a0468 '
@@ -235,8 +349,54 @@ def main(src, game):
             }
         path = os.path.join(game, 'data', f"stage{idx + 1:02d}.json")
         json.dump(st, open(path, 'w'), indent=1)
+        last_hero = hero
         print(path, len(st['waves']), 'waves', 'required', sum(1 for w in st['waves'] if w.get('required')), 'monsters', list(monsters), 'T', st['scoreBar'], 'end', st['scriptEnd'])
+
+
+def gen_tower(src, game, mons, hero):
+    """data/tower.json: DEATH TOWER floors 1-15 (Scene_Stage_Tower::Init_Scenario @0x7134b4, entry k at k*0.07 s; floor
+    scripts in meta/tower_floors.json from meta/re_notes/tower_explore.md 1.4). Floors 16-50 need monster types 35-118,
+    which the web version does not have yet."""
+    floors_raw = json.load(open(os.path.join(os.path.dirname(src), 'tower_floors.json')))[:15]
+    used = sorted({e['type'] for f in floors_raw for e in f if 'type' in e})
+    for shooter, proj in SHOOTS.items():
+        if shooter in used:
+            used = sorted(set(used) | {proj})
+    keys = {t: MONSTERS[t][0] for t in used}
+    floors = []
+    for f in floors_raw:
+        waves, last = [], 0
+        for e in f:
+            last = max(last, e['k'])
+            if e.get('end'):
+                continue
+            w = {'t': round(e['k'] * 0.07, 2), 'side': e['side'], 'type': keys[e['type']]}
+            if e.get('fast'):
+                w['fast'] = True
+            if e.get('mode'):
+                w['required'] = True
+            waves.append(w)
+        floors.append({'waves': waves, 'scriptEnd': round(last * 0.07 + 0.07, 2)})
+    st = {
+        '_note': 'DEATH TOWER (Scene_Stage_Tower). Generated by tools/gen_stages.py; floors from meta/tower_floors.json. Tower scaling '
+                 '(monster ATK x2, walk x0.8) is applied at run time from data/meta.json tower.scale.',
+        'id': 'tower', 'number': 0, 'title': 'DEATH TOWER', 'background': 'bg_tower_01', 'pad': None, 'padOffset': 0,
+        '_bg_src': 'bg_tower_01(480x800) covers the whole screen, corridor and stone pad (clip c1 13:24)',
+        'hero': hero, 'monsters': {MONSTERS[t][0]: monster_def(mons[t], *MONSTERS[t]) for t in used},
+        'waves': floors[0]['waves'], 'scriptEnd': floors[0]['scriptEnd'],
+        'coinChance': COIN_CHANCE / 10001, 'bossCoins': 5, 'bigCoinChance': 500 / 10001, 'bigCoinValues': [10, 20, 30],
+        'boosterChance': 250 / 10001, 'scoreBar': 999999, 'starMarks': [1 / 3, 1 / 2, 1],
+        'tower': {'floor': 0, 'floors': floors, 'lift': 2.0, 'floorBonus': 0,
+                  '_src': 'floor +1 after FUC_CLEAR_PROCCESS -> FUC_MOVE_TO_NEXT_FLOOR @0x70709c..04 (lift ride 2.0 s is a web value); '
+                          'arrival bonus GD[0x93a0] = 0 without cards (Scene_UI::FUC_GET_SCORE_WHER_REACHED_NEXT_FLOOR @0x603944)'},
+    }
+    path = os.path.join(game, 'data', 'tower.json')
+    json.dump(st, open(path, 'w'), indent=1)
+    print(path, len(floors), 'floors', 'monsters', list(st['monsters']))
 
 
 if __name__ == '__main__':
     main(os.path.expanduser(sys.argv[1]), os.path.expanduser(sys.argv[2]))
+    _re = json.load(open(os.path.expanduser(sys.argv[1])))
+    _h = json.load(open(os.path.join(os.path.expanduser(sys.argv[2]), 'data', 'stage01.json')))['hero']
+    gen_tower(os.path.expanduser(sys.argv[1]), os.path.expanduser(sys.argv[2]), {int(k): v for k, v in _re['monsters'].items()}, _h)

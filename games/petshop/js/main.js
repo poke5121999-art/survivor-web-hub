@@ -14,7 +14,7 @@ import { Hud } from './view/hud.js';
 import { Sound } from './view/audio.js';
 import { DayNight } from './view/sky.js';
 import { setTrilight } from './view/trilight.js';
-import { KeyLabels } from './view/keys.js';
+import { KeyLabels, AimPrompt } from './view/keys.js';
 import { Sim, pointsToNext } from './sim/sim.js';
 import { TUT_STEPS, TUT_NAME } from './sim/tutorial.js';
 
@@ -95,6 +95,7 @@ addEventListener('resize', resize);
   const player = new Player(camera, canvas, { x: P0.t[0], z: P0.t[2], yaw: yaw0, speed: fpc.MoveSpeed, height: 1.6, sens: fpc.sensitivity });
   if (params.get('cam')) { const c = params.get('cam').split(',').map(Number); player.x = c[0]; player.height = c[1]; player.z = c[2]; player.yaw = c[3] * Math.PI / 180; player.pitch = (c[4] || 0) * Math.PI / 180; }
   const grid = new CollisionGrid(col);
+  game.grid = grid;   // tests probe the walkable cells
   const sound = new Sound(`${ART}/audio`);
   const mode = { checkout: false, ui: false };
   const ray = new THREE.Raycaster();
@@ -308,6 +309,9 @@ addEventListener('resize', resize);
   // arrow offsets of SetupTutorialStepEvent (Unity z negated) and the LookAtTarget targets
   const TUT_ARROW = {
     8: () => add(tutBoxPos(), [0, 1.0, 0]), 9: () => add(rackCab1(), [0, 2.5, 0]), 10: () => add(TP.tut_TrashtBin, [0, 1.75, 0]),
+    // [ĐỀ XUẤT] step 11 ("tap the tag on the rack") has no arrow in the original; the player usually stands outside by
+    // the trash bin then, so the arrow marks the price tag to walk back to
+    11: () => add(platePos(), [0, 0.55, 0]),
     12: () => add(TP.tut_StoreSign, [-0.08, 0.65, 0]), 13: () => add(sim.points.counter, [1.24, 1.7, 1.0]),
     17: () => add(TP.tut_LaptopDesk, [0, 1.75, 0]), 20: () => add(deliveredPos(), [0, 1.0, 0]), 21: () => add(TP.tut_AnimalCage, [0, 1.3, 0]),
   };
@@ -338,6 +342,44 @@ addEventListener('resize', resize);
   // keyboard help on desktops (key caps under the on-screen controls + a first move/look bubble), as games/food-gang does
   const keyLabels = KeyLabels.wanted() ? new KeyLabels(hud) : null;
   game.keyLabels = keyLabels;
+  const aimPrompt = new AimPrompt(hud);
+  // what interact() would do on t (null when it would do nothing) -> AimPrompt text
+  function promptFor(t) {
+    if (!t || mode.ui || mode.checkout && !['scan', 'pay'].includes(t.kind)) return null;
+    if (!tutAllows(t)) return null;
+    const held = sim.heldBox();
+    switch (t.kind) {
+      case 'box': return held ? null : 'pickBox';
+      case 'cab': {
+        const c = sim.cab(t.fid, t.i);
+        if (!held) return c && c.st.n > 0 ? 'price' : null;
+        // the same checks as sim.place, in its order, so the prompt says what the tap will do
+        if (held.kind !== 'p' || !c) return null;
+        if (sim.prod.get(held.type).storage !== c.lay.storage) return 'wrongShelf';
+        if (!held.open && !sim.isAnimalBox(held)) return 'boxClosed';
+        if (held.n <= 0) return 'boxEmpty';
+        if (c.st.n >= c.lay.slots.length) return 'shelfFull';
+        if (c.st.n > 0 && c.st.p !== held.type) return 'wrongShelf';
+        return 'stock';
+      }
+      case 'plate': { const c = sim.cab(t.fid, t.i); return c && c.st.p ? 'price' : null; }
+      case 'laptop': return held ? null : 'laptop';
+      case 'counter': return held ? null : 'counter';
+      case 'scab': return held ? 'storeBox' : null;
+      case 'storageLocked': return 'storageLocked';
+      case 'cashier': return 'cashier';
+      case 'atm': case 'cashMachine': return 'cash';
+      case 'energyMachine': return 'energy';
+      case 'board': return 'board';
+      case 'sign': return sim.s.open ? 'close' : 'open';
+      case 'trash': return held ? 'trash' : null;
+      case 'scan': return 'scan';
+      case 'pay': return 'pay';
+      default: return null;
+    }
+  }
+  game.prompt = () => aimPrompt.html;
+  game.promptKey = () => aimPrompt.key;
   // CashPaymentTutorial / CardPayemntTutorial: the finger on the next note/coin (largest not overshooting) or digit
   const NOTES = [[5000, 'CashButtons/50$'], [2000, 'CashButtons/20$'], [1000, 'CashButtons/10$'], [500, 'CashButtons/5$'], [100, 'CashButtons/1$'],
     [50, 'CoinsButtons/50C'], [25, 'CoinsButtons/20C'], [10, 'CoinsButtons/10C'], [5, 'CoinsButtons/5C'], [1, 'CoinsButtons/1C']];
@@ -583,6 +625,7 @@ addEventListener('resize', resize);
       holdT -= dt; if (holdT <= 0) { interact(); holdT = 0.15; }
     } else holdT = 0.3;
     const tf = tutFrame(dt);
+    aimPrompt.update(hud.modal || hud.over || mode.ui ? null : promptFor(target), !!keyLabels && !keyLabels.disposed);
     if (keyLabels) keyLabels.update(dt, { canMove: player.canMove && !mode.checkout && !mode.ui, moved: movedOnce, locked: player.locked });
     hud.update(dt, { target, pointsToNext: pointsToNext(G, sim.s.level), objective: objective(), placeOk: view.placeOk, tutVis: tf.vis, finger: tf.finger, marks: tf.marks,
       hold: pressT != null && pressTarget ? Math.min(1, pressT / HOLD) : 0 });

@@ -6,9 +6,7 @@
 // a text "at (240,625)" is drawn here at y = 800 - 625 = 175 (checked on clip c2 1:44, TUTO06's text near the top). A "button" step only lets a tap on its target through (TUTO04/05/06, map bubbles);
 // a "tap" step closes on a tap anywhere ("TAB ANYWHERE TO CONTINUE").
 //
-// Steps built: TUTO1, 2, 03, 04, 05, 06, 16, 07, 15, 32, 21, 22, 23, 8, 26, 24. Not built: TUTO17-20 (in-stage
-// pickups are not in the web version, so their flags are set when stage 2's result is left, as the original's retry
-// guard does), TUTO25 INTEN walkthrough, TUTO31 AUTO walkthrough, tower / wing / expedition steps (no such tabs yet).
+// Steps built: TUTO1, 2, 03, 04, 05, 06, 16, 17-20 (first pickups), 07, 15, 32, 21, 22, 23, 8, 26, 24. Not built: TUTO25 INTEN walkthrough, TUTO31 AUTO walkthrough, tower / wing / expedition steps (no such tabs yet).
 // Web addition (labelled, no original step exists): SHOP bubble after the first upgrade.
 import { W, H } from './sim.js';
 
@@ -37,11 +35,15 @@ const TXT = {
   t26b: 'ONE FREE!!', // 1247
   select: 'SELECT', // 1243
   any: 'TAB ANYWHERE TO CONTINUE', // 1234
+  t17: 'x2 SCORE\nTHE SCORE INCREASES BY x2', // 1225
+  t18: 'x2 ATK\nTHE ATK POWER INCREASES BY x2', // 1226
+  t19: 'x2 DEF\nTHE DEF ARMOR INCREASES BY x2', // 1227
+  t20: 'BERSERKER\nAUTO ATTACK SELECTED DIRECTION WITHOUT ANY MISS', // 1228
   shop: 'SHOP', // web addition
   shopText: 'SHOP: TRADE JEWELS FOR GOLD AND HEARTS.\nTAP FREE! IN THE SHOP FOR 1 JEWEL EVERY DAY.', // web addition
 };
 // spotlight sheets: where each sheet's lit hole is (measured from the alpha channel of the original files)
-const HOLES = { tuto_bg_01: [174, 546], tuto_bg_03: [240, 376], tuto_bg_13: [109, 393], tuto_bg_08: null };
+const HOLES = { tuto_bg_01: [174, 546], tuto_bg_03: [240, 376], tuto_bg_13: [109, 393], tuto_bg_08: null, tuto_bg_14: [240, 270] };
 const GATE = 1.0; // taps ignored for the first second (Scene_UI::onTouchesBegan gate)
 
 export function createFtue(gfx, meta) {
@@ -106,8 +108,14 @@ export function createFtue(gfx, meta) {
           meta.setTuto(16);
           return hold(s, { id: 'TUTO16', kind: 'tap', sheet: 'tuto_bg_13', text: TXT.t16, textY: 125 });
         }
+        // first pickup of each kind, any stage (FUC_ITEM_DISSAPPEAR_AND_APPLY_EFFECT -> FUC_TUTO_ITEM_EXPLAIN @0x5f17c8)
+        while (s.pickupQueue && s.pickupQueue.length) {
+          const n = { 0: 17, 1: 18, 2: 19, 4: 20 }[s.pickupQueue.shift()];
+          if (n && !done(n)) { meta.setTuto(n); return hold(s, { id: `TUTO${n}`, kind: 'tap', sheet: 'tuto_bg_14', text: TXT[`t${n}`], textY: 125 }); }
+        }
         // stage 2 markers 77780 / 77781 (3.5 / 10.1 s), once TUTO20 is done and stage 3 is not cleared yet
-        if (ui.stageIdx === 1 && done(20) && !done(32) && !meta.stageInfo(meta.stageIds[2]).cleared && s.clock >= 3.5) {
+        const atMarker = (s.clock >= 3.5 && s.clock < 3.7) || (s.clock >= 10.1 && s.clock < 10.3);
+        if (ui.stageIdx === 1 && done(20) && !done(32) && !meta.stageInfo(meta.stageIds[2]).cleared && atMarker) {
           meta.setTuto(32);
           return hold(s, { id: 'TUTO32', kind: 'tap', text: TXT.t32, textY: 200 });
         }

@@ -40,7 +40,7 @@ export function createKeyLabels(canvas, BTN) {
 
   // sim: the running stage or null; called every frame
   function update(sim, dt) {
-    const on = wanted() && !!sim && sim.phase === 'play' && !sim.paused && !sim.tutoHold;
+    const on = wanted() && !!sim && sim.phase === 'play' && !sim.paused && !sim.tutoHold && !sim.offer;
     for (const it of el) place(it, on && (it.d.classList.contains('potion') ? sim.potions > 0 : it.d.classList.contains('storm') ? sim.skillCharges > 0 : true), 15);
     if (hintState === 'wait' && on) { hintState = 'show'; hintT = 0; }
     if (hintState === 'show') {

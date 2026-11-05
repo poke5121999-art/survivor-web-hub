@@ -105,7 +105,9 @@
     "score": "GameData+0xec78[type] = 5 (0x626034); kill score = this + current combo (Scene_UI::FUC_GET_SCORE @0x602c30)",
     "ai": "GameData+0x16658[type*0x18] -> Monster+0x5b0 (2 = ranged, 4 = boss)",
     "attack": "FUC_MONSTER_ATTACK loop: Delay(GameData+0x11b58 = 0.3) + 3 frames x 0.06 s, hit after frame 2, + 0.0 s"
-   }
+   },
+   "cls": 100,
+   "cls2": 100
   },
   "goblin_captain": {
    "sheet": "m_goblin_swordman",
@@ -137,13 +139,24 @@
     "score": "GameData+0xec78[type] = 10 (0x6261e4); kill score = this + current combo (Scene_UI::FUC_GET_SCORE @0x602c30)",
     "ai": "GameData+0x16658[type*0x18] -> Monster+0x5b0 (2 = ranged, 4 = boss)",
     "attack": "FUC_MONSTER_ATTACK loop: Delay(GameData+0x11b58 = 0.3) + 3 frames x 0.06 s, hit after frame 2, + 0.0 s"
-   }
+   },
+   "cls": 100,
+   "cls2": 100
   }
  },
  "scriptEnd": 29.7,
  "_clear_src": "Clear = Scene_Stage::FUC_CLEAR_PROCCESS (kills what is left) called from FUC_HIT_MONSTER_FROM_LEFT/RIGHT @0x595248: when a required monster (wave mode != -1) dies after the 9999 end marker (+0x4b, SCH_PLAY_BY_SCENARIO @0x59ffbc) or the 7777 marker (+0x4a, @0x59ffcc) and no other required monster is alive; or a boss dies after 7777.",
  "coinChance": 0.49995000499950004,
  "bossCoins": 5,
+ "bigCoinChance": 0.04999500049995,
+ "bigCoinValues": [
+  10,
+  20,
+  30
+ ],
+ "_bigcoin_src": "Scene_UI::FUC_SELECT_GEM @0x5ee5b8: rand()%10001 < GameData+0x7e68[stage] = 500 -> a gem worth 10 / 20 / 30 gold (rand()%1000 < 500 / < 800 / else), x the mode coin value; S_GET_GEM.wav",
+ "boosterChance": 0.024997500249975,
+ "_booster_src": "Scene_UI::FUC_SELECT_ITEM02 @0x5ef0d0: rand()%10001 < GameData+0x8638[stage] = 250 (+2000 with DROPS BOOSTER OFTEN, cap 3000); type rand()%5 with 3 rerolled: x2 SCORE / x2 ATK / x2 DEF / BERSERKER; auto-collected",
  "_coin_src": "GameData+0x7698[stage] = 5000, rand()%10001 < chance -> 1 coin; boss 5 (Scene_UI::FUC_SELECT_ITEM @0x5ed40c)",
  "scoreBar": 80,
  "starMarks": [

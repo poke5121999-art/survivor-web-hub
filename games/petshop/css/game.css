@@ -9,6 +9,10 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-f
 .ui .u > i.sl { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; }
 .ui .u.t { display: flex; white-space: pre; line-height: 1; letter-spacing: 0.01em; }
 .ui .u.t > span { flex-shrink: 0; }
+/* only buttons take the pointer: a scroll Viewport sets pointer-events auto inline (to scroll) and that value is
+   inherited, so a layout placeholder ("Content") inside it sat on top of the cells and ate every real tap / click on
+   their Buy buttons */
+.ui .u:not(.b) { pointer-events: none; }
 .ui .u.b { pointer-events: auto; cursor: pointer; }
 .ui .u.b:active { filter: brightness(0.9); }
 .map { position: absolute; top: 72px; left: 8px; z-index: 3; width: 44px; height: 44px; border: 0; background: transparent center / contain no-repeat; cursor: pointer; pointer-events: auto; }
@@ -34,6 +38,13 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-f
 .name-input { position: absolute; inset: 8% 6%; width: 88%; height: 84%; border: 0; background: transparent; color: #222; font: 700 44px 'Noto Sans', sans-serif;
   font-stretch: 75%; text-transform: uppercase; text-align: center; outline: none; pointer-events: auto; }
 /* [ĐỀ XUẤT] desktop key caps on the on-screen controls + first movement hint (keys.js, same look as games/food-gang) */
+#ps-aim { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); z-index: 6; pointer-events: none; display: flex; align-items: center;
+  gap: .45em; padding: .3em .75em .3em .35em; border-radius: .6em; background: #000a; color: #fff; font: 700 clamp(16px, 2.8vh, 26px) 'Noto Sans', system-ui, sans-serif;
+  white-space: nowrap; text-shadow: 0 1px 2px #000; }
+#ps-aim[hidden] { display: none; }
+#ps-aim.warn { color: #ffd34d; }
+#ps-aim:not(:has(b)) { padding-left: .75em; }
+#ps-aim b { display: inline-block; min-width: 1.1em; padding: .18em .4em .1em; border-radius: .3em; background: #1b1b1b; border: .12em solid #fff; line-height: 1; text-align: center; box-shadow: 0 .12em 0 #000; }
 #ps-keys { position: fixed; inset: 0; pointer-events: none; z-index: 6; font-family: 'Noto Sans', system-ui, sans-serif; font-weight: 700; }
 #ps-keys .k { position: absolute; display: none; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; }
 #ps-keys .k b { display: inline-block; min-width: 1.1em; padding: .22em .42em .12em; border-radius: .32em; background: #1b1b1b; border: .12em solid #fff;

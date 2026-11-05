@@ -25,7 +25,7 @@ function cleanSave(o, f) {
       out.stages[id] = e;
     }
   }
-  for (const k of ['gems', 'hearts', 'heartsMax', 'tickets', 'ticketsMax', 'heartAt']) if (k in f) out[k] = int(o[k], 0, 1e13, f[k]);
+  for (const k of ['gems', 'hearts', 'heartsMax', 'tickets', 'ticketsMax', 'heartAt', 'ticketAt']) if (k in f) out[k] = int(o[k], 0, 1e13, f[k]);
   if ('gemDay' in f) out.gemDay = typeof o.gemDay === 'string' ? o.gemDay : '';
   if ('tuto' in f) { out.tuto = {}; if (o.tuto && typeof o.tuto === 'object') for (const [k, v] of Object.entries(o.tuto)) if (v) out.tuto[k] = true; }
   if ('bag' in f) {
@@ -41,6 +41,33 @@ function cleanSave(o, f) {
       out.bag.push(e);
     }
   }
+  if ('pets' in f) {
+    out.petSlots = int(o.petSlots, f.petSlots, 50, f.petSlots);
+    out.pets = [];
+    const sides = new Set();
+    if (Array.isArray(o.pets)) for (const g of o.pets.slice(0, out.petSlots)) {
+      if (!g || typeof g !== 'object' || !Number.isInteger(g.kind) || g.kind < 0 || g.kind > 25) continue;
+      const e = { kind: g.kind, lv: int(g.lv, 0, 19, 0), exp: int(g.exp, 0, 1e7, 0), eq: null };
+      if ((g.eq === 'L' || g.eq === 'R') && !sides.has(g.eq)) { e.eq = g.eq; sides.add(g.eq); }
+      out.pets.push(e);
+    }
+    const x = o.exped && typeof o.exped === 'object' ? o.exped : {};
+    out.exped = { area: int(x.area, -1, 4, -1), end: int(x.end, 0, 1e15, 0) };
+    out.towerBest = int(o.towerBest, 0, 1e9, 0);
+    out.ability = [0, 1, 2, 3, 4].map(i => int(Array.isArray(o.ability) ? o.ability[i] : 0, 0, 8, 0));
+    out.noAds = !!o.noAds;
+  }
+  if ('owned' in f) { // roster: selected hero, owned flags, and the levels each hero not in use keeps (per character in GameData)
+    out.owned = f.owned.map((v, i) => i === 0 || !!(Array.isArray(o.owned) && o.owned[i]));
+    out.char = int(o.char, 0, f.owned.length - 1, 0);
+    if (!out.owned[out.char]) out.char = 0;
+    out.roster = {};
+    if (o.roster && typeof o.roster === 'object') for (const [k, r] of Object.entries(o.roster)) {
+      const i = int(k, -1, f.owned.length - 1, -1);
+      if (i < 0 || !r || typeof r !== 'object') continue;
+      out.roster[i] = { wlv: int(r.wlv, 0, 9, 0), alv: int(r.alv, 0, 9, 0), ability: [0, 1, 2, 3, 4].map(j => int(Array.isArray(r.ability) ? r.ability[j] : 0, 0, 8, 0)) };
+    }
+  }
   if (f.boosters) {
     out.boosters = { ...f.boosters };
     if (o.boosters && typeof o.boosters === 'object') for (const k of Object.keys(f.boosters)) out.boosters[k] = int(o.boosters[k], 0, 999, 0);
@@ -54,9 +81,12 @@ export function createMeta(meta, stageIds, storage) {
   const fresh = () => ({
     gold: meta.startGold.value, wlv: meta.upgrade.startLevel.value, alv: meta.upgrade.startLevel.value, stages: {},
     boosters: { potion: 0, sword: 0, shield: 0, relic: 0 }, gift: false,
-    gems: meta.gems.value, hearts: meta.hearts.value.start, heartsMax: meta.hearts.value.max, heartAt: 0,
+    gems: meta.gems.value, hearts: meta.hearts.value.start, heartsMax: meta.hearts.value.max, heartAt: 0, ticketAt: 0,
     tickets: meta.hearts.value.start, ticketsMax: meta.hearts.value.max, gemDay: '', tuto: {},
     bag: [], slots: meta.items.slots.value.start,
+    pets: [], petSlots: meta.guardians.slots.value.start, exped: { area: -1, end: 0 }, towerBest: 0,
+    ability: [0, 0, 0, 0, 0], noAds: false, adShop: 0,
+    char: 0, owned: (meta.roster ? meta.roster.chars.value : [0]).map((c, i) => i === 0), roster: {},
   });
   let save = fresh();
   try {
@@ -68,6 +98,15 @@ export function createMeta(meta, stageIds, storage) {
   const U = meta.upgrade;
   const maxLv = U.maxLevel.value;
   const K = meta.knightStats;
+  const RO = meta.roster ? meta.roster.chars.value : null;
+  const hero = () => (RO ? RO[save.char] : null);
+  // stat table of the hero in use (GameData+0x9798 / 0x9978 / 0x9b58 / 0x9d38 + char*0x50)
+  const T = {
+    atk: lv => (hero() ? hero().atk[lv] : K.atkByWeaponLevel.value[lv]),
+    skill: lv => (hero() ? hero().skill[lv] : K.critByWeaponLevel.value[lv]),
+    def: lv => (hero() ? hero().def[lv] : K.defByArmorLevel.value[lv]),
+    hp: lv => (hero() ? hero().hp[lv] : K.hpByArmorLevel.value[lv]),
+  };
   const SHOP = meta.shop;
   const HEART = meta.hearts.value;
   const now = () => Date.now();
@@ -76,6 +115,7 @@ export function createMeta(meta, stageIds, storage) {
   const IT = meta.items;
   const IK = IT.kinds.value;
   const TABS = meta.tabs.value;
+  const GK = meta.guardians.kinds.value;
   const GIFT = meta.boosters.freeGift.value;
   const MODES = meta.difficulty.modes.value;
   const CH = meta.difficulty.challenges.value;
@@ -104,19 +144,84 @@ export function createMeta(meta, stageIds, storage) {
       persist();
       return 'ok';
     },
-    tiers: () => ({ armor: meta.levelToTier.value[save.alv], sword: meta.levelToTier.value[save.wlv] }),
+    // the art tier a level shows for a hero set (sets 04 / 05 have real art only for tiers 01 and 10+)
+    levelToTier(lv, set = '01') {
+      const real = (meta.roster && meta.roster.tiersReal.value[set]) || null;
+      const t = meta.levelToTier.value[lv];
+      return !real || real.includes(t) ? t : real.filter(r => r <= t).pop() || '01';
+    },
+    tiers() {
+      const set = hero() ? hero().set : '01';
+      return { armor: api.levelToTier(save.alv, set), sword: api.levelToTier(save.wlv, set), set };
+    },
+    // ---- roster (SELECT CHARACTER) ----
+    roster: () => RO || [],
+    char: () => save.char,
+    charOwned: i => !!save.owned[i],
+    // a mission hero joins once its rule is met (rules: clip / iap_pickups.md A3; joining at once is inferred)
+    missionMet(i) {
+      const u = RO && RO[i] && RO[i].unlock;
+      if (!u || u.kind !== 'mission') return false;
+      const ids = stageIds;
+      if (u.rule === 'stage15') return !!(save.stages[ids[14]] && save.stages[ids[14]].cleared);
+      if (u.rule === 'allStages') return ids.length >= 50 && ids.every(id => save.stages[id] && save.stages[id].cleared);
+      if (u.rule === 'allStars') return ids.length >= 50 && ids.every(id => save.stages[id] && save.stages[id].stars >= 3);
+      return false;
+    },
+    // returns the heroes that joined now
+    checkMissions() {
+      const got = [];
+      (RO || []).forEach((c, i) => { if (!save.owned[i] && api.missionMet(i)) { save.owned[i] = true; got.push(i); } });
+      if (got.length) persist();
+      return got;
+    },
+    // Call_Back_Buy_Selected_Cha @0x73b098: gems >= price -> pay, own
+    buyChar(i) {
+      const u = RO && RO[i] && RO[i].unlock;
+      if (!u) return 'none';
+      if (save.owned[i]) return 'owned';
+      if (u.kind !== 'buy') return 'mission';
+      if (save.gems < u.gems) return 'gems';
+      save.gems -= u.gems;
+      save.owned[i] = true;
+      persist();
+      return 'ok';
+    },
+    // switching keeps each hero's own weapon / armor / ability levels
+    selectChar(i) {
+      if (!RO || !RO[i]) return 'none';
+      if (!save.owned[i]) return 'locked';
+      if (i === save.char) return 'same';
+      save.roster[save.char] = { wlv: save.wlv, alv: save.alv, ability: save.ability.slice() };
+      const r = save.roster[i] || { wlv: meta.upgrade.startLevel.value, alv: meta.upgrade.startLevel.value, ability: [0, 0, 0, 0, 0] };
+      save.wlv = r.wlv; save.alv = r.alv; save.ability = r.ability.slice();
+      delete save.roster[i];
+      save.char = i;
+      persist();
+      return 'ok';
+    },
+    // stats a hero would have at its saved levels (for the select screen), without items
+    charStats(i) {
+      const c = RO[i];
+      const r = i === save.char ? { wlv: save.wlv, alv: save.alv } : save.roster[i] || { wlv: 0, alv: 0 };
+      return { atk: c.atk[r.wlv], hp: c.hp[r.alv], crit: c.crit, skill: c.skill[r.wlv], cool: c.cooldown, wlv: r.wlv, alv: r.alv };
+    },
     // getPlayerInfo @0x620794: level tables + every equipped item (main stat and its random options)
     stats() {
       const b = api.itemBonus();
       return {
-        atk: K.atkByWeaponLevel.value[save.wlv] + b.atk,
+        atk: T.atk(save.wlv) + b.atk,
         // player+0x540: shown as CRIT in Drop 1, really the dash skill's power (Scene_Stage::update @0x591a28)
-        skill: K.critByWeaponLevel.value[save.wlv] + b.power,
-        crit: K.critByWeaponLevel.value[save.wlv],
+        skill: T.skill(save.wlv) + b.power,
+        crit: T.skill(save.wlv),
         wlv: save.wlv,
-        def: K.defByArmorLevel.value[save.alv],
-        hp: K.hpByArmorLevel.value[save.alv] + b.hp,
-        critBonus: b.crit,
+        def: T.def(save.alv),
+        hp: T.hp(save.alv) + b.hp,
+        critBase: hero() ? hero().crit : 1,
+        cooldown: hero() ? hero().cooldown : null,
+        char: save.char,
+        critBonus: b.crit + (hero() && hero().slot5 === 'crit' ? save.ability[4] : 0),
+        goldMul: hero() && hero().goldMul ? hero().goldMul : 1,
         cdCut: b.cd,
       };
     },
@@ -209,6 +314,174 @@ export function createMeta(meta, stageIds, storage) {
       return !!id && rec(id).cleared;
     },
     tabInfo: name => TABS.find(x => x.name === name),
+    // ---- WING tab: guardians (data/meta.json guardians) ----
+    pets: () => save.pets,
+    petSlots: () => save.petSlots,
+    gkind: k => GK[k],
+    petOn: side => save.pets.find(g => g.eq === side) || null,
+    // SUMMON: gold (mode 0) or jewels (mode 1), needs a free slot (actualCreateGuardian @0x6a924c)
+    summon(mode, rng = Math.random) {
+      if (save.pets.length >= save.petSlots) return { r: 'full' };
+      const G = meta.guardians;
+      let g;
+      if (mode === 0) {
+        if (save.gold < G.summonGold.value.gold) return { r: 'gold' };
+        save.gold -= G.summonGold.value.gold;
+        const kind = Math.floor(rng() * 100) < G.summonGold.value.commonPct ? Math.floor(rng() * 20) : 19 + Math.floor(rng() * 5);
+        g = { kind, lv: 0, exp: 0, eq: null };
+      } else {
+        const S = G.summonGems.value;
+        if (save.gems < S.gems) return { r: 'gems' };
+        save.gems -= S.gems;
+        g = { kind: 20 + Math.floor(rng() * 6), exp: S.exp[Math.floor(rng() * 4)], lv: S.levelBase + Math.floor(rng() * 4), eq: null };
+      }
+      save.pets.push(g);
+      persist();
+      return { r: 'ok', pet: g, index: save.pets.length - 1 };
+    },
+    // LEFT / RIGHT slots; equipping into a taken side sends that one back to the bag
+    equipPet(i, side) {
+      const g = save.pets[i];
+      if (!g || (side !== 'L' && side !== 'R')) return false;
+      for (const o of save.pets) if (o.eq === side) o.eq = null;
+      g.eq = side;
+      persist();
+      return true;
+    },
+    unequipPet(i) { const g = save.pets[i]; if (!g) return false; g.eq = null; persist(); return true; },
+    sellPet(i) { if (!save.pets[i]) return false; save.pets.splice(i, 1); save.gold += meta.guardians.sellGold.value; persist(); return true; },
+    // MIX: same level, level <= 18: the left one +1, the right one disappears (actualSynthGuardian @0x6c5580)
+    mixPets(a, b) {
+      const L = save.pets[a];
+      const R = save.pets[b];
+      if (!L || !R || a === b) return 'none';
+      if (L.lv !== R.lv) return 'level';
+      if (L.lv >= meta.guardians.mixMax.value) return 'max';
+      L.lv++;
+      if (R.eq && !L.eq) L.eq = R.eq;
+      save.pets.splice(b, 1);
+      persist();
+      return 'ok';
+    },
+    expandPetSlots() {
+      const S = meta.guardians.slots.value;
+      if (save.petSlots >= S.max) return 'max';
+      if (save.gems < S.gems) return 'gems';
+      save.gems -= S.gems;
+      save.petSlots = Math.min(S.max, save.petSlots + S.step);
+      persist();
+      return 'ok';
+    },
+    // the equipped guardians a stage carries, with the necklace bonuses (Scene_UI::FUC_INIT_GUARDIAN @0x5f281c)
+    stageGuardians() {
+      let crit = 1;
+      let expPct = 0;
+      for (const it of save.bag) if (it.eq) { const k = IK[it.id].main; if (k === 6) crit += api.itemValue(it); if (k === 7) expPct += api.itemValue(it); }
+      return ['L', 'R'].map(side => api.petOn(side)).filter(Boolean).map(g => ({ side: g.eq, kind: g.kind, lv: g.lv, style: GK[g.kind].style, tier: GK[g.kind].tier, crit, expPct }));
+    },
+    // stage end: each equipped guardian below level 9 gains the stage EXP (+ necklace %) and levels by the table
+    addGuardianExp(exp) {
+      const T = meta.guardians.expTable.value;
+      const ups = [];
+      if (exp <= 0) return ups;
+      const pct = api.stageGuardians()[0] ? api.stageGuardians()[0].expPct : 0;
+      for (const g of save.pets) {
+        if (!g.eq || g.lv > 8) continue;
+        g.exp += Math.floor(exp + (exp * pct) / 100);
+        const lv0 = g.lv;
+        while (g.lv <= 8 && g.exp >= T[g.lv + 1]) g.lv++;
+        if (g.lv > lv0) ups.push(g);
+      }
+      persist();
+      return ups;
+    },
+    // ---- EXPLORE tab (data/meta.json explore) ----
+    exped: () => save.exped,
+    expedAbility() { const A = meta.explore.ability.value; return A.base + A.perLevel * (save.wlv + save.alv); },
+    expedTier(s = api.expedAbility()) { const c = meta.explore.tiers.value.cuts; let t = 0; while (t < c.length && s >= c[t]) t++; return t; },
+    expedLeft: () => (save.exped.area < 0 ? 0 : Math.max(0, Math.ceil((save.exped.end - now()) / 1000))),
+    startExped(area) {
+      const A = meta.explore.areas.value[area];
+      if (!A) return 'none';
+      if (save.exped.area >= 0) return 'busy';
+      // Bombery finishes an expedition in half time (text 1269; that it is the hero in use who goes is inferred)
+      save.exped = { area, end: now() + A.min * 60000 / (hero() && hero().expedHalf ? 2 : 1) };
+      persist();
+      return 'ok';
+    },
+    cancelExped() { if (save.exped.area < 0) return false; save.exped = { area: -1, end: 0 }; persist(); return true; },
+    finishPrice() { const m = Math.ceil(api.expedLeft() / 60); return m <= 0 ? 0 : Math.ceil(m / meta.explore.finishGems.value); },
+    finishNow() {
+      if (save.exped.area < 0) return 'none';
+      const p = api.finishPrice();
+      if (save.gems < p) return 'gems';
+      save.gems -= p;
+      save.exped.end = now();
+      persist();
+      return 'ok';
+    },
+    // collect a finished expedition: gold = base + tier*mult + rand()%mod, items by the area rule (Call_Back_Result_Adventure @0x65ac50)
+    collectExped(rng = Math.random) {
+      if (save.exped.area < 0 || api.expedLeft() > 0) return null;
+      const A = meta.explore.areas.value[save.exped.area];
+      const t = api.expedTier();
+      const gold = A.gold[0] + t * A.gold[1] + Math.floor(rng() * A.gold[2]);
+      let n = 0;
+      const I = A.items;
+      if (I.rolls) { for (let k = 0; k < I.rolls; k++) if (Math.floor(rng() * 101) < I.chance + I.perTier * t) n++; }
+      else if (I.two !== undefined) n = Math.floor(rng() * 21) + 20 * t < I.two ? 1 : 2;
+      else if (I.three !== undefined) n = Math.floor(rng() * 21) + 20 * t < I.three ? 2 : 3;
+      n = Math.min(n, save.slots - save.bag.length);
+      const items = [];
+      for (let k = 0; k < n; k++) {
+        const it = { id: Math.floor(rng() * 42), lv: 0, value: -1, opts: [], eq: false };
+        it.slot = IK[it.id].slot;
+        save.bag.push(it);
+        items.push(it);
+      }
+      save.gold += gold;
+      const area = save.exped.area;
+      save.exped = { area: -1, end: 0 };
+      persist();
+      return { area, tier: t, gold, items };
+    },
+    // ---- ABILITY (5 slots): pickup durations +1 s per level, 1500*(L+1) gold, max 8 ----
+    abilityLevel: i => save.ability[i] || 0,
+    abilityPrice: i => (save.ability[i] >= meta.ability.cost.value.max ? null : meta.ability.cost.value.perLevel * (save.ability[i] + 1)),
+    upgradeAbility(i) {
+      const p = api.abilityPrice(i);
+      if (p === null) return 'max';
+      if (save.gold < p) return 'gold';
+      save.gold -= p;
+      save.ability[i]++;
+      persist();
+      return 'ok';
+    },
+    // pickup durations a stage uses: slot base + level + equipped item bonus (main kinds 14 SCORE / 15 ATK / 16 DEF / 18 BERSERK)
+    buffTime() {
+      const sl = meta.ability.slots.value;
+      const eq = k => save.bag.filter(it => it.eq && IK[it.id].main === k).reduce((a, it) => a + api.itemValue(it), 0);
+      const h = hero() || {};
+      // BERSERK 13 s (6 s for Elizabeth) + level; for Teresa / Flashare slot 5 raises the crit chance instead (iap_pickups.md B3)
+      const bz = (h.berserkBase ?? sl[4].base) + (h.slot5 === 'crit' ? 0 : save.ability[4]);
+      return { score: sl[0].base + save.ability[0] + eq(14), atk: sl[1].base + save.ability[1] + eq(15), def: sl[2].base + save.ability[2] + eq(16), berserk: bz + eq(18) };
+    },
+    // DESTINY: one is used at the stage start and rolls rand()%4 (FUC_SELECT_DESTINY @0x55929c)
+    rollDestiny(rng = Math.random) {
+      if (!(save.boosters.relic > 0)) return null;
+      save.boosters.relic--;
+      persist();
+      return Math.floor(rng() * 4);
+    },
+    spendGems(n) { if (save.gems < n) return false; save.gems -= n; persist(); return true; },
+    addGems(n) { save.gems += n; persist(); },
+    // rewarded video (+2 jewels, once per shop visit): the web plays no ad and gives the reward at once
+    claimAdJewels() { save.gems += meta.ads.value.rewardedJewels; persist(); return meta.ads.value.rewardedJewels; },
+    buyNoAds() { save.noAds = true; persist(); return 'ok'; },
+    towerBest: () => save.towerBest,
+    addGold(n) { save.gold += Math.max(0, Math.floor(n)); persist(); },
+    setTowerBest(s) { if (s > save.towerBest) { save.towerBest = s; persist(); return true; } return false; },
+    spendTicket() { if (save.tickets < meta.tower.cost.value.tickets) return false; save.tickets -= meta.tower.cost.value.tickets; persist(); return true; },
     stageInfo: rec,
     // ---- difficulty (data/meta.json difficulty) ----
     modes: MODES,
@@ -299,6 +572,16 @@ export function createMeta(meta, stageIds, storage) {
       if (changed) persist();
       return save.heartAt ? Math.max(0, Math.ceil((save.heartAt - now()) / 1000)) : 0;
     },
+    // tickets (the TOWER's entry) come back the same way (shop.md: LoadHeart sets tickets like hearts, 10 / 10, 600 s)
+    tickTickets() {
+      if (save.tickets >= save.ticketsMax) { save.ticketAt = 0; return 0; }
+      if (!save.ticketAt) { save.ticketAt = now() + HEART.regenSec * 1000; persist(); }
+      let changed = false;
+      while (save.tickets < save.ticketsMax && now() >= save.ticketAt) { save.tickets++; save.ticketAt += HEART.regenSec * 1000; changed = true; }
+      if (save.tickets >= save.ticketsMax) save.ticketAt = 0;
+      if (changed) persist();
+      return save.ticketAt ? Math.max(0, Math.ceil((save.ticketAt - now()) / 1000)) : 0;
+    },
     canEnter: () => save.hearts >= 1,
     // the heart is taken at the result, win or lose, except stages 1-5 (index <= 4) (FUC_SHOW_RESULT @0x5fa4ac)
     spendHeart(id) {
@@ -324,6 +607,15 @@ export function createMeta(meta, stageIds, storage) {
       if (save.gems < pk.gems) return 'gems';
       save.gems -= pk.gems;
       save.gold += pk.gold;
+      persist();
+      return 'ok';
+    },
+    // JEWEL packs: real-money products in the original (Scene_Shop JEWEL tab); the web version grants them free and at once
+    buyJewelPack(i) {
+      const pk = SHOP.jewelPacks.value[i];
+      if (!pk) return 'none';
+      save.gems += pk.gems;
+      save.iap = (save.iap || 0) + 1;
       persist();
       return 'ok';
     },
