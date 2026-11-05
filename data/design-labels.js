@@ -166,6 +166,7 @@
       rowLabels: { char: "Gacha Xác", lim1: "Gacha Giới Hạn: Blink & Oracle", lim2: "Gacha Giới Hạn: Frost & Magnet" },
       fields: {
         "_id": ID,
+        "open": { label: "Đang mở", help: "Tắt = băng không quay được và không hiện trong game. Thiếu trường = mở." },
         "costGem": { label: "Giá mỗi lượt", unit: "ngọc", min: 0, int: true },
         "ticket": { label: "Vé dùng thay ngọc", help: "Mã vé; ticketX = Vé Xác." },
         "rate5": { label: "Tỉ lệ 5★", pct: true, min: 0, max: 1, help: "0,006 = 0,6%." },

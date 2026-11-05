@@ -66,6 +66,7 @@ function shuffleKeys(v) {
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
     ["$ key", { table: "quests", docs: [{ _id: "a", $bad: 1 }] }],
     ["non-array docs", { table: "quests", docs: { _id: "a" } }],
+    ["gacha_banners open không phải boolean", { table: "gacha_banners", docs: [{ _id: "char", open: "yes" }] }],
     ["modes _id lạ", { table: "modes", docs: [{ _id: "arena", open: true }] }],
     ["modes open không phải boolean", { table: "modes", docs: [{ _id: "coop", open: "yes" }] }],
     ["modes localOpen không phải boolean", { table: "modes", docs: [{ _id: "coop", open: true, localOpen: "yes" }] }],

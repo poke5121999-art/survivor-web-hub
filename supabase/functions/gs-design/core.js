@@ -286,6 +286,7 @@ function pvpMapRule(d) {
 }
 
 const TABLE_RULES = {
+  gacha_banners: (d) => (d.open !== undefined && typeof d.open !== "boolean" ? `Giá trị open của băng "${d._id}" là ${JSON.stringify(d.open)}, phải là true hoặc false.` : null),
   decor_lights: decorLightRule,
   coop_rules: (d) => (!NET_BACKENDS.includes(d.netBackend) ? `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`
     : d.appNet !== undefined && !APP_NETS.includes(d.appNet) ? `Mạng co-op của app "${d.appNet}" không hợp lệ, chỉ nhận eos hoặc utp.`
