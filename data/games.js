@@ -125,7 +125,7 @@ window.HUB_GAMES = [
     accent: "#2dd4bf",
     en: { title: "Night Shift: Squad", tagline: "Five-player co-op horror. Work the endless shift until the whole crew falls.", desc: "The Unity build of Night Shift. A five-person crew, 14 characters, gacha, gear and 9 levels. Endless Co-op Shift is for five real players, each bringing their own character, playing until the whole crew falls." },
     thumbnail: "assets/thumbnails/repo2d-unity.svg",
-    path: "games/repo2d-unity/index.html",
+    path: "games/boohaul/index.html",
     // The UNITY build of the same design, kept BESIDE the plain-JS one rather than replacing it:
     // the owner asked for the existing web build not to be overwritten, and the two are meant to
     // stay comparable anyway — a rule changed in one and not the other is a rule nobody can trust.
