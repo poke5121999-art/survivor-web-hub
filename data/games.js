@@ -916,7 +916,7 @@ window.HUB_GAMES = [
     // Nguồn: repo twt-bevy trên ssh linux2, nhánh web; dựng lại bằng tools/web/build-web.sh, kiểm bằng
     // TWT_URL=<Pages> TWT_HEADED=1 node tools/web/smoke.cjs (Chrome thật, GPU máy này).
     path: "https://poke5121999-art.github.io/twt-bevy-web/",
-    rev: "20261105c",
+    rev: "20261105d",
     status: "available",
     tags: ["Kinh doanh", "Sinh tồn", "Góc nhìn thứ nhất", "Máy tính"]
   }
