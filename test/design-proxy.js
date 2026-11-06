@@ -34,6 +34,15 @@ function shuffleKeys(v) {
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
+  // crew is stored in md_characters (cd_crew owns the logical name "crew" on DEV): the card must read and dry-save it.
+  const crewSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/crew.json", "utf8"));
+  const crew = await act({ action: "get", table: "crew" });
+  check("crew reads md_characters", core.COLLECTION.crew === "characters" && crew.status === 200 && crew.json.exists === true &&
+    list.json.tables.crew.exists === true && crew.json.docs.length === crewSeed.length, `status ${crew.status}, ${crew.json.docs && crew.json.docs.length} docs`);
+  const crewDry = await act({ action: "save", table: "crew", docs: crew.json.docs, baseHash: crew.json.hash, dryRun: true });
+  check("crew dryRun save on md_characters", crewDry.status === 200 && crewDry.json.applied === false && crewDry.json.changes.length === 0,
+    `status ${crewDry.status}, counts=${JSON.stringify(crewDry.json.counts)}`);
+
   const got = await act({ action: "get", table: "quests" });
   const daily = got.json.docs.find((d) => d._id === "daily");
   check("quests daily.pick is number", !!daily && typeof daily.pick === "number", `pick=${JSON.stringify(daily && daily.pick)}`);

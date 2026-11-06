@@ -1,6 +1,6 @@
 # gs-design
 
-Proxy cho trang design editor: trình duyệt không gọi thẳng được admin API của GameSpark (không có CORS), nên hàm này giữ khóa, ký HMAC và đọc/ghi các bảng metadata `md_<table>`.
+Proxy cho trang design editor: trình duyệt không gọi thẳng được admin API của GameSpark (không có CORS), nên hàm này giữ khóa, ký HMAC và đọc/ghi các bảng metadata `md_<table>`. Riêng `crew` nằm ở `md_characters` (`COLLECTION` trong `core.js`): trên DEV collection runtime cũ `cd_crew` giữ tên logic `crew`.
 
 **Khóa là MCP key của project `repo-2d-topdown` trên DEV. Tuyệt đối không commit khóa/secret vào repo.**
 

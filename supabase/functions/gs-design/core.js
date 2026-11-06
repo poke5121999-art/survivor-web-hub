@@ -11,6 +11,12 @@ export const KNOWN = [
   "coop_rules", "modes", "decor_lights", "pvp_maps",
 ];
 
+// Table key (what the game and this editor call it) → logical name of its md_ table on GameSpark, only where the two
+// differ. On DEV the legacy runtime collection cd_crew owns the logical name "crew" (NAME_TAKEN), so crew lives in
+// md_characters. Same map as COLLECTION in cloudcode lib/tables.js and REPO_Meta tools/gamespark-drift.mjs.
+export const COLLECTION = { crew: "characters" };
+const logical = (table) => COLLECTION[table] || table;
+
 const MAX_BODY_BYTES = 400 * 1024;
 const QUERY_LIMIT = 50;
 const MAX_DOCS = 2000;
@@ -104,7 +110,7 @@ async function readTable(call, table) {
   // The server caps limit at 50 whatever we ask, so page with skip until hasMore is false.
   const raw = [];
   for (;;) {
-    const r = await call("/data/query", { collection: "md_" + table, limit: QUERY_LIMIT, skip: raw.length });
+    const r = await call("/data/query", { collection: "md_" + logical(table), limit: QUERY_LIMIT, skip: raw.length });
     raw.push(...(r.docs || []));
     if (!r.hasMore || !(r.docs || []).length) break;
     if (raw.length >= MAX_DOCS) throw new UpstreamError(200, "TOO_MANY_DOCS", `bảng ${table} có hơn ${MAX_DOCS} dòng`);
@@ -350,7 +356,7 @@ async function doSave(call, body) {
   }
   if (!dryRun && !current.exists) {
     try {
-      await call("/data/collections", { name: table, kind: "metadata" });
+      await call("/data/collections", { name: logical(table), kind: "metadata" });
     } catch (e) {
       // 409 is fine when the name is an empty metadata table; when a runtime (cd_) collection owns the
       // logical name, sync could never succeed, so surface the platform's own explanation.
@@ -358,7 +364,7 @@ async function doSave(call, body) {
       if (!/loại metadata/.test(e.message)) return fail(409, "NAME_TAKEN", e.message);
     }
   }
-  const r = await call("/data/sync", { collection: "md_" + table, docs, dryRun });
+  const r = await call("/data/sync", { collection: "md_" + logical(table), docs, dryRun });
   return {
     status: 200,
     json: {
