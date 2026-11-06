@@ -1,7 +1,0 @@
-Background music in this folder. All four tracks are CC0 1.0 (public domain): free for commercial use, no attribution required.
-Re-encoded to mp3 96 kbps and level-matched to the tracks they replaced (2026-11-05, replacing ripped R.E.P.O. music).
-
-music_arctic/bg_arctic.mp3 <- "The Frigid Seas" by Joth (https://opengameart.org/content/the-frigid-seas), CC0 1.0
-music_manor/bg_manor.mp3 <- "Haunting piano" by Emma_MA (https://opengameart.org/content/haunting-piano), CC0 1.0
-music_museum/bg_museum.mp3 <- "Dark Cavern Ambient 2" by Paul Wortmann (https://opengameart.org/content/dark-cavern-ambient), CC0 1.0
-music_wizard/bg_wizard.mp3 <- "Mysterious Ambience (song21)" by cynicmusic (https://opengameart.org/content/mysterious-ambience-song21), CC0 1.0
