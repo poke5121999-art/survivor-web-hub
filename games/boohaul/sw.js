@@ -1,3 +1,4 @@
+self.__repoParts = {"repo2d-unity-f195f52517.data.unityweb":{"n":3,"size":106877376}}; importScripts("../repo2d-unity/data-parts.js?v=f195f52517");
 // Giữ bản ĐÃ GIẢI NÉN của tệp .data/.wasm trong Cache Storage: lần mở sau loader nhận tệp thô (không có dấu
 // "UnityWeb Compressed Content") nên bỏ hẳn bước giải nén brotli bằng JS (~5,6 s trên Galaxy S20+, đo 2026-10-24).
 // Không bao giờ giải nén trên đường tải: chỉ làm khi trang báo đã vào game được một lúc (tin nhắn "warm").
@@ -40,7 +41,7 @@ self.addEventListener("message", function (e) {
   if (d.type !== "warm" || !d.urls) return;
   e.waitUntil(caches.open(CACHE).then(function (cache) {
     return cache.keys().then(function (keys) {
-      var keep = d.urls.map(function (u) { return new URL(u, self.registration.scope).href; });
+      var keep = d.urls.map(function (u) { return new URL(u, new URL("../repo2d-unity/", self.registration.scope)).href; });
       return Promise.all(keys.filter(function (k) { return keep.indexOf(k.url) < 0; }).map(function (k) { return cache.delete(k); })).then(function () {
         return keep.reduce(function (p, u) { return p.then(function () { return storeRaw(cache, u); }).then(function (r) { if (r && e.source) e.source.postMessage({ type: "warm-done", r: r }); }); }, Promise.resolve());
       });
