@@ -1,0 +1,12 @@
+Asian_Sheepshead.png
+size:113,32
+filter:Nearest,Nearest
+Body
+bounds:2,2,62,28
+Fin
+bounds:66,3,14,13
+rotate:90
+Head
+bounds:90,9,21,21
+Mouth_bottom
+bounds:66,19,22,11

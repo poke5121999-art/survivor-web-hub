@@ -1,0 +1,63 @@
+# Bóc art The Bazaar Demo cho Chợ Phiên
+
+Công cụ đọc 931 bundle Addressables của bản demo trên máy (`D:\Steam\steamapps\common\The Bazaar Demo`) rồi xuất ảnh. Không ghi gì vào thư mục Steam. Số liệu và chuỗi ArtKey chi tiết nằm ở `D:\bazaar-ref\notes\ASSETS.md`.
+
+## Thứ tự chạy
+
+Python 3.8 với UnityPy 1.25 + Pillow + texture2ddecoder. Luôn chạy bằng `python -I` (cờ `-I` bỏ qua `PYTHONIOENCODING`, các script đã tự `reconfigure` UTF-8).
+
+| Bước | Lệnh | Ra | Thời gian đo được |
+|---|---|---|---|
+| 1 | `python -I index_bundles.py` | `D:\bazaar-ref\cache\bundle_index.json` | 20 đến 80 s (4 tiến trình, lạnh đĩa thì chậm) |
+| 2 | `python -I art.py` | PNG đủ độ phân giải ở `D:\bazaar-ref\art\<nhóm>\`, `cache\art_manifest.json`, `cache\art_problems.json`, `cache\artkey_map.json` | lần đầu khoảng 15 phút (thẻ 7 phút, phần còn lại 6 phút); chạy lại 10 đến 30 s vì bỏ qua file đã có |
+| 3 | `python -I art.py --web` | `games/bazaar/art/**.webp` và `games/bazaar/data/art.js` | 5 đến 13 phút (đọc 1,6 GB PNG thẻ) |
+
+`art.py --only cards,skills,steps,encounters,frames,ui,heroes,board,fonts` chỉ chạy vài nhóm (nhóm `icons` đi kèm `fonts`). Bước 3 xoá `games/bazaar/art` rồi dựng lại từ đầu để kết quả luôn như nhau.
+
+## Nhóm đầu ra
+
+`cards` (art thẻ vật phẩm, tên `<Hero>_<Thẻ>.png`), `skills`, `steps` (icon phần thưởng), `encounters` (`_char` và `_bg` của quái, thương nhân, sự kiện; thêm toàn bộ sprite thô theo tên `ENC_*`), `frames` (khung thẻ theo bậc, khung xem trước, huy hiệu), `ui`, `heroes` (chân dung, atlas Spine, `.skel` và `.atlas` của skin mặc định), `board` (một bàn và một thảm mặc định), `fonts` (atlas SDF và JSON glyph của TextMeshPro), `icons` (icon chữ như Burn, Poison, Haste, cắt từ atlas `Text_Icon_Atlas_w_Shadows`).
+
+## Cái bẫy đã sập
+
+- **Bundle bị xoá chuỗi phiên bản** (ghi `5.x.x` và `0.0.0`): UnityPy báo `UnityVersionFallbackError`. Phải đặt `UnityPy.config.FALLBACK_UNITY_VERSION = "6000.3.11f1"` (đo từ `globalgamemanagers`). Đã làm trong `art.py`.
+- **ArtKey không phải đường dẫn.** Phần lớn là chuỗi hex 32 ký tự, chỉ giải được qua `catalog.bin` (định dạng nhị phân, `art.py` tự đảo ngược, xem `decode_catalog`). Số ArtKey còn lại là tên trần không đuôi (`Icon_Skill_X`), phải tra theo tên file.
+- **Alpha của art thẻ là mặt nạ hiệu ứng** của shader, không phải độ trong suốt. Bản web bỏ alpha (RGB). Bản PNG đủ độ phân giải giữ nguyên.
+- **Texture thẻ luôn vuông 1024**, bất kể thẻ Small, Medium hay Large (đo trên 1095 file: 1024x1024 chiếm đa số). Đó là tranh thẻ bị ép vào ô vuông; web phải kéo giãn `100% 100%` vào ô art, đã so với ảnh chụp game ở thẻ Vanessa_Pearl (xem `css/card.css`).
+- `[BẪY ĐÃ SẬP]` **`audio.py export` ghi lại mọi .ogg với byte khác** dù âm thanh y hệt (encoder ghi serial ngẫu nhiên). Lần chạy 2026-10-09 làm 899 tệp hiện "M" trong git; giải mã ra PCM so md5 thì 899/899 giống hệt. Trước khi commit: so PCM (`ffmpeg -i x.ogg -f s16le - | md5sum`) với `git show HEAD:<tệp>`, trả các tệp giống hệt về HEAD, chỉ commit tệp mới hoặc đổi nội dung thật.
+- **Sprite nằm trong SpriteAtlas ở bundle khác**: `sprite.image` báo `File cab-… not found`. `art.py` nạp thêm `ui_sprite_atlas_assets_all` rồi thử lại.
+- **PPtr ngoài bundle** (`m_FileID != 0`): giải bằng tên `CAB-…` trong `externals`, tra ngược qua `bundle_index.json` (trường `cab`). Vì vậy `index_bundles.py` phải chạy trước.
+- **Đừng gọi `o.read()` lên `Texture2D` của font động** (`Font Texture`, dữ liệu stream rỗng): UnityPy cố mở một thư mục và ném `PermissionError`. Dùng `o.peek_name()` để lọc trước.
+- **Không có TTF/OTF** trong game, chỉ atlas SDF. Atlas Latin chỉ phủ 21 trên 68 chữ có dấu tiếng Việt, nên web phải dùng font ngoài (Noto Sans) cho chữ.
+- **Windows dùng `spawn`**: mọi hàm chạy trong `Pool` phải ở mức module, và `art.py` phải import được không có tác dụng phụ.
+- **`python -c` qua shim của máy này bị hỏng**: viết script ra file rồi chạy.
+- **Hạn mức web**: `games/bazaar/art` tối đa 110 MB (`WEB_BUDGET`; thẻ và chân dung quái 512 px webp q82/78, đo 2026-10-20: art 102,5 MB, cả `games/bazaar` 181,6 MB, trần chung 220 MB). Thứ tự ưu tiên khi vượt: icon, thẻ Vanessa/Pygmalien/Dooley/Common/Neutral/Adventure, kỹ năng, khung, chân dung quái, thẻ hero còn lại, UI nhỏ trước UI lớn. Phần bị loại được ghi trong `window.BZ_ART.excluded`.
+
+- `[BẪY ĐÃ SẬP 2026-10-20]` Hai tệp vẽ tay không do tool nào ghi: `art/ui/herosel_bg.webp` (art.py --web xoá cả `art/ui`) và `art/vfx/sandedge.webp` (vfx.py xoá cả `art/vfx`). Chạy tool xong phải chép lại từ git (`git checkout HEAD -- <tệp>` ở gốc repo), nếu không `transitions.js` và `bazaar.css` mất ảnh.
+- ArtKey rỗng hoặc lệch tên: `ARTKEY_ALIAS` (Frontline Logistics -> `Icon_Skill_VAN_FrontlineLogistics`) và nhánh tra tên thẻ `<Tên>_CardData.asset` cho vật phẩm rỗng (chỉ Aged Cask khớp). Còn 11 vật phẩm không có art trong game: Cyclops Eye, Sonic Cannon, Holo-Disguise Generator, Old Barrel, Yeti Claw, Acid Sprayer, Pyro Gauntlet, Plasma Whip, Javalin, Poison Blades, Cybernetic Implants (và kỹ năng Virulent Research).
+- `vfxmap.py` đọc mọi `data/cards-*.js`; mỗi ability ghi `play:false` (VFXShouldPlay) và `missing:true` (khoá VFXOverrideKey không có prefab trong bản demo: game thật không vẽ gì, VFXManager.cs:184-190). Âm thanh: `audio.py export` chỉ thêm khoá mới, không ghi đè tệp có sẵn (xem bẫy trên); `BUDGET_MB` 80.
+
+## Khung thẻ 2D (`frames.py`)
+
+Chạy: `python -I frames.py` (Python 3.8, Pillow + numpy, không cần UnityPy), SAU `art.py --only frames`. `[BẪY ĐÃ SẬP]` Bản đầu của `art.py --web` xoá cả cây `games/bazaar/art`, nuốt luôn `frames2d/` và `vfx/`; giờ nó chỉ xoá các thư mục con chính nó ghi. Ra `art/frames2d/` (khoảng 0,7 MB) và `data/frames.js` (`window.BZ_FRAMES`).
+
+- Không dựng từ mesh 3D `cardframes`: game có sẵn sprite phẳng `Card_PreviewFrame_<Tier>_<Small|Medium|Large|Skill>_TUI` và `EncounterFrame_<Tier>_TUI`; script dùng chúng, đặt lên canvas cao 512 (tỉ lệ 1:1, ô art cân giữa theo chiều dọc).
+- `window` = vùng trong suốt nối với tâm ảnh `[ĐO TRONG REPO]`; `r` là độ vát góc đo ở hàng trên cùng của ô, xấp xỉ (góc thật là vát chéo).
+- Khung encounter có ruột đặc: phải đục ô theo sprite `EncounterFrame_Interior_TUI` (mặt nạ vòm) vào toạ độ `ENC_WIN` đo bằng mắt `[ĐỀ XUẤT]`; Diamond/Legendary kém chắc nhất.
+- Gem `CardGem_*_TD` là ô UV chữ nhật 256x128: cắt bát giác tay (`gem_sprite`). Tag `CardFrame_Tag_01_D` có nền đặc: tách bằng flood fill từ góc.
+- `anchors` (gemTop, tag, ammo, multicast, cooldown) `[ĐỀ XUẤT]`, đo từ ảnh wiki `card-badges-crop-1.png` và `cooldown-uzi-1.jpg`. Game không vẽ mặt đồng hồ trên thẻ (chỉ vạch quét, xem VISUAL.md mục 4), nên `cooldown` chỉ là hình chữ nhật ô art.
+- Bẫy: `ImageDraw.floodfill` trên ảnh mode L của Pillow ở máy này trả về rỗng, script dùng hàm `fill()` riêng.
+
+## Vòng 7: `uiextra.py` và `music_layers.py`
+
+- `uiextra.py` (W-20): banner encounter `Encounter_Banner_*_P` (prefab chỉ là một SpriteRenderer trỏ `Encounter_Banner_{Merchant,Enemy,Event,Skills}_TUI`), `CardTimer_{Haste,Slow,Freeze}_BG`, texture VFX của băng-rôn/level-up/Fates, ra `art/ui/*.webp`, `art/vfx/*.webp`, vá thêm khoá `ui:`/`fx:` vào `data/art.js`. Không xoá gì; `art.py --web` và `vfx.py` gọi nó ở cuối vì hai tool đó xoá `art/ui` / `art/vfx`. Bundle gốc: `textures_fx_assets_all` (CardTimer, SandRibbon, LevelUp_*), `encounterframes_assets_all` (prefab banner). Người kể Fates là Statia: ArtKey của thẻ Futura trỏ `Event_Statia_QuestData`.
+- `music_layers.py` (W-21): event `Music_<Hero>_Battle` có tham số `Music_Battle_Transition` 0..4. 0..3 là bốn lớp cường độ, 4 là đoạn kết (tắt dần). Render thời gian thực (event stream hỏng ở NRT; 4 lớp x ~84 s mỗi hero, chạy 4 tiến trình song song được), cắt chung điểm đầu, vòng lặp 3 s, ogg 72 kbps `audio/music/battle.<hero>.i1..i4.ogg`, khoá `music.battle.<hero>.i1..i4` trong `audio.js` (`audio.py export` gọi `patch_js()`). `[BẪY]` đừng chạy hai lần render cùng hero cùng lúc: tệp wav tạm bị khoá (WinError 32).
+
+## Ảnh độ phân giải gốc (hires.py)
+
+Repo chính đã quá 1 GB nên art thẻ và chân dung quái ở độ phân giải gốc nằm ở repo thứ hai `cho-phien-assets` (clone `D:\cho-phien-assets`, Pages riêng `https://poke5121999-art.github.io/cho-phien-assets/`). Bản webp 512 px trong `games/bazaar/art` vẫn là nền luôn có.
+
+- Chạy: `python -I games/bazaar/tools/hires.py` (Python 3.8 + Pillow, sau `art.py` đã bóc PNG). Đọc `D:\bazaar-ref\art\{cards,encounters}`, ghi webp cùng cỡ nguồn (thẻ 1024, encounter cỡ nguồn), q82 (`_bg` q78), cùng đường dẫn tương đối như `art.py --web`, chỉ cho tên có trong `games/bazaar/art/{cards,encounters}`. Import `art.py` để lấy `ART`/`WEB_ART`.
+- Chạy lại thì bỏ qua tệp không đổi (cỡ + mtime PNG + tham số trong `.hires.json`); `--force` dựng lại hết. Cũng ghi `index.html`, `.nojekyll`, `README.md` của repo kho. Sau đó commit và push repo kho riêng.
+- Phía game: `data/hires.js` (`BZ_HIRES`) và `js/view/hires.js` (`BZHires`). Luật: hiện bản 512 trước; hộp art cao × devicePixelRatio > 512 hoặc khung zoom (`opts.zoom`) thì tải bản gốc rồi đổi `background-image`. Một lỗi tải đánh dấu kho sập cả phiên, không thử lại.
+- `[BẪY]` Trình duyệt tự ghi "Failed to load resource" cho yêu cầu kho hỏng: mã trang không chặn được dòng này, `test/bazaar-hires.js` lọc nó theo URL của kho. Test giả kho bằng `page.route` trỏ về `D:\cho-phien-assets`, không cần đã push.

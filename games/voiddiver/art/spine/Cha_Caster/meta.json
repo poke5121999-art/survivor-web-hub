@@ -1,0 +1,61 @@
+{
+ "name": "Cha_Caster",
+ "skeletons": {
+  "Cha_Caster_NW": {
+   "skel": "Cha_Caster_NW.skel",
+   "bytes": 500751,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null,
+   "mixes": []
+  },
+  "Cha_Caster_SW": {
+   "skel": "Cha_Caster_SW.skel",
+   "bytes": 591366,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Cha_Caster.atlas",
+ "pages": [
+  {
+   "png": "Cha_Caster.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Caster_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "100004": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 0.95,
+   "bsx": 0.95,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "900006": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

@@ -1,0 +1,438 @@
+/* Chợ Phiên — sân khấu xem trận. Toạ độ logic 1920×1080 (bằng khung camera của ảnh gốc dooley-friends-1.jpg),
+   co giãn cả khối cho vừa cửa sổ (letterbox). Bảng màu: VISUAL.md §17 và WIKI.md §2.10. */
+/* Chữ: tự phục vụ (fonts/), chỉ tập con latin + vietnamese của ba họ đang dùng (Noto Sans 500-900, Noto Serif 700-900, Barlow Condensed 700/800),
+   font-display: swap để chữ hiện ngay bằng chữ dự phòng rồi đổi, không chặn vẽ. Lấy từ Google Fonts (OFL) bản v42/v13. */
+@font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/barlow-condensed-700-vietnamese.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/barlow-condensed-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 800; font-display: swap; src: url(../fonts/barlow-condensed-800-vietnamese.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 800; font-display: swap; src: url(../fonts/barlow-condensed-800-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 500 900; font-display: swap; src: url(../fonts/noto-sans-vietnamese.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 500 900; font-display: swap; src: url(../fonts/noto-sans-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Noto Serif'; font-style: normal; font-weight: 700 900; font-display: swap; src: url(../fonts/noto-serif-vietnamese.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Noto Serif'; font-style: normal; font-weight: 700 900; font-display: swap; src: url(../fonts/noto-serif-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* Ảnh vừa do CSS vừa do JS đặt (U.bg thêm ?v=BZ_REV) phải cùng URL, không thì trình duyệt tải hai lần: các url(...?v=) bên dưới (kim/nền/vòng đồng hồ, máng XP) phải bằng BZ_REV khi đổi rev. */
+:root {
+  --sand: #c78a4a; --sand-d: #8a5528; --teal: #3ab5b0; --teal-d: #1f6f70;
+  --wood: #3b2414; --wood-l: #5a3a22; --plate: #b97c4d; --trim: #e0b25a; --trim-d: #9b6d38;
+  --cream: #fbe1b7; --cream2: #ffcd92; --ink: #14100c;
+  --dmg: #f3523c; --crit: #f5523c; --poison: #0ebe4e; --freeze: #3ec8f8; --haste: #00eac2; --slow: #cca06e;
+  --heal: #8fe931; --regen: #8fe930; --shield: #f4cf21; --burn: #fa943e; --gold: #f5d021; --ammo: #fe8e00;
+  --rage: #f12261; --tag: #98a8fe; --cd-line: #00cf6d; --cd-reset: #00ffa8;
+  --hp: #1dac1c; --hp-d: #106b0f;
+  --f-title: "Noto Serif", Georgia, serif;
+  --f-text: "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "Barlow Condensed", "Arial Narrow", "Noto Sans", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #120c08; color: var(--cream); overflow: hidden;
+  font-family: var(--f-text); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+body { touch-action: pan-x pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; } /* MOBILE-18/19: không chụm-phóng trang, không menu nhấn giữ */
+button { font: inherit; color: inherit; }
+
+#bz-root { position: fixed; inset: 0; overflow: hidden; background:
+  radial-gradient(ellipse at 50% 40%, #2b1a0f 0%, #120c08 75%); }
+#bz-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  contain: layout paint; }
+#bz-world { position: absolute; inset: 0; will-change: transform; }
+
+/* ---------- nền sân: ảnh bàn gốc 1920×1080 (art/env/board_<khoá>.webp, chọn bằng BZView.setEnv theo hero; data/env.js) ----------
+   ảnh có sẵn thảm hai làn (392,300,1136×490), bệ hero trên/dưới, kênh nước, đồ trang trí. DOM chỉ chồng lên đúng chỗ. */
+.bz-bg { position: absolute; inset: 0; background: #1d1209 center / 1920px 1080px no-repeat; }
+
+/* ---------- hai làn: trong suốt, chỉ một viền mảnh + lớp tối rất nhẹ để thẻ vẫn rõ trên hoa văn thảm ---------- */
+.bz-board { position: absolute; left: 392px; width: 1136px; height: 245px; border-radius: 6px;
+  background: rgba(20,10,4,.16); box-shadow: inset 0 0 0 1px rgba(255,226,160,.28), inset 0 0 22px rgba(20,8,0,.22); }
+.bz-board.top { top: 300px; } .bz-board.bot { top: 545px; }
+.bz-board .bz-slots { position: absolute; inset: 0; }
+.bz-board-glow { position: absolute; inset: -2px; border-radius: 8px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 2px rgba(255,214,120,.9), 0 0 24px rgba(255,190,90,.6); transition: opacity .2s; }
+
+/* ---------- khối hero ---------- */
+.bz-hero { position: absolute; left: 606px; width: 708px; height: 172px; border-radius: 6px; }
+.bz-hero.top { top: 82px; }
+.bz-hero.bot { top: 836px; }
+/* ASSET-03: khung bảng cạnh = Frame_General_TUI (sprite gốc, 9-slice); nền phẳng một màu xanh xám của bảng */
+.bz-side { position: absolute; width: 212px; height: 214px; background: #3f6368; filter: drop-shadow(0 6px 8px rgba(0,0,0,.45));
+  border: 17px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 17px stretch; background-clip: padding-box; }
+.bz-side.top { top: 82px; } .bz-side.bot { top: 800px; }
+.bz-side.l { left: 388px; } .bz-side.r { left: 1320px; }
+.bz-side .bz-side-in { position: absolute; inset: -3px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; text-align: center; }
+.bz-name { font-family: var(--f-title); font-weight: 700; font-size: 25px; line-height: 1.1; color: var(--cream);
+  text-shadow: 0 2px 0 #3b1c06, 0 0 8px rgba(0,0,0,.6); max-width: 188px; }
+.bz-level { position: relative; width: 112px; height: 86px; background: url(../art/ui/board_ui/Experience_LevelBanner_TUI.webp) center/contain no-repeat;
+  display: grid; place-items: center; font: 800 44px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #0b3a55, 0 0 6px #0b3a55; padding-right: 10px; }
+.bz-sublabel { font: 700 15px/1 var(--f-text); letter-spacing: .14em; color: #cfe3f5; text-transform: uppercase; opacity: .85; }
+.bz-reward { display: flex; align-items: center; gap: 8px; font: 800 38px/1 var(--f-num); color: var(--gold);
+  text-shadow: 0 2px 0 #4a2c00, 0 0 6px rgba(0,0,0,.6); }
+.bz-reward img { width: 40px; height: 40px; }
+.bz-reward.xp { color: #63ceec; text-shadow: 0 2px 0 #0b3a55; }
+
+.bz-portrait { position: absolute; left: 50%; top: 4px; width: 192px; height: 166px; margin-left: -96px; transform-origin: 50% 60%; }
+.bz-portrait .pf-art { position: absolute; overflow: hidden; background: #2a1a10; }
+.bz-portrait .pf-bg, .bz-portrait .pf-char { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.bz-portrait .pf-char { background-size: auto 112%; background-position: 50% 0%; }
+.bz-portrait .pf-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.bz-portrait .pf-tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s; }
+.bz-portrait .pf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: #fff; will-change: opacity; mix-blend-mode: screen; }
+/* FX-19: người thua giữ màu chân dung, chỉ nhạt 50 % và tối nhẹ (REF death-victory a/32-50), không còn bóng đen */
+.bz-portrait.dead .pf-art { filter: grayscale(.5) brightness(.78); transition: filter .6s; }
+.bz-portrait.enraged .pf-art { animation: bz-enrage .5s ease-in-out infinite alternate; }
+/* VFX-29: ~1 s sau khung nộ, chân dung chuyển bóng đỏ-hồng (REF enrage) [ĐỀ XUẤT: lọc màu thay cho bộ chân dung "berserk" không có trong bản demo] */
+.bz-portrait.enraged .pf-char { animation: bz-berserk .6s 1s ease-out forwards; }
+@keyframes bz-berserk { to { filter: brightness(.7) sepia(1) saturate(7) hue-rotate(-38deg) contrast(1.15); } }
+@keyframes bz-enrage { from { filter: saturate(1.2); } to { filter: saturate(1.8) brightness(1.2) hue-rotate(-12deg); } }
+.bz-enrage-ring { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
+  border-radius: 50%; opacity: 0; transition: opacity .2s; }
+.bz-portrait.enraged .bz-enrage-ring { opacity: 1; }
+.bz-skills { position: absolute; top: 6px; display: grid; grid-template-columns: repeat(3, 82px); grid-auto-rows: 80px; gap: 0 2px; }
+.bz-skills.l { left: 10px; } .bz-skills.r { right: 10px; }
+.bz-skill { position: relative; width: 82px; height: 82px; border-radius: 50%; cursor: default; transition: transform .15s ease-out; }
+.bz-skill:hover { transform: scale(1.12); }
+.bz-skill .sk-art { position: absolute; border-radius: 50%; background: #20140c center/cover no-repeat; }
+.bz-skill .sk-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* ASSET-05/UI-08: ô kỹ năng trống = một ô tròn cắt từ Board_SkillSlots_TD (atlas bị ép dẹt theo UV, kéo lại thành tròn) */
+.bz-skill.empty { opacity: .85; border-radius: 0; background: url(../art/board/board_common/Board_SkillSlots_TD.webp) -15.2px -452px / 684.5px 874.7px no-repeat; }
+.bz-skill.pulse { animation: bz-skill-pulse .45s ease-out; }
+@keyframes bz-skill-pulse { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.22); filter: brightness(1.8); } 100% { transform: scale(1); filter: brightness(1); } }
+
+/* thanh máu: khung + vệt ma (lag) + máu + khiên + bỏng/độc chờ nổ (HealthBarBase.cs) */
+.bz-hp { position: absolute; left: 612px; width: 696px; height: 40px; }
+.bz-hp.top { top: 258px; } .bz-hp.bot { top: 794px; }
+/* ASSET-04: mọi lớp thanh máu là sprite board_ui/HealthBar_*: HealthBar_TUI (dải trắng nhân màu máu), Poison/Shield (hoa văn, nhuộm bỏng bằng xoay màu),
+   Overlay (bóng trong của máng), Gloss, Divider_Small/Large (vạch chia theo HealthBarController.GetPipDistances, stage.js dựng) */
+.bz-hp .hp-track { position: absolute; left: 26px; right: 26px; top: 2px; bottom: 2px; border-radius: 3px; overflow: hidden; background: #0d1609; }
+.bz-hp .hp-track::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: url(../art/ui/board_ui/HealthBar_Overlay_TUI.webp) 0 0 / 100% 100% no-repeat; }
+.bz-hp .hp-ghost, .bz-hp .hp-fill, .bz-hp .hp-shield, .bz-hp .hp-burn, .bz-hp .hp-poison { position: absolute; left: 0; top: 0; bottom: 0; width: 100%;
+  transform-origin: 0 50%; will-change: transform; }
+.bz-hp .hp-ghost { background: #ff2a1a; }
+.bz-hp .hp-ghost.gain { background: #c8ff8a; }
+.bz-hp .hp-fill { background: #22c021 url(../art/ui/board_ui/HealthBar_TUI.webp) 0 0 / 100% 100% no-repeat; background-blend-mode: multiply; }
+.bz-hp .hp-burn { background: url(../art/ui/board_ui/HealthBar_Poison_TUI.webp) 0 0 / auto 100% repeat-x; filter: hue-rotate(-100deg) saturate(2.4) brightness(1.25); }
+.bz-hp .hp-poison { background: url(../art/ui/board_ui/HealthBar_Poison_TUI.webp) 0 0 / auto 100% repeat-x; filter: saturate(1.5) brightness(1.1); }
+.bz-hp .hp-shield { background: url(../art/ui/board_ui/HealthBar_Shield_TUI.webp) 0 0 / 100% 100% no-repeat; }
+.bz-hp .hp-gloss { position: absolute; left: 4%; right: 4%; top: 0; height: 55%; background: url(../art/ui/board_ui/HealthBar_Gloss_TUI.webp) center / 100% 100% no-repeat; opacity: .55; pointer-events: none; z-index: 4; }
+.bz-hp .hp-div { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.bz-hp .hp-div i { position: absolute; top: 0; bottom: 0; width: 5px; margin-left: -2px; background: url(../art/ui/board_ui/HealthBar_Divider_Small_TUI.webp) center / 100% 100% no-repeat; opacity: .45; }
+.bz-hp .hp-div i.l { width: 6px; background-image: url(../art/ui/board_ui/HealthBar_Divider_Large_TUI.webp); opacity: .6; }
+.bz-hp .hp-end { position: absolute; top: -6px; width: 34px; height: 52px; background: url(../art/ui/board_ui/HealthBar_End_TUI.webp) center/contain no-repeat; }
+.bz-hp .hp-end.l { left: 2px; } .bz-hp .hp-end.r { right: 2px; transform: scaleX(-1); }
+.bz-hp .hp-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; pointer-events: none;
+  font: 800 calc(30px * min(var(--uik, 1), 1.35))/1 var(--f-num); color: #fff; letter-spacing: .01em;
+  text-shadow: 0 0 2px #0a3d07, 0 2px 0 #0a3d07, 2px 0 0 #0a3d07, -2px 0 0 #0a3d07, 0 -2px 0 #0a3d07; }
+.bz-hp .hp-text .sh { color: #ffe36d; text-shadow: 0 0 2px #4a2c00, 0 2px 0 #4a2c00, 2px 0 0 #4a2c00, -2px 0 0 #4a2c00; }
+.bz-hp .hp-text .rg { color: #b8f56a; font-size: 26px; }
+.bz-hp.hit .hp-track { animation: bz-hp-hit .22s ease-out; }
+@keyframes bz-hp-hit { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }
+.bz-status { position: absolute; right: 40px; top: 4px; height: 32px; display: flex; gap: 6px; pointer-events: none; z-index: 2; }
+.bz-status.left { right: auto; left: 40px; }
+.bz-chip { display: flex; align-items: center; gap: 1px; height: 32px; padding: 0 2px; font: 800 26px/1 var(--f-num); color: #fff;
+  transform: scale(0); transition: transform .18s cubic-bezier(.3,1.6,.5,1); }
+.bz-chip.on { transform: scale(1); }
+.bz-chip img { width: 28px; height: 28px; }
+.bz-chip b { color: #fff; font-weight: 800; text-shadow: 0 2px 0 rgba(0,0,0,.8); }
+.bz-chip.burn { color: var(--burn); } .bz-chip.poison { color: var(--poison); } .bz-chip.regen { color: var(--regen); }
+.bz-chip.rage { color: var(--rage); } .bz-chip.shield { color: var(--shield); }
+.bz-chip.bump { animation: bz-bump .25s ease-out; }
+@keyframes bz-bump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* ---------- đồng hồ trận (thay đồng hồ ngày ở cột trái) ---------- */
+.bz-dial { position: absolute; left: 190px; top: 400px; width: 190px; height: 236px;
+  background: url(../art/ui/clock/Clock_Encounter_Background_TUI.webp?v=20261021c) center/contain no-repeat; }
+.bz-dial .face { position: absolute; left: 17px; top: 38px; width: 154px; height: 154px; border-radius: 50%; }
+/* ASSET-07: vòng tiến độ bão cát = Clock_Encounter_HourFill_TUI (sáu đèn + cung cam) cắt theo góc --pd; nền mờ là cùng ảnh tối đi */
+.bz-dial .ring, .bz-dial .face::before { position: absolute; inset: 1%; border-radius: 50%; background: url(../art/ui/clock/Clock_Encounter_HourFill_TUI.webp?v=20261021c) center / 100% 100% no-repeat; }
+.bz-dial .face::before { content: ""; filter: grayscale(1) brightness(.35); opacity: .65; }
+.bz-dial .ring { --pd: 0deg; -webkit-mask: conic-gradient(#000 var(--pd), transparent 0); mask: conic-gradient(#000 var(--pd), transparent 0); filter: drop-shadow(0 0 5px #ffa526); }
+.bz-dial .time { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font: 800 46px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #000, 0 0 10px rgba(0,0,0,.8); }
+.bz-dial .time small { font: 700 14px/1 var(--f-text); letter-spacing: .2em; color: #d99551; margin-top: 2px; }
+.bz-dial .storm { position: absolute; left: 50px; right: 18px; bottom: 19px; height: 18px; overflow: hidden; }
+.bz-dial .storm i { position: absolute; inset: 0; transform-origin: 0 50%; background: url(../art/ui/clock/Clock_Encounter_PrestigeFill_TUI.webp) 0 0 / 100% 100% no-repeat; }
+.bz-dial.storming .ring { animation: bz-storm-ring .6s linear infinite alternate; filter: hue-rotate(-18deg) saturate(1.7) drop-shadow(0 0 7px #ff5a1a); }
+@keyframes bz-storm-ring { from { filter: brightness(1); } to { filter: brightness(1.6); } }
+.bz-dial-label { position: absolute; left: 165px; top: 642px; width: 240px; text-align: center; font: 700 16px/1.2 var(--f-text); white-space: nowrap;
+  color: var(--cream); text-shadow: 0 2px 2px #000; letter-spacing: .06em; }
+
+/* ---------- cột điều khiển ---------- */
+.bz-dock { position: absolute; left: 1548px; top: 812px; width: 360px; padding: 14px; background: rgba(30,20,12,.94); filter: drop-shadow(0 10px 14px rgba(0,0,0,.55));
+  border: 18px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 18px stretch; background-clip: padding-box; }
+.bz-dock .row { display: flex; gap: 8px; justify-content: space-between; }
+.bz-dock .row + .row { margin-top: 10px; }
+.bz-btn { position: relative; min-width: 60px; height: 64px; padding: 0 10px; border: 0; border-radius: 14px; cursor: pointer;
+  font: 800 30px/1 var(--f-num); color: var(--cream); background: linear-gradient(180deg, #6b4524, #4a2d16);
+  box-shadow: inset 0 0 0 2px #2a170a, inset 0 2px 0 rgba(255,220,160,.35), 0 3px 0 #1d0f05;
+  transition: transform .1s ease-out, filter .15s, background .15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.bz-btn:hover { filter: brightness(1.18); }
+.bz-btn:active { transform: translateY(2px) scale(.97); }
+.bz-btn.on { color: #1a1005; background: linear-gradient(180deg, #ffd37a, #e09a2e); box-shadow: inset 0 0 0 2px #6a3d0d, inset 0 2px 0 #fff3c8, 0 3px 0 #5a3008, 0 0 16px rgba(255,190,80,.55); }
+.bz-btn svg { width: 30px; height: 30px; fill: currentColor; }
+.bz-btn.wide { flex: 1; font: 700 22px/1 var(--f-text); letter-spacing: .02em; }
+.bz-timeline { position: relative; height: 26px; margin-top: 12px; border-radius: 13px; cursor: pointer; background: #160c05;
+  box-shadow: inset 0 0 0 2px #4a2d16; overflow: hidden; touch-action: none; }
+.bz-timeline i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%;
+  background: linear-gradient(90deg, #7a4a22, #e0b25a); }
+.bz-timeline b { position: absolute; top: 0; bottom: 0; width: 3px; background: #ff7a2a; opacity: .8; }
+.bz-vol { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.bz-vol input { flex: 1; accent-color: #e0b25a; height: 26px; }
+
+.bz-topbar { position: absolute; left: 24px; top: 18px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.bz-topbar h1 { margin: 0; font: 700 44px/1 var(--f-title); color: var(--cream); text-shadow: 0 3px 0 #4a2208, 0 0 14px rgba(0,0,0,.6); }
+.bz-topbar p { margin: 0; font: 600 20px/1.2 var(--f-text); color: #ffe9c8; text-shadow: 0 2px 2px rgba(0,0,0,.7); }
+.bz-pick-btn { position: absolute; right: 24px; top: 22px; height: 64px; padding: 0 24px; font: 700 24px/1 var(--f-text); }
+.bz-seed { position: absolute; right: 30px; top: 96px; font: 600 16px/1 var(--f-text); color: #ffe9c8; text-shadow: 0 1px 2px #000; opacity: .85; }
+
+/* ---------- băng-rôn kết trận (REF fight-result 10-19, death-victory; VFX-13): dải lụa xanh viền vàng = Victory_BannerCenter_01_TUI
+   xoay ngang (cắt bỏ hoa văn đuôi), hai đuôi lụa Victory_BannerLeft/Right_01_TUI; ống cuộn vàng chạy từ trái mở dải ra trong 600 ms,
+   giữ 1,4 s, rồi cuộn lại bay lên góc phải 400 ms. Thua: dải đỏ (xoay màu) + khói xanh-đen (BZFX bannerLose). [ĐỀ XUẤT: dải thẳng, gốc là
+   lụa uốn cong 3D] ---------- */
+.bz-banner { position: absolute; left: 0; right: 0; top: 440px; height: 200px; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0; z-index: 30; --bn-in: 600ms; }
+.bz-banner .rib { position: relative; width: 960px; height: 200px; }
+.bz-banner .tail { position: absolute; top: -140px; width: 326px; height: 384px; background: center / 100% 100% no-repeat;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
+.bz-banner .tail.l { left: -286px; background-image: url(../art/ui/ui_sprite_atlas/Victory_BannerLeft_01_TUI.webp); }
+.bz-banner .tail.r { right: -286px; background-image: url(../art/ui/ui_sprite_atlas/Victory_BannerRight_01_TUI.webp); }
+.bz-banner .band { position: absolute; left: 0; right: 0; top: 25px; height: 150px; overflow: hidden; border-radius: 4px;
+  box-shadow: 0 12px 24px rgba(0,0,0,.5); }
+.bz-banner .cloth { position: absolute; left: 50%; top: 50%; width: 150px; height: 960px; margin: -480px 0 0 -75px; transform: rotate(-90deg);
+  background: url(../art/ui/ui_sprite_atlas/Victory_BannerCenter_01_TUI.webp) top / 100% 118% no-repeat; }
+.bz-banner .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.bz-banner h2 { margin: 0; font: 900 84px/1 var(--f-title); letter-spacing: .03em; color: #fff;
+  text-shadow: 0 4px 0 #0b2252, 0 0 2px #0b2252, 0 0 24px rgba(130,200,255,.75); }
+.bz-banner p { margin: 6px 0 0; font: 700 26px/1.2 var(--f-text); color: #f6e7b8; text-shadow: 0 2px 2px rgba(0,0,0,.75); }
+.bz-banner .roll { position: absolute; top: 4px; left: 0; width: 46px; height: 192px; margin-left: -23px; border-radius: 23px; opacity: 0;
+  background: linear-gradient(90deg, #6a3e0c, #d9a640 22%, #fff6c8 48%, #f0cf6a 62%, #7a4a10);
+  box-shadow: 0 0 22px rgba(255,210,100,.85), 0 6px 10px rgba(0,0,0,.5); }
+.bz-banner.lose .tail, .bz-banner.lose .cloth { filter: hue-rotate(150deg) saturate(1.2) brightness(.86); }
+.bz-banner.lose h2 { text-shadow: 0 4px 0 #3a0608, 0 0 2px #3a0608, 0 0 26px rgba(255,90,70,.7); }
+.bz-banner.draw .tail, .bz-banner.draw .cloth { filter: saturate(.25) brightness(.95); }
+.bz-banner.storm { --bn-in: 420ms; }
+.bz-banner.storm .rib { scale: .78; }
+.bz-banner.storm .tail, .bz-banner.storm .cloth { filter: hue-rotate(185deg) saturate(.9) brightness(1.05); }
+.bz-banner.storm h2 { font-size: 72px; color: #fff0cc; text-shadow: 0 4px 0 #5a2c00, 0 0 24px rgba(255,190,90,.8); }
+.bz-banner.show { opacity: 1; }
+.bz-banner.show .rib { animation: bz-rib-in var(--bn-in) cubic-bezier(.3,.7,.3,1) both; }
+.bz-banner.show .roll { animation: bz-roll var(--bn-in) cubic-bezier(.3,.7,.3,1) both; }
+.bz-banner.hide { opacity: 1; animation: bz-banner-out .4s ease-in forwards; }
+@keyframes bz-rib-in { 0% { clip-path: inset(-170px 100% -170px -330px); transform: translateX(-80px); } 100% { clip-path: inset(-170px -330px -170px -330px); transform: none; } }
+@keyframes bz-roll { 0% { left: 0; opacity: 1; } 88% { left: 100%; opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes bz-banner-out { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(620px, -380px) scale(.25, .5); } }
+.bz-crown { position: absolute; left: 960px; width: 92px; height: 72px; margin-left: -46px; pointer-events: none; opacity: 0;
+  background: url(../art/ui/ui_sprite_atlas/Portrait_WinBanner_TUI.webp) center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
+.bz-crown.top { top: 54px; } .bz-crown.bot { top: 808px; }
+.bz-crown.on { animation: bz-crown 0.7s cubic-bezier(.2,1.5,.4,1) forwards; }
+@keyframes bz-crown { 0% { opacity: 0; transform: translateY(-40px) scale(.4); } 100% { opacity: 1; transform: none; } }
+
+/* z-index 25: thẻ có z-index 1 (rê chuột 20) nên canvas z auto bị thẻ che — mọi chớp/hạt trên thẻ (bắn, Haste, Freeze, cất cánh...) từng vô hình */
+#bz-fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 25; }
+/* bão cát: dựng lại từ prefab FX_SandStorm (texture Sandstorm_EdgesMask = khói cát lan từ mép TRÊN và DƯỚI màn hình, nhiều bộ hạt Dust/Swirl/Smoke/Parallax)
+   — KHÔNG phải viền cồn cát vàng: ảnh "sandstorm/b" cũ thực ra là lớp phủ KHIÊN. --sk = 0..1 mức độ dày dần */
+.bz-sand { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s; --sk: 0;
+  background: linear-gradient(90deg, rgba(150,96,38,calc(.22 + .22 * var(--sk))) 0, rgba(150,96,38,0) 20%, rgba(150,96,38,0) 80%, rgba(150,96,38,calc(.22 + .22 * var(--sk))) 100%); }
+/* VFX-11: trước đây mép trên cao 52 % đặc #e4b66a phủ vàng cả hàng đối thủ và thanh máu; giờ mép trên mỏng, cồn cát dưới đáy, khói hai bên */
+.bz-sand.on { opacity: 1; }
+.bz-sand .edge { position: absolute; left: -10%; right: -10%; top: 0; height: 12%; opacity: calc(.22 + .2 * var(--sk));
+  background: linear-gradient(180deg, #e4b66a, #c98e42);
+  -webkit-mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x; mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x;
+  transform: translateY(calc(-28% * (1 - var(--sk)))); animation: bz-sand-drift 14s linear infinite; }
+.bz-sand .edge.b { top: auto; bottom: 0; height: 17%; opacity: calc(.45 + .35 * var(--sk)); background: linear-gradient(0deg, #e4b66a, #c98e42);
+  -webkit-mask-position: 0 100%; mask-position: 0 100%; transform: translateY(calc(28% * (1 - var(--sk)))); animation-name: bz-sand-drift-b; animation-duration: 21s; animation-direction: reverse; }
+@keyframes bz-sand-drift { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: 640px 0; mask-position: 640px 0; } }
+@keyframes bz-sand-drift-b { from { -webkit-mask-position: 0 100%; mask-position: 0 100%; } to { -webkit-mask-position: 640px 100%; mask-position: 640px 100%; } }
+
+/* nộ (REF enrage, ): ~1 s khung đỏ khói nhấp nháy quanh hàng chân dung của bên nộ, rồi vành TỐI đỏ-đen có khói đỏ và vài vệt chém; không phủ đỏ sáng */
+.bz-enr-frame { position: absolute; left: 400px; width: 1120px; height: 210px; border-radius: 14px; pointer-events: none; opacity: 0; }
+.bz-enr-frame.top { top: 62px; } .bz-enr-frame.bot { top: 816px; }
+.bz-enr-frame.on { opacity: 1; box-shadow: 0 0 0 4px rgba(214,22,48,.95), 0 0 18px 6px rgba(230,20,50,.9), 0 0 46px 14px rgba(170,0,30,.75), inset 0 0 26px 8px rgba(214,22,48,.7); animation: bz-enr-pulse .4s ease-in-out infinite alternate; }
+@keyframes bz-enr-pulse { from { filter: brightness(.7); } to { filter: brightness(1.3); } }
+.bz-enr-vig { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .5s ease-in;
+  background:
+    linear-gradient(112deg, transparent 38.6%, rgba(190,10,36,.4) 39%, transparent 39.5%),
+    linear-gradient(-68deg, transparent 63.6%, rgba(190,10,36,.35) 64%, transparent 64.5%),
+    radial-gradient(ellipse at 50% 50%, rgba(12,0,4,.28) 0, rgba(12,0,4,.38) 34%, rgba(46,0,10,.72) 68%, rgba(14,0,4,.94) 100%); }
+.bz-enr-vig::before, .bz-enr-vig::after { content: ""; position: absolute; left: -10%; right: -10%; bottom: -8%; height: 46%; filter: blur(30px); opacity: .6;
+  background: radial-gradient(ellipse 22% 55% at 18% 80%, rgba(150,8,34,.8), transparent), radial-gradient(ellipse 26% 60% at 50% 95%, rgba(130,4,28,.85), transparent), radial-gradient(ellipse 20% 50% at 84% 85%, rgba(150,8,34,.75), transparent);
+  animation: bz-enr-smoke 2.4s ease-in-out infinite alternate; }
+.bz-enr-vig::after { bottom: auto; top: -10%; height: 32%; animation-duration: 3.1s; opacity: .45; transform: scaleY(-1); }
+@keyframes bz-enr-smoke { from { transform: translateX(-3%) scale(1.02); } to { transform: translateX(3%) scale(1.12); } }
+.bz-enr-vig.on { animation: bz-enr-vig 1s 1s ease-out forwards; }
+@keyframes bz-enr-vig { from { opacity: 0; } to { opacity: 1; } }
+.bz-sh-frame { position: absolute; left: 598px; width: 724px; height: 182px; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity .25s; --sh: 0;
+  padding: calc(5px + 12px * var(--sh)); box-sizing: border-box; }
+/* VFX-9: chỉ ôm khối hero (chân dung + kỹ năng 598..1322), dừng ngay trên thanh máu (top 258) / dưới thanh máu (bot 834) */
+.bz-sh-frame.top { top: 74px; height: 182px; } .bz-sh-frame.bot { top: 834px; height: 182px; }
+.bz-sh-frame.on { opacity: 1; }
+/* khiên (REF shield, sandstorm/b thật ra là cái này): viền lưới thoi vàng quanh cả hàng chân dung, dày theo khiên/máu tối đa */
+.bz-sh-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-sizing: border-box; padding: inherit;
+  background: repeating-linear-gradient(45deg, rgba(255,232,96,.95) 0 3px, rgba(255,214,40,.15) 3px 19px), repeating-linear-gradient(-45deg, rgba(255,232,96,.95) 0 3px, rgba(255,214,40,.15) 3px 19px), linear-gradient(180deg, rgba(255,226,70,.75), rgba(244,190,20,.7));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  box-shadow: inset 0 0 0 3px #ffe45a, 0 0 22px 4px rgba(255,214,40,.8); filter: drop-shadow(0 0 6px rgba(255,200,30,.9)); }
+.bz-sh-frame::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 calc(8px + 22px * var(--sh)) rgba(255,214,40,.12), 0 0 30px 6px rgba(255,210,40,.55); }
+.bz-rowglow { position: absolute; left: 598px; width: 724px; height: 182px; border-radius: 10px; pointer-events: none; opacity: 0;
+  box-shadow: inset 0 0 0 4px var(--rg), inset 0 0 40px var(--rg), 0 0 36px var(--rg);
+  background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px), repeating-linear-gradient(-45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px);
+  }
+.bz-rowglow.go { animation: bz-rowglow 1.2s ease-out forwards; }
+.bz-rowglow.top { top: 74px; } .bz-rowglow.bot { top: 834px; }
+@keyframes bz-rowglow { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; } }
+
+/* ---------- chọn trận ---------- */
+.bz-picker { position: absolute; inset: 0; z-index: 50; display: none; background: rgba(10,6,3,.84); } /* INTERACT-17: bỏ backdrop-filter (Chromium vẽ đôi/lộn ngược khi tổ tiên có scale) */
+.bz-picker.open { display: block; animation: bz-fade .18s ease-out; }
+@keyframes bz-fade { from { opacity: 0; } to { opacity: 1; } }
+.bz-picker .panel { position: absolute; left: 110px; top: 60px; right: 110px; bottom: 60px; padding: 26px 30px;
+  display: flex; flex-direction: column; gap: 16px; background: #2e1d10; background-clip: padding-box;
+  border: 30px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 30px stretch; }
+.bz-picker header { display: flex; align-items: center; gap: 18px; }
+.bz-picker header h2 { margin: 0; font: 700 44px/1 var(--f-title); color: var(--cream); flex: 1; }
+.bz-picker .cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; min-height: 0; }
+.bz-picker .col { display: flex; flex-direction: column; min-height: 0; border-radius: 14px; background: rgba(0,0,0,.28); box-shadow: inset 0 0 0 2px #4a2d16; }
+.bz-picker .col h3 { margin: 0; padding: 14px 18px 10px; font: 700 26px/1 var(--f-text); color: #ffd98f; display: flex; justify-content: space-between; gap: 12px; }
+.bz-picker .col h3 span { color: var(--cream); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bz-picker .list { flex: 1; overflow-y: auto; padding: 4px 14px 14px; overscroll-behavior: contain; }
+.bz-picker .lv { margin: 12px 4px 6px; font: 800 20px/1 var(--f-text); letter-spacing: .12em; color: #c9a06a; text-transform: uppercase; }
+.bz-picker .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.bz-mon { position: relative; height: 150px; border-radius: 12px; overflow: hidden; cursor: pointer; border: 0; padding: 0;
+  background: #20140c center/cover no-repeat; box-shadow: inset 0 0 0 2px #5a3a22; transition: transform .12s ease-out, box-shadow .12s; }
+.bz-mon:hover { transform: translateY(-3px) scale(1.03); box-shadow: inset 0 0 0 2px #e0b25a, 0 6px 14px rgba(0,0,0,.5); }
+.bz-mon.sel { box-shadow: inset 0 0 0 4px #ffd36b, 0 0 18px rgba(255,200,90,.7); }
+.bz-mon .ch { position: absolute; inset: 0; background: center 10% / auto 120% no-repeat; }
+.bz-mon .nm { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 8px; font: 700 18px/1.1 var(--f-text); color: #fff;
+  text-align: left; background: linear-gradient(180deg, transparent, rgba(0,0,0,.85)); text-shadow: 0 1px 2px #000; }
+.bz-mon .hpv { position: absolute; right: 6px; top: 6px; padding: 3px 8px; border-radius: 10px; font: 800 18px/1 var(--f-num); color: #c8ff8a; background: rgba(0,0,0,.7); }
+.bz-picker footer { display: flex; gap: 14px; justify-content: flex-end; align-items: center; }
+.bz-picker footer .bz-btn { height: 74px; padding: 0 30px; font: 700 26px/1 var(--f-text); }
+.bz-picker footer label { margin-right: auto; font: 600 22px/1 var(--f-text); color: var(--cream); display: flex; align-items: center; gap: 10px; }
+.bz-picker footer input { width: 160px; height: 48px; border-radius: 10px; border: 0; padding: 0 12px; font: 700 24px/1 var(--f-num);
+  background: #150b04; color: #fff; box-shadow: inset 0 0 0 2px #7a4a22; }
+
+.bz-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 18px/1 var(--f-text); color: #ffe9c8;
+  text-shadow: 0 1px 3px #000; opacity: .75; pointer-events: none; white-space: nowrap; }
+
+/* VFX-30 + ASSET-14: bỏng/độc/hồi/nộ là biểu tượng gốc + SỐ màu trong dòng máu (REF combat-status), không viên thuốc nền */
+.bz-chip img { width: 26px; height: 26px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.8)); }
+.bz-chip b { color: inherit; font-size: 32px; text-shadow: 0 0 2px #120800, 0 2px 0 #120800, 2px 0 0 #120800, -2px 0 0 #120800, 0 -2px 0 #120800; }
+
+/* VFX-16: mở trận — sân tối mờ dần 450 ms, vệt sáng xanh quét ngang 600 ms, chân dung + thanh máu nở ra, thẻ bay vào lần lượt (REF fight-start);
+   stage.js V.intro() gắn/gỡ lớp bz-intro, đồng hồ trận giữ RP.INTRO_MS */
+#bz-stage.bz-intro #bz-world::before { content: ""; position: absolute; inset: 0; z-index: 40; pointer-events: none; background: #0a0603;
+  animation: bz-intro-dark .45s ease-out forwards; }
+#bz-stage.bz-intro #bz-world::after { content: ""; position: absolute; inset: 0; z-index: 41; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(70,150,255,.32) 44%, rgba(190,225,255,.7) 50%, rgba(70,150,255,.32) 56%, transparent 65%) 0 0 / 300% 100% no-repeat;
+  animation: bz-intro-sweep .6s .25s ease-in-out forwards; }
+@keyframes bz-intro-dark { from { opacity: 1; } to { opacity: 0; } }
+@keyframes bz-intro-sweep { 0% { opacity: 1; background-position: 100% 0; } 100% { opacity: 1; background-position: 0 0; } }
+#bz-stage.bz-intro .bz-card { animation: bz-card-in .5s cubic-bezier(.2,.9,.3,1.12) backwards; animation-delay: calc(.22s + var(--ci, 0) * 50ms); }
+@keyframes bz-card-in { from { translate: 0 var(--fy, 170px); opacity: 0; } }
+#bz-stage.bz-intro .bz-hero, #bz-stage.bz-intro .bz-hp { animation: bz-hero-in .5s .12s cubic-bezier(.2,.9,.3,1.1) backwards; }
+@keyframes bz-hero-in { from { opacity: 0; scale: .86; } }
+
+/* VFX-14/27: tạm dừng phát lại thì dừng luôn hoạt ảnh CSS trên sân (băng-rôn, khung khiên, sọc Haste, mưa Slow, nhịp nộ) */
+#bz-stage.bz-paused #bz-world *, #bz-stage.bz-paused #bz-world *::before, #bz-stage.bz-paused #bz-world *::after,
+#bz-stage.bz-paused .bz-banner, #bz-stage.bz-paused .bz-banner * { animation-play-state: paused !important; }
+
+/* =====================================================================================================================
+   FIX6 chromeA — khung/nút/HUD của bàn dùng sprite gốc trong art/ui thay cho gradient CSS (ASSET-02/05/07/08/09, UI-08).
+   run.css nạp SAU tệp này nên mọi quy tắc ghi đè dùng tiền tố #bz-stage để thắng độ ưu tiên mà không cần !important.
+   Nút nhỏ: Btn_Rct_Brown_S_Center_{Active,Highlighted,Pressed}_TUI (386×107) cắt 9 mảnh bằng border-image; đang bật = Btn_Rct_Blue_S.
+   ===================================================================================================================== */
+.bz-btn, #bz-stage .rs-fightdock .rs-btn, #bz-stage .rs-result .ic .rs-btn, #bz-stage .rs-sound .mute, #bz-stage .rs-tray .head .x,
+#bz-stage .rs-merchant-ctl .rs-big.leave {
+  border: 15px solid transparent; border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Active_TUI.webp) 32 44 fill / 15px 22px stretch;
+  border-radius: 0; background: none; box-shadow: none; padding: 0 2px; color: var(--cream); text-shadow: 0 2px 0 rgba(0,0,0,.7); filter: none;
+}
+.bz-btn:hover, #bz-stage .rs-fightdock .rs-btn:hover, #bz-stage .rs-result .ic .rs-btn:hover, #bz-stage .rs-sound .mute:hover, #bz-stage .rs-tray .head .x:hover,
+#bz-stage .rs-merchant-ctl .rs-big.leave:hover { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Highlighted_TUI.webp); filter: none; transform: none; }
+.bz-btn:active, #bz-stage .rs-fightdock .rs-btn:active, #bz-stage .rs-result .ic .rs-btn:active, #bz-stage .rs-sound .mute:active, #bz-stage .rs-tray .head .x:active,
+#bz-stage .rs-merchant-ctl .rs-big.leave:active { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Pressed_TUI.webp); transform: translateY(1px); box-shadow: none; }
+.bz-btn.on, #bz-stage .rs-fightdock .rs-btn.on { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Active_TUI.webp); color: #fff; text-shadow: 0 2px 0 rgba(0,20,60,.8); box-shadow: none; }
+.bz-btn.on:hover, #bz-stage .rs-fightdock .rs-btn.on:hover { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Highlighted_TUI.webp); }
+.bz-btn[disabled], #bz-stage .rs-fightdock .rs-btn[disabled] { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Disabled_TUI.webp); }
+#bz-stage .rs-fightdock .rs-btn { height: 64px; min-width: 68px; font-size: 28px; }
+#bz-stage .rs-result .ic .rs-btn { height: 66px; }
+#bz-stage .rs-result .ic .rs-btn svg { fill: var(--cream); }
+#bz-stage .rs-merchant-ctl .rs-big.leave { height: 68px; min-width: 150px; font: 700 26px/1 var(--f-text); }
+#bz-stage .rs-fightdock.paused .pz { animation: none; filter: drop-shadow(0 0 8px #ffcf6a); }
+
+/* nút tròn: bánh răng cài đặt + mũi tên quay lại = Btn_Rnd_Center_Filled_* + khung vàng Btn_Rnd_Frame_TUI */
+#bz-stage .rs-gear { border-radius: 0; box-shadow: none; border: 0;
+  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Active_TUI.webp) center / 86% 86% no-repeat; }
+#bz-stage .rs-gear::after { content: ""; position: absolute; inset: -6% -10%; pointer-events: none;
+  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Frame_TUI.webp) center / 100% 100% no-repeat; }
+#bz-stage .rs-gear:hover { background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Highlighted_TUI.webp); }
+#bz-stage .rs-gear:active { background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Pressed_TUI.webp); }
+
+/* ASSET-05: ô khoá = Loadout_CardPack_Box_Locked_TUI (khoá thoi vàng + bốn góc), thay ổ khoá SVG; ô thường để nền bàn lộ ra */
+#bz-stage .rs-sock { background: none; box-shadow: none; }
+#bz-stage .rs-sock .lock { width: 104px; height: 104px; margin: -52px 0 0 -52px;
+  background: url(../art/ui/ui_sprite_atlas/Loadout_CardPack_Box_Locked_TUI.webp) center / contain no-repeat; }
+#bz-stage .rs-sock.locked, #bz-stage .m-run:not(.m-fight) .rs-sock.locked { background: rgba(10,16,8,.34); box-shadow: none; }
+#bz-stage .rs-sock.locked .lock { opacity: .9; }
+#bz-stage .rs-sock.hint { background: rgba(85,218,255,.14); box-shadow: inset 0 0 0 3px #55daff; }
+#bz-stage .rs-sock.bad { background: rgba(255,90,60,.14); box-shadow: inset 0 0 0 3px #ff7155; }
+
+/* ASSET-07: kim giờ = cây kim vàng cắt từ atlas ClockEncounter_Empty_TD (chỉ lên trên sau khi xoay 45°; vòng tròn ở đuôi là trục),
+   số ngày nằm trên chấm Clock_Encounter_DayDot_{Inactive,Active} ở trục (ClockViewController.UpdateDots: chấm sáng khi hết ngày), cung thắng = VictoryFill01..10,
+   thanh uy tín = Clock_Encounter_PrestigeFill_TUI */
+#bz-stage .rs-clock .hand { left: 50%; top: 50%; width: 0; height: 0; margin: 0; transform-origin: 0 0; }
+#bz-stage .rs-clock .hand .nd { position: absolute; width: 75.3px; height: 72px; left: -56.9px; top: -54.7px; transform: rotate(45deg); transform-origin: 56.9px 54.7px;
+  background: url(../art/ui/clock/Clock_Hand.webp) 0 0 / 100% 100% no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.65)); }
+#bz-stage .rs-clock .hand .day { left: -17px; top: -17px; width: 34px; height: 34px; margin: 0; border-radius: 0; box-shadow: none; font: 800 19px/1 var(--f-num); color: #3a2208;
+  background: url(../art/ui/clock/Clock_Encounter_DayDot_Inactive_TUI.webp) center / 100% 100% no-repeat; text-shadow: none; }
+#bz-stage .rs-clock .hand .day.act { background-image: url(../art/ui/clock/Clock_Encounter_DayDot_Active_TUI.webp); color: #5a2a00; }
+#bz-stage .rs-clock .pin { display: none; }
+#bz-stage .rs-clock .arc i { width: 15px; height: 30px; border-radius: 0; box-shadow: none; transform: none; background: center / contain no-repeat; filter: drop-shadow(0 0 4px #49c4ff); }
+#bz-stage .rs-clock .crownbar { border-radius: 0; }
+#bz-stage .rs-clock .crownbar i { background: url(../art/ui/clock/Clock_Encounter_PrestigeFill_TUI.webp) 0 0 / 100% 100% no-repeat; }
+
+/* ASSET-08: ô thu nhập + vàng = Container_Number_Frame_TUI (nắp vàng bên trái, phần giữa kéo dãn) */
+#bz-stage .rs-gold .row { border-radius: 0; box-shadow: none; background: none; padding: 2px 12px 2px 4px; border: 0; border-left: 17px solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Container_Number_Frame_TUI.webp) 0 0 0 38 fill / 0 0 0 17px stretch; }
+/* kho: máng đồ = Experience_LevelBackdrop_TUI, ô sáng = Experience_Pip_TUI (cùng bộ sprite với thanh XP) */
+#bz-stage .rs-chest .bar { gap: 0; width: 156px; height: 30px; padding: 4px 11px 5px; border-radius: 0; box-shadow: none; background: url(../art/ui/board_ui/Experience_LevelBackdrop_TUI.webp?v=20261021c) 0 0 / 100% 100% no-repeat; }
+#bz-stage .rs-chest .bar i { flex: 1; height: 100%; border-radius: 0; background: center / contain no-repeat; opacity: 0; }
+#bz-stage .rs-chest .bar i.on { opacity: 1; background-image: url(../art/ui/board_ui/Experience_Pip_TUI.webp); box-shadow: none; filter: drop-shadow(0 0 3px #49c4ff); }
+
+/* FX-19: sau băng-rôn 1 s, cả bàn có viền ngọc lam (FX_Frame_glow tô màu bằng mask), nửa bàn bên thua tối đi; người thua giữ màu (.dead ở trên) */
+.bz-rim { position: absolute; inset: -4px; pointer-events: none; opacity: 0; z-index: 26; background: #2ee6c8;
+  -webkit-mask-box-image: url(../art/vfx/FX_Frame_glow.webp) 70 / 64px stretch; }
+#bz-stage.bz-victory .bz-rim { animation: bz-rim-in 1.2s 1s ease-out forwards; }
+@keyframes bz-rim-in { from { opacity: 0; } to { opacity: .85; } }
+#bz-stage.bz-won-1 .bz-card.side-bot, #bz-stage.bz-won-0 .bz-card.side-top { filter: saturate(.6) brightness(.72); transition: filter 1s 1s; }
+
+/* ---------- camera điện thoại (js/view/stage.js V.fit đặt .bz-cam): hai dải chân dung thu --pk quanh mép bàn ---------- */
+.bz-band { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.bz-band.bot { transform-origin: 960px 790px; } .bz-band.top { transform-origin: 960px 300px; }
+#bz-stage.bz-cam .bz-band { scale: var(--pk); }
+
+/* UI-24: biểu tượng nút dùng sprite gốc thay SVG / chữ Unicode */
+#bz-stage .rs-tray .head .x .xi { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; pointer-events: none;
+  background: url(../art/ui/ui_sprite_atlas/Icon_MatchHistory_X_TUI.webp) center / contain no-repeat; }
+.lobby .lb-rnd .ic { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; pointer-events: none;
+  background: url(../art/ui/ui_gameplay/Icon_InGameMenu_Settings_TUI.webp) center / contain no-repeat; filter: drop-shadow(0 2px 0 rgba(0,0,0,.6)); }
+.lobby .hex .lk u { display: block; width: 24px; height: 33px; background: url(../art/ui/ui_sprite_atlas/Tooltip_Ring_Lock_TUI.webp) center / contain no-repeat; text-decoration: none; }
+
+/* UI-25: thanh âm lượng = Form_Slider_Frame (hai đầu lục giác, 9 mảnh ngang) + Center (phần đã đầy, --p = 0..100 do menu.js đặt) + Handle.
+   Center 32×24 có mũi nhọn bên trái: kéo cả ảnh thì mũi thành vệt dài, nên cắt mũi (x 0..10) giữ cỡ, chỉ kéo thân (x 14..30).
+   Phần đầy dừng ở tâm nút kéo: tâm chạy từ nửa nút tới (rộng − nửa nút), nên rộng = nửa nút + (rộng − nút) × p − mũi */
+.rs-sound input[type=range] { -webkit-appearance: none; appearance: none; width: 240px; height: 36px; margin: 0; padding: 0; cursor: pointer; background-color: transparent;
+  border: 0 solid transparent; border-width: 0 18px; border-image: url(../art/ui/ui_sprite_atlas/Form_Slider_Frame_TUI.webp) 0 24 fill / 0 18px stretch;
+  background-image: url(../art/ui/ui_sprite_atlas/Form_Slider_Center_Cap.webp), url(../art/ui/ui_sprite_atlas/Form_Slider_Center_Body.webp);
+  background-repeat: no-repeat; background-position: 0 50%, 8px 50%; background-size: 8px 20px, max(0px, calc(12px + (100% - 40px) * var(--p, 70) / 100)) 20px; }
+.rs-sound input[type=range]::-webkit-slider-runnable-track { height: 36px; background: transparent; }
+.rs-sound input[type=range]::-moz-range-track { height: 36px; background: transparent; }
+.rs-sound input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 40px; height: 40px; margin-top: -2px; border: 0; border-radius: 0; background: url(../art/ui/ui_sprite_atlas/Form_Slider_Handle_Active_TUI.webp) center / contain no-repeat; }
+.rs-sound input[type=range]::-webkit-slider-thumb:hover { background-image: url(../art/ui/ui_sprite_atlas/Form_Slider_Handle_Hover_TUI.webp); }
+.rs-sound input[type=range]::-webkit-slider-thumb:active { background-image: url(../art/ui/ui_sprite_atlas/Form_Slider_Handle_Pressed_TUI.webp); }
+.rs-sound input[type=range]::-moz-range-thumb { width: 40px; height: 40px; border: 0; border-radius: 0; background: url(../art/ui/ui_sprite_atlas/Form_Slider_Handle_Active_TUI.webp) center / contain no-repeat; }

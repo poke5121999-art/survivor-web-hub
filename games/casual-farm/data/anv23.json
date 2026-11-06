@@ -1,0 +1,672 @@
+{
+ "scene": "Store_Anv23",
+ "startingCash": 0,
+ "mats": [
+  {
+   "name": "CashierDesk_Anv23_MatActivate",
+   "object": "CashierDesk_Anv23",
+   "type": 11,
+   "cost": 160,
+   "activate": [
+    "CashierDesk_Anv23",
+    "Shelf07_SugarCube_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf07_SugarCube_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf07_SugarCube_MatActivate",
+   "object": "Shelf07_SugarCube",
+   "type": 11,
+   "cost": 200,
+   "activate": [
+    "Shelf07_SugarCube",
+    "DeliveryTruck_SugarCube_MatActivate",
+    "_CustomerAgent_1"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_SugarCube_MatActivate"
+   ]
+  },
+  {
+   "name": "DeliveryTruck_SugarCube_MatActivate",
+   "object": "DeliveryTruck_SugarCube",
+   "type": 11,
+   "cost": 320,
+   "activate": [
+    "DeliveryTruck_SugarCube",
+    "_Worker_CashierA_MatActivate",
+    "_CustomerAgent_2"
+   ],
+   "delays": [],
+   "highlight": [
+    "_Worker_CashierA_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_CashierA_MatActivate",
+   "object": "_Worker_CashierA",
+   "type": 11,
+   "cost": 360,
+   "activate": [
+    "_Worker_CashierA",
+    "Shelf04_FlourBag_MatActivate",
+    "_Worker_ShelfA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf04_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf04_FlourBag_MatActivate",
+   "object": "Shelf04_FlourBag",
+   "type": 11,
+   "cost": 400,
+   "activate": [
+    "Shelf04_FlourBag",
+    "DeliveryTruck_FlourBag_MatActivate",
+    "_CustomerAgent_3",
+    "_ActivateThief"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfA_MatActivate",
+   "object": "_Worker_ShelfA",
+   "type": 11,
+   "cost": 600,
+   "activate": [
+    "_Worker_ShelfA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "DeliveryTruck_FlourBag_MatActivate",
+   "object": "DeliveryTruck_FlourBag",
+   "type": 11,
+   "cost": 520,
+   "activate": [
+    "DeliveryTruck_FlourBag",
+    "Shelf06_Donut_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf06_Donut_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf06_Donut_MatActivate",
+   "object": "Shelf06_Donut",
+   "type": 11,
+   "cost": 660,
+   "activate": [
+    "Shelf06_Donut",
+    "Machine_DonutMaker_MatActivate",
+    "_Worker_ShelfB_MatActivate",
+    "_CustomerAgent_4"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_DonutMaker_MatActivate",
+   "object": "Machine_DonutMaker",
+   "type": 11,
+   "cost": 760,
+   "activate": [
+    "Machine_DonutMaker",
+    "Shelf05_Fridge_Milk_MatActivate",
+    "_CustomerAgent_5"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf05_Fridge_Milk_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfB_MatActivate",
+   "object": "_Worker_ShelfB",
+   "type": 11,
+   "cost": 880,
+   "activate": [
+    "_Worker_ShelfB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf05_Fridge_Milk_MatActivate",
+   "object": "Shelf05_Fridge_Milk",
+   "type": 11,
+   "cost": 720,
+   "activate": [
+    "Shelf05_Fridge_Milk",
+    "DeliveryTruck_Milk_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_Milk_MatActivate"
+   ]
+  },
+  {
+   "name": "DeliveryTruck_Milk_MatActivate",
+   "object": "DeliveryTruck_Milk",
+   "type": 11,
+   "cost": 840,
+   "activate": [
+    "DeliveryTruck_Milk",
+    "Fridge03_IceCream_MatActivate",
+    "_Worker_ChefA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Fridge03_IceCream_MatActivate"
+   ]
+  },
+  {
+   "name": "Fridge03_IceCream_MatActivate",
+   "object": "Fridge03_IceCream",
+   "type": 11,
+   "cost": 800,
+   "activate": [
+    "Fridge03_IceCream",
+    "Machine_IceCreamMachine_MatActivate",
+    "_CustomerAgent_6"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ChefA_MatActivate",
+   "object": "_Worker_ChefA",
+   "type": 11,
+   "cost": 1120,
+   "activate": [
+    "_Worker_ChefA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_IceCreamMachine_MatActivate",
+   "object": "Machine_IceCreamMachine",
+   "type": 11,
+   "cost": 940,
+   "activate": [
+    "Machine_IceCreamMachine",
+    "Shelf09_BirthdayCake_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf09_BirthdayCake_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf09_BirthdayCake_MatActivate",
+   "object": "Shelf09_BirthdayCake",
+   "type": 11,
+   "cost": 1000,
+   "activate": [
+    "Shelf09_BirthdayCake",
+    "Machine_Oven_BirthdayCake_MatActivate",
+    "_Worker_ChefB_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_Oven_BirthdayCake_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_Oven_BirthdayCake_MatActivate",
+   "object": "Machine_Oven_BirthdayCake",
+   "type": 11,
+   "cost": 1120,
+   "activate": [
+    "Machine_Oven_BirthdayCake"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ChefB_MatActivate",
+   "object": "_Worker_ChefB",
+   "type": 11,
+   "cost": 1320,
+   "activate": [
+    "_Worker_ChefB"
+   ],
+   "delays": [],
+   "highlight": []
+  }
+ ],
+ "prices": {
+  "0": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "1": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "2": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "3": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "4": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "6": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "7": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "8": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "9": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "10": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "12": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "13": {
+   "price": 1.0,
+   "quota": 5
+  },
+  "14": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "17": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "18": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "20": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "21": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "22": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "24": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "26": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "27": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "28": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "29": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "30": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "31": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "32": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "33": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "34": {
+   "price": 10.0,
+   "quota": 5
+  },
+  "36": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "37": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "43": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "44": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "45": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "46": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "47": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "51": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "53": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "54": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "55": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "56": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "57": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "58": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "59": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "60": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "61": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "62": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "63": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "64": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "65": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "66": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "67": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "68": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "69": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "70": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "71": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "72": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "73": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "74": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "75": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "76": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "77": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "78": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "79": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "80": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "81": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "82": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "83": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "84": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "85": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "86": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "87": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "88": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "89": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "90": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "91": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "92": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "93": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "94": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "95": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "96": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "97": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "98": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "99": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "100": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "101": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "102": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "103": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "104": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "105": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "106": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "107": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "108": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "109": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "110": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "111": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "112": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "113": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "114": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "115": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "116": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "117": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "118": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "120": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "121": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "122": {
+   "price": 2.0,
+   "quota": 5
+  }
+ }
+}

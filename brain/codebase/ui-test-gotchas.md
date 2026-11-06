@@ -1,0 +1,32 @@
+# Bẫy khi kiểm giao diện bằng Playwright
+
+- Playwright: `require('C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright')`. Node ở `/d/NodeJs/node`.
+  - Máy Linux: test `soulknight-*.js` mặc định trỏ đường Windows ấy nên phải đặt
+    `PLAYWRIGHT_PATH=/home/bui-thanh-thuong/.cache/pw-node/node_modules/playwright-core` [ĐO TRONG REPO, 2026-10-12].
+- Chạy quá 4 bộ Soul Knight cùng lúc (tải máy 25-35) làm `pethp`/`petskills-*` báo hỏng giả: chụp màn quá hạn, pet chưa kịp tick
+  [ĐO TRONG REPO, 2026-10-12]. Chạy lượt 4 bộ. `petskills-c` pet23 chập chờn cả trên HEAD cũ; so với worktree HEAD sạch trước khi kết luận hồi quy.
+- **Luôn kiểm thêm một khung nhỏ hơn khung thiết kế** (ví dụ 844×390 và 1366×650).
+  - Ghế Nóng chụp ở 1280×760 thì hệ số co `k = 1`, nên lỗi khung lệch khi co không bao giờ lộ.
+- `page.goto(url + '#hash')` khi URL chỉ khác phần hash thì **không tải lại trang**. Phải `goto('about:blank')` trước.
+- Game bọc trong `(function (G) {...})(window)`, nên trong trang không có biến `G`.
+  - Dùng `addInitScript(() => { window.G = window; })`.
+- Game có sự kiện ngẫu nhiên, và hạt giống trên Pages khác ở máy.
+  - Bài kiểm phải chờ đúng hộp mình cần, gặp hộp khác thì bấm qua. Không được coi "có hộp nào đó" là đạt.
+- Bắt đủ `pageerror`, console error, response ≥ 400.
+- Ảnh chụp phải mở ra xem bằng mắt: chữ tràn, nút bị đè, thanh không tắt đều không ném lỗi.
+- **Dịch chuyển quái tới cạnh người chơi để ép một trận: phải chọn ô đi được.**
+  - 2026-09-15, Hắn Đang Tới trên Pages báo "battle never finished" ở cỡ điện thoại.
+  - Thật ra con quái bị đặt lên ô cây. `world.step` trả "blocked" trước khi xét tới quái, nên chẳng có trận nào bắt đầu.
+  - Chạy ở máy thì xanh, chỉ vì hạt giống khác nên ô ấy tình cờ trống.
+- **Máy này `python` là shim của cmd.**
+  - Trong Bash tool, `python -c "..."` nhiều dòng báo `IndentationError ... goto :error`.
+  - Tham số có dấu `|` (regex) thì cmd cắt ngang lệnh.
+  - Cách tránh: ghi script ra tệp, và chạy lệnh có `|` bằng PowerShell tool.
+- **`/tmp` của Git Bash khác `/tmp` của Python** trên máy này [BẪY ĐÃ SẬP 2026-09-25].
+  - `git diff > /tmp/x.patch` rồi `python` mở `/tmp/x.patch` báo không có tệp. Dùng đường dẫn Windows đầy đủ (thư mục scratchpad).
+- **Kiểm input bằng chuột/phím thật (`page.mouse`, `page.keyboard`), đừng chỉ gọi hàm input trong mã** [BẪY ĐÃ SẬP 2026-09-25, Void Diver].
+  - Mọi bài kiểm gọi `VD.input.down(...)` nên đều xanh, trong khi lớp phủ HUD toàn màn nuốt cú bấm: chuột trái/phải không ra đòn trên Pages.
+  - Kèm một phép thử `document.elementFromPoint` ở vài điểm vùng chơi phải ra đúng canvas. Xem `test/voiddiver-input.js`.
+- **Kiểm sự kiện bằng đường sinh thật, đừng chỉ tự `SK.emit` sự kiện ấy** [BẪY ĐÃ SẬP 2026-10-10, Soul Knight].
+  - `game.js fillEnd('sk-win-info')` so `id === 'sk-win'` nên `runEnd.won` luôn false từ `28b7258a`: thưởng thắng, thành tựu thắng, nhạc thắng chết im.
+  - Bộ ach/modes/void/gem-statue đều tự `SK.emit('runEnd', {won: true})` nên xanh suốt. Ca bắt được nằm ở `test/soulknight-troop.js` (thắng thật 3-5, nghe `runEnd`).

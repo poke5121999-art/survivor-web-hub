@@ -1,0 +1,123 @@
+{
+ "name": "Cha_Dullahan",
+ "skeletons": {
+  "Cha_Dullahan_SW": {
+   "skel": "Cha_Dullahan_SW.skel",
+   "bytes": 372665,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/dash",
+     0.0
+    ],
+    [
+     "battle/idle",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/walk",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/run",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "default/walk",
+     "default/dash",
+     0.0
+    ],
+    [
+     "default/run",
+     "default/dash",
+     0.0
+    ]
+   ]
+  },
+  "Cha_Dullahan_NW": {
+   "skel": "Cha_Dullahan_NW.skel",
+   "bytes": 285851,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/dash",
+     0.0
+    ],
+    [
+     "battle/idle",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/walk",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/run",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "default/walk",
+     "default/dash",
+     0.0
+    ],
+    [
+     "default/run",
+     "default/dash",
+     0.0
+    ]
+   ]
+  }
+ },
+ "atlas": "Cha_Dullahan.atlas",
+ "pages": [
+  {
+   "png": "Cha_Dullahan.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Dullahan_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "900005": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "100003": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "name": "Monster_Mannequin_F",
+ "skeletons": {
+  "Monster_Mannequin_F_NW": {
+   "skel": "Monster_Mannequin_F_NW.skel",
+   "bytes": 53156,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_Mannequin_F_SW": {
+   "skel": "Monster_Mannequin_F_SW.skel",
+   "bytes": 60138,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_Mannequin_F.atlas",
+ "pages": [
+  {
+   "png": "Monster_Mannequin_F.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Mannequin_F_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "210018": {
+   "sym": 1.05,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200017": {
+   "sym": 1.05,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240018": {
+   "sym": 1.05,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310060": {
+   "sym": 0.88,
+   "mode": 2,
+   "sk": 1.5,
+   "bsx": 1.5,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

@@ -1,0 +1,61 @@
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+#stage { position: fixed; inset: 0; }
+#game { width: 100%; height: 100%; display: block; touch-action: none; }
+#hud { position: absolute; inset: 0; pointer-events: none; }
+.hub { position: fixed; left: 8px; bottom: 8px; color: #fff; font: 12px system-ui; opacity: .6; text-decoration: none; z-index: 50; }
+.ui { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; z-index: 2; }
+.ui .u { position: absolute; }
+.ui .u[hidden] { display: none !important; }
+.ui .u > i.sl { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; }
+.ui .u.t { display: flex; white-space: pre; line-height: 1; letter-spacing: 0.01em; }
+.ui .u.t > span { flex-shrink: 0; }
+/* only buttons take the pointer: a scroll Viewport sets pointer-events auto inline (to scroll) and that value is
+   inherited, so a layout placeholder ("Content") inside it sat on top of the cells and ate every real tap / click on
+   their Buy buttons */
+.ui .u:not(.b) { pointer-events: none; }
+.ui .u.b { pointer-events: auto; cursor: pointer; }
+.ui .u.b:active { filter: brightness(0.9); }
+.map { position: absolute; top: 72px; left: 8px; z-index: 3; width: 44px; height: 44px; border: 0; background: transparent center / contain no-repeat; cursor: pointer; pointer-events: auto; }
+.mapnav[hidden] { display: none; }
+.mapnav { position: absolute; left: 0; right: 0; bottom: 37%; display: flex; justify-content: space-between; padding: 0 10px; z-index: 4; pointer-events: none; }
+.mapnav button { pointer-events: auto; border: 0; border-radius: 50%; width: 44px; height: 44px; font-size: 22px; color: #fff; background: rgba(0,0,0,.45); cursor: pointer; }
+.snd { position: absolute; top: 8px; left: 72px; z-index: 3; pointer-events: auto; border: 0; background: rgba(0,0,0,.4); color: #fff; border-radius: 8px; padding: 2px 8px; font-size: 16px; cursor: pointer; }
+#stick { position: absolute; left: -36px; top: -36px; width: 72px; height: 72px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); pointer-events: none; }
+/* Skin shop: the SkinForm cells sit in one horizontal scrolling row (SkinScrollRect) inside ScrSkin/Viewport. */
+.skinvp { overflow-x: auto; overflow-y: hidden; pointer-events: auto; }
+.skinrow { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center; gap: 14px; padding: 0 20px; }
+.skincell { position: relative; flex: none; width: 180px; height: 370px; }
+.skinpv { background-size: contain; background-repeat: no-repeat; background-position: center bottom; }
+#skinview { pointer-events: auto; }
+.ui .u.t.wrap { white-space: normal; }
+.ui .u.t.wrap > span { flex-shrink: 1; max-width: 100%; }
+.ui .u.t { font-stretch: 75%; font-weight: 700; }
+.pos { position: fixed; left: 50%; top: 12%; transform: translateX(-50%); background: #0d2430e6; color: #7cf9a0; font: 700 20px/1.25 'Courier New', monospace;
+  padding: 10px 18px; border: 3px solid #1f4d63; border-radius: 8px; white-space: pre; z-index: 5; pointer-events: none; text-align: right; }
+.timer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: 700 34px 'Noto Sans', sans-serif; font-stretch: 75%; }
+.obj { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 24px 0 120px; color: #333; font: 700 30px 'Noto Sans', sans-serif; font-stretch: 75%; }
+.crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 2px #000; z-index: 4; pointer-events: none; }
+.name-input { position: absolute; inset: 8% 6%; width: 88%; height: 84%; border: 0; background: transparent; color: #222; font: 700 44px 'Noto Sans', sans-serif;
+  font-stretch: 75%; text-transform: uppercase; text-align: center; outline: none; pointer-events: auto; }
+/* [ĐỀ XUẤT] desktop key caps on the on-screen controls + first movement hint (keys.js, same look as games/food-gang) */
+#ps-aim { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); z-index: 6; pointer-events: none; display: flex; align-items: center;
+  gap: .45em; padding: .3em .75em .3em .35em; border-radius: .6em; background: #000a; color: #fff; font: 700 clamp(16px, 2.8vh, 26px) 'Noto Sans', system-ui, sans-serif;
+  white-space: nowrap; text-shadow: 0 1px 2px #000; }
+#ps-aim[hidden] { display: none; }
+#ps-aim.warn { color: #ffd34d; }
+#ps-aim:not(:has(b)) { padding-left: .75em; }
+#ps-aim b { display: inline-block; min-width: 1.1em; padding: .18em .4em .1em; border-radius: .3em; background: #1b1b1b; border: .12em solid #fff; line-height: 1; text-align: center; box-shadow: 0 .12em 0 #000; }
+#ps-keys { position: fixed; inset: 0; pointer-events: none; z-index: 6; font-family: 'Noto Sans', system-ui, sans-serif; font-weight: 700; }
+#ps-keys .k { position: absolute; display: none; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; }
+#ps-keys .k b { display: inline-block; min-width: 1.1em; padding: .22em .42em .12em; border-radius: .32em; background: #1b1b1b; border: .12em solid #fff;
+  color: #fff; font-weight: 700; line-height: 1; text-align: center; box-shadow: 0 .14em 0 #000; }
+#ps-keys .hint { transform: translate(-50%, -100%); padding: .45em .8em .35em; border: .18em solid #1b1b1b; border-radius: .6em;
+  background: linear-gradient(#ffd23e, #f59d16); box-shadow: 0 .2em 0 #1b1b1b; color: #fff; line-height: 1.1;
+  text-shadow: -.08em -.08em 0 #1b1b1b, .08em -.08em 0 #1b1b1b, -.08em .08em 0 #1b1b1b, .08em .08em 0 #1b1b1b, 0 .14em 0 #1b1b1b;
+  animation: ps-hint-pop .25s ease-out, ps-hint-bob 1.2s ease-in-out .25s infinite; }
+#ps-keys .hint b { margin: 0 .12em; text-shadow: none; }
+#ps-keys .hint::after { content: ''; position: absolute; left: 50%; bottom: -.62em; margin-left: -.5em; border: .5em solid transparent; border-top-color: #1b1b1b; border-bottom: 0; }
+@keyframes ps-hint-pop { from { transform: translate(-50%, -100%) scale(.4); opacity: 0; } to { transform: translate(-50%, -100%) scale(1); opacity: 1; } }
+@keyframes ps-hint-bob { 50% { transform: translate(-50%, -112%); } }
+.navarrow { position: fixed; left: 0; top: 0; width: 64px; height: 64px; background: center / contain no-repeat; pointer-events: none; z-index: 5; filter: drop-shadow(0 2px 2px #0008); }
+.navarrow[hidden] { display: none; }

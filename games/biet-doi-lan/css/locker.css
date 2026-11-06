@@ -1,0 +1,57 @@
+/* Tủ đồ trên thuyền. Khung gỗ, ô, nút × lấy từ ../repo2d/tu-do.css (ElvGames "Free Inventory"; mọi luật ở đó đứng sau `.veil.stash`),
+   tệp này chỉ thêm phần nền phủ màn, bố cục cho màn thấp (844×390) và hai ô nhỏ của HUD (ô tay cầm bấm được, đồng hồ phao / áo bọc). */
+#locker {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  padding: 8px; box-sizing: border-box; font-family: var(--font-ui, system-ui, sans-serif);
+  --mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+#locker[hidden] { display: none; }
+#locker #veilExtra {
+  width: min(100%, 492px); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
+  display: flex; flex-direction: column;
+}
+#locker .lk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#locker h2 { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 700; color: var(--go-dam, #3b2415); }
+#locker .lk-x {
+  width: 30px; height: 30px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 17px; line-height: 1; color: var(--go-nhat, #6d4526);
+}
+#locker .lk-x:hover { color: var(--go-do, #9e2b1c); }
+#locker .wallet { font-size: 12px; font-weight: 700; }
+#locker .seg { font-size: 12px; font-weight: 700; }
+#locker .lk-emoji { font-size: 26px; line-height: 1; }
+#locker .lk-acts { display: flex; justify-content: center; padding-top: 2px; }
+#locker .lk-acts .btn { font: 700 13px/1.2 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+#locker .bcell, #locker .hcell { font-family: var(--font-ui, system-ui, sans-serif); }
+body.locker-open #ship-prompt { display: none !important; }
+
+/* màn thấp (điện thoại ngang): nén bảng cho vừa một khung nhìn, lưới 6 cột */
+@media (max-height: 480px) {
+  #locker { padding: 4px; }
+  #locker #veilExtra { width: min(100%, 560px); gap: 4px; padding: 5px 8px 6px; }
+  #locker h2 { font-size: 14px; }
+  #locker .handrow, #locker .bag { gap: 3px; }
+  #locker .bag { grid-template-columns: repeat(6, 1fr); }
+  #locker .hcell { min-height: 56px; }
+  #locker .bcell { min-height: 50px; padding: 2px 1px; }
+  #locker .hpic, #locker .bpic { height: 24px; }
+  #locker .hpic img, #locker .bpic img { width: 24px; height: 24px; }
+  #locker .lk-emoji { font-size: 18px; }
+  #locker .hname { font-size: 9.5px; }
+  #locker .bname { font-size: 8.5px; }
+  #locker .handhint { display: none; }
+  #locker .baginfo { font-size: 10px; min-height: 14px; }
+  #locker .lk-acts { display: none; }   /* nút ✕ ở góc đã đóng được */
+  #locker .bcell.blank:nth-child(n+7) { display: none; }   /* chỉ giữ một hàng ô trống */
+}
+
+/* ô tay cầm trên HUD bấm / chạm được để đổi tay */
+#hand .cell { pointer-events: auto; cursor: pointer; }
+
+/* đồng hồ phao nổi / áo bọc */
+#items-buffs { position: absolute; left: 50%; bottom: calc(66px * var(--hk, 1)); transform: translateX(-50%); display: flex; gap: calc(6px * var(--hk, 1)); pointer-events: none; }
+#items-buffs .buff {
+  display: flex; align-items: center; gap: calc(4px * var(--hk, 1)); padding: calc(2px * var(--hk, 1)) calc(8px * var(--hk, 1)); border-radius: calc(4px * var(--hk, 1));
+  background: var(--rp-panel, rgba(16, 18, 20, .72)); color: var(--rp-ink, #e2e8ec); font: 700 calc(12px * var(--hk, 1))/1.2 ui-monospace, monospace;
+}
+#items-buffs .buff[hidden] { display: none; }
+#items-buffs .buff i { font-style: normal; font-size: calc(14px * var(--hk, 1)); }

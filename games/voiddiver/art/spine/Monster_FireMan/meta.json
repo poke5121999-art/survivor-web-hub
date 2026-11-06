@@ -1,0 +1,72 @@
+{
+ "name": "Monster_FireMan",
+ "skeletons": {
+  "Monster_FireMan_SW": {
+   "skel": "Monster_FireMan_SW.skel",
+   "bytes": 53850,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_FireMan_NW": {
+   "skel": "Monster_FireMan_NW.skel",
+   "bytes": 43944,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_FireMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_FireMan.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_FireMan_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "210025": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200025": {
+   "sym": 1.3,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240025": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

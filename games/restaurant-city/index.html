@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant City</title>
+<style>
+  :root { --sky: #5fc8ec; --sky-pale: #d9f3fb; --steel: #2d5a7b; --ink: #12344d; --panel: #fffdf6; --accent: #f2a516; }
+  html, body { height: 100%; margin: 0; }
+  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  body {
+    display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+    background: linear-gradient(180deg, var(--sky) 0%, #8bd8f2 55%, var(--sky-pale) 100%);
+  }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: rgba(255,255,255,.75); }
+  header a, header button {
+    font: inherit; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;
+    background: #fff; border: 2px solid var(--steel); border-radius: 10px; padding: 4px 10px;
+  }
+  header .who { font-weight: 700; }
+  header .spacer { flex: 1; }
+  main { display: grid; place-items: center; min-height: 0; padding: 10px; }
+  .stage {
+    position: relative; width: min(100%, calc((100vh - 80px) * 1.2667), 1140px);
+    aspect-ratio: 760 / 600; background: #050607; border: 5px solid var(--steel); border-radius: 14px; overflow: hidden;
+  }
+  .stage > ruffle-player, .stage > ruffle-object { display: block; width: 100% !important; height: 100% !important; }
+  .stage ruffle-player:fullscreen { background: #050607; }
+  .panel {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(circle at 50% 30%, #2a6f96 0%, #0c2234 75%); color: #eaf7ff; text-align: center;
+  }
+  .hidden { display: none !important; }
+  .panel h1 { margin: 0 0 8px; font-size: clamp(22px, 4vw, 34px); color: #ffd36b; }
+  .panel p { margin: 6px auto; max-width: 440px; }
+  .panel .go {
+    display: inline-block; margin-top: 12px; padding: 10px 18px; border-radius: 12px; background: var(--accent);
+    color: #2a1600; font-weight: 800; text-decoration: none; border: 0; font-size: 16px; cursor: pointer;
+  }
+  .panel .err { color: #ffb4a8; font-size: 13px; }
+  .panel .go:disabled { opacity: .55; cursor: default; }
+  .panel .rc-social-enter { background: #fff; color: var(--ink); }
+  .rc-social-note { min-height: 1.4em; font-weight: 700; color: #ffe39a; }
+  .rc-social-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+  .rc-social { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(5, 15, 22, .82); }
+  .rc-social-box { width: min(520px, 100%); padding: 18px; border-radius: 16px; background: var(--panel); color: var(--ink); border: 4px solid var(--steel); }
+  .rc-social-box h2 { margin: 0 0 6px; font-size: 22px; }
+  .rc-social-tag { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #2f8f57; }
+  .rc-social-url { box-sizing: border-box; width: 100%; margin-top: 8px; padding: 8px 10px; font: 13px ui-monospace, Consolas, monospace; border: 2px solid var(--steel); border-radius: 10px; }
+  .rc-social-box .rc-social-row { justify-content: flex-start; }
+  .rc-social-box button { font: inherit; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 2px solid var(--steel); background: #fff; color: var(--ink); }
+  .rc-social-box .rc-social-go { background: var(--accent); border-color: #b97a00; }
+  .rc-social-box button:disabled { opacity: .5; cursor: default; }
+  header .badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px; background: #e2462f; color: #fff; font-size: 12px; text-align: center; }
+  .rc-friends-search { display: flex; gap: 8px; align-items: center; }
+  .rc-friends-search .rc-social-url { margin-top: 0; }
+  .rc-friends-head { margin: 12px 0 4px; font-size: 15px; }
+  .rc-friends-list { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+  .rc-friends-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e3e8ec; }
+  .rc-friends-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+</style>
+<script>
+  window.RufflePlayer = window.RufflePlayer || {};
+  window.RufflePlayer.config = {
+    autoplay: "on", unmuteOverlay: "hidden", splashScreen: false, warnOnUnsupportedContent: false,
+    allowFullscreen: true, allowScriptAccess: true, quality: "high", contextMenu: "off", publicPath: "ruffle/"
+  };
+</script>
+<!-- Ruffle tải game.swf sau khi wasm của nó xong; tải sẵn từ đầu để hai việc chạy song song. -->
+<link rel="preload" href="swf/game.swf?v=20261027f" as="fetch" crossorigin>
+<script src="../../js/session.js"></script>
+<script src="../../js/supabase-config.js"></script>
+<script src="../../js/supabase-auth.js"></script>
+<script src="js/rc-net.js?v=20261027f"></script>
+<script src="js/rc-social.js?v=20261027f"></script>
+<script src="js/rc-friends.js?v=20261027f"></script>
+<script src="js/rc-page.js?v=20261027f"></script>
+<script src="ruffle/ruffle.js?v=20261027f"></script>
+</head>
+<body>
+<header>
+  <a href="../../index.html">← Hub</a>
+  <span class="who" id="who"></span>
+  <span class="spacer"></span>
+  <button id="friendsBtn" class="hidden" type="button">Bạn bè <span id="friendsBadge" class="badge hidden"></span></button>
+  <button id="fullscreen" type="button">Toàn màn hình</button>
+</header>
+<main>
+  <div class="stage" id="stage">
+    <div class="panel" id="panel">
+      <div id="panelBody">
+        <h1>Restaurant City</h1>
+        <p id="panelText">Đang mở nhà hàng…</p>
+        <a class="go hidden" id="loginLink" href="../../login.html?next=games/restaurant-city/index.html">Đăng nhập để chơi</a>
+        <p class="err" id="panelErr"></p>
+      </div>
+      <div id="linkCard" class="hidden"></div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Xem flash Uma</title>
+<style>body{margin:0;background:#8a93a6;font:12px system-ui;color:#fff}canvas{display:block}</style>
+</head>
+<body>
+<!-- Vẽ một nhãn của một hoạt ảnh Uma thành lưới khung liên tiếp, qua đúng js/uma-flash.js.
+     ?ten=nut_tap&duong=mc_btn_trainingmenu00/btn_training_menu_up00&nhan=select_in&so=12&buoc=0.05&k=0.5
+     Mở: http://localhost:8765/games/ghe-nong/_tools/xemflash.html?... (python -m http.server 8765 ở gốc repo) -->
+<canvas id="c" width="1280" height="900"></canvas>
+<script src="js/util.js"></script>
+<script src="art/uma/fl/fl.js"></script>
+<script src="js/uma-flash.js"></script>
+<script>
+  G = window;
+  var q = new URLSearchParams(location.search);
+  var ten = q.get('ten') || 'nut_tap', so = +(q.get('so') || 12), buoc = +(q.get('buoc') || 0.05), k = +(q.get('k') || 0.5);
+  var cot = +(q.get('cot') || 4), o = +(q.get('o') || 300);
+  var fl = G.flUma(ten);
+  (q.get('nhet') || '').split(',').filter(Boolean).forEach(function (x) {
+    var p = x.split(':'); fl.dat(p[0], G.anhFlRoi(p[1]));
+  });
+  setTimeout(function () {
+    var cv = document.getElementById('c'), ctx = cv.getContext('2d');
+    cv.width = cot * o; cv.height = Math.ceil(so / cot) * o;
+    (q.get('phat') || '').split(',').filter(Boolean).forEach(function (x) {
+      var p = x.split('='); fl.phat(p[0] === '.' ? '' : p[0], p[1]);
+    });
+    /* bước 0 để dựng cây con trước khi phát nhãn cho lớp con */
+    var tmp = document.createElement('canvas').getContext('2d');
+    fl.ve(tmp, 0, 0, 1, 0);
+    (q.get('phat') || '').split(',').filter(Boolean).forEach(function (x) {
+      var p = x.split('='); fl.phat(p[0] === '.' ? '' : p[0], p[1]);
+    });
+    for (var i = 0; i < so; i++) {
+      var x = (i % cot) * o, y = Math.floor(i / cot) * o;
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, o, o); ctx.clip();
+      ctx.strokeStyle = '#0003'; ctx.strokeRect(x, y, o, o);
+      fl.ve(ctx, x + o / 2, y + o / 2 + (+(q.get('dy') || 0)), k, i === 0 ? 0 : buoc);
+      ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.fillText((i * buoc).toFixed(2) + 's', x + 4, y + 12);
+    }
+    document.title = 'xong';
+  }, 700);
+</script>
+</body>
+</html>

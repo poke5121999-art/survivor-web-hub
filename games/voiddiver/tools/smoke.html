@@ -1,0 +1,128 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>voiddiver smoke</title>
+<style>html,body{margin:0;background:#202030;height:100%}canvas{display:block}</style>
+</head>
+<body>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script src="../vendor/spine-threejs-4.2.43.min.js"></script>
+<script src="../vendor/fengari-web.js"></script>
+<script>
+window.SMOKE = { log: [] };
+function log(x) { window.SMOKE.log.push(String(x)); console.log(x); }
+
+var renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(960, 600);
+document.body.appendChild(renderer.domElement);
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2a);
+var camera = new THREE.PerspectiveCamera(30, 960 / 600, 0.1, 500);
+camera.position.set(20, 18, 20);
+camera.lookAt(0, 1, 0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.2));
+var dl = new THREE.DirectionalLight(0xffffff, 1.0);
+dl.position.set(5, 10, 5);
+scene.add(dl);
+
+window.SMOKE.ready = false;
+window.SMOKE.error = null;
+
+Promise.resolve().then(function () {
+  log('three r' + THREE.REVISION);
+  log('spine-threejs global: ' + (typeof spine !== 'undefined'));
+  log('fengari global: ' + (typeof fengari !== 'undefined'));
+
+  // 1) fengari smoke: chay print() va goi 1 ham JS tu Lua
+  var calledFromLua = null;
+  var L = fengari.lauxlib.luaL_newstate();
+  fengari.lualib.luaL_openlibs(L);
+  fengari.lua.lua_pushjsfunction(L, function (L2) {
+    calledFromLua = fengari.lua.lua_tojsstring(L2, 1);
+    return 0;
+  });
+  fengari.lua.lua_setglobal(L, fengari.to_luastring('jsHook'));
+  fengari.lauxlib.luaL_dostring(L, fengari.to_luastring('print("hello from lua"); jsHook("ping-from-lua")'));
+  log('fengari calledFromLua=' + calledFromLua);
+  window.SMOKE.fengariOk = calledFromLua === 'ping-from-lua';
+
+  // 2) GLTFLoader + meshopt: nap 1 sector glb
+  var loader = new THREE.GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  return new Promise(function (resolve) {
+    loader.load('../art/sector/1001.glb', function (gltf) {
+      gltf.scene.position.set(-15, 0, -15);
+      scene.add(gltf.scene);
+      log('sector glb loaded, nodes=' + gltf.scene.children.length);
+      window.SMOKE.sectorOk = true;
+      resolve();
+    }, undefined, function (err) {
+      log('sector glb ERROR ' + err);
+      window.SMOKE.sectorOk = false;
+      resolve();
+    });
+  });
+}).then(function () {
+  // 3) spine-threejs: nap Cha_Sword
+  return fetch('../art/spine/Cha_Sword/Cha_Sword.atlas').then(function (r) { return r.arrayBuffer(); }).then(function (atlasBuf) {
+    var atlasText = new TextDecoder('utf-8').decode(atlasBuf);
+    var images = [];
+    var atlas = new spine.TextureAtlas(atlasText, function (path) {
+      var img = new Image();
+      var tex = new spine.ThreeJsTexture(img);
+      images.push(img);
+      img.onload = function () { tex.texture.needsUpdate = true; };
+      img.onerror = function (e) { log('anh atlas loi ' + path + ' ' + e); };
+      img.src = '../art/spine/Cha_Sword/' + path;
+      return tex;
+    });
+    log('atlas pages=' + atlas.pages.length);
+    var t0 = Date.now();
+    return new Promise(function (resolve) {
+      (function poll() {
+        if (images.every(function (im) { return im.complete; }) || Date.now() - t0 > 8000) {
+          resolve(atlas);
+        } else {
+          setTimeout(poll, 50);
+        }
+      })();
+    });
+  }).then(function (atlas) {
+    return fetch('../art/spine/Cha_Sword/Cha_Sword_SW.skel').then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+      var atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+      var skelBinary = new spine.SkeletonBinary(atlasLoader);
+      skelBinary.scale = 1;
+      var skeletonData = skelBinary.readSkeletonData(new Uint8Array(buf));
+      var skeletonMesh = new spine.SkeletonMesh(skeletonData);
+      skeletonMesh.position.set(0, 0, 5);
+      skeletonMesh.scale.set(3, 3, 3);
+      var state = skeletonMesh.state;
+      var track = state.setAnimation(0, skeletonData.animations[0].name, true);
+      scene.add(skeletonMesh);
+      window.SMOKE.spineAnim = skeletonData.animations.map(function (a) { return a.name; });
+      log('spine skeleton loaded, anims=' + window.SMOKE.spineAnim.join(','));
+      window.SMOKE.spineOk = true;
+      window.SMOKE._skeletonMesh = skeletonMesh;
+    });
+  }).catch(function (e) {
+    log('spine ERROR ' + e + (e && e.stack ? ('\n' + e.stack) : ''));
+    window.SMOKE.spineOk = false;
+  });
+}).then(function () {
+  var clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    var dt = clock.getDelta();
+    if (window.SMOKE._skeletonMesh) window.SMOKE._skeletonMesh.update(dt);
+    renderer.render(scene, camera);
+  }
+  animate();
+  window.SMOKE.ready = true;
+  log('SMOKE READY');
+}).catch(function (e) {
+  window.SMOKE.error = String(e);
+  log('FATAL ' + e);
+});
+</script>
+</body></html>

@@ -1,0 +1,375 @@
+{
+ "name": "SafeExit",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Light",
+   "active": true
+  },
+  {
+   "name": "Body",
+   "active": true
+  },
+  {
+   "name": "UI",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [
+  {
+   "path": "Body/phonebooth_Called/Spine GameObject (World_PhoneBooth)",
+   "skeleton": "World_PhoneBooth",
+   "anim": "",
+   "loop": true,
+   "active": true,
+   "pos": [
+    0.27,
+    0.24,
+    0.27
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "path": "Body/phonebooth_Called/Spine GameObject (NPC_Campaign_SW)",
+   "skeleton": "NPC_Campaign_SW",
+   "anim": "idle",
+   "loop": true,
+   "active": true,
+   "pos": [
+    -0.1,
+    0.0,
+    -0.1
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "path": "Body/phonebooth_Loop/Spine GameObject (World_PhoneBooth)",
+   "skeleton": "World_PhoneBooth",
+   "anim": "enter_loop",
+   "loop": true,
+   "active": true,
+   "pos": [
+    0.27,
+    0.24,
+    0.27
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "path": "Body/phonebooth_Leave/Spine GameObject (World_PhoneBooth)",
+   "skeleton": "World_PhoneBooth",
+   "anim": "",
+   "loop": true,
+   "active": false,
+   "pos": [
+    0.27,
+    0.24,
+    0.27
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  }
+ ],
+ "lights": [
+  {
+   "path": "Light/Point Light",
+   "type": "point",
+   "pos": [
+    0.0,
+    2.0,
+    -0.0
+   ],
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "intensity": 0.5,
+   "range": 2.45,
+   "active": false
+  },
+  {
+   "path": "Light/SafeExitLight",
+   "type": "point",
+   "pos": [
+    0.0,
+    2.0,
+    -0.0
+   ],
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "intensity": 0.5,
+   "range": 2.45,
+   "active": true
+  }
+ ],
+ "particles": [
+  {
+   "path": "Body/phonebooth_Called/FX/shadow",
+   "pos": [
+    0.0,
+    -0.05,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/burst_smoke",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/burst_smoke_dark",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/burstBeam_out",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/burstBeam_highlight",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/sparks_spread",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/crator",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/crator_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/Init_novaRing_0",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/Init_novaRing_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/Init_novaRing_3",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/Init_novaRing_4",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Called/FX/phonebooth_begin/darken_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/Init_novaRing_5",
+   "pos": [
+    0.0,
+    0.9,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/Init_novaRing_5/Init_novaRing_5",
+   "pos": [
+    0.0,
+    0.9,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/burstBeam_highlight_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/burst_smoke_31",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/burst_smoke_33",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/burst_smoke_41",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/phonebooth_Leave/FX/phonebooth_end/burst_smoke_43",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  }
+ ],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SafeExit",
+   "fields": {}
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Anchor*/EscapeBuffStackGauge/BG",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Anchor*/EscapeBuffStackGauge/Gauge/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Anchor*/Layout*/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Anchor*/Layout*/Coin_/Img",
+   "class": "Image"
+  }
+ ],
+ "meshes": []
+}

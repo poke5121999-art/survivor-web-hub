@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Lumber Inc panels-check</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../css/game.css">
+<style>#stat{position:absolute;left:0;right:0;bottom:0;z-index:99;background:rgba(0,0,0,.7);color:#fff;font:11px monospace;padding:3px 6px;white-space:pre-wrap}</style>
+</head><body>
+<div id="stage"><div id="hud"></div><div id="stat"></div></div>
+<script type="module">
+// Proof for js/view/panels.js: ?panel=hire|upgrade [&click=1]. Loads art/ui + data/config.json + world1, builds a Sim with
+// coins and gems, buys the huts, hires 2 lumberjacks, opens the panel; click=1 presses the next hire / first upgrade button.
+import { describeWorld } from '../js/sim/world.js';
+import { Sim } from '../js/sim/sim.js';
+import { UI } from '../js/view/ui.js';
+import { HirePanel, UpgradePanel } from '../js/view/panels.js';
+
+const Q = new URLSearchParams(location.search);
+const A = '../art', J = u => fetch(u).then(r => r.json());
+const [sprites, lang, emp, skin, config, scene] = await Promise.all([J(`${A}/ui/sprites.json`), J(`${A}/ui/lang-en.json`),
+  J(`${A}/ui/panels/employeeupgradepanel.json`), J(`${A}/ui/panels/skinpanel.json`), J('../data/config.json'), J(`${A}/world1/scene.json`)]);
+await document.fonts.load('20px LumberUI').catch(() => null);
+const sim = new Sim(describeWorld(scene), config);
+sim.state.coins = 25000; sim.state.gems = 12;
+sim.state.bought[5001] = sim.state.bought[10101] = sim.state.bought[10000] = sim.state.bought[10102] = true;
+sim.recheck();
+sim.crew.hire(10101); sim.crew.hire(10101);
+const ui = new UI(`${A}/ui`, sprites, lang);
+const hud = document.getElementById('hud'), stat = document.getElementById('stat');
+const log = [];
+const say = s => { log.push(s); stat.textContent = log.join('\n'); };
+const hire = new HirePanel(hud, ui, emp, sim), up = new UpgradePanel(hud, ui, skin, sim);
+
+// Block-input proof: a pointerdown on the open panel must not reach the HUD's own listener.
+let leaked = 0;
+hud.addEventListener('pointerdown', () => { leaked++; });
+
+const settle = async () => {
+  const urls = new Set();
+  hud.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    for (const v of [cs.backgroundImage, cs.borderImageSource, cs.webkitMaskImage]) for (const m of (v || '').matchAll(/url\("?([^")]+)"?\)/g)) urls.add(m[1]);
+    if (el.tagName === 'IMG') urls.add(el.src);
+  });
+  await Promise.all([...urls].map(u => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = u; })));
+  await new Promise(r => setTimeout(r, 400));
+};
+
+const which = Q.get('panel') || 'hire';
+if (which === 'hire') {
+  say(`hire: coins ${sim.state.coins} gems ${sim.state.gems} hired ${sim.crew.hired(10101)}`);
+  hire.open(10101);
+  window.__hire = hire;
+  if (Q.has('click')) {
+    sim.state.gems = 200;
+    const before = sim.crew.hired(10101), coins = sim.state.coins;
+    const c = hire.cells[before];
+    c.out.get('btnUp').click();
+    say(`click hire on worker ${before + 1}: hired ${before} -> ${sim.crew.hired(10101)}, coins ${coins} -> ${sim.state.coins}`);
+    const g = hire.cells[0], gems = sim.state.gems, lv = sim.crew.level(g.row);
+    g.out.get('btnUp').click();
+    say(`click upgrade on worker 1: level ${lv} -> ${sim.crew.level(g.row)}, gems ${gems} -> ${sim.state.gems}`);
+  }
+  const t = hire.cells[0].box.parentElement.parentElement;
+  say(`scroll height ${t.scrollHeight} client ${t.clientHeight}; cells ${hire.cells.length}`);
+} else {
+  say(`upgrade: coins ${sim.state.coins} levels ${[1, 101, 201].map(i => sim.up.level(i))}`);
+  up.open();
+  if (Q.has('click')) {
+    const before = [1, 101, 201].map(i => sim.up.level(i)), coins = sim.state.coins;
+    up.rows[0].out.get('btnUp').click();
+    up.rows[1].out.get('btnUp').click();
+    say(`click backpack+speed: levels ${before} -> ${[1, 101, 201].map(i => sim.up.level(i))}, coins ${coins} -> ${sim.state.coins}`);
+  }
+}
+const w = document.querySelector('.panel-wrap:not([style*="none"])');
+w.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+say(`pointerdown on panel leaked to HUD: ${leaked ? 'YES' : 'no'}; isOpen hire ${hire.isOpen} upgrade ${up.isOpen}`);
+if (Q.has('close')) { (which === 'hire' ? hire : up).p.get('btnClose').click(); say(`after X: hire ${hire.isOpen} upgrade ${up.isOpen}`); }
+await settle();
+window.__done = true;
+</script></body></html>

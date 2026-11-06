@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Chợ Việt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../casual-farm/css/game.css?v=20261029c">
+<style>
+/* Londrina Solid has no Vietnamese letters; Baloo 2 does. */
+#hud { font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800; }
+.cvbtn { position: fixed; right: 3vw; bottom: calc(env(safe-area-inset-bottom) + 2vh); padding: 0.3em 0.8em; border-radius: 0.6em;
+  background: rgba(0, 0, 0, 0.45); color: #fff; font: 600 14px 'Baloo 2', system-ui, sans-serif; border: 0; cursor: pointer; z-index: 50; }
+#credits { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 60; align-items: center; justify-content: center; }
+#credits.open { display: flex; }
+#credits div { background: #fff8e8; color: #4b3b2a; border-radius: 14px; padding: 16px 20px; max-width: min(92vw, 420px); font: 600 14px/1.5 'Baloo 2', system-ui, sans-serif; }
+#credits h3 { margin: 0 0 6px; font-size: 18px; }
+#credits ul { margin: 0; padding-left: 18px; }
+#credits a { color: #b5401f; }
+</style>
+<script type="importmap">
+{
+ "imports": {
+  "three": "../casual-farm/vendor/three.module.min.js?v=20261029c",
+  "../casual-farm/js/cloud.js": "../casual-farm/js/cloud.js?v=20261029c",
+  "../casual-farm/js/main.js": "../casual-farm/js/main.js?v=20261029c",
+  "../casual-farm/js/sim/boosters.js": "../casual-farm/js/sim/boosters.js?v=20261029c",
+  "../casual-farm/js/sim/bot.js": "../casual-farm/js/sim/bot.js?v=20261029c",
+  "../casual-farm/js/sim/cars.js": "../casual-farm/js/sim/cars.js?v=20261029c",
+  "../casual-farm/js/sim/customers.js": "../casual-farm/js/sim/customers.js?v=20261029c",
+  "../casual-farm/js/sim/daily.js": "../casual-farm/js/sim/daily.js?v=20261029c",
+  "../casual-farm/js/sim/grid.js": "../casual-farm/js/sim/grid.js?v=20261029c",
+  "../casual-farm/js/sim/martmap.js": "../casual-farm/js/sim/martmap.js?v=20261029c",
+  "../casual-farm/js/sim/math.js": "../casual-farm/js/sim/math.js?v=20261029c",
+  "../casual-farm/js/sim/nav.js": "../casual-farm/js/sim/nav.js?v=20261029c",
+  "../casual-farm/js/sim/rolling.js": "../casual-farm/js/sim/rolling.js?v=20261029c",
+  "../casual-farm/js/sim/shop.js": "../casual-farm/js/sim/shop.js?v=20261029c",
+  "../casual-farm/js/sim/sim.js": "../casual-farm/js/sim/sim.js?v=20261029c",
+  "../casual-farm/js/sim/store.js": "../casual-farm/js/sim/store.js?v=20261029c",
+  "../casual-farm/js/sim/tasks.js": "../casual-farm/js/sim/tasks.js?v=20261029c",
+  "../casual-farm/js/sim/thief.js": "../casual-farm/js/sim/thief.js?v=20261029c",
+  "../casual-farm/js/sim/workers.js": "../casual-farm/js/sim/workers.js?v=20261029c",
+  "../casual-farm/js/view/anim.js": "../casual-farm/js/view/anim.js?v=20261029c",
+  "../casual-farm/js/view/camera.js": "../casual-farm/js/view/camera.js?v=20261029c",
+  "../casual-farm/js/view/citymap.js": "../casual-farm/js/view/citymap.js?v=20261029c",
+  "../casual-farm/js/view/customise.js": "../casual-farm/js/view/customise.js?v=20261029c",
+  "../casual-farm/js/view/daily.js": "../casual-farm/js/view/daily.js?v=20261029c",
+  "../casual-farm/js/view/fx.js": "../casual-farm/js/view/fx.js?v=20261029c",
+  "../casual-farm/js/view/game.js": "../casual-farm/js/view/game.js?v=20261029c",
+  "../casual-farm/js/view/hud.js": "../casual-farm/js/view/hud.js?v=20261029c",
+  "../casual-farm/js/view/looks.js": "../casual-farm/js/view/looks.js?v=20261029c",
+  "../casual-farm/js/view/martmenu.js": "../casual-farm/js/view/martmenu.js?v=20261029c",
+  "../casual-farm/js/view/shop.js": "../casual-farm/js/view/shop.js?v=20261029c",
+  "../casual-farm/js/view/sound.js": "../casual-farm/js/view/sound.js?v=20261029c",
+  "../casual-farm/js/view/toon.js": "../casual-farm/js/view/toon.js?v=20261029c",
+  "../casual-farm/js/view/unlocks.js": "../casual-farm/js/view/unlocks.js?v=20261029c",
+  "../casual-farm/js/view/world.js": "../casual-farm/js/view/world.js?v=20261029c",
+  "../casual-farm/vendor/BufferGeometryUtils.js": "../casual-farm/vendor/BufferGeometryUtils.js?v=20261029c",
+  "../casual-farm/vendor/GLTFLoader.js": "../casual-farm/vendor/GLTFLoader.js?v=20261029c",
+  "../casual-farm/vendor/SkeletonUtils.js": "../casual-farm/vendor/SkeletonUtils.js?v=20261029c",
+  "../casual-farm/vendor/meshopt_decoder.js": "../casual-farm/vendor/meshopt_decoder.js?v=20261029c",
+  "../casual-farm/vendor/three.module.min.js": "../casual-farm/vendor/three.module.min.js?v=20261029c",
+  "./js/boot.js": "./js/boot.js?v=20261029c",
+  "./js/props.js": "./js/props.js?v=20261029c",
+  "./js/theme.js": "./js/theme.js?v=20261029c",
+  "./js/vnlooks.js": "./js/vnlooks.js?v=20261029c"
+ }
+}
+</script>
+</head>
+<body>
+<div id="stage"><canvas id="game"></canvas><div id="hud"></div></div>
+<a class="hub btn" href="../../index.html">← Hub</a>
+<button class="cvbtn" id="creditsbtn">Ghi công</button>
+<div id="credits"><div><h3>Ghi công</h3><p>Làm lại từ My Mini Mart (Kiseki Games / Supersonic). Model miễn phí lấy từ Poly Pizza:</p><ul></ul></div></div>
+<!-- Hub account + cloud save (HubSave); the engine reads them, so they come first. -->
+<script src="../../js/session.js?v=20261029c"></script>
+<script src="../../js/supabase-config.js?v=20261029c"></script>
+<script src="../../js/supabase-auth.js?v=20261029c"></script>
+<script src="../../js/save-sync.js?v=20261029c"></script>
+<script type="module" src="./js/boot.js?v=20261029c"></script>
+</body>
+</html>

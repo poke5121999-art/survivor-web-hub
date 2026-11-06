@@ -1,0 +1,36 @@
+{
+  "project_info": {
+    "project_number": "505044844366",
+    "project_id": "the-last-survivor-ce6fe",
+    "storage_bucket": "the-last-survivor-ce6fe.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:505044844366:ios:8deb54ef0a4e5ec9f7681f",
+        "android_client_info": {
+          "package_name": "com.blueflame.thelastsurvivor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "505044844366-e7k1e8l4bh62if003d3vou63445q0oka.apps.googleusercontent.com"
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRnRXi-DCpyk5E05xdM3_C24xNIpyHEiE"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

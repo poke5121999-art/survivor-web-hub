@@ -1,0 +1,42 @@
+{
+ "name": "Target_Zombie",
+ "skeletons": {
+  "Target_Zombie_SW": {
+   "skel": "Target_Zombie_SW.skel",
+   "bytes": 12299,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "mixes": [],
+   "skins": null
+  }
+ },
+ "atlas": "Target_Training.atlas",
+ "pages": [
+  {
+   "png": "Target_Training.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Target_Training_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "820002": {
+   "sym": 1.7,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "SW",
+    "SW"
+   ]
+  }
+ }
+}

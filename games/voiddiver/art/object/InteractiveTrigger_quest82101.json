@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_quest82101",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 82101,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_BookShelf_5",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_Bookshelf_5",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.679,
+   -0.194,
+   -0.549
+  ],
+  "max": [
+   0.527,
+   0.197,
+   0.498
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_quest82101.glb",
+ "glbKB": 98
+}

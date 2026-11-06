@@ -1,0 +1,10 @@
+Striped_Catfish.png
+size:95,26
+filter:Nearest,Nearest
+Body
+bounds:2,2,81,22
+offsets:0,0,90,22
+top_fin
+bounds:85,14,8,10
+under_fin
+bounds:85,2,8,10

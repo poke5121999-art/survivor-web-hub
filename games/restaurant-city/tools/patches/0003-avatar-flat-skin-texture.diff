@@ -1,0 +1,13 @@
+diff --git a/scripts/com/playfish/games/cooking/Avatar3D.as b/scripts/com/playfish/games/cooking/Avatar3D.as
+index 44c0892..2430bff 100644
+--- a/scripts/com/playfish/games/cooking/Avatar3D.as
++++ b/scripts/com/playfish/games/cooking/Avatar3D.as
+@@ -130,7 +130,7 @@ package com.playfish.games.cooking
+       public function Avatar3D(param1:ObjectContainer3D, param2:Boolean = true)
+       {
+          super();
+-         this.usePhongShading = param2;
++         this.usePhongShading = false;
+          model = param1;
+          model.lookAt(Number3D.FORWARD);
+          if(param2)

@@ -1,0 +1,83 @@
+{
+ "name": "Boss_DarkYoung",
+ "skeletons": {
+  "Boss_DarkYoung_SW": {
+   "skel": "Boss_DarkYoung_SW.skel",
+   "bytes": 148649,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Boss_DarkYoung_NW": {
+   "skel": "Boss_DarkYoung_NW.skel",
+   "bytes": 125884,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Boss_DarkYoung.atlas",
+ "pages": [
+  {
+   "png": "Boss_DarkYoung.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_DarkYoung_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "810001": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.7,
+   "bsx": 1.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "900003": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 0.7,
+   "bsx": 0.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "301010": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "300010": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

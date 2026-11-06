@@ -1,0 +1,131 @@
+{
+ "name": "SphereOilField",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Vfx",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [
+  {
+   "path": "Vfx",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/DARKSTAY",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/Start_Oil/OutWater_foam",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/Start_Oil/OutWater_Outline",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/Start_Oil/innerWater_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/OutWater_Outline",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/Oil_rainbow",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/innerWater_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Scale_Pivot/drops_Ground_1",
+   "pos": [
+    0.0,
+    -0.015,
+    -0.0
+   ],
+   "active": true
+  }
+ ],
+ "animators": [
+  {
+   "path": "",
+   "controller": "Trap_Oil_01",
+   "clips": [
+    "Trap_Oil_01_Start",
+    "Trap_Oil_01_Loop",
+    "Trap_Oil_01_End"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SpecialField",
+   "fields": {
+    "_spawnSfx": "",
+    "_destroySfx": ""
+   }
+  }
+ ],
+ "meshes": []
+}

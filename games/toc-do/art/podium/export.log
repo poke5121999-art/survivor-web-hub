@@ -1,0 +1,40 @@
+scene Podium.unity bundle AssetBundles/e6/e64a7e7aa30e657e42b2624419c7d8b9
+bundles loaded: 49; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+  tex FX_Env_Podium_1 256x256 -> 256x256 rgb 3 KB
+prim FX_Env_Podium_board_02_Mid: FX_Env_podium_board_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=736 verts=764 y=-17.0..14.9
+  tex E_Podium_04 512x512 -> 512x512 rgb 1 KB
+prim E_Podium_04: E_Podium_04_01 opaque QF_Gamma/Env/Sky_Diffuse_no fog tris=48 verts=39 y=-172.8..143.9
+  tex FX_Env_Podium_2 512x512 -> 512x512 rgb 5 KB
+prim FX_Env_Podium_Glow02c_High: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=48 verts=96 y=-19.5..-0.5
+prim FX_Env_Podium_Glow02b_High: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=68 verts=136 y=-20.5..-1.5
+prim FX_Env_Podium_Glow02a_High: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=36 verts=72 y=-20.5..-1.5
+prim FX_Env_Podium_Glow01a_Low: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=36 verts=72 y=1.5..20.5
+prim FX_Env_Podium_Glow01c_Low: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=48 verts=96 y=0.5..19.5
+prim FX_Env_Podium_Glow01b_Low: FX_Env_podium_Glow_01 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=68 verts=136 y=1.5..20.5
+  tex E_Podium_6 512x512 -> 512x512 rgb 21 KB
+prim E_Podium_FX_07: E_Podium_06 add QF_Gamma/Env/Transparent/Basic_God_rays_02 tris=8 verts=16 y=-12.2..10.1
+skip inactive /PodiumRoot/Podium_02/E_Podium_06
+  tex E_Podium_05 128x128 -> 128x128 rgb 0 KB
+prim E_Podium_02: E_Podium_05 opaque QF_Gamma/Env/Basic_SepcularCubeNormal tris=156 verts=96 y=-18.5..16.5
+prim FX_Env_Podium_Line01a_Mid: FX_Env_podium_Line_01 blend Hidden/LegacyGamma/QF/FX/TransparentCommon_0 tris=68 verts=84 y=-0.9..21.2
+prim FX_Env_Podium_Line01b_Mid: FX_Env_podium_Line_01 blend Hidden/LegacyGamma/QF/FX/TransparentCommon_0 tris=68 verts=84 y=-0.9..21.2
+  tex E_Podium_01 1024x1024 -> 1024x1024 rgb 57 KB
+prim E_Podium_07: E_Podium_01 opaque QF_Gamma/Env/Basic_SepcularCubeNormal tris=2830 verts=2371 y=0.8..2.4
+  tex E_Podium_10 512x512 -> 512x512 rgb 9 KB
+prim E_Podium_03_01: E_Podium_10_01 blend QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend tris=448 verts=257 y=0.8..0.8
+prim FX_Env_Podium_Glow03a_Low: FX_Env_podium_Glow_03 blend Hidden/LegacyGamma/QF/FX/TransparentCommon_2 tris=14 verts=24 y=8.2..19.1
+prim FX_Env_Podium_Glow03b_Mid: FX_Env_podium_Glow_03b add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=756 verts=762 y=-4.6..0.1
+prim FX_Env_Podium_Glow03b_Mid: FX_Env_podium_Glow_03b add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=900 verts=834 y=-0.1..7.0
+prim E_Podium_03: E_Podium_10_01 blend QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend tris=998 verts=724 y=-1.1..0.8
+  tex E_Podium_07 128x128 -> 128x128 rgb 2 KB
+prim E_Podium_03: E_Podium_07 opaque QF_Gamma/Env/Basic_SepcularCubeNormal tris=376 verts=380 y=-0.0..0.8
+prim FX_Env_Podium_Line02a_High: FX_Env_podium_Line_02 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=32 verts=40 y=4.3..25.9
+prim FX_Env_Podium_Glow02a_Mid: FX_Env_podium_Glow_02 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=16 verts=32 y=-1.6..18.3
+prim FX_Env_Podium_Glow02b_Mid: FX_Env_podium_Glow_02 add Hidden/LegacyGamma/QF/Particle/UV_Offset_Mask_Additive tris=12 verts=24 y=-1.7..18.3
+prim E_Podium_01: E_Podium_01 opaque QF_Gamma/Env/Basic_SepcularCubeNormal tris=11350 verts=13384 y=-26.7..24.6
+skip inactive /PodiumRoot/Podium_01/E_Podium_05
+skip reflection probe dome (không phải vật hiện hình) /PodiumRoot/Reflection_Diffuse_Layer/E_Podium_Mesh@ParaboloidMap
+camera path CameraPathSingle_2 2.4 s 2 keys
+camera path CameraPathSingle_1 2.3 s 2 keys
+camera path CameraPathSingle_3 7.0 s 2 keys
+xong: 23 primitive, 8 texture, thư mục 2020 KB

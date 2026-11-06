@@ -1,0 +1,88 @@
+{
+ "name": "InteractiveTrigger_mission91212",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 91212,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_Books_003",
+   "mesh": "25DBG_Sector01_Zone01_Prop_Books_003",
+   "verts": 24,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_BookCart",
+   "mesh": "25DBG_Sector01_Zone01_Prop_BookCart",
+   "verts": 187,
+   "tris": 180,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_Books_1",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_Book_1",
+   "verts": 14,
+   "tris": 16,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.742,
+   -0.134,
+   -0.512
+  ],
+  "max": [
+   0.718,
+   0.341,
+   0.709
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_mission91212.glb",
+ "glbKB": 179
+}

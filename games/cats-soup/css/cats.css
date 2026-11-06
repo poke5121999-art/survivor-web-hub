@@ -1,0 +1,50 @@
+/* Feature "cats": cat list rows, popups (info, heart, skill, swap, gift). Same paper/brown palette as css/game.css. */
+.cs-pop { position: absolute; inset: 0; z-index: 20; background: #0008; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+.cs-pop .box { position: relative; width: 800px; max-height: 1500px; padding: 100px 40px 40px; box-sizing: border-box; background: #f6efe3;
+  border: 8px solid #7d6252; border-radius: 40px; box-shadow: 0 8px 0 #0004; display: flex; flex-direction: column; }
+.cs-pop .ttl { position: absolute; left: 0; right: 0; top: 22px; text-align: center; font-size: 60px; font-weight: 700; color: #5b4636; }
+.cs-pop .x { position: absolute; right: -14px; top: -14px; width: 70px; height: 70px; border-radius: 50%; background: #e9765c; color: #fff; font-size: 62px;
+  line-height: 64px; text-align: center; cursor: pointer; border: 4px solid #fff; }
+.cs-pop .body { display: flex; flex-direction: column; gap: 22px; overflow-y: auto; align-items: stretch; }
+.cs-pop .note { font-size: 32px; color: #8b7766; text-align: center; white-space: pre-line; }
+.cs-pop .portrait { display: flex; justify-content: center; padding: 14px; background: #e6dccd; border-radius: 28px; }
+.cs-pop .btn, .panel .btn { align-self: center; min-width: 300px; padding: 14px 30px; border-radius: 24px; font-size: 38px; font-weight: 700; text-align: center;
+  cursor: pointer; border: 5px solid #0003; box-shadow: 0 5px 0 #0003; color: #fff; text-shadow: 0 2px 0 #0004; }
+.cs-pop .btn.blue, .panel .btn.blue { background: #4b95e8; }
+.cs-pop .btn.green { background: #5cbf7b; }
+.cs-pop .btns { display: flex; gap: 20px; justify-content: center; }
+.cs-heart { display: flex; align-items: center; gap: 12px; }
+.cs-heart.tap { cursor: pointer; }
+.cs-heart .bar { position: relative; flex: 1; height: 40px; background: #d8ccbc; border-radius: 20px; overflow: hidden; border: 3px solid #8a6b56; min-width: 120px; }
+.cs-heart .fill { height: 100%; background: linear-gradient(#ff8fa8, #f0577c); }
+.cs-heart .lbl { position: absolute; inset: 0; text-align: center; font-size: 28px; line-height: 40px; color: #fff; text-shadow: 0 2px 0 #0007; }
+.cs-skill { position: relative; flex: none; border-radius: 50%; background: #fffaf2; border: 5px solid #8a6b56; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; }
+.cs-skill .lv { position: absolute; bottom: -14px; left: 0; right: 0; text-align: center; font-size: 22px; color: #f0a21c; text-shadow: 0 1px 0 #fff; letter-spacing: -2px; }
+.cs-pop .skills { display: flex; align-items: center; gap: 20px; }
+.cs-pop .skills .txt, .cs-pop .skhead .txt { flex: 1; font-size: 32px; display: flex; flex-direction: column; gap: 6px; }
+.cs-pop .skhead { display: flex; align-items: center; gap: 24px; }
+.cs-pop .wrow, .panel .wk { display: flex; align-items: center; gap: 16px; font-size: 36px; }
+.cs-pop .active { display: flex; flex-direction: column; gap: 16px; padding: 20px; background: #e6dccd; border-radius: 24px; }
+.mark { font-size: 44px; font-weight: 700; }
+.mark.ok { color: #3fa35b; }
+.mark.no { color: #c0554a; }
+.cs-pop .hcol { padding: 18px 24px; background: #fffaf2; border-radius: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 32px; }
+.cs-pop .hcol .h { font-size: 38px; font-weight: 700; color: #c0476a; }
+.cs-pop .hcol .li::before { content: '• '; }
+.cs-pop .swaplist { display: flex; flex-direction: column; gap: 12px; max-height: 1000px; overflow-y: auto; }
+.crow { display: flex; align-items: center; gap: 18px; padding: 10px 14px; background: #fffaf2; border-radius: 20px; cursor: pointer; }
+.crow .txt { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.crow .txt b { font-size: 38px; }
+.crow .txt small { font-size: 26px; color: #8b7766; }
+.panel .crow .cs-heart .bar { height: 26px; }
+.panel .crow .cs-heart .spr { width: 28px !important; height: 26px !important; }
+.panel .wk { position: relative; }
+.panel .wk .mark { position: absolute; right: -8px; top: -14px; font-size: 40px; text-shadow: 0 2px 0 #fff; }
+.panel .row.head .btn { min-width: 220px; font-size: 32px; }
+.cs-pop .boxes { display: flex; gap: 24px; justify-content: center; }
+.cs-pop .gbox { width: 210px; height: 220px; display: flex; align-items: center; justify-content: center; background: #e6dccd; border-radius: 26px; cursor: pointer; }
+.cs-pop .gbox.open { background: #fff3c4; cursor: default; }
+.cs-pop .gbox .rw { font-size: 44px; font-weight: 700; text-align: center; padding: 6px; }
+.cs-pop .btns .btn { min-width: 0; flex: 1; }
+.cs-pop .body { padding: 6px; }

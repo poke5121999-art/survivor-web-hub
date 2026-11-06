@@ -1,0 +1,105 @@
+{
+ "name": "ToolBox",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": false
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "RewardBox",
+   "fields": {
+    "_meshType": 1,
+    "_holdingSfx": "InteractionLooting_Toolbox",
+    "_lockedHoldingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "LootingInventory",
+   "fields": {
+    "_index": -1
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/2DBG_RewardBoxes_ToolBox_F",
+   "mesh": "2DBG_RewardBoxes_ToolBox_F",
+   "verts": 22,
+   "tris": 24,
+   "active": true
+  },
+  {
+   "path": "Back/2DBG_RewardBoxes_ToolBox_B",
+   "mesh": "2DBG_RewardBoxes_ToolBox_B",
+   "verts": 37,
+   "tris": 24,
+   "active": false
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.274,
+   0.0,
+   -0.266
+  ],
+  "max": [
+   0.299,
+   0.477,
+   0.319
+  ]
+ },
+ "glb": "art/object/ToolBox.glb",
+ "glbKB": 36
+}

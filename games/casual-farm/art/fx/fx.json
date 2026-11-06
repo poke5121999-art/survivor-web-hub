@@ -1,0 +1,54 @@
+{
+ "puff": {
+  "mesh": 0,
+  "material": {
+   "name": "Toon_Puff",
+   "shader": "Toony Colors Pro 2/Hybrid Shader 2 (Outline)",
+   "color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "tex": "palette-04da571a",
+   "toon": {
+    "h": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "s": [
+     0.602,
+     0.7115,
+     0.783,
+     1.0
+    ],
+    "thr": 0.75,
+    "smooth": 0.1
+   },
+   "outline": {
+    "w": 4.0,
+    "color": [
+     0.0706,
+     0.1401,
+     0.2453,
+     1.0
+    ],
+    "const": true
+   }
+  }
+ },
+ "textures": [
+  "palette-04da571a"
+ ],
+ "sprites": [
+  "glow",
+  "glowring_smooth",
+  "shape_box",
+  "shape_hexagon",
+  "shape_plus",
+  "shrinking_hexagon",
+  "sparkle"
+ ]
+}

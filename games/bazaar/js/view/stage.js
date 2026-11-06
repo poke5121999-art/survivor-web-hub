@@ -1,0 +1,474 @@
+/* Chợ Phiên — BZView: sân khấu 1920×1080 (bố cục chép từ dooley-friends-1.jpg, WIKI.md §2.1), co giãn letterbox.
+   Bên 1 = đối thủ (trên), bên 0 = người chơi (dưới) — khớp BZSim (bàn 0 thắng khi cùng chết).
+   Cung cấp: cardEl(uid), cardRect(uid), heroRect(side), shake(pct), dựng khối hero (chân dung, kỹ năng, thanh máu, chip trạng thái).
+   Thanh máu (HealthBarBase.cs): mất máu → phần máu tụt ngay (10 ms), vệt đỏ "ma" đuổi theo trong 0,4 s;
+   hồi máu → vệt sáng nhảy trước, phần máu đầy dần trong 0,4 s. Bỏng/độc: dải sọc ở mép phải phần máu = lượng sẽ mất. */
+(function (root) {
+  'use strict';
+  var V = root.BZView = {};
+  var W = 1920, H = 1080;
+  V.W = W; V.H = H;
+  V.BOARD = { x: 392, w: 1136, pitch: 109.6, top: [553, 305], cardH: 232 }; // top[side]
+  V.PORTRAIT = { w: 192, h: 166, y: [840, 86] };
+  var REV = function () { return '?v=' + (root.BZ_REV || ''); };
+  var R = {}, cards = {}, grid = [null, null], heroes = [null, null], shakeS = { t0: -1e9, dur: 0, amp: 0 };
+  V.refs = R;
+
+  function el(tag, cls, parent, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; }
+  V.el = el;
+
+  V.build = function (host) {
+    R.root = host;
+    var st = R.stage = el('div', '', host); st.id = 'bz-stage';
+    var wd = R.world = el('div', '', st); wd.id = 'bz-world';
+    // nền sân = ảnh bàn gốc (art/env, data/env.js) theo hero; ảnh đã có thảm, kênh nước, bệ hero, đồ trang trí
+    R.bg = el('div', 'bz-bg', wd);
+    V.setEnv(null);
+    R.boards = [el('div', 'bz-board bot', wd), el('div', 'bz-board top', wd)];
+    R.cardLayer = el('div', '', wd); R.cardLayer.style.cssText = 'position:absolute;inset:0;';
+    R.enrVig = el('div', 'bz-enr-vig', wd);
+    // hai dải chân dung (bên 0 dưới, bên 1 trên): camera điện thoại thu cả dải quanh mép bàn (V.BAND)
+    R.bands = [el('div', 'bz-band bot', wd), el('div', 'bz-band top', wd)];
+    R.sides = [];
+    [0, 1].forEach(function (s) {
+      var pos = s ? 'top' : 'bot', b = R.bands[s];
+      var l = el('div', 'bz-side l ' + pos, b), r = el('div', 'bz-side r ' + pos, b);
+      R.sides[s] = { l: el('div', 'bz-side-in', l), r: el('div', 'bz-side-in', r) };
+    });
+    R.heroes = [el('div', 'bz-hero bot', R.bands[0]), el('div', 'bz-hero top', R.bands[1])];
+    R.enrFrame = [el('div', 'bz-enr-frame bot', R.bands[0]), el('div', 'bz-enr-frame top', R.bands[1])];
+    R.shFrame = [el('div', 'bz-sh-frame bot', R.bands[0]), el('div', 'bz-sh-frame top', R.bands[1])];
+    R.rowGlow = [el('div', 'bz-rowglow bot', R.bands[0]), el('div', 'bz-rowglow top', R.bands[1])];
+    R.hp = [el('div', 'bz-hp bot', R.bands[0]), el('div', 'bz-hp top', R.bands[1])];
+    R.crowns = [el('div', 'bz-crown bot', R.bands[0]), el('div', 'bz-crown top', R.bands[1])];
+    // đồng hồ trận
+    var dial = R.dial = el('div', 'bz-dial', wd);
+    var face = el('div', 'face', dial);
+    R.dialRing = el('div', 'ring', face);
+    R.dialTime = el('div', 'time', face, '<span>0.0</span><small>GIÂY</small>');
+    R.dialTimeN = R.dialTime.firstChild;
+    var storm = el('div', 'storm', dial); R.dialStorm = el('i', '', storm);
+    R.dialLabel = el('div', 'bz-dial-label', wd, 'Bão cát sau 30 giây');
+    // lưới vàng quanh khối chân dung khi khiên > 0 (REF shield, R.shFrame) — VFX-9: chỉ ôm khối hero (không trùm hai ô cạnh) và nằm DƯỚI
+    // thanh máu trong thứ tự DOM của dải, nên số máu/khiên luôn rõ
+    R.rim = el('div', 'bz-rim', wd); // FX-19: viền ngọc lam khi có người thắng
+    R.sand = el('div', 'bz-sand', wd);
+    el('div', 'edge', R.sand); el('div', 'edge b', R.sand);
+    R.fx = el('canvas', '', wd); R.fx.id = 'bz-fx';
+    // băng-rôn kết trận (REF fight-result / death-victory): dải lụa xanh viền vàng (Victory_BannerCenter_01_TUI xoay ngang) + hai đuôi
+    // (Victory_BannerLeft/Right_01_TUI), cuộn từ trái sang theo một ống cuộn vàng, giữ, rồi cuộn lại bay lên góc phải; thua = đỏ + khói
+    R.banner = el('div', 'bz-banner', st, '<div class="rib"><i class="tail l"></i><i class="tail r"></i><div class="band"><i class="cloth"></i>' +
+      '<div class="in"><h2></h2><p></p></div></div><i class="roll"></i></div>');
+    R.ui = el('div', '', st); R.ui.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+    root.BZTooltip.init(st, W, H);
+    V.fit();
+    root.addEventListener('resize', V.fit);
+    root.addEventListener('orientationchange', function () { setTimeout(V.fit, 120); });
+    return R;
+  };
+  // setEnv(hero): chọn ảnh bàn theo hero (BZ_ENV.byHero), không có thì bàn mặc định (defaultKey)
+  V.setEnv = function (hero) {
+    var E = root.BZ_ENV, key = E && ((hero && E.byHero && E.byHero[hero]) || E.defaultKey), d = E && (E[key] || E[E.defaultKey]);
+    if (!d || !R.bg || V.envKey === key) return;
+    V.envKey = key; V.env = d;
+    R.bg.style.backgroundImage = 'url("' + d.src + REV() + '")';
+  };
+  // MOBILE-20: chừa vùng an toàn (tai thỏ, góc bo, thanh cử chỉ) — đọc env(safe-area-inset-*) qua một phần tử dò
+  var safeProbe = null;
+  function safeInsets() {
+    try {
+      if (!safeProbe) {
+        safeProbe = document.createElement('div');
+        safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+          'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+        document.body.appendChild(safeProbe);
+      }
+      var cs = getComputedStyle(safeProbe);
+      return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+    } catch (e) { return { t: 0, r: 0, b: 0, l: 0 }; }
+  }
+  // camera: vùng sân khấu được đặt vừa màn. Màn nhỏ (cả sân co dưới 0,62, tức điện thoại ngang) trong run dùng `phone`: sát hai hàng bàn,
+  // hai dải chân dung thu BAND.k quanh mép bàn (y[side]) — thẻ to ~1,4 lần so với co cả sân, không còn dải đen hai bên
+  V.CAM = { full: { x: 0, y: 0, w: W, h: H }, phone: { x: 130, y: 145, w: 1660, h: 795 } };
+  V.BAND = { k: 0.55, x: W / 2, y: [790, 300] };
+  var camWanted = false;
+  V.setCam = function (on) { if (camWanted === !!on) return; camWanted = !!on; if (R.stage) V.fit(); };
+  // rect sân khấu của một phần tử trong dải chân dung bên `side` → rect đang thấy (camera điện thoại thu dải)
+  V.band = function (r, side) {
+    if (!V.phone) return r;
+    var k = V.BAND.k, px = V.BAND.x, py = V.BAND.y[side];
+    return { x: px + (r.x - px) * k, y: py + (r.y - py) * k, w: r.w * k, h: r.h * k, cx: px + (r.cx - px) * k, cy: py + (r.cy - py) * k };
+  };
+  V.fit = function () {
+    var ins = safeInsets(), w = root.innerWidth - ins.l - ins.r, h = root.innerHeight - ins.t - ins.b;
+    V.small = Math.min(w / W, h / H) < 0.62;
+    var phone = V.phone = V.small && camWanted, c = phone ? V.CAM.phone : V.CAM.full, s = Math.min(w / c.w, h / c.h);
+    var tx = Math.round(ins.l + w / 2 - (c.x + c.w / 2) * s), ty = Math.round(ins.t + h / 2 - (c.y + c.h / 2) * s);
+    V.scale = s;
+    R.stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+    R.stage.classList.toggle('bz-cam', phone);
+    R.stage.style.setProperty('--pk', V.BAND.k);
+    // vùng nhìn thấy (toạ độ sân khấu, kẹp trong sân): tooltip / bảng giải thích / số nổi kẹp vào đây, nút neo góc dời vào trong (--vl..--vb)
+    var v = V.vis = { x0: Math.max(0, (ins.l - tx) / s), y0: Math.max(0, (ins.t - ty) / s), x1: Math.min(W, (ins.l + w - tx) / s), y1: Math.min(H, (ins.t + h - ty) / s) };
+    R.stage.style.setProperty('--vl', Math.round(v.x0) + 'px'); R.stage.style.setProperty('--vt', Math.round(v.y0) + 'px');
+    R.stage.style.setProperty('--vr', Math.round(W - v.x1) + 'px'); R.stage.style.setProperty('--vb', Math.round(H - v.y1) + 'px');
+    // MOBILE-2/VFX-33: hệ số phóng chữ cho màn nhỏ (tooltip, số máu): ≥ 1, đạt ~12 px thật cho chữ 23 px sân khấu
+    R.stage.style.setProperty('--uik', Math.max(1, Math.min(1.8, 0.5 / s)).toFixed(3));
+    if (root.BZFX && R.fx) root.BZFX.resize(s, Math.min(2, root.devicePixelRatio || 1));
+  };
+  // toạ độ client → toạ độ sân khấu
+  V.toStage = function (cx, cy) {
+    var r = R.stage.getBoundingClientRect();
+    return { x: (cx - r.left) / V.scale, y: (cy - r.top) / V.scale };
+  };
+
+  // ---------- thẻ ----------
+  V.clearCards = function () { R.cardLayer.innerHTML = ''; cards = {}; V.clearCombat(); };
+  // VFX-3: dỡ mọi lớp riêng của trận (khung khiên/nộ, viền tối nộ, vầng khiên, bão cát, băng-rôn, tạm dừng CSS) —
+  // ui/combat.js gọi clearCards() khi dỡ trận nên màn chiến lợi phẩm / lên cấp không còn khung vàng
+  V.clearCombat = function () {
+    if (!R.stage) return;
+    V.fightOver(true); R.over = false;
+    R.rowGlow.forEach(function (d) { d.classList.remove('go'); });
+    V.sand(false); V.hideBanner(true);
+    R.stage.classList.remove('bz-paused', 'bz-intro');
+  };
+  // fightOver(on): trận đã ngã ngũ → tắt khung khiên/nộ + viền tối (khiên còn lại không còn nghĩa); off (tua lại) → tính lại từ trạng thái hero
+  V.fightOver = function (on) {
+    R.over = !!on;
+    if (on) {
+      R.shFrame.forEach(function (f) { f.classList.remove('on'); });
+      R.enrFrame.forEach(function (f) { f.classList.remove('on'); });
+      R.enrVig.classList.remove('on');
+    } else heroes.forEach(function (h) { if (h) { h.v.shield = -1; h.v.enr = null; } });
+  };
+  // layoutBoard(side, [{uid, el, size, socket}]) — xếp theo socket, cả nhóm canh giữa bàn (bàn gốc dồn thẻ vào giữa)
+  V.layoutBoard = function (side, list) {
+    var B = V.BOARD, sorted = list.slice().sort(function (a, b) { return a.socket - b.socket; });
+    var total = 0; sorted.forEach(function (c) { total += c.size; });
+    var x = B.x + B.w / 2 - total * B.pitch / 2, y = B.top[side];
+    if (sorted.length) grid[side] = { x: x, s0: sorted[0].socket }; // thẻ sinh giữa trận đặt theo ô (placeCard)
+    sorted.forEach(function (c, ci) {
+      var span = c.size * B.pitch, w = c.el._bz.w;
+      c.el.style.setProperty('--ci', ci); c.el.style.setProperty('--fy', side ? '-170px' : '170px'); // thứ tự + hướng bay vào lúc mở trận (VFX-16)
+      var left = x + (span - w) / 2;
+      c.el.style.left = left.toFixed(1) + 'px'; c.el.style.top = y + 'px';
+      c.rect = { x: left, y: y, w: w, h: B.cardH };
+      cards[c.uid] = c;
+      if (!c.el.parentNode) R.cardLayer.appendChild(c.el);
+      x += span;
+    });
+  };
+  // placeCard(side, {uid, el, size, socket}) — đặt một thẻ vào đúng ô của lưới đã dựng (layoutBoard); dùng khi thẻ đổi dạng / sinh ra giữa trận (W-10).
+  // Thẻ cũ cùng uid (nếu có phần tử khác) bị gỡ khỏi sân. Thẻ nhỏ hơn ô cũ thì canh giữa trong phần ô nó chiếm.
+  V.placeCard = function (side, c) {
+    var B = V.BOARD, g = grid[side], old = cards[c.uid];
+    if (!g) return false;
+    if (old && old.el !== c.el && old.el.parentNode) old.el.parentNode.removeChild(old.el);
+    var span = c.size * B.pitch, w = c.el._bz.w, y = B.top[side];
+    var left = g.x + (c.socket - g.s0) * B.pitch + (span - w) / 2;
+    c.el.style.left = left.toFixed(1) + 'px'; c.el.style.top = y + 'px';
+    c.rect = { x: left, y: y, w: w, h: B.cardH };
+    cards[c.uid] = c;
+    if (!c.el.parentNode) R.cardLayer.appendChild(c.el);
+    return true;
+  };
+  V.cardEl = function (uid) { var c = cards[uid]; return c ? c.el : null; };
+  V.cardRect = function (uid) {
+    var c = cards[uid]; if (!c) return null;
+    var B = c.el._bz, wr = B.winRect;
+    return { x: c.rect.x + wr.x, y: c.rect.y + wr.y, w: wr.w, h: wr.h, cx: c.rect.x + wr.x + wr.w / 2, cy: c.rect.y + wr.y + wr.h / 2 };
+  };
+  V.cards = function () { return cards; };
+
+  // ---------- hero ----------
+  V.heroRect = function (side) {
+    var P = V.PORTRAIT, x = W / 2 - P.w / 2, y = P.y[side];
+    return V.band({ x: x, y: y, w: P.w, h: P.h, cx: W / 2, cy: y + P.h * 0.55 }, side);
+  };
+  V.hpRect = function (side) { var y = side ? 258 : 794; return V.band({ x: 612, y: y, w: 696, h: 40, cx: W / 2, cy: y + 20 }, side); };
+
+  // info: {name, level, tier, char, bg, skills:[{uid,id,tier,art}], rewards:{gold,xp}}
+  V.setupHero = function (side, info) {
+    var hero = R.heroes[side];
+    if (side === 0) V.setEnv(info.name); // bên dưới là hero thì lấy bàn của hero, không thì bàn mặc định
+    hero.innerHTML = '';
+    var pf = el('div', 'bz-portrait', hero);
+    var F = root.BZ_FRAMES && root.BZ_FRAMES.encounter && root.BZ_FRAMES.encounter[info.tier || 'Bronze'];
+    var art = el('div', 'pf-art', pf);
+    if (F) {
+      var k = V.PORTRAIT.h / F.h, w = F.w * k;
+      pf.style.width = w + 'px'; pf.style.marginLeft = (-w / 2) + 'px';
+      var wn = F.window;
+      art.style.cssText = 'left:' + wn.x * k + 'px;top:' + wn.y * k + 'px;width:' + wn.w * k + 'px;height:' + wn.h * k + 'px;border-radius:' +
+        (wn.shape === 'arch' ? '46% 46% 6px 6px / 30% 30% 6px 6px' : (wn.r * k) + 'px');
+      var fi = el('img', 'pf-frame', pf); fi.src = F.src + REV(); fi.alt = '';
+    } else {
+      art.style.cssText = 'left:10px;top:10px;right:10px;bottom:10px;border-radius:46% 46% 6px 6px / 30% 30% 6px 6px;';
+      pf.style.boxShadow = '0 0 0 4px #e0b25a, 0 0 0 7px #5b3317'; pf.style.borderRadius = '46% 46% 8px 8px / 30% 30% 8px 8px';
+    }
+    var bg = el('div', 'pf-bg', art), ch = el('div', 'pf-char', art);
+    var paint = function (e, p) { if (root.BZHires && root.BZHires.paint) root.BZHires.paint(e, p, p + REV()); else e.style.backgroundImage = 'url("' + p + REV() + '")'; };
+    if (info.bg) paint(bg, info.bg);
+    if (info.char) paint(ch, info.char);
+    if (root.BZHires) { root.BZHires.apply(bg, info.bg, { zoom: info.zoom }); root.BZHires.apply(ch, info.char, { zoom: info.zoom }); } // bản gốc khi khung đủ lớn
+    var tint = el('div', 'pf-tint', art), flash = el('div', 'pf-flash', art);
+    var ring = el('div', 'bz-enrage-ring', pf);
+    // kỹ năng: 3×2 mỗi bên chân dung (12 chỗ, chỗ trống = sao mờ)
+    var skL = el('div', 'bz-skills l', hero), skR = el('div', 'bz-skills r', hero);
+    var skillEls = {};
+    for (var i = 0; i < 12; i++) {
+      var sk = (info.skills || [])[i], host = i % 2 === 0 ? skL : skR;
+      // thứ tự lấp: trong cùng (sát chân dung) trước
+      var d = el('div', 'bz-skill' + (sk ? '' : ' empty'), host);
+      if (sk) {
+        var SF = root.BZ_FRAMES && root.BZ_FRAMES.skill && root.BZ_FRAMES.skill[sk.tier || 'Bronze'];
+        var a = el('div', 'sk-art', d);
+        if (SF) {
+          var kk = 82 / SF.w, wn2 = SF.window;
+          a.style.cssText = 'left:' + (wn2.x * kk - 2) + 'px;top:' + (wn2.y * kk - 2) + 'px;width:' + (wn2.w * kk + 4) + 'px;height:' + (wn2.h * kk + 4) + 'px;';
+          var sf = el('img', 'sk-frame', d); sf.src = SF.src + REV(); sf.alt = '';
+          d.style.transform = 'scale(1.18)';
+        } else { a.style.cssText = 'inset:8px;box-shadow:0 0 0 3px #e0b25a;'; }
+        if (sk.art) a.style.backgroundImage = 'url("' + sk.art + REV() + '")';
+        d.dataset.uid = sk.uid;
+        skillEls[sk.uid] = d;
+      }
+    }
+    // xếp lại để ô gần chân dung lấp trước: cột phải của nhóm trái, cột trái của nhóm phải
+    [skL, skR].forEach(function (g, gi) {
+      var kids = Array.prototype.slice.call(g.children);
+      kids.forEach(function (c, j) {
+        var row = Math.floor(j / 3), col = j % 3;
+        c.style.gridRow = String(row + 1);
+        c.style.gridColumn = String(gi === 0 ? 3 - col : col + 1);
+      });
+    });
+    // thanh máu
+    var hp = R.hp[side];
+    hp.innerHTML = '';
+    var tr = el('div', 'hp-track', hp);
+    var ghost = el('div', 'hp-ghost', tr), fill = el('div', 'hp-fill', tr), burn = el('div', 'hp-burn', tr), poison = el('div', 'hp-poison', tr),
+      shield = el('div', 'hp-shield', tr);
+    var divs = el('div', 'hp-div', tr);
+    el('div', 'hp-gloss', tr);
+    el('div', 'hp-end l', hp); el('div', 'hp-end r', hp);
+    var text = el('div', 'hp-text', hp, '<span class="v"></span><span class="sh"></span><span class="rg"></span>');
+    var status = el('div', 'bz-status', hp);
+    var chips = {};
+    [['burn', 'Burn'], ['poison', 'Poison'], ['regen', 'Regeneration'], ['rage', 'Rage']].forEach(function (c) {
+      var ch2 = el('div', 'bz-chip ' + c[0], status, '<img alt="" src="art/icons/' + c[1] + '.webp' + REV() + '"><b>0</b>');
+      chips[c[0]] = { el: ch2, b: ch2.querySelector('b'), v: 0 };
+    });
+    // hai ô cạnh
+    var S = R.sides[side];
+    S.l.innerHTML = '<div class="bz-sublabel">' + (side ? 'Đối thủ' : 'Phe ta') + '</div><div class="bz-name"></div><div class="bz-level"></div>';
+    S.l.querySelector('.bz-name').textContent = info.name;
+    S.l.querySelector('.bz-level').textContent = info.level || 1;
+    var rw = info.rewards || {};
+    S.r.innerHTML = '<div class="bz-sublabel">Phần thưởng</div>' +
+      '<div class="bz-reward"><img alt="" src="art/ui/ui_sprite_atlas/Icon_Stat_Coins_TUI.webp' + REV() + '"><span>' + (rw.gold || 0) + '</span></div>' +
+      '<div class="bz-reward xp"><img alt="" src="art/ui/ui_sprite_atlas/Icon_Stat_XP_TUI.webp' + REV() + '"><span>' + (rw.xp || 0) + '</span></div>' +
+      '<div class="bz-sublabel" style="margin-top:4px">' + (info.hpMax || 0) + ' máu</div>';
+    heroes[side] = {
+      divs: divs, pf: pf, art: art, tint: tint, flash: flash, ring: ring, hp: hp, ghost: ghost, fill: fill, burn: burn, poison: poison, shield: shield,
+      textV: text.children[0], textS: text.children[1], textR: text.children[2], chips: chips, skillEls: skillEls,
+      v: { shield: -1 }, ghostV: 1, fillV: 1, gainT: -1e9, lossT: -1e9, punchT: -1e9, punchPct: 0, flashT: -1e9, dead: false
+    };
+    R.crowns[side].classList.remove('on');
+    R.shFrame[side].classList.remove('on'); R.enrFrame[side].classList.remove('on'); R.rowGlow[side].classList.remove('go');
+    R.enrVig.classList.toggle('on', R.enrFrame.some(function (x) { return x.classList.contains('on'); }));
+  };
+  V.skillEl = function (side, uid) { var h = heroes[side]; return h ? h.skillEls[uid] : null; };
+  V.hero = function (side) { return heroes[side]; };
+
+  // updateHero(side, {health, shield, burn, poison, regen, rage, enragedMs, healthMax}, t)
+  V.updateHero = function (side, v, t) {
+    var h = heroes[side]; if (!h) return;
+    var o = h.v, mx = Math.max(1, v.healthMax || 1);
+    var frac = Math.max(0, Math.min(1, v.health / mx));
+    if (o.health !== v.health || o.healthMax !== mx) {
+      if (o.health != null) {
+        if (v.health < o.health) { h.lossT = t; h.fillV = frac; h.hp.classList.remove('hit'); void h.hp.offsetWidth; h.hp.classList.add('hit'); }
+        else { h.gainT = t; }
+      } else { h.fillV = frac; h.ghostV = frac; }
+      o.health = v.health; o.healthMax = mx;
+      h.textV.textContent = Math.max(0, Math.round(v.health));
+      if (o.divMax !== mx) { o.divMax = mx; buildDividers(h.divs, mx); }
+    }
+    h.target = frac;
+    if ((o.shield || 0) !== (v.shield || 0)) {
+      o.shield = v.shield || 0;
+      h.shield.style.transform = 'scaleX(' + Math.min(1, o.shield / mx).toFixed(4) + ')';
+      h.shield.style.display = o.shield > 0 ? '' : 'none';
+      h.textS.textContent = o.shield > 0 ? o.shield : '';
+      var sf = R.shFrame && R.shFrame[side];
+      if (sf) { sf.classList.toggle('on', o.shield > 0 && !R.over); sf.style.setProperty('--sh', Math.min(1, o.shield / mx).toFixed(3)); }
+      h.tint.style.opacity = '';
+    }
+    var regen = v.regen || 0;
+    if (o.regen !== regen) { o.regen = regen; h.textR.textContent = regen > 0 ? Math.round(regen) : ''; } // UI-08: máu | khiên | hồi phục
+    chip(h.chips.burn, v.burn || 0); chip(h.chips.poison, v.poison || 0); chip(h.chips.regen, regen); chip(h.chips.rage, v.rage || 0);
+    // dải bỏng/độc: phần máu sẽ mất ở lần nổ tới, đặt ở mép phải phần máu
+    var bf = Math.min(frac, (v.burn || 0) / mx), pf = Math.min(frac - bf, (v.poison || 0) / mx);
+    if (o.bf !== bf || o.frac2 !== frac) { o.bf = bf; h.burn.style.transform = 'translateX(' + ((frac - bf) * 100).toFixed(3) + '%) scaleX(' + bf.toFixed(4) + ')'; }
+    if (o.pf !== pf || o.frac2 !== frac) { o.pf = pf; h.poison.style.transform = 'translateX(' + ((frac - bf - pf) * 100).toFixed(3) + '%) scaleX(' + Math.max(0, pf).toFixed(4) + ')'; }
+    o.frac2 = frac;
+    var enr = (v.enragedMs || 0) > 0;
+    if (o.enr !== enr) {
+      o.enr = enr; h.pf.classList.toggle('enraged', enr);
+      // nộ: khung đỏ nhấp nháy ở đáy bàn, ~1 s sau mới phủ vành tối đỏ (REF enrage)
+      var ef = R.enrFrame[side], on = enr && !R.over;
+      if (ef) { ef.classList.remove('on'); if (on) { void ef.offsetWidth; ef.classList.add('on'); } }
+      var any = R.enrFrame.some(function (x) { return x.classList.contains('on'); });
+      R.enrVig.classList.toggle('on', any);
+    }
+    if (enr) {
+      var p = Math.min(1, v.enragedMs / 5000);
+      h.ring.style.background = 'conic-gradient(#ff2a4a ' + (p * 360).toFixed(1) + 'deg, transparent 0)';
+      h.ring.style.webkitMask = h.ring.style.mask = 'radial-gradient(circle, transparent 60%, #000 62%)';
+    }
+    // màu phủ chân dung theo trạng thái (StatusEffectControllerVFX: bỏng/(25 % máu), độc/(15 % máu), khiên/máu)
+    var ib = Math.min(1, (v.burn || 0) / (0.25 * mx)), ip = Math.min(1, (v.poison || 0) / (0.15 * mx)), ish = Math.min(1, (v.shield || 0) / mx);
+    var key = (ib * 20 | 0) + ',' + (ip * 20 | 0) + ',' + (ish * 20 | 0);
+    if (o.tintKey !== key) {
+      o.tintKey = key;
+      var layers = [];
+      if (ib > 0) layers.push('radial-gradient(ellipse at 50% 100%, rgba(255,113,0,' + (0.25 + 0.5 * ib).toFixed(2) + '), transparent 70%)');
+      if (ip > 0) layers.push('radial-gradient(ellipse at 50% 0%, rgba(14,190,78,' + (0.25 + 0.45 * ip).toFixed(2) + '), transparent 70%)');
+      if (ish > 0) layers.push('linear-gradient(180deg, rgba(255,230,120,' + (0.12 + 0.3 * ish).toFixed(2) + '), transparent 60%)');
+      h.tint.style.background = layers.join(',') || 'none';
+      h.tint.style.opacity = layers.length ? '1' : '0';
+    }
+    h.intens = { burn: ib, poison: ip, shield: ish, regen: regen > 0 ? Math.min(1, regen / (0.02 * mx) + 0.2) : 0, rage: enr ? 1 : 0 };
+  };
+  // vạch chia thanh máu: khoảng nhỏ/lớn theo HealthBarController.GetPipDistances (HealthBarController.cs:249-287), chừa 0,25 ô cuối bên phải
+  var DIV_RULES = [[1000000, 0, 0], [500000, 10000, 50000], [100000, 2000, 10000], [50000, 1000, 5000], [10000, 200, 1000], [5000, 100, 500]];
+  function buildDividers(host, mx) {
+    host.innerHTML = '';
+    var sm = 50, lg = 250, i;
+    for (i = 0; i < DIV_RULES.length; i++) if (mx > DIV_RULES[i][0]) { sm = DIV_RULES[i][1]; lg = DIV_RULES[i][2]; break; }
+    if (!sm) return;
+    for (var hp = sm; hp < mx && host.children.length < 60; hp += sm) {
+      if (hp / mx > 0.985) break; // không vạch sát mép phải (EndBarBufferDistance)
+      var d = el('i', hp % lg === 0 ? 'l' : '', host); d.style.left = (hp / mx * 100).toFixed(3) + '%';
+    }
+  }
+  function chip(c, v) {
+    if (c.v === v) return;
+    var up = v > c.v;
+    c.v = v; c.b.textContent = v;
+    c.el.classList.toggle('on', v > 0);
+    if (v > 0 && up) { c.el.classList.remove('bump'); void c.el.offsetWidth; c.el.classList.add('bump'); }
+  }
+  V.heroPunch = function (side, t, pct) { var h = heroes[side]; if (!h) return; h.punchT = t; h.punchPct = Math.max(0.06, Math.min(1, pct)); h.punchSign = Math.random() < 0.5 ? -1 : 1; };
+  // VFX-28: chớp chân dung là quầng tròn hoà "screen" (art vẫn thấy), không phải tấm phẳng 75 % che mất mặt
+  V.heroFlash = function (side, t, color) {
+    var h = heroes[side]; if (!h) return; h.flashT = t;
+    var c = color || '#ffffff';
+    if (h._fc !== c) { h._fc = c; h.flash.style.background = 'radial-gradient(ellipse 70% 65% at 50% 55%, ' + c + ' 0%, ' + c + 'aa 35%, transparent 75%)'; }
+  };
+  V.setDead = function (side, on) { var h = heroes[side]; if (!h) return; h.dead = on; h.pf.classList.toggle('dead', on); };
+  // vương miện cho bên thắng; FX-19: sau băng-rôn 1 s cả bàn có viền ngọc lam, nửa bàn bên thua tối đi
+  V.crown = function (side, on) {
+    R.crowns[side].classList.toggle('on', !!on);
+    if (!R.stage) return;
+    R.stage.classList.toggle('bz-won-' + side, !!on);
+    R.stage.classList.toggle('bz-victory', R.crowns.some(function (c) { return c.classList.contains('on'); }));
+  };
+  V.skillPulse = function (side, uid) { var e = V.skillEl(side, uid); if (!e) return; e.classList.remove('pulse'); void e.offsetWidth; e.classList.add('pulse'); };
+
+  // ---------- rung + nhịp mỗi khung ----------
+  // shake(pct): HitStunAVFXMod — rung camera khi mất ≥ 20 % máu. Độ dài = pct × 0,04 s (HitShakeDurationMultiplier, VISUAL §8, W-12/FX-18);
+  // biên độ phóng to cho màn 2D [ĐỀ XUẤT]
+  V.SHAKE_S = 0.04;
+  V.shake = function (pct, t) { pct = Math.max(0, Math.min(1, pct)); shakeS = { t0: t == null ? V.now : t, dur: pct * V.SHAKE_S * 1000, amp: 6 + 34 * pct }; };
+  V.shakeInfo = function () { return { dur: shakeS.dur, amp: shakeS.amp, t0: shakeS.t0 }; };
+  V.tick = function (t, dt) {
+    V.now = t; dt = Math.max(0, dt || 0);
+    var e = t - shakeS.t0;
+    if (e >= 0 && e < shakeS.dur) {
+      var k = 1 - e / shakeS.dur, a = shakeS.amp * k;
+      R.world.style.transform = 'translate(' + ((Math.random() * 2 - 1) * a * 0.75).toFixed(1) + 'px,' + ((Math.random() * 2 - 1) * a).toFixed(1) + 'px)';
+      R._shaking = true;
+    } else if (R._shaking) { R._shaking = false; R.world.style.transform = ''; }
+    for (var s = 0; s < 2; s++) {
+      var h = heroes[s]; if (!h) continue;
+      // thanh máu: vệt ma
+      var tgt = h.target == null ? 1 : h.target;
+      if (tgt < h.ghostV) { // mất máu: máu tụt ngay, ma chờ 120 ms rồi đuổi trong 400 ms
+        h.fillV = tgt;
+        if (t - h.lossT > 120) h.ghostV = Math.max(tgt, h.ghostV - Math.max((h.ghostV - tgt) * dt / 160, dt * 0.0004));
+        h.ghost.classList.remove('gain');
+      } else if (tgt > h.fillV) { // hồi máu: vệt sáng nhảy trước, máu đầy dần
+        h.ghostV = tgt; h.ghost.classList.add('gain');
+        h.fillV = Math.min(tgt, h.fillV + Math.max(dt * 0.0002, (tgt - h.fillV) * dt / 130));
+      } else { h.fillV = tgt; if (h.ghostV < tgt) h.ghostV = tgt; }
+      if (h._gv !== h.ghostV) { h._gv = h.ghostV; h.ghost.style.transform = 'scaleX(' + h.ghostV.toFixed(4) + ')'; }
+      if (h._fv !== h.fillV) { h._fv = h.fillV; h.fill.style.transform = 'scaleX(' + h.fillV.toFixed(4) + ')'; }
+      // chân dung: DOPunchPosition((0, pct, ±0,5·pct), pct/2 s) + DOPunchRotation((0, ±5·pct, 0))
+      var pe = t - h.punchT, pd = 120 + h.punchPct * 500;
+      if (pe >= 0 && pe < pd) {
+        var u = pe / pd, damp = Math.sin(u * Math.PI * 2.5) * (1 - u);
+        h.pf.style.transform = 'translate(' + (h.punchSign * 10 * h.punchPct * damp).toFixed(1) + 'px,' + (-30 * h.punchPct * damp * (s ? -1 : 1)).toFixed(1) + 'px) rotate(' +
+          (h.punchSign * 5 * h.punchPct * damp).toFixed(2) + 'deg) scale(' + (1 - 0.06 * h.punchPct * Math.abs(damp)).toFixed(3) + ')';
+        h._punching = true;
+      } else if (h._punching) { h._punching = false; h.pf.style.transform = ''; }
+      var fe = t - h.flashT;
+      var fo = fe >= 0 && fe < 300 ? 0.6 * (1 - fe / 300) : 0;
+      if (h._fo !== fo) { h._fo = fo; h.flash.style.opacity = fo.toFixed(3); }
+    }
+  };
+  V.resetBars = function () { heroes.forEach(function (h) { if (h) { h.ghostV = h.fillV = h.target == null ? 1 : h.target; h.punchT = -1e9; h.flashT = -1e9; } }); shakeS.t0 = -1e9; };
+
+  // ---------- đồng hồ, bão cát, băng-rôn ----------
+  V.dial = function (t, cfg) {
+    var sec = t / 1000;
+    var txt = sec.toFixed(1);
+    if (R._dt !== txt) { R._dt = txt; R.dialTimeN.textContent = txt; }
+    var start = (cfg.countdownStart + cfg.countdown) / 1000;
+    var p = Math.min(1, sec / start), storming = sec >= start;
+    var key = storming ? 's' : (p * 200 | 0);
+    if (R._dk !== key) {
+      R._dk = key;
+      R.dialRing.style.setProperty('--pd', storming ? '360deg' : (p * 360).toFixed(1) + 'deg'); // ring = sprite HourFill cắt theo góc (ASSET-07)
+      R.dialStorm.style.transform = 'scaleX(' + p.toFixed(3) + ')';
+      R.dial.classList.toggle('storming', storming);
+      R.dialLabel.textContent = storming ? 'Bão cát đang nổi' : ('Bão cát sau ' + Math.max(0, Math.ceil(start - sec)) + ' giây');
+    }
+  };
+  V.sand = function (on) { R.sand.classList.toggle('on', !!on); };
+  V.sandLevel = function (k) { var q = Math.round(Math.max(0, Math.min(1, k)) * 50) / 50; if (R._sk !== q) { R._sk = q; R.sand.style.setProperty('--sk', q); } };
+  // vầng vàng quanh khối chân dung khi nhận khiên (REF shield: viền chuyển lưới vàng ~1,2 s) — một ô cố định mỗi bên, chạy lại hoạt ảnh
+  V.rowGlow = function (side, color, ms) {
+    var d = R.rowGlow && R.rowGlow[side]; if (!d) return;
+    d.style.setProperty('--rg', color || '#fcdc2c'); d.style.animationDuration = (ms || 1200) + 'ms';
+    d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
+  };
+  var bannerTimer = null, introTimer = null;
+  // banner(title, sub, cls 'win'|'lose'|'draw'|'storm', holdMs?, live?) — live: thêm tia vàng (thắng) / khói xanh-đen (thua) trên canvas FX
+  V.banner = function (title, sub, cls, holdMs, live) {
+    var b = R.banner;
+    b.querySelector('h2').textContent = title; b.querySelector('p').textContent = sub || '';
+    b.className = 'bz-banner ' + (cls || '');
+    void b.offsetWidth; b.classList.add('show');
+    clearTimeout(bannerTimer);
+    if (holdMs) bannerTimer = setTimeout(V.hideBanner, holdMs);
+    if (live && root.BZFX && cls !== 'storm') root.BZFX.burst(cls === 'lose' ? 'bannerLose' : cls === 'draw' ? 'bannerDraw' : 'bannerWin', W / 2, 540, {});
+  };
+  V.bannerSub = function (sub) { R.banner.querySelector('p').textContent = sub || ''; };
+  V.hideBanner = function (instant) {
+    clearTimeout(bannerTimer);
+    var b = R.banner;
+    if (instant) { b.className = 'bz-banner'; return; }
+    if (b.classList.contains('show')) { b.classList.remove('show'); b.classList.add('hide'); }
+  };
+  // VFX-16: mở trận — sân tối mờ dần (400 ms), vệt sáng xanh quét ngang (600 ms), chân dung + thẻ bay vào (REF fight-start); hoạt ảnh CSS
+  // theo đồng hồ thật, đồng hồ trận giữ RP.INTRO_MS cho khớp
+  V.intro = function (ms) {
+    var st = R.stage; if (!st) return;
+    st.classList.remove('bz-intro'); void st.offsetWidth; st.classList.add('bz-intro');
+    clearTimeout(introTimer);
+    introTimer = setTimeout(function () { st.classList.remove('bz-intro'); }, (ms || 650) + 900);
+  };
+})(window);

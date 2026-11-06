@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <script src="../../js/game-gate.js?v=20261103"></script>
+<meta charset="utf-8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ca Trực Đêm: Biệt Đội</title>
+<meta name="description" content="Vào nhà, khuân đồ giá trị về bệ giao hàng cho đủ chỉ tiêu, đừng làm vỡ, và đừng để thứ trong đó nghe thấy bạn.">
+<link rel="icon" href="../../assets/favicon.svg">
+<style>
+  :root{
+    --ground:#0a0b0c;
+    --panel:#12151a;
+    --panel-2:#171b21;
+    --line:#262c35;
+    --ink:#d5d9de;
+    --ink-dim:#8b939d;
+    --ink-faint:#5b636d;
+    --amber:#d08a34;
+    --blood:#a03a30;
+    --teal:#4c8f96;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* Vietnamese needs Latin Extended Additional; Georgia and most ui-serif stacks lack it
+       and the browser fakes the glyphs, splitting stacked accents apart. */
+    --display: Cambria, "Times New Roman", "Liberation Serif", "Noto Serif", serif;
+  }
+  *{box-sizing:border-box;}
+  /* iPhone: hai cú chạm nhanh liên tiếp là lệnh PHÓNG TO của Safari. Mà bắn tự
+     ngắm chính là chạm nhanh liên tiếp — nên đang đánh nhau thì màn hình nhảy
+     zoom. touch-action đặt trên canvas thôi chưa đủ: Safari quyết định có cho
+     phóng to hay không ở cấp TRANG, nên phải nói ở cả html và body. */
+  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}
+  html{-webkit-touch-callout:none;}
+
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);
+    overflow:hidden;-webkit-font-smoothing:antialiased;
+    user-select:none;-webkit-user-select:none;
+  }
+  .shell{display:flex;flex-direction:column;height:100%;}
+
+
+  /* ---- XOAY TAY ----------------------------------------------------------
+     iPhone khoá xoay trong Trung tâm điều khiển thì trang KHÔNG BAO GIỜ nằm ngang
+     được, và Safari không cho gọi screen.orientation.lock() — nên không có cách nào
+     xoay màn hình bằng lệnh. Cách chạy được ở mọi máy: quay chính cái vỏ game 90 độ
+     bằng CSS. Khung layout khi đó rộng hơn cao THẬT, nên fitCanvas() và hudLayout()
+     tự chuyển sang bố cục ngang mà không phải biết gì về chuyện này.
+     Vì sao dùng width:100vh / height:100vw: sau phép quay, bề rộng của vỏ nằm dọc
+     theo chiều cao màn hình và ngược lại. dvh/dvw chính xác hơn trên di động (trừ
+     luôn thanh địa chỉ) nên ưu tiên khi trình duyệt có. */
+  .rot{
+    display:none;flex:0 0 auto;background:var(--panel);border:1px solid var(--line);
+    color:var(--ink-dim);border-radius:6px;padding:3px 8px;font-size:14px;line-height:1.1;
+    cursor:pointer;font-family:inherit;
+  }
+  .rot:active{transform:translateY(1px)}
+  .rot[aria-pressed="true"]{color:var(--amber);border-color:var(--amber)}
+  /* Chỉ máy cảm ứng mới cần: chuột thì kéo cửa sổ là xong. */
+  @media (pointer:coarse){ .rot{display:inline-block} }
+  body.force-land .shell{
+    position:fixed;top:0;left:0;width:100vh;height:100vw;
+    transform-origin:0 0;transform:rotate(90deg) translate(0,-100%);
+  }
+  @supports (width:100dvh){
+    body.force-land .shell{width:100dvh;height:100dvw}
+  }
+
+  .bar{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:8px 13px;background:var(--panel-2);border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+    font-variant-numeric:tabular-nums;color:var(--ink-dim);flex:0 0 auto;
+  }
+  .bar .back{color:var(--ink-dim);text-decoration:none;border:1px solid var(--line);padding:4px 9px;border-radius:2px;white-space:nowrap;}
+  .bar .back:hover{color:var(--ink);border-color:#3a434f;}
+  .bar .back:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .bar .name{font-family:var(--display);font-size:16px;color:#e8ebee;letter-spacing:0;}
+  .bar .k{color:var(--ink-faint);text-transform:uppercase;letter-spacing:.13em;font-size:9.5px;margin-right:5px;}
+  .bar .v{color:var(--ink);}
+  .bar .grow{flex:1 1 auto;}
+  .quota{color:var(--amber);}
+  .quota.met{color:#6fbf73;}
+
+  /* The game is LOCKED to a portrait 9:16 frame, the same shape every other game on this hub uses.
+     The canvas is sized in JavaScript (fitCanvas in game.js) rather than by an `aspect-ratio` rule,
+     because such a box has to be clamped by max-width on a narrow screen and by max-height on a wide
+     one, and whichever clamp fires breaks the ratio instead of keeping it. Here the screen is only
+     the black surround that centres it.
+     The page asks for the full screen with viewport-fit=cover, so the frame can run under a notch or
+     the home indicator; the safe insets are held back as padding and the black page shows through. */
+  .screen{
+    position:relative;flex:1 1 auto;min-height:0;background:#000;
+    display:flex;align-items:center;justify-content:center;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .bar{padding-left:calc(13px + env(safe-area-inset-left));padding-right:calc(13px + env(safe-area-inset-right));}
+  canvas#game{display:block;touch-action:none;cursor:crosshair;background:#000;}
+
+  /* Tấm chắn "xoay dọc máy" đã BỎ. Lý do nó từng có: khung 9:16 nhét vào một cửa sổ
+     nằm ngang thấp thì teo lại thành một dải hẹp không bấm nổi — đúng, nhưng đó là hệ
+     quả của việc ÉP 9:16, không phải của màn hình ngang. Từ khi khung ngang tràn hết
+     chỗ trống và zoom neo theo cạnh ngắn, nằm ngang cho ô TO HƠN cầm dọc (29,9 so với
+     27,9 px mỗi ô, đo trên 844x390), nên không còn gì để chắn. */
+
+  /* Máy nằm ngang: hai thanh chữ ngoài khung nhường chiều cao lại cho khung game —
+     mỗi pixel bớt ở đây là một pixel khung to thêm. */
+  body.landscape .bar,body.landscape .foot{padding-top:1px;padding-bottom:1px;font-size:9px;gap:6px;min-height:0}
+  body.landscape .bar .btn,body.landscape .foot .ctl{padding:1px 6px;font-size:8.5px}
+  body.landscape #footHint,body.landscape .bar .grow~span{display:none}
+  body.landscape .hide-land{display:none}
+  /* Nằm ngang chỉ còn ~330px chiều cao cho bảng phủ, mà bài mở đầu dài hơn thế — nút
+     "Vào ca" bị đẩy khỏi màn hình và người chơi tưởng game treo. Bó chữ lại, và ghim
+     hàng nút xuống đáy để nó luôn nằm trong tầm ngón tay dù bài có dài bao nhiêu. */
+  body.landscape .veil{padding:8px 12px 0;gap:5px;line-height:1.4}
+  body.landscape .veil h2{font-size:18px}
+  body.landscape .veil p{font-size:11px;max-width:60ch}
+  body.landscape #veilKeys{font-size:9.5px}
+  body.landscape .veil kbd{font-size:9px;padding:1px 4px}
+  /* Máy tính không phải cái điện thoại cầm ngang. Cụm luật `body.landscape` ngay trên đây
+     bóp hai thanh chữ xuống 9px để nhường từng pixel chiều cao lại cho khung game — đúng
+     khi cả màn hình chỉ cao 390px, sai khi nó cao 900px: ở đó 9px là cỡ chữ phải nheo mắt
+     mới đọc, mà chiều cao thì đang dư ra. Trả lại cỡ chữ và nới thêm một nấc.
+     Lọc bằng CHIỀU CAO thật cộng với "có chuột thật" — đúng phép thử mà pcMode() trong
+     game.js dùng — nên vỏ trang và lớp HUD trong khung không bao giờ nói hai chuyện khác
+     nhau về việc đang ngồi trước máy nào. */
+  @media (min-height: 620px) and (hover: hover) and (pointer: fine){
+    body.landscape .bar,body.landscape .foot{padding-top:7px;padding-bottom:7px;font-size:13px;gap:14px}
+    body.landscape .bar .btn,body.landscape .foot .ctl{padding:4px 10px;font-size:12px}
+    body.landscape .bar .name{font-size:20px}
+    body.landscape .bar .k{font-size:11px}
+    body.landscape #footHint,body.landscape .bar .grow~span{display:inline}
+    body.landscape .veil{padding:20px 24px 0;gap:10px;line-height:1.55}
+    body.landscape .veil h2{font-size:26px}
+    body.landscape .veil p{font-size:14px;max-width:66ch}
+    body.landscape #veilKeys{font-size:12.5px}
+    body.landscape .veil kbd{font-size:12px;padding:2px 6px}
+  }
+  /* Hang nut cua tam man phu DINH DAY, o CA HAI huong man hinh.
+     ROOT-CAUSE cua bug "toi man 3 mo tu la stuck": tu do la mot tam man phu cuon
+     duoc, va den man 3 thi tu da co 7-8 mon. Do thuc o khung 390x844: bang cao
+     873px trong cho trong 757px, nen nut "Dong tu" roi xuong y=876 - NAM DUOI DAY
+     MAN HINH. Mo tu ra la khong con duong thoat, va mon cuoi trong tu thi bi hang
+     nut dev che. Chi tam man ngang moi duoc dinh day, con man doc - dung cai ma
+     nguoi choi dien thoai dung - thi khong.
+     Dinh day thi du danh sach dai bao nhieu, loi ra van luon o duoi ngon tay. */
+  .veil-acts{position:sticky;bottom:0;width:100%;padding:8px 0 4px;z-index:2;
+    background:linear-gradient(180deg,rgba(6,7,9,0),rgba(6,7,9,.97) 35%)}
+
+  /* MỘT BẢNG (tủ đồ / trạm dịch vụ) thì hàng nút KHÔNG được dính đè lên danh sách nữa —
+     nó trở thành một cái chân trang thật, và danh sách là phần duy nhất cuộn.
+     ROOT-CAUSE: thanh dính đáy ở trên được thêm vào để cứu ca màn DỌC (bảng cao hơn chỗ
+     trống nên nút "Đóng tủ" rơi xuống dưới đáy màn hình). Nó cứu được ca đó nhưng đẻ ra ca
+     khác ở màn NGANG: khung chỉ cao ~330px, phần đầu bảng ăn gần hết, nên danh sách bắt đầu
+     ngay dưới thanh dính — và vì nền thanh là một dải chuyển sắc TRONG SUỐT ở mép trên, hàng
+     đồ đầu tiên VẪN NHÌN THẤY dưới nó và trông như bấm được. Chạm vào hàng đó thì cú chạm rơi
+     vào nút "Đóng tủ" nằm trên: tủ đóng lại, không nhặt được gì. Đo thật: topmost="veilBtn",
+     coveredBy="Đóng tủ", isTop=false, clickFired=0 — hỏng ngay khi tủ chỉ có MỘT món.
+     Chia thành ba tầng thì không còn chỗ nào chồng lên chỗ nào, ở mọi cỡ khung. */
+  .veil.panel{overflow:hidden;justify-content:flex-start;gap:7px;padding-bottom:0}
+  .veil.panel #veilExtra{flex:1 1 auto;min-height:0;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;padding-bottom:6px}
+  .veil.panel .veil-acts{position:static;flex:0 0 auto;background:#060709;
+    border-top:1px solid var(--line);padding:8px 0 6px}
+  /* Màn ngang: phần đầu bảng phải nhường chỗ cho danh sách, vì danh sách mới là thứ để bấm. */
+  body.landscape .veil.panel h2{font-size:15px}
+  body.landscape .veil.panel #veilBody{font-size:10.5px;max-width:74ch;line-height:1.35}
+  /* Chua cho hang nut dev o duoi: no nam NGOAI tam man phu nen tam phu khong biet
+     no ton tai, va hang cuoi cung cua danh sach chui xuong duoi no. */
+  .veil{padding-bottom:22px}
+  body.landscape .veil-acts{padding:6px 0 10px}
+
+  /* ---- dau build, goc tren ben trai ----
+     Chu du an: "cho version hien tren goc tren ben trai" - de biet trinh duyet co dang chay
+     mot ban cu hay khong. No PHAI khong bat chuot: no nam de len khung choi, va mot cai nhan
+     nuot mat cu cham dau tien cua nguoi choi thi chinh no la mot con bug. */
+  .buildtag{position:fixed;left:4px;top:3px;z-index:9999;pointer-events:none;
+    font-family:var(--mono);font-size:9px;letter-spacing:.06em;line-height:1.25;
+    color:rgba(150,165,180,.62);text-shadow:0 1px 2px rgba(0,0,0,.9);white-space:pre}
+  .buildtag.warn{color:#ffb35a}
+  .veil{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:flex-start;gap:10px;text-align:center;background:rgba(6,7,9,.94);
+    padding:18px 14px;line-height:1.55;overflow:auto;
+    /* Trên màn menu của Biệt Đội, #menu là anh em ĐỨNG SAU trong cùng một .screen và
+       mang z-index:8 — tấm màn không z-index sẽ bị vẽ trước nó và nằm khuất bên dưới.
+       (Đó là một nửa của cái bẫy: nửa kia là luật `body:not(.in-run) #veil{display:none}`
+       — xem body.wiki-open ở dưới. Sửa mỗi một nửa thì bảng vẫn không hiện.)
+       12 để vượt menu; toast (30) và nhãn bản dựng (9999) vẫn ở trên như cũ. */
+    z-index:12;
+  }
+  .veil[hidden]{display:none;}
+  .veil h2{font-family:var(--display);font-weight:400;font-size:25px;margin:0;color:#e8ebee;}
+  .veil p{margin:0;max-width:46ch;color:var(--ink-dim);font-size:13px;}
+  .veil kbd{font-family:var(--mono);font-size:11px;color:var(--ink);border:1px solid var(--line);background:#0e1116;padding:2px 6px;border-radius:2px;}
+  .btn{
+    font-family:var(--mono);font-size:12px;letter-spacing:.11em;text-transform:uppercase;
+    color:#120d06;background:var(--amber);border:none;border-radius:2px;padding:11px 22px;cursor:pointer;
+  }
+  .btn:hover{background:#e6a04b;}
+  .btn:focus-visible{outline:2px solid #f0c58a;outline-offset:3px;}
+  .btn.ghost{background:transparent;color:var(--ink-dim);border:1px solid var(--line);}
+  .btn.ghost:hover{color:var(--ink);border-color:#3a434f;}
+
+  /* Panels — the truck locker, and the title / end-of-run screens.
+     Sized for a PORTRAIT frame: one column, never wider than the play area, and each row laid out
+     as name + price on one line with the description under it, rather than a card that needs 190 px
+     of width before it will sit beside another one. On a desktop the column is capped so the panel
+     reads as part of the game rather than sprawling across a 1400 px window. */
+  #veilExtra{width:100%;max-width:min(100%, 460px);display:flex;flex-direction:column;
+             align-items:stretch;gap:5px;}
+  .shop{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);
+        border:1px solid var(--line);width:100%;}
+  .up,.gear{background:var(--panel);padding:9px 11px;display:grid;grid-template-columns:1fr auto;
+            gap:2px 10px;text-align:left;cursor:pointer;border:none;color:inherit;font:inherit;}
+  .up:hover,.gear:hover{background:#171c23;}
+  .up:disabled,.gear:disabled{opacity:.4;cursor:not-allowed;}
+  .up .t,.gear .t{grid-column:1;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .up .d,.gear .d{grid-column:1 / -1;font-size:11px;color:var(--ink-dim);line-height:1.4;}
+  .up .p,.gear .p{grid-column:2;grid-row:1;font-family:var(--mono);font-size:11px;
+                  letter-spacing:.04em;text-align:right;white-space:nowrap;align-self:center;}
+  .up .p{color:var(--amber);}
+  .gear .p{color:var(--teal);}
+  .shop .empty{background:var(--panel);padding:11px;font-size:11.5px;color:var(--ink-faint);}
+  .seg{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--ink-faint);width:100%;text-align:left;margin-top:4px;}
+  .wallet{font-family:var(--mono);font-size:12.5px;color:var(--amber);letter-spacing:.06em;}
+
+  .foot{
+    display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+    padding:7px 13px;background:var(--panel-2);border-top:1px solid var(--line);
+    font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em;flex:0 0 auto;
+  }
+  .foot .grow{flex:1 1 auto;}
+  .ctl{
+    font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-dim);background:#0e1116;border:1px solid var(--line);border-radius:2px;padding:6px 11px;cursor:pointer;
+  }
+  .ctl:hover{color:var(--ink);border-color:#3a434f;}
+  .ctl[aria-pressed="true"]{color:#0a1014;background:var(--teal);border-color:var(--teal);}
+  .ctl:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+
+  /* Every pixel the page chrome takes is a pixel off the frame, and the frame is what is played.
+     On a phone the header keeps only what a player reads mid-shift, and the footer keeps only its
+     three dev buttons. */
+  @media (max-width:820px){
+    .bar{gap:10px;font-size:10px;padding:5px 10px;}
+    .bar .name{font-size:13px;}
+    .hide-sm{display:none;}
+    .foot{padding:4px 10px;gap:8px;}
+    .ctl{padding:5px 8px;font-size:9px;}
+    #footHint{display:none;}
+  }
+
+  /* =====================================================================
+     TẦNG MENU CỦA BIỆT ĐỘI
+     Vỏ trong-trận phía trên là của bộ máy repo2d, y nguyên. Phần dưới đây chỉ là
+     lớp menu đắp lên: sảnh, biệt đội, trang bị, tiến hoá, gacha, cửa hàng, nhiệm vụ.
+     ===================================================================== */
+  :root{
+    --ground:#07080a; --panel:#12151a; --panel2:#171b21; --panel3:#1d222a;
+    --line:#272d37; --line2:#39424f;
+    --ink:#dfe4ea; --dim:#98a2ad; --faint:#68727e;
+    --gold:#e0b03c; --amber:#d08a34; --blood:#a8443a; --teal:#4fa0a8;
+    --good:#6fbf73; --bad:#d0574c; --gem:#7fd0e8; --purple:#a678d8;
+    --mono: ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --body: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --display: Cambria,"Times New Roman","Liberation Serif","Noto Serif",serif;
+  }
+  /* ---------------- MENU ----------------
+     Bố cục theo kiểu game sinh tồn di động (tham chiếu sur_client/MenuSceneController):
+     thanh trên cố định · hai cột phím tắt hai bên · nhóm chọn chương · nút vào trận
+     · thanh tab năm ô ở dưới với ô giữa nổi lên.                                    */
+  .menu{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
+        background:radial-gradient(120% 70% at 50% -8%,#1b2433 0%,#0b0e14 55%,#06070a 100%)}
+  body.in-run .menu{display:none}
+  /* Hang nut dev cua repo2d (BOT / TAT QUAI / CA MOI / AM THANH) chi co nghia trong
+     ca. De no o menu thi no nam DUOI thanh tab nam o, day thanh tab len khoi day
+     man hinh va an mat 31px o doc / 17px o ngang. */
+  body:not(.in-run) .foot{display:none}
+  /* Nut Bo ca: chi trong ca moi co gi de bo. */
+  .quit-run{background:#2a1a18;border:1px solid #6b3a34;color:#e8b9b2;border-radius:5px;
+            padding:3px 9px;font-size:11px;cursor:pointer;font-family:inherit}
+  .quit-run:active{transform:translateY(1px)}
+  body:not(.in-run) .quit-run{display:none}
+
+  /* --- thanh trên: hồ sơ + ví tiền --- */
+  .topbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:7px 8px;
+          background:linear-gradient(180deg,rgba(11,14,20,.98),rgba(11,14,20,.86));
+          border-bottom:1px solid var(--line);z-index:6}
+  .me{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 3px;border-radius:16px;
+      background:#151a22;border:1px solid var(--line);cursor:pointer;flex:0 0 auto}
+  .me:active{transform:translateY(1px)}
+  .me-av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+         font-size:15px;background:radial-gradient(circle at 35% 30%,#2c3542,#151a22);
+         border:1px solid var(--line2)}
+  .me-n{font-size:11px;font-weight:700;line-height:1.15}
+  .me-p{font-family:var(--mono);font-size:9px;color:var(--gold);line-height:1.2}
+  .purse{flex:1;display:flex;justify-content:flex-end;gap:4px;min-width:0}
+  /* Cả cái chip là một nút (nó nhảy sang cửa hàng), nên nó phải cao bằng một cái nút.
+     Đo được lúc còn 21px: thấp hơn mọi thứ khác trên sảnh, kể cả ô xác 59px. */
+  .coin{display:flex;align-items:center;gap:4px;padding:4px 4px 4px 7px;border-radius:14px;
+        background:#0d1117;border:1px solid var(--line);cursor:pointer;min-width:0}
+  .coin i{font-style:normal;font-size:14px}
+  .coin b{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--ink);
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62px}
+  .coin s{text-decoration:none;width:18px;height:18px;border-radius:50%;flex:0 0 auto;
+          background:#2c3644;color:#cfd6de;font-size:13px;line-height:17px;text-align:center}
+  .coin:active{filter:brightness(1.25)}
+  /* Máy hẹp: ba cái chip vừa nới rộng thì hết chỗ, và .purse có min-width:0 nên nó KHÔNG tràn
+     hàng mà bóp con số thành "5…". Đo được ở 320px sau khi nới: "5.0…", trong khi bản cũ hiện
+     đủ "5.000" — tức là nới rộng ở đây làm hỏng đúng cái thông tin mà chip sinh ra để nói.
+     Nên bớt LỀ NGANG lại theo bề rộng máy, và chỉ giữ phần cao thêm. Ở 320px thì lề ngang về
+     đúng bằng bản cũ: chỗ đó không đủ cho cả hai, và con số quan trọng hơn vài pixel bề ngang
+     — cả chip vẫn bấm được, chỉ là không to ra thêm. */
+  @media (max-width:380px){
+    .coin{padding:4px 3px 4px 5px;gap:3px}
+    .coin i{font-size:12.5px}
+    .coin b{font-size:10.5px}
+    .coin s{width:16px;height:16px;font-size:12px;line-height:15px}
+  }
+  @media (max-width:340px){
+    .coin{padding:4px 2px 4px 4px;gap:3px}
+    .coin i{font-size:11px}
+    .coin b{font-size:10px}
+    .coin s{width:14px;height:14px;font-size:11px;line-height:13px}
+  }
+
+  /* --- vùng cuộn duy nhất --- */
+  .stage{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+  .stage.is-home{position:relative;display:flex;flex-direction:column;gap:8px;padding:8px 10px 12px}
+
+  /* --- cột phím tắt bên phải ở sảnh --- */
+  .rail{position:absolute;top:6px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:3}
+  .rail.left{right:auto;left:8px}
+  /* Nới rộng 2026-08-31 theo yêu cầu chủ dự án. 46px với nhãn 7,5px là cỡ của một cái
+     nhãn, không phải cỡ của một cái nút bấm bằng ngón cái — mà đây là bốn lối đi chính
+     của sảnh (Gacha, Map, Nhiệm Vụ, Cửa Hàng). 64px vẫn nằm gọn trong lề mà sân khấu đã
+     chừa sẵn, nên chỉ cần nới lề đó theo (58 -> 76) là không con chữ nào bị đè. */
+  .rail-b{position:relative;width:64px;padding:8px 3px 7px;border-radius:11px;text-align:center;cursor:pointer;
+          background:linear-gradient(180deg,#212a36,#141a22);border:1px solid var(--line2);
+          box-shadow:0 3px 0 #0a0d12}
+  .rail-b:active{transform:translateY(3px);box-shadow:none}
+  .rb-i{font-size:26px;line-height:1.1}
+  .rb-n{font-size:9.5px;color:var(--dim);letter-spacing:.02em;margin-top:2px}
+
+  /* --- sân khấu nhân vật --- */
+  .showcase{position:relative;overflow:hidden;border:1px solid var(--line2);border-radius:12px;
+            padding:14px 76px 10px;text-align:center;cursor:pointer;
+            background:linear-gradient(180deg,hsl(var(--hue,40) 30% 16%),#0c1016 72%)}
+  .stage.is-home>.showcase{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+  .sc-glow{position:absolute;left:50%;top:50%;width:210px;height:210px;border-radius:50%;
+           transform:translate(-50%,-62%);
+           background:radial-gradient(circle,hsl(var(--hue,40) 70% 55% / .26),transparent 66%)}
+  .sc-face{position:relative;font-size:78px;line-height:1.1;filter:drop-shadow(0 8px 18px rgba(0,0,0,.75))}
+  /* CHÂN DUNG XÁC vẽ bằng <canvas> — xem veMat() trong js/ui.js.
+     Khổ vẽ ĐẶT Ở ĐÂY chứ không trong JS: canvas lấy clientWidth/clientHeight làm khổ, nên
+     mấy dòng dưới là nguồn duy nhất. Đổi cỡ một ô chân dung thì sửa đúng ở đây. */
+  canvas.mat{display:block;margin:0 auto;image-rendering:pixelated}
+  .mat-to{width:140px;height:188px}    /* sân khấu giữa màn chính */
+  .mat-eq{width:74px;height:100px}     /* đầu bảng Trang Bị */
+  .mat-vua{width:34px;height:46px}     /* thẻ xác, ô xếp tổ */
+  .mat-nho{width:30px;height:42px}     /* hàng năm người */
+  .mat-ti{width:24px;height:32px}      /* thẻ kết quả gacha */
+  .mat-dau{width:24px;height:24px;border-radius:50%}   /* chip góc trên: cắt lấy đầu */
+  .mat-chip{display:inline-block;width:15px;height:21px;margin:0 3px -6px 0}  /* nằm giữa dòng chữ */
+  /* ĐỒ NGHỀ MANG VÀO CA — khối bán ở màn Cửa Hàng, và dải nhắc ở màn chính. */
+  .mangbox{display:flex;align-items:center;gap:10px;border:1px solid var(--line);
+    border-radius:10px;background:#10141a;padding:9px 11px;margin:6px 0 10px}
+  .mangbox.on{border-color:#c8a052;background:#171410}
+  .mangbox .mb-i{flex:0 0 auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+  .mangbox .mb-b{flex:1 1 auto;min-width:0}
+  .mangbox .mb-n{font-size:13px;font-weight:700;color:var(--ink)}
+  .mangbox .mb-s{font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+  .wep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+  .wep{border:1px solid var(--line);border-radius:9px;background:#10141a;padding:9px 5px 8px;
+    text-align:center;cursor:pointer}
+  .wep:active{transform:translateY(1px)}
+  .wep.ngheo{opacity:.45}
+  .wep.off{opacity:.32;pointer-events:none}
+  .wep .wp-i{height:46px;display:flex;align-items:center;justify-content:center}
+  .wep .wp-n{font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px}
+  .wep .wp-u{font-size:10px;color:var(--ink-faint)}
+  .wep .wp-p{font-size:11.5px;font-weight:700;color:#e0c07a;margin-top:3px;font-family:var(--mono)}
+  /* CHỖ BÁN ĐỒ NGHỀ ngay trên nút ĐI CA — chỗ bán thật, không phải lối tắt sang chỗ bán.
+     `.gorow` bọc cả dải bán lẫn nút, nên `.stage.is-home` vẫn đúng BỐN đứa con: khung ngang
+     của nó là grid có chỉ định chỗ cho từng đứa, thêm đứa thứ năm là hỏng im lặng. */
+  .gorow{display:flex;flex-direction:column;gap:6px}
+  .gorow>.b.cta{width:100%}
+  .wepbar{border:1px solid var(--line);border-radius:10px;background:#10141a;padding:5px 6px 6px}
+  .wepbar.on{border-color:#c8a052}
+  .wb-h{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
+  .wb-l{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--ink-faint)}
+  .wb-s{flex:1 1 auto;min-width:0;font-size:9.5px;color:var(--ink-faint);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wepbar.on .wb-s{color:#e0c07a}
+  .wb-g{font-family:var(--mono);font-size:10px;color:#e0c07a;font-weight:700}
+  .wq-row{display:flex;gap:5px}
+  .wq{flex:1 1 0;min-width:0;border:1px solid var(--line2);border-radius:8px;background:#151b23;
+    padding:4px 2px 3px;text-align:center;cursor:pointer}
+  .wq:active{transform:translateY(1px)}
+  .wq img{display:block;margin:0 auto}
+  .wq b{display:block;font-family:var(--mono);font-size:9.5px;color:#cdd6e0;margin-top:1px}
+  .wq.on{border-color:#c8a052;background:#241d10}
+  .wq.on b{color:#e0c07a}
+  .wq.ngheo{opacity:.4}
+  .wq.mo{opacity:.3}                     /* đã mang món khác: tối đa một món */
+
+
+  .sc-name{position:relative;font-family:var(--display);font-size:22px;color:#f4ead4;margin-top:2px}
+  .sc-ep{font-family:var(--body);font-size:11px;color:var(--dim)}
+  .sc-star{position:relative;color:var(--gold);font-size:13px;letter-spacing:.14em}
+  .sc-skill{position:relative;font-size:10.5px;color:var(--dim);line-height:1.45;margin-top:5px;
+            padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
+  .sc-skill b{color:#e8dcc0}
+
+  /* --- hàng năm người --- */
+  .lineup{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  .lu{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px;padding:5px 2px;
+      text-align:center;cursor:pointer;background:#10141a}
+  .lu:before{content:'';position:absolute;inset:0;background:hsl(var(--hue,40),45%,50%);opacity:.09}
+  .lu.is-me{box-shadow:0 0 0 1px var(--gold) inset}
+  .lu.empty{opacity:.45;border-style:dashed}
+  .lu-f{position:relative;font-size:20px;line-height:1.15}
+  .lu-n{position:relative;font-size:10px;font-weight:700}
+  .lu-t{position:relative;font-size:7.5px;color:var(--dim);line-height:1.25;min-height:10px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lu.is-me .lu-t{color:var(--gold)}
+
+  /* --- nhóm chọn chương --- */
+  .stage.is-home>.chapter{margin-top:auto}
+  .chapter{display:flex;align-items:stretch;gap:6px;background:#111721;border:1px solid var(--line2);
+           border-radius:11px;padding:7px}
+  .ch-b{flex:1;min-width:0;cursor:pointer}
+  .ch-n{font-family:var(--display);font-size:17px;color:#f2e8d2;line-height:1.2}
+  .ch-ok{color:var(--good);font-size:13px}
+  .ch-s{font-size:10px;color:var(--dim);margin-top:1px}
+  .ch-bar{height:5px;background:#080b0f;border-radius:3px;overflow:hidden;margin:5px 0 3px;
+          border:1px solid #1d232c}
+  .ch-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold))}
+  .ch-f{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+  /* 30px là bề ngang của một mũi tên, không phải của một chỗ đặt ngón tay — và đây là nút
+     lật chương, thứ người chơi bấm mỗi lần chọn map. */
+  .b.chev{flex:0 0 auto;width:42px;padding:0;font-size:22px;line-height:1;background:#1b2430;
+          color:var(--ink);border:1px solid var(--line2);border-radius:8px;letter-spacing:0}
+  .b.chev:disabled{opacity:.3;cursor:default}
+
+  /* --- nút vào trận --- */
+  .b.cta{width:100%;font-size:17px;letter-spacing:.16em;padding:15px;border-radius:11px;
+         color:#062010;background:linear-gradient(180deg,#8fd88a,#3f9a4d);
+         box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 4px 0 #1f5c2b;
+         text-shadow:0 1px 0 rgba(255,255,255,.35)}
+  .b.cta:active{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 0 #1f5c2b}
+
+  /* --- tấm nội dung của các màn khác --- */
+  .sheet{display:flex;flex-direction:column;min-height:100%}
+  .sheet-h{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:8px;padding:8px 10px;
+           background:linear-gradient(180deg,#131820,#0e1218);border-bottom:1px solid var(--line)}
+  .sheet-t{font-family:var(--display);font-size:19px;color:#f0e6d2}
+  .sheet-b{padding:10px 10px 16px;display:flex;flex-direction:column;gap:9px}
+
+  /* --- thanh tab dưới --- */
+  .tabbar{flex:0 0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;gap:2px;
+          padding:4px 5px calc(5px + env(safe-area-inset-bottom));
+          background:linear-gradient(180deg,#141922,#0a0d12);border-top:1px solid var(--line2)}
+  .tb{position:relative;padding:5px 1px 4px;border-radius:9px;text-align:center;cursor:pointer;color:var(--faint)}
+  .tb.on{color:var(--ink);background:#1c2531}
+  .tb-i{font-size:19px;line-height:1.15;filter:grayscale(.55) opacity(.75)}
+  .tb.on .tb-i{filter:none}
+  .tb-n{font-size:8px;letter-spacing:.02em;line-height:1.2}
+  /* .tabbar la grid voi align-items:end, nen item neo day va margin-top am khong
+     nhac no len duoc mot pixel nao. translateY moi that su nhac. */
+  .tb.mid{transform:translateY(-12px);margin-top:-12px;padding:9px 1px 5px;border-radius:12px;color:#062010;
+          background:linear-gradient(180deg,#8fd88a,#3f9a4d);
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 3px 0 #1f5c2b}
+  .tb.mid .tb-i{filter:none;font-size:23px}
+  .tb.mid .tb-n{font-weight:700;font-size:8.5px;letter-spacing:.08em}
+  .tb:active{transform:translateY(1px)}
+  .tb.mid:active{transform:translateY(-11px)}
+
+  /* ---------------- các khối dùng chung ---------------- */
+  h2{font-family:var(--display);font-weight:400;font-size:21px;margin:2px 0 0;color:#eef1f4}
+  h3{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+     color:var(--faint);margin:6px 0 0;display:flex;align-items:center;gap:7px}
+  h3:after{content:'';flex:1;height:1px;background:var(--line)}
+  p.hint{margin:0;font-size:11.5px;line-height:1.5;color:var(--dim)}
+  .dim{color:var(--faint)} .good{color:var(--good)} .bad{color:var(--bad)}
+
+  .b{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+     color:#120d06;background:linear-gradient(180deg,#f0c65a,#c8912c);border:none;border-radius:7px;
+     padding:9px 14px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 0 #7d5716}
+  .b:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 0 #7d5716}
+  .b.big{font-size:14px;padding:13px 18px;letter-spacing:.14em}
+  .b.ghost{background:linear-gradient(180deg,#222b37,#161c25);color:var(--ink);
+           border:1px solid var(--line2);box-shadow:0 3px 0 #0a0d12}
+  .b.ghost:active{box-shadow:0 1px 0 #0a0d12}
+  .b.small{padding:6px 10px;font-size:10px;align-self:flex-start}
+  .b.tiny{padding:5px 8px;font-size:9.5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 #7d5716}
+  .b.danger{background:linear-gradient(180deg,#c9584c,#8e3730);color:#ffe6e2;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 3px 0 #55201b}
+  .b.ghost.danger{background:linear-gradient(180deg,#2a1d1c,#1a1211);color:#c9756b;border-color:#5a3430;box-shadow:0 3px 0 #0a0d12}
+  .b:disabled{filter:grayscale(.7) brightness(.7);cursor:default}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+  .row .b{flex:1 1 auto}
+
+  .cc{position:relative;border:1px solid var(--line);border-radius:8px;background:#10141a;
+      padding:5px 3px;text-align:center;cursor:pointer;overflow:hidden}
+  .cc:before{content:'';position:absolute;inset:0;background:hsl(var(--hue,40),40%,50%);opacity:.08}
+  .cc>*{position:relative}
+  .cc.sel{box-shadow:0 0 0 2px var(--gold)}
+  .cc.in{background:#171f29}
+  .cc-face{font-size:22px;line-height:1.2}
+  .cc-n{font-size:11px;font-weight:700;color:var(--ink)}
+  .cc-s{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+  .cc-tag{font-size:8.5px;color:var(--dim);margin-top:2px;line-height:1.25;min-height:11px}
+  .cc-tag.lead{color:var(--gold);font-weight:700}
+  .cc-p{font-family:var(--mono);font-size:8.5px;color:var(--amber)}
+  .cc.empty{opacity:.5;display:flex;flex-direction:column;justify-content:center}
+  .cc-plus{font-size:20px;color:var(--faint)}
+  .cc.unknown{opacity:.5;filter:grayscale(.7)}
+  .char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .char-strip{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px}
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:4px;font-size:11px;padding:5px 10px;
+        border:1px solid var(--line);border-radius:15px;background:#10141a;color:var(--dim);
+        cursor:pointer;white-space:nowrap}
+  .chip.on{background:#26313f;color:#fff;box-shadow:0 0 0 1px var(--gold)}
+  .dot{position:absolute;top:-4px;right:-4px;background:var(--blood);color:#fff;font-size:9px;
+       min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+       padding:0 4px;border:1px solid #1a0f0d}
+  .foot-note{display:flex;align-items:center;justify-content:space-between;gap:8px;
+             font-size:9.5px;color:var(--faint)}
+
+  /* --- danh sách map --- */
+  .map{position:relative;background:#111721;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .map.locked{opacity:.5} .map.done{border-color:#2f4a34}
+  .map.cur{box-shadow:0 0 0 1px var(--gold) inset}
+  .map-h{display:flex;align-items:baseline;gap:8px}
+  .map-h b{font-family:var(--display);font-size:16px;color:#f0e6d2}
+  .map-f{font-family:var(--mono);font-size:10px;color:var(--gold)}
+  .map-d{font-size:11px;color:var(--dim);margin:3px 0 5px;line-height:1.45}
+  .map-s{display:flex;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .map-s .ok{color:var(--good)} .map-s .bad{color:var(--bad)}
+  .map-r{font-size:10px;color:var(--dim);margin:5px 0 7px}
+  .map-badge{position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:8.5px;
+             color:var(--good);border:1px solid #2f4a34;border-radius:4px;padding:2px 5px}
+  .map-badge.dim{color:var(--faint);border-color:var(--line)}
+  .lockmsg{font-size:11px;color:var(--faint)}
+
+  /* --- ô đội hình --- */
+  .slot-row{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  .slot{background:#10141a;border:1px solid var(--line);border-radius:8px;padding:5px 3px;text-align:center}
+  .slot.lead{border-color:var(--gold);background:#171410}
+  .slot.empty{opacity:.75;border-style:dashed}
+  .slot-l{font-family:var(--mono);font-size:7px;letter-spacing:.06em;color:var(--faint)}
+  .slot-f{font-size:20px} .slot-n{font-size:11px;font-weight:700}
+  /* Muoi tam pixel cua mui ten native cua <select> khong tinh vao font-size, nen o
+     rong 62,8px voi chu 9px van bi cat thanh "Khuâ". Bo padding ngang va thu chu lai
+     mot nac de chu du cho. */
+  .slot .tac{width:100%;font-size:8px;background:#0c0f14;color:var(--ink);border:1px solid var(--line);
+             border-radius:4px;padding:2px 0;margin-top:3px;text-align:center}
+  .tac-d{font-size:8px;color:var(--faint);line-height:1.3;margin-top:3px;min-height:20px}
+  .slot-acts{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+  .slot-acts .b{width:100%;padding:4px 2px;font-size:8px;letter-spacing:.02em}
+
+  .detail{background:#131922;border:1px solid var(--line2);border-radius:10px;padding:10px}
+  .det-h{font-family:var(--display);font-size:16px;color:#f0e6d2}
+  .stars{color:var(--gold);font-size:12px}
+  .det-sk{font-size:11px;color:var(--dim);line-height:1.5;margin-top:5px}
+  .det-sk b{color:var(--ink)}
+  .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-top:7px}
+  .sc{display:flex;justify-content:space-between;font-size:10.5px;background:#0e1218;
+      border:1px solid var(--line);border-radius:5px;padding:3px 6px}
+  .sc span{color:var(--faint)} .sc b{font-family:var(--mono);color:var(--ink)}
+  .det-lv{font-family:var(--mono);font-size:10px;color:var(--amber);margin-top:7px}
+
+  /* --- TRANG BỊ: xác đứng giữa, sáu ô vây quanh, kho 5 ô mỗi hàng --- */
+  .eq-rig{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:5px;align-items:center}
+  .eq-col{display:flex;flex-direction:column;gap:5px}
+  .eq-body{position:relative;overflow:hidden;border:1px solid var(--line2);border-radius:11px;
+           padding:10px 4px 8px;text-align:center;
+           background:linear-gradient(180deg,hsl(var(--hue,40) 28% 15%),#0c1016 78%)}
+  .eb-f{font-size:46px;line-height:1.1;filter:drop-shadow(0 5px 10px rgba(0,0,0,.65))}
+  .eb-n{font-family:var(--display);font-size:15px;color:#f2e8d2;line-height:1.2}
+  .eb-s{color:var(--gold);font-size:10px;letter-spacing:.1em}
+  .eb-p{font-family:var(--mono);font-size:11px;color:var(--amber);margin-top:2px}
+  .eqs{position:relative;background:#10141a;border:1px solid var(--line);border-radius:9px;
+       padding:5px 3px;text-align:center;cursor:pointer;min-height:60px;overflow:hidden}
+  .eqs.sel{box-shadow:0 0 0 2px var(--gold)}
+  .eqs.empty{border-style:dashed;opacity:.72}
+  .eqs:before{content:'';position:absolute;inset:0;opacity:.13;background:var(--rc,transparent)}
+  .eqs>*{position:relative}
+  .eqs-i{font-size:17px;line-height:1.15}
+  .eqs-n{font-size:8px;color:var(--faint);letter-spacing:.04em}
+  .eqs-t{font-size:9.5px;font-weight:700;line-height:1.2;margin-top:1px;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eqs-v{font-family:var(--mono);font-size:8.5px;color:var(--gold)}
+  .eqs-l{position:absolute;top:2px;right:3px;font-family:var(--mono);font-size:7.5px;color:var(--faint)}
+  .stat-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+  .sb{background:#0e1218;border:1px solid var(--line);border-radius:7px;padding:4px 2px;text-align:center}
+  .sb i{font-style:normal;font-size:11px}
+  .sb b{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink)}
+  .sb span{font-size:7.5px;color:var(--faint)}
+  .setbox{background:#101820;border:1px solid #24343f;border-radius:8px;padding:7px}
+  .setline{font-size:10.5px;color:var(--teal);line-height:1.5}
+  .filters{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px}
+  .inv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  /* padding-top chua cho dai sao neo tuyet doi o tren cung; khong chua thi hop emoji
+     19px bat dau ngay y=5 va nam de len hang sao (y 2..11). */
+  .inv{position:relative;overflow:hidden;background:#10141a;border:1px solid var(--line);
+        border-radius:8px;padding:11px 2px 3px;text-align:center;cursor:pointer;min-height:60px}
+  .inv:before{content:'';position:absolute;inset:0;opacity:.16;background:var(--rc,transparent)}
+  .inv>*{position:relative}
+  .inv.sel{box-shadow:0 0 0 2px var(--gold)}
+  .inv-i{font-size:19px;line-height:1.1}
+  .inv-n{font-size:8px;line-height:1.15;color:var(--dim);
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .inv-lv{font-family:var(--mono);font-size:7.5px;color:var(--gold)}
+  .inv-star{position:absolute;top:1px;left:0;right:0;font-size:6.5px;color:var(--gold);letter-spacing:-.5px}
+  .inv-on{position:absolute;bottom:1px;right:2px;font-size:9px}
+  .inv-lock{position:absolute;top:1px;right:2px;font-size:8px}
+  .subs{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-top:6px}
+  .sub{font-family:var(--mono);font-size:9.5px;background:#0e1218;border:1px solid var(--line);
+       border-radius:5px;padding:3px 5px}
+  .sub.off{opacity:.45}
+
+  /* --- TIẾN HOÁ: lưới ô có huy hiệu cấp --- */
+  .evo-top{background:#111721;border:1px solid var(--line2);border-radius:10px;padding:9px}
+  .evo-tn{font-family:var(--mono);font-size:11px;color:var(--gold)}
+  .evo-bar{height:6px;background:#080b0f;border:1px solid #1d232c;border-radius:4px;
+           overflow:hidden;margin-top:5px}
+  .evo-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold))}
+  .evo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .evo{position:relative;background:#10141a;border:1px solid var(--line);border-radius:9px;
+       padding:8px 4px 6px;text-align:center;cursor:pointer}
+  .evo.maxed{border-color:#2f4a34;background:#101710}
+  .evo.can{box-shadow:0 0 0 1px var(--gold) inset}
+  .evo-i{font-size:22px;line-height:1.15}
+  .evo-n{font-size:10px;font-weight:700;line-height:1.2;margin-top:1px}
+  .evo-lv{font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:1px}
+  .evo-c{font-family:var(--mono);font-size:8.5px;color:var(--amber);margin-top:2px}
+  .evo-max{font-family:var(--mono);font-size:8.5px;color:var(--good);margin-top:2px}
+
+  /* --- GACHA --- */
+  .tabs{display:flex;gap:5px}
+  .tab{flex:1;font-size:11px;padding:8px 4px;background:linear-gradient(180deg,#1a212b,#12171e);
+       color:var(--dim);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+  .tab.on{background:linear-gradient(180deg,#2b3745,#1e2733);color:#fff;border-color:var(--line2)}
+  .banner{position:relative;overflow:hidden;border:1px solid var(--bc);border-radius:11px;padding:11px;
+          background:linear-gradient(160deg,color-mix(in srgb,var(--bc) 26%,#0d1117),#0d1117)}
+  .ban-t{font-family:var(--display);font-size:20px;color:#f4ecd8}
+  .ban-d{font-size:11px;color:var(--dim);margin-top:3px;line-height:1.45}
+  .ban-r{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:6px}
+  .ban-p{font-family:var(--mono);font-size:10px;color:var(--gold);margin-top:3px}
+  .pool{background:#0e1218;border:1px solid var(--line);border-radius:8px;padding:8px}
+  .pool-t{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase}
+  .pool-r{font-size:11px;margin-top:4px;line-height:1.6}
+  .pool-r span{margin-right:7px}
+  .pool-r .dim{opacity:.4}
+
+  /* --- CỬA HÀNG --- */
+  .pack-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+  .pack{position:relative;background:linear-gradient(170deg,#221f36,#101119);border:1px solid #37325180;
+        border-radius:10px;padding:9px;cursor:pointer;text-align:center}
+  .pack:active{transform:translateY(2px)}
+  .pk-n{font-size:11px;font-weight:700}
+  .pk-tag{position:absolute;top:-6px;right:-4px;font-size:8px;background:var(--blood);color:#fff;
+          padding:1px 5px;border-radius:8px;border:1px solid #1a0f0d}
+  .pk-g{font-family:var(--mono);font-size:15px;color:var(--gem);margin:6px 0 2px}
+  .pk-g .bonus{color:var(--good);font-size:10px}
+  .pk-p{display:inline-block;font-family:var(--mono);font-size:11px;color:#120d06;margin-top:4px;
+        background:linear-gradient(180deg,#f0c65a,#c8912c);border-radius:6px;padding:4px 10px;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 0 #7d5716}
+  .fakebox{background:#1d1710;border:1px solid #4a3a20;border-radius:8px;padding:8px;
+           font-size:10.5px;color:#e0c48a;line-height:1.5}
+  .xrow{display:flex;align-items:center;gap:8px;background:#10141a;border:1px solid var(--line);
+        border-radius:8px;padding:8px}
+  .x-g{flex:1;font-family:var(--mono);font-size:12px;color:var(--gold)}
+  .x-l{font-size:9.5px;color:var(--faint)}
+
+  /* --- NHIỆM VỤ --- */
+  .quest{display:flex;align-items:center;gap:8px;background:#10141a;border:1px solid var(--line);
+         border-radius:8px;padding:8px}
+  .quest.done{border-color:var(--gold);background:#161309}
+  .quest.claimed{opacity:.45}
+  .q-b{flex:1;min-width:0}
+  .q-t{font-size:11.5px}
+  .q-bar{height:5px;background:#080b0f;border:1px solid #1d232c;border-radius:3px;
+         overflow:hidden;margin-top:4px}
+  .q-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--good))}
+  .q-p{font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:3px}
+  .q-ok{color:var(--good);font-size:16px}
+
+  /* ---------------- modal / toast ---------------- */
+  /* fixed chu khong absolute: .modal nam trong .screen, ma .screen chi la phan giua.
+     De absolute thi thanh tren (Hub / chi tieu) va thanh duoi (nut dev) khong bi lam
+     toi va van bam duoc trong luc popup dang mo. */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+         background:rgba(4,5,8,.86);padding:14px;z-index:20;overflow-y:auto}
+  .modal.show{display:flex}
+  .mcard{width:100%;max-width:340px;background:#111620;border:1px solid var(--line2);
+         border-radius:12px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+  .pop-h{display:flex;align-items:center;gap:8px;margin:-2px 0 8px}
+  .pop-t{flex:1;font-family:var(--display);font-size:18px;color:#f2e8d2;min-width:0;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pop-h .b.chev{width:26px;height:26px;font-size:13px;line-height:1}
+  .pop-b{display:flex;flex-direction:column;gap:7px}
+  .pop-item{position:relative;overflow:hidden;display:flex;align-items:center;gap:9px;
+            background:#0e1218;border:1px solid var(--line);border-radius:9px;padding:9px}
+  .pop-item:before{content:'';position:absolute;inset:0;opacity:.14;background:var(--rc,transparent)}
+  .pop-item>*{position:relative}
+  .pi-i{font-size:30px;line-height:1}
+  .pi-b{flex:1;min-width:0}
+  .pi-s{font-family:var(--mono);font-size:9px;color:var(--gold)}
+  .pi-m{font-size:12px;color:var(--dim);margin-top:2px}
+  .pi-m b{font-family:var(--mono);color:var(--ink)}
+  .pi-set{font-size:10px;color:var(--teal);margin-top:2px}
+  /* h3 dung chung co mot vach ke keo dai ra het be ngang. Tieu de trong the popup
+     khong duoc thua cai vach do - no cat ngang giua the. */
+  .mcard h3{font-family:var(--display);font-size:19px;letter-spacing:0;text-transform:none;
+            color:#f2e8d2;margin:0 0 8px;display:block}
+  .mcard h3:after{content:none}
+  .mline{font-size:12px;color:var(--dim);line-height:1.6}
+  .mcard .b{margin-top:9px}
+  .mline b{color:var(--ink)}
+  .modal.win .mcard{border-color:#3f6b45} .modal.lose .mcard{border-color:#6b3a34}
+  .pull-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:8px 0}
+  .pcard{background:#0e1218;border:1px solid var(--line);border-radius:4px;padding:4px 2px;text-align:center}
+  .pcard.s5{background:linear-gradient(160deg,#3a2c10,#0e1218)}
+  .pcard.s4{background:linear-gradient(160deg,#2a1f3a,#0e1218)}
+  .pcard.s3{background:linear-gradient(160deg,#1b232c,#0e1218)}
+  .pc-f{font-size:16px} .pc-n{font-size:8.5px;line-height:1.15}
+  .pc-s{font-size:8px;color:var(--gold)} .pc-t{font-size:7.5px;color:var(--dim);line-height:1.2}
+  .pc-t .new{color:var(--good)}
+  .toast{position:absolute;left:50%;bottom:16%;transform:translate(-50%,20px);opacity:0;
+         background:rgba(12,16,22,.96);border:1px solid var(--line2);border-radius:5px;
+         padding:8px 14px;font-size:12px;color:var(--ink);pointer-events:none;transition:.18s;z-index:30;
+         max-width:88%;text-align:center}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.good{border-color:#3f6b45;color:#d8f0da}
+
+  @media (max-width:820px){
+    .bar{gap:8px;font-size:10px;padding:5px 9px}
+    .bar .name{font-size:13px}
+    .hide-sm{display:none}
+    .foot{padding:4px 9px;gap:7px}
+  }
+
+  /* Nằm ngang: hai thanh chữ ngoài khung nhường chiều cao lại cho game — mỗi pixel
+     bớt ở đây là một pixel khung to thêm, mà chiều cao là thứ hiếm nhất khi nằm ngang. */
+  body.landscape .bar{padding:1px 8px;font-size:9px;gap:6px}
+  body.landscape .bar .name{font-size:11px}
+  body.landscape .bar a.back{padding:1px 6px}
+  body.landscape .foot{padding:1px 8px;gap:5px}
+  body.landscape .foot button{padding:2px 7px;font-size:8.5px}
+  body.landscape .hide-land{display:none}
+
+  /* ---------------- MÁY NẰM NGANG ----------------
+     Khung 16:9 chỉ cao bằng nửa khung dọc, nên sảnh xếp thành HAI CỘT: xác đứng bên
+     trái, đội hình + chọn map + nút vào ca bên phải. Các màn khác giữ nguyên một cột
+     nhưng bó lại giữa khung cho khỏi kéo dài hết bề ngang. */
+  /* Hàng co theo nội dung và dồn lên trên: khung ngang trên điện thoại chỉ còn ~260px
+     chiều cao cho vùng cuộn, để hàng dãn đều thì thẻ chọn map phình ra và nút ĐI CA
+     bị thanh tab dưới cắn mất. */
+  body.landscape .stage.is-home{
+    display:grid;grid-template-columns:1fr 1.15fr;grid-template-rows:auto auto auto 1fr;
+    gap:6px;align-content:start;padding:6px}
+  body.landscape .chapter{padding:5px}
+  body.landscape .ch-n{font-size:14px}
+  body.landscape .ch-s{font-size:9px}
+  body.landscape .ch-f{font-size:8px}
+  body.landscape .ch-bar{margin:4px 0 2px}
+  body.landscape .lu{padding:3px 2px}
+  body.landscape .lu-f{font-size:17px}
+  body.landscape .lu-n{font-size:9px}
+  body.landscape .foot-note{font-size:8.5px}
+  body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 68px}
+  body.landscape .sc-face{font-size:52px}
+  body.landscape .mat-to{width:96px;height:128px}
+  body.landscape .mat-eq{width:54px;height:74px}
+  body.landscape .mat-nho{width:26px;height:36px}
+  body.landscape .sc-name{font-size:18px}
+  body.landscape .sc-skill{font-size:9.5px;margin-top:3px;padding-top:4px}
+  /* Khung ngang chỉ rộng chứ không cao, mà cột phím tắt bên phải nằm đè lên hàng năm
+     người của cột phải. Dồn cả hai cột về mép TRÁI — một cột neo trên, một cột neo
+     dưới — vì cột trái là sân khấu, vốn đã chừa sẵn 52px lề hai bên. */
+  body.landscape .rail{top:auto;bottom:4px;right:auto;left:4px}
+  body.landscape .rail.left{top:4px;bottom:auto;left:4px}
+  body.landscape .rail-b{width:56px;padding:5px 3px}
+  body.landscape .rb-i{font-size:21px}
+  body.landscape .rb-n{font-size:8.5px}
+  body.landscape .stage.is-home>.lineup{grid-column:2;align-self:end}
+  body.landscape .stage.is-home>.chapter{grid-column:2;margin-top:0}
+  body.landscape .stage.is-home>.gorow{grid-column:2;gap:4px}
+  body.landscape .gorow>.b.cta{padding:9px;font-size:15px}
+  body.landscape .wepbar{padding:3px 4px 4px}
+  body.landscape .wb-h{margin-bottom:2px}
+  body.landscape .wq{padding:2px 2px 1px}
+  body.landscape .stage.is-home>.foot-note{grid-column:2;align-self:start}
+  /* Vùng cuộn khi nằm ngang chỉ còn ~260px, nên tiêu đề tấm và giàn đồ phải gọn lại,
+     nếu không thì mở màn Trang Bị ra đã phải cuộn mới thấy được cái ô đầu tiên. */
+  body.landscape .sheet-b{max-width:660px;width:100%;margin:0 auto;padding:6px 8px 12px;gap:6px}
+  body.landscape .sheet-h{padding:4px 8px}
+  body.landscape .sheet-t{font-size:15px}
+  body.landscape .sheet-h .b.chev{width:24px;height:24px;font-size:14px}
+  body.landscape .eq-body{padding:5px 4px}
+  body.landscape .eb-f{font-size:34px}
+  body.landscape .eb-n{font-size:13px}
+  body.landscape .eqs{min-height:46px;padding:3px 2px}
+  body.landscape .eqs-i{font-size:14px}
+  body.landscape .sb{padding:2px}
+  body.landscape .chip{padding:4px 8px;font-size:10px}
+  body.landscape .slot .tac{font-size:8px}
+  body.landscape .tac-d{min-height:16px}
+  body.landscape .char-grid{grid-template-columns:repeat(7,1fr)}
+  body.landscape .evo-grid{grid-template-columns:repeat(5,1fr)}
+  body.landscape .pack-grid{grid-template-columns:repeat(3,1fr)}
+  body.landscape .inv-grid{grid-template-columns:repeat(8,1fr)}
+  body.landscape .tabbar{padding:3px 5px calc(4px + env(safe-area-inset-bottom))}
+  body.landscape .tb-i{font-size:16px}
+  body.landscape .tb.mid{margin-top:-12px}
+  body.landscape .tb.mid .tb-i{font-size:19px}
+
+  /* HUD trong trận: khung thấp nên cột năm người nằm NGANG dưới thanh chỉ tiêu,
+     nếu để dọc như cũ thì năm thẻ tràn khỏi đáy khung. */
+  /* Nút to hẳn ra và dạt sát hai góc dưới, giữa màn hình để trống — cách game di
+     động màn ngang bày phím. Bản trước để nguyên cỡ của khung dọc nên trên khung
+     ngang (chỉ cao ~324px) nút teo lại và dồn vào nhau, ngón cái bấm nhầm liên tục. */
+  body.landscape .hs-i{font-size:27px}
+  body.landscape .hs-n{font-size:9.5px}
+
+
+  /* Menu phủ kín khung chơi khi đang ở ngoài ca; vào ca thì nhường chỗ cho canvas. */
+  #menu{position:absolute;inset:0;z-index:8}
+  body.in-run #menu{display:none}
+  body:not(.in-run) #veil{display:none}
+  body:not(.in-run) .bar .k,body:not(.in-run) .bar .v{display:none}
+  /* Nút sổ tay: luôn hiện (khác .rot chỉ hiện trên máy cảm ứng), trông như nút Hub. */
+  .bar .wikibtn{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);
+    color:var(--ink-dim);padding:4px 9px;border-radius:2px;cursor:pointer;
+    font-family:inherit;font-size:12px;line-height:1.25;white-space:nowrap;}
+  .bar .wikibtn:hover{color:var(--ink);border-color:#3a434f;}
+  .bar .wikibtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+
+  /* --- Bảng tra --------------------------------------------------------------
+     Một hàng = một cái mặt bên trái, cái luật bên phải. Hình để nguyên pixel
+     (image-rendering) vì art là charset vẽ tay ở độ phân giải thấp — làm mượt
+     nó thì thành một vũng màu. */
+  .wk{display:flex;flex-direction:column;gap:7px;width:100%;text-align:left;}
+  .wk-h{margin:6px 0 1px;font-family:var(--display);font-weight:400;font-size:13px;
+    color:var(--amber);letter-spacing:.06em;text-transform:uppercase;}
+  .wk-h:first-child{margin-top:0;}
+  .wk-row{display:flex;gap:9px;align-items:flex-start;padding:7px 8px;
+    border:1px solid var(--line);border-radius:3px;background:#0c0f13;}
+  .wk-art{flex:0 0 auto;display:block;background-repeat:no-repeat;
+    image-rendering:pixelated;border-radius:2px;}
+  .wk-art.wk-none{border:1.5px solid rgba(255,255,255,0.3);border-radius:42% 42% 30% 30%;}
+  /* Ô hình động vẽ bằng canvas ở gấp đôi mật độ rồi thu lại, nên nó cần lọc MƯỢT.
+     .wk-art đặt image-rendering:pixelated cho mấy ô sprite pixel — để nguyên luật đó ở đây
+     thì bản thu nhỏ lấy điểm ảnh gần nhất, và mọi nét cong thành răng cưa. */
+  .wk-art.wk-live,.wk-art.wk-skill{image-rendering:auto;border:1px solid var(--line);
+    background:#1a1c20;}
+  .wk-art.wk-chip{display:flex;align-items:center;justify-content:center;text-align:center;
+    background:#141a21;border:1px solid var(--line);border-radius:3px;font-family:var(--mono);
+    font-size:11px;font-style:normal;color:var(--ink-dim);letter-spacing:.04em;padding:0 3px;}
+  .wk-txt{min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .wk-txt b{font-size:12.5px;color:#e8ebee;font-weight:600;}
+  .wk-sub{font-size:10px;color:var(--ink-faint);}
+  .wk-st{display:flex;flex-wrap:wrap;gap:3px 9px;font-family:var(--mono);font-size:10px;
+    color:var(--ink);}
+  .wk-st em{font-style:normal;color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.1em;font-size:8.5px;margin-right:4px;}
+  /* Chân trang ghi công bộ hình. Mờ và nhỏ: nó là món nợ phải trả, không phải
+     một mục để tra. Xem chú thích ở cuối wikiHtml. */
+  .wk-nguon{margin:10px 2px 0;font-size:9.5px;line-height:1.5;color:var(--ink-faint);
+     border-top:1px solid var(--line);padding-top:7px;}
+  .wk-txt p{margin:0;font-size:11px;line-height:1.45;color:var(--ink-dim);max-width:none;}
+  /* Biệt Đội có luật `body:not(.in-run) #veil{display:none}`: tấm màn CHỈ thuộc về lúc
+     đang trong ca. Sổ tay là ngoại lệ duy nhất — nó đáng đọc nhất TRƯỚC khi vào nhà,
+     lúc còn đang chọn xác. Nên mở nó thì gắn cờ này lên body, đóng thì gỡ; luật cũ
+     vẫn nguyên vẹn cho mọi bảng khác. */
+  body.wiki-open #veil{display:flex}
+  #veilExtra .wk{max-width:none;}
+  body.landscape .wk-txt p{font-size:10px;line-height:1.35;}
+</style>
+<!-- BO KHUNG GO CUA TU DO. Dat SAU khoi <style> tren kia chu khong o tren cung <head>:
+     `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
+     hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
+     nhung be ngang va padding cua bang thi van la cua ban cu. -->
+<link rel="stylesheet" href="../repo2d/tu-do.css?v=20260915a">
+</head>
+<body>
+
+<div class="buildtag" id="buildTag"></div>
+<div class="shell">
+
+  <header class="bar">
+    <a class="back" href="../../index.html">&larr; Hub</a>
+    <button class="rot" id="rotBtn" type="button" aria-pressed="false" title="Xoay ngang">⟳</button>
+    <button class="wikibtn" id="wikiBtn" type="button" title="Sổ tay: quái và luật của chúng">☉ Sổ tay</button>
+    <span class="name">Ca Trực Đêm: Biệt Đội</span>
+    <span><span class="k">Nhà</span><span class="v" id="hLevel">1</span></span>
+    <span><span class="k">Chỉ tiêu</span><span class="v quota" id="hQuota">$0 / $0</span></span>
+    <span><span class="k">Ví</span><span class="v" id="hWallet">$0</span></span>
+    <span class="hide-sm"><span class="k">Đang vác</span><span class="v" id="hCarry">—</span></span>
+    <span class="grow"></span>
+    <button class="quit-run" id="btnQuitRun" type="button">Bỏ ca</button>
+    <span class="hide-sm"><span class="k">Bệ</span><span class="v" id="hPads">0/0</span></span>
+    <span class="hide-sm"><span class="k">Hạt giống</span><span class="v" id="hSeed">—</span></span>
+  </header>
+
+  <div class="screen">
+    <canvas id="game" width="1280" height="720" aria-label="Trò chơi khuân đồ nhìn từ trên xuống"></canvas>
+
+    <div class="veil" id="veil">
+      <h2 id="veilTitle">Ca Trực Đêm: Biệt Đội</h2>
+      <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
+      <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
+        <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>chuột trái</kbd> đánh / bắn / ném &nbsp;·&nbsp; <kbd>Shift</kbd> chạy<br>
+        <kbd>E</kbd> nhặt · lên xe máy · đẩy xe đẩy · mở tủ trên xe tải <span style="opacity:.75">(<kbd>Q</kbd> cũng được)</span> &nbsp;·&nbsp; <kbd>R</kbd> <b>kỹ năng của tổ trưởng</b><br>
+        <kbd>lăn chuột</kbd> hoặc <kbd>1 2 3</kbd> đổi ô đồ &nbsp;·&nbsp; <kbd>F</kbd> tủ đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>Space</kbd> bật/tắt chạy &nbsp;·&nbsp; nút <b>Ca mới</b> dưới chân trang để bỏ ván và chơi lại<br>
+        <span style="opacity:.8"><b>Ngồi máy tính</b> thì hai cần gạt và cụm nút tròn tự ẩn đi; thanh máu, bản đồ nhỏ, ba ô đồ và đồng hồ hồi chiêu tự to lên theo màn hình. Ở trạm dịch vụ, bấm <b>chuột trái</b> là bắn thử khẩu đang cầm — bấm chỗ nào cũng được. Chạm tay vào màn hình một cái là bộ nút quay lại.</span><br>
+        <span style="opacity:.8"><b>Từ màn 2:</b> sàn nhà bắt đầu nói dối. <b>Bẫy gai</b> — giẫm lên thì có một nhịp đá trượt rồi gai mới bật, đủ để nhảy ra nếu đang chạy; quái giẫm phải đau gấp đôi bạn. <b>Bẫy laser</b> — hai cột với một tia đỏ, nhấp nháy báo trước khi bật. <b>Rương</b> — bấm <kbd>E</kbd> để mở, phần lớn ra đồ, nhưng có cái mọc răng.</span><br>
+        <span style="opacity:.8">Đồ ném được: giữ ô đồ để hiện cần định hướng, thả tay là dùng; kéo lên dấu ✕ góc trên bên phải để bỏ. Kéo gần đúng phía con quái là đủ — nòng súng tự hút vào nó.</span><br>
+        <span style="opacity:.8"><b>Súng laser sạc:</b> giữ ô đồ (hoặc giữ phím <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>) để sạc — vành sáng chạy quanh nút cho biết đã đủ chưa — buông tay là bắn một tia xuyên qua cả hàng. Sạc càng đầy càng mạnh, nhưng bắn xong đứng chôn chân lâu hơn.</span><br>
+        <span style="opacity:.8"><b>Súng nòng ngắn:</b> bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn — và mỗi phát đẩy bạn lùi lại, chân chậm một nhịp.</span><br>
+        <span style="opacity:.8">Ba ô trên tay bắt đầu ca nào cũng rỗng — lấy đồ từ tủ trên xe trước khi đi.
+        Xe đẩy nằm sẵn cạnh xe tải: chở được 6 món nhỏ/vừa, đẩy thẳng lên bệ là dỡ cả xe.</span><br>
+        <span style="opacity:.8"><b>Hai xe máy</b> đỗ cạnh xe tải, mỗi chiếc một chỗ ngồi. <kbd>E</kbd> để lên và xuống.
+        <b>Xe trinh sát</b> nhanh nhất nhà nhưng không chở được gì; <b>xe chở đồ</b> chậm hơn, bù lại có thùng sau bốn ô —
+        đỗ nó lên bệ đang mở là dỡ cả thùng. Ngồi trên xe thì không cầm đồ và không dùng đồ được, đổi lại húc thẳng
+        vào con quái là nó bay. Đâm tường lúc đang phóng thì ngã, xe nằm mất mấy giây. Xe có xăng, và hết xăng thì
+        sang tầng sau mới đầy lại. Ba đồng đội cũng biết đẩy xe đẩy và lái xe máy — nhưng chúng chừa lại đáy bình,
+        và không đụng chiếc bạn đang đứng sát hơn.</span><br>
+        <span style="opacity:.8">Hết màn là vào trạm dịch vụ: nhặt món muốn mua đặt lên bệ, đứng lên nút cạnh bệ
+        để trả tiền, đứng lại lần nữa để hủy. Xong thì bước vào xe tải để đi màn sau.</span><br>
+        <span style="opacity:.8">Điện thoại: cầm dọc hay nằm ngang đều chơi được — nằm ngang thì khung ăn trọn màn hình. Hai cần gạt — trái đi, phải nhìn. Cần trái hiện ra ngay chỗ ngón cái chạm; đẩy hết cần để chạy. <b>Chạm nhẹ cần phải</b> là đập đèn pin vào mặt con gần nhất — tự quay sang nó, và phang đủ nhiều nhát thì bung được cả cửa kẹt lẫn gương. Mỗi nhát tốn thể lực — hết hơi thì đánh nhẹ và chậm hẳn.</span>
+      </p>
+      <div id="veilExtra"></div>
+      <div class="veil-acts" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button class="btn" id="veilBtn">Vào ca</button>
+        <button class="btn ghost" id="veilBtn2" hidden>Để bot chơi</button>
+      </div>
+    </div>
+    <div class="menu" id="menu"></div>
+    <div class="modal" id="modal"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <footer class="foot">
+    <button class="ctl" id="botBtn" aria-pressed="false">Bot tự chơi</button>
+    <button class="ctl" id="foeBtn" aria-pressed="false">Tắt quái</button>
+    <button class="ctl" id="newBtn">Ca mới</button>
+    <button class="ctl" id="sndBtn" aria-pressed="true">Âm thanh</button>
+    <span class="grow"></span>
+    <span id="footHint">Đồ vỡ khi <b>dừng đột ngột</b> — kéo lê thì không sao, đâm tường mới hỏng.</span>
+  </footer>
+
+</div>
+
+<script>
+// Nút xoay tay: bật/tắt lớp force-land rồi báo cho game đo lại khung.
+// WHY không dùng screen.orientation.lock(): Safari trên iPhone không cài đặt nó, và
+//   trên Android nó chỉ chạy khi đang toàn màn hình. Người bị kẹt nhất — iPhone bật
+//   khoá xoay — lại đúng là người API đó không giúp được.
+(function () {
+  var b = document.getElementById('rotBtn');
+  if (!b) return;
+  b.addEventListener('click', function () {
+    var on = document.body.classList.toggle('force-land');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.title = on ? 'Về màn hình dọc' : 'Xoay ngang';
+    // Hai nhịp: một ngay lập tức, một sau khi trình duyệt vẽ xong phép quay —
+    // clientWidth đọc ngay trong cùng khung hình vẫn còn là số của bố cục cũ.
+    dispatchEvent(new Event('resize'));
+    setTimeout(function () { dispatchEvent(new Event('resize')); }, 60);
+  });
+})();
+</script>
+
+<script>
+// Chặn phóng to trên iPhone.
+// WHY cần cả hai lớp: touch-action:none trên canvas chặn được cuộn và pinch bên
+//   TRONG canvas, nhưng cú chạm-đúp-để-phóng-to của Safari được quyết ở cấp trang
+//   và vẫn lọt. Bắn tự ngắm là chạm nhanh liên tiếp, tức là đúng cử chỉ Safari hiểu
+//   là "phóng to" — đang chạy trốn thì màn hình nhảy zoom.
+// Chỉ chặn khi cú chạm rơi TRÊN CANVAS: nút bấm trong menu vẫn cần cú click bình
+// thường, và nuốt touchend của chúng là nuốt luôn nút.
+(function () {
+  var last = 0;
+  document.addEventListener('touchend', function (e) {
+    var t = e.target;
+    var tren = t && t.closest && t.closest('canvas');
+    if (!tren) { last = 0; return; }
+    var now = e.timeStamp || Date.now();
+    if (now - last <= 350) e.preventDefault();
+    last = now;
+  }, { passive: false });
+  // Pinch: trong game không có gì để phóng to, và một ngón cái trượt nhầm thành
+  // hai ngón là mất luôn khung hình.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) {
+    document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false });
+  });
+})();
+</script>
+
+<script>
+// Xoay ngang thì XIN TOÀN MÀN HÌNH để nuốt luôn thanh địa chỉ của trình duyệt.
+// WHY: nằm ngang chiều cao là thứ hiếm nhất, mà thanh địa chỉ Chrome/Safari ăn
+//   ~56px trong số ~390px — gần một phần bảy khung game, đúng cái làm nó "bé xíu".
+// Fullscreen API bắt buộc phải gọi TRONG một thao tác của người dùng, nên móc vào
+// cú chạm đầu tiên; vào rồi thì lần gọi sau là no-op. Safari trên iPhone không cho
+// phần tử vào toàn màn hình — ở đó lệnh này ném lỗi và bị nuốt, game vẫn chạy.
+(function () {
+  var want = function () {
+    return matchMedia('(pointer:coarse)').matches &&
+           (innerWidth > innerHeight || document.body.classList.contains('force-land'));
+  };
+  var inFS = function () {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  };
+  function go() {
+    if (!want() || inFS()) return;
+    var el = document.documentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!fn) return;
+    try { var r = fn.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(function () {}); }
+    catch (e) { /* trình duyệt không cho thì thôi, không được chặn game */ }
+  }
+  addEventListener('pointerdown', go, { passive: true });
+  addEventListener('orientationchange', function () { setTimeout(go, 300); });
+})();
+</script>
+
+<!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
+     thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
+
+<!-- cầu nối tài khoản hub -->
+<script src="../../js/session.js"></script>
+<script src="../../js/supabase-config.js"></script>
+<script src="../../js/supabase-auth.js"></script>
+<script src="../../js/save-sync.js"></script>
+
+<!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
+<!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
+     hoi bang do ngay tu luot ve nen dau tien. -->
+<script src="../repo2d/phong.js?v=20260915a"></script>
+<script src="../repo2d/sprites.js?v=20260915a"></script>
+<script src="../repo2d/game.js?v=20260915a"></script>
+<script src="../repo2d/bot.js?v=20260915a"></script>
+
+<!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
+<script src="data/content.js?v=20260915a"></script>
+<script src="js/meta.js?v=20260915a"></script>
+<script src="js/ui.js?v=20260915a"></script>
+<script src="js/squad.js?v=20260915a"></script>
+
+<script>
+  window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm
+  SQ.load();
+  REPO.S.running = false;                    // ngoài ca: đứng yên, menu che lên trên
+  SQ.ui.render();
+  if (SQ.syncFromHub) SQ.syncFromHub().then(r => {
+    // Vẽ lại menu chỉ khi ĐANG Ở MENU. Lời gọi này về bất đồng bộ và có thể rơi vào giữa
+    // một ca trực; lúc đó menu đang bị `body.in-run` ẩn đi và dựng lại nó là việc thừa.
+    if (r && r.took === 'cloud' && !document.body.classList.contains('in-run')) {
+      SQ.ui.render(); SQ.ui.toast('Đã lấy tiến độ từ tài khoản hub.', true);
+    }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) SQ.save(true); });
+</script>
+<script>
+// Doc dau build TU HAI PHIA roi so:
+//   htmlV — dau `?v=` tren the <script> cua to HTML dang chay
+//   jsV   — hang BUILD nam trong chinh game.js vua duoc nap
+// Hai so bang nhau: dang chay dung ban vua deploy. Khac nhau: trinh duyet giu mot to HTML cu
+// trong cache, va moi bao cao loi tu may nay deu dang noi ve mot ban khac.
+(function () {
+  var box = document.getElementById('buildTag');
+  if (!box) return;
+  function doc() {
+    var sc = document.querySelector('script[src*="game.js"]');
+    var htmlV = sc ? ((sc.getAttribute('src').match(/[?&]v=([^&]+)/) || [])[1] || '?') : '?';
+    var jsV = (window.REPO && REPO.BUILD) || null;
+    if (!jsV) { setTimeout(doc, 300); return; }        // game.js chua nap xong
+    var khop = htmlV === jsV;
+    box.textContent = khop ? ('v' + jsV) : ('trang v' + htmlV + '\nmay  v' + jsV + '\n⚠ dinh cache');
+    box.className = 'buildtag' + (khop ? '' : ' warn');
+    box.title = khop ? 'Dang chay ban moi nhat'
+                     : 'Trinh duyet dang giu mot to HTML cu — bam "Tai lai ban moi" o hub';
+  }
+  doc();
+})();
+</script>
+</body>
+</html>

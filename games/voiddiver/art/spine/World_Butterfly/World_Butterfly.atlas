@@ -1,0 +1,9 @@
+World_Butterfly.png
+size:16,16
+filter:Linear,Linear
+body_1
+bounds:9,4,5,11
+offsets:8,5,21,21
+wing_1
+bounds:1,1,9,14
+offsets:2,3,21,21

@@ -1,0 +1,17 @@
+NPC_Woung.png
+size:128,128
+filter:Linear,Linear
+SW_1/body_B
+bounds:41,49,53,41
+offsets:20,29,86,116
+rotate:270
+SW_1/body_F
+bounds:2,34,41,68
+offsets:25,24,86,116
+SW_1/leg_B
+bounds:91,74,11,28
+offsets:31,15,86,116
+rotate:180
+SW_1/leg_F
+bounds:81,73,10,29
+offsets:43,12,86,116

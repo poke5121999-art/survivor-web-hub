@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Quỹ Đạo — Mốc 1">
+  <defs>
+    <linearGradient id="ob-bg" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#0d1420"/>
+      <stop offset="1" stop-color="#060910"/>
+    </linearGradient>
+    <linearGradient id="ob-glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8ce0ff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#8ce0ff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#8ce0ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#ob-bg)"/>
+
+  <!-- lưới ô, mờ: khung dọc của bản dựng thử -->
+  <g stroke="#182231" stroke-width="1">
+    <path d="M0 30H320M0 60H320M0 90H320M0 120H320M0 150H320"/>
+    <path d="M40 0V180M80 0V180M120 0V180M200 0V180M240 0V180M280 0V180"/>
+  </g>
+
+  <!-- hai nửa: TRÁI = bản A (nối), PHẢI = bản B (kho chung) -->
+  <line x1="160" y1="10" x2="160" y2="170" stroke="#243244" stroke-width="1.5" stroke-dasharray="4 5"/>
+
+  <!-- bản A: ba máy nối thành chuỗi, một món đang chạy trên dây -->
+  <g>
+    <line x1="36" y1="128" x2="72" y2="96" stroke="url(#ob-glow)" stroke-width="3"/>
+    <line x1="72" y1="96" x2="112" y2="66" stroke="url(#ob-glow)" stroke-width="3"/>
+    <line x1="112" y1="66" x2="92" y2="34" stroke="url(#ob-glow)" stroke-width="3"/>
+    <circle cx="54" cy="112" r="3.2" fill="#bfe9ff"/>
+    <circle cx="92" cy="81" r="3.2" fill="#bfe9ff"/>
+    <rect x="24" y="116" width="24" height="24" rx="5" fill="#8ea3bd"/>
+    <rect x="60" y="84" width="24" height="24" rx="5" fill="#c9743a"/>
+    <rect x="100" y="54" width="24" height="24" rx="5" fill="#4f8fc0"/>
+    <rect x="80" y="22" width="24" height="24" rx="5" fill="#e0b04a"/>
+    <text x="80" y="164" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#bfe9ff" text-anchor="middle">A · NỐI</text>
+  </g>
+
+  <!-- bản B: ba máy rời, không dây, cùng rót vào một kho -->
+  <g>
+    <rect x="188" y="116" width="24" height="24" rx="5" fill="#8ea3bd"/>
+    <rect x="228" y="90" width="24" height="24" rx="5" fill="#c9743a"/>
+    <rect x="268" y="116" width="24" height="24" rx="5" fill="#4f8fc0"/>
+    <rect x="216" y="34" width="48" height="26" rx="6" fill="#1a2534" stroke="#3b4d66" stroke-width="1.5"/>
+    <text x="240" y="52" font-family="system-ui,sans-serif" font-size="11" fill="#8fa2b8" text-anchor="middle">kho chung</text>
+    <g stroke="#3b4d66" stroke-width="1.5" stroke-dasharray="3 4">
+      <path d="M200 116 L232 62"/>
+      <path d="M240 90 L240 62"/>
+      <path d="M280 116 L248 62"/>
+    </g>
+    <text x="240" y="164" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#7f8fa3" text-anchor="middle">B · KHO</text>
+  </g>
+
+  <!-- joystick giữa đáy: đề bài của cả bản dựng thử -->
+  <circle cx="160" cy="150" r="13" fill="none" stroke="#33465e" stroke-width="2"/>
+  <circle cx="160" cy="150" r="6" fill="#4a6480"/>
+</svg>

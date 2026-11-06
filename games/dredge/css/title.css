@@ -1,0 +1,6 @@
+/* thẻ chương lúc nạp của phần mở đầu: chữ hoa góc phải-dưới + vòng quay (clip gốc 00:00 và 00:35) */
+.in-card { position: absolute; right: calc(36px * var(--s)); bottom: calc(60px * var(--s)); display: flex; align-items: center; gap: calc(12px * var(--s)); color: #efe3c8; opacity: 0; transition: opacity .6s; pointer-events: none;
+  font: 600 calc(26px * var(--s)) "Oswald", "Signika", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.in-card.on { opacity: .9; }
+.in-card i { width: calc(30px * var(--s)); height: calc(30px * var(--s)); border-radius: 50%; border: 3px solid rgba(239, 227, 200, .25); border-top-color: #efe3c8; animation: in-spin 1.1s linear infinite; }
+@keyframes in-spin { to { transform: rotate(360deg); } }

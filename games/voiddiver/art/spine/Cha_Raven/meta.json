@@ -1,0 +1,183 @@
+{
+ "name": "Cha_Raven",
+ "skeletons": {
+  "Cha_Raven_SW": {
+   "skel": "Cha_Raven_SW.skel",
+   "bytes": 271395,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null,
+   "mixes": [
+    [
+     "battle/idle",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/walk",
+     0.20000000298023224
+    ]
+   ]
+  },
+  "Cha_Raven_NW": {
+   "skel": "Cha_Raven_NW.skel",
+   "bytes": 261968,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null,
+   "mixes": [
+    [
+     "battle/idle",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/run",
+     0.20000000298023224
+    ]
+   ]
+  }
+ },
+ "atlas": "Cha_Raven.atlas",
+ "pages": [
+  {
+   "png": "Cha_Raven.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Raven_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "900007": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "100005": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

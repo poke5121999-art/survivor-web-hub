@@ -1,0 +1,69 @@
+{
+ "name": "Portal",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "Portal",
+   "fields": {
+    "_holdingSfx": "",
+    "_interactionSfx": "Portal_Move"
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/Img_25D_BG_GroundDecal_Portal_1",
+   "mesh": "25DBG_GroundDecal_Portal",
+   "verts": 12,
+   "tris": 10,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.038,
+   0.0,
+   -1.038
+  ],
+  "max": [
+   1.038,
+   0.0,
+   1.038
+  ]
+ },
+ "glb": "art/object/Portal.glb",
+ "glbKB": 67
+}

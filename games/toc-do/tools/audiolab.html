@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audiolab Tốc Độ</title>
+<style>
+:root{color-scheme:dark light;--bg:#12151c;--fg:#e8ecf4;--mut:#8a93a6;--line:#262c3a;--acc:#4cc2ff}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7fa;--fg:#181c26;--mut:#667085;--line:#dde1ea;--acc:#0a7cc4}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif}
+h1{font-size:18px;margin:0 0 4px}p{color:var(--mut);margin:0 0 12px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:500;font-size:12px}
+canvas{width:200px;height:34px;display:block;background:transparent}
+button{background:var(--acc);color:#fff;border:0;border-radius:4px;padding:4px 10px;cursor:pointer}
+.sub{color:var(--mut);font-size:12px}.miss td{color:var(--mut)}
+@media (max-width:700px){.hide{display:none}}
+</style></head><body>
+<h1>Audiolab Tốc Độ</h1>
+<p id="sum"></p>
+<table><thead><tr><th></th><th>Event</th><th>Bus</th><th class="hide">Loop</th><th>Vol</th><th>Giây</th><th>Sóng đỉnh</th><th class="hide">Thay thế cho</th></tr></thead><tbody id="rows"></tbody></table>
+<h1 style="margin-top:20px">Chưa có (không thuộc APK)</h1><table><tbody id="miss"></tbody></table>
+<script>window.TD={};</script>
+<script src="../data/audio.js"></script>
+<script>
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+let cur = null;
+function stop() { if (cur) { try { cur.stop(); } catch (e) {} cur = null; } }
+async function load(url) {
+  const r = await fetch('../' + url); return ctx.decodeAudioData(await r.arrayBuffer());
+}
+function wave(cv, buf) {
+  const w = cv.width = 400, h = cv.height = 68, g = cv.getContext('2d'), d = buf.getChannelData(0), n = Math.floor(d.length / w);
+  g.fillStyle = getComputedStyle(document.body).color; let pk = 0;
+  for (let x = 0; x < w; x++) {
+    let m = 0; for (let i = x * n; i < (x + 1) * n; i++) m = Math.max(m, Math.abs(d[i]));
+    pk = Math.max(pk, m); g.fillRect(x, h / 2 - m * h / 2, 1, Math.max(1, m * h));
+  }
+  return pk;
+}
+const rows = document.getElementById('rows');
+for (const [key, e] of Object.entries(TD.AUDIO)) {
+  const tr = document.createElement('tr');
+  e.files.forEach((f, i) => {
+    const t = i ? document.createElement('tr') : tr;
+    t.innerHTML = '<td><button>Nghe</button></td><td>' + (i ? '&nbsp;&nbsp;' : '<b>' + key + '</b>') + ' <span class="sub">' + f + '</span></td><td>' + (i ? '' : e.bus) +
+      '</td><td class="hide">' + (i ? '' : e.loop ? 'có' : '') + '</td><td>' + (i ? '' : e.vol) + '</td><td>' + (e.dur ? e.dur[i] : '') +
+      '</td><td><canvas></canvas></td><td class="hide sub">' + (i ? '' : e.subst || '') + '</td>';
+    rows.appendChild(t);
+    const b = t.querySelector('button'), cv = t.querySelector('canvas');
+    load(f).then(buf => { cv.dataset.peak = wave(cv, buf).toFixed(2); b.onclick = () => {
+      ctx.resume(); stop(); const s = ctx.createBufferSource(), gn = ctx.createGain();
+      s.buffer = buf; s.loop = !!e.loop; gn.gain.value = e.vol; s.connect(gn).connect(ctx.destination); s.start(); cur = s; }; })
+      .catch(() => { b.disabled = true; b.title = 'fetch bị chặn (mở qua http server)'; });
+  });
+}
+document.getElementById('sum').textContent = Object.keys(TD.AUDIO).length + ' event. Nghe qua gain "vol" để so mức giữa các bus (sfx -16, voice -14, music -20 LUFS). Mở qua http server, không phải file://.';
+document.getElementById('miss').innerHTML = (TD.AUDIO_MISSING || []).map(m => '<tr class="miss"><td>' + m.event + '</td><td>' + m.note + '</td></tr>').join('');
+</script></body></html>

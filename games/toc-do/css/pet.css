@@ -1,0 +1,18 @@
+/* Màn PET (js/ui/pet.js). Dùng khung chung của gara (.gr, .gtop, .gpanel, .gstrip, .gcar, .gbtn); ở đây chỉ phần riêng của pet. */
+.pt-title { flex: 1; display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.pt-title b { font-size: 22px; font-weight: normal; color: var(--cyan); text-shadow: 0 2px 0 #062048; }
+.pt-title small { color: var(--muted); font: 12px system-ui, sans-serif; }
+.pt-rar { margin-left: auto; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--c); color: var(--c); font: 13px system-ui, sans-serif; white-space: nowrap; }
+.pt-skill { margin: 6px 0 4px; font: 15px/1.35 system-ui, sans-serif; color: #fff; }
+.pt-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pt-acts .gbtn { flex: 1 1 130px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; }
+.pt-acts .gbtn img { width: 20px; height: 20px; }
+.pt-card { position: relative; min-width: 150px; border-color: var(--c); }
+.pt-card img { width: 44px; height: 44px; object-fit: contain; flex: 0 0 auto; }
+.pt-card .gname small { display: block; margin-top: 2px; color: var(--gold); font: 13px TDNum, Cafeta, sans-serif; }
+.pt-eq { position: absolute; top: -6px; right: -4px; width: 22px; height: 22px; border-radius: 50%; background: #2fcf6a; color: #04210f; font: 700 14px/22px system-ui, sans-serif; font-style: normal; text-align: center; }
+@media (max-height: 460px) {
+  .pt-skill { font-size: 13px; margin: 3px 0; }
+  .pt-acts { margin-top: 8px; }
+  .pt-card { min-width: 128px; }
+}

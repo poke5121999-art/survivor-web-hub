@@ -1,0 +1,13 @@
+Dusky_Grouper.png
+size:272,144
+filter:Nearest,Nearest
+pma:true
+Dusky_Grouper
+bounds:2,2,268,140
+
+Dusky_Grouper_2.png
+size:276,148
+filter:Nearest,Nearest
+pma:true
+bin/Dusky_Grouper
+bounds:2,2,272,144

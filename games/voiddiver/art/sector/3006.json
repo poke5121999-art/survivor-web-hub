@@ -1,0 +1,2965 @@
+{
+ "id": 3006,
+ "space": "glTF (x, y, -z cua Unity); met",
+ "colliders": [
+  {
+   "path": "3006/3006/RawObject/NonStandard/25DBG_Mall_Cart_1/collider",
+   "center": [
+    16.286,
+    0.389,
+    -28.59
+   ],
+   "size": [
+    1.053,
+    1.178,
+    0.675
+   ],
+   "yaw": 15.4,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/NonStandard/25DBG_Office_Chair_1/collider",
+   "center": [
+    3.318,
+    0.374,
+    -18.484
+   ],
+   "size": [
+    0.56,
+    1.03,
+    0.42
+   ],
+   "yaw": -29.3,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/NonStandard/25DBG_Office_Chair_2/collider",
+   "center": [
+    3.266,
+    0.39,
+    -19.82
+   ],
+   "size": [
+    0.412,
+    0.78,
+    0.413
+   ],
+   "yaw": 38.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    0.657,
+    0.378,
+    -12.28
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    0.66,
+    0.378,
+    -11.56
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    29.645,
+    0.125,
+    -29.481
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    29.665,
+    0.125,
+    -28.835
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    29.725,
+    0.125,
+    -28.187
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    20.867,
+    0.125,
+    -15.28
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    20.882,
+    0.125,
+    -14.717
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    24.55,
+    0.125,
+    -0.317
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    25.182,
+    0.125,
+    -0.351
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    25.85,
+    0.125,
+    -0.346
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    14.0,
+    0.9,
+    -0.3
+   ],
+   "size": [
+    18.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    8.9,
+    0.9,
+    -2.4
+   ],
+   "size": [
+    0.2,
+    2.0,
+    3.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    17.0,
+    0.9,
+    -2.0
+   ],
+   "size": [
+    0.4,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    18.4,
+    0.9,
+    -2.0
+   ],
+   "size": [
+    0.4,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    19.8,
+    0.9,
+    -2.1
+   ],
+   "size": [
+    0.4,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    23.4,
+    0.9,
+    -3.7
+   ],
+   "size": [
+    0.4,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    22.9,
+    0.9,
+    -3.7
+   ],
+   "size": [
+    0.2,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    29.7,
+    0.9,
+    -6.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    5.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    2.5,
+    0.9,
+    -8.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    1.1,
+    0.9,
+    -8.3
+   ],
+   "size": [
+    2.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    28.2,
+    0.9,
+    -8.3
+   ],
+   "size": [
+    2.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    29.1,
+    0.9,
+    -9.2
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    10.4,
+    0.9,
+    -9.2
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    18.4,
+    0.9,
+    -9.0
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -9.0
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    20.6,
+    0.9,
+    -9.4
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    15.2,
+    0.9,
+    -9.5
+   ],
+   "size": [
+    4.8,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    11.8,
+    0.9,
+    -9.7
+   ],
+   "size": [
+    2.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    18.9,
+    0.9,
+    -9.7
+   ],
+   "size": [
+    2.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    13.0,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    0.4,
+    2.0,
+    0.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    28.9,
+    0.9,
+    -10.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    1.0,
+    0.9,
+    -17.1
+   ],
+   "size": [
+    0.8,
+    2.0,
+    9.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    10.7,
+    0.9,
+    -14.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    0.3,
+    0.9,
+    -19.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    11.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    20.3,
+    0.9,
+    -15.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    29.5,
+    0.9,
+    -17.5
+   ],
+   "size": [
+    1.0,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    10.7,
+    0.9,
+    -18.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    29.3,
+    0.9,
+    -19.2
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    18.7,
+    0.9,
+    -20.3
+   ],
+   "size": [
+    2.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    10.4,
+    0.9,
+    -20.6
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    12.3,
+    0.9,
+    -20.5
+   ],
+   "size": [
+    2.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    15.6,
+    0.9,
+    -20.5
+   ],
+   "size": [
+    1.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    20.6,
+    0.9,
+    -20.6
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    28.0,
+    0.9,
+    -21.0
+   ],
+   "size": [
+    2.4,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    29.3,
+    0.9,
+    -21.3
+   ],
+   "size": [
+    0.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    2.2,
+    0.9,
+    -21.5
+   ],
+   "size": [
+    1.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    8.7,
+    0.9,
+    -27.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    3.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    23.1,
+    0.9,
+    -27.9
+   ],
+   "size": [
+    0.2,
+    2.0,
+    4.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    6.5,
+    0.9,
+    -29.6
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    16.5,
+    0.9,
+    -29.7
+   ],
+   "size": [
+    13.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    24.1,
+    0.9,
+    -29.7
+   ],
+   "size": [
+    1.8,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/HighObstacles/Collider",
+   "center": [
+    5.8,
+    0.9,
+    -29.8
+   ],
+   "size": [
+    0.8,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3006/3006/StaticDecoration/Volumes/MainVolume",
+   "center": [
+    15.0,
+    0.0,
+    -15.0
+   ],
+   "size": [
+    30.0,
+    2.0,
+    30.0
+   ],
+   "yaw": 0.0,
+   "trigger": true,
+   "active": true,
+   "kind": "other"
+  }
+ ],
+ "lights": [
+  {
+   "path": "3006/3006/StaticDecoration/Lights/Point Light_2",
+   "pos": [
+    19.63,
+    1.5,
+    -8.06
+   ],
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "intensity": 0.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3006/3006/StaticDecoration/Lights/Point Light_3",
+   "pos": [
+    3.56,
+    1.5,
+    -10.86
+   ],
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "intensity": 0.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3006/3006/StaticDecoration/Lights/Point Light_4",
+   "pos": [
+    8.01,
+    1.5,
+    -26.4
+   ],
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "intensity": 0.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3006/3006/StaticDecoration/Lights/Point Light_5",
+   "pos": [
+    15.29,
+    5.0,
+    -15.0
+   ],
+   "color": [
+    1.0,
+    0.839,
+    0.722
+   ],
+   "intensity": 2.0,
+   "range": 10.3,
+   "active": true
+  },
+  {
+   "path": "3006/3006/StaticDecoration/Lights/Point Light_6",
+   "pos": [
+    13.68,
+    -9.75,
+    -19.7
+   ],
+   "color": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "intensity": 4.0,
+   "range": 10.3,
+   "active": true
+  }
+ ],
+ "spawns": [
+  {
+   "type": "MonsterSpawnGroupComponent",
+   "path": "3006/MonsterGroup1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_abnormal",
+   "pos": [
+    25.37,
+    0.0,
+    -4.94
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_abnormal",
+   "pos": [
+    22.82,
+    0.0,
+    -7.55
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_abnormal",
+   "pos": [
+    25.6,
+    0.0,
+    -10.48
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_abnormal",
+   "pos": [
+    27.12,
+    0.0,
+    -7.41
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    21.45,
+    0.0,
+    -21.73
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    22.77,
+    0.0,
+    -25.01
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    24.65,
+    0.0,
+    -20.83
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    27.75,
+    0.0,
+    -22.3
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    4.4,
+    0.0,
+    -4.86
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    6.7,
+    0.0,
+    -6.28
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    4.22,
+    0.0,
+    -9.61
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker",
+   "pos": [
+    9.92,
+    0.0,
+    -7.41
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker_1",
+   "pos": [
+    6.72,
+    0.0,
+    -22.57
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker_2",
+   "pos": [
+    9.26,
+    0.0,
+    -24.45
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker_3",
+   "pos": [
+    11.62,
+    0.0,
+    -22.1
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "3006/MonsterGroup1/MonsterSpawnPoint_fireworker_4",
+   "pos": [
+    4.87,
+    0.0,
+    -24.77
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnGroupComponent",
+   "path": "3006/Cabinet_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    17.4,
+    0.0,
+    -28.44
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    17.4,
+    0.0,
+    -28.44
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    20.91,
+    0.0,
+    -16.32
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    20.91,
+    0.0,
+    -16.32
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    8.05,
+    0.0,
+    -26.48
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/CabinetSpawnPoint",
+   "pos": [
+    8.05,
+    0.0,
+    -26.48
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    22.04,
+    0.0,
+    -26.64
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    22.04,
+    0.0,
+    -26.64
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_6",
+   "pos": [
+    29.0,
+    0.0,
+    -28.147
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_6",
+   "pos": [
+    29.0,
+    0.0,
+    -28.147
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_7",
+   "pos": [
+    29.013,
+    0.0,
+    -29.56
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_7",
+   "pos": [
+    29.013,
+    0.0,
+    -29.56
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_8",
+   "pos": [
+    28.972,
+    0.0,
+    -28.872
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_8",
+   "pos": [
+    28.972,
+    0.0,
+    -28.872
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_9",
+   "pos": [
+    25.13,
+    0.0,
+    -28.13
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_9",
+   "pos": [
+    25.13,
+    0.0,
+    -28.13
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_10",
+   "pos": [
+    25.13,
+    0.0,
+    -27.06
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_10",
+   "pos": [
+    25.13,
+    0.0,
+    -27.06
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_11",
+   "pos": [
+    21.53,
+    0.0,
+    -15.41
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_11",
+   "pos": [
+    21.53,
+    0.0,
+    -15.41
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_14",
+   "pos": [
+    21.55,
+    0.0,
+    -14.73
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_14",
+   "pos": [
+    21.55,
+    0.0,
+    -14.73
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_15",
+   "pos": [
+    28.57,
+    0.0,
+    -20.02
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_15",
+   "pos": [
+    28.57,
+    0.0,
+    -20.02
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_16",
+   "pos": [
+    27.77,
+    0.0,
+    -20.02
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_16",
+   "pos": [
+    27.77,
+    0.0,
+    -20.02
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_17",
+   "pos": [
+    28.63,
+    0.0,
+    -17.98
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_17",
+   "pos": [
+    28.63,
+    0.0,
+    -17.98
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_18",
+   "pos": [
+    28.63,
+    0.0,
+    -17.0
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_18",
+   "pos": [
+    28.63,
+    0.0,
+    -17.0
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_19",
+   "pos": [
+    28.21,
+    0.0,
+    -9.54
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_19",
+   "pos": [
+    28.21,
+    0.0,
+    -9.54
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_20",
+   "pos": [
+    27.31,
+    0.0,
+    -9.08
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_20",
+   "pos": [
+    27.31,
+    0.0,
+    -9.08
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_21",
+   "pos": [
+    28.95,
+    0.0,
+    -7.4
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_21",
+   "pos": [
+    28.95,
+    0.0,
+    -7.4
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_23",
+   "pos": [
+    29.08,
+    0.0,
+    -5.5
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_23",
+   "pos": [
+    29.08,
+    0.0,
+    -5.5
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_25",
+   "pos": [
+    24.64,
+    0.0,
+    -1.17
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_25",
+   "pos": [
+    24.64,
+    0.0,
+    -1.17
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_26",
+   "pos": [
+    25.48,
+    0.0,
+    -1.17
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_26",
+   "pos": [
+    25.48,
+    0.0,
+    -1.17
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_27",
+   "pos": [
+    22.65,
+    0.0,
+    -4.65
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_27",
+   "pos": [
+    22.65,
+    0.0,
+    -4.65
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_28",
+   "pos": [
+    19.25,
+    0.0,
+    -8.42
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_28",
+   "pos": [
+    19.25,
+    0.0,
+    -8.42
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_29",
+   "pos": [
+    18.38,
+    0.0,
+    -8.42
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_29",
+   "pos": [
+    18.38,
+    0.0,
+    -8.42
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_30",
+   "pos": [
+    19.16,
+    0.0,
+    -1.53
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_30",
+   "pos": [
+    19.16,
+    0.0,
+    -1.53
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_31",
+   "pos": [
+    17.68,
+    0.0,
+    -1.67
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_31",
+   "pos": [
+    17.68,
+    0.0,
+    -1.67
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_32",
+   "pos": [
+    15.78,
+    0.0,
+    -1.7
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_32",
+   "pos": [
+    15.78,
+    0.0,
+    -1.7
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_33",
+   "pos": [
+    9.49,
+    0.0,
+    -9.2
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_33",
+   "pos": [
+    9.49,
+    0.0,
+    -9.2
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_34",
+   "pos": [
+    11.39,
+    0.0,
+    -8.3
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_34",
+   "pos": [
+    11.39,
+    0.0,
+    -8.3
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_35",
+   "pos": [
+    4.2,
+    0.0,
+    -13.89
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_35",
+   "pos": [
+    4.2,
+    0.0,
+    -13.89
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_36",
+   "pos": [
+    2.68,
+    0.0,
+    -12.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_36",
+   "pos": [
+    2.68,
+    0.0,
+    -12.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_37",
+   "pos": [
+    3.57,
+    0.0,
+    -12.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_37",
+   "pos": [
+    3.57,
+    0.0,
+    -12.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_38",
+   "pos": [
+    4.19,
+    0.0,
+    -16.68
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_38",
+   "pos": [
+    4.19,
+    0.0,
+    -16.68
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_39",
+   "pos": [
+    4.19,
+    0.0,
+    -19.5
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_39",
+   "pos": [
+    4.19,
+    0.0,
+    -19.5
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_40",
+   "pos": [
+    2.69,
+    0.0,
+    -7.15
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_40",
+   "pos": [
+    2.69,
+    0.0,
+    -7.15
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_41",
+   "pos": [
+    2.05,
+    0.0,
+    -6.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_41",
+   "pos": [
+    2.05,
+    0.0,
+    -6.37
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_1",
+   "pos": [
+    16.93,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_1",
+   "pos": [
+    16.93,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_2",
+   "pos": [
+    15.63,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_2",
+   "pos": [
+    15.63,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_3",
+   "pos": [
+    14.29,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_3",
+   "pos": [
+    14.29,
+    0.0,
+    -8.68
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_4",
+   "pos": [
+    9.51,
+    0.0,
+    -14.65
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_4",
+   "pos": [
+    9.51,
+    0.0,
+    -14.65
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_5",
+   "pos": [
+    9.51,
+    0.0,
+    -17.08
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint_5",
+   "pos": [
+    9.51,
+    0.0,
+    -17.08
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    20.61,
+    0.0,
+    -26.54
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    20.61,
+    0.0,
+    -26.54
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    19.46,
+    0.0,
+    -28.2
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/RewardBoxSpawnPoint",
+   "pos": [
+    19.46,
+    0.0,
+    -28.2
+   ],
+   "yaw": 180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    20.94,
+    0.0,
+    -11.98
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    20.94,
+    0.0,
+    -11.98
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    20.97,
+    0.0,
+    -12.85
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    20.97,
+    0.0,
+    -12.85
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    8.09,
+    0.0,
+    -1.19
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    8.09,
+    0.0,
+    -1.19
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    5.93,
+    0.0,
+    -1.12
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    5.93,
+    0.0,
+    -1.12
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    6.9,
+    0.0,
+    -1.14
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/Cabinet_1/VendingMachineSpawnPoint",
+   "pos": [
+    6.9,
+    0.0,
+    -1.14
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnGroupComponent",
+   "path": "3006/TrapSpawn",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/FoxFire",
+   "pos": [
+    17.96,
+    0.0,
+    -21.67
+   ],
+   "yaw": 90.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/FoxFire_fake",
+   "pos": [
+    1.82,
+    0.0,
+    6.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/ThunderFire",
+   "pos": [
+    7.46,
+    0.0,
+    -10.92
+   ],
+   "yaw": -90.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/ThunderFire_fake",
+   "pos": [
+    2.73,
+    0.0,
+    6.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/ToxicPipe",
+   "pos": [
+    3.49,
+    0.0,
+    6.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/ToxicPipe_fake",
+   "pos": [
+    3.49,
+    0.0,
+    6.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/StressPipe",
+   "pos": [
+    4.17,
+    0.0,
+    5.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Spike",
+   "pos": [
+    9.05,
+    0.0,
+    -21.77
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Spike_fake",
+   "pos": [
+    5.67,
+    0.0,
+    -22.82
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb",
+   "pos": [
+    2.01,
+    0.0,
+    -1.89
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_1",
+   "pos": [
+    2.01,
+    0.0,
+    -27.67
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_2",
+   "pos": [
+    5.89,
+    0.0,
+    -27.67
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_3",
+   "pos": [
+    27.71,
+    0.0,
+    -28.37
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_4",
+   "pos": [
+    27.71,
+    0.0,
+    -25.57
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_5",
+   "pos": [
+    29.29,
+    0.0,
+    -25.57
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_6",
+   "pos": [
+    28.65,
+    0.0,
+    -14.51
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_7",
+   "pos": [
+    28.65,
+    0.0,
+    -11.69
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_8",
+   "pos": [
+    28.65,
+    0.0,
+    -3.12
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_9",
+   "pos": [
+    28.65,
+    0.0,
+    -1.24
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_10",
+   "pos": [
+    26.97,
+    0.0,
+    -1.67
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "3006/TrapSpawn/Minebomb_11",
+   "pos": [
+    23.76,
+    0.0,
+    -15.42
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MimicSpawnGroupComponent",
+   "path": "3006/MimicSpawn",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MimicSpawnComponent",
+   "path": "3006/MimicSpawn/MimicSpawnPoint",
+   "pos": [
+    12.01,
+    0.0,
+    -3.4
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MimicSpawnComponent",
+   "path": "3006/MimicSpawn/MimicSpawnPoint_1",
+   "pos": [
+    12.39,
+    0.0,
+    -27.896
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "MimicSpawnComponent",
+   "path": "3006/MimicSpawn/MimicSpawnPoint_2",
+   "pos": [
+    13.97,
+    0.0,
+    -3.44
+   ],
+   "yaw": 90.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnGroupComponent",
+   "path": "3006/CoinBox",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    15.82,
+    0.0,
+    -27.43
+   ],
+   "yaw": -180.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    15.82,
+    0.0,
+    -27.43
+   ],
+   "yaw": -180.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    20.76,
+    0.0,
+    -8.26
+   ],
+   "yaw": -180.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    20.76,
+    0.0,
+    -8.26
+   ],
+   "yaw": -180.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    9.49,
+    0.0,
+    -19.12
+   ],
+   "yaw": -90.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "3006/CoinBox/CoinBoxSpawnPoint",
+   "pos": [
+    9.49,
+    0.0,
+    -19.12
+   ],
+   "yaw": -90.0,
+   "active": false
+  },
+  {
+   "type": "BreakablePropSpawnGroupComponent",
+   "path": "3006/BreakablePropSpawnPoint",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum",
+   "pos": [
+    7.92,
+    0.0,
+    -7.46
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_1",
+   "pos": [
+    6.37,
+    0.0,
+    -4.55
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_2",
+   "pos": [
+    6.6,
+    0.0,
+    -10.03
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_7",
+   "pos": [
+    11.49,
+    0.0,
+    -24.38
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_8",
+   "pos": [
+    4.62,
+    0.0,
+    -22.81
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_3",
+   "pos": [
+    23.4,
+    0.0,
+    -10.03
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_4",
+   "pos": [
+    25.73,
+    0.0,
+    -6.46
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_5",
+   "pos": [
+    25.94,
+    0.0,
+    -23.38
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "BreakablePropSpawnComponent",
+   "path": "3006/BreakablePropSpawnPoint/OilDrum_6",
+   "pos": [
+    23.13,
+    0.0,
+    -23.32
+   ],
+   "yaw": 0.0,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "misc": [
+  {
+   "type": "VisualAreaData",
+   "path": "3006/3006"
+  },
+  {
+   "type": "GroundTypeData",
+   "path": "3006/3006"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3006/3006/HighObstacles/Collider"
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.018,
+   -0.5,
+   -30.016
+  ],
+  "max": [
+   30.229,
+   3.943,
+   0.125
+  ]
+ },
+ "stats": {
+  "renderers": 21,
+  "verts": 19382,
+  "tris": 14414
+ }
+}

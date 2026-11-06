@@ -1,0 +1,29 @@
+/* Feature "guests": frog prince / snail gift popup (prefab set_froggift), butterfly and hidden-guest dialogs, guest / deco block /
+   wishlist lists. 1080x1920 space, same paper palette as the HUD panels in game.css. */
+.gu-pop { position: absolute; left: 540px; top: 960px; z-index: 30; width: 0; height: 0; pointer-events: auto; }
+.gu-pop .ng { position: absolute; }
+.gu-pop .ng > .w { position: absolute; }
+.gu-pop .gu-click { position: absolute; left: -540px; top: -960px; width: 1080px; height: 1920px; background: #0008; }
+.gu-pop .gu-card { position: absolute; }
+.gu-pop .gu-reward { position: absolute; left: -300px; width: 600px; top: -40px; display: flex; align-items: center; justify-content: center; gap: 14px; color: #fff; font-size: 64px; font-weight: 700; text-shadow: 0 4px 0 #0007; }
+.gu-pop .gu-reward .spr { width: 80px; height: 80px; display: inline-block; flex: none; }
+.gu-pop .gu-frog { position: absolute; left: -110px; top: -330px; width: 220px; height: 220px; background-size: 1152px 896px; image-rendering: auto; }
+.gu-dlg .sp-box { padding-top: 34px; }
+.gu-dlg .gu-q { font-size: 42px; text-align: center; line-height: 1.25; }
+.gu-dlg .gu-desc { font-size: 30px; color: #8b7766; text-align: center; white-space: pre-line; }
+.gu-dlg .gu-ans { width: 100%; }
+.gu-dlg .gu-ans .sp-btn { width: 100%; font-size: 38px; }
+.gu-dlg .gu-ans .sp-btn.ok { background: #7fdcb6; }
+.gu-dlg .gu-ans .sp-btn.no { background: #f1a79a; border-color: #c56d5c; }
+.gu-res { font-size: 48px; font-weight: 700; text-align: center; }
+.gu-ico { display: inline-block; flex: none; width: 112px; height: 112px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.panel .row .gu-ico { margin-right: 6px; }
+.panel .row.gu-head { background: #ffe9a6; }
+.panel .row .tgl { min-width: 150px; padding: 10px 18px; border-radius: 22px; text-align: center; font-size: 34px; font-weight: 700; cursor: pointer; background: #c9c1b6; color: #6c645c; border: 4px solid #9a9087; }
+.panel .row .tgl.on { background: #7fdcb6; color: #34584a; border-color: #4b9b7c; }
+.panel .row .tgl.off { opacity: 0.55; cursor: default; }
+.panel .row .tgl.get { background: #8cc9f2; color: #2f5873; border-color: #4f93c2; }
+.panel .row .gu-n { font-size: 28px; color: #8b7766; }
+.panel .row .gu-x { min-width: 70px; text-align: center; font-size: 44px; color: #c0412f; cursor: pointer; }
+.panel .row.gu-event { background: #e8dcc9; font-size: 30px; font-weight: 700; padding: 6px 16px; }
+.panel .list > .row { flex: none; }

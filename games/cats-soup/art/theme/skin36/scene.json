@@ -1,0 +1,1 @@
+{"roots":[{"key":"s0","node":0},{"key":"s1","node":1},{"key":"s2","node":2}],"nodes":[{"n":"s0","p":-1,"m":0,"mt":[null]},{"n":"s1","p":-1,"m":1,"mt":[null]},{"n":"s2","p":-1,"m":2,"mt":[null]}],"meshes":[{"name":"basket","subs":1,"verts":1281},{"name":"skin_basket","subs":1,"verts":2731},{"name":"skin144","subs":1,"verts":2150}],"materials":[],"textures":[]}

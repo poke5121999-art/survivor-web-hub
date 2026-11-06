@@ -1,0 +1,1 @@
+{"setup":{"seed":3,"mapIndex":1,"goal":0,"teams":0,"startPlaying":false,"slots":[{"slot":0,"skinId":1,"level":1,"isBot":false,"botDifficulty":0.5},{"slot":1,"skinId":2,"level":1,"isBot":true,"botDifficulty":0.5}]},"ticks":400,"actions":[{"at":60,"do":"start"}],"inputs":[{"slot":0,"from":1,"to":200,"dir":1,"down":2,"pressed":0}],"name":"start-waiting"}

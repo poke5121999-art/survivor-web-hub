@@ -1,0 +1,19791 @@
+{
+ "stage": 3,
+ "name": "Stage03_Sprint2",
+ "tuning": {
+  "customerSpawnTime": 3.0,
+  "maxCustomerCount": 10,
+  "customerVIPRate": 5.0,
+  "orderCountPerTable": 1,
+  "orderCountPerTableCount": 4,
+  "carSpawnTime": 4.0,
+  "maxCarCount": 6,
+  "driveCarType": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "kioskCustomerSpawnTime": 5.0,
+  "maxKioskCustomerCount": 1
+ },
+ "price": 2,
+ "moneyIndex": 4,
+ "offline": {
+  "rate": 0.75,
+  "plusKey": "Stage_3_OfflinePlus",
+  "plusStart": 300,
+  "plusStep": 400,
+  "plus": 8,
+  "plusStepValue": 4,
+  "plusMax": 30,
+  "minMinutes": 5,
+  "maxMinutes": 10,
+  "unit": 10.0,
+  "maxUnit": 6
+ },
+ "player": {
+  "start": [
+   -9.0,
+   0.0,
+   2.2
+  ],
+  "node": 3245,
+  "speed": [
+   3,
+   3.15,
+   3.3,
+   3.45,
+   3.6,
+   3.75,
+   3.9,
+   4.05,
+   4.2,
+   4.35,
+   4.5,
+   4.65,
+   4.8,
+   4.95,
+   5.1,
+   5.25,
+   5.4,
+   5.55,
+   5.7,
+   5.85,
+   6
+  ],
+  "cap": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22
+  ],
+  "priceUp": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20
+  ],
+  "speedCost": [
+   60,
+   300,
+   600,
+   900,
+   2000,
+   3000,
+   4000,
+   5000,
+   6000,
+   8000,
+   12000,
+   15000,
+   18000,
+   21000,
+   24000,
+   80000,
+   100000,
+   110000,
+   162000,
+   176000,
+   190000
+  ],
+  "capCost": [
+   60,
+   300,
+   600,
+   900,
+   2000,
+   3000,
+   4000,
+   5000,
+   6000,
+   8000,
+   12000,
+   15000,
+   18000,
+   21000,
+   24000,
+   80000,
+   100000,
+   110000,
+   162000,
+   176000,
+   190000
+  ],
+  "priceCost": [
+   300,
+   600,
+   900,
+   2000,
+   3000,
+   4000,
+   5000,
+   6000,
+   8000,
+   12000,
+   15000,
+   18000,
+   21000,
+   24000,
+   27000,
+   100000,
+   110000,
+   120000,
+   176000,
+   190000,
+   204000
+  ],
+  "table": "PlayerTotalUpgradeData"
+ },
+ "worker": {
+  "speed": [
+   1,
+   1.2,
+   1.4,
+   1.6,
+   1.8,
+   2,
+   2.2,
+   2.4,
+   2.6,
+   2.8,
+   3
+  ],
+  "cap": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "max": 5,
+  "speedCost": [
+   250,
+   450,
+   700,
+   1000,
+   1350,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "capCost": [
+   250,
+   450,
+   700,
+   1000,
+   1350,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "employCost": [
+   450,
+   700,
+   1000,
+   1350,
+   1750,
+   null,
+   null,
+   null,
+   null,
+   null
+  ]
+ },
+ "pads": [
+  {
+   "id": "door1",
+   "kind": "door",
+   "node": 175,
+   "vis": 176,
+   "box": [
+    -7.087,
+    5.933,
+    1.25,
+    1.75
+   ],
+   "cost": 100,
+   "price": 179
+  },
+  {
+   "id": "machine1",
+   "kind": "machine",
+   "node": 237,
+   "vis": 237,
+   "box": [
+    18.5,
+    3.5,
+    1.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 243,
+   "target": "m1"
+  },
+  {
+   "id": "upgrade1",
+   "kind": "upgrade",
+   "node": 251,
+   "vis": 251,
+   "box": [
+    18.5,
+    5.6,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 257,
+   "target": "m1"
+  },
+  {
+   "id": "machine2",
+   "kind": "machine",
+   "node": 299,
+   "vis": 299,
+   "box": [
+    18.5,
+    9.25,
+    1.25,
+    1.25
+   ],
+   "cost": 230,
+   "price": 305,
+   "target": "m2"
+  },
+  {
+   "id": "upgrade2",
+   "kind": "upgrade",
+   "node": 313,
+   "vis": 313,
+   "box": [
+    18.5,
+    11.33,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 319,
+   "target": "m2"
+  },
+  {
+   "id": "machine3",
+   "kind": "machine",
+   "node": 361,
+   "vis": 361,
+   "box": [
+    18.483,
+    9.083,
+    1.25,
+    1.25
+   ],
+   "cost": 230,
+   "price": 367,
+   "target": "m3"
+  },
+  {
+   "id": "upgrade3",
+   "kind": "upgrade",
+   "node": 375,
+   "vis": 375,
+   "box": [
+    18.483,
+    11.163,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 381,
+   "target": "m3"
+  },
+  {
+   "id": "machine4",
+   "kind": "machine",
+   "node": 1742,
+   "vis": 1742,
+   "box": [
+    18.5,
+    -32.25,
+    1.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 1748,
+   "target": "m4"
+  },
+  {
+   "id": "upgrade4",
+   "kind": "upgrade",
+   "node": 1756,
+   "vis": 1756,
+   "box": [
+    18.5,
+    -30.25,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1762,
+   "target": "m4"
+  },
+  {
+   "id": "machine5",
+   "kind": "machine",
+   "node": 1796,
+   "vis": 1796,
+   "box": [
+    18.5,
+    -26.75,
+    1.25,
+    1.25
+   ],
+   "cost": 230,
+   "price": 1802,
+   "target": "m5"
+  },
+  {
+   "id": "upgrade5",
+   "kind": "upgrade",
+   "node": 1810,
+   "vis": 1810,
+   "box": [
+    18.5,
+    -24.75,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1816,
+   "target": "m5"
+  },
+  {
+   "id": "counter1",
+   "kind": "counter",
+   "node": 463,
+   "vis": 463,
+   "box": [
+    9.25,
+    6.0,
+    1.25,
+    2.75
+   ],
+   "cost": 100,
+   "price": 469,
+   "target": "c1"
+  },
+  {
+   "id": "upgrade6",
+   "kind": "upgrade",
+   "node": 489,
+   "vis": 489,
+   "box": [
+    9.25,
+    8.75,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 495,
+   "target": "c1"
+  },
+  {
+   "id": "counter2",
+   "kind": "counter",
+   "node": 1676,
+   "vis": 1676,
+   "box": [
+    10.0,
+    -27.5,
+    1.25,
+    2.75
+   ],
+   "cost": 100,
+   "price": 1682,
+   "target": "c2"
+  },
+  {
+   "id": "upgrade7",
+   "kind": "upgrade",
+   "node": 1702,
+   "vis": 1702,
+   "box": [
+    10.0,
+    -30.75,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1708,
+   "target": "c2"
+  },
+  {
+   "id": "table1",
+   "kind": "table",
+   "node": 741,
+   "vis": 742,
+   "box": [
+    6.25,
+    -2.442,
+    1.25,
+    1.25
+   ],
+   "cost": 5,
+   "price": 751,
+   "target": "t1"
+  },
+  {
+   "id": "upgrade8",
+   "kind": "upgrade",
+   "node": 772,
+   "vis": 772,
+   "box": [
+    6.0,
+    -0.942,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 778,
+   "target": "t1"
+  },
+  {
+   "id": "table2",
+   "kind": "table",
+   "node": 792,
+   "vis": 793,
+   "box": [
+    6.25,
+    -5.192,
+    1.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 802,
+   "target": "t2"
+  },
+  {
+   "id": "upgrade9",
+   "kind": "upgrade",
+   "node": 823,
+   "vis": 823,
+   "box": [
+    4.5,
+    -4.042,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 829,
+   "target": "t2"
+  },
+  {
+   "id": "table3",
+   "kind": "table",
+   "node": 843,
+   "vis": 844,
+   "box": [
+    6.25,
+    -7.942,
+    1.25,
+    1.25
+   ],
+   "cost": 150,
+   "price": 853,
+   "target": "t3"
+  },
+  {
+   "id": "upgrade10",
+   "kind": "upgrade",
+   "node": 874,
+   "vis": 874,
+   "box": [
+    4.5,
+    -9.292,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 880,
+   "target": "t3"
+  },
+  {
+   "id": "table4",
+   "kind": "table",
+   "node": 894,
+   "vis": 895,
+   "box": [
+    6.25,
+    -10.692,
+    1.25,
+    1.25
+   ],
+   "cost": 200,
+   "price": 904,
+   "target": "t4"
+  },
+  {
+   "id": "upgrade11",
+   "kind": "upgrade",
+   "node": 925,
+   "vis": 925,
+   "box": [
+    6.0,
+    -12.542,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 931,
+   "target": "t4"
+  },
+  {
+   "id": "table5",
+   "kind": "table",
+   "node": 945,
+   "vis": 946,
+   "box": [
+    1.483,
+    -1.737,
+    1.25,
+    1.25
+   ],
+   "cost": 250,
+   "price": 955,
+   "target": "t5"
+  },
+  {
+   "id": "upgrade12",
+   "kind": "upgrade",
+   "node": 984,
+   "vis": 984,
+   "box": [
+    2.483,
+    0.413,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 990,
+   "target": "t5"
+  },
+  {
+   "id": "table6",
+   "kind": "table",
+   "node": 1004,
+   "vis": 1005,
+   "box": [
+    1.483,
+    -6.487,
+    1.25,
+    1.25
+   ],
+   "cost": 290,
+   "price": 1014,
+   "target": "t6"
+  },
+  {
+   "id": "upgrade13",
+   "kind": "upgrade",
+   "node": 1043,
+   "vis": 1043,
+   "box": [
+    2.483,
+    -4.337,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1049,
+   "target": "t6"
+  },
+  {
+   "id": "table7",
+   "kind": "table",
+   "node": 1063,
+   "vis": 1064,
+   "box": [
+    1.483,
+    -11.237,
+    1.25,
+    1.25
+   ],
+   "cost": 550,
+   "price": 1073,
+   "target": "t7"
+  },
+  {
+   "id": "upgrade14",
+   "kind": "upgrade",
+   "node": 1102,
+   "vis": 1102,
+   "box": [
+    2.483,
+    -9.087,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1108,
+   "target": "t7"
+  },
+  {
+   "id": "table8",
+   "kind": "table",
+   "node": 1122,
+   "vis": 1123,
+   "box": [
+    -4.247,
+    -1.107,
+    1.25,
+    1.25
+   ],
+   "cost": 700,
+   "price": 1132,
+   "target": "t8"
+  },
+  {
+   "id": "upgrade15",
+   "kind": "upgrade",
+   "node": 1155,
+   "vis": 1155,
+   "box": [
+    -3.247,
+    -2.957,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1161,
+   "target": "t8"
+  },
+  {
+   "id": "table9",
+   "kind": "table",
+   "node": 1175,
+   "vis": 1176,
+   "box": [
+    -4.247,
+    -4.607,
+    1.25,
+    1.25
+   ],
+   "cost": 1790,
+   "price": 1185,
+   "target": "t9"
+  },
+  {
+   "id": "upgrade16",
+   "kind": "upgrade",
+   "node": 1208,
+   "vis": 1208,
+   "box": [
+    -3.247,
+    -6.457,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1214,
+   "target": "t9"
+  },
+  {
+   "id": "table10",
+   "kind": "table",
+   "node": 1228,
+   "vis": 1229,
+   "box": [
+    -4.247,
+    -8.107,
+    1.25,
+    1.25
+   ],
+   "cost": 1830,
+   "price": 1238,
+   "target": "t10"
+  },
+  {
+   "id": "upgrade17",
+   "kind": "upgrade",
+   "node": 1261,
+   "vis": 1261,
+   "box": [
+    -3.247,
+    -9.957,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1267,
+   "target": "t10"
+  },
+  {
+   "id": "table11",
+   "kind": "table",
+   "node": 1281,
+   "vis": 1282,
+   "box": [
+    -4.247,
+    -11.607,
+    1.25,
+    1.25
+   ],
+   "cost": 1870,
+   "price": 1291,
+   "target": "t11"
+  },
+  {
+   "id": "upgrade18",
+   "kind": "upgrade",
+   "node": 1314,
+   "vis": 1314,
+   "box": [
+    -3.247,
+    -13.207,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1320,
+   "target": "t11"
+  },
+  {
+   "id": "table12",
+   "kind": "table",
+   "node": 1830,
+   "vis": 1831,
+   "box": [
+    6.72,
+    -31.75,
+    1.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 1837,
+   "target": "t12"
+  },
+  {
+   "id": "upgrade19",
+   "kind": "upgrade",
+   "node": 1868,
+   "vis": 1868,
+   "box": [
+    7.97,
+    -34.25,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1874,
+   "target": "t12"
+  },
+  {
+   "id": "table13",
+   "kind": "table",
+   "node": 1888,
+   "vis": 1889,
+   "box": [
+    6.72,
+    -24.0,
+    1.25,
+    1.25
+   ],
+   "cost": 700,
+   "price": 1895,
+   "target": "t13"
+  },
+  {
+   "id": "upgrade20",
+   "kind": "upgrade",
+   "node": 1926,
+   "vis": 1926,
+   "box": [
+    7.97,
+    -21.5,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1932,
+   "target": "t13"
+  },
+  {
+   "id": "table14",
+   "kind": "table",
+   "node": 1946,
+   "vis": 1947,
+   "box": [
+    4.47,
+    -31.75,
+    1.25,
+    1.25
+   ],
+   "cost": 760,
+   "price": 1953,
+   "target": "t14"
+  },
+  {
+   "id": "upgrade21",
+   "kind": "upgrade",
+   "node": 1984,
+   "vis": 1984,
+   "box": [
+    5.72,
+    -34.25,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 1990,
+   "target": "t14"
+  },
+  {
+   "id": "table15",
+   "kind": "table",
+   "node": 2004,
+   "vis": 2005,
+   "box": [
+    4.47,
+    -24.0,
+    1.25,
+    1.25
+   ],
+   "cost": 1350,
+   "price": 2011,
+   "target": "t15"
+  },
+  {
+   "id": "upgrade22",
+   "kind": "upgrade",
+   "node": 2042,
+   "vis": 2042,
+   "box": [
+    5.72,
+    -21.5,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 2048,
+   "target": "t15"
+  },
+  {
+   "id": "table16",
+   "kind": "table",
+   "node": 2062,
+   "vis": 2063,
+   "box": [
+    0.5,
+    -31.75,
+    1.25,
+    1.25
+   ],
+   "cost": 1410,
+   "price": 2069,
+   "target": "t16"
+  },
+  {
+   "id": "upgrade23",
+   "kind": "upgrade",
+   "node": 2100,
+   "vis": 2100,
+   "box": [
+    2.5,
+    -33.75,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 2106,
+   "target": "t16"
+  },
+  {
+   "id": "table17",
+   "kind": "table",
+   "node": 2120,
+   "vis": 2121,
+   "box": [
+    0.5,
+    -24.0,
+    1.25,
+    1.25
+   ],
+   "cost": 1590,
+   "price": 2127,
+   "target": "t17"
+  },
+  {
+   "id": "upgrade24",
+   "kind": "upgrade",
+   "node": 2158,
+   "vis": 2158,
+   "box": [
+    2.5,
+    -22.0,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 2164,
+   "target": "t17"
+  },
+  {
+   "id": "table18",
+   "kind": "table",
+   "node": 2178,
+   "vis": 2179,
+   "box": [
+    -3.0,
+    -31.75,
+    1.25,
+    1.25
+   ],
+   "cost": 1710,
+   "price": 2185,
+   "target": "t18"
+  },
+  {
+   "id": "upgrade25",
+   "kind": "upgrade",
+   "node": 2216,
+   "vis": 2216,
+   "box": [
+    -4.5,
+    -33.75,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 2222,
+   "target": "t18"
+  },
+  {
+   "id": "table19",
+   "kind": "table",
+   "node": 2236,
+   "vis": 2237,
+   "box": [
+    -3.0,
+    -24.0,
+    1.25,
+    1.25
+   ],
+   "cost": 1750,
+   "price": 2243,
+   "target": "t19"
+  },
+  {
+   "id": "upgrade26",
+   "kind": "upgrade",
+   "node": 2274,
+   "vis": 2274,
+   "box": [
+    -4.5,
+    -22.5,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 2280,
+   "target": "t19"
+  },
+  {
+   "id": "packer1",
+   "kind": "packer",
+   "node": 593,
+   "vis": 593,
+   "box": [
+    11.913,
+    13.583,
+    2.75,
+    1.25
+   ],
+   "cost": 25,
+   "price": 598,
+   "target": "p1"
+  },
+  {
+   "id": "upgrade27",
+   "kind": "upgrade",
+   "node": 617,
+   "vis": 617,
+   "box": [
+    8.663,
+    13.833,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 623,
+   "target": "p1"
+  },
+  {
+   "id": "drive1",
+   "kind": "drive",
+   "node": 703,
+   "vis": 703,
+   "box": [
+    2.03,
+    13.41,
+    2.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 709,
+   "target": "d1"
+  },
+  {
+   "id": "upgrade28",
+   "kind": "upgrade",
+   "node": 716,
+   "vis": 716,
+   "box": [
+    -0.42,
+    13.93,
+    0.9,
+    0.9
+   ],
+   "cost": null,
+   "price": 722,
+   "target": "d1"
+  },
+  {
+   "id": "kiosk1",
+   "kind": "kiosk",
+   "node": 1552,
+   "vis": 1553,
+   "box": [
+    -2.652,
+    -17.848,
+    1.25,
+    1.25
+   ],
+   "cost": 450,
+   "price": 1558,
+   "target": "k1"
+  },
+  {
+   "id": "restroom1",
+   "kind": "restroom",
+   "node": 2294,
+   "vis": 2295,
+   "box": [
+    15.75,
+    -17.6,
+    1.25,
+    1.25
+   ],
+   "cost": 1000,
+   "price": 2300,
+   "target": "r1"
+  },
+  {
+   "id": "skinroom1",
+   "kind": "skinroom",
+   "node": 1532,
+   "vis": 1533,
+   "box": [
+    16.75,
+    -2.5,
+    1.25,
+    1.25
+   ],
+   "cost": 50,
+   "price": 1538,
+   "target": "s1"
+  },
+  {
+   "id": "hr1",
+   "kind": "hr",
+   "node": 1334,
+   "vis": 1335,
+   "box": [
+    16.75,
+    -12.5,
+    1.25,
+    1.25
+   ],
+   "cost": 60,
+   "price": 1338
+  },
+  {
+   "id": "office1",
+   "kind": "office",
+   "node": 1430,
+   "vis": 1431,
+   "box": [
+    16.75,
+    -7.417,
+    1.25,
+    1.25
+   ],
+   "cost": 90,
+   "price": 1434
+  },
+  {
+   "id": "district2",
+   "kind": "district",
+   "node": 3654,
+   "vis": 3654,
+   "box": [
+    13.25,
+    2.0,
+    1.25,
+    1.25
+   ],
+   "cost": 100,
+   "price": 3670
+  },
+  {
+   "id": "district3",
+   "kind": "district",
+   "node": 3673,
+   "vis": 3673,
+   "box": [
+    -1.0,
+    1.75,
+    1.25,
+    1.25
+   ],
+   "cost": 200,
+   "price": 3689
+  },
+  {
+   "id": "district5",
+   "kind": "district",
+   "node": 3711,
+   "vis": 3711,
+   "box": [
+    -1.0,
+    2.0,
+    1.25,
+    1.25
+   ],
+   "cost": 900,
+   "price": 3727
+  },
+  {
+   "id": "district4",
+   "kind": "district",
+   "node": 3692,
+   "vis": 3692,
+   "box": [
+    10.25,
+    -13.0,
+    1.25,
+    1.25
+   ],
+   "cost": 500,
+   "price": 3708
+  }
+ ],
+ "machines": [
+  {
+   "id": "m1",
+   "key": "Stage_3_CoffeeMachine_1",
+   "node": 203,
+   "machine": 204,
+   "stack": [
+    16.81,
+    0.13,
+    3.5
+   ],
+   "stackNode": 222,
+   "item": 6,
+   "grades": [
+    208,
+    212,
+    217
+   ],
+   "delay": [
+    3,
+    2,
+    1
+   ],
+   "max": [
+    4.0,
+    10.0,
+    14.0
+   ],
+   "cost": [
+    50,
+    270,
+    1990
+   ],
+   "zone": [
+    16.65,
+    3.5,
+    1.0,
+    1.25
+   ],
+   "active": true,
+   "pad": "machine1",
+   "upgrade": "upgrade1",
+   "z": 1
+  },
+  {
+   "id": "m2",
+   "key": "Stage_3_CoffeeMachine_2",
+   "node": 271,
+   "machine": 272,
+   "stack": [
+    16.81,
+    0.13,
+    9.25
+   ],
+   "stackNode": 290,
+   "item": 6,
+   "grades": [
+    276,
+    280,
+    285
+   ],
+   "delay": [
+    3,
+    2,
+    1
+   ],
+   "max": [
+    4.0,
+    10.0,
+    14.0
+   ],
+   "cost": [
+    230,
+    330,
+    2090
+   ],
+   "zone": [
+    16.65,
+    9.25,
+    1.0,
+    1.25
+   ],
+   "active": true,
+   "pad": "machine2",
+   "upgrade": "upgrade2",
+   "z": 1
+  },
+  {
+   "id": "m3",
+   "key": "Stage_3_CoffeeMachine_2",
+   "node": 333,
+   "machine": 334,
+   "stack": [
+    16.793,
+    0.13,
+    9.083
+   ],
+   "stackNode": 352,
+   "item": 6,
+   "grades": [
+    338,
+    342,
+    347
+   ],
+   "delay": [
+    3,
+    2,
+    1
+   ],
+   "max": [
+    4.0,
+    10.0,
+    14.0
+   ],
+   "cost": [
+    230,
+    330,
+    2090
+   ],
+   "zone": [
+    16.633,
+    9.083,
+    1.0,
+    1.25
+   ],
+   "active": false,
+   "pad": "machine3",
+   "upgrade": "upgrade3",
+   "z": 1
+  },
+  {
+   "id": "m4",
+   "key": "Stage_3_Expand_CoffeeMachine_1",
+   "node": 1722,
+   "machine": 1723,
+   "stack": [
+    16.81,
+    0.13,
+    -32.25
+   ],
+   "stackNode": 1733,
+   "item": 31,
+   "grades": [
+    1727,
+    1729,
+    1731
+   ],
+   "delay": [
+    3,
+    2,
+    1
+   ],
+   "max": [
+    4.0,
+    10.0,
+    14.0
+   ],
+   "cost": [
+    50,
+    270,
+    1990
+   ],
+   "zone": [
+    16.65,
+    -32.25,
+    1.0,
+    1.25
+   ],
+   "active": true,
+   "pad": "machine4",
+   "upgrade": "upgrade4",
+   "z": 2
+  },
+  {
+   "id": "m5",
+   "key": "Stage_3_Expand_CoffeeMachine_2",
+   "node": 1776,
+   "machine": 1777,
+   "stack": [
+    16.81,
+    0.13,
+    -26.75
+   ],
+   "stackNode": 1787,
+   "item": 31,
+   "grades": [
+    1781,
+    1783,
+    1785
+   ],
+   "delay": [
+    3,
+    2,
+    1
+   ],
+   "max": [
+    4.0,
+    10.0,
+    14.0
+   ],
+   "cost": [
+    230,
+    330,
+    2090
+   ],
+   "zone": [
+    16.65,
+    -26.75,
+    1.0,
+    1.25
+   ],
+   "active": true,
+   "pad": "machine5",
+   "upgrade": "upgrade5",
+   "z": 2
+  }
+ ],
+ "counters": [
+  {
+   "id": "c1",
+   "key": "Stage_3_Counter",
+   "node": 395,
+   "counter": 396,
+   "grades": [
+    399,
+    400,
+    401
+   ],
+   "items": [
+    6
+   ],
+   "maxItems": 50,
+   "path": [
+    [
+     -9.0,
+     0.0,
+     -18.0
+    ],
+    [
+     -9.0,
+     0.0,
+     6.0
+    ],
+    [
+     7.0,
+     0.0,
+     6.0
+    ]
+   ],
+   "out": [
+    -9.0,
+    0.0,
+    8.25
+   ],
+   "storage": [
+    9.55,
+    7.76,
+    1.75,
+    1.5
+   ],
+   "storageNode": 429,
+   "money": [
+    9.25,
+    2.67,
+    1.25,
+    1.25
+   ],
+   "moneyNode": 427,
+   "cashier": [
+    10.65,
+    0.0,
+    5.65
+   ],
+   "cashierNode": 430,
+   "sell": [
+    2.0,
+    1.5,
+    0.8999999761581421
+   ],
+   "employGrade": 1,
+   "cost": [
+    100,
+    100,
+    1750
+   ],
+   "active": true,
+   "board": [
+    10.65,
+    0.1,
+    5.65
+   ],
+   "pad": "counter1",
+   "upgrade": "upgrade6",
+   "z": 1,
+   "price": 2
+  },
+  {
+   "id": "c2",
+   "key": "Stage_3_Expand_Counter",
+   "node": 1602,
+   "counter": 1603,
+   "grades": [
+    1606,
+    1607,
+    1608
+   ],
+   "items": [
+    31
+   ],
+   "maxItems": 100,
+   "path": [
+    [
+     -9.0,
+     0.0,
+     -43.0
+    ],
+    [
+     -9.0,
+     0.0,
+     -28.0
+    ],
+    [
+     8.0,
+     0.0,
+     -28.0
+    ]
+   ],
+   "out": [
+    -9.0,
+    0.0,
+    -43.0
+   ],
+   "storage": [
+    10.61,
+    -25.25,
+    1.5,
+    1.5
+   ],
+   "storageNode": 1636,
+   "money": [
+    9.75,
+    -24.33,
+    1.25,
+    1.25
+   ],
+   "moneyNode": 1634,
+   "cashier": [
+    11.4,
+    0.0,
+    -27.6
+   ],
+   "cashierNode": 1637,
+   "sell": [
+    2.0,
+    1.5,
+    0.8999999761581421
+   ],
+   "employGrade": 1,
+   "cost": [
+    100,
+    100,
+    1750
+   ],
+   "active": true,
+   "board": [
+    11.4,
+    0.1,
+    -27.6
+   ],
+   "pad": "counter2",
+   "upgrade": "upgrade7",
+   "z": 2,
+   "price": 3
+  }
+ ],
+ "tables": [
+  {
+   "id": "t1",
+   "key": "Stage_3_Table_1",
+   "node": 741,
+   "table": 753,
+   "seats": [
+    {
+     "pos": [
+      7.62,
+      0.3,
+      -2.712
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.25,
+    0.1,
+    -2.442
+   ],
+   "money": [
+    4.15,
+    -2.132,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 766,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    5,
+    370,
+    1200
+   ],
+   "grades": [
+    755,
+    756,
+    757
+   ],
+   "zone": [
+    6.0,
+    -2.742,
+    1.625,
+    1.625
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table1",
+   "upgrade": "upgrade8"
+  },
+  {
+   "id": "t2",
+   "key": "Stage_3_Table_2",
+   "node": 792,
+   "table": 804,
+   "seats": [
+    {
+     "pos": [
+      7.62,
+      0.11,
+      -5.462
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.25,
+    0.1,
+    -5.192
+   ],
+   "money": [
+    4.15,
+    -5.882,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 817,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    50,
+    450,
+    1240
+   ],
+   "grades": [
+    806,
+    807,
+    808
+   ],
+   "zone": [
+    6.0,
+    -5.492,
+    1.625,
+    1.625
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table2",
+   "upgrade": "upgrade9"
+  },
+  {
+   "id": "t3",
+   "key": "Stage_3_Table_3",
+   "node": 843,
+   "table": 855,
+   "seats": [
+    {
+     "pos": [
+      7.62,
+      0.11,
+      -8.212
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.25,
+    0.1,
+    -7.942
+   ],
+   "money": [
+    4.15,
+    -7.632,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 868,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    150,
+    600,
+    1280
+   ],
+   "grades": [
+    857,
+    858,
+    859
+   ],
+   "zone": [
+    6.0,
+    -8.242,
+    1.625,
+    1.625
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table3",
+   "upgrade": "upgrade10"
+  },
+  {
+   "id": "t4",
+   "key": "Stage_3_Table_4",
+   "node": 894,
+   "table": 906,
+   "seats": [
+    {
+     "pos": [
+      7.62,
+      0.11,
+      -10.962
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.25,
+    0.1,
+    -10.692
+   ],
+   "money": [
+    4.15,
+    -10.882,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 919,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    200,
+    650,
+    1350
+   ],
+   "grades": [
+    908,
+    909,
+    910
+   ],
+   "zone": [
+    6.0,
+    -10.992,
+    1.625,
+    1.625
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table4",
+   "upgrade": "upgrade11"
+  },
+  {
+   "id": "t5",
+   "key": "Stage_3_Table_5",
+   "node": 945,
+   "table": 957,
+   "seats": [
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -2.362
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -2.362
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -1.112
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -1.112
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    1.483,
+    0.1,
+    -1.737
+   ],
+   "money": [
+    0.733,
+    0.263,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 978,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    250,
+    820,
+    1910
+   ],
+   "grades": [
+    959,
+    960,
+    961
+   ],
+   "zone": [
+    1.483,
+    -1.737,
+    1.625,
+    2.0
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table5",
+   "upgrade": "upgrade12"
+  },
+  {
+   "id": "t6",
+   "key": "Stage_3_Table_6",
+   "node": 1004,
+   "table": 1016,
+   "seats": [
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -7.112
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -7.112
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -5.862
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -5.862
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    1.483,
+    0.1,
+    -6.487
+   ],
+   "money": [
+    0.733,
+    -4.487,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1037,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    290,
+    880,
+    1950
+   ],
+   "grades": [
+    1018,
+    1019,
+    1020
+   ],
+   "zone": [
+    1.483,
+    -6.487,
+    1.625,
+    2.0
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table6",
+   "upgrade": "upgrade13"
+  },
+  {
+   "id": "t7",
+   "key": "Stage_3_Table_7",
+   "node": 1063,
+   "table": 1075,
+   "seats": [
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -11.862
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -11.862
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      2.774,
+      0.11,
+      -10.612
+     ],
+     "yaw": 3.1416
+    },
+    {
+     "pos": [
+      0.213,
+      0.11,
+      -10.612
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    1.483,
+    0.1,
+    -11.237
+   ],
+   "money": [
+    0.733,
+    -9.237,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1096,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    550,
+    940,
+    2300
+   ],
+   "grades": [
+    1077,
+    1078,
+    1079
+   ],
+   "zone": [
+    1.483,
+    -11.237,
+    1.625,
+    2.0
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table7",
+   "upgrade": "upgrade14"
+  },
+  {
+   "id": "t8",
+   "key": "Stage_3_Table_8",
+   "node": 1122,
+   "table": 1135,
+   "seats": [
+    {
+     "pos": [
+      -4.197,
+      0.01,
+      -1.177
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    -5.447,
+    0.0,
+    -1.177
+   ],
+   "money": [
+    -2.647,
+    -1.177,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1149,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    700,
+    1000,
+    2330
+   ],
+   "grades": [
+    1137,
+    1138,
+    1139
+   ],
+   "zone": [
+    -4.647,
+    -1.177,
+    1.25,
+    1.5
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table8",
+   "upgrade": "upgrade15"
+  },
+  {
+   "id": "t9",
+   "key": "Stage_3_Table_9",
+   "node": 1175,
+   "table": 1188,
+   "seats": [
+    {
+     "pos": [
+      -4.197,
+      0.01,
+      -4.677
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    -5.447,
+    0.0,
+    -4.677
+   ],
+   "money": [
+    -2.647,
+    -4.677,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1202,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1790,
+    2460,
+    2870
+   ],
+   "grades": [
+    1190,
+    1191,
+    1192
+   ],
+   "zone": [
+    -4.647,
+    -4.677,
+    1.25,
+    1.5
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table9",
+   "upgrade": "upgrade16"
+  },
+  {
+   "id": "t10",
+   "key": "Stage_3_Table_10",
+   "node": 1228,
+   "table": 1241,
+   "seats": [
+    {
+     "pos": [
+      -4.197,
+      0.01,
+      -8.177
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    -5.447,
+    0.0,
+    -8.177
+   ],
+   "money": [
+    -2.647,
+    -8.177,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1255,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1830,
+    2490,
+    2910
+   ],
+   "grades": [
+    1243,
+    1244,
+    1245
+   ],
+   "zone": [
+    -4.647,
+    -8.177,
+    1.25,
+    1.5
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table10",
+   "upgrade": "upgrade17"
+  },
+  {
+   "id": "t11",
+   "key": "Stage_3_Table_11",
+   "node": 1281,
+   "table": 1294,
+   "seats": [
+    {
+     "pos": [
+      -4.197,
+      0.01,
+      -11.677
+     ],
+     "yaw": 3.1416
+    }
+   ],
+   "items": [
+    -5.447,
+    0.0,
+    -11.677
+   ],
+   "money": [
+    -2.647,
+    -11.677,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1308,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1870,
+    2550,
+    3000
+   ],
+   "grades": [
+    1296,
+    1297,
+    1298
+   ],
+   "zone": [
+    -4.647,
+    -11.677,
+    1.25,
+    1.5
+   ],
+   "expand": false,
+   "active": true,
+   "pad": "table11",
+   "upgrade": "upgrade18"
+  },
+  {
+   "id": "t12",
+   "key": "Stage_3_Expand_Table_1",
+   "node": 1830,
+   "table": 1843,
+   "seats": [
+    {
+     "pos": [
+      6.72,
+      0.11,
+      -33.041
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      6.72,
+      0.11,
+      -30.48
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.72,
+    0.1,
+    -31.75
+   ],
+   "money": [
+    7.97,
+    -30.0,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1862,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    50,
+    1080,
+    2550
+   ],
+   "grades": [
+    1845,
+    1846,
+    1847
+   ],
+   "zone": [
+    6.72,
+    -31.75,
+    1.625,
+    1.625
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table12",
+   "upgrade": "upgrade19"
+  },
+  {
+   "id": "t13",
+   "key": "Stage_3_Expand_Table_2",
+   "node": 1888,
+   "table": 1901,
+   "seats": [
+    {
+     "pos": [
+      6.72,
+      0.11,
+      -25.291
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      6.72,
+      0.11,
+      -22.73
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    6.72,
+    0.1,
+    -24.0
+   ],
+   "money": [
+    7.97,
+    -25.75,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1920,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    700,
+    1120,
+    2590
+   ],
+   "grades": [
+    1903,
+    1904,
+    1905
+   ],
+   "zone": [
+    6.72,
+    -24.0,
+    1.625,
+    1.625
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table13",
+   "upgrade": "upgrade20"
+  },
+  {
+   "id": "t14",
+   "key": "Stage_3_Expand_Table_3",
+   "node": 1946,
+   "table": 1959,
+   "seats": [
+    {
+     "pos": [
+      4.47,
+      0.11,
+      -33.041
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      4.47,
+      0.11,
+      -30.48
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    4.47,
+    0.1,
+    -31.75
+   ],
+   "money": [
+    5.72,
+    -30.0,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 1978,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    760,
+    1160,
+    2630
+   ],
+   "grades": [
+    1961,
+    1962,
+    1963
+   ],
+   "zone": [
+    4.47,
+    -31.75,
+    1.625,
+    1.625
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table14",
+   "upgrade": "upgrade21"
+  },
+  {
+   "id": "t15",
+   "key": "Stage_3_Expand_Table_4",
+   "node": 2004,
+   "table": 2017,
+   "seats": [
+    {
+     "pos": [
+      4.47,
+      0.11,
+      -25.291
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      4.47,
+      0.11,
+      -22.73
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    4.47,
+    0.1,
+    -24.0
+   ],
+   "money": [
+    5.72,
+    -25.75,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 2036,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1350,
+    2150,
+    2670
+   ],
+   "grades": [
+    2019,
+    2020,
+    2021
+   ],
+   "zone": [
+    4.47,
+    -24.0,
+    1.625,
+    1.625
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table15",
+   "upgrade": "upgrade22"
+  },
+  {
+   "id": "t16",
+   "key": "Stage_3_Expand_Table_5",
+   "node": 2062,
+   "table": 2075,
+   "seats": [
+    {
+     "pos": [
+      0.5,
+      0.11,
+      -33.0
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      0.5,
+      0.11,
+      -30.5
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    0.5,
+    0.1,
+    -31.75
+   ],
+   "money": [
+    1.75,
+    -30.0,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 2094,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1410,
+    2180,
+    2710
+   ],
+   "grades": [
+    2077,
+    2078,
+    2079
+   ],
+   "zone": [
+    0.5,
+    -32.55,
+    1.5,
+    1.25
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table16",
+   "upgrade": "upgrade23"
+  },
+  {
+   "id": "t17",
+   "key": "Stage_3_Expand_Table_6",
+   "node": 2120,
+   "table": 2133,
+   "seats": [
+    {
+     "pos": [
+      0.5,
+      0.11,
+      -25.25
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      0.5,
+      0.11,
+      -22.75
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    0.5,
+    0.1,
+    -24.0
+   ],
+   "money": [
+    1.75,
+    -25.5,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 2152,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1590,
+    2210,
+    2750
+   ],
+   "grades": [
+    2135,
+    2136,
+    2137
+   ],
+   "zone": [
+    0.5,
+    -24.8,
+    1.5,
+    1.25
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table17",
+   "upgrade": "upgrade24"
+  },
+  {
+   "id": "t18",
+   "key": "Stage_3_Expand_Table_7",
+   "node": 2178,
+   "table": 2191,
+   "seats": [
+    {
+     "pos": [
+      -3.0,
+      0.11,
+      -33.0
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      -3.0,
+      0.11,
+      -30.5
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    -3.0,
+    0.1,
+    -31.75
+   ],
+   "money": [
+    -1.75,
+    -30.0,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 2210,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1710,
+    2240,
+    2790
+   ],
+   "grades": [
+    2193,
+    2194,
+    2195
+   ],
+   "zone": [
+    -3.0,
+    -32.55,
+    1.5,
+    1.25
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table18",
+   "upgrade": "upgrade25"
+  },
+  {
+   "id": "t19",
+   "key": "Stage_3_Expand_Table_8",
+   "node": 2236,
+   "table": 2249,
+   "seats": [
+    {
+     "pos": [
+      -3.0,
+      0.11,
+      -25.25
+     ],
+     "yaw": -1.5708
+    },
+    {
+     "pos": [
+      -3.0,
+      0.11,
+      -22.75
+     ],
+     "yaw": 1.5708
+    }
+   ],
+   "items": [
+    -3.0,
+    0.1,
+    -24.0
+   ],
+   "money": [
+    -1.75,
+    -25.5,
+    1.0,
+    1.0
+   ],
+   "moneyNode": 2268,
+   "eat": [
+    5,
+    4.7,
+    3.7
+   ],
+   "cost": [
+    1750,
+    2270,
+    2830
+   ],
+   "grades": [
+    2251,
+    2252,
+    2253
+   ],
+   "zone": [
+    -3.0,
+    -24.8,
+    1.5,
+    1.25
+   ],
+   "expand": true,
+   "active": true,
+   "pad": "table19",
+   "upgrade": "upgrade26"
+  }
+ ],
+ "trash": [
+  {
+   "node": 736,
+   "box": [
+    3.493,
+    3.093,
+    1.5,
+    1.5
+   ],
+   "active": true
+  },
+  {
+   "node": 3558,
+   "box": [
+    4.533,
+    -15.917,
+    1.5,
+    1.5
+   ],
+   "active": true
+  }
+ ],
+ "paths": {
+  "CustomerPath2": {
+   "PathStart": [
+    -9.0,
+    0.0,
+    -43.0
+   ],
+   "Path1": [
+    -9.0,
+    0.0,
+    -28.0
+   ],
+   "Path2": [
+    8.0,
+    0.0,
+    -28.0
+   ],
+   "PathExit": [
+    -9.0,
+    0.0,
+    -43.0
+   ]
+  },
+  "DrivePath": {
+   "PathStart": [
+    -4.75,
+    0.0,
+    -61.0
+   ],
+   "PathS_2": [
+    -4.75,
+    0.0,
+    -37.25
+   ],
+   "PathS_3": [
+    22.0,
+    0.0,
+    -37.25
+   ],
+   "PathS_4": [
+    22.0,
+    0.0,
+    16.5
+   ],
+   "PathS_5": [
+    2.25,
+    0.0,
+    16.5
+   ],
+   "PathE_1": [
+    -3.5,
+    0.0,
+    16.5
+   ],
+   "PathE_2": [
+    -3.5,
+    0.0,
+    11.0
+   ],
+   "PathE_3": [
+    -29.0,
+    0.0,
+    11.0
+   ]
+  },
+  "KioskPath": {
+   "PathStart": [
+    -9.0,
+    0.0,
+    -35.0
+   ],
+   "Path1": [
+    -9.0,
+    0.0,
+    -19.5
+   ],
+   "Path1 (1)": [
+    -5.75,
+    0.0,
+    -19.5
+   ],
+   "Path2": [
+    -9.0,
+    0.0,
+    -16.25
+   ],
+   "Path2 (1)": [
+    -5.75,
+    0.0,
+    -16.25
+   ],
+   "PathExit": [
+    -9.0,
+    0.0,
+    -35.0
+   ]
+  },
+  "DeliveryCustomerPath": {
+   "PathStart": [
+    -9.0,
+    0.0,
+    -10.25
+   ],
+   "Destination_1": [
+    6.5,
+    0.0,
+    1.0
+   ],
+   "PathExit": [
+    -9.0,
+    0.0,
+    8.0
+   ],
+   "Destination_2": [
+    8.0,
+    0.0,
+    -20.0
+   ]
+  }
+ },
+ "door": {
+  "pad": "door1",
+  "node": 183,
+  "block": 182,
+  "padNode": 175
+ },
+ "startMoney": {
+  "node": 202,
+  "pos": [
+   -9.017,
+   0.0,
+   5.833
+  ],
+  "amount": 255
+ },
+ "packers": [
+  {
+   "id": "p1",
+   "key": "Stage_3_PackageTable",
+   "node": 509,
+   "table": 510,
+   "grades": [
+    513,
+    514,
+    515
+   ],
+   "ingredients": [
+    6
+   ],
+   "item": 7,
+   "maxIn": 50,
+   "storage": [
+    13.913,
+    13.833,
+    1.25,
+    1.75
+   ],
+   "storageNode": 557,
+   "pickup": [
+    9.913,
+    13.833,
+    1.25,
+    1.75
+   ],
+   "pickupNode": 558,
+   "burgers": [
+    13.313,
+    1.261,
+    13.833
+   ],
+   "burgersNode": 533,
+   "items": [
+    10.463,
+    1.261,
+    13.833
+   ],
+   "itemsNode": 552,
+   "tray": [
+    11.824,
+    1.2,
+    13.833
+   ],
+   "trayNode": 518,
+   "packer": [
+    11.913,
+    0.0,
+    12.433
+   ],
+   "packerNode": 560,
+   "board": [
+    11.913,
+    0.1,
+    12.433
+   ],
+   "delay": [
+    1.600000023841858,
+    1.100000023841858,
+    0.5
+   ],
+   "maxOut": [
+    6.0,
+    7.0,
+    10.0
+   ],
+   "employGrade": 1,
+   "cost": [
+    25,
+    500,
+    2150
+   ],
+   "zone": [
+    11.913,
+    12.083,
+    1.0,
+    1.0
+   ],
+   "active": true,
+   "pad": "packer1",
+   "upgrade": "upgrade27"
+  }
+ ],
+ "drives": [
+  {
+   "id": "d1",
+   "key": "Stage_3_DriveThru",
+   "node": 637,
+   "counter": 638,
+   "grades": [
+    640,
+    641,
+    642
+   ],
+   "item": 7,
+   "maxItems": 50,
+   "storage": [
+    2.03,
+    13.03,
+    2.5,
+    1.5
+   ],
+   "items": [
+    1.53,
+    1.26,
+    13.83
+   ],
+   "itemsNode": 643,
+   "money": [
+    5.07,
+    13.39,
+    1.25,
+    1.25
+   ],
+   "moneyNode": 650,
+   "cashier": [
+    2.03,
+    0.0,
+    12.38
+   ],
+   "cashierNode": 657,
+   "board": [
+    2.03,
+    0.1,
+    12.38
+   ],
+   "boardNode": 649,
+   "pathIn": [
+    [
+     -4.75,
+     0.0,
+     -61.0
+    ],
+    [
+     -4.75,
+     0.0,
+     -37.25
+    ],
+    [
+     22.0,
+     0.0,
+     -37.25
+    ],
+    [
+     22.0,
+     0.0,
+     16.5
+    ],
+    [
+     2.25,
+     0.0,
+     16.5
+    ]
+   ],
+   "pathOut": [
+    [
+     2.25,
+     0.0,
+     16.5
+    ],
+    [
+     -3.5,
+     0.0,
+     16.5
+    ],
+    [
+     -3.5,
+     0.0,
+     11.0
+    ],
+    [
+     -29.0,
+     0.0,
+     11.0
+    ]
+   ],
+   "sell": 1.5,
+   "bonus": [
+    10.0,
+    12.0,
+    20.0
+   ],
+   "employGrade": 1,
+   "cost": [
+    50,
+    410,
+    2030
+   ],
+   "active": true,
+   "pad": "drive1",
+   "upgrade": "upgrade28"
+  }
+ ],
+ "packagePrice": 10,
+ "kiosks": [
+  {
+   "id": "k1",
+   "key": "Stage_3_Kiosk",
+   "node": 1552,
+   "kiosk": 1564,
+   "paths": [
+    [
+     [
+      -9.0,
+      0.0,
+      -35.0
+     ],
+     [
+      -9.0,
+      0.0,
+      -19.5
+     ],
+     [
+      -5.75,
+      0.0,
+      -19.5
+     ]
+    ],
+    [
+     [
+      -9.0,
+      0.0,
+      -35.0
+     ],
+     [
+      -9.0,
+      0.0,
+      -16.25
+     ],
+     [
+      -5.75,
+      0.0,
+      -16.25
+     ]
+    ]
+   ],
+   "out": [
+    -9.0,
+    0.0,
+    -35.0
+   ],
+   "storage": [
+    -2.052,
+    -17.848,
+    1.0,
+    3.0
+   ],
+   "money": [
+    -2.652,
+    -21.348,
+    1.25,
+    1.25
+   ],
+   "moneyNode": 1599,
+   "items": [
+    -2.982,
+    1.42,
+    -17.848
+   ],
+   "itemsNode": 1572,
+   "foodNode": 1571,
+   "itemTypes": [
+    6,
+    31
+   ],
+   "maxItems": 50,
+   "orderTime": 5.0,
+   "workerPoints": [
+    [
+     -0.932,
+     -0.07,
+     -18.678
+    ],
+    [
+     -0.932,
+     -0.07,
+     -17.128
+    ]
+   ],
+   "cost": [
+    450
+   ],
+   "active": true,
+   "pad": "kiosk1"
+  }
+ ],
+ "bgmAreas": [
+  {
+   "zone": 0,
+   "box": [
+    7.02,
+    -0.41,
+    15.0,
+    15.0
+   ]
+  },
+  {
+   "zone": 1,
+   "box": [
+    7.0,
+    -25.4,
+    15.0,
+    9.5
+   ]
+  }
+ ],
+ "restrooms": [
+  {
+   "id": "r1",
+   "key": "Stage_3_RestRoom",
+   "node": 2294,
+   "room": 2306,
+   "toilets": [
+    {
+     "pos": [
+      13.8,
+      0.1,
+      -20.025
+     ],
+     "node": 2319,
+     "door": 2310,
+     "trash": 2323,
+     "trashBox": [
+      13.79,
+      -18.305,
+      1.0,
+      1.0
+     ],
+     "trashPos": [
+      13.39,
+      0.1,
+      -18.905
+     ],
+     "garbage": [
+      2324,
+      2326,
+      2328,
+      2330,
+      2332,
+      2334,
+      2336,
+      2338,
+      2340,
+      2342
+     ],
+     "dirty": 2320,
+     "clean": 2321
+    },
+    {
+     "pos": [
+      15.8,
+      0.1,
+      -20.025
+     ],
+     "node": 2344,
+     "door": 2313,
+     "trash": 2348,
+     "trashBox": [
+      15.79,
+      -18.305,
+      1.0,
+      1.0
+     ],
+     "trashPos": [
+      15.39,
+      0.1,
+      -18.905
+     ],
+     "garbage": [
+      2349,
+      2351,
+      2353,
+      2355,
+      2357,
+      2359,
+      2361,
+      2363,
+      2365,
+      2367
+     ],
+     "dirty": 2345,
+     "clean": 2346
+    },
+    {
+     "pos": [
+      17.8,
+      0.1,
+      -20.025
+     ],
+     "node": 2369,
+     "door": 2316,
+     "trash": 2373,
+     "trashBox": [
+      17.79,
+      -18.305,
+      1.0,
+      1.0
+     ],
+     "trashPos": [
+      17.39,
+      0.1,
+      -18.905
+     ],
+     "garbage": [
+      2374,
+      2376,
+      2378,
+      2380,
+      2382,
+      2384,
+      2386,
+      2388,
+      2390,
+      2392
+     ],
+     "dirty": 2370,
+     "clean": 2371
+    }
+   ],
+   "wait": [
+    [
+     11.767,
+     1.415,
+     -17.121
+    ],
+    [
+     10.767,
+     1.415,
+     -17.121
+    ],
+    [
+     9.767,
+     1.415,
+     -17.121
+    ],
+    [
+     9.767,
+     1.415,
+     -18.871
+    ],
+    [
+     9.767,
+     1.415,
+     -20.371
+    ]
+   ],
+   "money": [
+    11.467,
+    -20.211,
+    1.25,
+    1.25
+   ],
+   "moneyNode": 2405,
+   "cost": [
+    1000
+   ],
+   "pad": "restroom1"
+  }
+ ],
+ "cleaners": [
+  {
+   "id": "b1",
+   "node": 1488,
+   "root": 1487,
+   "area": 1517,
+   "areaBox": [
+    13.45,
+    1.64,
+    1.125,
+    1.125
+   ],
+   "home": [
+    13.45,
+    0.083,
+    1.84
+   ],
+   "zone": 0,
+   "gauge": 1530
+  },
+  {
+   "id": "b2",
+   "node": 3564,
+   "root": 3563,
+   "area": 3593,
+   "areaBox": [
+    6.95,
+    -15.86,
+    1.125,
+    1.125
+   ],
+   "home": [
+    6.95,
+    0.083,
+    -16.06
+   ],
+   "zone": 0,
+   "gauge": 3606
+  }
+ ],
+ "skinrooms": [
+  {
+   "id": "s1",
+   "node": 1532,
+   "room": 1544,
+   "box": [
+    16.75,
+    -2.02,
+    3.385,
+    1.87
+   ],
+   "cost": [
+    50
+   ],
+   "pad": "skinroom1"
+  }
+ ],
+ "foods": {
+  "1": 6,
+  "2": 31
+ },
+ "zonePrice": {
+  "1": 2,
+  "2": 3
+ },
+ "hr": {
+  "pad": "hr1",
+  "room": 1341,
+  "spawn": [
+   15.92,
+   0.0,
+   -12.69
+  ]
+ },
+ "office": {
+  "pad": "office1",
+  "room": 1437
+ },
+ "districts": [
+  {
+   "id": "district2",
+   "key": "Stage_3_District_2",
+   "node": 3654,
+   "cost": 100,
+   "box": [
+    13.25,
+    2.0,
+    1.25,
+    1.25
+   ],
+   "area": 3655,
+   "opened": 3672,
+   "star": 1
+  },
+  {
+   "id": "district3",
+   "key": "Stage_3_District_3",
+   "node": 3673,
+   "cost": 200,
+   "box": [
+    -1.0,
+    1.75,
+    1.25,
+    1.25
+   ],
+   "area": 3674,
+   "opened": 3691,
+   "star": 2
+  },
+  {
+   "id": "district5",
+   "key": "Stage_3_District_5",
+   "node": 3711,
+   "cost": 900,
+   "box": [
+    -1.0,
+    2.0,
+    1.25,
+    1.25
+   ],
+   "area": 3712,
+   "opened": 3729,
+   "star": 6
+  },
+  {
+   "id": "district4",
+   "key": "Stage_3_District_4",
+   "node": 3692,
+   "cost": 500,
+   "box": [
+    10.25,
+    -13.0,
+    1.25,
+    1.25
+   ],
+   "area": 3693,
+   "opened": 3710,
+   "star": 3
+  }
+ ],
+ "flows": [
+  [
+   {
+    "check": [
+     183
+    ],
+    "create": [
+     741
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     753
+    ],
+    "create": [
+     395
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     396
+    ],
+    "create": [
+     203
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     204
+    ],
+    "create": [
+     792
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     804
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     489
+    ],
+    "district": [
+     3655
+    ],
+    "star": 0
+   },
+   {
+    "check": [
+     400
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [
+     3672
+    ],
+    "create": [
+     1334,
+     3422
+    ],
+    "disable": [
+     3312,
+     3315,
+     3655,
+     3324
+    ],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1341
+    ],
+    "create": [
+     1430
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1437
+    ],
+    "create": [
+     1532
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1544
+    ],
+    "create": [
+     637
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     638
+    ],
+    "create": [
+     509
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     510
+    ],
+    "create": [
+     271
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     272
+    ],
+    "create": [
+     843
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     855
+    ],
+    "create": [
+     894
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [
+     3674
+    ],
+    "star": 0
+   },
+   {
+    "check": [
+     906
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [
+     3691
+    ],
+    "create": [
+     945,
+     3467
+    ],
+    "disable": [
+     3674,
+     3325,
+     3321,
+     3322
+    ],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     957
+    ],
+    "create": [
+     1004
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1016
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     251
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     212
+    ],
+    "create": [
+     1063
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1075
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     716
+    ],
+    "district": [
+     3693
+    ],
+    "star": 0
+   },
+   {
+    "check": [
+     641
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [
+     3710
+    ],
+    "create": [
+     1552,
+     3487
+    ],
+    "disable": [
+     3693,
+     3442,
+     3471,
+     3415,
+     3416
+    ],
+    "upgrade": [],
+    "district": [],
+    "star": 3
+   },
+   {
+    "check": [
+     1564
+    ],
+    "create": [
+     1830
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1843
+    ],
+    "create": [
+     1602
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1603
+    ],
+    "create": [
+     1722
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1723
+    ],
+    "create": [
+     1888
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1901
+    ],
+    "create": [
+     1946
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1959
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     313
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     280
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     772
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     756
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     823
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     807
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     874
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     858
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     925
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     909
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     617
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     514
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [],
+    "create": [
+     2294
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 4
+   },
+   {
+    "check": [
+     2306
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1702
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1607
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1756
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1729
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     984
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     960
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1043
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1019
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1102
+    ],
+    "district": [],
+    "star": 5
+   },
+   {
+    "check": [
+     1078
+    ],
+    "create": [
+     2004
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2017
+    ],
+    "create": [
+     2062
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2075
+    ],
+    "create": [
+     1776
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1777
+    ],
+    "create": [
+     2120
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2133
+    ],
+    "create": [
+     2178
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2191
+    ],
+    "create": [
+     2236
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [
+     3712
+    ],
+    "star": 0
+   },
+   {
+    "check": [
+     2249
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [
+     3729
+    ],
+    "create": [
+     1122,
+     3473
+    ],
+    "disable": [
+     3712,
+     3318,
+     3326,
+     3470,
+     3472
+    ],
+    "upgrade": [],
+    "district": [],
+    "star": 6
+   },
+   {
+    "check": [
+     1135
+    ],
+    "create": [
+     1175
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1188
+    ],
+    "create": [
+     1228
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1241
+    ],
+    "create": [
+     1281
+    ],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1294
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1810
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1783
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1868
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1846
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1926
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1904
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1984
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1962
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1155
+    ],
+    "district": [],
+    "star": 7
+   },
+   {
+    "check": [
+     1138
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1208
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1191
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1261
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1244
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1314
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1297
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     489
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     401
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     251
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     217
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     772
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     757
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     823
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     808
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     874
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     859
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     925
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     910
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     716
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     642
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2042
+    ],
+    "district": [],
+    "star": 8
+   },
+   {
+    "check": [
+     2020
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2100
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2078
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2158
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2136
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1702
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1608
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1756
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1731
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2216
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2194
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2274
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2252
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1810
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1785
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     984
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     961
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1043
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1020
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1102
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1079
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ],
+  [
+   {
+    "check": [],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1868
+    ],
+    "district": [],
+    "star": 9
+   },
+   {
+    "check": [
+     1847
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1926
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1905
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1984
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1963
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2042
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2021
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     313
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     285
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     617
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     515
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1155
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1139
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1208
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1192
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1261
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1245
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     1314
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     1298
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2100
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2079
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2158
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2137
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2216
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2195
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [
+     2274
+    ],
+    "district": [],
+    "star": 0
+   },
+   {
+    "check": [
+     2253
+    ],
+    "create": [],
+    "disable": [],
+    "upgrade": [],
+    "district": [],
+    "star": 0
+   }
+  ]
+ ],
+ "star": [
+  {
+   "level": 0,
+   "exp": 18,
+   "money": 0,
+   "rewards": [
+    25,
+    28,
+    30,
+    29
+   ]
+  },
+  {
+   "level": 1,
+   "exp": 42,
+   "money": 20,
+   "rewards": [
+    16,
+    3
+   ]
+  },
+  {
+   "level": 2,
+   "exp": 57,
+   "money": 50,
+   "rewards": [
+    17,
+    27,
+    31
+   ]
+  },
+  {
+   "level": 3,
+   "exp": 93,
+   "money": 0,
+   "rewards": [
+    14,
+    26,
+    7
+   ]
+  },
+  {
+   "level": 4,
+   "exp": 108,
+   "money": 170,
+   "rewards": [
+    1,
+    3
+   ]
+  },
+  {
+   "level": 5,
+   "exp": 129,
+   "money": 300,
+   "rewards": [
+    2,
+    31
+   ]
+  },
+  {
+   "level": 6,
+   "exp": 153,
+   "money": 500,
+   "rewards": [
+    18
+   ]
+  },
+  {
+   "level": 7,
+   "exp": 186,
+   "money": 700,
+   "rewards": [
+    3
+   ]
+  },
+  {
+   "level": 8,
+   "exp": 219,
+   "money": 0,
+   "rewards": [
+    1,
+    31
+   ]
+  },
+  {
+   "level": 9,
+   "exp": 261,
+   "money": 1200,
+   "rewards": [
+    6
+   ]
+  }
+ ],
+ "expPerBuild": 3,
+ "newStageStar": 9,
+ "cleanBotStar": 3,
+ "guideUpgrade": {},
+ "unbuiltFeatures": [
+  1473
+ ],
+ "tree": [
+  [
+   -1,
+   0
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   17,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   51,
+   1
+  ],
+  [
+   52,
+   1
+  ],
+  [
+   51,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   54,
+   1
+  ],
+  [
+   51,
+   1
+  ],
+  [
+   99,
+   0
+  ],
+  [
+   99,
+   0
+  ],
+  [
+   99,
+   0
+  ],
+  [
+   99,
+   0
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   104,
+   1
+  ],
+  [
+   104,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   107,
+   1
+  ],
+  [
+   107,
+   1
+  ],
+  [
+   107,
+   1
+  ],
+  [
+   107,
+   1
+  ],
+  [
+   111,
+   1
+  ],
+  [
+   107,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   114,
+   1
+  ],
+  [
+   115,
+   1
+  ],
+  [
+   115,
+   1
+  ],
+  [
+   115,
+   1
+  ],
+  [
+   115,
+   1
+  ],
+  [
+   114,
+   1
+  ],
+  [
+   120,
+   1
+  ],
+  [
+   114,
+   0
+  ],
+  [
+   122,
+   1
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   124,
+   1
+  ],
+  [
+   125,
+   1
+  ],
+  [
+   125,
+   1
+  ],
+  [
+   124,
+   1
+  ],
+  [
+   128,
+   1
+  ],
+  [
+   124,
+   0
+  ],
+  [
+   130,
+   1
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   132,
+   1
+  ],
+  [
+   133,
+   1
+  ],
+  [
+   133,
+   1
+  ],
+  [
+   132,
+   1
+  ],
+  [
+   136,
+   1
+  ],
+  [
+   132,
+   0
+  ],
+  [
+   138,
+   1
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   140,
+   1
+  ],
+  [
+   141,
+   1
+  ],
+  [
+   141,
+   1
+  ],
+  [
+   140,
+   1
+  ],
+  [
+   144,
+   1
+  ],
+  [
+   144,
+   1
+  ],
+  [
+   140,
+   0
+  ],
+  [
+   147,
+   1
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   149,
+   1
+  ],
+  [
+   150,
+   1
+  ],
+  [
+   150,
+   1
+  ],
+  [
+   149,
+   1
+  ],
+  [
+   153,
+   1
+  ],
+  [
+   153,
+   1
+  ],
+  [
+   153,
+   1
+  ],
+  [
+   149,
+   0
+  ],
+  [
+   157,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   159,
+   1
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   171,
+   1
+  ],
+  [
+   171,
+   0
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   175,
+   1
+  ],
+  [
+   176,
+   1
+  ],
+  [
+   177,
+   1
+  ],
+  [
+   176,
+   1
+  ],
+  [
+   176,
+   1
+  ],
+  [
+   176,
+   1
+  ],
+  [
+   175,
+   1
+  ],
+  [
+   175,
+   0
+  ],
+  [
+   183,
+   1
+  ],
+  [
+   184,
+   1
+  ],
+  [
+   184,
+   1
+  ],
+  [
+   184,
+   1
+  ],
+  [
+   187,
+   1
+  ],
+  [
+   184,
+   0
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   190,
+   1
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   189,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   203,
+   0
+  ],
+  [
+   204,
+   1
+  ],
+  [
+   205,
+   0
+  ],
+  [
+   206,
+   1
+  ],
+  [
+   205,
+   1
+  ],
+  [
+   208,
+   1
+  ],
+  [
+   208,
+   1
+  ],
+  [
+   208,
+   1
+  ],
+  [
+   205,
+   0
+  ],
+  [
+   212,
+   1
+  ],
+  [
+   212,
+   1
+  ],
+  [
+   212,
+   1
+  ],
+  [
+   212,
+   1
+  ],
+  [
+   205,
+   0
+  ],
+  [
+   217,
+   1
+  ],
+  [
+   217,
+   1
+  ],
+  [
+   217,
+   1
+  ],
+  [
+   217,
+   1
+  ],
+  [
+   205,
+   1
+  ],
+  [
+   222,
+   1
+  ],
+  [
+   222,
+   0
+  ],
+  [
+   222,
+   1
+  ],
+  [
+   204,
+   1
+  ],
+  [
+   226,
+   1
+  ],
+  [
+   227,
+   0
+  ],
+  [
+   228,
+   1
+  ],
+  [
+   229,
+   1
+  ],
+  [
+   204,
+   1
+  ],
+  [
+   231,
+   0
+  ],
+  [
+   231,
+   1
+  ],
+  [
+   231,
+   1
+  ],
+  [
+   234,
+   1
+  ],
+  [
+   234,
+   1
+  ],
+  [
+   203,
+   1
+  ],
+  [
+   237,
+   1
+  ],
+  [
+   238,
+   1
+  ],
+  [
+   239,
+   1
+  ],
+  [
+   239,
+   0
+  ],
+  [
+   238,
+   1
+  ],
+  [
+   242,
+   1
+  ],
+  [
+   242,
+   1
+  ],
+  [
+   238,
+   0
+  ],
+  [
+   245,
+   1
+  ],
+  [
+   246,
+   1
+  ],
+  [
+   245,
+   1
+  ],
+  [
+   238,
+   1
+  ],
+  [
+   237,
+   1
+  ],
+  [
+   203,
+   1
+  ],
+  [
+   251,
+   1
+  ],
+  [
+   252,
+   1
+  ],
+  [
+   253,
+   1
+  ],
+  [
+   253,
+   0
+  ],
+  [
+   252,
+   1
+  ],
+  [
+   256,
+   1
+  ],
+  [
+   256,
+   1
+  ],
+  [
+   252,
+   0
+  ],
+  [
+   259,
+   1
+  ],
+  [
+   260,
+   0
+  ],
+  [
+   260,
+   1
+  ],
+  [
+   262,
+   1
+  ],
+  [
+   262,
+   1
+  ],
+  [
+   262,
+   0
+  ],
+  [
+   259,
+   1
+  ],
+  [
+   252,
+   1
+  ],
+  [
+   252,
+   1
+  ],
+  [
+   268,
+   1
+  ],
+  [
+   268,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   271,
+   0
+  ],
+  [
+   272,
+   1
+  ],
+  [
+   273,
+   0
+  ],
+  [
+   274,
+   1
+  ],
+  [
+   273,
+   1
+  ],
+  [
+   276,
+   1
+  ],
+  [
+   276,
+   1
+  ],
+  [
+   276,
+   1
+  ],
+  [
+   273,
+   0
+  ],
+  [
+   280,
+   1
+  ],
+  [
+   280,
+   1
+  ],
+  [
+   280,
+   1
+  ],
+  [
+   280,
+   1
+  ],
+  [
+   273,
+   0
+  ],
+  [
+   285,
+   1
+  ],
+  [
+   285,
+   1
+  ],
+  [
+   285,
+   1
+  ],
+  [
+   285,
+   1
+  ],
+  [
+   273,
+   1
+  ],
+  [
+   290,
+   1
+  ],
+  [
+   290,
+   0
+  ],
+  [
+   290,
+   1
+  ],
+  [
+   272,
+   1
+  ],
+  [
+   294,
+   1
+  ],
+  [
+   295,
+   0
+  ],
+  [
+   296,
+   1
+  ],
+  [
+   297,
+   1
+  ],
+  [
+   271,
+   1
+  ],
+  [
+   299,
+   1
+  ],
+  [
+   300,
+   1
+  ],
+  [
+   301,
+   1
+  ],
+  [
+   301,
+   0
+  ],
+  [
+   300,
+   1
+  ],
+  [
+   304,
+   1
+  ],
+  [
+   304,
+   1
+  ],
+  [
+   300,
+   0
+  ],
+  [
+   307,
+   1
+  ],
+  [
+   308,
+   1
+  ],
+  [
+   307,
+   1
+  ],
+  [
+   300,
+   1
+  ],
+  [
+   299,
+   1
+  ],
+  [
+   271,
+   1
+  ],
+  [
+   313,
+   1
+  ],
+  [
+   314,
+   1
+  ],
+  [
+   315,
+   1
+  ],
+  [
+   315,
+   0
+  ],
+  [
+   314,
+   1
+  ],
+  [
+   318,
+   1
+  ],
+  [
+   318,
+   1
+  ],
+  [
+   314,
+   0
+  ],
+  [
+   321,
+   1
+  ],
+  [
+   322,
+   0
+  ],
+  [
+   322,
+   1
+  ],
+  [
+   324,
+   1
+  ],
+  [
+   324,
+   1
+  ],
+  [
+   324,
+   0
+  ],
+  [
+   321,
+   1
+  ],
+  [
+   314,
+   1
+  ],
+  [
+   314,
+   1
+  ],
+  [
+   330,
+   1
+  ],
+  [
+   330,
+   1
+  ],
+  [
+   174,
+   0
+  ],
+  [
+   333,
+   0
+  ],
+  [
+   334,
+   1
+  ],
+  [
+   335,
+   0
+  ],
+  [
+   336,
+   1
+  ],
+  [
+   335,
+   1
+  ],
+  [
+   338,
+   1
+  ],
+  [
+   338,
+   1
+  ],
+  [
+   338,
+   1
+  ],
+  [
+   335,
+   0
+  ],
+  [
+   342,
+   1
+  ],
+  [
+   342,
+   1
+  ],
+  [
+   342,
+   1
+  ],
+  [
+   342,
+   1
+  ],
+  [
+   335,
+   0
+  ],
+  [
+   347,
+   1
+  ],
+  [
+   347,
+   1
+  ],
+  [
+   347,
+   1
+  ],
+  [
+   347,
+   1
+  ],
+  [
+   335,
+   1
+  ],
+  [
+   352,
+   1
+  ],
+  [
+   352,
+   0
+  ],
+  [
+   352,
+   1
+  ],
+  [
+   334,
+   1
+  ],
+  [
+   356,
+   1
+  ],
+  [
+   357,
+   0
+  ],
+  [
+   358,
+   1
+  ],
+  [
+   359,
+   1
+  ],
+  [
+   333,
+   1
+  ],
+  [
+   361,
+   1
+  ],
+  [
+   362,
+   1
+  ],
+  [
+   363,
+   1
+  ],
+  [
+   363,
+   0
+  ],
+  [
+   362,
+   1
+  ],
+  [
+   366,
+   1
+  ],
+  [
+   366,
+   1
+  ],
+  [
+   362,
+   0
+  ],
+  [
+   369,
+   1
+  ],
+  [
+   370,
+   1
+  ],
+  [
+   369,
+   1
+  ],
+  [
+   362,
+   1
+  ],
+  [
+   361,
+   1
+  ],
+  [
+   333,
+   1
+  ],
+  [
+   375,
+   1
+  ],
+  [
+   376,
+   1
+  ],
+  [
+   377,
+   1
+  ],
+  [
+   377,
+   0
+  ],
+  [
+   376,
+   1
+  ],
+  [
+   380,
+   1
+  ],
+  [
+   380,
+   1
+  ],
+  [
+   376,
+   0
+  ],
+  [
+   383,
+   1
+  ],
+  [
+   384,
+   0
+  ],
+  [
+   384,
+   1
+  ],
+  [
+   386,
+   1
+  ],
+  [
+   386,
+   1
+  ],
+  [
+   386,
+   0
+  ],
+  [
+   383,
+   1
+  ],
+  [
+   376,
+   1
+  ],
+  [
+   376,
+   1
+  ],
+  [
+   392,
+   1
+  ],
+  [
+   392,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   395,
+   0
+  ],
+  [
+   396,
+   1
+  ],
+  [
+   397,
+   1
+  ],
+  [
+   398,
+   1
+  ],
+  [
+   398,
+   0
+  ],
+  [
+   398,
+   0
+  ],
+  [
+   398,
+   0
+  ],
+  [
+   398,
+   0
+  ],
+  [
+   397,
+   1
+  ],
+  [
+   404,
+   1
+  ],
+  [
+   405,
+   1
+  ],
+  [
+   404,
+   0
+  ],
+  [
+   407,
+   1
+  ],
+  [
+   404,
+   0
+  ],
+  [
+   409,
+   1
+  ],
+  [
+   397,
+   1
+  ],
+  [
+   411,
+   0
+  ],
+  [
+   412,
+   1
+  ],
+  [
+   412,
+   1
+  ],
+  [
+   412,
+   1
+  ],
+  [
+   411,
+   0
+  ],
+  [
+   416,
+   1
+  ],
+  [
+   416,
+   1
+  ],
+  [
+   416,
+   1
+  ],
+  [
+   411,
+   0
+  ],
+  [
+   420,
+   1
+  ],
+  [
+   420,
+   1
+  ],
+  [
+   420,
+   1
+  ],
+  [
+   397,
+   1
+  ],
+  [
+   424,
+   0
+  ],
+  [
+   397,
+   1
+  ],
+  [
+   397,
+   0
+  ],
+  [
+   397,
+   0
+  ],
+  [
+   396,
+   1
+  ],
+  [
+   396,
+   0
+  ],
+  [
+   430,
+   1
+  ],
+  [
+   431,
+   1
+  ],
+  [
+   432,
+   1
+  ],
+  [
+   433,
+   1
+  ],
+  [
+   434,
+   1
+  ],
+  [
+   435,
+   1
+  ],
+  [
+   432,
+   1
+  ],
+  [
+   437,
+   1
+  ],
+  [
+   438,
+   1
+  ],
+  [
+   439,
+   1
+  ],
+  [
+   432,
+   1
+  ],
+  [
+   441,
+   1
+  ],
+  [
+   442,
+   1
+  ],
+  [
+   443,
+   1
+  ],
+  [
+   444,
+   1
+  ],
+  [
+   445,
+   1
+  ],
+  [
+   446,
+   1
+  ],
+  [
+   443,
+   1
+  ],
+  [
+   448,
+   1
+  ],
+  [
+   443,
+   1
+  ],
+  [
+   450,
+   1
+  ],
+  [
+   451,
+   1
+  ],
+  [
+   452,
+   1
+  ],
+  [
+   430,
+   1
+  ],
+  [
+   430,
+   0
+  ],
+  [
+   430,
+   0
+  ],
+  [
+   430,
+   1
+  ],
+  [
+   396,
+   1
+  ],
+  [
+   458,
+   1
+  ],
+  [
+   459,
+   0
+  ],
+  [
+   460,
+   1
+  ],
+  [
+   461,
+   1
+  ],
+  [
+   395,
+   1
+  ],
+  [
+   463,
+   1
+  ],
+  [
+   464,
+   1
+  ],
+  [
+   465,
+   1
+  ],
+  [
+   465,
+   0
+  ],
+  [
+   464,
+   1
+  ],
+  [
+   468,
+   1
+  ],
+  [
+   468,
+   1
+  ],
+  [
+   464,
+   0
+  ],
+  [
+   471,
+   1
+  ],
+  [
+   472,
+   1
+  ],
+  [
+   471,
+   1
+  ],
+  [
+   463,
+   1
+  ],
+  [
+   395,
+   0
+  ],
+  [
+   476,
+   1
+  ],
+  [
+   477,
+   1
+  ],
+  [
+   478,
+   1
+  ],
+  [
+   478,
+   0
+  ],
+  [
+   477,
+   1
+  ],
+  [
+   481,
+   1
+  ],
+  [
+   481,
+   1
+  ],
+  [
+   477,
+   0
+  ],
+  [
+   484,
+   1
+  ],
+  [
+   485,
+   1
+  ],
+  [
+   484,
+   1
+  ],
+  [
+   476,
+   1
+  ],
+  [
+   395,
+   1
+  ],
+  [
+   489,
+   1
+  ],
+  [
+   490,
+   1
+  ],
+  [
+   491,
+   1
+  ],
+  [
+   491,
+   0
+  ],
+  [
+   490,
+   1
+  ],
+  [
+   494,
+   1
+  ],
+  [
+   494,
+   1
+  ],
+  [
+   490,
+   0
+  ],
+  [
+   497,
+   1
+  ],
+  [
+   498,
+   0
+  ],
+  [
+   498,
+   1
+  ],
+  [
+   500,
+   1
+  ],
+  [
+   500,
+   1
+  ],
+  [
+   500,
+   0
+  ],
+  [
+   497,
+   1
+  ],
+  [
+   490,
+   1
+  ],
+  [
+   490,
+   1
+  ],
+  [
+   506,
+   1
+  ],
+  [
+   506,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   509,
+   0
+  ],
+  [
+   510,
+   1
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   512,
+   1
+  ],
+  [
+   512,
+   0
+  ],
+  [
+   512,
+   0
+  ],
+  [
+   512,
+   0
+  ],
+  [
+   512,
+   0
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   518,
+   0
+  ],
+  [
+   519,
+   1
+  ],
+  [
+   520,
+   0
+  ],
+  [
+   520,
+   1
+  ],
+  [
+   520,
+   1
+  ],
+  [
+   519,
+   0
+  ],
+  [
+   524,
+   1
+  ],
+  [
+   519,
+   0
+  ],
+  [
+   526,
+   1
+  ],
+  [
+   519,
+   0
+  ],
+  [
+   528,
+   1
+  ],
+  [
+   519,
+   0
+  ],
+  [
+   530,
+   1
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   532,
+   1
+  ],
+  [
+   533,
+   1
+  ],
+  [
+   532,
+   0
+  ],
+  [
+   535,
+   1
+  ],
+  [
+   532,
+   0
+  ],
+  [
+   537,
+   1
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   539,
+   0
+  ],
+  [
+   540,
+   1
+  ],
+  [
+   540,
+   1
+  ],
+  [
+   540,
+   1
+  ],
+  [
+   539,
+   0
+  ],
+  [
+   544,
+   1
+  ],
+  [
+   544,
+   1
+  ],
+  [
+   544,
+   1
+  ],
+  [
+   539,
+   0
+  ],
+  [
+   548,
+   1
+  ],
+  [
+   548,
+   1
+  ],
+  [
+   548,
+   1
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   552,
+   0
+  ],
+  [
+   511,
+   1
+  ],
+  [
+   511,
+   0
+  ],
+  [
+   511,
+   0
+  ],
+  [
+   510,
+   1
+  ],
+  [
+   510,
+   1
+  ],
+  [
+   510,
+   1
+  ],
+  [
+   559,
+   0
+  ],
+  [
+   560,
+   1
+  ],
+  [
+   561,
+   1
+  ],
+  [
+   562,
+   1
+  ],
+  [
+   563,
+   1
+  ],
+  [
+   564,
+   1
+  ],
+  [
+   565,
+   1
+  ],
+  [
+   562,
+   1
+  ],
+  [
+   567,
+   1
+  ],
+  [
+   568,
+   1
+  ],
+  [
+   569,
+   1
+  ],
+  [
+   562,
+   1
+  ],
+  [
+   571,
+   1
+  ],
+  [
+   572,
+   1
+  ],
+  [
+   573,
+   1
+  ],
+  [
+   574,
+   1
+  ],
+  [
+   575,
+   1
+  ],
+  [
+   576,
+   1
+  ],
+  [
+   573,
+   1
+  ],
+  [
+   578,
+   1
+  ],
+  [
+   573,
+   1
+  ],
+  [
+   580,
+   1
+  ],
+  [
+   581,
+   1
+  ],
+  [
+   582,
+   1
+  ],
+  [
+   560,
+   1
+  ],
+  [
+   560,
+   0
+  ],
+  [
+   560,
+   0
+  ],
+  [
+   560,
+   1
+  ],
+  [
+   510,
+   1
+  ],
+  [
+   588,
+   1
+  ],
+  [
+   589,
+   0
+  ],
+  [
+   590,
+   1
+  ],
+  [
+   591,
+   1
+  ],
+  [
+   509,
+   1
+  ],
+  [
+   593,
+   1
+  ],
+  [
+   594,
+   1
+  ],
+  [
+   595,
+   1
+  ],
+  [
+   594,
+   1
+  ],
+  [
+   597,
+   1
+  ],
+  [
+   597,
+   1
+  ],
+  [
+   594,
+   0
+  ],
+  [
+   600,
+   1
+  ],
+  [
+   601,
+   1
+  ],
+  [
+   600,
+   1
+  ],
+  [
+   593,
+   1
+  ],
+  [
+   509,
+   0
+  ],
+  [
+   605,
+   1
+  ],
+  [
+   606,
+   1
+  ],
+  [
+   607,
+   1
+  ],
+  [
+   606,
+   1
+  ],
+  [
+   609,
+   1
+  ],
+  [
+   609,
+   1
+  ],
+  [
+   606,
+   0
+  ],
+  [
+   612,
+   1
+  ],
+  [
+   613,
+   1
+  ],
+  [
+   612,
+   1
+  ],
+  [
+   605,
+   1
+  ],
+  [
+   509,
+   1
+  ],
+  [
+   617,
+   1
+  ],
+  [
+   618,
+   1
+  ],
+  [
+   619,
+   1
+  ],
+  [
+   619,
+   0
+  ],
+  [
+   618,
+   1
+  ],
+  [
+   622,
+   1
+  ],
+  [
+   622,
+   1
+  ],
+  [
+   618,
+   0
+  ],
+  [
+   625,
+   1
+  ],
+  [
+   626,
+   0
+  ],
+  [
+   626,
+   1
+  ],
+  [
+   628,
+   1
+  ],
+  [
+   628,
+   1
+  ],
+  [
+   628,
+   0
+  ],
+  [
+   625,
+   1
+  ],
+  [
+   618,
+   1
+  ],
+  [
+   618,
+   1
+  ],
+  [
+   634,
+   1
+  ],
+  [
+   634,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   637,
+   0
+  ],
+  [
+   638,
+   1
+  ],
+  [
+   639,
+   1
+  ],
+  [
+   639,
+   0
+  ],
+  [
+   639,
+   0
+  ],
+  [
+   639,
+   1
+  ],
+  [
+   643,
+   1
+  ],
+  [
+   639,
+   0
+  ],
+  [
+   645,
+   1
+  ],
+  [
+   645,
+   1
+  ],
+  [
+   645,
+   1
+  ],
+  [
+   639,
+   1
+  ],
+  [
+   639,
+   0
+  ],
+  [
+   639,
+   0
+  ],
+  [
+   638,
+   1
+  ],
+  [
+   652,
+   1
+  ],
+  [
+   652,
+   1
+  ],
+  [
+   638,
+   1
+  ],
+  [
+   655,
+   1
+  ],
+  [
+   638,
+   0
+  ],
+  [
+   657,
+   1
+  ],
+  [
+   658,
+   1
+  ],
+  [
+   659,
+   1
+  ],
+  [
+   660,
+   1
+  ],
+  [
+   661,
+   1
+  ],
+  [
+   662,
+   1
+  ],
+  [
+   659,
+   1
+  ],
+  [
+   664,
+   1
+  ],
+  [
+   665,
+   1
+  ],
+  [
+   666,
+   1
+  ],
+  [
+   659,
+   1
+  ],
+  [
+   668,
+   1
+  ],
+  [
+   669,
+   1
+  ],
+  [
+   670,
+   1
+  ],
+  [
+   671,
+   1
+  ],
+  [
+   672,
+   1
+  ],
+  [
+   673,
+   1
+  ],
+  [
+   670,
+   1
+  ],
+  [
+   675,
+   1
+  ],
+  [
+   670,
+   1
+  ],
+  [
+   677,
+   1
+  ],
+  [
+   678,
+   1
+  ],
+  [
+   679,
+   1
+  ],
+  [
+   657,
+   1
+  ],
+  [
+   657,
+   0
+  ],
+  [
+   657,
+   0
+  ],
+  [
+   657,
+   1
+  ],
+  [
+   638,
+   1
+  ],
+  [
+   685,
+   1
+  ],
+  [
+   686,
+   0
+  ],
+  [
+   687,
+   1
+  ],
+  [
+   688,
+   1
+  ],
+  [
+   637,
+   0
+  ],
+  [
+   690,
+   1
+  ],
+  [
+   691,
+   1
+  ],
+  [
+   692,
+   1
+  ],
+  [
+   692,
+   0
+  ],
+  [
+   691,
+   1
+  ],
+  [
+   695,
+   1
+  ],
+  [
+   695,
+   1
+  ],
+  [
+   691,
+   0
+  ],
+  [
+   698,
+   1
+  ],
+  [
+   699,
+   1
+  ],
+  [
+   698,
+   1
+  ],
+  [
+   690,
+   1
+  ],
+  [
+   637,
+   1
+  ],
+  [
+   703,
+   1
+  ],
+  [
+   704,
+   1
+  ],
+  [
+   705,
+   1
+  ],
+  [
+   705,
+   0
+  ],
+  [
+   704,
+   1
+  ],
+  [
+   708,
+   1
+  ],
+  [
+   708,
+   1
+  ],
+  [
+   704,
+   0
+  ],
+  [
+   711,
+   1
+  ],
+  [
+   712,
+   1
+  ],
+  [
+   711,
+   1
+  ],
+  [
+   703,
+   1
+  ],
+  [
+   637,
+   1
+  ],
+  [
+   716,
+   1
+  ],
+  [
+   717,
+   1
+  ],
+  [
+   718,
+   1
+  ],
+  [
+   718,
+   0
+  ],
+  [
+   717,
+   1
+  ],
+  [
+   721,
+   1
+  ],
+  [
+   721,
+   1
+  ],
+  [
+   717,
+   0
+  ],
+  [
+   724,
+   1
+  ],
+  [
+   725,
+   0
+  ],
+  [
+   725,
+   1
+  ],
+  [
+   727,
+   1
+  ],
+  [
+   727,
+   1
+  ],
+  [
+   727,
+   0
+  ],
+  [
+   724,
+   1
+  ],
+  [
+   717,
+   1
+  ],
+  [
+   717,
+   1
+  ],
+  [
+   733,
+   1
+  ],
+  [
+   733,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   736,
+   1
+  ],
+  [
+   736,
+   1
+  ],
+  [
+   736,
+   1
+  ],
+  [
+   736,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   741,
+   1
+  ],
+  [
+   742,
+   1
+  ],
+  [
+   743,
+   1
+  ],
+  [
+   742,
+   1
+  ],
+  [
+   742,
+   0
+  ],
+  [
+   746,
+   1
+  ],
+  [
+   747,
+   1
+  ],
+  [
+   746,
+   1
+  ],
+  [
+   742,
+   1
+  ],
+  [
+   750,
+   1
+  ],
+  [
+   750,
+   1
+  ],
+  [
+   741,
+   0
+  ],
+  [
+   753,
+   1
+  ],
+  [
+   754,
+   1
+  ],
+  [
+   754,
+   0
+  ],
+  [
+   754,
+   0
+  ],
+  [
+   754,
+   1
+  ],
+  [
+   754,
+   0
+  ],
+  [
+   754,
+   0
+  ],
+  [
+   753,
+   1
+  ],
+  [
+   761,
+   1
+  ],
+  [
+   761,
+   1
+  ],
+  [
+   761,
+   1
+  ],
+  [
+   753,
+   1
+  ],
+  [
+   753,
+   1
+  ],
+  [
+   753,
+   1
+  ],
+  [
+   767,
+   1
+  ],
+  [
+   768,
+   0
+  ],
+  [
+   769,
+   1
+  ],
+  [
+   770,
+   1
+  ],
+  [
+   741,
+   0
+  ],
+  [
+   772,
+   1
+  ],
+  [
+   773,
+   1
+  ],
+  [
+   774,
+   1
+  ],
+  [
+   774,
+   0
+  ],
+  [
+   773,
+   1
+  ],
+  [
+   777,
+   1
+  ],
+  [
+   777,
+   1
+  ],
+  [
+   773,
+   0
+  ],
+  [
+   780,
+   1
+  ],
+  [
+   781,
+   0
+  ],
+  [
+   781,
+   1
+  ],
+  [
+   783,
+   1
+  ],
+  [
+   783,
+   1
+  ],
+  [
+   783,
+   0
+  ],
+  [
+   780,
+   1
+  ],
+  [
+   773,
+   1
+  ],
+  [
+   773,
+   1
+  ],
+  [
+   789,
+   1
+  ],
+  [
+   789,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   792,
+   1
+  ],
+  [
+   793,
+   1
+  ],
+  [
+   794,
+   1
+  ],
+  [
+   793,
+   1
+  ],
+  [
+   793,
+   0
+  ],
+  [
+   797,
+   1
+  ],
+  [
+   798,
+   1
+  ],
+  [
+   797,
+   1
+  ],
+  [
+   793,
+   1
+  ],
+  [
+   801,
+   1
+  ],
+  [
+   801,
+   1
+  ],
+  [
+   792,
+   0
+  ],
+  [
+   804,
+   1
+  ],
+  [
+   805,
+   1
+  ],
+  [
+   805,
+   0
+  ],
+  [
+   805,
+   0
+  ],
+  [
+   805,
+   1
+  ],
+  [
+   805,
+   0
+  ],
+  [
+   805,
+   0
+  ],
+  [
+   804,
+   1
+  ],
+  [
+   812,
+   1
+  ],
+  [
+   812,
+   1
+  ],
+  [
+   812,
+   1
+  ],
+  [
+   804,
+   1
+  ],
+  [
+   804,
+   1
+  ],
+  [
+   804,
+   1
+  ],
+  [
+   818,
+   1
+  ],
+  [
+   819,
+   0
+  ],
+  [
+   820,
+   1
+  ],
+  [
+   821,
+   1
+  ],
+  [
+   792,
+   0
+  ],
+  [
+   823,
+   1
+  ],
+  [
+   824,
+   1
+  ],
+  [
+   825,
+   1
+  ],
+  [
+   825,
+   0
+  ],
+  [
+   824,
+   1
+  ],
+  [
+   828,
+   1
+  ],
+  [
+   828,
+   1
+  ],
+  [
+   824,
+   0
+  ],
+  [
+   831,
+   1
+  ],
+  [
+   832,
+   0
+  ],
+  [
+   832,
+   1
+  ],
+  [
+   834,
+   1
+  ],
+  [
+   834,
+   1
+  ],
+  [
+   834,
+   0
+  ],
+  [
+   831,
+   1
+  ],
+  [
+   824,
+   1
+  ],
+  [
+   824,
+   1
+  ],
+  [
+   840,
+   1
+  ],
+  [
+   840,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   843,
+   1
+  ],
+  [
+   844,
+   1
+  ],
+  [
+   845,
+   1
+  ],
+  [
+   844,
+   1
+  ],
+  [
+   844,
+   0
+  ],
+  [
+   848,
+   1
+  ],
+  [
+   849,
+   1
+  ],
+  [
+   848,
+   1
+  ],
+  [
+   844,
+   1
+  ],
+  [
+   852,
+   1
+  ],
+  [
+   852,
+   1
+  ],
+  [
+   843,
+   0
+  ],
+  [
+   855,
+   1
+  ],
+  [
+   856,
+   1
+  ],
+  [
+   856,
+   0
+  ],
+  [
+   856,
+   0
+  ],
+  [
+   856,
+   1
+  ],
+  [
+   856,
+   0
+  ],
+  [
+   856,
+   0
+  ],
+  [
+   855,
+   1
+  ],
+  [
+   863,
+   1
+  ],
+  [
+   863,
+   1
+  ],
+  [
+   863,
+   1
+  ],
+  [
+   855,
+   1
+  ],
+  [
+   855,
+   1
+  ],
+  [
+   855,
+   1
+  ],
+  [
+   869,
+   1
+  ],
+  [
+   870,
+   0
+  ],
+  [
+   871,
+   1
+  ],
+  [
+   872,
+   1
+  ],
+  [
+   843,
+   0
+  ],
+  [
+   874,
+   1
+  ],
+  [
+   875,
+   1
+  ],
+  [
+   876,
+   1
+  ],
+  [
+   876,
+   0
+  ],
+  [
+   875,
+   1
+  ],
+  [
+   879,
+   1
+  ],
+  [
+   879,
+   1
+  ],
+  [
+   875,
+   0
+  ],
+  [
+   882,
+   1
+  ],
+  [
+   883,
+   0
+  ],
+  [
+   883,
+   1
+  ],
+  [
+   885,
+   1
+  ],
+  [
+   885,
+   1
+  ],
+  [
+   885,
+   0
+  ],
+  [
+   882,
+   1
+  ],
+  [
+   875,
+   1
+  ],
+  [
+   875,
+   1
+  ],
+  [
+   891,
+   1
+  ],
+  [
+   891,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   894,
+   1
+  ],
+  [
+   895,
+   1
+  ],
+  [
+   896,
+   1
+  ],
+  [
+   895,
+   1
+  ],
+  [
+   895,
+   0
+  ],
+  [
+   899,
+   1
+  ],
+  [
+   900,
+   1
+  ],
+  [
+   899,
+   1
+  ],
+  [
+   895,
+   1
+  ],
+  [
+   903,
+   1
+  ],
+  [
+   903,
+   1
+  ],
+  [
+   894,
+   0
+  ],
+  [
+   906,
+   1
+  ],
+  [
+   907,
+   1
+  ],
+  [
+   907,
+   0
+  ],
+  [
+   907,
+   0
+  ],
+  [
+   907,
+   1
+  ],
+  [
+   907,
+   0
+  ],
+  [
+   907,
+   0
+  ],
+  [
+   906,
+   1
+  ],
+  [
+   914,
+   1
+  ],
+  [
+   914,
+   1
+  ],
+  [
+   914,
+   1
+  ],
+  [
+   906,
+   1
+  ],
+  [
+   906,
+   1
+  ],
+  [
+   906,
+   1
+  ],
+  [
+   920,
+   1
+  ],
+  [
+   921,
+   0
+  ],
+  [
+   922,
+   1
+  ],
+  [
+   923,
+   1
+  ],
+  [
+   894,
+   0
+  ],
+  [
+   925,
+   1
+  ],
+  [
+   926,
+   1
+  ],
+  [
+   927,
+   1
+  ],
+  [
+   927,
+   0
+  ],
+  [
+   926,
+   1
+  ],
+  [
+   930,
+   1
+  ],
+  [
+   930,
+   1
+  ],
+  [
+   926,
+   0
+  ],
+  [
+   933,
+   1
+  ],
+  [
+   934,
+   0
+  ],
+  [
+   934,
+   1
+  ],
+  [
+   936,
+   1
+  ],
+  [
+   936,
+   1
+  ],
+  [
+   936,
+   0
+  ],
+  [
+   933,
+   1
+  ],
+  [
+   926,
+   1
+  ],
+  [
+   926,
+   1
+  ],
+  [
+   942,
+   1
+  ],
+  [
+   942,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   945,
+   1
+  ],
+  [
+   946,
+   1
+  ],
+  [
+   947,
+   1
+  ],
+  [
+   946,
+   1
+  ],
+  [
+   946,
+   0
+  ],
+  [
+   950,
+   1
+  ],
+  [
+   951,
+   1
+  ],
+  [
+   950,
+   1
+  ],
+  [
+   946,
+   1
+  ],
+  [
+   954,
+   1
+  ],
+  [
+   954,
+   1
+  ],
+  [
+   945,
+   0
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   958,
+   1
+  ],
+  [
+   958,
+   0
+  ],
+  [
+   958,
+   0
+  ],
+  [
+   958,
+   1
+  ],
+  [
+   962,
+   1
+  ],
+  [
+   962,
+   0
+  ],
+  [
+   962,
+   0
+  ],
+  [
+   958,
+   1
+  ],
+  [
+   966,
+   1
+  ],
+  [
+   966,
+   0
+  ],
+  [
+   966,
+   0
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   970,
+   1
+  ],
+  [
+   970,
+   1
+  ],
+  [
+   970,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   957,
+   1
+  ],
+  [
+   979,
+   1
+  ],
+  [
+   980,
+   0
+  ],
+  [
+   981,
+   1
+  ],
+  [
+   982,
+   1
+  ],
+  [
+   945,
+   0
+  ],
+  [
+   984,
+   1
+  ],
+  [
+   985,
+   1
+  ],
+  [
+   986,
+   1
+  ],
+  [
+   986,
+   0
+  ],
+  [
+   985,
+   1
+  ],
+  [
+   989,
+   1
+  ],
+  [
+   989,
+   1
+  ],
+  [
+   985,
+   0
+  ],
+  [
+   992,
+   1
+  ],
+  [
+   993,
+   0
+  ],
+  [
+   993,
+   1
+  ],
+  [
+   995,
+   1
+  ],
+  [
+   995,
+   1
+  ],
+  [
+   995,
+   0
+  ],
+  [
+   992,
+   1
+  ],
+  [
+   985,
+   1
+  ],
+  [
+   985,
+   1
+  ],
+  [
+   1001,
+   1
+  ],
+  [
+   1001,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1004,
+   1
+  ],
+  [
+   1005,
+   1
+  ],
+  [
+   1006,
+   1
+  ],
+  [
+   1005,
+   1
+  ],
+  [
+   1005,
+   0
+  ],
+  [
+   1009,
+   1
+  ],
+  [
+   1010,
+   1
+  ],
+  [
+   1009,
+   1
+  ],
+  [
+   1005,
+   1
+  ],
+  [
+   1013,
+   1
+  ],
+  [
+   1013,
+   1
+  ],
+  [
+   1004,
+   0
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1017,
+   1
+  ],
+  [
+   1017,
+   0
+  ],
+  [
+   1017,
+   0
+  ],
+  [
+   1017,
+   1
+  ],
+  [
+   1021,
+   1
+  ],
+  [
+   1021,
+   0
+  ],
+  [
+   1021,
+   0
+  ],
+  [
+   1017,
+   1
+  ],
+  [
+   1025,
+   1
+  ],
+  [
+   1025,
+   0
+  ],
+  [
+   1025,
+   0
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1029,
+   1
+  ],
+  [
+   1029,
+   1
+  ],
+  [
+   1029,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1016,
+   1
+  ],
+  [
+   1038,
+   1
+  ],
+  [
+   1039,
+   0
+  ],
+  [
+   1040,
+   1
+  ],
+  [
+   1041,
+   1
+  ],
+  [
+   1004,
+   0
+  ],
+  [
+   1043,
+   1
+  ],
+  [
+   1044,
+   1
+  ],
+  [
+   1045,
+   1
+  ],
+  [
+   1045,
+   0
+  ],
+  [
+   1044,
+   1
+  ],
+  [
+   1048,
+   1
+  ],
+  [
+   1048,
+   1
+  ],
+  [
+   1044,
+   0
+  ],
+  [
+   1051,
+   1
+  ],
+  [
+   1052,
+   0
+  ],
+  [
+   1052,
+   1
+  ],
+  [
+   1054,
+   1
+  ],
+  [
+   1054,
+   1
+  ],
+  [
+   1054,
+   0
+  ],
+  [
+   1051,
+   1
+  ],
+  [
+   1044,
+   1
+  ],
+  [
+   1044,
+   1
+  ],
+  [
+   1060,
+   1
+  ],
+  [
+   1060,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1063,
+   1
+  ],
+  [
+   1064,
+   1
+  ],
+  [
+   1065,
+   1
+  ],
+  [
+   1064,
+   1
+  ],
+  [
+   1064,
+   0
+  ],
+  [
+   1068,
+   1
+  ],
+  [
+   1069,
+   1
+  ],
+  [
+   1068,
+   1
+  ],
+  [
+   1064,
+   1
+  ],
+  [
+   1072,
+   1
+  ],
+  [
+   1072,
+   1
+  ],
+  [
+   1063,
+   0
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1076,
+   1
+  ],
+  [
+   1076,
+   0
+  ],
+  [
+   1076,
+   0
+  ],
+  [
+   1076,
+   1
+  ],
+  [
+   1080,
+   1
+  ],
+  [
+   1080,
+   0
+  ],
+  [
+   1080,
+   0
+  ],
+  [
+   1076,
+   1
+  ],
+  [
+   1084,
+   1
+  ],
+  [
+   1084,
+   0
+  ],
+  [
+   1084,
+   0
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1088,
+   1
+  ],
+  [
+   1088,
+   1
+  ],
+  [
+   1088,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1075,
+   1
+  ],
+  [
+   1097,
+   1
+  ],
+  [
+   1098,
+   0
+  ],
+  [
+   1099,
+   1
+  ],
+  [
+   1100,
+   1
+  ],
+  [
+   1063,
+   0
+  ],
+  [
+   1102,
+   1
+  ],
+  [
+   1103,
+   1
+  ],
+  [
+   1104,
+   1
+  ],
+  [
+   1104,
+   0
+  ],
+  [
+   1103,
+   1
+  ],
+  [
+   1107,
+   1
+  ],
+  [
+   1107,
+   1
+  ],
+  [
+   1103,
+   0
+  ],
+  [
+   1110,
+   1
+  ],
+  [
+   1111,
+   0
+  ],
+  [
+   1111,
+   1
+  ],
+  [
+   1113,
+   1
+  ],
+  [
+   1113,
+   1
+  ],
+  [
+   1113,
+   0
+  ],
+  [
+   1110,
+   1
+  ],
+  [
+   1103,
+   1
+  ],
+  [
+   1103,
+   1
+  ],
+  [
+   1119,
+   1
+  ],
+  [
+   1119,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1122,
+   1
+  ],
+  [
+   1123,
+   1
+  ],
+  [
+   1124,
+   1
+  ],
+  [
+   1123,
+   1
+  ],
+  [
+   1123,
+   0
+  ],
+  [
+   1127,
+   1
+  ],
+  [
+   1128,
+   1
+  ],
+  [
+   1127,
+   1
+  ],
+  [
+   1123,
+   1
+  ],
+  [
+   1131,
+   1
+  ],
+  [
+   1131,
+   1
+  ],
+  [
+   1122,
+   1
+  ],
+  [
+   1134,
+   0
+  ],
+  [
+   1135,
+   1
+  ],
+  [
+   1136,
+   1
+  ],
+  [
+   1136,
+   0
+  ],
+  [
+   1136,
+   0
+  ],
+  [
+   1136,
+   1
+  ],
+  [
+   1140,
+   1
+  ],
+  [
+   1140,
+   0
+  ],
+  [
+   1140,
+   0
+  ],
+  [
+   1135,
+   1
+  ],
+  [
+   1144,
+   1
+  ],
+  [
+   1144,
+   1
+  ],
+  [
+   1144,
+   1
+  ],
+  [
+   1135,
+   1
+  ],
+  [
+   1135,
+   1
+  ],
+  [
+   1135,
+   1
+  ],
+  [
+   1150,
+   1
+  ],
+  [
+   1151,
+   0
+  ],
+  [
+   1152,
+   1
+  ],
+  [
+   1153,
+   1
+  ],
+  [
+   1122,
+   0
+  ],
+  [
+   1155,
+   1
+  ],
+  [
+   1156,
+   1
+  ],
+  [
+   1157,
+   1
+  ],
+  [
+   1157,
+   0
+  ],
+  [
+   1156,
+   1
+  ],
+  [
+   1160,
+   1
+  ],
+  [
+   1160,
+   1
+  ],
+  [
+   1156,
+   0
+  ],
+  [
+   1163,
+   1
+  ],
+  [
+   1164,
+   0
+  ],
+  [
+   1164,
+   1
+  ],
+  [
+   1166,
+   1
+  ],
+  [
+   1166,
+   1
+  ],
+  [
+   1166,
+   0
+  ],
+  [
+   1163,
+   1
+  ],
+  [
+   1156,
+   1
+  ],
+  [
+   1156,
+   1
+  ],
+  [
+   1172,
+   1
+  ],
+  [
+   1172,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1175,
+   1
+  ],
+  [
+   1176,
+   1
+  ],
+  [
+   1177,
+   1
+  ],
+  [
+   1176,
+   1
+  ],
+  [
+   1176,
+   0
+  ],
+  [
+   1180,
+   1
+  ],
+  [
+   1181,
+   1
+  ],
+  [
+   1180,
+   1
+  ],
+  [
+   1176,
+   1
+  ],
+  [
+   1184,
+   1
+  ],
+  [
+   1184,
+   1
+  ],
+  [
+   1175,
+   1
+  ],
+  [
+   1187,
+   0
+  ],
+  [
+   1188,
+   1
+  ],
+  [
+   1189,
+   1
+  ],
+  [
+   1189,
+   0
+  ],
+  [
+   1189,
+   0
+  ],
+  [
+   1189,
+   1
+  ],
+  [
+   1193,
+   1
+  ],
+  [
+   1193,
+   0
+  ],
+  [
+   1193,
+   0
+  ],
+  [
+   1188,
+   1
+  ],
+  [
+   1197,
+   1
+  ],
+  [
+   1197,
+   1
+  ],
+  [
+   1197,
+   1
+  ],
+  [
+   1188,
+   1
+  ],
+  [
+   1188,
+   1
+  ],
+  [
+   1188,
+   1
+  ],
+  [
+   1203,
+   1
+  ],
+  [
+   1204,
+   0
+  ],
+  [
+   1205,
+   1
+  ],
+  [
+   1206,
+   1
+  ],
+  [
+   1175,
+   0
+  ],
+  [
+   1208,
+   1
+  ],
+  [
+   1209,
+   1
+  ],
+  [
+   1210,
+   1
+  ],
+  [
+   1210,
+   0
+  ],
+  [
+   1209,
+   1
+  ],
+  [
+   1213,
+   1
+  ],
+  [
+   1213,
+   1
+  ],
+  [
+   1209,
+   0
+  ],
+  [
+   1216,
+   1
+  ],
+  [
+   1217,
+   0
+  ],
+  [
+   1217,
+   1
+  ],
+  [
+   1219,
+   1
+  ],
+  [
+   1219,
+   1
+  ],
+  [
+   1219,
+   0
+  ],
+  [
+   1216,
+   1
+  ],
+  [
+   1209,
+   1
+  ],
+  [
+   1209,
+   1
+  ],
+  [
+   1225,
+   1
+  ],
+  [
+   1225,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1228,
+   1
+  ],
+  [
+   1229,
+   1
+  ],
+  [
+   1230,
+   1
+  ],
+  [
+   1229,
+   1
+  ],
+  [
+   1229,
+   0
+  ],
+  [
+   1233,
+   1
+  ],
+  [
+   1234,
+   1
+  ],
+  [
+   1233,
+   1
+  ],
+  [
+   1229,
+   1
+  ],
+  [
+   1237,
+   1
+  ],
+  [
+   1237,
+   1
+  ],
+  [
+   1228,
+   1
+  ],
+  [
+   1240,
+   0
+  ],
+  [
+   1241,
+   1
+  ],
+  [
+   1242,
+   1
+  ],
+  [
+   1242,
+   0
+  ],
+  [
+   1242,
+   0
+  ],
+  [
+   1242,
+   1
+  ],
+  [
+   1246,
+   1
+  ],
+  [
+   1246,
+   0
+  ],
+  [
+   1246,
+   0
+  ],
+  [
+   1241,
+   1
+  ],
+  [
+   1250,
+   1
+  ],
+  [
+   1250,
+   1
+  ],
+  [
+   1250,
+   1
+  ],
+  [
+   1241,
+   1
+  ],
+  [
+   1241,
+   1
+  ],
+  [
+   1241,
+   1
+  ],
+  [
+   1256,
+   1
+  ],
+  [
+   1257,
+   0
+  ],
+  [
+   1258,
+   1
+  ],
+  [
+   1259,
+   1
+  ],
+  [
+   1228,
+   0
+  ],
+  [
+   1261,
+   1
+  ],
+  [
+   1262,
+   1
+  ],
+  [
+   1263,
+   1
+  ],
+  [
+   1263,
+   0
+  ],
+  [
+   1262,
+   1
+  ],
+  [
+   1266,
+   1
+  ],
+  [
+   1266,
+   1
+  ],
+  [
+   1262,
+   0
+  ],
+  [
+   1269,
+   1
+  ],
+  [
+   1270,
+   0
+  ],
+  [
+   1270,
+   1
+  ],
+  [
+   1272,
+   1
+  ],
+  [
+   1272,
+   1
+  ],
+  [
+   1272,
+   0
+  ],
+  [
+   1269,
+   1
+  ],
+  [
+   1262,
+   1
+  ],
+  [
+   1262,
+   1
+  ],
+  [
+   1278,
+   1
+  ],
+  [
+   1278,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1281,
+   1
+  ],
+  [
+   1282,
+   1
+  ],
+  [
+   1283,
+   1
+  ],
+  [
+   1282,
+   1
+  ],
+  [
+   1282,
+   0
+  ],
+  [
+   1286,
+   1
+  ],
+  [
+   1287,
+   1
+  ],
+  [
+   1286,
+   1
+  ],
+  [
+   1282,
+   1
+  ],
+  [
+   1290,
+   1
+  ],
+  [
+   1290,
+   1
+  ],
+  [
+   1281,
+   1
+  ],
+  [
+   1293,
+   0
+  ],
+  [
+   1294,
+   1
+  ],
+  [
+   1295,
+   1
+  ],
+  [
+   1295,
+   0
+  ],
+  [
+   1295,
+   0
+  ],
+  [
+   1295,
+   1
+  ],
+  [
+   1299,
+   1
+  ],
+  [
+   1299,
+   0
+  ],
+  [
+   1299,
+   0
+  ],
+  [
+   1294,
+   1
+  ],
+  [
+   1303,
+   1
+  ],
+  [
+   1303,
+   1
+  ],
+  [
+   1303,
+   1
+  ],
+  [
+   1294,
+   1
+  ],
+  [
+   1294,
+   1
+  ],
+  [
+   1294,
+   1
+  ],
+  [
+   1309,
+   1
+  ],
+  [
+   1310,
+   0
+  ],
+  [
+   1311,
+   1
+  ],
+  [
+   1312,
+   1
+  ],
+  [
+   1281,
+   0
+  ],
+  [
+   1314,
+   1
+  ],
+  [
+   1315,
+   1
+  ],
+  [
+   1316,
+   1
+  ],
+  [
+   1316,
+   0
+  ],
+  [
+   1315,
+   1
+  ],
+  [
+   1319,
+   1
+  ],
+  [
+   1319,
+   1
+  ],
+  [
+   1315,
+   0
+  ],
+  [
+   1322,
+   1
+  ],
+  [
+   1323,
+   0
+  ],
+  [
+   1323,
+   1
+  ],
+  [
+   1325,
+   1
+  ],
+  [
+   1325,
+   1
+  ],
+  [
+   1325,
+   0
+  ],
+  [
+   1322,
+   1
+  ],
+  [
+   1315,
+   1
+  ],
+  [
+   1315,
+   1
+  ],
+  [
+   1331,
+   1
+  ],
+  [
+   1331,
+   0
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1334,
+   1
+  ],
+  [
+   1335,
+   1
+  ],
+  [
+   1336,
+   1
+  ],
+  [
+   1335,
+   1
+  ],
+  [
+   1335,
+   1
+  ],
+  [
+   1335,
+   1
+  ],
+  [
+   1334,
+   0
+  ],
+  [
+   1341,
+   1
+  ],
+  [
+   1342,
+   0
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1348,
+   1
+  ],
+  [
+   1349,
+   1
+  ],
+  [
+   1350,
+   1
+  ],
+  [
+   1351,
+   1
+  ],
+  [
+   1352,
+   1
+  ],
+  [
+   1353,
+   1
+  ],
+  [
+   1350,
+   1
+  ],
+  [
+   1355,
+   1
+  ],
+  [
+   1356,
+   1
+  ],
+  [
+   1357,
+   1
+  ],
+  [
+   1350,
+   1
+  ],
+  [
+   1359,
+   1
+  ],
+  [
+   1360,
+   1
+  ],
+  [
+   1361,
+   1
+  ],
+  [
+   1362,
+   1
+  ],
+  [
+   1363,
+   1
+  ],
+  [
+   1364,
+   1
+  ],
+  [
+   1361,
+   1
+  ],
+  [
+   1366,
+   1
+  ],
+  [
+   1361,
+   1
+  ],
+  [
+   1368,
+   1
+  ],
+  [
+   1369,
+   1
+  ],
+  [
+   1370,
+   1
+  ],
+  [
+   1348,
+   1
+  ],
+  [
+   1348,
+   1
+  ],
+  [
+   1348,
+   0
+  ],
+  [
+   1348,
+   0
+  ],
+  [
+   1343,
+   1
+  ],
+  [
+   1342,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1378,
+   1
+  ],
+  [
+   1379,
+   1
+  ],
+  [
+   1380,
+   1
+  ],
+  [
+   1381,
+   1
+  ],
+  [
+   1382,
+   1
+  ],
+  [
+   1383,
+   1
+  ],
+  [
+   1380,
+   1
+  ],
+  [
+   1385,
+   1
+  ],
+  [
+   1386,
+   1
+  ],
+  [
+   1387,
+   1
+  ],
+  [
+   1380,
+   1
+  ],
+  [
+   1389,
+   1
+  ],
+  [
+   1390,
+   1
+  ],
+  [
+   1391,
+   1
+  ],
+  [
+   1392,
+   1
+  ],
+  [
+   1393,
+   1
+  ],
+  [
+   1394,
+   1
+  ],
+  [
+   1391,
+   1
+  ],
+  [
+   1396,
+   1
+  ],
+  [
+   1391,
+   1
+  ],
+  [
+   1398,
+   1
+  ],
+  [
+   1399,
+   1
+  ],
+  [
+   1400,
+   1
+  ],
+  [
+   1378,
+   1
+  ],
+  [
+   1378,
+   1
+  ],
+  [
+   1378,
+   0
+  ],
+  [
+   1378,
+   0
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1377,
+   1
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1425,
+   1
+  ],
+  [
+   1425,
+   1
+  ],
+  [
+   1377,
+   0
+  ],
+  [
+   1341,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1430,
+   1
+  ],
+  [
+   1431,
+   1
+  ],
+  [
+   1432,
+   1
+  ],
+  [
+   1431,
+   1
+  ],
+  [
+   1431,
+   1
+  ],
+  [
+   1431,
+   1
+  ],
+  [
+   1430,
+   0
+  ],
+  [
+   1437,
+   1
+  ],
+  [
+   1438,
+   1
+  ],
+  [
+   1439,
+   1
+  ],
+  [
+   1439,
+   1
+  ],
+  [
+   1439,
+   1
+  ],
+  [
+   1439,
+   1
+  ],
+  [
+   1438,
+   1
+  ],
+  [
+   1444,
+   1
+  ],
+  [
+   1445,
+   1
+  ],
+  [
+   1446,
+   1
+  ],
+  [
+   1447,
+   1
+  ],
+  [
+   1448,
+   1
+  ],
+  [
+   1449,
+   1
+  ],
+  [
+   1446,
+   1
+  ],
+  [
+   1451,
+   1
+  ],
+  [
+   1452,
+   1
+  ],
+  [
+   1453,
+   1
+  ],
+  [
+   1446,
+   1
+  ],
+  [
+   1455,
+   1
+  ],
+  [
+   1456,
+   1
+  ],
+  [
+   1457,
+   1
+  ],
+  [
+   1458,
+   1
+  ],
+  [
+   1459,
+   1
+  ],
+  [
+   1460,
+   1
+  ],
+  [
+   1457,
+   1
+  ],
+  [
+   1462,
+   1
+  ],
+  [
+   1457,
+   1
+  ],
+  [
+   1464,
+   1
+  ],
+  [
+   1465,
+   1
+  ],
+  [
+   1466,
+   1
+  ],
+  [
+   1444,
+   1
+  ],
+  [
+   1444,
+   1
+  ],
+  [
+   1444,
+   0
+  ],
+  [
+   1444,
+   0
+  ],
+  [
+   1437,
+   1
+  ],
+  [
+   174,
+   0
+  ],
+  [
+   1473,
+   1
+  ],
+  [
+   1474,
+   1
+  ],
+  [
+   1475,
+   1
+  ],
+  [
+   1474,
+   1
+  ],
+  [
+   1474,
+   1
+  ],
+  [
+   1474,
+   1
+  ],
+  [
+   1473,
+   0
+  ],
+  [
+   1480,
+   1
+  ],
+  [
+   1481,
+   1
+  ],
+  [
+   1481,
+   1
+  ],
+  [
+   1480,
+   1
+  ],
+  [
+   1480,
+   1
+  ],
+  [
+   1480,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1487,
+   1
+  ],
+  [
+   1488,
+   1
+  ],
+  [
+   1489,
+   1
+  ],
+  [
+   1490,
+   1
+  ],
+  [
+   1489,
+   1
+  ],
+  [
+   1492,
+   0
+  ],
+  [
+   1493,
+   1
+  ],
+  [
+   1494,
+   1
+  ],
+  [
+   1493,
+   1
+  ],
+  [
+   1496,
+   1
+  ],
+  [
+   1493,
+   1
+  ],
+  [
+   1498,
+   1
+  ],
+  [
+   1493,
+   1
+  ],
+  [
+   1500,
+   1
+  ],
+  [
+   1493,
+   1
+  ],
+  [
+   1502,
+   1
+  ],
+  [
+   1492,
+   0
+  ],
+  [
+   1504,
+   1
+  ],
+  [
+   1505,
+   1
+  ],
+  [
+   1504,
+   1
+  ],
+  [
+   1507,
+   1
+  ],
+  [
+   1504,
+   1
+  ],
+  [
+   1509,
+   1
+  ],
+  [
+   1504,
+   1
+  ],
+  [
+   1511,
+   1
+  ],
+  [
+   1504,
+   1
+  ],
+  [
+   1513,
+   1
+  ],
+  [
+   1489,
+   1
+  ],
+  [
+   1488,
+   1
+  ],
+  [
+   1487,
+   1
+  ],
+  [
+   1517,
+   1
+  ],
+  [
+   1517,
+   0
+  ],
+  [
+   1517,
+   0
+  ],
+  [
+   1520,
+   1
+  ],
+  [
+   1521,
+   1
+  ],
+  [
+   1520,
+   1
+  ],
+  [
+   1523,
+   1
+  ],
+  [
+   1524,
+   1
+  ],
+  [
+   1523,
+   1
+  ],
+  [
+   1517,
+   0
+  ],
+  [
+   1517,
+   1
+  ],
+  [
+   1528,
+   1
+  ],
+  [
+   1528,
+   1
+  ],
+  [
+   1487,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1532,
+   1
+  ],
+  [
+   1533,
+   1
+  ],
+  [
+   1534,
+   1
+  ],
+  [
+   1533,
+   1
+  ],
+  [
+   1533,
+   1
+  ],
+  [
+   1537,
+   1
+  ],
+  [
+   1537,
+   1
+  ],
+  [
+   1533,
+   0
+  ],
+  [
+   1540,
+   1
+  ],
+  [
+   1541,
+   1
+  ],
+  [
+   1540,
+   1
+  ],
+  [
+   1532,
+   0
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   1544,
+   1
+  ],
+  [
+   174,
+   1
+  ],
+  [
+   1552,
+   1
+  ],
+  [
+   1553,
+   1
+  ],
+  [
+   1554,
+   1
+  ],
+  [
+   1553,
+   1
+  ],
+  [
+   1553,
+   1
+  ],
+  [
+   1557,
+   1
+  ],
+  [
+   1557,
+   1
+  ],
+  [
+   1553,
+   0
+  ],
+  [
+   1560,
+   1
+  ],
+  [
+   1561,
+   1
+  ],
+  [
+   1560,
+   1
+  ],
+  [
+   1552,
+   0
+  ],
+  [
+   1564,
+   1
+  ],
+  [
+   1565,
+   1
+  ],
+  [
+   1566,
+   1
+  ],
+  [
+   1566,
+   1
+  ],
+  [
+   1566,
+   1
+  ],
+  [
+   1566,
+   1
+  ],
+  [
+   1566,
+   0
+  ],
+  [
+   1571,
+   1
+  ],
+  [
+   1572,
+   1
+  ],
+  [
+   1572,
+   0
+  ],
+  [
+   1574,
+   1
+  ],
+  [
+   1574,
+   1
+  ],
+  [
+   1574,
+   1
+  ],
+  [
+   1572,
+   0
+  ],
+  [
+   1578,
+   1
+  ],
+  [
+   1566,
+   0
+  ],
+  [
+   1580,
+   1
+  ],
+  [
+   1581,
+   1
+  ],
+  [
+   1581,
+   0
+  ],
+  [
+   1583,
+   1
+  ],
+  [
+   1583,
+   1
+  ],
+  [
+   1583,
+   1
+  ],
+  [
+   1581,
+   0
+  ],
+  [
+   1587,
+   1
+  ],
+  [
+   1580,
+   1
+  ],
+  [
+   1589,
+   1
+  ],
+  [
+   1589,
+   0
+  ],
+  [
+   1591,
+   1
+  ],
+  [
+   1591,
+   1
+  ],
+  [
+   1591,
+   1
+  ],
+  [
+   1589,
+   0
+  ],
+  [
+   1595,
+   1
+  ],
+  [
+   1564,
+   1
+  ],
+  [
+   1564,
+   1
+  ],
+  [
+   1564,
+   1
+  ],
+  [
+   1564,
+   1
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1602,
+   0
+  ],
+  [
+   1603,
+   1
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1605,
+   1
+  ],
+  [
+   1605,
+   0
+  ],
+  [
+   1605,
+   0
+  ],
+  [
+   1605,
+   0
+  ],
+  [
+   1605,
+   0
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1611,
+   1
+  ],
+  [
+   1612,
+   1
+  ],
+  [
+   1611,
+   0
+  ],
+  [
+   1614,
+   1
+  ],
+  [
+   1611,
+   0
+  ],
+  [
+   1616,
+   1
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1618,
+   0
+  ],
+  [
+   1619,
+   1
+  ],
+  [
+   1619,
+   1
+  ],
+  [
+   1619,
+   1
+  ],
+  [
+   1618,
+   0
+  ],
+  [
+   1623,
+   1
+  ],
+  [
+   1623,
+   1
+  ],
+  [
+   1623,
+   1
+  ],
+  [
+   1618,
+   0
+  ],
+  [
+   1627,
+   1
+  ],
+  [
+   1627,
+   1
+  ],
+  [
+   1627,
+   1
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1631,
+   0
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1604,
+   1
+  ],
+  [
+   1604,
+   0
+  ],
+  [
+   1603,
+   1
+  ],
+  [
+   1603,
+   0
+  ],
+  [
+   1637,
+   1
+  ],
+  [
+   1638,
+   1
+  ],
+  [
+   1639,
+   1
+  ],
+  [
+   1640,
+   1
+  ],
+  [
+   1641,
+   1
+  ],
+  [
+   1642,
+   1
+  ],
+  [
+   1639,
+   1
+  ],
+  [
+   1644,
+   1
+  ],
+  [
+   1645,
+   1
+  ],
+  [
+   1646,
+   1
+  ],
+  [
+   1639,
+   1
+  ],
+  [
+   1648,
+   1
+  ],
+  [
+   1649,
+   1
+  ],
+  [
+   1650,
+   1
+  ],
+  [
+   1651,
+   1
+  ],
+  [
+   1652,
+   1
+  ],
+  [
+   1653,
+   1
+  ],
+  [
+   1650,
+   1
+  ],
+  [
+   1655,
+   1
+  ],
+  [
+   1650,
+   1
+  ],
+  [
+   1657,
+   1
+  ],
+  [
+   1658,
+   1
+  ],
+  [
+   1659,
+   1
+  ],
+  [
+   1637,
+   1
+  ],
+  [
+   1637,
+   0
+  ],
+  [
+   1637,
+   0
+  ],
+  [
+   1637,
+   1
+  ],
+  [
+   1603,
+   1
+  ],
+  [
+   1665,
+   1
+  ],
+  [
+   1666,
+   0
+  ],
+  [
+   1667,
+   1
+  ],
+  [
+   1668,
+   1
+  ],
+  [
+   1603,
+   1
+  ],
+  [
+   1670,
+   0
+  ],
+  [
+   1670,
+   1
+  ],
+  [
+   1670,
+   1
+  ],
+  [
+   1673,
+   1
+  ],
+  [
+   1673,
+   1
+  ],
+  [
+   1602,
+   1
+  ],
+  [
+   1676,
+   1
+  ],
+  [
+   1677,
+   1
+  ],
+  [
+   1678,
+   1
+  ],
+  [
+   1678,
+   0
+  ],
+  [
+   1677,
+   1
+  ],
+  [
+   1681,
+   1
+  ],
+  [
+   1681,
+   1
+  ],
+  [
+   1677,
+   0
+  ],
+  [
+   1684,
+   1
+  ],
+  [
+   1685,
+   1
+  ],
+  [
+   1684,
+   1
+  ],
+  [
+   1676,
+   1
+  ],
+  [
+   1602,
+   0
+  ],
+  [
+   1689,
+   1
+  ],
+  [
+   1690,
+   1
+  ],
+  [
+   1691,
+   1
+  ],
+  [
+   1691,
+   0
+  ],
+  [
+   1690,
+   1
+  ],
+  [
+   1694,
+   1
+  ],
+  [
+   1694,
+   1
+  ],
+  [
+   1690,
+   0
+  ],
+  [
+   1697,
+   1
+  ],
+  [
+   1698,
+   1
+  ],
+  [
+   1697,
+   1
+  ],
+  [
+   1689,
+   1
+  ],
+  [
+   1602,
+   1
+  ],
+  [
+   1702,
+   1
+  ],
+  [
+   1703,
+   1
+  ],
+  [
+   1704,
+   1
+  ],
+  [
+   1704,
+   0
+  ],
+  [
+   1703,
+   1
+  ],
+  [
+   1707,
+   1
+  ],
+  [
+   1707,
+   1
+  ],
+  [
+   1703,
+   0
+  ],
+  [
+   1710,
+   1
+  ],
+  [
+   1711,
+   0
+  ],
+  [
+   1711,
+   1
+  ],
+  [
+   1713,
+   1
+  ],
+  [
+   1713,
+   1
+  ],
+  [
+   1713,
+   0
+  ],
+  [
+   1710,
+   1
+  ],
+  [
+   1703,
+   1
+  ],
+  [
+   1703,
+   1
+  ],
+  [
+   1719,
+   1
+  ],
+  [
+   1719,
+   1
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1722,
+   0
+  ],
+  [
+   1723,
+   1
+  ],
+  [
+   1724,
+   0
+  ],
+  [
+   1725,
+   1
+  ],
+  [
+   1724,
+   1
+  ],
+  [
+   1727,
+   1
+  ],
+  [
+   1724,
+   0
+  ],
+  [
+   1729,
+   1
+  ],
+  [
+   1724,
+   0
+  ],
+  [
+   1731,
+   1
+  ],
+  [
+   1724,
+   1
+  ],
+  [
+   1733,
+   1
+  ],
+  [
+   1733,
+   0
+  ],
+  [
+   1733,
+   1
+  ],
+  [
+   1723,
+   1
+  ],
+  [
+   1737,
+   1
+  ],
+  [
+   1738,
+   0
+  ],
+  [
+   1739,
+   1
+  ],
+  [
+   1740,
+   1
+  ],
+  [
+   1722,
+   1
+  ],
+  [
+   1742,
+   1
+  ],
+  [
+   1743,
+   1
+  ],
+  [
+   1744,
+   1
+  ],
+  [
+   1744,
+   0
+  ],
+  [
+   1743,
+   1
+  ],
+  [
+   1747,
+   1
+  ],
+  [
+   1747,
+   1
+  ],
+  [
+   1743,
+   0
+  ],
+  [
+   1750,
+   1
+  ],
+  [
+   1751,
+   1
+  ],
+  [
+   1750,
+   1
+  ],
+  [
+   1743,
+   0
+  ],
+  [
+   1742,
+   1
+  ],
+  [
+   1722,
+   1
+  ],
+  [
+   1756,
+   1
+  ],
+  [
+   1757,
+   1
+  ],
+  [
+   1758,
+   1
+  ],
+  [
+   1758,
+   0
+  ],
+  [
+   1757,
+   1
+  ],
+  [
+   1761,
+   1
+  ],
+  [
+   1761,
+   1
+  ],
+  [
+   1757,
+   0
+  ],
+  [
+   1764,
+   1
+  ],
+  [
+   1765,
+   0
+  ],
+  [
+   1765,
+   1
+  ],
+  [
+   1767,
+   1
+  ],
+  [
+   1767,
+   1
+  ],
+  [
+   1767,
+   0
+  ],
+  [
+   1764,
+   1
+  ],
+  [
+   1757,
+   1
+  ],
+  [
+   1757,
+   1
+  ],
+  [
+   1773,
+   1
+  ],
+  [
+   1773,
+   1
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1776,
+   0
+  ],
+  [
+   1777,
+   1
+  ],
+  [
+   1778,
+   0
+  ],
+  [
+   1779,
+   1
+  ],
+  [
+   1778,
+   1
+  ],
+  [
+   1781,
+   1
+  ],
+  [
+   1778,
+   0
+  ],
+  [
+   1783,
+   1
+  ],
+  [
+   1778,
+   0
+  ],
+  [
+   1785,
+   1
+  ],
+  [
+   1778,
+   1
+  ],
+  [
+   1787,
+   1
+  ],
+  [
+   1787,
+   0
+  ],
+  [
+   1787,
+   1
+  ],
+  [
+   1777,
+   1
+  ],
+  [
+   1791,
+   1
+  ],
+  [
+   1792,
+   0
+  ],
+  [
+   1793,
+   1
+  ],
+  [
+   1794,
+   1
+  ],
+  [
+   1776,
+   1
+  ],
+  [
+   1796,
+   1
+  ],
+  [
+   1797,
+   1
+  ],
+  [
+   1798,
+   1
+  ],
+  [
+   1798,
+   0
+  ],
+  [
+   1797,
+   1
+  ],
+  [
+   1801,
+   1
+  ],
+  [
+   1801,
+   1
+  ],
+  [
+   1797,
+   0
+  ],
+  [
+   1804,
+   1
+  ],
+  [
+   1805,
+   1
+  ],
+  [
+   1804,
+   1
+  ],
+  [
+   1797,
+   1
+  ],
+  [
+   1796,
+   1
+  ],
+  [
+   1776,
+   1
+  ],
+  [
+   1810,
+   1
+  ],
+  [
+   1811,
+   1
+  ],
+  [
+   1812,
+   1
+  ],
+  [
+   1812,
+   0
+  ],
+  [
+   1811,
+   1
+  ],
+  [
+   1815,
+   1
+  ],
+  [
+   1815,
+   1
+  ],
+  [
+   1811,
+   0
+  ],
+  [
+   1818,
+   1
+  ],
+  [
+   1819,
+   0
+  ],
+  [
+   1819,
+   1
+  ],
+  [
+   1821,
+   1
+  ],
+  [
+   1821,
+   1
+  ],
+  [
+   1821,
+   0
+  ],
+  [
+   1818,
+   1
+  ],
+  [
+   1811,
+   1
+  ],
+  [
+   1811,
+   1
+  ],
+  [
+   1827,
+   1
+  ],
+  [
+   1827,
+   1
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1830,
+   1
+  ],
+  [
+   1831,
+   1
+  ],
+  [
+   1832,
+   1
+  ],
+  [
+   1832,
+   0
+  ],
+  [
+   1831,
+   1
+  ],
+  [
+   1831,
+   1
+  ],
+  [
+   1836,
+   1
+  ],
+  [
+   1836,
+   1
+  ],
+  [
+   1831,
+   0
+  ],
+  [
+   1839,
+   1
+  ],
+  [
+   1840,
+   1
+  ],
+  [
+   1839,
+   1
+  ],
+  [
+   1830,
+   0
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1844,
+   1
+  ],
+  [
+   1844,
+   0
+  ],
+  [
+   1844,
+   0
+  ],
+  [
+   1844,
+   1
+  ],
+  [
+   1848,
+   1
+  ],
+  [
+   1848,
+   0
+  ],
+  [
+   1848,
+   0
+  ],
+  [
+   1844,
+   1
+  ],
+  [
+   1852,
+   1
+  ],
+  [
+   1852,
+   0
+  ],
+  [
+   1852,
+   0
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1858,
+   1
+  ],
+  [
+   1858,
+   1
+  ],
+  [
+   1858,
+   1
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1843,
+   1
+  ],
+  [
+   1863,
+   1
+  ],
+  [
+   1864,
+   0
+  ],
+  [
+   1865,
+   1
+  ],
+  [
+   1866,
+   1
+  ],
+  [
+   1830,
+   0
+  ],
+  [
+   1868,
+   1
+  ],
+  [
+   1869,
+   1
+  ],
+  [
+   1870,
+   1
+  ],
+  [
+   1870,
+   0
+  ],
+  [
+   1869,
+   1
+  ],
+  [
+   1873,
+   1
+  ],
+  [
+   1873,
+   1
+  ],
+  [
+   1869,
+   0
+  ],
+  [
+   1876,
+   1
+  ],
+  [
+   1877,
+   0
+  ],
+  [
+   1877,
+   1
+  ],
+  [
+   1879,
+   1
+  ],
+  [
+   1879,
+   1
+  ],
+  [
+   1879,
+   0
+  ],
+  [
+   1876,
+   1
+  ],
+  [
+   1869,
+   1
+  ],
+  [
+   1869,
+   1
+  ],
+  [
+   1885,
+   1
+  ],
+  [
+   1885,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1888,
+   1
+  ],
+  [
+   1889,
+   1
+  ],
+  [
+   1890,
+   1
+  ],
+  [
+   1890,
+   0
+  ],
+  [
+   1889,
+   1
+  ],
+  [
+   1889,
+   1
+  ],
+  [
+   1894,
+   1
+  ],
+  [
+   1894,
+   1
+  ],
+  [
+   1889,
+   0
+  ],
+  [
+   1897,
+   1
+  ],
+  [
+   1898,
+   1
+  ],
+  [
+   1897,
+   1
+  ],
+  [
+   1888,
+   0
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1902,
+   1
+  ],
+  [
+   1902,
+   0
+  ],
+  [
+   1902,
+   0
+  ],
+  [
+   1902,
+   1
+  ],
+  [
+   1906,
+   1
+  ],
+  [
+   1906,
+   0
+  ],
+  [
+   1906,
+   0
+  ],
+  [
+   1902,
+   1
+  ],
+  [
+   1910,
+   1
+  ],
+  [
+   1910,
+   0
+  ],
+  [
+   1910,
+   0
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1916,
+   1
+  ],
+  [
+   1916,
+   1
+  ],
+  [
+   1916,
+   1
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1901,
+   1
+  ],
+  [
+   1921,
+   1
+  ],
+  [
+   1922,
+   0
+  ],
+  [
+   1923,
+   1
+  ],
+  [
+   1924,
+   1
+  ],
+  [
+   1888,
+   0
+  ],
+  [
+   1926,
+   1
+  ],
+  [
+   1927,
+   1
+  ],
+  [
+   1928,
+   1
+  ],
+  [
+   1928,
+   0
+  ],
+  [
+   1927,
+   1
+  ],
+  [
+   1931,
+   1
+  ],
+  [
+   1931,
+   1
+  ],
+  [
+   1927,
+   0
+  ],
+  [
+   1934,
+   1
+  ],
+  [
+   1935,
+   0
+  ],
+  [
+   1935,
+   1
+  ],
+  [
+   1937,
+   1
+  ],
+  [
+   1937,
+   1
+  ],
+  [
+   1937,
+   0
+  ],
+  [
+   1934,
+   1
+  ],
+  [
+   1927,
+   1
+  ],
+  [
+   1927,
+   1
+  ],
+  [
+   1943,
+   1
+  ],
+  [
+   1943,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   1946,
+   1
+  ],
+  [
+   1947,
+   1
+  ],
+  [
+   1948,
+   1
+  ],
+  [
+   1948,
+   0
+  ],
+  [
+   1947,
+   1
+  ],
+  [
+   1947,
+   1
+  ],
+  [
+   1952,
+   1
+  ],
+  [
+   1952,
+   1
+  ],
+  [
+   1947,
+   0
+  ],
+  [
+   1955,
+   1
+  ],
+  [
+   1956,
+   1
+  ],
+  [
+   1955,
+   1
+  ],
+  [
+   1946,
+   0
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1960,
+   1
+  ],
+  [
+   1960,
+   0
+  ],
+  [
+   1960,
+   0
+  ],
+  [
+   1960,
+   1
+  ],
+  [
+   1964,
+   1
+  ],
+  [
+   1964,
+   0
+  ],
+  [
+   1964,
+   0
+  ],
+  [
+   1960,
+   1
+  ],
+  [
+   1968,
+   1
+  ],
+  [
+   1968,
+   0
+  ],
+  [
+   1968,
+   0
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1974,
+   1
+  ],
+  [
+   1974,
+   1
+  ],
+  [
+   1974,
+   1
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1959,
+   1
+  ],
+  [
+   1979,
+   1
+  ],
+  [
+   1980,
+   0
+  ],
+  [
+   1981,
+   1
+  ],
+  [
+   1982,
+   1
+  ],
+  [
+   1946,
+   0
+  ],
+  [
+   1984,
+   1
+  ],
+  [
+   1985,
+   1
+  ],
+  [
+   1986,
+   1
+  ],
+  [
+   1986,
+   0
+  ],
+  [
+   1985,
+   1
+  ],
+  [
+   1989,
+   1
+  ],
+  [
+   1989,
+   1
+  ],
+  [
+   1985,
+   0
+  ],
+  [
+   1992,
+   1
+  ],
+  [
+   1993,
+   0
+  ],
+  [
+   1993,
+   1
+  ],
+  [
+   1995,
+   1
+  ],
+  [
+   1995,
+   1
+  ],
+  [
+   1995,
+   0
+  ],
+  [
+   1992,
+   1
+  ],
+  [
+   1985,
+   1
+  ],
+  [
+   1985,
+   1
+  ],
+  [
+   2001,
+   1
+  ],
+  [
+   2001,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2004,
+   1
+  ],
+  [
+   2005,
+   1
+  ],
+  [
+   2006,
+   1
+  ],
+  [
+   2006,
+   0
+  ],
+  [
+   2005,
+   1
+  ],
+  [
+   2005,
+   1
+  ],
+  [
+   2010,
+   1
+  ],
+  [
+   2010,
+   1
+  ],
+  [
+   2005,
+   0
+  ],
+  [
+   2013,
+   1
+  ],
+  [
+   2014,
+   1
+  ],
+  [
+   2013,
+   1
+  ],
+  [
+   2004,
+   0
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2018,
+   1
+  ],
+  [
+   2018,
+   0
+  ],
+  [
+   2018,
+   0
+  ],
+  [
+   2018,
+   1
+  ],
+  [
+   2022,
+   1
+  ],
+  [
+   2022,
+   0
+  ],
+  [
+   2022,
+   0
+  ],
+  [
+   2018,
+   1
+  ],
+  [
+   2026,
+   1
+  ],
+  [
+   2026,
+   0
+  ],
+  [
+   2026,
+   0
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2032,
+   1
+  ],
+  [
+   2032,
+   1
+  ],
+  [
+   2032,
+   1
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2017,
+   1
+  ],
+  [
+   2037,
+   1
+  ],
+  [
+   2038,
+   0
+  ],
+  [
+   2039,
+   1
+  ],
+  [
+   2040,
+   1
+  ],
+  [
+   2004,
+   0
+  ],
+  [
+   2042,
+   1
+  ],
+  [
+   2043,
+   1
+  ],
+  [
+   2044,
+   1
+  ],
+  [
+   2044,
+   0
+  ],
+  [
+   2043,
+   1
+  ],
+  [
+   2047,
+   1
+  ],
+  [
+   2047,
+   1
+  ],
+  [
+   2043,
+   0
+  ],
+  [
+   2050,
+   1
+  ],
+  [
+   2051,
+   0
+  ],
+  [
+   2051,
+   1
+  ],
+  [
+   2053,
+   1
+  ],
+  [
+   2053,
+   1
+  ],
+  [
+   2053,
+   0
+  ],
+  [
+   2050,
+   1
+  ],
+  [
+   2043,
+   1
+  ],
+  [
+   2043,
+   1
+  ],
+  [
+   2059,
+   1
+  ],
+  [
+   2059,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2062,
+   1
+  ],
+  [
+   2063,
+   1
+  ],
+  [
+   2064,
+   1
+  ],
+  [
+   2064,
+   0
+  ],
+  [
+   2063,
+   1
+  ],
+  [
+   2063,
+   1
+  ],
+  [
+   2068,
+   1
+  ],
+  [
+   2068,
+   1
+  ],
+  [
+   2063,
+   0
+  ],
+  [
+   2071,
+   1
+  ],
+  [
+   2072,
+   1
+  ],
+  [
+   2071,
+   1
+  ],
+  [
+   2062,
+   0
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2076,
+   1
+  ],
+  [
+   2076,
+   0
+  ],
+  [
+   2076,
+   0
+  ],
+  [
+   2076,
+   1
+  ],
+  [
+   2080,
+   1
+  ],
+  [
+   2080,
+   0
+  ],
+  [
+   2080,
+   0
+  ],
+  [
+   2076,
+   1
+  ],
+  [
+   2084,
+   1
+  ],
+  [
+   2084,
+   0
+  ],
+  [
+   2084,
+   0
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2088,
+   1
+  ],
+  [
+   2088,
+   1
+  ],
+  [
+   2088,
+   1
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2075,
+   1
+  ],
+  [
+   2095,
+   1
+  ],
+  [
+   2096,
+   0
+  ],
+  [
+   2097,
+   1
+  ],
+  [
+   2098,
+   1
+  ],
+  [
+   2062,
+   0
+  ],
+  [
+   2100,
+   1
+  ],
+  [
+   2101,
+   1
+  ],
+  [
+   2102,
+   1
+  ],
+  [
+   2102,
+   0
+  ],
+  [
+   2101,
+   1
+  ],
+  [
+   2105,
+   1
+  ],
+  [
+   2105,
+   1
+  ],
+  [
+   2101,
+   0
+  ],
+  [
+   2108,
+   1
+  ],
+  [
+   2109,
+   0
+  ],
+  [
+   2109,
+   1
+  ],
+  [
+   2111,
+   1
+  ],
+  [
+   2111,
+   1
+  ],
+  [
+   2111,
+   0
+  ],
+  [
+   2108,
+   1
+  ],
+  [
+   2101,
+   1
+  ],
+  [
+   2101,
+   1
+  ],
+  [
+   2117,
+   1
+  ],
+  [
+   2117,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2120,
+   1
+  ],
+  [
+   2121,
+   1
+  ],
+  [
+   2122,
+   1
+  ],
+  [
+   2122,
+   0
+  ],
+  [
+   2121,
+   1
+  ],
+  [
+   2121,
+   1
+  ],
+  [
+   2126,
+   1
+  ],
+  [
+   2126,
+   1
+  ],
+  [
+   2121,
+   0
+  ],
+  [
+   2129,
+   1
+  ],
+  [
+   2130,
+   1
+  ],
+  [
+   2129,
+   1
+  ],
+  [
+   2120,
+   0
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2134,
+   1
+  ],
+  [
+   2134,
+   0
+  ],
+  [
+   2134,
+   0
+  ],
+  [
+   2134,
+   1
+  ],
+  [
+   2138,
+   1
+  ],
+  [
+   2138,
+   0
+  ],
+  [
+   2138,
+   0
+  ],
+  [
+   2134,
+   1
+  ],
+  [
+   2142,
+   1
+  ],
+  [
+   2142,
+   0
+  ],
+  [
+   2142,
+   0
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2146,
+   1
+  ],
+  [
+   2146,
+   1
+  ],
+  [
+   2146,
+   1
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2133,
+   1
+  ],
+  [
+   2153,
+   1
+  ],
+  [
+   2154,
+   0
+  ],
+  [
+   2155,
+   1
+  ],
+  [
+   2156,
+   1
+  ],
+  [
+   2120,
+   0
+  ],
+  [
+   2158,
+   1
+  ],
+  [
+   2159,
+   1
+  ],
+  [
+   2160,
+   1
+  ],
+  [
+   2160,
+   0
+  ],
+  [
+   2159,
+   1
+  ],
+  [
+   2163,
+   1
+  ],
+  [
+   2163,
+   1
+  ],
+  [
+   2159,
+   0
+  ],
+  [
+   2166,
+   1
+  ],
+  [
+   2167,
+   0
+  ],
+  [
+   2167,
+   1
+  ],
+  [
+   2169,
+   1
+  ],
+  [
+   2169,
+   1
+  ],
+  [
+   2169,
+   0
+  ],
+  [
+   2166,
+   1
+  ],
+  [
+   2159,
+   1
+  ],
+  [
+   2159,
+   1
+  ],
+  [
+   2175,
+   1
+  ],
+  [
+   2175,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2178,
+   1
+  ],
+  [
+   2179,
+   1
+  ],
+  [
+   2180,
+   1
+  ],
+  [
+   2180,
+   0
+  ],
+  [
+   2179,
+   1
+  ],
+  [
+   2179,
+   1
+  ],
+  [
+   2184,
+   1
+  ],
+  [
+   2184,
+   1
+  ],
+  [
+   2179,
+   0
+  ],
+  [
+   2187,
+   1
+  ],
+  [
+   2188,
+   1
+  ],
+  [
+   2187,
+   1
+  ],
+  [
+   2178,
+   0
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2192,
+   1
+  ],
+  [
+   2192,
+   0
+  ],
+  [
+   2192,
+   0
+  ],
+  [
+   2192,
+   1
+  ],
+  [
+   2196,
+   1
+  ],
+  [
+   2196,
+   0
+  ],
+  [
+   2196,
+   0
+  ],
+  [
+   2192,
+   1
+  ],
+  [
+   2200,
+   1
+  ],
+  [
+   2200,
+   0
+  ],
+  [
+   2200,
+   0
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2204,
+   1
+  ],
+  [
+   2204,
+   1
+  ],
+  [
+   2204,
+   1
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2191,
+   1
+  ],
+  [
+   2211,
+   1
+  ],
+  [
+   2212,
+   0
+  ],
+  [
+   2213,
+   1
+  ],
+  [
+   2214,
+   1
+  ],
+  [
+   2178,
+   0
+  ],
+  [
+   2216,
+   1
+  ],
+  [
+   2217,
+   1
+  ],
+  [
+   2218,
+   1
+  ],
+  [
+   2218,
+   0
+  ],
+  [
+   2217,
+   1
+  ],
+  [
+   2221,
+   1
+  ],
+  [
+   2221,
+   1
+  ],
+  [
+   2217,
+   0
+  ],
+  [
+   2224,
+   1
+  ],
+  [
+   2225,
+   0
+  ],
+  [
+   2225,
+   1
+  ],
+  [
+   2227,
+   1
+  ],
+  [
+   2227,
+   1
+  ],
+  [
+   2227,
+   0
+  ],
+  [
+   2224,
+   1
+  ],
+  [
+   2217,
+   1
+  ],
+  [
+   2217,
+   1
+  ],
+  [
+   2233,
+   1
+  ],
+  [
+   2233,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2236,
+   1
+  ],
+  [
+   2237,
+   1
+  ],
+  [
+   2238,
+   1
+  ],
+  [
+   2238,
+   0
+  ],
+  [
+   2237,
+   1
+  ],
+  [
+   2237,
+   1
+  ],
+  [
+   2242,
+   1
+  ],
+  [
+   2242,
+   1
+  ],
+  [
+   2237,
+   0
+  ],
+  [
+   2245,
+   1
+  ],
+  [
+   2246,
+   1
+  ],
+  [
+   2245,
+   1
+  ],
+  [
+   2236,
+   0
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2250,
+   1
+  ],
+  [
+   2250,
+   0
+  ],
+  [
+   2250,
+   0
+  ],
+  [
+   2250,
+   1
+  ],
+  [
+   2254,
+   1
+  ],
+  [
+   2254,
+   0
+  ],
+  [
+   2254,
+   0
+  ],
+  [
+   2250,
+   1
+  ],
+  [
+   2258,
+   1
+  ],
+  [
+   2258,
+   0
+  ],
+  [
+   2258,
+   0
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2262,
+   1
+  ],
+  [
+   2262,
+   1
+  ],
+  [
+   2262,
+   1
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2249,
+   1
+  ],
+  [
+   2269,
+   1
+  ],
+  [
+   2270,
+   0
+  ],
+  [
+   2271,
+   1
+  ],
+  [
+   2272,
+   1
+  ],
+  [
+   2236,
+   0
+  ],
+  [
+   2274,
+   1
+  ],
+  [
+   2275,
+   1
+  ],
+  [
+   2276,
+   1
+  ],
+  [
+   2276,
+   0
+  ],
+  [
+   2275,
+   1
+  ],
+  [
+   2279,
+   1
+  ],
+  [
+   2279,
+   1
+  ],
+  [
+   2275,
+   0
+  ],
+  [
+   2282,
+   1
+  ],
+  [
+   2283,
+   0
+  ],
+  [
+   2283,
+   1
+  ],
+  [
+   2285,
+   1
+  ],
+  [
+   2285,
+   1
+  ],
+  [
+   2285,
+   0
+  ],
+  [
+   2282,
+   1
+  ],
+  [
+   2275,
+   1
+  ],
+  [
+   2275,
+   1
+  ],
+  [
+   2291,
+   1
+  ],
+  [
+   2291,
+   0
+  ],
+  [
+   1601,
+   1
+  ],
+  [
+   2294,
+   1
+  ],
+  [
+   2295,
+   1
+  ],
+  [
+   2296,
+   1
+  ],
+  [
+   2295,
+   1
+  ],
+  [
+   2295,
+   1
+  ],
+  [
+   2299,
+   1
+  ],
+  [
+   2299,
+   1
+  ],
+  [
+   2295,
+   0
+  ],
+  [
+   2302,
+   1
+  ],
+  [
+   2303,
+   1
+  ],
+  [
+   2302,
+   1
+  ],
+  [
+   2294,
+   0
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2310,
+   1
+  ],
+  [
+   2311,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2313,
+   1
+  ],
+  [
+   2314,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2316,
+   1
+  ],
+  [
+   2317,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2319,
+   0
+  ],
+  [
+   2319,
+   0
+  ],
+  [
+   2321,
+   1
+  ],
+  [
+   2319,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2324,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2326,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2328,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2330,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2332,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2334,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2336,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2338,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2340,
+   1
+  ],
+  [
+   2323,
+   0
+  ],
+  [
+   2342,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2344,
+   0
+  ],
+  [
+   2344,
+   0
+  ],
+  [
+   2346,
+   1
+  ],
+  [
+   2344,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2349,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2351,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2353,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2355,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2357,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2359,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2361,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2363,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2365,
+   1
+  ],
+  [
+   2348,
+   0
+  ],
+  [
+   2367,
+   1
+  ],
+  [
+   2309,
+   1
+  ],
+  [
+   2369,
+   0
+  ],
+  [
+   2369,
+   0
+  ],
+  [
+   2371,
+   1
+  ],
+  [
+   2369,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2374,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2376,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2378,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2380,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2382,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2384,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2386,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2388,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2390,
+   1
+  ],
+  [
+   2373,
+   0
+  ],
+  [
+   2392,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2399,
+   1
+  ],
+  [
+   2399,
+   1
+  ],
+  [
+   2399,
+   1
+  ],
+  [
+   2399,
+   1
+  ],
+  [
+   2399,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2407,
+   1
+  ],
+  [
+   2408,
+   1
+  ],
+  [
+   2408,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2413,
+   1
+  ],
+  [
+   2413,
+   1
+  ],
+  [
+   2413,
+   1
+  ],
+  [
+   2413,
+   1
+  ],
+  [
+   2413,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   2306,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   2421,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2430,
+   1
+  ],
+  [
+   2430,
+   1
+  ],
+  [
+   2430,
+   1
+  ],
+  [
+   2430,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2435,
+   1
+  ],
+  [
+   2435,
+   1
+  ],
+  [
+   2435,
+   1
+  ],
+  [
+   2435,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   2440,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2447,
+   1
+  ],
+  [
+   2447,
+   1
+  ],
+  [
+   2447,
+   1
+  ],
+  [
+   2447,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2453,
+   1
+  ],
+  [
+   2454,
+   1
+  ],
+  [
+   2455,
+   1
+  ],
+  [
+   2456,
+   1
+  ],
+  [
+   2457,
+   1
+  ],
+  [
+   2458,
+   1
+  ],
+  [
+   2459,
+   1
+  ],
+  [
+   2460,
+   1
+  ],
+  [
+   2461,
+   1
+  ],
+  [
+   2458,
+   1
+  ],
+  [
+   2463,
+   1
+  ],
+  [
+   2464,
+   1
+  ],
+  [
+   2465,
+   1
+  ],
+  [
+   2458,
+   1
+  ],
+  [
+   2467,
+   1
+  ],
+  [
+   2468,
+   1
+  ],
+  [
+   2469,
+   1
+  ],
+  [
+   2470,
+   1
+  ],
+  [
+   2471,
+   1
+  ],
+  [
+   2472,
+   1
+  ],
+  [
+   2469,
+   1
+  ],
+  [
+   2474,
+   1
+  ],
+  [
+   2469,
+   1
+  ],
+  [
+   2476,
+   1
+  ],
+  [
+   2477,
+   1
+  ],
+  [
+   2478,
+   1
+  ],
+  [
+   2456,
+   1
+  ],
+  [
+   2456,
+   1
+  ],
+  [
+   2456,
+   0
+  ],
+  [
+   2456,
+   0
+  ],
+  [
+   2454,
+   1
+  ],
+  [
+   2454,
+   1
+  ],
+  [
+   2453,
+   1
+  ],
+  [
+   2453,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2488,
+   1
+  ],
+  [
+   2489,
+   1
+  ],
+  [
+   2490,
+   1
+  ],
+  [
+   2491,
+   1
+  ],
+  [
+   2492,
+   1
+  ],
+  [
+   2493,
+   1
+  ],
+  [
+   2494,
+   1
+  ],
+  [
+   2495,
+   1
+  ],
+  [
+   2496,
+   1
+  ],
+  [
+   2493,
+   1
+  ],
+  [
+   2498,
+   1
+  ],
+  [
+   2499,
+   1
+  ],
+  [
+   2500,
+   1
+  ],
+  [
+   2493,
+   1
+  ],
+  [
+   2502,
+   1
+  ],
+  [
+   2503,
+   1
+  ],
+  [
+   2504,
+   1
+  ],
+  [
+   2505,
+   1
+  ],
+  [
+   2506,
+   1
+  ],
+  [
+   2507,
+   1
+  ],
+  [
+   2504,
+   1
+  ],
+  [
+   2509,
+   1
+  ],
+  [
+   2504,
+   1
+  ],
+  [
+   2511,
+   1
+  ],
+  [
+   2512,
+   1
+  ],
+  [
+   2513,
+   1
+  ],
+  [
+   2491,
+   1
+  ],
+  [
+   2491,
+   1
+  ],
+  [
+   2491,
+   0
+  ],
+  [
+   2491,
+   0
+  ],
+  [
+   2489,
+   1
+  ],
+  [
+   2489,
+   1
+  ],
+  [
+   2488,
+   1
+  ],
+  [
+   2488,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2523,
+   1
+  ],
+  [
+   2524,
+   1
+  ],
+  [
+   2525,
+   1
+  ],
+  [
+   2526,
+   1
+  ],
+  [
+   2527,
+   1
+  ],
+  [
+   2528,
+   1
+  ],
+  [
+   2529,
+   1
+  ],
+  [
+   2530,
+   1
+  ],
+  [
+   2531,
+   1
+  ],
+  [
+   2528,
+   1
+  ],
+  [
+   2533,
+   1
+  ],
+  [
+   2534,
+   1
+  ],
+  [
+   2535,
+   1
+  ],
+  [
+   2528,
+   1
+  ],
+  [
+   2537,
+   1
+  ],
+  [
+   2538,
+   1
+  ],
+  [
+   2539,
+   1
+  ],
+  [
+   2540,
+   1
+  ],
+  [
+   2541,
+   1
+  ],
+  [
+   2542,
+   1
+  ],
+  [
+   2539,
+   1
+  ],
+  [
+   2544,
+   1
+  ],
+  [
+   2539,
+   1
+  ],
+  [
+   2546,
+   1
+  ],
+  [
+   2547,
+   1
+  ],
+  [
+   2548,
+   1
+  ],
+  [
+   2526,
+   1
+  ],
+  [
+   2526,
+   1
+  ],
+  [
+   2526,
+   0
+  ],
+  [
+   2526,
+   0
+  ],
+  [
+   2524,
+   1
+  ],
+  [
+   2524,
+   1
+  ],
+  [
+   2523,
+   1
+  ],
+  [
+   2523,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2558,
+   1
+  ],
+  [
+   2559,
+   1
+  ],
+  [
+   2560,
+   1
+  ],
+  [
+   2561,
+   1
+  ],
+  [
+   2562,
+   1
+  ],
+  [
+   2563,
+   1
+  ],
+  [
+   2564,
+   1
+  ],
+  [
+   2565,
+   1
+  ],
+  [
+   2566,
+   1
+  ],
+  [
+   2563,
+   1
+  ],
+  [
+   2568,
+   1
+  ],
+  [
+   2569,
+   1
+  ],
+  [
+   2570,
+   1
+  ],
+  [
+   2563,
+   1
+  ],
+  [
+   2572,
+   1
+  ],
+  [
+   2573,
+   1
+  ],
+  [
+   2574,
+   1
+  ],
+  [
+   2575,
+   1
+  ],
+  [
+   2576,
+   1
+  ],
+  [
+   2577,
+   1
+  ],
+  [
+   2574,
+   1
+  ],
+  [
+   2579,
+   1
+  ],
+  [
+   2574,
+   1
+  ],
+  [
+   2581,
+   1
+  ],
+  [
+   2582,
+   1
+  ],
+  [
+   2583,
+   1
+  ],
+  [
+   2561,
+   1
+  ],
+  [
+   2561,
+   1
+  ],
+  [
+   2561,
+   0
+  ],
+  [
+   2561,
+   0
+  ],
+  [
+   2559,
+   1
+  ],
+  [
+   2559,
+   1
+  ],
+  [
+   2558,
+   1
+  ],
+  [
+   2558,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2593,
+   1
+  ],
+  [
+   2594,
+   1
+  ],
+  [
+   2595,
+   1
+  ],
+  [
+   2596,
+   1
+  ],
+  [
+   2597,
+   1
+  ],
+  [
+   2598,
+   1
+  ],
+  [
+   2599,
+   1
+  ],
+  [
+   2600,
+   1
+  ],
+  [
+   2601,
+   1
+  ],
+  [
+   2598,
+   1
+  ],
+  [
+   2603,
+   1
+  ],
+  [
+   2604,
+   1
+  ],
+  [
+   2605,
+   1
+  ],
+  [
+   2598,
+   1
+  ],
+  [
+   2607,
+   1
+  ],
+  [
+   2608,
+   1
+  ],
+  [
+   2609,
+   1
+  ],
+  [
+   2610,
+   1
+  ],
+  [
+   2611,
+   1
+  ],
+  [
+   2612,
+   1
+  ],
+  [
+   2609,
+   1
+  ],
+  [
+   2614,
+   1
+  ],
+  [
+   2609,
+   1
+  ],
+  [
+   2616,
+   1
+  ],
+  [
+   2617,
+   1
+  ],
+  [
+   2618,
+   1
+  ],
+  [
+   2596,
+   1
+  ],
+  [
+   2596,
+   1
+  ],
+  [
+   2596,
+   0
+  ],
+  [
+   2596,
+   0
+  ],
+  [
+   2594,
+   1
+  ],
+  [
+   2594,
+   1
+  ],
+  [
+   2593,
+   1
+  ],
+  [
+   2593,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2628,
+   1
+  ],
+  [
+   2629,
+   1
+  ],
+  [
+   2630,
+   1
+  ],
+  [
+   2631,
+   1
+  ],
+  [
+   2632,
+   1
+  ],
+  [
+   2633,
+   1
+  ],
+  [
+   2634,
+   1
+  ],
+  [
+   2635,
+   1
+  ],
+  [
+   2636,
+   1
+  ],
+  [
+   2633,
+   1
+  ],
+  [
+   2638,
+   1
+  ],
+  [
+   2639,
+   1
+  ],
+  [
+   2640,
+   1
+  ],
+  [
+   2633,
+   1
+  ],
+  [
+   2642,
+   1
+  ],
+  [
+   2643,
+   1
+  ],
+  [
+   2644,
+   1
+  ],
+  [
+   2645,
+   1
+  ],
+  [
+   2646,
+   1
+  ],
+  [
+   2647,
+   1
+  ],
+  [
+   2644,
+   1
+  ],
+  [
+   2649,
+   1
+  ],
+  [
+   2644,
+   1
+  ],
+  [
+   2651,
+   1
+  ],
+  [
+   2652,
+   1
+  ],
+  [
+   2653,
+   1
+  ],
+  [
+   2631,
+   1
+  ],
+  [
+   2631,
+   1
+  ],
+  [
+   2631,
+   0
+  ],
+  [
+   2631,
+   0
+  ],
+  [
+   2629,
+   1
+  ],
+  [
+   2629,
+   1
+  ],
+  [
+   2628,
+   1
+  ],
+  [
+   2628,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2663,
+   1
+  ],
+  [
+   2664,
+   1
+  ],
+  [
+   2665,
+   1
+  ],
+  [
+   2666,
+   1
+  ],
+  [
+   2667,
+   1
+  ],
+  [
+   2668,
+   1
+  ],
+  [
+   2669,
+   1
+  ],
+  [
+   2670,
+   1
+  ],
+  [
+   2671,
+   1
+  ],
+  [
+   2668,
+   1
+  ],
+  [
+   2673,
+   1
+  ],
+  [
+   2674,
+   1
+  ],
+  [
+   2675,
+   1
+  ],
+  [
+   2668,
+   1
+  ],
+  [
+   2677,
+   1
+  ],
+  [
+   2678,
+   1
+  ],
+  [
+   2679,
+   1
+  ],
+  [
+   2680,
+   1
+  ],
+  [
+   2681,
+   1
+  ],
+  [
+   2682,
+   1
+  ],
+  [
+   2679,
+   1
+  ],
+  [
+   2684,
+   1
+  ],
+  [
+   2679,
+   1
+  ],
+  [
+   2686,
+   1
+  ],
+  [
+   2687,
+   1
+  ],
+  [
+   2688,
+   1
+  ],
+  [
+   2666,
+   1
+  ],
+  [
+   2666,
+   1
+  ],
+  [
+   2666,
+   0
+  ],
+  [
+   2666,
+   0
+  ],
+  [
+   2664,
+   1
+  ],
+  [
+   2664,
+   1
+  ],
+  [
+   2663,
+   1
+  ],
+  [
+   2663,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2698,
+   1
+  ],
+  [
+   2699,
+   1
+  ],
+  [
+   2700,
+   1
+  ],
+  [
+   2701,
+   1
+  ],
+  [
+   2702,
+   1
+  ],
+  [
+   2703,
+   1
+  ],
+  [
+   2704,
+   1
+  ],
+  [
+   2705,
+   1
+  ],
+  [
+   2706,
+   1
+  ],
+  [
+   2703,
+   1
+  ],
+  [
+   2708,
+   1
+  ],
+  [
+   2709,
+   1
+  ],
+  [
+   2710,
+   1
+  ],
+  [
+   2703,
+   1
+  ],
+  [
+   2712,
+   1
+  ],
+  [
+   2713,
+   1
+  ],
+  [
+   2714,
+   1
+  ],
+  [
+   2715,
+   1
+  ],
+  [
+   2716,
+   1
+  ],
+  [
+   2717,
+   1
+  ],
+  [
+   2714,
+   1
+  ],
+  [
+   2719,
+   1
+  ],
+  [
+   2714,
+   1
+  ],
+  [
+   2721,
+   1
+  ],
+  [
+   2722,
+   1
+  ],
+  [
+   2723,
+   1
+  ],
+  [
+   2701,
+   1
+  ],
+  [
+   2701,
+   1
+  ],
+  [
+   2701,
+   0
+  ],
+  [
+   2701,
+   0
+  ],
+  [
+   2699,
+   1
+  ],
+  [
+   2699,
+   1
+  ],
+  [
+   2698,
+   1
+  ],
+  [
+   2698,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2733,
+   1
+  ],
+  [
+   2734,
+   1
+  ],
+  [
+   2735,
+   1
+  ],
+  [
+   2736,
+   1
+  ],
+  [
+   2737,
+   1
+  ],
+  [
+   2738,
+   1
+  ],
+  [
+   2739,
+   1
+  ],
+  [
+   2740,
+   1
+  ],
+  [
+   2741,
+   1
+  ],
+  [
+   2738,
+   1
+  ],
+  [
+   2743,
+   1
+  ],
+  [
+   2744,
+   1
+  ],
+  [
+   2745,
+   1
+  ],
+  [
+   2738,
+   1
+  ],
+  [
+   2747,
+   1
+  ],
+  [
+   2748,
+   1
+  ],
+  [
+   2749,
+   1
+  ],
+  [
+   2750,
+   1
+  ],
+  [
+   2751,
+   1
+  ],
+  [
+   2752,
+   1
+  ],
+  [
+   2749,
+   1
+  ],
+  [
+   2754,
+   1
+  ],
+  [
+   2749,
+   1
+  ],
+  [
+   2756,
+   1
+  ],
+  [
+   2757,
+   1
+  ],
+  [
+   2758,
+   1
+  ],
+  [
+   2736,
+   1
+  ],
+  [
+   2736,
+   1
+  ],
+  [
+   2736,
+   0
+  ],
+  [
+   2736,
+   0
+  ],
+  [
+   2734,
+   1
+  ],
+  [
+   2734,
+   1
+  ],
+  [
+   2733,
+   1
+  ],
+  [
+   2733,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2768,
+   1
+  ],
+  [
+   2769,
+   1
+  ],
+  [
+   2770,
+   1
+  ],
+  [
+   2771,
+   1
+  ],
+  [
+   2772,
+   1
+  ],
+  [
+   2773,
+   1
+  ],
+  [
+   2774,
+   1
+  ],
+  [
+   2775,
+   1
+  ],
+  [
+   2776,
+   1
+  ],
+  [
+   2773,
+   1
+  ],
+  [
+   2778,
+   1
+  ],
+  [
+   2779,
+   1
+  ],
+  [
+   2780,
+   1
+  ],
+  [
+   2773,
+   1
+  ],
+  [
+   2782,
+   1
+  ],
+  [
+   2783,
+   1
+  ],
+  [
+   2784,
+   1
+  ],
+  [
+   2785,
+   1
+  ],
+  [
+   2786,
+   1
+  ],
+  [
+   2787,
+   1
+  ],
+  [
+   2784,
+   1
+  ],
+  [
+   2789,
+   1
+  ],
+  [
+   2784,
+   1
+  ],
+  [
+   2791,
+   1
+  ],
+  [
+   2792,
+   1
+  ],
+  [
+   2793,
+   1
+  ],
+  [
+   2771,
+   1
+  ],
+  [
+   2771,
+   1
+  ],
+  [
+   2771,
+   0
+  ],
+  [
+   2771,
+   0
+  ],
+  [
+   2769,
+   1
+  ],
+  [
+   2769,
+   1
+  ],
+  [
+   2768,
+   1
+  ],
+  [
+   2768,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2803,
+   1
+  ],
+  [
+   2804,
+   1
+  ],
+  [
+   2805,
+   1
+  ],
+  [
+   2806,
+   1
+  ],
+  [
+   2807,
+   1
+  ],
+  [
+   2808,
+   1
+  ],
+  [
+   2809,
+   1
+  ],
+  [
+   2810,
+   1
+  ],
+  [
+   2811,
+   1
+  ],
+  [
+   2808,
+   1
+  ],
+  [
+   2813,
+   1
+  ],
+  [
+   2814,
+   1
+  ],
+  [
+   2815,
+   1
+  ],
+  [
+   2808,
+   1
+  ],
+  [
+   2817,
+   1
+  ],
+  [
+   2818,
+   1
+  ],
+  [
+   2819,
+   1
+  ],
+  [
+   2820,
+   1
+  ],
+  [
+   2821,
+   1
+  ],
+  [
+   2822,
+   1
+  ],
+  [
+   2819,
+   1
+  ],
+  [
+   2824,
+   1
+  ],
+  [
+   2819,
+   1
+  ],
+  [
+   2826,
+   1
+  ],
+  [
+   2827,
+   1
+  ],
+  [
+   2828,
+   1
+  ],
+  [
+   2806,
+   1
+  ],
+  [
+   2806,
+   1
+  ],
+  [
+   2806,
+   0
+  ],
+  [
+   2806,
+   0
+  ],
+  [
+   2804,
+   1
+  ],
+  [
+   2804,
+   1
+  ],
+  [
+   2803,
+   1
+  ],
+  [
+   2803,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2838,
+   1
+  ],
+  [
+   2839,
+   1
+  ],
+  [
+   2840,
+   1
+  ],
+  [
+   2841,
+   1
+  ],
+  [
+   2842,
+   1
+  ],
+  [
+   2843,
+   1
+  ],
+  [
+   2844,
+   1
+  ],
+  [
+   2845,
+   1
+  ],
+  [
+   2846,
+   1
+  ],
+  [
+   2843,
+   1
+  ],
+  [
+   2848,
+   1
+  ],
+  [
+   2849,
+   1
+  ],
+  [
+   2850,
+   1
+  ],
+  [
+   2843,
+   1
+  ],
+  [
+   2852,
+   1
+  ],
+  [
+   2853,
+   1
+  ],
+  [
+   2854,
+   1
+  ],
+  [
+   2855,
+   1
+  ],
+  [
+   2856,
+   1
+  ],
+  [
+   2857,
+   1
+  ],
+  [
+   2854,
+   1
+  ],
+  [
+   2859,
+   1
+  ],
+  [
+   2854,
+   1
+  ],
+  [
+   2861,
+   1
+  ],
+  [
+   2862,
+   1
+  ],
+  [
+   2863,
+   1
+  ],
+  [
+   2841,
+   1
+  ],
+  [
+   2841,
+   1
+  ],
+  [
+   2841,
+   0
+  ],
+  [
+   2841,
+   0
+  ],
+  [
+   2839,
+   1
+  ],
+  [
+   2839,
+   1
+  ],
+  [
+   2838,
+   1
+  ],
+  [
+   2838,
+   0
+  ],
+  [
+   2452,
+   0
+  ],
+  [
+   2873,
+   1
+  ],
+  [
+   2874,
+   1
+  ],
+  [
+   2875,
+   1
+  ],
+  [
+   2876,
+   1
+  ],
+  [
+   2877,
+   1
+  ],
+  [
+   2878,
+   1
+  ],
+  [
+   2879,
+   1
+  ],
+  [
+   2880,
+   1
+  ],
+  [
+   2881,
+   1
+  ],
+  [
+   2878,
+   1
+  ],
+  [
+   2883,
+   1
+  ],
+  [
+   2884,
+   1
+  ],
+  [
+   2885,
+   1
+  ],
+  [
+   2878,
+   1
+  ],
+  [
+   2887,
+   1
+  ],
+  [
+   2888,
+   1
+  ],
+  [
+   2889,
+   1
+  ],
+  [
+   2890,
+   1
+  ],
+  [
+   2891,
+   1
+  ],
+  [
+   2892,
+   1
+  ],
+  [
+   2889,
+   1
+  ],
+  [
+   2894,
+   1
+  ],
+  [
+   2889,
+   1
+  ],
+  [
+   2896,
+   1
+  ],
+  [
+   2897,
+   1
+  ],
+  [
+   2898,
+   1
+  ],
+  [
+   2876,
+   1
+  ],
+  [
+   2876,
+   1
+  ],
+  [
+   2876,
+   0
+  ],
+  [
+   2876,
+   0
+  ],
+  [
+   2874,
+   1
+  ],
+  [
+   2874,
+   1
+  ],
+  [
+   2873,
+   1
+  ],
+  [
+   2873,
+   0
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   2909,
+   1
+  ],
+  [
+   2910,
+   1
+  ],
+  [
+   2911,
+   1
+  ],
+  [
+   2912,
+   1
+  ],
+  [
+   2913,
+   1
+  ],
+  [
+   2914,
+   1
+  ],
+  [
+   2915,
+   1
+  ],
+  [
+   2916,
+   1
+  ],
+  [
+   2917,
+   1
+  ],
+  [
+   2914,
+   1
+  ],
+  [
+   2919,
+   1
+  ],
+  [
+   2920,
+   1
+  ],
+  [
+   2921,
+   1
+  ],
+  [
+   2914,
+   1
+  ],
+  [
+   2923,
+   1
+  ],
+  [
+   2924,
+   1
+  ],
+  [
+   2925,
+   1
+  ],
+  [
+   2926,
+   1
+  ],
+  [
+   2927,
+   1
+  ],
+  [
+   2928,
+   1
+  ],
+  [
+   2925,
+   1
+  ],
+  [
+   2930,
+   1
+  ],
+  [
+   2931,
+   1
+  ],
+  [
+   2925,
+   1
+  ],
+  [
+   2933,
+   1
+  ],
+  [
+   2934,
+   1
+  ],
+  [
+   2935,
+   1
+  ],
+  [
+   2912,
+   0
+  ],
+  [
+   2912,
+   0
+  ],
+  [
+   2912,
+   1
+  ],
+  [
+   2912,
+   1
+  ],
+  [
+   2910,
+   1
+  ],
+  [
+   2910,
+   1
+  ],
+  [
+   2909,
+   1
+  ],
+  [
+   2909,
+   0
+  ],
+  [
+   2909,
+   0
+  ],
+  [
+   2945,
+   1
+  ],
+  [
+   2909,
+   0
+  ],
+  [
+   2909,
+   0
+  ],
+  [
+   2948,
+   1
+  ],
+  [
+   2948,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   2951,
+   1
+  ],
+  [
+   2952,
+   1
+  ],
+  [
+   2953,
+   1
+  ],
+  [
+   2954,
+   1
+  ],
+  [
+   2955,
+   1
+  ],
+  [
+   2956,
+   1
+  ],
+  [
+   2957,
+   1
+  ],
+  [
+   2958,
+   1
+  ],
+  [
+   2959,
+   1
+  ],
+  [
+   2956,
+   1
+  ],
+  [
+   2961,
+   1
+  ],
+  [
+   2962,
+   1
+  ],
+  [
+   2963,
+   1
+  ],
+  [
+   2956,
+   1
+  ],
+  [
+   2965,
+   1
+  ],
+  [
+   2966,
+   1
+  ],
+  [
+   2967,
+   1
+  ],
+  [
+   2968,
+   1
+  ],
+  [
+   2969,
+   1
+  ],
+  [
+   2970,
+   1
+  ],
+  [
+   2967,
+   1
+  ],
+  [
+   2972,
+   1
+  ],
+  [
+   2973,
+   1
+  ],
+  [
+   2967,
+   1
+  ],
+  [
+   2975,
+   1
+  ],
+  [
+   2976,
+   1
+  ],
+  [
+   2977,
+   1
+  ],
+  [
+   2954,
+   0
+  ],
+  [
+   2954,
+   0
+  ],
+  [
+   2954,
+   1
+  ],
+  [
+   2954,
+   1
+  ],
+  [
+   2952,
+   1
+  ],
+  [
+   2952,
+   1
+  ],
+  [
+   2951,
+   1
+  ],
+  [
+   2951,
+   0
+  ],
+  [
+   2951,
+   0
+  ],
+  [
+   2987,
+   1
+  ],
+  [
+   2951,
+   0
+  ],
+  [
+   2951,
+   0
+  ],
+  [
+   2990,
+   1
+  ],
+  [
+   2990,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   2993,
+   1
+  ],
+  [
+   2994,
+   1
+  ],
+  [
+   2995,
+   1
+  ],
+  [
+   2996,
+   1
+  ],
+  [
+   2997,
+   1
+  ],
+  [
+   2998,
+   1
+  ],
+  [
+   2999,
+   1
+  ],
+  [
+   3000,
+   1
+  ],
+  [
+   3001,
+   1
+  ],
+  [
+   2998,
+   1
+  ],
+  [
+   3003,
+   1
+  ],
+  [
+   3004,
+   1
+  ],
+  [
+   3005,
+   1
+  ],
+  [
+   2998,
+   1
+  ],
+  [
+   3007,
+   1
+  ],
+  [
+   3008,
+   1
+  ],
+  [
+   3009,
+   1
+  ],
+  [
+   3010,
+   1
+  ],
+  [
+   3011,
+   1
+  ],
+  [
+   3012,
+   1
+  ],
+  [
+   3009,
+   1
+  ],
+  [
+   3014,
+   1
+  ],
+  [
+   3015,
+   1
+  ],
+  [
+   3009,
+   1
+  ],
+  [
+   3017,
+   1
+  ],
+  [
+   3018,
+   1
+  ],
+  [
+   3019,
+   1
+  ],
+  [
+   2996,
+   0
+  ],
+  [
+   2996,
+   0
+  ],
+  [
+   2996,
+   1
+  ],
+  [
+   2996,
+   1
+  ],
+  [
+   2994,
+   1
+  ],
+  [
+   2994,
+   1
+  ],
+  [
+   2993,
+   1
+  ],
+  [
+   2993,
+   0
+  ],
+  [
+   2993,
+   0
+  ],
+  [
+   3029,
+   1
+  ],
+  [
+   2993,
+   0
+  ],
+  [
+   2993,
+   0
+  ],
+  [
+   3032,
+   1
+  ],
+  [
+   3032,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   3035,
+   1
+  ],
+  [
+   3036,
+   1
+  ],
+  [
+   3037,
+   1
+  ],
+  [
+   3038,
+   1
+  ],
+  [
+   3039,
+   1
+  ],
+  [
+   3040,
+   1
+  ],
+  [
+   3041,
+   1
+  ],
+  [
+   3042,
+   1
+  ],
+  [
+   3043,
+   1
+  ],
+  [
+   3040,
+   1
+  ],
+  [
+   3045,
+   1
+  ],
+  [
+   3046,
+   1
+  ],
+  [
+   3047,
+   1
+  ],
+  [
+   3040,
+   1
+  ],
+  [
+   3049,
+   1
+  ],
+  [
+   3050,
+   1
+  ],
+  [
+   3051,
+   1
+  ],
+  [
+   3052,
+   1
+  ],
+  [
+   3053,
+   1
+  ],
+  [
+   3054,
+   1
+  ],
+  [
+   3051,
+   1
+  ],
+  [
+   3056,
+   1
+  ],
+  [
+   3057,
+   1
+  ],
+  [
+   3051,
+   1
+  ],
+  [
+   3059,
+   1
+  ],
+  [
+   3060,
+   1
+  ],
+  [
+   3061,
+   1
+  ],
+  [
+   3038,
+   0
+  ],
+  [
+   3038,
+   0
+  ],
+  [
+   3038,
+   1
+  ],
+  [
+   3038,
+   1
+  ],
+  [
+   3036,
+   1
+  ],
+  [
+   3036,
+   1
+  ],
+  [
+   3035,
+   1
+  ],
+  [
+   3035,
+   0
+  ],
+  [
+   3035,
+   0
+  ],
+  [
+   3071,
+   1
+  ],
+  [
+   3035,
+   0
+  ],
+  [
+   3035,
+   0
+  ],
+  [
+   3074,
+   1
+  ],
+  [
+   3074,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   3077,
+   1
+  ],
+  [
+   3078,
+   1
+  ],
+  [
+   3079,
+   1
+  ],
+  [
+   3080,
+   1
+  ],
+  [
+   3081,
+   1
+  ],
+  [
+   3082,
+   1
+  ],
+  [
+   3083,
+   1
+  ],
+  [
+   3084,
+   1
+  ],
+  [
+   3085,
+   1
+  ],
+  [
+   3082,
+   1
+  ],
+  [
+   3087,
+   1
+  ],
+  [
+   3088,
+   1
+  ],
+  [
+   3089,
+   1
+  ],
+  [
+   3082,
+   1
+  ],
+  [
+   3091,
+   1
+  ],
+  [
+   3092,
+   1
+  ],
+  [
+   3093,
+   1
+  ],
+  [
+   3094,
+   1
+  ],
+  [
+   3095,
+   1
+  ],
+  [
+   3096,
+   1
+  ],
+  [
+   3093,
+   1
+  ],
+  [
+   3098,
+   1
+  ],
+  [
+   3099,
+   1
+  ],
+  [
+   3093,
+   1
+  ],
+  [
+   3101,
+   1
+  ],
+  [
+   3102,
+   1
+  ],
+  [
+   3103,
+   1
+  ],
+  [
+   3080,
+   0
+  ],
+  [
+   3080,
+   0
+  ],
+  [
+   3080,
+   1
+  ],
+  [
+   3080,
+   1
+  ],
+  [
+   3078,
+   1
+  ],
+  [
+   3078,
+   1
+  ],
+  [
+   3077,
+   1
+  ],
+  [
+   3077,
+   0
+  ],
+  [
+   3077,
+   0
+  ],
+  [
+   3113,
+   1
+  ],
+  [
+   3077,
+   0
+  ],
+  [
+   3077,
+   0
+  ],
+  [
+   3116,
+   1
+  ],
+  [
+   3116,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   3119,
+   1
+  ],
+  [
+   3120,
+   1
+  ],
+  [
+   3121,
+   1
+  ],
+  [
+   3122,
+   1
+  ],
+  [
+   3123,
+   1
+  ],
+  [
+   3124,
+   1
+  ],
+  [
+   3125,
+   1
+  ],
+  [
+   3126,
+   1
+  ],
+  [
+   3127,
+   1
+  ],
+  [
+   3124,
+   1
+  ],
+  [
+   3129,
+   1
+  ],
+  [
+   3130,
+   1
+  ],
+  [
+   3131,
+   1
+  ],
+  [
+   3124,
+   1
+  ],
+  [
+   3133,
+   1
+  ],
+  [
+   3134,
+   1
+  ],
+  [
+   3135,
+   1
+  ],
+  [
+   3136,
+   1
+  ],
+  [
+   3137,
+   1
+  ],
+  [
+   3138,
+   1
+  ],
+  [
+   3135,
+   1
+  ],
+  [
+   3140,
+   1
+  ],
+  [
+   3141,
+   1
+  ],
+  [
+   3135,
+   1
+  ],
+  [
+   3143,
+   1
+  ],
+  [
+   3144,
+   1
+  ],
+  [
+   3145,
+   1
+  ],
+  [
+   3122,
+   0
+  ],
+  [
+   3122,
+   0
+  ],
+  [
+   3122,
+   1
+  ],
+  [
+   3122,
+   1
+  ],
+  [
+   3120,
+   1
+  ],
+  [
+   3120,
+   1
+  ],
+  [
+   3119,
+   1
+  ],
+  [
+   3119,
+   0
+  ],
+  [
+   3119,
+   0
+  ],
+  [
+   3155,
+   1
+  ],
+  [
+   3119,
+   0
+  ],
+  [
+   3119,
+   0
+  ],
+  [
+   3158,
+   1
+  ],
+  [
+   3158,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   3161,
+   1
+  ],
+  [
+   3162,
+   1
+  ],
+  [
+   3163,
+   1
+  ],
+  [
+   3164,
+   1
+  ],
+  [
+   3165,
+   1
+  ],
+  [
+   3166,
+   1
+  ],
+  [
+   3167,
+   1
+  ],
+  [
+   3168,
+   1
+  ],
+  [
+   3169,
+   1
+  ],
+  [
+   3166,
+   1
+  ],
+  [
+   3171,
+   1
+  ],
+  [
+   3172,
+   1
+  ],
+  [
+   3173,
+   1
+  ],
+  [
+   3166,
+   1
+  ],
+  [
+   3175,
+   1
+  ],
+  [
+   3176,
+   1
+  ],
+  [
+   3177,
+   1
+  ],
+  [
+   3178,
+   1
+  ],
+  [
+   3179,
+   1
+  ],
+  [
+   3180,
+   1
+  ],
+  [
+   3177,
+   1
+  ],
+  [
+   3182,
+   1
+  ],
+  [
+   3183,
+   1
+  ],
+  [
+   3177,
+   1
+  ],
+  [
+   3185,
+   1
+  ],
+  [
+   3186,
+   1
+  ],
+  [
+   3187,
+   1
+  ],
+  [
+   3164,
+   0
+  ],
+  [
+   3164,
+   0
+  ],
+  [
+   3164,
+   1
+  ],
+  [
+   3164,
+   1
+  ],
+  [
+   3162,
+   1
+  ],
+  [
+   3162,
+   1
+  ],
+  [
+   3161,
+   1
+  ],
+  [
+   3161,
+   0
+  ],
+  [
+   3161,
+   0
+  ],
+  [
+   3197,
+   1
+  ],
+  [
+   3161,
+   0
+  ],
+  [
+   3161,
+   0
+  ],
+  [
+   3200,
+   1
+  ],
+  [
+   3200,
+   1
+  ],
+  [
+   2908,
+   0
+  ],
+  [
+   3203,
+   1
+  ],
+  [
+   3204,
+   1
+  ],
+  [
+   3205,
+   1
+  ],
+  [
+   3206,
+   1
+  ],
+  [
+   3207,
+   1
+  ],
+  [
+   3208,
+   1
+  ],
+  [
+   3209,
+   1
+  ],
+  [
+   3210,
+   1
+  ],
+  [
+   3211,
+   1
+  ],
+  [
+   3208,
+   1
+  ],
+  [
+   3213,
+   1
+  ],
+  [
+   3214,
+   1
+  ],
+  [
+   3215,
+   1
+  ],
+  [
+   3208,
+   1
+  ],
+  [
+   3217,
+   1
+  ],
+  [
+   3218,
+   1
+  ],
+  [
+   3219,
+   1
+  ],
+  [
+   3220,
+   1
+  ],
+  [
+   3221,
+   1
+  ],
+  [
+   3222,
+   1
+  ],
+  [
+   3219,
+   1
+  ],
+  [
+   3224,
+   1
+  ],
+  [
+   3225,
+   1
+  ],
+  [
+   3219,
+   1
+  ],
+  [
+   3227,
+   1
+  ],
+  [
+   3228,
+   1
+  ],
+  [
+   3229,
+   1
+  ],
+  [
+   3206,
+   0
+  ],
+  [
+   3206,
+   0
+  ],
+  [
+   3206,
+   1
+  ],
+  [
+   3206,
+   1
+  ],
+  [
+   3204,
+   1
+  ],
+  [
+   3204,
+   1
+  ],
+  [
+   3203,
+   1
+  ],
+  [
+   3203,
+   0
+  ],
+  [
+   3203,
+   0
+  ],
+  [
+   3239,
+   1
+  ],
+  [
+   3203,
+   0
+  ],
+  [
+   3203,
+   0
+  ],
+  [
+   3242,
+   1
+  ],
+  [
+   3242,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   3245,
+   1
+  ],
+  [
+   3246,
+   1
+  ],
+  [
+   3247,
+   1
+  ],
+  [
+   3248,
+   0
+  ],
+  [
+   3249,
+   0
+  ],
+  [
+   3249,
+   1
+  ],
+  [
+   3249,
+   1
+  ],
+  [
+   3249,
+   1
+  ],
+  [
+   3249,
+   1
+  ],
+  [
+   3249,
+   1
+  ],
+  [
+   3248,
+   1
+  ],
+  [
+   3256,
+   1
+  ],
+  [
+   3257,
+   1
+  ],
+  [
+   3258,
+   1
+  ],
+  [
+   3259,
+   1
+  ],
+  [
+   3260,
+   1
+  ],
+  [
+   3257,
+   1
+  ],
+  [
+   3262,
+   1
+  ],
+  [
+   3263,
+   1
+  ],
+  [
+   3264,
+   1
+  ],
+  [
+   3257,
+   1
+  ],
+  [
+   3266,
+   1
+  ],
+  [
+   3267,
+   1
+  ],
+  [
+   3268,
+   1
+  ],
+  [
+   3269,
+   1
+  ],
+  [
+   3270,
+   1
+  ],
+  [
+   3271,
+   1
+  ],
+  [
+   3268,
+   1
+  ],
+  [
+   3273,
+   1
+  ],
+  [
+   3274,
+   1
+  ],
+  [
+   3268,
+   1
+  ],
+  [
+   3276,
+   1
+  ],
+  [
+   3277,
+   1
+  ],
+  [
+   3278,
+   1
+  ],
+  [
+   3248,
+   1
+  ],
+  [
+   3248,
+   1
+  ],
+  [
+   3248,
+   0
+  ],
+  [
+   3248,
+   1
+  ],
+  [
+   3283,
+   1
+  ],
+  [
+   3283,
+   0
+  ],
+  [
+   3248,
+   0
+  ],
+  [
+   3248,
+   0
+  ],
+  [
+   3248,
+   0
+  ],
+  [
+   3288,
+   1
+  ],
+  [
+   3288,
+   1
+  ],
+  [
+   3290,
+   1
+  ],
+  [
+   3248,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3292,
+   1
+  ],
+  [
+   3246,
+   1
+  ],
+  [
+   3246,
+   1
+  ],
+  [
+   3246,
+   1
+  ],
+  [
+   3301,
+   1
+  ],
+  [
+   3301,
+   0
+  ],
+  [
+   3245,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   3309,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3312,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3311,
+   0
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3318,
+   1
+  ],
+  [
+   3318,
+   0
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3311,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3326,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3333,
+   1
+  ],
+  [
+   3333,
+   1
+  ],
+  [
+   3335,
+   1
+  ],
+  [
+   3336,
+   1
+  ],
+  [
+   3337,
+   1
+  ],
+  [
+   3337,
+   0
+  ],
+  [
+   3337,
+   0
+  ],
+  [
+   3336,
+   1
+  ],
+  [
+   3333,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3344,
+   1
+  ],
+  [
+   3344,
+   1
+  ],
+  [
+   3346,
+   1
+  ],
+  [
+   3347,
+   1
+  ],
+  [
+   3348,
+   1
+  ],
+  [
+   3348,
+   0
+  ],
+  [
+   3348,
+   0
+  ],
+  [
+   3347,
+   1
+  ],
+  [
+   3344,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3355,
+   1
+  ],
+  [
+   3355,
+   1
+  ],
+  [
+   3357,
+   1
+  ],
+  [
+   3358,
+   1
+  ],
+  [
+   3359,
+   1
+  ],
+  [
+   3359,
+   0
+  ],
+  [
+   3359,
+   0
+  ],
+  [
+   3358,
+   1
+  ],
+  [
+   3355,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3366,
+   1
+  ],
+  [
+   3366,
+   1
+  ],
+  [
+   3368,
+   1
+  ],
+  [
+   3369,
+   1
+  ],
+  [
+   3370,
+   1
+  ],
+  [
+   3370,
+   0
+  ],
+  [
+   3370,
+   0
+  ],
+  [
+   3369,
+   1
+  ],
+  [
+   3366,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3376,
+   1
+  ],
+  [
+   3376,
+   1
+  ],
+  [
+   3378,
+   1
+  ],
+  [
+   3379,
+   1
+  ],
+  [
+   3380,
+   1
+  ],
+  [
+   3380,
+   0
+  ],
+  [
+   3380,
+   0
+  ],
+  [
+   3379,
+   1
+  ],
+  [
+   3376,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3386,
+   1
+  ],
+  [
+   3386,
+   1
+  ],
+  [
+   3388,
+   1
+  ],
+  [
+   3389,
+   1
+  ],
+  [
+   3389,
+   1
+  ],
+  [
+   3386,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3393,
+   1
+  ],
+  [
+   3393,
+   1
+  ],
+  [
+   3395,
+   1
+  ],
+  [
+   3396,
+   1
+  ],
+  [
+   3397,
+   1
+  ],
+  [
+   3397,
+   0
+  ],
+  [
+   3397,
+   1
+  ],
+  [
+   3397,
+   1
+  ],
+  [
+   3396,
+   1
+  ],
+  [
+   3393,
+   1
+  ],
+  [
+   3310,
+   0
+  ],
+  [
+   3404,
+   1
+  ],
+  [
+   3404,
+   1
+  ],
+  [
+   3406,
+   1
+  ],
+  [
+   3407,
+   1
+  ],
+  [
+   3408,
+   1
+  ],
+  [
+   3408,
+   0
+  ],
+  [
+   3408,
+   1
+  ],
+  [
+   3408,
+   1
+  ],
+  [
+   3407,
+   1
+  ],
+  [
+   3404,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3310,
+   1
+  ],
+  [
+   3417,
+   1
+  ],
+  [
+   3417,
+   1
+  ],
+  [
+   3419,
+   1
+  ],
+  [
+   3419,
+   1
+  ],
+  [
+   3309,
+   0
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3423,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3433,
+   1
+  ],
+  [
+   3434,
+   1
+  ],
+  [
+   3434,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3437,
+   1
+  ],
+  [
+   3438,
+   1
+  ],
+  [
+   3438,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3443,
+   1
+  ],
+  [
+   3444,
+   1
+  ],
+  [
+   3444,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3424,
+   1
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3422,
+   1
+  ],
+  [
+   3422,
+   0
+  ],
+  [
+   3456,
+   1
+  ],
+  [
+   3456,
+   1
+  ],
+  [
+   3458,
+   1
+  ],
+  [
+   3459,
+   1
+  ],
+  [
+   3460,
+   1
+  ],
+  [
+   3460,
+   0
+  ],
+  [
+   3460,
+   0
+  ],
+  [
+   3459,
+   1
+  ],
+  [
+   3456,
+   1
+  ],
+  [
+   3422,
+   0
+  ],
+  [
+   3309,
+   0
+  ],
+  [
+   3467,
+   1
+  ],
+  [
+   3467,
+   1
+  ],
+  [
+   3469,
+   1
+  ],
+  [
+   3469,
+   1
+  ],
+  [
+   3469,
+   1
+  ],
+  [
+   3309,
+   0
+  ],
+  [
+   3473,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3478,
+   1
+  ],
+  [
+   3479,
+   1
+  ],
+  [
+   3479,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3474,
+   1
+  ],
+  [
+   3473,
+   1
+  ],
+  [
+   3485,
+   1
+  ],
+  [
+   0,
+   0
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3488,
+   1
+  ],
+  [
+   3489,
+   1
+  ],
+  [
+   3489,
+   1
+  ],
+  [
+   3489,
+   1
+  ],
+  [
+   3492,
+   1
+  ],
+  [
+   3489,
+   0
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3495,
+   1
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3494,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3508,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3507,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   0
+  ],
+  [
+   3541,
+   0
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3541,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3558,
+   1
+  ],
+  [
+   3558,
+   1
+  ],
+  [
+   3558,
+   1
+  ],
+  [
+   3558,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3563,
+   1
+  ],
+  [
+   3564,
+   1
+  ],
+  [
+   3565,
+   1
+  ],
+  [
+   3566,
+   1
+  ],
+  [
+   3565,
+   1
+  ],
+  [
+   3568,
+   0
+  ],
+  [
+   3569,
+   1
+  ],
+  [
+   3570,
+   1
+  ],
+  [
+   3569,
+   1
+  ],
+  [
+   3572,
+   1
+  ],
+  [
+   3569,
+   1
+  ],
+  [
+   3574,
+   1
+  ],
+  [
+   3569,
+   1
+  ],
+  [
+   3576,
+   1
+  ],
+  [
+   3569,
+   1
+  ],
+  [
+   3578,
+   1
+  ],
+  [
+   3568,
+   0
+  ],
+  [
+   3580,
+   1
+  ],
+  [
+   3581,
+   1
+  ],
+  [
+   3580,
+   1
+  ],
+  [
+   3583,
+   1
+  ],
+  [
+   3580,
+   1
+  ],
+  [
+   3585,
+   1
+  ],
+  [
+   3580,
+   1
+  ],
+  [
+   3587,
+   1
+  ],
+  [
+   3580,
+   1
+  ],
+  [
+   3589,
+   1
+  ],
+  [
+   3565,
+   1
+  ],
+  [
+   3564,
+   1
+  ],
+  [
+   3563,
+   1
+  ],
+  [
+   3593,
+   1
+  ],
+  [
+   3593,
+   0
+  ],
+  [
+   3593,
+   0
+  ],
+  [
+   3596,
+   1
+  ],
+  [
+   3597,
+   1
+  ],
+  [
+   3596,
+   1
+  ],
+  [
+   3599,
+   1
+  ],
+  [
+   3600,
+   1
+  ],
+  [
+   3599,
+   1
+  ],
+  [
+   3593,
+   0
+  ],
+  [
+   3593,
+   1
+  ],
+  [
+   3604,
+   1
+  ],
+  [
+   3604,
+   1
+  ],
+  [
+   3563,
+   1
+  ],
+  [
+   3487,
+   0
+  ],
+  [
+   3608,
+   1
+  ],
+  [
+   3608,
+   1
+  ],
+  [
+   3610,
+   1
+  ],
+  [
+   3611,
+   1
+  ],
+  [
+   3612,
+   1
+  ],
+  [
+   3612,
+   0
+  ],
+  [
+   3612,
+   0
+  ],
+  [
+   3611,
+   1
+  ],
+  [
+   3608,
+   1
+  ],
+  [
+   3487,
+   0
+  ],
+  [
+   3487,
+   0
+  ],
+  [
+   3619,
+   1
+  ],
+  [
+   3619,
+   1
+  ],
+  [
+   3621,
+   1
+  ],
+  [
+   3622,
+   1
+  ],
+  [
+   3623,
+   1
+  ],
+  [
+   3623,
+   0
+  ],
+  [
+   3623,
+   0
+  ],
+  [
+   3622,
+   1
+  ],
+  [
+   3619,
+   1
+  ],
+  [
+   3487,
+   0
+  ],
+  [
+   3629,
+   1
+  ],
+  [
+   3629,
+   1
+  ],
+  [
+   3631,
+   1
+  ],
+  [
+   3632,
+   1
+  ],
+  [
+   3632,
+   1
+  ],
+  [
+   3629,
+   1
+  ],
+  [
+   3487,
+   0
+  ],
+  [
+   3636,
+   1
+  ],
+  [
+   3636,
+   1
+  ],
+  [
+   3638,
+   1
+  ],
+  [
+   3639,
+   1
+  ],
+  [
+   3640,
+   1
+  ],
+  [
+   3640,
+   0
+  ],
+  [
+   3640,
+   1
+  ],
+  [
+   3640,
+   1
+  ],
+  [
+   3639,
+   1
+  ],
+  [
+   3636,
+   1
+  ],
+  [
+   3487,
+   1
+  ],
+  [
+   3647,
+   1
+  ],
+  [
+   3647,
+   1
+  ],
+  [
+   3649,
+   1
+  ],
+  [
+   3649,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   3653,
+   1
+  ],
+  [
+   3654,
+   0
+  ],
+  [
+   3655,
+   1
+  ],
+  [
+   3656,
+   1
+  ],
+  [
+   3657,
+   1
+  ],
+  [
+   3656,
+   1
+  ],
+  [
+   3655,
+   1
+  ],
+  [
+   3660,
+   1
+  ],
+  [
+   3661,
+   1
+  ],
+  [
+   3660,
+   1
+  ],
+  [
+   3660,
+   1
+  ],
+  [
+   3660,
+   1
+  ],
+  [
+   3655,
+   0
+  ],
+  [
+   3666,
+   1
+  ],
+  [
+   3666,
+   1
+  ],
+  [
+   3666,
+   1
+  ],
+  [
+   3669,
+   1
+  ],
+  [
+   3669,
+   1
+  ],
+  [
+   3654,
+   0
+  ],
+  [
+   3653,
+   1
+  ],
+  [
+   3673,
+   0
+  ],
+  [
+   3674,
+   1
+  ],
+  [
+   3675,
+   1
+  ],
+  [
+   3676,
+   1
+  ],
+  [
+   3675,
+   1
+  ],
+  [
+   3674,
+   1
+  ],
+  [
+   3679,
+   1
+  ],
+  [
+   3680,
+   1
+  ],
+  [
+   3679,
+   1
+  ],
+  [
+   3679,
+   1
+  ],
+  [
+   3679,
+   1
+  ],
+  [
+   3674,
+   0
+  ],
+  [
+   3685,
+   1
+  ],
+  [
+   3685,
+   1
+  ],
+  [
+   3685,
+   1
+  ],
+  [
+   3688,
+   1
+  ],
+  [
+   3688,
+   1
+  ],
+  [
+   3673,
+   0
+  ],
+  [
+   3653,
+   1
+  ],
+  [
+   3692,
+   0
+  ],
+  [
+   3693,
+   1
+  ],
+  [
+   3694,
+   1
+  ],
+  [
+   3695,
+   1
+  ],
+  [
+   3694,
+   1
+  ],
+  [
+   3693,
+   1
+  ],
+  [
+   3698,
+   1
+  ],
+  [
+   3699,
+   1
+  ],
+  [
+   3698,
+   1
+  ],
+  [
+   3698,
+   1
+  ],
+  [
+   3698,
+   1
+  ],
+  [
+   3693,
+   0
+  ],
+  [
+   3704,
+   1
+  ],
+  [
+   3704,
+   1
+  ],
+  [
+   3704,
+   1
+  ],
+  [
+   3707,
+   1
+  ],
+  [
+   3707,
+   1
+  ],
+  [
+   3692,
+   0
+  ],
+  [
+   3653,
+   1
+  ],
+  [
+   3711,
+   0
+  ],
+  [
+   3712,
+   1
+  ],
+  [
+   3713,
+   1
+  ],
+  [
+   3714,
+   1
+  ],
+  [
+   3713,
+   1
+  ],
+  [
+   3712,
+   1
+  ],
+  [
+   3717,
+   1
+  ],
+  [
+   3718,
+   1
+  ],
+  [
+   3717,
+   1
+  ],
+  [
+   3717,
+   1
+  ],
+  [
+   3717,
+   1
+  ],
+  [
+   3712,
+   0
+  ],
+  [
+   3723,
+   1
+  ],
+  [
+   3723,
+   1
+  ],
+  [
+   3723,
+   1
+  ],
+  [
+   3726,
+   1
+  ],
+  [
+   3726,
+   1
+  ],
+  [
+   3711,
+   0
+  ]
+ ],
+ "names": {
+  "Districtions1": 3309,
+  "Districtions1_1": 3310,
+  "Distriction1_Wall": 3311,
+  "Distriction1_2delete": 3312,
+  "Distriction4_delete ": 3318,
+  "Distriction4_delete": 3470,
+  "Distriction3_delete": 3321,
+  "Distriction2_delete (1)": 3322,
+  "Distriction2_Ground": 3324,
+  "Distriction3_Ground": 3325,
+  "Distriction4_Ground": 3326,
+  "Distriction5_Ground": 3327,
+  "Distriction2_Floor": 3455,
+  "Distriction5_Ground (2)": 3330,
+  "Distriction5_Ground (3)": 3331,
+  "Distriction5_Ground (4)": 3332,
+  "Districtions1_2": 3422,
+  "DistrictionWall": 3474,
+  "Districtions2_Wall": 3424,
+  "Distriction3_Floor": 3468,
+  "Districtions1_3": 3467,
+  "Districtions1_5": 3473,
+  "Distriction4_Floor1": 3485,
+  "Distriction4_Floor2": 3486,
+  "Districtions2": 3487,
+  "Districtions2_Floor1": 3507,
+  "Distriction2_Floor (1)": 3529,
+  "Distriction2_Floor (2)": 3540,
+  "Districtions2_Wall1": 3541,
+  "Distriction1_2delete (3)": 3548,
+  "Distriction1_2delete (5)": 3549,
+  "Distriction1_2delete (6)": 3551,
+  "Distriction1_2delete (4)": 3552,
+  "Distriction1_2delete (7)": 3553,
+  "Distriction1_2delete (8)": 3554,
+  "Distriction1_2delete (9)": 3555,
+  "Distriction1_2delete (10)": 3556,
+  "DistrictionController": 3653
+ },
+ "vip": {
+  "priceRate": 2.0,
+  "sellTimeRate": 0.5,
+  "eatTimeRate": 0.5,
+  "customerRate": 5.0,
+  "carRate": 5.0
+ },
+ "view": {
+  "offset": [
+   -18.0,
+   30.0,
+   18.0
+  ],
+  "ortho": 11.0,
+  "background": [
+   0.61176,
+   0.85098,
+   0.74118
+  ],
+  "lightRot": [
+   -0.408218,
+   0.23457,
+   0.109382,
+   0.875426
+  ],
+  "lightColor": [
+   0.95283,
+   0.89616,
+   0.74159
+  ],
+  "lightIntensity": 1.0,
+  "ambient": [
+   0.83137,
+   0.77647,
+   0.73333
+  ]
+ },
+ "guide": []
+}

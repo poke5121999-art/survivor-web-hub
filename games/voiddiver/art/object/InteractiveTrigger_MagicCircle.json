@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_MagicCircle",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 0,
+    "_coolTime": 0.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/Img_25D_BG_GroundDecal_Portal_1",
+   "mesh": "25DBG_GroundDecal_Portal",
+   "verts": 12,
+   "tris": 10,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.038,
+   0.0,
+   -1.038
+  ],
+  "max": [
+   1.038,
+   0.0,
+   1.038
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_MagicCircle.glb",
+ "glbKB": 67
+}

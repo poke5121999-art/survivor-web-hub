@@ -1,0 +1,211 @@
+/* Chợ Phiên — phát lại trận của run trên chính sân khấu xem trận (BZView + BZReplay, pha 1b).
+   Reducer đã chạy trận (lệnh `fight`) và lưu boards + simOpts trong pha fightResult; ở đây chạy lại
+   BZSim.run(Object.assign({boards}, simOpts)) có khung hình (frames) — cùng seed nên cùng kết quả — rồi phát lại.
+   Không bao giờ đổi trạng thái run: xong trận chỉ gọi onDone để màn kết quả hiện ra.
+   HUD của run ở lại trong trận (FLOW-13, ref fight-start): rương kho, túi vàng + thu nhập, cấp + XP, bánh răng; chỉ mặt đồng hồ
+   giờ/ngày nhường chỗ cho đồng hồ trận (giây + bão cát). Dock: tạm dừng (Space), 1×/2×/3×, tới kết quả (INTERACT-8, MOBILE-7).
+   Bảng cài đặt mở trong trận thì trận dừng, đóng thì chạy tiếp. */
+(function (root) {
+  'use strict';
+  var U = root.BZUI = root.BZUI || {};
+  var V = function () { return root.BZView; }, R = function () { return root.BZRun; }, RP = function () { return root.BZReplay; };
+  var C = U.combat = {};
+  var cur = null; // {res, info, onDone, notified, expect}
+  var dock = null, hovered = null;
+  var SPEED_LS = 'bz.fightSpeed';
+
+  C.active = function () { return !!(cur && cur.playing); };
+  // tên hiển thị của đối thủ: bóng → "Bóng ma của <tên>"
+  U.oppName = function (opp) {
+    if (!opp) return '';
+    if (opp.kind === 'ghost') return 'Bóng ma của ' + String(opp.name || '').replace(/^Ghost of /, '');
+    return opp.name || '';
+  };
+  function monById(id) { return (root.BZ_MONSTERS || []).filter(function (m) { return m.Id === id; })[0] || null; }
+  // Bóng PvP từ bộ dữ liệu (opp.source 'dataset', opp.hero): chân dung của hero đó; bóng dựng từ quái: ảnh quái.
+  // Pha fightResult chỉ giữ {kind, name, monsterId, combatId} của đối thủ (enc-combat.js) → hero lấy từ bàn đã lưu `board.hero`
+  // (review9 UI-5: chân dung bóng trống suốt trận PvP và ở bảng kết quả)
+  C.opponentArt = function (opp, board) {
+    var hero = opp.hero || (opp.kind === 'ghost' && !opp.monsterId && board && board.hero) || null, H = hero && U.HEROES[hero];
+    if (H && (opp.source === 'dataset' || !opp.hero)) return { bg: null, char: H.portrait, store: H.store, hero: hero };
+    var encId = opp.combatId || null;
+    if (!encId && opp.monsterId) { var m = monById(opp.monsterId); encId = m && m.Encounters && m.Encounters[0] && m.Encounters[0].Id; }
+    return { bg: U.art(encId + '_bg'), char: U.art(encId + '_char') };
+  };
+  var KIND_OF = { TActionPlayerDamage: 'damage', TActionPlayerBurnApply: 'burn', TActionPlayerPoisonApply: 'poison', TActionPlayerHeal: 'heal',
+    TActionPlayerShieldApply: 'shield', TActionPlayerRegenApply: 'regen', TActionCardFreeze: 'freeze', TActionCardSlow: 'slow', TActionCardHaste: 'haste' };
+  function primaryKind(tpl, tier) {
+    var blk = root.BZSim.tierBlock(tpl, tier), ids = blk.AbilityIds || [];
+    for (var i = 0; i < ids.length; i++) { var a = tpl.Abilities && tpl.Abilities[ids[i]]; var k = a && a.Action && KIND_OF[a.Action.$type]; if (k) return k; }
+    return 'damage';
+  }
+
+  // start(run, onDone): run.phase là fightResult
+  C.start = function (run, onDone) {
+    var ph = run.phase, BZ = root.BZSim;
+    var res = BZ.run(Object.assign({ boards: R().clone(ph.boards) }, ph.simOpts));
+    var gotWinner = res.winner === 0 ? 'player' : res.winner === 1 ? 'opponent' : 'draw';
+    if (gotWinner !== ph.winner) console.warn('replay winner ' + gotWinner + ' differs from run result ' + ph.winner);
+    var boards = ph.boards, info = { cards: {}, sandstorm: true, sides: [], titleOf: function (tpl) { return R().title(tpl); } }, lists = [[], []], skills = [[], []];
+    V().clearCards(); root.BZTooltip.hide();
+    res.cards.forEach(function (c) {
+      var tpl = BZ.tpl(c.id); if (!tpl) return;
+      var ci = { uid: c.uid, id: c.id, tier: c.tier, ench: c.ench, socket: c.socket, size: c.size, section: c.section };
+      var attrs = {}, lines = [];
+      try { attrs = BZ.attrs(ci, { boards: boards }); } catch (e) { attrs = {}; }
+      try { lines = BZ.cardText(ci, { boards: boards }); } catch (e) { lines = []; }
+      var type = U.typeOf(tpl);
+      var rec = info.cards[c.uid] = {
+        inst: { uid: c.uid, id: c.id, tier: c.tier, size: c.size, ench: c.ench, type: type }, attrs0: attrs, attrs: Object.assign({}, attrs),
+        tier0: c.tier, ench0: c.ench, side: c.owner, section: c.section, kind: primaryKind(tpl, c.tier),
+        tip: { name: R().title(tpl), tier: c.tier, size: tpl.Size, type: type, tags: tpl.Tags || [], lines: lines,
+          cooldown: type === 'Skill' ? 0 : (attrs.CooldownEffective || 0), ammoMax: attrs.AmmoMax || 0, crit: attrs.CritChance || 0, multicast: attrs.Multicast || 1, ench: c.ench }
+      };
+      if (c.section === 'hand') {
+        var el = root.BZCard.create(rec.inst, { h: V().BOARD.cardH, attrs: attrs, side: c.owner });
+        rec.el = el; lists[c.owner].push({ uid: c.uid, el: el, size: c.size, socket: c.socket });
+      } else if (c.section === 'skills') skills[c.owner].push({ uid: c.uid, id: c.id, tier: c.tier, art: U.art(c.id) });
+    });
+    var M = U.HEROES[run.hero] || {}, opp = ph.opponent, oa = C.opponentArt(opp, boards[1]), oname = U.oppName(opp);
+    V().setupHero(0, { name: run.hero, level: run.level, tier: 'Gold', char: M.portrait, skills: skills[0], hpMax: res.players[0].healthMax,
+      rewards: ph.combatType === 'PVE' ? { gold: 0, xp: 0 } : {} });
+    var h0 = V().hero(0); if (h0) h0.art.classList.add('hero-art');
+    V().setupHero(1, { name: oname, level: (boards[1] && boards[1].level) || 1, tier: (ph.opponent.tier) || 'Silver', char: oa.char, bg: oa.bg, skills: skills[1],
+      rewards: plateRewards(ph, false), hpMax: res.players[1].healthMax });
+    var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oa.hero);
+    (V().refs.sides || []).forEach(function (sd) { U.fitText(sd && sd.l.querySelector('.bz-name'), 16, 2); }); // "Bóng ma của <tên>" một dòng (P3-12)
+    V().layoutBoard(0, lists[0]); V().layoutBoard(1, lists[1]);
+    // hai ô cạnh dưới giữ như ngoài trận: rương kho + túi vàng / thu nhập (không đổi sang bố cục trang xem trận)
+    U.hud.mountSides(run);
+    res.players[0].name = run.hero; res.players[1].name = oname;
+    // vo: khoá giọng hero mỗi phe (vo.<vo>.critdamage…); quái không có giọng hero nên để trống (FX-07)
+    info.sides = [{ name: run.hero, vo: U.voOf(run.hero) }, { name: oname, vo: opp && opp.source === 'dataset' && opp.hero ? U.voOf(opp.hero) : null }];
+    U.cards.show(false); U.cards.clearTap();
+    V().refs.stage.classList.add('m-fight');
+    // vào trận: tối rồi sáng lại 0,45 s thay vì cắt cụt (VFX-16, ref fight-start "fade 400")
+    var fin = U.el('div', 'rs-fightin', V().refs.overlay); setTimeout(function () { fin.remove(); }, 600);
+    root.BZFX.clear();
+    RP().load(res, info);
+    var sp = 1; try { sp = +root.localStorage.getItem(SPEED_LS) || 1; } catch (e) { sp = 1; }
+    RP().setSpeed(Math.max(1, Math.min(3, sp)));
+    RP().pause(false);
+    RP().onChange = refreshDock;
+    cur = { res: res, info: info, onDone: onDone, notified: false, playing: true, expect: ph.winner, got: gotWinner, ph: ph };
+    // FX-20: PvE và PvP cùng bật nhạc trận của hero (SoundManager.cs:788-802); music.pve chỉ là dự phòng khi thiếu bài của hero
+    var A = root.BZAudio; if (A) A.music(C.battleMusic(run.hero), 1);
+    C.intensity = 0; if (A && A.setIntensity) A.setIntensity(0);
+    C.lastLifeVo(run);
+    U.sfx('trans.combat');
+    buildDock(); dock.style.display = '';
+    refreshDock();
+  };
+  // Tấm "Phần thưởng" của quái (P1-10 / P3-4): trong trận hiện phần thưởng quái treo (như lúc xem trước, WIKI §1.5);
+  // phase fightResult đã mang phần thật (thua = lossRewards) nên chỉ đổi sang số đó khi trận phát xong — không lộ kết quả từ giây 0.
+  function plateRewards(ph, done) {
+    if (ph.combatType === 'PVP') return {};
+    if (done) return ph.rewards || {};
+    var o = ph.opponent || {}, c = o.combatId && root.BZ_ENCOUNTERS && root.BZ_ENCOUNTERS.combats[o.combatId];
+    return o.rewards || (c ? { gold: c.Gold, xp: c.XpReward } : ph.rewards || {}); // fightResult cũ chỉ giữ combatId: tra lại phần thưởng quái
+  }
+  function setPlate(done) {
+    var side = V().refs.sides && V().refs.sides[1], rw = cur && plateRewards(cur.ph, done);
+    if (!side || !rw) return;
+    var v = side.r.querySelectorAll('.bz-reward span');
+    if (v[0]) v[0].textContent = rw.gold || 0;
+    if (v[1]) v[1].textContent = rw.xp || 0;
+  }
+  C.battleMusic = function (hero) {
+    var k = 'music.battle.' + U.voOf(hero), A = root.BZAudio;
+    return A && A.has && A.has(k) ? k : 'music.pve';
+  };
+  // FX-07: OnLastLife — đúng một lần khi uy tín về 1 sau khi đã qua Số phận (SoundEventListener.cs:828-835), phát khi vào trận kế tiếp
+  var lastLifeSaid = null;
+  C.lastLifeVo = function (run) {
+    if (!run || !run.fatesUsed) { lastLifeSaid = null; return; }
+    var id = String(run.seed != null ? run.seed : run.hero) + '|' + run.hero;
+    if (run.prestige !== 1 || lastLifeSaid === id) return;
+    lastLifeSaid = id;
+    setTimeout(function () { U.heroVo('lastlife'); }, 1200);
+  };
+  // FX-06: cường độ nhạc trận theo máu trung bình hai bên (luật gốc ở RP.musicIntensity); BZAudio.setIntensity do nhánh data2 thêm — thiếu thì bỏ qua
+  C.intensity = 0;
+  function pushIntensity(S) {
+    var A = root.BZAudio; if (!A || !A.setIntensity || !S || S.done) return;
+    var f = RP().frameAt(S.t), p0 = f.p[0], p1 = f.p[1], num = ((p0[0] / (p0[7] || 1)) + (p1[0] / (p1[7] || 1))) / 2;
+    var n = RP().musicIntensity(num, C.intensity, S.slowMode > 0 && S.slowMode < 4);
+    if (n !== C.intensity) { C.intensity = n; A.setIntensity(n); }
+  }
+  C.step = function (dt, now) {
+    if (!cur) return;
+    RP().step(dt, now);
+    var S = RP().state();
+    pushIntensity(S);
+    if (S && S.done && !cur.notified) { cur.notified = true; setPlate(true); refreshDock(); if (cur.onDone) cur.onDone(); }
+  };
+  C.restart = function () { if (cur) { cur.notified = false; setPlate(false); RP().restart(); if (dock) dock.classList.remove('done'); refreshDock(); } };
+  C.skip = function () { if (cur && cur.playing) { RP().pause(false); RP().skip(); } };
+  // tạm dừng / chạy tiếp (Space, nút dock, bảng cài đặt). on: true/false/undefined = đảo
+  C.paused = function () { var S = RP().state(); return !!(cur && S && S.paused); };
+  C.pause = function (on) { if (!cur) return false; var S = RP().state(); if (!S || S.done) return false; RP().pause(on); refreshDock(); return true; };
+  // stop(): dỡ trận, trả sân cho run
+  C.stop = function () {
+    if (!cur) return;
+    cur.playing = false; cur = null;
+    V().clearCards(); root.BZFX.clear(); root.BZTooltip.hide();
+    // khung khiên vàng / khung + viền nộ của trận không được ở lại sang loot, lên cấp, thương nhân (VFX-3): đưa khiên + nộ về 0 qua updateHero
+    [0, 1].forEach(function (s) { var h = V().hero(s); if (h && h.v) V().updateHero(s, { health: h.v.health || 1, healthMax: h.v.healthMax || 1, shield: 0, enragedMs: 0 }, U.now()); });
+    V().hideBanner(true); [0, 1].forEach(function (s) { V().setDead(s, false); V().crown(s, false); }); V().sand(false);
+    if (hovered) { hovered = null; }
+    V().refs.stage.classList.remove('m-fight');
+    if (dock) { dock.style.display = 'none'; dock.classList.remove('done'); }
+    RP().onChange = null;
+    U.cards.show(true); U.hud.show(true);
+    U.hud.mountHero(U.state.run, true);
+  };
+  C.info = function () {
+    var S = RP().state();
+    return { active: C.active(), t: S ? S.t : 0, endMs: S ? S.endMs : 0, done: S ? S.done : false, got: cur ? cur.got : null, expect: cur ? cur.expect : null };
+  };
+
+  var PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+  function buildDock() {
+    if (dock) return;
+    dock = U.el('div', 'rs-fightdock', V().refs.overlay);
+    U.button(dock, 'pz', PAUSE, 'Tạm dừng / chạy tiếp (Space)', function () { C.pause(); });
+    [1, 2, 3].forEach(function (x) {
+      var b = U.button(dock, 'sp', x + '×', 'Tốc độ ' + x + '×', function () { RP().setSpeed(x); RP().pause(false); try { root.localStorage.setItem(SPEED_LS, x); } catch (e) { /* bỏ qua */ } refreshDock(); });
+      b.dataset.sp = x;
+    });
+    U.button(dock, 'skip', '<svg viewBox="0 0 24 24"><path d="M4 5v14l9-7zM13 5v14l9-7z"/></svg><span>Tới kết quả</span>', 'Bỏ qua tới kết quả (End)', function () { C.skip(); });
+    // hover thẻ trong trận: tooltip như trang xem trận
+    var layer = V().refs.cardLayer;
+    layer.addEventListener('pointermove', function (ev) {
+      if (!cur || ev.pointerType === 'touch') return;
+      var el = ev.target.closest && ev.target.closest('.bz-card'); setHov(el);
+    });
+    // cảm ứng: Chromium bắn pointerleave ngay sau pointerup → không được tắt tooltip vừa chạm mở (MOBILE-1)
+    layer.addEventListener('pointerleave', function (ev) { if (ev.pointerType !== 'touch') setHov(null); });
+    layer.addEventListener('pointerdown', function (ev) {
+      if (!cur || ev.pointerType !== 'touch') return;
+      var el = ev.target.closest && ev.target.closest('.bz-card'); setHov(el === hovered ? null : el);
+    });
+  }
+  C.clearHover = function () { setHov(null); };
+  function setHov(el) {
+    var now = U.now();
+    if (hovered && hovered !== el) { root.BZCard.setHover(hovered, false, now); root.BZTooltip.hide(); }
+    hovered = el || null;
+    if (!el || !cur) return;
+    root.BZCard.setHover(el, true, now);
+    var ci = cur.info.cards[el.dataset.uid];
+    if (ci) root.BZTooltip.show(ci.tip, { x: parseFloat(el.style.left), y: parseFloat(el.style.top) - 10, w: el._bz.w, h: el._bz.h });
+  }
+  function refreshDock() {
+    var S = RP().state(); if (!dock || !S) return;
+    Array.prototype.forEach.call(dock.querySelectorAll('.sp'), function (b) { b.classList.toggle('on', +b.dataset.sp === S.speed); });
+    var pz = dock.querySelector('.pz'); if (pz) { pz.innerHTML = S.paused ? PLAY : PAUSE; pz.classList.toggle('on', !!S.paused); }
+    dock.classList.toggle('paused', !!S.paused);
+    // trận xong: ẩn dock (MOBILE-23); "Xem lại" bật lại
+    dock.classList.toggle('done', !!(S.done && cur && cur.notified));
+  }
+})(window);

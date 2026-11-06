@@ -1,0 +1,105 @@
+{
+ "name": "Monster_Zealot",
+ "skeletons": {
+  "Monster_Zealot_SW": {
+   "skel": "Monster_Zealot_SW.skel",
+   "bytes": 72288,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_Zealot_NW": {
+   "skel": "Monster_Zealot_NW.skel",
+   "bytes": 61270,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_Zealot.atlas",
+ "pages": [
+  {
+   "png": "Monster_Zealot.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Zealot_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "310005": {
+   "sym": 1.36,
+   "mode": 2,
+   "sk": 1.5,
+   "bsx": 1.5,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200007": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310004": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "220007": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "210007": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240007": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

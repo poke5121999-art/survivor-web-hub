@@ -1,0 +1,3024 @@
+{
+ "images": {
+  "bg_title": {
+   "file": "art/bg_title.png",
+   "w": 480,
+   "h": 800,
+   "src": "bg_dstitle.png"
+  },
+  "logo": {
+   "file": "art/logo.png",
+   "w": 380,
+   "h": 512,
+   "src": "logo(380x256).png",
+   "fw": 380,
+   "fh": 256,
+   "cols": 1,
+   "frames": 2
+  },
+  "bg_d_16": {
+   "file": "art/bg_d_16.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_16(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_01": {
+   "file": "art/bg_d_01.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_01(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_t_01": {
+   "file": "art/bg_t_01.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_01(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "bg_top": {
+   "file": "art/bg_top.png",
+   "w": 128,
+   "h": 180,
+   "src": "bg_top(480x180).png",
+   "dw": 480,
+   "dh": 180
+  },
+  "bg_bottom": {
+   "file": "art/bg_bottom.png",
+   "w": 128,
+   "h": 140,
+   "src": "bg_bottom(480x140).png",
+   "dw": 480,
+   "dh": 140
+  },
+  "m_goblin_swordman": {
+   "file": "art/m_goblin_swordman.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_swordman_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_wolf": {
+   "file": "art/m_wolf.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_wolf_01(110x85).png",
+   "fw": 110,
+   "fh": 85,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_goblin_archer": {
+   "file": "art/m_goblin_archer.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_archer_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_goblin_flag": {
+   "file": "art/m_goblin_flag.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_flag_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_goblin_shaman": {
+   "file": "art/m_goblin_shaman.png",
+   "w": 220,
+   "h": 512,
+   "src": "M_goblin_shaman_01(110x85).png",
+   "fw": 110,
+   "fh": 85,
+   "cols": 2,
+   "frames": 12
+  },
+  "m_archer_arrow": {
+   "file": "art/m_archer_arrow.png",
+   "w": 56,
+   "h": 16,
+   "src": "M_archer_arrow(56x16).png",
+   "dw": 56,
+   "dh": 16
+  },
+  "m_grimlock_warrior": {
+   "file": "art/m_grimlock_warrior.png",
+   "w": 256,
+   "h": 512,
+   "src": "M_grimlock_warrior_01(124x85).png",
+   "fw": 124,
+   "fh": 85,
+   "cols": 2,
+   "frames": 12
+  },
+  "m_grimlock_spear": {
+   "file": "art/m_grimlock_spear.png",
+   "w": 256,
+   "h": 512,
+   "src": "M_grimlock_spear_01(124x85).png",
+   "fw": 124,
+   "fh": 85,
+   "cols": 2,
+   "frames": 12
+  },
+  "m_ogre": {
+   "file": "art/m_ogre.png",
+   "w": 360,
+   "h": 470,
+   "src": "M_ogre_01(180x94).png",
+   "fw": 180,
+   "fh": 94,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_mandrake": {
+   "file": "art/m_mandrake.png",
+   "w": 360,
+   "h": 470,
+   "src": "M_mandrake_01(180x94).png",
+   "fw": 180,
+   "fh": 94,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_mandrake_arrow": {
+   "file": "art/m_mandrake_arrow.png",
+   "w": 441,
+   "h": 196,
+   "src": "M_mandrake_arrow(147x98).png",
+   "fw": 147,
+   "fh": 98,
+   "cols": 3,
+   "frames": 6
+  },
+  "m_darktree": {
+   "file": "art/m_darktree.png",
+   "w": 435,
+   "h": 271,
+   "src": "M_darktree_01(435x271).png",
+   "dw": 435,
+   "dh": 271
+  },
+  "m_darktree_arm": {
+   "file": "art/m_darktree_arm.png",
+   "w": 256,
+   "h": 100,
+   "src": "M_darktree_01_arrow(256x100).png",
+   "dw": 256,
+   "dh": 100
+  },
+  "m_bat_01": {
+   "file": "art/m_bat_01.png",
+   "w": 180,
+   "h": 270,
+   "src": "M_bat_01(90x54).png",
+   "fw": 90,
+   "fh": 54,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_bat_02": {
+   "file": "art/m_bat_02.png",
+   "w": 180,
+   "h": 270,
+   "src": "M_bat_02(90x54).png",
+   "fw": 90,
+   "fh": 54,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_skell_warrior": {
+   "file": "art/m_skell_warrior.png",
+   "w": 220,
+   "h": 518,
+   "src": "M_skell_warrior_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 14
+  },
+  "m_skell_archer": {
+   "file": "art/m_skell_archer.png",
+   "w": 220,
+   "h": 518,
+   "src": "M_skell_archer_01(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 14
+  },
+  "m_mummy": {
+   "file": "art/m_mummy.png",
+   "w": 256,
+   "h": 470,
+   "src": "M_mummy(128x94).png",
+   "fw": 128,
+   "fh": 94,
+   "cols": 2,
+   "frames": 10
+  },
+  "m_mummy_arrow": {
+   "file": "art/m_mummy_arrow.png",
+   "w": 82,
+   "h": 41,
+   "src": "M_mummy_arrow(41x41).png",
+   "fw": 41,
+   "fh": 41,
+   "cols": 2,
+   "frames": 2
+  },
+  "m_lich": {
+   "file": "art/m_lich.png",
+   "w": 248,
+   "h": 512,
+   "src": "M_lich(124x85).png",
+   "fw": 124,
+   "fh": 85,
+   "cols": 2,
+   "frames": 12
+  },
+  "eff_dark": {
+   "file": "art/eff_dark.png",
+   "w": 480,
+   "h": 800,
+   "src": "eff_dark(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "bg_d_09": {
+   "file": "art/bg_d_09.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_09(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_12": {
+   "file": "art/bg_d_12.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_12(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_13": {
+   "file": "art/bg_d_13.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_13(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_17": {
+   "file": "art/bg_d_17.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_17(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_18": {
+   "file": "art/bg_d_18.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_18(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_d_19": {
+   "file": "art/bg_d_19.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_19(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_t_02": {
+   "file": "art/bg_t_02.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_02(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "bg_t_05": {
+   "file": "art/bg_t_05.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_05(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "bg_t_08": {
+   "file": "art/bg_t_08.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_08(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "map_00_02": {
+   "file": "art/map_00_02.jpg",
+   "w": 480,
+   "h": 1024,
+   "src": "map_00_02(480x1024).jpg",
+   "dw": 480,
+   "dh": 1024
+  },
+  "bg_d_02": {
+   "file": "art/bg_d_02.jpg",
+   "w": 240,
+   "h": 230,
+   "src": "bg_d_02(480x460).jpg",
+   "dw": 480,
+   "dh": 460
+  },
+  "bg_t_07": {
+   "file": "art/bg_t_07.png",
+   "w": 480,
+   "h": 424,
+   "src": "bg_t_07(480x424).png",
+   "dw": 480,
+   "dh": 424
+  },
+  "board_hp_boss": {
+   "file": "art/board_hp_boss.png",
+   "w": 366,
+   "h": 22,
+   "src": "in_board_hp_boss(366x22).png",
+   "dw": 366,
+   "dh": 22
+  },
+  "gauge_hp_boss": {
+   "file": "art/gauge_hp_boss.png",
+   "w": 350,
+   "h": 6,
+   "src": "gauge_hp_boss(350x6).png",
+   "dw": 350,
+   "dh": 6
+  },
+  "eff_alert": {
+   "file": "art/eff_alert.png",
+   "w": 100,
+   "h": 100,
+   "src": "in_eff_alert(100x100).png",
+   "dw": 100,
+   "dh": 100
+  },
+  "eff_warning_wolf": {
+   "file": "art/eff_warning_wolf.png",
+   "w": 64,
+   "h": 64,
+   "src": "in_eff_warning_wolf(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
+  "eff_warning": {
+   "file": "art/eff_warning.png",
+   "w": 32,
+   "h": 32,
+   "src": "in_eff_warning(32x32).png",
+   "dw": 32,
+   "dh": 32
+  },
+  "gauge_monster": {
+   "file": "art/gauge_monster.png",
+   "w": 44,
+   "h": 12,
+   "src": "gauge_monster(44x6).png",
+   "fw": 44,
+   "fh": 6,
+   "cols": 1,
+   "frames": 2
+  },
+  "eff_flash01": {
+   "file": "art/eff_flash01.png",
+   "w": 128,
+   "h": 128,
+   "src": "Eff_Flash_01(512x512).png",
+   "dw": 512,
+   "dh": 512
+  },
+  "icon_clear_bonus": {
+   "file": "art/icon_clear_bonus.png",
+   "w": 64,
+   "h": 64,
+   "src": "icon_clear_bonus(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
+  "eff_itembox": {
+   "file": "art/eff_itembox.png",
+   "w": 512,
+   "h": 512,
+   "src": "eff_itembox.png",
+   "fw": 256,
+   "fh": 256,
+   "cols": 2,
+   "frames": 4
+  },
+  "icon_select": {
+   "file": "art/icon_select.png",
+   "w": 64,
+   "h": 64,
+   "src": "icon_select(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
+  "eff_flash03": {
+   "file": "art/eff_flash03.png",
+   "w": 128,
+   "h": 128,
+   "src": "Eff_Flash_03(512x512).png",
+   "dw": 512,
+   "dh": 512
+  },
+  "icon_reward": {
+   "file": "art/icon_reward.png",
+   "w": 384,
+   "h": 384,
+   "src": "icon_reward(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 3,
+   "frames": 7
+  },
+  "storm_sword": {
+   "file": "art/storm_sword.png",
+   "w": 35,
+   "h": 58,
+   "src": "bullert_sword(35x58).png",
+   "dw": 35,
+   "dh": 58
+  },
+  "board_target": {
+   "file": "art/board_target.png",
+   "w": 186,
+   "h": 102,
+   "src": "in_board_target(186x102).png",
+   "dw": 186,
+   "dh": 102
+  },
+  "board_score": {
+   "file": "art/board_score.png",
+   "w": 282,
+   "h": 86,
+   "src": "in_board_score(282x86).png",
+   "dw": 282,
+   "dh": 86
+  },
+  "gauge_score": {
+   "file": "art/gauge_score.png",
+   "w": 256,
+   "h": 12,
+   "src": "gauge_score(256x12).png",
+   "dw": 256,
+   "dh": 12
+  },
+  "star_small": {
+   "file": "art/star_small.png",
+   "w": 46,
+   "h": 72,
+   "src": "icon_star_small(46x24).png",
+   "fw": 46,
+   "fh": 24,
+   "cols": 1,
+   "frames": 3
+  },
+  "board_hp": {
+   "file": "art/board_hp.png",
+   "w": 96,
+   "h": 22,
+   "src": "in_board_hp(96x22).png",
+   "dw": 96,
+   "dh": 22
+  },
+  "gauge_hp": {
+   "file": "art/gauge_hp.png",
+   "w": 80,
+   "h": 6,
+   "src": "gauge_hp(80x6).png",
+   "dw": 80,
+   "dh": 6
+  },
+  "btn_left": {
+   "file": "art/btn_left.png",
+   "w": 114,
+   "h": 186,
+   "src": "btn_left(140x200).png",
+   "dw": 140,
+   "dh": 200
+  },
+  "btn_right": {
+   "file": "art/btn_right.png",
+   "w": 114,
+   "h": 186,
+   "src": "btn_right(140x200).png",
+   "dw": 140,
+   "dh": 200
+  },
+  "btn_ring": {
+   "file": "art/btn_ring.png",
+   "w": 128,
+   "h": 128,
+   "src": "btn_skill(128x128).png",
+   "dw": 128,
+   "dh": 128
+  },
+  "icon_skill": {
+   "file": "art/icon_skill.png",
+   "w": 256,
+   "h": 256,
+   "src": "icon_skill(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 6
+  },
+  "icon_skill_all": {
+   "file": "art/icon_skill_all.png",
+   "w": 128,
+   "h": 64,
+   "src": "icon_skill_all(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 2,
+   "frames": 2
+  },
+  "item_slot": {
+   "file": "art/item_slot.png",
+   "w": 224,
+   "h": 102,
+   "src": "btn_item_bg(112x102).png",
+   "fw": 112,
+   "fh": 102,
+   "cols": 2,
+   "frames": 2
+  },
+  "icons": {
+   "file": "art/icons.png",
+   "w": 256,
+   "h": 1024,
+   "src": "icon_main_menu(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 64
+  },
+  "icon_bag": {
+   "file": "art/icon_bag.png",
+   "w": 96,
+   "h": 32,
+   "src": "icon_bag(32x32).png",
+   "fw": 32,
+   "fh": 32,
+   "cols": 3,
+   "frames": 3
+  },
+  "btn_option": {
+   "file": "art/btn_option.png",
+   "w": 250,
+   "h": 100,
+   "src": "btn_option(50x50).png",
+   "fw": 50,
+   "fh": 50,
+   "cols": 5,
+   "frames": 10
+  },
+  "btn_r": {
+   "file": "art/btn_r.png",
+   "w": 214,
+   "h": 64,
+   "src": "btn_r(214x64).png",
+   "dw": 214,
+   "dh": 64
+  },
+  "btn_long": {
+   "file": "art/btn_long.png",
+   "w": 474,
+   "h": 60,
+   "src": "btn_long(474x60).png",
+   "dw": 474,
+   "dh": 60
+  },
+  "no_score": {
+   "file": "art/no_score.png",
+   "w": 260,
+   "h": 36,
+   "src": "no_score(26x36).png",
+   "fw": 26,
+   "fh": 36,
+   "cols": 10,
+   "frames": 10
+  },
+  "no_combo": {
+   "file": "art/no_combo.png",
+   "w": 240,
+   "h": 32,
+   "src": "no_combo(24x32).png",
+   "fw": 24,
+   "fh": 32,
+   "cols": 10,
+   "frames": 10
+  },
+  "no_r": {
+   "file": "art/no_r.png",
+   "w": 160,
+   "h": 20,
+   "src": "no_r(16x20).png",
+   "fw": 16,
+   "fh": 20,
+   "cols": 10,
+   "frames": 10
+  },
+  "eff_combo": {
+   "file": "art/eff_combo.png",
+   "w": 70,
+   "h": 24,
+   "src": "in_eff_combo(70x24).png",
+   "dw": 70,
+   "dh": 24
+  },
+  "eff_critical": {
+   "file": "art/eff_critical.png",
+   "w": 170,
+   "h": 54,
+   "src": "in_eff_perfect(170x54).png",
+   "dw": 170,
+   "dh": 54
+  },
+  "text_round": {
+   "file": "art/text_round.png",
+   "w": 220,
+   "h": 192,
+   "src": "text_round(220x48).png",
+   "fw": 220,
+   "fh": 48,
+   "cols": 1,
+   "frames": 4
+  },
+  "text_result": {
+   "file": "art/text_result.png",
+   "w": 340,
+   "h": 180,
+   "src": "in_text_result(340x60).png",
+   "fw": 340,
+   "fh": 60,
+   "cols": 1,
+   "frames": 3
+  },
+  "popup_result": {
+   "file": "art/popup_result.png",
+   "w": 480,
+   "h": 512,
+   "src": "popup_00_result(480x512).png",
+   "dw": 480,
+   "dh": 512
+  },
+  "result_star": {
+   "file": "art/result_star.png",
+   "w": 150,
+   "h": 75,
+   "src": "in_result_star(75x75).png",
+   "fw": 75,
+   "fh": 75,
+   "cols": 2,
+   "frames": 2
+  },
+  "eff_hit": {
+   "file": "art/eff_hit.png",
+   "w": 256,
+   "h": 256,
+   "src": "in_eff_hit(128x128).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 12
+  },
+  "eff_die": {
+   "file": "art/eff_die.png",
+   "w": 256,
+   "h": 256,
+   "src": "in_eff_die(128x128).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 12
+  },
+  "eff_pang": {
+   "file": "art/eff_pang.png",
+   "w": 256,
+   "h": 256,
+   "src": "in_eff_pang(128x128).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 13
+  },
+  "map_00_01": {
+   "file": "art/map_00_01.jpg",
+   "w": 480,
+   "h": 1024,
+   "src": "map_00_01(480x1024).jpg",
+   "dw": 480,
+   "dh": 1024
+  },
+  "btn_stage": {
+   "file": "art/btn_stage.png",
+   "w": 512,
+   "h": 584,
+   "src": "btn_stage_00(72x72).png",
+   "fw": 73,
+   "fh": 73,
+   "cols": 7,
+   "frames": 56
+  },
+  "star_map": {
+   "file": "art/star_map.png",
+   "w": 70,
+   "h": 90,
+   "src": "icon_star_map(70x30).png",
+   "fw": 70,
+   "fh": 30,
+   "cols": 1,
+   "frames": 3
+  },
+  "chapter_tab": {
+   "file": "art/chapter_tab.png",
+   "w": 160,
+   "h": 320,
+   "src": "chapter_tab(80x64).png",
+   "fw": 80,
+   "fh": 64,
+   "cols": 2,
+   "frames": 10
+  },
+  "icon_mode": {
+   "file": "art/icon_mode.png",
+   "w": 64,
+   "h": 96,
+   "src": "icon_mode(64x32).png",
+   "fw": 64,
+   "fh": 32,
+   "cols": 1,
+   "frames": 3
+  },
+  "lock_tab": {
+   "file": "art/lock_tab.png",
+   "w": 96,
+   "h": 74,
+   "src": "lock_bg_btn_r(96x74).png",
+   "dw": 96,
+   "dh": 74
+  },
+  "popup_prep": {
+   "file": "art/popup_prep.png",
+   "w": 480,
+   "h": 512,
+   "src": "popup_00(480x512).png",
+   "dw": 480,
+   "dh": 512
+  },
+  "bg_upgrade": {
+   "file": "art/bg_upgrade.png",
+   "w": 448,
+   "h": 228,
+   "src": "bg_upgrade(448x228).png",
+   "dw": 448,
+   "dh": 228
+  },
+  "btn_upgrade": {
+   "file": "art/btn_upgrade.png",
+   "w": 128,
+   "h": 128,
+   "src": "btn_upgrade(128x128).png",
+   "dw": 128,
+   "dh": 128
+  },
+  "icon_sword": {
+   "file": "art/icon_sword.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_01(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_armor": {
+   "file": "art/icon_armor.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_01(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "lock_items": {
+   "file": "art/lock_items.png",
+   "w": 450,
+   "h": 184,
+   "src": "lock_bg_booster(450x184).png",
+   "dw": 450,
+   "dh": 184
+  },
+  "item_row": {
+   "file": "art/item_row.png",
+   "w": 450,
+   "h": 90,
+   "src": "item_slot(450x90).png",
+   "dw": 450,
+   "dh": 90
+  },
+  "booster_red": {
+   "file": "art/booster_red.png",
+   "w": 88,
+   "h": 80,
+   "src": "btn_booster(88x86).png",
+   "dw": 88,
+   "dh": 86
+  },
+  "booster_select": {
+   "file": "art/booster_select.png",
+   "w": 90,
+   "h": 82,
+   "src": "btn_booster_select(90x88).png",
+   "dw": 90,
+   "dh": 88
+  },
+  "btn_mode": {
+   "file": "art/btn_mode.png",
+   "w": 152,
+   "h": 120,
+   "src": "btn_mode(76x60).png",
+   "fw": 76,
+   "fh": 60,
+   "cols": 2,
+   "frames": 4
+  },
+  "icon_check": {
+   "file": "art/icon_check.png",
+   "w": 32,
+   "h": 32,
+   "src": "icon_check(32x32).png",
+   "dw": 32,
+   "dh": 32
+  },
+  "btn_menu": {
+   "file": "art/btn_menu.png",
+   "w": 120,
+   "h": 64,
+   "src": "btn_menu(120x64).png",
+   "dw": 120,
+   "dh": 64
+  },
+  "btn_more": {
+   "file": "art/btn_more.png",
+   "w": 64,
+   "h": 42,
+   "src": "btn_more(64x42).png",
+   "dw": 64,
+   "dh": 42
+  },
+  "btn_r180": {
+   "file": "art/btn_r180.png",
+   "w": 180,
+   "h": 50,
+   "src": "btn_r(180x50).png",
+   "dw": 180,
+   "dh": 50
+  },
+  "shop_bg": {
+   "file": "art/shop_bg.png",
+   "w": 480,
+   "h": 800,
+   "src": "shop_bg(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "list_shop": {
+   "file": "art/list_shop.png",
+   "w": 444,
+   "h": 68,
+   "src": "bg_list_shop(444x68).png",
+   "dw": 444,
+   "dh": 68
+  },
+  "board_money": {
+   "file": "art/board_money.png",
+   "w": 444,
+   "h": 52,
+   "src": "board_money(222x52).png",
+   "fw": 222,
+   "fh": 52,
+   "cols": 2,
+   "frames": 2
+  },
+  "icon_gem": {
+   "file": "art/icon_gem.png",
+   "w": 100,
+   "h": 100,
+   "src": "icon_gem(50x50).png",
+   "fw": 50,
+   "fh": 50,
+   "cols": 2,
+   "frames": 3
+  },
+  "btn_shop": {
+   "file": "art/btn_shop.png",
+   "w": 220,
+   "h": 74,
+   "src": "btn_shop(110x74).png",
+   "fw": 110,
+   "fh": 74,
+   "cols": 2,
+   "frames": 2
+  },
+  "btn_free": {
+   "file": "art/btn_free.png",
+   "w": 125,
+   "h": 59,
+   "src": "btn_free.png"
+  },
+  "tuto_bg_01": {
+   "file": "art/tuto_bg_01.png",
+   "w": 240,
+   "h": 400,
+   "src": "tuto_bg_01(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_03": {
+   "file": "art/tuto_bg_03.png",
+   "w": 240,
+   "h": 400,
+   "src": "tuto_bg_03(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_08": {
+   "file": "art/tuto_bg_08.png",
+   "w": 480,
+   "h": 800,
+   "src": "tuto_bg_08(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_bg_13": {
+   "file": "art/tuto_bg_13.png",
+   "w": 480,
+   "h": 800,
+   "src": "tuto_bg_13(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "tuto_chat": {
+   "file": "art/tuto_chat.png",
+   "w": 140,
+   "h": 90,
+   "src": "tuto_chat_bg(140x90).png",
+   "dw": 140,
+   "dh": 90
+  },
+  "tuto_chat_w": {
+   "file": "art/tuto_chat_w.png",
+   "w": 256,
+   "h": 64,
+   "src": "tuto_chat_bg(256x64).png",
+   "dw": 256,
+   "dh": 64
+  },
+  "tuto_obj": {
+   "file": "art/tuto_obj.png",
+   "w": 118,
+   "h": 18,
+   "src": "tuto_obj(88x18).png",
+   "dw": 88,
+   "dh": 18
+  },
+  "bag_bg": {
+   "file": "art/bag_bg.png",
+   "w": 480,
+   "h": 800,
+   "src": "bag_bg(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "item_weapon": {
+   "file": "art/item_weapon.png",
+   "w": 512,
+   "h": 164,
+   "src": "item_weapon(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 10
+  },
+  "item_armor": {
+   "file": "art/item_armor.png",
+   "w": 512,
+   "h": 164,
+   "src": "item_armor(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 10
+  },
+  "item_ring": {
+   "file": "art/item_ring.png",
+   "w": 512,
+   "h": 512,
+   "src": "item_ring(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 14
+  },
+  "item_necklace": {
+   "file": "art/item_necklace.png",
+   "w": 512,
+   "h": 512,
+   "src": "item_necklace(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 6,
+   "frames": 14
+  },
+  "bag_slot": {
+   "file": "art/bag_slot.png",
+   "w": 450,
+   "h": 90,
+   "src": "item_slot(450x90).png",
+   "fw": 90,
+   "fh": 90,
+   "cols": 5,
+   "frames": 5
+  },
+  "slot_item": {
+   "file": "art/slot_item.png",
+   "w": 180,
+   "h": 180,
+   "src": "slot_item(180x180).png",
+   "fw": 90,
+   "fh": 90,
+   "cols": 2,
+   "frames": 4
+  },
+  "slot_guardian": {
+   "file": "art/slot_guardian.png",
+   "w": 86,
+   "h": 100,
+   "src": "slot_guardian(86x100).png",
+   "dw": 86,
+   "dh": 100
+  },
+  "guardian_bullet_01": {
+   "file": "art/guardian_bullet_01.png",
+   "w": 90,
+   "h": 18,
+   "src": "guardian_bullet_01(18x18).png",
+   "fw": 18,
+   "fh": 18,
+   "cols": 5,
+   "frames": 5
+  },
+  "guardian_bullet_02": {
+   "file": "art/guardian_bullet_02.png",
+   "w": 100,
+   "h": 20,
+   "src": "guardian_bullet_02(20x20).png",
+   "fw": 20,
+   "fh": 20,
+   "cols": 5,
+   "frames": 5
+  },
+  "guardian_bullet_03": {
+   "file": "art/guardian_bullet_03.png",
+   "w": 180,
+   "h": 36,
+   "src": "guardian_bullet_03(36x36).png",
+   "fw": 36,
+   "fh": 36,
+   "cols": 5,
+   "frames": 5
+  },
+  "guardian_bullet_04": {
+   "file": "art/guardian_bullet_04.png",
+   "w": 64,
+   "h": 64,
+   "src": "guardian_bullet_04(64x64).png",
+   "dw": 64,
+   "dh": 64
+  },
+  "explore_bg": {
+   "file": "art/explore_bg.png",
+   "w": 480,
+   "h": 800,
+   "src": "explore_bg(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "list_bg_explore": {
+   "file": "art/list_bg_explore.png",
+   "w": 448,
+   "h": 82,
+   "src": "list_bg_explore(448x82).png",
+   "dw": 448,
+   "dh": 82
+  },
+  "icon_explore": {
+   "file": "art/icon_explore.png",
+   "w": 204,
+   "h": 136,
+   "src": "icon_explore(68x68).png",
+   "fw": 68,
+   "fh": 68,
+   "cols": 3,
+   "frames": 6
+  },
+  "tower_00": {
+   "file": "art/tower_00.jpg",
+   "w": 480,
+   "h": 800,
+   "src": "tower_00(480x800).jpg",
+   "dw": 480,
+   "dh": 800
+  },
+  "bg_tower_01": {
+   "file": "art/bg_tower_01.jpg",
+   "w": 240,
+   "h": 400,
+   "src": "bg_tower_01(480x800).jpg",
+   "dw": 480,
+   "dh": 800
+  },
+  "btn_enter_tower": {
+   "file": "art/btn_enter_tower.png",
+   "w": 180,
+   "h": 180,
+   "src": "btn_enter_tower(180x180).png",
+   "dw": 180,
+   "dh": 180
+  },
+  "btn_go": {
+   "file": "art/btn_go.png",
+   "w": 234,
+   "h": 128,
+   "src": "btn_go(234x64).png",
+   "fw": 234,
+   "fh": 64,
+   "cols": 1,
+   "frames": 2
+  },
+  "slot_tower_level": {
+   "file": "art/slot_tower_level.png",
+   "w": 66,
+   "h": 66,
+   "src": "slot_tower_level(66x66).png",
+   "dw": 66,
+   "dh": 66
+  },
+  "in_item": {
+   "file": "art/in_item.png",
+   "w": 100,
+   "h": 450,
+   "src": "in_item(50x50).png",
+   "fw": 50,
+   "fh": 50,
+   "cols": 2,
+   "frames": 18
+  },
+  "eff_doublescore": {
+   "file": "art/eff_doublescore.png",
+   "w": 128,
+   "h": 128,
+   "src": "in_eff_doublescore(128x128).png",
+   "dw": 128,
+   "dh": 128
+  },
+  "eff_berserk_bg": {
+   "file": "art/eff_berserk_bg.png",
+   "w": 64,
+   "h": 460,
+   "src": "in_eff_berserker_bg(480x460).png",
+   "dw": 480,
+   "dh": 460
+  },
+  "eff_shield": {
+   "file": "art/eff_shield.png",
+   "w": 128,
+   "h": 128,
+   "src": "in_eff_shield(128x128).png",
+   "dw": 128,
+   "dh": 128
+  },
+  "eff_doubleattack": {
+   "file": "art/eff_doubleattack.png",
+   "w": 236,
+   "h": 181,
+   "src": "in_eff_doubleattack(157x181).png",
+   "fw": 78,
+   "fh": 90,
+   "cols": 3,
+   "frames": 6
+  },
+  "eff_revival": {
+   "file": "art/eff_revival.png",
+   "w": 512,
+   "h": 512,
+   "src": "in_eff_revival_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 16
+  },
+  "tuto_bg_14": {
+   "file": "art/tuto_bg_14.png",
+   "w": 480,
+   "h": 800,
+   "src": "tuto_bg_14(480x800).png",
+   "dw": 480,
+   "dh": 800
+  },
+  "guardian_00": {
+   "file": "art/guardian_00.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_00(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_01": {
+   "file": "art/guardian_01.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_01(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_02": {
+   "file": "art/guardian_02.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_02(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_03": {
+   "file": "art/guardian_03.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_03(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_04": {
+   "file": "art/guardian_04.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_04(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_05": {
+   "file": "art/guardian_05.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_05(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_06": {
+   "file": "art/guardian_06.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_06(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_07": {
+   "file": "art/guardian_07.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_07(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_08": {
+   "file": "art/guardian_08.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_08(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_09": {
+   "file": "art/guardian_09.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_09(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_10": {
+   "file": "art/guardian_10.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_10(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_11": {
+   "file": "art/guardian_11.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_11(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_12": {
+   "file": "art/guardian_12.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_12(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_13": {
+   "file": "art/guardian_13.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_13(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_14": {
+   "file": "art/guardian_14.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_14(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_15": {
+   "file": "art/guardian_15.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_15(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_16": {
+   "file": "art/guardian_16.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_16(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_17": {
+   "file": "art/guardian_17.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_17(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_18": {
+   "file": "art/guardian_18.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_18(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_19": {
+   "file": "art/guardian_19.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_19(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_20": {
+   "file": "art/guardian_20.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_20(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_21": {
+   "file": "art/guardian_21.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_21(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_22": {
+   "file": "art/guardian_22.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_22(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_23": {
+   "file": "art/guardian_23.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_23(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_24": {
+   "file": "art/guardian_24.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_24(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "guardian_25": {
+   "file": "art/guardian_25.png",
+   "w": 164,
+   "h": 164,
+   "src": "guardian_25(82x82).png",
+   "fw": 82,
+   "fh": 82,
+   "cols": 2,
+   "frames": 4
+  },
+  "hero_armor_01": {
+   "file": "art/hero_armor_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_01": {
+   "file": "art/hero_sword_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_02": {
+   "file": "art/hero_armor_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_02": {
+   "file": "art/hero_sword_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_03": {
+   "file": "art/hero_armor_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_03": {
+   "file": "art/hero_sword_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_04": {
+   "file": "art/hero_armor_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_04": {
+   "file": "art/hero_sword_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_05": {
+   "file": "art/hero_armor_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_05": {
+   "file": "art/hero_sword_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_06": {
+   "file": "art/hero_armor_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_06": {
+   "file": "art/hero_sword_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_07": {
+   "file": "art/hero_armor_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_07": {
+   "file": "art/hero_sword_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_08": {
+   "file": "art/hero_armor_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_08": {
+   "file": "art/hero_sword_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_09": {
+   "file": "art/hero_armor_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_09": {
+   "file": "art/hero_sword_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_10": {
+   "file": "art/hero_armor_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_10": {
+   "file": "art/hero_sword_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_11": {
+   "file": "art/hero_armor_11.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_11(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_11": {
+   "file": "art/hero_sword_11.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_11(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_20": {
+   "file": "art/hero_armor_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_20": {
+   "file": "art/hero_sword_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_30": {
+   "file": "art/hero_armor_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_30": {
+   "file": "art/hero_sword_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_40": {
+   "file": "art/hero_armor_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_40": {
+   "file": "art/hero_sword_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_50": {
+   "file": "art/hero_armor_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_01_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_50": {
+   "file": "art/hero_sword_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_01_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "icon_armor_c02": {
+   "file": "art/icon_armor_c02.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_02(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_sword_c02": {
+   "file": "art/icon_sword_c02.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_02(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "hero_armor_c02_01": {
+   "file": "art/hero_armor_c02_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_01": {
+   "file": "art/hero_sword_c02_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_02": {
+   "file": "art/hero_armor_c02_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_02": {
+   "file": "art/hero_sword_c02_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_03": {
+   "file": "art/hero_armor_c02_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_03": {
+   "file": "art/hero_sword_c02_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_04": {
+   "file": "art/hero_armor_c02_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_04": {
+   "file": "art/hero_sword_c02_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_05": {
+   "file": "art/hero_armor_c02_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_05": {
+   "file": "art/hero_sword_c02_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_06": {
+   "file": "art/hero_armor_c02_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_06": {
+   "file": "art/hero_sword_c02_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_07": {
+   "file": "art/hero_armor_c02_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_07": {
+   "file": "art/hero_sword_c02_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_08": {
+   "file": "art/hero_armor_c02_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_08": {
+   "file": "art/hero_sword_c02_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_09": {
+   "file": "art/hero_armor_c02_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_09": {
+   "file": "art/hero_sword_c02_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_10": {
+   "file": "art/hero_armor_c02_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_10": {
+   "file": "art/hero_sword_c02_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_20": {
+   "file": "art/hero_armor_c02_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_20": {
+   "file": "art/hero_sword_c02_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_30": {
+   "file": "art/hero_armor_c02_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_30": {
+   "file": "art/hero_sword_c02_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_40": {
+   "file": "art/hero_armor_c02_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_40": {
+   "file": "art/hero_sword_c02_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c02_50": {
+   "file": "art/hero_armor_c02_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_02_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c02_50": {
+   "file": "art/hero_sword_c02_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_02_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "icon_armor_c03": {
+   "file": "art/icon_armor_c03.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_03(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_sword_c03": {
+   "file": "art/icon_sword_c03.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_03(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "hero_armor_c03_01": {
+   "file": "art/hero_armor_c03_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_01": {
+   "file": "art/hero_sword_c03_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_02": {
+   "file": "art/hero_armor_c03_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_02": {
+   "file": "art/hero_sword_c03_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_03": {
+   "file": "art/hero_armor_c03_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_03": {
+   "file": "art/hero_sword_c03_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_04": {
+   "file": "art/hero_armor_c03_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_04": {
+   "file": "art/hero_sword_c03_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_05": {
+   "file": "art/hero_armor_c03_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_05": {
+   "file": "art/hero_sword_c03_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_06": {
+   "file": "art/hero_armor_c03_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_06": {
+   "file": "art/hero_sword_c03_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_07": {
+   "file": "art/hero_armor_c03_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_07": {
+   "file": "art/hero_sword_c03_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_08": {
+   "file": "art/hero_armor_c03_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_08": {
+   "file": "art/hero_sword_c03_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_09": {
+   "file": "art/hero_armor_c03_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_09": {
+   "file": "art/hero_sword_c03_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_10": {
+   "file": "art/hero_armor_c03_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_10": {
+   "file": "art/hero_sword_c03_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_20": {
+   "file": "art/hero_armor_c03_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_20": {
+   "file": "art/hero_sword_c03_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_30": {
+   "file": "art/hero_armor_c03_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_30": {
+   "file": "art/hero_sword_c03_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_40": {
+   "file": "art/hero_armor_c03_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_40": {
+   "file": "art/hero_sword_c03_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c03_50": {
+   "file": "art/hero_armor_c03_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_03_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c03_50": {
+   "file": "art/hero_sword_c03_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_03_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "icon_armor_c04": {
+   "file": "art/icon_armor_c04.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_04(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_sword_c04": {
+   "file": "art/icon_sword_c04.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_04(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "hero_armor_c04_01": {
+   "file": "art/hero_armor_c04_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_01": {
+   "file": "art/hero_sword_c04_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c04_10": {
+   "file": "art/hero_armor_c04_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_10": {
+   "file": "art/hero_sword_c04_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c04_20": {
+   "file": "art/hero_armor_c04_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_20": {
+   "file": "art/hero_sword_c04_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c04_30": {
+   "file": "art/hero_armor_c04_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_30": {
+   "file": "art/hero_sword_c04_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c04_40": {
+   "file": "art/hero_armor_c04_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_40": {
+   "file": "art/hero_sword_c04_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c04_50": {
+   "file": "art/hero_armor_c04_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_04_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c04_50": {
+   "file": "art/hero_sword_c04_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_04_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "icon_armor_c05": {
+   "file": "art/icon_armor_c05.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_05(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_sword_c05": {
+   "file": "art/icon_sword_c05.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_05(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "hero_armor_c05_01": {
+   "file": "art/hero_armor_c05_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_01": {
+   "file": "art/hero_sword_c05_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c05_10": {
+   "file": "art/hero_armor_c05_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_10": {
+   "file": "art/hero_sword_c05_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c05_20": {
+   "file": "art/hero_armor_c05_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_20": {
+   "file": "art/hero_sword_c05_20.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_20(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c05_30": {
+   "file": "art/hero_armor_c05_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_30": {
+   "file": "art/hero_sword_c05_30.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_30(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c05_40": {
+   "file": "art/hero_armor_c05_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_40": {
+   "file": "art/hero_sword_c05_40.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_40(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c05_50": {
+   "file": "art/hero_armor_c05_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_05_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c05_50": {
+   "file": "art/hero_sword_c05_50.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_05_50(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "icon_armor_c07": {
+   "file": "art/icon_armor_c07.png",
+   "w": 256,
+   "h": 256,
+   "src": "armor_cha_07(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "icon_sword_c07": {
+   "file": "art/icon_sword_c07.png",
+   "w": 256,
+   "h": 256,
+   "src": "sword_cha_07(64x64).png",
+   "fw": 64,
+   "fh": 64,
+   "cols": 4,
+   "frames": 14
+  },
+  "hero_armor_c07_01": {
+   "file": "art/hero_armor_c07_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_01": {
+   "file": "art/hero_sword_c07_01.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_01(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_02": {
+   "file": "art/hero_armor_c07_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_02": {
+   "file": "art/hero_sword_c07_02.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_02(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_03": {
+   "file": "art/hero_armor_c07_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_03": {
+   "file": "art/hero_sword_c07_03.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_03(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_04": {
+   "file": "art/hero_armor_c07_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_04": {
+   "file": "art/hero_sword_c07_04.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_04(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_05": {
+   "file": "art/hero_armor_c07_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_05": {
+   "file": "art/hero_sword_c07_05.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_05(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_06": {
+   "file": "art/hero_armor_c07_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_06": {
+   "file": "art/hero_sword_c07_06.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_06(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_07": {
+   "file": "art/hero_armor_c07_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_07": {
+   "file": "art/hero_sword_c07_07.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_07(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_08": {
+   "file": "art/hero_armor_c07_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_08": {
+   "file": "art/hero_sword_c07_08.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_08(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_09": {
+   "file": "art/hero_armor_c07_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_09": {
+   "file": "art/hero_sword_c07_09.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_09(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_armor_c07_10": {
+   "file": "art/hero_armor_c07_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "armor_cha_07_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  },
+  "hero_sword_c07_10": {
+   "file": "art/hero_sword_c07_10.png",
+   "w": 512,
+   "h": 512,
+   "src": "sword_cha_07_10(128x128).png",
+   "fw": 128,
+   "fh": 128,
+   "cols": 4,
+   "frames": 12
+  }
+ },
+ "audio": {
+  "gem": {
+   "file": "art/sfx/S_GET_GEM.wav",
+   "src": "S_GET_GEM.wav"
+  },
+  "revival": {
+   "file": "art/sfx/S_REVIVAL.wav",
+   "src": "S_REVIVAL.wav"
+  },
+  "quake": {
+   "file": "art/sfx/S_EARTHQUAKE02.wav",
+   "src": "S_EARTHQUAKE02.wav"
+  },
+  "ghost": {
+   "file": "art/sfx/S_GHOST.wav",
+   "src": "S_GHOST.wav"
+  },
+  "bgm_tower": {
+   "file": "art/sfx/S_BG_TOWER.mp3",
+   "src": "S_BG_TOWER.mp3"
+  },
+  "recall": {
+   "file": "art/sfx/S_RECALL01.wav",
+   "src": "S_RECALL01.wav"
+  },
+  "bgm_title": {
+   "file": "art/sfx/BG_TITLE.mp3",
+   "src": "BG_TITLE.mp3"
+  },
+  "bgm_stage": {
+   "file": "art/sfx/S_BG_D00.mp3",
+   "src": "S_BG_D00.mp3"
+  },
+  "bgm_ui": {
+   "file": "art/sfx/BG_UI.mp3",
+   "src": "BG_UI.mp3"
+  },
+  "result_win": {
+   "file": "art/sfx/S_RESULT01.mp3",
+   "src": "S_RESULT01.mp3"
+  },
+  "result_fail": {
+   "file": "art/sfx/S_RESULT_FAIL.mp3",
+   "src": "S_RESULT_FAIL.mp3"
+  },
+  "sword_hit": {
+   "file": "art/sfx/S_woodsword_hit.wav",
+   "src": "S_woodsword_hit.wav"
+  },
+  "sword_miss": {
+   "file": "art/sfx/S_woodsword_miss.wav",
+   "src": "S_woodsword_miss.wav"
+  },
+  "sword_kill": {
+   "file": "art/sfx/S_woodsword_kill.wav",
+   "src": "S_woodsword_kill.wav"
+  },
+  "wolf_attack": {
+   "file": "art/sfx/S_WOLF_ATTACK.wav",
+   "src": "S_WOLF_ATTACK.wav"
+  },
+  "goblin_attack": {
+   "file": "art/sfx/swing.wav",
+   "src": "swing.wav"
+  },
+  "hero_die": {
+   "file": "art/sfx/herodie.wav",
+   "src": "herodie.wav"
+  },
+  "skill": {
+   "file": "art/sfx/S_START_SWORD_STORM.wav",
+   "src": "S_START_SWORD_STORM.wav"
+  },
+  "start": {
+   "file": "art/sfx/S_LANDING.wav",
+   "src": "S_LANDING.wav"
+  },
+  "coin": {
+   "file": "art/sfx/S_GET_GOLD.wav",
+   "src": "S_GET_GOLD.wav"
+  },
+  "potion": {
+   "file": "art/sfx/S_POTION.wav",
+   "src": "S_POTION.wav"
+  },
+  "gold": {
+   "file": "art/sfx/S_gold.wav",
+   "src": "S_gold.wav"
+  },
+  "arrow": {
+   "file": "art/sfx/S_ARROW.wav",
+   "src": "S_ARROW.wav"
+  },
+  "boss_alert": {
+   "file": "art/sfx/S_BOSS_ALERT.wav",
+   "src": "S_BOSS_ALERT.wav"
+  },
+  "dash": {
+   "file": "art/sfx/S_START_SKILL.wav",
+   "src": "S_START_SKILL.wav"
+  },
+  "shield": {
+   "file": "art/sfx/S_HOLLY_SHIELD.wav",
+   "src": "S_HOLLY_SHIELD.wav"
+  }
+ }
+}

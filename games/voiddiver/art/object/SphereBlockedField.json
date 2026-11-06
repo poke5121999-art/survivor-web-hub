@@ -1,0 +1,149 @@
+{
+ "name": "SphereBlockedField",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Vfx",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [
+  {
+   "path": "Vfx",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Start/InitCore_2",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Start/Circle_Ground_start",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Start/Protection_Sphere_start",
+   "pos": [
+    0.0,
+    0.809,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/Protection_Sphere",
+   "pos": [
+    0.0,
+    0.809,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/Protection_Sphere_Outline",
+   "pos": [
+    0.0,
+    0.503,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/Protection_Sphere_Depth",
+   "pos": [
+    0.0,
+    0.809,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/Circle_Ground",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/FireSparks",
+   "pos": [
+    0.0,
+    -0.13,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/End/Protection_Sphere_End",
+   "pos": [
+    0.0,
+    0.809,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/End/Circle_Ground_1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  }
+ ],
+ "animators": [
+  {
+   "path": "",
+   "controller": "Trap_Boundary",
+   "clips": [
+    "Trap_Boundary_Start",
+    "Trap_Boundary_End",
+    "Trap_Boundary_Loop"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SpecialField",
+   "fields": {
+    "_spawnSfx": "SphereBlockedField_On",
+    "_destroySfx": "SphereBlockedField_Off"
+   }
+  }
+ ],
+ "meshes": []
+}

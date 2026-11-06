@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Xem 68 tướng TFM2</title>
+<style>
+  body { margin: 0; background: #1d2a22; color: #dfe8e2; font: 12px system-ui; }
+  #thanh { position: sticky; top: 0; background: #14201a; padding: 8px 10px; display: flex;
+    gap: 14px; align-items: center; z-index: 2; border-bottom: 1px solid #2f4238; flex-wrap: wrap; }
+  #thanh label { display: flex; gap: 4px; align-items: center; }
+  #luoi { display: grid; grid-template-columns: repeat(10, 128px); gap: 2px; padding: 10px; }
+  .o { position: relative; background: #16211b; border: 1px solid #2a3a30; }
+  .o canvas { display: block; }
+  .o .ten { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: 10px;
+    color: #9fb3a6; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  .o .thieu { position: absolute; top: 2px; right: 3px; font-size: 9px; color: #e5484d; }
+  #trangthai { padding: 6px 10px; color: #9fb3a6; }
+</style>
+</head>
+<body>
+<!-- Xem tất cả 68 tướng TFM2 × mọi hoạt ảnh của mỗi tướng, vẽ qua đúng G.veHinhT/G.napTuong của
+     game (không vẽ tắt) — soi pivot (chân có chạm đáy ô không), hướng quay (nút "lật") và tốc độ
+     khung (nút "chạy"). Mở: http://localhost:8765/games/ghe-nong/_tools/xemtuong.html
+     (python -m http.server 8765 ở gốc repo). document.title đổi thành 'xong' khi nạp hết 68 tướng,
+     dùng làm mốc chờ cho Playwright. -->
+<div id="thanh">
+  <label>hoạt ảnh
+    <select id="anim">
+      <option>idle</option><option>run</option><option selected>attack</option>
+      <option>hit</option><option>dead</option><option>skill</option><option>skill1</option>
+      <option>skill2</option><option>ult</option><option>ult_effect</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="lat"> lật (quay trái)</label>
+  <label><input type="checkbox" id="chay" checked> chạy hoạt ảnh</label>
+  <label>cỡ <input type="range" id="co" min="30" max="90" value="56"></label>
+  <span id="trangthai">đang nạp…</span>
+</div>
+<div id="luoi"></div>
+<script src="art/asset-map.js"></script>
+<script src="art/tfm/hinh.js"></script>
+<script src="art/tfm/icon.js"></script>
+<script src="js/data-tfm.js"></script>
+<script src="js/util.js"></script>
+<script src="js/sprites.js"></script>
+<script>
+  window.ART_MAP._o = window.ART_MAP._o || 64;
+  G = window;
+  var IDS = Object.keys(window.TFM.tuong).sort();
+  var o_animSel = document.getElementById('anim');
+  var o_lat = document.getElementById('lat');
+  var o_chay = document.getElementById('chay');
+  var o_co = document.getElementById('co');
+  var o_trang = document.getElementById('trangthai');
+  var luoi = document.getElementById('luoi');
+  var oTung = {};   // id -> {canvas, ctx, thieuSpan}
+
+  IDS.forEach(function (id) {
+    var o = document.createElement('div'); o.className = 'o';
+    var cv = document.createElement('canvas'); cv.width = 128; cv.height = 118;
+    var ten = document.createElement('div'); ten.className = 'ten'; ten.textContent = id;
+    var thieu = document.createElement('div'); thieu.className = 'thieu'; thieu.textContent = '';
+    o.appendChild(cv); o.appendChild(ten); o.appendChild(thieu);
+    luoi.appendChild(o);
+    oTung[id] = { cv: cv, ctx: cv.getContext('2d'), thieu: thieu };
+  });
+
+  var nap = 0;
+  IDS.forEach(function (id) {
+    G.napTuong(id, function (ok) {
+      nap++;
+      if (!ok) oTung[id].thieu.textContent = 'THIẾU';
+      o_trang.textContent = 'nạp ' + nap + '/' + IDS.length;
+      if (nap >= IDS.length) { o_trang.textContent = 'xong 68 tướng'; document.title = 'xong'; }
+    });
+  });
+
+  var t0 = performance.now();
+  function ve() {
+    var anim = o_animSel.value, lat = o_lat.checked, k = (+o_co.value) / 40;
+    var giay = o_chay.checked ? (performance.now() - t0) / 1000 : 0.15;
+    IDS.forEach(function (id) {
+      var e = oTung[id], ctx = e.ctx;
+      ctx.clearRect(0, 0, e.cv.width, e.cv.height);
+      var day = e.cv.height - 6;
+      ctx.strokeStyle = '#2a3a30'; ctx.beginPath();
+      ctx.moveTo(0, day); ctx.lineTo(e.cv.width, day); ctx.stroke();
+      var ok = G.veHinhT(ctx, id, anim, giay, e.cv.width / 2, day, k, lat, true);
+      if (!ok) G.veHinhT(ctx, id, 'idle', giay, e.cv.width / 2, day, k, lat, true);
+    });
+    requestAnimationFrame(ve);
+  }
+  requestAnimationFrame(ve);
+</script>
+</body>
+</html>

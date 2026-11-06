@@ -1,0 +1,48 @@
+/* Cat Tower overlay (js/view/features/tower.js). #ui space: 1080x1920. Panels reuse .panel .row of game.css. */
+.tw { position: absolute; inset: 0; z-index: 6; display: none; pointer-events: none;
+  background: linear-gradient(#bfe3f2 0%, #dff0e4 55%, #f3e7cf 100%); font-family: 'Gaegu', 'Mali', system-ui, sans-serif; color: #5b4636; }
+.tw-cv { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: auto; touch-action: none; }
+.tw-top { position: absolute; left: 0; right: 0; top: 0; height: 170px; display: flex; align-items: center; gap: 20px; padding: 30px 28px 0;
+  background: linear-gradient(#0000002e, #0000); }
+.tw-title { flex: 1; text-align: center; color: #fff; text-shadow: 0 4px 0 #0005; }
+.tw-title h1 { margin: 0; font-size: 70px; letter-spacing: 2px; }
+.tw-title h2 { margin: 0; font-size: 34px; }
+.tw-money { display: flex; flex-direction: column; gap: 6px; }
+.tw-money .m { display: flex; align-items: center; gap: 8px; min-width: 190px; padding: 2px 16px 2px 8px; border-radius: 30px; background: #0007; color: #fff; }
+.tw-money b { font-size: 38px; }
+.tw-btn { pointer-events: auto; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 150px; padding: 8px 6px; border-radius: 26px; background: #f6efe3; border: 5px solid #8a6b56; box-shadow: 0 6px 0 #0003; font-size: 28px; text-align: center; }
+.tw-btn.round { min-width: 0; width: 112px; height: 112px; border-radius: 50%; padding: 0; }
+.tw-btn.small { min-width: 0; padding: 6px 12px; }
+.tw-btn span { line-height: 1; }
+.tw-ic.prop { background-color: #efe4d4; border-radius: 12px; }
+.tw-bar { position: absolute; left: 14px; right: 14px; bottom: 26px; display: flex; gap: 12px; justify-content: center; }
+.tw-sel { position: absolute; left: 50%; bottom: 250px; transform: translateX(-50%); display: none; align-items: center; gap: 16px; padding: 8px 20px;
+  border-radius: 30px; background: #000a; color: #fff; font-size: 36px; pointer-events: auto; }
+.tw-floors { position: absolute; left: 14px; top: 330px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; max-height: 900px; overflow-y: auto; }
+.tw-floors .f { min-width: 96px; padding: 14px 10px; text-align: center; font-size: 38px; font-weight: 700; border-radius: 22px; background: #f6efe3; border: 5px solid #8a6b56; cursor: pointer; }
+.tw-floors .f.on { background: #ffd25e; border-color: #b07c26; }
+.tw-floors .f.add { background: #7fdcb6; border-color: #4b9b7c; }
+.tw-msn { position: absolute; left: 14px; top: 215px; max-width: 520px; display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-radius: 24px;
+  background: #f6efe3; border: 5px solid #8a6b56; font-size: 30px; pointer-events: auto; cursor: pointer; box-shadow: 0 5px 0 #0003; }
+.tw-msn i { font-style: normal; color: #7fae54; font-weight: 700; }
+.tw-msn.ready { background: #ffe9a6; border-color: #e0a21c; animation: twPulse 1s infinite alternate; }
+@keyframes twPulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+.panel .row.tw-row.col { flex-direction: column; align-items: stretch; }
+.panel .row.tw-row.note { font-size: 30px; color: #8b7766; }
+.panel .row.tw-row.keep { justify-content: center; cursor: pointer; font-size: 30px; background: #e6dccd; }
+.panel .row.tw-row .chips { display: flex; gap: 10px; }
+.panel .row.tw-row .chip { flex: 1; text-align: center; padding: 10px 4px; border-radius: 16px; border: 4px solid #cdbfae; background: #fffaf2; cursor: pointer; }
+.panel .row.tw-row .chip b { display: block; font-size: 34px; }
+.panel .row.tw-row .chip small { font-size: 26px; color: #8b7766; }
+.panel .row.tw-row .chip.cur { border-color: #7fae54; background: #eaf6dc; }
+.panel .row.tw-row .chip.buy { border-color: #4b9b7c; background: #dff5ea; }
+.panel .row.tw-row .chip.lock { opacity: .5; }
+.panel .row.tw-row .rw { font-size: 28px; color: #8b5a1f; text-align: center; }
+.panel .row.tw-row.mis.claimed { opacity: .55; }
+.panel .row.tw-row .price.sell { background: #ffd9a0; border-color: #c58a3a; color: #6b4a1f; font-size: 28px; }
+.panel .row.tw-row .price.ads { background: #ffe38a; border-color: #c9a227; }
+/* panels and toasts of the HUD stay above the tower overlay */
+.hud > .panel { z-index: 20; }
+.hud > .toast { z-index: 30; }
+.panel .row.tw-row.col > b { font-size: 36px; }

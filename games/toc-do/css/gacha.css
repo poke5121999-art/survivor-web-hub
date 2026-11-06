@@ -1,0 +1,118 @@
+/* Xưởng (js/ui/gacha.js). Dùng khung chung của gara (.gr, .gtop, .gpanel, .gbtn, .gcoins, .gmsg); ở đây chỉ phần riêng của Xưởng. */
+.gx-res { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 5px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font: 20px TDNum, Cafeta, sans-serif; color: #fff; }
+.gx-tk { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; box-sizing: border-box; border-radius: 6px; font: 13px/1 TDNum, Cafeta, sans-serif; font-weight: normal; color: #2a1800; background: linear-gradient(#ffe27a, #e9a800); }
+.gx-tk.shards { background: linear-gradient(#bdf0ff, #3aa0e8); color: #06305a; font-size: 15px; }
+
+/* ba mẫu chế tạo */
+.gx-pools { position: absolute; left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); top: 58px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; pointer-events: none; }
+.gx-pool { position: relative; overflow: hidden; min-height: 64px; padding: 8px 12px; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 2px; border-radius: 12px; border: 1px solid var(--line);
+  background: linear-gradient(160deg, rgba(20, 52, 110, .9), rgba(8, 24, 56, .92)); }
+.gx-pool b { position: relative; font-weight: normal; font-size: 18px; text-shadow: 0 2px 0 rgba(0, 0, 0, .4); }
+.gx-pool small { position: relative; color: var(--muted); font: 12px system-ui, sans-serif; }
+.gx-pool.on { border-color: var(--gold); background: linear-gradient(160deg, rgba(60, 90, 170, .95), rgba(14, 40, 100, .95)); box-shadow: 0 0 14px rgba(255, 210, 58, .45); }
+.gx-pfx { position: absolute; right: -18px; top: -18px; width: 90px; height: 90px; mix-blend-mode: screen; opacity: .8; pointer-events: none; }
+.gx-pool:not(.on) .gx-pfx { opacity: .35; }
+.gx-pp { position: absolute; left: 12px; right: 12px; bottom: 5px; height: 4px; border-radius: 2px; background: rgba(0, 0, 0, .4); }
+.gx-pp u { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #ffd23a, #ff8a1e); }
+
+/* thông tin mẫu */
+.gx .gx-stage { top: 134px; bottom: auto; left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); width: auto; display: grid; grid-template-columns: minmax(200px, 36%) 1fr; gap: 6px 18px; align-content: start; }
+.gx-info p { margin-top: 8px; line-height: 1.4; }
+.gx-info p b { color: var(--gold); font-weight: normal; }
+.gx-rate { display: flex; align-items: center; justify-content: space-between; margin: 4px 0; padding: 6px 10px; border-radius: 8px; border-left: 4px solid var(--c); background: rgba(255, 255, 255, .06); font-size: 16px; }
+.gx-rate span { color: var(--c); } .gx-rate b { font: 18px TDNum, Cafeta, sans-serif; font-weight: normal; }
+.gx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.gx-chip { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px 0 5px; border-radius: 19px; border: 1px solid #ffb52e; background: rgba(255, 181, 46, .12); font-size: 14px; }
+.gx-chip .gx-ic { width: 28px; height: 28px; }
+.gx-chip i { font-style: normal; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-chip.more { padding: 0 12px; color: var(--muted); }
+
+/* nút chế tạo */
+.gx-act { position: absolute; left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: 10px; height: 64px; display: flex; gap: 12px; justify-content: flex-end; align-items: stretch; pointer-events: none; }
+.gx-act .gbtn { pointer-events: auto; height: 100%; min-width: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 20px; line-height: 1.1; }
+.gx-act .gx-go { flex: 0 1 230px; }
+.gx-act .gx-ex { margin-right: auto; font-size: 16px; min-width: 120px; flex: 0 1 150px; }
+.gx-act .gx-ex small { font: 12px system-ui, sans-serif; opacity: .9; }
+.gx-cost { display: inline-flex; align-items: center; gap: 4px; font: 15px TDNum, Cafeta, sans-serif; }
+.gx-cost img { width: 18px; height: 18px; }
+
+/* biểu tượng phần thưởng */
+.gx-ic { width: 64px; height: 64px; object-fit: contain; flex: 0 0 auto; }
+.gx-cls { display: grid; place-items: center; border-radius: 12px; font: 40px/1 TDNum, Cafeta, sans-serif; color: #2a1800; background: linear-gradient(#ffe27a, #e9a800); }
+.gx-chip .gx-cls { font-size: 18px; border-radius: 7px; }
+.gx-ic.gx-tk { font-size: 20px; border-radius: 12px; }
+
+/* màn nhận */
+.gx-ov { position: absolute; inset: 0; z-index: 30; pointer-events: auto; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: radial-gradient(ellipse at center, rgba(6, 14, 34, .6), rgba(2, 6, 18, .93) 75%); animation: gxFade .3s ease-out; }
+.gx-ov.one { background: radial-gradient(ellipse at center, rgba(6, 14, 34, .15), rgba(2, 6, 18, .88) 85%); }
+.gx-fxs { position: absolute; inset: 0; pointer-events: none; }
+.gx-fx { position: absolute; left: 50%; top: 50%; background: var(--c); opacity: 0; -webkit-mask: var(--t) center / 100% 100% no-repeat; mask: var(--t) center / 100% 100% no-repeat; }
+.gx-fx.glow { width: 90vh; height: 90vh; margin: -45vh 0 0 -45vh; }
+.gx-fx.beam { width: 40vh; height: 130vh; margin: -65vh 0 0 -20vh; }
+.gx-fx.star { width: 110vh; height: 110vh; margin: -55vh 0 0 -55vh; }
+.gx-fx.spark { width: 100vw; height: 100vh; margin: -50vh 0 0 -50vw; }
+.charge .gx-fx.glow { animation: gxPulse .7s ease-in-out infinite alternate; }
+.charge .gx-fx.star { animation: gxSpin 3s linear infinite; opacity: .4; }
+.burst .gx-fx.glow { animation: gxBloom .9s ease-out forwards; }
+.burst .gx-fx.beam { animation: gxBeam 1.2s ease-out forwards; }
+.burst .gx-fx.star { animation: gxStar 8s linear infinite; opacity: .3; }
+.burst .gx-fx.spark { animation: gxSpark 4s ease-out infinite; }
+.gx-title { position: relative; margin: 0; font: 700 28px system-ui, sans-serif; color: #fff; text-shadow: 0 0 14px var(--c), 0 3px 0 rgba(0, 0, 0, .55); letter-spacing: .3px; text-align: center; }
+.charge .gx-title { animation: gxBlink 1s ease-in-out infinite; }
+.gx-tip { position: relative; margin: 0; min-height: 20px; color: #dfe9f7; text-shadow: 0 1px 3px #000; font: 14px system-ui, sans-serif; animation: gxBlink 1.6s ease-in-out infinite; }
+.gx-cards { position: relative; display: grid; gap: 10px; justify-content: center; }
+.ten .gx-cards { grid-template-columns: repeat(5, min(150px, 17vw)); }
+.one .gx-cards { grid-template-columns: min(220px, 60vw); }
+.gx-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; min-height: min(176px, 29vh); border-radius: 12px; text-align: center;
+  border: 2px solid var(--c); background: linear-gradient(170deg, rgba(30, 60, 120, .95), rgba(8, 20, 50, .97)); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+.gx-card b { font: 16px Cafeta, TDNum, sans-serif; font-weight: normal; line-height: 1.15; overflow-wrap: anywhere; }
+.gx-card small { color: var(--c); font: 12px system-ui, sans-serif; }
+.gx-card em { font: 700 12px system-ui, sans-serif; font-style: normal; padding: 1px 8px; border-radius: 9px; }
+.gx-new { background: #2fcf6a; color: #04210f; } .gx-dup { background: rgba(255, 255, 255, .14); color: #dfe9f7; }
+.one .gx-card { min-height: min(260px, 44vh); gap: 8px; }
+.one .gx-card .gx-ic { width: min(110px, 20vh); height: min(110px, 20vh); }
+.one .gx-card .gx-cls { font-size: min(70px, 12vh); }
+.one .gx-card b { font-size: 22px; }
+.gx-card.t2 { background: linear-gradient(170deg, rgba(120, 80, 10, .95), rgba(40, 20, 4, .97)); }
+.gx-card.t1 { background: linear-gradient(170deg, rgba(20, 70, 150, .95), rgba(6, 22, 56, .97)); }
+.gx-card.hid { opacity: 0; transform: scale(.3) translateY(30px); }
+.gx-card.in { animation: gxIn .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+.gx-card.t2.in { animation: gxIn .5s cubic-bezier(.2, 1.4, .4, 1) both, gxGlow 1.4s ease-in-out .5s infinite alternate; }
+@keyframes gxFade { from { opacity: 0; } }
+@keyframes gxPulse { from { opacity: .25; transform: scale(.55); } to { opacity: .9; transform: scale(1); } }
+@keyframes gxSpin { to { transform: rotate(360deg); } }
+@keyframes gxBloom { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: .5; transform: scale(1.05); } }
+@keyframes gxBeam { 0% { opacity: 0; transform: scaleX(.1); } 25% { opacity: 1; } 100% { opacity: .35; transform: scaleX(1); } }
+@keyframes gxStar { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes gxSpark { 0% { opacity: 0; transform: translateY(30px); } 20% { opacity: .8; } 100% { opacity: 0; transform: translateY(-60px); } }
+@keyframes gxBlink { 50% { opacity: .45; } }
+@keyframes gxIn { 0% { opacity: 0; transform: scale(.3) translateY(30px); } 100% { opacity: 1; transform: none; } }
+@keyframes gxGlow { to { box-shadow: 0 0 26px var(--c), 0 0 4px var(--c) inset; } }
+
+@media (max-height: 460px) {
+  .gx-pools { top: 54px; gap: 6px; }
+  .gx-pool { min-height: 52px; padding: 5px 10px; }
+  .gx-pool b { font-size: 15px; } .gx-pool small { font-size: 11px; }
+  .gx .gx-stage { top: 112px; bottom: 66px; padding: 6px 10px; gap: 2px 12px; }
+  .gx-rate { margin: 2px 0; padding: 3px 8px; font-size: 14px; }
+  .gx-info p { margin-top: 4px; font-size: 11px; line-height: 1.25; }
+  .gx-chip { height: 32px; font-size: 13px; } .gx-chip .gx-ic { width: 24px; height: 24px; }
+  .gx-act { bottom: 6px; height: 52px; gap: 8px; }
+  .gx-act .gbtn { font-size: 16px; min-width: 110px; } .gx-act .gx-ex { font-size: 13px; }
+  .gx-title { font-size: 20px; }
+  .gx-ov { gap: 4px; }
+  .gx-cards { gap: 6px; }
+  .ten .gx-cards { grid-template-columns: repeat(5, min(118px, 17vw)); }
+  .gx-card { min-height: 0; height: min(104px, 30vh); padding: 4px; gap: 2px; }
+  .gx-card b { font-size: 12px; } .gx-card small { font-size: 10px; } .gx-card em { font-size: 10px; padding: 0 6px; }
+  .gx-ic { width: 40px; height: 40px; } .gx-cls { font-size: 26px; }
+  .one .gx-card { height: min(210px, 56vh); }
+}
+
+/* lịch sử gần đây */
+.gx-hist { grid-column: 1 / -1; }
+.gx-hist .gx-chip { height: 32px; border-color: var(--c); background: rgba(255, 255, 255, .06); font-size: 12px; }
+.gx-hist .gx-chip .gx-ic { width: 22px; height: 22px; } .gx-hist .gx-cls { font-size: 14px; border-radius: 5px; }
+.gx-hist .gx-chip i { max-width: 110px; }
+@media (max-height: 460px) { .gx-hist { display: none; } }

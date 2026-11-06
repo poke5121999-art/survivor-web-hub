@@ -1,0 +1,79 @@
+prefab 3638 -> Money
+prefab 3461 -> EmptyCup
+prefab 3458 -> Burger1
+prefab 3451 -> Package1
+prefab 3648 -> Customer
+prefab 3655 -> CustomerVIP
+prefab 3520 -> Garbage01
+prefab 3518 -> Garbage02
+prefab 3519 -> Garbage03
+prefab 3654 -> Car01
+prefab 3660 -> Car02
+prefab 3649 -> Car03
+prefab 3644 -> Car04
+prefab 3652 -> Car05
+prefab 3101 -> Waypoint Arrow
+prefab 3447 -> Burger2
+prefab 3448 -> Package2
+prefab 3480 -> Burger3
+prefab 3262 -> Package3
+prefab 3456 -> Burger4
+prefab 3261 -> Package4
+prefab 3455 -> Burger5
+prefab 3260 -> Package5
+prefab 3457 -> Burger6
+prefab 3472 -> Package6
+prefab 3469 -> Burger7
+prefab 3487 -> Package7
+prefab 3454 -> Burger8
+prefab 3502 -> Package8
+prefab 3485 -> Burger9
+prefab 3483 -> Package9
+prefab 3460 -> Burger10
+prefab 3473 -> Package10
+prefab 3474 -> Coke1
+prefab 3498 -> Potato1
+prefab 3486 -> Hotdog
+prefab 3465 -> Icecream
+prefab 3492 -> PineappleJuice
+prefab 3491 -> Chicken
+prefab 3501 -> Package1001
+prefab 3466 -> Coke2
+prefab 3475 -> Potato2
+prefab 3477 -> Coke3
+prefab 3488 -> Potato3
+prefab 3496 -> Coke4
+prefab 3459 -> Potato4
+prefab 3493 -> Coke5
+prefab 3479 -> Potato5
+prefab 3468 -> Coke6
+prefab 3476 -> Potato6
+prefab 3470 -> Coke7
+prefab 3450 -> Potato7
+prefab 3484 -> Coke8
+prefab 3452 -> Potato8
+prefab 3499 -> Coffee1
+prefab 3478 -> ExpandStagePackage1
+prefab 3494 -> TakeOutPackage
+prefab 3464 -> Shake
+prefab 3481 -> Frosty
+prefab 3471 -> AnimalFry
+prefab 3490 -> Coffee2
+prefab 3482 -> CarrotCake
+prefab 3453 -> Coffee3
+prefab 3495 -> Icecream2
+prefab 3463 -> Coffee4
+prefab 3646 -> CarVIP01
+prefab 3645 -> CarVIP02
+  tex Money_USA_0-b73993f9 64x64 RGB
+  tex Cafe_idle_colormap_base-531a2ab4 128x128 RGB
+  tex Cafe_idle_colormap_base-d5cbc19b 128x128 RGB
+  tex colormap-cbef9b97 128x128 RGB
+  tex SDbox-8a2c3625 256x256 RGB
+  tex LDbox-a8c9a4e3 256x256 RGB
+  tex PDbox-39488fbf 256x256 RGB
+  tex Landysbox-b2267f34 128x128 RGB
+  tex boxdot-eda6addf 128x128 RGB
+  tex boxlogo-eebefbf6 128x128 RGB
+  tex pattern rattan-91c65768 256x256 RGB
+  tex ShackShake-b5e609fe 128x128 RGB

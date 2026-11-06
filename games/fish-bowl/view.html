@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fish Bowl world viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #31527a; overflow: hidden; font: 12px monospace; color: #fff; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; left: 8px; top: 6px; text-shadow: 0 0 3px #000; pointer-events: none; white-space: pre; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script type="module">
+// Standalone viewer. ?cam=<GameObject path> looks through that node (a Unity camera looks down its local +Z, which the
+// export's z flip turns into three's default -Z, so the world transform is copied as is); &fov= vertical degrees;
+// &pos=x,y,z&look=x,y,z overrides; &w=&h= fixed canvas size; &hide=Path1,Path2 hides subtrees. WASD/QE + drag to fly, shift = fast.
+import * as THREE from 'three';
+import { loadWorld } from './js/world.js';
+import { createPost } from './js/post.js';
+
+const q = new URLSearchParams(location.search);
+const canvas = document.getElementById('c');
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, !!(q.get('w')));
+if (q.get('w')) { canvas.style.width = W + 'px'; canvas.style.height = H + 'px'; }
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // Unity project is GAMMA: no sRGB encode on output
+renderer.toneMapping = THREE.NoToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color().setRGB(0.19216, 0.30196, 0.47451, THREE.LinearSRGBColorSpace);
+const camera = new THREE.PerspectiveCamera(60, W / H, 0.05, 2000);
+
+const base = '.';
+const env = await loadWorld('env', { base });
+const player = await loadWorld('player', { base });
+scene.add(env.root, player.root);
+const post = createPost(renderer, [env, player]);
+for (const p of (q.get('hide') || '').split(',').filter(Boolean)) { const o = env.byPath(p) || player.byPath(p); if (o) o.visible = false; }
+// The environment root ships inactive (a level script enables it); the viewer shows it by default.
+for (const p of ('*****FISHENV*****,' + (q.get('show') || '')).split(',').filter(Boolean)) { const o = env.byPath(p) || player.byPath(p); if (o) o.visible = true; }
+
+// ?pose=<clip>@<seconds>: bakes that Humanoid clip (art/anim/humanoid.json) onto every TeenBoyRigged at that time.
+// Track paths are relative to the Animator's object; tracks bind by uuid because bone names break PropertyBinding.
+const poseQ = q.get('pose');
+if (poseQ) {
+  const [name, sec] = poseQ.split('@');
+  const lib = (await (await fetch(`${base}/art/anim/humanoid.json`)).json()).clips;
+  const src = lib[name] || lib[`${name}@humanoid`];
+  if (!src) console.error('pose clip not found', name);
+  const find = (o, p) => p.split('/').filter(Boolean).reduce((a, seg) => a && a.children.find(c => c.name === seg), o);
+  const TRACK = { position: THREE.VectorKeyframeTrack, scale: THREE.VectorKeyframeTrack, quaternion: THREE.QuaternionKeyframeTrack };
+  scene.traverse(o => {
+    if (!src || o.name !== 'TeenBoyRigged') return;
+    for (let a = o; a; a = a.parent) a.visible = true;
+    const proxy = new THREE.Object3D();
+    const tracks = [], rootTracks = [];
+    for (const t of src.tracks) {
+      // Root tracks ("") are root motion relative to where the object stands, not absolute: sampled on a proxy below.
+      if (!t.path) { rootTracks.push(new TRACK[t.prop](`${proxy.uuid}.${t.prop}`, t.times, t.values)); continue; }
+      const b = find(o, t.path);
+      if (b) tracks.push(new TRACK[t.prop](`${b.uuid}.${t.prop}`, t.times, t.values));
+    }
+    const mixer = new THREE.AnimationMixer(o);
+    mixer.clipAction(new THREE.AnimationClip(name, src.duration, tracks)).play();
+    mixer.setTime(+sec || 0);
+    const pm = new THREE.AnimationMixer(proxy);
+    pm.clipAction(new THREE.AnimationClip(name, src.duration, rootTracks)).play();
+    pm.setTime(+sec || 0);
+    o.position.add(proxy.position.applyQuaternion(o.quaternion));
+    o.quaternion.multiply(proxy.quaternion);
+  });
+}
+
+const camPath = q.get('cam') || 'Camera';
+const node = env.byPath(camPath) || player.byPath(camPath);
+scene.updateMatrixWorld(true);
+if (node) {
+  node.matrixWorld.decompose(camera.position, camera.quaternion, new THREE.Vector3());
+  const k = node.userData.node.k;
+  camera.fov = +q.get('fov') || (k && k.Camera && k.Camera['field of view']) || 60;
+} else {
+  camera.position.set(0, 4, -45);
+  camera.fov = +q.get('fov') || 60;
+}
+if (q.get('pos')) camera.position.fromArray(q.get('pos').split(',').map(Number));
+if (q.get('look')) camera.lookAt(...q.get('look').split(',').map(Number));
+camera.updateProjectionMatrix();
+
+// Free-fly
+const keys = new Set();
+let yaw = 0, pitch = 0, drag = false;
+const eul = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+yaw = eul.y; pitch = eul.x;
+addEventListener('keydown', e => keys.add(e.code));
+addEventListener('keyup', e => keys.delete(e.code));
+canvas.addEventListener('pointerdown', e => { drag = true; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', () => { drag = false; });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  yaw -= e.movementX * 0.004;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch - e.movementY * 0.004));
+});
+// ?debug=pick: click (without dragging) logs the Unity path of the mesh under the cursor.
+if (q.get('debug') === 'pick') {
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  let moved = 0;
+  canvas.addEventListener('pointerdown', () => { moved = 0; });
+  canvas.addEventListener('pointermove', e => { if (drag) moved += Math.abs(e.movementX) + Math.abs(e.movementY); });
+  canvas.addEventListener('click', e => {
+    if (moved > 4) return;
+    const r = canvas.getBoundingClientRect();
+    ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects([env.root, player.root], true).find(h => h.object.visible);
+    if (!hit) return;
+    const path = []; for (let o = hit.object.parent; o && o.parent; o = o.parent) path.unshift(o.name);
+    const m = hit.object.material;
+    console.log('pick', path.join('/'), '| material', m.name, m.lightMap ? 'lightmapped' : 'lit', hit.point.toArray().map(v => v.toFixed(1)).join(','));
+  });
+}
+const hud = document.getElementById('hud');
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  const sp = (keys.has('ShiftLeft') ? 20 : 4) * dt;
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  if (keys.has('KeyW')) camera.position.addScaledVector(f, sp);
+  if (keys.has('KeyS')) camera.position.addScaledVector(f, -sp);
+  if (keys.has('KeyD')) camera.position.addScaledVector(r, sp);
+  if (keys.has('KeyA')) camera.position.addScaledVector(r, -sp);
+  if (keys.has('KeyE')) camera.position.y += sp;
+  if (keys.has('KeyQ')) camera.position.y -= sp;
+  env.update(clock.elapsedTime);
+  post.render(scene, camera);
+  hud.textContent = `${camPath}\n${camera.position.toArray().map(v => v.toFixed(2)).join(', ')}  fov ${camera.fov}`;
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', () => {
+  if (q.get('w')) return;
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+await Promise.all([env.ready, player.ready]);
+window.__fb = { scene, camera, renderer, env, player, ready: true, found: !!node };
+frame();
+</script>
+</body>
+</html>

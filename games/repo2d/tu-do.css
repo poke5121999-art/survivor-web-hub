@@ -1,0 +1,243 @@
+/* ============================================================================
+   TỦ ĐỒ — bố cục lưới + bộ khung gỗ pixel (ElvGames "Free Inventory")
+   ----------------------------------------------------------------------------
+   Chủ dự án đưa bộ hình `Free Inventory` và bảo dựng lại UI tủ bằng nó. Tệp này là
+   toàn bộ cái tủ: KHÔNG một dòng HTML nào trong showStash() đổi, chỉ đổi cái mặc lên
+   người nó.
+
+   VÌ SAO LÀ MỘT TỆP RIÊNG chứ không nằm trong <style> của index.html như trước:
+   MỘT game.js phục vụ HAI trang (Ca Trực Đêm và Biệt Đội), mà luật CSS cho lưới tủ
+   xưa nay chỉ có ở trang Ca Trực Đêm — mở tủ ở bản Biệt Đội là ra một đống thẻ div
+   trần, không lưới không ô. Cả khối luật đã dọn từ index.html sang đây, hai trang
+   cùng gắn bằng một dòng <link>, và từ nay sửa cái tủ là sửa ĐÚNG MỘT CHỖ.
+
+   PHẠM VI: mọi luật ở đây đều đứng sau `.veil.stash` — cái lớp mà showStash() gắn lên
+   tấm màn và showVeil() gỡ ra ở mọi bảng khác. Trạm dịch vụ và bảng tra quái dùng
+   chung `#veilExtra`, `.seg`, `.empty`, `.btn` với cái tủ; không rào lại thì thay hình
+   cho tủ là thay luôn cả hai bảng kia. Ngoại lệ duy nhất là `.dragghost` — nó được gắn
+   vào <body>, NGOÀI tấm màn, nên không có tổ tiên nào để rào; nó chỉ do napKeoTha()
+   sinh ra nên vẫn chỉ thuộc về cái tủ.
+
+   Ba tấm 20×20 được cắt ở đâu, và vì sao đúng những con số đó: art/ui/README.md.
+   ========================================================================== */
+
+.veil.stash{
+  /* Hệ số phóng 3 cho cả bộ. Hai con số này đi cùng nhau: 2×3 và 5×3 — đổi một cái mà
+     quên cái kia là góc nhoè trong khi cạnh vẫn nét. */
+  --o-vien: 6px;                     /* inv-slot / inv-select: cắt 2, ×3 */
+  --khung-vien: 15px;                /* inv-panel: cắt 5, ×3 */
+  /* Chữ trên GỖ, không phải trên kim loại đen. Cả bảng vừa lật từ nền #12151a sang nền
+     #fed37f, nên mọi màu chữ cũ (--ink #d5d9de, --ink-dim, --ink-faint, --teal) đều
+     thành sáng-trên-sáng. Đây là bộ thay thế, và đó là lý do khối luật này không còn
+     dùng một biến màu nào của index.html ngoài --mono. */
+  --go-dam: #3b2415;
+  --go-nhat: #6d4526;
+  --go-mo: #8a6038;
+  --go-sang: #ffe5b2;
+  --go-vien: #4c3024;
+  --go-so: #6a3d0c;
+  --go-do: #9e2b1c;
+  --lanh: #7fd4e8;                   /* màu của ĐÍCH THẢ, và chỉ của nó */
+  /* Nền sau tấm ván ấm lên một chút cho khỏi chọi: xanh xám #060709 đứng cạnh gỗ vàng
+     thì đổ ra một vệt tím ở mép. */
+  background: rgba(13, 8, 5, .95);
+}
+
+/* ---------------------------------------------------------------- TẤM VÁN
+   Khung 9 mảnh bọc quanh chính cái hộp CUỘN. Nhờ vậy khi tủ dài quá màn hình thì danh
+   sách chạy ngầm dưới khung chứ không kéo khung đi theo — viền của một hộp cuộn nằm
+   ngoài vùng cuộn, và nội dung bị cắt đúng ở mép trong.
+   Cộng thêm 30px bề ngang cho hai bên viền để lòng bảng vẫn rộng như bản cũ. */
+.veil.stash #veilExtra{
+  max-width: min(100%, 492px);
+  border: var(--khung-vien) solid transparent;
+  border-image: url(art/ui/inv-panel.png) 5 fill repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  padding: 9px 10px 12px;
+  gap: 7px;
+  color: var(--go-dam);
+}
+.veil.stash .veil-acts{
+  background: #0d0805;
+  border-top: 1px solid var(--go-vien);
+}
+.veil.stash h2{ color: var(--go-sang); }
+.veil.stash #veilBody{ color: #b8916a; }
+
+/* Nút "Đóng tủ" cũng là một miếng ván — cùng tấm hình, phóng ×2 cho nó nhỏ hơn cái
+   khung bao quanh bảng. Nút hổ phách cũ đứng cạnh bảng gỗ đọc ra là của bảng khác. */
+.veil.stash .btn{
+  color: var(--go-dam);
+  background: none;
+  border: 10px solid transparent;
+  border-image: url(art/ui/inv-panel.png) 5 fill repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  border-radius: 0;
+  padding: 3px 14px;
+  text-shadow: 0 1px 0 rgba(255, 229, 178, .55);
+}
+.veil.stash .btn:hover{ background: none; filter: brightness(1.07); }
+.veil.stash .btn:active{ transform: translateY(1px); }
+.veil.stash .btn:focus-visible{ outline: 2px solid var(--go-sang); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- CÁC HÀNG CHỮ */
+.veil.stash .wallet{ color: var(--go-so); text-shadow: 0 1px 0 rgba(255, 229, 178, .5); }
+.veil.stash .seg{ color: var(--go-nhat); margin-top: 2px; }
+/* Một dòng duy nhất tả món ĐANG CẦM. Cả đoạn mô tả của từng món không còn chỗ trong ô
+   vuông nữa, mà nó vẫn là tin cần đọc — nên nó dời chỗ: thay vì tám đoạn văn cùng lúc,
+   là một đoạn về đúng cái người chơi đang quan tâm. */
+.veil.stash .baginfo{ font-size: 10.5px; line-height: 1.5; color: var(--go-nhat); padding: 2px 2px 0; }
+.veil.stash .baginfo b{ color: var(--go-dam); font-weight: 600; }
+.veil.stash .handhint{ font-size: 10px; line-height: 1.45; color: var(--go-nhat); padding: 1px 2px 0; }
+/* Dòng cảnh báo trong bảng (tay đã đầy / có món lạ). Nó dùng chung class `.empty` với
+   trạm dịch vụ, và showStash() còn nhét màu thẳng vào style="" của thẻ — nên chỗ này
+   phải !important, không phải vì lười mà vì đối thủ là style nội tuyến. */
+.veil.stash .empty{
+  background: rgba(76, 48, 36, .13);
+  border: 1px solid var(--go-vien) !important;
+  color: #7a3410 !important;
+}
+
+/* ---------------------------------------------------------------- BA Ô TRÊN TAY
+   Ba ô VUÔNG đặt cạnh nhau, cùng hình dạng với ba ô trên HUD, để "trên tay" trong bảng
+   và "trên tay" ngoài trận đánh đọc ra là cùng một thứ.
+   touch-action:none là BẮT BUỘC chứ không phải trang trí: không có nó thì trình duyệt
+   nuốt pointermove để cuộn trang, và cú kéo chết ngay ở pixel thứ hai trên điện thoại.
+
+   Bản cũ vẽ đường kẻ giữa các ô bằng một mẹo: nền xám của lưới lộ ra qua khe `gap:1px`.
+   Với bộ hình này thì mỗi ô TỰ CÓ VIỀN, nên cái nền lưới kia chỉ còn là một sợi xám
+   chạy giữa hai khung gỗ. Bỏ nền lưới, nới khe ra cho hai ô cạnh nhau không dính viền
+   vào nhau. */
+.veil.stash .handrow,
+.veil.stash .bag{
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+.veil.stash .handrow{ grid-template-columns: repeat(3, 1fr); }
+.veil.stash .bag{ grid-template-columns: repeat(4, 1fr); }
+
+.veil.stash .hcell,
+.veil.stash .bcell{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  color: var(--go-dam);
+  background: none;
+  border: var(--o-vien) solid transparent;
+  border-image: url(art/ui/inv-slot.png) 2 fill repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+}
+.veil.stash .hcell{ min-height: 84px; padding: 4px 3px; gap: 3px; }
+.veil.stash .bcell{ min-height: 80px; padding: 4px 2px; gap: 2px; }
+.veil.stash .hcell:hover,
+.veil.stash .bcell:hover{ filter: brightness(1.06); }
+
+/* HÌNH MÓN ĐỒ KHÔNG ĐƯỢC PIXELATED. image-rendering là thuộc tính DI TRUYỀN, nên nếu để
+   nguyên thì cái <img> bên trong ô cũng nhận. Mà hình món đồ do canvas vẽ ra ở cỡ
+   px × devicePixelRatio rồi bày ở đúng px CSS — trên điện thoại dpr=3 nó là một tấm 96px
+   thu về 32px, và thu nhỏ bằng nearest-neighbor thì răng cưa nát hết. Khung gỗ thì phóng
+   TO nên cần pixelated; hình món thì thu NHỎ nên cần đúng ngược lại. */
+.veil.stash .hpic,
+.veil.stash .bpic{ display: flex; align-items: center; justify-content: center; }
+.veil.stash .hpic{ height: 34px; }
+.veil.stash .bpic{ height: 32px; }
+.veil.stash .hpic img{ width: 34px; height: 34px; }
+.veil.stash .bpic img{ width: 32px; height: 32px; }
+.veil.stash .hpic img,
+.veil.stash .bpic img,
+.dragghost img{ image-rendering: auto; }
+
+.veil.stash .hname{ font-size: 10.5px; line-height: 1.25; color: var(--go-dam); }
+.veil.stash .bname{
+  font-size: 9.5px; line-height: 1.2; color: var(--go-nhat);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.veil.stash .hnum{ font-family: var(--mono); font-size: 9.5px; color: var(--go-so); min-height: 11px; }
+.veil.stash .bnum{ font-family: var(--mono); font-size: 9px; color: var(--go-so); }
+.veil.stash .bnum.het{ color: var(--go-do); }
+.veil.stash .bcell.bad .bpic{ font-family: var(--mono); font-size: 20px; color: var(--go-do); }
+
+/* Ô TRỐNG vẫn là một cái ô — đó là điểm mạnh của bộ hình này: chỗ trống trong tủ có hình
+   dạng hẳn hoi, nên nó vừa nói "còn chỗ" vừa cho cú kéo một cái đích để nhắm. Chỉ làm nó
+   nhạt đi để mắt không đếm nhầm nó là một món. */
+.veil.stash .hcell.empty,
+.veil.stash .bcell.blank{ cursor: default; filter: brightness(.9) saturate(.72); }
+.veil.stash .hcell.empty:hover,
+.veil.stash .bcell.blank:hover{ filter: brightness(.9) saturate(.72); }
+.veil.stash .hcell.empty .hname{ color: var(--go-mo); }
+.veil.stash .hcell.empty .hpic::after{
+  content: ''; width: 16px; height: 16px; border: 1px dashed rgba(76, 48, 36, .45);
+}
+
+/* Nút × trả món về tủ: nhỏ, góc trên phải của ô, vùng chạm nới rộng bằng padding chứ
+   không bằng cỡ chữ — một chữ × 10px là một đích chạm 10px, và không ngón tay nào trúng
+   được nó. Màu xám cũ trên nền vàng thì gần như tàng hình. */
+.veil.stash .hx{
+  position: absolute; top: 0; right: 0; width: 22px; height: 22px; line-height: 1;
+  background: transparent; border: none; font-size: 13px; cursor: pointer;
+  color: #96603a;
+}
+.veil.stash .hx:hover{ color: var(--go-do); }
+
+/* ---------------------------------------------------------------- Ô ĐANG CẦM
+   Nó phải đọc được từ xa một cái, vì đây là câu trả lời cho "nút dùng ngoài kia đang là
+   cái gì". inv-select.png cắt 2 và KHÔNG `fill`: ruột trong suốt, nên nó là một cái VIỀN
+   chồng lên cái ô đã vẽ sẵn chứ không phải một cái ô thứ hai đè lên.
+   inset:0 cộng box-sizing:border-box: với absolute mà đặt cả bốn cạnh và để width auto
+   thì phương trình dư điều kiện tự giải ra hộp-viền = đúng vùng inset — tức cái viền chọn
+   nằm CHÍNH XÁC trên viền ô, không lệch một điểm ảnh nào. */
+.veil.stash .hcell.on::before,
+.veil.stash .hcell.drop::after,
+.veil.stash .bcell.drop::after{
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: var(--o-vien) solid transparent;
+  border-image: url(art/ui/inv-select.png) 2 repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+}
+/* ĐÍCH THẢ: cùng cái viền ấy, quay màu sang lạnh. Phải KHÁC "đang cầm" chứ không chỉ đậm
+   hơn — giữa một cú kéo, ô đang cầm và ô đang nhắm hoàn toàn có thể là hai ô khác nhau
+   nằm cạnh nhau, và người chơi cần đọc ra cái nào là cái nào trong một phần mười giây.
+   hue-rotate ăn cả hai chấm vàng chói ở bốn góc, nên góc cũng đổi màu theo. */
+.veil.stash .hcell.drop::after,
+.veil.stash .bcell.drop::after{
+  filter: hue-rotate(155deg) saturate(1.7) brightness(1.25);
+}
+/* Cả cái ba lô là MỘT đích thả (thả đâu trong tủ cũng là "cất đi"), nên nó được viền
+   ngoài chứ không phải từng ô sáng lên. */
+.veil.stash .bag.drop{ outline: 2px solid var(--lanh); outline-offset: 3px; }
+
+/* ---------------------------------------------------------------- CÁI BÓNG THEO TAY
+   Bám theo ngón tay giữa một cú kéo. pointer-events:none để elementFromPoint nhìn XUYÊN
+   QUA nó — không có dòng đó thì đích thả lúc nào cũng là chính cái bóng, và không bao giờ
+   thả được.
+   Không rào được bằng `.veil.stash` vì napKeoTha() gắn nó vào <body>. Cho nó cùng một cái
+   ô của bộ hình: món đồ đang bay giữa hai chỗ vẫn nằm trong một cái ô, nên mắt bám được
+   nó là "món đang cầm" chứ không phải một icon lơ lửng. */
+.dragghost{
+  position: fixed; left: 0; top: 0; z-index: 99; pointer-events: none;
+  transform: translate(-50%, -50%); opacity: .95;
+  border: 6px solid transparent;
+  border-image: url(art/ui/inv-slot.png) 2 fill repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  padding: 3px;
+  line-height: 0;
+  filter: drop-shadow(0 2px 6px #000);
+}
+.dragghost img{ width: 40px; height: 40px; }

@@ -1,0 +1,936 @@
+{
+ "scene": "Store_12",
+ "startingCash": 0,
+ "mats": [
+  {
+   "name": "CashierDesk_MatActivate",
+   "object": "CashierDesk",
+   "type": 11,
+   "cost": 2300,
+   "activate": [
+    "CashierDesk",
+    "Shelf07_Seaweed_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf07_Seaweed_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf07_Seaweed_MatActivate",
+   "object": "Shelf07_Seaweed",
+   "type": 11,
+   "cost": 2510,
+   "activate": [
+    "Shelf07_Seaweed",
+    "Plant_Seaweed_MatActivate",
+    "_Worker_CashierA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Plant_Seaweed_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_Seaweed_MatActivate",
+   "object": "Plant_Seaweed",
+   "type": 11,
+   "cost": 3300,
+   "activate": [
+    "Plant_Seaweed",
+    "Plant_Seaweed2_MatActivate",
+    "_Worker_ShelfA_MatActivate",
+    "_CustomerAgent_1"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_CashierA_MatActivate",
+   "object": "_Worker_CashierA",
+   "type": 11,
+   "cost": 4000,
+   "activate": [
+    "_Worker_CashierA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed2_MatActivate",
+   "object": "Plant_Seaweed2",
+   "type": 11,
+   "cost": 3800,
+   "activate": [
+    "Plant_Seaweed2",
+    "Plant_Seaweed3_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ShelfA_MatActivate",
+   "object": "_Worker_ShelfA",
+   "type": 11,
+   "cost": 4200,
+   "activate": [
+    "_Worker_ShelfA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed3_MatActivate",
+   "object": "Plant_Seaweed3",
+   "type": 11,
+   "cost": 4500,
+   "activate": [
+    "Plant_Seaweed3",
+    "Fridge03_Clam_MatActivate",
+    "_CustomerAgent_2"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Fridge03_Clam_MatActivate",
+   "object": "Fridge03_Clam",
+   "type": 11,
+   "cost": 5000,
+   "activate": [
+    "Fridge03_Clam",
+    "Animal_Clam_MatActivate",
+    "Plant_Seaweed4_MatActivate",
+    "_CustomerAgent_3"
+   ],
+   "delays": [],
+   "highlight": [
+    "Animal_Clam_MatActivate"
+   ]
+  },
+  {
+   "name": "Animal_Clam_MatActivate",
+   "object": "Animal_Clam",
+   "type": 11,
+   "cost": 6080,
+   "activate": [
+    "Animal_Clam",
+    "Store12_Tile1_MatActivate",
+    "_ActivateThief"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store12_Tile1_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_Seaweed4_MatActivate",
+   "object": "Plant_Seaweed4",
+   "type": 11,
+   "cost": 5500,
+   "activate": [
+    "Plant_Seaweed4",
+    "Plant_Seaweed5_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed5_MatActivate",
+   "object": "Plant_Seaweed5",
+   "type": 11,
+   "cost": 6400,
+   "activate": [
+    "Plant_Seaweed5",
+    "Plant_Seaweed6_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed6_MatActivate",
+   "object": "Plant_Seaweed6",
+   "type": 11,
+   "cost": 7500,
+   "activate": [
+    "Plant_Seaweed6",
+    "Plant_Seaweed7_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed7_MatActivate",
+   "object": "Plant_Seaweed7",
+   "type": 11,
+   "cost": 8800,
+   "activate": [
+    "Plant_Seaweed7",
+    "Plant_Seaweed8_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed8_MatActivate",
+   "object": "Plant_Seaweed8",
+   "type": 11,
+   "cost": 10400,
+   "activate": [
+    "Plant_Seaweed8",
+    "Plant_Seaweed9_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Seaweed9_MatActivate",
+   "object": "Plant_Seaweed9",
+   "type": 11,
+   "cost": 12400,
+   "activate": [
+    "Plant_Seaweed9"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Store12_Tile1_MatActivate",
+   "object": "Store12_Tile1",
+   "type": 11,
+   "cost": 7500,
+   "activate": [
+    "Store12_Tile1",
+    "Shelf04_FlourBag_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf04_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf04_FlourBag_MatActivate",
+   "object": "Shelf04_FlourBag",
+   "type": 11,
+   "cost": 7820,
+   "activate": [
+    "Shelf04_FlourBag",
+    "DeliveryTruck_FlourBag_MatActivate",
+    "_Worker_FarmerA_MatActivate",
+    "_CustomerAgent_4"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "DeliveryTruck_FlourBag_MatActivate",
+   "object": "DeliveryTruck_FlourBag",
+   "type": 11,
+   "cost": 9030,
+   "activate": [
+    "DeliveryTruck_FlourBag",
+    "Shelf09_ClamChowder_MatActivate",
+    "_ActivateCarCustomer"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_FarmerA_MatActivate",
+   "object": "_Worker_FarmerA",
+   "type": 11,
+   "cost": 8100,
+   "activate": [
+    "_Worker_FarmerA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf09_ClamChowder_MatActivate",
+   "object": "Shelf09_ClamChowder",
+   "type": 11,
+   "cost": 10810,
+   "activate": [
+    "Shelf09_ClamChowder",
+    "Machine_Pot_ClamChowder_MatActivate",
+    "_Worker_ShelfB_MatActivate",
+    "_CustomerAgent_5"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_Pot_ClamChowder_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_Pot_ClamChowder_MatActivate",
+   "object": "Machine_Pot_ClamChowder",
+   "type": 11,
+   "cost": 11870,
+   "activate": [
+    "Machine_Pot_ClamChowder",
+    "Fridge03_Prawn_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Fridge03_Prawn_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfB_MatActivate",
+   "object": "_Worker_ShelfB",
+   "type": 11,
+   "cost": 15000,
+   "activate": [
+    "_Worker_ShelfB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Fridge03_Prawn_MatActivate",
+   "object": "Fridge03_Prawn",
+   "type": 11,
+   "cost": 15100,
+   "activate": [
+    "Fridge03_Prawn",
+    "Animal_Prawn_MatActivate",
+    "_Worker_ChefA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Animal_Prawn_MatActivate"
+   ]
+  },
+  {
+   "name": "Animal_Prawn_MatActivate",
+   "object": "Animal_Prawn",
+   "type": 11,
+   "cost": 16535,
+   "activate": [
+    "Animal_Prawn",
+    "Store12_Tile2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store12_Tile2_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ChefA_MatActivate",
+   "object": "_Worker_ChefA",
+   "type": 11,
+   "cost": 21600,
+   "activate": [
+    "_Worker_ChefA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Store12_Tile2_MatActivate",
+   "object": "Store12_Tile2",
+   "type": 11,
+   "cost": 21000,
+   "activate": [
+    "Store12_Tile2",
+    "CashierDesk2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "CashierDesk2_MatActivate",
+   "object": "CashierDesk2",
+   "type": 11,
+   "cost": 25940,
+   "activate": [
+    "CashierDesk2",
+    "BainMarie02_FriedPrawn_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "BainMarie02_FriedPrawn_MatActivate",
+   "object": "BainMarie02_FriedPrawn",
+   "type": 11,
+   "cost": 27155,
+   "activate": [
+    "BainMarie02_FriedPrawn",
+    "Machine_DeepFryer_FriedPrawn_MatActivate",
+    "_CustomerAgent_6"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_DeepFryer_FriedPrawn_MatActivate",
+   "object": "Machine_DeepFryer_FriedPrawn",
+   "type": 11,
+   "cost": 30520,
+   "activate": [
+    "Machine_DeepFryer_FriedPrawn",
+    "Fridge03_Crab_MatActivate",
+    "_Worker_CashierB_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Fridge03_Crab_MatActivate"
+   ]
+  },
+  {
+   "name": "Fridge03_Crab_MatActivate",
+   "object": "Fridge03_Crab",
+   "type": 11,
+   "cost": 35750,
+   "activate": [
+    "Fridge03_Crab",
+    "Animal_Crabs_MatActivate",
+    "_CustomerAgent_7"
+   ],
+   "delays": [],
+   "highlight": [
+    "Animal_Crabs_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_CashierB_MatActivate",
+   "object": "_Worker_CashierB",
+   "type": 11,
+   "cost": 37770,
+   "activate": [
+    "_Worker_CashierB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Animal_Crabs_MatActivate",
+   "object": "Animal_Crabs",
+   "type": 11,
+   "cost": 37900,
+   "activate": [
+    "Animal_Crabs",
+    "Shelf03_Egg_Small_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf03_Egg_Small_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf03_Egg_Small_MatActivate",
+   "object": "Shelf03_Egg_Small",
+   "type": 11,
+   "cost": 44805,
+   "activate": [
+    "Shelf03_Egg_Small",
+    "DeliveryTruck_Egg_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_Egg_MatActivate"
+   ]
+  },
+  {
+   "name": "DeliveryTruck_Egg_MatActivate",
+   "object": "DeliveryTruck_Egg",
+   "type": 11,
+   "cost": 47140,
+   "activate": [
+    "DeliveryTruck_Egg",
+    "Shelf06_CrabCake_MatActivate",
+    "_Worker_ShelfC_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf06_CrabCake_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf06_CrabCake_MatActivate",
+   "object": "Shelf06_CrabCake",
+   "type": 11,
+   "cost": 54590,
+   "activate": [
+    "Shelf06_CrabCake",
+    "Machine_Pot_CrabCake_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ShelfC_MatActivate",
+   "object": "_Worker_ShelfC",
+   "type": 11,
+   "cost": 56500,
+   "activate": [
+    "_Worker_ShelfC"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_Pot_CrabCake_MatActivate",
+   "object": "Machine_Pot_CrabCake",
+   "type": 11,
+   "cost": 60600,
+   "activate": [
+    "Machine_Pot_CrabCake",
+    "_Worker_ChefB_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ChefB_MatActivate",
+   "object": "_Worker_ChefB",
+   "type": 11,
+   "cost": 70000,
+   "activate": [
+    "_Worker_ChefB",
+    "Mat_NextMart_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Mat_NextMart_MatActivate"
+   ]
+  },
+  {
+   "name": "Mat_NextMart_MatActivate",
+   "object": "Mat_NextMart",
+   "type": 11,
+   "cost": 125000,
+   "activate": [
+    "Mat_NextMart"
+   ],
+   "delays": [],
+   "highlight": []
+  }
+ ],
+ "prices": {
+  "0": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "1": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "2": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "3": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "4": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "6": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "7": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "8": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "9": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "10": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "12": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "13": {
+   "price": 1.0,
+   "quota": 5
+  },
+  "14": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "17": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "18": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "20": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "21": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "22": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "24": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "26": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "27": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "28": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "29": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "30": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "31": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "32": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "33": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "34": {
+   "price": 10.0,
+   "quota": 5
+  },
+  "36": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "37": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "43": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "44": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "45": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "46": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "47": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "51": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "53": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "54": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "55": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "56": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "57": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "58": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "59": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "60": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "61": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "62": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "63": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "64": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "65": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "66": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "67": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "68": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "69": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "70": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "71": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "72": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "73": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "74": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "75": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "76": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "77": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "78": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "79": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "80": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "81": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "82": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "83": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "84": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "85": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "86": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "87": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "88": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "89": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "90": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "91": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "92": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "93": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "94": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "95": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "96": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "97": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "98": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "99": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "100": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "101": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "102": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "103": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "104": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "105": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "106": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "107": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "108": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "109": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "110": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "111": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "112": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "113": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "114": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "115": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "116": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "117": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "118": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "120": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "121": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "122": {
+   "price": 2.0,
+   "quota": 5
+  }
+ }
+}

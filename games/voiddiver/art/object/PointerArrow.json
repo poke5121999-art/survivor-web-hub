@@ -1,0 +1,51 @@
+{
+ "name": "PointerArrow",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "UI",
+   "active": true
+  }
+ ],
+ "colliders": [],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "UI/Hud/Cursor",
+   "controller": "Cursor",
+   "clips": [
+    "Cursor_On",
+    "Cursor_Idle"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Cursor/Image (2)",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Cursor/Image (3)",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Cursor/Image (4)",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Cursor/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Cursor/Image (1)",
+   "class": "Image"
+  }
+ ],
+ "meshes": []
+}

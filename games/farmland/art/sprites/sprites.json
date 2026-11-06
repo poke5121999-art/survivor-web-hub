@@ -1,0 +1,100 @@
+{
+"Sprite/Barn_0.asset": {
+"png": "art/sprites/Barn.png",
+"w": 2.5188896,
+"h": 2.5189713,
+"px": 0.49998328,
+"py": 0.499902
+},
+"Sprite/Cherry_0.asset": {
+"png": "art/sprites/Cherry.png",
+"w": 2.3689713,
+"h": 1.9396034,
+"px": 0.5062277,
+"py": 0.48449725
+},
+"Sprite/Circle blur.asset": {
+"png": "art/sprites/Circle blur.png",
+"w": 4.8897417999999995,
+"h": 4.8897324,
+"px": 0.49897745,
+"py": 0.50104994
+},
+"Sprite/Circle70.asset": {
+"png": "art/sprites/Circle70.png",
+"w": 5.12,
+"h": 5.12,
+"px": 0.5,
+"py": 0.5
+},
+"Sprite/Circle_1.asset": {
+"png": "art/sprites/Circle.png",
+"w": 2.55,
+"h": 2.55,
+"px": 0.5,
+"py": 0.5
+},
+"Sprite/Icon_Play.asset": {
+"png": "art/sprites/Icon_Play.png",
+"w": 2.3789713,
+"h": 2.56,
+"px": 0.49800202,
+"py": 0.5
+},
+"Sprite/LinearGradient.asset": {
+"png": "art/sprites/LinearGradient.png",
+"w": 5.12,
+"h": 5.12,
+"px": 0.5,
+"py": 0.5
+},
+"Sprite/LockOutlined.asset": {
+"png": "art/sprites/LockOutlined.png",
+"w": 1.3433344208296394,
+"h": 1.8412550563667116,
+"px": 0.5053468,
+"py": 0.5
+},
+"Sprite/ParcelLocked copie.asset": {
+"png": "art/sprites/ParcelLocked copie.png",
+"w": 2.4592389,
+"h": 2.4542389,
+"px": 0.49796683,
+"py": 0.50305593
+},
+"Sprite/Parcel_0.asset": {
+"png": "art/sprites/Parcel.png",
+"w": 2.2184775,
+"h": 2.3794649999999997,
+"px": 0.50000006,
+"py": 0.5
+},
+"Sprite/Plane.asset": {
+"png": "art/sprites/Plane.png",
+"w": 2.2791113000000003,
+"h": 2.1989713,
+"px": 0.5000776,
+"py": 0.49988776
+},
+"Sprite/Plus_1.asset": {
+"png": "art/sprites/Plus.png",
+"w": 2.2784774999999997,
+"h": 2.2784774999999997,
+"px": 0.50000006,
+"py": 0.5043889
+},
+"Sprite/QuestionMark_0.asset": {
+"png": "art/sprites/QuestionMark.png",
+"w": 3.5958852,
+"h": 5.12,
+"px": 0.5002746,
+"py": 0.5
+},
+"Sprite/Square_0.asset": {
+"png": "art/sprites/Square.png",
+"w": 2.56,
+"h": 2.56,
+"px": 0.5,
+"py": 0.5
+}
+}

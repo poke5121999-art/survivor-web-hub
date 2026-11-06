@@ -1,0 +1,216 @@
+{
+ "name": "Cha_Sword",
+ "skeletons": {
+  "Cha_Sword_SW": {
+   "skel": "Cha_Sword_SW.skel",
+   "bytes": 486216,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/run",
+     0.20000000298023224
+    ]
+   ]
+  },
+  "Cha_Sword_NW": {
+   "skel": "Cha_Sword_NW.skel",
+   "bytes": 322518,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/walk",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/walk",
+     0.20000000298023224
+    ],
+    [
+     "default/run",
+     "default/idle",
+     0.20000000298023224
+    ],
+    [
+     "default/idle",
+     "default/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/walk",
+     "battle/run",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/walk",
+     0.20000000298023224
+    ],
+    [
+     "battle/run",
+     "battle/idle",
+     0.20000000298023224
+    ],
+    [
+     "battle/idle",
+     "battle/run",
+     0.20000000298023224
+    ]
+   ]
+  }
+ },
+ "atlas": "Cha_Sword.atlas",
+ "pages": [
+  {
+   "png": "Cha_Sword.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Sword_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "220009": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "100001": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "900004": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "BaseCharacter": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "100002": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

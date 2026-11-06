@@ -1,0 +1,44 @@
+{
+ "source": "remote_prefab_assets_object/<NpcId>/GroundNavigationPrefab (GroundNavigation)",
+ "ribbonWidth": 0.5,
+ "uvTiling": 2.0,
+ "fixedHeight": 0.05000000074505806,
+ "segmentCount": 4,
+ "smoothCorners": 1,
+ "cutoffStartDistance": 0.5,
+ "cutoffEndDistance": 0.0,
+ "cameraDirection": {
+  "x": -1.0,
+  "y": 0.0,
+  "z": 1.0
+ },
+ "uvPerspectiveScale": 0.699999988079071,
+ "widthPerspectiveScale": 1.5,
+ "navUpdateInterval": 0.25,
+ "material": {
+  "name": "Mtl_DE_GroundNavigation",
+  "speed": 0.30000001192092896,
+  "alphaClip": 1.0,
+  "cutoff": 0.5,
+  "surface": 1.0,
+  "cull": 2.0,
+  "baseColor": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "texture": {
+   "name": "Img_DE_GroundNavigationPattern",
+   "size": [
+    64,
+    64
+   ],
+   "wrap": [
+    0,
+    0
+   ],
+   "filter": 0
+  }
+ }
+}

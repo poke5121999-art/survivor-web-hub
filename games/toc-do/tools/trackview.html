@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 12px/1.4 monospace; color: #fff; }
+  #hud { position: fixed; left: 8px; top: 8px; background: rgba(0,0,0,.55); padding: 4px 8px; pointer-events: none; white-space: pre; }
+  body.clean #hud { display: none; }
+</style>
+</head>
+<body>
+<div id="hud">loading…</div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script>
+// ?id=<track>&view=start|overview&cam=x,y,z&look=x,y,z&clean=1&path=1
+// Tô màu bằng chính js/view/track.js của game (nhánh PBR tuyến tính / gamma theo shader gốc).
+'use strict';
+const Q = new URLSearchParams(location.search);
+const ID = Q.get('id') || '11citynew';
+window.TD = { TRACKS: { [ID]: { art: '../art/tracks/' + ID + '/track.glb' } } };
+</script>
+<script src="../js/view/track.js"></script>
+<script>
+'use strict';
+if (Q.get('clean')) document.body.classList.add('clean');
+const hud = document.getElementById('hud');
+window.ready = false;
+window.problems = [];
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+// shader đường đua ghi thẳng màu hiển thị
+renderer.outputEncoding = THREE.LinearEncoding;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 9000);
+
+function vec(a) { return new THREE.Vector3(a[0], a[1], a[2]); }
+
+async function main() {
+  const tv = await TD.trackView.load(scene, renderer, ID);
+  const meta = tv.meta, stats = tv.stats, gltf = { scene: tv.root };
+  window.meta = meta;
+  window.stats = stats;
+
+  if (Q.get('path') && meta.trackPoints) {
+    const g = new THREE.BufferGeometry().setFromPoints(meta.trackPoints.map((p) => vec(p).add(new THREE.Vector3(0, 0.5, 0))));
+    const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xff0040, depthTest: false }));
+    line.renderOrder = 10;
+    scene.add(line);
+  }
+  const sp = meta.startPose;
+  function setView(cam, look) { camera.position.copy(cam); camera.lookAt(look); }
+  window.setView = (c, l) => { setView(vec(c), vec(l)); render(); };
+  const view = Q.get('view') || 'start';
+  if (Q.get('cam')) setView(vec(Q.get('cam').split(',').map(Number)), vec((Q.get('look') || '0,0,0').split(',').map(Number)));
+  else if (view === 'overview') {
+    const b = new THREE.Box3();
+    // frame the driven area (track points), not the far skyline cards and sea
+    const pts = (meta.trackPoints || []).map(vec);
+    if (pts.length) pts.forEach((p) => b.expandByPoint(p));
+    else gltf.scene.traverse((o) => { if (o.isMesh && !o.userData.sky) b.expandByObject(o); });
+    const c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), r = Math.max(s.x, s.z);
+    setView(new THREE.Vector3(c.x, c.y + r * 0.75, c.z + r * 0.75), c);
+  } else if (sp) {
+    const f = vec(sp.forward).normalize(), p = vec(sp.pos).add(new THREE.Vector3(0, 1.6, 0));
+    setView(p.clone().addScaledVector(f, -6).add(new THREE.Vector3(0, 2.5, 0)), p.clone().addScaledVector(f, 20));
+  }
+
+  // drag to look, WASD/QE to fly (shift = fast)
+  const keys = {};
+  addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = 1; keys.shift = e.shiftKey; });
+  addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = 0; keys.shift = e.shiftKey; });
+  let drag = null;
+  renderer.domElement.addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY]; });
+  addEventListener('pointerup', () => { drag = null; });
+  addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const eu = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+    eu.y -= (e.clientX - drag[0]) * 0.004; eu.x = Math.max(-1.5, Math.min(1.5, eu.x - (e.clientY - drag[1]) * 0.004));
+    camera.quaternion.setFromEuler(eu); drag = [e.clientX, e.clientY];
+  });
+  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+  let last = performance.now();
+  function render() {
+    TD.trackView.update(camera);
+    renderer.render(scene, camera);
+    const p = camera.position;
+    hud.textContent = `${ID}  meshes ${stats.meshes}  tris ${stats.tris | 0}  calls ${renderer.info.render.calls}\n` +
+      `cam ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}  pbr ${stats.pbr}/${stats.meshes}`;
+  }
+  function loop(t) {
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    const v = (keys.shift ? 120 : 30) * dt, d = new THREE.Vector3();
+    if (keys.w) d.z -= v; if (keys.s) d.z += v; if (keys.a) d.x -= v; if (keys.d) d.x += v; if (keys.e) d.y += v; if (keys.q) d.y -= v;
+    camera.position.add(d.applyQuaternion(camera.quaternion));
+    render();
+    requestAnimationFrame(loop);
+  }
+  render();
+  window.ready = true;
+  requestAnimationFrame(loop);
+}
+main().catch((e) => { window.problems.push(String(e && e.stack || e)); hud.textContent = 'error: ' + e; window.ready = true; });
+</script>
+</body>
+</html>

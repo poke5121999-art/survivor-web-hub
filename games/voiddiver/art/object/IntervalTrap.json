@@ -1,0 +1,72 @@
+{
+ "name": "IntervalTrap",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    2.0,
+    2.0
+   ],
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.75,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "",
+   "controller": "Animator_Trap_None",
+   "clips": [
+    "Anim_Trap_None_Activated",
+    "Anim_Trap_Sample_Empty",
+    "Anim_Trap_Sample_Activated"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "IntervalTrap",
+   "fields": {
+    "_meshType": 0
+   }
+  }
+ ],
+ "meshes": []
+}

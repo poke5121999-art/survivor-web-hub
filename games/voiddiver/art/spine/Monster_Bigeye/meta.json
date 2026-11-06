@@ -1,0 +1,61 @@
+{
+ "name": "Monster_Bigeye",
+ "skeletons": {
+  "Monster_Bigeye_NW": {
+   "skel": "Monster_Bigeye_NW.skel",
+   "bytes": 121875,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_Bigeye_SW": {
+   "skel": "Monster_Bigeye_SW.skel",
+   "bytes": 120576,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_Bigeye.atlas",
+ "pages": [
+  {
+   "png": "Monster_Bigeye.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Bigeye_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "200004": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.15,
+   "bsx": 1.15,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200027": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.15,
+   "bsx": 1.15,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

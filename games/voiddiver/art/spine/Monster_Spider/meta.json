@@ -1,0 +1,116 @@
+{
+ "name": "Monster_Spider",
+ "skeletons": {
+  "Monster_Spider_SW": {
+   "skel": "Monster_Spider_SW.skel",
+   "bytes": 79453,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_Spider_NW": {
+   "skel": "Monster_Spider_NW.skel",
+   "bytes": 53703,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_Spider.atlas",
+ "pages": [
+  {
+   "png": "Monster_Spider.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Spider_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "200019": {
+   "sym": 0.75,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240030": {
+   "sym": 0.5,
+   "mode": 2,
+   "sk": 0.7,
+   "bsx": 0.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "210020": {
+   "sym": 0.75,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310056": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.7,
+   "bsx": 1.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200030": {
+   "sym": 0.5,
+   "mode": 2,
+   "sk": 0.7,
+   "bsx": 0.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310055": {
+   "sym": 1.0,
+   "mode": 2,
+   "sk": 1.35,
+   "bsx": 1.35,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "210030": {
+   "sym": 0.5,
+   "mode": 2,
+   "sk": 0.7,
+   "bsx": 0.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

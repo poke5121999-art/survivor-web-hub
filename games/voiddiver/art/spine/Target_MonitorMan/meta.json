@@ -1,0 +1,42 @@
+{
+ "name": "Target_MonitorMan",
+ "skeletons": {
+  "Target_MonitorMan_SW": {
+   "skel": "Target_MonitorMan_SW.skel",
+   "bytes": 18820,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "mixes": [],
+   "skins": null
+  }
+ },
+ "atlas": "Target_Training.atlas",
+ "pages": [
+  {
+   "png": "Target_Training.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Target_Training_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "820006": {
+   "sym": 1.7,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "SW",
+    "SW"
+   ]
+  }
+ }
+}

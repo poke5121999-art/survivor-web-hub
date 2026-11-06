@@ -1,0 +1,154 @@
+@font-face { font-family: 'Pretendard'; src: url('../vendor/fonts/Pretendard-Regular.subset.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Pretendard'; src: url('../vendor/fonts/Pretendard-Bold.subset.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+:root {
+  --ink: #e9e6df; --dim: #9a968e; --gold: #e2c285; --red: #d24a3c; --hp: #5fb3a7; --stress: #8c7fd9;
+  --panel: rgba(12, 12, 16, 0.82); --line: rgba(255, 255, 255, 0.12);
+}
+#ui { position: fixed; inset: 0; pointer-events: none; font-family: 'Pretendard', system-ui, sans-serif; color: var(--ink); user-select: none; }
+#ui > * { pointer-events: auto; }
+
+.vd-dialog { position: absolute; inset: 0; display: none; }
+.vd-dialog.on { display: block; }
+.vd-dlg-bg { position: absolute; inset: 0; background: center / cover no-repeat #000; opacity: 0; transition: opacity .3s; image-rendering: auto; }
+.vd-dlg-bg.on { opacity: 1; }
+.vd-dlg-portraits { position: absolute; inset: 0 0 0 0; pointer-events: none; }
+.vd-dlg-portraits img { position: absolute; bottom: 0; height: 88vh; max-width: 46vw; object-fit: contain; object-position: bottom; transition: filter .15s, opacity .15s; }
+.vd-dlg-portraits .p0 { left: 4vw; } .vd-dlg-portraits .p1 { left: 50%; transform: translateX(-50%); } .vd-dlg-portraits .p2 { right: 4vw; }
+.vd-dlg-portraits img.dim { filter: brightness(.45); }
+.vd-dlg-box { position: absolute; left: 0; right: 0; bottom: 0; min-height: 22vh; padding: 3vh 12vw 5vh; box-sizing: border-box;
+  background: linear-gradient(to top, rgba(0,0,0,.92) 55%, rgba(0,0,0,0)); }
+.vd-dlg-name { color: var(--gold); font-weight: 700; font-size: clamp(16px, 2.3vh, 24px); margin-bottom: .6em; }
+.vd-dlg-text { font-size: clamp(15px, 2.1vh, 22px); line-height: 1.55; min-height: 3.2em; white-space: pre-wrap; }
+.vd-dlg-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; align-items: flex-start; }
+.vd-choice { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
+.vd-choice:hover { border-color: var(--gold); color: var(--gold); }
+/* Hàng phím như DialogPopup/Keys[] gốc (góc phải dưới): ảnh phím 40 px của InputIcons, chữ NextView/QuickView. */
+.vd-dlg-hint { position: absolute; right: 24px; bottom: 14px; display: flex; gap: 18px; align-items: center; font-size: 14px; color: var(--ink); }
+.vd-dlg-hint .g { display: inline-flex; align-items: center; gap: 4px; }
+.vd-dlg-hint i { font-style: normal; margin-left: 4px; opacity: .9; }
+.vd-key { width: 28px; height: 28px; object-fit: contain; image-rendering: auto; }
+.vd-key[src*="Space_Key"] { width: 34px; }
+/* Khung "Giữ để bỏ qua" theo CutscenePanel gốc: góc trái dưới, nền tròn mờ đen 80 %, phím Esc trong vòng đo 42 px. */
+.vd-dlg-skip { position: absolute; left: 0; bottom: 0; width: 360px; height: 96px; z-index: 5; cursor: pointer; touch-action: none; }
+.vd-dlg-skip .dim { position: absolute; left: -180px; bottom: -110px; width: 600px; height: 220px; background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,0)); pointer-events: none; }
+.vd-dlg-skip .row { position: absolute; left: 40px; bottom: 26px; display: flex; align-items: center; gap: 14px; font-size: 15px; color: #eee; }
+.vd-dlg-skip .kp { position: relative; width: 42px; height: 42px; }
+.vd-dlg-skip .kp img { position: absolute; left: 7px; top: 7px; width: 28px; height: 28px; }
+.vd-dlg-skip svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.vd-dlg-skip circle { fill: none; stroke-width: 2; }
+.vd-dlg-skip circle.bg { stroke: rgba(255,255,255,.18); }
+.vd-dlg-skip circle.fg { stroke: #eee; stroke-dasharray: 119.4; stroke-dashoffset: 119.4; }
+.vd-dlg-skip:hover .row span, .vd-dlg-skip.hold .row span { color: #fff; }
+.vd-dialog.skipping .vd-dlg-skip { opacity: .5; }
+.vd-dialog.skipping .vd-dlg-bg, .vd-dialog.skipping .vd-dlg-fade { transition: none; }
+.vd-dlg-fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .5s; pointer-events: none; }
+.vd-dlg-fade.on { opacity: 1; }
+.vd-note { position: absolute; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; }
+.vd-note .paper { max-width: min(560px, 86vw); max-height: 70vh; overflow: auto; background: #e8e0cf; color: #2b2620; padding: 28px 32px; line-height: 1.7; font-size: 16px; box-shadow: 0 10px 40px #000; }
+.vd-note .paper p { margin: 0 0 .8em; }
+
+.vd-toasts { position: absolute; left: 50%; top: 14vh; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.vd-toast { background: var(--panel); border: 1px solid var(--line); padding: 8px 18px; font-size: 15px; transition: opacity .5s; }
+.vd-toast.out { opacity: 0; }
+.vd-radio { position: absolute; left: 16px; top: max(16vh, calc(var(--qb, 0px) + 10px));   /* --qb = đáy bảng nhiệm vụ (hud.js) */
+   display: flex; gap: 10px; align-items: flex-start; max-width: min(420px, 80vw);
+  background: var(--panel); border-left: 3px solid var(--gold); padding: 10px 14px 10px 10px; opacity: 0; transform: translateX(-12px); transition: opacity .25s, transform .25s; pointer-events: none; }
+.vd-radio.on { opacity: 1; transform: none; }
+.vd-radio img { width: 56px; height: 56px; object-fit: cover; object-position: top; background: #111; }
+.vd-radio b { display: block; color: var(--gold); font-size: 13px; margin-bottom: 3px; }
+.vd-radio span { font-size: 14px; line-height: 1.45; }
+
+/* HUD lượt lặn */
+.vd-hud { position: absolute; inset: 0; }
+.vd-hud-world { position: absolute; inset: 0; overflow: hidden; }
+/* Lớp phủ toàn màn của HUD phải để chuột xuyên xuống canvas (luật #ui > * ở trên bật auto cho mọi con trực tiếp). */
+#ui > .vd-hud, #ui > .vd-lhud, #ui .vd-hud-world, #ui .vd-hud-world * { pointer-events: none; }
+.vd-hud-left { position: absolute; left: 18px; bottom: 18px; display: flex; align-items: flex-end; gap: 12px; }
+.vd-light { width: 34px; text-align: center; font-size: 12px; color: var(--ink); }
+.vd-light .bulb { width: 14px; height: 40px; margin: 0 auto 4px; background: linear-gradient(#fff8d8, #c8b67c); clip-path: polygon(20% 0, 80% 0, 100% 30%, 70% 45%, 70% 100%, 30% 100%, 30% 45%, 0 30%); box-shadow: 0 0 12px #ffeaa0; }
+.vd-light.low .bulb { background: linear-gradient(#aa6040, #5a3020); }
+.vd-light.low .pct { color: var(--red); }
+.vd-bars { display: flex; flex-direction: column; gap: 5px; width: min(300px, 34vw); }
+.vd-bar { position: relative; height: 10px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.18); }
+.vd-bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+.vd-bar .fill { background: var(--hp); transition: width .08s; }
+.vd-bar .shield { background: rgba(230,230,255,.55); }
+.vd-bar span { position: absolute; right: 4px; top: -15px; font-size: 12px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+.vd-bar.hp { height: 12px; margin-top: 14px; }
+.vd-bar.stress .fill { background: var(--stress); }
+.vd-bar.stress { margin-top: 12px; }
+.vd-bar.sta { height: 4px; border: 0; transition: opacity .3s; }
+.vd-bar.sta .fill { background: #e8e2c6; }
+.vd-skills { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; }
+.vd-skill { position: relative; width: 50px; height: 50px; background: rgba(10,10,14,.8); border: 1px solid rgba(255,255,255,.2); }
+.vd-skill img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.vd-skill.empty img { visibility: hidden; }
+.vd-skill .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.66); }
+.vd-skill .cdt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; text-shadow: 0 1px 3px #000; }
+.vd-skill .stk { position: absolute; right: 3px; top: 1px; font-size: 11px; }
+.vd-skill b { position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); font-size: 11px; font-weight: 500; color: var(--dim); white-space: nowrap; }
+.vd-skill.ready { border-color: var(--gold); box-shadow: 0 0 10px rgba(226,194,133,.6); }
+.vd-skill.active { border-color: #fff; }
+.vd-items { position: absolute; right: 18px; bottom: 18px; display: flex; gap: 4px; }
+.vd-item { position: relative; width: 40px; height: 40px; background: rgba(10,10,14,.75); border: 1px solid rgba(255,255,255,.15); }
+.vd-item img { width: 100%; height: 100%; image-rendering: pixelated; }
+.vd-item img:not([src]) { visibility: hidden; }
+.vd-item span { position: absolute; right: 2px; bottom: 1px; font-size: 11px; }
+.vd-item b { position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%); font-size: 11px; font-weight: 500; color: var(--dim); }
+.vd-boss { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: min(520px, 70vw); text-align: center; display: none; }
+.vd-boss.on { display: block; }
+.vd-boss .name { color: #e08a6a; font-size: 14px; margin-bottom: 4px; }
+.vd-bar.bosshp .fill { background: var(--red); }
+/* Bảng nhiệm vụ (hud.js renderQuest) theo prefab InGameQuestPanel gốc, khung tham chiếu 1920×1080:
+   gốc CampaignAndLoungeRoot neo trái-trên @(0, −57), slot rộng 550, lề trái 80, khoảng slot 12, tên→việc 6, việc→việc 8.
+   Cỡ chữ đo trên ảnh Steam 1080p (ss_67066307…): nhãn độ khó 18, tên 24 đậm, việc 19; màu việc #b8b8b8, số hiện tại #eee đậm.
+   --q = 1 px khung gốc, co giãn như CanvasScaler 1920×1080 (lấy chiều nhỏ hơn); sàn 0,75 để còn đọc được ở 1280×720,
+   0,6 ở màn thấp (844×390). */
+.vd-qtrack { --q: max(min(calc(100vw / 1920), calc(100vh / 1080)), 0.75px);
+  position: absolute; z-index: 1; left: 0; top: calc(57 * var(--q)); width: calc(550 * var(--q)); max-width: min(40vw, calc(50vw - 270px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: calc(12 * var(--q)); pointer-events: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.6); }
+.vd-qtrack:empty { display: none; }
+/* BG gốc: gradient_circle_128 đen 50 %, 2000×1000, tâm ở mép trái, thấp hơn đỉnh màn 100 → nền tối mềm sau chữ. */
+.vd-qtrack::before { content: ''; position: absolute; z-index: -1; left: calc(-1000 * var(--q)); top: calc(-457 * var(--q)); width: calc(2000 * var(--q)); height: calc(1000 * var(--q));
+  background: radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,.25) 35%, rgba(0,0,0,0) 70%); pointer-events: none; }
+.vd-qtrack .slot { padding-left: calc(80 * var(--q)); display: flex; flex-direction: column; }
+.vd-qtrack .diff { font-weight: 700; font-size: calc(18 * var(--q)); line-height: 1.25; color: #898989; margin-bottom: calc(4 * var(--q)); }
+.vd-qtrack .diff.d-Normal { color: #9fa100; }   /* ảnh Steam; prefab bản demo ghi (0, .467, 0) */
+.vd-qtrack .diff.d-Hard { color: #a5a500; }
+.vd-qtrack .diff.d-Insane { color: #a91414; }
+.vd-qtrack .name { position: relative; font-weight: 700; font-size: calc(24 * var(--q)); line-height: 1.17; color: #dcdcdc; }
+/* MainQuestIcon/SubIcon: 32×32, neo mép trái giữa của tên, lệch −6; khung ◇ + ô vuông nhỏ + hai vạch (MenuQuest1), Main có thêm "!" */
+.vd-qtrack .name .qi { position: absolute; left: calc(-38 * var(--q)); top: calc(0.585em - 19 * var(--q)); width: calc(32 * var(--q)); height: calc(32 * var(--q));
+  background: url(../art/ui/icon_common/MenuQuest1.webp) center / contain no-repeat; opacity: .9; }
+.vd-qtrack .name .qi.bang::after { content: ''; position: absolute; left: 50%; top: calc(-4 * var(--q)); width: calc(8 * var(--q)); height: calc(23 * var(--q)); transform: translateX(-50%);
+  background: url(../art/ui/icon_common/MenuQuest2.webp) center / contain no-repeat; filter: drop-shadow(0 1px 1px #000); }
+.vd-qtrack .task { position: relative; padding-left: calc(27 * var(--q)); margin-top: calc(8 * var(--q)); font-size: calc(19 * var(--q)); line-height: 1.2; color: #b8b8b8; }
+.vd-qtrack .name + .task { margin-top: calc(6 * var(--q)); }
+.vd-qtrack .task b { color: #eee; font-weight: 700; }
+/* CheckBox: rectangle_line_2px 13×13 xám (0.537) xoay 45°; xong = dấu Check màu (0.643, 0.337, 0.275) */
+.vd-qtrack .task .cb { position: absolute; left: calc(4 * var(--q)); top: calc(0.6em - 6.5 * var(--q)); width: calc(13 * var(--q)); height: calc(13 * var(--q)); box-sizing: border-box;
+  border: max(1px, calc(2 * var(--q))) solid #898989; transform: rotate(45deg); }
+.vd-qtrack .task.done { color: #898989; }
+.vd-qtrack .task.done .cb::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(20 * var(--q)); height: calc(14 * var(--q));
+  transform: translate(-30%, -70%) rotate(-45deg); background: #a45646;
+  -webkit-mask: url(../art/ui/icon_common/Check.webp) center / contain no-repeat; mask: url(../art/ui/icon_common/Check.webp) center / contain no-repeat; }
+.vd-qtrack .task.nav { color: #9fe6ff; }
+.vd-qtrack .task.nav .cb { border: 0; transform: none; width: auto; height: auto; top: 0; left: calc(2 * var(--q)); }
+.vd-qtrack .task.nav .cb::before { content: '▶'; font-style: normal; font-size: .8em; color: #7fe3ff; }
+@media (max-height: 480px) { .vd-qtrack { --q: 0.6px; max-width: 26vw; } }
+.vd-center { position: absolute; left: 50%; top: 32%; transform: translateX(-50%); font-size: 22px; font-weight: 700; letter-spacing: .04em; opacity: 0; transition: opacity .3s; text-shadow: 0 2px 6px #000; }
+.vd-center.on { opacity: 1; }
+.vd-dmg { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 17px; color: #fff; text-shadow: 0 0 3px #000, 0 1px 2px #000; will-change: transform; white-space: nowrap; }
+.vd-dmg.crit { color: #ffd060; font-size: 23px; }
+.vd-dmg.back { color: #ff9a5c; }
+.vd-dmg.taken { color: #ff5a4a; }
+.vd-bubble { position: absolute; left: 0; top: 0; max-width: 260px; background: rgba(20,20,24,.9); border: 1px solid rgba(255,255,255,.2); padding: 6px 10px; font-size: 13px; line-height: 1.4; border-radius: 3px; }
+.vd-mtag { position: absolute; left: 0; top: 0; text-align: center; width: 44px; }
+.vd-mtag b { display: block; color: #ffd24a; font-size: 18px; font-weight: 900; text-shadow: 0 0 3px #000; height: 20px; }
+.vd-bar.mhp { height: 4px; }
+.vd-bar.mhp .fill { background: var(--red); }
+@media (max-width: 700px) {
+  .vd-skill { width: 40px; height: 40px; }
+  .vd-items { display: none; }
+}

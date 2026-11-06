@@ -1,0 +1,94 @@
+<!doctype html><meta charset=utf-8>
+<title>screenshot harness</title>
+<!--
+  DEV ONLY. Boots the game in an iframe, taps through the tutorial, and can
+  drive it into a given state, so a headless screenshot shows the world rather
+  than whatever modal happens to be up. Query params:
+    ?rank=40&gold=999999&buy=farm,market&go=meadow&panel=map
+  Not linked from anywhere and not shipped to players.
+-->
+<style>html,body{margin:0;background:#0b1016}iframe{border:0;width:440px;height:880px;display:block;margin:0 auto}</style>
+<iframe id=f src="index.html?new=1"></iframe>
+<pre id=diag style="color:#8fd44a;font:11px monospace;padding:6px;white-space:pre-wrap"></pre>
+<script>
+var f = document.getElementById('f');
+f.onload = function () {
+  var w = f.contentWindow;
+  w.__errs = [];
+  w.addEventListener('error', function (e) { w.__errs.push(e.message); });
+  var tries = 0;
+  var t = setInterval(function () {
+    if (++tries > 80) { clearInterval(t); return; }
+    if (!w.ISL_TUTORIAL || !w.GAME || !w.GAME.sim) return;
+    clearInterval(t);
+    var q = new URLSearchParams(location.search);
+    w.ISL_TUTORIAL.skipAll();
+    if (q.get('rank')) w.GAME.sim.rank = +q.get('rank');
+    if (q.get('gold')) w.GAME.sim.gold = +q.get('gold');
+    if (q.get('buy')) q.get('buy').split(',').forEach(function (id) { w.GAME.buyIsland(id); });
+    w.ISL_TUTORIAL.skipAll();
+    w.ISL_UI.closeAll();
+    if (q.get('give')) {
+      q.get('give').split(',').forEach(function (pair) {
+        var kv = pair.split(':');
+        w.GAME.sim.give(kv[0], +(kv[1] || 1));
+      });
+    }
+    if (q.get('party')) {
+      w.GAME.sim.party = q.get('party').split(',').map(function (id) {
+        return w.ISL_POKE.create(+id, 25, {});
+      });
+    }
+    if (q.get('go')) w.GAME.travelTo(w.GAME.islandRec(q.get('go')));
+    setTimeout(function () {
+      w.ISL_TUTORIAL.skipAll();
+      w.ISL_UI.closeAll();
+      var p = q.get('panel');
+      if (p === 'map') w.ISL_UI.openMap(w.GAME);
+      else if (p === 'party') w.ISL_POKEUI.openParty(w.GAME);
+      else if (p === 'summary') w.ISL_POKEUI.openSummary(w.GAME, w.GAME.sim.party[0], 0, function () {});
+      else if (p === 'farm') w.ISL_FARMQOL.openPanel(w.GAME);
+      else if (p === 'orders') w.ISL_FARMQOL.openOrders(w.GAME);
+      else if (p === 'bag') w.ISL_UI.openBag(w.GAME);
+      else if (p === 'dex') w.ISL_POKEUI.openDex(w.GAME);
+      else if (p === 'shop') { w.GAME.sim.time = 9 * 60; w.ISL_UI.openShop(w.GAME, q.get('shop') || 'pokemart'); }
+      else if (p === 'battle') {
+        var rec = w.GAME.islandRec(q.get('go') || 'meadow');
+        for (var i = 0; i < 40 && !w.GAME.battle; i++) {
+          w.GAME.lastGrassTile = null;
+          var gr = rec.isl.grass[0];
+          w.GAME.player.x = rec.x + gr.x + 2 + (i % 4);
+          w.GAME.player.y = rec.y + gr.y + 2;
+          w.GAME.checkGrass();
+        }
+      }
+    }, 500);
+    /* rAF barely ticks under a headless virtual-time budget, so the game clock
+     * never advances and anything throttled (the minimap, the wave scroll)
+     * never draws. Pump frames by hand so a screenshot shows a settled world. */
+    setTimeout(function () {
+      /* Opening a panel can itself fire a tutorial card, which then covers the
+       * panel we came to photograph. Clear it, then pump frames. */
+      w.ISL_TUTORIAL.skipAll();
+      for (var i = 0; i < 200; i++) w.GAME.frame(i * 16);
+    }, 900);
+    setTimeout(function () {
+      var d = document.getElementById('diag');
+      var m = w.document.getElementById('hud-mini');
+      var lines = [];
+      lines.push('time=' + Math.round(w.GAME.time) + ' current=' + w.GAME.world.current);
+      lines.push('mini el=' + (m && m.tagName) + ' w=' + (m && m.width) + ' h=' + (m && m.height));
+      if (m && m.getContext) {
+        var px = m.getContext('2d').getImageData(2, 2, 1, 1).data;
+        lines.push('mini pixel(2,2)=' + [px[0], px[1], px[2], px[3]].join(','));
+        var mid = m.getContext('2d').getImageData(10, 40, 1, 1).data;
+        lines.push('mini pixel(10,40)=' + [mid[0], mid[1], mid[2], mid[3]].join(','));
+      }
+      lines.push('owned=' + Object.keys(w.GAME.sim.owned).length +
+                 ' islands=' + (w.GAME.area().islands || []).length);
+      lines.push('errors=' + (w.__errs || []).join(' | '));
+      d.textContent = lines.join(String.fromCharCode(10));
+    }, 3000);
+  }, 120);
+};
+</script>

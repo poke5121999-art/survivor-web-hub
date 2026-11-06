@@ -1,0 +1,1679 @@
+{
+ "id": 3803,
+ "space": "glTF (x, y, -z cua Unity); met",
+ "colliders": [
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Office_Chair_6/collider",
+   "center": [
+    24.547,
+    0.3,
+    -20.084
+   ],
+   "size": [
+    0.52,
+    0.747,
+    0.534
+   ],
+   "yaw": 31.2,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/2DBG_Prop_Desk_3/collider",
+   "center": [
+    22.827,
+    0.276,
+    -1.914
+   ],
+   "size": [
+    2.017,
+    0.753,
+    0.556
+   ],
+   "yaw": 44.7,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Tile_Broken_1/collider",
+   "center": [
+    29.522,
+    0.023,
+    -3.67
+   ],
+   "size": [
+    0.892,
+    0.43,
+    0.914
+   ],
+   "yaw": -30.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Tile_Broken_2/collider",
+   "center": [
+    26.215,
+    0.223,
+    -0.895
+   ],
+   "size": [
+    0.796,
+    0.326,
+    0.839
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Fance&Door_Window_5/collider",
+   "center": [
+    9.116,
+    0.05,
+    -3.348
+   ],
+   "size": [
+    0.75,
+    0.5,
+    0.074
+   ],
+   "yaw": -14.2,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Tile_Broken_4/collider",
+   "center": [
+    3.911,
+    0.214,
+    -29.549
+   ],
+   "size": [
+    0.814,
+    0.246,
+    0.942
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/NonStandard/25DBG_Tile_Broken_2/collider",
+   "center": [
+    6.641,
+    -0.092,
+    -0.398
+   ],
+   "size": [
+    0.796,
+    0.326,
+    0.839
+   ],
+   "yaw": 52.7,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    20.014,
+    0.378,
+    -20.702
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    20.727,
+    0.378,
+    -20.752
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    28.738,
+    0.378,
+    -20.703
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    29.457,
+    0.378,
+    -20.682
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    26.348,
+    0.125,
+    -19.369
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    12.097,
+    0.125,
+    -29.197
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    0.896,
+    0.378,
+    -23.392
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    0.908,
+    0.378,
+    -24.123
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    1.648,
+    0.125,
+    -4.13
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    1.318,
+    0.125,
+    -9.119
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    14.157,
+    0.378,
+    -9.377
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Interaction_VendingMachine_1/collider",
+   "center": [
+    14.857,
+    0.378,
+    -9.402
+   ],
+   "size": [
+    0.422,
+    0.957,
+    0.515
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    9.793,
+    0.125,
+    -0.547
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_5/collider",
+   "center": [
+    11.881,
+    0.125,
+    -6.982
+   ],
+   "size": [
+    0.5,
+    0.5,
+    0.375
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/RawObject/Interaction/25DBG_Prop_Box_4/collider",
+   "center": [
+    11.961,
+    0.523,
+    -7.003
+   ],
+   "size": [
+    0.3,
+    0.2,
+    0.3
+   ],
+   "yaw": 17.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    4.5,
+    0.9,
+    -0.3
+   ],
+   "size": [
+    9.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.1,
+    0.9,
+    -0.3
+   ],
+   "size": [
+    10.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.7,
+    0.9,
+    -5.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    10.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    0.3,
+    0.9,
+    -1.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    8.7,
+    0.9,
+    -1.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -0.9
+   ],
+   "size": [
+    4.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.3,
+    0.9,
+    -1.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    0.3,
+    0.9,
+    -14.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    22.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.3,
+    0.9,
+    -8.4
+   ],
+   "size": [
+    0.6,
+    2.0,
+    4.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    8.7,
+    0.9,
+    -12.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    10.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    20.8,
+    0.9,
+    -8.9
+   ],
+   "size": [
+    0.4,
+    2.0,
+    3.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.8,
+    0.9,
+    -8.0
+   ],
+   "size": [
+    0.4,
+    2.0,
+    1.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    9.1,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    0.2,
+    2.0,
+    1.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    30.1,
+    0.9,
+    -9.6
+   ],
+   "size": [
+    0.2,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    23.1,
+    0.9,
+    -9.8
+   ],
+   "size": [
+    1.0,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    24.6,
+    0.9,
+    -9.8
+   ],
+   "size": [
+    1.2,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    26.3,
+    0.9,
+    -9.8
+   ],
+   "size": [
+    1.0,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    2.9,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    4.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    7.7,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    1.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    12.7,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    7.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    20.3,
+    0.9,
+    -10.2
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    22.1,
+    0.9,
+    -10.2
+   ],
+   "size": [
+    1.0,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    23.8,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    0.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    25.5,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    28.1,
+    0.9,
+    -9.9
+   ],
+   "size": [
+    2.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    10.4,
+    0.9,
+    -10.5
+   ],
+   "size": [
+    2.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    16.1,
+    0.9,
+    -10.9
+   ],
+   "size": [
+    1.4,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    27.4,
+    0.9,
+    -10.4
+   ],
+   "size": [
+    1.2,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    15.3,
+    0.9,
+    -11.1
+   ],
+   "size": [
+    0.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    9.1,
+    0.9,
+    -13.5
+   ],
+   "size": [
+    0.2,
+    2.0,
+    1.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    9.3,
+    0.9,
+    -16.0
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    0.7,
+    0.9,
+    -19.7
+   ],
+   "size": [
+    0.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    0.7,
+    0.9,
+    -20.8
+   ],
+   "size": [
+    0.2,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    6.3,
+    0.9,
+    -21.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    7.1,
+    0.9,
+    -21.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    18.3,
+    0.9,
+    -21.1
+   ],
+   "size": [
+    2.6,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    27.7,
+    0.9,
+    -21.1
+   ],
+   "size": [
+    1.4,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    6.7,
+    0.9,
+    -21.3
+   ],
+   "size": [
+    0.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    8.2,
+    0.9,
+    -21.3
+   ],
+   "size": [
+    1.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    23.3,
+    0.9,
+    -21.3
+   ],
+   "size": [
+    7.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.2,
+    0.9,
+    -21.3
+   ],
+   "size": [
+    1.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    8.7,
+    0.9,
+    -23.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    4.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.3,
+    0.9,
+    -22.4
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.7,
+    0.9,
+    -22.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    7.9,
+    0.9,
+    -23.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    9.7,
+    0.9,
+    -23.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    9.7,
+    0.9,
+    -24.8
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.7,
+    0.9,
+    -27.2
+   ],
+   "size": [
+    0.2,
+    2.0,
+    6.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    21.3,
+    0.9,
+    -27.6
+   ],
+   "size": [
+    0.6,
+    2.0,
+    5.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.5,
+    0.9,
+    -29.1
+   ],
+   "size": [
+    0.2,
+    2.0,
+    2.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    29.9,
+    0.9,
+    -29.1
+   ],
+   "size": [
+    0.2,
+    2.0,
+    2.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    7.4,
+    0.9,
+    -29.7
+   ],
+   "size": [
+    0.8,
+    2.0,
+    1.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    14.4,
+    0.9,
+    -29.9
+   ],
+   "size": [
+    13.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    22.9,
+    0.9,
+    -29.9
+   ],
+   "size": [
+    2.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/HighObstacles/Collider",
+   "center": [
+    26.8,
+    0.9,
+    -30.1
+   ],
+   "size": [
+    5.2,
+    2.0,
+    0.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Volumes/MainVolume",
+   "center": [
+    15.0,
+    0.0,
+    -15.0
+   ],
+   "size": [
+    30.0,
+    2.0,
+    30.0
+   ],
+   "yaw": 0.0,
+   "trigger": true,
+   "active": true,
+   "kind": "other"
+  }
+ ],
+ "lights": [
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light",
+   "pos": [
+    11.25,
+    1.5,
+    -13.21
+   ],
+   "color": [
+    0.981,
+    0.77,
+    0.541
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light_1",
+   "pos": [
+    11.25,
+    1.5,
+    -16.62
+   ],
+   "color": [
+    0.98,
+    0.769,
+    0.541
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light_2",
+   "pos": [
+    18.91,
+    1.5,
+    -22.8
+   ],
+   "color": [
+    1.0,
+    0.886,
+    0.75
+   ],
+   "intensity": 1.0,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light_3",
+   "pos": [
+    13.9,
+    1.5,
+    -5.05
+   ],
+   "color": [
+    1.0,
+    0.886,
+    0.75
+   ],
+   "intensity": 1.0,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light_4",
+   "pos": [
+    19.04,
+    1.5,
+    -6.8
+   ],
+   "color": [
+    1.0,
+    0.886,
+    0.75
+   ],
+   "intensity": 1.0,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "3803/3803/StaticDecoration/Lights/Point Light_5",
+   "pos": [
+    15.29,
+    5.0,
+    -15.0
+   ],
+   "color": [
+    1.0,
+    0.839,
+    0.722
+   ],
+   "intensity": 2.0,
+   "range": 10.3,
+   "active": true
+  }
+ ],
+ "spawns": [],
+ "spines": [],
+ "misc": [
+  {
+   "type": "GroundTypeData",
+   "path": "3803/3803"
+  },
+  {
+   "type": "VisualAreaData",
+   "path": "3803/3803"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "3803/3803/HighObstacles/Collider"
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.024,
+   -32.797,
+   -31.255
+  ],
+  "max": [
+   30.126,
+   1.893,
+   0.045
+  ]
+ },
+ "stats": {
+  "renderers": 56,
+  "verts": 36492,
+  "tris": 27927
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "name": "Monster_Overlord",
+ "skeletons": {
+  "Monster_Overlord_SW": {
+   "skel": "Monster_Overlord_SW.skel",
+   "bytes": 137215,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  },
+  "Monster_Overlord_NW": {
+   "skel": "Monster_Overlord_NW.skel",
+   "bytes": 126109,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null,
+   "mixes": []
+  }
+ },
+ "atlas": "Monster_Overlord.atlas",
+ "pages": [
+  {
+   "png": "Monster_Overlord.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Overlord_Material",
+   "shader": ""
+  }
+ ],
+ "units": {
+  "310058": {
+   "sym": 2.2,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200029": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200033": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 0.65,
+   "bsx": 0.65,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310057": {
+   "sym": 1.96,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
+}

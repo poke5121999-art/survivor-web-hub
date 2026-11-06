@@ -1,0 +1,12 @@
+Atlantic_Anglerfish.png
+size:62,55
+filter:Nearest,Nearest
+pma:true
+Body
+bounds:2,2,58,34
+Fin_Side
+bounds:12,42,12,11
+Glow
+bounds:2,45,8,8
+Jaw
+bounds:26,38,28,15

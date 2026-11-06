@@ -1,0 +1,279 @@
+/*
+ * My Mini Mart (games/casual-farm): plays one mart with the bot on the real data (scene.json, data/<store>.json,
+ * navmesh.json) and checks the loop end to end without a browser: every mat completes, money and stock invariants hold.
+ *
+ *   node test/casual-farm-sim.js            # Store 1, 90 sim-minutes, seed 1
+ *   MM_STORE=store2 MM_MINUTES=30 MM_SEED=7 node test/casual-farm-sim.js
+ */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+const G = path.resolve(__dirname, '..', 'games', 'casual-farm');
+const MINUTES = +(process.env.MM_MINUTES || 90);
+const SEED = +(process.env.MM_SEED || 1);
+const STORE = process.env.MM_STORE || 'store1';
+const FIRST = STORE === 'store1';
+const DT = 1 / 30;
+
+let pass = 0, fail = 0;
+function check(name, ok, detail) {
+  if (ok) pass++; else fail++;
+  console.log('  ' + (ok ? 'PASS ' : 'FAIL ') + name + (detail != null ? '  (' + detail + ')' : ''));
+}
+
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+(async () => {
+  const imp = f => import(pathToFileURL(path.join(G, 'js', 'sim', f)).href);
+  const { buildStore } = await imp('store.js');
+  const { Sim, carryLimit } = await imp('sim.js');
+  const { Customers } = await imp('customers.js');
+  const { NavMesh } = await imp('nav.js');
+  const { Bot } = await imp('bot.js');
+  const { GridNav } = await imp('grid.js');
+  const { Workers } = await imp('workers.js');
+  const { Thief } = await imp('thief.js');
+  const { Cars } = await imp('cars.js');
+  const { Boosters } = await imp('boosters.js');
+  const { Tasks, buildTasks } = await imp('tasks.js');
+  const read = f => JSON.parse(fs.readFileSync(path.join(G, f), 'utf8'));
+
+  const store = buildStore(read(`art/${STORE}/scene.json`), read(`data/${STORE}.json`));
+  const nav = new NavMesh(read(`art/${STORE}/navmesh.json`), store.player.start);
+  const grid = new GridNav(nav);
+  // Later marts have no coin piles: the player arrives with what the previous mart earned (its next-mart pad alone
+  // costs 1000 to 125000). Assumed bankroll: a tenth of this mart's mat total, MM_CASH overrides.
+  const cash = process.env.MM_CASH != null ? +process.env.MM_CASH : FIRST ? 0 : Math.round(store.mats.reduce((n, m) => n + m.cost, 0) / 10);
+  const sim = new Sim(store, { rng: mulberry32(SEED), cash });
+  const customers = new Customers(sim, grid);
+  const taskList = buildTasks(store);
+  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Boosters(sim), new Tasks(sim, taskList));
+  const bot = new Bot(sim, grid);
+
+  const firstOpen = {}, workerFeeds = {};
+  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0, boosts: 0, extra: 0, extraCash: 0 };
+  let midSave = null;
+  let paid = 0, served = 0, gaveUp = 0, shortPaid = 0, airPicks = 0, inAir = [], maxCustomers = 0, invariantErr = null;
+  const steps = Math.round(MINUTES * 60 / DT);
+  for (let k = 0; k < steps; k++) {
+    bot.step(DT);
+    sim.step(DT, { nav, grid });
+    for (const e of sim.events) {
+      if (e.type === 'matDone' && firstDone[e.name] == null) firstDone[e.name] = sim.state.t;
+      if (e.type === 'matOpen' && firstOpen[e.name] == null) firstOpen[e.name] = sim.state.t;
+      if (e.type === 'workerDrop' && e.to.kind === 'producer') { const k = `${e.name} -> ${store.producers[e.to.i].name}`; workerFeeds[k] = (workerFeeds[k] || 0) + 1; }
+      if (e.type === 'customerPay') { paid += e.amount; served++; }
+      if ((e.type === 'drop' || e.type === 'workerDrop') && e.to.kind === 'shelf') (inAir[e.to.i] = inAir[e.to.i] || []).push(sim.state.t);
+      if (e.type === 'customerPick') {
+        const q = inAir[e.shelf] || [];
+        const k = q.findIndex(t0 => sim.state.t - t0 >= 0.35 - 1e-6);
+        if (k < 0) airPicks++; else q.splice(k, 1);
+      }
+      if (e.type === 'customerPack') {
+        const cu = sim.state.customers.find(o => o.id === e.id);
+        if (cu && !cu.angry && cu.items.some(x => x.got < x.n)) shortPaid++;
+      }
+      if (e.type === 'customerLeave' && !e.paid) gaveUp++;
+      if (e.type === 'taskDone') tasksDone.push([e.index, sim.state.t]);
+      if (e.type === 'thiefSpawn') thieves.spawned++;
+      if (e.type === 'thiefCaught') thieves.caught++;
+      if (e.type === 'levelUp') thieves.upgrades++;
+      if (e.type === 'boostOn') thieves.boosts++;
+      if (e.type === 'extraCash') { thieves.extra++; thieves.extraCash += e.amount; }
+      if (e.type === 'carLeave') { if (e.paid) { thieves.cars++; thieves.carCash += e.amount; } else thieves.carsLost++; }
+    }
+    sim.events.length = 0;
+    const st = sim.state;
+    if (!midSave && Object.keys(firstDone).length >= 8) midSave = { json: JSON.stringify(sim.save()), cash: st.cash, task: st.task.index, done: Object.keys(firstDone).length };
+    maxCustomers = Math.max(maxCustomers, st.customers.length);
+    if (!invariantErr) {
+      if (st.cash < 0) invariantErr = `cash ${st.cash} at ${st.t.toFixed(1)}s`;
+      store.shelves.forEach((sh, i) => { if (st.shelves[i].count < 0 || st.shelves[i].count > sh.slots.length) invariantErr = `${sh.name} count ${st.shelves[i].count}`; });
+      if (st.carry.length > carryLimit(st.stackLevel)) invariantErr = `carry ${st.carry.length} > ${carryLimit(st.stackLevel)}`;
+      store.producers.forEach((p, i) => { if (st.producers[i].out.filter(x => x != null).length > sim.limitOf(i)) invariantErr = `${p.name} output over limit`; });
+    }
+    if (Object.keys(firstDone).length === store.mats.length && k % 300 === 0 && sim.state.t > 60) break;
+  }
+
+  const t = n => (firstDone[n] != null ? (firstDone[n] / 60).toFixed(1) + ' min' : 'never');
+  const st = sim.state;
+  console.log(`${STORE}, seed ${SEED}, ${(st.t / 60).toFixed(1)} sim-minutes: ${Object.keys(firstDone).length}/${store.mats.length} mats, ` +
+    `cash ${st.cash}, stack level ${st.stackLevel}, served ${served} (paid ${paid}), gave up ${gaveUp}, max customers on map ${maxCustomers}`);
+  Object.entries(firstDone).sort((a, b) => a[1] - b[1]).filter((e, i, a) => i < 3 || /StoreTile|NextMart|Worker/.test(e[0]) || i === a.length - 1)
+    .forEach(([n]) => console.log(`    ${n}: ${t(n)}`));
+  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}, car orders ${thieves.cars} paid ${thieves.carCash} (${thieves.carsLost} expired), boosters ${thieves.boosts}, extra cash ${thieves.extra} paid ${thieves.extraCash}`);
+  console.log(`    worker feeds: ${Object.entries(workerFeeds).map(([k, n]) => `${k} ${n}`).join(", ")}`);
+
+  if (FIRST) {
+    check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));
+    check('first three mats complete from the starting cash', ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato'].every(n => firstDone[n] != null));
+  }
+  check('customers buy and pay at the cashier', served >= 20, `${served} served`);
+  check('the player stack is upgraded at least once', st.stackLevel >= 1, `level ${st.stackLevel}`);
+  check(`every ${STORE} mat completes`, Object.keys(firstDone).length === store.mats.length,
+    store.mats.filter(m => firstDone[m.name] == null).map(m => m.name).join(', ') || `all ${store.mats.length}`);
+  if (FIRST) {
+    console.log(`    tutorial: ${tasksDone.map(([i, t]) => `${i}@${(t / 60).toFixed(1)}`).join(' ')}`);
+    check('the tutorial has the 15 TaskControllers of Store 1', taskList.length === 15, `${taskList.length} tasks`);
+    check('every tutorial task completes, in order', tasksDone.length === taskList.length && tasksDone.every(([i], k) => i === k),
+      `${tasksDone.length}/${taskList.length}`);
+  }
+  if (FIRST) {
+    // Owner request: the first wheat plot also opens the second shelver and the farmer (store.js EARLY), also for an old
+    // save that already has the plot.
+    const w1 = firstDone.Mat_Activate_Plant_Wheat1, mill = firstDone.Mat_Activate_WheatMill;
+    const early = ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA', 'Mat_Unlock_Worker_ChefA'];
+    const opened = early.map(n => firstOpen[n] - (n.endsWith('ChefA') ? mill : w1));
+    const old = JSON.parse(JSON.stringify(sim.save()));
+    early.forEach(n => { old.mats[n] = { paid: 0, done: false }; old.active = old.active.filter(a => a !== n); });
+    const oldBack = new Sim(store, { rng: mulberry32(SEED), save: old });
+    oldBack.step(0.1);
+    check('the first wheat plot opens the second shelver and the farmer, the mill opens the chef, an old save catches up', opened.every(d => d > 0 && d < 1.5)
+      && early.every(n => oldBack.state.mats[n].open), `opened ${opened.map(d => d.toFixed(2)).join(', ')} s after the plot / mill; old save open ${early.map(n => oldBack.state.mats[n].open)}`);
+  }
+  if (midSave) {
+    const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(midSave.json) });
+    const doneBack = store.mats.filter(m => back.state.mats[m.name].done).length;
+    check('a save restores cash, finished mats and the tutorial step', back.state.cash === midSave.cash && doneBack === midSave.done && back.state.task.index === midSave.task,
+      `cash ${back.state.cash}/${midSave.cash}, mats ${doneBack}/${midSave.done}, task ${back.state.task.index}/${midSave.task}`);
+  }
+  check('customers only take items that have landed on the shelf', airPicks === 0, `${airPicks} taken mid-air`);
+  check('a patient customer never pays with part of the order missing', shortPaid === 0, `${shortPaid} short`);
+  check('money and stock invariants hold all run', !invariantErr, invariantErr || 'ok');
+
+  // Upgrade-menu pause (PauseWorker): a paused worker finishes what it carries, goes to its rest spot and takes no new
+  // job; resumed, it picks work again.
+  const wk = st.workers.find(w => w.def.role !== 'cashier');
+  if (wk) {
+    const run = (seconds, from) => {
+      let picks = 0;
+      for (let k = 0; k < seconds / DT; k++) {
+        bot.step(DT);
+        sim.step(DT, { nav, grid });
+        for (const e of sim.events) if (e.type === 'workerPick' && e.name === wk.name && sim.state.t >= from) picks++;
+        sim.events.length = 0;
+      }
+      return picks;
+    };
+    sim.workerLevel(wk.name).paused = true;
+    const t0 = sim.state.t;
+    const pausedPicks = run(90, t0 + 15);
+    const atRest = Math.hypot(wk.x - wk.restAt.x, wk.z - wk.restAt.z) < 2 && !wk.carry.length;
+    sim.workerLevel(wk.name).paused = false;
+    const resumedPicks = run(90, 0);
+    check('a paused worker rests and takes no job; resumed it works again', pausedPicks === 0 && atRest && resumedPicks > 0,
+      `${wk.name}: ${pausedPicks} picks while paused, at rest ${atRest}, ${resumedPicks} after resume`);
+  }
+  // Without the player, staff with a drop-off list (farmer: animals, chef: machines) keep feeding them.
+  const fed = {};
+  for (let k = 0; k < 240 / DT; k++) {
+    sim.step(DT, { nav, grid });
+    for (const e of sim.events) if (e.type === 'workerDrop' && e.to.kind === 'producer') {
+      fed[e.name] = (fed[e.name] || 0) + 1;
+      const k = `${e.name} -> ${store.producers[e.to.i].name}`;
+      fed[k] = (fed[k] || 0) + 1;
+    }
+    sim.events.length = 0;
+  }
+  const feeders = st.workers.filter(w => w.def.feeds && w.def.feeds.length);
+  check('staff with machines or animals to feed do feed them on their own', (feeders.length > 0 || !FIRST) && feeders.every(w => fed[w.name] > 0)
+    && (!FIRST || fed['_Worker_ChefA -> Machine_WheatMill'] > 0), Object.entries(fed).filter(([k]) => k.includes('->')).map(([k, n]) => `${k} ${n}`).join(', ') || 'no feeds');
+  // Daily spin rules (sim/daily.js): slot odds 20/10/15/20/15/20 %, every landing stops inside the drawn slot, the
+  // day's spins go free -> 3 extra -> gems, and the cash slots pay trunc(trunc(mult x cheapest) x free multiplier).
+  const D = await imp('daily.js');
+  const rr = mulberry32(SEED + 99), hits = [0, 0, 0, 0, 0, 0];
+  let off = 0, angle = D.WHEEL_START;
+  for (let k = 0; k < 60000; k++) {
+    const i = D.rollSlot(rr());
+    hits[i]++;
+    angle = D.landing(angle, i, rr()) % 360;
+    if (D.slotAt(angle) !== i) off++;
+  }
+  const pct = hits.map(h => Math.round(h / 600));
+  check('the daily spin lands on slots 0..5 at 20/10/15/20/15/20 % and stops inside the drawn slot',
+    pct.join('/') === '20/10/15/20/15/20' && off === 0, `${pct.join('/')} %, ${off} off-slot`);
+  const g = {}, day = new Date(2026, 9, 27, 12), seen = [];
+  for (let k = 0; k < 6; k++) { const s = D.spinState(g, day); seen.push(s.free ? 'free' : s.ads > 0 ? `ad${s.ads}` : 'gem'); g.spin.used++; }
+  const next = D.spinState(g, new Date(2026, 9, 28, 0, 1));
+  const w = D.dealWheel(rr);
+  const cashPay = D.reward(1, w, { cheapest: 25, g: { maxLevel: 1, maxItems: 2 } }).amount;
+  check('spins per day: one free, three extra, then gems; a new day resets; slot 1 pays 3 x cheapest x free multiplier',
+    seen.join(',') === 'free,ad3,ad2,ad1,gem,gem' && next.free && cashPay === 225 && new Set(w.filter(Boolean)).size === 3,
+    `${seen.join(',')}, next day free ${next.free}, slot 1 pays ${cashPay}, boosters ${w.filter(Boolean).join('/')}`);
+
+  // A waiting mat across a reload (MatSpecialConditionActivateController): Store 1's Wheat 7 waits for the oven and Wheat 6.
+  // Buy everything up to Wheat 6 but the oven, save, reload, buy the oven: Wheat 7 must open (it stayed shut before rev x).
+  if (FIRST) {
+    const ws = new Sim(store, { rng: mulberry32(SEED) }), wst = ws.state, run = n => { for (let k = 0; k < n; k++) ws.step(0.1, {}); };
+    const skip = /Wheat(7|8|9|10|11|12)$|Oven_Tabletop|NextMart/;
+    for (let k = 0; k < 200; k++) {
+      const m = store.mats.find(x => wst.mats[x.name].open && !wst.mats[x.name].done && !skip.test(x.name));
+      if (!m) break;
+      ws.completeMat(m);
+      run(40);
+    }
+    const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(JSON.stringify(ws.save())) });
+    const shutBefore = !back.state.mats.Mat_Activate_Plant_Wheat7.open;
+    back.completeMat(store.mats.find(m => m.name === 'Mat_Activate_Oven_Tabletop'));
+    for (let k = 0; k < 40; k++) back.step(0.1, {});
+    check('Wheat 7 still waits for the oven after a reload and opens once the oven is bought',
+      wst.mats.Mat_Activate_Plant_Wheat6.done && shutBefore && back.state.mats.Mat_Activate_Plant_Wheat7.open && back.state.active.has('Mat_Activate_Plant_Wheat7'),
+      JSON.stringify(back.state.mats.Mat_Activate_Plant_Wheat7));
+  }
+
+  // Shop (sim/shop.js). Store 1 with 2 distinct items (StoreCashMultiplier 4.5) and 5 features (cash x1.4, gems x1.2).
+  const S = await imp('shop.js');
+  check('the daily-deal shuffle matches .NET System.Random (seed 2064 -> 4,5,7,2,1,6,9,8,3,0; seed 12345 -> 1,7,2,8,5,4,3,6,9,0)',
+    S.shuffle(10, 2064).join(',') === '4,5,7,2,1,6,9,8,3,0' && S.shuffle(10, 12345).join(',') === '1,7,2,8,5,4,3,6,9,0' && S.dealSeed('2026-10-28') === 2064,
+    `${S.shuffle(10, 2064).join(',')} / ${S.shuffle(10, 12345).join(',')}`);
+  let sc = 5000;
+  const sg = { maxLevel: 1, maxItems: 2, gems: 100 };
+  const sx = (now = new Date(Date.UTC(2026, 9, 28, 12))) => ({ g: sg, now, features: 5, cash: () => sc, spendCash: n => { sc -= n; } });
+  const it = id => S.ITEMS.find(x => x.id === id);
+  const r6 = S.rewards(it('coin_bundle_06'), sx()), r2 = S.rewards(it('coin_bundle_02'), sx()), p6 = S.price(it('coin_bundle_06'), sx());
+  const p3 = S.price(it('coin_bundle_03'), sx()), g4 = S.rewards(it('gem_bundle_04'), sx()), pg4 = S.price(it('gem_bundle_04'), sx());
+  check('bundles: 1000 coins -> 6300 (was 3150) for 175 gems, 50 coins -> 315 (was 157), the sale bundle 8 gems (was 13), 80 gems -> 95 for 3420 cash',
+    r6.list[0].amount === 6300 && r6.was === 3150 && p6.amount === 175 && r2.list[0].amount === 315 && r2.was === 157
+    && p3.amount === 8 && p3.was === 13 && g4.list[0].amount === 95 && pg4.amount === 3420,
+    JSON.stringify({ r6, p6, r2, p3, g4: g4.list[0].amount, pg4: pg4.amount }));
+  const t0 = new Date(Date.UTC(2026, 9, 28, 12));
+  const free1 = S.buy(it('coin_bundle_02'), sx(t0)), again = S.buy(it('coin_bundle_02'), sx(new Date(+t0 + 60e3)));
+  const skipped = S.buy(it('coin_bundle_02'), sx(new Date(+t0 + 60e3)), { skip: true }), gemsAfterSkip = sg.gems;
+  const later = S.availability(it('coin_bundle_02'), sx(new Date(+t0 + 301e3)));
+  const once = S.buy(it('coin_bundle_05'), sx(t0)), onceAfter = S.availability(it('coin_bundle_05'), sx(t0));
+  const short = S.buy(it('coin_bundle_06'), sx(t0)), gemBuy = S.buy(it('gem_bundle_04'), sx(t0));
+  check('a free claim waits 5 min (or 4 gems skip it), the one-time bundle leaves the list, short gems fail, 3420 cash buys 95 gems',
+    free1.ok && free1.list[0].amount === 315 && !again.ok && again.why === 'cooling' && skipped.ok && gemsAfterSkip === 96 && later === 'open'
+    && once.ok && onceAfter === 'gone' && !short.ok && short.why === 'gems' && gemBuy.ok && sc === 1580 && gemBuy.list[0].amount === 95,
+    JSON.stringify({ free1: free1.ok, again: again.why, gemsAfterSkip, later, onceAfter, short: short.why, sc }));
+  const today = [0, 1, 2].map(k => S.rewards(it(`daily_deal_0${k + 1}`), sx(t0)).list[0]);
+  const y = new Date(Date.UTC(2026, 9, 27, 12)), yday = S.rewards(it('daily_deal_03'), sx(y)).list[0];
+  const dealBuy = S.buy(it('daily_deal_01'), sx(t0)), dealAgain = S.availability(it('daily_deal_01'), sx(t0));
+  const dealNext = S.availability(it('daily_deal_01'), sx(new Date(Date.UTC(2026, 9, 29, 0, 1))));
+  check('daily deals on 2026-10-28 are faster workers / faster player / super worker 15 min; 2026-10-27 slot 3 pays 300 x 4.5; one buy each per UTC day',
+    today.map(r => `${r.item}:${r.amount}`).join(',') === 'reward_faster_workers:15,reward_faster_player:15,reward_super_worker:15'
+    && yday.item === 'reward_cash' && yday.amount === 1350 && dealBuy.ok && dealAgain === 'bought' && dealNext === 'open',
+    JSON.stringify({ today, yday, dealAgain, dealNext }));
+
+  // Rolling offer (sim/rolling.js): 13 steps once, claimed in order, the real-money steps 6 and 11 passed over.
+  const RO = await imp('rolling.js');
+  const rg = { maxLevel: 1, maxItems: 2 }, rctx = { cheapest: 40, g: rg }, claimed = [], pays = [];
+  const early = RO.claim(rg, 3, rctx);
+  while (RO.current(rg) < RO.LADDER.length) { const i = RO.current(rg); claimed.push(i); pays.push(RO.claim(rg, i, rctx)); }
+  check('the rolling offer pays 50% of the cheapest mat x free multiplier first (60), claims only the current step, skips steps 6 and 11, ends on Coming soon',
+    early === null && claimed.join(',') === '0,1,2,3,4,6,7,8,9,11,12' && pays[0][0].amount === 60
+    && JSON.stringify(pays[3]) === JSON.stringify([{ kind: 'gems', amount: 1 }, { kind: 'boost', boost: 'player', seconds: 300 }])
+    && RO.claim(rg, 12, rctx) === null && rg.ro === 13,
+    `claimed ${claimed.join(',')}, first ${pays[0][0].amount}, step 4 ${JSON.stringify(pays[3])}`);
+  console.log(`PASS: ${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(2); });

@@ -1,0 +1,22 @@
+# Bản đồ mã của Hắn Đang Tới (`games/hic`)
+
+- **Luật và hình tách nhau.**
+  - Phần luật: `battle.js`, `game.js`, `world.js`, `effects.js`. Đây là chỗ con bot và phép so trước/sau dựa vào.
+  - Phần hình: `ui.js` (bản đồ, HUD, các bảng), `fight.js` (màn trận), `sprites.js`, `fx.js`, `sfx.js`.
+  - Sửa hình mà không đụng luật thì kiểm bằng cách so kết quả bot, xem mục cuối.
+- **`world.step()` đổi vị trí ngay lập tức, còn nhân vật trên màn trượt tới sau.**
+  - Bảng sự kiện và trận đánh được giữ trong biến `pending`, chỉ mở khi hình đã tới nơi.
+  - `HIC_UI.isBusy()` trả true trong lúc chờ đó.
+- **Nhật ký trận** mỗi dòng mang `k/i/by/v/hp/ar/strike`, ảnh chụp chỉ số `a/b`, và `src` là tên gốc của món gây ra.
+  - `src` có từ 2026-09-15, dùng để chớp sáng ô đồ vừa kích.
+  - Nhát đánh bằng vũ khí có `src` là chuỗi "X đánh", không phải tên món, nên nhận biết bằng `strike`.
+- **Hình pixel** lấy từ một atlas Soul Knight ở `art/sk/`.
+  - Xoá atlas thì game lùi về hình vector trong `art.js`.
+  - Luật hai lưới 16/32, hệ số `K` chẵn, và cách dựng lại atlas: xem `art/sk/README.md`.
+- **Bot** (`bot.js`) bấm theo selector: `#hic-panel .hic-card.pickable`, `.hic-phead h3`, `.hic-btn.primary`, `.hic-rest-yes/no`, `#hic-battle .hic-btn.primary`.
+  - Đổi tên các class này là bot kẹt.
+  - Trong trận, bot bấm cả nút "Tiếp tục" đang ẩn, nên trận bị cắt ngang ngay. Đó là cố ý, cho bài kiểm chạy nhanh.
+- **So trước/sau:**
+  - Chạy bot với `HIC_UI.newRun(1000 + r)` trên bản cũ (lấy bằng `git archive HEAD games/hic`, phục vụ qua cổng khác) và trên bản mới.
+  - Hai bản phải cùng tuần, cùng pha, cùng số bước.
+  - Không so được số trận, vì thời gian thực của mỗi lượt khác nhau.

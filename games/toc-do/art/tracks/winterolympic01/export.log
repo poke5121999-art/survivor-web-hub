@@ -1,0 +1,101 @@
+scene Level_WinterOlympic01_Art.unity: bundle AssetBundles/fd/fde7ab4c25fe9e6b7bebfddf8fb999ea
+bundles loaded: 50; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_WinterOlympic01_Art_LM0_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.235 max=1.000 alpha mean=0.204
+lightmap 1: Level_WinterOlympic01_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.206 max=0.800 alpha mean=0.238
+lightmap 2: cannot read (PPtr can't deref with m_PathID == 0!)
+lightmapsMode=0 useShadowmask=True
+skipped: inactive=4
+shader QF/Env/Basic_FoliageOpaqueWind: texture slots ['_MainTex']
+shader QF/EnvStandard/EnvStandard: texture slots ['_AlphaTex', '_BaseMap', '_BumpMap', '_EmissionMap', '_ParamMap']
+shader QF_Gamma/Env/0Ice/IceThickness: texture slots ['_DustTex', '_MainTex', '_NormalMap', '_ReflectionCube', '_SpecMaskCubemask']
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+  tex E_Winter_Building_03 256x256 -> 256x256 rgb 7 KB
+prim E_Winter_Building_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2050 verts=3763 from ['E_Winter_Building_03']
+  tex E_Winter_Building_02b 128x128 -> 128x128 rgb 1 KB
+prim E_Winter_Building_02b|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=22 verts=44 from ['E_Winter_Building_03']
+  tex E_Winter_Yancong_01 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Yancong_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=90 verts=168 from ['E_Winter_Building_03']
+  tex E_Winter_Building_05 256x256 -> 256x256 rgb 12 KB
+prim E_Winter_Building_05|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=5172 verts=9600 from ['E_Winter_Datiaotai_02', 'E_Winter_Datiaotai_03', 'E_Winter_Datiaotai_03a', 'E_Winter_Door_05']
+  tex E_Winter_Ground_02 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Ground_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2355 verts=1993 from ['E_Winter_Ground_02', 'E_Winter_Ground_02a', 'E_Winter_Road_02', 'E_Winter_Road_06']
+  tex E_Winter_Building_06 128x128 -> 128x128 rgb 2 KB
+prim E_Winter_Building_06|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1635 verts=2033 from ['E_Winter_Building_06']
+  tex E_Winter_Building_01a 128x128 -> 128x128 rgba 5 KB
+prim E_Winter_Building_01a: QF/EnvStandard/EnvStandard alpha=MASK tris=18 verts=36 from ['E_Winter_Building_01a']
+  tex E_Winter_Building_08 128x256 -> 128x256 rgb 6 KB
+prim E_Winter_Building_08|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=414 verts=411 from ['E_Winter_Building_08']
+  tex E_Winter_Yuanjing_01 128x128 -> 128x128 rgb 0 KB
+prim sky:E_Winter_Yuanjing_02: QF_Gamma/Env/Sky_Diffuse_no fog alpha=BLEND tris=342 verts=409 from ['E_Winter_Yuanjing_02']
+  tex E_Winter_Guanggao_01 256x256 -> 256x256 rgb 12 KB
+prim E_Winter_Guanggao_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=4522 verts=7511 from ['E_Winter_Lujie_01', 'E_Winter_Lujie_01a']
+  tex E_Winter_Building_04 256x256 -> 256x256 rgb 3 KB
+prim E_Winter_Building_04|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=11898 verts=17807 from ['E_Winter_Gaolu_02']
+  tex E_Winter_Building_02a 64x256 -> 64x256 rgba 7 KB
+prim E_Winter_Building_02a|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=953 verts=1537 from ['E_Winter_Gaolu_02']
+  tex E_Winter_Road_05c 128x256 -> 128x256 rgb 0 KB
+prim E_Winter_Road_05a|lm0: QF_Gamma/Env/0Ice/IceThickness alpha=OPAQUE tris=698 verts=1234 from ['E_Winter_Road_05']
+  tex E_Winter_Ground_05 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Ground_05|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=247 verts=224 from ['E_Winter_Road_05']
+  tex E_Winter_Road_05b 128x256 -> 128x256 rgb 2 KB
+prim E_Winter_Road_05|lm0: QF_Gamma/Env/0Ice/IceThickness alpha=OPAQUE tris=64 verts=94 from ['E_Winter_Road_05']
+  tex E_Winter_Kantai_02 64x256 -> 64x256 rgba 7 KB
+prim E_Winter_Kantai_02|lm0: QF/EnvStandard/EnvStandard alpha=MASK tris=790 verts=1520 from ['E_Winter_Kantai_01', 'E_Winter_Kantai_03', 'E_Winter_Kantai_04', 'E_Winter_Shinei_01', 'E_Winter_Yuanjing_01a']
+  tex E_Winter_Road_04 128x256 -> 128x256 rgb 0 KB
+prim E_Winter_Road_04|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=332 verts=354 from ['E_Winter_Road_04']
+prim E_Winter_Building_05|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=6131 verts=11158 from ['E_Winter_Building_05', 'E_Winter_Building_07', 'E_Winter_Datiaotai_01', 'E_Winter_Huoche_01']
+  tex E_Winter_Building_05a 256x256 -> 256x256 rgb 4 KB
+prim E_Winter_Building_05a|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=16 verts=24 from ['E_Winter_Building_05']
+  tex E_Winter_Guanzhong_01 16x32 -> 16x32 rgb 0 KB
+prim E_Winter_Guanzhong_01|lm0: QF/Env/Basic_FoliageOpaqueWind alpha=OPAQUE tris=2400 verts=4800 from ['E_Winter_Guanzhong_01', 'E_Winter_Guanzhong_02']
+  tex E_Winter_Lujie_01 128x256 -> 128x256 rgb 1 KB
+prim E_Winter_Lujie_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1618 verts=2790 from ['E_Winter_Lujie_01', 'E_Winter_Lujie_04']
+  tex E_Winter_Lujie_02 256x256 -> 256x256 rgba 20 KB
+prim E_Winter_Lujie_02: QF/EnvStandard/EnvStandard alpha=BLEND tris=32 verts=64 from ['E_Winter_Gaoduwu_01']
+  tex E_Winter_Building_02 64x256 -> 64x256 rgb 1 KB
+prim E_Winter_Building_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=3830 verts=6023 from ['E_Winter_Building_01', 'E_Winter_Datiaotai_03']
+  tex E_Winter_Building_05b 128x256 -> 128x256 rgb 3 KB
+prim E_Winter_Building_05b|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1594 verts=2098 from ['E_Winter_Datiaotai_03']
+prim E_Winter_Building_02a|lm0: QF/EnvStandard/EnvStandard alpha=MASK tris=1112 verts=1950 from ['E_Winter_Building_01', 'E_Winter_Datiaotai_03', 'E_Winter_Datiaotai_03a']
+  tex E_Winter_Zhongjing_01 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Zhongjing_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=657 verts=1371 from ['E_Winter_Yuanjing_01']
+  tex E_Winter_Zhongjing_02 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Zhongjing_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=124 verts=251 from ['E_Winter_Yuanjing_01']
+  tex E_Winter_Ground_01 128x128 -> 128x128 rgb 1 KB
+prim E_Winter_Ground_01|lm1: QF_Gamma/Env/0Ice/IceThickness alpha=OPAQUE tris=287 verts=214 from ['E_Winter_Ground_01']
+  tex E_Winter_Road_03 128x256 -> 128x256 rgb 3 KB
+prim E_Winter_Road_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=354 verts=500 from ['E_Winter_Road_03']
+prim E_Winter_Lujie_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=3333 verts=6129 from ['E_Winter_Road_02', 'E_Winter_Road_03']
+  tex E_Winter_Wall_01 128x128 -> 128x128 rgb 0 KB
+prim E_Winter_Wall_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=213 verts=293 from ['E_Winter_Building_09']
+  tex E_Winter_Kantai_01 256x256 -> 256x256 rgb 11 KB
+prim E_Winter_Kantai_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=9598 verts=16772 from ['E_Winter_Kantai_01', 'E_Winter_Kantai_01a', 'E_Winter_Kantai_03', 'E_Winter_Kantai_04', 'E_Winter_Shinei_01']
+prim E_Winter_Road_04|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=240 verts=345 from ['E_Winter_Road_02']
+prim E_Winter_Kantai_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1400 verts=2396 from ['E_Winter_Kantai_02']
+prim E_Winter_Kantai_02|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=36 verts=72 from ['E_Winter_Kantai_02']
+  tex E_Winter_Road_06 128x256 -> 128x256 rgb 2 KB
+prim E_Winter_Road_06|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=226 verts=275 from ['E_Winter_Ground_02a', 'E_Winter_Road_06']
+  tex E_Winter_Kantai_03 128x128 -> 128x128 rgb 2 KB
+prim E_Winter_Kantai_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2 verts=4 from ['E_Winter_Shinei_01']
+  tex E_Winter_Plant_01 256x256 -> 256x256 rgba 21 KB
+prim E_Winter_Plant_01|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=240 verts=480 from ['E_Winter_Plant_01']
+  tex E_Winter_Plant_02 256x256 -> 256x256 rgba 19 KB
+prim E_Winter_Plant_02|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=20250 verts=26710 from ['E_Winter_Plant_02', 'E_Winter_Plant_03', 'E_Winter_Plant_04']
+prim E_Winter_Building_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=137 verts=220 from ['E_Winter_Building_07']
+  tex E_Winter_Building_01 256x256 -> 256x256 rgb 4 KB
+prim E_Winter_Building_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=24 verts=32 from ['E_Winter_Building_07']
+prim E_Winter_Building_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=5352 verts=8218 from ['E_Winter_Building_01']
+  tex E_Winter_Sky_01 256x128 -> 256x128 rgb 1 KB
+prim sky:E_Winter_Sky_01: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=480 verts=296 from ['E_Winter_Sky_01']
+prim E_Winter_Yancong_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1232 verts=1413 from ['E_Winter_Yancong_01']
+  tex E_Winter_Building_04a 128x128 -> 128x128 rgb 4 KB
+prim E_Winter_Building_04a|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=44 verts=61 from ['E_Winter_Building_04']
+prim E_Winter_Lujie_02|lm1: QF/EnvStandard/EnvStandard alpha=BLEND tris=734 verts=1661 from ['E_Winter_Lujie_02']
+  tex E_Winter_Qier_01 256x256 -> 256x256 rgb 8 KB
+prim E_Winter_Wa_01|lm1: QF_Gamma/Env/0Ice/IceThickness alpha=OPAQUE tris=5382 verts=6366 from ['E_Winter_Qier_01']
+  tex E_Winter_Road_01 128x256 -> 128x256 rgb 3 KB
+prim E_Winter_Road_01|lm1: QF_Gamma/Env/0Ice/IceThickness alpha=OPAQUE tris=188 verts=227 from ['E_Winter_Road_01']
+  tex E_Winter_Building_02b 128x128 -> 128x128 rgba 3 KB
+prim E_Winter_Building_02c|lm0: QF/EnvStandard/EnvStandard alpha=BLEND tris=12 verts=24 from ['E_Winter_Building_09a']
+lightmaps used by primitives: [0, 1]
+done: 49 primitives, 39 textures (0.20 MB webp), 2 lightmaps, folder 2.60 MB

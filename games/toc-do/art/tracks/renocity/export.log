@@ -1,0 +1,94 @@
+scene Level_RenoCity_Art.unity: bundle AssetBundles/b2/b2e159acd9d2faa0c90815e647c6aaf4
+bundles loaded: 55; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_RenoCity_Art_LM52_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.342 max=1.000 alpha mean=0.330
+lightmap 1: Level_RenoCity_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.270 max=1.000 alpha mean=0.231
+lightmapsMode=0 useShadowmask=True
+skip [skinned] /Artist/PVS/LowD/D/E_RenoCity@Zhuanlun/E_Renocity_KKL_D_ShuiLun_02_AniObj
+skip [skinned] /Artist/PVS/LowD/D/E_RenoCity@Zhuanlun/E_Renocity_KKL_D_ShuiLun_01_AniObj
+note: /Artist/PVS/LowD/D/E_Renocity_KKL_D_Water_01 material E_Renocity_KKL_sea_02 (QF/Env/0_MeshOcean/MeshOcean_Opaque) has no albedo texture; tint only
+note: /Artist/PVS/LowD/C/E_Renocity_KKL_C_Road_01_B material E_Renocity_KKL_Glass_02_NoTex (QF_PBR/Env/NssStandard) has no albedo texture; tint only
+note: /Artist/PVS/LowD/A/E_Renocity_KKL_ZuDang_01 material E_Renocity_KKL_ZuDang_01 (QF/Env/Ink/Diffuse) has no albedo texture; tint only
+note: /Artist/PVS/LowD/D/E_Renocity_KKL_D_Water_02 material E_Renocity_KKL_sea_03 (QF/Env/0_MeshOcean/MeshOcean_Transparent) has no albedo texture; tint only
+note: /Artist/PVS/LowD/E/E_Renocity_KKL_E_HaiYang_01 material E_Renocity_KKL_sea_01 (QF/Env/0_MeshOcean/MeshOcean_Opaque) has no albedo texture; tint only
+skipped: skinned=2
+shader QF/Env/0_MeshOcean/MeshOcean_Opaque: texture slots []
+shader QF/Env/0_MeshOcean/MeshOcean_Transparent: texture slots []
+shader QF/Env/Basic_DiffuseScrollBG: texture slots ['_BackGroundTex', '_MainTex']
+shader QF/Env/Ink/Diffuse: texture slots []
+shader QF/Env/Sky_Diffuse_AlphaBlend_no fog: texture slots ['_MainTex']
+shader QF/Env/Sky_Generic_Diffuse: texture slots ['_MainTex']
+shader QF/NssFX/QF_FXCommon: texture slots ['_DissTex', '_MainTex']
+shader QF_PBR/Car/Car_Paint_PBR_MidCombined: texture slots ['_MainTex', '_MaskTex1', '_PreFilterEnvSpecularMap', '_RMASMap', '_WheelRMA', '_WheelTex']
+shader QF_PBR/Env/NssStandard: texture slots ['_BaseMap', '_EmissionMap', '_NormalMRMap']
+  tex E_Leisure2023_Syk01 2048x512 -> 1024x256 rgb 12 KB
+prim sky:Skybox_Common: QF/Env/Sky_Generic_Diffuse alpha=OPAQUE tris=2432 verts=1335 from ['SkyBox_Common']
+  tex C_AddPSeed_D04 256x256 -> 256x256 rgb 13 KB
+prim E_Renocity_KKL_AddSpeed_01|lm1: QF/Env/Basic_DiffuseScrollBG alpha=OPAQUE tris=32 verts=64 from ['E_Renocity_KKL_AddSpeed_01', 'E_Renocity_KKL_AddSpeed_02', 'E_Renocity_KKL_AddSpeed_03', 'E_Renocity_KKL_AddSpeed_05', 'E_Renocity_KKL_E_Road_01_A']
+  tex E_Renocity_KKL_JianZhu_01_BaseColor 64x256 -> 64x256 rgb 2 KB
+  tex E_Renocity_KKL_JianZhu_01_Emissive 64x256 -> 64x256 rgb 1 KB
+prim E_Renocity_KKL_JianZhu_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=65894 verts=95684 from ['E_Renocity_KKL_AddSpeed_01', 'E_Renocity_KKL_AddSpeed_02', 'E_Renocity_KKL_AddSpeed_03', 'E_Renocity_KKL_AddSpeed_05', 'E_Renocity_KKL_B_Road_01', 'E_Renocity_KKL_B_Road_01_b']
+  tex E_Renocity_KKL_Stars 64x128 -> 64x128 rgb 1 KB
+prim E_Renocity_KKL_Stars|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=624 verts=1152 from ['E_Renocity_KKL_AddSpeed_01', 'E_Renocity_KKL_AddSpeed_02', 'E_Renocity_KKL_AddSpeed_05', 'E_Renocity_KKL_E_Road_01_A']
+prim E_Renocity_KKL_JianZhu_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=79372 verts=115288 from ['E_Renocity_KKL_AddSpeed_01_B', 'E_Renocity_KKL_AddSpeed_01_C', 'E_Renocity_KKL_B_Road_02', 'E_Renocity_KKL_C_Road_01', 'E_Renocity_KKL_C_Road_01_B', 'E_Renocity_KKL_C_Road_02']
+  tex E_Renocity_KKL_DiBan_02_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_DiBan_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=120 verts=126 from ['E_Renocity_KKL_D_Road_02_B', 'E_Renocity_KKL_E_Road_01_C']
+  tex E_Renocity_KKL_TieHua_01_BaseColor 128x256 -> 128x256 rgba 12 KB
+prim E_Renocity_KKL_TieHua_01|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=1538 verts=2944 from ['E_Renocity_KKL_B_Road_02', 'E_Renocity_KKL_C_Road_01', 'E_Renocity_KKL_C_Road_01_B', 'E_Renocity_KKL_C_Road_02', 'E_Renocity_KKL_D_Road_01_C', 'E_Renocity_KKL_D_Road_02_B']
+  tex E_Renocity_KKL_GuangGaoPai_01_Emissive 256x128 -> 256x128 rgb 5 KB
+prim E_Renocity_KKL_GuangGaoPai_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=60 verts=104 from ['E_Renocity_KKL_B_Road_02', 'E_Renocity_KKL_C_Road_01', 'E_Renocity_KKL_C_Road_01_B', 'E_Renocity_KKL_C_Road_02', 'E_Renocity_KKL_D_Road_01_C']
+  tex E_Renocity_KKL_DiBan_05_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_DiBan_05|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=182 verts=179 from ['E_Renocity_KKL_B_Road_02', 'E_Renocity_KKL_C_Road_01', 'E_Renocity_KKL_C_Road_02', 'E_Renocity_KKL_F_Road_01']
+prim E_Renocity_KKL_TieHua_01|lm1: QF_PBR/Env/NssStandard alpha=BLEND tris=1198 verts=2114 from ['E_Renocity_KKL_B_Road_01', 'E_Renocity_KKL_B_Road_01_b', 'E_Renocity_KKL_B_Road_01_c', 'E_Renocity_KKL_Building_02', 'E_Renocity_KKL_D_Road_01_A', 'E_Renocity_KKL_D_Road_01_B']
+  tex E_Renocity_KKL_D_Diban_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_Renocity_KKL_D_Diban_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=218 verts=204 from ['E_Renocity_KKL_D_Road_01_A', 'E_Renocity_KKL_D_Road_01_B']
+prim E_Renocity_KKL_sea_02|lm0: QF/Env/0_MeshOcean/MeshOcean_Opaque alpha=OPAQUE tris=2 verts=4 from ['E_Renocity_KKL_D_Water_01']
+  tex E_Renocity_KKL_Qiang_01_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_Qiang_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=4785 verts=9465 from ['E_Renocity_KKL_Building_02', 'E_Renocity_KKL_Building_02_b', 'E_Renocity_KKL_Building_03', 'E_Renocity_KKL_Building_04']
+  tex E_Renocity_KKL_Qiang_02_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_Qiang_02|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1949 verts=3899 from ['E_Renocity_KKL_Building_02', 'E_Renocity_KKL_Building_02_b', 'E_Renocity_KKL_Building_03', 'E_Renocity_KKL_Building_04']
+  tex E_Renocity_KKL_Qiang_04_BaseColor 128x128 -> 128x128 rgb 2 KB
+prim E_Renocity_KKL_Qiang_04|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=296 verts=592 from ['E_Renocity_KKL_Building_03', 'E_Renocity_KKL_Building_04']
+  tex E_Renocity_KKL_Glass_02_BaseColor 128x128 -> 128x128 rgb 0 KB
+prim E_Renocity_KKL_Glass_02|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=98 verts=168 from ['E_Renocity_KKL_Building_01', 'E_Renocity_KKL_Building_02', 'E_Renocity_KKL_Building_03']
+prim E_Renocity_KKL_GuangGaoPai_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=158 verts=228 from ['E_Renocity_KKL_B_Road_01', 'E_Renocity_KKL_B_Road_01_b', 'E_Renocity_KKL_B_Road_01_c', 'E_Renocity_KKL_D_Road_01_A', 'E_Renocity_KKL_D_Road_02']
+prim E_Renocity_KKL_DiBan_05|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=42 verts=50 from ['E_Renocity_KKL_B_Road_01', 'E_Renocity_KKL_B_Road_01_b', 'E_Renocity_KKL_B_Road_01_c']
+  tex E_Renocity_KKL_DiBan_01_BaseColor 128x128 -> 128x128 rgb 0 KB
+prim E_Renocity_KKL_DiBan_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=591 verts=617 from ['E_Renocity_KKL_Road_01', 'E_Renocity_KKL_Road_02']
+  tex E_Renocity_KKL_StarLine_01_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_StarLine_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=60 verts=120 from ['E_Renocity_KKL_F_Road_01', 'E_Renocity_KKL_Road_01']
+  tex E_Renocity_KKL_Floor_02_BaseColor 128x128 -> 128x128 rgb 1 KB
+prim E_Renocity_KKL_Floor_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=346 verts=368 from ['E_Renocity_KKL_F_Road_01', 'E_Renocity_KKL_Road_01', 'E_Renocity_KKL_Road_02']
+  tex E_Renocity_KKL_Shrub_01_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_Shrub_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=741 verts=1000 from ['E_Renocity_KKL_F_Road_01', 'E_Renocity_KKL_Road_01', 'E_Renocity_KKL_Road_02']
+  tex E_Renocity_KKL_DiBan_04_BaseColor 128x128 -> 128x128 rgb 0 KB
+prim E_Renocity_KKL_DiBan_04|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=28 verts=36 from ['E_Renocity_KKL_F_Road_01', 'E_Renocity_KKL_Road_01']
+prim E_Renocity_KKL_DiBan_02|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=172 verts=182 from ['E_Renocity_KKL_D_Road_02', 'E_Renocity_KKL_E_Road_01_A']
+  tex E_Renocity_KKL_Qiang_05_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_Qiang_05|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=425 verts=525 from ['E_Renocity_KKL_D_ShuiDianJi_01_A', 'E_Renocity_KKL_D_ShuiDianJi_01_B', 'E_Renocity_KKL_D_ShuiDianJi_01_C']
+prim E_Renocity_KKL_Qiang_04|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=160 verts=320 from ['E_Renocity_KKL_E_Road_01_C']
+  tex E_Renocity_KKL_GuangGaoPai_02_BaseColor 256x128 -> 256x128 rgb 6 KB
+  tex E_Renocity_KKL_GuangGaoPai_02_Emissive 256x128 -> 256x128 rgb 6 KB
+prim E_Renocity_KKL_GuangGaoPai_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=632 verts=1132 from ['E_Renocity_KKL_C_Road_01_B', 'E_Renocity_KKL_F_Road_01']
+  tex E_Renocity_KKL_D_Boli_01_basecolor 128x128 -> 128x128 rgba 3 KB
+prim E_Renocity_KKL_D_Boli_01|lm1: QF_PBR/Env/NssStandard alpha=BLEND tris=96 verts=98 from ['E_Renocity_KKL_D_Road_01_A']
+prim E_Renocity_KKL_Glass_02_NoTex|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=6 verts=12 from ['E_Renocity_KKL_C_Road_01_B']
+prim E_Renocity_KKL_ZuDang_01: QF/Env/Ink/Diffuse alpha=BLEND tris=58 verts=116 from ['E_Renocity_KKL_ZuDang_01']
+  tex E_Renocity_KKL_Glass_01_BaseColor 64x64 -> 64x64 rgb 0 KB
+prim E_Renocity_KKL_Glass_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=960 verts=559 from ['E_Renocity_KKL_Building_01']
+prim E_Renocity_KKL_sea_03: QF/Env/0_MeshOcean/MeshOcean_Transparent alpha=BLEND tris=12 verts=20 from ['E_Renocity_KKL_D_Water_02']
+prim E_Renocity_KKL_D_Diban_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=21 verts=29 from ['E_Renocity_KKL_D_Road_01_C']
+  tex E_Renocity_KKL_Qiang_03_BaseColor 128x128 -> 128x128 rgba 0 KB
+prim E_Renocity_KKL_Qiang_03|lm1: QF_PBR/Env/NssStandard alpha=MASK tris=24 verts=48 from ['E_Renocity_KKL_Building_02_b']
+prim E_Renocity_KKL_sea_01|lm1: QF/Env/0_MeshOcean/MeshOcean_Opaque alpha=OPAQUE tris=481 verts=278 from ['E_Renocity_KKL_E_HaiYang_01']
+prim E_Renocity_KKL_Stars|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=234 verts=432 from ['E_Renocity_KKL_AddSpeed_01_B', 'E_Renocity_KKL_AddSpeed_01_C']
+  tex E_Renocity_KKL_C_MNCar_00448_Paint_PBR 128x128 -> 128x128 rgb 4 KB
+prim E_Renocity_KKL_C_MNCar_00448: QF_PBR/Car/Car_Paint_PBR_MidCombined alpha=OPAQUE tris=3384 verts=8737 from ['E_Renocity_KKL_C_MNCar_00448']
+  tex E_Renocity_KKL_Background_01 256x128 -> 256x128 rgba 4 KB
+prim sky:E_Renocity_KKL_Background_01: QF/Env/Sky_Diffuse_AlphaBlend_no fog alpha=BLEND tris=2 verts=4 from ['E_Renocity_KKL_F_Background_01']
+  tex E_Renocity_KKL_Glass_03_BaseColor 64x64 -> 64x64 rgba 0 KB
+prim E_Renocity_KKL_Glass_03|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=330 verts=660 from ['E_Renocity_KKL_C_Road_01_Glass_01']
+  tex UIFX_IPJuQing_V38_PiMu_05_01 128x128 -> 128x128 rgb 0 KB
+prim FX_Evn_Renocity_Bianshen_05: QF/NssFX/QF_FXCommon alpha=BLEND tris=2781 verts=3104 from ['FX_Evn_Renocity_Bianshen_01']
+lightmaps used by primitives: [0, 1]
+note: RenderSettings has a skybox material; only the sky mesh is exported
+done: 40 primitives, 29 textures (0.09 MB webp), 2 lightmaps, folder 3.57 MB

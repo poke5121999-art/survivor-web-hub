@@ -1,0 +1,4032 @@
+/*
+ * Bộ kiểm thử tự động cho cả hai bản REPO trên hub.
+ * Chạy: node test/repo-suite.js
+ * Mỗi ca chạy trên trình duyệt thật (Chromium), kích thước điện thoại thật.
+ */
+// Playwright được lấy từ bản cài toàn máy; đổi đường dẫn này nếu máy khác.
+const PW = process.env.PLAYWRIGHT_PATH ||
+  'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
+const { chromium } = require(PW);
+const path = require('path');
+const root = 'file:///' + path.resolve(__dirname, '..').split(path.sep).join('/');
+const R2D = root + '/games/repo2d/index.html';
+const SQ  = root + '/games/repo-squad/index.html';
+
+let pass = 0, fail = 0;
+const results = [];
+function check(name, ok, detail) {
+  if (ok) { pass++; results.push('  ✔ ' + name + (detail ? '  — ' + detail : '')); }
+  else    { fail++; results.push('  ✘ ' + name + (detail ? '  — ' + detail : '')); }
+}
+
+async function openGame(b, url, vp) {
+  const ctx = await b.newContext({ viewport: vp, isMobile: vp.width > vp.height,
+    hasTouch: true, deviceScaleFactor: 2 });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(url);
+  await p.waitForTimeout(1100);
+  return { ctx, p, errs };
+}
+
+// =====================================================================
+async function repo2dSuite(b) {
+  results.push('\n── repo2d (Ca Trực Đêm) ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+
+  check('trang mở không lỗi', errs.length === 0, errs[0] || '');
+  check('không còn tấm chắn xoay dọc',
+    await p.evaluate(() => !document.querySelector('.rotate')));
+
+  await p.locator('#veilBtn').click();
+  await p.waitForTimeout(900);
+  await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+  await p.waitForTimeout(300);
+
+  // --- móc cắm mặc định phải giữ nguyên hành vi cũ ---
+  const st = await p.evaluate(() => ({
+    hooks: Object.keys(REPO.hooks || {}),
+    allNull: Object.values(REPO.hooks || {}).every(v => v === null),
+    mates: (REPO.S.mates || []).length,
+    crew: REPO.crew().length,
+    mateCountConst: REPO.CREW.COUNT
+  }));
+  const CAN = ['mateCount','mateInfo','playerInfo','onLevelClear','onPayout','levelIndex','skill'];
+  check('bảng điểm cắm có đủ móc', CAN.every(k => st.hooks.indexOf(k) >= 0),
+    st.hooks.join(','));
+  check('mọi móc mặc định là null', st.allNull);
+  check('số bot mặc định không đổi', st.mates === st.mateCountConst,
+    st.mates + ' bot, hằng số ' + st.mateCountConst);
+  check('cả tổ = người chơi + bot', st.crew === st.mates + 1, st.crew + ' người');
+  // Cân bằng của repo2d KHÔNG được dịch vì thay đổi làm cho game kia.
+  const qm = await p.evaluate(() => ({
+    crewOn: REPO.S.crewOn, mates: (REPO.S.mates || []).length,
+    quota: REPO.S.quotaTotal
+  }));
+  check('tổ mặc định của repo2d cho hệ số chỉ tiêu đúng 1.0',
+    Math.abs((0.4 + 0.15 * Math.min(1 + qm.mates, 4)) - 1.0) < 1e-9,
+    'tổ ' + (1 + qm.mates) + ' người → ' + (0.4 + 0.15 * Math.min(1 + qm.mates, 4)));
+
+  // --- khung ngang ---
+  const fr = await p.evaluate(() => {
+    const f = REPO.frame();
+    return { w: f.w, h: f.h, tw: f.worldW / REPO.TILE, th: f.worldH / REPO.TILE,
+             px: f.zoom * REPO.TILE, land: document.body.classList.contains('landscape') };
+  });
+  check('khung ngang tràn hết bề ngang', fr.w >= 840, Math.round(fr.w) + 'px / 844px');
+  check('cờ landscape bật', fr.land);
+  check('ô nằm ngang to hơn 28px', fr.px > 28, fr.px.toFixed(1) + ' px mỗi ô');
+
+  // --- HUD nằm gọn bên phải ---
+  const hud = await p.evaluate(() => {
+    const h = REPO.hudLayout();
+    const xs = h.slots.map(s => s.x).concat([h.grab.x, h.sprint.x, h.stash.x]);
+    return { w: h.w, minX: Math.min.apply(null, xs), heartY: h.heart.y,
+             leftStick: h.left.x, rightStick: h.right.x };
+  });
+  check('mọi nút nằm trong 1/3 bên phải', hud.minX > hud.w * 0.66,
+    'trái nhất ' + Math.round(hud.minX) + ' / ' + Math.round(hud.w * 0.66));
+  check('trái tim không nằm giữa màn', hud.heartY > fr.h * 0.75,
+    'y=' + Math.round(hud.heartY) + ' / khung cao ' + Math.round(fr.h));
+
+  // --- tự ngắm ---
+  const aim = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player, T = REPO.TILE;
+    // Dat sung vao DUNG o 0 - o ma phep do se bam vao. equip() tu chon o trong dau
+    // tien, nen neu o 0 da co gi do tu buoc truoc thi sung roi vao o 1 va cu bam
+    // vao o 0 khong ban ra gi ca. Do la mot phep do bap benh, khong phai mot bug.
+    REPO.giveGear('gun', 2); REPO.equip('gun');
+    if (!(pl.inv[0] && pl.inv[0].kind === 'gun')){
+      const i = pl.inv.findIndex(x => x && x.kind === 'gun');
+      if (i > 0){ const t = pl.inv[0]; pl.inv[0] = pl.inv[i]; pl.inv[i] = t; }
+    }
+    if (!(pl.inv[0] && pl.inv[0].kind === 'gun')) return { ok: false, why: 'không đặt được súng vào ô 1' };
+    REPO.populateFoes();
+    if (!S.monsters.length) return { ok: false, why: 'không có quái' };
+    const m = S.monsters[0];
+    let ang = null;
+    for (let a = 0; a < 16; a++) {
+      const t = a * Math.PI / 8, x = pl.x + Math.cos(t) * T * 3, y = pl.y + Math.sin(t) * T * 3;
+      if (REPO.losClear(pl.x, pl.y, x, y)) { m.x = x; m.y = y; ang = t; break; }
+    }
+    if (ang === null) return { ok: false, why: 'không có hướng nhìn thông' };
+    S.monsters.length = 1; m.sleep = 0; m.hp = 100; m.alert = 3; m.state = 'chase';
+    // KHÓA SÚNG CỦA NÓ trong lúc đo. Cả bài này nói về viên đạn CỦA BẠN — nó có ra khỏi
+    // nòng không, và nó bay về hướng nào. Con quái ở đây được đặt cách 3 ô, alert 3, thông
+    // tầm nhìn — tức là đúng điều kiện để một Kẻ bắn bóp cò ngay giữa cửa sổ đo. Gặp
+    // đúng hôm bốc ra nó thì bài test hỏng ngẫu nhiên, mà không hỏng vì cái nó đang đo.
+    m.gunCd = 99; m.gunAim = 0;
+    pl.dir = ang + Math.PI; pl.cooldown = 0; pl.down = false; S.dead = false;
+    S.bullets.length = 0;
+    return { ok: true };
+  });
+  if (aim.ok) {
+    const g = await p.evaluate(() => {
+      const cv = document.querySelector('#game'), r = cv.getBoundingClientRect();
+      const h = REPO.hudLayout();
+      return { l: r.left, t: r.top, x: h.slots[0].x, y: h.slots[0].y };
+    });
+    // Bắt viên đạn NGAY LÚC nó vừa ra khỏi nòng. Con quái chỉ cách 3 ô, đạn bay hết quãng đó
+    // trong khoảng 80ms — đọc S.bullets sau khi chạm xong thì một nửa số lần viên đạn đã trúng
+    // và biến mất, và phép đo báo "không bắn ra gì" trong khi súng đã tụt một viên.
+    await p.evaluate(() => {
+      window.__daBan = null;
+      window.__rinh = setInterval(() => {
+        // Lọc `!x.foe`: từ khi có Kẻ bắn, ĐẠN CỦA QUÁI nằm chung một mảng với đạn của
+        // bạn. `bullets[0]` vì thế không còn chắc là viên bạn vừa bắn, và bài đo hướng ở
+        // dưới sẽ so góc của một viên do con quái bắn ra — hỏng ngẫu nhiên, tùy xem con
+        // trong phòng có kịp bóp cò trước bạn hay không.
+        const b = REPO.S.bullets.find(x => !x.foe);
+        if (b && !window.__daBan) window.__daBan = { vx: b.vx, vy: b.vy };
+      }, 4);
+    });
+    await p.mouse.move(g.l + g.x, g.t + g.y);
+    await p.mouse.down(); await p.waitForTimeout(50); await p.mouse.up();
+    await p.waitForTimeout(25);
+    const shot = await p.evaluate(() => {
+      clearInterval(window.__rinh);
+      const S = REPO.S, pl = S.player, b = S.bullets.find(x => !x.foe) || window.__daBan;
+      if (!b) return { ban: false, vi: { o: pl.inv.map(x => x && x.kind + 'x' + x.uses),
+                                         aim: pl.aimSlot, cd: +pl.cooldown.toFixed(2),
+                                         chay: S.running, guc: pl.down } };
+      const gd = Math.atan2(b.vy, b.vx);
+      const gq = Math.atan2(S.monsters[0].y - pl.y, S.monsters[0].x - pl.x);
+      return { ban: true, vsQuai: Math.abs(REPO.angDiff(gd, gq)),
+               vsNguoi: Math.abs(REPO.angDiff(gd, pl.dir)) };
+    });
+    check('chạm nhanh ô đồ thì bắn ra đạn', shot.ban, shot.ban ? '' : JSON.stringify(shot.vi || {}));
+    check('đạn bay vào con quái chứ không theo hướng mặt',
+      shot.ban && shot.vsQuai < 0.15 && shot.vsNguoi > 1.0,
+      shot.ban ? ('lệch quái ' + shot.vsQuai.toFixed(3) + ' rad, lệch mặt ' + shot.vsNguoi.toFixed(2) + ' rad') : '');
+  } else check('dựng được cảnh thử tự ngắm', false, aim.why);
+
+  // --- tủ đồ: ba ô trên tay phải rỗng ở mỗi trạm ---
+  const stash = await p.evaluate(async () => {
+    const S = REPO.S;
+    const log = [];
+    for (let round = 1; round <= 5; round++) {
+      REPO.startShop();
+      S.cut = null; S.running = true;
+      REPO.giveGear('heal', 1); REPO.giveGear('gun', 1);
+      S.player.x = S.car.x; S.player.y = S.car.y + 18;
+      S.player.down = false; S.dead = false;
+      REPO.toggleStash();
+      const invTrong = S.player.inv.every(x => !x);
+      const nutTrongTu = document.querySelectorAll('[data-stash]').length;
+      if (nutTrongTu) document.querySelectorAll('[data-stash]')[0].click();
+      const layDuoc = S.player.inv.some(x => x);
+      log.push({ round, invTrong, nutTrongTu, layDuoc });
+      const b = document.querySelector('#veilBtn'); if (b) b.click();
+      S.shopMode = false; S.level++; REPO.startLevel(1000 + S.level);
+      S.cut = null; S.running = true;
+    }
+    return log;
+  });
+  check('mỗi ca vào trạm là ba ô trên tay rỗng', stash.every(r => r.invTrong),
+    stash.map(r => 'ca' + r.round + (r.invTrong ? '✓' : '✗')).join(' '));
+  check('ca nào cũng lấy được đồ ra khỏi tủ', stash.every(r => r.layDuoc),
+    stash.map(r => 'ca' + r.round + (r.layDuoc ? '✓' : '✗')).join(' '));
+
+  const errs2 = errs.filter(e => !/sight|col|populateFoes/.test(e));
+  check('không có lỗi console suốt ca chạy', errs2.length === 0, errs2.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+async function repoSquadSuite(b) {
+  results.push('\n── repo-squad (Biệt Đội) — chạy CHUNG bộ máy repo2d ──');
+
+  for (const [ten, vp] of [['dọc', { width: 390, height: 844 }], ['ngang', { width: 844, height: 390 }]]) {
+    const { ctx, p, errs } = await openGame(b, SQ, vp);
+    await p.waitForTimeout(500);
+    check('[' + ten + '] trang mở không lỗi', errs.length === 0, errs[0] || '');
+
+    // --- nạp đúng một bộ máy, không có bản sao thứ hai ---
+    const nap = await p.evaluate(() => ({
+      coREPO: !!window.REPO, coSQ: !!window.SQ, coGlue: !!(window.SQ && SQ.squad),
+      // file của bộ máy cũ phải KHÔNG còn được nạp nữa
+      simCu: !!(window.SQ && SQ.startRun), worldCu: !!(window.SQ && SQ.genLevel),
+      scripts: [...document.querySelectorAll('script[src]')].map(x => x.getAttribute('src'))
+    }));
+    check('[' + ten + '] nạp bộ máy repo2d', nap.coREPO);
+    check('[' + ten + '] nạp tầng meta Biệt Đội', nap.coSQ && nap.coGlue);
+    check('[' + ten + '] KHÔNG còn bộ máy thứ hai', !nap.simCu && !nap.worldCu);
+    check('[' + ten + '] dùng chung file game.js của repo2d',
+      nap.scripts.some(x => /\.\.\/repo2d\/game\.js/.test(x)),
+      nap.scripts.filter(x => /game|sim/.test(x)).join(' '));
+
+    // --- meta còn nguyên ---
+    const m = await p.evaluate(() => ({
+      chars: Object.keys(SQ.M.chars).length, lead: SQ.M.squad.lead,
+      // mateCount là HÀM: nó phải đổi theo tổ, không phải một con số đặt cứng lúc nạp trang
+      mateCountLaHam: typeof REPO.hooks.mateCount === 'function',
+      mateCount: typeof REPO.hooks.mateCount === 'function' ? REPO.hooks.mateCount() : REPO.hooks.mateCount,
+      land: document.body.classList.contains('landscape')
+    }));
+    check('[' + ten + '] acc mới đúng một xác', m.chars === 1, m.chars + ' xác');
+    check('[' + ten + '] ô BẠN CẦM không rỗng', !!m.lead);
+    check('[' + ten + '] số bot tính theo tổ chứ không đặt cứng', m.mateCountLaHam);
+    check('[' + ten + '] acc một xác thì không có bot nào', m.mateCount === 0, String(m.mateCount));
+    check('[' + ten + '] cờ landscape đúng', m.land === (vp.width > vp.height));
+
+    // --- đội hình ---
+    const squad = await p.evaluate(() => {
+      ['hue','tam','ky','linh'].forEach(id => { SQ.M.chars[id] = { lv:1, shard:0, equip:{} }; });
+      SQ.autoFill();
+      for (let i = 0; i < 4; i++) SQ.setMate(i, null);
+      const leadConSau = SQ.M.squad.lead;
+      const chan = SQ.setMate(0, SQ.M.squad.lead) === false;
+      SQ.autoFill(); SQ.ui.render();
+      return { leadConSau, chan, crew: SQ.squadList().length };
+    });
+    check('[' + ten + '] tháo hết bot vẫn giữ ô BẠN CẦM', !!squad.leadConSau);
+    check('[' + ten + '] chặn hạ xác đang cầm xuống ô trống', squad.chan);
+    check('[' + ten + '] xếp tự động đủ năm người', squad.crew === 5, squad.crew + ' người');
+
+    // --- vào ca thật ---
+    await p.evaluate(() => SQ.ui.go('home'));
+    await p.waitForTimeout(250);
+    await p.evaluate(() => [...document.querySelectorAll('.b')]
+      .find(x => x.textContent.includes('ĐI CA')).click());
+    await p.waitForTimeout(1300);
+    await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+    await p.waitForTimeout(500);
+
+    const r = await p.evaluate(() => {
+      const S = REPO.S, h = REPO.hudLayout();
+      return {
+        inRun: document.body.classList.contains('in-run'),
+        crew: REPO.crew().length,
+        tenBot: (S.mates || []).map(x => x.name),
+        xeDay: !!S.cart, cua: (S.doors || []).length, be: S.pads.length,
+        chiTieu: S.quotaTotal, tang: SQ.squad.run() && SQ.squad.run().floor,
+        nutKyNang: !!h.skill, nutNhat: !!h.grab, nutChay: !!h.sprint, nutTu: !!h.stash,
+        oDo: h.slots.length, denPin: REPO.coneRadius(S.player) > 0
+      };
+    });
+    check('[' + ten + '] vào ca đủ năm người', r.crew === 5, r.crew + ' người');
+    check('[' + ten + '] bot mang đúng tên xác trong tổ',
+      r.tenBot.length === 4 && r.tenBot.every(n => /^[A-Z]/.test(n)), r.tenBot.join(', '));
+    check('[' + ten + '] CÓ xe đẩy', r.xeDay);
+    check('[' + ten + '] CÓ cửa', r.cua > 0, r.cua + ' cửa');
+    check('[' + ten + '] CÓ đèn pin hình nón', r.denPin);
+    check('[' + ten + '] CÓ nút nhặt / chạy / tủ đồ', r.nutNhat && r.nutChay && r.nutTu);
+    check('[' + ten + '] CÓ ba ô đồ', r.oDo === 3, r.oDo + ' ô');
+    check('[' + ten + '] CÓ nút kỹ năng', r.nutKyNang);
+    check('[' + ten + '] chỉ tiêu do bộ máy repo2d sinh', r.chiTieu > 0, '$' + r.chiTieu);
+    check('[' + ten + '] bắt đầu ở tầng 1', r.tang === 1, 'tầng ' + r.tang);
+
+    const errs3 = errs.filter(e => !/favicon/.test(e));
+    check('[' + ten + '] không lỗi console', errs3.length === 0, errs3.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- số bot phải KHỚP số người thật trong tổ ---
+  // Lỗi đã gặp: H.mateCount đặt cứng 4 nên tài khoản mới chỉ có một xác vẫn thấy
+  // bốn con "Tổ 2..5" vô danh đi theo. Chốt lại bằng phép kiểm này.
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+    await p.waitForTimeout(500);
+    const rows = [];
+    for (const n of [0, 1, 2, 4]) {
+      rows.push(await p.evaluate(nMate => {
+        SQ.M.chars = { bao: { lv:1, shard:0, equip:{} } };
+        ['hue','tam','ky','linh'].slice(0, nMate)
+          .forEach(id => { SQ.M.chars[id] = { lv:1, shard:0, equip:{} }; });
+        SQ.M.squad = { lead:'bao', mates:[null,null,null,null] };
+        SQ.autoFill();
+        SQ.squad.enter('k3');
+        REPO.S.cut = null; REPO.S.running = true;
+        return { meta: SQ.squadList().length, bot: (REPO.S.mates || []).length,
+                 ten: (REPO.S.mates || []).map(m => m.name),
+                 chiTieu: REPO.S.quotaTotal };
+      }, n));
+    }
+    check('số bot khớp số người thật trong tổ',
+      rows.every(r => r.bot === r.meta - 1),
+      rows.map(r => r.meta + '→' + r.bot).join('  '));
+    check('không đẻ ra bot vô danh "Tổ N"',
+      rows.every(r => r.ten.every(t => !/^Tổ \d/.test(t))),
+      rows.map(r => '[' + (r.ten.join(',') || '—') + ']').join(' '));
+    check('chỉ tiêu co theo số người',
+      rows[0].chiTieu < rows[3].chiTieu,
+      'một mình $' + rows[0].chiTieu + ' · đủ tổ $' + rows[3].chiTieu);
+    const e0 = errs.filter(e => !/favicon/.test(e));
+    check('tổ thiếu người: không lỗi console', e0.length === 0, e0.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- map hữu hạn: hết tầng cuối là phá đảo, không đẻ tầng tiếp ---
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+    await p.waitForTimeout(500);
+    const fin = await p.evaluate(async () => {
+      ['hue','tam','ky','linh'].forEach(id => { SQ.M.chars[id] = { lv:1, shard:0, equip:{} }; });
+      SQ.autoFill();
+      SQ.squad.enter('k3');                       // Khu Tập Thể K3 — 3 tầng
+      const m = SQ.MAP_BY_ID['k3'];
+      const buoc = [];
+      for (let i = 1; i <= m.floors; i++) {
+        const truoc = SQ.squad.run() ? SQ.squad.run().floor : null;
+        const chan = REPO.hooks.onLevelClear();   // giả lập "xong tầng"
+        buoc.push({ tang: truoc, chanTram: chan });
+      }
+      return { floors: m.floors, buoc,
+               daPhaDao: SQ.M.maps['k3'].cleared,
+               conTrongCa: !!SQ.squad.run(),
+               vang: SQ.M.gold };
+    });
+    check('map 3 tầng thì hai tầng đầu VẪN mở trạm dịch vụ',
+      fin.buoc.slice(0, -1).every(x => x.chanTram === false),
+      fin.buoc.map(x => 't' + x.tang + (x.chanTram ? '→hết' : '→trạm')).join(' '));
+    check('tầng cuối thì phá đảo chứ không mở trạm',
+      fin.buoc[fin.buoc.length - 1].chanTram === true);
+    check('map được đánh dấu đã phá đảo', fin.daPhaDao);
+    check('ra khỏi ca sau khi phá đảo', !fin.conTrongCa);
+    check('có cộng thưởng phá đảo', fin.vang > 5000, fin.vang + ' vàng');
+
+    const e2 = errs.filter(e => !/favicon/.test(e));
+    check('map hữu hạn: không lỗi console', e2.length === 0, e2.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- kỹ năng: mười bốn cái đều gọi được, không cái nào ném lỗi ---
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+    await p.waitForTimeout(500);
+    const sk = await p.evaluate(async () => {
+      SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv:1, shard:0, equip:{} }; });
+      SQ.squad.enter('k3');
+      REPO.S.cut = null; REPO.S.running = true;
+      REPO.populateFoes();
+      const out = [];
+      for (const c of SQ.CHARS) {
+        SQ.M.squad.lead = c.id;
+        REPO.hooks.skill.icon = '✳';
+        let loi = null;
+        try {
+          // ép hồi chiêu xong rồi bấm
+          REPO.S.time += 999;
+          REPO.hooks.skill.use();
+        } catch (e) { loi = e.message; }
+        out.push({ id: c.id, ten: c.skill.name, loi: loi });
+      }
+      return out;
+    });
+    const hong = sk.filter(x => x.loi);
+    check('cả 14 kỹ năng gọi được không ném lỗi', hong.length === 0,
+      hong.length ? hong.map(x => x.id + ': ' + x.loi).join(' | ') : sk.length + ' kỹ năng');
+    const e3 = errs.filter(e => !/favicon|sight|col/.test(e));
+    check('kỹ năng: không lỗi console', e3.length === 0, e3.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// ĐẬP ĐÈN PIN + SỨC NỔ CỦA BOM
+// Đo bằng thế giới thật: đặt quái ở đúng khoảng cách rồi xem máu tụt bao nhiêu, bị
+// hất đi bao xa, và cú chạm nhẹ vào cần gạt phải có tự quay sang con quái không.
+// Tên phải KHÁC meleeSuite. Bộ 'đòn đánh phải báo trước' thêm sau cũng lấy đúng cái tên đó, mà
+// khai báo hàm thì cái sau đè cái trước — nên suốt mấy lần chạy vừa rồi bộ này KHÔNG hề chạy:
+// chỗ gọi nó gọi nhầm sang bộ kia, và bộ kia chạy hai lần. Bảng kết quả vẫn xanh, vì một bài
+// test không chạy thì cũng không hỏng — đó mới đúng là chỗ nguy.
+async function dapDenSuite(b) {
+  results.push('\n── đập đèn pin & sức nổ của bom ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 390, height: 844 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  // Bo qua doan cat canh dau man TRUOC khi do cham. Neu khong, cu cham dau tien bi
+  // skipCut() nuot de tat doan phim - phep do se bao "cham khong an" trong khi cai
+  // that su xay ra la nguoi choi vua bo qua doan mo dau.
+  await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+  await p.waitForTimeout(120);
+
+  const don = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0;
+    pl.swingCd = 0; pl.dir = 0; pl.str = 30;
+    const m = REPO.spawnFoe('gunner', 30, 0);        // ngay trước mặt, trong tầm với
+    m.hp = 400; m.kx = 0; m.ky = 0;
+    const truoc = { hp: m.hp, x: m.x };
+    REPO.meleeSwing(pl, null);
+    return { mat: truoc.hp - m.hp, day: Math.abs(m.kx) > 100,
+             cd: pl.swingCd, ve: pl.swingT > 0, str: pl.str };
+  });
+  const heSo = await p.evaluate(() => REPO.MELEE.STR);
+  const chuan = Math.max(3, Math.round(30 * heSo));
+  check('đập trúng thì quái mất máu theo SỨC của mình', don.mat === chuan,
+    'sức ' + don.str + ' → ' + don.mat + ' sát thương');
+  check('đập trúng thì quái bị hất lui', don.day);
+  check('đập xong phải chờ hồi', don.cd > 0.4, don.cd.toFixed(2) + 's');
+
+  const hut = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
+    const sau = REPO.spawnFoe('gunner', -30, 0);     // ngay SAU lưng
+    const xa  = REPO.spawnFoe('gunner', 90, 0);      // trước mặt nhưng ngoài tầm
+    sau.hp = 400; xa.hp = 400;
+    REPO.meleeSwing(pl, null);
+    return { sauLung: 400 - sau.hp, ngoaiTam: 400 - xa.hp };
+  });
+  check('không đập trúng con đứng sau lưng', hut.sauLung === 0, hut.sauLung + ' sát thương');
+  check('không với tới con ngoài tầm', hut.ngoaiTam === 0, hut.ngoaiTam + ' sát thương');
+
+  // Chạm NHẸ vào cần gạt phải: phải tự quay sang con quái rồi đập.
+  // Dùng cú chạm THẬT của trình duyệt, không phải PointerEvent tự dựng: sự kiện tự
+  // dựng không được tin cậy nên setPointerCapture ném lỗi và cả chuỗi chết giữa chừng
+  // — phép đo sẽ "xanh" vì không có gì xảy ra, chứ không phải vì code đúng.
+  const canGat = await p.evaluate(() => {
+    const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+    const r = cv.getBoundingClientRect();
+    return { x: r.left + h.right.x / h.w * r.width,
+             y: r.top + h.right.y / h.h * r.height };
+  });
+
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax;
+    pl.dir = Math.PI;                                 // đang quay LƯNG lại phía nó
+    const m = REPO.spawnFoe('gunner', 34, 0);         // nó ở bên phải mình
+    // Ghim nó đứng yên: thế giới vẫn đang chạy, và một con quái đi lang thang trong
+    // lúc đo thì góc tới nó đổi vài phần mười radian — phép đo sẽ đỏ vì con quái
+    // nhúc nhích chứ không phải vì cú quay sai.
+    m.hp = 400; m.kx = 0; m.speed = 0; m.state = 'idle'; m.alert = 0;
+  });
+  await p.touchscreen.tap(canGat.x, canGat.y);
+  await p.waitForTimeout(160);
+  const cham = await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    return { mat: m ? 400 - m.hp : -1, huong: pl.dir, dungHuong: Math.abs(pl.dir) < 0.25 };
+  });
+  check('chạm nhẹ cần gạt phải thì TỰ QUAY sang con quái', cham.dungHuong,
+    'hướng ' + cham.huong.toFixed(2) + ' rad');
+  const heSo2 = await p.evaluate(() => REPO.MELEE.STR);
+  check('chạm nhẹ cần gạt phải thì đập trúng',
+    cham.mat === Math.max(3, Math.round(30 * heSo2)), cham.mat + ' sát thương');
+
+  // NÚT ĐÁNH RIÊNG. Lối chạm nhẹ ở trên vẫn còn, nhưng một hành động mà cách duy nhất để gọi nó
+  // là "chạm rồi nhả trong 280ms mà đừng kéo quá xa" thì không ai đọc ra được từ màn hình.
+  const kichThuoc = await p.evaluate(() => {
+    const h = REPO.hudLayout();
+    return { co: !!h.melee, xoay: +h.right.r.toFixed(1), di: +h.left.r.toFixed(1) };
+  });
+  check('có nút đánh thường trên HUD', kichThuoc.co);
+  check('cần gạt XOAY nhỏ hơn cần gạt ĐI', kichThuoc.co && kichThuoc.xoay < kichThuoc.di,
+    'xoay ' + kichThuoc.xoay + ' · đi ' + kichThuoc.di);
+
+  const nutDanh = await p.evaluate(() => {
+    const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+    const r = cv.getBoundingClientRect();
+    return { x: r.left + h.melee.x / h.w * r.width,
+             y: r.top + h.melee.y / h.h * r.height };
+  });
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax; pl.sprint = false;
+    pl.dir = Math.PI;
+    const m = REPO.spawnFoe('gunner', 34, 0);
+    m.hp = 400; m.kx = 0; m.speed = 0; m.state = 'idle'; m.alert = 0;
+  });
+  await p.touchscreen.tap(nutDanh.x, nutDanh.y);
+  await p.waitForTimeout(160);
+  const bamNut = await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    return { mat: m ? 400 - m.hp : -1, chay: !!pl.sprint, tu: !!REPO.S.stashOpen,
+             gat: !!REPO.stick() };
+  });
+  check('bấm nút Đánh thì đập trúng', bamNut.mat === Math.max(3, Math.round(30 * heSo2)),
+    bamNut.mat + ' sát thương');
+  check('và nó không cướp mất nút Chạy, tủ đồ hay cần gạt',
+    !bamNut.chay && !bamNut.tu && !bamNut.gat);
+
+  // KÉO cần gạt phải thì vẫn là NHÌN, không được thành đòn đánh.
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
+    const m = REPO.spawnFoe('gunner', 34, 0); m.hp = 400;
+  });
+  await p.mouse.move(canGat.x, canGat.y);
+  await p.mouse.down();
+  await p.mouse.move(canGat.x + 70, canGat.y, { steps: 6 });
+  await p.waitForTimeout(80);
+  await p.mouse.up();
+  await p.waitForTimeout(140);
+  const keo = await p.evaluate(() => {
+    const m = REPO.S.monsters[0];
+    return m ? 400 - m.hp : -1;
+  });
+  check('kéo cần gạt phải thì vẫn là NHÌN, không thành đòn đánh', keo === 0, keo + ' sát thương');
+
+  // Nhân vật khoẻ hơn thì đập đau hơn — chỗ chỉ số meta của Biệt Đội đi vào.
+  const suc = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player, out = {};
+    [30, 53].forEach(v => {
+      S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.str = v; pl.stam = pl.stamMax;
+      const m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
+      REPO.meleeSwing(pl, null);
+      out[v] = 400 - m.hp;
+    });
+    pl.str = 30;
+    return out;
+  });
+  check('xác khoẻ hơn thì đập đau hơn', suc[53] > suc[30],
+    'sức 30 → ' + suc[30] + ' · sức 53 → ' + suc[53]);
+
+  // ---- vung đèn pin TỐN THỂ LỰC ----
+  const tl = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.dir = 0; pl.str = 30;
+    pl.stam = pl.stamMax; pl.swingCd = 0;
+    const truoc = pl.stam;
+    REPO.meleeSwing(pl, null);
+    return { truoc: truoc, sau: pl.stam, gia: REPO.MELEE.STAM };
+  });
+  check('vung đèn pin thì hao thể lực', tl.truoc - tl.sau === tl.gia,
+    Math.round(tl.truoc) + ' -> ' + Math.round(tl.sau) + ' (giá ' + tl.gia + ')');
+
+  const duoi = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.dir = 0; pl.str = 30;
+    // đầy thể lực
+    pl.stam = pl.stamMax; pl.swingCd = 0;
+    let m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
+    REPO.meleeSwing(pl, null);
+    const khoe = { mat: 400 - m.hp, cd: pl.swingCd };
+    // cạn thể lực
+    S.monsters.length = 0; pl.stam = 0; pl.swingCd = 0;
+    m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
+    REPO.meleeSwing(pl, null);
+    return { khoe: khoe, met: { mat: 400 - m.hp, cd: pl.swingCd } };
+  });
+  check('cạn thể lực thì VẪN đánh được, không bị cấm',
+    duoi.met.mat > 0, duoi.met.mat + ' sát thương');
+  check('nhưng đánh nhẹ hẳn', duoi.met.mat < duoi.khoe.mat,
+    duoi.khoe.mat + ' -> ' + duoi.met.mat);
+  check('và lâu tay hẳn', duoi.met.cd > duoi.khoe.cd + 0.1,
+    duoi.khoe.cd.toFixed(2) + 's -> ' + duoi.met.cd.toFixed(2) + 's');
+
+  // ---- phang được vào GƯƠNG ----
+  const guong = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0;
+    S.mirror = null;
+    REPO.spawnMirrors();
+    for (let i = 0; i < 40 && !S.mirror; i++) await new Promise(r => setTimeout(r, 50));
+    if (!S.mirror) return { bo: true };
+    const pane = S.mirror.a;
+    const goc = pane.hp;
+    // Đứng ở phía nào cũng được, MIỄN LÀ đứng được và nhìn thấy tấm gương. Bản test cũ đóng
+    // cứng "lùi sang trái 26px", nên hôm nào tấm gương mọc sát một bức tường bên trái thì
+    // người chơi bị nhét vào trong tường, losClear() trả false, và tám nhát trôi qua không
+    // trúng gì cả — một ca hỏng chập chờn không nói gì về trò chơi.
+    let dungDuoc = false;
+    for (const a of [0, Math.PI/2, Math.PI, -Math.PI/2, Math.PI/4, -Math.PI/4]){
+      const x = pane.x - Math.cos(a)*26, y = pane.y - Math.sin(a)*26;
+      if (REPO.hitsSolid(x, y, 9)) continue;
+      if (!REPO.losClear(x, y, pane.x, pane.y)) continue;
+      pl.x = x; pl.y = y; pl.dir = a; dungDuoc = true; break;
+    }
+    if (!dungDuoc) return { bo: true };
+    let nhat = 0;
+    for (let i = 0; i < 8 && pane.hp > 0 && S.mirror; i++){
+      pl.swingCd = 0; pl.stam = pl.stamMax;
+      REPO.meleeSwing(pl, null);
+      nhat++;
+    }
+    const con = S.mirror ? S.mirror.a.hp : 0;
+    return { goc: goc, con: con, nhat: nhat, vo: !S.mirror || S.mirror.a.hp <= 0 };
+  });
+  // ---- vỡ gương thì đồ phải rơi NGAY CHỖ VỪA ĐẬP ----
+  // Trước bản này nó rơi ở chỗ CON MA, mà con ma đang đi lại trong nhà — người chơi đập vỡ
+  // tấm gương trước mặt rồi cúi xuống nhặt thì chẳng có gì, còn món đồ nằm ở phòng khác.
+  const roi = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; S.mirror = null; S.foeDrops = 0;
+    REPO.spawnMirrors();
+    for (let i = 0; i < 40 && !S.mirror; i++) await new Promise(r => setTimeout(r, 50));
+    if (!S.mirror) return { bo: true };
+    const pane = S.mirror.a;
+    const maO = S.mirror.m ? { x: S.mirror.m.x, y: S.mirror.m.y } : null;
+    const truoc = S.loot.filter(l => l.fromFoe && !l.gone).length;
+    REPO.breakMirror(pane);
+    const moi = S.loot.filter(l => l.fromFoe && !l.gone);
+    if (moi.length <= truoc) return { khongRoi: true };
+    const l = moi[moi.length - 1];
+    return {
+      xaTam: Math.round(Math.hypot(l.x - pane.x, l.y - pane.y)),
+      xaMa: maO ? Math.round(Math.hypot(l.x - maO.x, l.y - maO.y)) : null,
+      coMa: !!maO
+    };
+  });
+  check('vỡ gương thì đồ rơi ngay tại tấm vừa đập',
+    roi.bo || roi.khongRoi || roi.xaTam <= 2,
+    roi.bo ? 'không dựng được gương' : roi.khongRoi ? 'nhà hết suất đồ rơi'
+           : 'cách tấm gương ' + roi.xaTam + 'px' + (roi.coMa ? ', cách con ma ' + roi.xaMa + 'px' : ''));
+
+  check('phang đèn pin làm VỠ được gương', guong.bo || guong.vo,
+    guong.bo ? 'không dựng được gương' : guong.nhat + ' nhát / ' + guong.goc + ' máu');
+  check('vỡ gương phải mất vài nhát, không phải một', guong.bo || guong.nhat >= 2,
+    guong.bo ? '' : guong.nhat + ' nhát');
+
+  // Bom: giết gọn con dày máu nhất khi nổ sát chân nó.
+  const bom = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0; S.bombs.length = 0;
+    const m = REPO.spawnFoe('gunner', 40, 0);         // Kẻ bắn, 110 máu
+    const goc = m.hp;
+    S.bombs.push({ x: m.x, y: m.y, t: 0, fuse: 0, r: REPO.TILE * 3.4, done: false, owner: 'player' });
+    await new Promise(k => setTimeout(k, 300));
+    return { goc: goc, con: S.monsters.indexOf(m) >= 0 };
+  });
+  check('bom nổ sát chân thì giết gọn con dày máu nhất', !bom.con,
+    'Kẻ bắn ' + bom.goc + ' máu');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đập đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// CON MA GƯƠNG + PHANG CỬA KẸT + VÒNG SÁNG QUANH NHÂN VẬT
+async function ghostDoorSuite(b) {
+  results.push('\n── ma gương · phang cửa · vòng sáng ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 390, height: 844 });
+  await p.evaluate(() => {
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    SQ.autoFill(); SQ.squad.enter('k3');
+    REPO.S.cut = null; REPO.S.running = true;
+  });
+  await p.waitForTimeout(300);
+
+  // --- con ma gương phải nằm trong tầm với của kỹ năng ---
+  // Dựng gương bằng CHÍNH hàm của bộ máy, không bịa một đối tượng gương giả: một
+  // cái gương vá tay thiếu vài trường sẽ đi một đường khác với gương thật.
+  const co = await p.evaluate(() => {
+    REPO.spawnMirrors();
+    return { coGuong: !!REPO.S.mirror };
+  });
+  check('dựng được cảnh có gương', co.coGuong);
+
+  const ma = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    // Cho nó bước ra: stepMirror chuyển phase khi mr.t vượt MIRROR_EMERGE.
+    // MIRROR_EMERGE = 2 giay: doi 1,2 giay roi ket luan "con ma chua buoc ra" la
+    // ket luan ve dong ho cho, khong phai ve con ma.
+    for (let i = 0; i < 80 && !(S.mirror && S.mirror.m); i++) {
+      if (!S.mirror) REPO.spawnMirrors();
+      await new Promise(r => setTimeout(r, 60));
+    }
+    const m = S.mirror && S.mirror.m;
+    if (!m) return { loi: 'con ma chưa bước ra' };
+    m.x = pl.x + 3 * REPO.TILE; m.y = pl.y;
+    return { ra: true, trongDanhSachQuai: (REPO.foesAll() || []).indexOf(m) >= 0,
+             coSleep: typeof m.sleep === 'number' };
+  });
+  check('con ma gương nằm trong danh sách quái mà kỹ năng quét',
+    ma.ra && ma.trongDanhSachQuai, ma.loi || '');
+
+  // Chói Loà phải làm nó đứng hình — đúng chỗ người chơi báo.
+  // Đặt nó XA (7 ô) và đo trong cửa sổ ngắn: để nó lại gần thì nó tóm được người
+  // chơi giữa lúc đo, mà bị tóm là cả cảnh gương biến mất và phép đo mất đối tượng.
+  // Con ma mat MIRROR_EMERGE (2 giay) moi buoc ra khoi guong, va no bien mat han neu
+  // tom duoc nguoi choi. Nen moi phep do phai TU DUNG LAI canh cua no, chu khong
+  // duoc gia dinh la canh cu con do.
+  const dat = () => p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    // Gửi tổ ba người về xe tải và cho đứng đó. Từ bản này đồng đội biết lái xe máy và húc
+    // quái (BIKE_RAM_KNOCK = 430, gần 18 ô/giây), nên một con bot chạy ngang qua là đủ thổi
+    // bay con quái đang đo hoặc giết luôn con ma gương — phép đo đỏ vì một thứ không liên
+    // quan. Đẩy chúng ra chứ KHÔNG tắt hẳn tổ: vài kỹ năng đọc danh sách tổ để tính hiệu ứng.
+    (REPO.S.mates || []).forEach(m => {
+      if (m.riding) REPO.dismountBike(m);
+      if (m.pushing) REPO.releaseCart(m);
+      if (REPO.S.car){ m.x = REPO.S.car.x; m.y = REPO.S.car.y; }
+      m.job = 'idle'; m.path = null; m.target = null; m.idleT = 9999; m.react = 9999;
+    });
+    for (let i = 0; i < 60; i++){
+      if (!S.mirror) REPO.spawnMirrors();
+      if (S.mirror && S.mirror.m) break;
+      await new Promise(r => setTimeout(r, 60));
+    }
+    const m = S.mirror && S.mirror.m;
+    if (!m) return false;
+    // 4 ô: nằm TRONG bán kính 5,5 ô của Chói Loà (đặt ngoài tầm thì phép đo chỉ
+    // chứng minh được rằng kỹ năng có bán kính, chứ không đo được nó có ăn hay không),
+    // mà vẫn đủ xa để nó không tóm được người chơi trong 0,9 giây đo.
+    m.x = pl.x + 4 * REPO.TILE; m.y = pl.y; m.sleep = 0; m.path = null; m.pathT = 0;
+    return true;
+  });
+  const diBaoXa = ms => p.evaluate(async ms => {
+    const m = REPO.S.mirror && REPO.S.mirror.m;
+    if (!m) return -1;
+    const t0 = { x: m.x, y: m.y };
+    await new Promise(r => setTimeout(r, ms));
+    const mm = REPO.S.mirror && REPO.S.mirror.m;
+    return mm ? Math.hypot(mm.x - t0.x, mm.y - t0.y) / REPO.TILE : -1;
+  }, ms);
+
+  await dat();
+  const diThuong = await diBaoXa(900);
+  await dat();
+  const sleep = await p.evaluate(() => {
+    SQ.M.squad.lead = 'bao'; REPO.S.time += 999;
+    REPO.hooks.skill.use();                       // Chói Loà
+    const m = REPO.S.mirror && REPO.S.mirror.m;
+    return m ? m.sleep : -1;
+  });
+  const diSauChoi = await diBaoXa(900);
+  check('Chói Loà làm con ma gương đứng hình',
+    sleep > 0 && diSauChoi >= 0 && diSauChoi < Math.max(0.2, diThuong * 0.25),
+    'không bấm đi ' + diThuong.toFixed(2) + ' ô · có bấm đi ' + diSauChoi.toFixed(2) + ' ô');
+
+  // Đập đèn pin vào mặt nó cũng phải làm nó khựng, dù không giết được.
+  await dat();
+  const dam = await p.evaluate(() => {
+    const S = REPO.S, m = S.mirror && S.mirror.m, pl = S.player;
+    if (!m) return { bo: true };
+    m.sleep = 0;
+    pl.x = m.x - 30; pl.y = m.y; pl.dir = 0; pl.swingCd = 0;
+    REPO.meleeSwing(pl, null);
+    return { sleep: m.sleep, conNguyen: !!(S.mirror && S.mirror.m), coMau: typeof m.hp === 'number' };
+  });
+  check('đập đèn pin làm con ma gương khựng lại', !dam.bo && dam.sleep > 0,
+    dam.bo ? 'con ma không còn đó' : dam.sleep + 's');
+  check('nhưng KHÔNG giết được nó — vẫn phải đập vỡ gương',
+    !dam.bo && dam.conNguyen && !dam.coMau);
+
+  // --- phang đèn pin vào cửa kẹt ---
+  const cua = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.mirror = null;
+    const d = S.doors.slice().sort((a, c) =>
+      Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(c.x - pl.x, c.y - pl.y))[0];
+    d.locked = true; d.broken = false; d.pry = 0; d.bash = 0;
+    REPO.warp(d.x - 18, d.y);
+    pl.dir = 0; pl.swingCd = 0;
+    const buoc = [];
+    for (let i = 0; i < REPO.DOOR.PRY_HITS + 2 && !d.broken; i++) {
+      pl.swingCd = 0;
+      REPO.meleeSwing(pl, null);
+      buoc.push(+(d.pry || 0).toFixed(1));
+    }
+    return { vo: !!d.broken, nhat: buoc.length, can: REPO.DOOR.PRY_HITS, buoc: buoc };
+  });
+  check('phang đèn pin đủ nhiều nhát thì bung được cửa kẹt', cua.vo,
+    cua.nhat + ' nhát / cần ' + cua.can);
+  check('một nhát thôi thì KHÔNG bung — phải lâu', cua.nhat > 3, cua.nhat + ' nhát');
+
+  // Ngừng tay thì tiến trình tụt lại: không gõ nhấm nháp cả màn được.
+  const tut = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    const d = S.doors.find(x => !x.broken);
+    if (!d) return { bo: true };
+    d.locked = true; d.pry = 3; d.bash = 0;
+    const truoc = d.pry;
+    await new Promise(r => setTimeout(r, 1500));
+    return { truoc: truoc, sau: d.pry };
+  });
+  check('ngừng tay thì tiến trình phá cửa tụt lại',
+    tut.bo || tut.sau < tut.truoc, tut.bo ? 'không có cửa để đo' : tut.truoc + ' → ' + (tut.sau || 0).toFixed(2));
+
+  // --- xe đẩy chở theo GIÁ TRỊ, không theo kích cỡ ---
+  const xe = await p.evaluate(() => {
+    const S = REPO.S, cart = S.cart;
+    if (!cart) return { bo: true };
+    cart.items.length = 0;
+    const to = { value: 4000, sizeIdx: 2, gone: false, mass: 40 };      // to nhưng rẻ
+    const dat = { value: 40000, sizeIdx: 0, gone: false, mass: 8 };     // nhỏ nhưng đắt
+    const vua = { value: 19999, sizeIdx: 2, gone: false, mass: 40 };    // sát ngưỡng
+    return { bo: false, nguong: REPO.CART_MAX_VALUE,
+             toReRa: REPO.cartFits(cart, to),
+             nhoDat: REPO.cartFits(cart, dat),
+             satNguong: REPO.cartFits(cart, vua) };
+  });
+  check('xe chở món TO nhưng RẺ', xe.bo || xe.toReRa, xe.bo ? 'không có xe' : '');
+  check('xe KHÔNG chở món nhỏ nhưng ĐẮT', xe.bo || !xe.nhoDat,
+    xe.bo ? '' : 'ngưỡng ' + xe.nguong);
+  check('sát ngưỡng thì vẫn lên được xe', xe.bo || xe.satNguong);
+
+  // ---- gương và thiên thần phải mọc quanh CẢ TỔ, không chỉ quanh người chơi ----
+  // Ca trực này là của bốn người; để mọi thứ đáng sợ chỉ mọc quanh đúng một người là biến ba
+  // người kia thành đồ trang trí, và biến trò chơi thành một trò đoán được.
+  const quanhTo = await p.evaluate(async () => {
+    const S = REPO.S;
+    const to = REPO.crew().filter(a => a && !a.down);
+    if (to.length < 2) return { boQua: 'tổ chỉ có ' + to.length + ' người' };
+    const gan = (x, y) => {                       // mọc gần AI nhất
+      let best = null, bd = 1e9;
+      REPO.crew().forEach((a, i) => { const d = Math.hypot(a.x - x, a.y - y); if (d < bd){ bd = d; best = i; } });
+      return best;
+    };
+    const ai = { guong: {}, thien: {} };
+    for (let i = 0; i < 40; i++){
+      S.mirror = null; S.mirrorGone = false; S.mirrorTimer = 0;
+      if (REPO.spawnMirrors() !== false && S.mirror){
+        const k = gan(S.mirror.a.x, S.mirror.a.y); ai.guong[k] = (ai.guong[k] || 0) + 1;
+      }
+      S.angel = null; S.angelTimer = 0;
+      if (REPO.spawnAngel() && S.angel){
+        const k = gan(S.angel.x, S.angel.y); ai.thien[k] = (ai.thien[k] || 0) + 1;
+      }
+    }
+    S.mirror = null; S.angel = null;
+    return { soTo: to.length,
+             guong: Object.keys(ai.guong).length, thien: Object.keys(ai.thien).length,
+             chiTiet: JSON.stringify(ai) };
+  });
+  check('gương mọc quanh nhiều người trong tổ, không chỉ người chơi',
+    !!quanhTo.boQua || quanhTo.guong > 1,
+    quanhTo.boQua || ('mọc cạnh ' + quanhTo.guong + ' người khác nhau'));
+  check('thiên thần cũng vậy',
+    !!quanhTo.boQua || quanhTo.thien > 1,
+    quanhTo.boQua || ('mọc cạnh ' + quanhTo.thien + ' người khác nhau'));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('ma gương / phang cửa: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// TỦ ĐỒ KHI ĐÃ NHIỀU MÓN — đúng tình huống người chơi báo: "đến màn 3 mở tủ là
+// stuck luôn, không lấy đồ được".
+// ROOT-CAUSE đo được: bảng tủ là một tấm màn phủ CUỘN ĐƯỢC, và tới màn 3 thì tủ đã
+//   có 7-8 món. Ở khung 390×844, bảng cao 873px trong chỗ trống 757px, nên nút
+//   "Đóng tủ" rơi xuống y=876 — NẰM DƯỚI ĐÁY MÀN HÌNH. Mở tủ ra là không còn đường
+//   thoát. Chỉ tấm màn ngang mới được ghim đáy, còn màn dọc thì không.
+// Vì sao bộ test cũ không bắt được: nó mở tủ với tủ RỖNG (hoặc 2 món), lúc đó bảng
+//   vừa khít màn hình. Lỗi này chỉ hiện ra khi danh sách đủ dài.
+async function stashSuite(b) {
+  results.push('\n── tủ đồ khi đã nhiều món ──');
+  for (const [ten, url] of [['repo2d', R2D], ['repo-squad', SQ]]) {
+    const { ctx, p, errs } = await openGame(b, url, { width: 390, height: 844 });
+    if (url === SQ) {
+      await p.evaluate(() => {
+        SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+        SQ.autoFill(); SQ.squad.enter('k3');
+      });
+    } else {
+      await p.click('#veilBtn');
+    }
+    await p.waitForTimeout(300);
+
+    // Tủ như sau ba ca mua sắm: tám món.
+    await p.evaluate(() => {
+      const S = REPO.S;
+      S.level = 3;
+      S.stash = ['gun', 'bomb', 'tranq', 'heal', 'pry', 'tracker', 'gun', 'heal']
+        .map(k => ({ kind: k, uses: 3 }));
+      S.player.inv = [null, null, null];
+      REPO.warp(S.car.x, S.car.y);
+      REPO.toggleStash();
+    });
+    await p.waitForTimeout(250);
+
+    // Bố cục bảng đã đổi: hàng nút là CHÂN TRANG thật, và #veilExtra là phần duy nhất cuộn.
+    // Yêu cầu cũ "bảng phải dài hơn màn hình" là mô tả cái bố cục hỏng, không phải một điều
+    // cần giữ. Cái CẦN giữ là: danh sách đủ dài để thật sự phải cuộn, và hàng nút không bao
+    // giờ đè lên nó.
+    const mo = await p.evaluate(() => {
+      const box = document.getElementById('veilExtra');
+      const a = document.querySelector('.veil-acts').getBoundingClientRect();
+      const bx = box.getBoundingClientRect();
+      return { moTu: !!REPO.S.stashOpen, danhSachCuonDuoc: box.scrollHeight > box.clientHeight + 1,
+               nutDongY: Math.round(a.top), nutDongTrongMan: a.bottom <= innerHeight,
+               khongDeLen: a.top >= bx.bottom - 1,
+               so: document.querySelectorAll('[data-stash]').length };
+    });
+    check('[' + ten + '] tủ 8 món thì danh sách cuộn được', mo.moTu && mo.danhSachCuonDuoc && mo.so === 8,
+      mo.so + ' món');
+    check('[' + ten + '] hàng nút KHÔNG đè lên danh sách', mo.khongDeLen);
+    check('[' + ten + '] nút "Đóng tủ" LUÔN nằm trong màn hình', mo.nutDongTrongMan,
+      'y=' + mo.nutDongY + ' / màn 844');
+
+    // Cuộn xuống đáy: mọi món phải với tới được, không món nào bị che.
+    const che = await p.evaluate(() => {
+      const box = document.getElementById('veilExtra');
+      box.scrollTop = box.scrollHeight;
+      const bx = box.getBoundingClientRect();
+      const out = [];
+      [...document.querySelectorAll('[data-stash]')].forEach((n, i) => {
+        const r = n.getBoundingClientRect();
+        const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const nhin = r.top >= bx.top - 1 && r.bottom <= bx.bottom + 1;
+        if (!nhin || !(t && n.contains(t))) out.push(String(i));
+      });
+      return out;
+    });
+    check('[' + ten + '] cuộn tới đáy thì không món nào bị che', che.length === 0,
+      che.length ? 'món ' + che.join(', ') : '');
+
+    // Lấy một món bằng cú CHẠM thật, và chỗ cuộn phải giữ nguyên.
+    const lay = await p.evaluate(() => {
+      const v = document.getElementById('veilExtra');
+      const n = document.querySelector('[data-stash="5"]');
+      const r = n.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, scr: v.scrollTop,
+               inv: REPO.S.player.inv.map(x => x && x.kind), so: REPO.S.stash.length };
+    });
+    await p.touchscreen.tap(lay.x, lay.y);
+    await p.waitForTimeout(250);
+    const sau = await p.evaluate(() => ({
+      inv: REPO.S.player.inv.map(x => x && x.kind), so: REPO.S.stash.length,
+      scr: document.getElementById('veilExtra').scrollTop
+    }));
+    check('[' + ten + '] chạm một món ở giữa danh sách thì lấy được',
+      sau.so === lay.so - 1 && sau.inv.filter(Boolean).length === 1,
+      lay.so + ' → ' + sau.so + ' món, trên tay: ' + sau.inv.filter(Boolean).join(','));
+    // Trôi tối đa MỘT DÒNG (~56px) là đúng: danh sách vừa ngắn đi một món nên mức
+    // cuộn tối đa cũng tụt đúng bằng đó, trình duyệt kẹp lại. Nhảy hẳn về 0 mới sai.
+    check('[' + ten + '] lấy xong không bị nhảy về đầu danh sách',
+      sau.scr > 0 && lay.scr - sau.scr <= 60,
+      'cuộn ' + Math.round(lay.scr) + ' → ' + Math.round(sau.scr));
+
+    // Và đóng được tủ bằng cú chạm thật.
+    const dong = await p.evaluate(() => {
+      const r = document.getElementById('veilBtn').getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await p.touchscreen.tap(dong.x, dong.y);
+    await p.waitForTimeout(250);
+    const daDong = await p.evaluate(() => ({ mo: !!REPO.S.stashOpen, chay: !!REPO.S.running }));
+    check('[' + ten + '] đóng được tủ và chơi tiếp', !daDong.mo && daDong.chay);
+
+    // ---- MỘT MÓN HỎNG TRONG TỦ KHÔNG ĐƯỢC GIẾT CẢ CA ----
+    // Dựng lại đúng cơ chế của bug người chơi báo ("đến round 4 map 2, tủ đồ freeze
+    // luôn, bấm nút cũng không tắt được"): showStash() ném lỗi vì một món trong tủ
+    // không có trong bảng đồ, mà toggleStash() đã đóng băng thế giới TỪ TRƯỚC — nên
+    // game đứng hình, không bảng, không nút.
+    // Cách dựng: xoá một mục khỏi bảng đồ ĐANG DÙNG (REPO.GEAR_BY_KEY là chính đối
+    // tượng bộ máy đọc, không phải bản sao), rồi mở tủ với một món thuộc mục đó.
+    const hong = await p.evaluate(async () => {
+      const S = REPO.S;
+      if (S.stashOpen) REPO.toggleStash();
+      S.running = true; S.dead = false;
+      S.stash = [{ kind: 'gun', uses: 5 }, { kind: 'heal', uses: 2 }];
+      const giu = REPO.GEAR_BY_KEY.gun;
+      delete REPO.GEAR_BY_KEY.gun;                 // 'gun' thành món bộ máy không nhận ra
+      REPO.warp(S.car.x, S.car.y);
+      let nem = null;
+      try { REPO.toggleStash(); } catch (e) { nem = e.message; }
+      const v = document.getElementById('veil');
+      const ra = {
+        nem: nem,
+        dongBang: !S.running && v.hidden,          // thế chết: đứng hình mà không có bảng
+        bangHien: !v.hidden,
+        coDongHong: /Món hỏng/.test(document.getElementById('veilExtra').innerHTML),
+        soNutBoDi: document.querySelectorAll('[data-drop]').length
+      };
+      // bấm bỏ món hỏng đi
+      const nut = document.querySelector('[data-drop]');
+      if (nut) nut.click();
+      await new Promise(r => setTimeout(r, 80));
+      ra.conLai = S.stash.length;
+      // đóng tủ lại
+      const btn = document.getElementById('veilBtn');
+      if (btn.onclick) btn.onclick();
+      ra.dongDuoc = !S.stashOpen && document.getElementById('veil').hidden && S.running;
+      REPO.GEAR_BY_KEY.gun = giu;
+      return ra;
+    });
+    check('[' + ten + '] một món hỏng trong tủ KHÔNG làm đứng hình cả ca',
+      !hong.dongBang && !hong.nem, hong.nem || (hong.dongBang ? 'đứng hình, không bảng' : ''));
+    check('[' + ten + '] bảng tủ vẫn mở được, món hỏng hiện thành một dòng',
+      hong.bangHien && hong.coDongHong && hong.soNutBoDi === 1);
+    check('[' + ten + '] bỏ được món hỏng đi', hong.conLai === 1, hong.conLai + ' món còn lại');
+    check('[' + ten + '] và vẫn đóng được tủ, ca chạy tiếp', hong.dongDuoc);
+
+    const e = errs.filter(x => !/favicon|Tủ đồ dựng không được/.test(x));
+    check('[' + ten + '] tủ đồ: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// NÚT XOAY TAY — iPhone bật khoá xoay thì trang không bao giờ nằm ngang được, và
+// Safari không có screen.orientation.lock(). Nên vỏ game tự quay 90 độ bằng CSS.
+// Phép đo QUAN TRỌNG NHẤT ở đây là cú chạm: quay hình mà quên quay toạ độ thì ngón
+// tay bấm một nơi game hiểu một nẻo, lệch đúng 90 độ — cần gạt trái thành cần phải.
+async function rotateSuite(b) {
+  results.push('\n── nút xoay tay (cho iPhone khoá xoay) ──');
+  for (const [ten, url] of [['repo2d', R2D], ['repo-squad', SQ]]) {
+    // Khung DỌC: đây mới là tình huống nút này sinh ra để giải quyết.
+    const { ctx, p, errs } = await openGame(b, url, { width: 390, height: 844 });
+    if (url === SQ) {
+      await p.evaluate(() => {
+        SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+        SQ.autoFill(); SQ.squad.enter('k3');
+      });
+    } else {
+      // repo2d mo ra la tam man gioi thieu dang phu len canvas. Khong bam "Vao ca"
+      // thi moi cu cham trong bai do nay roi vao tam man do chu khong vao canvas.
+      await p.click('#veilBtn');
+    }
+    await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+    await p.waitForTimeout(300);
+
+    const truoc = await p.evaluate(() => {
+      const h = REPO.hudLayout();
+      return { ngang: h.w > h.h, w: Math.round(h.w), h: Math.round(h.h),
+               nut: !!document.getElementById('rotBtn'),
+               hien: getComputedStyle(document.getElementById('rotBtn')).display };
+    });
+    check('[' + ten + '] có nút xoay trên thanh trên', truoc.nut);
+    check('[' + ten + '] máy cảm ứng thì nút hiện ra', truoc.hien !== 'none', truoc.hien);
+    check('[' + ten + '] chưa bấm thì khung vẫn dọc', !truoc.ngang, truoc.w + '×' + truoc.h);
+
+    await p.click('#rotBtn');
+    await p.waitForTimeout(400);
+
+    const sau = await p.evaluate(() => {
+      const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      return { ngang: h.w > h.h, w: Math.round(h.w), h: Math.round(h.h),
+               cls: document.body.classList.contains('force-land'),
+               land: document.body.classList.contains('landscape'),
+               // Hộp bao của canvas đã xoay phải nằm gọn trong màn hình dọc.
+               tran: r.left < -1 || r.top < -1 ||
+                     r.right > innerWidth + 1 || r.bottom > innerHeight + 1,
+               phu: Math.round(r.width) + '×' + Math.round(r.height),
+               man: innerWidth + '×' + innerHeight };
+    });
+    check('[' + ten + '] bấm xong thì game chuyển sang bố cục NGANG', sau.ngang && sau.land,
+      sau.w + '×' + sau.h);
+    check('[' + ten + '] vỏ xoay rồi vẫn nằm gọn trong màn hình', !sau.tran,
+      'canvas ' + sau.phu + ' trong màn ' + sau.man);
+
+    // Chạm thật vào tâm ba nút HUD trong lúc đang xoay: phải đúng nút đó ăn.
+    const nut = await p.evaluate(() => {
+      const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      // Nghịch đảo của phép quay 90 độ: khung-(lx,ly) -> màn-(left + W - ly, top + lx)
+      const q = o => o ? { x: r.left + r.width - (o.y / h.h * r.width),
+                           y: r.top + (o.x / h.w * r.height) } : null;
+      return { sprint: q(h.sprint), grab: q(h.grab), stash: q(h.stash),
+               car: { x: REPO.S.car.x, y: REPO.S.car.y } };
+    });
+    await p.evaluate(c => { REPO.warp(c.x, c.y); }, nut.car);   // đứng cạnh xe -> tủ đồ sống
+    await p.waitForTimeout(120);
+
+    const bam = async diem => {
+      await p.evaluate(() => {
+        window.__d = { stash: !!REPO.S.stashOpen, sprint: !!REPO.S.player.sprint };
+      });
+      await p.touchscreen.tap(diem.x, diem.y);
+      await p.waitForTimeout(160);
+      return p.evaluate(() => ({
+        stash: !!REPO.S.stashOpen !== window.__d.stash,
+        sprint: !!REPO.S.player.sprint !== window.__d.sprint
+      }));
+    };
+    const rCh = await bam(nut.sprint);
+    check('[' + ten + '] đang xoay: chạm nút Chạy thì đúng nút Chạy ăn', rCh.sprint && !rCh.stash);
+    const rTu = await bam(nut.stash);
+    check('[' + ten + '] đang xoay: chạm nút Tủ đồ thì đúng nút Tủ đồ ăn', rTu.stash && !rTu.sprint);
+    await p.evaluate(() => { if (REPO.S.stashOpen) REPO.toggleStash(); REPO.S.running = true; });
+
+    // Bấm lần nữa thì phải về đúng như cũ.
+    await p.click('#rotBtn');
+    await p.waitForTimeout(400);
+    const ve = await p.evaluate(() => {
+      const h = REPO.hudLayout();
+      return { ngang: h.w > h.h, cls: document.body.classList.contains('force-land'),
+               w: Math.round(h.w), h: Math.round(h.h) };
+    });
+    check('[' + ten + '] bấm lần nữa thì về lại màn dọc', !ve.ngang && !ve.cls,
+      ve.w + '×' + ve.h);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('[' + ten + '] xoay tay: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// HÌNH HỌC CỦA HUD — chạy trên repo-squad, nơi CÓ nút kỹ năng.
+// WHY ở đây chứ không ở bộ repo2d: nút kỹ năng chỉ tồn tại khi HOOKS.skill khác
+//   null, nên mọi lỗi đè nút / tràn khung của nó đều vô hình với bộ test repo2d.
+//   Và kiểm "hudLayout() có nút không" thì không bao giờ bắt được hai nút nằm
+//   chồng lên nhau — cú chạm rơi vào nút nào là do THỨ TỰ HỎI quyết định, không
+//   phải do người chơi nhắm vào đâu.
+async function hudGeomSuite(b) {
+  results.push('\n── hình học HUD (bản có nút kỹ năng) ──');
+  for (const [ten, vp] of [['dọc', { width: 390, height: 844 }], ['ngang', { width: 844, height: 390 }]]) {
+    const { ctx, p, errs } = await openGame(b, SQ, vp);
+    await p.evaluate(() => {
+      SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+      SQ.autoFill(); SQ.squad.enter('k3');
+      REPO.S.cut = null; REPO.S.running = true;
+      REPO.S.player.x = REPO.S.car.x; REPO.S.player.y = REPO.S.car.y;   // đứng cạnh xe -> tủ đồ sống
+      REPO.S.player.inv[0] = { kind: 'gun', uses: 5 };
+    });
+    await p.waitForTimeout(350);
+
+    // 1. Không nút nào được nằm ngoài khung vẽ.
+    const khung = await p.evaluate(() => {
+      const h = REPO.hudLayout(), out = [];
+      const xet = (ten, o) => {
+        if (!o) return;
+        if (o.x - o.r*1.25 < 0 || o.x + o.r*1.25 > h.w ||
+            o.y - o.r*1.25 < 0 || o.y + o.r*1.25 > h.h) out.push(ten);
+      };
+      xet('kỹ năng', h.skill); xet('nhặt', h.grab); xet('chạy', h.sprint);
+      xet('tủ đồ', h.stash); xet('trái tim', h.heart); xet('bỏ món', h.cancel);
+      (h.slots || []).forEach((o, i) => xet('ô đồ ' + (i + 1), o));
+      return out;
+    });
+    check('[' + ten + '] không nút nào tràn ra ngoài khung', khung.length === 0, khung.join(', '));
+
+    // 2. Giữa màn hình để trống — yêu cầu này chỉ đặt cho MÀN NGANG, nơi bố cục do
+    //    ta dựng. Bố cục dọc là bảng toạ độ đặt tay từ bản Unity, không đụng vào.
+    if (vp.width > vp.height) {
+      const giua = await p.evaluate(() => {
+        const h = REPO.hudLayout(), out = [];
+        const xet = (ten, o) => { if (o && o.x - o.r < h.w*0.65 && o.x + o.r > h.w*0.35) out.push(ten); };
+        xet('kỹ năng', h.skill); xet('nhặt', h.grab); xet('chạy', h.sprint); xet('tủ đồ', h.stash);
+        (h.slots || []).forEach((o, i) => xet('ô đồ ' + (i + 1), o));
+        return out;
+      });
+      check('[ngang] giữa màn hình để trống cho gameplay', giua.length === 0, giua.join(', '));
+    }
+
+    // 3. PHÉP ĐO QUAN TRỌNG NHẤT: chạm THẬT vào tâm từng nút thì đúng nút đó ăn.
+    //    Vùng bắt chạm của các nút CÓ chồng nhau (bảng toạ độ đặt tay của repo2d),
+    //    nên điều phải đảm bảo không phải là "không chồng" mà là "chạm vào tâm nút
+    //    nào thì nút đó thắng" — đúng cái luật nút-gần-nhất-thắng.
+    const nut = await p.evaluate(() => {
+      const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      const q = o => o ? { x: r.left + o.x / h.w * r.width, y: r.top + o.y / h.h * r.height } : null;
+      return { skill: q(h.skill), grab: q(h.grab), sprint: q(h.sprint),
+               stash: q(h.stash), slot0: q(h.slots && h.slots[0]) };
+    });
+    const bam = async (diem) => {
+      await p.evaluate(() => {
+        const S = REPO.S;
+        window.__d = { stash: !!S.stashOpen, sprint: !!S.player.sprint,
+                       skill: SQ.squad.run() ? SQ.squad.run().skills : 0,
+                       aim: S.player.aimSlot };
+      });
+      await p.touchscreen.tap(diem.x, diem.y);
+      await p.waitForTimeout(160);
+      return p.evaluate(() => {
+        const S = REPO.S, d = window.__d;
+        return { stash: !!S.stashOpen !== d.stash,
+                 sprint: !!S.player.sprint !== d.sprint,
+                 skill: (SQ.squad.run() ? SQ.squad.run().skills : 0) !== d.skill,
+                 aim: S.player.aimSlot !== d.aim };
+      });
+    };
+    const rTu = await bam(nut.stash);
+    check('[' + ten + '] chạm tâm nút Tủ đồ thì MỞ TỦ', rTu.stash && !rTu.skill,
+      'tủ ' + (rTu.stash ? 'đổi' : 'không đổi') + (rTu.skill ? ' · kỹ năng bị bắn' : ''));
+    await p.evaluate(() => { if (REPO.S.stashOpen) REPO.toggleStash(); REPO.S.running = true; });
+
+    if (nut.skill) {
+      const rKn = await bam(nut.skill);
+      check('[' + ten + '] chạm tâm nút Kỹ năng thì BẮN KỸ NĂNG', rKn.skill && !rKn.stash,
+        rKn.skill ? '' : 'không bắn');
+    }
+    const rCh = await bam(nut.sprint);
+    check('[' + ten + '] chạm tâm nút Chạy thì bật/tắt chạy', rCh.sprint && !rCh.skill && !rCh.stash);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('[' + ten + '] hình học HUD: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// ĐO HIỆU ỨNG THẬT — không kiểm "gọi được không ném lỗi" nữa, mà đặt quái/đồ/cửa
+// vào đúng thế rồi ĐO xem sau vài giây thế giới có đổi đúng như mô tả kỹ năng hứa.
+// WHY bộ này tồn tại: bản đầu của 14 kỹ năng gán m.stun / m.slow / p.invisT /
+//   a.invuln / dr.jam — năm cái tên bộ máy KHÔNG hề đọc. Mọi bài test kiểu "gọi
+//   không ném lỗi" đều xanh, trong khi bốn kỹ năng bấm ra không có gì xảy ra cả.
+async function skillEffectSuite(b) {
+  results.push('\n── hiệu ứng kỹ năng: đo trên thế giới thật ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+
+  // Mở sẵn mọi xác rồi vào ca, để đổi xác cầm là đổi kỹ năng.
+  await p.evaluate(() => {
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    SQ.autoFill(); SQ.squad.enter('k3');
+    REPO.S.cut = null; REPO.S.running = true;
+  });
+  await p.waitForTimeout(300);
+
+  // Dựng lại bàn cờ trước mỗi phép đo: dọn quái, đặt lại người chơi giữa phòng.
+  const setup = () => p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    // HUỶ CẮT CẢNH TRƯỚC ĐÃ, và bật lại cờ chạy.
+    //
+    // step() bị chặn HOÀN TOÀN khi S.cut còn (xem frameStep: `if (S.running && !S.dead && !S.cut)`),
+    // nên nếu một ca phía trên vừa để lại một đoạn cắt cảnh — xe tải tới, xe tải đi, đổi màn — thì
+    // cả cụm đo dưới đây chạy trên một thế giới ĐỨNG HÌNH. Triệu chứng của nó là hai ca kỹ năng
+    // xanh-đỏ thất thường: cả vế đối chứng lẫn vế có kỹ năng đều đọc ra 0 máu, và 0 == 0 thì bộ đo
+    // không chứng minh được gì cả — đúng cái bẫy chú thích ở putFoes đã cảnh báo, chỉ đến từ một
+    // hướng khác. Đây là lý do hai ca ấy đỏ khoảng một lần trong ba lần chạy.
+    REPO.cancelCut();
+    S.running = true;
+    // Gửi tổ ba người về xe tải và cho đứng đó. Từ bản này đồng đội biết lái xe máy và húc
+    // quái (BIKE_RAM_KNOCK = 430, gần 18 ô/giây), nên một con bot chạy ngang qua là đủ thổi
+    // bay con quái đang đo hoặc giết luôn con ma gương — phép đo đỏ vì một thứ không liên
+    // quan. Đẩy chúng ra chứ KHÔNG tắt hẳn tổ: vài kỹ năng đọc danh sách tổ để tính hiệu ứng.
+    (REPO.S.mates || []).forEach(m => {
+      if (m.riding) REPO.dismountBike(m);
+      if (m.pushing) REPO.releaseCart(m);
+      if (REPO.S.car){ m.x = REPO.S.car.x; m.y = REPO.S.car.y; }
+      m.job = 'idle'; m.path = null; m.target = null; m.idleT = 9999; m.react = 9999;
+    });
+    S.monsters.length = 0;
+    pl.down = false; pl.hp = pl.hpMax; pl.invisT = 0; pl.invulnT = 0;
+    pl.hasteT = 0; pl.floatT = 0; pl.slowT = 0; pl.stunT = 0; pl.blindT = 0;
+    REPO.hooks.onTick && (window.__fxClear = true);
+  });
+
+  // Đặt n con quái quanh người chơi ở bán kính r ô, tất cả đang đuổi.
+  // Dùng REPO.spawnFoe của chính bộ máy chứ không tự bịa một đối tượng quái: một
+  // con quái vá tay thiếu vài trường (m.hit, m.think, m.rook...) sẽ lặng lẽ KHÔNG
+  // đánh được ai, và phép đo "tàng hình có chặn sát thương không" sẽ xanh vì cả hai
+  // vế đều bằng 0 — xanh mà không chứng minh được gì.
+  const putFoes = (n, r) => p.evaluate(({ n, r }) => {
+    const S = REPO.S, pl = S.player, out = [];
+    // Chỉ đặt vào những hướng NHÌN THÔNG. Chói Loà cố tình không xuyên tường, nên
+    // một con nấp sau vách vẫn đi tiếp là ĐÚNG — nhưng nó làm tổng quãng đường đo
+    // được khác 0 và phép đo đỏ vì một lý do không liên quan tới cái đang đo.
+    const goc = [];
+    for (let k = 0; k < 32 && goc.length < n; k++) {
+      const a = k / 32 * Math.PI * 2;
+      const x = pl.x + Math.cos(a) * r * REPO.TILE, y = pl.y + Math.sin(a) * r * REPO.TILE;
+      if (REPO.losClear(pl.x, pl.y, x, y) && !REPO.hitsSolid(x, y, 9)) goc.push(a);
+    }
+    for (let i = 0; i < n; i++) {
+      const a = goc.length ? goc[i % goc.length] : i / n * Math.PI * 2;
+      const m = REPO.spawnFoe('gunner', Math.cos(a) * r * REPO.TILE, Math.sin(a) * r * REPO.TILE);
+      m.hp = 400; m.state = 'chase'; m.alert = 3; m.lost = 0;
+      m.tx = pl.x; m.ty = pl.y; m.seen = true; m.reveal = 1; m.hit = 0;
+      out.push({ x: m.x, y: m.y });
+    }
+    return out;
+  }, { n, r });
+
+  // Tổng quãng đường quái đi được trong ms mili giây, tính bằng ô.
+  const foesMoved = async ms => {
+    const a = await p.evaluate(() => REPO.S.monsters.map(m => ({ x: m.x, y: m.y })));
+    await p.waitForTimeout(ms);
+    return p.evaluate(prev => {
+      const T = REPO.TILE;
+      return REPO.S.monsters.reduce((sum, m, i) =>
+        sum + (prev[i] ? Math.hypot(m.x - prev[i].x, m.y - prev[i].y) / T : 0), 0);
+    }, a);
+  };
+
+  const useLead = id => p.evaluate(id => {
+    SQ.M.squad.lead = id; REPO.S.time += 999; REPO.hooks.skill.use();
+  }, id);
+
+  // ---- 1. Chói Loà: quái phải ĐỨNG HÌNH, không phải "được gán một trường" ----
+  await setup(); await putFoes(3, 3);
+  const diChuan = await foesMoved(1500);          // đối chứng: không bấm gì
+  await setup(); await putFoes(3, 3);
+  await useLead('bao');
+  const diSauFlash = await foesMoved(1500);
+  check('Chói Loà làm quái đứng hình', diSauFlash < diChuan * 0.15,
+    'không bấm ' + diChuan.toFixed(2) + ' ô · có bấm ' + diSauFlash.toFixed(2) + ' ô');
+
+  // ---- 2. Đóng Băng: đứng hình + ăn thêm sát thương ----
+  await setup(); await putFoes(3, 5);
+  await useLead('van');
+  const diSauFreeze = await foesMoved(1500);
+  check('Đóng Băng làm quái đứng hình', diSauFreeze < diChuan * 0.15, diSauFreeze.toFixed(2) + ' ô');
+  const vuln = await p.evaluate(() => {
+    const m = REPO.S.monsters[0], truoc = m.hp;
+    REPO.hurtFoe(m, 100);
+    return { mat: truoc - m.hp };
+  });
+  check('quái đông cứng ăn thêm 50% sát thương', Math.abs(vuln.mat - 150) < 1, 'mất ' + vuln.mat + ' máu');
+
+  // ---- 3. Lồng Sắt: quái KHÔNG đi qua được ----
+  await setup(); await putFoes(4, 6);
+  await useLead('son');
+  await p.waitForTimeout(2200);
+  const lot = await p.evaluate(() => {
+    const pl = REPO.S.player, T = REPO.TILE;
+    return REPO.S.monsters.filter(m => Math.hypot(m.x - pl.x, m.y - pl.y) < 3.4 * T).length;
+  });
+  check('Lồng Sắt: không con nào lọt vào trong', lot === 0, lot + ' con lọt');
+
+  // ---- 4. Tàng Hình: quái không thấy -> không mất máu ----
+  // Ghim quái sát người chơi MỖI KHUNG HÌNH trong lúc đo: quái phải thật sự ở trong
+  // tầm đánh (22px) thì con số mất máu mới có nghĩa.
+  // CỬA SỔ ĐO PHẢI DÀI HƠN THÌ VUNG TAY.
+  //
+  // Từ 2026-09-03 không con quái nào đánh trúng ở đúng khung hình nó chạm vào người chơi nữa: nó
+  // đứng khựng lại vung tay d.wind giây trước đã (Kẻ bám 0.52s), rồi mới kiểm xem còn trong tầm
+  // không. Cửa sổ 1800ms cũ đủ cho luật cũ — trừ máu ngay khung hình đầu — nhưng nằm sát ranh với
+  // luật mới, và ca ĐỐI CHỨNG đọc ra 0 máu. Cả hai ca kỹ năng khi đó xanh vì cả hai vế đều bằng 0,
+  // tức là xanh mà không chứng minh được gì; đúng cái bẫy mà chú thích ở putFoes đã cảnh báo.
+  //
+  // 3200ms là chỗ cho ít nhất hai đòn trọn vẹn của con chậm tay nhất trong bảng.
+  const DO_MAU_MS = 3200;
+  // Ca ĐỐI CHỨNG chờ tới khi THẬT SỰ dính đòn, không đo theo cửa sổ cố định.
+  //
+  // Nó phải trả lời đúng một câu — 'không bấm kỹ năng thì có mất máu không' — và câu đó không có
+  // hạn chót nào cả. Đo bằng cửa sổ cố định thì nó lẫn thêm một câu thứ hai, 'mất máu trong bao
+  // lâu', mà câu ấy phụ thuộc vào tốc độ trang chạy bộ kiểm: đo được nhịp ghim chỉ chạy 44 lần
+  // trong 3200ms (~14Hz thay vì 62Hz) khi máy đang gánh nhiều trang cùng lúc, và với thì vung
+  // 0.52s của Kẻ bám thì chừng ấy nhịp không đủ cho một đòn trọn vẹn. Ca kỹ năng thì vẫn đo theo
+  // cửa sổ cố định, vì câu của nó ĐÚNG LÀ 'trong ngần này giây có mất điểm nào không'.
+  const DO_MAU_CHO_MS = 9000;
+  const doMau = (choDinhDon) => p.evaluate(async ({ ms, cho }) => {
+    const S = REPO.S, pl = S.player;
+    // Cộng dồn từng lần máu TỤT, chứ không lấy hiệu đầu-cuối. Đổi tướng dẫn đoàn có thể kéo
+    // theo một nhịp đồng bộ lại chỉ số làm máu nhảy LÊN giữa lúc đo, và một phép đo đầu-cuối
+    // sẽ đọc ra số âm rồi báo hỏng vì một lý do không liên quan gì tới tàng hình.
+    let mat = 0, truoc = pl.hp;
+    let vung = 0, canNhat = 1e9, alertMax = 0, nFoe = 0, cut = 0, chay = 0, tgt = '?';
+    const iv = setInterval(() => {
+      if (pl.hp < truoc) mat += truoc - pl.hp;
+      truoc = pl.hp;
+      nFoe = S.monsters.length; if (S.cut) cut++; if (S.running) chay++;
+      // GIỮ CỜ CHẠY SUỐT CỬA SỔ ĐO. Chẩn đoán bắt được: trong 3200ms chỉ có 33 trên 200 nhịp là
+      // S.running còn bật — thế giới đứng hình 84% thời gian, nên cú vung tay khơi mào rồi mà không
+      // bao giờ hoàn tất, và ca ĐỐI CHỨNG đọc ra 0 máu. Một thứ nào đó phía trên trong bộ kiểm (mở
+      // tủ đồ, mở sổ tay) tắt cờ này và không phải lúc nào cũng bật lại kịp. Ghim nó ở đây cùng chỗ
+      // đang ghim vị trí quái: cả hai đều là 'giữ nguyên sân đo', không phải sửa cái đang đo.
+      S.running = true; S.cut = null;
+      // ĐẨY ĐỒNG ĐỘI RA XA NGƯỜI CHƠI trong lúc đo.
+      //
+      // Con quái nhắm vào foeTarget(m), và cái đó CÓ THỂ chọn một người trong tổ chứ không nhất
+      // thiết là người chơi. setup() dồn cả tổ về chỗ xe tải — mà người chơi cũng bắt đầu ở ngay
+      // đó, nên ba con quái được ghim quanh người chơi lại đứng cạnh cả tổ, và cú đánh giáng vào
+      // một đồng đội. Máu người chơi không tụt một điểm nào, ca ĐỐI CHỨNG đọc ra 0, và hai ca kỹ
+      // năng xanh-đỏ thất thường tuỳ ai đứng gần hơn nửa pixel.
+      //
+      // Luật cũ giấu chuyện này: nó trừ máu ngay khung hình đầu tiên lọt vào tầm, nên mục tiêu bị
+      // bốc lại mỗi khung và người chơi vẫn dính vài cú. Luật mới chốt mục tiêu ở cuối thì vung,
+      // nên bốc trúng đồng đội một lần là mất nguyên cú đó.
+      (S.mates || []).forEach(a => { a.x = pl.x + 3000; a.y = pl.y + 3000; });
+      tgt = (S.monsters[0] && S.monsters[0].target === pl) ? 'player'
+          : (S.monsters[0] && S.monsters[0].target) ? 'mate' : 'none';
+      S.monsters.forEach((m, i) => {
+        const a = i / S.monsters.length * Math.PI * 2;
+        m.x = pl.x + Math.cos(a) * 14; m.y = pl.y + Math.sin(a) * 14;
+        // GHIM CẢ CÚ HẤT, không chỉ ghim toạ độ.
+        //
+        // Từ 2026-09-03 một đòn cần con quái Ở TRONG TẦM SUỐT cả thì vung (Kẻ bám 0.52s), chứ không
+        // còn là trúng ngay khung hình đầu tiên nó chạm tới. Ghim toạ độ mỗi 16ms là đủ cho luật cũ
+        // — một khung hình trong tầm là xong — nhưng KHÔNG đủ cho luật mới: bất cứ thứ gì hất con
+        // quái ra giữa chừng (cú hất của nút Đẩy, cái Lồng Sắt mà ca ngay phía trên vừa dựng, lực
+        // tách thân giữa ba con) đều làm cú vung hụt, và ca ĐỐI CHỨNG đọc ra 0 máu. Đó là chỗ hai
+        // ca kỹ năng đỏ khoảng một lần trong ba lần chạy: 0 == 0 thì không chứng minh được gì.
+        m.kx = 0; m.ky = 0; m.stun = 0;
+        if ((m.swing || 0) > 0) vung++;
+        alertMax = Math.max(alertMax, m.alert || 0);
+        canNhat = Math.min(canNhat, Math.hypot(m.x - pl.x, m.y - pl.y));
+        // KHONG ep alert/state o day: de bo may tu quyet dinh no con thay minh khong.
+        // Ep vao la tu tay xoa mat dieu dang can do.
+      });
+    }, 16);
+    if (cho){
+      const han = performance.now() + ms;
+      while (performance.now() < han && mat === 0) await new Promise(r => setTimeout(r, 40));
+    } else {
+      await new Promise(r => setTimeout(r, ms));
+    }
+    clearInterval(iv);
+    if (pl.hp < truoc) mat += truoc - pl.hp;
+    return { mat, vung, nFoe, cut, chay, tgt, alertMax:+alertMax.toFixed(1),
+             canNhat: canNhat === 1e9 ? null : Math.round(canNhat),
+             invuln: +(pl.invulnT||0).toFixed(1), invis: +(pl.invisT||0).toFixed(1) };
+  }, { ms: choDinhDon ? DO_MAU_CHO_MS : DO_MAU_MS, cho: !!choDinhDon });
+  await setup(); await putFoes(3, 1.2);
+  const chuan = await doMau(true); const mauChuan = chuan.mat;
+  await setup(); await putFoes(3, 1.2);
+  await useLead('linh');
+  const tang = await doMau(); const mauTangHinh = tang.mat;
+  check('Tàng Hình: quái không đánh trúng nữa', mauChuan > 0 && mauTangHinh === 0,
+    'không bấm mất ' + mauChuan + ' máu · có bấm mất ' + mauTangHinh +
+    ' · đối chứng: ' + JSON.stringify(chuan));
+
+  // ---- 5. Thiên Thần: cả tổ thật sự không chết được ----
+  await setup(); await putFoes(3, 1.2);
+  await useLead('tuyet');
+  const tt = await doMau(); const batTu = tt.mat;
+  const guc = await p.evaluate(() => REPO.S.player.down);
+  check('Thiên Thần: không mất một máu nào', mauChuan > 0 && batTu === 0 && !guc,
+    'đối chứng mất ' + mauChuan + ' · có bấm mất ' + batTu + (guc ? ', vẫn gục' : '') +
+    ' · đối chứng: ' + JSON.stringify(chuan));
+
+  // ---- 6. Mở Toang: cửa KHOÁ phải bung ----
+  // Dời người chơi tới CỬA chứ không trông chờ nhà tự sinh ra cửa ở gần: bố cục nhà
+  // là ngẫu nhiên, có nhà không có cánh nào trong 8 ô và phép đo sẽ xanh vì rỗng.
+  await setup();
+  const cua = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    const ds = S.doors.slice()
+      .sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y))
+      .slice(0, 3);
+    if (!ds.length) return 0;
+    pl.x = ds[0].x; pl.y = ds[0].y;
+    let n = 0;
+    ds.forEach(d => { if (Math.hypot(d.x - pl.x, d.y - pl.y) < 8 * REPO.TILE) {
+      d.locked = true; d.broken = false; n++; } });
+    return n;
+  });
+  await useLead('ky');
+  const conKhoa = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    return S.doors.filter(d => d.locked && !d.broken &&
+      Math.hypot(d.x - pl.x, d.y - pl.y) < 8 * REPO.TILE).length;
+  });
+  check('Mở Toang bung hết cửa khoá gần đó', cua > 0 && conKhoa === 0,
+    'khoá ' + cua + ' cửa, còn lại ' + conKhoa);
+
+  // ---- 7. Kéo Đồ: đồ phải được GIAO, chỉ tiêu phải nhúc nhích ----
+  const giao = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player, pad = REPO.padOpen();
+    if (!pad) return null;
+    let n = 0;
+    S.loot.forEach(l => {
+      if (l.gone || l.onPad || l.isHead || n >= 4) return;
+      l.x = pl.x + (Math.random() - 0.5) * 60; l.y = pl.y + (Math.random() - 0.5) * 60;
+      l.held = null; l.inCart = false; n++;
+    });
+    const truoc = pad.value;
+    SQ.M.squad.lead = 'hai'; S.time += 999; REPO.hooks.skill.use();
+    return { truoc: truoc, sau: pad.value, dat: n };
+  });
+  check('Kéo Đồ giao thẳng lên bệ, chỉ tiêu tăng thật',
+    giao && giao.sau > giao.truoc, giao ? '$' + giao.truoc + ' → $' + giao.sau : 'không có bệ');
+
+  // ---- 8. Vòng Hồi: hồi DẦN trong 6 giây, không phải một cục ----
+  // setup() dọn sạch quái trước: bỏ qua bước này thì lũ quái của phép đo trước vẫn
+  // đứng đó và người chơi GỤC giữa lúc đang đo, kéo theo hai phép đo sau cùng sai.
+  await setup();
+  const hoi = await p.evaluate(async () => {
+    const pl = REPO.S.player;
+    pl.hp = 20; SQ.M.squad.lead = 'hue'; REPO.S.time += 999;
+    REPO.hooks.skill.use();
+    await new Promise(r => setTimeout(r, 300));
+    const som = pl.hp;
+    await new Promise(r => setTimeout(r, 2500));
+    return { som: som, muon: pl.hp };
+  });
+  check('Vòng Hồi hồi dần theo thời gian', hoi.muon > hoi.som + 8,
+    '+0,3s: ' + Math.round(hoi.som) + ' máu · +2,8s: ' + Math.round(hoi.muon));
+
+  // ---- 9. Gồng: nhanh hơn thật ----
+  await setup();
+  const gong = await p.evaluate(() => {
+    const pl = REPO.S.player;
+    pl.hasteT = 0; pl.speedScale = 1;
+    const thuong = REPO.playerSpeed ? REPO.playerSpeed(pl) : null;
+    SQ.M.squad.lead = 'tam'; REPO.S.time += 999; REPO.hooks.skill.use();
+    const gong = REPO.playerSpeed ? REPO.playerSpeed(pl) : null;
+    return { thuong: thuong, gong: gong };
+  });
+  check('Gồng làm chạy nhanh hơn 30%',
+    gong.thuong && gong.gong && Math.abs(gong.gong / gong.thuong - 1.3) < 0.02,
+    gong.thuong ? Math.round(gong.thuong) + ' → ' + Math.round(gong.gong) : 'không đo được');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đo hiệu ứng: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// SỔ SÁCH & LUẬT VÁN — chỉ số meta, độ khó theo tầng, đường ra của ván.
+async function metaRulesSuite(b) {
+  results.push('\n── sổ sách & luật ván ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+
+  // 1. Chỉ số meta phải tới tay NGƯỜI CHƠI, mỗi tầng, và phải KHÁC nhau giữa các xác.
+  const chiSo = await p.evaluate(() => {
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    const out = {};
+    ['ky', 'tuyet', 'tam'].forEach(id => {
+      SQ.M.squad.lead = id; SQ.M.squad.mates = [null, null, null, null];
+      SQ.squad.enter('k3');
+      const pl = REPO.S.player;
+      out[id] = { hp: pl.hpMax, str: pl.str, spd: +(pl.speedScale || 1).toFixed(3) };
+      SQ.squad.quit();
+    });
+    return out;
+  });
+  const khac = new Set(Object.values(chiSo).map(v => v.hp + '/' + v.str + '/' + v.spd));
+  check('người chơi nhận chỉ số meta của xác đang cầm', khac.size === 3,
+    Object.keys(chiSo).map(k => k + ' ' + chiSo[k].hp + 'hp/' + chiSo[k].str + 'sức/x' + chiSo[k].spd).join(' · '));
+  check('xác 5★ khoẻ hơn xác 3★', chiSo.tuyet.hp > chiSo.ky.hp && chiSo.tuyet.str > chiSo.ky.str,
+    'Seraph ' + chiSo.tuyet.hp + 'hp vs Pick ' + chiSo.ky.hp + 'hp');
+  check('xác Cửu Vạn đi chậm hơn Thợ Khoá', chiSo.tam.spd < chiSo.ky.spd,
+    'Atlas x' + chiSo.tam.spd + ' vs Pick x' + chiSo.ky.spd);
+
+  // 2. Độ khó phải TĂNG ĐỀU qua 36 tầng: không trùng bậc khi sang map, không tụt lùi.
+  const duong = await p.evaluate(() => {
+    const out = [];
+    SQ.MAPS.forEach(m => {
+      SQ.M.maps[m.id].cleared = true;
+      for (let f = 1; f <= m.floors; f++) {
+        SQ.squad.enter(m.id);
+        const r = SQ.squad.run(); if (r) r.floor = f;
+        out.push({ map: m.id, floor: f, lv: REPO.hooks.levelIndex() });
+        SQ.squad.quit();
+      }
+    });
+    return out;
+  });
+  let tut = 0;
+  for (let i = 1; i < duong.length; i++) if (duong[i].lv < duong[i - 1].lv) tut++;
+  check('độ khó không bao giờ tụt lùi khi sang map', tut === 0, tut + ' chỗ tụt');
+  check('độ khó chạy hết dải 1..20 của repo2d',
+    duong[0].lv === 1 && duong[duong.length - 1].lv === 20,
+    'tầng đầu ' + duong[0].lv + ' · tầng cuối ' + duong[duong.length - 1].lv);
+
+  // 3. Cả tổ gục = THUA, ra khỏi ca — không phải "Làm lại từ màn 1" ngay tại chỗ.
+  const thua = await p.evaluate(async () => {
+    SQ.M.maps.k3.cleared = false;
+    SQ.autoFill(); SQ.squad.enter('k3');
+    REPO.S.cut = null; REPO.S.running = true;
+    REPO.killPlayer();
+    (REPO.S.mates || []).slice().forEach((m, i) => REPO.killMate(i));
+    await new Promise(r => setTimeout(r, 260));
+    return { conTrongCa: !!SQ.squad.run(), inRun: document.body.classList.contains('in-run'),
+             boMayConChay: REPO.S.running };
+  });
+  check('cả tổ gục thì RA khỏi ca', !thua.conTrongCa && !thua.inRun);
+  check('ra ca rồi thì bộ máy dừng hẳn', !thua.boMayConChay);
+
+  // 4. Bàn phím của bộ máy phải câm khi đang ở menu.
+  const phim = await p.evaluate(async () => {
+    const truoc = REPO.S.level;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    return { menu: REPO.hooks.menuMode(), level: REPO.S.level, truoc: truoc, chay: REPO.S.running };
+  });
+  check('ở menu thì bàn phím bộ máy bị khoá', phim.menu === true && phim.chay === false);
+
+  // 5. Đỡ dậy thì cái đầu phải biến mất — bot không được bỏ chỉ tiêu đi vác đầu ma.
+  const dau = await p.evaluate(async () => {
+    SQ.autoFill(); SQ.squad.enter('k3');
+    REPO.S.cut = null; REPO.S.running = true;
+    REPO.killMate(0);
+    await new Promise(r => setTimeout(r, 120));
+    const truoc = REPO.heads().length;
+    REPO.reviveActor(REPO.S.mates[0]);
+    const sau = REPO.heads().length;
+    SQ.squad.quit();
+    return { truoc: truoc, sau: sau };
+  });
+  check('đỡ dậy thì đầu biến mất khỏi sàn', dau.truoc > 0 && dau.sau === dau.truoc - 1,
+    dau.truoc + ' đầu → ' + dau.sau);
+
+  // 6. Sổ sách đi qua SQ.finishRun: đếm ván đúng MỘT lần, và ngày/tuần có cộng.
+  const so = await p.evaluate(async () => {
+    SQ.M.counters.runs = 0; SQ.M.day.runs = 0; SQ.M.week.runs = 0;
+    SQ.autoFill(); SQ.squad.enter('k3');
+    SQ.squad.quit();
+    return { runs: SQ.M.counters.runs, day: SQ.M.day.runs, week: SQ.M.week.runs };
+  });
+  // ---- ba nguoi con lai cua to cung phai biet dung chieu ----
+  // Nguoi choi quay gacha ra mot cai xac VI KY NANG cua no, xep vao to, roi ky nang do khong
+  // bao gio chay - tru khi no duoc dat lam to truong. Ba o con lai thanh ba cuc chi so.
+  const botChieu = await p.evaluate(async () => {
+    if (SQ.squad.run()) SQ.squad.quit();
+    SQ.ui.closePopup();
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    SQ.autoFill(); SQ.squad.enter('k3');
+    await new Promise(r => setTimeout(r, 400));
+    const ghi = [];
+    const goc = REPO.toast;
+    REPO.toast = m => { ghi.push(m); return goc(m); };
+    REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0;
+    (REPO.S.mates || []).forEach(a => {
+      const m = REPO.spawnFoe('gunner', 0, 0);
+      m.x = a.x + 30; m.y = a.y; m.hp = 4000; m.hpMax = 4000; m.state = 'chase'; m.alert = 3;
+    });
+    for (let i = 0; i < 24; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      (REPO.S.mates || []).forEach((a, k) => {
+        const m = REPO.S.monsters[k]; if (!m) return;
+        m.x = a.x + 30; m.y = a.y; m.hp = 4000; m.alert = 3; m.state = 'chase';
+      });
+      REPO.S.player.hp = REPO.S.player.hpMax;
+      if (ghi.filter(x => /dùng/.test(x)).length >= 3) break;
+    }
+    REPO.toast = goc;
+    const dung = ghi.filter(x => /dùng/.test(x));
+    // moi nguoi phai dung chieu CUA CHINH MINH, khong phai chieu cua to truong
+    const ten = new Set(dung.map(x => x.split(' dùng ')[0]));
+    const chieu = new Set(dung.map(x => (x.split(' dùng ')[1] || '').split(' — ')[0]));
+    return { soLuot: dung.length, soNguoi: ten.size, soChieu: chieu.size,
+             vd: dung.slice(0, 4) };
+  });
+  check('ba người còn lại trong tổ CÓ dùng chiêu', botChieu.soLuot > 0,
+    botChieu.soLuot + ' lượt: ' + botChieu.vd.join(' | '));
+  check('mỗi người dùng chiêu của CHÍNH MÌNH, không phải của tổ trưởng',
+    botChieu.soNguoi >= 2 && botChieu.soChieu >= 2,
+    botChieu.soNguoi + ' người · ' + botChieu.soChieu + ' chiêu khác nhau');
+
+  check('một ván đếm đúng một lần', so.runs === 1, so.runs + ' ván');
+  check('bộ đếm ngày/tuần có chạy', so.day === 1 && so.week === 1,
+    'ngày ' + so.day + ' · tuần ' + so.week);
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('sổ sách: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// Xe tải chỉ lăn bánh khi có người ĐỨNG TRONG THÙNG đủ lâu. Trước đây chạm vào bán kính một
+// khung hình là mất luôn phần còn lại của tầng — không hỏi, không đếm, không rút lại được.
+async function boardingSuite(b) {
+  results.push('\n── đứng trong xe đủ lâu xe mới chạy ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  await p.locator('#veilBtn').click();
+  await p.waitForTimeout(900);
+  await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+  await p.waitForTimeout(400);
+
+  const T = await p.evaluate(() => REPO.TRUCK_BOARD_T);
+  check('có luật đứng chờ, và nó đáng kể', T >= 3, T + 's');
+
+  // Đứng vào thùng: đồng hồ phải chạy, và ván CHƯA được kết thúc.
+  await p.evaluate(() => {
+    REPO.S.pads.forEach(q => { q.done = true; q.value = q.quota; });
+    REPO.S.levelDone = true;
+    // Dọn quái đi: từ 2026-08-31 ải 1 có sẵn một đàn (Bom con hoặc Gnome), và khi levelDone thì
+    // cả đàn vây thành vòng bán kính 3,8 ô quanh xe — đúng chỗ phép thử này bắt người chơi đứng
+    // yên 5 giây. Bị hẩy ra khỏi thùng là đồng hồ về 0 và xe không bao giờ chạy. Cái đang đo ở
+    // đây là LUẬT ĐỨNG CHỜ, không phải chuyện đánh nhau ở cửa xe.
+    REPO.S.monsters.length = 0;
+    REPO.warp(REPO.S.car.x, REPO.S.car.y);
+  });
+  await p.waitForTimeout(900);
+  const dang = await p.evaluate(() => ({ b: REPO.boarding(), cut: !!REPO.S.cut, shop: !!REPO.S.shopMode }));
+  check('bước vào thùng thì đồng hồ chạy', dang.b.show && dang.b.t > 0.3,
+    dang.b.t + '/' + dang.b.of + 's · ' + dang.b.label);
+  check('nhưng CHƯA đi ngay khi vừa chạm tới', !dang.cut && !dang.shop);
+
+  // Bước ra: đồng hồ phải về 0, không phải tạm dừng.
+  await p.evaluate(() => REPO.warp(REPO.S.car.x + REPO.TILE * 8, REPO.S.car.y));
+  await p.waitForTimeout(350);
+  const ra = await p.evaluate(() => REPO.boarding());
+  check('bước ra khỏi thùng thì đồng hồ VỀ 0', !ra.show && ra.t === 0,
+    ra.t + 's · hiện ' + ra.show);
+
+  // Quay vào và ở lại đủ lâu: giờ mới được đi.
+  await p.evaluate(() => REPO.warp(REPO.S.car.x, REPO.S.car.y));
+  await p.waitForTimeout(T * 1000 + 900);
+  const xong = await p.evaluate(() => ({ cut: !!REPO.S.cut, shop: !!REPO.S.shopMode }));
+  check('ở lại đủ ' + T + 's thì xe mới chạy', xong.cut || xong.shop);
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đứng chờ xe: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// SỔ TAY. Ba thứ dễ hỏng mà mắt không thấy ngay:
+//   1. bảng phải DỰNG ĐƯỢC ở cả hai game, từ hai bảng dữ liệu khác nhau;
+//   2. mở ra thì thế giới phải ĐỨNG LẠI, đóng vào thì phải CHẠY TIẾP — nút này bấm
+//      được giữa ca, nên để quái đi tiếp sau tấm màn là bán mạng người đang đọc;
+//   3. ở Biệt Đội, tấm màn nằm dưới hai luật CSS đang cố giấu nó (#menu z-8 và
+//      `body:not(.in-run) #veil{display:none}`) — bảng dựng đủ 21 hàng mà vẫn vô hình.
+//      Đó chính là cái bug đã gặp, nên nó phải có test riêng đo BỀ NGANG THẬT.
+// SÁU thứ trong nhà, đúng thứ tự sổ tay xếp ra. Viết thẳng ra chứ không đọc từ MONSTERS:
+// bài test phải HỎNG khi ai đó thêm hay bớt một con, chứ không lặng lẽ đổi kỳ vọng theo.
+//
+// Bốn cái THÂN đứng trước (chúng nằm trong MONSTERS), rồi hai SỰ KIỆN — Tượng và cặp
+// Gương — vốn không có máu nên cố ý nằm ngoài mảng quái, và sổ tay khai chúng bằng tay.
+//
+// Bảng cũ ở đây là bảy con của SQ.FOES. Chúng bị xoá cả bảng: tra ra thì SQ.FOES chỉ được
+// đọc ở sổ tay và ở cái nhãn 'Quái:' của màn chọn map, không chỗ nào nạp vào bộ máy, nên
+// bảy con đó chưa từng sinh ra trong một ván nào. Bài test cũ vì thế khẳng định rất chắc
+// chắn một điều sai: rằng sổ tay liệt kê đúng bọn quái người chơi sẽ gặp.
+const WIKI_MA = ['gunner', 'rook', 'banger', 'gnome', 'mimic', 'angel', 'mirror'];
+async function wikiSuite(b) {
+  results.push('\n── sổ tay (bảng tra quái & chiêu) ──');
+
+  // --- Ca Trực Đêm ---
+  {
+    const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 700 });
+    check('Ca Trực Đêm: có nút Sổ tay trên thanh trên',
+      await p.locator('#wikiBtn').count() === 1);
+
+    // Vào ca thật, và đợi đồng hồ mô phỏng thực sự nhúc nhích trước khi đo "đứng lại".
+    await p.locator('#veilBtn').click();
+    for (let i = 0; i < 30; i++) {
+      if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+      await p.waitForTimeout(150);
+      await p.evaluate(() => { const v = document.getElementById('veilBtn');
+        if (v && !document.getElementById('veil').hidden) v.click(); });
+    }
+    const chay0 = await p.evaluate(() => REPO.S.ticks || 0);
+    await p.waitForTimeout(500);
+    check('mô phỏng đang chạy trước khi mở sổ', (await p.evaluate(() => REPO.S.ticks)) > chay0);
+
+    await p.locator('#wikiBtn').click();
+    await p.waitForTimeout(450);
+    const mo = await p.evaluate(() => ({
+      running: REPO.S.running,
+      hien: !document.getElementById('veil').hidden,
+      rong: document.getElementById('veil').getBoundingClientRect().width,
+      hang: document.querySelectorAll('.wk-row').length,
+      dau: [...document.querySelectorAll('.wk-h')].map(h => h.textContent),
+      ticks: REPO.S.ticks
+    }));
+    check('bảng hiện ra và CHIẾM MÀN HÌNH', mo.hien && mo.rong > 200, mo.rong + 'px');
+    check('có đủ hai mục: quái, và thứ bạn dùng được', mo.dau.length === 2, mo.dau.join(' / '));
+    // +2: Tượng và cặp Gương. Cả hai đếm là quái (EVENT_KINDS — một căn nhà chứa ba THỨ)
+    // nhưng cố ý nằm ngoài MONSTERS, vì chúng không có máu và không bắn được. Sổ tay khai
+    // chúng bằng tay, nên số hàng không còn bằng đúng kích thước của bảng quái nữa.
+    check('mỗi thứ trong nhà một hàng, cộng đồ nghề',
+      mo.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + 2 + REPO.GEAR.length)),
+      mo.hang + ' hàng');
+    check('mở sổ thì THẾ GIỚI ĐỨNG LẠI', mo.running === false);
+
+    await p.waitForTimeout(600);
+    check('và đứng yên thật, không chỉ tắt cờ',
+      (await p.evaluate(() => REPO.S.ticks)) === mo.ticks);
+
+    // Mọi con quái phải có một dòng luật — bảng tra mà bỏ trống một hàng là bảng nói dối.
+    const thieu = await p.evaluate(() => Object.keys(REPO.MONSTERS)
+      .filter(k => !(REPO.MONSTERS[k].wiki || '').trim()));
+    check('con nào cũng có một dòng luật để đọc', thieu.length === 0, thieu.join(','));
+
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(400);
+    const t1 = await p.evaluate(() => REPO.S.ticks);
+    await p.waitForTimeout(600);
+    const dong = await p.evaluate(() => ({ running: REPO.S.running, ticks: REPO.S.ticks,
+      an: document.getElementById('veil').hidden,
+      co: document.body.classList.contains('wiki-open') }));
+    check('đóng sổ thì tấm màn tắt và cờ được gỡ', dong.an && !dong.co);
+    check('đóng sổ thì thế giới CHẠY TIẾP', dong.running && dong.ticks > t1,
+      t1 + ' -> ' + dong.ticks);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('sổ tay Ca Trực Đêm: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- Biệt Đội: mở NGAY Ở MÀN MENU, đúng lúc hai luật CSS kia đang bật ---
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 900, height: 700 });
+    check('Biệt Đội: có nút Sổ tay', await p.locator('#wikiBtn').count() === 1);
+    // Cửa vào thứ hai, và là cửa duy nhất tìm thấy được: nút trên thanh chrome của trang nhỏ
+    // và lẫn vào giữa "← Hub" với "⟳" — chủ dự án mở bảng không ra. Ở sảnh, sổ tay đứng ngang
+    // hàng Gacha / Nhiệm Vụ, cùng cỡ 64×60.
+    const railWiki = p.locator('.rail-b', { hasText: 'Sổ Tay' });
+    check('và ngoài sảnh có nút Sổ Tay đứng cùng hàng với Gacha',
+      await railWiki.count() === 1);
+    const cỡ = await railWiki.boundingBox();
+    const cỡGacha = await p.locator('.rail-b', { hasText: 'Gacha' }).boundingBox();
+    check('nút đó to đúng bằng nút Gacha',
+      cỡ && cỡGacha && Math.abs(cỡ.width - cỡGacha.width) < 1 &&
+      Math.abs(cỡ.height - cỡGacha.height) < 1,
+      cỡ && Math.round(cỡ.width) + 'x' + Math.round(cỡ.height));
+    await railWiki.click();
+    await p.waitForTimeout(500);
+    check('bấm nút ngoài sảnh cũng mở đúng bảng đó',
+      (await p.locator('.wk-row').count()) > 0 &&
+      !(await p.evaluate(() => document.getElementById('veil').hidden)));
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(300);
+    await p.locator('#wikiBtn').click();
+    await p.waitForTimeout(600);
+    const m = await p.evaluate(() => {
+      const v = document.getElementById('veil');
+      const r = v.getBoundingClientRect();
+      // Ai đang nằm TRÊN CÙNG ở giữa màn: phải là một hàng của sổ tay, không phải menu.
+      const tren = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+      return { rong: r.width, cao: r.height, disp: getComputedStyle(v).display,
+        hang: document.querySelectorAll('.wk-row').length,
+        // Không so tên lớp: điểm giữa màn có thể rơi vào #veilExtra (không có class)
+        // hay vào thẻ <p> trong một hàng. Câu hỏi đúng là "nó có THUỘC tấm màn không".
+        trongVeil: !!(tren && v.contains(tren)),
+        tren: tren ? (tren.tagName + '.' + tren.className + '#' + tren.id) : '',
+        dau: [...document.querySelectorAll('.wk-h')].map(h => h.textContent) };
+    });
+    check('ở màn menu, sổ tay vẫn HIỆN (không bị display:none)',
+      m.disp !== 'none' && m.rong > 200 && m.cao > 200, m.disp + ' ' + m.rong + 'x' + m.cao);
+    check('và nằm TRÊN menu, không khuất bên dưới', m.trongVeil, 'trên cùng: ' + m.tren);
+    check('quái lấy từ MONSTERS + 2 sự kiện, chiêu lấy từ SQ.CHARS',
+      m.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + 2 + SQ.CHARS.length)),
+      m.hang + ' hàng');
+    check('mục thứ hai là chiêu, không phải đồ nghề', /Chiêu/.test(m.dau[1] || ''), m.dau.join(' / '));
+
+    // ---------------------------------------------------------------- ô hình động
+    //
+    // Ba bài, và cả ba đều bắt được một lỗi ĐÃ TỪNG xảy ra thật trong lần dựng phần này:
+    //
+    //   1. Ô động phải nằm CẠNH chân dung, không thay chỗ nó. Bản đầu thay, và chủ dự án báo
+    //      lại đúng câu 'gif nên nằm kế bên hình chứ đừng thay thế'.
+    //   2. Ô phải có thứ để nhìn. Bản đầu bỏ trường `hp` khỏi bảng chỉ số nặn cho quái Biệt Đội,
+    //      nên `m.hp > 0` sai và cả bảy ô vẽ nhánh 'nó vừa nổ xong' — một quầng cam đứng im.
+    //   3. Ô phải ĐỘNG. Đây là bài khó gian nhất: một ô vẽ sai vẫn có thể đầy điểm ảnh, nên phải
+    //      so hai thời điểm và đòi chúng khác nhau.
+    const oHinh = async () => await p.evaluate(() => {
+      const bam = (c) => {
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let n = 0, s = 0;
+        for (let i = 0; i < d.length; i += 8){
+          if (Math.abs(d[i]-26) + Math.abs(d[i+1]-28) + Math.abs(d[i+2]-32) > 24) n++;
+          s = (s*31 + d[i] + d[i+1]*7) % 2147483647;
+        }
+        return { n, s };
+      };
+      const hang = Array.prototype.map.call(document.querySelectorAll('.wk-row'), r => ({
+        ten: (r.querySelector('b') || {}).textContent || '?',
+        // thứ tự thật trong hàng: chân dung <i> phải đứng TRƯỚC <canvas>
+        thu: Array.prototype.filter.call(r.children, e => /wk-art/.test(e.className || ''))
+               .map(e => e.tagName).join(',')
+      }));
+      const o = Array.prototype.map.call(document.querySelectorAll('canvas.wk-art'), c => {
+        const r = bam(c);
+        return { ma: c.getAttribute('data-foe') ||
+                     (JSON.parse(c.getAttribute('data-sk') || '{}').id) || '?',
+                 px: r.n, s: r.s };
+      });
+      return { hang, o };
+    });
+    await p.evaluate(() => REPO.showWiki());
+    await p.waitForTimeout(700);
+    const A = await oHinh();
+    const quai = WIKI_MA.length;
+    const thieu = A.hang.filter(h => h.thu !== 'I,CANVAS').map(h => h.ten + '[' + h.thu + ']');
+    check('mỗi hàng có ĐỦ chân dung rồi tới ô động, đúng thứ tự đó',
+      thieu.length === 0, thieu.slice(0, 3).join(' / ') || (A.hang.length + ' hàng'));
+    check('cả quái lẫn chiêu đều có ô động', A.o.length === A.hang.length,
+      A.o.length + ' ô / ' + A.hang.length + ' hàng');
+    const rong = A.o.filter(x => x.px < 60).map(x => x.ma);
+    check('không ô nào trống trơn', rong.length === 0,
+      rong.slice(0, 4).join(', ') || 'ít nhất 60 điểm có hình mỗi ô');
+    await p.waitForTimeout(1500);
+    const Bp = await oHinh();
+    const dung = A.o.filter((x, i) => Bp.o[i] && Bp.o[i].s === x.s).map(x => x.ma);
+    check('không ô nào đứng hình sau 1,5 giây', dung.length === 0,
+      dung.slice(0, 5).join(', ') || (A.o.length + ' ô đều đổi khung'));
+    // So theo THỨ TỰ, không lọc theo tập hợp: 'angel' vừa là mã một con quái vừa là mã chiêu
+    // Bất Tử, nên một phép lọc 'có nằm trong SQ_MA không' đếm ra tám và bài test hỏng oan.
+    check('bảy thứ trong nhà đều có ô riêng, đúng thứ tự bảng',
+      A.o.slice(0, quai).map(x => x.ma).join(',') === WIKI_MA.join(','),
+      A.o.slice(0, quai).map(x => x.ma).join(','));
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(400);
+    check('đóng sổ ở màn menu thì menu hiện lại nguyên vẹn',
+      await p.evaluate(() => document.getElementById('veil').hidden &&
+        !document.body.classList.contains('wiki-open') &&
+        getComputedStyle(document.getElementById('menu')).display !== 'none'));
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('sổ tay Biệt Đội: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// PHA CHẠY — căn nhà sau lần rút hàng cuối.
+//
+// Bài đo quan trọng nhất ở đây là bài SO SÁNH: trước khi có pha này, chốt xong bệ cuối làm căn
+// nhà YÊN HƠN lúc đang làm (queueRespawn bỏ chạy khi levelDone, stepRespawns xoá sạch hàng đợi),
+// nên một phép thử chỉ nhìn "có quái không" sẽ đạt cả trước lẫn sau khi sửa. Cái phải khoá là
+// dấu của hiệu số.
+async function escapeSuite(b) {
+  results.push('\n── pha chạy sau bệ cuối ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 640 });
+  await p.locator('#veilBtn').click();
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- ải 1–2 có một đàn, ải 3 thì không -------------------------------------
+  const dan = await p.evaluate(() => {
+    const r = {};
+    for (const lv of [1, 2, 3]) {
+      r[lv] = [];
+      for (let s = 0; s < 10; s++) {
+        REPO.S.level = lv; REPO.startLevel(3000 + s * 131);
+        r[lv].push(REPO.S.roster.filter(k => REPO.PACK_KINDS.indexOf(k) >= 0));
+      }
+    }
+    return r;
+  });
+  for (const lv of [1, 2]) {
+    check('ải ' + lv + ': ván nào cũng có ĐÚNG một đàn',
+      dan[lv].every(x => x.length === 1), JSON.stringify(dan[lv].map(x => x.join())));
+  }
+  check('và đàn đó bốc ngẫu nhiên, không phải lúc nào cũng một loài',
+    new Set([].concat(dan[1], dan[2]).map(String)).size > 1);
+  check('ải 3 KHÔNG bị thêm đàn (bảng viết tay giữ nguyên)',
+    dan[3].every(x => x.length === 0));
+
+  // --- trước bệ cuối: nhà chưa trở mặt --------------------------------------
+  const xa = () => p.evaluate(() => {
+    let best = null, bd = 1e9;
+    for (let gy = 1; gy < REPO.MH - 1; gy++) for (let gx = 1; gx < REPO.MW - 1; gx++) {
+      const x = (gx + 0.5) * REPO.TILE, y = (gy + 0.5) * REPO.TILE;
+      if (REPO.hitsSolid(x, y, 10)) continue;
+      const d = Math.abs(Math.hypot(x - REPO.S.car.x, y - REPO.S.car.y) / REPO.TILE - 18);
+      if (d < bd) { bd = d; best = { x, y }; }
+    }
+    REPO.warp(best.x, best.y);
+    (REPO.S.mates || []).forEach(m => { m.x = best.x + 16; m.y = best.y + 16; });
+  });
+  await p.evaluate(() => { REPO.S.level = 5; REPO.startLevel(505); });
+  await p.waitForTimeout(300);
+  await xa();
+  const truoc = await p.evaluate(() => ({ esc: REPO.escape(), glow: REPO.memGlow(),
+    n: REPO.S.monsters.length }));
+  check('chưa chốt bệ cuối thì không có pha chạy, đèn nhà còn nguyên',
+    truoc.esc === null && truoc.glow === 1);
+
+  // --- chốt bệ cuối ---------------------------------------------------------
+  // Bất tử TRƯỚC khi chốt, không phải sau. stepEscape dừng hẳn khi S.dead, và bản chạy đầu của
+  // bộ này báo "nhịp 3s -> 3s (đã chết)": người chơi đứng im giữa một căn nhà vừa được gọi thêm
+  // chín con thì chết ở khoảng giây mười một, và bơm máu sau đó không gỡ được cờ S.dead.
+  // Cái đang đo ở đây là NHỊP của căn nhà, không phải khả năng sống sót.
+  // (Việc đứng im sau bệ cuối giờ là chết thật — đó chính là thứ pha này được dựng ra để làm.)
+  await p.evaluate(() => { REPO.S.player.hpMax = 1e9; REPO.S.player.hp = 1e9;
+                           REPO.S.levelDone = true; REPO.startEscape(); });
+  const T = await p.evaluate(() => ({ delay: REPO.ESC_DELAY, hornN: REPO.ESC_HORN_N,
+    hornT: REPO.ESC_HORN_T, dark: REPO.ESC_DARK, ping0: REPO.ESC_PING_0,
+    up: REPO.ESC_PING_UP, max: REPO.ESC_PING_MAX, resp: REPO.ESC_RESPAWN,
+    hi: REPO.ESC_SPOT_HI, tile: REPO.TILE }));
+
+  await p.waitForTimeout(600);
+  const som = await p.evaluate(() => REPO.escape());
+  check('trong ' + T.delay + 's đầu, còi CHƯA rú', som && som.horns === 0, JSON.stringify(som));
+
+  // Chờ theo TRẠNG THÁI, không theo đồng hồ treo tường. e.t chạy bằng thời gian MÔ PHỎNG, và
+  // pha này vừa gọi thêm chín cái thân vào một trang đang vẽ — khung hình tụt thì 11 giây thật
+  // chỉ là hơn tám giây mô phỏng, và phép thử báo 3/4 tiếng còi trong khi luật vẫn đúng.
+  // Đo được: 2/3 lần chạy hỏng theo đúng kiểu đó.
+  for (let i = 0; i < 60; i++) {
+    if ((await p.evaluate(() => REPO.escape().horns)) >= T.hornN) break;
+    await p.waitForTimeout(500);
+  }
+  const sauCoi = await p.evaluate(() => ({ e: REPO.escape(), glow: REPO.memGlow(),
+    n: REPO.S.monsters.length, q: REPO.respawns().length,
+    quanhXe: REPO.S.monsters.filter(m =>
+      Math.hypot(m.x - REPO.S.car.x, m.y - REPO.S.car.y) < 12 * REPO.TILE).length }));
+  check('xe tải rú đủ ' + T.hornN + ' lần trong ' + T.hornT + 's',
+    sauCoi.e.horns === T.hornN && sauCoi.e.t <= T.delay + T.hornT + 1,
+    sauCoi.e.horns + '/' + T.hornN + ' xong ở giây mô phỏng ' + sauCoi.e.t);
+  check('đèn trong nhà TẮT, trí nhớ căn nhà tối lại',
+    Math.abs(sauCoi.glow - T.dark) < 0.02, sauCoi.glow + ' (đích ' + T.dark + ')');
+  check('đợt gọi thêm đã vào hết hàng đợi', sauCoi.q === 0, sauCoi.q + ' còn chờ');
+  check('và nhà giờ đông hơn lúc vừa chốt', sauCoi.n > truoc.n, truoc.n + ' -> ' + sauCoi.n);
+  check('quái mới đứng QUANH XE, không phải ở rìa bản đồ',
+    sauCoi.quanhXe >= 2, sauCoi.quanhXe + ' con trong 12 ô quanh xe');
+
+  // --- hồi sinh tụt xuống 1 giây -------------------------------------------
+  const nhanh = await p.evaluate(() => {
+    const truoc = REPO.respawns().length;
+    // hạ một con đi lẻ: loài đi đàn không bao giờ được xếp lại, đó là luật riêng của chúng
+    const m = REPO.S.monsters.find(x => !REPO.MONSTERS[x.type].pack);
+    if (!m) return null;
+    REPO.killMonster(m);
+    const sau = REPO.respawns();
+    return { them: sau.length - truoc, t: sau.length ? sau[sau.length - 1].t : null };
+  });
+  check('hạ một con trong pha chạy thì nó ĐƯỢC xếp quay lại',
+    nhanh && nhanh.them === 1, JSON.stringify(nhanh));
+  check('và quay lại sau ' + T.resp + 's chứ không phải 45s',
+    nhanh && Math.abs(nhanh.t - T.resp) < 0.05, nhanh && nhanh.t);
+
+  // --- nhịp chỉ điểm giãn dần ----------------------------------------------
+  const g0 = (await p.evaluate(() => REPO.escape())).gap;
+  await p.waitForTimeout(g0 * 1000 + 2000);
+  const sau = await p.evaluate(() => ({ e: REPO.escape(), chet: REPO.S.dead }));
+  check('nhịp chỉ điểm giãn thêm ' + T.up + 's mỗi lần',
+    !sau.chet && sau.e.gap === Math.min(T.max, g0 + T.up),
+    g0 + 's -> ' + sau.e.gap + 's' + (sau.chet ? ' (đã chết)' : ''));
+
+  // --- trạm dịch vụ không phải chỗ bị đuổi ----------------------------------
+  await p.evaluate(() => REPO.startShop());
+  await p.waitForTimeout(500);
+  const shop = await p.evaluate(() => ({ esc: REPO.escape(), glow: REPO.memGlow() }));
+  check('vào trạm dịch vụ thì pha chạy tắt và đèn sáng lại',
+    shop.esc === null && shop.glow === 1, JSON.stringify(shop));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('pha chạy: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// KHÔNG CÓ ĐÒN NÀO GIÁNG NGAY LÚC CHẠM.
+//
+// Chủ dự án, 2026-09-03: "không có con quái nào khi chạm vào sẽ gây sát thương ngay lập tức mà
+// chúng sẽ cần anim dùng tay đánh hay cắn để user còn có đường né, chạy" — vì "cảm giác cứ ủn vào
+// là đau rất khó chịu". Và: "quái sau 1 lúc dí chạy phải mệt, ngu đi để user còn chạy thoát".
+//
+// Bộ này đo ba thứ, và cả ba đều HỎNG trên mã trước bản vá:
+//   1. giữa lúc con quái bắt đầu vung và lúc máu tụt phải có một quãng thời gian THẬT;
+//   2. lùi ra trong quãng đó thì không mất một điểm máu nào — nếu không thì cái quãng ấy chỉ là
+//      hiệu ứng, không phải một đường thoát;
+//   3. Bom con không được đánh ai, nó tự nổ.
+async function meleeSuite(b) {
+  results.push('\n── đòn đánh phải báo trước, và đuổi lâu thì mệt ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  // Dựng sân đo: một ván sạch, không đồng đội, không cắt cảnh. cancelCut() là bắt buộc —
+  // step() bị chặn hoàn toàn khi S.cut còn, nên thiếu dòng này thì mọi con số đọc ra đều là 0
+  // và bộ đo sẽ báo xanh cho một thế giới đang đứng hình.
+  const san = () => p.evaluate(() => {
+    REPO.S.level = 1; REPO.startLevel(1234); REPO.S.running = true; REPO.cancelCut();
+    REPO.S.monsters.length = 0;
+    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    REPO.S.player.hp = REPO.S.player.hpMax; REPO.S.hurtLog = [];
+    REPO.S.noiseOverride = 0;
+  });
+
+  // --- 1. mỗi loài phải có quãng báo trước ---
+  // Chỉ còn MỘT loài đánh cận chiến trong nhà. Ba con cũ trong vòng lặp này (Kẻ đi tuần,
+  // Kẻ bám, Kẻ nặng) đã bị cắt, và bị cắt CHÍNH VÌ điều bài test này vô tình chứng minh:
+  // ba con khác tên chạy qua đúng một nhánh mã, nên ba lần đo ra ba kết quả giống nhau.
+  // Kẻ bắn có bài riêng ở dưới (nó ngắm chứ không vung), Kẻ húc có bài riêng của nó.
+  for (const loai of ['gnome']) {
+    await san();
+    const r = await p.evaluate(async (t) => {
+      REPO.spawnFoe(t, 20, 0);
+      const pl = REPO.S.player, bd = performance.now();
+      let tVung = null, tDon = null;
+      const iv = setInterval(() => {
+        const m = REPO.S.monsters.find(q => q.type === t); if (!m) return;
+        m.alert = 9;
+        if (tVung === null && (m.swing || 0) > 0) tVung = performance.now();
+        if (tDon === null && REPO.S.hurtLog.some(x => x.src === t)) tDon = performance.now();
+      }, 8);
+      await new Promise(r => setTimeout(r, 3000));
+      clearInterval(iv);
+      return { bao: (tVung !== null && tDon !== null) ? +((tDon - tVung) / 1000).toFixed(2) : null,
+               wind: REPO.MONSTERS[t].wind, don: REPO.S.hurtLog.filter(x => x.src === t).length };
+    }, loai);
+    check(loai + ': có vung tay rồi mới trúng, không trúng ngay lúc chạm',
+      r.don > 0 && r.bao !== null && r.bao >= r.wind * 0.6,
+      'báo trước ' + r.bao + 's / thì vung ' + r.wind + 's, ' + r.don + ' đòn');
+  }
+
+  // --- 2. lùi ra trong lúc nó vung thì không mất máu ---
+  await san();
+  const ne = await p.evaluate(async () => {
+    const bag = REPO.spawnFoe('gnome', 20, 0);
+    bag.hp = bag.hpMax = 4000;            // đừng để nó chết vì bị giẫm giữa lúc đang đo
+    const pl = REPO.S.player;
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'gnome'); if (!m) return;
+      m.alert = 9;
+      if ((m.swing || 0) > 0) {                       // nó vừa ngoác tay: LÙI RA
+        const a = Math.atan2(pl.y - m.y, pl.x - m.x);
+        pl.x = m.x + Math.cos(a) * 40; pl.y = m.y + Math.sin(a) * 40;
+      }
+    }, 8);
+    await new Promise(r => setTimeout(r, 3200));
+    clearInterval(iv);
+    return Math.round(pl.hpMax - pl.hp);
+  });
+  check('lùi ra lúc nó vung thì không mất một điểm máu nào', ne === 0, ne + ' máu');
+
+  // --- 3. Bom con: không đánh, chỉ tự nổ ---
+  await san();
+  const bom = await p.evaluate(async () => {
+    REPO.spawnFoe('banger', 20, 0);
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'banger'); if (m) m.alert = 9; }, 16);
+    await new Promise(r => setTimeout(r, 4500));
+    clearInterval(iv);
+    return { canChien: REPO.S.hurtLog.filter(x => x.src === 'banger').length,
+             no: REPO.S.hurtLog.filter(x => x.src === 'bomb').length,
+             conSong: !!REPO.S.monsters.find(q => q.type === 'banger'),
+             speed: REPO.MONSTERS.banger.speed,
+             nhanhHonNguoi: REPO.MONSTERS.banger.speed >= Math.round(REPO.playerSpeed(REPO.S.player)) };
+  });
+  check('Bom con không vung tay vào ai bao giờ', bom.canChien === 0, bom.canChien + ' cú');
+  check('mà nó tự nổ và tự chết', bom.no > 0 && !bom.conSong,
+    bom.no + ' vụ nổ, ' + (bom.conSong ? 'vẫn còn sống' : 'đã tự huỷ'));
+  check('và nó chậm hơn người chơi, nên chạy là thoát được',
+    !bom.nhanhHonNguoi, 'quái ' + bom.speed);
+
+  // --- 4. đuổi lâu thì mệt ---
+  await san();
+  const met = await p.evaluate(async () => {
+    REPO.S.noiseOverride = 2.6;
+    REPO.spawnFoe('gunner', 200, 0);
+    const mau = [];
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'gunner'); if (!m) return;
+      m.alert = 9;
+      mau.push({ t: +(m.chaseT || 0).toFixed(1), met: +(m.tired || 0).toFixed(2) });
+    }, 200);
+    await new Promise(r => setTimeout(r, 11000));
+    clearInterval(iv);
+    REPO.S.noiseOverride = null;
+    const dau = mau.find(x => x.t >= 1 && x.t <= 2), cuoi = mau[mau.length - 1];
+    return { dau, cuoi };
+  });
+  check('đuổi một lúc thì quái ĐUỐI, không giữ nguyên sức mãi',
+    met.dau && met.cuoi && met.dau.met === 0 && met.cuoi.met > 0.7,
+    'giây ' + (met.dau && met.dau.t) + ' mệt ' + (met.dau && met.dau.met) +
+    ' -> giây ' + (met.cuoi && met.cuoi.t) + ' mệt ' + (met.cuoi && met.cuoi.met));
+
+  await p.evaluate(() => { REPO.S.noiseOverride = null; });
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đòn đánh: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// ĐỒNG ĐỘI BIẾT ĐÁNH TRẢ — NHƯNG CHỈ KHI HẾT ĐƯỜNG CHẠY.
+//
+// Chủ dự án, 2026-09-04: "bot bị quái vây chưa biết đánh lại à, kiểu như gnom yếu xìu mà cũng
+// kẹt". Đúng, và tệ hơn cái tên gọi: `meleeSwing` từ đầu tới giờ chỉ được gọi cho `S.player`,
+// nên đồng đội KHÔNG HỀ CÓ đường nào để đánh. Cú giẫm cũng chỉ áp cho người chơi (stepStomp),
+// nên một con bot đứng cạnh một con Gnome không có cách nào làm nó biến mất.
+//
+// Bộ này canh HAI VẾ, và vế thứ hai mới là vế dễ mục:
+//   1. Bị con YẾU vây thì đánh, và đánh cho tới khi sạch.
+//   2. Gặp con TO ở chỗ thoáng thì VẪN CHỈ BIẾT CHẠY. Đây là chỗ dễ hỏng nhất khi ai đó chỉnh
+//      MATE_FIGHT_HP lên cho "bot đỡ ngu": lúc ấy ba con bot bắt đầu dọn nhà hộ người chơi, và
+//      cả luật "3 con bot ngu ngu" — chủ ý từ đầu — biến mất mà bảng test vẫn xanh.
+async function mateFightSuite(b) {
+  results.push('\n── đồng đội: biết đánh trả, nhưng chỉ khi hết đường ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. ba con Gnome vây một đồng đội ---
+  const vay = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py; a.down = false; a.hp = a.hpMax;
+    for (let i = 0; i < 3; i++) {
+      const ang = i / 3 * Math.PI * 2;
+      const m = REPO.spawnFoe('gnome', a.x + Math.cos(ang) * 22 - px, a.y + Math.sin(ang) * 22 - py);
+      m.alert = 9;
+    }
+    let vung = 0; const mau0 = a.hp; const t0 = performance.now();
+    while (performance.now() - t0 < 9000) {
+      S.monsters.forEach(m => { m.alert = 9; });
+      if ((a.swingT || 0) > 0.2) vung++;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { con: S.monsters.filter(m => m.hp > 0).length, vung: vung > 0,
+             song: !a.down, mat: Math.round(mau0 - a.hp) };
+  });
+  check('dựng được cảnh: ba con Gnome vây một đồng đội', !vay.boQua);
+  check('đồng đội VUNG ĐÈN chứ không chạy vòng quanh mãi', !vay.boQua && vay.vung, 'không vung lần nào');
+  // ĐO CÁI GÌ Ở ĐÂY. Bản đầu đòi `con === 0` và nó chập chờn thật — chạy tay ra lúc 0 lúc 1,
+  // vì cú vung có văng, và một con Gnome bị đẩy ra khỏi tầm với đúng lúc thanh thể lực cạn thì
+  // phải mất thêm vài giây mới quay lại. Con số ấy là con số của CÚ VĂNG, không phải của điều
+  // đang cần chứng minh.
+  //
+  // Điều đang cần chứng minh là: đồng đội GIẾT ĐƯỢC, chứ không phải vung suông. Trước bản đánh
+  // trả, con số này luôn là 3 — mãi mãi là 3, đó chính là cái bug. Nên ngưỡng đặt ở đó, và số
+  // con còn lại vẫn in ra để một lần tụt về 2 vẫn đọc thấy ngay trên bảng.
+  check('và dọn được cái đàn ấy chứ không vung suông', !vay.boQua && vay.con < 3,
+    vay.con + '/3 con còn lại');
+  check('mà vẫn sống — Gnome đau ít, đây là con đáng đánh', !vay.boQua && vay.song,
+    'mất ' + vay.mat + ' máu');
+
+  // --- 2. gặp con TO ở chỗ thoáng thì vẫn chạy ---
+  const to = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    a.hp = a.hpMax; a.fightT = 0; a.swingCd = 0; a.down = false;
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py;
+    const g = REPO.spawnFoe('gunner', a.x - px + 26, a.y - py);
+    let vung = 0, xa = 0; const t0 = performance.now();
+    while (performance.now() - t0 < 4000) {
+      g.hp = 9999; g.alert = 9;
+      if ((a.swingT || 0) > 0.2) vung++;
+      xa = Math.max(xa, Math.hypot(a.x - g.x, a.y - g.y));
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { vung: vung > 0, xa: Math.round(xa / T * 10) / 10 };
+  });
+  check('gặp Kẻ bắn ở chỗ thoáng thì KHÔNG đánh — đó là việc của bạn',
+    !to.boQua && !to.vung, to.vung ? 'nó có vung' : 'không vung lần nào');
+  check('nó chạy, và chạy được thật', !to.boQua && to.xa > 3, 'xa nhất ' + to.xa + ' ô');
+
+  // --- 3. bị dồn thì đánh cả con to ---
+  // Ghim chân con bot lại từng khung hình: đó là cái "không có chỗ nào để chạy tới" mà luật
+  // thứ hai nói tới, dựng ra mà không cần tìm một góc tường thật.
+  const don = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    a.hp = a.hpMax; a.fightT = 0; a.swingCd = 0; a.down = false;
+    const px = S.player.x, py = S.player.y;
+    const gx = px + T * 3, gy = py;
+    const g = REPO.spawnFoe('gunner', gx - px, gy - py);
+    g.hp = 9999;                 // bơm MỘT LẦN ở đây, không phải trong vòng lặp — xem dưới
+    let vung = 0, mau = 0; const t0 = performance.now();
+    while (performance.now() - t0 < 5000) {
+      // ĐỌC TRƯỚC KHI BƠM MÁU LẠI. Bản đầu gán g.hp = 9999 ở đầu mỗi khung hình rồi mới đọc
+      // sát thương ở cuối vòng — tức là mỗi vòng lặp xoá sạch đúng cái con số nó định đo, và
+      // bài test báo '0 sát thương' về một cú đánh có ăn máu thật.
+      mau = Math.max(mau, 9999 - g.hp);
+      g.hp = 9999; g.alert = 9; g.x = gx; g.y = gy;
+      a.x = gx - 20; a.y = gy; a.hp = a.hpMax;      // ghim chân: hết đường lùi
+      if ((a.swingT || 0) > 0.2) vung++;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { vung: vung > 0, mau: Math.round(mau) };
+  });
+  check('nhưng bị dồn không lùi được thì nó quay lại đánh, kể cả con to',
+    !don.boQua && don.vung, don.vung ? '' : 'vẫn không vung');
+  check('và cú đánh ấy ăn máu thật', !don.boQua && don.mau > 0, don.mau + ' sát thương');
+
+  // --- 4. đuối tay của ĐỒNG ĐỘI không được nói thành đuối tay của BẠN ---
+  const nhac = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0; S.message = ''; S.messageT = 0;
+    a.stam = 0;                                     // ép nó đuối tay
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py; a.down = false; a.hp = a.hpMax;
+    const m = REPO.spawnFoe('gnome', a.x - px + 20, a.y - py);
+    let thay = '';
+    const t0 = performance.now();
+    while (performance.now() - t0 < 3000) {
+      if (S.monsters[0]) { S.monsters[0].alert = 9; S.monsters[0].hp = 999; }
+      if (/\u0110u\u1ed1i tay/.test(S.message || '')) thay = S.message;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay };
+  });
+  check('đồng đội đuối tay thì KHÔNG bắn ra dòng nhắc thể lực của người chơi',
+    !nhac.boQua && !nhac.thay, nhac.thay || 'không có dòng nào');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đồng đội đánh trả: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// BỊCH TIỀN LÊN ĐƯỢC XE, VÀ TÀNG HÌNH THÌ MỜ ĐI.
+//
+// Hai luật nhỏ, cùng một tật: cả hai đều là loại HỎNG MÀ KHÔNG AI THẤY. Bỏ mất ngoại lệ trần
+// giá thì không có lỗi nào, chỉ là một dòng "đắt quá, phải ôm tay" mà không ai để ý là sai;
+// bỏ mất cái mờ thì kỹ năng 24 giây hồi chiêu vẫn chạy đúng từng con số, chỉ là trên màn hình
+// không có gì đổi cả — đúng y tình trạng trước bản này.
+async function xeVaTangHinhSuite(b) {
+  results.push('\n── bịch tiền lên xe · tàng hình thì mờ ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. trần giá vẫn còn, nhưng bịch tiền được miễn ---
+  const xe = await p.evaluate(() => {
+    const xeRong = { items: [] };
+    const dat  = { value: REPO.CART_MAX_VALUE + 15000 };            // cái lọ sứ trong nhà
+    const bich = { value: REPO.CART_MAX_VALUE + 15000, fromFoe: true };  // thứ con quái để lại
+    const re   = { value: 500 };
+    return { nha: REPO.cartFits(xeRong, dat),
+             quai: REPO.cartFits(xeRong, bich),
+             thuong: REPO.cartFits(xeRong, re),
+             tran: REPO.CART_MAX_VALUE };
+  });
+  check('trần giá của xe VẪN CÒN — món đắt trong nhà vẫn phải ôm tay',
+    xe.nha === false, 'trần ' + xe.tran);
+  check('nhưng thứ con quái để lại thì bao nhiêu cũng lên xe được', xe.quai === true);
+  check('và món rẻ thì vẫn lên bình thường', xe.thuong === true);
+
+  // Cờ `fromFoe` phải có thật trên đồ rơi thật, không chỉ trong bài test này.
+  const roi = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.loot.length = 0; S.monsters.length = 0; S.foeDrops = 0;
+    // KHÔNG dùng Gnome hay Bom con ở đây: cả hai đi theo đàn nên khai `noLoot` — giết bao
+    // nhiêu con cũng không rơi gì, và bài test sẽ báo hỏng về một luật hoàn toàn khác.
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 2, 0);
+    for (let i = 0; i < 40 && m.hp > 0; i++) REPO.hurtFoe(m, 999);
+    await new Promise(r => setTimeout(r, 400));
+    const l = S.loot.filter(x => x.fromFoe);
+    return { rot: S.loot.length, co: l.length };
+  });
+  check('đồ quái rơi ra ngoài đời thật cũng mang cờ ấy',
+    roi.co > 0, roi.co + '/' + roi.rot + ' món có cờ');
+
+  // --- 2. tàng hình: mờ đi, chạm đáy, rồi hiện lại — và đáy KHÔNG phải số không ---
+  const mo = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    const doc = () => REPO.playerDrawPos().alpha;
+    pl.invisT = 0; pl.invisT0 = 0;
+    const thuong = doc();
+    pl.invisT = 6; pl.invisT0 = 6;
+    const vuaBam = doc();                       // vừa bấm: chưa kịp mờ
+    await new Promise(r => setTimeout(r, 600));
+    const day = doc();                          // đã tan hẳn: đáy
+    pl.invisT = 0.30; pl.invisT0 = 6;           // 0,3s cuối: đang hiện lại
+    const hienLai = doc();
+    pl.invisT = 0; pl.invisT0 = 0;
+    const xong = doc();
+    const r = (v) => Math.round(v * 100) / 100;
+    return { thuong: r(thuong), vuaBam: r(vuaBam), day: r(day),
+             hienLai: r(hienLai), xong: r(xong) };
+  });
+  check('không tàng hình thì vẽ đặc như thường', mo.thuong === 1, String(mo.thuong));
+  check('bấm xong thì MỜ ĐI thật', mo.day < mo.vuaBam - 0.2,
+    mo.vuaBam + ' -> ' + mo.day);
+  check('nhưng VẪN MỜ MỜ, không mất hẳn — còn phải lái được cái thân ấy',
+    mo.day > 0.12, 'đáy ' + mo.day);
+  check('mấy giây cuối thì hiện dần lại — đó là cái đồng hồ đếm ngược duy nhất của chiêu',
+    mo.hienLai > mo.day + 0.15 && mo.hienLai < 1, 'đáy ' + mo.day + ' -> ' + mo.hienLai);
+  check('hết chiêu thì đặc lại hoàn toàn', mo.xong === 1, String(mo.xong));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('bịch tiền & tàng hình: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// DỊU MẮT: KHÔNG CHỚP, KHÔNG GIẬT.
+//
+// Chủ dự án, 2026-09-04: "bớt chớp chớp để tránh đau mắt user".
+//
+// Bộ này canh hai thứ, và cả hai đều là loại DỄ MỌC LẠI. Cú loé cả màn và cú rung màn là hai
+// công cụ rẻ nhất để làm một sự kiện 'đã tay hơn', nên mỗi lần thêm một cái nổ mới là một lần
+// có người gọi fxFlash(0.6) hay fxShake(20). Không có bộ canh thì cái trần lặng lẽ trôi lên
+// lại, từng chút một, và không có một lỗi nào để mà thấy.
+//
+// Điều KHÔNG canh ở đây: hai hiệu ứng ấy còn tồn tại hay không. Chúng phải còn — một cú nổ mà
+// màn hình không phản ứng gì là một cú nổ đọc như hỏng. Bộ này canh ĐỘ, không canh CÓ.
+async function matDiuSuite(b) {
+  results.push('\n── dịu mắt: cú loé và cú rung ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. gọi loé hết cỡ, liên tục: độ sáng vẽ ra vẫn phải nằm dưới trần ---
+  const tran = await p.evaluate(async () => {
+    let dinh = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1200) {
+      REPO.fxFlash(0.6, '255,255,255');      // to hơn mọi lời gọi thật trong mã
+      dinh = Math.max(dinh, REPO.fx().flash);
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return Math.round(dinh * 1000) / 1000;
+  });
+  check('gọi loé hết cỡ liên tục thì màn vẫn không sáng quá trần', tran <= 0.30,
+    'đỉnh ' + tran);
+  check('nhưng vẫn CÓ loé — đây là bớt chớp, không phải bỏ hiệu ứng', tran > 0.08,
+    'đỉnh ' + tran);
+
+  // --- 2. một CHUỖI nổ không được thành đèn nháy ---
+  // Đếm số lần độ sáng ĐI LÊN qua ngưỡng. Mã cũ cho đúng 5 nhịp rời nhau ở đây; mã mới cho
+  // một quầng sáng, nên chỉ có một lần vượt ngưỡng.
+  const chuoi = await p.evaluate(async () => {
+    const NGUONG = 0.14;
+    let lan = 0, tren = false, dinh = 0, ke = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1000) {
+      const q = performance.now() - t0;
+      if (q > ke){ REPO.fxFlash(0.5, '255,190,120'); ke += 150; }   // 5 quả cách nhau 0,15s
+      const f = REPO.fx().flash;
+      dinh = Math.max(dinh, f);
+      if (f > NGUONG && !tren){ lan++; tren = true; }
+      else if (f < NGUONG * 0.7) tren = false;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { lan, dinh: Math.round(dinh * 1000) / 1000 };
+  });
+  check('năm cú nổ liền nhau đọc thành MỘT quầng sáng, không thành năm nhịp',
+    chuoi.lan <= 2, chuoi.lan + ' lần vượt ngưỡng');
+
+  // --- 3. cú rung đi trên MỘT trục, không nhảy lung tung từng khung hình ---
+  const truc = await p.evaluate(async () => {
+    REPO.fx();                                  // chắc chắn có hook
+    const cho = () => new Promise(r => requestAnimationFrame(r));
+    // đợi cú rung đang chạy dở (nếu có) tắt hẳn, để bốc được một trục mới sạch
+    for (let i = 0; i < 240 && REPO.fx().shake > 0.05; i++) await cho();
+    REPO.fxShake(11);
+    const goc = new Set();
+    let n = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 600) {
+      const f = REPO.fx();
+      if (f.shake > 0.05){ goc.add(Math.round(f.shakeA * 1000)); n++; }
+      REPO.fxShake(11);                         // giữ cho nó rung suốt quãng đo
+      await cho();
+    }
+    return { soTruc: goc.size, khung: n };
+  });
+  check('đo được cú rung', truc.khung > 10, truc.khung + ' khung');
+  check('cả cú rung đi trên ĐÚNG MỘT trục, không bốc hướng mới mỗi khung hình',
+    truc.soTruc === 1, truc.soTruc + ' trục khác nhau');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('dịu mắt: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// HIỆU ỨNG VẼ BẰNG BỘ HÌNH.
+//
+// Tám tấm từ bộ pvfx-foundry (CC0), gắn vào tám sự kiện đã có sẵn. Bộ này canh đúng một
+// thứ: hiệu ứng phải NỔ RA ĐÚNG LÚC SỰ KIỆN XẢY RA, và phải TẮT.
+//
+// Vì sao đáng một bộ test riêng: hiệu ứng là loại mã hỏng mà không ai thấy. Đổi tên một tệp,
+// sửa một hằng số, gõ nhầm một mã — game vẫn chạy, vẫn không lỗi console, chỉ là từ hôm đó
+// vụ nổ không còn ngọn lửa nào. Không có ngoại lệ nào ném ra để mà bắt.
+//
+// Và bài cuối là bài quan trọng nhất: S.vfx phải RỖNG LẠI. Một mảng chỉ thêm mà không bớt là
+// một chỗ rò trí nhớ chạy suốt ca, và triệu chứng của nó không phải là hình xấu — là máy nóng
+// dần rồi khung hình tụt, sau mười phút chơi.
+// Mười một tấm của CĂN NHÀ — nạp ở cả hai game.
+const VFX_MA = ['warm-explosion', 'landing-dust', 'earth-rupture', 'crescent-slash',
+                'magical-projectile', 'electric-impact', 'rift-portal', 'spectral-bloom',
+                'beam-cutoff-burst', 'ember-jet', 'acid-splash',
+                // năm tấm từ bộ Gigapack — KHÁC KHỔ KHUNG và khác kiểu xếp so với bộ pvfx
+                // (32/40/48px, phần lớn là một dải ngang thay vì lưới 5 cột). Chúng nằm đây
+                // để canh luôn cái đó: một tấm 32px mà bị cắt bằng thước 96px thì `vfxN` vẫn trả
+                // đúng số khung, chỉ có hình là vắt qua ba khung liền nhau — sai mà không ném lỗi.
+                'blood-hit', 'blood-kill', 'muzzle-flash', 'wall-impact', 'alert-mark'];
+// Mười một tấm của CHIÊU — chỉ nạp ở Biệt Đội. Ca Trực Đêm không có chiêu nào, nên tải chúng
+// về đó là hơn trăm KB ném đi. Bài "Ca Trực Đêm KHÔNG nạp bảng chiêu" ở dưới canh đúng chỗ đó,
+// và nó là loại bài dễ mục nhất: thêm một tấm vào nhầm bảng thì game vẫn chạy y hệt, chỉ là
+// từ hôm ấy mọi người chơi Ca Trực Đêm tải thêm một tấm họ không bao giờ nhìn thấy.
+const VFX_MA_SQ = ['solar-shrapnel', 'radiant-heal', 'focus-charge', 'arcane-parry',
+                   'void-implosion', 'smoke-puff', 'venom-ward', 'lattice-beam',
+                   'frost-nova', 'leaf-gust', 'splash-crown'];
+// Chiêu nào ra hiệu ứng nào. Viết thẳng ra chứ không đọc từ mã: bài test phải HỎNG khi ai đó
+// gỡ một dòng spawnVfx, chứ không lặng lẽ đổi kỳ vọng theo.
+const CHIEU_FX = {
+  flash: 'solar-shrapnel', healring: 'radiant-heal', gong: 'focus-charge',
+  unlock: 'arcane-parry',  vanish: 'void-implosion', shock: 'electric-impact',
+  decoy: 'smoke-puff',     rescue: 'leaf-gust',      cage: 'venom-ward',
+  blink: 'spectral-bloom', reveal: 'lattice-beam',   freeze: 'frost-nova',
+  pull: 'leaf-gust',       angel: 'splash-crown'
+};
+async function vfxSuite(b) {
+  results.push('\n── hiệu ứng: đúng lúc, và có tắt ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. cả tám tấm nạp được ---
+  const nap = await p.evaluate(ma => ma.map(id => [id, REPO_SKIN.vfxN(id)]), VFX_MA);
+  const thieu = nap.filter(x => !x[1]).map(x => x[0]);
+  check('cả ' + VFX_MA.length + ' tấm hiệu ứng của căn nhà nạp được', thieu.length === 0,
+    thieu.join(', ') || nap.map(x => x[0] + ':' + x[1] + 'khung').join(' · '));
+
+  // Gom mọi mã hiệu ứng CHẠY QUA trong lúc làm một việc gì đó. Phải lấy mẫu từng khung hình
+  // chứ không đọc một phát lúc cuối: cú vụt chỉ sống 0,22 giây, ngắn hơn cả một lần chụp màn.
+  const gom = async (dung, ms) => await p.evaluate(async ([js, ms]) => {
+    const S = REPO.S;
+    S.vfx.length = 0; S.monsters.length = 0; S.bullets.length = 0; S.bombs.length = 0;
+    (S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    // eslint-disable-next-line no-new-func
+    new Function('REPO', 'S', 'T', js)(REPO, S, REPO.TILE);
+    const thay = new Set(); let dinh = 0; const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+      S.vfx.forEach(f => thay.add(f.id));
+      dinh = Math.max(dinh, S.vfx.length);
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay: [...thay], dinh, conLai: S.vfx.length };
+  }, [dung, ms]);
+
+  // --- 2. vụ nổ ---
+  const no = await gom(`const pl = S.player;
+    S.bombs.push({ x: pl.x + 60, y: pl.y, t: 0, fuse: 0, r: T * 3, done: false, owner: 'foe' });`, 1500);
+  check('bom nổ thì có ngọn lửa', no.thay.indexOf('warm-explosion') >= 0, no.thay.join(', ') || 'không có gì');
+  check('và ngọn lửa TẮT, không nằm lại trên sàn', no.conLai === 0, no.conLai + ' cái còn lại');
+
+  // --- 3. cú vụt đèn pin ---
+  const vut = await gom(`const pl = S.player; pl.swingCd = 0; pl.stam = 99; REPO.meleeSwing(pl, 0);`, 1200);
+  check('vụt đèn pin thì có lưỡi chém', vut.thay.indexOf('crescent-slash') >= 0, vut.thay.join(', ') || 'không có gì');
+  check('lưỡi chém cũng tắt', vut.conLai === 0, vut.conLai + ' cái còn lại');
+
+  // --- 4. đạn của Kẻ bắn trúng người ---
+  const dan = await gom(`const pl = S.player;
+    S.bullets.push({ x: pl.x + 18, y: pl.y, vx: -300, vy: 0, life: 1.7, kind: 'foe', foe: 1, dmg: 22 });`, 1200);
+  check('đạn quái trúng người thì loé lên một cái', dan.thay.indexOf('electric-impact') >= 0,
+    dan.thay.join(', ') || 'không có gì');
+
+  // --- 5. Kẻ húc: giậm chân rồi lao trúng tường ---
+  // Phải đặt nó GẦN (dưới 3 ô) và thông tầm nhìn: rookSees đòi người chơi nằm trong nón nhìn
+  // của nó, TRỪ KHI dưới 3 ô thì bỏ qua góc. Đặt xa hơn thì nó quay lưng đi tuần và cả bài
+  // đo ra số không — không phải vì hiệu ứng hỏng, mà vì con quái chưa từng gồng.
+  const huc = await gom(`const pl = S.player; let m = null;
+    for (let r0 = 2; r0 <= 3 && !m; r0++)
+      for (let i = 0; i < 32 && !m; i++) {
+        const a = i / 32 * Math.PI * 2, x = pl.x + Math.cos(a) * r0 * T, y = pl.y + Math.sin(a) * r0 * T;
+        if (REPO.hitsSolid(x, y, 10)) continue;
+        if (!REPO.losClear(pl.x, pl.y, x, y)) continue;
+        m = REPO.spawnFoe('rook', x - pl.x, y - pl.y);
+      }
+    if (m) { m.hp = 9999; const iv = setInterval(() => {
+      const q = S.monsters.find(x => x.type === 'rook');
+      if (q) { q.hp = 9999; q.alert = 9; } else clearInterval(iv); }, 16);
+      setTimeout(() => clearInterval(iv), 9000); }`, 9000);
+  check('Kẻ húc giậm chân thì tung bụi', huc.thay.indexOf('landing-dust') >= 0, huc.thay.join(', ') || 'không có gì');
+  check('và lao trúng tường thì nứt cả nền', huc.thay.indexOf('earth-rupture') >= 0, huc.thay.join(', '));
+
+  // --- 6. Tượng bay đi ---
+  const tuong = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.vfx.length = 0; S.monsters.length = 0;
+    const thay = new Set(); const t0 = performance.now();
+    while (performance.now() - t0 < 12000) {
+      if (!S.angel) S.angelTimer = 0;                 // ép nó thử lại mỗi khung
+      else { S.angel.phase = 'stand'; S.angel.armed = true; S.angel.charge = 1; }
+      S.vfx.forEach(f => thay.add(f.id));
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay: [...thay], co: !!S.angel };
+  });
+  check('rọi đủ đèn thì Tượng bay đi trong một đoá sáng',
+    tuong.thay.indexOf('spectral-bloom') >= 0, tuong.thay.join(', ') || 'không có gì');
+
+  // --- 7. ba món vũ khí ---
+  const hoaCai = await gom(`const pl = S.player; pl.recoilT = 0; REPO.fireShotgun(pl, 0);`, 900);
+  check('súng hoa cải có lửa đầu nòng', hoaCai.thay.indexOf('ember-jet') >= 0,
+    hoaCai.thay.join(', ') || 'không có gì');
+  const laser = await gom(`const pl = S.player; pl.recoilT = 0; REPO.fireLaser(pl, 0, REPO.LASER_FULL);`, 900);
+  check('tia laser bùng ở ĐẦU TIA', laser.thay.indexOf('beam-cutoff-burst') >= 0,
+    laser.thay.join(', ') || 'không có gì');
+  const me = await gom(`const pl = S.player;
+    const m = REPO.spawnFoe('gunner', 40, 0); m.hp = 999;
+    S.bullets.push({ x: pl.x + 8, y: pl.y, vx: 520, vy: 0, life: 1.0, kind: 'tranq' });`, 900);
+  check('phi tiêu thuốc mê để lại vệt XANH, không phải vệt đỏ như đòn gây đau',
+    me.thay.indexOf('acid-splash') >= 0, me.thay.join(', ') || 'không có gì');
+
+  // --- 8. năm tấm của bộ Gigapack ---
+  // Bốn thứ dưới đây đều là những khoảnh khắc ĐẮT NHẤT của trò này mà cho tới hôm nay
+  // không có gì trên sàn để nhìn: đánh trúng, giết được, bắn ra một viên đạn, và bị phát hiện.
+  const anDon = await gom(`const m = REPO.spawnFoe('gunner', 40, 0); m.hp = 9999; REPO.hurtFoe(m, 20);`, 900);
+  check('đánh trúng quái thì có MÁU, không chỉ một con số bay lên',
+    anDon.thay.indexOf('blood-hit') >= 0, anDon.thay.join(', ') || 'không có gì');
+  const chet = await gom(`const m = REPO.spawnFoe('gnome', 40, 0); REPO.hurtFoe(m, 999);`, 900);
+  check('và lúc nó chết thì là một vệt khác hẳn', chet.thay.indexOf('blood-kill') >= 0,
+    chet.thay.join(', ') || 'không có gì');
+  const sung = await gom(`const pl = S.player; pl.cooldown = 0; pl.inv[0] = { kind: 'gun', uses: 9 };
+    REPO.useSlot(pl, 0, 0);`, 900);
+  check('khẩu lục có chớp nòng — món đắt nhất trong tủ và trước giờ bắn ra như búng tay',
+    sung.thay.indexOf('muzzle-flash') >= 0, sung.thay.join(', ') || 'không có gì');
+  check('và viên đạn cắm vào tường cũng toé ra một cái',
+    sung.thay.indexOf('wall-impact') >= 0, sung.thay.join(', '));
+  const thay0 = await gom(`const pl = S.player; const m = REPO.spawnFoe('gunner', 60, 0);
+    m.hp = 9999; m.alert = 0; m.dir = Math.atan2(pl.y - m.y, pl.x - m.x);`, 1600);
+  check('con quái vừa THẤY bạn thì mọc dấu "!" trên đầu CHÍNH NÓ',
+    thay0.thay.indexOf('alert-mark') >= 0, thay0.thay.join(', ') || 'không có gì');
+
+  // --- 9. Ca Trực Đêm KHÔNG nạp bảng hiệu ứng của chiêu ---
+  const thua = await p.evaluate(ma => ma.filter(id => REPO_SKIN.vfxN(id) > 0), VFX_MA_SQ);
+  check('Ca Trực Đêm không tải mười một tấm của chiêu Biệt Đội',
+    thua.length === 0, thua.join(', ') || 'không tải thừa tấm nào');
+
+  // --- 10. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
+  await p.waitForTimeout(1500);
+  const con = await p.evaluate(() => REPO.S.vfx.length);
+  check('chạy xong thì mảng hiệu ứng rỗng lại, không rò', con === 0, con + ' cái còn treo');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('hiệu ứng: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// KẺ BẮN.
+//
+// Con duy nhất trong nhà đánh từ xa, và bộ này tồn tại vì một lý do rất cụ thể: cả loài này
+// ra đời từ chỗ SỔ TAY NÓI SAI. Chủ dự án, 2026-09-04: "wiki về quái sai so với skill của
+// quái ... nó không nói lên quái có skill gì cả", rồi "tại tui nhớ có mấy con quái ngắm lắm
+// mà không có quái nào bắn à".
+//
+// Cái nhớ đó đúng: art/foe/gunner.png (trước là patrol.png) vẽ một tay súng chĩa khẩu lục ra
+// ở cả mười hai khung, mà mã thì cho nó vung tay như mọi con khác. Bốn bài dưới đây ghim đúng
+// bốn câu mà sổ tay đang hứa, để lần sau chữ với mã không tách nhau ra được nữa.
+async function gunnerSuite(b) {
+  results.push('\n── Kẻ bắn: nó BẮN, và bức tường chặn được đạn ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  const san = async () => await p.evaluate(() => {
+    REPO.S.level = 1; REPO.startLevel(1234); REPO.S.running = true; REPO.cancelCut();
+    REPO.S.monsters.length = 0; REPO.S.bullets.length = 0;
+    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    REPO.S.player.hp = REPO.S.player.hpMax; REPO.S.hurtLog = [];
+  });
+
+  // --- 1. nó bắn thật, và nó bắn TỪ XA ---
+  // Đo cả hai vế trong một lần chạy: có mất máu KHÔNG, và lúc mất máu thì nó đứng cách bao xa.
+  // Vế thứ hai mới là vế đáng đo — một con làm bạn mất máu ở tầm 20px thì đó là đấm, không
+  // phải bắn, và bài test chỉ đo vế đầu sẽ xanh với cả hai.
+  await san();
+  const ban = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    // PHẢI tìm một chỗ THÔNG TẦM NHÌN, không được đặt bừa ở "sáu ô sang phải". Lần dựng đầu
+    // đặt bừa đúng như thế và cả ba bài đo ra 0 — không phải vì con quái không bắn, mà vì nó
+    // đứng sau một bức tường, tức là bài test vừa đo đúng cái luật ở bài số 3.
+    let m = null;
+    for (let r = 5; r <= 7 && !m; r++)
+      for (let i = 0; i < 32 && !m; i++) {
+        const a = i / 32 * Math.PI * 2;
+        const x = pl.x + Math.cos(a) * r * T, y = pl.y + Math.sin(a) * r * T;
+        if (REPO.hitsSolid(x, y, 9)) continue;
+        if (!REPO.losClear(pl.x, pl.y, x, y)) continue;
+        m = REPO.spawnFoe('gunner', x - pl.x, y - pl.y);
+      }
+    if (!m) return { boQua: true };
+    let xaNhat = 0, dan = 0;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999;                       // giữ nó sống và luôn thấy bạn
+      dan = Math.max(dan, REPO.S.bullets.filter(x => x.foe).length);
+      if (REPO.S.hurtLog.some(x => x.src === 'gunner'))
+        xaNhat = Math.max(xaNhat, Math.hypot(m.x - pl.x, m.y - pl.y));
+    }, 16);
+    await new Promise(r => setTimeout(r, 6000));
+    clearInterval(iv);
+    return { mat: Math.round(pl.hpMax - pl.hp), dan,
+             oXa: +(xaNhat / T).toFixed(1),
+             vung: m.swing || 0 };
+  });
+  check('dựng được thế đứng thông tầm nhìn để đo', !ban.boQua);
+  check('Kẻ bắn làm mất máu thật', !ban.boQua && ban.mat > 0, ban.mat + ' máu');
+  check('và có viên đạn của quái bay trên sàn', !ban.boQua && ban.dan > 0, ban.dan + ' viên');
+  check('nó bắn TỪ XA, không phải đấm — lúc trúng nó đứng cách hơn 3 ô',
+    !ban.boQua && ban.oXa > 3, ban.oXa + ' ô');
+
+  // --- 2. nó KHÔNG BAO GIỜ đánh tay, kể cả khi bị dí sát mặt ---
+  // Đây là nửa còn lại của thiết kế: áp sát nó phải là một nước đi ĐÚNG. Một con vừa bắn vừa
+  // đấm thì nước đi ấy biến mất và cả loài rút xuống thành "trừ máu theo thời gian".
+  await san();
+  const sat = await p.evaluate(async () => {
+    const m = REPO.spawnFoe('gunner', 16, 0);
+    const pl = REPO.S.player;
+    let vungToiDa = 0, xaMin = 999;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999;
+      m.x = pl.x + 16; m.y = pl.y;                   // dí nó vào mặt mình, mỗi khung một lần
+      vungToiDa = Math.max(vungToiDa, m.swing || 0);
+    }, 16);
+    await new Promise(r => setTimeout(r, 2500));
+    clearInterval(iv);
+    return { vung: vungToiDa, tam: REPO.MONSTERS.gunner.noMelee === true };
+  });
+  check('dí sát mặt suốt 2,5s mà nó không vung tay một lần nào',
+    sat.vung === 0, 'swing đỉnh ' + sat.vung);
+  check('và bảng chỉ số khai đúng điều đó (noMelee)', sat.tam === true);
+
+  // --- 3. NẤP SAU TƯỜNG giữa lúc nó ngắm thì huỷ hẳn ---
+  // Không phải "ít sát thương hơn" mà là "không phát nào". Cắt đường ngắm bằng cách bịt
+  // losClear: đặt nó ở bên kia một ô đặc, đúng thứ mà stepGunner hỏi trước khi bóp cò.
+  await san();
+  const tuong = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    // tìm một ô đặc quanh người chơi, rồi đứng con quái ngay phía sau nó
+    let m = null;
+    for (let r = 2; r <= 6 && !m; r++)
+      for (let i = 0; i < 24 && !m; i++) {
+        const a = i / 24 * Math.PI * 2;
+        const wx = pl.x + Math.cos(a) * r * T, wy = pl.y + Math.sin(a) * r * T;
+        if (!REPO.hitsSolid(wx, wy, 6)) continue;
+        const bx = pl.x + Math.cos(a) * (r + 2) * T, by = pl.y + Math.sin(a) * (r + 2) * T;
+        if (REPO.hitsSolid(bx, by, 9)) continue;
+        if (REPO.losClear(pl.x, pl.y, bx, by)) continue;      // phải THẬT SỰ khuất
+        m = REPO.spawnFoe('gunner', bx - pl.x, by - pl.y);
+      }
+    if (!m) return { boQua: true };
+    // GHIM CHÂN NÓ LẠI. Điều bài này khẳng định là "không thông tầm nhìn thì không bóp cò",
+    // chứ không phải "nó không bao giờ tìm được đường vòng" — mà đuổi thì nó vòng thật, và
+    // trong 4 giây nó vòng qua được hay không thì tuỳ hình căn nhà của hạt giống hôm ấy. Để
+    // nguyên thì bài này chập chờn theo bản đồ và nói dối cả hai chiều.
+    const gx = m.x, gy = m.y;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999; m.gunCd = 0; m.x = gx; m.y = gy;
+    }, 16);
+    await new Promise(r => setTimeout(r, 4000));
+    clearInterval(iv);
+    return { mat: Math.round(pl.hpMax - pl.hp),
+             ban: REPO.S.hurtLog.filter(x => x.src === 'gunner').length };
+  });
+  check('khuất sau tường thì nó không bắn trúng phát nào',
+    tuong.boQua || (tuong.mat === 0 && tuong.ban === 0),
+    tuong.boQua ? 'không dựng được thế đứng' : tuong.mat + ' máu / ' + tuong.ban + ' phát');
+
+  // --- 4. nó GIỮ KHOẢNG: bị áp sát thì lùi ra, không chống trả ---
+  await san();
+  const lui = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    const m = REPO.spawnFoe('gunner', T * 1.2, 0);
+    const d0 = Math.hypot(m.x - pl.x, m.y - pl.y);
+    const iv = setInterval(() => { m.alert = 9; m.hp = 999; }, 16);
+    await new Promise(r => setTimeout(r, 2500));
+    clearInterval(iv);
+    return { d0: +(d0 / T).toFixed(1), d1: +(Math.hypot(m.x - pl.x, m.y - pl.y) / T).toFixed(1),
+             keep: +(REPO.GUNNER_KEEP / T).toFixed(1) };
+  });
+  check('bị áp sát thì nó LÙI RA chứ không xông vào',
+    lui.d1 > lui.d0 + 0.8, lui.d0 + ' ô -> ' + lui.d1 + ' ô (neo ở ' + lui.keep + ' ô)');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('Kẻ bắn: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// MƯỜI BỐN CHIÊU CỦA BIỆT ĐỘI, MỖI CHIÊU MỘT HIỆU ỨNG.
+//
+// Trước đây cả mười bốn chiêu chia nhau đúng BỐN hình vector — burst, dome, implode, aura —
+// nên bấm Chói Loà hay bấm Xung Chấn thì trên màn hình là cùng một cái vòng nở ra, chỉ khác
+// màu. Với một trò mà cả lớp gacha dựng trên "mỗi xác một chiêu riêng", đó là lời hứa bị nuốt
+// ngay ở chỗ người chơi nhìn vào.
+//
+// Hiệu ứng mới ĐẶT CHỒNG LÊN lớp vector chứ không thay: lớp vector nói PHẠM VI và THỜI GIAN
+// (cái vòm Lồng Sắt đứng đúng 9 giây ở đúng 4 ô), bộ hình nói CÚ BẤM. Bỏ lớp nào cũng mất một
+// nửa, nên bài dưới đây canh cả hai đều còn.
+async function vfxSquadSuite(b) {
+  results.push('\n── mười bốn chiêu, mười bốn hiệu ứng ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+  await p.evaluate(() => { SQ.autoFill(); SQ.squad.enter('k3'); });
+  await p.waitForTimeout(1000);
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  const nap = await p.evaluate(ma => ma.filter(id => !REPO_SKIN.vfxN(id)), VFX_MA_SQ);
+  check('Biệt Đội nạp đủ mười một tấm của chiêu', nap.length === 0, nap.join(', ') || 'đủ cả');
+
+  const ra = await p.evaluate(async () => {
+    const S = REPO.S, out = {};
+    for (const ch of SQ.CHARS) {
+      S.vfx.length = 0;
+      const fn = SQ.squad.skills[ch.skill.id];
+      if (!fn) { out[ch.skill.id] = '(không có hàm)'; continue; }
+      try { fn(S.player, ch.skill); } catch (e) { out[ch.skill.id] = 'LỖI: ' + e.message; continue; }
+      const thay = new Set(); const t0 = performance.now();
+      while (performance.now() - t0 < 260) {
+        S.vfx.forEach(f => thay.add(f.id));
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      out[ch.skill.id] = [...thay];
+    }
+    return out;
+  });
+  const sai = Object.keys(CHIEU_FX).filter(k => !(ra[k] || []).length ||
+                                                (ra[k] || []).indexOf(CHIEU_FX[k]) < 0);
+  check('cả mười bốn chiêu đều nổ ra ĐÚNG hiệu ứng của nó', sai.length === 0,
+    sai.length ? sai.map(k => k + '→' + (ra[k] || '?')).join(' · ')
+               : Object.keys(CHIEU_FX).length + ' chiêu');
+  // Chớp là chiêu duy nhất có HAI cú, hai chỗ: chỗ vừa rời hút vào, chỗ vừa tới nở ra. Một cú
+  // thôi thì mắt đọc ra 'người này bỗng đứng chỗ khác', không đọc ra 'người này vừa dịch chuyển'.
+  check('riêng Chớp có đủ hai cú — chỗ đi và chỗ đến',
+    (ra.blink || []).length === 2, (ra.blink || []).join(' + '));
+
+  // Lớp vector phải CÒN NGUYÊN: nó mới là thứ mang phạm vi và thời gian.
+  const vec = await p.evaluate(async () => {
+    const S = REPO.S; S.casts.length = 0;
+    SQ.squad.skills.cage(S.player, SQ.CHARS.find(c => c.skill.id === 'cage').skill);
+    await new Promise(r => setTimeout(r, 60));
+    return S.casts.map(f => f.kind + '@' + Math.round(f.r));
+  });
+  check('và lớp vector vẫn còn — cái vòm Lồng Sắt không bị hiệu ứng mới nuốt mất',
+    vec.some(x => /^dome@/.test(x)), vec.join(', ') || 'mất hết');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('hiệu ứng chiêu: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// ĐÈN PIN CHIẾU LÊN TƯỜNG.
+//
+// Đa giác tầm nhìn dựng từ các GÓC của vật cản nên biên của nó nằm đúng trên MẶT tường, và ô
+// tường luôn rơi ra ngoài vùng được clip — soi đèn thẳng vào tường thì tường vẫn đen. Bộ này đo
+// bằng cách so CHÍNH MỘT Ô ĐÓ ở hai tư thế: quay mặt vào và quay lưng lại. Hiệu số mới là bằng
+// chứng; một con số tuyệt đối thì không, vì nó lẫn cả màu gạch, lớp trí nhớ và cái vignette.
+//
+// Và phải khoá cả hai đầu: tường SÁNG lên, mà sàn NGAY SAU tường thì KHÔNG — nới rộng vùng sáng
+// mà không chặn được ở đó thì thành nhìn xuyên tường, tức là đổi một lỗi lấy một lỗi tệ hơn.
+// ============================================================ xe lao qua tường vào nhà
+// Đoạn phim mở màn chạy trên ĐỒNG HỒ THẬT, tự lái camera, và cả cú húc lẫn đám gạch bay chỉ dài
+// chừng hai phần mười giây — nên nó KHÔNG đo được bằng cách chờ rồi chụp: mỗi lần chụp trễ
+// chừng 250ms, tức là trễ hơn cả thứ cần đo. Cách đo ở đây là ĐÓNG BĂNG requestAnimationFrame
+// rồi bơm từng khung một với mốc thời gian tự đặt — vừa đúng mốc, vừa không phụ thuộc máy nhanh
+// hay chậm.
+async function xeHucTuongSuite(b) {
+  results.push('\n── xe lao qua tường vào nhà ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 390, height: 844 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  const CUT = await p.evaluate(() => REPO.CUT);
+  check('mốc thời gian của đoạn phim mở ra cho bộ đo', !!CUT && CUT.HIT > 0,
+    CUT ? JSON.stringify(CUT) : 'không có');
+
+  // Đóng băng đồng hồ TRƯỚC khi dựng màn, để khung hình đầu tiên của đoạn phim không trôi mất.
+  // ĐÓNG BĂNG ĐÚNG MỘT LẦN. Đặt lại `__q = []` ở lần thứ hai là VỨT MẤT cái callback đang
+  // chờ — mà cái đang chờ chính là vòng lặp khung hình, thứ duy nhất tự xếp mình vào hàng lại.
+  // Vứt nó đi thì hàng đợi rỗng vĩnh viễn: mọi phép đo sau đó đọc ra t = 0 và "xe không chạy",
+  // trong khi cái sai nằm ở chính bộ đo.
+  const batDau = () => p.evaluate(() => {
+    if (!window.__dongBang){
+      window.__dongBang = true;
+      window.__q = []; window.__t = performance.now();
+      window.requestAnimationFrame = (cb) => { window.__q.push(cb); return 1; };
+    }
+    REPO.S.level = 1; REPO.startLevel(4242);
+  });
+  const toi = (tt) => p.evaluate((t) => {
+    for (let i = 0; i < 900; i++) {
+      const cb = window.__q.shift(); if (!cb) break;
+      window.__t += 16.7; cb(window.__t);
+      if (!REPO.S.cut || REPO.S.cut.t >= t) break;
+    }
+    const S = REPO.S, off = REPO.carDrawOffset(), fr = REPO.frame();
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;
+    };
+    const sc = REPO.screenOf(S.player.x, S.player.y);
+    return { t: S.cut ? +S.cut.t.toFixed(3) : null,
+             xeY: +(S.car.y + off.dy).toFixed(1),
+             rot: +off.rot.toFixed(3), cua: +off.door.toFixed(2),
+             bay: S.cut ? S.cut.gach.length : 0,
+             san: (S.gach || []).length, seo: !!S.tuongVo,
+             xa: [xa(S.player)].concat((S.mates || []).map(xa)),
+             man: { y: sc.y / (window.devicePixelRatio || 1), h: fr.h } };
+  }, tt);
+
+  await batDau();
+  const dau = await toi(0.05);
+  check('khung hình đầu: xe còn ở NGOÀI mép bản đồ, trên đường',
+    dau.xeY < -60, 'tâm xe y = ' + dau.xeY);
+  check('và mũi xe chúi XUỐNG, không nằm ngang như lúc đậu',
+    Math.abs(dau.rot - Math.PI / 2) < 0.2, 'góc ' + dau.rot);
+  check('cả tổ ngồi TRÊN XE chứ không đứng sẵn quanh chỗ đậu',
+    dau.xa.length > 1 && dau.xa.every(v => v > 60), 'cách chỗ đứng thật: ' + dau.xa.join(' · '));
+  check('cửa sau còn ĐÓNG trong lúc xe chạy', dau.cua === 0, 'cửa ' + dau.cua);
+
+  // Không nhảy tốc độ ở mốc húc: đo quãng đi được của hai khung liền kề hai bên mốc.
+  const trc = await toi(CUT.HIT - 0.05), tai = await toi(CUT.HIT + 0.001);
+  const sau = await toi(CUT.HIT + 0.05);
+  const vTruoc = Math.abs(tai.xeY - trc.xeY) / Math.max(0.001, tai.t - trc.t);
+  const vSau = Math.abs(sau.xeY - tai.xeY) / Math.max(0.001, sau.t - tai.t);
+  check('vận tốc không NHẢY ở đúng mốc húc — xe không tăng tốc nhờ cú đâm',
+    vSau <= vTruoc * 1.15, Math.round(vTruoc) + ' -> ' + Math.round(vSau) + ' px/s');
+
+  check('húc phát là gạch VĂNG RA', tai.bay > 10, tai.bay + ' mảnh');
+  check('và bức tường mang vết sẹo', tai.seo);
+  check('cửa xe vẫn chưa mở lúc vừa húc — mở là việc SAU đó', tai.cua === 0, 'cửa ' + tai.cua);
+
+  const mo = await toi(CUT.DOOR[1]);
+  check('húc xong mới tới lượt cửa sau mở toang', mo.cua === 1, 'cửa ' + mo.cua);
+
+  // Khung hình CUỐI CÙNG còn đoạn phim: ai cũng phải bước xuống xong ở đây. Đo sau khi nó đóng
+  // thì phép đo thành vô nghĩa — hết phim là chỗ vẽ trả về đúng chỗ đứng thật, nên ca này sẽ
+  // xanh kể cả khi người ngồi ghế cuối bị bỏ rơi giữa đường. Và KHÔNG bơm khung tới mốc ấy:
+  // bơm thì mốc dừng lệch vài phần trăm giây tuỳ khung đầu rơi vào đâu, có lượt vọt qua 3,25
+  // và ca này đỏ oan. Chỗ vẽ là hàm thuần của `t`, nên đặt thẳng `t` là đo được đúng khung cần.
+  const cuoi = await p.evaluate((t) => {
+    if (!REPO.S.cut) return null;
+    REPO.S.cut.t = t;
+    const S = REPO.S;
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;
+    };
+    return { t, xa: [xa(S.player)].concat((S.mates || []).map(xa)) };
+  }, CUT.ARRIVE - 0.02);
+  check('người cuối cùng cũng kịp xuống xe TRƯỚC khi phim đóng',
+    !!cuoi && cuoi.xa.every(v => v === 0),
+    cuoi ? cuoi.t + 's · ' + cuoi.xa.join(' · ') : 'phim đã đóng mất');
+
+  const het = await toi(CUT.ARRIVE + 0.2);
+  const doY = await p.evaluate(() => REPO.S.car.y);
+  check('hết phim: đoạn cắt tự đóng', het.t === null, String(het.t));
+  check('xe đứng ĐÚNG chỗ đậu, nằm ngang lại',
+    Math.abs(het.xeY - doY) < 0.5 && het.rot === 0,
+    'y ' + het.xeY + ' · góc ' + het.rot);
+  check('gạch vỡ NẰM LẠI trên sàn, không biến mất cùng đoạn phim',
+    het.san > 0, het.san + ' mảnh');
+  check('và máy quay trả về giữa khung, không kẹt lại trên đường',
+    Math.abs(het.man.y - het.man.h / 2) < het.man.h * 0.25,
+    Math.round(het.man.y) + ' / ' + Math.round(het.man.h));
+
+  // Bỏ qua giữa chừng: không được để camera treo lơ lửng ngoài mép bản đồ.
+  await batDau();
+  await toi(0.4);
+  const bo = await p.evaluate(() => {
+    REPO.skipCut();
+    const S = REPO.S, fr = REPO.frame();
+    const sc = REPO.screenOf(S.player.x, S.player.y);
+    return { cut: !!S.cut, seo: !!S.tuongVo,
+             y: sc.y / (window.devicePixelRatio || 1), h: fr.h };
+  });
+  check('bỏ qua giữa chừng thì đoạn phim tắt hẳn', !bo.cut);
+  check('và máy quay dán ngay vào người chơi, không lia nửa giây',
+    Math.abs(bo.y - bo.h / 2) < bo.h * 0.25, Math.round(bo.y) + ' / ' + Math.round(bo.h));
+  check('bỏ qua rồi thì bức tường vẫn mang vết húc — xe vào bằng đường nào đó', bo.seo);
+
+  // Trạm dịch vụ KHÔNG có cú húc: sảnh trạm bày hàng suốt dọc hành lang.
+  const tram = await p.evaluate(() => {
+    REPO.startShop();
+    const h = REPO.xeDiemHuc();
+    return { tuong: h.tuong, seo: !!REPO.S.tuongVo, gach: (REPO.S.gach || []).length };
+  });
+  check('vào TRẠM thì không húc tường', tram.tuong === false);
+  check('và trạm không có gạch vỡ nào của ván trước sót lại',
+    !tram.seo && tram.gach === 0, tram.gach + ' mảnh');
+
+  // ---------------------------------------------------------------- khúc thoát
+  // Chủ dự án: "khúc thoát thì cho bot chạy lên xe cùng player chạy đi mất."
+  results.push('\n── khúc thoát: cả tổ chạy lên xe rồi xe đi ──');
+  // Dựng lại một ván THẬT trước đã: mấy phép trên vừa để lại trạm dịch vụ, mà trạm thì không
+  // có bot nào và cũng không có lỗ tường nào để xe chui ra.
+  await batDau();
+  await p.evaluate(() => { REPO.cancelCut(); REPO.S.running = true; REPO.finishLevel(); });
+  const di = (tt) => p.evaluate((t) => {
+    for (let i = 0; i < 900; i++) {
+      const cb = window.__q.shift(); if (!cb) break;
+      window.__t += 16.7; cb(window.__t);
+      if (!REPO.S.cut || REPO.S.cut.t >= t) break;
+    }
+    const S = REPO.S, off = REPO.carDrawOffset();
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;   // -1 = đã khuất trong thùng
+    };
+    const ghe = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - S.car.x - off.dx, q.y - S.car.y - off.dy).toFixed(1) : -1;
+    };
+    return { t: S.cut ? +S.cut.t.toFixed(3) : null, kind: S.cut ? S.cut.kind : null,
+             tram: !!S.shopMode,
+             dx: +off.dx.toFixed(1), dy: +off.dy.toFixed(1),
+             rot: +off.rot.toFixed(3), cua: +off.door.toFixed(2),
+             xa: [xa(S.player)].concat((S.mates || []).map(xa)),
+             ghe: [ghe(S.player)].concat((S.mates || []).map(ghe)) };
+  }, tt);
+
+  const TILE_ = await p.evaluate(() => REPO.TILE);
+  const TREN_XE = TILE_*2.6;        // nửa chiều dài thùng xe, tính rộng ra một chút
+
+  const d0 = await di(0.02);
+  check('khúc thoát mở ra được', d0.kind === 'depart', String(d0.kind));
+  check('khung đầu: ai đứng đâu vẫn ở đó, chưa ai bị hút vào xe',
+    d0.xa.every(v => v === 0), d0.xa.join(' · '));
+  check('và cửa sau còn mở toang để người ta còn leo lên', d0.cua === 1, 'cửa ' + d0.cua);
+
+  const dGiua = await di(CUT.LEN[0] + CUT.LEN[1]*0.5);
+  check('giữa chừng thì cả tổ ĐANG TRÊN ĐƯỜNG tới xe, không ai đứng yên',
+    dGiua.xa.filter(v => v > 1).length >= 1, dGiua.xa.join(' · '));
+  check('xe vẫn đứng im trong lúc người còn đang chạy tới',
+    dGiua.dx === 0 && dGiua.dy === 0, dGiua.dx + ' / ' + dGiua.dy);
+
+  const dLen = await di(CUT.SHUT[0] - 0.02);
+  check('tới lúc cửa bắt đầu đóng thì ai cũng đã lên tới thùng xe',
+    dLen.ghe.every(v => v >= 0 && v < TREN_XE), dLen.ghe.join(' · '));
+
+  const dDong = await di(CUT.SHUT[1]);
+  check('cửa đóng hẳn rồi thì không còn nhìn thấy ai — thùng kín mà',
+    dDong.cua === 0 && dDong.xa.every(v => v === -1), 'cửa ' + dDong.cua + ' · ' + dDong.xa.join(' · '));
+  check('và tới lúc ấy xe VẪN chưa lăn bánh — đóng cửa trước, chạy sau',
+    dDong.dy === 0 && dDong.dx === 0, dDong.dx + ' / ' + dDong.dy);
+
+  const dChay = await di(CUT.OFF[1] - 0.02);
+  check('rồi xe VỌT RA bằng chính cái lỗ nó húc vào — lên trên, không sang ngang',
+    dChay.dy < -TILE_*8 && Math.abs(dChay.dx) < 1, 'dy ' + dChay.dy + ' · dx ' + dChay.dx);
+  check('và nó quay mũi lên trước khi đi', Math.abs(dChay.rot + Math.PI/2) < 0.15, 'góc ' + dChay.rot);
+
+  // KHÔNG kiểm "S.cut === null" ở đây: hết khúc thoát thì cái `then` của nó mở luôn trạm dịch
+  // vụ, mà trạm dịch vụ lại có đoạn phim xe TỚI của riêng nó. Đo nhầm chỗ này thì bộ đo báo
+  // "xe không bao giờ đi" trong khi thật ra nó đã đi, đã tới nơi, và đang đỗ ở trạm.
+  const dHet = await di(CUT.DEPART + 0.2);
+  check('hết khúc thoát thì xe giao lại sân cho trạm dịch vụ',
+    dHet.kind !== 'depart' && dHet.tram, dHet.kind + ' · trạm ' + dHet.tram);
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('xe lao qua tường: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// ============================================================ chuột-phím, và ba cái lỗi
+// Ba phần rời nhau nhưng đi chung một trình duyệt vì cả ba đều cần MỘT khung KHÔNG CẢM ỨNG:
+// openGame() ở đầu tệp luôn bật hasTouch, mà chạm một cái là chế độ máy tính tắt vĩnh viễn
+// (xem pcMode) — nên bộ này tự mở lấy ngữ cảnh của mình.
+async function pcSuite(b) {
+  results.push('\n── chuột-phím trên máy tính ──');
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(R2D);
+  await p.waitForTimeout(1100);
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+  });
+
+  // --- 1. nhận ra máy tính, và cả hai thứ "to ra" ---
+  const bo = await p.evaluate(() => {
+    const h = REPO.hudLayout();
+    return { pc: h.pc, K: +REPO.uiK().toFixed(2), w: h.w, h: h.h,
+             oNho: REPO.frame().worldW / REPO.TILE };
+  });
+  check('khung có chuột thật thì vào chế độ máy tính', bo.pc === true, JSON.stringify(bo));
+  check('lớp HUD phóng to theo màn hình, không giữ cỡ điện thoại', bo.K > 1.2, 'K = ' + bo.K);
+  check('và khung nhìn lùi ra, không còn là cái lỗ khoá 9,5 ô của điện thoại cầm ngang',
+    bo.oNho > 15, bo.oNho.toFixed(1) + ' ô ngang');
+
+  // --- 2. nút của ngón tay không còn bắt chuột ---
+  // Bấm giữa khung: ở bộ cũ chỗ ấy là dải cần gạt, nên một cú bấm sinh ra một cần gạt và
+  // KHÔNG bắn. Ở đây nó phải là một phát đạn.
+  const ban = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    if (S.stashOpen) REPO.closeStash();
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*3);
+    pl.inv[0] = { kind:'gun', uses:20 }; pl.hand = 0; pl.cooldown = 0;
+    return { dan: pl.inv[0].uses };
+  });
+  await p.mouse.move(1000, 700);           // dải dưới cùng: chỗ cần gạt cũ ngồi
+  await p.mouse.down(); await p.waitForTimeout(40); await p.mouse.up();
+  await p.waitForTimeout(140);
+  const sauBan = await p.evaluate(() => ({ dan: REPO.S.player.inv[0].uses,
+                                           can: !!REPO.stick() }));
+  check('bấm chuột trong dải cần gạt cũ thì BẮN, không sinh ra cần gạt',
+    sauBan.dan === ban.dan - 1 && !sauBan.can, ban.dan + ' -> ' + sauBan.dan +
+    (sauBan.can ? ' (còn sinh ra cần gạt)' : ''));
+
+  // --- 3. lăn chuột đổi ô đồ, vòng qua cả nắm đấm ---
+  const lan = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    pl.inv[1] = { kind:'bomb', uses:2 }; pl.inv[2] = null; pl.hand = 0;
+    const cv = document.getElementById('game');
+    const ra = [pl.hand];
+    for (let i = 0; i < 3; i++){
+      cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+      ra.push(pl.hand);
+    }
+    return ra;
+  });
+  check('lăn chuột đi hết vòng tay: hai ô có đồ và nắm đấm',
+    lan.join(',') === '0,1,-1,0', lan.join(','));
+
+  // --- 4. E là phím nhặt (Q cũng thế), R là phím kỹ năng ---
+  const q = await p.evaluate(() => {
+    const S = REPO.S;
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*1.2);
+    const truoc = !!S.stashOpen;
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+    const sau = !!S.stashOpen;
+    if (S.stashOpen) REPO.closeStash();
+    // Q phải làm ĐÚNG cái E vừa làm — hai phím một việc, để tay ai quen phím nào cũng chạy.
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    const cungQ = !!S.stashOpen;
+    if (S.stashOpen) REPO.closeStash();
+    return { truoc, sau, cungQ, nhan: REPO.nhanTuongTac(S.player, true) };
+  });
+  check('E đứng cạnh xe tải thì mở tủ đồ', !q.truoc && q.sau, JSON.stringify(q));
+  check('Q làm y hệt E, không phải một phím chết', q.cungQ === true, JSON.stringify(q));
+  check('và dòng nhắc nói đúng việc E sắp làm', q.nhan === 'Mở tủ', q.nhan);
+
+  const e = await p.evaluate(() => {
+    let n = 0;
+    REPO.hooks.skill = { icon:'⚡', label: () => 'Thử', ready: () => true, cool: () => 1,
+                         use: () => { n++; } };
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    const co = n;
+    REPO.hooks.skill = null;                       // Ca Trực Đêm vốn không có kỹ năng nào
+    const man = REPO.S.level, tien = REPO.S.wallet;
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    // R KHÔNG còn xoá ván: cái đó về nút "Ca mới" dưới chân trang.
+    return { co, yen: REPO.S.level === man && REPO.S.wallet === tien };
+  });
+  check('R bấm kỹ năng khi bản đang chạy có kỹ năng', e.co === 1, 'gọi ' + e.co + ' lần');
+  check('bản không có kỹ năng thì R im, và KHÔNG dựng lại ván', e.yen);
+
+  // --- 4b. ở trạm dịch vụ, bấm chuột trái chỗ nào cũng là bắn thử ---
+  // Chuột THẬT của Playwright, không phải PointerEvent bịa: pointerdown gọi setPointerCapture,
+  // và một pointerId không có thật thì hàm ấy ném NotFoundError trước khi tới được nhánh cần đo.
+  const truocBan = await p.evaluate(() => {
+    const S = REPO.S;
+    S.shopMode = true;
+    S.player.held = { good: { kind:'gear', key:'gun' } };
+    S.player.cooldown = 0; S.bullets.length = 0;
+    return S.bullets.length;
+  });
+  const box = await p.locator('#game').boundingBox();
+  await p.mouse.move(box.x + box.width*0.5, box.y + box.height*0.35);
+  await p.mouse.down(); await p.mouse.up();
+  await p.waitForTimeout(120);
+  const sauTram = await p.evaluate(() => {
+    const n = REPO.S.bullets.length;
+    REPO.S.shopMode = false; REPO.S.player.held = null; REPO.S.bullets.length = 0;
+    return n;
+  });
+  check('ở trạm, bấm chuột trái giữa khung là bắn thử — không phải đi tìm cái nút tròn',
+    sauTram === truocBan + 1, truocBan + ' -> ' + sauTram);
+
+  // --- 5. LỖI: với xuyên tường ---
+  const xuyen = await p.evaluate(() => {
+    const S = REPO.S, T = REPO.TILE;
+    // tìm một ô tường có sàn ở cả hai bên, rồi đứng một bên và đặt món đồ ở bên kia
+    for (let gy = 2; gy < REPO.MH-2; gy++) for (let gx = 2; gx < REPO.MW-2; gx++){
+      if (S.grid[gy*REPO.MW+gx] !== 1) continue;
+      if (S.grid[gy*REPO.MW+gx-1] !== 0 || S.grid[gy*REPO.MW+gx+1] !== 0) continue;
+      const l = S.loot.find(x => !x.gone && !x.held && !x.onPad);
+      if (!l) return null;
+      // người đứng SÁT mặt tường bên trái, món đồ TỰA vào mặt tường bên phải
+      REPO.warp((gx)*T - 9, (gy+0.5)*T);
+      l.x = (gx+1)*T + 9; l.y = (gy+0.5)*T; l.inCart = false; l.onPad = null;
+      const d = Math.hypot(l.x - S.player.x, l.y - S.player.y);
+      return { d: +d.toFixed(1), tam: +REPO.grabRange(S.player).toFixed(1),
+               voiToi: REPO.nearestLoot(S.player) === l };
+    }
+    return null;
+  });
+  check('dựng được thế đứng: người một bên tường, món đồ bên kia', !!xuyen, JSON.stringify(xuyen));
+  if (xuyen){
+    check('món đồ ấy nằm TRONG tầm với, tức là phép đo có ý nghĩa',
+      xuyen.d < xuyen.tam, xuyen.d + ' < ' + xuyen.tam);
+    check('nhưng KHÔNG với qua tường được', xuyen.voiToi === false);
+  }
+
+  // --- 6. LỖI: bắn súng vào cửa kẹt thì cửa bể ---
+  const cua = await p.evaluate(async () => {
+    const S = REPO.S;
+    for (const seed of [3, 11, 42, 99, 512]){
+      S.level = 4; REPO.startLevel(seed); REPO.cancelCut();
+      S.running = true; S.noFoes = true; S.monsters.length = 0;
+      S.mates.length = 0;                     // đồng đội đứng cạnh là tự phang vỡ cửa
+      const d = (S.doors||[]).find(q => q.locked && !q.broken);
+      if (!d) continue;
+      const pl = S.player;
+      const dx = d.vertical ? REPO.TILE*1.1 : 0, dy = d.vertical ? 0 : REPO.TILE*1.1;
+      REPO.warp(d.x + dx, d.y + dy);
+      pl.dir = Math.atan2(-dy, -dx);
+      pl.inv[0] = { kind:'gun', uses:20 }; pl.hand = 0;
+      const nhat = [];
+      for (let i = 0; i < 6 && !d.broken; i++){
+        pl.cooldown = 0; pl.chargeSlot = -1;
+        REPO.useSlot(pl, 0, pl.dir);
+        await new Promise(r => setTimeout(r, 240));
+        nhat.push(+(d.pry||0).toFixed(1));
+      }
+      return { seed, be: !!d.broken, phat: nhat.length, nhat };
+    }
+    return null;
+  });
+  check('dựng được một cửa kẹt để bắn', !!cua, JSON.stringify(cua));
+  if (cua){
+    check('bắn súng vào cửa kẹt thì cửa BỂ', cua.be === true, JSON.stringify(cua.nhat));
+    check('nhưng không phải một phát ăn ngay — vẫn tốn đạn', cua.phat >= 2, cua.phat + ' phát');
+  }
+
+  const err = errs.filter(x => !/favicon/.test(x));
+  check('chuột-phím: không lỗi console', err.length === 0, err.slice(0,2).join(' | '));
+  await ctx.close();
+}
+
+// ============================================================ người chơi gục thì bot phải gỡ được ván
+// Chủ dự án: "bot chưa biết cách extract sau khi player chết r -> stuck". Đây là một NGÕ CỤT
+// KÍN, nên nó đáng một bộ đo riêng: người chơi nằm thì chính họ cũng không tự gỡ được.
+async function botGoVanSuite(b) {
+  results.push('\n── người chơi gục: bot phải tự gỡ được ván ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  const dung = async (cuu) => p.evaluate((coCuu) => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(777); REPO.cancelCut();
+    REPO.S.running = true; REPO.S.noFoes = true; REPO.S.monsters.length = 0;
+    REPO.S.pads.forEach(q => { q.quota = 0; });       // đủ chỉ tiêu ngay, khỏi phải khuân
+    REPO.killPlayer();
+    if (!coCuu) REPO.S.loot.filter(l => l.isHead).forEach(l => { l.gone = true; });
+    return { down: REPO.S.player.down, mates: (REPO.S.mates||[]).length };
+  }, cuu);
+  const doc = () => p.evaluate(() => {
+    const S = REPO.S;
+    return { done: S.pads.filter(q => q.done).length, tong: S.pads.length,
+             levelDone: !!S.levelDone, board: +(S.board||0).toFixed(1),
+             nam: !!S.player.down, shop: !!S.shopMode,
+             trong: (S.mates||[]).filter(m => !m.down &&
+                      Math.hypot(m.x-S.car.x, m.y-S.car.y) < REPO.TILE*2.4).length };
+  });
+  const cho = async (xong, giay) => {
+    for (let i = 0; i < giay*2; i++){
+      await p.waitForTimeout(500);
+      const d = await doc();
+      if (xong(d)) return d;
+    }
+    return doc();
+  };
+
+  // --- 1. có cứu được: bot vác đầu lên bệ, đạp nút, và người chơi ĐỨNG DẬY ---
+  const d0 = await dung(true);
+  check('dựng được thế: người chơi nằm, ba bot còn đứng', d0.down && d0.mates === 3,
+    JSON.stringify(d0));
+  const a = await cho(d => d.done >= d.tong, 40);
+  check('bot tự chốt được bệ giao hàng dù người chơi đang nằm',
+    a.done === a.tong && a.levelDone, JSON.stringify(a));
+  check('và bệ chốt xong thì người chơi đứng dậy — đầu đã được vác lên bệ',
+    a.nam === false, JSON.stringify(a));
+
+  // --- 2. không cứu được: bot vẫn phải LÊN XE để ván còn có lối ra ---
+  const d1 = await dung(false);
+  check('dựng được thế thứ hai: người chơi nằm và không cứu được', d1.down);
+  const c = await cho(d => d.board > 1 || d.shop, 50);
+  check('bot chốt bệ rồi TỰ VỀ ĐỨNG TRONG THÙNG XE',
+    c.shop || (c.levelDone && c.trong > 0), JSON.stringify(c));
+  check('và đồng hồ lên xe chạy — ván có lối ra, không treo',
+    c.shop || c.board > 1, JSON.stringify(c));
+
+  const err = errs.filter(x => !/favicon/.test(x));
+  check('người chơi gục: không lỗi console', err.length === 0, err.slice(0,2).join(' | '));
+  await ctx.close();
+}
+
+async function lightSuite(_khongDung) {
+  results.push('\n── đèn pin phải soi sáng được tường ──');
+  // Trình duyệt RIÊNG, vì bộ này đọc pixel bằng getImageData mà art nạp qua file:// làm canvas
+  // "nhiễm chéo nguồn" — Chromium chặn thẳng bằng SecurityError. Cờ này chỉ mở trong bộ đo pixel
+  // này, không mở cho cả bộ kiểm.
+  const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 640 });
+  await p.locator('#veilBtn').click();
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  // Thế đứng phải DÒ QUA NHIỀU HẠT GIỐNG, không đóng đinh vào một ván.
+  //
+  // Bộ này từng ghim REPO.startLevel(1234) rồi tìm thế đứng trong đúng ván ấy. Thêm đúng một mẫu
+  // phòng vào bảng ROOMS là thứ tự bốc phòng đổi, ván 1234 ra một căn nhà khác, và hai ca đo gãy
+  // vì không dựng nổi thế đứng — chứ không phải vì ánh sáng sai. Một bộ đo pixel mà phụ thuộc vào
+  // việc bảng phòng có bao nhiêu dòng thì nó đo cả những thứ nó không định đo.
+  //
+  // Và thế đứng phải CÁCH MÉP BẢN ĐỒ: camera chặn lại ở rìa, nên đứng sát rìa thì điểm đo tính
+  // theo screenOf rơi lên thanh máu ở góc trên trái. Đo được lúc đó là 198/255 cả khi quay mặt lẫn
+  // khi quay lưng — đúng màu của cái thanh máu, không phải màu của cái sàn.
+  const MEP = 9;
+  const doVan = async (timFn) => {
+    for (const seed of [1234, 7, 42, 99, 512, 2026, 31337, 8080, 606, 1717]) {
+      const r = await p.evaluate(g => {
+        REPO.S.level = 4; REPO.startLevel(g.seed); REPO.cancelCut();
+        // cancelCut() CHỨ KHÔNG PHẢI chỉ `S.cut = null`, và nó bắt buộc từ bản
+        // 20260910a: đoạn phim xe vào nhà nay TỰ LÁI CAMERA (camTheoXe), nên để nó
+        // chạy là mọi điểm đo tính bằng screenOf rơi ra ngoài mép bản đồ — cả sáu
+        // phép trong bộ này đọc ra 0/255 và tố cáo một lỗi ánh sáng không có thật.
+        REPO.S.monsters.length = 0;
+        (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+        return eval('(' + g.fn + ')')(g.mep);
+      }, { seed, fn: timFn.toString(), mep: MEP });
+      if (r) { await p.waitForTimeout(400); return Object.assign({ seed }, r); }
+    }
+    return null;
+  };
+
+  // Một hành lang dọc: ba ô sàn đi lên rồi tới tường. Đứng dưới cùng, ngửa đèn lên.
+  const cho = await doVan(mep => {
+    const T = REPO.TILE, S = REPO.S, MW = REPO.MW;
+    for (let gy = mep; gy < REPO.MH - mep; gy++) for (let gx = mep; gx < REPO.MW - mep; gx++) {
+      let ok = true;
+      for (let k = 0; k < 3; k++) if (REPO.solidAt(gx, gy - k)) { ok = false; break; }
+      // CUỐI HÀNH LANG PHẢI LÀ TƯỜNG THẬT, và ô sau nó phải là SÀN THẬT.
+      //
+      // `solidAt` gộp cả ĐỒ ĐẠC vào với tường, và ca này từng bốc trúng một cái kệ (deco 3)
+      // làm "bức tường": ô ngay sau nó rồi được đo là "sàn sau tường", trong khi thứ nằm ở đó
+      // là NỬA TRÊN CỦA CHÍNH CÁI KỆ — hình cao hơn ô nên tràn lên trên 12 đơn vị.
+      //
+      // Từ 2026-09-09 đèn biết trùm hết phần tràn ấy (`S.propUp` + `themONhoDo`), nên chỗ đó
+      // sáng lên và ca này đỏ — báo một cái rò sáng xuyên tường KHÔNG hề tồn tại. Đo được ở
+      // cùng thế đứng, hạt giống 1234, ô (27,12): cuối hành lang là PROP deco 3 với propUp 12,
+      // ô "sau tường" là FLOOR, và tắt phần tràn đi thì 6/255 còn bật lên thì 62/255.
+      //
+      // Ca này canh ĐÚNG MỘT luật — ánh sáng không lọt qua TƯỜNG — nên nó phải đứng trước một
+      // bức tường. Không nới lỏng phép đo, chỉ dựng đúng cái thế đứng mà tên nó nói.
+      if (!ok || S.grid[(gy - 3) * MW + gx] !== 1) continue;
+      if (S.grid[(gy - 4) * MW + gx] !== 0) continue;
+      const px = (gx + 0.5) * T, py = (gy + 0.5) * T;
+      if (REPO.hitsSolid(px, py, 10)) continue;
+      REPO.warp(px, py);
+      return { gx, gy };
+    }
+    return null;
+  });
+  check('dựng được thế đứng để đo: hành lang cụt, cuối là tường', !!cho, JSON.stringify(cho));
+
+  // Hướng nhìn bị ghi đè mỗi khung nếu có input, nên phải ép lại liên tục.
+  const nhin = async (dir) => {
+    await p.evaluate(d => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = d; }, 16); }, dir);
+    await p.waitForTimeout(2400);
+    return p.evaluate(() => {
+      const c = document.getElementById('game'), g = c.getContext('2d');
+      const T = REPO.TILE, S = REPO.S;
+      const gx0 = (S.player.x / T) | 0, gy0 = (S.player.y / T) | 0;
+      // Trung bình một mảng 9x9 quanh tâm ô, để một đường kẻ gạch không lái kết quả.
+      const lay = d => {
+        const s = REPO.screenOf((gx0 + 0.5) * T, (gy0 - d + 0.5) * T);
+        let t = 0, n = 0;
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = g.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++;
+        }
+        return Math.round(t / n);
+      };
+      return { san: lay(2), tuong: lay(3), sauTuong: lay(4) };
+    });
+  };
+  const vao = await nhin(-Math.PI / 2);          // ngửa lên, soi thẳng vào tường
+  const ra  = await nhin(Math.PI / 2);           // quay lưng lại
+
+  check('đo được: soi đèn vào thì SÀN phía trước sáng hẳn lên',
+    vao.san - ra.san > 40, ra.san + ' -> ' + vao.san);
+  check('và ô TƯỜNG cuối hành lang cũng sáng lên theo',
+    vao.tuong - ra.tuong > 25, ra.tuong + ' -> ' + vao.tuong);
+  check('nhưng sàn NGAY SAU bức tường vẫn tối như cũ',
+    Math.abs(vao.sauTuong - ra.sauTuong) < 10 && vao.sauTuong < 25,
+    ra.sauTuong + ' -> ' + vao.sauTuong);
+
+  // --- cánh cửa ĐÓNG: sáng được, mà vẫn không nhìn xuyên qua ---------------
+  const cua = await p.evaluate(() => {
+    const T = REPO.TILE, d = (REPO.S.doors || [])[0];
+    if (!d) return null;
+    d.leaf[0] = 0; d.leaf[1] = 0; d.open = 0;
+    REPO.warp(d.vertical ? d.x + T * 2.5 : d.x, d.vertical ? d.y : d.y + T * 2.5);
+    window.__cuaDir = d.vertical ? Math.PI : -Math.PI / 2;
+    return { doc: !!d.vertical };
+  });
+  const nhinCua = async (dir) => {
+    await p.evaluate(d => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = d;
+        (REPO.S.doors || []).forEach(q => { q.leaf[0] = 0; q.leaf[1] = 0; q.open = 0; }); }, 16); }, dir);
+    await p.waitForTimeout(2400);
+    return p.evaluate(() => {
+      const c = document.getElementById('game'), g = c.getContext('2d');
+      const T = REPO.TILE, d = REPO.S.doors[0];
+      const ux = d.vertical ? 1 : 0, uy = d.vertical ? 0 : 1;
+      const lay = (wx, wy) => {
+        const s = REPO.screenOf(wx, wy);
+        let t = 0, n = 0;
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = g.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++;
+        }
+        return Math.round(t / n);
+      };
+      return { taiCua: lay(d.x, d.y),
+               sauCua: lay(d.x - ux * T * 1.2, d.y - uy * T * 1.2),
+               xaHon:  lay(d.x - ux * T * 2.4, d.y - uy * T * 2.4) };
+    });
+  };
+  if (cua) {
+    const cVao = await nhinCua(await p.evaluate(() => window.__cuaDir));
+    const cRa  = await nhinCua(await p.evaluate(() => window.__cuaDir + Math.PI));
+    check('cánh cửa ĐÓNG cũng sáng lên khi soi đèn vào',
+      cVao.taiCua - cRa.taiCua > 25, cRa.taiCua + ' -> ' + cVao.taiCua);
+    check('mà phòng sau cánh cửa đóng thì vẫn không thấy gì',
+      cVao.sauCua < 25 && cVao.xaHon < 25, cVao.sauCua + ' / ' + cVao.xaHon);
+  }
+
+  // --- MẶT TƯỜNG SÁNG NGANG CÁI SÀN, VÀ DẢI SÁNG KHÔNG SỨT -----------------------------
+  // Hai ca này là hai nửa của cùng một báo cáo — "soi đèn vào tường mà tường vẫn chưa tỏ":
+  //   1. nước sơn tường tối hơn nước sơn sàn thì NHÂN với ánh sáng nào cũng vẫn ra tối hơn,
+  //      nên phải đo tường SO VỚI sàn ngay trước nó chứ không so với chính nó lúc tắt đèn;
+  //   2. tia nào chạm tường sát đường ranh giữa hai ô tường thì đèn ăn vào đúng 0 điểm ảnh,
+  //      nên cứ đúng một ô lại có một vết khuyết đen ăn ngược vào dải sáng.
+  const day = await doVan(mep => {
+    const T = REPO.TILE, S = REPO.S, MW = REPO.MW, MH = REPO.MH;
+    const G = (gx, gy) => S.grid[gy * MW + gx];
+    for (let gy = mep; gy < MH - mep; gy++) for (let gx = mep; gx < MW - mep; gx++) {
+      let ok = true;
+      for (let j = -2; j <= 2; j++) if (G(gx + j, gy) !== 1) ok = false;        // dãy tường 5 ô
+      for (let k = 1; k <= 3 && ok; k++) for (let j = -2; j <= 2; j++)
+        if (G(gx + j, gy + k) !== 0) ok = false;                                // sàn trống trước mặt
+      // VÀ CẢ DÃY PHẢI NẰM GỌN TRONG MỘT PHÒNG.
+      //
+      // Từ 2026-09-03 mỗi phòng mang một nước đá riêng, nên một dãy tường vắt qua ranh hai phòng
+      // có hai nước sơn khác nhau — đo được cột cạn nhất 34 trong khi cột giữa dải 123, mà cả dải
+      // vẫn liền, không sứt một chỗ nào. Cái bộ này đi tìm là vết khuyết của ĐA GIÁC ÁNH SÁNG;
+      // để nó đo qua một chỗ đổi nước sơn là bắt nó trả lời một câu khác câu nó hỏi.
+      const phong = j2 => ((gy + 1) / REPO.RH | 0) * REPO.GX + ((gx + j2) / REPO.RW | 0);
+      for (let j = -2; j <= 2 && ok; j++) if (phong(j) !== phong(-2)) ok = false;
+      if (!ok) continue;
+      REPO.warp((gx + 0.5) * T, (gy + 3.5) * T);
+      return { gx, gy };
+    }
+    return null;
+  });
+  check('dựng được thế đứng thứ hai: một dãy tường trống trải trước mặt', !!day, JSON.stringify(day));
+  if (day) {
+    await p.evaluate(() => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = -Math.PI / 2; }, 16); });
+    await p.waitForTimeout(2400);
+    const so = await p.evaluate(g => {
+      const c = document.getElementById('game'), gg = c.getContext('2d');
+      const T = REPO.TILE;
+      const doc = (wx, wy) => {                    // trung bình 3x3: một đường mạch vữa không lái được kết quả
+        const s = REPO.screenOf(wx, wy);
+        let t = 0, n = 0;
+        for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+          const q = gg.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++;
+        }
+        return Math.round(t / n);
+      };
+      const yMat = g.gy * T + T - 5;               // mặt tường: 5 điểm ảnh phía trên chân tường
+      // ĐỘ SÂU đèn ăn vào tường, đo theo TỪNG CỘT điểm ảnh dọc bức tường. Vết khuyết cũ chỉ
+      // rộng vài điểm ảnh và rơi vào đâu là tuỳ tia quét trúng chỗ nào, nên đo một điểm hay
+      // một hàng đều có thể lọt qua nó; thứ nó làm hỏng là ĐỘ SÂU — cột nào rơi đúng đường
+      // ranh giữa hai ô thì đèn ăn vào 0. Lấy cả dải một lần rồi so cột cạn nhất với cột giữa.
+      const s0 = REPO.screenOf((g.gx - 1.5) * T, g.gy * T);
+      const s1 = REPO.screenOf((g.gx + 2.5) * T, (g.gy + 1) * T);
+      const bx = Math.round(s0.x), by = Math.round(s0.y);
+      const bw = Math.round(s1.x - s0.x), bh = Math.round(s1.y - s0.y);
+      const im = gg.getImageData(bx, by, bw, bh).data;
+      // Lấy TRUNG BÌNH BA CỘT, không đọc một cột đơn.
+      //
+      // Từ 2026-09-03 mặt sàn là đá, và mạch đá dọc chạy SUỐT từ đầu phòng tới cuối phòng — đó
+      // chính là thứ khiến sàn không còn 'nét đứt'. Nhưng nó cũng có nghĩa là một cột điểm ảnh rơi
+      // đúng vào mạch thì tối hơn hẳn trên cả chiều dài của nó, và phép đếm 'sáng hơn 30' dừng sớm:
+      // đo được cột cạn nhất 32 trong khi cột giữa dải 123, mà cả hai đều nằm trên một dải sáng
+      // không hề sứt. Cái bộ này đi tìm là vết khuyết của ĐA GIÁC ÁNH SÁNG, không phải vân vật liệu
+      // — nên nó phải đo qua vân, đúng như hai phép đo `dai()` và `doc()` ngay dưới đây vẫn làm.
+      const oSang = (i, j) => {
+        let t = 0, n = 0;
+        // Cửa sổ phải RỘNG HƠN MẠCH ĐÁ. Mạch dọc rộng 1 điểm ảnh thế giới, mà ở mức phóng của
+        // bộ đo là chừng 6 điểm ảnh màn hình; lấy trung bình 9 điểm ảnh thì mạch vẫn chiếm hai
+        // phần ba và kéo cả cột xuống dưới ngưỡng — đo được vết lõm 34/123 trên một dải thật ra
+        // phẳng lì. 17 điểm ảnh vẫn hẹp hơn một ô (24) rất nhiều, nên nó không thể lấp mất một
+        // vết khuyết thật của đa giác ánh sáng, thứ mà ca này sinh ra để bắt.
+        for (let k = -8; k <= 8; k++){
+          const ii = Math.max(0, Math.min(bw-1, i+k)), o = (j * bw + ii) * 4;
+          t += (im[o] + im[o+1] + im[o+2]) / 3; n++;
+        }
+        return t / n;
+      };
+      // Bỏ 6% mỗi đầu: hai mép dải là chỗ nón đèn cắt góc, ở đó nông đi là đúng chứ không sứt.
+      const le = Math.round(bw * 0.06), sau = [];
+      for (let i = le; i < bw - le; i++) {
+        let d = 0;
+        for (let j = bh - 3; j >= 0; j--) { if (oSang(i, j) > 30) d++; else break; }
+        sau.push(d);
+      }
+      const xep = sau.slice().sort((a, b) => a - b);
+      // Đo theo DẢI chứ không theo một dòng: vân tường có mạch vữa cứ 6 điểm ảnh một đường,
+      // rơi đúng vào một đường mạch thì con số đọc được là màu của mạch vữa, không phải màu tường.
+      // Và sàn đo ngay dưới chân tường (qua khỏi vệt bóng đổ 6 điểm ảnh) chứ không đo giữa phòng:
+      // nón đèn nhạt dần theo khoảng cách, so tường ở xa với sàn ở gần là so hai thứ khác nhau.
+      const dai = (x, y0, y1) => {
+        let t = 0, n = 0;
+        for (let y = y0; y <= y1; y += 2) { t += doc(x, y); n++; }
+        return Math.round(t / n);
+      };
+      const cx = (g.gx + 0.5) * T;
+      return { mat: dai(cx, g.gy * T + 16, g.gy * T + 22),
+               san: dai(cx, (g.gy + 1) * T + 8, (g.gy + 1) * T + 14),
+               canNhat: xep[0], giuaDai: xep[(xep.length / 2) | 0],
+               hinhDang: sau.filter((_, i) => i % 12 === 0).map(v => Math.round(v)).join(' '),
+               // Hai lát cắt cho báo cáo 2026-09-03 — "cần sáng rõ nguyên bức tường luôn, đừng
+               // chỉ sáng 1 nữa". Một dọc theo BỀ DÀY một ô tường, một ngang qua NĂM ô của cùng
+               // bức tường ấy. Bỏ 3 điểm ảnh mỗi đầu vì hai mép ô là vạch chân tường và mép trên,
+               // hai thứ cố tình tối để bức tường có bề dày.
+               dayTuong: (() => { const v = []; for (let d = 3; d <= T - 4; d += 2) v.push(doc(cx, g.gy * T + d)); return v; })(),
+               dayNgang: (() => { const v = []; for (let j = -2; j <= 2; j++) v.push(doc((g.gx + j + 0.5) * T, g.gy * T + T / 2)); return v; })() };
+    }, day);
+    check('mặt tường soi thẳng sáng xấp xỉ cái sàn ngay trước nó',
+      so.mat >= so.san * 0.75, 'tường ' + so.mat + ' / sàn ' + so.san);
+    check('đèn ăn vào tường sâu đều nhau, không có cột nào bị sứt',
+      so.canNhat > so.giuaDai * 0.6,
+      'cột cạn nhất ' + so.canNhat + ' / cột giữa dải ' + so.giuaDai + ' · hình dạng: ' + so.hinhDang);
+    // Đo được TRƯỚC bản vá 2026-09-03, trên bốn hạt giống: nửa xa của ô tường đọc 3/255 trong khi
+    // nửa gần đọc 113 — đèn chỉ liếm một lớp mặt dày nửa ô. Và đo ngang qua năm ô của cùng bức
+    // tường ấy ra 3 / 19 / 60 / 21 / 3, tức là ĐÚNG MỘT khúc tường sáng: số hạng N·L mũ 1.5 tắt
+    // hết hai bên. Hai ca dưới đây khoá cả hai chiều.
+    const mn = a => Math.min.apply(null, a), mx = a => Math.max.apply(null, a);
+    check('sáng đều hết BỀ DÀY bức tường, không chỉ một lớp mặt',
+      mn(so.dayTuong) > mx(so.dayTuong) * 0.5,
+      'tối nhất ' + mn(so.dayTuong) + ' / sáng nhất ' + mx(so.dayTuong) + ' qua ' + so.dayTuong.length + ' lát');
+    check('cả DÃY tường trước mặt đều sáng, không chỉ đúng một khúc',
+      mn(so.dayNgang) > mx(so.dayNgang) * 0.6,
+      so.dayNgang.join(' / '));
+  }
+
+
+  // --- ĐÈN DỪNG Ở BỨC TƯỜNG THỨ NHẤT --------------------------------------------------
+  // Nửa còn lại của "chỉ che sau bức tường thôi". Cho đèn ăn hết bề dày tường thì phải nói rõ
+  // HẾT LÀ HẾT ở đâu: một bức tường có tủ kê sát mặt sau, mà độ sâu đèn chỉ chặn bằng một con số
+  // khoảng cách, thì đèn ăn hết 24 điểm ảnh tường rồi thừa ra ăn sang cụm tủ — trên màn hình là
+  // hai mảng sáng hình thang lơ lửng phía sau bức tường đang soi. Sàn thì vẫn tối (ca trên đã đo)
+  // nên chỉ đo sàn là lọt; phải đo chính cái ô ĐẶC nằm ngay sau bức tường.
+  const sau = await doVan(mep => {
+    const T = REPO.TILE, S = REPO.S, MW = REPO.MW, MH = REPO.MH;
+    const G = (gx, gy) => S.grid[gy * MW + gx];
+    for (let gy = mep; gy < MH - mep; gy++) for (let gx = mep; gx < MW - mep; gx++) {
+      let ok = true;
+      for (let j = -1; j <= 1; j++) if (G(gx + j, gy) !== 1) ok = false;          // tường trước mặt
+      for (let k = 1; k <= 3 && ok; k++) for (let j = -1; j <= 1; j++)
+        if (G(gx + j, gy + k) !== 0) ok = false;                                  // sàn đứng soi
+      if (ok && G(gx, gy - 1) === 0) ok = false;                                  // sau tường phải ĐẶC
+      if (!ok) continue;
+      REPO.warp((gx + 0.5) * T, (gy + 3.5) * T);
+      return { gx, gy };
+    }
+    return null;
+  });
+  if (sau) {
+    await p.evaluate(() => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = -Math.PI / 2; }, 16); });
+    await p.waitForTimeout(2400);
+    const d = await p.evaluate(g => {
+      const gg = document.getElementById('game').getContext('2d');
+      const T = REPO.TILE;
+      const doc = (wx, wy) => { const s = REPO.screenOf(wx, wy); let t = 0, n = 0;
+        for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+          const q = gg.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++; }
+        return Math.round(t / n); };
+      const cx = (g.gx + 0.5) * T;
+      return { tuong: doc(cx, g.gy * T + T / 2), vatSau: doc(cx, (g.gy - 1) * T + T / 2) };
+    }, sau);
+    check('bức tường thứ nhất vẫn sáng ở thế đứng này', d.tuong > 40, String(d.tuong));
+    check('mà cái vật ĐẶC nằm ngay sau nó thì không ăn tí đèn nào',
+      d.vatSau < 25, 'tường ' + d.tuong + ' / vật sau tường ' + d.vatSau);
+  }
+  await p.evaluate(() => { if (window.__k) clearInterval(window.__k); });
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+  await b.close();
+}
+
+// =====================================================================
+// KHUÔN MẶT PHO TƯỢNG. Chủ dự án: "player nhìn vào angle thì angle sẽ nhìn ngược lại ...
+// trên màn hình player sẽ mờ mờ dần xuất hiện hình ảnh angel to ... angle biến mất mới mất".
+// Bốn câu phải đúng, và câu thứ tư là câu dễ làm hỏng cả cơ chế nhất:
+//   1. chưa nhìn thấy thì chưa có mặt nào;
+//   2. nhìn thấy rồi thì nó lên DẦN, không bật một cái;
+//   3. nhìn đi chỗ khác KHÔNG gỡ được nó — chỉ pho tượng biến mất mới gỡ;
+//   4. và nó KHÔNG bịt mắt: giữa màn hình, chỗ người chơi với pho tượng đứng, phải còn đọc được.
+async function matAngelSuite(b) {
+  results.push('\n── khuôn mặt pho tượng ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');            // tấm màn mở đầu che kín khung — phép đo điểm ảnh ở dưới
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 2; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0; REPO.S.mates.length = 0;   // bot nhìn hộ thì đồng hồ không chạy
+    REPO.S.angel = null;
+    REPO.spawnAngel();
+    // quay LƯNG lại: chưa ai nhìn thấy nó
+    const a = REPO.angel(), pl = REPO.S.player;
+    if (a) pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x) + Math.PI;
+  });
+  await p.waitForTimeout(500);
+  const co = await p.evaluate(() => !!REPO.angel());
+  check('dựng được pho tượng để đo', co, co ? '' : 'không dựng được');
+  if (!co){ await ctx.close(); return; }
+
+  const chua = await p.evaluate(() => ({ ...REPO.angelMat(), thay: REPO.angel().banDaThay }));
+  check('quay lưng lại thì chưa có khuôn mặt nào', chua.mat < 0.05 && !chua.thay,
+    JSON.stringify(chua));
+
+  // quay mặt về phía nó
+  await p.evaluate(() => {
+    const a = REPO.angel(), pl = REPO.S.player;
+    pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x);
+  });
+  await p.waitForTimeout(700);
+  const vua = await p.evaluate(() => REPO.angelMat());
+  await p.waitForTimeout(2200);
+  const du = await p.evaluate(() => REPO.angelMat());
+  check('nhìn thấy nó thì khuôn mặt hiện DẦN, không bật một cái',
+    vua.mat > 0.05 && vua.mat < 0.95, 'sau 0,7s: ' + vua.mat);
+  check('và vài giây sau thì hiện đủ', du.mat > 0.98, String(du.mat));
+
+  // --- KHÔNG BỊT MẮT: giữa màn hình vẫn phải đọc được ---
+  const sang = await p.evaluate(() => {
+    const cv = document.getElementById('game'), g = cv.getContext('2d');
+    const doc = (fx, fy) => {
+      const x = Math.round(cv.width*fx), y = Math.round(cv.height*fy);
+      let t = 0, n = 0;
+      for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++){
+        const q = g.getImageData(x+i, y+j, 1, 1).data; t += (q[0]+q[1]+q[2])/3; n++;
+      }
+      return Math.round(t/n);
+    };
+    return { giua: doc(0.5, 0.5) };
+  });
+  check('khuôn mặt KHÔNG bịt giữa màn hình — chỗ người chơi với pho tượng vẫn đọc được',
+    sang.giua > 55, 'giữa màn ' + sang.giua + '/255');
+
+  // --- nhìn đi chỗ khác thì nó VẪN Ở ĐÓ, và máu chảy dài ra theo đồng hồ ---
+  await p.evaluate(() => { REPO.S.player.dir += Math.PI; });
+  await p.waitForTimeout(2600);
+  const quayDi = await p.evaluate(() => ({ ...REPO.angelMat(), con: REPO.angel() && REPO.angel().conLai }));
+  check('nhìn đi chỗ khác KHÔNG gỡ được nó', quayDi.mat > 0.98, JSON.stringify(quayDi));
+  check('và đồng hồ cào chạy thì khuôn mặt đọc ra con số ấy', quayDi.gap > 0.25,
+    'gap ' + quayDi.gap);
+
+  // --- pho tượng đi thì mặt mới đi ---
+  await p.evaluate(() => {
+    // rọi đèn cho no: quay lại nhìn nó và ép charge đầy
+    const a = REPO.S.angel; if (a) a.charge = 0.999;
+    const pl = REPO.S.player, ag = REPO.angel();
+    if (ag) pl.dir = Math.atan2(ag.y - pl.y, ag.x - pl.x);
+  });
+  await p.waitForTimeout(2600);
+  const xong = await p.evaluate(() => ({ ...REPO.angelMat(), angel: !!REPO.angel() }));
+  check('pho tượng đi rồi thì khuôn mặt cũng tan', !xong.angel && xong.mat < 0.05,
+    JSON.stringify(xong));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('khuôn mặt pho tượng: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// VIỀN ĐỎ QUANH MÀN HÌNH, VÀ NHIỄU HÌNH LÚC ĂN ĐÒN.
+// Chủ dự án: "thêm hiệu ứng đỏ viền màn hình khi quái đến gần, càng gần càng đỏ. khi bị hurt
+// thì player nhiễu màn hình". Bốn câu phải đúng:
+//   1. nhà vắng thì mép màn hình KHÔNG đỏ — một tín hiệu luôn bật là một tín hiệu không ai đọc;
+//   2. càng gần càng đỏ, và đo được thành thang chứ không phải bật/tắt;
+//   3. PHO TƯỢNG không làm đỏ viền: nó đã có khuôn mặt riêng, hai lớp đỏ chồng nhau thì hỏng cả hai;
+//   4. nhiễu hình bật lúc ăn đòn, tắt trong dưới nửa giây, và KHÔNG bịt màn hình — ăn đòn là
+//      đúng lúc phải nhìn ra con quái đứng đâu để mà chạy.
+async function vienDoSuite(b) {
+  results.push('\n── viền đỏ & nhiễu hình ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 2; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0; REPO.S.angel = null; REPO.S.angelTimer = 999;
+  });
+  await p.waitForTimeout(500);
+
+  const doMep = () => p.evaluate(() => {
+    const cv = document.getElementById('game'), g = cv.getContext('2d');
+    const o = (fx, fy) => {
+      const x = Math.round(cv.width*fx), y = Math.round(cv.height*fy);
+      let r = 0, t = 0, n = 0;
+      for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++){
+        const q = g.getImageData(x+i, y+j, 1, 1).data; r += q[0]; t += (q[0]+q[1]+q[2])/3; n++;
+      }
+      return { do: Math.round(r/n), sang: Math.round(t/n) };
+    };
+    return { ...REPO.vienDo(), mep: o(0.5, 0.035).do, giua: o(0.5, 0.5).sang };
+  });
+
+  const vang = await doMep();
+  check('nhà vắng thì mép màn hình không đỏ', vang.gan < 0.05 && vang.mep < 18,
+    JSON.stringify(vang));
+
+  // LUẬT đo bằng `than` (tính thẳng mỗi khung, không làm mượt, không phụ thuộc nhịp tim), còn
+  // MÀU đo bằng điểm ảnh ở thế đứng gần. Đo màu ở cả hai khoảng cách thì bài test đang đo
+  // TÂM TRẠNG của con quái: nó chuyển sang đuổi là `than` nhảy thêm 0,32, và cái viền thở theo
+  // nhịp tim nữa — hai nguồn nhiễu cho một phép so.
+  const thang = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    const m = REPO.spawnFoe('gunner', 0, 6*REPO.TILE);
+    m.sleep = 0; m.state = 'patrol'; m.alert = 0;
+    const xa = REPO.vienDo().than;
+    m.x = pl.x; m.y = pl.y + REPO.TILE*2; m.state = 'patrol'; m.alert = 0;
+    const gan = REPO.vienDo().than;
+    return { xa, gan };
+  });
+  check('có quái trong tầm thì cái viền có gì để đọc', thang.xa > 0.25, 'sáu ô → ' + thang.xa);
+  check('và càng gần càng đỏ — hai ô đậm hơn sáu ô', thang.gan > thang.xa + 0.3,
+    'sáu ô ' + thang.xa + ' → hai ô ' + thang.gan);
+
+  await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    if (m){ m.x = pl.x; m.y = pl.y + REPO.TILE*2; m.state = 'patrol'; m.alert = 0; }
+  });
+  await p.waitForTimeout(1600);
+  const gan = await doMep();
+  check('và cái viền ấy ĐỎ THẬT trên màn hình, không chỉ là một con số',
+    gan.mep > vang.mep + 30, 'vắng ' + vang.mep + ' → gần ' + gan.mep);
+
+  // --- 3. pho tượng KHÔNG làm đỏ viền ---
+  const tuong = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0;
+    await new Promise(r => setTimeout(r, 1600));       // cho FX.gan tụt về không
+    S.angel = null; REPO.spawnAngel();
+    const a = REPO.angel(), pl = S.player;
+    if (a) pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x);
+    await new Promise(r => setTimeout(r, 1200));
+    return { co: !!REPO.angel(), threat: +REPO.threat().toFixed(2), ...REPO.vienDo() };
+  });
+  check('pho tượng làm CĂNG nhưng không làm đỏ viền — nó đã có khuôn mặt riêng',
+    !tuong.co || (tuong.threat > 0.25 && tuong.than < 0.02), JSON.stringify(tuong));
+
+  // --- 4. nhiễu hình ---
+  await p.evaluate(() => { REPO.S.angel = null; REPO.S.angelTimer = 999; });
+  await p.waitForTimeout(300);
+  const truoc = await p.evaluate(() => REPO.vienDo().nhieu);
+  await p.evaluate(() => {
+    const pl = REPO.S.player;
+    pl.invulnT = 0;
+    REPO.hurtPlayer(22, 'test', pl.x, pl.y + 40);
+  });
+  await p.waitForTimeout(60);
+  const ngay = await doMep();
+  await p.waitForTimeout(700);
+  const sau = await p.evaluate(() => REPO.vienDo().nhieu);
+  check('ăn đòn thì màn hình nhiễu', truoc === 0 && ngay.nhieu > 0.5,
+    truoc + ' → ' + ngay.nhieu);
+  check('và nhiễu tắt trong dưới nửa giây, không ở lại', sau === 0, String(sau));
+  check('nhiễu KHÔNG bịt màn hình — vẫn nhìn ra chỗ con quái đứng',
+    ngay.giua > 45, 'giữa màn ' + ngay.giua + '/255');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('viền đỏ & nhiễu hình: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// BẪY GAI · BẪY LASER · RƯƠNG VÀ CON RƯƠNG RĂNG.
+// Chủ dự án: "làm thêm bẫy gai, bẫy lazer, asset dùng của soul knight. thêm loot chest của
+// soul knight — khi nhặt lên có thể thành mimic dí cắn người chơi", rồi: "có tỷ lệ thôi nha
+// chứ không phải 100% mimic".
+// Câu cuối là câu bộ test này tồn tại để canh: một cái rương LUÔN LUÔN là mimic thì nó không
+// còn là cái bẫy, nó là một cái nút "sinh quái"; mà một cái rương KHÔNG BAO GIỜ là mimic thì
+// nó chỉ là một đống đồ có vỏ.
+async function baySuite(b) {
+  results.push('\n── bẫy và rương ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  // Mấy hằng số phải lấy TỪ TRONG TRANG ra biến của Node trước khi dùng: `REPO` chỉ tồn tại
+  // bên trong p.evaluate, ngoài này gọi nó là một ReferenceError.
+  const HANG = await p.evaluate(() => ({ mimic: REPO.MIMIC_KIND, ti: REPO.RUONG_MIMIC }));
+
+  // --- 1. màn 1 KHÔNG có bẫy, màn 4 thì có ---
+  const man1 = await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.noFoes = true; REPO.S.monsters.length = 0; REPO.S.mates.length = 0;
+    return { bay: REPO.bay().length, ruong: REPO.ruong().length };
+  });
+  check('màn 1 không có bẫy nào — màn ấy đang dạy luật khuân đồ',
+    man1.bay === 0 && man1.ruong === 0, JSON.stringify(man1));
+
+  const man4 = await p.evaluate(() => {
+    REPO.S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.noFoes = true; REPO.S.monsters.length = 0; REPO.S.mates.length = 0;
+    const bay = REPO.bay();
+    return { gai: bay.filter(x => x.loai === 'gai').length,
+             tia: bay.filter(x => x.loai === 'tia').length,
+             ruong: REPO.ruong().length };
+  });
+  check('màn 4 có cả bẫy gai lẫn bẫy laser lẫn rương',
+    man4.gai > 0 && man4.tia > 0 && man4.ruong > 0, JSON.stringify(man4));
+
+  // --- 2. bẫy gai: giẫm → NHỊP BÁO → gai bật → ăn đòn ---
+  const gai = await p.evaluate(async () => {
+    const S = REPO.S, g = REPO.bay().find(x => x.loai === 'gai');
+    if (!g) return null;
+    S.player.hp = S.player.hpMax; S.player.invulnT = 0;
+    const hp0 = S.player.hp;
+    REPO.warp(g.x, g.y);
+    await new Promise(r => setTimeout(r, 150));
+    const pha1 = REPO.bay().find(x => x.loai === 'gai').pha;
+    const hp1 = S.player.hp;
+    await new Promise(r => setTimeout(r, 400));
+    const pha2 = REPO.bay().find(x => x.loai === 'gai').pha;
+    return { hp0, pha1, hp1, pha2, hp2: S.player.hp };
+  });
+  check('dựng được thế đứng trên bẫy gai', !!gai, JSON.stringify(gai));
+
+  // KHUNG PHẢI CHẠY THẬT. Chủ dự án hỏi thẳng: "lazer có anim frame by frame đàng hoàng chưa,
+  // bãy gai cũng có đủ art của soul knight lun á". Tấm gai có TÁM khung thật của Soul Knight
+  // (Thorn_0..7), và bài test này canh đúng một chuyện: nó đi qua đủ tám, cả lúc nhả lẫn lúc
+  // thụt — chứ không phải hai khung nhấp nháy cho giống là đang động.
+  const khung = await p.evaluate(() => {
+    const so = REPO.gaiSo(), thay = new Set(), len = [];
+    const di = (pha, han) => { for (let t = 0; t <= han; t += 0.005){
+      const k = REPO.gaiKhung(pha, t); thay.add(k); if (len[len.length-1] !== k) len.push(k); } };
+    di('ngu', 0.1); di('bao', so.bao); di('ban', so.giu); di('thut', so.hoi);
+    return { n: thay.size, co: [...thay].sort((a,b)=>a-b).join(','), duong: len.join(' ') };
+  });
+  check('và nó chạy ĐỦ TÁM KHUNG thật của Soul Knight, không phải hai khung nhấp nháy',
+    khung.n === 8, khung.n + ' khung, chạy: ' + khung.duong);
+  if (gai){
+    check('giẫm lên thì có NHỊP BÁO trước, chưa đau ngay',
+      gai.pha1 === 'bao' && gai.hp1 === gai.hp0, JSON.stringify(gai));
+    check('rồi gai bật và ăn đòn thật',
+      gai.pha2 === 'ban' && gai.hp2 < gai.hp0, gai.hp0 + ' → ' + gai.hp2);
+  }
+
+  // --- 3. bẫy laser: tắt thì đi qua được, bật thì không ---
+  const tia = await p.evaluate(async () => {
+    const S = REPO.S, t = REPO.bay().find(x => x.loai === 'tia');
+    if (!t) return null;
+    S.player.hp = S.player.hpMax; S.player.invulnT = 0; S.player.tiaCd = 0;
+    // đứng NGOÀI đoạn tia, thẳng hàng nhưng quá hai cây cột: không được dính
+    const dx = t.x2 - t.x, dy = t.y2 - t.y, m = Math.hypot(dx, dy) || 1;
+    REPO.warp(t.x - dx/m*REPO.TILE*1.8, t.y - dy/m*REPO.TILE*1.8);
+    await new Promise(r => setTimeout(r, 2600));
+    const ngoai = S.player.hp;
+    REPO.warp((t.x+t.x2)/2, (t.y+t.y2)/2);
+    await new Promise(r => setTimeout(r, 3200));
+    return { day: S.player.hpMax, ngoai, tren: S.player.hp };
+  });
+  check('dựng được thế đứng với bẫy laser', !!tia, JSON.stringify(tia));
+  if (tia){
+    check('đứng THẲNG HÀNG nhưng ngoài hai cây cột thì không dính tia',
+      tia.ngoai === tia.day, tia.day + ' → ' + tia.ngoai);
+    check('đứng GIỮA hai cột thì ăn đòn', tia.tren < tia.ngoai,
+      tia.ngoai + ' → ' + tia.tren);
+  }
+
+  // --- 4. rương hiền: mở ra đồ, và đồ ấy KHÔNG nằm trong chỉ tiêu ---
+  const hien = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); S.running = true;
+    S.noFoes = true; S.monsters.length = 0; S.mates.length = 0;
+    if (!S.ruong.length) return null;
+    S.ruong[0].mimic = false;
+    REPO.warp(S.ruong[0].x, S.ruong[0].y + 18);
+    const nhan = REPO.nhanTuongTac(S.player, true);
+    const do0 = S.loot.filter(l => !l.gone).length, quota = S.quotaTotal;
+    REPO.moRuong();
+    return { nhan, do0, do1: S.loot.filter(l => !l.gone).length,
+             quota, quota2: S.quotaTotal, quai: S.monsters.length };
+  });
+  check('đứng cạnh rương thì phím E đổi việc thành "Mở rương"',
+    hien && hien.nhan === 'Mở rương', hien && hien.nhan);
+  check('mở rương hiền thì ra đồ, không ra quái',
+    hien && hien.do1 > hien.do0 && hien.quai === 0, JSON.stringify(hien));
+  check('và đồ trong rương KHÔNG cộng vào chỉ tiêu — nó là tiền thêm',
+    hien && hien.quota === hien.quota2, hien && (hien.quota + ' / ' + hien.quota2));
+
+  // --- 5. rương mimic: ra quái, và quái ấy ĐUỔI ---
+  const mim = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); S.running = true;
+    S.noFoes = false; S.monsters.length = 0; S.mates.length = 0;
+    if (!S.ruong.length) return null;
+    S.ruong[0].mimic = true;
+    REPO.warp(S.ruong[0].x, S.ruong[0].y + 18);
+    const r0 = REPO.ruong().length;
+    REPO.moRuong();
+    const m = S.monsters[0];
+    if (!m) return { r0, quai: 0 };
+    // Nó NHẮM THẲNG vào người vừa mở nó ngay ở khung hình đầu — không có nhịp ngơ ngác nào.
+    const nham = Math.hypot(m.tx - S.player.x, m.ty - S.player.y) < 1;
+    return { r0, quai: S.monsters.length, loai: m.type, nham,
+             r1: REPO.ruong().length };
+  });
+  check('mở rương mimic thì cái rương biến mất và một con Rương răng nhảy ra',
+    mim && mim.quai === 1 && mim.loai === HANG.mimic, JSON.stringify(mim));
+  check('và nó nhắm thẳng vào người vừa mở nó, không có nhịp ngơ ngác nào',
+    mim && mim.nham === true, JSON.stringify(mim));
+
+  // Cú ĐUỔI đo riêng, ở một thế đứng DỰNG SẴN. Không đo trên chính cái rương được: rương nằm
+  // đâu là do hạt giống, nên "lùi ra năm ô" có thể là lùi ra sau một bức tường — và lúc ấy con
+  // quái đứng im là ĐÚNG (nó không nhìn xuyên tường), còn phép đo thì đọc thành "nó bị liệt".
+  // Mất đúng một buổi vì chuyện này.
+  const duoi = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0;
+    // VỀ CHỖ TRỐNG trước đã: spawnFoe không hỏi ô ấy có phải tường không, nên đặt con quái bốn
+    // ô dưới chân một người đang đứng nép trong góc là đặt nó vào trong tường — ở đó nó không
+    // đi đâu được, và phép đo đọc ra thành "con này bị liệt".
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*3);
+    const m = REPO.spawnFoe('mimic', 0, REPO.TILE*4);
+    S.player.dir = Math.PI/2; m.dir = -Math.PI/2;
+    m.alert = 3; m.state = 'chase'; m.tx = S.player.x; m.ty = S.player.y;
+    const xa0 = Math.hypot(m.x - S.player.x, m.y - S.player.y);
+    await new Promise(r => setTimeout(r, 1800));
+    return { xa0: +xa0.toFixed(1), xa1: +Math.hypot(m.x - S.player.x, m.y - S.player.y).toFixed(1) };
+  });
+  check('và con Rương răng ĐUỔI thật — bốn ô rút xuống còn tầm đánh',
+    duoi.xa1 < duoi.xa0 - 20, duoi.xa0 + ' → ' + duoi.xa1 + ' px');
+
+  // --- 6. TỈ LỆ: không phải cái rương nào cũng là mimic ---
+  const ti = await p.evaluate(() => {
+    const S = REPO.S;
+    let co = 0, tong = 0;
+    for (let seed = 1; seed <= 60; seed++){
+      S.level = 5; REPO.startLevel(seed * 977); REPO.cancelCut();
+      for (const r of REPO.ruong()){ tong++; if (r.mimic) co++; }
+    }
+    return { tong, co, ti: tong ? +(co/tong).toFixed(3) : 0 };
+  });
+  check('gieo 60 căn nhà: CÓ rương mimic, và cũng CÓ rương hiền',
+    ti.tong > 40 && ti.co > 0 && ti.co < ti.tong, JSON.stringify(ti));
+  check('và tỉ lệ bám quanh con số đã khai, không phải 100%',
+    Math.abs(ti.ti - HANG.ti) < 0.16,
+    'đo ' + ti.ti + ' · khai ' + HANG.ti);
+
+  // --- 7. con Rương răng không bao giờ nằm sẵn trong nhà ---
+  const trong = await p.evaluate(() => {
+    const S = REPO.S;
+    let thay = 0;
+    for (let seed = 1; seed <= 40; seed++){
+      S.level = 6; REPO.startLevel(seed * 613); REPO.cancelCut();
+      if (S.monsters.some(m => m.type === REPO.MIMIC_KIND)) thay++;
+    }
+    return thay;
+  });
+  check('40 căn nhà không căn nào CHỨA sẵn một con Rương răng — nó chỉ ra đời từ cái rương',
+    trong === 0, trong + ' căn có');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('bẫy và rương: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+(async () => {
+  // --allow-file-access-from-files: mở file:// bằng Chromium thì mỗi tấm PNG là một 'gốc' khác
+  //   nhau, nên vẽ một con quái lên canvas là canvas đó bị NHIỄM và getImageData ném
+  //   SecurityError. Bộ đèn pin thoát được vì nó đọc lớp tối, lớp chưa từng có hình nào vẽ lên;
+  //   bộ sổ tay thì đọc thẳng ô có con quái nên đâm vào ngay. Cờ này chỉ nới CORS cho file://,
+  //   đúng bằng thứ mà một máy chủ tĩnh cho sẵn — nó không đổi hành vi nào đang được đo.
+  const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+  try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
+  try { await boardingSuite(b); } catch (e) { check('đứng chờ xe: bộ test chạy trọn', false, e.message); }
+  try { await repoSquadSuite(b); } catch (e) { check('repo-squad: bộ test chạy trọn', false, e.message); }
+  try { await ghostDoorSuite(b); } catch (e) { check('ma gương/phang cửa: bộ test chạy trọn', false, e.message); }
+  try { await dapDenSuite(b); } catch (e) { check('đập đèn pin: bộ test chạy trọn', false, e.message); }
+  try { await stashSuite(b); } catch (e) { check('tủ đồ: bộ test chạy trọn', false, e.message); }
+  try { await rotateSuite(b); } catch (e) { check('nút xoay tay: bộ test chạy trọn', false, e.message); }
+  try { await hudGeomSuite(b); } catch (e) { check('hình học HUD: bộ test chạy trọn', false, e.message); }
+  try { await skillEffectSuite(b); } catch (e) { check('hiệu ứng kỹ năng: bộ test chạy trọn', false, e.message); }
+  try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
+  try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
+  try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
+  try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
+  try { await gunnerSuite(b); } catch (e) { check('Kẻ bắn: bộ test chạy trọn', false, e.message); }
+  try { await mateFightSuite(b); } catch (e) { check('đồng đội đánh trả: bộ test chạy trọn', false, e.message); }
+  try { await xeVaTangHinhSuite(b); } catch (e) { check('bịch tiền & tàng hình: bộ test chạy trọn', false, e.message); }
+  try { await matDiuSuite(b); } catch (e) { check('dịu mắt: bộ test chạy trọn', false, e.message); }
+  try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
+  try { await vfxSquadSuite(b); } catch (e) { check('hiệu ứng chiêu: bộ test chạy trọn', false, e.message); }
+  try { await xeHucTuongSuite(b); } catch (e) { check('xe lao qua tường: bộ test chạy trọn', false, e.message); }
+  try { await pcSuite(b); } catch (e) { check('chuột-phím: bộ test chạy trọn', false, e.message); }
+  try { await botGoVanSuite(b); } catch (e) { check('người chơi gục: bộ test chạy trọn', false, e.message); }
+  try { await matAngelSuite(b); } catch (e) { check('khuôn mặt pho tượng: bộ test chạy trọn', false, e.message); }
+  try { await vienDoSuite(b); } catch (e) { check('viền đỏ & nhiễu hình: bộ test chạy trọn', false, e.message); }
+  try { await baySuite(b); } catch (e) { check('bẫy và rương: bộ test chạy trọn', false, e.message); }
+  try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
+  await b.close();
+  console.log(results.join('\n'));
+  console.log('\n' + '═'.repeat(52));
+  console.log('  ĐẠT ' + pass + '   HỎNG ' + fail);
+  console.log('═'.repeat(52));
+  process.exit(fail ? 1 : 0);
+})();

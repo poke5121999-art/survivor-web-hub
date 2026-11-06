@@ -1,0 +1,105 @@
+scene Level_11CityNew_Art.unity: bundle AssetBundles/83/836a9a30ae81b089437f11703304f519
+bundles loaded: 72; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-151dfdce3c15f5e9a20aab4c8489d1b9', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_11CityNew_Art_LM0_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.309 max=0.686 alpha mean=0.445
+lightmap 1: Level_11CityNew_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.237 max=0.733 alpha mean=0.281
+lightmapsMode=1 useShadowmask=True
+skip [skinned] /Artist/PVS/Low/C_AniObj_JiQiRen/E_AlphaCity_Pet_01
+skip [skinned] /Artist/PVS/Low/C_AniObj_JiQiRen02/E_AlphaCity_Pet_01
+note: /Artist/PVS/Low/E_11CityNew_Building_01 material E_11CityNew_Tower_03 (QF_PBR/Env/NssStandard) has no albedo texture; tint only
+skip [mesh unresolved] /Cube (File unity default resources not found in /home/bui-thanh-th)
+skipped: skinned=2, inactive=1, mesh unresolved=1, lod>0=172
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaTest_NoFog: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Water/Water_Opaque_OneSide_High: texture slots ['_Cubemap', '_MainTex', '_NormalMap']
+shader QF_PBR/Env/NssStandard: texture slots ['_BaseMap', '_EmissionMap', '_NormalMRMap', '_OcclusionMap', '_ParamMap']
+shader QF_PBR/Env/NssStandardPlantOneSide: texture slots ['_BaseMap', '_NormalMRMap']
+  tex E_11CityNew_Stone_02 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Building_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=488 verts=576 from ['E_11CityNew_Building_01']
+  tex E_11CityNew_Glass_04 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Glass_04|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=614 verts=896 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+  tex E_11CityNew_Lujie_01 64x256 -> 64x256 rgb 1 KB
+  tex E_11CityNew_Lujie_01_G 64x256 -> 64x256 rgb 1 KB
+prim E_11CityNew_Lujie_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=9602 verts=11064 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03', 'E_11CityNew_Lujie_01']
+  tex E_11CityNew_Alpha_01@RGBAC 256x256 -> 256x256 rgba 34 KB
+  tex E_11CityNew_Alpha_01@RGBAC_G 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Alpha_01|lm1: QF_PBR/Env/NssStandard alpha=MASK tris=18 verts=27 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+  tex E_11CityNew_Bridge_01 1024x1024 -> 512x512 rgb 17 KB
+  tex E_11CityNew_Bridge_01_G 256x256 -> 256x256 rgb 2 KB
+prim E_11CityNew_Building_06|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2104 verts=3647 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+prim E_11CityNew_Tower_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=788 verts=1193 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+  tex E_11CityNew_Stone_01 64x256 -> 64x256 rgb 0 KB
+  tex E_11CityNew_Stone_01_G 64x256 -> 64x256 rgb 0 KB
+prim E_11CityNew_Stone_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=5416 verts=7807 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+prim E_11CityNew_Tower_03|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=171 verts=183 from ['E_11CityNew_Building_01']
+  tex E_11CityNew_Billboard_01 128x256 -> 128x256 rgb 7 KB
+  tex E_11CityNew_Billboard_01 128x256 -> 128x256 rgb 7 KB
+prim E_11CityNew_Alpha_02|lm1: QF_PBR/Env/NssStandard alpha=MASK tris=16 verts=25 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+  tex E_11CityNew_Glass_03 128x128 -> 128x128 rgb 1 KB
+prim E_11CityNew_Glass_06|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=192 verts=155 from ['E_11CityNew_Building_01', 'E_11CityNew_Building_03']
+prim E_11CityNew_Glass_04|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2 verts=4 from ['E_11CityNew_Door_01']
+  tex E_11CityNew_Road_05 256x256 -> 256x256 rgb 0 KB
+prim E_11CityNew_Road_05|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=253 verts=274 from ['E_11CityNew_Road_01']
+  tex E_11CityNew_Road_06 256x256 -> 256x256 rgb 1 KB
+prim E_11CityNew_Road_06|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1446 verts=1773 from ['E_11CityNew_Road_01']
+  tex E_11CityNew_Road_02 256x256 -> 256x256 rgb 0 KB
+prim E_11CityNew_Road_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=25 verts=43 from ['E_11CityNew_Road_01']
+  tex E_11CityNew_Sky 256x256 -> 256x256 rgba 8 KB
+prim E_11CityNew_Yuanjing_01: QF_Gamma/Env/Transparent/Basic_AlphaTest_NoFog alpha=MASK tris=60 verts=92 from ['E_11CityNew_Yuanjing']
+  tex E_11CityNew_Sky 256x256 -> 256x256 rgb 3 KB
+prim sky:E_11CityNew_Sky_02: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=144 verts=92 from ['E_11CityNew_Sky']
+  tex E_11CityNew_Glass_02@RGBAC 128x128 -> 128x128 rgba 1 KB
+  tex E_11CityNew_Glass_02@RGBAC 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Glass_07|lm1: QF_PBR/Env/NssStandard alpha=BLEND tris=2 verts=6 from ['E_11CityNew_Building_02', 'E_11CityNew_Building_03']
+  tex E_11CityNew_Alpha_02@RGBAC 256x32 -> 256x32 rgba 7 KB
+prim E_11CityNew_Alpha_01_a: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=MASK tris=30 verts=38 from ['E_11CityNew_Building_03a']
+  tex E_11CityNew_Alpha_01@RGBAC 256x256 -> 256x256 rgba 35 KB
+prim E_11CityNew_Alpha_04: QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM alpha=MASK tris=60 verts=110 from ['E_11CityNew_Station_Alpha_01']
+  tex E_11CityNew_Toutie_01@RGBAC 256x64 -> 256x64 rgba 0 KB
+  tex E_11CityNew_Toutie_01_G 256x64 -> 256x64 rgb 2 KB
+prim E_11CityNew_Alpha_03|lm1: QF_PBR/Env/NssStandard alpha=BLEND tris=61 verts=75 from ['E_11CityNew_Lujie_01']
+  tex C_Water_04 128x128 -> 128x128 rgb 2 KB
+prim E_11CityNew_Water_02: QF_Gamma/Env/Water/Water_Opaque_OneSide_High alpha=OPAQUE tris=28 verts=29 from ['E_11CityNew_Sea']
+  tex E_11CityNew_Metal_03 64x256 -> 64x256 rgb 0 KB
+  tex E_11CityNew_Metal_03_G 64x256 -> 64x256 rgb 0 KB
+prim E_11CityNew_Metal_03|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1501 verts=2219 from ['E_11CityNew_Station_01']
+prim E_11CityNew_Alpha_02|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=48 verts=95 from ['E_11CityNew_Station_01']
+  tex E_11CityNew_Glass_01@RGBAC 128x128 -> 128x128 rgba 7 KB
+  tex E_11CityNew_Glass_01@RGBAC 128x128 -> 128x128 rgb 3 KB
+prim E_11CityNew_Glass_09|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=190 verts=209 from ['E_11CityNew_Station_01']
+  tex E_11CityNew_Glass_06@RGBAC 128x128 -> 128x128 rgba 1 KB
+  tex E_11CityNew_Glass_06@RGBAC 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Glass_03|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=79 verts=121 from ['E_11CityNew_Station_01']
+prim E_11CityNew_Lujie_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1571 verts=2391 from ['E_11CityNew_Ground_01', 'E_11CityNew_Station_01']
+prim E_11CityNew_Alpha_03|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=53 verts=57 from ['E_11CityNew_Station_01']
+prim E_11CityNew_Lujie_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=97 verts=110 from ['E_11CityNew_Station_01']
+  tex E_11CityNew_Road_01 128x256 -> 128x256 rgb 2 KB
+prim E_11CityNew_Road_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=277 verts=271 from ['E_11CityNew_Station_01']
+  tex E_11CityNew_Grass_01 256x256 -> 256x256 rgb 11 KB
+prim E_11CityNew_Grass_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=472 verts=640 from ['E_11CityNew_Ground_01']
+prim E_11CityNew_Stone_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1557 verts=1872 from ['E_11CityNew_Ground_01']
+prim E_11CityNew_Water_01|lm0: QF_Gamma/Env/Water/Water_Opaque_OneSide_High alpha=OPAQUE tris=3 verts=7 from ['E_11CityNew_Ground_01']
+  tex E_11CityNew_Road_04 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Road_04|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=428 verts=603 from ['E_11CityNew_Ground_01']
+  tex E_11CityNew_Road_03 128x128 -> 128x128 rgb 0 KB
+prim E_11CityNew_Road_03|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=107 verts=125 from ['E_11CityNew_Ground_01']
+  tex E_11CityNew_Grass_02 128x128 -> 128x128 rgb 1 KB
+prim E_11CityNew_Grass_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=587 verts=649 from ['E_11CityNew_Ground_01']
+prim E_11CityNew_Glass_01|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=138 verts=228 from ['E_11CityNew_Building_03']
+prim E_11CityNew_Glass_05|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=41 verts=57 from ['E_11CityNew_Building_03']
+prim E_11CityNew_Glass_02|lm1: QF_PBR/Env/NssStandard alpha=BLEND tris=1 verts=3 from ['E_11CityNew_Building_03']
+  tex E_11CityNew_Glass_05 256x256 -> 256x256 rgb 4 KB
+prim E_11CityNew_Glass_08|lm1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=105 verts=188 from ['E_11CityNew_Building_03']
+  tex C_Songshu_small_leaf_01_D@RGBAC 512x256 -> 512x256 rgba 26 KB
+prim C_Songshu_small_leaf_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=4600 verts=6550 from ['C_Songshu_small_01_LOD0']
+  tex C_ZongLvShu_01_D@RGBAC 256x256 -> 256x256 rgba 12 KB
+prim C_ZongLvShu_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=24978 verts=27163 from ['C_ZongLvShu_01_LOD0']
+  tex C_Shu_01_D@RGBAC 256x256 -> 256x256 rgba 11 KB
+prim C_Shu_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=15066 verts=25281 from ['C_Shu_01_LOD0']
+  tex C_Shu_01_D@RGBAC 256x256 -> 256x256 rgba 11 KB
+prim E_11CityNew_GuanMu_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=3876 verts=7752 from ['C_GuanMu_01_LOD0']
+prim C_GuanMu_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=18768 verts=37536 from ['C_GuanMu_01_LOD0']
+prim C_Shu_02|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=6232 verts=9340 from ['C_Shu_02_LOD0']
+lightmaps used by primitives: [0, 1]
+done: 45 primitives, 41 textures (0.24 MB webp), 2 lightmaps, folder 2.71 MB

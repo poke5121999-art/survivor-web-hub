@@ -1,0 +1,930 @@
+{
+ "scene": "Store_10",
+ "startingCash": 0,
+ "mats": [
+  {
+   "name": "CashierDesk_MatActivate",
+   "object": "CashierDesk",
+   "type": 11,
+   "cost": 1540,
+   "activate": [
+    "CashierDesk",
+    "Shelf02_Tomato_MatActivate",
+    "_CustomerAgent_1"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf02_Tomato_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf02_Tomato_MatActivate",
+   "object": "Shelf02_Tomato",
+   "type": 11,
+   "cost": 1300,
+   "activate": [
+    "Shelf02_Tomato",
+    "Plant_Tomato_MatActivate",
+    "_CustomerAgent_2"
+   ],
+   "delays": [],
+   "highlight": [
+    "Plant_Tomato_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_Tomato_MatActivate",
+   "object": "Plant_Tomato",
+   "type": 11,
+   "cost": 1750,
+   "activate": [
+    "Plant_Tomato",
+    "Shelf10_Ketchup_MatActivate",
+    "Plant_Tomato2_MatActivate",
+    "_CustomerAgent_3"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf10_Ketchup_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf10_Ketchup_MatActivate",
+   "object": "Shelf10_Ketchup",
+   "type": 11,
+   "cost": 1925,
+   "activate": [
+    "Shelf10_Ketchup",
+    "Machine_KetchupMaker_MatActivate",
+    "_Worker_CashierA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_KetchupMaker_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_Tomato2_MatActivate",
+   "object": "Plant_Tomato2",
+   "type": 11,
+   "cost": 2120,
+   "activate": [
+    "Plant_Tomato2",
+    "Plant_Tomato3_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Tomato3_MatActivate",
+   "object": "Plant_Tomato3",
+   "type": 11,
+   "cost": 3370,
+   "activate": [
+    "Plant_Tomato3",
+    "Plant_Tomato4_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_Tomato4_MatActivate",
+   "object": "Plant_Tomato4",
+   "type": 11,
+   "cost": 4590,
+   "activate": [
+    "Plant_Tomato4"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_KetchupMaker_MatActivate",
+   "object": "Machine_KetchupMaker",
+   "type": 11,
+   "cost": 2850,
+   "activate": [
+    "Machine_KetchupMaker",
+    "Fridge03_Sausage_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Fridge03_Sausage_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_CashierA_MatActivate",
+   "object": "_Worker_CashierA",
+   "type": 11,
+   "cost": 2600,
+   "activate": [
+    "_Worker_CashierA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Fridge03_Sausage_MatActivate",
+   "object": "Fridge03_Sausage",
+   "type": 11,
+   "cost": 2640,
+   "activate": [
+    "Fridge03_Sausage",
+    "Animal_Pig_Sausage_MatActivate",
+    "_Worker_ShelfA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Animal_Pig_Sausage_MatActivate"
+   ]
+  },
+  {
+   "name": "Animal_Pig_Sausage_MatActivate",
+   "object": "Animal_Pig_Sausage",
+   "type": 11,
+   "cost": 3940,
+   "activate": [
+    "Animal_Pig_Sausage",
+    "Store10_Tile1_MatActivate",
+    "_ActivateThief"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store10_Tile1_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfA_MatActivate",
+   "object": "_Worker_ShelfA",
+   "type": 11,
+   "cost": 6500,
+   "activate": [
+    "_Worker_ShelfA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Store10_Tile1_MatActivate",
+   "object": "Store10_Tile1",
+   "type": 11,
+   "cost": 7890,
+   "activate": [
+    "Store10_Tile1",
+    "Shelf04_FlourBag_MatActivate",
+    "_Worker_FarmerA_MatActivate",
+    "_CustomerAgent_4"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf04_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf04_FlourBag_MatActivate",
+   "object": "Shelf04_FlourBag",
+   "type": 11,
+   "cost": 6410,
+   "activate": [
+    "Shelf04_FlourBag",
+    "DeliveryTruck_FlourBag_MatActivate",
+    "_CustomerAgent_5"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_FarmerA_MatActivate",
+   "object": "_Worker_FarmerA",
+   "type": 11,
+   "cost": 9440,
+   "activate": [
+    "_Worker_FarmerA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "DeliveryTruck_FlourBag_MatActivate",
+   "object": "DeliveryTruck_FlourBag",
+   "type": 11,
+   "cost": 8630,
+   "activate": [
+    "DeliveryTruck_FlourBag",
+    "BainMarie01_SausageRoll_MatActivate",
+    "_CustomerAgent_6"
+   ],
+   "delays": [],
+   "highlight": [
+    "BainMarie01_SausageRoll_MatActivate"
+   ]
+  },
+  {
+   "name": "BainMarie01_SausageRoll_MatActivate",
+   "object": "BainMarie01_SausageRoll",
+   "type": 11,
+   "cost": 7460,
+   "activate": [
+    "BainMarie01_SausageRoll",
+    "Machine_SausageRollMaker_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_SausageRollMaker_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_SausageRollMaker_MatActivate",
+   "object": "Machine_SausageRollMaker",
+   "type": 11,
+   "cost": 11820,
+   "activate": [
+    "Machine_SausageRollMaker",
+    "Store10_Tile2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store10_Tile2_MatActivate"
+   ]
+  },
+  {
+   "name": "Store10_Tile2_MatActivate",
+   "object": "Store10_Tile2",
+   "type": 11,
+   "cost": 14870,
+   "activate": [
+    "Store10_Tile2",
+    "Shelf08_FlowerMustard_MatActivate",
+    "_Worker_ChefA_MatActivate",
+    "_CustomerAgent_7"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf08_FlowerMustard_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf08_FlowerMustard_MatActivate",
+   "object": "Shelf08_FlowerMustard",
+   "type": 11,
+   "cost": 13640,
+   "activate": [
+    "Shelf08_FlowerMustard",
+    "Plant_FlowerMustard_MatActivate",
+    "_CustomerAgent_8"
+   ],
+   "delays": [],
+   "highlight": [
+    "Plant_FlowerMustard_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ChefA_MatActivate",
+   "object": "_Worker_ChefA",
+   "type": 11,
+   "cost": 23100,
+   "activate": [
+    "_Worker_ChefA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard_MatActivate",
+   "object": "Plant_FlowerMustard",
+   "type": 11,
+   "cost": 17400,
+   "activate": [
+    "Plant_FlowerMustard",
+    "Shelf10_Mustard_MatActivate",
+    "Plant_FlowerMustard2_MatActivate",
+    "_CustomerAgent_9"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf10_Mustard_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf10_Mustard_MatActivate",
+   "object": "Shelf10_Mustard",
+   "type": 11,
+   "cost": 16300,
+   "activate": [
+    "Shelf10_Mustard",
+    "Machine_MustardMaker_MatActivate",
+    "_Worker_ShelfB_MatActivate",
+    "_CustomerAgent_10"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_MustardMaker_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_FlowerMustard2_MatActivate",
+   "object": "Plant_FlowerMustard2",
+   "type": 11,
+   "cost": 17600,
+   "activate": [
+    "Plant_FlowerMustard2",
+    "Plant_FlowerMustard3_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard3_MatActivate",
+   "object": "Plant_FlowerMustard3",
+   "type": 11,
+   "cost": 17800,
+   "activate": [
+    "Plant_FlowerMustard3",
+    "Plant_FlowerMustard4_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard4_MatActivate",
+   "object": "Plant_FlowerMustard4",
+   "type": 11,
+   "cost": 18000,
+   "activate": [
+    "Plant_FlowerMustard4",
+    "Plant_FlowerMustard5_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard5_MatActivate",
+   "object": "Plant_FlowerMustard5",
+   "type": 11,
+   "cost": 18200,
+   "activate": [
+    "Plant_FlowerMustard5",
+    "Plant_FlowerMustard6_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard6_MatActivate",
+   "object": "Plant_FlowerMustard6",
+   "type": 11,
+   "cost": 18400,
+   "activate": [
+    "Plant_FlowerMustard6",
+    "Plant_FlowerMustard7_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard7_MatActivate",
+   "object": "Plant_FlowerMustard7",
+   "type": 11,
+   "cost": 18600,
+   "activate": [
+    "Plant_FlowerMustard7",
+    "Plant_FlowerMustard8_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard8_MatActivate",
+   "object": "Plant_FlowerMustard8",
+   "type": 11,
+   "cost": 18800,
+   "activate": [
+    "Plant_FlowerMustard8",
+    "Plant_FlowerMustard9_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerMustard9_MatActivate",
+   "object": "Plant_FlowerMustard9",
+   "type": 11,
+   "cost": 19000,
+   "activate": [
+    "Plant_FlowerMustard9"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_MustardMaker_MatActivate",
+   "object": "Machine_MustardMaker",
+   "type": 11,
+   "cost": 24400,
+   "activate": [
+    "Machine_MustardMaker",
+    "Animal_Pig_Sausage2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_ShelfB_MatActivate",
+   "object": "_Worker_ShelfB",
+   "type": 11,
+   "cost": 35600,
+   "activate": [
+    "_Worker_ShelfB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Animal_Pig_Sausage2_MatActivate",
+   "object": "Animal_Pig_Sausage2",
+   "type": 11,
+   "cost": 30750,
+   "activate": [
+    "Animal_Pig_Sausage2",
+    "Shelf09_Hotdog_MatActivate",
+    "_Worker_ChefB_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf09_Hotdog_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf09_Hotdog_MatActivate",
+   "object": "Shelf09_Hotdog",
+   "type": 11,
+   "cost": 38800,
+   "activate": [
+    "Shelf09_Hotdog",
+    "Machine_HotdogMaker_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_HotdogMaker_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ChefB_MatActivate",
+   "object": "_Worker_ChefB",
+   "type": 11,
+   "cost": 49800,
+   "activate": [
+    "_Worker_ChefB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_HotdogMaker_MatActivate",
+   "object": "Machine_HotdogMaker",
+   "type": 11,
+   "cost": 45400,
+   "activate": [
+    "Machine_HotdogMaker",
+    "Mat_NextMart_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Mat_NextMart_MatActivate"
+   ]
+  },
+  {
+   "name": "Mat_NextMart_MatActivate",
+   "object": "Mat_NextMart",
+   "type": 11,
+   "cost": 80500,
+   "activate": [
+    "Mat_NextMart"
+   ],
+   "delays": [],
+   "highlight": []
+  }
+ ],
+ "prices": {
+  "0": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "1": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "2": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "3": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "4": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "6": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "7": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "8": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "9": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "10": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "12": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "13": {
+   "price": 1.0,
+   "quota": 5
+  },
+  "14": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "17": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "18": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "20": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "21": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "22": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "24": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "26": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "27": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "28": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "29": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "30": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "31": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "32": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "33": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "34": {
+   "price": 10.0,
+   "quota": 5
+  },
+  "36": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "37": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "43": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "44": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "45": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "46": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "47": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "51": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "53": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "54": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "55": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "56": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "57": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "58": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "59": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "60": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "61": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "62": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "63": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "64": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "65": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "66": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "67": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "68": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "69": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "70": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "71": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "72": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "73": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "74": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "75": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "76": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "77": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "78": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "79": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "80": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "81": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "82": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "83": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "84": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "85": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "86": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "87": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "88": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "89": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "90": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "91": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "92": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "93": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "94": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "95": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "96": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "97": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "98": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "99": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "100": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "101": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "102": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "103": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "104": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "105": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "106": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "107": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "108": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "109": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "110": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "111": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "112": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "113": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "114": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "115": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "116": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "117": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "118": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "120": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "121": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "122": {
+   "price": 2.0,
+   "quota": 5
+  }
+ }
+}

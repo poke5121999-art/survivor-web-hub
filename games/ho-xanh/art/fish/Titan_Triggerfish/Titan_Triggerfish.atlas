@@ -1,0 +1,13 @@
+Titan_Triggerfish.png
+size:70,43
+filter:Nearest,Nearest
+pma:true
+Sidefin
+bounds:57,29,11,12
+body
+bounds:2,2,53,39
+mouth_bottom
+bounds:57,5,11,8
+mouth_top
+bounds:57,15,12,9
+rotate:90

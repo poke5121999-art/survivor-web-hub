@@ -1,0 +1,109 @@
+{
+ "name": "SanctuaryTree",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  },
+  {
+   "name": "Light",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.5,
+    1.0,
+    2.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [
+  {
+   "path": "Light/Point Light",
+   "type": "point",
+   "pos": [
+    0.5,
+    1.5,
+    0.5
+   ],
+   "color": [
+    1.0,
+    0.804,
+    0.588
+   ],
+   "intensity": 2.5,
+   "range": 3.6,
+   "active": false
+  },
+  {
+   "path": "Light/SkillExecutorLight",
+   "type": "point",
+   "pos": [
+    0.5,
+    2.5,
+    0.5
+   ],
+   "color": [
+    1.0,
+    0.823,
+    0.59
+   ],
+   "intensity": 5.0,
+   "range": 10.0,
+   "active": true
+  }
+ ],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SkillExecutor",
+   "fields": {
+    "_holdingTime": 0.5,
+    "_holdingSfx": "InteractionSanctum",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_common_Props_sanctuary",
+   "mesh": "25DBG_common_Props_sanctuary",
+   "verts": 519,
+   "tris": 513,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.542,
+   0.12,
+   -0.578
+  ],
+  "max": [
+   0.491,
+   1.738,
+   0.471
+  ]
+ },
+ "glb": "art/object/SanctuaryTree.glb",
+ "glbKB": 83
+}

@@ -1,0 +1,757 @@
+{
+ "scene": "Store_Val23",
+ "startingCash": 0,
+ "mats": [
+  {
+   "name": "CashierDesk_Val22_MatActivate",
+   "object": "CashierDesk_Val22",
+   "type": 11,
+   "cost": 100,
+   "activate": [
+    "CashierDesk_Val22",
+    "Shelf08_FlowerDaisy_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf08_FlowerDaisy_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf08_FlowerDaisy_MatActivate",
+   "object": "Shelf08_FlowerDaisy",
+   "type": 11,
+   "cost": 120,
+   "activate": [
+    "Shelf08_FlowerDaisy",
+    "Plant_FlowerDaisy_MatActivate",
+    "_CustomerAgent_1"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerDaisy_MatActivate",
+   "object": "Plant_FlowerDaisy",
+   "type": 11,
+   "cost": 150,
+   "activate": [
+    "Plant_FlowerDaisy",
+    "Plant_FlowerDaisy2_MatActivate",
+    "_CustomerAgent_2"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerDaisy2_MatActivate",
+   "object": "Plant_FlowerDaisy2",
+   "type": 11,
+   "cost": 180,
+   "activate": [
+    "Plant_FlowerDaisy2",
+    "Plant_FlowerDaisy3_MatActivate",
+    "Shelf08_FlowerRose_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf08_FlowerRose_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_FlowerDaisy3_MatActivate",
+   "object": "Plant_FlowerDaisy3",
+   "type": 11,
+   "cost": 230,
+   "activate": [
+    "Plant_FlowerDaisy3",
+    "Plant_FlowerDaisy4_MatActivate",
+    "_CustomerAgent_6"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf08_FlowerRose_MatActivate",
+   "object": "Shelf08_FlowerRose",
+   "type": 11,
+   "cost": 200,
+   "activate": [
+    "Shelf08_FlowerRose",
+    "Plant_FlowerRose_MatActivate",
+    "_Worker_CashierA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "_Worker_CashierA_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_FlowerRose_MatActivate",
+   "object": "Plant_FlowerRose",
+   "type": 11,
+   "cost": 240,
+   "activate": [
+    "Plant_FlowerRose",
+    "Plant_FlowerRose2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "_Worker_CashierA_MatActivate",
+   "object": "_Worker_CashierA",
+   "type": 11,
+   "cost": 300,
+   "activate": [
+    "_Worker_CashierA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerRose2_MatActivate",
+   "object": "Plant_FlowerRose2",
+   "type": 11,
+   "cost": 280,
+   "activate": [
+    "Plant_FlowerRose2",
+    "Plant_FlowerRose3_MatActivate",
+    "_Worker_ShelfA_MatActivate",
+    "_CustomerAgent_3"
+   ],
+   "delays": [],
+   "highlight": [
+    "_Worker_ShelfA_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_FlowerRose3_MatActivate",
+   "object": "Plant_FlowerRose3",
+   "type": 11,
+   "cost": 340,
+   "activate": [
+    "Plant_FlowerRose3",
+    "Plant_FlowerRose4_MatActivate",
+    "Shelf08_FlowerTulip_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf08_FlowerTulip_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfA_MatActivate",
+   "object": "_Worker_ShelfA",
+   "type": 11,
+   "cost": 500,
+   "activate": [
+    "_Worker_ShelfA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerRose4_MatActivate",
+   "object": "Plant_FlowerRose4",
+   "type": 11,
+   "cost": 400,
+   "activate": [
+    "Plant_FlowerRose4",
+    "Plant_FlowerRose5_MatActivate",
+    "_CustomerAgent_5"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf08_FlowerTulip_MatActivate",
+   "object": "Shelf08_FlowerTulip",
+   "type": 11,
+   "cost": 370,
+   "activate": [
+    "Shelf08_FlowerTulip",
+    "Plant_FlowerTulip1_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerTulip1_MatActivate",
+   "object": "Plant_FlowerTulip1",
+   "type": 11,
+   "cost": 420,
+   "activate": [
+    "Plant_FlowerTulip1",
+    "Plant_FlowerTulip2_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerTulip2_MatActivate",
+   "object": "Plant_FlowerTulip2",
+   "type": 11,
+   "cost": 470,
+   "activate": [
+    "Plant_FlowerTulip2",
+    "Plant_FlowerTulip3_MatActivate",
+    "Shelf08_FlowerBouquet_MatActivate",
+    "_CustomerAgent_4"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf08_FlowerBouquet_MatActivate"
+   ]
+  },
+  {
+   "name": "Plant_FlowerTulip3_MatActivate",
+   "object": "Plant_FlowerTulip3",
+   "type": 11,
+   "cost": 540,
+   "activate": [
+    "Plant_FlowerTulip3",
+    "Plant_FlowerTulip4_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf08_FlowerBouquet_MatActivate",
+   "object": "Shelf08_FlowerBouquet",
+   "type": 11,
+   "cost": 535,
+   "activate": [
+    "Shelf08_FlowerBouquet",
+    "Machine_Bouqueter_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_Bouqueter_MatActivate",
+   "object": "Machine_Bouqueter",
+   "type": 11,
+   "cost": 890,
+   "activate": [
+    "Machine_Bouqueter"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerTulip4_MatActivate",
+   "object": "Plant_FlowerTulip4",
+   "type": 11,
+   "cost": 610,
+   "activate": [
+    "Plant_FlowerTulip4",
+    "Plant_FlowerTulip5_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerTulip5_MatActivate",
+   "object": "Plant_FlowerTulip5",
+   "type": 11,
+   "cost": 700,
+   "activate": [
+    "Plant_FlowerTulip5",
+    "Plant_FlowerTulip6_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerTulip6_MatActivate",
+   "object": "Plant_FlowerTulip6",
+   "type": 11,
+   "cost": 790,
+   "activate": [
+    "Plant_FlowerTulip6"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerRose5_MatActivate",
+   "object": "Plant_FlowerRose5",
+   "type": 11,
+   "cost": 480,
+   "activate": [
+    "Plant_FlowerRose5",
+    "Plant_FlowerRose6_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerRose6_MatActivate",
+   "object": "Plant_FlowerRose6",
+   "type": 11,
+   "cost": 560,
+   "activate": [
+    "Plant_FlowerRose6"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerDaisy4_MatActivate",
+   "object": "Plant_FlowerDaisy4",
+   "type": 11,
+   "cost": 280,
+   "activate": [
+    "Plant_FlowerDaisy4",
+    "Plant_FlowerDaisy5_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerDaisy5_MatActivate",
+   "object": "Plant_FlowerDaisy5",
+   "type": 11,
+   "cost": 350,
+   "activate": [
+    "Plant_FlowerDaisy5",
+    "Plant_FlowerDaisy6_MatActivate"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Plant_FlowerDaisy6_MatActivate",
+   "object": "Plant_FlowerDaisy6",
+   "type": 11,
+   "cost": 420,
+   "activate": [
+    "Plant_FlowerDaisy6"
+   ],
+   "delays": [],
+   "highlight": []
+  }
+ ],
+ "prices": {
+  "0": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "1": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "2": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "3": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "4": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "6": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "7": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "8": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "9": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "10": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "12": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "13": {
+   "price": 1.0,
+   "quota": 5
+  },
+  "14": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "17": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "18": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "20": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "21": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "22": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "24": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "26": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "27": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "28": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "29": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "30": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "31": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "32": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "33": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "34": {
+   "price": 10.0,
+   "quota": 5
+  },
+  "36": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "37": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "43": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "44": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "45": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "46": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "47": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "51": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "53": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "54": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "55": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "56": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "57": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "58": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "59": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "60": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "61": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "62": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "63": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "64": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "65": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "66": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "67": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "68": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "69": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "70": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "71": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "72": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "73": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "74": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "75": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "76": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "77": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "78": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "79": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "80": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "81": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "82": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "83": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "84": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "85": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "86": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "87": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "88": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "89": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "90": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "91": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "92": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "93": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "94": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "95": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "96": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "97": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "98": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "99": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "100": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "101": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "102": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "103": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "104": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "105": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "106": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "107": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "108": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "109": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "110": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "111": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "112": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "113": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "114": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "115": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "116": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "117": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "118": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "120": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "121": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "122": {
+   "price": 2.0,
+   "quota": 5
+  }
+ }
+}

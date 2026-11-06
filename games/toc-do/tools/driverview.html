@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tay đua — xem thử</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #8fb6d8; font: 13px system-ui, sans-serif; overflow: hidden; }
+  #ui { position: fixed; left: 8px; top: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  #ui button { padding: 3px 7px; border: 0; border-radius: 4px; background: #fffc; cursor: pointer; }
+  #ui button.on { background: #ffd34d; }
+  #info { position: fixed; left: 8px; bottom: 8px; background: #0008; color: #fff; padding: 4px 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="ui"></div>
+<div id="info">…</div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../data/drivers.js"></script>
+<script>
+// ?d=nam|nu &clip=<role> &t=<giây, dừng hình> &car=<id xe trong art/cars> &view=front|side|back &ui=0
+'use strict';
+const Q = new URLSearchParams(location.search);
+const D = TD.DRIVERS[Q.get('d') || 'nam'];
+let fixedT = Q.has('t') ? parseFloat(Q.get('t')) : null;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb6d8);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-2, 4, -3); scene.add(sun);
+const grid = new THREE.GridHelper(4, 16, 0x335577, 0x557799); scene.add(grid);
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 100);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
+const clock = new THREE.Clock();
+let mixer = null, actions = {}, cur = null, focus = new THREE.Vector3(0, 0.6, 0), dist = 2.6;
+const loader = new THREE.GLTFLoader();
+const load = (u) => new Promise((ok, no) => loader.load(u, ok, null, no));
+
+function place() {
+  const v = Q.get('view') || 'front';
+  const dir = { front: [-0.6, 0.35, -1], side: [-1, 0.25, 0], back: [0.5, 0.45, 1], top: [-0.3, 1.6, -0.6] }[v] || [-0.6, 0.35, -1];
+  cam.position.copy(focus).add(new THREE.Vector3(...dir).normalize().multiplyScalar(dist));
+  cam.lookAt(focus);
+}
+
+function play(role) {
+  if (!actions[role]) return;
+  if (cur) cur.stop();
+  cur = actions[role];
+  const info = D.clipInfo[role] || {};
+  cur.setLoop(info.loop || fixedT == null ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+  cur.clampWhenFinished = true;
+  cur.reset().play();
+  if (fixedT != null) { cur.paused = false; mixer.setTime(Math.min(fixedT, cur.getClip().duration - 1e-3)); }
+  document.querySelectorAll('#ui button').forEach((b) => b.classList.toggle('on', b.dataset.r === role));
+  document.getElementById('info').textContent = D.name + ' · ' + role + ' (' + info.src + ', ' + info.dur + ' s)' + (fixedT != null ? ' · t=' + fixedT : '');
+}
+
+(async function main() {
+  const gl = await load('../' + D.glb);
+  const driver = gl.scene;
+  driver.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  let root = driver;
+  if (Q.get('car')) {
+    const car = await load('../art/cars/' + Q.get('car') + '.glb');
+    scene.add(car.scene);
+    let mount = null;
+    car.scene.traverse((o) => { if (!mount && /driver_mount/i.test(o.name)) mount = o; });
+    if (!mount) car.scene.traverse((o) => { if (!mount && o.name === D.seatNode) mount = o; });
+    (mount || car.scene).add(driver);
+    driver.position.fromArray(D.mountOffset || [0, 0, 0]);
+    grid.visible = false;
+    root = car.scene;
+  } else scene.add(driver);
+  mixer = new THREE.AnimationMixer(driver);
+  for (const c of gl.animations) actions[c.name] = mixer.clipAction(c);
+  const ui = document.getElementById('ui');
+  if (Q.get('ui') === '0') ui.style.display = 'none';
+  for (const role of Object.keys(D.clips)) {
+    const b = document.createElement('button'); b.textContent = role; b.dataset.r = role; b.onclick = () => play(role); ui.appendChild(b);
+  }
+  play(Q.get('clip') || 'drive');
+  mixer.update(0);
+  // skinned bounds are bind-pose, so frame the posed bones (or the car)
+  const box = new THREE.Box3(), p = new THREE.Vector3();
+  scene.updateMatrixWorld(true);
+  if (Q.get('car')) box.setFromObject(root);
+  else driver.traverse((o) => { if (o.isBone && /^Bip_/.test(o.name)) box.expandByPoint(o.getWorldPosition(p)); });
+  box.getCenter(focus);
+  dist = Math.max(box.getSize(p).length(), 0.6) * (Q.get('car') ? 1.5 : 2.6);
+  place();
+  renderer.setAnimationLoop(() => {
+    const dt = clock.getDelta();
+    if (fixedT == null) mixer.update(dt);
+    renderer.render(scene, cam);
+  });
+  // automation: freeze <role> at time t (seconds)
+  window.pose = (role, t) => { fixedT = t; play(role); renderer.render(scene, cam); };
+  window.READY = true;
+})().catch((e) => { document.getElementById('info').textContent = 'lỗi: ' + e.message; console.error(e); });
+</script>
+</body>
+</html>

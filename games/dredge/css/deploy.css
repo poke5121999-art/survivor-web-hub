@@ -1,0 +1,34 @@
+/*
+ * Lưới kéo / bẫy cua / mồi (js/deploy.js): bảng DeployableAbilityInfoPanel (240×150, neo cạnh ô năng lực, Game.unity)
+ * và thẻ ActiveTrawlTab (đếm món trong lưới). Toạ độ trong JS là đơn vị canvas 1920×1080, .dp-bar nhân scale = cao / 1080.
+ * Chữ gốc Front Page Neue: [ĐỀ XUẤT] Oswald như css/abilities.css.
+ */
+#dr-deploy { position: fixed; inset: 0; z-index: 21; pointer-events: none; overflow: hidden; }
+#dr-deploy div, #dr-deploy i, #dr-deploy b, #dr-deploy span { position: absolute; display: block; font-style: normal; }
+#dr-deploy .dp-bar { left: 0; bottom: 0; width: 0; height: 0; transform-origin: 0 100%; }
+/* PopupBackground: nền đen viền sáng cắt 9 ô (Image.Type Sliced) */
+#dr-deploy .dp-panel { display: none; }
+#dr-deploy .dp-panel::before { content: ""; position: absolute; inset: 0; border: 4px solid transparent;
+  border-image: url(../art/ui/sprites/PopupBackground.webp) 4 fill / 4px stretch; }
+#dr-deploy .dp-name { display: flex; align-items: center; justify-content: center; text-align: center; color: #fff;
+  font: 400 23px/1 "Oswald", "Arial Narrow", sans-serif; overflow: hidden; }
+/* [ĐỀ XUẤT] ký hiệu phím Z / X: không có sprite keyboard-icon-z/x trong bản xuất, vẽ ô phím viền trắng */
+#dr-deploy .dp-key { display: flex; align-items: center; justify-content: center; color: #fff; font: 700 20px/1 "Oswald", sans-serif; }
+#dr-deploy .dp-key::before { content: ""; position: absolute; inset: 9px; border: 2px solid #fff; border-radius: 6px; }
+#dr-deploy .dp-ic { background-repeat: no-repeat; background-position: center; background-size: contain; }
+#dr-deploy .dp-depth { background-image: url(../art/ui/sprites/DepthIcon.webp); }
+#dr-deploy .dp-trawl { background-image: url(../art/ui/sprites/TrawlIcon.webp); }
+#dr-deploy .dp-val { display: flex; align-items: flex-end; justify-content: center; color: #fff; font: 400 26px/1 "Oswald", "Arial Narrow", sans-serif; white-space: nowrap; }
+/* ActiveTrawlTab: PromptBackground đen lật ngang, biểu tượng lưới, ô đếm AlertIcon_Blank màu (0,188; 0,502; 0,459) */
+#dr-deploy .dp-tab { display: none; cursor: pointer; }
+#dr-deploy .dp-tabbg { background: #000; -webkit-mask: url(../art/ui/sprites/PromptBackground.webp) center / 100% 100% no-repeat;
+  mask: url(../art/ui/sprites/PromptBackground.webp) center / 100% 100% no-repeat; transform: scaleX(-1); }
+#dr-deploy .dp-count { background-color: rgb(48, 128, 117); -webkit-mask: url(../art/ui/sprites/AlertIcon_Blank.webp) center / contain no-repeat;
+  mask: url(../art/ui/sprites/AlertIcon_Blank.webp) center / contain no-repeat; }
+#dr-deploy .dp-count span { inset: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font: 400 24px/1 "Oswald", sans-serif; }
+/* nhắc tương tác với phao: dùng kiểu .hud-prompt của css/ui.css (giữa dưới, như gợi ý điểm câu của js/hud.js) */
+#dr-deploy .dp-prompt { display: none; }
+#dr-deploy .dp-prompt.on { display: block; }
+#dr-deploy .dp-prompt b, #dr-deploy .dp-prompt span { position: static; }
+/* nút Lấy hết / Nhặt bẫy của bảng bẫy (OccasionalGridPanel: hai nút cạnh nhau trong bảng 650 đơn vị) */
+.cg-left .cg-foot .cg-btn[data-act="take-all"], .cg-left .cg-foot .cg-btn[data-act="pick-up"] { min-width: calc(var(--k) * var(--sc, 1) * 250px); }

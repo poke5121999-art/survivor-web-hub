@@ -1,0 +1,1 @@
+{"v":1,"name":"SelfRevive_Hit_Dummy","nodes":[{"n":"SelfRevive_Hit_Dummy","p":-1}],"systems":[{"node":0,"name":"SelfRevive_Hit_Dummy","dur":1,"life":5,"speed":0,"size":1,"color":[0.75,0.75,0.75,1],"max":2,"emit":{"bursts":[[0,1,1,0.01,1]]},"cd":[{"v":[0,0,1,1]},{"v":[0,1,0,1]}],"r":{"mode":5}}],"len":0}

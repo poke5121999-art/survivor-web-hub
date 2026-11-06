@@ -1,0 +1,9 @@
+Red_Bream.png
+size:56,32
+filter:Nearest,Nearest
+pma:true
+Body
+bounds:2,2,44,28
+Sidefin
+bounds:48,22,8,6
+rotate:90

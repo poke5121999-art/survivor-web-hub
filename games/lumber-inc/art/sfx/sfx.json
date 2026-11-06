@@ -1,0 +1,219 @@
+{
+ "GachaEnd": {
+  "file": "GachaEnd.mp3",
+  "seconds": 4.446,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "GachaShake": {
+  "file": "GachaShake.mp3",
+  "seconds": 1.156,
+  "music": false,
+  "channels": 1,
+  "hz": 48000
+ },
+ "InsertCoin": {
+  "file": "InsertCoin.mp3",
+  "seconds": 0.762,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "audio_beep": {
+  "file": "audio_beep.mp3",
+  "seconds": 0.7,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "audio_buildHouse": {
+  "file": "audio_buildHouse.mp3",
+  "seconds": 1.411,
+  "music": false,
+  "channels": 1,
+  "hz": 22050
+ },
+ "audio_debark": {
+  "file": "audio_debark.mp3",
+  "seconds": 3.996,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "audio_levelup": {
+  "file": "audio_levelup.mp3",
+  "seconds": 1.62,
+  "music": false,
+  "channels": 1,
+  "hz": 22050
+ },
+ "audio_machine1": {
+  "file": "audio_machine1.mp3",
+  "seconds": 3.111,
+  "music": false,
+  "channels": 1,
+  "hz": 32000
+ },
+ "audio_machine2": {
+  "file": "audio_machine2.mp3",
+  "seconds": 22.254,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "audio_machine4": {
+  "file": "audio_machine4.mp3",
+  "seconds": 11.611,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "audio_progress": {
+  "file": "audio_progress.mp3",
+  "seconds": 3.048,
+  "music": false,
+  "channels": 1,
+  "hz": 48000
+ },
+ "audio_purchase": {
+  "file": "audio_purchase.mp3",
+  "seconds": 1.489,
+  "music": false,
+  "channels": 1,
+  "hz": 22050
+ },
+ "audio_researchMachine": {
+  "file": "audio_researchMachine.mp3",
+  "seconds": 2.194,
+  "music": false,
+  "channels": 2,
+  "hz": 44100
+ },
+ "audio_treefall": {
+  "file": "audio_treefall.mp3",
+  "seconds": 2.0,
+  "music": false,
+  "channels": 1,
+  "hz": 32000
+ },
+ "audio_truck": {
+  "file": "audio_truck.mp3",
+  "seconds": 3.85,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "audio_unlock": {
+  "file": "audio_unlock.mp3",
+  "seconds": 0.72,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "audio_upgrade": {
+  "file": "audio_upgrade.mp3",
+  "seconds": 0.418,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "audio_win1": {
+  "file": "audio_win1.mp3",
+  "seconds": 2.106,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "bgm_forest": {
+  "file": "bgm_forest.mp3",
+  "seconds": 59.061,
+  "music": true,
+  "channels": 1,
+  "hz": 16000
+ },
+ "bgm_wave": {
+  "file": "bgm_wave.mp3",
+  "seconds": 59.544,
+  "music": true,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall1": {
+  "file": "fall1.mp3",
+  "seconds": 0.216,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall2": {
+  "file": "fall2.mp3",
+  "seconds": 0.18,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall3": {
+  "file": "fall3.mp3",
+  "seconds": 0.216,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall4": {
+  "file": "fall4.mp3",
+  "seconds": 0.216,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall5": {
+  "file": "fall5.mp3",
+  "seconds": 0.324,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall6": {
+  "file": "fall6.mp3",
+  "seconds": 0.18,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "fall7": {
+  "file": "fall7.mp3",
+  "seconds": 0.252,
+  "music": false,
+  "channels": 1,
+  "hz": 16000
+ },
+ "schop_rock": {
+  "file": "schop_rock.mp3",
+  "seconds": 0.209,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "schop_wood": {
+  "file": "schop_wood.mp3",
+  "seconds": 0.274,
+  "music": false,
+  "channels": 1,
+  "hz": 44100
+ },
+ "ui_click": {
+  "file": "ui_click.mp3",
+  "seconds": 0.05,
+  "music": false,
+  "channels": 1,
+  "hz": 48000
+ },
+ "_consts": {
+  "SOUND_DEFAULT_BUTTON": "ui_click",
+  "SOUND_MAINBGM": "bgm_looby"
+ },
+ "_notes": [
+  "SOUND_MAINBGM names bgm_looby, which is not among the 30 shipped clips; bgm_forest (59 s) and bgm_wave (60 s) are the only music clips."
+ ]
+}

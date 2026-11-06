@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Fish Bowl UI test</title>
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+<div id="ui"></div>
+<script type="module">
+import { UI } from './js/ui.js';
+// ?screen=menu|levels|hud|letterbox|splash  &show=<node path>,<node path>  (force-activates inactive nodes and their parents)
+const q = new URLSearchParams(location.search);
+const screen = q.get('screen') || 'menu';
+try {
+  const layout = await (await fetch('art/ui/layout.json')).json();
+  const ui = new UI(document.getElementById('ui'), layout, { spriteBase: 'art/ui/sprites/' });
+  window.ui = ui;
+  if (screen === 'menu') ui.setText('menu', 'TotalCoins_BG/Text', '1250');
+  if (screen === 'letterbox') {
+    ui.setActive('letterbox', 'TimelineUI', true);
+    ui.setText('letterbox', 'SubtitlesText', 'Where is my owner...?');
+  }
+  for (const p of (q.get('show') || '').split(',').filter(Boolean)) ui.setActive(screen, p, true, { ancestors: true });
+  if (screen === 'hud') ui.setFill('hud', 'Moss_Slider', 0.4);
+  if (screen === 'levels') {
+    const card = +(q.get('card') || 1);
+    let cur = card;
+    for (const n of (q.get('locked') || '').split(',').filter(Boolean)) ui.setLevelState(+n, { locked: true });
+    ui.on('levels', 'Left_Btn', () => ui.selectLevel((cur = (cur + 3) % 5 + 1)));
+    ui.on('levels', 'Right_Btn', () => ui.selectLevel((cur = cur % 5 + 1)));
+    ui.selectLevel(card);
+  }
+  ui.show(screen);
+  window.__ready = true;
+} catch (e) { window.__error = String(e); document.body.textContent = String(e); }
+</script>
+</body>
+</html>

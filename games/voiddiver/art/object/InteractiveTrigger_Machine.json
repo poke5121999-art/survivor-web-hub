@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_Machine",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 0,
+    "_coolTime": 0.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_NoticeBoard_4",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_NoticeBoard_4",
+   "verts": 26,
+   "tris": 28,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.23,
+   -0.249,
+   -0.186
+  ],
+  "max": [
+   0.234,
+   0.89,
+   0.122
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_Machine.glb",
+ "glbKB": 99
+}

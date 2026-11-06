@@ -1,0 +1,89 @@
+{
+ "name": "TrainingField",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Vfx",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "size": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [
+  {
+   "path": "Vfx",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Vfx/Root/Loop/Circle_Ground",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Vfx/Root/Loop/Circle_BG",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Vfx/Root/Loop/Circle_BG_Size",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Vfx/Root/Loop/Particles",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  }
+ ],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SpecialField",
+   "fields": {
+    "_spawnSfx": "",
+    "_destroySfx": ""
+   }
+  }
+ ],
+ "meshes": []
+}

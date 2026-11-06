@@ -1,0 +1,38 @@
+{
+ "name": "BoxFogField",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "size": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SpecialField",
+   "fields": {
+    "_spawnSfx": "",
+    "_destroySfx": ""
+   }
+  }
+ ],
+ "meshes": []
+}

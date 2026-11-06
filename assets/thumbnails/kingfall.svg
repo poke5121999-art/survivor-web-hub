@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Kingfall: The Last Citadel TD">
+  <defs>
+    <linearGradient id="kf-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a2033"/>
+      <stop offset="1" stop-color="#0d0b12"/>
+    </linearGradient>
+    <radialGradient id="kf-glow" cx="0.5" cy="0.72" r="0.55">
+      <stop offset="0" stop-color="#ffb454" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffb454" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#kf-bg)"/>
+  <ellipse cx="160" cy="130" rx="120" ry="60" fill="url(#kf-glow)"/>
+
+  <!-- citadel: central keep flanked by two towers -->
+  <g fill="#e7e9ee">
+    <!-- left tower -->
+    <rect x="92" y="70" width="24" height="62"/>
+    <path d="M92 70 h6 v-8 h6 v8 h6 v-8 h6 v8 Z"/>
+    <!-- keep -->
+    <rect x="130" y="52" width="60" height="80"/>
+    <path d="M130 52 h8 v-10 h9 v10 h9 v-10 h9 v10 h9 v-10 h9 v10 h7 Z"/>
+    <!-- right tower -->
+    <rect x="204" y="70" width="24" height="62"/>
+    <path d="M204 70 h6 v-8 h6 v8 h6 v-8 h6 v8 Z"/>
+  </g>
+  <!-- gate -->
+  <path d="M150 132 v-24 a10 10 0 0 1 20 0 v24 Z" fill="#2a2033"/>
+  <!-- banner on the keep -->
+  <rect x="156" y="62" width="8" height="18" fill="#ffb454"/>
+
+  <!-- ground line -->
+  <rect x="24" y="132" width="272" height="2" fill="#4a4256"/>
+
+  <!-- attacking wave closing on the citadel -->
+  <g fill="#ff6b6b" opacity="0.9">
+    <rect x="34" y="122" width="9" height="9" rx="2"/>
+    <rect x="52" y="122" width="9" height="9" rx="2"/>
+    <rect x="70" y="122" width="9" height="9" rx="2"/>
+    <rect x="248" y="122" width="9" height="9" rx="2"/>
+    <rect x="266" y="122" width="9" height="9" rx="2"/>
+    <rect x="284" y="122" width="9" height="9" rx="2"/>
+  </g>
+  <!-- defensive fire from the towers -->
+  <g fill="#ffb454">
+    <circle cx="86" cy="92" r="3"/>
+    <circle cx="72" cy="100" r="2.5"/>
+    <circle cx="234" cy="92" r="3"/>
+    <circle cx="248" cy="100" r="2.5"/>
+  </g>
+
+  <text x="16" y="166" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#e7e9ee">KINGFALL</text>
+</svg>

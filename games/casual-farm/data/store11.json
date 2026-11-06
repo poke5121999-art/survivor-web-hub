@@ -1,0 +1,843 @@
+{
+ "scene": "Store_11",
+ "startingCash": 0,
+ "mats": [
+  {
+   "name": "CashierDesk_MatActivate",
+   "object": "CashierDesk",
+   "type": 11,
+   "cost": 1870,
+   "activate": [
+    "CashierDesk",
+    "Shelf07_SugarCube_MatActivate",
+    "_CustomerAgent_1"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf07_SugarCube_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf07_SugarCube_MatActivate",
+   "object": "Shelf07_SugarCube",
+   "type": 11,
+   "cost": 1740,
+   "activate": [
+    "Shelf07_SugarCube",
+    "DeliveryTruck_SugarCube_MatActivate",
+    "_Worker_CashierA_MatActivate",
+    "_CustomerAgent_2"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_SugarCube_MatActivate"
+   ]
+  },
+  {
+   "name": "DeliveryTruck_SugarCube_MatActivate",
+   "object": "DeliveryTruck_SugarCube",
+   "type": 11,
+   "cost": 2650,
+   "activate": [
+    "DeliveryTruck_SugarCube",
+    "ShelfStand01_CottonCandy_MatActivate",
+    "_CustomerAgent_3"
+   ],
+   "delays": [],
+   "highlight": [
+    "ShelfStand01_CottonCandy_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_CashierA_MatActivate",
+   "object": "_Worker_CashierA",
+   "type": 11,
+   "cost": 3300,
+   "activate": [
+    "_Worker_CashierA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "ShelfStand01_CottonCandy_MatActivate",
+   "object": "ShelfStand01_CottonCandy",
+   "type": 11,
+   "cost": 3800,
+   "activate": [
+    "ShelfStand01_CottonCandy",
+    "Machine_CottonCandy_MatActivate",
+    "_CustomerAgent_4"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_CottonCandy_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_CottonCandy_MatActivate",
+   "object": "Machine_CottonCandy",
+   "type": 11,
+   "cost": 4950,
+   "activate": [
+    "Machine_CottonCandy",
+    "Shelf02_AppleGreen_MatActivate",
+    "_Worker_ShelfA_MatActivate",
+    "_CustomerAgent_5"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf02_AppleGreen_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf02_AppleGreen_MatActivate",
+   "object": "Shelf02_AppleGreen",
+   "type": 11,
+   "cost": 6450,
+   "activate": [
+    "Shelf02_AppleGreen",
+    "Tree_Apple_MatActivate",
+    "_CustomerAgent_6"
+   ],
+   "delays": [],
+   "highlight": [
+    "Tree_Apple_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfA_MatActivate",
+   "object": "_Worker_ShelfA",
+   "type": 11,
+   "cost": 7100,
+   "activate": [
+    "_Worker_ShelfA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Tree_Apple_MatActivate",
+   "object": "Tree_Apple",
+   "type": 11,
+   "cost": 8600,
+   "activate": [
+    "Tree_Apple",
+    "BainMarie01_CandiedApple_MatActivate",
+    "_CustomerAgent_7"
+   ],
+   "delays": [],
+   "highlight": [
+    "BainMarie01_CandiedApple_MatActivate"
+   ]
+  },
+  {
+   "name": "BainMarie01_CandiedApple_MatActivate",
+   "object": "BainMarie01_CandiedApple",
+   "type": 11,
+   "cost": 12300,
+   "activate": [
+    "BainMarie01_CandiedApple",
+    "Machine_Pot_CandiedApple_MatActivate",
+    "_Worker_ShelfB_MatActivate",
+    "_ActivateCarCustomer"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_Pot_CandiedApple_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_Pot_CandiedApple_MatActivate",
+   "object": "Machine_Pot_CandiedApple",
+   "type": 11,
+   "cost": 16800,
+   "activate": [
+    "Machine_Pot_CandiedApple",
+    "Store11_Tile1_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store11_Tile1_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfB_MatActivate",
+   "object": "_Worker_ShelfB",
+   "type": 11,
+   "cost": 17500,
+   "activate": [
+    "_Worker_ShelfB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Store11_Tile1_MatActivate",
+   "object": "Store11_Tile1",
+   "type": 11,
+   "cost": 18000,
+   "activate": [
+    "Store11_Tile1",
+    "Fridge03_Sausage_MatActivate",
+    "_ActivateThief"
+   ],
+   "delays": [],
+   "highlight": [
+    "Fridge03_Sausage_MatActivate"
+   ]
+  },
+  {
+   "name": "Fridge03_Sausage_MatActivate",
+   "object": "Fridge03_Sausage",
+   "type": 11,
+   "cost": 14600,
+   "activate": [
+    "Fridge03_Sausage",
+    "Animal_Pig_Sausage_MatActivate",
+    "_Worker_ChefA_MatActivate",
+    "_CustomerAgent_8"
+   ],
+   "delays": [],
+   "highlight": [
+    "Animal_Pig_Sausage_MatActivate"
+   ]
+  },
+  {
+   "name": "Animal_Pig_Sausage_MatActivate",
+   "object": "Animal_Pig_Sausage",
+   "type": 11,
+   "cost": 22500,
+   "activate": [
+    "Animal_Pig_Sausage",
+    "Shelf06_GlazedBacon_MatActivate",
+    "Tree_Apple2_MatActivate",
+    "_CustomerAgent_9"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf06_GlazedBacon_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ChefA_MatActivate",
+   "object": "_Worker_ChefA",
+   "type": 11,
+   "cost": 23000,
+   "activate": [
+    "_Worker_ChefA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf06_GlazedBacon_MatActivate",
+   "object": "Shelf06_GlazedBacon",
+   "type": 11,
+   "cost": 20650,
+   "activate": [
+    "Shelf06_GlazedBacon",
+    "Machine_FryingPan_GlazedBacon_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_FryingPan_GlazedBacon_MatActivate"
+   ]
+  },
+  {
+   "name": "Tree_Apple2_MatActivate",
+   "object": "Tree_Apple2",
+   "type": 11,
+   "cost": 24500,
+   "activate": [
+    "Tree_Apple2"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_FryingPan_GlazedBacon_MatActivate",
+   "object": "Machine_FryingPan_GlazedBacon",
+   "type": 11,
+   "cost": 28700,
+   "activate": [
+    "Machine_FryingPan_GlazedBacon",
+    "Store11_Tile2_MatActivate",
+    "_Worker_FarmerA_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Store11_Tile2_MatActivate"
+   ]
+  },
+  {
+   "name": "Store11_Tile2_MatActivate",
+   "object": "Store11_Tile2",
+   "type": 11,
+   "cost": 30000,
+   "activate": [
+    "Store11_Tile2",
+    "Shelf04_FlourBag_MatActivate",
+    "_Worker_ShelfC_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf04_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_FarmerA_MatActivate",
+   "object": "_Worker_FarmerA",
+   "type": 11,
+   "cost": 31950,
+   "activate": [
+    "_Worker_FarmerA"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Shelf04_FlourBag_MatActivate",
+   "object": "Shelf04_FlourBag",
+   "type": 11,
+   "cost": 27900,
+   "activate": [
+    "Shelf04_FlourBag",
+    "DeliveryTruck_FlourBag_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "DeliveryTruck_FlourBag_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ShelfC_MatActivate",
+   "object": "_Worker_ShelfC",
+   "type": 11,
+   "cost": 37100,
+   "activate": [
+    "_Worker_ShelfC"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "DeliveryTruck_FlourBag_MatActivate",
+   "object": "DeliveryTruck_FlourBag",
+   "type": 11,
+   "cost": 34200,
+   "activate": [
+    "DeliveryTruck_FlourBag",
+    "BainMarie02_CornDog_MatActivate",
+    "_Worker_ChefB_MatActivate",
+    "_CustomerAgent_10"
+   ],
+   "delays": [],
+   "highlight": [
+    "BainMarie02_CornDog_MatActivate"
+   ]
+  },
+  {
+   "name": "BainMarie02_CornDog_MatActivate",
+   "object": "BainMarie02_CornDog",
+   "type": 11,
+   "cost": 37700,
+   "activate": [
+    "BainMarie02_CornDog",
+    "Machine_DeepFryer_CornDog_MatActivate",
+    "_CustomerAgent_11"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_DeepFryer_CornDog_MatActivate"
+   ]
+  },
+  {
+   "name": "_Worker_ChefB_MatActivate",
+   "object": "_Worker_ChefB",
+   "type": 11,
+   "cost": 48200,
+   "activate": [
+    "_Worker_ChefB"
+   ],
+   "delays": [],
+   "highlight": []
+  },
+  {
+   "name": "Machine_DeepFryer_CornDog_MatActivate",
+   "object": "Machine_DeepFryer_CornDog",
+   "type": 11,
+   "cost": 49700,
+   "activate": [
+    "Machine_DeepFryer_CornDog",
+    "Shelf09_ApplePie_MatActivate",
+    "_CustomerAgent_12"
+   ],
+   "delays": [],
+   "highlight": [
+    "Shelf09_ApplePie_MatActivate"
+   ]
+  },
+  {
+   "name": "Shelf09_ApplePie_MatActivate",
+   "object": "Shelf09_ApplePie",
+   "type": 11,
+   "cost": 52800,
+   "activate": [
+    "Shelf09_ApplePie",
+    "Machine_Oven_ApplePie_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Machine_Oven_ApplePie_MatActivate"
+   ]
+  },
+  {
+   "name": "Machine_Oven_ApplePie_MatActivate",
+   "object": "Machine_Oven_ApplePie",
+   "type": 11,
+   "cost": 63500,
+   "activate": [
+    "Machine_Oven_ApplePie",
+    "Mat_NextMart_MatActivate"
+   ],
+   "delays": [],
+   "highlight": [
+    "Mat_NextMart_MatActivate"
+   ]
+  },
+  {
+   "name": "Mat_NextMart_MatActivate",
+   "object": "Mat_NextMart",
+   "type": 11,
+   "cost": 107500,
+   "activate": [
+    "Mat_NextMart"
+   ],
+   "delays": [],
+   "highlight": []
+  }
+ ],
+ "prices": {
+  "0": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "1": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "2": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "3": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "4": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "6": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "7": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "8": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "9": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "10": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "12": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "13": {
+   "price": 1.0,
+   "quota": 5
+  },
+  "14": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "17": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "18": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "20": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "21": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "22": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "24": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "26": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "27": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "28": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "29": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "30": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "31": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "32": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "33": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "34": {
+   "price": 10.0,
+   "quota": 5
+  },
+  "36": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "37": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "43": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "44": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "45": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "46": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "47": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "51": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "53": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "54": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "55": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "56": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "57": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "58": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "59": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "60": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "61": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "62": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "63": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "64": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "65": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "66": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "67": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "68": {
+   "price": 7.0,
+   "quota": 2
+  },
+  "69": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "70": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "71": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "72": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "73": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "74": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "75": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "76": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "77": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "78": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "79": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "80": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "81": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "82": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "83": {
+   "price": 8.0,
+   "quota": 2
+  },
+  "84": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "85": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "86": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "87": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "88": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "89": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "90": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "91": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "92": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "93": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "94": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "95": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "96": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "97": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "98": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "99": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "100": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "101": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "102": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "103": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "104": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "105": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "106": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "107": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "108": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "109": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "110": {
+   "price": 4.0,
+   "quota": 4
+  },
+  "111": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "112": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "113": {
+   "price": 7.0,
+   "quota": 3
+  },
+  "114": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "115": {
+   "price": 1.0,
+   "quota": 6
+  },
+  "116": {
+   "price": 5.0,
+   "quota": 3
+  },
+  "117": {
+   "price": 3.0,
+   "quota": 4
+  },
+  "118": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "120": {
+   "price": 6.0,
+   "quota": 3
+  },
+  "121": {
+   "price": 2.0,
+   "quota": 5
+  },
+  "122": {
+   "price": 2.0,
+   "quota": 5
+  }
+ }
+}

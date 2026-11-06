@@ -1,0 +1,323 @@
+Skin_DRA_01a.png
+size:2048,2048
+filter:Linear,Linear
+pma:true
+scale:0.475
+J_eye_CLOSED_
+bounds:1275,1400,53,32
+J_eye_CLOSED_R
+bounds:667,1339,44,33
+offsets:0,0,45,36
+Jin_Arm L
+bounds:850,1256,116,226
+offsets:0,0,117,236
+rotate:90
+Jin_Arm R
+bounds:1649,496,397,367
+offsets:0,0,399,367
+rotate:180
+Jin_Belt1
+bounds:1368,1600,111,66
+Jin_Belt2
+bounds:1275,1576,91,75
+Jin_Belt3
+bounds:1961,106,85,86
+Jin_Belt4
+bounds:2,560,81,101
+Jin_Belt5
+bounds:1178,605,84,92
+Jin_Belt6
+bounds:1563,328,84,221
+Jin_Body2
+bounds:60,458,236,350
+Jin_Collar
+bounds:1876,866,106,76
+Jin_Ear
+bounds:1459,1822,42,76
+Jin_Eyeball L
+bounds:503,1902,19,20
+Jin_Eyeball R
+bounds:1321,1713,31,28
+Jin_Eyebrow L
+bounds:723,1905,32,13
+Jin_Eyebrow R
+bounds:1592,1624,59,43
+Jin_Eyelash L
+bounds:1709,1884,29,19
+offsets:0,0,29,20
+Jin_Eyelash R
+bounds:1887,1661,44,30
+Jin_Face
+bounds:296,574,152,197
+offsets:0,0,153,200
+Jin_Finger L1
+bounds:1399,1763,48,28
+Jin_Finger L1 2
+bounds:770,1903,27,45
+Jin_Finger L2
+bounds:1979,1356,67,80
+Jin_Finger L3
+bounds:1447,1071,71,69
+offsets:0,5,71,74
+Jin_Finger L4
+bounds:248,1173,61,80
+Jin_Finger R 1
+bounds:1617,1151,38,54
+Jin_Finger R 2
+bounds:1980,1588,45,69
+Jin_Finger R 3
+bounds:1275,1669,44,72
+Jin_Finger R 4
+bounds:2,995,46,106
+Jin_Finger R 5
+bounds:160,1906,105,42
+offsets:0,4,105,46
+Jin_Foot L
+bounds:237,140,288,378
+Jin_Foot R
+bounds:2,111,227,346
+Jin_Hair  6
+bounds:1917,1693,44,72
+Jin_Hair 1
+bounds:450,608,42,105
+Jin_Hair 10
+bounds:592,1919,58,29
+Jin_Hair 2
+bounds:1777,1062,56,141
+offsets:1,5,60,152
+Jin_Hair 3
+bounds:1077,1281,64,91
+Jin_Hair 4
+bounds:1679,1621,45,99
+Jin_Hair 5
+bounds:268,1255,77,117
+Jin_Hair 7
+bounds:267,1906,58,42
+Jin_Hair 8
+bounds:2,1902,79,46
+Jin_Hair 9
+bounds:83,1901,75,47
+Jin_Hair11
+bounds:981,126,250,370
+offsets:24,0,291,388
+Jin_Hair3
+bounds:595,812,100,159
+rotate:90
+Jin_Iris L
+bounds:498,1935,14,13
+Jin_Iris R
+bounds:517,1931,17,17
+Jin_Layer 273
+bounds:1217,246,62,141
+Jin_Metal1
+bounds:1148,302,67,122
+Jin_Metal2
+bounds:219,290,64,119
+Jin_Metal3
+bounds:1976,1209,70,122
+Jin_Neck
+bounds:1238,253,133,210
+offsets:0,2,133,212
+Jin_Nose
+bounds:2013,1941,33,49
+Jin_Pants 1
+bounds:1146,1204,379,900
+offsets:7,6,393,906
+rotate:90
+Jin_Pants 2
+bounds:808,1900,146,732
+rotate:90
+Jin_Pants 3
+bounds:612,544,335,762
+offsets:0,8,335,770
+rotate:90
+Jin_Pants 4
+bounds:1145,426,320,657
+rotate:90
+Jin_Piercing_ear
+bounds:1726,1667,22,28
+Jin_Piercing_nose
+bounds:693,1918,19,19
+offsets:0,2,19,21
+Jin_Shadow Jin
+bounds:2,1950,804,96
+Jin_Shine
+bounds:2009,2043,5,3
+Jin_Shoulder L
+bounds:776,159,237,274
+offsets:0,10,237,284
+Jin_Shoulder L Back
+bounds:1176,1054,83,167
+Jin_Strings
+bounds:476,310,280,893
+rotate:270
+Jin_Stripe B
+bounds:1542,1896,66,447
+offsets:0,45,72,492
+rotate:90
+Jin_Thumb L
+bounds:1946,282,100,140
+Jin_Wing1
+bounds:1121,65,241,503
+rotate:90
+Jin_Wing2
+bounds:2,906,466,859
+offsets:5,5,471,864
+rotate:90
+Jin_bass
+bounds:2,1374,525,1271
+rotate:90
+Jin_body
+bounds:1264,620,391,365
+offsets:0,0,391,366
+rotate:180
+Jin_hand R
+bounds:1889,944,143,114
+Jin_horn
+bounds:442,68,104,115
+Jin_teeth
+bounds:536,1929,28,19
+Rin_Arm L
+bounds:1790,1567,188,111
+Rin_Body
+bounds:1335,1619,288,583
+offsets:0,5,292,588
+rotate:90
+Rin_Braid 1
+bounds:498,422,693,281
+rotate:180
+Rin_Braid 2
+bounds:311,61,188,313
+offsets:0,8,188,321
+rotate:180
+Rin_Ear
+bounds:1992,1459,54,67
+offsets:1,0,57,67
+Rin_Ears Jewells
+bounds:863,1002,57,86
+Rin_Eyeball L
+bounds:426,1902,48,46
+Rin_Eyeball R
+bounds:652,1906,39,42
+Rin_Eyebrow_L
+bounds:1942,1572,61,28
+Rin_Eyebrow_R
+bounds:395,1905,28,15
+Rin_Eyeslesh_L
+bounds:886,1333,55,39
+Rin_Eyeslesh_R
+bounds:1275,1536,45,38
+offsets:0,1,45,39
+Rin_Face
+bounds:697,1176,152,196
+offsets:0,0,154,196
+Rin_Finger R4
+bounds:327,1912,97,36
+offsets:0,6,97,42
+Rin_Hair 1
+bounds:1519,745,370,461
+offsets:0,52,370,513
+Rin_Hair1
+bounds:1583,906,84,78
+Rin_Hair2
+bounds:2,1141,122,63
+Rin_Hair3
+bounds:693,1902,75,46
+Rin_Hair4
+bounds:758,34,129,156
+Rin_Hair5
+bounds:956,41,168,210
+Rin_Hair6
+bounds:1649,323,46,166
+Rin_Hand L
+bounds:2,663,99,123
+Rin_Hips wings L
+bounds:548,97,235,248
+Rin_Hips wings R
+bounds:1693,435,87,247
+rotate:90
+Rin_Horn L
+bounds:546,593,87,91
+offsets:0,0,93,91
+Rin_Horn R
+bounds:1930,530,48,105
+offsets:3,0,51,105
+Rin_Iris L
+bounds:476,1902,25,25
+Rin_Iris R
+bounds:1990,1940,22,22
+Rin_Leg L1
+bounds:1284,1409,212,440
+offsets:0,3,212,444
+rotate:90
+Rin_Leg L1_shadow
+bounds:1685,307,128,130
+Rin_Leg L2
+bounds:2,1152,266,220
+offsets:6,6,274,242
+Rin_Leg R1
+bounds:2,683,337,721
+offsets:0,2,337,723
+rotate:270
+Rin_MIC
+bounds:1835,1060,211,143
+Rin_Metal 1
+bounds:1399,1793,58,105
+Rin_Metal 2
+bounds:1726,1553,60,100
+Rin_Metal 3
+bounds:1986,877,60,94
+Rin_Metal Braid
+bounds:1275,1743,122,155
+Rin_Metal Braid Ring
+bounds:646,1109,75,79
+Rin_Neckless JEW
+bounds:844,1311,40,61
+Rin_Nose
+bounds:347,1327,31,45
+Rin_Shadow RIN
+bounds:1542,1964,465,82
+Rin_Shine L
+bounds:1943,1953,13,9
+Rin_Shine R
+bounds:1958,1953,11,9
+Rin_Shoe R
+bounds:1248,1021,243,188
+Rin_Shoe Wing L
+bounds:1895,1767,75,130
+Rin_Shoe Wing R
+bounds:722,700,234,124
+Rin_Shoes L
+bounds:1372,215,185,260
+Rin_Shoulder L
+bounds:1966,1659,80,275
+Rin_Shoulder R
+bounds:650,1002,231,142
+offsets:0,0,231,149
+Rin_Wing 1
+bounds:1498,33,253,548
+rotate:270
+Rin_Wing 2
+bounds:679,796,468,863
+offsets:0,0,473,863
+rotate:270
+Rin_arm R
+bounds:2,46,121,287
+offsets:0,8,121,295
+Rin_braid_mid
+bounds:1536,91,510,550
+offsets:0,14,510,577
+Rin_face_shine
+bounds:476,1904,114,44
+Rin_fingers R1
+bounds:2016,1571,30,34
+Rin_fingers R2
+bounds:2009,1986,37,60
+offsets:0,3,37,63
+Rin_fingers R3
+bounds:1653,1643,24,48
+Rin_shadow_hair Jin
+bounds:1660,1095,115,108
+Rin_shadow_hair2 Jin
+bounds:70,148,52,164
+offsets:24,0,76,170

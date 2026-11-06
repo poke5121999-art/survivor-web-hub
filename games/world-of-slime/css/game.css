@@ -1,0 +1,148 @@
+/* Phông: game gốc dùng TMP SDF chữ CJK (tròn, đậm vừa). Bản web dùng Nunito (Google Fonts, có dấu tiếng Việt)
+   vì nét tròn gần nhất; ghi trong ARCH.md. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; color: #fff;
+  font: 13px/1.3 "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+#game { position: fixed; inset: 0; }
+#game canvas { display: block; }
+[hidden] { display: none !important; }
+#status { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 8px 14px; border-radius: 8px;
+  background: rgba(20, 40, 55, .7); max-width: 80vw; text-align: center; z-index: 30; }
+#devlabel { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); padding: 1px 8px; border-radius: 10px; background: rgba(250, 210, 90, .85);
+  color: #3a2a00; font-weight: 700; font-size: 11px; pointer-events: none; z-index: 5; }
+#fps { position: fixed; left: 6px; bottom: 4px; padding: 0 5px; border-radius: 6px; background: rgba(0, 0, 0, .3); font: 10px ui-monospace, monospace; pointer-events: none; z-index: 5; }
+
+/* ---- HUD: gốc là canvas Unity (đơn vị tham chiếu), scale(s) theo SMUniformCanvasScaler */
+#hud { position: fixed; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; z-index: 4; font-weight: 700; }
+#hud .u { position: absolute; box-sizing: border-box; }
+#hud .f { position: relative; box-sizing: border-box; flex: none; }
+#hud .spr { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; background-repeat: no-repeat; z-index: -1; }
+#hud .u, #hud .f { isolation: isolate; }
+#hud img.u { display: block; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+#hud .row { display: flex; flex-direction: row; align-items: flex-start; }
+#hud .col { display: flex; flex-direction: column; align-items: flex-start; }
+#hud .row.center, #hud .col.center { align-items: center; justify-content: center; }
+#hud .u.center { display: flex; align-items: center; justify-content: center; }
+#hud .txt { white-space: nowrap; line-height: 1.05; letter-spacing: 0.01em; }
+#hud .outline { text-shadow: 0 0 3px rgba(10, 25, 35, .95), 0 2px 2px rgba(10, 25, 35, .8), 0 0 1px #0a1923; }
+#hud .pad { padding: 8px 10px 14px; display: flex; align-items: center; }
+#hud .pad20 { padding: 20px; display: flex; }
+#hud .lvbox { min-width: 44px; justify-content: center; }
+#hud .btn { pointer-events: auto; cursor: pointer; }
+/* F5b: nút nhỏ (prefab gốc thu theo SMUniformCanvasScaler còn ~29 px trên màn 390 px) có vùng chạm trong suốt >= 44 px màn;
+   hình giữ nguyên cỡ gốc. --hit = 44 / scale (hud.js layout, story.js fit) */
+#hud.mobile .btn::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--hit, 0px)); height: max(100%, var(--hit, 0px)); transform: translate(-50%, -50%); }
+/* vùng chạm mở rộng của nút nằm trên chữ/khung cạnh nó (nút X của view() dựng trước nội dung nên bị khung chi tiết đè) */
+#hud.mobile .view .btn, #hud.mobile .view [data-hud="close"] { z-index: 3; }
+#hud .qbox, #hud [data-hud="questEmpty"] { pointer-events: auto; cursor: pointer; }   /* F5b: chạm thẻ nhiệm vụ = nhật ký */
+#hud .btn.on { filter: brightness(1.2); }
+#hud .btn.on > .u, #hud .btn.on > .spr { transform-origin: 50% 50%; }
+#hud .keycap { pointer-events: none; }
+#hud .vfill .spr { transition: none; }
+#hud .vfill { clip-path: inset(100% 0 0 0); }
+#hud .spin { animation: wos-spin 6s linear infinite; }
+@keyframes wos-spin { to { transform: rotate(360deg); } }
+#hud .cooldown { border-radius: 50%; pointer-events: none; }
+#hud .thumbmask { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; overflow: hidden; }
+#hud .thumbmask canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#hud .masked { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; overflow: hidden; }
+#hud .minimap-img { position: absolute; image-rendering: auto; }
+#hud .bigmap { pointer-events: auto; -webkit-mask-size: 100% 100%; overflow: hidden; }
+#hud .questlist { overflow: hidden; }
+#hud .qcontent { position: absolute; right: 0; top: 0; width: 500px; display: flex; flex-direction: column; align-items: flex-end; }
+#hud .qbox { width: 500px; padding: 12px 20px 16px 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+#hud .qtitle { justify-content: flex-end; }
+#hud .qobj { justify-content: flex-end; gap: 4px; }
+#hud .slot ~ .slot { margin-left: -22px; }
+#hud .slot .norm, #hud .slot .sel { pointer-events: none; }
+#hud .warnpill { padding: 3px 22px 3px 14px; }
+#hud .toast { white-space: nowrap; padding: 18px 34px; }
+#hud .hudtag { pointer-events: none; }
+#hud.mobile .joyarea { pointer-events: auto; }
+
+/* ---- màn tải: login_bg.mp4 + logo + slime "Loading" + thanh Login_Loading_Gauge */
+#loading { position: fixed; inset: 0; z-index: 20; background: #0d2a3a; overflow: hidden; transition: opacity .5s; }
+#loading.done { opacity: 0; pointer-events: none; }
+#loading video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#loading .lroot { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#loading .u { position: absolute; box-sizing: border-box; }
+#loading .spr { position: absolute; inset: 0; box-sizing: border-box; background-repeat: no-repeat; }
+#loading .ltxt { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; color: #fff;
+  text-shadow: 0 2px 3px rgba(10, 25, 35, .8); white-space: nowrap; }
+#help { position: fixed; left: 50%; bottom: 2px; transform: translateX(-50%); padding: 1px 8px; border-radius: 8px; background: rgba(20, 40, 55, .35);
+  font-size: 10px; pointer-events: none; z-index: 5; white-space: nowrap; opacity: .8; }
+
+/* ---- chuỗi nhiệm vụ (js/ui/story.js): hội thoại, băng chữ, log, bảng toàn màn */
+#hud .story-fx { pointer-events: none; z-index: 2; }
+#hud .story-ui { pointer-events: none; z-index: 3; }
+#hud .story-ui > .u { pointer-events: auto; }
+#hud .dlg { cursor: pointer; }
+#hud .dlg .portrait { object-fit: contain; object-position: 50% 50%; pointer-events: none; -webkit-user-drag: none; }
+#hud .dlg .rtmask { overflow: hidden; pointer-events: none; }
+#hud .dlg .rtmask canvas { display: block; }
+#hud .dlg .namepill { height: 72px; padding: 0 28px; display: flex; align-items: center; z-index: 2; }
+#hud .dlg .tw { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 38px; font-style: italic;
+  font-weight: 700; line-height: 1.35; white-space: normal; }
+#hud .dlg .bob { animation: wos-bob 0.9s ease-in-out infinite alternate; }
+@keyframes wos-bob { to { transform: translateY(-8px); } }
+#hud .dlg .choices { display: flex; flex-direction: column; gap: 18px; }
+#hud .dlg .choice { display: flex; align-items: center; cursor: pointer; }
+#hud .dlg .choice .txt { font-style: italic; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+#hud .dlg .illustimg { object-fit: contain; pointer-events: none; }
+#hud .dlg .illustdesc { text-align: center; line-height: 1.45; white-space: normal; }
+#hud .dlg .illustdesc .txt { white-space: normal; }
+#hud .banner { animation: wos-in .35s ease-out; transition: opacity .4s; }
+#hud .banner.out, #hud .logline.out, #hud .npctoast.out { opacity: 0; }
+@keyframes wos-in { from { opacity: 0; transform: translateY(12px); } }
+#hud .bannertxt { font-style: italic; font-weight: 800; text-shadow: 0 0 6px rgba(10,30,60,.9), 0 3px 3px rgba(10,25,45,.85); }
+#hud .placetxt { font-weight: 800; letter-spacing: .01em; text-shadow: 0 0 10px rgba(40,120,200,.9), 0 4px 4px rgba(10,25,45,.9), 0 0 2px #0a1923; }
+#hud .pline { background: linear-gradient(90deg, rgba(163,250,240,0), rgba(163,250,240,.95), rgba(163,250,240,0)); }
+#hud .logroot { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+#hud .logline { display: flex; align-items: center; gap: 8px; padding: 6px 60px 6px 12px; transition: opacity .5s; animation: wos-in .3s ease-out; }
+#hud .npctoast { transition: opacity .4s; animation: wos-in .3s ease-out; z-index: 5; }
+#hud .view { pointer-events: auto; }
+#hud .view.dim { background: rgba(20, 30, 34, .28); backdrop-filter: blur(5px) brightness(.85); -webkit-backdrop-filter: blur(5px) brightness(.85); }
+#hud .view.dimlight { background: rgba(20, 30, 34, .18); }
+#hud .view .txt.wrapl, #hud .view .wrapl { white-space: normal; line-height: 1.4; }
+#hud .view .wrap { text-align: center; white-space: normal; }
+#hud .view .wrap .txt { white-space: normal; }
+#hud .view .center { display: flex; align-items: center; justify-content: center; }
+#hud .thumbc { border-radius: 50%; overflow: hidden; background: #cfe6ff; }
+#hud .thumbc img { width: 100%; height: 160%; object-fit: cover; object-position: 50% 0; }
+#hud .band { border-radius: 70px 70px 0 0; overflow: hidden; background: linear-gradient(#9fd6ff, #bfe7c4 62%, #8ccf86); }
+#hud .npcpill { background: #f4f9ff; color: #29618f; border-radius: 20px; padding: 2px 22px; font-weight: 700; }
+#hud .hline { background: rgba(23, 69, 107, .12); }
+#hud .qdesc .txt { font-style: italic; }
+#hud .odot { border-radius: 50%; background: rgba(160, 205, 245, .9); }
+#hud .odot.on { background: #6fe0b0; }
+#hud .perkglow { border-radius: 50%; background: radial-gradient(rgba(10,20,30,.55), rgba(10,20,30,0) 70%); }
+#hud .perkme { position: absolute; inset: 9%; width: 82%; height: 82%; border-radius: 50%; }
+#hud .perkline { background: linear-gradient(90deg, #6fd0ff, #b6ecff); border-radius: 3px; }
+#hud .perkicon, #hud .perkcirc img { position: absolute; inset: 14%; width: 72%; height: 72%; object-fit: contain; }
+#hud .perkcirc { border-radius: 50%; background: #10324c; overflow: hidden; }
+#hud .shopcell.empty { background: rgba(10, 30, 45, .55); border-radius: 12px; }
+#hud .view .u.row.center:not([style*="width"]) { padding: 0 12px; }
+#hud .shopcell.sel { filter: drop-shadow(0 0 10px #6ff3ff) drop-shadow(0 0 3px #b6ffff); }
+#hud .shoptop { border-radius: 70px 70px 0 0; background: linear-gradient(#d2ecff, #e8f5ff); }
+#hud .qmarker { margin-bottom: 4px; }
+
+.spr > canvas.slice { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+#hud .story-fx.modal .banner { visibility: hidden; }
+#hud .paper { border-radius: 26px 26px 22px 22px; background: linear-gradient(#5cc2ff, #2b8fe6 55%, #1f6fc6); box-shadow: 0 0 18px rgba(80,180,255,.7); }
+#hud .pline .spr { background: none !important; }
+/* F3: ô vật phẩm, ô slime ngất / quá giới hạn */
+#hud .itemicon { object-fit: contain; pointer-events: none; }
+#hud .itemcount { pointer-events: none; }
+#hud img.fainted { filter: grayscale(1) brightness(0.6); }
+#hud .wrapc { white-space: normal; text-align: center; line-height: 1.0; }
+/* F4: màn chỉ nút (ui_tutorial__Tutorial_*), dòng mục tiêu vừa đủ (QuestProgressGoalLayout) */
+#hud .guide { z-index: 6; cursor: pointer; pointer-events: auto; }
+#hud .guide .guidedim { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#hud .guide .guidering { animation: wos-pulse 0.8s ease-in-out infinite alternate; pointer-events: none; }
+#hud .guide .guidearrow { animation: wos-pulse 0.6s ease-in-out infinite alternate; pointer-events: none; }
+#hud .guide .guidetxt { color: #fff; font-size: 32px; font-style: italic; text-align: center; line-height: 1.35; display: flex; align-items: center; justify-content: center; }
+#hud .guide .guidethumb { border-radius: 50%; overflow: hidden; }
+#hud .guide .guidethumb canvas, #hud .guide .guidethumb img { display: block; }
+@keyframes wos-pulse { from { opacity: .55; scale: .94; } to { opacity: 1; scale: 1.04; } }
+#hud .goaldone { animation: wos-in .35s ease-out; transition: opacity .4s; z-index: 4; }
+#hud .goaldone.out { opacity: 0; }
+#hud .ricon { height: 1.05em; vertical-align: -0.18em; margin: 0 2px; }

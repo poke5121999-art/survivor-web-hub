@@ -1,0 +1,188 @@
+[
+ {
+  "id": "store1",
+  "name": "Grocer Mart",
+  "scene": "Store",
+  "level": "level1",
+  "mats": 40,
+  "idle": 300,
+  "icon": "menus/Mart_GrocerIcon"
+ },
+ {
+  "id": "store2",
+  "name": "Cafe Mart",
+  "scene": "Store_2",
+  "level": "level2",
+  "mats": 46,
+  "idle": 600,
+  "icon": "menus/Mart_CafeIcon"
+ },
+ {
+  "id": "store3",
+  "name": "Pizza Mart",
+  "scene": "Store_3",
+  "level": "level3",
+  "mats": 35,
+  "idle": 900,
+  "icon": "menus/Mart_PizzaIcon"
+ },
+ {
+  "id": "store4",
+  "name": "Blueberry Mart",
+  "scene": "Store_4",
+  "level": "level6",
+  "mats": 40,
+  "idle": 1200,
+  "icon": "menus/Mart_BlueberryIcon"
+ },
+ {
+  "id": "store5",
+  "name": "Burger Mart",
+  "scene": "Store_5",
+  "level": "level7",
+  "mats": 49,
+  "idle": 1500,
+  "icon": "menus/Mart_BurgerIcon"
+ },
+ {
+  "id": "store6",
+  "name": "Sushi Mart",
+  "scene": "Store_6",
+  "level": "level8",
+  "mats": 35,
+  "idle": 2000,
+  "icon": "menus/Mart_SushiIcon"
+ },
+ {
+  "id": "store7",
+  "name": "Mexican Mart",
+  "scene": "Store_7",
+  "level": "level9",
+  "mats": 39,
+  "idle": 2600,
+  "icon": "menus/Mart_MexicanIcon"
+ },
+ {
+  "id": "store8",
+  "name": "Dessert Mart",
+  "scene": "Store_8",
+  "level": "level10",
+  "mats": 33,
+  "idle": 3300,
+  "icon": "menus/Mart_DessertIcon"
+ },
+ {
+  "id": "store9",
+  "name": "Cinema Mart",
+  "scene": "Store_9",
+  "level": "level11",
+  "mats": 38,
+  "idle": 4200,
+  "icon": "menus/Mart_CinemaIcon"
+ },
+ {
+  "id": "store10",
+  "name": "Hotdog Mart",
+  "scene": "Store_10",
+  "level": "level12",
+  "mats": 38,
+  "idle": 5500,
+  "icon": "menus/Mart_HotdogIcon"
+ },
+ {
+  "id": "store11",
+  "name": "Fairground Mart",
+  "scene": "Store_11",
+  "level": "level14",
+  "mats": 30,
+  "idle": 7000,
+  "icon": "menus/Mart_FairgroundIcon"
+ },
+ {
+  "id": "store12",
+  "name": "Seafood Mart",
+  "scene": "Store_12",
+  "level": "level16",
+  "mats": 39,
+  "idle": 8000,
+  "icon": "menus/Mart_SeafoodIcon"
+ },
+ {
+  "id": "store13",
+  "name": "Ratatouille Mart",
+  "scene": "Store_13",
+  "level": "level18",
+  "mats": 33,
+  "idle": 9000,
+  "icon": "menus/Mart_RatatouilleIcon"
+ },
+ {
+  "id": "store14",
+  "name": "Campsite Mart",
+  "scene": "Store_14",
+  "level": "level20",
+  "mats": 30,
+  "idle": 10000,
+  "icon": "sprites/martIcon"
+ },
+ {
+  "id": "val23",
+  "name": "Valentine Mart",
+  "scene": "Store_Val23",
+  "level": "level4",
+  "mats": 26,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "eas23",
+  "name": "Easter Mart",
+  "scene": "Store_Eas23",
+  "level": "level5",
+  "mats": 17,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "hal22",
+  "name": "Halloween Mart",
+  "scene": "Store_Hal22",
+  "level": "level13",
+  "mats": 18,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "xms22",
+  "name": "Christmas Mart",
+  "scene": "Store_Xms22",
+  "level": "level15",
+  "mats": 27,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "cny23",
+  "name": "Chinese New Year Mart",
+  "scene": "Store_Cny23",
+  "level": "level17",
+  "mats": 31,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "anv23",
+  "name": "Anniversary Mart",
+  "scene": "Store_Anv23",
+  "level": "level19",
+  "mats": 18,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ }
+]

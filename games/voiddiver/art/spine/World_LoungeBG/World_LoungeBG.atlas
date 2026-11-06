@@ -1,0 +1,17 @@
+World_LoungeBG.png
+size:256,256
+filter:Linear,Linear
+SW_1/tentacle_2
+bounds:29,164,26,48
+offsets:117,90,200,280
+SW_1/tentacle_3
+bounds:145,141,67,71
+offsets:91,128,200,280
+rotate:180
+SW_1/tentacle_4
+bounds:93,143,69,57
+offsets:94,104,200,280
+rotate:90
+SW_1/tentacle_9
+bounds:1,141,101,71
+offsets:6,169,200,280

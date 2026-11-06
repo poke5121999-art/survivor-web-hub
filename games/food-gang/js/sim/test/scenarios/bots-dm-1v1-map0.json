@@ -1,0 +1,1 @@
+{"setup":{"seed":9000,"mapIndex":0,"goal":0,"teams":0,"bossOnLeft":false,"botDifficultyInt":26,"slots":[{"slot":0,"skinId":1,"level":1,"isBot":true,"botDifficulty":0},{"slot":1,"skinId":2,"level":8,"isBot":true,"botDifficulty":0.37}]},"ticks":21600,"name":"bots-dm-1v1-map0"}

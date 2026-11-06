@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_quest82109",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 82109,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/DeadMan_Zealot_N",
+   "mesh": "Zealot_N",
+   "verts": 40,
+   "tris": 53,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.061,
+   -0.034,
+   -0.179
+  ],
+  "max": [
+   0.648,
+   0.425,
+   0.697
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_quest82109.glb",
+ "glbKB": 50
+}

@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_mission91012",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 91012,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_GroundRock_5",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_GroundRocks_5",
+   "verts": 71,
+   "tris": 85,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.633,
+   -0.097,
+   -0.493
+  ],
+  "max": [
+   0.42,
+   0.834,
+   0.482
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_mission91012.glb",
+ "glbKB": 99
+}

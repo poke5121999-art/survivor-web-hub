@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fish Bowl particles check</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 13px sans-serif; color: #fff; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #info { position: fixed; left: 8px; top: 6px; white-space: pre; text-shadow: 0 0 3px #000; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info"></div>
+<script type="module">
+// Dev page for js/particles.js.
+//   ?fx=<key part | crunch | flop | splash | dust | all>   play matching systems (scene systems are forced visible; prefab
+//                                                           systems spawn 2.5 m in front of the camera and respawn)
+//   ?cam=<vcam path part>            camera of that Cinemachine vcam
+//   ?look=<node path>&d=2&h=0.3&yaw=0   camera d metres from that node (yaw degrees round it, h up), looking at it
+//   ?pitch=<deg>                     tilt the camera down
+//   ?t=<seconds>                     simulate that long in 1/30 s steps, draw one frame, set window.__ready
+//   ?hide=1                          hide the room (FISHENV) so the effect reads on the plain background
+import * as THREE from 'three';
+import { createStage } from './js/stage.js';
+import { Particles, autoAttach } from './js/particles.js';
+
+const q = new URLSearchParams(location.search);
+const stage = await createStage(document.getElementById('c'));
+const defs = await (await fetch('./data/particles.json')).json();
+const fx = new Particles(defs, { texBase: './art/tex' });
+stage.scene.add(fx.root);
+await stage.ready;
+const all = autoAttach(stage, fx);
+window.__fx = { stage, fx, defs };
+const info = document.getElementById('info');
+const cam = stage.camera;
+const ALIAS = { crunch: 'prefab:sharedassets2.assets:441', flop: 'prefab:sharedassets2.assets:436',
+  splash: 'prefab:sharedassets4.assets:90', dust: 'prefab:sharedassets4.assets:94' };
+
+if (q.get('hide')) stage.find('*****FISHENV*****').visible = false;
+
+// camera
+const look = q.get('look');
+if (q.get('cam')) {
+  const path = Object.keys(stage.vcams).find(p => p.includes(q.get('cam')));
+  const pose = path && stage.cine.pose(path, 0, true);
+  if (pose) { cam.position.copy(pose.pos); cam.quaternion.copy(pose.quat); cam.fov = pose.fov; cam.updateProjectionMatrix(); }
+  else info.textContent = `no vcam matching ${q.get('cam')}`;
+} else if (look) {
+  const n = stage.find(look);
+  const c = n.getWorldPosition(new THREE.Vector3());
+  const yaw = (+q.get('yaw') || 0) * Math.PI / 180, d = +q.get('d') || 2;
+  cam.position.set(c.x + Math.sin(yaw) * d, c.y + (+q.get('h') || 0.3), c.z + Math.cos(yaw) * d);
+  cam.lookAt(c);
+} else {
+  cam.position.set(0, 1.5, 4);
+  cam.lookAt(0, 1.2, 0);
+}
+if (q.get('pitch')) cam.rotateX(-(+q.get('pitch')) * Math.PI / 180);
+cam.updateMatrixWorld(true);
+
+// effects
+const sel = q.get('fx');
+let spawned = [];
+const prefabKey = sel && (ALIAS[sel] || (sel.startsWith('prefab:') ? sel : null));
+const sceneKeys = sel && !prefabKey && sel !== 'all' ? Object.keys(defs).filter(k => k !== '_alias' && k.includes(sel) && !k.startsWith('prefab:')) : [];
+const scenePlay = [];
+if (sel && sel !== 'all' && !prefabKey) {
+  for (const e of all) {
+    if (!sceneKeys.includes(e.key)) continue;
+    for (let o = e.obj; o; o = o.parent) o.visible = true;
+    scenePlay.push(e);
+  }
+  for (const e of all) if (!scenePlay.includes(e)) e.auto = false; // siblings of the chosen system stay quiet
+  if (!scenePlay.length) info.textContent = `no scene system matching ${sel}`;
+}
+const spawnPrefab = () => {
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+  spawned.push(fx.spawn(prefabKey, { position: cam.position.clone().addScaledVector(f, +q.get('z') || 2.5), }));
+};
+// Scene emitters wait for the first update so autoAttach's visibility pass has run, then restart on demand.
+const start = () => { fx.update(0); if (scenePlay.length) fx.play(scenePlay); if (prefabKey) spawnPrefab(); };
+
+const seek = q.get('t');
+if (seek != null) {
+  start();
+  for (let t = 0; t < +seek; t += 1 / 30) { stage.update(t); fx.update(Math.min(1 / 30, +seek - t)); }
+  await Promise.all(fx.pending);
+  stage.render();
+  info.textContent = `${sel || 'scene'} t=${seek}  emitters ${fx.list.length}, live ${fx.list.filter(e => e.n).length}, particles ${fx.list.reduce((s, e) => s + e.n, 0)}`;
+  window.__ready = true;
+} else {
+  start();
+  let last = performance.now(), age = 0;
+  const loop = now => {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    age += dt;
+    stage.update(now / 1000);
+    fx.update(dt);
+    if (age > 3 && sel) { // replay so a one-shot stays inspectable
+      age = 0;
+      if (prefabKey) spawnPrefab(); else scenePlay.forEach(e => { if (!e.def.loop) fx.play(e); });
+    }
+    stage.render();
+    info.textContent = `${sel || 'scene'}  emitters ${fx.list.length}, particles ${fx.list.reduce((s, e) => s + e.n, 0)}`;
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+</script>
+</body>
+</html>

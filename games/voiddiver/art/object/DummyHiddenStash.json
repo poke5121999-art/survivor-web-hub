@@ -1,0 +1,86 @@
+{
+ "name": "DummyHiddenStash",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": true
+  }
+ ],
+ "colliders": [],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "VisualProp",
+   "fields": {
+    "_meshType": 1
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_PaperBox_4",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_4",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_PaperBox_3",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_3",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_PaperBox_2",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_2",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_PaperBox_4",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_4",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_PaperBox_3",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_3",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_PaperBox_2",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PaperBox_2",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.469,
+   -0.174,
+   -0.59
+  ],
+  "max": [
+   0.015,
+   0.291,
+   0.15
+  ]
+ },
+ "glb": "art/object/DummyHiddenStash.glb",
+ "glbKB": 198
+}

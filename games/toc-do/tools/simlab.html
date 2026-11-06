@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sim Lab — Tốc Độ</title>
+<style>
+  :root { --bg: #0f1216; --panel: #171b21; --line: #2a313b; --text: #d7dde5; --dim: #7d8794; --accent: #ffb02e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.35 system-ui, sans-serif; }
+  #wrap { display: grid; grid-template-columns: 1fr 330px; height: 100%; }
+  #view { position: relative; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: absolute; left: 10px; top: 8px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #hud b { color: var(--text); }
+  aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .row { display: grid; grid-template-columns: 14px 22px 1fr 54px 64px; gap: 6px; align-items: center; padding: 5px 10px; border-bottom: 1px solid var(--line); cursor: pointer; font-variant-numeric: tabular-nums; }
+  .row.sel { background: #222833; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .gauge { height: 6px; background: #252b34; border-radius: 3px; overflow: hidden; margin-top: 3px; }
+  .gauge i { display: block; height: 100%; background: #3fa9ff; }
+  .ch { color: var(--accent); }
+  .st { color: var(--dim); font-size: 11px; }
+  #ctl { padding: 8px 10px; display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  button { background: #222833; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+  #log { flex: 1; overflow: auto; padding: 6px 10px; font: 11px/1.4 ui-monospace, monospace; color: var(--dim); min-height: 0; }
+  #log div b { color: var(--text); font-weight: 600; }
+  @media (max-width: 720px) { #wrap { grid-template-columns: 1fr; grid-template-rows: 60% 40%; } aside { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="view"><canvas id="cv"></canvas><div id="hud"></div></div>
+  <aside>
+    <div id="ctl">
+      <button id="bPause">Dừng</button><button data-sp="1">1×</button><button data-sp="4">4×</button><button data-sp="16">16×</button>
+      <button id="bFollow">Theo xe</button><button id="bRestart">Chạy lại</button>
+    </div>
+    <div id="list"></div>
+    <div id="log"></div>
+  </aside>
+</div>
+<script src="../data/tuning.js"></script>
+<script src="../data/tracks.js"></script>
+<script src="../js/sim/rng.js"></script>
+<script src="../js/sim/track.js"></script>
+<script src="../js/sim/kart.js"></script>
+<script src="../js/sim/bot.js"></script>
+<script src="../js/sim/race.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var trackId = q.get('track') || '11citynew', seed = +(q.get('seed') || 7), speed = +(q.get('speed') || 4), seek = +(q.get('t') || 0);
+  var COLORS = ['#ff5a5a', '#ffb02e', '#4cd964', '#3fa9ff', '#c77dff', '#f2f2f2', '#ff7ad9', '#7af0e8'];
+  var cv = document.getElementById('cv'), g = cv.getContext('2d');
+  var R, T, paused = false, follow = false, sel = 0, log = [], bounds;
+
+  function start() {
+    R = TD.Race.create({ trackId: trackId, seed: seed, finishGrace: 60 });
+    T = R.T; log = [];
+    var x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (var i = 0; i < T.n; i++) { x0 = Math.min(x0, T.x[i]); x1 = Math.max(x1, T.x[i]); z0 = Math.min(z0, T.z[i]); z1 = Math.max(z1, T.z[i]); }
+    bounds = { x0: x0 - 30, x1: x1 + 30, z0: z0 - 30, z1: z1 + 30 };
+    if (seek > 0) while (R.t < seek && R.phase !== 'done') { TD.Race.step(R, 1 / 30); drain(); }
+  }
+  function drain() {
+    R.events.forEach(function (e) {
+      if (e.type === 'overtake' || e.type === 'bump') return;
+      var k = e.kart != null ? R.karts.find(function (q) { return q.id === e.kart; }) : null;
+      var extra = e.power != null ? ' ' + e.power.toFixed(2) : e.kind ? ' ' + e.kind : e.place ? ' #' + e.place : e.n ? ' ' + e.n : e.lap ? ' ' + e.lap + ' ' + e.time.toFixed(2) + 's' : e.vd != null ? ' vd ' + e.vd.toFixed(0) + '°' : '';
+      log.push({ t: e.t, who: k ? k.name : '—', c: k ? COLORS[R.karts.indexOf(k) % 8] : '#7d8794', s: e.type + extra });
+    });
+    R.events.length = 0;
+    if (log.length > 300) log.splice(0, log.length - 300);
+  }
+
+  function view() {
+    var w = cv.clientWidth, h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    var s, cx, cz;
+    if (follow) { var k = R.karts[sel]; s = 3; cx = k.x; cz = k.z; }
+    else { s = Math.min(w / (bounds.x1 - bounds.x0), h / (bounds.z1 - bounds.z0)); cx = (bounds.x0 + bounds.x1) / 2; cz = (bounds.z0 + bounds.z1) / 2; }
+    return { s: s * dpr, ox: w * dpr / 2 - cx * s * dpr, oz: h * dpr / 2 - cz * s * dpr, dpr: dpr };
+  }
+  function draw() {
+    var V = view(), P = function (x, z) { return [x * V.s + V.ox, z * V.s + V.oz]; };
+    g.fillStyle = '#0f1216'; g.fillRect(0, 0, cv.width, cv.height);
+    var curve = T.src.pts.curve;
+    // mặt đường + mép
+    T.segs.forEach(function (sg) {
+      var a = sg.a, b = sg.b, br = curve[a] !== 0 || curve[b] !== 0;
+      var la = [T.x[a] + T.fz[a] * T.lw[a], T.z[a] - T.fx[a] * T.lw[a]], lb = [T.x[b] + T.fz[b] * T.lw[b], T.z[b] - T.fx[b] * T.lw[b]];
+      var ra = [T.x[a] - T.fz[a] * T.rw[a], T.z[a] + T.fx[a] * T.rw[a]], rb = [T.x[b] - T.fz[b] * T.rw[b], T.z[b] + T.fx[b] * T.rw[b]];
+      var p1 = P(la[0], la[1]), p2 = P(lb[0], lb[1]), p3 = P(rb[0], rb[1]), p4 = P(ra[0], ra[1]);
+      g.fillStyle = br ? 'rgba(80,170,120,0.22)' : 'rgba(120,135,155,0.18)';
+      g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
+      g.strokeStyle = br ? '#5fcf8f' : '#8a96a6'; g.lineWidth = 1.2 * V.dpr;
+      g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.moveTo(p4[0], p4[1]); g.lineTo(p3[0], p3[1]); g.stroke();
+    });
+    // đường chạy chuẩn (cam = đoạn drift)
+    var ln = T.line;
+    if (ln) for (var i = 0; i < ln.n; i++) {
+      var j = (i + 1) % ln.n, a = P(ln.x[i], ln.z[i]), b = P(ln.x[j], ln.z[j]);
+      g.strokeStyle = ln.drift[i] ? 'rgba(255,150,40,0.85)' : 'rgba(255,255,255,0.18)'; g.lineWidth = (ln.drift[i] ? 2 : 1) * V.dpr;
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    // checkpoint
+    T.cps.forEach(function (c) {
+      var a = P(c.lx, c.lz), b = P(c.rx, c.rz), st = c.id === T.startCp;
+      g.strokeStyle = st ? '#ffffff' : c.curve ? 'rgba(95,207,143,0.7)' : 'rgba(255,220,90,0.45)'; g.lineWidth = (st ? 3 : 1) * V.dpr;
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    });
+    // xe
+    R.karts.forEach(function (k, i) {
+      var p = P(k.x, k.z), r = Math.max(3.5 * V.dpr, 1.1 * V.s);
+      g.globalAlpha = k.ghostT > 0 ? 0.4 : 1;
+      g.fillStyle = COLORS[i % 8];
+      g.beginPath(); g.arc(p[0], p[1], r, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = COLORS[i % 8]; g.lineWidth = 2 * V.dpr;
+      var hx = Math.sin(k.yaw), hz = Math.cos(k.yaw);
+      g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + hx * r * 3, p[1] + hz * r * 3); g.stroke();
+      if (k.st === 'drift') { g.strokeStyle = '#ff9628'; g.beginPath(); g.arc(p[0], p[1], r * 1.8, 0, Math.PI * 2); g.stroke(); }
+      if (k.nitro.boostT > 0) { g.strokeStyle = '#3fa9ff'; g.beginPath(); g.arc(p[0], p[1], r * 2.4, 0, Math.PI * 2); g.stroke(); }
+      g.globalAlpha = 1;
+      g.fillStyle = '#d7dde5'; g.font = (11 * V.dpr) + 'px system-ui';
+      g.fillText(k.place + ' ' + k.name, p[0] + r + 4 * V.dpr, p[1] - r);
+    });
+  }
+  function panel() {
+    var L = document.getElementById('list');
+    var html = R.order.map(function (id) {
+      var k = R.karts.find(function (q) { return q.id === id; }), i = R.karts.indexOf(k);
+      return '<div class="row' + (i === sel ? ' sel' : '') + '" data-i="' + i + '"><span class="dot" style="background:' + COLORS[i % 8] + '"></span><b>' + k.place + '</b>' +
+        '<div>' + k.name + ' <span class="st">' + k.st + (k.bot ? ' · ' + k.bot.skill.toFixed(2) : '') + '</span><div class="gauge"><i style="width:' + Math.round(k.nitro.gauge * 100) + '%"></i></div></div>' +
+        '<span>' + Math.round(k.kmh) + ' km/h</span><span>vòng ' + Math.max(0, Math.min(k.lap, R.laps)) + '/' + R.laps + ' <span class="ch">' + '●'.repeat(k.nitro.charges) + '</span></span></div>';
+    }).join('');
+    L.innerHTML = html;
+    document.getElementById('hud').innerHTML = '<b>' + T.src.name + '</b> · seed ' + seed + ' · ' + speed + '× · t <b>' + R.t.toFixed(1) + '</b> s · ' + R.phase +
+      (R.phase === 'countdown' ? ' ' + Math.ceil(R.countdown) : '');
+    document.getElementById('log').innerHTML = log.slice(-60).reverse().map(function (e) {
+      return '<div>' + e.t.toFixed(2) + ' <b style="color:' + e.c + '">' + e.who + '</b> ' + e.s + '</div>';
+    }).join('');
+  }
+
+  var last = performance.now(), pt = 0;
+  function frame(now) {
+    var dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (!paused && R.phase !== 'done') { for (var s = 0; s < speed; s++) TD.Race.step(R, dt); drain(); }
+    draw();
+    if (now - pt > 150) { panel(); pt = now; }
+    requestAnimationFrame(frame);
+  }
+  document.getElementById('ctl').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.sp) speed = +b.dataset.sp;
+    if (b.id === 'bPause') { paused = !paused; b.textContent = paused ? 'Chạy' : 'Dừng'; }
+    if (b.id === 'bFollow') follow = !follow;
+    if (b.id === 'bRestart') { seek = 0; start(); }
+  });
+  document.getElementById('list').addEventListener('click', function (e) {
+    var r = e.target.closest('.row'); if (r) { sel = +r.dataset.i; follow = true; }
+  });
+  start(); draw(); panel();
+  window.__simlab = { race: function () { return R; } };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

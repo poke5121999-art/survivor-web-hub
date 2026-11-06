@@ -1,0 +1,15 @@
+Pacificfanfish.png
+size:117,42
+filter:Nearest,Nearest
+body
+bounds:92,2,38,17
+rotate:90
+body2
+bounds:2,2,38,43
+rotate:90
+fin
+bounds:47,2,38,43
+rotate:90
+sidefin
+bounds:111,31,9,4
+rotate:90
