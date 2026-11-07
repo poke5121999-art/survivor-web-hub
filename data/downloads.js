@@ -15,6 +15,19 @@
  */
 window.HUB_DOWNLOADS = [
   {
+    game: "walking-trade-bevy",
+    platform: "windows-x64",
+    version: "af4d473",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/walkingtrade-bevy-af4d473/TheWalkingTrade-Bevy-Windows-x64-af4d473.zip",
+    bytes: 640276522,
+    sha256: "cc5415fdc284a91a57d2b62970cc9258ea107f515e72ff7af8bbaf7576f46361",
+    date: "2026-11-07",
+    note: {
+      vi: "Bản Bevy cho Windows 64-bit (master f7661f3). Giải nén cả thư mục, chạy TheWalkingTrade.exe. Cần card đồ hoạ hỗ trợ Vulkan hoặc DirectX 12.",
+      en: "The Bevy port for Windows 64-bit (master f7661f3). Unzip the whole folder and run TheWalkingTrade.exe. Needs a graphics card with Vulkan or DirectX 12."
+    }
+  },
+  {
     game: "voiddiver",
     platform: "windows-x64",
     version: "0.0.0.135-win1",
