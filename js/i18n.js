@@ -59,7 +59,24 @@
       "refresh.done": "Xong — đã nạp lại {0} file. Đang khởi động lại…",
       "refresh.failed": "Không nạp lại được ({0}). Thử lại, hoặc tắt hẳn tab rồi mở lại. ",
       "refresh.network": "lỗi mạng",
-      "feedback.link": "🐞 Báo lỗi / góp ý"
+      "feedback.link": "🐞 Báo lỗi / góp ý",
+      "downloads.link": "⬇ Tải bản PC",
+      "dl.pageTitle": "Tải bản PC",
+      "dl.subtitle": "Bản Windows của các game trên hub, chơi không cần trình duyệt.",
+      "dl.back": "← Về hub",
+      "dl.platform.windows-x64": "Windows 64-bit",
+      "dl.version": "bản {0}",
+      "dl.button": "⬇ Tải về ({0})",
+      "dl.playWeb": "Chơi trên web",
+      "dl.sha": "Mã kiểm tra SHA-256",
+      "dl.copy": "Chép",
+      "dl.copied": "Đã chép",
+      "dl.shaHow": "Muốn chắc file tải về còn nguyên: mở PowerShell ở thư mục chứa file, gõ Get-FileHash <tên file>, so với mã trên.",
+      "dl.howTitle": "Cách chạy",
+      "dl.how1": "Giải nén cả file zip ra một thư mục (Desktop, D:\\Games...). Đừng chạy thẳng trong file zip.",
+      "dl.how2": "Mở thư mục vừa giải nén, chạy file .exe ghi trong mô tả của game.",
+      "dl.how3": "Windows có thể báo \"Windows protected your PC\" vì exe chưa ký: bấm \"More info\" rồi \"Run anyway\".",
+      "dl.empty": "Chưa có bản PC nào."
     },
     en: {
       "subtitle": "{0} games to play right in your browser. No installs, no ads.",
@@ -109,7 +126,24 @@
       "refresh.done": "Done — reloaded {0} files. Restarting…",
       "refresh.failed": "Reload failed ({0}). Try again, or close the tab and reopen it. ",
       "refresh.network": "network error",
-      "feedback.link": "🐞 Report a bug / feedback"
+      "feedback.link": "🐞 Report a bug / feedback",
+      "downloads.link": "⬇ PC downloads",
+      "dl.pageTitle": "PC downloads",
+      "dl.subtitle": "Windows builds of the hub's games, to play without a browser.",
+      "dl.back": "← Back to the hub",
+      "dl.platform.windows-x64": "Windows 64-bit",
+      "dl.version": "build {0}",
+      "dl.button": "⬇ Download ({0})",
+      "dl.playWeb": "Play on the web",
+      "dl.sha": "SHA-256 checksum",
+      "dl.copy": "Copy",
+      "dl.copied": "Copied",
+      "dl.shaHow": "To make sure the download is intact: open PowerShell in the file's folder, type Get-FileHash <file name> and compare with the code above.",
+      "dl.howTitle": "How to run",
+      "dl.how1": "Unzip the whole zip into a folder (Desktop, D:\\Games...). Do not run it from inside the zip.",
+      "dl.how2": "Open the unzipped folder and run the .exe named in the game's note.",
+      "dl.how3": "Windows may say \"Windows protected your PC\" because the exe is unsigned: click \"More info\", then \"Run anyway\".",
+      "dl.empty": "No PC builds yet."
     }
   };
 

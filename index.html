@@ -8,7 +8,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/style.css?v=20261028a" />
   <link rel="stylesheet" href="css/auth.css" />
-  <script src="js/i18n.js?v=20261028a"></script>
+  <script src="js/i18n.js?v=20261107a"></script>
 
   <!-- Entry gate: no session (neither member nor guest) → bounce to the login
        screen BEFORE the hub renders, so a signed-out visitor never sees the grid
@@ -39,6 +39,7 @@
         </div>
       </div>
       <div class="hub-header__side">
+        <a class="hub-refresh hub-feedback-link" id="hub-downloads" href="downloads.html">⬇ Tải bản PC</a>
         <a class="hub-refresh hub-feedback-link" id="hub-feedback" href="feedback.html">🐞 Báo lỗi / góp ý</a>
         <!-- Language switch and account chip: filled by hub.js. -->
         <div class="hub-lang" id="hub-lang" role="group"></div>
@@ -67,7 +68,7 @@
   <!-- Registry is loaded as a plain script (sets window.HUB_GAMES) rather than fetched, so the
        page also works when opened directly via file:// where fetch() of local files is blocked. -->
   <script src="data/games.js?v=20261028c"></script>
-  <script src="js/hub.js?v=20261028a"></script>
+  <script src="js/hub.js?v=20261107a"></script>
   <!-- Nút "Tải lại bản mới" ở chân trang. Nạp sau data/games.js vì nó cần HUB_GAMES
        để biết phải nạp lại file của những game nào. -->
   <script src="js/cache-bust.js?v=20261028a"></script>

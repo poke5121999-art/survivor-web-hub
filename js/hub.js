@@ -343,6 +343,7 @@
     set("hub-footer-text", t("footer.text"));
     set("hub-refresh", t("refresh.button"));
     set("hub-feedback", t("feedback.link"));
+    set("hub-downloads", t("downloads.link"));
     var note = document.getElementById("hub-refresh-note");
     if (note) note.innerHTML = t("refresh.note");
     var grid = document.getElementById("game-grid");
