@@ -1,67 +1,4608 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 1,
-  "_note": "MẪU. Bản thật do bước build của game sinh ra và ghi đè file này.",
+  "version": 2,
   "tabs": [
     {
-      "id": "run", "label": "Lượt train", "blurb": "Một lượt train gồm nhiều ngày, đánh gym theo mốc.",
+      "id": "run",
+      "label": "Lượt huấn luyện",
+      "blurb": "Số khởi đầu và nhịp của một lượt huấn luyện (từ lúc chọn pet tới khi hết tim hoặc thắng Champion).",
       "fields": [
-        {"key":"run.startGold","label":"Gold khởi đầu","help":"Gold có sẵn khi bắt đầu lượt train.","type":"int","min":0,"max":100000,"unit":"gold","default":500},
-        {"key":"run.hearts","label":"Số tim","help":"Thua trận gym mất 1 tim; hết tim là kết thúc lượt.","type":"int","min":1,"max":10,"unit":"tim","default":3},
-        {"key":"run.daysPerGym","label":"Số ngày giữa hai gym","type":"int","min":1,"max":30,"unit":"ngày","default":5},
-        {"key":"run.gyms","label":"Số gym mỗi lượt","type":"int","min":1,"max":20,"unit":"gym","default":6},
-        {"key":"run.eliteCount","label":"Số trận elite","help":"Elite xuất hiện rải trong lượt.","type":"int","min":0,"max":20,"unit":"trận","default":4}
+        {
+          "key": "run.startGold",
+          "label": "Vàng khởi đầu",
+          "help": "Vàng người chơi có ở ngày 1 của mỗi lượt, dùng mua đồ trong Market.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 500
+        },
+        {
+          "key": "run.startHearts",
+          "label": "Số tim",
+          "help": "Mỗi lần thua Gym, Elite hay Champion mất 1 tim; hết tim là kết thúc lượt.",
+          "type": "int",
+          "min": 1,
+          "max": 10,
+          "unit": "tim",
+          "default": 3
+        },
+        {
+          "key": "run.startLevel",
+          "label": "Cấp pet mới",
+          "help": "Cấp của mọi pet mới (starter và gacha) khi nhận về.",
+          "type": "int",
+          "min": 1,
+          "max": 50,
+          "unit": "cấp",
+          "default": 5
+        },
+        {
+          "key": "run.daysPerGym",
+          "label": "Số ngày mỗi Gym",
+          "help": "Cứ chừng này ngày thì có một trận Gym; thua thì luyện thêm chừng này ngày rồi đánh lại.",
+          "type": "int",
+          "min": 2,
+          "max": 20,
+          "unit": "ngày",
+          "default": 5
+        },
+        {
+          "key": "run.gymCount",
+          "label": "Số huy hiệu",
+          "help": "Số Gym (huy hiệu) phải thắng trước Elite 4.",
+          "type": "int",
+          "min": 1,
+          "max": 12,
+          "unit": "Gym",
+          "default": 6
+        },
+        {
+          "key": "run.eliteCount",
+          "label": "Số Elite",
+          "help": "Số trận Elite liên tiếp trước Champion.",
+          "type": "int",
+          "min": 1,
+          "max": 8,
+          "unit": "trận",
+          "default": 4
+        },
+        {
+          "key": "run.maxEquipment",
+          "label": "Số trang bị mang theo",
+          "help": "Số món trang bị tối đa chọn trước khi vào lượt; cho chỉ số khởi đầu.",
+          "type": "int",
+          "min": 0,
+          "max": 6,
+          "unit": "món",
+          "default": 6
+        }
       ]
     },
     {
-      "id": "reward", "label": "Thưởng trận", "blurb": "Thưởng sau mỗi trận, theo loại trận.",
+      "id": "rewards",
+      "label": "Phần thưởng trận",
+      "blurb": "Thưởng sau mỗi trận thắng, theo loại trận.",
       "fields": [
-        {"key":"reward.fights","label":"Thưởng theo loại trận","help":"Mỗi dòng một loại trận.","type":"table",
-         "columns":[{"key":"type","label":"Loại trận","type":"enum","options":[{"v":"grass","label":"Bụi cỏ"},{"v":"npc","label":"NPC"},{"v":"gym","label":"Gym"},{"v":"elite","label":"Elite"},{"v":"champion","label":"Champion"}]},
-                    {"key":"exp","label":"EXP","type":"int","min":0,"max":100000},
-                    {"key":"gold","label":"Gold","type":"int","min":0,"max":100000},
-                    {"key":"stat","label":"Stat","type":"int","min":0,"max":100}],
-         "default":[{"type":"grass","exp":10,"gold":20,"stat":1},{"type":"npc","exp":20,"gold":40,"stat":1},{"type":"gym","exp":60,"gold":120,"stat":3},{"type":"elite","exp":90,"gold":180,"stat":4},{"type":"champion","exp":200,"gold":400,"stat":8}]}
+        {
+          "key": "rewards.grassExp",
+          "label": "EXP bụi cỏ",
+          "help": "EXP cơ bản khi thắng pet hoang trong bụi cỏ.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "exp",
+          "default": 40
+        },
+        {
+          "key": "rewards.npcExp",
+          "label": "EXP trainer",
+          "help": "EXP cơ bản khi thắng trainer (NPC).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "exp",
+          "default": 70
+        },
+        {
+          "key": "rewards.gymExp",
+          "label": "EXP Gym",
+          "help": "EXP cơ bản khi thắng Gym.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "exp",
+          "default": 180
+        },
+        {
+          "key": "rewards.expPerFoeLevel",
+          "label": "EXP mỗi cấp đối thủ",
+          "help": "Cộng thêm vào EXP cơ bản cho mỗi cấp của đối thủ.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "exp",
+          "default": 6
+        },
+        {
+          "key": "rewards.grassGold",
+          "label": "Vàng bụi cỏ",
+          "help": "Vàng nhận khi thắng pet hoang.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "vàng",
+          "default": 0
+        },
+        {
+          "key": "rewards.npcGold",
+          "label": "Vàng trainer",
+          "help": "Vàng nhận khi thắng trainer; trainer khó hơn pet hoang nên thưởng vàng.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "vàng",
+          "default": 120
+        },
+        {
+          "key": "rewards.gymGold",
+          "label": "Vàng Gym",
+          "help": "Vàng nhận khi thắng Gym.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 300
+        },
+        {
+          "key": "rewards.grassTrained",
+          "label": "Điểm luyện bụi cỏ",
+          "help": "Tổng điểm chỉ số được luyện thêm (chia vào các chỉ số mạnh của đối thủ) khi thắng pet hoang.",
+          "type": "int",
+          "min": 0,
+          "max": 200,
+          "unit": "điểm",
+          "default": 6
+        },
+        {
+          "key": "rewards.npcTrained",
+          "label": "Điểm luyện trainer",
+          "help": "Như trên, khi thắng trainer.",
+          "type": "int",
+          "min": 0,
+          "max": 200,
+          "unit": "điểm",
+          "default": 10
+        },
+        {
+          "key": "rewards.gymTrained",
+          "label": "Điểm luyện Gym",
+          "help": "Như trên, khi thắng Gym.",
+          "type": "int",
+          "min": 0,
+          "max": 500,
+          "unit": "điểm",
+          "default": 20
+        }
       ]
     },
     {
-      "id": "shop", "label": "Shop", "blurb": "Cửa hàng giữa các ngày.",
+      "id": "foes",
+      "label": "Đối thủ",
+      "blurb": "Cấp và chất lượng của đối thủ theo ngày và huy hiệu.",
       "fields": [
-        {"key":"shop.offerCount","label":"Số món mỗi lần mở shop","type":"int","min":1,"max":12,"unit":"món","default":4},
-        {"key":"shop.rerollCost","label":"Giá làm mới shop","type":"int","min":0,"max":10000,"unit":"gold","default":25},
-        {"key":"shop.prices","label":"Bảng giá","type":"table",
-         "columns":[{"key":"item","label":"Vật phẩm","type":"text"},{"key":"price","label":"Giá","type":"int","min":0,"max":100000}],
-         "default":[{"item":"Thuốc hồi máu","price":50},{"item":"Kẹo EXP","price":80},{"item":"Đá tiến hoá","price":300}]}
+        {
+          "key": "foes.levelPerDay",
+          "label": "Cấp tăng mỗi ngày",
+          "help": "Pet hoang mạnh dần theo ngày: cấp = cấp khởi đầu + ngày x hệ số này.",
+          "type": "number",
+          "min": 0,
+          "max": 5,
+          "unit": "cấp/ngày",
+          "default": 0.5
+        },
+        {
+          "key": "foes.grassLevelMin",
+          "label": "Lệch cấp thấp nhất",
+          "help": "Pet hoang có thể thấp hơn mức chuẩn chừng này cấp.",
+          "type": "int",
+          "min": -10,
+          "max": 10,
+          "unit": "cấp",
+          "default": -2
+        },
+        {
+          "key": "foes.grassLevelMax",
+          "label": "Lệch cấp cao nhất",
+          "help": "Pet hoang có thể cao hơn mức chuẩn chừng này cấp.",
+          "type": "int",
+          "min": -10,
+          "max": 10,
+          "unit": "cấp",
+          "default": 0
+        },
+        {
+          "key": "foes.levelsPerBadge",
+          "label": "Cấp tăng mỗi huy hiệu",
+          "help": "Sau mỗi huy hiệu, mọi đối thủ tăng chừng này cấp (thế giới mạnh lên).",
+          "type": "int",
+          "min": 0,
+          "max": 30,
+          "unit": "cấp",
+          "default": 6
+        },
+        {
+          "key": "foes.wildIvMax",
+          "label": "IV tối đa pet hoang",
+          "help": "IV của pet hoang được tung ngẫu nhiên từ 0 tới số này.",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 12
+        },
+        {
+          "key": "foes.npcIvMin",
+          "label": "IV tối thiểu trainer",
+          "help": "Pet của trainer có IV ít nhất bằng số này.",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 4
+        },
+        {
+          "key": "foes.gymIv",
+          "label": "IV pet Gym",
+          "help": "IV của pet Gym leader (mọi chỉ số).",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 20
+        }
       ]
     },
     {
-      "id": "gacha", "label": "Gacha", "blurb": "Quay thẻ nhân vật.",
+      "id": "friendship",
+      "label": "Thân thiết",
+      "blurb": "Độ thân thiết của pet trong lượt: tăng khi thắng, giảm khi thua.",
       "fields": [
-        {"key":"gacha.pullCost","label":"Giá một lần quay","type":"int","min":0,"max":100000,"unit":"gem","default":150},
-        {"key":"gacha.tenPullGuarantee","label":"Bảo đảm mười lần quay","help":"Độ hiếm tối thiểu có trong 10 lần quay.","type":"enum","options":[{"v":"R","label":"R"},{"v":"SR","label":"SR"},{"v":"SSR","label":"SSR"}],"default":"SR"},
-        {"key":"gacha.rates.R","label":"Tỉ lệ R","type":"number","min":0,"max":100,"unit":"%","default":79},
-        {"key":"gacha.rates.SR","label":"Tỉ lệ SR","type":"number","min":0,"max":100,"unit":"%","default":18},
-        {"key":"gacha.rates.SSR","label":"Tỉ lệ SSR","type":"number","min":0,"max":100,"unit":"%","default":3},
-        {"key":"gacha.pity","label":"Sàn bảo hiểm SSR","help":"Số lần quay không ra SSR thì lần kế chắc chắn ra.","type":"int","min":1,"max":1000,"unit":"lần","default":200},
-        {"key":"gacha.ivFloor","label":"IV tối thiểu","type":"int","min":0,"max":31,"default":0}
+        {
+          "key": "friendship.start",
+          "label": "Thân thiết pet gacha",
+          "help": "Độ thân thiết khởi đầu của pet nhận từ gacha.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 50
+        },
+        {
+          "key": "friendship.starterStart",
+          "label": "Thân thiết starter",
+          "help": "Độ thân thiết khởi đầu của pet starter.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 70
+        },
+        {
+          "key": "friendship.max",
+          "label": "Thân thiết tối đa",
+          "help": "Trần độ thân thiết.",
+          "type": "int",
+          "min": 1,
+          "max": 255,
+          "default": 100
+        },
+        {
+          "key": "friendship.winGrass",
+          "label": "Thắng bụi cỏ",
+          "help": "Thân thiết tăng khi thắng pet hoang.",
+          "type": "int",
+          "min": 0,
+          "max": 50,
+          "default": 3
+        },
+        {
+          "key": "friendship.winNpc",
+          "label": "Thắng trainer",
+          "help": "Thân thiết tăng khi thắng trainer.",
+          "type": "int",
+          "min": 0,
+          "max": 50,
+          "default": 4
+        },
+        {
+          "key": "friendship.winGym",
+          "label": "Thắng Gym",
+          "help": "Thân thiết tăng khi thắng Gym.",
+          "type": "int",
+          "min": 0,
+          "max": 50,
+          "default": 8
+        },
+        {
+          "key": "friendship.lose",
+          "label": "Thua trận",
+          "help": "Thân thiết giảm khi thua trận ở bụi cỏ hoặc trainer (pet bị đưa về Clinic).",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 10
+        },
+        {
+          "key": "friendship.bonusThreshold",
+          "label": "Ngưỡng thưởng thân thiết",
+          "help": "Từ mức thân thiết này, pet được thêm tỉ lệ chí mạng trong trận.",
+          "type": "int",
+          "min": 0,
+          "max": 255,
+          "default": 80
+        },
+        {
+          "key": "friendship.bonusCritChance",
+          "label": "Chí mạng thêm khi thân",
+          "help": "Tỉ lệ chí mạng cộng thêm khi đạt ngưỡng thân thiết.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.04
+        }
       ]
     },
     {
-      "id": "gear", "label": "Trang bị", "blurb": "Nâng cấp và đột phá trang bị.",
+      "id": "shop",
+      "label": "Market",
+      "blurb": "Luật của Market trong lượt (thẻ hàng, khoá, đổi hàng); giá từng món ở các bảng Đồ Market, Đĩa kỹ năng, Đồ cầm.",
       "fields": [
-        {"key":"gear.levelCaps","label":"Trần cấp theo bậc đột phá","help":"Cách nhau bằng dấu phẩy.","type":"list","items":"number","min":1,"max":200,"default":[30,35,40,45,50]},
-        {"key":"gear.goldCostBase","label":"Gold nâng cấp cơ bản","type":"int","min":0,"max":100000,"unit":"gold","default":100},
-        {"key":"gear.goldCostGrowth","label":"Hệ số tăng gold theo cấp","type":"number","min":1,"max":5,"default":1.15},
-        {"key":"gear.maxUncap","label":"Số lần đột phá tối đa","type":"int","min":0,"max":10,"default":4}
+        {
+          "key": "shop.offerCount",
+          "label": "Số thẻ hàng",
+          "help": "Số món bày bán mỗi lần vào Market.",
+          "type": "int",
+          "min": 1,
+          "max": 8,
+          "unit": "món",
+          "default": 4
+        },
+        {
+          "key": "shop.rerollCost",
+          "label": "Giá đổi hàng",
+          "help": "Giá lần đổi hàng đầu tiên trong một lần vào Market (thẻ đã khoá được giữ lại).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "vàng",
+          "default": 50
+        },
+        {
+          "key": "shop.rerollCostStep",
+          "label": "Giá đổi tăng thêm",
+          "help": "Mỗi lần đổi tiếp theo đắt thêm chừng này.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "vàng",
+          "default": 25
+        },
+        {
+          "key": "shop.weightStat",
+          "label": "Tỉ trọng thuốc chỉ số",
+          "help": "Độ thường gặp của thuốc chỉ số khi Market tung thẻ.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 4
+        },
+        {
+          "key": "shop.weightCandy",
+          "label": "Tỉ trọng kẹo",
+          "help": "Độ thường gặp của kẹo lên cấp.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 2
+        },
+        {
+          "key": "shop.weightDisc",
+          "label": "Tỉ trọng đĩa kỹ năng",
+          "help": "Độ thường gặp của đĩa kỹ năng.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 3
+        },
+        {
+          "key": "shop.weightHeld",
+          "label": "Tỉ trọng đồ cầm",
+          "help": "Độ thường gặp của đồ cầm.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 1
+        }
       ]
     },
     {
-      "id": "energy", "label": "Năng lượng & PvP", "blurb": "Giới hạn lượt chơi và phần thưởng PvP.",
+      "id": "skills",
+      "label": "Kỹ năng",
+      "blurb": "Ô kỹ năng và sao kỹ năng (đồ cầm ở bảng Đồ cầm).",
       "fields": [
-        {"key":"energy.energyPerRun","label":"Năng lượng mỗi lượt train","type":"int","min":0,"max":100,"unit":"điểm","default":5},
-        {"key":"energy.energyRegenMinutes","label":"Phút hồi một điểm năng lượng","type":"int","min":1,"max":600,"unit":"phút","default":12},
-        {"key":"energy.bpPerMatch","label":"BP mỗi trận PvP","type":"int","min":0,"max":1000,"unit":"BP","default":10},
-        {"key":"energy.motd","label":"Lời nhắn đầu game","type":"text","default":""}
+        {
+          "key": "skills.slots",
+          "label": "Số ô kỹ năng",
+          "help": "Số chiêu pet mang vào trận; mua chiêu thứ 5 sẽ hỏi thay chiêu nào.",
+          "type": "int",
+          "min": 1,
+          "max": 8,
+          "unit": "ô",
+          "default": 4
+        },
+        {
+          "key": "skills.maxStars",
+          "label": "Sao tối đa",
+          "help": "Mua lại chiêu đã có thì tăng 1 sao, tới mức này.",
+          "type": "int",
+          "min": 1,
+          "max": 5,
+          "unit": "sao",
+          "default": 3
+        },
+        {
+          "key": "skills.starCooldown",
+          "label": "Hồi chiêu theo sao",
+          "help": "Hệ số thời gian hồi chiêu ở 1, 2, 3 sao: nhỏ hơn thì chiêu dùng được nhiều lần hơn trong trận.",
+          "type": "list",
+          "min": 0.1,
+          "max": 2,
+          "default": [
+            1,
+            0.85,
+            0.7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "label": "Công thức chỉ số",
+      "blurb": "IV, tính cách và công thức tính chỉ số; ảnh hưởng mọi pet.",
+      "fields": [
+        {
+          "key": "stats.ivMax",
+          "label": "IV tối đa",
+          "help": "IV mỗi chỉ số nằm trong 0 tới số này.",
+          "type": "int",
+          "min": 1,
+          "max": 63,
+          "default": 31
+        },
+        {
+          "key": "stats.starterIv",
+          "label": "IV starter",
+          "help": "IV mọi chỉ số của pet starter (IV trung bình).",
+          "type": "int",
+          "min": 0,
+          "max": 63,
+          "default": 15
+        },
+        {
+          "key": "stats.refIv",
+          "label": "IV chuẩn",
+          "help": "Pet có IV này ở cấp khởi đầu đánh đúng như quái chuẩn của sim; đổi số này là đổi độ mạnh chung.",
+          "type": "int",
+          "min": 0,
+          "max": 63,
+          "default": 15
+        },
+        {
+          "key": "stats.natureUp",
+          "label": "Tính cách tăng",
+          "help": "Tính cách tăng một chỉ số theo tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.1
+        },
+        {
+          "key": "stats.natureDown",
+          "label": "Tính cách giảm",
+          "help": "Tính cách giảm một chỉ số theo tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.1
+        },
+        {
+          "key": "stats.formulaLevelOffset",
+          "label": "Lệch cấp công thức",
+          "help": "Công thức chỉ số tính ở (cấp + số này) để chỉ số đầu game không quá nhỏ.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "cấp",
+          "default": 45
+        },
+        {
+          "key": "stats.trainedCapPerStat",
+          "label": "Trần điểm luyện",
+          "help": "Điểm luyện (từ trận và thuốc) tối đa cho mỗi chỉ số trong một lượt.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "điểm",
+          "default": 250
+        },
+        {
+          "key": "stats.moveSpeedMin",
+          "label": "Tốc chạy thấp nhất",
+          "help": "Tốc chạy trong trận theo Speed, không thấp hơn tỉ lệ này so với loài.",
+          "type": "number",
+          "min": 0.1,
+          "max": 2,
+          "default": 0.8
+        },
+        {
+          "key": "stats.moveSpeedMax",
+          "label": "Tốc chạy cao nhất",
+          "help": "Tốc chạy trong trận theo Speed, không cao hơn tỉ lệ này so với loài.",
+          "type": "number",
+          "min": 0.5,
+          "max": 3,
+          "default": 1.3
+        }
+      ]
+    },
+    {
+      "id": "battle",
+      "label": "Trận đấu",
+      "blurb": "Hằng số chung của trận real-time (ảnh hưởng mọi trận, cả PvP).",
+      "fields": [
+        {
+          "key": "battle.damageK",
+          "label": "Hệ số sát thương",
+          "help": "Nhân vào mọi sát thương; lớn hơn thì trận ngắn hơn.",
+          "type": "number",
+          "min": 0.01,
+          "max": 5,
+          "default": 0.3
+        },
+        {
+          "key": "battle.critChance",
+          "label": "Tỉ lệ chí mạng",
+          "help": "Tỉ lệ một đòn trúng là chí mạng.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.06
+        },
+        {
+          "key": "battle.critMult",
+          "label": "Sát thương chí mạng",
+          "help": "Đòn chí mạng nhân sát thương theo hệ số này.",
+          "type": "number",
+          "min": 1,
+          "max": 5,
+          "default": 1.5
+        },
+        {
+          "key": "battle.affinity",
+          "label": "Thưởng cùng hệ",
+          "help": "Chiêu cùng hệ với pet nhân sát thương theo hệ số này.",
+          "type": "number",
+          "min": 1,
+          "max": 3,
+          "default": 1.5
+        },
+        {
+          "key": "battle.timerSeconds",
+          "label": "Đồng hồ trận",
+          "help": "Hết giờ thì vào hiệp phụ, sát thương tăng dần.",
+          "type": "int",
+          "min": 30,
+          "max": 600,
+          "unit": "giây",
+          "default": 120
+        },
+        {
+          "key": "battle.surgeHpBelow",
+          "label": "Ngưỡng biến hình",
+          "help": "Pet biến hình (một lần mỗi đội) khi máu dưới tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.5
+        },
+        {
+          "key": "battle.surgeDamageMult",
+          "label": "Sát thương khi biến hình",
+          "help": "Pet đã biến hình nhân sát thương theo hệ số này.",
+          "type": "number",
+          "min": 1,
+          "max": 3,
+          "default": 1.3
+        }
+      ]
+    },
+    {
+      "id": "rating",
+      "label": "Xếp hạng lượt",
+      "blurb": "Điểm và hạng ở màn kết quả cuối lượt.",
+      "fields": [
+        {
+          "key": "rating.perBadge",
+          "label": "Điểm mỗi huy hiệu",
+          "help": "Điểm cộng cho mỗi huy hiệu đã thắng.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "default": 1000
+        },
+        {
+          "key": "rating.perLevel",
+          "label": "Điểm mỗi cấp",
+          "help": "Điểm cộng cho mỗi cấp của pet lúc kết thúc.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "default": 20
+        },
+        {
+          "key": "rating.perStatPoint",
+          "label": "Điểm mỗi điểm chỉ số",
+          "help": "Điểm cộng cho mỗi điểm trong tổng chỉ số lúc kết thúc.",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 1
+        },
+        {
+          "key": "rating.tiers",
+          "label": "Mốc hạng C, B, A, S",
+          "help": "Điểm tối thiểu để đạt từng hạng, theo thứ tự C, B, A, S.",
+          "type": "list",
+          "min": 0,
+          "max": 1000000,
+          "default": [
+            0,
+            1500,
+            3500,
+            6000
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gacha",
+      "label": "Gacha",
+      "blurb": "Quay pet và trang bị bằng pha lê (dùng từ P3).",
+      "fields": [
+        {
+          "key": "gacha.pullCost",
+          "label": "Giá 1 lần quay",
+          "help": "Pha lê cho một lần quay.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "pha lê",
+          "default": 150
+        },
+        {
+          "key": "gacha.tenPullCost",
+          "label": "Giá 10 lần quay",
+          "help": "Pha lê cho một lượt 10 lần quay.",
+          "type": "int",
+          "min": 0,
+          "max": 1000000,
+          "unit": "pha lê",
+          "default": 1500
+        },
+        {
+          "key": "gacha.rateR",
+          "label": "Tỉ lệ R",
+          "help": "Phần trăm ra R.",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "default": 79
+        },
+        {
+          "key": "gacha.rateSR",
+          "label": "Tỉ lệ SR",
+          "help": "Phần trăm ra SR.",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "default": 18
+        },
+        {
+          "key": "gacha.rateSSR",
+          "label": "Tỉ lệ SSR",
+          "help": "Phần trăm ra SSR.",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "default": 3
+        },
+        {
+          "key": "gacha.tenPullGuaranteeSR",
+          "label": "10 lần chắc SR",
+          "help": "Bật thì mỗi lượt 10 lần quay có ít nhất một SR trở lên.",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "gacha.pity",
+          "label": "Mốc bảo hiểm",
+          "help": "Sau chừng này lần quay trên một banner, được chọn món rate-up.",
+          "type": "int",
+          "min": 1,
+          "max": 10000,
+          "unit": "lần",
+          "default": 200
+        },
+        {
+          "key": "gacha.pityIvFloor",
+          "label": "IV sàn khi bảo hiểm",
+          "help": "Pet nhận qua bảo hiểm có IV mỗi chỉ số ít nhất bằng số này.",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 20
+        }
+      ]
+    },
+    {
+      "id": "equipment",
+      "label": "Trang bị",
+      "blurb": "Chỉ số, cấp, giá nâng cấp và mở giới hạn trang bị (dùng từ P3).",
+      "fields": [
+        {
+          "key": "equipment.levelCaps",
+          "label": "Trần cấp theo lần mở",
+          "help": "Trần cấp trang bị khi chưa mở, mở 1, 2, 3, 4 lần (mỗi lần mở dùng một bản trùng từ gacha).",
+          "type": "list",
+          "min": 1,
+          "max": 200,
+          "default": [
+            30,
+            35,
+            40,
+            45,
+            50
+          ]
+        },
+        {
+          "key": "equipment.maxUncaps",
+          "label": "Số lần mở tối đa",
+          "help": "Số bản trùng tối đa dùng để mở giới hạn một món.",
+          "type": "int",
+          "min": 0,
+          "max": 10,
+          "default": 4
+        },
+        {
+          "key": "equipment.statR",
+          "label": "Chỉ số món R",
+          "help": "Điểm chỉ số món R cho ở cấp 1.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "default": 6
+        },
+        {
+          "key": "equipment.statSR",
+          "label": "Chỉ số món SR",
+          "help": "Điểm chỉ số món SR cho ở cấp 1.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "default": 10
+        },
+        {
+          "key": "equipment.statSSR",
+          "label": "Chỉ số món SSR",
+          "help": "Điểm chỉ số món SSR cho ở cấp 1.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "default": 15
+        },
+        {
+          "key": "equipment.growthPerLevel",
+          "label": "Tăng mỗi cấp",
+          "help": "Mỗi cấp trang bị tăng chỉ số theo tỉ lệ này (so với cấp 1).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.04
+        },
+        {
+          "key": "equipment.goldCostBase",
+          "label": "Giá nâng cấp cơ bản",
+          "help": "Vàng cho mỗi lần nâng cấp, cộng phần theo bình phương cấp.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 100
+        },
+        {
+          "key": "equipment.goldCostPerLevelSq",
+          "label": "Giá theo bình phương cấp",
+          "help": "Giá nâng cấp = cơ bản + hệ số này x cấp x cấp.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "vàng",
+          "default": 12
+        }
+      ]
+    },
+    {
+      "id": "energy",
+      "label": "Năng lượng và PvP",
+      "blurb": "Năng lượng cho lượt huấn luyện, điểm trận PvP và bậc PvP (dùng từ P3-P4).",
+      "fields": [
+        {
+          "key": "energy.max",
+          "label": "Năng lượng tối đa",
+          "help": "Trần năng lượng.",
+          "type": "int",
+          "min": 1,
+          "max": 1000,
+          "default": 100
+        },
+        {
+          "key": "energy.perRun",
+          "label": "Năng lượng mỗi lượt",
+          "help": "Năng lượng tốn khi bắt đầu một lượt huấn luyện.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "default": 30
+        },
+        {
+          "key": "energy.regenMinutesPerPoint",
+          "label": "Hồi năng lượng",
+          "help": "Số phút để hồi 1 năng lượng.",
+          "type": "number",
+          "min": 0.1,
+          "max": 1440,
+          "unit": "phút",
+          "default": 6
+        },
+        {
+          "key": "energy.bpMax",
+          "label": "Điểm trận tối đa",
+          "help": "Trần điểm trận PvP.",
+          "type": "int",
+          "min": 1,
+          "max": 100,
+          "default": 5
+        },
+        {
+          "key": "energy.bpPerMatch",
+          "label": "Điểm trận mỗi trận",
+          "help": "Điểm trận tốn mỗi trận PvP.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "default": 1
+        },
+        {
+          "key": "energy.bpRegenMinutes",
+          "label": "Hồi điểm trận",
+          "help": "Số phút để hồi 1 điểm trận.",
+          "type": "number",
+          "min": 0.1,
+          "max": 1440,
+          "unit": "phút",
+          "default": 60
+        },
+        {
+          "key": "pvp.teamSize",
+          "label": "Số pet đội PvP",
+          "help": "Số pet tối đa trong một đội PvP (lấy từ PC).",
+          "type": "int",
+          "min": 1,
+          "max": 6,
+          "default": 6
+        },
+        {
+          "key": "pvp.classes",
+          "label": "Bậc PvP",
+          "help": "Mỗi bậc: phần trăm người chơi được lên và bị xuống bậc mỗi tuần.",
+          "type": "table",
+          "columns": [
+            {
+              "key": "name",
+              "label": "Bậc",
+              "type": "text"
+            },
+            {
+              "key": "promote",
+              "label": "% lên",
+              "type": "int"
+            },
+            {
+              "key": "demote",
+              "label": "% xuống",
+              "type": "int"
+            }
+          ],
+          "default": [
+            {
+              "name": "Class 1",
+              "promote": 50,
+              "demote": 0
+            },
+            {
+              "name": "Class 2",
+              "promote": 40,
+              "demote": 10
+            },
+            {
+              "name": "Class 3",
+              "promote": 30,
+              "demote": 20
+            },
+            {
+              "name": "Class 4",
+              "promote": 20,
+              "demote": 30
+            },
+            {
+              "name": "Class 5",
+              "promote": 10,
+              "demote": 40
+            },
+            {
+              "name": "Class 6",
+              "promote": 0,
+              "demote": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-species",
+      "label": "Bảng: Loài",
+      "blurb": "Mọi loài pet: tên, hệ, chỉ số gốc, cỡ, chiêu gốc, năng lực có thể có, độ hiếm gacha.",
+      "fields": [
+        {
+          "key": "tables.species",
+          "label": "Loài",
+          "help": "Mọi loài pet: tên, hệ, chỉ số gốc, cỡ, chiêu gốc, năng lực có thể có, độ hiếm gacha.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "type1",
+              "label": "Hệ 1",
+              "type": "enum",
+              "options": [
+                "normal",
+                "fire",
+                "water",
+                "grass",
+                "electric",
+                "ice",
+                "fighting",
+                "poison",
+                "ground",
+                "flying",
+                "psychic",
+                "bug",
+                "rock",
+                "ghost",
+                "dragon",
+                "dark",
+                "steel",
+                "fairy"
+              ]
+            },
+            {
+              "key": "type2",
+              "label": "Hệ 2",
+              "type": "enum",
+              "options": [
+                "",
+                "normal",
+                "fire",
+                "water",
+                "grass",
+                "electric",
+                "ice",
+                "fighting",
+                "poison",
+                "ground",
+                "flying",
+                "psychic",
+                "bug",
+                "rock",
+                "ghost",
+                "dragon",
+                "dark",
+                "steel",
+                "fairy"
+              ]
+            },
+            {
+              "key": "hp",
+              "label": "HP",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "attack",
+              "label": "Atk",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "defense",
+              "label": "Def",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "spAttack",
+              "label": "SpA",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "spDefense",
+              "label": "SpD",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "speed",
+              "label": "Spe",
+              "type": "int",
+              "min": 1,
+              "max": 255
+            },
+            {
+              "key": "sizeClass",
+              "label": "Cỡ",
+              "type": "enum",
+              "options": [
+                "tiny",
+                "small",
+                "medium",
+                "large",
+                "huge"
+              ]
+            },
+            {
+              "key": "hitRadius",
+              "label": "Bán kính trúng",
+              "type": "int",
+              "min": 4,
+              "max": 40
+            },
+            {
+              "key": "dodge",
+              "label": "Né",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "moves",
+              "label": "Chiêu gốc",
+              "type": "list",
+              "ref": "moves",
+              "length": 4
+            },
+            {
+              "key": "abilities",
+              "label": "Năng lực có thể có",
+              "type": "list",
+              "ref": "abilities"
+            },
+            {
+              "key": "evolvesFrom",
+              "label": "Tiến hoá từ",
+              "type": "enum",
+              "ref": "species",
+              "options": [
+                ""
+              ]
+            },
+            {
+              "key": "stage",
+              "label": "Giai đoạn",
+              "type": "int",
+              "min": 1,
+              "max": 3
+            },
+            {
+              "key": "rarity",
+              "label": "Độ hiếm gacha",
+              "type": "enum",
+              "options": [
+                "R",
+                "SR",
+                "SSR"
+              ]
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "coilbadger",
+              "name": "Coilbadger",
+              "type1": "electric",
+              "type2": "",
+              "hp": 95,
+              "attack": 95,
+              "defense": 85,
+              "spAttack": 95,
+              "spDefense": 85,
+              "speed": 62,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.25,
+              "moves": [
+                "jolt_nip",
+                "arc_ring",
+                "shale_ram",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SSR",
+              "enabled": true
+            },
+            {
+              "id": "kilnback",
+              "name": "Kilnback",
+              "type1": "fire",
+              "type2": "",
+              "hp": 85,
+              "attack": 90,
+              "defense": 80,
+              "spAttack": 90,
+              "spDefense": 80,
+              "speed": 58,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.2,
+              "moves": [
+                "ember_volley",
+                "kiln_bloom",
+                "cinder_roll",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane",
+              "name": "Tidecrane",
+              "type1": "water",
+              "type2": "flying",
+              "hp": 79,
+              "attack": 88,
+              "defense": 68,
+              "spAttack": 88,
+              "spDefense": 68,
+              "speed": 78,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.45,
+              "moves": [
+                "rill_lance",
+                "spray_shot",
+                "squall_quill",
+                "quickstep"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "thornboar",
+              "name": "Thornboar",
+              "type1": "grass",
+              "type2": "",
+              "hp": 114,
+              "attack": 92,
+              "defense": 90,
+              "spAttack": 92,
+              "spDefense": 90,
+              "speed": 55,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.15,
+              "moves": [
+                "briar_charge",
+                "burr_shot",
+                "bedrock_drum",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SSR",
+              "enabled": true
+            },
+            {
+              "id": "shalehorn",
+              "name": "Shalehorn",
+              "type1": "ground",
+              "type2": "ice",
+              "hp": 104,
+              "attack": 95,
+              "defense": 95,
+              "spAttack": 95,
+              "spDefense": 95,
+              "speed": 52,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.15,
+              "moves": [
+                "shale_ram",
+                "bedrock_drum",
+                "rime_spike",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SSR",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare",
+              "name": "Gloamhare",
+              "type1": "dark",
+              "type2": "",
+              "hp": 72,
+              "attack": 90,
+              "defense": 65,
+              "spAttack": 90,
+              "spDefense": 65,
+              "speed": 85,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.5,
+              "moves": [
+                "umbra_bead",
+                "shade_pounce",
+                "hush_pulse",
+                "quickstep"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "budsnout",
+              "name": "Budsnout",
+              "type1": "grass",
+              "type2": "poison",
+              "hp": 68,
+              "attack": 72,
+              "defense": 64,
+              "spAttack": 72,
+              "spDefense": 64,
+              "speed": 50,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "briar_charge",
+                "thorn_jab",
+                "blight_spit",
+                "sun_soak"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout",
+              "name": "Fernsnout",
+              "type1": "grass",
+              "type2": "poison",
+              "hp": 85,
+              "attack": 83,
+              "defense": 76,
+              "spAttack": 83,
+              "spDefense": 76,
+              "speed": 57,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "thorn_jab",
+                "burr_shot",
+                "shale_ram",
+                "sun_soak"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "budsnout",
+              "stage": 2,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout",
+              "name": "Grovesnout",
+              "type1": "grass",
+              "type2": "poison",
+              "hp": 102,
+              "attack": 90,
+              "defense": 85,
+              "spAttack": 90,
+              "spDefense": 85,
+              "speed": 66,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.2,
+              "moves": [
+                "vine_lash",
+                "miasma_bloom",
+                "bedrock_drum",
+                "sun_soak"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "fernsnout",
+              "stage": 3,
+              "rarity": "SSR",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit",
+              "name": "Cinderkit",
+              "type1": "fire",
+              "type2": "",
+              "hp": 66,
+              "attack": 70,
+              "defense": 63,
+              "spAttack": 70,
+              "spDefense": 63,
+              "speed": 59,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.4,
+              "moves": [
+                "ember_volley",
+                "cinder_roll",
+                "kiln_bloom",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "enabled": true
+            },
+            {
+              "id": "cindermask",
+              "name": "Cindermask",
+              "type1": "fire",
+              "type2": "",
+              "hp": 86,
+              "attack": 81,
+              "defense": 72,
+              "spAttack": 81,
+              "spDefense": 72,
+              "speed": 66,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "ember_volley",
+                "heat_ribbon",
+                "kiln_bloom",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "cinderkit",
+              "stage": 2,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite",
+              "name": "Cinderkite",
+              "type1": "fire",
+              "type2": "flying",
+              "hp": 100,
+              "attack": 82,
+              "defense": 82,
+              "spAttack": 82,
+              "spDefense": 82,
+              "speed": 75,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.25,
+              "moves": [
+                "heat_ribbon",
+                "updraft_dive",
+                "kiln_bloom",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "cindermask",
+              "stage": 3,
+              "rarity": "SSR",
+              "enabled": true
+            },
+            {
+              "id": "wallowling",
+              "name": "Wallowling",
+              "type1": "water",
+              "type2": "",
+              "hp": 61,
+              "attack": 65,
+              "defense": 74,
+              "spAttack": 65,
+              "spDefense": 74,
+              "speed": 49,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.25,
+              "moves": [
+                "spray_shot",
+                "wallow_ram",
+                "tide_slam",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow",
+              "name": "Shellwallow",
+              "type1": "water",
+              "type2": "",
+              "hp": 86,
+              "attack": 77,
+              "defense": 83,
+              "spAttack": 77,
+              "spDefense": 83,
+              "speed": 56,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.2,
+              "moves": [
+                "spray_shot",
+                "rill_lance",
+                "tide_slam",
+                "rime_spike"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "wallowling",
+              "stage": 2,
+              "rarity": "SR",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow",
+              "name": "Tidewallow",
+              "type1": "water",
+              "type2": "",
+              "hp": 104,
+              "attack": 88,
+              "defense": 95,
+              "spAttack": 88,
+              "spDefense": 95,
+              "speed": 70,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.1,
+              "moves": [
+                "vent_jet",
+                "spray_shot",
+                "tide_slam",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "shellwallow",
+              "stage": 3,
+              "rarity": "SSR",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-moves",
+      "label": "Bảng: Chiêu",
+      "blurb": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên; mọi chiêu luôn trúng nếu không bị né.",
+      "fields": [
+        {
+          "key": "tables.moves",
+          "label": "Chiêu",
+          "help": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên; mọi chiêu luôn trúng nếu không bị né.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "type",
+              "label": "Hệ",
+              "type": "enum",
+              "options": [
+                "normal",
+                "fire",
+                "water",
+                "grass",
+                "electric",
+                "ice",
+                "fighting",
+                "poison",
+                "ground",
+                "flying",
+                "psychic",
+                "bug",
+                "rock",
+                "ghost",
+                "dragon",
+                "dark",
+                "steel",
+                "fairy"
+              ]
+            },
+            {
+              "key": "category",
+              "label": "Loại",
+              "type": "enum",
+              "options": [
+                "physical",
+                "special"
+              ]
+            },
+            {
+              "key": "kind",
+              "label": "Kiểu (vfx)",
+              "type": "enum",
+              "options": [
+                "projectile",
+                "dash",
+                "burst",
+                "beam",
+                "buff"
+              ],
+              "help": "Cách chiêu bay/đánh và hiệu ứng hình; dòng thêm mới chép thông số kiểu này từ chiêu mẫu."
+            },
+            {
+              "key": "power",
+              "label": "Sức mạnh",
+              "type": "int",
+              "min": 0,
+              "max": 250
+            },
+            {
+              "key": "cooldown",
+              "label": "Hồi chiêu (giây)",
+              "type": "number",
+              "min": 0.3,
+              "max": 30
+            },
+            {
+              "key": "windup",
+              "label": "Gồng (giây)",
+              "type": "number",
+              "min": 0,
+              "max": 5
+            },
+            {
+              "key": "range",
+              "label": "Tầm (px)",
+              "type": "int",
+              "min": 0,
+              "max": 480
+            },
+            {
+              "key": "status",
+              "label": "Hiệu ứng",
+              "type": "enum",
+              "options": [
+                "",
+                "burn",
+                "shock",
+                "sleep"
+              ]
+            },
+            {
+              "key": "statusChance",
+              "label": "Tỉ lệ hiệu ứng",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "jolt_nip",
+              "name": "Jolt Nip",
+              "type": "electric",
+              "category": "physical",
+              "kind": "dash",
+              "power": 55,
+              "cooldown": 2.4,
+              "windup": 0.45,
+              "range": 90,
+              "status": "shock",
+              "statusChance": 0.2,
+              "enabled": true
+            },
+            {
+              "id": "arc_ring",
+              "name": "Arc Ring",
+              "type": "electric",
+              "category": "special",
+              "kind": "burst",
+              "power": 70,
+              "cooldown": 4.5,
+              "windup": 0.6,
+              "range": 50,
+              "status": "shock",
+              "statusChance": 0.35,
+              "enabled": true
+            },
+            {
+              "id": "ember_volley",
+              "name": "Ember Volley",
+              "type": "fire",
+              "category": "special",
+              "kind": "projectile",
+              "power": 45,
+              "cooldown": 1.8,
+              "windup": 0.35,
+              "range": 220,
+              "status": "burn",
+              "statusChance": 0.2,
+              "enabled": true
+            },
+            {
+              "id": "kiln_bloom",
+              "name": "Kiln Bloom",
+              "type": "fire",
+              "category": "special",
+              "kind": "burst",
+              "power": 80,
+              "cooldown": 4.5,
+              "windup": 0.8,
+              "range": 190,
+              "status": "burn",
+              "statusChance": 0.4,
+              "enabled": true
+            },
+            {
+              "id": "cinder_roll",
+              "name": "Cinder Roll",
+              "type": "fire",
+              "category": "physical",
+              "kind": "dash",
+              "power": 60,
+              "cooldown": 3.2,
+              "windup": 0.45,
+              "range": 110,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "rill_lance",
+              "name": "Rill Lance",
+              "type": "water",
+              "category": "special",
+              "kind": "beam",
+              "power": 80,
+              "cooldown": 4.5,
+              "windup": 0.7,
+              "range": 230,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "spray_shot",
+              "name": "Spray Shot",
+              "type": "water",
+              "category": "special",
+              "kind": "projectile",
+              "power": 40,
+              "cooldown": 1.5,
+              "windup": 0.3,
+              "range": 210,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "squall_quill",
+              "name": "Squall Quill",
+              "type": "flying",
+              "category": "physical",
+              "kind": "projectile",
+              "power": 50,
+              "cooldown": 2.2,
+              "windup": 0.35,
+              "range": 200,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "briar_charge",
+              "name": "Briar Charge",
+              "type": "grass",
+              "category": "physical",
+              "kind": "dash",
+              "power": 70,
+              "cooldown": 3,
+              "windup": 0.45,
+              "range": 120,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "burr_shot",
+              "name": "Burr Shot",
+              "type": "grass",
+              "category": "special",
+              "kind": "projectile",
+              "power": 45,
+              "cooldown": 2,
+              "windup": 0.35,
+              "range": 180,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "shale_ram",
+              "name": "Shale Ram",
+              "type": "rock",
+              "category": "physical",
+              "kind": "dash",
+              "power": 65,
+              "cooldown": 2.8,
+              "windup": 0.45,
+              "range": 100,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "bedrock_drum",
+              "name": "Bedrock Drum",
+              "type": "ground",
+              "category": "physical",
+              "kind": "burst",
+              "power": 75,
+              "cooldown": 5,
+              "windup": 0.75,
+              "range": 56,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "rime_spike",
+              "name": "Rime Spike",
+              "type": "ice",
+              "category": "special",
+              "kind": "projectile",
+              "power": 50,
+              "cooldown": 2.2,
+              "windup": 0.4,
+              "range": 190,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "umbra_bead",
+              "name": "Umbra Bead",
+              "type": "ghost",
+              "category": "special",
+              "kind": "projectile",
+              "power": 50,
+              "cooldown": 2.4,
+              "windup": 0.4,
+              "range": 210,
+              "status": "sleep",
+              "statusChance": 0.15,
+              "enabled": true
+            },
+            {
+              "id": "shade_pounce",
+              "name": "Shade Pounce",
+              "type": "dark",
+              "category": "physical",
+              "kind": "dash",
+              "power": 60,
+              "cooldown": 2.6,
+              "windup": 0.45,
+              "range": 110,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "hush_pulse",
+              "name": "Hush Pulse",
+              "type": "psychic",
+              "category": "special",
+              "kind": "burst",
+              "power": 55,
+              "cooldown": 5.5,
+              "windup": 0.8,
+              "range": 180,
+              "status": "sleep",
+              "statusChance": 0.4,
+              "enabled": true
+            },
+            {
+              "id": "thorn_jab",
+              "name": "Thorn Jab",
+              "type": "poison",
+              "category": "physical",
+              "kind": "dash",
+              "power": 55,
+              "cooldown": 2.6,
+              "windup": 0.45,
+              "range": 95,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "blight_spit",
+              "name": "Blight Spit",
+              "type": "poison",
+              "category": "special",
+              "kind": "projectile",
+              "power": 45,
+              "cooldown": 2,
+              "windup": 0.35,
+              "range": 200,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "miasma_bloom",
+              "name": "Miasma Bloom",
+              "type": "poison",
+              "category": "special",
+              "kind": "burst",
+              "power": 70,
+              "cooldown": 5,
+              "windup": 0.8,
+              "range": 180,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "vine_lash",
+              "name": "Vine Lash",
+              "type": "grass",
+              "category": "special",
+              "kind": "beam",
+              "power": 70,
+              "cooldown": 4,
+              "windup": 0.6,
+              "range": 150,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "heat_ribbon",
+              "name": "Heat Ribbon",
+              "type": "fire",
+              "category": "special",
+              "kind": "beam",
+              "power": 75,
+              "cooldown": 4.5,
+              "windup": 0.7,
+              "range": 210,
+              "status": "burn",
+              "statusChance": 0.25,
+              "enabled": true
+            },
+            {
+              "id": "updraft_dive",
+              "name": "Updraft Dive",
+              "type": "flying",
+              "category": "physical",
+              "kind": "dash",
+              "power": 70,
+              "cooldown": 3,
+              "windup": 0.45,
+              "range": 130,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "wallow_ram",
+              "name": "Wallow Ram",
+              "type": "water",
+              "category": "physical",
+              "kind": "dash",
+              "power": 60,
+              "cooldown": 3,
+              "windup": 0.45,
+              "range": 100,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "tide_slam",
+              "name": "Tide Slam",
+              "type": "water",
+              "category": "physical",
+              "kind": "burst",
+              "power": 75,
+              "cooldown": 5,
+              "windup": 0.75,
+              "range": 52,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "vent_jet",
+              "name": "Vent Jet",
+              "type": "water",
+              "category": "special",
+              "kind": "beam",
+              "power": 90,
+              "cooldown": 5,
+              "windup": 0.8,
+              "range": 240,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "hunker",
+              "name": "Hunker",
+              "type": "normal",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "cooldown": 9,
+              "windup": 0.5,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "stoke_up",
+              "name": "Stoke Up",
+              "type": "fire",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "cooldown": 9,
+              "windup": 0.5,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "sun_soak",
+              "name": "Sun Soak",
+              "type": "grass",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "cooldown": 12,
+              "windup": 0.7,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            },
+            {
+              "id": "quickstep",
+              "name": "Quickstep",
+              "type": "normal",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "cooldown": 9,
+              "windup": 0.4,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-typeChart",
+      "label": "Bảng: Bảng hệ",
+      "blurb": "Hệ số sát thương: hàng là hệ chiêu, cột là hệ bị đánh (2 = gấp đôi, 0.5 = nửa, 0 = miễn nhiễm). Mặc định khoá.",
+      "fields": [
+        {
+          "key": "tables.typeChart",
+          "label": "Bảng hệ",
+          "help": "Hệ số sát thương: hàng là hệ chiêu, cột là hệ bị đánh (2 = gấp đôi, 0.5 = nửa, 0 = miễn nhiễm). Mặc định khoá.",
+          "type": "table",
+          "rowKey": "attack",
+          "columns": [
+            {
+              "key": "attack",
+              "label": "Hệ chiêu",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "normal",
+              "label": "normal",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "fire",
+              "label": "fire",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "water",
+              "label": "water",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "grass",
+              "label": "grass",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "electric",
+              "label": "electric",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "ice",
+              "label": "ice",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "fighting",
+              "label": "fighting",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "poison",
+              "label": "poison",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "ground",
+              "label": "ground",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "flying",
+              "label": "flying",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "psychic",
+              "label": "psychic",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "bug",
+              "label": "bug",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "rock",
+              "label": "rock",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "ghost",
+              "label": "ghost",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "dragon",
+              "label": "dragon",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "dark",
+              "label": "dark",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "steel",
+              "label": "steel",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            },
+            {
+              "key": "fairy",
+              "label": "fairy",
+              "type": "number",
+              "min": 0,
+              "max": 4
+            }
+          ],
+          "canAdd": false,
+          "readonly": true,
+          "default": [
+            {
+              "attack": "normal",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 0.5,
+              "ghost": 0,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "fire",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 0.5,
+              "grass": 2,
+              "electric": 1,
+              "ice": 2,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 2,
+              "rock": 0.5,
+              "ghost": 1,
+              "dragon": 0.5,
+              "dark": 1,
+              "steel": 2,
+              "fairy": 1
+            },
+            {
+              "attack": "water",
+              "normal": 1,
+              "fire": 2,
+              "water": 0.5,
+              "grass": 0.5,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 2,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 2,
+              "ghost": 1,
+              "dragon": 0.5,
+              "dark": 1,
+              "steel": 1,
+              "fairy": 1
+            },
+            {
+              "attack": "grass",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 2,
+              "grass": 0.5,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 0.5,
+              "ground": 2,
+              "flying": 0.5,
+              "psychic": 1,
+              "bug": 0.5,
+              "rock": 2,
+              "ghost": 1,
+              "dragon": 0.5,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "electric",
+              "normal": 1,
+              "fire": 1,
+              "water": 2,
+              "grass": 0.5,
+              "electric": 0.5,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 0,
+              "flying": 2,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 0.5,
+              "dark": 1,
+              "steel": 1,
+              "fairy": 1
+            },
+            {
+              "attack": "ice",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 0.5,
+              "grass": 2,
+              "electric": 1,
+              "ice": 0.5,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 2,
+              "flying": 2,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 2,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "fighting",
+              "normal": 2,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 2,
+              "fighting": 1,
+              "poison": 0.5,
+              "ground": 1,
+              "flying": 0.5,
+              "psychic": 0.5,
+              "bug": 0.5,
+              "rock": 2,
+              "ghost": 0,
+              "dragon": 1,
+              "dark": 2,
+              "steel": 2,
+              "fairy": 0.5
+            },
+            {
+              "attack": "poison",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 2,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 0.5,
+              "ground": 0.5,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 0.5,
+              "ghost": 0.5,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 0,
+              "fairy": 2
+            },
+            {
+              "attack": "ground",
+              "normal": 1,
+              "fire": 2,
+              "water": 1,
+              "grass": 0.5,
+              "electric": 2,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 2,
+              "ground": 1,
+              "flying": 0,
+              "psychic": 1,
+              "bug": 0.5,
+              "rock": 2,
+              "ghost": 1,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 2,
+              "fairy": 1
+            },
+            {
+              "attack": "flying",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 2,
+              "electric": 0.5,
+              "ice": 1,
+              "fighting": 2,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 2,
+              "rock": 0.5,
+              "ghost": 1,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "psychic",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 2,
+              "poison": 2,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 0.5,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 1,
+              "dark": 0,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "bug",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 1,
+              "grass": 2,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 0.5,
+              "poison": 0.5,
+              "ground": 1,
+              "flying": 0.5,
+              "psychic": 2,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 0.5,
+              "dragon": 1,
+              "dark": 2,
+              "steel": 0.5,
+              "fairy": 0.5
+            },
+            {
+              "attack": "rock",
+              "normal": 1,
+              "fire": 2,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 2,
+              "fighting": 0.5,
+              "poison": 1,
+              "ground": 0.5,
+              "flying": 2,
+              "psychic": 1,
+              "bug": 2,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 1
+            },
+            {
+              "attack": "ghost",
+              "normal": 0,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 2,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 2,
+              "dragon": 1,
+              "dark": 0.5,
+              "steel": 1,
+              "fairy": 1
+            },
+            {
+              "attack": "dragon",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 2,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 0
+            },
+            {
+              "attack": "dark",
+              "normal": 1,
+              "fire": 1,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 0.5,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 2,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 2,
+              "dragon": 1,
+              "dark": 0.5,
+              "steel": 1,
+              "fairy": 0.5
+            },
+            {
+              "attack": "steel",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 0.5,
+              "grass": 1,
+              "electric": 0.5,
+              "ice": 2,
+              "fighting": 1,
+              "poison": 1,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 2,
+              "ghost": 1,
+              "dragon": 1,
+              "dark": 1,
+              "steel": 0.5,
+              "fairy": 2
+            },
+            {
+              "attack": "fairy",
+              "normal": 1,
+              "fire": 0.5,
+              "water": 1,
+              "grass": 1,
+              "electric": 1,
+              "ice": 1,
+              "fighting": 2,
+              "poison": 0.5,
+              "ground": 1,
+              "flying": 1,
+              "psychic": 1,
+              "bug": 1,
+              "rock": 1,
+              "ghost": 1,
+              "dragon": 2,
+              "dark": 2,
+              "steel": 0.5,
+              "fairy": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-natures",
+      "label": "Bảng: Tính cách",
+      "blurb": "Tính cách tăng một chỉ số và giảm một chỉ số (để trống = trung tính).",
+      "fields": [
+        {
+          "key": "tables.natures",
+          "label": "Tính cách",
+          "help": "Tính cách tăng một chỉ số và giảm một chỉ số (để trống = trung tính).",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "up",
+              "label": "Tăng",
+              "type": "enum",
+              "options": [
+                "",
+                "attack",
+                "defense",
+                "spAttack",
+                "spDefense",
+                "speed"
+              ]
+            },
+            {
+              "key": "down",
+              "label": "Giảm",
+              "type": "enum",
+              "options": [
+                "",
+                "attack",
+                "defense",
+                "spAttack",
+                "spDefense",
+                "speed"
+              ]
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "even",
+              "name": "Even",
+              "up": "",
+              "down": "",
+              "enabled": true
+            },
+            {
+              "id": "plain",
+              "name": "Plain",
+              "up": "",
+              "down": "",
+              "enabled": true
+            },
+            {
+              "id": "level",
+              "name": "Level",
+              "up": "",
+              "down": "",
+              "enabled": true
+            },
+            {
+              "id": "balanced",
+              "name": "Balanced",
+              "up": "",
+              "down": "",
+              "enabled": true
+            },
+            {
+              "id": "steady",
+              "name": "Steady",
+              "up": "",
+              "down": "",
+              "enabled": true
+            },
+            {
+              "id": "attack>defense",
+              "name": "Reckless",
+              "up": "attack",
+              "down": "defense",
+              "enabled": true
+            },
+            {
+              "id": "attack>spAttack",
+              "name": "Gritty",
+              "up": "attack",
+              "down": "spAttack",
+              "enabled": true
+            },
+            {
+              "id": "attack>spDefense",
+              "name": "Brash",
+              "up": "attack",
+              "down": "spDefense",
+              "enabled": true
+            },
+            {
+              "id": "attack>speed",
+              "name": "Stubborn",
+              "up": "attack",
+              "down": "speed",
+              "enabled": true
+            },
+            {
+              "id": "defense>attack",
+              "name": "Sturdy",
+              "up": "defense",
+              "down": "attack",
+              "enabled": true
+            },
+            {
+              "id": "defense>spAttack",
+              "name": "Stoic",
+              "up": "defense",
+              "down": "spAttack",
+              "enabled": true
+            },
+            {
+              "id": "defense>spDefense",
+              "name": "Brave-hearted",
+              "up": "defense",
+              "down": "spDefense",
+              "enabled": true
+            },
+            {
+              "id": "defense>speed",
+              "name": "Steadfast",
+              "up": "defense",
+              "down": "speed",
+              "enabled": true
+            },
+            {
+              "id": "spAttack>attack",
+              "name": "Clever",
+              "up": "spAttack",
+              "down": "attack",
+              "enabled": true
+            },
+            {
+              "id": "spAttack>defense",
+              "name": "Daring",
+              "up": "spAttack",
+              "down": "defense",
+              "enabled": true
+            },
+            {
+              "id": "spAttack>spDefense",
+              "name": "Fiery",
+              "up": "spAttack",
+              "down": "spDefense",
+              "enabled": true
+            },
+            {
+              "id": "spAttack>speed",
+              "name": "Dreamy",
+              "up": "spAttack",
+              "down": "speed",
+              "enabled": true
+            },
+            {
+              "id": "spDefense>attack",
+              "name": "Kind",
+              "up": "spDefense",
+              "down": "attack",
+              "enabled": true
+            },
+            {
+              "id": "spDefense>defense",
+              "name": "Tender",
+              "up": "spDefense",
+              "down": "defense",
+              "enabled": true
+            },
+            {
+              "id": "spDefense>spAttack",
+              "name": "Wise",
+              "up": "spDefense",
+              "down": "spAttack",
+              "enabled": true
+            },
+            {
+              "id": "spDefense>speed",
+              "name": "Patient",
+              "up": "spDefense",
+              "down": "speed",
+              "enabled": true
+            },
+            {
+              "id": "speed>attack",
+              "name": "Nimble",
+              "up": "speed",
+              "down": "attack",
+              "enabled": true
+            },
+            {
+              "id": "speed>defense",
+              "name": "Restless",
+              "up": "speed",
+              "down": "defense",
+              "enabled": true
+            },
+            {
+              "id": "speed>spAttack",
+              "name": "Lively",
+              "up": "speed",
+              "down": "spAttack",
+              "enabled": true
+            },
+            {
+              "id": "speed>spDefense",
+              "name": "Bold-footed",
+              "up": "speed",
+              "down": "spDefense",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-abilities",
+      "label": "Bảng: Năng lực",
+      "blurb": "Năng lực của pet và thông số hiệu ứng.",
+      "fields": [
+        {
+          "key": "tables.abilities",
+          "label": "Năng lực",
+          "help": "Năng lực của pet và thông số hiệu ứng.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "text",
+              "label": "Mô tả",
+              "type": "text"
+            },
+            {
+              "key": "damageTaken",
+              "label": "Sát thương nhận x",
+              "type": "number",
+              "min": 0.1,
+              "max": 2
+            },
+            {
+              "key": "speedMult",
+              "label": "Tốc chạy x",
+              "type": "number",
+              "min": 0.5,
+              "max": 2
+            },
+            {
+              "key": "critBonus",
+              "label": "Chí mạng +",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "steady",
+              "name": "Steady",
+              "text": "No special effect (the normal ability).",
+              "damageTaken": 1,
+              "speedMult": 1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "thickHide",
+              "name": "Thick Hide",
+              "text": "Takes less damage.",
+              "damageTaken": 0.9,
+              "speedMult": 1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "quickFeet",
+              "name": "Quick Feet",
+              "text": "Runs faster in battle.",
+              "damageTaken": 1,
+              "speedMult": 1.1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "keenEye",
+              "name": "Keen Eye",
+              "text": "Lands critical hits more often.",
+              "damageTaken": 1,
+              "speedMult": 1,
+              "critBonus": 0.06,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-heldItems",
+      "label": "Bảng: Đồ cầm",
+      "blurb": "Đồ cầm trong trận (chỉ 1 món): giá ở Market và hệ số hiệu ứng.",
+      "fields": [
+        {
+          "key": "tables.heldItems",
+          "label": "Đồ cầm",
+          "help": "Đồ cầm trong trận (chỉ 1 món): giá ở Market và hệ số hiệu ứng.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "text",
+              "label": "Mô tả",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "label": "Giá",
+              "type": "int",
+              "min": 0,
+              "max": 100000
+            },
+            {
+              "key": "attackMult",
+              "label": "Atk/SpA x",
+              "type": "number",
+              "min": 0.5,
+              "max": 3
+            },
+            {
+              "key": "defenseMult",
+              "label": "Def/SpD x",
+              "type": "number",
+              "min": 0.5,
+              "max": 3
+            },
+            {
+              "key": "speedMult",
+              "label": "Tốc x",
+              "type": "number",
+              "min": 0.5,
+              "max": 3
+            },
+            {
+              "key": "critBonus",
+              "label": "Chí mạng +",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "power_band",
+              "name": "Power Band",
+              "text": "Raises Attack and Sp. Atk in battle.",
+              "price": 200,
+              "attackMult": 1.1,
+              "defenseMult": 1,
+              "speedMult": 1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "guard_vest",
+              "name": "Guard Vest",
+              "text": "Raises Defense and Sp. Def in battle.",
+              "price": 200,
+              "attackMult": 1,
+              "defenseMult": 1.1,
+              "speedMult": 1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "swift_charm",
+              "name": "Swift Charm",
+              "text": "Raises Speed in battle.",
+              "price": 200,
+              "attackMult": 1,
+              "defenseMult": 1,
+              "speedMult": 1.1,
+              "critBonus": 0,
+              "enabled": true
+            },
+            {
+              "id": "lucky_clover",
+              "name": "Lucky Clover",
+              "text": "Raises the critical hit chance.",
+              "price": 200,
+              "attackMult": 1,
+              "defenseMult": 1,
+              "speedMult": 1,
+              "critBonus": 0.06,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-shopItems",
+      "label": "Bảng: Đồ Market",
+      "blurb": "Thuốc chỉ số và đồ tiêu hao bán ở Market: giá, hiệu ứng, độ thường gặp.",
+      "fields": [
+        {
+          "key": "tables.shopItems",
+          "label": "Đồ Market",
+          "help": "Thuốc chỉ số và đồ tiêu hao bán ở Market: giá, hiệu ứng, độ thường gặp.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "kind",
+              "label": "Loại",
+              "type": "enum",
+              "options": [
+                "stat",
+                "candy"
+              ]
+            },
+            {
+              "key": "stat",
+              "label": "Chỉ số",
+              "type": "enum",
+              "options": [
+                "",
+                "hp",
+                "attack",
+                "defense",
+                "spAttack",
+                "spDefense",
+                "speed"
+              ]
+            },
+            {
+              "key": "amount",
+              "label": "Lượng",
+              "type": "int",
+              "min": 1,
+              "max": 500,
+              "help": "Điểm chỉ số (thuốc) hoặc số cấp (kẹo)."
+            },
+            {
+              "key": "price",
+              "label": "Giá",
+              "type": "int",
+              "min": 0,
+              "max": 100000
+            },
+            {
+              "key": "weight",
+              "label": "Tỉ trọng",
+              "type": "int",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "tonic_hp",
+              "name": "Vital Tonic",
+              "kind": "stat",
+              "stat": "hp",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "tonic_attack",
+              "name": "Power Tonic",
+              "kind": "stat",
+              "stat": "attack",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "tonic_defense",
+              "name": "Guard Tonic",
+              "kind": "stat",
+              "stat": "defense",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "tonic_spAttack",
+              "name": "Mind Tonic",
+              "kind": "stat",
+              "stat": "spAttack",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "tonic_spDefense",
+              "name": "Spirit Tonic",
+              "kind": "stat",
+              "stat": "spDefense",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "tonic_speed",
+              "name": "Swift Tonic",
+              "kind": "stat",
+              "stat": "speed",
+              "amount": 10,
+              "price": 150,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "id": "grow_candy",
+              "name": "Grow Candy",
+              "kind": "candy",
+              "stat": "",
+              "amount": 1,
+              "price": 300,
+              "weight": 1,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-skillDiscs",
+      "label": "Bảng: Đĩa kỹ năng",
+      "blurb": "Đĩa dạy chiêu bán ở Market; mua lại chiêu đã có thì tăng sao (luật sao ở tab Kỹ năng).",
+      "fields": [
+        {
+          "key": "tables.skillDiscs",
+          "label": "Đĩa kỹ năng",
+          "help": "Đĩa dạy chiêu bán ở Market; mua lại chiêu đã có thì tăng sao (luật sao ở tab Kỹ năng).",
+          "type": "table",
+          "rowKey": "move",
+          "columns": [
+            {
+              "key": "move",
+              "label": "Chiêu",
+              "type": "enum",
+              "ref": "moves"
+            },
+            {
+              "key": "price",
+              "label": "Giá",
+              "type": "int",
+              "min": 0,
+              "max": 100000
+            },
+            {
+              "key": "weight",
+              "label": "Tỉ trọng",
+              "type": "int",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "move": "jolt_nip",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "arc_ring",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "ember_volley",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "kiln_bloom",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "cinder_roll",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "rill_lance",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "spray_shot",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "squall_quill",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "briar_charge",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "burr_shot",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "shale_ram",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "bedrock_drum",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "rime_spike",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "umbra_bead",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "shade_pounce",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "hush_pulse",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "thorn_jab",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "blight_spit",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "miasma_bloom",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "vine_lash",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "heat_ribbon",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "updraft_dive",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "wallow_ram",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "tide_slam",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "vent_jet",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "hunker",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "stoke_up",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "sun_soak",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "quickstep",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-equipment",
+      "label": "Bảng: Trang bị",
+      "blurb": "Trang bị gacha: loại, độ hiếm, cách chia điểm chỉ số, hiệu ứng riêng (P3).",
+      "fields": [
+        {
+          "key": "tables.equipment",
+          "label": "Trang bị",
+          "help": "Trang bị gacha: loại, độ hiếm, cách chia điểm chỉ số, hiệu ứng riêng (P3).",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "kind",
+              "label": "Loại",
+              "type": "enum",
+              "options": [
+                "sword",
+                "armour",
+                "helmet",
+                "boots",
+                "ring",
+                "amulet"
+              ]
+            },
+            {
+              "key": "rarity",
+              "label": "Độ hiếm",
+              "type": "enum",
+              "options": [
+                "R",
+                "SR",
+                "SSR"
+              ]
+            },
+            {
+              "key": "split_hp",
+              "label": "Tỉ phần hp",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "split_attack",
+              "label": "Tỉ phần attack",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "split_defense",
+              "label": "Tỉ phần defense",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "split_spAttack",
+              "label": "Tỉ phần spAttack",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "split_spDefense",
+              "label": "Tỉ phần spDefense",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "split_speed",
+              "label": "Tỉ phần speed",
+              "type": "number",
+              "min": 0,
+              "max": 1
+            },
+            {
+              "key": "effect",
+              "label": "Hiệu ứng riêng",
+              "type": "text"
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "bronze_sword",
+              "name": "Bronze Sword",
+              "kind": "sword",
+              "rarity": "R",
+              "split_hp": 0,
+              "split_attack": 1,
+              "split_defense": 0,
+              "split_spAttack": 0,
+              "split_spDefense": 0,
+              "split_speed": 0,
+              "effect": "",
+              "enabled": true
+            },
+            {
+              "id": "leather_armour",
+              "name": "Leather Armour",
+              "kind": "armour",
+              "rarity": "R",
+              "split_hp": 0.5,
+              "split_attack": 0,
+              "split_defense": 0.5,
+              "split_spAttack": 0,
+              "split_spDefense": 0,
+              "split_speed": 0,
+              "effect": "",
+              "enabled": true
+            },
+            {
+              "id": "iron_helmet",
+              "name": "Iron Helmet",
+              "kind": "helmet",
+              "rarity": "SR",
+              "split_hp": 0,
+              "split_attack": 0,
+              "split_defense": 0.5,
+              "split_spAttack": 0,
+              "split_spDefense": 0.5,
+              "split_speed": 0,
+              "effect": "",
+              "enabled": true
+            },
+            {
+              "id": "swift_boots",
+              "name": "Swift Boots",
+              "kind": "boots",
+              "rarity": "R",
+              "split_hp": 0,
+              "split_attack": 0,
+              "split_defense": 0,
+              "split_spAttack": 0,
+              "split_spDefense": 0,
+              "split_speed": 1,
+              "effect": "",
+              "enabled": true
+            },
+            {
+              "id": "sage_ring",
+              "name": "Sage Ring",
+              "kind": "ring",
+              "rarity": "SR",
+              "split_hp": 0,
+              "split_attack": 0,
+              "split_defense": 0,
+              "split_spAttack": 0.6,
+              "split_spDefense": 0.4,
+              "split_speed": 0,
+              "effect": "",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-banners",
+      "label": "Bảng: Banner gacha",
+      "blurb": "Banner quay pet hoặc trang bị: nhóm quay, món rate-up, tỉ lệ, bảo hiểm, thời gian (P3).",
+      "fields": [
+        {
+          "key": "tables.banners",
+          "label": "Banner gacha",
+          "help": "Banner quay pet hoặc trang bị: nhóm quay, món rate-up, tỉ lệ, bảo hiểm, thời gian (P3).",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "kind",
+              "label": "Loại",
+              "type": "enum",
+              "options": [
+                "pet",
+                "equipment"
+              ]
+            },
+            {
+              "key": "pool",
+              "label": "Nhóm quay (loài)",
+              "type": "list",
+              "ref": "species"
+            },
+            {
+              "key": "poolEquipment",
+              "label": "Nhóm quay (trang bị)",
+              "type": "list",
+              "ref": "equipment"
+            },
+            {
+              "key": "rateUp",
+              "label": "Món rate-up",
+              "type": "text"
+            },
+            {
+              "key": "rateR",
+              "label": "% R",
+              "type": "number",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "key": "rateSR",
+              "label": "% SR",
+              "type": "number",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "key": "rateSSR",
+              "label": "% SSR",
+              "type": "number",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "key": "pity",
+              "label": "Bảo hiểm",
+              "type": "int",
+              "min": 1,
+              "max": 10000
+            },
+            {
+              "key": "start",
+              "label": "Bắt đầu",
+              "type": "text"
+            },
+            {
+              "key": "end",
+              "label": "Kết thúc",
+              "type": "text"
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "pets_standard",
+              "name": "Standard Pets",
+              "kind": "pet",
+              "pool": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ],
+              "poolEquipment": [],
+              "rateUp": "",
+              "rateR": 79,
+              "rateSR": 18,
+              "rateSSR": 3,
+              "pity": 200,
+              "start": "",
+              "end": "",
+              "enabled": true
+            },
+            {
+              "id": "gear_standard",
+              "name": "Standard Gear",
+              "kind": "equipment",
+              "pool": [],
+              "poolEquipment": [
+                "bronze_sword",
+                "leather_armour",
+                "iron_helmet",
+                "swift_boots",
+                "sage_ring"
+              ],
+              "rateUp": "",
+              "rateR": 79,
+              "rateSR": 18,
+              "rateSSR": 3,
+              "pity": 200,
+              "start": "",
+              "end": "",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-wildTiers",
+      "label": "Bảng: Pet hoang theo bậc",
+      "blurb": "Bụi cỏ: loài có thể gặp theo số huy hiệu đã có (bậc 0 = trước Gym 1).",
+      "fields": [
+        {
+          "key": "tables.wildTiers",
+          "label": "Pet hoang theo bậc",
+          "help": "Bụi cỏ: loài có thể gặp theo số huy hiệu đã có (bậc 0 = trước Gym 1).",
+          "type": "table",
+          "rowKey": "tier",
+          "columns": [
+            {
+              "key": "tier",
+              "label": "Bậc (huy hiệu)",
+              "type": "int",
+              "min": 0,
+              "max": 12,
+              "readonly": true
+            },
+            {
+              "key": "species",
+              "label": "Loài gặp được",
+              "type": "list",
+              "ref": "species"
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "tier": 0,
+              "enabled": true,
+              "species": [
+                "budsnout",
+                "cinderkit",
+                "wallowling"
+              ]
+            },
+            {
+              "tier": 1,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "tier": 2,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "tier": 3,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ]
+            },
+            {
+              "tier": 4,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ]
+            },
+            {
+              "tier": 5,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ]
+            },
+            {
+              "tier": 6,
+              "enabled": true,
+              "species": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-npcTrainers",
+      "label": "Bảng: Trainer",
+      "blurb": "Trainer gặp trên đường (mỗi người 1 pet): tên, nhóm loài, cấp cộng thêm.",
+      "fields": [
+        {
+          "key": "tables.npcTrainers",
+          "label": "Trainer",
+          "help": "Trainer gặp trên đường (mỗi người 1 pet): tên, nhóm loài, cấp cộng thêm.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "pool",
+              "label": "Nhóm loài",
+              "type": "list",
+              "ref": "species"
+            },
+            {
+              "key": "levelBonus",
+              "label": "Cấp cộng",
+              "type": "int",
+              "min": -10,
+              "max": 30
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "npc1",
+              "name": "Hiker Toma",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "id": "npc2",
+              "name": "Ranger Lio",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "id": "npc3",
+              "name": "Scout Peni",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "id": "npc4",
+              "name": "Fisher Bao",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "id": "npc5",
+              "name": "Biker Ren",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            },
+            {
+              "id": "npc6",
+              "name": "Ace Mika",
+              "levelBonus": 0,
+              "enabled": true,
+              "pool": [
+                "kilnback",
+                "tidecrane",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-bosses",
+      "label": "Bảng: Gym, Elite 4, Champion",
+      "blurb": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm, chiêu, đồ cầm, theme.",
+      "fields": [
+        {
+          "key": "tables.bosses",
+          "label": "Gym, Elite 4, Champion",
+          "help": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm, chiêu, đồ cầm, theme.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "role",
+              "label": "Vai",
+              "type": "enum",
+              "options": [
+                "gym",
+                "elite",
+                "champion"
+              ]
+            },
+            {
+              "key": "order",
+              "label": "Thứ tự",
+              "type": "int",
+              "min": 1,
+              "max": 20
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "species",
+              "label": "Pet",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "levelBonus",
+              "label": "Cấp cộng",
+              "type": "int",
+              "min": 0,
+              "max": 50
+            },
+            {
+              "key": "moves",
+              "label": "Chiêu (để trống = chiêu gốc)",
+              "type": "list",
+              "ref": "moves"
+            },
+            {
+              "key": "held",
+              "label": "Đồ cầm",
+              "type": "enum",
+              "ref": "heldItems",
+              "options": [
+                ""
+              ]
+            },
+            {
+              "key": "theme",
+              "label": "Theme",
+              "type": "enum",
+              "ref": "themes"
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "gym1",
+              "role": "gym",
+              "order": 1,
+              "name": "Leader Nyx",
+              "species": "gloamhare",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "night",
+              "enabled": true
+            },
+            {
+              "id": "gym2",
+              "role": "gym",
+              "order": 2,
+              "name": "Leader Maris",
+              "species": "tidecrane",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "tide",
+              "enabled": true
+            },
+            {
+              "id": "gym3",
+              "role": "gym",
+              "order": 3,
+              "name": "Leader Ash",
+              "species": "kilnback",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "ember",
+              "enabled": true
+            },
+            {
+              "id": "gym4",
+              "role": "gym",
+              "order": 4,
+              "name": "Leader Volta",
+              "species": "coilbadger",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "plant",
+              "enabled": true
+            },
+            {
+              "id": "gym5",
+              "role": "gym",
+              "order": 5,
+              "name": "Leader Brann",
+              "species": "shalehorn",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "ridge",
+              "enabled": true
+            },
+            {
+              "id": "gym6",
+              "role": "gym",
+              "order": 6,
+              "name": "Leader Thorne",
+              "species": "thornboar",
+              "levelBonus": 2,
+              "moves": [],
+              "held": "",
+              "theme": "bramble",
+              "enabled": true
+            },
+            {
+              "id": "elite1",
+              "role": "elite",
+              "order": 1,
+              "name": "Elite Sora",
+              "species": "cinderkite",
+              "levelBonus": 4,
+              "moves": [],
+              "held": "",
+              "theme": "elite",
+              "enabled": true
+            },
+            {
+              "id": "elite2",
+              "role": "elite",
+              "order": 2,
+              "name": "Elite Juno",
+              "species": "tidewallow",
+              "levelBonus": 4,
+              "moves": [],
+              "held": "",
+              "theme": "elite",
+              "enabled": true
+            },
+            {
+              "id": "elite3",
+              "role": "elite",
+              "order": 3,
+              "name": "Elite Kade",
+              "species": "grovesnout",
+              "levelBonus": 4,
+              "moves": [],
+              "held": "",
+              "theme": "elite",
+              "enabled": true
+            },
+            {
+              "id": "elite4",
+              "role": "elite",
+              "order": 4,
+              "name": "Elite Vex",
+              "species": "thornboar",
+              "levelBonus": 4,
+              "moves": [],
+              "held": "",
+              "theme": "elite",
+              "enabled": true
+            },
+            {
+              "id": "champion",
+              "role": "champion",
+              "order": 1,
+              "name": "Champion Ilse",
+              "species": "shalehorn",
+              "levelBonus": 6,
+              "moves": [],
+              "held": "",
+              "theme": "champion",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-themes",
+      "label": "Bảng: Theme",
+      "blurb": "Giao diện màn đường theo Gym, Elite 4, Champion: màu trời, màu đất, biome trận.",
+      "fields": [
+        {
+          "key": "tables.themes",
+          "label": "Theme",
+          "help": "Giao diện màn đường theo Gym, Elite 4, Champion: màu trời, màu đất, biome trận.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "sky",
+              "label": "Màu trời",
+              "type": "text"
+            },
+            {
+              "key": "ground",
+              "label": "Màu đất",
+              "type": "text"
+            },
+            {
+              "key": "biome",
+              "label": "Biome trận",
+              "type": "enum",
+              "options": [
+                "meadow",
+                "snow"
+              ]
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "night",
+              "name": "Night Market",
+              "sky": "#8fd0ff",
+              "ground": "#5c8f4a",
+              "biome": "meadow",
+              "enabled": true
+            },
+            {
+              "id": "tide",
+              "name": "Tide Pools",
+              "sky": "#9fe0ff",
+              "ground": "#5a9a7a",
+              "biome": "meadow",
+              "enabled": true
+            },
+            {
+              "id": "ember",
+              "name": "Ember Peak",
+              "sky": "#ffcf9a",
+              "ground": "#8a6a4a",
+              "biome": "meadow",
+              "enabled": true
+            },
+            {
+              "id": "plant",
+              "name": "Power Plant",
+              "sky": "#c9d6e6",
+              "ground": "#6f7f6a",
+              "biome": "snow",
+              "enabled": true
+            },
+            {
+              "id": "ridge",
+              "name": "Stone Ridge",
+              "sky": "#d6dde6",
+              "ground": "#8a929c",
+              "biome": "snow",
+              "enabled": true
+            },
+            {
+              "id": "bramble",
+              "name": "Bramble Keep",
+              "sky": "#e0c9a6",
+              "ground": "#5f7a3f",
+              "biome": "meadow",
+              "enabled": true
+            },
+            {
+              "id": "elite",
+              "name": "Elite Hall",
+              "sky": "#3a3060",
+              "ground": "#4a4a6a",
+              "biome": "snow",
+              "enabled": true
+            },
+            {
+              "id": "champion",
+              "name": "Champion Stage",
+              "sky": "#ffd84d",
+              "ground": "#6a5a3a",
+              "biome": "snow",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-quests",
+      "label": "Bảng: Nhiệm vụ và thư",
+      "blurb": "Nhiệm vụ ngày, thành tựu, sự kiện và quà thư (P3).",
+      "fields": [
+        {
+          "key": "tables.quests",
+          "label": "Nhiệm vụ và thư",
+          "help": "Nhiệm vụ ngày, thành tựu, sự kiện và quà thư (P3).",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "kind",
+              "label": "Loại",
+              "type": "enum",
+              "options": [
+                "daily",
+                "achievement",
+                "event",
+                "mail"
+              ]
+            },
+            {
+              "key": "text",
+              "label": "Nội dung",
+              "type": "text"
+            },
+            {
+              "key": "goal",
+              "label": "Mục tiêu",
+              "type": "int",
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "key": "crystals",
+              "label": "Pha lê thưởng",
+              "type": "int",
+              "min": 0,
+              "max": 100000
+            },
+            {
+              "key": "gold",
+              "label": "Vàng thưởng",
+              "type": "int",
+              "min": 0,
+              "max": 1000000
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "daily_run",
+              "kind": "daily",
+              "text": "Finish a training run",
+              "goal": 1,
+              "crystals": 50,
+              "gold": 0,
+              "enabled": true
+            },
+            {
+              "id": "daily_wins",
+              "kind": "daily",
+              "text": "Win 5 fights",
+              "goal": 5,
+              "crystals": 30,
+              "gold": 500,
+              "enabled": true
+            },
+            {
+              "id": "ach_badge6",
+              "kind": "achievement",
+              "text": "Earn 6 badges in one run",
+              "goal": 6,
+              "crystals": 300,
+              "gold": 0,
+              "enabled": true
+            },
+            {
+              "id": "mail_welcome",
+              "kind": "mail",
+              "text": "Welcome gift",
+              "goal": 1,
+              "crystals": 1500,
+              "gold": 5000,
+              "enabled": true
+            }
+          ]
+        }
       ]
     }
   ]
