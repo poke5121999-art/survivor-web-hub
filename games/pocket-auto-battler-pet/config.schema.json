@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 2,
+  "version": 3,
   "tabs": [
     {
       "id": "run",
@@ -162,7 +162,7 @@
           "min": 0,
           "max": 200,
           "unit": "điểm",
-          "default": 6
+          "default": 8
         },
         {
           "key": "rewards.npcTrained",
@@ -172,7 +172,7 @@
           "min": 0,
           "max": 200,
           "unit": "điểm",
-          "default": 10
+          "default": 12
         },
         {
           "key": "rewards.gymTrained",
@@ -183,18 +183,78 @@
           "max": 500,
           "unit": "điểm",
           "default": 20
+        },
+        {
+          "key": "rewards.eliteExp",
+          "label": "EXP Elite",
+          "help": "EXP cơ bản khi thắng một Elite.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "exp",
+          "default": 250
+        },
+        {
+          "key": "rewards.eliteGold",
+          "label": "Vàng Elite",
+          "help": "Vàng nhận khi thắng một Elite (tiêu ở Market trong lúc nghỉ).",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 200
+        },
+        {
+          "key": "rewards.eliteTrained",
+          "label": "Điểm luyện Elite",
+          "help": "Điểm chỉ số luyện thêm khi thắng một Elite.",
+          "type": "int",
+          "min": 0,
+          "max": 500,
+          "unit": "điểm",
+          "default": 24
+        },
+        {
+          "key": "rewards.championExp",
+          "label": "EXP Champion",
+          "help": "EXP cơ bản khi thắng Champion.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "exp",
+          "default": 400
+        },
+        {
+          "key": "rewards.championGold",
+          "label": "Vàng Champion",
+          "help": "Vàng nhận khi thắng Champion.",
+          "type": "int",
+          "min": 0,
+          "max": 1000000,
+          "unit": "vàng",
+          "default": 500
+        },
+        {
+          "key": "rewards.championTrained",
+          "label": "Điểm luyện Champion",
+          "help": "Điểm chỉ số luyện thêm khi thắng Champion (ngoài buff đặc biệt).",
+          "type": "int",
+          "min": 0,
+          "max": 500,
+          "unit": "điểm",
+          "default": 30
         }
       ]
     },
     {
       "id": "foes",
       "label": "Đối thủ",
-      "blurb": "Cấp và chất lượng của đối thủ theo ngày và huy hiệu.",
+      "blurb": "Độ lệch cấp của pet hoang và trainer trong một bậc; cấp chuẩn, IV, sao và loài theo bậc ở bảng Bậc theo huy hiệu, boss ở bảng Gym, Elite 4, Champion.",
       "fields": [
         {
           "key": "foes.levelPerDay",
           "label": "Cấp tăng mỗi ngày",
-          "help": "Pet hoang mạnh dần theo ngày: cấp = cấp khởi đầu + ngày x hệ số này.",
+          "help": "Trong một bậc, pet hoang và trainer mạnh dần: cấp = cấp chuẩn của bậc + số ngày từ huy hiệu trước x hệ số này.",
           "type": "number",
           "min": 0,
           "max": 5,
@@ -204,7 +264,7 @@
         {
           "key": "foes.grassLevelMin",
           "label": "Lệch cấp thấp nhất",
-          "help": "Pet hoang có thể thấp hơn mức chuẩn chừng này cấp.",
+          "help": "Pet hoang và trainer có thể thấp hơn mức chuẩn chừng này cấp.",
           "type": "int",
           "min": -10,
           "max": 10,
@@ -214,49 +274,49 @@
         {
           "key": "foes.grassLevelMax",
           "label": "Lệch cấp cao nhất",
-          "help": "Pet hoang có thể cao hơn mức chuẩn chừng này cấp.",
+          "help": "Pet hoang và trainer có thể cao hơn mức chuẩn chừng này cấp.",
           "type": "int",
           "min": -10,
           "max": 10,
           "unit": "cấp",
           "default": 0
+        }
+      ]
+    },
+    {
+      "id": "champion",
+      "label": "Champion",
+      "blurb": "Buff đặc biệt khi thắng Champion (được phép vượt trần điểm luyện).",
+      "fields": [
+        {
+          "key": "champion.buffStats",
+          "label": "Số chỉ số được buff",
+          "help": "Thắng Champion: chừng này chỉ số khác nhau (chọn ngẫu nhiên) được cộng điểm.",
+          "type": "int",
+          "min": 1,
+          "max": 6,
+          "unit": "chỉ số",
+          "default": 2
         },
         {
-          "key": "foes.levelsPerBadge",
-          "label": "Cấp tăng mỗi huy hiệu",
-          "help": "Sau mỗi huy hiệu, mọi đối thủ tăng chừng này cấp (thế giới mạnh lên).",
+          "key": "champion.buffMin",
+          "label": "Buff thấp nhất",
+          "help": "Mỗi chỉ số được buff nhận ít nhất chừng này điểm.",
           "type": "int",
           "min": 0,
-          "max": 30,
-          "unit": "cấp",
-          "default": 6
-        },
-        {
-          "key": "foes.wildIvMax",
-          "label": "IV tối đa pet hoang",
-          "help": "IV của pet hoang được tung ngẫu nhiên từ 0 tới số này.",
-          "type": "int",
-          "min": 0,
-          "max": 31,
-          "default": 12
-        },
-        {
-          "key": "foes.npcIvMin",
-          "label": "IV tối thiểu trainer",
-          "help": "Pet của trainer có IV ít nhất bằng số này.",
-          "type": "int",
-          "min": 0,
-          "max": 31,
-          "default": 4
-        },
-        {
-          "key": "foes.gymIv",
-          "label": "IV pet Gym",
-          "help": "IV của pet Gym leader (mọi chỉ số).",
-          "type": "int",
-          "min": 0,
-          "max": 31,
+          "max": 1000,
+          "unit": "điểm",
           "default": 20
+        },
+        {
+          "key": "champion.buffMax",
+          "label": "Buff cao nhất",
+          "help": "Mỗi chỉ số được buff nhận nhiều nhất chừng này điểm; có thể vượt trần điểm luyện.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "điểm",
+          "default": 40
         }
       ]
     },
@@ -637,6 +697,24 @@
           "default": 1000
         },
         {
+          "key": "rating.perElite",
+          "label": "Điểm mỗi Elite",
+          "help": "Điểm cộng cho mỗi Elite đã thắng.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "default": 800
+        },
+        {
+          "key": "rating.champion",
+          "label": "Điểm Champion",
+          "help": "Điểm cộng khi thắng Champion.",
+          "type": "int",
+          "min": 0,
+          "max": 1000000,
+          "default": 3000
+        },
+        {
           "key": "rating.perLevel",
           "label": "Điểm mỗi cấp",
           "help": "Điểm cộng cho mỗi cấp của pet lúc kết thúc.",
@@ -663,9 +741,9 @@
           "max": 1000000,
           "default": [
             0,
-            1500,
-            3500,
-            6000
+            3000,
+            7000,
+            12000
           ]
         }
       ]
@@ -3845,14 +3923,14 @@
       ]
     },
     {
-      "id": "table-wildTiers",
-      "label": "Bảng: Pet hoang theo bậc",
-      "blurb": "Bụi cỏ: loài có thể gặp theo số huy hiệu đã có (bậc 0 = trước Gym 1).",
+      "id": "table-tiers",
+      "label": "Bảng: Bậc theo huy hiệu",
+      "blurb": "Thế giới mạnh lên sau mỗi huy hiệu: cấp, IV, sao chiêu và thưởng của đối thủ, loài gặp ở bụi cỏ và loài trainer dùng (bậc 0 = trước Gym 1, bậc 6 = Elite 4 và Champion).",
       "fields": [
         {
-          "key": "tables.wildTiers",
-          "label": "Pet hoang theo bậc",
-          "help": "Bụi cỏ: loài có thể gặp theo số huy hiệu đã có (bậc 0 = trước Gym 1).",
+          "key": "tables.tiers",
+          "label": "Bậc theo huy hiệu",
+          "help": "Thế giới mạnh lên sau mỗi huy hiệu: cấp, IV, sao chiêu và thưởng của đối thủ, loài gặp ở bụi cỏ và loài trainer dùng (bậc 0 = trước Gym 1, bậc 6 = Elite 4 và Champion).",
           "type": "table",
           "rowKey": "tier",
           "columns": [
@@ -3865,8 +3943,52 @@
               "readonly": true
             },
             {
-              "key": "species",
-              "label": "Loài gặp được",
+              "key": "levelBase",
+              "label": "Cấp chuẩn",
+              "type": "int",
+              "min": 1,
+              "max": 100,
+              "help": "Cấp chuẩn của đối thủ ở bậc này; pet hoang và trainer lệch quanh số này, Gym/Elite/Champion cộng thêm cấp riêng."
+            },
+            {
+              "key": "wildIvMax",
+              "label": "IV tối đa pet hoang",
+              "type": "int",
+              "min": 0,
+              "max": 31
+            },
+            {
+              "key": "npcIvMin",
+              "label": "IV tối thiểu trainer",
+              "type": "int",
+              "min": 0,
+              "max": 31
+            },
+            {
+              "key": "foeStars",
+              "label": "Sao chiêu đối thủ",
+              "type": "int",
+              "min": 1,
+              "max": 5,
+              "help": "Pet hoang và trainer ở bậc này có chiêu mấy sao (nhiều sao hồi chiêu nhanh hơn)."
+            },
+            {
+              "key": "rewardMult",
+              "label": "Hệ số thưởng",
+              "type": "number",
+              "min": 0,
+              "max": 20,
+              "help": "Nhân vào vàng và điểm luyện của mọi trận thắng ở bậc này."
+            },
+            {
+              "key": "wild",
+              "label": "Loài ở bụi cỏ",
+              "type": "list",
+              "ref": "species"
+            },
+            {
+              "key": "npc",
+              "label": "Loài của trainer",
               "type": "list",
               "ref": "species"
             },
@@ -3881,8 +4003,18 @@
           "default": [
             {
               "tier": 0,
+              "levelBase": 5,
+              "wildIvMax": 10,
+              "npcIvMin": 2,
+              "foeStars": 1,
+              "rewardMult": 1,
               "enabled": true,
-              "species": [
+              "wild": [
+                "budsnout",
+                "cinderkit",
+                "wallowling"
+              ],
+              "npc": [
                 "budsnout",
                 "cinderkit",
                 "wallowling"
@@ -3890,8 +4022,13 @@
             },
             {
               "tier": 1,
+              "levelBase": 7,
+              "wildIvMax": 13,
+              "npcIvMin": 4,
+              "foeStars": 1,
+              "rewardMult": 1.25,
               "enabled": true,
-              "species": [
+              "wild": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -3904,12 +4041,36 @@
                 "cindermask",
                 "wallowling",
                 "shellwallow"
+              ],
+              "npc": [
+                "budsnout",
+                "cinderkit",
+                "wallowling"
               ]
             },
             {
               "tier": 2,
+              "levelBase": 9,
+              "wildIvMax": 16,
+              "npcIvMin": 6,
+              "foeStars": 1,
+              "rewardMult": 1.5,
               "enabled": true,
-              "species": [
+              "wild": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
+              ],
+              "npc": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -3926,8 +4087,13 @@
             },
             {
               "tier": 3,
+              "levelBase": 11,
+              "wildIvMax": 19,
+              "npcIvMin": 8,
+              "foeStars": 2,
+              "rewardMult": 1.75,
               "enabled": true,
-              "species": [
+              "wild": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -3943,12 +4109,48 @@
                 "wallowling",
                 "shellwallow",
                 "tidewallow"
+              ],
+              "npc": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "cinderkit",
+                "cindermask",
+                "wallowling",
+                "shellwallow"
               ]
             },
             {
               "tier": 4,
+              "levelBase": 13,
+              "wildIvMax": 22,
+              "npcIvMin": 10,
+              "foeStars": 2,
+              "rewardMult": 2,
               "enabled": true,
-              "species": [
+              "wild": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ],
+              "npc": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -3968,8 +4170,30 @@
             },
             {
               "tier": 5,
+              "levelBase": 15,
+              "wildIvMax": 25,
+              "npcIvMin": 12,
+              "foeStars": 3,
+              "rewardMult": 2.25,
               "enabled": true,
-              "species": [
+              "wild": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ],
+              "npc": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -3989,8 +4213,30 @@
             },
             {
               "tier": 6,
+              "levelBase": 17,
+              "wildIvMax": 28,
+              "npcIvMin": 14,
+              "foeStars": 3,
+              "rewardMult": 2.5,
               "enabled": true,
-              "species": [
+              "wild": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "wallowling",
+                "shellwallow",
+                "tidewallow"
+              ],
+              "npc": [
                 "coilbadger",
                 "kilnback",
                 "tidecrane",
@@ -4015,12 +4261,12 @@
     {
       "id": "table-npcTrainers",
       "label": "Bảng: Trainer",
-      "blurb": "Trainer gặp trên đường (mỗi người 1 pet): tên, nhóm loài, cấp cộng thêm.",
+      "blurb": "Trainer gặp trên đường (mỗi người 1 pet, loài lấy theo bậc ở bảng Bậc theo huy hiệu): tên, cấp cộng thêm, bậc bắt đầu xuất hiện.",
       "fields": [
         {
           "key": "tables.npcTrainers",
           "label": "Trainer",
-          "help": "Trainer gặp trên đường (mỗi người 1 pet): tên, nhóm loài, cấp cộng thêm.",
+          "help": "Trainer gặp trên đường (mỗi người 1 pet, loài lấy theo bậc ở bảng Bậc theo huy hiệu): tên, cấp cộng thêm, bậc bắt đầu xuất hiện.",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4036,17 +4282,18 @@
               "type": "text"
             },
             {
-              "key": "pool",
-              "label": "Nhóm loài",
-              "type": "list",
-              "ref": "species"
-            },
-            {
               "key": "levelBonus",
               "label": "Cấp cộng",
               "type": "int",
               "min": -10,
               "max": 30
+            },
+            {
+              "key": "minTier",
+              "label": "Từ bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12
             },
             {
               "key": "enabled",
@@ -4061,103 +4308,57 @@
               "id": "npc1",
               "name": "Hiker Toma",
               "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "minTier": 0,
+              "enabled": true
             },
             {
               "id": "npc2",
               "name": "Ranger Lio",
               "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "minTier": 0,
+              "enabled": true
             },
             {
               "id": "npc3",
               "name": "Scout Peni",
               "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "minTier": 0,
+              "enabled": true
             },
             {
               "id": "npc4",
               "name": "Fisher Bao",
               "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "minTier": 1,
+              "enabled": true
             },
             {
               "id": "npc5",
               "name": "Biker Ren",
-              "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "levelBonus": 1,
+              "minTier": 2,
+              "enabled": true
             },
             {
               "id": "npc6",
               "name": "Ace Mika",
-              "levelBonus": 0,
-              "enabled": true,
-              "pool": [
-                "kilnback",
-                "tidecrane",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "levelBonus": 1,
+              "minTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "npc7",
+              "name": "Veteran Odo",
+              "levelBonus": 2,
+              "minTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "npc8",
+              "name": "Ace Rhea",
+              "levelBonus": 2,
+              "minTier": 5,
+              "enabled": true
             }
           ]
         }
@@ -4166,12 +4367,12 @@
     {
       "id": "table-bosses",
       "label": "Bảng: Gym, Elite 4, Champion",
-      "blurb": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm, chiêu, đồ cầm, theme.",
+      "blurb": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm (trên cấp chuẩn của bậc), IV, sao chiêu, chiêu, đồ cầm, theme.",
       "fields": [
         {
           "key": "tables.bosses",
           "label": "Gym, Elite 4, Champion",
-          "help": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm, chiêu, đồ cầm, theme.",
+          "help": "Đối thủ cổng: vai, thứ tự, pet, cấp cộng thêm (trên cấp chuẩn của bậc), IV, sao chiêu, chiêu, đồ cầm, theme.",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4217,6 +4418,20 @@
               "max": 50
             },
             {
+              "key": "iv",
+              "label": "IV",
+              "type": "int",
+              "min": 0,
+              "max": 31
+            },
+            {
+              "key": "stars",
+              "label": "Sao chiêu",
+              "type": "int",
+              "min": 1,
+              "max": 5
+            },
+            {
               "key": "moves",
               "label": "Chiêu (để trống = chiêu gốc)",
               "type": "list",
@@ -4252,7 +4467,9 @@
               "order": 1,
               "name": "Leader Nyx",
               "species": "gloamhare",
-              "levelBonus": 2,
+              "levelBonus": 1,
+              "iv": 12,
+              "stars": 1,
               "moves": [],
               "held": "",
               "theme": "night",
@@ -4262,36 +4479,42 @@
               "id": "gym2",
               "role": "gym",
               "order": 2,
-              "name": "Leader Maris",
-              "species": "tidecrane",
-              "levelBonus": 2,
-              "moves": [],
-              "held": "",
-              "theme": "tide",
-              "enabled": true
-            },
-            {
-              "id": "gym3",
-              "role": "gym",
-              "order": 3,
               "name": "Leader Ash",
               "species": "kilnback",
-              "levelBonus": 2,
+              "levelBonus": 0,
+              "iv": 10,
+              "stars": 1,
               "moves": [],
               "held": "",
               "theme": "ember",
               "enabled": true
             },
             {
-              "id": "gym4",
+              "id": "gym3",
               "role": "gym",
-              "order": 4,
+              "order": 3,
               "name": "Leader Volta",
               "species": "coilbadger",
-              "levelBonus": 2,
+              "levelBonus": 0,
+              "iv": 12,
+              "stars": 1,
               "moves": [],
               "held": "",
               "theme": "plant",
+              "enabled": true
+            },
+            {
+              "id": "gym4",
+              "role": "gym",
+              "order": 4,
+              "name": "Leader Maris",
+              "species": "tidecrane",
+              "levelBonus": 1,
+              "iv": 14,
+              "stars": 2,
+              "moves": [],
+              "held": "swift_charm",
+              "theme": "tide",
               "enabled": true
             },
             {
@@ -4300,9 +4523,11 @@
               "order": 5,
               "name": "Leader Brann",
               "species": "shalehorn",
-              "levelBonus": 2,
+              "levelBonus": 1,
+              "iv": 16,
+              "stars": 2,
               "moves": [],
-              "held": "",
+              "held": "guard_vest",
               "theme": "ridge",
               "enabled": true
             },
@@ -4313,8 +4538,10 @@
               "name": "Leader Thorne",
               "species": "thornboar",
               "levelBonus": 2,
+              "iv": 18,
+              "stars": 2,
               "moves": [],
-              "held": "",
+              "held": "power_band",
               "theme": "bramble",
               "enabled": true
             },
@@ -4324,9 +4551,11 @@
               "order": 1,
               "name": "Elite Sora",
               "species": "cinderkite",
-              "levelBonus": 4,
+              "levelBonus": 3,
+              "iv": 26,
+              "stars": 2,
               "moves": [],
-              "held": "",
+              "held": "power_band",
               "theme": "elite",
               "enabled": true
             },
@@ -4336,9 +4565,11 @@
               "order": 2,
               "name": "Elite Juno",
               "species": "tidewallow",
-              "levelBonus": 4,
+              "levelBonus": 3,
+              "iv": 26,
+              "stars": 2,
               "moves": [],
-              "held": "",
+              "held": "guard_vest",
               "theme": "elite",
               "enabled": true
             },
@@ -4349,8 +4580,10 @@
               "name": "Elite Kade",
               "species": "grovesnout",
               "levelBonus": 4,
+              "iv": 28,
+              "stars": 3,
               "moves": [],
-              "held": "",
+              "held": "lucky_clover",
               "theme": "elite",
               "enabled": true
             },
@@ -4359,10 +4592,12 @@
               "role": "elite",
               "order": 4,
               "name": "Elite Vex",
-              "species": "thornboar",
+              "species": "coilbadger",
               "levelBonus": 4,
+              "iv": 28,
+              "stars": 3,
               "moves": [],
-              "held": "",
+              "held": "swift_charm",
               "theme": "elite",
               "enabled": true
             },
@@ -4373,8 +4608,10 @@
               "name": "Champion Ilse",
               "species": "shalehorn",
               "levelBonus": 6,
+              "iv": 31,
+              "stars": 3,
               "moves": [],
-              "held": "",
+              "held": "power_band",
               "theme": "champion",
               "enabled": true
             }
@@ -4385,12 +4622,12 @@
     {
       "id": "table-themes",
       "label": "Bảng: Theme",
-      "blurb": "Giao diện màn đường theo Gym, Elite 4, Champion: màu trời, màu đất, biome trận.",
+      "blurb": "Giao diện theo Gym, Elite 4, Champion: màu trời và màu đất của màn đường, biome của mọi trận trong chặng đó.",
       "fields": [
         {
           "key": "tables.themes",
           "label": "Theme",
-          "help": "Giao diện màn đường theo Gym, Elite 4, Champion: màu trời, màu đất, biome trận.",
+          "help": "Giao diện theo Gym, Elite 4, Champion: màu trời và màu đất của màn đường, biome của mọi trận trong chặng đó.",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4417,11 +4654,18 @@
             },
             {
               "key": "biome",
-              "label": "Biome trận",
+              "label": "Biome",
               "type": "enum",
               "options": [
                 "meadow",
-                "snow"
+                "snow",
+                "dusk",
+                "beach",
+                "ember",
+                "metal",
+                "bramble",
+                "marble",
+                "royal"
               ]
             },
             {
@@ -4436,65 +4680,134 @@
             {
               "id": "night",
               "name": "Night Market",
-              "sky": "#8fd0ff",
-              "ground": "#5c8f4a",
-              "biome": "meadow",
+              "sky": "#2b3566",
+              "ground": "#3c505a",
+              "biome": "dusk",
               "enabled": true
             },
             {
               "id": "tide",
               "name": "Tide Pools",
               "sky": "#9fe0ff",
-              "ground": "#5a9a7a",
-              "biome": "meadow",
+              "ground": "#d2bf92",
+              "biome": "beach",
               "enabled": true
             },
             {
               "id": "ember",
               "name": "Ember Peak",
-              "sky": "#ffcf9a",
-              "ground": "#8a6a4a",
-              "biome": "meadow",
+              "sky": "#ff9a6a",
+              "ground": "#433533",
+              "biome": "ember",
               "enabled": true
             },
             {
               "id": "plant",
               "name": "Power Plant",
               "sky": "#c9d6e6",
-              "ground": "#6f7f6a",
-              "biome": "snow",
+              "ground": "#5e6771",
+              "biome": "metal",
               "enabled": true
             },
             {
               "id": "ridge",
               "name": "Stone Ridge",
-              "sky": "#d6dde6",
-              "ground": "#8a929c",
+              "sky": "#d6e4f0",
+              "ground": "#b7c0cb",
               "biome": "snow",
               "enabled": true
             },
             {
               "id": "bramble",
               "name": "Bramble Keep",
-              "sky": "#e0c9a6",
-              "ground": "#5f7a3f",
-              "biome": "meadow",
+              "sky": "#c9b98a",
+              "ground": "#4f4930",
+              "biome": "bramble",
               "enabled": true
             },
             {
               "id": "elite",
               "name": "Elite Hall",
               "sky": "#3a3060",
-              "ground": "#4a4a6a",
-              "biome": "snow",
+              "ground": "#c1beca",
+              "biome": "marble",
               "enabled": true
             },
             {
               "id": "champion",
               "name": "Champion Stage",
               "sky": "#ffd84d",
-              "ground": "#6a5a3a",
-              "biome": "snow",
+              "ground": "#866f48",
+              "biome": "royal",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-runRewards",
+      "label": "Bảng: Thưởng cuối lượt",
+      "blurb": "Phần thưởng meta khi lượt kết thúc, theo hạng (C, B, A, S): pha lê để quay gacha, vàng để nâng trang bị.",
+      "fields": [
+        {
+          "key": "tables.runRewards",
+          "label": "Thưởng cuối lượt",
+          "help": "Phần thưởng meta khi lượt kết thúc, theo hạng (C, B, A, S): pha lê để quay gacha, vàng để nâng trang bị.",
+          "type": "table",
+          "rowKey": "rank",
+          "columns": [
+            {
+              "key": "rank",
+              "label": "Hạng",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "crystals",
+              "label": "Pha lê",
+              "type": "int",
+              "min": 0,
+              "max": 100000
+            },
+            {
+              "key": "gold",
+              "label": "Vàng",
+              "type": "int",
+              "min": 0,
+              "max": 1000000
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": false,
+          "default": [
+            {
+              "rank": "C",
+              "crystals": 30,
+              "gold": 500,
+              "enabled": true
+            },
+            {
+              "rank": "B",
+              "crystals": 80,
+              "gold": 1500,
+              "enabled": true
+            },
+            {
+              "rank": "A",
+              "crystals": 150,
+              "gold": 3000,
+              "enabled": true
+            },
+            {
+              "rank": "S",
+              "crystals": 300,
+              "gold": 6000,
               "enabled": true
             }
           ]

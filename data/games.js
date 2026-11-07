@@ -923,17 +923,17 @@ window.HUB_GAMES = [
   {
     id: "pocket-auto-battler-pet",
     title: "Pocket Auto Battler Pet",
-    tagline: "Nuôi một con pet qua từng ngày: luyện ở bụi cỏ, đấu trainer, mua đồ, rồi hạ gym.",
-    desc: "Game nuôi pet kiểu Uma Musume với trận đấu tự động 18 hệ. Chọn pet khởi đầu và tối đa 6 trang bị, bắt đầu với 500 gold và 3 tim. Mỗi ngày chọn một việc: Clinic hồi máu, Tall Grass đánh pet hoang lấy exp và chỉ số, Market mua item, kẹo lên cấp, đĩa skill (khoá món, reroll, 1 held item, 4 ô skill có sao), hoặc Trainer đánh khó hơn để lấy gold. Ngày 5 đánh gym, thua mất 1 tim rồi luyện thêm 5 ngày. Bản thử đầu: chơi tới gym 1; 6 gym, Elite 4, Champion, gacha và PvP đang làm. Thông số chỉnh ở trang game-config. Màn dọc, lưu trong trình duyệt.",
+    tagline: "Nuôi một con pet qua từng ngày, hạ 6 gym, Elite 4 rồi Champion.",
+    desc: "Game nuôi pet kiểu Uma Musume với trận đấu tự động 18 hệ. Chọn pet khởi đầu và tối đa 6 trang bị, bắt đầu với 500 gold và 3 tim. Mỗi ngày chọn một việc: Clinic hồi máu, Tall Grass đánh pet hoang lấy exp và chỉ số, Market mua item, kẹo lên cấp, đĩa skill (khoá món, reroll, 1 held item, 4 ô skill có sao), hoặc Trainer đánh khó hơn để lấy gold. Cứ 5 ngày đánh một gym, 6 gym mỗi gym một vùng đất riêng; thua mất 1 tim. Đủ 6 huy hiệu thì vào Elite 4, được nghỉ giữa các trận, rồi đấu Champion để nhận phước lành vượt trần. Hết lượt thì pet vào PC chỉ dùng cho PvP, được xếp hạng C/B/A/S và nhận crystal, gold. Gacha, trang bị và PvP đang làm. Thông số chỉnh ở trang game-config. Màn dọc, lưu trong trình duyệt.",
     genre: "nhap-vai",
     accent: "#4fbf6a",
-    en: { title: "Pocket Auto Battler Pet", tagline: "Raise one pet day by day: train in the tall grass, fight trainers, shop, then take the gym.", desc: "An Uma Musume style pet-raising game with 18-type auto battles. Pick a starter and up to 6 pieces of gear, start with 500 gold and 3 hearts. Each day pick one action: Clinic to heal, Tall Grass to fight a wild pet for exp and stats, Market for items, level candy and skill discs (lock, reroll, one held item, 4 skill slots with stars), or Trainer for a harder fight and gold. Day 5 is the gym; a loss costs a heart and 5 more days of training. First test build: plays up to gym 1; 6 gyms, Elite 4, Champion, gacha and PvP are in progress. Tuned from the game-config page. Portrait, saved in the browser." },
+    en: { title: "Pocket Auto Battler Pet", tagline: "Raise one pet day by day, beat six gyms, the Elite 4 and the Champion.", desc: "An Uma Musume style pet-raising game with 18-type auto battles. Pick a starter and up to 6 pieces of gear, start with 500 gold and 3 hearts. Each day pick one action: Clinic to heal, Tall Grass to fight a wild pet for exp and stats, Market for items, level candy and skill discs (lock, reroll, one held item, 4 skill slots with stars), or Trainer for a harder fight and gold. A gym every 5 days, six gyms each in its own land; a loss costs a heart. With six badges take on the Elite 4 with breaks between fights, then the Champion for a blessing past the stat caps. When the run ends the pet goes to the PC for PvP, the run is ranked C/B/A/S and pays crystals and gold. Gacha, gear and PvP are in progress. Tuned from the game-config page. Portrait, saved in the browser." },
     thumbnail: "assets/thumbnails/pocket-auto-battler-pet.png",
     // Build từ gitlab.hlo.vn/game/monster-battle nhánh auto-poke-battle: npm run build -> dist/index.html (một file)
     // + dist/config.schema.json; chép vào games/pocket-auto-battler-pet/ và chèn game-gate.js vào <head>.
     // Thông số: game-config.html?game=pocket-auto-battler-pet (bảng Supabase game_config).
     path: "games/pocket-auto-battler-pet/index.html",
-    rev: "20261107a",
+    rev: "20261107b",
     status: "available",
     tags: ["Nuôi pet", "Đấu tự động", "Màn dọc"]
   }
