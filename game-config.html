@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Thông số game</title>
+  <meta name="description" content="Sửa thông số game (ghi đè số gốc) lưu trên Supabase của hub." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <link rel="stylesheet" href="css/game-config.css" />
+
+  <!-- Cùng cổng với design.html: phải là member. Ai được LƯU do RLS (is_admin()) quyết định. -->
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") location.replace("login.html");
+    })();
+  </script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner dz-header__inner">
+      <div>
+        <h1 id="gc-title" class="hub-title">Thông số game</h1>
+        <p class="hub-subtitle">Ô nào không sửa thì game dùng số gốc. Ô đã ghi đè được tô màu.</p>
+      </div>
+      <a class="btn btn--ghost" href="admin.html">← Admin</a>
+    </div>
+  </header>
+
+  <main class="hub-main dz-main">
+    <div id="dz-banner" class="dz-banner" role="alert" hidden></div>
+    <div class="dz-layout">
+      <aside class="dz-side" aria-label="Danh sách nhóm">
+        <select id="dz-select" class="dz-select" aria-label="Chọn nhóm"></select>
+        <nav id="dz-nav" class="dz-nav"></nav>
+      </aside>
+      <section id="dz-pane" class="dz-pane" aria-live="polite">
+        <p class="dz-loading">Đang tải…</p>
+      </section>
+    </div>
+  </main>
+
+  <div id="dz-bar" class="dz-bar" hidden>
+    <div class="dz-bar__inner">
+      <span id="dz-bar-count" class="dz-bar__count"></span>
+      <span class="dz-bar__spacer"></span>
+      <button id="btn-discard" class="btn btn--ghost" type="button">Huỷ thay đổi</button>
+      <button id="btn-review" class="btn btn--primary" type="button">Xem lại &amp; lưu</button>
+    </div>
+  </div>
+
+  <dialog id="dz-dialog" class="dz-dialog" aria-labelledby="dz-dialog-title"></dialog>
+  <div id="dz-toasts" class="dz-toasts" role="status"></div>
+
+  <script src="js/supabase-auth.js"></script>
+  <script src="js/game-config.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+/* Phần riêng của game-config.html; còn lại dùng css/design.css. */
+.gc-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; vertical-align: 1px; }
+.gc-badge[hidden] { display: none; }
+.gc-cell.is-override:not(.is-changed) { box-shadow: inset 0 0 0 1px var(--accent); background: rgba(88, 166, 255, 0.08); }
+.gc-def { margin-top: 3px; padding: 0 2px; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gc-reset { margin-top: 4px; font-size: 12.5px; padding: 3px 10px; }
+.gc-reset[hidden] { display: none; }
+.gc-rowbtn { padding: 3px 9px; }
+.gc-hist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); }
+.gc-hist li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 14px; }
+.gc-hist li:first-child { border-top: 0; }
+.gc-hist__meta { flex: 1 1 260px; }
+.gc-hist__sub { display: block; font-size: 12.5px; color: var(--text-dim); }
+.gc-val { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }

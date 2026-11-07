@@ -1,0 +1,68 @@
+{
+  "game": "pocket-auto-battler-pet",
+  "version": 1,
+  "_note": "MẪU. Bản thật do bước build của game sinh ra và ghi đè file này.",
+  "tabs": [
+    {
+      "id": "run", "label": "Lượt train", "blurb": "Một lượt train gồm nhiều ngày, đánh gym theo mốc.",
+      "fields": [
+        {"key":"run.startGold","label":"Gold khởi đầu","help":"Gold có sẵn khi bắt đầu lượt train.","type":"int","min":0,"max":100000,"unit":"gold","default":500},
+        {"key":"run.hearts","label":"Số tim","help":"Thua trận gym mất 1 tim; hết tim là kết thúc lượt.","type":"int","min":1,"max":10,"unit":"tim","default":3},
+        {"key":"run.daysPerGym","label":"Số ngày giữa hai gym","type":"int","min":1,"max":30,"unit":"ngày","default":5},
+        {"key":"run.gyms","label":"Số gym mỗi lượt","type":"int","min":1,"max":20,"unit":"gym","default":6},
+        {"key":"run.eliteCount","label":"Số trận elite","help":"Elite xuất hiện rải trong lượt.","type":"int","min":0,"max":20,"unit":"trận","default":4}
+      ]
+    },
+    {
+      "id": "reward", "label": "Thưởng trận", "blurb": "Thưởng sau mỗi trận, theo loại trận.",
+      "fields": [
+        {"key":"reward.fights","label":"Thưởng theo loại trận","help":"Mỗi dòng một loại trận.","type":"table",
+         "columns":[{"key":"type","label":"Loại trận","type":"enum","options":[{"v":"grass","label":"Bụi cỏ"},{"v":"npc","label":"NPC"},{"v":"gym","label":"Gym"},{"v":"elite","label":"Elite"},{"v":"champion","label":"Champion"}]},
+                    {"key":"exp","label":"EXP","type":"int","min":0,"max":100000},
+                    {"key":"gold","label":"Gold","type":"int","min":0,"max":100000},
+                    {"key":"stat","label":"Stat","type":"int","min":0,"max":100}],
+         "default":[{"type":"grass","exp":10,"gold":20,"stat":1},{"type":"npc","exp":20,"gold":40,"stat":1},{"type":"gym","exp":60,"gold":120,"stat":3},{"type":"elite","exp":90,"gold":180,"stat":4},{"type":"champion","exp":200,"gold":400,"stat":8}]}
+      ]
+    },
+    {
+      "id": "shop", "label": "Shop", "blurb": "Cửa hàng giữa các ngày.",
+      "fields": [
+        {"key":"shop.offerCount","label":"Số món mỗi lần mở shop","type":"int","min":1,"max":12,"unit":"món","default":4},
+        {"key":"shop.rerollCost","label":"Giá làm mới shop","type":"int","min":0,"max":10000,"unit":"gold","default":25},
+        {"key":"shop.prices","label":"Bảng giá","type":"table",
+         "columns":[{"key":"item","label":"Vật phẩm","type":"text"},{"key":"price","label":"Giá","type":"int","min":0,"max":100000}],
+         "default":[{"item":"Thuốc hồi máu","price":50},{"item":"Kẹo EXP","price":80},{"item":"Đá tiến hoá","price":300}]}
+      ]
+    },
+    {
+      "id": "gacha", "label": "Gacha", "blurb": "Quay thẻ nhân vật.",
+      "fields": [
+        {"key":"gacha.pullCost","label":"Giá một lần quay","type":"int","min":0,"max":100000,"unit":"gem","default":150},
+        {"key":"gacha.tenPullGuarantee","label":"Bảo đảm mười lần quay","help":"Độ hiếm tối thiểu có trong 10 lần quay.","type":"enum","options":[{"v":"R","label":"R"},{"v":"SR","label":"SR"},{"v":"SSR","label":"SSR"}],"default":"SR"},
+        {"key":"gacha.rates.R","label":"Tỉ lệ R","type":"number","min":0,"max":100,"unit":"%","default":79},
+        {"key":"gacha.rates.SR","label":"Tỉ lệ SR","type":"number","min":0,"max":100,"unit":"%","default":18},
+        {"key":"gacha.rates.SSR","label":"Tỉ lệ SSR","type":"number","min":0,"max":100,"unit":"%","default":3},
+        {"key":"gacha.pity","label":"Sàn bảo hiểm SSR","help":"Số lần quay không ra SSR thì lần kế chắc chắn ra.","type":"int","min":1,"max":1000,"unit":"lần","default":200},
+        {"key":"gacha.ivFloor","label":"IV tối thiểu","type":"int","min":0,"max":31,"default":0}
+      ]
+    },
+    {
+      "id": "gear", "label": "Trang bị", "blurb": "Nâng cấp và đột phá trang bị.",
+      "fields": [
+        {"key":"gear.levelCaps","label":"Trần cấp theo bậc đột phá","help":"Cách nhau bằng dấu phẩy.","type":"list","items":"number","min":1,"max":200,"default":[30,35,40,45,50]},
+        {"key":"gear.goldCostBase","label":"Gold nâng cấp cơ bản","type":"int","min":0,"max":100000,"unit":"gold","default":100},
+        {"key":"gear.goldCostGrowth","label":"Hệ số tăng gold theo cấp","type":"number","min":1,"max":5,"default":1.15},
+        {"key":"gear.maxUncap","label":"Số lần đột phá tối đa","type":"int","min":0,"max":10,"default":4}
+      ]
+    },
+    {
+      "id": "energy", "label": "Năng lượng & PvP", "blurb": "Giới hạn lượt chơi và phần thưởng PvP.",
+      "fields": [
+        {"key":"energy.energyPerRun","label":"Năng lượng mỗi lượt train","type":"int","min":0,"max":100,"unit":"điểm","default":5},
+        {"key":"energy.energyRegenMinutes","label":"Phút hồi một điểm năng lượng","type":"int","min":1,"max":600,"unit":"phút","default":12},
+        {"key":"energy.bpPerMatch","label":"BP mỗi trận PvP","type":"int","min":0,"max":1000,"unit":"BP","default":10},
+        {"key":"energy.motd","label":"Lời nhắn đầu game","type":"text","default":""}
+      ]
+    }
+  ]
+}
