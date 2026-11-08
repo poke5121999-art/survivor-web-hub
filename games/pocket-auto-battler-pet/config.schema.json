@@ -38,6 +38,16 @@
           "default": 5
         },
         {
+          "key": "run.fightTimerSeconds",
+          "label": "Đồng hồ trận trong lượt",
+          "help": "Trận 1 đấu 1 trong lượt: hết chừng này giây thì vào hiệp phụ (sát thương tăng dần), 60 giây sau trận dừng và bên còn nhiều máu hơn thắng. Video tham khảo: 15-30 giây một pet.",
+          "type": "int",
+          "min": 15,
+          "max": 600,
+          "unit": "giây",
+          "default": 30
+        },
+        {
           "key": "run.daysPerGym",
           "label": "Số ngày mỗi Gym",
           "help": "Cứ chừng này ngày thì có một trận Gym; thua thì luyện thêm chừng này ngày rồi đánh lại.",
@@ -985,6 +995,15 @@
           "min": 0.3,
           "max": 3,
           "default": 1.1
+        },
+        {
+          "key": "battle.aimLead",
+          "label": "Đạn: ngắm đón đầu",
+          "help": "Đạn bắn vào chỗ mục tiêu sẽ tới khi đạn bay tới, theo tỉ lệ này (0 = bắn vào chỗ đang đứng, 1 = đón đầu đủ). Cao hơn thì trúng nhiều hơn, trận ngắn hơn.",
+          "type": "number",
+          "min": 0,
+          "max": 1.2,
+          "default": 0
         },
         {
           "key": "battle.view",
@@ -4428,6 +4447,302 @@
               "expMult": 1,
               "dex": "A hedgehog whose quills are ice crystals; it curls up in snowdrifts and frosts the grass where it sleeps.",
               "enabled": true
+            },
+            {
+              "id": "brawlham",
+              "name": "Brawlham",
+              "type1": "fighting",
+              "type2": "",
+              "hp": 68,
+              "attack": 88,
+              "defense": 58,
+              "spAttack": 38,
+              "spDefense": 55,
+              "speed": 81,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "quickstep",
+                "shale_ram",
+                "hook_flurry",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "jabbit",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "The boxer has grown into a lanky hamster with a brown belt; it grins before every round and counts its own knockouts.",
+              "enabled": true
+            },
+            {
+              "id": "champham",
+              "name": "Champham",
+              "type1": "fighting",
+              "type2": "",
+              "hp": 85,
+              "attack": 115,
+              "defense": 72,
+              "spAttack": 45,
+              "spDefense": 68,
+              "speed": 100,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "hook_flurry",
+                "stoke_up",
+                "title_bout",
+                "quickstep"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "brawlham",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "A champion in a gold belt and a red cape, forearms wrapped in bandages. Nobody has gone the distance with it.",
+              "enabled": true
+            },
+            {
+              "id": "icicurl",
+              "name": "Icicurl",
+              "type1": "ice",
+              "type2": "",
+              "hp": 70,
+              "attack": 62,
+              "defense": 82,
+              "spAttack": 70,
+              "spDefense": 66,
+              "speed": 50,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "hunker",
+                "shale_ram",
+                "frost_lance",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "rimequill",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "Its quills have grown into long icicles that chime when it rolls; the drifts it sleeps in never melt.",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill",
+              "name": "Glaciquill",
+              "type1": "ice",
+              "type2": "",
+              "hp": 88,
+              "attack": 78,
+              "defense": 102,
+              "spAttack": 92,
+              "spDefense": 82,
+              "speed": 48,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "frost_lance",
+                "bedrock_drum",
+                "glacier_crash",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "icicurl",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "Glacier-sized spikes and a crown of ice shards. When it shakes itself, a small winter lands on the route.",
+              "enabled": true
+            },
+            {
+              "id": "leaflance",
+              "name": "Leaflance",
+              "type1": "bug",
+              "type2": "grass",
+              "hp": 62,
+              "attack": 72,
+              "defense": 78,
+              "spAttack": 55,
+              "spDefense": 66,
+              "speed": 57,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "sun_soak",
+                "burr_shot",
+                "vine_lash",
+                "thorn_jab"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "leafbit",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "Its leaf wing cases have stiffened into blades. It stands upright in the hedge and charges whatever rustles it.",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight",
+              "name": "Verdaknight",
+              "type1": "bug",
+              "type2": "grass",
+              "hp": 78,
+              "attack": 100,
+              "defense": 98,
+              "spAttack": 68,
+              "spDefense": 80,
+              "speed": 61,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "vine_lash",
+                "thorn_jab",
+                "briar_charge",
+                "sun_soak"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "leaflance",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "A gold-veined leaf knight. Hedgerows grow back thicker wherever it has stood guard.",
+              "enabled": true
+            },
+            {
+              "id": "delvham",
+              "name": "Delvham",
+              "type1": "ground",
+              "type2": "",
+              "hp": 80,
+              "attack": 80,
+              "defense": 72,
+              "spAttack": 38,
+              "spDefense": 52,
+              "speed": 68,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "mud_lob",
+                "hunker",
+                "shale_ram",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "burrowham",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "An orange tabby digger with a long cat's tail; it tunnels under whole routes and pops up where the grass is greenest.",
+              "enabled": true
+            },
+            {
+              "id": "bedroar",
+              "name": "Bedroar",
+              "type1": "ground",
+              "type2": "rock",
+              "hp": 100,
+              "attack": 108,
+              "defense": 95,
+              "spAttack": 42,
+              "spDefense": 65,
+              "speed": 75,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "shale_ram",
+                "bedrock_drum",
+                "hunker",
+                "cinder_roll"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "delvham",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "Rock plates grow along its back as it digs deeper. When it roars, the ground under the whole route shakes.",
+              "enabled": true
             }
           ]
         }
@@ -4867,6 +5182,78 @@
               "fxCast": "nature/earth-spike",
               "fxTravel": "pbvfx:ground-mud-ball",
               "fxImpact": "pbvfx:ground-dust-burst",
+              "fxAura": "status/slowed",
+              "enabled": true
+            },
+            {
+              "id": "hook_flurry",
+              "name": "Hook Flurry",
+              "type": "fighting",
+              "category": "physical",
+              "kind": "dash",
+              "power": 70,
+              "cooldown": 3,
+              "windup": 0.45,
+              "range": 105,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "spawn/poof",
+              "fxTravel": "",
+              "fxImpact": "impacts/blunt-hit",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "title_bout",
+              "name": "Title Bout",
+              "type": "fighting",
+              "category": "physical",
+              "kind": "burst",
+              "power": 85,
+              "cooldown": 4.8,
+              "windup": 0.7,
+              "range": 50,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "impacts/heavy-landing",
+              "fxTravel": "",
+              "fxImpact": "impacts/crit-hit",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "frost_lance",
+              "name": "Frost Lance",
+              "type": "ice",
+              "category": "special",
+              "kind": "beam",
+              "power": 70,
+              "cooldown": 4.2,
+              "windup": 0.65,
+              "range": 220,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "ice/frost-nova",
+              "fxTravel": "ice/ice-lance",
+              "fxImpact": "ice/ice-shatter",
+              "fxAura": "status/slowed",
+              "enabled": true
+            },
+            {
+              "id": "glacier_crash",
+              "name": "Glacier Crash",
+              "type": "ice",
+              "category": "special",
+              "kind": "burst",
+              "power": 85,
+              "cooldown": 4.8,
+              "windup": 0.8,
+              "range": 180,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "ice/snowflake-burst",
+              "fxTravel": "",
+              "fxImpact": "ice/ice-shatter",
               "fxAura": "status/slowed",
               "enabled": true
             },
@@ -6436,6 +6823,30 @@
               "enabled": true
             },
             {
+              "move": "hook_flurry",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "title_bout",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "frost_lance",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "glacier_crash",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
               "move": "umbra_bead",
               "price": 250,
               "weight": 1,
@@ -6954,7 +7365,15 @@
                 "leafbit",
                 "burrowham",
                 "jabbit",
-                "rimequill"
+                "rimequill",
+                "brawlham",
+                "champham",
+                "icicurl",
+                "glaciquill",
+                "leaflance",
+                "verdaknight",
+                "delvham",
+                "bedroar"
               ],
               "poolEquipment": [],
               "rateUp": "tidewallow",
@@ -8191,6 +8610,300 @@
               "enabled": true
             },
             {
+              "id": "brawlham-1",
+              "species": "brawlham",
+              "level": 1,
+              "move": "brawl_jab",
+              "enabled": true
+            },
+            {
+              "id": "brawlham-2",
+              "species": "brawlham",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "brawlham-3",
+              "species": "brawlham",
+              "level": 15,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "brawlham-4",
+              "species": "brawlham",
+              "level": 23,
+              "move": "hook_flurry",
+              "enabled": true
+            },
+            {
+              "id": "brawlham-5",
+              "species": "brawlham",
+              "level": 31,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "champham-1",
+              "species": "champham",
+              "level": 1,
+              "move": "brawl_jab",
+              "enabled": true
+            },
+            {
+              "id": "champham-2",
+              "species": "champham",
+              "level": 15,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "champham-3",
+              "species": "champham",
+              "level": 23,
+              "move": "hook_flurry",
+              "enabled": true
+            },
+            {
+              "id": "champham-4",
+              "species": "champham",
+              "level": 35,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "champham-5",
+              "species": "champham",
+              "level": 47,
+              "move": "title_bout",
+              "enabled": true
+            },
+            {
+              "id": "champham-6",
+              "species": "champham",
+              "level": 59,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "icicurl-1",
+              "species": "icicurl",
+              "level": 1,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "icicurl-2",
+              "species": "icicurl",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "icicurl-3",
+              "species": "icicurl",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "icicurl-4",
+              "species": "icicurl",
+              "level": 23,
+              "move": "frost_lance",
+              "enabled": true
+            },
+            {
+              "id": "icicurl-5",
+              "species": "icicurl",
+              "level": 31,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-1",
+              "species": "glaciquill",
+              "level": 1,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-2",
+              "species": "glaciquill",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-3",
+              "species": "glaciquill",
+              "level": 23,
+              "move": "frost_lance",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-4",
+              "species": "glaciquill",
+              "level": 35,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-5",
+              "species": "glaciquill",
+              "level": 47,
+              "move": "glacier_crash",
+              "enabled": true
+            },
+            {
+              "id": "glaciquill-6",
+              "species": "glaciquill",
+              "level": 59,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "leaflance-1",
+              "species": "leaflance",
+              "level": 1,
+              "move": "sting_volley",
+              "enabled": true
+            },
+            {
+              "id": "leaflance-2",
+              "species": "leaflance",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "leaflance-3",
+              "species": "leaflance",
+              "level": 15,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "leaflance-4",
+              "species": "leaflance",
+              "level": 23,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "leaflance-5",
+              "species": "leaflance",
+              "level": 31,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-1",
+              "species": "verdaknight",
+              "level": 1,
+              "move": "sting_volley",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-2",
+              "species": "verdaknight",
+              "level": 15,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-3",
+              "species": "verdaknight",
+              "level": 23,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-4",
+              "species": "verdaknight",
+              "level": 35,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-5",
+              "species": "verdaknight",
+              "level": 47,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "verdaknight-6",
+              "species": "verdaknight",
+              "level": 59,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "delvham-1",
+              "species": "delvham",
+              "level": 1,
+              "move": "mud_lob",
+              "enabled": true
+            },
+            {
+              "id": "delvham-2",
+              "species": "delvham",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "delvham-3",
+              "species": "delvham",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "delvham-4",
+              "species": "delvham",
+              "level": 23,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "bedroar-1",
+              "species": "bedroar",
+              "level": 1,
+              "move": "mud_lob",
+              "enabled": true
+            },
+            {
+              "id": "bedroar-2",
+              "species": "bedroar",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "bedroar-3",
+              "species": "bedroar",
+              "level": 23,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "bedroar-4",
+              "species": "bedroar",
+              "level": 35,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "bedroar-5",
+              "species": "bedroar",
+              "level": 47,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
               "id": "coilbadger-1",
               "species": "coilbadger",
               "level": 1,
@@ -8977,6 +9690,62 @@
               "to": "mossbruin",
               "level": 20,
               "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "from": "jabbit",
+              "to": "brawlham",
+              "level": 20,
+              "move": "hook_flurry",
+              "enabled": true
+            },
+            {
+              "from": "brawlham",
+              "to": "champham",
+              "level": 38,
+              "move": "title_bout",
+              "enabled": true
+            },
+            {
+              "from": "rimequill",
+              "to": "icicurl",
+              "level": 20,
+              "move": "frost_lance",
+              "enabled": true
+            },
+            {
+              "from": "icicurl",
+              "to": "glaciquill",
+              "level": 38,
+              "move": "glacier_crash",
+              "enabled": true
+            },
+            {
+              "from": "leafbit",
+              "to": "leaflance",
+              "level": 20,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "from": "leaflance",
+              "to": "verdaknight",
+              "level": 38,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "from": "burrowham",
+              "to": "delvham",
+              "level": 20,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "from": "delvham",
+              "to": "bedroar",
+              "level": 38,
+              "move": "cinder_roll",
               "enabled": true
             }
           ]
@@ -10310,6 +11079,50 @@
               "enabled": true
             },
             {
+              "id": "t3-evolved-brawlham",
+              "tier": 3,
+              "species": "brawlham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-icicurl",
+              "tier": 3,
+              "species": "icicurl",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-leaflance",
+              "tier": 3,
+              "species": "leaflance",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-delvham",
+              "tier": 3,
+              "species": "delvham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
               "id": "t3-rare-ringbox",
               "tier": 3,
               "species": "ringbox",
@@ -10508,6 +11321,50 @@
               "enabled": true
             },
             {
+              "id": "t4-evolved-brawlham",
+              "tier": 4,
+              "species": "brawlham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t4-evolved-icicurl",
+              "tier": 4,
+              "species": "icicurl",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t4-evolved-leaflance",
+              "tier": 4,
+              "species": "leaflance",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t4-evolved-delvham",
+              "tier": 4,
+              "species": "delvham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
               "id": "t4-rare-mimichomp",
               "tier": 4,
               "species": "mimichomp",
@@ -10684,6 +11541,50 @@
               "enabled": true
             },
             {
+              "id": "t5-evolved-brawlham",
+              "tier": 5,
+              "species": "brawlham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t5-evolved-icicurl",
+              "tier": 5,
+              "species": "icicurl",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t5-evolved-leaflance",
+              "tier": 5,
+              "species": "leaflance",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t5-evolved-delvham",
+              "tier": 5,
+              "species": "delvham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
               "id": "t5-rare-thundrift",
               "tier": 5,
               "species": "thundrift",
@@ -10720,6 +11621,50 @@
               "id": "t5-rare-mossdrake",
               "tier": 5,
               "species": "mossdrake",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-champham",
+              "tier": 5,
+              "species": "champham",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-glaciquill",
+              "tier": 5,
+              "species": "glaciquill",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-verdaknight",
+              "tier": 5,
+              "species": "verdaknight",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-bedroar",
+              "tier": 5,
+              "species": "bedroar",
               "weight": 1,
               "kind": "rare",
               "group": "",
@@ -10827,6 +11772,50 @@
               "enabled": true
             },
             {
+              "id": "t6-evolved-brawlham",
+              "tier": 6,
+              "species": "brawlham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t6-evolved-icicurl",
+              "tier": 6,
+              "species": "icicurl",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t6-evolved-leaflance",
+              "tier": 6,
+              "species": "leaflance",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t6-evolved-delvham",
+              "tier": 6,
+              "species": "delvham",
+              "weight": 2,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
               "id": "t6-rare-thundrift",
               "tier": 6,
               "species": "thundrift",
@@ -10863,6 +11852,50 @@
               "id": "t6-rare-mimichomp",
               "tier": 6,
               "species": "mimichomp",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-champham",
+              "tier": 6,
+              "species": "champham",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-glaciquill",
+              "tier": 6,
+              "species": "glaciquill",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-verdaknight",
+              "tier": 6,
+              "species": "verdaknight",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-bedroar",
+              "tier": 6,
+              "species": "bedroar",
               "weight": 1,
               "kind": "rare",
               "group": "",
@@ -11112,7 +12145,9 @@
               "weight": 5,
               "ace": [
                 "hoardmaw",
-                "shalehorn"
+                "shalehorn",
+                "champham",
+                "glaciquill"
               ],
               "enabled": true
             }
@@ -11532,6 +12567,42 @@
               "enabled": true
             },
             {
+              "id": "rockhound-brawlham",
+              "trainer": "rockhound",
+              "species": "brawlham",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-icicurl",
+              "trainer": "rockhound",
+              "species": "icicurl",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-delvham",
+              "trainer": "rockhound",
+              "species": "delvham",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-bedroar",
+              "trainer": "rockhound",
+              "species": "bedroar",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
               "id": "stoker-embrush",
               "trainer": "stoker",
               "species": "embrush",
@@ -11799,6 +12870,42 @@
               "weight": 2,
               "minTier": 4,
               "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "gardener-leaflance",
+              "trainer": "gardener",
+              "species": "leaflance",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-verdaknight",
+              "trainer": "gardener",
+              "species": "verdaknight",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-champham",
+              "trainer": "veteran",
+              "species": "champham",
+              "weight": 1,
+              "minTier": 6,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-glaciquill",
+              "trainer": "veteran",
+              "species": "glaciquill",
+              "weight": 1,
+              "minTier": 6,
+              "maxTier": 6,
               "enabled": true
             },
             {
@@ -12308,7 +13415,7 @@
               "role": "elite",
               "order": 2,
               "name": "Elite Juno",
-              "species": "tidewallow",
+              "species": "glaciquill",
               "levelBonus": 6,
               "iv": 26,
               "stars": 2,
@@ -12323,7 +13430,7 @@
               "role": "elite",
               "order": 3,
               "name": "Elite Kade",
-              "species": "grovesnout",
+              "species": "champham",
               "levelBonus": 8,
               "iv": 28,
               "stars": 3,
