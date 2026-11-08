@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 17,
+  "version": 18,
   "tabs": [
     {
       "id": "run",
@@ -1076,6 +1076,15 @@
           "min": 0,
           "max": 720,
           "default": 0
+        },
+        {
+          "key": "battle.dashLength",
+          "label": "Lao: quãng chạy (x tầm chiêu)",
+          "help": "Cú lao chạy xa bằng tầm chiêu nhân hệ số này (1 = như cũ). 1.15: cú lao ít hụt vì dừng thiếu vài px; trận thường đầu tiên trượt khoảng 1/14 số đòn thay vì 1/6.5.",
+          "type": "number",
+          "min": 0.5,
+          "max": 2,
+          "default": 1.15
         },
         {
           "key": "battle.aimLead",
