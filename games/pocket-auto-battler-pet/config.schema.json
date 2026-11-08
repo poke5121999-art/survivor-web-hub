@@ -5114,8 +5114,8 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "water/drip",
-              "fxTravel": "pbvfx:water-bubble-shot",
-              "fxImpact": "pbvfx:water-splash",
+              "fxTravel": "pab/bubble-shot",
+              "fxImpact": "pab/splash-top",
               "fxAura": "",
               "enabled": true
             },
@@ -5153,7 +5153,7 @@
               "statusChance": 0,
               "fxCast": "nature/root-snare",
               "fxTravel": "",
-              "fxImpact": "nature/thorns",
+              "fxImpact": "pab/thorn-burst",
               "fxAura": "",
               "enabled": true
             },
@@ -5191,7 +5191,7 @@
               "statusChance": 0,
               "fxCast": "nature/earth-spike",
               "fxTravel": "",
-              "fxImpact": "pbvfx:rock-smash",
+              "fxImpact": "pab/rock-burst",
               "fxAura": "",
               "enabled": true
             },
@@ -5266,7 +5266,7 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "nature/spore-burst",
-              "fxTravel": "pbvfx:bug-sting-volley",
+              "fxTravel": "pab/sting-dart",
               "fxImpact": "pbvfx:bug-sting-hit",
               "fxAura": "",
               "enabled": true
@@ -5514,7 +5514,7 @@
               "statusChance": 0.25,
               "fxCast": "fire/spirit-flame",
               "fxTravel": "fire/flamethrower",
-              "fxImpact": "pbvfx:fire-burst",
+              "fxImpact": "pab/fire-hit",
               "fxAura": "status/burning",
               "enabled": true
             },
