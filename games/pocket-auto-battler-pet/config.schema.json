@@ -5077,7 +5077,7 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "water/water-orb",
-              "fxTravel": "water/water-jet",
+              "fxTravel": "fight/beam-long",
               "fxImpact": "water/splash",
               "fxAura": "",
               "enabled": true
@@ -5324,7 +5324,7 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "ice/frost-nova",
-              "fxTravel": "ice/ice-lance",
+              "fxTravel": "fight/beam-long",
               "fxImpact": "ice/ice-shatter",
               "fxAura": "status/slowed",
               "enabled": true
@@ -5571,7 +5571,7 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "water/geyser",
-              "fxTravel": "water/water-jet",
+              "fxTravel": "fight/beam-long",
               "fxImpact": "water/wave-crash",
               "fxAura": "",
               "enabled": true
