@@ -5686,7 +5686,7 @@
               "statusChance": 0,
               "fxCast": "fire/candle",
               "fxTravel": "",
-              "fxImpact": "nature/spore-burst",
+              "fxImpact": "pab/smoke-puff",
               "fxAura": "",
               "enabled": true
             },
@@ -5704,8 +5704,8 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "lightning/charge-up",
-              "fxTravel": "",
-              "fxImpact": "lightning/zap-hit",
+              "fxTravel": "fight/beam-long",
+              "fxImpact": "pab/dazzle",
               "fxAura": "",
               "enabled": true
             },
