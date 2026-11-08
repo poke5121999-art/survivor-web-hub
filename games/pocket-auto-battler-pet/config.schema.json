@@ -997,13 +997,58 @@
           "default": 1.1
         },
         {
+          "key": "battle.dodgeScale",
+          "label": "Né: hệ số",
+          "help": "Tỉ lệ né của mọi loài nhân với hệ số này (1 = như bảng loài, 0 = không bao giờ né). Thấp hơn thì đòn trúng nhiều hơn.",
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.8
+        },
+        {
+          "key": "battle.strafeScale",
+          "label": "Né: bước ngang",
+          "help": "Lúc giữ khoảng cách, pet bước ngang mạnh chừng này (1 = đầy đủ, 0 = đứng yên ngắm). Thấp hơn thì đạn trúng nhiều hơn.",
+          "type": "number",
+          "min": 0,
+          "max": 1.5,
+          "default": 0.3
+        },
+        {
+          "key": "battle.aimTrack",
+          "label": "Tia và lao: bám mục tiêu",
+          "help": "Lúc nhả chiêu, tia và cú lao xoay từ đường đã báo trước về phía mục tiêu theo tỉ lệ này (0 = giữ đường cũ, 1 = nhắm thẳng mục tiêu).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.9
+        },
+        {
+          "key": "battle.burstReach",
+          "label": "Nổ: tầm chạm",
+          "help": "Vụ nổ trúng khi tâm mục tiêu nằm trong bán kính nổ + hệ số này x bán kính trúng của mục tiêu.",
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 1.2
+        },
+        {
+          "key": "battle.projectileReach",
+          "label": "Đạn: tầm chạm",
+          "help": "Viên đạn trúng khi tới gần trong bán kính đạn + hệ số này x bán kính trúng của mục tiêu.",
+          "type": "number",
+          "min": 0.3,
+          "max": 2,
+          "default": 1.4
+        },
+        {
           "key": "battle.aimLead",
           "label": "Đạn: ngắm đón đầu",
           "help": "Đạn bắn vào chỗ mục tiêu sẽ tới khi đạn bay tới, theo tỉ lệ này (0 = bắn vào chỗ đang đứng, 1 = đón đầu đủ). Cao hơn thì trúng nhiều hơn, trận ngắn hơn.",
           "type": "number",
           "min": 0,
           "max": 1.2,
-          "default": 0
+          "default": 1
         },
         {
           "key": "battle.view",
@@ -2714,10 +2759,10 @@
               "name": "Flickit",
               "type1": "fire",
               "type2": "",
-              "hp": 66,
-              "attack": 70,
-              "defense": 63,
-              "spAttack": 70,
+              "hp": 74,
+              "attack": 72,
+              "defense": 66,
+              "spAttack": 76,
               "spDefense": 63,
               "speed": 59,
               "sizeClass": "small",
