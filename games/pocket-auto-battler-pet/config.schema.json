@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 8,
+  "version": 10,
   "tabs": [
     {
       "id": "run",
@@ -122,113 +122,41 @@
       "blurb": "Đường cong kinh nghiệm theo cấp: exp cần để lên từng cấp (cấp 1 lên 2, 2 lên 3, ...).",
       "fields": [
         {
-          "key": "exp.curve",
-          "label": "Exp lên cấp",
-          "help": "Phần tử thứ L là exp cần để từ cấp L lên cấp L+1 (L bắt đầu từ 1). Hết danh sách thì dùng số cuối cùng.",
+          "key": "exp.scale",
+          "label": "Hệ số đường exp",
+          "help": "Exp để lên từ cấp L lên L+1 = hệ số x (L + độ dời)^số mũ.",
+          "type": "number",
+          "min": 0.01,
+          "max": 1000,
+          "default": 2.6
+        },
+        {
+          "key": "exp.shift",
+          "label": "Độ dời đường exp",
+          "help": "Cộng vào cấp trước khi lấy luỹ thừa (đầu game đắt hơn một chút).",
+          "type": "number",
+          "min": -10,
+          "max": 100,
+          "default": 0
+        },
+        {
+          "key": "exp.exponent",
+          "label": "Số mũ đường exp",
+          "help": "Số mũ lớn thì cấp cao đắt hơn nhiều so với cấp thấp.",
+          "type": "number",
+          "min": 0.5,
+          "max": 4,
+          "default": 1.35
+        },
+        {
+          "key": "exp.levelCosts",
+          "label": "Exp lên cấp (ghi đè)",
+          "help": "Để trống = dùng công thức trên. Có số thì phần tử thứ L là exp cần để từ cấp L lên L+1 (L bắt đầu từ 1); hết danh sách thì dùng số cuối.",
           "type": "list",
           "min": 1,
           "max": 1000000,
-          "default": [
-            3,
-            10,
-            21,
-            34,
-            50,
-            69,
-            90,
-            114,
-            140,
-            169,
-            199,
-            232,
-            267,
-            304,
-            343,
-            384,
-            427,
-            472,
-            519,
-            567,
-            618,
-            670,
-            725,
-            781,
-            839,
-            898,
-            959,
-            1022,
-            1087,
-            1154,
-            1222,
-            1292,
-            1363,
-            1436,
-            1511,
-            1587,
-            1665,
-            1745,
-            1826,
-            1909,
-            1993,
-            2079,
-            2166,
-            2255,
-            2346,
-            2438,
-            2531,
-            2626,
-            2722,
-            2820,
-            2920,
-            3021,
-            3123,
-            3227,
-            3332,
-            3439,
-            3547,
-            3657,
-            3768,
-            3880,
-            3994,
-            4110,
-            4226,
-            4344,
-            4464,
-            4585,
-            4707,
-            4831,
-            4956,
-            5082,
-            5210,
-            5339,
-            5469,
-            5601,
-            5734,
-            5869,
-            6005,
-            6142,
-            6280,
-            6420,
-            6561,
-            6703,
-            6847,
-            6992,
-            7138,
-            7286,
-            7435,
-            7585,
-            7737,
-            7889,
-            8043,
-            8199,
-            8355,
-            8513,
-            8672,
-            8833,
-            8994,
-            9157,
-            9321
-          ]
+          "freeLength": true,
+          "default": []
         }
       ]
     },
@@ -245,7 +173,7 @@
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 32
+          "default": 80
         },
         {
           "key": "rewards.npcExp",
@@ -255,7 +183,7 @@
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 42
+          "default": 90
         },
         {
           "key": "rewards.gymExp",
@@ -265,7 +193,7 @@
           "min": 0,
           "max": 100000,
           "unit": "exp",
-          "default": 140
+          "default": 200
         },
         {
           "key": "rewards.lossExpShare",
@@ -284,7 +212,7 @@
           "min": 0,
           "max": 1000,
           "unit": "exp",
-          "default": 18
+          "default": 10
         },
         {
           "key": "rewards.grassGold",
@@ -421,7 +349,7 @@
           "min": 0,
           "max": 5,
           "unit": "cấp/ngày",
-          "default": 0.5
+          "default": 1
         },
         {
           "key": "foes.grassLevelMin",
@@ -431,7 +359,7 @@
           "min": -10,
           "max": 10,
           "unit": "cấp",
-          "default": -3
+          "default": -6
         },
         {
           "key": "foes.grassLevelMax",
@@ -441,7 +369,156 @@
           "min": -10,
           "max": 10,
           "unit": "cấp",
-          "default": -1
+          "default": -2
+        }
+      ]
+    },
+    {
+      "id": "variety",
+      "label": "Đa dạng gặp gỡ",
+      "blurb": "Luật chọn loài ở bụi cỏ và trainer: tránh lặp, gợi ý hệ Gym, gặp hiếm/may, pet màu lạ, át chủ bài của trainer. Loài và trọng số ở bảng Gặp ở bụi cỏ, Trainer, Đội trainer, Thời tiết và loài gặp.",
+      "fields": [
+        {
+          "key": "variety.legCooldown",
+          "label": "Hệ số tránh lặp",
+          "help": "Mỗi lần đã gặp một loài trong chặng này (từ huy hiệu trước), trọng số của nó nhân hệ số này. Không bao giờ gặp cùng loài hai trận liền.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.4
+        },
+        {
+          "key": "variety.hintRampPerDay",
+          "label": "Gợi ý hệ Gym tăng mỗi ngày",
+          "help": "Ô hint (hệ của Gym sắp tới) nặng thêm chừng này lần mỗi ngày kể từ huy hiệu trước.",
+          "type": "number",
+          "min": 0,
+          "max": 5,
+          "default": 0.2
+        },
+        {
+          "key": "variety.commonsOnlyUntilTier",
+          "label": "Chỉ loài common tới bậc",
+          "help": "Tới bậc này mọi ô (kể cả rare, lucky và át chủ bài của trainer) chỉ ra loài vai trò common. -1 = tắt luật.",
+          "type": "int",
+          "min": -1,
+          "max": 12,
+          "unit": "bậc",
+          "default": 1
+        },
+        {
+          "key": "variety.glimmerChance",
+          "label": "Tỉ lệ pet màu lạ",
+          "help": "Pet hoang có tỉ lệ này mang màu lạ (glimmer); thắng nó được thêm thưởng.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.02
+        },
+        {
+          "key": "variety.glimmerExpMult",
+          "label": "EXP pet màu lạ",
+          "help": "Thắng pet màu lạ: EXP nhân hệ số này.",
+          "type": "number",
+          "min": 0,
+          "max": 10,
+          "default": 1.5
+        },
+        {
+          "key": "variety.glimmerTrainedMult",
+          "label": "Điểm luyện pet màu lạ",
+          "help": "Thắng pet màu lạ: điểm luyện nhân hệ số này.",
+          "type": "number",
+          "min": 0,
+          "max": 10,
+          "default": 1.5
+        },
+        {
+          "key": "variety.glimmerGold",
+          "label": "Vàng pet màu lạ",
+          "help": "Thắng pet màu lạ: thêm chừng này vàng.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 50
+        },
+        {
+          "key": "variety.trainerAceChance",
+          "label": "Tỉ lệ át chủ bài",
+          "help": "Trainer dùng loài át chủ bài của lớp mình với tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.04
+        },
+        {
+          "key": "variety.trainerTaughtMoveChance",
+          "label": "Tỉ lệ trainer dạy chiêu",
+          "help": "Pet của trainer biết sẵn một chiêu của vài cấp sau với tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.25
+        },
+        {
+          "key": "variety.trainerTaughtMoveLevels",
+          "label": "Chiêu dạy trước tối đa",
+          "help": "Chiêu dạy trước lấy từ bảng chiêu theo cấp, trong chừng này cấp tới.",
+          "type": "int",
+          "min": 1,
+          "max": 50,
+          "unit": "cấp",
+          "default": 12
+        },
+        {
+          "key": "variety.luckyIvMin",
+          "label": "IV tối thiểu khi gặp may",
+          "help": "Pet ở ô lucky có IV từ số này trở lên.",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 20
+        },
+        {
+          "key": "variety.trainerLevelOffset",
+          "label": "Lệch cấp trainer",
+          "help": "Cộng thêm vào cấp pet của mọi trainer thường.",
+          "type": "int",
+          "min": -20,
+          "max": 20,
+          "unit": "cấp",
+          "default": 0
+        },
+        {
+          "key": "variety.wildLevelShift",
+          "label": "Lệch cấp pet hoang",
+          "help": "Cộng thêm vào cấp mọi pet hoang.",
+          "type": "int",
+          "min": -20,
+          "max": 20,
+          "unit": "cấp",
+          "default": 0
+        },
+        {
+          "key": "variety.trainerTrainedBase",
+          "label": "Điểm luyện trainer",
+          "help": "Pet của trainer được thêm chừng này điểm luyện mỗi chỉ số (ngoài Điểm luyện đối thủ của bậc).",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "điểm",
+          "default": 30
+        },
+        {
+          "key": "variety.trainerTrainedPerTier",
+          "label": "Điểm luyện trainer mỗi bậc",
+          "help": "Và thêm chừng này điểm mỗi chỉ số cho mỗi bậc.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "điểm",
+          "default": 5
         }
       ]
     },
@@ -742,6 +819,15 @@
           "max": 100,
           "unit": "cấp",
           "default": 45
+        },
+        {
+          "key": "stats.levelGrowth",
+          "label": "Chỉ số tăng mỗi cấp",
+          "help": "Mỗi cấp trên cấp khởi đầu đẩy cấp trong công thức chỉ số lên chừng này (0.5 = lên 2 cấp mới bằng 1 cấp cũ).",
+          "type": "number",
+          "min": 0.05,
+          "max": 2,
+          "default": 0.5
         },
         {
           "key": "stats.trainedCapPerStat",
@@ -1719,7 +1805,7 @@
               "stage": 1,
               "rarity": "SR",
               "role": "uncommon",
-              "foeLevelAdj": -2,
+              "foeLevelAdj": -4,
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
@@ -1830,7 +1916,7 @@
               "stage": 1,
               "rarity": "SR",
               "role": "uncommon",
-              "foeLevelAdj": -2,
+              "foeLevelAdj": -4,
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
@@ -1880,11 +1966,11 @@
               "type1": "grass",
               "type2": "poison",
               "hp": 85,
-              "attack": 83,
-              "defense": 76,
-              "spAttack": 83,
-              "spDefense": 76,
-              "speed": 57,
+              "attack": 80,
+              "defense": 74,
+              "spAttack": 80,
+              "spDefense": 74,
+              "speed": 56,
               "sizeClass": "medium",
               "hitRadius": 10,
               "dodge": 0.3,
@@ -1902,7 +1988,7 @@
               ],
               "evolvesFrom": "budsnout",
               "stage": 2,
-              "rarity": "SR",
+              "rarity": "R",
               "role": "starter",
               "foeLevelAdj": 0,
               "minTier": 0,
@@ -1916,10 +2002,10 @@
               "name": "Grovesnout",
               "type1": "grass",
               "type2": "poison",
-              "hp": 96,
-              "attack": 87,
+              "hp": 92,
+              "attack": 85,
               "defense": 85,
-              "spAttack": 87,
+              "spAttack": 85,
               "spDefense": 85,
               "speed": 66,
               "sizeClass": "large",
@@ -1939,7 +2025,7 @@
               ],
               "evolvesFrom": "fernsnout",
               "stage": 3,
-              "rarity": "SSR",
+              "rarity": "SR",
               "role": "starter",
               "foeLevelAdj": 0,
               "minTier": 0,
@@ -6093,7 +6179,7 @@
             {
               "id": "hootlet-3",
               "species": "hootlet",
-              "level": 11,
+              "level": 17,
               "move": "updraft_dive",
               "enabled": true
             },
@@ -6114,7 +6200,7 @@
             {
               "id": "snowpup-3",
               "species": "snowpup",
-              "level": 10,
+              "level": 15,
               "move": "rime_spike",
               "enabled": true
             },
@@ -6135,14 +6221,14 @@
             {
               "id": "embrush-3",
               "species": "embrush",
-              "level": 10,
+              "level": 15,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "embrush-4",
               "species": "embrush",
-              "level": 16,
+              "level": 27,
               "move": "heat_ribbon",
               "enabled": true
             },
@@ -6163,7 +6249,7 @@
             {
               "id": "tabbit-3",
               "species": "tabbit",
-              "level": 11,
+              "level": 17,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -6184,14 +6270,14 @@
             {
               "id": "spinefin-3",
               "species": "spinefin",
-              "level": 9,
+              "level": 13,
               "move": "wallow_ram",
               "enabled": true
             },
             {
               "id": "spinefin-4",
               "species": "spinefin",
-              "level": 15,
+              "level": 25,
               "move": "rime_spike",
               "enabled": true
             },
@@ -6212,14 +6298,14 @@
             {
               "id": "puffet-3",
               "species": "puffet",
-              "level": 8,
+              "level": 11,
               "move": "spray_shot",
               "enabled": true
             },
             {
               "id": "puffet-4",
               "species": "puffet",
-              "level": 14,
+              "level": 23,
               "move": "jolt_nip",
               "enabled": true
             },
@@ -6240,21 +6326,21 @@
             {
               "id": "drizzlet-3",
               "species": "drizzlet",
-              "level": 8,
+              "level": 11,
               "move": "spray_shot",
               "enabled": true
             },
             {
               "id": "drizzlet-4",
               "species": "drizzlet",
-              "level": 14,
+              "level": 23,
               "move": "jolt_nip",
               "enabled": true
             },
             {
               "id": "drizzlet-5",
               "species": "drizzlet",
-              "level": 18,
+              "level": 31,
               "move": "rill_lance",
               "enabled": true
             },
@@ -6268,35 +6354,35 @@
             {
               "id": "thundrift-2",
               "species": "thundrift",
-              "level": 8,
+              "level": 11,
               "move": "spray_shot",
               "enabled": true
             },
             {
               "id": "thundrift-3",
               "species": "thundrift",
-              "level": 14,
+              "level": 23,
               "move": "jolt_nip",
               "enabled": true
             },
             {
               "id": "thundrift-4",
               "species": "thundrift",
-              "level": 18,
+              "level": 31,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "id": "thundrift-5",
               "species": "thundrift",
-              "level": 26,
+              "level": 47,
               "move": "arc_ring",
               "enabled": true
             },
             {
               "id": "thundrift-6",
               "species": "thundrift",
-              "level": 32,
+              "level": 59,
               "move": "updraft_dive",
               "enabled": true
             },
@@ -6317,7 +6403,7 @@
             {
               "id": "lockbox-3",
               "species": "lockbox",
-              "level": 12,
+              "level": 19,
               "move": "umbra_bead",
               "enabled": true
             },
@@ -6338,21 +6424,21 @@
             {
               "id": "mimichomp-3",
               "species": "mimichomp",
-              "level": 12,
+              "level": 19,
               "move": "umbra_bead",
               "enabled": true
             },
             {
               "id": "mimichomp-4",
               "species": "mimichomp",
-              "level": 16,
+              "level": 27,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "mimichomp-5",
               "species": "mimichomp",
-              "level": 22,
+              "level": 39,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -6366,28 +6452,28 @@
             {
               "id": "hoardmaw-2",
               "species": "hoardmaw",
-              "level": 12,
+              "level": 19,
               "move": "umbra_bead",
               "enabled": true
             },
             {
               "id": "hoardmaw-3",
               "species": "hoardmaw",
-              "level": 16,
+              "level": 27,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "hoardmaw-4",
               "species": "hoardmaw",
-              "level": 22,
+              "level": 39,
               "move": "hush_pulse",
               "enabled": true
             },
             {
               "id": "hoardmaw-5",
               "species": "hoardmaw",
-              "level": 30,
+              "level": 55,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -6408,7 +6494,7 @@
             {
               "id": "slicelet-3",
               "species": "slicelet",
-              "level": 10,
+              "level": 15,
               "move": "ember_volley",
               "enabled": true
             },
@@ -6429,21 +6515,21 @@
             {
               "id": "pizzapod-3",
               "species": "pizzapod",
-              "level": 10,
+              "level": 15,
               "move": "ember_volley",
               "enabled": true
             },
             {
               "id": "pizzapod-4",
               "species": "pizzapod",
-              "level": 14,
+              "level": 23,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "pizzapod-5",
               "species": "pizzapod",
-              "level": 20,
+              "level": 35,
               "move": "heat_ribbon",
               "enabled": true
             },
@@ -6457,28 +6543,28 @@
             {
               "id": "pizzaroam-2",
               "species": "pizzaroam",
-              "level": 14,
+              "level": 23,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "pizzaroam-3",
               "species": "pizzaroam",
-              "level": 20,
+              "level": 35,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "id": "pizzaroam-4",
               "species": "pizzaroam",
-              "level": 26,
+              "level": 47,
               "move": "kiln_bloom",
               "enabled": true
             },
             {
               "id": "pizzaroam-5",
               "species": "pizzaroam",
-              "level": 32,
+              "level": 59,
               "move": "stoke_up",
               "enabled": true
             },
@@ -6499,7 +6585,7 @@
             {
               "id": "binlet-3",
               "species": "binlet",
-              "level": 10,
+              "level": 15,
               "move": "thorn_jab",
               "enabled": true
             },
@@ -6520,21 +6606,21 @@
             {
               "id": "dumpstomp-3",
               "species": "dumpstomp",
-              "level": 10,
+              "level": 15,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "id": "dumpstomp-4",
               "species": "dumpstomp",
-              "level": 14,
+              "level": 23,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "dumpstomp-5",
               "species": "dumpstomp",
-              "level": 20,
+              "level": 35,
               "move": "miasma_bloom",
               "enabled": true
             },
@@ -6548,28 +6634,28 @@
             {
               "id": "toxidump-2",
               "species": "toxidump",
-              "level": 10,
+              "level": 15,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "id": "toxidump-3",
               "species": "toxidump",
-              "level": 14,
+              "level": 23,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "toxidump-4",
               "species": "toxidump",
-              "level": 20,
+              "level": 35,
               "move": "miasma_bloom",
               "enabled": true
             },
             {
               "id": "toxidump-5",
               "species": "toxidump",
-              "level": 26,
+              "level": 47,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -6590,14 +6676,14 @@
             {
               "id": "axolil-3",
               "species": "axolil",
-              "level": 10,
+              "level": 15,
               "move": "wallow_ram",
               "enabled": true
             },
             {
               "id": "axolil-4",
               "species": "axolil",
-              "level": 16,
+              "level": 27,
               "move": "tide_slam",
               "enabled": true
             },
@@ -6618,7 +6704,7 @@
             {
               "id": "wickit-3",
               "species": "wickit",
-              "level": 14,
+              "level": 23,
               "move": "heat_ribbon",
               "enabled": true
             },
@@ -6639,14 +6725,14 @@
             {
               "id": "duskwyrm-3",
               "species": "duskwyrm",
-              "level": 12,
+              "level": 19,
               "move": "umbra_bead",
               "enabled": true
             },
             {
               "id": "duskwyrm-4",
               "species": "duskwyrm",
-              "level": 18,
+              "level": 31,
               "move": "updraft_dive",
               "enabled": true
             },
@@ -6667,7 +6753,7 @@
             {
               "id": "fluffwing-3",
               "species": "fluffwing",
-              "level": 10,
+              "level": 15,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -6688,7 +6774,7 @@
             {
               "id": "cubbin-3",
               "species": "cubbin",
-              "level": 11,
+              "level": 17,
               "move": "shale_ram",
               "enabled": true
             },
@@ -6709,28 +6795,28 @@
             {
               "id": "mossbruin-3",
               "species": "mossbruin",
-              "level": 11,
+              "level": 17,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "mossbruin-4",
               "species": "mossbruin",
-              "level": 14,
+              "level": 23,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "mossbruin-5",
               "species": "mossbruin",
-              "level": 20,
+              "level": 35,
               "move": "sun_soak",
               "enabled": true
             },
             {
               "id": "mossbruin-6",
               "species": "mossbruin",
-              "level": 26,
+              "level": 47,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -6751,7 +6837,7 @@
             {
               "id": "stripaw-3",
               "species": "stripaw",
-              "level": 12,
+              "level": 19,
               "move": "cinder_roll",
               "enabled": true
             },
@@ -6772,7 +6858,7 @@
             {
               "id": "foldwing-3",
               "species": "foldwing",
-              "level": 14,
+              "level": 23,
               "move": "updraft_dive",
               "enabled": true
             },
@@ -6793,14 +6879,14 @@
             {
               "id": "steepot-3",
               "species": "steepot",
-              "level": 9,
+              "level": 13,
               "move": "ember_volley",
               "enabled": true
             },
             {
               "id": "steepot-4",
               "species": "steepot",
-              "level": 16,
+              "level": 27,
               "move": "tide_slam",
               "enabled": true
             },
@@ -6821,14 +6907,14 @@
             {
               "id": "crispit-3",
               "species": "crispit",
-              "level": 10,
+              "level": 15,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "crispit-4",
               "species": "crispit",
-              "level": 15,
+              "level": 25,
               "move": "shale_ram",
               "enabled": true
             },
@@ -6849,7 +6935,7 @@
             {
               "id": "brewblob-3",
               "species": "brewblob",
-              "level": 12,
+              "level": 19,
               "move": "miasma_bloom",
               "enabled": true
             },
@@ -6870,7 +6956,7 @@
             {
               "id": "boltbot-3",
               "species": "boltbot",
-              "level": 12,
+              "level": 19,
               "move": "arc_ring",
               "enabled": true
             },
@@ -6891,7 +6977,7 @@
             {
               "id": "geodle-3",
               "species": "geodle",
-              "level": 14,
+              "level": 23,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -6912,21 +6998,21 @@
             {
               "id": "peepwing-3",
               "species": "peepwing",
-              "level": 10,
+              "level": 15,
               "move": "shade_pounce",
               "enabled": true
             },
             {
               "id": "peepwing-4",
               "species": "peepwing",
-              "level": 14,
+              "level": 23,
               "move": "squall_quill",
               "enabled": true
             },
             {
               "id": "peepwing-5",
               "species": "peepwing",
-              "level": 18,
+              "level": 31,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -6947,21 +7033,21 @@
             {
               "id": "cinderhound-3",
               "species": "cinderhound",
-              "level": 10,
+              "level": 15,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "cinderhound-4",
               "species": "cinderhound",
-              "level": 16,
+              "level": 27,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "id": "cinderhound-5",
               "species": "cinderhound",
-              "level": 24,
+              "level": 43,
               "move": "kiln_bloom",
               "enabled": true
             },
@@ -6982,14 +7068,14 @@
             {
               "id": "gravelet-3",
               "species": "gravelet",
-              "level": 12,
+              "level": 19,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "gravelet-4",
               "species": "gravelet",
-              "level": 18,
+              "level": 31,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -7010,14 +7096,14 @@
             {
               "id": "slabrute-3",
               "species": "slabrute",
-              "level": 12,
+              "level": 19,
               "move": "bedrock_drum",
               "enabled": true
             },
             {
               "id": "slabrute-4",
               "species": "slabrute",
-              "level": 20,
+              "level": 35,
               "move": "rime_spike",
               "enabled": true
             },
@@ -7038,21 +7124,21 @@
             {
               "id": "mossdrake-3",
               "species": "mossdrake",
-              "level": 12,
+              "level": 19,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "mossdrake-4",
               "species": "mossdrake",
-              "level": 18,
+              "level": 31,
               "move": "vine_lash",
               "enabled": true
             },
             {
               "id": "mossdrake-5",
               "species": "mossdrake",
-              "level": 26,
+              "level": 47,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -7073,14 +7159,14 @@
             {
               "id": "ringbox-3",
               "species": "ringbox",
-              "level": 12,
+              "level": 19,
               "move": "arc_ring",
               "enabled": true
             },
             {
               "id": "ringbox-4",
               "species": "ringbox",
-              "level": 18,
+              "level": 31,
               "move": "shale_ram",
               "enabled": true
             },
@@ -7101,14 +7187,14 @@
             {
               "id": "glimlamp-3",
               "species": "glimlamp",
-              "level": 12,
+              "level": 19,
               "move": "umbra_bead",
               "enabled": true
             },
             {
               "id": "glimlamp-4",
               "species": "glimlamp",
-              "level": 18,
+              "level": 31,
               "move": "heat_ribbon",
               "enabled": true
             },
@@ -7129,14 +7215,14 @@
             {
               "id": "coilbadger-3",
               "species": "coilbadger",
-              "level": 8,
+              "level": 11,
               "move": "arc_ring",
               "enabled": true
             },
             {
               "id": "coilbadger-4",
               "species": "coilbadger",
-              "level": 12,
+              "level": 19,
               "move": "shale_ram",
               "enabled": true
             },
@@ -7157,14 +7243,14 @@
             {
               "id": "kilnback-3",
               "species": "kilnback",
-              "level": 8,
+              "level": 11,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "kilnback-4",
               "species": "kilnback",
-              "level": 12,
+              "level": 19,
               "move": "kiln_bloom",
               "enabled": true
             },
@@ -7185,14 +7271,14 @@
             {
               "id": "tidecrane-3",
               "species": "tidecrane",
-              "level": 8,
+              "level": 11,
               "move": "squall_quill",
               "enabled": true
             },
             {
               "id": "tidecrane-4",
               "species": "tidecrane",
-              "level": 12,
+              "level": 19,
               "move": "rill_lance",
               "enabled": true
             },
@@ -7213,14 +7299,14 @@
             {
               "id": "thornboar-3",
               "species": "thornboar",
-              "level": 8,
+              "level": 11,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "thornboar-4",
               "species": "thornboar",
-              "level": 12,
+              "level": 19,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -7241,14 +7327,14 @@
             {
               "id": "shalehorn-3",
               "species": "shalehorn",
-              "level": 8,
+              "level": 11,
               "move": "bedrock_drum",
               "enabled": true
             },
             {
               "id": "shalehorn-4",
               "species": "shalehorn",
-              "level": 12,
+              "level": 19,
               "move": "shale_ram",
               "enabled": true
             },
@@ -7269,14 +7355,14 @@
             {
               "id": "gloamhare-3",
               "species": "gloamhare",
-              "level": 8,
+              "level": 11,
               "move": "umbra_bead",
               "enabled": true
             },
             {
               "id": "gloamhare-4",
               "species": "gloamhare",
-              "level": 12,
+              "level": 19,
               "move": "hush_pulse",
               "enabled": true
             },
@@ -7297,49 +7383,49 @@
             {
               "id": "budsnout-3",
               "species": "budsnout",
-              "level": 8,
+              "level": 11,
               "move": "burr_shot",
               "enabled": true
             },
             {
               "id": "budsnout-4",
               "species": "budsnout",
-              "level": 12,
+              "level": 19,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "id": "budsnout-5",
               "species": "budsnout",
-              "level": 16,
+              "level": 27,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "budsnout-6",
               "species": "budsnout",
-              "level": 21,
+              "level": 37,
               "move": "miasma_bloom",
               "enabled": true
             },
             {
               "id": "budsnout-7",
               "species": "budsnout",
-              "level": 26,
+              "level": 47,
               "move": "vine_lash",
               "enabled": true
             },
             {
               "id": "budsnout-8",
               "species": "budsnout",
-              "level": 31,
+              "level": 57,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "budsnout-9",
               "species": "budsnout",
-              "level": 36,
+              "level": 67,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -7360,49 +7446,49 @@
             {
               "id": "fernsnout-3",
               "species": "fernsnout",
-              "level": 8,
+              "level": 11,
               "move": "burr_shot",
               "enabled": true
             },
             {
               "id": "fernsnout-4",
               "species": "fernsnout",
-              "level": 12,
+              "level": 19,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "id": "fernsnout-5",
               "species": "fernsnout",
-              "level": 16,
+              "level": 27,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "fernsnout-6",
               "species": "fernsnout",
-              "level": 21,
+              "level": 37,
               "move": "miasma_bloom",
               "enabled": true
             },
             {
               "id": "fernsnout-7",
               "species": "fernsnout",
-              "level": 26,
+              "level": 47,
               "move": "vine_lash",
               "enabled": true
             },
             {
               "id": "fernsnout-8",
               "species": "fernsnout",
-              "level": 31,
+              "level": 57,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "fernsnout-9",
               "species": "fernsnout",
-              "level": 36,
+              "level": 67,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -7423,49 +7509,49 @@
             {
               "id": "grovesnout-3",
               "species": "grovesnout",
-              "level": 8,
+              "level": 11,
               "move": "burr_shot",
               "enabled": true
             },
             {
               "id": "grovesnout-4",
               "species": "grovesnout",
-              "level": 12,
+              "level": 19,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "id": "grovesnout-5",
               "species": "grovesnout",
-              "level": 16,
+              "level": 27,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "id": "grovesnout-6",
               "species": "grovesnout",
-              "level": 21,
+              "level": 37,
               "move": "miasma_bloom",
               "enabled": true
             },
             {
               "id": "grovesnout-7",
               "species": "grovesnout",
-              "level": 26,
+              "level": 47,
               "move": "vine_lash",
               "enabled": true
             },
             {
               "id": "grovesnout-8",
               "species": "grovesnout",
-              "level": 31,
+              "level": 57,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "id": "grovesnout-9",
               "species": "grovesnout",
-              "level": 36,
+              "level": 67,
               "move": "bedrock_drum",
               "enabled": true
             },
@@ -7486,28 +7572,28 @@
             {
               "id": "cinderkit-3",
               "species": "cinderkit",
-              "level": 8,
+              "level": 11,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "cinderkit-4",
               "species": "cinderkit",
-              "level": 12,
+              "level": 19,
               "move": "updraft_dive",
               "enabled": true
             },
             {
               "id": "cinderkit-5",
               "species": "cinderkit",
-              "level": 16,
+              "level": 27,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "id": "cinderkit-6",
               "species": "cinderkit",
-              "level": 21,
+              "level": 37,
               "move": "kiln_bloom",
               "enabled": true
             },
@@ -7528,28 +7614,28 @@
             {
               "id": "cindermask-3",
               "species": "cindermask",
-              "level": 8,
+              "level": 11,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "cindermask-4",
               "species": "cindermask",
-              "level": 12,
+              "level": 19,
               "move": "updraft_dive",
               "enabled": true
             },
             {
               "id": "cindermask-5",
               "species": "cindermask",
-              "level": 16,
+              "level": 27,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "id": "cindermask-6",
               "species": "cindermask",
-              "level": 21,
+              "level": 37,
               "move": "kiln_bloom",
               "enabled": true
             },
@@ -7570,28 +7656,28 @@
             {
               "id": "cinderkite-3",
               "species": "cinderkite",
-              "level": 8,
+              "level": 11,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "id": "cinderkite-4",
               "species": "cinderkite",
-              "level": 12,
+              "level": 19,
               "move": "updraft_dive",
               "enabled": true
             },
             {
               "id": "cinderkite-5",
               "species": "cinderkite",
-              "level": 16,
+              "level": 27,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "id": "cinderkite-6",
               "species": "cinderkite",
-              "level": 21,
+              "level": 37,
               "move": "kiln_bloom",
               "enabled": true
             },
@@ -7612,35 +7698,35 @@
             {
               "id": "wallowling-3",
               "species": "wallowling",
-              "level": 8,
+              "level": 11,
               "move": "wallow_ram",
               "enabled": true
             },
             {
               "id": "wallowling-4",
               "species": "wallowling",
-              "level": 12,
+              "level": 19,
               "move": "tide_slam",
               "enabled": true
             },
             {
               "id": "wallowling-5",
               "species": "wallowling",
-              "level": 16,
+              "level": 27,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "id": "wallowling-6",
               "species": "wallowling",
-              "level": 21,
+              "level": 37,
               "move": "vent_jet",
               "enabled": true
             },
             {
               "id": "wallowling-7",
               "species": "wallowling",
-              "level": 26,
+              "level": 47,
               "move": "rime_spike",
               "enabled": true
             },
@@ -7661,35 +7747,35 @@
             {
               "id": "shellwallow-3",
               "species": "shellwallow",
-              "level": 8,
+              "level": 11,
               "move": "wallow_ram",
               "enabled": true
             },
             {
               "id": "shellwallow-4",
               "species": "shellwallow",
-              "level": 12,
+              "level": 19,
               "move": "tide_slam",
               "enabled": true
             },
             {
               "id": "shellwallow-5",
               "species": "shellwallow",
-              "level": 16,
+              "level": 27,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "id": "shellwallow-6",
               "species": "shellwallow",
-              "level": 21,
+              "level": 37,
               "move": "vent_jet",
               "enabled": true
             },
             {
               "id": "shellwallow-7",
               "species": "shellwallow",
-              "level": 26,
+              "level": 47,
               "move": "rime_spike",
               "enabled": true
             },
@@ -7710,35 +7796,35 @@
             {
               "id": "tidewallow-3",
               "species": "tidewallow",
-              "level": 8,
+              "level": 11,
               "move": "wallow_ram",
               "enabled": true
             },
             {
               "id": "tidewallow-4",
               "species": "tidewallow",
-              "level": 12,
+              "level": 19,
               "move": "tide_slam",
               "enabled": true
             },
             {
               "id": "tidewallow-5",
               "species": "tidewallow",
-              "level": 16,
+              "level": 27,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "id": "tidewallow-6",
               "species": "tidewallow",
-              "level": 21,
+              "level": 37,
               "move": "vent_jet",
               "enabled": true
             },
             {
               "id": "tidewallow-7",
               "species": "tidewallow",
-              "level": 26,
+              "level": 47,
               "move": "rime_spike",
               "enabled": true
             }
@@ -7799,105 +7885,105 @@
             {
               "from": "budsnout",
               "to": "fernsnout",
-              "level": 9,
+              "level": 13,
               "move": "thorn_jab",
               "enabled": true
             },
             {
               "from": "fernsnout",
               "to": "grovesnout",
-              "level": 15,
+              "level": 25,
               "move": "briar_charge",
               "enabled": true
             },
             {
               "from": "cinderkit",
               "to": "cindermask",
-              "level": 9,
+              "level": 13,
               "move": "heat_ribbon",
               "enabled": true
             },
             {
               "from": "cindermask",
               "to": "cinderkite",
-              "level": 15,
+              "level": 25,
               "move": "kiln_bloom",
               "enabled": true
             },
             {
               "from": "wallowling",
               "to": "shellwallow",
-              "level": 9,
+              "level": 13,
               "move": "tide_slam",
               "enabled": true
             },
             {
               "from": "shellwallow",
               "to": "tidewallow",
-              "level": 15,
+              "level": 25,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "from": "puffet",
               "to": "drizzlet",
-              "level": 14,
+              "level": 20,
               "move": "rill_lance",
               "enabled": true
             },
             {
               "from": "drizzlet",
               "to": "thundrift",
-              "level": 26,
+              "level": 38,
               "move": "arc_ring",
               "enabled": true
             },
             {
               "from": "lockbox",
               "to": "mimichomp",
-              "level": 16,
+              "level": 24,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "from": "mimichomp",
               "to": "hoardmaw",
-              "level": 30,
+              "level": 44,
               "move": "bedrock_drum",
               "enabled": true
             },
             {
               "from": "slicelet",
               "to": "pizzapod",
-              "level": 14,
+              "level": 20,
               "move": "cinder_roll",
               "enabled": true
             },
             {
               "from": "pizzapod",
               "to": "pizzaroam",
-              "level": 26,
+              "level": 38,
               "move": "kiln_bloom",
               "enabled": true
             },
             {
               "from": "binlet",
               "to": "dumpstomp",
-              "level": 14,
+              "level": 20,
               "move": "shale_ram",
               "enabled": true
             },
             {
               "from": "dumpstomp",
               "to": "toxidump",
-              "level": 26,
+              "level": 38,
               "move": "bedrock_drum",
               "enabled": true
             },
             {
               "from": "cubbin",
               "to": "mossbruin",
-              "level": 14,
+              "level": 20,
               "move": "briar_charge",
               "enabled": true
             }
@@ -8028,6 +8114,22 @@
               "help": "Loài có tiến hoá chỉ gặp tới giai đoạn này ở bậc này (loài không tiến hoá luôn được)."
             },
             {
+              "key": "rareChance",
+              "label": "Tỉ lệ gặp hiếm",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "help": "Mỗi trận bụi cỏ có tỉ lệ này gặp một loài ở ô \"rare\" của bảng Gặp ở bụi cỏ."
+            },
+            {
+              "key": "luckyChance",
+              "label": "Tỉ lệ gặp may",
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "help": "Mỗi trận bụi cỏ có tỉ lệ này gặp loài ở ô \"lucky\" (IV cao, xem Đa dạng gặp gỡ)."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -8038,7 +8140,7 @@
           "default": [
             {
               "tier": 0,
-              "levelBase": 6,
+              "levelBase": 7,
               "wildIvMax": 10,
               "npcIvMin": 2,
               "foeStars": 1,
@@ -8046,6 +8148,8 @@
               "rewardMult": 1,
               "enabled": true,
               "maxStage": 1,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 1,
               "npc_common": 1,
               "wild_uncommon": 0,
@@ -8055,7 +8159,7 @@
             },
             {
               "tier": 1,
-              "levelBase": 10,
+              "levelBase": 15,
               "wildIvMax": 13,
               "npcIvMin": 4,
               "foeStars": 1,
@@ -8063,6 +8167,8 @@
               "rewardMult": 1.25,
               "enabled": true,
               "maxStage": 2,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 1,
               "npc_common": 70,
               "wild_uncommon": 0,
@@ -8072,7 +8178,7 @@
             },
             {
               "tier": 2,
-              "levelBase": 13,
+              "levelBase": 21,
               "wildIvMax": 16,
               "npcIvMin": 6,
               "foeStars": 1,
@@ -8080,6 +8186,8 @@
               "rewardMult": 1.5,
               "enabled": true,
               "maxStage": 2,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 70,
               "npc_common": 50,
               "wild_uncommon": 30,
@@ -8089,7 +8197,7 @@
             },
             {
               "tier": 3,
-              "levelBase": 16,
+              "levelBase": 27,
               "wildIvMax": 19,
               "npcIvMin": 8,
               "foeStars": 2,
@@ -8097,6 +8205,8 @@
               "rewardMult": 1.75,
               "enabled": true,
               "maxStage": 3,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 60,
               "npc_common": 40,
               "wild_uncommon": 40,
@@ -8106,7 +8216,7 @@
             },
             {
               "tier": 4,
-              "levelBase": 19,
+              "levelBase": 33,
               "wildIvMax": 22,
               "npcIvMin": 10,
               "foeStars": 2,
@@ -8114,6 +8224,8 @@
               "rewardMult": 2,
               "enabled": true,
               "maxStage": 3,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 40,
               "npc_common": 30,
               "wild_uncommon": 45,
@@ -8123,7 +8235,7 @@
             },
             {
               "tier": 5,
-              "levelBase": 22,
+              "levelBase": 39,
               "wildIvMax": 25,
               "npcIvMin": 12,
               "foeStars": 3,
@@ -8131,6 +8243,8 @@
               "rewardMult": 2.25,
               "enabled": true,
               "maxStage": 3,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 30,
               "npc_common": 20,
               "wild_uncommon": 50,
@@ -8140,7 +8254,7 @@
             },
             {
               "tier": 6,
-              "levelBase": 27,
+              "levelBase": 49,
               "wildIvMax": 28,
               "npcIvMin": 14,
               "foeStars": 3,
@@ -8148,6 +8262,8 @@
               "rewardMult": 2.5,
               "enabled": true,
               "maxStage": 3,
+              "rareChance": 0.05,
+              "luckyChance": 0.012,
               "wild_common": 20,
               "npc_common": 10,
               "wild_uncommon": 50,
@@ -8160,14 +8276,1486 @@
       ]
     },
     {
+      "id": "table-encounters",
+      "label": "Bảng: Gặp ở bụi cỏ",
+      "blurb": "Loài gặp ở bụi cỏ theo từng bậc: trọng số và ô của mỗi loài. core = luôn có; pick = mỗi lượt chơi chọn một loài của nhóm (hai lượt khác nhau gặp loài khác nhau); hint = hệ của Gym sắp tới, càng gần Gym càng hay gặp; evolved = loài đã tiến hoá, ít gặp; rare / lucky = tung riêng theo tỉ lệ của bảng Bậc. Bậc không có dòng nào thì dùng trọng số vai trò của bảng Bậc.",
+      "fields": [
+        {
+          "key": "tables.encounters",
+          "label": "Gặp ở bụi cỏ",
+          "help": "Loài gặp ở bụi cỏ theo từng bậc: trọng số và ô của mỗi loài. core = luôn có; pick = mỗi lượt chơi chọn một loài của nhóm (hai lượt khác nhau gặp loài khác nhau); hint = hệ của Gym sắp tới, càng gần Gym càng hay gặp; evolved = loài đã tiến hoá, ít gặp; rare / lucky = tung riêng theo tỉ lệ của bảng Bậc. Bậc không có dòng nào thì dùng trọng số vai trò của bảng Bậc.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "tier",
+              "label": "Bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12
+            },
+            {
+              "key": "species",
+              "label": "Loài",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "weight",
+              "label": "Trọng số",
+              "type": "number",
+              "min": 0,
+              "max": 1000,
+              "help": "So với các dòng khác cùng bậc; ô pick: trọng số của cả nhóm. Ô rare/lucky: trọng số trong nhóm rare/lucky."
+            },
+            {
+              "key": "kind",
+              "label": "Ô",
+              "type": "enum",
+              "options": [
+                "core",
+                "pick",
+                "hint",
+                "evolved",
+                "rare",
+                "lucky"
+              ]
+            },
+            {
+              "key": "group",
+              "label": "Nhóm (ô pick)",
+              "type": "text",
+              "help": "Các dòng pick cùng tên nhóm: mỗi lượt chơi chỉ một loài của nhóm xuất hiện."
+            },
+            {
+              "key": "levelMin",
+              "label": "Lệch cấp thấp nhất",
+              "type": "int",
+              "min": -20,
+              "max": 20,
+              "help": "Cộng vào cấp chuẩn của ngày (cấp chuẩn của bậc + số ngày từ huy hiệu x Cấp tăng mỗi ngày)."
+            },
+            {
+              "key": "levelMax",
+              "label": "Lệch cấp cao nhất",
+              "type": "int",
+              "min": -20,
+              "max": 20
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "t0-core-snowpup",
+              "tier": 0,
+              "species": "snowpup",
+              "weight": 30,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-core-hootlet",
+              "tier": 0,
+              "species": "hootlet",
+              "weight": 26,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-core-slicelet",
+              "tier": 0,
+              "species": "slicelet",
+              "weight": 12,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-tabbit",
+              "tier": 0,
+              "species": "tabbit",
+              "weight": 14,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-stripaw",
+              "tier": 0,
+              "species": "stripaw",
+              "weight": 14,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-cubbin",
+              "tier": 0,
+              "species": "cubbin",
+              "weight": 10,
+              "kind": "pick",
+              "group": "meadow",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-fluffwing",
+              "tier": 0,
+              "species": "fluffwing",
+              "weight": 10,
+              "kind": "pick",
+              "group": "meadow",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-spinefin",
+              "tier": 0,
+              "species": "spinefin",
+              "weight": 10,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-pick-axolil",
+              "tier": 0,
+              "species": "axolil",
+              "weight": 10,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-hint-foldwing",
+              "tier": 0,
+              "species": "foldwing",
+              "weight": 8,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-hint-peepwing",
+              "tier": 0,
+              "species": "peepwing",
+              "weight": 6,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-rare-embrush",
+              "tier": 0,
+              "species": "embrush",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-rare-boltbot",
+              "tier": 0,
+              "species": "boltbot",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-rare-wickit",
+              "tier": 0,
+              "species": "wickit",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t0-lucky-steepot",
+              "tier": 0,
+              "species": "steepot",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-snowpup",
+              "tier": 1,
+              "species": "snowpup",
+              "weight": 16,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-hootlet",
+              "tier": 1,
+              "species": "hootlet",
+              "weight": 14,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-puffet",
+              "tier": 1,
+              "species": "puffet",
+              "weight": 14,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-slicelet",
+              "tier": 1,
+              "species": "slicelet",
+              "weight": 12,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-binlet",
+              "tier": 1,
+              "species": "binlet",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-tabbit",
+              "tier": 1,
+              "species": "tabbit",
+              "weight": 10,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-stripaw",
+              "tier": 1,
+              "species": "stripaw",
+              "weight": 10,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-cubbin",
+              "tier": 1,
+              "species": "cubbin",
+              "weight": 10,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-spinefin",
+              "tier": 1,
+              "species": "spinefin",
+              "weight": 8,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-axolil",
+              "tier": 1,
+              "species": "axolil",
+              "weight": 8,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-brewblob",
+              "tier": 1,
+              "species": "brewblob",
+              "weight": 8,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-pick-boltbot",
+              "tier": 1,
+              "species": "boltbot",
+              "weight": 8,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-hint-embrush",
+              "tier": 1,
+              "species": "embrush",
+              "weight": 12,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-hint-wickit",
+              "tier": 1,
+              "species": "wickit",
+              "weight": 12,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-hint-crispit",
+              "tier": 1,
+              "species": "crispit",
+              "weight": 6,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-hint-steepot",
+              "tier": 1,
+              "species": "steepot",
+              "weight": 4,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-rare-geodle",
+              "tier": 1,
+              "species": "geodle",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-rare-cinderhound",
+              "tier": 1,
+              "species": "cinderhound",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-rare-duskwyrm",
+              "tier": 1,
+              "species": "duskwyrm",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-lucky-fluffwing",
+              "tier": 1,
+              "species": "fluffwing",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-hootlet",
+              "tier": 2,
+              "species": "hootlet",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-puffet",
+              "tier": 2,
+              "species": "puffet",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-geodle",
+              "tier": 2,
+              "species": "geodle",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-binlet",
+              "tier": 2,
+              "species": "binlet",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-snowpup",
+              "tier": 2,
+              "species": "snowpup",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-brewblob",
+              "tier": 2,
+              "species": "brewblob",
+              "weight": 12,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-crispit",
+              "tier": 2,
+              "species": "crispit",
+              "weight": 12,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-tabbit",
+              "tier": 2,
+              "species": "tabbit",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-stripaw",
+              "tier": 2,
+              "species": "stripaw",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-cubbin",
+              "tier": 2,
+              "species": "cubbin",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-spinefin",
+              "tier": 2,
+              "species": "spinefin",
+              "weight": 8,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-axolil",
+              "tier": 2,
+              "species": "axolil",
+              "weight": 8,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-steepot",
+              "tier": 2,
+              "species": "steepot",
+              "weight": 8,
+              "kind": "pick",
+              "group": "pond",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-gravelet",
+              "tier": 2,
+              "species": "gravelet",
+              "weight": 8,
+              "kind": "pick",
+              "group": "haunt",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-pick-glimlamp",
+              "tier": 2,
+              "species": "glimlamp",
+              "weight": 8,
+              "kind": "pick",
+              "group": "haunt",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-hint-boltbot",
+              "tier": 2,
+              "species": "boltbot",
+              "weight": 12,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-hint-ringbox",
+              "tier": 2,
+              "species": "ringbox",
+              "weight": 8,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-evolved-pizzapod",
+              "tier": 2,
+              "species": "pizzapod",
+              "weight": 4,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t2-evolved-drizzlet",
+              "tier": 2,
+              "species": "drizzlet",
+              "weight": 4,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t2-rare-cinderhound",
+              "tier": 2,
+              "species": "cinderhound",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-rare-duskwyrm",
+              "tier": 2,
+              "species": "duskwyrm",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-rare-peepwing",
+              "tier": 2,
+              "species": "peepwing",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-lucky-lockbox",
+              "tier": 2,
+              "species": "lockbox",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-spinefin",
+              "tier": 3,
+              "species": "spinefin",
+              "weight": 12,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-axolil",
+              "tier": 3,
+              "species": "axolil",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-steepot",
+              "tier": 3,
+              "species": "steepot",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-puffet",
+              "tier": 3,
+              "species": "puffet",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-geodle",
+              "tier": 3,
+              "species": "geodle",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-hootlet",
+              "tier": 3,
+              "species": "hootlet",
+              "weight": 8,
+              "kind": "pick",
+              "group": "coast",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-foldwing",
+              "tier": 3,
+              "species": "foldwing",
+              "weight": 8,
+              "kind": "pick",
+              "group": "coast",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-snowpup",
+              "tier": 3,
+              "species": "snowpup",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-stripaw",
+              "tier": 3,
+              "species": "stripaw",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-cubbin",
+              "tier": 3,
+              "species": "cubbin",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-slicelet",
+              "tier": 3,
+              "species": "slicelet",
+              "weight": 8,
+              "kind": "pick",
+              "group": "field",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-binlet",
+              "tier": 3,
+              "species": "binlet",
+              "weight": 6,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-brewblob",
+              "tier": 3,
+              "species": "brewblob",
+              "weight": 6,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-gravelet",
+              "tier": 3,
+              "species": "gravelet",
+              "weight": 6,
+              "kind": "pick",
+              "group": "haunt",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-pick-glimlamp",
+              "tier": 3,
+              "species": "glimlamp",
+              "weight": 6,
+              "kind": "pick",
+              "group": "haunt",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-hint-tidecrane",
+              "tier": 3,
+              "species": "tidecrane",
+              "weight": 8,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-hint-drizzlet",
+              "tier": 3,
+              "species": "drizzlet",
+              "weight": 6,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-pizzapod",
+              "tier": 3,
+              "species": "pizzapod",
+              "weight": 3,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-dumpstomp",
+              "tier": 3,
+              "species": "dumpstomp",
+              "weight": 3,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-evolved-mossbruin",
+              "tier": 3,
+              "species": "mossbruin",
+              "weight": 3,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t3-rare-ringbox",
+              "tier": 3,
+              "species": "ringbox",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-rare-slabrute",
+              "tier": 3,
+              "species": "slabrute",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-rare-cinderhound",
+              "tier": 3,
+              "species": "cinderhound",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-lucky-lockbox",
+              "tier": 3,
+              "species": "lockbox",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-geodle",
+              "tier": 4,
+              "species": "geodle",
+              "weight": 14,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-gravelet",
+              "tier": 4,
+              "species": "gravelet",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-duskwyrm",
+              "tier": 4,
+              "species": "duskwyrm",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-cinderhound",
+              "tier": 4,
+              "species": "cinderhound",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-drizzlet",
+              "tier": 4,
+              "species": "drizzlet",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-pick-dumpstomp",
+              "tier": 4,
+              "species": "dumpstomp",
+              "weight": 8,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-pick-ringbox",
+              "tier": 4,
+              "species": "ringbox",
+              "weight": 8,
+              "kind": "pick",
+              "group": "junk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-pick-pizzapod",
+              "tier": 4,
+              "species": "pizzapod",
+              "weight": 6,
+              "kind": "pick",
+              "group": "route",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-pick-glimlamp",
+              "tier": 4,
+              "species": "glimlamp",
+              "weight": 6,
+              "kind": "pick",
+              "group": "route",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-hint-slabrute",
+              "tier": 4,
+              "species": "slabrute",
+              "weight": 10,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-evolved-mossbruin",
+              "tier": 4,
+              "species": "mossbruin",
+              "weight": 4,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t4-rare-mimichomp",
+              "tier": 4,
+              "species": "mimichomp",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-rare-kilnback",
+              "tier": 4,
+              "species": "kilnback",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-rare-coilbadger",
+              "tier": 4,
+              "species": "coilbadger",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-lucky-mossdrake",
+              "tier": 4,
+              "species": "mossdrake",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-core-mossbruin",
+              "tier": 5,
+              "species": "mossbruin",
+              "weight": 12,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-core-slabrute",
+              "tier": 5,
+              "species": "slabrute",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-core-dumpstomp",
+              "tier": 5,
+              "species": "dumpstomp",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-core-pizzapod",
+              "tier": 5,
+              "species": "pizzapod",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-core-drizzlet",
+              "tier": 5,
+              "species": "drizzlet",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-pick-gloamhare",
+              "tier": 5,
+              "species": "gloamhare",
+              "weight": 8,
+              "kind": "pick",
+              "group": "dusk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-pick-glimlamp",
+              "tier": 5,
+              "species": "glimlamp",
+              "weight": 8,
+              "kind": "pick",
+              "group": "dusk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-pick-gravelet",
+              "tier": 5,
+              "species": "gravelet",
+              "weight": 8,
+              "kind": "pick",
+              "group": "dusk",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-pick-ringbox",
+              "tier": 5,
+              "species": "ringbox",
+              "weight": 6,
+              "kind": "pick",
+              "group": "spark",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-pick-coilbadger",
+              "tier": 5,
+              "species": "coilbadger",
+              "weight": 6,
+              "kind": "pick",
+              "group": "spark",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-hint-thornboar",
+              "tier": 5,
+              "species": "thornboar",
+              "weight": 8,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-evolved-mimichomp",
+              "tier": 5,
+              "species": "mimichomp",
+              "weight": 3,
+              "kind": "evolved",
+              "group": "",
+              "levelMin": -4,
+              "levelMax": 0,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-thundrift",
+              "tier": 5,
+              "species": "thundrift",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-pizzaroam",
+              "tier": 5,
+              "species": "pizzaroam",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-toxidump",
+              "tier": 5,
+              "species": "toxidump",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-rare-mossdrake",
+              "tier": 5,
+              "species": "mossdrake",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t5-lucky-hoardmaw",
+              "tier": 5,
+              "species": "hoardmaw",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-mossbruin",
+              "tier": 6,
+              "species": "mossbruin",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-slabrute",
+              "tier": 6,
+              "species": "slabrute",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-dumpstomp",
+              "tier": 6,
+              "species": "dumpstomp",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-pizzapod",
+              "tier": 6,
+              "species": "pizzapod",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-drizzlet",
+              "tier": 6,
+              "species": "drizzlet",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-tidecrane",
+              "tier": 6,
+              "species": "tidecrane",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-gloamhare",
+              "tier": 6,
+              "species": "gloamhare",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-thundrift",
+              "tier": 6,
+              "species": "thundrift",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-pizzaroam",
+              "tier": 6,
+              "species": "pizzaroam",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-toxidump",
+              "tier": 6,
+              "species": "toxidump",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-rare-mimichomp",
+              "tier": 6,
+              "species": "mimichomp",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-lucky-hoardmaw",
+              "tier": 6,
+              "species": "hoardmaw",
+              "weight": 1,
+              "kind": "lucky",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "table-npcTrainers",
       "label": "Bảng: Trainer",
-      "blurb": "Trainer gặp trên đường (mỗi người 1 pet): tên, cấp cộng thêm, bậc bắt đầu xuất hiện và đội theo chủ đề (loài lấy từ đội này giao với bảng Bậc theo huy hiệu; giao rỗng thì lấy cả bậc).",
+      "blurb": "Lớp trainer gặp trên đường (mỗi người 1 pet): tên lớp, bậc xuất hiện, trọng số chọn, cấp cộng thêm và loài át chủ bài (ít khi dùng). Đội của mỗi lớp ở bảng Đội trainer. Cùng lớp không gặp hai lần liền.",
       "fields": [
         {
           "key": "tables.npcTrainers",
           "label": "Trainer",
-          "help": "Trainer gặp trên đường (mỗi người 1 pet): tên, cấp cộng thêm, bậc bắt đầu xuất hiện và đội theo chủ đề (loài lấy từ đội này giao với bảng Bậc theo huy hiệu; giao rỗng thì lấy cả bậc).",
+          "help": "Lớp trainer gặp trên đường (mỗi người 1 pet): tên lớp, bậc xuất hiện, trọng số chọn, cấp cộng thêm và loài át chủ bài (ít khi dùng). Đội của mỗi lớp ở bảng Đội trainer. Cùng lớp không gặp hai lần liền.",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -8197,11 +9785,26 @@
               "max": 12
             },
             {
-              "key": "roster",
-              "label": "Đội theo chủ đề",
+              "key": "maxTier",
+              "label": "Tới bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12
+            },
+            {
+              "key": "weight",
+              "label": "Trọng số",
+              "type": "number",
+              "min": 0,
+              "max": 1000,
+              "help": "So với các lớp khác đang mở ở bậc này."
+            },
+            {
+              "key": "ace",
+              "label": "Át chủ bài",
               "type": "list",
               "ref": "species",
-              "help": "Các loài trainer này hay dùng (để trống = mọi loài của bậc)."
+              "help": "Loài hiếm lớp này đôi khi dùng (tỉ lệ ở Đa dạng gặp gỡ)."
             },
             {
               "key": "enabled",
@@ -8213,116 +9816,1075 @@
           "canAdd": true,
           "default": [
             {
-              "id": "npc1",
-              "name": "Hiker Toma",
+              "id": "scamp",
+              "name": "Scamp",
               "levelBonus": 0,
               "minTier": 0,
-              "roster": [
-                "snowpup",
-                "hootlet",
-                "gloamhare",
-                "shalehorn",
-                "thornboar",
-                "coilbadger"
+              "maxTier": 3,
+              "weight": 10,
+              "ace": [
+                "boltbot",
+                "steepot"
               ],
               "enabled": true
             },
             {
-              "id": "npc2",
-              "name": "Ranger Lio",
+              "id": "charm",
+              "name": "Charm Girl",
               "levelBonus": 0,
               "minTier": 0,
-              "roster": [
-                "tabbit",
-                "embrush",
-                "hootlet",
-                "thornboar",
+              "maxTier": 4,
+              "weight": 9,
+              "ace": [
+                "lockbox",
+                "fluffwing"
+              ],
+              "enabled": true
+            },
+            {
+              "id": "nightwalker",
+              "name": "Nightwalker",
+              "levelBonus": 0,
+              "minTier": 0,
+              "maxTier": 1,
+              "weight": 8,
+              "ace": [
+                "peepwing",
                 "gloamhare"
               ],
               "enabled": true
             },
             {
-              "id": "npc3",
-              "name": "Scout Peni",
+              "id": "angler",
+              "name": "Angler",
               "levelBonus": 0,
               "minTier": 0,
-              "roster": [
-                "tabbit",
-                "puffet",
-                "snowpup",
-                "tidecrane",
-                "gloamhare"
+              "maxTier": 6,
+              "weight": 8,
+              "ace": [
+                "tidecrane"
               ],
               "enabled": true
             },
             {
-              "id": "npc4",
-              "name": "Fisher Bao",
+              "id": "skykeeper",
+              "name": "Skykeeper",
               "levelBonus": 0,
               "minTier": 1,
-              "roster": [
-                "spinefin",
-                "puffet",
-                "tidecrane",
-                "shellwallow",
-                "tidewallow"
+              "maxTier": 6,
+              "weight": 8,
+              "ace": [
+                "duskwyrm",
+                "thundrift"
               ],
               "enabled": true
             },
             {
-              "id": "npc5",
-              "name": "Biker Ren",
-              "levelBonus": 1,
+              "id": "rockhound",
+              "name": "Rockhound",
+              "levelBonus": 2,
+              "minTier": 1,
+              "maxTier": 5,
+              "weight": 8,
+              "ace": [
+                "shalehorn"
+              ],
+              "enabled": true
+            },
+            {
+              "id": "stoker",
+              "name": "Stoker",
+              "levelBonus": 0,
+              "minTier": 1,
+              "maxTier": 2,
+              "weight": 8,
+              "ace": [
+                "cinderhound",
+                "kilnback"
+              ],
+              "enabled": true
+            },
+            {
+              "id": "tinkerer",
+              "name": "Tinkerer",
+              "levelBonus": 0,
               "minTier": 2,
-              "roster": [
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "kilnback",
+              "maxTier": 3,
+              "weight": 8,
+              "ace": [
                 "coilbadger"
               ],
               "enabled": true
             },
             {
-              "id": "npc6",
-              "name": "Ace Mika",
-              "levelBonus": 1,
+              "id": "smogrider",
+              "name": "Smog Rider",
+              "levelBonus": 2,
+              "minTier": 2,
+              "maxTier": 6,
+              "weight": 7,
+              "ace": [
+                "toxidump"
+              ],
+              "enabled": true
+            },
+            {
+              "id": "diver",
+              "name": "Diver",
+              "levelBonus": 0,
               "minTier": 3,
-              "roster": [
-                "gloamhare",
-                "tidecrane",
-                "cinderkite",
-                "coilbadger",
-                "fernsnout"
+              "maxTier": 4,
+              "weight": 8,
+              "ace": [
+                "thundrift"
               ],
               "enabled": true
             },
             {
-              "id": "npc7",
-              "name": "Veteran Odo",
+              "id": "seer",
+              "name": "Seer",
               "levelBonus": 2,
+              "minTier": 3,
+              "maxTier": 6,
+              "weight": 7,
+              "ace": [
+                "mimichomp",
+                "hoardmaw"
+              ],
+              "enabled": true
+            },
+            {
+              "id": "gardener",
+              "name": "Gardener",
+              "levelBonus": 0,
               "minTier": 4,
-              "roster": [
-                "shalehorn",
-                "thornboar",
-                "kilnback",
-                "tidewallow",
-                "shellwallow"
+              "maxTier": 6,
+              "weight": 8,
+              "ace": [
+                "mossdrake"
               ],
               "enabled": true
             },
             {
-              "id": "npc8",
-              "name": "Ace Rhea",
-              "levelBonus": 2,
+              "id": "veteran",
+              "name": "Veteran",
+              "levelBonus": 4,
               "minTier": 5,
-              "roster": [
-                "grovesnout",
-                "cinderkite",
-                "tidewallow",
-                "gloamhare",
-                "coilbadger"
+              "maxTier": 6,
+              "weight": 5,
+              "ace": [
+                "hoardmaw",
+                "shalehorn"
               ],
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-trainerRoster",
+      "label": "Bảng: Đội trainer",
+      "blurb": "Loài mỗi lớp trainer dùng, trọng số và bậc. Lớp không có dòng nào ở bậc hiện tại thì không xuất hiện.",
+      "fields": [
+        {
+          "key": "tables.trainerRoster",
+          "label": "Đội trainer",
+          "help": "Loài mỗi lớp trainer dùng, trọng số và bậc. Lớp không có dòng nào ở bậc hiện tại thì không xuất hiện.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "trainer",
+              "label": "Lớp trainer",
+              "type": "enum",
+              "ref": "npcTrainers"
+            },
+            {
+              "key": "species",
+              "label": "Loài",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "weight",
+              "label": "Trọng số",
+              "type": "number",
+              "min": 0,
+              "max": 1000
+            },
+            {
+              "key": "minTier",
+              "label": "Từ bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12
+            },
+            {
+              "key": "maxTier",
+              "label": "Tới bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "scamp-snowpup",
+              "trainer": "scamp",
+              "species": "snowpup",
+              "weight": 4,
+              "minTier": 0,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "scamp-tabbit",
+              "trainer": "scamp",
+              "species": "tabbit",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "scamp-stripaw",
+              "trainer": "scamp",
+              "species": "stripaw",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "scamp-slicelet",
+              "trainer": "scamp",
+              "species": "slicelet",
+              "weight": 2,
+              "minTier": 0,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "scamp-cubbin",
+              "trainer": "scamp",
+              "species": "cubbin",
+              "weight": 2,
+              "minTier": 0,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "scamp-pizzapod",
+              "trainer": "scamp",
+              "species": "pizzapod",
+              "weight": 2,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "charm-fluffwing",
+              "trainer": "charm",
+              "species": "fluffwing",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "charm-cubbin",
+              "trainer": "charm",
+              "species": "cubbin",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "charm-hootlet",
+              "trainer": "charm",
+              "species": "hootlet",
+              "weight": 2,
+              "minTier": 0,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "charm-puffet",
+              "trainer": "charm",
+              "species": "puffet",
+              "weight": 2,
+              "minTier": 1,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "charm-drizzlet",
+              "trainer": "charm",
+              "species": "drizzlet",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "charm-glimlamp",
+              "trainer": "charm",
+              "species": "glimlamp",
+              "weight": 1,
+              "minTier": 2,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "nightwalker-foldwing",
+              "trainer": "nightwalker",
+              "species": "foldwing",
+              "weight": 4,
+              "minTier": 0,
+              "maxTier": 1,
+              "enabled": true
+            },
+            {
+              "id": "nightwalker-hootlet",
+              "trainer": "nightwalker",
+              "species": "hootlet",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 1,
+              "enabled": true
+            },
+            {
+              "id": "nightwalker-slicelet",
+              "trainer": "nightwalker",
+              "species": "slicelet",
+              "weight": 2,
+              "minTier": 0,
+              "maxTier": 1,
+              "enabled": true
+            },
+            {
+              "id": "nightwalker-stripaw",
+              "trainer": "nightwalker",
+              "species": "stripaw",
+              "weight": 1,
+              "minTier": 0,
+              "maxTier": 1,
+              "enabled": true
+            },
+            {
+              "id": "angler-spinefin",
+              "trainer": "angler",
+              "species": "spinefin",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "angler-axolil",
+              "trainer": "angler",
+              "species": "axolil",
+              "weight": 3,
+              "minTier": 0,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "angler-steepot",
+              "trainer": "angler",
+              "species": "steepot",
+              "weight": 2,
+              "minTier": 1,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "angler-tidecrane",
+              "trainer": "angler",
+              "species": "tidecrane",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "angler-drizzlet",
+              "trainer": "angler",
+              "species": "drizzlet",
+              "weight": 1,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-hootlet",
+              "trainer": "skykeeper",
+              "species": "hootlet",
+              "weight": 3,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-foldwing",
+              "trainer": "skykeeper",
+              "species": "foldwing",
+              "weight": 3,
+              "minTier": 1,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-puffet",
+              "trainer": "skykeeper",
+              "species": "puffet",
+              "weight": 3,
+              "minTier": 1,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-drizzlet",
+              "trainer": "skykeeper",
+              "species": "drizzlet",
+              "weight": 3,
+              "minTier": 2,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-duskwyrm",
+              "trainer": "skykeeper",
+              "species": "duskwyrm",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-tidecrane",
+              "trainer": "skykeeper",
+              "species": "tidecrane",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "skykeeper-thundrift",
+              "trainer": "skykeeper",
+              "species": "thundrift",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-snowpup",
+              "trainer": "rockhound",
+              "species": "snowpup",
+              "weight": 2,
+              "minTier": 1,
+              "maxTier": 1,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-cubbin",
+              "trainer": "rockhound",
+              "species": "cubbin",
+              "weight": 2,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-geodle",
+              "trainer": "rockhound",
+              "species": "geodle",
+              "weight": 4,
+              "minTier": 2,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-gravelet",
+              "trainer": "rockhound",
+              "species": "gravelet",
+              "weight": 2,
+              "minTier": 2,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-slabrute",
+              "trainer": "rockhound",
+              "species": "slabrute",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-mossbruin",
+              "trainer": "rockhound",
+              "species": "mossbruin",
+              "weight": 1,
+              "minTier": 4,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "stoker-embrush",
+              "trainer": "stoker",
+              "species": "embrush",
+              "weight": 4,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "stoker-wickit",
+              "trainer": "stoker",
+              "species": "wickit",
+              "weight": 4,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "stoker-crispit",
+              "trainer": "stoker",
+              "species": "crispit",
+              "weight": 2,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "stoker-steepot",
+              "trainer": "stoker",
+              "species": "steepot",
+              "weight": 1,
+              "minTier": 1,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "stoker-pizzapod",
+              "trainer": "stoker",
+              "species": "pizzapod",
+              "weight": 1,
+              "minTier": 2,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "tinkerer-boltbot",
+              "trainer": "tinkerer",
+              "species": "boltbot",
+              "weight": 4,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "tinkerer-ringbox",
+              "trainer": "tinkerer",
+              "species": "ringbox",
+              "weight": 3,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "tinkerer-crispit",
+              "trainer": "tinkerer",
+              "species": "crispit",
+              "weight": 3,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "tinkerer-binlet",
+              "trainer": "tinkerer",
+              "species": "binlet",
+              "weight": 1,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "smogrider-binlet",
+              "trainer": "smogrider",
+              "species": "binlet",
+              "weight": 3,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "smogrider-brewblob",
+              "trainer": "smogrider",
+              "species": "brewblob",
+              "weight": 3,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "smogrider-crispit",
+              "trainer": "smogrider",
+              "species": "crispit",
+              "weight": 1,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "smogrider-dumpstomp",
+              "trainer": "smogrider",
+              "species": "dumpstomp",
+              "weight": 3,
+              "minTier": 3,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "smogrider-toxidump",
+              "trainer": "smogrider",
+              "species": "toxidump",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "diver-axolil",
+              "trainer": "diver",
+              "species": "axolil",
+              "weight": 3,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "diver-spinefin",
+              "trainer": "diver",
+              "species": "spinefin",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "diver-steepot",
+              "trainer": "diver",
+              "species": "steepot",
+              "weight": 3,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "diver-tidecrane",
+              "trainer": "diver",
+              "species": "tidecrane",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "diver-drizzlet",
+              "trainer": "diver",
+              "species": "drizzlet",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "seer-gravelet",
+              "trainer": "seer",
+              "species": "gravelet",
+              "weight": 3,
+              "minTier": 3,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "seer-glimlamp",
+              "trainer": "seer",
+              "species": "glimlamp",
+              "weight": 3,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "seer-peepwing",
+              "trainer": "seer",
+              "species": "peepwing",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
+              "id": "seer-gloamhare",
+              "trainer": "seer",
+              "species": "gloamhare",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "seer-mimichomp",
+              "trainer": "seer",
+              "species": "mimichomp",
+              "weight": 2,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-mossbruin",
+              "trainer": "gardener",
+              "species": "mossbruin",
+              "weight": 4,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-thornboar",
+              "trainer": "gardener",
+              "species": "thornboar",
+              "weight": 3,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-pizzapod",
+              "trainer": "gardener",
+              "species": "pizzapod",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "gardener-drizzlet",
+              "trainer": "gardener",
+              "species": "drizzlet",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-mossdrake",
+              "trainer": "gardener",
+              "species": "mossdrake",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-slabrute",
+              "trainer": "veteran",
+              "species": "slabrute",
+              "weight": 2,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-mossbruin",
+              "trainer": "veteran",
+              "species": "mossbruin",
+              "weight": 2,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-dumpstomp",
+              "trainer": "veteran",
+              "species": "dumpstomp",
+              "weight": 2,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-pizzaroam",
+              "trainer": "veteran",
+              "species": "pizzaroam",
+              "weight": 2,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-thundrift",
+              "trainer": "veteran",
+              "species": "thundrift",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-toxidump",
+              "trainer": "veteran",
+              "species": "toxidump",
+              "weight": 1,
+              "minTier": 5,
+              "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "veteran-hoardmaw",
+              "trainer": "veteran",
+              "species": "hoardmaw",
+              "weight": 1,
+              "minTier": 6,
+              "maxTier": 6,
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-encounterWeather",
+      "label": "Bảng: Thời tiết và loài gặp",
+      "blurb": "Thời tiết trong ngày làm loài của một hệ hay gặp hơn (hoặc ít hơn): trọng số loài hệ đó nhân hệ số. Thời tiết là mã pixelfx của bảng Theme, hoặc tint:<hệ> cho màu theme.",
+      "fields": [
+        {
+          "key": "tables.encounterWeather",
+          "label": "Thời tiết và loài gặp",
+          "help": "Thời tiết trong ngày làm loài của một hệ hay gặp hơn (hoặc ít hơn): trọng số loài hệ đó nhân hệ số. Thời tiết là mã pixelfx của bảng Theme, hoặc tint:<hệ> cho màu theme.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "weather",
+              "label": "Thời tiết",
+              "type": "text"
+            },
+            {
+              "key": "type",
+              "label": "Hệ",
+              "type": "enum",
+              "options": [
+                "normal",
+                "fire",
+                "water",
+                "grass",
+                "electric",
+                "ice",
+                "fighting",
+                "poison",
+                "ground",
+                "flying",
+                "psychic",
+                "bug",
+                "rock",
+                "ghost",
+                "dragon",
+                "dark",
+                "steel",
+                "fairy"
+              ]
+            },
+            {
+              "key": "mult",
+              "label": "Hệ số",
+              "type": "number",
+              "min": 0,
+              "max": 20
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "rain-water",
+              "weather": "weather/rain",
+              "type": "water",
+              "mult": 2,
+              "enabled": true
+            },
+            {
+              "id": "rain-electric",
+              "weather": "weather/rain",
+              "type": "electric",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "storm-electric",
+              "weather": "weather/storm",
+              "type": "electric",
+              "mult": 2,
+              "enabled": true
+            },
+            {
+              "id": "storm-water",
+              "weather": "weather/storm",
+              "type": "water",
+              "mult": 1.5,
+              "enabled": true
+            },
+            {
+              "id": "storm-flying",
+              "weather": "weather/storm",
+              "type": "flying",
+              "mult": 0.6,
+              "enabled": true
+            },
+            {
+              "id": "snow-ice",
+              "weather": "weather/snow",
+              "type": "ice",
+              "mult": 3,
+              "enabled": true
+            },
+            {
+              "id": "snow-water",
+              "weather": "weather/snow",
+              "type": "water",
+              "mult": 1.2,
+              "enabled": true
+            },
+            {
+              "id": "blizzard-ice",
+              "weather": "weather/blizzard",
+              "type": "ice",
+              "mult": 3,
+              "enabled": true
+            },
+            {
+              "id": "blizzard-rock",
+              "weather": "weather/blizzard",
+              "type": "rock",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "fog-ghost",
+              "weather": "weather/fog",
+              "type": "ghost",
+              "mult": 2.5,
+              "enabled": true
+            },
+            {
+              "id": "fog-psychic",
+              "weather": "weather/fog",
+              "type": "psychic",
+              "mult": 1.5,
+              "enabled": true
+            },
+            {
+              "id": "fog-poison",
+              "weather": "weather/fog",
+              "type": "poison",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "fireflies-bug",
+              "weather": "weather/fireflies",
+              "type": "bug",
+              "mult": 1.5,
+              "enabled": true
+            },
+            {
+              "id": "fireflies-ghost",
+              "weather": "weather/fireflies",
+              "type": "ghost",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "clouds-flying",
+              "weather": "weather/clouds",
+              "type": "flying",
+              "mult": 1.5,
+              "enabled": true
+            },
+            {
+              "id": "falling-leaves-grass",
+              "weather": "weather/falling-leaves",
+              "type": "grass",
+              "mult": 1.5,
+              "enabled": true
+            },
+            {
+              "id": "falling-leaves-bug",
+              "weather": "weather/falling-leaves",
+              "type": "bug",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "cherry-blossoms-fairy",
+              "weather": "weather/cherry-blossoms",
+              "type": "fairy",
+              "mult": 2.5,
+              "enabled": true
+            },
+            {
+              "id": "cherry-blossoms-grass",
+              "weather": "weather/cherry-blossoms",
+              "type": "grass",
+              "mult": 1.3,
+              "enabled": true
+            },
+            {
+              "id": "tint:fire-fire",
+              "weather": "tint:fire",
+              "type": "fire",
+              "mult": 1.6,
+              "enabled": true
+            },
+            {
+              "id": "tint:electric-electric",
+              "weather": "tint:electric",
+              "type": "electric",
+              "mult": 1.4,
               "enabled": true
             }
           ]
@@ -8440,7 +11002,7 @@
               "order": 1,
               "name": "Leader Nyx",
               "species": "gloamhare",
-              "levelBonus": 3,
+              "levelBonus": 6,
               "iv": 12,
               "stars": 1,
               "trained": 0,
@@ -8477,7 +11039,7 @@
               "moves": [
                 "jolt_nip",
                 "arc_ring",
-                "quickstep",
+                "ember_volley",
                 "stoke_up"
               ],
               "held": "",
@@ -8494,7 +11056,12 @@
               "iv": 10,
               "stars": 1,
               "trained": 0,
-              "moves": [],
+              "moves": [
+                "wallow_ram",
+                "tide_slam",
+                "rill_lance",
+                "rime_spike"
+              ],
               "held": "",
               "theme": "tide",
               "enabled": true
@@ -8505,7 +11072,7 @@
               "order": 5,
               "name": "Leader Brann",
               "species": "shalehorn",
-              "levelBonus": 1,
+              "levelBonus": 2,
               "iv": 16,
               "stars": 2,
               "trained": 10,
@@ -8520,7 +11087,7 @@
               "order": 6,
               "name": "Leader Thorne",
               "species": "thornboar",
-              "levelBonus": 2,
+              "levelBonus": 4,
               "iv": 14,
               "stars": 2,
               "trained": 10,
@@ -8535,7 +11102,7 @@
               "order": 1,
               "name": "Elite Sora",
               "species": "cinderkite",
-              "levelBonus": 3,
+              "levelBonus": 6,
               "iv": 26,
               "stars": 2,
               "trained": 35,
@@ -8550,7 +11117,7 @@
               "order": 2,
               "name": "Elite Juno",
               "species": "tidewallow",
-              "levelBonus": 3,
+              "levelBonus": 6,
               "iv": 26,
               "stars": 2,
               "trained": 10,
@@ -8565,7 +11132,7 @@
               "order": 3,
               "name": "Elite Kade",
               "species": "grovesnout",
-              "levelBonus": 4,
+              "levelBonus": 8,
               "iv": 28,
               "stars": 3,
               "trained": 30,
@@ -8580,7 +11147,7 @@
               "order": 4,
               "name": "Elite Vex",
               "species": "gloamhare",
-              "levelBonus": 4,
+              "levelBonus": 8,
               "iv": 28,
               "stars": 3,
               "trained": 40,
@@ -8595,11 +11162,16 @@
               "order": 1,
               "name": "Champion Ilse",
               "species": "shalehorn",
-              "levelBonus": 6,
+              "levelBonus": 12,
               "iv": 31,
               "stars": 3,
               "trained": 75,
-              "moves": [],
+              "moves": [
+                "rime_spike",
+                "stoke_up",
+                "vine_lash",
+                "shale_ram"
+              ],
               "held": "power_band",
               "theme": "champion",
               "enabled": true
