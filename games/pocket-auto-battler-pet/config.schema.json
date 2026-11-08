@@ -5530,10 +5530,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
-              "fxCast": "impacts/heavy-landing",
+              "fxCast": "",
               "fxTravel": "",
               "fxImpact": "",
-              "fxAura": "scifi/force-field",
+              "fxAura": "pab/buff-aura",
               "enabled": true
             },
             {
@@ -5548,10 +5548,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
-              "fxCast": "fire/campfire",
+              "fxCast": "",
               "fxTravel": "",
               "fxImpact": "",
-              "fxAura": "status/rage",
+              "fxAura": "pab/buff-aura",
               "enabled": true
             },
             {
@@ -5566,10 +5566,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
-              "fxCast": "nature/healing-bloom",
+              "fxCast": "",
               "fxTravel": "",
               "fxImpact": "",
-              "fxAura": "holy/blessing",
+              "fxAura": "pab/buff-aura",
               "enabled": true
             },
             {
@@ -5584,10 +5584,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
-              "fxCast": "spawn/poof",
+              "fxCast": "",
               "fxTravel": "",
               "fxImpact": "",
-              "fxAura": "status/haste",
+              "fxAura": "pab/buff-aura",
               "enabled": true
             }
           ]
