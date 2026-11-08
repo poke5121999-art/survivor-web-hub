@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 16,
+  "version": 17,
   "tabs": [
     {
       "id": "run",
@@ -1058,6 +1058,24 @@
           "min": 0.3,
           "max": 2,
           "default": 1.4
+        },
+        {
+          "key": "battle.projectileTurn",
+          "label": "Đạn: bám mục tiêu (độ/giây)",
+          "help": "Viên đạn đang bay rẽ về phía mục tiêu tối đa chừng này độ mỗi giây (0 = bay thẳng như cũ). 180: trận thường trượt khoảng 1/8 số đòn thay vì 1/5.",
+          "type": "number",
+          "min": 0,
+          "max": 720,
+          "default": 180
+        },
+        {
+          "key": "battle.dashTurn",
+          "label": "Lao: bám mục tiêu (độ/giây)",
+          "help": "Cú lao đang chạy rẽ về phía mục tiêu tối đa chừng này độ mỗi giây (0 = lao thẳng).",
+          "type": "number",
+          "min": 0,
+          "max": 720,
+          "default": 0
         },
         {
           "key": "battle.aimLead",
