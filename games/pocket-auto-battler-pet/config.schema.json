@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 7,
+  "version": 8,
   "tabs": [
     {
       "id": "run",
@@ -93,6 +93,16 @@
           "help": "Tắt (mặc định): bỏ lượt thì pet không vào PC, vẫn luyện lại được như trước lượt. Bật: pet đã luyện vào PC như khi hết lượt.",
           "type": "bool",
           "default": false
+        },
+        {
+          "key": "run.firstRunExtraHearts",
+          "label": "Tim thêm ở lượt đầu",
+          "help": "Lượt chơi đầu tiên của người chơi mới có thêm chừng này tim.",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "unit": "tim",
+          "default": 1
         },
         {
           "key": "run.maxEquipment",
@@ -235,7 +245,7 @@
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 20
+          "default": 32
         },
         {
           "key": "rewards.npcExp",
@@ -245,7 +255,7 @@
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 30
+          "default": 42
         },
         {
           "key": "rewards.gymExp",
@@ -1547,6 +1557,27 @@
               ]
             },
             {
+              "key": "role",
+              "label": "Vai trò",
+              "type": "enum",
+              "options": [
+                "common",
+                "uncommon",
+                "rare",
+                "starter",
+                "legendary"
+              ],
+              "help": "common/uncommon/rare: gặp ở bụi cỏ và trainer theo trọng số của bảng Bậc; starter: chỉ chọn lúc đầu và gacha, không bao giờ hoang dã; legendary: chỉ sự kiện."
+            },
+            {
+              "key": "foeLevelAdj",
+              "label": "Chỉnh cấp khi là đối thủ",
+              "type": "int",
+              "min": -10,
+              "max": 10,
+              "help": "Cộng vào cấp khi loài này là pet hoang/trainer (loài phổ thông mạnh hơn starter thì để âm cho đầu game nhẹ)."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -1584,6 +1615,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SSR",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1615,6 +1648,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SR",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1646,6 +1681,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SR",
+              "role": "common",
+              "foeLevelAdj": -2,
               "enabled": true
             },
             {
@@ -1677,6 +1714,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SSR",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1708,6 +1747,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SSR",
+              "role": "rare",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1739,6 +1780,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SR",
+              "role": "common",
+              "foeLevelAdj": -2,
               "enabled": true
             },
             {
@@ -1770,6 +1813,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "R",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1801,6 +1846,8 @@
               "evolvesFrom": "budsnout",
               "stage": 2,
               "rarity": "SR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1832,6 +1879,8 @@
               "evolvesFrom": "fernsnout",
               "stage": 3,
               "rarity": "SSR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1863,6 +1912,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "R",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1894,6 +1945,8 @@
               "evolvesFrom": "cinderkit",
               "stage": 2,
               "rarity": "SR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1925,6 +1978,8 @@
               "evolvesFrom": "cindermask",
               "stage": 3,
               "rarity": "SSR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1956,6 +2011,8 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "R",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -1987,6 +2044,8 @@
               "evolvesFrom": "wallowling",
               "stage": 2,
               "rarity": "SR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             },
             {
@@ -2018,6 +2077,8 @@
               "evolvesFrom": "shellwallow",
               "stage": 3,
               "rarity": "SSR",
+              "role": "starter",
+              "foeLevelAdj": 0,
               "enabled": true
             }
           ]
@@ -5186,6 +5247,16 @@
               "max": 100
             },
             {
+              "key": "move",
+              "label": "Chiêu học khi tiến hoá",
+              "type": "enum",
+              "ref": "moves",
+              "options": [
+                ""
+              ],
+              "help": "Tiến hoá xong pet học chiêu này (vào ô trống, hoặc hỏi thay chiêu nào); để trống = không."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -5198,36 +5269,42 @@
               "from": "budsnout",
               "to": "fernsnout",
               "level": 9,
+              "move": "thorn_jab",
               "enabled": true
             },
             {
               "from": "fernsnout",
               "to": "grovesnout",
               "level": 15,
+              "move": "briar_charge",
               "enabled": true
             },
             {
               "from": "cinderkit",
               "to": "cindermask",
               "level": 9,
+              "move": "heat_ribbon",
               "enabled": true
             },
             {
               "from": "cindermask",
               "to": "cinderkite",
               "level": 15,
+              "move": "kiln_bloom",
               "enabled": true
             },
             {
               "from": "wallowling",
               "to": "shellwallow",
               "level": 9,
+              "move": "tide_slam",
               "enabled": true
             },
             {
               "from": "shellwallow",
               "to": "tidewallow",
               "level": 15,
+              "move": "rill_lance",
               "enabled": true
             }
           ]
@@ -5301,16 +5378,60 @@
               "help": "Nhân vào vàng và điểm luyện của mọi trận thắng ở bậc này."
             },
             {
-              "key": "wild",
-              "label": "Loài ở bụi cỏ",
-              "type": "list",
-              "ref": "species"
+              "key": "wild_common",
+              "label": "Bụi cỏ: common",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò common ở bụi cỏ (0 = không gặp). Starter không bao giờ gặp."
             },
             {
-              "key": "npc",
-              "label": "Loài của trainer",
-              "type": "list",
-              "ref": "species"
+              "key": "npc_common",
+              "label": "Trainer: common",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò common cho trainer thường."
+            },
+            {
+              "key": "wild_uncommon",
+              "label": "Bụi cỏ: uncommon",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò uncommon ở bụi cỏ (0 = không gặp). Starter không bao giờ gặp."
+            },
+            {
+              "key": "npc_uncommon",
+              "label": "Trainer: uncommon",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò uncommon cho trainer thường."
+            },
+            {
+              "key": "wild_rare",
+              "label": "Bụi cỏ: rare",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò rare ở bụi cỏ (0 = không gặp). Starter không bao giờ gặp."
+            },
+            {
+              "key": "npc_rare",
+              "label": "Trainer: rare",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Trọng số chọn loài vai trò rare cho trainer thường."
+            },
+            {
+              "key": "maxStage",
+              "label": "Giai đoạn tiến hoá tối đa",
+              "type": "int",
+              "min": 1,
+              "max": 3,
+              "help": "Loài có tiến hoá chỉ gặp tới giai đoạn này ở bậc này (loài không tiến hoá luôn được)."
             },
             {
               "key": "enabled",
@@ -5330,16 +5451,13 @@
               "foeTrained": 0,
               "rewardMult": 1,
               "enabled": true,
-              "wild": [
-                "budsnout",
-                "cinderkit",
-                "wallowling"
-              ],
-              "npc": [
-                "budsnout",
-                "cinderkit",
-                "wallowling"
-              ]
+              "maxStage": 1,
+              "wild_common": 1,
+              "npc_common": 1,
+              "wild_uncommon": 0,
+              "npc_uncommon": 0,
+              "wild_rare": 0,
+              "npc_rare": 0
             },
             {
               "tier": 1,
@@ -5350,34 +5468,13 @@
               "foeTrained": 4,
               "rewardMult": 1.25,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "maxStage": 2,
+              "wild_common": 1,
+              "npc_common": 70,
+              "wild_uncommon": 0,
+              "npc_uncommon": 30,
+              "wild_rare": 0,
+              "npc_rare": 0
             },
             {
               "tier": 2,
@@ -5388,34 +5485,13 @@
               "foeTrained": 8,
               "rewardMult": 1.5,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "maxStage": 2,
+              "wild_common": 70,
+              "npc_common": 50,
+              "wild_uncommon": 30,
+              "npc_uncommon": 50,
+              "wild_rare": 0,
+              "npc_rare": 0
             },
             {
               "tier": 3,
@@ -5426,37 +5502,13 @@
               "foeTrained": 12,
               "rewardMult": 1.75,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "cinderkit",
-                "cindermask",
-                "wallowling",
-                "shellwallow"
-              ]
+              "maxStage": 3,
+              "wild_common": 60,
+              "npc_common": 40,
+              "wild_uncommon": 40,
+              "npc_uncommon": 50,
+              "wild_rare": 0,
+              "npc_rare": 10
             },
             {
               "tier": 4,
@@ -5467,40 +5519,13 @@
               "foeTrained": 16,
               "rewardMult": 2,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ]
+              "maxStage": 3,
+              "wild_common": 40,
+              "npc_common": 30,
+              "wild_uncommon": 45,
+              "npc_uncommon": 50,
+              "wild_rare": 15,
+              "npc_rare": 20
             },
             {
               "tier": 5,
@@ -5511,40 +5536,13 @@
               "foeTrained": 20,
               "rewardMult": 2.25,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ]
+              "maxStage": 3,
+              "wild_common": 30,
+              "npc_common": 20,
+              "wild_uncommon": 50,
+              "npc_uncommon": 50,
+              "wild_rare": 20,
+              "npc_rare": 30
             },
             {
               "tier": 6,
@@ -5555,40 +5553,13 @@
               "foeTrained": 24,
               "rewardMult": 2.5,
               "enabled": true,
-              "wild": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ],
-              "npc": [
-                "coilbadger",
-                "kilnback",
-                "tidecrane",
-                "thornboar",
-                "shalehorn",
-                "gloamhare",
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "cinderkit",
-                "cindermask",
-                "cinderkite",
-                "wallowling",
-                "shellwallow",
-                "tidewallow"
-              ]
+              "maxStage": 3,
+              "wild_common": 20,
+              "npc_common": 10,
+              "wild_uncommon": 50,
+              "npc_uncommon": 50,
+              "wild_rare": 30,
+              "npc_rare": 40
             }
           ]
         }
@@ -5653,10 +5624,7 @@
               "levelBonus": 0,
               "minTier": 0,
               "roster": [
-                "budsnout",
-                "fernsnout",
-                "grovesnout",
-                "wallowling",
+                "gloamhare",
                 "shalehorn",
                 "thornboar",
                 "coilbadger"
@@ -6276,19 +6244,19 @@
           "default": [
             {
               "rank": "C",
-              "crystals": 30,
+              "crystals": 75,
               "gold": 500,
               "enabled": true
             },
             {
               "rank": "B",
-              "crystals": 80,
+              "crystals": 120,
               "gold": 1500,
               "enabled": true
             },
             {
               "rank": "A",
-              "crystals": 150,
+              "crystals": 180,
               "gold": 3000,
               "enabled": true
             },
