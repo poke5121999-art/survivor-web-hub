@@ -1703,7 +1703,7 @@
           "default": [
             {
               "id": "coilbadger",
-              "name": "Coilbadger",
+              "name": "Glintcat",
               "type1": "electric",
               "type2": "",
               "hp": 95,
@@ -1735,12 +1735,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A violet cat whose crystal fur stores static; at night the sparks along its back light the whole room.",
               "enabled": true
             },
             {
               "id": "kilnback",
-              "name": "Kilnback",
+              "name": "Blazebo",
               "type1": "fire",
               "type2": "",
               "hp": 85,
@@ -1772,12 +1772,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A fire monkey in a headband who trains on hot coals at Ember Peak, twirling a staff that never stops smouldering.",
               "enabled": true
             },
             {
               "id": "tidecrane",
-              "name": "Tidecrane",
+              "name": "Wavecoil",
               "type1": "water",
               "type2": "flying",
               "hp": 79,
@@ -1809,12 +1809,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A sea serpent that rides the wind above the waves and dives back down with a slap of its tail.",
               "enabled": true
             },
             {
               "id": "thornboar",
-              "name": "Thornboar",
+              "name": "Bambrute",
               "type1": "grass",
               "type2": "",
               "hp": 114,
@@ -1846,12 +1846,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A panda in a skirt of leaves who carries a bamboo staff; slow to anger and impossible to push over.",
               "enabled": true
             },
             {
               "id": "shalehorn",
-              "name": "Shalehorn",
+              "name": "Glacidrake",
               "type1": "ground",
               "type2": "ice",
               "hp": 104,
@@ -1883,12 +1883,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A dark-blue dragon of the high ridges; its breath frosts the rocks and its landing shakes the ground.",
               "enabled": true
             },
             {
               "id": "gloamhare",
-              "name": "Gloamhare",
+              "name": "Hexcat",
               "type1": "dark",
               "type2": "",
               "hp": 72,
@@ -1920,12 +1920,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A cat in a starry wizard's hat; only its glowing eyes show under the brim, and it knows a curse for every mood.",
               "enabled": true
             },
             {
               "id": "budsnout",
-              "name": "Budsnout",
+              "name": "Sprigeck",
               "type1": "grass",
               "type2": "poison",
               "hp": 68,
@@ -1957,12 +1957,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A leaf-tailed gecko that basks on warm stones and flicks its sprout tail at anything that comes too close.",
               "enabled": true
             },
             {
               "id": "fernsnout",
-              "name": "Fernsnout",
+              "name": "Thornlisk",
               "type1": "grass",
               "type2": "poison",
               "hp": 85,
@@ -1994,12 +1994,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "Grown, the gecko wears a ridge of leaves down its back and swings the bud at its tail tip like a club.",
               "enabled": true
             },
             {
               "id": "grovesnout",
-              "name": "Grovesnout",
+              "name": "Grovewyrm",
               "type1": "grass",
               "type2": "poison",
               "hp": 92,
@@ -2031,12 +2031,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A winged forest dragon with bark-brown scales and moss on its wings; its tail ends in a bloom of red leaves.",
               "enabled": true
             },
             {
               "id": "cinderkit",
-              "name": "Cinderkit",
+              "name": "Flickit",
               "type1": "fire",
               "type2": "",
               "hp": 66,
@@ -2068,12 +2068,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A little orange lizard with a flame on its tail tip; the flame burns brighter when it is happy.",
               "enabled": true
             },
             {
               "id": "cindermask",
-              "name": "Cindermask",
+              "name": "Scorchtail",
               "type1": "fire",
               "type2": "",
               "hp": 86,
@@ -2105,12 +2105,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "Its crest has grown into horns and its tail flame no longer goes out in the rain.",
               "enabled": true
             },
             {
               "id": "cinderkite",
-              "name": "Cinderkite",
+              "name": "Pyrewing",
               "type1": "fire",
               "type2": "flying",
               "hp": 100,
@@ -2142,12 +2142,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A great winged fire dragon that circles the volcano ridges; its breath is hot enough to melt rock.",
               "enabled": true
             },
             {
               "id": "wallowling",
-              "name": "Wallowling",
+              "name": "Ripplit",
               "type1": "water",
               "type2": "",
               "hp": 61,
@@ -2179,12 +2179,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A blue water kitten with fin ears and a curling tail; it paddles in every puddle after the rain.",
               "enabled": true
             },
             {
               "id": "shellwallow",
-              "name": "Shellwallow",
+              "name": "Rillwyrm",
               "type1": "water",
               "type2": "",
               "hp": 86,
@@ -2216,12 +2216,12 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "Its fins have grown into little wings; it glides over streams and swims faster than it walks.",
               "enabled": true
             },
             {
               "id": "tidewallow",
-              "name": "Tidewallow",
+              "name": "Torrentdrake",
               "type1": "water",
               "type2": "",
               "hp": 104,
@@ -2253,7 +2253,7 @@
               "minTier": 0,
               "maxTier": 12,
               "expMult": 1,
-              "dex": "",
+              "dex": "A blue dragon of the coast with sunset-orange wings; one beat of them calls the tide in.",
               "enabled": true
             },
             {
