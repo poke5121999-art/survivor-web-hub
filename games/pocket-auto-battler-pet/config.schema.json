@@ -3624,6 +3624,154 @@
               "expMult": 1.1,
               "dex": "A camp lantern on spindly legs that leads lost travellers home on night routes, most of the time.",
               "enabled": true
+            },
+            {
+              "id": "leafbit",
+              "name": "Leafbit",
+              "type1": "bug",
+              "type2": "grass",
+              "hp": 50,
+              "attack": 55,
+              "defense": 60,
+              "spAttack": 40,
+              "spDefense": 50,
+              "speed": 45,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "sting_volley",
+                "sun_soak",
+                "burr_shot",
+                "vine_lash"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A beetle whose wing cases are two green leaves; it hides in hedges and nobody notices it until it flies off.",
+              "enabled": true
+            },
+            {
+              "id": "burrowham",
+              "name": "Burrowham",
+              "type1": "ground",
+              "type2": "",
+              "hp": 60,
+              "attack": 60,
+              "defense": 55,
+              "spAttack": 30,
+              "spDefense": 40,
+              "speed": 50,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "mud_lob",
+                "hunker",
+                "shale_ram",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 4,
+              "expMult": 1,
+              "dex": "A round burrowing hamster with a pink star nose that feels the soil for seeds; its tunnels cross every route.",
+              "enabled": true
+            },
+            {
+              "id": "jabbit",
+              "name": "Jabbit",
+              "type1": "fighting",
+              "type2": "",
+              "hp": 52,
+              "attack": 66,
+              "defense": 45,
+              "spAttack": 30,
+              "spDefense": 42,
+              "speed": 63,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "brawl_jab",
+                "quickstep",
+                "shale_ram",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 4,
+              "expMult": 1,
+              "dex": "A hamster in boxing gloves who shadow-boxes its own reflection; it stuffs its cheeks before every bout.",
+              "enabled": true
+            },
+            {
+              "id": "rimequill",
+              "name": "Rimequill",
+              "type1": "ice",
+              "type2": "",
+              "hp": 55,
+              "attack": 50,
+              "defense": 62,
+              "spAttack": 52,
+              "spDefense": 50,
+              "speed": 45,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "rime_spike",
+                "hunker",
+                "shale_ram",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 6,
+              "expMult": 1,
+              "dex": "A hedgehog whose quills are ice crystals; it curls up in snowdrifts and frosts the grass where it sleeps.",
+              "enabled": true
             }
           ]
         }
@@ -4009,6 +4157,60 @@
               "fxCast": "ice/snowflake-burst",
               "fxTravel": "ice/ice-lance",
               "fxImpact": "ice/ice-shatter",
+              "fxAura": "status/slowed",
+              "enabled": true
+            },
+            {
+              "id": "brawl_jab",
+              "name": "Brawl Jab",
+              "type": "fighting",
+              "category": "physical",
+              "kind": "dash",
+              "power": 50,
+              "cooldown": 2.4,
+              "windup": 0.4,
+              "range": 95,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "spawn/poof",
+              "fxTravel": "",
+              "fxImpact": "pbvfx:fighting-power-hit",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "sting_volley",
+              "name": "Sting Volley",
+              "type": "bug",
+              "category": "special",
+              "kind": "projectile",
+              "power": 45,
+              "cooldown": 2,
+              "windup": 0.35,
+              "range": 190,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "nature/spore-burst",
+              "fxTravel": "pbvfx:bug-sting-volley",
+              "fxImpact": "pbvfx:bug-sting-hit",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "mud_lob",
+              "name": "Mud Lob",
+              "type": "ground",
+              "category": "special",
+              "kind": "projectile",
+              "power": 45,
+              "cooldown": 2.2,
+              "windup": 0.4,
+              "range": 180,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "nature/earth-spike",
+              "fxTravel": "pbvfx:ground-mud-ball",
+              "fxImpact": "pbvfx:ground-dust-burst",
               "fxAura": "status/slowed",
               "enabled": true
             },
@@ -5560,6 +5762,24 @@
               "enabled": true
             },
             {
+              "move": "brawl_jab",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "sting_volley",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "mud_lob",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
               "move": "umbra_bead",
               "price": 250,
               "weight": 1,
@@ -6074,7 +6294,11 @@
                 "slabrute",
                 "mossdrake",
                 "ringbox",
-                "glimlamp"
+                "glimlamp",
+                "leafbit",
+                "burrowham",
+                "jabbit",
+                "rimequill"
               ],
               "poolEquipment": [],
               "rateUp": "tidewallow",
@@ -7196,6 +7420,118 @@
               "species": "glimlamp",
               "level": 31,
               "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "leafbit-1",
+              "species": "leafbit",
+              "level": 1,
+              "move": "sting_volley",
+              "enabled": true
+            },
+            {
+              "id": "leafbit-2",
+              "species": "leafbit",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "leafbit-3",
+              "species": "leafbit",
+              "level": 15,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "leafbit-4",
+              "species": "leafbit",
+              "level": 27,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "burrowham-1",
+              "species": "burrowham",
+              "level": 1,
+              "move": "mud_lob",
+              "enabled": true
+            },
+            {
+              "id": "burrowham-2",
+              "species": "burrowham",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "burrowham-3",
+              "species": "burrowham",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "burrowham-4",
+              "species": "burrowham",
+              "level": 29,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "jabbit-1",
+              "species": "jabbit",
+              "level": 1,
+              "move": "brawl_jab",
+              "enabled": true
+            },
+            {
+              "id": "jabbit-2",
+              "species": "jabbit",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "jabbit-3",
+              "species": "jabbit",
+              "level": 15,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "jabbit-4",
+              "species": "jabbit",
+              "level": 27,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "rimequill-1",
+              "species": "rimequill",
+              "level": 1,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "rimequill-2",
+              "species": "rimequill",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "rimequill-3",
+              "species": "rimequill",
+              "level": 17,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "rimequill-4",
+              "species": "rimequill",
+              "level": 29,
+              "move": "bedrock_drum",
               "enabled": true
             },
             {
@@ -8391,6 +8727,17 @@
               "enabled": true
             },
             {
+              "id": "t0-core-leafbit",
+              "tier": 0,
+              "species": "leafbit",
+              "weight": 14,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
               "id": "t0-pick-tabbit",
               "tier": 0,
               "species": "tabbit",
@@ -8578,6 +8925,28 @@
               "enabled": true
             },
             {
+              "id": "t1-core-burrowham",
+              "tier": 1,
+              "species": "burrowham",
+              "weight": 9,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t1-core-leafbit",
+              "tier": 1,
+              "species": "leafbit",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
               "id": "t1-pick-tabbit",
               "tier": 1,
               "species": "tabbit",
@@ -8710,6 +9079,17 @@
               "enabled": true
             },
             {
+              "id": "t1-rare-jabbit",
+              "tier": 1,
+              "species": "jabbit",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
               "id": "t1-rare-cinderhound",
               "tier": 1,
               "species": "cinderhound",
@@ -8791,6 +9171,28 @@
               "tier": 2,
               "species": "snowpup",
               "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-jabbit",
+              "tier": 2,
+              "species": "jabbit",
+              "weight": 10,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t2-core-burrowham",
+              "tier": 2,
+              "species": "burrowham",
+              "weight": 6,
               "kind": "core",
               "group": "",
               "levelMin": -6,
@@ -8985,6 +9387,17 @@
               "enabled": true
             },
             {
+              "id": "t2-rare-rimequill",
+              "tier": 2,
+              "species": "rimequill",
+              "weight": 1,
+              "kind": "rare",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
               "id": "t2-lucky-lockbox",
               "tier": 2,
               "species": "lockbox",
@@ -9043,6 +9456,17 @@
               "id": "t3-core-geodle",
               "tier": 3,
               "species": "geodle",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t3-core-jabbit",
+              "tier": 3,
+              "species": "jabbit",
               "weight": 6,
               "kind": "core",
               "group": "",
@@ -9315,6 +9739,28 @@
               "enabled": true
             },
             {
+              "id": "t4-core-burrowham",
+              "tier": 4,
+              "species": "burrowham",
+              "weight": 14,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-core-jabbit",
+              "tier": 4,
+              "species": "jabbit",
+              "weight": 8,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
               "id": "t4-pick-dumpstomp",
               "tier": 4,
               "species": "dumpstomp",
@@ -9363,6 +9809,17 @@
               "tier": 4,
               "species": "slabrute",
               "weight": 10,
+              "kind": "hint",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t4-hint-rimequill",
+              "tier": 4,
+              "species": "rimequill",
+              "weight": 8,
               "kind": "hint",
               "group": "",
               "levelMin": -6,
@@ -9681,6 +10138,17 @@
               "id": "t6-core-gloamhare",
               "tier": 6,
               "species": "gloamhare",
+              "weight": 6,
+              "kind": "core",
+              "group": "",
+              "levelMin": -6,
+              "levelMax": -2,
+              "enabled": true
+            },
+            {
+              "id": "t6-core-rimequill",
+              "tier": 6,
+              "species": "rimequill",
               "weight": 6,
               "kind": "core",
               "group": "",
@@ -10097,6 +10565,24 @@
               "enabled": true
             },
             {
+              "id": "scamp-leafbit",
+              "trainer": "scamp",
+              "species": "leafbit",
+              "weight": 2,
+              "minTier": 0,
+              "maxTier": 2,
+              "enabled": true
+            },
+            {
+              "id": "scamp-jabbit",
+              "trainer": "scamp",
+              "species": "jabbit",
+              "weight": 2,
+              "minTier": 2,
+              "maxTier": 3,
+              "enabled": true
+            },
+            {
               "id": "charm-fluffwing",
               "trainer": "charm",
               "species": "fluffwing",
@@ -10346,6 +10832,33 @@
               "weight": 1,
               "minTier": 4,
               "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-burrowham",
+              "trainer": "rockhound",
+              "species": "burrowham",
+              "weight": 3,
+              "minTier": 1,
+              "maxTier": 4,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-rimequill",
+              "trainer": "rockhound",
+              "species": "rimequill",
+              "weight": 2,
+              "minTier": 3,
+              "maxTier": 5,
+              "enabled": true
+            },
+            {
+              "id": "rockhound-jabbit",
+              "trainer": "rockhound",
+              "species": "jabbit",
+              "weight": 2,
+              "minTier": 2,
+              "maxTier": 4,
               "enabled": true
             },
             {
@@ -10607,6 +11120,15 @@
               "weight": 1,
               "minTier": 5,
               "maxTier": 6,
+              "enabled": true
+            },
+            {
+              "id": "gardener-leafbit",
+              "trainer": "gardener",
+              "species": "leafbit",
+              "weight": 2,
+              "minTier": 4,
+              "maxTier": 5,
               "enabled": true
             },
             {
