@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 10,
+  "version": 15,
   "tabs": [
     {
       "id": "run",
@@ -511,6 +511,26 @@
           "default": 30
         },
         {
+          "key": "variety.noCounterUntilTier",
+          "label": "Không gặp loài khắc hệ tới bậc",
+          "help": "Tới bậc này bụi cỏ và trainer không ra loài có hệ đánh x2 vào pet của người chơi (đầu game cấp gần như không chênh nên loài khắc hệ thắng cả starter cấp 5). -1 = tắt.",
+          "type": "int",
+          "min": -1,
+          "max": 12,
+          "unit": "bậc",
+          "default": 0
+        },
+        {
+          "key": "variety.trainerTrainedFullLevel",
+          "label": "Cấp nhận đủ điểm luyện trainer",
+          "help": "Điểm luyện trainer tăng dần theo cấp pet của trainer, đủ mức từ cấp này (pet trainer cấp thấp ở ngày đầu không mạnh hơn starter cấp 5).",
+          "type": "int",
+          "min": 1,
+          "max": 100,
+          "unit": "cấp",
+          "default": 15
+        },
+        {
           "key": "variety.trainerTrainedPerTier",
           "label": "Điểm luyện trainer mỗi bậc",
           "help": "Và thêm chừng này điểm mỗi chỉ số cho mỗi bậc.",
@@ -911,6 +931,73 @@
           "default": 120
         },
         {
+          "key": "battle.roamEveryMin",
+          "label": "Chạy vòng: cách nhau ít nhất",
+          "help": "Giữa các đòn, pet chạy tới một điểm mới quanh đối thủ sau ít nhất chừng này giây (0 = tắt, pet chỉ giữ tầm và đi ngang).",
+          "type": "number",
+          "min": 0,
+          "max": 30,
+          "unit": "giây",
+          "default": 0
+        },
+        {
+          "key": "battle.roamEveryMax",
+          "label": "Chạy vòng: cách nhau nhiều nhất",
+          "help": "Và sau nhiều nhất chừng này giây.",
+          "type": "number",
+          "min": 0,
+          "max": 30,
+          "unit": "giây",
+          "default": 3
+        },
+        {
+          "key": "battle.roamReachMin",
+          "label": "Chạy vòng: xa nhất / gần nhất",
+          "help": "Điểm mới nằm trên vòng quanh đối thủ, bán kính từ hệ số này x tầm chiêu...",
+          "type": "number",
+          "min": 0.2,
+          "max": 5,
+          "default": 1.3
+        },
+        {
+          "key": "battle.roamReachMax",
+          "label": "Chạy vòng: bán kính lớn nhất",
+          "help": "...tới hệ số này x tầm chiêu (lớn thì pet lùi xa, chạy khắp sân).",
+          "type": "number",
+          "min": 0.2,
+          "max": 5,
+          "default": 2.2
+        },
+        {
+          "key": "battle.roamTurn",
+          "label": "Chạy vòng: góc xoay",
+          "help": "Điểm mới lệch góc tối đa chừng này radian so với chỗ pet đang đứng (1.6 = gần nửa vòng).",
+          "type": "number",
+          "min": 0,
+          "max": 3.2,
+          "default": 2.6
+        },
+        {
+          "key": "battle.roamPace",
+          "label": "Chạy vòng: tốc độ",
+          "help": "Khi chạy tới điểm mới, pet chạy nhanh bằng hệ số này x tốc độ của nó.",
+          "type": "number",
+          "min": 0.3,
+          "max": 3,
+          "default": 1.1
+        },
+        {
+          "key": "battle.view",
+          "label": "Góc nhìn trận",
+          "help": "topdown = nhìn từ trên xuống thấy cả sân, camera đứng yên (như video tham khảo, mặc định); horizon = góc 3/4 có đường chân trời và hàng cây trên nền trận (để so).",
+          "type": "enum",
+          "options": [
+            "topdown",
+            "horizon"
+          ],
+          "default": "topdown"
+        },
+        {
           "key": "battle.surgeHpBelow",
           "label": "Ngưỡng biến hình",
           "help": "Pet biến hình (một lần mỗi đội) khi máu dưới tỉ lệ này.",
@@ -1183,6 +1270,16 @@
       "blurb": "Quay pet và trang bị bằng pha lê; tỉ lệ R/SR/SSR, món rate-up và mốc bảo hiểm của từng banner ở bảng Banner gacha.",
       "fields": [
         {
+          "key": "meta.gearUnlockAfterRuns",
+          "label": "Mở gacha và trang bị sau số lượt",
+          "help": "Người chơi mới không có trang bị khởi đầu; gacha, nâng cấp và mang trang bị vào lượt chỉ mở sau khi đã kết thúc chừng này lượt huấn luyện (kể cả lượt bỏ giữa chừng). 0 = mở ngay.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "lượt",
+          "default": 1
+        },
+        {
           "key": "gacha.pullCost",
           "label": "Giá 1 lần quay",
           "help": "Pha lê cho một lần quay.",
@@ -1403,11 +1500,464 @@
           "min": 1,
           "max": 6,
           "default": 6
+        }
+      ]
+    },
+    {
+      "id": "pvp",
+      "label": "PvP",
+      "blurb": "Trận đội pet đã luyện (trong PC) với đội ma (đội đã lưu của save khác) hoặc đội máy tạo; điểm tuần và bậc PvP.",
+      "fields": [
+        {
+          "key": "pvp.minTeamSize",
+          "label": "Số pet đội tối thiểu",
+          "help": "Đội PvP cần ít nhất chừng này pet trong PC; đối thủ mang đúng bằng số pet người chơi gửi.",
+          "type": "int",
+          "min": 1,
+          "max": 6,
+          "default": 1
+        },
+        {
+          "key": "pvp.energyPerMatch",
+          "label": "Năng lượng mỗi trận PvP",
+          "help": "Ngoài điểm trận, mỗi trận PvP tốn chừng này năng lượng huấn luyện (0 = chỉ tốn điểm trận).",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "default": 0
+        },
+        {
+          "key": "pvp.dailyMatches",
+          "label": "Số trận PvP mỗi ngày",
+          "help": "Tối đa chừng này trận mỗi ngày (theo ngày trên máy); 0 = không giới hạn.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "trận",
+          "default": 10
+        },
+        {
+          "key": "pvp.timerSeconds",
+          "label": "Đồng hồ trận PvP",
+          "help": "Trận 6 đấu 6 dài hơn 1 đấu 1: hết chừng này giây thì vào hiệp phụ, sát thương tăng dần.",
+          "type": "int",
+          "min": 30,
+          "max": 1200,
+          "unit": "giây",
+          "default": 240
+        },
+        {
+          "key": "pvp.hardLimitSeconds",
+          "label": "Trần thời gian trận PvP",
+          "help": "Tới giây này trận dừng; đội còn nhiều máu hơn (theo tỉ lệ) thắng.",
+          "type": "int",
+          "min": 60,
+          "max": 1800,
+          "unit": "giây",
+          "default": 360
+        },
+        {
+          "key": "pvp.winPoints",
+          "label": "Điểm thắng",
+          "help": "Điểm tuần khi thắng (nhân hệ số điểm của đối thủ đã chọn).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "điểm",
+          "default": 100
+        },
+        {
+          "key": "pvp.drawPoints",
+          "label": "Điểm hoà",
+          "help": "Điểm tuần khi hoà (nhân hệ số điểm của đối thủ).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "điểm",
+          "default": 40
+        },
+        {
+          "key": "pvp.lossPoints",
+          "label": "Điểm thua",
+          "help": "Điểm tuần khi thua (nhân hệ số điểm của đối thủ).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "điểm",
+          "default": 10
+        },
+        {
+          "key": "pvp.pointsPerPetLeft",
+          "label": "Điểm mỗi pet còn đứng",
+          "help": "Thắng: cộng chừng này điểm cho mỗi pet của người chơi còn đứng cuối trận.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "điểm",
+          "default": 10
+        },
+        {
+          "key": "pvp.winGold",
+          "label": "Vàng khi thắng",
+          "help": "Vàng mỗi trận thắng (nhân hệ số thưởng của bậc).",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 120
+        },
+        {
+          "key": "pvp.drawGold",
+          "label": "Vàng khi hoà",
+          "help": "Vàng mỗi trận hoà.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 60
+        },
+        {
+          "key": "pvp.lossGold",
+          "label": "Vàng khi thua",
+          "help": "Vàng mỗi trận thua.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "vàng",
+          "default": 30
+        },
+        {
+          "key": "pvp.winCrystals",
+          "label": "Crystal khi thắng",
+          "help": "Crystal mỗi trận thắng (nhân hệ số thưởng của bậc, làm tròn xuống).",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "crystal",
+          "default": 5
+        },
+        {
+          "key": "pvp.drawCrystals",
+          "label": "Crystal khi hoà",
+          "help": "Crystal mỗi trận hoà.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "crystal",
+          "default": 2
+        },
+        {
+          "key": "pvp.lossCrystals",
+          "label": "Crystal khi thua",
+          "help": "Crystal mỗi trận thua.",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "unit": "crystal",
+          "default": 0
+        },
+        {
+          "key": "pvp.weeklyMinMatches",
+          "label": "Số trận tối thiểu mỗi tuần",
+          "help": "Tuần có ít nhất chừng này trận mới được xét lên/xuống bậc và nhận thưởng tuần; ít hơn thì giữ bậc, không thưởng.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "trận",
+          "default": 3
+        },
+        {
+          "key": "pvp.bracketSize",
+          "label": "Số đối thủ trong bảng tuần",
+          "help": "Bảng xếp hạng tuần (chơi offline) gồm người chơi và chừng này đối thủ ảo; điểm tuần của họ theo cột Điểm đối thủ của bậc.",
+          "type": "int",
+          "min": 1,
+          "max": 200,
+          "unit": "người",
+          "default": 20
+        },
+        {
+          "key": "pvp.ghostWindow",
+          "label": "Độ lệch sức mạnh đội ma",
+          "help": "Đội ma được đem thử khi tổng chỉ số lệch không quá tỉ lệ này so với mức đã đo cho ô; không có đội nào đạt thì máy tạo đội.",
+          "type": "number",
+          "min": 0,
+          "max": 5,
+          "default": 0.25
+        },
+        {
+          "key": "pvp.ghostCooldown",
+          "label": "Không gặp lại đội ma trong",
+          "help": "Một đội ma đã gặp trong chừng này trận gần nhất thì không được chọn lại (đội máy tạo thay vào).",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "trận",
+          "default": 5
+        },
+        {
+          "key": "pvp.ghostStoreMax",
+          "label": "Số đội ma lưu trên máy",
+          "help": "Giữ tối đa chừng này đội ma; đầy thì bỏ đội cũ nhất.",
+          "type": "int",
+          "min": 1,
+          "max": 1000,
+          "unit": "đội",
+          "default": 60
+        },
+        {
+          "key": "pvp.genTrainedPerLevel",
+          "label": "Điểm luyện đội máy tạo mỗi cấp",
+          "help": "Pet của đội máy tạo có điểm luyện = cấp x số này (chia theo chỉ số gốc, có trần như trong lượt).",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "điểm",
+          "default": 11
+        },
+        {
+          "key": "pvp.calibSims",
+          "label": "Số trận thử để đo sức đội",
+          "help": "Mỗi lần đổi đội PvP, máy đánh thử chừng này trận 6 đấu 6 với đội máy tạo nhiều mức mạnh để đo sức đội thật (tính cả khắc hệ), rồi chọn mức đối thủ cho đúng tỉ lệ thắng mong muốn. Nhiều hơn thì chuẩn hơn nhưng chậm hơn (khoảng 10 ms một trận).",
+          "type": "int",
+          "min": 8,
+          "max": 2000,
+          "unit": "trận",
+          "default": 60
+        },
+        {
+          "key": "pvp.calibBandSims",
+          "label": "Số trận thử vòng 2",
+          "help": "Vòng 2 của phép đo: chừng này trận thử dồn quanh ba mức Dễ / Ngang / Khó tìm được ở vòng 1, để mức đối thủ sát tỉ lệ thắng mong muốn.",
+          "type": "int",
+          "min": 0,
+          "max": 5000,
+          "unit": "trận",
+          "default": 240
+        },
+        {
+          "key": "pvp.calibBand",
+          "label": "Độ rộng vòng 2",
+          "help": "Vòng 2 thử từ mức Dễ trừ chừng này tới mức Khó cộng chừng này (theo log tỉ lệ tổng chỉ số; 0.1 = khoảng 10 %).",
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.1
+        },
+        {
+          "key": "pvp.calibMin",
+          "label": "Mức thử yếu nhất",
+          "help": "Đội máy tạo yếu nhất khi đo sức: tổng chỉ số bằng tỉ lệ này so với đội mình.",
+          "type": "number",
+          "min": 0.05,
+          "max": 5,
+          "default": 0.6
+        },
+        {
+          "key": "pvp.calibMax",
+          "label": "Mức thử mạnh nhất",
+          "help": "Đội máy tạo mạnh nhất khi đo sức.",
+          "type": "number",
+          "min": 0.1,
+          "max": 10,
+          "default": 3
+        },
+        {
+          "key": "pvp.ghostSims",
+          "label": "Số trận thử mỗi đội ma",
+          "help": "Đội ma được đánh thử chừng này trận nhanh để biết tỉ lệ thắng trước khi chọn.",
+          "type": "int",
+          "min": 1,
+          "max": 100,
+          "unit": "trận",
+          "default": 8
+        },
+        {
+          "key": "pvp.ghostTries",
+          "label": "Số đội ma thử mỗi ô",
+          "help": "Mỗi ô đối thủ thử tối đa chừng này đội ma gần sức nhất.",
+          "type": "int",
+          "min": 0,
+          "max": 20,
+          "unit": "đội",
+          "default": 2
+        },
+        {
+          "key": "pvp.ghostTolerance",
+          "label": "Độ lệch tỉ lệ thắng đội ma",
+          "help": "Đội ma được chọn khi tỉ lệ thắng thử lệch không quá chừng này so với mục tiêu của ô (vd. 0.15 = 15 điểm phần trăm).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.15
+        },
+        {
+          "key": "pvp.genLevelMin",
+          "label": "Cấp thấp nhất đội máy tạo",
+          "help": "Đội máy tạo chọn cấp trong khoảng này để khớp sức mạnh cần.",
+          "type": "int",
+          "min": 1,
+          "max": 100,
+          "unit": "cấp",
+          "default": 5
+        },
+        {
+          "key": "pvp.genLevelMax",
+          "label": "Cấp cao nhất đội máy tạo",
+          "help": "Như trên, cấp cao nhất (trần chung; dải cấp theo đội người chơi nằm trong khoảng này).",
+          "type": "int",
+          "min": 1,
+          "max": 100,
+          "unit": "cấp",
+          "default": 60
+        },
+        {
+          "key": "pvp.genLevelBand",
+          "label": "Dải cấp đội máy tạo",
+          "help": "Pet thứ k của đội máy tạo có cấp trong khoảng cấp pet thứ k của người chơi (theo thứ tự ra sân) trừ / cộng chừng này; mạnh hơn nữa thì nhờ IV, điểm luyện, sao, chiêu tốt và chọn hệ khắc.",
+          "type": "int",
+          "min": 0,
+          "max": 50,
+          "unit": "cấp",
+          "default": 5
+        },
+        {
+          "key": "pvp.genTrainedTop",
+          "label": "Điểm luyện tối đa đội máy tạo",
+          "help": "Ở mức chất lượng cao nhất, đội máy tạo có điểm luyện bằng chừng này lần Điểm luyện mỗi cấp (vẫn chịu trần điểm luyện mỗi chỉ số).",
+          "type": "number",
+          "min": 1,
+          "max": 10,
+          "default": 3
+        },
+        {
+          "key": "pvp.genMoveLead",
+          "label": "Chiêu trước bao nhiêu cấp",
+          "help": "Đội máy tạo mạnh được biết chiêu tốt nhất trong bảng chiêu tới chừng này cấp sau cấp hiện tại.",
+          "type": "int",
+          "min": 0,
+          "max": 50,
+          "unit": "cấp",
+          "default": 10
+        },
+        {
+          "key": "pvp.genBestMovesFrom",
+          "label": "Mức dùng chiêu tốt nhất",
+          "help": "Từ mức chất lượng này (0..1; 0.5 = pet luyện thường) đội máy tạo chọn chiêu mạnh nhất đánh vào hệ của đội người chơi thay cho chiêu mới học.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.6
+        },
+        {
+          "key": "pvp.genCounterAt",
+          "label": "Mức chọn hệ khắc",
+          "help": "Đội máy tạo cần mạnh bằng chừng này lần tổng chỉ số đội người chơi thì chọn hẳn loài khắc hệ; yếu hơn thì chọn ít dần, bằng sức thì không chọn.",
+          "type": "number",
+          "min": 1.01,
+          "max": 10,
+          "default": 1.6
+        },
+        {
+          "key": "pvp.genCounterK",
+          "label": "Độ ưu tiên loài khắc hệ",
+          "help": "Độ mạnh của việc ưu tiên loài khắc hệ khi chọn loài cho đội máy tạo.",
+          "type": "number",
+          "min": 0,
+          "max": 10,
+          "default": 1
+        },
+        {
+          "key": "pvp.genStars",
+          "label": "Sao chiêu đội máy tạo",
+          "help": "Chiêu của pet đội máy tạo có chừng này sao ở mức chất lượng thường; đội mạnh hơn được thêm sao tới Sao tối đa.",
+          "type": "int",
+          "min": 1,
+          "max": 5,
+          "unit": "sao",
+          "default": 1
+        },
+        {
+          "key": "pvp.remoteGhosts",
+          "label": "Đội ma online (Supabase)",
+          "help": "Bật: màn PvP gửi đội của người chơi lên bảng pvp_ghosts và lấy đội của người chơi khác về làm đối thủ. Chỉ bật SAU KHI đã chạy docs/pvp-ghosts-supabase.sql trên Supabase; tắt thì PvP chỉ dùng đội ma trên máy và đội máy tạo.",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "key": "pvp.remoteRows",
+          "label": "Số đội ma online mỗi lần lấy",
+          "help": "Mỗi lần mở PvP lấy tối đa chừng này đội mới nhất vừa sức.",
+          "type": "int",
+          "min": 1,
+          "max": 500,
+          "unit": "đội",
+          "default": 30
+        },
+        {
+          "key": "pvp.remoteTimeoutMs",
+          "label": "Chờ Supabase tối đa",
+          "help": "Quá thời gian này thì bỏ qua đội ma online, chơi tiếp bằng đội trên máy.",
+          "type": "int",
+          "min": 500,
+          "max": 30000,
+          "unit": "ms",
+          "default": 4000
+        },
+        {
+          "key": "pvp.historySize",
+          "label": "Số trận lưu lịch sử",
+          "help": "Save giữ chừng này trận PvP gần nhất để xem lại.",
+          "type": "int",
+          "min": 1,
+          "max": 200,
+          "unit": "trận",
+          "default": 20
+        },
+        {
+          "key": "pvp.opponents",
+          "label": "Ba đối thủ mỗi trận",
+          "help": "Trước mỗi trận người chơi chọn một trong ba: tỉ lệ thắng mong muốn của người chơi (0.8 = dễ, 0.25 = khó; máy đo sức đội để chọn đối thủ), và hệ số điểm tuần.",
+          "type": "table",
+          "columns": [
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            },
+            {
+              "key": "win",
+              "label": "Tỉ lệ thắng mục tiêu",
+              "type": "number"
+            },
+            {
+              "key": "points",
+              "label": "Hệ số điểm",
+              "type": "number"
+            }
+          ],
+          "default": [
+            {
+              "name": "Easy",
+              "win": 0.8,
+              "points": 0.7
+            },
+            {
+              "name": "Even",
+              "win": 0.5,
+              "points": 1
+            },
+            {
+              "name": "Hard",
+              "win": 0.25,
+              "points": 1.4
+            }
+          ]
         },
         {
           "key": "pvp.classes",
           "label": "Bậc PvP",
-          "help": "Mỗi bậc: phần trăm người chơi được lên và bị xuống bậc mỗi tuần.",
+          "help": "Mỗi bậc (Class 1 là bậc khởi đầu): % bảng được lên và bị xuống cuối tuần, điểm tuần của đối thủ ảo (trung bình, độ lệch tỉ lệ), hệ số thưởng trận, thưởng tuần.",
           "type": "table",
           "columns": [
             {
@@ -1424,38 +1974,144 @@
               "key": "demote",
               "label": "% xuống",
               "type": "int"
+            },
+            {
+              "key": "rivalMean",
+              "label": "Điểm đối thủ (TB)",
+              "type": "int"
+            },
+            {
+              "key": "rivalSpread",
+              "label": "Độ lệch điểm đối thủ",
+              "type": "number"
+            },
+            {
+              "key": "rewardMult",
+              "label": "Hệ số thưởng trận",
+              "type": "number"
+            },
+            {
+              "key": "weeklyCrystals",
+              "label": "Crystal thưởng tuần",
+              "type": "int"
+            },
+            {
+              "key": "weeklyGold",
+              "label": "Vàng thưởng tuần",
+              "type": "int"
             }
           ],
           "default": [
             {
               "name": "Class 1",
               "promote": 50,
-              "demote": 0
+              "demote": 0,
+              "rivalMean": 1500,
+              "rivalSpread": 0.6,
+              "rewardMult": 1,
+              "weeklyCrystals": 30,
+              "weeklyGold": 500
             },
             {
               "name": "Class 2",
               "promote": 40,
-              "demote": 10
+              "demote": 10,
+              "rivalMean": 2400,
+              "rivalSpread": 0.5,
+              "rewardMult": 1.1,
+              "weeklyCrystals": 50,
+              "weeklyGold": 800
             },
             {
               "name": "Class 3",
               "promote": 30,
-              "demote": 20
+              "demote": 20,
+              "rivalMean": 3300,
+              "rivalSpread": 0.45,
+              "rewardMult": 1.2,
+              "weeklyCrystals": 80,
+              "weeklyGold": 1200
             },
             {
               "name": "Class 4",
               "promote": 20,
-              "demote": 30
+              "demote": 30,
+              "rivalMean": 4200,
+              "rivalSpread": 0.4,
+              "rewardMult": 1.35,
+              "weeklyCrystals": 120,
+              "weeklyGold": 1700
             },
             {
               "name": "Class 5",
               "promote": 10,
-              "demote": 40
+              "demote": 40,
+              "rivalMean": 5100,
+              "rivalSpread": 0.35,
+              "rewardMult": 1.5,
+              "weeklyCrystals": 160,
+              "weeklyGold": 2300
             },
             {
               "name": "Class 6",
               "promote": 0,
-              "demote": 50
+              "demote": 50,
+              "rivalMean": 6000,
+              "rivalSpread": 0.3,
+              "rewardMult": 1.7,
+              "weeklyCrystals": 220,
+              "weeklyGold": 3000
+            }
+          ]
+        },
+        {
+          "key": "pvp.ghostNames",
+          "label": "Tên đội máy tạo",
+          "help": "Tên người chơi ảo của đội máy tạo.",
+          "type": "table",
+          "columns": [
+            {
+              "key": "name",
+              "label": "Tên",
+              "type": "text"
+            }
+          ],
+          "default": [
+            {
+              "name": "Rook"
+            },
+            {
+              "name": "Mira"
+            },
+            {
+              "name": "Tavi"
+            },
+            {
+              "name": "Bex"
+            },
+            {
+              "name": "Odo"
+            },
+            {
+              "name": "Lune"
+            },
+            {
+              "name": "Kip"
+            },
+            {
+              "name": "Sela"
+            },
+            {
+              "name": "Varo"
+            },
+            {
+              "name": "Nell"
+            },
+            {
+              "name": "Juri"
+            },
+            {
+              "name": "Pax"
             }
           ]
         }
@@ -2155,7 +2811,7 @@
               "defense": 74,
               "spAttack": 65,
               "spDefense": 74,
-              "speed": 49,
+              "speed": 57,
               "sizeClass": "small",
               "hitRadius": 8,
               "dodge": 0.25,
@@ -2192,7 +2848,7 @@
               "defense": 83,
               "spAttack": 77,
               "spDefense": 83,
-              "speed": 56,
+              "speed": 59,
               "sizeClass": "medium",
               "hitRadius": 10,
               "dodge": 0.2,
@@ -5999,7 +6655,7 @@
               "split_spDefense": 0,
               "split_speed": 0,
               "effect": "",
-              "starter": true,
+              "starter": false,
               "enabled": true
             },
             {
@@ -6014,7 +6670,7 @@
               "split_spDefense": 0,
               "split_speed": 0,
               "effect": "",
-              "starter": true,
+              "starter": false,
               "enabled": true
             },
             {
@@ -6044,7 +6700,7 @@
               "split_spDefense": 0,
               "split_speed": 1,
               "effect": "",
-              "starter": true,
+              "starter": false,
               "enabled": true
             },
             {
@@ -8370,6 +9026,13 @@
               "max": 31
             },
             {
+              "key": "npcIvMax",
+              "label": "IV tối đa trainer",
+              "type": "int",
+              "min": 0,
+              "max": 31
+            },
+            {
               "key": "foeStars",
               "label": "Sao chiêu đối thủ",
               "type": "int",
@@ -8479,6 +9142,7 @@
               "levelBase": 7,
               "wildIvMax": 10,
               "npcIvMin": 2,
+              "npcIvMax": 14,
               "foeStars": 1,
               "foeTrained": 0,
               "rewardMult": 1,
@@ -8498,6 +9162,7 @@
               "levelBase": 15,
               "wildIvMax": 13,
               "npcIvMin": 4,
+              "npcIvMax": 18,
               "foeStars": 1,
               "foeTrained": 4,
               "rewardMult": 1.25,
@@ -8517,6 +9182,7 @@
               "levelBase": 21,
               "wildIvMax": 16,
               "npcIvMin": 6,
+              "npcIvMax": 22,
               "foeStars": 1,
               "foeTrained": 8,
               "rewardMult": 1.5,
@@ -8536,6 +9202,7 @@
               "levelBase": 27,
               "wildIvMax": 19,
               "npcIvMin": 8,
+              "npcIvMax": 26,
               "foeStars": 2,
               "foeTrained": 12,
               "rewardMult": 1.75,
@@ -8555,6 +9222,7 @@
               "levelBase": 33,
               "wildIvMax": 22,
               "npcIvMin": 10,
+              "npcIvMax": 30,
               "foeStars": 2,
               "foeTrained": 16,
               "rewardMult": 2,
@@ -8574,6 +9242,7 @@
               "levelBase": 39,
               "wildIvMax": 25,
               "npcIvMin": 12,
+              "npcIvMax": 31,
               "foeStars": 3,
               "foeTrained": 20,
               "rewardMult": 2.25,
@@ -8593,6 +9262,7 @@
               "levelBase": 49,
               "wildIvMax": 28,
               "npcIvMin": 14,
+              "npcIvMax": 31,
               "foeStars": 3,
               "foeTrained": 24,
               "rewardMult": 2.5,
