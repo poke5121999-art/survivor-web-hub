@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 3,
+  "version": 7,
   "tabs": [
     {
       "id": "run",
@@ -68,6 +68,33 @@
           "default": 4
         },
         {
+          "key": "run.abandonCrystals",
+          "label": "Thưởng an ủi khi bỏ lượt (crystal)",
+          "help": "Bỏ lượt giữa chừng thì nhận chừng này crystal.",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "crystal",
+          "default": 20
+        },
+        {
+          "key": "run.abandonGold",
+          "label": "Thưởng an ủi khi bỏ lượt (vàng)",
+          "help": "Bỏ lượt giữa chừng thì nhận chừng này vàng.",
+          "type": "int",
+          "min": 0,
+          "max": 1000000,
+          "unit": "vàng",
+          "default": 100
+        },
+        {
+          "key": "run.abandonToPc",
+          "label": "Bỏ lượt vẫn đưa pet vào PC",
+          "help": "Tắt (mặc định): bỏ lượt thì pet không vào PC, vẫn luyện lại được như trước lượt. Bật: pet đã luyện vào PC như khi hết lượt.",
+          "type": "bool",
+          "default": false
+        },
+        {
           "key": "run.maxEquipment",
           "label": "Số trang bị mang theo",
           "help": "Số món trang bị tối đa chọn trước khi vào lượt; cho chỉ số khởi đầu.",
@@ -80,6 +107,122 @@
       ]
     },
     {
+      "id": "exp",
+      "label": "Kinh nghiệm",
+      "blurb": "Đường cong kinh nghiệm theo cấp: exp cần để lên từng cấp (cấp 1 lên 2, 2 lên 3, ...).",
+      "fields": [
+        {
+          "key": "exp.curve",
+          "label": "Exp lên cấp",
+          "help": "Phần tử thứ L là exp cần để từ cấp L lên cấp L+1 (L bắt đầu từ 1). Hết danh sách thì dùng số cuối cùng.",
+          "type": "list",
+          "min": 1,
+          "max": 1000000,
+          "default": [
+            3,
+            10,
+            21,
+            34,
+            50,
+            69,
+            90,
+            114,
+            140,
+            169,
+            199,
+            232,
+            267,
+            304,
+            343,
+            384,
+            427,
+            472,
+            519,
+            567,
+            618,
+            670,
+            725,
+            781,
+            839,
+            898,
+            959,
+            1022,
+            1087,
+            1154,
+            1222,
+            1292,
+            1363,
+            1436,
+            1511,
+            1587,
+            1665,
+            1745,
+            1826,
+            1909,
+            1993,
+            2079,
+            2166,
+            2255,
+            2346,
+            2438,
+            2531,
+            2626,
+            2722,
+            2820,
+            2920,
+            3021,
+            3123,
+            3227,
+            3332,
+            3439,
+            3547,
+            3657,
+            3768,
+            3880,
+            3994,
+            4110,
+            4226,
+            4344,
+            4464,
+            4585,
+            4707,
+            4831,
+            4956,
+            5082,
+            5210,
+            5339,
+            5469,
+            5601,
+            5734,
+            5869,
+            6005,
+            6142,
+            6280,
+            6420,
+            6561,
+            6703,
+            6847,
+            6992,
+            7138,
+            7286,
+            7435,
+            7585,
+            7737,
+            7889,
+            8043,
+            8199,
+            8355,
+            8513,
+            8672,
+            8833,
+            8994,
+            9157,
+            9321
+          ]
+        }
+      ]
+    },
+    {
       "id": "rewards",
       "label": "Phần thưởng trận",
       "blurb": "Thưởng sau mỗi trận thắng, theo loại trận.",
@@ -87,12 +230,12 @@
         {
           "key": "rewards.grassExp",
           "label": "EXP bụi cỏ",
-          "help": "EXP cơ bản khi thắng pet hoang trong bụi cỏ.",
+          "help": "EXP cơ bản khi thắng pet hoang trong bụi cỏ (cộng thêm phần theo cấp đối thủ).",
           "type": "int",
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 40
+          "default": 20
         },
         {
           "key": "rewards.npcExp",
@@ -102,7 +245,7 @@
           "min": 0,
           "max": 10000,
           "unit": "exp",
-          "default": 70
+          "default": 30
         },
         {
           "key": "rewards.gymExp",
@@ -112,7 +255,16 @@
           "min": 0,
           "max": 100000,
           "unit": "exp",
-          "default": 180
+          "default": 140
+        },
+        {
+          "key": "rewards.lossExpShare",
+          "label": "EXP khi thua",
+          "help": "Thua vẫn nhận phần này của EXP lẽ ra được khi thắng (thanh EXP luôn nhích sau mỗi trận).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.5
         },
         {
           "key": "rewards.expPerFoeLevel",
@@ -122,7 +274,7 @@
           "min": 0,
           "max": 1000,
           "unit": "exp",
-          "default": 6
+          "default": 18
         },
         {
           "key": "rewards.grassGold",
@@ -192,7 +344,7 @@
           "min": 0,
           "max": 100000,
           "unit": "exp",
-          "default": 250
+          "default": 100
         },
         {
           "key": "rewards.eliteGold",
@@ -222,7 +374,7 @@
           "min": 0,
           "max": 100000,
           "unit": "exp",
-          "default": 400
+          "default": 150
         },
         {
           "key": "rewards.championGold",
@@ -269,7 +421,7 @@
           "min": -10,
           "max": 10,
           "unit": "cấp",
-          "default": -2
+          "default": -3
         },
         {
           "key": "foes.grassLevelMax",
@@ -279,7 +431,7 @@
           "min": -10,
           "max": 10,
           "unit": "cấp",
-          "default": 0
+          "default": -1
         }
       ]
     },
@@ -683,6 +835,187 @@
       ]
     },
     {
+      "id": "fx",
+      "label": "Hiệu ứng trên pet và thời tiết",
+      "blurb": "Vòng hiệu ứng pixelfx lặp trên pet theo trạng thái và chỉ số đang tăng/giảm; tỉ lệ đổi thời tiết giữa các ngày (thời tiết theo theme ở bảng Theme).",
+      "fields": [
+        {
+          "key": "fx.status.burn",
+          "label": "Vòng hiệu ứng: bỏng",
+          "help": "Mã pixelfx lặp trên pet đang bị bỏng (vd. status/burning); để trống = không có.",
+          "type": "text",
+          "default": "status/burning"
+        },
+        {
+          "key": "fx.status.shock",
+          "label": "Vòng hiệu ứng: tê điện",
+          "help": "Mã pixelfx lặp trên pet bị tê điện.",
+          "type": "text",
+          "default": "lightning/electrified"
+        },
+        {
+          "key": "fx.status.sleep",
+          "label": "Vòng hiệu ứng: ngủ",
+          "help": "Mã pixelfx lặp trên pet đang ngủ.",
+          "type": "text",
+          "default": "status/sleep"
+        },
+        {
+          "key": "fx.stageUp.attack",
+          "label": "Vòng tăng công",
+          "help": "Lặp trên pet khi chỉ số công đang được tăng.",
+          "type": "text",
+          "default": "status/rage"
+        },
+        {
+          "key": "fx.stageUp.defense",
+          "label": "Vòng tăng thủ",
+          "help": "Lặp trên pet khi chỉ số thủ đang được tăng.",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "fx.stageUp.speed",
+          "label": "Vòng tăng tốc",
+          "help": "Lặp trên pet khi tốc độ đang được tăng.",
+          "type": "text",
+          "default": "status/haste"
+        },
+        {
+          "key": "fx.stageDown.attack",
+          "label": "Vòng giảm công",
+          "help": "Lặp trên pet khi chỉ số công đang bị giảm.",
+          "type": "text",
+          "default": "status/cursed"
+        },
+        {
+          "key": "fx.stageDown.defense",
+          "label": "Vòng giảm thủ",
+          "help": "Lặp trên pet khi chỉ số thủ đang bị giảm.",
+          "type": "text",
+          "default": "status/bleeding"
+        },
+        {
+          "key": "fx.stageDown.speed",
+          "label": "Vòng giảm tốc",
+          "help": "Lặp trên pet khi tốc độ đang bị giảm.",
+          "type": "text",
+          "default": "status/slowed"
+        },
+        {
+          "key": "fx.weatherChangeChance",
+          "label": "Tỉ lệ đổi thời tiết",
+          "help": "Mỗi ngày có tỉ lệ này dùng thời tiết phụ của theme thay cho thời tiết chính.",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.25
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "label": "Chống chóng mặt",
+      "blurb": "Giới hạn camera và hiệu ứng toàn màn hình trong trận (zoom, pan, rung, chớp, cut-in). Chỉ ảnh hưởng hình, không ảnh hưởng kết quả trận.",
+      "fields": [
+        {
+          "key": "motion.reduceMotion",
+          "label": "Giảm chuyển động cho mọi người",
+          "help": "Bật thì không zoom, không rung, không chớp; cut-in thành băng chữ ngắn. Người chơi cũng tự bật được trong Cài đặt.",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "key": "motion.zoomMax",
+          "label": "Zoom tối đa",
+          "help": "Zoom gần nhất so với khung gốc của trận (1 = không bao giờ zoom).",
+          "type": "number",
+          "min": 1,
+          "max": 2,
+          "unit": "x",
+          "default": 1.25
+        },
+        {
+          "key": "motion.zoomGapS",
+          "label": "Khoảng cách giữa hai lần zoom",
+          "help": "Camera đổi zoom nhiều nhất một lần trong khoảng này, và chỉ ở khoảnh khắc lớn.",
+          "type": "number",
+          "min": 0,
+          "max": 30,
+          "unit": "giây",
+          "default": 4
+        },
+        {
+          "key": "motion.panPxS",
+          "label": "Tốc độ pan tối đa",
+          "help": "Camera trượt chậm hơn mức này (px màn hình mỗi giây).",
+          "type": "int",
+          "min": 10,
+          "max": 2000,
+          "unit": "px/s",
+          "default": 120
+        },
+        {
+          "key": "motion.deadZone",
+          "label": "Vùng đứng yên của camera",
+          "help": "Camera chỉ đi theo khi giữa trận ra khỏi vùng giữa khung chiếm tỉ lệ này.",
+          "type": "number",
+          "min": 0,
+          "max": 0.45,
+          "default": 0.2
+        },
+        {
+          "key": "motion.shakePx",
+          "label": "Biên độ rung",
+          "help": "Rung màn hình tối đa (px màn hình).",
+          "type": "number",
+          "min": 0,
+          "max": 20,
+          "unit": "px",
+          "default": 2
+        },
+        {
+          "key": "motion.shakeMs",
+          "label": "Thời gian rung",
+          "help": "Một lần rung kéo dài tối đa chừng này.",
+          "type": "int",
+          "min": 0,
+          "max": 1000,
+          "unit": "ms",
+          "default": 150
+        },
+        {
+          "key": "motion.flashGapS",
+          "label": "Khoảng cách giữa hai lần chớp",
+          "help": "Chớp toàn màn hình (cut-in, nổ biến hình) cách nhau ít nhất chừng này (WCAG 2.3.1: không quá 3 lần mỗi giây).",
+          "type": "number",
+          "min": 0.34,
+          "max": 30,
+          "unit": "giây",
+          "default": 3
+        },
+        {
+          "key": "motion.cutinGapS",
+          "label": "Khoảng cách giữa hai cut-in",
+          "help": "Cut-in chí mạng / K.O. cách nhau ít nhất chừng này.",
+          "type": "number",
+          "min": 0,
+          "max": 30,
+          "unit": "giây",
+          "default": 4
+        },
+        {
+          "key": "motion.bigMovePower",
+          "label": "Sức mạnh của chiêu lớn",
+          "help": "Chỉ chiêu có sức mạnh từ mức này trở lên mới có hiệu ứng chiêu lớn (tối màn, khung, nghiêng camera).",
+          "type": "int",
+          "min": 0,
+          "max": 500,
+          "default": 90
+        }
+      ]
+    },
+    {
       "id": "rating",
       "label": "Xếp hạng lượt",
       "blurb": "Điểm và hạng ở màn kết quả cuối lượt.",
@@ -751,7 +1084,7 @@
     {
       "id": "gacha",
       "label": "Gacha",
-      "blurb": "Quay pet và trang bị bằng pha lê (dùng từ P3).",
+      "blurb": "Quay pet và trang bị bằng pha lê; tỉ lệ R/SR/SSR, món rate-up và mốc bảo hiểm của từng banner ở bảng Banner gacha.",
       "fields": [
         {
           "key": "gacha.pullCost",
@@ -774,60 +1107,47 @@
           "default": 1500
         },
         {
-          "key": "gacha.rateR",
-          "label": "Tỉ lệ R",
-          "help": "Phần trăm ra R.",
-          "type": "number",
-          "min": 0,
-          "max": 100,
-          "unit": "%",
-          "default": 79
-        },
-        {
-          "key": "gacha.rateSR",
-          "label": "Tỉ lệ SR",
-          "help": "Phần trăm ra SR.",
-          "type": "number",
-          "min": 0,
-          "max": 100,
-          "unit": "%",
-          "default": 18
-        },
-        {
-          "key": "gacha.rateSSR",
-          "label": "Tỉ lệ SSR",
-          "help": "Phần trăm ra SSR.",
-          "type": "number",
-          "min": 0,
-          "max": 100,
-          "unit": "%",
-          "default": 3
-        },
-        {
           "key": "gacha.tenPullGuaranteeSR",
           "label": "10 lần chắc SR",
-          "help": "Bật thì mỗi lượt 10 lần quay có ít nhất một SR trở lên.",
+          "help": "Bật thì mỗi lượt 10 lần quay có ít nhất một SR trở lên (lần thứ 10 chỉ ra SR hoặc SSR nếu 9 lần trước toàn R).",
           "type": "bool",
           "default": true
         },
         {
-          "key": "gacha.pity",
-          "label": "Mốc bảo hiểm",
-          "help": "Sau chừng này lần quay trên một banner, được chọn món rate-up.",
-          "type": "int",
-          "min": 1,
-          "max": 10000,
-          "unit": "lần",
-          "default": 200
+          "key": "gacha.rateUpShare",
+          "label": "Phần rate-up trong SSR",
+          "help": "Khi ra SSR, tỉ lệ đó là món rate-up của banner (còn lại chia đều các SSR khác).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.5
         },
         {
           "key": "gacha.pityIvFloor",
           "label": "IV sàn khi bảo hiểm",
-          "help": "Pet nhận qua bảo hiểm có IV mỗi chỉ số ít nhất bằng số này.",
+          "help": "Pet nhận bằng điểm bảo hiểm có IV mỗi chỉ số ít nhất bằng số này.",
           "type": "int",
           "min": 0,
           "max": 31,
           "default": 20
+        },
+        {
+          "key": "gacha.ivMin",
+          "label": "IV thấp nhất pet gacha",
+          "help": "Pet gacha tung IV mỗi chỉ số trong khoảng từ số này tới IV tối đa.",
+          "type": "int",
+          "min": 0,
+          "max": 31,
+          "default": 0
+        },
+        {
+          "key": "gacha.eggMoveChance",
+          "label": "Tỉ lệ chiêu trứng",
+          "help": "Tỉ lệ pet gacha biết thêm một chiêu của bậc sau trong learnset (đánh dấu là chiêu trứng).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
         }
       ]
     },
@@ -1488,10 +1808,10 @@
               "name": "Grovesnout",
               "type1": "grass",
               "type2": "poison",
-              "hp": 102,
-              "attack": 90,
+              "hp": 96,
+              "attack": 87,
               "defense": 85,
-              "spAttack": 90,
+              "spAttack": 87,
               "spDefense": 85,
               "speed": 66,
               "sizeClass": "large",
@@ -1821,6 +2141,30 @@
               "max": 1
             },
             {
+              "key": "fxCast",
+              "label": "VFX gồng",
+              "type": "text",
+              "help": "Hiệu ứng lúc gồng chiêu: mã pixelfx \"nhóm/tên\" (vd. fire/candle) hoặc \"pbvfx:<sheet>\"; để trống = mặc định theo hệ."
+            },
+            {
+              "key": "fxTravel",
+              "label": "VFX bay",
+              "type": "text",
+              "help": "Thân đạn / tia / vệt lao tới: mã pixelfx hoặc pbvfx:<sheet>; để trống = mặc định theo hệ."
+            },
+            {
+              "key": "fxImpact",
+              "label": "VFX trúng",
+              "type": "text",
+              "help": "Hiệu ứng khi trúng (hoặc khi vùng nổ): mã pixelfx hoặc pbvfx:<sheet>; để trống = mặc định theo hệ."
+            },
+            {
+              "key": "fxAura",
+              "label": "VFX hào quang",
+              "type": "text",
+              "help": "Vòng hiệu ứng lặp trên pet: chiêu buff thì trên người dùng, chiêu gây hiệu ứng thì trên mục tiêu khi trúng."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -1841,6 +2185,10 @@
               "range": 90,
               "status": "shock",
               "statusChance": 0.2,
+              "fxCast": "lightning/spark-arc",
+              "fxTravel": "",
+              "fxImpact": "lightning/zap-hit",
+              "fxAura": "lightning/electrified",
               "enabled": true
             },
             {
@@ -1855,6 +2203,10 @@
               "range": 50,
               "status": "shock",
               "statusChance": 0.35,
+              "fxCast": "lightning/charge-up",
+              "fxTravel": "",
+              "fxImpact": "lightning/thunderclap",
+              "fxAura": "lightning/electrified",
               "enabled": true
             },
             {
@@ -1869,6 +2221,10 @@
               "range": 220,
               "status": "burn",
               "statusChance": 0.2,
+              "fxCast": "fire/candle",
+              "fxTravel": "fire/fireball",
+              "fxImpact": "impacts/hit-spark",
+              "fxAura": "status/burning",
               "enabled": true
             },
             {
@@ -1883,6 +2239,10 @@
               "range": 190,
               "status": "burn",
               "statusChance": 0.4,
+              "fxCast": "fire/brazier",
+              "fxTravel": "",
+              "fxImpact": "fire/flame-pillar",
+              "fxAura": "status/burning",
               "enabled": true
             },
             {
@@ -1897,6 +2257,10 @@
               "range": 110,
               "status": "",
               "statusChance": 0,
+              "fxCast": "fire/fire-ring",
+              "fxTravel": "fire/fire-tornado",
+              "fxImpact": "impacts/blunt-hit",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1911,6 +2275,10 @@
               "range": 230,
               "status": "",
               "statusChance": 0,
+              "fxCast": "water/water-orb",
+              "fxTravel": "water/water-jet",
+              "fxImpact": "water/splash",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1925,6 +2293,10 @@
               "range": 210,
               "status": "",
               "statusChance": 0,
+              "fxCast": "water/drip",
+              "fxTravel": "pbvfx:water-bubble-shot",
+              "fxImpact": "pbvfx:water-splash",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1939,6 +2311,10 @@
               "range": 200,
               "status": "",
               "statusChance": 0,
+              "fxCast": "holy/feather-burst",
+              "fxTravel": "",
+              "fxImpact": "impacts/bullet-impact",
+              "fxAura": "status/slowed",
               "enabled": true
             },
             {
@@ -1953,6 +2329,10 @@
               "range": 120,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/root-snare",
+              "fxTravel": "",
+              "fxImpact": "nature/thorns",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1967,6 +2347,10 @@
               "range": 180,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/leaf-storm",
+              "fxTravel": "projectiles/energy-disc",
+              "fxImpact": "pbvfx:grass-petal-burst",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1981,6 +2365,10 @@
               "range": 100,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/earth-spike",
+              "fxTravel": "",
+              "fxImpact": "pbvfx:rock-smash",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -1995,6 +2383,10 @@
               "range": 56,
               "status": "",
               "statusChance": 0,
+              "fxCast": "impacts/heavy-landing",
+              "fxTravel": "",
+              "fxImpact": "nature/quake",
+              "fxAura": "status/slowed",
               "enabled": true
             },
             {
@@ -2009,6 +2401,10 @@
               "range": 190,
               "status": "",
               "statusChance": 0,
+              "fxCast": "ice/snowflake-burst",
+              "fxTravel": "ice/ice-lance",
+              "fxImpact": "ice/ice-shatter",
+              "fxAura": "status/slowed",
               "enabled": true
             },
             {
@@ -2023,6 +2419,10 @@
               "range": 210,
               "status": "sleep",
               "statusChance": 0.15,
+              "fxCast": "shadow/hex-sigil",
+              "fxTravel": "shadow/void-orb",
+              "fxImpact": "pbvfx:ghost-hex-burst",
+              "fxAura": "status/sleep",
               "enabled": true
             },
             {
@@ -2037,6 +2437,10 @@
               "range": 110,
               "status": "",
               "statusChance": 0,
+              "fxCast": "arcane/blink-out",
+              "fxTravel": "",
+              "fxImpact": "melee/claw-swipe",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2051,6 +2455,10 @@
               "range": 180,
               "status": "sleep",
               "statusChance": 0.4,
+              "fxCast": "arcane/magic-circle-cast",
+              "fxTravel": "",
+              "fxImpact": "arcane/mana-burst",
+              "fxAura": "status/sleep",
               "enabled": true
             },
             {
@@ -2065,6 +2473,10 @@
               "range": 95,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/thorns",
+              "fxTravel": "",
+              "fxImpact": "melee/thrust",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2079,6 +2491,10 @@
               "range": 200,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/spore-burst",
+              "fxTravel": "pbvfx:poison-sludge-glob",
+              "fxImpact": "nature/acid-splash",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2093,6 +2509,10 @@
               "range": 180,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/spore-burst",
+              "fxTravel": "",
+              "fxImpact": "nature/poison-cloud",
+              "fxAura": "status/poisoned",
               "enabled": true
             },
             {
@@ -2107,6 +2527,10 @@
               "range": 150,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/healing-bloom",
+              "fxTravel": "nature/vine-whip",
+              "fxImpact": "melee/whip-crack",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2121,6 +2545,10 @@
               "range": 210,
               "status": "burn",
               "statusChance": 0.25,
+              "fxCast": "fire/spirit-flame",
+              "fxTravel": "fire/flamethrower",
+              "fxImpact": "pbvfx:fire-burst",
+              "fxAura": "status/burning",
               "enabled": true
             },
             {
@@ -2135,6 +2563,10 @@
               "range": 130,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/tornado",
+              "fxTravel": "",
+              "fxImpact": "pbvfx:flying-gust-burst",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2149,6 +2581,10 @@
               "range": 100,
               "status": "",
               "statusChance": 0,
+              "fxCast": "water/bubbles",
+              "fxTravel": "",
+              "fxImpact": "impacts/blunt-hit",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2163,6 +2599,10 @@
               "range": 52,
               "status": "",
               "statusChance": 0,
+              "fxCast": "water/ripples",
+              "fxTravel": "",
+              "fxImpact": "pbvfx:water-splash",
+              "fxAura": "status/slowed",
               "enabled": true
             },
             {
@@ -2177,6 +2617,10 @@
               "range": 240,
               "status": "",
               "statusChance": 0,
+              "fxCast": "water/geyser",
+              "fxTravel": "water/water-jet",
+              "fxImpact": "water/wave-crash",
+              "fxAura": "",
               "enabled": true
             },
             {
@@ -2191,6 +2635,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
+              "fxCast": "impacts/heavy-landing",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "scifi/force-field",
               "enabled": true
             },
             {
@@ -2205,6 +2653,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
+              "fxCast": "fire/campfire",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "status/rage",
               "enabled": true
             },
             {
@@ -2219,6 +2671,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
+              "fxCast": "nature/healing-bloom",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "holy/blessing",
               "enabled": true
             },
             {
@@ -2233,6 +2689,10 @@
               "range": 0,
               "status": "",
               "statusChance": 0,
+              "fxCast": "spawn/poof",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "status/haste",
               "enabled": true
             }
           ]
@@ -3688,6 +4148,12 @@
               "type": "text"
             },
             {
+              "key": "starter",
+              "label": "Tặng người mới",
+              "type": "bool",
+              "help": "Người chơi mới nhận sẵn một món này."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -3708,6 +4174,7 @@
               "split_spDefense": 0,
               "split_speed": 0,
               "effect": "",
+              "starter": true,
               "enabled": true
             },
             {
@@ -3722,20 +4189,22 @@
               "split_spDefense": 0,
               "split_speed": 0,
               "effect": "",
+              "starter": true,
               "enabled": true
             },
             {
-              "id": "iron_helmet",
-              "name": "Iron Helmet",
+              "id": "cloth_cap",
+              "name": "Cloth Cap",
               "kind": "helmet",
-              "rarity": "SR",
-              "split_hp": 0,
+              "rarity": "R",
+              "split_hp": 0.5,
               "split_attack": 0,
-              "split_defense": 0.5,
+              "split_defense": 0,
               "split_spAttack": 0,
               "split_spDefense": 0.5,
               "split_speed": 0,
               "effect": "",
+              "starter": false,
               "enabled": true
             },
             {
@@ -3750,6 +4219,37 @@
               "split_spDefense": 0,
               "split_speed": 1,
               "effect": "",
+              "starter": true,
+              "enabled": true
+            },
+            {
+              "id": "copper_ring",
+              "name": "Copper Ring",
+              "kind": "ring",
+              "rarity": "R",
+              "split_hp": 0,
+              "split_attack": 0,
+              "split_defense": 0,
+              "split_spAttack": 1,
+              "split_spDefense": 0,
+              "split_speed": 0,
+              "effect": "",
+              "starter": false,
+              "enabled": true
+            },
+            {
+              "id": "iron_helmet",
+              "name": "Iron Helmet",
+              "kind": "helmet",
+              "rarity": "SR",
+              "split_hp": 0,
+              "split_attack": 0,
+              "split_defense": 0.5,
+              "split_spAttack": 0,
+              "split_spDefense": 0.5,
+              "split_speed": 0,
+              "effect": "",
+              "starter": false,
               "enabled": true
             },
             {
@@ -3764,6 +4264,52 @@
               "split_spDefense": 0.4,
               "split_speed": 0,
               "effect": "",
+              "starter": false,
+              "enabled": true
+            },
+            {
+              "id": "steel_mail",
+              "name": "Steel Mail",
+              "kind": "armour",
+              "rarity": "SR",
+              "split_hp": 0.4,
+              "split_attack": 0,
+              "split_defense": 0.6,
+              "split_spAttack": 0,
+              "split_spDefense": 0,
+              "split_speed": 0,
+              "effect": "",
+              "starter": false,
+              "enabled": true
+            },
+            {
+              "id": "storm_blade",
+              "name": "Storm Blade",
+              "kind": "sword",
+              "rarity": "SSR",
+              "split_hp": 0,
+              "split_attack": 0.6,
+              "split_defense": 0,
+              "split_spAttack": 0,
+              "split_spDefense": 0,
+              "split_speed": 0.4,
+              "effect": "",
+              "starter": false,
+              "enabled": true
+            },
+            {
+              "id": "sun_amulet",
+              "name": "Sun Amulet",
+              "kind": "amulet",
+              "rarity": "SSR",
+              "split_hp": 0.3,
+              "split_attack": 0,
+              "split_defense": 0,
+              "split_spAttack": 0.4,
+              "split_spDefense": 0.3,
+              "split_speed": 0,
+              "effect": "",
+              "starter": false,
               "enabled": true
             }
           ]
@@ -3816,8 +4362,9 @@
             },
             {
               "key": "rateUp",
-              "label": "Món rate-up",
-              "type": "text"
+              "label": "Món rate-up (mã loài hoặc mã trang bị)",
+              "type": "text",
+              "help": "Món được tăng tỉ lệ khi ra SSR và món chọn được khi đủ điểm bảo hiểm."
             },
             {
               "key": "rateR",
@@ -3868,7 +4415,7 @@
           "default": [
             {
               "id": "pets_standard",
-              "name": "Standard Pets",
+              "name": "Partner Pets",
               "kind": "pet",
               "pool": [
                 "coilbadger",
@@ -3888,7 +4435,7 @@
                 "tidewallow"
               ],
               "poolEquipment": [],
-              "rateUp": "",
+              "rateUp": "tidewallow",
               "rateR": 79,
               "rateSR": 18,
               "rateSSR": 3,
@@ -3899,23 +4446,788 @@
             },
             {
               "id": "gear_standard",
-              "name": "Standard Gear",
+              "name": "Training Gear",
               "kind": "equipment",
               "pool": [],
               "poolEquipment": [
                 "bronze_sword",
                 "leather_armour",
-                "iron_helmet",
+                "cloth_cap",
                 "swift_boots",
-                "sage_ring"
+                "copper_ring",
+                "iron_helmet",
+                "sage_ring",
+                "steel_mail",
+                "storm_blade",
+                "sun_amulet"
               ],
-              "rateUp": "",
+              "rateUp": "storm_blade",
               "rateR": 79,
               "rateSR": 18,
               "rateSSR": 3,
               "pity": 200,
               "start": "",
               "end": "",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-learnsets",
+      "label": "Bảng: Chiêu học theo cấp",
+      "blurb": "Learnset từng loài: chiêu học được ở cấp nào. Pet mới chỉ biết chiêu tới cấp của nó (tối đa 2 ở cấp 5); lên cấp thì học thêm, đầy 4 ô thì hỏi thay chiêu nào.",
+      "fields": [
+        {
+          "key": "tables.learnsets",
+          "label": "Chiêu học theo cấp",
+          "help": "Learnset từng loài: chiêu học được ở cấp nào. Pet mới chỉ biết chiêu tới cấp của nó (tối đa 2 ở cấp 5); lên cấp thì học thêm, đầy 4 ô thì hỏi thay chiêu nào.",
+          "type": "table",
+          "rowKey": "id",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã",
+              "type": "text",
+              "readonly": true
+            },
+            {
+              "key": "species",
+              "label": "Loài",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "level",
+              "label": "Cấp",
+              "type": "int",
+              "min": 1,
+              "max": 100
+            },
+            {
+              "key": "move",
+              "label": "Chiêu",
+              "type": "enum",
+              "ref": "moves"
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "id": "coilbadger-1",
+              "species": "coilbadger",
+              "level": 1,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "coilbadger-2",
+              "species": "coilbadger",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "coilbadger-3",
+              "species": "coilbadger",
+              "level": 8,
+              "move": "arc_ring",
+              "enabled": true
+            },
+            {
+              "id": "coilbadger-4",
+              "species": "coilbadger",
+              "level": 12,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "kilnback-1",
+              "species": "kilnback",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "kilnback-2",
+              "species": "kilnback",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "kilnback-3",
+              "species": "kilnback",
+              "level": 8,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "kilnback-4",
+              "species": "kilnback",
+              "level": 12,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane-1",
+              "species": "tidecrane",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane-2",
+              "species": "tidecrane",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane-3",
+              "species": "tidecrane",
+              "level": 8,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane-4",
+              "species": "tidecrane",
+              "level": 12,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "thornboar-1",
+              "species": "thornboar",
+              "level": 1,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "thornboar-2",
+              "species": "thornboar",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "thornboar-3",
+              "species": "thornboar",
+              "level": 8,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "thornboar-4",
+              "species": "thornboar",
+              "level": 12,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "shalehorn-1",
+              "species": "shalehorn",
+              "level": 1,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "shalehorn-2",
+              "species": "shalehorn",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "shalehorn-3",
+              "species": "shalehorn",
+              "level": 8,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "shalehorn-4",
+              "species": "shalehorn",
+              "level": 12,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare-1",
+              "species": "gloamhare",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare-2",
+              "species": "gloamhare",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare-3",
+              "species": "gloamhare",
+              "level": 8,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare-4",
+              "species": "gloamhare",
+              "level": 12,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-1",
+              "species": "budsnout",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-2",
+              "species": "budsnout",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-3",
+              "species": "budsnout",
+              "level": 8,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-4",
+              "species": "budsnout",
+              "level": 12,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-5",
+              "species": "budsnout",
+              "level": 16,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-6",
+              "species": "budsnout",
+              "level": 21,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-7",
+              "species": "budsnout",
+              "level": 26,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-8",
+              "species": "budsnout",
+              "level": 31,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "budsnout-9",
+              "species": "budsnout",
+              "level": 36,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-1",
+              "species": "fernsnout",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-2",
+              "species": "fernsnout",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-3",
+              "species": "fernsnout",
+              "level": 8,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-4",
+              "species": "fernsnout",
+              "level": 12,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-5",
+              "species": "fernsnout",
+              "level": 16,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-6",
+              "species": "fernsnout",
+              "level": 21,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-7",
+              "species": "fernsnout",
+              "level": 26,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-8",
+              "species": "fernsnout",
+              "level": 31,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "fernsnout-9",
+              "species": "fernsnout",
+              "level": 36,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-1",
+              "species": "grovesnout",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-2",
+              "species": "grovesnout",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-3",
+              "species": "grovesnout",
+              "level": 8,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-4",
+              "species": "grovesnout",
+              "level": 12,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-5",
+              "species": "grovesnout",
+              "level": 16,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-6",
+              "species": "grovesnout",
+              "level": 21,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-7",
+              "species": "grovesnout",
+              "level": 26,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-8",
+              "species": "grovesnout",
+              "level": 31,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "grovesnout-9",
+              "species": "grovesnout",
+              "level": 36,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-1",
+              "species": "cinderkit",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-2",
+              "species": "cinderkit",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-3",
+              "species": "cinderkit",
+              "level": 8,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-4",
+              "species": "cinderkit",
+              "level": 12,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-5",
+              "species": "cinderkit",
+              "level": 16,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "cinderkit-6",
+              "species": "cinderkit",
+              "level": 21,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-1",
+              "species": "cindermask",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-2",
+              "species": "cindermask",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-3",
+              "species": "cindermask",
+              "level": 8,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-4",
+              "species": "cindermask",
+              "level": 12,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-5",
+              "species": "cindermask",
+              "level": 16,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "cindermask-6",
+              "species": "cindermask",
+              "level": 21,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-1",
+              "species": "cinderkite",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-2",
+              "species": "cinderkite",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-3",
+              "species": "cinderkite",
+              "level": 8,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-4",
+              "species": "cinderkite",
+              "level": 12,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-5",
+              "species": "cinderkite",
+              "level": 16,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-6",
+              "species": "cinderkite",
+              "level": 21,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-1",
+              "species": "wallowling",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-2",
+              "species": "wallowling",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-3",
+              "species": "wallowling",
+              "level": 8,
+              "move": "wallow_ram",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-4",
+              "species": "wallowling",
+              "level": 12,
+              "move": "tide_slam",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-5",
+              "species": "wallowling",
+              "level": 16,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-6",
+              "species": "wallowling",
+              "level": 21,
+              "move": "vent_jet",
+              "enabled": true
+            },
+            {
+              "id": "wallowling-7",
+              "species": "wallowling",
+              "level": 26,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-1",
+              "species": "shellwallow",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-2",
+              "species": "shellwallow",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-3",
+              "species": "shellwallow",
+              "level": 8,
+              "move": "wallow_ram",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-4",
+              "species": "shellwallow",
+              "level": 12,
+              "move": "tide_slam",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-5",
+              "species": "shellwallow",
+              "level": 16,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-6",
+              "species": "shellwallow",
+              "level": 21,
+              "move": "vent_jet",
+              "enabled": true
+            },
+            {
+              "id": "shellwallow-7",
+              "species": "shellwallow",
+              "level": 26,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-1",
+              "species": "tidewallow",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-2",
+              "species": "tidewallow",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-3",
+              "species": "tidewallow",
+              "level": 8,
+              "move": "wallow_ram",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-4",
+              "species": "tidewallow",
+              "level": 12,
+              "move": "tide_slam",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-5",
+              "species": "tidewallow",
+              "level": 16,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-6",
+              "species": "tidewallow",
+              "level": 21,
+              "move": "vent_jet",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-7",
+              "species": "tidewallow",
+              "level": 26,
+              "move": "rime_spike",
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-evolutions",
+      "label": "Bảng: Tiến hoá",
+      "blurb": "Pet tiến hoá ngay trong lượt khi đạt cấp: giữ IV, tính cách, năng lực, điểm luyện và chiêu; chỉ số tính lại theo loài mới.",
+      "fields": [
+        {
+          "key": "tables.evolutions",
+          "label": "Tiến hoá",
+          "help": "Pet tiến hoá ngay trong lượt khi đạt cấp: giữ IV, tính cách, năng lực, điểm luyện và chiêu; chỉ số tính lại theo loài mới.",
+          "type": "table",
+          "rowKey": "from",
+          "columns": [
+            {
+              "key": "from",
+              "label": "Từ loài",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "to",
+              "label": "Thành loài",
+              "type": "enum",
+              "ref": "species"
+            },
+            {
+              "key": "level",
+              "label": "Ở cấp",
+              "type": "int",
+              "min": 2,
+              "max": 100
+            },
+            {
+              "key": "enabled",
+              "label": "Bật",
+              "type": "bool",
+              "help": "Tắt thì dòng này không xuất hiện trong game (không xoá dữ liệu)."
+            }
+          ],
+          "canAdd": true,
+          "default": [
+            {
+              "from": "budsnout",
+              "to": "fernsnout",
+              "level": 9,
+              "enabled": true
+            },
+            {
+              "from": "fernsnout",
+              "to": "grovesnout",
+              "level": 15,
+              "enabled": true
+            },
+            {
+              "from": "cinderkit",
+              "to": "cindermask",
+              "level": 9,
+              "enabled": true
+            },
+            {
+              "from": "cindermask",
+              "to": "cinderkite",
+              "level": 15,
+              "enabled": true
+            },
+            {
+              "from": "wallowling",
+              "to": "shellwallow",
+              "level": 9,
+              "enabled": true
+            },
+            {
+              "from": "shellwallow",
+              "to": "tidewallow",
+              "level": 15,
               "enabled": true
             }
           ]
@@ -3973,6 +5285,14 @@
               "help": "Pet hoang và trainer ở bậc này có chiêu mấy sao (nhiều sao hồi chiêu nhanh hơn)."
             },
             {
+              "key": "foeTrained",
+              "label": "Điểm luyện đối thủ",
+              "type": "int",
+              "min": 0,
+              "max": 1000,
+              "help": "Pet hoang và trainer ở bậc này được cộng chừng này điểm vào mỗi chỉ số (như điểm luyện của người chơi)."
+            },
+            {
               "key": "rewardMult",
               "label": "Hệ số thưởng",
               "type": "number",
@@ -4003,10 +5323,11 @@
           "default": [
             {
               "tier": 0,
-              "levelBase": 5,
+              "levelBase": 6,
               "wildIvMax": 10,
               "npcIvMin": 2,
               "foeStars": 1,
+              "foeTrained": 0,
               "rewardMult": 1,
               "enabled": true,
               "wild": [
@@ -4022,10 +5343,11 @@
             },
             {
               "tier": 1,
-              "levelBase": 7,
+              "levelBase": 10,
               "wildIvMax": 13,
               "npcIvMin": 4,
               "foeStars": 1,
+              "foeTrained": 4,
               "rewardMult": 1.25,
               "enabled": true,
               "wild": [
@@ -4043,17 +5365,27 @@
                 "shellwallow"
               ],
               "npc": [
+                "coilbadger",
+                "kilnback",
+                "tidecrane",
+                "thornboar",
+                "shalehorn",
+                "gloamhare",
                 "budsnout",
+                "fernsnout",
                 "cinderkit",
-                "wallowling"
+                "cindermask",
+                "wallowling",
+                "shellwallow"
               ]
             },
             {
               "tier": 2,
-              "levelBase": 9,
+              "levelBase": 13,
               "wildIvMax": 16,
               "npcIvMin": 6,
               "foeStars": 1,
+              "foeTrained": 8,
               "rewardMult": 1.5,
               "enabled": true,
               "wild": [
@@ -4087,10 +5419,11 @@
             },
             {
               "tier": 3,
-              "levelBase": 11,
+              "levelBase": 16,
               "wildIvMax": 19,
               "npcIvMin": 8,
               "foeStars": 2,
+              "foeTrained": 12,
               "rewardMult": 1.75,
               "enabled": true,
               "wild": [
@@ -4127,10 +5460,11 @@
             },
             {
               "tier": 4,
-              "levelBase": 13,
+              "levelBase": 19,
               "wildIvMax": 22,
               "npcIvMin": 10,
               "foeStars": 2,
+              "foeTrained": 16,
               "rewardMult": 2,
               "enabled": true,
               "wild": [
@@ -4170,10 +5504,11 @@
             },
             {
               "tier": 5,
-              "levelBase": 15,
+              "levelBase": 22,
               "wildIvMax": 25,
               "npcIvMin": 12,
               "foeStars": 3,
+              "foeTrained": 20,
               "rewardMult": 2.25,
               "enabled": true,
               "wild": [
@@ -4213,10 +5548,11 @@
             },
             {
               "tier": 6,
-              "levelBase": 17,
+              "levelBase": 27,
               "wildIvMax": 28,
               "npcIvMin": 14,
               "foeStars": 3,
+              "foeTrained": 24,
               "rewardMult": 2.5,
               "enabled": true,
               "wild": [
@@ -4261,12 +5597,12 @@
     {
       "id": "table-npcTrainers",
       "label": "Bảng: Trainer",
-      "blurb": "Trainer gặp trên đường (mỗi người 1 pet, loài lấy theo bậc ở bảng Bậc theo huy hiệu): tên, cấp cộng thêm, bậc bắt đầu xuất hiện.",
+      "blurb": "Trainer gặp trên đường (mỗi người 1 pet): tên, cấp cộng thêm, bậc bắt đầu xuất hiện và đội theo chủ đề (loài lấy từ đội này giao với bảng Bậc theo huy hiệu; giao rỗng thì lấy cả bậc).",
       "fields": [
         {
           "key": "tables.npcTrainers",
           "label": "Trainer",
-          "help": "Trainer gặp trên đường (mỗi người 1 pet, loài lấy theo bậc ở bảng Bậc theo huy hiệu): tên, cấp cộng thêm, bậc bắt đầu xuất hiện.",
+          "help": "Trainer gặp trên đường (mỗi người 1 pet): tên, cấp cộng thêm, bậc bắt đầu xuất hiện và đội theo chủ đề (loài lấy từ đội này giao với bảng Bậc theo huy hiệu; giao rỗng thì lấy cả bậc).",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4296,6 +5632,13 @@
               "max": 12
             },
             {
+              "key": "roster",
+              "label": "Đội theo chủ đề",
+              "type": "list",
+              "ref": "species",
+              "help": "Các loài trainer này hay dùng (để trống = mọi loài của bậc)."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -4309,6 +5652,15 @@
               "name": "Hiker Toma",
               "levelBonus": 0,
               "minTier": 0,
+              "roster": [
+                "budsnout",
+                "fernsnout",
+                "grovesnout",
+                "wallowling",
+                "shalehorn",
+                "thornboar",
+                "coilbadger"
+              ],
               "enabled": true
             },
             {
@@ -4316,6 +5668,14 @@
               "name": "Ranger Lio",
               "levelBonus": 0,
               "minTier": 0,
+              "roster": [
+                "budsnout",
+                "cinderkit",
+                "fernsnout",
+                "thornboar",
+                "gloamhare",
+                "grovesnout"
+              ],
               "enabled": true
             },
             {
@@ -4323,6 +5683,13 @@
               "name": "Scout Peni",
               "levelBonus": 0,
               "minTier": 0,
+              "roster": [
+                "cinderkit",
+                "wallowling",
+                "tidecrane",
+                "gloamhare",
+                "cindermask"
+              ],
               "enabled": true
             },
             {
@@ -4330,6 +5697,12 @@
               "name": "Fisher Bao",
               "levelBonus": 0,
               "minTier": 1,
+              "roster": [
+                "wallowling",
+                "shellwallow",
+                "tidewallow",
+                "tidecrane"
+              ],
               "enabled": true
             },
             {
@@ -4337,6 +5710,13 @@
               "name": "Biker Ren",
               "levelBonus": 1,
               "minTier": 2,
+              "roster": [
+                "cinderkit",
+                "cindermask",
+                "cinderkite",
+                "kilnback",
+                "coilbadger"
+              ],
               "enabled": true
             },
             {
@@ -4344,6 +5724,13 @@
               "name": "Ace Mika",
               "levelBonus": 1,
               "minTier": 3,
+              "roster": [
+                "gloamhare",
+                "tidecrane",
+                "cinderkite",
+                "coilbadger",
+                "fernsnout"
+              ],
               "enabled": true
             },
             {
@@ -4351,6 +5738,13 @@
               "name": "Veteran Odo",
               "levelBonus": 2,
               "minTier": 4,
+              "roster": [
+                "shalehorn",
+                "thornboar",
+                "kilnback",
+                "tidewallow",
+                "shellwallow"
+              ],
               "enabled": true
             },
             {
@@ -4358,6 +5752,13 @@
               "name": "Ace Rhea",
               "levelBonus": 2,
               "minTier": 5,
+              "roster": [
+                "grovesnout",
+                "cinderkite",
+                "tidewallow",
+                "gloamhare",
+                "coilbadger"
+              ],
               "enabled": true
             }
           ]
@@ -4432,6 +5833,14 @@
               "max": 5
             },
             {
+              "key": "trained",
+              "label": "Điểm luyện",
+              "type": "int",
+              "min": 0,
+              "max": 1000,
+              "help": "Điểm cộng vào mỗi chỉ số của pet boss (boss cũng được luyện như pet người chơi)."
+            },
+            {
               "key": "moves",
               "label": "Chiêu (để trống = chiêu gốc)",
               "type": "list",
@@ -4467,9 +5876,10 @@
               "order": 1,
               "name": "Leader Nyx",
               "species": "gloamhare",
-              "levelBonus": 1,
+              "levelBonus": 3,
               "iv": 12,
               "stars": 1,
+              "trained": 0,
               "moves": [],
               "held": "",
               "theme": "night",
@@ -4480,10 +5890,11 @@
               "role": "gym",
               "order": 2,
               "name": "Leader Ash",
-              "species": "kilnback",
+              "species": "cindermask",
               "levelBonus": 0,
-              "iv": 10,
+              "iv": 12,
               "stars": 1,
+              "trained": 0,
               "moves": [],
               "held": "",
               "theme": "ember",
@@ -4496,9 +5907,15 @@
               "name": "Leader Volta",
               "species": "coilbadger",
               "levelBonus": 0,
-              "iv": 12,
+              "iv": 4,
               "stars": 1,
-              "moves": [],
+              "trained": 0,
+              "moves": [
+                "jolt_nip",
+                "arc_ring",
+                "quickstep",
+                "stoke_up"
+              ],
               "held": "",
               "theme": "plant",
               "enabled": true
@@ -4508,12 +5925,13 @@
               "role": "gym",
               "order": 4,
               "name": "Leader Maris",
-              "species": "tidecrane",
-              "levelBonus": 1,
-              "iv": 14,
-              "stars": 2,
+              "species": "shellwallow",
+              "levelBonus": 0,
+              "iv": 10,
+              "stars": 1,
+              "trained": 0,
               "moves": [],
-              "held": "swift_charm",
+              "held": "",
               "theme": "tide",
               "enabled": true
             },
@@ -4526,6 +5944,7 @@
               "levelBonus": 1,
               "iv": 16,
               "stars": 2,
+              "trained": 10,
               "moves": [],
               "held": "guard_vest",
               "theme": "ridge",
@@ -4538,8 +5957,9 @@
               "name": "Leader Thorne",
               "species": "thornboar",
               "levelBonus": 2,
-              "iv": 18,
+              "iv": 14,
               "stars": 2,
+              "trained": 10,
               "moves": [],
               "held": "power_band",
               "theme": "bramble",
@@ -4554,6 +5974,7 @@
               "levelBonus": 3,
               "iv": 26,
               "stars": 2,
+              "trained": 35,
               "moves": [],
               "held": "power_band",
               "theme": "elite",
@@ -4568,6 +5989,7 @@
               "levelBonus": 3,
               "iv": 26,
               "stars": 2,
+              "trained": 10,
               "moves": [],
               "held": "guard_vest",
               "theme": "elite",
@@ -4582,6 +6004,7 @@
               "levelBonus": 4,
               "iv": 28,
               "stars": 3,
+              "trained": 30,
               "moves": [],
               "held": "lucky_clover",
               "theme": "elite",
@@ -4592,10 +6015,11 @@
               "role": "elite",
               "order": 4,
               "name": "Elite Vex",
-              "species": "coilbadger",
+              "species": "gloamhare",
               "levelBonus": 4,
               "iv": 28,
               "stars": 3,
+              "trained": 40,
               "moves": [],
               "held": "swift_charm",
               "theme": "elite",
@@ -4610,6 +6034,7 @@
               "levelBonus": 6,
               "iv": 31,
               "stars": 3,
+              "trained": 75,
               "moves": [],
               "held": "power_band",
               "theme": "champion",
@@ -4669,6 +6094,45 @@
               ]
             },
             {
+              "key": "weather",
+              "label": "Thời tiết",
+              "type": "text",
+              "help": "Mã pixelfx phủ lên nền trận và màn đường (vd. weather/rain); để trống = trời quang."
+            },
+            {
+              "key": "weatherTint",
+              "label": "Màu thời tiết",
+              "type": "enum",
+              "options": [
+                "",
+                "normal",
+                "fire",
+                "water",
+                "grass",
+                "electric",
+                "ice",
+                "fighting",
+                "poison",
+                "ground",
+                "flying",
+                "psychic",
+                "bug",
+                "rock",
+                "ghost",
+                "dragon",
+                "dark",
+                "steel",
+                "fairy"
+              ],
+              "help": "Tô thời tiết theo màu của một hệ (vd. fire cho tàn lửa); để trống = màu gốc."
+            },
+            {
+              "key": "weatherAlt",
+              "label": "Thời tiết phụ",
+              "type": "text",
+              "help": "Thỉnh thoảng (tỉ lệ ở tab Hiệu ứng) một ngày dùng thời tiết này thay cho thời tiết chính; để trống = trời quang."
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -4683,6 +6147,9 @@
               "sky": "#2b3566",
               "ground": "#3c505a",
               "biome": "dusk",
+              "weather": "weather/fireflies",
+              "weatherTint": "",
+              "weatherAlt": "weather/clouds",
               "enabled": true
             },
             {
@@ -4691,6 +6158,9 @@
               "sky": "#9fe0ff",
               "ground": "#d2bf92",
               "biome": "beach",
+              "weather": "weather/rain",
+              "weatherTint": "",
+              "weatherAlt": "weather/clouds",
               "enabled": true
             },
             {
@@ -4699,6 +6169,9 @@
               "sky": "#ff9a6a",
               "ground": "#433533",
               "biome": "ember",
+              "weather": "weather/fireflies",
+              "weatherTint": "fire",
+              "weatherAlt": "weather/fog",
               "enabled": true
             },
             {
@@ -4707,6 +6180,9 @@
               "sky": "#c9d6e6",
               "ground": "#5e6771",
               "biome": "metal",
+              "weather": "weather/fireflies",
+              "weatherTint": "electric",
+              "weatherAlt": "weather/storm",
               "enabled": true
             },
             {
@@ -4715,6 +6191,9 @@
               "sky": "#d6e4f0",
               "ground": "#b7c0cb",
               "biome": "snow",
+              "weather": "weather/snow",
+              "weatherTint": "",
+              "weatherAlt": "weather/blizzard",
               "enabled": true
             },
             {
@@ -4723,6 +6202,9 @@
               "sky": "#c9b98a",
               "ground": "#4f4930",
               "biome": "bramble",
+              "weather": "weather/falling-leaves",
+              "weatherTint": "",
+              "weatherAlt": "weather/cherry-blossoms",
               "enabled": true
             },
             {
@@ -4731,6 +6213,9 @@
               "sky": "#3a3060",
               "ground": "#c1beca",
               "biome": "marble",
+              "weather": "weather/god-rays",
+              "weatherTint": "",
+              "weatherAlt": "",
               "enabled": true
             },
             {
@@ -4739,6 +6224,9 @@
               "sky": "#ffd84d",
               "ground": "#866f48",
               "biome": "royal",
+              "weather": "ui/confetti",
+              "weatherTint": "",
+              "weatherAlt": "weather/shooting-stars",
               "enabled": true
             }
           ]
@@ -4817,12 +6305,12 @@
     {
       "id": "table-quests",
       "label": "Bảng: Nhiệm vụ và thư",
-      "blurb": "Nhiệm vụ ngày, thành tựu, sự kiện và quà thư (P3).",
+      "blurb": "Nhiệm vụ ngày (đặt lại mỗi ngày), thành tựu (một lần), thư (nhận một lần): việc cần làm, mục tiêu, quà pha lê/vàng/năng lượng.",
       "fields": [
         {
           "key": "tables.quests",
           "label": "Nhiệm vụ và thư",
-          "help": "Nhiệm vụ ngày, thành tựu, sự kiện và quà thư (P3).",
+          "help": "Nhiệm vụ ngày (đặt lại mỗi ngày), thành tựu (một lần), thư (nhận một lần): việc cần làm, mục tiêu, quà pha lê/vàng/năng lượng.",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4849,6 +6337,20 @@
               "type": "text"
             },
             {
+              "key": "event",
+              "label": "Đếm theo",
+              "type": "enum",
+              "options": [
+                "none",
+                "run",
+                "win",
+                "pull",
+                "levelup",
+                "badges"
+              ],
+              "help": "Việc làm tăng tiến độ: hết lượt, thắng trận, quay gacha, nâng trang bị, số huy hiệu cao nhất một lượt; none = nhận ngay (thư)."
+            },
+            {
               "key": "goal",
               "label": "Mục tiêu",
               "type": "int",
@@ -4870,6 +6372,13 @@
               "max": 1000000
             },
             {
+              "key": "energy",
+              "label": "Năng lượng thưởng",
+              "type": "int",
+              "min": 0,
+              "max": 1000
+            },
+            {
               "key": "enabled",
               "label": "Bật",
               "type": "bool",
@@ -4879,39 +6388,91 @@
           "canAdd": true,
           "default": [
             {
-              "id": "daily_run",
+              "id": "mail_welcome",
+              "kind": "mail",
+              "text": "Welcome, trainer! A gift to start your journey.",
+              "event": "none",
+              "goal": 1,
+              "crystals": 1500,
+              "gold": 5000,
+              "energy": 0,
+              "enabled": true
+            },
+            {
+              "id": "mail_launch",
+              "kind": "mail",
+              "text": "Thanks for playing the first build.",
+              "event": "none",
+              "goal": 1,
+              "crystals": 300,
+              "gold": 0,
+              "energy": 30,
+              "enabled": true
+            },
+            {
+              "id": "daily_pull",
               "kind": "daily",
-              "text": "Finish a training run",
+              "text": "Pull the gacha once",
+              "event": "pull",
               "goal": 1,
               "crystals": 50,
               "gold": 0,
+              "energy": 0,
+              "enabled": true
+            },
+            {
+              "id": "daily_levelup",
+              "kind": "daily",
+              "text": "Level up a piece of gear",
+              "event": "levelup",
+              "goal": 1,
+              "crystals": 0,
+              "gold": 300,
+              "energy": 10,
               "enabled": true
             },
             {
               "id": "daily_wins",
               "kind": "daily",
               "text": "Win 5 fights",
+              "event": "win",
               "goal": 5,
               "crystals": 30,
               "gold": 500,
+              "energy": 0,
+              "enabled": true
+            },
+            {
+              "id": "daily_run",
+              "kind": "daily",
+              "text": "Finish a training run",
+              "event": "run",
+              "goal": 1,
+              "crystals": 50,
+              "gold": 0,
+              "energy": 20,
+              "enabled": true
+            },
+            {
+              "id": "ach_badge3",
+              "kind": "achievement",
+              "text": "Earn 3 badges in one run",
+              "event": "badges",
+              "goal": 3,
+              "crystals": 150,
+              "gold": 0,
+              "energy": 0,
               "enabled": true
             },
             {
               "id": "ach_badge6",
               "kind": "achievement",
               "text": "Earn 6 badges in one run",
+              "event": "badges",
               "goal": 6,
               "crystals": 300,
               "gold": 0,
-              "enabled": true
-            },
-            {
-              "id": "mail_welcome",
-              "kind": "mail",
-              "text": "Welcome gift",
-              "goal": 1,
-              "crystals": 1500,
-              "gold": 5000,
+              "energy": 0,
               "enabled": true
             }
           ]
