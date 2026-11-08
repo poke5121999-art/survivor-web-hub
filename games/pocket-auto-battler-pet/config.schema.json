@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 15,
+  "version": 16,
   "tabs": [
     {
       "id": "run",
@@ -998,12 +998,30 @@
         },
         {
           "key": "battle.dodgeScale",
-          "label": "Né: hệ số",
-          "help": "Tỉ lệ né của mọi loài nhân với hệ số này (1 = như bảng loài, 0 = không bao giờ né). Thấp hơn thì đòn trúng nhiều hơn.",
+          "label": "Né trước đòn: hệ số",
+          "help": "Pet thấy đòn sắp tới thì bước tránh với tỉ lệ né của loài x hệ số này. Mặc định 0: chỉ tránh khi đòn trượt theo độ chính xác.",
           "type": "number",
           "min": 0,
           "max": 2,
-          "default": 0.8
+          "default": 0
+        },
+        {
+          "key": "battle.evasionScale",
+          "label": "Né của loài: hệ số",
+          "help": "Mỗi đòn chạm tới pet bị trượt thêm theo tỉ lệ né của loài x hệ số này (như né tránh nhỏ).",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.15
+        },
+        {
+          "key": "battle.evasionMax",
+          "label": "Né của loài: tối đa",
+          "help": "Trần tỉ lệ né của loài trên mỗi đòn (0.08 = 8 %).",
+          "type": "number",
+          "min": 0,
+          "max": 0.5,
+          "default": 0.08
         },
         {
           "key": "battle.strafeScale",
@@ -4796,12 +4814,12 @@
     {
       "id": "table-moves",
       "label": "Bảng: Chiêu",
-      "blurb": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên; mọi chiêu luôn trúng nếu không bị né.",
+      "blurb": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên. Độ chính xác như Pokemon: đòn chạm tới mục tiêu trúng với tỉ lệ này (0 = không bao giờ trượt).",
       "fields": [
         {
           "key": "tables.moves",
           "label": "Chiêu",
-          "help": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên; mọi chiêu luôn trúng nếu không bị né.",
+          "help": "Mọi chiêu: hệ, loại vật lý/đặc biệt, sức mạnh, hồi chiêu, gồng, tầm, hiệu ứng. Trận real-time dùng hồi chiêu thay cho PP, gồng thay cho ưu tiên. Độ chính xác như Pokemon: đòn chạm tới mục tiêu trúng với tỉ lệ này (0 = không bao giờ trượt).",
           "type": "table",
           "rowKey": "id",
           "columns": [
@@ -4869,6 +4887,14 @@
               "type": "int",
               "min": 0,
               "max": 250
+            },
+            {
+              "key": "accuracy",
+              "label": "Độ chính xác (%)",
+              "type": "int",
+              "min": 0,
+              "max": 100,
+              "help": "Đòn chạm tới mục tiêu trúng với tỉ lệ này, trước bậc chính xác / né và tỉ lệ né nhỏ của loài. 0 = không bao giờ trượt (bỏ qua cả hai). Chiêu buff: 0."
             },
             {
               "key": "cooldown",
@@ -4949,6 +4975,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 55,
+              "accuracy": 100,
               "cooldown": 2.4,
               "windup": 0.45,
               "range": 90,
@@ -4967,6 +4994,7 @@
               "category": "special",
               "kind": "burst",
               "power": 70,
+              "accuracy": 95,
               "cooldown": 4.5,
               "windup": 0.6,
               "range": 50,
@@ -4985,6 +5013,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 45,
+              "accuracy": 100,
               "cooldown": 1.8,
               "windup": 0.35,
               "range": 220,
@@ -5003,6 +5032,7 @@
               "category": "special",
               "kind": "burst",
               "power": 80,
+              "accuracy": 100,
               "cooldown": 4.5,
               "windup": 0.8,
               "range": 190,
@@ -5021,6 +5051,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 60,
+              "accuracy": 100,
               "cooldown": 3.2,
               "windup": 0.45,
               "range": 110,
@@ -5039,6 +5070,7 @@
               "category": "special",
               "kind": "beam",
               "power": 80,
+              "accuracy": 90,
               "cooldown": 4.5,
               "windup": 0.7,
               "range": 230,
@@ -5057,6 +5089,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 40,
+              "accuracy": 100,
               "cooldown": 1.5,
               "windup": 0.3,
               "range": 210,
@@ -5075,6 +5108,7 @@
               "category": "physical",
               "kind": "projectile",
               "power": 50,
+              "accuracy": 0,
               "cooldown": 2.2,
               "windup": 0.35,
               "range": 200,
@@ -5093,6 +5127,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 70,
+              "accuracy": 100,
               "cooldown": 3,
               "windup": 0.45,
               "range": 120,
@@ -5111,6 +5146,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 45,
+              "accuracy": 100,
               "cooldown": 2,
               "windup": 0.35,
               "range": 180,
@@ -5129,6 +5165,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 65,
+              "accuracy": 100,
               "cooldown": 2.8,
               "windup": 0.45,
               "range": 100,
@@ -5147,6 +5184,7 @@
               "category": "physical",
               "kind": "burst",
               "power": 75,
+              "accuracy": 100,
               "cooldown": 5,
               "windup": 0.75,
               "range": 56,
@@ -5165,6 +5203,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 50,
+              "accuracy": 100,
               "cooldown": 2.2,
               "windup": 0.4,
               "range": 190,
@@ -5183,6 +5222,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 50,
+              "accuracy": 0,
               "cooldown": 2.4,
               "windup": 0.4,
               "range": 95,
@@ -5201,6 +5241,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 45,
+              "accuracy": 100,
               "cooldown": 2,
               "windup": 0.35,
               "range": 190,
@@ -5219,6 +5260,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 45,
+              "accuracy": 100,
               "cooldown": 2.2,
               "windup": 0.4,
               "range": 180,
@@ -5237,6 +5279,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 70,
+              "accuracy": 100,
               "cooldown": 3,
               "windup": 0.45,
               "range": 105,
@@ -5255,6 +5298,7 @@
               "category": "physical",
               "kind": "burst",
               "power": 85,
+              "accuracy": 90,
               "cooldown": 4.8,
               "windup": 0.7,
               "range": 50,
@@ -5273,6 +5317,7 @@
               "category": "special",
               "kind": "beam",
               "power": 70,
+              "accuracy": 90,
               "cooldown": 4.2,
               "windup": 0.65,
               "range": 220,
@@ -5291,6 +5336,7 @@
               "category": "special",
               "kind": "burst",
               "power": 85,
+              "accuracy": 90,
               "cooldown": 4.8,
               "windup": 0.8,
               "range": 180,
@@ -5309,6 +5355,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 50,
+              "accuracy": 100,
               "cooldown": 2.4,
               "windup": 0.4,
               "range": 210,
@@ -5327,6 +5374,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 60,
+              "accuracy": 0,
               "cooldown": 2.6,
               "windup": 0.45,
               "range": 110,
@@ -5345,6 +5393,7 @@
               "category": "special",
               "kind": "burst",
               "power": 55,
+              "accuracy": 85,
               "cooldown": 5.5,
               "windup": 0.8,
               "range": 180,
@@ -5363,6 +5412,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 55,
+              "accuracy": 95,
               "cooldown": 2.6,
               "windup": 0.45,
               "range": 95,
@@ -5381,6 +5431,7 @@
               "category": "special",
               "kind": "projectile",
               "power": 45,
+              "accuracy": 100,
               "cooldown": 2,
               "windup": 0.35,
               "range": 200,
@@ -5399,6 +5450,7 @@
               "category": "special",
               "kind": "burst",
               "power": 70,
+              "accuracy": 100,
               "cooldown": 5,
               "windup": 0.8,
               "range": 180,
@@ -5417,6 +5469,7 @@
               "category": "special",
               "kind": "beam",
               "power": 70,
+              "accuracy": 100,
               "cooldown": 4,
               "windup": 0.6,
               "range": 150,
@@ -5435,6 +5488,7 @@
               "category": "special",
               "kind": "beam",
               "power": 75,
+              "accuracy": 100,
               "cooldown": 4.5,
               "windup": 0.7,
               "range": 210,
@@ -5453,6 +5507,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 70,
+              "accuracy": 90,
               "cooldown": 3,
               "windup": 0.45,
               "range": 130,
@@ -5471,6 +5526,7 @@
               "category": "physical",
               "kind": "dash",
               "power": 60,
+              "accuracy": 100,
               "cooldown": 3,
               "windup": 0.45,
               "range": 100,
@@ -5489,6 +5545,7 @@
               "category": "physical",
               "kind": "burst",
               "power": 75,
+              "accuracy": 95,
               "cooldown": 5,
               "windup": 0.75,
               "range": 52,
@@ -5507,6 +5564,7 @@
               "category": "special",
               "kind": "beam",
               "power": 90,
+              "accuracy": 85,
               "cooldown": 5,
               "windup": 0.8,
               "range": 240,
@@ -5525,6 +5583,7 @@
               "category": "special",
               "kind": "buff",
               "power": 0,
+              "accuracy": 0,
               "cooldown": 9,
               "windup": 0.5,
               "range": 0,
@@ -5543,6 +5602,7 @@
               "category": "special",
               "kind": "buff",
               "power": 0,
+              "accuracy": 0,
               "cooldown": 9,
               "windup": 0.5,
               "range": 0,
@@ -5561,6 +5621,7 @@
               "category": "special",
               "kind": "buff",
               "power": 0,
+              "accuracy": 0,
               "cooldown": 12,
               "windup": 0.7,
               "range": 0,
@@ -5579,8 +5640,104 @@
               "category": "special",
               "kind": "buff",
               "power": 0,
+              "accuracy": 0,
               "cooldown": 9,
               "windup": 0.4,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "pab/buff-aura",
+              "enabled": true
+            },
+            {
+              "id": "dust_kick",
+              "name": "Dust Kick",
+              "type": "ground",
+              "category": "physical",
+              "kind": "dash",
+              "power": 40,
+              "accuracy": 100,
+              "cooldown": 3.4,
+              "windup": 0.4,
+              "range": 95,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "spawn/poof",
+              "fxTravel": "",
+              "fxImpact": "pbvfx:ground-dust-burst",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "smoke_puff",
+              "name": "Smoke Puff",
+              "type": "fire",
+              "category": "special",
+              "kind": "burst",
+              "power": 35,
+              "accuracy": 100,
+              "cooldown": 5,
+              "windup": 0.6,
+              "range": 170,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "fire/candle",
+              "fxTravel": "",
+              "fxImpact": "nature/spore-burst",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "dazzle_flash",
+              "name": "Dazzle Flash",
+              "type": "electric",
+              "category": "special",
+              "kind": "beam",
+              "power": 40,
+              "accuracy": 90,
+              "cooldown": 5,
+              "windup": 0.55,
+              "range": 170,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "lightning/charge-up",
+              "fxTravel": "",
+              "fxImpact": "lightning/zap-hit",
+              "fxAura": "",
+              "enabled": true
+            },
+            {
+              "id": "blur_step",
+              "name": "Blur Step",
+              "type": "normal",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "accuracy": 0,
+              "cooldown": 10,
+              "windup": 0.4,
+              "range": 0,
+              "status": "",
+              "statusChance": 0,
+              "fxCast": "",
+              "fxTravel": "",
+              "fxImpact": "",
+              "fxAura": "pab/buff-aura",
+              "enabled": true
+            },
+            {
+              "id": "mist_veil",
+              "name": "Mist Veil",
+              "type": "water",
+              "category": "special",
+              "kind": "buff",
+              "power": 0,
+              "accuracy": 0,
+              "cooldown": 11,
+              "windup": 0.5,
               "range": 0,
               "status": "",
               "statusChance": 0,
@@ -6983,6 +7140,36 @@
             },
             {
               "move": "quickstep",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "dust_kick",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "smoke_puff",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "dazzle_flash",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "blur_step",
+              "price": 250,
+              "weight": 1,
+              "enabled": true
+            },
+            {
+              "move": "mist_veil",
               "price": 250,
               "weight": 1,
               "enabled": true
@@ -8977,6 +9164,13 @@
               "enabled": true
             },
             {
+              "id": "coilbadger-5",
+              "species": "coilbadger",
+              "level": 27,
+              "move": "dazzle_flash",
+              "enabled": true
+            },
+            {
               "id": "kilnback-1",
               "species": "kilnback",
               "level": 1,
@@ -9005,6 +9199,13 @@
               "enabled": true
             },
             {
+              "id": "kilnback-5",
+              "species": "kilnback",
+              "level": 27,
+              "move": "smoke_puff",
+              "enabled": true
+            },
+            {
               "id": "tidecrane-1",
               "species": "tidecrane",
               "level": 1,
@@ -9030,6 +9231,13 @@
               "species": "tidecrane",
               "level": 19,
               "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "tidecrane-5",
+              "species": "tidecrane",
+              "level": 27,
+              "move": "mist_veil",
               "enabled": true
             },
             {
@@ -9089,6 +9297,13 @@
               "enabled": true
             },
             {
+              "id": "shalehorn-5",
+              "species": "shalehorn",
+              "level": 27,
+              "move": "dust_kick",
+              "enabled": true
+            },
+            {
               "id": "gloamhare-1",
               "species": "gloamhare",
               "level": 1,
@@ -9114,6 +9329,13 @@
               "species": "gloamhare",
               "level": 19,
               "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "gloamhare-5",
+              "species": "gloamhare",
+              "level": 27,
+              "move": "blur_step",
               "enabled": true
             },
             {
@@ -9348,6 +9570,13 @@
               "enabled": true
             },
             {
+              "id": "cinderkit-7",
+              "species": "cinderkit",
+              "level": 47,
+              "move": "smoke_puff",
+              "enabled": true
+            },
+            {
               "id": "cindermask-1",
               "species": "cindermask",
               "level": 1,
@@ -9390,6 +9619,13 @@
               "enabled": true
             },
             {
+              "id": "cindermask-7",
+              "species": "cindermask",
+              "level": 47,
+              "move": "smoke_puff",
+              "enabled": true
+            },
+            {
               "id": "cinderkite-1",
               "species": "cinderkite",
               "level": 1,
@@ -9429,6 +9665,13 @@
               "species": "cinderkite",
               "level": 37,
               "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "cinderkite-7",
+              "species": "cinderkite",
+              "level": 47,
+              "move": "smoke_puff",
               "enabled": true
             },
             {
@@ -9481,6 +9724,13 @@
               "enabled": true
             },
             {
+              "id": "wallowling-8",
+              "species": "wallowling",
+              "level": 57,
+              "move": "mist_veil",
+              "enabled": true
+            },
+            {
               "id": "shellwallow-1",
               "species": "shellwallow",
               "level": 1,
@@ -9530,6 +9780,13 @@
               "enabled": true
             },
             {
+              "id": "shellwallow-8",
+              "species": "shellwallow",
+              "level": 57,
+              "move": "mist_veil",
+              "enabled": true
+            },
+            {
               "id": "tidewallow-1",
               "species": "tidewallow",
               "level": 1,
@@ -9576,6 +9833,13 @@
               "species": "tidewallow",
               "level": 47,
               "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "tidewallow-8",
+              "species": "tidewallow",
+              "level": 57,
+              "move": "mist_veil",
               "enabled": true
             }
           ]
