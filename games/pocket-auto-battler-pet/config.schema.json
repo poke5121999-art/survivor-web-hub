@@ -5476,7 +5476,7 @@
               "statusChance": 0,
               "fxCast": "nature/spore-burst",
               "fxTravel": "",
-              "fxImpact": "nature/poison-cloud",
+              "fxImpact": "pab/miasma",
               "fxAura": "status/poisoned",
               "enabled": true
             },
@@ -5494,7 +5494,7 @@
               "status": "",
               "statusChance": 0,
               "fxCast": "nature/healing-bloom",
-              "fxTravel": "nature/vine-whip",
+              "fxTravel": "fight/beam-long",
               "fxImpact": "melee/whip-crack",
               "fxAura": "",
               "enabled": true
@@ -5571,7 +5571,7 @@
               "statusChance": 0,
               "fxCast": "water/ripples",
               "fxTravel": "",
-              "fxImpact": "pbvfx:water-splash",
+              "fxImpact": "pab/splash-top",
               "fxAura": "status/slowed",
               "enabled": true
             },
