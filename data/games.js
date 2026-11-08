@@ -933,7 +933,7 @@ window.HUB_GAMES = [
     // + dist/config.schema.json; chép vào games/pocket-auto-battler-pet/ và chèn game-gate.js vào <head>.
     // Thông số: game-config.html?game=pocket-auto-battler-pet (bảng Supabase game_config).
     path: "games/pocket-auto-battler-pet/index.html",
-    rev: "20261109g",
+    rev: "20261109h",
     status: "available",
     tags: ["Nuôi pet", "Đấu tự động", "Màn dọc"]
   }
