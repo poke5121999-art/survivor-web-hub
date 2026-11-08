@@ -1570,6 +1570,35 @@
               "help": "common/uncommon/rare: gặp ở bụi cỏ và trainer theo trọng số của bảng Bậc; starter: chỉ chọn lúc đầu và gacha, không bao giờ hoang dã; legendary: chỉ sự kiện."
             },
             {
+              "key": "minTier",
+              "label": "Gặp từ bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12,
+              "help": "Bậc huy hiệu đầu tiên loài này xuất hiện ở bụi cỏ và với trainer."
+            },
+            {
+              "key": "maxTier",
+              "label": "Gặp tới bậc",
+              "type": "int",
+              "min": 0,
+              "max": 12,
+              "help": "Bậc cuối cùng loài này còn xuất hiện."
+            },
+            {
+              "key": "expMult",
+              "label": "Hệ số EXP",
+              "type": "number",
+              "min": 0,
+              "max": 5,
+              "help": "Thắng loài này nhận EXP nhân hệ số này."
+            },
+            {
+              "key": "dex",
+              "label": "Mô tả Dex",
+              "type": "text"
+            },
+            {
               "key": "foeLevelAdj",
               "label": "Chỉnh cấp khi là đối thủ",
               "type": "int",
@@ -1617,6 +1646,10 @@
               "rarity": "SSR",
               "role": "uncommon",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1650,6 +1683,10 @@
               "rarity": "SR",
               "role": "uncommon",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1681,8 +1718,12 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SR",
-              "role": "common",
+              "role": "uncommon",
               "foeLevelAdj": -2,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1716,6 +1757,10 @@
               "rarity": "SSR",
               "role": "uncommon",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1749,6 +1794,10 @@
               "rarity": "SSR",
               "role": "rare",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1780,8 +1829,12 @@
               "evolvesFrom": "",
               "stage": 1,
               "rarity": "SR",
-              "role": "common",
+              "role": "uncommon",
               "foeLevelAdj": -2,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1815,6 +1868,10 @@
               "rarity": "R",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1848,6 +1905,10 @@
               "rarity": "SR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1881,6 +1942,10 @@
               "rarity": "SSR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1914,6 +1979,10 @@
               "rarity": "R",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1947,6 +2016,10 @@
               "rarity": "SR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -1980,6 +2053,10 @@
               "rarity": "SSR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -2013,6 +2090,10 @@
               "rarity": "R",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -2046,6 +2127,10 @@
               "rarity": "SR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
               "enabled": true
             },
             {
@@ -2079,6 +2164,1379 @@
               "rarity": "SSR",
               "role": "starter",
               "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 12,
+              "expMult": 1,
+              "dex": "",
+              "enabled": true
+            },
+            {
+              "id": "hootlet",
+              "name": "Hootlet",
+              "type1": "normal",
+              "type2": "flying",
+              "hp": 50,
+              "attack": 50,
+              "defense": 45,
+              "spAttack": 40,
+              "spDefense": 40,
+              "speed": 65,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "squall_quill",
+                "quickstep",
+                "updraft_dive",
+                "squall_quill"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A horned owlet that naps by day in the hedges and swoops on anything that rustles the grass at dusk.",
+              "enabled": true
+            },
+            {
+              "id": "snowpup",
+              "name": "Snowpup",
+              "type1": "normal",
+              "type2": "",
+              "hp": 55,
+              "attack": 58,
+              "defense": 50,
+              "spAttack": 35,
+              "spDefense": 40,
+              "speed": 60,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "hunker",
+                "rime_spike",
+                "shade_pounce"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A grey pup with frost on its whiskers. It pounces on its own tail when nobody is watching.",
+              "enabled": true
+            },
+            {
+              "id": "embrush",
+              "name": "Embrush",
+              "type1": "fire",
+              "type2": "",
+              "hp": 48,
+              "attack": 52,
+              "defense": 44,
+              "spAttack": 58,
+              "spDefense": 46,
+              "speed": 62,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "ember_volley",
+                "stoke_up",
+                "cinder_roll",
+                "heat_ribbon"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A red fox whose brush of a tail smoulders when it is excited; dry grass is never safe around it.",
+              "enabled": true
+            },
+            {
+              "id": "tabbit",
+              "name": "Tabbit",
+              "type1": "normal",
+              "type2": "",
+              "hp": 50,
+              "attack": 52,
+              "defense": 42,
+              "spAttack": 40,
+              "spDefense": 42,
+              "speed": 66,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "quickstep",
+                "hush_pulse",
+                "shade_pounce"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 2,
+              "expMult": 1,
+              "dex": "An orange tabby kitten that follows travellers for snacks, then falls asleep on their bags.",
+              "enabled": true
+            },
+            {
+              "id": "spinefin",
+              "name": "Spinefin",
+              "type1": "water",
+              "type2": "",
+              "hp": 52,
+              "attack": 55,
+              "defense": 58,
+              "spAttack": 40,
+              "spDefense": 48,
+              "speed": 50,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "spray_shot",
+                "hunker",
+                "wallow_ram",
+                "rime_spike"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A teal fish with a crest of spines. It flops across wet grass between ponds and is tougher than it looks.",
+              "enabled": true
+            },
+            {
+              "id": "puffet",
+              "name": "Puffet",
+              "type1": "flying",
+              "type2": "",
+              "hp": 55,
+              "attack": 40,
+              "defense": 50,
+              "spAttack": 55,
+              "spDefense": 55,
+              "speed": 45,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "squall_quill",
+                "hunker",
+                "spray_shot",
+                "jolt_nip"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A puff of cloud that drifts low over the fields. On muggy days it grumbles and sheds a little rain.",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet",
+              "name": "Drizzlet",
+              "type1": "flying",
+              "type2": "",
+              "hp": 70,
+              "attack": 52,
+              "defense": 62,
+              "spAttack": 75,
+              "spDefense": 72,
+              "speed": 60,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "hunker",
+                "spray_shot",
+                "jolt_nip",
+                "rill_lance"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "puffet",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "The cloud has drunk too much of the morning mist and now rains on whatever annoys it.",
+              "enabled": true
+            },
+            {
+              "id": "thundrift",
+              "name": "Thundrift",
+              "type1": "flying",
+              "type2": "electric",
+              "hp": 85,
+              "attack": 60,
+              "defense": 72,
+              "spAttack": 98,
+              "spDefense": 85,
+              "speed": 78,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "jolt_nip",
+                "rill_lance",
+                "arc_ring",
+                "updraft_dive"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "drizzlet",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "A storm cloud with a temper. The air crackles for a mile before it arrives.",
+              "enabled": true
+            },
+            {
+              "id": "lockbox",
+              "name": "Lockbox",
+              "type1": "normal",
+              "type2": "",
+              "hp": 60,
+              "attack": 55,
+              "defense": 80,
+              "spAttack": 35,
+              "spDefense": 70,
+              "speed": 30,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "hunker",
+                "shade_pounce",
+                "umbra_bead",
+                "hunker"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 5,
+              "expMult": 1.5,
+              "dex": "A treasure chest that sits too still in the grass. Lucky trainers find out what is inside.",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp",
+              "name": "Mimichomp",
+              "type1": "ghost",
+              "type2": "steel",
+              "hp": 72,
+              "attack": 82,
+              "defense": 90,
+              "spAttack": 55,
+              "spDefense": 80,
+              "speed": 46,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "umbra_bead",
+                "shale_ram",
+                "hush_pulse"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "lockbox",
+              "stage": 2,
+              "rarity": "R",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 4,
+              "maxTier": 6,
+              "expMult": 1.6,
+              "dex": "The lid has teeth now. It waits with its mouth open for anyone greedy enough to reach in.",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw",
+              "name": "Hoardmaw",
+              "type1": "ghost",
+              "type2": "steel",
+              "hp": 90,
+              "attack": 100,
+              "defense": 105,
+              "spAttack": 70,
+              "spDefense": 92,
+              "speed": 55,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.3,
+              "moves": [
+                "umbra_bead",
+                "shale_ram",
+                "hush_pulse",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "mimichomp",
+              "stage": 3,
+              "rarity": "SSR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.8,
+              "dex": "A gold-trimmed hoard on tentacles. It keeps every coin it has ever swallowed.",
+              "enabled": true
+            },
+            {
+              "id": "slicelet",
+              "name": "Slicelet",
+              "type1": "normal",
+              "type2": "",
+              "hp": 50,
+              "attack": 55,
+              "defense": 42,
+              "spAttack": 48,
+              "spDefense": 42,
+              "speed": 58,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "stoke_up",
+                "ember_volley",
+                "shade_pounce"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A slice of pizza that walked away from a picnic. It is still warm, and proud of it.",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod",
+              "name": "Pizzapod",
+              "type1": "normal",
+              "type2": "fire",
+              "hp": 68,
+              "attack": 72,
+              "defense": 58,
+              "spAttack": 70,
+              "spDefense": 58,
+              "speed": 64,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "stoke_up",
+                "ember_volley",
+                "cinder_roll",
+                "heat_ribbon"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "slicelet",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "Whole again and rolling. Its cheese bubbles when it is about to charge.",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam",
+              "name": "Pizzaroam",
+              "type1": "fire",
+              "type2": "",
+              "hp": 85,
+              "attack": 92,
+              "defense": 72,
+              "spAttack": 90,
+              "spDefense": 70,
+              "speed": 76,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "cinder_roll",
+                "heat_ribbon",
+                "kiln_bloom",
+                "stoke_up"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "pizzapod",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "A pizza on legs that has learned to light its own oven. It smells wonderful and bites hard.",
+              "enabled": true
+            },
+            {
+              "id": "binlet",
+              "name": "Binlet",
+              "type1": "poison",
+              "type2": "",
+              "hp": 58,
+              "attack": 50,
+              "defense": 60,
+              "spAttack": 45,
+              "spDefense": 50,
+              "speed": 40,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "blight_spit",
+                "hunker",
+                "thorn_jab",
+                "blight_spit"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A dented can that rattles down town streets at night, sorting the rubbish into its favourite smells.",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp",
+              "name": "Dumpstomp",
+              "type1": "poison",
+              "type2": "steel",
+              "hp": 82,
+              "attack": 74,
+              "defense": 82,
+              "spAttack": 58,
+              "spDefense": 66,
+              "speed": 42,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "hunker",
+                "thorn_jab",
+                "shale_ram",
+                "miasma_bloom"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "binlet",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "It stamps its wheels to scare off the cleaners. The lid clangs like a bell.",
+              "enabled": true
+            },
+            {
+              "id": "toxidump",
+              "name": "Toxidump",
+              "type1": "poison",
+              "type2": "steel",
+              "hp": 100,
+              "attack": 92,
+              "defense": 98,
+              "spAttack": 72,
+              "spDefense": 80,
+              "speed": 46,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.3,
+              "moves": [
+                "thorn_jab",
+                "shale_ram",
+                "miasma_bloom",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "dumpstomp",
+              "stage": 3,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 5,
+              "maxTier": 6,
+              "expMult": 1.25,
+              "dex": "A dumpster that has eaten something it should not have. The green glow is not a good sign.",
+              "enabled": true
+            },
+            {
+              "id": "axolil",
+              "name": "Axolil",
+              "type1": "water",
+              "type2": "",
+              "hp": 55,
+              "attack": 45,
+              "defense": 50,
+              "spAttack": 55,
+              "spDefense": 52,
+              "speed": 48,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "spray_shot",
+                "hunker",
+                "wallow_ram",
+                "tide_slam"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A pink axolotl that smiles at everything, including the things that want to eat it.",
+              "enabled": true
+            },
+            {
+              "id": "wickit",
+              "name": "Wickit",
+              "type1": "fire",
+              "type2": "",
+              "hp": 42,
+              "attack": 40,
+              "defense": 45,
+              "spAttack": 62,
+              "spDefense": 50,
+              "speed": 58,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "ember_volley",
+                "stoke_up",
+                "heat_ribbon",
+                "ember_volley"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A candle that walks on its wax. It gutters when it is sad and flares when it is cross.",
+              "enabled": true
+            },
+            {
+              "id": "duskwyrm",
+              "name": "Duskwyrm",
+              "type1": "dark",
+              "type2": "flying",
+              "hp": 62,
+              "attack": 72,
+              "defense": 55,
+              "spAttack": 60,
+              "spDefense": 55,
+              "speed": 82,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "squall_quill",
+                "umbra_bead",
+                "updraft_dive"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 4,
+              "expMult": 1.2,
+              "dex": "A bat with a dragon's grin. It hunts at dusk and is drawn to the light of trainers' lamps.",
+              "enabled": true
+            },
+            {
+              "id": "fluffwing",
+              "name": "Fluffwing",
+              "type1": "normal",
+              "type2": "fairy",
+              "hp": 52,
+              "attack": 42,
+              "defense": 44,
+              "spAttack": 50,
+              "spDefense": 52,
+              "speed": 62,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "squall_quill",
+                "quickstep",
+                "hush_pulse",
+                "squall_quill"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A bunny with little wings that cannot quite lift it. It hops, flaps and lands on its nose.",
+              "enabled": true
+            },
+            {
+              "id": "cubbin",
+              "name": "Cubbin",
+              "type1": "normal",
+              "type2": "",
+              "hp": 60,
+              "attack": 58,
+              "defense": 52,
+              "spAttack": 35,
+              "spDefense": 42,
+              "speed": 45,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "hunker",
+                "shale_ram",
+                "shade_pounce"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A bear cub that wrestles everything it meets, then falls asleep in the sun.",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin",
+              "name": "Mossbruin",
+              "type1": "grass",
+              "type2": "normal",
+              "hp": 88,
+              "attack": 82,
+              "defense": 72,
+              "spAttack": 50,
+              "spDefense": 62,
+              "speed": 50,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.3,
+              "moves": [
+                "shale_ram",
+                "briar_charge",
+                "sun_soak",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "cubbin",
+              "stage": 2,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.1,
+              "dex": "Moss has grown over its back from sleeping all winter in the woods. Birds nest in it.",
+              "enabled": true
+            },
+            {
+              "id": "stripaw",
+              "name": "Stripaw",
+              "type1": "normal",
+              "type2": "",
+              "hp": 50,
+              "attack": 60,
+              "defense": 42,
+              "spAttack": 40,
+              "spDefense": 40,
+              "speed": 64,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "shade_pounce",
+                "quickstep",
+                "cinder_roll",
+                "shade_pounce"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A striped cub that stalks butterflies with great seriousness and no success.",
+              "enabled": true
+            },
+            {
+              "id": "foldwing",
+              "name": "Foldwing",
+              "type1": "normal",
+              "type2": "flying",
+              "hp": 44,
+              "attack": 46,
+              "defense": 40,
+              "spAttack": 50,
+              "spDefense": 46,
+              "speed": 70,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "squall_quill",
+                "quickstep",
+                "updraft_dive",
+                "squall_quill"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A paper crane folded so well it flew away. Rain is its only fear.",
+              "enabled": true
+            },
+            {
+              "id": "steepot",
+              "name": "Steepot",
+              "type1": "water",
+              "type2": "fire",
+              "hp": 55,
+              "attack": 42,
+              "defense": 55,
+              "spAttack": 58,
+              "spDefense": 50,
+              "speed": 40,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "spray_shot",
+                "stoke_up",
+                "ember_volley",
+                "tide_slam"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A teapot that whistles when it is happy and scalds when it is not. Found near town kitchens.",
+              "enabled": true
+            },
+            {
+              "id": "crispit",
+              "name": "Crispit",
+              "type1": "fire",
+              "type2": "steel",
+              "hp": 50,
+              "attack": 55,
+              "defense": 58,
+              "spAttack": 50,
+              "spDefense": 45,
+              "speed": 42,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "ember_volley",
+                "hunker",
+                "cinder_roll",
+                "shale_ram"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A toaster that pops its slots at passers-by. It smells of breakfast all day.",
+              "enabled": true
+            },
+            {
+              "id": "brewblob",
+              "name": "Brewblob",
+              "type1": "poison",
+              "type2": "",
+              "hp": 60,
+              "attack": 40,
+              "defense": 52,
+              "spAttack": 55,
+              "spDefense": 52,
+              "speed": 40,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "blight_spit",
+                "hunker",
+                "miasma_bloom",
+                "blight_spit"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A spilled potion that got up and walked off. Nobody knows what it was meant to cure.",
+              "enabled": true
+            },
+            {
+              "id": "boltbot",
+              "name": "Boltbot",
+              "type1": "steel",
+              "type2": "electric",
+              "hp": 50,
+              "attack": 52,
+              "defense": 60,
+              "spAttack": 55,
+              "spDefense": 48,
+              "speed": 45,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "jolt_nip",
+                "hunker",
+                "arc_ring",
+                "jolt_nip"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 3,
+              "expMult": 1,
+              "dex": "A little robot that wandered off a factory line. It beeps at anything shiny.",
+              "enabled": true
+            },
+            {
+              "id": "geodle",
+              "name": "Geodle",
+              "type1": "rock",
+              "type2": "",
+              "hp": 58,
+              "attack": 55,
+              "defense": 70,
+              "spAttack": 40,
+              "spDefense": 50,
+              "speed": 30,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "shale_ram",
+                "hunker",
+                "bedrock_drum",
+                "shale_ram"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "common",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 4,
+              "expMult": 1,
+              "dex": "A cluster of crystals on a rock that rolls downhill on purpose. It glitters in the ridge sun.",
+              "enabled": true
+            },
+            {
+              "id": "peepwing",
+              "name": "Peepwing",
+              "type1": "dark",
+              "type2": "flying",
+              "hp": 55,
+              "attack": 60,
+              "defense": 50,
+              "spAttack": 62,
+              "spDefense": 55,
+              "speed": 78,
+              "sizeClass": "tiny",
+              "hitRadius": 7,
+              "dodge": 0.3,
+              "moves": [
+                "quickstep",
+                "shade_pounce",
+                "squall_quill",
+                "hush_pulse"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 0,
+              "maxTier": 3,
+              "expMult": 1.1,
+              "dex": "A winged eye that watches travellers from the trees at dusk and never blinks first.",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound",
+              "name": "Cinderhound",
+              "type1": "fire",
+              "type2": "",
+              "hp": 62,
+              "attack": 78,
+              "defense": 55,
+              "spAttack": 70,
+              "spDefense": 55,
+              "speed": 80,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "stoke_up",
+                "cinder_roll",
+                "heat_ribbon",
+                "kiln_bloom"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 1,
+              "maxTier": 4,
+              "expMult": 1.1,
+              "dex": "A hound with a tail of flame that leaves warm paw prints on cold rock.",
+              "enabled": true
+            },
+            {
+              "id": "gravelet",
+              "name": "Gravelet",
+              "type1": "ghost",
+              "type2": "rock",
+              "hp": 60,
+              "attack": 55,
+              "defense": 85,
+              "spAttack": 65,
+              "spDefense": 75,
+              "speed": 30,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "umbra_bead",
+                "hunker",
+                "shale_ram",
+                "hush_pulse"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 5,
+              "expMult": 1.1,
+              "dex": "A small tombstone that shuffles between graves at night, reading the names aloud.",
+              "enabled": true
+            },
+            {
+              "id": "slabrute",
+              "name": "Slabrute",
+              "type1": "rock",
+              "type2": "ground",
+              "hp": 85,
+              "attack": 92,
+              "defense": 98,
+              "spAttack": 40,
+              "spDefense": 60,
+              "speed": 35,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.3,
+              "moves": [
+                "shale_ram",
+                "hunker",
+                "bedrock_drum",
+                "rime_spike"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.2,
+              "dex": "A slab of dark rock that stands up when the ground shakes. It does not sit back down.",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake",
+              "name": "Mossdrake",
+              "type1": "grass",
+              "type2": "dragon",
+              "hp": 82,
+              "attack": 88,
+              "defense": 78,
+              "spAttack": 85,
+              "spDefense": 75,
+              "speed": 72,
+              "sizeClass": "large",
+              "hitRadius": 16,
+              "dodge": 0.3,
+              "moves": [
+                "sun_soak",
+                "briar_charge",
+                "vine_lash",
+                "bedrock_drum"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "SR",
+              "role": "rare",
+              "foeLevelAdj": 0,
+              "minTier": 3,
+              "maxTier": 6,
+              "expMult": 1.5,
+              "dex": "A forest dragon seen once a season, sunning itself in clearings nobody can find twice.",
+              "enabled": true
+            },
+            {
+              "id": "ringbox",
+              "name": "Ringbox",
+              "type1": "electric",
+              "type2": "steel",
+              "hp": 70,
+              "attack": 62,
+              "defense": 78,
+              "spAttack": 72,
+              "spDefense": 66,
+              "speed": 50,
+              "sizeClass": "medium",
+              "hitRadius": 10,
+              "dodge": 0.3,
+              "moves": [
+                "jolt_nip",
+                "hunker",
+                "arc_ring",
+                "shale_ram"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 5,
+              "expMult": 1.1,
+              "dex": "A red phone booth that walked off its corner. It rings when a storm is coming, and answers itself.",
+              "enabled": true
+            },
+            {
+              "id": "glimlamp",
+              "name": "Glimlamp",
+              "type1": "fire",
+              "type2": "ghost",
+              "hp": 60,
+              "attack": 45,
+              "defense": 60,
+              "spAttack": 80,
+              "spDefense": 72,
+              "speed": 58,
+              "sizeClass": "small",
+              "hitRadius": 8,
+              "dodge": 0.3,
+              "moves": [
+                "ember_volley",
+                "stoke_up",
+                "umbra_bead",
+                "heat_ribbon"
+              ],
+              "abilities": [
+                "steady",
+                "thickHide",
+                "quickFeet",
+                "keenEye"
+              ],
+              "evolvesFrom": "",
+              "stage": 1,
+              "rarity": "R",
+              "role": "uncommon",
+              "foeLevelAdj": 0,
+              "minTier": 2,
+              "maxTier": 5,
+              "expMult": 1.1,
+              "dex": "A camp lantern on spindly legs that leads lost travellers home on night routes, most of the time.",
               "enabled": true
             }
           ]
@@ -4493,7 +5951,44 @@
                 "cinderkite",
                 "wallowling",
                 "shellwallow",
-                "tidewallow"
+                "tidewallow",
+                "hootlet",
+                "snowpup",
+                "embrush",
+                "tabbit",
+                "spinefin",
+                "puffet",
+                "drizzlet",
+                "thundrift",
+                "lockbox",
+                "mimichomp",
+                "hoardmaw",
+                "slicelet",
+                "pizzapod",
+                "pizzaroam",
+                "binlet",
+                "dumpstomp",
+                "toxidump",
+                "axolil",
+                "wickit",
+                "duskwyrm",
+                "fluffwing",
+                "cubbin",
+                "mossbruin",
+                "stripaw",
+                "foldwing",
+                "steepot",
+                "crispit",
+                "brewblob",
+                "boltbot",
+                "geodle",
+                "peepwing",
+                "cinderhound",
+                "gravelet",
+                "slabrute",
+                "mossdrake",
+                "ringbox",
+                "glimlamp"
               ],
               "poolEquipment": [],
               "rateUp": "tidewallow",
@@ -4581,6 +6076,1042 @@
           ],
           "canAdd": true,
           "default": [
+            {
+              "id": "hootlet-1",
+              "species": "hootlet",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "hootlet-2",
+              "species": "hootlet",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "hootlet-3",
+              "species": "hootlet",
+              "level": 11,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "snowpup-1",
+              "species": "snowpup",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "snowpup-2",
+              "species": "snowpup",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "snowpup-3",
+              "species": "snowpup",
+              "level": 10,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "embrush-1",
+              "species": "embrush",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "embrush-2",
+              "species": "embrush",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "embrush-3",
+              "species": "embrush",
+              "level": 10,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "embrush-4",
+              "species": "embrush",
+              "level": 16,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "tabbit-1",
+              "species": "tabbit",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "tabbit-2",
+              "species": "tabbit",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "tabbit-3",
+              "species": "tabbit",
+              "level": 11,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "spinefin-1",
+              "species": "spinefin",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "spinefin-2",
+              "species": "spinefin",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "spinefin-3",
+              "species": "spinefin",
+              "level": 9,
+              "move": "wallow_ram",
+              "enabled": true
+            },
+            {
+              "id": "spinefin-4",
+              "species": "spinefin",
+              "level": 15,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "puffet-1",
+              "species": "puffet",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "puffet-2",
+              "species": "puffet",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "puffet-3",
+              "species": "puffet",
+              "level": 8,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "puffet-4",
+              "species": "puffet",
+              "level": 14,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet-1",
+              "species": "drizzlet",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet-2",
+              "species": "drizzlet",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet-3",
+              "species": "drizzlet",
+              "level": 8,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet-4",
+              "species": "drizzlet",
+              "level": 14,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "drizzlet-5",
+              "species": "drizzlet",
+              "level": 18,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-1",
+              "species": "thundrift",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-2",
+              "species": "thundrift",
+              "level": 8,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-3",
+              "species": "thundrift",
+              "level": 14,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-4",
+              "species": "thundrift",
+              "level": 18,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-5",
+              "species": "thundrift",
+              "level": 26,
+              "move": "arc_ring",
+              "enabled": true
+            },
+            {
+              "id": "thundrift-6",
+              "species": "thundrift",
+              "level": 32,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "lockbox-1",
+              "species": "lockbox",
+              "level": 1,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "lockbox-2",
+              "species": "lockbox",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "lockbox-3",
+              "species": "lockbox",
+              "level": 12,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp-1",
+              "species": "mimichomp",
+              "level": 1,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp-2",
+              "species": "mimichomp",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp-3",
+              "species": "mimichomp",
+              "level": 12,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp-4",
+              "species": "mimichomp",
+              "level": 16,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "mimichomp-5",
+              "species": "mimichomp",
+              "level": 22,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw-1",
+              "species": "hoardmaw",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw-2",
+              "species": "hoardmaw",
+              "level": 12,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw-3",
+              "species": "hoardmaw",
+              "level": 16,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw-4",
+              "species": "hoardmaw",
+              "level": 22,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "hoardmaw-5",
+              "species": "hoardmaw",
+              "level": 30,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "slicelet-1",
+              "species": "slicelet",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "slicelet-2",
+              "species": "slicelet",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "slicelet-3",
+              "species": "slicelet",
+              "level": 10,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod-1",
+              "species": "pizzapod",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod-2",
+              "species": "pizzapod",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod-3",
+              "species": "pizzapod",
+              "level": 10,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod-4",
+              "species": "pizzapod",
+              "level": 14,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "pizzapod-5",
+              "species": "pizzapod",
+              "level": 20,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam-1",
+              "species": "pizzaroam",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam-2",
+              "species": "pizzaroam",
+              "level": 14,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam-3",
+              "species": "pizzaroam",
+              "level": 20,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam-4",
+              "species": "pizzaroam",
+              "level": 26,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "pizzaroam-5",
+              "species": "pizzaroam",
+              "level": 32,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "binlet-1",
+              "species": "binlet",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "binlet-2",
+              "species": "binlet",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "binlet-3",
+              "species": "binlet",
+              "level": 10,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp-1",
+              "species": "dumpstomp",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp-2",
+              "species": "dumpstomp",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp-3",
+              "species": "dumpstomp",
+              "level": 10,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp-4",
+              "species": "dumpstomp",
+              "level": 14,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "dumpstomp-5",
+              "species": "dumpstomp",
+              "level": 20,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "toxidump-1",
+              "species": "toxidump",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "toxidump-2",
+              "species": "toxidump",
+              "level": 10,
+              "move": "thorn_jab",
+              "enabled": true
+            },
+            {
+              "id": "toxidump-3",
+              "species": "toxidump",
+              "level": 14,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "toxidump-4",
+              "species": "toxidump",
+              "level": 20,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "toxidump-5",
+              "species": "toxidump",
+              "level": 26,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "axolil-1",
+              "species": "axolil",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "axolil-2",
+              "species": "axolil",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "axolil-3",
+              "species": "axolil",
+              "level": 10,
+              "move": "wallow_ram",
+              "enabled": true
+            },
+            {
+              "id": "axolil-4",
+              "species": "axolil",
+              "level": 16,
+              "move": "tide_slam",
+              "enabled": true
+            },
+            {
+              "id": "wickit-1",
+              "species": "wickit",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "wickit-2",
+              "species": "wickit",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "wickit-3",
+              "species": "wickit",
+              "level": 14,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "duskwyrm-1",
+              "species": "duskwyrm",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "duskwyrm-2",
+              "species": "duskwyrm",
+              "level": 4,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "duskwyrm-3",
+              "species": "duskwyrm",
+              "level": 12,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "duskwyrm-4",
+              "species": "duskwyrm",
+              "level": 18,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "fluffwing-1",
+              "species": "fluffwing",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "fluffwing-2",
+              "species": "fluffwing",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "fluffwing-3",
+              "species": "fluffwing",
+              "level": 10,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "cubbin-1",
+              "species": "cubbin",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "cubbin-2",
+              "species": "cubbin",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "cubbin-3",
+              "species": "cubbin",
+              "level": 11,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-1",
+              "species": "mossbruin",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-2",
+              "species": "mossbruin",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-3",
+              "species": "mossbruin",
+              "level": 11,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-4",
+              "species": "mossbruin",
+              "level": 14,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-5",
+              "species": "mossbruin",
+              "level": 20,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "mossbruin-6",
+              "species": "mossbruin",
+              "level": 26,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "stripaw-1",
+              "species": "stripaw",
+              "level": 1,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "stripaw-2",
+              "species": "stripaw",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "stripaw-3",
+              "species": "stripaw",
+              "level": 12,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "foldwing-1",
+              "species": "foldwing",
+              "level": 1,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "foldwing-2",
+              "species": "foldwing",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "foldwing-3",
+              "species": "foldwing",
+              "level": 14,
+              "move": "updraft_dive",
+              "enabled": true
+            },
+            {
+              "id": "steepot-1",
+              "species": "steepot",
+              "level": 1,
+              "move": "spray_shot",
+              "enabled": true
+            },
+            {
+              "id": "steepot-2",
+              "species": "steepot",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "steepot-3",
+              "species": "steepot",
+              "level": 9,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "steepot-4",
+              "species": "steepot",
+              "level": 16,
+              "move": "tide_slam",
+              "enabled": true
+            },
+            {
+              "id": "crispit-1",
+              "species": "crispit",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "crispit-2",
+              "species": "crispit",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "crispit-3",
+              "species": "crispit",
+              "level": 10,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "crispit-4",
+              "species": "crispit",
+              "level": 15,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "brewblob-1",
+              "species": "brewblob",
+              "level": 1,
+              "move": "blight_spit",
+              "enabled": true
+            },
+            {
+              "id": "brewblob-2",
+              "species": "brewblob",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "brewblob-3",
+              "species": "brewblob",
+              "level": 12,
+              "move": "miasma_bloom",
+              "enabled": true
+            },
+            {
+              "id": "boltbot-1",
+              "species": "boltbot",
+              "level": 1,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "boltbot-2",
+              "species": "boltbot",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "boltbot-3",
+              "species": "boltbot",
+              "level": 12,
+              "move": "arc_ring",
+              "enabled": true
+            },
+            {
+              "id": "geodle-1",
+              "species": "geodle",
+              "level": 1,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "geodle-2",
+              "species": "geodle",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "geodle-3",
+              "species": "geodle",
+              "level": 14,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "peepwing-1",
+              "species": "peepwing",
+              "level": 1,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "peepwing-2",
+              "species": "peepwing",
+              "level": 4,
+              "move": "quickstep",
+              "enabled": true
+            },
+            {
+              "id": "peepwing-3",
+              "species": "peepwing",
+              "level": 10,
+              "move": "shade_pounce",
+              "enabled": true
+            },
+            {
+              "id": "peepwing-4",
+              "species": "peepwing",
+              "level": 14,
+              "move": "squall_quill",
+              "enabled": true
+            },
+            {
+              "id": "peepwing-5",
+              "species": "peepwing",
+              "level": 18,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound-1",
+              "species": "cinderhound",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound-2",
+              "species": "cinderhound",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound-3",
+              "species": "cinderhound",
+              "level": 10,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound-4",
+              "species": "cinderhound",
+              "level": 16,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
+            {
+              "id": "cinderhound-5",
+              "species": "cinderhound",
+              "level": 24,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "id": "gravelet-1",
+              "species": "gravelet",
+              "level": 1,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "gravelet-2",
+              "species": "gravelet",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "gravelet-3",
+              "species": "gravelet",
+              "level": 12,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "gravelet-4",
+              "species": "gravelet",
+              "level": 18,
+              "move": "hush_pulse",
+              "enabled": true
+            },
+            {
+              "id": "slabrute-1",
+              "species": "slabrute",
+              "level": 1,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "slabrute-2",
+              "species": "slabrute",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "slabrute-3",
+              "species": "slabrute",
+              "level": 12,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "slabrute-4",
+              "species": "slabrute",
+              "level": 20,
+              "move": "rime_spike",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake-1",
+              "species": "mossdrake",
+              "level": 1,
+              "move": "burr_shot",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake-2",
+              "species": "mossdrake",
+              "level": 4,
+              "move": "sun_soak",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake-3",
+              "species": "mossdrake",
+              "level": 12,
+              "move": "briar_charge",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake-4",
+              "species": "mossdrake",
+              "level": 18,
+              "move": "vine_lash",
+              "enabled": true
+            },
+            {
+              "id": "mossdrake-5",
+              "species": "mossdrake",
+              "level": 26,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "id": "ringbox-1",
+              "species": "ringbox",
+              "level": 1,
+              "move": "jolt_nip",
+              "enabled": true
+            },
+            {
+              "id": "ringbox-2",
+              "species": "ringbox",
+              "level": 4,
+              "move": "hunker",
+              "enabled": true
+            },
+            {
+              "id": "ringbox-3",
+              "species": "ringbox",
+              "level": 12,
+              "move": "arc_ring",
+              "enabled": true
+            },
+            {
+              "id": "ringbox-4",
+              "species": "ringbox",
+              "level": 18,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "id": "glimlamp-1",
+              "species": "glimlamp",
+              "level": 1,
+              "move": "ember_volley",
+              "enabled": true
+            },
+            {
+              "id": "glimlamp-2",
+              "species": "glimlamp",
+              "level": 4,
+              "move": "stoke_up",
+              "enabled": true
+            },
+            {
+              "id": "glimlamp-3",
+              "species": "glimlamp",
+              "level": 12,
+              "move": "umbra_bead",
+              "enabled": true
+            },
+            {
+              "id": "glimlamp-4",
+              "species": "glimlamp",
+              "level": 18,
+              "move": "heat_ribbon",
+              "enabled": true
+            },
             {
               "id": "coilbadger-1",
               "species": "coilbadger",
@@ -5306,6 +7837,69 @@
               "level": 15,
               "move": "rill_lance",
               "enabled": true
+            },
+            {
+              "from": "puffet",
+              "to": "drizzlet",
+              "level": 14,
+              "move": "rill_lance",
+              "enabled": true
+            },
+            {
+              "from": "drizzlet",
+              "to": "thundrift",
+              "level": 26,
+              "move": "arc_ring",
+              "enabled": true
+            },
+            {
+              "from": "lockbox",
+              "to": "mimichomp",
+              "level": 16,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "from": "mimichomp",
+              "to": "hoardmaw",
+              "level": 30,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "from": "slicelet",
+              "to": "pizzapod",
+              "level": 14,
+              "move": "cinder_roll",
+              "enabled": true
+            },
+            {
+              "from": "pizzapod",
+              "to": "pizzaroam",
+              "level": 26,
+              "move": "kiln_bloom",
+              "enabled": true
+            },
+            {
+              "from": "binlet",
+              "to": "dumpstomp",
+              "level": 14,
+              "move": "shale_ram",
+              "enabled": true
+            },
+            {
+              "from": "dumpstomp",
+              "to": "toxidump",
+              "level": 26,
+              "move": "bedrock_drum",
+              "enabled": true
+            },
+            {
+              "from": "cubbin",
+              "to": "mossbruin",
+              "level": 14,
+              "move": "briar_charge",
+              "enabled": true
             }
           ]
         }
@@ -5624,6 +8218,8 @@
               "levelBonus": 0,
               "minTier": 0,
               "roster": [
+                "snowpup",
+                "hootlet",
                 "gloamhare",
                 "shalehorn",
                 "thornboar",
@@ -5637,12 +8233,11 @@
               "levelBonus": 0,
               "minTier": 0,
               "roster": [
-                "budsnout",
-                "cinderkit",
-                "fernsnout",
+                "tabbit",
+                "embrush",
+                "hootlet",
                 "thornboar",
-                "gloamhare",
-                "grovesnout"
+                "gloamhare"
               ],
               "enabled": true
             },
@@ -5652,11 +8247,11 @@
               "levelBonus": 0,
               "minTier": 0,
               "roster": [
-                "cinderkit",
-                "wallowling",
+                "tabbit",
+                "puffet",
+                "snowpup",
                 "tidecrane",
-                "gloamhare",
-                "cindermask"
+                "gloamhare"
               ],
               "enabled": true
             },
@@ -5666,10 +8261,11 @@
               "levelBonus": 0,
               "minTier": 1,
               "roster": [
-                "wallowling",
+                "spinefin",
+                "puffet",
+                "tidecrane",
                 "shellwallow",
-                "tidewallow",
-                "tidecrane"
+                "tidewallow"
               ],
               "enabled": true
             },
