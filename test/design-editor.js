@@ -30,6 +30,8 @@ const realLabels = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-labels.js'), 'utf8'), realLabels);
 
 const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
+  feedback_link: realLabels.window.DESIGN_LABELS.feedback_link,
+  shop_rules: realLabels.window.DESIGN_LABELS.shop_rules,
   quests: { title: 'Nhiệm vụ', blurb: 'Nhiệm vụ ngày.', effect: 'Từ lần gọi API kế tiếp.', expand: true,
     fields: { pick: { label: 'Số nhiệm vụ mỗi ngày', int: true, min: 1, unit: 'nhiệm vụ' },
       list: { label: 'Danh sách nhiệm vụ', cols: ['id', 'text', 'metric', 'need', 'reward.gold', 'reward.gem', 'reward.ticketX'],
@@ -75,7 +77,8 @@ function hashDocs(docs) {
 }
 
 const fake = {
-  tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
+  // As on DEV: md_shop_rules pasted before the game read feedbackUrl.
+  tables: { shop_rules: [{ _id: 'default', paidGemToGem: 1 }], quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
     stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)),
     // As on DEV before fake online: pvp has neither fakeOnline nor fake.
     modes: [{ _id: 'coop', open: true }, { _id: 'pvp', open: false, unlockRuns: 2 }, { _id: 'endless_solo', open: true }, { _id: 'endless_coop', open: false }] },
@@ -206,7 +209,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 37 bảng + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 39 &&
+  check('sidebar liệt kê 37 bảng + tab Link trang góp ý + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 40 &&
     (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ' &&
     (await txt('#dz-nav [data-table="client_gate"]')) === 'Phát hành & bảo trì', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
@@ -809,6 +812,25 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.waitForTimeout(3500);
   await p.locator('.dz-fld--wide').first().screenshot({ path: process.env.UPGRADE_SHOT || (SHOTS + '/upgrade.png') });
   check('upgrade: 1280 px không tràn ngang', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '');
+
+  await open('feedback_link');
+  const fbInputs = await p.$$eval('.dz-pane input', els => els.map(x => x.value));
+  check('Link trang góp ý: tab riêng chỉ một ô, số gốc là trang góp ý của hub',
+    JSON.stringify(fbInputs) === JSON.stringify(['https://poke5121999-art.github.io/survivor-web-hub/feedback.html?game=repo2d-unity']), JSON.stringify(fbInputs));
+  await open('shop_rules');
+  const srInputs = await p.$$eval('.dz-pane input', els => els.map(x => x.value));
+  check('Luật cửa hàng không còn ô link góp ý', JSON.stringify(srInputs) === '["1"]', JSON.stringify(srInputs));
+  await open('feedback_link');
+  await p.fill(K('default', 'feedbackUrl') + ' input', 'https://forms.gle/abc');
+  await p.click('#btn-review');
+  await dryDone();
+  await p.click('#btn-save');
+  await barGone();
+  const fbSave = fake.saves.filter(x => x.table === 'shop_rules' && !x.dryRun).pop();
+  check('lưu ở tab Link trang góp ý ghi md_shop_rules giữ paidGemToGem',
+    fbSave && JSON.stringify(fbSave.docs) === JSON.stringify([{ _id: 'default', paidGemToGem: 1, feedbackUrl: 'https://forms.gle/abc' }]),
+    fbSave ? JSON.stringify(fbSave.docs) : 'không lưu');
+  await p.locator('.dz-pane').first().screenshot({ path: SHOTS + '/feedback_link.png' });
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

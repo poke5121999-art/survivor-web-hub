@@ -11,8 +11,11 @@
   var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
     "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights", "pvp_maps"];
-  var GROUPS = [["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
-  var ALL = OUT_RUN.concat(IN_RUN);
+  // Tabs with no md_ table of their own: label `view: { table, fields }` edits those fields of that table (saved with it),
+  // and the table's own tab hides them.
+  var VIEWS = ["feedback_link"];
+  var GROUPS = [["Liên kết", VIEWS], ["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
+  var ALL = OUT_RUN.concat(IN_RUN, VIEWS);
   // Not an md_ table: runtime collection cd_cost_guard with its own pane and its own save button.
   var GUARD = "cost_guard";
   var MODES = "modes";
@@ -176,6 +179,15 @@
   var session = window.HubSession ? window.HubSession.get() : null;
 
   function tableTitle(n) { return (LABELS[n] || {}).title || n; }
+  function tableOf(n) { var v = (LABELS[n] || {}).view; return v ? v.table : n; }
+  // Settings-form fields of tab n: a view shows only its own; a table hides the ones a view took.
+  function formFields(n, doc) {
+    var v = (LABELS[n] || {}).view;
+    if (v) return v.fields.filter(function (k) { return k in doc; });
+    var taken = [];
+    VIEWS.forEach(function (w) { var x = (LABELS[w] || {}).view; if (x && x.table === n) taken = taken.concat(x.fields); });
+    return Object.keys(doc).filter(function (k) { return k !== "_id" && taken.indexOf(k) < 0; });
+  }
   function baseline(n) {
     var t = S.tables[n];
     return t && t.remote && t.remote.exists ? t.remote.docs : (DEFAULTS[n] || []);
@@ -203,7 +215,7 @@
   function changes(n) { var t = S.tables[n]; return t && t.remote ? diffDocs(baseline(n), t.draft) : []; }
   function errCount(n) { return Object.keys(S.errors[n] || {}).length; }
   function dirty(n) { return changes(n).length > 0 || errCount(n) > 0; }
-  function anyDirty() { return ALL.some(function (n) { return S.tables[n] && S.tables[n].remote && dirty(n); }); }
+  function anyDirty() { return ALL.some(function (n) { n = tableOf(n); return S.tables[n] && S.tables[n].remote && dirty(n); }); }
   function isMissing(n) { var t = S.tables[n]; return !!(t && t.remote && !t.remote.exists); }
   function isSettings(docs) { return docs.length === 1 && docs[0]._id === "default"; }
 
@@ -344,13 +356,13 @@
   function updateNav() {
     OPS.forEach(function (n) { navRefs[n].btn.classList.toggle("is-active", S.current === n); });
     ALL.forEach(function (n) {
-      var r = navRefs[n], t = S.tables[n];
+      var r = navRefs[n], t = S.tables[tableOf(n)];
       if (!r) return;
       var known = t && t.remote;
       var live = known && t.remote.exists;
       r.chip.textContent = !known ? "Đang tải" : live ? "Trên GameSpark" : "Chưa dán · số gốc";
       r.chip.className = "dz-chip " + (live ? "dz-chip--live" : "dz-chip--missing");
-      var d = known && dirty(n);
+      var d = known && dirty(tableOf(n));
       r.dot.hidden = !d;
       r.btn.classList.toggle("is-active", n === S.current);
       r.opt.textContent = (d ? "● " : "") + tableTitle(n) + (known && !live ? " (chưa dán)" : "");
@@ -623,11 +635,13 @@
     if (!n) return;
     if (n === GUARD) { renderGuard(pane); return; }
     if (n === GATE) { renderGate(pane); return; }
+    var tab = n;
+    n = tableOf(tab);
     var t = S.tables[n];
     if (!t || !t.remote) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
-    var L = LABELS[n] || {};
+    var L = LABELS[tab] || {};
     pane.appendChild(h("header", { class: "dz-pane__head" },
-      h("h2", { class: "dz-pane__title", text: tableTitle(n) }),
+      h("h2", { class: "dz-pane__title", text: tableTitle(tab) }),
       L.blurb ? h("p", { class: "dz-pane__blurb", text: L.blurb }) : null,
       L.effect ? h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), L.effect) : null));
 
@@ -644,7 +658,7 @@
     var docs = t.draft;
     if (isSettings(docs)) {
       var form = h("div", { class: "dz-form" });
-      Object.keys(docs[0]).filter(function (k) { return k !== "_id"; }).forEach(function (k) {
+      formFields(tab, docs[0]).forEach(function (k) {
         form.appendChild(node(n, "default", docs[0], [k], docs[0][k]));
       });
       pane.appendChild(form);
@@ -836,7 +850,7 @@
 
   // Highlight changed leaves + inline errors + the bar/sidebar, all from the one diff.
   function updateMarks() {
-    var n = S.current;
+    var n = tableOf(S.current);
     if (!n || !S.tables[n] || !S.tables[n].remote) { updateBar(); updateNav(); return; }
     var diff = changes(n), by = {};
     diff.forEach(function (d) { by[d._id + SEP + d.path.join(".")] = d; });
@@ -870,7 +884,7 @@
   function onEdit() { updateMarks(); }
 
   function updateBar() {
-    var n = S.current, bar = $("dz-bar");
+    var n = tableOf(S.current), bar = $("dz-bar");
     if (OPS.indexOf(n) >= 0) { bar.hidden = true; return; }
     if (!n || !S.tables[n] || !S.tables[n].remote) { bar.hidden = true; return; }
     var c = changes(n).length, e = errCount(n), missing = isMissing(n);
@@ -902,7 +916,7 @@
   }
 
   function discard() {
-    var n = S.current;
+    var n = tableOf(S.current);
     if (!confirm("Bỏ hết thay đổi chưa lưu của bảng này?")) return;
     var pending = S.conflict[n];
     if (pending && pending.docs) setRemote(n, pending);
@@ -911,7 +925,7 @@
   }
 
   function reloadTable() {
-    var n = S.current;
+    var n = tableOf(S.current);
     if (!confirm("Bỏ các thay đổi của bạn và tải bản mới từ GameSpark?")) return;
     call({ action: "get", table: n }).then(function (j) {
       setRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
@@ -924,7 +938,7 @@
     S.conflict[n] = remote || { stale: true };
     // Only reveal the banner: re-rendering would wipe half-typed input.
     var b = $("dz-conflict");
-    if (n === S.current && b) b.hidden = false;
+    if (n === tableOf(S.current) && b) b.hidden = false;
     updateBar(); updateNav();
   }
 
@@ -935,7 +949,7 @@
     if (t.remote.hash === remote.hash && t.remote.exists === remote.exists) return;
     if (dirty(n)) { markConflict(n, remote); return; }
     setRemote(n, remote);
-    if (n === S.current) { renderMain(); toast("Bảng vừa được cập nhật"); }
+    if (n === tableOf(S.current)) { renderMain(); toast("Bảng vừa được cập nhật"); }
     updateBar(); updateNav();
   }
 
@@ -966,6 +980,7 @@
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
     if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build && !S.gate.dirty.net) loadGate(); return; }
     if (n === MODES) loadGuard();
+    n = tableOf(n);
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
     }, function () { /* a missed poll is not worth a banner; focus/list will surface real failures */ });
@@ -1463,7 +1478,7 @@
   }
 
   function openReview() {
-    var n = S.current, t = S.tables[n], dlg = $("dz-dialog");
+    var n = tableOf(S.current), t = S.tables[n], dlg = $("dz-dialog");
     var diff = changes(n), missing = isMissing(n);
     var primary = h("button", { class: "btn btn--primary", id: "btn-save", type: "button", disabled: true,
       text: !diff.length && missing ? "Tạo bảng trên GameSpark" : "Lưu lên GameSpark (DEV)" });
@@ -1505,7 +1520,7 @@
     if (e.code === "CONFLICT") {
       dlg.close();
       var cur = e.body && e.body.current;
-      markConflict(S.current, cur ? { exists: cur.exists, docs: cur.docs, hash: cur.hash } : null);
+      markConflict(tableOf(S.current), cur ? { exists: cur.exists, docs: cur.docs, hash: cur.hash } : null);
       return;
     }
     status.textContent = errText(e);

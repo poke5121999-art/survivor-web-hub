@@ -206,11 +206,19 @@
       }
     },
 
+    // Tab riêng, không có bảng md_ riêng: sửa feedbackUrl của md_shop_rules (game đọc trường này ở sảnh), lưu cùng bảng đó.
+    feedback_link: {
+      title: "Link trang góp ý",
+      blurb: "Trang web mở ra khi người chơi bấm nút GÓP Ý cạnh nút THƯ ngoài sảnh.",
+      effect: LOBBY,
+      view: { table: "shop_rules", fields: ["feedbackUrl"] }
+    },
+
     shop_rules: {
       title: "Luật cửa hàng",
-      blurb: "Tỉ lệ đổi ngọc nạp ra ngọc, và link trang góp ý của nút GÓP Ý ngoài sảnh.",
+      blurb: "Tỉ lệ đổi ngọc nạp ra ngọc.",
       effect: LOBBY,
-      // md_shop_rules trên DEV có từ trước khi game đọc feedbackUrl: hiện ô đó với số gốc để chỉnh được.
+      // md_shop_rules trên DEV có từ trước khi game đọc feedbackUrl: hiện ô đó với số gốc để chỉnh được (ở tab "Link trang góp ý").
       fillMissing: true,
       fields: {
         "_id": CFG_ID,
