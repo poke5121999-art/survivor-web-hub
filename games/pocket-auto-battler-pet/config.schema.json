@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 19,
+  "version": 20,
   "tabs": [
     {
       "id": "run",
@@ -901,7 +901,7 @@
           "type": "number",
           "min": 0.01,
           "max": 5,
-          "default": 0.3
+          "default": 0.275
         },
         {
           "key": "battle.critChance",
@@ -1105,6 +1105,13 @@
             "horizon"
           ],
           "default": "topdown"
+        },
+        {
+          "key": "battle.surgeEnabled",
+          "label": "Bật biến hình (surge)",
+          "help": "Tắt (mặc định): không trận nào có biến hình. Bật: pet máu dưới ngưỡng biến hình một lần mỗi đội (tăng chỉ số, sát thương nhân hệ số).",
+          "type": "bool",
+          "default": false
         },
         {
           "key": "battle.surgeHpBelow",
