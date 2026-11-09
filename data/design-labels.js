@@ -10,7 +10,7 @@
   var MINMAX = ["Ít nhất", "Nhiều nhất"];
   var HOUSES = ["Nhà 1", "Nhà 2", "Nhà 3", "Nhà 4", "Nhà 5"];
   // Theme của bảng Các nhà trong ải (stage_houses _id → tên lúc tách bảng 2026-11-03), cho các phần của Nhà theo theme.
-  var THEMES = [["1", "Lâu đài vampire"], ["2", "Kim tự tháp Ai Cập"], ["3", "Khu vui chơi bỏ hoang"], ["4", "Trạm vũ trụ"], ["5", "Bệnh viện tâm thần"]];
+  var THEMES = [["1", "Lâu đài vampire"], ["2", "Kim tự tháp Ai Cập"], ["3", "Làng quê Việt Nam"], ["4", "Trạm vũ trụ"], ["5", "Bệnh viện tâm thần"]];
   var HOUSE_ROOMS = ["extractRooms", "privateRooms", "sharedRooms", "shortCorridors", "longCorridors", "specialExtract", "mediumRatio", "largeRatio"];
   var HOUSE_FOES = ["level", "hpMul", "dmgMul", "quotaMul", "foeCount", "kindCount", "foes"];
 
@@ -783,7 +783,7 @@
       addRow: { label: "Thêm tháng", placeholder: "VD 2026-12", button: "Thêm tháng", re: "^\\d{4}-(0[1-9]|1[0-2])$", invalid: "Nhập tháng dạng NĂM-THÁNG, ví dụ 2026-12.", exists: "Tháng này đã có dòng rồi.", help: "Gõ năm-tháng (2026-12) rồi bấm Thêm tháng; dòng mới lấy sẵn kiểu nhà của dòng cuối, rồi sửa và lưu." },
       fields: {
         "_id": { label: "Tháng", help: "Dạng NĂM-THÁNG. Giữ nguyên." },
-        "houseStyle": { label: "Kiểu nhà của tháng", int: true, min: 17, max: 21, help: "17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." }
+        "houseStyle": { label: "Kiểu nhà của tháng", int: true, min: 17, max: 21, help: "17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Làng quê Việt Nam, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." }
       }
     },
 
@@ -809,7 +809,7 @@
       effect: RUN,
       fields: {
         "_id": CFG_ID,
-        "houseStyle": { label: "Kiểu nhà khoá (dự phòng)", int: true, min: 17, max: 21, help: "Theme dùng khi tháng chưa có dòng trong Theme Vô Tận theo tháng. Phải trùng một kiểu trong bảng Các nhà trong ải: 17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." },
+        "houseStyle": { label: "Kiểu nhà khoá (dự phòng)", int: true, min: 17, max: 21, help: "Theme dùng khi tháng chưa có dòng trong Theme Vô Tận theo tháng. Phải trùng một kiểu trong bảng Các nhà trong ải: 17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Làng quê Việt Nam, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." },
         "levelStep": { label: "Mức độ tăng mỗi nhà", int: true, min: 0, help: "Từ nhà 6, mức độ (level) của nhà tăng thêm bấy nhiêu cho mỗi nhà." },
         "hpGrowth": { label: "Máu quái tăng mỗi nhà", pct: true, min: 0, help: "8% = mỗi nhà từ nhà 6, máu quái nhân thêm 8% so với nhà trước." },
         "dmgGrowth": { label: "Sát thương quái tăng mỗi nhà", pct: true, min: 0, help: "Như trên, áp cho sát thương quái." },
