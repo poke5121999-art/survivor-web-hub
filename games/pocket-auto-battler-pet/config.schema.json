@@ -1613,6 +1613,121 @@
       ]
     },
     {
+      "id": "iap",
+      "label": "Nạp (giả)",
+      "blurb": "Màn nạp crystal GIẢ: không thanh toán thật, bấm mua là cộng crystal. Gói nạp, lần nạp đầu x2, mua đầy năng lượng bằng crystal.",
+      "fields": [
+        {
+          "key": "iap.enabled",
+          "label": "Bật màn nạp",
+          "help": "Tắt thì màn nạp không có gói nào và mọi lệnh mua bị từ chối.",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "iap.packs",
+          "label": "Gói nạp",
+          "help": "Mỗi gói: mã (không đổi khi đã có người mua: số lần mua theo mã), crystal gốc, crystal thưởng thêm, lần mua đầu x2 (bật: lần đầu được 2 x crystal gốc thay cho gốc + thưởng), giá hiển thị (chỉ để hiện, không thu tiền).",
+          "type": "table",
+          "columns": [
+            {
+              "key": "id",
+              "label": "Mã gói",
+              "type": "text"
+            },
+            {
+              "key": "crystals",
+              "label": "Crystal",
+              "type": "int",
+              "min": 1,
+              "max": 1000000
+            },
+            {
+              "key": "bonus",
+              "label": "Thưởng thêm",
+              "type": "int",
+              "min": 0,
+              "max": 1000000
+            },
+            {
+              "key": "firstBuyDouble",
+              "label": "Lần đầu x2",
+              "type": "bool"
+            },
+            {
+              "key": "priceLabel",
+              "label": "Giá hiển thị",
+              "type": "text"
+            }
+          ],
+          "default": [
+            {
+              "id": "pack60",
+              "crystals": 60,
+              "bonus": 0,
+              "firstBuyDouble": true,
+              "priceLabel": "$0.99"
+            },
+            {
+              "id": "pack300",
+              "crystals": 300,
+              "bonus": 30,
+              "firstBuyDouble": true,
+              "priceLabel": "$4.99"
+            },
+            {
+              "id": "pack980",
+              "crystals": 980,
+              "bonus": 110,
+              "firstBuyDouble": true,
+              "priceLabel": "$14.99"
+            },
+            {
+              "id": "pack1980",
+              "crystals": 1980,
+              "bonus": 260,
+              "firstBuyDouble": true,
+              "priceLabel": "$29.99"
+            },
+            {
+              "id": "pack3280",
+              "crystals": 3280,
+              "bonus": 600,
+              "firstBuyDouble": true,
+              "priceLabel": "$49.99"
+            },
+            {
+              "id": "pack6480",
+              "crystals": 6480,
+              "bonus": 1600,
+              "firstBuyDouble": true,
+              "priceLabel": "$99.99"
+            }
+          ]
+        },
+        {
+          "key": "iap.energyRefill.cost",
+          "label": "Giá đầy năng lượng",
+          "help": "Số crystal để nạp đầy năng lượng (tới mức tối đa).",
+          "type": "int",
+          "min": 0,
+          "max": 100000,
+          "unit": "crystal",
+          "default": 50
+        },
+        {
+          "key": "iap.energyRefill.perDay",
+          "label": "Số lần đầy năng lượng mỗi ngày",
+          "help": "Mỗi ngày (theo giờ máy) mua đầy năng lượng tối đa chừng này lần.",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "unit": "lần",
+          "default": 3
+        }
+      ]
+    },
+    {
       "id": "pvp",
       "label": "PvP",
       "blurb": "Trận đội pet đã luyện (trong PC) với đội ma (đội đã lưu của save khác) hoặc đội máy tạo; điểm tuần và bậc PvP.",
