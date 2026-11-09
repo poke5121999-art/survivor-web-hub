@@ -1,6 +1,6 @@
 {
   "game": "pocket-auto-battler-pet",
-  "version": 20,
+  "version": 21,
   "tabs": [
     {
       "id": "run",
@@ -995,15 +995,6 @@
           "min": 0.3,
           "max": 3,
           "default": 1.1
-        },
-        {
-          "key": "battle.dodgeScale",
-          "label": "Né trước đòn: hệ số",
-          "help": "Pet thấy đòn sắp tới thì bước tránh với tỉ lệ né của loài x hệ số này. Mặc định 0: chỉ tránh khi đòn trượt theo độ chính xác.",
-          "type": "number",
-          "min": 0,
-          "max": 2,
-          "default": 0
         },
         {
           "key": "battle.evasionScale",
