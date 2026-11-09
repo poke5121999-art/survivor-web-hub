@@ -210,13 +210,14 @@
 
     gacha_rules: {
       title: "Luật gacha",
-      blurb: "Bước tăng tỉ lệ sau bảo hiểm mềm, mảnh khi trùng xác, quay 10 chắc có 4★.",
+      blurb: "Bước tăng tỉ lệ sau bảo hiểm mềm, mảnh khi trùng xác, quay 10 chắc có 4★, xác của lượt quay hướng dẫn.",
       effect: LOBBY,
       fields: {
         "_id": CFG_ID,
         "softPityStep": { label: "Bước tăng tỉ lệ 5★ sau bảo hiểm mềm", pct: true, min: 0, max: 1, help: "Mỗi lượt quá mốc bảo hiểm mềm cộng số này vào tỉ lệ 5★." },
         "duplicateShard": { label: "Mảnh khi ra xác trùng", unit: "mảnh", min: 0, int: true },
-        "tenPullMin4Star": { label: "Quay 10 chắc có 4★" }
+        "tenPullMin4Star": { label: "Quay 10 chắc có 4★" },
+        "ftueFirstChar": { label: "Xác của lượt quay hướng dẫn", help: "Mã xác (vd. linh = Shade, Tàng Hình) mà lượt quay miễn phí đầu tiên của người chơi mới chắc chắn ra; pity tính như lượt tự nhiên ra đúng sao của xác ấy. Trống = xác mới bất kỳ. Người chơi đã có xác ấy cũng ra xác mới bất kỳ." }
       }
     },
 
