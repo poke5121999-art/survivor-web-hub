@@ -98,6 +98,8 @@ const fake = {
   checkGate: null,
   gateOff: null,
   hubBuild: null,
+  // As a gs-design deployed before a table was added to KNOWN: list leaves it out.
+  unlisted: [],
   gateView() { return { ok: true, exists: !!this.gateDoc, doc: JSON.parse(JSON.stringify(this.gateDoc || this.gateOff)) }; },
   guardView() { return { ok: true, rows: this.guardRows, meters: this.guardMeters, month: this.month }; },
   view(n) { const d = this.tables[n]; return { exists: !!d, docs: d || [], hash: hashDocs(d || []) }; },
@@ -105,7 +107,7 @@ const fake = {
   handle(body, auth) {
     if (auth !== 'Bearer tok') return [401, { ok: false, error: { code: 'UNAUTHENTICATED', message: 'token sai' } }];
     if (body.action === 'list') {
-      const tables = {}; KNOWN.forEach(n => { tables[n] = this.view(n); });
+      const tables = {}; KNOWN.filter(n => !this.unlisted.includes(n)).forEach(n => { tables[n] = this.view(n); });
       return [200, { ok: true, project: 'repo-2d-topdown', env: 'dev', tables }];
     }
     if (body.action === 'guard') return [200, this.guardView()];
@@ -871,6 +873,15 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
     fbSave && JSON.stringify(fbSave.docs) === JSON.stringify([{ _id: 'default', paidGemToGem: 1, feedbackUrl: 'https://forms.gle/abc' }]),
     fbSave ? JSON.stringify(fbSave.docs) : 'không lưu');
   await p.locator('.dz-pane').first().screenshot({ path: SHOTS + '/feedback_link.png' });
+
+  fake.unlisted = ['stage_theme_houses'];
+  await p.goto(BASE + '/design.html?api=/gs&poll=300&r=unlisted#stage_theme_houses');
+  await p.waitForSelector('.dz-pane .dz-unserved', { timeout: 10000 }).catch(() => {});
+  const unservedChip = await txt('#dz-nav [data-table="stage_theme_houses"] .dz-chip');
+  const unservedPane = await p.$eval('.dz-pane', el => el.textContent.trim()).catch(() => '');
+  check('bảng function chưa liệt kê: chip báo "Server chưa có", không "Đang tải"', unservedChip === 'Server chưa có', unservedChip);
+  check('bảng function chưa liệt kê: khung giữa báo cần deploy gs-design', /deploy lại gs-design/.test(unservedPane) && !/Đang tải/.test(unservedPane), unservedPane.slice(0, 120));
+  fake.unlisted = [];
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

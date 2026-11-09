@@ -188,7 +188,7 @@
 
   // ---------- model ----------
 
-  var S = { tables: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
+  var S = { tables: {}, unserved: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
     guard: { loaded: false, rows: [], meters: {}, month: "", edited: false },
     // hubBuild: undefined = not read yet, null = no version.json (check skipped), else the hub WebGL build.
     gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false, net: false }, hubBuild: undefined } };
@@ -376,7 +376,7 @@
       if (!r) return;
       var known = t && t.remote;
       var live = known && t.remote.exists;
-      r.chip.textContent = !known ? "Đang tải" : live ? "Trên GameSpark" : "Chưa dán · số gốc";
+      r.chip.textContent = S.unserved[tableOf(n)] ? "Server chưa có" : !known ? "Đang tải" : live ? "Trên GameSpark" : "Chưa dán · số gốc";
       r.chip.className = "dz-chip " + (live ? "dz-chip--live" : "dz-chip--missing");
       var d = known && dirty(tableOf(n));
       r.dot.hidden = !d;
@@ -670,6 +670,11 @@
     var tab = n;
     n = tableOf(tab);
     var t = S.tables[n];
+    if (S.unserved[n]) {
+      pane.appendChild(h("p", { class: "dz-loading dz-unserved", text: "Trang đã có bảng này nhưng server gs-design đang chạy bản cũ, chưa đọc được nó. " +
+        "Cần deploy lại gs-design (supabase functions deploy gs-design --no-verify-jwt)." }));
+      return;
+    }
     if (!t || !t.remote) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
     var L = LABELS[tab] || {};
     pane.appendChild(h("header", { class: "dz-pane__head" },
@@ -989,6 +994,8 @@
     return call({ action: "list" }).then(function (j) {
       showBanner(null);
       ALL.forEach(function (n) {
+        // The deployed gs-design lists only its own KNOWN: a table added to the page later never arrives.
+        S.unserved[tableOf(n)] = !(j.tables && j.tables[tableOf(n)]);
         var r = j.tables && j.tables[n];
         if (!r) return;
         var remote = { exists: !!r.exists, docs: r.docs || [], hash: r.hash };
