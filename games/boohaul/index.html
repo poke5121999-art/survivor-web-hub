@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <base href="../repo2d-unity/"><script>window.__repoSwUrl = "../boohaul/sw.js";</script>
-    <script>self.__repoParts = {"repo2d-unity-60a2a61488.data.unityweb":{"n":3,"size":107677319}};</script><script src="data-parts.js?v=60a2a61488"></script>
+    <script>self.__repoParts = {"repo2d-unity-b29fbdc554.data.unityweb":{"n":3,"size":107687383}};</script><script src="data-parts.js?v=b29fbdc554"></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Boo Haul: Co-op Horror</title>
@@ -120,11 +120,11 @@
       var buildUrl = "Build";
       // Phiên bản (1.0+<sha8>, WebGLBuild) trên URL: service worker và bộ nhớ đệm của Unity khoá theo URL, mà bản build thử luôn
       // tên test.*; thiếu nó thì build mới trên cùng cổng nhận lại tệp đã giải nén của build cũ.
-      var buildV = "?v=" + encodeURIComponent("0.2.5+9daf63f5");
+      var buildV = "?v=" + encodeURIComponent("0.2.12+b4764c4f");
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-60a2a61488.data.unityweb" + buildV,
-        frameworkUrl: buildUrl + "/repo2d-unity-60a2a61488.framework.js.unityweb" + buildV,
-        codeUrl: buildUrl + "/repo2d-unity-60a2a61488.wasm.unityweb" + buildV,
+        dataUrl: buildUrl + "/repo2d-unity-b29fbdc554.data.unityweb" + buildV,
+        frameworkUrl: buildUrl + "/repo2d-unity-b29fbdc554.framework.js.unityweb" + buildV,
+        codeUrl: buildUrl + "/repo2d-unity-b29fbdc554.wasm.unityweb" + buildV,
         streamingAssetsUrl: "../repo2d-unity/StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -134,7 +134,7 @@
         matchWebGLToCanvasSize: false,
         companyName: "HLO",
         productName: "Boo Haul: Co-op Horror",
-        productVersion: "0.2.5+9daf63f5",
+        productVersion: "0.2.12+b4764c4f",
         showBanner: unityShowBanner,
         // Có service worker giữ bản đã giải nén (sw.js) thì nó là bộ nhớ đệm của tệp build: tắt bộ nhớ đệm IndexedDB của Unity
         // cho Build/, kẻo Unity lưu thêm một bản 121 MB và mỗi lần kiểm lại lại ghi đè.
@@ -265,7 +265,7 @@
       // Mốc khởi động của trang (performance.now), BootMark đọc qua PortBootMarks và gửi kèm RUN_FINISH ca đầu phiên.
       window.__repoBoot = {};
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-60a2a61488.loader.js";
+      script.src = buildUrl + "/repo2d-unity-b29fbdc554.loader.js";
       script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
       script.onload = function () {
         window.__repoBoot.ld = performance.now();
