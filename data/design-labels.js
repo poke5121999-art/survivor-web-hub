@@ -210,6 +210,8 @@
       title: "Luật cửa hàng",
       blurb: "Tỉ lệ đổi ngọc nạp ra ngọc, và link trang góp ý của nút GÓP Ý ngoài sảnh.",
       effect: LOBBY,
+      // md_shop_rules trên DEV có từ trước khi game đọc feedbackUrl: hiện ô đó với số gốc để chỉnh được.
+      fillMissing: true,
       fields: {
         "_id": CFG_ID,
         "paidGemToGem": { label: "Ngọc nhận cho mỗi ngọc nạp", unit: "ngọc", min: 0, help: "1 = đổi một ngọc nạp lấy một ngọc." },
