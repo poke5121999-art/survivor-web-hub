@@ -208,11 +208,12 @@
 
     shop_rules: {
       title: "Luật cửa hàng",
-      blurb: "Tỉ lệ đổi ngọc nạp ra ngọc.",
+      blurb: "Tỉ lệ đổi ngọc nạp ra ngọc, và link trang góp ý của nút GÓP Ý ngoài sảnh.",
       effect: LOBBY,
       fields: {
         "_id": CFG_ID,
-        "paidGemToGem": { label: "Ngọc nhận cho mỗi ngọc nạp", unit: "ngọc", min: 0, help: "1 = đổi một ngọc nạp lấy một ngọc." }
+        "paidGemToGem": { label: "Ngọc nhận cho mỗi ngọc nạp", unit: "ngọc", min: 0, help: "1 = đổi một ngọc nạp lấy một ngọc." },
+        "feedbackUrl": { label: "Link trang góp ý (nút GÓP Ý ở sảnh)", help: "Bấm GÓP Ý cạnh nút THƯ thì mở link này ở tab mới (app mở trình duyệt). Phải bắt đầu bằng https:// hoặc http://; để trống hoặc sai thì game mở trang góp ý của hub (feedback.html?game=repo2d-unity)." }
       }
     },
 
