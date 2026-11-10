@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.105",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.105/BooHaul-Android-0.2.105-8c7a290a.apk",
+    bytes: 144588222,
+    sha256: "216ba8ab00c478fd28ca123884f81e6ad21d19e46565c431ff55fb9502086c70",
+    date: "2026-11-10",
+    note: {
+      vi: "Boo Haul 0.2.105 cho Android, cùng bản gửi lên store (commit 8c7a290a), chơi trên server LIVE. Tải file .apk về điện thoại, mở ra rồi cho phép cài từ nguồn ngoài.",
+      en: "Boo Haul 0.2.105 for Android, the same build sent to the stores (commit 8c7a290a), on the LIVE server. Download the .apk on your phone, open it and allow installing from unknown sources."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.3",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.3/BooHaul-Android-0.2.3-15bf71ff.apk",
     bytes: 144457056,
