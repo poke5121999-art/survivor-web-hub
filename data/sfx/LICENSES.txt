@@ -27,3 +27,4 @@ buff_fs495453 <- Magic Spell 05.wav (https://freesound.org/s/495453/) from 0.00s
 heal_fs574077 <- Potion - drink - swallow.wav (https://freesound.org/s/574077/) from 0.00s, Freesound
 room_fs614464 <- 14. we&#x27;re alone here (roomtone) (https://freesound.org/s/614464/) from 10.00s, Freesound
 whisper_fs656439 <- Ghost Whispers (https://freesound.org/s/656439/) from 9.78s, Freesound
+music_home: "Lanterns in the Hollowed Forest" (loop) - Tsorthan Grove - CC0 1.0 - https://opengameart.org/node/181239
