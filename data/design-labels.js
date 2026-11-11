@@ -535,7 +535,12 @@
         "voice.minGain": { label: "Mức nhỏ nhất khi ở xa", pct: true, min: 0, max: 1, help: "0 = xa quá thì không nghe thấy nhau. Đặt 20% nếu muốn đứng xa vẫn gọi nhau được." },
         "voice.hz": { label: "Số lần đặt lại volume mỗi giây", min: 1, max: 10 },
         "voice.boost": { label: "Độ to voice", pct: true, min: 0, max: 2, help: "100% = mức gốc của dịch vụ voice. 160% (mặc định): EOS volume 80/100, Vivox +4 dB. Trần 200%; quá to có thể rè." },
-        "voice.duck": { label: "Nhạc + SFX khi có người nói", sfx: "room", base: 0.5, duckDemo: true, pct: true, min: 0, max: 1, help: "Có đồng đội đang nói thì nhạc, SFX và tiếng nền của game còn ngần này (45% ≈ -7 dB), để voice nổi lên. 100% = không hạ. Web (Vivox) không biết ai đang nói nên không hạ." }
+        "voice.duck": { label: "Nhạc + SFX khi có người nói", sfx: "room", base: 0.5, duckDemo: true, pct: true, min: 0, max: 1, help: "Có đồng đội đang nói thì nhạc, SFX và tiếng nền của game còn ngần này (45% ≈ -7 dB), để voice nổi lên. 100% = không hạ. Web (Vivox) không biết ai đang nói nên không hạ." },
+        "camera": { label: "Tầm nhìn camera (Cài đặt)", help: "Thanh kéo \"Camera distance\" trong popup Cài đặt → Hiển thị (điện thoại và máy tính): người chơi kéo camera gần / xa trong khoảng dưới đây. Số là phần trăm bề ngang thế giới của khung chuẩn — 100% = như cũ, lớn hơn = thấy xa hơn. Lựa chọn lưu theo máy. Đổi số ở đây có hiệu lực từ ca sau." },
+        "camera.viewMin": { label: "Gần nhất", pct: true, min: 0.5, max: 1, help: "Đầu trái của thanh kéo. 80% = thấy 80% bề ngang thế giới của khung chuẩn (người to hơn)." },
+        "camera.viewMax": { label: "Xa nhất (chơi một mình)", pct: true, min: 1, max: 2, help: "Đầu phải của thanh kéo khi chơi một mình. Bảng số bệ vẫn né bản đồ nhỏ ở mọi mức." },
+        "camera.multiViewMax": { label: "Xa nhất khi co-op / đấu đội", pct: true, min: 0.5, max: 2, help: "Chống lợi thế tầm nhìn: trong co-op và đấu đội không ai lùi xa hơn mức này (100% = cả phòng thấy như khung chuẩn). Co-op dùng bảng của chủ phòng." },
+        "camera.viewDefault": { label: "Mặc định cho máy chưa chọn", pct: true, min: 0.5, max: 2, help: "Máy chưa kéo thanh lần nào thì dùng mức này (vẫn kẹp trong khoảng trên)." }
       }
     },
 
