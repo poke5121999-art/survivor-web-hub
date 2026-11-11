@@ -540,7 +540,17 @@
         "camera.viewMin": { label: "Gần nhất", pct: true, min: 0.5, max: 1, help: "Đầu trái của thanh kéo. 80% = thấy 80% bề ngang thế giới của khung chuẩn (người to hơn)." },
         "camera.viewMax": { label: "Xa nhất (chơi một mình)", pct: true, min: 1, max: 2, help: "Đầu phải của thanh kéo khi chơi một mình. Bảng số bệ vẫn né bản đồ nhỏ ở mọi mức." },
         "camera.multiViewMax": { label: "Xa nhất khi co-op / đấu đội", pct: true, min: 0.5, max: 2, help: "Chống lợi thế tầm nhìn: trong co-op và đấu đội không ai lùi xa hơn mức này (100% = cả phòng thấy như khung chuẩn). Co-op dùng bảng của chủ phòng." },
-        "camera.viewDefault": { label: "Mặc định cho máy chưa chọn", pct: true, min: 0.5, max: 2, help: "Máy chưa kéo thanh lần nào thì dùng mức này (vẫn kẹp trong khoảng trên)." }
+        "camera.viewDefault": { label: "Mặc định cho máy chưa chọn", pct: true, min: 0.5, max: 2, help: "Máy chưa kéo thanh lần nào thì dùng mức này (vẫn kẹp trong khoảng trên)." },
+        "tts": { label: "Giọng đọc chat (robot)", link: { href: "tts.html", text: "▶ Nghe thử giọng trên trang Nghe thử giọng chat" }, help: "Chat chữ co-op được đọc thành tiếng bằng giọng robot như R.E.P.O.: mỗi máy tự đọc câu nó nhận, phát ở chỗ người gửi (nhỏ dần theo tầm voice.*), nhạc + SFX lùi xuống như khi có người nói. Câu của chính mình cũng đọc. Người chơi tắt/bật và chỉnh độ to trong Cài đặt → Âm thanh. Có hiệu lực ngay lần game tải bảng." },
+        "tts.on": { label: "Bật cho mọi người", min: 0, max: 1, int: true, help: "0 = tắt giọng đọc chat cho TẤT CẢ người chơi, dù họ bật trong Cài đặt (hai hàng trong Cài đặt cũng ẩn). 1 = theo lựa chọn của từng người." },
+        "tts.maxChars": { label: "Đọc tối đa", unit: "chữ", min: 10, max: 200, int: true, help: "Câu dài hơn chỉ đọc phần đầu. Ô chat cho gõ 80 chữ." },
+        "tts.gapSec": { label: "Mỗi người cách nhau ít nhất", unit: "giây", min: 0, max: 30, help: "Câu tới sớm hơn của cùng một người thì không đọc (vẫn hiện trong khung chat). Cả phòng chờ đọc tối đa 2 câu, đang đọc tối đa 2 câu cùng lúc." },
+        "tts.vol": { label: "Độ to", pct: true, min: 0, max: 2, help: "Nhân với mức người chơi chọn trong Cài đặt. 80% mặc định; trên 100% có thể rè." },
+        "tts.pitchMin": { label: "Người chơi: giọng trầm nhất", unit: "Hz", min: 40, max: 400, help: "Giọng mỗi người băm từ id của họ ra một cao độ trong khoảng trầm nhất – cao nhất; mọi máy nghe cùng một giọng." },
+        "tts.pitchMax": { label: "Người chơi: giọng cao nhất", unit: "Hz", min: 40, max: 400 },
+        "tts.botPitchMin": { label: "Bot: giọng trầm nhất", unit: "Hz", min: 40, max: 400, help: "Khoảng riêng cho bot (chưa nối câu nói của bot)." },
+        "tts.botPitchMax": { label: "Bot: giọng cao nhất", unit: "Hz", min: 40, max: 400 },
+        "tts.speed": { label: "Tốc độ đọc", min: 0.5, max: 2, help: "1 = nhịp gốc. Mỗi người lệch thêm ±8% theo id." }
       }
     },
 

@@ -622,7 +622,9 @@
     }
     if (isObj(value) || Array.isArray(value)) {
       var g = h("fieldset", { class: "dz-group" }, h("legend", { text: meta.label }),
-        meta.help ? h("p", { class: "dz-help", text: meta.help }) : null);
+        meta.help ? h("p", { class: "dz-help", text: meta.help }) : null,
+        // link: { href, text } — trang phụ của nhóm này (vd. tts.html nghe thử giọng đọc chat).
+        meta.link ? h("p", { class: "dz-help dz-link" }, h("a", { href: meta.link.href, target: "_blank", rel: "noopener", text: meta.link.text })) : null);
       var keys = Array.isArray(value) ? value.map(function (_, i) { return String(i); }) : Object.keys(value);
       if (!keys.length) g.appendChild(h("p", { class: "dz-help", text: "(trống)" }));
       keys.forEach(function (k) { g.appendChild(node(table, docId, doc, path.concat(k), value[k])); });

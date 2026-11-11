@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Nghe thử giọng chat</title>
+  <meta name="description" content="Gõ chữ và nghe giọng robot đọc chat của REPO 2D, đúng như trong game." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <style>
+    .tts-main { max-width: 860px; }
+    .tts-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 4px 20px 16px; margin-bottom: 16px; }
+    .tts-text { width: 100%; max-width: none; min-height: 64px; box-sizing: border-box; }
+    .tts-count { font-variant-numeric: tabular-nums; }
+    .tts-count.is-full { color: var(--chg); font-weight: 600; }
+    .tts-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tts-modes { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+    .tts-modes label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+    .tts-id { margin-top: 8px; }
+    .tts-slider { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 12px; align-items: center; max-width: 560px; }
+    .tts-slider input[type=range] { width: 100%; accent-color: var(--accent); }
+    .tts-slider output { text-align: right; font-variant-numeric: tabular-nums; }
+    .tts-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px 0 4px; }
+    .tts-play { min-width: 120px; font-size: 16px; }
+    .tts-stat { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .tts-src { font-size: 13px; color: var(--text-dim); }
+    .tts-warn { color: var(--chg); }
+    .tts-main [hidden] { display: none !important; }
+    @media (max-width: 820px) { .tts-card { padding: 4px 14px 14px; } }
+  </style>
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner dz-header__inner">
+      <div>
+        <h1 class="hub-title">Nghe thử giọng chat</h1>
+        <p class="hub-subtitle">Giọng robot đọc chat co-op (như R.E.P.O.). Cùng bảng âm và cùng mã với game: bấm ▶ là nghe đúng tiếng trong game.</p>
+      </div>
+      <a class="btn btn--ghost" href="design.html">← Thông số game</a>
+    </div>
+  </header>
+
+  <main class="hub-main tts-main">
+    <div id="tts-banner" class="dz-banner" role="alert" hidden></div>
+
+    <section class="tts-card" aria-label="Câu đọc">
+      <div class="dz-fld dz-fld--wide">
+        <label class="dz-fld__label" for="tts-text">Câu cần đọc</label>
+        <div class="dz-fld__ctl">
+          <textarea id="tts-text" class="dz-input dz-input--area tts-text" rows="2" maxlength="80" spellcheck="false">Over here!</textarea>
+          <p class="dz-help">Tiếng Anh. Chữ không đọc được (dấu tiếng Việt, emoji) thì bỏ qua; số đọc thành chữ. <span id="tts-count" class="tts-count">0/80</span></p>
+          <div class="tts-chips" id="tts-chips"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tts-card" aria-label="Giọng">
+      <div class="dz-fld dz-fld--wide">
+        <span class="dz-fld__label">Giọng</span>
+        <div class="dz-fld__ctl">
+          <div class="tts-modes" role="radiogroup" aria-label="Kiểu giọng">
+            <label><input type="radio" name="tts-mode" value="player" checked /> Người chơi theo id</label>
+            <label><input type="radio" name="tts-mode" value="bot" /> Bot theo id</label>
+            <label><input type="radio" name="tts-mode" value="manual" /> Chỉnh tay</label>
+          </div>
+          <input id="tts-id" class="dz-input tts-id" type="text" value="player-42" aria-label="Id người chơi hoặc bot" />
+          <p class="dz-help" id="tts-id-help">Id dịch vụ chat của người gửi (trong game là PlayerId UGS). Cùng id thì mọi máy nghe cùng một giọng.</p>
+        </div>
+      </div>
+      <div class="dz-fld"><label class="dz-fld__label" for="tts-pitch">Cao độ</label>
+        <div class="dz-fld__ctl tts-slider"><input id="tts-pitch" type="range" min="40" max="400" step="0.5" value="120" /><output id="tts-pitch-o"></output></div></div>
+      <div class="dz-fld"><label class="dz-fld__label" for="tts-speed">Tốc độ</label>
+        <div class="dz-fld__ctl tts-slider"><input id="tts-speed" type="range" min="0.5" max="2" step="0.01" value="1" /><output id="tts-speed-o"></output></div></div>
+      <div class="dz-fld"><label class="dz-fld__label" for="tts-flutter">Rung giọng</label>
+        <div class="dz-fld__ctl tts-slider"><input id="tts-flutter" type="range" min="0" max="100" step="1" value="20" /><output id="tts-flutter-o"></output></div></div>
+      <div class="dz-fld"><label class="dz-fld__label" for="tts-bright">Độ sáng</label>
+        <div class="dz-fld__ctl tts-slider"><input id="tts-bright" type="range" min="0" max="1" step="0.01" value="0.5" /><output id="tts-bright-o"></output></div></div>
+      <div class="dz-fld"><label class="dz-fld__label" for="tts-vol">Độ to (tts.vol)</label>
+        <div class="dz-fld__ctl tts-slider"><input id="tts-vol" type="range" min="0" max="2" step="0.01" value="0.8" /><output id="tts-vol-o"></output></div></div>
+    </section>
+
+    <section class="tts-card" aria-label="Số của bảng">
+      <div class="dz-fld dz-fld--wide">
+        <label class="dz-fld__label"><input type="checkbox" id="tts-use-table" checked /> Dùng số của bảng (stage_rules.tts trên DEV)</label>
+        <div class="dz-fld__ctl"><p class="tts-src" id="tts-src">Đang đọc bảng…</p></div>
+      </div>
+      <div class="tts-actions">
+        <button id="tts-play" class="btn btn--primary tts-play" type="button" disabled>▶ Phát</button>
+        <button id="tts-wav" class="btn btn--ghost" type="button" disabled>Tải WAV</button>
+        <span id="tts-stat" class="tts-stat" aria-live="polite"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/supabase-auth.js"></script>
+  <script type="module" src="js/tts-page.js"></script>
+</body>
+</html>
