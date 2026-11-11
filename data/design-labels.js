@@ -740,8 +740,12 @@
 
     foes: {
       title: "Quái",
-      blurb: "Máu, sát thương, hồi đòn, tốc độ của từng loài quái.",
+      blurb: "Máu, sát thương, hồi đòn, vung đòn, tốc độ, tầm nhìn, tầm nghe, và hồi chiêu / niệm chiêu riêng của từng loài quái.",
       effect: RUN,
+      // md_foes trên DEV có từ trước khi game đọc wind/sight/hear/skill: hiện các ô đó với số gốc, lưu lần đầu là ghi vào bảng.
+      fillMissing: true,
+      // Năm ô số trên lưới để hàng vừa màn 1280 px (có ảnh quái và nút "Chi tiết"); các ô còn lại và chiêu riêng nằm trong "Chi tiết".
+      inline: 5,
       // Ảnh 96 px một loài, cắt từ dải art của Repo_client bằng Tools/HubArt/foe_faces.py (Tools/Agent/hub.sh chạy lại mỗi lần đẩy bản).
       rowSprite: { src: "games/repo2d-unity/foe/{_id}.png", cell: 0, smooth: true },
       rowLabels: {
@@ -754,9 +758,21 @@
         "_id": ID,
         "hp": { label: "Máu", min: 1 },
         "dmg": { label: "Sát thương", min: 0 },
-        "cd": { label: "Hồi đòn", unit: "giây", min: 0 },
+        "cd": { label: "Hồi đòn", unit: "giây", min: 0, help: "Giây nghỉ sau mỗi cú đánh tay trước khi đánh cú sau." },
+        "wind": { label: "Vung đòn", unit: "giây", min: 0.05, max: 30, help: "Giây đứng vung tay trước khi cú đánh tay trúng: dài thì người chơi dễ lùi né. Chỉ loài đánh tay mới có ô này." },
         "speed": { label: "Tốc độ", unit: "pixel/giây", min: 0 },
-        "pack": { label: "Số con một đàn", min: 0, int: true, help: "Chỉ loài đi theo đàn mới có ô này." }
+        "sight": { label: "Tầm nhìn", unit: "ô", min: 0, max: 60, help: "Thấy người trong bấy nhiêu ô nếu không có tường che. 0 = không nhìn." },
+        "hear": { label: "Tầm nghe", unit: "ô", min: 0, max: 60, help: "Tầm nghe với tiếng ồn chuẩn; tiếng to (nổ, vụt trúng) nghe xa hơn. 0 = điếc." },
+        "pack": { label: "Số con một đàn", min: 0, int: true, help: "Chỉ loài đi theo đàn mới có ô này." },
+        "skill": { label: "Chiêu riêng", help: "Chỉ loài có chiêu riêng mới có nhóm này, và mỗi loài chỉ có những ô dùng được." },
+        "skill.cd": { label: "Hồi chiêu", unit: "giây", min: 0, max: 600, help: "Giây chờ giữa hai lần dùng chiêu. Kẻ bắn: giữa hai phát. Bàn tay: biến mất bao lâu rồi núp tường khác. Xác ướp: dải vải. Kẻ ném đầu: mọc đầu mới. Quái gacha: chạy trốn sau khi quay. Kẻ truy lùng: sau mỗi cú đập. Ma cà rồng: núp bao lâu rồi chọn người (ít nhất 0,5). Y tá: ném kim. Joker: giữa hai món giả. Alien: phun mực. Pharaoh: sau mỗi lượt lồng." },
+        "skill.wind": { label: "Niệm chiêu", unit: "giây", min: 0.05, max: 30, help: "Giây báo trước khi chiêu ra, cũng là cửa sổ để người chơi né. Kẻ bắn: ngắm. Kẻ húc: lấy đà trước cú húc (ít nhất 2,1). Bàn tay: trước khi chụp. Xác ướp: giương tay quăng dải vải. Con nít ranh, Kẻ ném đầu: lấy đà ném. Kẻ giả mạo: lộ mặt. Kẻ truy lùng: hai tay bay lên trước cú đập. Ma cà rồng: vòng đỏ trước khi chụp. Y tá: giơ kim ngắm. Alien: phồng túi mực. Pharaoh: bóng khoá bám theo người (ít nhất 0,4). Số dưới mức ít nhất của loài thì game bỏ, giữ số cũ." },
+        "skill.fuse": { label: "Ngòi nổ", unit: "giây", min: 0.1, max: 60, help: "Bom con: từ lúc thấy người tới lúc nổ. Kẻ ném đầu: cái đầu nằm bao lâu thì nổ." },
+        "skill.cdMin": { label: "Nhịp gài mìn ít nhất", unit: "giây", min: 0, max: 600, help: "Kẻ gài mìn: mỗi quả cách quả trước một số giây ngẫu nhiên giữa hai ô này. Hệ số mìn của theme vẫn nhân thêm." },
+        "skill.cdMax": { label: "Nhịp gài mìn nhiều nhất", unit: "giây", min: 0, max: 600, help: "Phải không nhỏ hơn ô ít nhất; sai thì game bỏ cả hai." },
+        "skill.spin": { label: "Quay bánh xe", unit: "giây", min: 0.5, max: 30, help: "Quái gacha: bánh xe quay bao lâu rồi mới dừng ở một ô." },
+        "skill.screamCd": { label: "Hồi tiếng thét", unit: "giây", min: 0, max: 600, help: "Y tá: thét xong bao lâu mới thét gọi quái lần nữa." },
+        "skill.raise": { label: "Giơ gậy", unit: "giây", min: 0.5, max: 30, help: "Pharaoh: từ lúc giơ gậy tới lúc bổ xuống lồng." }
       }
     },
 
