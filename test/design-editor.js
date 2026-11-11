@@ -15,7 +15,7 @@ const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const SHOTS = process.env.SHOTS || 'C:/Users/tamph/AppData/Local/Temp/claude/D--REPO-Meta/e97f08e7-4c36-4a2b-a58d-a5dc29bf4f23/scratchpad/shots';
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const MIME = { '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 const KNOWN = ['wallet_start', 'crew', 'tactics', 'upgrade', 'passives', 'gacha_banners', 'gacha_rules', 'shop_packs',
   'shop_rules', 'shop_exchange', 'loadout', 'quests', 'maps', 'run_reward', 'stage_houses', 'stage_theme_houses', 'stage_rules',
   'extract_quota', 'loot_cap', 'loot_sizes', 'loot_materials', 'loot_items', 'safes_chests', 'station_upgrades',
@@ -67,6 +67,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
   client_gate: realLabels.window.DESIGN_LABELS.client_gate,
   modes: realLabels.window.DESIGN_LABELS.modes,
   pvp_maps: realLabels.window.DESIGN_LABELS.pvp_maps,
+  stage_rules: realLabels.window.DESIGN_LABELS.stage_rules,
 }) + ';';
 
 function hashDocs(docs) {
@@ -882,6 +883,34 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('bảng function chưa liệt kê: chip báo "Server chưa có", không "Đang tải"', unservedChip === 'Server chưa có', unservedChip);
   check('bảng function chưa liệt kê: khung giữa báo cần deploy gs-design', /deploy lại gs-design/.test(unservedPane) && !/Đang tải/.test(unservedPane), unservedPane.slice(0, 120));
   fake.unlisted = [];
+
+  // Nút ▶ nghe thử tiếng: mỗi audio.vol.<cue> có nút (mờ nếu nguồn Sonniss), tệp có thật, bấm không lỗi, voice.duck có nút nghe mức hạ.
+  const SR = realLabels.window.DESIGN_LABELS.stage_rules.fields;
+  const volKeys = Object.keys(SR).filter(k => /^audio\.vol\.[a-z_]+$/.test(k));
+  const withSfx = volKeys.filter(k => SR[k].sfx);
+  const sfxFiles = withSfx.filter(k => !SR[k].sfxLocked).map(k => SR[k].sfx);
+  check('nhãn: 34 audio.vol, mọi trường sfx có base số hợp lệ', volKeys.length === 34 && withSfx.every(k => typeof SR[k].base === 'number' && SR[k].base > 0 && SR[k].base <= 1),
+    volKeys.length + ' khoá');
+  check('tệp data/sfx/<cue>.ogg + .mp3 có đủ cho cue có nút; cue Sonniss (tick, ui_click) KHÔNG có tệp',
+    sfxFiles.every(c => fs.existsSync(path.join(ROOT, 'data/sfx', c + '.ogg')) && fs.existsSync(path.join(ROOT, 'data/sfx', c + '.mp3'))) &&
+    withSfx.filter(k => SR[k].sfxLocked).every(k => !fs.existsSync(path.join(ROOT, 'data/sfx', SR[k].sfx + '.ogg'))),
+    sfxFiles.length + ' cue');
+  const vols = {}; volKeys.forEach(k => { vols[k.slice(10)] = 1; });
+  fake.mutate('stage_rules', d => { d[0].audio = Object.assign({}, d[0].audio, { vol: vols }); d[0].voice = Object.assign({}, d[0].voice, { duck: 0.45 }); });
+  await p.goto(BASE + '/design.html?api=/gs&poll=300&r=sfx#stage_rules');
+  await p.waitForSelector('.dz-pane .dz-play', { timeout: 10000 }).catch(() => {});
+  const btns = await p.$$eval('.dz-play', els => els.map(e => ({ cue: e.dataset.sfx, dis: e.disabled })));
+  check('28 cue có nút ▶ (tick và ui_click mờ; 6 cue tổng hợp heart, dread, drip, rain, music, music_home không có nút) + 1 nút nghe mức hạ',
+    withSfx.length === 28 && btns.length === withSfx.length + 1 && btns.filter(x => x.dis).length === 2, btns.length + ' nút, ' + btns.filter(x => x.dis).length + ' mờ');
+  const served = [];
+  p.on('response', r => { if (/data\/sfx\//.test(r.url())) served.push(r.status() + ' ' + r.url().split('/').pop()); });
+  const hitBtn = p.locator('.dz-play[data-sfx="hit"]').first();
+  await hitBtn.click();
+  await p.waitForTimeout(1200);
+  check('bấm ▶ hit tải đúng tệp, 200, không lỗi', served.length >= 1 && served.every(x => /^200 hit\.(ogg|mp3)$/.test(x)), served.join(','));
+  await p.locator('.dz-play[data-sfx="room"]').last().click();
+  await p.waitForTimeout(800);
+  check('bấm ▶ nghe mức hạ (voice.duck) tải tiếng mẫu', served.some(x => /^200 room\./.test(x)), served.join(','));
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

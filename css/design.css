@@ -261,3 +261,10 @@
 .dz-gate .dz-input.is-invalid { border-color: var(--danger); }
 .dz-sub__add .btn + .btn { margin-left: 8px; }
 .dz-sub__n { white-space: nowrap; }
+
+/* Nút nghe thử tiếng cạnh ô độ to (audio.vol.*, voice.duck) */
+.dz-play { margin-left: 8px; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid var(--dz-line, #3a3f4b); border-radius: 6px;
+  background: transparent; color: inherit; cursor: pointer; font-size: 12px; line-height: 1; }
+.dz-play:hover:not(:disabled) { background: rgba(255, 255, 255, .08); }
+.dz-play.is-busy { opacity: .6; }
+.dz-play.is-locked, .dz-play:disabled { opacity: .3; cursor: not-allowed; }

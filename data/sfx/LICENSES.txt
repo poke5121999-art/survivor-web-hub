@@ -1,0 +1,29 @@
+Nghe thử trên trang design. Toàn bộ là Freesound CC0 1.0 (public domain), cắt lại từ tiếng đã ship trong game, mono 64 kbps.
+Không có tiếng Sonniss (tick, ui_click): giấy phép cấm phân phối lại.
+
+step_light_fs421153 <- Footstep_Wood_Toe_1.wav (https://freesound.org/s/421153/) from 0.00s, Freesound
+step_medium_fs151238 <- Hard Female Footstep (2) (https://freesound.org/s/151238/) from 0.00s, Freesound
+step_heavy_fs533044 <- Footsteps_Boots_Wood_Mono.wav (https://freesound.org/s/533044/) from 6.78s, Freesound
+shuffle_fs812538 <- Big Monster Stomp (https://freesound.org/s/812538/) from 0.06s, Freesound
+breath_fs396048 <- hard breath.wav (https://freesound.org/s/396048/) from 0.24s, Freesound
+hinge_open_fs148903 <- Door Open.aif (https://freesound.org/s/148903/) from 0.20s, Freesound
+hinge_close_fs256214 <- Wooden-Door-opening+closing_mono.wav (https://freesound.org/s/256214/) from 2.52s, Freesound
+strain_fs502505 <- Wood Creak Single V1 (https://freesound.org/s/502505/) from 0.00s, Freesound
+splinter_fs853277 <- Wood Cracking - Ship Damage Taken Game SFX Alternate 2 of 2 (https://freesound.org/s/853277/) from 0.00s, Freesound
+thud_fs648959 <- Heavy Book (https://freesound.org/s/648959/) from 3.70s, Freesound
+crash_fs829103 <- Smashed/demolished brick wall crumbling/caving in (https://freesound.org/s/829103/) from 0.04s, Freesound
+brick_fs655350 <- Brick being dropped OWI.wav (https://freesound.org/s/655350/) from 0.64s, Freesound
+crack_fs583310 <- Tile Breaking (https://freesound.org/s/583310/) from 0.00s, Freesound
+shatter_fs399080 <- Clay Pottery Drop ’n’ Break (https://freesound.org/s/399080/) from 2.84s, Freesound
+gunshot_fs427592 <- 9mm pistol shot (https://freesound.org/s/427592/) from 0.08s, Freesound
+engine_fs868287 <- minibus_start.wav (https://freesound.org/s/868287/) from 0.00s, Freesound
+hit_fs503277 <- Face Punch, Body Impact, 4x (https://freesound.org/s/503277/) from 4.94s, Freesound
+hit_big_fs315914 <- cracksmackwhackdead.aiff (https://freesound.org/s/315914/) from 0.02s, Freesound
+screech_fs505442 <- random_jumpscare_sound_1.wav (https://freesound.org/s/505442/) from 0.00s, Freesound
+sting_fs867757 <- Horror Stinger/Impacts (https://freesound.org/s/867757/) from 3.20s, Freesound
+warp_fs735062 <- Fast Warp In (https://freesound.org/s/735062/) from 0.00s, Freesound
+chime_fs541985 <- GASP_Chimes_Success_4.wav (https://freesound.org/s/541985/) from 0.00s, Freesound
+buff_fs495453 <- Magic Spell 05.wav (https://freesound.org/s/495453/) from 0.00s, Freesound
+heal_fs574077 <- Potion - drink - swallow.wav (https://freesound.org/s/574077/) from 0.00s, Freesound
+room_fs614464 <- 14. we&#x27;re alone here (roomtone) (https://freesound.org/s/614464/) from 10.00s, Freesound
+whisper_fs656439 <- Ghost Whispers (https://freesound.org/s/656439/) from 9.78s, Freesound
