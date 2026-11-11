@@ -48,6 +48,9 @@
     if (ok) return;
 
     var root = path.slice(0, at + 1); // ".../" tới ngay trước "games/"
+    // Game nặng nằm ở repo Pages riêng hub-games (cùng origin, /hub-games/games/<id>/): login.html và
+    // index.html vẫn của hub. next=games/<id>/index.html về trang chuyển hướng của hub, trang đó đưa sang lại.
+    if (path.indexOf("/hub-games/") === 0) root = "/survivor-web-hub/";
 
     // Là member thật nhưng role chưa đủ quyền (pending/blocked) → về hub kèm ?gate=<role>
     // để hub hiện lời nhắn; KHÔNG đá về login (họ đã đăng nhập rồi, đá về login chỉ lặp vô ích).

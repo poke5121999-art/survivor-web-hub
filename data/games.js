@@ -22,6 +22,9 @@
  *     thumbnail: relative path to a committed 640x360 image (no external URL);
  *                capture it from the real game with games/<id>/tools/thumb.js (tools/thumb-lib.js)
  *     path:      relative launch path                            e.g. "games/survivor/index.html"
+ *                (or an absolute URL: heavy games live in the hub-games Pages repo, same origin,
+ *                 e.g. "https://poke5121999-art.github.io/hub-games/games/bazaar/index.html";
+ *                 games/<id>/index.html here is then only a redirect stub)
  *     rev:       "YYYYMMDD<letter>" cache-bust stamp; the newest one is the hub's featured game
  *     status:    "available" | "build-pending" | "coming-soon"
  *     tags:      string[] (the card shows the first 3)
@@ -50,7 +53,7 @@ window.HUB_GAMES = [
     accent: "#a78bfa",
     en: { title: "Survivor", tagline: "Just run and dodge, your weapons fire themselves. Survive wave after wave.", desc: "In the style of Vampire Survivors. You only steer, every weapon fires on its own. Enemies come in waves, each one bigger and harder than the last." },
     thumbnail: "assets/thumbnails/survivor.svg",
-    path: "games/survivor/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/survivor/index.html",
     // available since 2026-07-30: a real WebGL build (68 MB) lives in
     // web-hub/games/survivor/ and was play-tested end-to-end in a browser with no
     // backend. See docs/plans/roadmap.md Phase 1.1 / 5.2.
@@ -66,7 +69,7 @@ window.HUB_GAMES = [
     accent: "#fb923c",
     en: { title: "Kingfall: The Last Citadel TD", tagline: "Raise the citadel, place defenders, hold the last gate against mobs and bosses.", desc: "Tower defense siege. Build the citadel, place your defenders and hold the final gate through wave after wave of mobs, with bosses in between." },
     thumbnail: "assets/thumbnails/kingfall.svg",
-    path: "games/kingfall/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/kingfall/index.html",
     // available since 2026-08-05: a real WebGL build sits in web-hub/games/kingfall/
     // (68 MB, Unity 6000.0.59f2) with its Addressables content bundles, and the online
     // stack it shipped with — Firebase cloud save, LevelPlay ads, real-money purchasing,
@@ -545,7 +548,7 @@ window.HUB_GAMES = [
     accent: "#93c5fd",
     en: { title: "Fogbound", tagline: "Fish the islands in the fog. Do not stay out after dark.", desc: "DREDGE remade for the web. Borrow an old boat along with a $50 debt, fish around The Marrows and sell to the fishmonger. Every species has its own minigame, and fish fill the hold in their real shapes. After dark the fog thickens and panic sets in." },
     thumbnail: "assets/thumbnails/dredge.png",
-    path: "games/dredge/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/dredge/index.html",
     rev: "20261012a",
     // three.js r140 vendor trong games/dredge/vendor, không bước build. Dựng lại DREDGE 1.5.3 (Black Salt
     // Games, 2023) theo yêu cầu của chủ dự án ngày 2026-10-07, từ bản cài trên máy (D:\dredge-ref).
@@ -593,7 +596,7 @@ window.HUB_GAMES = [
     accent: "#e0a84b",
     en: { title: "Market Day", tagline: "The Bazaar on the web: lay items on your rug and they fight on their own cooldowns.", desc: "Pick one of 7 heroes (Vanessa, Pygmalien, Dooley, Mak, Stelle, Jules, Karnok), each with their own board, and survive 10 days at the market. Each hour choose one of three stops: a merchant, an event or a monster. Drag items from the stall onto your rug to buy, drag them back to sell, reroll when you don't like the stock. Items on the rug fight on their own cooldowns: slash, shoot, shield, burn, poison, freeze. Beat monsters to take their loot, level up to open more slots, and face another player's ghost in PvP at the end of each day; losing costs prestige, and Fate saves you once. Chests at 4/7/10 wins and quests on cards. Cards, monsters, art and sound come from the Steam demo." },
     thumbnail: "assets/thumbnails/bazaar.png",
-    path: "games/bazaar/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/bazaar/index.html",
     rev: "20261023f",
     // Plain JS, không bước build. Dựng lại The Bazaar (Tempo Storm) theo yêu cầu của chủ dự án ngày 2026-10-09,
     // từ bản The Bazaar Demo trên Steam (D:\bazaar-ref). Dữ liệu thẻ/quái lấy từ GameData.db (SQLite, mỗi dòng là JSON),
@@ -614,7 +617,7 @@ window.HUB_GAMES = [
     accent: "#2f8cff",
     en: { title: "Top Speed", tagline: "Zing Speed on the web: drift for nitro, 6-kart races, items, ranked and story.", desc: "Kart races against 5 bots on 10 original Zing Speed Mobile tracks, including point-to-point ones like Sichuan and Reno. Drift to charge nitro, release and hit boost right away for a mini boost. Speed races, item races, team races, monthly ranked seasons, 22 story levels, 4 event modes, 18 karts, pets, outfits and a kart gacha. Plays with keyboard or touch." },
     thumbnail: "assets/thumbnails/toc-do.png",
-    path: "games/toc-do/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/toc-do/index.html",
     rev: "20261010b",
     // three.js r140 vendor trong games/toc-do/vendor, không bước build. Dựng lại Zing Speed Mobile 1.55.0.27413 (VNG, bản Việt
     // của QQ Speed Mobile) theo yêu cầu của chủ dự án ngày 2026-10-09, từ XAPK tải về ~/zingspeed-ref (ngoài git, 13.769 bundle
@@ -844,7 +847,7 @@ window.HUB_GAMES = [
     accent: "#7cb342",
     en: { title: "Farm Land", tagline: "Walk your farm: plant, raise animals, hire workers, unlock land and fly to new islands.", desc: "Farm Land (LolTap) remade from the Android 3.28.12 release, running straight in the browser on the original assets. Walk around the farm: seed and water the fields, raise cows, sheep and chickens, chop trees, and sell crops to the merchant for coins. Spend coins to unlock parcels and expand, hire workers for the barn and fields, and upgrade your pack. Cross the bridge to the seaplane and fly to new islands, Japan, Savana and Winter, each with its own palette and currency. Saved to your hub account to continue on another device. Drag to walk, portrait for phones. Pets that follow you, a speed bike, a piggy bank, diamonds and a 33-skin gacha, with animals on their own clips." },
     thumbnail: "assets/thumbnails/farmland.png",
-    path: "games/farmland/index.html",
+    path: "https://poke5121999-art.github.io/hub-games/games/farmland/index.html",
     rev: "20261101f",
     // three.js r160 vendor, no build step; rebuilt from the Android XAPK (com.loltap.farmland 3.28.12, Unity 6000.3.9f1
     // IL2CPP) by games/farmland/tools. Humanoid Mecanim clips retargeted offline; cloud save via the hub js/ scripts like
