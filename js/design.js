@@ -468,6 +468,61 @@
     return w[String(!!v)] || sec.note;
   }
 
+  // Nghe thử tiếng (nút ▶ cạnh ô độ to). Công thức như game: volume = clamp01(base * %) * MASTER 0,8 (SfxSamples.play); tiếng đã ở mức
+  // 1 thì % trên 100 không to thêm. Tệp ở data/sfx/<cue>.ogg|.mp3 (tiếng Sonniss không đưa lên web: sfxLocked).
+  var SFX_MASTER = 0.8, sfxCtx = null, sfxBuf = {}, sfxPlaying = null;
+  function sfxGain(base, pct) { return Math.min(1, Math.max(0, base * pct)) * SFX_MASTER; }
+  function sfxLoad(cue) {
+    if (sfxBuf[cue]) return sfxBuf[cue];
+    var a = document.createElement("audio");
+    var url = a.canPlayType && a.canPlayType('audio/ogg; codecs="vorbis"') ? "data/sfx/" + cue + ".ogg" : "data/sfx/" + cue + ".mp3";
+    sfxBuf[cue] = fetch(url).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+      .then(function (ab) { return new Promise(function (ok, no) { sfxCtx.decodeAudioData(ab, ok, no); }); });
+    sfxBuf[cue].catch(function () { delete sfxBuf[cue]; });
+    return sfxBuf[cue];
+  }
+  // pctNow(): giá trị % đang nhập (chưa lưu cũng nghe được). duck: phát tiếng mẫu 1,5 s đầy rồi hạ về duck trong 2,5 s rồi lên lại.
+  function sfxPlay(meta, pctNow, btn) {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { btn.title = "Trình duyệt không hỗ trợ Web Audio."; return; }
+    if (!sfxCtx) sfxCtx = new AC();
+    if (sfxCtx.state === "suspended") sfxCtx.resume();
+    var pct = pctNow(); if (pct == null) { btn.title = "Số trong ô chưa hợp lệ."; return; }
+    btn.classList.add("is-busy");
+    sfxLoad(meta.sfx).then(function (buf) {
+      var src = sfxCtx.createBufferSource(), g = sfxCtx.createGain(), t = sfxCtx.currentTime + 0.02;
+      src.buffer = buf; src.connect(g); g.connect(sfxCtx.destination);
+      if (meta.duckDemo) {
+        var full = sfxGain(meta.base, 1), low = full * Math.min(1, pct);
+        src.loop = true;
+        g.gain.setValueAtTime(full, t); g.gain.setValueAtTime(full, t + 1.5);
+        g.gain.linearRampToValueAtTime(low, t + 1.52); g.gain.setValueAtTime(low, t + 4);
+        g.gain.linearRampToValueAtTime(full, t + 4.35); g.gain.setValueAtTime(full, t + 5.2);
+        g.gain.linearRampToValueAtTime(0, t + 5.4);
+        src.start(t); src.stop(t + 5.5);
+      } else {
+        g.gain.value = sfxGain(meta.base, pct);
+        src.start(t);
+        src.stop(t + Math.min(buf.duration, 8) + 0.05);
+      }
+      if (sfxPlaying) { try { sfxPlaying.stop(); } catch (e) {} }
+      sfxPlaying = src;
+      src.onended = function () { btn.classList.remove("is-busy"); if (sfxPlaying === src) sfxPlaying = null; };
+    }).catch(function (e) { btn.classList.remove("is-busy"); btn.title = "Không phát được: " + (e && e.message || e); });
+  }
+  function sfxButton(meta, input) {
+    if (!meta.sfx) return null;
+    if (meta.sfxLocked) return h("button", { type: "button", class: "dz-play is-locked", disabled: true, "data-sfx": meta.sfx,
+      title: meta.sfxLocked, "aria-label": "Nghe thử: " + meta.sfxLocked, text: "▶" });
+    var b = h("button", { type: "button", class: "dz-play", "data-sfx": meta.sfx,
+      title: meta.duckDemo ? "Nghe thử mức hạ (tiếng nền mẫu: đầy rồi hạ theo ô này)" : "Nghe thử với độ to đang nhập",
+      "aria-label": "Nghe thử " + meta.label, text: "▶" });
+    b.addEventListener("click", function () {
+      sfxPlay(meta, function () { var r = parseInput(input.value, meta); return r.err ? null : r.v; }, b);
+    });
+    return b;
+  }
+
   // One editable leaf: input + unit + (filled later by updateMarks) "trước" and error lines.
   function cell(table, docId, doc, path, value, meta) {
     var key = docId + SEP + path.join(".");
@@ -502,6 +557,7 @@
       box.appendChild(input);
       var u = meta.pct ? "%" : meta.unit;
       if (u) box.appendChild(h("span", { class: "dz-unit", text: u }));
+      var pb = sfxButton(meta, input); if (pb) box.appendChild(pb);
     } else if (typeof value === "string" && meta.choices) {
       input = h("select", { class: "dz-input", "aria-label": meta.label });
       meta.choices.forEach(function (c) { input.appendChild(h("option", { value: c.v, text: c.label })); });
