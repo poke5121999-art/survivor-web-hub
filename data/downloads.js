@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.333",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.333/BooHaul-Android-0.2.333-92fac172.apk",
+    bytes: 147998519,
+    sha256: "5849962a85f07bf41ceae9b3428f61e574e3cb2b599f54c83f14a0142c970e9b",
+    date: "2026-11-12",
+    note: {
+      vi: "Boo Haul 0.2.333 cho Android (commit 92fac172), chơi trên server LIVE. LIVE 0.2.333: voice EOS hết rè + khử vọng, TTS to hơn, iPhone không còn bị rút app khi vuốt cạnh dưới, giá loot trên bệ ẩn, màn hình không tự tắt. Tải file .apk về điện thoại, mở ra rồi cho phép cài từ nguồn ngoài.",
+      en: "Boo Haul 0.2.333 for Android (commit 92fac172), on the LIVE server. LIVE 0.2.333: EOS voice no longer crackles plus echo cancellation, louder TTS, iPhone no longer pulls the app away when swiping the bottom edge, loot prices on pads hidden, screen no longer turns off on its own. Download the .apk on your phone, open it and allow installing from unknown sources."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.298",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.298/BooHaul-Android-0.2.298-a35c1124.apk",
     bytes: 147401779,
