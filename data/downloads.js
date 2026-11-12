@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.430",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.430/BooHaul-Android-0.2.430-f9ef8aa6.apk",
+    bytes: 150070096,
+    sha256: "f6b16b9e94601cf94f999b875064dee967d3c5eeb710e1062860bb02da339241",
+    date: "2026-11-12",
+    note: {
+      vi: "Boo Haul 0.2.430 cho Android (commit f9ef8aa6), chơi trên server LIVE. LIVE 0.2.430: co-op vào trận hết văng, voice không thu tiếng game, giọng bot Alba (EN) + bong bóng đúng ngôn ngữ, hết thân đỏ, vampire giằng thoát + hết giật, Joker dịch chuyển, quái tự thoát kẹt, bot tự chia vai. Tải file .apk về điện thoại, mở ra rồi cho phép cài từ nguồn ngoài.",
+      en: "Boo Haul 0.2.430 for Android (commit f9ef8aa6), on the LIVE server. LIVE 0.2.430: co-op no longer kicks you out when entering a match, voice no longer picks up game sound, bot voice Alba (EN) plus speech bubbles in the right language, red-body bug gone, vampire grab can be broken free of and no longer jitters, Joker teleports, foes get themselves unstuck, bots split roles on their own. Download the .apk on your phone, open it and allow installing from unknown sources."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.333",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.333/BooHaul-Android-0.2.333-92fac172.apk",
     bytes: 147998519,
