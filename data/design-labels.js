@@ -529,6 +529,8 @@
         "audio.vol.rain": { label: "Mưa", pct: true, min: 0, max: 2 },
         "audio.vol.music": { label: "Nhạc nền trong ca", sfx: "music", base: 1, sfxLocked: "Nhạc trong ca hiện vẫn là nhạc cũ chưa thay (không được đưa lên web): chỉ nghe trong game.", pct: true, min: 0, max: 2 },
         "audio.vol.music_home": { label: "Nhạc nền sảnh", sfx: "music_home", base: 0.48, pct: true, min: 0, max: 2 },
+        "audio.vol.roll_music": { label: "Nhạc nền màn quay tuyển", sfx: "roll_music", base: 1, pct: true, min: 0, max: 2, help: "Nhạc chạy theo cảnh (xe tới, cửa mở, loé, chào sân), mỗi độ hiếm một bản, cộng nhạc kết quả lặp dưới lưới tổng kết. Nút ▶ nghe bản 5★. Nhân với mức Nhạc nền của người chơi. Mặc định 100% = ngang hiệu ứng (chủ dự án chọn 2026-11-12)." },
+        "audio.vol.roll_fx": { label: "Hiệu ứng màn quay tuyển", sfx: "roll_fx", base: 1, pct: true, min: 0, max: 2, help: "Tiếng xe, drift, cửa, loé, năm sao, cú đập 5★ và chuông chào sân. Nút ▶ nghe bản 5★. Nhân với mức Tiếng động của người chơi." },
         "voice": { label: "Voice co-op", help: "Tiếng nói của đồng đội: to bao nhiêu, nhỏ dần khi đứng xa nhau trong ca (EOS và Vivox trên app; Vivox trên web chỉ tắt hẳn khi quá xa), và nhạc + SFX lùi xuống khi có người nói. Ở sảnh và lúc chưa có thân thì nghe đủ to. Người chơi tự tắt tiếng ai thì vẫn tắt." },
         "voice.refR": { label: "Trong tầm này nghe đủ to", unit: "ô", min: 0, max: 30 },
         "voice.maxR": { label: "Ngoài tầm này", unit: "ô", min: 2, max: 80, help: "Xa hơn thì nghe ở mức \"Mức nhỏ nhất\" (mặc định im hẳn, như R.E.P.O.). Kiểu nhỏ dần lấy theo Âm thanh." },

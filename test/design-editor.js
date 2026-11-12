@@ -889,7 +889,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const volKeys = Object.keys(SR).filter(k => /^audio\.vol\.[a-z_]+$/.test(k));
   const withSfx = volKeys.filter(k => SR[k].sfx);
   const sfxFiles = withSfx.filter(k => !SR[k].sfxLocked).map(k => SR[k].sfx);
-  check('nhãn: 34 audio.vol, mọi trường sfx có base số hợp lệ', volKeys.length === 34 && withSfx.every(k => typeof SR[k].base === 'number' && SR[k].base > 0 && SR[k].base <= 1),
+  check('nhãn: 36 audio.vol, mọi trường sfx có base số hợp lệ', volKeys.length === 36 && withSfx.every(k => typeof SR[k].base === 'number' && SR[k].base > 0 && SR[k].base <= 1),
     volKeys.length + ' khoá');
   check('tệp data/sfx/<cue>.ogg + .mp3 có đủ cho cue có nút; cue Sonniss (tick, ui_click) KHÔNG có tệp',
     sfxFiles.every(c => fs.existsSync(path.join(ROOT, 'data/sfx', c + '.ogg')) && fs.existsSync(path.join(ROOT, 'data/sfx', c + '.mp3'))) &&
@@ -900,8 +900,8 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.goto(BASE + '/design.html?api=/gs&poll=300&r=sfx#stage_rules');
   await p.waitForSelector('.dz-pane .dz-play', { timeout: 10000 }).catch(() => {});
   const btns = await p.$$eval('.dz-play', els => els.map(e => ({ cue: e.dataset.sfx, dis: e.disabled })));
-  check('28 cue có nút ▶ (tick và ui_click mờ; 6 cue tổng hợp heart, dread, drip, rain, music, music_home không có nút) + 1 nút nghe mức hạ',
-    withSfx.length === 28 && btns.length === withSfx.length + 1 && btns.filter(x => x.dis).length === 2, btns.length + ' nút, ' + btns.filter(x => x.dis).length + ' mờ');
+  check('32 cue có nút ▶ (tick, ui_click và music mờ; 4 cue tổng hợp heart, dread, drip, rain không có nút) + 1 nút nghe mức hạ',
+    withSfx.length === 32 && btns.length === withSfx.length + 1 && btns.filter(x => x.dis).length === 3, btns.length + ' nút, ' + btns.filter(x => x.dis).length + ' mờ');
   const served = [];
   p.on('response', r => { if (/data\/sfx\//.test(r.url())) served.push(r.status() + ' ' + r.url().split('/').pop()); });
   const hitBtn = p.locator('.dz-play[data-sfx="hit"]').first();
