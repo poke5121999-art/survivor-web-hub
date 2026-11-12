@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.336 DEV",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.336/BooHaul-Android-0.2.336-adb2de14.apk",
+    bytes: 147142008,
+    sha256: "6500f5ce080d502c0e9fbc65d064e9403e669604f5485dfdc86bc3ef9be90f65",
+    date: "2026-11-12",
+    note: {
+      vi: "Boo Haul DEV 0.2.336 cho Android (commit adb2de14 = dev c487b269), chơi trên server DEV, cài song song với bản LIVE (tên Boo Haul DEV). Có bot chia vai, cửa mới + kết giới khoá, két, minimap mới, xà beng phá khoá, bom x2.",
+      en: "Boo Haul DEV 0.2.336 for Android (commit adb2de14 = dev c487b269), on the DEV server, installs next to the LIVE app (named Boo Haul DEV). Bot roles, new doors with lock barrier, safe, new minimap, crowbar pries locks, bombs x2."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.145",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.145/BooHaul-Android-0.2.145-6a19e2d7.apk",
     bytes: 145694501,
