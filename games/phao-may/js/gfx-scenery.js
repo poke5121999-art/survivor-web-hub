@@ -32,7 +32,7 @@
   const ISLES = [[-70, 40, -260, 46, 1], [230, 62, -340, 60, 2], [40, 84, -520, 80, 3], [-200, 70, -600, 110, 4], [340, 34, -230, 30, 5], [150, 24, -180, 16, 6], [-30, 60, -150, 10, 7], [420, 80, -640, 120, 8]];
 
   PM.Scenery = function (G) {
-    const THREE = globalThis.THREE, scene = G.scene, map = G.map, theme = PM.THEMES[map.id], terrain = G.sim.terrain, q = G.quality;
+    const THREE = globalThis.THREE, scene = G.scene, map = G.map, theme = map.theme || PM.THEMES[map.id], terrain = G.sim.terrain, q = G.quality;
     const group = new THREE.Group(); scene.add(group);
     const col = (a) => new THREE.Color().fromArray(a);
     const rng = PM.rng('scenery-' + map.id);
@@ -107,7 +107,8 @@
       return tint(g, -0.45, 0.42, [0.32, 0.5, 0.26], [1.25, 1.7, 0.7]);
     })();
     const spots = [];
-    for (let x = 11; x < map.w - 5; x += 1.75 + rng() * 0.35) {
+    const deco = map.deco || {};
+    for (let x = 11; x < map.w - 5 && deco.hedges !== false; x += 1.75 + rng() * 0.35) {
       const y = surface(x), yl = surface(x - 0.7), yr = surface(x + 0.7);
       if (!Number.isFinite(y) || !Number.isFinite(yl) || !Number.isFinite(yr) || Math.abs(yl - yr) > 0.45) continue;
       spots.push({ x, y, z: -5.3, len: 6.2 + rng() * 0.6, h: 0.85 + rng() * 0.3, sx: 0.9 + rng() * 0.2 });

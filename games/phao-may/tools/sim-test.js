@@ -2,7 +2,7 @@
 // Usage: node games/phao-may/tools/sim-test.js
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
-for (const f of ['core', 'data', 'terrain', 'sim', 'ai']) vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), { filename: f + '.js' });
+for (const f of ['core', 'data', 'data-maps', 'terrain', 'sim', 'ai']) vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), { filename: f + '.js' });
 const PM = globalThis.PM;
 const fails = [];
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
@@ -114,6 +114,19 @@ for (const [a, b] of [['oc', 'tegiac'], ['tegiac', 'chuon'], ['coc', 'oc']]) {
   until(sim, () => false, 120 * 900);
   const dealt = sim.units.map((u) => sim.stats[u.id].dealt);
   check(sim.phase === 'over' && dealt[0] + dealt[1] > 800, `hard ${a} vs ${b}: match ends with damage dealt (${dealt.join(' / ')}, turns=${sim.turnN})`);
+}
+
+{
+  const sim = mk({ map: 'vinhda', teams: [[{ kind: 'coc' }, { kind: 'chuon' }], [{ kind: 'coc' }, { kind: 'chuon' }]] });
+  const y0 = sim.seaY;
+  for (let k = 0; k < 6; k++) { const a = sim.active; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active !== a); }
+  check(Math.abs(sim.seaY - (y0 + 6 * sim.map.hazard.perTurn)) < 1e-6, `tide rises each turn on Vịnh Đá Vôi (${y0} -> ${sim.seaY.toFixed(1)})`);
+  const v = sim.units.find((u) => u.alive && u !== sim.active);
+  sim.seaY = v.y + 2; sim.advance(0.5);
+  check(!v.alive && drain(sim, 'die').some((e) => e.unit === v.id && e.cause === 'sea'), 'a unit the tide reaches drowns');
+  const ai = mk({ map: 'vinhda', seed: 4, flip: undefined, teams: [[{ kind: 'coc', ai: 'hard' }], [{ kind: 'tegiac', ai: 'hard' }]] });
+  until(ai, () => false, 120 * 1200);
+  check(ai.phase === 'over', `hard match on Vịnh Đá Vôi ends (turns=${ai.turnN}, winner=${ai.winner}, sea=${ai.seaY.toFixed(1)})`);
 }
 
 for (const level of ['easy', 'medium', 'hard']) {

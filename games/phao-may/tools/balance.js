@@ -2,7 +2,7 @@
 // Usage: node games/phao-may/tools/balance.js [seeds] [map]
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
-for (const f of ['core', 'data', 'terrain', 'sim', 'ai']) vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), { filename: f + '.js' });
+for (const f of ['core', 'data', 'data-maps', 'terrain', 'sim', 'ai']) vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), { filename: f + '.js' });
 const PM = globalThis.PM, N = +(process.argv[2] || 4), map = process.argv[3] || PM.MAP_ORDER[0];
 const kinds = PM.UNIT_ORDER, wins = {}, games = {}, dealt = {}, shots = {};
 for (const k of kinds) { wins[k] = 0; games[k] = 0; dealt[k] = 0; shots[k] = 0; }

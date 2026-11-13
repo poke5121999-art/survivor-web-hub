@@ -120,7 +120,7 @@
         if (!ctx.dry) { ctx.terrain.carve(p.x, p.y, 0.85); if ((p.tick = (p.tick || 0) + 1) % 6 === 0) emit(ctx, { type: 'burrow', x: p.x, y: p.y }); }
         let hitU = null;
         for (const u of ctx.units) if (u.alive && Math.hypot(u.x - p.x, u.y + u.radius - p.y) < u.radius + 0.3) hitU = u;
-        if (hitU || p.left <= 0 || ctx.terrain.sample(p.x, p.y) > 0.9 || p.y < ctx.map.seaY) { p.alive = false; explode(ctx, p.x, p.y, p.def, p.owner, p.boost, hitU); }
+        if (hitU || p.left <= 0 || ctx.terrain.sample(p.x, p.y) > 0.9 || p.y < ctx.seaY) { p.alive = false; explode(ctx, p.x, p.y, p.def, p.owner, p.boost, hitU); }
         return true;
       },
       hitTerrain(ctx, p, hit) { p.burrow = true; p.left = p.def.depth; p.x = hit.x; p.y = hit.y; emit(ctx, { type: 'bounce', x: hit.x, y: hit.y, proj: p.id }); },
@@ -229,7 +229,7 @@
     if (th && th.t <= best) { beh.hitTerrain(ctx, p, th); return; }
     if (hitU) { beh.hitUnit(ctx, p, { x: p.x + (nx - p.x) * best, y: p.y + (ny - p.y) * best }, hitU); return; }
     p.x = nx; p.y = ny;
-    if (p.y < ctx.map.seaY) { p.alive = false; emit(ctx, { type: 'splash', x: p.x, y: ctx.map.seaY }); if (ctx.dry) ctx.report.impacts.push({ x: p.x, y: p.y, lost: true }); }
+    if (p.y < ctx.seaY) { p.alive = false; emit(ctx, { type: 'splash', x: p.x, y: ctx.seaY }); if (ctx.dry) ctx.report.impacts.push({ x: p.x, y: p.y, lost: true }); }
     else if (p.x < -40 || p.x > ctx.map.w + 40 || p.age > 14) { p.alive = false; if (ctx.dry) ctx.report.impacts.push({ x: p.x, y: p.y, lost: true }); }
   }
 
@@ -269,7 +269,7 @@
 
   // Dry-run one shot against the current terrain and units. Returns { dmg: {unitId: n}, impacts: [{x,y}], tele }.
   Sim.trace = function (sim, u, def, facing, angle, power, pos, boost) {
-    const ctx = { dry: true, terrain: sim.terrain, units: sim.units, wind: sim.wind, map: sim.map, projs: [], nextProj: 0, hold: 0,
+    const ctx = { dry: true, terrain: sim.terrain, units: sim.units, wind: sim.wind, map: sim.map, seaY: sim.seaY, projs: [], nextProj: 0, hold: 0,
       report: { dmg: {}, impacts: [], tele: null } };
     launch(ctx, u, def, facing, angle, power, boost || 1, pos || u);
     let guard = 0;
@@ -282,7 +282,7 @@
 
   // The flight path of the first projectile only, for tests and the aim preview: [{x,y}] every `every` steps.
   Sim.arc = function (sim, u, def, facing, angle, power, every) {
-    const ctx = { dry: true, terrain: sim.terrain, units: [], wind: sim.wind, map: sim.map, projs: [], nextProj: 0, hold: 0, report: { dmg: {}, impacts: [], tele: null } };
+    const ctx = { dry: true, terrain: sim.terrain, units: [], wind: sim.wind, map: sim.map, seaY: sim.seaY, projs: [], nextProj: 0, hold: 0, report: { dmg: {}, impacts: [], tele: null } };
     launch(ctx, u, def, facing, angle, power, 1, u);
     const p = ctx.projs[0], pts = [];
     if (!p) return pts;
@@ -322,7 +322,7 @@
         if (fall > R.fallSafe) applyDamage(sim, u, (fall - R.fallSafe) * R.fallDmg * u.armor, null, 'fall');
       } else { u.x = nx; u.y = ny; }
     }
-    if (u.alive && u.y < map.seaY - 1) kill(sim, u, 'sea', sim.lastShooter !== u ? sim.lastShooter : null);
+    if (u.alive && u.y < sim.seaY - 1) kill(sim, u, 'sea', sim.lastShooter !== u ? sim.lastShooter : null);
     else if (u.alive && (u.x < -6 || u.x > map.w + 6)) kill(sim, u, 'out', null);
   }
 
@@ -361,6 +361,8 @@
     const wm = sim.map.windMax;
     sim.wind = sim.turnN === 0 ? sim.rng.range(-0.6, 0.6) * wm : clamp(sim.wind + sim.rng.range(-1, 1) * wm * 0.5, -wm, wm);
     sim.wind = Math.round(sim.wind * 10) / 10;
+    const hz = sim.map.hazard;
+    if (hz && hz.kind === 'tide' && sim.turnN > 0 && sim.seaY < hz.max) { sim.seaY = Math.min(hz.max, sim.seaY + hz.perTurn); emit(sim, { type: 'tide', y: sim.seaY }); }
     sim.turnN++;
     sim.active = next;
     next.fuel = next.fuelMax; next.shield = 0;
@@ -406,7 +408,7 @@
     const map = PM.MAPS[cfg.map];
     const sim = {
       cfg, map, seed: cfg.seed >>> 0, rng: PM.rng((cfg.seed >>> 0) ^ 0x9e3779b9), terrain: PM.Terrain(map),
-      units: [], projs: [], events: [], queue: [], shocks: [], stats: {}, nextProj: 1, dry: false,
+      units: [], projs: [], events: [], queue: [], shocks: [], stats: {}, seaY: map.seaY, nextProj: 1, dry: false,
       time: 0, steps: 0, turnN: 0, wind: 0, hold: 0, settleT: 0, restT: 0, winner: null, lastShooter: null,
       turnTime: cfg.turnTime || R.turnTime, phase: 'turn', active: null, ts: null, timer: 0, charge: { on: false, power: 0 }, input: { move: 0, aim: 0, charge: false }
     };

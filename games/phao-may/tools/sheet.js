@@ -12,7 +12,10 @@ const GROUPS = {
     { name: 'turn-view', q: 'autostart=1&seed=3', eval: '__tick(60)', pose: 'keep' },
     { name: 'cliff', q: 'autostart=1&seed=3', pose: { x: 46, y: 56, dist: 50 } },
     { name: 'arch', q: 'autostart=1&seed=3', pose: { x: 86, y: 52, dist: 50 } },
-    { name: 'hill', q: 'autostart=1&seed=3', pose: { x: 128, y: 59, dist: 46 } }
+    { name: 'hill', q: 'autostart=1&seed=3', pose: { x: 128, y: 59, dist: 46 } },
+    { name: 'vinhda-wide', q: 'autostart=1&seed=3&map=vinhda', pose: 'wide' },
+    { name: 'vinhda-east', q: 'autostart=1&seed=3&map=vinhda', pose: { x: 136, y: 54, dist: 50 } },
+    { name: 'vinhda-tide', q: 'autostart=1&seed=3&map=vinhda', eval: '(() => { window.__G.sim.seaY = 33; __tick(240); })()', pose: { x: 86, y: 44, dist: 80 } }
   ],
   units: [
     { name: 'coc-son', q: 'autostart=1&seed=3&unit=coc&foe=coc', pose: { x: 30, y: 64.3, dist: 17 } },

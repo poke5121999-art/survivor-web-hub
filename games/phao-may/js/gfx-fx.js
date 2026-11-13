@@ -323,7 +323,7 @@
         if (terrain.solid(nx, ny) && c.hit < 3) { const nn = terrain.normal(nx, ny), vn = c.vx * nn.x + c.vy * nn.y; if (vn < 0) { c.vx = (c.vx - 1.5 * vn * nn.x) * 0.6; c.vy = (c.vy - 1.5 * vn * nn.y) * 0.6; c.w *= 0.5; } c.hit++; }
         else { c.x = nx; c.y = ny; }
         c.z += c.vz * dt; c.rx += c.w * dt; c.ry += c.w * 0.7 * dt;
-        if (c.t > c.life || c.y < map.seaY - 3) { cl[i] = cl[cl.length - 1]; cl.pop(); }
+        if (c.t > c.life || c.y < sim.seaY - 3) { cl[i] = cl[cl.length - 1]; cl.pop(); }
       }
       for (let i = 0; i < cl.length; i++) {
         const c = cl[i], s = c.s * Math.min(1, (c.life - c.t) * 3);

@@ -214,8 +214,8 @@
         if (!u.alive) {
           if (!m.dead) { m.dead = true; m.deadT = 0; }
           m.deadT += dt;
-          m.holder.visible = u.y > G.map.seaY - 4 ? m.deadT < 0.12 : m.deadT < 1.5;
-          if (m.holder.visible) { m.holder.position.set(u.x, Math.max(u.y, G.map.seaY - 6 - m.deadT * 6), 0); m.holder.rotation.z += dt * 3; }
+          m.holder.visible = u.y > G.sim.seaY - 4 ? m.deadT < 0.12 : m.deadT < 1.5;
+          if (m.holder.visible) { m.holder.position.set(u.x, Math.max(u.y, G.sim.seaY - 6 - m.deadT * 6), 0); m.holder.rotation.z += dt * 3; }
           continue;
         }
         const yawT = u.facing > 0 ? 0 : Math.PI;

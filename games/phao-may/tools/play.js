@@ -54,6 +54,18 @@ session(async (br, base) => {
     await close();
   }
 
+  {
+    const { page, problems, close } = await open(br, base, Q + '&autostart=1&seed=9&map=vinhda', VP);
+    const ev = (code) => page.evaluate(code);
+    const m = await ev(`(() => { const G = window.__G, s = G.sim, y0 = s.seaY; const a = s.active; s.skip(); __sim(3); let g = 0; while (s.phase !== 'turn' && g++ < 20) __sim(1); __tick(30);
+      return { map: G.map.id, y0, y1: s.seaY, shown: G.gfx.env.seaY, units: s.units.every((u) => u.alive && u.y > y0 + 5) }; })()`);
+    check(m.map === 'vinhda' && m.units && m.y1 > m.y0 && m.shown > m.y0, 'Vịnh Đá Vôi loads, units stand above the water, and the tide rises on screen ' + JSON.stringify(m));
+    await page.screenshot({ path: path.join(CHK, 'play-vinhda.png') });
+    const errs = (await ev('window.__errors')).concat(problems);
+    check(errs.length === 0, 'no errors on Vịnh Đá Vôi' + (errs.length ? ': ' + errs.join(' | ').slice(0, 600) : ''));
+    await close();
+  }
+
   for (const level of ['easy', 'medium', 'hard']) {
     const { page, problems, close } = await open(br, base, Q + `&autostart=1&auto=1&seed=5&ai=${level}`, VP);
     const r = await page.evaluate(`(() => { const s = window.__G.sim; let guard = 0; while (s.phase !== 'over' && guard++ < 60) __sim(20); __tick(120); return { phase: s.phase, turns: s.turnN, winner: s.winner, result: !!document.querySelector('.result') }; })()`);

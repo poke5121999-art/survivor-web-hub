@@ -30,7 +30,7 @@
     G.map = PM.MAPS[cfg.map];
     G.sim = PM.Sim.create(cfg);
     G.playerTeam = cfg.playerTeam === undefined ? 0 : cfg.playerTeam;
-    G.sky = PM.Sky(G, PM.THEMES[cfg.map]);
+    G.sky = PM.Sky(G, G.map.theme || PM.THEMES[cfg.map]);
     G.terrainMesh = PM.TerrainMesh(G, G.sim.terrain, G.map);
     if (PM.Scenery) G.scenery = PM.Scenery(G);
     if (PM.Units3D) G.units3d = PM.Units3D(G);

@@ -112,6 +112,9 @@
       if (def && (def.special || ev.shot === 'tele')) banner(def.name + '!', 'sp');
     });
     G.bus.on('sim:item', (ev) => { cache.delete('kit'); const u = G.sim.units[ev.unit]; float(u.x, u.y + 4.5, PM.ITEMS[ev.item].name, 'itm'); });
+    let tideSaid = false;
+    G.bus.on('match:start', () => { tideSaid = false; });
+    G.bus.on('sim:tide', () => { if (!tideSaid && !G.demo) { tideSaid = true; toast('Nước đang dâng. Chỗ thấp sẽ ngập trước.'); } });
     G.bus.on('sim:skip', (ev) => { const u = G.sim.units[ev.unit]; float(u.x, u.y + 4.5, 'Bỏ lượt', 'itm'); });
     G.bus.on('sim:over', (ev) => { if (!G.demo) setTimeout(() => showResult(), 1600); });
     G.bus.on('quality:auto', (ev) => toast('Máy hơi chậm, đã hạ đồ hoạ xuống ' + ({ low: 'Thấp', medium: 'Vừa', high: 'Cao' }[ev.name])));
@@ -190,7 +193,7 @@
     }
 
     function showQuick() {
-      const last = G.meta.save.last, pick = { unit: G.meta.owns(last.unit) ? last.unit : 'coc', size: last.size || 1, ai: last.ai || 'easy', items: (last.items || ['heal', 'double', 'tele']).slice(0, 3) };
+      const last = G.meta.save.last, pick = { unit: G.meta.owns(last.unit) ? last.unit : 'coc', size: last.size || 1, ai: last.ai || 'easy', map: PM.MAPS[last.map] ? last.map : 'doiche', items: (last.items || ['heal', 'double', 'tele']).slice(0, 3) };
       const draw = () => {
         const U = PM.UNITS[pick.unit];
         const s = screen(`<div class="panel wide"><h2>Đấu nhanh</h2>
@@ -199,11 +202,12 @@
           <h3>Vật phẩm mang theo (chọn 3)</h3><div class="chips">${Object.keys(PM.ITEMS).map((k) => `<button class="chip${pick.items.includes(k) ? ' on' : ''}" data-item="${k}" title="${esc(PM.ITEMS[k].desc)}">${esc(PM.ITEMS[k].name)}</button>`).join('')}</div>
           <div class="cols"><div><h3>Quân số</h3><div class="chips">${[1, 2, 3, 4].map((n) => `<button class="chip${pick.size === n ? ' on' : ''}" data-size="${n}">${n} đấu ${n}</button>`).join('')}</div></div>
           <div><h3>Độ khó của máy</h3><div class="chips">${Object.keys(PM.AI_LEVELS).map((k) => `<button class="chip${pick.ai === k ? ' on' : ''}" data-ai="${k}">${PM.AI_LEVELS[k].name}</button>`).join('')}</div></div></div>
-          <h3>Bản đồ</h3><div class="chips"><button class="chip on">${esc(PM.MAPS.doiche.name)}</button></div>
+          <h3>Bản đồ</h3><div class="chips">${PM.MAP_ORDER.map((k) => `<button class="chip${pick.map === k ? ' on' : ''}" data-map="${k}">${esc(PM.MAPS[k].name)}</button>`).join('')}</div><p class="blurb">${esc(PM.MAPS[pick.map].blurb)}</p>
           <div class="actions"><button class="btn ghost" data-back>Quay lại</button><button class="btn big" data-start>Vào trận</button></div></div>`);
         s.querySelectorAll('[data-unit]').forEach((b) => click(b, () => { if (!G.meta.owns(b.dataset.unit)) { G.bus.emit('ui:deny'); return; } pick.unit = b.dataset.unit; G.bus.emit('ui:click'); draw(); }));
         s.querySelectorAll('[data-item]').forEach((b) => click(b, () => { const k = b.dataset.item, i = pick.items.indexOf(k); if (i >= 0) pick.items.splice(i, 1); else if (pick.items.length < 3) pick.items.push(k); else { G.bus.emit('ui:deny'); return; } G.bus.emit('ui:click'); draw(); }));
         s.querySelectorAll('[data-size]').forEach((b) => click(b, () => { pick.size = +b.dataset.size; G.bus.emit('ui:click'); draw(); }));
+        s.querySelectorAll('[data-map]').forEach((b) => click(b, () => { pick.map = b.dataset.map; G.bus.emit('ui:click'); draw(); }));
         s.querySelectorAll('[data-ai]').forEach((b) => click(b, () => { pick.ai = b.dataset.ai; G.bus.emit('ui:click'); draw(); }));
         click($('[data-back]', s), () => { G.bus.emit('ui:click'); showTitle(); });
         click($('[data-start]', s), () => { G.bus.emit('ui:click'); Object.assign(G.meta.save.last, pick); G.meta.commit(); startQuick(pick); });
@@ -237,7 +241,7 @@
       for (let i = 1; i < pick.size; i++) mine.push(bot());
       for (let i = 0; i < pick.size; i++) foes.push(bot());
       G.demo = false; closeScreen();
-      G.startMatch({ seed: Math.floor(rng() * 1e9), map: 'doiche', playerTeam: 0, level: pick.ai, teams: [mine, foes] });
+      G.startMatch({ seed: Math.floor(rng() * 1e9), map: PM.MAPS[pick.map] ? pick.map : 'doiche', playerTeam: 0, level: pick.ai, teams: [mine, foes] });
     }
 
     function showShop() {

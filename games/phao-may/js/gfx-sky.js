@@ -104,7 +104,12 @@
     env.fogCol.fromArray(theme.fog); env.sunCol.fromArray(theme.sunCol); env.sunDir.copy(sunDir);
     env.fogStart = theme.fogStart; env.fogDen = theme.fogDen; env.seaY = map.seaY; env.mist = theme.mist; env.exposure = theme.exposure; env.bloom = theme.bloom; env.rays = theme.rays; env.light = key; env.volCol.fromArray(theme.volCol || theme.sunCol); env.vol = theme.vol === undefined ? 0.004 : theme.vol;
 
-    return { key, rim, hemi, dome, sunDir, update(dt) { skyU.uTime.value += dt; } };
+    return { key, rim, hemi, dome, sunDir,
+      update(dt) {
+        skyU.uTime.value += dt;
+        const sea = G.sim ? G.sim.seaY : map.seaY;
+        if (sea !== env.seaY) { env.seaY += (sea - env.seaY) * Math.min(1, dt * 1.5); shells.forEach((m) => { m.position.y = env.seaY - 5 + m.material.uniforms.uLevel.value * 5.5; }); }
+      } };
   };
 
   PM.THEMES = {

@@ -9,7 +9,8 @@ Mỗi file là một script gắn vào `window.PM`, nạp theo thứ tự thẻ 
 | File | Việc |
 |---|---|
 | `js/core.js` | RNG có seed (mulberry32, FNV-1a), noise, event bus, tham số URL, localStorage |
-| `js/data.js` | Bảng `PM.UNITS` (cỗ pháo và đạn), `PM.ITEMS`, `PM.AI_LEVELS`, `PM.RULES`, `PM.MAPS` |
+| `js/data.js` | Bảng `PM.UNITS` (cỗ pháo và đạn), `PM.ITEMS`, `PM.AI_LEVELS`, `PM.RULES`, `PM.MAPS`, `PM.CAMPAIGN`, `PM.UPGRADES` |
+| `js/data-maps.js` | Các bản đồ thêm; mỗi bản đồ mang theo `theme` (trời, đèn, sương), `look` (màu đất đá), `hazard` |
 | `js/terrain.js` | Địa hình là lưới khoảng cách có dấu (`sd < 0` là đất). `carve` khoét lỗ, `raycast`, `groundY` |
 | `js/sim.js` | Trận đấu tất định, bước 1/120 giây: đạn, nổ, rơi, lượt theo delay. Không đụng tới hình |
 | `js/ai.js` | Máy dò góc và lực bằng `PM.Sim.trace`, rồi bấm đúng các input như người |
