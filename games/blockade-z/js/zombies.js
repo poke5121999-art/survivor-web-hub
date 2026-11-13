@@ -96,7 +96,7 @@
       z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
-      z.crawl = false; z.legHits = { legL: 0, legR: 0 };
+      z.crawl = false; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0;
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
       z.vel.set(0, 0, 0);
@@ -220,6 +220,8 @@
       const alive = list.filter((z) => z.alive);
       for (const z of alive) {
         const T = z.T;
+        if (z.frozen > 0) { frozenStep(z, dt); continue; }
+        z.chillT = Math.max(0, (z.chillT || 0) - dt);
         if (T.fly) { flyer(z, dt, P); continue; }
         // knocked down: fall back, lie a moment, get up
         if (z.down > 0 && !z.crawl) {
@@ -234,7 +236,9 @@
         // target: the player, unless a hired soldier is right next to this zombie and closer
         const pd = Math.hypot(P.pos.x - z.pos.x, P.pos.z - z.pos.z);
         const ally = G.allies && G.allies.nearest(z.pos, 3.5);
-        const tgt = ally && Math.hypot(ally.pos.x - z.pos.x, ally.pos.z - z.pos.z) < pd ? ally : null;
+        let tgt = ally && Math.hypot(ally.pos.x - z.pos.x, ally.pos.z - z.pos.z) < pd ? ally : null;
+        const dec = G.hero && G.hero.decoy;
+        if (dec && Math.hypot(dec.pos.x - z.pos.x, dec.pos.z - z.pos.z) < 14) tgt = dec;
         const tp = tgt ? tgt.pos : P.pos;
         const dx = tp.x - z.pos.x; const dz = tp.z - z.pos.z;
         const dist = Math.hypot(dx, dz);
@@ -257,7 +261,7 @@
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
-        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1);
+        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1);
         const before = z.pos.x + z.pos.z;
         if (z.climb) ride(z, dt, P, dx, dz, dist);
         else {
@@ -281,7 +285,7 @@
           z.windT += dt;
           if (z.windT >= T.windup) {
             z.windT = -1; z.attackT = T.rate;
-            if (dist < reach + 0.45 && tp.y < 1.9 * T.scale) { if (tgt) G.allies.hurt(tgt, z.dmg); else G.events.emit('player:hurt', { dmg: z.dmg, from: z.pos }); }
+            if (dist < reach + 0.45 && tp.y < 1.9 * T.scale) { if (tgt) { if (!tgt.isDecoy) G.allies.hurt(tgt, z.dmg); } else G.events.emit('player:hurt', { dmg: z.dmg, from: z.pos }); }
           }
         }
 
@@ -426,6 +430,7 @@
     function damage(z, amount, part, dir, imp = 1, opt = {}) {
       if (!z.alive) return false;
       z.hp -= amount; z.flash = 0.09; setFlash(z, true);
+      if (G.hero && G.hero.chill()) z.chillT = 1;
       const T = z.T; const k = BZ.clamp(amount / z.maxHp, 0, 1); const heavy = T === TYPES.brute ? 0.45 : 1;
       const y = part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05;
       const at = new THREE.Vector3(z.pos.x, z.pos.y + y * T.scale, z.pos.z);
@@ -491,19 +496,33 @@
       G.audio.playAt('gore', at, { gain: 1, rate: 0.85 });
     }
     // blown apart by an explosion: every remaining part becomes a gib and the body leaves the pool at once
-    function blowApart(z, dir) {
+    function blowApart(z, dir, ice) {
       const b = z.body; b.root.updateMatrixWorld(true);
       const c = V3().set(z.pos.x, z.pos.y + 1 * z.T.scale, z.pos.z);
       for (const k of ['head', 'torso', 'armL', 'armR', 'legL', 'legR', 'wingL', 'wingR']) {
         const m = b[k]; if (!m.visible) continue;
         const p = m.getWorldPosition(V3()); const out = p.sub(c).setY(0).normalize();
-        G.fx.gib(m, out.multiplyScalar(G.rng.range(3, 6)).addScaledVector(dir, G.rng.range(3, 6)).add(V3().set(0, G.rng.range(5, 9), 0)));
+        G.fx.gib(m, out.multiplyScalar(G.rng.range(3, 6)).addScaledVector(dir, G.rng.range(3, 6)).add(V3().set(0, G.rng.range(5, 9), 0)), { ice });
       }
-      G.fx.chunks(c, 8, [BZ.mat(z.T.skin), BZ.mat('z_meat'), BZ.mat('z_meat')], dir, z.T.scale);
-      G.fx.burst(c, 40, [0xc0281e, 0x8a1410, 0x5a0a08], { speed: 8, size: 0.14, life: 1.1 });
-      G.fx.splat(V3().set(z.pos.x, z.pos.y, z.pos.z), 2.2 * z.T.scale);
+      G.fx.chunks(c, ice ? 12 : 8, ice ? [iceMat, iceMat, BZ.mat(z.T.skin)] : [BZ.mat(z.T.skin), BZ.mat('z_meat'), BZ.mat('z_meat')], dir, z.T.scale);
+      G.fx.burst(c, 40, ice ? [0xdff6ff, 0x9ad8ff, 0xffffff] : [0xc0281e, 0x8a1410, 0x5a0a08], { speed: 8, size: 0.14, life: 1.1 });
+      if (!ice) G.fx.splat(V3().set(z.pos.x, z.pos.y, z.pos.z), 2.2 * z.T.scale);
       b.root.visible = false; z.dying = 0; b.root.rotation.x = 0;
       G.audio.playAt('gore', c, { gain: 1.1, rate: 0.7 });
+    }
+    // frozen solid: no steering or attacks, falls if it was in the air, icy tint; thaws with a puff
+    const iceMat = new THREE.MeshLambertMaterial({ color: 0xbfe8ff, emissive: 0x1a4a70 });
+    function frozenStep(z, dt) {
+      const b = z.body; z.frozen -= dt;
+      z.vel.x = 0; z.vel.z = 0; z.vel.y -= 22 * dt; G.world.moveBox(z.pos, z.vel, dt, 0.32 * z.T.scale, 1.8, out, 0);
+      b.root.position.copy(z.pos);
+      if (z.crawl) { b.root.position.x -= Math.sin(z.yaw) * 0.85 * z.T.scale; b.root.position.z -= Math.cos(z.yaw) * 0.85 * z.T.scale; b.root.position.y += 0.16 * z.T.scale; }
+      if (z.flash > 0) z.flash -= dt;
+      else for (const k of ['skin', 'shirt', 'pants']) b.mats[k].emissive.setHex(0x2a6aa0);
+      if (G.rng.chance(dt * 4)) G.fx.burst(new THREE.Vector3(z.pos.x, z.pos.y + G.rng.range(0.3, 1.8) * z.T.scale, z.pos.z), 1, [0xdff6ff, 0x9ad8ff], { speed: 0.5, size: 0.05, life: 0.6, grav: 1 });
+      if (z.frozen <= 0) { setFlash(z, false); G.fx.burst(new THREE.Vector3(z.pos.x, z.pos.y + 1, z.pos.z), 12, [0xdff6ff, 0x9ad8ff, 0xffffff], { speed: 2.5, size: 0.08, life: 0.5 }); G.audio.playAt('clank', z.pos, { gain: 0.4, rate: 1.8 }); }
+      const bar = b.barBg; bar.visible = z.hp < z.maxHp;
+      if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * z.T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
     }
     function kill(z, part, dir, opt = {}, amount = 0) {
       z.alive = false; z.dying = 0.001; z.landed = false; z.fallV = 0; z.climb = null;
@@ -512,12 +531,15 @@
       setFlash(z, false); b.barBg.visible = false; b.halo.visible = false;
       const big = !z.T.boss || z.T.boss === 'phantom';
       let gore = null;
-      if (opt.blast && big && (amount >= z.maxHp * 1.5 || G.rng.chance(0.75))) gore = 'apart';
+      const ice = z.frozen > 0;
+      if (ice) gore = 'apart';
+      else if (opt.blast && big && (amount >= z.maxHp * 1.5 || G.rng.chance(0.75))) gore = 'apart';
       else if (part === 'head' && b.head.visible) gore = opt.cut ? 'decap' : amount >= 55 || G.rng.chance(0.6) ? 'burst' : 'decap';
       else if (opt.cut && part === 'body' && G.rng.chance(opt.cut === 'axe' ? 0.6 : 0.4)) gore = 'limb';
       if (!z.crawl) b.root.rotation.y = Math.atan2(-dir.x, -dir.z);
       G.audio.playAt('die', z.pos, { gain: 0.9 });
-      if (gore === 'apart') blowApart(z, dir);
+      if (gore === 'apart') blowApart(z, dir, ice);
+      if (ice) { z.frozen = 0; G.audio.playAt('clank', z.pos, { gain: 1, rate: 1.4 }); G.audio.playAt('saber_hit', z.pos, { gain: 0.6, rate: 2 }); }
       else if (gore === 'burst') burstHead(z, dir);
       else if (gore === 'decap') { sever(z, 'head', dir, opt); G.fx.spurt(b.stumps.head, opt.cut === 'saber' ? 'burn' : 'blood', 1.6, () => b.root.visible && z.dying > 0); }
       else if (gore === 'limb') sever(z, G.rng.chance(0.5) ? 'armL' : 'armR', dir, opt);

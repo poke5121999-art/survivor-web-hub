@@ -487,6 +487,7 @@
       G.events.emit('fired', { weapon: S.cur, kills });
     }
     function meleeUpdate(dt, w, input) {
+      if (G.hero && G.hero.storm()) dt *= 1.5;
       const sw = S.swing;
       if (sw) {
         sw.t += dt;
@@ -507,7 +508,8 @@
     function fire() {
       const w = W(); const a = ammo(); const P = G.player;
       if (a.mag <= 0) { G.audio.play('empty'); S.cool = 0.25; if (a.reserve > 0) startReload(); return; }
-      a.mag--; S.cool = 60 / w.rpm; S.shots++; S.cycle = 0; S.rackPlayed = false; S.shellOut = false;
+      const storm = G.hero && G.hero.storm();
+      if (!storm) a.mag--; S.cool = 60 / w.rpm / (storm ? 2.2 : 1); S.shots++; S.cycle = 0; S.rackPlayed = false; S.shellOut = false;
       const cam = G.camera;
       cam.updateMatrixWorld();
       cam.getWorldPosition(o);
@@ -523,8 +525,9 @@
       }
       const muzzleW = new THREE.Vector3().copy(o).addScaledVector(d, 0.6).addScaledVector(right, 0.18).addScaledVector(up, -0.12);
       const pend = new Map();
-      for (let i = 0; i < (w.rocket ? 0 : w.pellets); i++) {
-        const r = Math.sqrt(G.rng.next()) * spread; const th = G.rng.next() * Math.PI * 2;
+      const pellets = w.rocket ? 0 : w.pellets + (storm ? 2 : 0);
+      for (let i = 0; i < pellets; i++) {
+        const r = Math.sqrt(G.rng.next()) * (i >= w.pellets ? spread + 0.06 : spread); const th = G.rng.next() * Math.PI * 2;
         const dir = d.clone().addScaledVector(right, Math.cos(th) * r).addScaledVector(up, Math.sin(th) * r).normalize();
         const wh = G.world.raycast(o, dir, w.range);
         // a rifle round keeps going through the first body (pierce), losing 40% each time
@@ -554,7 +557,7 @@
           G.fx.burst(end, 3, dust, { dir: n, push: 2, size: 0.07, life: 0.6 });
           if (i === 0) G.audio.playAt('impact', end, { gain: 0.5 });
         }
-        if (w.tracer && S.shots % w.tracer === 0 && i === 0) G.fx.tracer(muzzleW, end);
+        if ((w.tracer && S.shots % w.tracer === 0 && i === 0) || (storm && i >= w.pellets)) G.fx.tracer(muzzleW, end);
       }
       let kills = 0;
       for (const [z, e] of pend) {
@@ -595,9 +598,9 @@
         S.t += dt; S.drop.x = 1 - Math.min(1, S.t / 0.22);
         if (S.t >= 0.22) { S.phase = 'ready'; S.drop.x = 0; }
       } else if (S.phase === 'reload') {
-        S.t += dt;
+        const rdt = dt * (G.hero ? G.hero.reloadMul() : 1); S.t += rdt;
         if (w.perShell) {
-          S.shellT += dt;
+          S.shellT += rdt;
           if (S.shellT >= w.perShell) {
             S.shellT = 0; const n = Math.min(1, a.reserve); a.mag += n; a.reserve -= n; G.audio.play('shell_in', { gain: 0.8 }); S.kZ.v -= 1.2; S.kR.v += 1.5;
             if (a.mag >= w.mag || a.reserve <= 0) { S.phase = 'ready'; S.pumpT = 0.38; G.audio.play('rack', { gain: 0.8 }); }

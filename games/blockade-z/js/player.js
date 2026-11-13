@@ -32,6 +32,7 @@
       if (e.code === 'KeyX') G.weapons.dropCur();
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
       if (e.code === 'KeyG') G.gear.throwBomb();
+      if (e.code === 'KeyF') G.hero.use();
     });
     addEventListener('keyup', (e) => keys.delete(e.code));
     addEventListener('blur', () => { keys.clear(); input.fire = false; input.ads = false; });
@@ -93,6 +94,7 @@
       btn('reload', () => G.weapons.startReload());
       btn('swap', () => G.weapons.cycle(1));
       btn('pick', () => G.weapons.pickup());
+      btn('skill', () => G.hero.use());
       btn('drop', () => G.weapons.dropCur());
     }
 
@@ -115,7 +117,7 @@
       const len = Math.hypot(input.fwd, input.side);
       const fx = len > 1 ? input.fwd / len : input.fwd; const sx = len > 1 ? input.side / len : input.side;
       P.sprinting = input.sprint && P.onGround;
-      const speed = G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk;
+      const speed = (G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk) * G.hero.speedMul();
       const sin = Math.sin(P.yaw); const cos = Math.cos(P.yaw);
       const wx = (-sin * fx + cos * sx) * speed; const wz = (-cos * fx - sin * sx) * speed;
       const acc = P.onGround ? (len > 0.05 ? MOVE.accelGround : MOVE.decelGround) : MOVE.accelAir;
@@ -125,6 +127,28 @@
       P.coyote = P.onGround ? MOVE.coyote : P.coyote - dt;
       P.jumpBuf -= dt;
       if (P.jumpBuf > 0 && P.coyote > 0 && P.alive) { P.vel.y = MOVE.jumpV; P.jumpBuf = 0; P.coyote = 0; }
+      // Bóng: run along walls, run up a wall head-on, kick off walls, one extra jump in the air
+      P.wallRun = 0;
+      if (G.hero.def.wallRun && P.alive) {
+        if (P.onGround) { P.wallT = 0; P.climbT = 0; P.jumps = 0; }
+        const rx = cos; const rz = -sin; const fwx = -sin; const fwz = -cos;
+        const probe = (ox, oz) => G.world.overlaps([P.pos.x + ox - 0.08, P.pos.y + 0.4, P.pos.z + oz - 0.08], [P.pos.x + ox + 0.08, P.pos.y + 1.4, P.pos.z + oz + 0.08]);
+        const side = probe(rx * 0.5, rz * 0.5) ? 1 : probe(-rx * 0.5, -rz * 0.5) ? -1 : 0;
+        const front = probe(fwx * 0.5, fwz * 0.5);
+        const hsp = Math.hypot(P.vel.x, P.vel.z);
+        if (!P.onGround && side && fx > 0.3 && hsp > 2.5 && (P.wallT || 0) < 1.6) {
+          P.wallRun = side; P.wallT = (P.wallT || 0) + dt; P.vel.y = Math.max(P.vel.y + (MOVE.gravity - 4) * dt, -1.5);
+          P.vel.x += fwx * 6 * dt; P.vel.z += fwz * 6 * dt;
+          if (G.rng.chance(dt * 18)) G.fx.burst(new THREE.Vector3(P.pos.x + rx * side * 0.35, P.pos.y + 0.2, P.pos.z + rz * side * 0.35), 1, [0xc080ff, 0xb0b0b0], { speed: 0.8, size: 0.06, life: 0.3 });
+        } else if (front && fx > 0.5 && (P.climbT || 0) < 0.5 && (input.sprint || !P.onGround || P.jumpBuf > 0)) {
+          P.climbT = (P.climbT || 0) + dt; P.vel.y = Math.max(P.vel.y, 6.4);
+        }
+        if (P.jumpBuf > 0 && !P.onGround && P.coyote <= 0) {
+          const wallN = P.wallRun ? [-rx * P.wallRun, -rz * P.wallRun] : front ? [-fwx, -fwz] : side ? [-rx * side, -rz * side] : null;
+          if (G.hero.airJump(P, wallN)) P.jumpBuf = 0;
+        }
+      }
+      P.wallK = BZ.damp(P.wallK || 0, P.wallRun, 10, dt);
       P.vel.y -= MOVE.gravity * dt;
       // jetpack: keep holding jump in the air to fly; fuel refills on the ground
       P.airT = P.onGround ? 0 : P.airT + dt;
@@ -161,16 +185,17 @@
       const bobA = Math.min(1, hs / 4) * (P.onGround ? 1 : 0) * (1 - G.weapons.S.ads * 0.8);
       const cam = G.camera;
       cam.position.set(P.pos.x, P.pos.y + MOVE.eye - P.landDip - (P.stepLag || 0) + Math.abs(Math.sin(P.stride * Math.PI)) * 0.045 * bobA * (P.sprinting ? 1.6 : 1), P.pos.z);
-      cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02, 'YXZ');
+      cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02 - (P.wallK || 0) * 0.14, 'YXZ');
       // recoil recovery: most of the kick returns, a little stays (like real recoil)
       P.pitch += kp * dt * 0.6;
-      const fovT = (P.sprinting ? s.fov + 6 : s.fov);
+      const fovT = (P.sprinting ? s.fov + 6 : s.fov) + (G.hero.t.dash > 0 ? 14 : 0) + Math.abs(P.wallK || 0) * 6;
       const fov = BZ.lerp(fovT, G.weapons.adsFov(), G.weapons.S.ads);
       if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = BZ.damp(cam.fov, fov, 12, dt); cam.updateProjectionMatrix(); }
     }
 
     function hurt(dmg, from) {
-      if (!P.alive || G.god) return;
+      if (!P.alive || G.god || G.hero.invuln()) return;
+      G.hero.onHurt();
       let d = dmg;
       if (P.armor > 0) { const absorb = Math.min(P.armor, d * 0.6); P.armor -= absorb; d -= absorb; }
       P.hp = Math.max(0, P.hp - d);
@@ -182,7 +207,7 @@
       if (P.hp <= 0) { P.alive = false; G.events.emit('player:dead'); }
     }
     function reset() {
-      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.armor = 0; P.alive = true; P.landDip = 0; P.fuel = 100; P.hasJet = false;
+      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.maxHp = 100; P.armor = 0; P.jumps = 0; P.wallT = 0; P.wallK = 0; P.alive = true; P.landDip = 0; P.fuel = 100; P.hasJet = false;
       input.fire = false; input.ads = false; keys.clear();
     }
     P.update = update; P.hurt = hurt; P.reset = reset; P.input = input;

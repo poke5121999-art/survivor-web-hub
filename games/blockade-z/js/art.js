@@ -496,6 +496,9 @@
     return texCache.get(key);
   };
   BZ.texKeys = () => Object.keys(T);
+  // late registration for modules that draw their own pixel textures (heroes)
+  BZ.defTex = (key, w, h, draw, opts) => { if (!T[key]) def(key, w, h, draw, opts); return key; };
+  BZ.cellTex = (h) => { const key = 'c_' + h.toString(16).padStart(6, '0'); if (!T[key]) cell(key, h); return key; };
 
   const matCache = new Map();
   BZ.mat = (key, opts = {}) => {

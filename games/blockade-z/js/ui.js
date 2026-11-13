@@ -75,8 +75,25 @@
     const prompt = document.getElementById('prompt'); let promptFor = null;
     if (BZ.isTouch) document.body.classList.add('touch');
 
-    const screens = ['title', 'pause', 'dead', 'shop'];
-    function show(name) { for (const s of screens) el[s].classList.toggle('on', s === name); el.hud.classList.toggle('on', G.state !== 'title'); }
+    const screens = ['title', 'pause', 'dead', 'shop', 'select'];
+    el.select = $('#select');
+    function show(name) { for (const s of screens) el[s].classList.toggle('on', s === name); el.hud.classList.toggle('on', G.state !== 'title' && G.state !== 'select'); }
+    // ---- hero pick ----
+    const css = (c) => '#' + c.toString(16).padStart(6, '0');
+    const selRow = $('#sel-row');
+    selRow.innerHTML = BZ.HEROES.map((h, i) => `<button data-hero="${i}" style="--hc:${css(h.color)}">${h.name}</button>`).join('');
+    selRow.addEventListener('click', (e) => { const b = e.target.closest('[data-hero]'); if (b) G.events.emit('ui:selpick', +b.dataset.hero); });
+    function selectRender(i) {
+      const h = BZ.HEROES[i]; el.select.style.setProperty('--hc', css(h.color));
+      $('#sel-name').textContent = h.name; $('#sel-role').textContent = h.role;
+      $('#sel-hp').style.width = Math.min(100, h.hp / 1.5) + '%'; $('#sel-hpn').textContent = h.hp;
+      $('#sel-spd').style.width = Math.round((h.speed || 1) * 80) + '%'; $('#sel-spdn').textContent = Math.round((h.speed || 1) * 100) + '%';
+      $('#sel-skill').textContent = h.skill.name + (h.skill.charges ? ` · ${h.skill.charges} lượt` : ` · hồi ${h.skill.cd} giây`); $('#sel-desc').textContent = h.skill.desc; $('#sel-passive').textContent = h.passive;
+      selRow.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
+    }
+    const skillEl = $('#skill'); const heroTag = $('#herotag'); let skillFor = null;
+    skillEl.addEventListener('click', () => G.hero.use());
+    skillEl.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.hero.use(); }, { passive: false });
 
     function shopRender() {
       const W = G.weapons; const P = G.player;
@@ -153,6 +170,14 @@
         if (near) { const full = W.S.inv.length >= W.SLOTS && !W.has(near.id); prompt.innerHTML = `<kbd>${BZ.isTouch ? 'NHẶT' : 'E'}</kbd> ${full ? 'đổi lấy' : 'nhặt'} <b>${W.WEAPONS[near.id].name}</b>`; }
         prompt.classList.toggle('on', !!near); document.body.classList.toggle('can-pick', !!near);
       }
+      const Hh = G.hero; const hd = Hh.def;
+      if (skillFor !== hd) {
+        skillFor = hd; el.hud.style.setProperty('--hc', css(hd.color)); skillEl.querySelector('span').textContent = hd.skill.name;
+        skillEl.querySelector('.dots').innerHTML = hd.skill.charges ? '<i></i>'.repeat(hd.skill.charges) : ''; heroTag.textContent = hd.name.toUpperCase() + ' · ' + hd.role;
+      }
+      skillEl.style.setProperty('--cd', Hh.charges > 0 ? 0 : Hh.cdFrac()); skillEl.classList.toggle('cool', Hh.charges <= 0);
+      skillEl.classList.toggle('active', (Hh.t.invuln || Hh.t.storm || Hh.t.heal || Hh.t.strike || 0) > 0 || !!Hh.decoy);
+      skillEl.querySelectorAll('.dots i').forEach((d, k) => d.classList.toggle('on', k < Hh.charges));
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.coins.textContent = G.coins; el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
@@ -187,6 +212,6 @@
       }
       const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
     }
-    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync };
+    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender };
   };
 })();

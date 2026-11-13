@@ -188,6 +188,34 @@ const BOT = `(() => {
     check(mel.buyInv === 'smg,bazooka' && mel.ground === 'katana', `buying a third weapon drops the one in hand (${mel.buyInv} / ground ${mel.ground})`);
     check(mel.ally.includes('bazooka') && mel.allyRocketFrames > 0 && mel.brute > 0, `a soldier picks up the dropped bazooka and fires it (${mel.ally}, ${mel.brute} dmg)`);
 
+    // heroes: every skill does its thing; Bóng runs along a wall and up it
+    const hero = await page.evaluate(`(() => { const G = __G; const out = {};
+      for (let i = 0; i < BZ.HEROES.length; i++) {
+        __select.open(); __select.pick(i); __select.go(); __sim(0.3);
+        G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); const P = G.player; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = -0.1; __sim(0.2);
+        const zs = []; for (let k = 0; k < 4; k++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(-1 + k * 0.7, 0, 4); z.hp = z.maxHp = 400; z.speed = 0; zs.push(z); }
+        const hp0 = zs.reduce((a, z) => a + z.hp, 0); P.hp = 40; P.input.fwd = 1;
+        const used = G.hero.use(); __sim(0.5);
+        const r = { used, hp: Math.round(P.hp), max: P.maxHp, frozen: zs.filter((z) => z.frozen > 0).length, z: +P.pos.z.toFixed(1), decoy: !!G.hero.decoy, inv: G.hero.invuln(), storm: G.hero.storm() };
+        __sim(2.5); r.dmg = Math.round(hp0 - zs.reduce((a, z) => a + Math.max(0, z.hp), 0)); out[G.hero.id] = r;
+      }
+      __select.open(); __select.pick(4); __select.go(); __sim(0.3); G.zombies.clear(); G.wave.toSpawn = 0;
+      const P = G.player; P.pos.set(-15.62, 0, -20.6); P.yaw = 0; P.vel.set(0, 0, 0); __sim(0.2); P.touch.y = -1; P.jumpBuf = 0.13; let wall = 0; let top = 0;
+      for (let i = 0; i < 70; i++) { __sim(1 / 60); if (P.wallRun) wall++; top = Math.max(top, P.pos.y); }
+      P.pos.set(-15.2, 0, -23.5); P.yaw = Math.PI / 2; P.vel.set(0, 0, 0); __sim(0.2); let climb = 0;
+      for (let i = 0; i < 50; i++) { __sim(1 / 60); climb = Math.max(climb, P.pos.y); }
+      P.touch.y = 0; out.wall = wall; out.wallTop = +top.toFixed(2); out.climb = +climb.toFixed(2);
+      return out; })()`);
+    console.log('heroes', JSON.stringify(hero));
+    check(hero.gio.used && hero.gio.z < 4 && hero.gio.dmg >= 200, `Gió dashes through the crowd and cuts it (moved to z=${hero.gio.z}, ${hero.gio.dmg} dmg)`);
+    check(hero.thep.inv && hero.thep.max === 150, 'Thép turns invulnerable and has 150 hp');
+    check(hero.yta.hp >= 89, `Y Tá heals herself (${hero.yta.hp} hp)`);
+    check(hero.mua.storm, 'Mưa Đạn starts a bullet storm');
+    check(hero.bong.decoy && hero.bong.z < 4, `Bóng blinks forward and leaves a decoy (z=${hero.bong.z})`);
+    check(hero.phao.dmg >= 400, `Pháo Thủ's air strike lands on the marked area (${hero.phao.dmg} dmg)`);
+    check(hero.bang.frozen === 4, `Băng freezes every zombie nearby (${hero.bang.frozen}/4)`);
+    check(hero.wall > 20 && hero.wallTop > 1.5 && hero.climb > 2.5, `Bóng runs along a wall (${hero.wall} frames, top ${hero.wallTop} m) and up a wall (${hero.climb} m)`);
+
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));
     const errs = await page.evaluate('window.__errors');

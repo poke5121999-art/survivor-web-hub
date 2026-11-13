@@ -46,6 +46,7 @@
     G.player = BZ.makePlayer(G);
     G.weapons = BZ.makeWeapons(G);
     G.allies = BZ.makeAllies(G);
+    G.hero = BZ.makeHeroes(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
@@ -190,7 +191,8 @@
       G.state = 'playing'; G.ui.show(null); G.lock();
     }
     function newGame() {
-      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear();
+      lineupShow(false);
+      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset();
       G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
       play();
       startWave(+(BZ.params.wave || 1));
@@ -198,7 +200,57 @@
     function pause() { if (G.state !== 'playing') return; G.state = 'paused'; G.ui.settingsSync(); G.ui.show('pause'); unlockPointer(); }
     function openShop() { if (G.state !== 'playing' || wave.phase !== 'break') return; G.state = 'shop'; G.ui.shopRender(); G.ui.show('shop'); unlockPointer(); }
     function closeShop() { if (G.state !== 'shop') return; play(); }
-    G.events.on('ui:play', newGame);
+    // ---- hero pick: the seven stand in a row on the plaza, the camera slides to the one in focus ----
+    const lineup = { models: [], i: 3, t: 0, light: new THREE.PointLight(0xffe2b8, 0, 7, 1.4) };
+    scene.add(lineup.light);
+    const LX = (i) => -4.5 + i * 1.5; const LZ = 13;
+    function lineupShow(on) {
+      if (on && !lineup.models.length) BZ.HEROES.forEach((h, i) => { const m = BZ.heroModel(h.id); m.root.position.set(LX(i), 0, LZ); scene.add(m.root); lineup.models.push(m); });
+      for (const m of lineup.models) m.root.visible = on;
+      lineup.light.intensity = on ? 16 : 0;
+    }
+    function openSelect() {
+      G.zombies.clear(); G.allies.clear(); G.gear.clear(); G.fx.clear(); G.weapons.reset();
+      const saved = BZ.HEROES.findIndex((h) => h.id === (G.settings.hero || 'mua'));
+      lineup.i = saved < 0 ? 3 : saved; lineupShow(true);
+      G.state = 'select'; unlockPointer(); G.ui.selectRender(lineup.i); G.ui.show('select'); G.audio.unlock();
+    }
+    function selectPick(i) { lineup.i = (i + BZ.HEROES.length) % BZ.HEROES.length; G.ui.selectRender(lineup.i); G.audio.play('switch', { gain: 0.6 }); lineup.t = 0; }
+    function selectGo() { const h = BZ.HEROES[lineup.i]; G.settings.hero = h.id; BZ.store.save(G.settings); G.hero.set(h.id); G.audio.play('buy'); newGame(); }
+    function updateSelect(dt) {
+      lineup.t += dt; const now = performance.now() / 1000;
+      const x = LX(lineup.i); const cam = G.camera;
+      cam.position.x = BZ.damp(cam.position.x, x * 0.6 - 0.9, 4, dt); cam.position.y = BZ.damp(cam.position.y, 1.75, 4, dt); cam.position.z = BZ.damp(cam.position.z, LZ + 5.2, 4, dt);
+      cam.rotation.set(-0.1, Math.atan2(-(x - cam.position.x + 0.9), 5.2) * 0.9, 0, 'YXZ'); if (cam.fov !== 50) { cam.fov = 50; cam.updateProjectionMatrix(); }
+      lineup.light.position.set(x, 3, LZ + 1.8);
+      lineup.models.forEach((m, i) => {
+        const on = i === lineup.i; const k = on ? Math.min(1, lineup.t * 3) : 0;
+        m.root.position.z = BZ.damp(m.root.position.z, on ? LZ + 0.8 : LZ, 8, dt);
+        m.root.rotation.y = BZ.damp(m.root.rotation.y, on ? Math.sin(now * 0.8) * 0.35 + 0.15 : -0.1, 6, dt);
+        const br = Math.sin(now * 2 + i);
+        m.hips.position.y = 0.75 + br * 0.012; m.head.rotation.x = br * 0.03;
+        // the one in focus strikes a pose that hints at its skill
+        const pose = on ? BZ.HEROES[i].skill.key : 'idle'; const w = Math.sin(now * 5);
+        const A = { idle: [-0.1, -0.1, 0, 0], dash: [-1.2, 0.6, -0.3, 0.3], invuln: [-2.9, -2.9, 0.2, -0.2], heal: [-1.6 + w * 0.1, -0.2, 0.4, 0], storm: [-1.5, -1.5, 0, 0], blink: [-0.3, -2.4, 0, -0.5], strike: [-3.0 + w * 0.15, -0.2, 0, 0], freeze: [-1.4, -1.4, 0.5, -0.5] }[pose];
+        m.armL.rotation.x = BZ.damp(m.armL.rotation.x, A[0], 8, dt); m.armR.rotation.x = BZ.damp(m.armR.rotation.x, A[1], 8, dt);
+        m.armL.rotation.z = BZ.damp(m.armL.rotation.z, -A[2], 8, dt); m.armR.rotation.z = BZ.damp(m.armR.rotation.z, -A[3], 8, dt);
+        m.legL.rotation.x = BZ.damp(m.legL.rotation.x, pose === 'dash' ? -0.5 : 0, 8, dt); m.legR.rotation.x = BZ.damp(m.legR.rotation.x, pose === 'dash' ? 0.4 : 0, 8, dt);
+        if (on && k < 1) m.hips.position.y += Math.sin(k * Math.PI) * 0.25;
+      });
+    }
+    addEventListener('keydown', (e) => {
+      if (G.state !== 'select') return;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') selectPick(lineup.i - 1);
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') selectPick(lineup.i + 1);
+      if (e.code === 'Enter' || e.code === 'Space') selectGo();
+    });
+    G.events.on('ui:play', openSelect);
+    G.events.on('ui:pickhero', openSelect);
+    G.events.on('ui:selpick', selectPick);
+    G.events.on('ui:selprev', () => selectPick(lineup.i - 1));
+    G.events.on('ui:selnext', () => selectPick(lineup.i + 1));
+    G.events.on('ui:selgo', selectGo);
+    window.__select = { open: openSelect, pick: selectPick, go: selectGo, lineup };
     G.events.on('ui:resume', play);
     G.events.on('ui:restart', newGame);
     G.events.on('ui:shop', openShop);
@@ -226,11 +278,14 @@
         safe('weapons', () => G.weapons.update(gdt, G.player.input));
         safe('zombies', () => G.zombies.update(gdt));
         safe('allies', () => G.allies.update(gdt));
+        safe('hero', () => G.hero.update(gdt));
         safe('gear', () => G.gear.update(gdt));
         safe('wave', () => updateWave(dt));
       } else if (G.state === 'dead') {
         safe('zombies', () => G.zombies.update(dt));
         G.camera.position.y = BZ.damp(G.camera.position.y, 0.4, 3, dt); G.camera.rotation.z = BZ.damp(G.camera.rotation.z, 0.5, 3, dt);
+      } else if (G.state === 'select') {
+        safe('select', () => updateSelect(dt));
       } else if (G.state === 'title') {
         const t = performance.now() / 1000;
         G.camera.position.set(Math.sin(t * 0.08) * 16, 6 + Math.sin(t * 0.2), Math.cos(t * 0.08) * 16);
@@ -270,6 +325,8 @@
     document.getElementById('boot').classList.add('done');
     G.state = 'title'; G.ui.show('title'); G.audio.setMusic({ music_drone: 0.5, music_perc: 0 });
     window.__ready = true;
+    G.hero.set(BZ.params.hero || G.settings.hero || 'mua');
     if (BZ.params.autostart === '1') newGame();
+    else if (BZ.params.select === '1') openSelect();
   } catch (e) { fatal(e); }
 })();

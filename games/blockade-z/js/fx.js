@@ -154,6 +154,7 @@
       geo.boundingBox.getCenter(ctr); geo.boundingBox.getSize(sz);
       const own = !o.shared;
       const mat = o.shared ? src.material : Array.isArray(src.material) ? src.material.map(deadEye) : deadEye(src.material);
+      if (o.ice && !o.shared) for (const m of [].concat(mat)) { m.color.setHex(0xa8dcff); if (m.emissive) m.emissive.setHex(0x1a4a70); }
       const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(ctr).negate(); mesh.castShadow = false;
       const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.add(mesh);
       src.matrixWorld.decompose(g.position, g.quaternion, g.scale);
@@ -162,7 +163,7 @@
       scene.add(g);
       const half = sz.clone().multiply(g.scale).multiplyScalar(0.5);
       made++;
-      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn ? 0 : 1.2, hits: 0 });
+      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn || o.ice ? 0 : 1.2, hits: 0, ice: !!o.ice });
     }
     // loose cubes for an exploded head: share a few materials, no per-piece clone
     const chunkGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -191,7 +192,7 @@
         if (p.trail <= 0 && p.bleed > 0) { p.trail = 0.035; burst(p.g.position, 1, p.burn ? [0xff9a30, 0x3a3a3c] : [0xb3201a, 0x7a1410], { speed: 0.5, size: 0.06, life: 0.5 }); }
         if (gOut.ground) {
           const impact = -p.v.y; p.hits++;
-          if (p.hits === 1 && !p.burn) { splat(feet, 0.5 + p.half.y * 2); if (impact > 3) G.audio.playAt('gore', feet, { gain: 0.35, rate: G.rng.range(1.1, 1.5) }); }
+          if (p.hits === 1 && !p.burn && !p.ice) { splat(feet, 0.5 + p.half.y * 2); if (impact > 3) G.audio.playAt('gore', feet, { gain: 0.35, rate: G.rng.range(1.1, 1.5) }); }
           p.v.y = impact > 2.5 ? impact * 0.28 : 0; p.v.x *= 0.55; p.v.z *= 0.55; p.w.multiplyScalar(0.5);
           if (impact <= 2.5 && Math.hypot(p.v.x, p.v.z) < 0.6) {
             // lie flat: keep the yaw, snap pitch and roll to the nearest quarter turn, rest on the face that is now down

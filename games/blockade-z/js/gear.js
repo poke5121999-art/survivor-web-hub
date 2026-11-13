@@ -153,7 +153,7 @@
         if (out.ground) { if (pre.y < -2.5) b.vel.y = -pre.y * 0.35; b.vel.x *= 0.86; b.vel.z *= 0.86; b.spin.multiplyScalar(0.8); }
         b.m.position.copy(b.pos).add(new THREE.Vector3(0, 0.09, 0));
         b.m.rotation.x += b.spin.x * dt; b.m.rotation.y += b.spin.y * dt;
-        if (b.t >= BOMB.fuse) { explode(b.pos.clone().add(new THREE.Vector3(0, 0.3, 0))); scene.remove(b.m); bombs.splice(i, 1); }
+        if (b.t >= BOMB.fuse) { const k = G.hero ? G.hero.bombMul() : 1; explode(b.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), BOMB.radius * k, BOMB.dmg * k); scene.remove(b.m); bombs.splice(i, 1); }
       }
       for (let i = turrets.length - 1; i >= 0; i--) {
         const t = turrets[i];

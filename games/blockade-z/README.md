@@ -19,6 +19,10 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 - Cận chiến (katana, rìu, kiếm ánh sáng) là bảng `KF` các tư thế khoá, mỗi nhát có ba đoạn: lấy đà, chém, thu về. Nhát chém trúng thì cả thế giới đứng hình vài khung (`G.hitStop`), riêng camera vẫn xoay.
 - Gore ở `js/fx.js` (`gib`, `chunks`, `splat`, `spurt`) và `sever` / `burstHead` / `blowApart` trong `js/zombies.js`. Tay, chân, đầu rời ra thành khối riêng, văng, nảy rồi nằm phẳng trên đất; mất chân thì zombie bò. Kiếm ánh sáng cắt thì vết cắt cháy cam, không chảy máu.
 
+## Nhân vật
+
+`js/heroes.js` có 7 nhân vật tự nghĩ (không lấy từ game nào): Gió (lướt, 3 lượt), Thép (bất tử 5 giây, 150 máu), Y Tá (hồi máu, tự hồi khi không trúng đòn), Mưa Đạn (bão đạn: bắn nhanh gấp đôi, không tốn đạn, toả đạn lạc), Bóng (dịch chuyển để lại bóng mồi; chạy trên tường, chạy lên tường, đạp tường, nhảy hai lần), Pháo Thủ (không kích 6 quả pháo, bom to hơn) và Băng (đóng băng 9 m, xác đóng băng vỡ vụn). Bấm `F` hoặc nút tròn trên HUD để dùng kỹ năng. Màn chọn nhân vật dựng 7 người đứng thành hàng giữa quảng trường; `?select=1` mở thẳng màn này, `?hero=<id>` chọn sẵn nhân vật khi `?autostart=1`.
+
 ## Kiểm
 
 ```

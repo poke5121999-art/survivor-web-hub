@@ -33,6 +33,45 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 .card h2 { margin: 0 0 12px; font: 900 30px var(--f); text-transform: uppercase; color: var(--gold); text-shadow: var(--px); letter-spacing: .04em; }
 .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
 
+/* hero pick: the 3D lineup shows through; detail panel left, roster along the bottom */
+#select { background: linear-gradient(0deg, rgba(20,14,8,.85) 0%, rgba(20,14,8,.0) 34%), linear-gradient(90deg, rgba(20,14,8,.78) 0%, rgba(20,14,8,0) 40%); align-items: stretch; justify-content: space-between; flex-direction: column; pointer-events: none; }
+#select > * { pointer-events: auto; }
+#select h2 { margin: 4px 0 0; font: 900 28px var(--f); color: var(--gold); text-shadow: var(--px); letter-spacing: .06em; }
+.sel-panel { max-width: 380px; padding: 12px 14px; background: rgba(28, 22, 16, .86); border: 3px solid #000; box-shadow: inset 0 0 0 2px #4a3a26, 5px 5px 0 rgba(0,0,0,.5); }
+.sel-name b { display: block; font: 900 34px var(--f); text-shadow: var(--px); color: var(--hc, #fff); }
+.sel-name span { font: 700 13px var(--mono); color: #e6d3ad; letter-spacing: .1em; text-transform: uppercase; }
+.sel-stats { margin: 10px 0; display: grid; gap: 5px; }
+.sel-stats label { display: grid; grid-template-columns: 64px 1fr 34px; align-items: center; gap: 8px; font: 700 12px var(--mono); color: var(--bone); }
+.sel-stats i { display: block; height: 10px; background: #1a120a; border: 2px solid #000; }
+.sel-stats em { display: block; height: 100%; background: var(--hc, #f4c04a); }
+.sel-skill { margin-top: 8px; padding: 8px; background: rgba(0,0,0,.35); border-left: 4px solid var(--hc, #f4c04a); }
+.sel-skill b { font: 900 17px var(--f); color: var(--hc, #fff); text-shadow: 2px 2px 0 #000; }
+.sel-skill kbd, #skill kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 6px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
+.sel-skill p, .sel-passive p { margin: 5px 0 0; font: 13px/1.45 var(--f); color: var(--bone); }
+.sel-passive { margin-top: 8px; } .sel-passive small { font: 700 11px var(--mono); color: #b8a888; letter-spacing: .12em; text-transform: uppercase; }
+.sel-bottom { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.sel-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.sel-row button { min-width: 82px; padding: 6px 8px 5px; border: 3px solid #000; background: rgba(28,22,16,.85); color: var(--bone); font: 800 13px var(--f); cursor: pointer; box-shadow: inset 0 -4px 0 var(--hc); }
+.sel-row button.on { background: var(--hc); color: #000; transform: translateY(-4px); box-shadow: 4px 4px 0 #000; }
+.sel-act { display: flex; gap: 10px; }
+body.touch #select h2 { font-size: 20px; } body.touch .sel-panel { max-width: 300px; padding: 8px 10px; } body.touch .sel-name b { font-size: 24px; } body.touch .sel-skill p, body.touch .sel-passive p { font-size: 11px; }
+/* skill button on the HUD: cooldown sweeps clockwise, dots are stored charges */
+#skill { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: 132px; width: 86px; height: 86px; border: 3px solid #000; border-radius: 50%; background: conic-gradient(rgba(0,0,0,.72) calc(var(--cd, 0) * 360deg), var(--hc, #f4c04a) 0); box-shadow: inset 0 0 0 3px rgba(255,255,255,.25), 4px 4px 0 rgba(0,0,0,.5); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #000; font: 900 12px var(--f); text-align: center; pointer-events: auto; cursor: pointer; }
+#skill span { display: block; max-width: 74px; line-height: 1.05; text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+#skill.cool { color: var(--bone); } #skill.cool span { text-shadow: 1px 1px 0 #000; }
+#skill.active { animation: skillpulse .5s infinite alternate; }
+#skill .dots { position: absolute; bottom: -12px; display: flex; gap: 3px; } #skill .dots i { width: 8px; height: 8px; background: #2a2018; border: 2px solid #000; } #skill .dots i.on { background: var(--hc); }
+@keyframes skillpulse { from { box-shadow: 0 0 0 3px var(--hc), 4px 4px 0 rgba(0,0,0,.5); } to { box-shadow: 0 0 18px 6px var(--hc), 4px 4px 0 rgba(0,0,0,.5); } }
+body.touch #skill { right: max(212px, calc(env(safe-area-inset-right) + 188px)); bottom: 240px; width: 70px; height: 70px; font-size: 10px; }
+#skill kbd { margin: 0 0 2px; } body.touch #skill kbd { display: none; }
+#herotag { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 92px; font: 900 14px var(--f); color: var(--hc, #fff); text-shadow: 2px 2px 0 #000; letter-spacing: .05em; }
+body.touch #herotag { bottom: auto; top: 98px; font-size: 11px; }
+#skillfx { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0; transition: opacity .25s; }
+#skillfx.on { opacity: 1; }
+#skillfx.gold { box-shadow: inset 0 0 120px 30px rgba(255, 190, 40, .55); } #skillfx.green { box-shadow: inset 0 0 140px 40px rgba(80, 230, 110, .5); }
+#skillfx.orange { box-shadow: inset 0 0 110px 26px rgba(255, 110, 30, .5); } #skillfx.blue { box-shadow: inset 0 0 160px 50px rgba(120, 220, 255, .6); }
+#skillfx.purple { box-shadow: inset 0 0 160px 50px rgba(150, 70, 255, .6); } #skillfx.cyan { box-shadow: inset 0 0 120px 30px rgba(120, 230, 255, .45); }
+
 #title { justify-content: flex-start; background: linear-gradient(90deg, rgba(20,14,8,.82) 0%, rgba(20,14,8,.45) 55%, transparent 100%); }
 #title .in { max-width: 560px; padding-left: max(24px, env(safe-area-inset-left)); }
 #logo { width: min(520px, 86vw); image-rendering: pixelated; display: block; }
@@ -156,6 +195,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
 
 <div id="hud">
   <div id="vignette"></div>
+  <div id="skillfx"></div>
   <div id="dmgdir"></div>
   <div id="cross"><i></i><i></i><i></i><i></i><i></i></div>
   <div id="marker"></div>
@@ -168,6 +208,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
   <div class="plate" id="coins">🪙 <b>0</b></div>
   <div class="plate" id="score">ĐIỂM <b>0</b></div>
+  <div id="skill"><kbd>F</kbd><span>Kỹ năng</span><div class="dots"></div></div>
+  <div id="herotag"></div>
   <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><i style="width:100%"></i><u id="armor"></u></div></div>
   <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span><div id="bombs">💣 <b>3</b> <small>G</small></div></div>
   <div id="fuel"><small>JETPACK</small><i></i></div>
@@ -184,6 +226,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="tb" data-btn="swap">ĐỔI</div>
   <div class="tb" data-btn="bomb">BOM</div>
   <div class="tb" data-btn="pick">NHẶT</div>
+  <div class="tb" data-btn="skill" style="display:none"></div>
   <div class="tb" data-btn="drop">BỎ</div>
   <div class="tb" data-act="pause">II</div>
 </div>
@@ -198,7 +241,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
       <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd> <kbd>2</kbd> / <kbd>Q</kbd> / lăn chuột đổi vũ khí<br>
       <kbd>E</kbd> nhặt vũ khí dưới đất · <kbd>X</kbd> bỏ vũ khí đang cầm (cầm tối đa 2 món)<br>
-      <kbd>G</kbd> ném bom · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
+      <kbd>F</kbd> kỹ năng nhân vật · <kbd>G</kbd> ném bom · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
       <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
     </div>
     <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
@@ -216,12 +259,26 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
+<section class="screen" id="select">
+  <div class="sel-panel">
+    <h2>Chọn nhân vật</h2>
+    <div class="sel-name"><b id="sel-name"></b><span id="sel-role"></span></div>
+    <div class="sel-stats"><label>Máu <i><em id="sel-hp"></em></i><span id="sel-hpn"></span></label><label>Tốc độ <i><em id="sel-spd"></em></i><span id="sel-spdn"></span></label></div>
+    <div class="sel-skill"><kbd>F</kbd><b id="sel-skill"></b><p id="sel-desc"></p></div>
+    <div class="sel-passive"><small>Nội tại</small><p id="sel-passive"></p></div>
+  </div>
+  <div class="sel-bottom">
+    <div class="sel-row" id="sel-row"></div>
+    <div class="sel-act"><button class="btn ghost" data-act="selprev">◀</button><button class="btn" data-act="selgo">Vào trận</button><button class="btn ghost" data-act="selnext">▶</button></div>
+  </div>
+</section>
+
 <section class="screen" id="dead">
   <div class="card">
     <h2>Bị cắn rồi</h2>
     <dl><dt>Trụ tới đợt</dt><dd id="dead-wave">0</dd><dt>Zombie hạ</dt><dd id="dead-kills">0</dd><dt>Độ chính xác</dt><dd id="dead-acc">0%</dd><dt>Điểm</dt><dd id="dead-score">0</dd><dt>Kỷ lục</dt><dd id="dead-best">0</dd></dl>
     <div id="dead-record">KỶ LỤC MỚI!</div>
-    <div class="row"><button class="btn" data-act="restart">Chơi lại</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
+    <div class="row"><button class="btn" data-act="restart">Chơi lại</button><button class="btn ghost" data-act="pickhero">Đổi nhân vật</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
   </div>
 </section>
 
@@ -233,18 +290,19 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113f"></script>
-<script type="module" src="js/core.js?v=20261113f"></script>
-<script type="module" src="js/art.js?v=20261113f"></script>
-<script type="module" src="js/world.js?v=20261113f"></script>
-<script type="module" src="js/audio.js?v=20261113f"></script>
-<script type="module" src="js/fx.js?v=20261113f"></script>
-<script type="module" src="js/zombies.js?v=20261113f"></script>
-<script type="module" src="js/weapons.js?v=20261113f"></script>
-<script type="module" src="js/allies.js?v=20261113f"></script>
-<script type="module" src="js/gear.js?v=20261113f"></script>
-<script type="module" src="js/player.js?v=20261113f"></script>
-<script type="module" src="js/ui.js?v=20261113f"></script>
-<script type="module" src="js/main.js?v=20261113f"></script>
+<script type="module" src="js/boot.js?v=20261113g"></script>
+<script type="module" src="js/core.js?v=20261113g"></script>
+<script type="module" src="js/art.js?v=20261113g"></script>
+<script type="module" src="js/world.js?v=20261113g"></script>
+<script type="module" src="js/audio.js?v=20261113g"></script>
+<script type="module" src="js/fx.js?v=20261113g"></script>
+<script type="module" src="js/zombies.js?v=20261113g"></script>
+<script type="module" src="js/weapons.js?v=20261113g"></script>
+<script type="module" src="js/allies.js?v=20261113g"></script>
+<script type="module" src="js/heroes.js?v=20261113g"></script>
+<script type="module" src="js/gear.js?v=20261113g"></script>
+<script type="module" src="js/player.js?v=20261113g"></script>
+<script type="module" src="js/ui.js?v=20261113g"></script>
+<script type="module" src="js/main.js?v=20261113g"></script>
 </body>
 </html>
