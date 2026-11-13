@@ -190,13 +190,14 @@
     const rnd = () => V().set(G.rng.range(-1, 1), G.rng.range(-1, 1), G.rng.range(-1, 1)).normalize();
     // Big blast: flash, a churning fire ball, shock ring, embers, flying rubble, smoke that hangs, a scorch mark.
     function explosion(pos, s = 1) {
-      const R = s;
-      puff(pos, { glow: true, s0: 2.5 * R, s1: 8 * R, life: 0.16, c0: 0xffffff, c1: 0xffd080, a0: 1.2, spin: 0 });
-      const core = pos.clone().setY(pos.y + 0.6 * R);
+      const R = s; const core = pos.clone().setY(pos.y + 0.6 * R);
+      // a short white-hot flash, then a fire ball that stays orange: twenty stacked near-white puffs used to burn the whole blast out to a white disc
+      puff(pos, { glow: true, s0: 2.2 * R, s1: 6.5 * R, life: 0.13, c0: 0xffffff, c1: 0xffd080, a0: 1.1, spin: 0 });
+      puff(core, { glow: true, s0: 1.2 * R, s1: 2.2 * R, life: 0.3, c0: 0xfffbe0, c1: 0xffb040, a0: 1, spin: 0 });
       for (let i = 0; i < 20; i++) {
         const d = rnd(); d.y = Math.abs(d.y) * 0.8 + 0.25;
         puff(core.clone().addScaledVector(d, G.rng.range(0, 1.0) * R), { glow: true, vel: d.clone().multiplyScalar(G.rng.range(2, 5) * R).setY(d.y * 3.5 * R + 2), drag: 3,
-          s0: G.rng.range(1.4, 2.1) * R, s1: G.rng.range(3.4, 4.8) * R, life: G.rng.range(0.55, 0.95), c0: G.rng.pick([0xfff6d0, 0xffe48a, 0xffc860]), c1: G.rng.pick([0xff5a14, 0xe03a0c]), a0: 1.1 });
+          s0: G.rng.range(1.4, 2.1) * R, s1: G.rng.range(3.4, 4.8) * R, life: G.rng.range(0.55, 0.95), c0: G.rng.pick([0xffd878, 0xffb648, 0xff9030]), c1: G.rng.pick([0xff5a14, 0xc8300a]), a0: 0.42 });
       }
       // the fire ball keeps glowing through the first smoke: a slow dark-orange core that lingers
       for (let i = 0; i < 5; i++) puff(core.clone().add(rnd().multiplyScalar(0.6 * R)), { glow: true, delay: 0.1, vel: V().set(0, 1.4, 0), s0: 2.4 * R, s1: 3.2 * R, life: 1.1, c0: 0xff7a20, c1: 0x601004, a0: 0.7 });
