@@ -7,10 +7,12 @@
   PM.RANKS = ['Tân Binh', 'Pháo Thủ', 'Xạ Thủ', 'Đội Trưởng', 'Chỉ Huy', 'Thống Lĩnh Mây'];
 
   PM.Meta = function (G) {
-    const fresh = () => ({ coins: 0, xp: 0, units: ['coc'], wins: 0, losses: 0, stage: 0, up: {}, last: { unit: 'coc', size: 1, ai: 'easy', map: 'doiche' } });
+    const fresh = () => ({ coins: 0, xp: 0, units: ['coc'], wins: 0, losses: 0, stage: 0, up: {}, skins: [], skin: { eye: 'hophach', trail: 'goc' }, last: { unit: 'coc', size: 1, ai: 'easy', map: 'doiche' } });
     let save = Object.assign(fresh(), PM.store.read(KEY, {}));
     if (!Array.isArray(save.units) || !save.units.includes('coc')) save.units = ['coc'];
     if (!save.up || typeof save.up !== 'object') save.up = {};
+    if (!Array.isArray(save.skins)) save.skins = [];
+    if (!save.skin || typeof save.skin !== 'object') save.skin = { eye: 'hophach', trail: 'goc' };
     save.stage = Math.max(0, Math.min(PM.CAMPAIGN.length, save.stage | 0));
     const api = { get save() { return save; } };
     api.commit = () => PM.store.write(KEY, save);
@@ -49,6 +51,21 @@
       const m = {};
       for (const stat in PM.UPGRADES) m[stat] = 1 + PM.UPGRADES[stat].step * api.upLevel(kind, stat);
       return m;
+    };
+    const skinItem = (slot, id) => (PM.SKINS[slot] ? PM.SKINS[slot].items.find((it) => it.id === id) : null);
+    api.ownsSkin = (slot, id) => { const it = skinItem(slot, id); return !!it && (it.price === 0 || save.skins.includes(slot + ':' + id)); };
+    // Buys the cosmetic if needed, then wears it.
+    api.wear = function (slot, id) {
+      const it = skinItem(slot, id);
+      if (!it) return false;
+      if (!api.ownsSkin(slot, id)) { if (save.coins < it.price) return false; save.coins -= it.price; save.skins.push(slot + ':' + id); }
+      save.skin[slot] = id; api.commit();
+      return true;
+    };
+    // What the player's unit wears, as colours the renderer understands.
+    api.look = function () {
+      const eye = skinItem('eye', save.skin.eye), trail = skinItem('trail', save.skin.trail);
+      return { eye: eye ? eye.color : 0xffa22a, trail: trail ? trail.color : null };
     };
     // Marks a campaign stage cleared; returns the first-clear bonus paid (0 on a repeat).
     api.clearStage = function (i) {

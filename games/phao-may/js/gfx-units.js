@@ -6,7 +6,8 @@
   PM.TEAM_COLORS = [0xff5a36, 0x21b8c8, 0xf2b63c, 0x9a6cf0];
   PM.TEAM_NAMES = ['Đội Son', 'Đội Lam'];
 
-  function mats(G, team) {
+  function mats(G, team, skin) {
+    const eyeCol = skin && skin.eye ? skin.eye : 0xffa22a;
     const THREE = globalThis.THREE, B = G.bake;
     return {
       bronze: B.mat({ set: 'bronze', scale: 0.9, roughness: 1, metalness: 1, envMapIntensity: 1.25 }),
@@ -14,15 +15,15 @@
       steel: B.mat({ set: 'steel', scale: 1.3, roughness: 1, metalness: 1, envMapIntensity: 1.2 }),
       dark: B.mat({ set: 'steel', scale: 1.3, color: 0x55524f, roughness: 1.2, metalness: 1 }),
       cream: B.mat({ set: 'paint', scale: 0.8, color: 0xf2e2c4, roughness: 1, metalness: 1 }),
-      eye: G.shared.eye || (G.shared.eye = new THREE.MeshStandardMaterial({ color: 0x1a0d00, emissive: 0xffa22a, emissiveIntensity: 2.6, roughness: 0.15, metalness: 0 })),
+      eye: G.shared['eye' + eyeCol] || (G.shared['eye' + eyeCol] = new THREE.MeshStandardMaterial({ color: 0x1a0d00, emissive: eyeCol, emissiveIntensity: 2.6, roughness: 0.15, metalness: 0 })),
       lamp: G.shared['lamp' + team] || (G.shared['lamp' + team] = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: PM.TEAM_COLORS[team], emissiveIntensity: 4, roughness: 0.3 })),
       wing: G.shared.wing || (G.shared.wing = new THREE.MeshStandardMaterial({ color: 0xd6f4ff, emissive: 0x3f9fc0, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 2 }))
     };
   }
 
   const MODELS = {
-    coc(G, team) {
-      const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    coc(G, team, skin) {
+      const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
       const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 28, h || 18);
       b.part('body', null, [0, 1.15, 0]);
       b.add(sph(1), M.bronze, { s: [1.38, 0.92, 1.12] });
@@ -75,8 +76,8 @@
       return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR', 'legBR', 'legFL'], hover: 0, pivotY: 1.25, muzzle: 2.0 };
     },
 
-    chuon(G, team) {
-      const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    chuon(G, team, skin) {
+      const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
       const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 24, h || 16);
       const alongX = [0, 0, -Math.PI / 2];
       b.part('body', null, [0, 1.15, 0]);
@@ -122,8 +123,8 @@
       return { root: b.build(), parts: b.parts, wings: ['wingFL', 'wingFR', 'wingBL', 'wingBR'], hover: 0.55, pivotY: 1.15, muzzle: 2.4 };
     }
   };
-  MODELS.tegiac = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.tegiac = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 20, h || 14);
     const alongZ = [Math.PI / 2, 0, 0], alongX = [0, 0, -Math.PI / 2];
     b.part('body', null, [0, 1.2, 0]);
@@ -161,8 +162,8 @@
     return { root: b.build(), parts: b.parts, tracks: ['trackL', 'trackR'], hover: 0, smoke: [-1.0, 3.1, 0.35] };
   };
 
-  MODELS.oc = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.oc = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
     b.part('body', null, [0, 0.42, 0]);
     b.add(PM.Geo.rbox(2.7, 0.55, 1.2, 0.27, 4), M.cream, { p: [0.15, 0, 0] });
@@ -192,8 +193,8 @@
     return { root: b.build(), parts: b.parts, crawl: true, hover: 0 };
   };
 
-  MODELS.sua = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.sua = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
     b.part('body', null, [0, 1.25, 0]);
     b.add(new THREE.SphereGeometry(1.15, 30, 14, 0, Math.PI * 2, 0, Math.PI * 0.56), M.paint, { p: [0, 0.35, 0], s: [1.08, 0.95, 1.08] });
@@ -221,8 +222,8 @@
     return { root: b.build(), parts: b.parts, tents, hover: 1.0 };
   };
 
-  MODELS.rua = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.rua = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
     b.part('body', null, [0, 0.95, 0]);
     b.add(sph(1, 28, 18), M.cream, { s: [1.55, 0.55, 1.15] });
@@ -254,8 +255,8 @@
     return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR', 'legBR', 'legFL'], bodyY: 0.95, hover: 0 };
   };
 
-  MODELS.nhim = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.nhim = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
     b.part('body', null, [0, 1.0, 0]);
     b.add(sph(1, 26, 18), M.steel, { s: [1.4, 0.88, 1.05] });
@@ -286,8 +287,8 @@
     return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR', 'legBR', 'legFL'], bodyY: 1.0, hover: 0 };
   };
 
-  MODELS.co = function (G, team) {
-    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+  MODELS.co = function (G, team, skin) {
+    const THREE = globalThis.THREE, M = mats(G, team, skin), b = PM.Build();
     const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 20, h || 14);
     b.part('body', null, [0, 2.25, 0]);
     b.add(sph(1, 24, 16), M.cream, { s: [1.05, 0.68, 0.72] });
@@ -324,7 +325,7 @@
     const THREE = globalThis.THREE, scene = G.scene, sim = G.sim;
     const group = new THREE.Group(); scene.add(group);
     const list = sim.units.map((u) => {
-      const model = MODELS[u.kind](G, u.team);
+      const model = MODELS[u.kind](G, u.team, u.skin);
       const holder = new THREE.Group();
       holder.add(model.root); group.add(holder);
       return { u, model, holder, yaw: u.facing > 0 ? 0 : Math.PI, tilt: 0, walk: 0, lastX: u.x, recoil: PM.spring(260, 16), rock: PM.spring(140, 9), punch: PM.spring(300, 14), bob: Math.random() * 6, dead: false, deadT: 0, spin: 0, aim: u.angle };

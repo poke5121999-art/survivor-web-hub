@@ -191,6 +191,18 @@ for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua'], ['nhim
   void x0;
 }
 
+{
+  const sim = mk({ map: 'hoangmac' });
+  const w0 = sim.wind;
+  sim.fireNow({ angle: 70, power: 60, shot: 0 });
+  until(sim, () => sim.phase !== 'flight');
+  const g = drain(sim, 'gust');
+  check(g.length === 1 && sim.wind === g[0].wind, `a sandstorm gust changes the wind while the shell flies (${w0} -> ${sim.wind})`);
+  const town = mk({ map: 'pho' }), v = town.units[0], y0 = v.y;
+  town.terrain.carve(v.x, v.y - 0.8, 2.6); town.advance(3);
+  check(v.alive && v.y < y0 - 8, `a unit drops through a holed deck to the level below (${y0.toFixed(1)} -> ${v.y.toFixed(1)})`);
+}
+
 for (const level of ['easy', 'medium', 'hard']) {
   let dealt = 0, shots = 0, wins = 0, steps = 0;
   const N = 6;

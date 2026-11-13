@@ -76,7 +76,7 @@
     function buildMatchHud() {
       const sim = G.sim;
       cache.clear();
-      el.tags.innerHTML = sim.units.map((u) => `<div class="tag t${u.team}" style="--tc:${hex(PM.TEAM_COLORS[u.team])}"><b>${esc(u.name)}</b><i><em></em><u></u></i></div>`).join('');
+      el.tags.innerHTML = sim.units.map((u) => `<div class="tag t${u.team}" style="--tc:${hex(PM.TEAM_COLORS[u.team])}"><b>${esc(u.name)}${u.ai ? '' : ' · cấp ' + G.meta.level()}</b><i><em></em><u></u></i></div>`).join('');
       tags = [...el.tags.children].map((node, i) => ({ node, u: sim.units[i], hp: $('em', node), sh: $('u', node) }));
       [0, 1].forEach((t) => { const n = $('.team.t' + t); n.style.setProperty('--tc', hex(PM.TEAM_COLORS[t])); $('b', n).textContent = PM.TEAM_NAMES[t]; });
       el.floats.innerHTML = '';
@@ -112,6 +112,7 @@
       if (def && (def.special || ev.shot === 'tele')) banner(def.name + '!', 'sp');
     });
     G.bus.on('sim:item', (ev) => { cache.delete('kit'); const u = G.sim.units[ev.unit]; float(u.x, u.y + 4.5, PM.ITEMS[ev.item].name, 'itm'); });
+    G.bus.on('sim:gust', (ev) => { if (!G.demo) toast('Bão cát đổi gió: ' + Math.abs(ev.wind).toFixed(1) + (ev.wind < 0 ? ' về trái' : ' về phải')); });
     let tideSaid = false;
     G.bus.on('match:start', () => { tideSaid = false; });
     G.bus.on('sim:tide', () => { if (!tideSaid && !G.demo) { tideSaid = true; toast('Nước đang dâng. Chỗ thấp sẽ ngập trước.'); } });
@@ -228,7 +229,7 @@
     function startStage(i) {
       const st = PM.CAMPAIGN[i], last = G.meta.save.last, unit = G.meta.owns(last.unit) ? last.unit : 'coc', rng = PM.rng(1000 + i * 77 + G.meta.save.losses), pool = Object.keys(PM.ITEMS);
       const kit = () => [rng.pick(pool), rng.pick(pool), rng.pick(pool)];
-      const mine = [{ kind: unit, ai: null, name: 'Bạn', items: (last.items || ['heal', 'double', 'tele']).slice(0, 3), mods: G.meta.mods(unit) }].concat(st.allies.map((k) => ({ kind: k, ai: st.ai, items: kit() })));
+      const mine = [{ kind: unit, ai: null, name: 'Bạn', items: (last.items || ['heal', 'double', 'tele']).slice(0, 3), mods: G.meta.mods(unit), skin: G.meta.look() }].concat(st.allies.map((k) => ({ kind: k, ai: st.ai, items: kit() })));
       const foes = st.foes.map((k) => ({ kind: k, ai: st.ai, items: st.ai === 'easy' ? [] : kit(), mods: { hp: st.hp } }));
       G.demo = false; closeScreen();
       G.startMatch({ seed: 5000 + i * 131 + G.meta.save.losses * 7, map: st.map, playerTeam: 0, level: st.ai, stage: i, teams: [mine, foes] });
@@ -237,7 +238,7 @@
     function startQuick(pick) {
       const rng = PM.rng(Date.now() & 0xfffff), kinds = PM.UNIT_ORDER, pool = Object.keys(PM.ITEMS);
       const bot = () => ({ kind: rng.pick(kinds), ai: pick.ai, items: [rng.pick(pool), rng.pick(pool), rng.pick(pool)] });
-      const mine = [{ kind: pick.unit, ai: null, name: 'Bạn', items: pick.items.slice(), mods: G.meta.mods(pick.unit) }], foes = [];
+      const mine = [{ kind: pick.unit, ai: null, name: 'Bạn', items: pick.items.slice(), mods: G.meta.mods(pick.unit), skin: G.meta.look() }], foes = [];
       for (let i = 1; i < pick.size; i++) mine.push(bot());
       for (let i = 0; i < pick.size; i++) foes.push(bot());
       G.demo = false; closeScreen();
@@ -248,9 +249,11 @@
       const draw = () => {
         const s = screen(`<div class="panel wide"><h2>Xưởng pháo</h2>${profile()}
           <div class="cards">${PM.UNIT_ORDER.map((k) => { const u = PM.UNITS[k], own = G.meta.owns(k), price = PM.UNIT_PRICE[k]; return `<div class="card shopcard${own ? ' own' : ''}"><b>${esc(u.name)}</b><small>${esc(u.title)}</small><p>${esc(u.blurb)}</p><ul>${u.shots.map((x) => `<li><b>${esc(x.name)}</b> ${esc(x.desc)}</li>`).join('')}</ul>${own ? `<div class="ups">${Object.keys(PM.UPGRADES).map((st) => { const lv = G.meta.upLevel(k, st), pr = G.meta.upPrice(k, st), U = PM.UPGRADES[st]; return `<button class="up" data-up="${k}:${st}" title="${esc(U.desc)}"${lv >= PM.UPGRADE_MAX || G.meta.save.coins < pr ? ' disabled' : ''}><b>${esc(U.name)}</b><i>${'●'.repeat(lv)}${'○'.repeat(PM.UPGRADE_MAX - lv)}</i><span>${lv >= PM.UPGRADE_MAX ? 'tối đa' : pr + ' xu'}</span></button>`; }).join('')}</div>` : ''}${own ? '<span class="owned">Đã có</span>' : `<button class="btn" data-buy="${k}"${G.meta.save.coins < price ? ' disabled' : ''}>Mở khoá · ${price} xu</button>`}</div>`; }).join('')}</div>
+          <h3>Phụ kiện</h3>${Object.keys(PM.SKINS).map((slot) => `<div class="skinrow"><b>${esc(PM.SKINS[slot].name)}</b><div class="chips">${PM.SKINS[slot].items.map((it) => { const own = G.meta.ownsSkin(slot, it.id), on = G.meta.save.skin[slot] === it.id; return `<button class="chip${on ? ' on' : ''}" data-skin="${slot}:${it.id}"${!own && G.meta.save.coins < it.price ? ' disabled' : ''}>${esc(it.name)}${own ? '' : ' · ' + it.price + ' xu'}</button>`; }).join('')}</div></div>`).join('')}
           <p class="blurb">Nâng cấp chỉ áp cho cỗ pháo bạn cầm. Xu chỉ kiếm được bằng cách đánh trận. Ở đây không có gì mua bằng tiền thật.</p>
           <div class="actions"><button class="btn ghost" data-back>Quay lại</button></div></div>`);
         s.querySelectorAll('[data-buy]').forEach((b) => click(b, () => { if (G.meta.buy(b.dataset.buy)) { G.bus.emit('ui:buy'); toast('Đã mở khoá ' + PM.UNITS[b.dataset.buy].name); draw(); } else G.bus.emit('ui:deny'); }));
+        s.querySelectorAll('[data-skin]').forEach((b) => click(b, () => { const [slot, id] = b.dataset.skin.split(':'), had = G.meta.ownsSkin(slot, id); if (G.meta.wear(slot, id)) { G.bus.emit(had ? 'ui:click' : 'ui:buy'); draw(); } else G.bus.emit('ui:deny'); }));
         s.querySelectorAll('[data-up]').forEach((b) => click(b, () => { const [k, st] = b.dataset.up.split(':'); if (G.meta.upgrade(k, st)) { G.bus.emit('ui:buy'); draw(); } else G.bus.emit('ui:deny'); }));
         click($('[data-back]', s), () => { G.bus.emit('ui:click'); showTitle(); });
       };

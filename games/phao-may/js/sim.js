@@ -455,6 +455,8 @@
     for (let i = 0; i < n; i++) sim.queue.push({ t: sim.time + i * 0.6, def, power, boost: ts.boost });
     const hz = sim.map.hazard;
     if (hz && hz.kind === 'rocks') sim.queue.push({ t: sim.time + 1.4, rock: hz.def });
+    if (hz && hz.kind === 'gust') sim.queue.push({ t: sim.time + hz.after, gust: hz.swing });
+    sim.queue.sort((x, y) => x.t - y.t);
     emit(sim, { type: 'fire', unit: u.id, shot: def.id, power, angle: u.angle, facing: u.facing, n });
   }
 
@@ -520,6 +522,7 @@
       } else if (sim.phase === 'flight') {
         while (sim.queue.length && sim.queue[0].t <= sim.time) {
           const q = sim.queue.shift();
+          if (q.gust) { const wm = sim.map.windMax; sim.wind = Math.round(clamp(sim.wind + sim.rng.range(-1, 1) * wm * q.gust, -wm, wm) * 10) / 10; emit(sim, { type: 'gust', wind: sim.wind }); continue; }
           if (q.rock) { const x = sim.rng.range(10, sim.map.w - 10); spawn(sim, null, q.rock, x, sim.map.h + 6, sim.rng.range(-5, 5), -14, 1); continue; }
           if (u.alive) launch(sim, u, q.def, u.facing, u.angle, q.power, q.boost * u.atk, u);
         }

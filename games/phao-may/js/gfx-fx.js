@@ -154,7 +154,8 @@
       const mesh = new THREE.Mesh(projGeo[d.geo], projMats[d.mat]);
       mesh.scale.setScalar(d.s); mesh.castShadow = true; mesh.position.set(ev.x, ev.y, 0);
       group.add(mesh);
-      projs.set(ev.proj, { mesh, d, lx: ev.x, ly: ev.y, acc: 0, spin: 0 });
+      const sp = sim.projs.find((x) => x.id === ev.proj), worn = sp && sp.owner && sp.owner.skin && sp.owner.skin.trail;
+      projs.set(ev.proj, { mesh, d: worn ? Object.assign({}, d, { glow: worn }) : d, lx: ev.x, ly: ev.y, acc: 0, spin: 0 });
     });
     G.bus.on('sim:gone', (ev) => { const p = projs.get(ev.proj); if (p) { group.remove(p.mesh); projs.delete(ev.proj); } });
 
@@ -214,6 +215,7 @@
       flashLight(x, y, 0x88ccff, 500); G.rig.shake(0.2);
     }
     G.bus.on('sim:boom', (ev) => { const d = PROJ[ev.shot]; if (d && d.soft) softBoom(ev.x, ev.y, Math.max(2, ev.radius), d.soft); else boom(ev.x, ev.y, Math.max(1.6, ev.radius), false); });
+    G.bus.on('sim:gust', () => { const span = camSpan(); for (let i = 0; i < 40 * q.parts; i++) emit({ x: G.rig.x + R(-0.6, 0.6) * span.w, y: G.rig.y + R(-0.5, 0.5) * span.h, z: R(-6, 6), vx: sim.wind * 6, vy: R(-1, 1), life: R(0.6, 1.4), s0: R(0.05, 0.1), col: [1.6, 1.2, 0.7], a: 0.5, kind: 1, stretch: 40, rot: 0, fadeIn: 0.2 }); });
     const fires = new Map();
     G.bus.on('sim:burn', (ev) => fires.set(ev.id, ev));
     G.bus.on('sim:burnout', (ev) => fires.delete(ev.id));

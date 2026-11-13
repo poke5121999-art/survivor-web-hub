@@ -164,6 +164,27 @@
       group.add(shardMesh);
     }
 
+    // Lanterns on poles for the night town: the only warm light there, so they carry the mood through bloom.
+    const lamps = [];
+    let lampMesh = null, poleMesh = null;
+    if (deco.lanterns) {
+      const lg = PM.Geo.merge([new THREE.SphereGeometry(0.42, 14, 10).scale(1, 1.25, 1).toNonIndexed(), new THREE.CylinderGeometry(0.2, 0.2, 0.12, 10).translate(0, 0.56, 0).toNonIndexed(), new THREE.CylinderGeometry(0.2, 0.2, 0.12, 10).translate(0, -0.56, 0).toNonIndexed()]);
+      const lm = new THREE.MeshStandardMaterial({ color: 0x401000, emissive: 0xff7a22, emissiveIntensity: 5, roughness: 0.6 });
+      const pg = PM.Geo.merge([new THREE.CylinderGeometry(0.07, 0.09, 4.4, 6).translate(0, 2.2, 0).toNonIndexed(), new THREE.CylinderGeometry(0.05, 0.05, 1.0, 5).rotateZ(Math.PI / 2).translate(0.45, 4.3, 0).toNonIndexed()]);
+      for (const lx of deco.lanterns) { const y = surface(lx); if (Number.isFinite(y)) lamps.push({ x: lx, y, z: -3 - rng() * 4.5, alive: true }); if (Number.isFinite(y) && q.deco >= 1) lamps.push({ x: lx + 1.3, y: surface(lx + 1.3), z: 3.2 + rng(), alive: true, small: true }); }
+      const ok = lamps.filter((l) => Number.isFinite(l.y));
+      lamps.length = 0; lamps.push(...ok);
+      lampMesh = new THREE.InstancedMesh(lg, lm, lamps.length); poleMesh = new THREE.InstancedMesh(pg, G.bake.mat({ set: 'wood', space: 'obj', scale: 0.5, metalness: 0, roughness: 1, color: 0x8a6a55 }), lamps.length);
+      for (const im of [lampMesh, poleMesh]) { im.frustumCulled = false; group.add(im); }
+      poleMesh.castShadow = true;
+      lamps.forEach((l, i) => {
+        const k = l.alive ? (l.small ? 0.6 : 1) : 0;
+        qt.identity();
+        poleMesh.setMatrixAt(i, m4.compose(vp.set(l.x, l.y - 0.1, l.z), qt, vs.set(k, k, k)));
+        lampMesh.setMatrixAt(i, m4.compose(vp.set(l.x + 0.9 * k, l.y - 0.1 + 3.6 * k, l.z), qt, vs.set(k, k, k)));
+      });
+    }
+
     // Shade trees: a leaning trunk that forks, and a layered crown of many small leaf clumps.
     const wood = G.bake.mat({ set: 'wood', space: 'obj', scale: 0.35, metalness: 0, roughness: 1, color: 0x9a7a62 });
     const bend = (y) => Math.sin(y * 2.2) * 0.14 + y * 0.1;
@@ -218,6 +239,9 @@
       let gc = false;
       tufts.forEach((t, i) => { if (t.alive && !terrain.solid(t.x, t.y - 0.3)) { t.alive = false; place(grass, i, t, false); gc = true; } });
       if (gc) grass.instanceMatrix.needsUpdate = true;
+      let lc = false;
+      lamps.forEach((l, i) => { if (l.alive && !terrain.solid(l.x, l.y - 0.4)) { l.alive = false; qt.identity(); poleMesh.setMatrixAt(i, m4.compose(vp.set(l.x, l.y, l.z), qt, vs.set(0, 0, 0))); lampMesh.setMatrixAt(i, m4.compose(vp.set(l.x, l.y, l.z), qt, vs.set(0, 0, 0))); lc = true; G.bus.emit('fx:leaves', { x: l.x, y: l.y + 3, z: l.z, n: 6 }); } });
+      if (lc) { poleMesh.instanceMatrix.needsUpdate = true; lampMesh.instanceMatrix.needsUpdate = true; }
       let sc = false;
       shards.forEach((t, i) => { if (t.alive && !terrain.solid(t.x, t.y - 0.3)) { t.alive = false; place(shardMesh, i, t, false); sc = true; } });
       if (sc) shardMesh.instanceMatrix.needsUpdate = true;

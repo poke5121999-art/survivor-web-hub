@@ -66,7 +66,7 @@ session(async (br, base) => {
     await close();
   }
 
-  for (const map of ['lolua', 'bang']) {
+  for (const map of ['lolua', 'bang', 'pho', 'hoangmac']) {
     const { page, problems, close } = await open(br, base, Q + `&autostart=1&seed=9&map=${map}`, VP);
     const m = await page.evaluate(`(() => { const G = window.__G, s = G.sim; __fire({ angle: 70, power: 35, shot: 0 }); __sim(8); __tick(20);
       return { map: G.map.id, alive: s.units.filter((u) => u.alive).length, phase: s.phase, craters: s.terrain.version }; })()`);
@@ -123,11 +123,13 @@ session(async (br, base) => {
     check(list.n === 10 && list.next === 1 && list.locked === 9, 'campaign lists ten stages with only the first open ' + JSON.stringify(list));
     const up = await ev(`(() => { const m = window.__G.meta; m.save.coins = 500; const ok = m.upgrade('coc', 'hp'); return { ok, coins: m.save.coins, hp: m.mods('coc').hp, again: (m.save.coins = 0, m.upgrade('coc', 'hp')) }; })()`);
     check(up.ok && up.coins === 380 && Math.abs(up.hp - 1.06) < 1e-9 && up.again === false, 'an upgrade costs coins, raises the stat, and is refused without coins ' + JSON.stringify(up));
+    const skin = await ev(`(() => { const m = window.__G.meta; m.save.coins = 150; const poor = m.wear('eye', 'hong'), ok = m.wear('eye', 'lam'); return { poor, ok, coins: m.save.coins, eye: m.look().eye, owns: m.ownsSkin('eye', 'lam') }; })()`);
+    check(skin.poor === false && skin.ok && skin.coins === 0 && skin.eye === 0x40c8ff && skin.owns, 'a cosmetic is bought once, worn, and refused without coins ' + JSON.stringify(skin));
     await ev('window.__G.ui.showCampaign()');
     await page.click('.stage.next');
     await page.waitForFunction('window.__G.state === "playing" && window.__G.demo === false', null, { timeout: 60000 });
-    const st = await ev(`(() => { const s = window.__G.sim; return { stage: window.__G.matchCfg.stage, mine: s.units[0].maxHp, foe: s.units[1].maxHp, foeKind: s.units[1].kind }; })()`);
-    check(st.stage === 0 && st.mine === 1166 && st.foe === 880 && st.foeKind === 'coc', 'stage 1 starts with the upgraded player unit and a weakened foe ' + JSON.stringify(st));
+    const st = await ev(`(() => { const s = window.__G.sim; return { stage: window.__G.matchCfg.stage, mine: s.units[0].maxHp, foe: s.units[1].maxHp, foeKind: s.units[1].kind, eye: s.units[0].skin.eye }; })()`);
+    check(st.stage === 0 && st.mine === 1166 && st.foe === 880 && st.foeKind === 'coc' && st.eye === 0x40c8ff, 'stage 1 starts with the upgraded player unit wearing its cosmetic, and a weakened foe ' + JSON.stringify(st));
     await ev(`(() => { const s = window.__G.sim; s.units[1].hp = 1; let g = 0;
       while (s.phase !== 'over' && g++ < 80) { if (s.phase === 'turn' && !s.active.ai) { const e = s.units[1], u = s.active, f = e.x > u.x ? 1 : -1; let best = null;
         for (let a = u.aimMin; a <= u.aimMax && !best; a += 2) for (let p = 15; p <= 100; p += 2.5) { if (PM.Sim.trace(s, u, u.shots[0], f, a, p).dmg[e.id]) { best = { angle: a, power: p, facing: f, shot: 0 }; break; } }

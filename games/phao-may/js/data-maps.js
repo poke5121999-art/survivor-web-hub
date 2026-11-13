@@ -98,6 +98,67 @@
       seaLit: [1.35, 1.45, 1.6], seaShade: [0.3, 0.38, 0.58], fog: [0.72, 0.8, 0.92], fogStart: 150, fogDen: 0.002, mist: 0.45, exposure: 0.92, bloom: 0.4, rays: 0.7, vol: 0.004, volCol: [1.0, 1.1, 1.3]
     }
   };
-  PM.MAP_ORDER.push('vinhda', 'lolua', 'bang');
+
+  // Phố Đèn Lồng: a night town of plank decks on posts above low rock. The decks are thin: two hits open a hole
+  // and whoever stands there drops to the level below.
+  const phoTop = PM.curve([[4, 22], [16, 30], [34, 33], [52, 29], [70, 34], [84, 31], [100, 35], [118, 30], [136, 34], [152, 31], [164, 22]]);
+  const DECKS = [[30, 50, 12], [61, 61, 10], [84, 47, 9], [108, 63, 10], [139, 51, 12]];
+  PM.MAPS.pho = {
+    id: 'pho', name: 'Phố Đèn Lồng', w: 168, h: 96, cell: 0.25, seaY: 12, g: 24, windMax: 8,
+    blurb: 'Phố nhà sàn ban đêm. Sàn gỗ mỏng, trúng hai phát là thủng; ai đứng trên đó rơi xuống tầng dưới.',
+    spawns: [[28, 61, 38, 14], [141, 108, 131, 154]],
+    trees: [],
+    deco: { hedges: false, tufts: false, lanterns: [20, 30, 40, 54, 61, 68, 78, 84, 90, 101, 108, 115, 129, 139, 149] },
+    sd(x, y) {
+      if (x < 3 || x > 165) return 9;
+      const wob = (fbm(x * 0.3, y * 0.3, 404, 3) - 0.5) * 1.2;
+      let d = Math.max((y - phoTop(x)) * 0.8, (3.5 - x) * 0.7, (x - 164.5) * 0.7) + wob * 0.5;
+      for (const [cx, cy, hw] of DECKS) {
+        d = Math.min(d, sdBox(x, y, cx, cy, hw, 0.95, 0.3));
+        d = Math.min(d, sdBox(x, y, cx - hw + 2.2, (cy + 26) / 2, 0.75, (cy - 26) / 2, 0.3));
+        d = Math.min(d, sdBox(x, y, cx + hw - 2.2, (cy + 26) / 2, 0.75, (cy - 26) / 2, 0.3));
+      }
+      return d;
+    },
+    look: { topsoil: [0.8, 0.5, 0.36], clay: [1.25, 0.72, 0.46], rock: [0.7, 0.72, 0.9], grass: [0.9, 0.62, 0.42], grey: 1 },
+    theme: {
+      zenith: [0.01, 0.015, 0.05], mid: [0.04, 0.06, 0.16], horizon: [0.16, 0.14, 0.28], ground: [0.03, 0.04, 0.09], sunDir: [0.25, 0.3, -0.92], sunCol: [0.75, 0.85, 1.2],
+      cloudLit: [0.3, 0.34, 0.5], cloudDark: [0.03, 0.04, 0.09], cover: 0.5,
+      keyDir: [0.45, 0.65, 0.6], keyCol: [0.6, 0.72, 1.0], keyInt: 1.9, rimInt: 0.9, hemiInt: 0.55, bounce: [0.5, 0.3, 0.2],
+      seaLit: [0.2, 0.25, 0.45], seaShade: [0.02, 0.03, 0.08], fog: [0.07, 0.08, 0.17], fogStart: 150, fogDen: 0.002, mist: 0.5, exposure: 1.15, bloom: 0.75, rays: 0.4, vol: 0.003, volCol: [0.5, 0.6, 1.0]
+    }
+  };
+
+  // Hoang Mạc Đồng Hồ: two mesas, a broken gate over the dune valley and a hanging rock. A sandstorm gust
+  // changes the wind while the shell is in the air.
+  const sandTop = PM.curve([[4, 30], [20, 36], [31, 51], [36, 53], [48, 52.5], [53, 41], [66, 35], [84, 31], [100, 36], [109, 55], [114, 57], [127, 56.5], [132, 43], [150, 38], [164, 30]]);
+  PM.MAPS.hoangmac = {
+    id: 'hoangmac', name: 'Hoang Mạc Đồng Hồ', w: 168, h: 96, cell: 0.25, seaY: 14, g: 24, windMax: 12,
+    blurb: 'Hai núi bàn, cổng đá gãy giữa thung lũng cát. Bão cát đổi gió ngay khi đạn đang bay.',
+    hazard: { kind: 'gust', after: 0.7, swing: 0.4 },
+    spawns: [[42, 22, 60, 35], [120, 146, 104, 126]],
+    trees: [],
+    deco: { hedges: false, tufts: false, spikes: { color: 0xd9b27a, emissive: 0x000000, glow: 0 } },
+    sd(x, y) {
+      if (x < 3 || x > 165) return 9;
+      const wob = (fbm(x * 0.3, y * 0.3, 505, 3) - 0.5) * 1.3;
+      let d = Math.max((y - sandTop(x) - 1.2 * (fbm(x * 0.2, 7.7, 19, 2) - 0.5)) * 0.8, (3.5 - x) * 0.7, (x - 164.5) * 0.7) + wob * 0.4;
+      d = Math.min(d, sdBox(x, y, 71, 43, 1.4, 11, 0.6) + wob * 0.3);
+      d = Math.min(d, sdBox(x, y, 96, 44, 1.4, 11, 0.6) + wob * 0.3);
+      d = Math.min(d, sdCapsule(x, y, 69, 55, 86, 55.8, 1.3) + wob * 0.3);
+      d = Math.min(d, sdEllipse(x, y, 150, 57, 6.5, 2.3) * 1.3 + wob);
+      d = Math.max(d, -(sdEllipse(x, y, 119, 49, 6, 3) + wob * 0.4));
+      return d;
+    },
+    look: { topsoil: [2.4, 1.9, 1.2], clay: [2.3, 1.45, 0.8], rock: [1.9, 1.45, 1.05], grass: [3.0, 2.5, 1.5], grey: 1 },
+    theme: {
+      zenith: [0.14, 0.34, 0.66], mid: [0.62, 0.66, 0.66], horizon: [1.1, 0.9, 0.62], ground: [0.8, 0.6, 0.36], sunDir: [-0.4, 0.34, -0.85], sunCol: [1.7, 1.4, 0.95],
+      cloudLit: [1.5, 1.35, 1.1], cloudDark: [0.6, 0.5, 0.42], cover: 0.6,
+      keyDir: [-0.5, 0.7, 0.5], keyCol: [1.0, 0.92, 0.76], keyInt: 4.0, rimInt: 1.4, hemiInt: 0.65, bounce: [0.8, 0.6, 0.35],
+      seaLit: [1.5, 1.15, 0.7], seaShade: [0.5, 0.34, 0.2], fog: [0.92, 0.76, 0.52], fogStart: 150, fogDen: 0.0022, mist: 0.6, exposure: 0.95, bloom: 0.4, rays: 0.6, vol: 0.005, volCol: [1.4, 1.1, 0.7]
+    }
+  };
+  PM.MAP_ORDER.push('vinhda', 'lolua', 'bang', 'pho', 'hoangmac');
+
 
 })();

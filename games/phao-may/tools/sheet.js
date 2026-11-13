@@ -19,6 +19,10 @@ const GROUPS = {
     { name: 'lolua-crater', q: 'autostart=1&seed=3&map=lolua', pose: { x: 84, y: 62, dist: 50 } },
     { name: 'bang-wide', q: 'autostart=1&seed=3&map=bang', pose: 'wide' },
     { name: 'bang-peak', q: 'autostart=1&seed=3&map=bang', pose: { x: 112, y: 60, dist: 50 } },
+    { name: 'pho-wide', q: 'autostart=1&seed=3&map=pho', pose: 'wide' },
+    { name: 'pho-deck', q: 'autostart=1&seed=3&map=pho', pose: { x: 46, y: 54, dist: 50 } },
+    { name: 'hoangmac-wide', q: 'autostart=1&seed=3&map=hoangmac', pose: 'wide' },
+    { name: 'hoangmac-gate', q: 'autostart=1&seed=3&map=hoangmac', pose: { x: 84, y: 46, dist: 50 } },
     { name: 'vinhda-tide', q: 'autostart=1&seed=3&map=vinhda', eval: '(() => { window.__G.sim.seaY = 33; __tick(240); })()', pose: { x: 86, y: 44, dist: 80 } }
   ],
   units: [
