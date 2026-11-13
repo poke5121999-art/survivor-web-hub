@@ -121,7 +121,7 @@
         const to = C.V().set(P.pos.x - D.T.x, 0, P.pos.z - D.T.z); const l = to.length(); if (l > 0.05) to.multiplyScalar(Math.min(l, 3.8 * dt) / l); D.T.add(to);
         if (S.t >= D.next && S.t < S.dur - 0.5) {
           D.next += 0.45; const dir = C.V().set(P.pos.x - D.T.x, 0, P.pos.z - D.T.z); const dl = dir.length(); if (dl > 0.05) dir.multiplyScalar(Math.min(dl, 3.8 * 0.65) / dl);
-          C.beam({ from: C.at(z, 'belly'), to: D.T.clone(), to2: D.T.clone().add(dir), w: 1.4, dur: 0.65, col: CYAN, core: 0xffffff, dmg: 6, fx: { slow: 1.4 }, follow: () => C.at(z, 'belly') });
+          C.beam({ from: C.at(z, 'belly'), to: D.T.clone(), to2: D.T.clone().add(dir), w: 1.4, dur: 0.65, col: CYAN, core: 0xffffff, dmg: 6, fx: { slow: 1.4 }, anchor: 'belly', z });
         }
       },
     },

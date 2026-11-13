@@ -182,7 +182,7 @@
           const base = z.yaw; const R = 15; const from = C.at(z, 'mouth');
           const pt = (a) => C.V().set(z.pos.x + Math.sin(a) * R, 0.1, z.pos.z + Math.cos(a) * R);
           const dir = C.G.rng.chance(0.5) ? 1 : -1; D.dir = dir;
-          D.beam = C.beam({ from, to: pt(base - 0.65 * dir), to2: pt(base + 0.65 * dir), w: 0.8, dur: S.dur - 1.2, col: VIO, core: PALE, dmg: 8, scorch: 'void' });
+          D.beam = C.beam({ from, anchor: 'mouth', z, to: pt(base - 0.65 * dir), to2: pt(base + 0.65 * dir), w: 0.8, dur: S.dur - 1.2, col: VIO, core: PALE, dmg: 8, scorch: 'void' });
           C.G.audio.playAt('boom', z.pos, { gain: 0.9, rate: 0.45 });
         }
         D.sweep = BZ.lerp(-0.65, 0.65, (S.t - 1.1) / (S.dur - 1.2)) * D.dir;

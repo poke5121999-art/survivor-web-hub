@@ -173,7 +173,7 @@
         if (S.t < 1.1) { z.yaw += BZ.wrapAngle(D.b0 - D.dir * D.half - z.yaw) * Math.min(1, dt * 10); return; }
         if (!D.beam) {
           const dur = S.dur - 1.1 - 0.5; D.dur = dur;
-          D.beam = C.beam({ from: C.at(z, 'muzzle'), to: groundPt(z, D.b0 - D.dir * D.half, D.R), to2: groundPt(z, D.b0 + D.dir * D.half, D.R), w: 0.75, dur, col: PLASMA, core: PALE, dmg: 9, scorch: 'acid', follow: () => C.at(z, 'muzzle') });
+          D.beam = C.beam({ from: C.at(z, 'muzzle'), anchor: 'muzzle', z, to: groundPt(z, D.b0 - D.dir * D.half, D.R), to2: groundPt(z, D.b0 + D.dir * D.half, D.R), w: 0.75, dur, col: PLASMA, core: PALE, dmg: 9, scorch: 'acid', follow: () => C.at(z, 'muzzle') });
           C.G.audio.playAt('boom', z.pos, { gain: 1, rate: 0.5 }); C.shakeAt(z.pos, 3);
         }
         const k = Math.min(1, (S.t - 1.1) / D.dur); z.yaw = D.b0 + D.dir * D.half * (2 * k - 1);

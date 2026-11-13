@@ -255,7 +255,7 @@
         turnTo(z, Math.atan2(D.p0.x - z.pos.x, D.p0.z - z.pos.z), dt, 6);
         if (S.t < 0.85) return;
         if (!D.beam) {
-          D.beam = C.beam({ from: C.at(z, 'handR'), follow: () => C.at(z, 'handR'), to: D.p1, to2: D.p2, w: 0.55, dur: S.dur - 1.0, col: BLOOD, core: PALE, dmg: 7 });
+          D.beam = C.beam({ from: C.at(z, 'handR'), anchor: 'handR', z, to: D.p1, to2: D.p2, w: 0.55, dur: S.dur - 1.0, col: BLOOD, core: PALE, dmg: 7 });
           D.acc = 0;
         }
         D.acc += dt;

@@ -206,7 +206,7 @@
       tick(z, dt, P, S, C) {
         const D = S.data; hold(z, dt, C); if (S.t < 1.0) toward(z, P, dt, 5, C); if (!D.a) return;
         if (S.t >= 1.1 && !D.beam) {
-          D.beam = C.beam({ from: C.at(z, 'eye'), to: D.a, to2: D.b, w: 1.5, dur: S.dur - 1.15, col: CY, core: PALE, dmg: 8, scorch: 'sand', follow: () => C.at(z, 'eye') });
+          D.beam = C.beam({ from: C.at(z, 'eye'), to: D.a, to2: D.b, w: 1.5, dur: S.dur - 1.15, col: CY, core: PALE, dmg: 8, scorch: 'sand', anchor: 'eye', z });
           C.G.audio.playAt('boom', z.pos, { gain: 1.0, rate: 0.5 });
         }
       },

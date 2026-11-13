@@ -171,27 +171,34 @@
 
     // beams: from a point to a point (sliding from `to` to `to2` over the duration); hurts every 0.2 s
     const beams = [];
+    // o.anchor names a rig node on o.z: the beam's root stays on that node (a mouth, an eye, a hand) every frame, on guests too
     function beam(o) {
+      if (o.anchor && o.z && !o.follow) { const z = o.z; const n = o.anchor; o.follow = () => (z.alive ? ctx.at(z, n) : o.from); o.from = ctx.at(z, n); }
       const outer = new THREE.Mesh(CYL, addMat(o.col, 0.55)); const inner = new THREE.Mesh(CYL, addMat(o.core || 0xffffff, 0.95));
       const tip = new THREE.Sprite(glowMat(o.col, 1)); const base = new THREE.Sprite(glowMat(o.col, 1));
       for (const m of [outer, inner, tip, base]) { m.renderOrder = 6; scene.add(m); }
       const B = { ...o, outer, inner, tip, base, t: 0, acc: 0, cur: o.to.clone() };
       beams.push(B);
-      if (o.net !== false) net({ t: 'bb', p: r2(o.from), q: r2(o.to), q2: r2(o.to2 || o.to), w: o.w, d: o.dur, c: o.col, co: o.core || 0, k: o.key || 0 });
+      if (o.net !== false) net({ t: 'bb', p: r2(o.from), q: r2(o.to), q2: r2(o.to2 || o.to), w: o.w, d: o.dur, c: o.col, co: o.core || 0, k: o.key || 0, zi: o.anchor && o.z ? api.list.indexOf(o.z) : -1, a: o.anchor || 0 });
       return B;
     }
     const segDist = (p, a, b) => { tmpA.subVectors(b, a); const l2 = tmpA.lengthSq() || 1; const k = BZ.clamp(tmpB.subVectors(p, a).dot(tmpA) / l2, 0, 1); return tmpB.copy(a).addScaledVector(tmpA, k).distanceTo(p); };
+    // lays the beam's meshes from its root to where it stops (the first wall); called again after a boss poses so an anchored root never lags a frame
+    function place(B, flick = B.flick || 1) {
+      B.flick = flick; const k = Math.min(1, B.t / B.dur);
+      if (B.follow) B.from.copy(B.follow());
+      B.cur.lerpVectors(B.to, B.to2 || B.to, k);
+      const dir = tmpA.subVectors(B.cur, B.from); const len = dir.length(); dir.normalize();
+      const wh = G.world.raycast(B.from, dir, len); const L = wh ? wh.t : len; const end = B.from.clone().addScaledVector(dir, L);
+      const grow = Math.min(1, B.t / 0.12) * Math.min(1, (B.dur - B.t) / 0.15 + 0.05);
+      for (const [m, w] of [[B.outer, B.w * 2.2], [B.inner, B.w * 0.7]]) { m.position.copy(B.from); m.lookAt(end); m.scale.set(w * grow * flick, w * grow * flick, L); }
+      B.tip.position.copy(end); B.tip.scale.setScalar(B.w * 7 * grow * flick); B.base.position.copy(B.from); B.base.scale.setScalar(B.w * 5 * grow);
+      return end;
+    }
     function updateBeams(dt) {
       for (let i = beams.length - 1; i >= 0; i--) {
-        const B = beams[i]; B.t += dt; const k = Math.min(1, B.t / B.dur);
-        if (B.follow) B.from.copy(B.follow());
-        B.cur.lerpVectors(B.to, B.to2 || B.to, k);
-        // stop at the first wall
-        const dir = tmpA.subVectors(B.cur, B.from); const len = dir.length(); dir.normalize();
-        const wh = G.world.raycast(B.from, dir, len); const L = wh ? wh.t : len; const end = B.from.clone().addScaledVector(dir, L);
-        const grow = Math.min(1, B.t / 0.12) * Math.min(1, (B.dur - B.t) / 0.15 + 0.05); const flick = 0.85 + Math.random() * 0.3;
-        for (const [m, w] of [[B.outer, B.w * 2.2], [B.inner, B.w * 0.7]]) { m.position.copy(B.from); m.lookAt(end); m.scale.set(w * grow * flick, w * grow * flick, L); }
-        B.tip.position.copy(end); B.tip.scale.setScalar(B.w * 7 * grow * flick); B.base.position.copy(B.from); B.base.scale.setScalar(B.w * 5 * grow);
+        const B = beams[i]; B.t += dt;
+        const end = place(B, 0.85 + Math.random() * 0.3);
         if (Math.random() < dt * 40) G.fx.puff(end.clone(), { glow: true, vel: V().set(G.rng.range(-3, 3), G.rng.range(1, 5), G.rng.range(-3, 3)), drag: 2, s0: B.w * 1.6, s1: 0.05, life: 0.35, c0: B.col, c1: B.core || B.col, a0: 1 });
         if (end.y < 0.5 && Math.random() < dt * 14) H.hazard && host() && !B.visual && B.scorch && H.hazard(B.scorch, V().set(end.x, 0, end.z), 0.9, 2.5);
         B.acc += dt;
@@ -301,6 +308,7 @@
       const S = z.bs; if (!host() && S.cur) { S.t += dt; if (S.t >= S.dur + 0.3) S.cur = null; }
       z.bob = (z.bob || 0) + dt;
       kit.pose(z, R, dt, sp, S, ctx);
+      for (const B of beams) if (B.z === z && B.anchor) place(B);
     }
     function boxes(z) {
       const kit = kitOf(z); const R = z.body.x[z.T.rig]; if (!R) return null; const s = z.T.scale; z.body.root.updateMatrixWorld(true);
@@ -330,7 +338,7 @@
       if (p.t === 'bm') { const z = api.list[p.i]; if (!z || !z.alive || z.T.kind !== 'boss2') return; if (!z.bs) init(z); z.bs.cur = p.m; z.bs.t = 0; z.bs.dur = p.d; z.bs.data = {}; const M = kitOf(z).moves[p.m]; if (M && M.look) M.look(z, z.bs, ctx); return true; }
       if (p.t === 'bo') { orb({ from: v3(p.p), vel: v3(p.v), size: p.s, col: p.c, col2: p.c2 || undefined, core: p.co || undefined, shape: p.sh || undefined, grav: p.gr, homing: p.hm, life: p.l, blast: p.br, trailCol: p.tc || undefined, visual: true, net: false }); return true; }
       if (p.t === 'bt') { warn({ at: v3(p.p), to: p.q ? v3(p.q) : null, r: p.r, w: p.w, dur: p.d, col: p.c, net: 'visual' }); return true; }
-      if (p.t === 'bb') { beam({ from: v3(p.p), to: v3(p.q), to2: v3(p.q2), w: p.w, dur: p.d, col: p.c, core: p.co || undefined, visual: true, net: false }); return true; }
+      if (p.t === 'bb') { const az = p.a && p.zi >= 0 ? api.list[p.zi] : null; beam({ from: v3(p.p), anchor: az && az.alive ? p.a : undefined, z: az && az.alive ? az : undefined, to: v3(p.q), to2: v3(p.q2), w: p.w, dur: p.d, col: p.c, core: p.co || undefined, visual: true, net: false }); return true; }
       if (p.t === 'bw') { shock(v3(p.p), p.R, p.d, p.c, 0, { wall: !!p.w, net: false }); return true; }
       if (p.t === 'bx') { const K = BZ.BOSS_KITS[p.k]; if (K && K.fx) K.fx(p, ctx); return true; }
       return false;
@@ -345,6 +353,8 @@
       timers.length = 0;
     }
     const flags = (z) => (z.bs && z.bs.cur ? 2048 : 0);
-    return { step, pose, boxes, dress, die, remote, update, clear, flags, ctx, debug: () => ({ orbs: orbs.length, beams: beams.length, warns: teles.length, rings: rings.length, flashes: flashes.length }) };
+    return { step, pose, boxes, dress, die, remote, update, clear, flags, ctx, debug: () => ({ orbs: orbs.length, beams: beams.length, warns: teles.length, rings: rings.length, flashes: flashes.length,
+      // how far an anchored beam's root sits from its node right now (0 when the beam leaves the mouth)
+      beamGap: beams.reduce((m, B) => (B.anchor && B.z && B.z.alive ? Math.max(m, B.from.distanceTo(ctx.at(B.z, B.anchor))) : m), 0) }) };
   };
 })();

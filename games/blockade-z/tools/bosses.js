@@ -44,7 +44,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
           const B = G.zombies.kinds.bosses(); const kit = BZ.BOSS_KITS['${id}']; z.bs.queue = []; z.bs.cur = null; z.bs.rest = 99;
           const S = z.bs; const M = kit.moves['${m}'];
           const start = () => { S.cur = '${m}'; S.t = 0; S.data = {}; S.dur = M.dur || 1.5; if (M.start) M.start(z, S, P, B.ctx); };
-          start(); let peak = { orbs: 0, beams: 0, warns: 0, rings: 0 }; let shot = false;
+          start(); let peak = { orbs: 0, beams: 0, warns: 0, rings: 0, beamGap: 0 }; let shot = false;
           for (let t = 0; t < (M.dur || 1.5) + 2.2; t += 1 / 30) {
             if (!S.cur && t < (M.dur || 1.5)) start();
             __sim(1 / 30); P.hp = Math.max(P.hp, 30); P.alive = true; if (G.state === 'dead') G.state = 'playing';
@@ -58,16 +58,17 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
         await page.waitForTimeout(250);
         await page.screenshot({ path: path.join(OUT, `boss-${id}-${m}.png`) });
         // finish the move and measure damage over its whole length
-        const r2 = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); const P = G.player; G.state = 'playing'; G.god = false; let taken = 0;
+        const r2 = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); const P = G.player; G.state = 'playing'; G.god = false; let taken = 0; let gap = 0; let beams = 0;
           const on = ({ dmg }) => { taken += dmg; }; G.events.on('player:hurt', on);
           const kit = BZ.BOSS_KITS['${id}']; const B = G.zombies.kinds.bosses(); const S = z.bs; const M = kit.moves['${m}'];
           for (let rep = 0; rep < 3 && taken === 0; rep++) {
             z.pos.x = 0; z.pos.z = -5; P.pos.set(5, 0, 0); P.vel.set(0, 0, 0);
             S.cur = '${m}'; S.t = 0; S.data = {}; S.dur = M.dur || 1.5; S.queue = []; if (M.start) M.start(z, S, P, B.ctx);
-            for (let t = 0; t < (M.dur || 1.5) + 2.5; t += 1 / 30) { const x = P.pos.x; const zz = P.pos.z; __sim(1 / 30); P.pos.set(x, 0, zz); P.hp = Math.max(P.hp, 30); P.alive = true; if (G.state === 'dead') G.state = 'playing'; if (!S.cur) S.rest = 99; }
+            for (let t = 0; t < (M.dur || 1.5) + 2.5; t += 1 / 30) { const x = P.pos.x; const zz = P.pos.z; __sim(1 / 30); P.pos.set(x, 0, zz); P.hp = Math.max(P.hp, 30); P.alive = true; if (G.state === 'dead') G.state = 'playing'; if (!S.cur) S.rest = 99; const d = B.debug(); gap = Math.max(gap, d.beamGap); beams = Math.max(beams, d.beams); }
           }
-          G.god = true; return { taken }; })()`);
+          G.god = true; return { taken, gap, beams }; })()`);
         check(r2.taken > 0 || M_NO_DMG.includes(`${id}.${m}`), `${id}.${m}: hurts a player standing still nearby (${Math.round(r2.taken)} dmg; peak ${JSON.stringify(r.peak)})`);
+        if (r2.beams) check(r2.gap < 0.3, `${id}.${m}: the beam leaves the body part that fires it (root drifts at most ${r2.gap.toFixed(2)} m)`);
       }
       // the whole boss in an idle pose, then a combo runs by itself for a while
       await page.evaluate(`(() => { const G = __G; ${frame} const z = G.zombies.boss(); z.bs.cur = null; z.bs.rest = 99; G.state = 'playing'; __sim(0.6); frame(z, 1.15); __sim(1 / 60); frame(z, 1.15); __sim(1 / 60); G.state = 'paused'; })()`);
