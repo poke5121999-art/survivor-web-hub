@@ -62,6 +62,7 @@ BZ.spring = (k, d) => ({
 
 BZ.clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
 BZ.lerp = (a, b, t) => a + (b - a) * t;
+BZ.smooth = (t) => t * t * (3 - 2 * t); // smoothstep of a 0..1 value
 BZ.damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
 BZ.wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 

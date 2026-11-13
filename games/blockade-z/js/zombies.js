@@ -142,7 +142,7 @@
       z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
-      z.crawl = false; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
+      z.crawl = false; z.landT = 0; z.throwT = 0; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
       K.init(z, T, wave);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
@@ -207,10 +207,13 @@
         if (z.leap) {
           const L = z.leap; L.t += dt; const k = Math.min(1, L.t / L.dur);
           z.pos.lerpVectors(L.from, L.to, k); z.pos.y = BZ.lerp(L.from.y, L.to.y, k) + Math.sin(Math.PI * k) * L.h;
-          b.hips.rotation.x = -0.4 + k * 0.6; b.armL.rotation.x = b.armR.rotation.x = -Math.PI * 0.9;
+          // the jump: a crouch off the ground, knees tucked and both fists raised at the top, the whole body thrown forward into the slam
+          const up = BZ.smooth(BZ.clamp(k / 0.25, 0, 1)); const dn = BZ.smooth(BZ.clamp((k - 0.7) / 0.3, 0, 1));
+          b.hips.rotation.x = -0.45 * up + dn * 1.05; b.armL.rotation.x = b.armR.rotation.x = -Math.PI * (0.35 + 0.6 * up) + dn * 1.5; b.armL.rotation.z = 0.3 * up; b.armR.rotation.z = -0.3 * up;
+          b.legL.rotation.x = -1.0 * up + dn * 0.7; b.legR.rotation.x = -0.75 * up + dn * 0.5; b.kneeL.rotation.x = 1.5 * up - dn * 1.1; b.kneeR.rotation.x = 1.25 * up - dn * 0.9; b.elbowL.rotation.x = b.elbowR.rotation.x = -0.5 * up * (1 - dn); b.head.rotation.x = 0.3 * up - 0.5 * dn;
           b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
           if (k >= 1) {
-            z.leap = null; z.abT = 4.5;
+            z.leap = null; z.abT = 4.5; z.landT = 0.45;
             G.fx.burst(z.pos.clone().setY(z.pos.y + 0.2), 30, [0x6e6a64, 0x8a8478, 0x4a4640], { speed: 7, size: 0.2, life: 1 });
             C.boom(z.pos.clone().setY(z.pos.y + 0.6), 3.5, [0xffa040, 0x8a4a20, 0xfff0c0], { smokeCol: 0x6a645c }); C.shock(z.pos.clone().setY(z.pos.y + 0.05), 9, 0.7, 0xffa040, 20, { wall: true });
             if (rage) C.after(0.35, () => C.shock(z.pos.clone().setY(z.pos.y + 0.05), 13, 0.9, 0xff6020, 16, { wall: true }));
@@ -220,6 +223,14 @@
             if (d < 25) P.shake.v += (25 - d) * 0.6;
           }
           return true;
+        }
+        if (z.landT > 0) {
+          // it lands on one knee with both fists in the ground, and heaves itself back up
+          z.landT -= dt; const k = BZ.smooth(BZ.clamp(z.landT / 0.45, 0, 1)); z.vel.set(0, 0, 0);
+          b.hips.rotation.x = 0.2 + 0.85 * k; b.armL.rotation.x = b.armR.rotation.x = -0.35 - 0.75 * k; b.armL.rotation.z = b.armR.rotation.z = 0; b.elbowL.rotation.x = b.elbowR.rotation.x = -0.2;
+          b.legL.rotation.x = -1.2 * k; b.kneeL.rotation.x = 1.5 * k; b.legR.rotation.x = 0.25 * k; b.kneeR.rotation.x = 1.3 * k; b.head.rotation.x = -0.45 * k; b.hips.position.y = 0.75 - 0.3 * k;
+          if (z.landT <= 0) b.hips.position.y = 0.75;
+          finish(z); return true;
         }
         if (z.abT <= 0 && (P.pos.y - z.pos.y > 1.6 || dist > 9) && dist < 26 && P.alive) {
           const to = P.pos.clone().add(new THREE.Vector3(G.rng.range(-1, 1), 0.02, G.rng.range(-1, 1)));
@@ -232,16 +243,26 @@
       } else if (T.boss === 'thrower') {
         if (z.rock > 0) {
           z.rock += dt; z.vel.set(0, 0, 0);
-          b.armL.rotation.x = b.armR.rotation.x = -Math.PI * (0.6 + 0.45 * Math.min(1, z.rock / 0.6));
+          // the wind-up: the stone arm goes back over the shoulder, the other points at the target, the trunk twists and leans away
+          { const k = BZ.smooth(Math.min(1, z.rock / 0.6)); b.armR.rotation.x = -1.5 - 1.9 * k; b.elbowR.rotation.x = -0.9 * k; b.armL.rotation.x = -1.45; b.elbowL.rotation.x = -0.1; b.armL.rotation.z = -0.25 * k;
+            b.hips.rotation.y = -0.6 * k; b.hips.rotation.x = -0.3 * k; b.head.rotation.y = 0.45 * k; b.legL.rotation.x = -0.35 * k; b.legR.rotation.x = 0.3 * k; b.kneeR.rotation.x = 0.35 * k; b.kneeL.rotation.x = 0.1; }
           z.yaw = Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z); b.root.rotation.y = z.yaw;
           if (z.rock >= 0.6) {
-            z.rock = 0; z.abT = 2.4;
+            z.rock = 0; z.abT = 2.4; z.throwT = 0.32;
             const from = z.pos.clone().add(new THREE.Vector3(0, 3.3 * T.scale / 1.9, 0));
             const aim = P.pos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(P.vel, 0.4);
             for (let i = 0; i < (rage ? 3 : 1); i++) { const tg = aim.clone().add(new THREE.Vector3(i ? G.rng.range(-3, 3) : 0, 0, i ? G.rng.range(-3, 3) : 0)); C.warn({ at: tg.clone().setY(Math.max(0, P.pos.y)), r: 1.6, dur: BZ.clamp(from.distanceTo(tg) / 15, 0.7, 1.7), col: 0xffa040 }); G.gear.throwRock(from, tg, z); }
             G.audio.playAt('swipe', z.pos, { gain: 1, rate: 0.6 });
           }
           return true;
+        }
+        if (z.throwT > 0) {
+          // the follow-through: the arm whips over and down, the trunk untwists past centre
+          z.throwT -= dt; const k = 1 - BZ.clamp(z.throwT / 0.32, 0, 1); const e = BZ.smooth(Math.min(1, k / 0.45)); const back = BZ.smooth(BZ.clamp((k - 0.6) / 0.4, 0, 1)); z.vel.set(0, 0, 0);
+          b.armR.rotation.x = -3.4 + 3.3 * e; b.elbowR.rotation.x = -0.9 * (1 - e); b.armL.rotation.x = -1.45 + 1.7 * e; b.armL.rotation.z = -0.25 * (1 - e);
+          b.hips.rotation.y = (-0.6 + 1.1 * e) * (1 - back); b.hips.rotation.x = (-0.3 + 0.8 * e) * (1 - back * 0.7); b.head.rotation.y = 0.45 * (1 - e); b.legL.rotation.x = -0.35 + 0.6 * e; b.legR.rotation.x = 0.3 - 0.7 * e;
+          if (z.throwT <= 0) { b.hips.rotation.y = 0; b.head.rotation.y = 0; b.armL.rotation.z = 0; }
+          finish(z); return true;
         }
         if (z.abT <= 0 && dist < 38 && P.alive && G.world.lineOfSight(new THREE.Vector3(z.pos.x, z.pos.y + 3, z.pos.z), new THREE.Vector3(P.pos.x, P.pos.y + 1.4, P.pos.z))) { z.rock = 0.001; return true; }
       } else if (T.boss === 'phantom') {
