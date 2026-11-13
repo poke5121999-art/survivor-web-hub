@@ -42,8 +42,8 @@
         if (d > R) continue;
         const dir = new THREE.Vector3(z.pos.x - pos.x, 0, z.pos.z - pos.z).normalize();
         const dmg = Math.round(BOMB.dmg * (1 - Math.max(0, d - 1.5) / R * 0.65));
-        const died = G.zombies.damage(z, dmg, 'body', dir);
-        z.vel.addScaledVector(dir, 6);
+        const died = G.zombies.damage(z, dmg, 'body', dir, 3);
+        z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
       }
       G.fx.explosion(pos);
@@ -142,7 +142,7 @@
             t.head.position.z = 0.06;
             if (hit) {
               const dir = new THREE.Vector3(z.pos.x - t.pos.x, 0, z.pos.z - t.pos.z).normalize();
-              const died = G.zombies.damage(z, TURRET.dmg, 'body', dir);
+              const died = G.zombies.damage(z, TURRET.dmg, 'body', dir, 0.5);
               if (died) t.target = null;
             }
           }

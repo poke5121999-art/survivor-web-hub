@@ -128,7 +128,7 @@
     });
     G.events.on('hit', ({ z, dmg, part }) => {
       G.ui.hit(part === 'head');
-      G.ui.pop(String(dmg), part === 'head' ? 'dmg crit' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
+      G.ui.pop(String(dmg), part === 'head' ? 'dmg crit' : part === 'leg' ? 'dmg leg' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
     });
     G.events.on('player:hurt', ({ dmg, from }) => G.player.hurt(dmg, from));
     G.events.on('pickup', (kind) => {

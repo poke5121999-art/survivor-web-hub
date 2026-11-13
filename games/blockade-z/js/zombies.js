@@ -82,6 +82,9 @@
       z.speed = T.speed * G.rng.range(0.9, 1.1);
       z.pos.set(gate.x + G.rng.range(-1.2, 1.2), T.fly ? G.rng.range(6, 9) : 0, gate.z + G.rng.range(-1.2, 1.2));
       z.fallV = 0; z.bob = G.rng.range(0, 6);
+      z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
+      z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
+      z.body.armL.visible = z.body.armR.visible = true;
       z.vel.set(0, 0, 0);
       z.yaw = Math.atan2(-gate.dir[0], -gate.dir[1]);
       z.phase = G.rng.range(0, 6); z.attackT = 0; z.windT = -1; z.flash = 0; z.voiceT = G.rng.range(1, 5); z.stuck = 0;
@@ -102,6 +105,16 @@
       for (const z of alive) {
         const T = z.T;
         if (T.fly) { flyer(z, dt, P); continue; }
+        // knocked down: fall back, lie a moment, get up
+        if (z.down > 0) {
+          z.down -= dt; const p = z.down; const lie = p > z.downMax - 0.25 ? (z.downMax - p) / 0.25 : p < 0.4 ? p / 0.4 : 1;
+          z.body.root.rotation.x = -lie * 1.4; z.vel.multiplyScalar(Math.pow(0.02, dt)); z.vel.y = 0;
+          G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out); z.pos.y = 0;
+          z.body.root.position.copy(z.pos); z.windT = -1;
+          continue;
+        }
+        z.body.root.rotation.x = 0;
+        z.slowT = Math.max(0, z.slowT - dt);
         // target: the player, unless a hired soldier is right next to this zombie and closer
         const pd = Math.hypot(P.pos.x - z.pos.x, P.pos.z - z.pos.z);
         const ally = G.allies && G.allies.nearest(z.pos, 3.5);
@@ -126,7 +139,7 @@
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
-        const want = attacking || dist < reach * 0.8 ? 0 : z.speed;
+        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1);
         z.vel.x = BZ.damp(z.vel.x, sx * want, 8, dt); z.vel.z = BZ.damp(z.vel.z, sz * want, 8, dt); z.vel.y = 0;
         const before = z.pos.x + z.pos.z;
         G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out);
@@ -161,9 +174,12 @@
         const armBase = -Math.PI / 2 + Math.sin(z.phase * 0.5) * 0.12;
         b.armL.rotation.x = armBase + T.droop - wind * (0.9 + T.droop) + (z.attackT > T.rate - 0.15 ? 0.9 : 0);
         b.armR.rotation.x = armBase - wind * 0.9 + Math.sin(z.phase * 0.5 + 1) * 0.1 + (z.attackT > T.rate - 0.15 ? 0.9 : 0);
-        b.hips.rotation.z = Math.sin(z.phase) * 0.05; b.hips.rotation.x = T.hunch;
+        const fp = z.fp.step(dt); const fr = z.fr.step(dt); const hs = z.hs.step(dt);
+        b.hips.rotation.z = Math.sin(z.phase) * (z.limp ? 0.2 : 0.05) + fr; b.hips.rotation.x = T.hunch + fp;
+        if (z.limp) { b.legR.rotation.x = -T.hunch + 0.5; b.hips.position.y -= Math.abs(Math.sin(z.phase)) * 0.08; }
+        b.head.rotation.x = hs;
         b.hips.position.y = 0.75 + Math.abs(Math.cos(z.phase)) * 0.04;
-        b.head.rotation.z = Math.sin(z.phase * 0.7) * 0.15;
+        b.head.rotation.z = Math.sin(z.phase * 0.7) * 0.15 + fr * 0.5;
         b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
         if (z.flash > 0) { z.flash -= dt; if (z.flash <= 0) setFlash(z, false); }
         const bar = b.barBg; bar.visible = z.hp < z.maxHp;
@@ -228,15 +244,17 @@
     }
 
     // Hit boxes in world space (bodies are upright; axis-aligned boxes are close enough for blocks).
-    function hitTest(o, d, maxT) {
+    function hitTest(o, d, maxT, skip) {
       let best = null;
       for (const z of list) {
-        if (!z.alive) continue;
+        if (!z.alive || (skip && skip.has(z))) continue;
         const s = z.T.scale;
         const y = z.pos.y; const wide = z.T.fly ? 0.6 : 0.34;
+        const legTop = z.T.fly || z.down > 0 ? 0 : 0.75 * s;
         const boxes = [
-          { part: 'body', min: [z.pos.x - wide * s, y, z.pos.z - wide * s], max: [z.pos.x + wide * s, y + 1.45 * s, z.pos.z + wide * s] },
+          { part: 'body', min: [z.pos.x - wide * s, y + legTop, z.pos.z - wide * s], max: [z.pos.x + wide * s, y + 1.45 * s, z.pos.z + wide * s] },
         ];
+        if (legTop) boxes.push({ part: 'leg', min: [z.pos.x - 0.3 * s, y, z.pos.z - 0.3 * s], max: [z.pos.x + 0.3 * s, y + legTop, z.pos.z + 0.3 * s] });
         if (!z.headless) boxes.push({ part: 'head', min: [z.pos.x - 0.27 * s, y + 1.43 * s, z.pos.z - 0.27 * s], max: [z.pos.x + 0.27 * s, y + 1.97 * s, z.pos.z + 0.27 * s] });
         for (const bx of boxes) {
           let t0 = 0; let t1 = best ? best.t : maxT; let ok = true;
@@ -252,12 +270,36 @@
       return best;
     }
 
-    function damage(z, amount, part, dir) {
+    // Hit reaction scales with how hard the hit was (share of max hp), the round's impulse, and where it landed.
+    function damage(z, amount, part, dir, imp = 1) {
       if (!z.alive) return false;
       z.hp -= amount; z.flash = 0.09; setFlash(z, true);
-      const at = new THREE.Vector3(z.pos.x, z.pos.y + (part === 'head' ? 1.7 : 1.0) * z.T.scale, z.pos.z);
-      G.fx.burst(at, part === 'head' ? 10 : 6, [0xb3201a, 0x7a1410, 0x5f8f3e], { dir, push: 2.5, size: 0.11 });
-      z.vel.addScaledVector(dir, 1.2 / z.T.scale);
+      const T = z.T; const k = BZ.clamp(amount / z.maxHp, 0, 1); const heavy = T === TYPES.brute ? 0.45 : 1;
+      const y = part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05;
+      const at = new THREE.Vector3(z.pos.x, z.pos.y + y * T.scale, z.pos.z);
+      const n = Math.round(4 + k * 18 + (part === 'head' ? 6 : 0));
+      G.fx.burst(at, n, [0xb3201a, 0x7a1410, 0x5f8f3e], { dir, push: 1.5 + 3 * k * imp, size: 0.07 + 0.08 * k, speed: 3 + 3 * k });
+      z.vel.addScaledVector(dir, (0.8 + 5 * k) * imp * heavy / T.scale);
+      // which side was hit: dir crossed with the zombie's facing
+      const side = Math.sign(dir.x * Math.cos(z.yaw) - dir.z * Math.sin(z.yaw)) || 1;
+      if (z.fp) {
+        if (part === 'head') { z.hs.v -= (10 + 40 * k) * imp * heavy; z.fp.v -= (2 + 8 * k) * imp * heavy; }
+        else if (part === 'leg') {
+          z.fp.v += (6 + 14 * k) * heavy; z.fr.v += side * 4; z.slowT = Math.max(z.slowT, 0.5 + 1.5 * k);
+          z.legDmg += amount; if (!z.limp && z.legDmg > 0.45 * z.maxHp && T !== TYPES.runner) z.limp = true;
+        } else { z.fp.v -= (5 + 30 * k) * imp * heavy; z.fr.v += side * (3 + 12 * k) * imp * heavy; }
+        // a big enough hit knocks it over (not brutes, not flyers)
+        if (!T.fly && T !== TYPES.brute && z.hp > 0 && k * imp > 0.45 && z.down <= 0) { z.down = z.downMax = 0.9 + 0.6 * k; }
+        // a heavy body hit can tear an arm off
+        if (part === 'body' && amount >= 30 && z.armsLeft > 0 && G.rng.chance(0.2 + k * 0.4)) {
+          const arm = z.body.armL.visible && (side > 0 || !z.body.armR.visible) ? z.body.armL : z.body.armR;
+          if (arm.visible) {
+            arm.visible = false; z.armsLeft--;
+            const ap = arm.getWorldPosition(new THREE.Vector3());
+            G.fx.burst(ap, 10, [0x9db08a, 0x7c8f6c, 0xb3201a], { dir, push: 3, size: 0.12, speed: 4 });
+          }
+        }
+      }
       if (z.hp <= 0) { kill(z, part, dir); return true; }
       return false;
     }

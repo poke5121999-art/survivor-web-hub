@@ -4,13 +4,13 @@
   const THREE = window.THREE;
 
   const WEAPONS = {
-    pistol: { name: 'Súng lục', key: '1', price: 0, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol',
+    pistol: { name: 'Súng lục', key: '1', price: 0, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol', impulse: 1,
       kick: { back: 0.05, rise: 2.2, yaw: 0.6, cam: 0.012 }, adsFov: 62 },
-    shotgun: { name: 'Shotgun', key: '2', price: 350, dmg: 17, head: 1.5, rpm: 70, auto: false, mag: 6, reserve: 30, pellets: 9, spread: 0.065, moveSpread: 0.075, range: 32, perShell: 0.42, snd: 'shotgun',
+    shotgun: { name: 'Shotgun', key: '2', price: 350, dmg: 17, head: 1.5, rpm: 70, auto: false, mag: 6, reserve: 30, pellets: 9, spread: 0.065, moveSpread: 0.075, range: 32, perShell: 0.42, snd: 'shotgun', impulse: 0.45,
       kick: { back: 0.14, rise: 6, yaw: 1.4, cam: 0.045 }, adsFov: 64 },
-    smg: { name: 'SMG', key: '3', price: 0, dmg: 21, head: 1.8, rpm: 780, auto: true, mag: 40, reserve: Infinity, pellets: 1, spread: 0.016, moveSpread: 0.03, range: 60, reload: 1.6, snd: 'smg',
+    smg: { name: 'SMG', key: '3', price: 0, dmg: 21, head: 1.8, rpm: 780, auto: true, mag: 40, reserve: Infinity, pellets: 1, spread: 0.016, moveSpread: 0.03, range: 60, reload: 1.6, snd: 'smg', impulse: 0.55,
       kick: { back: 0.035, rise: 1.2, yaw: 0.8, cam: 0.006 }, adsFov: 60, tracer: 3 },
-    rifle: { name: 'Súng trường', key: '4', price: 900, dmg: 46, head: 2.5, rpm: 540, auto: true, mag: 30, reserve: 120, pellets: 1, spread: 0.005, moveSpread: 0.022, range: 120, reload: 2.0, snd: 'rifle',
+    rifle: { name: 'Súng trường', key: '4', price: 900, dmg: 46, head: 2.5, rpm: 540, auto: true, mag: 30, reserve: 120, pellets: 1, spread: 0.005, moveSpread: 0.022, range: 120, reload: 2.0, snd: 'rifle', impulse: 1.4, pierce: 2,
       kick: { back: 0.05, rise: 1.8, yaw: 0.9, cam: 0.01 }, adsFov: 45, tracer: 2 },
   };
   BZ.WEAPONS = WEAPONS;
@@ -211,15 +211,25 @@
         const r = Math.sqrt(G.rng.next()) * spread; const th = G.rng.next() * Math.PI * 2;
         const dir = d.clone().addScaledVector(right, Math.cos(th) * r).addScaledVector(up, Math.sin(th) * r).normalize();
         const wh = G.world.raycast(o, dir, w.range);
-        const zh = G.zombies.hitTest(o, dir, wh ? wh.t : w.range);
+        // a rifle round keeps going through the first body (pierce), losing 40% each time
+        const skip = new Set(); let zh = null; let power = 1;
+        for (let p = 0; p < (w.pierce || 1); p++) {
+          const h = G.zombies.hitTest(o, dir, wh ? wh.t : w.range, skip);
+          if (!h) break;
+          if (!zh) zh = h;
+          skip.add(h.z);
+          const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
+          const fall = w.pellets > 1 ? BZ.clamp(1.25 - h.t / w.range, 0.35, 1) : 1;
+          const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0 };
+          e.dmg += w.dmg * mult * fall * power; e.imp += (w.impulse || 1) * fall * power;
+          if (h.part === 'head' || (h.part === 'body' && e.part === 'leg')) e.part = h.part;
+          pend.set(h.z, e);
+          anyHit = true; head = head || h.part === 'head';
+          power *= 0.6;
+        }
         const end = o.clone().addScaledVector(dir, zh ? zh.t : wh ? wh.t : w.range);
         if (zh) {
-          const k = zh.z; const mult = zh.part === 'head' ? w.head : 1;
-          const fall = w.pellets > 1 ? BZ.clamp(1.25 - zh.t / w.range, 0.35, 1) : 1;
-          const e = pend.get(k) || { dmg: 0, part: 'body', dir };
-          e.dmg += w.dmg * mult * fall; if (zh.part === 'head') e.part = 'head';
-          pend.set(k, e);
-          anyHit = true; head = head || zh.part === 'head';
+          // hits accounted above
         } else if (wh) {
           G.fx.hole(end, wh.normal);
           const n = new THREE.Vector3(...wh.normal);
@@ -231,7 +241,7 @@
       }
       let kills = 0;
       for (const [z, e] of pend) {
-        const died = G.zombies.damage(z, e.dmg, e.part, e.dir);
+        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp);
         if (died) kills++;
         G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died });
       }

@@ -117,7 +117,7 @@
           if (hit) {
             const dir = new THREE.Vector3(z.pos.x - a.pos.x, 0, z.pos.z - a.pos.z).normalize();
             const dmg = ALLY.dmg * (head ? 2 : 1);
-            const died = G.zombies.damage(z, dmg, head ? 'head' : 'body', dir);
+            const died = G.zombies.damage(z, dmg, head ? 'head' : 'body', dir, 0.6);
             G.ui.pop(String(dmg), 'dmg ally', new THREE.Vector3(z.pos.x, z.pos.y + 1.9 * z.T.scale, z.pos.z));
             if (died) a.target = null;
           }

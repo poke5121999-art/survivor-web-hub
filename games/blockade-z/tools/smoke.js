@@ -112,10 +112,27 @@ const BOT = `(() => {
     check(gear.fired > 0, `the auto turret fires by itself (${gear.fired} shots)`);
     check(gear.h > 3 && gear.fuel < 100, `jetpack lifts the player (y=${gear.h}, fuel=${gear.fuel})`);
 
+    const react = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; const V = G.THREE.Vector3;
+      const mk = (x) => { const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(x, 0, -6); z.hp = z.maxHp = 1000; return z; };
+      const a = mk(-3); G.zombies.damage(a, 60, 'leg', new V(0, 0, -1), 1); const legSlow = a.slowT > 0;
+      G.zombies.damage(a, 400, 'leg', new V(0, 0, -1), 1); const limp = a.limp;
+      const b = mk(0); G.zombies.damage(b, 600, 'body', new V(0, 0, -1), 1); const down = b.down > 0;
+      const c = mk(3); G.zombies.damage(c, 20, 'body', new V(0, 0, -1), 0.55); const small = c.down <= 0 && Math.abs(c.fp.v) > 0;
+      G.zombies.clear(); const P = G.player; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0;
+      const z1 = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z1.pos.set(0, 0, 4); z1.speed = 0;
+      const z2 = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z2.pos.set(0, 0, 3); z2.speed = 0;
+      G.weapons.give('rifle'); __sim(0.7); P.pitch = Math.atan2(1.0 - 1.6, 4); __sim(0.02);
+      P.input.fire = true; __sim(0.03); P.input.fire = false;
+      return { legSlow, limp, down, small, pierce: z1.hp < z1.maxHp && z2.hp < z2.maxHp }; })()`);
+    console.log('react', JSON.stringify(react));
+    check(react.legSlow && react.limp, 'leg hits slow a zombie, enough leg damage makes it limp');
+    check(react.down && react.small, 'a heavy body hit knocks it down, a light SMG hit only flinches');
+    check(react.pierce, 'a rifle round passes through the first zombie into the one behind');
+
     // headshot pops the head
     await page.evaluate("(() => { const G = __G; G.wave.breakT = 0.01; })()");
     await page.evaluate('window.__sim(4)');
-    const hs = await page.evaluate(`(() => { const G = __G; const z = G.zombies.list.find((q) => q.alive); if (!z) return 'none';
+    const hs = await page.evaluate(`(() => { const G = __G; const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); if (!z) return 'no free zombie';
       G.zombies.damage(z, 9999, 'head', new G.THREE.Vector3(0, 0, 1)); return z.body.head.visible ? 'head still on' : 'popped'; })()`);
     check(hs === 'popped', 'a killing headshot removes the head (' + hs + ')');
 
