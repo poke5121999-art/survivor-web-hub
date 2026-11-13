@@ -386,6 +386,8 @@
         G.ui.pickTick();
       } else if (G.state === 'dead') {
         safe('zombies', () => G.zombies.update(dt));
+        // the fallen hero keeps animating (the knees give, the body tips over) while the death screen comes up
+        if (G.tps.on) safe('tps', () => G.tps.animate(dt));
         G.camera.position.y = BZ.damp(G.camera.position.y, 0.4, 3, dt); G.camera.rotation.z = BZ.damp(G.camera.rotation.z, 0.5, 3, dt);
       } else if (G.state === 'select') {
         safe('select', () => updateSelect(dt));

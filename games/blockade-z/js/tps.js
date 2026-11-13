@@ -10,6 +10,8 @@
     const T = { on: BZ.params.tp === '1', dist: 3.6, model: null, hero: null, gun: null };
     const V = () => new THREE.Vector3();
     const pivot = V(); const fwd = V(); const right = V(); const up = V(); const want = V(); const tmp = V();
+    // where a hit came from, relative to the way the hero faces (0 = from the front): the body flinches away from it, and falls that way when it dies
+    G.events.on('player:hurt', ({ from }) => { const P = G.player; let d = 0; if (from) d = BZ.wrapAngle(Math.atan2(-(from.x - P.pos.x), -(from.z - P.pos.z)) - P.yaw); sp.hurtN = (sp.hurtN || 0) + 1; sp.hurtDir = d; sp.deadDir = Math.abs(d) < Math.PI / 2 ? 1 : -1; });
     const sp = { kick: BZ.spring(180, 14), kickL: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 };
     let curDist = 3.6;
 
@@ -87,18 +89,30 @@
       const S = G.weapons.S; const W = BZ.WEAPONS[G.weapons.cur()] || {};
       M.root.position.set(P.pos.x, P.pos.y, P.pos.z);
       M.root.rotation.y = P.yaw + Math.PI;
-      if (!P.alive) { M.root.rotation.x = BZ.damp(M.root.rotation.x, -Math.PI / 2, 8, dt); return; }
-      M.root.rotation.x = BZ.damp(M.root.rotation.x, 0, 8, dt);
+      const st0 = sp.st || (sp.st = {});
+      // dead: the knees give, the body tips over the way the last hit pushed it, the weapon drops out of the hand
+      if (!P.alive) {
+        sp.deadT = (sp.deadT || 0) + dt; st0.dead = sp.deadT; st0.speed = 0; st0.air = 0; st0.swing = -1; st0.kick = 0; st0.draw = 1; BZ.animHero(M, st0, dt); BZ.heroFall(M, sp.deadT, sp.deadDir || 1);
+        if (M.gun && !sp.dropped) { sp.dropped = true; M.root.updateMatrixWorld(true); M.gun.traverse((o) => { if (o.isMesh && o.visible) G.fx.gib(o, new THREE.Vector3(G.rng.range(-1, 1), 2.5, G.rng.range(-1, 1)), { shared: true }); }); }
+        if (M.gun) M.gun.visible = false; // (the cast animator shows the weapon again every frame)
+        return;
+      }
+      if (sp.deadT) { sp.deadT = 0; sp.dropped = false; st0.dead = 0; if (M.gun) M.gun.visible = true; sp.drawT = 0; }
+      M.root.rotation.x = 0;
       const hs = Math.hypot(P.vel.x, P.vel.z); const back = -(Math.sin(P.yaw) * P.vel.x + Math.cos(P.yaw) * P.vel.z) < -0.3;
       if (S.shots !== sp.shots) { if (S.shots > sp.shots) { if (W.melee || W.thrown) sp.swing = W.throwT || W.swing || 0.5; else (W.dual && S.side ? sp.kickL : sp.kick).v += 9; } sp.shots = S.shots; }
       sp.swing = Math.max(0, sp.swing - dt); sp.air = BZ.damp(sp.air, P.onGround ? 0 : 1, 10, dt);
       const st = sp.st || (sp.st = {});
+      sp.drawT = Math.min(1, (sp.drawT === undefined ? 0 : sp.drawT) + dt / BZ.DRAW_TIME); if (sp.gunSeen !== T.gun) { sp.gunSeen = T.gun; sp.drawT = 0; }
+      // a shot or a swing cuts the draw short
+      if (sp.drawT < 1 && (sp.swing > 0 || G.player.input.fire)) sp.drawT = Math.min(1, sp.drawT + dt * 6);
+      st.draw = sp.drawT; st.vy = P.vel.y; st.wall = P.wallRun || 0; st.hurt = sp.hurtN || 0; st.hurtDir = sp.hurtDir || 0;
       st.speed = hs; st.back = back; st.air = sp.air; st.sprint = P.sprinting; st.pitch = P.pitch; st.mode = BZ.holdOf(W); st.pat = S.lastPat; st.wind = !!S.wind;
       st.swing = sp.swing > 0 ? 1 - sp.swing / (W.throwT || W.swing || 0.5) : -1; st.kick = sp.kick.step(dt); st.kickL = sp.kickL.step(dt);
       if (M.gun) { M.gun.visible = !(W.thrown && (S.hideT > 0 || (S.phase === 'reload' && S.t / W.reload < 0.55))); const bar = M.gun.getObjectByName('barrels'); if (bar) bar.rotation.z = S.spinAng; }
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
-      BZ.animHero(M, st, dt);
+      BZ.animHero(M, st, dt); BZ.heroGun(M, st, M.gun);
       if (M.shield) BZ.shieldPose(M.shield, S.guard || 0, M.root); // Thép raises the shield in front of his chest
       M.root.updateMatrixWorld(true);
     }

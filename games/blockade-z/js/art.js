@@ -550,6 +550,7 @@
       return b;
     }
     // mats: a key, or { top, bottom, side, px, nx, py, ny, pz, nz }. uv: 'world' (1 tile per metre * scale) or 'fit'.
+    // With 'fit', opt.rect = [u0, v0, u1, v1] puts only that part of the texture on the side faces (a body split into stacked boxes shares one picture).
     box(min, max, mats, opt = {}) {
       const uv = opt.uv || 'world';
       const s = opt.uvScale || 1;
@@ -567,10 +568,11 @@
         const o = F.o(min, max);
         const du = F.du(min, max); const dv = F.dv(min, max);
         const base = b.p.length / 3;
-        const u0 = uv === 'world' ? (o[0] * F.u[0] + o[1] * F.u[1] + o[2] * F.u[2]) * s : 0;
-        const v0 = uv === 'world' ? (o[0] * F.v[0] + o[1] * F.v[1] + o[2] * F.v[2]) * s : 0;
-        const uw = uv === 'world' ? du * s : 1;
-        const vh = uv === 'world' ? dv * s : 1;
+        const rc = uv !== 'world' && opt.rect && f !== 'py' && f !== 'ny' ? opt.rect : null;
+        const u0 = uv === 'world' ? (o[0] * F.u[0] + o[1] * F.u[1] + o[2] * F.u[2]) * s : rc ? rc[0] : 0;
+        const v0 = uv === 'world' ? (o[0] * F.v[0] + o[1] * F.v[1] + o[2] * F.v[2]) * s : rc ? rc[1] : 0;
+        const uw = uv === 'world' ? du * s : rc ? rc[2] - rc[0] : 1;
+        const vh = uv === 'world' ? dv * s : rc ? rc[3] - rc[1] : 1;
         const light = (opt.flat ? 1 : FACE_LIGHT[f]) * k;
         const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
         this._n.set(F.n[0], F.n[1], F.n[2]).applyMatrix3(this._nm).normalize();

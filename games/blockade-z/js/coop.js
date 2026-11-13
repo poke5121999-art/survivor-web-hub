@@ -140,15 +140,18 @@ BZ.makeCoop = (G) => {
       a.swingT = Math.max(0, a.swingT - dt); const vy = (a.pos.y - before.y) / Math.max(dt, 1e-3);
       const m = a.m;
       a.root.position.copy(a.pos); a.root.rotation.y = a.yaw + Math.PI;
-      if (!a.alive) { a.root.rotation.x = BZ.damp(a.root.rotation.x, -Math.PI / 2, 8, dt); continue; }
-      a.root.rotation.x = BZ.damp(a.root.rotation.x, 0, 8, dt);
       const W = BZ.WEAPONS[a.weapon] || {}; const st = a.st || (a.st = {});
+      // a downed player: the knees give, the body tips over, the hands let go
+      if (!a.alive) { a.deadT = (a.deadT || 0) + dt; st.dead = a.deadT; st.speed = 0; st.air = 0; st.swing = -1; st.kick = 0; st.draw = 1; BZ.animHero(m, st, dt); BZ.heroFall({ root: a.root }, a.deadT, 1); continue; }
+      if (a.deadT) { a.deadT = 0; st.dead = 0; a.drawT = 0; }
+      a.root.rotation.x = 0;
+      if (a.drawGun !== a.weapon) { a.drawGun = a.weapon; a.drawT = 0; } a.drawT = Math.min(1, (a.drawT || 0) + dt / BZ.DRAW_TIME); if (a.swingT > 0) a.drawT = 1; st.draw = a.drawT; st.vy = vy;
       st.speed = sp; st.air = BZ.damp(st.air || 0, Math.abs(vy) > 1.2 ? 1 : 0, 8, dt); st.pitch = a.pitch; st.mode = a.weapon ? BZ.holdOf(W) : 'none'; st.pat = a.pat;
       const dur = W.throwT || W.swing; st.swing = a.swingT > 0 && dur ? 1 - a.swingT / dur : -1; st.sprint = sp > 5.5;
       a.kR = Math.max(0, (a.kR || 0) - dt * 30); a.kL = Math.max(0, (a.kL || 0) - dt * 30); st.kick = a.kR; st.kickL = a.kL;
       a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt); if (!(a.spinT > 0)) a.heat = Math.max(0, (a.heat || 0) - dt * 0.3);
       if (a.eq && a.eq.gun) { a.eq.gun.visible = !(W.thrown && a.hideT > 0); const bar = a.eq.gun.getObjectByName('barrels'); if (bar) { a.spinAng = ((a.spinAng || 0) + (a.spinT > 0 ? 40 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spinAng; } }
-      BZ.animHero(m, st, dt);
+      BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
       if (G.weapons.bodyFx) G.weapons.bodyFx({ ...m, gun: a.eq && a.eq.gun }, a.weapon, dt, { heat: a.heat || 0 });
     }
   }

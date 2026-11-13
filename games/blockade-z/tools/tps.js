@@ -58,6 +58,29 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const btn = await page.evaluate(`(() => { const G = __G; const b = document.getElementById('viewbtn'); const r = b.getBoundingClientRect(); const vis = getComputedStyle(b).display !== 'none' && r.width > 0; b.click(); __sim(0.05); return { vis, on: G.tps.on, txt: b.textContent.trim(), body: G.tps.model.root.visible }; })()`);
     check(btn.vis && btn.on && btn.body && /NGÔI 3/.test(btn.txt), 'the on-screen view button is visible and switches back to third person (' + btn.txt + ')');
     await page.screenshot({ path: path.join(OUT, 'tps-hud.png') });
+    // the body's own movement: a weapon is drawn and ends in its hold, a sprint throws the chest forward, a jump tucks the legs,
+    // a hit makes it flinch, the hands have five jointed fingers that work the weapon, and a dead hero lies down and lets go
+    const mv = await page.evaluate(`(() => { const G = __G; const P = G.player; const M = () => G.tps.model; const key = (c, on) => dispatchEvent(new KeyboardEvent(on ? 'keydown' : 'keyup', { code: c }));
+      G.hero.set('mua'); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); G.state = 'playing'; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; __sim(0.05);
+      const r = {}; const m0 = M();
+      r.hand = { verts: m0.fingersR.mesh.geometry.attributes.position.count, joints: m0.fingersR.cur.c.length + m0.fingersR.cur.t.length, calls: 1 };
+      r.draw0 = { k: +m0.gun.scale.x.toFixed(2) }; __sim(0.2); r.drawMid = { k: +M().gun.scale.x.toFixed(2), arm: +M().armR.rotation.x.toFixed(2) };
+      __sim(0.8); r.drawEnd = { k: +M().gun.scale.x.toFixed(2), arm: +M().armR.rotation.x.toFixed(2) };
+      r.idx0 = +M().fingersR.cur.c[0].toFixed(2); P.input.fire = true; let idx = 0; for (let i = 0; i < 30; i++) { __sim(1 / 60); idx = Math.max(idx, M().fingersR.cur.c[0]); } P.input.fire = false; r.idxFire = +idx.toFixed(2); __sim(0.5);
+      key('KeyW', 1); __sim(1); r.walkLean = +M().spine.rotation.x.toFixed(2); key('ShiftLeft', 1); __sim(1.2); r.sprintLean = +M().spine.rotation.x.toFixed(2); r.sprinting = P.sprinting; key('ShiftLeft', 0); key('KeyW', 0); __sim(0.6);
+      r.standKnee = +M().kneeR.rotation.x.toFixed(2); key('Space', 1); __sim(0.25); key('Space', 0); r.airKnee = +Math.max(M().kneeL.rotation.x, M().kneeR.rotation.x).toFixed(2); r.inAir = !P.onGround; __sim(1.2);
+      const from = new G.THREE.Vector3(P.pos.x - Math.sin(P.yaw) * 3, 0, P.pos.z - Math.cos(P.yaw) * 3);
+      const lean0 = M().spine.rotation.x; G.events.emit('player:hurt', { dmg: 3, from }); let fl = 0; for (let i = 0; i < 12; i++) { __sim(1 / 60); fl = Math.min(fl, M().spine.rotation.x - lean0); } r.flinch = +fl.toFixed(2); __sim(0.8);
+      const god = G.god; G.god = false; P.hurt(99999, from); G.god = god; __sim(1.2); r.dead = { state: G.state, tip: +Math.abs(M().root.rotation.x).toFixed(2), gun: M().gun.visible, open: +M().fingersR.cur.c[1].toFixed(2) };
+      return r; })()`);
+    console.log('moves', JSON.stringify(mv));
+    check(mv.hand.verts === 15 * 24 && mv.hand.joints === 6, `each hand is one mesh: a palm and 14 finger joints (${mv.hand.verts} vertices)`);
+    check(mv.draw0.k < 0.2 && mv.drawEnd.k === 1 && Math.abs(mv.drawEnd.arm + 1.42) < 0.25, `the weapon is drawn: out of sight at first (${mv.draw0.k}), in the hand and aimed half a second later (arm ${mv.drawEnd.arm})`);
+    check(mv.idxFire - mv.idx0 > 0.15, `the index finger squeezes the trigger with the shot (curl ${mv.idx0} -> ${mv.idxFire})`);
+    check(mv.sprinting && mv.sprintLean - mv.walkLean > 0.2, `a sprint throws the chest forward (lean ${mv.walkLean} walking, ${mv.sprintLean} sprinting)`);
+    check(mv.inAir && mv.airKnee - mv.standKnee > 0.4, `a jump tucks the legs (knee ${mv.standKnee} standing, ${mv.airKnee} in the air)`);
+    check(mv.flinch < -0.1, `a hit from the front snaps the chest back (${mv.flinch})`);
+    check(mv.dead.state === 'dead' && mv.dead.tip > 1.2 && !mv.dead.gun && mv.dead.open < 0.2, `a dead hero lies down, drops the weapon and opens the hand (tipped ${mv.dead.tip} rad)`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 3).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

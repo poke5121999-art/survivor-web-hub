@@ -96,10 +96,14 @@
   const hx = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
   const shade = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
 
+  // an 8x8 design drawn first, then doubled to 16x16 so `detail` can add sub-pixel touches (eye glints, brows, cloth grain)
+  function up16(key, draw8, detail) {
+    BZ.defTex(key, 16, 16, ({ set, rng }) => { const g = []; draw8((x, y, c) => { if (x >= 0 && x < 8 && y >= 0 && y < 8) g[y * 8 + x] = c; }); for (let i = 0; i < 64; i++) if (!g[i]) g[i] = [0, 0, 0]; detail(g, set, rng); }, { noMip: true });
+  }
   // ---------- textures: face, shirt, sleeve and glove per hero ----------
   function textures(h) {
     const L = h.look; const id = h.id;
-    BZ.defTex('h_' + id + '_face', 8, 8, ({ set }) => {
+    up16('h_' + id + '_face', (set) => {
       for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, hx(L.skin));
       for (let x = 0; x < 8; x++) { set(x, 0, hx(L.hair)); set(x, 1, hx(L.hair)); }
       set(0, 2, hx(L.hair)); set(7, 2, hx(L.hair));
@@ -117,14 +121,29 @@
       if (id === 'soi') { for (let x = 1; x < 7; x++) set(x, 2, shade(hx(L.hair), 0.8)); for (let x = 1; x < 7; x++) set(x, 6, shade(hx(L.beard), x % 2 ? 1 : 0.8)); set(2, 7, hx(L.beard)); set(5, 7, hx(L.beard)); set(1, 4, hx(0xa86a5a)); set(2, 2, hx(0xa86a5a)); }
       // Nhện Đồng: a black helmet face, bronze mandibles, a cluster of small glowing eyes
       if (id === 'nhen') { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, hx(y === 2 ? 0xc8863a : 0x1c1c22)); for (const [x, y] of [[2, 3], [5, 3], [1, 4], [6, 4], [3, 4], [4, 4]]) set(x, y, hx(0xffb040)); for (const [x, y] of [[2, 6], [5, 6], [2, 7], [5, 7]]) set(x, y, hx(0xc8863a)); }
-    }, { noMip: true });
+    }, (g, set, rng) => {
+      const same = (a, b) => a && Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 3;
+      const skin = hx(L.skin); const eye = hx(L.eye); const lip = shade(skin, 0.6);
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        const c = g[y * 8 + x]; const X = x * 2; const Y = y * 2;
+        if (same(c, skin)) {
+          // skin: soft grain, a shadow under the hair line and along the jaw and the cheeks
+          const k = (y === 2 ? 0.9 : 1) * (y >= 7 ? 0.88 : 1) * (x === 0 || x === 7 ? 0.9 : 1);
+          for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) set(X + a, Y + b, shade(skin, k * (0.97 + rng.next() * 0.06)));
+          // a brow over each eye
+          const below = g[(y + 1) * 8 + x]; if (y === 2 && below && (same(below, eye) || same(below, [240, 240, 240]))) { set(X, Y + 1, shade(hx(L.hair), 0.8)); set(X + 1, Y + 1, shade(hx(L.hair), 0.8)); }
+        } else if (same(c, eye) && y === 3) { set(X, Y, [250, 250, 250]); set(X + 1, Y, shade(eye, 1.25)); set(X, Y + 1, shade(eye, 0.9)); set(X + 1, Y + 1, shade(eye, 0.6)); }
+        else if (same(c, lip) && y === 6) { set(X, Y, skin); set(X + 1, Y, skin); set(X, Y + 1, shade(skin, 0.5)); set(X + 1, Y + 1, shade(skin, 0.5)); }
+        else for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) set(X + a, Y + b, shade(c, 0.96 + rng.next() * 0.08));
+      }
+    });
     if (id === 'soi') for (const [k, c] of [['fur', 0x76644e], ['furL', 0xb4a48a], ['furD', 0x3e3428]]) BZ.defTex('h_soi_' + k, 8, 8, ({ set, rng }) => {
       for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, shade(hx(c), 0.82 + rng.next() * 0.3 + ((x + y * 3) % 5 === 0 ? -0.12 : 0) + (y % 3 === 0 ? 0.06 : 0)));
     }, { noMip: true });
     BZ.defTex('h_' + id + '_hair', 8, 8, ({ set, rng }) => {
       for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, shade(hx(L.hair), rng.chance(0.25) ? 1.25 : 1));
     }, { noMip: true });
-    BZ.defTex('h_' + id + '_shirt', 8, 8, ({ set }) => {
+    up16('h_' + id + '_shirt', (set) => {
       for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, shade(hx(L.shirt), y === 0 ? 1.15 : 1));
       if (id === 'yta') { for (let i = 2; i < 6; i++) { set(i, 3, hx(L.shirt2)); set(3, i - 1, hx(L.shirt2)); set(4, i - 1, hx(L.shirt2)); } }
       else if (id === 'mua') { for (let i = 0; i < 8; i++) { set(i, i, hx(0x6a4a20)); if (i % 2) set(i, i, hx(0xf2c23a)); } }
@@ -139,7 +158,14 @@
       else if (id === 'ky') { for (let y = 0; y < 8; y++) { set(1, y, hx(L.shirt2)); set(6, y, hx(L.shirt2)); } for (let x = 2; x < 6; x++) set(x, 3, hx(0xb06a10)); }
       else if (id === 'soi') { for (let i = 0; i < 8; i++) set(i, Math.min(7, Math.floor(i * 0.9)), hx(0x2a1a10)); for (let x = 0; x < 8; x++) set(x, 0, hx(L.shirt2)); set(3, 4, hx(0xe8e0c8)); set(5, 5, hx(0xe8e0c8)); }
       else if (id === 'nhen') { for (let y = 0; y < 8; y++) { set(3, y, hx(L.shirt2)); set(4, y, shade(hx(L.shirt2), 0.8)); } for (const [x, y] of [[1, 2], [2, 3], [6, 2], [5, 3], [1, 5], [2, 4], [6, 5], [5, 4]]) set(x, y, hx(L.shirt2)); for (let x = 0; x < 8; x++) set(x, 7, shade(hx(L.shirt), 1.4)); }
-    }, { noMip: true });
+    }, (g, set, rng) => {
+      // cloth: fine grain, darker toward the sides and the hem, a faint fold line down each flank
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const c = g[(y >> 1) * 8 + (x >> 1)];
+        const k = (x < 2 || x > 13 ? 0.86 : x === 4 || x === 11 ? 0.93 : 1) * (0.9 + 0.1 * (1 - y / 15)) * (0.96 + rng.next() * 0.08);
+        set(x, y, shade(c, k));
+      }
+    });
     BZ.defTex('h_' + id + '_sleeve', 16, 16, ({ set, rng }) => {
       for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, shade(hx(L.shirt), 1 + (rng.next() - 0.5) * 0.12 + ((x + y) % 7 === 0 ? -0.12 : 0)));
       if (id === 'yta') for (let x = 0; x < 16; x++) { set(x, 3, hx(L.shirt2)); }
@@ -152,13 +178,99 @@
     }, { noMip: true });
   }
 
+
+  // ---------- a hand with five jointed fingers, drawn as ONE mesh ----------
+  // Fourteen small boxes (a palm, three joints for each finger, two for the thumb) share a geometry; every frame the
+  // joints' frames are worked out from the curl of each finger and the vertices are rewritten, so the fingers bend
+  // smoothly and the whole hand still costs a single draw call. side: +1 right hand, -1 left hand.
+  // Local frame = the forearm's: fingers point down -y, the knuckles run along z (index at +z), the palm faces the body (-side on x).
+  const HAND = {
+    // [index, middle, ring, little] curl 0 (straight) .. 1 (closed), thumb [across the palm, curl], spread of the fingers
+    relax: { c: [0.3, 0.36, 0.42, 0.48], t: [0.25, 0.3], s: 0.25 }, open: { c: [0.04, 0.02, 0.04, 0.08], t: [0, 0.05], s: 1 },
+    fist: { c: [1, 1, 1, 1], t: [0.95, 0.75], s: 0 }, grip: { c: [0.86, 0.9, 0.92, 0.94], t: [0.8, 0.5], s: 0 },
+    trigger: { c: [0.5, 0.9, 0.92, 0.94], t: [0.75, 0.45], s: 0 }, squeeze: { c: [0.82, 0.9, 0.92, 0.94], t: [0.75, 0.45], s: 0 },
+    pinch: { c: [0.62, 0.66, 0.3, 0.22], t: [0.85, 0.35], s: 0.35 }, claw: { c: [0.5, 0.52, 0.52, 0.5], t: [0.2, 0.55], s: 1 },
+    point: { c: [0.03, 0.95, 0.97, 0.97], t: [0.85, 0.7], s: 0 }, hold: { c: [0.7, 0.74, 0.78, 0.82], t: [0.6, 0.4], s: 0.1 },
+  };
+  BZ.HAND_POSES = HAND;
+  const FACE6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  BZ.makeHand = (texKey, side, o = {}) => {
+    const k = o.scale || 1; const segs = []; // { th, len, wd, shade }
+    const palm = { th: 0.062 * k, len: 0.105 * k, wd: 0.19 * k, sh: 1 }; segs.push(palm);
+    const FZ = [0.071, 0.024, -0.024, -0.071]; const FL = [[0.05, 0.036, 0.03], [0.055, 0.04, 0.032], [0.05, 0.037, 0.03], [0.04, 0.03, 0.026]];
+    for (let f = 0; f < 4; f++) for (let j = 0; j < 3; j++) segs.push({ th: (0.05 - j * 0.006) * k, len: FL[f][j] * k, wd: (0.044 - j * 0.003) * k, sh: j === 0 ? 1.18 : j === 1 ? 1 : 0.84 });
+    segs.push({ th: 0.05 * k, len: 0.055 * k, wd: 0.05 * k, sh: 1.05 }, { th: 0.044 * k, len: 0.042 * k, wd: 0.044 * k, sh: 0.86 });
+    const n = segs.length; const pos = new Float32Array(n * 72); const nor = new Float32Array(n * 72); const uv = new Float32Array(n * 48); const col = new Float32Array(n * 72); const idx = [];
+    for (let i = 0; i < n; i++) for (let f = 0; f < 6; f++) {
+      const b = i * 24 + f * 4; idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      const l = segs[i].sh * (f === 2 ? 0.7 : f === 3 ? 0.78 : f < 2 ? 0.95 : 0.86);
+      for (let v = 0; v < 4; v++) { uv[(b + v) * 2] = v === 1 || v === 2 ? 1 : 0; uv[(b + v) * 2 + 1] = v > 1 ? 1 : 0; col[(b + v) * 3] = col[(b + v) * 3 + 1] = col[(b + v) * 3 + 2] = l; }
+    }
+    const geo = new THREE.BufferGeometry();
+    const pa = new THREE.BufferAttribute(pos, 3); pa.setUsage(THREE.DynamicDrawUsage); const na = new THREE.BufferAttribute(nor, 3); na.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('position', pa); geo.setAttribute('normal', na); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, -0.1 * k, 0), 0.3 * k); geo.boundingBox = new THREE.Box3(new THREE.Vector3(-0.15 * k, -0.28 * k, -0.15 * k), new THREE.Vector3(0.15 * k, 0.02 * k, 0.15 * k));
+    const mesh = new THREE.Mesh(geo, BZ.mat(texKey, { vc: true })); mesh.castShadow = true; mesh.name = 'hand';
+    const cur = { c: [0.3, 0.36, 0.42, 0.48], t: [0.25, 0.3], s: 0.25 };
+    // write one box: origin O (the joint), unit axes T (thickness), D (down the finger), W (width); it spans D from 0 to len
+    const put = (i, ox, oy, oz, T, D, W) => {
+      const S = segs[i]; const a = S.th / 2; const c = S.wd / 2; const L = S.len; const ax = [T, [-T[0], -T[1], -T[2]], [-D[0], -D[1], -D[2]], D, W, [-W[0], -W[1], -W[2]]];
+      // corners of each face as (t, d, w) factors
+      const Q = [[[a, 0, c], [a, 0, -c], [a, L, -c], [a, L, c]], [[-a, 0, -c], [-a, 0, c], [-a, L, c], [-a, L, -c]], [[-a, 0, -c], [a, 0, -c], [a, 0, c], [-a, 0, c]],
+        [[-a, L, c], [a, L, c], [a, L, -c], [-a, L, -c]], [[-a, 0, c], [a, 0, c], [a, L, c], [-a, L, c]], [[a, 0, -c], [-a, 0, -c], [-a, L, -c], [a, L, -c]]];
+      for (let f = 0; f < 6; f++) for (let v = 0; v < 4; v++) {
+        const q = Q[f][v]; const b = (i * 24 + f * 4 + v) * 3;
+        pos[b] = ox + T[0] * q[0] + D[0] * q[1] + W[0] * q[2]; pos[b + 1] = oy + T[1] * q[0] + D[1] * q[1] + W[1] * q[2]; pos[b + 2] = oz + T[2] * q[0] + D[2] * q[1] + W[2] * q[2];
+        nor[b] = ax[f][0]; nor[b + 1] = ax[f][1]; nor[b + 2] = ax[f][2];
+      }
+    };
+    const px = side * 0.045 * k; // the back of the hand sits outward, so what it holds lies on the arm's axis
+    function write() {
+      put(0, px, 0, 0, [1, 0, 0], [0, -1, 0], [0, 0, 1]);
+      for (let f = 0; f < 4; f++) {
+        const c = cur.c[f]; let A = 0; let ox = px; let oy = -palm.len; const oz = (FZ[f] + (f - 1.5) * 0.007 * cur.s) * k;
+        const fan = (f - 1.5) * 0.09 * cur.s * (1 - c); // spread fingers lean apart along z
+        for (let j = 0; j < 3; j++) {
+          A += c * (j === 0 ? 1.35 : j === 1 ? 1.6 : 1.15);
+          const sn = Math.sin(A); const cs = Math.cos(A);
+          const D = [-side * sn, -cs, fan * cs]; const T = [cs, -side * sn, 0];
+          const S = segs[1 + f * 3 + j]; put(1 + f * 3 + j, ox, oy, oz + fan * (j ? 0.04 : 0), T, D, [0, 0, 1]);
+          ox += D[0] * S.len; oy += D[1] * S.len;
+        }
+      }
+      // thumb: from the index side of the palm, swinging across the palm (opposition), then curling toward the fingers
+      const op = cur.t[0] * 1.25; const cu = cur.t[1] * 1.3; const i0 = n - 2;
+      const D0 = [-side * Math.sin(op) * 0.75, -0.62, 0.78 * Math.cos(op) + 0.1]; const l0 = Math.hypot(D0[0], D0[1], D0[2]); D0[0] /= l0; D0[1] /= l0; D0[2] /= l0;
+      const W0 = [-side * Math.cos(op), 0, -Math.sin(op) * 0.75 * (D0[2] > 0 ? 1 : 1)]; const d0 = W0[0] * D0[0] + W0[1] * D0[1] + W0[2] * D0[2];
+      W0[0] -= D0[0] * d0; W0[1] -= D0[1] * d0; W0[2] -= D0[2] * d0; const lw = Math.hypot(W0[0], W0[1], W0[2]) || 1; W0[0] /= lw; W0[1] /= lw; W0[2] /= lw;
+      const T0 = [D0[1] * W0[2] - D0[2] * W0[1], D0[2] * W0[0] - D0[0] * W0[2], D0[0] * W0[1] - D0[1] * W0[0]];
+      const ox = px - side * 0.012 * k; const oy = -0.03 * k; const oz = 0.085 * k;
+      put(i0, ox, oy, oz, T0, D0, W0);
+      const cc = Math.cos(cu); const sc = Math.sin(cu);
+      const D1 = [D0[0] * cc + W0[0] * sc, D0[1] * cc + W0[1] * sc, D0[2] * cc + W0[2] * sc]; const W1 = [W0[0] * cc - D0[0] * sc, W0[1] * cc - D0[1] * sc, W0[2] * cc - D0[2] * sc];
+      put(i0 + 1, ox + D0[0] * segs[i0].len, oy + D0[1] * segs[i0].len, oz + D0[2] * segs[i0].len, T0, D1, W1);
+      pa.needsUpdate = true; na.needsUpdate = true;
+    }
+    write();
+    // ease toward a named pose (or a pose object); `squeeze` 0..1 pulls the index finger shut on top of it (the trigger)
+    function set(pose, dt, squeeze = 0) {
+      const P = typeof pose === 'string' ? HAND[pose] || HAND.relax : pose; const r = dt > 0 ? Math.min(1, dt * 18) : 1; let moved = 0;
+      for (let f = 0; f < 4; f++) { const want = f === 0 ? P.c[0] + (0.92 - P.c[0]) * squeeze : P.c[f]; const d = (want - cur.c[f]) * r; cur.c[f] += d; moved += Math.abs(d); }
+      for (let j = 0; j < 2; j++) { const d = (P.t[j] - cur.t[j]) * r; cur.t[j] += d; moved += Math.abs(d); }
+      const ds = (P.s - cur.s) * r; cur.s += ds; moved += Math.abs(ds);
+      if (moved > 1e-4) write();
+    }
+    return { mesh, set, cur, side };
+  };
+
   // ---------- voxel body: hips / legs / torso / arms / head as separate pivots so it can pose ----------
   function heroModel(h) {
     textures(h);
     const L = h.look; const C = (c) => BZ.cellTex(c); const id = h.id;
     const part = (name, boxes) => {
       const B = new BZ.Builder('hero:' + id + ':' + name);
-      for (const [a, b, m] of boxes) B.box(a, b, m, { uv: 'fit', vary: 0 });
+      // a box may carry a 4th entry: a brightness (same material, darker or lighter through vertex colour, so no extra draw call) or { k, rect }
+      for (const [a, b, m, o] of boxes) { const k = typeof o === 'number' ? o : o && o.k ? o.k : 1; B.box(a, b, m, { uv: 'fit', vary: 0, tint: [k, k, k], rect: o && o.rect }); }
       const matOpts = {}; matOpts[C(0x60e8ff)] = { emissive: 0x40c8ff }; matOpts[C(0xc080ff)] = { emissive: 0x9040ff }; matOpts[C(0xffa020)] = { emissive: 0xff8010 };
       matOpts[C(0x9ad8ff)] = { emissive: 0x4080ff }; matOpts[C(0x9aff40)] = { emissive: 0x40a010 }; matOpts[C(0xff8a20)] = { emissive: 0xff5a10 };
       matOpts[C(0xffb040)] = { emissive: 0xff9010 };
@@ -169,18 +281,29 @@
     const hips = new THREE.Group(); hips.position.y = 0.75; root.add(hips);
     // the spine bends and twists the whole upper body over the hips (lean, swing, recoil)
     const spine = new THREE.Group(); hips.add(spine);
-    const bulk = id === 'thep' ? 0.04 : 0;
+    const bulk = id === 'thep' ? 0.04 : 0; const armored = id === 'thep' || id === 'nhen' || id === 'sam' || id === 'ky';
+    // legs taper to the ankle and darken toward the ground; a knee pad, a boot with a cuff, a sole and a toe cap
+    const PN = C(L.pants); const BT = C(L.boot); const padC = armored ? C(L.shirt2) : PN;
     const leg = (x) => {
-      const g = new THREE.Group(); g.position.x = x; hips.add(g);
-      g.add(part('thigh', [[[-0.13 - bulk, -0.4, -0.13 - bulk], [0.13 + bulk, 0.02, 0.13 + bulk], C(L.pants)]]));
+      const g = new THREE.Group(); g.position.x = x; hips.add(g); const s = x < 0 ? -1 : 1;
+      g.add(part('thigh', [[[-0.135 - bulk, -0.2, -0.135 - bulk], [0.135 + bulk, 0.02, 0.135 + bulk], PN, 0.98], [[-0.125 - bulk, -0.4, -0.125 - bulk], [0.125 + bulk, -0.2, 0.125 + bulk], PN, 0.9],
+        [[s > 0 ? 0.1 + bulk : -0.15 - bulk, -0.24, -0.06], [s > 0 ? 0.15 + bulk : -0.1 - bulk, -0.06, 0.07], PN, 0.72]]));
       const knee = new THREE.Group(); knee.position.y = -0.38; g.add(knee);
-      knee.add(part('shin', [[[-0.125 - bulk, -0.32, -0.125 - bulk], [0.125 + bulk, 0.02, 0.125 + bulk], C(L.pants)]]));
+      knee.add(part('shin', [[[-0.12 - bulk, -0.16, -0.12 - bulk], [0.12 + bulk, 0.02, 0.12 + bulk], PN, 0.86], [[-0.11 - bulk, -0.32, -0.11 - bulk], [0.11 + bulk, -0.16, 0.11 + bulk], PN, 0.78],
+        [[-0.1 - bulk, -0.07, 0.1 + bulk], [0.1 + bulk, 0.07, 0.155 + bulk], padC, armored ? 0.95 : 0.66]]));
       const foot = new THREE.Group(); foot.position.y = -0.3; knee.add(foot);
-      foot.add(part('boot', [[[-0.14 - bulk, -0.07, -0.15 - bulk], [0.14 + bulk, 0.09, 0.15 + bulk], C(L.boot)], [[-0.13 - bulk, -0.07, 0.15 + bulk], [0.13 + bulk, 0.02, 0.24], C(L.boot)]]));
+      foot.add(part('boot', [[[-0.135 - bulk, -0.035, -0.145 - bulk], [0.135 + bulk, 0.1, 0.145 + bulk], BT, 1], [[-0.13 - bulk, -0.035, 0.145 + bulk], [0.13 + bulk, 0.035, 0.25], BT, 0.9],
+        [[-0.145 - bulk, -0.07, -0.155 - bulk], [0.145 + bulk, -0.035, 0.265], BT, 0.55], [[-0.14 - bulk, 0.08, -0.15 - bulk], [0.14 + bulk, 0.13, 0.15 + bulk], BT, 1.3], [[-0.1, -0.035, 0.25], [0.1, 0.02, 0.27], BT, 1.25]]));
       g.userData = { knee, foot }; return g;
     };
     const legL = leg(-0.13); const legR = leg(0.13);
-    const torsoBoxes = [[[-0.26 - bulk, 0, -0.15 - bulk], [0.26 + bulk, 0.7, 0.15 + bulk], { pz: shirt, side: C(L.shirt), top: C(L.shirt), bottom: C(L.pants) }], [[-0.27 - bulk, -0.02, -0.16 - bulk], [0.27 + bulk, 0.08, 0.16 + bulk], C(0x2a2018)]];
+    // the trunk is three stacked boxes sharing one shirt picture: hips, a narrower waist, a broad chest; then a neck and sloping shoulders
+    const SH = { pz: shirt, side: C(L.shirt), top: C(L.shirt), bottom: C(L.pants) };
+    const torsoBoxes = [[[-0.245 - bulk, 0, -0.145 - bulk], [0.245 + bulk, 0.16, 0.145 + bulk], SH, { k: 0.88, rect: [0.03, 0, 0.97, 0.23] }],
+      [[-0.225 - bulk, 0.16, -0.135 - bulk], [0.225 + bulk, 0.4, 0.135 + bulk], SH, { k: 0.94, rect: [0.07, 0.23, 0.93, 0.57] }],
+      [[-0.27 - bulk, 0.4, -0.155 - bulk], [0.27 + bulk, 0.7, 0.16 + bulk], SH, { k: 1.04, rect: [0, 0.57, 1, 1] }],
+      [[-0.2 - bulk, 0.7, -0.12], [0.2 + bulk, 0.735, 0.12], C(L.shirt), 1.1], [[-0.09, 0.68, -0.09], [0.09, 0.76, 0.09], C(L.skin), 0.8],
+      [[-0.255 - bulk, -0.02, -0.155 - bulk], [0.255 + bulk, 0.07, 0.155 + bulk], C(0x2a2018)], [[-0.05, -0.01, 0.155 + bulk], [0.05, 0.06, 0.17 + bulk], C(0x2a2018), 2.4]];
     const extra = [];
     if (id === 'yta') extra.push([[0.2, 0.0, -0.1], [0.36, 0.2, 0.12], C(0xe02a2a)], [[0.22, 0.07, 0.12], [0.34, 0.13, 0.13], C(0xffffff)]);
     if (id === 'mua') extra.push([[-0.27, 0.06, -0.17], [0.27, 0.12, 0.17], C(0x6a4a20)], [[-0.24, 0.07, 0.17], [-0.16, 0.11, 0.18], C(0xf2c23a)], [[-0.08, 0.07, 0.17], [0.0, 0.11, 0.18], C(0xf2c23a)], [[0.08, 0.07, 0.17], [0.16, 0.11, 0.18], C(0xf2c23a)]);
@@ -208,14 +331,21 @@
     const arm = (x) => {
       const g = new THREE.Group(); g.position.set(x, 0.64, 0); spine.add(g);
       const bare = id === 'mua' || id === 'ky';
-      g.add(part('upper', [[[-0.1 - bulk, -0.34, -0.1 - bulk], [0.1 + bulk, 0.06, 0.1 + bulk], C(L.shirt)]]));
+      const SC = C(L.shirt); const s = x < 0 ? -1 : 1;
+      // a rounded shoulder, the upper arm, an elbow patch; the forearm narrows to a cuff, then a fist with knuckles and a thumb
+      g.add(part('upper', [[[-0.115 - bulk, -0.08, -0.115 - bulk], [0.115 + bulk, 0.075, 0.115 + bulk], SC, 1.08], [[-0.1 - bulk, -0.34, -0.1 - bulk], [0.1 + bulk, -0.08, 0.1 + bulk], SC, 0.95],
+        [[-0.105 - bulk, -0.36, -0.115 - bulk], [0.105 + bulk, -0.27, -0.04], SC, 0.72]]));
       const elbow = new THREE.Group(); elbow.position.y = -0.32; g.add(elbow);
-      const fore = [[[-0.095 - bulk, -0.22, -0.095 - bulk], [0.095 + bulk, 0.02, 0.095 + bulk], C(bare ? L.skin : L.shirt)], [[-0.105 - bulk, -0.38, -0.105 - bulk], [0.105 + bulk, -0.18, 0.105 + bulk], 'h_' + id + '_glove']];
+      const GL = 'h_' + id + '_glove'; const FC = C(bare ? L.skin : L.shirt);
+      const fore = [[[-0.095 - bulk, -0.1, -0.095 - bulk], [0.095 + bulk, 0.02, 0.095 + bulk], FC, 0.95], [[-0.088 - bulk, -0.2, -0.088 - bulk], [0.088 + bulk, -0.1, 0.088 + bulk], FC, 0.86],
+        [[-0.1 - bulk, -0.25, -0.1 - bulk], [0.1 + bulk, -0.19, 0.1 + bulk], GL, 0.7]];
       if (id === 'nhen') fore.push([[-0.11, -0.04, -0.11], [0.11, 0.04, 0.11], C(0xc8863a)], [[-0.1, -0.2, -0.1], [0.1, -0.16, 0.1], C(0xc8863a)]);
       if (id === 'soi') fore.push([[-0.105, -0.2, -0.105], [0.105, -0.12, 0.105], C(0x9a948a)]);
       elbow.add(part('fore', fore));
       const hand = new THREE.Group(); hand.position.set(0, -0.3, 0.05); elbow.add(hand);
-      g.userData = { elbow, hand }; return g;
+      // five jointed fingers from the wrist down (one mesh); the beast's paws are a little bigger
+      const fingers = BZ.makeHand(GL, s, { scale: 1.12 + bulk * 2 }); fingers.mesh.position.set(0, -0.235, 0); elbow.add(fingers.mesh);
+      g.userData = { elbow, hand, fingers }; return g;
     };
     const armL = arm(-0.36); const armR = arm(0.36);
     const head = new THREE.Group(); head.position.y = 0.7; spine.add(head);
@@ -237,9 +367,12 @@
       [[-0.29, 0.4, 0.24], [0.29, 0.45, 0.29], C(0xc8863a)], [[-0.22, 0.0, 0.24], [-0.08, 0.16, 0.3], C(0xc8863a)], [[0.08, 0.0, 0.24], [0.22, 0.16, 0.3], C(0xc8863a)], [[-0.27, 0.16, 0.24], [0.27, 0.4, 0.27], C(0x14141a)],
       [[-0.16, 0.27, 0.27], [-0.08, 0.33, 0.3], C(0xffb040)], [[0.08, 0.27, 0.27], [0.16, 0.33, 0.3], C(0xffb040)], [[-0.22, 0.22, 0.27], [-0.18, 0.26, 0.29], C(0xffb040)], [[0.18, 0.22, 0.27], [0.22, 0.26, 0.29], C(0xffb040)],
       [[-0.045, 0.34, 0.27], [-0.015, 0.37, 0.29], C(0xffb040)], [[0.015, 0.34, 0.27], [0.045, 0.37, 0.29], C(0xffb040)], [[-0.11, 0.36, 0.27], [-0.08, 0.385, 0.29], C(0xffb040)], [[0.08, 0.36, 0.27], [0.11, 0.385, 0.29], C(0xffb040)]);
+    // a nose and ears where the face is bare (no mask, hood or full helmet)
+    if (!L.mask && !['bong', 'hoa', 'doc', 'nhen'].includes(id)) hb.push([[-0.035, 0.17, 0.25], [0.035, 0.26, 0.285], C(L.skin), 0.9]);
+    if (!['bong', 'doc', 'nhen', 'bang', 'thep', 'soi'].includes(id)) hb.push([[-0.285, 0.17, -0.05], [-0.25, 0.3, 0.06], C(L.skin), 0.82], [[0.25, 0.17, -0.05], [0.285, 0.3, 0.06], C(L.skin), 0.82]);
     head.add(part('head', hb));
     const out = { root, hips, spine, legL, legR, kneeL: legL.userData.knee, kneeR: legR.userData.knee, footL: legL.userData.foot, footR: legR.userData.foot,
-      armL, armR, elbowL: armL.userData.elbow, elbowR: armR.userData.elbow, handL: armL.userData.hand, handR: armR.userData.hand, head, torso };
+      armL, armR, elbowL: armL.userData.elbow, elbowR: armR.userData.elbow, handL: armL.userData.hand, handR: armR.userData.hand, fingersL: armL.userData.fingers, fingersR: armR.userData.fingers, head, torso };
     // Sói's beast form: fur over every limb, a snout, ears, a tail and big paws, hidden until he changes (BZ.heroExtras grows it in)
     if (id === 'soi') {
       const F = 'h_soi_fur'; const FL = 'h_soi_furL'; const FD = 'h_soi_furD'; const W = [];
@@ -292,21 +425,36 @@
     const J = s.j || (s.j = {});
     s.t = (s.t || 0) + dt; s.phase = (s.phase || 0) + dt * Math.min(9, s.speed) * 2.2 * (s.back ? -1 : 1);
     const air = s.air || 0; const run = Math.min(1, s.speed / 3.6) * (1 - air); const ph = s.phase; const pitch = s.pitch || 0;
-    const sprint = s.sprint ? 1 : 0;
+    const sprint = ease(J, 'spr', s.sprint ? 1 : 0, 9, dt);
+    // extra states: how still the body is, the jump's rise and fall, a landing dip, a wall run, a hit, the draw of a weapon
+    const idle = ease(J, 'idle', run < 0.08 && air < 0.1 && !(s.swing >= 0) ? 1 : 0, 4, dt);
+    const vy = s.vy === undefined ? 0 : BZ.clamp(s.vy / 7, -1, 1); const rise = Math.max(0, vy) * air; const fall = Math.max(0, -vy) * air;
+    if ((J.airWas || 0) > 0.55 && air <= 0.55) J.land = 1; J.airWas = air; J.land = Math.max(0, (J.land || 0) - dt * 3.4); const land = J.land * J.land;
+    const wall = ease(J, 'wall', s.wall || 0, 10, dt); const wk = Math.abs(wall);
+    if (s.hurt > 0 && s.hurt !== J.hurtSeen) { J.hit = 1; J.hitDir = s.hurtDir || 0; } J.hurtSeen = s.hurt; J.hit = Math.max(0, (J.hit || 0) - dt * 3.2); const hit = J.hit * J.hit; const hd = J.hitDir || 0;
+    const draw = s.draw === undefined ? 1 : Math.min(1, s.draw); const dead = s.dead || 0;
     // legs: the thigh swings, the knee folds as the leg comes through, the foot rolls off the ground
     [[m.legL, m.kneeL, m.footL, 1], [m.legR, m.kneeR, m.footR, -1]].forEach(([leg, knee, foot, sg]) => {
       const a = Math.sin(ph) * sg; const through = Math.max(0, Math.cos(ph) * sg);
-      const thigh = -a * (0.62 + sprint * 0.25) * run + air * (sg > 0 ? -1.0 : -0.35) - (s.crouch || 0) * 0.9;
-      const kn = (0.08 + through * (1.05 + sprint * 0.35)) * run + air * (sg > 0 ? 1.5 : 0.7) + (s.crouch || 0) * 1.6;
+      // in the air: both knees tuck on the way up, the legs reach for the ground on the way down; a landing folds them
+      const tuck = air * (0.55 + rise * 0.6 - fall * 0.5) * (1 - wk);
+      const thigh = -a * (0.62 + sprint * 0.3) * run + tuck * (sg > 0 ? -1.15 : -0.5) - (s.crouch || 0) * 0.9 - land * 0.55 + idle * sg * 0.035 - a * 0.7 * wk;
+      const kn = (0.08 + through * (1.05 + sprint * 0.45)) * run + tuck * (sg > 0 ? 1.6 : 0.95) + (s.crouch || 0) * 1.6 + land * 1.05 + fall * 0.15 + through * 1.2 * wk;
       leg.rotation.x = ease(J, 'th' + sg, thigh, 14, dt); knee.rotation.x = ease(J, 'kn' + sg, kn, 14, dt);
       foot.rotation.x = ease(J, 'ft' + sg, -kn * 0.35 + Math.max(0, a) * 0.3 * run - air * 0.3, 14, dt);
     });
-    m.hips.position.y = 0.75 + Math.abs(Math.cos(ph)) * 0.055 * run - air * 0.06 - (s.crouch || 0) * 0.25 + Math.sin(s.t * 2.1) * 0.006;
-    m.hips.rotation.y = ease(J, 'hy', Math.sin(ph) * 0.14 * run, 12, dt);
-    m.hips.rotation.z = Math.cos(ph) * 0.04 * run;
+    // standing still the weight drifts from one leg to the other; a sprint rides lower; a landing sinks and springs back
+    const sway = Math.sin(s.t * 0.8) * idle;
+    m.hips.position.y = 0.75 + Math.abs(Math.cos(ph)) * (0.055 + sprint * 0.02) * run - air * 0.06 - (s.crouch || 0) * 0.25 + Math.sin(s.t * 2.1) * 0.006 - sprint * run * 0.04 - land * 0.2 - Math.abs(sway) * 0.008;
+    m.hips.position.x = sway * 0.022;
+    m.hips.rotation.y = ease(J, 'hy', Math.sin(ph) * (0.14 + sprint * 0.08) * run, 12, dt);
+    m.hips.rotation.z = Math.cos(ph) * 0.04 * run + sway * 0.035 - wall * 0.34;
+    m.hips.rotation.x = ease(J, 'hpx', -rise * 0.12 + fall * 0.1, 10, dt);
     // upper body: lean into a run, breathe, counter-twist against the hips, twist hard through a swing
     const sw = s.swing >= 0 ? s.swing : -1;
-    let twist = -Math.sin(ph) * 0.18 * run; let lean = 0.05 * run + sprint * 0.18 * run + Math.sin(s.t * 2.1) * 0.02;
+    // a sprint throws the chest well forward; speeding up leans in, braking leans back
+    const acc = BZ.clamp(((s.speed || 0) - (J.spd === undefined ? s.speed || 0 : J.spd)) / Math.max(dt, 1e-3), -30, 30); J.spd = s.speed || 0; const accL = ease(J, 'acc', acc * 0.012, 6, dt);
+    let twist = -Math.sin(ph) * (0.18 + sprint * 0.12) * run; let lean = 0.05 * run + sprint * 0.36 * run + Math.sin(s.t * 2.1) * 0.02 + accL + land * 0.3 + rise * 0.1 - fall * 0.14;
     const mode = s.mode; const bump = sw >= 0 ? Math.sin(Math.PI * Math.min(1, sw)) : 0; // 0 -> 1 -> 0 over a swing
     if (sw >= 0) {
       if (mode === 'spear') { twist += 0.3 * bump; lean += 0.22 * bump; }
@@ -316,7 +464,10 @@
       else { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
     }
     lean += -(s.cast || 0) * 0.15 - (s.kick || 0) * 0.02;
-    m.spine.rotation.y = ease(J, 'twist', twist, sw >= 0 ? 30 : 12, dt); m.spine.rotation.x = ease(J, 'lean', lean, 10, dt);
+    // a hit snaps the chest away from where it came from (hd: 0 = from the front), and it settles back
+    lean += -Math.cos(hd) * 0.42 * hit;
+    m.spine.rotation.y = ease(J, 'twist', twist, sw >= 0 ? 30 : 12, dt) + Math.sin(hd) * 0.3 * hit; m.spine.rotation.x = ease(J, 'lean', lean, 10, dt);
+    m.spine.rotation.z = -sway * 0.03 + Math.sin(hd) * 0.28 * hit + wall * 0.12;
     // arms: [shoulder x, shoulder z, elbow x] for each side
     let RA; let LA; let ik = null; // ik: the left hand rides the weapon shaft (towards the head: dir, along it by off)
     const mix = (x, y, k) => [x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k];
@@ -379,7 +530,34 @@
     } else {
       RA = [Math.sin(ph) * 0.7 * run - air * 1.2, 0.05 + air * 0.3, -0.2 - run * 0.5]; LA = [-Math.sin(ph) * 0.7 * run - air * 1.2, -0.05 - air * 0.3, -0.2 - run * 0.5];
     }
-    if (s.cast > 0) { const c = Math.min(1, s.cast); LA = [BZ.lerp(LA[0], -2.75, c), BZ.lerp(LA[1], -0.45, c), BZ.lerp(LA[2], -0.15, c)]; ik = null; }
+    // in the air the free arm lifts for balance; on a wall the hand on that side reaches out and trails along it
+    if (air > 0.05 && mode !== 'none') LA = [LA[0] - air * 0.35 * (1 - wk), LA[1] - air * 0.5 * (1 - wk), LA[2]];
+    if (wk > 0.02) { const reach = [-0.5, 1.35, -0.25]; if (wall > 0) { RA = mix(RA, [reach[0], -reach[1], reach[2]], wk); } else { LA = mix(LA, [reach[0], reach[1], reach[2]], wk); ik = null; } }
+    // drawing a weapon: the hand goes to where that weapon is carried (over the shoulder, at the hip, behind the back), then brings it round
+    let handR = HOLD_HAND[mode] || 'grip'; let handL = mode === 'none' ? 'relax' : (mode === 'gun' || mode === 'spear' || mode === 'glaive' || mode === 'sword2' || mode === 'dual' ? 'hold' : mode === 'fists' ? 'fist' : mode === 'claws' ? 'claw' : 'relax');
+    if (mode === 'dual') handL = 'trigger';
+    if (draw < 1) {
+      const D = DRAW[mode] || DRAW.gun; const e = draw * draw * (3 - 2 * draw); const k = draw < D.at ? 0 : (draw - D.at) / (1 - D.at); const kk = k * k * (3 - 2 * k);
+      const up = Math.sin(Math.PI * Math.min(1, draw / Math.max(0.01, D.at * 1.6)));
+      RA = draw < D.at ? mix(RA, D.r, Math.min(1, draw / (D.at * 0.7))) : mix(D.r, RA, kk);
+      if (D.l) { LA = draw < D.at ? mix(LA, D.l, Math.min(1, draw / (D.at * 0.7))) : mix(D.l, LA, kk); ik = null; }
+      twist += (D.tw || 0) * (1 - e) * up; lean += (D.ln || 0) * up;
+      if (draw < D.at) handR = 'open';
+    }
+    J.gunK = draw < 1 ? BZ.clamp((draw - (DRAW[mode] || DRAW.gun).at * 0.7) * 6, 0, 1) : 1; J.gunSpin = draw < 1 ? (1 - draw) * ((DRAW[mode] || DRAW.gun).spin || 0) : 0;
+    if (s.cast > 0) { const c = Math.min(1, s.cast); LA = [BZ.lerp(LA[0], -2.75, c), BZ.lerp(LA[1], -0.45, c), BZ.lerp(LA[2], -0.15, c)]; ik = null; handL = 'open'; }
+    // dying: the knees go, the arms fly out and the hands let go (the caller tips the whole body over with BZ.heroFall)
+    if (dead > 0) { const d = Math.min(1, dead * 2.2); RA = mix(RA, [-0.5, 1.25, -0.5], d); LA = mix(LA, [-0.7, -1.25, -0.35], d); ik = null; handR = handL = 'open'; }
+    // fingers: each hold has its own grip; the index finger squeezes the trigger with the shot, a throw opens the hand, a reload works the left one
+    if (m.fingersR) {
+      if (mode === 'throw') handR = sw >= 0.35 || (s.wind && sw < 0) ? (sw >= 0.35 ? 'open' : 'pinch') : 'pinch';
+      if ((mode === 'melee' || mode === 'sword2' || mode === 'glaive' || mode === 'spear') && sw >= 0) handR = 'fist';
+      if (mode === 'none') handR = idle > 0.5 ? 'relax' : run > 0.5 ? 'fist' : 'relax';
+      if (mode === 'none' && run > 0.5) handL = 'fist';
+      if ((s.reload || 0) > 0.05) handL = (s.reload || 0) > 0.6 ? 'pinch' : 'hold';
+      m.fingersR.set(handR, dt, mode === 'gun' || mode === 'dual' || mode === 'wrist' ? Math.min(1, (s.kick || 0) * 1.2) : 0);
+      m.fingersL.set(handL, dt, mode === 'dual' ? Math.min(1, (s.kickL || 0) * 1.2) : 0);
+    }
     const fast = sw >= 0 ? 32 : 16;
     m.armR.rotation.x = ease(J, 'rax', RA[0], fast, dt); m.armR.rotation.z = ease(J, 'raz', RA[1], fast, dt); m.elbowR.rotation.x = ease(J, 'rex', RA[2], fast, dt);
     if (s.pat === 'spin360' && sw >= 0 && mode === 'glaive') m.hips.rotation.y = sw * sw * (3 - 2 * sw) * Math.PI * 2;
@@ -407,10 +585,30 @@
       m.armL.rotation.x = ease(J, 'lax', LA[0], 16, dt); m.armL.rotation.z = ease(J, 'laz', LA[1], 16, dt); m.elbowL.rotation.x = ease(J, 'lex', LA[2], 16, dt);
     }
     // the head keeps looking where the hero aims while the body moves under it
-    m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6, 12, dt); m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y;
+    // standing still, it glances around now and then; a hit whips it; dying, it drops
+    const look = idle * (Math.sin(s.t * 0.43) * 0.16 + Math.sin(s.t * 1.1 + 2) * 0.05);
+    m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6 - sprint * run * 0.08 + Math.min(1, dead * 2) * 0.5, 12, dt) + Math.cos(hd) * 0.3 * hit;
+    m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y + look; m.head.rotation.z = -m.spine.rotation.z * 0.7 + wall * 0.2 + Math.min(1, dead * 2) * 0.3;
+    if (dead > 0) { const d = Math.min(1, dead * 3); m.kneeL.rotation.x += (1.5 - m.kneeL.rotation.x) * d; m.kneeR.rotation.x += (1.1 - m.kneeR.rotation.x) * d; m.legL.rotation.x += (-0.9 - m.legL.rotation.x) * d; m.legR.rotation.x += (-0.5 - m.legR.rotation.x) * d; m.hips.position.y -= 0.3 * d; }
     castAnim(m, s, dt);
     heroExtras(m, s, dt);
   };
+  // where each kind of weapon comes from when it is drawn: r / l = the arm pose at the source [shoulder x, shoulder z, elbow x],
+  // at = the share of the draw spent reaching for it, tw / ln = a twist and a lean through it, spin = turns the weapon makes coming out
+  const DRAW = {
+    gun: { r: [0.25, 0.3, -0.9], at: 0.4, tw: 0.25 }, dual: { r: [0.3, 0.35, -0.9], l: [0.3, -0.35, -0.9], at: 0.4, spin: 1 },
+    melee: { r: [-3.0, 0.5, -2.1], at: 0.45, tw: -0.5, ln: 0.1 }, sword2: { r: [-2.9, 0.3, -2.0], l: [-2.6, -0.3, -1.9], at: 0.45, ln: 0.15 },
+    spear: { r: [-2.6, 0.9, -1.2], at: 0.4, tw: -0.4, spin: 1 }, glaive: { r: [-2.6, 0.9, -1.2], at: 0.4, tw: -0.5, spin: 1 },
+    throw: { r: [0.1, 0.5, -1.5], at: 0.4, tw: 0.3, spin: 2 }, fists: { r: [-1.0, -0.55, -1.75], l: [-1.0, 0.55, -1.75], at: 0.5 },
+    claws: { r: [-0.3, 1.2, -0.3], l: [-0.3, -1.2, -0.3], at: 0.45, ln: -0.15 }, wrist: { r: [-0.9, -0.5, -1.9], at: 0.45, tw: -0.3 }, none: { r: [0, 0.05, -0.2], at: 0.3 },
+  };
+  BZ.DRAW_POSES = DRAW; BZ.DRAW_TIME = 0.5;
+  const HOLD_HAND = { gun: 'trigger', dual: 'trigger', melee: 'grip', sword2: 'grip', spear: 'grip', glaive: 'grip', throw: 'pinch', fists: 'fist', claws: 'claw', wrist: 'point', none: 'relax' };
+  // the whole body going down: k 0..1 since death, dir > 0 falls on its back, < 0 on its face. The knees give first (animHero), then it tips over.
+  BZ.heroFall = (m, k, dir) => { const t = BZ.clamp((k - 0.18) / 0.5, 0, 1); const e = t * t * (3 - 2 * t); m.root.rotation.x = (dir < 0 ? 1 : -1) * e * 1.5; m.root.position.y += e * 0.14 + Math.sin(Math.min(1, t * 1.25) * Math.PI) * 0.05 * (t < 0.8 ? 1 : 0); };
+  // the weapon in the hand while it is drawn: it appears as the hand closes on it and spins in if that weapon does
+  BZ.heroGun = (m, s, gun) => { if (!gun) return; const J = s.j || {}; const k = J.gunK === undefined ? 1 : J.gunK; if (gun.userData.rz0 === undefined) gun.userData.rz0 = gun.rotation.z; gun.scale.setScalar(Math.max(0.001, k)); gun.rotation.z = gun.userData.rz0 + (J.gunSpin || 0) * Math.PI * 2; };
+
   // the parts only some bodies carry: Sói's beast form growing in and its tail, Nhện Đồng's four back legs
   function heroExtras(m, s, dt) {
     const t = s.t || 0;
