@@ -89,7 +89,7 @@ const BOT = `(() => {
     await page.screenshot({ path: path.join(OUT, '04-shop.png') });
     const before = await page.evaluate('__G.coins');
     await page.click('[data-buy="shotgun"]');
-    const after = await page.evaluate('({own: !!__G.weapons.S.owned.shotgun, c: __G.coins})');
+    const after = await page.evaluate("({own: __G.weapons.has('shotgun'), c: __G.coins})");
     check(after.own && before - after.c === 350, `buying the shotgun takes 350 coins and owns it (${before} -> ${after.c})`);
     await page.click('[data-act="closeshop"]');
     await page.evaluate('window.__sim(0.6)');
@@ -116,7 +116,7 @@ const BOT = `(() => {
     const react = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; const V = G.THREE.Vector3;
       const mk = (x) => { const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(x, 0, -6); z.hp = z.maxHp = 1000; return z; };
       const a = mk(-3); G.zombies.damage(a, 60, 'leg', new V(0, 0, -1), 1); const legSlow = a.slowT > 0;
-      G.zombies.damage(a, 400, 'leg', new V(0, 0, -1), 1); const limp = a.limp;
+      G.zombies.damage(a, 400, 'leg', new V(0, 0, -1), 1); const limp = a.limp || a.crawl;
       const b = mk(0); G.zombies.damage(b, 600, 'body', new V(0, 0, -1), 1); const down = b.down > 0;
       const c = mk(3); G.zombies.damage(c, 20, 'body', new V(0, 0, -1), 0.55); const small = c.down <= 0 && Math.abs(c.fp.v) > 0;
       G.zombies.clear(); const P = G.player; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0;
@@ -126,7 +126,7 @@ const BOT = `(() => {
       P.input.fire = true; __sim(0.03); P.input.fire = false;
       return { legSlow, limp, down, small, pierce: z1.hp < z1.maxHp && z2.hp < z2.maxHp }; })()`);
     console.log('react', JSON.stringify(react));
-    check(react.legSlow && react.limp, 'leg hits slow a zombie, enough leg damage makes it limp');
+    check(react.legSlow && react.limp, 'leg hits slow a zombie, enough leg damage makes it limp or tears the leg off');
     check(react.down && react.small, 'a heavy body hit knocks it down, a light SMG hit only flinches');
     check(react.pierce, 'a rifle round passes through the first zombie into the one behind');
 
@@ -157,6 +157,36 @@ const BOT = `(() => {
     const hs = await page.evaluate(`(() => { const G = __G; const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); if (!z) return 'no free zombie';
       G.zombies.damage(z, 9999, 'head', new G.THREE.Vector3(0, 0, 1)); return z.body.head.visible ? 'head still on' : 'popped'; })()`);
     check(hs === 'popped', 'a killing headshot removes the head (' + hs + ')');
+
+    // blades, gore, two-weapon hands, weapons on the ground, soldiers picking them up
+    const mel = await page.evaluate(`(() => { const G = __G; const W = G.weapons; const P = G.player; const V = G.THREE.Vector3; const r = {};
+      G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true; G.allies.clear();
+      const mk = (type, x, z) => { const q = G.zombies.spawn(type, 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; return q; };
+      W.reset(); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); W.selectSlot(1); __sim(0.7); r.cur = W.cur();
+      const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260;
+      const h0 = W.S.hits; P.input.fire = true; __sim(1.4); P.input.fire = false; __sim(0.3);
+      r.swings = W.S.hits - h0; r.dead = zs.filter((z) => !z.alive).length; r.arms = zs.reduce((a, z) => a + (2 - z.armsLeft), 0);
+      G.zombies.clear(); const L = mk('walker', 3, 0); L.hp = L.maxHp = 600; for (let i = 0; i < 14 && !L.crawl; i++) G.zombies.damage(L, 40, 'leg', new V(1, 0, 0), 1); r.crawl = L.crawl;
+      const g0 = G.fx.debug().made; const B = mk('walker', 6, 6); B.hp = 50; G.zombies.damage(B, 400, 'body', new V(1, 0, 0), 3, { blast: true }); r.blastGibs = G.fx.debug().made - g0;
+      __sim(3); r.resting = G.fx.debug().resting; r.splats = G.fx.debug().splats;
+      G.zombies.clear(); r.drop = W.dropCur(); __sim(2.5); const it = W.ground[0]; r.rest = !!(it && it.rest); r.dropLast = W.dropCur();
+      P.pos.set(it.pos.x, 0, it.pos.z + 0.5); __sim(0.1); r.pick = W.pickup(); r.inv = W.S.inv.join(',');
+      G.coins = 9999; G.wave.phase = 'break'; G.events.emit('buy', 'bazooka'); r.buyInv = W.S.inv.join(','); r.ground = W.ground.map((g) => g.id).join(',');
+      G.events.emit('buy', 'ally'); G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; P.pos.set(0, 0, 8); P.yaw = 0; __sim(0.7); W.dropCur(); __sim(7);
+      r.ally = G.allies.list.filter((a) => a.alive).map((a) => a.weap ? a.weap.id : '-').join(',');
+      const t = mk('brute', 0, 17); t.hp = t.maxHp = 5000; const s0 = G.gear.shots.length; let rockets = 0;
+      for (let i = 0; i < 40; i++) { __sim(0.1); if (G.gear.shots.length > s0) rockets++; } r.allyRocketFrames = rockets; r.brute = 5000 - Math.round(t.hp);
+      G.god = false; return r; })()`);
+    console.log('melee', JSON.stringify(mel));
+    check(mel.cur === 'katana' && mel.swings >= 3, `holding fire with the katana chains a combo (${mel.swings} swings landed)`);
+    check(mel.dead >= 1, `katana cleaves through a crowd (${mel.dead}/3 dead)`);
+    check(mel.crawl, 'shredding a leg turns a walker into a crawler');
+    check(mel.blastGibs >= 5, `an explosion blows a zombie into pieces (${mel.blastGibs} gibs)`);
+    check(mel.resting >= 5 && mel.splats >= 3, `pieces settle on the ground and blood pools stay (${mel.resting} resting, ${mel.splats} pools)`);
+    check(mel.drop && mel.rest && mel.dropLast === false, 'X drops the held weapon, it lands and stays; the last weapon cannot be dropped');
+    check(mel.pick && mel.inv === 'smg,katana', `E picks the weapon back up (${mel.inv})`);
+    check(mel.buyInv === 'smg,bazooka' && mel.ground === 'katana', `buying a third weapon drops the one in hand (${mel.buyInv} / ground ${mel.ground})`);
+    check(mel.ally.includes('bazooka') && mel.allyRocketFrames > 0 && mel.brute > 0, `a soldier picks up the dropped bazooka and fires it (${mel.ally}, ${mel.brute} dmg)`);
 
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));

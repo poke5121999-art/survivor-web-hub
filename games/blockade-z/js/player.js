@@ -27,7 +27,9 @@
       if (G.state !== 'playing') return;
       if (e.code === 'KeyR') G.weapons.startReload();
       if (e.code === 'KeyQ') G.weapons.cycle(-1);
-      if (/^Digit[1-5]$/.test(e.code)) G.weapons.select(G.weapons.ORDER[+e.code.slice(5) - 1]);
+      if (/^Digit[1-2]$/.test(e.code)) G.weapons.selectSlot(+e.code.slice(5) - 1);
+      if (e.code === 'KeyE') G.weapons.pickup();
+      if (e.code === 'KeyX') G.weapons.dropCur();
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
       if (e.code === 'KeyG') G.gear.throwBomb();
     });
@@ -90,6 +92,8 @@
       btn('bomb', () => G.gear.throwBomb());
       btn('reload', () => G.weapons.startReload());
       btn('swap', () => G.weapons.cycle(1));
+      btn('pick', () => G.weapons.pickup());
+      btn('drop', () => G.weapons.dropCur());
     }
 
     const out = {};

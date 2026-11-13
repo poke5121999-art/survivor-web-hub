@@ -379,6 +379,23 @@
   cell('g_wood', 0x8a5530); cell('g_grip', 0x1b1d21);
   cell('g_orange', 0xf08a24); cell('g_red', 0xd8322a); cell('g_lime', 0x7fd63a); cell('g_blue', 0x2f7de0); cell('g_gold', 0xf2c23a);
   cell('g_glow_orange', 0xffa040); cell('g_glow_lime', 0xb6ff6a); cell('g_glow_blue', 0x6ad0ff); cell('g_glow_red', 0xff5a4a);
+  cell('g_blade', 0xc8d2dc); cell('g_glow_saber', 0x8ff2ff); cell('g_saber_core', 0xf4ffff);
+  def('g_tsuka', 4, 4, ({ set }) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) set(x, y, hex((x + y) % 2 ? 0x4a2350 : 0x151018)); }, { noMip: true });
+  // severed stump / gib meat: dark red flesh, lighter fat flecks, one bone-white cell
+  def('z_meat', 8, 8, ({ set, rng }) => {
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, hex(rng.chance(0.2) ? 0xd0605a : rng.chance(0.3) ? 0x7a1410 : 0xa82a22));
+    set(3, 3, hex(0xeadfc8)); set(4, 3, hex(0xeadfc8)); set(3, 4, hex(0xd8ccb0)); set(4, 4, hex(0xeadfc8));
+  });
+  // blood pool on the ground: blobby alpha splat with droplets
+  def('blood', 32, 32, ({ set, rng }) => {
+    const blobs = []; for (let i = 0; i < 7; i++) blobs.push([16 + rng.range(-6, 6), 16 + rng.range(-6, 6), rng.range(3, 8)]);
+    for (let i = 0; i < 10; i++) { const a = rng.range(0, 6.3); const r = rng.range(9, 14); blobs.push([16 + Math.cos(a) * r, 16 + Math.sin(a) * r, rng.range(0.8, 2)]); }
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+      let v = 0; for (const [bx, by, br] of blobs) v = Math.max(v, 1 - Math.hypot(x - bx, y - by) / br);
+      if (v > 0) set(x, y, hex(v > 0.5 ? 0x5a0a08 : 0x7a1410), v > 0.12 ? 225 : 0);
+      else set(x, y, [0, 0, 0], 0);
+    }
+  }, { noMip: true });
   def('eyes_glow', 8, 8, ({ set }) => {
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, [0, 0, 0]);
     for (const ex of [1, 5]) { set(ex, 3, [255, 255, 255]); set(ex + 1, 3, [255, 255, 255]); }

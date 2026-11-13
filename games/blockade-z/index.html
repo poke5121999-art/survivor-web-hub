@@ -102,6 +102,11 @@ body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.
 #bossbar div { height: 14px; border: 3px solid #000; background: #2a0c08; margin-top: 2px; } #bossbar i { display: block; height: 100%; background: linear-gradient(#ff7a50, #b81a10); transition: width .15s; }
 #reloadhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font: 900 15px var(--mono); color: #ff6a50; text-shadow: 2px 2px 0 #000; display: none; letter-spacing: .1em; }
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
+#prompt { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); padding: 6px 12px; border: 3px solid #000; background: rgba(28, 22, 16, .85); box-shadow: inset 0 0 0 2px #6a4a20; font: 700 14px var(--mono); color: var(--bone); white-space: nowrap; display: none; }
+#prompt.on { display: block; } #prompt b { color: #ffc050; } #prompt kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 4px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
+.tb[data-btn=pick] { right: max(212px, calc(env(safe-area-inset-right) + 188px)); bottom: 160px; width: 64px; height: 64px; background: rgba(240, 150, 40, .85); display: none; }
+body.can-pick .tb[data-btn=pick] { display: flex; }
+.tb[data-btn=drop] { right: max(172px, calc(env(safe-area-inset-right) + 148px)); bottom: 230px; width: 50px; height: 40px; font-size: 10px; }
 @keyframes blink { 50% { opacity: .2; } }
 #breakbar { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); display: none; align-items: center; gap: 10px; pointer-events: auto; }
 #breakbar.on { display: flex; }
@@ -159,6 +164,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div id="announce"></div>
   <div id="bossbar"><b>BOSS</b><div><i></i></div></div>
   <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
+  <div id="prompt"></div>
   <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
   <div class="plate" id="coins">🪙 <b>0</b></div>
   <div class="plate" id="score">ĐIỂM <b>0</b></div>
@@ -177,6 +183,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="tb" data-btn="reload">NẠP</div>
   <div class="tb" data-btn="swap">ĐỔI</div>
   <div class="tb" data-btn="bomb">BOM</div>
+  <div class="tb" data-btn="pick">NHẶT</div>
+  <div class="tb" data-btn="drop">BỎ</div>
   <div class="tb" data-act="pause">II</div>
 </div>
 
@@ -188,7 +196,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
     <div class="row"><button class="btn" data-act="play">Chơi</button><button class="btn ghost" data-act="settings">Cài đặt</button></div>
     <div class="keys">
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
-      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd>-<kbd>4</kbd> / <kbd>Q</kbd> / lăn chuột đổi súng<br>
+      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd> <kbd>2</kbd> / <kbd>Q</kbd> / lăn chuột đổi vũ khí<br>
+      <kbd>E</kbd> nhặt vũ khí dưới đất · <kbd>X</kbd> bỏ vũ khí đang cầm (cầm tối đa 2 món)<br>
       <kbd>G</kbd> ném bom · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
       <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
     </div>
@@ -224,18 +233,18 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113e"></script>
-<script type="module" src="js/core.js?v=20261113e"></script>
-<script type="module" src="js/art.js?v=20261113e"></script>
-<script type="module" src="js/world.js?v=20261113e"></script>
-<script type="module" src="js/audio.js?v=20261113e"></script>
-<script type="module" src="js/fx.js?v=20261113e"></script>
-<script type="module" src="js/zombies.js?v=20261113e"></script>
-<script type="module" src="js/weapons.js?v=20261113e"></script>
-<script type="module" src="js/allies.js?v=20261113e"></script>
-<script type="module" src="js/gear.js?v=20261113e"></script>
-<script type="module" src="js/player.js?v=20261113e"></script>
-<script type="module" src="js/ui.js?v=20261113e"></script>
-<script type="module" src="js/main.js?v=20261113e"></script>
+<script type="module" src="js/boot.js?v=20261113f"></script>
+<script type="module" src="js/core.js?v=20261113f"></script>
+<script type="module" src="js/art.js?v=20261113f"></script>
+<script type="module" src="js/world.js?v=20261113f"></script>
+<script type="module" src="js/audio.js?v=20261113f"></script>
+<script type="module" src="js/fx.js?v=20261113f"></script>
+<script type="module" src="js/zombies.js?v=20261113f"></script>
+<script type="module" src="js/weapons.js?v=20261113f"></script>
+<script type="module" src="js/allies.js?v=20261113f"></script>
+<script type="module" src="js/gear.js?v=20261113f"></script>
+<script type="module" src="js/player.js?v=20261113f"></script>
+<script type="module" src="js/ui.js?v=20261113f"></script>
+<script type="module" src="js/main.js?v=20261113f"></script>
 </body>
 </html>

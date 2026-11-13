@@ -154,7 +154,7 @@
     G.events.on('pickup', (kind) => {
       const P = G.player;
       if (kind === 'health') { P.hp = Math.min(P.maxHp, P.hp + 35); G.ui.pop('+35 máu', 'heal'); }
-      else { for (const id of G.weapons.ORDER) if (G.weapons.S.owned[id] && G.weapons.state[id].reserve !== Infinity) G.weapons.state[id].reserve = Math.min(G.weapons.WEAPONS[id].reserve, G.weapons.state[id].reserve + Math.ceil(G.weapons.WEAPONS[id].mag * 1.5)); G.ui.pop('+đạn', 'heal'); }
+      else { for (const id of G.weapons.S.inv) if (G.weapons.state[id].reserve !== Infinity) G.weapons.state[id].reserve = Math.min(G.weapons.WEAPONS[id].reserve, G.weapons.state[id].reserve + Math.ceil(G.weapons.WEAPONS[id].mag * 1.5)); G.ui.pop('+đạn', 'heal'); }
       G.audio.play('pickup', { gain: 0.7 });
     });
     G.events.on('player:dead', () => {
@@ -219,12 +219,14 @@
     const safe = (name, fn) => { try { fn(); } catch (e) { if (!logged.has(name)) { logged.add(name); console.error('[loop] ' + name + '.update threw', e); } } };
     function tick(dt) {
       safe('audio', () => G.audio.update());
+      let gdt = dt;
+      if (G.hitStop > 0) { G.hitStop -= dt; gdt = dt * 0.07; }
       if (G.state === 'playing') {
         safe('player', () => G.player.update(dt));
-        safe('weapons', () => G.weapons.update(dt, G.player.input));
-        safe('zombies', () => G.zombies.update(dt));
-        safe('allies', () => G.allies.update(dt));
-        safe('gear', () => G.gear.update(dt));
+        safe('weapons', () => G.weapons.update(gdt, G.player.input));
+        safe('zombies', () => G.zombies.update(gdt));
+        safe('allies', () => G.allies.update(gdt));
+        safe('gear', () => G.gear.update(gdt));
         safe('wave', () => updateWave(dt));
       } else if (G.state === 'dead') {
         safe('zombies', () => G.zombies.update(dt));
@@ -234,7 +236,7 @@
         G.camera.position.set(Math.sin(t * 0.08) * 16, 6 + Math.sin(t * 0.2), Math.cos(t * 0.08) * 16);
         G.camera.lookAt(0, 1.5, 0);
       }
-      safe('fx', () => G.fx.update(dt));
+      safe('fx', () => G.fx.update(gdt));
       safe('ui', () => G.ui.update(dt));
       G.world.clouds.position.x = (performance.now() / 1000) * 0.6 % 60;
       G.world.update(dt);

@@ -41,7 +41,7 @@
         if (d > R) continue;
         const dir = new THREE.Vector3(z.pos.x - pos.x, 0, z.pos.z - pos.z).normalize();
         const dmg = Math.round(DMG * (1 - Math.max(0, d - 1.5) / R * 0.65));
-        const died = G.zombies.damage(z, dmg, 'body', dir, 3);
+        const died = G.zombies.damage(z, dmg, 'body', dir, 3, { blast: true });
         z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
       }

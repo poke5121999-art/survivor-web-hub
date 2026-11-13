@@ -109,6 +109,42 @@
     }
     return finish(out, o.peak || 0.5);
   }
+  function hum(rng, sr, o) { // light-blade hum: detuned saws, pitch bends with the swing
+    const len = Math.floor(sr * o.len); const out = new Float32Array(len); const bp = new BP(sr);
+    let a = 0; let b = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / sr; const p = t / o.len;
+      const f = o.f0 + (o.f1 - o.f0) * Math.sin(Math.PI * p);
+      a += f / sr; b += (f * 1.012) / sr;
+      if (i % 32 === 0) bp.set(f * 3 + 300 * Math.sin(Math.PI * p), 1.4);
+      const src = (2 * (a % 1) - 1) + (2 * (b % 1) - 1) * 0.8 + (rng.next() * 2 - 1) * (o.noise || 0.15);
+      const env = o.env === 'up' ? Math.min(1, p * 4) * Math.min(1, (1 - p) * 6) : Math.sin(Math.PI * p);
+      out[i] = (bp.run(src) * 1.5 + src * 0.12) * env;
+    }
+    return finish(out, o.peak || 0.55);
+  }
+  function chop(rng, sr, o) { // blade into flesh: wet crunch, a low body thump, a bone crack on top
+    const len = Math.floor(sr * o.len); const out = new Float32Array(len);
+    const bp = new BP(sr); const hp = new BP(sr); let s = 0; let ph = 0; const lp = lpK(700, sr);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      if (i % 32 === 0) { bp.set(o.f * (1 - 0.5 * t / o.len) * rng.range(0.95, 1.05), 2.5); hp.set(3200, 4); }
+      s += lp * (rng.next() * 2 - 1 - s); ph += (o.thump * (1 + 1.5 * Math.exp(-t / 0.015))) / sr;
+      const crack = t < 0.012 ? hp.run(rng.next() * 2 - 1) * 3 * (1 - t / 0.012) : 0;
+      out[i] = (bp.run(rng.next() * 2 - 1) * 2 + s * 3 + Math.sin(TAU * ph) * 0.9) * Math.exp(-t / (o.len * 0.3)) + crack * (o.crack || 1);
+    }
+    return finish(out, o.peak || 0.8);
+  }
+  function sizzle(rng, sr, o) { // saber burn: crackling high noise that fizzles out
+    const len = Math.floor(sr * o.len); const out = new Float32Array(len); const bp = new BP(sr); let pop = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      if (i % 32 === 0) bp.set(rng.range(2500, 6000), 2);
+      if (rng.next() < 0.004) pop = 1; pop *= 0.995;
+      out[i] = bp.run(rng.next() * 2 - 1) * (0.6 + pop * 2.5) * Math.exp(-t / (o.len * 0.4));
+    }
+    return finish(out, o.peak || 0.6);
+  }
   function tones(rng, sr, o) { // short square/triangle notes for pickups and UI
     const len = Math.floor(sr * o.notes.reduce((a, n) => a + n[1], 0) + sr * 0.05); const out = new Float32Array(len);
     let at = 0;
@@ -216,6 +252,15 @@
     roar: { n: 3, bus: 'world', max: 2, gen: voice, o: { dur: 1.5, f0: 52, F1: 380, F2: 760, breath: 0.5, drop: 0.3, peak: 0.85 } },
     die: { n: 4, bus: 'world', max: 4, gen: voice, o: { dur: 0.8, f0: 85, F1: 480, F2: 900, breath: 0.45, drop: 0.6 } },
     swipe: { n: 3, bus: 'world', max: 3, gen: whoosh, o: { len: 0.22, f0: 500, f1: 2400 } },
+    slash: { n: 3, bus: 'gun', max: 3, gen: whoosh, o: { len: 0.2, f0: 2600, f1: 700, peak: 0.7 } },
+    heavy: { n: 2, bus: 'gun', max: 2, gen: whoosh, o: { len: 0.34, f0: 300, f1: 1300, peak: 0.75 } },
+    chop: { n: 4, bus: 'world', max: 5, gen: chop, o: { len: 0.26, f: 900, thump: 80, peak: 0.9 } },
+    cleave: { n: 2, bus: 'world', max: 3, gen: chop, o: { len: 0.4, f: 520, thump: 55, crack: 1.6, peak: 1 } },
+    gore: { n: 3, bus: 'world', max: 4, gen: squelch, o: { len: 0.32, f: 420, peak: 0.85 } },
+    saber_on: { n: 1, bus: 'gun', gen: hum, o: { len: 0.55, f0: 70, f1: 130, env: 'up', peak: 0.6 } },
+    saber_swing: { n: 3, bus: 'gun', max: 3, gen: hum, o: { len: 0.32, f0: 95, f1: 190, noise: 0.25, peak: 0.65 } },
+    saber_hit: { n: 3, bus: 'world', max: 4, gen: sizzle, o: { len: 0.35, peak: 0.7 } },
+    clank: { n: 2, bus: 'world', max: 3, gen: click, o: { len: 0.18, taps: [[0, 1700, 6, 1], [0.04, 2900, 8, 0.6], [0.09, 1300, 6, 0.35]], peak: 0.55 } },
     hurt: { n: 3, bus: 'world', gen: thud, o: { len: 0.3, lp: 900, f0: 140, f1: 50, noise: 1.6, peak: 0.7 } },
     marker: { n: 1, bus: 'ui', gen: tones, o: { wave: 'tri', notes: [[1760, 0.03]], peak: 0.25 } },
     coin: { n: 1, bus: 'ui', gen: tones, o: { notes: [[988, 0.06], [1319, 0.12]], peak: 0.3 } },
@@ -229,7 +274,7 @@
     music_perc: { n: 1, bus: 'music', loop: true, gen: perc, o: {} },
   };
   const ORDER = ['marker', 'coin', 'pistol', 'empty', 'mag_out', 'mag_in', 'switch', 'step', 'land', 'hit', 'head', 'impact', 'groan', 'die', 'swipe', 'hurt',
-    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'wind', 'music_drone', 'music_perc'];
+    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'wind', 'music_drone', 'music_perc'];
 
   BZ.makeAudio = (G) => {
     const AC = window.AudioContext || window.webkitAudioContext;

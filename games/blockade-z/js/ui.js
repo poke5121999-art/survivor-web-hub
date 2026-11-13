@@ -33,10 +33,12 @@
 
   const ICON_COL = { g_body: '#2a2e35', g_body2: '#4a525d', g_steel: '#9aa4b0', g_edge: '#e6eef3', g_wood: '#8a5530', g_grip: '#1b1d21',
     g_orange: '#f08a24', g_red: '#d8322a', g_lime: '#7fd63a', g_blue: '#2f7de0', g_gold: '#f2c23a',
-    g_glow_orange: '#ffb050', g_glow_red: '#ff6a5a', g_glow_lime: '#c6ff7a', g_glow_blue: '#7ad8ff' };
+    g_glow_orange: '#ffb050', g_glow_red: '#ff6a5a', g_glow_lime: '#c6ff7a', g_glow_blue: '#7ad8ff', g_blade: '#d4dde6', g_tsuka: '#4a2350', g_glow_saber: '#9ff4ff', g_saber_core: '#ffffff' };
   // Side view of a gun's voxel list: z runs right-to-left, y up.
   function gunIcon(id) {
-    const D = BZ.GUN_PARTS[id]; const parts = [...D.parts, ...D.grip];
+    const D = BZ.GUN_PARTS[id]; let parts = [...D.parts, ...D.grip];
+    // blades stand up along +y in the viewmodel; lay them down so the icon reads like a gun (tip to the left)
+    if (BZ.WEAPONS[id].melee) parts = parts.map((p) => [p[0], p[2], -p[4], p[3], p[5], -p[1], p[6]]);
     let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of parts) { z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[5]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[4]); }
     const cv = document.createElement('canvas'); cv.width = 84; cv.height = 40; const c = cv.getContext('2d');
@@ -64,10 +66,13 @@
     };
     logo($('#logo'), 'BLOCKADE Z');
     const W0 = G.weapons;
-    el.slots.innerHTML = W0.ORDER.map((id, i) => `<button data-slot="${id}"><img src="${gunIcon(id)}" alt=""><em>${i + 1}</em><small></small></button>`).join('');
-    const slotEls = W0.ORDER.map((id) => el.slots.querySelector(`[data-slot="${id}"]`));
-    el.slots.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (b) W0.select(b.dataset.slot); });
-    el.slots.addEventListener('touchstart', (e) => { const b = e.target.closest('[data-slot]'); if (b) { e.preventDefault(); W0.select(b.dataset.slot); } }, { passive: false });
+    // two hand slots; icons are drawn once per weapon and swapped in as the inventory changes
+    const icons = {}; const icon = (id) => (icons[id] = icons[id] || gunIcon(id));
+    el.slots.innerHTML = [0, 1].map((i) => `<button data-slot="${i}"><img alt=""><em>${i + 1}</em><small></small></button>`).join('');
+    const slotEls = [0, 1].map((i) => el.slots.querySelector(`[data-slot="${i}"]`));
+    el.slots.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (b) W0.selectSlot(+b.dataset.slot); });
+    el.slots.addEventListener('touchstart', (e) => { const b = e.target.closest('[data-slot]'); if (b) { e.preventDefault(); W0.selectSlot(+b.dataset.slot); } }, { passive: false });
+    const prompt = document.getElementById('prompt'); let promptFor = null;
     if (BZ.isTouch) document.body.classList.add('touch');
 
     const screens = ['title', 'pause', 'dead', 'shop'];
@@ -76,7 +81,9 @@
     function shopRender() {
       const W = G.weapons; const P = G.player;
       const items = [
-        ...W.ORDER.filter((id) => W.WEAPONS[id].price > 0).map((id) => ({ id, label: W.WEAPONS[id].name, sub: `Sát thương ${W.WEAPONS[id].dmg}${W.WEAPONS[id].pellets > 1 ? '×' + W.WEAPONS[id].pellets : ''} · băng ${W.WEAPONS[id].mag}`, price: W.WEAPONS[id].price, owned: !!W.S.owned[id] })),
+        ...W.ORDER.filter((id) => W.WEAPONS[id].price > 0).map((id) => { const w = W.WEAPONS[id]; return { id, label: w.name,
+          sub: (w.melee ? `Cận chiến · sát thương ${w.dmg} · chém ${w.cleave} con một nhát` : `Sát thương ${w.dmg}${w.pellets > 1 ? '×' + w.pellets : ''} · băng ${w.mag}`) + (W.S.inv.length >= W.SLOTS && !W.has(id) ? ' · món đang cầm rơi xuống đất' : ''),
+          price: w.price, owned: W.has(id) }; }),
         { id: 'ammo', label: 'Đạn đầy', sub: 'Nạp đầy đạn dự trữ mọi súng', price: 120 },
         { id: 'heal', label: 'Hồi máu', sub: 'Máu về 100', price: 150, dis: P.hp >= P.maxHp },
         { id: 'armor', label: 'Giáp +50', sub: 'Đỡ 60% sát thương tới khi vỡ', price: 200, dis: P.armor >= 100 },
@@ -129,15 +136,23 @@
       el.armor.style.width = Math.min(100, P.armor) + '%';
       el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
       el.bombs.textContent = G.gear.state.bombs;
-      el.ammo.textContent = a.mag; el.reserve.textContent = a.reserve === Infinity ? '∞' : a.reserve;
-      el.ammo.classList.toggle('low', a.mag <= Math.ceil(w.mag / 4));
+      el.ammo.textContent = w.melee ? '⚔' : a.mag; el.reserve.textContent = w.melee ? '' : a.reserve === Infinity ? '∞' : a.reserve;
+      el.ammo.classList.toggle('low', !w.melee && a.mag <= Math.ceil(w.mag / 4));
       el.wname.textContent = w.name + (W.S.phase === 'reload' ? ' · đang nạp' : '');
       el.reloadHint.classList.toggle('on', a.mag === 0 && a.reserve > 0 && W.S.phase !== 'reload');
-      W.ORDER.forEach((id, i) => {
-        const s = slotEls[i]; const own = !!W.S.owned[id]; const st = W.state[id];
-        s.className = (own ? 'own' : '') + (W.cur() === id ? ' cur' : '');
-        s.lastChild.textContent = own ? st.mag + '/' + (st.reserve === Infinity ? '∞' : st.reserve) : 'khoá';
+      slotEls.forEach((s, i) => {
+        const id = W.S.inv[i]; const img = s.querySelector('img');
+        if (s.dataset.id !== (id || '')) { s.dataset.id = id || ''; img.src = id ? icon(id) : ''; img.style.visibility = id ? 'visible' : 'hidden'; }
+        s.className = (id ? 'own' : '') + (id && W.cur() === id ? ' cur' : '');
+        const st = id && W.state[id];
+        s.lastChild.textContent = !id ? 'trống' : W.WEAPONS[id].melee ? W.WEAPONS[id].name : st.mag + '/' + (st.reserve === Infinity ? '∞' : st.reserve);
       });
+      const near = G.state === 'playing' ? W.nearGround() : null;
+      if (near !== promptFor) {
+        promptFor = near;
+        if (near) { const full = W.S.inv.length >= W.SLOTS && !W.has(near.id); prompt.innerHTML = `<kbd>${BZ.isTouch ? 'NHẶT' : 'E'}</kbd> ${full ? 'đổi lấy' : 'nhặt'} <b>${W.WEAPONS[near.id].name}</b>`; }
+        prompt.classList.toggle('on', !!near); document.body.classList.toggle('can-pick', !!near);
+      }
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.coins.textContent = G.coins; el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);

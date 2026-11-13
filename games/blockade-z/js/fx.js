@@ -96,7 +96,7 @@
     }
 
     function update(dt) {
-      updateAsh(dt);
+      updateAsh(dt); updateGibs(dt); updateSpurts(dt);
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
         const p = P[i];
@@ -141,9 +141,103 @@
       const s = new THREE.Sprite(boomGlow.clone()); s.position.copy(pos); scene.add(s); booms.push({ s, t: 0 });
       boomLight.position.copy(pos); boomLight.intensity = 60; flashT = Math.max(flashT, 0.25);
     }
-    function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
-    function clear() { P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0; }
+    // ---- gore: severed parts fly, bounce, settle flat and stay; blood pools; stumps keep spurting ----
+    const MAXG = Math.round(44 * Math.max(0.6, G.quality.particles));
+    const gibs = []; let made = 0;
+    const gOut = {}; const feet = new THREE.Vector3(); const rm = new THREE.Matrix4(); const box3 = new THREE.Box3(); const ctr = new THREE.Vector3(); const sz = new THREE.Vector3();
+    const deadEye = (mat) => { const m = mat.clone(); if (m.emissive) m.emissive.setHex(m.emissiveMap ? 0x401010 : 0); return m; };
+    // src: a body-part mesh in the scene. Its world transform, geometry and (frozen) material become a free piece.
+    function gib(src, vel, o = {}) {
+      if (gibs.length >= MAXG) { const old = gibs.shift(); scene.remove(old.g); if (old.own) for (const m of [].concat(old.mesh.material)) m.dispose(); }
+      src.updateWorldMatrix(true, false);
+      const geo = src.geometry; if (!geo.boundingBox) geo.computeBoundingBox();
+      geo.boundingBox.getCenter(ctr); geo.boundingBox.getSize(sz);
+      const own = !o.shared;
+      const mat = o.shared ? src.material : Array.isArray(src.material) ? src.material.map(deadEye) : deadEye(src.material);
+      const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(ctr).negate(); mesh.castShadow = false;
+      const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.add(mesh);
+      src.matrixWorld.decompose(g.position, g.quaternion, g.scale);
+      g.position.add(ctr.clone().multiply(g.scale).applyQuaternion(g.quaternion));
+      if (o.burn) { const cap = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff7a20 })); cap.position.copy(mesh.position); cap.scale.set(1.04, 0.04, 1.04); g.add(cap); }
+      scene.add(g);
+      const half = sz.clone().multiply(g.scale).multiplyScalar(0.5);
+      made++;
+      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn ? 0 : 1.2, hits: 0 });
+    }
+    // loose cubes for an exploded head: share a few materials, no per-piece clone
+    const chunkGeo = new THREE.BoxGeometry(1, 1, 1);
+    function chunks(at, n, mats, dir, s = 1) {
+      for (let i = 0; i < n; i++) {
+        const m = new THREE.Mesh(chunkGeo, G.rng.pick(mats)); const k = G.rng.range(0.09, 0.17) * s;
+        m.scale.set(k, k * G.rng.range(0.7, 1.2), k); m.position.copy(at).add(new THREE.Vector3(G.rng.range(-0.15, 0.15), G.rng.range(-0.1, 0.15), G.rng.range(-0.15, 0.15)).multiplyScalar(s));
+        m.updateMatrixWorld();
+        const v = new THREE.Vector3(G.rng.range(-1, 1), G.rng.range(0.6, 1.6), G.rng.range(-1, 1)).normalize().multiplyScalar(G.rng.range(3, 7)).addScaledVector(dir, G.rng.range(2, 5));
+        gib(m, v, { shared: true });
+      }
+    }
+    function updateGibs(dt) {
+      for (const p of gibs) {
+        if (p.rest) {
+          if (p.settle < 1) { p.settle = Math.min(1, p.settle + dt * 7); p.g.quaternion.slerp(p.qRest, p.settle); p.g.position.y = BZ.lerp(p.g.position.y, p.yRest, p.settle); }
+          if (p.bleed > 0) { p.bleed -= dt; if (G.rng.chance(dt * 6)) burst(p.g.position, 1, [0xa01810, 0x7a1410], { speed: 0.6, size: 0.05, life: 0.4 }); }
+          continue;
+        }
+        p.v.y -= 20 * dt;
+        feet.copy(p.g.position); feet.y -= p.half.y;
+        G.world.moveBox(feet, p.v, dt, p.r, p.half.y * 2, gOut);
+        p.g.position.set(feet.x, feet.y + p.half.y, feet.z);
+        p.g.rotation.x += p.w.x * dt; p.g.rotation.y += p.w.y * dt; p.g.rotation.z += p.w.z * dt;
+        p.trail -= dt;
+        if (p.trail <= 0 && p.bleed > 0) { p.trail = 0.035; burst(p.g.position, 1, p.burn ? [0xff9a30, 0x3a3a3c] : [0xb3201a, 0x7a1410], { speed: 0.5, size: 0.06, life: 0.5 }); }
+        if (gOut.ground) {
+          const impact = -p.v.y; p.hits++;
+          if (p.hits === 1 && !p.burn) { splat(feet, 0.5 + p.half.y * 2); if (impact > 3) G.audio.playAt('gore', feet, { gain: 0.35, rate: G.rng.range(1.1, 1.5) }); }
+          p.v.y = impact > 2.5 ? impact * 0.28 : 0; p.v.x *= 0.55; p.v.z *= 0.55; p.w.multiplyScalar(0.5);
+          if (impact <= 2.5 && Math.hypot(p.v.x, p.v.z) < 0.6) {
+            // lie flat: keep the yaw, snap pitch and roll to the nearest quarter turn, rest on the face that is now down
+            p.rest = true; p.settle = 0;
+            e.setFromQuaternion(p.g.quaternion, 'YXZ');
+            const snap = (a) => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
+            p.qRest = new THREE.Quaternion().setFromEuler(new THREE.Euler(snap(e.x), e.y, snap(e.z), 'YXZ'));
+            rm.makeRotationFromQuaternion(p.qRest); const el = rm.elements; const h = p.half;
+            p.yRest = feet.y + Math.abs(el[1]) * h.x + Math.abs(el[5]) * h.y + Math.abs(el[9]) * h.z + 0.005;
+          }
+        }
+      }
+    }
+    // blood pools: flat alpha splats on whatever floor the point is on
+    const MAXS = 90;
+    const splats = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('blood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), MAXS);
+    splats.count = 0; splats.frustumCulled = false; splats.renderOrder = 1; scene.add(splats);
+    let splatI = 0;
+    function splat(pos, size = 1) {
+      m4.compose(new THREE.Vector3(pos.x, pos.y + 0.02 + (splatI % 7) * 0.002, pos.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(size, 1, size * G.rng.range(0.7, 1.2)));
+      splats.setMatrixAt(splatI % MAXS, m4); splatI++; splats.count = Math.min(MAXS, splatI); splats.instanceMatrix.needsUpdate = true;
+    }
+    // stumps: the hidden part's joint keeps throwing blood (or saber embers) upward for a while
+    const spurts = [];
+    const jp = new THREE.Vector3();
+    function spurt(obj, kind, dur, alive) { spurts.push({ obj, kind, t: dur, max: dur, alive, acc: 0 }); }
+    function updateSpurts(dt) {
+      for (let i = spurts.length - 1; i >= 0; i--) {
+        const s = spurts[i]; s.t -= dt;
+        if (s.t <= 0 || !s.alive()) { spurts.splice(i, 1); continue; }
+        s.acc += dt * (s.kind === 'burn' ? 14 : 40) * (s.t / s.max);
+        s.obj.getWorldPosition(jp);
+        while (s.acc >= 1) {
+          s.acc -= 1;
+          if (s.kind === 'burn') burst(jp, 1, [0xffb040, 0xff6a20, 0x4a4a4c], { speed: 1, size: 0.06, life: 0.5, grav: -2, drag: 1.5, bounce: 0 });
+          else burst(jp, 1, [0xc0281e, 0x8a1410, 0xb3201a], { dir: new THREE.Vector3(0, 1, 0), push: 2.5, speed: 1.6, size: 0.06, life: 0.7 });
+        }
+      }
+    }
 
-    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, debug: () => ({ particles: P.length, pickups: pickups.length }) };
+    function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
+    function clear() {
+      P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0;
+      for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0;
+    }
+
+    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, debug: () => ({ particles: P.length, pickups: pickups.length, made, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();
