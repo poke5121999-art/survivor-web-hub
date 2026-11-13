@@ -108,6 +108,7 @@ body.touch #fuel { bottom: auto; top: 112px; width: 170px; }
 #pops .pop.dmg { color: #ffb347; font-size: 15px; } #pops .pop.dmg.ally { color: #9be86a; font-size: 13px; } #pops .pop.dmg.leg { color: #d8c8a8; font-size: 13px; } #pops .pop.dmg.crit { color: #ff4a3a; font-size: 20px; }
 body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.62); transform-origin: top center; }
 #wave { left: 50%; top: 10px; transform: translateX(-50%); text-align: center; padding: 4px 16px; }
+#env { display: block; margin-top: 2px; font: 700 11px var(--mono); color: #cfe0ff; font-style: normal; letter-spacing: .04em; } #env.hot { color: #ff8a6a; }
 #wave small { font: 700 11px var(--mono); letter-spacing: .2em; color: #cdb892; } #wave b { font: 900 26px/1 var(--mono); color: var(--gold); margin: 0 4px; } #wave span { display: block; font: 700 12px var(--mono); }
 #coins { right: max(14px, env(safe-area-inset-right)); top: 10px; font: 900 18px var(--mono); }
 #score { right: max(14px, env(safe-area-inset-right)); top: 54px; font: 700 13px var(--mono); color: #cdb892; }
@@ -205,7 +206,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div id="bossbar"><b>BOSS</b><div><i></i></div></div>
   <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
   <div id="prompt"></div>
-  <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
+  <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span><em id="env"></em></div>
   <div class="plate" id="coins">🪙 <b>0</b></div>
   <div class="plate" id="score">ĐIỂM <b>0</b></div>
   <div id="skill"><kbd>F</kbd><span>Kỹ năng</span><div class="dots"></div></div>
@@ -290,19 +291,20 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113g"></script>
-<script type="module" src="js/core.js?v=20261113g"></script>
-<script type="module" src="js/art.js?v=20261113g"></script>
-<script type="module" src="js/world.js?v=20261113g"></script>
-<script type="module" src="js/audio.js?v=20261113g"></script>
-<script type="module" src="js/fx.js?v=20261113g"></script>
-<script type="module" src="js/zombies.js?v=20261113g"></script>
-<script type="module" src="js/weapons.js?v=20261113g"></script>
-<script type="module" src="js/allies.js?v=20261113g"></script>
-<script type="module" src="js/heroes.js?v=20261113g"></script>
-<script type="module" src="js/gear.js?v=20261113g"></script>
-<script type="module" src="js/player.js?v=20261113g"></script>
-<script type="module" src="js/ui.js?v=20261113g"></script>
-<script type="module" src="js/main.js?v=20261113g"></script>
+<script type="module" src="js/boot.js?v=20261113h"></script>
+<script type="module" src="js/core.js?v=20261113h"></script>
+<script type="module" src="js/art.js?v=20261113h"></script>
+<script type="module" src="js/world.js?v=20261113h"></script>
+<script type="module" src="js/audio.js?v=20261113h"></script>
+<script type="module" src="js/fx.js?v=20261113h"></script>
+<script type="module" src="js/zombies.js?v=20261113h"></script>
+<script type="module" src="js/weapons.js?v=20261113h"></script>
+<script type="module" src="js/allies.js?v=20261113h"></script>
+<script type="module" src="js/heroes.js?v=20261113h"></script>
+<script type="module" src="js/sky.js?v=20261113h"></script>
+<script type="module" src="js/gear.js?v=20261113h"></script>
+<script type="module" src="js/player.js?v=20261113h"></script>
+<script type="module" src="js/ui.js?v=20261113h"></script>
+<script type="module" src="js/main.js?v=20261113h"></script>
 </body>
 </html>

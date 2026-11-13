@@ -145,6 +145,20 @@
     }
     return finish(out, o.peak || 0.6);
   }
+  function rain(rng, sr, o) { // steady hiss with random droplet ticks, loops
+    const len = Math.floor(sr * o.len); const out = new Float32Array(len); const bp = new BP(sr); const hp = new BP(sr); bp.set(2400, 0.6); hp.set(5200, 3);
+    for (let i = 0; i < len; i++) { out[i] = bp.run(rng.next() * 2 - 1) * 0.5 + (rng.next() < 0.002 ? hp.run(1) * 3 : hp.run(0)); }
+    return loopify(finish(out, o.peak || 0.4), sr, 0.4);
+  }
+  function thunder(rng, sr, o) { // a crack, then a long rolling rumble
+    const len = Math.floor(sr * o.len); const out = new Float32Array(len); let s = 0; let s2 = 0; const lp = lpK(140, sr); const lp2 = lpK(900, sr);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr; const n = rng.next() * 2 - 1; s += lp * (n - s); s2 += lp2 * (n - s2);
+      const roll = 0.6 + 0.4 * Math.sin(t * 7 + Math.sin(t * 2.3) * 3);
+      out[i] = s * 9 * Math.exp(-t / (o.len * 0.45)) * roll + s2 * 3 * Math.exp(-t / 0.08);
+    }
+    return finish(out, o.peak || 0.95);
+  }
   function tones(rng, sr, o) { // short square/triangle notes for pickups and UI
     const len = Math.floor(sr * o.notes.reduce((a, n) => a + n[1], 0) + sr * 0.05); const out = new Float32Array(len);
     let at = 0;
@@ -270,11 +284,13 @@
     wave_start: { n: 1, bus: 'ui', gen: horn, o: { len: 1.8, freqs: [110, 164.8, 220.5] } },
     wave_clear: { n: 1, bus: 'ui', gen: tones, o: { wave: 'tri', notes: [[392, 0.12], [523, 0.12], [659, 0.12], [784, 0.3]], peak: 0.45 } },
     wind: { n: 1, bus: 'amb', loop: true, gen: wind, o: { len: 9 } },
+    rain: { n: 1, bus: 'amb', loop: true, gen: rain, o: { len: 6 } },
+    thunder: { n: 3, bus: 'world', max: 2, gen: thunder, o: { len: 3.2 } },
     music_drone: { n: 1, bus: 'music', loop: true, gen: drone, o: {} },
     music_perc: { n: 1, bus: 'music', loop: true, gen: perc, o: {} },
   };
   const ORDER = ['marker', 'coin', 'pistol', 'empty', 'mag_out', 'mag_in', 'switch', 'step', 'land', 'hit', 'head', 'impact', 'groan', 'die', 'swipe', 'hurt',
-    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'wind', 'music_drone', 'music_perc'];
+    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'thunder', 'wind', 'rain', 'music_drone', 'music_perc'];
 
   BZ.makeAudio = (G) => {
     const AC = window.AudioContext || window.webkitAudioContext;

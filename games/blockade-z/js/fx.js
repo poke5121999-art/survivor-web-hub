@@ -96,7 +96,7 @@
     }
 
     function update(dt) {
-      updateAsh(dt); updateGibs(dt); updateSpurts(dt);
+      updateAsh(dt); updateGibs(dt); updateSpurts(dt); updateBlast(dt);
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
         const p = P[i];
@@ -118,7 +118,7 @@
 
       for (const t of tracers) if (t.life > 0) { t.life -= dt; t.m.material.opacity = Math.max(0, t.life / 0.06) * 0.85; if (t.life <= 0) t.m.visible = false; }
       if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.intensity = 0; }
-      boomLight.intensity = Math.max(0, boomLight.intensity - dt * 220);
+      boomLight.intensity = Math.max(0, boomLight.intensity * Math.pow(0.002, dt) - dt * 20);
       for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.45; b.s.scale.setScalar(1.5 + k * 5); b.s.material.opacity = Math.max(0, 0.85 - k); if (k >= 1) { scene.remove(b.s); booms.splice(i, 1); } }
 
       const pl = G.player;
@@ -135,11 +135,115 @@
     const boomGlow = new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
     const booms = [];
     const boomLight = new THREE.PointLight(0xff9040, 0, 22, 1.4); scene.add(boomLight);
-    function explosion(pos) {
-      burst(pos, 34, [0xfff0a0, 0xffc040, 0xff7a20, 0xe04a18], { speed: 9, size: 0.15, life: 0.9, bounce: 0.2 });
-      burst(pos, 18, [0x3a3a3c, 0x55555a, 0x2a2420], { speed: 5, size: 0.2, life: 1.6, bounce: 0.1 });
-      const s = new THREE.Sprite(boomGlow.clone()); s.position.copy(pos); scene.add(s); booms.push({ s, t: 0 });
-      boomLight.position.copy(pos); boomLight.intensity = 60; flashT = Math.max(flashT, 0.25);
+    // ---- billboards: two instanced quads (glow = additive, smoke = alpha blend), colour and alpha per instance ----
+    const VS = `attribute vec3 aColor; attribute float aAlpha; varying vec3 vC; varying float vA; varying vec2 vUv;
+      void main() { vUv = uv; vC = aColor; vA = aAlpha; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`;
+    const FS_ADD = `uniform sampler2D map; varying vec3 vC; varying float vA; varying vec2 vUv;
+      void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vC * t.a * vA, 1.0); }`;
+    const FS_ALPHA = `uniform sampler2D map; varying vec3 vC; varying float vA; varying vec2 vUv;
+      void main() { vec4 t = texture2D(map, vUv); float a = t.a * vA; if (a < 0.02) discard; gl_FragColor = vec4(vC, a); }`;
+    function board(additive, n, order) {
+      const geo = new THREE.PlaneGeometry(1, 1);
+      const col = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3); const al = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
+      col.setUsage(THREE.DynamicDrawUsage); al.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aColor', col); geo.setAttribute('aAlpha', al);
+      const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: BZ.tex('puff') } }, vertexShader: VS, fragmentShader: additive ? FS_ADD : FS_ALPHA, transparent: true, depthWrite: false,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+      const mesh = new THREE.InstancedMesh(geo, mat, n); mesh.frustumCulled = false; mesh.count = 0; mesh.renderOrder = order; scene.add(mesh);
+      return { mesh, col, al, list: [], n };
+    }
+    const NB = Math.round(220 * Math.max(0.5, G.quality.particles));
+    const glowB = board(true, NB, 4); const smokeB = board(false, NB, 3);
+    const c0 = new THREE.Color(); const c1 = new THREE.Color(); const bq = new THREE.Quaternion(); const zq = new THREE.Quaternion(); const zAx = new THREE.Vector3(0, 0, 1);
+    // o: { glow, vel, s0, s1, life, c0, c1, a0, delay, drag, g, spin }
+    function puff(pos, o) {
+      const B = o.glow ? glowB : smokeB;
+      if (B.list.length >= B.n) B.list.shift();
+      B.list.push({ p: pos.clone(), v: o.vel ? o.vel.clone() : new THREE.Vector3(), t: -(o.delay || 0), life: o.life || 1, s0: o.s0 || 0.5, s1: o.s1 ?? o.s0 ?? 0.5,
+        c0: o.c0 ?? 0xffffff, c1: o.c1 ?? o.c0 ?? 0xffffff, a0: o.a0 ?? 1, drag: o.drag || 0, g: o.g || 0, rot: G.rng.range(0, 6.3), spin: o.spin ?? G.rng.range(-1.5, 1.5), glow: !!o.glow });
+    }
+    function updateBoard(B, dt) {
+      const camQ = G.camera.quaternion; let n = 0;
+      for (let i = B.list.length - 1; i >= 0; i--) {
+        const b = B.list[i]; b.t += dt;
+        if (b.t >= b.life) { B.list.splice(i, 1); continue; }
+        if (b.t < 0) continue;
+        if (b.drag) b.v.multiplyScalar(Math.max(0, 1 - b.drag * dt));
+        b.v.y -= b.g * dt; b.p.addScaledVector(b.v, dt); b.rot += b.spin * dt;
+        const k = b.t / b.life; const ek = 1 - (1 - k) * (1 - k);
+        const s = b.s0 + (b.s1 - b.s0) * ek;
+        const a = b.glow ? b.a0 * Math.pow(1 - k, 1.4) : b.a0 * (k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88);
+        bq.copy(camQ).multiply(zq.setFromAxisAngle(zAx, b.rot));
+        m4.compose(b.p, bq, sc.set(s, s, s)); B.mesh.setMatrixAt(n, m4);
+        c0.setHex(b.c0); c1.setHex(b.c1); c0.lerp(c1, Math.min(1, k * 1.4));
+        B.col.setXYZ(n, c0.r, c0.g, c0.b); B.al.setX(n, a); n++;
+      }
+      B.mesh.count = n; B.mesh.instanceMatrix.needsUpdate = true; B.col.needsUpdate = true; B.al.needsUpdate = true;
+    }
+    // scorch marks under explosions
+    const MAXSC = 30;
+    const scorches = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('scorch'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), MAXSC);
+    scorches.count = 0; scorches.frustumCulled = false; scene.add(scorches); let scI = 0;
+    // ground shock rings
+    const rings = [];
+    const ringGeo = new THREE.RingGeometry(0.86, 1, 40).rotateX(-Math.PI / 2);
+    for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffe0b0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.visible = false; scene.add(m); rings.push({ m, t: 9, R: 1 }); }
+    let ringI = 0;
+    // a white flash over the screen when the blast is close
+    const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;background:#fff3d0;opacity:0';
+    document.body.appendChild(flashEl); let flashScr = 0;
+    const V = () => new THREE.Vector3();
+    const rnd = () => V().set(G.rng.range(-1, 1), G.rng.range(-1, 1), G.rng.range(-1, 1)).normalize();
+    // Big blast: flash, a churning fire ball, shock ring, embers, flying rubble, smoke that hangs, a scorch mark.
+    function explosion(pos, s = 1) {
+      const R = s;
+      puff(pos, { glow: true, s0: 2.5 * R, s1: 8 * R, life: 0.16, c0: 0xffffff, c1: 0xffd080, a0: 1.2, spin: 0 });
+      const core = pos.clone().setY(pos.y + 0.6 * R);
+      for (let i = 0; i < 20; i++) {
+        const d = rnd(); d.y = Math.abs(d.y) * 0.8 + 0.25;
+        puff(core.clone().addScaledVector(d, G.rng.range(0, 1.0) * R), { glow: true, vel: d.clone().multiplyScalar(G.rng.range(2, 5) * R).setY(d.y * 3.5 * R + 2), drag: 3,
+          s0: G.rng.range(1.4, 2.1) * R, s1: G.rng.range(3.4, 4.8) * R, life: G.rng.range(0.55, 0.95), c0: G.rng.pick([0xfff6d0, 0xffe48a, 0xffc860]), c1: G.rng.pick([0xff5a14, 0xe03a0c]), a0: 1.1 });
+      }
+      // the fire ball keeps glowing through the first smoke: a slow dark-orange core that lingers
+      for (let i = 0; i < 5; i++) puff(core.clone().add(rnd().multiplyScalar(0.6 * R)), { glow: true, delay: 0.1, vel: V().set(0, 1.4, 0), s0: 2.4 * R, s1: 3.2 * R, life: 1.1, c0: 0xff7a20, c1: 0x601004, a0: 0.7 });
+      for (let i = 0; i < 10; i++) {
+        const d = rnd(); d.y = Math.abs(d.y) * 0.5;
+        puff(pos.clone().addScaledVector(d, 0.7 * R).setY(pos.y + G.rng.range(0.6, 1.8) * R), { delay: G.rng.range(0.08, 0.35), vel: d.multiplyScalar(1.6 * R).setY(G.rng.range(1.2, 2.6)), drag: 1.2,
+          s0: G.rng.range(1.4, 2) * R, s1: G.rng.range(5, 7) * R, life: G.rng.range(2.8, 4.5), c0: 0x5a3a26, c1: 0x6e6a66, a0: 0.85 });
+      }
+      for (let i = 0; i < 22; i++) {
+        const d = rnd(); d.y = Math.abs(d.y) + 0.3;
+        puff(pos, { glow: true, vel: d.normalize().multiplyScalar(G.rng.range(5, 13) * R), g: 9, drag: 0.6, s0: 0.22, s1: 0.06, life: G.rng.range(0.7, 1.6), c0: 0xffe070, c1: 0xff3a10, a0: 1.1, spin: 0 });
+      }
+      burst(pos, 18, [0x3a3a3c, 0x55555a, 0x2a2420, 0x6a645c], { speed: 7 * R, size: 0.2, life: 1.8, bounce: 0.25 });
+      const ground = new THREE.Vector3(pos.x, Math.max(0, pos.y - 0.5), pos.z);
+      const r = rings[ringI++ % rings.length]; r.m.position.copy(ground).setY(ground.y + 0.06); r.t = 0; r.R = 6.5 * R; r.m.visible = true;
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + G.rng.range(0, 0.6); puff(ground.clone().setY(ground.y + 0.3), { vel: V().set(Math.cos(a) * 7, 0.3, Math.sin(a) * 7), drag: 2.5, s0: 0.8, s1: 2.6, life: 1.2, c0: 0x6a5e50, c1: 0x7a7066, a0: 0.55 }); }
+      m4.compose(V().set(ground.x, ground.y + 0.025 + (scI % 5) * 0.003, ground.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(4.2 * R, 1, 4.2 * R));
+      scorches.setMatrixAt(scI % MAXSC, m4); scI++; scorches.count = Math.min(MAXSC, scI); scorches.instanceMatrix.needsUpdate = true;
+      boomLight.position.copy(pos).setY(pos.y + 1); boomLight.intensity = 90 * R; flashT = Math.max(flashT, 0.25);
+      const pd = G.camera.position.distanceTo(pos); if (pd < 16) flashScr = Math.max(flashScr, 0.55 * (1 - pd / 16));
+    }
+    // a bullet striking a surface: tiny flash, a few sparks off hard stuff, a puff of dust
+    function impact(at, normal, tag) {
+      const n = V().set(normal[0], normal[1], normal[2]);
+      puff(at.clone().addScaledVector(n, 0.05), { glow: true, s0: 0.45, s1: 0.2, life: 0.07, c0: 0xfff0c0, c1: 0xffa040, a0: 1 });
+      if (tag === 'metal' || tag === 'stone' || !tag) for (let i = 0; i < 3; i++) puff(at, { glow: true, vel: n.clone().multiplyScalar(4).add(rnd().multiplyScalar(3)), g: 12, s0: 0.08, s1: 0.03, life: 0.3, c0: 0xffe090, c1: 0xff6020, spin: 0 });
+      const dust = { grass: 0x6a7a4a, wood: 0x8a6a48, leaves: 0x4a6a3a }[tag] || 0x8a8680;
+      puff(at.clone().addScaledVector(n, 0.12), { vel: n.clone().multiplyScalar(0.9), drag: 2, s0: 0.2, s1: 0.95, life: 0.6, c0: dust, c1: dust, a0: 0.55 });
+    }
+    function bloodMist(at, k) { puff(at, { vel: V().set(0, 0.3, 0), drag: 2, s0: 0.25, s1: 0.7 + k * 0.9, life: 0.4 + k * 0.3, c0: 0x9a1410, c1: 0x5a0a08, a0: 0.75 }); }
+    function trail(at) {
+      puff(at, { vel: V().set(G.rng.range(-0.2, 0.2), 0.5, G.rng.range(-0.2, 0.2)), drag: 1, s0: 0.3, s1: 1.5, life: G.rng.range(1, 1.6), c0: 0x9a9894, c1: 0x6a6866, a0: 0.5 });
+      puff(at, { glow: true, s0: 0.5, s1: 0.2, life: 0.08, c0: 0xffe090, c1: 0xff6020, a0: 1 });
+    }
+    function updateBlast(dt) {
+      updateBoard(smokeB, dt); updateBoard(glowB, dt);
+      for (const r of rings) {
+        if (r.t > 0.45) { r.m.visible = false; continue; }
+        r.t += dt; const k = Math.min(1, r.t / 0.45); const ek = 1 - Math.pow(1 - k, 3);
+        r.m.scale.setScalar(0.4 + r.R * ek); r.m.material.opacity = 0.9 * (1 - k);
+      }
+      if (flashScr > 0) { flashScr = Math.max(0, flashScr - dt * 2.2); flashEl.style.opacity = flashScr.toFixed(3); }
     }
     // ---- gore: severed parts fly, bounce, settle flat and stay; blood pools; stumps keep spurting ----
     const MAXG = Math.round(44 * Math.max(0.6, G.quality.particles));
@@ -236,9 +340,9 @@
     function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() {
       P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0;
-      for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0;
+      for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
     }
 
-    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, debug: () => ({ particles: P.length, pickups: pickups.length, made, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, debug: () => ({ particles: P.length, pickups: pickups.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();

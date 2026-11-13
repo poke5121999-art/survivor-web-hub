@@ -89,7 +89,7 @@
       if (z.type !== type) dress(z, type);
       z.type = type; z.T = T;
       z.alive = true; z.dying = 0; z.headless = false;
-      z.hp = z.maxHp = Math.round(T.hp * BZ.WAVE.hpMul(wave));
+      z.hp = z.maxHp = Math.round(T.hp * BZ.WAVE.hpMul(wave) * (G.env ? G.env.zHp : 1));
       z.dmg = Math.round(T.dmg * BZ.WAVE.dmgMul(wave));
       z.speed = T.speed * G.rng.range(0.9, 1.1);
       z.pos.set(gate.x + G.rng.range(-1.2, 1.2), T.fly ? G.rng.range(6, 9) : 0, gate.z + G.rng.range(-1.2, 1.2));
@@ -261,7 +261,7 @@
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
-        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1);
+        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1);
         const before = z.pos.x + z.pos.z;
         if (z.climb) ride(z, dt, P, dx, dz, dist);
         else {
@@ -435,7 +435,7 @@
       const y = part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05;
       const at = new THREE.Vector3(z.pos.x, z.pos.y + y * T.scale, z.pos.z);
       const n = Math.round(4 + k * 18 + (part === 'head' ? 6 : 0));
-      G.fx.burst(at, n, [0xb3201a, 0x7a1410, 0x5f8f3e], { dir, push: 1.5 + 3 * k * imp, size: 0.07 + 0.08 * k, speed: 3 + 3 * k });
+      G.fx.burst(at, n, [0xb3201a, 0x7a1410, 0x5f8f3e], { dir, push: 1.5 + 3 * k * imp, size: 0.07 + 0.08 * k, speed: 3 + 3 * k }); G.fx.bloodMist(at, k);
       z.vel.addScaledVector(dir, (0.8 + 5 * k) * imp * heavy / T.scale);
       // which side was hit: dir crossed with the zombie's facing
       const side = Math.sign(dir.x * Math.cos(z.yaw) - dir.z * Math.sin(z.yaw)) || 1;

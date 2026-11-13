@@ -178,6 +178,9 @@
       skillEl.style.setProperty('--cd', Hh.charges > 0 ? 0 : Hh.cdFrac()); skillEl.classList.toggle('cool', Hh.charges <= 0);
       skillEl.classList.toggle('active', (Hh.t.invuln || Hh.t.storm || Hh.t.heal || Hh.t.strike || 0) > 0 || !!Hh.decoy);
       skillEl.querySelectorAll('.dots i').forEach((d, k) => d.classList.toggle('on', k < Hh.charges));
+      const envEl = document.getElementById('env'); const wid = G.sky.weather(); const wname = BZ.WEATHERS[wid].name;
+      const envTxt = (G.env.night ? '🌙 Đêm' : '☀ Ngày') + (wid !== 'clear' ? ' · ' + wname : '');
+      if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'meteor' || wid === 'storm'); }
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.coins.textContent = G.coins; el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);

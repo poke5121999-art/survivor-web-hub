@@ -33,6 +33,7 @@
       sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
     }
     scene.add(sun); scene.add(sun.target);
+    G.hemi = hemi; G.sun = sun;
 
     await step('Vẽ texture pixel', 0.15);
     for (const k of BZ.texKeys()) BZ.tex(k);
@@ -47,6 +48,7 @@
     G.weapons = BZ.makeWeapons(G);
     G.allies = BZ.makeAllies(G);
     G.hero = BZ.makeHeroes(G);
+    G.sky = BZ.makeSky(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
@@ -83,6 +85,7 @@
       wave.n = n; wave.phase = 'fight'; wave.total = BZ.WAVE.count(n); wave.toSpawn = wave.total; wave.killed = 0; wave.spawnT = 1.5;
       G.ui.banner('ĐỢT ' + n, wave.total + ' zombie đang kéo tới', 2.4);
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
+      G.events.emit('wave:start', n);
       // a boss every fifth wave, and from wave 6 a chance of an extra one
       const BOSSES = ['giant', 'thrower', 'phantom', 'queen'];
       wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
@@ -126,7 +129,7 @@
     G.events.on('zombie:killed', ({ z, part }) => {
       wave.killed++; G.kills++;
       const T = z.T; const head = part === 'head';
-      const coin = T.coin + (head ? 5 : 0); G.coins += coin; G.score += T.score + (head ? 50 : 0);
+      const coin = Math.round((T.coin + (head ? 5 : 0)) * (G.env ? G.env.coinMul : 1)); G.coins += coin; G.score += T.score + (head ? 50 : 0);
       const at = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z);
       G.ui.pop('+' + coin + '🪙', 'coin', at);
       if (head) { G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z)); G.audio.play('headshot', { gain: 0.6 }); }
@@ -192,7 +195,7 @@
     }
     function newGame() {
       lineupShow(false);
-      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset();
+      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear();
       G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
       play();
       startWave(+(BZ.params.wave || 1));
@@ -295,6 +298,7 @@
       safe('ui', () => G.ui.update(dt));
       G.world.clouds.position.x = (performance.now() / 1000) * 0.6 % 60;
       G.world.update(dt);
+      safe('sky', () => G.sky.update(gdt, G.state === 'playing'));
     }
     function draw() {
       renderer.info.reset();

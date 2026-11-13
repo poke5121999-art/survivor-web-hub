@@ -45,7 +45,7 @@
         z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
       }
-      G.fx.explosion(pos);
+      G.fx.explosion(pos, R / BOMB.radius);
       G.audio.playAt('boom', pos, { gain: 1.3 });
       const pd = G.player.pos.distanceTo(pos);
       if (pd < 18) { G.player.shake.v += (18 - pd) * 0.8; G.player.kickP.v += (18 - pd) * 0.03; }
@@ -78,7 +78,7 @@
         if (s.kind === 'rocket') {
           const zh = G.zombies.hitTest(s.pos, seg, wh ? wh.t : step + 0.3);
           if (zh) hitAt = s.pos.clone().addScaledVector(seg, zh.t);
-          if (G.rng.chance(0.9)) G.fx.burst(s.pos, 1, [0x9a9a9e, 0x6a6a6e, 0xffb040], { speed: 0.4, size: 0.16, life: 0.9, grav: -1, bounce: 0, drag: 0.6 });
+          G.fx.trail(s.pos.clone().addScaledVector(seg, -0.4));
         } else {
           const P = G.player; const pc = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
           if (P.alive && s.pos.distanceTo(pc) < 1.1) { G.events.emit('player:hurt', { dmg: 24, from: s.pos }); hitAt = s.pos.clone(); P.vel.addScaledVector(seg, 4); }
@@ -203,6 +203,6 @@
       while (turrets.length) removeTurret(0);
       state.bombs = BOMB.start; state.cool = 0;
     }
-    return { state, throwBomb, throwRock, fireRocket, shots, placeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(BOMB.max, state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
+    return { state, throwBomb, throwRock, fireRocket, explode, shots, placeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(BOMB.max, state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
   };
 })();

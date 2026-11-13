@@ -406,6 +406,14 @@
       set(x, y, hex(v < 0.3 ? 0xfff3a0 : v < 0.6 ? 0xffb03a : 0xe8541e));
     }
   });
+  // soft pixel puff for smoke, fire balls and dust: white, alpha falls off in hard steps with a ragged edge
+  def('puff', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const r = Math.hypot(x - 7.5, y - 7.5) / 8 + (rng.next() - 0.5) * 0.22;
+      const a = Math.max(0, 1 - r); const q = Math.round(Math.min(1, a * 1.6) * 4) / 4;
+      set(x, y, [255, 255, 255], Math.round(q * 255));
+    }
+  }, { noMip: true });
   def('glow', 32, 32, ({ set }) => {
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
       const r = Math.hypot(x - 15.5, y - 15.5) / 16; const a = Math.max(0, 1 - r); const q = Math.round(a * a * 6) / 6;

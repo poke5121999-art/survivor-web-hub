@@ -216,6 +216,25 @@ const BOT = `(() => {
     check(hero.bang.frozen === 4, `Băng freezes every zombie nearby (${hero.bang.frozen}/4)`);
     check(hero.wall > 20 && hero.wallTop > 1.5 && hero.climb > 2.5, `Bóng runs along a wall (${hero.wall} frames, top ${hero.wallTop} m) and up a wall (${hero.climb} m)`);
 
+    // explosions, day and night, weather
+    const env = await page.evaluate(`(() => { const G = __G; const V = G.THREE.Vector3; const r = {};
+      __select.open(); __select.pick(3); __select.go(); __sim(0.3); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.god = true;
+      const d0 = G.fx.debug(); G.gear.explode(new V(0, 0.5, 0), 5.5, 200); __sim(0.1); const d1 = G.fx.debug();
+      r.boom = { glow: d1.glow - d0.glow, smoke: d1.smoke, scorch: d1.scorch };
+      G.sky.S.t = 0.5; __sim(0.2); r.day = { night: G.env.night, hemi: +G.hemi.intensity.toFixed(2), zs: G.env.zSpeed };
+      G.sky.S.t = 0.95; __sim(0.2); r.night = { night: G.env.night, hemi: +G.hemi.intensity.toFixed(2), zs: G.env.zSpeed };
+      const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(3, 0, -3); z.speed = 0;
+      G.sky.setWeather('storm', false); G.sky.S.wk = 1; G.sky.strike(z.pos.clone()); __sim(0.2); r.bolt = !z.alive;
+      G.sky.setWeather('bloodmoon', false); G.sky.S.wk = 1; __sim(0.1); r.blood = { hp: G.env.zHp, coin: G.env.coinMul };
+      G.sky.setWeather('meteor', false); G.sky.S.wk = 1; const m0 = G.fx.debug().scorch; G.sky.meteor(); __sim(2); r.meteor = G.fx.debug().scorch > m0 || G.fx.debug().scorch === 30;
+      G.sky.setWeather('clear', false); G.god = false; return r; })()`);
+    console.log('env', JSON.stringify(env));
+    check(env.boom.glow >= 30 && env.boom.smoke >= 8 && env.boom.scorch >= 1, `an explosion makes a fire ball, smoke and a scorch mark (${env.boom.glow} glow, ${env.boom.smoke} smoke)`);
+    check(!env.day.night && env.night.night && env.day.hemi > env.night.hemi && env.night.zs > env.day.zs, `day is bright, night is dark and zombies run faster at night (${env.day.hemi} vs ${env.night.hemi})`);
+    check(env.bolt, 'a lightning strike kills the zombie it hits');
+    check(env.blood.hp === 1.3 && env.blood.coin === 2, 'blood moon makes zombies tougher and doubles coins');
+    check(env.meteor, 'a meteor comes down and explodes');
+
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));
     const errs = await page.evaluate('window.__errors');

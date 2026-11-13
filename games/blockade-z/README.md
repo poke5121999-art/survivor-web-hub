@@ -23,6 +23,12 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 
 `js/heroes.js` có 7 nhân vật tự nghĩ (không lấy từ game nào): Gió (lướt, 3 lượt), Thép (bất tử 5 giây, 150 máu), Y Tá (hồi máu, tự hồi khi không trúng đòn), Mưa Đạn (bão đạn: bắn nhanh gấp đôi, không tốn đạn, toả đạn lạc), Bóng (dịch chuyển để lại bóng mồi; chạy trên tường, chạy lên tường, đạp tường, nhảy hai lần), Pháo Thủ (không kích 6 quả pháo, bom to hơn) và Băng (đóng băng 9 m, xác đóng băng vỡ vụn). Bấm `F` hoặc nút tròn trên HUD để dùng kỹ năng. Màn chọn nhân vật dựng 7 người đứng thành hàng giữa quảng trường; `?select=1` mở thẳng màn này, `?hero=<id>` chọn sẵn nhân vật khi `?autostart=1`.
 
+## Ngày đêm, thời tiết, vụ nổ
+
+- `js/sky.js` giữ một đồng hồ chạy 8 phút cho một ngày: mặt trời mọc và lặn, ban đêm có mặt trăng và sao, đèn đường với cửa sổ sáng chỉ bật khi tối. Ban đêm zombie nhanh hơn 15%. `?tod=0.5` (0 = nửa đêm, 0.5 = trưa) và `?daylen=<giây>` dùng khi thử.
+- Đầu mỗi đợt tung ra một kiểu thời tiết, kiểu nào cũng có luật riêng: mưa (zombie chậm 10%), bão sét (sét đánh zombie), sương mù (xu gấp rưỡi), tuyết (zombie chậm 20%), trăng máu chỉ ra ban đêm (zombie trâu hơn, xu gấp đôi), gió tro (đạn lệch), mưa sao băng (thiên thạch nổ, có vòng đỏ báo trước). `?weather=<id>` ép một kiểu.
+- Vụ nổ ở `fx.explosion`: chớp sáng, quả cầu lửa, vòng sóng xung kích trên đất, tàn lửa, gạch đá văng, khói đứng lại vài giây, vết cháy, màn hình loé trắng khi nổ gần. Lửa và khói là hai `InstancedMesh` billboard (một lớp cộng sáng, một lớp alpha), nên mỗi lớp chỉ tốn một draw call.
+
 ## Kiểm
 
 ```

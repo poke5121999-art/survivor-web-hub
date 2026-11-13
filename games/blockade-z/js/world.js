@@ -372,19 +372,20 @@
     // ---------- sky dome with a fire-lit horizon, smoke clouds ----------
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color(0x0a1230) }, horizon: { value: new THREE.Color(0x30384e) }, sunDir: { value: new THREE.Vector3(-0.45, 0.42, -0.62).normalize() } },
+      uniforms: { top: { value: new THREE.Color(0x0a1230) }, horizon: { value: new THREE.Color(0x30384e) }, sunDir: { value: new THREE.Vector3(-0.45, 0.42, -0.62).normalize() },
+        bodyCol: { value: new THREE.Color(0xf2f0e6) }, bodySize: { value: 0.032 }, starK: { value: 1 }, glowK: { value: 1 }, flash: { value: 0 } },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; varying vec3 vDir;
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 bodyCol; uniform float bodySize; uniform float starK; uniform float glowK; uniform float flash; varying vec3 vDir;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         void main(){ vec3 d = normalize(vDir); float h = clamp(d.y, 0.0, 1.0); vec3 c = mix(horizon, top, pow(h, 0.6));
-        float az = atan(d.x, d.z); c += vec3(0.55, 0.22, 0.06) * pow(1.0 - h, 7.0) * (0.45 + 0.55 * max(0.0, sin(az * 3.0 + 1.0)));
+        float az = atan(d.x, d.z); c += vec3(0.55, 0.22, 0.06) * glowK * pow(1.0 - h, 7.0) * (0.45 + 0.55 * max(0.0, sin(az * 3.0 + 1.0)));
         vec2 g = floor(d.xz / max(d.y, 0.05) * 40.0); float st = hash(g);
-        if (st > 0.988 && d.y > 0.18) c += vec3(0.75, 0.8, 1.0) * (st - 0.988) * 45.0 * h;
+        if (st > 0.988 && d.y > 0.18) c += vec3(0.75, 0.8, 1.0) * (st - 0.988) * 45.0 * h * starK;
         vec3 sd = normalize(sunDir); vec3 ux = normalize(cross(sd, vec3(0.0, 1.0, 0.0))); vec3 uy = cross(ux, sd);
         float fwd = dot(d, sd); vec2 m = vec2(dot(d, ux), dot(d, uy)) / max(fwd, 0.01);
-        c += vec3(0.55, 0.65, 1.0) * pow(max(fwd, 0.0), 300.0) * 0.6;
-        if (fwd > 0.0 && max(abs(m.x), abs(m.y)) < 0.032) c = (abs(m.x) > 0.022 || abs(m.y) > 0.022) ? vec3(0.8, 0.82, 0.88) : vec3(0.95, 0.94, 0.9);
-        if (d.y < 0.0) c = horizon * 0.9; gl_FragColor = vec4(c, 1.0); }`,
+        c += bodyCol * 0.6 * pow(max(fwd, 0.0), 300.0 * (0.032 / bodySize)) * 0.6 + bodyCol * 0.25 * pow(max(fwd, 0.0), 30.0) * (bodySize > 0.04 ? 1.0 : 0.0);
+        if (fwd > 0.0 && max(abs(m.x), abs(m.y)) < bodySize) c = (abs(m.x) > bodySize * 0.69 || abs(m.y) > bodySize * 0.69) ? bodyCol * 0.86 : bodyCol;
+        if (d.y < 0.0) c = horizon * 0.9; c = mix(c, vec3(0.85, 0.9, 1.0), flash); gl_FragColor = vec4(c, 1.0); }`,
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 24, 12), skyMat);
     sky.name = 'sky';
@@ -559,11 +560,11 @@
 
     // ---------- fires: flicker lights, emit flame and smoke ----------
     const FIRE_COL = [0xfff0a0, 0xffc040, 0xff7a20, 0xe04a18]; const SMOKE_COL = [0x2a2a2e, 0x3a3a3e, 0x4a4a4e];
-    const up = new THREE.Vector3(0, 1, 0); const tmp = new THREE.Vector3(); let clock = 0;
+    const up = new THREE.Vector3(0, 1, 0); const tmp = new THREE.Vector3(); let clock = 0; let nightK = 1;
     function update(dt) {
       clock += dt;
       for (const o of lights) if (o.l) o.l.intensity = o.fire ? o.base * (0.75 + 0.15 * Math.sin(clock * 9 + o.ph) + 0.1 * Math.sin(clock * 23 + o.ph * 2))
-        : o.flicker ? o.base * (Math.sin(clock * 13 + o.ph) > -0.85 ? 1 : 0.15) : o.base;
+        : (o.flicker ? o.base * (Math.sin(clock * 13 + o.ph) > -0.85 ? 1 : 0.15) : o.base) * nightK;
       const k = G.quality.particles;
       for (const f of fires) {
         f.t += dt * k;
@@ -577,7 +578,15 @@
     }
 
     const spawns = GATES.map((g) => ({ name: g.name, x: g.dir[0] * (GRID_HALF - 1.5), z: g.dir[1] * (GRID_HALF - 1.5), dir: g.dir }));
-    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, spawns, HALF, group, sky, clouds,
+    // what the day/night cycle turns down by day: street lamps, lit windows, lamp glass
+    const nightMats = []; group.traverse((m) => { if (m.isMesh) for (const mt of [].concat(m.material)) if (/^(lamp|glass_lit)/.test(mt.name)) nightMats.push({ mt, base: mt.emissive.clone() }); });
+    function setNight(k) {
+      nightK = k;
+      for (const o of nightMats) o.mt.emissive.copy(o.base).multiplyScalar(0.15 + 0.85 * k);
+      // by day the far skyline sits in the smog: let fog take it so it reads as distant haze, not black towers
+      skyline.traverse((m) => { if (!m.isMesh) return; const f = k < 0.5; if (m.material.fog !== f) { m.material.fog = f; m.material.needsUpdate = true; } m.material.color.setHex(f ? 0xb8c2d0 : 0x9098a8); });
+    }
+    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, spawns, HALF, group, sky, clouds, setNight, cloudMat,
       isBlocked: (x, z) => { const cx = toCell(x); const cz = toCell(z); return cx < 0 || cz < 0 || cx >= N || cz >= N || !!blocked[idx(cx, cz)]; } };
   };
 })();
