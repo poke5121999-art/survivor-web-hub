@@ -250,7 +250,7 @@
       const r = 0.32 * z.T.scale;
       if (!G.world.overlaps([nx - r, ny, nz - r], [nx + r, ny + 0.9, nz + r])) { z.pos.set(nx, ny, nz); } else { z.pos.y = Math.max(z.pos.y, ny); }
       const P = L.P;
-      if (!L.hit && P.alive && Math.hypot(P.pos.x - z.pos.x, P.pos.z - z.pos.z) < 1.0 + 0.5 * z.T.scale && Math.abs(P.pos.y - z.pos.y) < 1.6) { L.hit = true; api.hurtP(P, Math.round(z.dmg * (z.T.boss ? 1.2 : 1.5)), z.pos, z.T.hitFx); }
+      if (!L.hit && P.alive && !P.isDecoy && Math.hypot(P.pos.x - z.pos.x, P.pos.z - z.pos.z) < 1.0 + 0.5 * z.T.scale && Math.abs(P.pos.y - z.pos.y) < 1.6) { L.hit = true; api.hurtP(P, Math.round(z.dmg * (z.T.boss ? 1.2 : 1.5)), z.pos, z.T.hitFx); }
       if (k >= 1) {
         z.leap = null; z.cd = z.T.boss ? 4 : G.rng.range(2.2, 3.2); z.vel.set(0, 0, 0);
         G.fx.burst(V().set(z.pos.x, z.pos.y + 0.1, z.pos.z), z.T.boss ? 26 : 8, [0x6e4428, 0x8a5a35, 0x4a4640], { speed: z.T.boss ? 6 : 2.5, size: z.T.boss ? 0.2 : 0.08, life: 0.7 });
@@ -331,6 +331,7 @@
         for (const p of players()) {
           if (Math.hypot(p.pos.x - h.pos.x, p.pos.z - h.pos.z) > h.r || Math.abs(p.pos.y - h.pos.y) > 1) continue;
           if (h.kind === 'web') { if (p === G.player) G.player.slowT = Math.max(G.player.slowT || 0, 0.25); continue; }
+          if (h.kind === 'fire' && p === G.player && G.hero.def.id === 'hoa') continue;
           if (tickNow) api.hurtP(p, h.kind === 'acid' ? 5 : 6, h.pos, h.kind === 'acid' ? { slow: 0.6 } : null);
         }
       }
@@ -555,6 +556,6 @@
       for (const h of hazards) { G.scene.remove(h.m); h.m.material.dispose(); } hazards.length = 0;
       queue.length = 0; G.player.slowT = 0; G.player.rootT = 0;
     }
-    return { dress, init, elite, tick, step, pose, hit, onMelee, die, boxes, flags, adopt, eliteIdx, remote, update, clear, playerFx, hazards, projs, summon };
+    return { dress, init, elite, tick, step, pose, hit, onMelee, die, boxes, flags, adopt, eliteIdx, remote, update, clear, playerFx, hazards, projs, summon, hazard };
   };
 })();

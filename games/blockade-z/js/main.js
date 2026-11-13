@@ -148,7 +148,7 @@
       wave.killed++;
       // in co-op the coins and the score go to whoever landed the killing hit
       if (credit === false) return;
-      G.kills++;
+      G.kills++; G.build.onKill(z); G.hero.onKill(z);
       const T = z.T; const head = part === 'head';
       const em = z.elite ? 3 : 1;
       const coin = Math.round((T.coin + (head ? 5 : 0)) * em * (G.env ? G.env.coinMul : 1)); G.coins += coin; G.score += (T.score + (head ? 50 : 0)) * em;
@@ -271,7 +271,7 @@
     // ---- hero pick: the seven stand in a row on the plaza, the camera slides to the one in focus ----
     const lineup = { models: [], i: 3, t: 0, light: new THREE.PointLight(0xffe2b8, 0, 7, 1.4) };
     scene.add(lineup.light);
-    const LX = (i) => -4.5 + i * 1.5; const LZ = 13;
+    const LX = (i) => (i - (BZ.HEROES.length - 1) / 2) * 1.5; const LZ = 13;
     function lineupShow(on) {
       if (on && !lineup.models.length) BZ.HEROES.forEach((h, i) => { const m = BZ.heroModel(h.id); m.root.position.set(LX(i), 0, LZ); scene.add(m.root); lineup.models.push(m); });
       for (const m of lineup.models) m.root.visible = on;
@@ -299,7 +299,7 @@
         m.hips.position.y = 0.75 + br * 0.012; m.head.rotation.x = br * 0.03;
         // the one in focus strikes a pose that hints at its skill
         const pose = on ? BZ.HEROES[i].skill.key : 'idle'; const w = Math.sin(now * 5);
-        const A = { idle: [-0.1, -0.1, 0, 0], dash: [-1.2, 0.6, -0.3, 0.3], invuln: [-2.9, -2.9, 0.2, -0.2], heal: [-1.6 + w * 0.1, -0.2, 0.4, 0], storm: [-1.5, -1.5, 0, 0], blink: [-0.3, -2.4, 0, -0.5], strike: [-3.0 + w * 0.15, -0.2, 0, 0], freeze: [-1.4, -1.4, 0.5, -0.5] }[pose];
+        const A = { idle: [-0.1, -0.1, 0, 0], dash: [-1.2, 0.6, -0.3, 0.3], invuln: [-2.9, -2.9, 0.2, -0.2], heal: [-1.6 + w * 0.1, -0.2, 0.4, 0], storm: [-1.5, -1.5, 0, 0], blink: [-0.3, -2.4, 0, -0.5], strike: [-3.0 + w * 0.15, -0.2, 0, 0], freeze: [-1.4, -1.4, 0.5, -0.5], molotov: [-1.1, -2.7 + w * 0.1, 0, 0.2], orb: [-1.5 + w * 0.08, -1.5 - w * 0.08, -0.35, 0.35], cloud: [-0.5, -2.3 + w * 0.1, 0, 0.3], turret: [-0.9, -1.4 + w * 0.12, 0.1, 0] }[pose] || [-0.1, -0.1, 0, 0];
         m.armL.rotation.x = BZ.damp(m.armL.rotation.x, A[0], 8, dt); m.armR.rotation.x = BZ.damp(m.armR.rotation.x, A[1], 8, dt);
         m.armL.rotation.z = BZ.damp(m.armL.rotation.z, -A[2], 8, dt); m.armR.rotation.z = BZ.damp(m.armR.rotation.z, -A[3], 8, dt);
         m.legL.rotation.x = BZ.damp(m.legL.rotation.x, pose === 'dash' ? -0.5 : 0, 8, dt); m.legR.rotation.x = BZ.damp(m.legR.rotation.x, pose === 'dash' ? 0.4 : 0, 8, dt);

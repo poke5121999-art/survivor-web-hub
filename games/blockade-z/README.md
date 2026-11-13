@@ -21,7 +21,25 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 
 ## Nhân vật
 
-`js/heroes.js` có 7 nhân vật tự nghĩ (không lấy từ game nào): Gió (lướt, 3 lượt), Thép (bất tử 5 giây, 150 máu), Y Tá (hồi máu, tự hồi khi không trúng đòn), Mưa Đạn (bão đạn: bắn nhanh gấp đôi, không tốn đạn, toả đạn lạc), Bóng (dịch chuyển để lại bóng mồi; chạy trên tường, chạy lên tường, đạp tường, nhảy hai lần), Pháo Thủ (không kích 6 quả pháo, bom to hơn) và Băng (đóng băng 9 m, xác đóng băng vỡ vụn). Bấm `F` hoặc nút tròn trên HUD để dùng kỹ năng. Màn chọn nhân vật dựng 7 người đứng thành hàng giữa quảng trường; `?select=1` mở thẳng màn này, `?hero=<id>` chọn sẵn nhân vật khi `?autostart=1`.
+`js/heroes.js` có 11 nhân vật tự nghĩ. Bộ kỹ năng theo khuôn của game bắn súng anh hùng (Overwatch, Marvel Rivals): một nội tại, hai kỹ năng hồi chiêu (`F`, `C`) và một chiêu tối thượng (`Q`). Tối thượng nạp bằng sát thương gây ra (Y Tá nạp cả bằng lượng máu hồi), mỗi giây tự nạp một ít, và nạp nhanh hơn với nâng cấp Tối thượng. Nhân vật và tên đều là của mình, không lấy từ game nào.
+
+| Nhân vật | F | C | Q (tối thượng) |
+|---|---|---|---|
+| Gió | Lướt (3 lượt) | Lốc xoáy hất tung | Trảm Phong: chém liền qua 10 con |
+| Thép | Khiên vàng bất tử | Húc 10 m | Động Đất |
+| Y Tá | Hồi máu | Phi tiêu độc | Hồi Sinh cả đội, kéo người gục dậy |
+| Mưa Đạn | Bão đạn | Lựu đạn chùm | Mưa Thép: hai súng vai tự bắn |
+| Bóng | Bước bóng + bóng mồi | Phi tiêu xuyên | Ám Sát: tàng hình, gây gấp 2,5 |
+| Pháo Thủ | Không kích | Mìn dính | Mưa Pháo 30 m |
+| Băng | Sóng băng | Mũi băng xuyên | Kỷ Băng Hà |
+| Hoả | Bom xăng | Phản lực (nhảy nổ) | Hoả Long phun lửa |
+| Sấm | Cầu sét | Lôi phạt | Thiên Lôi |
+| Độc | Mây độc | Hút sinh | Đại Dịch |
+| Kỹ Sư | Dựng tháp (2 lượt) | Giáp khẩn | Pháo Đài: khẩu pháo bắn tên lửa |
+
+Mỗi kỹ năng chạy trên máy người dùng nó: hình, tác động lên chính người đó, và sát thương qua `G.zombies.damage` (sát thương của người vào sau tự đi tới chủ phòng). Người khác thấy kỹ năng qua sự kiện `hx`. Phần chỉ chủ phòng được đổi (đóng băng, dựng tháp, kéo đòn không kích, tàng hình với zombie) nằm trong `host` của kỹ năng. Mọi độ trễ trong kỹ năng tính theo giờ trong game (`later`), không dùng `setTimeout`, nên dừng game hay `__sim` vẫn đúng.
+
+Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
 
 ## Zombie đặc biệt, quái và tinh anh
 
@@ -75,6 +93,7 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/smoke.j
 PLAYWRIGHT_PATH=<thư mục playwright-core> [FAKE=0] node games/blockade-z/tools/coop-test.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/shots.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/zoo.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/kits.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, mua shotgun, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, bỏ và nhặt vũ khí, lính nhặt bazooka rồi bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

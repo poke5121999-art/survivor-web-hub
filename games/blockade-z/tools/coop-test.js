@@ -65,6 +65,7 @@ const BASE = process.env.BZ_BASE;
   const hb = await B.evaluate('({ hp: __G.player.hp, max: __G.player.maxHp })');
   console.log('hurt', hurt, JSON.stringify(hb));
   check(hb.hp < hb.max, 'a zombie on the host bites the guest');
+  await A.evaluate('__G.god = true'); await B.evaluate('(() => { __G.god = true; __G.player.hp = __G.player.maxHp; })()');
   // special kinds: the guest sees the type, the shield, the elite; a frost bite slows the guest
   const sk = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0];
     const s = G.zombies.spawn('shielder', 1, { x: av.pos.x + 6, z: av.pos.z, dir: [0, 1], name: 't' }); s.speed = 0; G.zombies.elite(s, 'regen');
@@ -74,6 +75,19 @@ const BASE = process.env.BZ_BASE;
   const gs = await B.evaluate(`(() => { const z = __G.zombies.list[${sk}]; return { type: z.type, alive: z.alive, shield: z.body.x.shield.visible, elite: z.elite, gem: z.body.x.gem.visible, slow: __G.player.slowT > 0 || __G.player.hp < __G.player.maxHp }; })()`);
   console.log('kinds', JSON.stringify(gs));
   check(gs.alive && gs.type === 'shielder' && gs.shield && gs.elite === 'regen' && gs.gem, 'the guest sees a special kind with its shield and its elite mark');
+  // hero kits over the wire: the guest's Sóng băng freezes the host's zombies, its Lôi phạt hurts them, the host sees the bolt
+  await A.evaluate(`(() => { const G = __G; G.zombies.clear(); const av = [...G.coop.avatars.values()][0];
+    for (let i = 0; i < 3; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(av.pos.x + 2 + i, 0, av.pos.z); z.speed = 0; z.hp = z.maxHp = 2000; z.attackT = 99; } })()`);
+  await A.waitForTimeout(800);
+  const u1 = await B.evaluate(`(() => { const G = __G; G.hero.set('bang'); G.hero.reset(); return G.hero.use('s1'); })()`);
+  await A.waitForTimeout(800);
+  const fr = await A.evaluate('__G.zombies.list.filter((z) => z.alive && z.frozen > 0).length');
+  await B.evaluate(`(() => { const G = __G; const z = G.zombies.list.find((q) => q.alive); G.hero.set('sam'); G.hero.reset(); const P = G.player; P.yaw = Math.atan2(-(z.pos.x - P.pos.x), -(z.pos.z - P.pos.z)); P.pitch = -Math.atan2(1.4, Math.hypot(z.pos.x - P.pos.x, z.pos.z - P.pos.z)); })()`);
+  await B.waitForTimeout(300); await B.evaluate("__G.hero.use('s2')");
+  await A.waitForTimeout(2000);
+  const sm = await A.evaluate('__G.zombies.list.filter((z) => z.alive).reduce((a, z) => a + (z.maxHp - z.hp), 0)');
+  console.log('kitnet', fr, Math.round(sm));
+  check(fr === 3 && sm > 100, `a guest's skills reach the host: ${fr} frozen, ${Math.round(sm)} damage from the bolt`);
   await A.screenshot({ path: OUT + '/coop-A.png' }); await B.screenshot({ path: OUT + '/coop-B.png' });
   console.log('errors', JSON.stringify({ A: await A.evaluate('window.__errors.slice(0, 3)'), B: await B.evaluate('window.__errors.slice(0, 3)') }));
   await A.evaluate('__G.coop.stop()'); await B.waitForTimeout(1500);

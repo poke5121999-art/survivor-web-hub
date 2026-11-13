@@ -506,8 +506,8 @@
         const rel = (o.y + (d.y / fl) * c.hd - (sw.pat === 'over' ? 0.2 : 0.5) - z.pos.y) / s;
         let part = z.crawl ? (sw.pat === 'over' && G.rng.chance(0.5) ? 'head' : 'body') : rel > 1.42 || (sw.pat === 'over' && rel > 1.12) ? 'head' : rel < 0.72 ? 'leg' : 'body';
         if (z.headless && part === 'head') part = 'body';
-        const crit = G.rng.chance(w.crit + G.build.critAdd());
-        const dmg = w.dmg * G.build.dmgMul() * G.build.meleeMul() * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (i ? 0.75 : 1) * (crit ? G.build.critMul() : 1);
+        const crit = G.rng.chance(w.crit + G.build.critAdd() + G.hero.critAdd());
+        const dmg = w.dmg * G.build.dmgMul() * G.hero.dmgMul() * G.build.meleeMul() * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (i ? 0.75 : 1) * (crit ? G.build.critMul() : 1);
         toZ.set(c.dx, 0, c.dz).normalize().multiplyScalar(0.6).addScaledVector(sweep, 0.8).setY(0).normalize();
         const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (i ? 0.8 : 1), { cut: w.cut, status: G.build.onHit(z, dmg, true) });
         if (died) kills++; heads = heads || part === 'head';
@@ -589,8 +589,8 @@
           const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
           const fall = w.pellets > 1 ? BZ.clamp(1.25 - h.t / w.range, 0.35, 1) : 1;
           const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0, crit: false };
-          const crit = G.rng.chance((w.crit || 0.08) + G.build.critAdd()); if (crit) e.crit = true;
-          e.dmg += w.dmg * G.build.dmgMul() * mult * fall * power * (crit ? G.build.critMul() : 1); e.imp += (w.impulse || 1) * fall * power;
+          const crit = G.rng.chance((w.crit || 0.08) + G.build.critAdd() + G.hero.critAdd()); if (crit) e.crit = true;
+          e.dmg += w.dmg * G.build.dmgMul() * G.hero.dmgMul() * mult * fall * power * (crit ? G.build.critMul() : 1); e.imp += (w.impulse || 1) * fall * power;
           if (h.part === 'head' || (h.part === 'body' && e.part === 'leg')) e.part = h.part;
           pend.set(h.z, e);
           anyHit = true; head = head || h.part === 'head';

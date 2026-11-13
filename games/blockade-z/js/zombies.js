@@ -265,13 +265,14 @@
         let tgt = ally && Math.hypot(ally.pos.x - z.pos.x, ally.pos.z - z.pos.z) < pd ? ally : null;
         const dec = G.hero && G.hero.decoy;
         if (dec && Math.hypot(dec.pos.x - z.pos.x, dec.pos.z - z.pos.z) < 14) tgt = dec;
+        const gh = G.hero && G.hero.ghost(P); if (gh) tgt = gh;
         const tp = tgt ? tgt.pos : P.pos;
         const dx = tp.x - z.pos.x; const dz = tp.z - z.pos.z;
         const dist = Math.hypot(dx, dz);
         const reach = 1.25 * T.scale;
         const dy = tp.y - z.pos.y;
         const canHit = dist < reach + 0.15 && dy > -1.2 && dy < 1.6 * T.scale && (tgt ? tgt.alive : P.alive);
-        if (T.kind && K.step(z, dt, P, dist)) { K.pose(z, dt, Math.hypot(z.vel.x, z.vel.z)); finish(z); continue; }
+        if (T.kind && K.step(z, dt, gh || P, dist)) { K.pose(z, dt, Math.hypot(z.vel.x, z.vel.z)); finish(z); continue; }
         if (T.boss && boss(z, dt, P, dist)) continue;
 
         // steering

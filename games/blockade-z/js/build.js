@@ -46,7 +46,7 @@
     { id: 'frostbite', name: 'Tê cóng', need: { ice_el: 3, poison_el: 2 }, d: 'zombie đang lạnh nhận thêm 40% sát thương độc' },
   ];
   // a hero starts with a level in the branch that fits it
-  const AFFINITY = { gio: { speed: 1 }, thep: { armor: 1 }, yta: { regen: 1 }, mua: { rate: 1 }, bong: { crit: 1 }, phao: { boom: 1 }, bang: { ice_el: 1 } };
+  const AFFINITY = { gio: { speed: 1 }, thep: { armor: 1 }, yta: { regen: 1 }, mua: { rate: 1 }, bong: { crit: 1 }, phao: { boom: 1 }, bang: { ice_el: 1 }, hoa: { fire_el: 1 }, sam: { shock_el: 1 }, doc: { poison_el: 1 }, ky: { eng: 1 } };
   BZ.UPGRADES = UP; BZ.UPCATS = CATS; BZ.RESONANCES = RES; BZ.AFFINITY = AFFINITY;
 
   BZ.makeBuild = (G) => {
@@ -105,10 +105,11 @@
     function onHit(z, dmg, melee) {
       const P = G.player;
       if (lv('blood_el') && P.alive) P.hp = Math.min(P.maxHp, P.hp + dmg * 0.015 * lv('blood_el'));
-      return procs(melee);
+      const out = procs(melee); if (G.hero && G.hero.procs) out.push(...G.hero.procs(z, dmg, melee));
+      return out;
     }
     function onKill(z) {
-      const l = lv('blast_el'); const burning = z.st && z.st.burn;
+      const l = lv('blast_el'); const burning = (z.st && z.st.burn) || (z.stFlags & 16);
       if ((l && G.rng.chance(0.1 * l)) || (burning && has('inferno'))) {
         const pos = z.pos.clone(); pos.y += 0.8;
         setTimeout(() => G.gear.explode(pos, 2.5 + l * 0.3, 40 + l * 15), 60);

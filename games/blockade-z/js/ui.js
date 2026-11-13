@@ -102,12 +102,15 @@
       $('#sel-name').textContent = h.name; $('#sel-role').textContent = h.role;
       $('#sel-hp').style.width = Math.min(100, h.hp / 1.5) + '%'; $('#sel-hpn').textContent = h.hp;
       $('#sel-spd').style.width = Math.round((h.speed || 1) * 80) + '%'; $('#sel-spdn').textContent = Math.round((h.speed || 1) * 100) + '%';
-      $('#sel-skill').textContent = h.skill.name + (h.skill.charges ? ` · ${h.skill.charges} lượt` : ` · hồi ${h.skill.cd} giây`); $('#sel-desc').textContent = h.skill.desc; $('#sel-passive').textContent = h.passive;
+      for (const k of ['s1', 's2']) { const s = h[k]; $('#sel-' + k).textContent = s.name + (s.charges ? ` · ${s.charges} lượt, hồi ${s.cd} giây` : ` · hồi ${s.cd} giây`); $('#sel-' + k + 'd').textContent = s.desc; }
+      $('#sel-ult').textContent = h.ult.name; $('#sel-ultd').textContent = h.ult.desc; $('#sel-passive').textContent = h.passive;
       selRow.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
     }
-    const skillEl = $('#skill'); const heroTag = $('#herotag'); let skillFor = null;
-    skillEl.addEventListener('click', () => G.hero.use());
-    skillEl.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.hero.use(); }, { passive: false });
+    const skillEl = $('#skill'); const skill2El = $('#skill2'); const ultEl = $('#ult'); const heroTag = $('#herotag'); let skillFor = null;
+    for (const [b, k] of [[skillEl, 's1'], [skill2El, 's2'], [ultEl, 'ult']]) {
+      b.addEventListener('click', () => G.hero.use(k));
+      b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.hero.use(k); }, { passive: false });
+    }
 
     // shop = upgrades only: category tabs, one card per upgrade with its level pips and next step, resonances below
     let shopCat = 'fire';
@@ -193,12 +196,15 @@
       }
       const Hh = G.hero; const hd = Hh.def;
       if (skillFor !== hd) {
-        skillFor = hd; el.hud.style.setProperty('--hc', css(hd.color)); skillEl.querySelector('span').textContent = hd.skill.name;
-        skillEl.querySelector('.dots').innerHTML = hd.skill.charges ? '<i></i>'.repeat(hd.skill.charges) : ''; heroTag.textContent = hd.name.toUpperCase() + ' · ' + hd.role;
+        skillFor = hd; el.hud.style.setProperty('--hc', css(hd.color)); heroTag.textContent = hd.name.toUpperCase() + ' · ' + hd.role;
+        for (const [b, s] of [[skillEl, hd.s1], [skill2El, hd.s2]]) { b.querySelector('span').textContent = s.name; b.querySelector('.dots').innerHTML = s.charges ? '<i></i>'.repeat(s.charges) : ''; }
+        ultEl.querySelector('span').textContent = hd.ult.name;
       }
-      skillEl.style.setProperty('--cd', Hh.charges > 0 ? 0 : Hh.cdFrac()); skillEl.classList.toggle('cool', Hh.charges <= 0);
-      skillEl.classList.toggle('active', (Hh.t.invuln || Hh.t.storm || Hh.t.heal || Hh.t.strike || 0) > 0 || !!Hh.decoy);
-      skillEl.querySelectorAll('.dots i').forEach((d, k) => d.classList.toggle('on', k < Hh.charges));
+      for (const [b, k] of [[skillEl, 's1'], [skill2El, 's2']]) { const S = Hh.slots[k]; b.style.setProperty('--cd', S.n > 0 ? 0 : Hh.slotFrac(k)); b.classList.toggle('cool', S.n <= 0); b.querySelectorAll('.dots i').forEach((d, j) => d.classList.toggle('on', j < S.n)); }
+      skillEl.classList.toggle('active', (Hh.t.invuln || Hh.t.storm || Hh.t.heal || Hh.t.strike || Hh.t.dash || 0) > 0 || !!Hh.decoy);
+      skill2El.classList.toggle('active', (Hh.t.charge || Hh.t.rj || 0) > 0);
+      const u = Hh.ult; ultEl.style.setProperty('--u', u); ultEl.classList.toggle('ready', u >= 1); ultEl.classList.toggle('active', (Hh.t.ultOn || 0) > 0);
+      const ub = ultEl.querySelector('b'); const ut = (Hh.t.ultOn || 0) > 0 ? '●' : u >= 1 ? (BZ.isTouch ? '★' : 'Q') : Math.floor(u * 100) + '%'; if (ub.textContent !== ut) ub.textContent = ut;
       const envEl = document.getElementById('env'); const wid = G.sky.weather(); const wname = BZ.WEATHERS[wid].name;
       const envTxt = (G.env.night ? '🌙 Đêm' : '☀ Ngày') + (wid !== 'clear' ? ' · ' + wname : '');
       if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'meteor' || wid === 'storm'); }

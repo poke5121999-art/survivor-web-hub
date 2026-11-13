@@ -26,7 +26,8 @@
       keys.add(e.code);
       if (G.state !== 'playing') return;
       if (e.code === 'KeyR') G.weapons.startReload();
-      if (e.code === 'KeyQ') G.weapons.cycle(-1);
+      if (e.code === 'KeyQ') G.hero.use('ult');
+      if (e.code === 'KeyC') G.hero.use('s2');
       if (/^Digit[1-2]$/.test(e.code)) G.weapons.selectSlot(+e.code.slice(5) - 1);
       if (e.code === 'KeyE') G.weapons.pickup();
       if (e.code === 'KeyX') G.weapons.dropCur();
@@ -95,6 +96,8 @@
       btn('swap', () => G.weapons.cycle(1));
       btn('pick', () => G.weapons.pickup());
       btn('skill', () => G.hero.use());
+      btn('skill2', () => G.hero.use('s2'));
+      btn('ult', () => G.hero.use('ult'));
       btn('drop', () => G.weapons.dropCur());
     }
 
@@ -197,7 +200,7 @@
       if (!P.alive || G.god || G.hero.invuln()) return;
       G.hero.onHurt();
       let d = dmg;
-      d *= G.build.armorMul();
+      d *= G.build.armorMul() * G.hero.takenMul();
       if (P.armor > 0) { const absorb = Math.min(P.armor, d * 0.6); P.armor -= absorb; d -= absorb; }
       P.hp = Math.max(0, P.hp - d);
       P.shake.v += 6 * (G.rng.next() - 0.5) * (d / 10 + 1);

@@ -170,6 +170,7 @@ BZ.makeCoop = (G) => {
     E.on('react', ({ z, kind, combo }) => { if (C.host) C.events.push({ k: 'react', i: G.zombies.list.indexOf(z), kind, combo }); });
     E.on('crate', ({ p }) => { if (C.host) C.events.push({ k: 'crate', p: v3(p) }); });
     E.on('zk', (z) => { if (C.host) C.events.push({ k: 'zk', z }); });
+    E.on('hx', ({ s, a }) => { if (C.host) C.events.push({ k: 'hx', s, a }); });
   }
   let pidN = 0;
   function hostReceive(from, m) {
@@ -206,6 +207,7 @@ BZ.makeCoop = (G) => {
       if (it && !it.claim) { G.weapons.removeGround(it); send(p.id, { t: 'give', id: it.id, mag: it.mag, res: it.reserve === Infinity ? -1 : it.reserve, p: v3(it.pos) }); }
     } else if (x.k === 'boom') { G.fx.explosion(V(x.p), x.s); G.audio.playAt('boom', V(x.p), { gain: 1.2 }); C.events.push({ k: 'boom', p: x.p, s: x.s, skip: p.pid }); }
     else if (x.k === 'freeze') G.hero.freezeAt(V(x.p));
+    else if (x.k === 'hx') { G.hero.remote(x.s, x.a, p.pid); C.events.push({ k: 'hx', s: x.s, a: x.a }); }
     else if (x.k === 'strike') G.hero.strikeAt(V(x.at));
     else if (x.k === 'ally') G.allies.hire();
     else if (x.k === 'sup') { p.sup = x.s; if (C.onSupport) C.onSupport(); }
@@ -276,6 +278,7 @@ BZ.makeCoop = (G) => {
     else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? 'PHỐI HỢP · ' : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
     else if (e.k === 'crate') G.weapons.airdrop(V(e.p), true);
     else if (e.k === 'zk') G.zombies.kinds.remote(e.z);
+    else if (e.k === 'hx') G.hero.remote(e.s, e.a, e.a.by);
     else if (e.k === 'meteor') G.sky.meteor({ at: e.at, from: e.from });
     else if (e.k === 'g+') { if (!G.weapons.ground.some((g) => g.gid === e.gid)) G.weapons.spawnGround(e.id, e.mag, e.res < 0 ? Infinity : e.res, V(e.p), V(e.v), e.gid); }
     else if (e.k === 'g-') { const it = G.weapons.ground.find((g) => g.gid === e.gid); if (it) G.weapons.removeGround(it); }

@@ -62,8 +62,21 @@ body.touch #select h2 { font-size: 20px; } body.touch .sel-panel { max-width: 30
 #skill.active { animation: skillpulse .5s infinite alternate; }
 #skill .dots { position: absolute; bottom: -12px; display: flex; gap: 3px; } #skill .dots i { width: 8px; height: 8px; background: #2a2018; border: 2px solid #000; } #skill .dots i.on { background: var(--hc); }
 @keyframes skillpulse { from { box-shadow: 0 0 0 3px var(--hc), 4px 4px 0 rgba(0,0,0,.5); } to { box-shadow: 0 0 18px 6px var(--hc), 4px 4px 0 rgba(0,0,0,.5); } }
-body.touch #skill { right: max(212px, calc(env(safe-area-inset-right) + 188px)); bottom: 240px; width: 70px; height: 70px; font-size: 10px; }
+body.touch #skill { right: max(220px, calc(env(safe-area-inset-right) + 196px)); bottom: 152px; width: 64px; height: 64px; font-size: 10px; }
 #skill kbd { margin: 0 0 2px; } body.touch #skill kbd { display: none; }
+#skill2 { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 96px); bottom: 140px; width: 70px; height: 70px; border: 3px solid #000; border-radius: 50%; background: conic-gradient(rgba(0,0,0,.72) calc(var(--cd, 0) * 360deg), var(--hc, #f4c04a) 0); box-shadow: inset 0 0 0 3px rgba(255,255,255,.25), 4px 4px 0 rgba(0,0,0,.5); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #000; font: 900 11px var(--f); text-align: center; pointer-events: auto; cursor: pointer; }
+#skill2 span { display: block; max-width: 60px; line-height: 1.05; text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+#skill2.cool { color: var(--bone); } #skill2.cool span { text-shadow: 1px 1px 0 #000; } #skill2.active { animation: skillpulse .5s infinite alternate; }
+#skill2 kbd { display: inline-block; min-width: 16px; padding: 0 3px; margin: 0 0 2px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 11px/16px var(--mono); }
+#skill2 .dots { position: absolute; bottom: -12px; display: flex; gap: 3px; } #skill2 .dots i { width: 8px; height: 8px; background: #2a2018; border: 2px solid #000; } #skill2 .dots i.on { background: var(--hc); }
+#ult { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 14px); bottom: 240px; width: 74px; height: 74px; border: 3px solid #000; transform: rotate(45deg); background: conic-gradient(var(--hc, #f4c04a) calc(var(--u, 0) * 360deg), rgba(0,0,0,.72) 0); box-shadow: 4px 4px 0 rgba(0,0,0,.5); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; }
+#ult > * { transform: rotate(-45deg); } #ult b { font: 900 20px var(--mono); color: var(--bone); text-shadow: 2px 2px 0 #000; } #ult span { font: 900 10px var(--f); color: var(--bone); text-shadow: 1px 1px 0 #000; margin-top: -2px; }
+#ult.ready { background: var(--hc, #f4c04a); animation: ultready .7s infinite alternate; } #ult.ready b, #ult.ready span { color: #000; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+#ult.active { background: #fff; animation: skillpulse .25s infinite alternate; } #ult.active b, #ult.active span { color: #000; text-shadow: none; }
+@keyframes ultready { from { box-shadow: 0 0 0 0 var(--hc), 4px 4px 0 rgba(0,0,0,.5); } to { box-shadow: 0 0 22px 6px var(--hc), 4px 4px 0 rgba(0,0,0,.5); } }
+body.touch #skill2 { right: max(298px, calc(env(safe-area-inset-right) + 274px)); bottom: 158px; width: 54px; height: 54px; font-size: 9px; } body.touch #skill2 kbd { display: none; }
+body.touch #ult { right: max(238px, calc(env(safe-area-inset-right) + 214px)); bottom: 240px; width: 46px; height: 46px; } body.touch #ult span { display: none; } body.touch #ult b { font-size: 14px; }
+.sel-skill.ult { border-left-color: #fff; background: linear-gradient(90deg, rgba(255,255,255,.12), rgba(0,0,0,.35)); } .sel-skill small { margin-left: 6px; font: 700 10px var(--mono); color: #b8a888; letter-spacing: .12em; text-transform: uppercase; }
 #herotag { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 92px; font: 900 14px var(--f); color: var(--hc, #fff); text-shadow: 2px 2px 0 #000; letter-spacing: .05em; }
 body.touch #herotag { bottom: auto; top: 98px; font-size: 11px; }
 #skillfx { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0; transition: opacity .25s; }
@@ -150,7 +163,7 @@ body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
 #prompt { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); padding: 6px 12px; border: 3px solid #000; background: rgba(28, 22, 16, .85); box-shadow: inset 0 0 0 2px #6a4a20; font: 700 14px var(--mono); color: var(--bone); white-space: nowrap; display: none; }
 #prompt.on { display: block; } #prompt b { color: #ffc050; } #prompt kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 4px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
-.tb[data-btn=pick] { right: max(212px, calc(env(safe-area-inset-right) + 188px)); bottom: 160px; width: 64px; height: 64px; background: rgba(240, 150, 40, .85); display: none; }
+.tb[data-btn=pick] { right: max(298px, calc(env(safe-area-inset-right) + 274px)); bottom: 74px; width: 64px; height: 64px; background: rgba(240, 150, 40, .85); display: none; }
 body.can-pick .tb[data-btn=pick] { display: flex; }
 .tb[data-btn=drop] { right: max(172px, calc(env(safe-area-inset-right) + 148px)); bottom: 230px; width: 50px; height: 40px; font-size: 10px; }
 @keyframes blink { 50% { opacity: .2; } }
@@ -238,6 +251,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="plate" id="coins">🪙 <b>0</b></div>
   <div class="plate" id="score">ĐIỂM <b>0</b></div>
   <div id="skill"><kbd>F</kbd><span>Kỹ năng</span><div class="dots"></div></div>
+  <div id="skill2" class="sk"><kbd>C</kbd><span>Kỹ năng</span><div class="dots"></div></div>
+  <div id="ult"><b>0%</b><span>Tối thượng</span></div>
   <div id="herotag"></div>
   <div id="coopbar"></div>
   <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><i style="width:100%"></i><u id="armor"></u></div></div>
@@ -294,7 +309,9 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
     <h2>Chọn nhân vật</h2>
     <div class="sel-name"><b id="sel-name"></b><span id="sel-role"></span></div>
     <div class="sel-stats"><label>Máu <i><em id="sel-hp"></em></i><span id="sel-hpn"></span></label><label>Tốc độ <i><em id="sel-spd"></em></i><span id="sel-spdn"></span></label></div>
-    <div class="sel-skill"><kbd>F</kbd><b id="sel-skill"></b><p id="sel-desc"></p></div>
+    <div class="sel-skill"><kbd>F</kbd><b id="sel-s1"></b><p id="sel-s1d"></p></div>
+    <div class="sel-skill"><kbd>C</kbd><b id="sel-s2"></b><p id="sel-s2d"></p></div>
+    <div class="sel-skill ult"><kbd>Q</kbd><b id="sel-ult"></b><small>tối thượng</small><p id="sel-ultd"></p></div>
     <div class="sel-passive"><small>Nội tại</small><p id="sel-passive"></p></div>
   </div>
   <div class="sel-bottom">
@@ -334,23 +351,23 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113l"></script>
-<script type="module" src="js/core.js?v=20261113l"></script>
-<script type="module" src="js/art.js?v=20261113l"></script>
-<script type="module" src="js/world.js?v=20261113l"></script>
-<script type="module" src="js/audio.js?v=20261113l"></script>
-<script type="module" src="js/fx.js?v=20261113l"></script>
-<script type="module" src="js/zombies.js?v=20261113l"></script>
-<script type="module" src="js/zkinds.js?v=20261113l"></script>
-<script type="module" src="js/weapons.js?v=20261113l"></script>
-<script type="module" src="js/allies.js?v=20261113l"></script>
-<script type="module" src="js/heroes.js?v=20261113l"></script>
-<script type="module" src="js/build.js?v=20261113l"></script>
-<script type="module" src="js/sky.js?v=20261113l"></script>
-<script type="module" src="js/coop.js?v=20261113l"></script>
-<script type="module" src="js/gear.js?v=20261113l"></script>
-<script type="module" src="js/player.js?v=20261113l"></script>
-<script type="module" src="js/ui.js?v=20261113l"></script>
-<script type="module" src="js/main.js?v=20261113l"></script>
+<script type="module" src="js/boot.js?v=20261113m"></script>
+<script type="module" src="js/core.js?v=20261113m"></script>
+<script type="module" src="js/art.js?v=20261113m"></script>
+<script type="module" src="js/world.js?v=20261113m"></script>
+<script type="module" src="js/audio.js?v=20261113m"></script>
+<script type="module" src="js/fx.js?v=20261113m"></script>
+<script type="module" src="js/zombies.js?v=20261113m"></script>
+<script type="module" src="js/zkinds.js?v=20261113m"></script>
+<script type="module" src="js/weapons.js?v=20261113m"></script>
+<script type="module" src="js/allies.js?v=20261113m"></script>
+<script type="module" src="js/heroes.js?v=20261113m"></script>
+<script type="module" src="js/build.js?v=20261113m"></script>
+<script type="module" src="js/sky.js?v=20261113m"></script>
+<script type="module" src="js/coop.js?v=20261113m"></script>
+<script type="module" src="js/gear.js?v=20261113m"></script>
+<script type="module" src="js/player.js?v=20261113m"></script>
+<script type="module" src="js/ui.js?v=20261113m"></script>
+<script type="module" src="js/main.js?v=20261113m"></script>
 </body>
 </html>
