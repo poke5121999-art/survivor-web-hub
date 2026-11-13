@@ -219,6 +219,27 @@
     }
     return loopify(finish(out, 0.55), sr, 0.02);
   }
+  // boss stem: a sixteenth-note bass pulse on the bar's root with a tom fill at the end; same length as the percussion so the two lock
+  function bossStem(rng, sr) {
+    const len = Math.floor(sr * (LOOP + 0.5)); const out = new Float32Array(len);
+    const roots = [55, 55, 49, 51.9]; const step = BEAT / 4; let s = 0;
+    for (let n = 0; n < 16 * BARS; n++) {
+      const bar = Math.floor(n / 16); const f = roots[bar] * (n % 4 === 2 ? 4 : 2) * (n % 16 === 14 ? 1.189 : 1);
+      const s0 = Math.floor(n * step * sr); const acc = n % 4 === 0 ? 1 : 0.62; const k = lpK(n % 4 === 0 ? 1500 : 900, sr);
+      for (let i = 0; i < step * 0.92 * sr && s0 + i < len; i++) { const t = i / sr; const x = 2 * ((f * t) % 1) - 1 + 0.5 * (2 * ((f * 1.01 * t) % 1) - 1); s += k * (x - s); out[s0 + i] += s * acc * Math.exp(-t / 0.07) * Math.min(1, t / 0.003); }
+    }
+    for (let bar = 0; bar < BARS; bar++) for (let j = 0; j < 4; j++) {
+      const s0 = Math.floor(((bar * 4 + 3) * BEAT + j * step) * sr); const f0 = 160 - j * 22; let ph = 0;
+      for (let i = 0; i < 0.16 * sr && s0 + i < len; i++) { const t = i / sr; ph += (f0 * (0.6 + 0.4 * Math.exp(-t / 0.04))) / sr; out[s0 + i] += Math.sin(TAU * ph) * Math.exp(-t / 0.07) * (bar % 2 ? 0.9 : 0.45); }
+    }
+    return loopify(finish(out, 0.5), sr, 0.02);
+  }
+  // heartbeat for low health: lub, then a softer dub
+  function heart(rng, sr) {
+    const len = Math.floor(sr * 0.5); const out = new Float32Array(len);
+    for (const [at, g, f0] of [[0, 1, 70], [0.2, 0.7, 58]]) { const s0 = Math.floor(at * sr); let ph = 0; for (let i = 0; i < 0.22 * sr && s0 + i < len; i++) { const t = i / sr; ph += (f0 * (0.55 + 0.45 * Math.exp(-t / 0.03))) / sr; out[s0 + i] += Math.sin(TAU * ph) * g * Math.exp(-t / 0.06) * Math.min(1, t / 0.004); } }
+    return finish(out, 0.75);
+  }
   function loopify(buf, sr, xf) { // crossfade the tail past the loop point into the head
     const n = Math.floor(xf * sr); const L = buf.length - n; const out = new Float32Array(L);
     for (let i = 0; i < L; i++) out[i] = buf[i];
@@ -288,9 +309,13 @@
     thunder: { n: 3, bus: 'world', max: 2, gen: thunder, o: { len: 3.2 } },
     music_drone: { n: 1, bus: 'music', loop: true, gen: drone, o: {} },
     music_perc: { n: 1, bus: 'music', loop: true, gen: perc, o: {} },
+    music_boss: { n: 1, bus: 'music', loop: true, sync: 'music_perc', gen: bossStem, o: {} },
+    heart: { n: 1, bus: 'ui', max: 1, gen: heart, o: {} },
+    siren: { n: 1, bus: 'ui', max: 1, gen: tones, o: { notes: [[466, 0.2], [349, 0.2], [466, 0.2], [349, 0.2], [466, 0.2], [349, 0.34]], peak: 0.3 } },
+    ui_click: { n: 1, bus: 'ui', max: 2, gen: tones, o: { wave: 'tri', notes: [[660, 0.025], [990, 0.04]], peak: 0.2 } },
   };
   const ORDER = ['marker', 'coin', 'pistol', 'empty', 'mag_out', 'mag_in', 'switch', 'step', 'land', 'hit', 'head', 'impact', 'groan', 'die', 'swipe', 'hurt',
-    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'thunder', 'wind', 'rain', 'music_drone', 'music_perc'];
+    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'thunder', 'wind', 'rain', 'music_drone', 'music_perc', 'music_boss', 'heart', 'siren', 'ui_click'];
 
   BZ.makeAudio = (G) => {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -333,11 +358,14 @@
         } catch (e) { console.error('[audio] generate ' + name + ' failed', e); }
       }
     }
-    const loops = {};
+    const loops = {}; const loopT0 = {};
     function startLoop(name) {
       const src = ctx.createBufferSource(); src.buffer = bufs[name][0]; src.loop = true;
       const g = ctx.createGain(); g.gain.value = 0;
-      src.connect(g); g.connect(bus[SOUNDS[name].bus]); src.start();
+      // a stem that names a leader starts on the leader's next loop point, so the two stay on one grid
+      const lead = SOUNDS[name].sync; let when = ctx.currentTime;
+      if (lead && loopT0[lead] !== undefined) { const L = bufs[lead][0].duration; when = loopT0[lead] + Math.ceil((ctx.currentTime - loopT0[lead] + 0.05) / L) * L; }
+      src.connect(g); g.connect(bus[SOUNDS[name].bus]); src.start(when); loopT0[name] = when;
       loops[name] = g;
       applyMusic();
     }

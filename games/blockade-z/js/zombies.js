@@ -773,13 +773,13 @@
       G.events.emit('zombie:killed', { z, part, gore, by: opt.by, credit: opt.credit !== false, dir, opt });
     }
     function clear() { K.clear(); for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
-    // Hit flash turns the whole body solid red (the distance readout); otherwise only the eyes glow.
+    // Hit flash: the body goes hot white-pink for a few frames (reads at any distance, and the texture still shows through); otherwise only the eyes glow.
     function setFlash(z, on) {
       const m = z.body.mats;
-      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0xd01810 : z.glow || z.T.glow || 0);
+      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0xc48a80 : z.glow || z.T.glow || 0);
       const f = m.face; const wantMap = on ? null : BZ.tex('eyes_glow');
       if (f.emissiveMap !== wantMap) { f.emissiveMap = wantMap; f.needsUpdate = true; }
-      f.emissive.setHex(on ? 0xd01810 : f.userData.eye || 0xff3020);
+      f.emissive.setHex(on ? 0xc48a80 : f.userData.eye || 0xff3020);
     }
     const aliveCount = () => list.reduce((a, z) => a + (z.alive ? 1 : 0), 0);
 

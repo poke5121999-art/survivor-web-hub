@@ -54,6 +54,7 @@
     G.sky = BZ.makeSky(G);
     G.coop = BZ.makeCoop(G);
     G.polish = BZ.makePolish(G);
+    G.post = BZ.makePost(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     G.meta = BZ.makeMeta(G);
@@ -149,7 +150,7 @@
       if (wave.phase === 'fight') {
         wave.spawnT -= dt;
         if (wave.bossAt > 0) { wave.bossAt -= dt; if (wave.bossAt <= 0) { const P = G.player; const gate = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z))[0];
-          const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, 'từ cổng ' + gate.name, 'hot'); G.events.emit('ann', { title: 'BOSS: ' + z.T.name, sub: 'từ cổng ' + gate.name, cls: 'hot' }); G.audio.play('wave_start', { rate: 0.7 }); } } }
+          const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, 'từ cổng ' + gate.name, 'hot'); G.events.emit('ann', { title: 'BOSS: ' + z.T.name, sub: 'từ cổng ' + gate.name, cls: 'hot' }); G.audio.play('wave_start', { rate: 0.7 }); G.audio.play('siren'); } } }
         if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < Math.min(50, BZ.WAVE.maxAlive(wave.n) * G.party.alive())) {
           const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
           const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);
@@ -178,7 +179,7 @@
       wave.killed++;
       // in co-op the score goes to whoever landed the killing hit
       if (credit === false) return;
-      G.kills++; G.build.onKill(z); G.hero.onKill(z);
+      G.kills++; G.build.onKill(z); G.hero.onKill(z); G.ui.kill();
       const T = z.T; const head = part === 'head';
       const em = z.elite ? 3 : 1;
       const pts = Math.round((T.score + (head ? 50 : 0)) * em * (G.env ? G.env.scoreMul : 1)); G.score += pts;
@@ -353,8 +354,18 @@
     let smooth = 1 / 60;
     const logged = new Set();
     const safe = (name, fn) => { try { fn(); } catch (e) { if (!logged.has(name)) { logged.add(name); console.error('[loop] ' + name + '.update threw', e); } } };
+    // sound that follows the fight: a driving stem while a boss lives, a heartbeat while health is low
+    const mood = { boss: false, beat: 0 };
+    function updateMood(dt) {
+      const live = G.state === 'playing' || G.state === 'paused';
+      const boss = live && !!G.zombies.boss();
+      if (boss !== mood.boss) { mood.boss = boss; G.audio.setMusic({ music_boss: boss ? 0.62 : 0 }); }
+      const P = G.player;
+      if (G.state === 'playing' && P.alive && P.hp < 35 && P.hp > 0) { mood.beat -= dt; if (mood.beat <= 0) { mood.beat = 0.62 + 0.4 * (P.hp / 35); G.audio.play('heart', { gain: 0.9, jitter: 0 }); } } else mood.beat = 0;
+    }
     function tick(dt) {
       safe('audio', () => G.audio.update());
+      safe('mood', () => updateMood(dt));
       let gdt = dt;
       if (G.hitStop > 0) { G.hitStop -= dt; gdt = dt * 0.07; }
       if (G.state === 'playing') {
@@ -393,10 +404,12 @@
     }
     function draw() {
       renderer.info.reset();
-      renderer.clear();
+      // bloom glows harder in the dark; by day it is only a little haze on the brightest spots
+      const post = G.post.on; if (post) { G.post.strength = BZ.lerp(0.85, 0.3, BZ.clamp((sun.intensity - 1.1) / 1.2, 0, 1)); G.post.begin(); } else renderer.clear();
       if (G.tps) G.tps.vis();
       renderer.render(scene, camera);
       if (G.state === 'playing' || G.state === 'pick' || G.state === 'paused') G.weapons.render(renderer);
+      if (post) G.post.end();
       window.__stats.draws = renderer.info.render.calls; window.__stats.tris = renderer.info.render.triangles;
     }
     renderer.info.autoReset = false;

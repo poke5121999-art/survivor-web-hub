@@ -271,6 +271,17 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - `js/polish.js`: dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; chọn nâng cấp thì thẻ nảy và toé tia.
 - Zombie chết ngã ba kiểu (`fall` trong `js/zombies.js`): ngã ngửa vung tay, đổ sấp về phía người bắn, khuỵu gối rồi đổ nghiêng.
 
+## Đánh bóng: hình, menu, điện thoại
+
+- **Không gì treo trên không** (`js/fx.js`): vết cháy, vòng chấn động và bụi của vụ nổ nằm trên sàn ngay bên dưới (`fx.floorY`), nổ cao quá thì không để lại vết. Vũng máu và vũng axit, lửa cũng rơi xuống sàn bên dưới. Mảnh xác nằm trên mặt rộng nhất, nằm 14 giây (tấm lớn như cánh rồng 4,5 giây) rồi chìm đi; chỗ tựa bị phá thì mảnh xác, vũng máu và vết cháy rơi tiếp. Khói xác xe là quầng khói mềm bay lên rồi tan. `fx.floaters()` liệt kê thứ còn lơ lửng, `tools/bosses.js` và `tools/destruct.js` kiểm nó rỗng.
+- **Vũng máu** nhỏ hơn, sẫm hơn và khô sau 16 giây, nên giết ba chục con một chỗ không còn sơn đỏ cả quảng trường.
+- **Bloom** (`js/post.js`): khung hình vẽ vào target float, phần sáng được thu nhỏ ba lần, làm nhoè rồi cộng lại. Chỉ bật ở mức đồ hoạ vừa và cao; `?post=0` tắt, `?post=1` ép bật. Ban đêm bloom mạnh, ban ngày nhẹ.
+- **HUD:** số sát thương nảy ra, phát kết liễu làm hitmarker đỏ và to lên, thanh máu của người chơi và boss có vệt trắng tụt trễ, boss vào trận có sọc cảnh báo ở hai mép màn hình, băng rôn đợt có dải nền.
+- **Menu:** logo vẽ lại có viền và khối nổi, bảng phím thu vào nút "Phím điều khiển", thẻ nâng cấp tô màu theo nhánh, màn thua đếm số, nền mờ đi khi tạm dừng.
+- **Âm thanh:** stem nhạc riêng khi boss còn sống (khớp nhịp với stem trống), nhịp tim khi máu dưới 35, còi khi boss vào, tiếng click menu.
+- **Điện thoại:** pad cảm ứng chỉ hiện khi đang đánh, cụm nút nằm gọn góc phải dưới, màn chọn nhân vật cuộn được và luôn thấy nút "Vào trận", cầm dọc thì hiện nhắc xoay ngang. `tools/phone.js` kiểm ở 844×390 và 667×375.
+- `tools/review.js` chụp bộ ảnh duyệt (menu, giao tranh, nổ, boss, chọn nâng cấp, màn thua, điện thoại); `tools/clip.js` quay một đoạn bot đánh thành frame, mp4 và contact sheet.
+
 ## Chọn nâng cấp và đường build
 
 - Không có shop, không có tiền. Hết mỗi đợt, mỗi người chơi được chọn 1 trong 3 nâng cấp (`G.build.offer`, ưu tiên ba nhánh khác nhau), bấm thẻ hoặc phím 1, 2, 3. Chọn xong thì vào đợt sau ngay. Trong co-op, đợt sau chỉ bắt đầu khi mọi người đã chọn (khách gửi `picked` lên chủ phòng); nếu một người bỏ máy quá 60 giây thì vẫn đi tiếp.
@@ -350,6 +361,9 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/destruc
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/castanim.js <thư mục ảnh> [gio,ky]
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/weapons.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/meta.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/phone.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [ONLY=title,fight] [MOB=1] node games/blockade-z/tools/review.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [QUERY="fp=1&hero=mua&wave=4"] [SECS=6] node games/blockade-z/tools/clip.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/heroshots.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=hoa,mua] node games/blockade-z/tools/skillcensus.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=gio,phao] [CROWD=16] [SECS=25] node games/blockade-z/tools/balance.js <thư mục ảnh>

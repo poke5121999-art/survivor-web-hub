@@ -41,7 +41,7 @@
     const m4 = new THREE.Matrix4(); const q = new THREE.Quaternion(); const sc = new THREE.Vector3(); const pv = new THREE.Vector3(); const eu = new THREE.Euler();
     const PRE = {
       rain: { n: 1, col: 0x9ab0d0, op: 0.45, s: [0.025, 0.75, 0.025], vy: -24, vx: 3, sway: 0 }, storm: { n: 1, col: 0xa8bcd8, op: 0.55, s: [0.03, 0.9, 0.03], vy: -30, vx: 7, sway: 0 },
-      snow: { n: 1, col: 0xf4f8ff, op: 0.95, s: [0.11, 0.11, 0.11], vy: -1.8, vx: 0.8, sway: 0.9 }, ash: { n: 0.7, col: 0xb07a4a, op: 0.7, s: [0.06, 0.05, 0.22], vy: -0.6, vx: 9, sway: 0.4 },
+      snow: { n: 1, col: 0xf4f8ff, op: 0.95, s: [0.075, 0.075, 0.075], vy: -1.8, vx: 0.8, sway: 0.9 }, ash: { n: 0.7, col: 0xb07a4a, op: 0.7, s: [0.06, 0.05, 0.22], vy: -0.6, vx: 9, sway: 0.4 },
     };
     function updatePrecip(dt) {
       const P = PRE[S.weather]; if (!P) { precip.count = 0; return; }

@@ -11,23 +11,24 @@
     Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'], ' ': ['000', '000', '000', '000', '000', '000', '000'],
   };
   function logo(canvas, text) {
-    const px = 9; const gap = 1;
-    const width = [...text].reduce((a, ch) => a + (GLYPH[ch][0].length + gap), 0) * px + px * 2;
-    canvas.width = width; canvas.height = (7 + 3) * px;
+    const px = 10; const gap = 1; const pad = px * 1.5; const drop = px * 0.9;
+    const width = [...text].reduce((a, ch) => a + (GLYPH[ch][0].length + gap), 0) * px + pad * 2;
+    canvas.width = width; canvas.height = 7 * px + pad * 2 + drop;
     const c = canvas.getContext('2d');
-    let x = px;
+    const cells = []; let x = pad;
     for (const ch of text) {
       const g = GLYPH[ch];
-      const z = ch === 'Z';
-      for (let r = 0; r < 7; r++) for (let k = 0; k < g[r].length; k++) {
-        if (g[r][k] !== '1') continue;
-        const X = x + k * px; const Y = px + r * px;
-        c.fillStyle = '#1a1208'; c.fillRect(X + px * 0.4, Y + px * 0.4, px, px);
-        c.fillStyle = z ? (r < 3 ? '#8fe05a' : '#4fae32') : r < 2 ? '#ffe9a8' : r < 5 ? '#f4c04a' : '#d58a22';
-        c.fillRect(X, Y, px, px);
-        c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(X, Y, px, px * 0.2);
-      }
+      for (let r = 0; r < 7; r++) for (let k = 0; k < g[r].length; k++) if (g[r][k] === '1') cells.push([x + k * px, pad + r * px, r, ch === 'Z']);
       x += (g[0].length + gap) * px;
+    }
+    // three layers: a black outline, a dark extrusion down-right, then the lit face with a bevel on every block
+    c.fillStyle = '#000'; for (const [X, Y] of cells) c.fillRect(X - 3, Y - 3, px + 6 + drop * 0.6, px + 6 + drop);
+    for (const [X, Y, , z] of cells) { c.fillStyle = z ? '#1f5a16' : '#7a4a10'; c.fillRect(X + drop * 0.6, Y + drop, px, px); c.fillRect(X + drop * 0.3, Y + drop * 0.5, px, px); }
+    for (const [X, Y, r, z] of cells) {
+      c.fillStyle = z ? ['#c9ff8a', '#a6f06a', '#8fe05a', '#6cc644', '#4fae32', '#3f9a2a', '#2f8420'][r] : ['#fff3c4', '#ffe9a8', '#ffd76a', '#f4c04a', '#eaa932', '#d58a22', '#b9701a'][r];
+      c.fillRect(X, Y, px, px);
+      c.fillStyle = 'rgba(255,255,255,.38)'; c.fillRect(X, Y, px, 2); c.fillRect(X, Y, 2, px);
+      c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(X, Y + px - 2, px, 2); c.fillRect(X + px - 2, Y, 2, px);
     }
   }
 
@@ -61,7 +62,7 @@
       hud: $('#hud'), hp: $('#hp i'), hpTxt: $('#hp b'), armor: $('#armor'), ammo: $('#ammo b'), reserve: $('#ammo span'), wname: $('#wname'), slots: $('#slots'),
       wave: $('#wave b'), left: $('#wave span'), score: $('#score b'), banner: $('#banner'), cross: $('#cross'), marker: $('#marker'),
       vignette: $('#vignette'), dmgDir: $('#dmgdir'), pops: $('#pops'), pick: $('#pick'), pickList: $('#pick-list'), pickHead: $('#pick-head'), pickWaitEl: $('#pick-wait'),
-      fuel: $('#fuel i'), boss: $('#bossbar'), bossName: $('#bossbar b'), bossFill: $('#bossbar i'),
+      fuel: $('#fuel i'), boss: $('#bossbar'), bossName: $('#bossbar b'), bossFill: $('#bossbar i'), bossTrail: $('#bossbar u'), hpTrail: $('#hp .bar s'),
       title: $('#title'), pause: $('#pause'), dead: $('#dead'), reloadHint: $('#reloadhint'), stick: $('#stick'), stickKnob: $('#stick i'), touch: $('#touch'),
     };
     logo($('#logo'), 'BLOCKADE Z');
@@ -117,7 +118,7 @@
       el.pickHead.innerHTML = `<small>HẾT ĐỢT ${n}</small><b>Chọn 1 nâng cấp</b>`;
       el.pickList.innerHTML = ids.map((id, k) => {
         const u = B.def(id); const l = B.lv(id); const un = B.unlocks(id);
-        return `<button class="up" data-pick="${id}" style="--d:${k * 90}ms"><kbd>${k + 1}</kbd><i>${u.icon}</i><span class="cat">${CAT[u.cat]}</span><b>${u.name}</b>
+        return `<button class="up" data-cat="${u.cat}" data-pick="${id}" style="--d:${k * 90}ms"><kbd>${k + 1}</kbd><i>${u.icon}</i><span class="cat">${CAT[u.cat]}</span><b>${u.name}</b>
           <em>${'<u class="on"></u>'.repeat(l)}<u class="nw"></u>${'<u></u>'.repeat(u.max - l - 1)}</em>
           <small>${l ? u.d(l) + '<br>' : ''}<span class="nx">▶ ${u.d(l + 1)}</span></small>${un.length ? `<p class="unl">✦ mở cộng hưởng ${un.map((r) => r.name).join(', ')}</p>` : ''}</button>`;
       }).join('');
@@ -132,7 +133,7 @@
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act],[data-buy]');
       if (!b) return;
-      G.audio.unlock();
+      G.audio.unlock(); G.audio.play('ui_click');
       if (b.dataset.buy) G.events.emit('buy', b.dataset.buy);
       else G.events.emit('ui:' + b.dataset.act);
     });
@@ -144,14 +145,19 @@
       if (pops.length > 14) { const o = pops.shift(); o.d.remove(); }
     }
     const ann = document.getElementById('announce'); let annT = 0;
+    // a boss walks in: hazard stripes slide along the top and bottom edge for a moment
+    const warn = document.createElement('div'); warn.id = 'bosswarn'; warn.innerHTML = '<i></i><i></i>'; document.body.appendChild(warn); let warnT = 0;
     function announce(text, sub, cls) {
+      if (cls === 'hot' && /^BOSS/.test(text)) { warn.classList.add('on'); warnT = 2.8; }
       ann.className = 'on ' + (cls || ''); ann.innerHTML = `<b>${text}</b>${sub ? `<small>${sub}</small>` : ''}`;
       void ann.offsetWidth; ann.classList.add('pop'); annT = 1.6;
     }
     let bannerT = 0;
     function banner(text, sub, secs = 2.2) { el.banner.innerHTML = `<b>${text}</b>${sub ? `<small>${sub}</small>` : ''}`; el.banner.classList.add('on'); bannerT = secs; }
     let markerT = 0; let hurtT = 0;
-    function hit(head) { markerT = 0.12; el.marker.classList.toggle('head', !!head); }
+    function hit(head) { if (markerT < 0.1) { markerT = 0.12; el.marker.className = head ? 'head' : ''; void el.marker.offsetWidth; el.marker.classList.add('pulse'); } }
+    // the killing shot: the marker turns red, swells and lingers a little longer
+    function kill() { markerT = 0.34; el.marker.className = ''; void el.marker.offsetWidth; el.marker.className = 'kill'; }
     function hurt(d, rel) {
       hurtT = Math.min(1, hurtT + 0.35 + d / 40);
       el.dmgDir.style.transform = `translate(-50%,-50%) rotate(${rel}rad)`; el.dmgDir.classList.add('on');
@@ -163,9 +169,13 @@
     }
 
     const v = new window.THREE.Vector3();
+    // the page knows the game state, so CSS can show the touch pad only in a fight and drop the HUD behind a menu
+    let stateSeen = null;
+    const rot = $('#rotate'); if (rot) rot.addEventListener('click', () => document.body.classList.add('upright'));
     function update(dt) {
+      if (stateSeen !== G.state) { stateSeen = G.state; document.body.dataset.state = G.state; }
       const W = G.weapons; const P = G.player; const a = W.ammo(); const w = W.WEAPONS[W.cur()];
-      el.hp.style.width = (P.hp / P.maxHp) * 100 + '%'; el.hpTxt.textContent = Math.ceil(P.hp);
+      const hpW = (P.hp / P.maxHp) * 100 + '%'; el.hp.style.width = hpW; if (el.hpTrail) el.hpTrail.style.width = hpW; el.hpTxt.textContent = Math.ceil(P.hp);
       el.hp.parentElement.classList.toggle('low', P.hp < 35);
       el.armor.style.width = Math.min(100, P.armor) + '%';
       el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
@@ -199,13 +209,14 @@
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
-      if (boss) { el.bossName.textContent = boss.T.name; el.bossFill.style.width = Math.max(0, boss.hp / boss.maxHp) * 100 + '%'; }
+      if (boss) { const bw = Math.max(0, boss.hp / boss.maxHp) * 100 + '%'; if (el.bossName.textContent !== boss.T.name) el.bossName.textContent = boss.T.name; el.bossFill.style.width = bw; if (el.bossTrail) el.bossTrail.style.width = bw; }
       const sp = W.spread(); const gap = 6 + sp * 500;
       el.cross.style.setProperty('--gap', gap + 'px'); el.cross.style.opacity = 1 - W.S.ads * 0.85;
       markerT -= dt; el.marker.style.opacity = markerT > 0 ? 1 : 0;
       hurtT = Math.max(0, hurtT - dt * 0.8); el.vignette.style.opacity = Math.max(hurtT, P.hp < 35 ? 0.35 + Math.sin(performance.now() / 300) * 0.1 : 0);
       if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el.banner.classList.remove('on'); }
       if (annT > 0) { annT -= dt; if (annT <= 0) ann.className = ''; }
+      if (warnT > 0) { warnT -= dt; if (warnT <= 0 || G.state !== 'playing') { warnT = 0; warn.classList.remove('on'); } }
       for (let i = pops.length - 1; i >= 0; i--) {
         const p = pops[i]; p.t += dt;
         if (p.world) {
@@ -215,8 +226,13 @@
         if (p.t > 1.1) { p.d.remove(); pops.splice(i, 1); }
       }
     }
+    function countUp(node, to, ms, delay) {
+      const t0 = performance.now() + delay; node.textContent = '0';
+      const step = () => { const k = Math.min(1, Math.max(0, (performance.now() - t0) / ms)); node.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1 && node.dataset.to === String(to)) requestAnimationFrame(step); else node.textContent = to; };
+      node.dataset.to = String(to); requestAnimationFrame(step);
+    }
     function setDead(s) {
-      $('#dead-wave').textContent = s.wave; $('#dead-kills').textContent = s.kills; $('#dead-score').textContent = s.score;
+      countUp($('#dead-wave'), s.wave, 500, 1100); countUp($('#dead-kills'), s.kills, 800, 1250); countUp($('#dead-score'), s.score, 1100, 1400);
       $('#dead-acc').textContent = s.acc + '%'; $('#dead-best').textContent = s.best.score + ' (đợt ' + s.best.wave + ')';
       $('#dead-record').style.display = s.record ? 'block' : 'none';
     }
@@ -228,6 +244,6 @@
       }
       const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
     }
-    return { announce, show, pickRender, pickWait, pickTick, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
+    return { kill, announce, show, pickRender, pickWait, pickTick, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
   };
 })();
