@@ -165,6 +165,10 @@
       P.onGround = out.ground;
       if (P.onGround && !wasGround && vyBefore < -4) {
         P.landDip = Math.min(0.2, -vyBefore * 0.025); G.audio.play('land', { gain: 0.5 });
+        // dust kicked out from the feet on a hard landing (seen in third person and by the camera looking down)
+        if (vyBefore < -7) { const k = Math.min(1, (-vyBefore - 7) / 9); const n = 5 + Math.round(5 * k);
+          for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + G.rng.range(-0.3, 0.3); const d = new window.THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+            G.fx.puff(P.pos.clone().addScaledVector(d, 0.3).setY(P.pos.y + 0.12), { vel: d.multiplyScalar(2.2 + 2 * k).setY(0.5), drag: 4, s0: 0.35, s1: 1.0 + 0.6 * k, life: 0.55 + 0.3 * k, c0: 0xd8d0c0, c1: 0xa8a090, a0: 0.75 }); } }
       }
       P.landDip = BZ.damp(P.landDip, 0, 9, dt);
       // keep inside the town even if something goes wrong

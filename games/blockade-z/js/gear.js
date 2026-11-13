@@ -79,12 +79,24 @@
       base.box([-0.45, 0, -0.45], [0.45, 0.18, 0.45], 'g_body2', { uv: 'fit', vary: 0 });
       base.box([-0.12, 0.18, -0.12], [0.12, 0.85, 0.12], 'g_body', { uv: 'fit', vary: 0 });
       for (const [x, z] of [[-0.55, -0.55], [0.4, -0.55], [-0.55, 0.4], [0.4, 0.4]]) base.box([x, 0, z], [x + 0.15, 0.08, z + 0.15], 'g_steel', { uv: 'fit', vary: 0 });
+      // a swivel ring, a stepped post, four braces down to the plate and an ammo crate with a steel lid
+      base.box([-0.22, 0.18, -0.22], [0.22, 0.26, 0.22], 'g_steel', { uv: 'fit', vary: 0 }); base.box([-0.17, 0.26, -0.17], [0.17, 0.5, 0.17], 'g_body2', { uv: 'fit', vary: 0 });
+      for (const [x0, z0, x1, z1] of [[-0.42, -0.05, -0.17, 0.05], [0.17, -0.05, 0.42, 0.05], [-0.05, -0.42, 0.05, -0.17], [-0.05, 0.17, 0.05, 0.42]]) { base.box([x0, 0.18, z0], [x1, 0.26, z1], 'g_steel', { uv: 'fit', vary: 0 }); base.box([x0 * 0.72, 0.26, z0 * 0.72], [x1 * 0.72, 0.36, z1 * 0.72], 'g_steel', { uv: 'fit', vary: 0 }); }
+      base.box([0.2, 0.18, 0.16], [0.43, 0.38, 0.43], 'g_orange', { uv: 'fit', vary: 0 }); base.box([0.19, 0.38, 0.15], [0.44, 0.42, 0.44], 'g_steel', { uv: 'fit', vary: 0 });
       const head = new BZ.Builder('turret-head');
       head.box([-0.3, -0.18, -0.3], [0.3, 0.2, 0.32], 'g_body', { uv: 'fit', vary: 0 });
       head.box([-0.31, 0.02, -0.25], [0.31, 0.08, 0.25], 'g_orange', { uv: 'fit', vary: 0 });
       head.box([-0.16, -0.05, -0.85], [-0.06, 0.05, -0.3], 'g_steel', { uv: 'fit', vary: 0 });
       head.box([0.06, -0.05, -0.85], [0.16, 0.05, -0.3], 'g_steel', { uv: 'fit', vary: 0 });
       head.box([-0.08, 0.1, -0.31], [0.08, 0.17, -0.29], 'g_glow_red', { uv: 'fit', vary: 0 });
+      // muzzle brakes, a barrel shroud, an ammo drum on the left, an armour cheek on the right, a sensor with a red eye, an aerial, a rear vent
+      for (const x of [-0.11, 0.11]) head.box([x - 0.08, -0.08, -0.93], [x + 0.08, 0.08, -0.83], 'g_steel', { uv: 'fit', vary: 0 });
+      head.box([-0.21, -0.1, -0.52], [0.21, 0.1, -0.3], 'g_body2', { uv: 'fit', vary: 0 });
+      head.box([-0.45, -0.17, -0.12], [-0.3, 0.13, 0.2], 'g_body2', { uv: 'fit', vary: 0 }); head.box([-0.47, -0.08, -0.04], [-0.45, 0.04, 0.12], 'g_orange', { uv: 'fit', vary: 0 });
+      head.box([0.3, -0.2, -0.22], [0.36, 0.25, 0.3], 'g_steel', { uv: 'fit', vary: 0 });
+      head.box([-0.07, 0.2, 0.0], [0.07, 0.31, 0.14], 'g_steel', { uv: 'fit', vary: 0 }); head.box([-0.045, 0.225, -0.015], [0.045, 0.285, 0.0], 'g_glow_red', { uv: 'fit', vary: 0 });
+      head.box([0.21, 0.2, 0.2], [0.235, 0.62, 0.225], 'g_steel', { uv: 'fit', vary: 0 }); head.box([0.2, 0.62, 0.19], [0.245, 0.66, 0.235], 'g_glow_red', { uv: 'fit', vary: 0 });
+      head.box([-0.22, -0.12, 0.32], [0.22, 0.14, 0.36], 'g_body2', { uv: 'fit', vary: 0 });
       const b = base.build({ cast: G.quality.shadow > 0 });
       const h = head.build({ cast: G.quality.shadow > 0, matOpts: { g_glow_red: { emissive: 0xff3a2a } } });
       h.position.y = 1.0; h.rotation.order = 'YXZ'; b.add(h);
