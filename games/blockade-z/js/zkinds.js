@@ -66,6 +66,8 @@
   }, { noMip: true });
   blob('haz_acid', 0xb8ff50, 0x4a9a20);
   blob('haz_fire', 0xffd060, 0xe8541e);
+  blob('haz_void', 0xe0a0ff, 0x6a20c0);
+  blob('haz_sand', 0xffe0a0, 0xc08a3a);
   BZ.defTex('haz_web', 32, 32, ({ set }) => {
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
       const dx = x - 15.5; const dy = y - 15.5; const r = Math.hypot(dx, dy); const a = Math.atan2(dy, dx);
@@ -87,7 +89,7 @@
     frost: Z({ hp: 150, speed: 1.9, dmg: 12, rate: 1.2, windup: 0.45, scale: 1.1, skin: 'z_skin_frost', face: 'z_face_frost', shirt: ['z_shirt_dark'], score: 350, eye: 0x80e0ff, kind: 'frost', immune: 'chill', weak: 'burn', glow: 0x0a2440, hitFx: { slow: 1.6 }, name: 'XÁC BĂNG', tip: 'không sợ băng, sợ lửa; chết thì đóng băng cả bầy quanh nó' }),
     spider: Z({ hp: 40, speed: 5.6, dmg: 7, rate: 0.8, windup: 0.2, scale: 0.55, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 120, voice: 'screech', eye: 0xff2a20, kind: 'spider', rig: 'spider', noDown: true, noTower: true, hitFx: { slow: 0.8 }, pack: [4, 6], name: 'NHỆN ĐỘC', tip: 'bầy nhện nhỏ chạy nhanh, cắn làm chậm' }),
     egg: Z({ hp: 60, speed: 0, dmg: 0, rate: 9, windup: 9, scale: 1, skin: 'z_egg', face: 'z_egg', shirt: ['z_egg'], pants: ['z_egg'], score: 80, voice: 'groan', eye: 0x9aff40, kind: 'egg', rig: 'egg', noDown: true, noTower: true, name: 'TRỨNG NHỆN' }),
-    brood: Z({ hp: 3200, speed: 2.6, dmg: 30, rate: 1.6, windup: 0.5, scale: 2.4, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 3200, voice: 'roar', eye: 0xff2a20, kind: 'spider', rig: 'spider', boss: 'brood', noDown: true, noTower: true, hitFx: { slow: 1.2 }, name: 'NHỆN CHÚA' }),
+    brood: Z({ hp: 3200, speed: 2.6, dmg: 30, rate: 1.6, windup: 0.5, scale: 2.7, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 3200, voice: 'roar', eye: 0xff2a20, kind: 'spider', rig: 'spider', boss: 'brood', noDown: true, noTower: true, hitFx: { slow: 1.2 }, name: 'NHỆN CHÚA' }),
   });
 
   // which specials join a wave, from which wave, and how often (share of the spawns)
@@ -173,6 +175,7 @@
       X.tail.visible = !!T.quad; b.head.scale.setScalar(T.quad ? 0.78 : 1); b.armL.position.x = T.quad ? -0.2 : -0.36; b.armR.position.x = T.quad ? 0.2 : 0.36;
       for (const k of parts) { X[k].visible = true; if (k === 'plate') X.padL.visible = X.padR.visible = true; if (k === 'helmet') X.visor.visible = true; }
       b.hips.visible = !T.rig; X.spider.visible = T.rig === 'spider'; X.eggG.visible = T.rig === 'egg';
+      B().dress(z);
       for (const k of ['skin', 'shirt', 'pants']) { const m = b.mats[k]; if (m.userData.glowMap !== !!T.glow) { m.emissiveMap = T.glow ? m.map : null; m.userData.glowMap = !!T.glow; m.needsUpdate = true; } }
     }
     function init(z, T, wave) {
@@ -209,6 +212,7 @@
     // returns true when this kind owns the frame's movement (leaps); otherwise may set hold/noMelee
     function step(z, dt, P, dist) {
       const T = z.T; const k = T.kind; z.hold = false; z.noMelee = false;
+      if (k === 'boss2') return B().step(z, dt, P, dist);
       z.cd -= dt; z.cd2 -= dt;
       if (z.leap) return leapStep(z, dt, P);
       if (k === 'spit') {
@@ -276,6 +280,7 @@
     }
     function launch(kind, from, vel, visual) {
       const m = new THREE.Mesh(PROJ_GEO, PROJ_MAT[kind]); m.position.copy(from); m.scale.setScalar(kind === 'web' ? 1.4 : 1); G.scene.add(m);
+      G.fx.halo(m, kind === 'web' ? 0xffffff : 0x9aff40, kind === 'web' ? 1.4 : 1.6);
       projs.push({ kind, m, pos: from.clone(), vel: vel.clone(), life: 3, visual });
     }
     const seg = V();
@@ -290,7 +295,7 @@
         if (at || s.life <= 0 || s.pos.y < -0.5) {
           at = at || s.pos.clone();
           const col = s.kind === 'web' ? [0xf4f4f4, 0xd0d0d0] : [0xb8ff50, 0x5ac030, 0xe0ff90];
-          G.fx.burst(at, 16, col, { speed: 3.5, size: 0.1, life: 0.6 });
+          G.fx.burst(at, 16, col, { speed: 3.5, size: 0.1, life: 0.6 }); G.fx.pop(at, 0.9, s.kind === 'web' ? [0xffffff, 0xc0c0c0] : [0xb8ff50, 0x3a8a20]);
           G.audio.playAt('gore', at, { gain: 0.6, rate: s.kind === 'web' ? 0.7 : 1.5 });
           if (!s.visual) {
             const ground = V().set(at.x, Math.max(0, at.y - 1.2), at.z); if (G.world.groundAt) ground.y = G.world.groundAt(at.x, at.z, at.y);
@@ -305,7 +310,8 @@
           G.scene.remove(s.m); projs.splice(i, 1); continue;
         }
         s.pos.addScaledVector(s.vel, dt); s.m.position.copy(s.pos); s.m.rotation.x += dt * 9; s.m.rotation.y += dt * 7;
-        if (G.rng.chance(dt * 30)) G.fx.puff(s.pos.clone(), { glow: s.kind === 'acid', s0: 0.25, s1: 0.05, life: 0.3, c0: s.kind === 'acid' ? 0xb8ff50 : 0xffffff, c1: s.kind === 'acid' ? 0x3a8a20 : 0xc0c0c0, a0: 0.8 });
+        G.fx.streak(s, s.pos, s.vel, s.kind === 'acid' ? 0xb8ff50 : 0xf0f0f0, s.kind === 'acid' ? 0x3a8a20 : 0x9a9a9a, 0.3, dt, 40);
+        if (s.kind === 'acid' && G.rng.chance(dt * 12)) G.fx.burst(s.pos.clone(), 1, [0xb8ff50, 0x5ac030], { speed: 0.6, size: 0.06, life: 0.5 });
       }
     }
 
@@ -319,12 +325,16 @@
       hazards.push({ kind, pos: m.position.clone(), r, t: dur, dur, m, acc: 0, visual: !!visual });
       if (!visual) net({ t: 'haz', kind, p: r2(pos), r, d: dur });
     }
+    // standing in three pools of one kind burns like standing in one
+    const hzCd = new Map();
     function updateHazards(dt) {
+      for (const c of hzCd.values()) for (const k in c) c[k] -= dt;
       for (let i = hazards.length - 1; i >= 0; i--) {
         const h = hazards[i]; h.t -= dt;
         if (h.t <= 0) { G.scene.remove(h.m); h.m.material.dispose(); hazards.splice(i, 1); continue; }
         const k = Math.min(1, h.t / 0.6, (h.dur - h.t) / 0.15 + 0.2); h.m.material.opacity = 0.9 * k;
         if (h.kind === 'fire' && G.rng.chance(dt * 7 * h.r)) G.fx.puff(V().set(h.pos.x + G.rng.range(-h.r, h.r) * 0.6, h.pos.y + 0.1, h.pos.z + G.rng.range(-h.r, h.r) * 0.6), { glow: true, vel: V().set(0, 1.6, 0), s0: 0.5, s1: 0.1, life: 0.5, c0: 0xffd060, c1: 0xff3a10, a0: 1 });
+        if ((h.kind === 'void' || h.kind === 'sand') && G.rng.chance(dt * 5 * h.r)) G.fx.puff(V().set(h.pos.x + G.rng.range(-h.r, h.r) * 0.6, h.pos.y + 0.1, h.pos.z + G.rng.range(-h.r, h.r) * 0.6), { glow: h.kind === 'void', vel: V().set(0, h.kind === 'void' ? 2.2 : 0.8, 0), s0: 0.4, s1: 0.08, life: 0.6, c0: h.kind === 'void' ? 0xe0a0ff : 0xe8c890, c1: h.kind === 'void' ? 0x6a20c0 : 0xa07a40, a0: 0.9 });
         if (h.kind === 'acid' && G.rng.chance(dt * 4 * h.r)) G.fx.puff(V().set(h.pos.x + G.rng.range(-h.r, h.r) * 0.5, h.pos.y + 0.05, h.pos.z + G.rng.range(-h.r, h.r) * 0.5), { glow: true, vel: V().set(0, 0.5, 0), s0: 0.08, s1: 0.22, life: 0.5, c0: 0xd8ff90, c1: 0x5ac030, a0: 0.9 });
         if (h.visual) continue;
         h.acc += dt; const tickNow = h.acc >= 0.5; if (tickNow) h.acc = 0;
@@ -332,7 +342,8 @@
           if (Math.hypot(p.pos.x - h.pos.x, p.pos.z - h.pos.z) > h.r || Math.abs(p.pos.y - h.pos.y) > 1) continue;
           if (h.kind === 'web') { if (p === G.player) G.player.slowT = Math.max(G.player.slowT || 0, 0.25); continue; }
           if (h.kind === 'fire' && p === G.player && G.hero.def.id === 'hoa') continue;
-          if (tickNow) api.hurtP(p, h.kind === 'acid' ? 5 : 6, h.pos, h.kind === 'acid' ? { slow: 0.6 } : null);
+          const cd = hzCd.get(p) || {}; hzCd.set(p, cd); if (tickNow && (cd[h.kind] || 0) > 0) continue; if (tickNow) cd[h.kind] = 0.45;
+          if (tickNow) api.hurtP(p, h.kind === 'acid' ? 5 : h.kind === 'void' ? 7 : h.kind === 'sand' ? 4 : 6, h.pos, h.kind === 'acid' || h.kind === 'sand' ? { slow: 0.6 } : null);
         }
       }
     }
@@ -369,6 +380,7 @@
       if (T.kind === 'frost' && host()) queue.push({ t: 0.2, f: () => nova(at, 4.8, by) });
       if (T.kind === 'shield' && z.shieldHp > 0) breakShield(z, dir, true);
       if (T.kind === 'armor' && z.armor > 0) breakArmor(z, dir, true);
+      if (T.kind === 'boss2') return B().die(z, dir);
       if (T.rig) {
         const b = z.body; b.root.updateMatrixWorld(true);
         const meshes = []; (T.rig === 'spider' ? X.spider : X.eggG).traverse((o) => { if (o.isMesh) meshes.push(o); });
@@ -447,6 +459,7 @@
 
     // ---- looks: run after the walk cycle on host and guests alike ----
     function pose(z, dt, sp) {
+      if (z.T.kind === 'boss2') return B().pose(z, dt, sp);
       const T = z.T; const b = z.body; const X = b.x; const k = T.kind; const act = z.act; const ak = act ? Math.min(1, act.t / act.dur) : 0;
       if (act && !host()) act.t += dt;
       const wind = z.windT >= 0 ? Math.min(1, z.windT / T.windup) : 0;
@@ -516,7 +529,7 @@
 
     // hit boxes for bodies that are not an upright human
     function boxes(z) {
-      const T = z.T; if (!T.quad && !T.rig) return null; const s = T.scale; const p = z.pos; const f = fwd(z);
+      const T = z.T; if (T.kind === 'boss2') return B().boxes(z); if (!T.quad && !T.rig) return null; const s = T.scale; const p = z.pos; const f = fwd(z);
       if (T.rig === 'egg') return [{ part: 'body', min: [p.x - 0.4 * s, p.y, p.z - 0.4 * s], max: [p.x + 0.4 * s, p.y + 1.0 * s, p.z + 0.4 * s] }];
       const hx = p.x + f.x * (T.quad ? 0.45 : 0.35) * s; const hz = p.z + f.z * (T.quad ? 0.45 : 0.35) * s;
       const bw = T.quad ? 0.4 : 0.55; const top = T.quad ? 0.9 : 0.9;
@@ -527,7 +540,7 @@
     }
 
     // snapshot flags for the guests: 256 shield up, 512 armour on, 1024 enraged, 2048 busy with its special move
-    function flags(z) { return (z.shieldHp > 0 ? 256 : 0) | (z.armor > 0 ? 512 : 0) | (z.rage > 0 ? 1024 : 0) | (z.act || z.leap ? 2048 : 0); }
+    function flags(z) { return (z.shieldHp > 0 ? 256 : 0) | (z.armor > 0 ? 512 : 0) | (z.rage > 0 ? 1024 : 0) | (z.T.kind === 'boss2' ? B().flags(z) : z.act || z.leap ? 2048 : 0); }
     function adopt(z, f, e) {
       const X = z.body.x;
       if (z.T.shieldHp && !(f & 256) && X.shield.visible) breakShield(z, null);
@@ -539,6 +552,7 @@
     }
     const eliteIdx = (z) => (z.elite ? ELITE_IDS.indexOf(z.elite) + 1 : 0);
     function remote(p) {
+      if (B().remote(p)) return;
       const v = (a) => V().set(a[0], a[1], a[2]);
       if (p.t === 'proj') launch(p.kind, v(p.p), v(p.v), true);
       else if (p.t === 'haz') hazard(p.kind, v(p.p), p.r, p.d, true);
@@ -547,15 +561,22 @@
     }
 
     function update(dt) {
-      updateProjs(dt); updateHazards(dt);
+      updateProjs(dt); updateHazards(dt); B().update(dt);
       for (let i = queue.length - 1; i >= 0; i--) { const q = queue[i]; q.t -= dt; if (q.t <= 0) { queue.splice(i, 1); q.f(); } }
       const P = G.player; if (P.slowT > 0) P.slowT -= dt; if (P.rootT > 0) P.rootT -= dt;
     }
     function clear() {
       for (const s of projs) G.scene.remove(s.m); projs.length = 0;
       for (const h of hazards) { G.scene.remove(h.m); h.m.material.dispose(); } hazards.length = 0;
-      queue.length = 0; G.player.slowT = 0; G.player.rootT = 0;
+      queue.length = 0; G.player.slowT = 0; G.player.rootT = 0; B().clear();
     }
-    return { dress, init, elite, tick, step, pose, hit, onMelee, die, boxes, flags, adopt, eliteIdx, remote, update, clear, playerFx, hazards, projs, summon, hazard };
+    // the big bosses (js/bosses.js) share this file's players, hazards and summons; made on first use
+    let Bz = null; const mv = {};
+    const hurt = (p, dmg, from, fx, push) => {
+      api.hurtP(p, dmg, from, fx);
+      if (push && p === G.player && from) { const d = V().set(p.pos.x - from.x, 0, p.pos.z - from.z); if (d.lengthSq() < 1e-4) d.set(1, 0, 0); p.vel.addScaledVector(d.normalize(), push); p.vel.y = Math.max(p.vel.y, push * 0.45); }
+    };
+    const B = () => Bz || (Bz = BZ.makeBosses(G, api, { players, hurt, hazard, summon, out: mv }));
+    return { dress, init, elite, tick, step, pose, hit, onMelee, die, boxes, flags, adopt, eliteIdx, remote, update, clear, playerFx, hazards, projs, summon, hazard, bosses: B };
   };
 })();

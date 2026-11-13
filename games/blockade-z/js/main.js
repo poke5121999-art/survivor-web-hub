@@ -95,7 +95,7 @@
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
       G.events.emit('wave:start', n);
       // a boss every fifth wave, and from wave 6 a chance of an extra one
-      const BOSSES = ['giant', 'thrower', 'phantom', 'queen', 'brood'];
+      const BOSSES = ['dragon', 'giant', 'pharaoh', 'brood', 'alien', 'thrower', 'ufo', 'phantom', 'vampire', 'queen', 'guardian'].filter((id) => BZ.ZOMBIES[id]);
       wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
       wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % BOSSES.length] : G.rng.pick(BOSSES);
       if (BZ.params.boss) { wave.bossAt = 2; wave.bossType = BZ.params.boss; }

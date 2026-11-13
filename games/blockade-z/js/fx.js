@@ -53,12 +53,19 @@
     const tracers = [];
     const trGeo = new THREE.BoxGeometry(0.03, 0.03, 1); trGeo.translate(0, 0, -0.5);
     const trMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.85 });
-    for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(trGeo, trMat.clone()); m.visible = false; scene.add(m); tracers.push({ m, life: 0 }); }
+    // each tracer is a hot core inside a soft additive glow, so it reads against a bright sky too
+    const trGlowGeo = new THREE.BoxGeometry(0.13, 0.13, 1); trGlowGeo.translate(0, 0, -0.5);
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Mesh(trGeo, trMat.clone()); m.visible = false; scene.add(m);
+      const g = new THREE.Mesh(trGlowGeo, new THREE.MeshBasicMaterial({ color: 0xff9a30, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.add(g);
+      tracers.push({ m, g, life: 0 });
+    }
     let trI = 0;
-    function tracer(a, b) {
+    function tracer(a, b, color) {
       const t = tracers[trI++ % tracers.length];
       const len = a.distanceTo(b);
-      t.m.position.copy(a); t.m.lookAt(b); t.m.scale.set(1, 1, len); t.m.visible = true; t.life = 0.06; t.m.material.opacity = 0.85;
+      t.m.position.copy(a); t.m.lookAt(b); t.m.scale.set(1, 1, len); t.m.visible = true; t.life = 0.07; t.m.material.opacity = 0.95;
+      t.m.material.color.setHex(0xfff0b0); t.g.material.color.setHex(color || 0xff9a30);
     }
 
     // Muzzle light (one, reused)
@@ -104,7 +111,7 @@
       parts.instanceMatrix.needsUpdate = true;
       if (parts.instanceColor) parts.instanceColor.needsUpdate = true;
 
-      for (const t of tracers) if (t.life > 0) { t.life -= dt; t.m.material.opacity = Math.max(0, t.life / 0.06) * 0.85; if (t.life <= 0) t.m.visible = false; }
+      for (const t of tracers) if (t.life > 0) { t.life -= dt; const k = Math.max(0, t.life / 0.07); t.m.material.opacity = k * 0.95; t.g.material.opacity = k * 0.45; if (t.life <= 0) t.m.visible = false; }
       if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.intensity = 0; }
       boomLight.intensity = Math.max(0, boomLight.intensity * Math.pow(0.002, dt) - dt * 20);
       for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.45; b.s.scale.setScalar(1.5 + k * 5); b.s.material.opacity = Math.max(0, 0.85 - k); if (k >= 1) { scene.remove(b.s); booms.splice(i, 1); } }
@@ -209,9 +216,33 @@
       puff(at.clone().addScaledVector(n, 0.12), { vel: n.clone().multiplyScalar(0.9), drag: 2, s0: 0.2, s1: 0.95, life: 0.6, c0: dust, c1: dust, a0: 0.55 });
     }
     function bloodMist(at, k) { puff(at, { vel: V().set(0, 0.3, 0), drag: 2, s0: 0.25, s1: 0.7 + k * 0.9, life: 0.4 + k * 0.3, c0: 0x9a1410, c1: 0x5a0a08, a0: 0.75 }); }
+    const haloMats = new Map();
+    const haloMat = (col, op) => { const k = col + ':' + op; if (!haloMats.has(k)) haloMats.set(k, new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); return haloMats.get(k); };
+    // obj: the projectile mesh (its scale counts); size: halo size in metres
+    function halo(obj, col, size) {
+      const k = 1 / (obj.scale.x || 1);
+      const a = new THREE.Sprite(haloMat(col, 0.95)); a.scale.setScalar(size * k); a.renderOrder = 6; obj.add(a);
+      const b = new THREE.Sprite(haloMat(col, 0.35)); b.scale.setScalar(size * 2.2 * k); obj.add(b);
+      return a;
+    }
+    // call every frame; acc is a running counter kept on the projectile
+    function streak(s, pos, vel, col, col2, size, dt, rate = 45) {
+      s.acc = (s.acc || 0) + dt * rate;
+      while (s.acc > 1) {
+        s.acc -= 1;
+        puff(pos.clone().add(V().set(G.rng.range(-1, 1), G.rng.range(-1, 1), G.rng.range(-1, 1)).multiplyScalar(size * 0.3)), { glow: true, vel: vel.clone().multiplyScalar(-0.06), drag: 3, s0: size * 1.6, s1: 0.03, life: 0.45, c0: col, c1: col2, a0: 0.95, spin: 0 });
+      }
+    }
+    // landing: a white core flash inside a coloured one, glow sparks and bits
+    function pop(at, r, cols) {
+      puff(at, { glow: true, s0: r * 0.6, s1: r * 3.2, life: 0.22, c0: 0xffffff, c1: cols[0], a0: 1.2, spin: 0 });
+      puff(at, { glow: true, s0: r * 1.2, s1: r * 4.5, life: 0.4, c0: cols[0], c1: cols[1] || cols[0], a0: 0.8, spin: 0 });
+      for (let i = 0; i < 8 + r * 4; i++) { const d = rnd(); d.y = Math.abs(d.y) + 0.2; puff(at, { glow: true, vel: d.normalize().multiplyScalar(G.rng.range(3, 7) * Math.max(0.6, r)), drag: 2.5, g: 4, s0: 0.22 * Math.max(0.6, r), s1: 0.03, life: G.rng.range(0.35, 0.65), c0: cols[0], c1: cols[1] || cols[0], a0: 1.1 }); }
+      burst(at, 6 + r * 6, cols, { speed: 4 + r * 2, size: 0.08, life: 0.7 });
+    }
     function trail(at) {
       puff(at, { vel: V().set(G.rng.range(-0.2, 0.2), 0.5, G.rng.range(-0.2, 0.2)), drag: 1, s0: 0.3, s1: 1.5, life: G.rng.range(1, 1.6), c0: 0x9a9894, c1: 0x6a6866, a0: 0.5 });
-      puff(at, { glow: true, s0: 0.5, s1: 0.2, life: 0.08, c0: 0xffe090, c1: 0xff6020, a0: 1 });
+      puff(at, { glow: true, s0: 0.75, s1: 0.15, life: 0.14, c0: 0xfff0b0, c1: 0xff5010, a0: 1.2, spin: 0 });
     }
     function updateBlast(dt) {
       updateBoard(smokeB, dt); updateBoard(glowB, dt);
@@ -333,6 +364,6 @@
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, halo, streak, pop, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();

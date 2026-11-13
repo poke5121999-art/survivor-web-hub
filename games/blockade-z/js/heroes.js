@@ -325,7 +325,7 @@
     // thrown things (grenades, bottles, darts, mines): same arc on every machine; the caster's lands for real
     const projGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
     function lob(a, color, onLand, opt = {}) {
-      const m = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color })); m.position.copy(v3(a.p)); m.scale.setScalar(opt.size || 1); G.scene.add(m);
+      const m = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color })); m.position.copy(v3(a.p)); m.scale.setScalar(opt.size || 1); G.scene.add(m); G.fx.halo(m, opt.trail || color, 1.1 * (opt.size || 1));
       H.projs.push({ m, pos: v3(a.p), vel: v3(a.v), g: opt.g === undefined ? 16 : opt.g, life: 4, onLand, a, trail: opt.trail || color });
     }
     function throwAim(speed = 16, up = 4) {
@@ -346,7 +346,7 @@
           G.scene.remove(q.m); H.projs.splice(i, 1); q.onLand(at, q.a); continue;
         }
         q.pos.addScaledVector(q.vel, dt); q.m.position.copy(q.pos); q.m.rotation.x += dt * 10; q.m.rotation.z += dt * 7;
-        if (G.rng.chance(dt * 25)) G.fx.puff(q.pos.clone(), { glow: true, s0: 0.18, s1: 0.04, life: 0.25, c0: q.trail, c1: q.trail, a0: 0.8 });
+        G.fx.streak(q, q.pos, q.vel, q.trail, q.trail, 0.22 * (q.m.scale.x || 1), dt, 40);
       }
     }
     // a lasting effect (tornado, orb, blizzard, flame, cloud...): ticks on every machine, hurts only on the caster's

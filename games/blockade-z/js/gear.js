@@ -34,11 +34,11 @@
       state.rocks = (state.rocks || 0) + 1;
       const t = BZ.clamp(from.distanceTo(target) / 15, 0.7, 1.7); const g = 18;
       const vel = target.clone().sub(from).divideScalar(t); vel.y += 0.5 * g * t;
-      const m = rockGeo.clone(); m.position.copy(from); scene.add(m);
+      const m = rockGeo.clone(); m.position.copy(from); scene.add(m); G.fx.halo(m, 0xffa040, 1.6);
       shots.push({ kind: 'rock', m, pos: from.clone(), vel, g, life: 4, spin: 6, owner });
     }
     function fireRocket(from, dir) {
-      const m = rocketGeo.clone(); m.position.copy(from); m.lookAt(from.clone().add(dir)); m.rotateY(Math.PI); scene.add(m);
+      const m = rocketGeo.clone(); m.position.copy(from); m.lookAt(from.clone().add(dir)); m.rotateY(Math.PI); scene.add(m); G.fx.halo(m, 0xffa040, 0.9).position.z = 0.4;
       shots.push({ kind: 'rocket', m, pos: from.clone(), vel: dir.clone().multiplyScalar(40), g: 1.5, life: 3, spin: 0 });
     }
     const seg = new THREE.Vector3();
@@ -59,11 +59,12 @@
           if (P.alive && s.pos.distanceTo(pc) < 1.1) { G.events.emit('player:hurt', { dmg: 24, from: s.pos }); hitAt = s.pos.clone(); P.vel.addScaledVector(seg, 4); }
           if (!hitAt && G.coop && G.coop.host) for (const r of G.coop.remotes()) if (r.alive && Math.hypot(s.pos.x - r.pos.x, s.pos.y - r.pos.y - 1, s.pos.z - r.pos.z) < 1.1) { G.coop.hurtRemote(r, 24, s.pos); hitAt = s.pos.clone(); break; }
           s.m.rotation.x += dt * s.spin; s.m.rotation.z += dt * s.spin * 0.7;
+          G.fx.streak(s, s.pos, s.vel, 0xffa040, 0x8a4a20, 0.45, dt, 30); if (G.rng.chance(dt * 14)) G.fx.puff(s.pos.clone(), { vel: s.vel.clone().multiplyScalar(-0.05), drag: 1, s0: 0.4, s1: 1.4, life: 0.9, c0: 0x8a8070, c1: 0x6a6460, a0: 0.55 });
         }
         if (hitAt || s.life <= 0 || s.pos.y < -1) {
           const at = hitAt || s.pos;
           if (s.kind === 'rocket') { const k = G.hero ? G.hero.blastMul() : 1; explode(at, 6.5 * k, 480 * k); }
-          else { G.fx.burst(at, 16, [0x6a645c, 0x8e8c86, 0x55504a], { speed: 5, size: 0.16, life: 1 }); G.audio.playAt('impact', at, { gain: 1, rate: 0.6 }); }
+          else { G.fx.burst(at, 22, [0x6a645c, 0x8e8c86, 0x55504a], { speed: 6, size: 0.18, life: 1.1 }); G.fx.pop(at, 1.2, [0xffa040, 0x8a4a20]); G.audio.playAt('impact', at, { gain: 1, rate: 0.6 }); }
           scene.remove(s.m); shots.splice(i, 1); continue;
         }
         s.pos.addScaledVector(s.vel, dt); s.m.position.copy(s.pos);

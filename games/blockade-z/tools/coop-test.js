@@ -66,6 +66,19 @@ const BASE = process.env.BZ_BASE;
   const gs = await B.evaluate(`(() => { const z = __G.zombies.list[${sk}]; return { type: z.type, alive: z.alive, shield: z.body.x.shield.visible, elite: z.elite, gem: z.body.x.gem.visible, slow: __G.player.slowT > 0 || __G.player.hp < __G.player.maxHp }; })()`);
   console.log('kinds', JSON.stringify(gs));
   check(gs.alive && gs.type === 'shielder' && gs.shield && gs.elite === 'regen' && gs.gem, 'the guest sees a special kind with its shield and its elite mark');
+  // a big boss: the guest sees its own body, its moves and the shots it fires
+  const bi = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0];
+    const z = G.zombies.spawn('dragon', 3, { x: av.pos.x, z: av.pos.z - 12, dir: [0, 1], name: 't' }); __sim(0.1);
+    const B = G.zombies.kinds.bosses(); const kit = BZ.BOSS_KITS.dragon; const S = z.bs; S.rest = 99; S.cur = 'barrage'; S.t = 0; S.data = {}; S.dur = kit.moves.barrage.dur; S.queue = [];
+    G.events.emit('zk', { t: 'bm', i: G.zombies.list.indexOf(z), m: 'barrage', d: S.dur });
+    return G.zombies.list.indexOf(z); })()`);
+  let gb = null;
+  for (let i = 0; i < 12 && !(gb && gb.orbs > 0); i++) { await A.waitForTimeout(250); gb = await B.evaluate(`(() => { const z = __G.zombies.list[${bi}]; const R = z.body.x.dragon; return { alive: z.alive, type: z.type, rig: !!(R && R.g.visible), cur: z.bs && z.bs.cur, orbs: __G.zombies.kinds.bosses().debug().orbs }; })()`); }
+  console.log('boss', JSON.stringify(gb));
+  check(gb.alive && gb.type === 'dragon' && gb.rig && gb.orbs > 0, 'the guest sees the dragon boss, its body and the fireballs it shoots');
+  await A.evaluate(`(() => { const G = __G; const z = G.zombies.list[${bi}]; G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); })()`);
+  await A.waitForTimeout(1200);
+  check(await B.evaluate(`!__G.zombies.list[${bi}].alive`), 'the boss dies on the guest screen too');
   // the wave ends: both get three upgrade cards; the next wave waits until both have picked
   await A.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; })()`);
   await A.waitForTimeout(1200);

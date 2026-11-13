@@ -7,10 +7,10 @@
     walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
     runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
     flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
-    giant: { hp: 2600, speed: 1.9, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.5, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
-    thrower: { hp: 1700, speed: 1.6, dmg: 20, rate: 1.4, windup: 0.5, scale: 1.9, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
-    phantom: { hp: 1300, speed: 3.2, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.5, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
-    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.0, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
+    giant: { hp: 2600, speed: 2.2, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.9, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
+    thrower: { hp: 1700, speed: 1.85, dmg: 20, rate: 1.4, windup: 0.5, scale: 2.2, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
+    phantom: { hp: 1300, speed: 3.6, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.7, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
+    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.3, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
     brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
   };
   BZ.ZOMBIES = TYPES;
@@ -159,8 +159,8 @@
 
     // ---- bosses: each has one special move; returns true when it owns this frame's movement ----
     function boss(z, dt, P, dist) {
-      const T = z.T; const b = z.body;
-      z.abT -= dt;
+      const T = z.T; const b = z.body; const C = K.bosses().ctx; const rage = z.hp < z.maxHp * 0.5;
+      z.abT -= dt * (rage ? 1.5 : 1);
       if (T.boss === 'giant') {
         if (z.leap) {
           const L = z.leap; L.t += dt; const k = Math.min(1, L.t / L.dur);
@@ -168,8 +168,10 @@
           b.hips.rotation.x = -0.4 + k * 0.6; b.armL.rotation.x = b.armR.rotation.x = -Math.PI * 0.9;
           b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
           if (k >= 1) {
-            z.leap = null; z.abT = 6;
+            z.leap = null; z.abT = 4.5;
             G.fx.burst(z.pos.clone().setY(z.pos.y + 0.2), 30, [0x6e6a64, 0x8a8478, 0x4a4640], { speed: 7, size: 0.2, life: 1 });
+            C.boom(z.pos.clone().setY(z.pos.y + 0.6), 3.5, [0xffa040, 0x8a4a20, 0xfff0c0], { smokeCol: 0x6a645c }); C.shock(z.pos.clone().setY(z.pos.y + 0.05), 9, 0.7, 0xffa040, 20, { wall: true });
+            if (rage) C.after(0.35, () => C.shock(z.pos.clone().setY(z.pos.y + 0.05), 13, 0.9, 0xff6020, 16, { wall: true }));
             G.audio.playAt('boom', z.pos, { gain: 1, rate: 0.7 });
             const d = P.pos.distanceTo(z.pos);
             if (d < 4.5 && P.alive) { hurtP(P, Math.round(30 * (1 - d / 6)), z.pos); P.vel.add(new THREE.Vector3(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z).normalize().multiplyScalar(7)); P.vel.y = 6; }
@@ -180,6 +182,7 @@
         if (z.abT <= 0 && (P.pos.y - z.pos.y > 1.6 || dist > 9) && dist < 26 && P.alive) {
           const to = P.pos.clone().add(new THREE.Vector3(G.rng.range(-1, 1), 0.02, G.rng.range(-1, 1)));
           z.leap = { t: 0, dur: 0.9 + dist * 0.03, from: z.pos.clone(), to, h: 5 + Math.max(0, P.pos.y - z.pos.y) };
+          C.warn({ at: to.clone(), r: 4.5, dur: z.leap.dur, col: 0xff8030 });
           z.yaw = Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z);
           G.audio.playAt('roar', z.pos, { gain: 1.1 });
           return true;
@@ -192,7 +195,8 @@
           if (z.rock >= 0.6) {
             z.rock = 0; z.abT = 2.4;
             const from = z.pos.clone().add(new THREE.Vector3(0, 3.3 * T.scale / 1.9, 0));
-            G.gear.throwRock(from, P.pos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(P.vel, 0.4), z);
+            const aim = P.pos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(P.vel, 0.4);
+            for (let i = 0; i < (rage ? 3 : 1); i++) { const tg = aim.clone().add(new THREE.Vector3(i ? G.rng.range(-3, 3) : 0, 0, i ? G.rng.range(-3, 3) : 0)); C.warn({ at: tg.clone().setY(Math.max(0, P.pos.y)), r: 1.6, dur: BZ.clamp(from.distanceTo(tg) / 15, 0.7, 1.7), col: 0xffa040 }); G.gear.throwRock(from, tg, z); }
             G.audio.playAt('swipe', z.pos, { gain: 1, rate: 0.6 });
           }
           return true;
@@ -208,7 +212,9 @@
             if (Math.abs(c.x) > G.world.HALF - 1 || Math.abs(c.z) > G.world.HALF - 1) continue;
             if (G.world.overlaps([c.x - s, c.y, c.z - s], [c.x + s, c.y + 1.8, c.z + s])) continue;
             const puff = (p) => G.fx.burst(p.clone().setY(p.y + 1.2), 22, [0x8a40ff, 0x40e0ff, 0x2a1a4a], { speed: 4, size: 0.18, life: 0.8, grav: -2 });
-            puff(z.pos); z.pos.copy(c); puff(z.pos); z.vel.set(0, 0, 0); z.abT = 4.5;
+            puff(z.pos); C.flash(z.pos.clone().setY(z.pos.y + 1.5), 6, 0x8a40ff); z.pos.copy(c); puff(z.pos); z.vel.set(0, 0, 0); z.abT = 3.6;
+            C.flash(z.pos.clone().setY(z.pos.y + 1.5), 8, 0x40e0ff); C.shock(z.pos.clone().setY(z.pos.y + 0.05), 5, 0.45, 0x8a40ff, 14, { wall: true });
+            for (let i = 0; i < (rage ? 6 : 4); i++) { const a = (i / (rage ? 6 : 4)) * Math.PI * 2; C.orb({ from: z.pos.clone().add(new THREE.Vector3(Math.cos(a) * 1.5, 2.6, Math.sin(a) * 1.5)), vel: new THREE.Vector3(Math.cos(a) * 6, 4, Math.sin(a) * 6), shape: 'shard', size: 0.35, col: 0x8a40ff, col2: 0x40e0ff, core: 0xe0f0ff, homing: 2.2, homeAfter: 0.35, life: 3.5, dmg: 10 }); }
             G.audio.playAt('screech', z.pos, { gain: 1, rate: 0.7 });
             b.root.visible = true;
             break;

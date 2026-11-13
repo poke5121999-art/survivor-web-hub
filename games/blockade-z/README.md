@@ -60,6 +60,39 @@ Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 1
 
 Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1024 cuồng, 2048 đang ra chiêu, và cột thứ 9 là tinh anh. Đạn axit, tơ, vũng nguy hiểm, tiếng thét, nổ băng đi qua sự kiện `zk`. Chậm và trói chân đến máy người vào sau cùng tin nhắn `hurt`.
 
+## Boss lớn và combo chiêu
+
+`js/bosses.js` là khung chung cho boss có thân riêng. Mỗi boss một file `js/boss-<id>.js`, đăng ký bằng `BZ.bossKit(id, { type, rig, pose, idle, moves, combos, rageCombos, hits })`. Boss nối 2–3 chiêu thành một combo, nghỉ khoảng một giây, rồi chọn combo kế. Dưới nửa máu thì nghỉ ngắn hơn, chiêu nhanh hơn và có thêm combo 3 chiêu. Tên chiêu hiện trên đầu boss lúc ra đòn.
+
+Khung lo phần nhìn dùng chung, cho mọi chiêu đều đọc được và né được:
+
+- **Đạn (`orb`):** lõi sáng, quầng to, vệt sáng phía sau. Có dạng cầu, mảnh tinh thể, dơi và bọ hung; có loại đuổi theo người và loại rơi theo trọng lực.
+- **Cảnh báo dưới đất (`warn`):** vòng tròn hoặc dải đầy dần trước khi đòn rơi xuống.
+- **Tia (`beam`):** quét từ điểm này sang điểm kia, đốt nền.
+- **Vòng chấn động (`shock`):** lan ra từ chân boss, nhảy qua được.
+- **Chớp nổ, rung màn hình**, và cái chết nổ tung thành từng khối kèm chuỗi vụ nổ.
+
+| Boss | Thân | Chiêu |
+|---|---|---|
+| Rồng Hư Không | rồng đen tím bay vòng trên phố | mưa cầu hư không, bổ nhào theo làn đã báo, đáp xuống phun hơi thở quét, gọi sao băng, quật đuôi |
+| Pharaoh Xác Ướp | vua xác ướp lơ lửng, khăn vàng lam, gậy ngọc bọ hung | bầy bọ hung, trụ cát hành quân, lời nguyền vàng, gọi xác ướp, chìm cát trồi sau lưng, vòng cầu cát |
+| Bá Tước Máu | quý tộc nhợt nhạt, áo choàng đỏ đen bay phần phật | bầy dơi máu, lao huyết hút máu, bão huyết, sương máu dịch chuyển, mưa máu, hút sinh lực |
+| Kẻ Xâm Lăng | người ngoài hành tinh bốn tay, súng plasma | loạt đạn plasma, tia laser sạc, lựu hấp dẫn, dịch chuyển, mìn axit, gọi trinh sát |
+| Đĩa Bay | đĩa bay lớn, vành đèn xoay, phi công trong vòm kính | tia hút, đợt ong bom, vòng laser xoay, đội xâm lăng, sóng xung điện từ, loạt cầu tìm |
+| Hộ Vệ Cổ Đại | tượng đá khổng lồ, rune xanh, vòng đá rune xoay sau lưng | đập đôi, tia mắt cổ, mưa đá, gai đá, tràn rune, xung kích |
+
+Năm boss cũ to hơn, nhanh hơn và có thêm hiệu ứng:
+
+- **Đô Con Khổng Lồ:** báo trước chỗ đáp, dội vòng chấn động có tường sáng.
+- **Kẻ Ném:** báo trước chỗ đá rơi; dưới nửa máu thì ném 3 tảng một lúc.
+- **Bóng Ma:** dịch chuyển có chớp sáng, vòng chấn động và loạt mảnh tinh thể đuổi theo.
+
+Đợt boss xoay vòng qua cả 11 boss, mỗi 5 đợt một con; từ đợt 6 có thể có thêm một con ngẫu nhiên.
+
+Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng chiêu (`zk` loại `bm`), từng viên đạn, cảnh báo, tia và vòng (`bo`, `bt`, `bb`, `bw`), rồi tự diễn lại phần nhìn.
+
+Đạn thường cũng rõ hơn. Axit, tơ, đá ném, rocket và đạn kỹ năng đều có quầng sáng, vệt dài và chớp khi trúng; vệt đạn súng có lớp sáng bọc ngoài. `tools/projshots.js` chụp cận các loại đạn đang bay.
+
 ## Cảm giác đòn (polish)
 
 - `js/polish.js`: dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; chọn nâng cấp thì thẻ nảy và toé tia.
@@ -103,6 +136,8 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/shots.j
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/zoo.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/kits.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/stuck.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [BOSSES=dragon,ufo] node games/blockade-z/tools/bosses.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/projshots.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.
