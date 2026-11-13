@@ -47,33 +47,49 @@
 
   PM.RULES = { dt: 1 / 120, turnTime: 25, chargeRate: 50, stepUp: 0.9, slide: 1.55, walkSlope: 1.45, fallSafe: 6, fallDmg: 20, skipDelay: 50, moveDelay: 1.5, specialPerTurn: 10, itemSlots: 3 };
 
+  // Smooth curve through hand-placed [x, y] points (cubic Hermite, finite-difference tangents).
+  PM.curve = function (pts) {
+    const n = pts.length, m = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+      m[i] = (b[1] - a[1]) / (b[0] - a[0]);
+    }
+    return function (x) {
+      if (x <= pts[0][0]) return pts[0][1];
+      if (x >= pts[n - 1][0]) return pts[n - 1][1];
+      let i = 0;
+      while (x > pts[i + 1][0]) i++;
+      const h = pts[i + 1][0] - pts[i][0], t = (x - pts[i][0]) / h, t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * pts[i][1] + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * pts[i + 1][1] + (t3 - t2) * h * m[i + 1];
+    };
+  };
+
+  const teaTop = PM.curve([[8, 34], [14, 45], [22, 52], [34, 54.5], [46, 52], [55, 57], [64, 61], [71, 57], [77, 48], [84, 43.5], [91, 44], [98, 50], [105, 57.5], [114, 58], [123, 52], [133, 50.5], [144, 53], [152, 50], [158, 43], [163, 33]]);
+  const teaBelly = PM.curve([[8, 33], [14, 36], [24, 27], [36, 19], [47, 24], [58, 15], [68, 22], [78, 33], [86, 36.5], [94, 32], [104, 20], [114, 14], [124, 23], [136, 18], [147, 26], [156, 35], [163, 32]]);
   const teaHills = {
     id: 'doiche', name: 'Đồi Chè Sương', w: 168, h: 96, cell: 0.25, seaY: 6, g: 24, windMax: 9,
     blurb: 'Đảo chè bậc thang lúc bình minh. Rơi khỏi mép là xuống biển mây.',
-    spawns: [[38, 24, 52, 30], [130, 144, 116, 138]],
+    spawns: [[36, 22, 50, 60], [134, 148, 118, 108]],
+    tread: 1.5,
     top(x) {
-      const s = 4107;
-      let h = 47 + 7.5 * Math.sin(x * 0.043 + 0.6) + 4.2 * Math.sin(x * 0.097 + 2.1) + 5 * (fbm(x * 0.045, 3.3, s, 3) - 0.5);
-      h -= 13 * Math.exp(-Math.pow((x - 86) / 9, 2));
-      const tread = 2.4, k = h / tread, f = k - Math.floor(k);
-      const stepped = (Math.floor(k) + smoothstep(0.55, 1, f)) * tread;
-      h = h + (stepped - h) * 0.6;
-      const edge = smoothstep(10, 22, x) * smoothstep(158, 146, x);
-      return h - (1 - edge) * 14;
+      let h = teaTop(x) + 1.6 * (fbm(x * 0.06, 3.3, 4107, 3) - 0.5);
+      const k = h / this.tread, f = k - Math.floor(k);
+      const stepped = (Math.floor(k) + smoothstep(0.5, 1, f)) * this.tread;
+      return h + (stepped - h) * 0.72;
     },
     bottom(x) {
-      const s = 977, u = (x - 84) / 73;
-      if (Math.abs(u) >= 1) return 1e3;
-      const belly = 31 * Math.pow(1 - u * u, 0.62);
-      const fangs = 7 * Math.pow(fbm(x * 0.16, 9.1, s, 3), 2) + 3 * Math.abs(Math.sin(x * 0.31));
-      return 45 - belly - fangs + 8 * Math.exp(-Math.pow((x - 86) / 10, 2));
+      const fangs = 6.5 * Math.pow(fbm(x * 0.13, 9.1, 977, 3), 1.6) + 2.2 * Math.abs(Math.sin(x * 0.37 + 1.3)) * fbm(x * 0.05, 1.7, 31, 2);
+      return teaBelly(x) - fangs + 3;
     },
     sd(x, y) {
-      const top = this.top(x), bot = this.bottom(x);
-      let d = Math.max((y - top) * 0.8, (bot - y) * 0.7);
-      d += (fbm(x * 0.35, y * 0.35, 51, 2) - 0.5) * 0.5 * smoothstep(0.2, 2.5, top - y);
-      const rx = (x - 86) / 8.5, ry = (y - 66) / 3.4;
-      const rock = (Math.sqrt(rx * rx + ry * ry) - 1) * 3.2 + (fbm(x * 0.4, y * 0.4, 7, 2) - 0.5) * 1.2;
+      let d = 9;
+      if (x > 8 && x < 163) {
+        const top = this.top(x), bot = this.bottom(x);
+        d = Math.max((y - top) * 0.8, (bot - y) * 0.75, (8.6 - x) * 0.6, (x - 162.4) * 0.6);
+        d += (fbm(x * 0.3, y * 0.3, 51, 2) - 0.5) * 0.9 * smoothstep(0.6, 3, top - y);
+      }
+      const rx = (x - 85) / 9, ry = (y - 69.5) / (y > 69.5 ? 2.2 : 4.6);
+      const rock = (Math.sqrt(rx * rx + ry * ry) - 1) * 3 + (fbm(x * 0.4, y * 0.4, 7, 2) - 0.5) * 1.4;
       return Math.min(d, rock);
     }
   };

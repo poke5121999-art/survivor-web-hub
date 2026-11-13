@@ -1,0 +1,12 @@
+:root { --ink: #1b1420; --paper: #fff6e6; --gold: #ffb84a; --gold-d: #c97a1c; --teal: #2fb7a3; --rose: #f0624d; --plate: rgba(27, 20, 32, .72);
+  --f: 'Be Vietnam Pro', 'Segoe UI', 'Helvetica Neue', Roboto, system-ui, sans-serif; --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace; }
+html, body { margin: 0; height: 100%; background: #1b1420; color: var(--paper); overflow: hidden; font-family: var(--f); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+#view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#boot { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(ellipse at 50% 60%, #4a2e44 0%, #1b1420 70%); transition: opacity .6s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .mk { font: 900 44px/1 var(--f); letter-spacing: .14em; color: var(--gold); text-shadow: 0 3px 0 #7a3d12, 0 10px 30px rgba(255, 150, 60, .35); }
+#boot .bar { width: min(320px, 70vw); height: 8px; border-radius: 8px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+#boot .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), #ffe2a0); transition: width .25s; }
+#boot-msg { font: 600 13px var(--f); letter-spacing: .12em; text-transform: uppercase; color: #d9c3b4; }
+#fatal { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: #4a1010; color: #ffd9d0; font: 13px/1.5 var(--mono); padding: 14px 18px; white-space: pre-wrap; max-height: 45vh; overflow: auto; }
