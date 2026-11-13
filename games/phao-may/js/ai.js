@@ -15,6 +15,8 @@
       if (v.team !== u.team) { s += d + (raw >= v.hp + v.shield ? 300 : 0); hitEnemy = true; }
       else s -= 1.6 * d + (raw >= v.hp ? 500 : 0);
     }
+    for (const id in rep.heal) s += rep.heal[id] * 0.9;
+    if (rep.swap !== undefined && sim.units[rep.swap].team !== u.team) s += sim.units[rep.swap].y > u.y ? 80 : 10;
     if (!hitEnemy) {
       let near = 200;
       for (const im of rep.impacts) {
@@ -38,7 +40,7 @@
     };
     for (let si = 0; si < u.shots.length; si++) {
       const def = u.shots[si];
-      if (def.special && !useSpecial) continue;
+      if ((def.special && !useSpecial) || def.kind === 'guard') continue;
       const pStep = def.kind === 'beam' ? 100 : 5;
       for (const facing of facings) {
         for (let angle = u.aimMin; angle <= u.aimMax; angle += 3) {
@@ -118,6 +120,8 @@
       plan.power = plan.power + sim.rng.gauss() * L.powErr * decay;
       if (sim.rng() < L.whiff) plan.power += (sim.rng() < 0.5 ? -1 : 1) * sim.rng.range(8, 16);
     }
+    const gi = u.shots.findIndex((d) => d.kind === 'guard');
+    if (gi >= 0 && !plan.tele && L.items && u.shield <= 0 && u.hp < u.maxHp * 0.55 && sim.rng() < 0.45) plan.si = gi;
     plan.power = quant(plan.power);
     b.plan = plan; b.items = items; b.state = 'aim'; b.t = 0;
   }

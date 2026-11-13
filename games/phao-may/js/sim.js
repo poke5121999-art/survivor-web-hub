@@ -45,6 +45,14 @@
         const d = Math.max(0, Math.hypot(cx - x, cy - y) - u.radius * 0.6);
         if (d >= spec.radius) continue;
         const f = 1 - 0.65 * (d / spec.radius);
+        if (spec.heal) {
+          if (owner && u.team === owner.team) {
+            const amt = Math.min(u.maxHp - u.hp, Math.round(spec.heal * f));
+            if (ctx.dry) ctx.report.heal[u.id] = (ctx.report.heal[u.id] || 0) + amt;
+            else if (amt > 0) { u.hp += amt; emit(ctx, { type: 'heal', unit: u.id, amount: amt, x: u.x, y: u.y + u.radius }); }
+          }
+          continue;
+        }
         let dmg = spec.dmg * f * boost;
         if (direct === u && spec.direct) dmg *= spec.direct;
         applyDamage(ctx, u, dmg, owner, 'blast');
@@ -176,6 +184,21 @@
       },
       hitUnit(ctx, p, hit, u) { BEHAV.quake.hitTerrain(ctx, p, hit); }
     },
+    // Trades places with the unit it hits.
+    swap: {
+      hitTerrain(ctx, p, hit) { BEHAV.shell.hitTerrain(ctx, p, hit); },
+      hitUnit(ctx, p, hit, u) {
+        p.alive = false;
+        explode(ctx, hit.x, hit.y, p.def, p.owner, p.boost, u);
+        const o = p.owner;
+        if (ctx.dry) { ctx.report.swap = u.id; return; }
+        if (!o.alive || !u.alive || o === u) return;
+        const ox = o.x, oy = o.y;
+        o.x = u.x; o.y = u.y + 0.3; u.x = ox; u.y = oy + 0.3;
+        for (const v of [o, u]) { v.vx = 0; v.vy = 0; v.grounded = false; v.peakY = v.y; }
+        emit(ctx, { type: 'tele', unit: o.id, fromX: ox, fromY: oy, x: o.x, y: o.y });
+      }
+    },
     tele: {
       ghost: true,
       hitTerrain(ctx, p, hit) {
@@ -252,6 +275,13 @@
   function launch(ctx, u, def, facing, angle, power, boost, pos) {
     const a = angle * RAD, dx = Math.cos(a) * facing, dy = Math.sin(a);
     const cx = pos.x, cy = pos.y + u.radius;
+    if (def.kind === 'guard') {
+      if (ctx.dry) return;
+      for (const v of ctx.units) if (v.alive && v.team === u.team && Math.abs(v.x - u.x) < def.reach) v.shield = Math.max(v.shield, v === u ? def.absorb : Math.round(def.absorb * 0.5));
+      ctx.hold = Math.max(ctx.hold, 0.6);
+      emit(ctx, { type: 'guard', unit: u.id, x: u.x, y: u.y + u.radius, reach: def.reach });
+      return;
+    }
     if (def.kind === 'beam') { fireBeam(ctx, u, def, cx + dx * u.barrel * 0.6, cy + dy * u.barrel * 0.6, dx, dy, power, boost); return; }
     let mx = cx + dx * u.barrel, my = cy + dy * u.barrel;
     const hit = ctx.terrain.raycast(cx, cy, mx, my);
@@ -270,7 +300,7 @@
   // Dry-run one shot against the current terrain and units. Returns { dmg: {unitId: n}, impacts: [{x,y}], tele }.
   Sim.trace = function (sim, u, def, facing, angle, power, pos, boost) {
     const ctx = { dry: true, terrain: sim.terrain, units: sim.units, wind: sim.wind, map: sim.map, seaY: sim.seaY, projs: [], nextProj: 0, hold: 0,
-      report: { dmg: {}, impacts: [], tele: null } };
+      report: { dmg: {}, heal: {}, impacts: [], tele: null } };
     launch(ctx, u, def, facing, angle, power, boost || 1, pos || u);
     let guard = 0;
     while (ctx.projs.length && guard++ < 2400) {
@@ -282,7 +312,7 @@
 
   // The flight path of the first projectile only, for tests and the aim preview: [{x,y}] every `every` steps.
   Sim.arc = function (sim, u, def, facing, angle, power, every) {
-    const ctx = { dry: true, terrain: sim.terrain, units: [], wind: sim.wind, map: sim.map, seaY: sim.seaY, projs: [], nextProj: 0, hold: 0, report: { dmg: {}, impacts: [], tele: null } };
+    const ctx = { dry: true, terrain: sim.terrain, units: [], wind: sim.wind, map: sim.map, seaY: sim.seaY, projs: [], nextProj: 0, hold: 0, report: { dmg: {}, heal: {}, impacts: [], tele: null } };
     launch(ctx, u, def, facing, angle, power, 1, u);
     const p = ctx.projs[0], pts = [];
     if (!p) return pts;

@@ -109,7 +109,34 @@ for (const mapId of PM.MAP_ORDER) {
   check(xs.length === 3 && Math.min(...xs) < xs[0] - 2 && Math.max(...xs) > xs[0] + 2, `fork shot sends rollers both ways (${xs.map((x) => x.toFixed(0)).join(', ')})`);
 }
 
-for (const [a, b] of [['oc', 'tegiac'], ['tegiac', 'chuon'], ['coc', 'oc']]) {
+{
+  const sim = mk({ teams: [[{ kind: 'sua' }, { kind: 'coc' }], [{ kind: 'coc' }]] });
+  sim.wind = 0;
+  const u = sim.active, ally = sim.units[1], foe = sim.units[2];
+  ally.hp = 300; ally.x = u.x + 12; ally.y = sim.terrain.groundY(ally.x, 90, 90);
+  let best = null;
+  for (let a = 20; a <= 80 && !best; a += 2) for (let p = 10; p <= 70; p += 2) { const r = PM.Sim.trace(sim, u, u.shots[1], 1, a, p); if (r.heal[ally.id] > 150) { best = { angle: a, power: p }; break; } }
+  sim.fireNow({ angle: best.angle, power: best.power, shot: 1, facing: 1 });
+  until(sim, () => sim.phase !== 'flight');
+  check(ally.hp > 450 && foe.hp === foe.maxHp, `heal shot restores an ally (300 -> ${ally.hp}) and hurts nobody`);
+  sim.advance(3); while (sim.active !== u && sim.phase !== 'over') { const a = sim.active; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active !== a); }
+  const ux = u.x, ax = ally.x; let sw = null;
+  for (let a = 10; a <= 80 && !sw; a += 2) for (let p = 10; p <= 70; p += 2) { if (PM.Sim.trace(sim, u, u.shots[2], 1, a, p).swap === ally.id) { sw = { angle: a, power: p }; break; } }
+  u.special = 100; sim.fireNow({ angle: sw.angle, power: sw.power, shot: 2, facing: 1 });
+  until(sim, () => sim.phase !== 'flight');
+  check(Math.abs(u.x - ax) < 0.01 && Math.abs(ally.x - ux) < 0.01, 'swap shot trades places with the unit it hits');
+}
+
+{
+  const sim = mk({ teams: [[{ kind: 'rua' }, { kind: 'coc' }], [{ kind: 'coc' }]] });
+  const u = sim.active, ally = sim.units[1];
+  ally.x = u.x + 6; ally.y = sim.terrain.groundY(ally.x, 90, 90);
+  sim.fireNow({ shot: 1, power: 50 });
+  until(sim, () => sim.phase !== 'flight');
+  check(u.shield === 380 && ally.shield === 190 && sim.units[2].shield === 0, 'guard shot shields the turtle fully and a nearby ally by half');
+}
+
+for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua']]) {
   const sim = mk({ seed: 2, teams: [[{ kind: a, ai: 'hard' }], [{ kind: b, ai: 'hard' }]] });
   until(sim, () => false, 120 * 900);
   const dealt = sim.units.map((u) => sim.stats[u.id].dealt);

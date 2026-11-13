@@ -737,7 +737,7 @@
       on('sim:fire', (ev) => {
         stopCharge();
         if (ev.shot === 'tiasam') return;
-        const kin = { pha: 'coi', diachan: 'muacoc', khoan: 'kim', bilan: 'nay', bidoi: 'nay', bayoc: 'muacoc' }[ev.shot] || ev.shot;
+        const kin = { pha: 'coi', diachan: 'muacoc', khoan: 'kim', bilan: 'nay', bidoi: 'nay', bayoc: 'muacoc', bongnuoc: 'tele', donghoi: 'tele', doicho: 'tele', songchuong: 'nay', hoichuong: 'muacoc' }[ev.shot] || ev.shot;
         const name = TABLE['fire_' + kin] ? 'fire_' + kin : 'fire_default';
         play(name, xOf(ev), 0.55 + 0.45 * clamp((ev.power || 0) / 100, 0, 1));
       });

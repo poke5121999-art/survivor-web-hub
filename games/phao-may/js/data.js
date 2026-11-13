@@ -32,9 +32,9 @@
     name: 'Tê Giác Than', title: 'Xe phá hạng nặng', hp: 1250, weight: 120, fuel: 10, speed: 4, aimMin: 5, aimMax: 70, aimSpeed: 30, barrel: 2.3, radius: 1.35,
     blurb: 'Xe xích đốt than, giáp dày nhất, đi chậm nhất. Đạn to, hố sâu, lượt tới muộn.',
     shots: [
-      { id: 'pha', name: 'Đạn Phá', kind: 'shell', v: 47, dmg: 285, radius: 5.4, dig: 4.6, knock: 11, delay: 110, windK: 0.9, gravK: 1, size: 0.52, desc: 'Quả đạn to nhất. Hố rộng gần gấp rưỡi đạn cối.' },
-      { id: 'khoan', name: 'Mũi Khoan', kind: 'drill', v: 52, depth: 9, drillSpeed: 15, dmg: 290, radius: 3.8, dig: 3.2, knock: 8, delay: 100, windK: 0.8, gravK: 1, size: 0.36, desc: 'Chui qua 9 m đất rồi mới nổ. Trị kẻ nấp sau gò.' },
-      { id: 'diachan', name: 'Địa Chấn', kind: 'quake', special: true, v: 47, count: 3, gap: 4.2, dmg: 220, radius: 4.4, dig: 3.4, knock: 9, delay: 140, windK: 0.9, gravK: 1, size: 0.56,
+      { id: 'pha', name: 'Đạn Phá', kind: 'shell', v: 52, dmg: 285, radius: 5.4, dig: 4.6, knock: 11, delay: 110, windK: 0.9, gravK: 1, size: 0.52, desc: 'Quả đạn to nhất. Hố rộng gần gấp rưỡi đạn cối.' },
+      { id: 'khoan', name: 'Mũi Khoan', kind: 'drill', v: 54, depth: 9, drillSpeed: 15, dmg: 290, radius: 3.8, dig: 3.2, knock: 8, delay: 100, windK: 0.8, gravK: 1, size: 0.36, desc: 'Chui qua 9 m đất rồi mới nổ. Trị kẻ nấp sau gò.' },
+      { id: 'diachan', name: 'Địa Chấn', kind: 'quake', special: true, v: 52, count: 3, gap: 4.2, dmg: 220, radius: 4.4, dig: 3.4, knock: 9, delay: 140, windK: 0.9, gravK: 1, size: 0.56,
         child: { id: 'duchan', name: 'Dư Chấn', kind: 'shell', dmg: 150, radius: 3.6, dig: 2.6, knock: 8, windK: 0, gravK: 1, size: 0.3 }, desc: 'Nổ rồi nứt đất lan ra hai phía, mỗi bên ba nhịp.' }
     ]
   };
@@ -42,11 +42,31 @@
     name: 'Ốc Lăn', title: 'Pháo bi lăn', hp: 1000, weight: 90, fuel: 12, speed: 4.5, aimMin: 10, aimMax: 80, aimSpeed: 36, barrel: 1.8, radius: 1.15,
     blurb: 'Ốc sên bọc thép nhả bi. Bi rơi xuống rồi lăn theo dốc tìm mục tiêu.',
     shots: [
-      { id: 'bilan', name: 'Bi Lăn', kind: 'roller', v: 46, roll: 2.6, rollSpeed: 11, bounces: 1, dmg: 250, radius: 3.6, dig: 2.8, knock: 7, delay: 80, windK: 0.9, gravK: 1, size: 0.44, desc: 'Chạm đất thì lăn tiếp gần ba giây, gặp pháo là nổ.' },
-      { id: 'bidoi', name: 'Bi Tẽ', kind: 'forkroll', v: 46, count: 2, dmg: 90, radius: 2.6, dig: 1.6, knock: 4, delay: 95, windK: 0.9, gravK: 1, size: 0.5,
+      { id: 'bilan', name: 'Bi Lăn', kind: 'roller', v: 51, roll: 2.6, rollSpeed: 11, bounces: 1, dmg: 250, radius: 3.6, dig: 2.8, knock: 7, delay: 80, windK: 0.9, gravK: 1, size: 0.44, desc: 'Chạm đất thì lăn tiếp gần ba giây, gặp pháo là nổ.' },
+      { id: 'bidoi', name: 'Bi Tẽ', kind: 'forkroll', v: 51, count: 2, dmg: 90, radius: 2.6, dig: 1.6, knock: 4, delay: 95, windK: 0.9, gravK: 1, size: 0.5,
         child: { id: 'bicon', name: 'Bi Con', kind: 'roller', roll: 2.2, rollSpeed: 10, bounces: 1, dmg: 150, radius: 3.0, dig: 2.2, knock: 5, windK: 0, gravK: 1, size: 0.32 }, desc: 'Nổ ra hai bi con lăn về hai phía.' },
-      { id: 'bayoc', name: 'Bầy Ốc', kind: 'forkroll', special: true, v: 46, count: 6, dmg: 120, radius: 3.0, dig: 2.0, knock: 5, delay: 130, windK: 0.9, gravK: 1, size: 0.56,
+      { id: 'bayoc', name: 'Bầy Ốc', kind: 'forkroll', special: true, v: 51, count: 6, dmg: 120, radius: 3.0, dig: 2.0, knock: 5, delay: 130, windK: 0.9, gravK: 1, size: 0.56,
         child: { id: 'ocon', name: 'Ốc Con', kind: 'roller', roll: 3.0, rollSpeed: 9, bounces: 1, dmg: 135, radius: 2.8, dig: 2.0, knock: 5, windK: 0, gravK: 1, size: 0.3 }, desc: 'Sáu ốc con toả ra hai phía, lăn lâu hơn.' }
+    ]
+  };
+
+  PM.UNITS.sua = {
+    name: 'Sứa Trời', title: 'Khí cầu tiếp sức', hp: 820, weight: 85, fuel: 26, speed: 6, aimMin: 5, aimMax: 85, aimSpeed: 40, barrel: 1.7, radius: 1.2,
+    blurb: 'Khí cầu sứa bay lơ lửng, đi xa nhất, máu mỏng nhất. Đẩy đối thủ khỏi mép đảo và hồi máu cho đội.',
+    shots: [
+      { id: 'bongnuoc', name: 'Bóng Nước', kind: 'shell', v: 53, dmg: 170, radius: 4.6, dig: 1.2, knock: 14, delay: 75, windK: 1.2, gravK: 1, size: 0.5, desc: 'Ít sát thương, hất văng rất mạnh.' },
+      { id: 'donghoi', name: 'Dòng Hồi', kind: 'shell', v: 53, dmg: 0, heal: 280, radius: 5, dig: 0, knock: 0, delay: 85, windK: 1, gravK: 1, size: 0.45, desc: 'Hồi tới 280 máu cho đồng đội trong vùng nổ, kể cả mình.' },
+      { id: 'doicho', name: 'Đổi Chỗ', kind: 'swap', special: true, v: 58, dmg: 140, radius: 2.6, dig: 1.4, knock: 0, delay: 100, windK: 0.5, gravK: 0.9, size: 0.4, desc: 'Trúng ai thì đổi chỗ với người đó.' }
+    ]
+  };
+  PM.UNITS.rua = {
+    name: 'Rùa Chuông', title: 'Pháo đài chuông đồng', hp: 1500, weight: 115, fuel: 9, speed: 3.5, aimMin: 15, aimMax: 75, aimSpeed: 30, barrel: 1.7, radius: 1.35,
+    blurb: 'Rùa cõng chuông đồng, máu dày nhất. Sóng chuông đẩy lùi, mai rùa che cho cả đội.',
+    shots: [
+      { id: 'songchuong', name: 'Sóng Chuông', kind: 'shell', v: 53, dmg: 205, radius: 5.6, dig: 2.0, knock: 17, delay: 85, windK: 0.8, gravK: 1, size: 0.5, desc: 'Vùng nổ rộng, hố nông, đẩy lùi mạnh.' },
+      { id: 'mairua', name: 'Mai Rùa', kind: 'guard', v: 0, absorb: 380, reach: 9, dmg: 0, radius: 0, dig: 0, delay: 40, windK: 0, gravK: 0, size: 0.3, desc: 'Không bắn. Khiên 380 cho mình, nửa số đó cho đồng đội đứng gần.' },
+      { id: 'hoichuong', name: 'Hồi Chuông Lớn', kind: 'quake', special: true, v: 53, count: 2, gap: 5.2, dmg: 250, radius: 5.2, dig: 2.6, knock: 15, delay: 140, windK: 0.8, gravK: 1, size: 0.6,
+        child: { id: 'vongchuong', name: 'Vọng Chuông', kind: 'shell', dmg: 170, radius: 4.4, dig: 2.2, knock: 14, windK: 0, gravK: 1, size: 0.3 }, desc: 'Nổ rồi dội thêm hai nhịp về mỗi phía.' }
     ]
   };
 
@@ -149,6 +169,6 @@
 
   PM.MAPS = { doiche: teaHills };
   PM.MAP_ORDER = ['doiche'];
-  PM.UNIT_ORDER = ['coc', 'chuon', 'oc', 'tegiac'];
+  PM.UNIT_ORDER = ['coc', 'chuon', 'oc', 'tegiac', 'sua', 'rua'];
   PM.clampPower = (p) => clamp(p, 3, 100);
 })();

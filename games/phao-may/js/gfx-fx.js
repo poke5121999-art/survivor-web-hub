@@ -73,6 +73,11 @@
     bicon: { geo: 'ball', s: 0.38, mat: 'bronze', glow: [4, 3, 1], smoke: 0.25 },
     bayoc: { geo: 'ball', s: 0.64, mat: 'paint', glow: [5, 3, 1], smoke: 0.6 },
     ocon: { geo: 'ball', s: 0.34, mat: 'paint', glow: [4, 3, 1], smoke: 0.2 },
+    bongnuoc: { geo: 'ball', s: 0.55, mat: 'orb', glow: [1.5, 4, 7], smoke: 0, soft: [0.5, 1.4, 2.2] },
+    donghoi: { geo: 'ball', s: 0.5, mat: 'orb', glow: [1.5, 6, 2.5], smoke: 0, soft: [0.6, 2.4, 1.0] },
+    doicho: { geo: 'ball', s: 0.42, mat: 'orb', glow: [6, 3, 8], smoke: 0, soft: [2, 1, 2.6] },
+    songchuong: { geo: 'ball', s: 0.56, mat: 'bronze', glow: [6, 4.5, 1.5], smoke: 0.5 },
+    hoichuong: { geo: 'ball', s: 0.68, mat: 'bronze', glow: [7, 5, 1.5], smoke: 0.8 },
     tele: { geo: 'ball', s: 0.3, mat: 'orb', glow: [5, 3, 7], smoke: 0 }
   };
 
@@ -190,7 +195,16 @@
       G.rig.shake(0.3 + 0.3 * k + (big ? 0.3 : 0));
       G.gfx.flash = Math.max(G.gfx.flash, 0.22 * k);
     }
-    G.bus.on('sim:boom', (ev) => boom(ev.x, ev.y, Math.max(1.6, ev.radius), false));
+    // A burst with no fire: water, healing mist, the swap flash.
+    function softBoom(x, y, radius, c) {
+      emit({ x, y, z: 1, life: 0.2, s0: radius * 2, s1: radius * 3.4, col: [c[0] * 4, c[1] * 4, c[2] * 4], kind: 3 });
+      emit({ x, y, z: 1, life: 0.5, s0: radius * 0.5, s1: radius * 2.4, col: [c[0] * 3, c[1] * 3, c[2] * 3], a: 0.9, kind: 2 });
+      for (let i = 0; i < 16 * q.parts; i++) { const a = R(0, 6.28), sp = R(2, 9); emit({ x: x + Math.cos(a) * radius * 0.3, y: y + Math.sin(a) * radius * 0.3, z: R(-1.5, 2.5), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 2, life: R(0.6, 1.3), s0: radius * 0.3, s1: radius * R(0.6, 1), col: [c[0], c[1], c[2]], col1: [c[0] * 0.6 + 0.3, c[1] * 0.6 + 0.3, c[2] * 0.6 + 0.3], a: 0.5, add: 0.5, add1: 0, kind: 0, drag: 2.4 }); }
+      for (let i = 0; i < 18 * q.parts; i++) { const a = R(0, 6.28), sp = R(6, 20); emit({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 3, life: R(0.4, 0.9), s0: R(0.08, 0.16), s1: 0.02, col: [c[0] * 4, c[1] * 4, c[2] * 4], kind: 5, grav: 16 }); }
+      flashLight(x, y, 0x88ccff, 500); G.rig.shake(0.2);
+    }
+    G.bus.on('sim:boom', (ev) => { const d = PROJ[ev.shot]; if (d && d.soft) softBoom(ev.x, ev.y, Math.max(2, ev.radius), d.soft); else boom(ev.x, ev.y, Math.max(1.6, ev.radius), false); });
+    G.bus.on('sim:guard', (ev) => { emit({ x: ev.x, y: ev.y, life: 0.6, s0: 1, s1: ev.reach * 2, col: [2, 5, 7], a: 0.8, kind: 2 }); emit({ x: ev.x, y: ev.y, life: 0.25, s0: 4, s1: 7, col: [2, 5, 8], kind: 3 }); });
     G.bus.on('sim:die', (ev) => { if (ev.cause !== 'sea' && ev.cause !== 'out') { boom(ev.x, ev.y, 5.5, true); for (let i = 0; i < 10; i++) chunk(ev.x, ev.y, R(-9, 9), R(5, 18), R(0.2, 0.4)); } });
 
     function dust(x, y, n, spread, up, col) {
