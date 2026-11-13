@@ -682,15 +682,17 @@
       const bx = Math.sin(P.stride * Math.PI) * 0.012 * bobA * run; const by = -Math.abs(Math.cos(P.stride * Math.PI)) * 0.014 * bobA * run;
       const tilt = pose(dt);
       updateVmFx(dt);
+      // a skill cast: the gun dips and tips down for a beat, as if the other hand did something
+      S.castT = Math.max(0, (S.castT || 0) - dt); const castK = S.castT > 0 ? Math.sin((1 - S.castT / 0.32) * Math.PI) : 0;
       const shellGun = !!w.perShell;
       const rp = tilt * (shellGun ? 0.12 : 0.16); const rr = tilt * (shellGun ? 0.5 : 0.32); const ry = 0;
       const sprintTilt = P.sprinting ? 1 : 0;
       S.sprintK = BZ.damp(S.sprintK || 0, sprintTilt, 10, dt);
       const pos = HIP.clone().lerp(ADS, S.ads);
       const lx = shellGun ? 0.05 : 0.17; const ly = shellGun ? 0.07 : 0.2; const lz = shellGun ? 0.02 : 0.08;
-      rig.position.set(pos.x + sx + bx - tilt * lx, pos.y + sy + by - S.drop.x * 0.35 - P.landDip * 0.4 + tilt * ly - S.sprintK * 0.05, pos.z + kz * 0.06 + tilt * lz);
+      rig.position.set(pos.x + sx + bx - tilt * lx, pos.y + sy + by - S.drop.x * 0.35 - P.landDip * 0.4 + tilt * ly - S.sprintK * 0.05 - castK * 0.12, pos.z + kz * 0.06 + tilt * lz + castK * 0.05);
       rig.rotation.order = 'XYZ';
-      rig.rotation.set(kp * 0.02 + rp - S.drop.x * 0.6 - S.sprintK * (0.2 + Math.abs(Math.cos(P.stride * Math.PI)) * 0.08) + 0.05 * (1 - S.ads), ky * 0.02 + ry * 0.6 + S.sprintK * 0.5 + 0.3 * (1 - S.ads), kr * 0.02 + sx * 2 + S.sprintK * 0.25 + 0.06 * (1 - S.ads) + rr + (S.sprintK || 0) * Math.sin(P.stride * Math.PI) * 0.09);
+      rig.rotation.set(kp * 0.02 + rp - S.drop.x * 0.6 - castK * 0.4 - S.sprintK * (0.2 + Math.abs(Math.cos(P.stride * Math.PI)) * 0.08) + 0.05 * (1 - S.ads), ky * 0.02 + ry * 0.6 + S.sprintK * 0.5 + 0.3 * (1 - S.ads), kr * 0.02 + sx * 2 + S.sprintK * 0.25 + 0.06 * (1 - S.ads) + rr + (S.sprintK || 0) * Math.sin(P.stride * Math.PI) * 0.09);
       const wm = WEAPONS[S.cur];
       if (wm.melee) {
         const p = meleePose(wm);

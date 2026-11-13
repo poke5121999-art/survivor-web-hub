@@ -363,12 +363,25 @@
         const b = z.body;
         if (z.crawl) b.root.rotation.x = BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3));
         else if (z.T.quad) b.root.rotation.z = Math.min(1, z.dying / 0.3) * Math.PI / 2;
-        else b.root.rotation.x = -Math.min(1, z.dying / 0.35) * Math.PI / 2;
+        else fall(z, b);
         b.root.position.y = z.pos.y + (z.crawl ? 0.12 * z.T.scale : 0) - Math.max(0, z.dying - 1.8) * 0.8;
-        if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; b.root.position.y = 0; }
+        if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; b.root.position.y = 0; b.hips.position.y = 0.75; b.hips.rotation.set(0, 0, 0); }
       }
     }
 
+    // a body going down: thrown back, pitched forward onto its face, or buckling at the knees and tipping sideways
+    const ease = (t) => t * t * (3 - 2 * t);
+    function fall(z, b) {
+      const t = z.dying; const k = z.deathK || 0;
+      if (k === 0) { const e = ease(Math.min(1, t / 0.38)); b.root.rotation.x = -e * Math.PI / 2; b.armL.rotation.x = b.armR.rotation.x = -Math.PI / 2 - e * 1.1; b.head.rotation.x = -e * 0.5; }
+      else if (k === 1) { const e = ease(Math.min(1, t / 0.5)); b.root.rotation.x = e * Math.PI / 2; b.armL.rotation.x = -0.4 - e * 2.4; b.armR.rotation.x = -0.2 - e * 2.2; b.head.rotation.x = e * 0.4; }
+      else {
+        const kn = ease(Math.min(1, t / 0.3)); const tip = ease(BZ.clamp((t - 0.3) / 0.4, 0, 1));
+        b.hips.position.y = 0.75 - kn * 0.42; b.legL.rotation.x = b.legR.rotation.x = -kn * 1.45; b.hips.rotation.x = kn * 0.35 - tip * 0.2;
+        b.armL.rotation.x = b.armR.rotation.x = -0.3 + kn * 0.3; b.head.rotation.x = kn * 0.6;
+        b.root.rotation.z = tip * Math.PI / 2 * (z.phase > 3 ? 1 : -1);
+      }
+    }
     // Flyers: cruise above the roofs toward the player, then dive at head height, swipe, and climb away.
     function flyer(z, dt, P) {
       const T = z.T; const b = z.body;
@@ -676,7 +689,7 @@
       if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * z.T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
     }
     function kill(z, part, dir, opt = {}, amount = 0) {
-      z.alive = false; z.dying = 0.001; z.landed = false; z.fallV = 0; z.climb = null;
+      z.alive = false; z.dying = 0.001; z.landed = false; z.fallV = 0; z.climb = null; z.deathK = G.rng.int(0, 2);
       for (const o of list) if (o.climb === z) o.climb = null;
       const b = z.body;
       setFlash(z, false); b.barBg.visible = false; b.halo.visible = false;
@@ -752,9 +765,9 @@
       for (const z of list) {
         const b = z.body;
         if (z.dying) {
-          z.dying += dt; if (z.T.quad) b.root.rotation.z = Math.min(1, z.dying / 0.3) * Math.PI / 2; else b.root.rotation.x = z.crawl ? BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3)) : -Math.min(1, z.dying / 0.35) * Math.PI / 2;
+          z.dying += dt; if (z.T.quad) b.root.rotation.z = Math.min(1, z.dying / 0.3) * Math.PI / 2; else if (z.crawl) b.root.rotation.x = BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3)); else fall(z, b);
           b.root.position.y = z.pos.y + (z.crawl ? 0.12 * z.T.scale : 0) - Math.max(0, z.dying - 1.8) * 0.8;
-          if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; }
+          if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; b.hips.position.y = 0.75; b.hips.rotation.set(0, 0, 0); }
           continue;
         }
         if (!z.alive || !z.netPos) continue;

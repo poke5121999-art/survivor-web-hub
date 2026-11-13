@@ -51,6 +51,7 @@
     G.hero = BZ.makeHeroes(G);
     G.sky = BZ.makeSky(G);
     G.coop = BZ.makeCoop(G);
+    G.polish = BZ.makePolish(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
@@ -360,6 +361,7 @@
         safe('allies', () => G.allies.update(gdt));
         safe('hero', () => G.hero.update(gdt));
         safe('build', () => G.build.update(gdt));
+        safe('polish', () => G.polish.update());
         safe('gear', () => G.gear.update(gdt));
         if (!G.coop.guest) safe('wave', () => updateWave(dt));
       } else if (G.state === 'dead') {

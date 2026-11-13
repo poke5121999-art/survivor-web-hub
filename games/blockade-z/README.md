@@ -62,6 +62,11 @@ Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 1
 
 Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1024 cuồng, 2048 đang ra chiêu, và cột thứ 9 là tinh anh. Đạn axit, tơ, vũng nguy hiểm, tiếng thét, nổ băng đi qua sự kiện `zk`. Chậm và trói chân đến máy người vào sau cùng tin nhắn `hurt`.
 
+## Cảm giác đòn (polish)
+
+- `js/polish.js`: hạ zombie thì đồng xu bay từ xác vào ô xu (boss 5, tinh anh 3), ô xu nảy lên; dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; mua nâng cấp thì thẻ nảy và toé tia.
+- Zombie chết ngã ba kiểu (`fall` trong `js/zombies.js`): ngã ngửa vung tay, đổ sấp về phía người bắn, khuỵu gối rồi đổ nghiêng.
+
 ## Shop nâng cấp và đường build
 
 - Shop (`B` hoặc giữa hai đợt) chỉ bán nâng cấp chỉ số, không bán súng. `js/build.js` giữ bảng `UP` gồm 25 nâng cấp chia 5 nhóm: Hoả lực (sát thương, chí mạng, tốc bắn, nạp đạn, băng đạn, cận chiến), Sinh tồn (máu, hồi máu, giáp, tốc chạy, hút xu), Kỹ năng (hồi chiêu, sức mạnh chiêu, nạp tối thượng), Nguyên tố và Hỗ trợ. Giá tăng theo cấp (`base·grow^lv`).
