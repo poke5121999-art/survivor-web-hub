@@ -80,10 +80,16 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
         return { seen: [...seen], moves: z.bs.n - n0, chain, alive: z.alive }; })()`);
       check(auto.seen.length >= 3 && auto.chain >= 1, `${id}: picks combos on its own (${auto.moves} moves in 50 s, ${auto.seen.length} kinds, longest chain ${auto.chain + 1})`);
       // shoot it down: it must burst and leave nothing behind
-      const end = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); const died = !z.alive && !z.body.root.visible; __sim(1.5);
+      const end = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); z.pos.y = Math.max(z.pos.y, 8); z.body.root.position.y = z.pos.y; G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); const died = !z.alive && !z.body.root.visible; __sim(1.5);
         const B = G.zombies.kinds.bosses(); return { died, now: z.type, boss: !!G.zombies.boss(), cur: z.bs && z.bs.cur, fx: B.debug() }; })()`);
       check(end.died && !end.boss, `${id}: dies and bursts (${JSON.stringify(end)})`);
-      await page.evaluate(`(() => { __sim(3); })()`);
+      // nothing it leaves may hang in the air: pieces fall and settle on a floor, pools and scorch marks lie on one, and the big slabs are gone soon after
+      const left = await page.evaluate(`(() => { const G = __G; __sim(4); const fl = G.fx.floaters();
+        const hz = G.zombies.kinds.hazards.filter((h) => h.pos.y - G.fx.floorY(h.pos.x, h.pos.y + 0.2, h.pos.z) > 0.3).length; const mid = G.fx.debug();
+        __sim(6); return { fl, hz, pieces: mid.gibs, bigThen: mid.big, bigNow: G.fx.debug().big, fl2: G.fx.floaters() }; })()`);
+      check(left.pieces > 0 && left.fl.length === 0 && left.fl2.length === 0 && left.hz === 0, `${id}: nothing is left hanging in the air (${left.pieces} pieces; floating ${JSON.stringify(left.fl.concat(left.fl2).slice(0, 4))}, pools in the air ${left.hz})`);
+      check(left.bigNow === 0, `${id}: the big slabs of the body sink away (${left.bigThen} at 5.5 s, ${left.bigNow} at 11.5 s)`);
+      await page.screenshot({ path: path.join(OUT, `boss-${id}-after.png`) });
     }
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 4).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }

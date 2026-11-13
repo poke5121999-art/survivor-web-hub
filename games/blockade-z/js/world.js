@@ -616,7 +616,7 @@
 
     // ---------- fires: flicker lights, emit flame and smoke ----------
     const FIRE_COL = [0xfff0a0, 0xffc040, 0xff7a20, 0xe04a18]; const SMOKE_COL = [0x2a2a2e, 0x3a3a3e, 0x4a4a4e];
-    const up = new THREE.Vector3(0, 1, 0); const tmp = new THREE.Vector3(); let clock = 0; let nightK = 1;
+    const up = new THREE.Vector3(0, 1, 0); const tmp = new THREE.Vector3(); const smokeV = new THREE.Vector3(); let clock = 0; let nightK = 1;
     function update(dt) {
       clock += dt;
       for (const o of lights) if (o.l) o.l.intensity = o.fire ? o.base * (0.75 + 0.15 * Math.sin(clock * 9 + o.ph) + 0.1 * Math.sin(clock * 23 + o.ph * 2))
@@ -628,7 +628,8 @@
           f.t -= 0.07;
           tmp.set(f.pos.x + G.rng.range(-0.5, 0.5) * f.size, f.pos.y, f.pos.z + G.rng.range(-0.5, 0.5) * f.size);
           G.fx.burst(tmp, 1, FIRE_COL, { dir: up, push: 1.6 * f.size, speed: 0.6, size: 0.18 * f.size, life: 0.55, grav: -2, bounce: 0 });
-          if (f.smoke && G.rng.chance(0.45)) G.fx.burst(tmp.add(up), 1, SMOKE_COL, { dir: up, push: 1.2, speed: 0.4, size: 0.42 * f.size, life: 3, grav: -0.6, bounce: 0, drag: 0.4 });
+          // smoke is a soft puff that climbs, spreads and thins out (hard grey cubes used to hang in the sky)
+          if (f.smoke && G.rng.chance(0.24)) G.fx.puff(tmp.add(up), { vel: smokeV.set(G.rng.range(-0.25, 0.25) + 0.35, G.rng.range(1.3, 1.9), G.rng.range(-0.25, 0.25)), drag: 0.25, s0: 0.55 * f.size, s1: 2.3 * f.size, life: G.rng.range(2.2, 3.2), c0: 0x2c2a2a, c1: 0x6a6866, a0: 0.5 });
         }
       }
     }

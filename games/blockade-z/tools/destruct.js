@@ -48,17 +48,23 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
       if (!slab) return { err: 'no slab' };
       const z = G.zombies.spawn('walker', 1, { x: -28.7, z: -9, dir: [0, 1] }); z.pos.set(-28.7, 0, -9); z.speed = 0; z.hp = z.maxHp = 200;
       look(-28.7, 0, 2, -28.7, 3, -9);
+      // loose chunks dropped on that floor come to rest up there, three metres above the street
+      const cm = [new G.THREE.MeshLambertMaterial({ color: 0x888888 })];
+      for (let i = 0; i < 8; i++) { const m = new G.THREE.Mesh(new G.THREE.BoxGeometry(0.3, 0.2, 0.3), cm[0]); m.position.set(-28.7 + (i % 4 - 1.5) * 0.5, 4, -9 + (i < 4 ? -0.4 : 0.4)); m.updateMatrixWorld(); G.fx.gib(m, new G.THREE.Vector3(0, 0, 0), { shared: true }); }
+      __sim(2.5); const restTop = G.fx.debug().restTop;
       for (const q of slab.sup) D.breakPiece(q, new G.THREE.Vector3(0, 0, -1));
       let fell = 0; for (let i = 0; i < 12; i++) { __sim(0.05); fell = Math.max(fell, D.debug().falling); }
-      const mid = D.debug(); G.state = 'paused'; return { sup: slab.sup.length, fell, mid, slab: slab.id, zi: G.zombies.list.indexOf(z) }; })()`);
+      const mid = D.debug(); G.state = 'paused'; return { restTop, sup: slab.sup.length, fell, mid, slab: slab.id, zi: G.zombies.list.indexOf(z) }; })()`);
     console.log('collapse', JSON.stringify(r2));
     await shot('2-collapse');
     const r2b = await page.evaluate(`(() => { const G = __G; G.state = 'playing'; __sim(2); const D = G.destruct.debug(); const z = G.zombies.list[${r2.zi}]; const slab = G.destruct.pieces[${r2.slab}]; G.state = 'paused';
-      return { D, zAlive: z.alive && z.type === 'walker', zhp: Math.round(z.hp), slabBroken: slab.broken, inSolids: G.world.solids.includes(slab.solid) }; })()`);
+      G.state = 'playing'; __sim(2.5); G.state = 'paused'; const fl = G.fx.floaters(); const top = G.fx.debug().restTop;
+      return { fl, top, D, zAlive: z.alive && z.type === 'walker', zhp: Math.round(z.hp), slabBroken: slab.broken, inSolids: G.world.solids.includes(slab.solid) }; })()`);
     console.log('landed', JSON.stringify(r2b));
     await shot('3-rubble');
     check(r2.fell >= 1 && r2b.slabBroken && !r2b.inSolids, `the floor above falls once its walls are gone (${r2.sup} supports broken, ${r2.fell} falling)`);
     check(!r2b.zAlive || r2b.zhp < 200, `the falling floor crushes the zombie under it (${r2b.zAlive ? r2b.zhp + ' hp left' : 'dead'})`);
+    check(r2.restTop > 3 && r2b.fl.length === 0, `chunks and blood pools on that floor go down with it instead of hanging in the air (rested at ${r2.restTop} m, floating ${JSON.stringify(r2b.fl.slice(0, 3))})`);
     check(r2b.D.rubble >= 1 && r2b.D.falling === 0, `it lands and leaves rubble (${r2b.D.rubble} piles)`);
 
     // a boss slam next to the church wall breaks it

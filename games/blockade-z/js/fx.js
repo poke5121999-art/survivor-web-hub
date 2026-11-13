@@ -17,6 +17,14 @@
     const P = []; // {p:Vector3, v:Vector3, life, max, size, color, spin}
     const m4 = new THREE.Matrix4(); const q = new THREE.Quaternion(); const e = new THREE.Euler(); const sc = new THREE.Vector3(); const col = new THREE.Color();
 
+    // the floor (street, a storey, a roof) right under a point: decals and settled pieces belong there, never in mid-air
+    const downV = new THREE.Vector3(0, -1, 0); const fo = new THREE.Vector3();
+    function floorY(x, y, z) { if (y <= 0.05) return 0; const h = G.world.raycast(fo.set(x, y + 0.25, z), downV, y + 1); return h ? Math.max(0, y + 0.25 - h.t) : 0; }
+
+    // is there still something under a thing lying at height y (the same box test the physics lands it with)?
+    const sMin = [0, 0, 0]; const sMax = [0, 0, 0];
+    function held(x, y, z, r) { if (y <= 0.06) return true; sMin[0] = x - r; sMin[1] = y - 0.2; sMin[2] = z - r; sMax[0] = x + r; sMax[1] = y - 0.02; sMax[2] = z + r; return !!G.world.overlaps(sMin, sMax); }
+
     function burst(pos, n, color, o = {}) {
       n = Math.max(1, Math.round(n * G.quality.particles));
       const rng = G.rng;
@@ -91,7 +99,7 @@
     }
 
     function update(dt) {
-      updateAsh(dt); updateGibs(dt); updateSpurts(dt); updateBlast(dt); updateArcs(dt);
+      updateAsh(dt); updateGibs(dt); updateSplats(dt); updateSpurts(dt); updateBlast(dt); updateArcs(dt);
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
         const p = P[i];
@@ -166,7 +174,7 @@
     // scorch marks under explosions
     const MAXSC = 30;
     const scorches = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('scorch'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), MAXSC);
-    scorches.count = 0; scorches.frustumCulled = false; scene.add(scorches); let scI = 0;
+    scorches.count = 0; scorches.frustumCulled = false; scene.add(scorches); let scI = 0; const scorchAt = [];
     // ground shock rings
     const rings = [];
     const ringGeo = new THREE.RingGeometry(0.86, 1, 40).rotateX(-Math.PI / 2);
@@ -199,11 +207,16 @@
         puff(pos, { glow: true, vel: d.normalize().multiplyScalar(G.rng.range(5, 13) * R), g: 9, drag: 0.6, s0: 0.22, s1: 0.06, life: G.rng.range(0.7, 1.6), c0: 0xffe070, c1: 0xff3a10, a0: 1.1, spin: 0 });
       }
       burst(pos, 18, [0x3a3a3c, 0x55555a, 0x2a2420, 0x6a645c], { speed: 7 * R, size: 0.2, life: 1.8, bounce: 0.25 });
-      const ground = new THREE.Vector3(pos.x, Math.max(0, pos.y - 0.5), pos.z);
-      const r = rings[ringI++ % rings.length]; r.m.position.copy(ground).setY(ground.y + 0.06); r.t = 0; r.R = 6.5 * R; r.m.visible = true;
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + G.rng.range(0, 0.6); puff(ground.clone().setY(ground.y + 0.3), { vel: V().set(Math.cos(a) * 7, 0.3, Math.sin(a) * 7), drag: 2.5, s0: 0.8, s1: 2.6, life: 1.2, c0: 0x6a5e50, c1: 0x7a7066, a0: 0.55 }); }
-      m4.compose(V().set(ground.x, ground.y + 0.025 + (scI % 5) * 0.003, ground.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(4.2 * R, 1, 4.2 * R));
-      scorches.setMatrixAt(scI % MAXSC, m4); scI++; scorches.count = Math.min(MAXSC, scI); scorches.instanceMatrix.needsUpdate = true;
+      // the ring, the dust and the scorch mark go on the floor under the blast; a blast high in the air leaves none
+      const fy = floorY(pos.x, pos.y, pos.z);
+      if (pos.y - fy < 2.6 * Math.max(1, R)) {
+        const ground = new THREE.Vector3(pos.x, fy, pos.z);
+        const r = rings[ringI++ % rings.length]; r.m.position.copy(ground).setY(ground.y + 0.06); r.t = 0; r.R = 6.5 * R; r.m.visible = true;
+        for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + G.rng.range(0, 0.6); puff(ground.clone().setY(ground.y + 0.3), { vel: V().set(Math.cos(a) * 7, 0.3, Math.sin(a) * 7), drag: 2.5, s0: 0.8, s1: 2.6, life: 1.2, c0: 0x6a5e50, c1: 0x7a7066, a0: 0.55 }); }
+        m4.compose(V().set(ground.x, ground.y + 0.025 + (scI % 5) * 0.003, ground.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(4.2 * R, 1, 4.2 * R));
+        scorchAt[scI % MAXSC] = [ground.x, ground.y, ground.z];
+        scorches.setMatrixAt(scI % MAXSC, m4); scI++; scorches.count = Math.min(MAXSC, scI); scorches.instanceMatrix.needsUpdate = true;
+      }
       boomLight.position.copy(pos).setY(pos.y + 1); boomLight.intensity = 90 * R; flashT = Math.max(flashT, 0.25);
       const pd = G.camera.position.distanceTo(pos); if (pd < 16) flashScr = Math.max(flashScr, 0.55 * (1 - pd / 16));
     }
@@ -275,7 +288,7 @@
       scene.add(g);
       const half = sz.clone().multiply(g.scale).multiplyScalar(0.5);
       made++;
-      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn || o.ice ? 0 : 1.2, hits: 0, ice: !!o.ice });
+      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn || o.ice ? 0 : 1.2, hits: 0, ice: !!o.ice, age: 0, chk: G.rng.range(0, 0.5), big: Math.max(half.x, half.y, half.z) > 0.55, s0: g.scale.clone() });
     }
     // loose cubes for an exploded head: share a few materials, no per-piece clone
     const chunkGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -288,9 +301,21 @@
         gib(m, v, { shared: true });
       }
     }
+    const GIB_LIFE = 14; const GIB_BIG = 4.5; const GIB_AIR = 9;
     function updateGibs(dt) {
-      for (const p of gibs) {
+      for (let i = gibs.length - 1; i >= 0; i--) {
+        const p = gibs[i]; p.age += dt;
+        // a piece lies there for a while, then sinks away; big slabs (a wing, a wall panel) go sooner. One that never settles is dropped too.
+        const life = p.rest ? (p.big ? GIB_BIG : GIB_LIFE) : GIB_AIR;
+        if (p.age > life) {
+          const k = 1 - (p.age - life) / 0.7;
+          if (k <= 0) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); gibs.splice(i, 1); continue; }
+          p.g.scale.copy(p.s0).multiplyScalar(k); if (p.rest) p.g.position.y = p.yRest - (1 - k) * (p.yRest - p.yFloor); continue;
+        }
         if (p.rest) {
+          // what it rested on may be gone (a wall shot out, a roof fallen): then it falls again
+          p.chk -= dt;
+          if (p.chk <= 0) { p.chk = 0.45; if (!held(p.g.position.x, p.yFloor, p.g.position.z, p.r)) { p.rest = false; p.v.set(0, 0, 0); p.w.set(0, 0, 0); p.age = Math.min(p.age, GIB_AIR - 4); continue; } }
           if (p.settle < 1) { p.settle = Math.min(1, p.settle + dt * 7); p.g.quaternion.slerp(p.qRest, p.settle); p.g.position.y = BZ.lerp(p.g.position.y, p.yRest, p.settle); }
           if (p.bleed > 0) { p.bleed -= dt; if (G.rng.chance(dt * 6)) burst(p.g.position, 1, [0xa01810, 0x7a1410], { speed: 0.6, size: 0.05, life: 0.4 }); }
           continue;
@@ -310,10 +335,15 @@
             // lie flat: keep the yaw, snap pitch and roll to the nearest quarter turn, rest on the face that is now down
             p.rest = true; p.settle = 0;
             e.setFromQuaternion(p.g.quaternion, 'YXZ');
-            const snap = (a) => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
-            p.qRest = new THREE.Quaternion().setFromEuler(new THREE.Euler(snap(e.x), e.y, snap(e.z), 'YXZ'));
-            rm.makeRotationFromQuaternion(p.qRest); const el = rm.elements; const h = p.half;
-            p.yRest = feet.y + Math.abs(el[1]) * h.x + Math.abs(el[5]) * h.y + Math.abs(el[9]) * h.z + 0.005;
+            const snap = (a) => Math.round(a / (Math.PI / 2)) * (Math.PI / 2); const h = p.half; const Q = Math.PI / 2;
+            // of the quarter turns near where it stopped, take the one that lies lowest: a slab ends flat, not standing on its edge
+            let bestH = 1e9; const sx = snap(e.x); const sz2 = snap(e.z);
+            for (const [ax, az] of [[sx, sz2], [sx + Q, sz2], [sx, sz2 + Q]]) {
+              const qq = new THREE.Quaternion().setFromEuler(new THREE.Euler(ax, e.y, az, 'YXZ'));
+              rm.makeRotationFromQuaternion(qq); const el = rm.elements; const hh = Math.abs(el[1]) * h.x + Math.abs(el[5]) * h.y + Math.abs(el[9]) * h.z;
+              if (hh < bestH - 0.02) { bestH = hh; p.qRest = qq; }
+            }
+            p.yFloor = feet.y; p.yRest = feet.y + bestH + 0.005;
           }
         }
       }
@@ -323,9 +353,32 @@
     const splats = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('blood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), MAXS);
     splats.count = 0; splats.frustumCulled = false; splats.renderOrder = 1; scene.add(splats);
     let splatI = 0;
+    // a pool spreads out in a blink, lies there, then dries up: thirty kills on one spot must not paint the plaza red
+    splats.material.color.setHex(0x8a8a8a);
+    const SPLAT_LIFE = 16; const SPLAT_DRY = 5; const pools = [];
     function splat(pos, size = 1) {
-      m4.compose(new THREE.Vector3(pos.x, pos.y + 0.02 + (splatI % 7) * 0.002, pos.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(size, 1, size * G.rng.range(0.7, 1.2)));
-      splats.setMatrixAt(splatI % MAXS, m4); splatI++; splats.count = Math.min(MAXS, splatI); splats.instanceMatrix.needsUpdate = true;
+      size = Math.min(2.6, 0.45 + size * 0.62);
+      const i = splatI % MAXS;
+      pools[i] = { p: new THREE.Vector3(pos.x, floorY(pos.x, pos.y, pos.z) + 0.02 + (splatI % 7) * 0.002, pos.z), rot: G.rng.range(0, 6.3), sx: size, sz: size * G.rng.range(0.7, 1.2), t: 0, k: -1 };
+      splatI++; splats.count = Math.min(MAXS, splatI); putSplat(i, 0.3);
+    }
+    function putSplat(i, k) { const s = pools[i]; s.k = k; m4.compose(s.p, q.setFromEuler(e.set(0, s.rot, 0)), sc.set(s.sx * k, 1, s.sz * k)); splats.setMatrixAt(i, m4); splats.instanceMatrix.needsUpdate = true; }
+    let decalChk = 0;
+    function updateSplats(dt) {
+      // twice a second: a pool or a scorch mark whose floor has gone drops to the floor below
+      decalChk -= dt; const chk = decalChk <= 0; if (chk) decalChk = 0.5;
+      if (chk) for (let i = 0; i < scorches.count; i++) {
+        const c = scorchAt[i]; if (!c || c[1] <= 0.06) continue;
+        const f = floorY(c[0], c[1] + 0.1, c[2]); if (c[1] - f < 0.2) continue;
+        scorches.getMatrixAt(i, m4); m4.elements[13] += f - c[1]; c[1] = f; scorches.setMatrixAt(i, m4); scorches.instanceMatrix.needsUpdate = true;
+      }
+      for (let i = 0; i < pools.length; i++) {
+        const s = pools[i]; if (!s || s.k === 0) continue;
+        if (chk && s.p.y > 0.1) { const f = floorY(s.p.x, s.p.y + 0.1, s.p.z); if (s.p.y - f > 0.2) { s.p.y = f + 0.02; s.k = -1; } }
+        s.t += dt;
+        const k = s.t < 0.25 ? 0.3 + 0.7 * (1 - Math.pow(1 - s.t / 0.25, 2)) : s.t < SPLAT_LIFE ? 1 : Math.max(0, 1 - (s.t - SPLAT_LIFE) / SPLAT_DRY);
+        if (k !== s.k) putSplat(i, k);
+      }
     }
     // stumps: the hidden part's joint keeps throwing blood (or saber embers) upward for a while
     const spurts = [];
@@ -373,12 +426,21 @@
       scene.add(g); arcs.push({ g, mat, t: 0.22, sh });
       puff(b, { glow: true, s0: 1.0, s1: 0.2, life: 0.15, c0: 0xffffff, c1: color });
     }
+    // test hook: settled pieces with nothing under them, and decals above the floor they should lie on
+    function floaters() {
+      const out = [];
+      for (const p of gibs) { if (!p.rest) { if (p.age > GIB_AIR) out.push(['gib-air', +p.g.position.y.toFixed(2)]); continue; } if (!held(p.g.position.x, p.yFloor, p.g.position.z, p.r)) out.push(['gib', +p.yFloor.toFixed(2)]); }
+      for (let i = 0; i < pools.length; i++) { const s = pools[i]; if (!s || s.k === 0) continue; const f = floorY(s.p.x, s.p.y + 0.2, s.p.z); if (s.p.y - f > 0.25) out.push(['pool', +s.p.y.toFixed(2), +f.toFixed(2)]); }
+      for (let i = 0; i < scorches.count; i++) { const c = scorchAt[i]; if (!c) continue; const f = floorY(c[0], c[1] + 0.2, c[2]); if (c[1] - f > 0.25) out.push(['scorch', +c[1].toFixed(2), +f.toFixed(2)]); }
+      for (const r of rings) if (r.m.visible) { const f = floorY(r.m.position.x, r.m.position.y + 0.2, r.m.position.z); if (r.m.position.y - f > 0.4) out.push(['ring', +r.m.position.y.toFixed(2), +f.toFixed(2)]); }
+      return out;
+    }
     function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() {
       P.length = 0; holes.count = 0; holeI = 0;
-      for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
+      for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; pools.length = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0; scorchAt.length = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
   };
 })();

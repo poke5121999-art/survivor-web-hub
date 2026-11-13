@@ -321,6 +321,8 @@
     function hazard(kind, pos, r, dur, visual) {
       if (hazards.length >= MAXH) { const o = hazards.shift(); G.scene.remove(o.m); o.m.material.dispose(); }
       const mat = new THREE.MeshBasicMaterial({ map: BZ.tex('haz_' + kind), transparent: true, opacity: 0.9, depthWrite: false, blending: kind === 'web' ? THREE.NormalBlending : THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, fog: true });
+      // a pool lies on the floor under the point it was dropped at
+      if (pos.y > 0.2) pos = V().set(pos.x, G.fx.floorY(pos.x, pos.y, pos.z), pos.z);
       const m = new THREE.Mesh(HAZ_GEO, mat); m.position.set(pos.x, pos.y + 0.03 + (hazards.length % 5) * 0.003, pos.z); m.scale.set(r * 2, 1, r * 2); m.rotation.y = G.rng.range(0, 6.3); m.renderOrder = 3; G.scene.add(m);
       hazards.push({ kind, pos: m.position.clone(), r, t: dur, dur, m, acc: 0, visual: !!visual });
       if (!visual) net({ t: 'haz', kind, p: r2(pos), r, d: dur });
