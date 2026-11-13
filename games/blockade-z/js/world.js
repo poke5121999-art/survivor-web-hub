@@ -419,30 +419,34 @@
       return hit;
     }
 
-    // ---------- walk grid (for zombie flow field) ----------
+    // ---------- walk grids (zombie flow fields) ----------
+    // One grid per body size: a cell is open only when a zombie that wide fits with its centre there, so a brute is
+    // never routed along a ledge only a walker can use. Each grid's clearance sits just above its widest body.
     const N = GRID_HALF * 2;
-    const blocked = new Uint8Array(N * N);
     const idx = (cx, cz) => cz * N + cx;
     const toCell = (v) => Math.floor(v + GRID_HALF);
-    for (let cz = 0; cz < N; cz++) for (let cx = 0; cx < N; cx++) {
-      const x = cx - GRID_HALF + 0.5; const z = cz - GRID_HALF + 0.5;
-      const inside = Math.abs(x) < HALF && Math.abs(z) < HALF;
-      const corridor = (Math.abs(x) < 3 && Math.abs(z) < GRID_HALF) || (Math.abs(z) < 3 && Math.abs(x) < GRID_HALF);
-      if (!inside && !corridor) blocked[idx(cx, cz)] = 1;
-    }
-    const RZ = 0.3;
-    for (const s of solids) {
-      if (s.min[1] > 1.6) continue;
-      for (let cz = toCell(s.min[2] - RZ); cz <= toCell(s.max[2] + RZ); cz++) for (let cx = toCell(s.min[0] - RZ); cx <= toCell(s.max[0] + RZ); cx++) {
-        if (cx < 0 || cz < 0 || cx >= N || cz >= N) continue;
+    const SIZES = [0.36, 0.52, 0.86];
+    const grids = SIZES.map((rz) => {
+      const blocked = new Uint8Array(N * N);
+      for (let cz = 0; cz < N; cz++) for (let cx = 0; cx < N; cx++) {
         const x = cx - GRID_HALF + 0.5; const z = cz - GRID_HALF + 0.5;
-        if (x > s.min[0] - RZ && x < s.max[0] + RZ && z > s.min[2] - RZ && z < s.max[2] + RZ) blocked[idx(cx, cz)] = 1;
+        const inside = Math.abs(x) < HALF && Math.abs(z) < HALF;
+        const corridor = (Math.abs(x) < 3 && Math.abs(z) < GRID_HALF) || (Math.abs(z) < 3 && Math.abs(x) < GRID_HALF);
+        if (!inside && !corridor) blocked[idx(cx, cz)] = 1;
       }
-    }
-    const dist = new Float32Array(N * N);
+      for (const s of solids) {
+        if (s.min[1] > 1.6) continue;
+        for (let cz = toCell(s.min[2] - rz); cz <= toCell(s.max[2] + rz); cz++) for (let cx = toCell(s.min[0] - rz); cx <= toCell(s.max[0] + rz); cx++) {
+          if (cx < 0 || cz < 0 || cx >= N || cz >= N) continue;
+          const x = cx - GRID_HALF + 0.5; const z = cz - GRID_HALF + 0.5;
+          if (x > s.min[0] - rz && x < s.max[0] + rz && z > s.min[2] - rz && z < s.max[2] + rz) blocked[idx(cx, cz)] = 1;
+        }
+      }
+      return { rz, blocked, dist: new Float32Array(N * N) };
+    });
     const queue = new Int32Array(N * N * 2);
     const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-    function updateFlow(px, pz) {
+    function fill({ blocked, dist }, px, pz) {
       dist.fill(1e9);
       let head = 0; let tail = 0;
       const seed = (cx, cz) => { if (cx < 0 || cz < 0 || cx >= N || cz >= N) return; const i = idx(cx, cz); if (!blocked[i] && dist[i] > 0) { dist[i] = 0; queue[tail++] = i; } };
@@ -465,22 +469,31 @@
         }
       }
     }
-    const flowDir = (x, z, out) => {
+    function updateFlow(px, pz) { for (const g of grids) fill(g, px, pz); }
+    // Next waypoint for a body of radius r: the grid sized for it, or a narrower one when the wide grid has no way
+    // from here (the zombie stands where only a narrower body is routed).
+    const flowDir = (x, z, out, r = 0.32) => {
       const cx = toCell(x); const cz = toCell(z);
       if (cx < 0 || cz < 0 || cx >= N || cz >= N) { out[0] = -x; out[1] = -z; return false; }
-      let best = dist[idx(cx, cz)]; let bx = 0; let bz = 0;
-      for (const [dx, dz] of DIRS) {
-        const nx = cx + dx; const nz = cz + dz;
-        if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
-        const j = idx(nx, nz);
-        if (blocked[j]) continue;
-        if (dx && dz && (blocked[idx(cx + dx, cz)] || blocked[idx(cx, cz + dz)])) continue;
-        if (dist[j] < best) { best = dist[j]; bx = dx; bz = dz; }
+      let gi = 0; while (gi < grids.length - 1 && SIZES[gi] < r + 0.03) gi++;
+      for (; gi >= 0; gi--) {
+        const { blocked, dist } = grids[gi];
+        let best = dist[idx(cx, cz)]; let bx = 0; let bz = 0;
+        for (const [dx, dz] of DIRS) {
+          const nx = cx + dx; const nz = cz + dz;
+          if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+          const j = idx(nx, nz);
+          if (blocked[j]) continue;
+          if (dx && dz && (blocked[idx(cx + dx, cz)] || blocked[idx(cx, cz + dz)])) continue;
+          if (dist[j] < best) { best = dist[j]; bx = dx; bz = dz; }
+        }
+        if (!bx && !bz) { if (best < 1e8) { out[0] = 0; out[1] = 0; return false; } continue; }
+        out[0] = cx + bx - GRID_HALF + 0.5 - x; out[1] = cz + bz - GRID_HALF + 0.5 - z;
+        return true;
       }
-      if (!bx && !bz) { out[0] = 0; out[1] = 0; return false; }
-      out[0] = cx + bx - GRID_HALF + 0.5 - x; out[1] = cz + bz - GRID_HALF + 0.5 - z;
-      return true;
+      out[0] = 0; out[1] = 0; return false;
     };
+    const flowStats = () => grids.map((g) => ({ rz: g.rz, open: g.blocked.reduce((n, v) => n + (v ? 0 : 1), 0), reach: g.dist.reduce((n, v) => n + (v < 1e8 ? 1 : 0), 0) }));
 
     // Move an upright box (radius r, height h, feet at pos.y) by vel*dt, axis by axis.
     // stepH lets the mover climb ledges up to that height (stairs); out.stepUp reports the rise.
@@ -586,7 +599,7 @@
       // by day the far skyline sits in the smog: let fog take it so it reads as distant haze, not black towers
       skyline.traverse((m) => { if (!m.isMesh) return; const f = k < 0.5; if (m.material.fog !== f) { m.material.fog = f; m.material.needsUpdate = true; } m.material.color.setHex(f ? 0xb8c2d0 : 0x9098a8); });
     }
-    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, spawns, HALF, group, sky, clouds, setNight, cloudMat,
+    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, spawns, HALF, group, sky, clouds, setNight, cloudMat,
       isBlocked: (x, z) => { const cx = toCell(x); const cz = toCell(z); return cx < 0 || cz < 0 || cx >= N || cz >= N || !!blocked[idx(cx, cz)]; } };
   };
 })();

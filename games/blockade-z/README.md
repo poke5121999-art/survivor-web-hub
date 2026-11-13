@@ -88,6 +88,12 @@ Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1
 - `?fakenet=1` thay Relay bằng `BroadcastChannel` để hai tab cùng trình duyệt chơi với nhau khi không có mạng (dùng cho test).
 - Còn hở: bóng mồi của nhân vật Bóng chỉ nhử được zombie khi chủ phòng là Bóng; tên lửa đang bay của người khác không hiện, chỉ thấy vụ nổ; chủ phòng rời thì phòng đóng (chưa chuyển chủ).
 
+## Đường đi của zombie
+
+`js/world.js` dựng ba lưới đường đi 1 m, mỗi lưới cho một cỡ thân: khoảng hở 0,36 m cho zombie thường, 0,52 m cho kẻ to (Kẻ Phình, Kẻ Khiên, Kẻ Giáp, Đô Con), 0,86 m cho boss. Ô chỉ mở khi thân cỡ đó đứng giữa ô không chạm tường, nên con to không bị dẫn vào khe chỉ con nhỏ lọt. Kẹt quá 0,35 giây thì zombie bước ngang 0,7 giây, lần sau bước sang phía kia; đứng một chỗ quá 6 giây ở chỗ người chơi không nhìn thấy thì đi vào lại từ cổng gần thứ nhì.
+
+`tools/stuck.js` cho người chơi bất tử đứng 90 giây ở năm chỗ trên bản đồ (đợt 6) và đếm zombie đứng yên quá 3 giây. Trước khi sửa: 7 con kẹt. Sau khi sửa: 0 con kẹt, 0 lần phải về cổng, 231/233 con tới sát người chơi.
+
 ## Kiểm
 
 ```
@@ -96,6 +102,7 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> [FAKE=0] node games/blockade-z/tool
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/shots.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/zoo.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/kits.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/stuck.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

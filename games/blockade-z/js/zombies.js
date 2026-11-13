@@ -106,7 +106,7 @@
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
       z.vel.set(0, 0, 0);
       z.yaw = Math.atan2(-gate.dir[0], -gate.dir[1]);
-      z.phase = G.rng.range(0, 6); z.attackT = 0; z.windT = -1; z.flash = 0; z.voiceT = G.rng.range(1, 5); z.stuck = 0;
+      z.phase = G.rng.range(0, 6); z.attackT = 0; z.windT = -1; z.flash = 0; z.voiceT = G.rng.range(1, 5); z.stuck = 0; z.sideT = 0; z.side = G.rng.next() < 0.5 ? 1 : -1; z.stillT = 0; z.ax = NaN; z.az = 0;
       const b = z.body;
       b.root.visible = true; b.root.scale.setScalar(T.scale); b.head.visible = true; b.wingL.visible = b.wingR.visible = b.halo.visible = !!T.fly;
       b.root.rotation.set(0, z.yaw, 0); b.root.position.copy(z.pos);
@@ -114,7 +114,7 @@
       return z;
     }
 
-    const tmp = [0, 0];
+    const tmp = [0, 0]; const stats = { regated: 0 };
     const out = {};
     const fallV = new THREE.Vector3();
 
@@ -235,6 +235,13 @@
       const bar = b.barBg; bar.visible = z.hp < z.maxHp;
       if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * z.T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
     }
+    function regate(z, P) {
+      const gates = G.world.spawns.slice().sort((a, b) => Math.hypot(a.x - P.pos.x, a.z - P.pos.z) - Math.hypot(b.x - P.pos.x, b.z - P.pos.z));
+      const g = gates[1] || gates[0];
+      z.pos.set(g.x + G.rng.range(-1, 1), 0, g.z + G.rng.range(-1, 1)); z.vel.set(0, 0, 0);
+      z.stillT = 0; z.stuck = 0; z.ax = NaN; z.regated = (z.regated || 0) + 1; stats.regated++;
+      z.body.root.position.copy(z.pos);
+    }
     function update(dt) {
       K.update(dt);
       if (G.coop && G.coop.guest) { puppets(dt); return; }
@@ -279,9 +286,12 @@
         // steering
         let sx = 0; let sz = 0;
         if (tgt || z.pos.y > 0.9 || (dist < 5 && G.world.lineOfSight(new THREE.Vector3(z.pos.x, z.pos.y + 1.2, z.pos.z), new THREE.Vector3(P.pos.x, P.pos.y + 1.2, P.pos.z)))) { sx = dx; sz = dz; }
-        else if (G.world.flowDir(z.pos.x, z.pos.z, tmp)) { sx = tmp[0]; sz = tmp[1]; }
+        else if (G.world.flowDir(z.pos.x, z.pos.z, tmp, 0.32 * T.scale)) { sx = tmp[0]; sz = tmp[1]; }
         else { sx = dx; sz = dz; }
         const sl = Math.hypot(sx, sz) || 1; sx /= sl; sz /= sl;
+        // pinned on a corner or a crowd: step sideways for a moment, the other side on the next try
+        if (z.stuck > 0.35 && z.sideT <= 0) { z.sideT = 0.7; z.side = -z.side; }
+        if (z.sideT > 0) { z.sideT -= dt; const px = -sz * z.side; const pz = sx * z.side; sx = sx * 0.35 + px; sz = sz * 0.35 + pz; }
         // separation
         for (const o of alive) {
           if (o === z || o.T.fly || z.climb || o.climb || Math.abs(o.pos.y - z.pos.y) > 1) continue;
@@ -291,7 +301,7 @@
         }
         const attacking = z.windT >= 0;
         const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1) * (z.hold ? 0 : 1) * (z.spdMul || 1) * (z.rage > 0 ? 1.35 : 1);
-        const before = z.pos.x + z.pos.z;
+        const bx0 = z.pos.x; const bz0 = z.pos.z;
         if (z.climb) ride(z, dt, P, dx, dz, dist);
         else {
           z.vel.x = BZ.damp(z.vel.x, sx * want, 8, dt); z.vel.z = BZ.damp(z.vel.z, sz * want, 8, dt); z.vel.y -= 22 * dt;
@@ -301,7 +311,10 @@
           z.wallT = elevated && (out.hitX || out.hitZ || dist < 1.2) ? z.wallT + dt : Math.max(0, z.wallT - dt);
           if (elevated && z.pos.y < P.pos.y - 1 && T !== TYPES.brute && !z.crawl && !T.noTower) tryClimb(z, alive);
         }
-        z.stuck = Math.abs(z.pos.x + z.pos.z - before) < want * dt * 0.1 && want > 0 ? z.stuck + dt : 0;
+        z.stuck = want > 0 && !z.climb && Math.hypot(z.pos.x - bx0, z.pos.z - bz0) < want * dt * 0.25 ? z.stuck + dt : 0;
+        if (!(Math.hypot(z.pos.x - z.ax, z.pos.z - z.az) < 1) || want <= 0 || z.climb) { z.ax = z.pos.x; z.az = z.pos.z; z.stillT = 0; } else z.stillT += dt;
+        // still boxed in after the sidesteps: walk back in through a gate while nobody is looking
+        if (z.stillT > 6 && dist > 8 && !T.boss && (dist > 30 || !G.world.lineOfSight(new THREE.Vector3(P.pos.x, P.pos.y + 1.5, P.pos.z), new THREE.Vector3(z.pos.x, z.pos.y + 1, z.pos.z)))) regate(z, P);
 
         const face = Math.atan2(dx, dz);
         const moveYaw = Math.hypot(z.vel.x, z.vel.z) > 0.3 && dist > 3 ? Math.atan2(z.vel.x, z.vel.z) : face;
@@ -804,6 +817,6 @@
         if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + (z.crawl ? 0.9 : 2.2) * T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
       }
     }
-    return { list, spawn, update, hitTest, damage, sever, kill, burstHead, blowApart, applyStatus, REACT, clear, aliveCount, snapshot, adopt, TYPE_IDS, kinds: K, elite: (z, key) => K.elite(z, key), boss: boss1, debug: () => ({ alive: aliveCount() }) };
+    return { list, spawn, update, hitTest, damage, sever, kill, burstHead, blowApart, applyStatus, REACT, clear, aliveCount, snapshot, adopt, TYPE_IDS, kinds: K, elite: (z, key) => K.elite(z, key), boss: boss1, stats, debug: () => ({ alive: aliveCount() }) };
   };
 })();
