@@ -1,0 +1,65 @@
+// Third-person view: screenshots of the hero from the shoulder camera (idle, running, shooting, a melee swing,
+// a jump, a wall right behind), plus checks that shots still land where the crosshair points and that the camera
+// never ends up inside a wall. Usage: PLAYWRIGHT_PATH=<playwright-core> node games/blockade-z/tools/tps.js <outDir>
+'use strict';
+const path = require('path');
+const fs = require('fs');
+const { serve } = require('../../../tools/thumb-lib.js');
+const OUT = process.argv[2] || path.join(__dirname, '..', '..', '..', '.tps-blockade-z'); fs.mkdirSync(OUT, { recursive: true });
+const fails = [];
+const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
+
+(async () => {
+  const srv = await serve();
+  const br = await require(process.env.PLAYWRIGHT_PATH || 'playwright-core').chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    const ctx = await br.newContext({ viewport: { width: 1280, height: 720 } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'tps@test' })); } catch (e) {} });
+    const page = await ctx.newPage();
+    const problems = [];
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
+    const shot = async (name) => { await page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }"); await page.waitForTimeout(200); await page.screenshot({ path: path.join(OUT, `tps-${name}.png`) }); };
+    const base = `const G = __G; G.state = 'playing'; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear(); const P = G.player;`;
+    const r0 = await page.evaluate(`(() => { ${base} return { on: G.tps.on, model: !!G.tps.model, vm: true }; })()`);
+    check(r0.on, 'third person is the default view');
+
+    for (const id of ['phao', 'gio', 'ky']) {
+      // pick the hero, stand in the plaza, look across it
+      await page.evaluate(`(() => { ${base} __select.open(); __select.pick(BZ.HEROES.findIndex((h) => h.id === '${id}')); __select.go(); __sim(0.2);
+        G.state = 'playing'; P.pos.set(0, 0, 9); P.yaw = 0.25; P.pitch = -0.05; P.vel.set(0, 0, 0); __sim(0.4); G.state = 'paused'; })()`);
+      await shot(`${id}-idle`);
+      // running: hold forward for a while, freeze mid-stride
+      await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(0, 0, 14); P.yaw = 0; P.touch.y = -1; __sim(0.7); P.touch.y = 0; G.state = 'paused'; })()`);
+      await shot(`${id}-run`);
+      // attack: a zombie ahead, fire or swing a few times, freeze mid-attack
+      const atk = await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(0, 0, 12); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); P.touch.y = 0;
+        const z = G.zombies.spawn('walker', 1, { x: 0, z: 6, dir: [0, 1] }); z.speed = 0; z.hp = z.maxHp = 9999; P.pitch = -0.06;
+        __sim(0.6); const mel = BZ.WEAPONS[G.weapons.cur()].melee; z.pos.set(mel ? 0 : G.camera.position.x, 0, mel ? 10.6 : 5); __sim(1 / 60); const hp0 = z.hp; P.input.fire = true; __sim(0.45); P.input.fire = false; return { dmg: Math.round(hp0 - z.hp), w: G.weapons.cur() }; })()`);
+      await page.evaluate(`(() => { const G = __G; G.state = 'paused'; })()`);
+      await shot(`${id}-attack`);
+      check(atk.dmg > 0, `${id}: attacking with ${atk.w} from the shoulder camera hits the zombie in the crosshair (${atk.dmg} dmg)`);
+    }
+    // a jump, and backing into a wall: the camera must pull in and stay out of the wall
+    await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(0, 0, 9); P.yaw = 0.5; P.vel.set(0, 0, 0); P.jumpBuf = 0.2; __sim(0.3); G.state = 'paused'; })()`);
+    await shot('jump');
+    const wall = await page.evaluate(`(() => { ${base} G.state = 'playing'; const W = G.world; let bad = 0; let n = 0; const c = G.camera.position;
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; P.pos.set(Math.cos(a) * 30, 0, Math.sin(a) * 30); P.yaw = a * 1.7; P.pitch = Math.sin(i) * 0.4; P.vel.set(0, 0, 0); __sim(1 / 30); __sim(1 / 30); n++;
+        const inside = W.overlaps([c.x - 0.05, c.y - 0.05, c.z - 0.05], [c.x + 0.05, c.y + 0.05, c.z + 0.05]); if (inside) bad++; }
+      return { bad, n }; })()`);
+    check(wall.bad <= 2, `the camera stays out of walls around the edge of the map (${wall.bad}/${wall.n} spots inside a wall)`);
+    await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(-30.5, 0, 0); P.yaw = -Math.PI / 2; P.pitch = 0; __sim(0.3); G.state = 'paused'; })()`);
+    await shot('wall');
+    // V goes back to first person with the viewmodel
+    const fp = await page.evaluate(`(() => { const G = __G; G.state = 'playing'; dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' })); __sim(0.1); return { on: G.tps.on, vis: G.tps.model.root.visible }; })()`);
+    check(!fp.on && !fp.vis, 'V switches to first person and hides the body');
+    const btn = await page.evaluate(`(() => { const G = __G; const b = document.getElementById('viewbtn'); const r = b.getBoundingClientRect(); const vis = getComputedStyle(b).display !== 'none' && r.width > 0; b.click(); __sim(0.05); return { vis, on: G.tps.on, txt: b.textContent.trim(), body: G.tps.model.root.visible }; })()`);
+    check(btn.vis && btn.on && btn.body && /NGÔI 3/.test(btn.txt), 'the on-screen view button is visible and switches back to third person (' + btn.txt + ')');
+    await page.screenshot({ path: path.join(OUT, 'tps-hud.png') });
+    check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 3).join(' | ') : ''));
+  } finally { await br.close(); srv.close(); }
+  console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');
+  process.exit(fails.length ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });

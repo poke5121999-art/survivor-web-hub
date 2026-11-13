@@ -39,6 +39,25 @@ Mỗi kỹ năng chạy trên máy người dùng nó: hình, tác động lên 
 
 Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
 
+## Góc nhìn thứ ba và thân nhân vật
+
+Mặc định chơi ở góc nhìn thứ ba qua vai phải, kiểu game bắn súng anh hùng. Phím `V`, hoặc nút `V · NGÔI 3` ở góc phải trên, đổi qua lại với góc nhìn thứ nhất (súng cầm tay cũ). `?fp=1` vào thẳng góc nhìn thứ nhất; `smoke.js` và `kits.js` chạy ở chế độ này.
+
+`js/tps.js` lo phần góc nhìn thứ ba:
+
+- **Camera:** đặt sau đầu, lệch sang vai phải. Bắn tỉa (chuột phải) thì camera kéo gần vào. Có tường phía sau hoặc bên vai thì camera rút vào trước mặt tường.
+- **Ngắm:** tâm ngắm vẫn ở giữa màn hình. Phát bắn tìm điểm tâm ngắm đang chạm (tường hoặc zombie), rồi bay từ vai nhân vật tới đúng điểm đó. Zombie đứng giữa camera và nhân vật không bị bắn trúng; vật chắn giữa nhân vật và mục tiêu thì chặn đạn.
+- **Thân nhân vật trên màn hình:** chạy, nhảy, ngắm theo tâm, giật súng, nạp đạn, chém và vung tay khi tung kỹ năng.
+
+Thân nhân vật (`BZ.heroModel`) có cột sống, hông, đùi, đầu gối, cổ chân, vai, khuỷu tay và bàn tay. `BZ.animHero` là bộ anim dùng chung cho nhân vật của mình và cho người chơi khác trong co-op:
+
+- Khi chạy, đầu gối gập lúc chân vung qua và bàn chân miết đất. Hông xoay ngược với vai, thân trên nghiêng theo tốc độ, chạy nhanh thì hạ súng.
+- Khi chém, cả thân xoắn theo nhát chém, có kéo vai, duỗi khuỷu tay rồi thu về.
+- Đầu luôn nhìn theo hướng ngắm.
+- Khớp nào cũng được làm mượt, nên các trạng thái chuyển sang nhau không bị giật.
+
+`tools/tps.js` chụp nhân vật đứng, chạy, bắn, chém và nhảy. Nó kiểm phát bắn trúng thứ dưới tâm ngắm, kiểm camera không lọt vào tường ở 40 chỗ sát mép bản đồ, và kiểm phím `V` cùng nút trên màn hình.
+
 ## Zombie đặc biệt, quái và tinh anh
 
 `js/zkinds.js` thêm loại mới vào `BZ.ZOMBIES`. Mỗi loại có `kind` chọn hành vi, `parts` là mảnh gắn thêm lên thân dùng chung (túi axit, bụng phình, khiên, giáp, tóc), và `rig` thay cả thân (nhện, trứng). Mỗi loại đặc biệt xuất hiện lần đầu thì hiện băng rôn kèm cách khắc chế.
@@ -138,6 +157,7 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/kits.js
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/stuck.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [BOSSES=dragon,ufo] node games/blockade-z/tools/bosses.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/projshots.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/tps.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

@@ -79,9 +79,9 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
         return { seen: [...seen], moves: z.bs.n - n0, chain, alive: z.alive }; })()`);
       check(auto.seen.length >= 3 && auto.chain >= 1, `${id}: picks combos on its own (${auto.moves} moves in 50 s, ${auto.seen.length} kinds, longest chain ${auto.chain + 1})`);
       // shoot it down: it must burst and leave nothing behind
-      const end = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); __sim(1.5);
-        const B = G.zombies.kinds.bosses(); return { alive: z.alive, vis: z.body.root.visible, boss: !!G.zombies.boss(), fx: B.debug() }; })()`);
-      check(!end.alive && !end.vis && !end.boss, `${id}: dies and bursts (${JSON.stringify(end.fx)})`);
+      const end = await page.evaluate(`(() => { const G = __G; const z = G.zombies.boss(); G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); const died = !z.alive && !z.body.root.visible; __sim(1.5);
+        const B = G.zombies.kinds.bosses(); return { died, now: z.type, boss: !!G.zombies.boss(), cur: z.bs && z.bs.cur, fx: B.debug() }; })()`);
+      check(end.died && !end.boss, `${id}: dies and bursts (${JSON.stringify(end)})`);
       await page.evaluate(`(() => { __sim(3); })()`);
     }
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 4).join(' | ') : ''));

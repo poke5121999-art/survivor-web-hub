@@ -43,8 +43,9 @@
     const r2 = (v) => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)];
     const v3 = (a) => V().set(a[0], a[1], a[2]);
     const players = H.players;
-    const timers = [];
-    const after = (t, f) => timers.push({ t, f });
+    // timers and warnings remember which boss set them, so a dead boss stops attacking
+    const timers = []; let owner = null;
+    const after = (t, f) => timers.push({ t, f, owner });
 
     // ---------- looks shared by every boss ----------
     const glowMat = (col, op = 1) => new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
@@ -97,7 +98,7 @@
         const mid = V().set((o.at.x + o.to.x) / 2, y, (o.at.z + o.to.z) / 2); const yaw = Math.atan2(o.to.x - o.at.x, o.to.z - o.at.z);
         edge.position.copy(mid); edge.rotation.y = yaw; edge.scale.set(o.w, 1, len); fill.position.copy(mid); fill.position.y += 0.01; fill.rotation.y = yaw; fill.scale.set(o.w, 1, 0.01);
       } else { edge.position.set(o.at.x, y, o.at.z); edge.scale.setScalar(o.r * 2); fill.position.set(o.at.x, y + 0.01, o.at.z); fill.scale.setScalar(0.01); }
-      const T = { ...o, edge, fill, t: 0, len, yaw: edge.rotation.y };
+      const T = { ...o, edge, fill, t: 0, len, yaw: edge.rotation.y, owner };
       teles.push(T);
       if (o.net !== false) net({ t: 'bt', p: r2(o.at), q: o.to ? r2(o.to) : 0, r: o.r || 0, w: o.w || 0, d: o.dur, c: o.col });
       return T;
@@ -218,9 +219,9 @@
         T.edge.material.opacity = 0.9 * pulse; T.fill.material.opacity = 0.25 + 0.4 * k;
         if (T.to) { T.fill.scale.set(T.w, 1, Math.max(0.01, T.len * k)); const off = (T.len * k - T.len) / 2; T.fill.position.set((T.at.x + T.to.x) / 2 + Math.sin(T.yaw) * off, T.fill.position.y, (T.at.z + T.to.z) / 2 + Math.cos(T.yaw) * off); }
         else T.fill.scale.setScalar(Math.max(0.01, T.r * 2 * k));
-        if (k >= 1) { for (const m of [T.edge, T.fill]) { scene.remove(m); m.material.dispose(); } teles.splice(i, 1); if (T.fire && host() && T.net !== 'visual') T.fire(T); }
+        if (k >= 1) { for (const m of [T.edge, T.fill]) { scene.remove(m); m.material.dispose(); } teles.splice(i, 1); if (T.fire && host() && T.net !== 'visual' && !(T.owner && !T.owner.alive)) T.fire(T); }
       }
-      for (let i = timers.length - 1; i >= 0; i--) { const q = timers[i]; q.t -= dt; if (q.t <= 0) { timers.splice(i, 1); q.f(); } }
+      for (let i = timers.length - 1; i >= 0; i--) { const q = timers[i]; q.t -= dt; if (q.t <= 0) { timers.splice(i, 1); if (!(q.owner && !q.owner.alive)) { owner = q.owner; q.f(); owner = null; } } }
     }
 
     // ---------- the move machine ----------
@@ -267,7 +268,8 @@
       if (M.say) G.ui.pop(M.say, 'critword', V().set(z.pos.x, z.pos.y + 3 * z.T.scale, z.pos.z));
       net({ t: 'bm', i: listIdx(z), m: name, d: S.dur });
     }
-    function step(z, dt, P, dist) {
+    function step(z, dt, P, dist) { owner = z; try { return step1(z, dt, P, dist); } finally { owner = null; } }
+    function step1(z, dt, P, dist) {
       const kit = kitOf(z); if (!z.bs) init(z); const S = z.bs;
       z.hold = true; z.noMelee = true;
       for (const k in S.cds) S.cds[k] -= dt;

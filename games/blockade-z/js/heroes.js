@@ -144,8 +144,18 @@
     const shirt = 'h_' + id + '_shirt'; const face = { pz: 'h_' + id + '_face', side: 'h_' + id + '_hair', top: 'h_' + id + '_hair', bottom: C(L.skin) };
     const root = new THREE.Group(); root.rotation.order = 'YXZ';
     const hips = new THREE.Group(); hips.position.y = 0.75; root.add(hips);
+    // the spine bends and twists the whole upper body over the hips (lean, swing, recoil)
+    const spine = new THREE.Group(); hips.add(spine);
     const bulk = id === 'thep' ? 0.04 : 0;
-    const leg = (x) => { const g = new THREE.Group(); g.position.x = x; g.add(part('leg', [[[-0.13 - bulk, -0.75, -0.13 - bulk], [0.13 + bulk, 0.02, 0.13 + bulk], C(L.pants)], [[-0.14 - bulk, -0.75, -0.16 - bulk], [0.14 + bulk, -0.6, 0.15 + bulk], C(L.boot)]])); hips.add(g); return g; };
+    const leg = (x) => {
+      const g = new THREE.Group(); g.position.x = x; hips.add(g);
+      g.add(part('thigh', [[[-0.13 - bulk, -0.4, -0.13 - bulk], [0.13 + bulk, 0.02, 0.13 + bulk], C(L.pants)]]));
+      const knee = new THREE.Group(); knee.position.y = -0.38; g.add(knee);
+      knee.add(part('shin', [[[-0.125 - bulk, -0.32, -0.125 - bulk], [0.125 + bulk, 0.02, 0.125 + bulk], C(L.pants)]]));
+      const foot = new THREE.Group(); foot.position.y = -0.3; knee.add(foot);
+      foot.add(part('boot', [[[-0.14 - bulk, -0.07, -0.15 - bulk], [0.14 + bulk, 0.09, 0.15 + bulk], C(L.boot)], [[-0.13 - bulk, -0.07, 0.15 + bulk], [0.13 + bulk, 0.02, 0.24], C(L.boot)]]));
+      g.userData = { knee, foot }; return g;
+    };
     const legL = leg(-0.13); const legR = leg(0.13);
     const torsoBoxes = [[[-0.26 - bulk, 0, -0.15 - bulk], [0.26 + bulk, 0.7, 0.15 + bulk], { pz: shirt, side: C(L.shirt), top: C(L.shirt), bottom: C(L.pants) }], [[-0.27 - bulk, -0.02, -0.16 - bulk], [0.27 + bulk, 0.08, 0.16 + bulk], C(0x2a2018)]];
     const extra = [];
@@ -160,16 +170,18 @@
     if (id === 'sam') extra.push([[-0.42, 0.56, -0.12], [-0.26, 0.76, 0.12], C(0x3a4a6a)], [[0.26, 0.56, -0.12], [0.42, 0.76, 0.12], C(0x3a4a6a)], [[-0.4, 0.76, -0.06], [-0.28, 0.84, 0.06], C(0x9ad8ff)], [[0.28, 0.76, -0.06], [0.4, 0.84, 0.06], C(0x9ad8ff)], [[-0.14, 0.1, -0.3], [0.14, 0.5, -0.15], C(0x2a3450)], [[-0.04, 0.5, -0.26], [0.04, 0.9, -0.2], C(0x9ad8ff)]);
     if (id === 'doc') extra.push([[-0.27, 0.04, -0.17], [0.27, 0.1, 0.17], C(0x3a2a18)], [[-0.24, -0.08, 0.15], [-0.14, 0.12, 0.24], C(0x9aff40)], [[-0.06, -0.08, 0.15], [0.04, 0.12, 0.24], C(0x9aff40)], [[0.12, -0.08, 0.15], [0.22, 0.12, 0.24], C(0x9aff40)], [[-0.28, 0.2, -0.17], [0.28, 0.72, 0.17], { pz: C(0x2a3a24), side: C(0x22301c), top: C(0x22301c), bottom: C(0x22301c) }]);
     if (id === 'ky') extra.push([[-0.27, 0.0, -0.17], [0.27, 0.1, 0.17], C(0x5a3a1a)], [[0.16, -0.12, 0.13], [0.26, 0.08, 0.22], C(0x9a9a9a)], [[-0.26, -0.1, 0.13], [-0.18, 0.06, 0.2], C(0xd8b020)], [[-0.2, 0.15, -0.36], [0.2, 0.62, -0.15], C(0x6a6a5a)], [[-0.16, 0.5, -0.38], [0.16, 0.56, -0.35], C(0xffb020)]);
-    const torso = part('torso', torsoBoxes.concat(extra)); hips.add(torso);
+    const torso = part('torso', torsoBoxes.concat(extra)); spine.add(torso);
     const arm = (x) => {
-      const g = new THREE.Group(); g.position.set(x, 0.64, 0);
-      const boxes = [[[-0.1 - bulk, -0.62, -0.1 - bulk], [0.1 + bulk, 0.06, 0.1 + bulk], C(L.shirt)], [[-0.105 - bulk, -0.7, -0.105 - bulk], [0.105 + bulk, -0.5, 0.105 + bulk], 'h_' + id + '_glove']];
-      if (id === 'mua') boxes.splice(0, 1, [[-0.1, -0.62, -0.1], [0.1, -0.2, 0.1], C(L.skin)], [[-0.105, -0.2, -0.105], [0.105, 0.06, 0.105], C(L.shirt)]);
-      if (id === 'ky') boxes.splice(0, 1, [[-0.1, -0.62, -0.1], [0.1, -0.25, 0.1], C(L.skin)], [[-0.105, -0.25, -0.105], [0.105, 0.06, 0.105], C(L.shirt)]);
-      g.add(part('arm', boxes)); hips.add(g); return g;
+      const g = new THREE.Group(); g.position.set(x, 0.64, 0); spine.add(g);
+      const bare = id === 'mua' || id === 'ky';
+      g.add(part('upper', [[[-0.1 - bulk, -0.34, -0.1 - bulk], [0.1 + bulk, 0.06, 0.1 + bulk], C(L.shirt)]]));
+      const elbow = new THREE.Group(); elbow.position.y = -0.32; g.add(elbow);
+      elbow.add(part('fore', [[[-0.095 - bulk, -0.22, -0.095 - bulk], [0.095 + bulk, 0.02, 0.095 + bulk], C(bare ? L.skin : L.shirt)], [[-0.105 - bulk, -0.38, -0.105 - bulk], [0.105 + bulk, -0.18, 0.105 + bulk], 'h_' + id + '_glove']]));
+      const hand = new THREE.Group(); hand.position.set(0, -0.3, 0.05); elbow.add(hand);
+      g.userData = { elbow, hand }; return g;
     };
     const armL = arm(-0.36); const armR = arm(0.36);
-    const head = new THREE.Group(); head.position.y = 0.7; hips.add(head);
+    const head = new THREE.Group(); head.position.y = 0.7; spine.add(head);
     const hb = [[[-0.25, 0, -0.25], [0.25, 0.5, 0.25], face]];
     if (id === 'gio') hb.push([[-0.26, 0.36, -0.26], [0.26, 0.42, 0.26], C(0xf4f8ff)], [[-0.06, 0.32, -0.6], [0.0, 0.4, -0.26], C(0xf4f8ff)], [[0.02, 0.28, -0.52], [0.08, 0.36, -0.26], C(0xf4f8ff)], [[-0.2, 0.42, 0.18], [0.2, 0.5, 0.27], C(0x60e8ff)]);
     if (id === 'thep') hb.push([[-0.28, 0.2, -0.28], [0.28, 0.58, 0.28], { pz: C(0x5a626c), side: C(0x6a737e), top: C(0x7a8490), bottom: C(0x5a626c) }], [[-0.22, 0.3, 0.28], [0.22, 0.36, 0.29], C(0xffa020)]);
@@ -184,8 +196,60 @@
     if (id === 'ky') hb.push([[-0.29, 0.44, -0.29], [0.29, 0.6, 0.29], C(0xf2c020)], [[-0.32, 0.44, 0.2], [0.32, 0.48, 0.36], C(0xf2c020)], [[-0.04, 0.6, -0.2], [0.04, 0.64, 0.2], C(0xd8a010)]);
     head.add(part('head', hb));
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    return { root, hips, legL, legR, armL, armR, head, torso };
+    return { root, hips, spine, legL, legR, kneeL: legL.userData.knee, kneeR: legR.userData.knee, footL: legL.userData.foot, footR: legR.userData.foot,
+      armL, armR, elbowL: armL.userData.elbow, elbowR: armR.userData.elbow, handL: armL.userData.hand, handR: armR.userData.hand, head, torso };
   }
+
+  // One animator for every hero body on screen (your own in third person, the other players in co-op).
+  // s: { speed, back, air, sprint, pitch, mode: 'gun'|'melee'|'none', swing 0..1 or -1, kick, reload 0..1, cast 0..1 }.
+  // It keeps its own clock and stride phase in s and eases every joint, so states blend instead of snapping.
+  const ease = (o, k, v, r, dt) => { o[k] = o[k] === undefined ? v : o[k] + (v - o[k]) * Math.min(1, r * dt); return o[k]; };
+  BZ.animHero = (m, s, dt) => {
+    const J = s.j || (s.j = {});
+    s.t = (s.t || 0) + dt; s.phase = (s.phase || 0) + dt * Math.min(9, s.speed) * 2.2 * (s.back ? -1 : 1);
+    const air = s.air || 0; const run = Math.min(1, s.speed / 3.6) * (1 - air); const ph = s.phase; const pitch = s.pitch || 0;
+    const sprint = s.sprint ? 1 : 0;
+    // legs: the thigh swings, the knee folds as the leg comes through, the foot rolls off the ground
+    [[m.legL, m.kneeL, m.footL, 1], [m.legR, m.kneeR, m.footR, -1]].forEach(([leg, knee, foot, sg]) => {
+      const a = Math.sin(ph) * sg; const through = Math.max(0, Math.cos(ph) * sg);
+      const thigh = -a * (0.62 + sprint * 0.25) * run + air * (sg > 0 ? -1.0 : -0.35) - (s.crouch || 0) * 0.9;
+      const kn = (0.08 + through * (1.05 + sprint * 0.35)) * run + air * (sg > 0 ? 1.5 : 0.7) + (s.crouch || 0) * 1.6;
+      leg.rotation.x = ease(J, 'th' + sg, thigh, 14, dt); knee.rotation.x = ease(J, 'kn' + sg, kn, 14, dt);
+      foot.rotation.x = ease(J, 'ft' + sg, -kn * 0.35 + Math.max(0, a) * 0.3 * run - air * 0.3, 14, dt);
+    });
+    m.hips.position.y = 0.75 + Math.abs(Math.cos(ph)) * 0.055 * run - air * 0.06 - (s.crouch || 0) * 0.25 + Math.sin(s.t * 2.1) * 0.006;
+    m.hips.rotation.y = ease(J, 'hy', Math.sin(ph) * 0.14 * run, 12, dt);
+    m.hips.rotation.z = Math.cos(ph) * 0.04 * run;
+    // upper body: lean into a run, breathe, counter-twist against the hips, twist hard through a swing
+    const sw = s.swing >= 0 ? s.swing : -1;
+    let twist = -Math.sin(ph) * 0.18 * run; let lean = 0.05 * run + sprint * 0.18 * run + Math.sin(s.t * 2.1) * 0.02;
+    if (sw >= 0) { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
+    lean += -(s.cast || 0) * 0.15 - (s.kick || 0) * 0.02;
+    m.spine.rotation.y = ease(J, 'twist', twist, sw >= 0 ? 30 : 12, dt); m.spine.rotation.x = ease(J, 'lean', lean, 10, dt);
+    // arms: [shoulder x, shoulder z, elbow x] for each side
+    let RA; let LA;
+    if (s.mode === 'gun') {
+      const low = sprint * run; const rl = s.reload || 0;
+      RA = [BZ.lerp(-1.42 - pitch * 0.95, -0.55, low) + (s.kick || 0) * 0.06 + rl * 0.5, 0, BZ.lerp(-0.28, -1.1, low) - rl * 0.5];
+      LA = [BZ.lerp(-1.25 - pitch * 0.95, -0.4, low) + rl * 0.9, BZ.lerp(-0.42, -0.1, low), BZ.lerp(-0.62, -1.2, low) - rl * 0.6];
+    } else if (s.mode === 'melee') {
+      if (sw >= 0) {
+        const up = sw < 0.3 ? sw / 0.3 : 0; const down = sw >= 0.3 && sw < 0.6 ? (sw - 0.3) / 0.3 : sw >= 0.6 ? 1 : 0; const back = sw >= 0.6 ? (sw - 0.6) / 0.4 : 0;
+        RA = [BZ.lerp(BZ.lerp(-0.8, -2.9, up), -0.35, down) * (1 - back) + -0.8 * back, BZ.lerp(0.3, -0.5, down) * (1 - back), BZ.lerp(-1.3, -0.1, down) * (1 - back) - 0.9 * back];
+        LA = [-0.6 - down * 0.4, -0.2, -0.9];
+      } else {
+        RA = [-0.7 - Math.sin(ph) * 0.3 * run, 0.1, -0.95]; LA = [-0.4 + Math.sin(ph) * 0.6 * run, -0.15, -0.6 - run * 0.4];
+      }
+    } else {
+      RA = [Math.sin(ph) * 0.7 * run - air * 1.2, 0.05 + air * 0.3, -0.2 - run * 0.5]; LA = [-Math.sin(ph) * 0.7 * run - air * 1.2, -0.05 - air * 0.3, -0.2 - run * 0.5];
+    }
+    if (s.cast > 0) { const c = Math.min(1, s.cast); LA = [BZ.lerp(LA[0], -2.75, c), BZ.lerp(LA[1], -0.45, c), BZ.lerp(LA[2], -0.15, c)]; }
+    const fast = sw >= 0 ? 32 : 16;
+    m.armR.rotation.x = ease(J, 'rax', RA[0], fast, dt); m.armR.rotation.z = ease(J, 'raz', RA[1], fast, dt); m.elbowR.rotation.x = ease(J, 'rex', RA[2], fast, dt);
+    m.armL.rotation.x = ease(J, 'lax', LA[0], 16, dt); m.armL.rotation.z = ease(J, 'laz', LA[1], 16, dt); m.elbowL.rotation.x = ease(J, 'lex', LA[2], 16, dt);
+    // the head keeps looking where the hero aims while the body moves under it
+    m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6, 12, dt); m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y;
+  };
   BZ.heroModel = (id) => heroModel(byId(id));
 
   // ---------- the heavy cannon the engineer drops (built once, cloned per use) ----------
@@ -298,7 +362,7 @@
     const cam = () => { const c = G.camera; c.updateMatrixWorld(); return c; };
     const r3 = (v) => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)];
     const v3 = (a) => V().set(a[0], a[1], a[2]);
-    function aimRay() { const c = cam(); const o = V(); const d = V(); c.getWorldPosition(o); c.getWorldDirection(d); return { o, d }; }
+    function aimRay() { const c = cam(); const o = V(); const d = V(); c.getWorldPosition(o); c.getWorldDirection(d); if (G.tps) G.tps.fix(o, d); return { o, d }; }
     function aimPoint(max = 60) {
       const { o, d } = aimRay(); const wh = G.world.raycast(o, d, max); const zh = G.zombies.hitTest(o, d, wh ? wh.t : max);
       const t = zh ? zh.t : wh ? wh.t : max; const at = o.clone().addScaledVector(d, t); at.y = Math.max(0, zh ? zh.z.pos.y : at.y);

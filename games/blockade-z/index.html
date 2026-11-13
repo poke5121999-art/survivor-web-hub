@@ -226,6 +226,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
 .tb[data-btn=fire] { right: max(24px, env(safe-area-inset-right)); bottom: 90px; width: 96px; height: 96px; background: rgba(200, 50, 30, .75); font-size: 16px; }
 .tb[data-btn=ads] { right: max(136px, calc(env(safe-area-inset-right) + 112px)); bottom: 120px; width: 60px; height: 60px; }
 .tb[data-btn=jump] { right: max(24px, env(safe-area-inset-right)); bottom: 200px; width: 64px; height: 64px; }
+#viewbtn { position: fixed; top: max(100px, calc(env(safe-area-inset-top) + 92px)); right: max(12px, env(safe-area-inset-right)); z-index: 6; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 2px solid rgba(255,255,255,.35); border-radius: 8px; background: rgba(10,12,16,.55); color: #fff; font: 800 12px ui-monospace, Consolas, monospace; letter-spacing: .04em; cursor: pointer; pointer-events: auto; }
+#viewbtn kbd { padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.18); font: inherit; }
 .tb[data-btn=reload] { right: max(136px, calc(env(safe-area-inset-right) + 112px)); bottom: 40px; width: 60px; height: 60px; }
 .tb[data-act=pause] { left: max(84px, calc(env(safe-area-inset-left) + 76px)); top: 4px; width: 40px; height: 32px; pointer-events: auto; }
 @media (max-width: 700px) { #banner b { font-size: 30px; } #title p.tag { font-size: 15px; } .card { padding: 16px; } }
@@ -261,6 +263,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span></div>
   <div id="fuel"><small>JETPACK</small><i></i></div>
   <div id="slots"></div>
+  <button id="viewbtn" type="button" title="Đổi góc nhìn (phím V)"><kbd>V</kbd> <span>NGÔI 3</span></button>
 </div>
 
 <div id="touch">
@@ -281,10 +284,9 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
     <div class="row"><button class="btn" data-act="play">Chơi</button><button class="btn" data-act="coop">Chơi cùng bạn</button><button class="btn ghost" data-act="settings">Cài đặt</button></div>
     <div class="keys">
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
-      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd> <kbd>2</kbd> / <kbd>Q</kbd> / lăn chuột đổi vũ khí<br>
-      <kbd>E</kbd> nhặt vũ khí dưới đất · <kbd>X</kbd> bỏ vũ khí đang cầm (cầm tối đa 2 món)<br>
-      <kbd>F</kbd> kỹ năng nhân vật · <kbd>G</kbd> ném bom · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
-      <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
+      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp<br>
+      <kbd>F</kbd> <kbd>C</kbd> kỹ năng · <kbd>Q</kbd> chiêu tối thượng · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
+      <kbd>V</kbd> đổi góc nhìn thứ nhất / thứ ba · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> chọn nâng cấp · <kbd>Esc</kbd> tạm dừng
     </div>
     <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
   </div>
@@ -348,31 +350,32 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113q"></script>
-<script type="module" src="js/core.js?v=20261113q"></script>
-<script type="module" src="js/art.js?v=20261113q"></script>
-<script type="module" src="js/world.js?v=20261113q"></script>
-<script type="module" src="js/audio.js?v=20261113q"></script>
-<script type="module" src="js/fx.js?v=20261113q"></script>
-<script type="module" src="js/zombies.js?v=20261113q"></script>
-<script type="module" src="js/zkinds.js?v=20261113q"></script>
-<script type="module" src="js/bosses.js?v=20261113q"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113q"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113q"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113q"></script>
-<script type="module" src="js/boss-alien.js?v=20261113q"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113q"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113q"></script>
-<script type="module" src="js/weapons.js?v=20261113q"></script>
-<script type="module" src="js/allies.js?v=20261113q"></script>
-<script type="module" src="js/heroes.js?v=20261113q"></script>
-<script type="module" src="js/build.js?v=20261113q"></script>
-<script type="module" src="js/sky.js?v=20261113q"></script>
-<script type="module" src="js/coop.js?v=20261113q"></script>
-<script type="module" src="js/polish.js?v=20261113q"></script>
-<script type="module" src="js/gear.js?v=20261113q"></script>
-<script type="module" src="js/player.js?v=20261113q"></script>
-<script type="module" src="js/ui.js?v=20261113q"></script>
-<script type="module" src="js/main.js?v=20261113q"></script>
+<script type="module" src="js/boot.js?v=20261113r"></script>
+<script type="module" src="js/core.js?v=20261113r"></script>
+<script type="module" src="js/art.js?v=20261113r"></script>
+<script type="module" src="js/world.js?v=20261113r"></script>
+<script type="module" src="js/audio.js?v=20261113r"></script>
+<script type="module" src="js/fx.js?v=20261113r"></script>
+<script type="module" src="js/zombies.js?v=20261113r"></script>
+<script type="module" src="js/zkinds.js?v=20261113r"></script>
+<script type="module" src="js/bosses.js?v=20261113r"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113r"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113r"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113r"></script>
+<script type="module" src="js/boss-alien.js?v=20261113r"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113r"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113r"></script>
+<script type="module" src="js/weapons.js?v=20261113r"></script>
+<script type="module" src="js/allies.js?v=20261113r"></script>
+<script type="module" src="js/heroes.js?v=20261113r"></script>
+<script type="module" src="js/build.js?v=20261113r"></script>
+<script type="module" src="js/sky.js?v=20261113r"></script>
+<script type="module" src="js/coop.js?v=20261113r"></script>
+<script type="module" src="js/polish.js?v=20261113r"></script>
+<script type="module" src="js/gear.js?v=20261113r"></script>
+<script type="module" src="js/player.js?v=20261113r"></script>
+<script type="module" src="js/tps.js?v=20261113r"></script>
+<script type="module" src="js/ui.js?v=20261113r"></script>
+<script type="module" src="js/main.js?v=20261113r"></script>
 </body>
 </html>

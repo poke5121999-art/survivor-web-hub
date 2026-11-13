@@ -180,6 +180,7 @@
       const cam = G.camera;
       cam.position.set(P.pos.x, P.pos.y + MOVE.eye - P.landDip - (P.stepLag || 0) + Math.abs(Math.sin(P.stride * Math.PI)) * 0.045 * bobA * (P.sprinting ? 1.6 : 1), P.pos.z);
       cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02 - (P.wallK || 0) * 0.14, 'YXZ');
+      if (G.tps) G.tps.place(cam, P, dt);
       // recoil recovery: most of the kick returns, a little stays (like real recoil)
       P.pitch += kp * dt * 0.6;
       const fovT = (P.sprinting ? s.fov + 6 : s.fov) + (G.hero.t.dash > 0 ? 14 : 0) + Math.abs(P.wallK || 0) * 6;

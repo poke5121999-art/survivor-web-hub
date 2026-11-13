@@ -342,7 +342,7 @@
     const sweep = new THREE.Vector3(); const toZ = new THREE.Vector3(); const chest = new THREE.Vector3();
     function meleeHit(w, sw) {
       const P = G.player; const cam = G.camera;
-      cam.updateMatrixWorld(); cam.getWorldPosition(o); cam.getWorldDirection(d); right.set(1, 0, 0).applyQuaternion(cam.quaternion);
+      cam.updateMatrixWorld(); cam.getWorldPosition(o); cam.getWorldDirection(d); right.set(1, 0, 0).applyQuaternion(cam.quaternion); if (G.tps) G.tps.fix(o, d);
       const fl = Math.hypot(d.x, d.z) || 1e-3; const fx = d.x / fl; const fz = d.z / fl;
       const dirX = sw.pat === 'l2r' ? 1 : sw.pat === 'over' ? 0 : -1;
       sweep.set(right.x * dirX, sw.pat === 'over' ? -0.6 : 0.15, right.z * dirX).add(new THREE.Vector3(fx, 0, fz).multiplyScalar(0.5)).normalize();
@@ -423,17 +423,17 @@
       const cam = G.camera;
       cam.updateMatrixWorld();
       cam.getWorldPosition(o);
-      cam.getWorldDirection(d);
+      cam.getWorldDirection(d); if (G.tps) G.tps.fix(o, d);
       right.set(1, 0, 0).applyQuaternion(cam.quaternion); up.set(0, 1, 0).applyQuaternion(cam.quaternion);
       const moving = Math.min(1, Math.hypot(P.vel.x, P.vel.z) / 4) + (P.onGround ? 0 : 1);
       const spread = (w.spread + w.moveSpread * moving) * (1 - S.ads * 0.6) + S.bloom + (G.env ? G.env.spread : 0);
       let anyHit = false; let head = false;
       if (w.rocket) {
-        const from = new THREE.Vector3().copy(o).addScaledVector(d, 1.0).addScaledVector(right, 0.15).addScaledVector(up, -0.05);
+        const from = new THREE.Vector3().copy(o).addScaledVector(d, 1.0); if (!(G.tps && G.tps.on)) from.addScaledVector(right, 0.15).addScaledVector(up, -0.05);
         const aim = d.clone().addScaledVector(right, (G.rng.next() - 0.5) * spread).addScaledVector(up, (G.rng.next() - 0.5) * spread).normalize();
         G.gear.fireRocket(from, aim);
       }
-      const muzzleW = new THREE.Vector3().copy(o).addScaledVector(d, 0.6).addScaledVector(right, 0.18).addScaledVector(up, -0.12);
+      const muzzleW = new THREE.Vector3().copy(o).addScaledVector(d, 0.6).addScaledVector(right, 0.18).addScaledVector(up, -0.12); if (G.tps) G.tps.muzzle(muzzleW);
       const pend = new Map();
       const pellets = w.rocket ? 0 : w.pellets + (storm ? 2 : 0);
       for (let i = 0; i < pellets; i++) {
@@ -563,7 +563,7 @@
       updateTrail(dt, wm);
       const saberOn = S.cur === 'saber' && S.phase !== 'holster' && P.alive;
       saberLight.intensity = saberOn ? 2.4 + Math.sin(performance.now() / 45) * 0.25 + (S.swing ? 1.2 : 0) : 0;
-      if (saberOn) { const c = G.camera; c.getWorldPosition(o); c.getWorldDirection(d); right.set(1, 0, 0).applyQuaternion(c.quaternion); saberLight.position.copy(o).addScaledVector(d, 0.7).addScaledVector(right, 0.3); }
+      if (saberOn) { const c = G.camera; c.getWorldPosition(o); c.getWorldDirection(d); if (G.tps) G.tps.fix(o, d); right.set(1, 0, 0).applyQuaternion(c.quaternion); saberLight.position.copy(o).addScaledVector(d, 0.7).addScaledVector(right, 0.3); }
       if (models.saber.userData.parts.halo) models.saber.userData.parts.halo.material.opacity = 0.5 + Math.sin(performance.now() / 37) * 0.06;
       vmCam.fov = BZ.lerp(62, 50, S.ads); vmCam.updateProjectionMatrix();
     }
@@ -617,6 +617,7 @@
 
     function render(renderer) {
       vmCam.aspect = G.camera.aspect; vmCam.updateProjectionMatrix();
+      if (G.tps && G.tps.on) return;
       renderer.clearDepth();
       renderer.render(vmScene, vmCam);
     }

@@ -76,7 +76,7 @@ BZ.makeCoop = (G) => {
     if (a) G.scene.remove(a.root);
     const h = BZ.HEROES.find((x) => x.id === hero) || BZ.HEROES[3];
     const m = BZ.heroModel(h.id);
-    const hand = new THREE.Group(); hand.position.set(0, -0.62, 0.05); m.armR.add(hand);
+    const hand = m.handR;
     const label = tag(name, '#' + h.color.toString(16).padStart(6, '0')); label.position.y = 2.35; m.root.add(label);
     G.scene.add(m.root);
     a = { pid, name, hero, root: m.root, m, hand, weapon: null, pos: new THREE.Vector3(), tgt: new THREE.Vector3(), yaw: 0, tyaw: 0, pitch: 0, shots: 0, phase: 0, swingT: 0, alive: true,
@@ -120,19 +120,15 @@ BZ.makeCoop = (G) => {
       a.pos.lerp(a.tgt, Math.min(1, dt * 14)); if (a.pos.distanceTo(a.tgt) > 5) a.pos.copy(a.tgt);
       a.yaw += BZ.wrapAngle(a.tyaw - a.yaw) * Math.min(1, dt * 14);
       const sp = Math.hypot(a.pos.x - before.x, a.pos.z - before.z) / Math.max(dt, 1e-3);
-      a.phase += dt * sp * 2.4; a.swingT = Math.max(0, a.swingT - dt);
-      const m = a.m; const sw = Math.sin(a.phase) * Math.min(1, sp / 3) * 0.8;
+      a.swingT = Math.max(0, a.swingT - dt); const vy = (a.pos.y - before.y) / Math.max(dt, 1e-3);
+      const m = a.m;
       a.root.position.copy(a.pos); a.root.rotation.y = a.yaw + Math.PI;
       if (!a.alive) { a.root.rotation.x = BZ.damp(a.root.rotation.x, -Math.PI / 2, 8, dt); continue; }
       a.root.rotation.x = BZ.damp(a.root.rotation.x, 0, 8, dt);
-      m.legL.rotation.x = sw; m.legR.rotation.x = -sw; m.hips.position.y = 0.75 + Math.abs(Math.cos(a.phase)) * 0.04 * Math.min(1, sp / 2);
-      const W = BZ.WEAPONS[a.weapon];
-      if (W && W.melee) {
-        const k = a.swingT > 0 ? 1 - a.swingT / W.swing : 1;
-        m.armR.rotation.x = a.swingT > 0 ? (k < 0.35 ? BZ.lerp(-1.3, -2.9, k / 0.35) : BZ.lerp(-2.9, -0.5, Math.min(1, (k - 0.35) / 0.3))) : -1.0 + sw * 0.3;
-        m.armL.rotation.x = -0.3 - sw * 0.5;
-      } else { m.armR.rotation.x = -1.45 - a.pitch * 0.8; m.armL.rotation.x = -1.3 - a.pitch * 0.8; m.armL.rotation.z = -0.35; }
-      m.head.rotation.x = -a.pitch * 0.6;
+      const W = BZ.WEAPONS[a.weapon] || {}; const st = a.st || (a.st = {});
+      st.speed = sp; st.air = BZ.damp(st.air || 0, Math.abs(vy) > 1.2 ? 1 : 0, 8, dt); st.pitch = a.pitch; st.mode = W.melee ? 'melee' : a.weapon ? 'gun' : 'none';
+      st.swing = a.swingT > 0 && W.swing ? 1 - a.swingT / W.swing : -1; st.sprint = sp > 5.5;
+      BZ.animHero(m, st, dt);
     }
   }
   function dropAvatar(pid) { const a = avatars.get(pid); if (a) { G.scene.remove(a.root); avatars.delete(pid); } }

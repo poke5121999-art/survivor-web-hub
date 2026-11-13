@@ -47,7 +47,7 @@ const BOT = `(() => {
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('response', (r) => { if (r.status() >= 400) problems.push('http ' + r.status() + ': ' + r.url()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?' + (process.env.BZ_QUERY || 'autostart=1&nolock=1&seed=7'));
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?fp=1&' + (process.env.BZ_QUERY || 'autostart=1&nolock=1&seed=7'));
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     check(true, 'booted');
     check(await page.evaluate('window.__G.state') === 'playing', 'autostart puts the game in playing state');

@@ -49,6 +49,7 @@
     G.weapons = BZ.makeWeapons(G);
     G.allies = BZ.makeAllies(G);
     G.hero = BZ.makeHeroes(G);
+    G.tps = BZ.makeTps(G);
     G.sky = BZ.makeSky(G);
     G.coop = BZ.makeCoop(G);
     G.polish = BZ.makePolish(G);
@@ -384,6 +385,7 @@
     function draw() {
       renderer.info.reset();
       renderer.clear();
+      if (G.tps) G.tps.vis();
       renderer.render(scene, camera);
       if (G.state === 'playing' || G.state === 'pick' || G.state === 'paused') G.weapons.render(renderer);
       window.__stats.draws = renderer.info.render.calls; window.__stats.tris = renderer.info.render.triangles;
