@@ -86,11 +86,7 @@ BZ.makeCoop = (G) => {
   }
   function setWeapon(a, id) {
     if (a.weapon === id) return;
-    while (a.hand.children.length) a.hand.remove(a.hand.children[0]);
-    a.weapon = id; if (!id) return;
-    const g = BZ.worldGun(id); const W = BZ.WEAPONS[id];
-    if (W.melee) { g.rotation.x = Math.PI / 2; g.scale.setScalar(0.9); } else { g.rotation.set(-Math.PI / 2, 0, Math.PI); g.scale.setScalar(0.9); }
-    a.hand.add(g);
+    a.weapon = id; a.eq = BZ.equipWeapon(a.m, id);
   }
   // pose row: [x, y, z, yaw, pitch, weapon index, shots, flags(1 alive, 2 sprint), hp]
   function applyPose(a, r) {
@@ -101,13 +97,31 @@ BZ.makeCoop = (G) => {
     a.shots = shots; a.alive = alive; a.hp = r[8];
     a.target.alive = alive; a.target.pos.copy(a.tgt);
   }
-  const muzzle = new THREE.Vector3(); const aimDir = new THREE.Vector3();
+  const muzzle = new THREE.Vector3(); const aimDir = new THREE.Vector3(); const rightV = new THREE.Vector3();
   function fireFx(a, n) {
     const W = BZ.WEAPONS[a.weapon]; if (!W) return;
-    if (W.melee) { a.swingT = W.swing; G.audio.playAt(W.snd, a.pos, { gain: 0.6 }); return; }
+    if (W.melee) {
+      const t = performance.now() / 1000; if (t - (a.lastSwing || 0) > 0.7) a.combo = 0; a.lastSwing = t;
+      for (let i = 0; i < n; i++) { a.pat = W.combo[(a.combo || 0) % W.combo.length]; a.combo = (a.combo || 0) + 1; }
+      a.swingT = W.swing; G.audio.playAt(W.snd, a.pos, { gain: 0.6 }); return;
+    }
     a.root.updateMatrixWorld(true);
     aimDir.set(-Math.sin(a.yaw) * Math.cos(a.pitch), Math.sin(a.pitch), -Math.cos(a.yaw) * Math.cos(a.pitch));
-    muzzle.set(a.pos.x, a.pos.y + 1.4, a.pos.z).addScaledVector(aimDir, 0.9);
+    if (W.thrown) {
+      // the real projectile, flying and sticking, hurting nobody: the thrower's own machine decides the hits
+      const right = rightV.set(Math.cos(a.yaw), 0, -Math.sin(a.yaw));
+      a.swingT = W.throwT; a.hideT = W.hide; a.m.handR.getWorldPosition(muzzle); muzzle.addScaledVector(aimDir, 0.7);
+      const lift = (0.5 * W.grav * (25 / W.speed) ** 2) / 25;
+      for (let i = 0; i < n; i++) for (let j = 0; j < W.pellets; j++) {
+        const dir = aimDir.clone().addScaledVector(right, W.pellets > 1 ? (j - (W.pellets - 1) / 2) * W.fan : 0); dir.y += lift; dir.normalize();
+        G.weapons.cosmeticThrow(a.weapon, muzzle, dir);
+      }
+      G.audio.playAt(W.snd, a.pos, { gain: 0.5 }); return;
+    }
+    let side = 0;
+    if (W.dual) { a.side = 1 - (a.side === undefined ? 1 : a.side); side = a.side; (side ? a.m.handL : a.m.handR).getWorldPosition(muzzle); muzzle.addScaledVector(aimDir, 0.55); if (side) a.kL = 6; else a.kR = 6; }
+    else muzzle.set(a.pos.x, a.pos.y + 1.4, a.pos.z).addScaledVector(aimDir, 0.9);
+    if (W.spinUp) a.spinT = 0.5;
     for (let i = 0; i < n; i++) {
       if (!W.rocket) { const end = muzzle.clone().addScaledVector(aimDir, 30).add(new THREE.Vector3(G.rng.range(-0.6, 0.6), G.rng.range(-0.4, 0.4), G.rng.range(-0.6, 0.6))); G.fx.tracer(muzzle.clone(), end); }
       G.fx.puff(muzzle, { glow: true, s0: 0.7, s1: 0.2, life: 0.06, c0: 0xfff0b0, c1: 0xffa040 });
@@ -126,8 +140,11 @@ BZ.makeCoop = (G) => {
       if (!a.alive) { a.root.rotation.x = BZ.damp(a.root.rotation.x, -Math.PI / 2, 8, dt); continue; }
       a.root.rotation.x = BZ.damp(a.root.rotation.x, 0, 8, dt);
       const W = BZ.WEAPONS[a.weapon] || {}; const st = a.st || (a.st = {});
-      st.speed = sp; st.air = BZ.damp(st.air || 0, Math.abs(vy) > 1.2 ? 1 : 0, 8, dt); st.pitch = a.pitch; st.mode = W.melee ? 'melee' : a.weapon ? 'gun' : 'none';
-      st.swing = a.swingT > 0 && W.swing ? 1 - a.swingT / W.swing : -1; st.sprint = sp > 5.5;
+      st.speed = sp; st.air = BZ.damp(st.air || 0, Math.abs(vy) > 1.2 ? 1 : 0, 8, dt); st.pitch = a.pitch; st.mode = a.weapon ? BZ.holdOf(W) : 'none'; st.pat = a.pat;
+      const dur = W.throwT || W.swing; st.swing = a.swingT > 0 && dur ? 1 - a.swingT / dur : -1; st.sprint = sp > 5.5;
+      a.kR = Math.max(0, (a.kR || 0) - dt * 30); a.kL = Math.max(0, (a.kL || 0) - dt * 30); st.kick = a.kR; st.kickL = a.kL;
+      a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt);
+      if (a.eq && a.eq.gun) { a.eq.gun.visible = !(W.thrown && a.hideT > 0); const bar = a.eq.gun.getObjectByName('barrels'); if (bar) { a.spinAng = ((a.spinAng || 0) + (a.spinT > 0 ? 40 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spinAng; } }
       BZ.animHero(m, st, dt);
     }
   }

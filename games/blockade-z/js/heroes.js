@@ -38,7 +38,7 @@
       ult: { key: 'vanish', name: 'Ám Sát', cost: 1500, desc: 'Tàng hình 7 giây: zombie mất dấu bạn, chạy nhanh hơn, mỗi đòn gây gấp 2,5 và luôn chí mạng.' },
       look: { skin: 0xe0b090, hair: 0x14101c, eye: 0xc080ff, shirt: 0x1c1826, shirt2: 0x8a40e0, pants: 0x18141e, boot: 0x0e0c12, mask: 0x8a40e0 } },
     { id: 'phao', name: 'Pháo Thủ', role: 'Không kích', color: 0xff4a3a, hp: 110, speed: 0.97,
-      passive: 'Tên lửa của Pháo Thủ (không kích, Mưa Pháo, bazooka) và mìn nổ to hơn 40%.',
+      passive: 'Tên lửa của Pháo Thủ (không kích, Mưa Pháo, bazooka) và mìn nổ to hơn 25%.',
       s1: { key: 'strike', name: 'Không kích', cd: 28, desc: 'Đánh dấu chỗ đang ngắm, 1 giây sau 6 quả đạn pháo dội xuống.' },
       s2: { key: 'mine', name: 'Mìn dính', cd: 6, charges: 2, desc: 'Ném mìn dính xuống đất, nổ khi zombie tới gần 2 m.' },
       ult: { key: 'barrage', name: 'Mưa Pháo', cost: 1800, desc: '20 quả pháo cày một đường dài 30 m theo hướng bạn nhìn.' },
@@ -46,7 +46,7 @@
     { id: 'bang', name: 'Băng', role: 'Đóng băng', color: 0x9ae8ff, hp: 100, speed: 1,
       passive: 'Đạn và lưỡi kiếm làm zombie chậm 25% trong 1 giây.',
       s1: { key: 'freeze', name: 'Sóng băng', cd: 18, desc: 'Đóng băng mọi zombie trong 9 m suốt 3,5 giây; chết khi đang đóng băng thì vỡ vụn.' },
-      s2: { key: 'lance', name: 'Mũi băng', cd: 6, desc: 'Phóng mũi băng xuyên 35 m: 60 sát thương và hai lớp lạnh cho mọi zombie trên đường.' },
+      s2: { key: 'lance', name: 'Mũi băng', cd: 6, desc: 'Phóng mũi băng xuyên 35 m: 110 sát thương và hai lớp lạnh cho mọi zombie trên đường.' },
       ult: { key: 'blizzard', name: 'Kỷ Băng Hà', cost: 1500, desc: 'Bão tuyết 14 m quanh bạn trong 8 giây: zombie lạnh dần rồi đóng băng.' },
       look: { skin: 0xf4dcd0, hair: 0xe8f4ff, eye: 0x40e0ff, shirt: 0x8cc8e8, shirt2: 0xf4f8ff, pants: 0x3a5a7a, boot: 0xe8f0f8 } },
     { id: 'hoa', name: 'Hoả', role: 'Phóng lửa', color: 0xff6a20, hp: 110, speed: 1,
@@ -75,7 +75,7 @@
       look: { skin: 0xd8a070, hair: 0x4a2a1a, eye: 0x202020, shirt: 0xd88a20, shirt2: 0x3a3a3a, pants: 0x5a4a32, boot: 0x2a2018 } },
   ];
   // each hero fights with one weapon, the whole run
-  const KIT = { gio: 'katana', thep: 'axe', yta: 'pistol', mua: 'smg', bong: 'saber', phao: 'bazooka', bang: 'rifle', hoa: 'shotgun', sam: 'rifle', doc: 'pistol', ky: 'shotgun' };
+  const KIT = { gio: 'katana', thep: 'longsword', yta: 'dualpistol', mua: 'minigun', bong: 'shuriken', phao: 'bazooka', bang: 'spear', hoa: 'fists', sam: 'javelin', doc: 'glaive', ky: 'shotgun' };
   for (const h of HEROES) h.weapon = KIT[h.id];
   const ULT_DUR = { drones: 7, vanish: 7, blizzard: 8, dragon: 6, thunder: 6, plague: 8, artillery: 14, revive: 6 };
   for (const h of HEROES) { h.skill = h.s1; h.ult.dur = ULT_DUR[h.ult.key] || 1; }
@@ -203,6 +203,7 @@
   // One animator for every hero body on screen (your own in third person, the other players in co-op).
   // s: { speed, back, air, sprint, pitch, mode: 'gun'|'melee'|'none', swing 0..1 or -1, kick, reload 0..1, cast 0..1 }.
   // It keeps its own clock and stride phase in s and eases every joint, so states blend instead of snapping.
+  const IK = { a: new THREE.Vector3(), b: new THREE.Vector3(), t: new THREE.Vector3(), v: new THREE.Vector3(), p: new THREE.Vector3(), e: new THREE.Vector3(), u: new THREE.Vector3(), f: new THREE.Vector3(), z: new THREE.Vector3(), x: new THREE.Vector3(), q: new THREE.Quaternion(), m: new THREE.Matrix4() };
   const ease = (o, k, v, r, dt) => { o[k] = o[k] === undefined ? v : o[k] + (v - o[k]) * Math.min(1, r * dt); return o[k]; };
   BZ.animHero = (m, s, dt) => {
     const J = s.j || (s.j = {});
@@ -223,16 +224,28 @@
     // upper body: lean into a run, breathe, counter-twist against the hips, twist hard through a swing
     const sw = s.swing >= 0 ? s.swing : -1;
     let twist = -Math.sin(ph) * 0.18 * run; let lean = 0.05 * run + sprint * 0.18 * run + Math.sin(s.t * 2.1) * 0.02;
-    if (sw >= 0) { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
+    const mode = s.mode; const bump = sw >= 0 ? Math.sin(Math.PI * Math.min(1, sw)) : 0; // 0 -> 1 -> 0 over a swing
+    if (sw >= 0) {
+      if (mode === 'spear') { twist += 0.3 * bump; lean += 0.22 * bump; }
+      else if (mode === 'fists') { twist += (s.pat === 'jabL' ? -0.45 : 0.45) * bump; lean += 0.14 * bump; }
+      else if (mode === 'throw') { twist += BZ.lerp(-0.5, 0.5, Math.min(1, sw / 0.6)); lean += 0.2 * bump; }
+      else { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
+    }
     lean += -(s.cast || 0) * 0.15 - (s.kick || 0) * 0.02;
     m.spine.rotation.y = ease(J, 'twist', twist, sw >= 0 ? 30 : 12, dt); m.spine.rotation.x = ease(J, 'lean', lean, 10, dt);
     // arms: [shoulder x, shoulder z, elbow x] for each side
-    let RA; let LA;
-    if (s.mode === 'gun') {
+    let RA; let LA; let ik = null; // ik: the left hand rides the weapon shaft (towards the head: dir, along it by off)
+    const mix = (x, y, k) => [x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k];
+    if (mode === 'gun') {
       const low = sprint * run; const rl = s.reload || 0;
       RA = [BZ.lerp(-1.42 - pitch * 0.95, -0.55, low) + (s.kick || 0) * 0.06 + rl * 0.5, 0, BZ.lerp(-0.28, -1.1, low) - rl * 0.5];
       LA = [BZ.lerp(-1.25 - pitch * 0.95, -0.4, low) + rl * 0.9, BZ.lerp(-0.42, -0.1, low), BZ.lerp(-0.62, -1.2, low) - rl * 0.6];
-    } else if (s.mode === 'melee') {
+    } else if (mode === 'dual') {
+      // a pistol in each hand, both arms out at the aim, each recoiling on its own
+      const low = sprint * run; const rl = s.reload || 0;
+      RA = [BZ.lerp(-1.42 - pitch * 0.95, -0.55, low) + (s.kick || 0) * 0.06 + rl * 0.5, 0.1, BZ.lerp(-0.28, -1.1, low) - rl * 0.5];
+      LA = [BZ.lerp(-1.42 - pitch * 0.95, -0.55, low) + (s.kickL || 0) * 0.06 + rl * 0.5, -0.1, BZ.lerp(-0.28, -1.1, low) - rl * 0.5];
+    } else if (mode === 'melee' || mode === 'sword2') {
       if (sw >= 0) {
         const up = sw < 0.3 ? sw / 0.3 : 0; const down = sw >= 0.3 && sw < 0.6 ? (sw - 0.3) / 0.3 : sw >= 0.6 ? 1 : 0; const back = sw >= 0.6 ? (sw - 0.6) / 0.4 : 0;
         RA = [BZ.lerp(BZ.lerp(-0.8, -2.9, up), -0.35, down) * (1 - back) + -0.8 * back, BZ.lerp(0.3, -0.5, down) * (1 - back), BZ.lerp(-1.3, -0.1, down) * (1 - back) - 0.9 * back];
@@ -240,13 +253,63 @@
       } else {
         RA = [-0.7 - Math.sin(ph) * 0.3 * run, 0.1, -0.95]; LA = [-0.4 + Math.sin(ph) * 0.6 * run, -0.15, -0.6 - run * 0.4];
       }
+      if (mode === 'sword2') ik = { off: -0.2, dir: [0, 0, 1] };
+    } else if (mode === 'spear' || mode === 'glaive') {
+      // two-handed polearm: the back hand at the hip, the shaft along the forearm, the head leading
+      const aim = pitch * 0.7; const idle = [-0.85 - aim, 0.15, -0.95];
+      if (sw >= 0 && mode === 'spear') {
+        const pw = sw < 0.3 ? sw / 0.3 : 0; const st = sw >= 0.3 && sw < 0.6 ? (sw - 0.3) / 0.3 : sw >= 0.6 ? 1 : 0; const rec = sw >= 0.6 ? (sw - 0.6) / 0.4 : 0;
+        RA = mix(mix(mix(idle, [-0.6 - aim, 0.15, -1.5], pw), [-1.25 - aim, 0.05, -0.35], st), idle, rec);
+      } else if (sw >= 0) RA = [idle[0] - 0.25 * bump, idle[1], idle[2] + 0.2 * bump];
+      else RA = [idle[0] - Math.sin(ph) * 0.2 * run, idle[1], idle[2]];
+      LA = [-0.9, -0.2, -0.8];
+      ik = { off: 0.7, dir: [0, -1, 0] };
+    } else if (mode === 'fists') {
+      // boxing guard, then a straight jab from either side or an uppercut from the right
+      const gR = [-0.75, 0.12, -2.0]; const gL = [-0.75, -0.12, -2.0]; const wob = Math.sin(ph) * 0.1 * run;
+      RA = [gR[0] + wob, gR[1], gR[2]]; LA = [gL[0] - wob, gL[1], gL[2]];
+      if (sw >= 0) {
+        const e = sw < 0.45 ? sw / 0.45 : 1 - (sw - 0.45) / 0.55; const ee = e * e * (3 - 2 * e);
+        if (s.pat === 'jabL') LA = mix(gL, [-1.45 - pitch * 0.5, -0.05, -0.12], ee);
+        else if (s.pat === 'upper') RA = sw < 0.3 ? mix(gR, [-0.25, 0.15, -0.7], sw / 0.3) : mix([-0.25, 0.15, -0.7], [-1.25, 0.05, -2.3], Math.min(1, (sw - 0.3) / 0.25)).map((v, i) => (sw > 0.55 ? v + (gR[i] - v) * (sw - 0.55) / 0.45 : v));
+        else RA = mix(gR, [-1.45 - pitch * 0.5, 0.05, -0.12], ee);
+      }
+    } else if (mode === 'throw') {
+      // carried forward at the ready; drawn back while the throw winds up, then driven through
+      const rl = s.reload || 0;
+      RA = [-1.15 - pitch * 0.5 + rl * 0.3, 0.15, -0.8 - rl * 0.3]; LA = [-0.5, -0.3, -0.5];
+      if (s.wind) { RA = [0.5, 0.2, -1.0]; LA = [-1.0, -0.4, -0.4]; }
+      if (sw >= 0) { const e = Math.min(1, sw / 0.55); const ee = e * e * (3 - 2 * e); RA = [BZ.lerp(-2.4, -0.7, ee), 0.1, BZ.lerp(-0.3, -0.5, ee)]; LA = [BZ.lerp(-0.6, -1.3, ee), -0.4, -0.5]; }
     } else {
       RA = [Math.sin(ph) * 0.7 * run - air * 1.2, 0.05 + air * 0.3, -0.2 - run * 0.5]; LA = [-Math.sin(ph) * 0.7 * run - air * 1.2, -0.05 - air * 0.3, -0.2 - run * 0.5];
     }
-    if (s.cast > 0) { const c = Math.min(1, s.cast); LA = [BZ.lerp(LA[0], -2.75, c), BZ.lerp(LA[1], -0.45, c), BZ.lerp(LA[2], -0.15, c)]; }
+    if (s.cast > 0) { const c = Math.min(1, s.cast); LA = [BZ.lerp(LA[0], -2.75, c), BZ.lerp(LA[1], -0.45, c), BZ.lerp(LA[2], -0.15, c)]; ik = null; }
     const fast = sw >= 0 ? 32 : 16;
     m.armR.rotation.x = ease(J, 'rax', RA[0], fast, dt); m.armR.rotation.z = ease(J, 'raz', RA[1], fast, dt); m.elbowR.rotation.x = ease(J, 'rex', RA[2], fast, dt);
-    m.armL.rotation.x = ease(J, 'lax', LA[0], 16, dt); m.armL.rotation.z = ease(J, 'laz', LA[1], 16, dt); m.elbowL.rotation.x = ease(J, 'lex', LA[2], 16, dt);
+    if (s.pat === 'spin360' && sw >= 0 && mode === 'glaive') m.hips.rotation.y = sw * sw * (3 - 2 * sw) * Math.PI * 2;
+    if (ik) {
+      // two-bone reach: the left hand goes to a point on the shaft held by the right hand
+      m.root.updateMatrixWorld(true);
+      const hp = IK.a.setFromMatrixPosition(m.handR.matrixWorld);
+      IK.b.set(ik.dir[0], ik.dir[1], ik.dir[2]).transformDirection(m.handR.matrixWorld);
+      m.armL.parent.worldToLocal(IK.t.copy(hp).addScaledVector(IK.b, ik.off));
+      const sh = m.armL.position; const v = IK.v.copy(IK.t).sub(sh); const l1 = 0.32; const l2 = 0.305;
+      const dist = Math.max(0.15, Math.min(v.length(), (l1 + l2) * 0.985)); v.normalize();
+      const x = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist); const h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+      const pp = IK.p.set(-0.6, -1, 0.1); pp.addScaledVector(v, -pp.dot(v)).normalize();
+      const E = IK.e.copy(v).multiplyScalar(x).addScaledVector(pp, h);
+      const ey = IK.u.copy(E).normalize().negate();
+      const f = IK.f.copy(v).multiplyScalar(dist).sub(E).normalize();
+      const ez = IK.z.copy(f).addScaledVector(ey, -f.dot(ey)).normalize();
+      const ex = IK.x.crossVectors(ey, ez);
+      IK.q.setFromRotationMatrix(IK.m.makeBasis(ex, ey, ez));
+      m.armL.quaternion.slerp(IK.q, Math.min(1, 22 * dt));
+      m.elbowL.rotation.x += (Math.atan2(-f.dot(ez), -f.dot(ey)) - m.elbowL.rotation.x) * Math.min(1, 22 * dt);
+      J.lax = m.armL.rotation.x; J.laz = m.armL.rotation.z; J.lex = m.elbowL.rotation.x;
+    } else {
+      m.armL.rotation.y = 0;
+      m.armL.rotation.x = ease(J, 'lax', LA[0], 16, dt); m.armL.rotation.z = ease(J, 'laz', LA[1], 16, dt); m.elbowL.rotation.x = ease(J, 'lex', LA[2], 16, dt);
+    }
     // the head keeps looking where the hero aims while the body moves under it
     m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6, 12, dt); m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y;
     castAnim(m, s, dt);
@@ -336,7 +399,8 @@
     const speedMul = () => (H.def.speed || 1) * ((H.t.vanish || 0) > 0 ? 1.2 : 1);
     const invuln = () => (H.t.invuln || 0) > 0 || (H.t.dash || 0) > 0 || (H.t.blades || 0) > 0;
     const storm = () => (H.t.storm || 0) > 0;
-    const takenMul = () => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1);
+    // Hoả fights with bare fists in the thick of it, so the flame suit takes 40% off every hit
+    const takenMul = () => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1) * (H.def.id === 'hoa' ? 0.6 : 1);
     const dmgMul = () => ((H.t.vanish || 0) > 0 ? 2.5 : 1);
     const critAdd = () => ((H.t.vanish || 0) > 0 ? 1 : 0);
 
@@ -667,7 +731,7 @@
           G.audio.playAt('saber_hit', o, { gain: 0.8, rate: 2.2 }); G.audio.playAt('clank', o, { gain: 0.5, rate: 2 });
           if (!mine(a)) return;
           const skip = new Set(); let from = o.clone();
-          for (let n = 0; n < 8; n++) { const zh = G.zombies.hitTest(from, d, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 60, d, { imp: 0.8, status: st('chill', 2) }, zh.part); from = from.clone().addScaledVector(d, zh.t + 0.05); }
+          for (let n = 0; n < 8; n++) { const zh = G.zombies.hitTest(from, d, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 110, d, { imp: 0.8, status: st('chill', 2) }, zh.part); from = from.clone().addScaledVector(d, zh.t + 0.05); }
         },
       },
       blizzard: { fx(a) { effect('blizzard', a, 8); if (mine(a)) overlay('blue', 8); G.audio.play('wind', { gain: 0.6 }); },
@@ -1009,7 +1073,7 @@
     }
     const slotFrac = (k) => { const S = H.slots[k]; const def = H.def[k]; return S.n >= (def.charges || 1) ? 0 : S.cd / (def.cd * G.build.cdMul()); };
     return Object.assign(H, { HEROES, set, reset, use, update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
-      reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), blastMul: () => (H.def.id === 'phao' ? 1.4 : 1), chill: () => H.def.id === 'bang',
+      reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), blastMul: () => (H.def.id === 'phao' ? 1.25 : 1), chill: () => H.def.id === 'bang',
       ready: (k = 's1') => H.slots[k].n > 0, cdFrac: () => slotFrac('s1') });
   };
 })();

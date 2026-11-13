@@ -39,6 +39,49 @@ Mỗi kỹ năng chạy trên máy người dùng nó: hình, tác động lên 
 
 Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
 
+## Vũ khí riêng và cân bằng
+
+Mỗi nhân vật cầm một vũ khí riêng, đạn dự trữ vô hạn. Mỗi món có mô hình ở góc nhìn thứ nhất, mô hình cầm tay ở góc nhìn thứ ba và co-op, và dáng cầm riêng trong `BZ.animHero`.
+
+| Nhân vật | Vũ khí | Đặc điểm |
+|---|---|---|
+| Gió | katana | chém nhanh ba nhát |
+| Thép | kiếm dài | hai tay, nhát vung rộng; nhát thứ ba bổ từ trên xuống ×1,6 |
+| Y Tá | súng đôi | hai nòng bắn luân phiên |
+| Mưa | minigun | quay nòng 0,4 giây rồi xả 1300 viên/phút; khi bắn đi chậm lại |
+| Bóng | phi tiêu | ba ngôi sao xoè quạt, xuyên một con, cắm lại vào tường |
+| Pháo Thủ | bazooka | nổ diện rộng |
+| Băng | thương | đâm xa 3,9 m, xuyên cả hàng zombie |
+| Hoả | nắm đấm | đấm liên hoàn; cú thứ ba là đấm móc ×2,6, hất bay; bộ đồ chống lửa giảm 40% sát thương nhận vào |
+| Sấm | phi lao | ném theo đường cong, xuyên ba con rồi cắm lại |
+| Độc | đại đao | vung dài; nhát thứ ba xoay một vòng 360° trúng cả phía sau |
+| Kỹ Sư | shotgun | chín viên đạn chì |
+
+`tools/balance.js` cho mỗi nhân vật một bot tự ngắm và đánh. Bot đứng 25 giây giữa dòng zombie đợt 6 (`CROWD=16`, tức 16 con cùng lúc), một lần chỉ dùng vũ khí, một lần dùng cả kỹ năng và chiêu tối thượng. Sát thương được tính bằng máu zombie mất đi, nên vụ nổ và kỹ năng đều được đếm. Đo lặp cùng bộ số vẫn lệch khoảng ±120 sát thương/giây.
+
+Lần đo cuối, cột "chỉ vũ khí" và "cả bộ" là sát thương mỗi giây:
+
+| Nhân vật | Chỉ vũ khí | Cả bộ | Kill |
+|---|---|---|---|
+| Gió | 358 | 618 | 50 |
+| Thép | 494 | 680 | 49 |
+| Y Tá | 243 | 316 | 30 |
+| Mưa | 283 | 608 | 45 |
+| Bóng | 208 | 485 | 45 |
+| Pháo Thủ | 498 | 778 | 62 |
+| Băng | 369 | 477 | 36 |
+| Hoả | 296 | 513 | 41 |
+| Sấm | 192 | 567 | 49 |
+| Độc | 588 | 691 | 53 |
+| Kỹ Sư | 177 | 680 | 56 |
+
+Đã chỉnh từ lần đo đầu:
+- **Tăng sát thương:** súng đôi 26→46, phi tiêu 30→46, phi lao 130→170, thương 54→64, nắm đấm 22→34, shotgun 17→20; Mũi băng của Băng 60→110.
+- **Hoả:** giảm 40% sát thương nhận vào.
+- **Hạ:** rocket bazooka 480→400, nạp đạn 2,4→2,8 giây; nội tại nổ của Pháo Thủ 40%→25%.
+
+Y Tá là người hồi máu nên cố ý thấp hơn nhóm gây sát thương. Băng thiên về khống chế (đóng băng).
+
 ## Anim kỹ năng
 
 `js/castanim.js` cho cả 33 kỹ năng một động tác riêng trên thân nhân vật, diễn ở góc nhìn thứ ba và trên người chơi khác trong co-op. Mỗi động tác khai báo:
@@ -203,6 +246,8 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/projsho
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/tps.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/destruct.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/castanim.js <thư mục ảnh> [gio,ky]
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/weapons.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=gio,phao] [CROWD=16] [SECS=25] node games/blockade-z/tools/balance.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

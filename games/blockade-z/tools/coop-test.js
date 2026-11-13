@@ -31,6 +31,8 @@ const BASE = process.env.BZ_BASE;
   await B.waitForFunction("__G.state === 'select'", null, { timeout: 30000 });
   await B.evaluate('__select.pick(4); __select.go()');
   await A.waitForTimeout(5000);
+  // zombies keep spawning, so read both sides a few times until one reading lines up (snapshots arrive ~10 a second)
+  for (let i = 0; i < 6; i++) { const a = await A.evaluate('__G.zombies.aliveCount()'); const b = await B.evaluate('__G.zombies.aliveCount()'); if (b > 0 && Math.abs(a - b) <= 2) break; await A.waitForTimeout(300); }
   const s1 = {
     A: await A.evaluate("({ state: __G.state, host: __G.coop.host, peers: __G.coop.players(), alive: __G.zombies.aliveCount(), wave: __G.wave.n, av: [...__G.coop.avatars.keys()] })"),
     B: await B.evaluate("({ state: __G.state, guest: __G.coop.guest, me: __G.coop.me, alive: __G.zombies.aliveCount(), wave: __G.wave.n, rem: __G.wave.remaining(), av: [...__G.coop.avatars.keys()], weather: __G.sky.weather() })"),
@@ -47,6 +49,13 @@ const BASE = process.env.BZ_BASE;
   console.log('host after', JSON.stringify(hostSide));
   check(kill.pts > 0 && kill.dying && hostSide.z === false && hostSide.killed >= 1, 'a guest kill goes through the host and scores for the guest');
   check(await B.evaluate('__G.weapons.S.inv.join()') === await B.evaluate('__G.hero.def.weapon'), 'the guest holds its hero\'s one weapon');
+  // each side draws the other's weapon on its body (the host's minigun, the guest's shuriken), and a thrown star flies on the other screen too
+  const av = (P) => P.evaluate("(() => { const a = [...__G.coop.avatars.values()][0]; return { w: a.weapon, gun: !!(a.eq && a.eq.gun), barrels: !!(a.eq && a.eq.gun && a.eq.gun.getObjectByName('barrels')) }; })()");
+  const avA = await av(A); const avB = await av(B);
+  check(avA.w === 'shuriken' && avA.gun && avB.w === 'minigun' && avB.gun && avB.barrels, `the avatars hold the other player's weapon (host sees ${avA.w}, guest sees ${avB.w} with spinning barrels)`);
+  await B.evaluate('__G.god = true; __G.player.input.fire = true'); await A.waitForTimeout(700);
+  const flying = await A.evaluate('__G.scene.children.filter((c) => c.userData && c.userData.spin).length'); await B.evaluate('__G.player.input.fire = false; __G.god = false');
+  check(flying > 0, `the guest's thrown stars show on the host's screen (${flying} in the air)`);
   // a zombie next to B hurts B (the host decides)
   const hurt = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0]; const z = G.zombies.list.find((q) => q.alive && !q.T.fly && !q.T.boss); if (!z || !av) return 'none';
     z.pos.set(av.pos.x + 0.8, 0, av.pos.z); z.tgt = av.target; z.tgtT = 9; z.attackT = 0; return 'ok'; })()`);

@@ -10,7 +10,7 @@
     const T = { on: BZ.params.tp === '1', dist: 3.6, model: null, hero: null, gun: null };
     const V = () => new THREE.Vector3();
     const pivot = V(); const fwd = V(); const right = V(); const up = V(); const want = V(); const tmp = V();
-    const sp = { kick: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 };
+    const sp = { kick: BZ.spring(180, 14), kickL: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 };
     let curDist = 3.6;
 
     const btn = document.getElementById('viewbtn');
@@ -31,10 +31,8 @@
       if (T.model && T.hero === id && T.gun === wid) return;
       if (T.model) G.scene.remove(T.model.root);
       const m = BZ.heroModel(id); const hand = m.handR;
-      const W = BZ.WEAPONS[wid];
-      if (wid && BZ.worldGun) { const g = BZ.worldGun(wid); if (W && W.melee) { g.rotation.x = Math.PI / 2; } else g.rotation.set(-Math.PI / 2, 0, Math.PI); g.scale.setScalar(0.9); hand.add(g); }
-      const tip = new THREE.Object3D(); tip.position.set(0, -0.15, W && W.melee ? 0 : 0.75); hand.add(tip);
-      G.scene.add(m.root); T.model = { ...m, hand, tip }; T.hero = id; T.gun = wid;
+      const eq = BZ.equipWeapon(m, wid);
+      G.scene.add(m.root); T.model = { ...m, hand, tip: eq.tip, tipL: eq.tipL, gun: eq.gun }; T.hero = id; T.gun = wid;
     }
 
     // camera: shoulder offset in view space, then pulled in toward the head if a wall is in the way
@@ -73,9 +71,10 @@
       aimO.set(P.pos.x, P.pos.y + 1.45, P.pos.z).addScaledVector(right.set(Math.cos(P.yaw), 0, -Math.sin(P.yaw)), 0.2);
       o.copy(aimO); d.subVectors(aimP, aimO).normalize();
     }
-    function muzzle(out) {
-      if (!T.on || !T.model) return false;
-      T.model.root.updateMatrixWorld(true); T.model.tip.getWorldPosition(out); return true;
+    function muzzle(out, side) {
+      const t = T.on && T.model && (side && T.model.tipL ? T.model.tipL : T.model.tip);
+      if (!t) return false;
+      T.model.root.updateMatrixWorld(true); t.getWorldPosition(out); return true;
     }
 
     // the hero's own body: run cycle, air pose, aim with the camera pitch, recoil, melee swings, casting
@@ -87,11 +86,12 @@
       if (!P.alive) { M.root.rotation.x = BZ.damp(M.root.rotation.x, -Math.PI / 2, 8, dt); return; }
       M.root.rotation.x = BZ.damp(M.root.rotation.x, 0, 8, dt);
       const hs = Math.hypot(P.vel.x, P.vel.z); const back = -(Math.sin(P.yaw) * P.vel.x + Math.cos(P.yaw) * P.vel.z) < -0.3;
-      if (S.shots !== sp.shots) { if (S.shots > sp.shots) { if (W.melee) sp.swing = W.swing || 0.5; else sp.kick.v += 9; } sp.shots = S.shots; }
+      if (S.shots !== sp.shots) { if (S.shots > sp.shots) { if (W.melee || W.thrown) sp.swing = W.throwT || W.swing || 0.5; else (W.dual && S.side ? sp.kickL : sp.kick).v += 9; } sp.shots = S.shots; }
       sp.swing = Math.max(0, sp.swing - dt); sp.air = BZ.damp(sp.air, P.onGround ? 0 : 1, 10, dt);
       const st = sp.st || (sp.st = {});
-      st.speed = hs; st.back = back; st.air = sp.air; st.sprint = P.sprinting; st.pitch = P.pitch; st.mode = W.melee ? 'melee' : 'gun';
-      st.swing = sp.swing > 0 ? 1 - sp.swing / (W.swing || 0.5) : -1; st.kick = sp.kick.step(dt);
+      st.speed = hs; st.back = back; st.air = sp.air; st.sprint = P.sprinting; st.pitch = P.pitch; st.mode = BZ.holdOf(W); st.pat = S.lastPat; st.wind = !!S.wind;
+      st.swing = sp.swing > 0 ? 1 - sp.swing / (W.throwT || W.swing || 0.5) : -1; st.kick = sp.kick.step(dt); st.kickL = sp.kickL.step(dt);
+      if (M.gun) { M.gun.visible = !(W.thrown && (S.hideT > 0 || (S.phase === 'reload' && S.t / W.reload < 0.55))); const bar = M.gun.getObjectByName('barrels'); if (bar) bar.rotation.z = S.spinAng; }
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
       BZ.animHero(M, st, dt);

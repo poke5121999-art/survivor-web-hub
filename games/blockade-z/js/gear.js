@@ -64,7 +64,7 @@
         }
         if (hitAt || s.life <= 0 || s.pos.y < -1) {
           const at = hitAt || s.pos;
-          if (s.kind === 'rocket') { const k = G.hero ? G.hero.blastMul() : 1; explode(at, 6.5 * k, 480 * k); }
+          if (s.kind === 'rocket') { const k = G.hero ? G.hero.blastMul() : 1; explode(at, 6.5 * k, 400 * k); }
           else { G.fx.burst(at, 22, [0x6a645c, 0x8e8c86, 0x55504a], { speed: 6, size: 0.18, life: 1.1 }); G.fx.pop(at, 1.2, [0xffa040, 0x8a4a20]); G.audio.playAt('impact', at, { gain: 1, rate: 0.6 }); }
           scene.remove(s.m); shots.splice(i, 1); continue;
         }
