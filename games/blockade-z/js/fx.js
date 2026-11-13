@@ -118,6 +118,8 @@
 
       for (const t of tracers) if (t.life > 0) { t.life -= dt; t.m.material.opacity = Math.max(0, t.life / 0.06) * 0.85; if (t.life <= 0) t.m.visible = false; }
       if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.intensity = 0; }
+      boomLight.intensity = Math.max(0, boomLight.intensity - dt * 220);
+      for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.45; b.s.scale.setScalar(1.5 + k * 5); b.s.material.opacity = Math.max(0, 0.85 - k); if (k >= 1) { scene.remove(b.s); booms.splice(i, 1); } }
 
       const pl = G.player;
       for (let i = pickups.length - 1; i >= 0; i--) {
@@ -130,8 +132,18 @@
         if (k.life <= 0) { scene.remove(k.g); pickups.splice(i, 1); }
       }
     }
+    const boomGlow = new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    const booms = [];
+    const boomLight = new THREE.PointLight(0xff9040, 0, 22, 1.4); scene.add(boomLight);
+    function explosion(pos) {
+      burst(pos, 34, [0xfff0a0, 0xffc040, 0xff7a20, 0xe04a18], { speed: 9, size: 0.15, life: 0.9, bounce: 0.2 });
+      burst(pos, 18, [0x3a3a3c, 0x55555a, 0x2a2420], { speed: 5, size: 0.2, life: 1.6, bounce: 0.1 });
+      const s = new THREE.Sprite(boomGlow.clone()); s.position.copy(pos); scene.add(s); booms.push({ s, t: 0 });
+      boomLight.position.copy(pos); boomLight.intensity = 60; flashT = Math.max(flashT, 0.25);
+    }
+    function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() { P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0; }
 
-    return { burst, hole, tracer, muzzle, drop, update, clear, debug: () => ({ particles: P.length, pickups: pickups.length }) };
+    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, debug: () => ({ particles: P.length, pickups: pickups.length }) };
   };
 })();

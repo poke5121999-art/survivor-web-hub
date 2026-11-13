@@ -56,6 +56,11 @@
     B.box([-10, -0.5, -10], [10, 0.02, 10], 'cobble', { vary: 0, skip: ['ny'] });
     for (const [x0, z0, x1, z1] of [[-2, 10, 2, 46], [-2, -46, 2, -10], [10, -2, 46, 2], [-46, -2, -10, 2]]) {
       B.box([x0, -0.5, z0], [x1, 0.02, z1], 'asphalt', { vary: 0, skip: ['ny'] });
+      const alongZ = x1 - x0 < z1 - z0; const lo = alongZ ? z0 : x0; const hi = alongZ ? z1 : x1;
+      for (let t = lo + 0.75; t < hi - 1.5; t += 3) {
+        if (alongZ) B.box([-0.09, 0.02, t], [0.09, 0.03, t + 1.5], 'road_line', { uv: 'fit', vary: 0, skip: ['ny'] });
+        else B.box([t, 0.02, -0.09], [t + 1.5, 0.03, 0.09], 'road_line', { uv: 'fit', vary: 0, skip: ['ny'] });
+      }
     }
 
     // Fountain
@@ -128,7 +133,7 @@
         if (f === h.door) put(mid - 0.6, mid + 0.6, 0, 2.2, 'door');
         for (let a = lo + 1.4; a < hi - 1.4; a += 2.6) {
           if (f === h.door && Math.abs(a + 0.5 - mid) < 1.3) continue;
-          put(a, a + 1, 2.6, 3.6, 'glass');
+          put(a, a + 1, 2.6, 3.6, B.rng.chance(0.45) ? 'glass_lit' : 'glass');
         }
       }
     }
@@ -187,7 +192,7 @@
       B.box([x - 0.6, 0.75, z - 0.6], [x + 0.6, 1.1, z + 0.6], 'metal_dark');
       solid([x - 0.6, 0, z - 0.6], [x + 0.6, 1.1, z + 0.6], 'metal');
     }
-    const group = B.build({ cast: G.quality.shadow > 0, recv: true, matOpts: { lamp: { emissive: 0xffe9a0 }, water: { emissive: 0x0a1a30 } } });
+    const group = B.build({ cast: G.quality.shadow > 0, recv: true, matOpts: { lamp: { emissive: 0xffe9a0 }, water: { emissive: 0x0a1a30 }, glass_lit: { emissive: 0xffd080 } } });
     group.name = 'world';
     scene.add(group);
 

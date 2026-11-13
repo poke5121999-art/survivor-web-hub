@@ -927,14 +927,14 @@ window.HUB_GAMES = [
     id: "blockade-z",
     title: "Blockade Z",
     tagline: "Giữ quảng trường thị trấn khối vuông trước từng đợt zombie kéo vào từ bốn cổng.",
-    desc: "Game bắn súng góc nhìn thứ nhất kiểu khối pixel, đánh đêm trong một thị trấn có tường bao và bốn cổng. Zombie kéo vào theo từng đợt, mỗi đợt đông và lì hơn: zombie thường, zombie chạy nhanh lom khom, và zombie to xác từ đợt 4. Hạ zombie lấy xu, bắn vỡ đầu được thêm xu; giữa hai đợt có 20 giây mở cửa hàng mua shotgun, SMG, súng trường, đạn, máu và giáp. Thùng máu và thùng đạn thỉnh thoảng rơi ra. Nhà cửa, texture, zombie, súng và mọi âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt. Chơi được bằng bàn phím và chuột hoặc cảm ứng trên điện thoại. Bản đầu, đang làm tiếp.",
+    desc: "Game bắn súng góc nhìn thứ nhất kiểu khối pixel, đánh đêm trong một thị trấn có tường bao và bốn cổng. Vào trận cầm sẵn SMG đạn dự trữ vô hạn. Zombie kéo vào từng đợt rất đông: zombie thường, zombie chạy lom khom, zombie to xác, và zombie bay lao xuống theo đàn. Có bom ném, jetpack để bay lên mái nhà, và cửa hàng giữa hai đợt bán shotgun, súng trường, súng máy tự động, lính đánh thuê đi theo bắn phụ, đạn, máu, giáp. Mỗi khẩu súng có anim nạp đạn riêng, có tia lửa và vỏ đạn văng ra. Nhà cửa, texture, zombie, súng và mọi âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt. Chơi được bằng bàn phím và chuột hoặc cảm ứng trên điện thoại. Đang làm tiếp.",
     genre: "hanh-dong",
     accent: "#f4c04a",
-    en: { title: "Blockade Z", tagline: "Hold a blocky town square against zombie waves pouring in through four gates.", desc: "A first-person blocky pixel shooter set at night in a walled town with four gates. Zombies come in waves, each larger and tougher: walkers, hunched fast runners, and hulking brutes from wave 4. Kills pay coins and headshots pay extra; between waves you get 20 seconds to shop for a shotgun, SMG, rifle, ammo, health and armour. Health and ammo crates drop now and then. Buildings, textures, zombies, guns and every sound are drawn and synthesized by code in the browser. Plays with keyboard and mouse or touch. First version, still in progress." },
+    en: { title: "Blockade Z", tagline: "Hold a blocky town square against zombie waves pouring in through four gates.", desc: "A first-person blocky pixel shooter set at night in a walled town with four gates. You start with an SMG and endless reserve ammo. Zombies pour in by the wave: walkers, hunched runners, hulking brutes, and winged zombies diving in packs. Throw bombs, fly onto rooftops with a jetpack, and between waves shop for a shotgun, rifle, auto turrets, hired soldiers who follow and shoot, ammo, health and armour. Every gun has its own reload animation, muzzle sparks and flying casings. Buildings, textures, zombies, guns and every sound are drawn and synthesized by code in the browser. Plays with keyboard and mouse or touch. Still in progress." },
     thumbnail: "assets/thumbnails/blockade-z.png",
     // three.js r160, không asset: xem games/blockade-z/README.md. Kiem: node games/blockade-z/tools/smoke.js
     path: "games/blockade-z/index.html",
-    rev: "20261113a",
+    rev: "20261113b",
     status: "available",
     tags: ["Bắn súng", "Zombie", "Góc nhìn thứ nhất"]
   }

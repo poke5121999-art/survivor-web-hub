@@ -45,6 +45,8 @@
     await step('Lắp súng', 0.65);
     G.player = BZ.makePlayer(G);
     G.weapons = BZ.makeWeapons(G);
+    G.allies = BZ.makeAllies(G);
+    G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
     await step('Tổng hợp âm thanh', 0.8);
@@ -92,12 +94,17 @@
       if (wave.phase === 'fight') {
         wave.spawnT -= dt;
         if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < BZ.WAVE.maxAlive(wave.n)) {
-          const r = G.rng.next(); const n = wave.n;
-          const type = r < BZ.WAVE.bruteShare(n) ? 'brute' : r < BZ.WAVE.bruteShare(n) + BZ.WAVE.runnerShare(n) ? 'runner' : 'walker';
+          const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
+          const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);
+          const type = r < b ? 'brute' : r < f ? 'flyer' : r < ru ? 'runner' : 'walker';
           const P = G.player;
           const gates = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z));
           const gate = G.rng.chance(0.7) ? gates[G.rng.int(0, 1)] : G.rng.pick(gates);
-          if (G.zombies.spawn(type, n, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner('ZOMBIE TO XÁC', 'từ cổng ' + gate.name, 1.6); }
+          if (type === 'flyer') {
+            const k = Math.min(wave.toSpawn, 3 + Math.floor(n / 3));
+            for (let i = 0; i < k; i++) if (G.zombies.spawn('flyer', n, gate)) wave.toSpawn--;
+            G.ui.banner('ZOMBIE BAY', k + ' con từ hướng ' + gate.name, 1.4);
+          } else if (G.zombies.spawn(type, n, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner('ZOMBIE TO XÁC', 'từ cổng ' + gate.name, 1.6); }
           wave.spawnT = BZ.WAVE.spawnGap(n) * G.rng.range(0.6, 1.4);
         }
         if (wave.toSpawn === 0 && wave.killed >= wave.total) endWave();
@@ -112,16 +119,16 @@
       wave.killed++; G.kills++;
       const T = z.T; const head = part === 'head';
       const coin = T.coin + (head ? 5 : 0); G.coins += coin; G.score += T.score + (head ? 50 : 0);
-      const at = new THREE.Vector3(z.pos.x, 2.1 * T.scale, z.pos.z);
+      const at = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z);
       G.ui.pop('+' + coin + '🪙', 'coin', at);
-      if (head) G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, 2.5 * T.scale, z.pos.z));
+      if (head) G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z));
       G.audio.play('coin', { gain: 0.6 });
       const r = G.rng.next();
       if (r < 0.07) G.fx.drop('health', z.pos); else if (r < 0.16) G.fx.drop('ammo', z.pos);
     });
     G.events.on('hit', ({ z, dmg, part }) => {
       G.ui.hit(part === 'head');
-      G.ui.pop(String(dmg), part === 'head' ? 'dmg crit' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, 1.9 * z.T.scale, z.pos.z));
+      G.ui.pop(String(dmg), part === 'head' ? 'dmg crit' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
     });
     G.events.on('player:hurt', ({ dmg, from }) => G.player.hurt(dmg, from));
     G.events.on('pickup', (kind) => {
@@ -141,10 +148,10 @@
     });
     G.events.on('buy', (id) => {
       const W = G.weapons; const P = G.player;
-      const price = W.WEAPONS[id] ? W.WEAPONS[id].price : { ammo: 120, heal: 150, armor: 200 }[id];
-      if (G.coins < price) { G.audio.play('deny'); return; }
+      const price = W.WEAPONS[id] ? W.WEAPONS[id].price : { ammo: 120, heal: 150, armor: 200, ally: BZ.ALLY.price, bomb: BZ.BOMB.price, turret: BZ.TURRET.price }[id];
+      if (G.coins < price || (id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'bomb' && G.gear.state.bombs >= BZ.BOMB.max)) { G.audio.play('deny'); return; }
       G.coins -= price;
-      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50);
+      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') G.allies.hire(); else if (id === 'bomb') G.gear.addBombs(BZ.BOMB.pack); else if (id === 'turret') G.gear.placeTurret();
       G.audio.play('buy'); G.ui.shopRender();
     });
     G.events.on('settings', (s) => {
@@ -163,7 +170,7 @@
       G.state = 'playing'; G.ui.show(null); G.lock();
     }
     function newGame() {
-      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset();
+      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear();
       G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
       play();
       startWave(+(BZ.params.wave || 1));
@@ -196,6 +203,8 @@
         safe('player', () => G.player.update(dt));
         safe('weapons', () => G.weapons.update(dt, G.player.input));
         safe('zombies', () => G.zombies.update(dt));
+        safe('allies', () => G.allies.update(dt));
+        safe('gear', () => G.gear.update(dt));
         safe('wave', () => updateWave(dt));
       } else if (G.state === 'dead') {
         safe('zombies', () => G.zombies.update(dt));

@@ -53,6 +53,12 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #hp.low b { color: #ff6a50; }
 #ammo { right: max(14px, env(safe-area-inset-right)); bottom: 14px; text-align: right; min-width: 170px; }
 #ammo b { font: 900 38px/1 var(--mono); } #ammo b.low { color: #ff6a50; } #ammo span { font: 700 18px var(--mono); color: #cdb892; margin-left: 4px; }
+#bombs { font: 900 15px var(--mono); margin-top: 2px; } #bombs small { font: 700 10px var(--mono); color: #cdb892; }
+#fuel { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 84px; width: 230px; height: 12px; border: 3px solid #000; background: rgba(20, 30, 50, .7); opacity: 0; transition: opacity .3s; }
+#fuel.on { opacity: 1; } #fuel i { display: block; height: 100%; width: 100%; background: linear-gradient(#8fe0ff, #2f8ad8); }
+#fuel small { position: absolute; left: 4px; top: -16px; font: 700 10px var(--mono); color: #8fe0ff; text-shadow: 1px 1px 0 #000; }
+body.touch #fuel { bottom: auto; top: 112px; width: 170px; }
+.tb[data-btn=bomb] { right: max(212px, calc(env(safe-area-inset-right) + 188px)); bottom: 80px; width: 60px; height: 60px; }
 #wname { font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
 #slots { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; }
 #slots button { position: relative; width: 92px; height: 62px; padding: 4px 0 0; border: 3px solid #000; background: rgba(28, 22, 16, .78); box-shadow: inset 0 0 0 2px #3a2c1c; cursor: pointer; opacity: .45; }
@@ -60,7 +66,7 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #slots img { display: block; margin: 0 auto; width: 84px; height: 40px; image-rendering: pixelated; }
 #slots em { position: absolute; left: 4px; top: 2px; font: 900 11px var(--mono); color: var(--bone); font-style: normal; text-shadow: 1px 1px 0 #000; }
 #slots small { display: block; font: 700 10px var(--mono); color: var(--bone); text-shadow: 1px 1px 0 #000; }
-#pops .pop.dmg { color: #ffb347; font-size: 15px; } #pops .pop.dmg.crit { color: #ff4a3a; font-size: 20px; }
+#pops .pop.dmg { color: #ffb347; font-size: 15px; } #pops .pop.dmg.ally { color: #9be86a; font-size: 13px; } #pops .pop.dmg.crit { color: #ff4a3a; font-size: 20px; }
 body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.62); transform-origin: top center; }
 #wave { left: 50%; top: 10px; transform: translateX(-50%); text-align: center; padding: 4px 16px; }
 #wave small { font: 700 11px var(--mono); letter-spacing: .2em; color: #cdb892; } #wave b { font: 900 26px/1 var(--mono); color: var(--gold); margin: 0 4px; } #wave span { display: block; font: 700 12px var(--mono); }
@@ -145,7 +151,8 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="plate" id="coins">🪙 <b>0</b></div>
   <div class="plate" id="score">ĐIỂM <b>0</b></div>
   <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><i style="width:100%"></i><u id="armor"></u></div></div>
-  <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span></div>
+  <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span><div id="bombs">💣 <b>3</b> <small>G</small></div></div>
+  <div id="fuel"><small>JETPACK</small><i></i></div>
   <div id="slots"></div>
   <div id="breakbar"><span>Đợt sau tới trong <b>20</b> giây</span><button class="btn small" data-act="shop">🛒 Cửa hàng (B)</button><button class="btn small ghost" data-act="ready">Đánh tiếp</button></div>
 </div>
@@ -157,6 +164,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="tb" data-btn="jump">NHẢY</div>
   <div class="tb" data-btn="reload">NẠP</div>
   <div class="tb" data-btn="swap">ĐỔI</div>
+  <div class="tb" data-btn="bomb">BOM</div>
   <div class="tb" data-act="pause">II</div>
 </div>
 
@@ -169,6 +177,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
     <div class="keys">
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
       <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd>-<kbd>4</kbd> / <kbd>Q</kbd> / lăn chuột đổi súng<br>
+      <kbd>G</kbd> ném bom · giữ <kbd>Space</kbd> trên không để bay jetpack<br>
       <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
     </div>
     <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
@@ -203,16 +212,18 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113a"></script>
-<script type="module" src="js/core.js?v=20261113a"></script>
-<script type="module" src="js/art.js?v=20261113a"></script>
-<script type="module" src="js/world.js?v=20261113a"></script>
-<script type="module" src="js/audio.js?v=20261113a"></script>
-<script type="module" src="js/fx.js?v=20261113a"></script>
-<script type="module" src="js/zombies.js?v=20261113a"></script>
-<script type="module" src="js/weapons.js?v=20261113a"></script>
-<script type="module" src="js/player.js?v=20261113a"></script>
-<script type="module" src="js/ui.js?v=20261113a"></script>
-<script type="module" src="js/main.js?v=20261113a"></script>
+<script type="module" src="js/boot.js?v=20261113b"></script>
+<script type="module" src="js/core.js?v=20261113b"></script>
+<script type="module" src="js/art.js?v=20261113b"></script>
+<script type="module" src="js/world.js?v=20261113b"></script>
+<script type="module" src="js/audio.js?v=20261113b"></script>
+<script type="module" src="js/fx.js?v=20261113b"></script>
+<script type="module" src="js/zombies.js?v=20261113b"></script>
+<script type="module" src="js/weapons.js?v=20261113b"></script>
+<script type="module" src="js/allies.js?v=20261113b"></script>
+<script type="module" src="js/gear.js?v=20261113b"></script>
+<script type="module" src="js/player.js?v=20261113b"></script>
+<script type="module" src="js/ui.js?v=20261113b"></script>
+<script type="module" src="js/main.js?v=20261113b"></script>
 </body>
 </html>

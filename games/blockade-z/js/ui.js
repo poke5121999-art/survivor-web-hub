@@ -59,6 +59,7 @@
       hud: $('#hud'), hp: $('#hp i'), hpTxt: $('#hp b'), armor: $('#armor'), ammo: $('#ammo b'), reserve: $('#ammo span'), wname: $('#wname'), slots: $('#slots'),
       wave: $('#wave b'), left: $('#wave span'), coins: $('#coins b'), score: $('#score b'), banner: $('#banner'), cross: $('#cross'), marker: $('#marker'),
       vignette: $('#vignette'), dmgDir: $('#dmgdir'), pops: $('#pops'), shop: $('#shop'), shopList: $('#shop-list'), shopTimer: $('#shop-timer'),
+      fuel: $('#fuel i'), bombs: $('#bombs b'),
       title: $('#title'), pause: $('#pause'), dead: $('#dead'), reloadHint: $('#reloadhint'), breakbar: $('#breakbar'), stick: $('#stick'), stickKnob: $('#stick i'), touch: $('#touch'),
     };
     logo($('#logo'), 'BLOCKADE Z');
@@ -75,10 +76,13 @@
     function shopRender() {
       const W = G.weapons; const P = G.player;
       const items = [
-        ...W.ORDER.filter((id) => id !== 'pistol').map((id) => ({ id, label: W.WEAPONS[id].name, sub: `Sát thương ${W.WEAPONS[id].dmg}${W.WEAPONS[id].pellets > 1 ? '×' + W.WEAPONS[id].pellets : ''} · băng ${W.WEAPONS[id].mag}`, price: W.WEAPONS[id].price, owned: !!W.S.owned[id] })),
+        ...W.ORDER.filter((id) => W.WEAPONS[id].price > 0).map((id) => ({ id, label: W.WEAPONS[id].name, sub: `Sát thương ${W.WEAPONS[id].dmg}${W.WEAPONS[id].pellets > 1 ? '×' + W.WEAPONS[id].pellets : ''} · băng ${W.WEAPONS[id].mag}`, price: W.WEAPONS[id].price, owned: !!W.S.owned[id] })),
         { id: 'ammo', label: 'Đạn đầy', sub: 'Nạp đầy đạn dự trữ mọi súng', price: 120 },
         { id: 'heal', label: 'Hồi máu', sub: 'Máu về 100', price: 150, dis: P.hp >= P.maxHp },
         { id: 'armor', label: 'Giáp +50', sub: 'Đỡ 60% sát thương tới khi vỡ', price: 200, dis: P.armor >= 100 },
+        { id: 'bomb', label: 'Bom +' + BZ.BOMB.pack, sub: `Ném bằng G · đang có ${G.gear.state.bombs}/${BZ.BOMB.max}`, price: BZ.BOMB.price, dis: G.gear.state.bombs >= BZ.BOMB.max },
+        { id: 'turret', label: 'Súng máy tự động', sub: `Đặt trước mặt, tự bắn ${BZ.TURRET.ammo} viên · ${G.gear.turrets.length}/${BZ.TURRET.max}`, price: BZ.TURRET.price, dis: G.gear.turrets.length >= BZ.TURRET.max },
+        { id: 'ally', label: 'Thuê lính', sub: `Đi theo và bắn phụ · ${G.allies.count()}/${BZ.ALLY.max} lính`, price: BZ.ALLY.price, dis: G.allies.count() >= BZ.ALLY.max },
       ];
       el.shopList.innerHTML = items.map((it) => `<button class="item${it.owned ? ' owned' : ''}" data-buy="${it.id}" ${it.owned || it.dis || G.coins < it.price ? 'disabled' : ''}>
         <b>${it.label}</b><small>${it.sub}</small><span>${it.owned ? 'Đã có' : '🪙 ' + it.price}</span></button>`).join('');
@@ -117,6 +121,8 @@
       el.hp.style.width = (P.hp / P.maxHp) * 100 + '%'; el.hpTxt.textContent = Math.ceil(P.hp);
       el.hp.parentElement.classList.toggle('low', P.hp < 35);
       el.armor.style.width = Math.min(100, P.armor) + '%';
+      el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.fuel < 99.5 || P.jetting);
+      el.bombs.textContent = G.gear.state.bombs;
       el.ammo.textContent = a.mag; el.reserve.textContent = a.reserve === Infinity ? '∞' : a.reserve;
       el.ammo.classList.toggle('low', a.mag <= Math.ceil(w.mag / 4));
       el.wname.textContent = w.name + (W.S.phase === 'reload' ? ' · đang nạp' : '');

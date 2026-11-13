@@ -5,12 +5,14 @@
 
   const MOVE = { walk: 4.6, sprint: 7.0, ads: 2.8, accelGround: 40, decelGround: 30, accelAir: 10, gravity: 24, jumpV: 7.9, coyote: 0.12, jumpBuffer: 0.13, radius: 0.3, height: 1.75, eye: 1.6, stride: 2.0 };
   BZ.MOVE = MOVE;
+  const JET = { thrust: 46, maxRise: 6.5, burn: 30, refill: 22, refillDelay: 0.6, ceiling: 16 };
+  BZ.JET = JET;
 
   BZ.makePlayer = (G) => {
     const P = {
       pos: new THREE.Vector3(0, 0, 5), vel: new THREE.Vector3(), yaw: 0, pitch: 0,
       hp: 100, maxHp: 100, armor: 0, alive: true, onGround: true, sprinting: false, stride: 0, landDip: 0,
-      coyote: 0, jumpBuf: 0, kickP: BZ.spring(160, 18), kickY: BZ.spring(160, 18), shake: BZ.spring(220, 14), lastStep: 0,
+      coyote: 0, jumpBuf: 0, fuel: 100, airT: 0, jetting: false, jetSnd: 0, fuelWait: 0, touchJet: false, kickP: BZ.spring(160, 18), kickY: BZ.spring(160, 18), shake: BZ.spring(220, 14), lastStep: 0,
       kick(p, y) { this.kickP.v += p * 40; this.kickY.v += y * 40; },
     };
     const keys = new Set();
@@ -27,6 +29,7 @@
       if (e.code === 'KeyQ') G.weapons.cycle(-1);
       if (/^Digit[1-4]$/.test(e.code)) G.weapons.select(G.weapons.ORDER[+e.code.slice(5) - 1]);
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
+      if (e.code === 'KeyG') G.gear.throwBomb();
     });
     addEventListener('keyup', (e) => keys.delete(e.code));
     addEventListener('blur', () => { keys.clear(); input.fire = false; input.ads = false; });
@@ -83,7 +86,8 @@
       };
       btn('fire', () => { input.fire = true; }, () => { input.fire = false; });
       btn('ads', () => { input.ads = !input.ads; });
-      btn('jump', () => { P.jumpBuf = MOVE.jumpBuffer; });
+      btn('jump', () => { P.jumpBuf = MOVE.jumpBuffer; P.touchJet = true; }, () => { P.touchJet = false; });
+      btn('bomb', () => G.gear.throwBomb());
       btn('reload', () => G.weapons.startReload());
       btn('swap', () => G.weapons.cycle(1));
     }
@@ -118,6 +122,16 @@
       P.jumpBuf -= dt;
       if (P.jumpBuf > 0 && P.coyote > 0 && P.alive) { P.vel.y = MOVE.jumpV; P.jumpBuf = 0; P.coyote = 0; }
       P.vel.y -= MOVE.gravity * dt;
+      // jetpack: keep holding jump in the air to fly; fuel refills on the ground
+      P.airT = P.onGround ? 0 : P.airT + dt;
+      const holdJump = keys.has('Space') || P.touchJet;
+      P.jetting = holdJump && !P.onGround && P.airT > 0.18 && P.fuel > 0 && P.alive;
+      if (P.jetting) {
+        P.vel.y = Math.min(JET.maxRise, P.vel.y + JET.thrust * dt); P.fuel = Math.max(0, P.fuel - JET.burn * dt); P.fuelWait = JET.refillDelay;
+        if (P.pos.y > JET.ceiling) P.vel.y = Math.min(P.vel.y, 0);
+        P.jetSnd -= dt; if (P.jetSnd <= 0) { P.jetSnd = 0.14; G.audio.play('jet', { gain: 0.5 }); }
+        G.fx.jet(new THREE.Vector3(P.pos.x - Math.sin(P.yaw) * -0.35, P.pos.y + 0.6, P.pos.z - Math.cos(P.yaw) * -0.35));
+      } else if (P.onGround) { P.fuelWait -= dt; if (P.fuelWait <= 0) P.fuel = Math.min(100, P.fuel + JET.refill * dt); }
       const vyBefore = P.vel.y;
       const wasGround = P.onGround;
       G.world.moveBox(P.pos, P.vel, dt, MOVE.radius, MOVE.height, out);
@@ -162,7 +176,7 @@
       if (P.hp <= 0) { P.alive = false; G.events.emit('player:dead'); }
     }
     function reset() {
-      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.armor = 0; P.alive = true; P.landDip = 0;
+      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.armor = 0; P.alive = true; P.landDip = 0; P.fuel = 100;
       input.fire = false; input.ads = false; keys.clear();
     }
     P.update = update; P.hurt = hurt; P.reset = reset; P.input = input;
