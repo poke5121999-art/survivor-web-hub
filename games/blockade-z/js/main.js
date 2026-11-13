@@ -45,6 +45,7 @@
     G.zombies = BZ.makeZombies(G);
     await step('Lắp súng', 0.65);
     G.player = BZ.makePlayer(G);
+    G.build = BZ.makeBuild(G);
     G.weapons = BZ.makeWeapons(G);
     G.allies = BZ.makeAllies(G);
     G.hero = BZ.makeHeroes(G);
@@ -192,6 +193,40 @@
       if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') { if (G.coop.guest) G.coop.act({ k: 'ally' }); else G.allies.hire(); } else if (id === 'bomb') G.gear.addBombs(BZ.BOMB.pack); else if (id === 'turret') { if (G.coop.guest) G.coop.act({ k: 'turret' }); else G.gear.placeTurret(); } else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', 'nhảy rồi giữ Space để bay', 2); }
       G.audio.play('buy'); G.ui.shopRender();
     });
+    G.events.on('upgrade', (id) => {
+      if (!G.build.buy(id)) { G.audio.play('deny'); return; }
+      G.audio.play('buy'); G.ui.shopRender(); squadUp();
+    });
+    // support branches: the host keeps the squad as large as every player's Chỉ huy levels together, and rebuilds the turrets each wave
+    function squadUp() {
+      if (G.coop.guest) { G.coop.act({ k: 'sup', s: G.build.support() }); return; }
+      let want = G.build.lv('squad'); for (const p of G.coop.peers.values()) want += (p.sup && p.sup.squad) || 0;
+      want = Math.min(5, want); BZ.ALLY.max = Math.max(3, want);
+      while (G.allies.count() < want) if (!G.allies.hire()) break;
+    }
+    function turretsUp() {
+      if (G.coop.guest) return;
+      while (G.gear.turrets.length) G.gear.removeTurret(0);
+      const place = (pos, yaw, n) => { for (let i = 0; i < n; i++) { const a = yaw + (i - (n - 1) / 2) * 1.2; G.gear.placeTurret({ pos: new THREE.Vector3(pos.x - Math.sin(a) * 2.2, 0, pos.z - Math.cos(a) * 2.2), yaw: a }); } };
+      place(G.player.pos, G.player.yaw, G.build.lv('eng'));
+      for (const p of G.coop.peers.values()) { const a = G.coop.avatars.get(p.pid); if (a && p.sup && p.sup.eng) place(a.pos, a.yaw, p.sup.eng); }
+    }
+    G.coop.onSupport = squadUp;
+    // each wave: half the spare ammo back, bombs topped up, the squad refilled, turrets rebuilt where everyone stands
+    function waveSupplies() { G.weapons.refill(0.5); G.gear.state.bombs = Math.max(G.gear.state.bombs, G.build.bombCap()); G.build.apply(); }
+    G.events.on('wave:start', () => { waveSupplies(); squadUp(); turretsUp(); });
+    G.events.on('coop:wave', () => waveSupplies());
+    // guns come from the fight: a few from the dead, more from tough ones, a supply crate between waves
+    const DROP = [['pistol', 3], ['shotgun', 3], ['smg', 2], ['rifle', 2.5], ['bazooka', 1], ['katana', 2], ['axe', 2], ['saber', 0.8]];
+    const pickGun = () => { let r = G.rng.next() * DROP.reduce((a, d) => a + d[1], 0); for (const [id, w] of DROP) { r -= w; if (r <= 0) return id; } return 'smg'; };
+    function dropGun(pos, n = 1) { for (let i = 0; i < n; i++) { const id = pickGun(); const W = G.weapons.WEAPONS[id]; G.weapons.spawnGround(id, G.weapons.magOf(W), G.weapons.resOf(W), new THREE.Vector3(pos.x, pos.y + 1, pos.z), new THREE.Vector3(G.rng.range(-2, 2), 4, G.rng.range(-2, 2))); } }
+    G.events.on('zombie:killed', ({ z }) => {
+      if (G.coop.guest) return;
+      const T = z.T; const ch = T.boss ? 1 : z.elite ? 0.35 : T === BZ.ZOMBIES.brute ? 0.2 : 0.025;
+      if (G.rng.chance(ch)) G.dropGun(z.pos, T.boss ? 2 : 1);
+    });
+    G.events.on('wave:end', () => { if (!G.coop.guest) setTimeout(() => G.weapons.airdrop(G.player.pos), 1500); });
+    G.dropGun = dropGun;
     G.events.on('settings', (s) => {
       BZ.store.save(s); G.audio.setVolume(s.volume);
       const q = BZ.pickQuality(s.quality);
@@ -209,7 +244,8 @@
     }
     function newGame() {
       lineupShow(false);
-      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear();
+      G.build.reset(G.hero.id);
+      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear(); G.build.apply(); G.gear.state.bombs = G.build.bombCap();
       G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
       play();
       if (!G.coop.guest) startWave(+(BZ.params.wave || 1));
@@ -308,6 +344,7 @@
         safe('zombies', () => G.zombies.update(gdt));
         safe('allies', () => G.allies.update(gdt));
         safe('hero', () => G.hero.update(gdt));
+        safe('build', () => G.build.update(gdt));
         safe('gear', () => G.gear.update(gdt));
         if (!G.coop.guest) safe('wave', () => updateWave(dt));
       } else if (G.state === 'dead') {

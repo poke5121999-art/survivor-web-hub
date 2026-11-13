@@ -23,6 +23,16 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 
 `js/heroes.js` có 7 nhân vật tự nghĩ (không lấy từ game nào): Gió (lướt, 3 lượt), Thép (bất tử 5 giây, 150 máu), Y Tá (hồi máu, tự hồi khi không trúng đòn), Mưa Đạn (bão đạn: bắn nhanh gấp đôi, không tốn đạn, toả đạn lạc), Bóng (dịch chuyển để lại bóng mồi; chạy trên tường, chạy lên tường, đạp tường, nhảy hai lần), Pháo Thủ (không kích 6 quả pháo, bom to hơn) và Băng (đóng băng 9 m, xác đóng băng vỡ vụn). Bấm `F` hoặc nút tròn trên HUD để dùng kỹ năng. Màn chọn nhân vật dựng 7 người đứng thành hàng giữa quảng trường; `?select=1` mở thẳng màn này, `?hero=<id>` chọn sẵn nhân vật khi `?autostart=1`.
 
+## Shop nâng cấp và đường build
+
+- Shop (`B` hoặc giữa hai đợt) chỉ bán nâng cấp chỉ số, không bán súng. `js/build.js` giữ bảng `UP` gồm 25 nâng cấp chia 5 nhóm: Hoả lực (sát thương, chí mạng, tốc bắn, nạp đạn, băng đạn, cận chiến), Sinh tồn (máu, hồi máu, giáp, tốc chạy, hút xu), Kỹ năng (hồi chiêu, sức mạnh chiêu, nạp tối thượng), Nguyên tố và Hỗ trợ. Giá tăng theo cấp (`base·grow^lv`).
+- Nguyên tố là hiệu ứng gắn lên zombie khi bắn trúng: lửa cháy theo thời gian, băng chồng 4 lớp thì đóng băng, điện nhảy sang con bên cạnh (mưa bão nhảy xa hơn), độc rỉ máu. Hai hiệu ứng gặp nhau thì phản ứng: nổ hơi (lửa + băng), vỡ vụn (điện vào zombie đang đóng băng), nổ khí độc (lửa + độc), lan độc (điện + độc). Hút máu và nổ xác là hai nhánh còn lại.
+- Hai nhóm đủ cấp thì mở cộng hưởng (`RES`, 10 cái), ví dụ Siêu dẫn (băng + điện), Pháo đài (kỹ sư + giáp), Bất tử (hồi máu + giáp: gục một lần mỗi đợt thì đứng dậy).
+- Lính thuê, tháp súng, bom và jetpack không còn mua lẻ mà là nhánh Hỗ trợ: Chỉ huy thuê lính mỗi đợt, Kỹ sư dựng tháp quanh người chơi đầu đợt, Bom nâng số bom mang được, Jetpack mở ba lô bay.
+- Mỗi nhân vật có sẵn vài cấp miễn phí ở nhánh hợp mình (`AFFINITY`): Gió tốc chạy, Thép giáp, Băng nguyên tố băng…
+- Súng có từ zombie rơi (boss chắc chắn, zombie tinh anh 35%, zombie to 20%, thường 2,5%) và từ thùng tiếp tế thả dù sau mỗi đợt, vỡ ra 2 súng cùng đạn và máu.
+- Co-op: phản ứng do hai người khác nhau gây ra là **phối hợp**, nổ mạnh gấp rưỡi và hiện chữ PHỐI HỢP. Hiệu ứng nguyên tố đi trong ảnh chụp trạng thái dưới dạng cờ bit, phát trúng của khách mang theo nguyên tố của họ.
+
 ## Ngày đêm, thời tiết, vụ nổ
 
 - `js/sky.js` giữ một đồng hồ chạy 8 phút cho một ngày: mặt trời mọc và lặn, ban đêm có mặt trăng và sao, đèn đường với cửa sổ sáng chỉ bật khi tối. Ban đêm zombie nhanh hơn 15%. `?tod=0.5` (0 = nửa đêm, 0.5 = trưa) và `?daylen=<giây>` dùng khi thử.

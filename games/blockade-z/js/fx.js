@@ -96,7 +96,7 @@
     }
 
     function update(dt) {
-      updateAsh(dt); updateGibs(dt); updateSpurts(dt); updateBlast(dt);
+      updateAsh(dt); updateGibs(dt); updateSpurts(dt); updateBlast(dt); updateArcs(dt);
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
         const p = P[i];
@@ -128,6 +128,8 @@
         k.g.rotation.y += dt * 2; k.g.position.y = 0.25 + Math.sin(k.t * 3) * 0.08;
         k.g.visible = k.life > 4 || Math.sin(k.t * 20) > 0;
         const d = pl ? Math.hypot(pl.pos.x - k.g.position.x, pl.pos.z - k.g.position.z) : 99;
+        const mag = G.build ? G.build.magnet() : 1.3;
+        if (d < mag && d > 0.9 && pl.alive) { k.g.position.x += (pl.pos.x - k.g.position.x) * Math.min(1, dt * 6); k.g.position.z += (pl.pos.z - k.g.position.z) * Math.min(1, dt * 6); }
         if (d < 1.3 && pl.pos.y < 1.5 && G.events) { G.events.emit('pickup', k.kind); k.life = 0; }
         if (k.life <= 0) { scene.remove(k.g); pickups.splice(i, 1); }
       }
@@ -337,12 +339,25 @@
       }
     }
 
+    // a lightning arc between two points: a jagged chain of thin additive boxes that flickers out
+    const arcs = []; const arcGeo = new THREE.BoxGeometry(0.06, 1, 0.06);
+    function arc(a, b, color = 0x9ad8ff) {
+      const g = new THREE.Group(); const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false });
+      let p = a.clone(); const n = 6;
+      for (let i = 1; i <= n; i++) {
+        const q = a.clone().lerp(b, i / n); if (i < n) q.add(new THREE.Vector3(G.rng.range(-0.35, 0.35), G.rng.range(-0.35, 0.35), G.rng.range(-0.35, 0.35)));
+        const m = new THREE.Mesh(arcGeo, mat); m.position.copy(p).add(q).multiplyScalar(0.5); m.scale.y = p.distanceTo(q); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.clone().sub(p).normalize()); g.add(m); p = q;
+      }
+      scene.add(g); arcs.push({ g, mat, t: 0.16 });
+      puff(b, { glow: true, s0: 0.8, s1: 0.2, life: 0.12, c0: 0xffffff, c1: color });
+    }
+    function updateArcs(dt) { for (let i = arcs.length - 1; i >= 0; i--) { const a = arcs[i]; a.t -= dt; a.mat.opacity = a.t > 0.08 ? 1 : Math.max(0, a.t / 0.08) * (Math.sin(a.t * 200) > 0 ? 1 : 0.3); if (a.t <= 0) { scene.remove(a.g); a.mat.dispose(); arcs.splice(i, 1); } } }
     function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() {
       P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0;
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
     }
 
-    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, debug: () => ({ particles: P.length, pickups: pickups.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, debug: () => ({ particles: P.length, pickups: pickups.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();

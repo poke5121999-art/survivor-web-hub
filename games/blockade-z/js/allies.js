@@ -208,7 +208,7 @@
         } else if (a.target && a.cool <= 0 && !(a.reload > 0) && !(a.cReload > 0) && Math.abs(BZ.wrapAngle(faceYaw - (a.yaw + a.twist))) < 0.3 && P.alive) {
           if (!WP && ++a.shots >= 24) { a.shots = 0; a.cReload = 1.5; G.audio.playAt('mag_out', a.pos, { gain: 0.5 }); setTimeout(() => G.audio.playAt('mag_in', a.pos, { gain: 0.5 }), 900); }
           a.kick.v += WP && WP.rocket ? 14 : 6;
-          a.cool = WP ? Math.max(60 / WP.rpm * (WP.auto ? 1.5 : 1.2), 0.12) * G.rng.range(0.9, 1.2) : G.rng.range(ALLY.fire[0], ALLY.fire[1]);
+          a.cool = (WP ? Math.max(60 / WP.rpm * (WP.auto ? 1.5 : 1.2), 0.12) * G.rng.range(0.9, 1.2) : G.rng.range(ALLY.fire[0], ALLY.fire[1])) / (G.build.has('fortress') ? 1.5 : 1);
           const z = a.target; const muzzle = new THREE.Vector3(a.pos.x + Math.sin(a.yaw) * 0.7, 1.35, a.pos.z + Math.cos(a.yaw) * 0.7);
           if (WP) { a.weap.mag--; if (a.weap.mag <= 0) { if (a.weap.reserve > 0) a.reload = WP.reload || 2; else { dropWeap(a); } } }
           const hit = G.rng.chance(ALLY.accuracy); const head = hit && G.rng.chance(ALLY.head);

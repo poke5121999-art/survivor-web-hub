@@ -4,7 +4,7 @@
   const THREE = window.THREE;
 
   const BOMB = { start: 3, max: 9, fuse: 1.6, radius: 5.5, dmg: 220, throwSpeed: 15, price: 120, pack: 3 };
-  const TURRET = { price: 450, max: 2, range: 24, rpm: 420, dmg: 13, accuracy: 0.8, ammo: 260 };
+  const TURRET = { price: 450, max: 12, range: 24, rpm: 420, dmg: 13, accuracy: 0.8, ammo: 260 };
   BZ.BOMB = BOMB; BZ.TURRET = TURRET;
 
   BZ.makeGear = (G) => {
@@ -154,7 +154,8 @@
         if (out.ground) { if (pre.y < -2.5) b.vel.y = -pre.y * 0.35; b.vel.x *= 0.86; b.vel.z *= 0.86; b.spin.multiplyScalar(0.8); }
         b.m.position.copy(b.pos).add(new THREE.Vector3(0, 0.09, 0));
         b.m.rotation.x += b.spin.x * dt; b.m.rotation.y += b.spin.y * dt;
-        if (b.t >= BOMB.fuse) { const k = G.hero ? G.hero.bombMul() : 1; explode(b.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), BOMB.radius * k, BOMB.dmg * k); scene.remove(b.m); bombs.splice(i, 1); }
+        if (b.t >= BOMB.fuse) { const k = (G.hero ? G.hero.bombMul() : 1) * G.build.bombMul(); const at = b.pos.clone().add(new THREE.Vector3(0, 0.3, 0)); explode(at, BOMB.radius * k, BOMB.dmg * k);
+          if (G.build.has('demolition')) for (let j = 0; j < 3; j++) { const a = j * 2.1 + G.rng.next(); const q = at.clone().add(new THREE.Vector3(Math.cos(a) * 3, 0, Math.sin(a) * 3)); setTimeout(() => explode(q, 3, 90 * k), 220 + j * 120); } scene.remove(b.m); bombs.splice(i, 1); }
       }
       for (let i = turrets.length - 1; i >= 0; i--) {
         const t = turrets[i];
@@ -176,7 +177,7 @@
           t.head.rotation.x = BZ.damp(t.head.rotation.x, Math.atan2(dy, dh), 10, dt);
           t.cool -= dt;
           if (t.cool <= 0 && Math.abs(BZ.wrapAngle(want - t.yaw)) < 0.2) {
-            t.cool = 60 / TURRET.rpm; t.ammo--;
+            t.cool = 60 / TURRET.rpm / (G.build.has('fortress') ? 1.5 : 1); t.ammo--;
             const side = t.ammo % 2 ? 0.11 : -0.11;
             const muzzle = new THREE.Vector3(side, 0, -0.9).applyEuler(new THREE.Euler(t.head.rotation.x, t.yaw, 0, 'YXZ')).add(eye);
             const hit = G.rng.chance(TURRET.accuracy);
@@ -204,6 +205,6 @@
       while (turrets.length) removeTurret(0);
       state.bombs = BOMB.start; state.cool = 0;
     }
-    return { state, throwBomb, throwRock, fireRocket, explode, shots, placeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(BOMB.max, state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
+    return { state, throwBomb, throwRock, fireRocket, explode, shots, placeTurret, removeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(G.build.bombCap(), state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
   };
 })();

@@ -142,7 +142,7 @@ BZ.makeCoop = (G) => {
   function toAll(msg, except) { for (const [id, p] of C.peers) if (p.ready && id !== except) send(id, msg); }
   C.act = (a) => { if (C.guest) C.acts.push(a); };
   C.reportHit = (z, d, part, dir, imp, opt) => {
-    C.hits.push([G.zombies.list.indexOf(z), Math.round(d), part === 'head' ? 2 : part === 'leg' ? 1 : 0, +dir.x.toFixed(2), +dir.z.toFixed(2), +imp.toFixed(2), opt.cut || (opt.blast ? 'blast' : 0)]);
+    C.hits.push([G.zombies.list.indexOf(z), Math.round(d), part === 'head' ? 2 : part === 'leg' ? 1 : 0, +dir.x.toFixed(2), +dir.z.toFixed(2), +imp.toFixed(2), opt.cut || (opt.blast ? 'blast' : 0), opt.status && opt.status.length ? opt.status : 0]);
   };
   C.remotes = () => [...avatars.values()].map((a) => a.target);
   C.hurtRemote = (t, dmg, from) => { const p = [...C.peers.values()].find((q) => q.pid === t.pid); if (p) send(p.id, { t: 'hurt', d: dmg, f: v3(from) }); };
@@ -167,6 +167,8 @@ BZ.makeCoop = (G) => {
     E.on('ground:add', (it) => { if (C.host) C.events.push({ k: 'g+', gid: it.gid, id: it.id, mag: it.mag, res: it.reserve === Infinity ? -1 : it.reserve, p: v3(it.pos), v: v3(it.vel) }); });
     E.on('ground:remove', (it) => { if (C.host) C.events.push({ k: 'g-', gid: it.gid }); });
     E.on('ann', (a) => { if (C.host) C.events.push({ k: 'ann', ...a }); });
+    E.on('react', ({ z, kind, combo }) => { if (C.host) C.events.push({ k: 'react', i: G.zombies.list.indexOf(z), kind, combo }); });
+    E.on('crate', ({ p }) => { if (C.host) C.events.push({ k: 'crate', p: v3(p) }); });
   }
   let pidN = 0;
   function hostReceive(from, m) {
@@ -191,7 +193,7 @@ BZ.makeCoop = (G) => {
     for (const h of m.hits || []) {
       const z = G.zombies.list[h[0]]; if (!z || !z.alive) continue;
       const part = h[2] === 2 ? 'head' : h[2] === 1 ? 'leg' : 'body'; const dir = new THREE.Vector3(h[3], 0, h[4]).normalize();
-      const opt = { net: true, by: p.pid, credit: false }; if (h[6] === 'blast') opt.blast = true; else if (h[6]) opt.cut = h[6];
+      const opt = { net: true, by: p.pid, credit: false }; if (h[6] === 'blast') opt.blast = true; else if (h[6]) opt.cut = h[6]; if (h[7]) opt.status = h[7];
       G.zombies.damage(z, h[1], part, dir, h[5], opt);
     }
     for (const x of m.acts || []) hostAct(p, x);
@@ -205,6 +207,7 @@ BZ.makeCoop = (G) => {
     else if (x.k === 'freeze') G.hero.freezeAt(V(x.p));
     else if (x.k === 'strike') G.hero.strikeAt(V(x.at));
     else if (x.k === 'ally') G.allies.hire();
+    else if (x.k === 'sup') { p.sup = x.s; if (C.onSupport) C.onSupport(); }
     else if (x.k === 'turret') { const t = avatars.get(p.pid); if (t) G.gear.placeTurret({ pos: t.pos.clone(), yaw: t.yaw }); }
   }
   function leave(from, why) {
@@ -269,6 +272,8 @@ BZ.makeCoop = (G) => {
     } else if (e.k === 'sev' && z && z.alive) Z.sever(z, e.part, new THREE.Vector3(e.d[0], 0, e.d[1]).normalize(), { cut: e.cut, net: true });
     else if (e.k === 'boom') { G.fx.explosion(V(e.p), e.s); G.audio.playAt('boom', V(e.p), { gain: 1.2 }); const pd = G.player.pos.distanceTo(V(e.p)); if (pd < 18) G.player.shake.v += (18 - pd) * 0.8; }
     else if (e.k === 'bolt') G.sky.strike(V(e.p), true);
+    else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? 'PHỐI HỢP · ' : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
+    else if (e.k === 'crate') G.weapons.airdrop(V(e.p), true);
     else if (e.k === 'meteor') G.sky.meteor({ at: e.at, from: e.from });
     else if (e.k === 'g+') { if (!G.weapons.ground.some((g) => g.gid === e.gid)) G.weapons.spawnGround(e.id, e.mag, e.res < 0 ? Infinity : e.res, V(e.p), V(e.v), e.gid); }
     else if (e.k === 'g-') { const it = G.weapons.ground.find((g) => g.gid === e.gid); if (it) G.weapons.removeGround(it); }

@@ -250,6 +250,9 @@
     const HIP = new THREE.Vector3(0.25, -0.25, -0.56); const ADS = new THREE.Vector3(0, -0.125, -0.32);
 
     const W = () => WEAPONS[S.cur];
+    // the build stretches every magazine and reserve
+    const magOf = (w) => (w.melee ? Infinity : Math.max(1, Math.round(w.mag * G.build.magMul())));
+    const resOf = (w) => (w.reserve === Infinity ? Infinity : Math.round(w.reserve * G.build.magMul()));
     const ammo = () => state[S.cur];
 
     // ---------- inventory: two hands' worth of weapons; the rest lies on the ground ----------
@@ -278,12 +281,12 @@
       else spawnGround(id, state[id].mag, state[id].reserve, from, vel);
     }
     function give(id) { // bought in the shop
-      state[id].mag = WEAPONS[id].mag; state[id].reserve = WEAPONS[id].reserve;
+      state[id].mag = magOf(WEAPONS[id]); state[id].reserve = resOf(WEAPONS[id]);
       if (has(id)) { select(id); return; }
       if (S.inv.length < SLOTS) { S.inv.push(id); select(id); return; }
       const i = S.inv.indexOf(S.cur); throwOut(S.cur); S.inv[i] = id; forceTo(id);
     }
-    function refill() { for (const id of S.inv) state[id].reserve = WEAPONS[id].reserve; }
+    function refill(k = 1) { for (const id of S.inv) { const r = resOf(WEAPONS[id]); if (r !== Infinity) state[id].reserve = Math.max(state[id].reserve, Math.round(r * k)); } }
     function dropCur() {
       if (S.inv.length <= 1 || S.phase === 'holster' || !G.player.alive) { G.audio.play('deny', { gain: 0.6 }); G.ui.banner('KHÔNG BỎ ĐƯỢC', 'phải giữ ít nhất 1 vũ khí', 1.2); return false; }
       const id = S.cur; throwOut(id); S.inv.splice(S.inv.indexOf(id), 1); forceTo(S.inv[0]);
@@ -330,6 +333,45 @@
       const i = ground.indexOf(it); if (i < 0) return;
       ground.splice(i, 1); G.events.emit('ground:remove', it); G.scene.remove(it.g); G.scene.remove(it.ring); it.ring.material.dispose();
       if (it.claim) it.claim.fetch = null;
+    }
+    // supply crate under a parachute: a red flare marks where it will land; it breaks open into two guns, ammo and a medkit
+    const crates = [];
+    function airdrop(near, visual) {
+      let at = near.clone().add(new THREE.Vector3(G.rng.range(-5, 5), 0, G.rng.range(-5, 5))); at.y = Math.max(0, near.y);
+      if (G.world.overlaps([at.x - 0.6, at.y + 0.05, at.z - 0.6], [at.x + 0.6, at.y + 1.2, at.z + 0.6])) at = near.clone();
+      if (!visual) G.events.emit('crate', { p: at });
+      const B = new BZ.Builder('crate'); B.box([-0.5, 0, -0.5], [0.5, 0.9, 0.5], 'crate_metal', { uv: 'fit' }); B.box([-0.52, 0.38, -0.52], [0.52, 0.52, 0.52], 'hazard', { uv: 'fit' });
+      const C = new BZ.Builder('chute');
+      for (let i = 0; i < 6; i++) C.box([-1.5 + i * 0.5, 3.0 - Math.abs(i - 2.5) * 0.12, -1.4], [-1.0 + i * 0.5, 3.12 - Math.abs(i - 2.5) * 0.12, 1.4], i % 2 ? 'g_red' : 'plaster_white', { uv: 'fit', vary: 0 });
+      for (const [x, z] of [[-1.3, -1.2], [1.3, -1.2], [-1.3, 1.2], [1.3, 1.2]]) { C.push(new THREE.Matrix4().makeTranslation(x * 0.5, 1.9, z * 0.5).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(z * 0.5, 0, -x * 0.5)))); C.box([-0.02, -1.1, -0.02], [0.02, 1.1, 0.02], 'metal_dark', { vary: 0 }); C.pop(); }
+      const g = new THREE.Group(); const box = B.build({ cast: true }); const chute = C.build({ cast: false }); g.add(box); g.add(chute);
+      g.position.set(at.x, at.y + 28, at.z); G.scene.add(g);
+      crates.push({ g, chute, at, t: 0, landed: false, visual, flare: 0 });
+      if (!visual) G.ui.banner('THÙNG TIẾP TẾ', 'đang thả dù xuống gần bạn', 2.2);
+    }
+    function updateCrates(dt) {
+      for (let i = crates.length - 1; i >= 0; i--) {
+        const c = crates[i]; c.t += dt;
+        c.flare -= dt; if (c.flare <= 0) { c.flare = 0.12; G.fx.puff(c.at.clone().setY(c.at.y + 0.3), { vel: new THREE.Vector3(0, 2, 0), drag: 0.6, s0: 0.4, s1: 1.6, life: 2, c0: 0xff4a3a, c1: 0x8a3a3a, a0: 0.6 }); }
+        if (!c.landed) {
+          c.g.position.y = Math.max(c.at.y, c.g.position.y - 4.2 * dt); c.g.rotation.y += dt * 0.6; c.g.rotation.z = Math.sin(c.t * 1.7) * 0.08;
+          if (c.g.position.y <= c.at.y) {
+            c.landed = true; c.t = 0; c.g.rotation.set(0, c.g.rotation.y, 0);
+            G.fx.burst(c.at.clone().setY(c.at.y + 0.2), 20, [0x8a8070, 0x6a6458], { speed: 4, size: 0.12, life: 0.8 });
+            G.audio.playAt('land', c.at, { gain: 1, rate: 0.7 }); G.audio.playAt('clank', c.at, { gain: 0.9 });
+          }
+        } else {
+          c.chute.position.y += dt * 3; c.chute.position.x += dt * 2; c.chute.rotation.z += dt * 0.8;
+          if (c.t > 0.6 && !c.opened) {
+            c.opened = true; c.g.remove(c.chute);
+            G.fx.burst(c.at.clone().setY(c.at.y + 0.5), 24, [0x6a7a8a, 0xffd040, 0x3a3a3a], { speed: 5, size: 0.14, life: 1 });
+            G.fx.puff(c.at.clone().setY(c.at.y + 0.6), { glow: true, s0: 1.5, s1: 3, life: 0.3, c0: 0xfff0c0, c1: 0xffa040 });
+            G.audio.playAt('impact', c.at, { gain: 1, rate: 0.6 });
+            if (!c.visual) { G.dropGun(c.at, 2); G.fx.drop('ammo', c.at.clone().add(new THREE.Vector3(0.8, 0, 0))); G.fx.drop('health', c.at.clone().add(new THREE.Vector3(-0.8, 0, 0.3))); }
+          }
+          if (c.t > 1.2) { G.scene.remove(c.g); crates.splice(i, 1); }
+        }
+      }
     }
     function takeGround(it) { removeGround(it); return { id: it.id, mag: it.mag, reserve: it.reserve }; }
     function nearGround() {
@@ -447,7 +489,7 @@
       for (const z of G.zombies.list) {
         if (!z.alive) continue;
         const s = z.T.scale; const dx = z.pos.x - o.x; const dz = z.pos.z - o.z; const hd = Math.hypot(dx, dz);
-        if (hd - 0.45 * s > w.range) continue;
+        if (hd - 0.45 * s > w.range * G.build.meleeRange()) continue;
         const top = z.pos.y + (z.crawl ? 0.7 : z.T.fly ? 1.6 : 2.0) * s;
         if (top < o.y - 2.1 || z.pos.y > o.y + 1.1) continue;
         if (hd > 0.9 * s && (dx * fx + dz * fz) / hd < Math.cos(w.arc)) continue;
@@ -464,10 +506,10 @@
         const rel = (o.y + (d.y / fl) * c.hd - (sw.pat === 'over' ? 0.2 : 0.5) - z.pos.y) / s;
         let part = z.crawl ? (sw.pat === 'over' && G.rng.chance(0.5) ? 'head' : 'body') : rel > 1.42 || (sw.pat === 'over' && rel > 1.12) ? 'head' : rel < 0.72 ? 'leg' : 'body';
         if (z.headless && part === 'head') part = 'body';
-        const crit = G.rng.chance(w.crit);
-        const dmg = w.dmg * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (i ? 0.75 : 1) * (crit ? 2 : 1);
+        const crit = G.rng.chance(w.crit + G.build.critAdd());
+        const dmg = w.dmg * G.build.dmgMul() * G.build.meleeMul() * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (i ? 0.75 : 1) * (crit ? G.build.critMul() : 1);
         toZ.set(c.dx, 0, c.dz).normalize().multiplyScalar(0.6).addScaledVector(sweep, 0.8).setY(0).normalize();
-        const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (i ? 0.8 : 1), { cut: w.cut });
+        const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (i ? 0.8 : 1), { cut: w.cut, status: G.build.onHit(z, dmg, true) });
         if (died) kills++; heads = heads || part === 'head';
         G.events.emit('hit', { z, dmg: Math.round(dmg), part, died, crit, melee: true });
         const at = new THREE.Vector3(z.pos.x, z.pos.y + (part === 'head' ? 1.7 : part === 'leg' ? 0.5 : 1.1) * s * (z.crawl ? 0.3 : 1), z.pos.z);
@@ -494,6 +536,7 @@
     }
     function meleeUpdate(dt, w, input) {
       if (G.hero && G.hero.storm()) dt *= 1.5;
+      dt *= G.build.rateMul();
       const sw = S.swing;
       if (sw) {
         sw.t += dt;
@@ -506,7 +549,7 @@
     const saberLight = new THREE.PointLight(0x50d8ff, 0, 7, 2); G.scene.add(saberLight);
     function startReload() {
       const w = W(); const a = ammo();
-      if (S.phase !== 'ready' || a.mag >= w.mag || a.reserve <= 0) return;
+      if (S.phase !== 'ready' || a.mag >= magOf(w) || a.reserve <= 0) return;
       S.phase = 'reload'; S.t = 0; S.shellT = 0; S.evt = {};
     }
 
@@ -515,7 +558,7 @@
       const w = W(); const a = ammo(); const P = G.player;
       if (a.mag <= 0) { G.audio.play('empty'); S.cool = 0.25; if (a.reserve > 0) startReload(); return; }
       const storm = G.hero && G.hero.storm();
-      if (!storm) a.mag--; S.cool = 60 / w.rpm / (storm ? 2.2 : 1); S.shots++; S.cycle = 0; S.rackPlayed = false; S.shellOut = false;
+      if (!storm) a.mag--; S.cool = 60 / w.rpm / (storm ? 2.2 : 1) / G.build.rateMul(); S.shots++; S.cycle = 0; S.rackPlayed = false; S.shellOut = false;
       const cam = G.camera;
       cam.updateMatrixWorld();
       cam.getWorldPosition(o);
@@ -546,8 +589,8 @@
           const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
           const fall = w.pellets > 1 ? BZ.clamp(1.25 - h.t / w.range, 0.35, 1) : 1;
           const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0, crit: false };
-          const crit = G.rng.chance(w.crit || 0.08); if (crit) e.crit = true;
-          e.dmg += w.dmg * mult * fall * power * (crit ? 2 : 1); e.imp += (w.impulse || 1) * fall * power;
+          const crit = G.rng.chance((w.crit || 0.08) + G.build.critAdd()); if (crit) e.crit = true;
+          e.dmg += w.dmg * G.build.dmgMul() * mult * fall * power * (crit ? G.build.critMul() : 1); e.imp += (w.impulse || 1) * fall * power;
           if (h.part === 'head' || (h.part === 'body' && e.part === 'leg')) e.part = h.part;
           pend.set(h.z, e);
           anyHit = true; head = head || h.part === 'head';
@@ -567,7 +610,7 @@
       }
       let kills = 0;
       for (const [z, e] of pend) {
-        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp);
+        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp, { status: G.build.onHit(z, e.dmg, false) });
         if (died) kills++;
         G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died, crit: e.crit });
       }
@@ -604,19 +647,19 @@
         S.t += dt; S.drop.x = 1 - Math.min(1, S.t / 0.22);
         if (S.t >= 0.22) { S.phase = 'ready'; S.drop.x = 0; }
       } else if (S.phase === 'reload') {
-        const rdt = dt * (G.hero ? G.hero.reloadMul() : 1); S.t += rdt;
+        const rdt = dt * (G.hero ? G.hero.reloadMul() : 1) * G.build.reloadMul(); S.t += rdt;
         if (w.perShell) {
           S.shellT += rdt;
           if (S.shellT >= w.perShell) {
             S.shellT = 0; const n = Math.min(1, a.reserve); a.mag += n; a.reserve -= n; G.audio.play('shell_in', { gain: 0.8 }); S.kZ.v -= 1.2; S.kR.v += 1.5;
-            if (a.mag >= w.mag || a.reserve <= 0) { S.phase = 'ready'; S.pumpT = 0.38; G.audio.play('rack', { gain: 0.8 }); }
+            if (a.mag >= magOf(w) || a.reserve <= 0) { S.phase = 'ready'; S.pumpT = 0.38; G.audio.play('rack', { gain: 0.8 }); }
           }
           if (input.fire && a.mag > 0 && S.t > 0.2) { S.phase = 'ready'; }
         } else {
           const t = S.t / w.reload;
           for (const [at, snd] of RELOAD_SOUNDS) if (t >= at && !S.evt[snd]) { S.evt[snd] = true; G.audio.play(snd, { gain: 0.8 }); if (snd === 'mag_in') { S.kZ.v -= 1.5; S.kP.v -= 2; } if (snd === 'rack') S.kZ.v += 1.2; }
           if (S.t >= w.reload) {
-            const need = w.mag - a.mag; const n = Math.min(need, a.reserve);
+            const need = magOf(w) - a.mag; const n = Math.min(need, a.reserve);
             a.mag += n; a.reserve -= n; S.phase = 'ready';
           }
         }
@@ -629,7 +672,7 @@
         if (input.fire && canFire && (w.auto || !S.held)) fire();
       }
       S.held = input.fire;
-      updateGround(dt);
+      updateGround(dt); updateCrates(dt);
 
       // viewmodel pose: springs + sway + bob + reload dip + ADS
       const kz = S.kZ.step(dt); const kp = S.kP.step(dt); const ky = S.kY.step(dt); const kr = S.kR.step(dt);
@@ -719,10 +762,10 @@
     function reset() {
       S.inv = START.slice(); S.swing = null; S.combo = 0; trailPts.length = 0;
       while (ground.length) removeGround(ground[0]);
-      for (const id of ORDER) { state[id].mag = WEAPONS[id].mag; state[id].reserve = WEAPONS[id].reserve; models[id].visible = false; }
+      for (const id of ORDER) { state[id].mag = magOf(WEAPONS[id]); state[id].reserve = resOf(WEAPONS[id]); models[id].visible = false; }
       S.cur = 'smg'; S.next = null; S.phase = 'draw'; S.t = 0; models.smg.visible = true; S.ads = 0; S.bloom = 0; S.shots = 0; S.hits = 0; S.pumpT = 0; S.cycle = 9;
     }
 
-    return { S, state, WEAPONS, ORDER, SLOTS, update, render, select, selectSlot, cycle, startReload, give, refill, reset, has, dropCur, pickup, nearGround, ground, takeGround, spawnGround, removeGround, takeItem, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { S, state, WEAPONS, ORDER, SLOTS, magOf, resOf, update, render, select, selectSlot, cycle, startReload, give, refill, reset, has, dropCur, pickup, nearGround, ground, takeGround, spawnGround, removeGround, takeItem, airdrop, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();

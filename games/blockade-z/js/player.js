@@ -117,7 +117,7 @@
       const len = Math.hypot(input.fwd, input.side);
       const fx = len > 1 ? input.fwd / len : input.fwd; const sx = len > 1 ? input.side / len : input.side;
       P.sprinting = input.sprint && P.onGround;
-      const speed = (G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk) * G.hero.speedMul() * (G.env ? G.env.pSpeed : 1);
+      const speed = (G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk) * G.hero.speedMul() * G.build.speedMul() * (G.env ? G.env.pSpeed : 1);
       const sin = Math.sin(P.yaw); const cos = Math.cos(P.yaw);
       const wx = (-sin * fx + cos * sx) * speed; const wz = (-cos * fx - sin * sx) * speed;
       const acc = P.onGround ? (len > 0.05 ? MOVE.accelGround : MOVE.decelGround) : MOVE.accelAir;
@@ -197,6 +197,7 @@
       if (!P.alive || G.god || G.hero.invuln()) return;
       G.hero.onHurt();
       let d = dmg;
+      d *= G.build.armorMul();
       if (P.armor > 0) { const absorb = Math.min(P.armor, d * 0.6); P.armor -= absorb; d -= absorb; }
       P.hp = Math.max(0, P.hp - d);
       P.shake.v += 6 * (G.rng.next() - 0.5) * (d / 10 + 1);

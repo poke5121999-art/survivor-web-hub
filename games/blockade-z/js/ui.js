@@ -109,23 +109,30 @@
     skillEl.addEventListener('click', () => G.hero.use());
     skillEl.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.hero.use(); }, { passive: false });
 
+    // shop = upgrades only: category tabs, one card per upgrade with its level pips and next step, resonances below
+    let shopCat = 'fire';
     function shopRender() {
-      const W = G.weapons; const P = G.player;
-      const items = [
-        ...W.ORDER.filter((id) => W.WEAPONS[id].price > 0).map((id) => { const w = W.WEAPONS[id]; return { id, label: w.name,
-          sub: (w.melee ? `Cận chiến · sát thương ${w.dmg} · chém ${w.cleave} con một nhát` : `Sát thương ${w.dmg}${w.pellets > 1 ? '×' + w.pellets : ''} · băng ${w.mag}`) + (W.S.inv.length >= W.SLOTS && !W.has(id) ? ' · món đang cầm rơi xuống đất' : ''),
-          price: w.price, owned: W.has(id) }; }),
-        { id: 'ammo', label: 'Đạn đầy', sub: 'Nạp đầy đạn dự trữ mọi súng', price: 120 },
-        { id: 'heal', label: 'Hồi máu', sub: 'Máu về 100', price: 150, dis: P.hp >= P.maxHp },
-        { id: 'armor', label: 'Giáp +50', sub: 'Đỡ 60% sát thương tới khi vỡ', price: 200, dis: P.armor >= 100 },
-        { id: 'jetpack', label: 'Jetpack', sub: 'Nhảy rồi giữ Space để bay, nhiên liệu tự hồi', price: BZ.JET.price, owned: !!P.hasJet },
-        { id: 'bomb', label: 'Bom +' + BZ.BOMB.pack, sub: `Ném bằng G · đang có ${G.gear.state.bombs}/${BZ.BOMB.max}`, price: BZ.BOMB.price, dis: G.gear.state.bombs >= BZ.BOMB.max },
-        { id: 'turret', label: 'Súng máy tự động', sub: `Đặt trước mặt, tự bắn ${BZ.TURRET.ammo} viên · ${G.gear.turrets.length}/${BZ.TURRET.max}`, price: BZ.TURRET.price, dis: G.gear.turrets.length >= BZ.TURRET.max },
-        { id: 'ally', label: 'Thuê lính', sub: `Đi theo và bắn phụ · ${G.allies.count()}/${BZ.ALLY.max} lính`, price: BZ.ALLY.price, dis: G.allies.count() >= BZ.ALLY.max },
-      ];
-      el.shopList.innerHTML = items.map((it) => `<button class="item${it.owned ? ' owned' : ''}" data-buy="${it.id}" ${it.owned || it.dis || G.coins < it.price ? 'disabled' : ''}>
-        <b>${it.label}</b><small>${it.sub}</small><span>${it.owned ? 'Đã có' : '🪙 ' + it.price}</span></button>`).join('');
+      const B = G.build;
+      const tabs = B.CATS.map(([id, n]) => `<button class="tab${id === shopCat ? ' on' : ''}" data-cat="${id}">${n}</button>`).join('');
+      const cards = B.UP.filter((u) => u.cat === shopCat).map((u) => {
+        const l = B.lv(u.id); const max = l >= u.max; const c = B.cost(u.id);
+        return `<button class="up${max ? ' max' : ''}${l ? ' has' : ''}" data-up="${u.id}" ${max || G.coins < c ? 'disabled' : ''}>
+          <i>${u.icon}</i><b>${u.name}</b><em>${'<u class="on"></u>'.repeat(l)}${'<u></u>'.repeat(u.max - l)}</em>
+          <small>${l ? u.d(l) : 'chưa có'}${max ? '' : `<br><span class="nx">▶ ${u.d(l + 1)}</span>`}</small><strong>${max ? 'TỐI ĐA' : '🪙 ' + c}</strong></button>`;
+      }).join('');
+      const res = B.RES.map((r) => {
+        const on = B.has(r.id);
+        const need = Object.entries(r.need).map(([k, n]) => `<span class="${B.lv(k) >= n ? 'ok' : ''}">${B.def(k).name} ${Math.min(B.lv(k), n)}/${n}</span>`).join(' + ');
+        return `<div class="res${on ? ' on' : ''}"><b>${on ? '✦ ' : ''}${r.name}</b><small>${need}</small><p>${r.d}</p></div>`;
+      }).join('');
+      el.shopList.innerHTML = `<div class="shop-coins">🪙 <b>${G.coins}</b></div><div class="tabs">${tabs}</div><div class="ups">${cards}</div>
+        <h3 class="res-h">Cộng hưởng <small>đủ cấp ở hai nhánh thì mở thêm hiệu ứng</small></h3><div class="ress">${res}</div>
+        <p class="shop-note">Súng không bán: nhặt từ zombie, quái tinh anh, boss và thùng tiếp tế thả dù giữa hai đợt.</p>`;
     }
+    el.shopList.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-cat]'); if (t) { shopCat = t.dataset.cat; G.audio.play('switch', { gain: 0.5 }); shopRender(); return; }
+      const u = e.target.closest('[data-up]'); if (u && !u.disabled) G.events.emit('upgrade', u.dataset.up);
+    });
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act],[data-buy]');
       if (!b) return;

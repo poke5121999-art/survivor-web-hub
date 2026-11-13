@@ -165,7 +165,8 @@
       if (H.charges <= 0) { G.audio.play('deny', { gain: 0.5 }); return false; }
       const ok = SKILLS[k]();
       if (!ok) return false;
-      H.charges--; if (H.cd <= 0) H.cd = h.skill.cd;
+      H.charges--; if (H.cd <= 0) H.cd = h.skill.cd * G.build.cdMul();
+      if (G.build.has('overload')) G.gear.explode(G.player.pos.clone().setY(G.player.pos.y + 0.8), 4, 80);
       G.events.emit('skill', { hero: h.id, key: k });
       return true;
     }
@@ -247,7 +248,7 @@
     function update(dt) {
       const p = P(); const h = H.def;
       // charges come back one at a time
-      if (H.charges < (h.skill.charges || 1)) { H.cd -= dt; if (H.cd <= 0) { H.charges++; H.cd = H.charges < (h.skill.charges || 1) ? h.skill.cd : 0; if (H.charges === (h.skill.charges || 1)) G.audio.play('marker', { gain: 0.5, rate: 0.7 }); } }
+      if (H.charges < (h.skill.charges || 1)) { H.cd -= dt; if (H.cd <= 0) { H.charges++; H.cd = H.charges < (h.skill.charges || 1) ? h.skill.cd * G.build.cdMul() : 0; if (H.charges === (h.skill.charges || 1)) G.audio.play('marker', { gain: 0.5, rate: 0.7 }); } }
       for (const k of Object.keys(H.t)) H.t[k] = Math.max(0, H.t[k] - dt);
       if (fxT > 0) { fxT -= dt; if (fxT <= 0 && fxEl) fxEl.className = ''; }
       H.hurtT = (H.hurtT || 0) + dt;
@@ -325,6 +326,6 @@
     function strikeAt(at) { for (let i = 0; i < 6; i++) H.strikes.push({ t: 1.0 + i * 0.14, x: at.x + G.rng.range(-3.5, 3.5), z: at.z + G.rng.range(-3.5, 3.5), y: at.y }); }
     return Object.assign(H, { HEROES, set, reset, use, update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId,
       reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), bombMul: () => (H.def.id === 'phao' ? 1.4 : 1), chill: () => H.def.id === 'bang',
-      ready: () => H.charges > 0, cdFrac: () => (H.charges >= (H.def.skill.charges || 1) ? 0 : H.cd / H.def.skill.cd) });
+      ready: () => H.charges > 0, cdFrac: () => (H.charges >= (H.def.skill.charges || 1) ? 0 : H.cd / (H.def.skill.cd * G.build.cdMul())) });
   };
 })();

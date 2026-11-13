@@ -88,24 +88,24 @@ const BOT = `(() => {
     check(await page.evaluate('__G.state') === 'shop', 'B opens the shop during the break');
     await page.screenshot({ path: path.join(OUT, '04-shop.png') });
     const before = await page.evaluate('__G.coins');
-    await page.click('[data-buy="shotgun"]');
-    const after = await page.evaluate("({own: __G.weapons.has('shotgun'), c: __G.coins})");
-    check(after.own && before - after.c === 350, `buying the shotgun takes 350 coins and owns it (${before} -> ${after.c})`);
+    await page.click('[data-up="dmg"]');
+    const after = await page.evaluate("({ lv: __G.build.lv('dmg'), c: __G.coins, cards: document.querySelectorAll('#shop-list .up').length })");
+    check(after.lv >= 1 && before - after.c > 0 && after.cards >= 5, `the shop sells upgrades only: damage level ${after.lv} for ${before - after.c} coins (${after.cards} cards)`);
+    check(await page.evaluate("!document.querySelector('[data-buy]')"), 'no weapon is for sale in the shop');
     await page.click('[data-act="closeshop"]');
     await page.evaluate('window.__sim(0.6)');
-    check(await page.evaluate("__G.weapons.cur() === 'shotgun'"), 'bought gun is equipped');
     await page.waitForTimeout(500);
-    await page.screenshot({ path: path.join(OUT, '05-shotgun.png') });
+    await page.screenshot({ path: path.join(OUT, '05-after-shop.png') });
 
     // bomb kills a cluster; turret shoots on its own; jetpack lifts the player
     const gear = await page.evaluate(`(() => { const G = __G; G.wave.breakT = 0.01; __sim(0.2); G.zombies.clear();
       const P = G.player; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = -0.75; P.hp = 100; P.alive = true; G.state = 'playing';
       for (let i = 0; i < 4; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 2, dir: [0, -1], name: 't' }); z.pos.set(-0.6 + i * 0.4, 0, 5.2); z.speed = 0; }
       __sim(0.05); const k0 = G.kills; G.gear.throwBomb(); __sim(2.2); const bombKills = G.kills - k0;
-      G.coins = 1000; G.wave.phase = 'break'; G.events.emit('buy', 'turret'); const t = G.gear.turrets[0]; const a0 = t ? t.ammo : -1;
+      G.build.L.eng = 1; P.yaw = Math.PI / 2; G.events.emit('wave:start', 2); const t = G.gear.turrets[0]; const a0 = t ? t.ammo : -1;
       const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(-4, 0, 8.5); z.speed = 0; __sim(1.5);
       const fired = t ? a0 - t.ammo : 0;
-      G.coins = 1000; G.wave.phase = 'break'; G.events.emit('buy', 'jetpack'); G.wave.phase = 'fight';
+      G.build.L.jet = 1; G.build.apply(); G.wave.phase = 'fight';
       P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.jumpBuf = 0.13; P.touchJet = true; __sim(1.2); const h = P.pos.y; P.touchJet = false;
       return { bombKills, fired, h: +h.toFixed(2), fuel: Math.round(P.fuel) }; })()`);
     console.log('gear', JSON.stringify(gear));
@@ -162,6 +162,7 @@ const BOT = `(() => {
     const mel = await page.evaluate(`(() => { const G = __G; const W = G.weapons; const P = G.player; const V = G.THREE.Vector3; const r = {};
       G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true; G.allies.clear();
       const mk = (type, x, z) => { const q = G.zombies.spawn(type, 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; return q; };
+      window.__realDrop = [G.dropGun, W.airdrop]; G.dropGun = () => {}; W.airdrop = () => {};
       W.reset(); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); W.selectSlot(1); __sim(0.7); r.cur = W.cur();
       const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260;
       const h0 = W.S.hits; P.input.fire = true; __sim(1.4); P.input.fire = false; __sim(0.3);
@@ -248,6 +249,24 @@ const BOT = `(() => {
     check(sold.aim > 0.8 && sold.face < 0.3, `a soldier raises the gun and turns to face a zombie off to the side (aim ${sold.aim}, off by ${sold.face} rad)`);
     check(sold.reload, 'a soldier changes magazines after a burst');
     check(sold.cheer, 'soldiers cheer when the wave ends');
+
+    // builds: upgrades, elements reacting on a zombie, resonances, the supply crate
+    const bld = await page.evaluate(`(() => { const G = __G; const r = {}; G.zombies.clear(); G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1;
+      if (window.__realDrop) [G.dropGun, G.weapons.airdrop] = window.__realDrop;
+      G.build.reset('mua'); G.coins = 99999; for (const id of ['ice_el', 'ice_el', 'ice_el', 'shock_el', 'shock_el', 'shock_el', 'hp', 'squad']) G.events.emit('upgrade', id);
+      r.super = G.build.has('super'); r.maxHp = G.player.maxHp; r.allies = G.allies.count();
+      const mk = (x, z) => { const q = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; q.hp = q.maxHp = 2000; return q; };
+      const a = mk(0, 0); for (let i = 0; i < 4; i++) G.zombies.applyStatus(a, 'chill', 1); r.frozen = a.frozen > 0;
+      G.zombies.applyStatus(a, 'shock', 1); r.shatter = !a.alive;
+      const b = mk(3, 3); G.zombies.applyStatus(b, 'burn', 1); __sim(2.1); r.burn = Math.round(2000 - b.hp);
+      const c = mk(-3, 3); const c0 = c.hp; G.zombies.applyStatus(c, 'poison', 1); G.zombies.applyStatus(c, 'burn', 1); __sim(0.1); r.gas = Math.round(c0 - c.hp);
+      G.zombies.clear(); const g0 = G.weapons.ground.length; G.weapons.airdrop(G.player.pos); __sim(8); r.crate = G.weapons.ground.length - g0;
+      G.god = false; return r; })()`);
+    console.log('build', JSON.stringify(bld));
+    check(bld.super && bld.maxHp === 120 && bld.allies >= 1, `upgrades apply: resonance Siêu dẫn on, ${bld.maxHp} max hp, ${bld.allies} soldier from Chỉ huy`);
+    check(bld.frozen && bld.shatter, 'four layers of cold freeze a zombie and a shock shatters it');
+    check(bld.burn > 10 && bld.gas > 50, `fire burns over time (${bld.burn}) and fire on poison blows up (${bld.gas})`);
+    check(bld.crate === 2, `a supply crate lands and breaks open into two guns (${bld.crate})`);
 
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));
