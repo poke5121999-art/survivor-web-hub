@@ -29,10 +29,19 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 - Đầu mỗi đợt tung ra một kiểu thời tiết, kiểu nào cũng có luật riêng: mưa (zombie chậm 10%), bão sét (sét đánh zombie), sương mù (xu gấp rưỡi), tuyết (zombie chậm 20%), trăng máu chỉ ra ban đêm (zombie trâu hơn, xu gấp đôi), gió tro (đạn lệch), mưa sao băng (thiên thạch nổ, có vòng đỏ báo trước). `?weather=<id>` ép một kiểu.
 - Vụ nổ ở `fx.explosion`: chớp sáng, quả cầu lửa, vòng sóng xung kích trên đất, tàn lửa, gạch đá văng, khói đứng lại vài giây, vết cháy, màn hình loé trắng khi nổ gần. Lửa và khói là hai `InstancedMesh` billboard (một lớp cộng sáng, một lớp alpha), nên mỗi lớp chỉ tốn một draw call.
 
+## Chơi cùng bạn (co-op)
+
+- Màn đầu có nút **Chơi cùng bạn**: tạo phòng (ra mã 6 ký tự), vào bằng mã, hoặc chọn trong danh sách phòng đang mở. Tối đa 4 người. Người vào sau chọn nhân vật rồi nhảy thẳng vào trận đang đánh.
+- Mạng là Unity Relay gọi bằng JS thuần, chép từ `games/mini-mart-coop/js/net/` sang `js/net/`. `relay.js` giữ nguyên; `ugs.js` và `room.js` đổi nhãn phòng sang `blockadez` ở index S5, nên danh sách phòng không lẫn với Boo Haul hay Mini Mart Together.
+- `js/coop.js`: chủ phòng giữ zombie, đợt, thời tiết, vũ khí dưới đất và lính thuê, gửi ảnh chụp trạng thái 15 lần mỗi giây kèm sự kiện (zombie chết với kiểu gore đã chọn, đứt chi, vụ nổ, sét, thiên thạch, vũ khí rơi và được nhặt, thông báo đợt). Người vào sau tự đi và tự bắn trên máy mình, tự thử trúng zombie mình thấy, rồi gửi phát trúng lên chủ phòng. Xu và điểm thuộc về người ra đòn kết liễu. Zombie đuổi người sống gần nhất. Gục thì chờ hồi sinh ở đợt sau; cả phòng gục thì hết trận.
+- `?fakenet=1` thay Relay bằng `BroadcastChannel` để hai tab cùng trình duyệt chơi với nhau khi không có mạng (dùng cho test).
+- Còn hở: bóng mồi của nhân vật Bóng chỉ nhử được zombie khi chủ phòng là Bóng; tên lửa đang bay và quả bom đang lăn của người khác không hiện, chỉ thấy vụ nổ; chủ phòng rời thì phòng đóng (chưa chuyển chủ).
+
 ## Kiểm
 
 ```
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/smoke.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [FAKE=0] node games/blockade-z/tools/coop-test.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/shots.js <thư mục ảnh>
 ```
 
