@@ -73,11 +73,23 @@
       s2: { key: 'repair', name: 'Giáp khẩn', cd: 12, desc: 'Thêm 60 giáp cho bạn, lính thuê quanh 10 m hồi 60 máu.' },
       ult: { key: 'artillery', name: 'Pháo Đài', cost: 1800, desc: 'Dựng khẩu pháo lớn bắn tên lửa vào zombie gần nhất trong 14 giây.' },
       look: { skin: 0xd8a070, hair: 0x4a2a1a, eye: 0x202020, shirt: 0xd88a20, shirt2: 0x3a3a3a, pants: 0x5a4a32, boot: 0x2a2018 } },
+    { id: 'soi', name: 'Sói', role: 'Hoá sói', color: 0xd08a40, hp: 110, speed: 1.08,
+      passive: 'Mỗi con zombie hạ được hồi 4 máu. Chạy nhanh hơn 8%.',
+      s1: { key: 'lunge', name: 'Vồ cắn', cd: 7, desc: 'Vồ 8 m tới chỗ tâm ngắm (ngửa lên thì vồ lên cao), đáp xuống cắn 90 sát thương kèm chảy máu, hồi 15 máu.' },
+      s2: { key: 'howl', name: 'Tru gọi bầy', cd: 14, desc: 'Tru một tiếng: zombie trong 10 m hoảng sợ bỏ chạy 2,5 giây, ba con sói hồn lao ra cắn xé trong 8 giây.' },
+      ult: { key: 'werewolf', name: 'Hoá Sói', cost: 1600, desc: 'Hoá người sói 12 giây: vuốt cào hai nhát chém lan 70, chạy nhanh hơn 35%, nhảy cao hơn, chịu ít hơn 40% sát thương, hút 15% máu; Vồ cắn hồi rất nhanh.' },
+      look: { skin: 0xd0a07a, hair: 0x5a4632, eye: 0xffb030, shirt: 0x5a3e26, shirt2: 0x9a948a, pants: 0x3e3226, boot: 0x2a1e14, beard: 0x5a4632 } },
+    { id: 'nhen', name: 'Nhện Đồng', role: 'Đu tơ', color: 0xe0a048, hp: 100, speed: 1.04, wallRun: true, doubleJump: true,
+      passive: 'Chạy trên tường, chạy lên tường, đạp tường bật nhảy, nhảy hai lần.',
+      s1: { key: 'swing', name: 'Đu tơ', cd: 5, charges: 2, desc: 'Bắn sợi tơ tới chỗ tâm ngắm chạm (tường, mái, đất) trong 30 m rồi đu theo cung tới đó; ngắm mép mái thì đu lên mái. Đáp xuống đá văng zombie quanh chân 90 sát thương kèm một lớp tơ.' },
+      s2: { key: 'yank', name: 'Kéo tơ', cd: 7, desc: 'Bắn tơ dính zombie dưới tâm ngắm, giật nó về trước mặt rồi trói nó cùng tối đa 2 con cạnh bên 2 giây.' },
+      ult: { key: 'webnet', name: 'Lưới Tơ Khổng Lồ', cost: 1300, desc: 'Tung tấm lưới rộng 12 m về phía trước: trói mọi zombie dưới lưới 3 giây, rồi tơ siết lại và nổ 300 sát thương.' },
+      look: { skin: 0xc89a78, hair: 0x16161c, eye: 0xffb040, shirt: 0x1c1c22, shirt2: 0xc8863a, pants: 0x18181e, boot: 0x101014 } },
   ];
   // each hero fights with one weapon, the whole run
-  const KIT = { gio: 'katana', thep: 'longsword', yta: 'dualpistol', mua: 'minigun', bong: 'shuriken', phao: 'bazooka', bang: 'spear', hoa: 'fists', sam: 'javelin', doc: 'glaive', ky: 'shotgun' };
+  const KIT = { gio: 'katana', thep: 'longsword', yta: 'dualpistol', mua: 'minigun', bong: 'shuriken', phao: 'bazooka', bang: 'spear', hoa: 'fists', sam: 'javelin', doc: 'glaive', ky: 'shotgun', soi: 'hatchet', nhen: 'webbow' };
   for (const h of HEROES) h.weapon = KIT[h.id];
-  const ULT_DUR = { drones: 7, vanish: 7, blizzard: 8, dragon: 6, thunder: 6, plague: 8, artillery: 14, revive: 6 };
+  const ULT_DUR = { drones: 7, vanish: 7, blizzard: 8, dragon: 6, thunder: 6, plague: 8, artillery: 14, revive: 6, werewolf: 12, webnet: 3.6 };
   for (const h of HEROES) { h.skill = h.s1; h.ult.dur = ULT_DUR[h.ult.key] || 1; }
   BZ.HEROES = HEROES;
   const byId = (id) => HEROES.find((h) => h.id === id) || HEROES[3];
@@ -101,6 +113,13 @@
       if (id === 'sam') { set(1, 2, hx(0xf0f0ff)); set(6, 2, hx(0xf0f0ff)); set(3, 6, hx(0x9ad8ff)); }
       if (id === 'doc') for (const ex of [2, 5]) { set(ex, 3, hx(0x9aff40)); set(ex + (ex < 4 ? -1 : 1), 3, hx(0x9aff40)); }
       if (id === 'ky') for (let x = 1; x < 7; x++) set(x, 3, x === 1 || x === 6 ? hx(0x3a3a3a) : (x === 2 || x === 5 ? hx(0x60c8ff) : hx(0x3a3a3a)));
+      // Sói: amber eyes under a heavy brow, stubble, a scar over the left eye
+      if (id === 'soi') { for (let x = 1; x < 7; x++) set(x, 2, shade(hx(L.hair), 0.8)); for (let x = 1; x < 7; x++) set(x, 6, shade(hx(L.beard), x % 2 ? 1 : 0.8)); set(2, 7, hx(L.beard)); set(5, 7, hx(L.beard)); set(1, 4, hx(0xa86a5a)); set(2, 2, hx(0xa86a5a)); }
+      // Nhện Đồng: a black helmet face, bronze mandibles, a cluster of small glowing eyes
+      if (id === 'nhen') { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, hx(y === 2 ? 0xc8863a : 0x1c1c22)); for (const [x, y] of [[2, 3], [5, 3], [1, 4], [6, 4], [3, 4], [4, 4]]) set(x, y, hx(0xffb040)); for (const [x, y] of [[2, 6], [5, 6], [2, 7], [5, 7]]) set(x, y, hx(0xc8863a)); }
+    }, { noMip: true });
+    if (id === 'soi') for (const [k, c] of [['fur', 0x76644e], ['furL', 0xb4a48a], ['furD', 0x3e3428]]) BZ.defTex('h_soi_' + k, 8, 8, ({ set, rng }) => {
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, shade(hx(c), 0.82 + rng.next() * 0.3 + ((x + y * 3) % 5 === 0 ? -0.12 : 0) + (y % 3 === 0 ? 0.06 : 0)));
     }, { noMip: true });
     BZ.defTex('h_' + id + '_hair', 8, 8, ({ set, rng }) => {
       for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, shade(hx(L.hair), rng.chance(0.25) ? 1.25 : 1));
@@ -118,14 +137,17 @@
       else if (id === 'sam') { for (const [x, y] of [[4, 0], [3, 1], [3, 2], [4, 2], [5, 2], [4, 3], [3, 4], [3, 5]]) set(x, y, hx(L.shirt2)); }
       else if (id === 'doc') { for (let y = 0; y < 8; y++) { set(0, y, hx(L.shirt2)); set(7, y, hx(L.shirt2)); } set(3, 3, hx(L.shirt2)); set(4, 4, hx(L.shirt2)); }
       else if (id === 'ky') { for (let y = 0; y < 8; y++) { set(1, y, hx(L.shirt2)); set(6, y, hx(L.shirt2)); } for (let x = 2; x < 6; x++) set(x, 3, hx(0xb06a10)); }
+      else if (id === 'soi') { for (let i = 0; i < 8; i++) set(i, Math.min(7, Math.floor(i * 0.9)), hx(0x2a1a10)); for (let x = 0; x < 8; x++) set(x, 0, hx(L.shirt2)); set(3, 4, hx(0xe8e0c8)); set(5, 5, hx(0xe8e0c8)); }
+      else if (id === 'nhen') { for (let y = 0; y < 8; y++) { set(3, y, hx(L.shirt2)); set(4, y, shade(hx(L.shirt2), 0.8)); } for (const [x, y] of [[1, 2], [2, 3], [6, 2], [5, 3], [1, 5], [2, 4], [6, 5], [5, 4]]) set(x, y, hx(L.shirt2)); for (let x = 0; x < 8; x++) set(x, 7, shade(hx(L.shirt), 1.4)); }
     }, { noMip: true });
     BZ.defTex('h_' + id + '_sleeve', 16, 16, ({ set, rng }) => {
       for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, shade(hx(L.shirt), 1 + (rng.next() - 0.5) * 0.12 + ((x + y) % 7 === 0 ? -0.12 : 0)));
       if (id === 'yta') for (let x = 0; x < 16; x++) { set(x, 3, hx(L.shirt2)); }
-      if (['gio', 'bong', 'phao', 'hoa', 'sam', 'doc'].includes(id)) for (let x = 0; x < 16; x++) set(x, 12, hx(L.shirt2));
+      if (['gio', 'bong', 'phao', 'hoa', 'sam', 'doc', 'nhen'].includes(id)) for (let x = 0; x < 16; x++) set(x, 12, hx(L.shirt2));
+      if (id === 'soi') for (let x = 0; x < 16; x++) { set(x, 1, hx(L.shirt2)); set(x, 2, shade(hx(L.shirt2), 0.8)); }
     });
     BZ.defTex('h_' + id + '_glove', 4, 4, ({ set }) => {
-      const g = id === 'yta' ? 0xe8f0f4 : id === 'bang' ? 0xd8f0ff : id === 'thep' ? 0x5a626c : id === 'ky' ? 0xd8b020 : L.boot;
+      const g = id === 'yta' ? 0xe8f0f4 : id === 'bang' ? 0xd8f0ff : id === 'thep' ? 0x5a626c : id === 'ky' ? 0xd8b020 : id === 'nhen' ? 0x8a5a28 : id === 'soi' ? 0x4a3828 : L.boot;
       for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) set(x, y, shade(hx(g), y === 3 ? 1.25 : x === 0 ? 1.1 : 1));
     }, { noMip: true });
   }
@@ -139,6 +161,7 @@
       for (const [a, b, m] of boxes) B.box(a, b, m, { uv: 'fit', vary: 0 });
       const matOpts = {}; matOpts[C(0x60e8ff)] = { emissive: 0x40c8ff }; matOpts[C(0xc080ff)] = { emissive: 0x9040ff }; matOpts[C(0xffa020)] = { emissive: 0xff8010 };
       matOpts[C(0x9ad8ff)] = { emissive: 0x4080ff }; matOpts[C(0x9aff40)] = { emissive: 0x40a010 }; matOpts[C(0xff8a20)] = { emissive: 0xff5a10 };
+      matOpts[C(0xffb040)] = { emissive: 0xff9010 };
       return B.build({ cast: true, matOpts });
     };
     const shirt = 'h_' + id + '_shirt'; const face = { pz: 'h_' + id + '_face', side: 'h_' + id + '_hair', top: 'h_' + id + '_hair', bottom: C(L.skin) };
@@ -170,13 +193,27 @@
     if (id === 'sam') extra.push([[-0.42, 0.56, -0.12], [-0.26, 0.76, 0.12], C(0x3a4a6a)], [[0.26, 0.56, -0.12], [0.42, 0.76, 0.12], C(0x3a4a6a)], [[-0.4, 0.76, -0.06], [-0.28, 0.84, 0.06], C(0x9ad8ff)], [[0.28, 0.76, -0.06], [0.4, 0.84, 0.06], C(0x9ad8ff)], [[-0.14, 0.1, -0.3], [0.14, 0.5, -0.15], C(0x2a3450)], [[-0.04, 0.5, -0.26], [0.04, 0.9, -0.2], C(0x9ad8ff)]);
     if (id === 'doc') extra.push([[-0.27, 0.04, -0.17], [0.27, 0.1, 0.17], C(0x3a2a18)], [[-0.24, -0.08, 0.15], [-0.14, 0.12, 0.24], C(0x9aff40)], [[-0.06, -0.08, 0.15], [0.04, 0.12, 0.24], C(0x9aff40)], [[0.12, -0.08, 0.15], [0.22, 0.12, 0.24], C(0x9aff40)], [[-0.28, 0.2, -0.17], [0.28, 0.72, 0.17], { pz: C(0x2a3a24), side: C(0x22301c), top: C(0x22301c), bottom: C(0x22301c) }]);
     if (id === 'ky') extra.push([[-0.27, 0.0, -0.17], [0.27, 0.1, 0.17], C(0x5a3a1a)], [[0.16, -0.12, 0.13], [0.26, 0.08, 0.22], C(0x9a9a9a)], [[-0.26, -0.1, 0.13], [-0.18, 0.06, 0.2], C(0xd8b020)], [[-0.2, 0.15, -0.36], [0.2, 0.62, -0.15], C(0x6a6a5a)], [[-0.16, 0.5, -0.38], [0.16, 0.56, -0.35], C(0xffb020)]);
+    // Sói: a fur mantle over a leather vest, a strap across the chest, tooth charms on the belt
+    if (id === 'soi') extra.push([[-0.31, 0.56, -0.2], [0.31, 0.76, 0.2], C(0x8a8478)], [[-0.22, 0.62, 0.2], [0.22, 0.74, 0.23], C(0x9a948a)], [[-0.34, 0.6, -0.12], [-0.24, 0.8, 0.12], C(0x7a746a)], [[0.24, 0.6, -0.12], [0.34, 0.8, 0.12], C(0x7a746a)],
+      [[-0.27, 0.0, -0.17], [0.27, 0.08, 0.17], C(0x2a1a10)], [[-0.04, 0.0, 0.17], [0.04, 0.09, 0.18], C(0xb8863a)], [[-0.16, -0.08, 0.16], [-0.12, 0.0, 0.19], C(0xe8e0c8)], [[0.1, -0.08, 0.16], [0.14, 0.0, 0.19], C(0xe8e0c8)],
+      [[-0.2, 0.08, -0.36], [0.06, 0.5, -0.16], C(0x4a3420)], [[-0.21, 0.4, -0.37], [0.07, 0.44, -0.35], C(0x9a948a)]);
+    // Nhện Đồng: black plate with bronze trim, a bronze spider on the chest, the hub that carries the four legs
+    if (id === 'nhen') extra.push([[-0.28, 0.1, -0.17], [0.28, 0.66, 0.18], { pz: C(0x26262e), side: C(0x1e1e24), top: C(0x26262e), bottom: C(0x1e1e24) }],
+      [[-0.29, 0.64, -0.18], [0.29, 0.7, 0.19], C(0xc8863a)], [[-0.28, 0.0, -0.18], [0.28, 0.07, 0.18], C(0xc8863a)], [[-0.025, 0.07, 0.18], [0.025, 0.64, 0.19], C(0x8a5a28)],
+      [[-0.06, 0.32, 0.18], [0.06, 0.5, 0.21], C(0xe0a048)], [[-0.04, 0.5, 0.18], [0.04, 0.57, 0.205], C(0xe0a048)], [[-0.16, 0.44, 0.18], [-0.06, 0.47, 0.2], C(0xc8863a)], [[0.06, 0.44, 0.18], [0.16, 0.47, 0.2], C(0xc8863a)],
+      [[-0.16, 0.34, 0.18], [-0.06, 0.37, 0.2], C(0xc8863a)], [[0.06, 0.34, 0.18], [0.16, 0.37, 0.2], C(0xc8863a)], [[-0.03, 0.38, 0.21], [0.03, 0.44, 0.215], C(0xffb040)],
+      [[-0.44, 0.52, -0.18], [-0.26, 0.74, 0.18], C(0x26262e)], [[0.26, 0.52, -0.18], [0.44, 0.74, 0.18], C(0x26262e)], [[-0.45, 0.5, -0.19], [-0.25, 0.54, 0.19], C(0xc8863a)], [[0.25, 0.5, -0.19], [0.45, 0.54, 0.19], C(0xc8863a)],
+      [[-0.17, 0.28, -0.3], [0.17, 0.64, -0.16], C(0x2a2a32)], [[-0.18, 0.44, -0.31], [0.18, 0.48, -0.15], C(0xc8863a)], [[-0.06, 0.5, -0.32], [0.06, 0.6, -0.3], C(0xffb040)]);
     const torso = part('torso', torsoBoxes.concat(extra)); spine.add(torso);
     const arm = (x) => {
       const g = new THREE.Group(); g.position.set(x, 0.64, 0); spine.add(g);
       const bare = id === 'mua' || id === 'ky';
       g.add(part('upper', [[[-0.1 - bulk, -0.34, -0.1 - bulk], [0.1 + bulk, 0.06, 0.1 + bulk], C(L.shirt)]]));
       const elbow = new THREE.Group(); elbow.position.y = -0.32; g.add(elbow);
-      elbow.add(part('fore', [[[-0.095 - bulk, -0.22, -0.095 - bulk], [0.095 + bulk, 0.02, 0.095 + bulk], C(bare ? L.skin : L.shirt)], [[-0.105 - bulk, -0.38, -0.105 - bulk], [0.105 + bulk, -0.18, 0.105 + bulk], 'h_' + id + '_glove']]));
+      const fore = [[[-0.095 - bulk, -0.22, -0.095 - bulk], [0.095 + bulk, 0.02, 0.095 + bulk], C(bare ? L.skin : L.shirt)], [[-0.105 - bulk, -0.38, -0.105 - bulk], [0.105 + bulk, -0.18, 0.105 + bulk], 'h_' + id + '_glove']];
+      if (id === 'nhen') fore.push([[-0.11, -0.04, -0.11], [0.11, 0.04, 0.11], C(0xc8863a)], [[-0.1, -0.2, -0.1], [0.1, -0.16, 0.1], C(0xc8863a)]);
+      if (id === 'soi') fore.push([[-0.105, -0.2, -0.105], [0.105, -0.12, 0.105], C(0x9a948a)]);
+      elbow.add(part('fore', fore));
       const hand = new THREE.Group(); hand.position.set(0, -0.3, 0.05); elbow.add(hand);
       g.userData = { elbow, hand }; return g;
     };
@@ -194,10 +231,56 @@
     if (id === 'sam') hb.push([[-0.2, 0.5, -0.2], [-0.08, 0.72, -0.08], C(0xf0f0ff)], [[0.04, 0.5, -0.12], [0.16, 0.78, 0.0], C(0xf0f0ff)], [[-0.12, 0.5, 0.04], [0.0, 0.66, 0.16], C(0xf0f0ff)], [[-0.27, 0.3, 0.24], [0.27, 0.36, 0.28], C(0x9ad8ff)]);
     if (id === 'doc') hb.push([[-0.29, 0.1, -0.29], [0.29, 0.6, 0.18], C(0x22301c)], [[-0.29, 0.5, -0.29], [0.29, 0.6, 0.29], C(0x22301c)], [[-0.06, 0.08, 0.25], [0.06, 0.18, 0.46], C(0x3a4a30)], [[-0.2, 0.28, 0.25], [-0.06, 0.36, 0.27], C(0x9aff40)], [[0.06, 0.28, 0.25], [0.2, 0.36, 0.27], C(0x9aff40)]);
     if (id === 'ky') hb.push([[-0.29, 0.44, -0.29], [0.29, 0.6, 0.29], C(0xf2c020)], [[-0.32, 0.44, 0.2], [0.32, 0.48, 0.36], C(0xf2c020)], [[-0.04, 0.6, -0.2], [0.04, 0.64, 0.2], C(0xd8a010)]);
+    if (id === 'soi') hb.push([[-0.27, 0.42, -0.27], [0.27, 0.56, 0.27], C(L.hair)], [[-0.26, 0.08, -0.29], [0.26, 0.46, -0.2], C(L.hair)], [[-0.28, 0.12, -0.06], [-0.24, 0.4, 0.2], C(L.hair)], [[0.24, 0.12, -0.06], [0.28, 0.4, 0.2], C(L.hair)],
+      [[-0.2, 0.52, -0.1], [-0.08, 0.62, 0.08], C(0x6a5440)], [[0.06, 0.54, -0.16], [0.18, 0.64, 0.02], C(0x6a5440)], [[0.27, 0.16, 0.0], [0.3, 0.24, 0.04], C(0xe8e0c8)]);
+    if (id === 'nhen') hb.push([[-0.28, -0.02, -0.28], [0.28, 0.56, 0.24], { pz: C(0x1c1c22), side: C(0x26262e), top: C(0x26262e), bottom: C(0x1c1c22) }], [[-0.04, 0.56, -0.26], [0.04, 0.63, 0.22], C(0xc8863a)],
+      [[-0.29, 0.4, 0.24], [0.29, 0.45, 0.29], C(0xc8863a)], [[-0.22, 0.0, 0.24], [-0.08, 0.16, 0.3], C(0xc8863a)], [[0.08, 0.0, 0.24], [0.22, 0.16, 0.3], C(0xc8863a)], [[-0.27, 0.16, 0.24], [0.27, 0.4, 0.27], C(0x14141a)],
+      [[-0.16, 0.27, 0.27], [-0.08, 0.33, 0.3], C(0xffb040)], [[0.08, 0.27, 0.27], [0.16, 0.33, 0.3], C(0xffb040)], [[-0.22, 0.22, 0.27], [-0.18, 0.26, 0.29], C(0xffb040)], [[0.18, 0.22, 0.27], [0.22, 0.26, 0.29], C(0xffb040)],
+      [[-0.045, 0.34, 0.27], [-0.015, 0.37, 0.29], C(0xffb040)], [[0.015, 0.34, 0.27], [0.045, 0.37, 0.29], C(0xffb040)], [[-0.11, 0.36, 0.27], [-0.08, 0.385, 0.29], C(0xffb040)], [[0.08, 0.36, 0.27], [0.11, 0.385, 0.29], C(0xffb040)]);
     head.add(part('head', hb));
-    root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    return { root, hips, spine, legL, legR, kneeL: legL.userData.knee, kneeR: legR.userData.knee, footL: legL.userData.foot, footR: legR.userData.foot,
+    const out = { root, hips, spine, legL, legR, kneeL: legL.userData.knee, kneeR: legR.userData.knee, footL: legL.userData.foot, footR: legR.userData.foot,
       armL, armR, elbowL: armL.userData.elbow, elbowR: armR.userData.elbow, handL: armL.userData.hand, handR: armR.userData.hand, head, torso };
+    // Sói's beast form: fur over every limb, a snout, ears, a tail and big paws, hidden until he changes (BZ.heroExtras grows it in)
+    if (id === 'soi') {
+      const F = 'h_soi_fur'; const FL = 'h_soi_furL'; const FD = 'h_soi_furD'; const W = [];
+      const add = (j, name, boxes) => { const m = part('wolf-' + name, boxes); m.visible = false; j.add(m); W.push(m); return m; };
+      add(spine, 'torso', [[[-0.34, -0.05, -0.22], [0.34, 0.8, 0.22], { pz: FL, side: F, top: F, bottom: F }], [[-0.3, 0.52, -0.3], [0.3, 0.88, 0.06], FD], [[-0.1, 0.3, -0.29], [0.1, 0.64, -0.21], FD],
+        [[-0.38, 0.6, -0.16], [-0.26, 0.86, 0.14], FD], [[0.26, 0.6, -0.16], [0.38, 0.86, 0.14], FD], [[-0.22, 0.12, 0.22], [0.22, 0.5, 0.25], FL]]);
+      add(head, 'head', [[[-0.29, -0.04, -0.3], [0.29, 0.58, 0.27], { pz: F, side: F, top: F, bottom: FL }], [[-0.13, 0.02, 0.26], [0.13, 0.22, 0.58], { pz: F, side: F, top: F, bottom: FL }],
+        [[-0.06, 0.15, 0.56], [0.06, 0.24, 0.62], C(0x14100c)], [[-0.11, -0.06, 0.24], [0.11, 0.03, 0.52], FL], [[-0.09, 0.02, 0.46], [-0.06, 0.08, 0.5], C(0xf4f0e0)], [[0.06, 0.02, 0.46], [0.09, 0.08, 0.5], C(0xf4f0e0)],
+        [[-0.1, -0.02, 0.3], [-0.07, 0.03, 0.33], C(0xf4f0e0)], [[0.07, -0.02, 0.3], [0.1, 0.03, 0.33], C(0xf4f0e0)],
+        [[-0.21, 0.3, 0.26], [-0.08, 0.37, 0.29], C(0xffb040)], [[0.08, 0.3, 0.26], [0.21, 0.37, 0.29], C(0xffb040)], [[-0.25, 0.37, 0.25], [0.25, 0.43, 0.3], FD],
+        [[-0.27, 0.5, -0.1], [-0.11, 0.72, 0.06], F], [[-0.24, 0.72, -0.07], [-0.14, 0.84, 0.03], FD], [[-0.23, 0.53, 0.06], [-0.15, 0.68, 0.07], C(0xc88a7a)],
+        [[0.11, 0.5, -0.1], [0.27, 0.72, 0.06], F], [[0.14, 0.72, -0.07], [0.24, 0.84, 0.03], FD], [[0.15, 0.53, 0.06], [0.23, 0.68, 0.07], C(0xc88a7a)],
+        [[-0.3, 0.0, -0.24], [-0.24, 0.36, 0.2], FD], [[0.24, 0.0, -0.24], [0.3, 0.36, 0.2], FD]]);
+      for (const a of [armL, armR]) {
+        add(a, 'upper', [[[-0.14, -0.36, -0.14], [0.14, 0.1, 0.14], F], [[-0.15, -0.05, -0.15], [0.15, 0.12, 0.15], FD]]);
+        add(a.userData.elbow, 'fore', [[[-0.13, -0.38, -0.13], [0.13, 0.03, 0.13], F], [[-0.15, -0.5, -0.12], [0.15, -0.34, 0.16], FD]]);
+      }
+      for (const l of [legL, legR]) {
+        add(l, 'thigh', [[[-0.17, -0.42, -0.17], [0.17, 0.05, 0.17], F]]);
+        add(l.userData.knee, 'shin', [[[-0.15, -0.34, -0.16], [0.15, 0.04, 0.14], F]]);
+        add(l.userData.foot, 'paw', [[[-0.17, -0.08, -0.17], [0.17, 0.11, 0.3], FD], [[-0.14, -0.08, 0.3], [-0.09, 0.0, 0.36], C(0xf0ead8)], [[-0.025, -0.08, 0.3], [0.025, 0.0, 0.37], C(0xf0ead8)], [[0.09, -0.08, 0.3], [0.14, 0.0, 0.36], C(0xf0ead8)]]);
+      }
+      const tail = new THREE.Group(); tail.position.set(0, 0.06, -0.2); tail.rotation.x = -0.55; hips.add(tail);
+      const t1 = new THREE.Group(); tail.add(t1); t1.add(part('wolf-tail', [[[-0.09, -0.09, -0.46], [0.09, 0.09, 0.02], F], [[-0.11, -0.1, -0.78], [0.11, 0.11, -0.44], F], [[-0.08, -0.08, -1.0], [0.08, 0.08, -0.76], FL]]));
+      tail.visible = false; W.push(tail);
+      out.wolf = { parts: W, tail, t1 }; out.formK = 0; out.formWant = 0;
+    }
+    // Nhện Đồng: four mechanical legs on the back (two segments each, bronze joints, glowing tips)
+    if (id === 'nhen') {
+      out.spider = [];
+      for (const [sx, y, sw] of [[-1, 0.58, 0.55], [1, 0.58, 0.55], [-1, 0.38, 0.95], [1, 0.38, 0.95]]) {
+        const g = new THREE.Group(); g.position.set(sx * 0.14, y, -0.26); spine.add(g);
+        g.add(part('sleg1', [[[sx < 0 ? -0.56 : 0, -0.035, -0.04], [sx < 0 ? 0 : 0.56, 0.035, 0.04], C(0x26262e)], [[sx < 0 ? -0.08 : -0.02, -0.06, -0.06], [sx < 0 ? 0.02 : 0.08, 0.06, 0.06], C(0xc8863a)], [[sx < 0 ? -0.4 : 0.32, 0.03, -0.045], [sx < 0 ? -0.32 : 0.4, 0.05, 0.045], C(0xc8863a)]]));
+        const knee = new THREE.Group(); knee.position.set(sx * 0.56, 0, 0); g.add(knee);
+        knee.add(part('sleg2', [[[sx < 0 ? -0.66 : 0, -0.028, -0.032], [sx < 0 ? 0 : 0.66, 0.028, 0.032], C(0x1c1c22)], [[-0.055, -0.055, -0.055], [0.055, 0.055, 0.055], C(0xc8863a)], [[sx < 0 ? -0.74 : 0.62, -0.02, -0.022], [sx < 0 ? -0.62 : 0.74, 0.02, 0.022], C(0xffb040)]]));
+        g.rotation.z = sx * 0.75; g.rotation.y = sx * sw; knee.rotation.z = -sx * 1.7;
+        out.spider.push({ g, knee, sx, sw, i: out.spider.length });
+      }
+    }
+    root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return out;
   }
 
   // One animator for every hero body on screen (your own in third person, the other players in co-op).
@@ -229,6 +312,7 @@
       if (mode === 'spear') { twist += 0.3 * bump; lean += 0.22 * bump; }
       else if (mode === 'fists') { twist += (s.pat === 'jabL' ? -0.45 : 0.45) * bump; lean += 0.14 * bump; }
       else if (mode === 'throw') { twist += BZ.lerp(-0.5, 0.5, Math.min(1, sw / 0.6)); lean += 0.2 * bump; }
+      else if (mode === 'claws') { twist += (s.pat === 'clawL' ? -0.6 : 0.6) * bump; lean += 0.2 * bump; }
       else { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
     }
     lean += -(s.cast || 0) * 0.15 - (s.kick || 0) * 0.02;
@@ -280,6 +364,18 @@
       RA = [-1.15 - pitch * 0.5 + rl * 0.3, 0.15, -0.8 - rl * 0.3]; LA = [-0.5, -0.3, -0.5];
       if (s.wind) { RA = [0.5, 0.2, -1.0]; LA = [-1.0, -0.4, -0.4]; }
       if (sw >= 0) { const e = Math.min(1, sw / 0.55); const ee = e * e * (3 - 2 * e); RA = [BZ.lerp(-2.4, -0.7, ee), 0.1, BZ.lerp(-0.3, -0.5, ee)]; LA = [BZ.lerp(-0.6, -1.3, ee), -0.4, -0.5]; }
+    } else if (mode === 'claws') {
+      // the beast's guard: both paws up and forward, claws out; a swipe winds out high and tears across
+      const br = Math.sin(s.t * 3) * 0.06 + Math.sin(ph) * 0.14 * run;
+      const gR = [-0.9 - pitch * 0.5 + br, 0.45, -1.05]; const gL = [-0.9 - pitch * 0.5 - br, -0.45, -1.05];
+      const swipe = (g, sg) => { const up = [-2.5, 1.15 * sg, -0.55]; const end = [-0.95, -0.5 * sg, -0.2]; return sw < 0.22 ? mix(g, up, sw / 0.22) : sw < 0.5 ? mix(up, end, (sw - 0.22) / 0.28) : mix(end, g, (sw - 0.5) / 0.5); };
+      RA = gR; LA = gL;
+      if (sw >= 0) { if (s.pat === 'clawL') LA = swipe(gL, -1); else RA = swipe(gR, 1); }
+    } else if (mode === 'wrist') {
+      // a crossbow strapped to the right wrist: that arm points straight down the aim, the left stays up in a guard
+      const low = sprint * run; const rl = s.reload || 0;
+      RA = [BZ.lerp(-1.5 - pitch * 0.95, -0.6, low) + (s.kick || 0) * 0.08 + rl * 0.7, 0.05, BZ.lerp(-0.08, -1.0, low) - rl * 0.9];
+      LA = [BZ.lerp(-0.6, -0.3, low) + Math.sin(ph) * 0.3 * run, -0.3, BZ.lerp(-1.5, -0.8, low) - rl * 0.4];
     } else {
       RA = [Math.sin(ph) * 0.7 * run - air * 1.2, 0.05 + air * 0.3, -0.2 - run * 0.5]; LA = [-Math.sin(ph) * 0.7 * run - air * 1.2, -0.05 - air * 0.3, -0.2 - run * 0.5];
     }
@@ -313,7 +409,37 @@
     // the head keeps looking where the hero aims while the body moves under it
     m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6, 12, dt); m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y;
     castAnim(m, s, dt);
+    heroExtras(m, s, dt);
   };
+  // the parts only some bodies carry: Sói's beast form growing in and its tail, Nhện Đồng's four back legs
+  function heroExtras(m, s, dt) {
+    const t = s.t || 0;
+    if (m.wolf) {
+      const want = m.formWant || 0; const k0 = m.formK || 0;
+      const k = (m.formK = Math.abs(want - k0) < 0.002 ? want : k0 + (want - k0) * Math.min(1, dt * (want > k0 ? 5 : 7)));
+      const bulge = want > 0.5 ? Math.sin(Math.min(1, k) * Math.PI) * 0.08 : 0; // swells past the full size for a moment as it changes
+      m.root.scale.setScalar(1 + 0.3 * k + bulge);
+      const on = k > 0.22; for (const w of m.wolf.parts) w.visible = on;
+      if (on) {
+        const sp = Math.min(1, (s.speed || 0) / 6);
+        m.wolf.tail.rotation.y = Math.sin(t * (3 + sp * 6)) * (0.22 + sp * 0.2); m.wolf.tail.rotation.x = -0.55 + sp * 0.35 - (s.air || 0) * 0.3; m.wolf.t1.rotation.x = Math.sin(t * 2.2) * 0.08;
+      }
+    }
+    if (m.spider) {
+      const J = s.j || (s.j = {}); const act = s.act && s.act.key; const ak = act ? s.act.t : 0;
+      const swing = s.swing >= 0 ? Math.sin(Math.PI * Math.min(1, s.swing)) : 0;
+      const spread = Math.max(swing * 0.6, act === 'swing' || act === 'yank' ? 1 : 0, (s.air || 0) * 0.5);
+      for (const L of m.spider) {
+        // idle: a slow breathing sway and now and then a sharp twitch; casting: splayed wide; the net: four stabs in turn
+        const tw = Math.sin(t * 2.3 + L.i * 1.7) * 0.06 + (Math.sin(t * 5.3 + L.i * 2.9) > 0.94 ? 0.2 : 0);
+        let raise = 0.75 + tw + spread * 0.4; let sweep = L.sw - spread * 0.3; let bend = 1.7 - spread * 0.6 + tw * 0.6;
+        if (act === 'webnet') { const k = ak / 1.3; const st = Math.max(0, Math.sin((k * 3.2 - L.i * 0.22) * Math.PI)); raise = 1.0 - st * 1.25; sweep = L.sw - 0.85 - st * 0.35; bend = 0.8 + (1 - st) * 0.7; }
+        const r = dt > 0 ? 18 : 0;
+        L.g.rotation.z = L.sx * (r ? ease(J, 'sr' + L.i, raise, r, dt) : raise); L.g.rotation.y = L.sx * (r ? ease(J, 'ss' + L.i, sweep, r, dt) : sweep); L.knee.rotation.z = -L.sx * (r ? ease(J, 'sb' + L.i, bend, r, dt) : bend);
+      }
+    }
+  }
+  BZ.heroExtras = heroExtras;
 
   // Skill body animations (js/castanim.js fills BZ.CAST_ANIM): { dur, prop, hand, beats: [k...], pose(set, k, m, s), beat(i, m, G) }.
   // `set(joint, axis, value)` blends from the running pose into the cast pose, fading in and out at the ends;
@@ -358,7 +484,7 @@
   }
 
   BZ.makeHeroes = (G) => {
-    const H = { def: byId('mua'), slots: { s1: { n: 1, cd: 0 }, s2: { n: 1, cd: 0 } }, ult: 0, t: {}, decoy: null, strikes: [], effects: [], projs: [], mines: [], cannons: [] };
+    const H = { def: byId('mua'), slots: { s1: { n: 1, cd: 0 }, s2: { n: 1, cd: 0 } }, ult: 0, t: {}, decoy: null, strikes: [], effects: [], projs: [], mines: [], cannons: [], yanks: [], wolfOn: false, lunge: null, swing: null };
     const V = () => new THREE.Vector3();
     const P = () => G.player;
     const coop = () => G.coop && G.coop.on;
@@ -394,14 +520,17 @@
       for (const q of H.projs) G.scene.remove(q.m); H.projs.length = 0;
       for (const q of H.mines) G.scene.remove(q.m); H.mines.length = 0;
       for (const c of H.cannons) G.scene.remove(c.m.root); H.cannons.length = 0; timers.length = 0;
+      H.yanks.length = 0; H.wolfOn = false; H.lunge = null; H.swing = null;
       ring.visible = false; strikeMark.visible = false;
     }
-    const speedMul = () => (H.def.speed || 1) * ((H.t.vanish || 0) > 0 ? 1.2 : 1);
+    const speedMul = () => (H.def.speed || 1) * ((H.t.vanish || 0) > 0 ? 1.2 : 1) * (H.wolfOn ? 1.35 : 1);
+    const jumpMul = () => (H.wolfOn ? 1.3 : 1);
     const invuln = () => (H.t.invuln || 0) > 0 || (H.t.dash || 0) > 0 || (H.t.blades || 0) > 0;
     const storm = () => (H.t.storm || 0) > 0;
     // Hoả fights with bare fists in the thick of it, so the flame suit takes 40% off every hit
-    const takenMul = (from) => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1) * (H.def.id === 'hoa' ? 0.6 : 1) * (G.weapons.takenMul ? G.weapons.takenMul(from) : 1);
+    const takenMul = (from) => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1) * (H.def.id === 'hoa' ? 0.6 : 1) * (H.wolfOn ? 0.6 : 1) * (G.weapons.takenMul ? G.weapons.takenMul(from) : 1);
     const dmgMul = () => ((H.t.vanish || 0) > 0 ? 2.5 : 1);
+    const cdK = (slot) => (H.wolfOn && slot === 's1' ? 0.3 : 1);
     const critAdd = () => ((H.t.vanish || 0) > 0 ? 1 : 0);
 
     // ---------- casting ----------
@@ -423,7 +552,7 @@
       const S = H.slots[slot]; const def = h[slot];
       if (S.n <= 0) { G.audio.play('deny', { gain: 0.5 }); return false; }
       if (!cast(def.key)) return false;
-      S.n--; if (S.cd <= 0) S.cd = def.cd * G.build.cdMul();
+      S.n--; if (S.cd <= 0) S.cd = def.cd * G.build.cdMul() * cdK(slot);
       if (G.build.has('overload')) G.gear.explode(p.pos.clone().setY(p.pos.y + 0.8), 4, 80);
       G.events.emit('skill', { hero: h.id, key: def.key });
       return true;
@@ -900,6 +1029,120 @@
         },
         host(a) { const w = who(a.by); if (!w) return; for (const al of G.allies.list) if (al.alive && Math.hypot(al.pos.x - w.pos.x, al.pos.z - w.pos.z) < 10) al.hp = Math.min(BZ.ALLY.hp, al.hp + 60); },
       },
+      // ---- Sói ----
+      // Vồ cắn: a ballistic leap to where the crosshair points (pitch included), a bite where he lands
+      lunge: {
+        aim() {
+          const p = P(); const w = H.wolfOn ? 1 : 0; const R = w ? 9.5 : 8;
+          const d = fwdOf({ yaw: p.yaw, pitch: BZ.clamp(p.pitch, -0.45, 1.15) });
+          const o = V().set(p.pos.x, p.pos.y + 1.0, p.pos.z); const wh = G.world.raycast(o, d, R);
+          const t = wh ? Math.max(0.6, wh.t - 0.55) : R; const to = o.clone().addScaledVector(d, t); to.y = Math.max(0, to.y - 1.0);
+          return { from: r3(p.pos), to: r3(to), w };
+        },
+        fx(a) {
+          const from = v3(a.from); const to = v3(a.to);
+          ring3(from, 2.2, 0xfff0d0, a.w ? 0xff9a40 : 0xd08a40, 0.35);
+          G.fx.burst(from.clone().setY(from.y + 0.15), 18, [0x8a7a5a, 0x6a5a40, 0xc8b890], { speed: 4.5, size: 0.12, life: 0.6, grav: 9 });
+          G.audio.playAt('roar', from, { gain: 0.5, rate: a.w ? 1.05 : 1.55 }); G.audio.playAt('heavy', from, { gain: 0.8, rate: 1.1 });
+          if (!mine(a)) { later(0.45, () => biteFx(to, a.w)); return; }
+          const p = P(); const T = 0.48; const g = BZ.MOVE.gravity;
+          const v = to.clone().sub(p.pos).divideScalar(T); v.y += 0.5 * g * T;
+          p.vel.copy(v); p.onGround = false; H.lunge = { t: 0, T, v: v.clone(), w: a.w, done: false }; H.t.lunge = 1.0;
+          p.shake.v += 2; overlay(a.w ? 'red' : 'orange', 0.3);
+        },
+      },
+      // Tru gọi bầy: the howl scatters the zombies near him (host) and three spirit wolves run out to fight
+      howl: {
+        fx(a) {
+          const w = who(a.by); if (!w) return; const at = V().set(w.pos.x, w.pos.y, w.pos.z);
+          howlFx(at, 10, 0xd8e8ff, 0x7ab0ff);
+          const root = new THREE.Group(); G.scene.add(root);
+          const wolves = [-1, 0, 1].map((k) => { const m = spiritWolf(); const yaw = w.yaw + k * 0.8; m.g.position.set(at.x - Math.sin(yaw) * 0.8, at.y, at.z - Math.cos(yaw) * 0.8); m.g.rotation.y = yaw + Math.PI; root.add(m.g); return Object.assign(m, { yaw: yaw + Math.PI, bite: 0.2 + 0.15 * (k + 1), ph: k, jump: 0, tgt: null, home: k }); });
+          effect('howl', a, 8, { m: root, wolves, own: true });
+          if (mine(a)) overlay('blue', 0.6);
+        },
+        host(a) { const w = who(a.by); if (!w) return; for (const z of near(w.pos, 10, 4)) { if (z.T.boss) continue; z.fearT = 2.5; z.fearFrom = w.pos.clone(); z.windT = -1; } },
+        tick(e, dt) { stepWolves(e, dt); },
+      },
+      // Hoá Sói: 12 s as the beast (claws in hand, bigger body); the end is sent as 'wolfend' so everyone sees the change back
+      werewolf: {
+        fx(a) {
+          const w = who(a.by); if (!w) return; transformFx(V().set(w.pos.x, w.pos.y, w.pos.z), true);
+          if (!mine(a)) return;
+          H.t.wolf = 12; H.wolfOn = true; G.weapons.give('claws'); if (H.slots.s1.cd > 1.2) H.slots.s1.cd = 1.2;
+          const p = P(); p.shake.v += 6; overlay('red', 0.9); G.hitStop = Math.max(G.hitStop || 0, 0.08);
+          for (const z of near(p.pos, 5, 3)) hit(z, 40, V().set(z.pos.x - p.pos.x, 0, z.pos.z - p.pos.z).normalize(), { imp: 4.5 });
+        },
+      },
+      wolfend: { fx(a) { const w = who(a.by); if (w) transformFx(V().set(w.pos.x, w.pos.y, w.pos.z), false); } },
+      // ---- Nhện Đồng ----
+      // Đu tơ: a line to the crosshair's hit point, then a reeling swing to it; a wall with a roof just above lands him on the roof
+      swing: {
+        aim() {
+          const { o, d } = aimRay(); const wh = G.world.raycast(o, d, 34); if (!wh) return null;
+          const at = o.clone().addScaledVector(d, wh.t); const p = P();
+          if (at.distanceTo(V().set(p.pos.x, p.pos.y + 1.4, p.pos.z)) > 31) return null;
+          return { at: r3(at), n: wh.normal.map((x) => +x.toFixed(2)) };
+        },
+        fx(a) {
+          const at = v3(a.at); webSplat(at, v3(a.n));
+          G.audio.playAt('swipe', at, { gain: 0.8, rate: 2.2 }); G.audio.play('swipe', { gain: 0.5, rate: 0.7 });
+          const e = effect('webline', a, mine(a) ? 1.9 : 1.1, { at, m: webLine(), swing: true, own: true });
+          if (!mine(a)) return;
+          const p = P(); const n = v3(a.n); let tgt = at.clone(); let roof = false;
+          if (Math.abs(n.y) < 0.5) {
+            // a wall: look for a roof just above the hook, and aim to land a step in from its edge
+            const probe = V().set(at.x - n.x * 0.9, at.y + 4.5, at.z - n.z * 0.9); const dn = G.world.raycast(probe, V().set(0, -1, 0), 8);
+            const top = dn ? probe.y - dn.t : -99;
+            if (dn && dn.t > 0.05 && top > at.y - 0.8 && top < at.y + 4.3) { tgt = V().set(at.x - n.x * 1.1, top + 0.4, at.z - n.z * 1.1); roof = true; }
+            else tgt = at.clone().addScaledVector(n, 0.7).setY(Math.max(0, at.y - 1.3));
+          } else if (n.y > 0.5) tgt.y += 0.25;
+          else tgt = at.clone().setY(Math.max(0, at.y - 2.0));
+          H.swing = { at, tgt, roof, t: 0, e }; H.t.swing = 1.9; p.onGround = false; p.vel.y = Math.max(p.vel.y, 5); p.shake.v += 1.5;
+        },
+      },
+      // Kéo tơ: a line onto the zombie under the crosshair (or the nearest in a thin cone); the host drags it in and roots it and two beside it
+      yank: {
+        aim() {
+          const { o, d } = aimRay(); const wh = G.world.raycast(o, d, 28); const zh = G.zombies.hitTest(o, d, wh ? wh.t : 28); let z = zh && zh.z;
+          if (!z) { let best = 0.965; for (const q of G.zombies.list) { if (!q.alive) continue; const c = V().set(q.pos.x, q.pos.y + 1.1 * q.T.scale, q.pos.z); const v = c.clone().sub(o); const L = v.length(); if (L > 26) continue; const k = v.dot(d) / L; if (k > best && G.world.lineOfSight(o, c)) { best = k; z = q; } } }
+          if (!z) return null; return { zi: G.zombies.list.indexOf(z), nb: yankGroup(z).slice(1).map((q) => G.zombies.list.indexOf(q)), at: r3(V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z)) };
+        },
+        fx(a) {
+          const z = G.zombies.list[a.zi]; const at = v3(a.at); webSplat(at, null);
+          effect('webline', a, 0.75, { at, z, m: webLine(), own: true });
+          G.audio.playAt('swipe', at, { gain: 0.8, rate: 2.0 }); G.audio.playAt('heavy', at, { gain: 0.6, rate: 1.5 });
+          if (!mine(a) || !z || !z.alive) return;
+          const w = who(a.by); hit(z, 110, V().set(w.pos.x - z.pos.x, 0, w.pos.z - z.pos.z).normalize(), { imp: 0.2 });
+          // the two caught beside it are tied where they stand: strands from it to them, a small hit
+          for (const i of a.nb || []) { const q = G.zombies.list[i]; if (q && q.alive) { G.fx.arc(at, V().set(q.pos.x, q.pos.y + 1.0 * q.T.scale, q.pos.z), 0xf4f0e8); hit(q, 60, V().set(0, 0, 1), { imp: 0 }); } }
+        },
+        host(a) {
+          const z = G.zombies.list[a.zi]; const w = who(a.by); if (!z || !z.alive || !w) return;
+          for (const i of a.nb || []) { const q = G.zombies.list[i]; if (q && q.alive) G.zombies.applyStatus(q, 'root', 2); }
+          if (z.T.boss) { G.zombies.applyStatus(z, 'root', 2); return; }
+          const f = V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z); const L = f.length(); f.divideScalar(L || 1);
+          const to = V().set(w.pos.x + f.x * 1.7, Math.max(0, w.pos.y), w.pos.z + f.z * 1.7);
+          if (G.world.overlaps([to.x - 0.3, to.y + 0.05, to.z - 0.3], [to.x + 0.3, to.y + 1.7, to.z + 0.3])) to.set(z.pos.x - f.x * Math.max(0, L - 2.2), z.pos.y, z.pos.z - f.z * Math.max(0, L - 2.2));
+          H.yanks.push({ z, from: z.pos.clone(), to, t: 0, dur: 0.32 }); z.fearT = 0; z.windT = -1;
+        },
+      },
+      // Lưới Tơ Khổng Lồ: a 12 m net flies out and lands; the host roots all under it, 3 s later the strands draw tight and burst
+      webnet: {
+        aim() {
+          const p = P(); const f = V().set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw)); const o = V().set(p.pos.x, p.pos.y + 1.0, p.pos.z);
+          const wh = G.world.raycast(o, f, 10); const dist = wh ? Math.max(3.5, wh.t - 1.2) : 8; const c = ground(o.clone().addScaledVector(f, dist));
+          return { p: r3(V().set(p.pos.x, p.pos.y + 1.5, p.pos.z).addScaledVector(f, 0.8)), c: r3(c), yaw: +p.yaw.toFixed(2) };
+        },
+        fx(a) {
+          const m = netMesh(); const from = v3(a.p); m.userData.net.position.copy(from);
+          effect('webnet', a, 3.75, { m, from, c: v3(a.c), yaw: a.yaw, landed: false, blown: false, acc: 0, own: true });
+          G.audio.playAt('swipe', from, { gain: 1, rate: 0.55 }); G.audio.playAt('wind', from, { gain: 0.3 });
+          if (mine(a)) overlay('white', 0.5);
+        },
+        host(a) { const c = v3(a.c); later(0.55, () => { for (const z of near(c, 6.2, 3)) G.zombies.applyStatus(z, 'root', 3); }); },
+        tick(e, dt) { stepNet(e, dt); },
+      },
       artillery: {
         aim() { const p = P(); const f = V().set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw)); const rt = V().set(Math.cos(p.yaw), 0, -Math.sin(p.yaw)); for (const d of [2.4, 1.6, 3.2]) { const c = p.pos.clone().addScaledVector(rt, d).addScaledVector(f, 0.8); if (!G.world.overlaps([c.x - 0.9, c.y + 0.05, c.z - 0.9], [c.x + 0.9, c.y + 2, c.z + 0.9])) return { p: r3(c), yaw: +p.yaw.toFixed(2) }; } return { p: r3(p.pos), yaw: +p.yaw.toFixed(2) }; },
         fx(a) {
@@ -909,6 +1152,184 @@
         },
       },
     };
+    // ---------- Sói ----------
+    function healMe(n) { const p = P(); if (!p.alive || !(n > 0)) return; const b = p.hp; p.hp = Math.min(p.maxHp, p.hp + n); if (p.hp - b >= 5) G.ui.pop('+' + Math.round(p.hp - b) + ' máu', 'heal'); }
+    function biteFx(at, w) {
+      const c = V().set(at.x, at.y + 0.9, at.z);
+      G.fx.burst(c, 26, [0xc0281e, 0x8a1410, 0xe8e0c8], { speed: 5, size: 0.1, life: 0.8 });
+      G.fx.puff(c, { glow: true, s0: 0.8, s1: 3.2, life: 0.22, c0: 0xffffff, c1: w ? 0xff7a30 : 0xd08a40, a0: 1.1, spin: 0 });
+      for (const sg of [-1, 1]) G.fx.puff(c.clone().setY(c.y + sg * 0.25), { glow: true, vel: V().set(0, -sg * 3, 0), drag: 4, s0: 0.9, s1: 0.2, life: 0.18, c0: 0xffffff, c1: 0xffd0a0, a0: 1, spin: 0 });
+      ring3(at, w ? 3.2 : 2.6, 0xffe0c0, 0xc04a20, 0.4);
+      G.audio.playAt('chop', c, { gain: 1, rate: 0.8 }); G.audio.playAt('gore', c, { gain: 0.7, rate: 1.2 });
+    }
+    function bite(w) {
+      const p = P(); const at = V().set(p.pos.x, p.pos.y, p.pos.z);
+      const list = near(at, w ? 3.2 : 2.6, 2.6).sort((x, y) => x.pos.distanceTo(at) - y.pos.distanceTo(at)).slice(0, w ? 6 : 3);
+      list.forEach((z, i) => hit(z, (w ? 120 : 90) * (i ? 0.6 : 1), V().set(z.pos.x - at.x, 0.2, z.pos.z - at.z).normalize(), { imp: 2.4, cut: 'blade', status: st('bleed') }));
+      if (list.length) { healMe(w ? 10 : 15); G.hitStop = Math.max(G.hitStop || 0, 0.06); p.shake.v += 3; }
+      biteFx(at, w);
+    }
+    // a howl: rings of breath spreading on the ground, a column of pale light, the sound
+    function howlFx(at, r, c0, c1) {
+      for (let i = 0; i < 3; i++) later(i * 0.1, () => { ring3(at, r * (0.45 + i * 0.3), c0, c1, 0.6); shockRing(at, r * (0.6 + i * 0.25), c1, 0.55 + i * 0.1); });
+      for (let i = 0; i < 10; i++) G.fx.puff(V().set(at.x, at.y + 1.8 + i * 0.25, at.z), { glow: true, vel: V().set(0, 3, 0), s0: 0.9, s1: 0.2, life: 0.7, c0: 0xffffff, c1: c1, a0: 0.8, spin: 0, delay: i * 0.03 });
+      G.audio.playAt('roar', at, { gain: 1.1, rate: 0.75 }); G.audio.playAt('screech', at, { gain: 0.45, rate: 0.55 }); G.audio.playAt('wind', at, { gain: 0.4 });
+      const d = P().pos.distanceTo(at); if (d < 14) P().shake.v += (14 - d) * 0.4;
+    }
+    function transformFx(at, on) {
+      howlFx(at, on ? 7 : 5, 0xffe0b0, on ? 0xff6a20 : 0xc8a070);
+      G.fx.burst(V().set(at.x, at.y + 1.2, at.z), on ? 60 : 30, [0x76644e, 0x3e3428, 0xb4a48a, 0xff9a40], { speed: on ? 7 : 4, size: 0.12, life: 1.1, grav: 4 });
+      G.fx.puff(V().set(at.x, at.y + 1.2, at.z), { glow: true, s0: 1.5, s1: on ? 7 : 4, life: 0.35, c0: 0xffffff, c1: on ? 0xff6a20 : 0xd8b080, a0: 1.2, spin: 0 });
+    }
+    // a flat ring on the ground that runs out and fades
+    const SHOCK_GEO = new THREE.RingGeometry(0.86, 1, 48).rotateX(-Math.PI / 2);
+    function shockRing(at, r, col, life = 0.55) {
+      const m = new THREE.Mesh(SHOCK_GEO, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      const g = ground(at); m.position.set(at.x, g.y + 0.07, at.z); G.scene.add(m); effect('shock', {}, life, { m, r, own: true });
+    }
+    // a spirit wolf: pale blue, see-through, glowing; four legs on their own pivots so it can run
+    const WOLF_PARTS = [[0.36, 0.34, 0.86, 0, 0.62, 0], [0.3, 0.28, 0.32, 0, 0.82, 0.55], [0.16, 0.13, 0.24, 0, 0.74, 0.8], [0.08, 0.16, 0.08, -0.09, 1.02, 0.5], [0.08, 0.16, 0.08, 0.09, 1.02, 0.5], [0.4, 0.2, 0.3, 0, 0.82, 0.22]];
+    const BOX1 = new THREE.BoxGeometry(1, 1, 1);
+    function spiritWolf() {
+      const mat = new THREE.MeshBasicMaterial({ color: 0x8ac8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+      const eye = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+      const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
+      for (const [w, h, d, x, y, z] of WOLF_PARTS) { const b = new THREE.Mesh(BOX1, mat); b.scale.set(w, h, d); b.position.set(x, y, z); body.add(b); }
+      for (const sx of [-0.07, 0.07]) { const e = new THREE.Mesh(BOX1, eye); e.scale.set(0.05, 0.04, 0.02); e.position.set(sx, 0.88, 0.715); body.add(e); }
+      const tail = new THREE.Mesh(BOX1, mat); tail.scale.set(0.1, 0.1, 0.5); tail.position.set(0, 0.78, -0.62); tail.rotation.x = -0.6; body.add(tail);
+      const legs = [];
+      for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) { const L = new THREE.Group(); L.position.set(x, 0.5, z); const b = new THREE.Mesh(BOX1, mat); b.scale.set(0.1, 0.5, 0.11); b.position.y = -0.25; L.add(b); body.add(L); legs.push(L); }
+      G.fx.halo(body, 0x7ab8ff, 1.7).position.set(0, 0.7, 0);
+      return { g, body, legs, mat, tail, pos: g.position };
+    }
+    function stepWolves(e, dt) {
+      const w = who(e.a.by); const fade = Math.min(1, e.t / 0.3, Math.max(0, e.dur - e.t) / 0.5);
+      const taken = new Set();
+      for (const W of e.wolves) {
+        if (!W.tgt || !W.tgt.alive || (w && W.tgt.pos.distanceTo(w.pos) > 22)) {
+          W.tgt = null; let bd = 18;
+          for (const z of G.zombies.list) { if (!z.alive || taken.has(z)) continue; const d = z.pos.distanceTo(W.pos); if (d < bd && (!w || z.pos.distanceTo(w.pos) < 20)) { bd = d; W.tgt = z; } }
+        }
+        if (W.tgt) taken.add(W.tgt);
+        const goal = W.tgt ? W.tgt.pos : w ? V().set(w.pos.x + Math.cos(e.t + W.home * 2.1) * 2.2, w.pos.y, w.pos.z + Math.sin(e.t + W.home * 2.1) * 2.2) : W.pos;
+        const dx = goal.x - W.pos.x; const dz = goal.z - W.pos.z; const d = Math.hypot(dx, dz);
+        const reach = W.tgt ? 0.9 + 0.35 * W.tgt.T.scale : 0.6; let sp = 0;
+        if (d > reach) { sp = W.tgt ? 11 : Math.min(9, d * 3); W.pos.x += (dx / d) * sp * dt; W.pos.z += (dz / d) * sp * dt; }
+        W.pos.y += ((goal.y || 0) - W.pos.y) * Math.min(1, dt * 8);
+        if (d > 0.05) W.yaw += BZ.wrapAngle(Math.atan2(dx, dz) - W.yaw) * Math.min(1, dt * 12);
+        W.g.rotation.y = W.yaw; W.ph += dt * (sp * 1.6 + 1);
+        W.bite -= dt;
+        if (W.tgt && d <= reach + 0.15 && W.bite <= 0) {
+          W.bite = 0.5; W.jump = 0.28; const z = W.tgt; const c = V().set(z.pos.x, z.pos.y + 1.0 * z.T.scale, z.pos.z);
+          G.fx.burst(c, 10, [0xc0281e, 0x8a1410, 0xbfe4ff], { speed: 3, size: 0.08, life: 0.5 }); G.fx.puff(c, { glow: true, s0: 0.5, s1: 1.4, life: 0.15, c0: 0xffffff, c1: 0x7ab8ff, a0: 1, spin: 0 });
+          G.audio.playAt('chop', c, { gain: 0.45, rate: 1.4 });
+          if (mine(e.a)) hit(z, 30, V().set(dx, 0, dz).normalize(), { imp: 0.8, status: G.rng.chance(0.3) ? st('bleed') : undefined });
+        }
+        W.jump = Math.max(0, W.jump - dt); const j = W.jump > 0 ? Math.sin((1 - W.jump / 0.28) * Math.PI) : 0;
+        const run = Math.min(1, sp / 6);
+        W.body.position.y = Math.abs(Math.sin(W.ph)) * 0.08 * run + j * 0.35; W.body.rotation.x = -j * 0.5 + Math.sin(W.ph * 2) * 0.04 * run;
+        W.legs.forEach((L, i) => { L.rotation.x = Math.sin(W.ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.8 * run - j * (i < 2 ? 0.9 : -0.6); });
+        W.tail.rotation.y = Math.sin(e.t * 9 + W.home) * 0.4;
+        W.mat.opacity = (0.5 + Math.sin(e.t * 13 + W.home * 2) * 0.07) * fade;
+        if (G.rng.chance(dt * 18 * fade)) G.fx.puff(V().set(W.pos.x, W.pos.y + 0.7, W.pos.z), { glow: true, vel: V().set(0, 0.6, 0), s0: 0.45, s1: 0.1, life: 0.5, c0: 0xd8f0ff, c1: 0x4a88ff, a0: 0.7 * fade });
+        if (e.t >= e.dur - 0.02 && !W.gone) { W.gone = true; G.fx.burst(V().set(W.pos.x, W.pos.y + 0.7, W.pos.z), 16, [0xbfe4ff, 0x7ab8ff, 0xffffff], { speed: 2.5, size: 0.09, life: 0.7, grav: -2 }); }
+      }
+    }
+    // ---------- Nhện Đồng ----------
+    // where the web leaves from: the caster's right hand (the wrist bow), seen from wherever this screen looks at it
+    function handFrom(a) {
+      if (mine(a)) {
+        const T = G.tps; if (T && T.on && T.model && T.model.root.visible) { T.model.root.updateMatrixWorld(true); return T.model.handR.getWorldPosition(V()); }
+        const c = cam(); const o = V(); c.getWorldPosition(o); const f = V(); c.getWorldDirection(f); const rt = V().set(1, 0, 0).applyQuaternion(c.quaternion); const up = V().set(0, 1, 0).applyQuaternion(c.quaternion);
+        return o.addScaledVector(f, 0.6).addScaledVector(rt, 0.2).addScaledVector(up, -0.13);
+      }
+      const av = G.coop && G.coop.avatars && G.coop.avatars.get(a.by); if (!av) return null;
+      av.root.updateMatrixWorld(true); return av.m.handR.getWorldPosition(V());
+    }
+    const LINE_GEO = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5);
+    function webLine() {
+      const g = new THREE.Group();
+      const core = new THREE.Mesh(LINE_GEO, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false, fog: false })); core.scale.set(0.024, 0.024, 1);
+      const glow = new THREE.Mesh(LINE_GEO, new THREE.MeshBasicMaterial({ color: 0xffd8a0, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glow.scale.set(0.075, 0.075, 1);
+      g.add(core, glow); g.userData = { core, glow }; g.renderOrder = 4; G.scene.add(g); return g;
+    }
+    function placeLine(g, from, to, k, a) { g.position.copy(from); g.lookAt(to); g.scale.set(1, 1, Math.max(0.01, from.distanceTo(to) * k)); g.userData.core.material.opacity = 0.95 * a; g.userData.glow.material.opacity = 0.3 * a; }
+    // where a line lands: a white splash and a few strands
+    function webSplat(at, n) {
+      G.fx.puff(at.clone(), { glow: true, s0: 0.5, s1: 1.6, life: 0.25, c0: 0xffffff, c1: 0xffd8a0, a0: 1.1, spin: 0 });
+      G.fx.burst(at.clone(), 14, [0xffffff, 0xe8e8f0, 0xd8c8a8], { dir: n || undefined, push: n ? 2.5 : 0, speed: 2.5, size: 0.06, life: 0.5, grav: 3 });
+    }
+    // the zombie pulled in and the two nearest it, all rooted when the pull ends
+    const yankGroup = (z) => [z, ...G.zombies.list.filter((q) => q !== z && q.alive && q.pos.distanceTo(z.pos) < 3.5).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos)).slice(0, 2)];
+    // the giant net: a canvas web on a plane (one white layer, one warm glow layer) and loose strands up to whatever it caught
+    let webTex = null;
+    function webTexture() {
+      if (webTex) return webTex;
+      const cv = document.createElement('canvas'); cv.width = cv.height = 512; const c = cv.getContext('2d'); c.translate(256, 256);
+      const N = 18; const R = 246; c.lineCap = 'round'; c.lineJoin = 'round';
+      const draw = (w, col, blur) => {
+        c.strokeStyle = col; c.shadowColor = 'rgba(255,214,150,0.95)'; c.shadowBlur = blur; c.lineWidth = w;
+        for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R, Math.sin(a) * R); c.stroke(); }
+        for (let r = 1; r <= 8; r++) {
+          const rr = R * (r / 8.2) * (r % 2 ? 1 : 0.97); c.beginPath();
+          for (let i = 0; i <= N; i++) { const a = (i / N) * Math.PI * 2; const x = Math.cos(a) * rr; const y = Math.sin(a) * rr; if (!i) c.moveTo(x, y); else { const m = ((i - 0.5) / N) * Math.PI * 2; c.quadraticCurveTo(Math.cos(m) * rr * 0.88, Math.sin(m) * rr * 0.88, x, y); } }
+          c.stroke();
+        }
+      };
+      draw(7, 'rgba(255,240,210,0.35)', 18); draw(3.2, 'rgba(255,255,255,0.97)', 6);
+      c.beginPath(); c.arc(0, 0, 12, 0, 7); c.fillStyle = '#fff'; c.fill();
+      webTex = new THREE.CanvasTexture(cv); webTex.colorSpace = THREE.SRGBColorSpace; webTex.anisotropy = 4; return webTex;
+    }
+    const NET_GEO = new THREE.PlaneGeometry(12, 12);
+    function netMesh() {
+      const root = new THREE.Group(); const net = new THREE.Group(); root.add(net);
+      const tilt = new THREE.Group(); net.add(tilt);
+      const a = new THREE.Mesh(NET_GEO, new THREE.MeshBasicMaterial({ map: webTexture(), transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      const b = new THREE.Mesh(NET_GEO, new THREE.MeshBasicMaterial({ map: webTexture(), color: 0xffb860, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      b.scale.setScalar(1.03); b.position.z = 0.02; tilt.add(a, b); a.renderOrder = 3; b.renderOrder = 3;
+      const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(48 * 2 * 3), 3)); sg.setDrawRange(0, 0);
+      const strands = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xfff4e0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); strands.frustumCulled = false; root.add(strands);
+      root.userData = { net, tilt, a, b, strands }; G.scene.add(root); return root;
+    }
+    function stepNet(e, dt) {
+      const U = e.m.userData; const FLY = 0.55; const c = e.c;
+      if (e.t < FLY) {
+        // in flight: spinning open, standing up toward where it goes, laid flat as it lands
+        const k = e.t / FLY; const ek = 1 - (1 - k) * (1 - k);
+        U.net.position.lerpVectors(e.from, V().set(c.x, c.y + 0.12, c.z), ek); U.net.position.y += Math.sin(k * Math.PI) * 1.6;
+        U.net.rotation.set(0, e.yaw, 0); U.tilt.rotation.set(BZ.lerp(-0.25, -Math.PI / 2, ek), 0, e.t * 5); U.tilt.scale.setScalar(0.12 + 0.88 * ek);
+        if (G.rng.chance(dt * 40)) G.fx.puff(U.net.position.clone(), { glow: true, s0: 0.6, s1: 0.1, life: 0.35, c0: 0xffffff, c1: 0xffc880, a0: 0.8 });
+        return;
+      }
+      if (!e.landed) {
+        e.landed = true; U.net.position.set(c.x, c.y + 0.12, c.z); U.tilt.rotation.set(-Math.PI / 2, 0, FLY * 5); U.tilt.scale.setScalar(1);
+        for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; G.fx.puff(V().set(c.x + Math.cos(a) * 5.6, c.y + 0.3, c.z + Math.sin(a) * 5.6), { vel: V().set(Math.cos(a) * 2, 0.4, Math.sin(a) * 2), drag: 2, s0: 0.6, s1: 1.8, life: 0.8, c0: 0xe8e4dc, c1: 0xa8a49c, a0: 0.5 }); }
+        shockRing(c, 6.4, 0xffd8a0, 0.5); G.audio.playAt('land', c, { gain: 1, rate: 0.7 }); G.audio.playAt('clank', c, { gain: 0.5, rate: 0.6 });
+        if (mine(e.a)) for (const z of near(c, 6.2, 3)) hit(z, 15, V().set(0, 0, 1), { imp: 0 });
+      }
+      // caught: strands from the net up to every body on it; then drawn tight (3.0 - 3.25 s) and blown
+      const tight = BZ.clamp((e.t - 3.0) / 0.25, 0, 1); const blown = e.t >= 3.25;
+      U.tilt.scale.setScalar(1 - 0.45 * tight * tight + (blown ? -0.2 : 0)); U.tilt.rotation.z = FLY * 5 + tight * 0.6;
+      const pulse = 0.5 + Math.sin(e.t * 9) * 0.1; U.b.material.opacity = (0.4 + 0.5 * tight) * (blown ? Math.max(0, 1 - (e.t - 3.25) / 0.4) : 1) + pulse * 0.1;
+      U.a.material.opacity = 0.95 * (blown ? Math.max(0, 1 - (e.t - 3.25) / 0.4) : 1);
+      const arr = U.strands.geometry.attributes.position.array; let n = 0;
+      if (!blown) for (const z of G.zombies.list) {
+        if (!z.alive || n >= 48 || Math.hypot(z.pos.x - c.x, z.pos.z - c.z) > 6.4 * (1 - 0.45 * tight)) continue;
+        const top = V().set(z.pos.x, z.pos.y + 1.2 * z.T.scale, z.pos.z);
+        for (const [ox, oz] of [[0.9, 0.2], [-0.7, 0.6]]) { if (n >= 48) break; const g0 = V().set(z.pos.x + ox * (1 - tight) + (c.x - z.pos.x) * tight * 0.5, c.y + 0.12, z.pos.z + oz * (1 - tight) + (c.z - z.pos.z) * tight * 0.5); arr.set([g0.x, g0.y, g0.z, top.x, top.y, top.z], n * 6); n++; }
+      }
+      U.strands.geometry.setDrawRange(0, n * 2); U.strands.geometry.attributes.position.needsUpdate = true; U.strands.material.opacity = 0.6 + 0.4 * tight;
+      if (tight > 0 && !blown && G.rng.chance(dt * 30)) G.fx.puff(V().set(c.x + G.rng.range(-4, 4), c.y + 0.3, c.z + G.rng.range(-4, 4)), { glow: true, s0: 0.5, s1: 0.1, life: 0.2, c0: 0xffffff, c1: 0xffb860, a0: 1 });
+      if (blown && !e.blown) {
+        e.blown = true;
+        G.fx.explosion(V().set(c.x, c.y + 0.3, c.z), 0.8);
+        for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.3; const q = V().set(c.x + Math.cos(a) * 3.4, c.y + 0.4, c.z + Math.sin(a) * 3.4); later(0.04 * i, () => { G.fx.puff(q, { glow: true, s0: 1.2, s1: 3.6, life: 0.3, c0: 0xffffff, c1: 0xffa040, a0: 1.2, spin: 0 }); G.fx.burst(q, 14, [0xffffff, 0xffe0b0, 0xffa040], { speed: 7, size: 0.08, life: 0.7, grav: 6 }); }); }
+        shockRing(c, 8, 0xffffff, 0.45); shockRing(c, 6, 0xffa040, 0.6);
+        G.audio.playAt('boom', c, { gain: 1.3, rate: 1.15 }); G.audio.playAt('saber_hit', c, { gain: 0.8, rate: 1.2 });
+        const d = P().pos.distanceTo(c); if (d < 20) P().shake.v += (20 - d) * 0.6;
+        if (mine(e.a)) for (const z of near(c, 6.5, 3)) { const dd = Math.hypot(z.pos.x - c.x, z.pos.z - c.z); hit(z, 300 * (1 - 0.3 * dd / 6.5), V().set(z.pos.x - c.x, 0.4, z.pos.z - c.z).normalize(), { imp: 3.2 }); }
+      }
+    }
     const poisoned = (z) => (z.st && z.st.poison) || (z.stFlags & 128);
     // a toxic cloud or a pool of fire on the ground: looks on every machine, hurts on the caster's
     function cloudAt(at, a, r, dur, stacks) {
@@ -919,6 +1340,14 @@
     }
     function fireAt(at, a, r, dur) { const g = ground(at); G.zombies.kinds.hazard('fire', g, r, dur, true); return effect('fire', a, dur, { pos: g, r }); }
     const ZONE = {
+      shock(e) { const k = e.t / e.dur; e.m.scale.setScalar(Math.max(0.05, e.r * (0.25 + 0.75 * (1 - (1 - k) * (1 - k))))); e.m.material.opacity = 0.9 * (1 - k); },
+      webline(e, dt) {
+        const from = handFrom(e.a); if (!from) { e.t = e.dur; return; }
+        if (e.z && e.z.alive) e.at = V().set(e.z.pos.x, e.z.pos.y + 1.1 * e.z.T.scale, e.z.pos.z);
+        if (e.swing && mine(e.a) && !H.swing && e.t < e.dur - 0.15) e.t = e.dur - 0.15;
+        placeLine(e.m, from, e.at, Math.min(1, e.t / 0.09), Math.min(1, (e.dur - e.t) / 0.15));
+        if (G.rng.chance(dt * 16)) G.fx.puff(from.clone().lerp(e.at, G.rng.next()), { glow: true, s0: 0.22, s1: 0.05, life: 0.25, c0: 0xffffff, c1: 0xffc880, a0: 0.8 });
+      },
       cloud(e, dt) {
         if (G.rng.chance(dt * 10)) G.fx.puff(V().set(e.pos.x + G.rng.range(-e.r, e.r) * 0.7, e.pos.y + G.rng.range(0.2, 1.4), e.pos.z + G.rng.range(-e.r, e.r) * 0.7), { vel: V().set(0, 0.4, 0), s0: 0.6, s1: 1.6, life: 1.4, c0: 0x9aff40, c1: 0x3a6a20, a0: 0.45 });
         e.acc += dt; if (e.acc < 0.5 || !mine(e.a)) return; e.acc = 0;
@@ -933,7 +1362,7 @@
       for (let i = H.effects.length - 1; i >= 0; i--) {
         const e = H.effects[i]; e.t += dt;
         const f = (ABIL[e.key] && ABIL[e.key].tick) || ZONE[e.key]; if (f) f(e, dt);
-        if (e.t >= e.dur) { if (e.m) G.scene.remove(e.m); H.effects.splice(i, 1); }
+        if (e.t >= e.dur) { if (e.m) { G.scene.remove(e.m); if (e.own) e.m.traverse((o) => { if (o.material && !o.isSprite) o.material.dispose(); }); } H.effects.splice(i, 1); }
       }
     }
     // Lốc xoáy: three nested open cones spinning against each other; Cầu sét: a white core in a blue shell with its own light
@@ -985,13 +1414,14 @@
     function chargeDmg(d) { if ((H.t.ultOn || 0) > 0 || H.ult >= 1) return; const was = H.ult; H.ult = Math.min(1, H.ult + d / H.def.ult.cost * G.build.ultMul()); if (was < 1 && H.ult >= 1) { G.ui.banner('TỐI THƯỢNG SẴN SÀNG', H.def.ult.name + ' · bấm Q', 1.6); G.audio.play('marker', { gain: 0.8, rate: 1.3 }); } }
     function chargeHeal(n) { if (H.def.id === 'yta') chargeDmg(n * 2); }
     G.events.on('hit', ({ dmg }) => chargeDmg(dmg || 0));
+    G.events.on('hit', ({ dmg, melee }) => { if (H.wolfOn && melee) healMe((dmg || 0) * 0.15); });
 
     function update(dt) {
       drawAim();
       const p = P(); const h = H.def;
       for (const k of ['s1', 's2']) {
         const S = H.slots[k]; const def = h[k]; const max = def.charges || 1;
-        if (S.n < max) { S.cd -= dt; if (S.cd <= 0) { S.n++; S.cd = S.n < max ? def.cd * G.build.cdMul() : 0; if (S.n === max) G.audio.play('marker', { gain: 0.4, rate: k === 's1' ? 0.7 : 0.9 }); } }
+        if (S.n < max) { S.cd -= dt; if (S.cd <= 0) { S.n++; S.cd = S.n < max ? def.cd * G.build.cdMul() * cdK(k) : 0; if (S.n === max) G.audio.play('marker', { gain: 0.4, rate: k === 's1' ? 0.7 : 0.9 }); } }
       }
       if (G.state === 'playing' && p.alive) chargeDmg(dt * 8);
       for (const k of Object.keys(H.t)) H.t[k] = Math.max(0, H.t[k] - dt);
@@ -1043,6 +1473,44 @@
           }
           if (!H.bladeList.length) H.t.blades = Math.min(H.t.blades, 0.15);
         }
+      }
+      // Vồ cắn: hold the leap's line through the air, bite on landing or on running into a zombie
+      if (H.lunge) {
+        const L = H.lunge; L.t += dt;
+        if (!L.done) {
+          if (L.t < L.T + 0.05) { p.vel.x = L.v.x; p.vel.z = L.v.z; } // past the aim point (a leap into open air) he just falls
+          if (G.rng.chance(dt * 30)) G.fx.puff(V().set(p.pos.x, p.pos.y + 0.9, p.pos.z), { glow: true, s0: 0.7, s1: 0.15, life: 0.3, c0: 0xffe8c0, c1: L.w ? 0xff6a20 : 0xd08a40, a0: 0.8, spin: 0 });
+          const into = G.zombies.list.some((z) => z.alive && Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z) < 1.15 * z.T.scale && p.pos.y > z.pos.y - 0.6 && p.pos.y < z.pos.y + 2 * z.T.scale);
+          if ((L.t > 0.12 && (p.onGround || into)) || L.t > 0.95 || !p.alive) { L.done = true; if (p.alive) bite(L.w); p.vel.x *= 0.25; p.vel.z *= 0.25; }
+        }
+        if (L.t > 1.2) H.lunge = null;
+      }
+      // Đu tơ: reel toward the target; gravity only partly cancelled and a dip at the start, so the path swings in an arc
+      if (H.swing) {
+        const S = H.swing; S.t += dt;
+        const to = S.tgt.clone().sub(p.pos); const d = to.length(); const dir = to.divideScalar(d || 1);
+        const want = dir.multiplyScalar(Math.min(25, 9 + S.t * 42)); want.y -= 5 * Math.max(0, 1 - S.t / 0.3);
+        if (S.roof && p.pos.y < S.tgt.y - 0.1 && Math.hypot(S.tgt.x - p.pos.x, S.tgt.z - p.pos.z) < 2.5) want.y = Math.max(want.y, 9);
+        p.vel.lerp(want, 1 - Math.exp(-7 * dt)); p.vel.y += BZ.MOVE.gravity * 0.8 * dt; p.onGround = false;
+        const landed = S.roof && p.pos.y > S.tgt.y - 0.7 && Math.hypot(S.tgt.x - p.pos.x, S.tgt.z - p.pos.z) < 1.2;
+        if (d < 1.0 || landed || S.t > 1.8 || !p.alive) {
+          p.vel.multiplyScalar(S.roof ? 0.3 : 0.55); if (p.vel.y > 3) p.vel.y = 3; H.swing = null; H.t.swing = 0; G.audio.play('land', { gain: 0.4, rate: 1.4 });
+          // he comes in feet first: zombies where he lands are kicked aside and stuck with silk
+          const kz = near(p.pos, 2.8, 2.2); for (const z of kz) hit(z, 90, V().set(z.pos.x - p.pos.x, 0.3, z.pos.z - p.pos.z).normalize(), { imp: 2.5, status: st('web') });
+          if (kz.length) { ring3(p.pos, 2.8, 0xffffff, 0xffc880, 0.35); p.shake.v += 2; G.audio.play('heavy', { gain: 0.7, rate: 0.8 }); }
+        }
+      }
+      // Kéo tơ, on the host: each pulled zombie slides in on a low arc and is rooted where it lands (the two beside it were rooted at the cast)
+      for (let i = H.yanks.length - 1; i >= 0; i--) {
+        const Y = H.yanks[i]; Y.t += dt; const z = Y.z; if (!z.alive) { H.yanks.splice(i, 1); continue; }
+        const k = Math.min(1, Y.t / Y.dur); const ek = k * k * (3 - 2 * k);
+        z.pos.lerpVectors(Y.from, Y.to, ek); z.pos.y += Math.sin(k * Math.PI) * 0.8; z.vel.set(0, 0, 0); z.rootAt = null;
+        if (k >= 1) { H.yanks.splice(i, 1); G.zombies.applyStatus(z, 'root', 2); }
+      }
+      // Hoá Sói ends: time up, dead or a new run; the claws go and the hatchet comes back
+      if (H.wolfOn && (!(H.t.wolf > 0) || !p.alive)) {
+        H.wolfOn = false; H.t.wolf = 0; if (G.weapons.cur() === 'claws') G.weapons.give(H.def.weapon);
+        send('wolfend', {}); if (p.alive) overlay('orange', 0.4);
       }
       // invulnerable: shell follows the player, zombies that touch it are thrown back and burned
       ring.visible = H.t.invuln > 0;
@@ -1112,6 +1580,7 @@
     }
     // Độc: a zombie that dies poisoned breathes its poison onto the ones around it
     function onKill(z) {
+      if (H.def.id === 'soi') healMe(4);
       if (H.def.id !== 'doc' || !poisoned(z)) return;
       const at = V().set(z.pos.x, z.pos.y + 0.6, z.pos.z);
       G.fx.puff(at.clone(), { glow: true, s0: 0.6, s1: 3.5, life: 0.5, c0: 0xc0ff80, c1: 0x3a8a20, a0: 0.8 });
@@ -1123,8 +1592,8 @@
       if (!p.ghost || p.ghostT !== Math.floor(p.invisT)) { p.ghostT = Math.floor(p.invisT); p.ghost = { pos: p.pos.clone().add(V().set(G.rng.range(-4, 4), 0, G.rng.range(-4, 4))), alive: true, isDecoy: true }; }
       return p.ghost;
     }
-    const slotFrac = (k) => { const S = H.slots[k]; const def = H.def[k]; return S.n >= (def.charges || 1) ? 0 : S.cd / (def.cd * G.build.cdMul()); };
-    return Object.assign(H, { HEROES, set, reset, use, aimStart, aimRelease, aimable, aimPreview: () => (aimRing && aimRing.visible ? aimRing.position.clone() : null), send, me: () => me(), update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
+    const slotFrac = (k) => { const S = H.slots[k]; const def = H.def[k]; return S.n >= (def.charges || 1) ? 0 : Math.min(1, S.cd / (def.cd * G.build.cdMul() * cdK(k))); };
+    return Object.assign(H, { HEROES, set, reset, use, aimStart, aimRelease, aimable, aimPreview: () => (aimRing && aimRing.visible ? aimRing.position.clone() : null), send, me: () => me(), update, freezeAt, strikeAt, speedMul, jumpMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
       reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), blastMul: () => (H.def.id === 'phao' ? 1.25 : 1), chill: () => H.def.id === 'bang',
       ready: (k = 's1') => H.slots[k].n > 0, cdFrac: () => slotFrac('s1') });
   };

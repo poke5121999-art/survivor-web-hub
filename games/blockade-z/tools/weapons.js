@@ -178,6 +178,20 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
       return { pinned, gap, held, open, n: p1 - p0, lost: lost()[1] };`);
     check(!r.none && r.pinned && r.gap < 0.75 && r.held < 0.75 && !r.open && r.lost > 0, `ky: a zombie 1 m from a wall is nailed to it (${r.pinned}, ${r.gap} m -> ${r.held} m from the wall), one in the open is not (${r.open})`);
 
+    // Sói: the hatchet's third landed swing opens a bleed that keeps hurting; the claws (beast form) rake through several at once
+    r = await run('soi', [[0, 10]], `const z = Z[0]; const b = []; for (let i = 0; i < 3; i++) { S.swing = null; S.cool = 0; S.comboT = 5; P.pos.set(0, 0, 12); P.vel.set(0, 0, 0); P.input.fire = true; __sim(0.05); P.input.fire = false; __sim(0.35); b.push(!!(z.st && z.st.bleed)); }
+      const h0 = z.hp; __sim(1.5); return { b, ticks: Math.round(h0 - z.hp), n: G.weapons.sig().bleeds };`);
+    check(!r.b[0] && !r.b[1] && r.b[2] && r.ticks > 10, `soi: the hatchet bleeds on the third landed swing only (${r.b.join(',')}), the bleed keeps hurting (${r.ticks} in 1.5 s)`);
+    r = await run('soi', [[-1.2, 9.4], [0, 9.2], [1.2, 9.4]], `G.hero.ult = 1; G.hero.use('ult'); __sim(0.6); const w = G.weapons.cur(); Z.forEach((z) => { z.hp = z.maxHp; }); S.swing = null; S.cool = 0; P.pos.set(0, 0, 12); P.vel.set(0, 0, 0); P.input.fire = true; __sim(0.05); P.input.fire = false; __sim(0.3); return { w, lost: lost() };`);
+    check(r.w === 'claws' && r.lost.filter((v) => v > 0).length >= 3, `soi: one claw swipe rakes all three zombies in front (${r.w}: ${r.lost.join('/')})`);
+    // Nhện Đồng: every bolt adds a web stack (slower), the third roots the zombie for about 1.5 s
+    r = await run('nhen', [[0, 6]], `const z = Z[0]; const n = []; for (let i = 0; i < 3; i++) { S.cool = 0; P.input.fire = true; __sim(1 / 60); P.input.fire = false; __sim(0.2); n.push(z.st && z.st.web ? z.st.web.n : 0); }
+      const root = +z.rootT.toFixed(2); const p0 = z.pos.clone(); z.speed = 2; __sim(1); const held = +z.pos.distanceTo(p0).toFixed(2); __sim(0.8); return { n, root, held, free: z.rootT <= 0 };`);
+    check(r.n[0] === 1 && r.n[1] === 2 && r.n[2] === 0 && r.root > 1.1 && r.held < 0.1 && r.free, `nhen: bolts stack web (${r.n.join(',')}), the third roots it ${r.root} s (moved ${r.held} m), then it is free`);
+    r = await run('nhen', [[-2, -6], [2, -6]], `for (const z of Z) { z.speed = 2.4; z.attackT = 99; } __sim(0.8); G.zombies.applyStatus(Z[0], 'web', 1); G.zombies.applyStatus(Z[0], 'web', 1);
+      const a = Z.map((z) => z.pos.clone()); __sim(0.6); const d = Z.map((z, i) => +z.pos.distanceTo(a[i]).toFixed(2)); return { webbed: d[0], free: d[1] };`);
+    check(r.webbed < r.free * 0.8, `nhen: two web stacks slow a walker (${r.free} -> ${r.webbed} m in 0.6 s)`);
+
     // ---------- signature screenshots, first and third person ----------
     const shoot = async (hero, zs, tp, prep, name) => { await stage(hero, zs, tp); await page.evaluate(`(() => { const G = __G; const P = G.player; const S = G.weapons.S; const Z = G.zombies.list.filter((z) => z.alive); ${prep} })()`);
       // the fx keep ageing while the game is paused; hold them still so short flashes (lightning, sparks) are in the shot
@@ -195,6 +209,8 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
       ['hoa', [[0, 10.4], [2.3, 12]], 'S.combo = 2; S.comboT = 5; P.input.fire = true; __sim(0.12); P.input.fire = false; __sim(0.18);'],
       ['sam', [[0, 4], [2, 3], [-2, 3], [2.5, 6], [-2.5, 6]], 'const c0 = G.weapons.sig().chainN; G.weapons.sig(); P.input.fire = true; __sim(0.2); P.input.fire = false; const zz = Z[0]; for (let i = 0; i < 90 && !(G.weapons.sig().chainN > 0 && G.weapons.sig().chainN !== c0) && zz.hp === zz.maxHp; i++) __sim(1 / 120);'],
       ['doc', [[0, 9.7], [1.5, 9]], 'S.combo = 2; S.comboT = 5; P.input.fire = true; __sim(0.3); P.input.fire = false; __sim(0.5);'],
+      ['soi', [[0, 10], [1.2, 9.4]], 'for (let i = 0; i < 2; i++) { S.swing = null; S.cool = 0; S.comboT = 5; P.input.fire = true; __sim(0.05); P.input.fire = false; __sim(0.35); } S.swing = null; S.cool = 0; P.input.fire = true; __sim(0.05); P.input.fire = false; __sim(0.08);'],
+      ['nhen', [[0, 6], [1.4, 7]], 'for (let i = 0; i < 3; i++) { S.cool = 0; P.input.fire = true; __sim(1 / 60); P.input.fire = false; __sim(0.12); }'],
       ['ky', [[0, 40]], 'const V3 = (x, y, z) => new THREE.Vector3(x, y, z); let f = null; for (let k = 0; k < 16 && !f; k++) { const yaw = (k / 16) * Math.PI * 2; const d = V3(-Math.sin(yaw), 0, -Math.cos(yaw)); const wh = G.world.raycast(V3(0, 1.1, 12), d, 26); if (wh && wh.t > 9 && Math.abs(wh.normal[1]) < 0.5) f = { yaw, t: wh.t, d }; } if (!f) return; const at = (k) => V3(f.d.x * k, 0, 12 + f.d.z * k); Z[0].pos.copy(at(f.t - 1)); P.pos.copy(at(f.t - 6)); P.yaw = f.yaw; P.pitch = Math.atan2(1.1 - 1.6, 5); S.cool = 0; P.input.fire = true; __sim(1 / 60); P.input.fire = false; __sim(0.06);'],
     ];
     for (const [key, zs, prep] of SIG) for (const tp of [false, true]) await shoot(key.split('-')[0], zs, tp, prep, (tp ? 'tp-sig-' : 'fp-sig-') + key);
@@ -224,7 +240,7 @@ main = [('fp-{w}-idle', FP), ('fp-{w}-act', FP), ('tp-{w}-idle-side', SD), ('tp-
 sheet('sheet-1.png', ['spear', 'longsword', 'glaive', 'fists'], main)
 sheet('sheet-2.png', ['minigun', 'dualpistol', 'javelin', 'shuriken'], main)
 sheet('sheet-third.png', ['spear', 'glaive', 'fists'], [('fp-{w}-third', FP), ('tp-{w}-third-side', SD), ('tp-{w}-third', TP)])
-sig = ['gio', 'thep', 'yta', 'mua', 'mua-jam', 'bong', 'bong-blink', 'phao', 'bang', 'hoa', 'sam', 'doc', 'ky']
+sig = ['gio', 'thep', 'yta', 'mua', 'mua-jam', 'bong', 'bong-blink', 'phao', 'bang', 'hoa', 'sam', 'doc', 'ky', 'soi', 'nhen']
 sheet('sheet-sig-1.png', sig[:7], [('fp-sig-{w}', (160, 90, 1280, 720)), ('tp-sig-{w}', (160, 90, 1280, 720))])
 sheet('sheet-sig-2.png', sig[7:], [('fp-sig-{w}', (160, 90, 1280, 720)), ('tp-sig-{w}', (160, 90, 1280, 720))])
 sheet('sheet-sig-shield.png', ['thep'], [('fp-sig-{w}', (0, 0, 1280, 720)), ('tp-sig-{w}', (0, 0, 1280, 720)), ('tp-sig-{w}-side', (0, 0, 1280, 720))])

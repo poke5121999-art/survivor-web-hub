@@ -29,6 +29,8 @@
       const id = G.hero && G.hero.def ? G.hero.def.id : null; if (!id) return;
       const wid = G.weapons.cur();
       if (T.model && T.hero === id && T.gun === wid) return;
+      // same hero, new weapon in hand (Sói changing into the beast and back): keep the body so the change can play out
+      if (T.model && T.hero === id) { const eq = BZ.equipWeapon(T.model, wid); Object.assign(T.model, { tip: eq.tip, tipL: eq.tipL, gun: eq.gun, shield: eq.shield }); T.gun = wid; return; }
       if (T.model) G.scene.remove(T.model.root);
       const m = BZ.heroModel(id); const hand = m.handR;
       const eq = BZ.equipWeapon(m, wid);
@@ -40,8 +42,10 @@
       build();
       const M = T.model; if (M) M.root.visible = T.on;
       if (!T.on) return;
-      const ads = G.weapons.S.ads; const back = BZ.lerp(3.6, 2.0, ads); const side = BZ.lerp(0.85, 0.62, ads); const lift = BZ.lerp(0.42, 0.28, ads);
-      pivot.set(P.pos.x, P.pos.y + 1.55 - (P.crouch || 0) * 0.5, P.pos.z);
+      // the beast form is a third bigger: the camera sits a little higher and further back
+      const big = M && M.root.scale.x > 1.01 ? M.root.scale.x - 1 : 0;
+      const ads = G.weapons.S.ads; const back = BZ.lerp(3.6, 2.0, ads) + big * 2.4; const side = BZ.lerp(0.85, 0.62, ads) + big * 0.6; const lift = BZ.lerp(0.42, 0.28, ads) + big * 0.6;
+      pivot.set(P.pos.x, P.pos.y + 1.55 - (P.crouch || 0) * 0.5 + big * 1.2, P.pos.z);
       cam.updateMatrixWorld(); cam.getWorldDirection(fwd); right.set(1, 0, 0).applyQuaternion(cam.quaternion); up.set(0, 1, 0).applyQuaternion(cam.quaternion);
       const shoulder = tmp.copy(pivot).addScaledVector(right, side).addScaledVector(up, lift);
       const s0 = G.world.raycast(pivot, right, side + 0.25); const sideK = s0 ? Math.max(0, (s0.t - 0.25) / side) : 1;

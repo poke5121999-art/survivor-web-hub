@@ -120,7 +120,7 @@
 
       P.coyote = P.onGround ? MOVE.coyote : P.coyote - dt;
       P.jumpBuf -= dt;
-      if (P.jumpBuf > 0 && P.coyote > 0 && P.alive) { P.vel.y = MOVE.jumpV; P.jumpBuf = 0; P.coyote = 0; }
+      if (P.jumpBuf > 0 && P.coyote > 0 && P.alive) { P.vel.y = MOVE.jumpV * (G.hero.jumpMul ? G.hero.jumpMul() : 1); P.jumpBuf = 0; P.coyote = 0; }
       // Bóng: run along walls, run up a wall head-on, kick off walls, one extra jump in the air
       P.wallRun = 0;
       if (G.hero.def.wallRun && P.alive) {

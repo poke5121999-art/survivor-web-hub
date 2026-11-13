@@ -100,7 +100,7 @@
       z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
-      z.crawl = false; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0;
+      z.crawl = false; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
       K.init(z, T, wave);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
@@ -241,6 +241,21 @@
       const bar = b.barBg; bar.visible = z.hp < z.maxHp;
       if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * z.T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
     }
+    // the howl: run away from where it came from, arms up, then turn back when the fear wears off
+    function flee(z, dt, P) {
+      const T = z.T; const from = z.fearFrom || P.pos;
+      let dx = z.pos.x - from.x; let dz = z.pos.z - from.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      const sp = Math.max(2.6, z.speed * 1.15) * (z.limp ? 0.6 : 1);
+      z.vel.x = BZ.damp(z.vel.x, dx * sp, 8, dt); z.vel.z = BZ.damp(z.vel.z, dz * sp, 8, dt); z.vel.y -= 22 * dt;
+      G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out, 0.5);
+      z.yaw += BZ.wrapAngle(Math.atan2(dx, dz) - z.yaw) * Math.min(1, dt * 10); z.windT = -1;
+      const b = z.body; z.phase += dt * sp * 2.6 / T.scale; const sw = Math.sin(z.phase) * 0.8;
+      b.legL.rotation.x = sw - T.hunch; b.legR.rotation.x = -sw - T.hunch;
+      b.armL.rotation.x = -2.6 + Math.sin(z.phase * 1.3) * 0.4; b.armR.rotation.x = -2.6 - Math.sin(z.phase * 1.3) * 0.4;
+      b.hips.rotation.x = T.hunch * 0.5; b.head.rotation.x = -0.3; b.root.rotation.x = 0;
+      if (z.fearT <= 0) z.fearFrom = null;
+      finish(z);
+    }
     function regate(z, P) {
       const gates = G.world.spawns.slice().sort((a, b) => Math.hypot(a.x - P.pos.x, a.z - P.pos.z) - Math.hypot(b.x - P.pos.x, b.z - P.pos.z));
       const g = gates[1] || gates[0];
@@ -261,6 +276,9 @@
         if (!z.alive) continue;
         K.tick(z, dt);
         if (z.frozen > 0) { frozenStep(z, dt); continue; }
+        // rooted in web: held on the spot (it can still swing at whoever is in reach); afraid: runs from the howl
+        if (z.rootT > 0) { z.rootT -= dt; if (!z.rootAt) z.rootAt = [z.pos.x, z.pos.z]; z.pos.x = z.rootAt[0]; z.pos.z = z.rootAt[1]; z.vel.x = 0; z.vel.z = 0; } else z.rootAt = null;
+        if (z.fearT > 0 && !T.fly && !z.crawl && !(z.rootT > 0)) { z.fearT -= dt; flee(z, dt, P); continue; }
         z.chillT = Math.max(0, (z.chillT || 0) - dt);
         if (T.fly) { flyer(z, dt, P); continue; }
         // knocked down: fall back, lie a moment, get up
@@ -306,7 +324,7 @@
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
-        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1) * (z.hold ? 0 : 1) * (z.spdMul || 1) * (z.rage > 0 ? 1.35 : 1);
+        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1) * (z.hold ? 0 : 1) * (z.spdMul || 1) * (z.rage > 0 ? 1.35 : 1) * (z.rootT > 0 ? 0 : 1) * (z.st && z.st.web ? 1 - 0.18 * z.st.web.n : 1);
         const bx0 = z.pos.x; const bz0 = z.pos.z;
         if (z.climb) ride(z, dt, P, dx, dz, dist);
         else {
@@ -574,6 +592,17 @@
         if (n >= 4) { st.chill = null; z.frozen = (z.T.boss ? 0.8 : 2.2) * (0.8 + 0.2 * pow); z.vel.set(0, 0, 0); G.fx.burst(V3s().set(z.pos.x, z.pos.y + 1, z.pos.z), 10, [0xdff6ff, 0x9ad8ff], { speed: 2, size: 0.08, life: 0.5 }); }
       } else if (kind === 'shock') { st.shock = { t: 0.7, by }; chain(z, pow, by); }
       else if (kind === 'poison') { const n = Math.min(5, (st.poison ? st.poison.n : 0) + 1); st.poison = { t: 5, n, dps: 3 * pow * n, by }; }
+      // Sói: a deep cut bleeds; Nhện Đồng: each bolt leaves a web stack, the third roots it
+      else if (kind === 'bleed') st.bleed = { t: 4, dps: 14 * pow, by };
+      else if (kind === 'web') {
+        const n = (st.web ? st.web.n : 0) + 1;
+        if (n >= 3) { st.web = null; root(z, z.T.boss ? 0.5 : 1.5); } else st.web = { t: 3, n, by };
+      } else if (kind === 'root') root(z, z.T.boss ? pow * 0.35 : pow);
+    }
+    function root(z, secs) {
+      if (!(z.rootT > secs)) z.rootT = secs; z.rootAt = null; z.vel.x = 0; z.vel.z = 0; z.fearT = 0;
+      G.fx.burst(V3s().set(z.pos.x, z.pos.y + 0.6 * z.T.scale, z.pos.z), 14, [0xffffff, 0xe8e8f4, 0xc8c8d8], { speed: 2.2, size: 0.07, life: 0.6, grav: 2 });
+      G.fx.puff(V3s().set(z.pos.x, z.pos.y + 0.5, z.pos.z), { glow: true, s0: 0.6, s1: 2.0, life: 0.3, c0: 0xffffff, c1: 0xc8b890, a0: 0.9 });
     }
     function react(z, kind, pow, by, otherBy) {
       const R = REACT[kind]; const st = z.st; const at = V3s().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z);
@@ -618,11 +647,12 @@
     function tickStatus(z, dt) {
       const st = z.st; if (!st) return;
       let f = 0;
-      for (const k of ['burn', 'chill', 'shock', 'poison']) if (st[k]) { st[k].t -= dt; if (st[k].t <= 0) st[k] = null; }
+      for (const k of ['burn', 'chill', 'shock', 'poison', 'bleed', 'web']) if (st[k]) { st[k].t -= dt; if (st[k].t <= 0) st[k] = null; }
       st.acc = (st.acc || 0) + dt;
       if (st.acc >= 0.5) {
         st.acc = 0;
         if (st.burn) hurtBy(z, st.burn.dps * 0.5, st.burn.by);
+        if (z.alive && st.bleed) hurtBy(z, st.bleed.dps * 0.5, st.bleed.by);
         if (z.alive && st.poison) {
           const extra = st.chill && G.build && G.build.has('frostbite') ? 1.4 : 1;
           const d = st.poison.dps * 0.5 * extra; hurtBy(z, d, st.poison.by);
@@ -630,6 +660,7 @@
         }
       }
       if (st.burn) f |= 16; if (st.chill) f |= 32; if (st.shock) f |= 64; if (st.poison) f |= 128;
+      if (st.web || z.rootT > 0) f |= 4096; if (st.bleed) f |= 8192; if (z.fearT > 0) f |= 16384;
       z.stFlags = f;
       statusFx(z, dt, f);
     }
@@ -641,8 +672,12 @@
       if (f & 128 && G.rng.chance(dt * 10)) G.fx.puff(top, { vel: V3s().set(0, 0.6, 0), s0: 0.15, s1: 0.4, life: 0.7, c0: 0x8aff50, c1: 0x3a8a20, a0: 0.8 });
       if (f & 64 && G.rng.chance(dt * 16)) G.fx.puff(top, { glow: true, s0: 0.35, s1: 0.05, life: 0.1, c0: 0xe0f4ff, c1: 0x60b0ff, a0: 1.2 });
       if (f & 32 && G.rng.chance(dt * 6)) G.fx.puff(top, { vel: V3s().set(0, -0.3, 0), s0: 0.12, s1: 0.05, life: 0.6, c0: 0xdff6ff, c1: 0x9ad8ff, a0: 0.9 });
+      // bleeding: dark drops falling off it; webbed: pale strands round the legs; afraid: a flicker over the head
+      if (f & 8192 && G.rng.chance(dt * 14)) G.fx.burst(top, 1, [0xa0141a, 0x6a0a0c], { speed: 0.6, size: 0.06, life: 0.7, grav: 12 });
+      if (f & 4096 && G.rng.chance(dt * 9)) G.fx.puff(V3s().set(z.pos.x + G.rng.range(-0.3, 0.3) * z.T.scale, z.pos.y + G.rng.range(0.1, 1.0) * z.T.scale, z.pos.z + G.rng.range(-0.3, 0.3) * z.T.scale), { s0: 0.28, s1: 0.18, life: 0.5, c0: 0xffffff, c1: 0xd8d8e4, a0: 0.75, spin: 0 });
+      if (f & 16384 && G.rng.chance(dt * 6)) G.fx.puff(V3s().set(z.pos.x, z.pos.y + 2.35 * z.T.scale, z.pos.z), { glow: true, vel: V3s().set(0, 0.8, 0), s0: 0.3, s1: 0.1, life: 0.4, c0: 0xfff0a0, c1: 0xc8a040, a0: 1, spin: 0 });
       if (z.flash <= 0 && !z.frozen) {
-        const c = f & 32 ? 0x1a3a60 : f & 128 ? 0x1a4a10 : f & 16 ? 0x4a1a04 : 0;
+        const c = f & 32 ? 0x1a3a60 : f & 4096 ? 0x3a3a44 : f & 128 ? 0x1a4a10 : f & 16 ? 0x4a1a04 : f & 8192 ? 0x400608 : 0;
         if (c) for (const k of ['skin', 'shirt', 'pants']) z.body.mats[k].emissive.setHex(c);
       }
     }
@@ -767,7 +802,7 @@
           spawnAt(z, type, g); z.pos.set(x, y, zz); z.yaw = yaw; z.netPos = new THREE.Vector3(x, y, zz); void keep;
         }
         z.netPos.set(x, y, zz); z.netYaw = yaw; z.hp = z.maxHp * hp / 255;
-        z.crawl = !!(f & 1); z.frozen = f & 2 ? 1 : 0; z.windT = f & 4 ? 0.1 : -1; z.netDown = !!(f & 8); z.stFlags = f & 240;
+        z.crawl = !!(f & 1); z.frozen = f & 2 ? 1 : 0; z.windT = f & 4 ? 0.1 : -1; z.netDown = !!(f & 8); z.stFlags = f & (240 | 4096 | 8192 | 16384);
         K.adopt(z, f, r[8] || 0);
       }
       for (let i = 0; i < list.length; i++) { const z = list[i]; if (z.alive && !seen.has(i)) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.barBg.visible = false; } }
@@ -776,7 +811,7 @@
       const T = TYPES[type]; if (z.type !== type) dress(z, type);
       z.type = type; z.T = T; z.alive = true; z.dying = 0; z.headless = false; z.hp = z.maxHp = T.hp; z.dmg = T.dmg; z.speed = T.speed;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8); z.fp.reset(); z.fr.reset(); z.hs.reset();
-      z.down = 0; z.crawl = false; z.frozen = 0; z.armsLeft = 2; z.phase = G.rng.range(0, 6); z.bob = 0; z.flash = 0; z.windT = -1; z.vel.set(0, 0, 0);
+      z.down = 0; z.crawl = false; z.frozen = 0; z.armsLeft = 2; z.phase = G.rng.range(0, 6); z.bob = 0; z.flash = 0; z.windT = -1; z.vel.set(0, 0, 0); z.rootT = 0; z.rootAt = null; z.fearT = 0;
       K.init(z, T, 1);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const st of Object.values(z.body.stumps)) { st.visible = false; st.material = BZ.mat('z_meat'); }

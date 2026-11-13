@@ -179,7 +179,7 @@ const BOT = `(() => {
     check(mel.blastGibs >= 5, `an explosion blows a zombie into pieces (${mel.blastGibs} gibs)`);
     check(mel.resting >= 5 && mel.splats >= 3, `pieces settle on the ground and blood pools stay (${mel.resting} resting, ${mel.splats} pools)`);
     check(mel.inv === 'katana' && mel.api.length === 0, `one weapon in hand, nothing to swap, drop or pick up (${mel.inv}; ${mel.api.join(',') || 'no such calls'})`);
-    check(mel.kits === 11, `every hero starts with its own weapon and endless ammo for it (${mel.kits}/11)`);
+    check(mel.kits === 13, `every hero starts with its own weapon and endless ammo for it (${mel.kits}/13)`);
     check(mel.brute > 0, `hired soldiers shoot with their carbines (${mel.brute} dmg)`);
 
     // heroes: every skill does its thing; Bóng runs along a wall and up it
@@ -257,7 +257,7 @@ const BOT = `(() => {
     check(bld.frozen && bld.shatter, 'four layers of cold freeze a zombie and a shock shatters it');
     check(bld.burn > 10 && bld.gas > 50, `fire burns over time (${bld.burn}) and fire on poison blows up (${bld.gas})`);
     check(!bld.meteor, 'the meteor shower weather is gone');
-    check(bld.kits.length === 11 && bld.kits.every((k) => typeof k === 'string' && k.length > 0), `every hero has exactly one weapon (${bld.kits.join(', ')})`);
+    check(bld.kits.length === 13 && bld.kits.every((k) => typeof k === 'string' && k.length > 0), `every hero has exactly one weapon (${bld.kits.join(', ')})`);
 
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));

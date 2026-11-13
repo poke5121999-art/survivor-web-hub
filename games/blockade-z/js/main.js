@@ -303,10 +303,13 @@
         m.hips.position.y = 0.75 + br * 0.012; m.head.rotation.x = br * 0.03;
         // the one in focus strikes a pose that hints at its skill
         const pose = on ? BZ.HEROES[i].skill.key : 'idle'; const w = Math.sin(now * 5);
-        const A = { idle: [-0.1, -0.1, 0, 0], dash: [-1.2, 0.6, -0.3, 0.3], invuln: [-2.9, -2.9, 0.2, -0.2], heal: [-1.6 + w * 0.1, -0.2, 0.4, 0], storm: [-1.5, -1.5, 0, 0], blink: [-0.3, -2.4, 0, -0.5], strike: [-3.0 + w * 0.15, -0.2, 0, 0], freeze: [-1.4, -1.4, 0.5, -0.5], molotov: [-1.1, -2.7 + w * 0.1, 0, 0.2], orb: [-1.5 + w * 0.08, -1.5 - w * 0.08, -0.35, 0.35], cloud: [-0.5, -2.3 + w * 0.1, 0, 0.3], turret: [-0.9, -1.4 + w * 0.12, 0.1, 0] }[pose] || [-0.1, -0.1, 0, 0];
+        const A = { idle: [-0.1, -0.1, 0, 0], dash: [-1.2, 0.6, -0.3, 0.3], invuln: [-2.9, -2.9, 0.2, -0.2], heal: [-1.6 + w * 0.1, -0.2, 0.4, 0], storm: [-1.5, -1.5, 0, 0], blink: [-0.3, -2.4, 0, -0.5], strike: [-3.0 + w * 0.15, -0.2, 0, 0], freeze: [-1.4, -1.4, 0.5, -0.5], molotov: [-1.1, -2.7 + w * 0.1, 0, 0.2], orb: [-1.5 + w * 0.08, -1.5 - w * 0.08, -0.35, 0.35], cloud: [-0.5, -2.3 + w * 0.1, 0, 0.3], turret: [-0.9, -1.4 + w * 0.12, 0.1, 0], lunge: [-1.5 + w * 0.08, -1.5 - w * 0.08, 0.45, -0.45], swing: [-0.4, -2.85 + w * 0.06, 0.2, -0.15] }[pose] || [-0.1, -0.1, 0, 0];
         m.armL.rotation.x = BZ.damp(m.armL.rotation.x, A[0], 8, dt); m.armR.rotation.x = BZ.damp(m.armR.rotation.x, A[1], 8, dt);
         m.armL.rotation.z = BZ.damp(m.armL.rotation.z, -A[2], 8, dt); m.armR.rotation.z = BZ.damp(m.armR.rotation.z, -A[3], 8, dt);
-        m.legL.rotation.x = BZ.damp(m.legL.rotation.x, pose === 'dash' ? -0.5 : 0, 8, dt); m.legR.rotation.x = BZ.damp(m.legR.rotation.x, pose === 'dash' ? 0.4 : 0, 8, dt);
+        m.legL.rotation.x = BZ.damp(m.legL.rotation.x, pose === 'dash' || pose === 'lunge' ? -0.5 : 0, 8, dt); m.legR.rotation.x = BZ.damp(m.legR.rotation.x, pose === 'dash' || pose === 'lunge' ? 0.4 : 0, 8, dt);
+        if (pose === 'lunge') { m.spine.rotation.x = BZ.damp(m.spine.rotation.x, 0.3, 8, dt); m.hips.position.y -= 0.1; } else m.spine.rotation.x = BZ.damp(m.spine.rotation.x, 0, 8, dt);
+        // the back legs of Nhện Đồng twitch while it waits; in focus they splay out
+        if (m.spider) { const st = m.selSt || (m.selSt = {}); st.t = now; st.act = null; st.swing = on ? 0.5 : -1; BZ.heroExtras(m, st, dt); }
         if (on && k < 1) m.hips.position.y += Math.sin(k * Math.PI) * 0.25;
       });
     }

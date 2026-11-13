@@ -19,7 +19,7 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 
 ## Nhân vật
 
-`js/heroes.js` có 11 nhân vật tự nghĩ. Bộ kỹ năng theo khuôn của game bắn súng anh hùng (Overwatch, Marvel Rivals): một nội tại, hai kỹ năng hồi chiêu (`F`, `C`) và một chiêu tối thượng (`Q`). Tối thượng nạp bằng sát thương gây ra (Y Tá nạp cả bằng lượng máu hồi), mỗi giây tự nạp một ít, và nạp nhanh hơn với nâng cấp Tối thượng. Nhân vật và tên đều là của mình, không lấy từ game nào.
+`js/heroes.js` có 13 nhân vật tự nghĩ. Bộ kỹ năng theo khuôn của game bắn súng anh hùng (Overwatch, Marvel Rivals): một nội tại, hai kỹ năng hồi chiêu (`F`, `C`) và một chiêu tối thượng (`Q`). Tối thượng nạp bằng sát thương gây ra (Y Tá nạp cả bằng lượng máu hồi), mỗi giây tự nạp một ít, và nạp nhanh hơn với nâng cấp Tối thượng. Nhân vật và tên đều là của mình, không lấy từ game nào.
 
 | Nhân vật | F | C | Q (tối thượng) |
 |---|---|---|---|
@@ -34,10 +34,12 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 | Sấm | Cầu sét | Lôi phạt | Thiên Lôi |
 | Độc | Mây độc | Hút sinh | Đại Dịch |
 | Kỹ Sư | Dựng tháp (2 lượt) | Giáp khẩn | Pháo Đài: khẩu pháo bắn tên lửa |
+| Sói | Vồ cắn | Tru gọi bầy | Hoá Sói: thành người sói 12 giây |
+| Nhện Đồng | Đu tơ (2 lượt) | Kéo tơ | Lưới Tơ Khổng Lồ |
 
 Mỗi kỹ năng chạy trên máy người dùng nó: hình, tác động lên chính người đó, và sát thương qua `G.zombies.damage` (sát thương của người vào sau tự đi tới chủ phòng). Người khác thấy kỹ năng qua sự kiện `hx`. Phần chỉ chủ phòng được đổi (đóng băng, dựng tháp, kéo đòn không kích, tàng hình với zombie) nằm trong `host` của kỹ năng. Mọi độ trễ trong kỹ năng tính theo giờ trong game (`later`), không dùng `setTimeout`, nên dừng game hay `__sim` vẫn đúng.
 
-Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
+Màn chọn nhân vật dựng 13 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
 
 ## Vũ khí riêng và cân bằng
 
@@ -56,6 +58,8 @@ Mỗi nhân vật cầm một vũ khí riêng, đạn dự trữ vô hạn. Mỗ
 | Sấm | phi lao | ném theo đường cong, xuyên ba con rồi cắm lại |
 | Độc | đại đao | vung dài; nhát thứ ba xoay một vòng 360° trúng cả phía sau |
 | Kỹ Sư | shotgun | chín viên đạn chì |
+| Sói | rìu săn | rìu một tay chém nhanh; khi hoá sói đổi sang vuốt |
+| Nhện Đồng | nỏ tơ | nỏ buộc cổ tay, mũi tên xuyên hai con |
 
 Mỗi vũ khí còn có một chiêu riêng (`weapons.js`):
 
@@ -90,6 +94,8 @@ Lần đo cuối, cột "chỉ vũ khí" và "cả bộ" là sát thương mỗi
 | Sấm | 192 | 567 | 49 |
 | Độc | 588 | 691 | 53 |
 | Kỹ Sư | 177 | 680 | 56 |
+| Sói | 365 | 564–636 | 47–50 |
+| Nhện Đồng | 321 | 576 | 47 |
 
 Đã chỉnh từ lần đo đầu:
 - **Tăng sát thương:** súng đôi 26→46, phi tiêu 30→46, phi lao 130→170, thương 54→64, nắm đấm 22→34, shotgun 17→20; Mũi băng của Băng 60→110.
@@ -97,6 +103,53 @@ Lần đo cuối, cột "chỉ vũ khí" và "cả bộ" là sát thương mỗi
 - **Hạ:** rocket bazooka 480→400, nạp đạn 2,4→2,8 giây; nội tại nổ của Pháo Thủ 40%→25%.
 
 Y Tá là người hồi máu nên cố ý thấp hơn nhóm gây sát thương. Băng thiên về khống chế (đóng băng).
+
+## Sói và Nhện Đồng
+
+Hai nhân vật thêm sau, đều tự nghĩ. Sói không lấy người sói của game nào, Nhện Đồng không lấy người nhện nào: không tên, không bộ đồ, không màu đỏ xanh.
+
+**Sói** (`soi`, Hoá sói) là thợ săn áo da, khoác lông xám trên vai, mắt hổ phách, đeo răng sói ở thắt lưng.
+
+- **Nội tại:** mỗi con zombie hạ được hồi 4 máu; chạy nhanh hơn 8%.
+- **Rìu săn:** rìu một tay, 60 sát thương, chém 0,32 giây một nhát, chẻ 2 con. Cứ nhát thứ ba trúng thì mở vết chảy máu (status `bleed`, 14 sát thương mỗi giây trong 4 giây), hiện chữ CHẢY MÁU. Thanh dưới góc phải đếm 1/3, 2/3.
+- **F Vồ cắn:** vồ 8 m tới chỗ tâm ngắm, ngửa nhìn lên thì vồ lên cao. Đáp xuống hoặc đâm vào zombie thì cắn: 90 sát thương cho con gần nhất, 54 cho hai con kế, kèm chảy máu, hồi 15 máu.
+- **C Tru gọi bầy:** vòng sóng tru lan ra. Zombie trong 10 m sợ hãi bỏ chạy 2,5 giây (chủ phòng đặt `fearT`; boss không sợ). Ba con sói hồn màu xanh nhạt, trong suốt, phát sáng chạy ra cắn zombie gần nhất trong 8 giây, mỗi phát cắn 30.
+- **Q Hoá Sói:** 12 giây thành người sói. Thân to thêm 30%, mọc lông, mõm, tai, đuôi, bàn chân có móng. Trong góc nhìn thứ nhất, hai tay thành tay lông cầm vuốt. Vũ khí đổi sang **vuốt sói**: hai nhát cào, mỗi nhát 70, chém lan 4 con. Trong lúc hoá sói: chạy nhanh hơn 35%, nhảy cao hơn 30%, chịu ít hơn 40% sát thương, hút 15% sát thương vuốt thành máu, Vồ cắn hồi nhanh gấp ba và cắn 120. Lúc hoá và lúc trở lại đều có tiếng tru và vòng sóng. Hết giờ, chết hoặc vào ván mới thì trở lại người, cầm lại rìu.
+
+Người chơi khác thấy hình sói qua chính vũ khí: hàng tư thế co-op mang `claws` thì `BZ.equipWeapon` cho thân lớn dần thành sói (`m.formWant`). Hết thì nó gửi `wolfend`.
+
+**Nhện Đồng** (`nhen`, Đu tơ) mặc giáp đen viền đồng, ngực có hình nhện đồng. Mũ kín có tám mắt nhỏ phát sáng. Sau lưng có bốn chân nhện máy, mỗi chân hai đoạn, khớp đồng, mũi chân sáng. Lúc đứng, chân khẽ đung đưa và thỉnh thoảng giật. Lúc đu tơ, kéo tơ hay bắn thì chân xoè ra. Lúc tung lưới thì bốn chân đâm xuống lần lượt (`BZ.heroExtras`).
+
+- **Nội tại:** chạy trên tường và nhảy hai lần như Bóng (`wallRun`, `doubleJump`).
+- **Nỏ tơ:** nỏ buộc cổ tay phải. Mỗi phát 74 sát thương, 330 phát mỗi phút, xuyên 2 con. Mỗi mũi để lại một lớp tơ (status `web`), mỗi lớp làm chậm 18%. Lớp thứ ba trói chân zombie 1,5 giây (boss 0,5 giây).
+- **F Đu tơ (2 lượt):** bắn tơ tới chỗ tâm ngắm chạm (tường, mái, đất) trong 30 m. Một sợi tơ trắng nối từ tay tới điểm móc, rồi anh ta đu theo cung tới đó. Ngắm vào tường ngay dưới mép mái thì đu lên đứng trên mái. Đáp xuống thì đá văng zombie quanh chân: 90 sát thương và một lớp tơ.
+- **C Kéo tơ:** bắn tơ dính zombie dưới tâm ngắm, hoặc con gần nhất trong một nón hẹp. Nó bị giật về trước mặt rồi trói 2 giây. Hai con đứng cạnh nó bị trói tại chỗ. Con bị kéo nhận 110 sát thương, hai con kia 60.
+- **Q Lưới Tơ Khổng Lồ:** tung tấm lưới rộng 12 m bay xoè ra phía trước rồi nằm xuống đất. Mọi zombie dưới lưới bị trói 3 giây, có sợi tơ nối từ lưới lên người chúng. Sau đó tơ siết lại, lưới co vào rồi nổ: 300 sát thương ở giữa, giảm dần ra mép.
+
+Trói và sợ nằm trong `js/zombies.js` (`z.rootT`, `z.fearT`, status `root`, `web`, `bleed`). Trói giữ zombie đứng tại chỗ, nhưng con nào có người trong tầm thì vẫn đánh được. Với máy khách co-op, cờ trạng thái mang thêm 4096 (dính tơ hoặc bị trói), 8192 (chảy máu) và 16384 (sợ). Zombie dính tơ có sợi trắng quanh chân. Zombie chảy máu nhỏ giọt máu. Zombie sợ thì có đốm sáng trên đầu.
+
+Cân bằng (`balance.js`, `CROWD=16`, 25 giây):
+- **Sói:** chỉ vũ khí 365, cả bộ 564–636 sát thương mỗi giây (hai lần đo).
+- **Nhện Đồng:** lần đầu chỉ được 123 / 175, nên đã nâng:
+  - nỏ: sát thương 42 → 74, 300 → 330 phát mỗi phút, xuyên 2 con;
+  - Kéo tơ: sát thương 60 → 110, hồi chiêu 9 → 7 giây;
+  - Đu tơ: thêm cú đá 90 sát thương lúc đáp;
+  - tối thượng: chi phí 1600 → 1300.
+  
+  Sau khi nâng: chỉ vũ khí 321, cả bộ 576. Cả hai nằm trong dải 490–780 của nhóm.
+
+`skillcensus.js` (12 zombie, 6 giây), sát thương mỗi lần dùng:
+
+| Kỹ năng | Sát thương |
+|---|---|
+| Vồ cắn | 366 |
+| Tru gọi bầy | 968 |
+| Kéo tơ | 230 |
+| Lưới Tơ | 2280, hạ cả 12 con |
+
+Hoá Sói và Đu tơ không gây sát thương khi dùng một mình.
+
+`tools/heroshots.js` chụp hai nhân vật để duyệt hình. Ảnh gồm màn chọn, từng kỹ năng ở góc nhìn thứ nhất, từ sau lưng và từ chéo phía trước, thân sói, vuốt, sợi tơ đu lên mái, và tấm lưới lúc bay, lúc trói, lúc siết, lúc nổ. Mỗi nhân vật ghép thành một tấm `sheet-*.png`. `tools/roofspot.js` tìm chỗ tường có mái để đu thử.
 
 ## Kỹ năng ném và kỹ năng yếu
 
@@ -119,7 +172,7 @@ Mìn dính 160→135 và Lôi phạt 150→125 bị hạ nhẹ, vì hai kỹ nă
 
 ## Anim kỹ năng
 
-`js/castanim.js` cho cả 33 kỹ năng một động tác riêng trên thân nhân vật, diễn ở góc nhìn thứ ba và trên người chơi khác trong co-op. Mỗi động tác khai báo:
+`js/castanim.js` cho cả 39 kỹ năng một động tác riêng trên thân nhân vật, diễn ở góc nhìn thứ ba và trên người chơi khác trong co-op. Mỗi động tác khai báo:
 - thời lượng: kỹ năng thường 0,4–0,9 giây, chiêu tối thượng 1,1–1,5 giây;
 - dáng từng khớp, được trộn mượt từ dáng đang chạy vào rồi trả ra;
 - đồ cầm tay: búa, cờ lê, ống tiêm, lọ, lựu đạn, chai, mìn, bộ đàm, phi tiêu, bình;
@@ -297,6 +350,7 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/destruc
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/castanim.js <thư mục ảnh> [gio,ky]
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/weapons.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/meta.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/heroshots.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=hoa,mua] node games/blockade-z/tools/skillcensus.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=gio,phao] [CROWD=16] [SECS=25] node games/blockade-z/tools/balance.js <thư mục ảnh>
 ```

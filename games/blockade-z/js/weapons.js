@@ -40,15 +40,27 @@
       thrown: 'javelin', hold: 'throw', speed: 58, grav: 8, pierce: 3, windup: 0.11, throwT: 0.42, hide: 0.5, kick: { back: 0.15, rise: -3, yaw: 0.4, cam: 0.02 }, adsFov: 58, noAds: true, rsnd: [[0.25, 'switch'], [0.7, 'rack']] },
     shuriken: { name: 'Phi tiêu', key: '9', price: 0, dmg: 46, head: 1.8, rpm: 190, auto: true, mag: 15, reserve: Infinity, pellets: 3, fan: 0.075, spread: 0.004, moveSpread: 0.02, range: 70, reload: 1.0, snd: 'swipe', impulse: 0.7, crit: 0.14,
       thrown: 'shuriken', hold: 'throw', speed: 52, grav: 0, pierce: 1, windup: 0.04, throwT: 0.28, hide: 0.2, kick: { back: 0.05, rise: -1, yaw: 0.3, cam: 0.006 }, adsFov: 58, noAds: true, rsnd: [[0.3, 'switch'], [0.7, 'mag_in']] },
+    // Sói: a quick one-handed hunting hatchet (every third hit that lands opens a bleed); in the beast form, two claws that tear across
+    hatchet: { name: 'Rìu săn', price: 0, melee: true, cut: 'blade', dmg: 60, head: 1.6, swing: 0.32, hitAt: 0.11, range: 2.6, arc: 0.95, cleave: 2, impulse: 1.6, crit: 0.16, lunge: 2.8, stop: 0.05,
+      snd: 'slash', hitSnd: 'chop', combo: ['r2l', 'l2r', 'over'], pf: { over: { dmg: 1.25, imp: 1.4 } }, idleKF: 'idleHatchet', trail: 0xffc890, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.018 }, adsFov: 70 },
+    claws: { name: 'Vuốt sói', price: 0, melee: true, hold: 'claws', noTrail: true, cut: 'blade', dmg: 70, head: 1.4, swing: 0.26, hitAt: 0.09, range: 2.9, arc: 1.1, cleave: 4, fall: 0.85, impulse: 1.6, crit: 0.15, lunge: 3.2, stop: 0.045,
+      snd: 'slash', hitSnd: 'chop', combo: ['clawR', 'clawL'], idleKF: 'idleFist', mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.016 }, adsFov: 70 },
+    // Nhện Đồng: a crossbow strapped to the wrist; each bolt leaves a web stack, the third roots the zombie
+    webbow: { name: 'Nỏ tơ', key: '0', price: 0, dmg: 74, head: 2, rpm: 330, auto: true, mag: 14, pierce: 2, reserve: Infinity, pellets: 1, spread: 0.005, moveSpread: 0.016, range: 70, reload: 1.4, snd: 'swipe', impulse: 0.6, crit: 0.12,
+      hold: 'wrist', web: true, kick: { back: 0.04, rise: 1.4, yaw: 0.5, cam: 0.008 }, adsFov: 58, tracer: 1, rsnd: [[0.25, 'switch'], [0.7, 'rack']] },
   };
   BZ.WEAPONS = WEAPONS;
   // how a body holds each weapon (BZ.animHero reads it in third person and for co-op avatars)
   BZ.holdOf = (W) => (W && (W.hold || (W.melee ? 'melee' : 'gun'))) || 'none';
-  const ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'bazooka', 'katana', 'axe', 'saber', 'spear', 'longsword', 'glaive', 'fists', 'minigun', 'dualpistol', 'javelin', 'shuriken'];
+  const ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'bazooka', 'katana', 'axe', 'saber', 'spear', 'longsword', 'glaive', 'fists', 'minigun', 'dualpistol', 'javelin', 'shuriken', 'hatchet', 'claws', 'webbow'];
   const START = 'smg';
 
   // elemental cells for each hero's signature weapon; the glowing ones get an emissive in GLOW below
-  const EL = { wind: BZ.cellTex(0x9ff8ec), ice: BZ.cellTex(0xc4ecff), iceGlow: BZ.cellTex(0x7fd4ff), poison: BZ.cellTex(0x3f8a2c), shadowGlow: BZ.cellTex(0xc080ff), fire: BZ.cellTex(0xff6a1a), shield: BZ.cellTex(0x2c5aa8) };
+  const EL = { wind: BZ.cellTex(0x9ff8ec), ice: BZ.cellTex(0xc4ecff), iceGlow: BZ.cellTex(0x7fd4ff), poison: BZ.cellTex(0x3f8a2c), shadowGlow: BZ.cellTex(0xc080ff), fire: BZ.cellTex(0xff6a1a), shield: BZ.cellTex(0x2c5aa8),
+    amber: BZ.cellTex(0xffb440), web: BZ.cellTex(0xf6f4ff), fur: BZ.cellTex(0x5a4a3a), bone: BZ.cellTex(0xece4d0), leather: BZ.cellTex(0x6a3e22) };
+  // the beast's arms in first person: shaggy fur sleeves and dark paws
+  BZ.defTex('g_fur', 16, 16, ({ set, rng }) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const k = 0.8 + rng.next() * 0.35 + ((x * 3 + y * 5) % 7 === 0 ? -0.2 : 0) + (y % 4 === 0 ? 0.08 : 0); set(x, y, [118 * k, 100 * k, 78 * k]); } });
+  BZ.defTex('g_paw', 4, 4, ({ set }) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) set(x, y, y === 3 ? [86, 70, 54] : x === 0 ? [70, 58, 44] : [58, 48, 38]); }, { noMip: true });
   const swapTex = (parts, map) => parts.map((p) => { const q = p.slice(); if (map[q[6]]) q[6] = map[q[6]]; return q; });
 
   // Viewmodel shapes: many small flat-colour voxels, gun points along -z, grip near origin.
@@ -205,6 +217,28 @@
   };
   GUNS.shuriken = { rh: [0, -0.07, 0.025], port: [0, 0, 0], muzzle: [0, 0.02, -0.3], lh: [0, 0, 0], oneHand: true, magHand: [0, 0, 0], parts: [...starParts(-0.085, 0.0, -0.09, 1.0), ...starParts(0, 0.04, -0.12, 1.0), ...starParts(0.085, 0.0, -0.09, 1.0)], grip: [] };
   GUNS.starProj = { port: [0, 0, 0], muzzle: [0, 0, 0], lh: [0, 0, 0], magHand: [0, 0, 0], parts: starParts(0, 0, 0, 1), grip: [] };
+  // Sói's hatchet: a short bearded head on a leather-wrapped haft, a wolf tooth tied under it, a fur tuft at the butt
+  GUNS.hatchet = { tip: [0, 0.68, -0.27], mid: [0, 0.58, -0.15], lh: [0, 0.3, 0.02], oneHand: true, magHand: [0, 0, 0], port: [0, 0, 0], muzzle: [0, 0.68, -0.27], parts: [
+    [-0.02, -0.18, -0.024, 0.02, 0.66, 0.024, 'g_wood'], [-0.024, -0.18, -0.028, 0.024, 0.14, 0.028, EL.leather], [-0.026, -0.1, -0.03, 0.026, -0.08, 0.03, 'g_gold'], [-0.026, 0.12, -0.03, 0.026, 0.14, 0.03, 'g_gold'],
+    [-0.034, -0.27, -0.034, 0.034, -0.18, 0.034, EL.fur], [-0.026, -0.31, -0.026, 0.026, -0.27, 0.026, EL.fur],
+    [-0.032, 0.5, -0.05, 0.032, 0.68, 0.05, 'g_body2'], [-0.017, 0.48, -0.22, 0.017, 0.7, -0.05, 'g_steel'], [-0.017, 0.4, -0.27, 0.017, 0.52, -0.16, 'g_steel'],
+    [-0.01, 0.4, -0.295, 0.01, 0.71, -0.24, 'g_edge'], [-0.014, 0.56, 0.05, 0.014, 0.62, 0.14, 'g_body'], [-0.019, 0.6, -0.2, 0.019, 0.63, -0.1, EL.amber],
+    [-0.027, 0.44, -0.032, 0.027, 0.48, 0.032, EL.leather], [-0.006, 0.33, 0.026, 0.006, 0.44, 0.034, EL.leather], [-0.014, 0.28, 0.022, 0.014, 0.35, 0.04, EL.bone],
+  ], grip: [] };
+  // Sói's claws (beast form): three long bone claws over each paw, an amber line down the inside of each
+  GUNS.claws = { tip: [0, 0, -0.3], mid: [0, 0, -0.15], lh: [-0.2, -0.07, -0.22], rh: [0.17, -0.03, -0.18], magHand: [0, 0, 0], port: [0, 0, 0], muzzle: [0, 0, -0.3], kscale: 1.3, sleeve: 'g_fur', glove: 'g_paw', parts: [
+    [-0.06, -0.05, -0.095, 0.06, 0.045, -0.05, EL.fur, 'knuckle'],
+    ...[-0.04, 0, 0.04].flatMap((x) => [[x - 0.013, -0.022, -0.2, x + 0.013, 0.014, -0.09, EL.bone, 'knuckle'], [x - 0.01, -0.034, -0.27, x + 0.01, 0.004, -0.2, 'g_edge', 'knuckle'], [x - 0.006, -0.042, -0.31, x + 0.006, -0.012, -0.27, 'g_edge', 'knuckle'], [x - 0.004, 0.014, -0.19, x + 0.004, 0.02, -0.1, EL.amber, 'knuckle']]),
+  ], grip: [] };
+  // Nhện Đồng's wrist bow: a bracer on the forearm, a small bow across the back of the hand, a glowing bolt laid in, the silk gland underneath
+  GUNS.webbow = { vs: 0.8, rh: [0, -0.07, 0.025], hrot: [0.04, 0], armR: [0.1, 0.1], oneHand: true, port: [0.03, 0.1, -0.05], muzzle: [0, 0.112, -0.42], lh: [0, 0, 0], magHand: [0, 0.1, -0.1], parts: [
+    [-0.062, -0.062, 0.04, 0.062, 0.062, 0.3, 'g_body'], [-0.066, -0.066, 0.04, 0.066, 0.066, 0.07, 'g_gold'], [-0.066, -0.066, 0.26, 0.066, 0.066, 0.29, 'g_gold'],
+    [-0.035, -0.1, 0.1, 0.035, -0.062, 0.24, EL.amber], [0.062, 0.0, 0.12, 0.068, 0.03, 0.18, EL.amber], [-0.068, 0.0, 0.12, -0.062, 0.03, 0.18, EL.amber],
+    [-0.026, 0.062, -0.2, 0.026, 0.1, 0.26, 'g_body'], [-0.012, 0.1, -0.26, 0.012, 0.11, 0.1, 'g_gold'],
+    [-0.045, 0.06, -0.25, 0.045, 0.1, -0.18, 'g_body2'], [-0.15, 0.07, -0.235, -0.045, 0.09, -0.205, 'g_body'], [0.045, 0.07, -0.235, 0.15, 0.09, -0.205, 'g_body'],
+    [-0.17, 0.066, -0.22, -0.14, 0.094, -0.15, 'g_gold'], [0.14, 0.066, -0.22, 0.17, 0.094, -0.15, 'g_gold'], [-0.15, 0.077, -0.16, 0.15, 0.082, -0.15, EL.web],
+    [-0.008, 0.104, -0.38, 0.008, 0.118, -0.06, EL.web], [-0.017, 0.098, -0.43, 0.017, 0.124, -0.37, EL.amber], [-0.02, 0.1, -0.08, 0.02, 0.122, -0.05, 'g_gold'],
+  ], grip: [] };
   // ---- the elements: Băng's ice spear, Độc's poison glaive, Bóng's shadow stars, Hoả's burning gloves, Y Tá's healing left pistol ----
   GUNS.spear.parts = [...swapTex(GUNS.spear.parts, { g_blade: EL.ice, g_glow_saber: EL.iceGlow, g_red: 'g_blue' }),
     [-0.05, 1.84, -0.01, -0.034, 1.99, 0.01, EL.iceGlow], [0.034, 1.84, -0.01, 0.05, 1.99, 0.01, EL.iceGlow], [-0.01, 1.84, -0.05, 0.01, 1.99, -0.034, EL.iceGlow], [-0.01, 1.84, 0.034, 0.01, 1.99, 0.05, EL.iceGlow]];
@@ -229,7 +263,7 @@
     [-0.05, -0.04, 0.02, 0.05, 0.22, 0.045, 'g_grip'], [-0.16, 0.05, 0.02, -0.11, 0.17, 0.04, 'g_body2'], [0.11, 0.05, 0.02, 0.16, 0.17, 0.04, 'g_body2'],
   ] };
   const GLOW = { g_glow_orange: 0xff8a20, g_glow_red: 0xff3a2a, g_glow_lime: 0x9cff50, g_glow_blue: 0x50c0ff, g_saber_core: 0xe8ffff, g_glow_saber: 0x60e8ff,
-    [EL.wind]: 0x70e8d8, [EL.iceGlow]: 0x50c0ff, [EL.shadowGlow]: 0xa050ff, [EL.fire]: 0xff4a10 };
+    [EL.wind]: 0x70e8d8, [EL.iceGlow]: 0x50c0ff, [EL.shadowGlow]: 0xa050ff, [EL.fire]: 0xff4a10, [EL.amber]: 0xff9a20, [EL.web]: 0x9a98a8 };
   // a soft additive sprite for weapons whose head glows (the ice spear, the poison glaive)
   const glowSprite = (col, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: col, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.scale.setScalar(size); return s; };
   // a plain world-space copy (no arms, fogged, lit like the scene) for weapons lying on the ground or in a soldier's hands
@@ -259,14 +293,15 @@
     const put = (hand, gid, scale) => {
       const g = BZ.worldGun(gid); g.userData.wgun = true;
       if (hold === 'spear' || hold === 'glaive') g.rotation.x = Math.PI; // the head leads along the forearm
-      else if (W.melee && hold !== 'fists') g.rotation.x = Math.PI / 2; else g.rotation.set(-Math.PI / 2, 0, Math.PI);
+      else if (W.melee && hold !== 'fists' && hold !== 'claws') g.rotation.x = Math.PI / 2; else g.rotation.set(-Math.PI / 2, 0, Math.PI);
       g.scale.setScalar(scale); hand.add(g);
       const tip = new THREE.Object3D(); tip.position.copy(g.userData.muzzle); g.add(tip); g.userData.tipObj = tip;
       return g;
     };
     if (id === 'dualpistol') { out.gun = put(m.handR, 'pistol', 0.9); const l = put(m.handL, 'pistolHeal', 0.9); out.tip = out.gun.userData.tipObj; out.tipL = l.userData.tipObj; }
-    else if (id === 'fists') { out.gun = put(m.handR, 'fists', 1.25); put(m.handL, 'fists', 1.25); }
-    else { out.gun = put(m.handR, id, 0.9); out.tip = out.gun.userData.tipObj; }
+    else if (id === 'fists' || id === 'claws') { out.gun = put(m.handR, id, id === 'claws' ? 1.5 : 1.25); put(m.handL, id, id === 'claws' ? 1.5 : 1.25); out.tip = out.gun.userData.tipObj; }
+    else { out.gun = put(m.handR, id, id === 'webbow' ? 1.3 : 0.9); out.tip = out.gun.userData.tipObj; }
+    if (m.wolf) m.formWant = id === 'claws' ? 1 : 0;
     if (id === 'longsword') {
       const s = BZ.worldGun('shield'); s.userData.wgun = true; s.userData.shield = true; s.scale.setScalar(0.85); m.handL.add(s); out.shield = s;
       BZ.shieldPose(s, 0);
@@ -312,29 +347,30 @@
     // Arms: gloved hand at the origin, camo forearm running back and down out of frame.
     const arm = (yaw, pitch) => {
       const AB = new BZ.Builder('arm');
-      AB.box([-0.045, -0.045, -0.055], [0.045, 0.05, 0.055], 'glove', { uv: 'fit', vary: 0 });
+      AB.box([-0.045, -0.045, -0.055], [0.045, 0.05, 0.055], D.glove || 'glove', { uv: 'fit', vary: 0 });
       AB.push(new THREE.Matrix4().makeRotationY(yaw).multiply(new THREE.Matrix4().makeRotationX(pitch)));
-      AB.box([-0.05, -0.055, 0.04], [0.05, 0.055, 0.22], 'g_body2', { uv: 'fit', vary: 0 });
-      AB.box([-0.055, -0.06, 0.2], [0.055, 0.06, 0.62], 'sleeve', { uv: 'world', uvScale: 6, vary: 0 });
+      AB.box([-0.05, -0.055, 0.04], [0.05, 0.055, 0.22], D.sleeve ? D.sleeve : 'g_body2', { uv: 'fit', vary: 0 });
+      AB.box([-0.055, -0.06, 0.2], [0.055, 0.06, 0.62], D.sleeve || 'sleeve', { uv: 'world', uvScale: 6, vary: 0 });
       AB.pop();
       return AB.build();
     };
-    parts.handR = arm(0.35, 0.5); parts.handR.position.set(...(D.rh || [0, -0.07, 0.025])); parts.handR.rotation.x = D.hrot ? D.hrot[0] : 0.28; if (D.hyaw) parts.handR.rotation.y = D.hyaw[0]; g.add(parts.handR);
+    parts.handR = arm(...(D.armR || [0.35, 0.5])); parts.handR.position.set(...(D.rh || [0, -0.07, 0.025])); parts.handR.rotation.x = D.hrot ? D.hrot[0] : 0.28; if (D.hyaw) parts.handR.rotation.y = D.hyaw[0]; g.add(parts.handR);
     parts.handL = arm(-0.55, 0.35); parts.handL.rotation.x = D.hrot ? D.hrot[1] : D.dual ? 0.28 : 0; if (D.hyaw) parts.handL.rotation.y = D.hyaw[1]; g.add(parts.handL);
     if (D.parts.some((p) => p[7] === 'knuckle')) {
       const KB = new BZ.Builder('knuckle'); for (const p of D.parts) if (p[7] === 'knuckle') box(KB, p);
-      for (const h of [parts.handR, parts.handL]) { h.add(KB.build({ matOpts })); h.scale.setScalar(1.18); }
+      for (const h of [parts.handR, parts.handL]) { h.add(KB.build({ matOpts })); h.scale.setScalar(D.kscale || 1.18); }
     }
     g.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.fog = false; } });
     const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: BZ.tex('flash'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     flash.position.set(...D.muzzle); flash.visible = false;
     g.add(flash);
     let flashL = null;
+    if (WEAPONS[id].web) flash.material.color.setHex(0xe8eaff);
     if (D.muzzleL) { flashL = flash.clone(); flashL.material = flash.material.clone(); flashL.material.color.setHex(0x90ff90); flashL.position.set(...D.muzzleL); g.add(flashL); }
     if (D.glow) { const s = glowSprite(D.glow.col, D.glow.size); s.position.set(...D.glow.at); g.add(s); parts.glow = s; }
     if (D.saber) { const h = saberHalo(1); h.position.y = 0.72; h.traverse((q) => { if (q.material) q.material.fog = false; }); g.add(h); parts.halo = h; }
     if (D.oneHand) parts.handL.visible = false;
-    if (WEAPONS[id].melee && WEAPONS[id].hold !== 'fists') g.scale.setScalar(0.85);
+    if (WEAPONS[id].melee && WEAPONS[id].hold !== 'fists' && WEAPONS[id].hold !== 'claws') g.scale.setScalar(0.85);
     if (D.vs) g.scale.setScalar(D.vs);
     const magDir = id === 'bazooka' ? new THREE.Vector3(0, 0.15, -1).normalize() : id === 'pistol' || id === 'dualpistol' ? new THREE.Vector3(0, -1, 0).applyMatrix4(tilt) : new THREE.Vector3(0, -1, 0.12).normalize();
     g.userData = { muzzle: new THREE.Vector3(...D.muzzle), flash, parts, magDir, lh: new THREE.Vector3(...D.lh), magHand: new THREE.Vector3(...D.magHand), port: new THREE.Vector3(...D.port), shellColor: D.shellColor, tip: D.tip && new THREE.Vector3(...D.tip), mid: D.mid && new THREE.Vector3(...D.mid),
@@ -461,15 +497,17 @@
       idleSword: [0.3, -0.42, -0.5, 0.1, -0.4, -0.2, 0.3], idleGlaive: [0.28, -0.3, -0.5, 0.0, -1.0, -0.05, 0],
       gr2l: [[0.5, -0.12, -0.46, -0.9, -1.25, -0.2, 0], [-0.4, -0.2, -0.52, 0.95, -1.3, 0.2, 0]], gl2r: [[-0.36, -0.1, -0.48, 0.9, -1.25, 0.2, 0], [0.5, -0.22, -0.5, -0.95, -1.3, -0.2, 0]],
       idleFist: [0, -0.14, -0.55, 0, 0, 0, 0],
+      // the hatchet rides low and leans forward, so its head does not fill the view
+      idleHatchet: [0.34, -0.47, -0.6, 0.28, -0.8, -0.32, 0.55],
     };
-    const PATDIR = { gr2l: -1, gl2r: 1, r2l: -1, l2r: 1, over: 0, spin: -1, thrust: 0, jabR: 0, jabL: 0, upper: 0, spin360: -1 };
+    const PATDIR = { gr2l: -1, gl2r: 1, r2l: -1, l2r: 1, over: 0, spin: -1, thrust: 0, jabR: 0, jabL: 0, upper: 0, spin360: -1, clawR: -1, clawL: 1 };
     const lerpK = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
     const easeOut = (x) => 1 - (1 - x) * (1 - x);
     const qa = new THREE.Quaternion(); const qb = new THREE.Quaternion(); const ax = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
     function meleePose(w) {
       const idle = KF[w.idleKF || (S.cur === 'axe' ? 'idleAxe' : 'idle')]; const sw = S.swing;
       let p = idle;
-      if (w.hold === 'fists') { S.vmPose = idle; return idle; } // the fists move on their own, see fistPose
+      if (w.hold === 'fists' || w.hold === 'claws') { S.vmPose = idle; return idle; } // the fists and claws move on their own, see fistPose / clawPose
       if (sw) {
         const a = w.hitAt * 0.55; const b = Math.min(w.swing * 0.72, w.hitAt * 1.5); const [wu, en] = KF[sw.pat]; const t = sw.t;
         p = t < a ? lerpK(sw.from, wu, easeOut(t / a)) : t < b ? lerpK(wu, en, ease((t - a) / (b - a))) : lerpK(en, idle, ease(seg(t, b, w.swing)));
@@ -549,6 +587,7 @@
       cands.sort((a, b) => a.hd - b.hd);
       const hit = cands.slice(0, cleave);
       let kills = 0; let heads = false;
+      const bleedNow = S.cur === 'hatchet' && hit.length > 0 && ++SG.axeN % 3 === 0;
       hit.forEach((c, i) => {
         const z = c.z; const s = z.T.scale;
         // the edge passes a little below the eye line on flat swings: aiming straight ahead cuts the chest, aim up for the neck
@@ -562,6 +601,7 @@
         // Băng's spear chills, and a thrust into a frozen body shatters it (the shock sets off the shatter reaction); Hoả's punches burn
         if (S.cur === 'spear' && i === 0) { const frozen = z.frozen > 0; status = status.concat([[frozen ? 'shock' : 'chill', 1]]); if (frozen) shatterFx(z); } // the tip only: the bodies behind it are pierced, not chilled
         else if (S.cur === 'fists') status = status.concat([['burn', 0.3]]);
+        if (bleedNow) status = status.concat([['bleed', 1]]);
         const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (pf.imp || 1) * (i ? 0.8 : 1), { cut: w.cut, status });
         if (pf.shove && !died && z.vel) { z.vel.x += toZ.x * pf.shove; z.vel.z += toZ.z * pf.shove; z.vel.y = Math.max(z.vel.y, pf.shove * 0.45); }
         if (died) kills++; heads = heads || part === 'head';
@@ -586,6 +626,12 @@
           G.audio.playAt('clank', at, { gain: 0.8 }); G.hitStop = Math.max(G.hitStop || 0, 0.03); P.shake.v += 1.5; S.kZ.v -= 3;
         }
       }
+      if (bleedNow) {
+        SG.bleeds++; const z = hit[0].z; const at = chestOf(z);
+        G.fx.burst(at, 30, [0xc0281e, 0x8a1410, 0x5a0a08], { dir: sweep, push: 6, speed: 4, size: 0.1, life: 1 }); G.fx.puff(at, { glow: true, s0: 0.6, s1: 1.8, life: 0.2, c0: 0xffe0c0, c1: 0xc0281e, a0: 1, spin: 0 });
+        G.ui.pop('CHẢY MÁU', 'critword', at.clone().setY(at.y + 1.2)); G.audio.playAt('gore', at, { gain: 0.8, rate: 1.1 });
+      }
+      if (S.cur === 'claws') { clawMarks(o, fx, fz, dirX < 0 ? 1 : -1); if (hit.length) G.audio.playAt('gore', o, { gain: 0.35, rate: 1.4 }); }
       const pi = ((sw.n || 1) - 1) % w.combo.length;
       if (S.cur === 'katana' && pi === 2) windBlade(o.clone().addScaledVector(d, 0.6).setY(o.y - 0.3), d, w, false);
       else if (S.cur === 'fists' && pi === 2) fireRing(P.pos.clone(), false);
@@ -744,9 +790,32 @@
       }
       U.handR.position.set(R[0], R[1], R[2]); U.handL.position.set(L[0], L[1], L[2]); U.handR.rotation.x = rx; U.handL.rotation.x = lx;
     }
+    // the two claws: raised in a guard, claws up; a swipe winds out high on its side and rakes down across the view
+    function clawPose(w) {
+      const U = models.claws.userData.parts; const sw = S.swing; const t = performance.now() / 1000; const b = Math.sin(t * 2.6) * 0.01;
+      const gR = [0.2, -0.06 + b, -0.27]; const gL = [-0.22, -0.08 - b, -0.29];
+      let R = gR; let L = gL; let rzR = -0.25; let rzL = 0.25; let rxR = 0.55; let rxL = 0.55;
+      if (sw) {
+        const k = sw.t / w.swing; const hk = w.hitAt / w.swing; const sg = sw.pat === 'clawL' ? -1 : 1;
+        const up = [0.36 * sg, 0.16, -0.3]; const end = [-0.24 * sg, -0.24, -0.44]; const g = sg > 0 ? gR : gL;
+        const P3 = k < hk * 0.55 ? lerp3(g, up, ease(k / (hk * 0.55))) : k < hk * 1.5 ? lerp3(up, end, ease(seg(k, hk * 0.55, hk * 1.5))) : lerp3(end, g, ease(seg(k, hk * 1.5, 1)));
+        const rz = k < hk * 0.55 ? -0.9 * sg : k < hk * 1.5 ? BZ.lerp(-0.9, 0.7, seg(k, hk * 0.55, hk * 1.5)) * sg : BZ.lerp(0.7 * sg, -0.25 * sg, seg(k, hk * 1.5, 1));
+        if (sg > 0) { R = P3; rzR = rz; rxR = 0.3; } else { L = P3; rzL = rz; rxL = 0.3; }
+      }
+      U.handR.position.set(R[0], R[1], R[2]); U.handL.position.set(L[0], L[1], L[2]);
+      U.handR.rotation.set(rxR, 0, rzR); U.handL.rotation.set(rxL, 0, rzL);
+    }
+    // three glowing rake marks across the air in front of a claw swipe (also drawn for other players' swipes)
+    function clawMarks(o, fx, fz, sg) {
+      const rt = V().set(-fz, 0, fx);
+      for (let j = -1; j <= 1; j++) for (let i = 0; i < 7; i++) {
+        const k = i / 6; const at = V().set(o.x + fx * 1.5, o.y - 0.15 + BZ.lerp(0.45, -0.35, k) + j * 0.13, o.z + fz * 1.5).addScaledVector(rt, BZ.lerp(0.75, -0.75, k) * sg);
+        G.fx.puff(at, { glow: true, s0: 0.24, s1: 0.04, life: 0.2, c0: 0xffffff, c1: 0xff7a24, a0: 1, spin: 0, delay: i * 0.01 });
+      }
+    }
 
     // ================= signatures: the one thing each hero's weapon does that no other weapon does =================
-    const SG = { t: 0, heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, blockSnd: 0, chainN: 0, healed: 0, healCd: new Map(), booms: 0, splits: 0, pinned: 0, tps: 0, later: [] };
+    const SG = { t: 0, heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, blockSnd: 0, chainN: 0, healed: 0, healCd: new Map(), booms: 0, splits: 0, pinned: 0, tps: 0, later: [], axeN: 0, bleeds: 0, webs: 0 };
     S.guard = 0;
     const V = () => new THREE.Vector3();
     const guest = () => !!(G.coop && G.coop.guest);
@@ -1076,6 +1145,8 @@
         else if (a.weapon === 'fists' && pi === 2) fireRing(pos, true);
         else if (a.weapon === 'glaive') poisonArc(pos, fx, fz, pat, true);
         else if (a.weapon === 'spear') G.fx.puff(V().set(pos.x + fx * 3, pos.y + 1.3, pos.z + fz * 3), { glow: true, s0: 0.6, s1: 1.6, life: 0.2, c0: 0xffffff, c1: 0x7fd4ff, a0: 0.9 });
+        else if (a.weapon === 'claws') clawMarks(V().set(pos.x, pos.y + 1.9, pos.z), fx, fz, pat === 'clawL' ? -1 : 1);
+        else if (a.weapon === 'hatchet' && pi === 2) G.fx.burst(V().set(pos.x + fx * 1.8, pos.y + 1.1, pos.z + fz * 1.8), 14, [0xc0281e, 0x8a1410], { speed: 3, size: 0.08, life: 0.7 });
       } });
     }
     const hud = { el: null, k: '' };
@@ -1086,6 +1157,7 @@
       if (S.cur === 'minigun') { label = SG.jamT > 0 ? 'KẸT ĐẠN · XẢ HƠI' : SG.heat > 0.6 ? 'NÓNG · ĐẠN LỬA' : 'NHIỆT NÒNG'; frac = SG.jamT > 0 ? SG.jamT / 1.2 : SG.heat; cls = SG.jamT > 0 ? 'jam' : SG.heat > 0.6 ? 'hot' : 'heat'; }
       else if (S.cur === 'shuriken') { const rdy = SG.tpCd <= 0; label = !rdy ? 'DỊCH CHUYỂN ' + SG.tpCd.toFixed(1) + ' s' : SG.mark ? alt + ' · DỊCH CHUYỂN' : 'DỊCH CHUYỂN · CẦN ĐÁNH DẤU'; frac = rdy ? 1 : 1 - SG.tpCd / 6; cls = rdy && SG.mark ? 'ready' : 'cd'; }
       else if (S.cur === 'longsword') { label = S.guard > 0.5 ? 'GIƠ KHIÊN · CHẶN 80%' : alt + ' · GIƠ KHIÊN'; frac = S.guard; cls = 'shield'; }
+      else if (S.cur === 'hatchet') { const n = SG.axeN % 3; label = n === 2 ? 'NHÁT KẾ · CHẢY MÁU' : 'CHẢY MÁU · ' + (n + 1) + '/3'; frac = (n + 1) / 3; cls = n === 2 ? 'ready' : 'cd'; }
       const key = label + cls + Math.round(frac * 40);
       if (key === hud.k) return; hud.k = key;
       hud.el.className = label ? 'on ' + cls : ''; if (!label) return;
@@ -1096,7 +1168,7 @@
       for (const r of rockets) G.scene.remove(r.m); rockets.length = 0;
       for (const n of nails) G.scene.remove(n.m); nails.length = 0;
       rings.length = 0; clouds.length = 0; pins.length = 0; SG.later.length = 0; SG.healCd.clear();
-      Object.assign(SG, { heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, chainN: 0 });
+      Object.assign(SG, { heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, chainN: 0, axeN: 0 });
       S.guard = 0; markSpr.visible = false;
     }
 
@@ -1117,7 +1189,7 @@
       if (w.thrown) { launch(w, storm, spread); if (a.mag === 0 && a.reserve > 0) S.autoReload = 0.25; return; }
       let anyHit = false; let head = false;
       // Y Tá's left pistol fires healing darts; Mưa's minigun heats up, past 60% its rounds burn; Kỹ Sư's shotgun fires nails
-      const dart = S.cur === 'dualpistol' && side === 1; const nails = S.cur === 'shotgun';
+      const dart = S.cur === 'dualpistol' && side === 1; const nails = S.cur === 'shotgun'; const web = !!w.web;
       const hot = !!w.spinUp && SG.heat > 0.6;
       if (w.spinUp) { SG.heat = Math.min(1, SG.heat + 1 / 95); if (SG.heat >= 1) jam(); }
       if (w.rocket) {
@@ -1162,12 +1234,14 @@
           if (i === 0) G.audio.playAt('impact', end, { gain: 0.5 });
         }
         if (dart) { G.fx.tracer(muzzleW, end, 0x50ff70); G.fx.puff(end, { glow: true, s0: 0.35, s1: 0.1, life: 0.15, c0: 0xd0ffd0, c1: 0x40e060, a0: 1 }); healAlong(o, end); }
+        else if (web) { G.fx.tracer(muzzleW, end, 0xf0f0ff); G.fx.puff(end, { glow: true, s0: 0.45, s1: 0.9, life: 0.2, c0: 0xffffff, c1: 0xffc880, a0: 1 }); G.fx.burst(end, 6, [0xffffff, 0xe8e8f0], { speed: 1.8, size: 0.05, life: 0.4, grav: 4 }); }
         else if (nails && i < 2) G.fx.tracer(muzzleW, end, 0xa0b8d0);
         else if ((w.tracer && S.shots % w.tracer === 0 && i === 0) || (storm && i >= w.pellets)) G.fx.tracer(muzzleW, end, hot ? 0xff5010 : undefined);
       }
       let kills = 0;
       for (const [z, e] of pend) {
-        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp, { status: G.build.onHit(z, e.dmg, false).concat(hot ? [['burn', 1]] : []) });
+        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp, { status: G.build.onHit(z, e.dmg, false).concat(hot ? [['burn', 1]] : [], web ? [['web', 1]] : []) });
+        if (web) SG.webs++;
         if (e.pin) pinZ(z, e.pin, died);
         if (died) kills++;
         G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died, crit: e.crit });
@@ -1176,8 +1250,8 @@
       G.audio.play(w.snd, { gain: 1 }); G.audio.duck();
       G.fx.muzzle(muzzleW);
       const m = models[S.cur]; const fl = side ? m.userData.flashL : m.userData.flash; fl.visible = true; fl.rotation.z = G.rng.next() * 3; S.flashT = 0.045;
-      emitSparks(S.cur === 'shotgun' ? 14 : w.spinUp ? 3 : 6, side, dart ? [0xd0ffd0, 0x60ff70, 0x30c050] : hot ? [0xffe070, 0xff6a10, 0xff3a00] : null);
-      if (S.cur !== 'shotgun' && !w.rocket && !(w.spinUp && S.shots % 2)) ejectCasing(side);
+      emitSparks(S.cur === 'shotgun' ? 14 : w.spinUp ? 3 : 6, side, dart ? [0xd0ffd0, 0x60ff70, 0x30c050] : hot ? [0xffe070, 0xff6a10, 0xff3a00] : web ? [0xffffff, 0xf0e8d8, 0xffc880] : null);
+      if (S.cur !== 'shotgun' && !w.rocket && !web && !(w.spinUp && S.shots % 2)) ejectCasing(side);
       if (w.rocket) { G.fx.burst(new THREE.Vector3().copy(o).addScaledVector(d, -0.6), 10, [0xd0d0d0, 0xa0a0a0, 0xffb040], { speed: 2, size: 0.25, life: 0.9, grav: -0.5, drag: 0.8, bounce: 0 }); }
       // feel: spring kicks + camera pitch kick
       const k = w.kick; const adsK = 1 - S.ads * 0.5;
@@ -1275,7 +1349,7 @@
         tmpV.set(sx + bx * 1.4 + kr * 0.004, sy + by * 1.4 - S.drop.x * 0.5 - P.landDip * 0.4 - S.sprintK * 0.06 + Math.sin(performance.now() / 700) * 0.006, kz * 0.05);
         applyPose(p, tmpV);
         if (S.drop.x > 0) rig.rotateX(-S.drop.x * 0.8);
-        if (wm.hold === 'fists') fistPose(wm);
+        if (wm.hold === 'fists') fistPose(wm); else if (wm.hold === 'claws') clawPose(wm);
         if (S.guard > 0) { rig.position.x += 0.07 * S.guard; rig.position.y -= 0.12 * S.guard; rig.rotateZ(-0.35 * S.guard); }
       }
       sigPose(dt);

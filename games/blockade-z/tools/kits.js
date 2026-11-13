@@ -8,6 +8,7 @@ const { serve } = require('../../../tools/thumb-lib.js');
 const OUT = process.argv[2] || path.join(__dirname, '..', '..', '..', '.kits-blockade-z'); fs.mkdirSync(OUT, { recursive: true });
 const fails = [];
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
+const { FIND_ROOF } = require('./roofspot.js');
 const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thunder: 1, orb: 1, artillery: 2.5, blades: 0.5, barrage: 1.6, plague: 0.3, lance: 0.05, cloud: 1.5, molotov: 1.5 };
 
 (async () => {
@@ -23,7 +24,7 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?fp=1&select=1&nolock=1&seed=9&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = await page.evaluate('BZ.HEROES.map((h) => [h.id, h.s1.key, h.s2.key, h.ult.key])');
-    check(heroes.length === 11, `eleven heroes to pick (${heroes.length})`);
+    check(heroes.length === 13, `thirteen heroes to pick (${heroes.length})`);
     await page.evaluate('__select.pick(7)'); await page.waitForTimeout(900);
     await page.screenshot({ path: path.join(OUT, 'select-hoa.png') });
 
@@ -52,7 +53,8 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     const dmg = (k, min) => check(res[k] && res[k].used && res[k].dmg >= min, `${k} lands (${res[k] ? res[k].dmg : '?'} dmg)`);
     for (const [k, min] of [['gio.dash', 100], ['gio.gust', 150], ['gio.blades', 1200], ['thep.charge', 100], ['thep.quake', 800], ['yta.dart', 40], ['mua.cluster', 300], ['mua.drones', 1000],
       ['bong.shuriken', 200], ['phao.strike', 400], ['phao.mine', 300], ['phao.barrage', 800], ['bang.lance', 150], ['bang.blizzard', 300], ['hoa.molotov', 100], ['hoa.dragon', 600],
-      ['sam.orb', 200], ['sam.smite', 300], ['sam.thunder', 1000], ['doc.cloud', 60], ['doc.drain', 500], ['doc.plague', 300], ['ky.artillery', 400]]) dmg(k, min);
+      ['sam.orb', 200], ['sam.smite', 300], ['sam.thunder', 1000], ['doc.cloud', 60], ['doc.drain', 500], ['doc.plague', 300], ['ky.artillery', 400],
+      ['soi.lunge', 60], ['soi.howl', 150], ['soi.werewolf', 40], ['nhen.yank', 60], ['nhen.webnet', 2000]]) dmg(k, min);
     check(res['thep.invuln'].inv, 'Thép turns invulnerable');
     check(res['yta.heal'].hp >= 89 && res['yta.revive'].hp === 100, `Y Tá heals (${res['yta.heal'].hp}) and her ultimate fills the bar (${res['yta.revive'].hp})`);
     check(res['yta.dart'].poison > 0 && res['doc.cloud'].poison > 0 && res['doc.plague'].poison >= 6, `darts, clouds and the plague leave poison (${res['yta.dart'].poison}, ${res['doc.cloud'].poison}, ${res['doc.plague'].poison})`);
@@ -114,6 +116,44 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     console.log('throw', JSON.stringify(thr));
     check(thr.ring && thr.dots >= 6 && thr.hidden, `holding a throw skill draws its arc and landing ring (${thr.dots} dots), letting go hides them`);
     check(thr.near < 1.5, `the bottle lands on the ring (fire pool ${thr.near} m from it)`);
+    // Sói and Nhện Đồng: each skill does its own job
+    const nw = await page.evaluate(`(() => { const G = __G; const P = G.player; const V = (x, y, z) => new G.THREE.Vector3(x, y, z); const r = {};
+      const pick = (id) => { __select.open(); __select.pick(BZ.HEROES.findIndex((h) => h.id === id)); __select.go(); __sim(0.2); G.state = 'playing'; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); P.vel.set(0, 0, 0); };
+      const mk = (x, z, speed = 0) => { const q = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.hp = q.maxHp = 3000; q.speed = speed; q.attackT = 99; return q; };
+      // Vồ cắn aimed up: he leaves the ground and travels along the aim
+      pick('soi'); P.pos.set(0, 0, 9); P.yaw = 0; P.pitch = 0.6; __sim(1 / 60); const l0 = P.pos.clone(); G.hero.use('s1'); let top = 0; for (let i = 0; i < 30; i++) { __sim(1 / 60); top = Math.max(top, P.pos.y); } __sim(0.8);
+      r.lunge = { up: +(top - l0.y).toFixed(2), fwd: +(l0.z - P.pos.z).toFixed(2) };
+      // Tru gọi bầy: the zombies near him run off, three spirit wolves come out and bite
+      pick('soi'); P.pos.set(0, 0, 9); P.yaw = 0; P.pitch = -0.1; __sim(0.05); const hz = []; for (let i = 0; i < 6; i++) hz.push(mk(Math.cos(i) * 4, 9 + Math.sin(i) * 4, 1.2));
+      const d0 = hz.reduce((a, q) => a + q.pos.distanceTo(P.pos), 0); const hp0 = hz.reduce((a, q) => a + q.hp, 0); G.hero.use('s2'); __sim(0.1);
+      const how = G.hero.effects.find((e) => e.key === 'howl'); r.howl = { fear: hz.filter((q) => q.fearT > 0).length, wolves: how ? how.wolves.length : 0 }; __sim(1.6);
+      r.howl.away = +((hz.reduce((a, q) => a + q.pos.distanceTo(P.pos), 0) - d0) / hz.length).toFixed(2); __sim(3); r.howl.dmg = Math.round(hp0 - hz.reduce((a, q) => a + Math.max(0, q.hp), 0));
+      // Hoá Sói: claws, faster, tougher, bigger in third person; back to the hatchet after 12 s, and at once if he dies
+      pick('soi'); G.tps.on = true; P.pos.set(0, 0, 9); P.yaw = 0; __sim(0.1); const sp0 = G.hero.speedMul(); G.hero.ult = 1; G.hero.use('ult'); __sim(1.2);
+      r.wolf = { w: G.weapons.cur(), sp: +(G.hero.speedMul() / sp0).toFixed(2), taken: +G.hero.takenMul(null).toFixed(2), jump: G.hero.jumpMul(), scale: +G.tps.model.root.scale.x.toFixed(2) };
+      __sim(11.2); r.wolf.after = G.weapons.cur(); r.wolf.sp2 = +(G.hero.speedMul() / sp0).toFixed(2); __sim(0.6); r.wolf.scale2 = +G.tps.model.root.scale.x.toFixed(2);
+      G.hero.ult = 1; G.hero.t.ultOn = 0; G.hero.use('ult'); __sim(0.5); const was = G.weapons.cur(); P.alive = false; __sim(0.1); r.wolf.dead = was + '>' + G.weapons.cur(); P.alive = true; G.tps.on = false;
+      // Đu tơ aimed up at a wall below a roof: he ends standing on the roof
+      const R = ${FIND_ROOF}; r.roof = R;
+      if (R) { pick('nhen'); P.pos.set(R.x, 0, R.z); P.vel.set(0, 0, 0); __sim(0.05); const h = V(...R.hook); const dx = h.x - P.pos.x, dz = h.z - P.pos.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(h.y - (P.pos.y + 1.6), Math.hypot(dx, dz)); __sim(1 / 60);
+        const used = G.hero.use('s1'); const line = G.hero.effects.some((e) => e.key === 'webline'); __sim(2.2); r.swing = { used, line, y: +P.pos.y.toFixed(2), top: R.top, ground: P.onGround }; }
+      // Kéo tơ: the zombie under the crosshair comes to him and is rooted, with the two standing beside it
+      pick('nhen'); P.pos.set(0, 0, 12); P.yaw = 0; P.pitch = Math.atan2(1.1 - 1.6, 10); __sim(0.05); const yz = mk(0, 2); const n1 = mk(1.4, 1.2); const n2 = mk(-1.4, 1.2); const far = mk(6, -4);
+      G.hero.use('s2'); __sim(0.6); r.yank = { d: +Math.hypot(yz.pos.x - P.pos.x, yz.pos.z - P.pos.z).toFixed(2), root: [yz, n1, n2].filter((q) => q.rootT > 0).length, far: far.rootT > 0 };
+      const ry = yz.pos.clone(); __sim(1); r.yank.held = +yz.pos.distanceTo(ry).toFixed(2);
+      // Lưới Tơ Khổng Lồ: everything under the net is rooted, then the net bursts for heavy damage
+      pick('nhen'); P.pos.set(0, 0, 12); P.yaw = 0; P.pitch = -0.1; __sim(0.05); const nz = []; for (const zz of [8, 6, 4, 2]) for (const x of [-2, 0, 2]) nz.push(mk(x, zz, 1));
+      const nh0 = nz.reduce((a, q) => a + q.hp, 0); G.hero.ult = 1; G.hero.use('ult'); __sim(1.2); r.net = { root: nz.filter((q) => q.rootT > 0).length }; const mid = nz.reduce((a, q) => a + q.hp, 0);
+      __sim(2.6); r.net.burst = Math.round(mid - nz.reduce((a, q) => a + Math.max(0, q.hp), 0)); r.net.total = Math.round(nh0 - nz.reduce((a, q) => a + Math.max(0, q.hp), 0));
+      G.god = false; return r; })()`);
+    console.log('new heroes', JSON.stringify(nw));
+    check(nw.lunge.up > 2 && nw.lunge.fwd > 3, `Vồ cắn aimed up leaps up (${nw.lunge.up} m) and along the aim (${nw.lunge.fwd} m)`);
+    check(nw.howl.fear >= 5 && nw.howl.away > 1 && nw.howl.wolves === 3 && nw.howl.dmg > 100, `Tru gọi bầy scares ${nw.howl.fear}/6 zombies off (${nw.howl.away} m further away) and 3 spirit wolves bite (${nw.howl.wolves} wolves, ${nw.howl.dmg} dmg)`);
+    check(nw.wolf.w === 'claws' && nw.wolf.sp >= 1.34 && nw.wolf.taken <= 0.61 && nw.wolf.jump > 1.2 && nw.wolf.scale > 1.25, `Hoá Sói: claws (${nw.wolf.w}), x${nw.wolf.sp} speed, x${nw.wolf.taken} damage taken, x${nw.wolf.jump} jump, body x${nw.wolf.scale}`);
+    check(nw.wolf.after === 'hatchet' && nw.wolf.sp2 === 1 && nw.wolf.scale2 < 1.05 && nw.wolf.dead === 'claws>hatchet', `Hoá Sói ends after 12 s (${nw.wolf.after}, speed x${nw.wolf.sp2}, body x${nw.wolf.scale2}) and at once on death (${nw.wolf.dead})`);
+    check(nw.swing && nw.swing.used && nw.swing.line && nw.swing.y > nw.swing.top - 0.4 && nw.swing.ground, `Đu tơ aimed up at a wall swings him onto the roof (${nw.swing ? nw.swing.y : '?'} m, roof ${nw.roof ? nw.roof.top : '?'} m)`);
+    check(nw.yank.d < 3 && nw.yank.root === 3 && !nw.yank.far && nw.yank.held < 0.2, `Kéo tơ pulls the zombie from 10 m to ${nw.yank.d} m and roots it and its 2 neighbours (${nw.yank.root}/3, held ${nw.yank.held} m), not one far away`);
+    check(nw.net.root >= 10 && nw.net.burst >= 2400, `Lưới Tơ roots ${nw.net.root}/12 under it, then bursts for ${nw.net.burst} (${nw.net.total} in all)`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 5).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

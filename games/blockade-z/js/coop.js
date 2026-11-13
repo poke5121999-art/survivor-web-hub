@@ -123,7 +123,7 @@ BZ.makeCoop = (G) => {
     else muzzle.set(a.pos.x, a.pos.y + 1.4, a.pos.z).addScaledVector(aimDir, 0.9);
     if (W.spinUp) { a.spinT = 0.5; a.heat = Math.min(1, (a.heat || 0) + n / 95); }
     // the signature looks: Y Tá's left pistol shoots green darts, Mưa's hot rounds trail orange, Kỹ Sư's nails, Pháo Thủ's splitting rocket
-    const col = W.dual && side === 1 ? 0x50ff70 : W.spinUp && a.heat > 0.6 ? 0xff5010 : W.pellets > 1 ? 0xa0b8d0 : undefined;
+    const col = W.dual && side === 1 ? 0x50ff70 : W.spinUp && a.heat > 0.6 ? 0xff5010 : W.pellets > 1 ? 0xa0b8d0 : W.web ? 0xf0f0ff : undefined;
     if (W.rocket && G.weapons.cosmeticRocket) G.weapons.cosmeticRocket(muzzle.clone(), aimDir.clone());
     for (let i = 0; i < n; i++) {
       if (!W.rocket) { const end = muzzle.clone().addScaledVector(aimDir, 30).add(new THREE.Vector3(G.rng.range(-0.6, 0.6), G.rng.range(-0.4, 0.4), G.rng.range(-0.6, 0.6))); G.fx.tracer(muzzle.clone(), end, col); }
