@@ -36,6 +36,8 @@ const GROUPS = {
     { name: 'title', q: '', eval: '__tick(200)', pose: 'keep' },
     { name: 'quick', q: '', eval: '(() => { document.querySelector("[data-go=quick]").click(); __tick(2); })()', pose: 'keep' },
     { name: 'shop', q: '', eval: '(() => { document.querySelector("[data-go=shop]").click(); __tick(2); })()', pose: 'keep' },
+    { name: 'campaign', q: '', eval: '(() => { const m = window.__G.meta; m.save.stage = 3; m.save.coins = 640; m.save.units = ["coc", "chuon"]; document.querySelector("[data-go=camp]").click(); __tick(2); })()', pose: 'keep' },
+    { name: 'shop-up', q: '', eval: '(() => { const m = window.__G.meta; m.save.coins = 640; m.save.units = ["coc", "chuon"]; m.save.up = { coc: { hp: 2, atk: 1 } }; document.querySelector("[data-go=shop]").click(); __tick(2); })()', pose: 'keep' },
     { name: 'hud', q: 'autostart=1&seed=3', eval: '(() => { const G = window.__G; G.input.hold("fire", true); __tick(70); })()', pose: 'keep' },
     { name: 'hud-2v2', q: 'autostart=1&seed=3', eval: `(() => { const G = window.__G; G.startMatch({ seed: 5, map: 'doiche', first: 0, flip: false, playerTeam: 0, teams: [[{ kind: 'coc', name: 'Bạn', items: ['heal', 'shield', 'boost'] }, { kind: 'chuon', ai: 'medium', items: [] }], [{ kind: 'chuon', ai: 'medium', items: [] }, { kind: 'coc', ai: 'medium', items: [] }]] }); G.sim.useItem(1); __tick(30); })()`, pose: 'keep' },
     { name: 'phone', q: 'autostart=1&seed=3&q=low', vp: { width: 844, height: 390 }, touch: true, eval: '__tick(30)', pose: 'keep' }

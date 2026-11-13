@@ -149,6 +149,15 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 #toast { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); padding: 8px 18px; border-radius: 999px; background: var(--plate); font: 700 13px var(--f); opacity: 0; pointer-events: none; white-space: nowrap; }
 #toast.on { animation: toast 2.6s forwards; } @keyframes toast { 0% { opacity: 0; margin-top: -8px; } 10%, 80% { opacity: 1; margin-top: 0; } 100% { opacity: 0; } }
 
+.stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; margin-top: 12px; }
+.stage { display: grid; grid-template-columns: 34px 1fr; column-gap: 10px; text-align: left; cursor: pointer; border: 0; border-radius: 12px; padding: 10px 12px; background: rgba(255, 246, 230, .08); box-shadow: inset 0 0 0 1.5px rgba(255, 246, 230, .16); transition: transform .12s; }
+.stage:hover { transform: translateY(-2px); } .stage i { grid-row: span 3; align-self: center; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 900 15px var(--mono); font-style: normal; background: rgba(255, 246, 230, .14); }
+.stage b { font: 800 15px var(--f); } .stage small { font: 500 12px/1.35 var(--f); color: #d6c4b6; } .stage span { font: 600 11px var(--mono); color: #cdb9aa; }
+.stage.next { box-shadow: inset 0 0 0 2.5px var(--gold), 0 0 20px rgba(255, 184, 74, .25); } .stage.next i { background: var(--gold); color: #2a1408; }
+.stage.done i { background: #3f8f5a; } .stage.locked { opacity: .4; cursor: not-allowed; }
+.ups { display: flex; gap: 6px; margin: 0 0 10px; } .up { flex: 1; cursor: pointer; border: 0; border-radius: 9px; padding: 6px 4px; text-align: center; background: rgba(255, 246, 230, .1); box-shadow: inset 0 0 0 1.5px rgba(255, 246, 230, .16); }
+.up b { display: block; font: 800 11.5px var(--f); } .up i { display: block; font: 12px var(--mono); font-style: normal; color: var(--gold); letter-spacing: 2px; } .up span { font: 600 10.5px var(--mono); color: #cdb9aa; } .up[disabled] { opacity: .45; pointer-events: none; }
+
 @media (max-width: 900px), (max-height: 520px) {
   #deck { grid-template-columns: 150px minmax(120px, 1fr) auto; gap: 8px; padding: 7px; }
   .shot { width: 86px; padding-left: 9px; } .shot small, .shot kbd, .item kbd { display: none; } .item { width: 86px; padding-left: 9px; }

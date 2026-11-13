@@ -93,5 +93,30 @@ session(async (br, base) => {
     check(errs.length === 0, 'no errors through title, quick match and result' + (errs.length ? ': ' + errs.join(' | ').slice(0, 600) : ''));
     await close();
   }
+  {
+    const { page, problems, close } = await open(br, base, Q, VP);
+    const ev = (code) => page.evaluate(code);
+    await page.click('[data-go=camp]');
+    const list = await ev(`({ n: document.querySelectorAll('.stage').length, next: document.querySelectorAll('.stage.next').length, locked: document.querySelectorAll('.stage.locked').length })`);
+    check(list.n === 10 && list.next === 1 && list.locked === 9, 'campaign lists ten stages with only the first open ' + JSON.stringify(list));
+    const up = await ev(`(() => { const m = window.__G.meta; m.save.coins = 500; const ok = m.upgrade('coc', 'hp'); return { ok, coins: m.save.coins, hp: m.mods('coc').hp, again: (m.save.coins = 0, m.upgrade('coc', 'hp')) }; })()`);
+    check(up.ok && up.coins === 380 && Math.abs(up.hp - 1.06) < 1e-9 && up.again === false, 'an upgrade costs coins, raises the stat, and is refused without coins ' + JSON.stringify(up));
+    await ev('window.__G.ui.showCampaign()');
+    await page.click('.stage.next');
+    await page.waitForFunction('window.__G.state === "playing" && window.__G.demo === false', null, { timeout: 60000 });
+    const st = await ev(`(() => { const s = window.__G.sim; return { stage: window.__G.matchCfg.stage, mine: s.units[0].maxHp, foe: s.units[1].maxHp, foeKind: s.units[1].kind }; })()`);
+    check(st.stage === 0 && st.mine === 1166 && st.foe === 880 && st.foeKind === 'coc', 'stage 1 starts with the upgraded player unit and a weakened foe ' + JSON.stringify(st));
+    await ev(`(() => { const s = window.__G.sim; s.units[1].hp = 1; let g = 0;
+      while (s.phase !== 'over' && g++ < 80) { if (s.phase === 'turn' && !s.active.ai) { const e = s.units[1], u = s.active, f = e.x > u.x ? 1 : -1; let best = null;
+        for (let a = u.aimMin; a <= u.aimMax && !best; a += 2) for (let p = 15; p <= 100; p += 2.5) { if (PM.Sim.trace(s, u, u.shots[0], f, a, p).dmg[e.id]) { best = { angle: a, power: p, facing: f, shot: 0 }; break; } }
+        if (best) __fire(best); else s.skip(); } __sim(4); } })()`);
+    await page.waitForTimeout(2200);
+    await ev('__tick(2)');
+    const res = await ev(`({ stage: window.__G.meta.save.stage, coins: window.__G.meta.save.coins, label: (document.querySelector('[data-again]') || {}).textContent })`);
+    check(res.stage === 1 && res.coins >= 60 && res.label === 'Màn kế', 'clearing stage 1 opens stage 2 and pays the first-clear bonus ' + JSON.stringify(res));
+    const errs = (await ev('window.__errors')).concat(problems);
+    check(errs.length === 0, 'no errors through campaign and upgrades' + (errs.length ? ': ' + errs.join(' | ').slice(0, 600) : ''));
+    await close();
+  }
   check.done();
 });

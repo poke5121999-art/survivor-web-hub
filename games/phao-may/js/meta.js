@@ -7,9 +7,11 @@
   PM.RANKS = ['Tân Binh', 'Pháo Thủ', 'Xạ Thủ', 'Đội Trưởng', 'Chỉ Huy', 'Thống Lĩnh Mây'];
 
   PM.Meta = function (G) {
-    const fresh = () => ({ coins: 0, xp: 0, units: ['coc'], wins: 0, losses: 0, last: { unit: 'coc', size: 1, ai: 'easy', map: 'doiche' } });
+    const fresh = () => ({ coins: 0, xp: 0, units: ['coc'], wins: 0, losses: 0, stage: 0, up: {}, last: { unit: 'coc', size: 1, ai: 'easy', map: 'doiche' } });
     let save = Object.assign(fresh(), PM.store.read(KEY, {}));
     if (!Array.isArray(save.units) || !save.units.includes('coc')) save.units = ['coc'];
+    if (!save.up || typeof save.up !== 'object') save.up = {};
+    save.stage = Math.max(0, Math.min(PM.CAMPAIGN.length, save.stage | 0));
     const api = { get save() { return save; } };
     api.commit = () => PM.store.write(KEY, save);
     api.level = (xp) => Math.floor(Math.sqrt((xp === undefined ? save.xp : xp) / 120)) + 1;
@@ -34,6 +36,25 @@
       save.coins += coins; save.xp += xp; if (win) save.wins++; else save.losses++;
       api.commit();
       return { coins, xp, win, dealt, kills, levelUp: api.level() > before, level: api.level() };
+    };
+    api.upLevel = (kind, stat) => (save.up[kind] && save.up[kind][stat]) || 0;
+    api.upPrice = (kind, stat) => 120 * (api.upLevel(kind, stat) + 1);
+    api.upgrade = function (kind, stat) {
+      const lv = api.upLevel(kind, stat), price = api.upPrice(kind, stat);
+      if (!api.owns(kind) || !PM.UPGRADES[stat] || lv >= PM.UPGRADE_MAX || save.coins < price) return false;
+      save.coins -= price; (save.up[kind] = save.up[kind] || {})[stat] = lv + 1; api.commit();
+      return true;
+    };
+    api.mods = function (kind) {
+      const m = {};
+      for (const stat in PM.UPGRADES) m[stat] = 1 + PM.UPGRADES[stat].step * api.upLevel(kind, stat);
+      return m;
+    };
+    // Marks a campaign stage cleared; returns the first-clear bonus paid (0 on a repeat).
+    api.clearStage = function (i) {
+      if (i !== save.stage || !PM.CAMPAIGN[i]) return 0;
+      save.stage = i + 1; save.coins += PM.CAMPAIGN[i].bonus; api.commit();
+      return PM.CAMPAIGN[i].bonus;
     };
     api.reset = () => { save = fresh(); api.commit(); };
     return api;
