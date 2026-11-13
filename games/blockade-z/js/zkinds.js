@@ -190,6 +190,16 @@
     const ceph = new THREE.Mesh(CEPH, [b.mats.skin, b.mats.skin, b.mats.skin, b.mats.skin, b.mats.face, b.mats.skin]); ceph.position.set(0, 0.5, 0.28); ceph.castShadow = sh; sg.add(ceph);
     const abd = new THREE.Group(); abd.position.set(0, 0.6, 0); sg.add(abd); const am2 = new THREE.Mesh(ABD, b.mats.shirt); am2.castShadow = sh; abd.add(am2);
     for (const s of [-1, 1]) { const f = new THREE.Mesh(FANG, b.mats.pants); f.position.set(s * 0.12, 0.34, 0.58); sg.add(f); }
+    // spider detail: the abdomen tapers to a spinneret and carries a row of spines, the head has a brow, two palps and a cluster of lit eyes
+    { garbMat = garbMat || new THREE.MeshLambertMaterial({ map: BZ.tex('z_garb'), vertexColors: true }); garbGlow = garbGlow || new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+      const DK = 0x1c1030, DK2 = 0x2c1a48, GRN = 0x7ad020, PALE = 0xd8d0e0, EYE = 0xff3020;
+      const ab = [[-0.36, -0.28, -1.25, 0.36, 0.26, -1.02, DK2], [-0.2, -0.18, -1.42, 0.2, 0.14, -1.25, DK], [-0.07, -0.2, -1.52, 0.07, -0.06, -1.4, PALE], [0.475, -0.12, -0.85, 0.53, 0.0, -0.3, DK], [-0.53, -0.12, -0.85, -0.475, 0.0, -0.3, DK], [-0.3, -0.42, -0.9, 0.3, -0.375, -0.15, DK]];
+      for (let i = 0; i < 4; i++) ab.push([-0.05, 0.36, -0.24 - i * 0.22, 0.05, 0.5 - i * 0.02, -0.14 - i * 0.22, GRN, [-0.35, 0, 0]]);
+      const am = new THREE.Mesh(garbGeometry('spiderAbd', ab), garbMat); am.castShadow = sh; abd.add(am);
+      const hd = [[-0.27, 0.19, 0.08, 0.27, 0.26, 0.31, DK], [-0.21, -0.2, 0.28, -0.11, -0.06, 0.5, DK2, [0.3, 0, 0]], [0.11, -0.2, 0.28, 0.21, -0.06, 0.5, DK2, [0.3, 0, 0]], [-0.33, -0.05, -0.2, -0.31, 0.12, 0.2, DK2], [0.31, -0.05, -0.2, 0.33, 0.12, 0.2, DK2]];
+      const hm = new THREE.Mesh(garbGeometry('spiderHead', hd), garbMat); hm.castShadow = sh; ceph.add(hm);
+      const ey = [[-0.2, 0.06], [-0.08, 0.11], [0.08, 0.11], [0.2, 0.06], [-0.13, -0.02], [0.13, -0.02]].map(([x, y]) => [x - 0.03, y - 0.03, 0.3, x + 0.03, y + 0.03, 0.315, EYE]);
+      ceph.add(new THREE.Mesh(garbGeometry('spiderEyes', ey), garbGlow)); }
     const legs = [];
     for (const s of [1, -1]) for (let i = 0; i < 4; i++) {
       const hip = new THREE.Group(); hip.position.set(s * 0.28, 0.5, 0.42 - i * 0.2); sg.add(hip);
