@@ -10,7 +10,7 @@
     varying vec3 vWp; varying vec3 vWn;
     uniform sampler2D tField; uniform vec2 uFInv; uniform vec2 uFOff; uniform sampler2D tNoise;
     uniform sampler2D tSoilA; uniform sampler2D tSoilN; uniform sampler2D tRockA; uniform sampler2D tRockN; uniform sampler2D tGrassA; uniform sampler2D tGrassN;
-    uniform vec3 uTopsoil; uniform vec3 uClay; uniform vec3 uRockTint; uniform vec3 uGrassTint;
+    uniform vec3 uTopsoil; uniform vec3 uClay; uniform vec3 uRockTint; uniform vec3 uGrassTint; uniform float uGrassGrey;
     vec3 tAlb; vec3 tNw; float tRough; float tOcc; float tGlow;
     void terrainSample(){
       vec2 fuv = vWp.xy * uFInv + uFOff;
@@ -27,6 +27,8 @@
       float band = d0 + (n1 - 0.5)*2.6 + (n2 - 0.5)*0.7;
       vec3 soilT = pow(texture2D(tSoilA, uv*0.14).rgb, vec3(2.2)), rockT = pow(texture2D(tRockA, uv*0.13).rgb, vec3(2.2)), grassT = pow(texture2D(tGrassA, uv*0.27).rgb, vec3(2.2));
       vec3 soilN = texture2D(tSoilN, uv*0.14).xyz*2.0-1.0, rockN = texture2D(tRockN, uv*0.13).xyz*2.0-1.0, grassN = texture2D(tGrassN, uv*0.27).xyz*2.0-1.0;
+      grassT = mix(grassT, vec3(dot(grassT, vec3(0.3, 0.6, 0.1))), uGrassGrey);
+      soilT = mix(soilT, vec3(dot(soilT, vec3(0.4, 0.5, 0.1))), uGrassGrey);
       float kClay = smoothstep(0.7, 1.9, band), kRock = smoothstep(5.4, 7.2, band + (n3 - 0.5)*1.6);
       float warpY = vWp.y + (n1 - 0.5)*7.0 + (n2 - 0.5)*1.6;
       float lay = fract(warpY*0.23), layId = floor(warpY*0.23);
@@ -107,7 +109,7 @@
     const col = (a, d) => new THREE.Color().fromArray(a || d);
     const U = { tField: { value: field }, uFInv: { value: new THREE.Vector2(1 / (nx * cell), 1 / (ny * cell)) }, uFOff: { value: new THREE.Vector2(0.5 / nx, 0.5 / ny) }, tNoise: { value: G.bake.noise() },
       tSoilA: { value: soil.alb }, tSoilN: { value: soil.nrm }, tRockA: { value: rock.alb }, tRockN: { value: rock.nrm }, tGrassA: { value: grass.alb }, tGrassN: { value: grass.nrm },
-      uTopsoil: { value: col(th.topsoil, [0.6, 0.48, 0.4]) }, uClay: { value: col(th.clay, [1.75, 0.92, 0.6]) }, uRockTint: { value: col(th.rock, [1, 1, 1.05]) }, uGrassTint: { value: col(th.grass, [1, 1, 1]) } };
+      uTopsoil: { value: col(th.topsoil, [0.6, 0.48, 0.4]) }, uClay: { value: col(th.clay, [1.75, 0.92, 0.6]) }, uRockTint: { value: col(th.rock, [1, 1, 1.05]) }, uGrassTint: { value: col(th.grass, [1, 1, 1]) }, uGrassGrey: { value: th.grey || 0 } };
     const mat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, envMapIntensity: 0.7 });
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);

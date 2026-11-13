@@ -178,6 +178,19 @@ for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua'], ['nhim
   check(ai.phase === 'over', `hard match on Vịnh Đá Vôi ends (turns=${ai.turnN}, winner=${ai.winner}, sea=${ai.seaY.toFixed(1)})`);
 }
 
+{
+  const sim = mk({ map: 'lolua' });
+  sim.fireNow({ angle: 70, power: 30, shot: 0 });
+  until(sim, () => sim.phase !== 'flight');
+  check(drain(sim, 'spawn').some((e) => e.shot === 'dalua') && drain(sim, 'boom').some((e) => e.shot === 'dalua'), 'a burning rock falls after each shot on Lò Rèn Núi Lửa');
+  const ice = mk({ map: 'bang' }), v = ice.units[0], x0 = v.x;
+  let steep = null;
+  for (let x = 12; x < 150 && steep === null; x += 0.5) { const a = ice.terrain.groundY(x - 0.5, 95, 95), b = ice.terrain.groundY(x + 0.5, 95, 95); if (Number.isFinite(a) && Number.isFinite(b) && Math.abs(b - a) > 1.05 && Math.abs(b - a) < 1.4) steep = x; }
+  v.x = steep; v.y = ice.terrain.groundY(steep, 95, 95); ice.advance(1.5);
+  check(steep !== null && Math.abs(v.x - steep) > 1, `a unit slides on an icy slope that would hold elsewhere (${steep} -> ${v.x.toFixed(1)})`);
+  void x0;
+}
+
 for (const level of ['easy', 'medium', 'hard']) {
   let dealt = 0, shots = 0, wins = 0, steps = 0;
   const N = 6;

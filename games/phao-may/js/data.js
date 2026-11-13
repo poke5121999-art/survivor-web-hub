@@ -179,13 +179,13 @@
     { name: 'Buổi tập đầu', blurb: 'Một Cóc Đồng non tay. Tập chỉnh góc và nạp lực.', map: 'doiche', ai: 'easy', allies: [], foes: ['coc'], hp: 0.8, bonus: 60 },
     { name: 'Kim trong sương', blurb: 'Chuồn Kim bắn căng và nhanh. Đừng đứng chỗ trống.', map: 'doiche', ai: 'easy', allies: [], foes: ['chuon'], hp: 1, bonus: 80 },
     { name: 'Hai chọi hai', blurb: 'Có đồng đội Ốc Lăn. Để ý thứ tự lượt.', map: 'doiche', ai: 'easy', allies: ['oc'], foes: ['coc', 'chuon'], hp: 1, bonus: 100 },
-    { name: 'Bi lăn dốc', blurb: 'Ốc Lăn thả bi xuống lòng chảo. Giữ chỗ cao.', map: 'doiche', ai: 'medium', allies: [], foes: ['oc'], hp: 1, bonus: 120 },
+    { name: 'Bi lăn dốc', blurb: 'Ốc Lăn thả bi xuống lòng chảo. Giữ chỗ cao.', map: 'bang', ai: 'medium', allies: [], foes: ['oc'], hp: 1, bonus: 120 },
     { name: 'Giáp than', blurb: 'Tê Giác Than máu dày, đạn to, đi chậm.', map: 'vinhda', ai: 'medium', allies: [], foes: ['tegiac'], hp: 1.15, bonus: 140 },
-    { name: 'Đội hình ba', blurb: 'Ba đấu ba. Hồi Đội và Khiên Mây đáng mang theo.', map: 'doiche', ai: 'medium', allies: ['chuon', 'tegiac'], foes: ['coc', 'oc', 'chuon'], hp: 1, bonus: 170 },
+    { name: 'Đội hình ba', blurb: 'Ba đấu ba. Hồi Đội và Khiên Mây đáng mang theo.', map: 'bang', ai: 'medium', allies: ['chuon', 'tegiac'], foes: ['coc', 'oc', 'chuon'], hp: 1, bonus: 170 },
     { name: 'Một chọi hai', blurb: 'Hai đối thủ máu mỏng. Khoét đất cho chúng rơi.', map: 'vinhda', ai: 'medium', allies: [], foes: ['coc', 'chuon'], hp: 0.7, bonus: 200 },
-    { name: 'Xạ thủ', blurb: 'Chuồn Kim mức Khó hiếm khi trượt. Dùng vòm đá mà nấp.', map: 'doiche', ai: 'hard', allies: [], foes: ['chuon'], hp: 1, bonus: 230 },
+    { name: 'Xạ thủ', blurb: 'Chuồn Kim mức Khó hiếm khi trượt. Dùng vòm đá mà nấp.', map: 'lolua', ai: 'hard', allies: [], foes: ['chuon'], hp: 1, bonus: 230 },
     { name: 'Bốn phương', blurb: 'Bốn đấu bốn, máy mức Khó.', map: 'vinhda', ai: 'hard', allies: ['oc', 'chuon', 'tegiac'], foes: ['coc', 'oc', 'chuon', 'tegiac'], hp: 1, bonus: 270 },
-    { name: 'Thống lĩnh mây', blurb: 'Một mình đấu Tê Giác Than và Chuồn Kim mức Khó.', map: 'doiche', ai: 'hard', allies: [], foes: ['tegiac', 'chuon'], hp: 0.85, bonus: 400 }
+    { name: 'Thống lĩnh mây', blurb: 'Một mình đấu Tê Giác Than và Chuồn Kim mức Khó.', map: 'lolua', ai: 'hard', allies: [], foes: ['tegiac', 'chuon'], hp: 0.85, bonus: 400 }
   ];
   PM.UPGRADES = { hp: { name: 'Giáp', step: 0.06, desc: '+6% máu mỗi bậc' }, atk: { name: 'Thuốc súng', step: 0.05, desc: '+5% sát thương mỗi bậc' }, fuel: { name: 'Bình xăng', step: 0.12, desc: '+12% quãng đi mỗi bậc' } };
   PM.UPGRADE_MAX = 3;

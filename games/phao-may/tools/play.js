@@ -66,6 +66,16 @@ session(async (br, base) => {
     await close();
   }
 
+  for (const map of ['lolua', 'bang']) {
+    const { page, problems, close } = await open(br, base, Q + `&autostart=1&seed=9&map=${map}`, VP);
+    const m = await page.evaluate(`(() => { const G = window.__G, s = G.sim; __fire({ angle: 70, power: 35, shot: 0 }); __sim(8); __tick(20);
+      return { map: G.map.id, alive: s.units.filter((u) => u.alive).length, phase: s.phase, craters: s.terrain.version }; })()`);
+    check(m.map === map && m.alive === 2 && m.craters > 0, `${map} loads and a shot digs into it ` + JSON.stringify(m));
+    const errs = (await page.evaluate('window.__errors')).concat(problems);
+    check(errs.length === 0, `no errors on ${map}` + (errs.length ? ': ' + errs.join(' | ').slice(0, 600) : ''));
+    await close();
+  }
+
   for (const level of ['easy', 'medium', 'hard']) {
     const { page, problems, close } = await open(br, base, Q + `&autostart=1&auto=1&seed=5&ai=${level}`, VP);
     const r = await page.evaluate(`(() => { const s = window.__G.sim; let guard = 0; while (s.phase !== 'over' && guard++ < 60) __sim(20); __tick(120); return { phase: s.phase, turns: s.turnN, winner: s.winner, result: !!document.querySelector('.result') }; })()`);

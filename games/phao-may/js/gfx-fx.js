@@ -87,6 +87,7 @@
     tro: { geo: 'ball', s: 0.3, mat: 'steel', glow: [9, 3, 0.5], smoke: 0.7 },
     mualua: { geo: 'ball', s: 0.56, mat: 'steel', glow: [10, 3, 0.5], smoke: 1.4 },
     giotlua: { geo: 'ball', s: 0.3, mat: 'steel', glow: [10, 3, 0.5], smoke: 0.8 },
+    dalua: { geo: 'ball', s: 0.75, mat: 'bronze', glow: [12, 4, 0.6], smoke: 1.8 },
     tele: { geo: 'ball', s: 0.3, mat: 'orb', glow: [5, 3, 7], smoke: 0 }
   };
 

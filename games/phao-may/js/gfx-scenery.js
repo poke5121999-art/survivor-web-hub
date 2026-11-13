@@ -134,7 +134,7 @@
       return tint(PM.Geo.merge(blades), 0, 0.75, [0.35, 0.6, 0.2], [1.5, 1.9, 0.6]);
     })();
     const tufts = [];
-    for (let x = 10; x < map.w - 4; x += 0.42 / q.deco) {
+    for (let x = 10; x < map.w - 4 && deco.tufts !== false; x += 0.42 / q.deco) {
       const tx = x + rng() * 0.3, y = surface(tx);
       if (!Number.isFinite(y)) continue;
       const front = rng() < 0.45;
@@ -144,6 +144,25 @@
     grass.receiveShadow = true; grass.frustumCulled = false;
     tufts.forEach((s, i) => place(grass, i, s, true));
     group.add(grass);
+
+    // Maps without plants get stone or ice shards instead: clusters of leaning spikes, faintly glowing.
+    const shards = [];
+    let shardMesh = null;
+    if (deco.spikes) {
+      const parts = [];
+      for (let i = 0; i < 5; i++) { const h = 0.7 + (i % 3) * 0.5, a = i * 1.3; parts.push(new THREE.ConeGeometry(0.16 + (i % 2) * 0.08, h, 5, 1).translate(0, h / 2, 0).rotateZ(0.3 * Math.cos(a)).rotateX(0.3 * Math.sin(a)).translate(Math.cos(a) * 0.22, 0, Math.sin(a) * 0.22).toNonIndexed()); }
+      const g = PM.Geo.merge(parts); g.computeVertexNormals();
+      const sm = G.bake.mat({ set: 'rock', space: 'world', scale: 0.6, metalness: 0, roughness: 0.55, color: deco.spikes.color, emissive: deco.spikes.emissive, emissiveIntensity: deco.spikes.glow, envMapIntensity: 1.3 });
+      for (let x = 10; x < map.w - 4; x += 1.5 / q.deco) {
+        const tx = x + rng() * 0.9, y = surface(tx);
+        if (!Number.isFinite(y)) continue;
+        shards.push({ x: tx, y: y - 0.1, z: rng() < 0.4 ? 2.7 + rng() * 1.6 : -2 - rng() * 6.5, len: 0.7 + rng() * 0.9, h: 0.6 + rng() * 1.3, sx: 0.7 + rng() * 0.9, rot: rng() * 6.28, alive: true });
+      }
+      shardMesh = new THREE.InstancedMesh(g, sm, shards.length);
+      shardMesh.castShadow = true; shardMesh.receiveShadow = true; shardMesh.frustumCulled = false;
+      shards.forEach((t, i) => place(shardMesh, i, t, true));
+      group.add(shardMesh);
+    }
 
     // Shade trees: a leaning trunk that forks, and a layered crown of many small leaf clumps.
     const wood = G.bake.mat({ set: 'wood', space: 'obj', scale: 0.35, metalness: 0, roughness: 1, color: 0x9a7a62 });
@@ -199,6 +218,9 @@
       let gc = false;
       tufts.forEach((t, i) => { if (t.alive && !terrain.solid(t.x, t.y - 0.3)) { t.alive = false; place(grass, i, t, false); gc = true; } });
       if (gc) grass.instanceMatrix.needsUpdate = true;
+      let sc = false;
+      shards.forEach((t, i) => { if (t.alive && !terrain.solid(t.x, t.y - 0.3)) { t.alive = false; place(shardMesh, i, t, false); sc = true; } });
+      if (sc) shardMesh.instanceMatrix.needsUpdate = true;
       let tc = false;
       trees.forEach((t, i) => {
         if (t.alive && !terrain.solid(t.x, t.y - 0.6)) { t.alive = false; placeTree(t, i); tc = true; G.bus.emit('fx:leaves', { x: t.x, y: t.y + t.h, z: t.z, n: 26 }); }

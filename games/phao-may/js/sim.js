@@ -350,7 +350,7 @@
         const side = (dx) => { const g = T.groundY(u.x + dx, u.y + R.stepUp, 3.5); return g === null ? u.y + R.stepUp : g === -Infinity ? u.y - 3.5 : g; };
         const sl = side(0.5) - side(-0.5);
         u.slope = sl;
-        if (Math.abs(sl) > R.slide) { u.x += (sl > 0 ? -1 : 1) * 4 * DT; u.sliding = true; }
+        if (Math.abs(sl) > (map.slide || R.slide)) { u.x += (sl > 0 ? -1 : 1) * 4 * DT; u.sliding = true; }
       }
     } else {
       u.vy -= map.g * DT;
@@ -453,6 +453,8 @@
     sim.phase = 'flight'; sim.hold = 0.15;
     const n = ts.double && !ts.tele ? 2 : 1;
     for (let i = 0; i < n; i++) sim.queue.push({ t: sim.time + i * 0.6, def, power, boost: ts.boost });
+    const hz = sim.map.hazard;
+    if (hz && hz.kind === 'rocks') sim.queue.push({ t: sim.time + 1.4, rock: hz.def });
     emit(sim, { type: 'fire', unit: u.id, shot: def.id, power, angle: u.angle, facing: u.facing, n });
   }
 
@@ -518,6 +520,7 @@
       } else if (sim.phase === 'flight') {
         while (sim.queue.length && sim.queue[0].t <= sim.time) {
           const q = sim.queue.shift();
+          if (q.rock) { const x = sim.rng.range(10, sim.map.w - 10); spawn(sim, null, q.rock, x, sim.map.h + 6, sim.rng.range(-5, 5), -14, 1); continue; }
           if (u.alive) launch(sim, u, q.def, u.facing, u.angle, q.power, q.boost * u.atk, u);
         }
         for (let i = 0; i < sim.projs.length; i++) { const p = sim.projs[i]; if (p.alive) stepProj(sim, p); }

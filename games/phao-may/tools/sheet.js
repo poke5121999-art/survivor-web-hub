@@ -15,6 +15,10 @@ const GROUPS = {
     { name: 'hill', q: 'autostart=1&seed=3', pose: { x: 128, y: 59, dist: 46 } },
     { name: 'vinhda-wide', q: 'autostart=1&seed=3&map=vinhda', pose: 'wide' },
     { name: 'vinhda-east', q: 'autostart=1&seed=3&map=vinhda', pose: { x: 136, y: 54, dist: 50 } },
+    { name: 'lolua-wide', q: 'autostart=1&seed=3&map=lolua', pose: 'wide' },
+    { name: 'lolua-crater', q: 'autostart=1&seed=3&map=lolua', pose: { x: 84, y: 62, dist: 50 } },
+    { name: 'bang-wide', q: 'autostart=1&seed=3&map=bang', pose: 'wide' },
+    { name: 'bang-peak', q: 'autostart=1&seed=3&map=bang', pose: { x: 112, y: 60, dist: 50 } },
     { name: 'vinhda-tide', q: 'autostart=1&seed=3&map=vinhda', eval: '(() => { window.__G.sim.seaY = 33; __tick(240); })()', pose: { x: 86, y: 44, dist: 80 } }
   ],
   units: [
