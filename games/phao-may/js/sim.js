@@ -110,6 +110,72 @@
       hitTerrain(ctx, p, hit) { p.alive = false; explode(ctx, hit.x, hit.y, p.def.child, p.owner, p.boost, null); },
       hitUnit(ctx, p, hit, u) { p.alive = false; explode(ctx, hit.x, hit.y, p.def.child, p.owner, p.boost, u); }
     },
+    // Digs through the ground along its entry direction, then bursts. Carves its own tunnel.
+    drill: {
+      step(ctx, p) {
+        if (!p.burrow) return false;
+        const sp = p.def.drillSpeed, l = Math.hypot(p.vx, p.vy) || 1;
+        p.age += DT;
+        p.x += (p.vx / l) * sp * DT; p.y += (p.vy / l) * sp * DT; p.left -= sp * DT;
+        if (!ctx.dry) { ctx.terrain.carve(p.x, p.y, 0.85); if ((p.tick = (p.tick || 0) + 1) % 6 === 0) emit(ctx, { type: 'burrow', x: p.x, y: p.y }); }
+        let hitU = null;
+        for (const u of ctx.units) if (u.alive && Math.hypot(u.x - p.x, u.y + u.radius - p.y) < u.radius + 0.3) hitU = u;
+        if (hitU || p.left <= 0 || ctx.terrain.sample(p.x, p.y) > 0.9 || p.y < ctx.map.seaY) { p.alive = false; explode(ctx, p.x, p.y, p.def, p.owner, p.boost, hitU); }
+        return true;
+      },
+      hitTerrain(ctx, p, hit) { p.burrow = true; p.left = p.def.depth; p.x = hit.x; p.y = hit.y; emit(ctx, { type: 'bounce', x: hit.x, y: hit.y, proj: p.id }); },
+      hitUnit(ctx, p, hit, u) { BEHAV.shell.hitUnit(ctx, p, hit, u); }
+    },
+    // Lands, then rolls along the surface until it meets a unit, a wall, or runs out of time.
+    roller: {
+      step(ctx, p) {
+        if (!p.rolling) return false;
+        p.age += DT; p.left -= DT;
+        const nx = p.x + p.dir * p.def.rollSpeed * DT;
+        const gy = ctx.terrain.groundY(nx, p.y + 1.1, 2.6);
+        let hitU = null;
+        for (const u of ctx.units) if (u.alive && Math.hypot(u.x - nx, u.y + u.radius - p.y) < u.radius + p.def.size) hitU = u;
+        if (hitU || gy === null || p.left <= 0) { p.alive = false; explode(ctx, p.x, p.y + 0.2, p.def, p.owner, p.boost, hitU); return true; }
+        if (gy === -Infinity) { p.rolling = false; p.x = nx; p.vx = p.dir * p.def.rollSpeed; p.vy = 0; p.fell = true; return true; }
+        p.x = nx; p.y = gy + p.def.size * 0.5; p.vx = p.dir * p.def.rollSpeed; p.vy = 0;
+        return true;
+      },
+      hitTerrain(ctx, p, hit) {
+        if (p.fell && p.bounces <= 0) { p.alive = false; explode(ctx, hit.x, hit.y, p.def, p.owner, p.boost, null); return; }
+        if (p.fell) p.bounces--;
+        const n = ctx.terrain.normal(hit.x, hit.y);
+        if (n.y < 0.2) { p.alive = false; explode(ctx, hit.x, hit.y, p.def, p.owner, p.boost, null); return; }
+        p.rolling = true; p.left = p.def.roll; p.dir = p.dir || (p.vx >= 0 ? 1 : -1); p.x = hit.x; p.y = hit.y + p.def.size * 0.5;
+        emit(ctx, { type: 'bounce', x: hit.x, y: hit.y, proj: p.id });
+      },
+      hitUnit(ctx, p, hit, u) { BEHAV.shell.hitUnit(ctx, p, hit, u); }
+    },
+    // Bursts into rollers that run both ways from the impact.
+    forkroll: {
+      hitTerrain(ctx, p, hit) {
+        p.alive = false;
+        explode(ctx, hit.x, hit.y, p.def, p.owner, p.boost, null);
+        const n = p.def.count;
+        for (let i = 0; i < n; i++) {
+          const dir = i % 2 ? 1 : -1, k = 1 + Math.floor(i / 2) * 0.35;
+          const c = spawn(ctx, p.owner, p.def.child, hit.x + dir * 0.6, hit.y + 1.0, dir * 5 * k, 4 + 2 * k, p.boost);
+          c.age = 0.36; c.dir = dir;
+        }
+      },
+      hitUnit(ctx, p, hit, u) { BEHAV.shell.hitUnit(ctx, p, hit, u); }
+    },
+    // Impact, then a line of aftershocks walking outward along the ground.
+    quake: {
+      hitTerrain(ctx, p, hit) {
+        p.alive = false;
+        explode(ctx, hit.x, hit.y, p.def, p.owner, p.boost, null);
+        for (let i = 1; i <= p.def.count; i++) for (const dir of [-1, 1]) {
+          const shock = { t: (ctx.time || 0) + i * 0.16, x: hit.x + dir * i * p.def.gap, y: hit.y, def: p.def.child, owner: p.owner, boost: p.boost };
+          if (ctx.dry) aftershock(ctx, shock); else ctx.shocks.push(shock);
+        }
+      },
+      hitUnit(ctx, p, hit, u) { BEHAV.quake.hitTerrain(ctx, p, hit); }
+    },
     tele: {
       ghost: true,
       hitTerrain(ctx, p, hit) {
@@ -126,6 +192,12 @@
     }
   });
 
+  function aftershock(ctx, k) {
+    const gy = ctx.terrain.groundY(k.x, k.y + 5, 11);
+    if (gy === null || gy === -Infinity) return;
+    explode(ctx, k.x, gy, k.def, k.owner, k.boost, null);
+  }
+
   function segCircle(x0, y0, x1, y1, cx, cy, r) {
     const dx = x1 - x0, dy = y1 - y0, fx = x0 - cx, fy = y0 - cy;
     const a = dx * dx + dy * dy, b = 2 * (fx * dx + fy * dy), c = fx * fx + fy * fy - r * r;
@@ -139,6 +211,7 @@
 
   function stepProj(ctx, p) {
     const def = p.def, beh = BEHAV[def.kind];
+    if (beh.step && beh.step(ctx, p)) return;
     p.age += DT;
     p.vx += ctx.wind * def.windK * DT;
     p.vy -= ctx.map.g * def.gravK * DT;
@@ -333,18 +406,22 @@
     const map = PM.MAPS[cfg.map];
     const sim = {
       cfg, map, seed: cfg.seed >>> 0, rng: PM.rng((cfg.seed >>> 0) ^ 0x9e3779b9), terrain: PM.Terrain(map),
-      units: [], projs: [], events: [], queue: [], stats: {}, nextProj: 1, dry: false,
+      units: [], projs: [], events: [], queue: [], shocks: [], stats: {}, nextProj: 1, dry: false,
       time: 0, steps: 0, turnN: 0, wind: 0, hold: 0, settleT: 0, restT: 0, winner: null, lastShooter: null,
       turnTime: cfg.turnTime || R.turnTime, phase: 'turn', active: null, ts: null, timer: 0, charge: { on: false, power: 0 }, input: { move: 0, aim: 0, charge: false }
     };
+    // Which team starts on the west side. Sides are not equal on every map, so it follows the seed unless the caller fixes it.
+    const flip = cfg.flip === undefined ? !!(sim.seed & 1) : !!cfg.flip;
+    sim.flip = flip;
     cfg.teams.forEach((team, ti) => {
       team.forEach((spec, k) => {
         const U = PM.UNITS[spec.kind], mods = spec.mods || {};
-        const x = map.spawns[ti][k % map.spawns[ti].length];
+        const side = flip ? 1 - ti : ti;
+        const x = map.spawns[side][k % map.spawns[side].length];
         const y = sim.terrain.groundY(x, map.h - 1, map.h);
         const u = {
           id: sim.units.length, team: ti, kind: spec.kind, name: spec.name || U.name, ai: spec.ai || null, skin: spec.skin || null,
-          x, y, vx: 0, vy: 0, grounded: true, sliding: false, slope: 0, peakY: y, facing: ti === 0 ? 1 : -1,
+          x, y, vx: 0, vy: 0, grounded: true, sliding: false, slope: 0, peakY: y, facing: side === 0 ? 1 : -1,
           hp: Math.round(U.hp * (mods.hp || 1)), maxHp: Math.round(U.hp * (mods.hp || 1)), armor: mods.armor || 1, atk: mods.atk || 1,
           angle: clamp(45, U.aimMin, U.aimMax), aimMin: U.aimMin, aimMax: U.aimMax, aimSpeed: U.aimSpeed, barrel: U.barrel, radius: U.radius,
           speed: U.speed, fuel: U.fuel * (mods.fuel || 1), fuelMax: U.fuel * (mods.fuel || 1), weight: U.weight, shots: U.shots, shotIdx: 0,
@@ -391,8 +468,9 @@
         }
         for (let i = 0; i < sim.projs.length; i++) { const p = sim.projs[i]; if (p.alive) stepProj(sim, p); }
         for (let i = sim.projs.length - 1; i >= 0; i--) if (!sim.projs[i].alive) { emit(sim, { type: 'gone', proj: sim.projs[i].id }); sim.projs.splice(i, 1); }
+        if (sim.shocks.length) { sim.shocks.sort((a, b) => a.t - b.t); while (sim.shocks.length && sim.shocks[0].t <= sim.time) aftershock(sim, sim.shocks.shift()); }
         sim.hold -= DT;
-        if (!sim.projs.length && !sim.queue.length && sim.hold <= 0) { sim.phase = 'settle'; sim.settleT = 0; sim.restT = 0; }
+        if (!sim.projs.length && !sim.queue.length && !sim.shocks.length && sim.hold <= 0) { sim.phase = 'settle'; sim.settleT = 0; sim.restT = 0; }
       } else if (sim.phase === 'settle') {
         sim.settleT += DT;
         let rest = true;

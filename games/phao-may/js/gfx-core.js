@@ -7,9 +7,9 @@
 
   // One anti-aliasing method (FXAA in the last pass); low has none and is meant for phones.
   PM.QUALITY = {
-    low: { dpr: 1, scale: 0.85, shadow: 1024, soft: false, ao: 0, rays: 0, bloom: 3, fxaa: false, tex: 256, parts: 0.45, cloudShells: 2, deco: 0.5, shadowEvery: 3 },
-    medium: { dpr: 1.25, scale: 1, shadow: 2048, soft: true, ao: 8, rays: 24, bloom: 5, fxaa: true, tex: 512, parts: 1, cloudShells: 4, deco: 1, shadowEvery: 2 },
-    high: { dpr: 1.75, scale: 1, shadow: 4096, soft: true, ao: 14, rays: 40, bloom: 6, fxaa: true, tex: 1024, parts: 1.6, cloudShells: 6, deco: 1.5, shadowEvery: 1 }
+    low: { dpr: 1, scale: 0.85, shadow: 1024, soft: false, ao: 0, rays: 0, bloom: 3, fxaa: false, tex: 256, parts: 0.45, cloudShells: 2, deco: 0.5, shadowEvery: 3, pcss: false, vol: 0 },
+    medium: { dpr: 1.25, scale: 1, shadow: 2048, soft: true, ao: 8, rays: 24, bloom: 5, fxaa: true, tex: 512, parts: 1, cloudShells: 4, deco: 1, shadowEvery: 2, pcss: true, pcssTaps: 12, vol: 12 },
+    high: { dpr: 1.75, scale: 1, shadow: 4096, soft: true, ao: 14, rays: 40, bloom: 6, fxaa: true, tex: 1024, parts: 1.6, cloudShells: 6, deco: 1.5, shadowEvery: 1, pcss: true, pcssTaps: 20, vol: 22 }
   };
   PM.QUALITY_ORDER = ['low', 'medium', 'high'];
 
@@ -43,17 +43,46 @@
   const FS_AOBLUR = HEAD + DEPTH_FN + `
     uniform sampler2D tSrc; uniform vec2 uDir;
     void main(){
-      float z0 = viewZ(vUv), sum = 0.0, wsum = 0.0;
+      float z0 = viewZ(vUv), wsum = 0.0; vec4 sum = vec4(0.0);
       for (int i = -3; i <= 3; i++) {
         vec2 uv = vUv + uDir * float(i);
         float w = (1.0 - abs(float(i))/4.0) * step(abs(viewZ(uv) - z0), 0.8);
-        sum += texture(tSrc, uv).x * w; wsum += w;
+        sum += texture(tSrc, uv) * w; wsum += w;
       }
-      o = vec4(sum / max(wsum, 1e-4));
+      o = sum / max(wsum, 1e-4);
+    }`;
+
+  // Light shafts: march the view ray through the slab around the play plane and test each sample against the sun shadow map.
+  const FS_VOL = HEAD + DEPTH_FN + `
+    uniform sampler2D tShadow; uniform mat4 uShadowM; uniform mat4 uCamWorld; uniform vec3 uCamPos; uniform vec3 uLightDir; uniform float uSeaY; uniform float uHasShadow;
+    float ign(vec2 p){ return fract(52.9829189*fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+    float lit(vec3 wp){
+      vec4 sc = uShadowM * vec4(wp, 1.0); sc.xyz /= sc.w;
+      if (sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0 || sc.z > 1.0) return 1.0;
+      float d = dot(texture(tShadow, sc.xy), vec4(1.0/16777216.0, 1.0/65536.0, 1.0/256.0, 1.0) * (255.0/256.0));
+      return step(sc.z - 0.002, d);
+    }
+    void main(){
+      vec3 vp = viewPos(vUv); float dist = length(vp);
+      vec3 dir = normalize((uCamWorld * vec4(vp, 0.0)).xyz);
+      float tNear = (uCamPos.z - 22.0) / max(-dir.z, 1e-3), tFar = min(dist, (uCamPos.z + 70.0) / max(-dir.z, 1e-3));
+      float acc = 0.0;
+      if (tFar > tNear) {
+        float stepLen = (tFar - tNear) / float(VOL_STEPS), t = tNear + stepLen * ign(gl_FragCoord.xy);
+        for (int i = 0; i < VOL_STEPS; i++) {
+          vec3 wp = uCamPos + dir * t;
+          float dens = 0.35 + 1.4 * exp(-max(0.0, wp.y - uSeaY) * 0.045);
+          acc += dens * mix(1.0, lit(wp), uHasShadow) * stepLen;
+          t += stepLen;
+        }
+      }
+      float cosT = dot(dir, uLightDir);
+      float phase = 0.55 + 0.45 * cosT * cosT + 0.6 * pow(max(cosT, 0.0), 6.0);
+      o = vec4(vec3(acc * phase), 1.0);
     }`;
 
   const FS_COMP = HEAD + DEPTH_FN + `
-    uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAoOn; uniform mat4 uCamWorld;
+    uniform sampler2D tColor; uniform sampler2D tAO; uniform sampler2D tVol; uniform float uVolK; uniform vec3 uVolCol; uniform float uAoOn; uniform mat4 uCamWorld;
     uniform vec3 uFogCol; uniform vec3 uSunCol; uniform vec2 uSunUv; uniform float uFogStart; uniform float uFogDen; uniform float uSeaY; uniform float uMist;
     void main(){
       vec3 c = texture(tColor, vUv).rgb;
@@ -70,6 +99,7 @@
         vec3 fc = uFogCol + uSunCol * glow * 0.35;
         c = mix(c, fc, clamp(fog + mist * (0.25 + 0.75 * fog), 0.0, 1.0));
       }
+      c += uVolCol * texture(tVol, vUv).r * uVolK;
       o = vec4(c, 1.0);
     }`;
 
@@ -171,7 +201,7 @@
     const depthU = { tDepth: U(null), uNear: U(1), uFar: U(1000), uRes: U(new THREE.Vector2(1, 1)) };
     const dU = () => ({ tDepth: depthU.tDepth, uNear: depthU.uNear, uFar: depthU.uFar, uTan: U(new THREE.Vector2()) });
 
-    const env = { fogCol: new THREE.Color(0.8, 0.7, 0.7), sunCol: new THREE.Color(1, 0.8, 0.6), sunDir: new THREE.Vector3(-0.7, 0.3, -0.6).normalize(), fogStart: 110, fogDen: 0.006, seaY: 6, mist: 0.5, exposure: 1, bloom: 0.5, rays: 0.6, tint: new THREE.Color(1, 1, 1) };
+    const env = { fogCol: new THREE.Color(0.8, 0.7, 0.7), sunCol: new THREE.Color(1, 0.8, 0.6), sunDir: new THREE.Vector3(-0.7, 0.3, -0.6).normalize(), fogStart: 110, fogDen: 0.006, seaY: 6, mist: 0.5, exposure: 1, bloom: 0.5, rays: 0.6, tint: new THREE.Color(1, 1, 1), volCol: new THREE.Color(1, 0.8, 0.6), vol: 0.004, light: null };
 
     let q = null, qName = '', rt = null, mats = null, scale = 1, W = 1, H = 1;
     const sunUv = new THREE.Vector2(0.5, 0.5);
@@ -188,6 +218,8 @@
       rt.hdr = new THREE.WebGLRenderTarget(W, H, hf);
       rt.aoA = new THREE.WebGLRenderTarget(hw, hh, { format: THREE.RedFormat, depthBuffer: false });
       rt.aoB = new THREE.WebGLRenderTarget(hw, hh, { format: THREE.RedFormat, depthBuffer: false });
+      rt.volA = new THREE.WebGLRenderTarget(hw, hh, { format: THREE.RedFormat, type: THREE.HalfFloatType, depthBuffer: false });
+      rt.volB = new THREE.WebGLRenderTarget(hw, hh, { format: THREE.RedFormat, type: THREE.HalfFloatType, depthBuffer: false });
       rt.rays = new THREE.WebGLRenderTarget(Math.max(2, W >> 2), Math.max(2, H >> 2), hf);
       rt.ldr = new THREE.WebGLRenderTarget(W, H, { depthBuffer: false });
       rt.bloom = []; rt.bloomUp = [];
@@ -205,8 +237,9 @@
       if (mats) for (const k in mats) mats[k].dispose();
       mats = {
         ao: mat(FS_AO, Object.assign(dU(), { uTexel: U(new THREE.Vector2()), uRadius: U(1.6) }), { AO_TAPS: Math.max(1, q.ao) }),
+        vol: mat(FS_VOL, Object.assign(dU(), { tShadow: U(null), uShadowM: U(new THREE.Matrix4()), uCamWorld: U(new THREE.Matrix4()), uCamPos: U(new THREE.Vector3()), uLightDir: U(new THREE.Vector3()), uSeaY: U(0), uHasShadow: U(0) }), { VOL_STEPS: Math.max(1, q.vol) }),
         aoBlur: mat(FS_AOBLUR, Object.assign(dU(), { tSrc: U(null), uDir: U(new THREE.Vector2()) })),
-        comp: mat(FS_COMP, Object.assign(dU(), { tColor: U(null), tAO: U(null), uAoOn: U(0), uCamWorld: U(new THREE.Matrix4()), uFogCol: U(env.fogCol), uSunCol: U(env.sunCol), uSunUv: U(sunUv), uFogStart: U(0), uFogDen: U(0), uSeaY: U(0), uMist: U(0) })),
+        comp: mat(FS_COMP, Object.assign(dU(), { tColor: U(null), tAO: U(null), tVol: U(null), uVolK: U(0), uVolCol: U(env.volCol), uAoOn: U(0), uCamWorld: U(new THREE.Matrix4()), uFogCol: U(env.fogCol), uSunCol: U(env.sunCol), uSunUv: U(sunUv), uFogStart: U(0), uFogDen: U(0), uSeaY: U(0), uMist: U(0) })),
         pre: mat(FS_BLOOM_PRE, { tSrc: U(null), uThresh: U(1.7) }),
         down: mat(FS_DOWN, { tSrc: U(null), uTexel: U(new THREE.Vector2()) }),
         up: mat(FS_UP, { tSrc: U(null), tAdd: U(null), uTexel: U(new THREE.Vector2()), uMix: U(1) }),
@@ -229,10 +262,53 @@
       if (G.camera) { G.camera.aspect = cw / ch; G.camera.updateProjectionMatrix(); }
     };
 
+    // Soft shadows with a blocker search (PCSS): the penumbra widens with the distance to the occluder.
+    // Replaces getShadow in three's shadow chunk; if the chunk layout is not the r160 one, stock PCF stays.
+    const stockShadow = THREE.ShaderChunk.shadowmap_pars_fragment;
+    function patchShadows(on, taps) {
+      const src = stockShadow, a = src.indexOf('float getShadow('), b = src.indexOf('vec2 cubeToUV');
+      if (!on || a < 0 || b < a) { THREE.ShaderChunk.shadowmap_pars_fragment = stockShadow; if (on) console.warn('[render] soft shadows: shadow chunk layout not recognised, keeping stock PCF'); return; }
+      const search = Math.max(6, taps >> 1);
+      const fn = `
+	// PM_PCSS
+	const vec2 PM_FRUSTUM = vec2( ${g.shadowBox.w.toFixed(2)}, ${g.shadowBox.h.toFixed(2)} );
+	const float PM_DEPTH = ${g.shadowBox.d.toFixed(2)};
+	float pmIGN( vec2 p ) { return fract( 52.9829189 * fract( dot( p, vec2( 0.06711056, 0.00583715 ) ) ) ); }
+	vec2 pmVogel( int i, int n, float phi ) { float r = sqrt( ( float( i ) + 0.5 ) / float( n ) ); float th = float( i ) * 2.39996323 + phi; return r * vec2( cos( th ), sin( th ) ); }
+	float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, float shadowRadius, vec4 shadowCoord ) {
+		shadowCoord.xyz /= shadowCoord.w;
+		vec3 sc = shadowCoord.xyz;
+		if ( sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0 || sc.z > 1.0 ) return 1.0;
+		float zr = sc.z + shadowBias;
+		float phi = pmIGN( gl_FragCoord.xy ) * 6.2831853;
+		vec2 searchR = vec2( 0.7 * shadowRadius ) / PM_FRUSTUM;
+		float blk = 0.0, nb = 0.0;
+		for ( int i = 0; i < ${search}; i ++ ) {
+			float d = unpackRGBAToDepth( texture2D( shadowMap, sc.xy + pmVogel( i, ${search}, phi ) * searchR ) );
+			if ( d < zr ) { blk += d; nb += 1.0; }
+		}
+		if ( nb < 0.5 ) return 1.0;
+		float distM = max( zr - blk / nb, 0.0 ) * PM_DEPTH;
+		float penM = clamp( distM * 0.03 * shadowRadius, 0.03 * shadowRadius, 0.45 * shadowRadius );
+		vec2 filtR = max( vec2( penM ) / PM_FRUSTUM, 1.25 / shadowMapSize );
+		float lit = 0.0;
+		for ( int i = 0; i < ${taps}; i ++ ) {
+			float d = unpackRGBAToDepth( texture2D( shadowMap, sc.xy + pmVogel( i, ${taps}, phi + 1.7 ) * filtR ) );
+			lit += step( zr, d );
+		}
+		return lit / float( ${taps} );
+	}
+	`;
+      THREE.ShaderChunk.shadowmap_pars_fragment = src.slice(0, a) + fn + src.slice(b);
+    }
+    // Every map uses this one shadow box (metres), so the constants baked into the shader stay valid.
+    g.shadowBox = { w: 200, h: 124, d: 310 };
+
     g.setQuality = function (name) {
       if (!PM.QUALITY[name]) name = 'medium';
       qName = name; q = PM.QUALITY[name]; G.quality = q; G.qualityName = name;
-      renderer.shadowMap.type = q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+      renderer.shadowMap.type = q.pcss ? THREE.PCFShadowMap : q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+      patchShadows(q.pcss, q.pcssTaps || 12);
       makeMats(); W = H = 0;
       g.resize();
       G.bus.emit('quality', { name, q });
@@ -264,7 +340,7 @@
       if (frame % q.shadowEvery === 0 || g.shadowDirty) { renderer.shadowMap.needsUpdate = true; g.shadowDirty = false; }
       const tanY = Math.tan(camera.fov * Math.PI / 360), tanX = tanY * camera.aspect;
       depthU.uNear.value = camera.near; depthU.uFar.value = camera.far;
-      for (const k of ['ao', 'aoBlur', 'comp']) mats[k].uniforms.uTan.value.set(tanX, tanY);
+      for (const k of ['ao', 'aoBlur', 'comp', 'vol']) mats[k].uniforms.uTan.value.set(tanX, tanY);
 
       camera.layers.set(0);
       renderer.setRenderTarget(rt.scene);
@@ -276,12 +352,22 @@
         mats.aoBlur.uniforms.tSrc.value = rt.aoA.texture; mats.aoBlur.uniforms.uDir.value.set(1 / rt.aoA.width, 0); pass(mats.aoBlur, rt.aoB);
         mats.aoBlur.uniforms.tSrc.value = rt.aoB.texture; mats.aoBlur.uniforms.uDir.value.set(0, 1 / rt.aoA.height); pass(mats.aoBlur, rt.aoA);
       }
+      const L = env.light;
+      if (q.vol && L) {
+        const vu = mats.vol.uniforms, sm = L.shadow.map;
+        vu.tShadow.value = sm ? sm.texture : null; vu.uHasShadow.value = sm ? 1 : 0; vu.uShadowM.value.copy(L.shadow.matrix);
+        vu.uCamWorld.value.copy(camera.matrixWorld); vu.uCamPos.value.copy(camera.position); vu.uSeaY.value = env.seaY;
+        vu.uLightDir.value.copy(L.position).sub(L.target.position).normalize();
+        pass(mats.vol, rt.volA);
+        mats.aoBlur.uniforms.tSrc.value = rt.volA.texture; mats.aoBlur.uniforms.uDir.value.set(1.5 / rt.volA.width, 0); pass(mats.aoBlur, rt.volB);
+        mats.aoBlur.uniforms.tSrc.value = rt.volB.texture; mats.aoBlur.uniforms.uDir.value.set(0, 1.5 / rt.volA.height); pass(mats.aoBlur, rt.volA);
+      }
       v3.copy(camera.position).addScaledVector(env.sunDir, 1000).project(camera);
       const behind = v3.z > 1;
       sunUv.set(v3.x * 0.5 + 0.5, v3.y * 0.5 + 0.5);
       const cu = mats.comp.uniforms;
       cu.tColor.value = rt.scene.texture; cu.tAO.value = rt.aoA.texture; cu.uAoOn.value = q.ao ? 1 : 0;
-      cu.uCamWorld.value.copy(camera.matrixWorld);
+      cu.uCamWorld.value.copy(camera.matrixWorld); cu.tVol.value = rt.volA.texture; cu.uVolK.value = q.vol && L ? env.vol : 0;
       cu.uFogStart.value = env.fogStart; cu.uFogDen.value = env.fogDen; cu.uSeaY.value = env.seaY; cu.uMist.value = env.mist;
       pass(mats.comp, rt.hdr);
 

@@ -122,6 +122,76 @@
       return { root: b.build(), parts: b.parts, wings: ['wingFL', 'wingFR', 'wingBL', 'wingBR'], hover: 0.55, pivotY: 1.15, muzzle: 2.4 };
     }
   };
+  MODELS.tegiac = function (G, team) {
+    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 20, h || 14);
+    const alongZ = [Math.PI / 2, 0, 0], alongX = [0, 0, -Math.PI / 2];
+    b.part('body', null, [0, 1.2, 0]);
+    b.add(PM.Geo.rbox(2.7, 1.05, 1.7, 0.32, 4), M.steel, { p: [-0.1, 0.0, 0] });
+    b.add(PM.Geo.rbox(2.2, 0.5, 1.82, 0.2, 3), M.paint, { p: [-0.25, 0.55, 0] });
+    b.add(PM.Geo.rbox(1.1, 0.5, 1.5, 0.22, 3), M.paint, { p: [1.0, 0.25, 0], r: [0, 0, -0.38] });
+    for (const z of [-0.93, 0.93]) for (const x of [-0.9, -0.3, 0.3]) b.add(PM.Geo.rbox(0.5, 0.62, 0.08, 0.04, 1), M.bronze, { p: [x, 0.05, z] });
+    for (const z of [-0.8, 0.8]) for (let i = 0; i < 6; i++) b.add(sph(0.055, 8, 6), M.bronze, { p: [-1.15 + i * 0.4, 0.82, z] });
+    b.add(sph(0.62, 18, 12), M.steel, { p: [1.45, 0.02, 0], s: [1.05, 0.85, 0.95] });
+    b.add(new THREE.ConeGeometry(0.2, 0.95, 12), M.bronze, { p: [1.92, 0.5, 0], r: [0, 0, -0.5] });
+    b.add(new THREE.ConeGeometry(0.13, 0.5, 10), M.bronze, { p: [1.55, 0.62, 0], r: [0, 0, -0.3] });
+    for (const z of [-0.42, 0.42]) { b.add(sph(0.16, 12, 10), M.eye, { p: [1.72, 0.18, z] }); b.add(new THREE.ConeGeometry(0.13, 0.3, 8), M.steel, { p: [1.2, 0.62, z * 1.3], r: [0, 0, 0.4] }); }
+    b.add(new THREE.CylinderGeometry(0.2, 0.26, 1.1, 14), M.steel, { p: [-1.0, 1.15, 0.35] });
+    b.add(new THREE.CylinderGeometry(0.27, 0.2, 0.2, 14), M.bronze, { p: [-1.0, 1.75, 0.35] });
+    b.add(PM.Geo.rbox(0.8, 0.6, 1.2, 0.12, 2), M.dark, { p: [-1.5, 0.35, 0] });
+    b.add(new THREE.BoxGeometry(0.65, 0.36, 0.03), M.paint, { p: [-1.75, 1.85, -0.5] });
+    b.limb(M.steel, [-1.35, 0.8, -0.5], [-1.42, 2.05, -0.5], 0.03);
+
+    b.part('barrel', 'body', [0.15, 0.72, 0]);
+    b.add(sph(0.52, 16, 12), M.paint, { s: [1.1, 0.8, 1.2] });
+    b.part('tube', 'barrel');
+    b.add(new THREE.CylinderGeometry(0.2, 0.26, 2.0, 18), M.steel, { p: [1.3, 0, 0], r: alongX });
+    b.add(new THREE.CylinderGeometry(0.31, 0.31, 0.55, 18), M.dark, { p: [0.65, 0, 0], r: alongX });
+    b.add(new THREE.CylinderGeometry(0.3, 0.24, 0.42, 18), M.bronze, { p: [2.25, 0, 0], r: alongX });
+    for (const x of [1.2, 1.7]) b.add(new THREE.TorusGeometry(0.25, 0.04, 6, 18), M.bronze, { p: [x, 0, 0], r: [0, Math.PI / 2, 0] });
+
+    const track = (name, zs) => {
+      b.part(name, null, [0, 0.52, zs * 0.98]);
+      b.add(PM.Geo.rbox(3.1, 0.95, 0.5, 0.45, 4), M.dark, {});
+      b.add(PM.Geo.rbox(2.3, 0.3, 0.56, 0.1, 2), M.paint, { p: [0, 0.42, 0] });
+      for (let i = 0; i < 5; i++) { const x = -1.1 + i * 0.55; b.add(new THREE.CylinderGeometry(i === 0 || i === 4 ? 0.3 : 0.24, i === 0 || i === 4 ? 0.3 : 0.24, 0.58, 14), M.steel, { p: [x, i === 0 || i === 4 ? 0.05 : -0.16, 0], r: alongZ }); b.add(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 8), M.bronze, { p: [x, i === 0 || i === 4 ? 0.05 : -0.16, 0], r: alongZ }); }
+      for (let i = 0; i < 12; i++) b.add(new THREE.BoxGeometry(0.1, 0.07, 0.54), M.steel, { p: [-1.4 + i * 0.255, -0.48, 0] });
+    };
+    track('trackL', -1); track('trackR', 1);
+    return { root: b.build(), parts: b.parts, tracks: ['trackL', 'trackR'], hover: 0, smoke: [-1.0, 3.1, 0.35] };
+  };
+
+  MODELS.oc = function (G, team) {
+    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
+    b.part('body', null, [0, 0.42, 0]);
+    b.add(PM.Geo.rbox(2.7, 0.55, 1.2, 0.27, 4), M.cream, { p: [0.15, 0, 0] });
+    b.add(sph(0.5), M.cream, { p: [1.25, 0.28, 0], s: [1.2, 0.95, 1] });
+    for (let i = 0; i < 9; i++) b.add(sph(0.16, 8, 6), M.cream, { p: [-1.05 + i * 0.3, -0.2, 0.6] }), b.add(sph(0.16, 8, 6), M.cream, { p: [-1.05 + i * 0.3, -0.2, -0.6] });
+    for (const z of [-0.26, 0.26]) {
+      b.limb(M.cream, [1.45, 0.55, z], [1.75, 1.35, z * 1.5], 0.07);
+      b.add(sph(0.17, 12, 10), M.eye, { p: [1.78, 1.42, z * 1.5] });
+    }
+    b.add(new THREE.TorusGeometry(0.3, 0.035, 6, 16, Math.PI), M.dark, { p: [1.7, 0.2, 0], r: [Math.PI / 2, 0, -Math.PI / 2] });
+
+    b.part('shell', 'body', [-0.25, 0.95, 0]);
+    b.add(sph(1.0, 28, 20), M.paint, { s: [1.05, 1.0, 0.8] });
+    let r = 0.98;
+    for (let i = 0; i < 4; i++) { b.add(new THREE.TorusGeometry(r * 0.78, 0.07, 8, 30), M.bronze, { p: [-0.06 * i, 0.04 * i, 0], s: [1, 1, 1.1] }); r *= 0.72; }
+    for (const z of [-0.82, 0.82]) { b.add(sph(0.3, 14, 10), M.bronze, { p: [-0.1, 0.1, z], s: [1, 1, 0.5] }); b.add(sph(0.14, 10, 8), M.steel, { p: [-0.1, 0.1, z * 1.12] }); }
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; b.add(sph(0.06, 6, 5), M.bronze, { p: [Math.cos(a) * 1.02, Math.sin(a) * 0.98, 0.38] }); b.add(sph(0.06, 6, 5), M.bronze, { p: [Math.cos(a) * 1.02, Math.sin(a) * 0.98, -0.38] }); }
+    b.limb(M.steel, [-0.6, 0.8, -0.3], [-0.85, 1.75, -0.3], 0.03);
+    b.add(new THREE.BoxGeometry(0.55, 0.3, 0.03), M.paint, { p: [-1.14, 1.62, -0.3] });
+
+    b.part('barrel', 'body', [-0.05, 0.73, 0]);
+    b.part('tube', 'barrel');
+    b.add(new THREE.CylinderGeometry(0.3, 0.36, 1.3, 18, 1, true), M.steel, { p: [1.25, 0, 0], r: [0, 0, -Math.PI / 2] });
+    b.add(new THREE.CylinderGeometry(0.25, 0.25, 1.28, 14), M.dark, { p: [1.25, 0, 0], r: [0, 0, -Math.PI / 2] });
+    b.add(new THREE.TorusGeometry(0.34, 0.07, 8, 20), M.bronze, { p: [1.86, 0, 0], r: [0, Math.PI / 2, 0] });
+    b.add(new THREE.TorusGeometry(0.37, 0.06, 8, 20), M.bronze, { p: [0.95, 0, 0], r: [0, Math.PI / 2, 0] });
+    return { root: b.build(), parts: b.parts, crawl: true, hover: 0 };
+  };
+
   PM.UNIT_MODELS = MODELS;
 
   PM.Units3D = function (G) {
@@ -175,6 +245,8 @@
           });
           P.body.position.y = 1.15 + Math.sin(m.bob * 1.7) * 0.025;
         }
+        if (model.tracks) { P.body.position.y = 1.2 + (moving ? Math.sin(m.walk * 9) * 0.02 : 0) + Math.sin(m.bob * 11) * 0.006; P.body.rotation.z = rock * 0.03; }
+        if (model.crawl) { const sq = moving ? Math.sin(m.walk * 3) : 0; P.body.scale.set(1 + sq * 0.06, 1 - sq * 0.04, 1); P.shell.rotation.z = Math.sin(m.bob * 1.4) * 0.03 - rock * 0.05; }
         if (model.wings) {
           const f = moving || !u.grounded ? 46 : 30, a = moving ? 0.5 : 0.32;
           model.wings.forEach((name, i) => { const zs = i % 2 ? 1 : -1; P[name].rotation.x = zs * (Math.sin(m.bob * f + (i > 1 ? 1.3 : 0)) * a + 0.12); });

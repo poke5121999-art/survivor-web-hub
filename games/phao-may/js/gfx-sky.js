@@ -79,8 +79,9 @@
     const q = G.quality;
     key.shadow.mapSize.set(q.shadow, q.shadow);
     const sc = key.shadow.camera;
-    sc.left = -map.w * 0.56; sc.right = map.w * 0.56; sc.top = map.h * 0.62; sc.bottom = -map.h * 0.62; sc.near = 20; sc.far = 330;
-    key.shadow.bias = -0.0006; key.shadow.normalBias = 0.25; key.shadow.radius = q.soft ? 2.2 : 1;
+    const box = G.gfx.shadowBox;
+    sc.left = -box.w / 2; sc.right = box.w / 2; sc.top = box.h / 2; sc.bottom = -box.h / 2; sc.near = 20; sc.far = 20 + box.d;
+    key.shadow.bias = -0.0008; key.shadow.normalBias = 0.3; key.shadow.radius = q.pcss ? 1.6 : q.soft ? 2.2 : 1;
     scene.add(key, key.target);
     const rim = new THREE.DirectionalLight(col(theme.sunCol), theme.rimInt);
     rim.position.copy(sunDir).multiplyScalar(100);
@@ -101,7 +102,7 @@
 
     const env = G.gfx.env;
     env.fogCol.fromArray(theme.fog); env.sunCol.fromArray(theme.sunCol); env.sunDir.copy(sunDir);
-    env.fogStart = theme.fogStart; env.fogDen = theme.fogDen; env.seaY = map.seaY; env.mist = theme.mist; env.exposure = theme.exposure; env.bloom = theme.bloom; env.rays = theme.rays;
+    env.fogStart = theme.fogStart; env.fogDen = theme.fogDen; env.seaY = map.seaY; env.mist = theme.mist; env.exposure = theme.exposure; env.bloom = theme.bloom; env.rays = theme.rays; env.light = key; env.volCol.fromArray(theme.volCol || theme.sunCol); env.vol = theme.vol === undefined ? 0.004 : theme.vol;
 
     return { key, rim, hemi, dome, sunDir, update(dt) { skyU.uTime.value += dt; } };
   };

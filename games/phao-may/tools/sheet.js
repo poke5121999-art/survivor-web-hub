@@ -1,25 +1,26 @@
-// Review sheets: shoots each unit, effect and screen in isolation, then tiles them next to the Saltline
-// reference so the graphics bar is judged side by side. Output: .chk/sheet-<group>.png
+// Review sheets: shoots each unit, effect and screen in isolation and tiles them. Output: .chk/sheet-<group>.png
 // Usage: PM_GL=gl-egl node games/phao-may/tools/sheet.js [group ...]
 'use strict';
 const { execFileSync } = require('child_process');
 const { session, open, CHK, fs, path } = require('./lib.js');
 const Q = 'noaudio=1&nogov=1&manual=1&q=' + (process.env.PM_Q || 'high');
-const REF = path.join(process.env.HOME, 'saltline-ref/src/improved.png');
 
 const fire = (o, ticks) => `(() => { const s = window.__G.sim; s.wind = ${o.wind || 0}; if (${o.special ? 1 : 0}) s.active.special = 100; ${o.item !== undefined ? `s.useItem(${o.item});` : ''} __tick(4); __fire(${JSON.stringify(o)}); __tick(${ticks}); return s.phase; })()`;
 const GROUPS = {
   world: [
     { name: 'wide', q: 'autostart=1&seed=3', pose: 'wide' },
-    { name: 'left', q: 'autostart=1&seed=3', pose: { x: 40, y: 52, dist: 70 } },
-    { name: 'valley', q: 'autostart=1&seed=3', pose: { x: 86, y: 54, dist: 62 } },
-    { name: 'right', q: 'autostart=1&seed=3', pose: { x: 132, y: 52, dist: 70 } }
+    { name: 'turn-view', q: 'autostart=1&seed=3', eval: '__tick(60)', pose: 'keep' },
+    { name: 'cliff', q: 'autostart=1&seed=3', pose: { x: 46, y: 56, dist: 50 } },
+    { name: 'arch', q: 'autostart=1&seed=3', pose: { x: 86, y: 52, dist: 50 } },
+    { name: 'hill', q: 'autostart=1&seed=3', pose: { x: 128, y: 59, dist: 46 } }
   ],
   units: [
-    { name: 'coc-son', q: 'autostart=1&seed=3&unit=coc&foe=coc', pose: { x: 36, y: 55.5, dist: 17 } },
-    { name: 'coc-lam', q: 'autostart=1&seed=3&unit=coc&foe=coc', pose: { x: 134, y: 53, dist: 17 } },
-    { name: 'chuon-son', q: 'autostart=1&seed=3&unit=chuon&foe=chuon', pose: { x: 36, y: 55.5, dist: 17 } },
-    { name: 'chuon-lam', q: 'autostart=1&seed=3&unit=chuon&foe=chuon', pose: { x: 134, y: 53, dist: 17 } }
+    { name: 'coc-son', q: 'autostart=1&seed=3&unit=coc&foe=coc', pose: { x: 30, y: 64.3, dist: 17 } },
+    { name: 'coc-lam', q: 'autostart=1&seed=3&unit=coc&foe=coc', pose: { x: 134, y: 60.2, dist: 17 } },
+    { name: 'chuon-son', q: 'autostart=1&seed=3&unit=chuon&foe=chuon', pose: { x: 30, y: 64.3, dist: 17 } },
+    { name: 'chuon-lam', q: 'autostart=1&seed=3&unit=chuon&foe=chuon', pose: { x: 134, y: 60.2, dist: 17 } },
+    { name: 'tegiac-son', q: 'autostart=1&seed=3&unit=tegiac&foe=oc', pose: { x: 30, y: 64.3, dist: 17 } },
+    { name: 'oc-lam', q: 'autostart=1&seed=3&unit=tegiac&foe=oc', pose: { x: 134, y: 60.2, dist: 17 } }
   ],
   fx: [
     { name: 'muzzle', q: 'autostart=1&seed=3', eval: fire({ angle: 55, power: 60, shot: 0 }, 3), pose: { x: 40, y: 57, dist: 30 } },
@@ -36,7 +37,7 @@ const GROUPS = {
     { name: 'quick', q: '', eval: '(() => { document.querySelector("[data-go=quick]").click(); __tick(2); })()', pose: 'keep' },
     { name: 'shop', q: '', eval: '(() => { document.querySelector("[data-go=shop]").click(); __tick(2); })()', pose: 'keep' },
     { name: 'hud', q: 'autostart=1&seed=3', eval: '(() => { const G = window.__G; G.input.hold("fire", true); __tick(70); })()', pose: 'keep' },
-    { name: 'hud-2v2', q: 'autostart=1&seed=3', eval: `(() => { const G = window.__G; G.startMatch({ seed: 5, map: 'doiche', first: 0, playerTeam: 0, teams: [[{ kind: 'coc', name: 'Bạn', items: ['heal', 'shield', 'boost'] }, { kind: 'chuon', ai: 'medium', items: [] }], [{ kind: 'chuon', ai: 'medium', items: [] }, { kind: 'coc', ai: 'medium', items: [] }]] }); G.sim.useItem(1); __tick(30); })()`, pose: 'keep' },
+    { name: 'hud-2v2', q: 'autostart=1&seed=3', eval: `(() => { const G = window.__G; G.startMatch({ seed: 5, map: 'doiche', first: 0, flip: false, playerTeam: 0, teams: [[{ kind: 'coc', name: 'Bạn', items: ['heal', 'shield', 'boost'] }, { kind: 'chuon', ai: 'medium', items: [] }], [{ kind: 'chuon', ai: 'medium', items: [] }, { kind: 'coc', ai: 'medium', items: [] }]] }); G.sim.useItem(1); __tick(30); })()`, pose: 'keep' },
     { name: 'phone', q: 'autostart=1&seed=3&q=low', vp: { width: 844, height: 390 }, touch: true, eval: '__tick(30)', pose: 'keep' }
   ]
 };
@@ -65,8 +66,8 @@ session(async (br, base) => {
     }
     const py = `import sys, json
 from PIL import Image, ImageDraw
-items = json.loads(sys.argv[1]); ref = sys.argv[2]; out = sys.argv[3]
-tiles = [(n, Image.open(f).convert('RGB')) for n, f in items] + [('SALTLINE (tham chieu)', Image.open(ref).convert('RGB'))]
+items = json.loads(sys.argv[1]); out = sys.argv[2]
+tiles = [(n, Image.open(f).convert('RGB')) for n, f in items]
 W, H = 640, 360; cols = 3; rows = (len(tiles) + cols - 1) // cols
 sheet = Image.new('RGB', (cols * W, rows * (H + 22)), (20, 16, 24)); d = ImageDraw.Draw(sheet)
 for i, (n, im) in enumerate(tiles):
@@ -74,7 +75,7 @@ for i, (n, im) in enumerate(tiles):
     sheet.paste(im, (x + (W - im.width) // 2, y + 22)); d.text((x + 6, y + 5), n, fill=(255, 220, 160))
 sheet.save(out)`;
     const out = path.join(CHK, `sheet-${g}.png`);
-    execFileSync('python3', ['-I', '-c', py, JSON.stringify(files), REF, out]);
+    execFileSync('python3', ['-I', '-c', py, JSON.stringify(files), out]);
     console.log('sheet', out);
   }
 });

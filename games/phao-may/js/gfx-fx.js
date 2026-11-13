@@ -65,6 +65,14 @@
     kim: { geo: 'needle', s: 0.5, mat: 'steel', glow: [1.2, 4.5, 6], smoke: 0.25 },
     cheba: { geo: 'needle', s: 0.62, mat: 'steel', glow: [1.2, 4.5, 6], smoke: 0.3 },
     kimcon: { geo: 'needle', s: 0.36, mat: 'steel', glow: [1.2, 4.5, 6], smoke: 0.2 },
+    pha: { geo: 'shell', s: 0.6, mat: 'steel', glow: [7, 2.4, 0.6], smoke: 1.5 },
+    khoan: { geo: 'needle', s: 0.75, mat: 'bronze', glow: [6, 3, 0.8], smoke: 0.6 },
+    diachan: { geo: 'shell', s: 0.66, mat: 'paint', glow: [7, 1.6, 0.5], smoke: 1.6 },
+    bilan: { geo: 'ball', s: 0.5, mat: 'bronze', glow: [4, 3, 1], smoke: 0.4 },
+    bidoi: { geo: 'ball', s: 0.58, mat: 'paint', glow: [4, 3, 1], smoke: 0.5 },
+    bicon: { geo: 'ball', s: 0.38, mat: 'bronze', glow: [4, 3, 1], smoke: 0.25 },
+    bayoc: { geo: 'ball', s: 0.64, mat: 'paint', glow: [5, 3, 1], smoke: 0.6 },
+    ocon: { geo: 'ball', s: 0.34, mat: 'paint', glow: [4, 3, 1], smoke: 0.2 },
     tele: { geo: 'ball', s: 0.3, mat: 'orb', glow: [5, 3, 7], smoke: 0 }
   };
 
@@ -198,6 +206,7 @@
       G.rig.shake(0.12 + ev.power * 0.0015);
     });
     G.bus.on('sim:bounce', (ev) => { dust(ev.x, ev.y, 5, 0.3, 3); for (let i = 0; i < 6; i++) emit({ x: ev.x, y: ev.y, vx: R(-8, 8), vy: R(3, 12), life: R(0.2, 0.5), s0: 0.09, s1: 0.02, col: [8, 6, 3], kind: 1, stretch: 4, align: true, grav: 20 }); });
+    G.bus.on('sim:burrow', (ev) => { dust(ev.x, ev.y, 3, 0.4, 2.5, [0.6, 0.4, 0.28]); if (rnd() < 0.5) chunk(ev.x, ev.y, R(-5, 5), R(3, 9), R(0.1, 0.2)); G.rig.shake(0.04); });
     G.bus.on('sim:split', (ev) => { emit({ x: ev.x, y: ev.y, life: 0.14, s0: 2.5, s1: 4.5, col: [7, 7, 5], kind: 3 }); emit({ x: ev.x, y: ev.y, life: 0.3, s0: 0.5, s1: 3, col: [4, 4, 3], kind: 2 }); });
     G.bus.on('sim:splash', (ev) => { for (let i = 0; i < 12; i++) emit({ x: ev.x + R(-1, 1), y: ev.y + R(-1, 1), z: R(-2, 2), vx: R(-3, 3), vy: R(2, 9), life: R(0.9, 1.8), s0: 1.2, s1: R(3, 5), col: [1.6, 1.25, 1.05], col1: [1.0, 0.8, 0.8], a: 0.6, add: 0.1, add1: 0, kind: 0, drag: 1.6 }); });
     G.bus.on('sim:land', (ev) => { if (ev.fall > 0.5) dust(ev.x, ev.y, Math.min(14, 3 + ev.fall * 2), 0.9, 1.5 + ev.fall * 0.3); });
@@ -265,6 +274,10 @@
         const n = Math.min(pts.length, sim.currentDef().kind === 'beam' ? 0 : 11);
         for (let i = 1; i < n; i++) emit({ x: pts[i].x, y: pts[i].y, z: 0.3, life: 0.001, s0: 0.2 * (1 - i / 14), col: [3, 3, 2.4], a: 0.9 * (1 - i / n), kind: 5 });
         if (sim.currentDef().kind === 'beam') { const mz = PM.Sim.muzzle(a); for (let i = 1; i < 12; i++) emit({ x: mz.x + mz.dx * i * 1.6, y: mz.y + mz.dy * i * 1.6, z: 0.3, life: 0.001, s0: 0.16, col: [1, 4, 6], a: 1 - i / 12, kind: 5 }); }
+      }
+      for (const m of G.units3d.list) {
+        const u = m.u, sm = m.model.smoke;
+        if (u.alive && sm && rnd() < 0.3) emit({ x: u.x + sm[0] * u.facing, y: u.y + sm[1], z: sm[2], vx: R(-0.3, 0.3), vy: R(1.2, 2.4), life: R(0.9, 1.6), s0: 0.2, s1: R(0.7, 1.1), col: [0.1, 0.09, 0.09], col1: [0.3, 0.28, 0.28], a: 0.5, add: 0, kind: 0, wind: 0.6 });
       }
       for (const m of G.units3d.list) {
         const u = m.u;

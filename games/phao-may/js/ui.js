@@ -196,7 +196,7 @@
           <h3>Cỗ pháo của bạn</h3><div class="cards">${PM.UNIT_ORDER.map((k) => { const u = PM.UNITS[k], own = G.meta.owns(k); return `<button class="card${k === pick.unit ? ' on' : ''}${own ? '' : ' locked'}" data-unit="${k}"><b>${esc(u.name)}</b><small>${esc(u.title)}</small><span>${own ? `Máu ${u.hp} · Xăng ${u.fuel}` : `Khoá · ${PM.UNIT_PRICE[k]} xu ở Xưởng pháo`}</span></button>`; }).join('')}</div>
           <p class="blurb">${esc(U.blurb)} Đạn: ${U.shots.map((x) => esc(x.name)).join(', ')}.</p>
           <h3>Vật phẩm mang theo (chọn 3)</h3><div class="chips">${Object.keys(PM.ITEMS).map((k) => `<button class="chip${pick.items.includes(k) ? ' on' : ''}" data-item="${k}" title="${esc(PM.ITEMS[k].desc)}">${esc(PM.ITEMS[k].name)}</button>`).join('')}</div>
-          <div class="cols"><div><h3>Quân số</h3><div class="chips">${[1, 2].map((n) => `<button class="chip${pick.size === n ? ' on' : ''}" data-size="${n}">${n} đấu ${n}</button>`).join('')}</div></div>
+          <div class="cols"><div><h3>Quân số</h3><div class="chips">${[1, 2, 3, 4].map((n) => `<button class="chip${pick.size === n ? ' on' : ''}" data-size="${n}">${n} đấu ${n}</button>`).join('')}</div></div>
           <div><h3>Độ khó của máy</h3><div class="chips">${Object.keys(PM.AI_LEVELS).map((k) => `<button class="chip${pick.ai === k ? ' on' : ''}" data-ai="${k}">${PM.AI_LEVELS[k].name}</button>`).join('')}</div></div></div>
           <h3>Bản đồ</h3><div class="chips"><button class="chip on">${esc(PM.MAPS.doiche.name)}</button></div>
           <div class="actions"><button class="btn ghost" data-back>Quay lại</button><button class="btn big" data-start>Vào trận</button></div></div>`);
@@ -254,9 +254,11 @@
           <h3>Đồ hoạ</h3><div class="chips">${[['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']].map(([k, n]) => `<button class="chip${G.qualityName === k ? ' on' : ''}" data-q="${k}">${n}</button>`).join('')}</div>
           <p class="blurb">Mức Thấp dành cho điện thoại và máy yếu. Game tự giảm độ phân giải khi khung hình chậm.</p>
           <h3>Âm lượng</h3><input type="range" min="0" max="100" value="${Math.round((st.volume === undefined ? 0.8 : st.volume) * 100)}" data-vol>
+          <h3>Nhạc nền</h3><input type="range" min="0" max="100" value="${Math.round((st.music === undefined ? 0.5 : st.music) * 100)}" data-mus>
           <div class="actions"><button class="btn big" data-back>Xong</button></div></div>`);
         s.querySelectorAll('[data-q]').forEach((b) => click(b, () => { st.quality = b.dataset.q; PM.store.write('phaomay.settings.v1', st); G.bus.emit('ui:click'); toast('Đồ hoạ đổi khi tải lại trang'); setTimeout(() => location.reload(), 500); }));
         $('[data-vol]', s).addEventListener('input', (e) => { st.volume = e.target.value / 100; if (G.audio) G.audio.setVolume(st.volume); PM.store.write('phaomay.settings.v1', st); });
+        $('[data-mus]', s).addEventListener('input', (e) => { st.music = e.target.value / 100; if (G.audio && G.audio.setMusicVolume) G.audio.setMusicVolume(st.music); PM.store.write('phaomay.settings.v1', st); });
         click($('[data-back]', s), () => { G.bus.emit('ui:click'); (back || showTitle)(); });
       };
       draw();

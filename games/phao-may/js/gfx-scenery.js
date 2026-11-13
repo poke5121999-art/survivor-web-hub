@@ -82,42 +82,109 @@
     }
 
     const surface = (x) => terrain.groundY(x, map.h - 1, map.h);
-    const leaf = G.bake.mat({ set: 'leaf', space: 'world', scale: 0.55, metalness: 0, roughness: 1, color: 0xc0e8a0, envMapIntensity: 0.5 });
-    const hedgeGeo = PM.Geo.displace(PM.Geo.smooth(PM.Geo.rbox(1.25, 1.0, 1, 0.42, 5)), 0.2, 2.6, 5);
+    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), e = new THREE.Euler(), vp = new THREE.Vector3(), vs = new THREE.Vector3();
+    // Vertex colours shade foliage: dark inside and underneath, fresh yellow-green on the tips that face up.
+    const tint = (geo, y0, y1, lowC, highC) => {
+      const p = geo.attributes.position, n = geo.attributes.normal, c = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        const t = PM.clamp((p.getY(i) - y0) / (y1 - y0), 0, 1) * 0.6 + PM.clamp(n.getY(i) * 0.5 + 0.5, 0, 1) * 0.4, k = t * t * (3 - 2 * t);
+        const j = 0.88 + 0.24 * PM.noise2(p.getX(i) * 3.1 + p.getZ(i) * 1.7, p.getY(i) * 3.3, 5);
+        for (let a = 0; a < 3; a++) c[i * 3 + a] = (lowC[a] + (highC[a] - lowC[a]) * k) * j;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      return geo;
+    };
+    const leaf = G.bake.mat({ set: 'leaf', space: 'world', scale: 0.9, metalness: 0, roughness: 1, envMapIntensity: 0.5, vertexColors: true, normal: 1.4 });
+    const fine = q.deco >= 1, lod = q.deco >= 1.5 ? 2 : q.deco >= 1 ? 1 : 0;
+
+    // A tea row: a clipped, flat-topped hedge running back in depth, bumpy with shoots.
+    const hedgeGeo = (() => {
+      const g = PM.Geo.smooth(PM.Geo.rbox(1.3, 0.95, 1, 0.45, [5, 7, 9][lod]));
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y > 0.2) p.setY(i, 0.2 + (y - 0.2) * 0.62); }
+      PM.Geo.displace(g, 0.13, 3.4, 5, true); PM.Geo.displace(g, 0.07, 9.5, 8, true);
+      g.computeVertexNormals(); PM.Geo.smooth(g);
+      return tint(g, -0.45, 0.42, [0.32, 0.5, 0.26], [1.25, 1.7, 0.7]);
+    })();
     const spots = [];
-    for (let x = 11; x < map.w - 11; x += 1.9 + rng() * 0.5) {
+    for (let x = 11; x < map.w - 5; x += 1.75 + rng() * 0.35) {
       const y = surface(x), yl = surface(x - 0.7), yr = surface(x + 0.7);
       if (!Number.isFinite(y) || !Number.isFinite(yl) || !Number.isFinite(yr) || Math.abs(yl - yr) > 0.45) continue;
-      spots.push({ x, y, z: -5.3, len: 6.2 + rng() * 0.6, h: 0.85 + rng() * 0.3 });
-      if (q.deco >= 1) spots.push({ x: x + 0.2, y, z: 3.5, len: 1.3, h: 0.45 + rng() * 0.15, sx: 0.8 });
+      spots.push({ x, y, z: -5.3, len: 6.2 + rng() * 0.6, h: 0.85 + rng() * 0.3, sx: 0.9 + rng() * 0.2 });
+      if (fine) spots.push({ x: x + 0.2, y, z: 3.5, len: 1.3, h: 0.45 + rng() * 0.15, sx: 0.8 });
     }
     const hedges = new THREE.InstancedMesh(hedgeGeo, leaf, spots.length);
     hedges.castShadow = true; hedges.receiveShadow = true; hedges.frustumCulled = false;
-    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), e = new THREE.Euler(), vp = new THREE.Vector3(), vs = new THREE.Vector3();
     const place = (inst, i, s, alive) => {
       e.set(0, s.rot || 0, 0); qt.setFromEuler(e);
       inst.setMatrixAt(i, m4.compose(vp.set(s.x, s.y + (s.dy || 0), s.z), qt, alive ? vs.set(s.sx || 1, s.h, s.len) : vs.set(0, 0, 0)));
     };
-    spots.forEach((s, i) => { s.dy = s.h * 0.32; s.alive = true; place(hedges, i, s, true); });
+    spots.forEach((s, i) => { s.dy = s.h * 0.36; s.alive = true; place(hedges, i, s, true); });
     group.add(hedges);
 
-    const wood = G.bake.mat({ set: 'wood', space: 'obj', scale: 0.25, metalness: 0, roughness: 1, color: 0xb89a80 });
-    const trunkGeo = new THREE.CylinderGeometry(0.16, 0.34, 1, 7, 4).translate(0, 0.5, 0);
-    { const p = trunkGeo.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setX(i, p.getX(i) + Math.sin(y * 2.6) * 0.16); } trunkGeo.computeVertexNormals(); }
-    const crownGeo = PM.Geo.merge([[0, 0, 0, 1.9, 0.75], [1.3, -0.25, 0.3, 1.3, 0.6], [-1.2, -0.2, -0.4, 1.4, 0.62], [0.2, 0.35, -0.2, 1.1, 0.55]].map(([x, y, z, r, f], i) =>
-      PM.Geo.displace(new THREE.IcosahedronGeometry(r, 2).scale(1, f, 1), 0.3, 1.7, 20 + i).translate(x, y, z).toNonIndexed()));
-    crownGeo.computeVertexNormals();
+    // Grass tufts break the flat edge of the top surface on both sides of the walking lane.
+    const tuftGeo = (() => {
+      const blades = [];
+      for (let i = 0; i < 7; i++) {
+        const a = i * 0.9, lean = 0.25 + (i % 3) * 0.12, h = 0.5 + (i % 4) * 0.13;
+        const b = new THREE.ConeGeometry(0.045, h, 4, 1).translate(0, h / 2, 0).rotateZ(lean).rotateY(a).translate(Math.cos(a) * 0.1, 0, Math.sin(a) * 0.1);
+        blades.push(b.toNonIndexed());
+      }
+      return tint(PM.Geo.merge(blades), 0, 0.75, [0.35, 0.6, 0.2], [1.5, 1.9, 0.6]);
+    })();
+    const tufts = [];
+    for (let x = 10; x < map.w - 4; x += 0.42 / q.deco) {
+      const tx = x + rng() * 0.3, y = surface(tx);
+      if (!Number.isFinite(y)) continue;
+      const front = rng() < 0.45;
+      tufts.push({ x: tx, y: y - 0.05, z: front ? 2.6 + rng() * 1.7 : -1.8 - rng() * 6.8, len: 0.8 + rng() * 0.7, h: 0.7 + rng() * 0.8, sx: 0.8 + rng() * 0.7, rot: rng() * 6.28, alive: true });
+    }
+    const grass = new THREE.InstancedMesh(tuftGeo, leaf, tufts.length);
+    grass.receiveShadow = true; grass.frustumCulled = false;
+    tufts.forEach((s, i) => place(grass, i, s, true));
+    group.add(grass);
+
+    // Shade trees: a leaning trunk that forks, and a layered crown of many small leaf clumps.
+    const wood = G.bake.mat({ set: 'wood', space: 'obj', scale: 0.35, metalness: 0, roughness: 1, color: 0x9a7a62 });
+    const bend = (y) => Math.sin(y * 2.2) * 0.14 + y * 0.1;
+    const trunkGeo = (() => {
+      const main = new THREE.CylinderGeometry(0.11, 0.3, 1, 10, 8).translate(0, 0.5, 0);
+      const p = main.attributes.position;
+      for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setX(i, p.getX(i) + bend(y)); if (y < 0.12) { const k = 1 + (0.12 - y) * 5; p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } }
+      const limbs = [[0.62, 0.55, 0.3, 0.42], [0.7, -0.5, -0.2, 0.36], [0.8, 0.1, -0.45, 0.3]].map(([y, dx, dz, len]) => {
+        const l = new THREE.CylinderGeometry(0.035, 0.08, len, 6, 1).translate(0, len / 2, 0);
+        l.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(bend(y), y, 0), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx, 0.75, dz).normalize()), new THREE.Vector3(1, 1, 1)));
+        return l.toNonIndexed();
+      });
+      const g = PM.Geo.merge([main.toNonIndexed(), ...limbs]); g.computeVertexNormals();
+      return PM.Geo.smooth(g);
+    })();
+    const crownGeo = (() => {
+      const r2 = PM.rng('crown'), clumps = [];
+      const n = fine ? 13 : 7;
+      for (let i = 0; i < n; i++) {
+        const ring = i === 0 ? 0 : i < 6 ? 1 : 2, a = i * 2.4 + r2() * 0.5, rad = ring === 0 ? 0 : ring === 1 ? 1.15 + r2() * 0.35 : 2.0 + r2() * 0.5;
+        const r = ring === 0 ? 1.35 : ring === 1 ? 1.0 + r2() * 0.25 : 0.7 + r2() * 0.25;
+        const g = new THREE.IcosahedronGeometry(r, lod === 2 ? 3 : 2).scale(1, 0.55, 1);
+        PM.Geo.displace(g, 0.16, 2.6, 30 + i, true);
+        clumps.push(g.translate(Math.cos(a) * rad, (ring === 0 ? 0.35 : ring === 1 ? 0.05 : -0.25) + r2() * 0.15, Math.sin(a) * rad * 0.9).toNonIndexed());
+      }
+      const g = PM.Geo.merge(clumps); g.computeVertexNormals();
+      return tint(g, -0.7, 1.0, [0.22, 0.38, 0.2], [1.1, 1.55, 0.62]);
+    })();
     const trees = [];
-    for (const tx of (map.trees || [17, 29, 43, 62, 70, 104, 117, 127, 141, 153])) {
+    for (const tx of (map.trees || [])) {
       const y = surface(tx);
-      if (Number.isFinite(y)) trees.push({ x: tx, y, z: -6.4 - rng() * 1.6, h: 4.6 + rng() * 2.4, rot: rng() * 6.28, sc: 0.8 + rng() * 0.45, alive: true });
+      if (Number.isFinite(y)) trees.push({ x: tx, y, z: -6.2 - rng() * 1.8, h: 5.0 + rng() * 2.6, rot: rng() * 6.28, sc: 0.85 + rng() * 0.4, alive: true });
     }
     const trunks = new THREE.InstancedMesh(trunkGeo, wood, trees.length), crowns = new THREE.InstancedMesh(crownGeo, leaf, trees.length);
     for (const inst of [trunks, crowns]) { inst.castShadow = true; inst.receiveShadow = true; inst.frustumCulled = false; group.add(inst); }
+    const top = new THREE.Vector3();
     const placeTree = (t, i) => {
       e.set(0, t.rot, 0); qt.setFromEuler(e);
-      trunks.setMatrixAt(i, m4.compose(vp.set(t.x, t.y - 0.2, t.z), qt, t.alive ? vs.set(t.sc, t.h, t.sc) : vs.set(0, 0, 0)));
-      crowns.setMatrixAt(i, m4.compose(vp.set(t.x + Math.sin(t.h * 2.6) * 0.16 * t.sc, t.y + t.h, t.z), qt, t.alive ? vs.set(t.sc, t.sc, t.sc) : vs.set(0, 0, 0)));
+      trunks.setMatrixAt(i, m4.compose(vp.set(t.x, t.y - 0.2, t.z), qt, t.alive ? vs.set(t.sc * 1.3, t.h, t.sc * 1.3) : vs.set(0, 0, 0)));
+      top.set(bend(1) * t.sc * 1.3, t.h * 1.02, 0).applyQuaternion(qt);
+      crowns.setMatrixAt(i, m4.compose(vp.set(t.x + top.x, t.y - 0.2 + top.y, t.z + top.z), qt, t.alive ? vs.set(t.sc, t.sc, t.sc) : vs.set(0, 0, 0)));
     };
     trees.forEach(placeTree);
 
@@ -128,6 +195,9 @@
         if (s.alive && !terrain.solid(s.x, s.y - 0.45)) { s.alive = false; place(hedges, i, s, false); changed = true; G.bus.emit('fx:leaves', { x: s.x, y: s.y + 0.4, z: s.z, n: 10 }); }
       });
       if (changed) hedges.instanceMatrix.needsUpdate = true;
+      let gc = false;
+      tufts.forEach((t, i) => { if (t.alive && !terrain.solid(t.x, t.y - 0.3)) { t.alive = false; place(grass, i, t, false); gc = true; } });
+      if (gc) grass.instanceMatrix.needsUpdate = true;
       let tc = false;
       trees.forEach((t, i) => {
         if (t.alive && !terrain.solid(t.x, t.y - 0.6)) { t.alive = false; placeTree(t, i); tc = true; G.bus.emit('fx:leaves', { x: t.x, y: t.y + t.h, z: t.z, n: 26 }); }

@@ -390,12 +390,171 @@
     return (c[v] = { data: x, sr, nan, peak: m, clipped: m > 0.999 });
   }
 
+  const MU = { bpm: 96, bars: 8, stems: ['pad', 'pluck', 'flute', 'drums', 'bass'], peak: { pad: 0.3, pluck: 0.42, flute: 0.3, drums: 0.4, bass: 0.38 } };
+  const BEAT = Math.round(SR * 60 / MU.bpm), BAR = BEAT * 4, LOOP = BAR * MU.bars;
+  // Off-beat eighths land late for a playful, slightly lazy feel.
+  const SWING = Math.round(BEAT * 0.06);
+  const mhz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  // Chords stay inside D-E-G-A-B so any melody note fits any bar.
+  const CH_G = { root: 43, alt: 50, pad: [55, 62, 69] }, CH_EM = { root: 40, alt: 47, pad: [52, 59, 67] };
+  const CH_D = { root: 38, alt: 45, pad: [50, 57, 64] }, CH_BM = { root: 35, alt: 40, pad: [59, 62, 64] };
+  const PROG = [CH_G, CH_G, CH_EM, CH_EM, CH_D, CH_BM, CH_EM, CH_D];
+  const POOL = [62, 64, 67, 69, 71, 74, 76, 79, 81, 83];
+  // [midi, start beat, length in beats]; the last bar resolves back onto the first.
+  const MELODY = [
+    [71, 0, 1.5], [69, 1.5, 0.5], [67, 2, 2], [69, 4, 1], [71, 5, 1], [74, 6, 2],
+    [76, 8, 1.5], [74, 9.5, 0.5], [71, 10, 2], [67, 12, 1], [71, 13, 1], [69, 14, 2],
+    [69, 16, 1.5], [67, 17.5, 0.5], [64, 18, 1], [62, 19, 1], [64, 20, 1], [67, 21, 1], [71, 22, 2],
+    [74, 24, 1.5], [76, 25.5, 0.5], [79, 26, 1.5], [76, 27.5, 0.5], [74, 28, 1], [71, 29, 1], [69, 30, 2]
+  ];
+
+  // Sources are added modulo the loop length so tails that run past the end land back at the start.
+  function put(dst, src, start, g) {
+    const N = dst.length, f = Math.min(src.length, Math.floor(SR * 0.02));
+    for (let i = 0; i < f; i++) src[src.length - 1 - i] *= i / f;
+    let j = ((start % N) + N) % N;
+    for (let i = 0; i < src.length; i++) { dst[j] += src[i] * g; if (++j === N) j = 0; }
+  }
+  function fade(x, a, r) {
+    const n = x.length;
+    for (let i = 0; i < n; i++) {
+      let g = 1;
+      if (a > 0 && i < a) g = i / a;
+      if (r > 0 && n - 1 - i < r) g = Math.min(g, (n - 1 - i) / r);
+      x[i] *= g * g * (3 - 2 * g);
+    }
+    return x;
+  }
+  // Phasor oscillator with integer harmonics; no trig per sample.
+  function osc(n, f, h2, h3) {
+    const o = new Float32Array(n), w = TAU * f / SR, cw = Math.cos(w), sn = Math.sin(w);
+    let s = 0, c = 1;
+    for (let i = 0; i < n; i++) {
+      o[i] = s + h2 * 2 * s * c + h3 * (3 * s - 4 * s * s * s);
+      const ns = s * cw + c * sn; c = c * cw - s * sn; s = ns;
+    }
+    return o;
+  }
+  // Karplus-Strong string with an allpass for the fractional delay, so high notes stay in tune.
+  function pluckKS(rng, f, n, rho) {
+    const total = SR / f, M = Math.floor(total - 1.5), d = total - 0.5 - M, C = (1 - d) / (1 + d);
+    const line = lp(noise(M, rng), 3500, SR), o = new Float32Array(n);
+    let mean = 0; for (let i = 0; i < M; i++) mean += line[i]; mean /= M;
+    for (let i = 0; i < M; i++) line[i] -= mean;
+    let idx = 0, prev = 0, apx = 0, apy = 0;
+    for (let i = 0; i < n; i++) {
+      const v = line[idx], a = 0.5 * (v + prev) * rho, y = C * (a - apy) + apx;
+      o[i] = v; prev = v; apx = a; apy = y; line[idx] = y;
+      if (++idx === M) idx = 0;
+    }
+    return fade(nrm(o, 1), 6, Math.floor(SR * 0.5));
+  }
+  function fluteNote(rng, f, n) {
+    const o = new Float32Array(n), br = hp(lp(noise(n, rng), 4500, SR), 1500, SR);
+    let ph = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / SR;
+      ph += TAU * f * (1 + 0.0055 * Math.sin(TAU * 5.1 * t) * Math.min(1, t / 0.45)) / SR;
+      o[i] = Math.sin(ph) + 0.16 * Math.sin(2 * ph) + 0.05 * Math.sin(3 * ph) + br[i] * (0.15 + 0.6 * Math.exp(-t / 0.06));
+    }
+    return fade(o, Math.floor(SR * 0.07), Math.floor(SR * 0.16));
+  }
+  const eighth = (k) => k * (BEAT >> 1) + (k % 2 ? SWING : 0);
+
+  // Each generator plans one bar as small tasks, so musicStep never runs more than one note's worth of work.
+  const MGEN = {
+    pad(rng, bar, out) {
+      const n = BAR + Math.floor(SR * 1.2);
+      const tasks = [];
+      for (const m of PROG[bar].pad) for (const det of [0.9965, 1.0035]) tasks.push(() => {
+        const x = osc(n, mhz(m) * det, 0.4, 0.15);
+        lp(x, 1400, SR); fade(x, Math.floor(SR * 0.9), Math.floor(SR * 1.2));
+        put(out, x, bar * BAR, 0.165);
+      });
+      return tasks;
+    },
+    pluck(rng, bar, out, st) {
+      const pcs = PROG[bar].pad.map((m) => m % 12), n = Math.floor(SR * 2.4), tasks = [];
+      if (st.idx == null) st.idx = 4;
+      const play = (midi, start, g) => tasks.push(() => put(out, pluckKS(rng, mhz(midi), n, 0.9992), bar * BAR + start, g));
+      for (let k = 0; k < 8; k++) {
+        if (bar === MU.bars - 1 && k >= 6) break;
+        if (k === 0 || k === 4) {
+          const c = []; for (let i = 0; i < POOL.length; i++) if (pcs.indexOf(POOL[i] % 12) >= 0 && POOL[i] >= 67 && POOL[i] <= 81) c.push(i);
+          st.idx = c[Math.floor(rng() * c.length)];
+        } else {
+          if (rng() < 0.25) continue;
+          st.idx = clamp(st.idx + [-2, -1, 1, 1, 2][Math.floor(rng() * 5)], 2, POOL.length - 1);
+        }
+        play(POOL[st.idx], eighth(k), (k % 2 ? 0.6 : 1) * (0.85 + 0.3 * rng()));
+      }
+      if (bar === MU.bars - 1) for (let k = 0; k < 6; k++) play(POOL[2 + k], 3 * BEAT + Math.round(k * BEAT / 6), 0.55 + 0.08 * k);
+      return tasks;
+    },
+    flute(rng, bar, out) {
+      return MELODY.filter(([m, b]) => Math.floor(b / 4) === bar).map(([m, b, len]) => () =>
+        put(out, fluteNote(rng, mhz(m), Math.floor(len * BEAT + SR * 0.12)), Math.round(b * BEAT), 1));
+    },
+    drums(rng, bar, out) {
+      const b0 = bar * BAR, last = bar === MU.bars - 1, tasks = [];
+      const tom = (beat, f0, g) => tasks.push(() => put(out, thump(Math.floor(SR * 0.7), SR, f0 * (1 + (rng() - 0.5) * 0.03), f0 * 0.55, 0.07, 0.25, 1), b0 + Math.round(beat * BEAT), g));
+      tom(0, 120, 1); tom(2.5, 150, 0.55);
+      if (bar % 2 === 1) tom(3.5, 135, 0.45);
+      if (last) { tom(3, 110, 0.7); tom(3.5, 135, 0.6); tom(3.75, 170, 0.6); }
+      tasks.push(() => [[0, 1], [3, 0.7], [6, 0.8]].forEach(([k, g], j) => {
+        const f = (j + bar) % 2 ? 1500 : 1100, n = Math.floor(SR * 0.12), o = nrm(env(tone(n, SR, sw(f * 1.02, f, 0.01), 0), SR, 0.0006, 0.03), 1);
+        at(o, crack(n, SR, rng, 2500, 0.006, 1), SR, 0, 0.3);
+        put(out, o, b0 + eighth(k), 0.55 * g);
+      }));
+      for (let q = 0; q < 4; q++) tasks.push(() => {
+        for (let k = q * 4; k < q * 4 + 4; k++) {
+          const g = [1, 0.35, 0.65, 0.35][k % 4] * (0.8 + 0.4 * rng());
+          put(out, nrm(env(hp(noise(Math.floor(SR * 0.08), rng), 5500, SR), SR, 0.004, 0.022), 1), b0 + Math.round(k * BEAT / 4), 0.3 * g);
+        }
+      });
+      return tasks;
+    },
+    bass(rng, bar, out) {
+      const ch = PROG[bar];
+      return [[ch.root, 0, 1.75, 1], [ch.root, 2, 0.5, 0.6], [ch.alt, 2.5, 1.25, 0.85]].map(([m, b, len, g]) => () => {
+        const n = Math.floor(len * BEAT + SR * 0.1), x = osc(n, mhz(m), 0.22, 0);
+        for (let i = 0; i < n; i++) x[i] *= Math.exp(-i / SR / 1.5);
+        put(out, fade(x, Math.floor(SR * 0.012), Math.floor(SR * 0.09)), bar * BAR + Math.round(b * BEAT), g);
+      });
+    }
+  };
+
+  const mus = { jobs: null, ji: 0, q: [], bufs: {}, rng: {}, st: {}, done: {} };
+  function musicDone() { return Object.keys(mus.done).length === MU.stems.length; }
+  function finishStem(stem) {
+    const x = mus.bufs[stem];
+    let nan = false, m = 0;
+    for (let i = 0; i < x.length; i++) if (!Number.isFinite(x[i])) { nan = true; x[i] = 0; }
+    nrm(x, MU.peak[stem]);
+    for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > m) m = a; }
+    mus.done[stem] = { data: x, sr: SR, nan, peak: m, clipped: m > 0.999 };
+  }
+  function musicStep() {
+    if (!mus.jobs) { mus.jobs = []; for (const stem of MU.stems) for (let bar = 0; bar < MU.bars; bar++) mus.jobs.push([stem, bar]); }
+    while (!mus.q.length) {
+      if (mus.ji >= mus.jobs.length) return false;
+      const [stem, bar] = mus.jobs[mus.ji++];
+      if (!mus.bufs[stem]) { mus.bufs[stem] = new Float32Array(LOOP); mus.rng[stem] = PM.rng(PM.hash('music_' + stem)); mus.st[stem] = {}; }
+      mus.q = MGEN[stem](mus.rng[stem], bar, mus.bufs[stem], mus.st[stem]);
+      if (bar === MU.bars - 1) mus.q.push(() => finishStem(stem));
+    }
+    mus.q.shift()();
+    return true;
+  }
+
   function createApi(G) {
     const queue = [];
     for (const name of NAMES) for (let v = 0; v < TABLE[name].n; v++) queue.push([name, v]);
     let qi = 0;
     let ctx = null, master = null, comp = null, buses = null, reverbIn = null, windGain = null, windFilter = null;
-    let vol = 0.8, muted = false;
+    let vol = 0.8, muted = false, musicVol = 0.5;
+    let musicVolNode = null, musicDuck = null, musicOn = false;
+    const stemGain = {};
     const voices = {};
     const abCache = {};
     const lastVariant = {};
@@ -447,6 +606,10 @@
         buses[name] = { input, duck };
       }
 
+      musicVolNode = ctx.createGain(); musicVolNode.gain.value = musicVol;
+      musicDuck = ctx.createGain();
+      musicDuck.connect(musicVolNode); musicVolNode.connect(buses.music.input);
+
       const wsrc = ctx.createBufferSource();
       wsrc.buffer = audioBuffer('wind', 0); wsrc.loop = true;
       windFilter = ctx.createBiquadFilter(); windFilter.type = 'lowpass'; windFilter.frequency.value = 500;
@@ -465,6 +628,37 @@
         g.setValueAtTime(0.4, t + 0.097);
         g.linearRampToValueAtTime(1, t + 0.347);
       }
+    }
+    function duckMusic() {
+      if (!musicDuck) return;
+      const g = musicDuck.gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0.2, t + 0.15);
+      g.setValueAtTime(0.2, t + 2.3);
+      g.linearRampToValueAtTime(1, t + 3.3);
+    }
+    function startMusic() {
+      const t = ctx.currentTime + 0.1;
+      for (const stem of MU.stems) {
+        const d = mus.done[stem], ab = ctx.createBuffer(1, d.data.length, d.sr);
+        ab.copyToChannel(d.data, 0);
+        const src = ctx.createBufferSource(), g = ctx.createGain();
+        src.buffer = ab; src.loop = true; g.gain.value = 0;
+        src.connect(g); g.connect(musicDuck); src.start(t);
+        stemGain[stem] = g;
+      }
+      musicOn = true;
+    }
+    function musicMix() {
+      if (!musicOn) { if (musicDone()) startMusic(); else return; }
+      const s = G.sim, menu = !!G.demo || !s, act = s && s.active;
+      const mine = !!(s && s.phase === 'turn' && act && !act.ai);
+      const busy = !menu && (s.phase === 'flight' || s.phase === 'settle');
+      let hurt = false;
+      if (!menu && s.units) for (const u of s.units) if (u.alive && u.maxHp > 0 && u.hp < u.maxHp * 0.35) { hurt = true; break; }
+      const hot = busy || hurt, t = ctx.currentTime;
+      const want = { pad: 0.85, pluck: 0.8, flute: menu || mine ? 0.8 : 0, drums: hot ? 0.9 : 0.12, bass: hot ? 0.85 : 0.1 };
+      for (const stem of MU.stems) stemGain[stem].gain.setTargetAtTime(want[stem], t, 0.5);
     }
     function steal(list, v) {
       const t = ctx.currentTime;
@@ -543,7 +737,8 @@
       on('sim:fire', (ev) => {
         stopCharge();
         if (ev.shot === 'tiasam') return;
-        const name = TABLE['fire_' + ev.shot] ? 'fire_' + ev.shot : 'fire_default';
+        const kin = { pha: 'coi', diachan: 'muacoc', khoan: 'kim', bilan: 'nay', bidoi: 'nay', bayoc: 'muacoc' }[ev.shot] || ev.shot;
+        const name = TABLE['fire_' + kin] ? 'fire_' + kin : 'fire_default';
         play(name, xOf(ev), 0.55 + 0.45 * clamp((ev.power || 0) / 100, 0, 1));
       });
       on('sim:beam', (ev) => play('beam', typeof ev.x0 === 'number' ? ev.x0 : xOf(ev), 1));
@@ -572,7 +767,7 @@
       on('sim:select', () => play('select', null));
       on('sim:skip', () => play('skip', null));
       on('sim:tele', (ev) => play('tele', xOf(ev)));
-      on('sim:over', (ev) => play(ev.winner === G.playerTeam ? 'over_win' : 'over_lose', null));
+      on('sim:over', (ev) => { duckMusic(); play(ev.winner === G.playerTeam ? 'over_win' : 'over_lose', null); });
       on('ui:click', () => play('ui_click', null));
       on('ui:hover', () => play('ui_hover', null));
       on('ui:deny', () => play('ui_deny', null));
@@ -608,6 +803,7 @@
       update(dt) {
         const t0 = now();
         while (qi < queue.length && now() - t0 < 5) { render(queue[qi][0], queue[qi][1]); qi++; }
+        while (qi >= queue.length && now() - t0 < 5 && musicStep());
         if (!ctx || !buses) return;
         const s = G.sim;
         if (chargeSrc) {
@@ -616,9 +812,11 @@
         }
         ambience(s);
         movement(s);
+        musicMix();
       },
       setVolume(v) { vol = clamp(+v || 0, 0, 1); applyMaster(); },
       setMuted(m) { muted = !!m; applyMaster(); },
+      setMusicVolume(v) { musicVol = clamp(+v || 0, 0, 1); if (musicVolNode) musicVolNode.gain.setTargetAtTime(musicVol, ctx.currentTime, 0.03); },
       diag() {
         const out = [];
         for (const name of NAMES) {
@@ -629,6 +827,11 @@
             peak = Math.max(peak, r.peak); clipped = clipped || r.clipped; nan = nan || r.nan;
           }
           out.push({ name, peak, clipped, nan, dur: render(name, 0).data.length / (row.sr || SR) });
+        }
+        while (musicStep());
+        for (const stem of MU.stems) {
+          const r = mus.done[stem];
+          out.push({ name: 'music_' + stem, peak: r.peak, clipped: r.clipped, nan: r.nan, dur: r.data.length / r.sr });
         }
         return Promise.resolve(out);
       },
@@ -641,7 +844,7 @@
   PM.Audio = {
     init(G) {
       if (PM.params && PM.params.noaudio) {
-        return { unlock() {}, update() {}, setVolume() {}, setMuted() {}, diag() { return Promise.resolve([]); }, ready: true, progress: 1 };
+        return { unlock() {}, update() {}, setVolume() {}, setMuted() {}, setMusicVolume() {}, diag() { return Promise.resolve([]); }, ready: true, progress: 1 };
       }
       return createApi(G);
     }

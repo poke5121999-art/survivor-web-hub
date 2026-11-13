@@ -140,6 +140,7 @@
       const s = api.set(opts.set), space = opts.space || 'obj';
       const m = new THREE.MeshStandardMaterial({ color: opts.color === undefined ? 0xffffff : opts.color, roughness: opts.roughness === undefined ? 1 : opts.roughness, metalness: opts.metalness === undefined ? 1 : opts.metalness,
         emissive: opts.emissive || 0x000000, emissiveIntensity: opts.emissiveIntensity || 1, envMapIntensity: opts.envMapIntensity === undefined ? 1 : opts.envMapIntensity, flatShading: !!opts.flatShading, side: opts.side || THREE.FrontSide });
+      if (opts.vertexColors) m.vertexColors = true;
       const u = { tAlb: { value: s.alb }, tOrm: { value: s.orm }, tNrm: { value: s.nrm }, uTScale: { value: opts.scale || 0.5 }, uNrmK: { value: opts.normal === undefined ? 1 : opts.normal } };
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, u);

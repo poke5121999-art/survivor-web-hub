@@ -40,7 +40,7 @@
     G.state = 'playing';
     G.bus.emit('match:start', cfg);
     const a = G.sim.active;
-    G.rig.focus(a.x, a.y + 6, 95, true);
+    G.rig.focus(a.x, a.y + 6, 80, true);
   };
   G.endMatch = function () {
     if (!G.sim) return;
@@ -111,6 +111,7 @@
       if (PM.Meta) G.meta = PM.Meta(G);
       if (PM.Audio) G.audio = addModule('audio', PM.Audio.init(G));
       if (G.audio && G.settings.volume !== undefined) G.audio.setVolume(G.settings.volume);
+      if (G.audio && G.settings.music !== undefined && G.audio.setMusicVolume) G.audio.setMusicVolume(G.settings.music);
       if (PM.Input) G.input = addModule('input', PM.Input(G));
       if (PM.UI) G.ui = addModule('ui', PM.UI(G));
       window.addEventListener('resize', () => G.gfx.resize());
@@ -119,7 +120,7 @@
       const cfg = PM.matchFromParams ? PM.matchFromParams() : null;
       if (P.autostart) {
         G.demo = false;
-        G.startMatch(cfg || { seed: +(P.seed || 1), map: P.map || 'doiche', first: 0, playerTeam: 0,
+        G.startMatch(cfg || { seed: +(P.seed || 1), map: P.map || 'doiche', first: 0, flip: false, playerTeam: 0,
           teams: [[{ kind: P.unit || 'coc', ai: P.auto ? (P.ai || 'hard') : null, items: ['heal', 'double', 'tele'] }], [{ kind: P.foe || 'chuon', ai: P.ai || 'medium', items: ['heal', 'shield', 'boost'] }]] });
       } else if (G.ui && G.ui.showTitle) G.ui.showTitle();
       progress(1, 'Sẵn sàng');

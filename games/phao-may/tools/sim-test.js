@@ -6,7 +6,7 @@ for (const f of ['core', 'data', 'terrain', 'sim', 'ai']) vm.runInThisContext(fs
 const PM = globalThis.PM;
 const fails = [];
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
-const mk = (o) => PM.Sim.create(Object.assign({ seed: 7, map: 'doiche', first: 0, teams: [[{ kind: 'coc' }], [{ kind: 'chuon' }]] }, o));
+const mk = (o) => PM.Sim.create(Object.assign({ seed: 7, map: 'doiche', first: 0, flip: false, teams: [[{ kind: 'coc' }], [{ kind: 'chuon' }]] }, o));
 const until = (sim, pred, max) => { let n = 0; while (!pred() && sim.phase !== 'over' && n++ < (max || 120 * 60)) sim.step(); return n; };
 const drain = (sim, type) => sim.events.filter((e) => e.type === type);
 
@@ -23,12 +23,13 @@ for (const mapId of PM.MAP_ORDER) {
   sim.wind = 0;
   const m = PM.Sim.muzzle(Object.assign({}, u, { angle: 60, facing: u.facing }));
   const v = def.v * (0.15 + 0.85 * 0.42), vx = Math.cos(Math.PI / 3) * v * u.facing, vy = Math.sin(Math.PI / 3) * v;
+  const pre = PM.Sim.trace(sim, u, def, u.facing, 60, 42).impacts[0], wasSolid = sim.terrain.solid(pre.x, pre.y - 1), deepSolid = sim.terrain.solid(pre.x, pre.y - def.dig - 1.5);
   sim.fireNow({ angle: 60, power: 42, shot: 0 });
   until(sim, () => drain(sim, 'boom').length > 0);
   const boom = drain(sim, 'boom')[0];
   const t = (boom.x - m.x) / vx, yExpect = m.y + vy * t - 0.5 * sim.map.g * def.gravK * t * t;
   check(Math.abs(boom.y - yExpect) < 0.6, `no wind: impact y ${boom.y.toFixed(2)} matches the parabola ${yExpect.toFixed(2)} at t=${t.toFixed(2)}s`);
-  check(!sim.terrain.solid(boom.x, boom.y - 1) && sim.terrain.solid(boom.x, boom.y - def.dig - 1.5), `crater: ground is open 1 m under the impact and solid below the ${def.dig} m dig radius`);
+  check(wasSolid && !sim.terrain.solid(boom.x, boom.y - 1) && sim.terrain.solid(boom.x, boom.y - def.dig - 1.5) === deepSolid, `crater: ground 1 m under the impact was solid and is now open; ground below the ${def.dig} m dig radius is untouched`);
   const again = mk({}); again.wind = 0; const rep = PM.Sim.trace(again, again.active, def, again.active.facing, 60, 42);
   check(Math.hypot(rep.impacts[0].x - boom.x, rep.impacts[0].y - boom.y) < 0.01, 'dry-run trace lands on the same point as the real shot');
 }
@@ -73,6 +74,46 @@ for (const mapId of PM.MAP_ORDER) {
   sim.fireNow({ angle: 70, power: 50, shot: 0 });
   until(sim, () => sim.phase !== 'flight');
   check(drain(sim, 'spawn').length === 2, 'double item fires two shells');
+}
+
+{
+  const sim = mk({ teams: [[{ kind: 'tegiac' }], [{ kind: 'coc' }]] });
+  sim.wind = 0;
+  const u = sim.active, pred = PM.Sim.trace(sim, u, u.shots[1], 1, 55, 45);
+  sim.fireNow({ angle: 55, power: 45, shot: 1 });
+  until(sim, () => drain(sim, 'boom').length > 0);
+  const entry = drain(sim, 'bounce')[0], boom = drain(sim, 'boom')[0];
+  const dug = Math.hypot(boom.x - entry.x, boom.y - entry.y);
+  check(dug > 5 && dug <= 9.3, `drill shot burrows ${dug.toFixed(1)} m into the ground before it bursts`);
+  check(Math.hypot(pred.impacts[0].x - boom.x, pred.impacts[0].y - boom.y) < 1.5, 'the dry-run predicts where the drill bursts');
+  sim.advance(4); sim.events.length = 0; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active === u);
+  u.special = 100; sim.fireNow({ angle: 55, power: 45, shot: 2 });
+  until(sim, () => sim.phase !== 'flight');
+  check(drain(sim, 'boom').length >= 5, `quake leaves a line of aftershocks (${drain(sim, 'boom').length} blasts)`);
+}
+
+{
+  const sim = mk({ teams: [[{ kind: 'oc' }], [{ kind: 'coc' }]] });
+  sim.wind = 0;
+  const u = sim.active;
+  sim.fireNow({ angle: 50, power: 34, shot: 0 });
+  until(sim, () => drain(sim, 'bounce').length > 0);
+  const land = drain(sim, 'bounce')[0];
+  until(sim, () => drain(sim, 'boom').length > 0);
+  const boom = drain(sim, 'boom')[0];
+  check(Math.abs(boom.x - land.x) > 4, `roller travels along the ground after landing (${land.x.toFixed(1)} -> ${boom.x.toFixed(1)})`);
+  sim.advance(4); sim.events.length = 0; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active === u);
+  sim.fireNow({ angle: 50, power: 34, shot: 1 });
+  until(sim, () => sim.phase !== 'flight');
+  const xs = drain(sim, 'boom').map((b) => b.x);
+  check(xs.length === 3 && Math.min(...xs) < xs[0] - 2 && Math.max(...xs) > xs[0] + 2, `fork shot sends rollers both ways (${xs.map((x) => x.toFixed(0)).join(', ')})`);
+}
+
+for (const [a, b] of [['oc', 'tegiac'], ['tegiac', 'chuon'], ['coc', 'oc']]) {
+  const sim = mk({ seed: 2, teams: [[{ kind: a, ai: 'hard' }], [{ kind: b, ai: 'hard' }]] });
+  until(sim, () => false, 120 * 900);
+  const dealt = sim.units.map((u) => sim.stats[u.id].dealt);
+  check(sim.phase === 'over' && dealt[0] + dealt[1] > 800, `hard ${a} vs ${b}: match ends with damage dealt (${dealt.join(' / ')}, turns=${sim.turnN})`);
 }
 
 for (const level of ['easy', 'medium', 'hard']) {
