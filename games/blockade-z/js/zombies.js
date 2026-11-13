@@ -862,6 +862,19 @@
       const el = (sg) => (quad ? -0.2 : z.crawl ? -0.9 : -(0.5 + Math.sin(z.phase * 0.9 + sg) * 0.22 * (0.4 + moving) + wind * 0.75) * (1 - strike * 0.85));
       J.el += (el(0) - J.el) * r; J.er += (el(1.9) - J.er) * r; b.elbowL.rotation.x = J.el; b.elbowR.rotation.x = J.er;
       if (!quad && z.alive && !z.crawl) { b.torso.rotation.y = Math.sin(z.phase) * 0.1 * moving; b.torso.rotation.z = Math.sin(z.phase * 0.5) * 0.03; } else { b.torso.rotation.y = 0; b.torso.rotation.z = 0; }
+      // the two bosses that do not walk like a zombie. Bóng Ma glides: it hangs off the ground, legs trailing together, clawed hands
+      // reaching, head cocked. Chúa Dơi hangs under her wings: legs tucked back, arms hooked wide, her head following the dive.
+      if (z.alive && T.boss === 'phantom' && z.windT < 0 && !(z.attackT > T.rate - 0.25)) {
+        const t = (z.gl = (z.gl || 0) + dt); const sway = Math.sin(t * 2.1);
+        b.hips.position.y = 0.75 + 0.14 + sway * 0.05; b.hips.rotation.x = 0.22 + moving * 0.18; b.legL.rotation.x = 0.3 + sway * 0.08 + moving * 0.3; b.legR.rotation.x = 0.42 - sway * 0.08 + moving * 0.3; b.kneeL.rotation.x = 0.35; b.kneeR.rotation.x = 0.5;
+        b.armL.rotation.x = -1.25 + Math.sin(t * 1.7) * 0.18; b.armR.rotation.x = -1.05 + Math.sin(t * 1.7 + 1.3) * 0.18; b.armL.rotation.z = -0.28; b.armR.rotation.z = 0.28; b.elbowL.rotation.x = -0.75 + sway * 0.15; b.elbowR.rotation.x = -0.9 - sway * 0.15;
+        b.head.rotation.z = Math.sin(t * 0.9) * 0.16; b.torso.rotation.z = sway * 0.05;
+      } else if (z.alive && T.boss === 'queen') {
+        const t = (z.gl = (z.gl || 0) + dt); const flap = Math.sin(t * 9);
+        b.legL.rotation.x = 0.85 + flap * 0.06; b.legR.rotation.x = 0.7 - flap * 0.06; b.kneeL.rotation.x = 1.1; b.kneeR.rotation.x = 0.9;
+        if (z.windT < 0) { b.armL.rotation.x = -0.9 + flap * 0.1; b.armR.rotation.x = -0.9 - flap * 0.1; b.armL.rotation.z = -0.75; b.armR.rotation.z = 0.75; b.elbowL.rotation.x = b.elbowR.rotation.x = -1.1; }
+        b.head.rotation.x = 0.25 + Math.sin(t * 1.3) * 0.08; b.torso.rotation.z = Math.sin(t * 1.3) * 0.06;
+      } else if (z.gl) { z.gl = 0; b.armL.rotation.z = 0; b.armR.rotation.z = 0; b.head.rotation.z = 0; }
     }
     function clear() { K.clear(); for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
     // Hit flash: the body lifts a shade for about 70 ms (added light, so the skin, the clothes and the red eyes stay readable); otherwise only the eyes glow.

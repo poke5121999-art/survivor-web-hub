@@ -74,6 +74,21 @@
     }
     // glass: bright shards fly out and fall, a few glints, the crash of a pane; no dust and no rubble
     const shardMats = [new THREE.MeshLambertMaterial({ color: 0xcfeeff, emissive: 0x4a7088 }), new THREE.MeshLambertMaterial({ color: 0xf2fbff, emissive: 0x6a90a8 })];
+    // what a broken pane leaves in its frame: jagged teeth of glass along the four edges. All of them are instances of one box
+    // (one draw call for the whole town); they go when the wall around them goes, and with a new run.
+    const JAG_MAX = 480; const jag = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xd6eef8, emissive: 0x1c3038, transparent: true, opacity: 0.6 }), JAG_MAX);
+    jag.count = 0; jag.frustumCulled = false; jag.castShadow = false; scene.add(jag); const jagM = new THREE.Matrix4(); const jagQ = new THREE.Quaternion(); const jagS = V(); const jagP = V(); const jagged = [];
+    function jaggedEdge(p) {
+      if (p.noJag || p.jag || jag.count > JAG_MAX - 24) return; const thinX = p.max[0] - p.min[0] < p.max[2] - p.min[2]; const a = thinX ? 2 : 0; const L0 = p.min[a]; const L1 = p.max[a]; const y0 = p.min[1]; const y1 = p.max[1];
+      const mid = thinX ? (p.min[0] + p.max[0]) / 2 : (p.min[2] + p.max[2]) / 2; const start = jag.count; const R = Math.random;
+      const put = (l, y, w, h) => { if (jag.count >= JAG_MAX) return; jagP.set(thinX ? mid : l, y, thinX ? l : mid); jagS.set(thinX ? 0.025 : w, h, thinX ? w : 0.025); jagQ.setFromAxisAngle(thinX ? V().set(1, 0, 0) : V().set(0, 0, 1), (R() - 0.5) * 0.5); jagM.compose(jagP, jagQ, jagS); jag.setMatrixAt(jag.count++, jagM); };
+      for (let l = L0 + 0.06; l < L1 - 0.04; l += 0.1 + R() * 0.12) { if (R() < 0.8) { const h = 0.05 + R() * R() * 0.3; put(l, y0 + h / 2, 0.05 + R() * 0.07, h); } if (R() < 0.6) { const h = 0.04 + R() * R() * 0.22; put(l, y1 - h / 2, 0.05 + R() * 0.07, h); } }
+      for (let y = y0 + 0.1; y < y1 - 0.08; y += 0.14 + R() * 0.16) { if (R() < 0.6) { const w = 0.04 + R() * R() * 0.2; put(L0 + w / 2, y, w, 0.05 + R() * 0.07); } if (R() < 0.6) { const w = 0.04 + R() * R() * 0.2; put(L1 - w / 2, y, w, 0.05 + R() * 0.07); } }
+      p.jag = [start, jag.count - start]; jagged.push(p); jag.instanceMatrix.needsUpdate = true;
+    }
+    function jagClear(p) { if (!p.jag) return; jagM.makeScale(0, 0, 0); for (let i = 0; i < p.jag[1]; i++) jag.setMatrixAt(p.jag[0] + i, jagM); p.jag = null; p.noJag = true; jag.instanceMatrix.needsUpdate = true; }
+    // a wall piece that breaks takes the teeth of any broken pane it framed
+    function jagNear(p) { for (const g of jagged) if (g.jag && g.min[0] < p.max[0] + 0.3 && g.max[0] > p.min[0] - 0.3 && g.min[1] < p.max[1] + 0.3 && g.max[1] > p.min[1] - 0.3 && g.min[2] < p.max[2] + 0.3 && g.max[2] > p.min[2] - 0.3) jagClear(g); }
     function shatter(p, dir) {
       const c = center(p); const area = Math.max(0.4, (p.max[0] - p.min[0] + p.max[2] - p.min[2]) * (p.max[1] - p.min[1]));
       const n = BZ.clamp(Math.round(area * 9), 8, 20); const at = V();
@@ -93,7 +108,7 @@
     }
     function breakPiece(p, dir, net) {
       if (p.broken) return; p.broken = true; broken.push(p.id);
-      hide(p); if (p.tag === 'glass') shatter(p, dir); else { debris(p, dir); rubble(p); }
+      hide(p); if (p.tag === 'glass') { shatter(p, dir); jaggedEdge(p); } else { jagNear(p); debris(p, dir); rubble(p); }
       if (!net && G.coop && G.coop.host) G.events.emit('tbrk', { b: p.id });
       if (host()) settle(p);
     }
@@ -104,7 +119,7 @@
       for (const q of p.dep) {
         if (q.broken || q.fixed) continue;
         const left = q.sup.filter((s) => !s.broken).length;
-        if (left === 0 || left < q.sup0 * 0.34) { if (q.tag === 'glass') { later(0.05, () => breakPiece(q, V().set(0, -1, 0))); continue; } q.broken = true; later(0.1 + Math.random() * 0.2, () => fall(q)); } // a pane whose wall went shatters where it is
+        if (left === 0 || left < q.sup0 * 0.34) { if (q.tag === 'glass') { q.noJag = true; later(0.05, () => breakPiece(q, V().set(0, -1, 0))); continue; } q.broken = true; later(0.1 + Math.random() * 0.2, () => fall(q)); } // a pane whose wall went shatters where it is
       }
     }
     const timers = []; const later = (t, f) => timers.push({ t, f });
@@ -226,15 +241,16 @@
       if (e.c != null && P[e.c]) crack(P[e.c], e.s);
       if (e.d != null && doors[e.d]) setDoor(doors[e.d], e.s, true);
       if (e.ds) e.ds.forEach((s, i) => { if (doors[i] && doors[i].state !== s) setDoor(doors[i], s, true); });
-      if (e.all) for (const id of e.all) if (P[id] && !P[id].broken) { const p = P[id]; p.broken = true; broken.push(id); hide(p); if (p.tag !== 'glass') rubble(p); }
+      if (e.all) for (const id of e.all) if (P[id] && !P[id].broken) { const p = P[id]; p.broken = true; broken.push(id); hide(p); if (p.tag !== 'glass') { jagNear(p); rubble(p); } else jaggedEdge(p); }
     }
 
     function reset() {
+      jag.count = 0; jagged.length = 0; jag.instanceMatrix.needsUpdate = true;
       for (const p of P) {
         if (p.saved) { for (const [mesh, base, arr] of p.saved) { mesh.geometry.attributes.position.array.set(arr, base * 3); mesh.geometry.attributes.position.needsUpdate = true; } p.saved = null; }
         if (p.broken) W.addSolid(p.solid);
         for (const m of p.decals || []) scene.remove(m);
-        p.decals = []; p.broken = false; p.landed = false; p.hp = p.maxHp; p.stage = 0;
+        p.decals = []; p.broken = false; p.landed = false; p.hp = p.maxHp; p.stage = 0; p.jag = null; p.noJag = false;
       }
       resetDoors();
       for (const f of falling) scene.remove(f.pivot); falling.length = 0;
@@ -249,6 +265,6 @@
       gridT -= dt; if (dirty && gridT <= 0) { dirty = false; gridT = 0.5; W.rebuildGrids(); }
       syncT -= dt; if (syncT <= 0) { syncT = 3; if (G.coop && G.coop.host) { if (broken.length) G.events.emit('tbrk', { all: broken.slice() }); if (doors.some((D) => D.state)) G.events.emit('tbrk', { ds: doors.map((D) => D.state) }); } }
     }
-    return { doors, setDoor, useDoor, nearDoor, pieces: P, blast, hit, hurt, breakPiece, fall, remote, reset, update, debug: () => ({ broken: broken.length, falling: falling.length, decals: decals.length, rubble: rubbles.length }) };
+    return { jagCount: () => jag.count, doors, setDoor, useDoor, nearDoor, pieces: P, blast, hit, hurt, breakPiece, fall, remote, reset, update, debug: () => ({ broken: broken.length, falling: falling.length, decals: decals.length, rubble: rubbles.length }) };
   };
 })();
