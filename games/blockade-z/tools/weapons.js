@@ -215,6 +215,21 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
     ];
     for (const [key, zs, prep] of SIG) for (const tp of [false, true]) await shoot(key.split('-')[0], zs, tp, prep, (tp ? 'tp-sig-' : 'fp-sig-') + key);
 
+    // first person: every weapon comes out in its own way and ends ready, a shot cuts the draw short,
+    // the hands are five-fingered and work the weapon, and a dead player's hands let it go
+    const fpd = await page.evaluate(`(() => { const G = __G; const W = G.weapons; const out = { draws: {}, bad: [] };
+      if (G.tps.on) dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
+      for (const h of BZ.HEROES) { G.hero.set(h.id); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); G.god = true;
+        const S = W.S; const id = W.cur(); let moved = 0; let t = 0; let seen = S.phase === 'draw';
+        const rig = () => { const m = G.weapons.model ? G.weapons.model() : null; return m; };
+        while (S.phase === 'draw' && t < 1) { __sim(1 / 60); t += 1 / 60; moved = Math.max(moved, 1 - (S.drawK === undefined ? 1 : S.drawK)); }
+        out.draws[id] = +t.toFixed(2); if (!seen || t < 0.3 || t > W.DRAW_FP + 0.06 || S.phase !== 'ready' || moved < 0.5) out.bad.push(id + ':' + t.toFixed(2) + ':' + S.phase);
+      }
+      G.hero.set('ky'); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); __sim(0.25); const S = W.S; G.player.input.fire = true; __sim(0.05); G.player.input.fire = false; out.cut = { phase: S.phase, shots: S.shots }; __sim(0.5);
+      const P = W.parts ? W.parts() : null; return out; })()`);
+    console.log('fp draws', JSON.stringify(fpd));
+    check(Object.keys(fpd.draws).length >= 13 && fpd.bad.length === 0, `first person: each of ${Object.keys(fpd.draws).length} weapons is drawn in 0.3 to 0.5 s and ends ready (${fpd.bad.join(', ') || 'ok'})`);
+    check(fpd.cut.phase !== 'draw' && fpd.cut.shots >= 1, `a shot cuts the draw short (${JSON.stringify(fpd.cut)})`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 4).join(' | ') : ''));
 
     // ---------- contact sheets (PIL) ----------

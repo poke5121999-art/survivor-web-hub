@@ -264,7 +264,9 @@
       G.audio.unlock(); G.audio.setVolume(G.settings.volume);
       G.state = 'playing'; G.ui.show(null); G.lock();
     }
+    let fpDead = 0; // first person: how far the dropped weapon has fallen out of view (0..1)
     function newGame() {
+      fpDead = 0; G.weapons.S.deadK = 0;
       lineupShow(false); G.events.emit('game:new');
       G.build.reset(G.hero.id);
       G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear(); G.build.apply();
@@ -388,6 +390,7 @@
         safe('zombies', () => G.zombies.update(dt));
         // the fallen hero keeps animating (the knees give, the body tips over) while the death screen comes up
         if (G.tps.on) safe('tps', () => G.tps.animate(dt));
+        else safe('fpdead', () => { fpDead = G.weapons.deadTick(dt); });
         G.camera.position.y = BZ.damp(G.camera.position.y, 0.4, 3, dt); G.camera.rotation.z = BZ.damp(G.camera.rotation.z, 0.5, 3, dt);
       } else if (G.state === 'select') {
         safe('select', () => updateSelect(dt));
@@ -410,7 +413,7 @@
       const post = G.post.on; if (post) { G.post.strength = BZ.lerp(0.85, 0.3, BZ.clamp((sun.intensity - 1.1) / 1.2, 0, 1)); G.post.begin(); } else renderer.clear();
       if (G.tps) G.tps.vis();
       renderer.render(scene, camera);
-      if (G.state === 'playing' || G.state === 'pick' || G.state === 'paused') G.weapons.render(renderer);
+      if (G.state === 'playing' || G.state === 'pick' || G.state === 'paused' || (G.state === 'dead' && fpDead < 1)) G.weapons.render(renderer);
       if (post) G.post.end();
       window.__stats.draws = renderer.info.render.calls; window.__stats.tris = renderer.info.render.triangles;
     }

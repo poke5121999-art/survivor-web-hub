@@ -325,6 +325,8 @@
     const m = shell(0.042, 0x60e8ff, 0.55); m.add(shell(0.07, 0x30b8ff, 0.2)); m.add(shell(0.11, 0x1a70ff, 0.08));
     return m;
   }
+  // BZ.makeHand's frame (fingers down -y, knuckles along z) into the viewmodel's (fingers forward -z, knuckles up y)
+  const HAND_FP = new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0));
   function buildGun(id) {
     const D = GUNS[id];
     // One builder per moving part (body, slide, bolt, pump, mag) so reloads can animate them.
@@ -345,17 +347,20 @@
       parts.shell = SB.build(); parts.shell.visible = false; g.add(parts.shell);
     }
     // Arms: gloved hand at the origin, camo forearm running back and down out of frame.
-    const arm = (yaw, pitch) => {
+    const arm = (yaw, pitch, side) => {
       const AB = new BZ.Builder('arm');
-      AB.box([-0.045, -0.045, -0.055], [0.045, 0.05, 0.055], D.glove || 'glove', { uv: 'fit', vary: 0 });
+      AB.box([-0.047, -0.052, 0.03], [0.047, 0.052, 0.06], D.glove || 'glove', { uv: 'fit', vary: 0, tint: [0.7, 0.7, 0.7] });
       AB.push(new THREE.Matrix4().makeRotationY(yaw).multiply(new THREE.Matrix4().makeRotationX(pitch)));
       AB.box([-0.05, -0.055, 0.04], [0.05, 0.055, 0.22], D.sleeve ? D.sleeve : 'g_body2', { uv: 'fit', vary: 0 });
       AB.box([-0.055, -0.06, 0.2], [0.055, 0.06, 0.62], D.sleeve || 'sleeve', { uv: 'world', uvScale: 6, vary: 0 });
       AB.pop();
-      return AB.build();
+      const out = AB.build();
+      // the hand itself: a palm and fourteen finger joints in one mesh (BZ.makeHand), turned so the fingers reach forward and wrap what is held
+      const f = BZ.makeHand(D.glove || 'glove', side, { scale: 0.62 }); f.mesh.applyMatrix4(HAND_FP); f.mesh.position.set(0, 0, 0.045); f.mesh.castShadow = false; out.add(f.mesh); out.userData.fingers = f;
+      return out;
     };
-    parts.handR = arm(...(D.armR || [0.35, 0.5])); parts.handR.position.set(...(D.rh || [0, -0.07, 0.025])); parts.handR.rotation.x = D.hrot ? D.hrot[0] : 0.28; if (D.hyaw) parts.handR.rotation.y = D.hyaw[0]; g.add(parts.handR);
-    parts.handL = arm(-0.55, 0.35); parts.handL.rotation.x = D.hrot ? D.hrot[1] : D.dual ? 0.28 : 0; if (D.hyaw) parts.handL.rotation.y = D.hyaw[1]; g.add(parts.handL);
+    parts.handR = arm(...(D.armR || [0.35, 0.5]), -1); parts.handR.position.set(...(D.rh || [0, -0.07, 0.025])); parts.handR.rotation.x = D.hrot ? D.hrot[0] : 0.28; if (D.hyaw) parts.handR.rotation.y = D.hyaw[0]; g.add(parts.handR);
+    parts.handL = arm(-0.55, 0.35, 1); parts.handL.rotation.x = D.hrot ? D.hrot[1] : D.dual ? 0.28 : 0; if (D.hyaw) parts.handL.rotation.y = D.hyaw[1]; g.add(parts.handL);
     if (D.parts.some((p) => p[7] === 'knuckle')) {
       const KB = new BZ.Builder('knuckle'); for (const p of D.parts) if (p[7] === 'knuckle') box(KB, p);
       for (const h of [parts.handR, parts.handL]) { h.add(KB.build({ matOpts })); h.scale.setScalar(D.kscale || 1.18); }
@@ -379,6 +384,7 @@
   }
   BZ.GUN_PARTS = GUNS;
 
+  const DRAW_FP = 0.45; // seconds a weapon takes to come out in first person
   const seg = (t, a, b) => BZ.clamp((t - a) / (b - a), 0, 1);
   const ease = (x) => x * x * (3 - 2 * x);
   const RELOAD_SOUNDS = [[0.15, 'mag_out'], [0.6, 'mag_in'], [0.8, 'rack']];
@@ -1278,8 +1284,9 @@
           S.cur = S.next; S.next = null; models[S.cur].visible = true; S.phase = 'draw'; S.t = 0; G.audio.play('switch', { gain: 0.7 }); if (S.cur === 'saber') G.audio.play('saber_on', { gain: 0.8 });
         }
       } else if (S.phase === 'draw') {
+        // the weapon comes up in the first half; the rest is that weapon's own flourish, which a shot or a swing cuts short
         S.t += dt; S.drop.x = 1 - Math.min(1, S.t / 0.22);
-        if (S.t >= 0.22) { S.phase = 'ready'; S.drop.x = 0; }
+        if (S.t >= DRAW_FP || (S.t >= 0.22 && (input.fire || input.ads))) { S.phase = 'ready'; S.drop.x = 0; S.drawK = 1; }
       } else if (S.phase === 'reload') {
         const rdt = dt * (G.hero ? G.hero.reloadMul() : 1) * G.build.reloadMul(); S.t += rdt;
         if (w.perShell) {
@@ -1352,6 +1359,7 @@
         if (wm.hold === 'fists') fistPose(wm); else if (wm.hold === 'claws') clawPose(wm);
         if (S.guard > 0) { rig.position.x += 0.07 * S.guard; rig.position.y -= 0.12 * S.guard; rig.rotateZ(-0.35 * S.guard); }
       }
+      drawPose(wm, dt); fingerPose(wm, dt, castK);
       sigPose(dt);
       updateTrail(dt, wm);
       const saberOn = S.cur === 'saber' && S.phase !== 'holster' && P.alive;
@@ -1359,6 +1367,51 @@
       if (saberOn) { const c = G.camera; c.getWorldPosition(o); c.getWorldDirection(d); if (G.tps) G.tps.fix(o, d); right.set(1, 0, 0).applyQuaternion(c.quaternion); saberLight.position.copy(o).addScaledVector(d, 0.7).addScaledVector(right, 0.3); }
       if (models.saber.userData.parts.halo) models.saber.userData.parts.halo.material.opacity = 0.5 + Math.sin(performance.now() / 37) * 0.06;
       vmCam.fov = BZ.lerp(62, 50, S.ads); vmCam.updateProjectionMatrix();
+    }
+
+    // Drawing a weapon, each in its own way. k runs 0..1 over DRAW_FP; e is what is left of the move (1 -> 0, eased out).
+    function drawPose(wm, dt) {
+      const k = S.phase === 'draw' ? Math.min(1, S.t / DRAW_FP) : S.phase === 'holster' ? 0 : 1; S.drawK = k;
+      if (k >= 1) { S.drawEvt = 0; return; }
+      const e = (1 - k) * (1 - k); const id = S.cur; const hold = wm.hold || (wm.melee ? 'melee' : 'gun'); const once = (n, at, fn) => { if (k >= at && !(S.drawEvt & n)) { S.drawEvt |= n; fn(); } };
+      if (id === 'minigun') { rig.position.y -= 0.22 * e; rig.rotateZ(0.5 * e); if (k > 0.45) S.spinAng += dt * 30 * (1 - k) * 2; }                          // heaved up, then the barrels spin once to test
+      else if (id === 'bazooka') { rig.position.x += 0.32 * e; rig.position.y += 0.2 * e; rig.rotateZ(-1.1 * e); rig.rotateX(0.5 * e); }                       // swung down off the shoulder
+      else if (id === 'shotgun') { rig.rotateZ(0.6 * e); rig.rotateY(-0.4 * e); once(1, 0.55, () => { S.pumpT = 0.38; G.audio.play('rack', { gain: 0.7 }); }); } // up, then racked
+      else if (hold === 'dual') { rig.rotateX(-Math.PI * 2 * e); }                                                                                              // both pistols twirl round the trigger fingers
+      else if (hold === 'throw') { rig.rotateZ(Math.PI * 4 * e); rig.position.y -= 0.1 * e; }                                                                   // flicked out and spun between the fingers
+      else if (hold === 'spear') { rig.rotateX(Math.PI * 2 * e); rig.position.z -= 0.15 * e; }                                                                  // spun end over end, then levelled
+      else if (hold === 'glaive') { rig.rotateZ(Math.PI * 2 * e); rig.position.y -= 0.12 * e; once(1, 0.8, () => { S.kZ.v += 1.5; G.audio.play('land', { gain: 0.5, rate: 1.4 }); }); } // one full turn, then planted
+      else if (hold === 'sword2') { rig.rotateX(1.5 * e); rig.position.y += 0.34 * e; rig.position.z += 0.1 * e; }                                              // carried down off the shoulder
+      else if (hold === 'fists') { const b = Math.sin(Math.PI * Math.min(1, k * 1.4)); const U = models.fists.userData.parts; U.handR.position.x -= 0.13 * b; U.handL.position.x += 0.16 * b; U.handR.position.z -= 0.08 * b; U.handL.position.z -= 0.04 * b;
+        once(1, 0.36, () => { G.audio.play('clank', { gain: 0.7, rate: 0.8 }); S.kZ.v += 2; G.player.shake.v += 1.2; if (models.fists.userData.flash) { const f = models.fists.userData.flash; f.visible = true; f.position.set(0, -0.04, -0.3); f.scale.setScalar(0.7); f.material.opacity = 1; S.flashT = 0.07; } }); } // the gloves knock together
+      else if (hold === 'claws') { rig.rotateX(1.0 * e); rig.position.y -= 0.2 * e; once(1, 0.3, () => G.audio.play('slash', { gain: 0.5, rate: 1.5 })); }       // the claws spring out
+      else if (hold === 'wrist') { rig.rotateZ(1.3 * e); rig.position.x += 0.1 * e; once(1, 0.4, () => G.audio.play('mag_in', { gain: 0.7, rate: 1.4 })); }      // the bow snaps open off the wrist
+      else if (wm.melee) { rig.rotateZ(-2.0 * e); rig.position.x += 0.22 * e; rig.position.y += 0.26 * e; once(1, 0.25, () => G.audio.play('slash', { gain: 0.45, rate: 1.3 })); } // pulled from over the shoulder
+      else { rig.rotateZ(0.8 * e); rig.rotateY(-0.5 * e); rig.position.y -= 0.05 * e; }                                                                           // from the hip, rolled level
+    }
+    // Fingers: every weapon has its own grip; the trigger finger works with the shot, a throw opens the hand,
+    // the left hand takes the magazine in a reload and opens for a cast; a dead hand lets go.
+    function fingerPose(wm, dt, castK) {
+      const U = models[S.cur].userData.parts; const fr = U.handR && U.handR.userData.fingers; const fl = U.handL && U.handL.userData.fingers; if (!fr) return;
+      const hold = wm.hold || (wm.melee ? 'melee' : 'gun'); const P = G.player;
+      let R = hold === 'fists' ? 'fist' : hold === 'claws' ? 'claw' : hold === 'throw' ? 'pinch' : hold === 'wrist' ? 'fist' : wm.melee ? 'grip' : 'trigger';
+      let L = hold === 'fists' ? 'fist' : hold === 'claws' ? 'claw' : wm.melee ? (hold === 'melee' ? 'relax' : 'grip') : 'hold';
+      if (hold === 'dual') L = 'trigger';
+      if (hold === 'throw' && (S.hideT > 0 || S.thrT < (wm.windup || 0) + 0.3) && S.thrT >= (wm.windup || 0)) R = 'open';
+      if (wm.melee && S.swing) R = 'fist';
+      if (S.phase === 'reload') { const t = S.t / (wm.reload || 1); L = t > 0.1 && t < 0.7 ? 'grip' : 'hold'; }
+      if (S.phase === 'draw' && S.drawK < 0.3) R = 'open';
+      if (castK > 0.1) L = 'open';
+      if (!P.alive) R = L = 'open';
+      const sq = wm.melee || hold === 'throw' ? 0 : Math.max(0, 1 - S.cycle / 0.12);
+      fr.set(R, dt, hold === 'dual' ? Math.max(0, 1 - S.cyc[0] / 0.12) : sq); if (fl) fl.set(L, dt, hold === 'dual' ? Math.max(0, 1 - S.cyc[1] / 0.12) : 0);
+    }
+    // dying in first person: the hands open and the weapon drops away out of view
+    function deadTick(dt) {
+      S.deadK = Math.min(1, (S.deadK || 0) + dt / 0.9); const k = S.deadK; const e = k * k;
+      const wm = WEAPONS[S.cur]; fingerPose(wm, dt, 0);
+      rig.position.y -= dt * (0.5 + 2.2 * e); rig.position.x += dt * 0.12; rig.rotateZ(dt * (0.8 + 2 * e)); rig.rotateX(-dt * 1.2 * e);
+      return k;
     }
 
     // Moving parts. Reload timeline for magazine guns (t = 0..1 of the reload time):
@@ -1431,6 +1484,6 @@
     }
 
     const sig = () => ({ ...SG, guard: S.guard, blades: blades.length, rockets: rockets.length, rings: rings.slice(), clouds: clouds.slice(), pins: pins.slice() });
-    return { S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { deadTick, DRAW_FP, S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();
