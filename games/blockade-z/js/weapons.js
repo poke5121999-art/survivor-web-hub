@@ -525,35 +525,36 @@
       rig.position.set(p[0] + off.x, p[1] + off.y, p[2] + off.z);
       rig.quaternion.setFromAxisAngle(ax.y, p[3]).multiply(qa.setFromAxisAngle(ax.x, p[4])).multiply(qa.setFromAxisAngle(ax.z, p[5])).multiply(qb.setFromAxisAngle(ax.y, p[6]));
     }
-    // blade trail: a ribbon between the tip and mid-blade over the last ~0.12 s, additive, fading to nothing
-    const TRAIL_N = 16;
+    // blade trail: a ribbon swept by the blade over the last fifth of a second. Three rows: a white-hot edge at the tip,
+    // the weapon's colour through the middle, nothing at the base; it narrows and fades as it ages.
+    const TRAIL_N = 26; const TRAIL_LIFE = 0.2;
     const trailGeo = new THREE.BufferGeometry();
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 2 * 3), 3));
-    trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 2 * 3), 3));
-    const idx = []; for (let i = 0; i < TRAIL_N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } trailGeo.setIndex(idx);
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 3 * 3), 3));
+    trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 3 * 3), 3));
+    const idx = []; for (let i = 0; i < TRAIL_N - 1; i++) { const a = i * 3; idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3, a + 1, a + 2, a + 4, a + 2, a + 5, a + 4); } trailGeo.setIndex(idx);
     const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     trail.frustumCulled = false; vmScene.add(trail);
     const trailPts = [];
     function updateTrail(dt, w) {
       for (const p of trailPts) p.age += dt;
-      while (trailPts.length && trailPts[0].age > 0.13) trailPts.shift();
+      while (trailPts.length && trailPts[0].age > TRAIL_LIFE) trailPts.shift();
       const sw = S.swing;
-      if (w.melee && !w.noTrail && sw && sw.t > w.hitAt * 0.4 && sw.t < Math.min(w.swing * 0.8, w.hitAt * 1.7)) {
+      if (w.melee && !w.noTrail && sw && sw.t > w.hitAt * 0.3 && sw.t < Math.min(w.swing * 0.85, w.hitAt * 1.8)) {
         const m = models[S.cur]; rig.updateMatrixWorld(true);
         trailPts.push({ a: m.localToWorld(m.userData.tip.clone()), b: m.localToWorld(m.userData.mid.clone()), age: 0 });
         if (trailPts.length > TRAIL_N) trailPts.shift();
       }
       const pos = trailGeo.attributes.position.array; const col = trailGeo.attributes.color.array; const c = tmpC.setHex(w.trail || 0xffffff);
-      const n = trailPts.length;
+      const n = trailPts.length; const gain = S.cur === 'saber' ? 1.2 : 0.7;
       for (let i = 0; i < TRAIL_N; i++) {
-        const p = trailPts[Math.max(0, Math.min(n - 1, i - (TRAIL_N - n)))];
-        const k = p ? Math.pow(Math.max(0, 1 - p.age / 0.13), 1.5) * (i >= TRAIL_N - n ? 1 : 0) : 0;
-        for (let j = 0; j < 2; j++) {
-          const v = p ? (j ? p.b : p.a) : tmpV.set(0, 0, 0); const o3 = (i * 2 + j) * 3;
-          pos[o3] = v.x; pos[o3 + 1] = v.y; pos[o3 + 2] = v.z;
-          const kk = k * (j ? 0.0 : 0.7) * (S.cur === 'saber' ? 1.2 : 0.6);
-          col[o3] = c.r * kk; col[o3 + 1] = c.g * kk; col[o3 + 2] = c.b * kk;
-        }
+        const p = trailPts[Math.max(0, Math.min(n - 1, i - (TRAIL_N - n)))]; const o3 = i * 9;
+        if (!p) { for (let j = 0; j < 9; j++) { pos[o3 + j] = 0; col[o3 + j] = 0; } continue; }
+        const k = Math.pow(Math.max(0, 1 - p.age / TRAIL_LIFE), 1.4) * (i >= TRAIL_N - n ? 1 : 0) * gain; const mk = 0.35 + 0.3 * (1 - k / gain);
+        pos[o3] = p.a.x; pos[o3 + 1] = p.a.y; pos[o3 + 2] = p.a.z;
+        pos[o3 + 3] = p.a.x + (p.b.x - p.a.x) * mk; pos[o3 + 4] = p.a.y + (p.b.y - p.a.y) * mk; pos[o3 + 5] = p.a.z + (p.b.z - p.a.z) * mk;
+        pos[o3 + 6] = p.b.x; pos[o3 + 7] = p.b.y; pos[o3 + 8] = p.b.z;
+        col[o3] = (0.55 + c.r * 0.45) * k; col[o3 + 1] = (0.55 + c.g * 0.45) * k; col[o3 + 2] = (0.55 + c.b * 0.45) * k;
+        col[o3 + 3] = c.r * k * 0.5; col[o3 + 4] = c.g * k * 0.5; col[o3 + 5] = c.b * k * 0.5; col[o3 + 6] = col[o3 + 7] = col[o3 + 8] = 0;
       }
       trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
       trail.visible = n > 1;
@@ -615,6 +616,8 @@
         const at = new THREE.Vector3(z.pos.x, z.pos.y + (part === 'head' ? 1.7 : part === 'leg' ? 0.5 : 1.1) * s * (z.crawl ? 0.3 : 1), z.pos.z);
         if (w.cut === 'saber') G.fx.burst(at, 14, [0xffe0a0, 0xffa040, 0x80f0ff, 0x3a3a3c], { dir: sweep, push: 3, speed: 3, size: 0.07, life: 0.5 });
         else G.fx.burst(at, 22, [0xc0281e, 0x8a1410, 0xb3201a], { dir: sweep, push: 5.5, speed: 3.5, size: 0.09, life: 0.9 });
+        // the cut itself: a bright line across the body along the way the blade travelled, in the weapon's colour
+        if (i < 3) G.fx.slash(at, w.trail || 0xfff0d0, sw.pat === 'over' || sw.pat === 'upper' ? 1.45 + G.rng.range(-0.2, 0.2) : sw.pat === 'thrust' || sw.pat === 'jabL' || sw.pat === 'jabR' ? G.rng.range(0, 3.1) : (dirX > 0 ? -0.35 : 0.35) + G.rng.range(-0.25, 0.25), (w.hold === 'fists' || sw.pat === 'thrust' ? 0.7 : 1) * Math.min(1.6, s));
         if (i === 0) G.audio.playAt(w.hitSnd, at, { gain: 1, rate: G.rng.range(0.9, 1.1) });
       });
       if (hit.length) {

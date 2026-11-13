@@ -151,7 +151,7 @@
       const B = o.glow ? glowB : smokeB;
       if (B.list.length >= B.n) B.list.shift();
       B.list.push({ p: pos.clone(), v: o.vel ? o.vel.clone() : new THREE.Vector3(), t: -(o.delay || 0), life: o.life || 1, s0: o.s0 || 0.5, s1: o.s1 ?? o.s0 ?? 0.5,
-        c0: o.c0 ?? 0xffffff, c1: o.c1 ?? o.c0 ?? 0xffffff, a0: o.a0 ?? 1, drag: o.drag || 0, g: o.g || 0, rot: G.rng.range(0, 6.3), spin: o.spin ?? G.rng.range(-1.5, 1.5), glow: !!o.glow });
+        c0: o.c0 ?? 0xffffff, c1: o.c1 ?? o.c0 ?? 0xffffff, a0: o.a0 ?? 1, drag: o.drag || 0, g: o.g || 0, rot: o.rot ?? G.rng.range(0, 6.3), spin: o.spin ?? G.rng.range(-1.5, 1.5), glow: !!o.glow, st: o.stretch || 1 });
     }
     function updateBoard(B, dt) {
       const camQ = G.camera.quaternion; const camP = G.camera.position; let n = 0;
@@ -167,7 +167,7 @@
         const near = Math.min(1, Math.max(0.12, (b.p.distanceTo(camP) - s * 0.25) / 2.2));
         const a = (b.glow ? b.a0 * Math.pow(1 - k, 1.4) : b.a0 * (k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88)) * near;
         bq.copy(camQ).multiply(zq.setFromAxisAngle(zAx, b.rot));
-        m4.compose(b.p, bq, sc.set(s, s, s)); B.mesh.setMatrixAt(n, m4);
+        m4.compose(b.p, bq, sc.set(s * b.st, s / Math.sqrt(b.st), s)); B.mesh.setMatrixAt(n, m4);
         c0.setHex(b.c0); c1.setHex(b.c1); c0.lerp(c1, Math.min(1, k * 1.4));
         B.col.setXYZ(n, c0.r, c0.g, c0.b); B.al.setX(n, a); n++;
       }
@@ -255,6 +255,40 @@
       for (let i = 0; i < 8 + r * 4; i++) { const d = rnd(); d.y = Math.abs(d.y) + 0.2; puff(at, { glow: true, vel: d.normalize().multiplyScalar(G.rng.range(3, 7) * Math.max(0.6, r)), drag: 2.5, g: 4, s0: 0.22 * Math.max(0.6, r), s1: 0.03, life: G.rng.range(0.35, 0.65), c0: cols[0], c1: cols[1] || cols[0], a0: 1.1 }); }
       burst(at, 6 + r * 6, cols, { speed: 4 + r * 2, size: 0.08, life: 0.7 });
     }
+    // a blade landing: a thin bright cut across the body at `ang` (on screen), a wider coloured one behind it, sparks thrown along the cut
+    function slash(at, col, ang, size = 1) {
+      puff(at, { glow: true, s0: 0.5 * size, s1: 0.95 * size, life: 0.13, c0: 0xffffff, c1: col, a0: 1.3, rot: ang, spin: 0, stretch: 7 });
+      puff(at, { glow: true, s0: 0.7 * size, s1: 1.3 * size, life: 0.22, c0: col, c1: col, a0: 0.6, rot: ang, spin: 0, stretch: 4 });
+      puff(at, { glow: true, s0: 0.5 * size, s1: 0.15, life: 0.1, c0: 0xffffff, c1: col, a0: 1 });
+      const cq = G.camera.quaternion; const dir = V().set(Math.cos(ang), Math.sin(ang), 0).applyQuaternion(cq);
+      for (let i = 0; i < 7; i++) puff(at, { glow: true, vel: dir.clone().multiplyScalar(G.rng.range(3, 9) * (i % 2 ? 1 : -1)).add(rnd().multiplyScalar(1.5)), g: 10, drag: 1.5, s0: 0.1 * size, s1: 0.02, life: G.rng.range(0.18, 0.38), c0: 0xffffff, c1: col, a0: 1.1, spin: 0 });
+    }
+    // a ribbon that follows a blade through the world (third person and other players): feed it the tip and the base each frame while it swings
+    function ribbon(n = 22, life = 0.2) {
+      const geo = new THREE.BufferGeometry(); const pos = new Float32Array(n * 9); const col = new Float32Array(n * 9); const idx = [];
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      for (let i = 0; i < n - 1; i++) { const a = i * 3; idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3, a + 1, a + 2, a + 4, a + 2, a + 5, a + 4); } geo.setIndex(idx);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 5; scene.add(mesh);
+      const pts = []; const c = new THREE.Color();
+      return { mesh, pts,
+        push(tip, base) { pts.push({ a: tip.clone(), b: base.clone(), age: 0 }); if (pts.length > n) pts.shift(); },
+        // three rows: a white-hot edge at the tip, the weapon's colour through the middle, nothing at the base; old points fade and narrow
+        update(dt, hex, gain = 1) {
+          for (const p of pts) p.age += dt; while (pts.length && pts[0].age > life) pts.shift();
+          const m = pts.length; mesh.visible = m > 1; if (!mesh.visible) return;
+          c.setHex(hex);
+          for (let i = 0; i < n; i++) {
+            const p = pts[Math.max(0, Math.min(m - 1, i - (n - m)))]; const live = i >= n - m; const k = live ? Math.pow(Math.max(0, 1 - p.age / life), 1.4) * gain : 0; const o = i * 9;
+            const mx = p.a.x + (p.b.x - p.a.x) * (0.3 + 0.25 * (1 - k)); const my = p.a.y + (p.b.y - p.a.y) * (0.3 + 0.25 * (1 - k)); const mz = p.a.z + (p.b.z - p.a.z) * (0.3 + 0.25 * (1 - k));
+            pos[o] = p.a.x; pos[o + 1] = p.a.y; pos[o + 2] = p.a.z; pos[o + 3] = mx; pos[o + 4] = my; pos[o + 5] = mz; pos[o + 6] = p.b.x; pos[o + 7] = p.b.y; pos[o + 8] = p.b.z;
+            col[o] = (0.6 + c.r * 0.4) * k; col[o + 1] = (0.6 + c.g * 0.4) * k; col[o + 2] = (0.6 + c.b * 0.4) * k;
+            col[o + 3] = c.r * k * 0.55; col[o + 4] = c.g * k * 0.55; col[o + 5] = c.b * k * 0.55; col[o + 6] = col[o + 7] = col[o + 8] = 0;
+          }
+          geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+        },
+        clear() { pts.length = 0; mesh.visible = false; } };
+    }
     function trail(at) {
       puff(at, { vel: V().set(G.rng.range(-0.2, 0.2), 0.5, G.rng.range(-0.2, 0.2)), drag: 1, s0: 0.3, s1: 1.5, life: G.rng.range(1, 1.6), c0: 0x9a9894, c1: 0x6a6866, a0: 0.5 });
       puff(at, { glow: true, s0: 0.75, s1: 0.15, life: 0.14, c0: 0xfff0b0, c1: 0xff5010, a0: 1.2, spin: 0 });
@@ -286,6 +320,8 @@
       const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.add(mesh);
       src.matrixWorld.decompose(g.position, g.quaternion, g.scale);
       g.position.add(ctr.clone().multiply(g.scale).applyQuaternion(g.quaternion));
+      // what hangs off the piece goes with it (a shin on a thigh, a forearm on an upper arm), in the pose it had
+      for (const ch of src.children) { if (!ch.isMesh || !ch.visible || ch.userData.noGib) continue; const cm = new THREE.Mesh(ch.geometry, ch.material === src.material ? mat : ch.material); cm.position.copy(ch.position).sub(ctr); cm.quaternion.copy(ch.quaternion); cm.scale.copy(ch.scale); cm.castShadow = false; g.add(cm); }
       if (o.burn) { const cap = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff7a20 })); cap.position.copy(mesh.position); cap.scale.set(1.04, 0.04, 1.04); g.add(cap); }
       scene.add(g);
       const half = sz.clone().multiply(g.scale).multiplyScalar(0.5);
@@ -443,6 +479,6 @@
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; pools.length = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0; scorchAt.length = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
   };
 })();

@@ -29,10 +29,44 @@
   };
 
   const geo = (w, h, d, py) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, py, 0); return g; };
-  const G_LEG = geo(0.26, 0.75, 0.26, -0.375);
-  const G_TORSO = geo(0.52, 0.7, 0.3, 0.35);
-  const G_ARM = geo(0.2, 0.7, 0.2, -0.32);
-  const G_HEAD = geo(0.5, 0.5, 0.5, 0.25);
+  // A body part is ONE mesh however many boxes shape it: every box is merged into one geometry, shaded through
+  // vertex colours (k: brightness of that box) and mapped at one texel density, so detail costs no draw call.
+  // box: [min, max, k = 1, group = 0]; groups pick the material when the mesh has several (the head: 0 skin, 1 face).
+  const SHADE6 = [0.86, 0.86, 1, 0.62, 0.93, 0.8];
+  function multi(boxes) {
+    const P = []; const N = []; const U = []; const C = []; const I = []; const groups = [];
+    const order = boxes.map((b, i) => [b, i]).sort((x, y) => (x[0][3] || 0) - (y[0][3] || 0));
+    for (const [[a, b, k = 1, grp = 0]] of order) {
+      const start = I.length;
+      const F = [[[b[0], a[1], b[2]], [0, 0, -1], [0, 1, 0], b[2] - a[2], b[1] - a[1], [1, 0, 0]], [[a[0], a[1], a[2]], [0, 0, 1], [0, 1, 0], b[2] - a[2], b[1] - a[1], [-1, 0, 0]],
+        [[a[0], b[1], b[2]], [1, 0, 0], [0, 0, -1], b[0] - a[0], b[2] - a[2], [0, 1, 0]], [[a[0], a[1], a[2]], [1, 0, 0], [0, 0, 1], b[0] - a[0], b[2] - a[2], [0, -1, 0]],
+        [[a[0], a[1], b[2]], [1, 0, 0], [0, 1, 0], b[0] - a[0], b[1] - a[1], [0, 0, 1]], [[b[0], a[1], a[2]], [-1, 0, 0], [0, 1, 0], b[0] - a[0], b[1] - a[1], [0, 0, -1]]];
+      F.forEach(([o, u, v, du, dv, n], f) => {
+        const base = P.length / 3; const l = k * SHADE6[f]; const fit = grp === 1; const su = fit ? 1 : Math.max(0.25, du / 0.5); const sv = fit ? 1 : Math.max(0.25, dv / 0.5);
+        for (const [cu, cv] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { P.push(o[0] + u[0] * du * cu + v[0] * dv * cv, o[1] + u[1] * du * cu + v[1] * dv * cv, o[2] + u[2] * du * cu + v[2] * dv * cv); N.push(n[0], n[1], n[2]); U.push(cu * su, cv * sv); C.push(l, l, l); }
+        // only the front of a group-1 box takes material 1 (the face); its other sides stay skin
+        const mi = grp === 1 && f !== 4 ? 0 : grp; I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+        const last = groups[groups.length - 1]; if (last && last.materialIndex === mi) last.count += 6; else groups.push({ start: I.length - 6, count: 6, materialIndex: mi });
+      });
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I);
+    if (boxes.some((b) => b[3])) for (const q of groups) g.addGroup(q.start, q.count, q.materialIndex);
+    g.computeBoundingBox(); g.computeBoundingSphere(); return g;
+  }
+  // thigh (hip down to the knee), then the shin with a torn cuff, a bare ankle and a foot; the knee is its own pivot
+  const G_LEG = multi([[[-0.13, -0.2, -0.13], [0.13, 0.02, 0.13], 0.98], [[-0.12, -0.4, -0.12], [0.12, -0.2, 0.12], 0.9], [[-0.135, -0.13, 0.08], [-0.02, -0.05, 0.14], 0.7]]);
+  const G_SHIN = multi([[[-0.115, -0.2, -0.115], [0.115, 0.03, 0.115], 0.85], [[-0.125, -0.24, -0.125], [0.02, -0.19, 0.125], 0.7], [[-0.09, -0.3, -0.09], [0.09, -0.2, 0.09], 0.62], [[-0.12, -0.37, -0.13], [0.12, -0.29, 0.2], 0.55], [[-0.1, -0.37, 0.2], [0.1, -0.32, 0.26], 0.5]]);
+  // chest over a narrower waist and the hips, a hump behind the shoulders, a rag of shirt hanging in front
+  const G_TORSO = multi([[[-0.24, 0, -0.14], [0.24, 0.17, 0.14], 0.82], [[-0.215, 0.17, -0.13], [0.215, 0.4, 0.13], 0.92], [[-0.27, 0.4, -0.155], [0.27, 0.7, 0.155], 1.03],
+    [[-0.2, 0.5, -0.21], [0.2, 0.72, -0.14], 0.9], [[-0.1, 0.68, -0.09], [0.1, 0.74, 0.09], 0.8], [[-0.17, -0.07, 0.13], [-0.04, 0.02, 0.15], 0.75], [[0.06, -0.1, 0.13], [0.2, 0.02, 0.15], 0.7], [[-0.275, 0.33, -0.1], [-0.2, 0.42, 0.16], 0.8]]);
+  // shoulder and upper arm; then the forearm, a wrist and a hand with three hooked fingers
+  const G_ARM = multi([[[-0.115, -0.08, -0.115], [0.115, 0.08, 0.115], 1.05], [[-0.095, -0.34, -0.095], [0.095, -0.08, 0.095], 0.93], [[-0.1, -0.2, -0.1], [0.1, -0.15, 0.1], 0.72]]);
+  const G_FORE = multi([[[-0.09, -0.2, -0.09], [0.09, 0.02, 0.09], 0.9], [[-0.075, -0.27, -0.075], [0.075, -0.2, 0.075], 0.8], [[-0.095, -0.34, -0.085], [0.095, -0.26, 0.085], 0.92],
+    [[-0.09, -0.43, 0.02], [-0.045, -0.33, 0.07], 0.6], [[-0.02, -0.45, 0.03], [0.025, -0.33, 0.08], 0.6], [[0.05, -0.43, 0.02], [0.095, -0.33, 0.07], 0.6], [[-0.03, -0.4, -0.08], [0.03, -0.32, -0.04], 0.65]]);
+  // the skull, a heavy brow, a jaw hanging a little open with teeth, ears, a few clumps of hair left
+  const G_HEAD = multi([[[-0.25, 0.04, -0.25], [0.25, 0.5, 0.25], 1, 1], [[-0.26, 0.31, 0.21], [0.26, 0.38, 0.275], 0.78], [[-0.2, -0.05, -0.02], [0.2, 0.06, 0.255], 0.72], [[-0.15, 0.03, 0.2], [0.15, 0.065, 0.262], 1.5],
+    [[-0.285, 0.18, -0.05], [-0.25, 0.3, 0.05], 0.8], [[0.25, 0.18, -0.05], [0.285, 0.3, 0.05], 0.8], [[-0.2, 0.5, -0.2], [0.02, 0.54, 0.06], 0.45], [[0.08, 0.5, -0.24], [0.24, 0.535, -0.06], 0.45], [[-0.255, 0.3, -0.26], [0.255, 0.5, -0.22], 0.5]]);
   const G_WING_L = new THREE.BoxGeometry(1.1, 0.04, 0.55); G_WING_L.translate(-0.55, 0, 0);
   const G_WING_R = new THREE.BoxGeometry(1.1, 0.04, 0.55); G_WING_R.translate(0.55, 0, 0);
 
@@ -48,7 +82,7 @@
 
     function makeBody() {
       const mats = {};
-      const mk = (k) => new THREE.MeshLambertMaterial({ map: BZ.tex('z_skin') });
+      const mk = (k) => new THREE.MeshLambertMaterial({ map: BZ.tex('z_skin'), vertexColors: true });
       for (const k of ['skin', 'face', 'shirt', 'pants']) mats[k] = mk(k);
       const root = new THREE.Group(); root.rotation.order = 'YXZ';
       const hips = new THREE.Group(); hips.position.y = 0.75; root.add(hips);
@@ -57,7 +91,10 @@
       const torso = new THREE.Mesh(G_TORSO, mats.shirt); hips.add(torso);
       const armL = new THREE.Mesh(G_ARM, mats.skin); armL.position.set(-0.36, 0.64, 0); hips.add(armL);
       const armR = new THREE.Mesh(G_ARM, mats.skin); armR.position.set(0.36, 0.64, 0); hips.add(armR);
-      const head = new THREE.Mesh(G_HEAD, [mats.skin, mats.skin, mats.skin, mats.skin, mats.face, mats.skin]); head.position.y = 0.7; hips.add(head);
+      // the head draws in two calls (skin, face) instead of six; that pays for the four new joints below
+      const head = new THREE.Mesh(G_HEAD, [mats.skin, mats.face]); head.position.y = 0.7; hips.add(head);
+      const kneeL = new THREE.Mesh(G_SHIN, mats.pants); kneeL.position.y = -0.38; legL.add(kneeL); const kneeR = new THREE.Mesh(G_SHIN, mats.pants); kneeR.position.y = -0.38; legR.add(kneeR);
+      const elbowL = new THREE.Mesh(G_FORE, mats.skin); elbowL.position.y = -0.32; armL.add(elbowL); const elbowR = new THREE.Mesh(G_FORE, mats.skin); elbowR.position.y = -0.32; armR.add(elbowR);
       const wingMat = new THREE.MeshLambertMaterial({ map: BZ.tex('z_wing'), side: THREE.DoubleSide, emissive: 0x6a2a9a, emissiveMap: BZ.tex('z_wing'), transparent: true, alphaTest: 0.5 });
       const halo = new THREE.Sprite(HALO_MAT); halo.position.y = 1.2; halo.scale.set(3.2, 3.2, 1); halo.visible = false; root.add(halo);
       const wingL = new THREE.Mesh(G_WING_L, wingMat); wingL.position.set(-0.2, 0.6, -0.12); hips.add(wingL);
@@ -67,12 +104,13 @@
         const m = new THREE.Mesh(g, meat); m.position.set(x, y, 0); m.visible = false; hips.add(m); stumps[k] = m;
       }
       root.traverse((o) => { if (o.isMesh) { o.castShadow = G.quality.shadow > 0; o.receiveShadow = false; } });
+      elbowL.castShadow = elbowR.castShadow = false; // the forearms' shadows are not worth a draw call each
       root.visible = false;
       G.scene.add(root);
       const barBg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0x1a0c08, depthWrite: false }));
       const barFg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0xe8402c, depthWrite: false }));
       barFg.position.z = 0.002; barBg.add(barFg); barBg.visible = false; barBg.renderOrder = 5; barFg.renderOrder = 6; G.scene.add(barBg);
-      const B = { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo, stumps };
+      const B = { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo, stumps, kneeL, kneeR, elbowL, elbowR };
       BZ.zExtras(G, B);
       return B;
     }
@@ -263,7 +301,8 @@
       z.stillT = 0; z.stuck = 0; z.ax = NaN; z.regated = (z.regated || 0) + 1; stats.regated++;
       z.body.root.position.copy(z.pos);
     }
-    function update(dt) {
+    function update(dt) { update0(dt); for (const z of list) if (z.body.root.visible && !z.T.rig) joints(z, dt); }
+    function update0(dt) {
       K.update(dt);
       if (G.coop && G.coop.guest) { puppets(dt); return; }
       const P0 = G.player;
@@ -771,6 +810,19 @@
       else if (gore === 'limb') sever(z, opt.limb || (G.rng.chance(0.5) ? 'armL' : 'armR'), dir, opt);
       if (!gore || gore === 'limb') G.fx.splat(V3().set(z.pos.x - dir.x * 1.2, z.pos.y, z.pos.z - dir.z * 1.2), 1.2 * z.T.scale);
       G.events.emit('zombie:killed', { z, part, gore, by: opt.by, credit: opt.credit !== false, dir, opt });
+    }
+    // Knees and elbows follow whatever pose the limbs were just given (walk, attack, crawl, fall), so every state gets them for free:
+    // a thigh that swings forward folds its knee and lifts the foot, the trailing leg stays straight; a kneeling body tucks its shins;
+    // the forearms hang bent and work with the stride, and straighten as a strike lands. The chest counter-turns against the stride.
+    function joints(z, dt) {
+      const b = z.body; const T = z.T; if (!b.kneeL) return; const J = z.jn || (z.jn = { kl: 0, kr: 0, el: 0, er: 0 }); const r = Math.min(1, dt * 16);
+      const quad = !!T.quad; const h = T.hunch || 0; const moving = z.alive ? Math.min(1, Math.hypot(z.vel.x, z.vel.z) / 1.2) : 0;
+      const knee = (leg) => { const rw = leg.rotation.x + h; return quad ? 0.25 : T.fly ? 0.7 : z.crawl ? 0.35 : BZ.clamp(Math.max(0, -rw) * 1.15 + Math.max(0, rw) * 0.12 + 0.06, 0, 1.9); };
+      J.kl += (knee(b.legL) - J.kl) * r; J.kr += (knee(b.legR) - J.kr) * r; b.kneeL.rotation.x = J.kl; b.kneeR.rotation.x = J.kr;
+      const wind = z.windT >= 0 ? 1 : 0; const strike = z.alive && z.attackT > T.rate - 0.15 ? 1 : 0;
+      const el = (sg) => (quad ? -0.2 : z.crawl ? -0.9 : -(0.5 + Math.sin(z.phase * 0.9 + sg) * 0.22 * (0.4 + moving) + wind * 0.75) * (1 - strike * 0.85));
+      J.el += (el(0) - J.el) * r; J.er += (el(1.9) - J.er) * r; b.elbowL.rotation.x = J.el; b.elbowR.rotation.x = J.er;
+      if (!quad && z.alive && !z.crawl) { b.torso.rotation.y = Math.sin(z.phase) * 0.1 * moving; b.torso.rotation.z = Math.sin(z.phase * 0.5) * 0.03; } else { b.torso.rotation.y = 0; b.torso.rotation.z = 0; }
     }
     function clear() { K.clear(); for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
     // Hit flash: the body goes hot white-pink for a few frames (reads at any distance, and the texture still shows through); otherwise only the eyes glow.

@@ -113,6 +113,10 @@
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
       BZ.animHero(M, st, dt); BZ.heroGun(M, st, M.gun);
+      // the blade leaves a ribbon in the world while it swings
+      if (!sp.rib) sp.rib = G.fx.ribbon();
+      if (W.melee && !W.noTrail && M.tip && st.swing >= 0.15 && st.swing < 0.75) { M.root.updateMatrixWorld(true); sp.rib.push(M.tip.getWorldPosition(V()), M.handR.getWorldPosition(V())); }
+      sp.rib.update(dt, W.trail || 0xffffff, W.cut === 'saber' ? 1.2 : 0.9);
       if (M.shield) BZ.shieldPose(M.shield, S.guard || 0, M.root); // Thép raises the shield in front of his chest
       M.root.updateMatrixWorld(true);
     }

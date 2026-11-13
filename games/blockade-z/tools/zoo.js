@@ -107,13 +107,28 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     check(r.spiderGone, 'a spider bursts into gibs');
     check(r.eliteCoins === 3 * r.plainCoins && r.plainCoins > 0, `an elite is worth three times the score (${r.eliteCoins} vs ${r.plainCoins})`);
     check(r.row && r.row[8] > 0 && (r.row[7] & 256), `the co-op row carries the shield flag and the elite (${JSON.stringify(r.row)})`);
+    // the body: knees and elbows work with the walk, the head draws in two calls, and a severed leg takes its shin with it
+    const body = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.fx.clear(); G.state = 'playing'; G.wave.toSpawn = 0; G.player.pos.set(0, 0, 20);
+      const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(0, 0, 0); let knee = 0; let elbow = 0;
+      for (let i = 0; i < 120; i++) { __sim(1 / 60); knee = Math.max(knee, z.body.kneeL.rotation.x, z.body.kneeR.rotation.x); elbow = Math.min(elbow, z.body.elbowL.rotation.x); }
+      const headMats = z.body.head.material.length; const g0 = G.scene.children.length;
+      G.zombies.sever(z, 'legL', new G.THREE.Vector3(1, 0, 0)); const piece = G.scene.children[G.scene.children.length - 1];
+      return { knee: +knee.toFixed(2), elbow: +elbow.toFixed(2), headMats, added: G.scene.children.length - g0, pieceMeshes: piece.children.filter((c) => c.isMesh).length, crawl: z.crawl }; })()`);
+    console.log('body', JSON.stringify(body));
+    check(body.knee > 0.3 && body.elbow < -0.3, `a walking zombie bends its knees and elbows (knee up to ${body.knee} rad, elbow ${body.elbow})`);
+    check(body.headMats === 2, `the head draws in two calls (${body.headMats} materials)`);
+    check(body.pieceMeshes === 2 && body.crawl, `a severed leg flies off with its shin (${body.pieceMeshes} meshes in the piece) and the zombie crawls`);
     // a real late wave: the specials and elites come through the gates on their own
     const late = await page.evaluate(`(() => { const G = __G; G.god = true; G.zombies.clear(); const seen = new Set(); let elites = 0;
       G.startWave(G.wave.n + 1); G.wave.bossAt = -1;
-      for (let i = 0; i < 300; i++) { __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 30) G.zombies.clear(); }
-      return { wave: G.wave.n, types: [...seen], elites }; })()`.replace('G.wave.n + 1', '9'));
+      // one wave 9 is only 48 zombies, which does not always show six special kinds: when it runs dry, start it again and keep sampling
+      const SP = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider']; let waves = 1;
+      for (let i = 0; i < 1500; i++) { __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 30) G.zombies.clear();
+        if (SP.filter((t) => seen.has(t)).length >= 6 && elites > 0) break;
+        if (G.wave.phase !== 'fight' || (G.wave.toSpawn === 0 && G.zombies.aliveCount() === 0)) { if (waves >= 6) break; waves++; G.zombies.clear(); G.state = 'playing'; G.startWave(REPLAY_WAVE); G.wave.bossAt = -1; } }
+      return { wave: G.wave.n, types: [...seen], elites, waves }; })()`.replace('G.wave.n + 1', '9').replace('REPLAY_WAVE', '9'));
     console.log('late', JSON.stringify(late));
-    check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')})`);
+    check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')}; ${late.waves} run${late.waves > 1 ? 's' : ''} of the wave)`);
     check(late.elites > 0, 'elites show up in a late wave');
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 5).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }

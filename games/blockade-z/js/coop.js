@@ -152,12 +152,15 @@ BZ.makeCoop = (G) => {
       a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt); if (!(a.spinT > 0)) a.heat = Math.max(0, (a.heat || 0) - dt * 0.3);
       if (a.eq && a.eq.gun) { a.eq.gun.visible = !(W.thrown && a.hideT > 0); const bar = a.eq.gun.getObjectByName('barrels'); if (bar) { a.spinAng = ((a.spinAng || 0) + (a.spinT > 0 ? 40 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spinAng; } }
       BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
+      if (!a.rib) a.rib = G.fx.ribbon();
+      if (W.melee && !W.noTrail && a.eq && a.eq.tip && st.swing >= 0.15 && st.swing < 0.75) { a.root.updateMatrixWorld(true); a.rib.push(a.eq.tip.getWorldPosition(new THREE.Vector3()), m.handR.getWorldPosition(new THREE.Vector3())); }
+      a.rib.update(dt, W.trail || 0xffffff, 0.9);
       if (G.weapons.bodyFx) G.weapons.bodyFx({ ...m, gun: a.eq && a.eq.gun }, a.weapon, dt, { heat: a.heat || 0 });
     }
   }
   // another player cast a skill: their body plays its cast animation here
   C.castAnim = (pid, key) => { const a = avatars.get(pid); if (a) (a.st || (a.st = {})).act = { key, t: 0 }; };
-  function dropAvatar(pid) { const a = avatars.get(pid); if (a) { G.scene.remove(a.root); avatars.delete(pid); } }
+  function dropAvatar(pid) { const a = avatars.get(pid); if (a) { G.scene.remove(a.root); if (a.rib) G.scene.remove(a.rib.mesh); avatars.delete(pid); } }
 
   // ---------- sending ----------
   function send(to, msg) { for (const f of C.framer.pack(msg)) C.link.send(to, f); }

@@ -54,13 +54,14 @@ const STAGE = `(() => { const G = __G; G.state = 'shots'; G.wave.toSpawn = 0; G.
       const list = ONLY || types; console.log('types ' + list.join(','));
       for (let r = 0; r < list.length; r += 6) {
         const row = list.slice(r, r + 6);
-        for (const [pose, yaw, secs] of [['front', Math.PI + 0.4, 0.05], ['walk', Math.PI + 1.1, 1.3], ['back', -0.5, 0.05]]) {
+        for (const [pose, yaw, secs] of [['front', 0.4, 0.05], ['walk', 1.1, 1.3], ['back', Math.PI - 0.5, 0.05]]) {
           await page.evaluate(`(() => { const G = __G; const S = __stage; S.clear(); const row = ${JSON.stringify(row)};
             row.forEach((t, i) => { const x = (i - (row.length - 1) / 2) * 2.3; const z = G.zombies.spawn(t, 3, { x, z: 9, dir: [0, 1], name: 't' }); if (!z) return; z.pos.set(x, z.T.fly ? 1.2 : 0, 9); z.yaw = ${yaw}; z.hold = { x, yaw: ${yaw} }; });
             G.player.pos.set(0, 0, 60); G.state = 'playing';
-            const n = Math.round(${secs} * 60); for (let k = 0; k < n; k++) { __sim(1 / 60); for (const z of G.zombies.list) if (z.alive && z.hold) { z.pos.x = z.hold.x; z.pos.z = 9; z.yaw = z.hold.yaw; z.vel.x = Math.sin(z.yaw) * 1.2 * ${secs > 0.1 ? 1 : 0}; z.vel.z = Math.cos(z.yaw) * 1.2 * ${secs > 0.1 ? 1 : 0}; } }
+            const n = Math.round(${secs} * 60); for (let k = 0; k < n; k++) { __sim(1 / 60); for (const z of G.zombies.list) if (z.alive && z.hold) { z.pos.x = z.hold.x; z.pos.z = 9; z.pos.y = z.T.fly ? 1.2 : 0; z.yaw = z.hold.yaw; z.vel.x = Math.sin(z.yaw) * 1.2 * ${secs > 0.1 ? 1 : 0}; z.vel.z = Math.cos(z.yaw) * 1.2 * ${secs > 0.1 ? 1 : 0}; } }
             G.state = 'shots'; for (const z of G.zombies.list) if (z.alive && z.hold) { z.body.root.position.set(z.hold.x, z.pos.y, 9); z.body.root.rotation.y = z.hold.yaw; }
-            S.cam(0, 1.5, 24, 0, 1.15, 9, 30); })()`);
+            if (G.tps.on) dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' })); G.player.pitch = 1.5;
+            S.cam(0, 1.5, 21, 0, 1.05, 9, 28); })()`);
           await shot('zombies-' + (r / 6 + 1) + '-' + pose);
         }
       }
