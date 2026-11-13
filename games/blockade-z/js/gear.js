@@ -41,11 +41,11 @@
         if (d > R) continue;
         const dir = new THREE.Vector3(z.pos.x - pos.x, 0, z.pos.z - pos.z).normalize();
         const dmg = Math.round(DMG * (1 - Math.max(0, d - 1.5) / R * 0.65));
-        const died = G.zombies.damage(z, dmg, 'body', dir, 3, { blast: true });
+        const died = G.zombies.damage(z, dmg, 'body', dir, 3, { blast: true, by: G.coop && G.coop.blastBy });
         z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
       }
-      G.fx.explosion(pos, R / BOMB.radius);
+      G.fx.explosion(pos, R / BOMB.radius); G.events.emit('boom', { pos, s: R / BOMB.radius });
       G.audio.playAt('boom', pos, { gain: 1.3 });
       const pd = G.player.pos.distanceTo(pos);
       if (pd < 18) { G.player.shake.v += (18 - pd) * 0.8; G.player.kickP.v += (18 - pd) * 0.03; }
@@ -82,6 +82,7 @@
         } else {
           const P = G.player; const pc = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
           if (P.alive && s.pos.distanceTo(pc) < 1.1) { G.events.emit('player:hurt', { dmg: 24, from: s.pos }); hitAt = s.pos.clone(); P.vel.addScaledVector(seg, 4); }
+          if (!hitAt && G.coop && G.coop.host) for (const r of G.coop.remotes()) if (r.alive && Math.hypot(s.pos.x - r.pos.x, s.pos.y - r.pos.y - 1, s.pos.z - r.pos.z) < 1.1) { G.coop.hurtRemote(r, 24, s.pos); hitAt = s.pos.clone(); break; }
           s.m.rotation.x += dt * s.spin; s.m.rotation.z += dt * s.spin * 0.7;
         }
         if (hitAt || s.life <= 0 || s.pos.y < -1) {
@@ -114,9 +115,9 @@
     };
     const turrets = [];
     const BAR = new THREE.PlaneGeometry(0.55, 0.05);
-    function placeTurret() {
+    function placeTurret(at) {
       if (turrets.length >= TURRET.max) return false;
-      const P = G.player;
+      const P = at || G.player;
       const f = new THREE.Vector3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
       let pos = null;
       for (const dist of [2, 1.4, 2.8, 0.9]) {

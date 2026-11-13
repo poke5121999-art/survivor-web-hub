@@ -218,16 +218,13 @@
         const t = zh ? zh.t : wh ? wh.t : 40; const at = o.clone().addScaledVector(d, t);
         at.y = Math.max(0, at.y - (zh ? 1 : 0));
         strikeMark.position.set(at.x, at.y + 0.05, at.z); strikeMark.visible = true; H.strikeAt = at; H.t.strike = 1.0; H.strikes.length = 0;
-        for (let i = 0; i < 6; i++) H.strikes.push({ t: 1.0 + i * 0.14, x: at.x + G.rng.range(-3.5, 3.5), z: at.z + G.rng.range(-3.5, 3.5), y: at.y });
+        if ((G.coop && G.coop.guest)) { G.coop.act({ k: 'strike', at: G.coop.v3(at) }); setTimeout(() => { strikeMark.visible = false; }, 2200); } else strikeAt(at);
         G.audio.play('wave_start', { gain: 0.5, rate: 1.6 }); G.audio.play('marker', { gain: 1 });
         return true;
       },
       freeze() {
         const p = P(); let n = 0;
-        for (const z of G.zombies.list) {
-          if (!z.alive) continue;
-          if (Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z) < 9 && Math.abs(z.pos.y - p.pos.y) < 6) { z.frozen = z.T.boss ? 1.4 : 3.5; z.vel.set(0, 0, 0); n++; }
-        }
+        if ((G.coop && G.coop.guest)) { G.coop.act({ k: 'freeze', p: G.coop.v3(p.pos) }); n = G.zombies.list.filter((z) => z.alive && Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z) < 9).length; } else n = freezeAt(p.pos);
         // a ring of ice shards rolling outward
         for (let i = 0; i < 40; i++) {
           const a = (i / 40) * Math.PI * 2;
@@ -319,7 +316,14 @@
       return false;
     }
     function onHurt() { H.hurtT = 0; }
-    return Object.assign(H, { HEROES, set, reset, use, update, speedMul, invuln, storm, airJump, onHurt, byId,
+    // skills that change zombies run on the host; a guest's freeze and air strike arrive here as actions
+    function freezeAt(pos) {
+      let n = 0;
+      for (const z of G.zombies.list) { if (!z.alive) continue; if (Math.hypot(z.pos.x - pos.x, z.pos.z - pos.z) < 9 && Math.abs(z.pos.y - pos.y) < 6) { z.frozen = z.T.boss ? 1.4 : 3.5; z.vel.set(0, 0, 0); n++; } }
+      return n;
+    }
+    function strikeAt(at) { for (let i = 0; i < 6; i++) H.strikes.push({ t: 1.0 + i * 0.14, x: at.x + G.rng.range(-3.5, 3.5), z: at.z + G.rng.range(-3.5, 3.5), y: at.y }); }
+    return Object.assign(H, { HEROES, set, reset, use, update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId,
       reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), bombMul: () => (H.def.id === 'phao' ? 1.4 : 1), chill: () => H.def.id === 'bang',
       ready: () => H.charges > 0, cdFrac: () => (H.charges >= (H.def.skill.charges || 1) ? 0 : H.cd / H.def.skill.cd) });
   };

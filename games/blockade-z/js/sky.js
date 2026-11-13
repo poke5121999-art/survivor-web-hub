@@ -65,7 +65,7 @@
     const boltMat = new THREE.MeshBasicMaterial({ color: 0xdfe8ff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
     const bolt = new THREE.Group(); scene.add(bolt); let boltLife = 0;
     const segGeo = new THREE.BoxGeometry(0.18, 1, 0.18);
-    function strike(target) {
+    function strike(target, visual) {
       while (bolt.children.length) bolt.remove(bolt.children[0]);
       const pts2 = []; let x = target.x + G.rng.range(-6, 6); let z = target.z + G.rng.range(-6, 6);
       for (let y = 45; y > 0; y -= G.rng.range(2.5, 5)) { pts2.push(new THREE.Vector3(x, y, z)); const k = y / 45; x = BZ.lerp(target.x, x + G.rng.range(-2, 2), k); z = BZ.lerp(target.z, z + G.rng.range(-2, 2), k); }
@@ -76,10 +76,11 @@
         if (G.rng.chance(0.3)) { const f = new THREE.Mesh(segGeo, boltMat); const dir = new THREE.Vector3(G.rng.range(-1, 1), -1, G.rng.range(-1, 1)).normalize(); const L = G.rng.range(2, 5); f.position.copy(a).addScaledVector(dir, L / 2); f.scale.set(0.6, L, 0.6); f.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); bolt.add(f); }
       }
       boltLife = 0.22; S.flash = 1;
-      G.gear.explode(new THREE.Vector3(target.x, target.y + 0.3, target.z), 3.2, 340);
+      G.events.emit('bolt', { p: target });
+      if (visual) { G.fx.explosion(new THREE.Vector3(target.x, target.y + 0.3, target.z), 0.6); } else G.gear.explode(new THREE.Vector3(target.x, target.y + 0.3, target.z), 3.2, 340);
       const d = G.camera.position.distanceTo(target);
       setTimeout(() => G.audio.play('thunder', { gain: BZ.clamp(1.4 - d / 60, 0.4, 1.3), rate: G.rng.range(0.85, 1.1) }), Math.min(1800, d * 12));
-      const P = G.player; if (P.alive && Math.hypot(P.pos.x - target.x, P.pos.z - target.z) < 3) G.events.emit('player:hurt', { dmg: 25, from: target });
+      const P = G.player; if (!visual && P.alive && Math.hypot(P.pos.x - target.x, P.pos.z - target.z) < 3) G.events.emit('player:hurt', { dmg: 25, from: target });
     }
 
     // ---------- meteors: a red ring warns, then a burning rock comes down at a slant and explodes ----------
@@ -87,17 +88,18 @@
     const rockGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
     const rockMat = new THREE.MeshBasicMaterial({ color: 0xff8a30 });
     const warnGeo = new THREE.RingGeometry(3.4, 3.9, 28).rotateX(-Math.PI / 2);
-    function meteor() {
+    function meteor(net) {
       const P = G.player; const alive = G.zombies.list.filter((z) => z.alive && !z.T.fly);
       const base = alive.length && G.rng.chance(0.75) ? G.rng.pick(alive).pos : P.pos;
-      const at = new THREE.Vector3(base.x + G.rng.range(-4, 4), 0, base.z + G.rng.range(-4, 4));
+      const at = net ? new THREE.Vector3(...net.at) : new THREE.Vector3(base.x + G.rng.range(-4, 4), 0, base.z + G.rng.range(-4, 4));
       if (Math.abs(at.x) > W.HALF - 2 || Math.abs(at.z) > W.HALF - 2) return;
-      at.y = Math.max(0, base.y);
+      if (!net) at.y = Math.max(0, base.y);
       const ring = new THREE.Mesh(warnGeo, new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
       ring.position.set(at.x, at.y + 0.06, at.z); scene.add(ring);
-      const rock = new THREE.Mesh(rockGeo, rockMat); const from = at.clone().add(new THREE.Vector3(G.rng.range(-18, 18), 55, G.rng.range(-18, 18)));
+      const rock = new THREE.Mesh(rockGeo, rockMat); const from = net ? new THREE.Vector3(...net.from) : at.clone().add(new THREE.Vector3(G.rng.range(-18, 18), 55, G.rng.range(-18, 18)));
       rock.position.copy(from); scene.add(rock);
-      meteors.push({ at, from, rock, ring, t: 0, T: 1.6 });
+      meteors.push({ at, from, rock, ring, t: 0, T: 1.6, visual: !!net });
+      if (!net) G.events.emit('meteor', { at: [at.x, at.y, at.z], from: [from.x, from.y, from.z] });
       G.audio.play('heavy', { gain: 0.5, rate: 0.5 });
     }
     function updateMeteors(dt) {
@@ -108,7 +110,7 @@
         if (G.rng.chance(0.9)) G.fx.puff(m.rock.position, { glow: true, s0: 1.6, s1: 0.4, life: 0.35, c0: 0xffd070, c1: 0xff3a10 });
         if (G.rng.chance(0.6)) G.fx.puff(m.rock.position, { s0: 0.8, s1: 2.4, life: 1.6, c0: 0x4a3a34, c1: 0x6a6460, a0: 0.6 });
         if (k >= 1) {
-          G.gear.explode(m.at.clone().setY(m.at.y + 0.4), 5.5, 360);
+          if (!m.visual) G.gear.explode(m.at.clone().setY(m.at.y + 0.4), 5.5, 360);
           const P = G.player; const d = Math.hypot(P.pos.x - m.at.x, P.pos.z - m.at.z);
           if (P.alive && d < 4.2) G.events.emit('player:hurt', { dmg: Math.round(30 * (1 - d / 5)), from: m.at });
           scene.remove(m.rock); scene.remove(m.ring); m.ring.material.dispose(); meteors.splice(i, 1);
@@ -134,7 +136,8 @@
     G.events.on('wave:start', (n) => setWeather(roll(n)));
 
     function update(dt, playing) {
-      if (playing) S.t = (S.t + dt / S.dayLen) % 1;
+      const guest = (G.coop && G.coop.guest);
+      if (playing && !guest) S.t = (S.t + dt / S.dayLen) % 1;
       S.wk = Math.min(1, S.wk + dt / 5);
       // sun height: -1 midnight, +1 noon
       const e = Math.sin((S.t - 0.25) * Math.PI * 2);
@@ -191,7 +194,7 @@
       G.audio.setMusic({ rain: (S.weather === 'rain' ? 0.7 : S.weather === 'storm' ? 1 : 0) * wk, wind: 1 + (S.weather === 'ash' || S.weather === 'snow' || S.weather === 'storm' ? 1.2 * wk : 0) });
       updatePrecip(dt);
       if (boltLife > 0) { boltLife -= dt; boltMat.opacity = boltLife > 0.12 ? 1 : Math.max(0, boltLife / 0.12) * (Math.sin(boltLife * 120) > 0 ? 1 : 0.3); bolt.visible = boltLife > 0; }
-      if (playing && S.weather === 'storm' && wk > 0.5) {
+      if (playing && !guest && S.weather === 'storm' && wk > 0.5) {
         S.boltT -= dt;
         if (S.boltT <= 0) {
           S.boltT = G.rng.range(2.5, 6);
@@ -200,7 +203,7 @@
           strike(new THREE.Vector3(tgt.x, tgt.y, tgt.z));
         }
       }
-      if (playing && S.weather === 'meteor' && wk > 0.5) { S.meteorT -= dt; if (S.meteorT <= 0) { S.meteorT = G.rng.range(1.2, 3.2); meteor(); } }
+      if (playing && !guest && S.weather === 'meteor' && wk > 0.5) { S.meteorT -= dt; if (S.meteorT <= 0) { S.meteorT = G.rng.range(1.2, 3.2); meteor(); } }
       updateMeteors(dt);
     }
     function clear() { for (const m of meteors) { scene.remove(m.rock); scene.remove(m.ring); } meteors.length = 0; setWeather('clear', false); S.t = +(BZ.params.tod ?? 0.8); S.lastNight = null; }

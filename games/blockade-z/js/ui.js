@@ -75,9 +75,23 @@
     const prompt = document.getElementById('prompt'); let promptFor = null;
     if (BZ.isTouch) document.body.classList.add('touch');
 
-    const screens = ['title', 'pause', 'dead', 'shop', 'select'];
-    el.select = $('#select');
-    function show(name) { for (const s of screens) el[s].classList.toggle('on', s === name); el.hud.classList.toggle('on', G.state !== 'title' && G.state !== 'select'); }
+    const screens = ['title', 'pause', 'dead', 'shop', 'select', 'coop'];
+    el.select = $('#select'); el.coop = $('#coop');
+    // ---- co-op menu ----
+    const coopName = $('#coop-name'); const coopList = $('#coop-list'); const coopStat = $('#coop-status'); const coopCode = $('#coop-code');
+    coopName.addEventListener('change', () => { G.settings.coopName = coopName.value.trim().slice(0, 16) || 'Người chơi'; BZ.store.save(G.settings); });
+    function coopStatus(t) { coopStat.textContent = t; }
+    async function coopRender() {
+      coopName.value = G.settings.coopName || ''; coopList.innerHTML = '<p class="muted">Đang tìm phòng…</p>';
+      try {
+        const rooms = await G.coop.listRooms();
+        coopList.innerHTML = rooms.length ? rooms.map((r) => `<button class="item" data-room="${r.id}"><b>${r.host}</b><small>${r.players}/${r.max} người · đợt ${r.wave}${r.region ? ' · ' + r.region : ''}</small><span>VÀO</span></button>`).join('') : '<p class="muted">Chưa có phòng nào mở. Tạo phòng rồi gửi mã cho bạn.</p>';
+      } catch (e) { coopList.innerHTML = '<p class="muted">Không lấy được danh sách phòng: ' + (e.message || e) + '</p>'; }
+    }
+    coopList.addEventListener('click', (e) => { const b = e.target.closest('[data-room]'); if (b) G.events.emit('ui:coopjoin', { lobbyId: b.dataset.room === 'FAKE' ? null : b.dataset.room, code: 'FAKE' }); });
+    $('#coop-join').addEventListener('click', () => { const c = coopCode.value.trim(); if (c) G.events.emit('ui:coopjoin', { code: c }); });
+    const coopBar = $('#coopbar');
+    function show(name) { for (const s of screens) el[s].classList.toggle('on', s === name); el.hud.classList.toggle('on', G.state !== 'title' && G.state !== 'select' && G.state !== 'coop'); }
     // ---- hero pick ----
     const css = (c) => '#' + c.toString(16).padStart(6, '0');
     const selRow = $('#sel-row');
@@ -181,6 +195,8 @@
       const envEl = document.getElementById('env'); const wid = G.sky.weather(); const wname = BZ.WEATHERS[wid].name;
       const envTxt = (G.env.night ? '🌙 Đêm' : '☀ Ngày') + (wid !== 'clear' ? ' · ' + wname : '');
       if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'meteor' || wid === 'storm'); }
+      const cb = G.coop && G.coop.on ? `PHÒNG ${G.coop.code} · ${G.coop.players()} người${G.coop.host ? ' · bạn là chủ phòng' : ''}` : '';
+      if (coopBar.textContent !== cb) { coopBar.textContent = cb; coopBar.classList.toggle('on', !!cb); }
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.coins.textContent = G.coins; el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
@@ -215,6 +231,6 @@
       }
       const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
     }
-    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender };
+    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
   };
 })();

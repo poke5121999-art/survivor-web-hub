@@ -130,6 +130,7 @@
 
     const eye = new THREE.Vector3(); const aim = new THREE.Vector3(); const out = {};
     function update(dt) {
+      if (G.coop && G.coop.guest) { puppets(dt); return; }
       const P = G.player;
       for (const a of list) {
         const b = a.body;
@@ -280,7 +281,31 @@
       }
     }
     G.events.on('wave:end', () => { for (const a of list) if (a.alive) a.cheer = 1.6; });
+    // co-op guests: the host's soldiers, placed from the snapshot ([x, z, yaw]) and animated walking with the gun up
+    function mirror(rows) {
+      rows = rows || [];
+      while (list.length < rows.length) list.push({ body: makeBody(list.length), pos: new THREE.Vector3(), vel: new THREE.Vector3() });
+      list.forEach((a, i) => {
+        const r = rows[i];
+        if (!r) { if (a.puppet) { a.alive = false; a.body.root.visible = false; a.body.barBg.visible = false; } return; }
+        if (!a.alive || !a.puppet) { Object.assign(a, { alive: true, puppet: true, dying: 0, hp: ALLY.hp, phase: 0, slot: i, weap: null, kick: BZ.spring(260, 18), flinch: BZ.spring(160, 12) }); a.pos.set(r[0], 0, r[1]); a.yaw = r[2]; a.body.root.visible = true; a.body.root.rotation.x = 0; }
+        a.net = r;
+      });
+    }
+    function puppets(dt) {
+      for (const a of list) {
+        if (!a.alive || !a.puppet || !a.net) continue;
+        const b = a.body; const bx = a.pos.x; const bz = a.pos.z;
+        a.pos.x = BZ.damp(a.pos.x, a.net[0], 12, dt); a.pos.z = BZ.damp(a.pos.z, a.net[1], 12, dt);
+        a.yaw += BZ.wrapAngle(a.net[2] - a.yaw) * Math.min(1, dt * 12);
+        const sp = Math.hypot(a.pos.x - bx, a.pos.z - bz) / Math.max(dt, 1e-3);
+        a.phase += dt * sp * 2.6; const sw = Math.sin(a.phase) * Math.min(1, sp / 2) * 0.75;
+        b.legL.rotation.x = sw; b.legR.rotation.x = -sw; b.hips.position.y = 0.75 + Math.abs(Math.cos(a.phase)) * 0.05 * Math.min(1, sp / 1.5);
+        b.chest.rotation.set(Math.min(1, sp / 5) * 0.15, 0, 0); b.armR.rotation.set(-1.42, -0.18, 0); b.armL.rotation.set(-1.28, 0.5, 0); b.mount.rotation.set(0, 0, 0);
+        b.root.position.set(a.pos.x, 0, a.pos.z); b.root.rotation.y = a.yaw; b.barBg.visible = false;
+      }
+    }
     function clear() { for (const a of list) { a.alive = false; a.dying = 0; a.fetch = null; a.pendingHit = null; equip(a, null); a.body.root.visible = false; a.body.barBg.visible = false; } }
-    return { list, hire, nearest, hurt, update, clear, count, debug: () => ({ allies: count() }) };
+    return { list, hire, nearest, hurt, update, clear, count, mirror, debug: () => ({ allies: count() }) };
   };
 })();

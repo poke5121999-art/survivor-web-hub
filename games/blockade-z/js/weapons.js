@@ -274,7 +274,8 @@
       const cam = G.camera; cam.updateMatrixWorld(); cam.getWorldPosition(o); cam.getWorldDirection(d);
       const from = at ? at.clone().setY(at.y + 0.4) : o.clone().addScaledVector(d, 0.6).setY(o.y - 0.3);
       const vel = at ? new THREE.Vector3(G.rng.range(-1, 1), 2.5, G.rng.range(-1, 1)) : new THREE.Vector3(d.x, 0, d.z).normalize().multiplyScalar(3.2).setY(2.6);
-      spawnGround(id, state[id].mag, state[id].reserve, from, vel);
+      if ((G.coop && G.coop.guest)) G.coop.act({ k: 'drop', id, mag: state[id].mag, res: state[id].reserve, p: G.coop.v3(from), v: G.coop.v3(vel) });
+      else spawnGround(id, state[id].mag, state[id].reserve, from, vel);
     }
     function give(id) { // bought in the shop
       state[id].mag = WEAPONS[id].mag; state[id].reserve = WEAPONS[id].reserve;
@@ -291,7 +292,11 @@
     }
     function pickup() {
       const it = nearGround(); if (!it || !G.player.alive) return false;
-      removeGround(it);
+      if ((G.coop && G.coop.guest)) { G.coop.act({ k: 'pick', gid: it.gid }); it.claim = { fetch: null, pending: true }; setTimeout(() => { if (it.claim && it.claim.pending) it.claim = null; }, 1500); return true; }
+      removeGround(it); takeItem(it); return true;
+    }
+    // the weapon in hand: into a free slot, or swapped with the one held (which drops where the new one lay)
+    function takeItem(it) {
       if (has(it.id)) { const st = state[it.id]; const Wt = WEAPONS[it.id]; if (st.reserve !== Infinity) st.reserve = Math.min(Wt.reserve, st.reserve + it.mag + it.reserve); }
       else {
         if (S.inv.length < SLOTS) S.inv.push(it.id);
@@ -300,7 +305,6 @@
       }
       G.audio.play('clank', { gain: 0.8 }); G.audio.play('pickup', { gain: 0.45 });
       G.events.emit('weapon:pickup', it.id);
-      return true;
     }
 
     // ---------- weapons on the ground: thrown with an arc, settle on their side, stay until a new game ----------
@@ -308,7 +312,8 @@
     const ringGeo = new THREE.RingGeometry(0.42, 0.58, 24).rotateX(-Math.PI / 2);
     const ringCol = (id) => (WEAPONS[id].melee ? 0xffa040 : WEAPONS[id].rocket ? 0xff4a3a : 0x8ff07a);
     const gOut = {}; const gFeet = new THREE.Vector3(); const bb = new THREE.Box3(); const bc = new THREE.Vector3(); const bs = new THREE.Vector3();
-    function spawnGround(id, mag, reserve, pos, vel) {
+    let gidN = 0;
+    function spawnGround(id, mag, reserve, pos, vel, gid) {
       if (ground.length >= GROUND_MAX) removeGround(ground.find((g) => !g.claim) || ground[0]);
       const model = BZ.worldGun(id); model.scale.setScalar(1.25);
       bb.setFromObject(model); bb.getCenter(bc); bb.getSize(bs);
@@ -317,12 +322,13 @@
       const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: ringCol(id), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
       G.scene.add(ring);
       const it = { id, mag, reserve, g, ring, pos: g.position, vel: vel.clone(), rest: false, t: 0, yaw: G.rng.range(0, 6.3), claim: null, thick: bs.x / 2, spin: new THREE.Vector3(G.rng.range(-8, 8), G.rng.range(-4, 4), G.rng.range(-8, 8)) };
-      ground.push(it);
+      it.gid = gid || ++gidN; if (gid) gidN = Math.max(gidN, gid);
+      ground.push(it); G.events.emit('ground:add', it);
       return it;
     }
     function removeGround(it) {
       const i = ground.indexOf(it); if (i < 0) return;
-      ground.splice(i, 1); G.scene.remove(it.g); G.scene.remove(it.ring); it.ring.material.dispose();
+      ground.splice(i, 1); G.events.emit('ground:remove', it); G.scene.remove(it.g); G.scene.remove(it.ring); it.ring.material.dispose();
       if (it.claim) it.claim.fetch = null;
     }
     function takeGround(it) { removeGround(it); return { id: it.id, mag: it.mag, reserve: it.reserve }; }
@@ -717,6 +723,6 @@
       S.cur = 'smg'; S.next = null; S.phase = 'draw'; S.t = 0; models.smg.visible = true; S.ads = 0; S.bloom = 0; S.shots = 0; S.hits = 0; S.pumpT = 0; S.cycle = 9;
     }
 
-    return { S, state, WEAPONS, ORDER, SLOTS, update, render, select, selectSlot, cycle, startReload, give, refill, reset, has, dropCur, pickup, nearGround, ground, takeGround, spawnGround, removeGround, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { S, state, WEAPONS, ORDER, SLOTS, update, render, select, selectSlot, cycle, startReload, give, refill, reset, has, dropCur, pickup, nearGround, ground, takeGround, spawnGround, removeGround, takeItem, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();
