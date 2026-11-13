@@ -142,7 +142,7 @@
       z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
-      z.crawl = false; z.landT = 0; z.throwT = 0; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
+      z.crawl = false; z.landT = 0; z.throwT = 0; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.fxF = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
       K.init(z, T, wave);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
@@ -729,7 +729,21 @@
       statusFx(z, dt, f);
     }
     // the look of each element on a body; guests run this from the snapshot flags
-    function statusFx(z, dt, f) {
+    // the moment an element takes hold it shows: fire flares and throws embers, frost cracks into shards, a shock arcs off the
+    // body, poison splashes. Driven by the flags, so a co-op guest sees the same.
+    function statusOnset(z, rise) {
+      const sc = z.T.scale; const c = V3s().set(z.pos.x, z.pos.y + 1.15 * sc, z.pos.z); const R = G.rng;
+      // (the effect sits on the side of the body that faces the camera, or the body hides it)
+      { const d = V3s().subVectors(G.camera.position, c); d.y = 0; const l = d.length() || 1; c.addScaledVector(d, 0.42 * sc / l); } const r3 = (k) => V3s().set(R.range(-k, k), R.range(-k, k), R.range(-k, k));
+      if (rise & 16) { G.fx.puff(c, { glow: true, s0: 0.7 * sc, s1: 2.0 * sc, life: 0.26, c0: 0xfff0b0, c1: 0xff5a14, a0: 1, spin: 0 });
+        for (let i = 0; i < 7; i++) G.fx.puff(c.clone().add(r3(0.3 * sc)), { glow: true, vel: V3s().set(R.range(-1.6, 1.6), R.range(1.5, 4), R.range(-1.6, 1.6)), g: 3, drag: 1.5, s0: 0.2, s1: 0.05, life: R.range(0.5, 0.9), c0: 0xffe070, c1: 0xff3a10, a0: 1.1, spin: 0 }); }
+      if (rise & 32) { G.fx.puff(c, { s0: 0.6 * sc, s1: 1.6 * sc, life: 0.5, c0: 0xf4fcff, c1: 0x9ad8ff, a0: 0.8 }); G.fx.burst(c, 12, [0xdff6ff, 0x9ad8ff, 0xffffff], { speed: 3.6, size: 0.1, life: 0.7 }); }
+      if (rise & 64) { G.fx.puff(c, { glow: true, s0: 0.9 * sc, s1: 0.2, life: 0.12, c0: 0xffffff, c1: 0x60b0ff, a0: 1.2, spin: 0 });
+        for (let i = 0; i < 2; i++) { const to = c.clone().add(r3(0.9 * sc)); to.y = Math.max(z.pos.y + 0.05, to.y - (i === 0 ? 1.1 * sc : 0)); G.fx.arc(c.clone().add(r3(0.2 * sc)), to, 0xbfe4ff); } }
+      if (rise & 128) { G.fx.puff(c, { vel: V3s().set(0, 0.5, 0), s0: 0.6 * sc, s1: 1.5 * sc, life: 0.7, c0: 0x9aff60, c1: 0x3a8a20, a0: 0.8 }); G.fx.burst(c, 11, [0x8aff50, 0x4ac030, 0x2a7a18], { speed: 2.8, size: 0.09, life: 0.8, grav: 12 }); }
+    }
+    function statusFx(z, dt, f, flashOnly) {
+      if (!flashOnly) { const rise = f & ~(z.fxF || 0) & 240; z.fxF = f; if (rise && z.body.root.visible) statusOnset(z, rise); }
       if (!f || !z.body.root.visible) return;
       const top = V3s().set(z.pos.x + G.rng.range(-0.25, 0.25) * z.T.scale, z.pos.y + G.rng.range(0.3, 1.8) * z.T.scale, z.pos.z + G.rng.range(-0.25, 0.25) * z.T.scale);
       if (f & 16 && G.rng.chance(dt * 22)) G.fx.puff(top, { glow: true, vel: V3s().set(0, 1.6, 0), s0: 0.45, s1: 0.1, life: 0.45, c0: 0xffd060, c1: 0xff3a10, a0: 1 });
@@ -745,7 +759,7 @@
         if (c) for (const k of ['skin', 'shirt', 'pants']) z.body.mats[k].emissive.setHex(c);
       }
     }
-    function statusFlash(z, kind) { statusFx(z, 0.2, { burn: 16, chill: 32, shock: 64, poison: 128 }[kind] || 0); }
+    function statusFlash(z, kind) { statusFx(z, 0.2, { burn: 16, chill: 32, shock: 64, poison: 128 }[kind] || 0, true); }
 
     const V3 = () => new THREE.Vector3();
     function sever(z, part, dir, opt = {}) {
