@@ -3,7 +3,7 @@
   'use strict';
   const PM = globalThis.PM;
   const KEY = 'phaomay.save.v1';
-  PM.UNIT_PRICE = { coc: 0, chuon: 300, oc: 450, sua: 500, tegiac: 600, rua: 700 };
+  PM.UNIT_PRICE = { coc: 0, chuon: 300, oc: 450, sua: 500, nhim: 550, tegiac: 600, co: 650, rua: 700 };
   PM.RANKS = ['Tân Binh', 'Pháo Thủ', 'Xạ Thủ', 'Đội Trưởng', 'Chỉ Huy', 'Thống Lĩnh Mây'];
 
   PM.Meta = function (G) {

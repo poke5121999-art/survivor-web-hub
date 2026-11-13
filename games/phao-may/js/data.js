@@ -70,6 +70,29 @@
     ]
   };
 
+  PM.UNITS.nhim = {
+    name: 'Nhím Gai', title: 'Pháo chùm tầm gần', hp: 980, weight: 95, fuel: 14, speed: 5, aimMin: 0, aimMax: 75, aimSpeed: 38, barrel: 1.9, radius: 1.2,
+    blurb: 'Nhím thép bắn gai thành loạt. Càng gần càng đau, ở xa thì gai tản mất.',
+    shots: [
+      { id: 'loatgai', name: 'Loạt Gai', kind: 'spread', v: 60, count: 5, spread: 3.2, dmg: 0, radius: 0, dig: 0, delay: 80, windK: 0.6, gravK: 0.9, size: 0.2,
+        child: { id: 'gai', name: 'Gai', kind: 'shell', dmg: 78, radius: 2.1, dig: 1.3, knock: 3, windK: 0.6, gravK: 0.9, size: 0.2 }, desc: 'Năm gai xoè quạt. Trúng đủ cả năm là đau nhất game.' },
+      { id: 'gaighim', name: 'Gai Ghim', kind: 'drill', v: 60, depth: 4.5, drillSpeed: 20, dmg: 240, radius: 3.0, dig: 2.2, knock: 6, delay: 90, windK: 0.6, gravK: 0.9, size: 0.3, desc: 'Một gai lớn xuyên 4,5 m đất rồi nổ.' },
+      { id: 'baogai', name: 'Bão Gai', kind: 'cluster', special: true, v: 54, count: 10, spread: 4.5, dmg: 50, radius: 2, dig: 1, knock: 3, delay: 130, windK: 0.8, gravK: 1, size: 0.5,
+        child: { id: 'gaicon', name: 'Gai Con', kind: 'shell', dmg: 95, radius: 2.5, dig: 1.6, knock: 4, windK: 0.8, gravK: 1, size: 0.22 }, desc: 'Tới đỉnh thì vỡ thành mười gai phủ một vùng rộng.' }
+    ]
+  };
+  PM.UNITS.co = {
+    name: 'Cò Lửa', title: 'Pháo dầu cháy nền', hp: 880, weight: 85, fuel: 18, speed: 6, aimMin: 25, aimMax: 88, aimSpeed: 38, barrel: 2.3, radius: 1.2,
+    blurb: 'Cò chân dài phun dầu. Lửa ở lại trên nền vài vòng, ai đứng trong đó đầu lượt thì bỏng.',
+    shots: [
+      { id: 'dandau', name: 'Đạn Dầu', kind: 'shell', v: 54, dmg: 150, radius: 3.4, dig: 1.4, knock: 4, delay: 80, windK: 1, gravK: 1, size: 0.4, burn: { turns: 3, dmg: 75, r: 3.4 }, desc: 'Nổ nhẹ, để lại đám cháy ba vòng, 75 máu mỗi đầu lượt.' },
+      { id: 'tronong', name: 'Tro Nóng', kind: 'cluster', v: 54, count: 3, spread: 7, dmg: 40, radius: 2, dig: 0.8, knock: 2, delay: 95, windK: 1, gravK: 1, size: 0.42,
+        child: { id: 'tro', name: 'Tro', kind: 'shell', dmg: 85, radius: 2.8, dig: 1.0, knock: 3, windK: 1, gravK: 1, size: 0.26, burn: { turns: 2, dmg: 50, r: 2.6 } }, desc: 'Tách ba, mỗi quả để lại một đám cháy nhỏ.' },
+      { id: 'mualua', name: 'Mưa Lửa', kind: 'cluster', special: true, v: 54, count: 7, spread: 6, dmg: 50, radius: 2.2, dig: 1, knock: 3, delay: 135, windK: 1, gravK: 1, size: 0.5,
+        child: { id: 'giotlua', name: 'Giọt Lửa', kind: 'shell', dmg: 100, radius: 3.0, dig: 1.2, knock: 3, windK: 1, gravK: 1, size: 0.26, burn: { turns: 3, dmg: 60, r: 3.0 } }, desc: 'Bảy giọt lửa phủ kín một dải đất.' }
+    ]
+  };
+
   // mode 'with': used alongside the shot. mode 'shot': replaces the shot this turn.
   PM.ITEMS = {
     double: { name: 'Bắn Đôi', mode: 'with', delay: 60, desc: 'Bắn hai phát liền trong lượt này.' },
@@ -169,6 +192,6 @@
 
   PM.MAPS = { doiche: teaHills };
   PM.MAP_ORDER = ['doiche'];
-  PM.UNIT_ORDER = ['coc', 'chuon', 'oc', 'tegiac', 'sua', 'rua'];
+  PM.UNIT_ORDER = ['coc', 'chuon', 'oc', 'tegiac', 'sua', 'rua', 'nhim', 'co'];
   PM.clampPower = (p) => clamp(p, 3, 100);
 })();

@@ -103,7 +103,7 @@
       banner(u.ai ? `${u.name} đang ngắm` : 'Lượt của bạn', u.ai ? 't' + u.team : 'you');
       lastTick = 99;
     });
-    G.bus.on('sim:damage', (ev) => { float(ev.x, ev.y + 1.5, '-' + ev.amount, ev.amount >= 220 ? 'dmg big' : 'dmg'); if (ev.blocked) float(ev.x, ev.y + 3, 'Khiên -' + ev.blocked, 'blk'); });
+    G.bus.on('sim:damage', (ev) => { float(ev.x, ev.y + 1.5, (ev.cause === 'burn' ? 'Bỏng -' : '-') + ev.amount, ev.amount >= 220 ? 'dmg big' : 'dmg'); if (ev.blocked) float(ev.x, ev.y + 3, 'Khiên -' + ev.blocked, 'blk'); });
     G.bus.on('sim:heal', (ev) => float(ev.x, ev.y + 1.5, '+' + ev.amount, 'heal'));
     G.bus.on('sim:die', (ev) => { const u = G.sim.units[ev.unit]; if (!G.demo) toast(ev.cause === 'sea' ? `${u.name} rơi xuống biển mây` : `${u.name} bị hạ`); });
     G.bus.on('sim:fire', (ev) => {

@@ -65,6 +65,14 @@
         }
       }
     }
+    if (spec.burn) {
+      if (ctx.dry) { for (const u of ctx.units) if (u.alive && Math.abs(u.x - x) < spec.burn.r && Math.abs(u.y - y) < 3) ctx.report.dmg[u.id] = (ctx.report.dmg[u.id] || 0) + spec.burn.dmg * 0.8; }
+      else {
+        const f = { id: ctx.nextFire++, x, y, r: spec.burn.r, dmg: spec.burn.dmg * boost, left: spec.burn.turns, owner };
+        ctx.fires.push(f);
+        emit(ctx, { type: 'burn', id: f.id, x, y, r: f.r });
+      }
+    }
     if (!ctx.dry) {
       if (spec.dig > 0) ctx.terrain.carve(x, y, spec.dig);
       emit(ctx, { type: 'boom', x, y, radius: spec.radius, dig: spec.dig, shot: spec.id, owner: owner ? owner.id : -1 });
@@ -287,6 +295,13 @@
     const hit = ctx.terrain.raycast(cx, cy, mx, my);
     if (hit) { mx = cx + (hit.x - cx) * 0.9; my = cy + (hit.y - cy) * 0.9; }
     const sp = def.v * (0.15 + 0.85 * power / 100);
+    if (def.kind === 'spread') {
+      for (let i = 0; i < def.count; i++) {
+        const b = a + (i - (def.count - 1) / 2) * def.spread * RAD * facing, k = 1 - Math.abs(i - (def.count - 1) / 2) * 0.015;
+        spawn(ctx, u, def.child, mx, my, Math.cos(b) * facing * sp * k, Math.sin(b) * sp * k, boost);
+      }
+      return;
+    }
     spawn(ctx, u, def, mx, my, dx * sp, dy * sp, boost);
   }
   Sim.muzzle = function (u) {
@@ -398,11 +413,18 @@
     next.fuel = next.fuelMax; next.shield = 0;
     next.special = Math.min(100, next.special + R.specialPerTurn);
     if (next.shots[next.shotIdx].special && next.special < 100) next.shotIdx = 0;
+    for (const f of sim.fires) if (Math.abs(next.x - f.x) < f.r && Math.abs(next.y - f.y) < 3) applyDamage(sim, next, f.dmg, f.owner, 'burn');
+    sim.fireClock = (sim.fireClock || 0) + 1 / alive.length;
+    if (sim.fireClock >= 1) {
+      sim.fireClock -= 1;
+      for (let i = sim.fires.length - 1; i >= 0; i--) if (--sim.fires[i].left <= 0) { emit(sim, { type: 'burnout', id: sim.fires[i].id }); sim.fires.splice(i, 1); }
+    }
     sim.ts = { moved: 0, cost: 0, double: false, boost: 1, tele: false, fired: false, items: [] };
     sim.timer = sim.turnTime;
     sim.charge = { on: false, power: 0 };
     sim.input = { move: 0, aim: 0, charge: false };
     sim.phase = 'turn';
+    if (!next.alive) { sim.phase = 'settle'; sim.settleT = 0; sim.restT = 0; return; }
     emit(sim, { type: 'turn', unit: next.id, wind: sim.wind, n: sim.turnN });
     if (next.ai && PM.AI) PM.AI.begin(sim, next);
   }
@@ -438,7 +460,7 @@
     const map = PM.MAPS[cfg.map];
     const sim = {
       cfg, map, seed: cfg.seed >>> 0, rng: PM.rng((cfg.seed >>> 0) ^ 0x9e3779b9), terrain: PM.Terrain(map),
-      units: [], projs: [], events: [], queue: [], shocks: [], stats: {}, seaY: map.seaY, nextProj: 1, dry: false,
+      units: [], projs: [], events: [], queue: [], shocks: [], stats: {}, fires: [], nextFire: 1, seaY: map.seaY, nextProj: 1, dry: false,
       time: 0, steps: 0, turnN: 0, wind: 0, hold: 0, settleT: 0, restT: 0, winner: null, lastShooter: null,
       turnTime: cfg.turnTime || R.turnTime, phase: 'turn', active: null, ts: null, timer: 0, charge: { on: false, power: 0 }, input: { move: 0, aim: 0, charge: false }
     };

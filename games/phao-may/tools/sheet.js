@@ -25,7 +25,9 @@ const GROUPS = {
     { name: 'tegiac-son', q: 'autostart=1&seed=3&unit=tegiac&foe=oc', pose: { x: 30, y: 64.3, dist: 17 } },
     { name: 'oc-lam', q: 'autostart=1&seed=3&unit=tegiac&foe=oc', pose: { x: 136, y: 60.2, dist: 17 } },
     { name: 'sua-son', q: 'autostart=1&seed=3&unit=sua&foe=rua', pose: { x: 30, y: 64.8, dist: 17 } },
-    { name: 'rua-lam', q: 'autostart=1&seed=3&unit=sua&foe=rua', pose: { x: 136, y: 60.2, dist: 17 } }
+    { name: 'rua-lam', q: 'autostart=1&seed=3&unit=sua&foe=rua', pose: { x: 136, y: 60.2, dist: 17 } },
+    { name: 'nhim-son', q: 'autostart=1&seed=3&unit=nhim&foe=co', pose: { x: 30, y: 64.3, dist: 17 } },
+    { name: 'co-lam', q: 'autostart=1&seed=3&unit=nhim&foe=co', pose: { x: 136, y: 59.6, dist: 17 } }
   ],
   fx: [
     { name: 'muzzle', q: 'autostart=1&seed=3', eval: fire({ angle: 55, power: 60, shot: 0 }, 3), pose: { x: 40, y: 57, dist: 30 } },

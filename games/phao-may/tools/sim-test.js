@@ -136,7 +136,29 @@ for (const mapId of PM.MAP_ORDER) {
   check(u.shield === 380 && ally.shield === 190 && sim.units[2].shield === 0, 'guard shot shields the turtle fully and a nearby ally by half');
 }
 
-for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua']]) {
+{
+  const sim = mk({ teams: [[{ kind: 'co' }], [{ kind: 'coc' }]] });
+  sim.wind = 0;
+  const u = sim.active, foe = sim.units[1];
+  let best = null;
+  for (let a = u.aimMin; a <= u.aimMax && !best; a += 1) for (let p = 20; p <= 100; p += 1) { const r = PM.Sim.trace(sim, u, u.shots[0], 1, a, p); if (r.dmg[foe.id] > 150) { best = { angle: a, power: p }; break; } }
+  check(!!best, 'the fire stork can reach the far side');
+  sim.fireNow({ angle: best.angle, power: best.power, shot: 0, facing: 1 });
+  until(sim, () => drain(sim, 'burn').length > 0);
+  const hpAfterBlast = (until(sim, () => sim.phase === 'turn' && sim.active === foe), foe.hp), burns = drain(sim, 'damage').filter((e) => e.cause === 'burn');
+  check(burns.length === 1 && burns[0].unit === foe.id && burns[0].amount === 75, `a unit standing in fire burns for 75 at the start of its turn (hp ${hpAfterBlast})`);
+  for (let k = 0; k < 8 && sim.fires.length; k++) { const a = sim.active; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active !== a); }
+  check(sim.fires.length === 0 && drain(sim, 'burnout').length === 1, 'the fire goes out after three rounds');
+}
+
+{
+  const sim = mk({ teams: [[{ kind: 'nhim' }], [{ kind: 'coc' }]] });
+  sim.fireNow({ angle: 40, power: 50, shot: 0 });
+  sim.advance(0.1);
+  check(drain(sim, 'spawn').length === 5, 'spread shot leaves the barrel as five quills');
+}
+
+for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua'], ['nhim', 'co']]) {
   const sim = mk({ seed: 2, teams: [[{ kind: a, ai: 'hard' }], [{ kind: b, ai: 'hard' }]] });
   until(sim, () => false, 120 * 900);
   const dealt = sim.units.map((u) => sim.stats[u.id].dealt);

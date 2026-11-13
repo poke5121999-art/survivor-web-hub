@@ -78,6 +78,15 @@
     doicho: { geo: 'ball', s: 0.42, mat: 'orb', glow: [6, 3, 8], smoke: 0, soft: [2, 1, 2.6] },
     songchuong: { geo: 'ball', s: 0.56, mat: 'bronze', glow: [6, 4.5, 1.5], smoke: 0.5 },
     hoichuong: { geo: 'ball', s: 0.68, mat: 'bronze', glow: [7, 5, 1.5], smoke: 0.8 },
+    gai: { geo: 'needle', s: 0.3, mat: 'bronze', glow: [5, 4, 1.5], smoke: 0 },
+    gaighim: { geo: 'needle', s: 0.62, mat: 'bronze', glow: [6, 4, 1.5], smoke: 0.3 },
+    baogai: { geo: 'ball', s: 0.56, mat: 'steel', glow: [5, 4, 1.5], smoke: 0.6 },
+    gaicon: { geo: 'needle', s: 0.3, mat: 'bronze', glow: [5, 4, 1.5], smoke: 0 },
+    dandau: { geo: 'ball', s: 0.46, mat: 'steel', glow: [9, 3, 0.5], smoke: 1.2 },
+    tronong: { geo: 'ball', s: 0.48, mat: 'steel', glow: [9, 3, 0.5], smoke: 1.2 },
+    tro: { geo: 'ball', s: 0.3, mat: 'steel', glow: [9, 3, 0.5], smoke: 0.7 },
+    mualua: { geo: 'ball', s: 0.56, mat: 'steel', glow: [10, 3, 0.5], smoke: 1.4 },
+    giotlua: { geo: 'ball', s: 0.3, mat: 'steel', glow: [10, 3, 0.5], smoke: 0.8 },
     tele: { geo: 'ball', s: 0.3, mat: 'orb', glow: [5, 3, 7], smoke: 0 }
   };
 
@@ -204,6 +213,9 @@
       flashLight(x, y, 0x88ccff, 500); G.rig.shake(0.2);
     }
     G.bus.on('sim:boom', (ev) => { const d = PROJ[ev.shot]; if (d && d.soft) softBoom(ev.x, ev.y, Math.max(2, ev.radius), d.soft); else boom(ev.x, ev.y, Math.max(1.6, ev.radius), false); });
+    const fires = new Map();
+    G.bus.on('sim:burn', (ev) => fires.set(ev.id, ev));
+    G.bus.on('sim:burnout', (ev) => fires.delete(ev.id));
     G.bus.on('sim:guard', (ev) => { emit({ x: ev.x, y: ev.y, life: 0.6, s0: 1, s1: ev.reach * 2, col: [2, 5, 7], a: 0.8, kind: 2 }); emit({ x: ev.x, y: ev.y, life: 0.25, s0: 4, s1: 7, col: [2, 5, 8], kind: 3 }); });
     G.bus.on('sim:die', (ev) => { if (ev.cause !== 'sea' && ev.cause !== 'out') { boom(ev.x, ev.y, 5.5, true); for (let i = 0; i < 10; i++) chunk(ev.x, ev.y, R(-9, 9), R(5, 18), R(0.2, 0.4)); } });
 
@@ -299,6 +311,16 @@
         emit({ x: u.x - u.facing * 0.25, y: u.y + 0.5, z: R(-0.2, 0.2), vx: R(-0.6, 0.6), vy: R(-3, -1.2), life: 0.3, s0: 0.3, s1: 0.05, col: [1, 4.5, 6], kind: 3, a: 0.7 });
       }
 
+      for (const f of fires.values()) {
+        const n = Math.ceil(f.r * 1.3 * q.parts);
+        for (let i = 0; i < n; i++) {
+          if (rnd() > 0.5) continue;
+          const x = f.x + R(-f.r, f.r), gy = terrain.groundY(x, f.y + 2.5, 6);
+          if (gy === null || gy === -Infinity) continue;
+          emit({ x, y: gy + 0.2, z: R(-2, 2.5), vx: R(-0.4, 0.4), vy: R(1.5, 4.5), life: R(0.35, 0.75), s0: R(0.35, 0.7), s1: 0.1, col: [8, 3.2, 0.6], col1: [2.5, 0.4, 0.05], a: 0.85, add: 1, add1: 0.7, kind: 0, wind: 0.25 });
+          if (rnd() < 0.12) emit({ x, y: gy + 1.2, z: R(-1.5, 2), vx: R(-0.3, 0.3), vy: R(1.2, 2.4), life: R(1.2, 2.2), s0: 0.5, s1: R(1.3, 2), col: [0.12, 0.1, 0.1], col1: [0.3, 0.28, 0.28], a: 0.3, add: 0, kind: 0, wind: 0.6, fadeIn: 0.2 });
+        }
+      }
       windAcc += dt * (0.6 + Math.abs(wind) * 1.3) * q.parts;
       const span = camSpan();
       while (windAcc > 1) {

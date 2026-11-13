@@ -254,6 +254,70 @@
     return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR', 'legBR', 'legFL'], bodyY: 0.95, hover: 0 };
   };
 
+  MODELS.nhim = function (G, team) {
+    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 22, h || 16);
+    b.part('body', null, [0, 1.0, 0]);
+    b.add(sph(1, 26, 18), M.steel, { s: [1.4, 0.88, 1.05] });
+    b.add(new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 1.95, 1.2), M.cream, { s: [1.42, 0.9, 1.07] });
+    b.add(new THREE.ConeGeometry(0.42, 0.8, 16), M.cream, { p: [1.45, -0.12, 0], r: [0, 0, -Math.PI / 2] });
+    b.add(sph(0.13, 10, 8), M.dark, { p: [1.86, -0.12, 0] });
+    for (const z of [-0.42, 0.42]) { b.add(sph(0.15, 12, 10), M.eye, { p: [1.12, 0.22, z] }); b.add(new THREE.ConeGeometry(0.16, 0.3, 8), M.paint, { p: [0.85, 0.62, z * 1.3], r: [z * 0.6, 0, -0.3] }); }
+    const r2 = PM.rng('quills');
+    for (let i = 0; i < 46; i++) {
+      const u = r2(), v = r2(), th = Math.PI * (0.1 + 0.52 * u), ph = (v - 0.5) * Math.PI * 1.7 + Math.PI;
+      const d = new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph));
+      if (d.x > 0.45) continue;
+      const len = 0.55 + r2() * 0.45, base = new THREE.Vector3(d.x * 1.36, d.y * 0.85, d.z * 1.02), back = new THREE.Vector3(-0.35, 0.25, 0).add(d).normalize();
+      const g = new THREE.ConeGeometry(0.075, len, 6).translate(0, len / 2, 0);
+      b.add(g, i % 3 === 0 ? M.paint : M.bronze, { m: new THREE.Matrix4().compose(base, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), back), new THREE.Vector3(1, 1, 1)) });
+    }
+    b.part('barrel', 'body', [0.35, 0.45, 0]);
+    b.add(sph(0.4, 14, 10), M.bronze, {});
+    b.part('tube', 'barrel');
+    for (const [y, z] of [[0.13, 0], [-0.08, 0.13], [-0.08, -0.13]]) b.add(new THREE.CylinderGeometry(0.09, 0.1, 1.7, 10), M.steel, { p: [1.05, y, z], r: [0, 0, -Math.PI / 2] });
+    for (const x of [0.5, 1.2, 1.85]) b.add(new THREE.CylinderGeometry(0.27, 0.27, 0.1, 14), M.bronze, { p: [x, 0, 0], r: [0, 0, -Math.PI / 2] });
+    const leg = (name, x, zs) => {
+      b.part(name, null, [x, 0.5, zs * 0.8]);
+      b.limb(M.steel, [0, 0.1, 0], [x > 0 ? 0.16 : -0.16, -0.3, zs * 0.1], 0.17);
+      b.add(PM.Geo.rbox(0.6, 0.2, 0.46, 0.09, 2), M.dark, { p: [x > 0 ? 0.26 : -0.16, -0.4, zs * 0.12] });
+    };
+    leg('legBL', -0.75, -1); leg('legFR', 0.8, 1); leg('legBR', -0.75, 1); leg('legFL', 0.8, -1);
+    return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR', 'legBR', 'legFL'], bodyY: 1.0, hover: 0 };
+  };
+
+  MODELS.co = function (G, team) {
+    const THREE = globalThis.THREE, M = mats(G, team), b = PM.Build();
+    const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 20, h || 14);
+    b.part('body', null, [0, 2.25, 0]);
+    b.add(sph(1, 24, 16), M.cream, { s: [1.05, 0.68, 0.72] });
+    for (const z of [-0.62, 0.62]) b.add(sph(1, 18, 12), M.paint, { p: [-0.2, 0.08, z], s: [0.95, 0.5, 0.2], r: [0, 0, 0.18] });
+    for (let i = 0; i < 4; i++) b.add(PM.Geo.rbox(0.9, 0.06, 0.26, 0.03, 1), i % 2 ? M.paint : M.dark, { p: [-1.2, 0.05 - i * 0.07, (i - 1.5) * 0.2], r: [0, 0, 0.25] });
+    b.add(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 16), M.bronze, { p: [-0.25, 0.68, 0], r: [0, 0, Math.PI / 2] });
+    for (const x of [-0.6, 0.1]) b.add(new THREE.TorusGeometry(0.31, 0.035, 6, 16), M.steel, { p: [x, 0.68, 0], r: [0, Math.PI / 2, 0] });
+    b.add(sph(0.12, 10, 8), M.lamp, { p: [0.3, 0.68, 0] });
+    b.part('barrel', 'body', [0.55, 0.25, 0]);
+    b.add(sph(0.36, 14, 10), M.cream, {});
+    b.part('tube', 'barrel');
+    b.limb(M.cream, [0, 0, 0], [1.35, 0, 0], 0.17);
+    b.add(sph(0.33, 16, 12), M.cream, { p: [1.5, 0.02, 0], s: [1.1, 0.95, 0.9] });
+    b.add(new THREE.SphereGeometry(0.34, 14, 8, 0, Math.PI * 2, 0, 1.2), M.paint, { p: [1.42, 0.06, 0], r: [0, 0, 0.6] });
+    for (const z of [-0.2, 0.2]) b.add(sph(0.09, 10, 8), M.eye, { p: [1.62, 0.14, z] });
+    b.add(new THREE.CylinderGeometry(0.05, 0.16, 1.1, 12), M.bronze, { p: [2.3, -0.02, 0], r: [0, 0, -Math.PI / 2] });
+    b.add(new THREE.TorusGeometry(0.13, 0.03, 6, 12), M.steel, { p: [1.95, -0.02, 0], r: [0, Math.PI / 2, 0] });
+    const leg = (name, x, zs) => {
+      b.part(name, null, [x, 1.75, zs * 0.3]);
+      b.add(sph(0.16, 10, 8), M.bronze, {});
+      b.limb(M.steel, [0, 0, 0], [0.22, -0.85, 0], 0.06);
+      b.add(sph(0.1, 8, 6), M.bronze, { p: [0.22, -0.85, 0] });
+      b.limb(M.steel, [0.22, -0.85, 0], [0.0, -1.68, 0], 0.045);
+      for (const dz of [-0.16, 0, 0.16]) b.limb(M.bronze, [0, -1.7, 0], [0.42, -1.72, dz], 0.035);
+      b.limb(M.bronze, [0, -1.7, 0], [-0.22, -1.72, 0], 0.035);
+    };
+    leg('legBL', -0.15, -1); leg('legFR', 0.2, 1);
+    return { root: b.build(), parts: b.parts, legs: ['legBL', 'legFR'], bodyY: 2.25, stride: 0.5, hover: 0 };
+  };
+
   PM.UNIT_MODELS = MODELS;
 
   PM.Units3D = function (G) {
@@ -301,7 +365,7 @@
         P.tube.position.x = rec * 0.05;
         if (model.legs) {
           model.legs.forEach((name, i) => {
-            const ph = m.walk * 2 + i * Math.PI / 2, sw = moving ? 1 : 0;
+            const ph = m.walk * 2 + i * (model.legs.length === 2 ? Math.PI : Math.PI / 2), sw = moving ? 1 : 0;
             P[name].rotation.z = Math.sin(ph) * 0.3 * sw + (i % 2 ? 1 : -1) * rock * 0.03;
             P[name].position.y = (P[name].userData.y0 === undefined ? (P[name].userData.y0 = P[name].position.y) : P[name].userData.y0) + Math.max(0, Math.cos(ph)) * 0.16 * sw;
           });
