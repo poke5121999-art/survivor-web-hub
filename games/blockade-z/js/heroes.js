@@ -249,7 +249,29 @@
     m.armL.rotation.x = ease(J, 'lax', LA[0], 16, dt); m.armL.rotation.z = ease(J, 'laz', LA[1], 16, dt); m.elbowL.rotation.x = ease(J, 'lex', LA[2], 16, dt);
     // the head keeps looking where the hero aims while the body moves under it
     m.head.rotation.x = ease(J, 'hx', -pitch * 0.55 - lean * 0.6, 12, dt); m.head.rotation.y = -m.spine.rotation.y * 0.6 - m.hips.rotation.y;
+    castAnim(m, s, dt);
   };
+
+  // Skill body animations (js/castanim.js fills BZ.CAST_ANIM): { dur, prop, hand, beats: [k...], pose(set, k, m, s), beat(i, m, G) }.
+  // `set(joint, axis, value)` blends from the running pose into the cast pose, fading in and out at the ends;
+  // a prop (a hammer, a vial...) shows in the hand for the length of the cast; beats fire once each at their k.
+  BZ.CAST_ANIM = BZ.CAST_ANIM || {}; BZ.CAST_PROPS = BZ.CAST_PROPS || {};
+  function castAnim(m, s, dt) {
+    const act = s.act; const props = m.props || (m.props = {});
+    const C = act && BZ.CAST_ANIM[act.key];
+    if (!C) { for (const k in props) props[k].visible = false; if (act) s.act = null; return; }
+    act.t += dt; const k = act.t / C.dur;
+    if (k >= 1) { s.act = null; for (const p in props) props[p].visible = false; return; }
+    const w = Math.min(1, k / 0.12, (1 - k) / 0.15);
+    const set = (o, ax, v) => { if (o) o.rotation[ax] += (v - o.rotation[ax]) * w; };
+    C.pose(set, k, m, s);
+    if (C.prop && BZ.CAST_PROPS[C.prop]) {
+      let p = props[C.prop];
+      if (!p) { p = props[C.prop] = BZ.CAST_PROPS[C.prop](); (C.hand === 'L' ? m.handL : m.handR).add(p); }
+      p.visible = true;
+    }
+    if (C.beats && C.beat && window.__G) { act.b = act.b || 0; while (act.b < C.beats.length && k >= C.beats[act.b]) { C.beat(act.b, m, window.__G); act.b++; } }
+  }
   BZ.heroModel = (id) => heroModel(byId(id));
 
   // ---------- the heavy cannon the engineer drops (built once, cloned per use) ----------
@@ -346,6 +368,7 @@
       const A = ABIL[key]; const a = A.aim ? A.aim() : {};
       if (!a) { G.audio.play('deny', { gain: 0.5 }); return false; }
       a.by = me(); a.k = key;
+      H.act = { key, t: 0 };
       if (A.fx) A.fx(a);
       if (coop()) { if (guest()) G.coop.act({ k: 'hx', s: key, a }); else G.events.emit('hx', { s: key, a }); }
       if (A.host && !guest()) A.host(a, 'h');
@@ -354,6 +377,7 @@
     // another player's skill: the look here, and the host-only part on the host
     function remote(key, a, by) {
       const A = ABIL[key]; if (!A || a.by === me()) return;
+      if (G.coop && G.coop.castAnim) G.coop.castAnim(by || a.by, key);
       if (A.fx) A.fx(a);
       if (A.host && !guest()) A.host(a, by);
     }
@@ -423,10 +447,13 @@
         fx(a) {
           if (!mine(a)) return;
           const p = P(); const i = p.input;
-          let dx = -Math.sin(p.yaw) * i.fwd + Math.cos(p.yaw) * i.side; let dz = -Math.cos(p.yaw) * i.fwd - Math.sin(p.yaw) * i.side;
-          const l = Math.hypot(dx, dz); if (l < 0.1) { dx = -Math.sin(p.yaw); dz = -Math.cos(p.yaw); } else { dx /= l; dz /= l; }
-          H.t.dash = 0.24; H.dashDir = [dx, dz]; H.dashHit = new Set();
-          p.vel.set(dx * 25, Math.max(p.vel.y, 1.5), dz * 25);
+          // along the look direction, pitch included, so looking up dashes into the air; strafe keys steer sideways
+          const f = fwdOf({ yaw: p.yaw, pitch: p.pitch }); const fw = i.fwd < 0 ? -1 : (i.fwd > 0 || !i.side ? 1 : 0);
+          const dv = V().set(f.x * fw + Math.cos(p.yaw) * i.side, f.y * fw, f.z * fw - Math.sin(p.yaw) * i.side).normalize();
+          const dx = dv.x; const dz = dv.z;
+          H.t.dash = 0.24; H.dashDir = [dv.x, dv.z, dv.y]; H.dashHit = new Set();
+          ring3(p.pos, 2.2, 0xffffff, 0x56c8ff, 0.35); for (let i = 0; i < 8; i++) G.fx.puff(V().set(p.pos.x + dx * i * 0.7, p.pos.y + 0.9, p.pos.z + dz * i * 0.7), { glow: true, s0: 1, s1: 0.2, life: 0.45, c0: 0xe8f8ff, c1: 0x56c8ff, a0: 0.9, spin: 0 });
+          p.vel.set(dv.x * 25, Math.max(dv.y * 25, 1.5), dv.z * 25);
           G.audio.play('heavy', { gain: 0.8, rate: 1.4 }); G.audio.play('slash', { gain: 0.6, rate: 0.8 });
           p.shake.v += 2; overlay('cyan', 0.25);
         },
@@ -457,22 +484,23 @@
         fx(a) {
           if (!mine(a)) { const w = who(a.by); if (w) ring3(w.pos, 3, 0x9ae8ff, 0x56c8ff); return; }
           const p = P(); H.bladeList = near(p.pos, 20, 6).sort((x, y) => x.pos.distanceTo(p.pos) - y.pos.distanceTo(p.pos)).slice(0, 10);
-          H.t.blades = 0.14 * H.bladeList.length + 0.2; H.bladeT = 0; overlay('cyan', H.t.blades);
+          H.t.blades = 0.14 * H.bladeList.length + 0.2; H.bladeT = 0; overlay('cyan', H.t.blades); ring3(p.pos, 4, 0xffffff, 0x56c8ff, 0.5); G.fx.pop(V().set(p.pos.x, p.pos.y + 1, p.pos.z), 1.4, [0x9ae8ff, 0xffffff]);
           G.audio.play('saber_on', { gain: 0.8, rate: 1.4 });
         },
       },
       // ---- Thép ----
-      invuln: { fx(a) { if (!mine(a)) return; H.t.invuln = H.def.s1.dur; G.audio.play('saber_on', { gain: 0.9, rate: 0.7 }); G.audio.play('buy', { gain: 0.6 }); overlay('gold', H.def.s1.dur); ring.visible = true; } },
+      invuln: { fx(a) { const w = who(a.by); if (w) { ring3(w.pos, 3, 0xfff0a0, 0xffc040, 0.6); G.fx.pop(V().set(w.pos.x, w.pos.y + 1, w.pos.z), 1.2, [0xffc040, 0xfff0a0]); } if (!mine(a)) return; H.t.invuln = H.def.s1.dur; G.audio.play('saber_on', { gain: 0.9, rate: 0.7 }); G.audio.play('buy', { gain: 0.6 }); overlay('gold', H.def.s1.dur); ring.visible = true; } },
       charge: {
         fx(a) {
           const w = who(a.by); if (!w) return;
           if (!mine(a)) { G.fx.burst(V().set(w.pos.x, w.pos.y + 0.3, w.pos.z), 14, [0x8a8478, 0x6e6a64], { speed: 3, size: 0.12, life: 0.6 }); return; }
-          const p = P(); H.chargeDir = [-Math.sin(p.yaw), -Math.cos(p.yaw)]; H.t.charge = 0.55; H.chargeHit = new Set();
+          const p = P(); const f = fwdOf({ yaw: p.yaw, pitch: Math.max(0, p.pitch) }); H.chargeDir = [f.x, f.z, f.y]; H.t.charge = 0.55; H.chargeHit = new Set();
           G.audio.play('roar', { gain: 0.5, rate: 1.6 }); G.audio.play('heavy', { gain: 1, rate: 0.6 }); p.shake.v += 3; overlay('gold', 0.5);
         },
       },
       quake: {
-        fx(a) {
+        fx(a) { const w = who(a.by); if (!w) return; ring3(w.pos, 2, 0xffd890, 0x8a6a40, 0.3); later(0.3, () => ABIL.quake.slam(a)); },
+        slam(a) {
           const w = who(a.by); if (!w) return; const at = V().set(w.pos.x, w.pos.y, w.pos.z);
           for (let i = 0; i < 3; i++) later(i * 0.11, () => ring3(at, 4 + i * 4, 0xffd890, 0x8a6a40, 0.55));
           G.fx.burst(at.clone().setY(at.y + 0.2), 60, [0x6e6a64, 0x8a8478, 0x4a4640, 0xffc040], { speed: 9, size: 0.2, life: 1.2 });
@@ -487,6 +515,7 @@
         fx(a) {
           const w = who(a.by); if (!w) return;
           G.fx.burst(V().set(w.pos.x, w.pos.y + 0.8, w.pos.z), 26, [0x60e070, 0xc0ffc0, 0xffffff], { speed: 3, size: 0.1, life: 1.2, grav: -3, drag: 1 });
+          ring3(w.pos, 3.2, 0xffffff, 0x60e070, 0.7); for (let i = 0; i < 8; i++) G.fx.puff(V().set(w.pos.x + Math.cos(i) * 0.5, w.pos.y + 0.2 + i * 0.3, w.pos.z + Math.sin(i) * 0.5), { glow: true, vel: V().set(0, 2.2, 0), s0: 0.4, s1: 0.1, life: 1, c0: 0xffffff, c1: 0x60e070, a0: 1, spin: 0, delay: i * 0.05 });
           if (!mine(a)) return;
           const p = P(); const before = p.hp; p.hp = Math.min(p.maxHp, p.hp + 50); H.t.heal = 4; chargeHeal(p.hp - before + 30);
           G.audio.play('pickup', { gain: 0.9, rate: 1.2 }); G.ui.pop('+50 máu', 'heal'); overlay('green', 0.9);
@@ -510,7 +539,7 @@
         host() { for (const al of G.allies.list) if (al.alive) al.hp = BZ.ALLY.hp; },
       },
       // ---- Mưa Đạn ----
-      storm: { fx(a) { if (!mine(a)) return; H.t.storm = H.def.s1.dur; G.audio.play('streak', { gain: 0.7 }); G.audio.play('rack', { gain: 0.9 }); overlay('orange', H.def.s1.dur); } },
+      storm: { fx(a) { const w = who(a.by); if (w) { ring3(w.pos, 3, 0xffe0a0, 0xff7a30, 0.5); G.fx.burst(V().set(w.pos.x, w.pos.y + 1, w.pos.z), 20, [0xffd060, 0xff7a30, 0xffffff], { speed: 7, size: 0.08, life: 0.5, grav: 4 }); } if (!mine(a)) return; H.t.storm = H.def.s1.dur; G.audio.play('streak', { gain: 0.7 }); G.audio.play('rack', { gain: 0.9 }); overlay('orange', H.def.s1.dur); } },
       cluster: {
         aim() { return throwAim(14, 4); },
         fx(a) {
@@ -525,7 +554,7 @@
           G.audio.play('swipe', { gain: 0.7, rate: 0.9 });
         },
       },
-      drones: { fx(a) { effect('drones', a, 7, { acc: 0, side: 1 }); if (mine(a)) overlay('orange', 7); G.audio.play('rack', { gain: 0.8, rate: 0.7 }); },
+      drones: { fx(a) { const w = who(a.by); if (w) { ring3(w.pos, 4, 0xffe0a0, 0xff7a30, 0.6); for (const sd of [-1, 1]) G.fx.pop(V().set(w.pos.x + Math.cos(w.yaw) * 0.45 * sd, w.pos.y + 1.75, w.pos.z - Math.sin(w.yaw) * 0.45 * sd), 0.8, [0xff7a30, 0xffd060]); } effect('drones', a, 7, { acc: 0, side: 1 }); if (mine(a)) overlay('orange', 7); G.audio.play('rack', { gain: 0.8, rate: 0.7 }); },
         tick(e, dt) {
           const w = who(e.a.by); if (!w) return; e.acc += dt; if (e.acc < 0.09) return; e.acc = 0; e.side = -e.side;
           const sh = V().set(w.pos.x + Math.cos(w.yaw) * 0.45 * e.side, w.pos.y + 1.75, w.pos.z - Math.sin(w.yaw) * 0.45 * e.side);
@@ -539,9 +568,9 @@
       // ---- Bóng ----
       blink: {
         aim() {
-          const p = P(); const o = V().set(p.pos.x, p.pos.y + 1.0, p.pos.z); const d = V().set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
+          const p = P(); const o = V().set(p.pos.x, p.pos.y + 1.0, p.pos.z); const d = fwdOf({ yaw: p.yaw, pitch: BZ.clamp(p.pitch, -0.6, 1.2) });
           const wh = G.world.raycast(o, d, 9); let t = wh ? Math.max(0, wh.t - 0.6) : 9; const at = V();
-          for (; t > 0.5; t -= 0.4) { at.set(p.pos.x + d.x * t, p.pos.y, p.pos.z + d.z * t); if (!G.world.overlaps([at.x - 0.3, at.y + 0.05, at.z - 0.3], [at.x + 0.3, at.y + 1.7, at.z + 0.3])) return { from: r3(p.pos), to: r3(at) }; }
+          for (; t > 0.5; t -= 0.4) { at.set(p.pos.x + d.x * t, Math.max(0, p.pos.y + d.y * t), p.pos.z + d.z * t); if (!G.world.overlaps([at.x - 0.3, at.y + 0.05, at.z - 0.3], [at.x + 0.3, at.y + 1.7, at.z + 0.3])) return { from: r3(p.pos), to: r3(at) }; }
           return null;
         },
         fx(a) {
@@ -634,6 +663,7 @@
           const o = v3(a.o); const d = v3(a.d); const wh = G.world.raycast(o, d, 35); const max = wh ? wh.t : 35;
           for (let t = 0.8; t < max; t += 0.45) G.fx.puff(o.clone().addScaledVector(d, t).add(V().set(0, -0.15, 0)), { glow: true, s0: 0.35, s1: 0.06, life: 0.35 + t * 0.006, c0: 0xe8fbff, c1: 0x60c8ff, a0: 1 });
           G.fx.burst(o.clone().addScaledVector(d, max), 16, [0xdff6ff, 0x9ad8ff, 0xffffff], { speed: 4, size: 0.1, life: 0.6 });
+          G.fx.pop(o.clone().addScaledVector(d, 0.8), 0.7, [0x9ad8ff, 0xffffff]);
           G.audio.playAt('saber_hit', o, { gain: 0.8, rate: 2.2 }); G.audio.playAt('clank', o, { gain: 0.5, rate: 2 });
           if (!mine(a)) return;
           const skip = new Set(); let from = o.clone();
@@ -675,7 +705,7 @@
         } },
       // ---- Sấm ----
       orb: {
-        aim() { const w = who(me()); const f = fwdOf({ yaw: w.yaw, pitch: 0 }); return { p: r3(V().set(w.pos.x, w.pos.y + 1.2, w.pos.z).addScaledVector(f, 1)), d: r3(f) }; },
+        aim() { const w = who(me()); const f = fwdOf({ yaw: w.yaw, pitch: P().pitch }); return { p: r3(V().set(w.pos.x, w.pos.y + 1.2, w.pos.z).addScaledVector(f, 1)), d: r3(f) }; },
         fx(a) { const m = orbMesh(); m.position.copy(v3(a.p)); G.scene.add(m); const e = effect('orb', a, 4, { pos: v3(a.p), dir: v3(a.d), m }); e.light = m.userData.light; G.audio.play('saber_on', { gain: 0.6, rate: 1.8 }); },
         tick(e, dt) {
           const wh = G.world.raycast(e.pos, e.dir, 0.5); if (!wh) e.pos.addScaledVector(e.dir, 5 * dt);
@@ -698,7 +728,7 @@
           });
         },
       },
-      thunder: { fx(a) { effect('thunder', a, 6); if (mine(a)) overlay('blue', 6); G.audio.play('thunder', { gain: 0.8 }); },
+      thunder: { fx(a) { const w = who(a.by); if (w) { ring3(w.pos, 5, 0xffffff, 0x60a0ff, 0.6); for (const sd of [-1, 1]) G.fx.arc(V().set(w.pos.x + sd * 0.5, w.pos.y + 2, w.pos.z), V().set(w.pos.x + sd * 1.2, w.pos.y + 8, w.pos.z), 0xe0f0ff); } effect('thunder', a, 6); if (mine(a)) overlay('blue', 6); G.audio.play('thunder', { gain: 0.8 }); },
         tick(e, dt) {
           const w = who(e.a.by); if (!w) return; e.acc += dt; if (e.acc < 0.22) return; e.acc = 0;
           const zs = near(w.pos, 25, 8);
@@ -735,8 +765,16 @@
         } },
       // ---- Kỹ Sư ----
       turret: {
-        fx(a) { const w = who(a.by); if (w) G.fx.burst(V().set(w.pos.x, w.pos.y + 0.6, w.pos.z), 14, [0xffb020, 0xd8d8d8], { speed: 3, size: 0.08, life: 0.5 }); G.audio.play('clank', { gain: 0.8, rate: 0.8 }); },
-        host(a, by) { const w = who(a.by === me() ? me() : by); if (w) G.gear.placeTurret({ pos: w.pos.clone(), yaw: w.yaw }); },
+        // he kneels and hammers for ~1 s (CAST_ANIM.turret): a blue blueprint grows with every blow, the turret itself drops in after the last one
+        fx(a) {
+          const w = who(a.by); if (!w) return;
+          const f = fwdOf({ yaw: w.yaw, pitch: 0 }); const at = V().set(w.pos.x, w.pos.y, w.pos.z).addScaledVector(f, 2);
+          const ghost = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.25, 0.9).translate(0, 0.62, 0), new THREE.MeshBasicMaterial({ color: 0x60c8ff, wireframe: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+          ghost.position.copy(at); ghost.scale.set(1, 0.05, 1); G.scene.add(ghost);
+          [0.29, 0.48, 0.67, 0.86].forEach((t, i) => later(t, () => { ghost.scale.y = 0.3 + 0.25 * i; G.fx.burst(V().set(at.x, at.y + 0.2 + i * 0.25, at.z), 8, [0xffb020, 0xffffff, 0x60c8ff], { speed: 3.5, size: 0.07, life: 0.4, grav: 6 }); G.audio.playAt('clank', at, { gain: 0.6, rate: 0.9 + i * 0.12 }); }));
+          later(1.0, () => G.scene.remove(ghost));
+        },
+        host(a, by) { const w = who(a.by === me() ? me() : by); if (!w) return; const pos = w.pos.clone(); const yaw = w.yaw; later(1.0, () => G.gear.placeTurret({ pos, yaw })); },
       },
       repair: {
         fx(a) {
@@ -850,17 +888,17 @@
       if (H.t.heal > 0 && p.alive) { const b = p.hp; p.hp = Math.min(p.maxHp, p.hp + 7.5 * dt); chargeHeal(p.hp - b); }
       // dash: keep the burst going, cut through whatever is in the way
       if (H.t.dash > 0) {
-        const [dx, dz] = H.dashDir; p.vel.x = dx * 25; p.vel.z = dz * 25;
+        const [dx, dz, dy] = H.dashDir; p.vel.x = dx * 25; p.vel.z = dz * 25; if (dy > 0.06) p.vel.y = dy * 25;
         if (G.rng.chance(0.8)) G.fx.burst(V().set(p.pos.x, p.pos.y + 1, p.pos.z), 2, [0x9ae8ff, 0xffffff, 0x56c8ff], { speed: 0.6, size: 0.1, life: 0.35, grav: 0, drag: 2, bounce: 0 });
         for (const z of G.zombies.list) {
           if (!z.alive || H.dashHit.has(z)) continue;
           if (Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z) < 1.4 * z.T.scale && Math.abs(z.pos.y - p.pos.y) < 1.5) { H.dashHit.add(z); hit(z, 70, V().set(dx, 0, dz), { cut: 'blade', imp: 2 }); G.audio.playAt('chop', z.pos, { gain: 0.8 }); G.hitStop = Math.max(G.hitStop || 0, 0.035); }
         }
-        if (H.t.dash <= 0) { p.vel.x *= 0.3; p.vel.z *= 0.3; }
+        if (H.t.dash <= 0) { p.vel.x *= 0.3; p.vel.z *= 0.3; if (p.vel.y > 0) p.vel.y *= 0.35; }
       }
       // charge: a straight rush that knocks zombies aside, stops at a wall
       if (H.t.charge > 0) {
-        const [dx, dz] = H.chargeDir; p.vel.x = dx * 18; p.vel.z = dz * 18;
+        const [dx, dz, dy] = H.chargeDir; p.vel.x = dx * 18; p.vel.z = dz * 18; if (dy > 0.1 && H.t.charge > 0.35) p.vel.y = dy * 16;
         if (G.rng.chance(0.7)) G.fx.burst(V().set(p.pos.x, p.pos.y + 0.2, p.pos.z), 3, [0x8a8478, 0x6e6a64, 0xffc040], { speed: 1.5, size: 0.12, life: 0.5 });
         for (const z of G.zombies.list) {
           if (!z.alive || H.chargeHit.has(z)) continue;

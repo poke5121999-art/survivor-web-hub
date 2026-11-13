@@ -1,13 +1,13 @@
 // Over-the-shoulder third-person view: the camera sits behind and right of the hero's head, pulls in when a wall is
 // in the way, and the hero's own body runs, jumps, aims, recoils, swings and casts on screen. The crosshair still
 // aims along the camera ray; aim rays start level with the hero so nothing between the camera and the hero is hit.
-// V switches back to first person (the blocky viewmodel); ?fp=1 starts in first person.
+// First person (the blocky viewmodel) is the default; V or the on-screen button switches, ?tp=1 starts in third person.
 (() => {
   const BZ = window.BZ;
   const THREE = window.THREE;
 
   BZ.makeTps = (G) => {
-    const T = { on: BZ.params.fp !== '1', dist: 3.6, model: null, hero: null, gun: null };
+    const T = { on: BZ.params.tp === '1', dist: 3.6, model: null, hero: null, gun: null };
     const V = () => new THREE.Vector3();
     const pivot = V(); const fwd = V(); const right = V(); const up = V(); const want = V(); const tmp = V();
     const sp = { kick: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 };
@@ -93,6 +93,7 @@
       st.speed = hs; st.back = back; st.air = sp.air; st.sprint = P.sprinting; st.pitch = P.pitch; st.mode = W.melee ? 'melee' : 'gun';
       st.swing = sp.swing > 0 ? 1 - sp.swing / (W.swing || 0.5) : -1; st.kick = sp.kick.step(dt);
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
+      const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
       BZ.animHero(M, st, dt);
       M.root.updateMatrixWorld(true);
     }

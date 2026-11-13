@@ -934,7 +934,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/blockade-z.png",
     // three.js r160, không asset: xem games/blockade-z/README.md. Kiem: node games/blockade-z/tools/smoke.js
     path: "games/blockade-z/index.html",
-    rev: "20261113r",
+    rev: "20261113s",
     status: "available",
     tags: ["Bắn súng", "Zombie", "Góc nhìn thứ nhất"]
   }

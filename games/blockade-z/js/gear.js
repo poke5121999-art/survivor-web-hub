@@ -10,6 +10,7 @@
   BZ.makeGear = (G) => {
     const scene = G.scene; const out = {}; const state = { rocks: 0 };
     function explode(pos, R = BLAST, DMG = 220) {
+      if (G.destruct) G.destruct.blast(pos, R, DMG);
       for (const z of G.zombies.list) {
         if (!z.alive) continue;
         const d = Math.hypot(z.pos.x - pos.x, z.pos.y + 0.9 - pos.y, z.pos.z - pos.z);
@@ -103,8 +104,12 @@
       if (!pos) pos = new THREE.Vector3(P.pos.x, 0, P.pos.z);
       const t = turretParts();
       t.root.position.copy(pos); scene.add(t.root);
+      // drops in from a squash: stretches up with a spark ring, then settles (update() runs the scale)
+      t.root.scale.set(1.3, 0.05, 1.3);
+      G.fx.burst(pos.clone().setY(0.3), 22, [0xffb020, 0xffffff, 0x8d97a3], { speed: 5, size: 0.09, life: 0.6, grav: 6 });
+      G.fx.puff(pos.clone().setY(0.5), { glow: true, s0: 0.8, s1: 3.2, life: 0.35, c0: 0xffffff, c1: 0x60c8ff, a0: 1, spin: 0 });
       const bar = new THREE.Mesh(BAR, new THREE.MeshBasicMaterial({ color: 0x3a9ad8, depthWrite: false, transparent: true, opacity: 0.8 })); scene.add(bar);
-      turrets.push({ ...t, pos, ammo: TURRET.ammo, cool: 0, seekT: 0, target: null, yaw: P.yaw, flashT: 0, bar });
+      turrets.push({ ...t, born: 0, pos, ammo: TURRET.ammo, cool: 0, seekT: 0, target: null, yaw: P.yaw, flashT: 0, bar });
       G.audio.play('buy', { gain: 0.6 });
       return true;
     }
@@ -120,6 +125,7 @@
       updateShots(dt);
       for (let i = turrets.length - 1; i >= 0; i--) {
         const t = turrets[i];
+        if (t.born < 0.45) { t.born += dt; const k = Math.min(1, t.born / 0.4); const e = k < 1 ? 1 - Math.pow(1 - k, 3) * Math.cos(k * 9) : 1; t.root.scale.set(1 + (1 - e) * 0.3, Math.max(0.05, e), 1 + (1 - e) * 0.3); if (t.born < dt * 3 + 0.2 && G.rng.chance(0.5)) G.fx.burst(t.pos.clone().setY(0.4 + k), 3, [0xffb020, 0xffffff], { speed: 2.5, size: 0.06, life: 0.3, grav: 6 }); if (k >= 1) t.root.scale.set(1, 1, 1); }
         t.seekT -= dt;
         eye.set(t.pos.x, 1.05, t.pos.z);
         if (t.seekT <= 0 || (t.target && !t.target.alive)) {

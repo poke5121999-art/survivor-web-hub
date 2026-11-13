@@ -131,6 +131,8 @@ BZ.makeCoop = (G) => {
       BZ.animHero(m, st, dt);
     }
   }
+  // another player cast a skill: their body plays its cast animation here
+  C.castAnim = (pid, key) => { const a = avatars.get(pid); if (a) (a.st || (a.st = {})).act = { key, t: 0 }; };
   function dropAvatar(pid) { const a = avatars.get(pid); if (a) { G.scene.remove(a.root); avatars.delete(pid); } }
 
   // ---------- sending ----------
@@ -162,6 +164,7 @@ BZ.makeCoop = (G) => {
     E.on('ann', (a) => { if (C.host) C.events.push({ k: 'ann', ...a }); });
     E.on('react', ({ z, kind, combo }) => { if (C.host) C.events.push({ k: 'react', i: G.zombies.list.indexOf(z), kind, combo }); });
     E.on('zk', (z) => { if (C.host) C.events.push({ k: 'zk', z }); });
+    E.on('tbrk', (e) => { if (C.host) C.events.push({ k: 'tb', e }); });
     E.on('hx', ({ s, a }) => { if (C.host) C.events.push({ k: 'hx', s, a }); });
   }
   let pidN = 0;
@@ -262,6 +265,7 @@ BZ.makeCoop = (G) => {
     else if (e.k === 'bolt') G.sky.strike(V(e.p), true);
     else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? 'PHỐI HỢP · ' : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
     else if (e.k === 'zk') G.zombies.kinds.remote(e.z);
+    else if (e.k === 'tb') G.destruct.remote(e.e);
     else if (e.k === 'hx') G.hero.remote(e.s, e.a, e.a.by);
     else if (e.k === 'ann') { if (e.banner) G.ui.banner(e.title, e.sub, e.secs || 2.2); else G.ui.announce(e.title, e.sub, e.cls); if (e.snd) G.audio.play(e.snd, { gain: 0.8 }); }
   }

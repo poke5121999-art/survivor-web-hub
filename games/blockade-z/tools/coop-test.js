@@ -79,9 +79,15 @@ const BASE = process.env.BZ_BASE;
   await A.evaluate(`(() => { const G = __G; const z = G.zombies.list[${bi}]; G.zombies.damage(z, z.hp + 10, 'body', new G.THREE.Vector3(0, 0, -1), 1, {}); })()`);
   await A.waitForTimeout(1200);
   check(await B.evaluate(`!__G.zombies.list[${bi}].alive`), 'the boss dies on the guest screen too');
+  // the host blows a hole in the guard post: the guest's town breaks the same way and loses the same solids
+  const tbh = await A.evaluate(`(() => { const G = __G; G.gear.explode(new G.THREE.Vector3(18.6, 1.4, -21.6), 6.5, 480); __sim(0.2); return G.destruct.pieces.filter((p) => p.broken).map((p) => p.id).sort((a, b) => a - b); })()`);
+  await A.waitForTimeout(1500);
+  const gbk = await B.evaluate(`(() => { const G = __G; const ids = G.destruct.pieces.filter((p) => p.broken).map((p) => p.id).sort((a, b) => a - b); return { ids, solid: ids.some((i) => G.world.solids.includes(G.destruct.pieces[i].solid)) }; })()`);
+  console.log("terrain", JSON.stringify({ host: tbh, guest: gbk.ids }));
+  check(tbh.length > 0 && tbh.every((i) => gbk.ids.includes(i)) && !gbk.solid, `the guest sees the same wall pieces break (${tbh.length} on the host, ${gbk.ids.length} on the guest)`);
   // the wave ends: both get three upgrade cards; the next wave waits until both have picked
   await A.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; })()`);
-  await A.waitForTimeout(1200);
+  await A.waitForTimeout(1200); for (let i = 0; i < 16 && (await B.evaluate('__G.state')) !== 'pick'; i++) await A.waitForTimeout(250);
   const p0 = { A: await A.evaluate('({ s: __G.state, n: __G.wave.n, cards: document.querySelectorAll("#pick-list [data-pick]").length })'), B: await B.evaluate('({ s: __G.state, n: __G.wave.n, cards: document.querySelectorAll("#pick-list [data-pick]").length })') };
   await A.evaluate('__G.pickChoose(__G.pickOpts[0])'); await A.waitForTimeout(1200);
   const p1 = { A: await A.evaluate('({ s: __G.state, n: __G.wave.n, ph: __G.wave.phase, wait: __G.wave.waiting() })'), Bwait: await B.evaluate('__G.wave.waiting()') };

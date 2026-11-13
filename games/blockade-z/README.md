@@ -39,9 +39,32 @@ Mỗi kỹ năng chạy trên máy người dùng nó: hình, tác động lên 
 
 Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng trường. `?select=1` mở thẳng màn này, còn `?hero=<id>` chọn sẵn nhân vật khi đi kèm `?autostart=1`.
 
+## Anim kỹ năng
+
+`js/castanim.js` cho cả 33 kỹ năng một động tác riêng trên thân nhân vật, diễn ở góc nhìn thứ ba và trên người chơi khác trong co-op. Mỗi động tác khai báo:
+- thời lượng: kỹ năng thường 0,4–0,9 giây, chiêu tối thượng 1,1–1,5 giây;
+- dáng từng khớp, được trộn mượt từ dáng đang chạy vào rồi trả ra;
+- đồ cầm tay: búa, cờ lê, ống tiêm, lọ, lựu đạn, chai, mìn, bộ đàm, phi tiêu, bình;
+- các nhịp bắn tia lửa, vòng sáng hoặc tia điện ở tay.
+
+Ví dụ:
+- Kỹ Sư quỳ gõ búa bốn nhát, mỗi nhát toé lửa và kêu keng. Bản thiết kế xanh của turret lớn dần theo từng nhát, rồi turret rơi xuống, nảy và co giãn.
+- Thép húc vai, giơ hai tay đập đất cho Động Đất. Cú đập trúng đất trễ 0,3 giây cho khớp với động tác.
+- Pháo Thủ gọi bộ đàm khi gọi pháo.
+
+Các hiệu ứng lướt, lưỡi xoay, bất tử, hồi máu, bão, drone, thương băng và gọi sét đều được làm rõ hơn. `tools/castanim.js` chụp mỗi nhân vật 3 kỹ năng × 3 thời điểm.
+
+Kỹ năng có hướng đi theo hướng ngắm, kể cả góc ngửa:
+- Ngửa nhìn lên rồi lướt thì bay lên khoảng 8 m.
+- Dịch chuyển lên được mái nhà.
+- Húc vai lúc ngửa thành cú húc bật lên.
+- Quả cầu sét bay theo góc ngắm.
+
+`kits.js` kiểm cả ba việc lướt, dịch chuyển và quả cầu khi ngửa nhìn lên.
+
 ## Góc nhìn thứ ba và thân nhân vật
 
-Mặc định chơi ở góc nhìn thứ ba qua vai phải, kiểu game bắn súng anh hùng. Phím `V`, hoặc nút `V · NGÔI 3` ở góc phải trên, đổi qua lại với góc nhìn thứ nhất (súng cầm tay cũ). `?fp=1` vào thẳng góc nhìn thứ nhất; `smoke.js` và `kits.js` chạy ở chế độ này.
+Mặc định chơi ở góc nhìn thứ nhất. Phím `V`, hoặc nút `V · NGÔI 1` ở góc phải trên, đổi sang góc nhìn thứ ba qua vai phải, kiểu game bắn súng anh hùng. `?tp=1` vào thẳng góc nhìn thứ ba.
 
 `js/tps.js` lo phần góc nhìn thứ ba:
 
@@ -124,7 +147,7 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - Nguyên tố là hiệu ứng gắn lên zombie khi bắn trúng: lửa cháy theo thời gian, băng chồng 4 lớp thì đóng băng, điện nhảy sang con bên cạnh, độc rỉ máu. Hai nguyên tố gặp nhau thì phản ứng: nổ hơi, vỡ vụn, nổ khí độc, lan độc. Trong co-op, phản ứng do hai người khác nhau gây ra là **phối hợp** và mạnh gấp rưỡi.
 - Hai nhánh đủ cấp thì mở cộng hưởng (`RES`). Màn chọn ghi rõ nâng cấp nào sẽ mở cộng hưởng nào.
 - Mỗi nhân vật cầm đúng một vũ khí suốt trận (`weapon` trong `js/heroes.js`), đạn dự trữ vô hạn. Không đổi, không nhặt, không bỏ vũ khí, không có bom ném, zombie không rơi đồ. Đầu mỗi đợt hồi 35% máu.
-- Quái mạnh dần theo đợt (`BZ.WAVE.hpMul`, `dmgMul`, `speedMul`). Trong co-op, mỗi người thêm làm đợt đông hơn 60%, zombie trâu hơn 35%, và số zombie trên sân cùng lúc tăng 40%.
+- Quái mạnh dần theo đợt (`BZ.WAVE.hpMul`, `dmgMul`, `speedMul`). Sát thương bắt đầu ở 0,8 lần, mỗi đợt tăng 5%, tối đa 1,7 lần. Đòn của boss lớn bị giảm còn 65% con số ghi trong từng file boss. Trong co-op, mỗi người thêm làm đợt đông hơn 60%, zombie trâu hơn 35%, và số zombie trên sân cùng lúc tăng 40%.
 
 ## Ngày đêm, thời tiết, vụ nổ
 
@@ -139,6 +162,26 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - `js/coop.js`: chủ phòng giữ zombie, đợt, thời tiết và lính thuê, gửi ảnh chụp trạng thái 15 lần mỗi giây kèm sự kiện (zombie chết với kiểu gore đã chọn, đứt chi, vụ nổ, sét, kỹ năng, thông báo đợt). Người vào sau tự đi và tự bắn trên máy mình, tự thử trúng zombie mình thấy, rồi gửi phát trúng lên chủ phòng. Điểm thuộc về người ra đòn kết liễu. Zombie đuổi người sống gần nhất. Gục thì chờ hồi sinh ở đợt sau; cả phòng gục thì hết trận.
 - `?fakenet=1` thay Relay bằng `BroadcastChannel` để hai tab cùng trình duyệt chơi với nhau khi không có mạng (dùng cho test).
 - Còn hở: bóng mồi của nhân vật Bóng chỉ nhử được zombie khi chủ phòng là Bóng; tên lửa đang bay của người khác không hiện, chỉ thấy vụ nổ; chủ phòng rời thì phòng đóng (chưa chuyển chủ).
+
+## Phố phá được: nứt, gãy, sập
+
+`js/destruct.js` cho mọi tường, sàn, mái và đồ vật bên trong tường rào bị phá. Chỉ tường rào vòng ngoài không phá được. Có 695 mảng; tường dài được chia thành từng cột khoảng 2 m, để một vụ nổ chỉ khoét một đoạn chứ không xoá cả mặt nhà.
+
+- **Nguồn sát thương:** vụ nổ (rocket, bom chùm, nổ xác), đòn đập và đạn nổ của boss, và đạn súng. Đạn súng chỉ làm mẻ, chủ yếu phá được đồ gỗ.
+- **Nứt:** mảng mất 30% độ bền thì hiện vết nứt; mất 65% thì nứt dày thêm và bắn vụn.
+- **Vỡ:** mảng vỡ thành khối văng ra, bụi cuộn lên, dưới chân để lại gạch vụn. Đường bắn, đường đi của zombie và chỗ đứng đều mở ra qua lỗ thủng.
+- **Sập:** mảng mất hơn hai phần ba chỗ tựa (tường dưới sàn, cột dưới mái) thì rơi xuống cả khối. Nó đè người và zombie bên dưới, và có thể kéo sập luôn tầng trên.
+- **Đồ gắn theo:** bảng hiệu, song cửa và kính đi theo mảng tường gần nhất, nên không còn lơ lửng sau khi tường đổ.
+- **Không làm game chậm:** mảng vỡ vẫn nằm trong lưới gộp của cả bản đồ, nên không thêm lượt vẽ nào. Lúc vỡ, các đỉnh của nó được thu về một điểm.
+- **Mỗi ván mới:** phố được dựng lại nguyên vẹn.
+- **Co-op:** chủ phòng quyết định mảng nào vỡ hay đổ, khách diễn lại y như vậy. Cứ 3 giây chủ phòng gửi lại danh sách mảng đã vỡ cho người vào sau. Chỉ đạn và vụ nổ phía chủ phòng làm hỏng địa hình.
+
+`tools/destruct.js` kiểm các việc sau và chụp ảnh từng bước:
+- rocket khoét thủng tường bốt gác, đạn bay xuyên qua lỗ, mảng xung quanh nứt;
+- phá tầng trệt nhà phố thì sàn trên rơi đè chết zombie;
+- boss đập đất phá tường nhà thờ;
+- súng lục bắn vỡ đồ gỗ;
+- ván mới dựng lại phố.
 
 ## Đường đi của zombie
 
@@ -158,6 +201,8 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/stuck.j
 PLAYWRIGHT_PATH=<thư mục playwright-core> [BOSSES=dragon,ufo] node games/blockade-z/tools/bosses.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/projshots.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/tps.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/destruct.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/castanim.js <thư mục ảnh> [gio,ky]
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

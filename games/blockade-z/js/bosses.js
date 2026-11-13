@@ -73,6 +73,7 @@
       const g = V().set(at.x, Math.max(0.02, at.y - (opt.air ? 0 : 1.2)), at.z); if (at.y < 2.5) shock(g, r * 1.15, 0.45, cols[0], 0);
       if (opt.smoke !== false) for (let i = 0; i < 4; i++) G.fx.puff(at.clone().add(V().set(G.rng.range(-1, 1), 0.3, G.rng.range(-1, 1)).multiplyScalar(r * 0.4)), { delay: 0.08, vel: V().set(0, 1.2, 0), drag: 1, s0: r * 0.5, s1: r * 1.3, life: 1.6, c0: opt.smokeCol || 0x2a2030, c1: 0x4a4650, a0: 0.6 });
       shakeAt(at, 3 + r * 1.6);
+      if (G.destruct && opt.terrain !== false) G.destruct.blast(at, r * 1.1, 70 + r * 50);
       if (opt.sound !== false) G.audio.playAt(opt.sound || 'boom', at, { gain: Math.min(1.2, 0.5 + r * 0.12), rate: opt.rate || 0.9 });
     }
 

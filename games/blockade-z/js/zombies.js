@@ -21,7 +21,7 @@
     runnerShare: (n) => (n < 2 ? 0 : Math.min(0.4, 0.08 * (n - 1))),
     bruteShare: (n) => (n < 4 ? 0 : Math.min(0.15, 0.04 * (n - 3))),
     hpMul: (n) => Math.min(4.5, 1.25 + 0.13 * (n - 1)),
-    dmgMul: (n) => Math.min(2.6, 1.2 + 0.08 * (n - 1)),
+    dmgMul: (n) => Math.min(1.7, 0.8 + 0.05 * (n - 1)),
     speedMul: (n) => Math.min(1.45, 1.15 + 0.02 * (n - 1)),
     maxAlive: (n) => Math.min(22 + 3 * n, 44),
     flyerShare: (n) => Math.min(0.3, 0.12 + 0.03 * n),

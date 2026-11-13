@@ -586,6 +586,7 @@
           b.c.push(tint[0] * light, tint[1] * light, tint[2] * light);
         }
         b.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+        if (this.tagId != null) { const r = this.ranges || (this.ranges = new Map()); if (!r.has(this.tagId)) r.set(this.tagId, []); r.get(this.tagId).push([key, base]); }
       }
       return this;
     }

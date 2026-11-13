@@ -573,7 +573,7 @@
     // the big bosses (js/bosses.js) share this file's players, hazards and summons; made on first use
     let Bz = null; const mv = {};
     const hurt = (p, dmg, from, fx, push) => {
-      api.hurtP(p, dmg, from, fx);
+      api.hurtP(p, Math.max(1, Math.round(dmg * 0.65)), from, fx);
       if (push && p === G.player && from) { const d = V().set(p.pos.x - from.x, 0, p.pos.z - from.z); if (d.lengthSq() < 1e-4) d.set(1, 0, 0); p.vel.addScaledVector(d.normalize(), push); p.vel.y = Math.max(p.vel.y, push * 0.45); }
     };
     const B = () => Bz || (Bz = BZ.makeBosses(G, api, { players, hurt, hazard, summon, out: mv }));

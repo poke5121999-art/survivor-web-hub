@@ -465,6 +465,7 @@
           const n = new THREE.Vector3(...wh.normal);
           const dust = { grass: [0x5fae3c, 0x8a5a35], wood: [0xc8954f, 0x8f6232], metal: [0xd0d4d8, 0xffd080], leaves: [0x3d8a2c, 0x4ea03a] }[wh.tag] || [0x9a9c9e, 0x6e6e70];
           G.fx.burst(end, 3, dust, { dir: n, push: 2, size: 0.07, life: 0.6 }); G.fx.impact(end, wh.normal, wh.tag);
+          if (G.destruct) G.destruct.hit(wh.s, end, w.dmg || 20);
           if (i === 0) G.audio.playAt('impact', end, { gain: 0.5 });
         }
         if ((w.tracer && S.shots % w.tracer === 0 && i === 0) || (storm && i >= w.pellets)) G.fx.tracer(muzzleW, end);

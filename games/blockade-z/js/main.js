@@ -50,6 +50,7 @@
     G.allies = BZ.makeAllies(G);
     G.hero = BZ.makeHeroes(G);
     G.tps = BZ.makeTps(G);
+    G.destruct = BZ.makeDestruct(G);
     G.sky = BZ.makeSky(G);
     G.coop = BZ.makeCoop(G);
     G.polish = BZ.makePolish(G);
@@ -379,6 +380,7 @@
       safe('ui', () => G.ui.update(dt));
       G.world.clouds.position.x = (performance.now() / 1000) * 0.6 % 60;
       G.world.update(dt);
+      safe('destruct', () => G.destruct.update(gdt));
       safe('sky', () => G.sky.update(gdt, G.state === 'playing'));
       safe('coop', () => G.coop.update(dt));
     }

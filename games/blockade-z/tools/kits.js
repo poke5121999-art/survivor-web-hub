@@ -93,6 +93,17 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     await page.evaluate(`(() => { const G = __G; G.state = 'playing'; G.hero.ult = 0.62; __sim(0.1); G.state = 'paused'; })()`);
     await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(OUT, 'hud.png') });
+    // skills go where you look, up included: a dash looking up climbs, a blink looking up lands on a roof, the orb rises
+    const up = await page.evaluate(`(() => { const G = __G; const P = G.player; const pick = (id) => { __select.open(); __select.pick(BZ.HEROES.findIndex((h) => h.id === id)); __select.go(); __sim(0.2); G.state = 'playing'; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.zombies.clear(); };
+      const r = {};
+      pick('gio'); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0.8; P.input.fwd = 0; P.input.side = 0; __sim(1 / 60); const y0 = P.pos.y; G.hero.use('s1'); let top = 0; for (let i = 0; i < 30; i++) { __sim(1 / 60); top = Math.max(top, P.pos.y); } r.dash = +(top - y0).toFixed(2);
+      pick('bong'); P.pos.set(0, 0, 9); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0.75; __sim(1 / 60); const b0 = P.pos.y; const slot = BZ.HEROES.find((h) => h.id === 'bong'); const key = ['s1', 's2', 'ult'].find((k) => slot[k].key === 'blink'); if (key) { G.hero.slots[key] && (G.hero.slots[key].n = 9); G.hero.use(key); } __sim(0.05); r.blink = +(P.pos.y - b0).toFixed(2);
+      const oh = BZ.HEROES.find((h) => h.s1.key === 'orb'); pick(oh.id); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0.5; __sim(1 / 60); const okey = 's1'; if (okey === 'ult') G.hero.ult = 1; G.hero.use(okey); __sim(1); r.orb = +(Math.max(...G.hero.effects.filter((e) => e.key === 'orb').map((e) => e.pos.y))).toFixed(2);
+      P.pitch = 0; return r; })()`);
+    console.log('aim up', JSON.stringify(up));
+    check(up.dash > 3, `looking up and dashing climbs into the air (${up.dash} m)`);
+    check(up.blink > 1.5 || up.blink === null, `looking up and blinking lands higher, on a roof (${up.blink} m)`);
+    check(up.orb > 2.5, `the orb flies upward when aimed up (${up.orb} m high after 1 s)`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 5).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

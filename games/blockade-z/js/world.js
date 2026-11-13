@@ -21,14 +21,28 @@
     const glows = [];   // sprite [x, y, z, scale]
 
     const solid = (min, max, tag = 'stone') => { solids.push({ min, max, tag }); };
-    const box = (min, max, mats, opt) => B.box(min, max, mats, opt);
-    const block = (min, max, mats, tag = 'stone', opt) => { box(min, max, mats, opt); solid(min, max, tag); };
+    // Breakable pieces: while `brk` is on (the buildings and props inside the wall), every solid block becomes a piece
+    // that can crack, break and fall. Its faces stay in the merged world mesh (no extra draw calls); breaking one
+    // collapses its vertices. Boxes without a solid (signs, bars, glass) ride along with the piece they touch.
+    const pieces = []; const decor = []; let brk = false; let tagN = 0;
+    const box = (min, max, mats, opt) => {
+      if (!brk) return B.box(min, max, mats, opt);
+      B.tagId = ++tagN; B.box(min, max, mats, opt); B.tagId = null;
+      decor.push({ t: tagN, min, max, mats, opt, m: B.m.clone(), own: null });
+      return B;
+    };
+    const block = (min, max, mats, tag = 'stone', opt) => {
+      box(min, max, mats, opt); solid(min, max, tag);
+      if (brk) { const d = decor[decor.length - 1]; const p = { id: pieces.length, min, max, tag, boxes: [d], solid: solids[solids.length - 1] }; d.own = p; p.solid.piece = p; pieces.push(p); }
+    };
 
     // Wall along `axis` ('x' or 'z') from a0 to a1, thickness t starting at c, base y0, height h.
     // openings: [[s0, s1, y0, y1]] in wall coordinates. ruin(s0, s1) returns how much to bite off the top.
     function wall(axis, a0, a1, c, t, y0, h, mat, openings = [], o = {}) {
       const put = (s0, s1, h0, h1) => {
         if (s1 - s0 < 0.01 || h1 - h0 < 0.01) return;
+        // breakable walls come in columns about 2 m wide, so a blast takes out a section, not the whole side
+        if (brk && s1 - s0 > 2.6) { const n = Math.ceil((s1 - s0) / 2); for (let i = 0; i < n; i++) put(s0 + (s1 - s0) * i / n, s0 + (s1 - s0) * (i + 1) / n, h0, h1); return; }
         const min = axis === 'x' ? [s0, y0 + h0, c] : [c, y0 + h0, s0];
         const max = axis === 'x' ? [s1, y0 + h1, c + t] : [c + t, y0 + h1, s1];
         block(min, max, mat, o.tag || 'stone', o.opt);
@@ -129,6 +143,7 @@
       box([cx - ax, WALL_H, cz - az], [cx + ax, WALL_H + 0.6, cz + az], 'hazard', { vary: 0 });
     }
 
+    brk = true;
     // ---------- 1. Apartment block: brick, two floors, inner stair, balcony, collapsed north-east corner ----------
     {
       const x0 = -30; const z0 = -32; const x1 = -16; const z1 = -20; const H1 = 3.2; const TH = 0.2;
@@ -349,6 +364,27 @@
     group.name = 'world';
     scene.add(group);
 
+    brk = false;
+    // decor rides with the piece it touches; a piece rests on whatever piece or fixed solid its bottom sits on
+    for (const d of decor) {
+      if (d.own) continue; const c = [(d.min[0] + d.max[0]) / 2, (d.min[1] + d.max[1]) / 2, (d.min[2] + d.max[2]) / 2]; let best = null; let bv = 1e9;
+      // the piece it sits in or nearest to (a window pane inside an opening, a sign on a lintel), up to 0.6 m away
+      for (const p of pieces) { const g = Math.hypot(Math.max(p.min[0] - c[0], 0, c[0] - p.max[0]), Math.max(p.min[1] - c[1], 0, c[1] - p.max[1]), Math.max(p.min[2] - c[2], 0, c[2] - p.max[2]));
+        if (g > 1.0) continue; const v = g * 100 + (p.max[0] - p.min[0]) * (p.max[1] - p.min[1]) * (p.max[2] - p.min[2]); if (v < bv) { bv = v; best = p; } }
+      if (best) { d.own = best; best.boxes.push(d); }
+    }
+    const xzOver = (a, b) => Math.min(a.max[0], b.max[0]) - Math.max(a.min[0], b.min[0]) > 0.04 && Math.min(a.max[2], b.max[2]) - Math.max(a.min[2], b.min[2]) > 0.04;
+    for (const p of pieces) {
+      p.sup = []; p.dep = []; p.fixed = p.min[1] < 0.05;
+      if (p.fixed) continue;
+      for (const s of solids) { if (s === p.solid || Math.abs(s.max[1] - p.min[1]) > 0.08 || !xzOver(s, p)) continue; if (s.piece) p.sup.push(s.piece); else p.fixed = true; }
+      p.sup0 = p.sup.length;
+    }
+    // lintels over windows and doors hang between the columns beside them
+    const touch = (a, b) => { const ov = (k) => Math.min(a.max[k], b.max[k]) - Math.max(a.min[k], b.min[k]); return ov(1) > 0.1 && ((ov(0) > -0.06 && ov(0) < 0.06 && ov(2) > 0.04) || (ov(2) > -0.06 && ov(2) < 0.06 && ov(0) > 0.04)); };
+    for (const p of pieces) if (!p.fixed && !p.sup.length) { for (const q of pieces) if (q !== p && touch(p, q)) p.sup.push(q); p.sup0 = p.sup.length; }
+    for (const p of pieces) for (const q of p.sup) q.dep.push(p);
+    for (const p of pieces) { p.faces = []; for (const d of p.boxes) for (const [key, base] of (B.ranges && B.ranges.get(d.t)) || []) p.faces.push([group.getObjectByName(key), base]); }
     // ---------- distant ruined skyline (fog-free silhouettes, a few still burning) ----------
     const SK = new BZ.Builder('skyline'); const sk = BZ.rng('skyline');
     for (let i = 0; i < 40; i++) {
@@ -426,8 +462,8 @@
     const idx = (cx, cz) => cz * N + cx;
     const toCell = (v) => Math.floor(v + GRID_HALF);
     const SIZES = [0.36, 0.52, 0.86];
-    const grids = SIZES.map((rz) => {
-      const blocked = new Uint8Array(N * N);
+    function markGrid(g) {
+      const { rz, blocked } = g; blocked.fill(0);
       for (let cz = 0; cz < N; cz++) for (let cx = 0; cx < N; cx++) {
         const x = cx - GRID_HALF + 0.5; const z = cz - GRID_HALF + 0.5;
         const inside = Math.abs(x) < HALF && Math.abs(z) < HALF;
@@ -442,8 +478,15 @@
           if (x > s.min[0] - rz && x < s.max[0] + rz && z > s.min[2] - rz && z < s.max[2] + rz) blocked[idx(cx, cz)] = 1;
         }
       }
-      return { rz, blocked, dist: new Float32Array(N * N) };
-    });
+    }
+    const grids = SIZES.map((rz) => { const g = { rz, blocked: new Uint8Array(N * N), dist: new Float32Array(N * N) }; markGrid(g); return g; });
+    const rebuildGrids = () => grids.forEach(markGrid);
+    // a broken piece leaves the collision world: out of the solid list and the spatial hash
+    function addSolid(s) { if (solids.includes(s)) return; solids.push(s); cellsOf(s.min, s.max, (k) => { if (!hash.has(k)) hash.set(k, []); hash.get(k).push(s); }); }
+    function removeSolid(s) {
+      const i = solids.indexOf(s); if (i < 0) return; solids.splice(i, 1);
+      cellsOf(s.min, s.max, (k) => { const l = hash.get(k); if (l) { const j = l.indexOf(s); if (j >= 0) l.splice(j, 1); } });
+    }
     const queue = new Int32Array(N * N * 2);
     const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
     function fill({ blocked, dist }, px, pz) {
@@ -555,7 +598,7 @@
           for (const s of list) {
             if (s.mark === stamp) continue; s.mark = stamp;
             const h = rayBox(o, d, s, best ? best.t : maxT);
-            if (h && (!best || h.t < best.t)) best = { t: h.t, normal: h.n, tag: s.tag };
+            if (h && (!best || h.t < best.t)) best = { t: h.t, normal: h.n, tag: s.tag, s };
           }
         }
       }
@@ -599,7 +642,7 @@
       // by day the far skyline sits in the smog: let fog take it so it reads as distant haze, not black towers
       skyline.traverse((m) => { if (!m.isMesh) return; const f = k < 0.5; if (m.material.fog !== f) { m.material.fog = f; m.material.needsUpdate = true; } m.material.color.setHex(f ? 0xb8c2d0 : 0x9098a8); });
     }
-    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, spawns, HALF, group, sky, clouds, setNight, cloudMat,
+    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, pieces, removeSolid, addSolid, rebuildGrids, spawns, HALF, group, sky, clouds, setNight, cloudMat,
       isBlocked: (x, z) => { const cx = toCell(x); const cz = toCell(z); return cx < 0 || cz < 0 || cx >= N || cz >= N || !!blocked[idx(cx, cz)]; } };
   };
 })();
