@@ -235,6 +235,20 @@ const BOT = `(() => {
     check(env.blood.hp === 1.3 && env.blood.coin === 2, 'blood moon makes zombies tougher and doubles coins');
     check(env.meteor, 'a meteor comes down and explodes');
 
+    // soldiers: twist the chest toward a target, change magazines, cheer at the end of a wave
+    const sold = await page.evaluate(`(() => { const G = __G; const r = {}; G.allies.clear(); G.zombies.clear(); G.god = true;
+      const P = G.player; P.pos.set(0, 0, 10); P.yaw = 0; G.coins = 9999; G.wave.phase = 'break'; G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; __sim(1.5);
+      const a = G.allies.list.find((q) => q.alive);
+      const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(a.pos.x + 8, 0, a.pos.z + 1); z.speed = 0; z.hp = z.maxHp = 99999;
+      let reload = false; for (let i = 0; i < 700; i++) { __sim(1 / 30); if (a.cReload > 0) reload = true; }
+      r.aim = +a.aimK.toFixed(2); r.twist = +a.twist.toFixed(2); r.reload = reload; r.chest = +a.body.chest.rotation.y.toFixed(2); r.face = +Math.abs(BZ.wrapAngle(a.yaw + a.twist - Math.atan2(z.pos.x - a.pos.x, z.pos.z - a.pos.z))).toFixed(2);
+      G.zombies.clear(); G.events.emit('wave:end', 1); __sim(0.4); r.cheer = a.cheer > 0 && a.body.armR.rotation.x < -2;
+      G.god = false; return r; })()`);
+    console.log('soldier', JSON.stringify(sold));
+    check(sold.aim > 0.8 && sold.face < 0.3, `a soldier raises the gun and turns to face a zombie off to the side (aim ${sold.aim}, off by ${sold.face} rad)`);
+    check(sold.reload, 'a soldier changes magazines after a burst');
+    check(sold.cheer, 'soldiers cheer when the wave ends');
+
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));
     const errs = await page.evaluate('window.__errors');

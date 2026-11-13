@@ -95,6 +95,7 @@
     }
     function endWave() {
       wave.phase = 'break'; wave.breakT = 20;
+      G.events.emit('wave:end', wave.n);
       const bonus = 200 * wave.n; G.score += bonus; G.coins += 50 + 10 * wave.n;
       G.ui.banner('HẾT ĐỢT ' + wave.n, `+${bonus} điểm · bấm B mở cửa hàng`, 3);
       G.audio.play('wave_clear'); G.audio.setMusic({ music_drone: 0.5, music_perc: 0.12 });
