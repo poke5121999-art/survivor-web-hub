@@ -165,8 +165,15 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #marker.pulse { animation: markhit .12s ease-out; } @keyframes markhit { from { scale: 1.45; } to { scale: 1; } }
 #marker.kill::before, #marker.kill::after { background: #ff2a1a; box-shadow: 0 0 0 1px #000, 0 0 8px #ff3a20; } #marker.kill { animation: markkill .32s ease-out; }
 @keyframes markkill { 0% { scale: .7; } 30% { scale: 1.9; } 100% { scale: 1.25; } }
-#jetfx { position: absolute; left: 0; right: 0; bottom: 0; height: 36%; opacity: 0; transition: opacity .15s; pointer-events: none; background: radial-gradient(ellipse at 50% 118%, rgba(255, 190, 80, .8) 0%, rgba(255, 96, 24, .4) 34%, rgba(110, 104, 98, .2) 58%, transparent 74%); }
-#jetfx.on { opacity: 1; animation: jetflick .1s steps(2) infinite; } #jetfx.low { animation-duration: .22s; } @keyframes jetflick { 50% { opacity: .72; } }
+#jetfx { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; opacity: 0; transition: opacity .15s; pointer-events: none; overflow: hidden;
+  background: radial-gradient(ellipse 60% 70% at 50% 122%, rgba(255, 200, 96, .85) 0%, rgba(255, 104, 28, .5) 36%, rgba(120, 112, 104, .26) 62%, transparent 78%); }
+/* the two exhausts seen past the hips: a white-hot tongue each side, and smoke rolling up from the bottom edge */
+#jetfx::before, #jetfx::after { content: ''; position: absolute; bottom: -4%; width: 22%; height: 78%; transform-origin: 50% 100%; mix-blend-mode: screen;
+  background: radial-gradient(ellipse 32% 50% at 50% 100%, #fff 0%, #ffe9a0 22%, rgba(255, 150, 40, .85) 46%, rgba(255, 80, 16, .35) 68%, transparent 82%), radial-gradient(ellipse 50% 46% at 50% 62%, rgba(150, 142, 134, .4) 0%, transparent 72%); }
+#jetfx::before { left: 21%; } #jetfx::after { right: 21%; animation-delay: -.07s; }
+#jetfx.on { opacity: 1; animation: jetflick .1s steps(2) infinite; } #jetfx.on::before, #jetfx.on::after { animation: jettongue .13s ease-in-out infinite alternate; }
+#jetfx.low { animation-duration: .22s; } #jetfx.low::before, #jetfx.low::after { animation: jetsputter .31s steps(3) infinite; }
+@keyframes jetflick { 50% { opacity: .78; } } @keyframes jettongue { from { transform: scale(.92, .86); } to { transform: scale(1.06, 1.1); } } @keyframes jetsputter { 0% { transform: scale(1, 1); } 40% { transform: scale(.7, .35); opacity: .5; } 70% { transform: scale(.95, .8); } }
 #grade { position: fixed; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(6, 4, 10, .28) 82%, rgba(6, 4, 10, .58) 100%); }
 #vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 0, 0, .75) 100%); }
 #dmgdir { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; opacity: 0; transition: opacity .3s; }
@@ -433,36 +440,36 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113zc"></script>
-<script type="module" src="js/core.js?v=20261113zc"></script>
-<script type="module" src="js/art.js?v=20261113zc"></script>
-<script type="module" src="js/world.js?v=20261113zc"></script>
-<script type="module" src="js/destruct.js?v=20261113zc"></script>
-<script type="module" src="js/audio.js?v=20261113zc"></script>
-<script type="module" src="js/fx.js?v=20261113zc"></script>
-<script type="module" src="js/zombies.js?v=20261113zc"></script>
-<script type="module" src="js/zkinds.js?v=20261113zc"></script>
-<script type="module" src="js/bosses.js?v=20261113zc"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113zc"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113zc"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113zc"></script>
-<script type="module" src="js/boss-alien.js?v=20261113zc"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113zc"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113zc"></script>
-<script type="module" src="js/weapons.js?v=20261113zc"></script>
-<script type="module" src="js/allies.js?v=20261113zc"></script>
-<script type="module" src="js/heroes.js?v=20261113zc"></script>
-<script type="module" src="js/castanim.js?v=20261113zc"></script>
-<script type="module" src="js/build.js?v=20261113zc"></script>
-<script type="module" src="js/sky.js?v=20261113zc"></script>
-<script type="module" src="js/coop.js?v=20261113zc"></script>
-<script type="module" src="js/post.js?v=20261113zc"></script>
-<script type="module" src="js/polish.js?v=20261113zc"></script>
-<script type="module" src="js/gear.js?v=20261113zc"></script>
-<script type="module" src="js/player.js?v=20261113zc"></script>
-<script type="module" src="js/tps.js?v=20261113zc"></script>
-<script type="module" src="js/ui.js?v=20261113zc"></script>
-<script type="module" src="js/meta.js?v=20261113zc"></script>
-<script type="module" src="js/main.js?v=20261113zc"></script>
+<script type="module" src="js/boot.js?v=20261113zd"></script>
+<script type="module" src="js/core.js?v=20261113zd"></script>
+<script type="module" src="js/art.js?v=20261113zd"></script>
+<script type="module" src="js/world.js?v=20261113zd"></script>
+<script type="module" src="js/destruct.js?v=20261113zd"></script>
+<script type="module" src="js/audio.js?v=20261113zd"></script>
+<script type="module" src="js/fx.js?v=20261113zd"></script>
+<script type="module" src="js/zombies.js?v=20261113zd"></script>
+<script type="module" src="js/zkinds.js?v=20261113zd"></script>
+<script type="module" src="js/bosses.js?v=20261113zd"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zd"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zd"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zd"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zd"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zd"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zd"></script>
+<script type="module" src="js/weapons.js?v=20261113zd"></script>
+<script type="module" src="js/allies.js?v=20261113zd"></script>
+<script type="module" src="js/heroes.js?v=20261113zd"></script>
+<script type="module" src="js/castanim.js?v=20261113zd"></script>
+<script type="module" src="js/build.js?v=20261113zd"></script>
+<script type="module" src="js/sky.js?v=20261113zd"></script>
+<script type="module" src="js/coop.js?v=20261113zd"></script>
+<script type="module" src="js/post.js?v=20261113zd"></script>
+<script type="module" src="js/polish.js?v=20261113zd"></script>
+<script type="module" src="js/gear.js?v=20261113zd"></script>
+<script type="module" src="js/player.js?v=20261113zd"></script>
+<script type="module" src="js/tps.js?v=20261113zd"></script>
+<script type="module" src="js/ui.js?v=20261113zd"></script>
+<script type="module" src="js/meta.js?v=20261113zd"></script>
+<script type="module" src="js/main.js?v=20261113zd"></script>
 </body>
 </html>
