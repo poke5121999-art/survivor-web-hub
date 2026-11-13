@@ -292,6 +292,15 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - **Điện thoại:** pad cảm ứng chỉ hiện khi đang đánh, cụm nút nằm gọn góc phải dưới, màn chọn nhân vật cuộn được và luôn thấy nút "Vào trận", cầm dọc thì hiện nhắc xoay ngang. `tools/phone.js` kiểm ở 844×390 và 667×375.
 - `tools/review.js` chụp bộ ảnh duyệt (menu, giao tranh, nổ, boss, chọn nâng cấp, màn thua, điện thoại); `tools/clip.js` quay một đoạn bot đánh thành frame, mp4 và contact sheet.
 
+### Bổ sung sau đợt nâng model và VFX
+
+- **Kính vỡ:** ô kính vỡ để lại răng kính lởm chởm dọc khung (`jaggedEdge` trong `js/destruct.js`, một `InstancedMesh` cho cả phố); tường quanh khung vỡ thì răng kính mất theo.
+- **Nguyên tố bám lên zombie** (`statusOnset` trong `js/zombies.js`): lúc cờ burn / chill / shock / poison bật lên có một hiệu ứng riêng (lửa loé tung tàn, băng vỡ mảnh, sét phóng tia, độc bắn giọt), đặt ở mặt thân quay về camera.
+- **Vụ nổ** (`fx.explosion`): chớp trắng ngắn, lõi nóng nhỏ, cầu lửa cam, rồi nấm khói; không còn cháy thành đĩa trắng.
+- **Boss đời đầu:** Khổng Lồ nhảy co gối rồi đáp quỳ (đứng yên 0,45 giây), Kẻ Ném Đá vung tay ném có đà, Bóng Ma lướt cách đất, Chúa Dơi treo dưới cánh.
+- **Nhân vật:** bụi toả quanh chân khi rơi nhanh hơn 7 m/s (`js/player.js`); cú nhảy trên không của Bóng là một vòng lộn (`js/tps.js`); phím `T` (hoặc đứng yên 14 giây) ngắm nghía vũ khí ở góc nhìn thứ nhất (`inspectPose` trong `js/weapons.js`), bắn hay chém thì cắt ngay.
+- **Đồ vật:** tháp súng có vòng xoay, hòm đạn, hãm lửa, trống đạn, cảm biến, ăng-ten (`js/gear.js`); xe hơi có gầm, nắp máy, trụ kính, cản, đèn, gương, vè bánh; cột đèn có đế và chụp (`js/world.js`). Tất cả gộp trong Builder sẵn có nên không thêm draw call.
+
 ## Chọn nâng cấp và đường build
 
 - Không có shop, không có tiền. Hết mỗi đợt, mỗi người chơi được chọn 1 trong 3 nâng cấp (`G.build.offer`, ưu tiên ba nhánh khác nhau), bấm thẻ hoặc phím 1, 2, 3. Chọn xong thì vào đợt sau ngay. Trong co-op, đợt sau chỉ bắt đầu khi mọi người đã chọn (khách gửi `picked` lên chủ phòng); nếu một người bỏ máy quá 60 giây thì vẫn đi tiếp.

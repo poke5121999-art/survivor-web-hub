@@ -1364,7 +1364,7 @@
         if (wm.hold === 'fists') fistPose(wm); else if (wm.hold === 'claws') clawPose(wm);
         if (S.guard > 0) { rig.position.x += 0.07 * S.guard; rig.position.y -= 0.12 * S.guard; rig.rotateZ(-0.35 * S.guard); }
       }
-      drawPose(wm, dt); fingerPose(wm, dt, castK);
+      drawPose(wm, dt); inspectPose(wm, dt); fingerPose(wm, dt, castK);
       sigPose(dt);
       updateTrail(dt, wm);
       const saberOn = S.cur === 'saber' && S.phase !== 'holster' && P.alive;
@@ -1375,6 +1375,19 @@
     }
 
     // Drawing a weapon, each in its own way. k runs 0..1 over DRAW_FP; e is what is left of the move (1 -> 0, eased out).
+    // Looking the weapon over: key T, or by itself after a long quiet spell. The piece rolls one way, then the other, and comes
+    // back; a blade is raised and turned in the light. Any shot, swing, reload or switch drops it at once.
+    const INSPECT = 1.8;
+    addEventListener('keydown', (e) => { if (e.code === 'KeyT' && !e.repeat && G.state === 'playing' && S.phase === 'ready' && !S.swing) { S.inspT = 0.0001; S.idleT = 0; } });
+    function inspectPose(wm, dt) {
+      const busy = S.phase !== 'ready' || !!S.swing || G.player.input.fire || G.player.input.ads || !G.player.alive;
+      if (busy) { S.inspT = 0; S.idleT = 0; return; }
+      S.idleT = (S.idleT || 0) + dt; if (!(S.inspT > 0) && S.idleT > 14) { S.inspT = 0.0001; S.idleT = 0; }
+      if (!(S.inspT > 0)) return; S.inspT += dt; const k = S.inspT / INSPECT; if (k >= 1) { S.inspT = 0; return; }
+      const a = BZ.smooth(BZ.clamp(k / 0.2, 0, 1)) * BZ.smooth(BZ.clamp((1 - k) / 0.22, 0, 1)); const turn = Math.cos(k * Math.PI);
+      if (wm.melee || wm.thrown) { rig.position.y += 0.07 * a; rig.position.x -= 0.05 * a; rig.rotateX(-0.45 * a); rig.rotateZ(0.9 * a * turn); rig.rotateY(0.35 * a * turn); }
+      else { rig.position.y += 0.05 * a; rig.position.x -= 0.07 * a; rig.position.z += 0.04 * a; rig.rotateY(0.55 * a * turn); rig.rotateZ(0.85 * a * turn); rig.rotateX(0.18 * a); }
+    }
     function drawPose(wm, dt) {
       const k = S.phase === 'draw' ? Math.min(1, S.t / DRAW_FP) : S.phase === 'holster' ? 0 : 1; S.drawK = k;
       if (k >= 1) { S.drawEvt = 0; return; }

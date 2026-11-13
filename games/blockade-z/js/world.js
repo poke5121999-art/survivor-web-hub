@@ -318,13 +318,22 @@
     const CARS = [[-1.7, -20, 1, 'burnt', true], [1.8, 24, 1, 'car_yellow'], [-18, -1.6, 0, 'burnt', true], [21, 1.7, 0, 'car_blue'], [-24, 1.8, 0, 'car_red'], [1.6, -27, 1, 'burnt']];
     for (const [x, z, rot, paint, burning] of CARS) {
       const L = 4.2; const W = 2; const hx = rot ? W / 2 : L / 2; const hz = rot ? L / 2 : W / 2;
-      box([x - hx, 0.35, z - hz], [x + hx, 1.15, z + hz], paint);
-      const cx = rot ? W / 2 - 0.1 : 1.15; const cz = rot ? 1.15 : W / 2 - 0.1;
-      box([x - cx, 1.15, z - cz], [x + cx, 1.85, z + cz], { side: paint === 'burnt' ? 'burnt' : 'glass', top: paint }, { uv: 'fit' });
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        const wx = x + sx * (rot ? W / 2 : L / 2 - 0.8); const wz = z + sz * (rot ? L / 2 - 0.8 : W / 2);
-        box([wx - 0.35, 0, wz - 0.35], [wx + 0.35, 0.7, wz + 0.35], paint === 'burnt' ? 'burnt' : 'tire', { uv: 'fit' });
-      }
+      // every part is placed by (along the car, across it); the same solid box as before stands for the whole wreck
+      const wreck = paint === 'burnt'; const P = wreck ? 'burnt' : paint; const dark = wreck ? 'burnt' : 'metal_dark'; const steel = wreck ? 'burnt' : 'metal';
+      const part = (l0, w0, l1, w1, y0, y1, mat, opt) => box(rot ? [x + w0, y0, z + l0] : [x + l0, y0, z + w0], rot ? [x + w1, y1, z + l1] : [x + l1, y1, z + w1], mat, opt);
+      part(-L / 2 + 0.12, -W / 2 + 0.08, L / 2 - 0.12, W / 2 - 0.08, 0.28, 0.5, dark);                                   // chassis
+      part(-L / 2, -W / 2, L / 2, W / 2, 0.5, 1.02, P);                                                                 // body
+      part(-L / 2 + 0.05, -W / 2 + 0.04, -0.75, W / 2 - 0.04, 1.02, 1.12, P); part(1.05, -W / 2 + 0.04, L / 2 - 0.05, W / 2 - 0.04, 1.02, 1.1, P); // bonnet, boot
+      part(-0.75, -W / 2 + 0.12, 1.05, W / 2 - 0.12, 1.02, 1.72, { side: wreck ? 'burnt' : 'glass', top: P }, { uv: 'fit' }); // cabin
+      part(-0.82, -W / 2 + 0.08, 1.12, W / 2 - 0.08, 1.72, 1.8, P);                                                       // roof
+      for (const l of [-0.75, 0.12, 0.97]) for (const sw of [-1, 1]) part(l, sw * (W / 2 - 0.12) - 0.04, l + 0.08, sw * (W / 2 - 0.12) + 0.04, 1.02, 1.72, P); // pillars
+      part(-L / 2 - 0.08, -W / 2 + 0.05, -L / 2, W / 2 - 0.05, 0.42, 0.62, steel); part(L / 2, -W / 2 + 0.05, L / 2 + 0.08, W / 2 - 0.05, 0.42, 0.62, steel); // bumpers
+      for (const sw of [-1, 1]) { part(-L / 2 - 0.02, sw * 0.62 - 0.17, -L / 2 + 0.02, sw * 0.62 + 0.17, 0.72, 0.9, wreck ? 'burnt' : 'lamp', { vary: 0 }); part(L / 2 - 0.02, sw * 0.66 - 0.14, L / 2 + 0.02, sw * 0.66 + 0.14, 0.74, 0.9, wreck ? 'burnt' : 'car_red', { vary: 0 });
+        part(-0.62, sw * (W / 2 + 0.1) - 0.07, -0.5, sw * (W / 2 + 0.1) + 0.07, 1.04, 1.16, dark); }                    // lamps, mirrors
+      part(-L / 2 - 0.03, -0.45, -L / 2, 0.45, 0.66, 0.82, dark, { vary: 0 });                                           // grille
+      for (const sl of [-1, 1]) for (const sw of [-1, 1]) { const wl = sl * (L / 2 - 0.85); const ww = sw * (W / 2 - 0.12);
+        part(wl - 0.36, ww - 0.15, wl + 0.36, ww + 0.15, 0, 0.72, wreck ? 'burnt' : 'tire', { uv: 'fit' }); part(wl - 0.16, ww + sw * 0.15 - 0.02, wl + 0.16, ww + sw * 0.15 + 0.02, 0.2, 0.52, steel, { vary: 0 });
+        part(wl - 0.46, ww - 0.02 + sw * 0.1, wl + 0.46, ww + 0.02 + sw * 0.13, 0.72, 0.8, dark); }                      // wheels, hubs, arches
       solid([x - hx, 0, z - hz], [x + hx, 1.85, z + hz], 'metal');
       if (burning) { scorch(x, z, 2.4); fire(x, 1.9, z, 0.7); }
     }
@@ -336,6 +345,8 @@
       if (lit) {
         block([x - 0.12, 0, z - 0.12], [x + 0.12, 3.6, z + 0.12], 'metal_dark', 'metal');
         box([x - 0.3, 3.6, z - 0.3], [x + 0.3, 4.0, z + 0.3], 'lamp', { flat: true, vary: 0 });
+        box([x - 0.24, 0, z - 0.24], [x + 0.24, 0.3, z + 0.24], 'metal_dark'); box([x - 0.17, 0.3, z - 0.17], [x + 0.17, 0.42, z + 0.17], 'metal'); box([x - 0.16, 3.3, z - 0.16], [x + 0.16, 3.4, z + 0.16], 'metal');
+        box([x - 0.36, 3.52, z - 0.36], [x + 0.36, 3.6, z + 0.36], 'metal_dark'); box([x - 0.34, 4.0, z - 0.34], [x + 0.34, 4.08, z + 0.34], 'metal_dark'); box([x - 0.1, 4.08, z - 0.1], [x + 0.1, 4.2, z + 0.1], 'metal_dark');
         glows.push([x, 3.8, z, 2.4]); lights.push({ pos: [x, 3.4, z], base: 8, ph: x, dist: 12, flicker: true });
       } else {
         B.push(new THREE.Matrix4().makeTranslation(x, 0.15, z).multiply(new THREE.Matrix4().makeRotationY(x > 0 ? 0.7 : -0.9)));

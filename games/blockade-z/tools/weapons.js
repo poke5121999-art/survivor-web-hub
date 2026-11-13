@@ -229,6 +229,12 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
       G.hero.set('ky'); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); __sim(0.25); const S = W.S; G.player.input.fire = true; __sim(0.05); G.player.input.fire = false; out.cut = { phase: S.phase, shots: S.shots }; __sim(0.5);
       const P = W.parts ? W.parts() : null; return out; })()`);
     console.log('fp draws', JSON.stringify(fpd));
+    // looking the weapon over: T starts it, it runs its length and ends by itself, and a shot drops it at once
+    const insp = await page.evaluate(`(() => { const G = __G; const S = G.weapons.S; const P = G.player; G.state = 'playing'; P.alive = true; P.input.fire = false; G.zombies.clear(); __sim(0.8);
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' })); __sim(0.5); const mid = S.inspT || 0; __sim(1.6); const end = S.inspT || 0;
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' })); __sim(0.3); const again = S.inspT || 0; P.input.fire = true; __sim(0.1); P.input.fire = false; const cut = S.inspT || 0; __sim(0.5); return { mid: +mid.toFixed(2), end, again: +again.toFixed(2), cut }; })()`);
+    console.log('inspect', JSON.stringify(insp));
+    check(insp.mid > 0.3 && insp.end === 0 && insp.again > 0.2 && insp.cut === 0, `T looks the weapon over (${insp.mid} s in), it ends by itself and a shot drops it`);
     check(Object.keys(fpd.draws).length >= 13 && fpd.bad.length === 0, `first person: each of ${Object.keys(fpd.draws).length} weapons is drawn in 0.3 to 0.5 s and ends ready (${fpd.bad.join(', ') || 'ok'})`);
     check(fpd.cut.phase !== 'draw' && fpd.cut.shots >= 1, `a shot cuts the draw short (${JSON.stringify(fpd.cut)})`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 4).join(' | ') : ''));
