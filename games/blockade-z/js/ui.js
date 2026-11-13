@@ -80,6 +80,7 @@
         { id: 'ammo', label: 'Đạn đầy', sub: 'Nạp đầy đạn dự trữ mọi súng', price: 120 },
         { id: 'heal', label: 'Hồi máu', sub: 'Máu về 100', price: 150, dis: P.hp >= P.maxHp },
         { id: 'armor', label: 'Giáp +50', sub: 'Đỡ 60% sát thương tới khi vỡ', price: 200, dis: P.armor >= 100 },
+        { id: 'jetpack', label: 'Jetpack', sub: 'Nhảy rồi giữ Space để bay, nhiên liệu tự hồi', price: BZ.JET.price, owned: !!P.hasJet },
         { id: 'bomb', label: 'Bom +' + BZ.BOMB.pack, sub: `Ném bằng G · đang có ${G.gear.state.bombs}/${BZ.BOMB.max}`, price: BZ.BOMB.price, dis: G.gear.state.bombs >= BZ.BOMB.max },
         { id: 'turret', label: 'Súng máy tự động', sub: `Đặt trước mặt, tự bắn ${BZ.TURRET.ammo} viên · ${G.gear.turrets.length}/${BZ.TURRET.max}`, price: BZ.TURRET.price, dis: G.gear.turrets.length >= BZ.TURRET.max },
         { id: 'ally', label: 'Thuê lính', sub: `Đi theo và bắn phụ · ${G.allies.count()}/${BZ.ALLY.max} lính`, price: BZ.ALLY.price, dis: G.allies.count() >= BZ.ALLY.max },
@@ -101,6 +102,11 @@
       pops.push({ d, t: 0, world: world && world.clone(), y: 0 });
       if (pops.length > 14) { const o = pops.shift(); o.d.remove(); }
     }
+    const ann = document.getElementById('announce'); let annT = 0;
+    function announce(text, sub, cls) {
+      ann.className = 'on ' + (cls || ''); ann.innerHTML = `<b>${text}</b>${sub ? `<small>${sub}</small>` : ''}`;
+      void ann.offsetWidth; ann.classList.add('pop'); annT = 1.6;
+    }
     let bannerT = 0;
     function banner(text, sub, secs = 2.2) { el.banner.innerHTML = `<b>${text}</b>${sub ? `<small>${sub}</small>` : ''}`; el.banner.classList.add('on'); bannerT = secs; }
     let markerT = 0; let hurtT = 0;
@@ -121,7 +127,7 @@
       el.hp.style.width = (P.hp / P.maxHp) * 100 + '%'; el.hpTxt.textContent = Math.ceil(P.hp);
       el.hp.parentElement.classList.toggle('low', P.hp < 35);
       el.armor.style.width = Math.min(100, P.armor) + '%';
-      el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.fuel < 99.5 || P.jetting);
+      el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
       el.bombs.textContent = G.gear.state.bombs;
       el.ammo.textContent = a.mag; el.reserve.textContent = a.reserve === Infinity ? '∞' : a.reserve;
       el.ammo.classList.toggle('low', a.mag <= Math.ceil(w.mag / 4));
@@ -139,6 +145,7 @@
       markerT -= dt; el.marker.style.opacity = markerT > 0 ? 1 : 0;
       hurtT = Math.max(0, hurtT - dt * 0.8); el.vignette.style.opacity = Math.max(hurtT, P.hp < 35 ? 0.35 + Math.sin(performance.now() / 300) * 0.1 : 0);
       if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el.banner.classList.remove('on'); }
+      if (annT > 0) { annT -= dt; if (annT <= 0) ann.className = ''; }
       el.breakbar.classList.toggle('on', G.wave.phase === 'break' && G.state === 'playing');
       if (G.wave.phase === 'break') { el.breakbar.querySelector('b').textContent = Math.ceil(G.wave.breakT); el.shopTimer.textContent = Math.ceil(G.wave.breakT) + ' giây'; }
       for (let i = pops.length - 1; i >= 0; i--) {
@@ -163,6 +170,6 @@
       }
       const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
     }
-    return { show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync };
+    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync };
   };
 })();

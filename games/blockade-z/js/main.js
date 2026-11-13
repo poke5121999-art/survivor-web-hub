@@ -19,7 +19,7 @@
     renderer.shadowMap.type = THREE.PCFShadowMap;
     G.renderer = renderer;
     const scene = (G.scene = new THREE.Scene());
-    scene.fog = new THREE.Fog(0x22324c, 12, G.quality.far * 0.6);
+    scene.fog = new THREE.Fog(0x2a2c38, 12, G.quality.far * 0.62);
     const camera = (G.camera = new THREE.PerspectiveCamera(G.settings.fov, 1, 0.05, 600));
     camera.rotation.order = 'YXZ';
     scene.add(camera);
@@ -121,16 +121,29 @@
       const coin = T.coin + (head ? 5 : 0); G.coins += coin; G.score += T.score + (head ? 50 : 0);
       const at = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z);
       G.ui.pop('+' + coin + '🪙', 'coin', at);
-      if (head) G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z));
+      if (head) { G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z)); G.audio.play('headshot', { gain: 0.6 }); }
+      // multi kills inside a short window, and a streak that resets when the player is hurt
+      const now = performance.now() / 1000;
+      combo.n = now - combo.t < 1.4 ? combo.n + 1 : 1; combo.t = now; combo.streak++;
+      const MULTI = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 4: 'QUADRA KILL', 5: 'PENTA KILL' };
+      if (combo.n >= 2) {
+        const title = combo.n >= 8 ? 'RAMPAGE' : MULTI[combo.n] || 'MULTI KILL';
+        const bonus = 10 * combo.n; G.coins += bonus; G.score += 50 * combo.n;
+        G.ui.announce(title, (combo.n >= 6 ? combo.n + ' con · ' : '') + '+' + bonus + ' xu', combo.n >= 5 ? 'hot' : '');
+        G.audio.play('streak', { gain: 0.55, rate: 1 + Math.min(combo.n, 8) * 0.05 });
+      }
+      if (combo.streak > 0 && combo.streak % 15 === 0) { G.ui.announce('CHUỖI ' + combo.streak, 'hạ liên tiếp không mất máu', 'streak'); G.audio.play('streak', { gain: 0.5, rate: 0.8 }); }
       G.audio.play('coin', { gain: 0.6 });
       const r = G.rng.next();
       if (r < 0.07) G.fx.drop('health', z.pos); else if (r < 0.16) G.fx.drop('ammo', z.pos);
     });
-    G.events.on('hit', ({ z, dmg, part }) => {
-      G.ui.hit(part === 'head');
-      G.ui.pop(String(dmg), part === 'head' ? 'dmg crit' : part === 'leg' ? 'dmg leg' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
+    G.events.on('hit', ({ z, dmg, part, crit }) => {
+      G.ui.hit(part === 'head' || crit);
+      if (crit) { G.ui.pop('CRIT', 'critword', new THREE.Vector3(z.pos.x, z.pos.y + 2.4 * z.T.scale, z.pos.z)); G.audio.play('crit', { gain: 0.6 }); G.player.shake.v += 1.5; }
+      G.ui.pop(String(dmg), crit ? 'dmg crit big' : part === 'head' ? 'dmg crit' : part === 'leg' ? 'dmg leg' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
     });
-    G.events.on('player:hurt', ({ dmg, from }) => G.player.hurt(dmg, from));
+    const combo = { n: 0, t: 0, streak: 0 };
+    G.events.on('player:hurt', ({ dmg, from }) => { combo.streak = 0; G.player.hurt(dmg, from); });
     G.events.on('pickup', (kind) => {
       const P = G.player;
       if (kind === 'health') { P.hp = Math.min(P.maxHp, P.hp + 35); G.ui.pop('+35 máu', 'heal'); }
@@ -148,10 +161,10 @@
     });
     G.events.on('buy', (id) => {
       const W = G.weapons; const P = G.player;
-      const price = W.WEAPONS[id] ? W.WEAPONS[id].price : { ammo: 120, heal: 150, armor: 200, ally: BZ.ALLY.price, bomb: BZ.BOMB.price, turret: BZ.TURRET.price }[id];
-      if (G.coins < price || (id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'bomb' && G.gear.state.bombs >= BZ.BOMB.max)) { G.audio.play('deny'); return; }
+      const price = W.WEAPONS[id] ? W.WEAPONS[id].price : { ammo: 120, heal: 150, armor: 200, ally: BZ.ALLY.price, bomb: BZ.BOMB.price, turret: BZ.TURRET.price, jetpack: BZ.JET.price }[id];
+      if (G.coins < price || (id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'bomb' && G.gear.state.bombs >= BZ.BOMB.max) || (id === 'jetpack' && P.hasJet)) { G.audio.play('deny'); return; }
       G.coins -= price;
-      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') G.allies.hire(); else if (id === 'bomb') G.gear.addBombs(BZ.BOMB.pack); else if (id === 'turret') G.gear.placeTurret();
+      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') G.allies.hire(); else if (id === 'bomb') G.gear.addBombs(BZ.BOMB.pack); else if (id === 'turret') G.gear.placeTurret(); else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', 'nhảy rồi giữ Space để bay', 2); }
       G.audio.play('buy'); G.ui.shopRender();
     });
     G.events.on('settings', (s) => {
@@ -217,7 +230,7 @@
       safe('fx', () => G.fx.update(dt));
       safe('ui', () => G.ui.update(dt));
       G.world.clouds.position.x = (performance.now() / 1000) * 0.6 % 60;
-      G.world.flicker(performance.now() / 1000);
+      G.world.update(dt);
     }
     function draw() {
       renderer.info.reset();
@@ -237,7 +250,10 @@
     window.__sim = (secs, dt = 1 / 60) => { for (let t = 0; t < secs; t += dt) tick(dt); draw(); };
     window.__setShot = (name) => {
       const P = G.player;
-      const shots = { plaza: [0, 0, 7, 0, -0.08], gate: [0, 0, -26, 0, 0.02], street: [18, 0, 0, Math.PI / 2, -0.05] };
+      const shots = { plaza: [0, 0, 7, 0, -0.08], gate: [0, 0, -26, 0, 0.02], street: [18, 0, 0, Math.PI / 2, -0.05],
+        heli: [2, 0, -8, 0.5, -0.05], shops: [-24, 0, 1, 0.3, 0.05], church: [-8, 0, 18, 1.45, 0.12], warehouse: [3, 0, 21, -1.57, 0.05],
+        apt: [-23, 0, -24, 0, 0], roof: [21, 4.5, -26, 2.4, -0.1], gas: [10, 0, -10, -1.2, 0.05],
+        aptroof: [-17, 6.85, -21, 0.8, -0.25], shoproof: [-22, 8.2, -6, 0.6, -0.3], whroof: [30.5, 7.3, 13.5, 0.75, -0.2] };
       const s = shots[name] || shots.plaza; P.pos.set(s[0], s[1], s[2]); P.vel.set(0, 0, 0); P.yaw = s[3]; P.pitch = s[4];
     };
     window.__newGame = newGame;

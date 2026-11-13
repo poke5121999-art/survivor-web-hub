@@ -90,6 +90,13 @@ body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.
 #banner.on { opacity: 1; transform: translate(-50%, 0); }
 #banner b { display: block; font: 900 44px/1 var(--f); color: var(--gold); text-shadow: 4px 4px 0 #000; letter-spacing: .04em; }
 #banner small { display: block; margin-top: 6px; font: 700 16px var(--mono); text-shadow: 2px 2px 0 #000; }
+#announce { position: absolute; left: 50%; top: 31%; transform: translate(-50%, 0) scale(.6); text-align: center; opacity: 0; pointer-events: none; }
+#announce.on { opacity: 1; transition: opacity .2s; } #announce.pop { animation: annpop .35s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+@keyframes annpop { from { transform: translate(-50%, 0) scale(1.8); } to { transform: translate(-50%, 0) scale(1); } }
+#announce b { display: block; font: 900 38px/1 var(--f); color: #ffdf5a; letter-spacing: .06em; text-shadow: 4px 4px 0 #000, 0 0 18px rgba(255, 180, 40, .6); }
+#announce.hot b { color: #ff5a3a; text-shadow: 4px 4px 0 #000, 0 0 22px rgba(255, 60, 30, .8); } #announce.streak b { color: #7ad8ff; }
+#announce small { display: block; margin-top: 4px; font: 700 14px var(--mono); color: #fff; text-shadow: 2px 2px 0 #000; }
+#pops .pop.critword { color: #ffe040; font-size: 20px; letter-spacing: .1em; } #pops .pop.dmg.crit.big { font-size: 24px; color: #ffe040; }
 #reloadhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font: 900 15px var(--mono); color: #ff6a50; text-shadow: 2px 2px 0 #000; display: none; letter-spacing: .1em; }
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .2; } }
@@ -146,6 +153,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div id="marker"></div>
   <div id="pops"></div>
   <div id="banner"></div>
+  <div id="announce"></div>
   <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
   <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
   <div class="plate" id="coins">🪙 <b>0</b></div>
@@ -177,7 +185,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
     <div class="keys">
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
       <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd>-<kbd>4</kbd> / <kbd>Q</kbd> / lăn chuột đổi súng<br>
-      <kbd>G</kbd> ném bom · giữ <kbd>Space</kbd> trên không để bay jetpack<br>
+      <kbd>G</kbd> ném bom · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
       <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
     </div>
     <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
@@ -212,18 +220,18 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113c"></script>
-<script type="module" src="js/core.js?v=20261113c"></script>
-<script type="module" src="js/art.js?v=20261113c"></script>
-<script type="module" src="js/world.js?v=20261113c"></script>
-<script type="module" src="js/audio.js?v=20261113c"></script>
-<script type="module" src="js/fx.js?v=20261113c"></script>
-<script type="module" src="js/zombies.js?v=20261113c"></script>
-<script type="module" src="js/weapons.js?v=20261113c"></script>
-<script type="module" src="js/allies.js?v=20261113c"></script>
-<script type="module" src="js/gear.js?v=20261113c"></script>
-<script type="module" src="js/player.js?v=20261113c"></script>
-<script type="module" src="js/ui.js?v=20261113c"></script>
-<script type="module" src="js/main.js?v=20261113c"></script>
+<script type="module" src="js/boot.js?v=20261113d"></script>
+<script type="module" src="js/core.js?v=20261113d"></script>
+<script type="module" src="js/art.js?v=20261113d"></script>
+<script type="module" src="js/world.js?v=20261113d"></script>
+<script type="module" src="js/audio.js?v=20261113d"></script>
+<script type="module" src="js/fx.js?v=20261113d"></script>
+<script type="module" src="js/zombies.js?v=20261113d"></script>
+<script type="module" src="js/weapons.js?v=20261113d"></script>
+<script type="module" src="js/allies.js?v=20261113d"></script>
+<script type="module" src="js/gear.js?v=20261113d"></script>
+<script type="module" src="js/player.js?v=20261113d"></script>
+<script type="module" src="js/ui.js?v=20261113d"></script>
+<script type="module" src="js/main.js?v=20261113d"></script>
 </body>
 </html>

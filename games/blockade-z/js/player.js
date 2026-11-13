@@ -5,14 +5,14 @@
 
   const MOVE = { walk: 4.6, sprint: 7.0, ads: 2.8, accelGround: 40, decelGround: 30, accelAir: 10, gravity: 24, jumpV: 7.9, coyote: 0.12, jumpBuffer: 0.13, radius: 0.3, height: 1.75, eye: 1.6, stride: 2.0 };
   BZ.MOVE = MOVE;
-  const JET = { thrust: 46, maxRise: 6.5, burn: 30, refill: 22, refillDelay: 0.6, ceiling: 16 };
+  const JET = { price: 500, thrust: 46, maxRise: 6.5, burn: 30, refill: 22, refillDelay: 0.6, ceiling: 16 };
   BZ.JET = JET;
 
   BZ.makePlayer = (G) => {
     const P = {
       pos: new THREE.Vector3(0, 0, 5), vel: new THREE.Vector3(), yaw: 0, pitch: 0,
       hp: 100, maxHp: 100, armor: 0, alive: true, onGround: true, sprinting: false, stride: 0, landDip: 0,
-      coyote: 0, jumpBuf: 0, fuel: 100, airT: 0, jetting: false, jetSnd: 0, fuelWait: 0, touchJet: false, kickP: BZ.spring(160, 18), kickY: BZ.spring(160, 18), shake: BZ.spring(220, 14), lastStep: 0,
+      coyote: 0, jumpBuf: 0, fuel: 100, hasJet: false, airT: 0, jetting: false, jetSnd: 0, fuelWait: 0, touchJet: false, kickP: BZ.spring(160, 18), kickY: BZ.spring(160, 18), shake: BZ.spring(220, 14), lastStep: 0,
       kick(p, y) { this.kickP.v += p * 40; this.kickY.v += y * 40; },
     };
     const keys = new Set();
@@ -125,7 +125,7 @@
       // jetpack: keep holding jump in the air to fly; fuel refills on the ground
       P.airT = P.onGround ? 0 : P.airT + dt;
       const holdJump = keys.has('Space') || P.touchJet;
-      P.jetting = holdJump && !P.onGround && P.airT > 0.18 && P.fuel > 0 && P.alive;
+      P.jetting = P.hasJet && holdJump && !P.onGround && P.airT > 0.18 && P.fuel > 0 && P.alive;
       if (P.jetting) {
         P.vel.y = Math.min(JET.maxRise, P.vel.y + JET.thrust * dt); P.fuel = Math.max(0, P.fuel - JET.burn * dt); P.fuelWait = JET.refillDelay;
         if (P.pos.y > JET.ceiling) P.vel.y = Math.min(P.vel.y, 0);
@@ -134,7 +134,8 @@
       } else if (P.onGround) { P.fuelWait -= dt; if (P.fuelWait <= 0) P.fuel = Math.min(100, P.fuel + JET.refill * dt); }
       const vyBefore = P.vel.y;
       const wasGround = P.onGround;
-      G.world.moveBox(P.pos, P.vel, dt, MOVE.radius, MOVE.height, out);
+      G.world.moveBox(P.pos, P.vel, dt, MOVE.radius, MOVE.height, out, 0.45);
+      P.stepLag = Math.max(0, (P.stepLag || 0) + out.stepUp); P.stepLag = BZ.damp(P.stepLag, 0, 14, dt);
       P.onGround = out.ground;
       if (P.onGround && !wasGround && vyBefore < -4) {
         P.landDip = Math.min(0.2, -vyBefore * 0.025); G.audio.play('land', { gain: 0.5 });
@@ -142,6 +143,7 @@
       P.landDip = BZ.damp(P.landDip, 0, 9, dt);
       // keep inside the town even if something goes wrong
       P.pos.x = BZ.clamp(P.pos.x, -G.world.HALF + 0.4, G.world.HALF - 0.4); P.pos.z = BZ.clamp(P.pos.z, -G.world.HALF + 0.4, G.world.HALF - 0.4);
+      if (out.stepUp && P.onGround === false) P.onGround = true;
 
       // steps by distance travelled
       const hs = Math.hypot(P.vel.x, P.vel.z);
@@ -154,7 +156,7 @@
       const kp = P.kickP.step(dt); const ky = P.kickY.step(dt); const sh = P.shake.step(dt);
       const bobA = Math.min(1, hs / 4) * (P.onGround ? 1 : 0) * (1 - G.weapons.S.ads * 0.8);
       const cam = G.camera;
-      cam.position.set(P.pos.x, P.pos.y + MOVE.eye - P.landDip + Math.abs(Math.sin(P.stride * Math.PI)) * 0.045 * bobA * (P.sprinting ? 1.6 : 1), P.pos.z);
+      cam.position.set(P.pos.x, P.pos.y + MOVE.eye - P.landDip - (P.stepLag || 0) + Math.abs(Math.sin(P.stride * Math.PI)) * 0.045 * bobA * (P.sprinting ? 1.6 : 1), P.pos.z);
       cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02, 'YXZ');
       // recoil recovery: most of the kick returns, a little stays (like real recoil)
       P.pitch += kp * dt * 0.6;
@@ -176,7 +178,7 @@
       if (P.hp <= 0) { P.alive = false; G.events.emit('player:dead'); }
     }
     function reset() {
-      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.armor = 0; P.alive = true; P.landDip = 0; P.fuel = 100;
+      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.armor = 0; P.alive = true; P.landDip = 0; P.fuel = 100; P.hasJet = false;
       input.fire = false; input.ads = false; keys.clear();
     }
     P.update = update; P.hurt = hurt; P.reset = reset; P.input = input;

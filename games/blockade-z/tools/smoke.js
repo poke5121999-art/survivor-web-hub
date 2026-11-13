@@ -103,8 +103,9 @@ const BOT = `(() => {
       for (let i = 0; i < 4; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 2, dir: [0, -1], name: 't' }); z.pos.set(-0.6 + i * 0.4, 0, 5.2); z.speed = 0; }
       __sim(0.05); const k0 = G.kills; G.gear.throwBomb(); __sim(2.2); const bombKills = G.kills - k0;
       G.coins = 1000; G.wave.phase = 'break'; G.events.emit('buy', 'turret'); const t = G.gear.turrets[0]; const a0 = t ? t.ammo : -1;
-      const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(6, 0, 6); z.speed = 0; __sim(1.5);
+      const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(-4, 0, 8.5); z.speed = 0; __sim(1.5);
       const fired = t ? a0 - t.ammo : 0;
+      G.coins = 1000; G.wave.phase = 'break'; G.events.emit('buy', 'jetpack'); G.wave.phase = 'fight';
       P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.jumpBuf = 0.13; P.touchJet = true; __sim(1.2); const h = P.pos.y; P.touchJet = false;
       return { bombKills, fired, h: +h.toFixed(2), fuel: Math.round(P.fuel) }; })()`);
     console.log('gear', JSON.stringify(gear));

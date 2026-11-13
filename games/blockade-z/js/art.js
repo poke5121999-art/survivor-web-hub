@@ -25,6 +25,11 @@
     const fill = (c, jit = 0) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, shade(c, 1 + (rng.next() - 0.5) * GRAIN * jit)); };
     draw({ set, fill, rng, w, h });
     ctx.putImageData(img, 0, 0);
+    if (opts.text) { // pixel text on signs: hard-edged by drawing at native size with no smoothing
+      ctx.font = '900 11px ui-monospace, Consolas, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000'; ctx.fillText(opts.text[0], w / 2 + 1, h / 2 + 1);
+      ctx.fillStyle = '#' + opts.text[1].toString(16).padStart(6, '0'); ctx.fillText(opts.text[0], w / 2, h / 2);
+    }
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
@@ -221,6 +226,111 @@
   });
   def('cloud', 8, 8, ({ fill }) => fill([245, 247, 250], 0.04));
 
+  // ---- ruined city ----
+  const crack = (set, rng, w, h, n, col) => {
+    for (let i = 0; i < n; i++) {
+      let x = rng.int(0, w - 1); let y = rng.int(0, h - 1);
+      for (let k = 0; k < 7; k++) { set(wrap(x, w), wrap(y, h), hex(col)); x += rng.int(-1, 1); y += 1; }
+    }
+  };
+  def('concrete', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, hex([0x8e8c86, 0x95938c, 0x88867f][BZ.hash('c' + (x >> 1) + ',' + (y >> 1)) % 3]));
+    for (let x = 0; x < 16; x++) set(x, 15, hex(0x6c6a64));
+    crack(set, rng, 16, 16, 1, 0x5a5852);
+    for (let i = 0; i < 3; i++) set(rng.int(0, 15), rng.int(0, 15), hex(0x74716a));
+  });
+  def('concrete_dark', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, hex([0x5c5d60, 0x626366, 0x56575a][BZ.hash('k' + (x >> 1) + ',' + (y >> 1)) % 3]));
+    crack(set, rng, 16, 16, 2, 0x3a3b3e);
+    for (let x = 0; x < 16; x++) if (rng.chance(0.5)) set(x, 0, hex(0x2c2a28)); // soot
+  });
+  def('tile', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const g = (x & 7) === 7 || (y & 7) === 7; const dark = ((x >> 3) + (y >> 3)) & 1;
+      set(x, y, g ? hex(0x6a6258) : shade(hex(dark ? 0xb8a890 : 0xd4c6ac), (x & 7) === 0 || (y & 7) === 0 ? 1.08 : 1));
+    }
+    crack(set, rng, 16, 16, 1, 0x6a6258);
+  });
+  const plaster = (key, base) => def(key, 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, shade(hex(base), 1 - y * 0.012 + (BZ.hash('p' + (x >> 2) + ',' + (y >> 2)) % 3) * 0.02));
+    for (let i = 0; i < 2; i++) { const x = rng.int(0, 15); for (let y = rng.int(0, 6); y < 16; y++) if (rng.chance(0.8)) set(x, y, shade(hex(base), 0.8)); } // rain streaks
+    if (rng.chance(0.7)) { const x0 = rng.int(0, 10); const y0 = rng.int(0, 10); for (let y = 0; y < 4; y++) for (let x = 0; x < 5; x++) set(x0 + x, y0 + y, hex(y === 0 || x === 0 ? 0x7a6a5a : 0xa0442e)); } // chipped plaster shows brick
+  });
+  plaster('plaster_yellow', 0xd8b65a);
+  plaster('plaster_teal', 0x5aa69a);
+  plaster('plaster_pink', 0xd88a8a);
+  plaster('plaster_white', 0xcfc8b8);
+  def('corrugated', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const k = [1.15, 1, 0.8, 0.92][x % 4];
+      set(x, y, shade(hex(0x7d8a8e), k));
+    }
+    for (let i = 0; i < 3; i++) { const x0 = rng.int(0, 12); const y0 = rng.int(0, 12); for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) set(x0 + x, y0 + y, hex(rng.chance(0.5) ? 0x9a5a2a : 0x7a4420)); } // rust
+  });
+  def('burnt', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, hex([0x2a2624, 0x332d28, 0x241f1c, 0x4a2e1e][BZ.hash('u' + (x >> 1) + ',' + (y >> 1)) % 4]));
+    for (let i = 0; i < 5; i++) set(rng.int(0, 15), rng.int(0, 15), hex(0x7a4a2a));
+  });
+  def('tank', 16, 16, ({ set }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const camo = BZ.hash('t' + (x >> 2) + ',' + ((y + (x >> 3)) >> 2)) % 5;
+      set(x, y, hex([0x5a6638, 0x4a5530, 0x6a7244, 0x3e4428, 0x5a6638][camo]));
+    }
+  });
+  def('heli', 16, 16, ({ set }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const scorch = BZ.hash('h' + (x >> 2) + ',' + (y >> 2)) % 4 === 0;
+      set(x, y, hex(scorch ? 0x2a2622 : y === 0 ? 0x5a6448 : 0x46503a));
+    }
+  });
+  def('track', 8, 8, ({ set }) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) set(x, y, hex(x % 3 === 0 ? 0x1a1a1a : y % 4 === 0 ? 0x4a4a46 : 0x2c2c2a)); });
+  def('rubble', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, hex(0x6a645c));
+    for (let i = 0; i < 16; i++) {
+      const x = rng.int(0, 14); const y = rng.int(0, 14); const c = hex(rng.pick([0x8e8c86, 0xa04a38, 0x7a7068, 0x55504a]));
+      set(x, y, shade(c, 1.15)); set(x + 1, y, c); set(x, y + 1, c); set(x + 1, y + 1, shade(c, 0.75));
+    }
+  });
+  def('sandbag', 16, 8, ({ set }) => {
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 16; x++) {
+      const bag = (x + (y >> 2) * 4) % 8; const edge = bag === 0 || (y & 3) === 3;
+      set(x, y, edge ? hex(0x6a5a3a) : shade(hex(0xb09a6a), (y & 3) === 0 ? 1.12 : 1));
+    }
+  });
+  def('scorch', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const r = Math.hypot(x - 7.5, y - 7.5) / 8 + (rng.next() - 0.5) * 0.3;
+      if (r < 1) set(x, y, hex(r < 0.5 ? 0x141210 : 0x2a2420)); else set(x, y, [0, 0, 0], 0);
+    }
+  }, { noMip: true });
+  def('shutter', 16, 16, ({ set }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, shade(hex(0x8a9096), y % 2 ? 0.82 : 1.05));
+  });
+  def('hazard', 16, 16, ({ set }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) set(x, y, hex(((x + y) >> 2) & 1 ? 0x1c1c1c : 0xe8b820));
+  });
+  def('stained', 16, 16, ({ set }) => {
+    const cols = [0xd84a3a, 0x3a6ad8, 0xe8c040, 0x4ab86a];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const lead = x % 4 === 0 || y % 4 === 0;
+      set(x, y, lead ? hex(0x1a1a1a) : hex(cols[BZ.hash('s' + (x >> 2) + ',' + (y >> 2)) % 4]));
+    }
+  });
+  def('skyline', 16, 16, ({ set, rng }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const win = x % 4 === 1 && y % 4 === 1;
+      set(x, y, win ? (rng.chance(0.18) ? hex(0xe8b860) : hex(0x101418)) : hex(0x23262c));
+    }
+  });
+  // signs: a board with pixel text, painted after the pixel pass
+  const SIGNS = { sign_taphoa: ['TẠP HÓA', 0x2a6ab8, 0xffffff], sign_caphe: ['CÀ PHÊ', 0x6a3a1a, 0xf4d090], sign_pho: ['PHỞ 24H', 0xc8302a, 0xffe060],
+    sign_xang: ['XĂNG DẦU', 0x1a7a3a, 0xffffff], sign_trambac: ['TRẠM GÁC', 0x2a3a6a, 0xffffff], sign_kho: ['KHO 7', 0x3a3a3a, 0xe8b820] };
+  for (const [key, [text, bg, fg]] of Object.entries(SIGNS)) {
+    def(key, 64, 16, ({ set }) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 64; x++) set(x, y, shade(hex(bg), y === 0 || x === 0 ? 1.25 : y === 15 || x === 63 ? 0.6 : 1));
+    }, { noMip: true, text: [text, fg] });
+  }
+
   // ---- weapons and arm ----
   def('metal_dark', 16, 16, ({ set, rng }) => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
@@ -325,10 +435,12 @@
   pants('z_pants_dark', 0x2c2a2a);
   pants('z_pants_brown', 0x6a4a2c);
 
+  skin('z_skin_flyer', 0xd0c0ea, 0xa898c8);
+  face('z_face_flyer', 0xd0c0ea, 0xff40ff, true);
   def('z_wing', 16, 8, ({ set }) => {
     for (let y = 0; y < 8; y++) for (let x = 0; x < 16; x++) {
       const bone = y === 0 || (x % 5 === 0 && y < 6); const torn = y === 7 && x % 3 === 1;
-      set(x, y, torn ? [0, 0, 0] : hex(bone ? 0x2a1c2c : (x + y) % 4 === 0 ? 0x4a3450 : 0x5a3e60), torn ? 0 : 255);
+      set(x, y, torn ? [0, 0, 0] : hex(bone ? 0xf0d0ff : (x + y) % 4 === 0 ? 0xa04ad0 : 0xc060f0), torn ? 0 : 255);
     }
   });
 

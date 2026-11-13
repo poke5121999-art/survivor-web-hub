@@ -26,7 +26,7 @@
         const v = new THREE.Vector3(rng.range(-1, 1), rng.range(0.2, 1.2), rng.range(-1, 1)).normalize().multiplyScalar(rng.range(1.5, o.speed || 4.5));
         if (dir) v.addScaledVector(dir, o.push || 2);
         const c = Array.isArray(color) ? rng.pick(color) : color;
-        P.push({ p: pos.clone(), v, life: 0, max: rng.range(0.5, o.life || 1.1), size: rng.range(0.05, o.size || 0.12), color: c, spin: rng.range(-8, 8), rot: rng.range(0, 3), bounce: o.bounce ?? 0.3 });
+        P.push({ p: pos.clone(), v, life: 0, max: rng.range(0.5, o.life || 1.1), size: rng.range(0.05, o.size || 0.12), color: c, spin: rng.range(-8, 8), rot: rng.range(0, 3), bounce: o.bounce ?? 0.3, g: o.grav ?? 16, drag: o.drag || 0, grow: o.drag ? 1 : 0 });
       }
     }
 
@@ -102,11 +102,11 @@
         const p = P[i];
         p.life += dt;
         if (p.life > p.max) { P.splice(i, 1); continue; }
-        p.v.y -= 16 * dt;
+        p.v.y -= p.g * dt; if (p.drag) p.v.multiplyScalar(1 - p.drag * dt);
         p.p.addScaledVector(p.v, dt);
         if (p.p.y < p.size / 2) { p.p.y = p.size / 2; p.v.y *= -p.bounce; p.v.x *= 0.6; p.v.z *= 0.6; p.spin *= 0.5; }
         p.rot += p.spin * dt;
-        const s = p.size * (p.life > p.max - 0.2 ? (p.max - p.life) / 0.2 : 1);
+        const s = p.size * (1 + p.grow * p.life * 0.8) * (p.life > p.max - 0.3 ? (p.max - p.life) / 0.3 : 1);
         m4.compose(p.p, q.setFromEuler(e.set(p.rot, p.rot * 0.7, 0)), sc.set(s, s, s));
         parts.setMatrixAt(n, m4);
         parts.setColorAt(n, col.setHex(p.color));

@@ -4,7 +4,7 @@
   const THREE = window.THREE;
 
   const WEAPONS = {
-    pistol: { name: 'Súng lục', key: '1', price: 0, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol', impulse: 1,
+    pistol: { name: 'Súng lục', key: '1', price: 0, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol', impulse: 1, crit: 0.14,
       kick: { back: 0.05, rise: 2.2, yaw: 0.6, cam: 0.012 }, adsFov: 62 },
     shotgun: { name: 'Shotgun', key: '2', price: 350, dmg: 17, head: 1.5, rpm: 70, auto: false, mag: 6, reserve: 30, pellets: 9, spread: 0.065, moveSpread: 0.075, range: 32, perShell: 0.42, snd: 'shotgun', impulse: 0.45,
       kick: { back: 0.14, rise: 6, yaw: 1.4, cam: 0.045 }, adsFov: 64 },
@@ -144,7 +144,23 @@
       c.spin.set(G.rng.range(-20, 20), G.rng.range(-20, 20), G.rng.range(-20, 20)); c.life = 0.7; c.m.visible = true;
       setTimeout(() => G.audio.play('casing', { gain: 0.22 }), 380);
     }
+    // the spent magazine: a copy of the mag part, released into the viewmodel scene to fall and tumble
+    const drops = [];
+    function dropMag() {
+      const m = models[S.cur]; const part = m.userData.parts.mag; if (!part) return;
+      rig.updateMatrixWorld(true);
+      const c = part.clone(); part.matrixWorld.decompose(c.position, c.quaternion, c.scale);
+      vmScene.add(c);
+      const v = m.userData.magDir.clone().transformDirection(m.matrixWorld).multiplyScalar(1.2).add(new THREE.Vector3(-0.3, 0, 0.2));
+      drops.push({ m: c, v, spin: new THREE.Vector3(G.rng.range(-6, 6), G.rng.range(-3, 3), G.rng.range(-8, -3)), life: 0.7 });
+      setTimeout(() => G.audio.play('casing', { gain: 0.35, rate: 0.6 }), 420);
+    }
     function updateVmFx(dt) {
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i]; d.life -= dt; d.v.y -= 6 * dt; d.m.position.addScaledVector(d.v, dt);
+        d.m.rotation.x += d.spin.x * dt; d.m.rotation.y += d.spin.y * dt; d.m.rotation.z += d.spin.z * dt;
+        if (d.life <= 0) { vmScene.remove(d.m); drops.splice(i, 1); }
+      }
       let n = 0;
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i]; s.life += dt; if (s.life > s.max) { sparks.splice(i, 1); continue; }
@@ -220,8 +236,9 @@
           skip.add(h.z);
           const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
           const fall = w.pellets > 1 ? BZ.clamp(1.25 - h.t / w.range, 0.35, 1) : 1;
-          const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0 };
-          e.dmg += w.dmg * mult * fall * power; e.imp += (w.impulse || 1) * fall * power;
+          const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0, crit: false };
+          const crit = G.rng.chance(w.crit || 0.08); if (crit) e.crit = true;
+          e.dmg += w.dmg * mult * fall * power * (crit ? 2 : 1); e.imp += (w.impulse || 1) * fall * power;
           if (h.part === 'head' || (h.part === 'body' && e.part === 'leg')) e.part = h.part;
           pend.set(h.z, e);
           anyHit = true; head = head || h.part === 'head';
@@ -243,7 +260,7 @@
       for (const [z, e] of pend) {
         const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp);
         if (died) kills++;
-        G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died });
+        G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died, crit: e.crit });
       }
       if (anyHit) { S.hits++; G.audio.play(head ? 'head' : 'hit', { gain: 0.7 }); G.audio.play('marker', { gain: head ? 1 : 0.6 }); }
       G.audio.play(w.snd, { gain: 1 }); G.audio.duck();
@@ -309,11 +326,12 @@
       const tilt = pose(dt);
       updateVmFx(dt);
       const shellGun = !!w.perShell;
-      const rp = tilt * (shellGun ? 0.1 : 0.16); const rr = tilt * (shellGun ? -0.4 : 0.32); const ry = 0;
+      const rp = tilt * (shellGun ? 0.12 : 0.16); const rr = tilt * (shellGun ? 0.5 : 0.32); const ry = 0;
       const sprintTilt = P.sprinting ? 1 : 0;
       S.sprintK = BZ.damp(S.sprintK || 0, sprintTilt, 10, dt);
       const pos = HIP.clone().lerp(ADS, S.ads);
-      rig.position.set(pos.x + sx + bx - tilt * 0.12, pos.y + sy + by - S.drop.x * 0.35 - P.landDip * 0.4 + tilt * 0.15 - S.sprintK * 0.05, pos.z + kz * 0.06 + tilt * 0.06);
+      const lx = shellGun ? 0.05 : 0.17; const ly = shellGun ? 0.07 : 0.2; const lz = shellGun ? 0.02 : 0.08;
+      rig.position.set(pos.x + sx + bx - tilt * lx, pos.y + sy + by - S.drop.x * 0.35 - P.landDip * 0.4 + tilt * ly - S.sprintK * 0.05, pos.z + kz * 0.06 + tilt * lz);
       rig.rotation.set(kp * 0.02 + rp - S.drop.x * 0.6 - S.sprintK * (0.2 + Math.abs(Math.cos(P.stride * Math.PI)) * 0.08) + 0.05 * (1 - S.ads), ky * 0.02 + ry * 0.6 + S.sprintK * 0.5 + 0.3 * (1 - S.ads), kr * 0.02 + sx * 2 + S.sprintK * 0.25 + 0.06 * (1 - S.ads) + rr + (S.sprintK || 0) * Math.sin(P.stride * Math.PI) * 0.09);
       vmCam.fov = BZ.lerp(62, 50, S.ads); vmCam.updateProjectionMatrix();
     }
@@ -327,7 +345,8 @@
       if (S.phase === 'reload' && !w.perShell) {
         const t = S.t / w.reload;
         tilt = ease(seg(t, 0, 0.14)) * (1 - ease(seg(t, 0.86, 1)));
-        if (t < 0.38) { mag = -ease(seg(t, 0.14, 0.34)) * 0.32; magVis = t < 0.34; }
+        if (t >= 0.14 && !S.evt.dropped) { S.evt.dropped = true; dropMag(); }
+        if (t < 0.38) { mag = 0; magVis = t < 0.14; }
         else { mag = -(1 - ease(seg(t, 0.42, 0.62))) * 0.32; magVis = t >= 0.42; }
         if (t >= 0.66) slide = t < 0.8 ? ease(seg(t, 0.66, 0.76)) : 1 - seg(t, 0.8, 0.84);
       } else if (S.phase === 'reload') {
@@ -356,8 +375,8 @@
       if (P.shell) {
         const k = ease(seg(shell, 0, 0.6));
         P.shell.visible = shell >= 0 && shell < 0.7;
-        P.shell.position.set(0.07 * (1 - k), -0.22 + 0.21 * k, -0.12 - 0.1 * k);
-        P.shell.rotation.x = -0.6 * (1 - k);
+        P.shell.position.set(0.05 + 0.14 * (1 - k), 0.035 - 0.12 * (1 - k), -0.2 + 0.06 * (1 - k));
+        P.shell.rotation.set(0, -0.9 * (1 - k), 0.4 * (1 - k));
         if (P.shell.visible) hand.position.lerp(P.shell.position.clone().add(new THREE.Vector3(0, -0.05, 0.03)), Math.min(1, S.t / 0.15));
       }
       return tilt;

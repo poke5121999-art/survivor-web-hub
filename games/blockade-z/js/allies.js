@@ -99,7 +99,7 @@
         const dx = tx - a.pos.x; const dz = tz - a.pos.z; const dist = Math.hypot(dx, dz);
         const want = dist > 1 ? Math.min(ALLY.speed, dist * 2) : 0;
         a.vel.x = BZ.damp(a.vel.x, dist > 0.01 ? (dx / dist) * want : 0, 8, dt); a.vel.z = BZ.damp(a.vel.z, dist > 0.01 ? (dz / dist) * want : 0, 8, dt); a.vel.y = 0;
-        G.world.moveBox(a.pos, a.vel, dt, 0.3, 1.8, out); a.pos.y = 0;
+        G.world.moveBox(a.pos, a.vel, dt, 0.3, 1.8, out, 0.45); a.vel.y -= 20 * dt;
         // face the target, else the walking direction
         const sp = Math.hypot(a.vel.x, a.vel.z);
         const faceYaw = a.target ? Math.atan2(a.target.pos.x - a.pos.x, a.target.pos.z - a.pos.z) : sp > 0.4 ? Math.atan2(a.vel.x, a.vel.z) : a.yaw;

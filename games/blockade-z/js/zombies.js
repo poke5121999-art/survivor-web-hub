@@ -6,7 +6,7 @@
   const TYPES = {
     walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], coin: 10, score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
     runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], coin: 15, score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
-    flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 20, score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
+    flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 20, score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
     brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 50, score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
   };
   BZ.ZOMBIES = TYPES;
@@ -32,6 +32,7 @@
   const G_WING_R = new THREE.BoxGeometry(1.1, 0.04, 0.55); G_WING_R.translate(0.55, 0, 0);
 
   const BAR_GEO = new THREE.PlaneGeometry(0.7, 0.09);
+  const HALO_MAT = new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xc050ff, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
 
   BZ.makeZombies = (G) => {
     const POOL = 52;
@@ -50,7 +51,8 @@
       const armL = new THREE.Mesh(G_ARM, mats.skin); armL.position.set(-0.36, 0.64, 0); hips.add(armL);
       const armR = new THREE.Mesh(G_ARM, mats.skin); armR.position.set(0.36, 0.64, 0); hips.add(armR);
       const head = new THREE.Mesh(G_HEAD, [mats.skin, mats.skin, mats.skin, mats.skin, mats.face, mats.skin]); head.position.y = 0.7; hips.add(head);
-      const wingMat = new THREE.MeshLambertMaterial({ map: BZ.tex('z_wing'), side: THREE.DoubleSide });
+      const wingMat = new THREE.MeshLambertMaterial({ map: BZ.tex('z_wing'), side: THREE.DoubleSide, emissive: 0x6a2a9a, emissiveMap: BZ.tex('z_wing'), transparent: true, alphaTest: 0.5 });
+      const halo = new THREE.Sprite(HALO_MAT); halo.position.y = 1.2; halo.scale.set(3.2, 3.2, 1); halo.visible = false; root.add(halo);
       const wingL = new THREE.Mesh(G_WING_L, wingMat); wingL.position.set(-0.2, 0.6, -0.12); hips.add(wingL);
       const wingR = new THREE.Mesh(G_WING_R, wingMat); wingR.position.set(0.2, 0.6, -0.12); hips.add(wingR);
       root.traverse((o) => { if (o.isMesh) { o.castShadow = G.quality.shadow > 0; o.receiveShadow = false; } });
@@ -59,7 +61,7 @@
       const barBg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0x1a0c08, depthWrite: false }));
       const barFg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0xe8402c, depthWrite: false }));
       barFg.position.z = 0.002; barBg.add(barFg); barBg.visible = false; barBg.renderOrder = 5; barFg.renderOrder = 6; G.scene.add(barBg);
-      return { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR };
+      return { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo };
     }
     for (let i = 0; i < POOL; i++) list.push({ alive: false, body: makeBody(), pos: new THREE.Vector3(), vel: new THREE.Vector3() });
 
@@ -89,7 +91,7 @@
       z.yaw = Math.atan2(-gate.dir[0], -gate.dir[1]);
       z.phase = G.rng.range(0, 6); z.attackT = 0; z.windT = -1; z.flash = 0; z.voiceT = G.rng.range(1, 5); z.stuck = 0;
       const b = z.body;
-      b.root.visible = true; b.root.scale.setScalar(T.scale); b.head.visible = true; b.wingL.visible = b.wingR.visible = !!T.fly;
+      b.root.visible = true; b.root.scale.setScalar(T.scale); b.head.visible = true; b.wingL.visible = b.wingR.visible = b.halo.visible = !!T.fly;
       b.root.rotation.set(0, z.yaw, 0); b.root.position.copy(z.pos);
       setFlash(z, false);
       return z;
@@ -306,7 +308,7 @@
     function kill(z, part, dir) {
       z.alive = false; z.dying = 0.001;
       const b = z.body;
-      setFlash(z, false); b.barBg.visible = false;
+      setFlash(z, false); b.barBg.visible = false; b.halo.visible = false;
       if (part === 'head') {
         z.headless = true; b.head.visible = false;
         const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.7 * z.T.scale, z.pos.z);
