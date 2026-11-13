@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.557",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.557/BooHaul-Android-0.2.557-2b46c196.apk",
+    bytes: 150311948,
+    sha256: "5ea4aac6bc414984668ea73270819efa7cd5c1e0ebdacc075f2c64749c1d5f07",
+    date: "2026-11-13",
+    note: {
+      vi: "Boo Haul 0.2.557 cho Android (commit 2b46c196), chơi trên server LIVE (staging chờ duyệt). iPhone voice giữ loa ngoài, bảng chữ tải từ GameSpark theo version (xem trong Cài đặt). Cài đè lên bản cũ.",
+      en: "Boo Haul 0.2.557 for Android (commit 2b46c196), plays on the LIVE server (review staging). iPhone voice stays on the loudspeaker, game text can be updated from GameSpark by version (shown in Settings). Installs over the old version."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.554",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.554/BooHaul-Android-0.2.554-d0082538.apk",
     bytes: 150299566,
