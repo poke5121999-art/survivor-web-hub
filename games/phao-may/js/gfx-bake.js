@@ -36,7 +36,7 @@
       alb = mix(vec3(0.035, 0.13, 0.04), vec3(0.14, 0.34, 0.07), v.z*0.6 + n*0.4) * (0.55 + 0.45*edge);
       alb = mix(alb, vec3(0.34, 0.50, 0.12), step(0.86, v2.z) * 0.6);
       rough = 0.55 + 0.25*v.z; metal = 0.0; h = edge*0.6 + (1.0 - v.x)*0.4; ao = 0.45 + 0.55*edge;`,
-    bronze: `float n = fbm(uv, 4.0, 6); vec3 v = vor(uv, 18.0); float dent = smoothstep(0.55, 0.0, v.x);
+    bronze: `float n = fbm(uv, 4.0, 6); vec3 v = vor(uv, 18.0); float dent = (1.0 - smoothstep(0.0, 0.55, v.x));
       float scr = smoothstep(0.66, 0.72, fbm(vec2(uv.x*3.0, uv.y*70.0), 8.0, 3)) * 0.5;
       float tarn = smoothstep(0.35, 0.75, fbm(uv + 7.3, 5.0, 5));
       float pat = smoothstep(0.7, 0.8, fbm(uv + 2.1, 12.0, 5)) * tarn;
@@ -55,7 +55,7 @@
       alb = mix(alb, vec3(0.30, 0.13, 0.05), rust*0.7);
       rough = mix(0.3 + 0.25*br, 0.9, rust); metal = 1.0 - rust*0.8; h = br*0.3 + n*0.3 + rust*0.2; ao = 1.0;`,
     wood: `float g = fbm(vec2(uv.x*3.0, uv.y*40.0), 6.0, 5); float n = fbm(uv, 5.0, 5); float pl = fract(uv.x*4.0);
-      float gap = smoothstep(0.03, 0.0, pl) + smoothstep(0.97, 1.0, pl);
+      float gap = (1.0 - smoothstep(0.0, 0.03, pl)) + smoothstep(0.97, 1.0, pl);
       alb = mix(vec3(0.22, 0.12, 0.06), vec3(0.50, 0.32, 0.17), g*0.7 + n*0.3) * (1.0 - gap*0.7);
       rough = 0.72 + 0.2*g; metal = 0.0; h = g*0.4 + n*0.2 - gap*0.6 + 0.3; ao = 1.0 - gap*0.6;`
   };

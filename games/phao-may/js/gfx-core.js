@@ -35,7 +35,7 @@
         vec2 uv = vUv + vec2(cos(th), sin(th)) * r * rPix * vec2(uTexel.y/uTexel.x, 1.0);
         vec3 v = viewPos(uv) - p;
         float dd = dot(v, v);
-        occ += max(0.0, dot(v, n) - 0.06) / (dd + 0.25) * smoothstep(uRadius*uRadius*4.0, uRadius*uRadius, dd);
+        occ += max(0.0, dot(v, n) - 0.06) / (dd + 0.25) * (1.0 - smoothstep(uRadius*uRadius, uRadius*uRadius*4.0, dd));
       }
       o = vec4(clamp(1.0 - occ * 2.2 / float(AO_TAPS), 0.0, 1.0));
     }`;

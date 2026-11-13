@@ -9,7 +9,9 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const CHK = path.join(ROOT, '.chk');
 
 function launch() {
-  return require(PW).chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  // PM_GL=gl-egl uses the hardware GPU when the box has one; the default is the software renderer every machine has.
+  const gl = process.env.PM_GL || 'swiftshader';
+  return require(PW).chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + gl, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 }
 
 // query: URL params without the leading '?'. Returns { page, problems, close }.

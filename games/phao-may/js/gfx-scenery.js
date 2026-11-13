@@ -71,7 +71,7 @@
         const up = nrm.getY(i), n = PM.fbm(p.getX(i) * 5, p.getZ(i) * 5 + p.getY(i) * 5, seed, 3);
         const gr = PM.smoothstep(0.45, 0.8, up + (n - 0.5) * 0.4);
         const rock = [0.30 + n * 0.14, 0.24 + n * 0.1, 0.22 + n * 0.1], grass = [0.16 + n * 0.1, 0.34 + n * 0.14, 0.08];
-        const deep = PM.smoothstep(0, -1.2, p.getY(i));
+        const deep = (1 - PM.smoothstep(-1.2, 0, p.getY(i)));
         for (let c = 0; c < 3; c++) colors[i * 3 + c] = (rock[c] * (1 - gr) + grass[c] * gr) * (1 - deep * 0.45);
       }
       g.setAttribute('color', new THREE.BufferAttribute(colors, 3));

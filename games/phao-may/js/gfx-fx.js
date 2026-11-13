@@ -23,12 +23,12 @@
       vec2 p = vUv*2.0 - 1.0; float r = length(p); float a = 0.0;
       int kind = int(vMisc.x + 0.5);
       if (kind == 0) { float n = texture2D(tNoise, vUv*0.55 + vMisc.z*vec2(3.1, 7.7)).r; float n2 = texture2D(tNoise, vUv*1.3 + vMisc.z*5.3).g;
-        a = smoothstep(1.0, 0.25, r + (n - 0.5)*0.9 + (n2 - 0.5)*0.4) ; a *= a; }
-      else if (kind == 1) { a = exp(-p.y*p.y*9.0) * smoothstep(1.0, 0.0, abs(p.x)); }
-      else if (kind == 2) { a = smoothstep(0.12, 0.0, abs(r - 0.82)) * smoothstep(1.0, 0.9, r); }
+        a = (1.0 - smoothstep(0.2, 1.0, r + (n - 0.5)*1.3 + (n2 - 0.5)*0.7)); a *= a; }
+      else if (kind == 1) { a = exp(-p.y*p.y*9.0) * (1.0 - smoothstep(0.0, 1.0, abs(p.x))); }
+      else if (kind == 2) { a = (1.0 - smoothstep(0.0, 0.12, abs(r - 0.82))) * (1.0 - smoothstep(0.9, 1.0, r)); }
       else if (kind == 3) { a = pow(max(0.0, 1.0 - r), 2.2); }
       else if (kind == 4) { a = step(abs(p.x), 0.9) * step(abs(p.y), 0.45); }
-      else { a = smoothstep(1.0, 0.72, r); }
+      else { a = (1.0 - smoothstep(0.72, 1.0, r)); }
       a *= vCol.a;
       if (a < 0.003) discard;
       float d = texture2D(tDepth, gl_FragCoord.xy / uRes).x;
@@ -43,11 +43,11 @@
     void main(){
       float y = abs(vUv.y*2.0 - 1.0);
       float n = texture2D(tNoise, vec2(vUv.x*3.0 - uT*9.0, uT*3.0)).r;
-      float core = smoothstep(0.22 + n*0.12, 0.0, y), halo = pow(max(0.0, 1.0 - y), 2.5);
-      float zig = smoothstep(0.1, 0.0, abs(y - 0.25 - n*0.5)) * 0.8;
-      float life = smoothstep(0.0, 0.06, uT) * smoothstep(uLife, uLife*0.35, uT);
-      float a = (core*3.0 + halo*0.9 + zig) * life * smoothstep(0.0, 0.02, vUv.x) ;
-      gl_FragColor = vec4(mix(uCol, vec3(1.0), core) * a * 5.0, 0.0);
+      float core = (1.0 - smoothstep(0.0, 0.22 + n*0.12, y)), halo = pow(max(0.0, 1.0 - y), 2.5);
+      float zig = (1.0 - smoothstep(0.0, 0.1, abs(y - 0.25 - n*0.5))) * 0.8;
+      float life = smoothstep(0.0, 0.06, uT) * (1.0 - smoothstep(uLife*0.35, uLife, uT));
+      float a = (core*2.2 + halo*0.5 + zig) * life * smoothstep(0.0, 0.02, vUv.x) ;
+      gl_FragColor = vec4(mix(uCol, vec3(1.0), core) * a * 1.6, 1.0);
     }`;
   const SHIELD_FS = `
     uniform vec3 uCol; uniform float uT; uniform sampler2D tNoise; varying vec3 vN; varying vec3 vV; varying vec3 vP;
@@ -142,7 +142,7 @@
       const m = new THREE.ShaderMaterial({ vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`, fragmentShader: BEAM_FS,
         uniforms: { tNoise: { value: noise }, uT: { value: 0 }, uLife: { value: 0.85 }, uCol: { value: new THREE.Color(0.3, 0.9, 1.4) } }, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
       const mesh = new THREE.Mesh(beamGeo, m);
-      mesh.position.set(ev.x0, ev.y0, 0.5); mesh.rotation.z = ang; mesh.scale.set(len, 5.5, 1); mesh.layers.set(1); mesh.frustumCulled = false;
+      mesh.position.set(ev.x0, ev.y0, 0.5); mesh.rotation.z = ang; mesh.scale.set(len, 3.2, 1); mesh.layers.set(1); mesh.frustumCulled = false;
       group.add(mesh); beams.push({ mesh, t: 0 });
       const dx = Math.cos(ang), dy = Math.sin(ang);
       for (let s = 0; s < len; s += 1.4) {
@@ -150,9 +150,9 @@
         if (rnd() < 0.7) emit({ x, y, z: R(-1, 2), vx: R(-5, 5), vy: R(-3, 7), life: R(0.3, 0.9), s0: R(0.08, 0.18), s1: 0, col: [2, 7, 10], kind: 1, stretch: 4, align: true, grav: 9, add: 1 });
         if (terrain.solid(x, y) || rnd() < 0.15) emit({ x, y, z: R(-1, 2), vx: R(-1.5, 1.5), vy: R(0.5, 3), life: R(0.8, 1.6), s0: 0.8, s1: R(2, 3.4), col: [0.5, 0.75, 0.85], col1: [0.25, 0.25, 0.3], a: 0.5, add: 0.3, add1: 0, kind: 0, drag: 1.2 });
       }
-      emit({ x: ev.x0, y: ev.y0, z: 1, life: 0.25, s0: 7, s1: 12, col: [3, 9, 14], kind: 3 });
+      emit({ x: ev.x0, y: ev.y0, z: 1, life: 0.25, s0: 4, s1: 7, col: [2, 6, 9], kind: 3 });
       flashLight(ev.x0 + dx * 6, ev.y0 + dy * 6, 0x66ddff, 900);
-      G.gfx.flash = Math.max(G.gfx.flash, 0.35); G.rig.shake(0.5);
+      G.gfx.flash = Math.max(G.gfx.flash, 0.15); G.rig.shake(0.5);
     });
 
     function boom(x, y, radius, big) {
@@ -165,11 +165,11 @@
         emit({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr, z: R(-1.5, 3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 2.5, life: R(0.45, 0.95), s0: radius * R(0.3, 0.55), s1: radius * R(0.8, 1.3),
           col: [9, 4.2, 1.1], col1: [0.5, 0.12, 0.04], a: 0.95, add: 1, add1: 0.35, kind: 0, drag: 2.2, vr: R(-1.5, 1.5) });
       }
-      const ns = Math.round(10 * k * q.parts) + 3;
+      const ns = Math.round(12 * k * q.parts) + 3;
       for (let i = 0; i < ns; i++) {
-        const a = R(0, 6.28), sp = R(0.5, 4) * k;
-        emit({ x: x + R(-1, 1) * radius * 0.5, y: y + R(-0.5, 1) * radius * 0.5, z: R(-2, 3), vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp + R(1, 3.5), life: R(1.4, 2.8), s0: radius * R(0.35, 0.6), s1: radius * R(1.1, 1.9),
-          col: [0.34, 0.27, 0.24], col1: [0.5, 0.45, 0.45], a: 0.55, add: 0, kind: 0, drag: 1.1, vr: R(-0.6, 0.6), wind: 0.5, fadeIn: 0.12 });
+        const a = R(0, 6.28), sp = R(0.5, 4) * k, tone = R(0.16, 0.34);
+        emit({ x: x + R(-1, 1) * radius * 0.6, y: y + R(-0.5, 1) * radius * 0.5, z: R(-2, 3), vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp + R(1, 3.5), life: R(1.2, 2.6), s0: radius * R(0.25, 0.4), s1: radius * R(0.6, 1.0),
+          col: [tone * 1.1, tone * 0.9, tone * 0.82], col1: [tone * 1.5, tone * 1.4, tone * 1.45], a: 0.42, add: 0, kind: 0, drag: 1.1, vr: R(-0.6, 0.6), wind: 0.5, fadeIn: 0.15 });
       }
       const nk = Math.round(26 * k * q.parts);
       for (let i = 0; i < nk; i++) {
@@ -243,7 +243,7 @@
           p.acc -= 0.7;
           const f = p.acc / Math.max(dist, 1e-3), x = sp.x - (sp.x - p.lx) * f, y = sp.y - (sp.y - p.ly) * f;
           if (p.d.smoke) emit({ x, y, z: R(-0.2, 0.2), vx: R(-0.4, 0.4), vy: R(-0.2, 0.6), life: R(0.5, 1.0) * (0.6 + p.d.smoke * 0.5), s0: p.d.s * 0.7, s1: p.d.s * R(1.8, 2.8) * p.d.smoke, col: [g[0] * 0.5, g[1] * 0.5, g[2] * 0.5], col1: [0.6, 0.56, 0.56], a: 0.4, add: 0.8, add1: 0, kind: 0, wind: 0.3 });
-          else emit({ x, y, life: 0.45, s0: 0.2, s1: 0.02, col: g, kind: 5 });
+          else emit({ x, y, life: 0.3, s0: 0.07, s1: 0.01, col: g, kind: 1, stretch: 9, rot: Math.atan2(sp.vy, sp.vx), a: 0.8 });
         }
         p.lx = sp.x; p.ly = sp.y;
       }

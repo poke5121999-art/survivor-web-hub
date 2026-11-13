@@ -11,7 +11,7 @@
       vec3 d = normalize(vDir);
       float up = d.y;
       vec3 c = mix(mix(uHorizon, uMid, smoothstep(0.0, 0.09, up)), uZenith, smoothstep(0.06, 0.34, up));
-      c = mix(c, uGround, smoothstep(0.0, -0.25, up));
+      c = mix(c, uGround, (1.0 - smoothstep(-0.25, 0.0, up)));
       float sd = max(dot(d, uSunDir), 0.0);
       c += uSunCol * (pow(sd, 10.0) * 0.12 + pow(sd, 90.0) * 0.4 + pow(sd, 900.0) * 2.0);
       c += uSunCol * smoothstep(0.99975, 0.9999, sd) * 40.0;

@@ -101,9 +101,9 @@ button { font-family: var(--f); color: inherit; }
 body.touch #pad { display: block; }
 body.touch #pad button { position: absolute; pointer-events: auto; width: 62px; height: 62px; border-radius: 50%; border: 0; background: var(--plate); font: 900 20px var(--f); backdrop-filter: blur(6px); box-shadow: inset 0 0 0 2px rgba(255, 246, 230, .25); touch-action: none; }
 body.touch #pad button.on { background: rgba(255, 184, 74, .5); }
-body.touch #pad [data-hold=left] { left: 14px; bottom: 170px; } body.touch #pad [data-hold=right] { left: 88px; bottom: 170px; }
-body.touch #pad [data-hold=up] { right: 14px; bottom: 300px; } body.touch #pad [data-hold=down] { right: 14px; bottom: 230px; }
-body.touch #pad .fire { right: 86px; bottom: 170px; width: 92px; height: 92px; font-size: 18px; background: linear-gradient(180deg, #ffb84a, #e2622c); color: #2a1408; }
+body.touch #pad [data-hold=left] { left: 14px; bottom: 104px; } body.touch #pad [data-hold=right] { left: 86px; bottom: 104px; }
+body.touch #pad [data-hold=up] { right: 14px; bottom: 174px; } body.touch #pad [data-hold=down] { right: 14px; bottom: 104px; }
+body.touch #pad .fire { right: 88px; bottom: 104px; width: 88px; height: 88px; font-size: 18px; background: linear-gradient(180deg, #ffb84a, #e2622c); color: #2a1408; }
 
 #screens { position: absolute; inset: 0; display: none; pointer-events: auto; }
 #screens.on { display: block; }
