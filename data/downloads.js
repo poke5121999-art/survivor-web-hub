@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.535",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.535/BooHaul-Android-0.2.535-ecf45464.apk",
+    bytes: 150180688,
+    sha256: "eba5101174bcce38bd127ad8e093824015463f0d69eee95deb710d9dd26aa1dc",
+    date: "2026-11-13",
+    note: {
+      vi: "Boo Haul 0.2.535 cho Android (commit ecf45464), chơi trên server LIVE. Sửa vọng tiếng mình khi tạo/vào phòng mà mic đã bật sẵn. Cài đè lên bản cũ.",
+      en: "Boo Haul 0.2.535 for Android (commit ecf45464), plays on the LIVE server. Fixes hearing your own voice echo when you create or join a room with the mic already on. Installs over the old version."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.532",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.532/BooHaul-Android-0.2.532-a0da3a64.apk",
     bytes: 150176592,
