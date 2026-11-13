@@ -69,12 +69,12 @@ const STAGE = `(() => { const G = __G; G.state = 'shots'; G.wave.toSpawn = 0; G.
       const types = await page.evaluate("Object.keys(BZ.ZOMBIES).filter((k) => BZ.ZOMBIES[k].boss)");
       const list = ONLY || types; console.log('bosses ' + list.join(','));
       for (const t of list) {
-        for (const [pose, yaw] of [['front', Math.PI + 0.45], ['side', Math.PI + 1.5]]) {
+        for (const [pose, yaw] of [['front', 0.45], ['side', 1.5]]) {
           const info = await page.evaluate(`(() => { const G = __G; const S = __stage; S.clear();
             const z = G.zombies.spawn('${t}', 5, { x: 0, z: 9, dir: [0, 1], name: 't' }); if (!z) return null; z.pos.set(0, z.pos.y, 9); z.yaw = ${yaw};
             G.player.pos.set(0, 0, 80); G.state = 'playing'; for (let k = 0; k < 20; k++) { __sim(1 / 60); z.pos.x = 0; z.pos.z = 9; z.yaw = ${yaw}; if (z.bs) { z.bs.rest = 5; } }
             G.state = 'shots'; z.body.root.position.x = 0; z.body.root.position.z = 9; z.body.root.rotation.y = ${yaw};
-            const s = z.T.scale || 1; const h = Math.max(2.4, 2.2 * s) + z.pos.y; S.cam(0, h * 0.55, 9 + h * 3.4, 0, h * 0.5, 9, 30); return { s, y: z.pos.y }; })()`);
+            const s = z.T.scale || 1; const h = Math.max(2.4, 2.2 * s); const y0 = z.pos.y; S.cam(0, y0 + h * 0.6, 9 + h * 2.6, 0, y0 + h * 0.48, 9, 30); return { s, y: +y0.toFixed(1) }; })()`);
           if (info) await shot('boss-' + t + '-' + pose);
         }
       }

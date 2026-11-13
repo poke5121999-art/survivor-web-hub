@@ -318,7 +318,7 @@
       const X = z.body.x; const T = z.T;
       for (const id in BZ.BOSS_KITS) if (X[id]) X[id].g.visible = false;
       if (T.kind !== 'boss2') return;
-      if (!X[T.rig]) { const R = BZ.BOSS_KITS[T.rig].rig(G, z.body, { V, glowMat, addMat }); R.g.visible = false; z.body.root.add(R.g); X[T.rig] = R; }
+      if (!X[T.rig]) { const R = BZ.BOSS_KITS[T.rig].rig(G, z.body, { V, glowMat, addMat }); R.g.visible = false; z.body.root.add(R.g); BZ.whiteVC(R.g); X[T.rig] = R; }
       X[T.rig].g.visible = true; z.body.hips.visible = false; z.bs = null;
       const k = BZ.BOSS_KITS[T.rig]; if (k.dress) k.dress(z, X[T.rig]);
     }

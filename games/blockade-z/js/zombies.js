@@ -33,6 +33,10 @@
   // vertex colours (k: brightness of that box) and mapped at one texel density, so detail costs no draw call.
   // box: [min, max, k = 1, group = 0]; groups pick the material when the mesh has several (the head: 0 skin, 1 face).
   const SHADE6 = [0.86, 0.86, 1, 0.62, 0.93, 0.8];
+  // The body materials tint by vertex colour (the merged limbs carry their shading there). Any other geometry drawn with them
+  // (a boss rig, a spider's legs, an egg) has no colour attribute and would draw black, so it gets a white one.
+  BZ.whiteVC = (root) => root.traverse((o) => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; const g = o.geometry;
+    if (g.attributes.color || !ms.some((m) => m && m.vertexColors)) return; g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3)); });
   function multi(boxes) {
     const P = []; const N = []; const U = []; const C = []; const I = []; const groups = [];
     const order = boxes.map((b, i) => [b, i]).sort((x, y) => (x[0][3] || 0) - (y[0][3] || 0));
@@ -111,7 +115,7 @@
       const barFg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0xe8402c, depthWrite: false }));
       barFg.position.z = 0.002; barBg.add(barFg); barBg.visible = false; barBg.renderOrder = 5; barFg.renderOrder = 6; G.scene.add(barBg);
       const B = { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo, stumps, kneeL, kneeR, elbowL, elbowR };
-      BZ.zExtras(G, B);
+      BZ.zExtras(G, B); BZ.whiteVC(root);
       return B;
     }
     for (let i = 0; i < POOL; i++) list.push({ alive: false, body: makeBody(), pos: new THREE.Vector3(), vel: new THREE.Vector3() });

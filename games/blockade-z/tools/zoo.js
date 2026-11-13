@@ -130,6 +130,13 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     console.log('late', JSON.stringify(late));
     check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')}; ${late.waves} run${late.waves > 1 ? 's' : ''} of the wave)`);
     check(late.elites > 0, 'elites show up in a late wave');
+    // every mesh drawn with a vertex-coloured body material has colours to draw with (without them it renders black):
+    // each boss and each special body is put on once, then every body is walked
+    const vc = await page.evaluate(`(() => { const G = __G; G.god = true; G.wave.toSpawn = 0; G.wave.bossAt = -1; const bad = new Set(); let meshes = 0; const kinds = Object.keys(BZ.ZOMBIES);
+      for (const t of kinds) { G.zombies.clear(); const z = G.zombies.spawn(t, 3, { x: 0, z: 9, dir: [0, 1], name: 't' }); if (!z) continue; __sim(0.05);
+        z.body.root.traverse((o) => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; if (!ms.some((m) => m && m.vertexColors)) return; meshes++; if (!o.geometry.attributes.color) bad.add(t); }); }
+      G.zombies.clear(); return { kinds: kinds.length, meshes, bad: [...bad] }; })()`);
+    check(vc.kinds >= 20 && vc.meshes > 200 && vc.bad.length === 0, `no body part of the ${vc.kinds} kinds draws black for want of vertex colours (${vc.meshes} meshes${vc.bad.length ? '; bad: ' + vc.bad.join(',') : ''})`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 5).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

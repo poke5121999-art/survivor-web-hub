@@ -163,7 +163,7 @@ const BOT = `(() => {
       const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260;
       const h0 = W.S.hits; P.input.fire = true; __sim(1.4); P.input.fire = false; __sim(0.3);
       r.swings = W.S.hits - h0; r.dead = zs.filter((z) => !z.alive).length; r.arms = zs.reduce((a, z) => a + (2 - z.armsLeft), 0);
-      G.zombies.clear(); const L = mk('walker', 3, 0); L.hp = L.maxHp = 600; for (let i = 0; i < 14 && !L.crawl; i++) G.zombies.damage(L, 40, 'leg', new V(1, 0, 0), 1); r.crawl = L.crawl;
+      G.zombies.clear(); const L = mk('walker', 3, 0); L.hp = L.maxHp = 600; /* which leg a hit lands on and whether it comes off are rolls: keep the walker alive and keep hitting until one does */ for (let i = 0; i < 120 && !L.crawl; i++) { L.hp = L.maxHp; G.zombies.damage(L, 40, 'leg', new V(1, 0, 0), 1); } r.crawl = L.crawl;
       const g0 = G.fx.debug().made; const B = mk('walker', 6, 6); B.hp = 50; G.zombies.damage(B, 400, 'body', new V(1, 0, 0), 3, { blast: true }); r.blastGibs = G.fx.debug().made - g0;
       __sim(3); r.resting = G.fx.debug().resting; r.splats = G.fx.debug().splats;
       G.zombies.clear(); r.inv = W.S.inv.join(','); r.api = ['dropCur', 'pickup', 'cycle', 'selectSlot', 'ground'].filter((k) => k in W);
