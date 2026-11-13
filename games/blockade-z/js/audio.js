@@ -312,10 +312,11 @@
     music_boss: { n: 1, bus: 'music', loop: true, sync: 'music_perc', gen: bossStem, o: {} },
     heart: { n: 1, bus: 'ui', max: 1, gen: heart, o: {} },
     siren: { n: 1, bus: 'ui', max: 1, gen: tones, o: { notes: [[466, 0.2], [349, 0.2], [466, 0.2], [349, 0.2], [466, 0.2], [349, 0.34]], peak: 0.3 } },
+    glass: { n: 3, bus: 'world', max: 4, gen: click, o: { len: 0.34, taps: [[0, 5200, 9, 1], [0.015, 7400, 11, 0.8], [0.04, 4300, 8, 0.7], [0.07, 6600, 11, 0.55], [0.11, 5600, 9, 0.4], [0.16, 8200, 12, 0.3], [0.22, 6100, 10, 0.2]], peak: 0.6 } },
     ui_click: { n: 1, bus: 'ui', max: 2, gen: tones, o: { wave: 'tri', notes: [[660, 0.025], [990, 0.04]], peak: 0.2 } },
   };
   const ORDER = ['marker', 'coin', 'pistol', 'empty', 'mag_out', 'mag_in', 'switch', 'step', 'land', 'hit', 'head', 'impact', 'groan', 'die', 'swipe', 'hurt',
-    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'thunder', 'wind', 'rain', 'music_drone', 'music_perc', 'music_boss', 'heart', 'siren', 'ui_click'];
+    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'slash', 'heavy', 'chop', 'cleave', 'gore', 'saber_on', 'saber_swing', 'saber_hit', 'clank', 'thunder', 'wind', 'rain', 'music_drone', 'music_perc', 'music_boss', 'heart', 'siren', 'ui_click', 'glass'];
 
   BZ.makeAudio = (G) => {
     const AC = window.AudioContext || window.webkitAudioContext;

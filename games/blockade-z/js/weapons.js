@@ -579,6 +579,8 @@
       const pf = (w.pf && w.pf[sw.pat]) || {}; const arc = pf.arc ?? w.arc; const reach = pf.range ?? w.range; const cleave = pf.cleave ?? w.cleave; const fall = pf.fall ?? w.fall ?? 0.75; const full = arc >= Math.PI - 1e-3;
       const dirX = PATDIR[sw.pat] ?? -1; const high = sw.pat === 'over' || sw.pat === 'upper';
       sweep.set(right.x * dirX, sw.pat === 'over' ? -0.6 : sw.pat === 'upper' ? 0.9 : 0.15, right.z * dirX).add(new THREE.Vector3(fx, 0, fz).multiplyScalar(0.5)).normalize();
+      // a blade or a fist through a window pane breaks it
+      if (G.destruct) { const gh = G.world.raycast(o, d, reach + 0.4); if (gh && gh.s && gh.s.piece && gh.s.piece.tag === 'glass') G.destruct.hit(gh.s, null, 200, d.clone()); }
       const cands = [];
       for (const z of G.zombies.list) {
         if (!z.alive) continue;
@@ -745,7 +747,7 @@
             G.fx.hole(end.clone(), wh.normal); G.fx.impact(end.clone(), wh.normal, wh.tag);
             G.fx.burst(end.clone(), 8, [0xfff2a0, 0xffc040, 0xd0d4d8], { dir: nrm, push: 3, speed: 3, size: 0.05, life: 0.4 });
             G.audio.playAt(q.kind === 'javelin' ? 'clank' : 'impact', end, { gain: 0.7 });
-            if (G.destruct && !q.fake) G.destruct.hit(wh.s, end, q.dmg * 0.5);
+            if (G.destruct && !q.fake) G.destruct.hit(wh.s, end, q.dmg * 0.5, q.dir || q.vel);
             stickProj(q, end.addScaledVector(pDir, q.kind === 'javelin' ? -1.15 : 0), nrm, q.kind === 'javelin' ? 3 : 2.2);
           } else q.p.addScaledVector(pDir, len);
         }
@@ -1239,7 +1241,7 @@
           const n = new THREE.Vector3(...wh.normal);
           const dust = { grass: [0x5fae3c, 0x8a5a35], wood: [0xc8954f, 0x8f6232], metal: [0xd0d4d8, 0xffd080], leaves: [0x3d8a2c, 0x4ea03a] }[wh.tag] || [0x9a9c9e, 0x6e6e70];
           G.fx.burst(end, 3, dust, { dir: n, push: 2, size: 0.07, life: 0.6 }); G.fx.impact(end, wh.normal, wh.tag);
-          if (G.destruct) G.destruct.hit(wh.s, end, w.dmg || 20);
+          if (G.destruct) G.destruct.hit(wh.s, end, w.dmg || 20, d.clone());
           if (i === 0) G.audio.playAt('impact', end, { gain: 0.5 });
         }
         if (dart) { G.fx.tracer(muzzleW, end, 0x50ff70); G.fx.puff(end, { glow: true, s0: 0.35, s1: 0.1, life: 0.15, c0: 0xd0ffd0, c1: 0x40e060, a0: 1 }); healAlong(o, end); }

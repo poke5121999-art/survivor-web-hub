@@ -562,7 +562,7 @@
         G.coop.reportHit(z, amount, part, dir, imp, opt);
         if (K.hit(z, amount, part, dir, opt, true) === 0) return false;
         if (opt.status) for (const [k, pw] of opt.status) statusFlash(z, k);
-        z.flash = 0.09; setFlash(z, true);
+        z.flash = 0.07; setFlash(z, true);
         const at = new THREE.Vector3(z.pos.x, z.pos.y + (part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05) * z.T.scale, z.pos.z); const k = BZ.clamp(amount / z.maxHp, 0, 1);
         G.fx.burst(at, Math.round(4 + k * 18), [0xb3201a, 0x7a1410, 0x5f8f3e], { dir, push: 1.5 + 3 * k * imp, size: 0.07 + 0.08 * k, speed: 3 + 3 * k }); G.fx.bloodMist(at, k);
         if (z.fp) { if (part === 'head') z.hs.v -= (10 + 40 * k) * imp; else z.fp.v -= (5 + 30 * k) * imp; }
@@ -570,7 +570,7 @@
         return false;
       }
       amount = K.hit(z, amount, part, dir, opt, false); if (amount <= 0) return false;
-      z.hp -= amount; z.flash = 0.09; setFlash(z, true);
+      z.hp -= amount; z.flash = 0.07; setFlash(z, true);
       if (G.hero && G.hero.chill()) z.chillT = 1;
       const T = z.T; const k = BZ.clamp(amount / z.maxHp, 0, 1); const heavy = T === TYPES.brute ? 0.45 : 1;
       const y = part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05;
@@ -825,13 +825,14 @@
       if (!quad && z.alive && !z.crawl) { b.torso.rotation.y = Math.sin(z.phase) * 0.1 * moving; b.torso.rotation.z = Math.sin(z.phase * 0.5) * 0.03; } else { b.torso.rotation.y = 0; b.torso.rotation.z = 0; }
     }
     function clear() { K.clear(); for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
-    // Hit flash: the body goes hot white-pink for a few frames (reads at any distance, and the texture still shows through); otherwise only the eyes glow.
+    // Hit flash: the body lifts a shade for about 70 ms (added light, so the skin, the clothes and the red eyes stay readable); otherwise only the eyes glow.
     function setFlash(z, on) {
       const m = z.body.mats;
-      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0xc48a80 : z.glow || z.T.glow || 0);
-      const f = m.face; const wantMap = on ? null : BZ.tex('eyes_glow');
+      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0x5a3c34 : z.glow || z.T.glow || 0);
+      // the face keeps its glowing eyes through the flash
+      const f = m.face; const wantMap = BZ.tex('eyes_glow');
       if (f.emissiveMap !== wantMap) { f.emissiveMap = wantMap; f.needsUpdate = true; }
-      f.emissive.setHex(on ? 0xc48a80 : f.userData.eye || 0xff3020);
+      f.emissive.setHex(f.userData.eye || 0xff3020);
     }
     const aliveCount = () => list.reduce((a, z) => a + (z.alive ? 1 : 0), 0);
 

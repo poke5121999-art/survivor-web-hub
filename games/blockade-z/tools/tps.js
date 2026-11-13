@@ -73,6 +73,17 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
       const lean0 = M().spine.rotation.x; G.events.emit('player:hurt', { dmg: 3, from }); let fl = 0; for (let i = 0; i < 12; i++) { __sim(1 / 60); fl = Math.min(fl, M().spine.rotation.x - lean0); } r.flinch = +fl.toFixed(2); __sim(0.8);
       const god = G.god; G.god = false; P.hurt(99999, from); G.god = god; __sim(1.2); r.dead = { state: G.state, tip: +Math.abs(M().root.rotation.x).toFixed(2), gun: M().gun.visible, open: +M().fingersR.cur.c[1].toFixed(2) };
       return r; })()`);
+    // the jetpack: on the back once it is owned, two flames and a trail of fire and smoke while it burns, a glow at the screen edge in first person
+    const jet = await page.evaluate(`(() => { const G = __G; const P = G.player; const key = (c, on) => dispatchEvent(new KeyboardEvent(on ? 'keydown' : 'keyup', { code: c }));
+      G.hero.set('mua'); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); G.fx.clear(); P.pos.set(0, 0, 8); __sim(0.3); const r = { before: !!(G.tps.model.jet && G.tps.model.jet.g.visible) };
+      G.events.emit('upgrade', 'jet'); __sim(0.3); r.has = P.hasJet; r.pack = !!(G.tps.model.jet && G.tps.model.jet.g.visible); r.idleFlame = G.tps.model.jet.flames[0].f.visible;
+      const f0 = G.fx.debug(); key('Space', 1); __sim(0.9); const f1 = G.fx.debug(); r.jetting = P.jetting; r.flame = G.tps.model.jet.flames[0].f.visible && G.tps.model.jet.flames[1].f.visible; r.glow = f1.glow - f0.glow; r.smoke = f1.smoke - f0.smoke; r.y = +P.pos.y.toFixed(1);
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' })); __sim(0.2); r.edge = document.getElementById('jetfx').classList.contains('on'); dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
+      key('Space', 0); __sim(1.5); r.after = G.tps.model.jet.flames[0].f.visible; r.fl = G.fx.floaters().length; return r; })()`);
+    console.log('jet', JSON.stringify(jet));
+    check(!jet.before && jet.has && jet.pack && !jet.idleFlame, 'the jetpack shows on the back once it is owned, with no flame while it idles');
+    check(jet.jetting && jet.flame && jet.glow > 5 && jet.smoke > 3 && jet.y > 2, `holding jump fires both thrusters: flames on, ${jet.glow} fire and ${jet.smoke} smoke puffs in the air, up to ${jet.y} m`);
+    check(jet.edge && !jet.after, 'first person shows the burn at the bottom edge, and the flames go out when the thrust stops');
     console.log('moves', JSON.stringify(mv));
     check(mv.hand.verts === 15 * 24 && mv.hand.joints === 6, `each hand is one mesh: a palm and 14 finger joints (${mv.hand.verts} vertices)`);
     check(mv.draw0.k < 0.2 && mv.drawEnd.k === 1 && Math.abs(mv.drawEnd.arm + 1.42) < 0.25, `the weapon is drawn: out of sight at first (${mv.draw0.k}), in the hand and aimed half a second later (arm ${mv.drawEnd.arm})`);

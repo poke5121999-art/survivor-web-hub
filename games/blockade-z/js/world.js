@@ -24,7 +24,7 @@
     // Breakable pieces: while `brk` is on (the buildings and props inside the wall), every solid block becomes a piece
     // that can crack, break and fall. Its faces stay in the merged world mesh (no extra draw calls); breaking one
     // collapses its vertices. Boxes without a solid (signs, bars, glass) ride along with the piece they touch.
-    const pieces = []; const decor = []; let brk = false; let tagN = 0;
+    const pieces = []; const decor = []; let brk = false; let tagN = 0; let winN = 0; const doors = [];
     const box = (min, max, mats, opt) => {
       if (!brk) return B.box(min, max, mats, opt);
       B.tagId = ++tagN; B.box(min, max, mats, opt); B.tagId = null;
@@ -54,6 +54,19 @@
       let cur = a0;
       for (const [p0, p1, q0, q1] of openings.slice().sort((p, q) => p[0] - q[0])) {
         full(cur, p0); put(p0, p1, 0, q0); put(p0, p1, q1, h); cur = p1;
+        // a doorway at street level gets a door (js/destruct.js hangs it, opens and shuts it, and lets zombies break it down)
+        if (brk && y0 === 0 && q0 === 0 && p1 - p0 >= 1.0 && p1 - p0 <= 1.85 && q1 <= 2.8 && o.door !== false) doors.push({ axis, s0: p0, s1: p1, c, t, h: q1 });
+        // a window: a pane of real glass in the middle of the wall (it stops shots and bodies until it is broken) inside a frame that stays
+        if (brk && o.glass !== false && q0 >= 0.8 && q1 - q0 <= 3.2 && q1 <= h - 0.05 && !o.ruin) {
+          const m = c + t / 2; const lit = winN++ % 3 === 1; const key = lit ? 'glass_lit_pane' : 'glass_pane';
+          const P3 = (s, y, d) => (axis === 'x' ? [s, y0 + y, d] : [d, y0 + y, s]);
+          block(P3(p0, q0, m - 0.03), P3(p1, q1, m + 0.03), key, 'glass', { uv: 'fit', vary: 0 });
+          const fr = (s0, s1, ya, yb, dd, mat = 'metal_dark') => box(P3(s0, ya, m - dd), P3(s1, yb, m + dd), mat, { vary: 0 });
+          const d2 = t / 2 + 0.035;
+          fr(p0 - 0.07, p0 + 0.015, q0 - 0.07, q1 + 0.07, d2); fr(p1 - 0.015, p1 + 0.07, q0 - 0.07, q1 + 0.07, d2); fr(p0, p1, q1 - 0.015, q1 + 0.07, d2); fr(p0 - 0.1, p1 + 0.1, q0 - 0.08, q0 + 0.015, d2 + 0.05, 'concrete');
+          // glazing bars ride with the pane
+          if (p1 - p0 > 0.8) fr((p0 + p1) / 2 - 0.02, (p0 + p1) / 2 + 0.02, q0 + 0.02, q1 - 0.02, 0.045); if (q1 - q0 > 0.9) fr(p0 + 0.02, p1 - 0.02, (q0 + q1) / 2 - 0.02, (q0 + q1) / 2 + 0.02, 0.045);
+        }
       }
       full(cur, a1);
     }
@@ -173,7 +186,6 @@
       block([x0 + 0.5, shutter, z1 - 0.3], [x1 - 0.5, 2.7, z1 - 0.1], 'shutter', 'metal');
       slab(x0, z0, x1, z1, 3.2, 0.2, { top: 'concrete', side: mat, bottom: 'concrete' });
       storey(x0, z0, x1, z1, 3.4, 3.4 + i * 0.6, mat, { s: [[x0 + 1.2, x1 - 1.2, 1.0, 2.5]] });
-      box([x0 + 1.2, 4.4, z1 - 0.32], [x1 - 1.2, 5.9, z1 - 0.3], 'glass_lit', { uv: 'fit', vary: 0 });
       slab(x0 + 0.4, z1, x1 - 0.4, z1 + 0.9, 3.4, 0.15, 'concrete');
       for (let x = x0 + 0.4; x < x1 - 0.4; x += 0.45) box([x, 3.55, z1 + 0.8], [x + 0.07, 4.35, z1 + 0.88], 'metal_dark', { vary: 0 });
       sign([x0 + 0.4, 2.85, z1], [x1 - 0.4, 3.35, z1 + 0.12], sg, 'pz');
@@ -222,7 +234,7 @@
     {
       const x0 = -30; const z0 = 9; const x1 = -19; const z1 = 27; const H = 7;
       const tall = (a) => [a, a + 1, 2, 5.2];
-      storey(x0, z0, x1, z1, 0, H, 'stone', { e: [[16.5, 19.5, 0, 4], tall(14), tall(22.5), tall(24.8)], w: [tall(11.5), tall(15), tall(19), tall(22.5)], n: [[-25.2, -23.8, 3, 6]] });
+      storey(x0, z0, x1, z1, 0, H, 'stone', { e: [[16.5, 19.5, 0, 4], tall(14), tall(22.5), tall(24.8)], w: [tall(11.5), tall(15), tall(19), tall(22.5)], n: [[-25.2, -23.8, 3, 6]] }, { glass: false });
       for (const [a, side] of [[14, 'e'], [22.5, 'e'], [24.8, 'e'], [11.5, 'w'], [15, 'w'], [19, 'w'], [22.5, 'w']]) {
         const x = side === 'e' ? x1 - 0.18 : x0 + 0.12;
         block([x, 2, a], [x + 0.06, 5.2, a + 1], 'stained', 'stone', { uv: 'fit', vary: 0, flat: true });
@@ -359,8 +371,10 @@
     parapet(10, 12, 32, 30, 7.3, 0.5, 'corrugated'); for (const x of [13, 17, 28]) vent(x, 7.3, 15); tankOnRoof(29.5, 7.3, 27.5); aerial(12, 7.3, 28.5, 4);
 
     const group = B.build({ cast: G.quality.shadow > 0, recv: true, matOpts: {
-      lamp: { emissive: 0xffe9a0 }, glass_lit: { emissive: 0xffd080 }, stained: { emissive: 0x7a5a50 }, scorch: { transparent: true },
+      lamp: { emissive: 0xffe9a0 }, glass_lit: { emissive: 0xffd080 }, glass_lit_pane: { emissive: 0xffc070 }, stained: { emissive: 0x7a5a50 }, scorch: { transparent: true },
     } });
+    // window panes are see-through: one material for the dark panes, one for the lit ones (they glow at night)
+    for (const [key, op] of [['glass_pane', 0.42], ['glass_lit_pane', 0.72]]) { const gm = group.getObjectByName(key); if (gm) { gm.material = gm.material.clone(); gm.material.name = key; gm.material.transparent = true; gm.material.opacity = op; gm.material.depthWrite = false; gm.castShadow = false; gm.renderOrder = 2; } }
     group.name = 'world';
     scene.add(group);
 
@@ -377,7 +391,7 @@
     for (const p of pieces) {
       p.sup = []; p.dep = []; p.fixed = p.min[1] < 0.05;
       if (p.fixed) continue;
-      for (const s of solids) { if (s === p.solid || Math.abs(s.max[1] - p.min[1]) > 0.08 || !xzOver(s, p)) continue; if (s.piece) p.sup.push(s.piece); else p.fixed = true; }
+      for (const s of solids) { if (s === p.solid || s.tag === 'glass' || Math.abs(s.max[1] - p.min[1]) > 0.08 || !xzOver(s, p)) continue; if (s.piece) p.sup.push(s.piece); else p.fixed = true; } // (glass holds nothing up)
       p.sup0 = p.sup.length;
     }
     // lintels over windows and doors hang between the columns beside them
@@ -471,7 +485,7 @@
         if (!inside && !corridor) blocked[idx(cx, cz)] = 1;
       }
       for (const s of solids) {
-        if (s.min[1] > 1.6) continue;
+        if (s.min[1] > 1.6 || s.noGrid) continue; // (a shut door is not on the map: zombies walk up to it and break it down)
         for (let cz = toCell(s.min[2] - rz); cz <= toCell(s.max[2] + rz); cz++) for (let cx = toCell(s.min[0] - rz); cx <= toCell(s.max[0] + rz); cx++) {
           if (cx < 0 || cz < 0 || cx >= N || cz >= N) continue;
           const x = cx - GRID_HALF + 0.5; const z = cz - GRID_HALF + 0.5;
@@ -643,7 +657,7 @@
       // by day the far skyline sits in the smog: let fog take it so it reads as distant haze, not black towers
       skyline.traverse((m) => { if (!m.isMesh) return; const f = k < 0.5; if (m.material.fog !== f) { m.material.fog = f; m.material.needsUpdate = true; } m.material.color.setHex(f ? 0xb8c2d0 : 0x9098a8); });
     }
-    return { update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, pieces, removeSolid, addSolid, rebuildGrids, spawns, HALF, group, sky, clouds, setNight, cloudMat,
+    return { doors, update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, pieces, removeSolid, addSolid, rebuildGrids, spawns, HALF, group, sky, clouds, setNight, cloudMat,
       isBlocked: (x, z) => { const cx = toCell(x); const cz = toCell(z); return cx < 0 || cz < 0 || cx >= N || cz >= N || !!blocked[idx(cx, cz)]; } };
   };
 })();

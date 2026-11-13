@@ -152,8 +152,12 @@
         P.vel.y = Math.min(JET.maxRise, P.vel.y + JET.thrust * dt); P.fuel = Math.max(0, P.fuel - JET.burn * dt); P.fuelWait = JET.refillDelay;
         if (P.pos.y > JET.ceiling) P.vel.y = Math.min(P.vel.y, 0);
         P.jetSnd -= dt; if (P.jetSnd <= 0) { P.jetSnd = 0.14; G.audio.play('jet', { gain: 0.5 }); }
-        G.fx.jet(new THREE.Vector3(P.pos.x - Math.sin(P.yaw) * -0.35, P.pos.y + 0.6, P.pos.z - Math.cos(P.yaw) * -0.35));
-      } else if (P.onGround) { P.fuelWait -= dt; if (P.fuelWait <= 0) P.fuel = Math.min(100, P.fuel + JET.refill * dt); }
+        // exhaust from the two nozzles on the back (the third-person body shows the pack itself)
+        const bx = Math.sin(P.yaw) * 0.42; const bz = Math.cos(P.yaw) * 0.42; const sx = Math.cos(P.yaw) * 0.21; const sz = -Math.sin(P.yaw) * 0.21; const kk = P.fuel < 22 ? 0.6 : 1;
+        for (const sg of [-1, 1]) G.fx.jet(new THREE.Vector3(P.pos.x + bx + sx * sg, P.pos.y + 0.95, P.pos.z + bz + sz * sg), { k: kk, light: sg > 0 });
+        P.jetWas = true;
+      } else if (P.jetWas) { P.jetWas = false; if (P.fuel <= 0 && !P.onGround) { G.fx.jetOut(new THREE.Vector3(P.pos.x + Math.sin(P.yaw) * 0.42, P.pos.y + 0.9, P.pos.z + Math.cos(P.yaw) * 0.42)); G.audio.play('empty', { gain: 0.9, rate: 0.7 }); } }
+      if (!P.jetting && P.onGround) { P.fuelWait -= dt; if (P.fuelWait <= 0) P.fuel = Math.min(100, P.fuel + JET.refill * dt); }
       const vyBefore = P.vel.y;
       const wasGround = P.onGround;
       G.world.moveBox(P.pos, P.vel, dt, MOVE.radius, MOVE.height, out, 0.45);

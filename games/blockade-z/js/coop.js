@@ -88,11 +88,11 @@ BZ.makeCoop = (G) => {
     if (a.weapon === id) return;
     a.weapon = id; a.eq = BZ.equipWeapon(a.m, id);
   }
-  // pose row: [x, y, z, yaw, pitch, weapon index, shots, flags(1 alive, 2 sprint), hp]
+  // pose row: [x, y, z, yaw, pitch, weapon index, shots, flags(1 alive, 2 sprint, 4 has a jetpack, 8 jetpack firing), hp]
   function applyPose(a, r) {
     a.tgt.set(r[0], r[1], r[2]); a.tyaw = r[3]; a.pitch = r[4]; setWeapon(a, G.weapons.ORDER[r[5]]);
     if (!a.init) { a.pos.copy(a.tgt); a.yaw = a.tyaw; a.init = true; }
-    const shots = r[6]; const alive = !!(r[7] & 1);
+    const shots = r[6]; const alive = !!(r[7] & 1); a.flags = r[7];
     if (shots > a.shots && a.init) fireFx(a, Math.min(3, shots - a.shots));
     a.shots = shots; a.alive = alive; a.hp = r[8];
     a.target.alive = alive; a.target.pos.copy(a.tgt);
@@ -152,6 +152,8 @@ BZ.makeCoop = (G) => {
       a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt); if (!(a.spinT > 0)) a.heat = Math.max(0, (a.heat || 0) - dt * 0.3);
       if (a.eq && a.eq.gun) { a.eq.gun.visible = !(W.thrown && a.hideT > 0); const bar = a.eq.gun.getObjectByName('barrels'); if (bar) { a.spinAng = ((a.spinAng || 0) + (a.spinT > 0 ? 40 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spinAng; } }
       BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
+      // another player's jetpack: the pack on the back, its flames, and the exhaust under the nozzles
+      { const fl = a.flags || 0; const J = BZ.heroJet(m, !!(fl & 4), !!(fl & 8), 100, dt); if (J && (fl & 8)) { a.root.updateMatrixWorld(true); for (const nz of J.nozzle) G.fx.jet(nz.getWorldPosition(new THREE.Vector3())); } }
       if (!a.rib) a.rib = G.fx.ribbon();
       if (W.melee && !W.noTrail && a.eq && a.eq.tip && st.swing >= 0.15 && st.swing < 0.75) { a.root.updateMatrixWorld(true); a.rib.push(a.eq.tip.getWorldPosition(new THREE.Vector3()), m.handR.getWorldPosition(new THREE.Vector3())); }
       a.rib.update(dt, W.trail || 0xffffff, 0.9);
@@ -173,7 +175,7 @@ BZ.makeCoop = (G) => {
   C.hurtRemote = (t, dmg, from, fx) => { const p = [...C.peers.values()].find((q) => q.pid === t.pid); if (p) send(p.id, fx ? { t: 'hurt', d: dmg, f: v3(from), x: fx } : { t: 'hurt', d: dmg, f: v3(from) }); };
   function myPose() {
     const P = G.player; const W = G.weapons;
-    return [+P.pos.x.toFixed(2), +P.pos.y.toFixed(2), +P.pos.z.toFixed(2), +P.yaw.toFixed(2), +P.pitch.toFixed(2), W.ORDER.indexOf(W.cur()), W.S.shots, (P.alive ? 1 : 0) | (P.sprinting ? 2 : 0), Math.round(P.hp)];
+    return [+P.pos.x.toFixed(2), +P.pos.y.toFixed(2), +P.pos.z.toFixed(2), +P.yaw.toFixed(2), +P.pitch.toFixed(2), W.ORDER.indexOf(W.cur()), W.S.shots, (P.alive ? 1 : 0) | (P.sprinting ? 2 : 0) | (P.hasJet ? 4 : 0) | (P.jetting ? 8 : 0), Math.round(P.hp)];
   }
 
   // ---------- host ----------
@@ -225,6 +227,8 @@ BZ.makeCoop = (G) => {
     if (x.k === 'boom') { G.fx.explosion(V(x.p), x.s); G.audio.playAt('boom', V(x.p), { gain: 1.2 }); C.events.push({ k: 'boom', p: x.p, s: x.s, skip: p.pid }); }
     else if (x.k === 'freeze') G.hero.freezeAt(V(x.p));
     else if (x.k === 'picked') { if (C.onPicked) C.onPicked(p.pid, x.n); }
+    else if (x.k === 'door') { const D = G.destruct.doors[x.i]; if (D) G.destruct.setDoor(D, x.s ? 1 : 0); }
+    else if (x.k === 'glass') { const q = G.destruct.pieces[x.id]; if (q && q.tag === 'glass') G.destruct.hurt(q, (x.d || 20) * 0.3, new THREE.Vector3()); }
     else if (x.k === 'hx') { G.hero.remote(x.s, x.a, p.pid); C.events.push({ k: 'hx', s: x.s, a: x.a }); }
     else if (x.k === 'strike') G.hero.strikeAt(V(x.at));
     else if (x.k === 'ally') G.allies.hire();
@@ -243,7 +247,7 @@ BZ.makeCoop = (G) => {
     for (const [id, p] of C.peers) if (t - p.heard > PEER_TIMEOUT) leave(id, 'mất kết nối');
     C.sendT -= dt; if (C.sendT > 0) return; C.sendT = 1 / RATE;
     const pl = [['h', nameOf(), G.hero.id, ...myPose()]];
-    for (const p of C.peers.values()) { const a = avatars.get(p.pid); if (a && a.init) pl.push([p.pid, p.name, p.hero, +a.tgt.x.toFixed(2), +a.tgt.y.toFixed(2), +a.tgt.z.toFixed(2), +a.tyaw.toFixed(2), +a.pitch.toFixed(2), G.weapons.ORDER.indexOf(a.weapon), a.shots, a.alive ? 1 : 0, a.hp]); }
+    for (const p of C.peers.values()) { const a = avatars.get(p.pid); if (a && a.init) pl.push([p.pid, p.name, p.hero, +a.tgt.x.toFixed(2), +a.tgt.y.toFixed(2), +a.tgt.z.toFixed(2), +a.tyaw.toFixed(2), +a.pitch.toFixed(2), G.weapons.ORDER.indexOf(a.weapon), a.shots, (a.alive ? 1 : 0) | ((a.flags || 0) & 14), a.hp]); }
     const al = G.allies.list.filter((q) => q.alive).map((q) => [+q.pos.x.toFixed(2), +q.pos.z.toFixed(2), +q.yaw.toFixed(2)]);
     const ev = C.events.splice(0);
     const msg = { t: 's', z: G.zombies.snapshot(), pl, al, wv: [G.wave.n, G.wave.phase, G.wave.remaining(), G.wave.waiting()], sky: [+G.sky.S.t.toFixed(4), G.sky.weather()], ev };

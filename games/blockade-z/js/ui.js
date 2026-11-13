@@ -155,7 +155,8 @@
     let bannerT = 0;
     function banner(text, sub, secs = 2.2) { el.banner.innerHTML = `<b>${text}</b>${sub ? `<small>${sub}</small>` : ''}`; el.banner.classList.add('on'); bannerT = secs; }
     let markerT = 0; let hurtT = 0;
-    function hit(head) { if (markerT < 0.1) { markerT = 0.12; el.marker.className = head ? 'head' : ''; void el.marker.offsetWidth; el.marker.classList.add('pulse'); } }
+    function hit(head) { if (bannerT > 0.35) bannerT = 0.35; // the banner gets out of the way once shots are landing
+      if (markerT < 0.1) { markerT = 0.12; el.marker.className = head ? 'head' : ''; void el.marker.offsetWidth; el.marker.classList.add('pulse'); } }
     // the killing shot: the marker turns red, swells and lingers a little longer
     function kill() { markerT = 0.34; el.marker.className = ''; void el.marker.offsetWidth; el.marker.className = 'kill'; }
     function hurt(d, rel) {
@@ -168,7 +169,7 @@
       if (on) { el.stick.style.left = x + 'px'; el.stick.style.top = y + 'px'; el.stickKnob.style.transform = `translate(${dx}px,${dy}px)`; }
     }
 
-    const v = new window.THREE.Vector3();
+    const v = new window.THREE.Vector3(); let jetEl = null; let promptEl = null; let doorSeen = '';
     // the page knows the game state, so CSS can show the touch pad only in a fight and drop the HUD behind a menu
     let stateSeen = null;
     const rot = $('#rotate'); if (rot) rot.addEventListener('click', () => document.body.classList.add('upright'));
@@ -178,6 +179,12 @@
       const hpW = (P.hp / P.maxHp) * 100 + '%'; el.hp.style.width = hpW; if (el.hpTrail) el.hpTrail.style.width = hpW; el.hpTxt.textContent = Math.ceil(P.hp);
       el.hp.parentElement.classList.toggle('low', P.hp < 35);
       el.armor.style.width = Math.min(100, P.armor) + '%';
+      // a door within reach: say which key works it (a button on a phone)
+      { const D = G.state === 'playing' && P.alive && G.destruct ? G.destruct.nearDoor() : null; const want = D ? (D.state ? 'open' : 'shut') : '';
+        if (doorSeen !== want) { doorSeen = want; if (!promptEl) { promptEl = document.createElement('div'); promptEl.id = 'prompt'; el.hud.appendChild(promptEl); promptEl.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.destruct.useDoor(); }, { passive: false }); promptEl.addEventListener('click', () => G.destruct.useDoor()); }
+          promptEl.classList.toggle('on', !!want); if (want) promptEl.innerHTML = (BZ.isTouch ? '<b>CHẠM</b> ' : '<kbd>E</kbd>') + (want === 'open' ? 'Mở cửa' : 'Đóng cửa'); } }
+      // first person: the jetpack's fire and smoke lick up from the bottom edge while it burns
+      const jf = jetEl || (jetEl = $('#jetfx')); if (jf) { const on = P.jetting && !(G.tps && G.tps.on); if (jf.classList.contains('on') !== on) jf.classList.toggle('on', on); if (on) jf.classList.toggle('low', P.fuel < 22); }
       el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
       el.ammo.textContent = w.melee ? '⚔' : a.mag; el.reserve.textContent = w.melee ? '' : a.reserve === Infinity ? '∞' : a.reserve;
       el.ammo.classList.toggle('low', !w.melee && a.mag <= Math.ceil(w.mag / 4));

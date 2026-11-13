@@ -164,6 +164,16 @@
       set(x, y, c);
     }
   });
+  // a clear pane (the wall code makes it see-through): pale tint, darker toward the bottom, two slanted glints of sky
+  const paneTex = (key, lit) => def(key, 16, 16, ({ set }) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let c = lit ? mix(hex(0xffe9a8), hex(0xf0a850), y / 16) : mix(hex(0xbfe0f4), hex(0x6f9cc0), y / 16);
+      const d = x + y; if (d === 9 || d === 10 || d === 17) c = lit ? hex(0xfff8dc) : hex(0xf4fbff);
+      if (lit && y > 11 && (x % 5) < 3) c = shade(c, 0.72); // something on the sill inside
+      set(x, y, c);
+    }
+  }, { noMip: true });
+  paneTex('glass_pane', false); paneTex('glass_lit_pane', true);
   windowTex('glass', false);
   windowTex('glass_lit', true);
   def('door', 16, 32, ({ set, rng }) => {

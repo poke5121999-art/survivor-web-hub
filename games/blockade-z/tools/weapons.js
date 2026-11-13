@@ -92,7 +92,8 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
 
     // fists: quick weak jabs, the uppercut hits hard and throws the zombie back
     // counted from the punches' own hit events: the burn they set ticks on the same body in between
-    r = await run('hoa', [[0, 10.4]], `const dm = []; G.events.on('hit', (e) => { if (e.melee && e.z === Z[0]) { dm.push(e.dmg); if (dm.length === 2) Z[0].vel.set(0, 0, 0); } }); P.input.fire = true; for (let i = 0; i < 90 && dm.length < 3; i++) __sim(1 / 60); P.input.fire = false; return { dm, t: S.shots };`);
+    // a random critical hit doubles a punch, so each one is counted without its critical multiplier
+    r = await run('hoa', [[0, 10.4]], `const dm = []; G.events.on('hit', (e) => { if (e.melee && e.z === Z[0]) { dm.push(Math.round(e.crit ? e.dmg / G.build.critMul() : e.dmg)); if (dm.length === 2) Z[0].vel.set(0, 0, 0); } }); P.input.fire = true; for (let i = 0; i < 90 && dm.length < 3; i++) __sim(1 / 60); P.input.fire = false; return { dm, t: S.shots };`);
     const jab = Math.min(r.dm[0], r.dm[1]); check(r.dm.length >= 3 && r.dm[2] > jab * 1.8 && jab < 40, `fists: two light jabs then a heavy uppercut (${r.dm.join(' / ')})`);
     r = await run('hoa', [[0, 10.4]], 'S.combo = 2; S.comboT = 5; const z = Z[0]; const z0 = z.pos.z; P.input.fire = true; __sim(0.12); P.input.fire = false; __sim(0.4); return { moved: +(z0 - z.pos.z).toFixed(2), vy: +z.pos.y.toFixed(2) };');
     check(r.moved > 0.4 || r.vy > 0.05, `the uppercut knocks the zombie back or up (${r.moved} m back, ${r.vy} m up)`);

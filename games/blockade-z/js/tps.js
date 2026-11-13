@@ -93,7 +93,7 @@
       // dead: the knees give, the body tips over the way the last hit pushed it, the weapon drops out of the hand
       if (!P.alive) {
         sp.deadT = (sp.deadT || 0) + dt; st0.dead = sp.deadT; st0.speed = 0; st0.air = 0; st0.swing = -1; st0.kick = 0; st0.draw = 1; BZ.animHero(M, st0, dt); BZ.heroFall(M, sp.deadT, sp.deadDir || 1);
-        if (M.gun && !sp.dropped) { sp.dropped = true; M.root.updateMatrixWorld(true); M.gun.traverse((o) => { if (o.isMesh && o.visible) G.fx.gib(o, new THREE.Vector3(G.rng.range(-1, 1), 2.5, G.rng.range(-1, 1)), { shared: true }); }); }
+        if (M.gun && !sp.dropped) { sp.dropped = true; M.root.updateMatrixWorld(true); M.gun.traverse((o) => { if (o.isMesh && o.visible) G.fx.gib(o, new THREE.Vector3(G.rng.range(-1, 1), 2.5, G.rng.range(-1, 1)), { shared: true, dry: true }); }); }
         if (M.gun) M.gun.visible = false; // (the cast animator shows the weapon again every frame)
         return;
       }
@@ -112,7 +112,7 @@
       if (M.gun) { M.gun.visible = !(W.thrown && (S.hideT > 0 || (S.phase === 'reload' && S.t / W.reload < 0.55))); const bar = M.gun.getObjectByName('barrels'); if (bar) bar.rotation.z = S.spinAng; }
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
-      BZ.animHero(M, st, dt); BZ.heroGun(M, st, M.gun);
+      BZ.animHero(M, st, dt); BZ.heroGun(M, st, M.gun); BZ.heroJet(M, P.hasJet, P.jetting, P.fuel, dt);
       // the blade leaves a ribbon in the world while it swings
       if (!sp.rib) sp.rib = G.fx.ribbon();
       if (W.melee && !W.noTrail && M.tip && st.swing >= 0.15 && st.swing < 0.75) { M.root.updateMatrixWorld(true); sp.rib.push(M.tip.getWorldPosition(V()), M.handR.getWorldPosition(V())); }

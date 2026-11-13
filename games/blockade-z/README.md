@@ -212,6 +212,10 @@ Thân nhân vật (`BZ.heroModel`) có cột sống, hông, đùi, đầu gối,
 
 `tools/tps.js` chụp nhân vật đứng, chạy, bắn, chém và nhảy. Nó kiểm phát bắn trúng thứ dưới tâm ngắm, kiểm camera không lọt vào tường ở 40 chỗ sát mép bản đồ, và kiểm phím `V` cùng nút trên màn hình.
 
+### Jetpack
+
+Có nâng cấp jetpack (`P.hasJet`) thì nhân vật đeo một bộ jetpack sau lưng ở góc nhìn thứ ba và trên avatar co-op (`BZ.heroJet` trong `js/heroes.js`: bình nhiên liệu, hai ống phụt, dây đeo, gắn vào `spine`). Khi bay, mỗi ống phụt lửa lõi sáng có quầng và nhả khói (`fx.jet`), có đèn hắt xuống; nhiên liệu dưới mức thấp thì lửa chập chờn, hết thì tắt kèm một phụt khói (`fx.jetOut`). Góc nhìn thứ nhất thấy quầng lửa ở mép dưới màn hình (`#jetfx`). Co-op gửi hai bit trong `flags` của tư thế: 4 là có jetpack, 8 là đang phụt. `tools/tps.js` kiểm model hiện khi có jetpack, có hạt lửa khói khi bay và tắt khi thôi.
+
 ## Zombie đặc biệt, quái và tinh anh
 
 `js/zkinds.js` thêm loại mới vào `BZ.ZOMBIES`. Mỗi loại có `kind` chọn hành vi, `parts` là mảnh gắn thêm lên thân dùng chung (túi axit, bụng phình, khiên, giáp, tóc), và `rig` thay cả thân (nhện, trứng). Mỗi loại đặc biệt xuất hiện lần đầu thì hiện băng rôn kèm cách khắc chế.
@@ -317,13 +321,18 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - **Không làm game chậm:** mảng vỡ vẫn nằm trong lưới gộp của cả bản đồ, nên không thêm lượt vẽ nào. Lúc vỡ, các đỉnh của nó được thu về một điểm.
 - **Mỗi ván mới:** phố được dựng lại nguyên vẹn.
 - **Co-op:** chủ phòng quyết định mảng nào vỡ hay đổ, khách diễn lại y như vậy. Cứ 3 giây chủ phòng gửi lại danh sách mảng đã vỡ cho người vào sau. Chỉ đạn và vụ nổ phía chủ phòng làm hỏng địa hình.
+- **Kính cửa sổ:** `wall()` trong `js/world.js` tự đặt một ô kính (mảng có tag `glass`) cùng khung vào mỗi ô cửa sổ, cứ ba ô thì một ô sáng đèn. Kính chặn đạn. Đòn nhẹ làm nứt hình sao, đòn từ 20 sát thương hoặc đòn thứ hai làm vỡ thành mảnh (`shatter()`), sau đó đạn bay qua. Vụ nổ và nhát chém cũng làm vỡ. Kính không chống đỡ gì; mảng tường quanh nó sập thì kính vỡ theo chứ không rơi nguyên tấm. Mảnh kính, mảnh tường và vũ khí rơi là mảnh "khô": không để vệt máu hay vũng máu.
+- **Cửa ra vào:** mỗi ô cửa sát đất (`W.doors`) có một cánh cửa gắn bản lề, lúc đầu mở. Đứng trong tầm 2,4 m, phím `E` đóng hoặc mở (trên điện thoại chạm vào nhãn "Đóng cửa / Mở cửa"). Cửa không đóng khi có người hay zombie đứng giữa ô cửa. Cửa đóng chặn người và đạn, nhưng không ghi vào bản đồ đường đi (`noGrid`), nên zombie vẫn kéo tới rồi đập: mỗi con 30 sát thương mỗi giây, tối đa tính 5 con, cửa 240 máu. Đạn và vụ nổ cũng làm hỏng cửa. Cửa vỡ thì mất tới ván sau.
+- **Co-op của cửa và kính:** khách gửi `act` (`k: 'door'`, `k: 'glass'`) lên chủ phòng; chủ phòng phát `tbrk` và gửi lại trạng thái cửa trong lượt đồng bộ 3 giây.
 
 `tools/destruct.js` kiểm các việc sau và chụp ảnh từng bước:
 - rocket khoét thủng tường bốt gác, đạn bay xuyên qua lỗ, mảng xung quanh nứt;
 - phá tầng trệt nhà phố thì sàn trên rơi đè chết zombie;
 - boss đập đất phá tường nhà thờ;
 - súng lục bắn vỡ đồ gỗ;
-- ván mới dựng lại phố.
+- ván mới dựng lại phố;
+- kính: đòn nhẹ chỉ nứt, đòn sau vỡ và đạn bay qua, vụ nổ làm vỡ kính quanh đó, không mảnh nào treo lại, ván mới lành lại;
+- cửa: mở thì tia đi qua, đóng thì chặn, không đóng lên người đứng giữa, phím dùng đóng đúng cửa trước mặt, 3 zombie đập vỡ cửa, ván mới treo lại cửa.
 
 ## Đường đi của zombie
 

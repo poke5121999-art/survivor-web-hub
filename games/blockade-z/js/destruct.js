@@ -13,7 +13,13 @@
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) set(x, y, [18, 14, 12], a[y * 32 + x]);
   }, { noMip: true });
 
-  const HP = { stone: 300, metal: 480, wood: 100 };
+  BZ.defTex('crackw', 32, 32, ({ set, rng }) => {
+    const a = new Uint8Array(32 * 32);
+    const line = (x, y, ang, len) => { for (let i = 0; i < len; i++) { ang += rng.range(-0.35, 0.35); x += Math.cos(ang); y += Math.sin(ang); const xi = Math.round(x); const yi = Math.round(y); if (xi < 0 || yi < 0 || xi > 31 || yi > 31) return; a[yi * 32 + xi] = 255; if (rng.chance(0.12)) line(x, y, ang + rng.range(-1.3, 1.3), len * 0.5); } };
+    for (let k = 0; k < 9; k++) line(16, 16, (k / 9) * Math.PI * 2 + rng.range(-0.2, 0.2), 20);
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) set(x, y, [235, 245, 255], a[y * 32 + x]);
+  }, { noMip: true });
+  const HP = { stone: 300, metal: 480, wood: 100, glass: 12 };
 
   BZ.makeDestruct = (G) => {
     const W = G.world; const P = W.pieces; const scene = G.scene;
@@ -27,20 +33,21 @@
 
     // ---- cracks: dark branching decals on the two big faces, a second layer when nearly gone ----
     const CRACK_GEO = new THREE.PlaneGeometry(1, 1); const decals = [];
-    const crackMat = (op) => new THREE.MeshBasicMaterial({ map: BZ.tex('crack'), transparent: true, opacity: op, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    const crackMat = (op, white) => new THREE.MeshBasicMaterial({ map: BZ.tex(white ? 'crackw' : 'crack'), transparent: true, opacity: op, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
     function crack(p, stage) {
       if (stage <= p.stage) return; p.stage = stage; p.decals = p.decals || [];
       const d = [p.max[0] - p.min[0], p.max[1] - p.min[1], p.max[2] - p.min[2]]; const c = center(p);
       const thin = d[0] < d[2] ? 0 : 2; const wide = thin === 0 ? 2 : 0;
       for (const side of [-1, 1]) {
         if (decals.length > 220) { const o = decals.shift(); scene.remove(o); }
-        const m = new THREE.Mesh(CRACK_GEO, crackMat(stage === 1 ? 0.6 : 0.95));
-        const s = Math.min(d[wide], d[1]) * (stage === 1 ? 0.7 : 0.95);
+        const glass = p.tag === 'glass'; const m = new THREE.Mesh(CRACK_GEO, crackMat(stage === 1 ? 0.6 : 0.95, glass));
+        const s = glass ? Math.max(d[wide], d[1]) * 1.05 : Math.min(d[wide], d[1]) * (stage === 1 ? 0.7 : 0.95); if (glass) m.renderOrder = 3;
         m.scale.set(s, s, 1); m.position.copy(c); m.position.setComponent(thin, c.getComponent(thin) + side * (d[thin] / 2 + 0.012));
         m.rotation.y = thin === 0 ? side * Math.PI / 2 : side > 0 ? 0 : Math.PI; m.rotation.z = Math.random() * 6.3; m.renderOrder = 2;
         scene.add(m); p.decals.push(m); decals.push(m);
       }
-      G.fx.burst(c, 6 + stage * 4, [0x8a8478, 0x6a645c, 0x4a4640], { speed: 2.5, size: 0.08, life: 0.7 });
+      if (p.tag === 'glass') { G.fx.burst(c, 5, [0xdff4ff, 0xa8d8f0], { speed: 2, size: 0.04, life: 0.5 }); G.audio.playAt('glass', c, { gain: 0.45, rate: 1.7 }); }
+      else G.fx.burst(c, 6 + stage * 4, [0x8a8478, 0x6a645c, 0x4a4640], { speed: 2.5, size: 0.08, life: 0.7 });
       if (host() && G.coop && G.coop.host) G.events.emit('tbrk', { c: p.id, s: stage });
     }
 
@@ -65,9 +72,19 @@
       const g = B.build({ cast: false, recv: true }); scene.add(g); rubbles.push(g);
       if (rubbles.length > 70) scene.remove(rubbles.shift());
     }
+    // glass: bright shards fly out and fall, a few glints, the crash of a pane; no dust and no rubble
+    const shardMats = [new THREE.MeshLambertMaterial({ color: 0xcfeeff, emissive: 0x4a7088 }), new THREE.MeshLambertMaterial({ color: 0xf2fbff, emissive: 0x6a90a8 })];
+    function shatter(p, dir) {
+      const c = center(p); const area = Math.max(0.4, (p.max[0] - p.min[0] + p.max[2] - p.min[2]) * (p.max[1] - p.min[1]));
+      const n = BZ.clamp(Math.round(area * 9), 8, 20); const at = V();
+      for (let i = 0; i < n; i++) { at.set(BZ.lerp(p.min[0], p.max[0], Math.random()), BZ.lerp(p.min[1], p.max[1], Math.random()), BZ.lerp(p.min[2], p.max[2], Math.random())); G.fx.chunks(at, 1, shardMats, dir || V(), 0.75, true); }
+      for (let i = 0; i < 6; i++) { at.set(BZ.lerp(p.min[0], p.max[0], Math.random()), BZ.lerp(p.min[1], p.max[1], Math.random()), BZ.lerp(p.min[2], p.max[2], Math.random())); G.fx.puff(at, { glow: true, s0: 0.3, s1: 0.05, life: 0.2 + Math.random() * 0.2, delay: Math.random() * 0.12, c0: 0xffffff, c1: 0x9ad8ff, a0: 0.9 }); }
+      G.fx.burst(c, 16, [0xdff4ff, 0xa8d8f0, 0xffffff], { dir, push: 2, speed: 4, size: 0.05, life: 0.9 });
+      G.audio.playAt('glass', c, { gain: 0.95, rate: 0.9 + Math.random() * 0.25 });
+    }
     function debris(p, dir) {
       const c = center(p); const size = Math.max(p.max[0] - p.min[0], p.max[1] - p.min[1], p.max[2] - p.min[2]);
-      const mats = matsOf(p); if (mats.length) G.fx.chunks(c, BZ.clamp(Math.round(size * 6), 6, 22), mats, dir || V(), 1.6);
+      const mats = matsOf(p); if (mats.length) G.fx.chunks(c, BZ.clamp(Math.round(size * 6), 6, 22), mats, dir || V(), 1.6, true);
       for (let i = 0; i < BZ.clamp(Math.round(size * 2), 3, 10); i++) {
         const at = V().set(BZ.lerp(p.min[0], p.max[0], Math.random()), BZ.lerp(p.min[1], p.max[1], Math.random()), BZ.lerp(p.min[2], p.max[2], Math.random()));
         G.fx.puff(at, { delay: Math.random() * 0.15, vel: V().set((Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 2), drag: 1.5, s0: 0.8, s1: 2.6, life: 1.6 + Math.random(), c0: 0x9a948a, c1: 0x6a665e, a0: 0.75 });
@@ -76,7 +93,7 @@
     }
     function breakPiece(p, dir, net) {
       if (p.broken) return; p.broken = true; broken.push(p.id);
-      hide(p); debris(p, dir); rubble(p);
+      hide(p); if (p.tag === 'glass') shatter(p, dir); else { debris(p, dir); rubble(p); }
       if (!net && G.coop && G.coop.host) G.events.emit('tbrk', { b: p.id });
       if (host()) settle(p);
     }
@@ -87,7 +104,7 @@
       for (const q of p.dep) {
         if (q.broken || q.fixed) continue;
         const left = q.sup.filter((s) => !s.broken).length;
-        if (left === 0 || left < q.sup0 * 0.34) { q.broken = true; later(0.1 + Math.random() * 0.2, () => fall(q)); }
+        if (left === 0 || left < q.sup0 * 0.34) { if (q.tag === 'glass') { later(0.05, () => breakPiece(q, V().set(0, -1, 0))); continue; } q.broken = true; later(0.1 + Math.random() * 0.2, () => fall(q)); } // a pane whose wall went shatters where it is
       }
     }
     const timers = []; const later = (t, f) => timers.push({ t, f });
@@ -124,9 +141,62 @@
       }
     }
 
+
+    // ---- doors: every street-level doorway has a leaf on a hinge. It starts open; E (or the on-screen button) shuts and opens it.
+    // Shut, it blocks bodies and shots; zombies that reach it pound on it until it breaks. The host owns the state, guests replay it.
+    const doors = []; const DOOR_HP = 240; const dmats = [BZ.mat('plank', { vc: true })];
+    for (const [i, d] of (W.doors || []).entries()) {
+      const w = d.s1 - d.s0; const B = new BZ.Builder('door' + i); const th = 0.09;
+      // built in hinge space: the hinge at the origin, the leaf running along +x, its thickness along z
+      B.box([0.02, 0.03, -th / 2], [w - 0.02, d.h - 0.03, th / 2], { pz: 'door', nz: 'door', side: 'plank', top: 'plank', bottom: 'plank' }, { uv: 'fit', vary: 0 });
+      for (const y of [0.25, d.h - 0.3]) B.box([-0.01, y, -th / 2 - 0.02], [0.2, y + 0.07, th / 2 + 0.02], 'metal_dark', { vary: 0 });
+      B.box([w - 0.2, d.h * 0.45, -th / 2 - 0.06], [w - 0.12, d.h * 0.45 + 0.08, th / 2 + 0.06], 'metal', { vary: 0 });
+      const leaf = B.build({ cast: G.quality.shadow > 0 }); const pivot = new THREE.Group(); pivot.add(leaf); scene.add(pivot);
+      const mid = d.c + d.t / 2; const yaw0 = d.axis === 'x' ? 0 : -Math.PI / 2;
+      pivot.position.set(d.axis === 'x' ? d.s0 : mid, 0, d.axis === 'x' ? mid : d.s0); pivot.rotation.y = yaw0;
+      const min = d.axis === 'x' ? [d.s0, 0, mid - 0.07] : [mid - 0.07, 0, d.s0]; const max = d.axis === 'x' ? [d.s1, d.h, mid + 0.07] : [mid + 0.07, d.h, d.s1];
+      const D = { i, pivot, leaf, yaw0, w, h: d.h, at: V().set((min[0] + max[0]) / 2, d.h / 2, (min[2] + max[2]) / 2), solid: { min, max, tag: 'wood', noGrid: true }, state: 0, k: 1, hp: DOOR_HP, shake: 0, thud: 0 };
+      D.solid.door = D; doors.push(D);
+    }
+    const blockedDoor = (D) => { const m = D.solid; const inBox = (p) => p.x > m.min[0] - 0.3 && p.x < m.max[0] + 0.3 && p.z > m.min[2] - 0.3 && p.z < m.max[2] + 0.3 && p.y < m.max[1]; if (inBox(G.player.pos)) return true; for (const z of G.zombies.list) if (z.alive && inBox(z.pos)) return true; return false; };
+    // state: 0 open, 1 shut, 2 broken
+    function setDoor(D, state, net) {
+      if (D.state === state || D.state === 2) return false;
+      if (state === 1) { if (!net && blockedDoor(D)) return false; W.addSolid(D.solid); G.audio.playAt('mag_in', D.at, { gain: 0.9, rate: 0.5 }); }
+      else { W.removeSolid(D.solid); if (state === 0) G.audio.playAt('switch', D.at, { gain: 0.8, rate: 0.6 }); }
+      if (state === 2) { D.pivot.visible = false; G.fx.chunks(D.at, 12, dmats, V().set(0, 0.4, 0), 1.5, true); G.fx.burst(D.at, 20, [0x8a6a48, 0x6a4a30, 0x4a3420], { speed: 5, size: 0.1, life: 0.9 }); G.audio.playAt('cleave', D.at, { gain: 1, rate: 0.7 }); }
+      D.state = state; if (state !== 2) D.hp = Math.max(D.hp, 1);
+      if (!net && G.coop && G.coop.host) G.events.emit('tbrk', { d: D.i, s: state });
+      return true;
+    }
+    function doorHurt(D, dmg, at) { if (!host() || D.state !== 1 || !(dmg > 0)) return; D.hp -= dmg; D.shake = 1; if (at) G.fx.burst(at, 3, [0x8a6a48, 0x6a4a30], { speed: 2, size: 0.05, life: 0.5 }); if (D.hp <= 0) setDoor(D, 2); }
+    // the door the player could work now: the nearest one within reach, roughly in front
+    function nearDoor() {
+      const P = G.player; let best = null; let bd = 2.4;
+      for (const D of doors) { if (D.state === 2) continue; const dx = D.at.x - P.pos.x; const dz = D.at.z - P.pos.z; const d = Math.hypot(dx, dz); if (d < bd && Math.abs(P.pos.y - 0) < 1.2 && (d < 1 || (-Math.sin(P.yaw) * dx - Math.cos(P.yaw) * dz) / d > 0.2)) { bd = d; best = D; } }
+      return best;
+    }
+    function useDoor() { const D = nearDoor(); if (!D || G.state !== 'playing' || !G.player.alive) return false; if (!host()) { G.coop.act({ k: 'door', i: D.i, s: D.state ? 0 : 1 }); return true; } if (!setDoor(D, D.state ? 0 : 1)) { G.audio.play('deny'); D.shake = 0.6; } return true; }
+    addEventListener('keydown', (e) => { if (e.code === 'KeyE' && !e.repeat) useDoor(); });
+    function updateDoors(dt) {
+      for (const D of doors) {
+        if (D.state === 2) continue;
+        D.k = BZ.damp(D.k, D.state === 1 ? 0 : 1, 9, dt); D.shake = Math.max(0, D.shake - dt * 4);
+        D.pivot.rotation.y = D.yaw0 + D.k * 1.75 + Math.sin(performance.now() / 28) * 0.05 * D.shake;
+        if (D.state !== 1 || !host()) continue;
+        // zombies pressed against a shut door pound on it
+        let n = 0; for (const z of G.zombies.list) if (z.alive && !z.T.fly && Math.abs(z.pos.y) < 1.5 && Math.hypot(z.pos.x - D.at.x, z.pos.z - D.at.z) < 1.5) n += z.T.boss ? 6 : z.T.scale > 1.2 ? 2 : 1;
+        if (n) { D.thud -= dt; if (D.thud <= 0) { D.thud = 0.42; D.shake = 1; G.audio.playAt('impact', D.at, { gain: 1, rate: 0.55 }); G.fx.burst(D.at, 4, [0x8a6a48, 0x6a4a30], { speed: 2.5, size: 0.06, life: 0.5 }); }
+          D.hp -= Math.min(n, 5) * 30 * dt; if (D.hp <= 0) setDoor(D, 2); }
+      }
+    }
+    function resetDoors() { for (const D of doors) { if (D.state === 1) W.removeSolid(D.solid); D.state = 0; D.k = 1; D.hp = DOOR_HP; D.shake = 0; D.pivot.visible = true; D.pivot.rotation.y = D.yaw0 + 1.75; } }
+
     // ---- damage in ----
     function hurt(p, dmg, dir) {
       if (p.broken || dmg <= 0) return;
+      // glass: a light knock stars it, a second one or anything heavy breaks it
+      if (p.tag === 'glass') { if (dmg >= 20 || p.stage > 0) breakPiece(p, dir); else crack(p, 2); return; }
       p.hp -= dmg; const k = p.hp / p.maxHp;
       if (p.hp <= 0) breakPiece(p, dir); else if (k < 0.35) crack(p, 2); else if (k < 0.7) crack(p, 1);
     }
@@ -138,16 +208,25 @@
         const dir = center(p).sub(at); dir.y = Math.max(0.3, dir.y); dir.normalize();
         hurt(p, dmg * (1 - d / r) * (1 - d / r) * 1.3, dir);
       }
+      for (const D of doors) { const d = D.at.distanceTo(at); if (d < r) doorHurt(D, dmg * (1 - d / r) * 1.2, D.at); }
     }
     // a bullet chips the piece it struck; glass-thin and wooden things give way first
-    function hit(solid, at, dmg) { if (!host() || !solid || !solid.piece) return; hurt(solid.piece, dmg * 0.3, V()); }
+    function hit(solid, at, dmg, dir) {
+      if (solid && solid.door) { doorHurt(solid.door, dmg * 0.25, at); return; }
+      if (!solid || !solid.piece) return;
+      // a guest's shot at a window asks the host to break it (walls stay the host's business)
+      if (!host()) { if (solid.piece.tag === 'glass' && !solid.piece.broken && G.coop.act) G.coop.act({ k: 'glass', id: solid.piece.id, d: dmg }); return; }
+      hurt(solid.piece, dmg * 0.3, dir || V());
+    }
 
     // ---- network: the host sends breaks, falls and cracks; every few seconds the full list for late joiners ----
     function remote(e) {
       if (e.b != null && P[e.b]) breakPiece(P[e.b], V(), true);
       if (e.f != null && P[e.f] && !P[e.f].broken) fall(P[e.f], true);
       if (e.c != null && P[e.c]) crack(P[e.c], e.s);
-      if (e.all) for (const id of e.all) if (P[id] && !P[id].broken) { const p = P[id]; p.broken = true; broken.push(id); hide(p); rubble(p); }
+      if (e.d != null && doors[e.d]) setDoor(doors[e.d], e.s, true);
+      if (e.ds) e.ds.forEach((s, i) => { if (doors[i] && doors[i].state !== s) setDoor(doors[i], s, true); });
+      if (e.all) for (const id of e.all) if (P[id] && !P[id].broken) { const p = P[id]; p.broken = true; broken.push(id); hide(p); if (p.tag !== 'glass') rubble(p); }
     }
 
     function reset() {
@@ -157,6 +236,7 @@
         for (const m of p.decals || []) scene.remove(m);
         p.decals = []; p.broken = false; p.landed = false; p.hp = p.maxHp; p.stage = 0;
       }
+      resetDoors();
       for (const f of falling) scene.remove(f.pivot); falling.length = 0;
       for (const g of rubbles) scene.remove(g); rubbles.length = 0; decals.length = 0; broken.length = 0; timers.length = 0;
       W.rebuildGrids();
@@ -164,11 +244,11 @@
     G.events.on('game:new', reset);
 
     function update(dt) {
-      updateFalling(dt);
+      updateFalling(dt); updateDoors(dt);
       for (let i = timers.length - 1; i >= 0; i--) { const q = timers[i]; q.t -= dt; if (q.t <= 0) { timers.splice(i, 1); q.f(); } }
       gridT -= dt; if (dirty && gridT <= 0) { dirty = false; gridT = 0.5; W.rebuildGrids(); }
-      syncT -= dt; if (syncT <= 0) { syncT = 3; if (G.coop && G.coop.host && broken.length) G.events.emit('tbrk', { all: broken.slice() }); }
+      syncT -= dt; if (syncT <= 0) { syncT = 3; if (G.coop && G.coop.host) { if (broken.length) G.events.emit('tbrk', { all: broken.slice() }); if (doors.some((D) => D.state)) G.events.emit('tbrk', { ds: doors.map((D) => D.state) }); } }
     }
-    return { pieces: P, blast, hit, hurt, breakPiece, fall, remote, reset, update, debug: () => ({ broken: broken.length, falling: falling.length, decals: decals.length, rubble: rubbles.length }) };
+    return { doors, setDoor, useDoor, nearDoor, pieces: P, blast, hit, hurt, breakPiece, fall, remote, reset, update, debug: () => ({ broken: broken.length, falling: falling.length, decals: decals.length, rubble: rubbles.length }) };
   };
 })();

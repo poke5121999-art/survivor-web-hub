@@ -609,6 +609,38 @@
   // the weapon in the hand while it is drawn: it appears as the hand closes on it and spins in if that weapon does
   BZ.heroGun = (m, s, gun) => { if (!gun) return; const J = s.j || {}; const k = J.gunK === undefined ? 1 : J.gunK; if (gun.userData.rz0 === undefined) gun.userData.rz0 = gun.rotation.z; gun.scale.setScalar(Math.max(0.001, k)); gun.rotation.z = gun.userData.rz0 + (J.gunSpin || 0) * Math.PI * 2; };
 
+  // ---------- jetpack: a fuel tank between two thrusters on the back, straps over the chest, a flame under each nozzle ----------
+  // BZ.heroJet(m, has, firing, fuel, dt): shows it on a body that owns one and drives the two flames (they flicker when the fuel runs low).
+  let jetFlameMat = null;
+  BZ.heroJet = (m, has, firing, fuel, dt) => {
+    if (!has && !m.jet) return null;
+    if (!m.jet) {
+      const C = (c) => BZ.cellTex(c); const B = new BZ.Builder('jetpack'); const bx = (a, b, c, k = 1) => B.box(a, b, C(c), { uv: 'fit', vary: 0, tint: [k, k, k] });
+      const z0 = -0.56; const z1 = -0.4; // sits behind whatever the hero already carries on the back
+      bx([-0.1, 0.24, z0 - 0.02], [0.1, 0.66, z1], 0xc8ccd2); bx([-0.11, 0.56, z0 - 0.03], [0.11, 0.6, z1 + 0.01], 0xf2c23a); bx([-0.11, 0.3, z0 - 0.03], [0.11, 0.34, z1 + 0.01], 0x3a3f46); bx([-0.05, 0.66, z0 + 0.03], [0.05, 0.72, z1 - 0.03], 0x3a3f46);
+      for (const sx of [-1, 1]) { const x = sx * 0.21;
+        bx([x - 0.085, 0.16, z0], [x + 0.085, 0.62, z1 + 0.01], 0x5a626c); bx([x - 0.095, 0.5, z0 - 0.01], [x + 0.095, 0.56, z1 + 0.02], 0xd8322a); bx([x - 0.07, 0.62, z0 + 0.02], [x + 0.07, 0.68, z1 - 0.01], 0x8d97a3, 1.1);
+        bx([x - 0.1, 0.06, z0 - 0.015], [x + 0.1, 0.17, z1 + 0.025], 0x2a2e35); bx([x - 0.07, 0.02, z0 + 0.015], [x + 0.07, 0.06, z1 - 0.005], 0x1b1d21);
+        bx([sx * 0.11, 0.36, z0 + 0.05], [sx * 0.13 + sx * 0.02, 0.44, z1 - 0.04], 0x3a3f46);
+        // straps: over the shoulder and down the chest, and one round the waist
+        bx([sx * 0.14 - 0.03, 0.18, 0.16], [sx * 0.14 + 0.03, 0.72, 0.185], 0x2a2018); bx([sx * 0.14 - 0.03, 0.7, z1], [sx * 0.14 + 0.03, 0.745, 0.185], 0x2a2018);
+      }
+      bx([-0.275, 0.2, -0.17], [0.275, 0.25, 0.185], 0x2a2018); bx([-0.04, 0.19, 0.185], [0.04, 0.26, 0.2], 0xb8863a);
+      const g = B.build({ cast: true }); g.traverse((o) => { o.userData.noGib = true; });
+      if (!jetFlameMat) jetFlameMat = [new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })];
+      const flames = [];
+      for (const sx of [-1, 1]) { const f = new THREE.Group(); f.position.set(sx * 0.21, 0.03, (z0 + z1) / 2 + 0.005);
+        const core = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1, 0.07), jetFlameMat[0]); core.geometry.translate(0, -0.5, 0); const halo = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1, 0.15), jetFlameMat[1]); halo.geometry.translate(0, -0.5, 0);
+        f.add(core); f.add(halo); f.visible = false; g.add(f); flames.push({ f, core, halo }); }
+      m.spine.add(g); m.jet = { g, flames, k: 0, nozzle: flames.map((q) => q.f) };
+    }
+    const J = m.jet; J.g.visible = !!has;
+    const sputter = fuel < 22 ? (Math.random() < 0.35 ? 0.25 : 1) : 1; const want = firing && has ? sputter : 0;
+    J.k += (want - J.k) * Math.min(1, (dt || 0.016) * 18);
+    for (const q of J.flames) { q.f.visible = J.k > 0.04; const fl = 0.85 + Math.random() * 0.3; q.core.scale.set(1, 0.42 * J.k * fl, 1); q.halo.scale.set(1, 0.7 * J.k * fl, 1); }
+    return J;
+  };
+
   // the parts only some bodies carry: Sói's beast form growing in and its tail, Nhện Đồng's four back legs
   function heroExtras(m, s, dt) {
     const t = s.t || 0;

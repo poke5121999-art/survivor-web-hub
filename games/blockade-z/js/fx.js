@@ -99,6 +99,7 @@
     }
 
     function update(dt) {
+      if (jetLit > 0) { jetLit -= dt; if (jetLit <= 0) jetLight.intensity = 0; }
       updateAsh(dt); updateGibs(dt); updateSplats(dt); updateSpurts(dt); updateBlast(dt); updateArcs(dt);
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
@@ -326,17 +327,18 @@
       scene.add(g);
       const half = sz.clone().multiply(g.scale).multiplyScalar(0.5);
       made++;
-      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn || o.ice ? 0 : 1.2, hits: 0, ice: !!o.ice, age: 0, chk: G.rng.range(0, 0.5), big: Math.max(half.x, half.y, half.z) > 0.55, s0: g.scale.clone() });
+      gibs.push({ g, mesh, own, v: vel.clone(), w: new THREE.Vector3(G.rng.range(-12, 12), G.rng.range(-8, 8), G.rng.range(-12, 12)), half, r: Math.min(0.25, Math.max(half.x, half.z)), rest: false, settle: 0, trail: 0, burn: !!o.burn, bleed: o.burn || o.ice || o.dry ? 0 : 1.2, dry: !!o.dry, hits: 0, ice: !!o.ice, age: 0, chk: G.rng.range(0, 0.5), big: Math.max(half.x, half.y, half.z) > 0.55, s0: g.scale.clone() });
     }
     // loose cubes for an exploded head: share a few materials, no per-piece clone
     const chunkGeo = new THREE.BoxGeometry(1, 1, 1);
-    function chunks(at, n, mats, dir, s = 1) {
+    // dry: masonry, glass, a dropped weapon: no blood trail and no pool where it lands
+    function chunks(at, n, mats, dir, s = 1, dry = false) {
       for (let i = 0; i < n; i++) {
         const m = new THREE.Mesh(chunkGeo, G.rng.pick(mats)); const k = G.rng.range(0.09, 0.17) * s;
         m.scale.set(k, k * G.rng.range(0.7, 1.2), k); m.position.copy(at).add(new THREE.Vector3(G.rng.range(-0.15, 0.15), G.rng.range(-0.1, 0.15), G.rng.range(-0.15, 0.15)).multiplyScalar(s));
         m.updateMatrixWorld();
         const v = new THREE.Vector3(G.rng.range(-1, 1), G.rng.range(0.6, 1.6), G.rng.range(-1, 1)).normalize().multiplyScalar(G.rng.range(3, 7)).addScaledVector(dir, G.rng.range(2, 5));
-        gib(m, v, { shared: true });
+        gib(m, v, { shared: true, dry });
       }
     }
     const GIB_LIFE = 14; const GIB_BIG = 4.5; const GIB_AIR = 9;
@@ -367,7 +369,7 @@
         if (p.trail <= 0 && p.bleed > 0) { p.trail = 0.035; burst(p.g.position, 1, p.burn ? [0xff9a30, 0x3a3a3c] : [0xb3201a, 0x7a1410], { speed: 0.5, size: 0.06, life: 0.5 }); }
         if (gOut.ground) {
           const impact = -p.v.y; p.hits++;
-          if (p.hits === 1 && !p.burn && !p.ice) { splat(feet, 0.5 + p.half.y * 2); if (impact > 3) G.audio.playAt('gore', feet, { gain: 0.35, rate: G.rng.range(1.1, 1.5) }); }
+          if (p.hits === 1 && !p.burn && !p.ice && !p.dry) { splat(feet, 0.5 + p.half.y * 2); if (impact > 3) G.audio.playAt('gore', feet, { gain: 0.35, rate: G.rng.range(1.1, 1.5) }); }
           p.v.y = impact > 2.5 ? impact * 0.28 : 0; p.v.x *= 0.55; p.v.z *= 0.55; p.w.multiplyScalar(0.5);
           if (impact <= 2.5 && Math.hypot(p.v.x, p.v.z) < 0.6) {
             // lie flat: keep the yaw, snap pitch and roll to the nearest quarter turn, rest on the face that is now down
@@ -473,12 +475,25 @@
       for (const r of rings) if (r.m.visible) { const f = floorY(r.m.position.x, r.m.position.y + 0.2, r.m.position.z); if (r.m.position.y - f > 0.4) out.push(['ring', +r.m.position.y.toFixed(2), +f.toFixed(2)]); }
       return out;
     }
-    function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
+    // jetpack exhaust under a nozzle: a hot core, flame, a smoke trail that hangs and thins, a glow on the ground and dust blown aside when it is close.
+    // o: { k: thrust 0..1, light: move the shared point light here (the local player's pack) }
+    const jetLight = new THREE.PointLight(0xff9a40, 0, 9, 1.6); scene.add(jetLight); let jetLit = 0;
+    function jet(pos, o = {}) {
+      const k = o.k ?? 1; const dn = V().set(G.rng.range(-0.6, 0.6), -7, G.rng.range(-0.6, 0.6));
+      puff(pos, { glow: true, vel: dn, drag: 2.5, s0: 0.3 * k, s1: 0.08, life: 0.16, c0: 0xfff6d0, c1: 0xff7a20, a0: 1.1, spin: 0 });
+      if (G.rng.chance(0.7)) puff(pos, { glow: true, vel: dn.clone().multiplyScalar(0.6), drag: 2, s0: 0.42 * k, s1: 0.12, life: 0.28, c0: 0xffb040, c1: 0xc02a08, a0: 0.8 });
+      if (G.rng.chance(0.45)) puff(pos.clone().setY(pos.y - 0.5), { vel: V().set(G.rng.range(-0.5, 0.5), -1.6, G.rng.range(-0.5, 0.5)), drag: 1.4, g: -1.2, s0: 0.3, s1: 1.3, life: G.rng.range(0.9, 1.5), c0: 0x8a8682, c1: 0x4a4846, a0: 0.4 });
+      const fy = floorY(pos.x, pos.y, pos.z); const h = pos.y - fy;
+      if (h < 3.2 && G.rng.chance(0.5)) { const a = G.rng.range(0, 6.28); puff(V().set(pos.x, fy + 0.15, pos.z), { vel: V().set(Math.cos(a) * 4, 0.4, Math.sin(a) * 4), drag: 2.4, s0: 0.35, s1: 1.4, life: 0.7, c0: 0x9a9082, c1: 0x7a7468, a0: 0.4 * (1 - h / 3.2) }); }
+      if (o.light) { jetLight.position.set(pos.x, Math.max(fy + 0.5, pos.y - 0.9), pos.z); jetLit = 0.12; jetLight.intensity = 5 * k * (0.8 + G.rng.next() * 0.4); }
+    }
+    // the fuel runs out: a cough of grey smoke from the nozzle
+    function jetOut(pos) { for (let i = 0; i < 6; i++) puff(pos, { vel: V().set(G.rng.range(-0.8, 0.8), G.rng.range(-1.5, 0.2), G.rng.range(-0.8, 0.8)), drag: 1.5, s0: 0.25, s1: 1.1, life: G.rng.range(0.7, 1.2), c0: 0x3a3836, c1: 0x7a7876, a0: 0.6 }); }
     function clear() {
       P.length = 0; holes.count = 0; holeI = 0;
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; pools.length = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0; scorchAt.length = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, jetOut, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
   };
 })();
