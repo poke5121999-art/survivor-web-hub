@@ -134,16 +134,16 @@ const BOT = `(() => {
       P.pos.set(21, 4.5, -27); P.vel.set(0, 0, 0); __sim(0.2);
       for (let i = 0; i < 10; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(11 + (i % 3) * 0.6, 0, -28 + Math.floor(i / 3) * 0.6); }
       let topY = 0; for (let k = 0; k < 40; k++) { P.pos.set(21, 4.5, -27); __sim(0.5); for (const z of G.zombies.list) if (z.alive) topY = Math.max(topY, z.pos.y); }
-      const onRoof = G.zombies.list.filter((z) => z.alive && z.pos.y > 4).length;
+      const onRoof = G.zombies.list.filter((z) => z.alive && z.pos.y > 4).length; const roofDbg = G.state + '/' + G.zombies.list.filter((z) => z.alive).length + ' alive/player ' + (P.alive ? 'alive' : 'dead') + ' y=' + P.pos.y.toFixed(1);
       G.zombies.clear(); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); __sim(0.1);
       const giant = G.zombies.spawn('giant', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); giant.pos.set(0, 0, -12); giant.abT = 0; const g0 = giant.pos.distanceTo(P.pos); __sim(2); const g1 = giant.pos.distanceTo(P.pos);
       G.zombies.clear(); const thr = G.zombies.spawn('thrower', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); const r0 = G.gear.state.rocks || 0; thr.pos.set(4, 0, 2); thr.abT = 0; __sim(1.2); const rocks = (G.gear.state.rocks || 0) - r0;
       G.zombies.clear(); const ph = G.zombies.spawn('phantom', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); ph.pos.set(0, 0, -15); ph.abT = 0; __sim(0.1); const phD = ph.pos.distanceTo(P.pos);
       G.zombies.clear(); for (let i = 0; i < 4; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(-0.6 + i * 0.4, 0, -2); z.speed = 0; }
       const k0 = G.kills; G.weapons.give('bazooka'); __sim(0.7); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = Math.atan2(1 - 1.6, 10); __sim(0.02); P.input.fire = true; __sim(0.03); P.input.fire = false; __sim(1); const rk = G.kills - k0;
-      G.god = false; return { topY: +topY.toFixed(2), onRoof, g0: +g0.toFixed(1), g1: +g1.toFixed(1), rocks, phD: +phD.toFixed(1), rk }; })()`);
+      G.god = false; return { topY: +topY.toFixed(2), onRoof, roofDbg, g0: +g0.toFixed(1), g1: +g1.toFixed(1), rocks, phD: +phD.toFixed(1), rk }; })()`);
     console.log('adv', JSON.stringify(adv));
-    check(adv.topY > 3, `walkers stack up toward a player on a roof (top y=${adv.topY}, on roof ${adv.onRoof})`);
+    check(adv.topY > 3, `walkers stack up toward a player on a roof (top y=${adv.topY}, on roof ${adv.onRoof}; ${adv.roofDbg})`);
     check(adv.g1 < adv.g0 - 5, `the giant boss leaps at the player (${adv.g0} m -> ${adv.g1} m)`);
     check(adv.rocks > 0, `the thrower boss throws a rock (${adv.rocks})`);
     check(adv.phD < 4, `the phantom boss teleports next to the player (${adv.phD} m)`);
@@ -160,7 +160,7 @@ const BOT = `(() => {
       G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true; G.allies.clear();
       const mk = (type, x, z) => { const q = G.zombies.spawn(type, 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; return q; };
       W.give('katana'); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); __sim(0.7); r.cur = W.cur();
-      const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260;
+      const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260; /* critical hits can kill all three early; a fourth that cannot die stands just behind so a later swing still lands */ { const tough = mk('walker', 0.1, 5.55); tough.hp = tough.maxHp = 1e6; }
       const h0 = W.S.hits; P.input.fire = true; __sim(1.4); P.input.fire = false; __sim(0.3);
       r.swings = W.S.hits - h0; r.dead = zs.filter((z) => !z.alive).length; r.arms = zs.reduce((a, z) => a + (2 - z.armsLeft), 0);
       G.zombies.clear(); const L = mk('walker', 3, 0); L.hp = L.maxHp = 600; /* which leg a hit lands on and whether it comes off are rolls: keep the walker alive and keep hitting until one does */ for (let i = 0; i < 120 && !L.crawl; i++) { L.hp = L.maxHp; G.zombies.damage(L, 40, 'leg', new V(1, 0, 0), 1); } r.crawl = L.crawl;
