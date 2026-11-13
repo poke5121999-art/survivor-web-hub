@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Blockade Z</title>
+<style>
+:root {
+  --ink: #15110c; --bone: #fff4dc; --gold: #f4c04a; --gold-d: #b9801c; --red: #e0402c; --green: #6cc644; --plate: rgba(21, 17, 12, .78);
+  --f: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; --mono: ui-monospace, 'Consolas', 'Courier New', monospace;
+  --px: 3px 3px 0 #000;
+}
+html, body { margin: 0; height: 100%; background: #1d160e; color: var(--bone); overflow: hidden; font-family: var(--f); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+#view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; touch-action: none; outline: none; }
+a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-index: 30; font: 12px/1 var(--f); color: #fff; opacity: .75; text-decoration: none; padding: 5px 8px; background: rgba(0,0,0,.4); border: 2px solid #000; }
+#boot { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #1d160e; transition: opacity .5s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .mk { font: 900 40px/1 var(--mono); letter-spacing: .1em; color: var(--gold); text-shadow: var(--px); }
+#boot .bar { width: min(320px, 70vw); height: 12px; border: 3px solid #000; background: #3a2c1c; }
+#boot .bar i { display: block; height: 100%; width: 0; background: var(--green); transition: width .2s; }
+#boot-msg { font: 700 13px var(--mono); letter-spacing: .15em; text-transform: uppercase; color: #cdb892; }
+#fatal { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: #4a1010; color: #ffd9d0; font: 12px/1.4 var(--mono); padding: 12px 16px; white-space: pre-wrap; max-height: 40vh; overflow: auto; }
+
+.btn { font: 900 18px var(--f); text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: var(--gold); border: 3px solid #000; box-shadow: inset 0 -5px 0 var(--gold-d), inset 0 3px 0 #ffe9a8, 4px 4px 0 #000; padding: 12px 26px; cursor: pointer; }
+.btn:hover { filter: brightness(1.08); } .btn:active { transform: translate(2px, 2px); box-shadow: inset 0 -3px 0 var(--gold-d), 2px 2px 0 #000; }
+.btn.ghost { background: #4a3a26; color: var(--bone); box-shadow: inset 0 -5px 0 #2c2216, inset 0 3px 0 #6a5536, 4px 4px 0 #000; }
+.btn.small { font-size: 14px; padding: 8px 14px; }
+.screen { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+.screen.on { display: flex; }
+.card { background: var(--plate); border: 3px solid #000; box-shadow: 6px 6px 0 rgba(0,0,0,.6), inset 0 0 0 3px #4a3a26; padding: 22px 24px; max-width: 520px; width: 100%; box-sizing: border-box; max-height: calc(100vh - 32px); overflow: auto; }
+.card h2 { margin: 0 0 12px; font: 900 30px var(--f); text-transform: uppercase; color: var(--gold); text-shadow: var(--px); letter-spacing: .04em; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+
+#title { justify-content: flex-start; background: linear-gradient(90deg, rgba(20,14,8,.82) 0%, rgba(20,14,8,.45) 55%, transparent 100%); }
+#title .in { max-width: 560px; padding-left: max(24px, env(safe-area-inset-left)); }
+#logo { width: min(520px, 86vw); image-rendering: pixelated; display: block; }
+#title p.tag { font: 700 18px/1.4 var(--f); margin: 10px 0 0; text-shadow: 2px 2px 0 #000; max-width: 460px; }
+#title .keys { margin-top: 20px; font: 12px/1.9 var(--mono); color: #e6d3ad; text-shadow: 1px 1px 0 #000; }
+#title kbd, .card kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 3px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 700 11px/16px var(--mono); }
+#title .note { margin-top: 14px; font: 11px/1.5 var(--mono); color: #b9a77f; }
+#best { font: 700 14px var(--mono); color: var(--gold); margin-top: 10px; text-shadow: 2px 2px 0 #000; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+#hud.on { display: block; }
+.plate { position: absolute; background: var(--plate); border: 3px solid #000; box-shadow: inset 0 0 0 2px #4a3a26; padding: 6px 10px; text-shadow: 2px 2px 0 #000; }
+#hp { left: max(14px, env(safe-area-inset-left)); bottom: 14px; width: 230px; }
+#hp .bar { height: 16px; background: #3a1410; border: 2px solid #000; position: relative; }
+#hp .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#ff6a50, #c42a1a); transition: width .15s; }
+#hp .bar u { position: absolute; left: 0; top: 0; height: 5px; background: #8fd0ff; }
+#hp b { font: 900 22px var(--mono); margin-right: 6px; } #hp small { font: 700 11px var(--mono); color: #cdb892; letter-spacing: .1em; }
+#hp.low b { color: #ff6a50; }
+#ammo { right: max(14px, env(safe-area-inset-right)); bottom: 14px; text-align: right; min-width: 170px; }
+#ammo b { font: 900 38px/1 var(--mono); } #ammo b.low { color: #ff6a50; } #ammo span { font: 700 18px var(--mono); color: #cdb892; margin-left: 4px; }
+#wname { font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+#slots { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; }
+#slots button { position: relative; width: 92px; height: 62px; padding: 4px 0 0; border: 3px solid #000; background: rgba(28, 22, 16, .78); box-shadow: inset 0 0 0 2px #3a2c1c; cursor: pointer; opacity: .45; }
+#slots button.own { opacity: 1; } #slots button.cur { background: rgba(80, 170, 60, .85); box-shadow: inset 0 0 0 2px #b6f08a; }
+#slots img { display: block; margin: 0 auto; width: 84px; height: 40px; image-rendering: pixelated; }
+#slots em { position: absolute; left: 4px; top: 2px; font: 900 11px var(--mono); color: var(--bone); font-style: normal; text-shadow: 1px 1px 0 #000; }
+#slots small { display: block; font: 700 10px var(--mono); color: var(--bone); text-shadow: 1px 1px 0 #000; }
+#pops .pop.dmg { color: #ffb347; font-size: 15px; } #pops .pop.dmg.crit { color: #ff4a3a; font-size: 20px; }
+body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.62); transform-origin: top center; }
+#wave { left: 50%; top: 10px; transform: translateX(-50%); text-align: center; padding: 4px 16px; }
+#wave small { font: 700 11px var(--mono); letter-spacing: .2em; color: #cdb892; } #wave b { font: 900 26px/1 var(--mono); color: var(--gold); margin: 0 4px; } #wave span { display: block; font: 700 12px var(--mono); }
+#coins { right: max(14px, env(safe-area-inset-right)); top: 10px; font: 900 18px var(--mono); }
+#score { right: max(14px, env(safe-area-inset-right)); top: 54px; font: 700 13px var(--mono); color: #cdb892; }
+#cross { position: absolute; left: 50%; top: 50%; --gap: 6px; }
+#cross i { position: absolute; background: #fff; box-shadow: 0 0 0 1px #000; }
+#cross i:nth-child(1) { width: 3px; height: 8px; left: -1px; top: calc(-8px - var(--gap)); } #cross i:nth-child(2) { width: 3px; height: 8px; left: -1px; top: var(--gap); }
+#cross i:nth-child(3) { height: 3px; width: 8px; top: -1px; left: calc(-8px - var(--gap)); } #cross i:nth-child(4) { height: 3px; width: 8px; top: -1px; left: var(--gap); }
+#cross i:nth-child(5) { width: 3px; height: 3px; left: -1px; top: -1px; }
+#marker { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%) rotate(45deg); opacity: 0; }
+#marker::before, #marker::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 0 1px #000; }
+#marker::before { left: 11px; top: 0; width: 4px; height: 26px; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%); }
+#marker::after { top: 11px; left: 0; height: 4px; width: 26px; clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%); }
+#marker.head::before, #marker.head::after { background: #ff4a3a; }
+#vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 0, 0, .75) 100%); }
+#dmgdir { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; opacity: 0; transition: opacity .3s; }
+#dmgdir.on { opacity: 1; transition: none; }
+#dmgdir::before { content: ''; position: absolute; left: 50%; top: 0; transform: translateX(-50%); border: 16px solid transparent; border-bottom: 26px solid rgba(255, 50, 30, .9); filter: drop-shadow(2px 2px 0 #000); }
+#banner { position: absolute; left: 50%; top: 22%; transform: translate(-50%, -10px); text-align: center; opacity: 0; transition: opacity .25s, transform .25s; }
+#banner.on { opacity: 1; transform: translate(-50%, 0); }
+#banner b { display: block; font: 900 44px/1 var(--f); color: var(--gold); text-shadow: 4px 4px 0 #000; letter-spacing: .04em; }
+#banner small { display: block; margin-top: 6px; font: 700 16px var(--mono); text-shadow: 2px 2px 0 #000; }
+#reloadhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font: 900 15px var(--mono); color: #ff6a50; text-shadow: 2px 2px 0 #000; display: none; letter-spacing: .1em; }
+#reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+#breakbar { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); display: none; align-items: center; gap: 10px; pointer-events: auto; }
+#breakbar.on { display: flex; }
+#breakbar span { font: 700 14px var(--mono); text-shadow: 2px 2px 0 #000; } #breakbar b { color: var(--gold); }
+#pops .pop { position: absolute; transform: translate(-50%, -50%); font: 900 16px var(--mono); color: var(--gold); text-shadow: 2px 2px 0 #000; white-space: nowrap; }
+#pops .pop.head { color: #ff5a40; font-size: 18px; } #pops .pop.heal { left: 50%; top: 64%; color: #8fe05a; }
+#pause .card label { display: grid; grid-template-columns: 110px 1fr 52px; align-items: center; gap: 10px; margin: 10px 0; font: 700 13px var(--mono); }
+#pause input[type=range] { accent-color: var(--gold); } #pause select { font: 700 13px var(--mono); background: #2c2216; color: var(--bone); border: 2px solid #000; padding: 4px; }
+#pause a { color: var(--bone); }
+#dead dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 20px; font: 700 15px var(--mono); margin: 8px 0 0; }
+#dead dd { margin: 0; color: var(--gold); text-align: right; }
+#dead-record { color: #8fe05a; font: 900 16px var(--mono); margin-top: 10px; }
+#shop .card { max-width: 640px; }
+#shop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+#shop .item { text-align: left; font-family: var(--f); background: #3a2c1c; color: var(--bone); border: 3px solid #000; box-shadow: inset 0 -4px 0 #2c2216, 3px 3px 0 #000; padding: 10px; cursor: pointer; }
+#shop .item b { display: block; font-size: 16px; text-transform: uppercase; } #shop .item small { display: block; font: 11px/1.4 var(--mono); color: #cdb892; margin: 4px 0 6px; min-height: 30px; }
+#shop .item span { font: 900 15px var(--mono); color: var(--gold); }
+#shop .item:disabled { opacity: .45; cursor: default; } #shop .item.owned { opacity: .7; } #shop .item.owned span { color: #8fe05a; }
+#shop .coins { font: 900 18px var(--mono); color: var(--gold); float: right; margin-top: 8px; }
+
+#touch { position: fixed; inset: 0; z-index: 9; display: none; touch-action: none; }
+body.touch #touch { display: block; }
+body.touch #hud .plate#hp { bottom: auto; top: 44px; width: 170px; }
+body.touch #ammo { bottom: auto; top: 44px; right: 120px; min-width: 0; } body.touch #ammo b { font-size: 26px; } body.touch #coins { top: 44px; }
+body.touch #score { display: none; } body.touch #title .keys { display: none; }
+#stick { position: absolute; display: none; width: 0; height: 0; }
+#stick::before { content: ''; position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border: 3px solid rgba(0,0,0,.6); background: rgba(255,255,255,.12); }
+#stick i { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; background: rgba(244, 192, 74, .8); border: 3px solid #000; }
+.tb { position: absolute; width: 74px; height: 74px; border: 3px solid #000; background: rgba(58, 44, 28, .7); color: var(--bone); font: 900 13px var(--mono); display: flex; align-items: center; justify-content: center; text-shadow: 2px 2px 0 #000; box-shadow: 3px 3px 0 rgba(0,0,0,.5); }
+.tb.on { background: rgba(244, 192, 74, .85); color: #000; }
+.tb[data-btn=fire] { right: max(24px, env(safe-area-inset-right)); bottom: 90px; width: 96px; height: 96px; background: rgba(200, 50, 30, .75); font-size: 16px; }
+.tb[data-btn=ads] { right: max(136px, calc(env(safe-area-inset-right) + 112px)); bottom: 120px; width: 60px; height: 60px; }
+.tb[data-btn=jump] { right: max(24px, env(safe-area-inset-right)); bottom: 200px; width: 64px; height: 64px; }
+.tb[data-btn=reload] { right: max(136px, calc(env(safe-area-inset-right) + 112px)); bottom: 40px; width: 60px; height: 60px; }
+.tb[data-btn=swap] { right: max(100px, calc(env(safe-area-inset-right) + 76px)); bottom: 200px; width: 60px; height: 60px; }
+.tb[data-act=pause] { left: max(84px, calc(env(safe-area-inset-left) + 76px)); top: 4px; width: 40px; height: 32px; pointer-events: auto; }
+@media (max-width: 700px) { #banner b { font-size: 30px; } #title p.tag { font-size: 15px; } .card { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { #banner, #boot { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="view" tabindex="0"></canvas>
+<a class="hub" href="../../index.html">← Hub</a>
+
+<div id="boot"><div class="mk">BLOCKADE Z</div><div class="bar"><i id="boot-fill"></i></div><div id="boot-msg">Đang tải</div></div>
+<div id="fatal"></div>
+
+<div id="hud">
+  <div id="vignette"></div>
+  <div id="dmgdir"></div>
+  <div id="cross"><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="marker"></div>
+  <div id="pops"></div>
+  <div id="banner"></div>
+  <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
+  <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
+  <div class="plate" id="coins">🪙 <b>0</b></div>
+  <div class="plate" id="score">ĐIỂM <b>0</b></div>
+  <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><i style="width:100%"></i><u id="armor"></u></div></div>
+  <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span></div>
+  <div id="slots"></div>
+  <div id="breakbar"><span>Đợt sau tới trong <b>20</b> giây</span><button class="btn small" data-act="shop">🛒 Cửa hàng (B)</button><button class="btn small ghost" data-act="ready">Đánh tiếp</button></div>
+</div>
+
+<div id="touch">
+  <div id="stick"><i></i></div>
+  <div class="tb" data-btn="fire">BẮN</div>
+  <div class="tb" data-btn="ads">NGẮM</div>
+  <div class="tb" data-btn="jump">NHẢY</div>
+  <div class="tb" data-btn="reload">NẠP</div>
+  <div class="tb" data-btn="swap">ĐỔI</div>
+  <div class="tb" data-act="pause">II</div>
+</div>
+
+<section class="screen" id="title">
+  <div class="in">
+    <canvas id="logo"></canvas>
+    <p class="tag">Thị trấn khối vuông bị zombie vây kín bốn cổng. Giữ quảng trường qua từng đợt, nhặt xu, mua súng to hơn.</p>
+    <div id="best"></div>
+    <div class="row"><button class="btn" data-act="play">Chơi</button><button class="btn ghost" data-act="settings">Cài đặt</button></div>
+    <div class="keys">
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
+      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp · <kbd>1</kbd>-<kbd>4</kbd> / <kbd>Q</kbd> / lăn chuột đổi súng<br>
+      <kbd>B</kbd> cửa hàng (giữa hai đợt) · <kbd>Esc</kbd> tạm dừng
+    </div>
+    <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
+  </div>
+</section>
+
+<section class="screen" id="pause">
+  <div class="card">
+    <h2>Tạm dừng</h2>
+    <label>Độ nhạy chuột <input id="set-sens" type="range" min="0.2" max="3" step="0.05"><span></span></label>
+    <label>Âm lượng <input id="set-vol" type="range" min="0" max="1" step="0.05"><span></span></label>
+    <label>Góc nhìn <input id="set-fov" type="range" min="65" max="100" step="1"><span></span></label>
+    <label>Đồ hoạ <select id="set-q"><option value="auto">Tự động</option><option value="low">Thấp</option><option value="medium">Vừa</option><option value="high">Cao</option></select><span></span></label>
+    <div class="row"><button class="btn" data-act="resume">Tiếp tục</button><button class="btn ghost" data-act="restart">Chơi lại</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
+  </div>
+</section>
+
+<section class="screen" id="dead">
+  <div class="card">
+    <h2>Bị cắn rồi</h2>
+    <dl><dt>Trụ tới đợt</dt><dd id="dead-wave">0</dd><dt>Zombie hạ</dt><dd id="dead-kills">0</dd><dt>Độ chính xác</dt><dd id="dead-acc">0%</dd><dt>Điểm</dt><dd id="dead-score">0</dd><dt>Kỷ lục</dt><dd id="dead-best">0</dd></dl>
+    <div id="dead-record">KỶ LỤC MỚI!</div>
+    <div class="row"><button class="btn" data-act="restart">Chơi lại</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
+  </div>
+</section>
+
+<section class="screen" id="shop">
+  <div class="card">
+    <h2>Cửa hàng</h2>
+    <div id="shop-list"></div>
+    <div class="row"><button class="btn" data-act="closeshop">Xong</button><button class="btn ghost" data-act="ready">Đánh tiếp ngay</button><span style="font:700 13px var(--mono);align-self:center">Đợt sau: <b id="shop-timer"></b></span></div>
+  </div>
+</section>
+
+<script type="module" src="js/boot.js?v=20261113a"></script>
+<script type="module" src="js/core.js?v=20261113a"></script>
+<script type="module" src="js/art.js?v=20261113a"></script>
+<script type="module" src="js/world.js?v=20261113a"></script>
+<script type="module" src="js/audio.js?v=20261113a"></script>
+<script type="module" src="js/fx.js?v=20261113a"></script>
+<script type="module" src="js/zombies.js?v=20261113a"></script>
+<script type="module" src="js/weapons.js?v=20261113a"></script>
+<script type="module" src="js/player.js?v=20261113a"></script>
+<script type="module" src="js/ui.js?v=20261113a"></script>
+<script type="module" src="js/main.js?v=20261113a"></script>
+</body>
+</html>
