@@ -97,6 +97,9 @@ body.touch #slots { bottom: auto; top: 76px; transform: translateX(-50%) scale(.
 #announce.hot b { color: #ff5a3a; text-shadow: 4px 4px 0 #000, 0 0 22px rgba(255, 60, 30, .8); } #announce.streak b { color: #7ad8ff; }
 #announce small { display: block; margin-top: 4px; font: 700 14px var(--mono); color: #fff; text-shadow: 2px 2px 0 #000; }
 #pops .pop.critword { color: #ffe040; font-size: 20px; letter-spacing: .1em; } #pops .pop.dmg.crit.big { font-size: 24px; color: #ffe040; }
+#bossbar { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); width: min(520px, 70vw); text-align: center; display: none; }
+#bossbar.on { display: block; } #bossbar b { font: 900 16px var(--f); color: #ff6a50; letter-spacing: .12em; text-shadow: 2px 2px 0 #000; }
+#bossbar div { height: 14px; border: 3px solid #000; background: #2a0c08; margin-top: 2px; } #bossbar i { display: block; height: 100%; background: linear-gradient(#ff7a50, #b81a10); transition: width .15s; }
 #reloadhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font: 900 15px var(--mono); color: #ff6a50; text-shadow: 2px 2px 0 #000; display: none; letter-spacing: .1em; }
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .2; } }
@@ -154,6 +157,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div id="pops"></div>
   <div id="banner"></div>
   <div id="announce"></div>
+  <div id="bossbar"><b>BOSS</b><div><i></i></div></div>
   <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
   <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span></div>
   <div class="plate" id="coins">🪙 <b>0</b></div>
@@ -220,18 +224,18 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   </div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113d"></script>
-<script type="module" src="js/core.js?v=20261113d"></script>
-<script type="module" src="js/art.js?v=20261113d"></script>
-<script type="module" src="js/world.js?v=20261113d"></script>
-<script type="module" src="js/audio.js?v=20261113d"></script>
-<script type="module" src="js/fx.js?v=20261113d"></script>
-<script type="module" src="js/zombies.js?v=20261113d"></script>
-<script type="module" src="js/weapons.js?v=20261113d"></script>
-<script type="module" src="js/allies.js?v=20261113d"></script>
-<script type="module" src="js/gear.js?v=20261113d"></script>
-<script type="module" src="js/player.js?v=20261113d"></script>
-<script type="module" src="js/ui.js?v=20261113d"></script>
-<script type="module" src="js/main.js?v=20261113d"></script>
+<script type="module" src="js/boot.js?v=20261113e"></script>
+<script type="module" src="js/core.js?v=20261113e"></script>
+<script type="module" src="js/art.js?v=20261113e"></script>
+<script type="module" src="js/world.js?v=20261113e"></script>
+<script type="module" src="js/audio.js?v=20261113e"></script>
+<script type="module" src="js/fx.js?v=20261113e"></script>
+<script type="module" src="js/zombies.js?v=20261113e"></script>
+<script type="module" src="js/weapons.js?v=20261113e"></script>
+<script type="module" src="js/allies.js?v=20261113e"></script>
+<script type="module" src="js/gear.js?v=20261113e"></script>
+<script type="module" src="js/player.js?v=20261113e"></script>
+<script type="module" src="js/ui.js?v=20261113e"></script>
+<script type="module" src="js/main.js?v=20261113e"></script>
 </body>
 </html>

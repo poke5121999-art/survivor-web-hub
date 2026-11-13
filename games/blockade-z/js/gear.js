@@ -34,14 +34,13 @@
       return true;
     }
 
-    function explode(pos) {
-      const R = BOMB.radius;
+    function explode(pos, R = BOMB.radius, DMG = BOMB.dmg) {
       for (const z of G.zombies.list) {
         if (!z.alive) continue;
         const d = Math.hypot(z.pos.x - pos.x, z.pos.y + 0.9 - pos.y, z.pos.z - pos.z);
         if (d > R) continue;
         const dir = new THREE.Vector3(z.pos.x - pos.x, 0, z.pos.z - pos.z).normalize();
-        const dmg = Math.round(BOMB.dmg * (1 - Math.max(0, d - 1.5) / R * 0.65));
+        const dmg = Math.round(DMG * (1 - Math.max(0, d - 1.5) / R * 0.65));
         const died = G.zombies.damage(z, dmg, 'body', dir, 3);
         z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
@@ -50,6 +49,50 @@
       G.audio.playAt('boom', pos, { gain: 1.3 });
       const pd = G.player.pos.distanceTo(pos);
       if (pd < 18) { G.player.shake.v += (18 - pd) * 0.8; G.player.kickP.v += (18 - pd) * 0.03; }
+    }
+
+    // ---- projectiles: thrown rocks (hurt the player), rockets (explode on anything) ----
+    const shots = [];
+    const rockGeo = (() => { const RB = new BZ.Builder('rock'); RB.box([-0.3, -0.3, -0.3], [0.3, 0.3, 0.3], 'rubble', { uv: 'fit' }); RB.box([-0.2, 0.2, -0.25], [0.25, 0.42, 0.2], 'rubble', { uv: 'fit' }); return RB.build(); })();
+    const rocketGeo = (() => { const RB = new BZ.Builder('rocket'); RB.box([-0.06, -0.06, -0.3], [0.06, 0.06, 0.25], 'g_body2', { uv: 'fit', vary: 0 }); RB.box([-0.05, -0.05, -0.42], [0.05, 0.05, -0.3], 'g_red', { uv: 'fit', vary: 0 }); RB.box([-0.12, -0.01, 0.12], [0.12, 0.01, 0.25], 'g_steel', { uv: 'fit', vary: 0 }); return RB.build(); })();
+    function throwRock(from, target, owner) {
+      state.rocks = (state.rocks || 0) + 1;
+      const t = BZ.clamp(from.distanceTo(target) / 15, 0.7, 1.7); const g = 18;
+      const vel = target.clone().sub(from).divideScalar(t); vel.y += 0.5 * g * t;
+      const m = rockGeo.clone(); m.position.copy(from); scene.add(m);
+      shots.push({ kind: 'rock', m, pos: from.clone(), vel, g, life: 4, spin: 6, owner });
+    }
+    function fireRocket(from, dir) {
+      const m = rocketGeo.clone(); m.position.copy(from); m.lookAt(from.clone().add(dir)); m.rotateY(Math.PI); scene.add(m);
+      shots.push({ kind: 'rocket', m, pos: from.clone(), vel: dir.clone().multiplyScalar(40), g: 1.5, life: 3, spin: 0 });
+    }
+    const seg = new THREE.Vector3();
+    function updateShots(dt) {
+      for (let i = shots.length - 1; i >= 0; i--) {
+        const s = shots[i]; s.life -= dt;
+        s.vel.y -= s.g * dt;
+        const step = s.vel.length() * dt; seg.copy(s.vel).normalize();
+        let hitAt = null;
+        const wh = G.world.raycast(s.pos, seg, step + 0.2);
+        if (wh) hitAt = s.pos.clone().addScaledVector(seg, wh.t);
+        if (s.kind === 'rocket') {
+          const zh = G.zombies.hitTest(s.pos, seg, wh ? wh.t : step + 0.3);
+          if (zh) hitAt = s.pos.clone().addScaledVector(seg, zh.t);
+          if (G.rng.chance(0.9)) G.fx.burst(s.pos, 1, [0x9a9a9e, 0x6a6a6e, 0xffb040], { speed: 0.4, size: 0.16, life: 0.9, grav: -1, bounce: 0, drag: 0.6 });
+        } else {
+          const P = G.player; const pc = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
+          if (P.alive && s.pos.distanceTo(pc) < 1.1) { G.events.emit('player:hurt', { dmg: 24, from: s.pos }); hitAt = s.pos.clone(); P.vel.addScaledVector(seg, 4); }
+          s.m.rotation.x += dt * s.spin; s.m.rotation.z += dt * s.spin * 0.7;
+        }
+        if (hitAt || s.life <= 0 || s.pos.y < -1) {
+          const at = hitAt || s.pos;
+          if (s.kind === 'rocket') explode(at, 6.5, 480);
+          else { G.fx.burst(at, 16, [0x6a645c, 0x8e8c86, 0x55504a], { speed: 5, size: 0.16, life: 1 }); G.audio.playAt('impact', at, { gain: 1, rate: 0.6 }); }
+          scene.remove(s.m); shots.splice(i, 1); continue;
+        }
+        s.pos.addScaledVector(s.vel, dt); s.m.position.copy(s.pos);
+        if (s.kind === 'rocket') { s.m.lookAt(s.pos.clone().add(s.vel)); s.m.rotateY(Math.PI); }
+      }
     }
 
     // ---- turrets ----
@@ -98,6 +141,7 @@
     const eye = new THREE.Vector3(); const aim = new THREE.Vector3();
     function update(dt) {
       state.cool = Math.max(0, state.cool - dt);
+      updateShots(dt);
       for (let i = bombs.length - 1; i >= 0; i--) {
         const b = bombs[i];
         b.t += dt;
@@ -155,9 +199,10 @@
     }
     function clear() {
       for (const b of bombs) scene.remove(b.m); bombs.length = 0;
+      for (const s of shots) scene.remove(s.m); shots.length = 0;
       while (turrets.length) removeTurret(0);
       state.bombs = BOMB.start; state.cool = 0;
     }
-    return { state, throwBomb, placeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(BOMB.max, state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
+    return { state, throwBomb, throwRock, fireRocket, shots, placeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(BOMB.max, state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
   };
 })();

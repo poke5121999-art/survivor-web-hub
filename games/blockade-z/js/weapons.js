@@ -12,9 +12,11 @@
       kick: { back: 0.035, rise: 1.2, yaw: 0.8, cam: 0.006 }, adsFov: 60, tracer: 3 },
     rifle: { name: 'Súng trường', key: '4', price: 900, dmg: 46, head: 2.5, rpm: 540, auto: true, mag: 30, reserve: 120, pellets: 1, spread: 0.005, moveSpread: 0.022, range: 120, reload: 2.0, snd: 'rifle', impulse: 1.4, pierce: 2,
       kick: { back: 0.05, rise: 1.8, yaw: 0.9, cam: 0.01 }, adsFov: 45, tracer: 2 },
+    bazooka: { name: 'Bazooka', key: '5', price: 1200, dmg: 0, head: 1, rpm: 50, auto: false, mag: 1, reserve: 10, pellets: 1, spread: 0.002, moveSpread: 0.012, range: 150, reload: 2.4, snd: 'rocket', impulse: 3, rocket: true,
+      kick: { back: 0.3, rise: 7, yaw: 1, cam: 0.06 }, adsFov: 55 },
   };
   BZ.WEAPONS = WEAPONS;
-  const ORDER = ['pistol', 'shotgun', 'smg', 'rifle'];
+  const ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'bazooka'];
 
   // Viewmodel shapes: many small flat-colour voxels, gun points along -z, grip near origin.
   // Each gun: dark body, a light edge stripe, one saturated accent, one emissive cell.
@@ -64,6 +66,12 @@
       [0.041, 0.09, -0.2, 0.044, 0.108, -0.12, 'g_glow_blue'],
     ], grip: [[-0.032, -0.15, -0.02, 0.032, 0.0, 0.06, 'g_grip']] },
   };
+  GUNS.bazooka = { port: [0.07, 0.1, 0.2], muzzle: [0, 0.05, -1.0], lh: [0, -0.08, -0.45], magHand: [0, 0.05, -1.25], parts: [
+    [-0.075, -0.02, -0.9, 0.075, 0.12, 0.45, 'g_body2'], [-0.09, -0.035, -0.96, 0.09, 0.135, -0.86, 'g_edge'], [-0.09, -0.035, 0.4, 0.09, 0.135, 0.5, 'g_edge'],
+    [-0.076, 0.03, -0.6, 0.076, 0.07, 0.2, 'g_red'], [-0.03, 0.12, -0.35, 0.03, 0.2, -0.15, 'g_body'], [-0.02, 0.15, -0.36, 0.02, 0.19, -0.34, 'g_glow_red'],
+    [-0.03, -0.18, -0.4, 0.03, -0.02, -0.32, 'g_grip'], [0.076, 0.0, -0.1, 0.09, 0.06, 0.1, 'g_body'],
+    [-0.05, 0.0, -1.06, 0.05, 0.1, -0.9, 'g_red', 'mag'], [-0.035, 0.015, -1.13, 0.035, 0.085, -1.06, 'g_gold', 'mag'],
+  ], grip: [[-0.032, -0.16, -0.02, 0.032, 0.0, 0.06, 'g_grip']] };
   const GLOW = { g_glow_orange: 0xff8a20, g_glow_red: 0xff3a2a, g_glow_lime: 0x9cff50, g_glow_blue: 0x50c0ff };
   function buildGun(id) {
     const D = GUNS[id];
@@ -99,7 +107,7 @@
     const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: BZ.tex('flash'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     flash.position.set(...D.muzzle); flash.visible = false;
     g.add(flash);
-    const magDir = id === 'pistol' ? new THREE.Vector3(0, -1, 0).applyMatrix4(tilt) : new THREE.Vector3(0, -1, 0.12).normalize();
+    const magDir = id === 'bazooka' ? new THREE.Vector3(0, 0.15, -1).normalize() : id === 'pistol' ? new THREE.Vector3(0, -1, 0).applyMatrix4(tilt) : new THREE.Vector3(0, -1, 0.12).normalize();
     g.userData = { muzzle: new THREE.Vector3(...D.muzzle), flash, parts, magDir, lh: new THREE.Vector3(...D.lh), magHand: new THREE.Vector3(...D.magHand), port: new THREE.Vector3(...D.port), shellColor: D.shellColor };
     return g;
   }
@@ -221,9 +229,14 @@
       const moving = Math.min(1, Math.hypot(P.vel.x, P.vel.z) / 4) + (P.onGround ? 0 : 1);
       const spread = (w.spread + w.moveSpread * moving) * (1 - S.ads * 0.6) + S.bloom;
       let anyHit = false; let head = false;
+      if (w.rocket) {
+        const from = new THREE.Vector3().copy(o).addScaledVector(d, 1.0).addScaledVector(right, 0.15).addScaledVector(up, -0.05);
+        const aim = d.clone().addScaledVector(right, (G.rng.next() - 0.5) * spread).addScaledVector(up, (G.rng.next() - 0.5) * spread).normalize();
+        G.gear.fireRocket(from, aim);
+      }
       const muzzleW = new THREE.Vector3().copy(o).addScaledVector(d, 0.6).addScaledVector(right, 0.18).addScaledVector(up, -0.12);
       const pend = new Map();
-      for (let i = 0; i < w.pellets; i++) {
+      for (let i = 0; i < (w.rocket ? 0 : w.pellets); i++) {
         const r = Math.sqrt(G.rng.next()) * spread; const th = G.rng.next() * Math.PI * 2;
         const dir = d.clone().addScaledVector(right, Math.cos(th) * r).addScaledVector(up, Math.sin(th) * r).normalize();
         const wh = G.world.raycast(o, dir, w.range);
@@ -267,7 +280,8 @@
       G.fx.muzzle(muzzleW);
       const m = models[S.cur]; m.userData.flash.visible = true; m.userData.flash.rotation.z = G.rng.next() * 3; S.flashT = 0.045;
       emitSparks(S.cur === 'shotgun' ? 14 : 6);
-      if (S.cur !== 'shotgun') ejectCasing();
+      if (S.cur !== 'shotgun' && !w.rocket) ejectCasing();
+      if (w.rocket) { G.fx.burst(new THREE.Vector3().copy(o).addScaledVector(d, -0.6), 10, [0xd0d0d0, 0xa0a0a0, 0xffb040], { speed: 2, size: 0.25, life: 0.9, grav: -0.5, drag: 0.8, bounce: 0 }); }
       // feel: spring kicks + camera pitch kick
       const k = w.kick; const adsK = 1 - S.ads * 0.5;
       S.kZ.v += k.back * 30 * adsK; S.kP.v += k.rise * adsK; S.kY.v += (G.rng.next() - 0.5) * k.yaw * 2; S.kR.v += (G.rng.next() - 0.5) * k.yaw * 3;
@@ -345,7 +359,7 @@
       if (S.phase === 'reload' && !w.perShell) {
         const t = S.t / w.reload;
         tilt = ease(seg(t, 0, 0.14)) * (1 - ease(seg(t, 0.86, 1)));
-        if (t >= 0.14 && !S.evt.dropped) { S.evt.dropped = true; dropMag(); }
+        if (t >= 0.14 && !S.evt.dropped) { S.evt.dropped = true; if (!w.rocket) dropMag(); }
         if (t < 0.38) { mag = 0; magVis = t < 0.14; }
         else { mag = -(1 - ease(seg(t, 0.42, 0.62))) * 0.32; magVis = t >= 0.42; }
         if (t >= 0.66) slide = t < 0.8 ? ease(seg(t, 0.66, 0.76)) : 1 - seg(t, 0.8, 0.84);
@@ -359,6 +373,7 @@
         if (S.pumpT > 0) pump = Math.max(pump, Math.sin(Math.PI * (1 - S.pumpT / 0.38)));
       } else if (S.cycle < 0.1) slide = Math.max(slide, 1 - seg(S.cycle, 0.025, 0.1));
       if (S.cur === 'pistol' && a.mag === 0 && S.phase !== 'reload') slide = 1;
+      if (w.rocket && a.mag === 0 && S.phase !== 'reload') magVis = false;
       if (P.slide) P.slide.position.z = 0.055 * slide;
       if (P.bolt) P.bolt.position.z = 0.06 * slide;
       if (P.pump) P.pump.position.z = 0.15 * pump;

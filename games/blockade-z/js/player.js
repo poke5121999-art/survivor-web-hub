@@ -27,7 +27,7 @@
       if (G.state !== 'playing') return;
       if (e.code === 'KeyR') G.weapons.startReload();
       if (e.code === 'KeyQ') G.weapons.cycle(-1);
-      if (/^Digit[1-4]$/.test(e.code)) G.weapons.select(G.weapons.ORDER[+e.code.slice(5) - 1]);
+      if (/^Digit[1-5]$/.test(e.code)) G.weapons.select(G.weapons.ORDER[+e.code.slice(5) - 1]);
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
       if (e.code === 'KeyG') G.gear.throwBomb();
     });

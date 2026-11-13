@@ -130,6 +130,27 @@ const BOT = `(() => {
     check(react.down && react.small, 'a heavy body hit knocks it down, a light SMG hit only flinches');
     check(react.pierce, 'a rifle round passes through the first zombie into the one behind');
 
+    const adv = await page.evaluate(`(() => { const G = __G; const V = G.THREE.Vector3; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true;
+      const P = G.player; P.alive = true; P.hp = 100;
+      // stand on the guard post roof; walkers below should stack up and get over the parapet
+      P.pos.set(21, 4.5, -27); P.vel.set(0, 0, 0); __sim(0.2);
+      for (let i = 0; i < 10; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(11 + (i % 3) * 0.6, 0, -28 + Math.floor(i / 3) * 0.6); }
+      let topY = 0; for (let k = 0; k < 40; k++) { P.pos.set(21, 4.5, -27); __sim(0.5); for (const z of G.zombies.list) if (z.alive) topY = Math.max(topY, z.pos.y); }
+      const onRoof = G.zombies.list.filter((z) => z.alive && z.pos.y > 4).length;
+      G.zombies.clear(); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); __sim(0.1);
+      const giant = G.zombies.spawn('giant', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); giant.pos.set(0, 0, -12); giant.abT = 0; const g0 = giant.pos.distanceTo(P.pos); __sim(2); const g1 = giant.pos.distanceTo(P.pos);
+      G.zombies.clear(); const thr = G.zombies.spawn('thrower', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); const r0 = G.gear.state.rocks || 0; thr.pos.set(4, 0, 2); thr.abT = 0; __sim(1.2); const rocks = (G.gear.state.rocks || 0) - r0;
+      G.zombies.clear(); const ph = G.zombies.spawn('phantom', 5, { x: 0, z: -20, dir: [0, 1], name: 't' }); ph.pos.set(0, 0, -15); ph.abT = 0; __sim(0.1); const phD = ph.pos.distanceTo(P.pos);
+      G.zombies.clear(); for (let i = 0; i < 4; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(-0.6 + i * 0.4, 0, -2); z.speed = 0; }
+      const k0 = G.kills; G.weapons.give('bazooka'); __sim(0.7); P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = Math.atan2(1 - 1.6, 10); __sim(0.02); P.input.fire = true; __sim(0.03); P.input.fire = false; __sim(1); const rk = G.kills - k0;
+      G.god = false; return { topY: +topY.toFixed(2), onRoof, g0: +g0.toFixed(1), g1: +g1.toFixed(1), rocks, phD: +phD.toFixed(1), rk }; })()`);
+    console.log('adv', JSON.stringify(adv));
+    check(adv.topY > 3, `walkers stack up toward a player on a roof (top y=${adv.topY}, on roof ${adv.onRoof})`);
+    check(adv.g1 < adv.g0 - 5, `the giant boss leaps at the player (${adv.g0} m -> ${adv.g1} m)`);
+    check(adv.rocks > 0, `the thrower boss throws a rock (${adv.rocks})`);
+    check(adv.phD < 4, `the phantom boss teleports next to the player (${adv.phD} m)`);
+    check(adv.rk >= 3, `a bazooka rocket kills a cluster (${adv.rk}/4)`);
+
     // headshot pops the head
     await page.evaluate("(() => { const G = __G; G.wave.breakT = 0.01; })()");
     await page.evaluate('window.__sim(4)');

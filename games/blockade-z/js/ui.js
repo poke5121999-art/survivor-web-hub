@@ -59,7 +59,7 @@
       hud: $('#hud'), hp: $('#hp i'), hpTxt: $('#hp b'), armor: $('#armor'), ammo: $('#ammo b'), reserve: $('#ammo span'), wname: $('#wname'), slots: $('#slots'),
       wave: $('#wave b'), left: $('#wave span'), coins: $('#coins b'), score: $('#score b'), banner: $('#banner'), cross: $('#cross'), marker: $('#marker'),
       vignette: $('#vignette'), dmgDir: $('#dmgdir'), pops: $('#pops'), shop: $('#shop'), shopList: $('#shop-list'), shopTimer: $('#shop-timer'),
-      fuel: $('#fuel i'), bombs: $('#bombs b'),
+      fuel: $('#fuel i'), bombs: $('#bombs b'), boss: $('#bossbar'), bossName: $('#bossbar b'), bossFill: $('#bossbar i'),
       title: $('#title'), pause: $('#pause'), dead: $('#dead'), reloadHint: $('#reloadhint'), breakbar: $('#breakbar'), stick: $('#stick'), stickKnob: $('#stick i'), touch: $('#touch'),
     };
     logo($('#logo'), 'BLOCKADE Z');
@@ -140,6 +140,8 @@
       });
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
       el.coins.textContent = G.coins; el.score.textContent = G.score;
+      const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
+      if (boss) { el.bossName.textContent = boss.T.name; el.bossFill.style.width = Math.max(0, boss.hp / boss.maxHp) * 100 + '%'; }
       const sp = W.spread(); const gap = 6 + sp * 500;
       el.cross.style.setProperty('--gap', gap + 'px'); el.cross.style.opacity = 1 - W.S.ads * 0.85;
       markerT -= dt; el.marker.style.opacity = markerT > 0 ? 1 : 0;

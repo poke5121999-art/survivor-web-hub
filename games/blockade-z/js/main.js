@@ -82,6 +82,11 @@
       wave.n = n; wave.phase = 'fight'; wave.total = BZ.WAVE.count(n); wave.toSpawn = wave.total; wave.killed = 0; wave.spawnT = 1.5;
       G.ui.banner('ĐỢT ' + n, wave.total + ' zombie đang kéo tới', 2.4);
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
+      // a boss every fifth wave, and from wave 6 a chance of an extra one
+      const BOSSES = ['giant', 'thrower', 'phantom', 'queen'];
+      wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
+      wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % 4] : G.rng.pick(BOSSES);
+      if (BZ.params.boss) { wave.bossAt = 2; wave.bossType = BZ.params.boss; }
       G.ui.show(null);
     }
     function endWave() {
@@ -93,6 +98,8 @@
     function updateWave(dt) {
       if (wave.phase === 'fight') {
         wave.spawnT -= dt;
+        if (wave.bossAt > 0) { wave.bossAt -= dt; if (wave.bossAt <= 0) { const P = G.player; const gate = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z))[0];
+          const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, 'từ cổng ' + gate.name, 'hot'); G.audio.play('wave_start', { rate: 0.7 }); } } }
         if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < BZ.WAVE.maxAlive(wave.n)) {
           const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
           const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);

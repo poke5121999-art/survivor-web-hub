@@ -7,6 +7,10 @@
     walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], coin: 10, score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
     runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], coin: 15, score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
     flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 20, score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
+    giant: { hp: 2600, speed: 1.9, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.5, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 300, score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
+    thrower: { hp: 1700, speed: 1.6, dmg: 20, rate: 1.4, windup: 0.5, scale: 1.9, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], coin: 250, score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
+    phantom: { hp: 1300, speed: 3.2, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.5, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 250, score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
+    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.0, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 300, score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
     brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 50, score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
   };
   BZ.ZOMBIES = TYPES;
@@ -83,7 +87,7 @@
       z.dmg = Math.round(T.dmg * BZ.WAVE.dmgMul(wave));
       z.speed = T.speed * G.rng.range(0.9, 1.1);
       z.pos.set(gate.x + G.rng.range(-1.2, 1.2), T.fly ? G.rng.range(6, 9) : 0, gate.z + G.rng.range(-1.2, 1.2));
-      z.fallV = 0; z.bob = G.rng.range(0, 6);
+      z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
       z.body.armL.visible = z.body.armR.visible = true;
@@ -99,6 +103,108 @@
 
     const tmp = [0, 0];
     const out = {};
+    const fallV = new THREE.Vector3();
+
+    // ---- human towers: climb onto a zombie that is pressed against the wall, ride it, spill over the ledge ----
+    function tryClimb(z, alive) {
+      if (z.climb || z.pos.y > 0.4) return;
+      let best = null; let bestTop = -1;
+      for (const o of alive) {
+        if (o === z || o.T.fly || o.T.boss || !o.alive || (o.wallT < 0.4 && !o.climb)) continue;
+        let p = o; let loop = 0; while (p && loop++ < 8) { if (p === z) break; p = p.climb; } if (p === z) continue;
+        const d = Math.hypot(o.pos.x - z.pos.x, o.pos.z - z.pos.z);
+        const top = o.pos.y + 1.5 * o.T.scale;
+        if (d < 1.0 && top > bestTop && !alive.some((q) => q.climb === o)) { best = o; bestTop = top; }
+      }
+      if (!best) return;
+      z.climb = best; z.climbT = 0;
+      z.climbOff = new THREE.Vector3(z.pos.x - best.pos.x, 0, z.pos.z - best.pos.z).multiplyScalar(0.25);
+      G.audio.playAt('land', z.pos, { gain: 0.35, rate: 1.3 });
+    }
+    function ride(z, dt, P, dx, dz, dist) {
+      const s = z.climb;
+      if (!s.alive || s.dying) { z.climb = null; z.landed = true; return; }
+      z.climbT += dt;
+      const k = Math.min(1, z.climbT / 0.45);
+      const toward = new THREE.Vector3(dx, 0, dz).normalize().multiplyScalar(0.18);
+      z.pos.x = BZ.damp(z.pos.x, s.pos.x + z.climbOff.x + toward.x, 10, dt); z.pos.z = BZ.damp(z.pos.z, s.pos.z + z.climbOff.z + toward.z, 10, dt);
+      z.pos.y = BZ.lerp(z.pos.y, s.pos.y + 1.45 * s.T.scale, k);
+      z.vel.set(0, 0, 0);
+      // high enough: haul over the edge onto the roof the player stands on
+      if (k >= 1 && z.pos.y + 1.4 >= P.pos.y) {
+        const dir = new THREE.Vector3(dx, 0, dz).normalize();
+        for (const step of [0.8, 1.1, 1.5, 2.0]) {
+          const c = z.pos.clone().addScaledVector(dir, step); c.y = P.pos.y + 0.02;
+          const r = 0.32 * z.T.scale;
+          if (!G.world.overlaps([c.x - r, c.y, c.z - r], [c.x + r, c.y + 1.8, c.z + r])) {
+            z.pos.copy(c); z.climb = null; z.fp.v += 8; G.audio.playAt(z.T.voice, z.pos, { gain: 0.8 });
+            break;
+          }
+        }
+      }
+    }
+
+    // ---- bosses: each has one special move; returns true when it owns this frame's movement ----
+    function boss(z, dt, P, dist) {
+      const T = z.T; const b = z.body;
+      z.abT -= dt;
+      if (T.boss === 'giant') {
+        if (z.leap) {
+          const L = z.leap; L.t += dt; const k = Math.min(1, L.t / L.dur);
+          z.pos.lerpVectors(L.from, L.to, k); z.pos.y = BZ.lerp(L.from.y, L.to.y, k) + Math.sin(Math.PI * k) * L.h;
+          b.hips.rotation.x = -0.4 + k * 0.6; b.armL.rotation.x = b.armR.rotation.x = -Math.PI * 0.9;
+          b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
+          if (k >= 1) {
+            z.leap = null; z.abT = 6;
+            G.fx.burst(z.pos.clone().setY(z.pos.y + 0.2), 30, [0x6e6a64, 0x8a8478, 0x4a4640], { speed: 7, size: 0.2, life: 1 });
+            G.audio.playAt('boom', z.pos, { gain: 1, rate: 0.7 });
+            const d = P.pos.distanceTo(z.pos);
+            if (d < 4.5 && P.alive) { G.events.emit('player:hurt', { dmg: Math.round(30 * (1 - d / 6)), from: z.pos }); P.vel.add(new THREE.Vector3(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z).normalize().multiplyScalar(7)); P.vel.y = 6; }
+            if (d < 25) P.shake.v += (25 - d) * 0.6;
+          }
+          return true;
+        }
+        if (z.abT <= 0 && (P.pos.y - z.pos.y > 1.6 || dist > 9) && dist < 26 && P.alive) {
+          const to = P.pos.clone().add(new THREE.Vector3(G.rng.range(-1, 1), 0.02, G.rng.range(-1, 1)));
+          z.leap = { t: 0, dur: 0.9 + dist * 0.03, from: z.pos.clone(), to, h: 5 + Math.max(0, P.pos.y - z.pos.y) };
+          z.yaw = Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z);
+          G.audio.playAt('roar', z.pos, { gain: 1.1 });
+          return true;
+        }
+      } else if (T.boss === 'thrower') {
+        if (z.rock > 0) {
+          z.rock += dt; z.vel.set(0, 0, 0);
+          b.armL.rotation.x = b.armR.rotation.x = -Math.PI * (0.6 + 0.45 * Math.min(1, z.rock / 0.6));
+          z.yaw = Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z); b.root.rotation.y = z.yaw;
+          if (z.rock >= 0.6) {
+            z.rock = 0; z.abT = 2.4;
+            const from = z.pos.clone().add(new THREE.Vector3(0, 3.3 * T.scale / 1.9, 0));
+            G.gear.throwRock(from, P.pos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(P.vel, 0.4), z);
+            G.audio.playAt('swipe', z.pos, { gain: 1, rate: 0.6 });
+          }
+          return true;
+        }
+        if (z.abT <= 0 && dist < 38 && P.alive && G.world.lineOfSight(new THREE.Vector3(z.pos.x, z.pos.y + 3, z.pos.z), new THREE.Vector3(P.pos.x, P.pos.y + 1.4, P.pos.z))) { z.rock = 0.001; return true; }
+      } else if (T.boss === 'phantom') {
+        b.root.visible = !(z.abT < 0.6 && z.abT > 0 && Math.sin(z.abT * 60) > 0);
+        if (z.abT <= 0 && dist > 3 && P.alive) {
+          for (let i = 0; i < 10; i++) {
+            const a = G.rng.range(0, Math.PI * 2); const r = G.rng.range(2, 3.2);
+            const c = new THREE.Vector3(P.pos.x + Math.cos(a) * r, P.pos.y + 0.02, P.pos.z + Math.sin(a) * r);
+            const s = 0.32 * T.scale;
+            if (Math.abs(c.x) > G.world.HALF - 1 || Math.abs(c.z) > G.world.HALF - 1) continue;
+            if (G.world.overlaps([c.x - s, c.y, c.z - s], [c.x + s, c.y + 1.8, c.z + s])) continue;
+            const puff = (p) => G.fx.burst(p.clone().setY(p.y + 1.2), 22, [0x8a40ff, 0x40e0ff, 0x2a1a4a], { speed: 4, size: 0.18, life: 0.8, grav: -2 });
+            puff(z.pos); z.pos.copy(c); puff(z.pos); z.vel.set(0, 0, 0); z.abT = 4.5;
+            G.audio.playAt('screech', z.pos, { gain: 1, rate: 0.7 });
+            b.root.visible = true;
+            break;
+          }
+        }
+      }
+      return false;
+    }
+
     function update(dt) {
       const P = G.player;
       flowT.t -= dt;
@@ -111,8 +217,8 @@
         if (z.down > 0) {
           z.down -= dt; const p = z.down; const lie = p > z.downMax - 0.25 ? (z.downMax - p) / 0.25 : p < 0.4 ? p / 0.4 : 1;
           z.body.root.rotation.x = -lie * 1.4; z.vel.multiplyScalar(Math.pow(0.02, dt)); z.vel.y = 0;
-          G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out); z.pos.y = 0;
-          z.body.root.position.copy(z.pos); z.windT = -1;
+          z.vel.y -= 22 * dt; G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out, 0.5);
+          z.body.root.position.copy(z.pos); z.windT = -1; z.climb = null;
           continue;
         }
         z.body.root.rotation.x = 0;
@@ -125,27 +231,35 @@
         const dx = tp.x - z.pos.x; const dz = tp.z - z.pos.z;
         const dist = Math.hypot(dx, dz);
         const reach = 1.25 * T.scale;
-        const canHit = dist < reach + 0.15 && tp.y < 1.9 * T.scale && (tgt ? tgt.alive : P.alive);
+        const dy = tp.y - z.pos.y;
+        const canHit = dist < reach + 0.15 && dy > -1.2 && dy < 1.6 * T.scale && (tgt ? tgt.alive : P.alive);
+        if (T.boss && boss(z, dt, P, dist)) continue;
 
         // steering
         let sx = 0; let sz = 0;
-        if (tgt || (dist < 5 && G.world.lineOfSight(new THREE.Vector3(z.pos.x, 1.2, z.pos.z), new THREE.Vector3(P.pos.x, 1.2, P.pos.z)))) { sx = dx; sz = dz; }
+        if (tgt || z.pos.y > 0.9 || (dist < 5 && G.world.lineOfSight(new THREE.Vector3(z.pos.x, z.pos.y + 1.2, z.pos.z), new THREE.Vector3(P.pos.x, P.pos.y + 1.2, P.pos.z)))) { sx = dx; sz = dz; }
         else if (G.world.flowDir(z.pos.x, z.pos.z, tmp)) { sx = tmp[0]; sz = tmp[1]; }
         else { sx = dx; sz = dz; }
         const sl = Math.hypot(sx, sz) || 1; sx /= sl; sz /= sl;
         // separation
         for (const o of alive) {
-          if (o === z || o.T.fly) continue;
+          if (o === z || o.T.fly || z.climb || o.climb || Math.abs(o.pos.y - z.pos.y) > 1) continue;
           const ox = z.pos.x - o.pos.x; const oz = z.pos.z - o.pos.z; const d2 = ox * ox + oz * oz;
           const minD = 0.75 * (T.scale + o.T.scale) * 0.6;
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
         const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1);
-        z.vel.x = BZ.damp(z.vel.x, sx * want, 8, dt); z.vel.z = BZ.damp(z.vel.z, sz * want, 8, dt); z.vel.y = 0;
         const before = z.pos.x + z.pos.z;
-        G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out);
-        z.pos.y = 0;
+        if (z.climb) ride(z, dt, P, dx, dz, dist);
+        else {
+          z.vel.x = BZ.damp(z.vel.x, sx * want, 8, dt); z.vel.z = BZ.damp(z.vel.z, sz * want, 8, dt); z.vel.y -= 22 * dt;
+          G.world.moveBox(z.pos, z.vel, dt, 0.32 * T.scale, 1.8, out, 0.5);
+          // the player is up out of reach: press against the wall and let others climb on top
+          const elevated = !tgt && P.pos.y - z.pos.y > 1.6 && dist < 9;
+          z.wallT = elevated && (out.hitX || out.hitZ || dist < 1.2) ? z.wallT + dt : Math.max(0, z.wallT - dt);
+          if (elevated && z.pos.y < P.pos.y - 1 && T !== TYPES.brute) tryClimb(z, alive);
+        }
         z.stuck = Math.abs(z.pos.x + z.pos.z - before) < want * dt * 0.1 && want > 0 ? z.stuck + dt : 0;
 
         const face = Math.atan2(dx, dz);
@@ -173,7 +287,7 @@
         const sw = Math.sin(z.phase) * Math.min(1, sp / 2) * 0.7;
         b.legL.rotation.x = sw - T.hunch; b.legR.rotation.x = -sw - T.hunch;
         const wind = z.windT >= 0 ? z.windT / T.windup : 0;
-        const armBase = -Math.PI / 2 + Math.sin(z.phase * 0.5) * 0.12;
+        const armBase = (z.climb || z.wallT > 0.4 ? -Math.PI * 0.95 : -Math.PI / 2) + Math.sin(z.phase * 0.5 + (z.climb ? 3 : 0)) * (z.climb ? 0.4 : 0.12);
         b.armL.rotation.x = armBase + T.droop - wind * (0.9 + T.droop) + (z.attackT > T.rate - 0.15 ? 0.9 : 0);
         b.armR.rotation.x = armBase - wind * 0.9 + Math.sin(z.phase * 0.5 + 1) * 0.1 + (z.attackT > T.rate - 0.15 ? 0.9 : 0);
         const fp = z.fp.step(dt); const fr = z.fr.step(dt); const hs = z.hs.step(dt);
@@ -185,20 +299,22 @@
         b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
         if (z.flash > 0) { z.flash -= dt; if (z.flash <= 0) setFlash(z, false); }
         const bar = b.barBg; bar.visible = z.hp < z.maxHp;
-        if (bar.visible) { bar.position.set(z.pos.x, 2.2 * T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
+        if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
       }
       // death animation: flyers drop out of the sky first; then fall back, sink, return to pool
       for (const z of list) {
         if (!z.dying) continue;
-        if (z.pos.y > 0) {
-          z.fallV -= 22 * dt; z.pos.y = Math.max(0, z.pos.y + z.fallV * dt); z.body.root.position.y = z.pos.y; z.body.root.rotation.z += dt * 7; z.dying = 0.001;
-          if (z.pos.y === 0) { G.fx.burst(new THREE.Vector3(z.pos.x, 0.2, z.pos.z), 6, [0x6e4428, 0x8a5a35], { size: 0.1 }); G.audio.playAt('land', z.pos, { gain: 0.6 }); }
+        if (!z.landed) {
+          fallV.set(0, (z.fallV -= 22 * dt), 0);
+          G.world.moveBox(z.pos, fallV, dt, 0.3, 1.0, out); z.fallV = fallV.y;
+          z.body.root.position.copy(z.pos); if (z.T.fly) z.body.root.rotation.z += dt * 7; z.dying = 0.001;
+          if (out.ground) { z.landed = true; G.fx.burst(new THREE.Vector3(z.pos.x, z.pos.y + 0.2, z.pos.z), 6, [0x6e4428, 0x8a5a35], { size: 0.1 }); if (z.pos.y < 0.01 || z.T.fly) G.audio.playAt('land', z.pos, { gain: 0.6 }); }
           continue;
         }
         z.dying += dt;
         const b = z.body;
         b.root.rotation.x = -Math.min(1, z.dying / 0.35) * Math.PI / 2;
-        if (z.dying > 1.2) b.root.position.y = -(z.dying - 1.2) * 0.8;
+        b.root.position.y = z.pos.y - Math.max(0, z.dying - 1.2) * 0.8;
         if (z.dying > 2.2) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.position.y = 0; }
       }
     }
@@ -206,6 +322,7 @@
     // Flyers: cruise above the roofs toward the player, then dive at head height, swipe, and climb away.
     function flyer(z, dt, P) {
       const T = z.T; const b = z.body;
+      if (T.boss === 'queen') { z.abT -= dt; if (z.abT <= 0) { z.abT = 6; for (let i = 0; i < 3; i++) { const m = spawn('flyer', G.wave ? G.wave.n : 1, { x: z.pos.x, z: z.pos.z, dir: [0, 1], name: 'q' }); if (m) { m.pos.copy(z.pos).add(new THREE.Vector3(G.rng.range(-1.5, 1.5), 0.5, G.rng.range(-1.5, 1.5))); if (G.wave) { G.wave.total++; } } } G.audio.playAt('screech', z.pos, { gain: 1.2, rate: 0.6 }); } }
       const tx = P.pos.x; const tz = P.pos.z; const head = P.pos.y + 1.2;
       const dx = tx - z.pos.x; const dz = tz - z.pos.z; const d = Math.hypot(dx, dz);
       z.bob += dt;
@@ -306,7 +423,8 @@
       return false;
     }
     function kill(z, part, dir) {
-      z.alive = false; z.dying = 0.001;
+      z.alive = false; z.dying = 0.001; z.landed = false; z.fallV = 0; z.climb = null;
+      for (const o of list) if (o.climb === z) o.climb = null;
       const b = z.body;
       setFlash(z, false); b.barBg.visible = false; b.halo.visible = false;
       if (part === 'head') {
@@ -329,6 +447,7 @@
     }
     const aliveCount = () => list.reduce((a, z) => a + (z.alive ? 1 : 0), 0);
 
-    return { list, spawn, update, hitTest, damage, clear, aliveCount, debug: () => ({ alive: aliveCount() }) };
+    const boss1 = () => list.find((z) => z.alive && z.T.boss);
+    return { list, spawn, update, hitTest, damage, clear, aliveCount, boss: boss1, debug: () => ({ alive: aliveCount() }) };
   };
 })();

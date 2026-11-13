@@ -192,6 +192,7 @@
     shotgun: { n: 3, bus: 'gun', max: 3, ...shot({ hp: 2200, crack: 0.006, f0: 130, f1: 38, thump: 0.16, lp: 1700, boom: 0.32, tail: 0.45, echo: [[0.08, 0.28], [0.17, 0.16]], peak: 0.97 }) },
     smg: { n: 4, bus: 'gun', max: 6, ...shot({ hp: 3200, crack: 0.003, f0: 220, f1: 80, thump: 0.06, lp: 3000, boom: 0.1, tail: 0.18, echo: [[0.05, 0.12]], peak: 0.8 }) },
     rifle: { n: 4, bus: 'gun', max: 5, ...shot({ hp: 2600, crack: 0.004, f0: 170, f1: 50, thump: 0.11, lp: 2300, boom: 0.2, tail: 0.32, echo: [[0.07, 0.2], [0.13, 0.12]], peak: 0.92 }) },
+    rocket: { n: 2, bus: 'gun', max: 3, ...shot({ hp: 900, crack: 0.012, f0: 75, f1: 30, thump: 0.25, lp: 800, boom: 0.45, tail: 0.6, echo: [[0.1, 0.3]], peak: 0.95 }) },
     boom: { n: 2, bus: 'gun', max: 4, ...shot({ hp: 1500, crack: 0.01, f0: 90, f1: 28, thump: 0.35, lp: 900, boom: 0.7, tail: 0.9, echo: [[0.12, 0.35], [0.26, 0.2]], peak: 0.98 }) },
     turret: { n: 3, bus: 'world', max: 6, ...shot({ hp: 4200, crack: 0.003, f0: 260, f1: 110, thump: 0.04, lp: 3600, boom: 0.06, tail: 0.1, echo: [[0.04, 0.1]], peak: 0.6 }) },
     jet: { n: 2, bus: 'world', max: 3, gen: whoosh, o: { len: 0.22, f0: 700, f1: 500, peak: 0.45 } },
@@ -228,7 +229,7 @@
     music_perc: { n: 1, bus: 'music', loop: true, gen: perc, o: {} },
   };
   const ORDER = ['marker', 'coin', 'pistol', 'empty', 'mag_out', 'mag_in', 'switch', 'step', 'land', 'hit', 'head', 'impact', 'groan', 'die', 'swipe', 'hurt',
-    'screech', 'roar', 'boom', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'wind', 'music_drone', 'music_perc'];
+    'screech', 'roar', 'boom', 'rocket', 'turret', 'jet', 'casing', 'crit', 'headshot', 'streak', 'shotgun', 'rack', 'shell_in', 'smg', 'rifle', 'pickup', 'buy', 'deny', 'wave_start', 'wave_clear', 'wind', 'music_drone', 'music_perc'];
 
   BZ.makeAudio = (G) => {
     const AC = window.AudioContext || window.webkitAudioContext;
