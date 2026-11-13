@@ -154,7 +154,7 @@
         c0: o.c0 ?? 0xffffff, c1: o.c1 ?? o.c0 ?? 0xffffff, a0: o.a0 ?? 1, drag: o.drag || 0, g: o.g || 0, rot: G.rng.range(0, 6.3), spin: o.spin ?? G.rng.range(-1.5, 1.5), glow: !!o.glow });
     }
     function updateBoard(B, dt) {
-      const camQ = G.camera.quaternion; let n = 0;
+      const camQ = G.camera.quaternion; const camP = G.camera.position; let n = 0;
       for (let i = B.list.length - 1; i >= 0; i--) {
         const b = B.list[i]; b.t += dt;
         if (b.t >= b.life) { B.list.splice(i, 1); continue; }
@@ -163,7 +163,9 @@
         b.v.y -= b.g * dt; b.p.addScaledVector(b.v, dt); b.rot += b.spin * dt;
         const k = b.t / b.life; const ek = 1 - (1 - k) * (1 - k);
         const s = b.s0 + (b.s1 - b.s0) * ek;
-        const a = b.glow ? b.a0 * Math.pow(1 - k, 1.4) : b.a0 * (k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88);
+        // a puff right in front of the lens thins out, so a blast at arm's length does not paint the whole screen one colour
+        const near = Math.min(1, Math.max(0.12, (b.p.distanceTo(camP) - s * 0.25) / 2.2));
+        const a = (b.glow ? b.a0 * Math.pow(1 - k, 1.4) : b.a0 * (k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88)) * near;
         bq.copy(camQ).multiply(zq.setFromAxisAngle(zAx, b.rot));
         m4.compose(b.p, bq, sc.set(s, s, s)); B.mesh.setMatrixAt(n, m4);
         c0.setHex(b.c0); c1.setHex(b.c1); c0.lerp(c1, Math.min(1, k * 1.4));
