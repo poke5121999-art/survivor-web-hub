@@ -57,6 +57,22 @@ Mỗi nhân vật cầm một vũ khí riêng, đạn dự trữ vô hạn. Mỗ
 | Độc | đại đao | vung dài; nhát thứ ba xoay một vòng 360° trúng cả phía sau |
 | Kỹ Sư | shotgun | chín viên đạn chì |
 
+Mỗi vũ khí còn có một chiêu riêng (`weapons.js`):
+
+- **Gió:** nhát katana thứ ba phóng lưỡi gió hình trăng khuyết bay 14 m, chém mọi con trên đường với 60% sát thương.
+- **Thép:** giữ chuột phải giơ khiên tay trái; đòn từ phía trước trong góc 100° chỉ còn 20% (`G.weapons.takenMul`), đi chậm và không chém được khi giơ.
+- **Y Tá:** súng trái bắn phi tiêu hồi máu; bay qua lính thuê hồi 10 máu, qua đồng đội co-op thì hồi qua `G.hero.send('healdart')`.
+- **Mưa:** bắn lâu thì nòng nóng; trên 60% đạn đốt cháy zombie, tới 100% thì kẹt 1,2 giây và xả hơi.
+- **Bóng:** phi tiêu đánh dấu zombie 4 giây; chuột phải dịch chuyển ra sau con bị đánh dấu, đòn kế chắc chắn chí mạng, hồi 6 giây.
+- **Pháo Thủ:** rocket tách thành 3 bom con sau 0,35 giây; trúng vật cản sớm hơn thì đầu đạn nổ tại chỗ rồi bom con văng ra.
+- **Băng:** mỗi cú đâm cộng một lớp lạnh, lớp thứ tư đóng băng; đâm con đang đóng băng thì nó vỡ vụn.
+- **Hoả:** cú đấm gây cháy; cú móc thứ ba tạo vòng lửa 3,5 m đốt 3 giây.
+- **Sấm:** phi lao trúng thì sét lan sang 4 con gần nhất trong 7 m với 50% sát thương.
+- **Độc:** mỗi nhát đao để lại khí độc dọc đường chém, tồn tại 3 giây.
+- **Kỹ Sư:** viên đạn trúng zombie đứng cách tường dưới 1,8 m thì ghim nó vào tường 1,2 giây.
+
+Sau khi thêm chiêu riêng, Băng và Hoả vượt nhóm khoảng +220 sát thương/giây nên đã hạ: thương 64→54, nắm đấm 34→28, lửa yếu đi. Đo lại cả bộ: Băng 629, Hoả 664, các nhân vật khác trong khoảng 490–780.
+
 `tools/balance.js` cho mỗi nhân vật một bot tự ngắm và đánh. Bot đứng 25 giây giữa dòng zombie đợt 6 (`CROWD=16`, tức 16 con cùng lúc), một lần chỉ dùng vũ khí, một lần dùng cả kỹ năng và chiêu tối thượng. Sát thương được tính bằng máu zombie mất đi, nên vụ nổ và kỹ năng đều được đếm. Đo lặp cùng bộ số vẫn lệch khoảng ±120 sát thương/giây.
 
 Lần đo cuối, cột "chỉ vũ khí" và "cả bộ" là sát thương mỗi giây:
@@ -81,6 +97,25 @@ Lần đo cuối, cột "chỉ vũ khí" và "cả bộ" là sát thương mỗi
 - **Hạ:** rocket bazooka 480→400, nạp đạn 2,4→2,8 giây; nội tại nổ của Pháo Thủ 40%→25%.
 
 Y Tá là người hồi máu nên cố ý thấp hơn nhóm gây sát thương. Băng thiên về khống chế (đóng băng).
+
+## Kỹ năng ném và kỹ năng yếu
+
+Kỹ năng ném gồm phi tiêu độc, lựu đạn chùm, mìn dính, bom xăng và mây độc. Cách dùng: giữ F hoặc C thì hiện đường bay chấm sáng màu nhân vật và vòng chỗ rơi, to đúng bằng vùng tác dụng; thả phím là ném. Đồ ném rơi đúng chỗ tâm ngắm chạm, ngắm lên trời thì rơi xa nhất ở tầm của kỹ năng. Nút trên điện thoại cũng giữ rồi thả như vậy.
+
+`tools/skillcensus.js` tung từng kỹ năng một lần vào giữa 12 zombie đợt 6, rồi đo máu mất trong 6 giây. Đã nâng các kỹ năng yếu:
+
+| Kỹ năng | Đổi | Sát thương / giây hồi chiêu |
+|---|---|---|
+| Lốc xoáy | 26 → 45 | 69 → 140 |
+| Húc | 60 → 110 | 83 → 165 |
+| Phi tiêu (kỹ năng) | 45 → 75 | 81 → 135 |
+| Mũi băng | 110 → 170 | 55 → 85 |
+| Cầu sét | 22 → 34 mỗi nhịp | 83 → 110 |
+| Hút sinh | dùng được cả khi zombie chưa trúng độc (35, trúng độc 70) | trước không tung được |
+| Động Đất (tối thượng) | 220 → 340 | 1081 → 1673 / 6 giây |
+| Kỷ Băng Hà (tối thượng) | 10 → 16 mỗi nhịp | 1320 → 2112 / 6 giây |
+
+Mìn dính 160→135 và Lôi phạt 150→125 bị hạ nhẹ, vì hai kỹ năng này mạnh nhất bảng.
 
 ## Anim kỹ năng
 
@@ -172,7 +207,7 @@ Năm boss cũ to hơn, nhanh hơn và có thêm hiệu ứng:
 - **Kẻ Ném:** báo trước chỗ đá rơi; dưới nửa máu thì ném 3 tảng một lúc.
 - **Bóng Ma:** dịch chuyển có chớp sáng, vòng chấn động và loạt mảnh tinh thể đuổi theo.
 
-Đợt boss xoay vòng qua cả 11 boss, mỗi 5 đợt một con; từ đợt 6 có thể có thêm một con ngẫu nhiên.
+Đợt boss đi từ dễ tới khó, mỗi 5 đợt một con: Khổng Lồ, Kẻ Ném Đá, Bóng Ma, Nhện Chúa, Chúa Dơi, Bá Tước Máu, Kẻ Xâm Lăng, Pharaoh, Đĩa Bay, Hộ Vệ Cổ Đại, Rồng Hư Không. Từ đợt 6 có thể có thêm một con ngẫu nhiên, chỉ chọn trong những con đã gặp.
 
 Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng chiêu (`zk` loại `bm`), từng viên đạn, cảnh báo, tia và vòng (`bo`, `bt`, `bb`, `bw`), rồi tự diễn lại phần nhìn.
 
@@ -190,7 +225,7 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - Nguyên tố là hiệu ứng gắn lên zombie khi bắn trúng: lửa cháy theo thời gian, băng chồng 4 lớp thì đóng băng, điện nhảy sang con bên cạnh, độc rỉ máu. Hai nguyên tố gặp nhau thì phản ứng: nổ hơi, vỡ vụn, nổ khí độc, lan độc. Trong co-op, phản ứng do hai người khác nhau gây ra là **phối hợp** và mạnh gấp rưỡi.
 - Hai nhánh đủ cấp thì mở cộng hưởng (`RES`). Màn chọn ghi rõ nâng cấp nào sẽ mở cộng hưởng nào.
 - Mỗi nhân vật cầm đúng một vũ khí suốt trận (`weapon` trong `js/heroes.js`), đạn dự trữ vô hạn. Không đổi, không nhặt, không bỏ vũ khí, không có bom ném, zombie không rơi đồ. Đầu mỗi đợt hồi 35% máu.
-- Quái mạnh dần theo đợt (`BZ.WAVE.hpMul`, `dmgMul`, `speedMul`). Sát thương bắt đầu ở 0,8 lần, mỗi đợt tăng 5%, tối đa 1,7 lần. Đòn của boss lớn bị giảm còn 65% con số ghi trong từng file boss. Trong co-op, mỗi người thêm làm đợt đông hơn 60%, zombie trâu hơn 35%, và số zombie trên sân cùng lúc tăng 40%.
+- Quái mạnh dần theo đợt (`BZ.WAVE.hpMul`, `dmgMul`, `speedMul`). Sát thương bắt đầu ở 0,8 lần, mỗi đợt tăng 5%, tối đa 1,7 lần. Mỗi đợt có `12 + 4 × đợt` zombie (tối đa 100), trên sân cùng lúc tối đa `14 + 2 × đợt` con (tối đa 30). Đòn của boss lớn bị giảm còn 65% con số ghi trong từng file boss. Trong co-op, mỗi người thêm làm đợt đông hơn 60%, zombie trâu hơn 35%, và số zombie trên sân cùng lúc tăng 40%.
 
 ## Ngày đêm, thời tiết, vụ nổ
 
@@ -232,6 +267,20 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 
 `tools/stuck.js` cho người chơi bất tử đứng 90 giây ở năm chỗ trên bản đồ (đợt 6) và đếm zombie đứng yên quá 3 giây. Trước khi sửa: 7 con kẹt. Sau khi sửa: 0 con kẹt, 0 lần phải về cổng, 231/233 con tới sát người chơi.
 
+## Màn home: triệu hồi, nâng cấp, cửa hàng giả lập
+
+`js/meta.js` thêm ba cửa ở màn title: **Triệu hồi**, **Nhân vật**, **Cửa hàng**. Tài khoản lưu trong `localStorage` khoá `blockadez.meta.v1`; không có thanh toán thật nào, nút mua chỉ cộng số.
+
+- **Tài khoản mới** có Gió, Thép, Mưa Đạn, 3.000 vàng, 1.600 kim cương. Mỗi ngày đăng nhập +100 kim cương và một lượt triệu hồi miễn phí.
+- **Triệu hồi:** 150 kim cương một lượt, 1.350 cho mười lượt (mười lượt chắc chắn có SR trở lên). Tỉ lệ SSR 2,5% (ra nhân vật, trùng thì 25 mảnh), SR 12% (8 mảnh), R 35,5% (3 mảnh), N 50% (vàng). Lượt thứ 60 không ra SSR thì chắc chắn ra. Banner đổi nhân vật nổi bật mỗi ngày, một nửa SSR ra nhân vật đó.
+- **Nhân vật chưa có** bị khoá ở màn chọn; ghép 40 mảnh hoặc mở ngay bằng 1.980 kim cương.
+- **Lên cấp** bằng vàng, cấp tối đa 10 + 4 × số sao (tới 30). **Lên sao** bằng mảnh: 10, 20, 35, 60, 100.
+- **Sức mạnh vào trận:** mỗi cấp +3,5% sát thương, +2,5% máu; mỗi sao +12% sát thương, +8% máu; mỗi bậc VIP +3% sát thương, +2% máu. Sát thương nhân ở `zombies.damage` cho mọi đòn của người chơi trên máy này; đòn khách co-op gửi lên đã nhân sẵn.
+- **Cửa hàng giả lập:** gói kim cương 22.000đ–1.990.000đ (lần đầu x2), gói khởi đầu (một lần, có vé SSR), thẻ tháng (90 kim cương mỗi ngày trong 30 ngày), Gói Bá Chủ (nhân vật đang chọn lên ngay cấp 30 ★5). Tổng tiền nạp giả lập lên VIP 1–5 ở mốc 100k, 500k, 1,5 triệu, 4 triệu, 10 triệu; VIP còn cộng 20% vàng mỗi trận.
+- **Hết trận** nhận vàng theo số kill và đợt, từ đợt 5 có thêm kim cương; số nhận hiện ở màn thua.
+
+Chạy dưới Playwright (`navigator.webdriver`) thì lớp này tắt: mọi nhân vật mở, hệ số bằng 1, để các test khác không lệch. `?meta=1` bật lại, `?meta=0` tắt hẳn.
+
 ## Kiểm
 
 ```
@@ -247,6 +296,8 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/tps.js 
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/destruct.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/castanim.js <thư mục ảnh> [gio,ky]
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/weapons.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/meta.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=hoa,mua] node games/blockade-z/tools/skillcensus.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [HEROES=gio,phao] [CROWD=16] [SECS=25] node games/blockade-z/tools/balance.js <thư mục ảnh>
 ```
 
@@ -260,6 +311,7 @@ Tham số URL dùng khi thử:
 - `?wave=N` bắt đầu từ đợt N.
 - `?q=low|medium|high` chọn mức đồ hoạ.
 - `?noaudio=1` tắt âm thanh.
+- `?meta=1` bật màn home dưới Playwright; `?meta=0` tắt.
 
 Trong trang có sẵn `window.__G`, `__sim(giây)`, `__setShot(tên)`, `__stats` và `__errors`.
 

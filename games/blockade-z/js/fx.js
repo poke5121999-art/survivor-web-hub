@@ -357,13 +357,28 @@
       scene.add(g); arcs.push({ g, mat, t: 0.16 });
       puff(b, { glow: true, s0: 0.8, s1: 0.2, life: 0.12, c0: 0xffffff, c1: color });
     }
-    function updateArcs(dt) { for (let i = arcs.length - 1; i >= 0; i--) { const a = arcs[i]; a.t -= dt; a.mat.opacity = a.t > 0.08 ? 1 : Math.max(0, a.t / 0.08) * (Math.sin(a.t * 200) > 0 ? 1 : 0.3); if (a.t <= 0) { scene.remove(a.g); a.mat.dispose(); arcs.splice(i, 1); } } }
+    function updateArcs(dt) { for (let i = arcs.length - 1; i >= 0; i--) { const a = arcs[i]; a.t -= dt; a.mat.opacity = a.t > 0.08 ? 1 : Math.max(0, a.t / 0.08) * (Math.sin(a.t * 200) > 0 ? 1 : 0.3); if (a.sh) a.sh.opacity = a.mat.opacity * 0.55; if (a.t <= 0) { scene.remove(a.g); a.mat.dispose(); if (a.sh) a.sh.dispose(); arcs.splice(i, 1); } } }
+    // a heavier bolt that still reads on a bright sky or pale ground: an opaque white core inside a solid coloured sheath
+    const boltCore = new THREE.BoxGeometry(0.05, 1, 0.05); const boltSheath = new THREE.BoxGeometry(0.14, 1, 0.14);
+    function bolt(a, b, color = 0x5aa8ff) {
+      const g = new THREE.Group(); const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthWrite: false, fog: false });
+      const sh = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthWrite: false, fog: false });
+      let p = a.clone(); const n = 7;
+      for (let i = 1; i <= n; i++) {
+        const q = a.clone().lerp(b, i / n); if (i < n) q.add(new THREE.Vector3(G.rng.range(-0.4, 0.4), G.rng.range(-0.4, 0.4), G.rng.range(-0.4, 0.4)));
+        const at = p.clone().add(q).multiplyScalar(0.5); const len = p.distanceTo(q); const qq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.clone().sub(p).normalize());
+        for (const [geo, m] of [[boltCore, mat], [boltSheath, sh]]) { const mesh = new THREE.Mesh(geo, m); mesh.position.copy(at); mesh.scale.y = len; mesh.quaternion.copy(qq); mesh.renderOrder = 6; g.add(mesh); }
+        p = q;
+      }
+      scene.add(g); arcs.push({ g, mat, t: 0.22, sh });
+      puff(b, { glow: true, s0: 1.0, s1: 0.2, life: 0.15, c0: 0xffffff, c1: color });
+    }
     function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() {
       P.length = 0; holes.count = 0; holeI = 0;
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, halo, streak, pop, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();

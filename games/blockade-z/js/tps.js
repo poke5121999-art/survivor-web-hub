@@ -32,7 +32,7 @@
       if (T.model) G.scene.remove(T.model.root);
       const m = BZ.heroModel(id); const hand = m.handR;
       const eq = BZ.equipWeapon(m, wid);
-      G.scene.add(m.root); T.model = { ...m, hand, tip: eq.tip, tipL: eq.tipL, gun: eq.gun }; T.hero = id; T.gun = wid;
+      G.scene.add(m.root); T.model = { ...m, hand, tip: eq.tip, tipL: eq.tipL, gun: eq.gun, shield: eq.shield }; T.hero = id; T.gun = wid;
     }
 
     // camera: shoulder offset in view space, then pulled in toward the head if a wall is in the way
@@ -95,6 +95,7 @@
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
       BZ.animHero(M, st, dt);
+      if (M.shield) BZ.shieldPose(M.shield, S.guard || 0, M.root); // Thép raises the shield in front of his chest
       M.root.updateMatrixWorld(true);
     }
 

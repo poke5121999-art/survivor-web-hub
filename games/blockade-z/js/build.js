@@ -94,7 +94,7 @@
     const ultMul = () => 1 + 0.12 * lv('ult');
     function apply() {
       const P = G.player; const h = G.hero.def;
-      const max = h.hp + lv('hp') * 20; if (P.maxHp !== max) { P.hp += max - P.maxHp; P.maxHp = max; }
+      const max = Math.round(h.hp * (G.meta ? G.meta.hpMul(h.id) : 1)) + lv('hp') * 20; if (P.maxHp !== max) { P.hp += max - P.maxHp; P.maxHp = max; }
       P.hasJet = lv('jet') > 0;
     }
     // a hit landed: roll the elements, drink some of it back

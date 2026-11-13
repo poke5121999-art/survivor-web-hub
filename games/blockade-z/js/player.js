@@ -27,11 +27,11 @@
       if (G.state !== 'playing') return;
       if (e.code === 'KeyR') G.weapons.startReload();
       if (e.code === 'KeyQ') G.hero.use('ult');
-      if (e.code === 'KeyC') G.hero.use('s2');
+      if (e.code === 'KeyC') G.hero.aimStart('s2');
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
-      if (e.code === 'KeyF') G.hero.use();
+      if (e.code === 'KeyF') G.hero.aimStart('s1');
     });
-    addEventListener('keyup', (e) => keys.delete(e.code));
+    addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'KeyF') G.hero.aimRelease('s1'); if (e.code === 'KeyC') G.hero.aimRelease('s2'); });
     addEventListener('blur', () => { keys.clear(); input.fire = false; input.ads = false; });
     canvas.addEventListener('mousedown', (e) => {
       if (G.state !== 'playing' || BZ.isTouch) return;
@@ -87,8 +87,8 @@
       btn('ads', () => { input.ads = !input.ads; });
       btn('jump', () => { P.jumpBuf = MOVE.jumpBuffer; P.touchJet = true; }, () => { P.touchJet = false; });
       btn('reload', () => G.weapons.startReload());
-      btn('skill', () => G.hero.use());
-      btn('skill2', () => G.hero.use('s2'));
+      btn('skill', () => G.hero.aimStart('s1'), () => G.hero.aimRelease('s1'));
+      btn('skill2', () => G.hero.aimStart('s2'), () => G.hero.aimRelease('s2'));
       btn('ult', () => G.hero.use('ult'));
     }
 
@@ -192,7 +192,7 @@
       if (!P.alive || G.god || G.hero.invuln()) return;
       G.hero.onHurt();
       let d = dmg;
-      d *= G.build.armorMul() * G.hero.takenMul();
+      d *= G.build.armorMul() * G.hero.takenMul(from);
       if (P.armor > 0) { const absorb = Math.min(P.armor, d * 0.6); P.armor -= absorb; d -= absorb; }
       P.hp = Math.max(0, P.hp - d);
       P.shake.v += 6 * (G.rng.next() - 0.5) * (d / 10 + 1);

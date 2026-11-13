@@ -17,7 +17,7 @@
       passive: '150 máu. Giáp tự hồi 2 mỗi giây, tới 50.',
       s1: { key: 'invuln', name: 'Khiên vàng', cd: 22, dur: 5, desc: 'Trong 5 giây không mất máu, khiên vàng hất văng và đốt zombie chạm vào người.' },
       s2: { key: 'charge', name: 'Húc', cd: 8, desc: 'Lao thẳng 10 m, húc ngã và đẩy dạt mọi zombie trên đường, chịu ít sát thương khi lao.' },
-      ult: { key: 'quake', name: 'Động Đất', cost: 1400, desc: 'Nện đất: zombie trong 12 m ăn tới 220 sát thương, ngã nhào và lạnh cóng.' },
+      ult: { key: 'quake', name: 'Động Đất', cost: 1400, desc: 'Nện đất: zombie trong 12 m ăn tới 340 sát thương, ngã nhào và lạnh cóng.' },
       look: { skin: 0xc8946a, hair: 0x101010, eye: 0x202020, shirt: 0x6a737e, shirt2: 0xffb030, pants: 0x3a3f46, boot: 0x22252a } },
     { id: 'yta', name: 'Y Tá', role: 'Hồi máu', color: 0x60e070, hp: 100, speed: 1,
       passive: 'Không trúng đòn 4 giây thì tự hồi 3 máu mỗi giây. Hồi máu cũng nạp tối thượng.',
@@ -46,7 +46,7 @@
     { id: 'bang', name: 'Băng', role: 'Đóng băng', color: 0x9ae8ff, hp: 100, speed: 1,
       passive: 'Đạn và lưỡi kiếm làm zombie chậm 25% trong 1 giây.',
       s1: { key: 'freeze', name: 'Sóng băng', cd: 18, desc: 'Đóng băng mọi zombie trong 9 m suốt 3,5 giây; chết khi đang đóng băng thì vỡ vụn.' },
-      s2: { key: 'lance', name: 'Mũi băng', cd: 6, desc: 'Phóng mũi băng xuyên 35 m: 110 sát thương và hai lớp lạnh cho mọi zombie trên đường.' },
+      s2: { key: 'lance', name: 'Mũi băng', cd: 6, desc: 'Phóng mũi băng xuyên 35 m: 170 sát thương và hai lớp lạnh cho mọi zombie trên đường.' },
       ult: { key: 'blizzard', name: 'Kỷ Băng Hà', cost: 1500, desc: 'Bão tuyết 14 m quanh bạn trong 8 giây: zombie lạnh dần rồi đóng băng.' },
       look: { skin: 0xf4dcd0, hair: 0xe8f4ff, eye: 0x40e0ff, shirt: 0x8cc8e8, shirt2: 0xf4f8ff, pants: 0x3a5a7a, boot: 0xe8f0f8 } },
     { id: 'hoa', name: 'Hoả', role: 'Phóng lửa', color: 0xff6a20, hp: 110, speed: 1,
@@ -58,13 +58,13 @@
     { id: 'sam', name: 'Sấm', role: 'Gọi sét', color: 0x7ab0ff, hp: 100, speed: 1.02,
       passive: 'Cứ phát trúng thứ năm thì phóng điện, nhảy sang zombie bên cạnh.',
       s1: { key: 'orb', name: 'Cầu sét', cd: 9, desc: 'Thả quả cầu sét trôi chậm 4 giây, giật mọi zombie trong 4,5 m.' },
-      s2: { key: 'smite', name: 'Lôi phạt', cd: 7, desc: 'Gọi sét đánh xuống chỗ đang ngắm: 150 sát thương trong 3 m.' },
+      s2: { key: 'smite', name: 'Lôi phạt', cd: 7, desc: 'Gọi sét đánh xuống chỗ đang ngắm: 125 sát thương trong 3 m.' },
       ult: { key: 'thunder', name: 'Thiên Lôi', cost: 1700, desc: 'Sáu giây sét giáng liên tục vào zombie trong 25 m quanh bạn.' },
       look: { skin: 0xe8c0a0, hair: 0xf0f0ff, eye: 0x9ad8ff, shirt: 0x1e2a4a, shirt2: 0xffe040, pants: 0x1a2236, boot: 0x10141e } },
     { id: 'doc', name: 'Độc', role: 'Gieo dịch', color: 0x8aff40, hp: 100, speed: 1,
       passive: 'Một phần năm số đạn trúng tẩm độc. Zombie chết khi đang trúng độc thì toả độc ra xung quanh.',
       s1: { key: 'cloud', name: 'Mây độc', cd: 9, desc: 'Ném bình khí độc thành đám mây 4,5 m trong 6 giây.' },
-      s2: { key: 'drain', name: 'Hút sinh', cd: 10, desc: 'Rút sinh lực mọi zombie đang trúng độc trong 14 m: 70 sát thương mỗi con, hồi máu cho bạn.' },
+      s2: { key: 'drain', name: 'Hút sinh', cd: 10, desc: 'Rút sinh lực mọi zombie trong 14 m: 35 sát thương mỗi con, 70 nếu nó đang trúng độc, hồi máu cho bạn.' },
       ult: { key: 'plague', name: 'Đại Dịch', cost: 1500, desc: 'Sóng dịch 18 m tẩm 5 lớp độc, 8 giây sau zombie quanh bạn bị lây thêm.' },
       look: { skin: 0xb8c8a0, hair: 0x2a3a1a, eye: 0x9aff40, shirt: 0x2a3a24, shirt2: 0x8aff40, pants: 0x1e2a1a, boot: 0x141a10, mask: 0x3a4a30 } },
     { id: 'ky', name: 'Kỹ Sư', role: 'Dựng tháp', color: 0xffb020, hp: 105, speed: 0.98,
@@ -387,7 +387,7 @@
     }
     function reset() {
       const h = H.def; const p = P();
-      p.maxHp = h.hp; p.hp = h.hp; p.invisT = 0;
+      const hp = Math.round(h.hp * (G.meta ? G.meta.hpMul(h.id) : 1)); p.maxHp = hp; p.hp = hp; p.invisT = 0;
       H.slots.s1 = { n: h.s1.charges || 1, cd: 0 }; H.slots.s2 = { n: h.s2.charges || 1, cd: 0 }; H.ult = 0;
       H.t = {}; H.decoy && G.scene.remove(H.decoy.g); H.decoy = null; H.strikes.length = 0; H.hurtT = 9; H.hitN = 0;
       for (const e of H.effects) if (e.m) G.scene.remove(e.m); H.effects.length = 0;
@@ -400,7 +400,7 @@
     const invuln = () => (H.t.invuln || 0) > 0 || (H.t.dash || 0) > 0 || (H.t.blades || 0) > 0;
     const storm = () => (H.t.storm || 0) > 0;
     // Hoả fights with bare fists in the thick of it, so the flame suit takes 40% off every hit
-    const takenMul = () => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1) * (H.def.id === 'hoa' ? 0.6 : 1);
+    const takenMul = (from) => ((H.t.revive || 0) > 0 ? 0.5 : 1) * ((H.t.charge || 0) > 0 ? 0.3 : 1) * (H.def.id === 'hoa' ? 0.6 : 1) * (G.weapons.takenMul ? G.weapons.takenMul(from) : 1);
     const dmgMul = () => ((H.t.vanish || 0) > 0 ? 2.5 : 1);
     const critAdd = () => ((H.t.vanish || 0) > 0 ? 1 : 0);
 
@@ -437,6 +437,38 @@
       if (coop()) { if (guest()) G.coop.act({ k: 'hx', s: key, a }); else G.events.emit('hx', { s: key, a }); }
       if (A.host && !guest()) A.host(a, 'h');
       return true;
+    }
+    // ---------- aiming a throw ----------
+    // Holding a throw skill's key draws the flight path and a ring where it will land; letting go throws it there.
+    const aimDots = []; let aimRing = null; H.aiming = null;
+    function aimable(slot) { const d = H.def[slot]; const A = d && ABIL[d.key]; return !!(A && A.throw) && (slot === 'ult' ? H.ult >= 1 : H.slots[slot] && H.slots[slot].n > 0); }
+    function aimStart(slot) { if (!aimable(slot)) return use(slot); H.aiming = slot; return true; }
+    function aimRelease(slot) { if (H.aiming !== slot) return false; H.aiming = null; hideAim(); return use(slot); }
+    function hideAim() { for (const d of aimDots) d.visible = false; if (aimRing) aimRing.visible = false; }
+    function drawAim() {
+      const slot = H.aiming; if (!slot || G.state !== 'playing' || !P().alive) { if (slot && G.state !== 'playing') H.aiming = null; hideAim(); return; }
+      const A = ABIL[H.def[slot].key]; const t = throwTo(A.throw); const col = H.def.color;
+      if (!aimDots.length) for (let i = 0; i < 28; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false })); s.renderOrder = 9; G.scene.add(s); aimDots.push(s); }
+      if (!aimRing) { aimRing = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, fog: false })); aimRing.rotation.x = -Math.PI / 2; aimRing.renderOrder = 9; G.scene.add(aimRing); }
+      const pos = v3(t.p); const vel = v3(t.v); let n = 0; const step = Math.max(0.02, (t.to ? 0.9 * Math.max(0.35, v3(t.p).distanceTo(t.to) / 17) : 0.6) / 22);
+      for (let i = 0; i < 60 && n < aimDots.length; i++) {
+        const nx = pos.clone().addScaledVector(vel, step); vel.y -= 16 * step;
+        const dir = nx.clone().sub(pos); const len = dir.length(); const wh = G.world.raycast(pos, dir.normalize(), len);
+        if (wh || nx.y < 0.05) { if (wh) pos.addScaledVector(dir, wh.t); else pos.copy(nx).setY(0.05); break; }
+        pos.copy(nx);
+        if (pos.distanceTo(G.camera.position) > 2.2) { const d = aimDots[n++]; d.visible = true; d.position.copy(pos); d.scale.setScalar(0.2); d.material.color.setHex(col); d.material.opacity = 0.9 - n * 0.02; }
+      }
+      for (let i = n; i < aimDots.length; i++) aimDots[i].visible = false;
+      aimRing.visible = true; aimRing.position.set(pos.x, Math.max(0.06, pos.y) + 0.04, pos.z); aimRing.scale.setScalar(A.area || 2.5); aimRing.material.color.setHex(col);
+      aimRing.material.opacity = 0.55 + 0.3 * Math.sin(performance.now() / 120);
+    }
+
+    // a targeted effect a weapon sends (no cast animation): runs here and on every other screen like a skill
+    function send(key, a) {
+      const A = ABIL[key]; if (!A) return; a.by = me(); a.k = key;
+      if (A.fx) A.fx(a);
+      if (coop()) { if (guest()) G.coop.act({ k: 'hx', s: key, a }); else G.events.emit('hx', { s: key, a }); }
+      if (A.host && !guest()) A.host(a, 'h');
     }
     // another player's skill: the look here, and the host-only part on the host
     function remote(key, a, by) {
@@ -479,6 +511,16 @@
     function lob(a, color, onLand, opt = {}) {
       const m = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color })); m.position.copy(v3(a.p)); m.scale.setScalar(opt.size || 1); G.scene.add(m); G.fx.halo(m, opt.trail || color, 1.1 * (opt.size || 1));
       H.projs.push({ m, pos: v3(a.p), vel: v3(a.v), g: opt.g === undefined ? 16 : opt.g, life: 4, onLand, a, trail: opt.trail || color });
+    }
+    function throwTo(maxR, g = 16) {
+      const p = P(); const { o, d } = aimRay();
+      const from = o.clone().addScaledVector(d, 0.6); from.y -= 0.2;
+      let to = aimPoint(maxR);
+      const flat = Math.hypot(to.x - p.pos.x, to.z - p.pos.z);
+      if (to.y > p.pos.y + 2.5 || flat > maxR) { const k = Math.min(maxR, Math.max(4, flat)); const h = Math.hypot(d.x, d.z) || 1; to = V().set(p.pos.x + (d.x / h) * k, p.pos.y, p.pos.z + (d.z / h) * k); }
+      const t = BZ.clamp(from.distanceTo(to) / 17, 0.35, 1.15);
+      const vel = to.clone().sub(from).divideScalar(t); vel.y += 0.5 * g * t;
+      return { p: r3(from), v: r3(vel), to };
     }
     function throwAim(speed = 16, up = 4) {
       const p = P(); const { o, d } = aimRay();
@@ -536,7 +578,7 @@
           for (const z of near(e.pos, 2.4)) {
             const last = e.hitAt.get(z) || -1; if (e.t - last < 0.3) continue; e.hitAt.set(z, e.t);
             const out = V().set(z.pos.x - e.pos.x, 0, z.pos.z - e.pos.z).normalize().multiplyScalar(0.5).add(e.dir).normalize();
-            hit(z, 26, out, { imp: 3.2 });
+            hit(z, 45, out, { imp: 3.2 });
           }
         },
       },
@@ -571,10 +613,18 @@
           G.audio.playAt('boom', at, { gain: 1.4, rate: 0.5 }); G.audio.playAt('heavy', at, { gain: 1, rate: 0.4 });
           const d = P().pos.distanceTo(at); if (d < 30) P().shake.v += (30 - d) * 0.9;
           if (!mine(a)) return;
-          for (const z of near(at, 12, 3)) { const dd = z.pos.distanceTo(at); const dir = V().set(z.pos.x - at.x, 0, z.pos.z - at.z).normalize(); hit(z, 220 * (1 - dd / 16), dir, { imp: 5, status: st('chill', 3) }); }
+          for (const z of near(at, 12, 3)) { const dd = z.pos.distanceTo(at); const dir = V().set(z.pos.x - at.x, 0, z.pos.z - at.z).normalize(); hit(z, 340 * (1 - dd / 16), dir, { imp: 5, status: st('chill', 3) }); }
         },
       },
       // ---- Y Tá ----
+      // Y Tá's left pistol: a healing dart that mends whoever it reaches (a.to is that player's id)
+      healdart: {
+        fx(a) {
+          const at = v3(a.p); G.fx.pop(at, 0.6, [0x60e070, 0xc0ffc0]); G.fx.burst(at, 10, [0x60e070, 0xffffff], { speed: 2, size: 0.07, life: 0.6, grav: -2 });
+          if (a.to !== me()) return; const p = P(); const before = p.hp; p.hp = Math.min(p.maxHp, p.hp + (a.n || 10));
+          if (p.hp > before) { G.ui.pop('+' + Math.round(p.hp - before) + ' máu', 'heal'); G.audio.play('pickup', { gain: 0.4, rate: 1.6 }); }
+        },
+      },
       heal: {
         fx(a) {
           const w = who(a.by); if (!w) return;
@@ -586,8 +636,8 @@
         },
         host(a) { const w = who(a.by); if (!w) return; for (const al of G.allies.list) if (al.alive && Math.hypot(al.pos.x - w.pos.x, al.pos.z - w.pos.z) < 10) { al.hp = BZ.ALLY.hp; G.fx.burst(V().set(al.pos.x, 1.2, al.pos.z), 10, [0x60e070, 0xc0ffc0], { speed: 2, size: 0.1, life: 1, grav: -3 }); } },
       },
-      dart: {
-        aim() { const t = throwAim(26, 1.5); t.zhit = 1; return t; },
+      dart: { throw: 26, area: 3.5,
+        aim() { const t = throwTo(26); delete t.to; t.zhit = 1; return t; },
         fx(a) { lob(a, 0x9aff40, (at, aa) => cloudAt(at, aa, 3.5, 4, 4)); G.audio.play('swipe', { gain: 0.6, rate: 1.6 }); },
       },
       revive: {
@@ -604,8 +654,8 @@
       },
       // ---- Mưa Đạn ----
       storm: { fx(a) { const w = who(a.by); if (w) { ring3(w.pos, 3, 0xffe0a0, 0xff7a30, 0.5); G.fx.burst(V().set(w.pos.x, w.pos.y + 1, w.pos.z), 20, [0xffd060, 0xff7a30, 0xffffff], { speed: 7, size: 0.08, life: 0.5, grav: 4 }); } if (!mine(a)) return; H.t.storm = H.def.s1.dur; G.audio.play('streak', { gain: 0.7 }); G.audio.play('rack', { gain: 0.9 }); overlay('orange', H.def.s1.dur); } },
-      cluster: {
-        aim() { return throwAim(14, 4); },
+      cluster: { throw: 24, area: 3.6,
+        aim() { const t = throwTo(24); delete t.to; return t; },
         fx(a) {
           lob(a, 0x4a5a2a, (at, aa) => {
             G.audio.playAt('land', at, { gain: 0.6, rate: 1.4 });
@@ -661,7 +711,7 @@
             effect('shuriken', a, Math.max(0.12, max / 55), { from: o.clone().addScaledVector(dir, 0.5), dir, len: max, m: starMesh() });
             if (!mine(a)) continue;
             const skip = new Set(); let from = o.clone();
-            for (let n = 0; n < 3; n++) { const zh = G.zombies.hitTest(from, dir, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 45, dir, { cut: 'blade', imp: 1.2 }, zh.part); from = from.clone().addScaledVector(dir, zh.t + 0.05); }
+            for (let n = 0; n < 3; n++) { const zh = G.zombies.hitTest(from, dir, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 75, dir, { cut: 'blade', imp: 1.2 }, zh.part); from = from.clone().addScaledVector(dir, zh.t + 0.05); }
           }
         },
         tick(e) { const k = Math.min(1, e.t / e.dur); e.m.position.copy(e.from).addScaledVector(e.dir, e.len * k); e.m.rotation.y += 0.9; if (k >= 1) e.t = e.dur; },
@@ -685,8 +735,8 @@
         },
         host(a) { strikeAt(v3(a.at)); },
       },
-      mine: {
-        aim() { return throwAim(13, 3); },
+      mine: { throw: 16, area: 2,
+        aim() { const t = throwTo(16); delete t.to; return t; },
         fx(a) {
           lob(a, 0x3a3a3a, (at, aa) => {
             G.audio.playAt('clank', at, { gain: 0.5, rate: 1.5 });
@@ -731,7 +781,7 @@
           G.audio.playAt('saber_hit', o, { gain: 0.8, rate: 2.2 }); G.audio.playAt('clank', o, { gain: 0.5, rate: 2 });
           if (!mine(a)) return;
           const skip = new Set(); let from = o.clone();
-          for (let n = 0; n < 8; n++) { const zh = G.zombies.hitTest(from, d, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 110, d, { imp: 0.8, status: st('chill', 2) }, zh.part); from = from.clone().addScaledVector(d, zh.t + 0.05); }
+          for (let n = 0; n < 8; n++) { const zh = G.zombies.hitTest(from, d, max - from.distanceTo(o), skip); if (!zh) break; skip.add(zh.z); hit(zh.z, 170, d, { imp: 0.8, status: st('chill', 2) }, zh.part); from = from.clone().addScaledVector(d, zh.t + 0.05); }
         },
       },
       blizzard: { fx(a) { effect('blizzard', a, 8); if (mine(a)) overlay('blue', 8); G.audio.play('wind', { gain: 0.6 }); },
@@ -739,11 +789,11 @@
           const w = who(e.a.by); if (!w) return;
           for (let i = 0; i < 4; i++) { const ang = G.rng.range(0, 6.3); const r = G.rng.range(1, 14); G.fx.puff(V().set(w.pos.x + Math.cos(ang) * r, w.pos.y + G.rng.range(0.3, 4), w.pos.z + Math.sin(ang) * r), { vel: V().set(Math.sin(e.t * 3) * 3, -2, 1), s0: 0.12, s1: 0.06, life: 0.9, c0: 0xffffff, c1: 0xbfe8ff, a0: 0.9 }); }
           e.acc += dt; if (e.acc < 0.5 || !mine(e.a)) return; e.acc = 0;
-          for (const z of near(w.pos, 14, 5)) hit(z, 10, V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z).normalize(), { imp: 0.2, status: st('chill') });
+          for (const z of near(w.pos, 14, 5)) hit(z, 16, V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z).normalize(), { imp: 0.2, status: st('chill') });
         } },
       // ---- Hoả ----
-      molotov: {
-        aim() { return throwAim(15, 4); },
+      molotov: { throw: 22, area: 3,
+        aim() { const t = throwTo(22); delete t.to; return t; },
         fx(a) { lob(a, 0xc87a2a, (at, aa) => { G.fx.burst(at, 20, [0xffd060, 0xff8a20, 0x8a8a8a], { speed: 4, size: 0.1, life: 0.6 }); G.audio.playAt('impact', at, { gain: 0.8, rate: 1.6 }); fireAt(at, aa, 3.2, 5); }); G.audio.play('swipe', { gain: 0.6, rate: 1.1 }); },
       },
       rocketjump: {
@@ -778,7 +828,7 @@
           if (e.t > e.dur - 0.25) e.m.scale.setScalar(Math.max(0.01, (e.dur - e.t) / 0.25));
           e.acc += dt; if (e.acc < 0.3) return; e.acc = 0;
           const zs = near(e.pos, 4.5, 4).slice(0, 3);
-          for (const z of zs) { G.fx.arc(e.pos, V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z), 0x9ad8ff); if (mine(e.a)) hit(z, 22, V().set(z.pos.x - e.pos.x, 0, z.pos.z - e.pos.z).normalize(), { imp: 0.4, status: st('shock') }); }
+          for (const z of zs) { G.fx.arc(e.pos, V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z), 0x9ad8ff); if (mine(e.a)) hit(z, 34, V().set(z.pos.x - e.pos.x, 0, z.pos.z - e.pos.z).normalize(), { imp: 0.4, status: st('shock') }); }
           if (zs.length) G.audio.playAt('saber_hit', e.pos, { gain: 0.5, rate: 2.4 });
         } },
       smite: {
@@ -788,7 +838,7 @@
           later(0.45, () => {
             G.sky.strike(at, true);
             if (!mine(a)) return;
-            for (const z of near(at, 3, 5)) hit(z, 150, V().set(z.pos.x - at.x, 0, z.pos.z - at.z).normalize(), { imp: 2, status: st('shock') });
+            for (const z of near(at, 3, 5)) hit(z, 125, V().set(z.pos.x - at.x, 0, z.pos.z - at.z).normalize(), { imp: 2, status: st('shock') });
           });
         },
       },
@@ -802,17 +852,18 @@
           if (mine(e.a)) hit(z, 130, V().set(0, 0, 1), { imp: 1.5, status: st('shock') });
         } },
       // ---- Độc ----
-      cloud: {
-        aim() { return throwAim(15, 4); },
+      cloud: { throw: 22, area: 4.5,
+        aim() { const t = throwTo(22); delete t.to; return t; },
         fx(a) { lob(a, 0x6a9a30, (at, aa) => { G.audio.playAt('gore', at, { gain: 0.6, rate: 0.7 }); cloudAt(at, aa, 4.5, 6, 1); }); G.audio.play('swipe', { gain: 0.6, rate: 1.1 }); },
       },
       drain: {
-        aim() { const p = P(); return near(p.pos, 14, 6).some(poisoned) ? {} : null; },
+        // any zombie in reach can be drained; poisoned ones give the full drain
+        aim() { const p = P(); return near(p.pos, 14, 6).length ? {} : null; },
         fx(a) {
           const w = who(a.by); if (!w) return; const me3 = V().set(w.pos.x, w.pos.y + 1.2, w.pos.z); let n = 0;
-          for (const z of near(w.pos, 14, 6)) { if (!poisoned(z)) continue; n++; G.fx.arc(V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z), me3, 0x9aff40); if (mine(a)) hit(z, 70, V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z).normalize(), { imp: 0.6 }); }
+          for (const z of near(w.pos, 14, 6)) { const pz = poisoned(z); n += pz ? 1 : 0.5; G.fx.arc(V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z), me3, 0x9aff40); if (mine(a)) hit(z, pz ? 70 : 35, V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z).normalize(), { imp: 0.6 }); }
           G.audio.playAt('saber_hit', me3, { gain: 0.7, rate: 0.7 });
-          if (mine(a)) { const p = P(); const amt = Math.min(45, n * 7); p.hp = Math.min(p.maxHp, p.hp + amt); G.ui.pop('+' + amt + ' máu', 'heal'); overlay('green', 0.5); }
+          if (mine(a)) { const p = P(); const amt = Math.min(45, Math.round(n * 7)); p.hp = Math.min(p.maxHp, p.hp + amt); G.ui.pop('+' + amt + ' máu', 'heal'); overlay('green', 0.5); }
         },
       },
       plague: { fx(a) {
@@ -901,7 +952,7 @@
         const trig = q.t > 0.6 && G.zombies.list.some((z) => z.alive && Math.hypot(z.pos.x - q.pos.x, z.pos.z - q.pos.z) < 2.2 && Math.abs(z.pos.y - q.pos.y) < 2);
         if (trig || q.t > q.life) {
           G.scene.remove(q.m); H.mines.splice(i, 1);
-          G.gear.explode(q.pos.clone().setY(q.pos.y + 0.3), 4.5 * H.blastMul(), 160 * pow() * H.blastMul());
+          G.gear.explode(q.pos.clone().setY(q.pos.y + 0.3), 4.5 * H.blastMul(), 135 * pow() * H.blastMul());
           if (coop()) { const a = { by: me(), id: q.id }; if (guest()) G.coop.act({ k: 'hx', s: 'minepop', a }); else G.events.emit('hx', { s: 'minepop', a }); }
         }
       }
@@ -936,6 +987,7 @@
     G.events.on('hit', ({ dmg }) => chargeDmg(dmg || 0));
 
     function update(dt) {
+      drawAim();
       const p = P(); const h = H.def;
       for (const k of ['s1', 's2']) {
         const S = H.slots[k]; const def = h[k]; const max = def.charges || 1;
@@ -969,7 +1021,7 @@
           const ox = z.pos.x - p.pos.x; const oz = z.pos.z - p.pos.z;
           if (Math.hypot(ox, oz) < 1.5 * z.T.scale && Math.abs(z.pos.y - p.pos.y) < 1.6) {
             H.chargeHit.add(z); const side = Math.sign(ox * dz - oz * dx) || 1;
-            hit(z, 60, V().set(dx + -dz * side * 0.8, 0, dz + dx * side * 0.8).normalize(), { imp: 4 }); G.audio.playAt('heavy', z.pos, { gain: 0.8, rate: 0.7 }); p.shake.v += 1.5;
+            hit(z, 110, V().set(dx + -dz * side * 0.8, 0, dz + dx * side * 0.8).normalize(), { imp: 4 }); G.audio.playAt('heavy', z.pos, { gain: 0.8, rate: 0.7 }); p.shake.v += 1.5;
           }
         }
         if (G.world.raycast(V().set(p.pos.x, p.pos.y + 1, p.pos.z), V().set(dx, 0, dz), 0.7)) { H.t.charge = 0; p.shake.v += 4; G.audio.play('land', { gain: 0.9, rate: 0.6 }); }
@@ -1072,7 +1124,7 @@
       return p.ghost;
     }
     const slotFrac = (k) => { const S = H.slots[k]; const def = H.def[k]; return S.n >= (def.charges || 1) ? 0 : S.cd / (def.cd * G.build.cdMul()); };
-    return Object.assign(H, { HEROES, set, reset, use, update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
+    return Object.assign(H, { HEROES, set, reset, use, aimStart, aimRelease, aimable, aimPreview: () => (aimRing && aimRing.visible ? aimRing.position.clone() : null), send, me: () => me(), update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
       reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), blastMul: () => (H.def.id === 'phao' ? 1.25 : 1), chill: () => H.def.id === 'bang',
       ready: (k = 's1') => H.slots[k].n > 0, cdFrac: () => slotFrac('s1') });
   };

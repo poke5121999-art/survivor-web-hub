@@ -102,7 +102,7 @@ BZ.makeCoop = (G) => {
     const W = BZ.WEAPONS[a.weapon]; if (!W) return;
     if (W.melee) {
       const t = performance.now() / 1000; if (t - (a.lastSwing || 0) > 0.7) a.combo = 0; a.lastSwing = t;
-      for (let i = 0; i < n; i++) { a.pat = W.combo[(a.combo || 0) % W.combo.length]; a.combo = (a.combo || 0) + 1; }
+      for (let i = 0; i < n; i++) { const pi = (a.combo || 0) % W.combo.length; a.pat = W.combo[pi]; a.combo = (a.combo || 0) + 1; if (G.weapons.remoteSwing) G.weapons.remoteSwing(a, pi); }
       a.swingT = W.swing; G.audio.playAt(W.snd, a.pos, { gain: 0.6 }); return;
     }
     a.root.updateMatrixWorld(true);
@@ -121,9 +121,12 @@ BZ.makeCoop = (G) => {
     let side = 0;
     if (W.dual) { a.side = 1 - (a.side === undefined ? 1 : a.side); side = a.side; (side ? a.m.handL : a.m.handR).getWorldPosition(muzzle); muzzle.addScaledVector(aimDir, 0.55); if (side) a.kL = 6; else a.kR = 6; }
     else muzzle.set(a.pos.x, a.pos.y + 1.4, a.pos.z).addScaledVector(aimDir, 0.9);
-    if (W.spinUp) a.spinT = 0.5;
+    if (W.spinUp) { a.spinT = 0.5; a.heat = Math.min(1, (a.heat || 0) + n / 95); }
+    // the signature looks: Y Tá's left pistol shoots green darts, Mưa's hot rounds trail orange, Kỹ Sư's nails, Pháo Thủ's splitting rocket
+    const col = W.dual && side === 1 ? 0x50ff70 : W.spinUp && a.heat > 0.6 ? 0xff5010 : W.pellets > 1 ? 0xa0b8d0 : undefined;
+    if (W.rocket && G.weapons.cosmeticRocket) G.weapons.cosmeticRocket(muzzle.clone(), aimDir.clone());
     for (let i = 0; i < n; i++) {
-      if (!W.rocket) { const end = muzzle.clone().addScaledVector(aimDir, 30).add(new THREE.Vector3(G.rng.range(-0.6, 0.6), G.rng.range(-0.4, 0.4), G.rng.range(-0.6, 0.6))); G.fx.tracer(muzzle.clone(), end); }
+      if (!W.rocket) { const end = muzzle.clone().addScaledVector(aimDir, 30).add(new THREE.Vector3(G.rng.range(-0.6, 0.6), G.rng.range(-0.4, 0.4), G.rng.range(-0.6, 0.6))); G.fx.tracer(muzzle.clone(), end, col); }
       G.fx.puff(muzzle, { glow: true, s0: 0.7, s1: 0.2, life: 0.06, c0: 0xfff0b0, c1: 0xffa040 });
     }
     G.fx.muzzle(muzzle); G.audio.playAt(W.snd, a.pos, { gain: 0.55 });
@@ -143,9 +146,10 @@ BZ.makeCoop = (G) => {
       st.speed = sp; st.air = BZ.damp(st.air || 0, Math.abs(vy) > 1.2 ? 1 : 0, 8, dt); st.pitch = a.pitch; st.mode = a.weapon ? BZ.holdOf(W) : 'none'; st.pat = a.pat;
       const dur = W.throwT || W.swing; st.swing = a.swingT > 0 && dur ? 1 - a.swingT / dur : -1; st.sprint = sp > 5.5;
       a.kR = Math.max(0, (a.kR || 0) - dt * 30); a.kL = Math.max(0, (a.kL || 0) - dt * 30); st.kick = a.kR; st.kickL = a.kL;
-      a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt);
+      a.hideT = Math.max(0, (a.hideT || 0) - dt); a.spinT = Math.max(0, (a.spinT || 0) - dt); if (!(a.spinT > 0)) a.heat = Math.max(0, (a.heat || 0) - dt * 0.3);
       if (a.eq && a.eq.gun) { a.eq.gun.visible = !(W.thrown && a.hideT > 0); const bar = a.eq.gun.getObjectByName('barrels'); if (bar) { a.spinAng = ((a.spinAng || 0) + (a.spinT > 0 ? 40 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spinAng; } }
       BZ.animHero(m, st, dt);
+      if (G.weapons.bodyFx) G.weapons.bodyFx({ ...m, gun: a.eq && a.eq.gun }, a.weapon, dt, { heat: a.heat || 0 });
     }
   }
   // another player cast a skill: their body plays its cast animation here

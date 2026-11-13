@@ -123,6 +123,14 @@ body.touch #herotag { bottom: auto; top: 98px; font-size: 11px; }
 #ammo b { font: 900 38px/1 var(--mono); } #ammo b.low { color: #ff6a50; } #ammo span { font: 700 18px var(--mono); color: #cdb892; margin-left: 4px; }
 #fuel { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 84px; width: 230px; height: 12px; border: 3px solid #000; background: rgba(20, 30, 50, .7); opacity: 0; transition: opacity .3s; }
 #fuel.on { opacity: 1; } #fuel i { display: block; height: 100%; width: 100%; background: linear-gradient(#8fe0ff, #2f8ad8); }
+#sigbar { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: 100px; width: 196px; display: none; text-align: right; }
+#sigbar.on { display: block; } #sigbar small { font: 800 11px var(--mono); color: #e8d8b8; letter-spacing: .06em; text-shadow: 1px 1px 0 #000; }
+#sigbar div { height: 9px; margin-top: 3px; border: 3px solid #000; background: rgba(20, 16, 12, .75); } #sigbar i { display: block; height: 100%; width: 0; background: linear-gradient(#ffd070, #e08a20); }
+#sigbar.hot i { background: linear-gradient(#ffb040, #ff4010); box-shadow: 0 0 10px #ff5a10; } #sigbar.hot small { color: #ffa050; }
+#sigbar.jam i { background: linear-gradient(#ffffff, #b8c4cc); } #sigbar.jam small { color: #ffffff; animation: sigblink .25s steps(2) infinite; }
+#sigbar.cd i { background: linear-gradient(#8a6ab0, #4a2a80); } #sigbar.ready i { background: linear-gradient(#e0b0ff, #9a40ff); box-shadow: 0 0 10px #a050ff; } #sigbar.ready small { color: #e0b8ff; }
+#sigbar.shield i { background: linear-gradient(#a8d0ff, #3a70d8); }
+@keyframes sigblink { 50% { opacity: .35; } }
 #fuel small { position: absolute; left: 4px; top: -16px; font: 700 10px var(--mono); color: #8fe0ff; text-shadow: 1px 1px 0 #000; }
 body.touch #fuel { bottom: auto; top: 112px; width: 170px; }
 #wname { font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
@@ -216,6 +224,7 @@ body.touch #pick .up { width: 200px; min-height: 0; padding: 10px; } body.touch 
 #touch { position: fixed; inset: 0; z-index: 9; display: none; touch-action: none; }
 body.touch #touch { display: block; }
 body.touch #hud .plate#hp { bottom: auto; top: 44px; width: 170px; }
+body.touch #sigbar { bottom: auto; top: 96px; right: 120px; width: 170px; }
 body.touch #ammo { bottom: auto; top: 44px; right: 120px; min-width: 0; } body.touch #ammo b { font-size: 26px; }
 body.touch #score { display: none; } body.touch #title .keys { display: none; }
 #stick { position: absolute; display: none; width: 0; height: 0; }
@@ -261,6 +270,7 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div id="coopbar"></div>
   <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><i style="width:100%"></i><u id="armor"></u></div></div>
   <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span></div>
+  <div id="sigbar"><small></small><div><i></i></div></div>
   <div id="fuel"><small>JETPACK</small><i></i></div>
   <div id="slots"></div>
   <button id="viewbtn" type="button" title="Đổi góc nhìn (phím V)"><kbd>V</kbd> <span>NGÔI 3</span></button>
@@ -350,34 +360,35 @@ body.touch #score { display: none; } body.touch #title .keys { display: none; }
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113t"></script>
-<script type="module" src="js/core.js?v=20261113t"></script>
-<script type="module" src="js/art.js?v=20261113t"></script>
-<script type="module" src="js/world.js?v=20261113t"></script>
-<script type="module" src="js/destruct.js?v=20261113t"></script>
-<script type="module" src="js/audio.js?v=20261113t"></script>
-<script type="module" src="js/fx.js?v=20261113t"></script>
-<script type="module" src="js/zombies.js?v=20261113t"></script>
-<script type="module" src="js/zkinds.js?v=20261113t"></script>
-<script type="module" src="js/bosses.js?v=20261113t"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113t"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113t"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113t"></script>
-<script type="module" src="js/boss-alien.js?v=20261113t"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113t"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113t"></script>
-<script type="module" src="js/weapons.js?v=20261113t"></script>
-<script type="module" src="js/allies.js?v=20261113t"></script>
-<script type="module" src="js/heroes.js?v=20261113t"></script>
-<script type="module" src="js/castanim.js?v=20261113t"></script>
-<script type="module" src="js/build.js?v=20261113t"></script>
-<script type="module" src="js/sky.js?v=20261113t"></script>
-<script type="module" src="js/coop.js?v=20261113t"></script>
-<script type="module" src="js/polish.js?v=20261113t"></script>
-<script type="module" src="js/gear.js?v=20261113t"></script>
-<script type="module" src="js/player.js?v=20261113t"></script>
-<script type="module" src="js/tps.js?v=20261113t"></script>
-<script type="module" src="js/ui.js?v=20261113t"></script>
-<script type="module" src="js/main.js?v=20261113t"></script>
+<script type="module" src="js/boot.js?v=20261113u"></script>
+<script type="module" src="js/core.js?v=20261113u"></script>
+<script type="module" src="js/art.js?v=20261113u"></script>
+<script type="module" src="js/world.js?v=20261113u"></script>
+<script type="module" src="js/destruct.js?v=20261113u"></script>
+<script type="module" src="js/audio.js?v=20261113u"></script>
+<script type="module" src="js/fx.js?v=20261113u"></script>
+<script type="module" src="js/zombies.js?v=20261113u"></script>
+<script type="module" src="js/zkinds.js?v=20261113u"></script>
+<script type="module" src="js/bosses.js?v=20261113u"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113u"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113u"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113u"></script>
+<script type="module" src="js/boss-alien.js?v=20261113u"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113u"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113u"></script>
+<script type="module" src="js/weapons.js?v=20261113u"></script>
+<script type="module" src="js/allies.js?v=20261113u"></script>
+<script type="module" src="js/heroes.js?v=20261113u"></script>
+<script type="module" src="js/castanim.js?v=20261113u"></script>
+<script type="module" src="js/build.js?v=20261113u"></script>
+<script type="module" src="js/sky.js?v=20261113u"></script>
+<script type="module" src="js/coop.js?v=20261113u"></script>
+<script type="module" src="js/polish.js?v=20261113u"></script>
+<script type="module" src="js/gear.js?v=20261113u"></script>
+<script type="module" src="js/player.js?v=20261113u"></script>
+<script type="module" src="js/tps.js?v=20261113u"></script>
+<script type="module" src="js/ui.js?v=20261113u"></script>
+<script type="module" src="js/meta.js?v=20261113u"></script>
+<script type="module" src="js/main.js?v=20261113u"></script>
 </body>
 </html>

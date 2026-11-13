@@ -74,9 +74,9 @@ const BOT = `(() => {
       if (await page.evaluate('__G.state') === 'dead' || await page.evaluate("__G.wave.phase === 'pick'")) break;
     }
     console.log('bot log', JSON.stringify(log));
-    const st = await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: __G.player.hp, kills: __G.kills, state: __G.state, shots: __G.weapons.S.shots, hits: __G.weapons.S.hits})');
+    const st = await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: __G.player.hp, kills: __G.kills, state: __G.state, shots: __G.weapons.S.shots, hits: __G.weapons.S.hits, total: __G.wave.total})');
     console.log('after bot', JSON.stringify(st), 'wall ms', Date.now() - t0);
-    check(st.kills >= 22, `bot killed the first wave (kills=${st.kills})`);
+    check(st.kills >= st.total && st.ph === 'pick', `bot killed the first wave (kills=${st.kills}/${st.total}, phase ${st.ph})`);
     check(st.hits > 0 && st.hits <= st.shots, `hit accounting sane (hits ${st.hits}/${st.shots})`);
 
     // a cleared wave: three upgrade cards, the pick is free and the next wave starts right after it

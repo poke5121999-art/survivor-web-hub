@@ -56,6 +56,7 @@
     G.polish = BZ.makePolish(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
+    G.meta = BZ.makeMeta(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
     await step('Tổng hợp âm thanh', 0.8);
     for (let i = 0; i < 6 && G.audio.ready() < 0.5; i++) { G.audio.update(); await new Promise((r) => setTimeout(r, 0)); }
@@ -96,10 +97,12 @@
       revive();
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
       G.events.emit('wave:start', n);
-      // a boss every fifth wave, and from wave 6 a chance of an extra one
-      const BOSSES = ['dragon', 'giant', 'pharaoh', 'brood', 'alien', 'thrower', 'ufo', 'phantom', 'vampire', 'queen', 'guardian'].filter((id) => BZ.ZOMBIES[id]);
+      // a boss every fifth wave, easiest first and the dragon last; from wave 6 a chance of an extra one,
+      // picked only from the bosses already met
+      const BOSSES = ['giant', 'thrower', 'phantom', 'brood', 'queen', 'vampire', 'alien', 'pharaoh', 'ufo', 'guardian', 'dragon'].filter((id) => BZ.ZOMBIES[id]);
+      const met = Math.max(1, Math.min(BOSSES.length, Math.floor(n / 5)));
       wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
-      wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % BOSSES.length] : G.rng.pick(BOSSES);
+      wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % BOSSES.length] : BOSSES[G.rng.int(0, met - 1)];
       if (BZ.params.boss) { wave.bossAt = 2; wave.bossType = BZ.params.boss; }
       if (G.state === 'pick') play(); else G.ui.show(null);
     }
@@ -282,10 +285,10 @@
       G.zombies.clear(); G.allies.clear(); G.gear.clear(); G.fx.clear(); G.weapons.reset();
       const saved = BZ.HEROES.findIndex((h) => h.id === (G.settings.hero || 'mua'));
       lineup.i = saved < 0 ? 3 : saved; lineupShow(true);
-      G.state = 'select'; unlockPointer(); G.ui.selectRender(lineup.i); G.ui.show('select'); G.audio.unlock();
+      G.state = 'select'; unlockPointer(); G.ui.selectRender(lineup.i); G.meta.decorateSelect(lineup.i); G.ui.show('select'); G.audio.unlock();
     }
-    function selectPick(i) { lineup.i = (i + BZ.HEROES.length) % BZ.HEROES.length; G.ui.selectRender(lineup.i); G.audio.play('switch', { gain: 0.6 }); lineup.t = 0; }
-    function selectGo() { const h = BZ.HEROES[lineup.i]; G.settings.hero = h.id; BZ.store.save(G.settings); G.hero.set(h.id); G.audio.play('buy'); newGame(); }
+    function selectPick(i) { lineup.i = (i + BZ.HEROES.length) % BZ.HEROES.length; G.ui.selectRender(lineup.i); G.meta.decorateSelect(lineup.i); G.audio.play('switch', { gain: 0.6 }); lineup.t = 0; }
+    function selectGo() { const h = BZ.HEROES[lineup.i]; if (!G.meta.owns(h.id)) { G.meta.lockedPick(h.id); return; } G.settings.hero = h.id; BZ.store.save(G.settings); G.hero.set(h.id); G.audio.play('buy'); newGame(); }
     function updateSelect(dt) {
       lineup.t += dt; const now = performance.now() / 1000;
       const x = LX(lineup.i); const cam = G.camera;
@@ -313,6 +316,7 @@
       if (e.code === 'ArrowRight' || e.code === 'KeyD') selectPick(lineup.i + 1);
       if (e.code === 'Enter' || e.code === 'Space') selectGo();
     });
+    G.events.on('meta:leaveSelect', () => { lineupShow(false); G.state = 'title'; });
     G.events.on('ui:play', () => { if (G.coop.on) G.coop.stop(); openSelect(); });
     // ---- co-op menu: create a room or join one, then pick a hero ----
     G.events.on('ui:coop', () => { G.state = 'coop'; G.ui.show('coop'); G.ui.coopRender(); });

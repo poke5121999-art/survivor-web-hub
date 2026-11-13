@@ -17,15 +17,15 @@
 
   // Wave plan. n starts at 1.
   BZ.WAVE = {
-    count: (n) => Math.min(16 + 6 * n, 140),
+    count: (n) => Math.min(12 + 4 * n, 100),
     runnerShare: (n) => (n < 2 ? 0 : Math.min(0.4, 0.08 * (n - 1))),
     bruteShare: (n) => (n < 4 ? 0 : Math.min(0.15, 0.04 * (n - 3))),
     hpMul: (n) => Math.min(4.5, 1.25 + 0.13 * (n - 1)),
     dmgMul: (n) => Math.min(1.7, 0.8 + 0.05 * (n - 1)),
     speedMul: (n) => Math.min(1.45, 1.15 + 0.02 * (n - 1)),
-    maxAlive: (n) => Math.min(22 + 3 * n, 44),
+    maxAlive: (n) => Math.min(14 + 2 * n, 30),
     flyerShare: (n) => Math.min(0.3, 0.12 + 0.03 * n),
-    spawnGap: (n) => Math.max(0.12, 0.5 - 0.05 * n),
+    spawnGap: (n) => Math.max(0.25, 0.7 - 0.04 * n),
   };
 
   const geo = (w, h, d, py) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, py, 0); return g; };
@@ -494,6 +494,8 @@
     // Hit reaction scales with how hard the hit was (share of max hp), the round's impulse, and where it landed.
     function damage(z, amount, part, dir, imp = 1, opt = {}) {
       if (!z.alive) return false;
+      // hero level, stars and VIP from the home screen scale what this machine's player deals (hits relayed from others arrive with net set)
+      if (!opt.net && G.meta) amount *= G.meta.dmgMul();
       if (opt.dot) {
         z.hp -= amount; if (z.flash <= 0) { z.flash = 0.05; setFlash(z, true); }
         if (z.hp <= 0) { kill(z, 'body', dir || new THREE.Vector3(0, 0, 1), opt, amount); return true; }

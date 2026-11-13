@@ -104,6 +104,16 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     check(up.dash > 3, `looking up and dashing climbs into the air (${up.dash} m)`);
     check(up.blink > 1.5 || up.blink === null, `looking up and blinking lands higher, on a roof (${up.blink} m)`);
     check(up.orb > 2.5, `the orb flies upward when aimed up (${up.orb} m high after 1 s)`);
+    // throw skills: holding the key shows where it lands, letting go throws it there (a fire pool right on that ring)
+    const thr = await page.evaluate(`(() => { const G = __G; const P = G.player; __select.open(); __select.pick(BZ.HEROES.findIndex((h) => h.id === 'hoa')); __select.go(); __sim(0.2);
+      G.state = 'playing'; G.god = true; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; P.pos.set(0, 0, 9); P.vel.set(0, 0, 0); P.yaw = 0.3; P.pitch = -0.22; __sim(1 / 60);
+      G.hero.aimStart('s1'); __sim(0.2); const ring = G.hero.aimPreview(); const dots = G.scene.children.filter((o) => o.isSprite && o.visible && o.renderOrder === 9).length;
+      G.hero.aimRelease('s1'); __sim(1.6); const after = G.hero.aimPreview();
+      const fires = G.zombies.kinds.hazards.filter((h) => h.kind === 'fire'); const near = ring ? Math.min(...fires.map((h) => Math.hypot(h.pos.x - ring.x, h.pos.z - ring.z))) : 99;
+      return { ring: ring && [+ring.x.toFixed(1), +ring.z.toFixed(1)], dots, hidden: !after, near: +near.toFixed(2) }; })()`);
+    console.log('throw', JSON.stringify(thr));
+    check(thr.ring && thr.dots >= 6 && thr.hidden, `holding a throw skill draws its arc and landing ring (${thr.dots} dots), letting go hides them`);
+    check(thr.near < 1.5, `the bottle lands on the ring (fire pool ${thr.near} m from it)`);
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 5).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

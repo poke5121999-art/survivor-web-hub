@@ -16,19 +16,19 @@
       kick: { back: 0.3, rise: 7, yaw: 1, cam: 0.06 }, adsFov: 55 },
     // melee: swing = seconds per swing, hitAt = when the edge lands, arc = half-angle of the cone it sweeps, cleave = bodies per swing
     katana: { name: 'Katana', price: 300, melee: true, cut: 'blade', dmg: 58, head: 1.7, swing: 0.36, hitAt: 0.13, range: 2.7, arc: 1.05, cleave: 3, impulse: 1.3, crit: 0.22, lunge: 3.2, stop: 0.055,
-      snd: 'slash', hitSnd: 'chop', combo: ['r2l', 'l2r', 'over'], trail: 0xd8f0ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
+      snd: 'slash', hitSnd: 'chop', combo: ['r2l', 'l2r', 'over'], trail: 0xa8fff0, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
     axe: { name: 'Rìu', price: 250, melee: true, cut: 'axe', dmg: 105, head: 1.6, swing: 0.66, hitAt: 0.3, range: 2.6, arc: 0.85, cleave: 2, impulse: 3, crit: 0.12, lunge: 2.2, stop: 0.1,
       snd: 'heavy', hitSnd: 'cleave', combo: ['over', 'r2l'], trail: 0xffd8a0, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.03 }, adsFov: 70 },
     saber: { name: 'Kiếm ánh sáng', price: 1500, melee: true, cut: 'saber', dmg: 82, head: 1.5, swing: 0.4, hitAt: 0.15, range: 3.0, arc: 1.25, cleave: 4, impulse: 1.1, crit: 0.2, lunge: 3.6, stop: 0.06,
       snd: 'saber_swing', hitSnd: 'saber_hit', combo: ['r2l', 'l2r', 'spin'], trail: 0x60f0ff, glow: 0x60e8ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.014 }, adsFov: 70 },
     // pf: per-pattern overrides (arc, dmg, imp, cleave, range, fall, shove); fall = damage kept by each further body in a swing
-    spear: { name: 'Thương', price: 700, melee: true, hold: 'spear', cut: 'blade', dmg: 64, head: 1.8, swing: 0.34, hitAt: 0.12, range: 3.9, arc: 0.2, cleave: 4, fall: 0.9, impulse: 1.5, crit: 0.18, lunge: 2.2, stop: 0.04,
-      snd: 'slash', hitSnd: 'chop', combo: ['thrust', 'thrust', 'thrust'], idleKF: 'idleSpear', trail: 0xcfe8ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
+    spear: { name: 'Thương', price: 700, melee: true, hold: 'spear', cut: 'blade', dmg: 54, head: 1.8, swing: 0.34, hitAt: 0.12, range: 3.9, arc: 0.2, cleave: 4, fall: 0.9, impulse: 1.5, crit: 0.18, lunge: 2.2, stop: 0.04,
+      snd: 'slash', hitSnd: 'chop', combo: ['thrust', 'thrust', 'thrust'], idleKF: 'idleSpear', trail: 0x8fdcff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
     longsword: { name: 'Trường kiếm', price: 900, melee: true, hold: 'sword2', cut: 'blade', dmg: 96, head: 1.6, swing: 0.6, hitAt: 0.26, range: 2.9, arc: 1.15, cleave: 4, impulse: 2.2, crit: 0.2, lunge: 2.6, stop: 0.085,
       snd: 'heavy', hitSnd: 'cleave', combo: ['r2l', 'l2r', 'over'], pf: { over: { dmg: 1.6, imp: 1.5, arc: 0.9 } }, idleKF: 'idleSword', trail: 0xdfe8ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.026 }, adsFov: 70 },
     glaive: { name: 'Đại đao', price: 1100, melee: true, hold: 'glaive', cut: 'blade', dmg: 74, head: 1.5, swing: 0.5, hitAt: 0.2, range: 3.5, arc: 1.2, cleave: 4, impulse: 1.8, crit: 0.16, lunge: 2.4, stop: 0.07,
-      snd: 'heavy', hitSnd: 'cleave', combo: ['gr2l', 'gl2r', 'spin360'], pf: { spin360: { arc: Math.PI, dmg: 1.3, cleave: 9, imp: 2, range: 3.3, fall: 0.9 } }, idleKF: 'idleGlaive', trail: 0xffc0a0, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.022 }, adsFov: 70 },
-    fists: { name: 'Nắm đấm', price: 0, melee: true, hold: 'fists', noTrail: true, dmg: 34, head: 1.8, swing: 0.24, hitAt: 0.08, range: 2.1, arc: 0.6, cleave: 1, impulse: 0.8, crit: 0.15, lunge: 1.8, stop: 0.03,
+      snd: 'heavy', hitSnd: 'cleave', combo: ['gr2l', 'gl2r', 'spin360'], pf: { spin360: { arc: Math.PI, dmg: 1.3, cleave: 9, imp: 2, range: 3.3, fall: 0.9 } }, idleKF: 'idleGlaive', trail: 0xa8ff70, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.022 }, adsFov: 70 },
+    fists: { name: 'Nắm đấm', price: 0, melee: true, hold: 'fists', noTrail: true, dmg: 28, head: 1.8, swing: 0.24, hitAt: 0.08, range: 2.1, arc: 0.6, cleave: 1, impulse: 0.8, crit: 0.15, lunge: 1.8, stop: 0.03,
       snd: 'swipe', hitSnd: 'hit', combo: ['jabR', 'jabL', 'upper'], pf: { upper: { dmg: 2.6, imp: 3.2, shove: 7, arc: 0.8, cleave: 2, range: 2.3 } }, idleKF: 'idleFist', mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.01 }, adsFov: 70 },
     // spinUp = seconds of barrel spin before the first round; slow = per-frame speed kept while the trigger is held; carry = keep the fractional wait between rounds
     minigun: { name: 'Súng máy', key: '6', price: 0, dmg: 17, head: 1.6, rpm: 1300, auto: true, mag: 240, reserve: Infinity, pellets: 1, spread: 0.028, moveSpread: 0.05, range: 70, reload: 3.2, snd: 'smg', impulse: 0.45, crit: 0.05,
@@ -46,6 +46,10 @@
   BZ.holdOf = (W) => (W && (W.hold || (W.melee ? 'melee' : 'gun'))) || 'none';
   const ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'bazooka', 'katana', 'axe', 'saber', 'spear', 'longsword', 'glaive', 'fists', 'minigun', 'dualpistol', 'javelin', 'shuriken'];
   const START = 'smg';
+
+  // elemental cells for each hero's signature weapon; the glowing ones get an emissive in GLOW below
+  const EL = { wind: BZ.cellTex(0x9ff8ec), ice: BZ.cellTex(0xc4ecff), iceGlow: BZ.cellTex(0x7fd4ff), poison: BZ.cellTex(0x3f8a2c), shadowGlow: BZ.cellTex(0xc080ff), fire: BZ.cellTex(0xff6a1a), shield: BZ.cellTex(0x2c5aa8) };
+  const swapTex = (parts, map) => parts.map((p) => { const q = p.slice(); if (map[q[6]]) q[6] = map[q[6]]; return q; });
 
   // Viewmodel shapes: many small flat-colour voxels, gun points along -z, grip near origin.
   // Each gun: dark body, a light edge stripe, one saturated accent, one emissive cell.
@@ -108,6 +112,8 @@
     [-0.008, 0.5, -0.008, 0.008, 0.82, 0.026, 'g_blade', 'blade'], [-0.005, 0.5, -0.02, 0.005, 0.82, -0.008, 'g_edge', 'blade'],
     [-0.008, 0.82, -0.002, 0.008, 1.02, 0.03, 'g_blade', 'blade'], [-0.005, 0.82, -0.014, 0.005, 1.02, -0.002, 'g_edge', 'blade'],
     [-0.007, 1.02, 0.004, 0.007, 1.08, 0.03, 'g_blade', 'blade'], [-0.004, 1.02, -0.008, 0.004, 1.12, 0.012, 'g_edge', 'blade'],
+    [-0.004, 0.24, 0.022, 0.004, 0.5, 0.027, EL.wind, 'blade'], [-0.004, 0.5, 0.026, 0.004, 0.82, 0.031, EL.wind, 'blade'], [-0.004, 0.82, 0.03, 0.004, 1.02, 0.035, EL.wind, 'blade'],
+    [-0.012, -0.3, -0.012, 0.012, -0.19, 0.012, EL.wind], [-0.02, -0.34, -0.006, 0.02, -0.3, 0.006, EL.wind],
   ], grip: [] };
   GUNS.axe = { tip: [0, 0.72, -0.31], mid: [0, 0.68, -0.2], lh: [0, 0.3, 0.02], oneHand: true, magHand: [0, 0, 0], port: [0, 0, 0], muzzle: [0, 0.72, -0.31], parts: [
     [-0.022, -0.2, -0.026, 0.022, 0.8, 0.026, 'g_wood'], [-0.026, -0.2, -0.03, 0.026, 0.06, 0.03, 'g_grip'], [-0.027, 0.48, -0.031, 0.027, 0.52, 0.031, 'g_red'],
@@ -199,7 +205,33 @@
   };
   GUNS.shuriken = { rh: [0, -0.07, 0.025], port: [0, 0, 0], muzzle: [0, 0.02, -0.3], lh: [0, 0, 0], oneHand: true, magHand: [0, 0, 0], parts: [...starParts(-0.085, 0.0, -0.09, 1.0), ...starParts(0, 0.04, -0.12, 1.0), ...starParts(0.085, 0.0, -0.09, 1.0)], grip: [] };
   GUNS.starProj = { port: [0, 0, 0], muzzle: [0, 0, 0], lh: [0, 0, 0], magHand: [0, 0, 0], parts: starParts(0, 0, 0, 1), grip: [] };
-  const GLOW = { g_glow_orange: 0xff8a20, g_glow_red: 0xff3a2a, g_glow_lime: 0x9cff50, g_glow_blue: 0x50c0ff, g_saber_core: 0xe8ffff, g_glow_saber: 0x60e8ff };
+  // ---- the elements: Băng's ice spear, Độc's poison glaive, Bóng's shadow stars, Hoả's burning gloves, Y Tá's healing left pistol ----
+  GUNS.spear.parts = [...swapTex(GUNS.spear.parts, { g_blade: EL.ice, g_glow_saber: EL.iceGlow, g_red: 'g_blue' }),
+    [-0.05, 1.84, -0.01, -0.034, 1.99, 0.01, EL.iceGlow], [0.034, 1.84, -0.01, 0.05, 1.99, 0.01, EL.iceGlow], [-0.01, 1.84, -0.05, 0.01, 1.99, -0.034, EL.iceGlow], [-0.01, 1.84, 0.034, 0.01, 1.99, 0.05, EL.iceGlow]];
+  GUNS.spear.glow = { at: [0, 2.2, 0], col: 0x7fd4ff, size: 0.55 };
+  GUNS.glaive.parts = swapTex(GUNS.glaive.parts, { g_glow_red: 'g_glow_lime', g_red: EL.poison });
+  GUNS.glaive.glow = { at: [0.04, 1.9, 0], col: 0x9cff50, size: 0.6 };
+  for (const g of [GUNS.shuriken, GUNS.starProj]) g.parts = swapTex(g.parts, { g_glow_red: EL.shadowGlow });
+  GUNS.fists.parts = swapTex(GUNS.fists.parts, { g_glow_orange: EL.fire, g_steel: 'g_body2' });
+  {
+    const D = GUNS.dualpistol; const heal = { g_orange: 'g_lime', g_glow_orange: 'g_glow_lime' }; const half = D.parts.length / 2; const halfG = D.grip.length / 2;
+    D.parts = [...D.parts.slice(0, half), ...swapTex(D.parts.slice(half), heal)]; D.grip = [...D.grip.slice(0, halfG), ...swapTex(D.grip.slice(halfG), heal)];
+    GUNS.pistolHeal = { ...GUNS.pistol, parts: swapTex(GUNS.pistol.parts, heal), grip: swapTex(GUNS.pistol.grip, heal) };
+  }
+  GUNS.javelin.parts.push([-0.005, 0.014, -0.95, 0.005, 0.018, 0.42, 'g_glow_blue'], [-0.005, -0.018, -0.95, 0.005, -0.014, 0.42, 'g_glow_blue']);
+  // Thép's heater shield, front face toward -z; it rides the left forearm
+  GUNS.shield = { port: [0, 0, 0], muzzle: [0, 0, 0], lh: [0, 0, 0], magHand: [0, 0, 0], grip: [], parts: [
+    [-0.24, 0.0, -0.02, 0.24, 0.3, 0.02, EL.shield], [-0.2, -0.12, -0.02, 0.2, 0.0, 0.02, EL.shield], [-0.14, -0.22, -0.02, 0.14, -0.12, 0.02, EL.shield], [-0.07, -0.3, -0.02, 0.07, -0.22, 0.02, EL.shield],
+    [-0.265, 0.29, -0.03, 0.265, 0.33, 0.03, 'g_steel'], [-0.265, 0.0, -0.03, -0.235, 0.29, 0.03, 'g_steel'], [0.235, 0.0, -0.03, 0.265, 0.29, 0.03, 'g_steel'],
+    [-0.235, -0.13, -0.03, -0.195, 0.0, 0.03, 'g_steel'], [0.195, -0.13, -0.03, 0.235, 0.0, 0.03, 'g_steel'], [-0.175, -0.23, -0.03, -0.135, -0.12, 0.03, 'g_steel'], [0.135, -0.23, -0.03, 0.175, -0.12, 0.03, 'g_steel'],
+    [-0.105, -0.31, -0.03, -0.065, -0.22, 0.03, 'g_steel'], [0.065, -0.31, -0.03, 0.105, -0.22, 0.03, 'g_steel'], [-0.065, -0.34, -0.03, 0.065, -0.3, 0.03, 'g_steel'],
+    [-0.03, -0.2, -0.04, 0.03, 0.26, -0.02, 'g_gold'], [-0.17, 0.08, -0.04, 0.17, 0.14, -0.02, 'g_gold'], [-0.04, 0.07, -0.052, 0.04, 0.15, -0.04, 'g_glow_blue'],
+    [-0.05, -0.04, 0.02, 0.05, 0.22, 0.045, 'g_grip'], [-0.16, 0.05, 0.02, -0.11, 0.17, 0.04, 'g_body2'], [0.11, 0.05, 0.02, 0.16, 0.17, 0.04, 'g_body2'],
+  ] };
+  const GLOW = { g_glow_orange: 0xff8a20, g_glow_red: 0xff3a2a, g_glow_lime: 0x9cff50, g_glow_blue: 0x50c0ff, g_saber_core: 0xe8ffff, g_glow_saber: 0x60e8ff,
+    [EL.wind]: 0x70e8d8, [EL.iceGlow]: 0x50c0ff, [EL.shadowGlow]: 0xa050ff, [EL.fire]: 0xff4a10 };
+  // a soft additive sprite for weapons whose head glows (the ice spear, the poison glaive)
+  const glowSprite = (col, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: col, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.scale.setScalar(size); return s; };
   // a plain world-space copy (no arms, fogged, lit like the scene) for weapons lying on the ground or in a soldier's hands
   const worldCache = {};
   BZ.worldGun = (id) => {
@@ -214,6 +246,7 @@
     }
     const g = worldCache[id].clone();
     if (GUNS[id].saber) { const h = saberHalo(1.0); h.position.y = 0.72; g.add(h); }
+    if (GUNS[id].glow) { const q = GUNS[id].glow; const s = glowSprite(q.col, q.size); s.position.set(...q.at); g.add(s); }
     g.userData.muzzle = new THREE.Vector3(...(GUNS[id].muzzle || [0, 0, 0]));
     return g;
   };
@@ -231,10 +264,25 @@
       const tip = new THREE.Object3D(); tip.position.copy(g.userData.muzzle); g.add(tip); g.userData.tipObj = tip;
       return g;
     };
-    if (id === 'dualpistol') { out.gun = put(m.handR, 'pistol', 0.9); const l = put(m.handL, 'pistol', 0.9); out.tip = out.gun.userData.tipObj; out.tipL = l.userData.tipObj; }
+    if (id === 'dualpistol') { out.gun = put(m.handR, 'pistol', 0.9); const l = put(m.handL, 'pistolHeal', 0.9); out.tip = out.gun.userData.tipObj; out.tipL = l.userData.tipObj; }
     else if (id === 'fists') { out.gun = put(m.handR, 'fists', 1.25); put(m.handL, 'fists', 1.25); }
     else { out.gun = put(m.handR, id, 0.9); out.tip = out.gun.userData.tipObj; }
+    if (id === 'longsword') {
+      const s = BZ.worldGun('shield'); s.userData.wgun = true; s.userData.shield = true; s.scale.setScalar(0.85); m.handL.add(s); out.shield = s;
+      BZ.shieldPose(s, 0);
+    }
     return out;
+  };
+  // the shield on a body's left hand: k = 0 strapped flat on the forearm, k = 1 raised square in front of the chest.
+  // The raised pose is given in the body's own space (root), so it holds whatever the arm animation is doing.
+  const SH = { low: new THREE.Vector3(-0.13, 0.12, 0.02), lowQ: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)), up: new THREE.Matrix4().compose(new THREE.Vector3(-0.12, 1.2, 0.55), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.08, Math.PI, 0)), new THREE.Vector3(1, 1, 1)),
+    m: new THREE.Matrix4(), p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3() };
+  BZ.shieldPose = (s, k, root) => {
+    s.position.copy(SH.low); s.quaternion.copy(SH.lowQ);
+    if (!(k > 0.01) || !root || !s.parent) return;
+    root.updateMatrixWorld(true);
+    SH.m.copy(s.parent.matrixWorld).invert().multiply(root.matrixWorld).multiply(SH.up).decompose(SH.p, SH.q, SH.s);
+    s.position.lerp(SH.p, k); s.quaternion.slerp(SH.q, k);
   };
   function saberHalo(o) {
     // nested additive shells, each wider and fainter, read as a soft glow around the white core
@@ -282,7 +330,8 @@
     flash.position.set(...D.muzzle); flash.visible = false;
     g.add(flash);
     let flashL = null;
-    if (D.muzzleL) { flashL = flash.clone(); flashL.position.set(...D.muzzleL); g.add(flashL); }
+    if (D.muzzleL) { flashL = flash.clone(); flashL.material = flash.material.clone(); flashL.material.color.setHex(0x90ff90); flashL.position.set(...D.muzzleL); g.add(flashL); }
+    if (D.glow) { const s = glowSprite(D.glow.col, D.glow.size); s.position.set(...D.glow.at); g.add(s); parts.glow = s; }
     if (D.saber) { const h = saberHalo(1); h.position.y = 0.72; h.traverse((q) => { if (q.material) q.material.fog = false; }); g.add(h); parts.halo = h; }
     if (D.oneHand) parts.handL.visible = false;
     if (WEAPONS[id].melee && WEAPONS[id].hold !== 'fists') g.scale.setScalar(0.85);
@@ -314,13 +363,13 @@
     const casings = []; for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(casingGeo, casingMats.brass); m.visible = false; vmScene.add(m); casings.push({ m, life: 0, v: new THREE.Vector3(), spin: new THREE.Vector3() }); }
     let casingI = 0;
     const tmpV = new THREE.Vector3(); const tmpM = new THREE.Matrix4(); const tmpQ = new THREE.Quaternion(); const tmpC = new THREE.Color();
-    function emitSparks(n, side) {
+    function emitSparks(n, side, cols) {
       const m = models[S.cur]; rig.updateMatrixWorld(true);
       const at = m.localToWorld((side && m.userData.muzzleL || m.userData.muzzle).clone()); const fwd = new THREE.Vector3(0, 0, -1).transformDirection(m.matrixWorld);
       for (let i = 0; i < n; i++) {
         if (sparks.length >= 48) sparks.shift();
         const v = fwd.clone().multiplyScalar(G.rng.range(1.5, 4)).add(new THREE.Vector3(G.rng.range(-1, 1), G.rng.range(-0.6, 1.2), G.rng.range(-1, 1)).multiplyScalar(1.4));
-        sparks.push({ p: at.clone(), v, life: 0, max: G.rng.range(0.06, 0.16), s: G.rng.range(0.006, 0.014), c: G.rng.pick([0xfff2a0, 0xffc040, 0xff8a20]) });
+        sparks.push({ p: at.clone(), v, life: 0, max: G.rng.range(0.06, 0.16), s: G.rng.range(0.006, 0.014), c: G.rng.pick(cols || [0xfff2a0, 0xffc040, 0xff8a20]) });
       }
     }
     function ejectCasing(side) {
@@ -467,7 +516,7 @@
     }
     function startSwing(w) {
       const pat = w.combo[S.combo % w.combo.length]; S.combo++; S.comboT = 0.7; S.lastPat = pat;
-      S.swing = { t: 0, pat, hit: false, from: (S.vmPose || KF.idle).slice() };
+      S.swing = { t: 0, pat, hit: false, n: S.combo, from: (S.vmPose || KF.idle).slice() };
       S.cool = w.swing * 0.72;
       setTimeout(() => G.audio.play(w.snd, { gain: 0.85, rate: G.rng.range(0.92, 1.08) * (pat === 'over' ? 0.9 : 1) }), w.hitAt * 400);
       const P = G.player;
@@ -506,10 +555,14 @@
         const rel = (o.y + (d.y / fl) * c.hd - (high ? 0.2 : 0.5) - z.pos.y) / s;
         let part = z.crawl ? (high && G.rng.chance(0.5) ? 'head' : 'body') : rel > 1.42 || (high && rel > 1.12) ? 'head' : rel < 0.72 ? 'leg' : 'body';
         if (z.headless && part === 'head') part = 'body';
-        const crit = G.rng.chance(w.crit + G.build.critAdd() + G.hero.critAdd());
-        const dmg = w.dmg * G.build.dmgMul() * G.hero.dmgMul() * G.build.meleeMul() * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (pf.dmg || 1) * (i ? fall : 1) * (crit ? G.build.critMul() : 1);
+        const crit = rollCrit(w);
+        let dmg = w.dmg * G.build.dmgMul() * G.hero.dmgMul() * G.build.meleeMul() * (part === 'head' ? w.head : part === 'leg' ? 0.85 : 1) * (pf.dmg || 1) * (i ? fall : 1) * (crit ? G.build.critMul() : 1);
         toZ.set(c.dx, 0, c.dz).normalize().multiplyScalar(0.6).addScaledVector(sweep, 0.8).setY(0).normalize();
-        const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (pf.imp || 1) * (i ? 0.8 : 1), { cut: w.cut, status: G.build.onHit(z, dmg, true) });
+        let status = G.build.onHit(z, dmg, true);
+        // Băng's spear chills, and a thrust into a frozen body shatters it (the shock sets off the shatter reaction); Hoả's punches burn
+        if (S.cur === 'spear' && i === 0) { const frozen = z.frozen > 0; status = status.concat([[frozen ? 'shock' : 'chill', 1]]); if (frozen) shatterFx(z); } // the tip only: the bodies behind it are pierced, not chilled
+        else if (S.cur === 'fists') status = status.concat([['burn', 0.3]]);
+        const died = G.zombies.damage(z, dmg, part, toZ, w.impulse * (pf.imp || 1) * (i ? 0.8 : 1), { cut: w.cut, status });
         if (pf.shove && !died && z.vel) { z.vel.x += toZ.x * pf.shove; z.vel.z += toZ.z * pf.shove; z.vel.y = Math.max(z.vel.y, pf.shove * 0.45); }
         if (died) kills++; heads = heads || part === 'head';
         G.events.emit('hit', { z, dmg: Math.round(dmg), part, died, crit, melee: true });
@@ -533,6 +586,10 @@
           G.audio.playAt('clank', at, { gain: 0.8 }); G.hitStop = Math.max(G.hitStop || 0, 0.03); P.shake.v += 1.5; S.kZ.v -= 3;
         }
       }
+      const pi = ((sw.n || 1) - 1) % w.combo.length;
+      if (S.cur === 'katana' && pi === 2) windBlade(o.clone().addScaledVector(d, 0.6).setY(o.y - 0.3), d, w, false);
+      else if (S.cur === 'fists' && pi === 2) fireRing(P.pos.clone(), false);
+      if (S.cur === 'glaive') poisonArc(P.pos, fx, fz, sw.pat, false);
       G.events.emit('fired', { weapon: S.cur, kills });
     }
     function meleeUpdate(dt, w, input) {
@@ -544,7 +601,7 @@
         if (!sw.hit && sw.t >= w.hitAt) { sw.hit = true; meleeHit(w, sw); }
         if (sw.t >= w.swing) S.swing = null;
       } else { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
-      const can = S.phase === 'ready' && G.player.alive;
+      const can = S.phase === 'ready' && G.player.alive && !(S.guard > 0.3);
       if (input.fire && can && (!S.swing || S.swing.t >= w.swing * 0.72)) startSwing(w);
     }
     const saberLight = new THREE.PointLight(0x50d8ff, 0, 7, 2); G.scene.add(saberLight);
@@ -557,7 +614,7 @@
     const o = new THREE.Vector3(); const d = new THREE.Vector3(); const right = new THREE.Vector3(); const up = new THREE.Vector3();
     // ---------- thrown weapons: javelin and shuriken fly as real projectiles ----------
     const projs = [];
-    const PROJ = { javelin: { c0: 0xbfeaff, c1: 0x3a8cff, size: 0.16, rate: 75, halo: 0x6ad0ff, haloSize: 0.75, burst: [0x9ad8ff, 0x3a8cff] }, shuriken: { c0: 0xffe8e0, c1: 0xff3a2a, size: 0.1, rate: 80, halo: 0xff5a4a, haloSize: 0.5, burst: [0xff6a4a, 0xffd0a0] } };
+    const PROJ = { javelin: { c0: 0xbfeaff, c1: 0x3a8cff, size: 0.16, rate: 75, halo: 0x6ad0ff, haloSize: 0.75, burst: [0x9ad8ff, 0x3a8cff] }, shuriken: { c0: 0xf0dcff, c1: 0x8a3aff, size: 0.1, rate: 80, halo: 0xb060ff, haloSize: 0.5, burst: [0xb060ff, 0xf0d0ff] } };
     function projMesh(kind) {
       const root = new THREE.Group(); const spin = new THREE.Group(); root.add(spin);
       if (kind === 'javelin') { const g = BZ.worldGun('javelin'); g.rotation.y = Math.PI; spin.add(g); } // the model points along -z, the flight along +z
@@ -584,10 +641,13 @@
     function projHit(q, h, dir) {
       const w = q.w; const z = h.z; const PJ = PROJ[q.kind];
       const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
-      const crit = G.rng.chance((w.crit || 0.08) + G.build.critAdd() + G.hero.critAdd());
+      const crit = rollCrit(w);
       const dmg = q.dmg * G.build.dmgMul() * G.hero.dmgMul() * mult * q.power * (crit ? G.build.critMul() : 1);
       const at = q.p.clone().addScaledVector(dir, h.t);
-      const died = G.zombies.damage(z, dmg, h.part, dir.clone(), (w.impulse || 1) * q.power, { status: G.build.onHit(z, dmg, false) });
+      const chainNow = q.kind === 'javelin' && !q.grp.chained; if (chainNow) q.grp.chained = true;
+      const died = G.zombies.damage(z, dmg, h.part, dir.clone(), (w.impulse || 1) * q.power, { status: G.build.onHit(z, dmg, false).concat(chainNow ? [['shock', 1]] : []) });
+      if (chainNow) chainLightning(z, at, q.dmg * G.build.dmgMul() * G.hero.dmgMul() * 0.5, false);
+      if (q.kind === 'shuriken') setMark(z);
       q.power *= 0.8;
       G.events.emit('hit', { z, dmg: Math.round(dmg), part: h.part, died, crit });
       G.fx.burst(at, 14, [0xc0281e, 0x8a1410, 0xb3201a], { dir, push: 4, speed: 3, size: 0.08, life: 0.8 });
@@ -615,6 +675,10 @@
           q.v.y -= q.grav * hs;
           const sp = q.v.length(); pDir.copy(q.v).multiplyScalar(1 / sp); const len = sp * hs;
           const wh = G.world.raycast(q.p, pDir, len); const lim = wh ? wh.t : len;
+          if (q.fake && q.kind === 'javelin' && !q.arced) {
+            const hz = G.zombies.hitTest(q.p, pDir, lim);
+            if (hz) { q.arced = true; chainLightning(hz.z, pPos.copy(q.p).addScaledVector(pDir, hz.t).clone(), 0, true); stickProj(q, pPos.copy(q.p).addScaledVector(pDir, hz.t - 1.0), null, 0.7); break; }
+          }
           while (!q.fake && !q.stuck) {
             const hz = G.zombies.hitTest(q.p, pDir, lim, q.skip); if (!hz) break;
             q.skip.add(hz.z); projHit(q, hz, pDir); q.pierce--;
@@ -681,6 +745,361 @@
       U.handR.position.set(R[0], R[1], R[2]); U.handL.position.set(L[0], L[1], L[2]); U.handR.rotation.x = rx; U.handL.rotation.x = lx;
     }
 
+    // ================= signatures: the one thing each hero's weapon does that no other weapon does =================
+    const SG = { t: 0, heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, blockSnd: 0, chainN: 0, healed: 0, healCd: new Map(), booms: 0, splits: 0, pinned: 0, tps: 0, later: [] };
+    S.guard = 0;
+    const V = () => new THREE.Vector3();
+    const guest = () => !!(G.coop && G.coop.guest);
+    const chestOf = (z) => V().set(z.pos.x, z.pos.y + (z.crawl ? 0.35 : 1.1) * z.T.scale, z.pos.z);
+    function rollCrit(w) { if (SG.sureCrit) { SG.sureCrit = false; return true; } return G.rng.chance((w.crit || 0.08) + G.build.critAdd() + G.hero.critAdd()); }
+    const fade = (m, k) => { for (const c of m.children) if (c.material) c.material.opacity = c.userData.op * k; };
+    const addMesh = (geo, col, op, normal) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, blending: normal ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.userData.op = op; return m; };
+    const drop = (m) => { G.scene.remove(m); m.traverse((c) => { if (c.material && c.material.dispose && !c.userData.keep) c.material.dispose(); }); };
+
+    // ---- Gió: every third katana cut throws a crescent of wind that flies 14 m and cuts all it passes ----
+    const blades = []; let bladeGeo = null;
+    function windBlade(from, dir, w, fake) {
+      if (!bladeGeo) bladeGeo = [new THREE.RingGeometry(0.8, 1.3, 30, 1, Math.PI / 2 - 1.2, 2.4).translate(0, -0.9, 0), new THREE.RingGeometry(1.08, 1.2, 30, 1, Math.PI / 2 - 1.1, 2.2).translate(0, -0.9, 0)];
+      const h = V().set(dir.x, 0, dir.z); if (h.lengthSq() < 1e-6) return; h.normalize();
+      const g = new THREE.Group(); g.add(addMesh(bladeGeo[0], 0x3fc8bc, 0.5, true), addMesh(bladeGeo[1], 0xf4fffd, 0.95, true));
+      g.position.copy(from); g.lookAt(from.clone().add(h)); g.rotateZ((G.rng.chance(0.5) ? 1 : -1) * G.rng.range(0.45, 0.8)); g.rotateX(-0.35); g.renderOrder = 5; G.scene.add(g);
+      blades.push({ g, p: from.clone(), dir: h, v: h.clone().multiplyScalar(26), left: 14, skip: new Set(), w, fake, age: 0, sl: {}, sr: {} });
+      G.audio.playAt('saber_swing', from, { gain: 0.75, rate: 1.7 }); G.audio.playAt('swipe', from, { gain: 0.6, rate: 0.7 });
+    }
+    function stepBlades(dt) {
+      for (let i = blades.length - 1; i >= 0; i--) {
+        const b = blades[i]; b.age += dt;
+        const step = Math.min(b.left, 26 * dt); const wh = G.world.raycast(b.p, b.dir, step); const seg = wh ? wh.t : step;
+        if (!b.fake) for (const z of G.zombies.list) {
+          if (!z.alive || b.skip.has(z)) continue;
+          const s = z.T.scale; const rx = z.pos.x - b.p.x; const rz = z.pos.z - b.p.z;
+          const t = BZ.clamp(rx * b.dir.x + rz * b.dir.z, 0, seg);
+          if (Math.hypot(rx - b.dir.x * t, rz - b.dir.z * t) > 1.0 + 0.3 * s) continue;
+          const top = z.pos.y + (z.crawl ? 0.7 : z.T.fly ? 1.6 : 2.0) * s; if (top < b.p.y - 1.2 || z.pos.y > b.p.y + 0.8) continue;
+          b.skip.add(z);
+          const crit = rollCrit(b.w); const dmg = b.w.dmg * 0.6 * G.build.dmgMul() * G.hero.dmgMul() * G.build.meleeMul() * (crit ? G.build.critMul() : 1);
+          const at = chestOf(z);
+          const died = G.zombies.damage(z, dmg, 'body', b.dir.clone(), 0.9, { cut: 'blade', status: G.build.onHit(z, dmg, true) });
+          G.events.emit('hit', { z, dmg: Math.round(dmg), part: 'body', died, crit, melee: true, sig: 'wind' });
+          G.fx.burst(at, 14, [0xc0281e, 0x8a1410, 0xd8fff8], { dir: b.dir, push: 4, speed: 3, size: 0.08, life: 0.7 });
+          G.fx.puff(at, { glow: true, s0: 0.5, s1: 1.6, life: 0.18, c0: 0xffffff, c1: 0x60e8d8, a0: 0.9 });
+          G.audio.playAt('chop', at, { gain: 0.6, rate: 1.3 });
+        }
+        b.p.addScaledVector(b.dir, seg); b.left -= seg; b.g.position.copy(b.p);
+        b.g.scale.setScalar(0.7 + 0.5 * Math.min(1, b.age / 0.25)); fade(b.g, BZ.clamp(b.left / 4, 0, 1));
+        const sx = b.dir.z * 0.95; const sz = -b.dir.x * 0.95;
+        G.fx.streak(b, b.p, b.v, 0xe8fffa, 0x40c8c0, 0.4, dt, 40);
+        G.fx.streak(b.sl, V().set(b.p.x + sx, b.p.y, b.p.z + sz).addScaledVector(b.dir, -0.4), b.v, 0xc8fff4, 0x30a8a0, 0.25, dt, 35);
+        G.fx.streak(b.sr, V().set(b.p.x - sx, b.p.y, b.p.z - sz).addScaledVector(b.dir, -0.4), b.v, 0xc8fff4, 0x30a8a0, 0.25, dt, 35);
+        if (wh || b.left <= 0.01) {
+          if (wh) G.fx.puff(b.p.clone(), { glow: true, s0: 0.8, s1: 2.4, life: 0.25, c0: 0xffffff, c1: 0x60e8d8, a0: 0.9 });
+          drop(b.g); blades.splice(i, 1);
+        }
+      }
+    }
+
+    // ---- Thép: a shield on the left arm; held up (right mouse) it takes 80% off hits from the front, but he walks slowly and cannot swing ----
+    const shieldVm = BZ.worldGun('shield'); shieldVm.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.fog = false; m.userData.keep = true; } });
+    shieldVm.scale.setScalar(0.5); shieldVm.visible = false; vmScene.add(shieldVm);
+    const SHV = { lo: new THREE.Vector3(-0.44, -0.5, -0.6), hi: new THREE.Vector3(-0.2, -0.22, -0.55), qlo: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0.75, 0.2)), qhi: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.05, 0.22, 0.04)) };
+    const flashMats = (g, k) => { const c = tmpC.setRGB(0.08 * k, 0.18 * k, 0.4 * k); g.traverse((m) => { if (m.isMesh && m.material.emissive && m.name !== 'g_glow_blue') m.material.emissive.copy(c); }); };
+    function takenMul(from) {
+      if (S.cur !== 'longsword' || S.guard < 0.5 || !from || !G.player.alive) return 1;
+      const P = G.player; const dx = from.x - P.pos.x; const dz = from.z - P.pos.z; const l = Math.hypot(dx, dz); if (l < 1e-3) return 1;
+      if ((dx * -Math.sin(P.yaw) + dz * -Math.cos(P.yaw)) / l < Math.cos((50 * Math.PI) / 180)) return 1;
+      SG.blockT = 0.22; S.kZ.v += 3; S.kR.v -= 2; P.shake.v += 1.5;
+      const at = V().set(P.pos.x - Math.sin(P.yaw) * 0.7, P.pos.y + 1.25, P.pos.z - Math.cos(P.yaw) * 0.7);
+      G.fx.burst(at, 10, [0xfff2a0, 0xffd080, 0xd0e4ff], { dir: V().set(dx / l, 0.3, dz / l), push: 3, speed: 3, size: 0.05, life: 0.35 });
+      G.fx.puff(at, { glow: true, s0: 0.6, s1: 1.4, life: 0.12, c0: 0xffffff, c1: 0x60a0ff, a0: 1 });
+      if (SG.t - SG.blockSnd > 0.08) { SG.blockSnd = SG.t; G.audio.play('clank', { gain: 0.9, rate: G.rng.range(0.85, 1.0) }); G.ui.pop('ĐỠ', 'critword', at.clone().setY(at.y + 0.5)); }
+      return 0.2;
+    }
+
+    // ---- Y Tá: a dart passing a teammate or a hired soldier heals 10 ----
+    function healAlong(a, b) {
+      const ab = V().subVectors(b, a).addScaledVector(V().subVectors(b, a).normalize(), 2); const L2 = ab.lengthSq() || 1;
+      const near = (p) => { const t = BZ.clamp(V().subVectors(p, a).dot(ab) / L2, 0, 1); return V().copy(a).addScaledVector(ab, t).distanceTo(p) < 1.5; };
+      const ready = (k) => { if ((SG.healCd.get(k) || 0) > SG.t) return false; SG.healCd.set(k, SG.t + 0.3); return true; };
+      for (const al of G.allies.list) {
+        if (!al.alive || al.puppet || al.hp >= BZ.ALLY.hp) continue;
+        const c = V().set(al.pos.x, al.pos.y + 1.1, al.pos.z); if (!near(c) || !ready(al)) continue;
+        const n = Math.min(10, BZ.ALLY.hp - al.hp); al.hp += n; SG.healed += n;
+        G.fx.pop(c, 0.5, [0x60e070, 0xc0ffc0]); G.fx.burst(c, 8, [0x60e070, 0xffffff], { speed: 2, size: 0.06, life: 0.5, grav: -2 }); G.ui.pop('+' + Math.round(n), 'dmg ally', c.clone().setY(c.y + 1.1));
+      }
+      if (G.coop && G.coop.on) for (const [pid, av] of G.coop.avatars) {
+        if (!av.alive) continue;
+        const c = V().set(av.pos.x, av.pos.y + 1.1, av.pos.z); if (!near(c) || !ready(pid)) continue;
+        G.hero.send('healdart', { to: pid, n: 10, p: [+c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2)] }); SG.healed += 10;
+      }
+    }
+
+    // ---- Mưa: heat; at 100% the minigun jams for 1.2 s and vents steam ----
+    function jam() {
+      SG.jamT = 1.2; S.cool = Math.max(S.cool, 0.2);
+      G.audio.play('clank', { gain: 0.9, rate: 0.6 }); G.audio.play('jet', { gain: 0.7, rate: 0.6 });
+    }
+    function heatGlow(g, k) {
+      if (!g) return;
+      if (!g.userData.own) { g.userData.own = true; g.traverse((m) => { if (m.isMesh) m.material = m.material.clone(); }); }
+      const e = BZ.clamp((k - 0.35) / 0.65, 0, 1); const r = e; const gg = e * e * 0.35; const b = e * e * e * 0.12;
+      g.traverse((m) => { if (m.isMesh && m.material.emissive) m.material.emissive.setRGB(r, gg, b); });
+    }
+    function muzzleNow(out) {
+      const c = G.camera; c.updateMatrixWorld(); c.getWorldPosition(out); const f = V(); c.getWorldDirection(f); const rt = V().set(1, 0, 0).applyQuaternion(c.quaternion);
+      out.addScaledVector(f, 0.9).addScaledVector(rt, 0.18).y -= 0.15;
+      if (G.tps && G.tps.on) G.tps.muzzle(out);
+      return out;
+    }
+
+    // ---- Bóng: a star marks the zombie it hits for 4 s; right mouse steps behind the mark and makes the next hit a sure crit ----
+    const markSpr = (() => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'); c.translate(32, 32);
+      const gr = c.createRadialGradient(0, 0, 4, 0, 0, 31); gr.addColorStop(0, 'rgba(200,140,255,0.7)'); gr.addColorStop(1, 'rgba(120,40,220,0)'); c.fillStyle = gr; c.fillRect(-32, -32, 64, 64);
+      c.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? 7 : 25; const an = (i * Math.PI) / 4 - Math.PI / 2; c.lineTo(Math.cos(an) * r, Math.sin(an) * r); } c.closePath();
+      c.fillStyle = '#e4c4ff'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#3a0a6a'; c.stroke(); c.fillStyle = '#5a1aa0'; c.beginPath(); c.arc(0, 0, 4, 0, 7); c.fill();
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false, fog: false })); s.renderOrder = 8; s.visible = false; G.scene.add(s); return s;
+    })();
+    function setMark(z) {
+      if (!z.alive) return; const fresh = !SG.mark || SG.mark.z !== z; SG.mark = { z, t: 4 };
+      if (fresh) { G.fx.puff(chestOf(z).setY(z.pos.y + 2.3 * z.T.scale), { glow: true, s0: 1.2, s1: 0.3, life: 0.25, c0: 0xffffff, c1: 0xa050ff, a0: 1 }); G.audio.play('marker', { gain: 0.5, rate: 0.6 }); }
+    }
+    function blink() {
+      const P = G.player; const z = SG.mark && SG.mark.z;
+      if (SG.tpCd > 0 || !z || !z.alive || !P.alive) { G.audio.play('deny', { gain: 0.5 }); return false; }
+      let dx = z.pos.x - P.pos.x; let dz = z.pos.z - P.pos.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      const dh = V().set(dx, 0, dz); let back = 1.1 + 0.45 * z.T.scale;
+      for (const y of [0.4, 1.4]) { const wh = G.world.raycast(V().set(z.pos.x, z.pos.y + y, z.pos.z), dh, back + 0.45); if (wh) back = Math.min(back, wh.t - 0.45); }
+      back = Math.max(0.55, back);
+      const from = V().set(P.pos.x, P.pos.y + 1, P.pos.z);
+      P.pos.set(z.pos.x + dx * back, z.pos.y, z.pos.z + dz * back); P.vel.set(0, 0, 0);
+      P.yaw = Math.atan2(dx, dz); P.pitch = Math.atan2(z.pos.y + 1.2 * z.T.scale - (P.pos.y + 1.6), back) * 0.6;
+      const to = V().set(P.pos.x, P.pos.y + 1, P.pos.z);
+      for (const at of [from, to]) { G.fx.pop(at, 0.9, [0xb060ff, 0x5a20a0]); for (let i = 0; i < 6; i++) G.fx.puff(at.clone().add(V().set(G.rng.range(-0.4, 0.4), G.rng.range(-0.8, 0.6), G.rng.range(-0.4, 0.4))), { vel: V().set(0, 0.8, 0), drag: 1.5, s0: 0.5, s1: 1.4, life: 0.8, c0: 0x2a1040, c1: 0x5a3080, a0: 0.7 }); }
+      G.audio.play('saber_on', { gain: 0.8, rate: 1.9 }); G.audio.play('swipe', { gain: 0.8, rate: 0.6 });
+      SG.sureCrit = true; SG.tpCd = 6; SG.mark = null; SG.tps++;
+      G.ui.pop('CHÍ MẠNG KẾ', 'critword', V().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
+      return true;
+    }
+
+    // ---- Pháo Thủ: the rocket breaks into three bomblets after 0.35 s or on its first hit ----
+    const rockets = []; let rkGeo = null; let bmGeo = null;
+    function clusterRocket(from, dir, fake) {
+      if (!rkGeo) {
+        const o2 = { uv: 'fit', vary: 0 }; const RB = new BZ.Builder('crocket');
+        RB.box([-0.06, -0.06, -0.3], [0.06, 0.06, 0.25], 'g_body2', o2); RB.box([-0.05, -0.05, -0.42], [0.05, 0.05, -0.3], 'g_red', o2); RB.box([-0.12, -0.01, 0.12], [0.12, 0.01, 0.25], 'g_steel', o2);
+        RB.box([-0.065, -0.065, -0.22], [0.065, 0.065, -0.17], 'g_gold', o2); RB.box([-0.065, -0.065, -0.08], [0.065, 0.065, -0.03], 'g_gold', o2); rkGeo = RB.build();
+        const BB = new BZ.Builder('bomblet'); BB.box([-0.11, -0.11, -0.11], [0.11, 0.11, 0.11], 'g_red', o2); BB.box([-0.12, -0.035, -0.12], [0.12, 0.035, 0.12], 'g_gold', o2); bmGeo = BB.build();
+      }
+      const m = rkGeo.clone(); m.position.copy(from); m.lookAt(from.clone().add(dir)); m.rotateY(Math.PI); G.scene.add(m); G.fx.halo(m, 0xffa040, 0.9).position.z = 0.4;
+      rockets.push({ kind: 'rocket', m, pos: from.clone(), vel: dir.clone().multiplyScalar(40), g: 1.5, age: 0, fake: !!fake });
+    }
+    function split(at, vel, onHit, fake) {
+      const fwd = V().copy(vel).normalize(); const side = V().set(fwd.z, 0, -fwd.x); if (side.lengthSq() < 1e-6) side.set(1, 0, 0); side.normalize();
+      G.fx.pop(at, 0.8, [0xffd060, 0xff6a20]); G.audio.playAt('rack', at, { gain: 0.9, rate: 1.5 }); G.audio.playAt('impact', at, { gain: 0.7, rate: 1.3 });
+      if (!fake) SG.splits++;
+      // struck early: the warhead still bursts where it hit and the bomblets come off smaller; split in flight they carry it all
+      const k = G.hero ? G.hero.blastMul() : 1;
+      if (onHit && !fake) { G.gear.explode(at.clone(), 5 * k, 220 * k); SG.booms++; }
+      for (let j = 0; j < 3; j++) {
+        const off = j - 1;
+        const v = onHit ? fwd.clone().multiplyScalar(off ? -1.5 : 1.5).addScaledVector(side, off * 5.5).add(V().set(0, 4.5, 0)) : fwd.clone().multiplyScalar(24).addScaledVector(side, off * 4.5).add(V().set(0, 1.5, 0));
+        const m = bmGeo.clone(); m.position.copy(at); G.scene.add(m); G.fx.halo(m, 0xffa040, 0.9);
+        rockets.push({ kind: 'bomb', m, pos: at.clone().addScaledVector(fwd, onHit ? -0.25 : 0), vel: v, g: 16, age: 0, fuse: onHit ? 0.24 + j * 0.05 : 1.8, fake: !!fake, R: onHit ? 3.2 : 3.6, dmg: onHit ? 110 : 165 });
+      }
+    }
+    function stepRockets(dt) {
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const s = rockets[i]; s.age += dt; s.vel.y -= s.g * dt;
+        const step = s.vel.length() * dt; const dir = V().copy(s.vel).normalize();
+        const wh = G.world.raycast(s.pos, dir, step + 0.2); let hit = wh ? wh.t : null;
+        if (s.kind === 'rocket' || s.age > 0.1) { const zh = G.zombies.hitTest(s.pos, dir, wh ? wh.t : step + 0.3); if (zh) hit = zh.t; }
+        if (s.kind === 'rocket') G.fx.trail(s.pos.clone().addScaledVector(dir, -0.4)); else G.fx.streak(s, s.pos, s.vel, 0xffe070, 0xff5010, 0.22, dt, 30);
+        const end = hit !== null || (s.kind === 'rocket' ? s.age >= 0.35 : s.age >= s.fuse || s.pos.y < 0.08) || s.age > 4 || s.pos.y < -1;
+        if (end) {
+          const at = hit !== null ? s.pos.clone().addScaledVector(dir, Math.max(0, hit - 0.1)) : s.pos.clone();
+          G.scene.remove(s.m); rockets.splice(i, 1);
+          if (s.kind === 'rocket') split(at, s.vel, hit !== null, s.fake);
+          else if (!s.fake) { const k = G.hero ? G.hero.blastMul() : 1; G.gear.explode(at, s.R * k, s.dmg * k); SG.booms++; }
+          continue;
+        }
+        s.pos.addScaledVector(s.vel, dt); s.m.position.copy(s.pos);
+        if (s.kind === 'rocket') { s.m.lookAt(s.pos.clone().add(s.vel)); s.m.rotateY(Math.PI); } else { s.m.rotation.x += dt * 9; s.m.rotation.z += dt * 6; }
+      }
+    }
+
+    // ---- Băng: the shatter burst (the reaction itself is the zombies' own, set off by the shock) ----
+    function shatterFx(z) {
+      const at = chestOf(z);
+      G.fx.burst(at, 30, [0xf4fbff, 0xbfe6ff, 0x7fd4ff, 0xffffff], { speed: 6, size: 0.13, life: 0.9 });
+      G.fx.puff(at, { glow: true, s0: 1.2, s1: 4, life: 0.3, c0: 0xffffff, c1: 0x60c8ff, a0: 1.2 });
+      for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; G.fx.puff(at.clone(), { glow: true, vel: V().set(Math.cos(a) * 6, G.rng.range(0, 2), Math.sin(a) * 6), drag: 3, s0: 0.35, s1: 0.05, life: 0.45, c0: 0xffffff, c1: 0x7fd4ff, a0: 1, spin: 0 }); }
+      G.audio.playAt('clank', at, { gain: 1, rate: 1.8 }); G.hitStop = Math.max(G.hitStop || 0, 0.08); SG.shatters = (SG.shatters || 0) + 1;
+    }
+
+    // ---- Hoả: the uppercut lights a 3.5 m ring of fire around him (his suit is fireproof) ----
+    const rings = [];
+    function fireRing(pos, fake) {
+      const g = V().set(pos.x, pos.y, pos.z); const R = 3.5;
+      G.zombies.kinds.hazard('fire', g, R, 3, true);
+      for (let k = 0; k < 28; k++) { const a = (k / 28) * Math.PI * 2; const c = Math.cos(a); const s = Math.sin(a);
+        G.fx.puff(V().set(g.x + c * 0.6, g.y + 0.3, g.z + s * 0.6), { glow: true, vel: V().set(c * 9, 1.2, s * 9), drag: 2.6, s0: 0.9, s1: 0.3, life: 0.55, c0: 0xffe080, c1: 0xff3a10, a0: 1.1, spin: 0 }); }
+      for (let k = 0; k < 22; k++) { const a = (k / 22) * Math.PI * 2; G.fx.puff(V().set(g.x + Math.cos(a) * R * 0.9, g.y + 0.2, g.z + Math.sin(a) * R * 0.9), { glow: true, delay: 0.1 + G.rng.range(0, 0.1), vel: V().set(0, 2.6, 0), drag: 1, s0: 1.0, s1: 0.2, life: 0.8, c0: 0xffe080, c1: 0xff3a10, a0: 1 }); }
+      G.fx.puff(V().set(g.x, g.y + 0.5, g.z), { glow: true, s0: 1.5, s1: 6, life: 0.25, c0: 0xffe8a0, c1: 0xff5010, a0: 1 });
+      G.audio.playAt('boom', g, { gain: 0.55, rate: 1.7 });
+      if (fake) return;
+      rings.push({ p: g, r: R, t: 3, acc: 0.5 });
+      for (const z of G.zombies.list) { if (!z.alive) continue; const dx = z.pos.x - g.x; const dz = z.pos.z - g.z; const l = Math.hypot(dx, dz); if (l > R || Math.abs(z.pos.y - g.y) > 1.6 || !z.vel) continue; z.vel.x += (dx / (l || 1)) * 1.5; z.vel.z += (dz / (l || 1)) * 1.5; }
+    }
+    // ---- Độc: each glaive swing leaves poison clouds along its arc for 3 s ----
+    const clouds = [];
+    function poisonArc(pos, fx, fz, pat, fake) {
+      const base = Math.atan2(fx, fz); const pts = pat === 'spin360' ? [0, 1, 2, 3, 4, 5].map((k) => (k / 6) * Math.PI * 2) : [-0.75, 0, 0.75];
+      const r = pat === 'spin360' ? 2.4 : 2.2;
+      for (const a of pts) {
+        const p = V().set(pos.x + Math.sin(base + a) * r, pos.y + 0.5, pos.z + Math.cos(base + a) * r);
+        if (clouds.length >= 12) clouds.shift();
+        clouds.push({ p, r: 1.4, t: 3, acc: 0, fake: !!fake });
+        G.fx.puff(p.clone(), { vel: V().set(0, 0.4, 0), drag: 1.2, s0: 0.6, s1: 2.0, life: 1.0, c0: 0xb8ff70, c1: 0x3a8a20, a0: 0.6 });
+      }
+    }
+    function stepAreas(dt) {
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const h = rings[i]; h.t -= dt; h.acc += dt; if (h.t <= 0) { rings.splice(i, 1); continue; }
+        if (h.acc < 0.5) continue; h.acc = 0;
+        for (const z of G.zombies.list) { if (!z.alive) continue; const dx = z.pos.x - h.p.x; const dz = z.pos.z - h.p.z; if (Math.hypot(dx, dz) > h.r || Math.abs(z.pos.y - h.p.y) > 1.6) continue; G.zombies.damage(z, 3, 'body', V().set(dx, 0, dz).normalize(), 0.1, { status: [['burn', 0.5]] }); }
+      }
+      for (let i = clouds.length - 1; i >= 0; i--) {
+        const c = clouds[i]; c.t -= dt; c.acc += dt; if (c.t <= 0) { clouds.splice(i, 1); continue; }
+        if (G.rng.chance(dt * 5)) G.fx.puff(c.p.clone().add(V().set(G.rng.range(-0.8, 0.8), G.rng.range(-0.3, 0.4), G.rng.range(-0.8, 0.8))), { vel: V().set(G.rng.range(-0.2, 0.2), 0.25, G.rng.range(-0.2, 0.2)), drag: 1, s0: 0.7, s1: 1.7, life: 1.3, c0: 0xa8ff60, c1: 0x2a6a18, a0: 0.4 * Math.min(1, c.t) });
+        if (c.fake || c.acc < 0.5) continue; c.acc = 0;
+        for (const z of G.zombies.list) { if (!z.alive) continue; if (Math.hypot(z.pos.x - c.p.x, z.pos.z - c.p.z) > c.r + 0.3 * z.T.scale || z.pos.y > c.p.y + 1 || z.pos.y + 2 * z.T.scale < c.p.y - 1) continue; G.zombies.damage(z, 2, 'body', V().set(0, 0, 1), 0, { status: [['poison', 1]] }); c.ticks = (c.ticks || 0) + 1; SG.cloudTicks = (SG.cloudTicks || 0) + 1; }
+      }
+    }
+
+    // ---- Sấm: the javelin's impact jumps as lightning to the 4 nearest zombies within 7 m ----
+    function chainLightning(z, at, dmg, fake) {
+      const near = G.zombies.list.filter((q) => q !== z && q.alive && q.pos.distanceTo(z.pos) < 7).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos)).slice(0, 4);
+      G.fx.puff(at.clone(), { glow: true, s0: 1.6, s1: 5.5, life: 0.2, c0: 0xffffff, c1: 0x80c0ff, a0: 1.3 });
+      G.fx.muzzle(at.clone()); G.audio.playAt('saber_hit', at, { gain: 0.9, rate: 2.2 }); G.audio.playAt('boom', at, { gain: 0.35, rate: 2.6 });
+      let from = at;
+      for (const q of near) {
+        const b = chestOf(q); G.fx.bolt(at, b, 0x4a9cff); G.fx.arc(from, b, 0xbfe4ff);
+        G.fx.burst(b, 6, [0xffffff, 0x9ad8ff], { speed: 3, size: 0.05, life: 0.3 });
+        if (!fake) { const died = G.zombies.damage(q, dmg, 'body', V().subVectors(b, at).setY(0).normalize(), 0.6, { status: [['shock', 1]] }); G.events.emit('hit', { z: q, dmg: Math.round(dmg), part: 'body', died, chain: true }); }
+        from = b;
+      }
+      if (!fake) SG.chainN = near.length;
+    }
+
+    // ---- Kỹ Sư: a nail that hits a zombie with a wall close behind it drives it into the wall and pins it there ----
+    const pins = []; const nails = []; const nailGeo = new THREE.BoxGeometry(0.03, 0.03, 0.26); const nailMat = new THREE.MeshLambertMaterial({ color: 0xc0ccd8, emissive: 0x202830 });
+    function pinZ(z, pin, died) {
+      const n = new THREE.Mesh(nailGeo, nailMat); n.position.copy(pin.at).addScaledVector(pin.dh, -0.08); n.lookAt(pin.at.clone().add(pin.dh)); G.scene.add(n); nails.push({ m: n, t: 1.6 });
+      if (nails.length > 12) G.scene.remove(nails.shift().m);
+      G.fx.burst(pin.at.clone(), 14, [0xfff6c0, 0xffd080, 0xd0e0f0], { dir: pin.dh.clone().negate(), push: 4, speed: 4, size: 0.04, life: 0.4 });
+      G.fx.puff(pin.at.clone(), { glow: true, s0: 0.5, s1: 0.2, life: 0.08, c0: 0xffffff, c1: 0xffc060, a0: 1 });
+      G.audio.playAt('clank', pin.at, { gain: 0.8, rate: G.rng.range(1.3, 1.6) });
+      if (died || z.T.boss || !z.alive) return;
+      SG.pinned++;
+      if (guest()) return;
+      const k = Math.max(0, pin.t - 0.35); const old = pins.find((p) => p.z === z);
+      const tgt = { z, x: z.pos.x + pin.dh.x * k, zz: z.pos.z + pin.dh.z * k, t: 1.2 };
+      if (old) Object.assign(old, tgt); else pins.push(tgt);
+      z.slowT = Math.max(z.slowT || 0, 1.4);
+    }
+    function stepPins(dt) {
+      for (let i = nails.length - 1; i >= 0; i--) { const n = nails[i]; n.t -= dt; if (n.t <= 0) { G.scene.remove(n.m); nails.splice(i, 1); } }
+      for (let i = pins.length - 1; i >= 0; i--) {
+        const p = pins[i]; p.t -= dt; const z = p.z; if (!z.alive || p.t <= 0) { pins.splice(i, 1); continue; }
+        const k = 1 - Math.exp(-22 * dt); z.pos.x += (p.x - z.pos.x) * k; z.pos.z += (p.zz - z.pos.z) * k; if (z.vel) { z.vel.x = 0; z.vel.z = 0; }
+      }
+    }
+
+    // ---- per frame: timers, the shield, the blink, the heat, everything flying or lingering, and the HUD bar ----
+    function sigUpdate(dt, input, w) {
+      const P = G.player; SG.t += dt;
+      for (let i = SG.later.length - 1; i >= 0; i--) { const L = SG.later[i]; L.t -= dt; if (L.t <= 0) { SG.later.splice(i, 1); L.f(); } }
+      const wantGuard = S.cur === 'longsword' && input.ads && S.phase === 'ready' && P.alive;
+      S.guard = BZ.damp(S.guard, wantGuard ? 1 : 0, 16, dt); if (S.guard < 0.01) S.guard = 0;
+      if (S.guard > 0.5) { P.slowT = Math.max(P.slowT || 0, 0.05); P.sprinting = false; }
+      SG.blockT = Math.max(0, SG.blockT - dt);
+      SG.tpCd = Math.max(0, SG.tpCd - dt);
+      if (S.cur === 'shuriken') { if (input.ads && !SG.altHeld && S.phase === 'ready') blink(); SG.altHeld = input.ads; } else SG.altHeld = false;
+      if (SG.mark) { const z = SG.mark.z; SG.mark.t -= dt; if (!z.alive || SG.mark.t <= 0) SG.mark = null; }
+      markSpr.visible = !!SG.mark && G.state === 'playing';
+      if (SG.mark) { const z = SG.mark.z; const blinkOff = SG.mark.t < 1 && Math.sin(SG.mark.t * 30) < 0; markSpr.position.set(z.pos.x, z.pos.y + (z.crawl ? 1.2 : 2.45) * z.T.scale, z.pos.z); markSpr.scale.setScalar(0.62 + Math.sin(SG.t * 7) * 0.06); markSpr.material.rotation += dt * 2; markSpr.material.opacity = blinkOff ? 0.25 : 1; }
+      if (SG.jamT > 0) {
+        SG.jamT -= dt; SG.heat = Math.max(0.45, SG.heat - dt * 0.45);
+        if (S.cur === 'minigun' && G.rng.chance(dt * 30)) { const m = muzzleNow(V()); G.fx.puff(m.add(V().set(G.rng.range(-0.1, 0.1), 0, G.rng.range(-0.1, 0.1))), { vel: V().set(G.rng.range(-0.3, 0.3), 1.6, G.rng.range(-0.3, 0.3)), drag: 1.2, s0: 0.25, s1: 1.1, life: 0.9, c0: 0xf4f8fc, c1: 0xb8c0c8, a0: 0.55 }); }
+        if (SG.jamT <= 0) { SG.jamT = 0; SG.heat = 0.45; G.audio.play('rack', { gain: 0.8 }); }
+      } else if (!(S.cur === 'minigun' && input.fire && S.spin >= 1)) SG.heat = Math.max(0, SG.heat - dt * 0.3);
+      stepBlades(dt); stepRockets(dt); stepAreas(dt); stepPins(dt);
+      sigHud();
+    }
+    // ---- per frame, after the viewmodel is posed: the shield, the burning gloves, the glowing barrels, the third-person body ----
+    function sigPose(dt) {
+      const P = G.player;
+      shieldVm.visible = S.cur === 'longsword' && P.alive;
+      if (shieldVm.visible) {
+        const k = ease(BZ.clamp(S.guard, 0, 1)); shieldVm.position.lerpVectors(SHV.lo, SHV.hi, k); shieldVm.quaternion.slerpQuaternions(SHV.qlo, SHV.qhi, k);
+        shieldVm.position.y -= S.drop.x * 0.4 + S.sprintK * 0.08; shieldVm.position.z += SG.blockT * 0.25;
+        flashMats(shieldVm, SG.blockT / 0.22);
+      }
+      if (S.cur === 'fists' && models.fists.visible) {
+        rig.updateMatrixWorld(true); const U = models.fists.userData.parts;
+        for (const h of [U.handR, U.handL]) if (G.rng.chance(dt * 45)) {
+          if (sparks.length >= 48) sparks.shift();
+          const p = h.localToWorld(V().set(G.rng.range(-0.04, 0.04), G.rng.range(0.0, 0.05), G.rng.range(-0.08, 0.02)));
+          sparks.push({ p, v: V().set(G.rng.range(-0.15, 0.15), G.rng.range(0.5, 1.0), G.rng.range(-0.15, 0.15)), life: 0, max: G.rng.range(0.18, 0.36), s: G.rng.range(0.01, 0.02), c: G.rng.pick([0xffe070, 0xffa030, 0xff5a10]) });
+        }
+      }
+      heatGlow(models.minigun.userData.barrels, SG.jamT > 0 ? 1 : SG.heat);
+      if (models.spear.userData.parts.glow) models.spear.userData.parts.glow.material.opacity = 0.6 + Math.sin(SG.t * 5) * 0.12;
+      const T = G.tps; if (T && T.on && T.model) {
+        bodyFx(T.model, S.cur, dt, { heat: SG.jamT > 0 ? 1 : SG.heat });
+      }
+    }
+    // the look on a hero body (third person and the other players): burning gloves, hot barrels
+    function bodyFx(m, wid, dt, st) {
+      if (wid === 'fists' && m.root.visible) for (const h of [m.handR, m.handL]) if (G.rng.chance(dt * 16)) {
+        const p = h.getWorldPosition(V()); G.fx.puff(p.add(V().set(G.rng.range(-0.06, 0.06), 0, G.rng.range(-0.06, 0.06))), { glow: true, vel: V().set(0, 1.3, 0), s0: 0.24, s1: 0.05, life: 0.35, c0: 0xffd060, c1: 0xff3a10, a0: 1 });
+      }
+      if (wid === 'minigun' && m.gun) heatGlow(m.gun.getObjectByName('barrels'), st && st.heat || 0);
+    }
+    // another player's swing, seen here: the same wind blade, fire ring, poison clouds or ice burst, hurting nobody
+    function remoteSwing(a, pi) {
+      const W = BZ.WEAPONS[a.weapon]; if (!W || !W.melee) return;
+      const fx = -Math.sin(a.yaw); const fz = -Math.cos(a.yaw); const pat = W.combo[pi]; const pos = a.pos.clone();
+      SG.later.push({ t: W.hitAt, f: () => {
+        if (a.weapon === 'katana' && pi === 2) windBlade(V().set(pos.x + fx * 0.8, pos.y + 1.2, pos.z + fz * 0.8), V().set(fx, 0, fz), W, true);
+        else if (a.weapon === 'fists' && pi === 2) fireRing(pos, true);
+        else if (a.weapon === 'glaive') poisonArc(pos, fx, fz, pat, true);
+        else if (a.weapon === 'spear') G.fx.puff(V().set(pos.x + fx * 3, pos.y + 1.3, pos.z + fz * 3), { glow: true, s0: 0.6, s1: 1.6, life: 0.2, c0: 0xffffff, c1: 0x7fd4ff, a0: 0.9 });
+      } });
+    }
+    const hud = { el: null, k: '' };
+    function sigHud() {
+      if (!hud.el) { hud.el = document.getElementById('sigbar'); if (!hud.el) return; hud.lab = hud.el.querySelector('small'); hud.bar = hud.el.querySelector('i'); }
+      const alt = document.body.classList.contains('touch') ? 'NÚT NGẮM' : 'CHUỘT PHẢI';
+      let label = ''; let frac = 0; let cls = '';
+      if (S.cur === 'minigun') { label = SG.jamT > 0 ? 'KẸT ĐẠN · XẢ HƠI' : SG.heat > 0.6 ? 'NÓNG · ĐẠN LỬA' : 'NHIỆT NÒNG'; frac = SG.jamT > 0 ? SG.jamT / 1.2 : SG.heat; cls = SG.jamT > 0 ? 'jam' : SG.heat > 0.6 ? 'hot' : 'heat'; }
+      else if (S.cur === 'shuriken') { const rdy = SG.tpCd <= 0; label = !rdy ? 'DỊCH CHUYỂN ' + SG.tpCd.toFixed(1) + ' s' : SG.mark ? alt + ' · DỊCH CHUYỂN' : 'DỊCH CHUYỂN · CẦN ĐÁNH DẤU'; frac = rdy ? 1 : 1 - SG.tpCd / 6; cls = rdy && SG.mark ? 'ready' : 'cd'; }
+      else if (S.cur === 'longsword') { label = S.guard > 0.5 ? 'GIƠ KHIÊN · CHẶN 80%' : alt + ' · GIƠ KHIÊN'; frac = S.guard; cls = 'shield'; }
+      const key = label + cls + Math.round(frac * 40);
+      if (key === hud.k) return; hud.k = key;
+      hud.el.className = label ? 'on ' + cls : ''; if (!label) return;
+      hud.lab.textContent = label; hud.bar.style.width = (frac * 100).toFixed(1) + '%';
+    }
+    function sigReset() {
+      for (const b of blades) drop(b.g); blades.length = 0;
+      for (const r of rockets) G.scene.remove(r.m); rockets.length = 0;
+      for (const n of nails) G.scene.remove(n.m); nails.length = 0;
+      rings.length = 0; clouds.length = 0; pins.length = 0; SG.later.length = 0; SG.healCd.clear();
+      Object.assign(SG, { heat: 0, jamT: 0, mark: null, tpCd: 0, sureCrit: false, altHeld: false, blockT: 0, chainN: 0 });
+      S.guard = 0; markSpr.visible = false;
+    }
+
     function fire() {
       const w = W(); const a = ammo(); const P = G.player;
       if (a.mag <= 0) { G.audio.play('empty'); S.cool = 0.25; if (a.reserve > 0) startReload(); return; }
@@ -697,10 +1116,14 @@
       const spread = (w.spread + w.moveSpread * moving) * (1 - S.ads * 0.6) + S.bloom + (G.env ? G.env.spread : 0);
       if (w.thrown) { launch(w, storm, spread); if (a.mag === 0 && a.reserve > 0) S.autoReload = 0.25; return; }
       let anyHit = false; let head = false;
+      // Y Tá's left pistol fires healing darts; Mưa's minigun heats up, past 60% its rounds burn; Kỹ Sư's shotgun fires nails
+      const dart = S.cur === 'dualpistol' && side === 1; const nails = S.cur === 'shotgun';
+      const hot = !!w.spinUp && SG.heat > 0.6;
+      if (w.spinUp) { SG.heat = Math.min(1, SG.heat + 1 / 95); if (SG.heat >= 1) jam(); }
       if (w.rocket) {
         const from = new THREE.Vector3().copy(o).addScaledVector(d, 1.0); if (!(G.tps && G.tps.on)) from.addScaledVector(right, 0.15).addScaledVector(up, -0.05);
         const aim = d.clone().addScaledVector(right, (G.rng.next() - 0.5) * spread).addScaledVector(up, (G.rng.next() - 0.5) * spread).normalize();
-        G.gear.fireRocket(from, aim);
+        clusterRocket(from, aim, false);
       }
       const muzzleW = new THREE.Vector3().copy(o).addScaledVector(d, 0.6).addScaledVector(right, side ? -0.18 : 0.18).addScaledVector(up, -0.12); if (G.tps) G.tps.muzzle(muzzleW, side);
       const pend = new Map();
@@ -719,8 +1142,9 @@
           const mult = h.part === 'head' ? w.head : h.part === 'leg' ? 0.7 : 1;
           const fall = w.pellets > 1 ? BZ.clamp(1.25 - h.t / w.range, 0.35, 1) : 1;
           const e = pend.get(h.z) || { dmg: 0, part: 'leg', dir, imp: 0, crit: false };
-          const crit = G.rng.chance((w.crit || 0.08) + G.build.critAdd() + G.hero.critAdd()); if (crit) e.crit = true;
-          e.dmg += w.dmg * G.build.dmgMul() * G.hero.dmgMul() * mult * fall * power * (crit ? G.build.critMul() : 1); e.imp += (w.impulse || 1) * fall * power;
+          const crit = rollCrit(w); if (crit) e.crit = true;
+          e.dmg += w.dmg * (dart ? 0.6 : 1) * G.build.dmgMul() * G.hero.dmgMul() * mult * fall * power * (crit ? G.build.critMul() : 1); e.imp += (w.impulse || 1) * fall * power;
+          if (nails && !e.pin && p === 0) { const zc = chestOf(h.z); const dh = V().set(dir.x, 0, dir.z).normalize(); const ww = G.world.raycast(zc, dh, 1.8); if (ww) e.pin = { t: ww.t, dh, at: zc.clone().addScaledVector(dh, ww.t) }; }
           if (h.part === 'head' || (h.part === 'body' && e.part === 'leg')) e.part = h.part;
           pend.set(h.z, e);
           anyHit = true; head = head || h.part === 'head';
@@ -737,11 +1161,14 @@
           if (G.destruct) G.destruct.hit(wh.s, end, w.dmg || 20);
           if (i === 0) G.audio.playAt('impact', end, { gain: 0.5 });
         }
-        if ((w.tracer && S.shots % w.tracer === 0 && i === 0) || (storm && i >= w.pellets)) G.fx.tracer(muzzleW, end);
+        if (dart) { G.fx.tracer(muzzleW, end, 0x50ff70); G.fx.puff(end, { glow: true, s0: 0.35, s1: 0.1, life: 0.15, c0: 0xd0ffd0, c1: 0x40e060, a0: 1 }); healAlong(o, end); }
+        else if (nails && i < 2) G.fx.tracer(muzzleW, end, 0xa0b8d0);
+        else if ((w.tracer && S.shots % w.tracer === 0 && i === 0) || (storm && i >= w.pellets)) G.fx.tracer(muzzleW, end, hot ? 0xff5010 : undefined);
       }
       let kills = 0;
       for (const [z, e] of pend) {
-        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp, { status: G.build.onHit(z, e.dmg, false) });
+        const died = G.zombies.damage(z, e.dmg, e.part, e.dir, e.imp, { status: G.build.onHit(z, e.dmg, false).concat(hot ? [['burn', 1]] : []) });
+        if (e.pin) pinZ(z, e.pin, died);
         if (died) kills++;
         G.events.emit('hit', { z, dmg: Math.round(e.dmg), part: e.part, died, crit: e.crit });
       }
@@ -749,7 +1176,7 @@
       G.audio.play(w.snd, { gain: 1 }); G.audio.duck();
       G.fx.muzzle(muzzleW);
       const m = models[S.cur]; const fl = side ? m.userData.flashL : m.userData.flash; fl.visible = true; fl.rotation.z = G.rng.next() * 3; S.flashT = 0.045;
-      emitSparks(S.cur === 'shotgun' ? 14 : w.spinUp ? 3 : 6, side);
+      emitSparks(S.cur === 'shotgun' ? 14 : w.spinUp ? 3 : 6, side, dart ? [0xd0ffd0, 0x60ff70, 0x30c050] : hot ? [0xffe070, 0xff6a10, 0xff3a00] : null);
       if (S.cur !== 'shotgun' && !w.rocket && !(w.spinUp && S.shots % 2)) ejectCasing(side);
       if (w.rocket) { G.fx.burst(new THREE.Vector3().copy(o).addScaledVector(d, -0.6), 10, [0xd0d0d0, 0xa0a0a0, 0xffb040], { speed: 2, size: 0.25, life: 0.9, grav: -0.5, drag: 0.8, bounce: 0 }); }
       // feel: spring kicks + camera pitch kick
@@ -766,7 +1193,7 @@
       const w = W(); const a = ammo(); const P = G.player;
       S.cool -= dt; S.bloom = Math.max(0, S.bloom - dt * 0.12);
       if (S.flashT > 0) { S.flashT -= dt; if (S.flashT <= 0) { const U = models[S.cur].userData; U.flash.visible = false; if (U.flashL) U.flashL.visible = false; } }
-      stepProjs(dt);
+      stepProjs(dt); sigUpdate(dt, input, w);
       const wantAds = input.ads && S.phase === 'ready' && !P.sprinting && !w.melee && !w.noAds;
       S.ads = BZ.damp(S.ads, wantAds ? 1 : 0, 14, dt);
 
@@ -803,12 +1230,12 @@
       else {
         S.hideT = Math.max(0, S.hideT - dt); S.thrT += dt;
         if (w.spinUp) {
-          const want = input.fire && S.phase === 'ready' && P.alive && !P.sprinting && a.mag > 0;
+          const want = input.fire && S.phase === 'ready' && P.alive && !P.sprinting && a.mag > 0 && !(SG.jamT > 0);
           if (want && S.spin === 0) G.audio.play('saber_on', { gain: 0.45, rate: 2.4 });
           S.spin = BZ.clamp(S.spin + (want ? dt / w.spinUp : -dt / (w.spinUp * 3)), 0, 1);
           S.spinAng = (S.spinAng + S.spin * dt * 46) % (Math.PI * 2);
         }
-        const canFire = S.phase === 'ready' && S.cool <= 0 && P.alive && !P.sprinting && (!w.spinUp || S.spin >= 1);
+        const canFire = S.phase === 'ready' && S.cool <= 0 && P.alive && !P.sprinting && (!w.spinUp || (S.spin >= 1 && !(SG.jamT > 0)));
         if (w.windup) {
           if (S.wind) { S.wind.t += dt; if (S.wind.t >= w.windup) { S.wind = null; if (S.phase === 'ready' && P.alive) fire(); } }
           else if (input.fire && canFire && (w.auto || !S.held)) { if (a.mag > 0) { S.wind = { t: 0 }; S.thrT = 0; } else fire(); }
@@ -849,7 +1276,9 @@
         applyPose(p, tmpV);
         if (S.drop.x > 0) rig.rotateX(-S.drop.x * 0.8);
         if (wm.hold === 'fists') fistPose(wm);
+        if (S.guard > 0) { rig.position.x += 0.07 * S.guard; rig.position.y -= 0.12 * S.guard; rig.rotateZ(-0.35 * S.guard); }
       }
+      sigPose(dt);
       updateTrail(dt, wm);
       const saberOn = S.cur === 'saber' && S.phase !== 'holster' && P.alive;
       saberLight.intensity = saberOn ? 2.4 + Math.sin(performance.now() / 45) * 0.25 + (S.swing ? 1.2 : 0) : 0;
@@ -924,8 +1353,10 @@
       S.cur = K[0]; S.next = null; S.phase = 'draw'; S.t = 0; models[K[0]].visible = true; S.ads = 0; S.bloom = 0; S.shots = 0; S.hits = 0; S.pumpT = 0; S.cycle = 9;
       S.spin = 0; S.spinAng = 0; S.wind = null; S.hideT = 0; S.thrT = 9; S.side = 1; S.cyc = [9, 9]; S.lastPat = 'r2l';
       for (const q of projs) G.scene.remove(q.m); projs.length = 0;
+      sigReset();
     }
 
-    return { S, state, WEAPONS, ORDER, cosmeticThrow, magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    const sig = () => ({ ...SG, guard: S.guard, blades: blades.length, rockets: rockets.length, rings: rings.slice(), clouds: clouds.slice(), pins: pins.slice() });
+    return { S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();
