@@ -69,39 +69,37 @@ const BOT = `(() => {
     for (let i = 0; i < 900; i++) {
       await page.evaluate(BOT);
       await page.evaluate('window.__sim(0.05, 1/60)');
-      if (i % 40 === 0) log.push(await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: Math.round(__G.player.hp), k: __G.kills, c: __G.coins, alive: __G.zombies.aliveCount()})'));
+      if (i % 40 === 0) log.push(await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: Math.round(__G.player.hp), k: __G.kills, alive: __G.zombies.aliveCount()})'));
       if (i === 120) await page.screenshot({ path: path.join(OUT, '03-fight.png') });
-      if (await page.evaluate('__G.state') === 'dead' || await page.evaluate("__G.wave.phase === 'break'")) break;
+      if (await page.evaluate('__G.state') === 'dead' || await page.evaluate("__G.wave.phase === 'pick'")) break;
     }
     console.log('bot log', JSON.stringify(log));
-    const st = await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: __G.player.hp, kills: __G.kills, coins: __G.coins, state: __G.state, shots: __G.weapons.S.shots, hits: __G.weapons.S.hits})');
+    const st = await page.evaluate('({w: __G.wave.n, ph: __G.wave.phase, hp: __G.player.hp, kills: __G.kills, state: __G.state, shots: __G.weapons.S.shots, hits: __G.weapons.S.hits})');
     console.log('after bot', JSON.stringify(st), 'wall ms', Date.now() - t0);
     check(st.kills >= 22, `bot killed the first wave (kills=${st.kills})`);
     check(st.hits > 0 && st.hits <= st.shots, `hit accounting sane (hits ${st.hits}/${st.shots})`);
 
-    // shop: force a break, buy the shotgun
-    await page.evaluate("(() => { const G = __G; if (G.state !== 'playing') { G.player.hp = 100; G.player.alive = true; G.state = 'playing'; } G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; G.coins = 1000; })()");
+    // a cleared wave: three upgrade cards, the pick is free and the next wave starts right after it
+    await page.evaluate("(() => { const G = __G; if (G.state === 'dead') { G.player.hp = 100; G.player.alive = true; G.state = 'playing'; } G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; })()");
     await page.evaluate('window.__sim(0.1)');
-    check(await page.evaluate('__G.wave.phase') === 'break', 'wave ends into a break');
-    await page.keyboard.press('KeyB');
-    await page.waitForTimeout(300);
-    check(await page.evaluate('__G.state') === 'shop', 'B opens the shop during the break');
-    await page.screenshot({ path: path.join(OUT, '04-shop.png') });
-    const before = await page.evaluate('__G.coins');
-    await page.click('[data-up="dmg"]');
-    const after = await page.evaluate("({ lv: __G.build.lv('dmg'), c: __G.coins, cards: document.querySelectorAll('#shop-list .up').length })");
-    check(after.lv >= 1 && before - after.c > 0 && after.cards >= 5, `the shop sells upgrades only: damage level ${after.lv} for ${before - after.c} coins (${after.cards} cards)`);
-    check(await page.evaluate("!document.querySelector('[data-buy]')"), 'no weapon is for sale in the shop');
-    await page.click('[data-act="closeshop"]');
-    await page.evaluate('window.__sim(0.6)');
+    const pk = await page.evaluate("({ phase: __G.wave.phase, state: __G.state, n: __G.wave.n, cards: [...document.querySelectorAll('#pick-list [data-pick]')].map((b) => b.dataset.pick), coins: !!document.getElementById('coins'), shop: !!document.getElementById('shop') })");
+    check(pk.phase === 'pick' && pk.state === 'pick' && pk.cards.length === 3 && new Set(pk.cards).size === 3, `a cleared wave offers three different upgrades (${pk.cards.join(', ')})`);
+    check(!pk.coins && !pk.shop, 'there is no shop and no coin counter');
     await page.waitForTimeout(500);
-    await page.screenshot({ path: path.join(OUT, '05-after-shop.png') });
+    await page.screenshot({ path: path.join(OUT, '04-pick.png') });
+    const lv0 = await page.evaluate((id) => window.__G.build.lv(id), pk.cards[1]);
+    await page.keyboard.press('Digit2');
+    await page.evaluate('window.__sim(0.3)');
+    const pk2 = await page.evaluate((id) => ({ lv: window.__G.build.lv(id), state: window.__G.state, n: window.__G.wave.n, phase: window.__G.wave.phase }), pk.cards[1]);
+    check(pk2.lv === lv0 + 1 && pk2.state === 'playing' && pk2.n === pk.n + 1 && pk2.phase === 'fight', `key 2 takes the second card (level ${lv0} -> ${pk2.lv}) and wave ${pk2.n} starts at once`);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: path.join(OUT, '05-after-pick.png') });
 
-    // bomb kills a cluster; turret shoots on its own; jetpack lifts the player
-    const gear = await page.evaluate(`(() => { const G = __G; G.wave.breakT = 0.01; __sim(0.2); G.zombies.clear();
+    // an explosion kills a cluster; turret shoots on its own; jetpack lifts the player
+    const gear = await page.evaluate(`(() => { const G = __G; __sim(0.2); G.zombies.clear();
       const P = G.player; P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = -0.75; P.hp = 100; P.alive = true; G.state = 'playing';
       for (let i = 0; i < 4; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 2, dir: [0, -1], name: 't' }); z.pos.set(-0.6 + i * 0.4, 0, 5.2); z.speed = 0; }
-      __sim(0.05); const k0 = G.kills; G.gear.throwBomb(); __sim(2.2); const bombKills = G.kills - k0;
+      __sim(0.05); const k0 = G.kills; G.gear.explode(new G.THREE.Vector3(0, 0.5, 5.2), 5.5, 220); __sim(0.5); const bombKills = G.kills - k0;
       G.build.L.eng = 1; P.yaw = Math.PI / 2; G.events.emit('wave:start', 2); const t = G.gear.turrets[0]; const a0 = t ? t.ammo : -1;
       const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(-4, 0, 8.5); z.speed = 0; __sim(1.5);
       const fired = t ? a0 - t.ammo : 0;
@@ -109,11 +107,11 @@ const BOT = `(() => {
       P.pos.set(0, 0, 8); P.vel.set(0, 0, 0); P.jumpBuf = 0.13; P.touchJet = true; __sim(1.2); const h = P.pos.y; P.touchJet = false;
       return { bombKills, fired, h: +h.toFixed(2), fuel: Math.round(P.fuel) }; })()`);
     console.log('gear', JSON.stringify(gear));
-    check(gear.bombKills >= 3, `a bomb kills a cluster of walkers (${gear.bombKills}/4)`);
+    check(gear.bombKills >= 3, `an explosion kills a cluster of walkers (${gear.bombKills}/4)`);
     check(gear.fired > 0, `the auto turret fires by itself (${gear.fired} shots)`);
     check(gear.h > 3 && gear.fuel < 100, `jetpack lifts the player (y=${gear.h}, fuel=${gear.fuel})`);
 
-    const react = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; const V = G.THREE.Vector3;
+    const react = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; const V = G.THREE.Vector3;
       const mk = (x) => { const z = G.zombies.spawn('walker', 1, { x: 0, z: -2, dir: [0, 1], name: 't' }); z.pos.set(x, 0, -6); z.hp = z.maxHp = 1000; return z; };
       const a = mk(-3); G.zombies.damage(a, 60, 'leg', new V(0, 0, -1), 1); const legSlow = a.slowT > 0;
       G.zombies.damage(a, 400, 'leg', new V(0, 0, -1), 1); const limp = a.limp || a.crawl;
@@ -152,31 +150,27 @@ const BOT = `(() => {
     check(adv.rk >= 3, `a bazooka rocket kills a cluster (${adv.rk}/4)`);
 
     // headshot pops the head
-    await page.evaluate("(() => { const G = __G; G.wave.breakT = 0.01; })()");
     await page.evaluate('window.__sim(4)');
     const hs = await page.evaluate(`(() => { const G = __G; const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); if (!z) return 'no free zombie';
       G.zombies.damage(z, 9999, 'head', new G.THREE.Vector3(0, 0, 1)); return z.body.head.visible ? 'head still on' : 'popped'; })()`);
     check(hs === 'popped', 'a killing headshot removes the head (' + hs + ')');
 
-    // blades, gore, two-weapon hands, weapons on the ground, soldiers picking them up
+    // blades, gore, one weapon per hero, soldiers with their carbines
     const mel = await page.evaluate(`(() => { const G = __G; const W = G.weapons; const P = G.player; const V = G.THREE.Vector3; const r = {};
       G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true; G.allies.clear();
       const mk = (type, x, z) => { const q = G.zombies.spawn(type, 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; return q; };
-      window.__realDrop = [G.dropGun, W.airdrop]; G.dropGun = () => {}; W.airdrop = () => {};
-      W.reset(); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); W.selectSlot(1); __sim(0.7); r.cur = W.cur();
+      W.give('katana'); P.pos.set(0, 0, 8); P.yaw = 0; P.pitch = 0; P.vel.set(0, 0, 0); __sim(0.7); r.cur = W.cur();
       const zs = [mk('walker', -0.6, 6.3), mk('walker', 0.4, 6.2), mk('walker', 0, 5.8)]; for (const z of zs) z.hp = z.maxHp = 260;
       const h0 = W.S.hits; P.input.fire = true; __sim(1.4); P.input.fire = false; __sim(0.3);
       r.swings = W.S.hits - h0; r.dead = zs.filter((z) => !z.alive).length; r.arms = zs.reduce((a, z) => a + (2 - z.armsLeft), 0);
       G.zombies.clear(); const L = mk('walker', 3, 0); L.hp = L.maxHp = 600; for (let i = 0; i < 14 && !L.crawl; i++) G.zombies.damage(L, 40, 'leg', new V(1, 0, 0), 1); r.crawl = L.crawl;
       const g0 = G.fx.debug().made; const B = mk('walker', 6, 6); B.hp = 50; G.zombies.damage(B, 400, 'body', new V(1, 0, 0), 3, { blast: true }); r.blastGibs = G.fx.debug().made - g0;
       __sim(3); r.resting = G.fx.debug().resting; r.splats = G.fx.debug().splats;
-      G.zombies.clear(); r.drop = W.dropCur(); __sim(2.5); const it = W.ground[0]; r.rest = !!(it && it.rest); r.dropLast = W.dropCur();
-      P.pos.set(it.pos.x, 0, it.pos.z + 0.5); __sim(0.1); r.pick = W.pickup(); r.inv = W.S.inv.join(',');
-      G.coins = 9999; G.wave.phase = 'break'; G.events.emit('buy', 'bazooka'); r.buyInv = W.S.inv.join(','); r.ground = W.ground.map((g) => g.id).join(',');
-      G.events.emit('buy', 'ally'); G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; P.pos.set(0, 0, 8); P.yaw = 0; __sim(0.7); W.dropCur(); __sim(7);
-      r.ally = G.allies.list.filter((a) => a.alive).map((a) => a.weap ? a.weap.id : '-').join(',');
-      const t = mk('brute', 0, 17); t.hp = t.maxHp = 5000; const s0 = G.gear.shots.length; let rockets = 0;
-      for (let i = 0; i < 40; i++) { __sim(0.1); if (G.gear.shots.length > s0) rockets++; } r.allyRocketFrames = rockets; r.brute = 5000 - Math.round(t.hp);
+      G.zombies.clear(); r.inv = W.S.inv.join(','); r.api = ['dropCur', 'pickup', 'cycle', 'selectSlot', 'ground'].filter((k) => k in W);
+      r.kits = BZ.HEROES.map((h) => { __select.open(); __select.pick(BZ.HEROES.indexOf(h)); __select.go(); __sim(0.1); return W.S.inv.join(',') === h.weapon && W.state[h.weapon].reserve === Infinity; }).filter(Boolean).length;
+      G.zombies.clear(); G.allies.clear(); G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.god = true;
+      G.events.emit('buy', 'ally'); G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; P.pos.set(0, 0, 8); P.yaw = 0; __sim(1);
+      const t = mk('brute', 0, 15); t.hp = t.maxHp = 5000; __sim(3); r.brute = 5000 - Math.round(t.hp);
       G.god = false; return r; })()`);
     console.log('melee', JSON.stringify(mel));
     check(mel.cur === 'katana' && mel.swings >= 3, `holding fire with the katana chains a combo (${mel.swings} swings landed)`);
@@ -184,10 +178,9 @@ const BOT = `(() => {
     check(mel.crawl, 'shredding a leg turns a walker into a crawler');
     check(mel.blastGibs >= 5, `an explosion blows a zombie into pieces (${mel.blastGibs} gibs)`);
     check(mel.resting >= 5 && mel.splats >= 3, `pieces settle on the ground and blood pools stay (${mel.resting} resting, ${mel.splats} pools)`);
-    check(mel.drop && mel.rest && mel.dropLast === false, 'X drops the held weapon, it lands and stays; the last weapon cannot be dropped');
-    check(mel.pick && mel.inv === 'smg,katana', `E picks the weapon back up (${mel.inv})`);
-    check(mel.buyInv === 'smg,bazooka' && mel.ground === 'katana', `buying a third weapon drops the one in hand (${mel.buyInv} / ground ${mel.ground})`);
-    check(mel.ally.includes('bazooka') && mel.allyRocketFrames > 0 && mel.brute > 0, `a soldier picks up the dropped bazooka and fires it (${mel.ally}, ${mel.brute} dmg)`);
+    check(mel.inv === 'katana' && mel.api.length === 0, `one weapon in hand, nothing to swap, drop or pick up (${mel.inv}; ${mel.api.join(',') || 'no such calls'})`);
+    check(mel.kits === 11, `every hero starts with its own weapon and endless ammo for it (${mel.kits}/11)`);
+    check(mel.brute > 0, `hired soldiers shoot with their carbines (${mel.brute} dmg)`);
 
     // heroes: every skill does its thing; Bóng runs along a wall and up it
     const hero = await page.evaluate(`(() => { const G = __G; const out = {};
@@ -200,7 +193,7 @@ const BOT = `(() => {
         const r = { used, hp: Math.round(P.hp), max: P.maxHp, frozen: zs.filter((z) => z.frozen > 0).length, z: +P.pos.z.toFixed(1), decoy: !!G.hero.decoy, inv: G.hero.invuln(), storm: G.hero.storm() };
         __sim(2.5); r.dmg = Math.round(hp0 - zs.reduce((a, z) => a + Math.max(0, z.hp), 0)); out[G.hero.id] = r;
       }
-      __select.open(); __select.pick(4); __select.go(); __sim(0.3); G.zombies.clear(); G.wave.toSpawn = 0;
+      __select.open(); __select.pick(4); __select.go(); __sim(0.3); G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999;
       const P = G.player; P.pos.set(-15.62, 0, -20.6); P.yaw = 0; P.vel.set(0, 0, 0); __sim(0.2); P.touch.y = -1; P.jumpBuf = 0.13; let wall = 0; let top = 0;
       for (let i = 0; i < 70; i++) { __sim(1 / 60); if (P.wallRun) wall++; top = Math.max(top, P.pos.y); }
       P.pos.set(-15.2, 0, -23.5); P.yaw = Math.PI / 2; P.vel.set(0, 0, 0); __sim(0.2); let climb = 0;
@@ -226,19 +219,17 @@ const BOT = `(() => {
       G.sky.S.t = 0.95; __sim(0.2); r.night = { night: G.env.night, hemi: +G.hemi.intensity.toFixed(2), zs: G.env.zSpeed };
       const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(3, 0, -3); z.speed = 0;
       G.sky.setWeather('storm', false); G.sky.S.wk = 1; G.sky.strike(z.pos.clone()); __sim(0.2); r.bolt = !z.alive;
-      G.sky.setWeather('bloodmoon', false); G.sky.S.wk = 1; __sim(0.1); r.blood = { hp: G.env.zHp, coin: G.env.coinMul };
-      G.sky.setWeather('meteor', false); G.sky.S.wk = 1; const m0 = G.fx.debug().scorch; G.sky.meteor(); __sim(2); r.meteor = G.fx.debug().scorch > m0 || G.fx.debug().scorch === 30;
+      G.sky.setWeather('bloodmoon', false); G.sky.S.wk = 1; __sim(0.1); r.blood = { hp: G.env.zHp, score: G.env.scoreMul };
       G.sky.setWeather('clear', false); G.god = false; return r; })()`);
     console.log('env', JSON.stringify(env));
     check(env.boom.glow >= 30 && env.boom.smoke >= 8 && env.boom.scorch >= 1, `an explosion makes a fire ball, smoke and a scorch mark (${env.boom.glow} glow, ${env.boom.smoke} smoke)`);
     check(!env.day.night && env.night.night && env.day.hemi > env.night.hemi && env.night.zs > env.day.zs, `day is bright, night is dark and zombies run faster at night (${env.day.hemi} vs ${env.night.hemi})`);
     check(env.bolt, 'a lightning strike kills the zombie it hits');
-    check(env.blood.hp === 1.3 && env.blood.coin === 2, 'blood moon makes zombies tougher and doubles coins');
-    check(env.meteor, 'a meteor comes down and explodes');
+    check(env.blood.hp === 1.3 && env.blood.score === 2, 'blood moon makes zombies tougher and doubles the score');
 
     // soldiers: twist the chest toward a target, change magazines, cheer at the end of a wave
     const sold = await page.evaluate(`(() => { const G = __G; const r = {}; G.allies.clear(); G.zombies.clear(); G.god = true;
-      const P = G.player; P.pos.set(0, 0, 10); P.yaw = 0; G.coins = 9999; G.wave.phase = 'break'; G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; __sim(1.5);
+      const P = G.player; P.pos.set(0, 0, 10); P.yaw = 0; G.events.emit('buy', 'ally'); G.wave.phase = 'fight'; __sim(1.5);
       const a = G.allies.list.find((q) => q.alive);
       const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(a.pos.x + 8, 0, a.pos.z + 1); z.speed = 0; z.hp = z.maxHp = 99999;
       let reload = false; for (let i = 0; i < 700; i++) { __sim(1 / 30); if (a.cReload > 0) reload = true; }
@@ -250,23 +241,23 @@ const BOT = `(() => {
     check(sold.reload, 'a soldier changes magazines after a burst');
     check(sold.cheer, 'soldiers cheer when the wave ends');
 
-    // builds: upgrades, elements reacting on a zombie, resonances, the supply crate
+    // builds: upgrades, elements reacting on a zombie, resonances; no guns fall from the dead
     const bld = await page.evaluate(`(() => { const G = __G; const r = {}; G.zombies.clear(); G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1;
-      if (window.__realDrop) [G.dropGun, G.weapons.airdrop] = window.__realDrop;
-      G.build.reset('mua'); G.coins = 99999; for (const id of ['ice_el', 'ice_el', 'ice_el', 'shock_el', 'shock_el', 'shock_el', 'hp', 'squad']) G.events.emit('upgrade', id);
+      G.build.reset('mua'); for (const id of ['ice_el', 'ice_el', 'ice_el', 'shock_el', 'shock_el', 'shock_el', 'hp', 'squad']) G.events.emit('upgrade', id);
       r.super = G.build.has('super'); r.maxHp = G.player.maxHp; r.allies = G.allies.count();
       const mk = (x, z) => { const q = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(x, 0, z); q.speed = 0; q.hp = q.maxHp = 2000; return q; };
       const a = mk(0, 0); for (let i = 0; i < 4; i++) G.zombies.applyStatus(a, 'chill', 1); r.frozen = a.frozen > 0;
       G.zombies.applyStatus(a, 'shock', 1); r.shatter = !a.alive;
       const b = mk(3, 3); G.zombies.applyStatus(b, 'burn', 1); __sim(2.1); r.burn = Math.round(2000 - b.hp);
       const c = mk(-3, 3); const c0 = c.hp; G.zombies.applyStatus(c, 'poison', 1); G.zombies.applyStatus(c, 'burn', 1); __sim(0.1); r.gas = Math.round(c0 - c.hp);
-      G.zombies.clear(); const g0 = G.weapons.ground.length; G.weapons.airdrop(G.player.pos); __sim(8); r.crate = G.weapons.ground.length - g0;
+      r.meteor = !!BZ.WEATHERS.meteor; r.kits = BZ.HEROES.map((h) => h.weapon);
       G.god = false; return r; })()`);
     console.log('build', JSON.stringify(bld));
     check(bld.super && bld.maxHp === 120 && bld.allies >= 1, `upgrades apply: resonance Siêu dẫn on, ${bld.maxHp} max hp, ${bld.allies} soldier from Chỉ huy`);
     check(bld.frozen && bld.shatter, 'four layers of cold freeze a zombie and a shock shatters it');
     check(bld.burn > 10 && bld.gas > 50, `fire burns over time (${bld.burn}) and fire on poison blows up (${bld.gas})`);
-    check(bld.crate === 2, `a supply crate lands and breaks open into two guns (${bld.crate})`);
+    check(!bld.meteor, 'the meteor shower weather is gone');
+    check(bld.kits.length === 11 && bld.kits.every((k) => typeof k === 'string' && k.length > 0), `every hero has exactly one weapon (${bld.kits.join(', ')})`);
 
     const stats = await page.evaluate('window.__stats');
     console.log('stats', JSON.stringify(stats));

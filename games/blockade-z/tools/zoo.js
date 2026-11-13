@@ -86,11 +86,11 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
       reset(); const bd = mk('brood', 0, -6); bd.cd2 = 0; bd.cd = 99; __sim(0.2); out.eggs = G.zombies.list.filter((q) => q.alive && q.type === 'egg').length;
       const egg = G.zombies.list.find((q) => q.alive && q.type === 'egg'); if (egg) egg.hatch = 0.05; __sim(0.3); out.spiders = G.zombies.list.filter((q) => q.alive && q.type === 'spider').length;
       // a spider dies in gibs; an elite pays triple
-      reset(); const spd = mk('spider', 0, 4, { speed: 0 }); const c0 = G.coins; G.zombies.damage(spd, 999, 'body', new V(0, 0, -1)); out.spiderGone = !spd.body.root.visible;
+      reset(); const spd = mk('spider', 0, 4, { speed: 0 }); G.zombies.damage(spd, 999, 'body', new V(0, 0, -1)); out.spiderGone = !spd.body.root.visible;
       // the new kinds travel in the co-op snapshot with their flags and elite
       reset(); const s2 = mk('shielder', 0, 5, { speed: 0 }); G.zombies.elite(s2, 'swift'); out.row = G.zombies.snapshot().find((row) => row[0] === G.zombies.list.indexOf(s2));
       G.god = true; reset(); G.god = true; return out; })()`);
-    const killFor = (elite) => page.evaluate(`(() => { const G = __G; const V = G.THREE.Vector3; const q = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(0, 0, 4); q.speed = 0; ${elite ? "G.zombies.elite(q, 'tough');" : ''} const c = G.coins; G.zombies.damage(q, 99999, 'body', new V(0, 0, -1)); return G.coins - c; })()`);
+    const killFor = (elite) => page.evaluate(`(() => { const G = __G; const V = G.THREE.Vector3; const q = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); q.pos.set(0, 0, 4); q.speed = 0; ${elite ? "G.zombies.elite(q, 'tough');" : ''} const c = G.score; G.zombies.damage(q, 99999, 'body', new V(0, 0, -1)); return G.score - c; })()`);
     await page.waitForTimeout(1600); r.eliteCoins = await killFor(true); await page.waitForTimeout(1600); r.plainCoins = await killFor(false);
     console.log('zoo', JSON.stringify(r));
     check(r.shieldFront[0] === 0 && r.shieldFront[1] === 40, `a frontal round hits the shield, not the zombie (${r.shieldFront})`);
@@ -105,14 +105,13 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     check(r.frostNova, 'a frost zombie dies in a nova that freezes its neighbour');
     check(r.eggs === 2 && r.spiders === 3, `the broodmother lays two eggs and an egg hatches three spiders (${r.eggs}, ${r.spiders})`);
     check(r.spiderGone, 'a spider bursts into gibs');
-    check(r.eliteCoins === 3 * r.plainCoins && r.plainCoins > 0, `an elite pays three times the coins (${r.eliteCoins} vs ${r.plainCoins})`);
+    check(r.eliteCoins === 3 * r.plainCoins && r.plainCoins > 0, `an elite is worth three times the score (${r.eliteCoins} vs ${r.plainCoins})`);
     check(r.row && r.row[8] > 0 && (r.row[7] & 256), `the co-op row carries the shield flag and the elite (${JSON.stringify(r.row)})`);
     // a real late wave: the specials and elites come through the gates on their own
     const late = await page.evaluate(`(() => { const G = __G; G.god = true; G.zombies.clear(); const seen = new Set(); let elites = 0;
-      G.wave.n = 0; G.wave.phase = 'break'; G.wave.breakT = 0.01; const W = G.wave; W.bossAt = -1;
-      __sim(0.1); G.wave.bossAt = -1;
+      G.startWave(G.wave.n + 1); G.wave.bossAt = -1;
       for (let i = 0; i < 300; i++) { __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 30) G.zombies.clear(); }
-      return { wave: G.wave.n, types: [...seen], elites }; })()`.replace('G.wave.n = 0', 'G.wave.n = 8'));
+      return { wave: G.wave.n, types: [...seen], elites }; })()`.replace('G.wave.n + 1', '9'));
     console.log('late', JSON.stringify(late));
     check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')})`);
     check(late.elites > 0, 'elites show up in a late wave');

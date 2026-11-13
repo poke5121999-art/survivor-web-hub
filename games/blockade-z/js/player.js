@@ -28,11 +28,7 @@
       if (e.code === 'KeyR') G.weapons.startReload();
       if (e.code === 'KeyQ') G.hero.use('ult');
       if (e.code === 'KeyC') G.hero.use('s2');
-      if (/^Digit[1-2]$/.test(e.code)) G.weapons.selectSlot(+e.code.slice(5) - 1);
-      if (e.code === 'KeyE') G.weapons.pickup();
-      if (e.code === 'KeyX') G.weapons.dropCur();
       if (e.code === 'Space') P.jumpBuf = MOVE.jumpBuffer;
-      if (e.code === 'KeyG') G.gear.throwBomb();
       if (e.code === 'KeyF') G.hero.use();
     });
     addEventListener('keyup', (e) => keys.delete(e.code));
@@ -49,7 +45,6 @@
       if (G.state !== 'playing') return;
       if (document.pointerLockElement === canvas || G.noLock) { lookDX += e.movementX || 0; lookDY += e.movementY || 0; }
     });
-    addEventListener('wheel', (e) => { if (G.state === 'playing') G.weapons.cycle(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 
     // ---- touch: left stick, right drag to look, buttons ----
     const touch = { stickId: null, sx: 0, sy: 0, x: 0, y: 0, lookId: null, lx: 0, ly: 0 };
@@ -91,14 +86,10 @@
       btn('fire', () => { input.fire = true; }, () => { input.fire = false; });
       btn('ads', () => { input.ads = !input.ads; });
       btn('jump', () => { P.jumpBuf = MOVE.jumpBuffer; P.touchJet = true; }, () => { P.touchJet = false; });
-      btn('bomb', () => G.gear.throwBomb());
       btn('reload', () => G.weapons.startReload());
-      btn('swap', () => G.weapons.cycle(1));
-      btn('pick', () => G.weapons.pickup());
       btn('skill', () => G.hero.use());
       btn('skill2', () => G.hero.use('s2'));
       btn('ult', () => G.hero.use('ult'));
-      btn('drop', () => G.weapons.dropCur());
     }
 
     const out = {};

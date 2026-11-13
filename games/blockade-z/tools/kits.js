@@ -77,15 +77,13 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(OUT, 'kit-' + key + '.png') });
     }
-    // polish: coins fly to the counter on a kill, the screen flashes on a cast, bodies fall three different ways
+    // polish: the screen flashes on a cast, bodies fall three different ways
     const pol = await page.evaluate(`(() => { const G = __G; G.state = 'playing'; G.zombies.clear(); const P = G.player; P.pos.set(0, 0, 12); P.yaw = 0; P.pitch = -0.1;
       const V = G.THREE.Vector3; const r = { kinds: {} };
       for (let i = 0; i < 30; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set((i % 6) - 2.5, 0, 6 - Math.floor(i / 6)); G.zombies.damage(z, 9999, 'body', new V(0, 0, -1)); r.kinds[z.deathK] = (r.kinds[z.deathK] || 0) + 1; }
-      r.coins = document.querySelectorAll('#flyfx .flycoin').length;
       G.hero.slots.s1.n = 1; G.hero.use('s1'); r.cast = document.getElementById('castfx').className; r.dip = G.weapons.S.castT > 0;
       return r; })()`);
     console.log('polish', JSON.stringify(pol));
-    check(pol.coins > 0, `coins fly toward the counter after kills (${pol.coins} in the air)`);
     check(pol.cast === 'skill' && pol.dip, 'a skill flashes the screen in the hero colour and dips the gun');
     check(Object.keys(pol.kinds).length === 3, `bodies fall three different ways (${JSON.stringify(pol.kinds)})`);
     await page.evaluate(`(() => { const G = __G; G.zombies.clear(); const V = G.THREE.Vector3; for (let k = 0; k < 3; k++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(-2.2 + k * 2.2, 0, 7.5); z.yaw = 0; G.zombies.damage(z, 9999, 'body', new V(0, 0, -1)); z.deathK = k; } __sim(0.3); G.state = 'paused'; })()`);

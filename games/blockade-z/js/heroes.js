@@ -38,7 +38,7 @@
       ult: { key: 'vanish', name: 'Ám Sát', cost: 1500, desc: 'Tàng hình 7 giây: zombie mất dấu bạn, chạy nhanh hơn, mỗi đòn gây gấp 2,5 và luôn chí mạng.' },
       look: { skin: 0xe0b090, hair: 0x14101c, eye: 0xc080ff, shirt: 0x1c1826, shirt2: 0x8a40e0, pants: 0x18141e, boot: 0x0e0c12, mask: 0x8a40e0 } },
     { id: 'phao', name: 'Pháo Thủ', role: 'Không kích', color: 0xff4a3a, hp: 110, speed: 0.97,
-      passive: 'Vào trận có 6 bom, bom nổ to hơn 40%.',
+      passive: 'Tên lửa của Pháo Thủ (không kích, Mưa Pháo, bazooka) và mìn nổ to hơn 40%.',
       s1: { key: 'strike', name: 'Không kích', cd: 28, desc: 'Đánh dấu chỗ đang ngắm, 1 giây sau 6 quả đạn pháo dội xuống.' },
       s2: { key: 'mine', name: 'Mìn dính', cd: 6, charges: 2, desc: 'Ném mìn dính xuống đất, nổ khi zombie tới gần 2 m.' },
       ult: { key: 'barrage', name: 'Mưa Pháo', cost: 1800, desc: '20 quả pháo cày một đường dài 30 m theo hướng bạn nhìn.' },
@@ -74,6 +74,9 @@
       ult: { key: 'artillery', name: 'Pháo Đài', cost: 1800, desc: 'Dựng khẩu pháo lớn bắn tên lửa vào zombie gần nhất trong 14 giây.' },
       look: { skin: 0xd8a070, hair: 0x4a2a1a, eye: 0x202020, shirt: 0xd88a20, shirt2: 0x3a3a3a, pants: 0x5a4a32, boot: 0x2a2018 } },
   ];
+  // each hero fights with one weapon, the whole run
+  const KIT = { gio: 'katana', thep: 'axe', yta: 'pistol', mua: 'smg', bong: 'saber', phao: 'bazooka', bang: 'rifle', hoa: 'shotgun', sam: 'rifle', doc: 'pistol', ky: 'shotgun' };
+  for (const h of HEROES) h.weapon = KIT[h.id];
   const ULT_DUR = { drones: 7, vanish: 7, blizzard: 8, dragon: 6, thunder: 6, plague: 8, artillery: 14, revive: 6 };
   for (const h of HEROES) { h.skill = h.s1; h.ult.dur = ULT_DUR[h.ult.key] || 1; }
   BZ.HEROES = HEROES;
@@ -242,7 +245,6 @@
       for (const q of H.projs) G.scene.remove(q.m); H.projs.length = 0;
       for (const q of H.mines) G.scene.remove(q.m); H.mines.length = 0;
       for (const c of H.cannons) G.scene.remove(c.m.root); H.cannons.length = 0; timers.length = 0;
-      G.gear.state.bombs = h.id === 'phao' ? 6 : G.gear.state.bombs;
       ring.visible = false; strikeMark.visible = false;
     }
     const speedMul = () => (H.def.speed || 1) * ((H.t.vanish || 0) > 0 ? 1.2 : 1);
@@ -733,7 +735,7 @@
         const trig = q.t > 0.6 && G.zombies.list.some((z) => z.alive && Math.hypot(z.pos.x - q.pos.x, z.pos.z - q.pos.z) < 2.2 && Math.abs(z.pos.y - q.pos.y) < 2);
         if (trig || q.t > q.life) {
           G.scene.remove(q.m); H.mines.splice(i, 1);
-          G.gear.explode(q.pos.clone().setY(q.pos.y + 0.3), 4.5, 160 * pow());
+          G.gear.explode(q.pos.clone().setY(q.pos.y + 0.3), 4.5 * H.blastMul(), 160 * pow() * H.blastMul());
           if (coop()) { const a = { by: me(), id: q.id }; if (guest()) G.coop.act({ k: 'hx', s: 'minepop', a }); else G.events.emit('hx', { s: 'minepop', a }); }
         }
       }
@@ -905,7 +907,7 @@
     }
     const slotFrac = (k) => { const S = H.slots[k]; const def = H.def[k]; return S.n >= (def.charges || 1) ? 0 : S.cd / (def.cd * G.build.cdMul()); };
     return Object.assign(H, { HEROES, set, reset, use, update, freezeAt, strikeAt, speedMul, invuln, storm, airJump, onHurt, byId, remote, procs, onKill, ghost, takenMul, dmgMul, critAdd, slotFrac,
-      reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), bombMul: () => (H.def.id === 'phao' ? 1.4 : 1), chill: () => H.def.id === 'bang',
+      reloadMul: () => (H.def.id === 'mua' ? 1.25 : 1), blastMul: () => (H.def.id === 'phao' ? 1.4 : 1), chill: () => H.def.id === 'bang',
       ready: (k = 's1') => H.slots[k].n > 0, cdFrac: () => slotFrac('s1') });
   };
 })();

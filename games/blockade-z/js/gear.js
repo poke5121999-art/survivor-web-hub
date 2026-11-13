@@ -1,40 +1,15 @@
-// Throwable bombs and auto turrets.
+// Explosions, thrown rocks, rockets and auto turrets.
 (() => {
   const BZ = window.BZ;
   const THREE = window.THREE;
 
-  const BOMB = { start: 3, max: 9, fuse: 1.6, radius: 5.5, dmg: 220, throwSpeed: 15, price: 120, pack: 3 };
+  const BLAST = 5.5; // radius of a standard explosion; fx scale with R / BLAST
   const TURRET = { price: 450, max: 12, range: 24, rpm: 420, dmg: 13, accuracy: 0.8, ammo: 260 };
-  BZ.BOMB = BOMB; BZ.TURRET = TURRET;
+  BZ.TURRET = TURRET;
 
   BZ.makeGear = (G) => {
-    const scene = G.scene;
-    // ---- bombs ----
-    const bombGeo = (() => {
-      const B = new BZ.Builder('bomb');
-      B.box([-0.09, -0.09, -0.09], [0.09, 0.09, 0.09], 'a_helmet', { uv: 'fit', vary: 0 });
-      B.box([-0.03, 0.09, -0.03], [0.03, 0.14, 0.03], 'g_steel', { uv: 'fit', vary: 0 });
-      B.box([0.03, 0.11, -0.01], [0.08, 0.13, 0.01], 'g_gold', { uv: 'fit', vary: 0 });
-      return B.build();
-    })();
-    const bombs = []; const out = {};
-    const state = { bombs: BOMB.start, cool: 0 };
-
-    function throwBomb() {
-      if (state.bombs <= 0 || state.cool > 0 || !G.player.alive) { if (state.bombs <= 0) G.audio.play('deny'); return false; }
-      state.bombs--; state.cool = 0.6;
-      const cam = G.camera; cam.updateMatrixWorld();
-      const f = new THREE.Vector3(); cam.getWorldDirection(f);
-      const pos = cam.position.clone().addScaledVector(f, 0.5); pos.y -= 0.15;
-      const vel = f.clone().multiplyScalar(BOMB.throwSpeed).add(new THREE.Vector3(0, 3.5, 0)).add(G.player.vel.clone().multiplyScalar(0.5));
-      const m = bombGeo.clone(); m.position.copy(pos); scene.add(m);
-      bombs.push({ m, pos, vel, t: 0, spin: new THREE.Vector3(G.rng.range(-9, 9), G.rng.range(-9, 9), 0) });
-      G.audio.play('swipe', { gain: 0.6, rate: 1.3 });
-      G.weapons.S.kP.v -= 6; G.weapons.S.drop.x = 0.4;
-      return true;
-    }
-
-    function explode(pos, R = BOMB.radius, DMG = BOMB.dmg) {
+    const scene = G.scene; const out = {}; const state = { rocks: 0 };
+    function explode(pos, R = BLAST, DMG = 220) {
       for (const z of G.zombies.list) {
         if (!z.alive) continue;
         const d = Math.hypot(z.pos.x - pos.x, z.pos.y + 0.9 - pos.y, z.pos.z - pos.z);
@@ -45,7 +20,7 @@
         z.vel.addScaledVector(dir, 4); if (z.fallV !== undefined && z.T.fly) z.vel.y += 6;
         G.events.emit('hit', { z, dmg, part: 'body', died });
       }
-      G.fx.explosion(pos, R / BOMB.radius); G.events.emit('boom', { pos, s: R / BOMB.radius });
+      G.fx.explosion(pos, R / BLAST); G.events.emit('boom', { pos, s: R / BLAST });
       G.audio.playAt('boom', pos, { gain: 1.3 });
       const pd = G.player.pos.distanceTo(pos);
       if (pd < 18) { G.player.shake.v += (18 - pd) * 0.8; G.player.kickP.v += (18 - pd) * 0.03; }
@@ -87,7 +62,7 @@
         }
         if (hitAt || s.life <= 0 || s.pos.y < -1) {
           const at = hitAt || s.pos;
-          if (s.kind === 'rocket') explode(at, 6.5, 480);
+          if (s.kind === 'rocket') { const k = G.hero ? G.hero.blastMul() : 1; explode(at, 6.5 * k, 480 * k); }
           else { G.fx.burst(at, 16, [0x6a645c, 0x8e8c86, 0x55504a], { speed: 5, size: 0.16, life: 1 }); G.audio.playAt('impact', at, { gain: 1, rate: 0.6 }); }
           scene.remove(s.m); shots.splice(i, 1); continue;
         }
@@ -141,22 +116,7 @@
 
     const eye = new THREE.Vector3(); const aim = new THREE.Vector3();
     function update(dt) {
-      state.cool = Math.max(0, state.cool - dt);
       updateShots(dt);
-      for (let i = bombs.length - 1; i >= 0; i--) {
-        const b = bombs[i];
-        b.t += dt;
-        const pre = b.vel.clone();
-        b.vel.y -= 22 * dt;
-        G.world.moveBox(b.pos, b.vel, dt, 0.09, 0.18, out);
-        if (out.hitX) b.vel.x = -pre.x * 0.4;
-        if (out.hitZ) b.vel.z = -pre.z * 0.4;
-        if (out.ground) { if (pre.y < -2.5) b.vel.y = -pre.y * 0.35; b.vel.x *= 0.86; b.vel.z *= 0.86; b.spin.multiplyScalar(0.8); }
-        b.m.position.copy(b.pos).add(new THREE.Vector3(0, 0.09, 0));
-        b.m.rotation.x += b.spin.x * dt; b.m.rotation.y += b.spin.y * dt;
-        if (b.t >= BOMB.fuse) { const k = (G.hero ? G.hero.bombMul() : 1) * G.build.bombMul(); const at = b.pos.clone().add(new THREE.Vector3(0, 0.3, 0)); explode(at, BOMB.radius * k, BOMB.dmg * k);
-          if (G.build.has('demolition')) for (let j = 0; j < 3; j++) { const a = j * 2.1 + G.rng.next(); const q = at.clone().add(new THREE.Vector3(Math.cos(a) * 3, 0, Math.sin(a) * 3)); setTimeout(() => explode(q, 3, 90 * k), 220 + j * 120); } scene.remove(b.m); bombs.splice(i, 1); }
-      }
       for (let i = turrets.length - 1; i >= 0; i--) {
         const t = turrets[i];
         t.seekT -= dt;
@@ -200,11 +160,9 @@
       }
     }
     function clear() {
-      for (const b of bombs) scene.remove(b.m); bombs.length = 0;
       for (const s of shots) scene.remove(s.m); shots.length = 0;
       while (turrets.length) removeTurret(0);
-      state.bombs = BOMB.start; state.cool = 0;
     }
-    return { state, throwBomb, throwRock, fireRocket, explode, shots, placeTurret, removeTurret, update, clear, turrets, addBombs: (n) => { state.bombs = Math.min(G.build.bombCap(), state.bombs + n); }, debug: () => ({ bombs: bombs.length, turrets: turrets.length }) };
+    return { state, throwRock, fireRocket, explode, shots, placeTurret, removeTurret, update, clear, turrets, debug: () => ({ turrets: turrets.length }) };
   };
 })();

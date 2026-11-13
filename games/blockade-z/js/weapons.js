@@ -24,8 +24,7 @@
   };
   BZ.WEAPONS = WEAPONS;
   const ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'bazooka', 'katana', 'axe', 'saber'];
-  const START = ['smg', 'katana'];
-  const SLOTS = 2;
+  const START = 'smg';
 
   // Viewmodel shapes: many small flat-colour voxels, gun points along -z, grip near origin.
   // Each gun: dark body, a light edge stripe, one saturated accent, one emissive cell.
@@ -241,7 +240,7 @@
 
     const state = {};
     const S = {
-      inv: START.slice(), cur: 'smg', next: null, combo: 0, comboT: 0, swing: null, vmPose: null, phase: 'ready', t: 0, cool: 0, bloom: 0, ads: 0, trigger: false, held: false,
+      inv: [START], cur: START, next: null, combo: 0, comboT: 0, swing: null, vmPose: null, phase: 'ready', t: 0, cool: 0, bloom: 0, ads: 0, trigger: false, held: false,
       shots: 0, hits: 0, evt: {}, cycle: 9, pumpT: 0, rackPlayed: true,
       kZ: BZ.spring(420, 26), kP: BZ.spring(300, 22), kY: BZ.spring(260, 20), kR: BZ.spring(260, 18), swX: BZ.spring(120, 14), swY: BZ.spring(120, 14), drop: BZ.spring(160, 20),
     };
@@ -255,159 +254,21 @@
     const resOf = (w) => (w.reserve === Infinity ? Infinity : Math.round(w.reserve * G.build.magMul()));
     const ammo = () => state[S.cur];
 
-    // ---------- inventory: two hands' worth of weapons; the rest lies on the ground ----------
+    // ---------- the one weapon in hand ----------
     const has = (id) => S.inv.includes(id);
     function select(id) {
       if (!has(id) || (id === S.cur && S.phase !== 'holster')) return;
       S.next = id; S.phase = 'holster'; S.t = 0; S.swing = null;
     }
-    const selectSlot = (i) => { if (S.inv[i]) select(S.inv[i]); };
-    function cycle(dir) {
-      if (S.inv.length < 2) return;
-      const i = S.inv.indexOf(S.next || S.cur);
-      select(S.inv[(i + dir + S.inv.length) % S.inv.length]);
-    }
-    // the weapon in hand left the hand (thrown or swapped): show the next one without a holster dip
+    // the weapon in hand changes at once (a test hands one over): show it without a holster dip
     function forceTo(id) {
       models[S.cur].visible = false; models[S.cur].userData.flash.visible = false;
       S.cur = id; S.next = null; models[id].visible = true; S.phase = 'draw'; S.t = 0; S.swing = null; S.drop.x = 1;
       G.audio.play('switch', { gain: 0.7 }); if (id === 'saber') G.audio.play('saber_on', { gain: 0.8 });
     }
-    function throwOut(id, at) {
-      const cam = G.camera; cam.updateMatrixWorld(); cam.getWorldPosition(o); cam.getWorldDirection(d);
-      const from = at ? at.clone().setY(at.y + 0.4) : o.clone().addScaledVector(d, 0.6).setY(o.y - 0.3);
-      const vel = at ? new THREE.Vector3(G.rng.range(-1, 1), 2.5, G.rng.range(-1, 1)) : new THREE.Vector3(d.x, 0, d.z).normalize().multiplyScalar(3.2).setY(2.6);
-      if ((G.coop && G.coop.guest)) G.coop.act({ k: 'drop', id, mag: state[id].mag, res: state[id].reserve, p: G.coop.v3(from), v: G.coop.v3(vel) });
-      else spawnGround(id, state[id].mag, state[id].reserve, from, vel);
-    }
-    function give(id) { // bought in the shop
-      state[id].mag = magOf(WEAPONS[id]); state[id].reserve = resOf(WEAPONS[id]);
-      if (has(id)) { select(id); return; }
-      if (S.inv.length < SLOTS) { S.inv.push(id); select(id); return; }
-      const i = S.inv.indexOf(S.cur); throwOut(S.cur); S.inv[i] = id; forceTo(id);
-    }
+    // test hook: put a weapon in the hand
+    function give(id) { state[id].mag = magOf(WEAPONS[id]); state[id].reserve = Infinity; if (S.cur !== id) { S.inv = [id]; forceTo(id); } }
     function refill(k = 1) { for (const id of S.inv) { const r = resOf(WEAPONS[id]); if (r !== Infinity) state[id].reserve = Math.max(state[id].reserve, Math.round(r * k)); } }
-    function dropCur() {
-      if (S.inv.length <= 1 || S.phase === 'holster' || !G.player.alive) { G.audio.play('deny', { gain: 0.6 }); G.ui.banner('KHÔNG BỎ ĐƯỢC', 'phải giữ ít nhất 1 vũ khí', 1.2); return false; }
-      const id = S.cur; throwOut(id); S.inv.splice(S.inv.indexOf(id), 1); forceTo(S.inv[0]);
-      G.audio.play('swipe', { gain: 0.4, rate: 1.4 });
-      return true;
-    }
-    function pickup() {
-      const it = nearGround(); if (!it || !G.player.alive) return false;
-      if ((G.coop && G.coop.guest)) { G.coop.act({ k: 'pick', gid: it.gid }); it.claim = { fetch: null, pending: true }; setTimeout(() => { if (it.claim && it.claim.pending) it.claim = null; }, 1500); return true; }
-      removeGround(it); takeItem(it); return true;
-    }
-    // the weapon in hand: into a free slot, or swapped with the one held (which drops where the new one lay)
-    function takeItem(it) {
-      if (has(it.id)) { const st = state[it.id]; const Wt = WEAPONS[it.id]; if (st.reserve !== Infinity) st.reserve = Math.min(Wt.reserve, st.reserve + it.mag + it.reserve); }
-      else {
-        if (S.inv.length < SLOTS) S.inv.push(it.id);
-        else { const i = S.inv.indexOf(S.cur); throwOut(S.cur, it.pos); S.inv[i] = it.id; }
-        state[it.id].mag = it.mag; state[it.id].reserve = it.reserve; forceTo(it.id);
-      }
-      G.audio.play('clank', { gain: 0.8 }); G.audio.play('pickup', { gain: 0.45 });
-      G.events.emit('weapon:pickup', it.id);
-    }
-
-    // ---------- weapons on the ground: thrown with an arc, settle on their side, stay until a new game ----------
-    const ground = []; const GROUND_MAX = 60;
-    const ringGeo = new THREE.RingGeometry(0.42, 0.58, 24).rotateX(-Math.PI / 2);
-    const ringCol = (id) => (WEAPONS[id].melee ? 0xffa040 : WEAPONS[id].rocket ? 0xff4a3a : 0x8ff07a);
-    const gOut = {}; const gFeet = new THREE.Vector3(); const bb = new THREE.Box3(); const bc = new THREE.Vector3(); const bs = new THREE.Vector3();
-    let gidN = 0;
-    function spawnGround(id, mag, reserve, pos, vel, gid) {
-      if (ground.length >= GROUND_MAX) removeGround(ground.find((g) => !g.claim) || ground[0]);
-      const model = BZ.worldGun(id); model.scale.setScalar(1.25);
-      bb.setFromObject(model); bb.getCenter(bc); bb.getSize(bs);
-      model.position.copy(bc).negate();
-      const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.add(model); g.position.copy(pos); G.scene.add(g);
-      const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: ringCol(id), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-      G.scene.add(ring);
-      const it = { id, mag, reserve, g, ring, pos: g.position, vel: vel.clone(), rest: false, t: 0, yaw: G.rng.range(0, 6.3), claim: null, thick: bs.x / 2, spin: new THREE.Vector3(G.rng.range(-8, 8), G.rng.range(-4, 4), G.rng.range(-8, 8)) };
-      it.gid = gid || ++gidN; if (gid) gidN = Math.max(gidN, gid);
-      ground.push(it); G.events.emit('ground:add', it);
-      return it;
-    }
-    function removeGround(it) {
-      const i = ground.indexOf(it); if (i < 0) return;
-      ground.splice(i, 1); G.events.emit('ground:remove', it); G.scene.remove(it.g); G.scene.remove(it.ring); it.ring.material.dispose();
-      if (it.claim) it.claim.fetch = null;
-    }
-    // supply crate under a parachute: a red flare marks where it will land; it breaks open into two guns, ammo and a medkit
-    const crates = [];
-    function airdrop(near, visual) {
-      let at = near.clone().add(new THREE.Vector3(G.rng.range(-5, 5), 0, G.rng.range(-5, 5))); at.y = Math.max(0, near.y);
-      if (G.world.overlaps([at.x - 0.6, at.y + 0.05, at.z - 0.6], [at.x + 0.6, at.y + 1.2, at.z + 0.6])) at = near.clone();
-      if (!visual) G.events.emit('crate', { p: at });
-      const B = new BZ.Builder('crate'); B.box([-0.5, 0, -0.5], [0.5, 0.9, 0.5], 'crate_metal', { uv: 'fit' }); B.box([-0.52, 0.38, -0.52], [0.52, 0.52, 0.52], 'hazard', { uv: 'fit' });
-      const C = new BZ.Builder('chute');
-      for (let i = 0; i < 6; i++) C.box([-1.5 + i * 0.5, 3.0 - Math.abs(i - 2.5) * 0.12, -1.4], [-1.0 + i * 0.5, 3.12 - Math.abs(i - 2.5) * 0.12, 1.4], i % 2 ? 'g_red' : 'plaster_white', { uv: 'fit', vary: 0 });
-      for (const [x, z] of [[-1.3, -1.2], [1.3, -1.2], [-1.3, 1.2], [1.3, 1.2]]) { C.push(new THREE.Matrix4().makeTranslation(x * 0.5, 1.9, z * 0.5).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(z * 0.5, 0, -x * 0.5)))); C.box([-0.02, -1.1, -0.02], [0.02, 1.1, 0.02], 'metal_dark', { vary: 0 }); C.pop(); }
-      const g = new THREE.Group(); const box = B.build({ cast: true }); const chute = C.build({ cast: false }); g.add(box); g.add(chute);
-      g.position.set(at.x, at.y + 28, at.z); G.scene.add(g);
-      crates.push({ g, chute, at, t: 0, landed: false, visual, flare: 0 });
-      if (!visual) G.ui.banner('THÙNG TIẾP TẾ', 'đang thả dù xuống gần bạn', 2.2);
-    }
-    function updateCrates(dt) {
-      for (let i = crates.length - 1; i >= 0; i--) {
-        const c = crates[i]; c.t += dt;
-        c.flare -= dt; if (c.flare <= 0) { c.flare = 0.12; G.fx.puff(c.at.clone().setY(c.at.y + 0.3), { vel: new THREE.Vector3(0, 2, 0), drag: 0.6, s0: 0.4, s1: 1.6, life: 2, c0: 0xff4a3a, c1: 0x8a3a3a, a0: 0.6 }); }
-        if (!c.landed) {
-          c.g.position.y = Math.max(c.at.y, c.g.position.y - 4.2 * dt); c.g.rotation.y += dt * 0.6; c.g.rotation.z = Math.sin(c.t * 1.7) * 0.08;
-          if (c.g.position.y <= c.at.y) {
-            c.landed = true; c.t = 0; c.g.rotation.set(0, c.g.rotation.y, 0);
-            G.fx.burst(c.at.clone().setY(c.at.y + 0.2), 20, [0x8a8070, 0x6a6458], { speed: 4, size: 0.12, life: 0.8 });
-            G.audio.playAt('land', c.at, { gain: 1, rate: 0.7 }); G.audio.playAt('clank', c.at, { gain: 0.9 });
-          }
-        } else {
-          c.chute.position.y += dt * 3; c.chute.position.x += dt * 2; c.chute.rotation.z += dt * 0.8;
-          if (c.t > 0.6 && !c.opened) {
-            c.opened = true; c.g.remove(c.chute);
-            G.fx.burst(c.at.clone().setY(c.at.y + 0.5), 24, [0x6a7a8a, 0xffd040, 0x3a3a3a], { speed: 5, size: 0.14, life: 1 });
-            G.fx.puff(c.at.clone().setY(c.at.y + 0.6), { glow: true, s0: 1.5, s1: 3, life: 0.3, c0: 0xfff0c0, c1: 0xffa040 });
-            G.audio.playAt('impact', c.at, { gain: 1, rate: 0.6 });
-            if (!c.visual) { G.dropGun(c.at, 2); G.fx.drop('ammo', c.at.clone().add(new THREE.Vector3(0.8, 0, 0))); G.fx.drop('health', c.at.clone().add(new THREE.Vector3(-0.8, 0, 0.3))); }
-          }
-          if (c.t > 1.2) { G.scene.remove(c.g); crates.splice(i, 1); }
-        }
-      }
-    }
-    function takeGround(it) { removeGround(it); return { id: it.id, mag: it.mag, reserve: it.reserve }; }
-    function nearGround() {
-      const P = G.player; let best = null; let bd = 2.1;
-      for (const it of ground) {
-        if (it.claim) continue;
-        const dd = Math.hypot(it.pos.x - P.pos.x, it.pos.z - P.pos.z);
-        if (dd < bd && Math.abs(it.pos.y - P.pos.y - 0.2) < 1.6) { bd = dd; best = it; }
-      }
-      return best;
-    }
-    function updateGround(dt) {
-      for (const it of ground) {
-        it.t += dt;
-        if (!it.rest) {
-          it.vel.y -= 20 * dt;
-          gFeet.copy(it.pos); gFeet.y -= 0.12;
-          G.world.moveBox(gFeet, it.vel, dt, 0.22, 0.24, gOut);
-          it.pos.set(gFeet.x, gFeet.y + 0.12, gFeet.z);
-          it.g.rotation.x += it.spin.x * dt; it.g.rotation.y += it.spin.y * dt; it.g.rotation.z += it.spin.z * dt;
-          if (gOut.ground) {
-            const imp = -it.vel.y; it.vel.y = imp > 3 ? imp * 0.3 : 0; it.vel.x *= 0.5; it.vel.z *= 0.5; it.spin.multiplyScalar(0.4);
-            if (imp > 2) G.audio.playAt('clank', it.pos, { gain: 0.5 });
-            if (imp <= 3) { it.rest = true; it.restY = gFeet.y + it.thick + 0.01; it.settle = 0; it.q0 = it.g.quaternion.clone(); it.q1 = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, it.yaw, Math.PI / 2, 'YXZ')); }
-          }
-        } else if (it.settle < 1) {
-          it.settle = Math.min(1, it.settle + dt * 6); const k = ease(it.settle);
-          it.g.quaternion.copy(it.q0).slerp(it.q1, k); it.pos.y = BZ.lerp(it.pos.y, it.restY, k);
-        }
-        it.ring.position.set(it.pos.x, (it.rest ? it.restY - it.thick : it.pos.y - 0.12) + 0.03, it.pos.z);
-        const near = nearGround() === it;
-        it.ring.material.opacity = (it.rest ? 0.45 + Math.sin(it.t * 3) * 0.15 : 0.15) + (near ? 0.35 : 0);
-        it.ring.scale.setScalar(near ? 1.15 + Math.sin(it.t * 8) * 0.05 : 1);
-      }
-    }
-
     // ---------- melee: keyframed swings (pos x,y,z, yaw, pitch, roll, twist about the blade) ----------
     const KF = {
       idle: [0.3, -0.38, -0.5, 0.12, -0.5, -0.3, 0.25], idleAxe: [0.33, -0.44, -0.48, 0.22, -0.32, -0.25, 0.35],
@@ -672,7 +533,6 @@
         if (input.fire && canFire && (w.auto || !S.held)) fire();
       }
       S.held = input.fire;
-      updateGround(dt); updateCrates(dt);
 
       // viewmodel pose: springs + sway + bob + reload dip + ADS
       const kz = S.kZ.step(dt); const kp = S.kP.step(dt); const ky = S.kY.step(dt); const kr = S.kR.step(dt);
@@ -761,13 +621,15 @@
       renderer.render(vmScene, vmCam);
     }
 
+    // each hero's own gun (endless reserve, there is nowhere else to get ammo for it) and blade
+    const kit = () => [(G.hero && G.hero.def && G.hero.def.weapon) || START];
     function reset() {
-      S.inv = START.slice(); S.swing = null; S.combo = 0; trailPts.length = 0;
-      while (ground.length) removeGround(ground[0]);
+      const K = kit(); S.inv = K.slice(); S.swing = null; S.combo = 0; trailPts.length = 0;
       for (const id of ORDER) { state[id].mag = magOf(WEAPONS[id]); state[id].reserve = resOf(WEAPONS[id]); models[id].visible = false; }
-      S.cur = 'smg'; S.next = null; S.phase = 'draw'; S.t = 0; models.smg.visible = true; S.ads = 0; S.bloom = 0; S.shots = 0; S.hits = 0; S.pumpT = 0; S.cycle = 9;
+      state[K[0]].reserve = Infinity;
+      S.cur = K[0]; S.next = null; S.phase = 'draw'; S.t = 0; models[K[0]].visible = true; S.ads = 0; S.bloom = 0; S.shots = 0; S.hits = 0; S.pumpT = 0; S.cycle = 9;
     }
 
-    return { S, state, WEAPONS, ORDER, SLOTS, magOf, resOf, update, render, select, selectSlot, cycle, startReload, give, refill, reset, has, dropCur, pickup, nearGround, ground, takeGround, spawnGround, removeGround, takeItem, airdrop, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { S, state, WEAPONS, ORDER, magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();

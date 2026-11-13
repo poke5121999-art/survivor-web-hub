@@ -9,13 +9,11 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 - `js/art.js` vẽ texture pixel và có `BZ.Builder` gộp mọi khối cùng material thành một mesh.
 - `js/world.js` giữ bảng bố cục thị trấn, va chạm AABB, lưới đi cho zombie (flow field BFS) và raycast.
 - `js/zombies.js`, `js/weapons.js`, `js/player.js`, `js/fx.js`, `js/audio.js` và `js/ui.js` là các hệ thống còn lại.
-- `js/main.js` lo khởi động, máy trạng thái (`title → playing ⇄ paused/shop → dead`), các đợt zombie, kinh tế và vòng lặp chính.
+- `js/main.js` lo khởi động, máy trạng thái (`title → select → playing ⇄ paused/pick → dead`), các đợt zombie, màn chọn nâng cấp và vòng lặp chính.
 
 ## Vũ khí và gore
 
-- Người chơi cầm tối đa 2 món (`S.inv` trong `js/weapons.js`, khởi đầu SMG + katana). Mua món thứ ba thì món đang cầm rơi xuống đất. `X` bỏ món đang cầm, `E` nhặt món dưới chân.
-- Vũ khí dưới đất (`ground` trong `js/weapons.js`) nằm đó tới hết ván. Trần 60 món để máy yếu không nghẽn; quá trần thì món cũ nhất chưa ai nhắm tới biến mất.
-- Lính thuê tự đi nhặt vũ khí trong bán kính 14 m quanh mình (không xa người chơi quá 20 m) rồi dùng luôn, kể cả bazooka và đồ cận chiến. Lính chết hay hết đạn thì vũ khí rơi lại xuống đất.
+- Mỗi nhân vật cầm đúng một vũ khí (`weapon` trong `js/heroes.js`), đạn dự trữ vô hạn. Lính thuê luôn cầm súng carbine của mình.
 - Cận chiến (katana, rìu, kiếm ánh sáng) là bảng `KF` các tư thế khoá, mỗi nhát có ba đoạn: lấy đà, chém, thu về. Nhát chém trúng thì cả thế giới đứng hình vài khung (`G.hitStop`), riêng camera vẫn xoay.
 - Gore ở `js/fx.js` (`gib`, `chunks`, `splat`, `spurt`) và `sever` / `burstHead` / `blowApart` trong `js/zombies.js`. Tay, chân, đầu rời ra thành khối riêng, văng, nảy rồi nằm phẳng trên đất; mất chân thì zombie bò. Kiếm ánh sáng cắt thì vết cắt cháy cam, không chảy máu.
 
@@ -58,38 +56,37 @@ Màn chọn nhân vật dựng 11 người đứng thành hàng giữa quảng t
 | Xác Băng | 8 | miễn băng, sợ lửa; cắn làm chậm; chết thì nổ băng, đóng băng đám xung quanh (bắn điện vào là vỡ vụn) |
 | Nhện Chúa (boss) | đợt boss | bắn tơ trói chân, đẻ trứng (trứng nở 3 nhện nếu không phá kịp), vồ xa |
 
-Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 12%: Nhanh, Trâu, Tự hồi (lửa hoặc độc chặn hồi), Bùng nổ (chết thì nổ), Hút máu, Cuồng (dưới nửa máu). Tinh anh có hào quang, viên đá màu xoay trên đầu, thanh máu vàng, rơi súng 35% và trả xu, điểm gấp ba.
+Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 12%: Nhanh, Trâu, Tự hồi (lửa hoặc độc chặn hồi), Bùng nổ (chết thì nổ), Hút máu, Cuồng (dưới nửa máu). Tinh anh có hào quang, viên đá màu xoay trên đầu, thanh máu vàng, và cho điểm gấp ba.
 
 Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1024 cuồng, 2048 đang ra chiêu, và cột thứ 9 là tinh anh. Đạn axit, tơ, vũng nguy hiểm, tiếng thét, nổ băng đi qua sự kiện `zk`. Chậm và trói chân đến máy người vào sau cùng tin nhắn `hurt`.
 
 ## Cảm giác đòn (polish)
 
-- `js/polish.js`: hạ zombie thì đồng xu bay từ xác vào ô xu (boss 5, tinh anh 3), ô xu nảy lên; dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; mua nâng cấp thì thẻ nảy và toé tia.
+- `js/polish.js`: dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; chọn nâng cấp thì thẻ nảy và toé tia.
 - Zombie chết ngã ba kiểu (`fall` trong `js/zombies.js`): ngã ngửa vung tay, đổ sấp về phía người bắn, khuỵu gối rồi đổ nghiêng.
 
-## Shop nâng cấp và đường build
+## Chọn nâng cấp và đường build
 
-- Shop (`B` hoặc giữa hai đợt) chỉ bán nâng cấp chỉ số, không bán súng. `js/build.js` giữ bảng `UP` gồm 25 nâng cấp chia 5 nhóm: Hoả lực (sát thương, chí mạng, tốc bắn, nạp đạn, băng đạn, cận chiến), Sinh tồn (máu, hồi máu, giáp, tốc chạy, hút xu), Kỹ năng (hồi chiêu, sức mạnh chiêu, nạp tối thượng), Nguyên tố và Hỗ trợ. Giá tăng theo cấp (`base·grow^lv`).
-- Nguyên tố là hiệu ứng gắn lên zombie khi bắn trúng: lửa cháy theo thời gian, băng chồng 4 lớp thì đóng băng, điện nhảy sang con bên cạnh (mưa bão nhảy xa hơn), độc rỉ máu. Hai hiệu ứng gặp nhau thì phản ứng: nổ hơi (lửa + băng), vỡ vụn (điện vào zombie đang đóng băng), nổ khí độc (lửa + độc), lan độc (điện + độc). Hút máu và nổ xác là hai nhánh còn lại.
-- Hai nhóm đủ cấp thì mở cộng hưởng (`RES`, 10 cái), ví dụ Siêu dẫn (băng + điện), Pháo đài (kỹ sư + giáp), Bất tử (hồi máu + giáp: gục một lần mỗi đợt thì đứng dậy).
-- Lính thuê, tháp súng, bom và jetpack không còn mua lẻ mà là nhánh Hỗ trợ: Chỉ huy thuê lính mỗi đợt, Kỹ sư dựng tháp quanh người chơi đầu đợt, Bom nâng số bom mang được, Jetpack mở ba lô bay.
-- Mỗi nhân vật có sẵn vài cấp miễn phí ở nhánh hợp mình (`AFFINITY`): Gió tốc chạy, Thép giáp, Băng nguyên tố băng…
-- Súng có từ zombie rơi (boss chắc chắn, zombie tinh anh 35%, zombie to 20%, thường 2,5%) và từ thùng tiếp tế thả dù sau mỗi đợt, vỡ ra 2 súng cùng đạn và máu.
-- Co-op: phản ứng do hai người khác nhau gây ra là **phối hợp**, nổ mạnh gấp rưỡi và hiện chữ PHỐI HỢP. Hiệu ứng nguyên tố đi trong ảnh chụp trạng thái dưới dạng cờ bit, phát trúng của khách mang theo nguyên tố của họ.
+- Không có shop, không có tiền. Hết mỗi đợt, mỗi người chơi được chọn 1 trong 3 nâng cấp (`G.build.offer`, ưu tiên ba nhánh khác nhau), bấm thẻ hoặc phím 1, 2, 3. Chọn xong thì vào đợt sau ngay. Trong co-op, đợt sau chỉ bắt đầu khi mọi người đã chọn (khách gửi `picked` lên chủ phòng); nếu một người bỏ máy quá 60 giây thì vẫn đi tiếp.
+- `js/build.js` giữ bảng `UP`, chia 5 nhánh: Hoả lực, Sinh tồn, Kỹ năng, Nguyên tố, Hỗ trợ. Mỗi nâng cấp cộng một cấp qua `grant`.
+- Nguyên tố là hiệu ứng gắn lên zombie khi bắn trúng: lửa cháy theo thời gian, băng chồng 4 lớp thì đóng băng, điện nhảy sang con bên cạnh, độc rỉ máu. Hai nguyên tố gặp nhau thì phản ứng: nổ hơi, vỡ vụn, nổ khí độc, lan độc. Trong co-op, phản ứng do hai người khác nhau gây ra là **phối hợp** và mạnh gấp rưỡi.
+- Hai nhánh đủ cấp thì mở cộng hưởng (`RES`). Màn chọn ghi rõ nâng cấp nào sẽ mở cộng hưởng nào.
+- Mỗi nhân vật cầm đúng một vũ khí suốt trận (`weapon` trong `js/heroes.js`), đạn dự trữ vô hạn. Không đổi, không nhặt, không bỏ vũ khí, không có bom ném, zombie không rơi đồ. Đầu mỗi đợt hồi 35% máu.
+- Quái mạnh dần theo đợt (`BZ.WAVE.hpMul`, `dmgMul`, `speedMul`). Trong co-op, mỗi người thêm làm đợt đông hơn 60%, zombie trâu hơn 35%, và số zombie trên sân cùng lúc tăng 40%.
 
 ## Ngày đêm, thời tiết, vụ nổ
 
 - `js/sky.js` giữ một đồng hồ chạy 8 phút cho một ngày: mặt trời mọc và lặn, ban đêm có mặt trăng và sao, đèn đường với cửa sổ sáng chỉ bật khi tối. Ban đêm zombie nhanh hơn 15%. `?tod=0.5` (0 = nửa đêm, 0.5 = trưa) và `?daylen=<giây>` dùng khi thử.
-- Đầu mỗi đợt tung ra một kiểu thời tiết, kiểu nào cũng có luật riêng: mưa (zombie chậm 10%), bão sét (sét đánh zombie), sương mù (xu gấp rưỡi), tuyết (zombie chậm 20%), trăng máu chỉ ra ban đêm (zombie trâu hơn, xu gấp đôi), gió tro (đạn lệch), mưa sao băng (thiên thạch nổ, có vòng đỏ báo trước). `?weather=<id>` ép một kiểu.
+- Đầu mỗi đợt tung ra một kiểu thời tiết, kiểu nào cũng có luật riêng: mưa (zombie chậm 10%), bão sét (sét đánh zombie), sương mù (điểm gấp rưỡi), tuyết (zombie chậm 20%), trăng máu chỉ ra ban đêm (zombie trâu hơn, điểm gấp đôi), gió tro (đạn lệch). `?weather=<id>` ép một kiểu. Không có mưa thiên thạch.
 - Vụ nổ ở `fx.explosion`: chớp sáng, quả cầu lửa, vòng sóng xung kích trên đất, tàn lửa, gạch đá văng, khói đứng lại vài giây, vết cháy, màn hình loé trắng khi nổ gần. Lửa và khói là hai `InstancedMesh` billboard (một lớp cộng sáng, một lớp alpha), nên mỗi lớp chỉ tốn một draw call.
 
 ## Chơi cùng bạn (co-op)
 
 - Màn đầu có nút **Chơi cùng bạn**: tạo phòng (ra mã 6 ký tự), vào bằng mã, hoặc chọn trong danh sách phòng đang mở. Tối đa 4 người. Người vào sau chọn nhân vật rồi nhảy thẳng vào trận đang đánh.
 - Mạng là Unity Relay gọi bằng JS thuần, chép từ `games/mini-mart-coop/js/net/` sang `js/net/`. `relay.js` giữ nguyên; `ugs.js` và `room.js` đổi nhãn phòng sang `blockadez` ở index S5, nên danh sách phòng không lẫn với Boo Haul hay Mini Mart Together.
-- `js/coop.js`: chủ phòng giữ zombie, đợt, thời tiết, vũ khí dưới đất và lính thuê, gửi ảnh chụp trạng thái 15 lần mỗi giây kèm sự kiện (zombie chết với kiểu gore đã chọn, đứt chi, vụ nổ, sét, thiên thạch, vũ khí rơi và được nhặt, thông báo đợt). Người vào sau tự đi và tự bắn trên máy mình, tự thử trúng zombie mình thấy, rồi gửi phát trúng lên chủ phòng. Xu và điểm thuộc về người ra đòn kết liễu. Zombie đuổi người sống gần nhất. Gục thì chờ hồi sinh ở đợt sau; cả phòng gục thì hết trận.
+- `js/coop.js`: chủ phòng giữ zombie, đợt, thời tiết và lính thuê, gửi ảnh chụp trạng thái 15 lần mỗi giây kèm sự kiện (zombie chết với kiểu gore đã chọn, đứt chi, vụ nổ, sét, kỹ năng, thông báo đợt). Người vào sau tự đi và tự bắn trên máy mình, tự thử trúng zombie mình thấy, rồi gửi phát trúng lên chủ phòng. Điểm thuộc về người ra đòn kết liễu. Zombie đuổi người sống gần nhất. Gục thì chờ hồi sinh ở đợt sau; cả phòng gục thì hết trận.
 - `?fakenet=1` thay Relay bằng `BroadcastChannel` để hai tab cùng trình duyệt chơi với nhau khi không có mạng (dùng cho test).
-- Còn hở: bóng mồi của nhân vật Bóng chỉ nhử được zombie khi chủ phòng là Bóng; tên lửa đang bay và quả bom đang lăn của người khác không hiện, chỉ thấy vụ nổ; chủ phòng rời thì phòng đóng (chưa chuyển chủ).
+- Còn hở: bóng mồi của nhân vật Bóng chỉ nhử được zombie khi chủ phòng là Bóng; tên lửa đang bay của người khác không hiện, chỉ thấy vụ nổ; chủ phòng rời thì phòng đóng (chưa chuyển chủ).
 
 ## Kiểm
 
@@ -101,7 +98,7 @@ PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/zoo.js 
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/kits.js <thư mục ảnh>
 ```
 
-`smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, mua shotgun, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, bỏ và nhặt vũ khí, lính nhặt bazooka rồi bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.
+`smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, chọn nâng cấp bằng phím 2 rồi vào đợt 2, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, mỗi nhân vật một vũ khí, lính thuê bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.
 
 Tham số URL dùng khi thử:
 
@@ -109,7 +106,6 @@ Tham số URL dùng khi thử:
 - `?nolock=1` tắt pointer lock.
 - `?god=1` cho bất tử.
 - `?wave=N` bắt đầu từ đợt N.
-- `?coins=N` cho sẵn N xu.
 - `?q=low|medium|high` chọn mức đồ hoạ.
 - `?noaudio=1` tắt âm thanh.
 

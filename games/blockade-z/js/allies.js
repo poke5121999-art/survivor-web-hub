@@ -93,23 +93,6 @@
         a.reload = 0;
       } else { b.gun.add(b.flash); b.flash.position.set(0, 0.044, 0.8); }
     }
-    function dropWeap(a) {
-      if (!a.weap) return;
-      G.weapons.spawnGround(a.weap.id, a.weap.mag, a.weap.reserve, new THREE.Vector3(a.pos.x, a.pos.y + 1, a.pos.z), new THREE.Vector3(G.rng.range(-1.5, 1.5), 3, G.rng.range(-1.5, 1.5)));
-      equip(a, null);
-    }
-    // look for an unclaimed weapon on the ground near this soldier and not far from the player
-    function lookForWeapon(a) {
-      if (a.weap || a.fetch) return;
-      const P = G.player; let best = null; let bd = 14;
-      for (const it of G.weapons.ground) {
-        if (it.claim || !it.rest) continue;
-        const W = BZ.WEAPONS[it.id]; if (!W.melee && it.mag + (it.reserve === Infinity ? 1e9 : it.reserve) <= 0) continue;
-        const d = Math.hypot(it.pos.x - a.pos.x, it.pos.z - a.pos.z);
-        if (d < bd && Math.hypot(it.pos.x - P.pos.x, it.pos.z - P.pos.z) < 20 && Math.abs(it.pos.y - a.pos.y) < 1.5) { bd = d; best = it; }
-      }
-      if (best) { a.fetch = best; best.claim = a; }
-    }
     function nearest(pos, maxD) {
       let best = null; let bd = maxD;
       for (const a of list) { if (!a.alive) continue; const d = Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z); if (d < bd) { bd = d; best = a; } }
@@ -121,8 +104,6 @@
       G.fx.burst(new THREE.Vector3(a.pos.x, 1.2, a.pos.z), 5, [0xb3201a, 0x7a1410], { size: 0.1 });
       if (a.hp <= 0) {
         a.alive = false; a.dying = 0.001; a.body.barBg.visible = false;
-        if (a.fetch) { a.fetch.claim = null; a.fetch = null; }
-        dropWeap(a);
         G.audio.playAt('hurt', a.pos, { gain: 0.9 });
         G.ui.banner('LÍNH NGÃ', 'còn ' + count() + ' lính', 1.6);
       }
@@ -154,12 +135,9 @@
           }
         }
         if (a.target && !a.target.alive) a.target = null;
-        a.lookT -= dt; if (a.lookT <= 0) { a.lookT = 0.5; lookForWeapon(a); }
-        if (a.fetch && !G.weapons.ground.includes(a.fetch)) a.fetch = null;
         const WP = a.weap && BZ.WEAPONS[a.weap.id]; const melee = WP && WP.melee;
         let tx; let tz; let stop = 1;
-        if (a.fetch) { tx = a.fetch.pos.x; tz = a.fetch.pos.z; stop = 0.2; }
-        else if (melee && a.target && Math.hypot(a.target.pos.x - P.pos.x, a.target.pos.z - P.pos.z) < 14) { tx = a.target.pos.x; tz = a.target.pos.z; stop = WP.range * 0.6; }
+        if (melee && a.target && Math.hypot(a.target.pos.x - P.pos.x, a.target.pos.z - P.pos.z) < 14) { tx = a.target.pos.x; tz = a.target.pos.z; stop = WP.range * 0.6; }
         else {
           // follow the formation slot behind the player
           const [sx, sb] = SLOTS[a.slot || 0];
@@ -167,8 +145,7 @@
           tx = P.pos.x + Math.cos(P.yaw) * sx - fx * sb; tz = P.pos.z - Math.sin(P.yaw) * sx - fz * sb;
         }
         const dx = tx - a.pos.x; const dz = tz - a.pos.z; const dist = Math.hypot(dx, dz);
-        const want = dist > stop ? Math.min(ALLY.speed * (a.fetch || melee ? 1.15 : 1), dist * 2 + 1) : 0;
-        if (a.fetch && dist < 0.9) { const w = G.weapons.takeGround(a.fetch); a.fetch = null; equip(a, w); G.audio.playAt('clank', a.pos, { gain: 0.6 }); G.ui.pop('lính nhặt ' + BZ.WEAPONS[w.id].name, 'heal', new THREE.Vector3(a.pos.x, 2.3, a.pos.z)); }
+        const want = dist > stop ? Math.min(ALLY.speed * (melee ? 1.15 : 1), dist * 2 + 1) : 0;
         a.vel.x = BZ.damp(a.vel.x, dist > 0.01 ? (dx / dist) * want : 0, 8, dt); a.vel.z = BZ.damp(a.vel.z, dist > 0.01 ? (dz / dist) * want : 0, 8, dt); a.vel.y = 0;
         G.world.moveBox(a.pos, a.vel, dt, 0.3, 1.8, out, 0.45); a.vel.y -= 20 * dt;
         // face the target, else the walking direction
@@ -210,7 +187,7 @@
           a.kick.v += WP && WP.rocket ? 14 : 6;
           a.cool = (WP ? Math.max(60 / WP.rpm * (WP.auto ? 1.5 : 1.2), 0.12) * G.rng.range(0.9, 1.2) : G.rng.range(ALLY.fire[0], ALLY.fire[1])) / (G.build.has('fortress') ? 1.5 : 1);
           const z = a.target; const muzzle = new THREE.Vector3(a.pos.x + Math.sin(a.yaw) * 0.7, 1.35, a.pos.z + Math.cos(a.yaw) * 0.7);
-          if (WP) { a.weap.mag--; if (a.weap.mag <= 0) { if (a.weap.reserve > 0) a.reload = WP.reload || 2; else { dropWeap(a); } } }
+          if (WP) { a.weap.mag--; if (a.weap.mag <= 0) { if (a.weap.reserve > 0) a.reload = WP.reload || 2; else equip(a, null); } }
           const hit = G.rng.chance(ALLY.accuracy); const head = hit && G.rng.chance(ALLY.head);
           const end = new THREE.Vector3(z.pos.x + (hit ? 0 : G.rng.range(-0.8, 0.8)), z.pos.y + (head ? 1.7 : 1.0) * z.T.scale + (hit ? 0 : G.rng.range(0.3, 0.9)), z.pos.z + (hit ? 0 : G.rng.range(-0.8, 0.8)));
           if (WP && WP.rocket) {

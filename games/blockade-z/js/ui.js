@@ -1,4 +1,4 @@
-// HUD, menus, shop, pixel logo. Pure DOM; the game calls in, buttons emit events.
+// HUD, menus, the upgrade pick, pixel logo. Pure DOM; the game calls in, buttons emit events.
 (() => {
   const BZ = window.BZ;
 
@@ -59,23 +59,20 @@
     const $ = (s) => document.querySelector(s);
     const el = {
       hud: $('#hud'), hp: $('#hp i'), hpTxt: $('#hp b'), armor: $('#armor'), ammo: $('#ammo b'), reserve: $('#ammo span'), wname: $('#wname'), slots: $('#slots'),
-      wave: $('#wave b'), left: $('#wave span'), coins: $('#coins b'), score: $('#score b'), banner: $('#banner'), cross: $('#cross'), marker: $('#marker'),
-      vignette: $('#vignette'), dmgDir: $('#dmgdir'), pops: $('#pops'), shop: $('#shop'), shopList: $('#shop-list'), shopTimer: $('#shop-timer'),
-      fuel: $('#fuel i'), bombs: $('#bombs b'), boss: $('#bossbar'), bossName: $('#bossbar b'), bossFill: $('#bossbar i'),
-      title: $('#title'), pause: $('#pause'), dead: $('#dead'), reloadHint: $('#reloadhint'), breakbar: $('#breakbar'), stick: $('#stick'), stickKnob: $('#stick i'), touch: $('#touch'),
+      wave: $('#wave b'), left: $('#wave span'), score: $('#score b'), banner: $('#banner'), cross: $('#cross'), marker: $('#marker'),
+      vignette: $('#vignette'), dmgDir: $('#dmgdir'), pops: $('#pops'), pick: $('#pick'), pickList: $('#pick-list'), pickHead: $('#pick-head'), pickWaitEl: $('#pick-wait'),
+      fuel: $('#fuel i'), boss: $('#bossbar'), bossName: $('#bossbar b'), bossFill: $('#bossbar i'),
+      title: $('#title'), pause: $('#pause'), dead: $('#dead'), reloadHint: $('#reloadhint'), stick: $('#stick'), stickKnob: $('#stick i'), touch: $('#touch'),
     };
     logo($('#logo'), 'BLOCKADE Z');
     const W0 = G.weapons;
     // two hand slots; icons are drawn once per weapon and swapped in as the inventory changes
     const icons = {}; const icon = (id) => (icons[id] = icons[id] || gunIcon(id));
-    el.slots.innerHTML = [0, 1].map((i) => `<button data-slot="${i}"><img alt=""><em>${i + 1}</em><small></small></button>`).join('');
-    const slotEls = [0, 1].map((i) => el.slots.querySelector(`[data-slot="${i}"]`));
-    el.slots.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (b) W0.selectSlot(+b.dataset.slot); });
-    el.slots.addEventListener('touchstart', (e) => { const b = e.target.closest('[data-slot]'); if (b) { e.preventDefault(); W0.selectSlot(+b.dataset.slot); } }, { passive: false });
-    const prompt = document.getElementById('prompt'); let promptFor = null;
+    el.slots.innerHTML = [0].map((i) => `<button data-slot="${i}"><img alt=""><em>${i + 1}</em><small></small></button>`).join('');
+    const slotEls = [0].map((i) => el.slots.querySelector(`[data-slot="${i}"]`));
     if (BZ.isTouch) document.body.classList.add('touch');
 
-    const screens = ['title', 'pause', 'dead', 'shop', 'select', 'coop'];
+    const screens = ['title', 'pause', 'dead', 'pick', 'select', 'coop'];
     el.select = $('#select'); el.coop = $('#coop');
     // ---- co-op menu ----
     const coopName = $('#coop-name'); const coopList = $('#coop-list'); const coopStat = $('#coop-status'); const coopCode = $('#coop-code');
@@ -103,6 +100,7 @@
       $('#sel-hp').style.width = Math.min(100, h.hp / 1.5) + '%'; $('#sel-hpn').textContent = h.hp;
       $('#sel-spd').style.width = Math.round((h.speed || 1) * 80) + '%'; $('#sel-spdn').textContent = Math.round((h.speed || 1) * 100) + '%';
       for (const k of ['s1', 's2']) { const s = h[k]; $('#sel-' + k).textContent = s.name + (s.charges ? ` · ${s.charges} lượt, hồi ${s.cd} giây` : ` · hồi ${s.cd} giây`); $('#sel-' + k + 'd').textContent = s.desc; }
+      $('#sel-kit').textContent = G.weapons.WEAPONS[h.weapon].name;
       $('#sel-ult').textContent = h.ult.name; $('#sel-ultd').textContent = h.ult.desc; $('#sel-passive').textContent = h.passive;
       selRow.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
     }
@@ -112,30 +110,25 @@
       b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.hero.use(k); }, { passive: false });
     }
 
-    // shop = upgrades only: category tabs, one card per upgrade with its level pips and next step, resonances below
-    let shopCat = 'fire';
-    function shopRender() {
+    // after a wave: three upgrade cards (key 1, 2, 3), what the build already has, and who is still choosing
+    const CAT = Object.fromEntries(G.build.CATS);
+    function pickRender(ids, n) {
       const B = G.build;
-      const tabs = B.CATS.map(([id, n]) => `<button class="tab${id === shopCat ? ' on' : ''}" data-cat="${id}">${n}</button>`).join('');
-      const cards = B.UP.filter((u) => u.cat === shopCat).map((u) => {
-        const l = B.lv(u.id); const max = l >= u.max; const c = B.cost(u.id);
-        return `<button class="up${max ? ' max' : ''}${l ? ' has' : ''}" data-up="${u.id}" ${max || G.coins < c ? 'disabled' : ''}>
-          <i>${u.icon}</i><b>${u.name}</b><em>${'<u class="on"></u>'.repeat(l)}${'<u></u>'.repeat(u.max - l)}</em>
-          <small>${l ? u.d(l) : 'chưa có'}${max ? '' : `<br><span class="nx">▶ ${u.d(l + 1)}</span>`}</small><strong>${max ? 'TỐI ĐA' : '🪙 ' + c}</strong></button>`;
+      el.pickHead.innerHTML = `<small>HẾT ĐỢT ${n}</small><b>Chọn 1 nâng cấp</b>`;
+      el.pickList.innerHTML = ids.map((id, k) => {
+        const u = B.def(id); const l = B.lv(id); const un = B.unlocks(id);
+        return `<button class="up" data-pick="${id}" style="--d:${k * 90}ms"><kbd>${k + 1}</kbd><i>${u.icon}</i><span class="cat">${CAT[u.cat]}</span><b>${u.name}</b>
+          <em>${'<u class="on"></u>'.repeat(l)}<u class="nw"></u>${'<u></u>'.repeat(u.max - l - 1)}</em>
+          <small>${l ? u.d(l) + '<br>' : ''}<span class="nx">▶ ${u.d(l + 1)}</span></small>${un.length ? `<p class="unl">✦ mở cộng hưởng ${un.map((r) => r.name).join(', ')}</p>` : ''}</button>`;
       }).join('');
-      const res = B.RES.map((r) => {
-        const on = B.has(r.id);
-        const need = Object.entries(r.need).map(([k, n]) => `<span class="${B.lv(k) >= n ? 'ok' : ''}">${B.def(k).name} ${Math.min(B.lv(k), n)}/${n}</span>`).join(' + ');
-        return `<div class="res${on ? ' on' : ''}"><b>${on ? '✦ ' : ''}${r.name}</b><small>${need}</small><p>${r.d}</p></div>`;
-      }).join('');
-      el.shopList.innerHTML = `<div class="shop-coins">🪙 <b>${G.coins}</b></div><div class="tabs">${tabs}</div><div class="ups">${cards}</div>
-        <h3 class="res-h">Cộng hưởng <small>đủ cấp ở hai nhánh thì mở thêm hiệu ứng</small></h3><div class="ress">${res}</div>
-        <p class="shop-note">Súng không bán: nhặt từ zombie, quái tinh anh, boss và thùng tiếp tế thả dù giữa hai đợt.</p>`;
+      const own = B.UP.filter((u) => B.lv(u.id)).map((u) => `<span>${u.icon} ${u.name} ${B.lv(u.id)}</span>`).join('');
+      const res = B.RES.filter((r) => B.has(r.id)).map((r) => `<span class="on">✦ ${r.name}</span>`).join('');
+      el.pick.querySelector('.owned').innerHTML = own || res ? own + res : '';
+      el.pickWaitEl.textContent = ''; el.pick.classList.remove('done');
     }
-    el.shopList.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-cat]'); if (t) { shopCat = t.dataset.cat; G.audio.play('switch', { gain: 0.5 }); shopRender(); return; }
-      const u = e.target.closest('[data-up]'); if (u && !u.disabled) G.events.emit('upgrade', u.dataset.up);
-    });
+    function pickWait() { el.pick.classList.add('done'); pickTick(); }
+    function pickTick() { if (!el.pick.classList.contains('done')) return; const w = G.wave.waiting(); const t = w ? `Đang chờ ${w} người chọn…` : 'Vào đợt sau…'; if (el.pickWaitEl.textContent !== t) el.pickWaitEl.textContent = t; }
+    el.pickList.addEventListener('click', (e) => { const b = e.target.closest('[data-pick]'); if (b && !el.pick.classList.contains('done')) { b.classList.add('chosen'); G.events.emit('pick', b.dataset.pick); } });
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act],[data-buy]');
       if (!b) return;
@@ -176,7 +169,6 @@
       el.hp.parentElement.classList.toggle('low', P.hp < 35);
       el.armor.style.width = Math.min(100, P.armor) + '%';
       el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
-      el.bombs.textContent = G.gear.state.bombs;
       el.ammo.textContent = w.melee ? '⚔' : a.mag; el.reserve.textContent = w.melee ? '' : a.reserve === Infinity ? '∞' : a.reserve;
       el.ammo.classList.toggle('low', !w.melee && a.mag <= Math.ceil(w.mag / 4));
       el.wname.textContent = w.name + (W.S.phase === 'reload' ? ' · đang nạp' : '');
@@ -188,12 +180,6 @@
         const st = id && W.state[id];
         s.lastChild.textContent = !id ? 'trống' : W.WEAPONS[id].melee ? W.WEAPONS[id].name : st.mag + '/' + (st.reserve === Infinity ? '∞' : st.reserve);
       });
-      const near = G.state === 'playing' ? W.nearGround() : null;
-      if (near !== promptFor) {
-        promptFor = near;
-        if (near) { const full = W.S.inv.length >= W.SLOTS && !W.has(near.id); prompt.innerHTML = `<kbd>${BZ.isTouch ? 'NHẶT' : 'E'}</kbd> ${full ? 'đổi lấy' : 'nhặt'} <b>${W.WEAPONS[near.id].name}</b>`; }
-        prompt.classList.toggle('on', !!near); document.body.classList.toggle('can-pick', !!near);
-      }
       const Hh = G.hero; const hd = Hh.def;
       if (skillFor !== hd) {
         skillFor = hd; el.hud.style.setProperty('--hc', css(hd.color)); heroTag.textContent = hd.name.toUpperCase() + ' · ' + hd.role;
@@ -207,11 +193,11 @@
       const ub = ultEl.querySelector('b'); const ut = (Hh.t.ultOn || 0) > 0 ? '●' : u >= 1 ? (BZ.isTouch ? '★' : 'Q') : Math.floor(u * 100) + '%'; if (ub.textContent !== ut) ub.textContent = ut;
       const envEl = document.getElementById('env'); const wid = G.sky.weather(); const wname = BZ.WEATHERS[wid].name;
       const envTxt = (G.env.night ? '🌙 Đêm' : '☀ Ngày') + (wid !== 'clear' ? ' · ' + wname : '');
-      if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'meteor' || wid === 'storm'); }
+      if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'storm'); }
       const cb = G.coop && G.coop.on ? `PHÒNG ${G.coop.code} · ${G.coop.players()} người${G.coop.host ? ' · bạn là chủ phòng' : ''}` : '';
       if (coopBar.textContent !== cb) { coopBar.textContent = cb; coopBar.classList.toggle('on', !!cb); }
       el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
-      el.coins.textContent = G.coins; el.score.textContent = G.score;
+      el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
       if (boss) { el.bossName.textContent = boss.T.name; el.bossFill.style.width = Math.max(0, boss.hp / boss.maxHp) * 100 + '%'; }
       const sp = W.spread(); const gap = 6 + sp * 500;
@@ -220,8 +206,6 @@
       hurtT = Math.max(0, hurtT - dt * 0.8); el.vignette.style.opacity = Math.max(hurtT, P.hp < 35 ? 0.35 + Math.sin(performance.now() / 300) * 0.1 : 0);
       if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el.banner.classList.remove('on'); }
       if (annT > 0) { annT -= dt; if (annT <= 0) ann.className = ''; }
-      el.breakbar.classList.toggle('on', G.wave.phase === 'break' && G.state === 'playing');
-      if (G.wave.phase === 'break') { el.breakbar.querySelector('b').textContent = Math.ceil(G.wave.breakT); el.shopTimer.textContent = Math.ceil(G.wave.breakT) + ' giây'; }
       for (let i = pops.length - 1; i >= 0; i--) {
         const p = pops[i]; p.t += dt;
         if (p.world) {
@@ -244,6 +228,6 @@
       }
       const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
     }
-    return { announce, show, shopRender, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
+    return { announce, show, pickRender, pickWait, pickTick, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
   };
 })();

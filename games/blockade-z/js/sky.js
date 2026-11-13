@@ -9,11 +9,10 @@
     clear: { name: 'Trời quang', desc: '', w: 3 },
     rain: { name: 'Mưa', desc: 'Đường trơn: zombie chậm 10%', w: 2 },
     storm: { name: 'Bão sét', desc: 'Sét đánh trúng zombie bất kỳ lúc nào', w: 1.5 },
-    fog: { name: 'Sương mù', desc: 'Không nhìn xa được, nhưng xu rơi gấp rưỡi', w: 1.4 },
+    fog: { name: 'Sương mù', desc: 'Không nhìn xa được, nhưng điểm gấp rưỡi', w: 1.4 },
     snow: { name: 'Tuyết rơi', desc: 'Zombie chậm 20%, người cũng chậm 8%', w: 1.2 },
-    bloodmoon: { name: 'Trăng máu', desc: 'Zombie trâu hơn 30% và nhanh hơn 15%, xu gấp đôi', w: 1.1, night: true },
+    bloodmoon: { name: 'Trăng máu', desc: 'Zombie trâu hơn 30% và nhanh hơn 15%, điểm gấp đôi', w: 1.1, night: true },
     ash: { name: 'Gió tro', desc: 'Gió tạt làm đạn lệch nhiều hơn', w: 1.1 },
-    meteor: { name: 'Mưa sao băng', desc: 'Thiên thạch rơi nổ khắp phố, né vòng đỏ', w: 0.8 },
   };
   BZ.WEATHERS = WEATHERS;
   const C = (h) => new THREE.Color(h);
@@ -25,13 +24,12 @@
     rain: { fog: C(0x4a5260), top: C(0x2a3442), hor: C(0x5a6270), dim: 0.75 }, storm: { fog: C(0x363c48), top: C(0x1a2030), hor: C(0x3a4250), dim: 0.6 },
     fog: { fog: C(0x8a8e94), top: C(0x6a7078), hor: C(0x8a8e94), dim: 0.85 }, snow: { fog: C(0xc4ccd6), top: C(0x9aa6b4), hor: C(0xd0d6de), dim: 0.9 },
     bloodmoon: { fog: C(0x3a0c0c), top: C(0x2a0404), hor: C(0x6a1408), dim: 0.85, red: true }, ash: { fog: C(0x7a5236), top: C(0x4a2a1a), hor: C(0x9a6a40), dim: 0.8 },
-    meteor: { fog: C(0x2a2440), top: C(0x140c2a), hor: C(0x4a2a50), dim: 0.9 },
   };
 
   BZ.makeSky = (G) => {
     const scene = G.scene; const W = G.world; const sky = W.sky.material.uniforms;
-    const S = { t: +(BZ.params.tod ?? 0.8), dayLen: +(BZ.params.daylen || 480), weather: 'clear', wk: 0, nightK: 1, lastNight: null, boltT: 4, meteorT: 3 };
-    const env = (G.env = { zSpeed: 1, zHp: 1, coinMul: 1, pSpeed: 1, spread: 0, night: true });
+    const S = { t: +(BZ.params.tod ?? 0.8), dayLen: +(BZ.params.daylen || 480), weather: 'clear', wk: 0, nightK: 1, lastNight: null, boltT: 4 };
+    const env = (G.env = { zSpeed: 1, zHp: 1, scoreMul: 1, pSpeed: 1, spread: 0, night: true });
     const tmpC = new THREE.Color(); const mix = (a, b, k, out) => out.copy(a).lerp(b, k);
     const look = {}; for (const k of Object.keys(NIGHT)) look[k] = NIGHT[k].clone ? NIGHT[k].clone() : NIGHT[k];
 
@@ -83,41 +81,6 @@
       const P = G.player; if (!visual && P.alive && Math.hypot(P.pos.x - target.x, P.pos.z - target.z) < 3) G.events.emit('player:hurt', { dmg: 25, from: target });
     }
 
-    // ---------- meteors: a red ring warns, then a burning rock comes down at a slant and explodes ----------
-    const meteors = [];
-    const rockGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-    const rockMat = new THREE.MeshBasicMaterial({ color: 0xff8a30 });
-    const warnGeo = new THREE.RingGeometry(3.4, 3.9, 28).rotateX(-Math.PI / 2);
-    function meteor(net) {
-      const P = G.player; const alive = G.zombies.list.filter((z) => z.alive && !z.T.fly);
-      const base = alive.length && G.rng.chance(0.75) ? G.rng.pick(alive).pos : P.pos;
-      const at = net ? new THREE.Vector3(...net.at) : new THREE.Vector3(base.x + G.rng.range(-4, 4), 0, base.z + G.rng.range(-4, 4));
-      if (Math.abs(at.x) > W.HALF - 2 || Math.abs(at.z) > W.HALF - 2) return;
-      if (!net) at.y = Math.max(0, base.y);
-      const ring = new THREE.Mesh(warnGeo, new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
-      ring.position.set(at.x, at.y + 0.06, at.z); scene.add(ring);
-      const rock = new THREE.Mesh(rockGeo, rockMat); const from = net ? new THREE.Vector3(...net.from) : at.clone().add(new THREE.Vector3(G.rng.range(-18, 18), 55, G.rng.range(-18, 18)));
-      rock.position.copy(from); scene.add(rock);
-      meteors.push({ at, from, rock, ring, t: 0, T: 1.6, visual: !!net });
-      if (!net) G.events.emit('meteor', { at: [at.x, at.y, at.z], from: [from.x, from.y, from.z] });
-      G.audio.play('heavy', { gain: 0.5, rate: 0.5 });
-    }
-    function updateMeteors(dt) {
-      for (let i = meteors.length - 1; i >= 0; i--) {
-        const m = meteors[i]; m.t += dt; const k = Math.min(1, m.t / m.T);
-        m.rock.position.lerpVectors(m.from, m.at, k * k); m.rock.rotation.x += dt * 6; m.rock.rotation.y += dt * 4;
-        m.ring.material.opacity = 0.4 + Math.sin(m.t * 18) * 0.35; m.ring.scale.setScalar(1.2 - k * 0.3);
-        if (G.rng.chance(0.9)) G.fx.puff(m.rock.position, { glow: true, s0: 1.6, s1: 0.4, life: 0.35, c0: 0xffd070, c1: 0xff3a10 });
-        if (G.rng.chance(0.6)) G.fx.puff(m.rock.position, { s0: 0.8, s1: 2.4, life: 1.6, c0: 0x4a3a34, c1: 0x6a6460, a0: 0.6 });
-        if (k >= 1) {
-          if (!m.visual) G.gear.explode(m.at.clone().setY(m.at.y + 0.4), 5.5, 360);
-          const P = G.player; const d = Math.hypot(P.pos.x - m.at.x, P.pos.z - m.at.z);
-          if (P.alive && d < 4.2) G.events.emit('player:hurt', { dmg: Math.round(30 * (1 - d / 5)), from: m.at });
-          scene.remove(m.rock); scene.remove(m.ring); m.ring.material.dispose(); meteors.splice(i, 1);
-        }
-      }
-    }
-
     // ---------- choosing weather ----------
     function roll(n) {
       if (BZ.params.weather) return BZ.params.weather;
@@ -128,9 +91,9 @@
       return 'clear';
     }
     function setWeather(id, announce = true) {
-      S.weather = WEATHERS[id] ? id : 'clear'; S.wk = 0; S.boltT = G.rng.range(2, 5); S.meteorT = G.rng.range(2, 4);
+      S.weather = WEATHERS[id] ? id : 'clear'; S.wk = 0; S.boltT = G.rng.range(2, 5);
       const w = WEATHERS[S.weather];
-      if (announce && S.weather !== 'clear') setTimeout(() => { if (G.state === 'playing') G.ui.announce(w.name.toUpperCase(), w.desc, S.weather === 'bloodmoon' || S.weather === 'meteor' || S.weather === 'storm' ? 'hot' : ''); }, 2600);
+      if (announce && S.weather !== 'clear') setTimeout(() => { if (G.state === 'playing') G.ui.announce(w.name.toUpperCase(), w.desc, S.weather === 'bloodmoon' || S.weather === 'storm' ? 'hot' : ''); }, 2600);
       G.audio.setMusic({ rain: 0 });
     }
     G.events.on('wave:start', (n) => setWeather(roll(n)));
@@ -188,7 +151,7 @@
       const wz = { rain: 0.9, snow: 0.8, bloodmoon: 1.15 }[S.weather] || 1;
       env.zSpeed = (env.night ? 1.15 : 1) * BZ.lerp(1, wz, wk);
       env.zHp = S.weather === 'bloodmoon' ? 1.3 : 1;
-      env.coinMul = S.weather === 'bloodmoon' ? 2 : S.weather === 'fog' ? 1.5 : 1;
+      env.scoreMul = S.weather === 'bloodmoon' ? 2 : S.weather === 'fog' ? 1.5 : 1;
       env.pSpeed = S.weather === 'snow' ? BZ.lerp(1, 0.92, wk) : 1;
       env.spread = S.weather === 'ash' ? 0.02 * wk : 0;
       G.audio.setMusic({ rain: (S.weather === 'rain' ? 0.7 : S.weather === 'storm' ? 1 : 0) * wk, wind: 1 + (S.weather === 'ash' || S.weather === 'snow' || S.weather === 'storm' ? 1.2 * wk : 0) });
@@ -203,10 +166,8 @@
           strike(new THREE.Vector3(tgt.x, tgt.y, tgt.z));
         }
       }
-      if (playing && !guest && S.weather === 'meteor' && wk > 0.5) { S.meteorT -= dt; if (S.meteorT <= 0) { S.meteorT = G.rng.range(1.2, 3.2); meteor(); } }
-      updateMeteors(dt);
     }
-    function clear() { for (const m of meteors) { scene.remove(m.rock); scene.remove(m.ring); } meteors.length = 0; setWeather('clear', false); S.t = +(BZ.params.tod ?? 0.8); S.lastNight = null; }
-    return { S, update, setWeather, clear, strike, meteor, weather: () => S.weather, WEATHERS };
+    function clear() { setWeather('clear', false); S.t = +(BZ.params.tod ?? 0.8); S.lastNight = null; }
+    return { S, update, setWeather, clear, strike, weather: () => S.weather, WEATHERS };
   };
 })();

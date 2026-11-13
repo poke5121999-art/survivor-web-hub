@@ -1,5 +1,5 @@
 // Co-op over Unity Relay: up to 4 players in one fight.
-// The host owns the world (zombies, waves, weather, weapons on the ground, soldiers) and streams a snapshot 15 times a
+// The host owns the world (zombies, waves, weather, soldiers) and streams a snapshot 15 times a
 // second with the events of that interval. A guest walks and aims on its own machine, tests its own hits against the
 // zombies it sees, and sends the hits, its pose and its actions; the host applies them and tells everyone the result.
 // ?fakenet=1 swaps Relay for a BroadcastChannel so two tabs can play without network (tests).
@@ -163,12 +163,8 @@ BZ.makeCoop = (G) => {
     E.on('zombie:sever', ({ z, part, cut, dir }) => { if (C.host && z.alive) C.events.push({ k: 'sev', i: G.zombies.list.indexOf(z), part, cut, d: [+(dir ? dir.x : 0).toFixed(2), +(dir ? dir.z : 0).toFixed(2)] }); });
     E.on('boom', ({ pos, s }) => { if (C.host) C.events.push({ k: 'boom', p: v3(pos), s }); });
     E.on('bolt', ({ p }) => { if (C.host) C.events.push({ k: 'bolt', p: v3(p) }); });
-    E.on('meteor', (m) => { if (C.host) C.events.push({ k: 'meteor', at: m.at, from: m.from }); });
-    E.on('ground:add', (it) => { if (C.host) C.events.push({ k: 'g+', gid: it.gid, id: it.id, mag: it.mag, res: it.reserve === Infinity ? -1 : it.reserve, p: v3(it.pos), v: v3(it.vel) }); });
-    E.on('ground:remove', (it) => { if (C.host) C.events.push({ k: 'g-', gid: it.gid }); });
     E.on('ann', (a) => { if (C.host) C.events.push({ k: 'ann', ...a }); });
     E.on('react', ({ z, kind, combo }) => { if (C.host) C.events.push({ k: 'react', i: G.zombies.list.indexOf(z), kind, combo }); });
-    E.on('crate', ({ p }) => { if (C.host) C.events.push({ k: 'crate', p: v3(p) }); });
     E.on('zk', (z) => { if (C.host) C.events.push({ k: 'zk', z }); });
     E.on('hx', ({ s, a }) => { if (C.host) C.events.push({ k: 'hx', s, a }); });
   }
@@ -179,8 +175,7 @@ BZ.makeCoop = (G) => {
       if (!p) { p = { id: from, pid: 'p' + (++pidN), name: String(m.name || 'Khách').slice(0, 16), hero: m.hero, heard: 0, ready: false }; C.peers.set(from, p); }
       p.heard = performance.now() / 1000; p.ready = true; p.hero = m.hero || p.hero;
       avatar(p.pid, p.name, p.hero);
-      const ground = G.weapons.ground.map((it) => ({ gid: it.gid, id: it.id, mag: it.mag, res: it.reserve === Infinity ? -1 : it.reserve, p: v3(it.pos) }));
-      send(from, { t: 'welcome', you: p.pid, wave: [G.wave.n, G.wave.phase], sky: [G.sky.S.t, G.sky.weather()], ground });
+      send(from, { t: 'welcome', you: p.pid, wave: [G.wave.n, G.wave.phase], sky: [G.sky.S.t, G.sky.weather()] });
       G.ui.banner(p.name.toUpperCase() + ' VÀO PHÒNG', BZ.HEROES.find((x) => x.id === p.hero)?.name || '', 2);
       G.audio.play('wave_clear', { gain: 0.5 });
       return;
@@ -201,12 +196,9 @@ BZ.makeCoop = (G) => {
     for (const x of m.acts || []) hostAct(p, x);
   }
   function hostAct(p, x) {
-    if (x.k === 'drop') G.weapons.spawnGround(x.id, x.mag, x.res < 0 ? Infinity : x.res, V(x.p), V(x.v));
-    else if (x.k === 'pick') {
-      const it = G.weapons.ground.find((g) => g.gid === x.gid);
-      if (it && !it.claim) { G.weapons.removeGround(it); send(p.id, { t: 'give', id: it.id, mag: it.mag, res: it.reserve === Infinity ? -1 : it.reserve, p: v3(it.pos) }); }
-    } else if (x.k === 'boom') { G.fx.explosion(V(x.p), x.s); G.audio.playAt('boom', V(x.p), { gain: 1.2 }); C.events.push({ k: 'boom', p: x.p, s: x.s, skip: p.pid }); }
+    if (x.k === 'boom') { G.fx.explosion(V(x.p), x.s); G.audio.playAt('boom', V(x.p), { gain: 1.2 }); C.events.push({ k: 'boom', p: x.p, s: x.s, skip: p.pid }); }
     else if (x.k === 'freeze') G.hero.freezeAt(V(x.p));
+    else if (x.k === 'picked') { if (C.onPicked) C.onPicked(p.pid, x.n); }
     else if (x.k === 'hx') { G.hero.remote(x.s, x.a, p.pid); C.events.push({ k: 'hx', s: x.s, a: x.a }); }
     else if (x.k === 'strike') G.hero.strikeAt(V(x.at));
     else if (x.k === 'ally') G.allies.hire();
@@ -228,7 +220,7 @@ BZ.makeCoop = (G) => {
     for (const p of C.peers.values()) { const a = avatars.get(p.pid); if (a && a.init) pl.push([p.pid, p.name, p.hero, +a.tgt.x.toFixed(2), +a.tgt.y.toFixed(2), +a.tgt.z.toFixed(2), +a.tyaw.toFixed(2), +a.pitch.toFixed(2), G.weapons.ORDER.indexOf(a.weapon), a.shots, a.alive ? 1 : 0, a.hp]); }
     const al = G.allies.list.filter((q) => q.alive).map((q) => [+q.pos.x.toFixed(2), +q.pos.z.toFixed(2), +q.yaw.toFixed(2)]);
     const ev = C.events.splice(0);
-    const msg = { t: 's', z: G.zombies.snapshot(), pl, al, wv: [G.wave.n, G.wave.phase, G.wave.remaining(), Math.ceil(G.wave.breakT || 0)], sky: [+G.sky.S.t.toFixed(4), G.sky.weather()], ev };
+    const msg = { t: 's', z: G.zombies.snapshot(), pl, al, wv: [G.wave.n, G.wave.phase, G.wave.remaining(), G.wave.waiting()], sky: [+G.sky.S.t.toFixed(4), G.sky.weather()], ev };
     for (const [id, p] of C.peers) { if (!p.ready) continue; const mine = { ...msg, ev: ev.filter((e) => e.skip !== p.pid) }; send(id, mine); }
     // everyone down: the fight is over for the whole room
     if (!G.player.alive && [...avatars.values()].every((a) => !a.alive) && G.state === 'playing') { toAll({ t: 'over' }); G.events.emit('coop:over'); }
@@ -242,14 +234,11 @@ BZ.makeCoop = (G) => {
   function guestReceive(m) {
     if (m.t === 'welcome') {
       C.me = m.you; C.welcomed = true;
-      G.weapons.ground.slice().forEach((it) => G.weapons.removeGround(it));
-      for (const g of m.ground) { const it = G.weapons.spawnGround(g.id, g.mag, g.res < 0 ? Infinity : g.res, V(g.p), new THREE.Vector3(), g.gid); it.vel.set(0, 0, 0); }
       G.sky.S.t = m.sky[0]; if (m.sky[1] !== G.sky.weather()) G.sky.setWeather(m.sky[1], false);
       if (C.onWelcome) C.onWelcome(m);
       return;
     }
     if (m.t === 'hurt') { G.events.emit('player:hurt', { dmg: m.d, from: V(m.f) }); if (m.x) G.zombies.kinds.playerFx(G.player, m.x); return; }
-    if (m.t === 'give') { G.weapons.takeItem({ id: m.id, mag: m.mag, reserve: m.res < 0 ? Infinity : m.res, pos: V(m.p) }); return; }
     if (m.t === 'over') { G.events.emit('coop:over'); return; }
     if (m.t !== 's') return;
     // deaths and lost limbs first: the snapshot no longer lists a zombie the host just killed
@@ -262,9 +251,9 @@ BZ.makeCoop = (G) => {
     }
     for (const pid of [...avatars.keys()]) if (!seen.has(pid)) dropAvatar(pid);
     G.allies.mirror && G.allies.mirror(m.al);
-    const [n, phase, remaining, breakT] = m.wv;
+    const [n, phase, remaining, waitingN] = m.wv;
     if (n !== G.wave.n && n > 0) G.events.emit('coop:wave', n);
-    G.wave.n = n; G.wave.phase = phase; G.wave.netRemaining = remaining; G.wave.breakT = breakT;
+    G.wave.n = n; G.wave.phase = phase; G.wave.netRemaining = remaining; G.wave.netWaiting = waitingN;
     G.sky.S.t = m.sky[0]; if (m.sky[1] !== G.sky.weather()) G.sky.setWeather(m.sky[1], true);
     for (const e of m.ev) if (e.k !== 'kill' && e.k !== 'sev') guestEvent(e);
   }
@@ -276,12 +265,8 @@ BZ.makeCoop = (G) => {
     else if (e.k === 'boom') { G.fx.explosion(V(e.p), e.s); G.audio.playAt('boom', V(e.p), { gain: 1.2 }); const pd = G.player.pos.distanceTo(V(e.p)); if (pd < 18) G.player.shake.v += (18 - pd) * 0.8; }
     else if (e.k === 'bolt') G.sky.strike(V(e.p), true);
     else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? 'PHỐI HỢP · ' : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
-    else if (e.k === 'crate') G.weapons.airdrop(V(e.p), true);
     else if (e.k === 'zk') G.zombies.kinds.remote(e.z);
     else if (e.k === 'hx') G.hero.remote(e.s, e.a, e.a.by);
-    else if (e.k === 'meteor') G.sky.meteor({ at: e.at, from: e.from });
-    else if (e.k === 'g+') { if (!G.weapons.ground.some((g) => g.gid === e.gid)) G.weapons.spawnGround(e.id, e.mag, e.res < 0 ? Infinity : e.res, V(e.p), V(e.v), e.gid); }
-    else if (e.k === 'g-') { const it = G.weapons.ground.find((g) => g.gid === e.gid); if (it) G.weapons.removeGround(it); }
     else if (e.k === 'ann') { if (e.banner) G.ui.banner(e.title, e.sub, e.secs || 2.2); else G.ui.announce(e.title, e.sub, e.cls); if (e.snd) G.audio.play(e.snd, { gain: 0.8 }); }
   }
   function guestTick(dt) {

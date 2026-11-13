@@ -1,4 +1,4 @@
-// Pixel debris (one InstancedMesh of cubes), bullet holes, tracers, pickups.
+// Pixel debris (one InstancedMesh of cubes), bullet holes, tracers.
 (() => {
   const BZ = window.BZ;
   const THREE = window.THREE;
@@ -67,18 +67,6 @@
     let flashT = 0;
     function muzzle(pos) { flash.position.copy(pos); flash.intensity = 6; flashT = 0.05; }
 
-    // Pickups
-    const pickups = [];
-    function drop(kind, pos) {
-      const B = new BZ.Builder('pickup');
-      const key = kind === 'health' ? 'medkit' : 'ammo_box';
-      B.box([-0.22, 0, -0.22], [0.22, 0.32, 0.22], key, { uv: 'fit', vary: 0 });
-      const g = B.build({ cast: false });
-      g.position.set(pos.x, 0.25, pos.z);
-      scene.add(g);
-      pickups.push({ kind, g, t: 0, life: 25 });
-    }
-
     const ASH = Math.round(160 * G.quality.particles);
     const ash = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xb8c4dc }), ASH);
     ash.frustumCulled = false; scene.add(ash);
@@ -120,19 +108,6 @@
       if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.intensity = 0; }
       boomLight.intensity = Math.max(0, boomLight.intensity * Math.pow(0.002, dt) - dt * 20);
       for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.45; b.s.scale.setScalar(1.5 + k * 5); b.s.material.opacity = Math.max(0, 0.85 - k); if (k >= 1) { scene.remove(b.s); booms.splice(i, 1); } }
-
-      const pl = G.player;
-      for (let i = pickups.length - 1; i >= 0; i--) {
-        const k = pickups[i];
-        k.t += dt; k.life -= dt;
-        k.g.rotation.y += dt * 2; k.g.position.y = 0.25 + Math.sin(k.t * 3) * 0.08;
-        k.g.visible = k.life > 4 || Math.sin(k.t * 20) > 0;
-        const d = pl ? Math.hypot(pl.pos.x - k.g.position.x, pl.pos.z - k.g.position.z) : 99;
-        const mag = G.build ? G.build.magnet() : 1.3;
-        if (d < mag && d > 0.9 && pl.alive) { k.g.position.x += (pl.pos.x - k.g.position.x) * Math.min(1, dt * 6); k.g.position.z += (pl.pos.z - k.g.position.z) * Math.min(1, dt * 6); }
-        if (d < 1.3 && pl.pos.y < 1.5 && G.events) { G.events.emit('pickup', k.kind); k.life = 0; }
-        if (k.life <= 0) { scene.remove(k.g); pickups.splice(i, 1); }
-      }
     }
     const boomGlow = new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
     const booms = [];
@@ -354,10 +329,10 @@
     function updateArcs(dt) { for (let i = arcs.length - 1; i >= 0; i--) { const a = arcs[i]; a.t -= dt; a.mat.opacity = a.t > 0.08 ? 1 : Math.max(0, a.t / 0.08) * (Math.sin(a.t * 200) > 0 ? 1 : 0.3); if (a.t <= 0) { scene.remove(a.g); a.mat.dispose(); arcs.splice(i, 1); } } }
     function jet(pos) { burst(pos, 2, [0xfff0a0, 0xffb040, 0xff6a20], { dir: new THREE.Vector3(0, -1, 0), push: 5, speed: 1.2, size: 0.09, life: 0.35, bounce: 0 }); }
     function clear() {
-      P.length = 0; for (const k of pickups) scene.remove(k.g); pickups.length = 0; holes.count = 0; holeI = 0;
+      P.length = 0; holes.count = 0; holeI = 0;
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0;
     }
 
-    return { burst, hole, tracer, muzzle, drop, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, debug: () => ({ particles: P.length, pickups: pickups.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
+    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, splats: splats.count }) };
   };
 })();

@@ -38,26 +38,15 @@ const BASE = process.env.BZ_BASE;
   console.log('sync', JSON.stringify(s1));
   check(s1.A.host && s1.B.guest && s1.A.av.length === 1 && s1.B.av.includes('h'), 'host and guest see each other');
   check(s1.B.alive > 0 && Math.abs(s1.B.alive - s1.A.alive) <= 2 && s1.B.wave === s1.A.wave, `the guest sees the host's zombies and wave (${s1.B.alive} vs ${s1.A.alive})`);
-  // B kills a zombie: the hit goes to the host, the kill and the coins come back to B
-  const kill = await B.evaluate(`(async () => { const G = __G; const z = G.zombies.list.find((q) => q.alive); if (!z) return 'no zombie on guest'; const i = G.zombies.list.indexOf(z); const c0 = G.coins;
+  // B kills a zombie: the hit goes to the host, the kill and the score come back to B
+  const kill = await B.evaluate(`(async () => { const G = __G; const z = G.zombies.list.find((q) => q.alive); if (!z) return 'no zombie on guest'; const i = G.zombies.list.indexOf(z); const c0 = G.score;
     G.zombies.damage(z, 9999, 'head', new G.THREE.Vector3(0, 0, -1), 1); await new Promise((r) => setTimeout(r, 900));
-    return { i, coins: G.coins - c0, aliveAfter: z.alive, dying: z.dying > 0, headless: z.headless }; })()`);
+    return { i, pts: G.score - c0, aliveAfter: z.alive, dying: z.dying > 0, headless: z.headless }; })()`);
   console.log('guest kill', JSON.stringify(kill));
   const hostSide = await A.evaluate(`({ z: __G.zombies.list[${kill.i}] && __G.zombies.list[${kill.i}].alive, killed: __G.wave.killed })`);
   console.log('host after', JSON.stringify(hostSide));
-  check(kill.coins > 0 && kill.dying && hostSide.z === false && hostSide.killed >= 1, 'a guest kill goes through the host and pays the guest');
-  // B drops its katana; the host spawns it and both see it; A picks it up
-  await B.evaluate("__G.weapons.selectSlot(1)"); await B.waitForTimeout(600);
-  await B.evaluate("__G.weapons.dropCur()"); await B.waitForTimeout(1500);
-  const g = { A: await A.evaluate('__G.weapons.ground.map((g) => g.id + ":" + g.gid)'), B: await B.evaluate('__G.weapons.ground.map((g) => g.id + ":" + g.gid)') };
-  console.log('ground', JSON.stringify(g));
-  check(g.A.length === 1 && g.A[0] === g.B[0], 'a weapon the guest drops lies on the ground for both');
-  // B picks it back up through the host
-  await B.evaluate("(() => { const it = __G.weapons.ground[0]; if (it) __G.player.pos.set(it.pos.x, 0, it.pos.z + 0.3); })()"); await B.waitForTimeout(300);
-  await B.evaluate("__G.weapons.pickup()"); await B.waitForTimeout(1200);
-  console.log('repick', JSON.stringify({ Binv: await B.evaluate('__G.weapons.S.inv'), Aground: await A.evaluate('__G.weapons.ground.length'), Bground: await B.evaluate('__G.weapons.ground.length') }));
-  const rp = { inv: await B.evaluate('__G.weapons.S.inv.join()'), a: await A.evaluate('__G.weapons.ground.length') };
-  check(rp.inv === 'smg,katana' && rp.a === 0, 'the guest picks it back up through the host');
+  check(kill.pts > 0 && kill.dying && hostSide.z === false && hostSide.killed >= 1, 'a guest kill goes through the host and scores for the guest');
+  check(await B.evaluate('__G.weapons.S.inv.join()') === await B.evaluate('__G.hero.def.weapon'), 'the guest holds its hero\'s one weapon');
   // a zombie next to B hurts B (the host decides)
   const hurt = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0]; const z = G.zombies.list.find((q) => q.alive && !q.T.fly && !q.T.boss); if (!z || !av) return 'none';
     z.pos.set(av.pos.x + 0.8, 0, av.pos.z); z.tgt = av.target; z.tgtT = 9; z.attackT = 0; return 'ok'; })()`);
@@ -65,6 +54,8 @@ const BASE = process.env.BZ_BASE;
   const hb = await B.evaluate('({ hp: __G.player.hp, max: __G.player.maxHp })');
   console.log('hurt', hurt, JSON.stringify(hb));
   check(hb.hp < hb.max, 'a zombie on the host bites the guest');
+  const party = await A.evaluate(`(() => { const G = __G; const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); const r = { n: G.party.count(), hp: z.maxHp, base: Math.round(BZ.ZOMBIES.walker.hp * BZ.WAVE.hpMul(1) * G.env.zHp) }; G.zombies.kill(z, 'body', new G.THREE.Vector3(0, 0, 1), { credit: false }); return r; })()`);
+  check(party.n === 2 && party.hp === Math.round(party.base * 1.35), `two players make zombies 35% tougher (${party.hp} vs ${party.base})`);
   await A.evaluate('__G.god = true'); await B.evaluate('(() => { __G.god = true; __G.player.hp = __G.player.maxHp; })()');
   // special kinds: the guest sees the type, the shield, the elite; a frost bite slows the guest
   const sk = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0];
@@ -75,6 +66,19 @@ const BASE = process.env.BZ_BASE;
   const gs = await B.evaluate(`(() => { const z = __G.zombies.list[${sk}]; return { type: z.type, alive: z.alive, shield: z.body.x.shield.visible, elite: z.elite, gem: z.body.x.gem.visible, slow: __G.player.slowT > 0 || __G.player.hp < __G.player.maxHp }; })()`);
   console.log('kinds', JSON.stringify(gs));
   check(gs.alive && gs.type === 'shielder' && gs.shield && gs.elite === 'regen' && gs.gem, 'the guest sees a special kind with its shield and its elite mark');
+  // the wave ends: both get three upgrade cards; the next wave waits until both have picked
+  await A.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; })()`);
+  await A.waitForTimeout(1200);
+  const p0 = { A: await A.evaluate('({ s: __G.state, n: __G.wave.n, cards: document.querySelectorAll("#pick-list [data-pick]").length })'), B: await B.evaluate('({ s: __G.state, n: __G.wave.n, cards: document.querySelectorAll("#pick-list [data-pick]").length })') };
+  await A.evaluate('__G.pickChoose(__G.pickOpts[0])'); await A.waitForTimeout(1200);
+  const p1 = { A: await A.evaluate('({ s: __G.state, n: __G.wave.n, ph: __G.wave.phase, wait: __G.wave.waiting() })'), Bwait: await B.evaluate('__G.wave.waiting()') };
+  await B.evaluate('__G.pickChoose(__G.pickOpts[0])'); await A.waitForTimeout(1500);
+  const p2 = { A: await A.evaluate('({ s: __G.state, n: __G.wave.n, ph: __G.wave.phase })'), B: await B.evaluate('({ s: __G.state, n: __G.wave.n, ph: __G.wave.phase })') };
+  console.log('picks', JSON.stringify({ p0, p1, p2 }));
+  check(p0.A.s === 'pick' && p0.B.s === 'pick' && p0.A.cards === 3 && p0.B.cards === 3, 'a cleared wave puts both players on the upgrade pick');
+  check(p1.A.ph === 'pick' && p1.A.wait === 1 && p1.Bwait === 1, `after the host picks, the wave waits for the guest (${p1.A.wait} waiting)`);
+  check(p2.A.n === p0.A.n + 1 && p2.A.ph === 'fight' && p2.B.s === 'playing' && p2.B.n === p2.A.n, `when both have picked, wave ${p2.A.n} starts for both`);
+  await A.evaluate('__G.god = true'); await B.evaluate('__G.god = true');
   // hero kits over the wire: the guest's Sóng băng freezes the host's zombies, its Lôi phạt hurts them, the host sees the bolt
   await A.evaluate(`(() => { const G = __G; G.zombies.clear(); const av = [...G.coop.avatars.values()][0];
     for (let i = 0; i < 3; i++) { const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(av.pos.x + 2 + i, 0, av.pos.z); z.speed = 0; z.hp = z.maxHp = 2000; z.attackT = 99; } })()`);

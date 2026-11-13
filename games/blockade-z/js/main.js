@@ -1,4 +1,4 @@
-// Boot, state machine (title -> playing <-> paused/shop -> dead), waves, economy, main loop.
+// Boot, state machine (title -> playing <-> paused/pick -> dead), waves, upgrade picks, main loop.
 (async () => {
   const BZ = window.BZ;
   const THREE = window.THREE;
@@ -7,7 +7,7 @@
   const fatal = (e) => { const f = document.getElementById('fatal'); f.textContent = 'Blockade Z không khởi động được: ' + (e && e.stack || e); f.style.display = 'block'; console.error('[fatal]', e); };
 
   try {
-    const G = (window.__G = { THREE, events: BZ.events(), rng: BZ.rng(+(BZ.params.seed || 0) || Date.now()), state: 'boot', coins: 0, score: 0, kills: 0, god: BZ.params.god === '1', noLock: BZ.params.nolock === '1' || BZ.isTouch });
+    const G = (window.__G = { THREE, events: BZ.events(), rng: BZ.rng(+(BZ.params.seed || 0) || Date.now()), state: 'boot', score: 0, kills: 0, god: BZ.params.god === '1', noLock: BZ.params.nolock === '1' || BZ.isTouch });
     G.settings = BZ.store.load();
     G.quality = BZ.pickQuality(G.settings.quality);
 
@@ -81,11 +81,14 @@
 
     // ---- waves ----
     const wave = (G.wave = {
-      n: 0, phase: 'idle', toSpawn: 0, spawnT: 0, breakT: 0, spawned: 0, total: 0, killed: 0,
+      n: 0, phase: 'idle', toSpawn: 0, spawnT: 0, spawned: 0, total: 0, killed: 0, picked: new Set(), pickT: 0,
       remaining() { return G.coop && G.coop.guest ? this.netRemaining || 0 : this.total - this.killed; },
     });
+    // co-op scaling: each extra player adds 60% more zombies, 35% more health and room for 40% more on the field at once
+    const party = () => (G.coop.on ? 1 + [...G.coop.peers.values()].filter((p) => p.ready).length : 1);
+    G.party = { count: party, hp: () => 1 + 0.35 * (party() - 1), alive: () => 1 + 0.4 * (party() - 1) };
     function startWave(n) {
-      wave.n = n; wave.phase = 'fight'; wave.total = BZ.WAVE.count(n); wave.toSpawn = wave.total; wave.killed = 0; wave.spawnT = 1.5;
+      wave.n = n; wave.phase = 'fight'; wave.total = Math.round(BZ.WAVE.count(n) * (1 + 0.6 * (party() - 1))); wave.toSpawn = wave.total; wave.killed = 0; wave.spawnT = 1.5;
       G.ui.banner('ĐỢT ' + n, wave.total + ' zombie đang kéo tới', 2.4);
       G.events.emit('ann', { banner: true, title: 'ĐỢT ' + n, sub: wave.total + ' zombie đang kéo tới', secs: 2.4, snd: 'wave_start' });
       revive();
@@ -96,16 +99,37 @@
       wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
       wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % BOSSES.length] : G.rng.pick(BOSSES);
       if (BZ.params.boss) { wave.bossAt = 2; wave.bossType = BZ.params.boss; }
-      G.ui.show(null);
+      if (G.state === 'pick') play(); else G.ui.show(null);
     }
+    // a cleared wave: everyone picks one of three upgrades; the next wave starts when all have picked
+    // (a minute at most, so one player away from the keyboard does not hold the room)
     function endWave() {
-      wave.phase = 'break'; wave.breakT = 20;
+      wave.phase = 'pick'; wave.picked = new Set(); wave.pickT = 60;
       G.events.emit('wave:end', wave.n);
-      const bonus = 200 * wave.n; G.score += bonus; G.coins += 50 + 10 * wave.n;
-      G.ui.banner('HẾT ĐỢT ' + wave.n, `+${bonus} điểm · bấm B mở cửa hàng`, 3);
-      G.events.emit('ann', { banner: true, title: 'HẾT ĐỢT ' + wave.n, sub: 'bấm B mở cửa hàng', secs: 3, snd: 'wave_clear' });
+      const bonus = 200 * wave.n; G.score += bonus;
       G.audio.play('wave_clear'); G.audio.setMusic({ music_drone: 0.5, music_perc: 0.12 });
+      openPick();
     }
+    const waiting = () => { if (wave.phase !== 'pick') return 0; let n = wave.picked.has('h') ? 0 : 1; for (const p of G.coop.peers.values()) if (p.ready && !wave.picked.has(p.pid)) n++; return n; };
+    function openPick() {
+      if (G.state !== 'playing') return;
+      G.pickN = wave.n; G.pickOpts = G.build.offer(3); G.picked = false;
+      if (!G.pickOpts.length) { choose(null); return; }
+      for (const id of ['announce', 'banner']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }
+      G.state = 'pick'; G.player.input.fire = false; unlockPointer(); G.ui.pickRender(G.pickOpts, wave.n); G.ui.show('pick');
+    }
+    function choose(id) {
+      if (G.picked || (G.state !== 'pick' && id)) return;
+      G.picked = true;
+      if (id) { G.build.grant(id); G.audio.play('buy'); squadUp(); }
+      if (G.coop.guest) { G.coop.act({ k: 'picked', n: G.pickN }); G.ui.pickWait(); return; }
+      wave.picked.add('h');
+      if (G.coop.on && waiting() > 0) G.ui.pickWait(); else startWave(wave.n + 1);
+    }
+    G.pickChoose = choose; G.startWave = startWave;
+    G.events.on('pick', (id) => choose(id));
+    G.coop.onPicked = (pid, n) => { if (n === wave.n && wave.phase === 'pick') wave.picked.add(pid); };
+    G.wave.waiting = () => (G.coop.guest ? wave.netWaiting || 0 : waiting());
     // one zombie through a gate: maybe an elite, and the first of each special kind gets a banner with its counter
     const seen = new Set();
     function spawnOne(type, gate) {
@@ -121,7 +145,7 @@
         wave.spawnT -= dt;
         if (wave.bossAt > 0) { wave.bossAt -= dt; if (wave.bossAt <= 0) { const P = G.player; const gate = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z))[0];
           const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, 'từ cổng ' + gate.name, 'hot'); G.events.emit('ann', { title: 'BOSS: ' + z.T.name, sub: 'từ cổng ' + gate.name, cls: 'hot' }); G.audio.play('wave_start', { rate: 0.7 }); } } }
-        if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < BZ.WAVE.maxAlive(wave.n)) {
+        if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < Math.min(50, BZ.WAVE.maxAlive(wave.n) * G.party.alive())) {
           const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
           const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);
           let type = r < b ? 'brute' : r < f ? 'flyer' : r < ru ? 'runner' : 'walker';
@@ -138,23 +162,22 @@
           wave.spawnT = BZ.WAVE.spawnGap(n) * G.rng.range(0.6, 1.4);
         }
         if (wave.toSpawn === 0 && wave.killed >= wave.total) endWave();
-      } else if (wave.phase === 'break') {
-        wave.breakT -= dt;
-        if (wave.breakT <= 0) { if (G.state === 'shop') closeShop(); startWave(wave.n + 1); }
+      } else if (wave.phase === 'pick') {
+        wave.pickT -= dt;
+        if ((G.picked && waiting() === 0) || wave.pickT <= 0) startWave(wave.n + 1);
       }
     }
 
     // ---- events ----
     G.events.on('zombie:killed', ({ z, part, credit }) => {
       wave.killed++;
-      // in co-op the coins and the score go to whoever landed the killing hit
+      // in co-op the score goes to whoever landed the killing hit
       if (credit === false) return;
       G.kills++; G.build.onKill(z); G.hero.onKill(z);
       const T = z.T; const head = part === 'head';
       const em = z.elite ? 3 : 1;
-      const coin = Math.round((T.coin + (head ? 5 : 0)) * em * (G.env ? G.env.coinMul : 1)); G.coins += coin; G.score += (T.score + (head ? 50 : 0)) * em;
-      const at = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z);
-      G.ui.pop('+' + coin + '🪙', 'coin', at);
+      const pts = Math.round((T.score + (head ? 50 : 0)) * em * (G.env ? G.env.scoreMul : 1)); G.score += pts;
+      G.ui.pop('+' + pts, 'coin', new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z));
       if (head) { G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z)); G.audio.play('headshot', { gain: 0.6 }); }
       // multi kills inside a short window, and a streak that resets when the player is hurt
       const now = performance.now() / 1000;
@@ -162,14 +185,12 @@
       const MULTI = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 4: 'QUADRA KILL', 5: 'PENTA KILL' };
       if (combo.n >= 2) {
         const title = combo.n >= 8 ? 'RAMPAGE' : MULTI[combo.n] || 'MULTI KILL';
-        const bonus = 10 * combo.n; G.coins += bonus; G.score += 50 * combo.n;
-        G.ui.announce(title, (combo.n >= 6 ? combo.n + ' con · ' : '') + '+' + bonus + ' xu', combo.n >= 5 ? 'hot' : '');
+        const bonus = 50 * combo.n; G.score += bonus;
+        G.ui.announce(title, (combo.n >= 6 ? combo.n + ' con · ' : '') + '+' + bonus + ' điểm', combo.n >= 5 ? 'hot' : '');
         G.audio.play('streak', { gain: 0.55, rate: 1 + Math.min(combo.n, 8) * 0.05 });
       }
       if (combo.streak > 0 && combo.streak % 15 === 0) { G.ui.announce('CHUỖI ' + combo.streak, 'hạ liên tiếp không mất máu', 'streak'); G.audio.play('streak', { gain: 0.5, rate: 0.8 }); }
       G.audio.play('coin', { gain: 0.6 });
-      const r = G.rng.next();
-      if (r < 0.07) G.fx.drop('health', z.pos); else if (r < 0.16) G.fx.drop('ammo', z.pos);
     });
     G.events.on('hit', ({ z, dmg, part, crit }) => {
       G.ui.hit(part === 'head' || crit);
@@ -180,12 +201,6 @@
     });
     const combo = { n: 0, t: 0, streak: 0 };
     G.events.on('player:hurt', ({ dmg, from }) => { combo.streak = 0; G.player.hurt(dmg, from); });
-    G.events.on('pickup', (kind) => {
-      const P = G.player;
-      if (kind === 'health') { P.hp = Math.min(P.maxHp, P.hp + 35); G.ui.pop('+35 máu', 'heal'); }
-      else { for (const id of G.weapons.S.inv) if (G.weapons.state[id].reserve !== Infinity) G.weapons.state[id].reserve = Math.min(G.weapons.WEAPONS[id].reserve, G.weapons.state[id].reserve + Math.ceil(G.weapons.WEAPONS[id].mag * 1.5)); G.ui.pop('+đạn', 'heal'); }
-      G.audio.play('pickup', { gain: 0.7 });
-    });
     // co-op: a downed player waits for the next wave; the fight ends when everyone is down
     function revive() { const P = G.player; if (G.coop.on && !P.alive) { P.alive = true; P.hp = P.maxHp; G.ui.banner('HỒI SINH', 'vào đợt mới', 1.6); } }
     G.events.on('coop:wave', () => revive());
@@ -201,18 +216,14 @@
       G.audio.setMusic({ music_drone: 0.3, music_perc: 0 });
       setTimeout(() => { if (G.state === 'dead') G.ui.show('dead'); }, 900);
     });
+    // test hook (no shop in the game): hand out a weapon or a piece of gear
     G.events.on('buy', (id) => {
       const W = G.weapons; const P = G.player;
-      const price = W.WEAPONS[id] ? W.WEAPONS[id].price : { ammo: 120, heal: 150, armor: 200, ally: BZ.ALLY.price, bomb: BZ.BOMB.price, turret: BZ.TURRET.price, jetpack: BZ.JET.price }[id];
-      if (G.coins < price || (id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'bomb' && G.gear.state.bombs >= BZ.BOMB.max) || (id === 'jetpack' && P.hasJet)) { G.audio.play('deny'); return; }
-      G.coins -= price;
-      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') { if (G.coop.guest) G.coop.act({ k: 'ally' }); else G.allies.hire(); } else if (id === 'bomb') G.gear.addBombs(BZ.BOMB.pack); else if (id === 'turret') { if (G.coop.guest) G.coop.act({ k: 'turret' }); else G.gear.placeTurret(); } else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', 'nhảy rồi giữ Space để bay', 2); }
-      G.audio.play('buy'); G.ui.shopRender();
+      if ((id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'jetpack' && P.hasJet)) { G.audio.play('deny'); return; }
+      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') { if (G.coop.guest) G.coop.act({ k: 'ally' }); else G.allies.hire(); } else if (id === 'turret') { if (G.coop.guest) G.coop.act({ k: 'turret' }); else G.gear.placeTurret(); } else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', 'nhảy rồi giữ Space để bay', 2); }
+      G.audio.play('buy');
     });
-    G.events.on('upgrade', (id) => {
-      if (!G.build.buy(id)) { G.audio.play('deny'); return; }
-      G.audio.play('buy'); G.ui.shopRender(); squadUp();
-    });
+    G.events.on('upgrade', (id) => { if (G.build.grant(id)) squadUp(); });
     // support branches: the host keeps the squad as large as every player's Chỉ huy levels together, and rebuilds the turrets each wave
     function squadUp() {
       if (G.coop.guest) { G.coop.act({ k: 'sup', s: G.build.support() }); return; }
@@ -228,21 +239,10 @@
       for (const p of G.coop.peers.values()) { const a = G.coop.avatars.get(p.pid); if (a && p.sup && p.sup.eng) place(a.pos, a.yaw, p.sup.eng); }
     }
     G.coop.onSupport = squadUp;
-    // each wave: half the spare ammo back, bombs topped up, the squad refilled, turrets rebuilt where everyone stands
-    function waveSupplies() { G.weapons.refill(0.5); G.gear.state.bombs = Math.max(G.gear.state.bombs, G.build.bombCap()); G.build.apply(); }
+    // each wave: a third of the health back, the squad refilled, turrets rebuilt where everyone stands
+    function waveSupplies() { G.weapons.refill(0.5); G.build.apply(); const P = G.player; if (P.alive) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.35); }
     G.events.on('wave:start', () => { waveSupplies(); squadUp(); turretsUp(); });
     G.events.on('coop:wave', () => waveSupplies());
-    // guns come from the fight: a few from the dead, more from tough ones, a supply crate between waves
-    const DROP = [['pistol', 3], ['shotgun', 3], ['smg', 2], ['rifle', 2.5], ['bazooka', 1], ['katana', 2], ['axe', 2], ['saber', 0.8]];
-    const pickGun = () => { let r = G.rng.next() * DROP.reduce((a, d) => a + d[1], 0); for (const [id, w] of DROP) { r -= w; if (r <= 0) return id; } return 'smg'; };
-    function dropGun(pos, n = 1) { for (let i = 0; i < n; i++) { const id = pickGun(); const W = G.weapons.WEAPONS[id]; G.weapons.spawnGround(id, G.weapons.magOf(W), G.weapons.resOf(W), new THREE.Vector3(pos.x, pos.y + 1, pos.z), new THREE.Vector3(G.rng.range(-2, 2), 4, G.rng.range(-2, 2))); } }
-    G.events.on('zombie:killed', ({ z }) => {
-      if (G.coop.guest) return;
-      const T = z.T; const ch = T.boss ? 1 : z.elite ? 0.35 : T === BZ.ZOMBIES.brute ? 0.2 : 0.025;
-      if (G.rng.chance(ch)) G.dropGun(z.pos, T.boss ? 2 : 1);
-    });
-    G.events.on('wave:end', () => { if (!G.coop.guest) setTimeout(() => G.weapons.airdrop(G.player.pos), 1500); });
-    G.dropGun = dropGun;
     G.events.on('settings', (s) => {
       BZ.store.save(s); G.audio.setVolume(s.volume);
       const q = BZ.pickQuality(s.quality);
@@ -261,14 +261,12 @@
     function newGame() {
       lineupShow(false); G.events.emit('game:new');
       G.build.reset(G.hero.id);
-      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear(); G.build.apply(); G.gear.state.bombs = G.build.bombCap();
-      G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
+      G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear(); G.build.apply();
+      G.score = 0; G.kills = 0; G.picked = false;
       play();
       if (!G.coop.guest) startWave(+(BZ.params.wave || 1));
     }
     function pause() { if (G.state !== 'playing') return; G.state = 'paused'; G.ui.settingsSync(); G.ui.show('pause'); unlockPointer(); }
-    function openShop() { if (G.state !== 'playing' || wave.phase !== 'break') return; G.state = 'shop'; G.ui.shopRender(); G.ui.show('shop'); unlockPointer(); }
-    function closeShop() { if (G.state !== 'shop') return; play(); }
     // ---- hero pick: the seven stand in a row on the plaza, the camera slides to the one in focus ----
     const lineup = { models: [], i: 3, t: 0, light: new THREE.PointLight(0xffe2b8, 0, 7, 1.4) };
     scene.add(lineup.light);
@@ -334,13 +332,9 @@
     window.__select = { open: openSelect, pick: selectPick, go: selectGo, lineup };
     G.events.on('ui:resume', play);
     G.events.on('ui:restart', newGame);
-    G.events.on('ui:shop', openShop);
-    G.events.on('ui:closeshop', closeShop);
-    G.events.on('ui:ready', () => { closeShop(); if (wave.phase === 'break') wave.breakT = 0.01; });
     G.events.on('ui:settings', () => { G.ui.settingsSync(); G.ui.show('pause'); });
     addEventListener('keydown', (e) => {
-      if (e.code === 'KeyB') { if (G.state === 'shop') closeShop(); else openShop(); }
-      if (e.code === 'Escape' && G.state === 'shop') closeShop();
+      if (G.state === 'pick' && /^Digit[1-3]$/.test(e.code)) { const id = G.pickOpts[+e.code.slice(5) - 1]; if (id) choose(id); }
       if (e.code === 'KeyP' && G.state === 'playing') pause();
     });
 
@@ -364,6 +358,12 @@
         safe('polish', () => G.polish.update());
         safe('gear', () => G.gear.update(gdt));
         if (!G.coop.guest) safe('wave', () => updateWave(dt));
+        if (G.coop.guest && wave.phase === 'pick' && G.pickN !== wave.n) openPick();
+      } else if (G.state === 'pick') {
+        safe('fx', () => G.zombies.update(0));
+        if (!G.coop.guest) safe('wave', () => updateWave(dt));
+        else if (wave.phase === 'fight') play();
+        G.ui.pickTick();
       } else if (G.state === 'dead') {
         safe('zombies', () => G.zombies.update(dt));
         G.camera.position.y = BZ.damp(G.camera.position.y, 0.4, 3, dt); G.camera.rotation.z = BZ.damp(G.camera.rotation.z, 0.5, 3, dt);
@@ -385,7 +385,7 @@
       renderer.info.reset();
       renderer.clear();
       renderer.render(scene, camera);
-      if (G.state === 'playing' || G.state === 'shop' || G.state === 'paused') G.weapons.render(renderer);
+      if (G.state === 'playing' || G.state === 'pick' || G.state === 'paused') G.weapons.render(renderer);
       window.__stats.draws = renderer.info.render.calls; window.__stats.tris = renderer.info.render.triangles;
     }
     renderer.info.autoReset = false;

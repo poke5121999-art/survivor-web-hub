@@ -4,14 +4,14 @@
   const THREE = window.THREE;
 
   const TYPES = {
-    walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], coin: 10, score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
-    runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], coin: 15, score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
-    flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 20, score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
-    giant: { hp: 2600, speed: 1.9, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.5, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 300, score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
-    thrower: { hp: 1700, speed: 1.6, dmg: 20, rate: 1.4, windup: 0.5, scale: 1.9, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], coin: 250, score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
-    phantom: { hp: 1300, speed: 3.2, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.5, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 250, score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
-    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.0, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 300, score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
-    brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], coin: 50, score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
+    walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
+    runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
+    flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
+    giant: { hp: 2600, speed: 1.9, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.5, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
+    thrower: { hp: 1700, speed: 1.6, dmg: 20, rate: 1.4, windup: 0.5, scale: 1.9, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
+    phantom: { hp: 1300, speed: 3.2, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.5, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
+    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.0, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
+    brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
   };
   BZ.ZOMBIES = TYPES;
 
@@ -20,11 +20,12 @@
     count: (n) => Math.min(16 + 6 * n, 140),
     runnerShare: (n) => (n < 2 ? 0 : Math.min(0.4, 0.08 * (n - 1))),
     bruteShare: (n) => (n < 4 ? 0 : Math.min(0.15, 0.04 * (n - 3))),
-    hpMul: (n) => Math.min(3, 1 + 0.09 * (n - 1)),
-    dmgMul: (n) => Math.min(2, 1 + 0.05 * (n - 1)),
+    hpMul: (n) => Math.min(4.5, 1.25 + 0.13 * (n - 1)),
+    dmgMul: (n) => Math.min(2.6, 1.2 + 0.08 * (n - 1)),
+    speedMul: (n) => Math.min(1.45, 1.15 + 0.02 * (n - 1)),
     maxAlive: (n) => Math.min(22 + 3 * n, 44),
     flyerShare: (n) => Math.min(0.3, 0.12 + 0.03 * n),
-    spawnGap: (n) => Math.max(0.15, 0.6 - 0.05 * n),
+    spawnGap: (n) => Math.max(0.12, 0.5 - 0.05 * n),
   };
 
   const geo = (w, h, d, py) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, py, 0); return g; };
@@ -92,9 +93,9 @@
       if (z.type !== type) dress(z, type);
       z.type = type; z.T = T;
       z.alive = true; z.dying = 0; z.headless = false;
-      z.hp = z.maxHp = Math.round(T.hp * BZ.WAVE.hpMul(wave) * (G.env ? G.env.zHp : 1));
+      z.hp = z.maxHp = Math.round(T.hp * BZ.WAVE.hpMul(wave) * (G.env ? G.env.zHp : 1) * (G.party ? G.party.hp() : 1));
       z.dmg = Math.round(T.dmg * BZ.WAVE.dmgMul(wave));
-      z.speed = T.speed * G.rng.range(0.9, 1.1);
+      z.speed = T.speed * BZ.WAVE.speedMul(wave) * G.rng.range(0.9, 1.1);
       z.pos.set(gate.x + G.rng.range(-1.2, 1.2), T.fly ? G.rng.range(6, 9) : 0, gate.z + G.rng.range(-1.2, 1.2));
       z.fallV = 0; z.bob = G.rng.range(0, 6); z.landed = true; z.climb = null; z.wallT = 0; z.leap = null; z.abT = T.boss ? 3 : 0; z.rock = 0;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
