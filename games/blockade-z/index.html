@@ -222,7 +222,8 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #dead dl { text-align: left; padding: 10px 14px; background: rgba(0, 0, 0, .35); border: 2px solid #000; } #dead dt { color: #e6d3ad; } #dead .row { justify-content: center; }
 #dead-record { animation: recordpop .6s ease-in-out infinite alternate; text-shadow: 2px 2px 0 #000, 0 0 14px rgba(143, 224, 90, .8); } @keyframes recordpop { to { scale: 1.12; } }
 #view { transition: filter .5s; } body[data-state=dead] #view { filter: grayscale(.8) brightness(.72) contrast(1.15); transition: filter 1.4s; }
-body:not(.touch)[data-state=paused] #view { filter: blur(3px) brightness(.75); } body:not(.touch)[data-state=pick] #view { filter: blur(2px) brightness(.85); }
+/* the view blurs behind a screen that is really showing, not on the state alone (tests park the game in 'paused' to take sharp pictures) */
+body:not(.touch):has(#pause.on) #view { filter: blur(3px) brightness(.75); } body:not(.touch)[data-state=pick]:has(.screen.on) #view { filter: blur(2px) brightness(.85); }
 #dead dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 20px; font: 700 15px var(--mono); margin: 8px 0 0; }
 #dead dd { margin: 0; color: var(--gold); text-align: right; }
 #dead-record { color: #8fe05a; font: 900 16px var(--mono); margin-top: 10px; }
@@ -440,36 +441,36 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113ze"></script>
-<script type="module" src="js/core.js?v=20261113ze"></script>
-<script type="module" src="js/art.js?v=20261113ze"></script>
-<script type="module" src="js/world.js?v=20261113ze"></script>
-<script type="module" src="js/destruct.js?v=20261113ze"></script>
-<script type="module" src="js/audio.js?v=20261113ze"></script>
-<script type="module" src="js/fx.js?v=20261113ze"></script>
-<script type="module" src="js/zombies.js?v=20261113ze"></script>
-<script type="module" src="js/zkinds.js?v=20261113ze"></script>
-<script type="module" src="js/bosses.js?v=20261113ze"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113ze"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113ze"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113ze"></script>
-<script type="module" src="js/boss-alien.js?v=20261113ze"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113ze"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113ze"></script>
-<script type="module" src="js/weapons.js?v=20261113ze"></script>
-<script type="module" src="js/allies.js?v=20261113ze"></script>
-<script type="module" src="js/heroes.js?v=20261113ze"></script>
-<script type="module" src="js/castanim.js?v=20261113ze"></script>
-<script type="module" src="js/build.js?v=20261113ze"></script>
-<script type="module" src="js/sky.js?v=20261113ze"></script>
-<script type="module" src="js/coop.js?v=20261113ze"></script>
-<script type="module" src="js/post.js?v=20261113ze"></script>
-<script type="module" src="js/polish.js?v=20261113ze"></script>
-<script type="module" src="js/gear.js?v=20261113ze"></script>
-<script type="module" src="js/player.js?v=20261113ze"></script>
-<script type="module" src="js/tps.js?v=20261113ze"></script>
-<script type="module" src="js/ui.js?v=20261113ze"></script>
-<script type="module" src="js/meta.js?v=20261113ze"></script>
-<script type="module" src="js/main.js?v=20261113ze"></script>
+<script type="module" src="js/boot.js?v=20261113zf"></script>
+<script type="module" src="js/core.js?v=20261113zf"></script>
+<script type="module" src="js/art.js?v=20261113zf"></script>
+<script type="module" src="js/world.js?v=20261113zf"></script>
+<script type="module" src="js/destruct.js?v=20261113zf"></script>
+<script type="module" src="js/audio.js?v=20261113zf"></script>
+<script type="module" src="js/fx.js?v=20261113zf"></script>
+<script type="module" src="js/zombies.js?v=20261113zf"></script>
+<script type="module" src="js/zkinds.js?v=20261113zf"></script>
+<script type="module" src="js/bosses.js?v=20261113zf"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zf"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zf"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zf"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zf"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zf"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zf"></script>
+<script type="module" src="js/weapons.js?v=20261113zf"></script>
+<script type="module" src="js/allies.js?v=20261113zf"></script>
+<script type="module" src="js/heroes.js?v=20261113zf"></script>
+<script type="module" src="js/castanim.js?v=20261113zf"></script>
+<script type="module" src="js/build.js?v=20261113zf"></script>
+<script type="module" src="js/sky.js?v=20261113zf"></script>
+<script type="module" src="js/coop.js?v=20261113zf"></script>
+<script type="module" src="js/post.js?v=20261113zf"></script>
+<script type="module" src="js/polish.js?v=20261113zf"></script>
+<script type="module" src="js/gear.js?v=20261113zf"></script>
+<script type="module" src="js/player.js?v=20261113zf"></script>
+<script type="module" src="js/tps.js?v=20261113zf"></script>
+<script type="module" src="js/ui.js?v=20261113zf"></script>
+<script type="module" src="js/meta.js?v=20261113zf"></script>
+<script type="module" src="js/main.js?v=20261113zf"></script>
 </body>
 </html>

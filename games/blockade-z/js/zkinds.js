@@ -117,6 +117,62 @@
   const UPPER_R = geo(0.55, 0.09, 0.09, 0.275, 0, 0); const UPPER_L = geo(0.55, 0.09, 0.09, -0.275, 0, 0); const LOWER = geo(0.08, 0.8, 0.08, 0, -0.4, 0);
   const GEM = new THREE.OctahedronGeometry(0.16, 0);
   const EGG = [geo(0.7, 0.5, 0.7, 0, 0.25, 0), geo(0.56, 0.3, 0.56, 0, 0.62, 0), geo(0.36, 0.16, 0.36, 0, 0.85, 0)];
+
+  // ---- boss garb: what makes the five older bosses more than a big zombie. One merged mesh per bone (plus one of glowing
+  // bits), built once and shared by every pooled body; only the boss that owns a set shows it.
+  // a box: [x0, y0, z0, x1, y1, z1, colour, rotation about its own centre [rx, ry, rz]]
+  BZ.defTex('z_garb', 8, 8, ({ set, rng }) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const v = (x === 0 || y === 0 ? 0xb8 : rng.chance(0.2) ? 0xe2 : 0xff); set(x, y, [v, v, v, 255]); } });
+  const IRON = 0x4a4e58, RUST = 0x7a4a30, BONE = 0xe6dcc0, HIDE = 0x4a3324, ROPE = 0x9a7a4a, ROCK = 0x7c7c76, ROCK2 = 0x5c5c58, SHROUD = 0x1c2630, SHROUD2 = 0x2c3c4c, GHOST = 0x80ffff, FUR = 0x3a2048, FUR2 = 0x5a2f70, GOLD = 0xe0b040, MAGENTA = 0xff40ff, EMBER = 0xff5a20;
+  const GARB = {
+    giant: {
+      hips: [[-0.3, 0.02, -0.17, 0.3, 0.13, 0.17, IRON], [-0.08, 0.0, 0.15, 0.08, 0.16, 0.2, BONE], [-0.05, 0.04, 0.19, -0.02, 0.08, 0.21, 0x101010], [0.02, 0.04, 0.19, 0.05, 0.08, 0.21, 0x101010],
+        [-0.3, 0.42, 0.14, 0.3, 0.48, 0.18, IRON, [0, 0, 0.5]], [-0.3, 0.42, -0.18, 0.3, 0.48, -0.14, IRON, [0, 0, -0.5]],
+        [-0.04, 0.6, -0.26, 0.04, 0.82, -0.16, BONE, [-0.5, 0, 0]], [-0.04, 0.42, -0.27, 0.04, 0.62, -0.17, BONE, [-0.35, 0, 0]], [-0.035, 0.26, -0.25, 0.035, 0.42, -0.16, BONE, [-0.25, 0, 0]], [-0.03, 0.12, -0.23, 0.03, 0.25, -0.15, BONE, [-0.2, 0, 0]],
+        [-0.2, 0.3, 0.13, -0.04, 0.34, 0.17, BONE], [0.04, 0.3, 0.13, 0.2, 0.34, 0.17, BONE], [-0.18, 0.22, 0.13, -0.04, 0.26, 0.17, BONE], [0.04, 0.22, 0.13, 0.18, 0.26, 0.17, BONE]],
+      armL: [[-0.2, -0.02, -0.17, 0.14, 0.14, 0.17, IRON], [-0.22, 0.1, -0.05, -0.12, 0.34, 0.05, BONE, [0, 0, 0.5]], [-0.08, 0.12, -0.04, 0.0, 0.3, 0.04, BONE, [0, 0, 0.15]], [-0.13, -0.3, -0.13, 0.13, -0.22, 0.13, RUST]],
+      armR: [[-0.14, -0.02, -0.17, 0.2, 0.14, 0.17, IRON], [0.12, 0.1, -0.05, 0.22, 0.34, 0.05, BONE, [0, 0, -0.5]], [0.0, 0.12, -0.04, 0.08, 0.3, 0.04, BONE, [0, 0, -0.15]], [-0.13, -0.3, -0.13, 0.13, -0.22, 0.13, RUST]],
+      head: [[-0.29, 0.4, -0.29, 0.29, 0.48, 0.29, IRON], [-0.3, 0.46, -0.04, -0.22, 0.66, 0.04, BONE, [0, 0, 0.35]], [0.22, 0.46, -0.04, 0.3, 0.66, 0.04, BONE, [0, 0, -0.35]],
+        [-0.2, 0.06, 0.24, -0.13, 0.26, 0.31, BONE, [0.2, 0, 0]], [0.13, 0.06, 0.24, 0.2, 0.26, 0.31, BONE, [0.2, 0, 0]], [-0.31, 0.04, -0.2, 0.31, 0.12, 0.3, HIDE]],
+      glow: { hips: [[-0.06, 0.34, 0.15, 0.06, 0.46, 0.19, EMBER]] },
+    },
+    thrower: {
+      hips: [[-0.26, 0.2, -0.42, 0.26, 0.68, -0.15, HIDE], [-0.2, 0.62, -0.38, 0.0, 0.8, -0.2, ROCK], [-0.02, 0.64, -0.4, 0.2, 0.86, -0.18, ROCK2, [0.3, 0.4, 0]], [-0.1, 0.72, -0.32, 0.1, 0.92, -0.14, ROCK, [0.2, 0.9, 0.3]],
+        [-0.29, 0.3, 0.13, 0.29, 0.36, 0.18, ROPE, [0, 0, 0.75]], [-0.29, 0.3, -0.18, 0.29, 0.36, -0.13, ROPE, [0, 0, -0.75]], [-0.29, 0.03, -0.17, 0.29, 0.1, 0.17, ROPE], [0.16, -0.12, 0.1, 0.3, 0.06, 0.24, ROCK2]],
+      armR: [[-0.17, -0.34, -0.17, 0.17, 0.0, 0.17, ROCK], [-0.2, -0.06, -0.2, 0.2, 0.1, 0.2, ROCK2, [0, 0.5, 0]], [0.1, -0.26, -0.08, 0.24, -0.1, 0.08, ROCK2, [0.3, 0, 0.3]]],
+      armL: [[-0.13, -0.3, -0.13, 0.13, -0.2, 0.13, ROPE], [-0.13, -0.08, -0.13, 0.13, 0.0, 0.13, ROPE]],
+      head: [[-0.29, 0.34, -0.29, 0.29, 0.44, 0.29, HIDE], [-0.29, 0.26, -0.3, 0.29, 0.36, -0.18, HIDE], [0.1, 0.36, 0.2, 0.3, 0.52, 0.3, ROCK2, [0, 0, -0.3]], [-0.3, 0.2, -0.36, -0.2, 0.3, -0.22, ROPE, [0.4, 0, 0]]],
+    },
+    phantom: {
+      hips: [[-0.31, 0.46, -0.19, 0.31, 0.76, 0.19, SHROUD], [-0.29, 0.0, -0.21, 0.29, 0.5, -0.15, SHROUD2], [-0.27, -0.42, -0.2, -0.13, 0.02, -0.15, SHROUD, [0.12, 0, 0.05]], [-0.09, -0.6, -0.2, 0.07, 0.02, -0.15, SHROUD2, [0.2, 0, 0]], [0.11, -0.36, -0.2, 0.27, 0.02, -0.15, SHROUD, [0.1, 0, -0.06]],
+        [-0.3, 0.1, 0.14, -0.16, 0.5, 0.18, SHROUD2], [0.16, 0.1, 0.14, 0.3, 0.5, 0.18, SHROUD2], [-0.3, -0.3, 0.13, -0.18, 0.12, 0.17, SHROUD, [-0.1, 0, 0.06]], [0.18, -0.22, 0.13, 0.3, 0.12, 0.17, SHROUD, [-0.1, 0, -0.06]]],
+      armL: [[-0.14, -0.2, -0.14, 0.14, 0.1, 0.14, SHROUD], [-0.13, -0.42, -0.13, -0.02, -0.18, 0.13, SHROUD2, [0, 0, 0.08]], [0.02, -0.34, -0.13, 0.13, -0.18, 0.13, SHROUD]],
+      armR: [[-0.14, -0.2, -0.14, 0.14, 0.1, 0.14, SHROUD], [0.02, -0.42, -0.13, 0.13, -0.18, 0.13, SHROUD2, [0, 0, -0.08]], [-0.13, -0.34, -0.13, -0.02, -0.18, 0.13, SHROUD]],
+      head: [[-0.3, 0.5, -0.31, 0.3, 0.58, 0.3, SHROUD], [-0.31, 0.0, -0.32, 0.31, 0.56, -0.24, SHROUD], [-0.32, 0.02, -0.28, -0.25, 0.56, 0.22, SHROUD2], [0.25, 0.02, -0.28, 0.32, 0.56, 0.22, SHROUD2], [-0.12, 0.5, -0.5, 0.12, 0.6, -0.28, SHROUD, [0.5, 0, 0]]],
+      glow: { head: [[-0.3, 0.46, 0.27, 0.3, 0.5, 0.31, GHOST], [-0.31, 0.02, 0.19, -0.27, 0.48, 0.23, GHOST], [0.27, 0.02, 0.19, 0.31, 0.48, 0.23, GHOST]], hips: [[-0.05, 0.3, 0.14, 0.05, 0.42, 0.19, GHOST]] },
+    },
+    queen: {
+      hips: [[-0.34, 0.52, -0.2, 0.34, 0.74, 0.2, FUR2], [-0.3, 0.44, -0.18, 0.3, 0.56, 0.2, FUR], [-0.26, 0.0, -0.16, 0.26, 0.1, 0.17, GOLD], [-0.2, -0.3, -0.19, -0.06, 0.02, -0.14, FUR, [0.25, 0, 0.1]], [0.06, -0.3, -0.19, 0.2, 0.02, -0.14, FUR, [0.25, 0, -0.1]], [-0.05, -0.46, -0.2, 0.05, 0.02, -0.14, FUR2, [0.35, 0, 0]]],
+      armL: [[-0.13, -0.3, -0.13, 0.13, -0.22, 0.13, GOLD]], armR: [[-0.13, -0.3, -0.13, 0.13, -0.22, 0.13, GOLD]],
+      head: [[-0.28, 0.46, -0.28, 0.28, 0.52, 0.28, GOLD], [-0.26, 0.5, 0.18, -0.2, 0.68, 0.26, GOLD], [-0.03, 0.5, 0.2, 0.03, 0.78, 0.28, GOLD], [0.2, 0.5, 0.18, 0.26, 0.68, 0.26, GOLD], [-0.27, 0.5, -0.03, -0.21, 0.64, 0.03, GOLD], [0.21, 0.5, -0.03, 0.27, 0.64, 0.03, GOLD],
+        [-0.46, 0.3, -0.1, -0.24, 0.84, -0.02, FUR2, [0, 0, 0.3]], [0.24, 0.3, -0.1, 0.46, 0.84, -0.02, FUR2, [0, 0, -0.3]], [-0.42, 0.36, -0.07, -0.28, 0.74, -0.01, 0xc070a0, [0, 0, 0.3]], [0.28, 0.36, -0.07, 0.42, 0.74, -0.01, 0xc070a0, [0, 0, -0.3]],
+        [-0.14, 0.02, 0.27, -0.09, 0.14, 0.31, BONE], [0.09, 0.02, 0.27, 0.14, 0.14, 0.31, BONE]],
+      glow: { head: [[-0.04, 0.6, 0.27, 0.04, 0.68, 0.3, MAGENTA]], hips: [[-0.07, 0.56, 0.19, 0.07, 0.7, 0.23, MAGENTA]] },
+    },
+  };
+  const garbGeo = {};
+  function garbGeometry(key, boxes) {
+    if (garbGeo[key]) return garbGeo[key];
+    const P = []; const N = []; const U = []; const C = []; const m4 = new THREE.Matrix4(); const e = new THREE.Euler(); const col = new THREE.Color();
+    for (const [x0, y0, z0, x1, y1, z1, c, rot] of boxes) {
+      let g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).toNonIndexed(); if (rot) g.applyMatrix4(m4.makeRotationFromEuler(e.set(rot[0], rot[1], rot[2])));
+      g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); col.setHex(c); const n = g.attributes.position.count;
+      P.push(...g.attributes.position.array); N.push(...g.attributes.normal.array); U.push(...g.attributes.uv.array); for (let i = 0; i < n; i++) C.push(col.r, col.g, col.b); g.dispose();
+    }
+    const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); out.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    return (garbGeo[key] = out);
+  }
+  let garbMat = null; let garbGlow = null;
+  BZ.GARB = GARB;
   BZ.zExtras = (G, b) => {
     const X = {}; const sh = G.quality.shadow > 0;
     const add = (parent, g, m, name) => { const o = new THREE.Mesh(g, m); o.castShadow = sh; o.visible = false; parent.add(o); X[name] = o; return o; };
@@ -147,6 +203,12 @@
     for (const g of EGG) { const m = new THREE.Mesh(g, b.mats.skin); m.castShadow = sh; eg.add(m); }
     X.aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     X.aura.position.y = 1.0; X.aura.scale.set(2.6, 2.6, 1); X.aura.visible = false; b.root.add(X.aura);
+    // boss garb (see GARB above)
+    garbMat = garbMat || new THREE.MeshLambertMaterial({ map: BZ.tex('z_garb'), vertexColors: true }); garbGlow = garbGlow || new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+    X.garb = {};
+    for (const id in GARB) { const list = (X.garb[id] = []);
+      for (const bone of ['hips', 'head', 'armL', 'armR']) if (GARB[id][bone]) { const m = new THREE.Mesh(garbGeometry(id + bone, GARB[id][bone]), garbMat); m.castShadow = sh; m.visible = false; m.userData.garb = id; b[bone].add(m); list.push(m); }
+      for (const bone in GARB[id].glow || {}) { const m = new THREE.Mesh(garbGeometry(id + bone + 'g', GARB[id].glow[bone]), garbGlow); m.visible = false; m.userData.garb = id; b[bone].add(m); list.push(m); } }
     X.gem = new THREE.Mesh(GEM, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false })); X.gem.visible = false; b.root.add(X.gem);
     b.x = X;
   };
@@ -173,6 +235,7 @@
       const b = z.body; const X = b.x; const parts = T.parts || [];
       for (const k of ['sac', 'belly', 'shield', 'plate', 'padL', 'padR', 'helmet', 'visor', 'hair', 'tail']) X[k].visible = false;
       X.tail.visible = !!T.quad; b.head.scale.setScalar(T.quad ? 0.78 : 1); b.armL.position.x = T.quad ? -0.2 : -0.36; b.armR.position.x = T.quad ? 0.2 : 0.36;
+      for (const id in X.garb) { const on = T.boss === id; for (const m of X.garb[id]) m.visible = on; }
       for (const k of parts) { X[k].visible = true; if (k === 'plate') X.padL.visible = X.padR.visible = true; if (k === 'helmet') X.visor.visible = true; }
       b.hips.visible = !T.rig; X.spider.visible = T.rig === 'spider'; X.eggG.visible = T.rig === 'egg';
       B().dress(z);
