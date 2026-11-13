@@ -123,13 +123,14 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
       G.startWave(G.wave.n + 1); G.wave.bossAt = -1;
       // one wave 9 is only 48 zombies, which does not always show six special kinds: when it runs dry, start it again and keep sampling
       const SP = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider']; let waves = 1;
-      for (let i = 0; i < 1500; i++) { __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 30) G.zombies.clear();
+      // (the sampling must not depend on how one wave happens to go: the game is kept in play, the street is swept as soon as a dozen are out so the wave keeps spawning, and the wave is replayed up to twelve times)
+      let iters = 0; for (let i = 0; i < 3000; i++) { iters = i; if (G.state !== 'playing') G.state = 'playing'; __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 12) G.zombies.clear();
         if (SP.filter((t) => seen.has(t)).length >= 6 && elites > 0) break;
-        if (G.wave.phase !== 'fight' || (G.wave.toSpawn === 0 && G.zombies.aliveCount() === 0)) { if (waves >= 6) break; waves++; G.zombies.clear(); G.state = 'playing'; G.startWave(REPLAY_WAVE); G.wave.bossAt = -1; } }
-      return { wave: G.wave.n, types: [...seen], elites, waves }; })()`.replace('G.wave.n + 1', '9').replace('REPLAY_WAVE', '9'));
+        if (G.wave.phase !== 'fight' || (G.wave.toSpawn === 0 && G.zombies.aliveCount() === 0)) { if (waves >= 12) break; waves++; G.zombies.clear(); G.state = 'playing'; G.startWave(REPLAY_WAVE); G.wave.bossAt = -1; } }
+      return { wave: G.wave.n, types: [...seen], elites, waves, iters, end: G.state + '/' + G.wave.phase + '/' + G.wave.toSpawn }; })()`.replace('G.wave.n + 1', '9').replace('REPLAY_WAVE', '9'));
     console.log('late', JSON.stringify(late));
     check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')}; ${late.waves} run${late.waves > 1 ? 's' : ''} of the wave)`);
-    check(late.elites > 0, 'elites show up in a late wave');
+    check(late.elites > 0, `elites show up in a late wave (${late.elites} sightings in ${late.waves} run${late.waves > 1 ? 's' : ''}, ${late.iters} steps, ended ${late.end})`);
     // every mesh drawn with a vertex-coloured body material has colours to draw with (without them it renders black):
     // each boss and each special body is put on once, then every body is walked
     const vc = await page.evaluate(`(() => { const G = __G; G.god = true; G.wave.toSpawn = 0; G.wave.bossAt = -1; const bad = new Set(); let meshes = 0; const kinds = Object.keys(BZ.ZOMBIES);

@@ -112,7 +112,11 @@
       if (M.gun) { M.gun.visible = !(W.thrown && (S.hideT > 0 || (S.phase === 'reload' && S.t / W.reload < 0.55))); const bar = M.gun.getObjectByName('barrels'); if (bar) bar.rotation.z = S.spinAng; }
       st.reload = S.phase === 'reload' ? Math.sin(Math.min(1, S.t / 0.6) * Math.PI) : 0; st.cast = Math.min(1, (S.castT || 0) / 0.15);
       const ha = G.hero.act || null; if (ha && st.actSrc !== ha) { st.act = ha; st.actSrc = ha; }
-      BZ.animHero(M, st, dt); BZ.heroGun(M, st, M.gun); BZ.heroJet(M, P.hasJet, P.jetting, P.fuel, dt);
+      BZ.animHero(M, st, dt);
+      // the jump taken in mid-air is a forward flip: one full turn about the hips in 0.45 s, legs tucked harder while it lasts
+      if ((P.jumps || 0) >= 1 && (sp.jumpsSeen || 0) < 1 && !P.onGround && !P.jetting) sp.flip = 0.0001; sp.jumpsSeen = P.jumps || 0;
+      if (sp.flip > 0) { sp.flip += dt; const k = Math.min(1, sp.flip / 0.45); if (k >= 1 || P.onGround) sp.flip = 0; else { const e = BZ.smooth(k); M.hips.rotation.x += Math.PI * 2 * e; const tk = Math.sin(Math.PI * k); M.legL.rotation.x -= 0.7 * tk; M.legR.rotation.x -= 0.7 * tk; if (M.kneeL) { M.kneeL.rotation.x += 0.8 * tk; M.kneeR.rotation.x += 0.8 * tk; } } }
+      BZ.heroGun(M, st, M.gun); BZ.heroJet(M, P.hasJet, P.jetting, P.fuel, dt);
       // the blade leaves a ribbon in the world while it swings
       if (!sp.rib) sp.rib = G.fx.ribbon();
       if (W.melee && !W.noTrail && M.tip && st.swing >= 0.15 && st.swing < 0.75) { M.root.updateMatrixWorld(true); sp.rib.push(M.tip.getWorldPosition(V()), M.handR.getWorldPosition(V())); }
