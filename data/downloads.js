@@ -17,6 +17,19 @@ window.HUB_DOWNLOADS = [
   {
     game: "repo2d-unity",
     platform: "android",
+    version: "0.2.532",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.532/BooHaul-Android-0.2.532-a0da3a64.apk",
+    bytes: 150176592,
+    sha256: "a77b7aa0215a5d413fab341bdaf4fe25097d063439d15f61dbae985c70e2f21f",
+    date: "2026-11-13",
+    note: {
+      vi: "Boo Haul 0.2.532 cho Android (commit a0da3a64), chơi trên server LIVE. Voice hết tự nghe tiếng mình khi bật/tắt, co-op vào trận hết văng (sửa gốc), Vô Tận chơi tiếp giữ hành trang, bot né làn đạn/cú húc/tự gỡ kẹt/cứu đồng đội, chữ dễ đọc hơn + Giảm chớp sáng/Độ sáng, mượt hơn (ít khựng). Cài đè lên bản cũ.",
+      en: "Boo Haul 0.2.532 for Android (commit a0da3a64), plays on the LIVE server. Voice no longer echoes after toggling, co-op match start crash fixed at the root, Endless continue keeps your kit, bots dodge firing lanes and charges, unstick themselves and rescue teammates, easier-to-read text + Reduce flashes/Brightness, smoother play (fewer hitches). Installs over the old version."
+    }
+  },
+  {
+    game: "repo2d-unity",
+    platform: "android",
     version: "0.2.430",
     url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.430/BooHaul-Android-0.2.430-f9ef8aa6.apk",
     bytes: 150070096,
