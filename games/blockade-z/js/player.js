@@ -117,7 +117,7 @@
       const len = Math.hypot(input.fwd, input.side);
       const fx = len > 1 ? input.fwd / len : input.fwd; const sx = len > 1 ? input.side / len : input.side;
       P.sprinting = input.sprint && P.onGround;
-      const speed = (G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk) * G.hero.speedMul() * G.build.speedMul() * (G.env ? G.env.pSpeed : 1);
+      const speed = (G.weapons.S.ads > 0.5 ? MOVE.ads : P.sprinting ? MOVE.sprint : MOVE.walk) * G.hero.speedMul() * G.build.speedMul() * (G.env ? G.env.pSpeed : 1) * (P.rootT > 0 ? 0.08 : P.slowT > 0 ? 0.55 : 1);
       const sin = Math.sin(P.yaw); const cos = Math.cos(P.yaw);
       const wx = (-sin * fx + cos * sx) * speed; const wz = (-cos * fx - sin * sx) * speed;
       const acc = P.onGround ? (len > 0.05 ? MOVE.accelGround : MOVE.decelGround) : MOVE.accelAir;
@@ -208,7 +208,7 @@
       if (P.hp <= 0) { P.alive = false; G.events.emit('player:dead'); }
     }
     function reset() {
-      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.maxHp = 100; P.armor = 0; P.jumps = 0; P.wallT = 0; P.wallK = 0; P.alive = true; P.landDip = 0; P.fuel = 100; P.hasJet = false;
+      P.pos.set(0, 0, 5); P.vel.set(0, 0, 0); P.yaw = 0; P.pitch = 0; P.hp = 100; P.maxHp = 100; P.armor = 0; P.jumps = 0; P.wallT = 0; P.wallK = 0; P.alive = true; P.landDip = 0; P.fuel = 100; P.hasJet = false; P.slowT = 0; P.rootT = 0;
       input.fire = false; input.ads = false; keys.clear();
     }
     P.update = update; P.hurt = hurt; P.reset = reset; P.input = input;

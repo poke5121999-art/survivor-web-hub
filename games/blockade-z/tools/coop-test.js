@@ -65,6 +65,15 @@ const BASE = process.env.BZ_BASE;
   const hb = await B.evaluate('({ hp: __G.player.hp, max: __G.player.maxHp })');
   console.log('hurt', hurt, JSON.stringify(hb));
   check(hb.hp < hb.max, 'a zombie on the host bites the guest');
+  // special kinds: the guest sees the type, the shield, the elite; a frost bite slows the guest
+  const sk = await A.evaluate(`(() => { const G = __G; const av = [...G.coop.avatars.values()][0];
+    const s = G.zombies.spawn('shielder', 1, { x: av.pos.x + 6, z: av.pos.z, dir: [0, 1], name: 't' }); s.speed = 0; G.zombies.elite(s, 'regen');
+    const f = G.zombies.spawn('frost', 1, { x: av.pos.x + 0.8, z: av.pos.z, dir: [0, 1], name: 't' }); f.pos.set(av.pos.x + 0.8, 0, av.pos.z); f.attackT = 0;
+    return G.zombies.list.indexOf(s); })()`);
+  await A.waitForTimeout(3000);
+  const gs = await B.evaluate(`(() => { const z = __G.zombies.list[${sk}]; return { type: z.type, alive: z.alive, shield: z.body.x.shield.visible, elite: z.elite, gem: z.body.x.gem.visible, slow: __G.player.slowT > 0 || __G.player.hp < __G.player.maxHp }; })()`);
+  console.log('kinds', JSON.stringify(gs));
+  check(gs.alive && gs.type === 'shielder' && gs.shield && gs.elite === 'regen' && gs.gem, 'the guest sees a special kind with its shield and its elite mark');
   await A.screenshot({ path: OUT + '/coop-A.png' }); await B.screenshot({ path: OUT + '/coop-B.png' });
   console.log('errors', JSON.stringify({ A: await A.evaluate('window.__errors.slice(0, 3)'), B: await B.evaluate('window.__errors.slice(0, 3)') }));
   await A.evaluate('__G.coop.stop()'); await B.waitForTimeout(1500);

@@ -23,6 +23,27 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 
 `js/heroes.js` có 7 nhân vật tự nghĩ (không lấy từ game nào): Gió (lướt, 3 lượt), Thép (bất tử 5 giây, 150 máu), Y Tá (hồi máu, tự hồi khi không trúng đòn), Mưa Đạn (bão đạn: bắn nhanh gấp đôi, không tốn đạn, toả đạn lạc), Bóng (dịch chuyển để lại bóng mồi; chạy trên tường, chạy lên tường, đạp tường, nhảy hai lần), Pháo Thủ (không kích 6 quả pháo, bom to hơn) và Băng (đóng băng 9 m, xác đóng băng vỡ vụn). Bấm `F` hoặc nút tròn trên HUD để dùng kỹ năng. Màn chọn nhân vật dựng 7 người đứng thành hàng giữa quảng trường; `?select=1` mở thẳng màn này, `?hero=<id>` chọn sẵn nhân vật khi `?autostart=1`.
 
+## Zombie đặc biệt, quái và tinh anh
+
+`js/zkinds.js` thêm loại mới vào `BZ.ZOMBIES`. Mỗi loại có `kind` chọn hành vi, `parts` là mảnh gắn thêm lên thân dùng chung (túi axit, bụng phình, khiên, giáp, tóc), và `rig` thay cả thân (nhện, trứng). Mỗi loại đặc biệt xuất hiện lần đầu thì hiện băng rôn kèm cách khắc chế.
+
+| Loại | Từ đợt | Luật |
+|---|---|---|
+| Kẻ Phun | 3 | đứng xa 4–17 m phun axit theo đường cong; vũng axit đốt máu và làm chậm |
+| Chó Xác | 3 | chạy bốn chân theo đàn 3–5 con, vồ từ 2,5–6 m |
+| Kẻ Phình | 4 | áp sát thì phình 0,9 giây rồi nổ; bị bắn chết cũng nổ, nổ lây sang con phình bên cạnh, để lại vũng axit |
+| Kẻ Khiên | 5 | khiên chặn mọi phát bắn từ phía trước (hiện chữ CHẶN), trừ đầu và vụ nổ; rìu phá khiên nhanh gấp 2,5 |
+| Kẻ Thét | 5 | dừng lại thét: zombie trong 11 m cuồng lên 6 giây (nhanh hơn, đánh dồn), gọi thêm 2 zombie chạy |
+| Kẻ Giáp | 6 | giáp chỉ cho 30% sát thương qua cho tới khi vỡ; chân không có giáp; lửa và độc đốt xuyên giáp |
+| Nhện Độc | 6 | bầy 4–6 con nhỏ, vồ ngắn, cắn làm chậm |
+| Xác Cháy | 7 | miễn lửa, ăn băng gấp đôi; đi để lại vệt lửa; chết thì nổ cháy, châm lửa đám xung quanh |
+| Xác Băng | 8 | miễn băng, sợ lửa; cắn làm chậm; chết thì nổ băng, đóng băng đám xung quanh (bắn điện vào là vỡ vụn) |
+| Nhện Chúa (boss) | đợt boss | bắn tơ trói chân, đẻ trứng (trứng nở 3 nhện nếu không phá kịp), vồ xa |
+
+Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 12%: Nhanh, Trâu, Tự hồi (lửa hoặc độc chặn hồi), Bùng nổ (chết thì nổ), Hút máu, Cuồng (dưới nửa máu). Tinh anh có hào quang, viên đá màu xoay trên đầu, thanh máu vàng, rơi súng 35% và trả xu, điểm gấp ba.
+
+Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1024 cuồng, 2048 đang ra chiêu, và cột thứ 9 là tinh anh. Đạn axit, tơ, vũng nguy hiểm, tiếng thét, nổ băng đi qua sự kiện `zk`. Chậm và trói chân đến máy người vào sau cùng tin nhắn `hurt`.
+
 ## Shop nâng cấp và đường build
 
 - Shop (`B` hoặc giữa hai đợt) chỉ bán nâng cấp chỉ số, không bán súng. `js/build.js` giữ bảng `UP` gồm 25 nâng cấp chia 5 nhóm: Hoả lực (sát thương, chí mạng, tốc bắn, nạp đạn, băng đạn, cận chiến), Sinh tồn (máu, hồi máu, giáp, tốc chạy, hút xu), Kỹ năng (hồi chiêu, sức mạnh chiêu, nạp tối thượng), Nguyên tố và Hỗ trợ. Giá tăng theo cấp (`base·grow^lv`).
@@ -53,6 +74,7 @@ Game bắn zombie góc nhìn thứ nhất, kiểu khối pixel, chạy bằng th
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/smoke.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> [FAKE=0] node games/blockade-z/tools/coop-test.js <thư mục ảnh>
 PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/shots.js <thư mục ảnh>
+PLAYWRIGHT_PATH=<thư mục playwright-core> node games/blockade-z/tools/zoo.js <thư mục ảnh>
 ```
 
 `smoke.js` dùng Chrome thật: một bot tự ngắm và đánh hết đợt 1, mua shotgun, kiểm bắn vỡ đầu, chém katana, rụng chân thành zombie bò, nổ nát xác, bỏ và nhặt vũ khí, lính nhặt bazooka rồi bắn, và kiểm không có lỗi console. `shots.js` chụp cận zombie, từng khẩu súng, màn title và màn điện thoại để duyệt hình.

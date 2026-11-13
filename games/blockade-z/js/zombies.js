@@ -71,9 +71,12 @@
       const barBg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0x1a0c08, depthWrite: false }));
       const barFg = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: 0xe8402c, depthWrite: false }));
       barFg.position.z = 0.002; barBg.add(barFg); barBg.visible = false; barBg.renderOrder = 5; barFg.renderOrder = 6; G.scene.add(barBg);
-      return { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo, stumps };
+      const B = { root, hips, legL, legR, armL, armR, torso, head, mats, barBg, barFg, wingL, wingR, halo, stumps };
+      BZ.zExtras(G, B);
+      return B;
     }
     for (let i = 0; i < POOL; i++) list.push({ alive: false, body: makeBody(), pos: new THREE.Vector3(), vel: new THREE.Vector3() });
+    const K = BZ.makeZKinds(G, { list, spawn: (...a) => spawn(...a), hurtP: (...a) => hurtP(...a), damage: (...a) => damage(...a), kill: (...a) => kill(...a), applyStatus: (...a) => applyStatus(...a) });
 
     function dress(z, type) {
       const T = TYPES[type]; const r = G.rng;
@@ -97,6 +100,7 @@
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8);
       z.fp.reset(); z.fr.reset(); z.hs.reset(); z.down = 0; z.slowT = 0; z.legDmg = 0; z.limp = false; z.armsLeft = 2;
       z.crawl = false; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0;
+      K.init(z, T, wave);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
       z.vel.set(0, 0, 0);
@@ -118,7 +122,7 @@
       if (z.climb || z.pos.y > 0.4) return;
       let best = null; let bestTop = -1;
       for (const o of alive) {
-        if (o === z || o.T.fly || o.T.boss || !o.alive || (o.wallT < 0.4 && !o.climb)) continue;
+        if (o === z || o.T.fly || o.T.boss || o.T.noTower || !o.alive || (o.wallT < 0.4 && !o.climb)) continue;
         let p = o; let loop = 0; while (p && loop++ < 8) { if (p === z) break; p = p.climb; } if (p === z) continue;
         const d = Math.hypot(o.pos.x - z.pos.x, o.pos.z - z.pos.z);
         const top = o.pos.y + 1.5 * o.T.scale;
@@ -222,8 +226,16 @@
       for (const r of C.remotes()) { if (!r.alive) continue; const d = Math.hypot(r.pos.x - z.pos.x, r.pos.z - z.pos.z); if (d < bd) { bd = d; best = r; } }
       return (z.tgt = best);
     }
-    const hurtP = (P, dmg, from) => { if (P.remote) G.coop.hurtRemote(P, dmg, from); else G.events.emit('player:hurt', { dmg, from }); };
+    const hurtP = (P, dmg, from, fx) => { if (P.remote) G.coop.hurtRemote(P, dmg, from, fx); else { G.events.emit('player:hurt', { dmg, from }); K.playerFx(P, fx); } };
+    // root, facing and the health bar for a zombie whose special move owned this frame
+    function finish(z) {
+      const b = z.body; b.root.position.copy(z.pos); b.root.rotation.y = z.yaw;
+      if (z.flash > 0) { z.flash -= 0.016; if (z.flash <= 0) setFlash(z, false); }
+      const bar = b.barBg; bar.visible = z.hp < z.maxHp;
+      if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + 2.2 * z.T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
+    }
     function update(dt) {
+      K.update(dt);
       if (G.coop && G.coop.guest) { puppets(dt); return; }
       const P0 = G.player;
       flowT.t -= dt;
@@ -233,6 +245,7 @@
         const T = z.T; const P = pick(z, dt);
         tickStatus(z, dt);
         if (!z.alive) continue;
+        K.tick(z, dt);
         if (z.frozen > 0) { frozenStep(z, dt); continue; }
         z.chillT = Math.max(0, (z.chillT || 0) - dt);
         if (T.fly) { flyer(z, dt, P); continue; }
@@ -258,6 +271,7 @@
         const reach = 1.25 * T.scale;
         const dy = tp.y - z.pos.y;
         const canHit = dist < reach + 0.15 && dy > -1.2 && dy < 1.6 * T.scale && (tgt ? tgt.alive : P.alive);
+        if (T.kind && K.step(z, dt, P, dist)) { K.pose(z, dt, Math.hypot(z.vel.x, z.vel.z)); finish(z); continue; }
         if (T.boss && boss(z, dt, P, dist)) continue;
 
         // steering
@@ -274,7 +288,7 @@
           if (d2 < minD * minD && d2 > 1e-6) { const d = Math.sqrt(d2); sx += (ox / d) * (minD - d) * 2.5; sz += (oz / d) * (minD - d) * 2.5; }
         }
         const attacking = z.windT >= 0;
-        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1);
+        const want = attacking || dist < reach * 0.8 ? 0 : z.speed * (z.slowT > 0 ? 0.35 : 1) * (z.limp ? 0.55 : 1) * (z.crawl ? 0.38 : 1) * (z.chillT > 0 ? 0.75 : 1) * (G.env ? G.env.zSpeed : 1) * (z.hold ? 0 : 1) * (z.spdMul || 1) * (z.rage > 0 ? 1.35 : 1);
         const before = z.pos.x + z.pos.z;
         if (z.climb) ride(z, dt, P, dx, dz, dist);
         else {
@@ -283,7 +297,7 @@
           // the player is up out of reach: press against the wall and let others climb on top
           const elevated = !tgt && P.pos.y - z.pos.y > 1.6 && dist < 9;
           z.wallT = elevated && (out.hitX || out.hitZ || dist < 1.2) ? z.wallT + dt : Math.max(0, z.wallT - dt);
-          if (elevated && z.pos.y < P.pos.y - 1 && T !== TYPES.brute && !z.crawl) tryClimb(z, alive);
+          if (elevated && z.pos.y < P.pos.y - 1 && T !== TYPES.brute && !z.crawl && !T.noTower) tryClimb(z, alive);
         }
         z.stuck = Math.abs(z.pos.x + z.pos.z - before) < want * dt * 0.1 && want > 0 ? z.stuck + dt : 0;
 
@@ -293,12 +307,12 @@
 
         // attack: windup (telegraph) then hit if still in reach
         z.attackT -= dt;
-        if (!attacking && canHit && z.attackT <= 0) { z.windT = 0; G.audio.playAt('swipe', z.pos, { gain: 0.6 }); }
+        if (!attacking && canHit && z.attackT <= 0 && !z.noMelee && z.dmg > 0) { z.windT = 0; G.audio.playAt('swipe', z.pos, { gain: 0.6 }); }
         if (z.windT >= 0) {
           z.windT += dt;
           if (z.windT >= T.windup) {
-            z.windT = -1; z.attackT = T.rate;
-            if (dist < reach + 0.45 && tp.y < 1.9 * T.scale) { if (tgt) { if (!tgt.isDecoy) G.allies.hurt(tgt, z.dmg); } else hurtP(P, z.dmg, z.pos); }
+            z.windT = -1; z.attackT = T.rate * (z.rage > 0 ? 0.65 : 1);
+            if (dist < reach + 0.45 && tp.y < 1.9 * T.scale) { if (tgt) { if (!tgt.isDecoy) G.allies.hurt(tgt, z.dmg); } else hurtP(P, z.dmg, z.pos, K.onMelee(z)); }
           }
         }
 
@@ -329,6 +343,7 @@
           b.legL.rotation.x = 0.1 + pull * 0.08; b.legR.rotation.x = 0.1 - pull * 0.08; b.hips.rotation.z = pull * 0.12; b.hips.rotation.x = fp * 0.3;
           b.head.rotation.x = -0.9 + hs; b.hips.position.y = 0.75;
         }
+        if (T.kind) K.pose(z, dt, sp);
         if (z.flash > 0) { z.flash -= dt; if (z.flash <= 0) setFlash(z, false); }
         const bar = b.barBg; bar.visible = z.hp < z.maxHp;
         if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + (z.crawl ? 0.9 : 2.2) * T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
@@ -346,9 +361,10 @@
         z.dying += dt;
         const b = z.body;
         if (z.crawl) b.root.rotation.x = BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3));
+        else if (z.T.quad) b.root.rotation.z = Math.min(1, z.dying / 0.3) * Math.PI / 2;
         else b.root.rotation.x = -Math.min(1, z.dying / 0.35) * Math.PI / 2;
         b.root.position.y = z.pos.y + (z.crawl ? 0.12 * z.T.scale : 0) - Math.max(0, z.dying - 1.8) * 0.8;
-        if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.position.y = 0; }
+        if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; b.root.position.y = 0; }
       }
     }
 
@@ -411,6 +427,8 @@
       for (const z of list) {
         if (!z.alive || (skip && skip.has(z))) continue;
         const s = z.T.scale;
+        const kb = K.boxes(z);
+        if (kb) { for (const bx of kb) { const t0 = slab(o, d, bx, best ? best.t : maxT); if (t0 !== null && (!best || t0 < best.t)) best = { t: t0, z, part: bx.part }; } continue; }
         const y = z.pos.y; const wide = z.T.fly ? 0.6 : 0.34;
         if (z.crawl) {
           const fx = Math.sin(z.yaw) * 0.85 * s; const fz = Math.cos(z.yaw) * 0.85 * s;
@@ -449,6 +467,7 @@
       }
       if (G.coop && G.coop.guest && !opt.net) {
         G.coop.reportHit(z, amount, part, dir, imp, opt);
+        if (K.hit(z, amount, part, dir, opt, true) === 0) return false;
         if (opt.status) for (const [k, pw] of opt.status) statusFlash(z, k);
         z.flash = 0.09; setFlash(z, true);
         const at = new THREE.Vector3(z.pos.x, z.pos.y + (part === 'head' ? 1.7 : part === 'leg' ? 0.45 : 1.05) * z.T.scale, z.pos.z); const k = BZ.clamp(amount / z.maxHp, 0, 1);
@@ -457,6 +476,7 @@
         z.hp = Math.max(1, z.hp - amount * 0.5);
         return false;
       }
+      amount = K.hit(z, amount, part, dir, opt, false); if (amount <= 0) return false;
       z.hp -= amount; z.flash = 0.09; setFlash(z, true);
       if (G.hero && G.hero.chill()) z.chillT = 1;
       const T = z.T; const k = BZ.clamp(amount / z.maxHp, 0, 1); const heavy = T === TYPES.brute ? 0.45 : 1;
@@ -474,9 +494,9 @@
           z.legDmg += amount; if (!z.limp && z.legDmg > 0.45 * z.maxHp && T !== TYPES.runner) z.limp = true;
         } else { z.fp.v -= (5 + 30 * k) * imp * heavy; z.fr.v += side * (3 + 12 * k) * imp * heavy; }
         // a big enough hit knocks it over (not brutes, not flyers)
-        if (!T.fly && T !== TYPES.brute && z.hp > 0 && k * imp > 0.45 && z.down <= 0) { z.down = z.downMax = 0.9 + 0.6 * k; }
+        if (!T.fly && T !== TYPES.brute && !T.noDown && z.hp > 0 && k * imp > 0.45 && z.down <= 0) { z.down = z.downMax = 0.9 + 0.6 * k; }
         // limbs come off: heavy rounds tear, blades cut clean, the saber cauterises; bosses keep their limbs
-        if (!T.boss && z.hp > 0) {
+        if (!T.boss && z.hp > 0 && !T.quad && !T.rig) {
           const cut = opt.cut; const sideArm = side > 0 ? 'armL' : 'armR'; const sideLeg = side > 0 ? 'legL' : 'legR';
           const pickArm = z.body[sideArm].visible ? sideArm : sideArm === 'armL' ? 'armR' : 'armL';
           const pickLeg = z.body[sideLeg].visible ? sideLeg : sideLeg === 'legL' ? 'legR' : 'legL';
@@ -503,7 +523,8 @@
     };
     function hurtBy(z, amount, by, dot = true) { return damage(z, amount, 'body', V3s().set(0, 0, 1), 0.5, { dot, net: true, by, credit: !by || by === 'h' || (G.coop && by === G.coop.me) }); }
     function applyStatus(z, kind, pow = 1, by = 'h') {
-      if (!z.alive || (G.coop && G.coop.guest)) return;
+      if (!z.alive || (G.coop && G.coop.guest) || z.T.immune === kind) return;
+      if (z.T.weak === kind) pow *= 1.8;
       const st = z.st || (z.st = {}); const B = G.build;
       // a new element meeting an old one reacts; two different players doing it is a combo
       const other = (k) => st[k] && st[k].by;
@@ -513,7 +534,7 @@
       if (kind === 'shock' && st.poison) react(z, 'spread', pow, by, other('poison'));
       if (kind === 'burn') st.burn = { t: 3 + pow, dps: 6 + 5 * pow, by };
       else if (kind === 'chill') {
-        const n = Math.min(4, (st.chill ? st.chill.n : 0) + 1); st.chill = { t: 3, n, by };
+        const n = Math.min(4, (st.chill ? st.chill.n : 0) + (z.T.weak === 'chill' ? 2 : 1)); st.chill = { t: 3, n, by };
         if (n >= 4) { st.chill = null; z.frozen = (z.T.boss ? 0.8 : 2.2) * (0.8 + 0.2 * pow); z.vel.set(0, 0, 0); G.fx.burst(V3s().set(z.pos.x, z.pos.y + 1, z.pos.z), 10, [0xdff6ff, 0x9ad8ff], { speed: 2, size: 0.08, life: 0.5 }); }
       } else if (kind === 'shock') { st.shock = { t: 0.7, by }; chain(z, pow, by); }
       else if (kind === 'poison') { const n = Math.min(5, (st.poison ? st.poison.n : 0) + 1); st.poison = { t: 5, n, dps: 3 * pow * n, by }; }
@@ -668,6 +689,8 @@
       else if (part === 'head' && b.head.visible) gore = opt.cut ? 'decap' : amount >= 55 || G.rng.chance(0.6) ? 'burst' : 'decap';
       else if (opt.cut && part === 'body' && G.rng.chance(opt.cut === 'axe' ? 0.6 : 0.4)) gore = 'limb';
       }
+      if (z.T.quad && (gore === 'decap' || gore === 'limb')) gore = 'burst';
+      if (z.T.kind || z.elite) { const r = K.die(z, gore, dir, opt); if (r !== undefined) gore = r === 'none' ? null : r; }
       if (!z.crawl) b.root.rotation.y = Math.atan2(-dir.x, -dir.z);
       G.audio.playAt('die', z.pos, { gain: 0.9 });
       if (gore === 'apart') blowApart(z, dir, ice);
@@ -678,11 +701,11 @@
       if (!gore || gore === 'limb') G.fx.splat(V3().set(z.pos.x - dir.x * 1.2, z.pos.y, z.pos.z - dir.z * 1.2), 1.2 * z.T.scale);
       G.events.emit('zombie:killed', { z, part, gore, by: opt.by, credit: opt.credit !== false, dir, opt });
     }
-    function clear() { for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
+    function clear() { K.clear(); for (const z of list) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.root.rotation.x = 0; z.body.barBg.visible = false; } }
     // Hit flash turns the whole body solid red (the distance readout); otherwise only the eyes glow.
     function setFlash(z, on) {
       const m = z.body.mats;
-      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0xd01810 : 0);
+      for (const k of ['skin', 'shirt', 'pants']) m[k].emissive.setHex(on ? 0xd01810 : z.glow || z.T.glow || 0);
       const f = m.face; const wantMap = on ? null : BZ.tex('eyes_glow');
       if (f.emissiveMap !== wantMap) { f.emissiveMap = wantMap; f.needsUpdate = true; }
       f.emissive.setHex(on ? 0xd01810 : f.userData.eye || 0xff3020);
@@ -693,8 +716,8 @@
     // snapshot row: [index, type, x, y, z, yaw, hp 0..255, flags]; flags: 1 crawl, 2 frozen, 4 attacking, 8 knocked down
     const TYPE_IDS = Object.keys(TYPES);
     function netRow(z, i) {
-      const f = (z.crawl ? 1 : 0) | (z.frozen > 0 ? 2 : 0) | (z.windT >= 0 ? 4 : 0) | (z.down > 0 && !z.crawl ? 8 : 0) | (z.stFlags || 0);
-      return [i, TYPE_IDS.indexOf(z.type), +z.pos.x.toFixed(2), +z.pos.y.toFixed(2), +z.pos.z.toFixed(2), +z.yaw.toFixed(2), Math.round(255 * Math.max(0, z.hp) / z.maxHp), f];
+      const f = (z.crawl ? 1 : 0) | (z.frozen > 0 ? 2 : 0) | (z.windT >= 0 ? 4 : 0) | (z.down > 0 && !z.crawl ? 8 : 0) | (z.stFlags || 0) | K.flags(z);
+      return [i, TYPE_IDS.indexOf(z.type), +z.pos.x.toFixed(2), +z.pos.y.toFixed(2), +z.pos.z.toFixed(2), +z.yaw.toFixed(2), Math.round(255 * Math.max(0, z.hp) / z.maxHp), f, K.eliteIdx(z)];
     }
     function snapshot() { const out = []; list.forEach((z, i) => { if (z.alive) out.push(netRow(z, i)); }); return out; }
     function adopt(rows) {
@@ -709,6 +732,7 @@
         }
         z.netPos.set(x, y, zz); z.netYaw = yaw; z.hp = z.maxHp * hp / 255;
         z.crawl = !!(f & 1); z.frozen = f & 2 ? 1 : 0; z.windT = f & 4 ? 0.1 : -1; z.netDown = !!(f & 8); z.stFlags = f & 240;
+        K.adopt(z, f, r[8] || 0);
       }
       for (let i = 0; i < list.length; i++) { const z = list[i]; if (z.alive && !seen.has(i)) { z.alive = false; z.dying = 0; z.body.root.visible = false; z.body.barBg.visible = false; } }
     }
@@ -717,6 +741,7 @@
       z.type = type; z.T = T; z.alive = true; z.dying = 0; z.headless = false; z.hp = z.maxHp = T.hp; z.dmg = T.dmg; z.speed = T.speed;
       z.fp = z.fp || BZ.spring(110, 9); z.fr = z.fr || BZ.spring(110, 9); z.hs = z.hs || BZ.spring(140, 8); z.fp.reset(); z.fr.reset(); z.hs.reset();
       z.down = 0; z.crawl = false; z.frozen = 0; z.armsLeft = 2; z.phase = G.rng.range(0, 6); z.bob = 0; z.flash = 0; z.windT = -1; z.vel.set(0, 0, 0);
+      K.init(z, T, 1);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
       for (const st of Object.values(z.body.stumps)) { st.visible = false; st.material = BZ.mat('z_meat'); }
       const b = z.body; b.root.visible = true; b.root.scale.setScalar(T.scale); b.head.visible = true; b.wingL.visible = b.wingR.visible = b.halo.visible = !!T.fly; b.root.rotation.set(0, 0, 0);
@@ -726,9 +751,9 @@
       for (const z of list) {
         const b = z.body;
         if (z.dying) {
-          z.dying += dt; b.root.rotation.x = z.crawl ? BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3)) : -Math.min(1, z.dying / 0.35) * Math.PI / 2;
+          z.dying += dt; if (z.T.quad) b.root.rotation.z = Math.min(1, z.dying / 0.3) * Math.PI / 2; else b.root.rotation.x = z.crawl ? BZ.lerp(1.38, Math.PI / 2, Math.min(1, z.dying / 0.3)) : -Math.min(1, z.dying / 0.35) * Math.PI / 2;
           b.root.position.y = z.pos.y + (z.crawl ? 0.12 * z.T.scale : 0) - Math.max(0, z.dying - 1.8) * 0.8;
-          if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; }
+          if (z.dying > 2.8) { z.dying = 0; b.root.visible = false; b.root.rotation.x = 0; b.root.rotation.z = 0; }
           continue;
         }
         if (!z.alive || !z.netPos) continue;
@@ -755,6 +780,7 @@
           b.hips.rotation.x = T.hunch + fp; b.hips.rotation.z = Math.sin(z.phase) * 0.05 + fr; b.hips.position.y = 0.75 + Math.abs(Math.cos(z.phase)) * 0.04;
           b.head.rotation.x = hs; b.head.rotation.z = Math.sin(z.phase * 0.7) * 0.15;
         }
+        if (T.kind) K.pose(z, dt, sp);
         statusFx(z, dt, z.stFlags || 0);
         if (z.frozen) { if (z.flash <= 0) for (const k of ['skin', 'shirt', 'pants']) b.mats[k].emissive.setHex(0x2a6aa0); }
         if (z.flash > 0) { z.flash -= dt; if (z.flash <= 0) setFlash(z, false); }
@@ -763,6 +789,6 @@
         if (bar.visible) { bar.position.set(z.pos.x, z.pos.y + (z.crawl ? 0.9 : 2.2) * T.scale, z.pos.z); bar.quaternion.copy(G.camera.quaternion); const k = Math.max(0, z.hp / z.maxHp); b.barFg.scale.x = Math.max(0.001, k); b.barFg.position.x = -0.35 * (1 - k); }
       }
     }
-    return { list, spawn, update, hitTest, damage, sever, kill, burstHead, blowApart, applyStatus, REACT, clear, aliveCount, snapshot, adopt, TYPE_IDS, boss: boss1, debug: () => ({ alive: aliveCount() }) };
+    return { list, spawn, update, hitTest, damage, sever, kill, burstHead, blowApart, applyStatus, REACT, clear, aliveCount, snapshot, adopt, TYPE_IDS, kinds: K, elite: (z, key) => K.elite(z, key), boss: boss1, debug: () => ({ alive: aliveCount() }) };
   };
 })();

@@ -91,9 +91,9 @@
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
       G.events.emit('wave:start', n);
       // a boss every fifth wave, and from wave 6 a chance of an extra one
-      const BOSSES = ['giant', 'thrower', 'phantom', 'queen'];
+      const BOSSES = ['giant', 'thrower', 'phantom', 'queen', 'brood'];
       wave.bossAt = n % 5 === 0 ? 4 : n > 5 && G.rng.chance(0.35) ? 12 : -1;
-      wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % 4] : G.rng.pick(BOSSES);
+      wave.bossType = n % 5 === 0 ? BOSSES[(n / 5 - 1) % BOSSES.length] : G.rng.pick(BOSSES);
       if (BZ.params.boss) { wave.bossAt = 2; wave.bossType = BZ.params.boss; }
       G.ui.show(null);
     }
@@ -105,6 +105,16 @@
       G.events.emit('ann', { banner: true, title: 'HẾT ĐỢT ' + wave.n, sub: 'bấm B mở cửa hàng', secs: 3, snd: 'wave_clear' });
       G.audio.play('wave_clear'); G.audio.setMusic({ music_drone: 0.5, music_perc: 0.12 });
     }
+    // one zombie through a gate: maybe an elite, and the first of each special kind gets a banner with its counter
+    const seen = new Set();
+    function spawnOne(type, gate) {
+      const z = G.zombies.spawn(type, wave.n, gate); if (!z) return null;
+      const T = z.T;
+      if (BZ.params.elite || (!T.boss && !T.pack && type !== 'flyer' && G.rng.chance(BZ.eliteChance(wave.n)))) G.zombies.elite(z, BZ.params.elite);
+      if (T.tip && !seen.has(type)) { seen.add(type); G.ui.banner(T.name, T.tip + ' · từ cổng ' + gate.name, 2.6); G.events.emit('ann', { banner: true, title: T.name, sub: T.tip, secs: 2.6 }); }
+      return z;
+    }
+    G.events.on('game:new', () => seen.clear());
     function updateWave(dt) {
       if (wave.phase === 'fight') {
         wave.spawnT -= dt;
@@ -113,15 +123,17 @@
         if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < BZ.WAVE.maxAlive(wave.n)) {
           const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
           const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);
-          const type = r < b ? 'brute' : r < f ? 'flyer' : r < ru ? 'runner' : 'walker';
+          let type = r < b ? 'brute' : r < f ? 'flyer' : r < ru ? 'runner' : 'walker';
+          type = BZ.params.ztype || BZ.pickSpecial(n, G.rng) || type;
           const P = G.player;
           const gates = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z));
           const gate = G.rng.chance(0.7) ? gates[G.rng.int(0, 1)] : G.rng.pick(gates);
-          if (type === 'flyer') {
-            const k = Math.min(wave.toSpawn, 3 + Math.floor(n / 3));
-            for (let i = 0; i < k; i++) if (G.zombies.spawn('flyer', n, gate)) wave.toSpawn--;
-            G.ui.banner('ZOMBIE BAY', k + ' con từ hướng ' + gate.name, 1.4);
-          } else if (G.zombies.spawn(type, n, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner('ZOMBIE TO XÁC', 'từ cổng ' + gate.name, 1.6); }
+          const ZT = BZ.ZOMBIES[type];
+          if (type === 'flyer' || ZT.pack) {
+            const k = Math.min(wave.toSpawn, type === 'flyer' ? 3 + Math.floor(n / 3) : G.rng.int(ZT.pack[0], ZT.pack[1]));
+            for (let i = 0; i < k; i++) if (spawnOne(type, gate)) wave.toSpawn--;
+            if (type === 'flyer') G.ui.banner('ZOMBIE BAY', k + ' con từ hướng ' + gate.name, 1.4);
+          } else if (spawnOne(type, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner('ZOMBIE TO XÁC', 'từ cổng ' + gate.name, 1.6); }
           wave.spawnT = BZ.WAVE.spawnGap(n) * G.rng.range(0.6, 1.4);
         }
         if (wave.toSpawn === 0 && wave.killed >= wave.total) endWave();
@@ -138,7 +150,8 @@
       if (credit === false) return;
       G.kills++;
       const T = z.T; const head = part === 'head';
-      const coin = Math.round((T.coin + (head ? 5 : 0)) * (G.env ? G.env.coinMul : 1)); G.coins += coin; G.score += T.score + (head ? 50 : 0);
+      const em = z.elite ? 3 : 1;
+      const coin = Math.round((T.coin + (head ? 5 : 0)) * em * (G.env ? G.env.coinMul : 1)); G.coins += coin; G.score += (T.score + (head ? 50 : 0)) * em;
       const at = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * T.scale, z.pos.z);
       G.ui.pop('+' + coin + '🪙', 'coin', at);
       if (head) { G.ui.pop('HEADSHOT', 'head', new THREE.Vector3(z.pos.x, z.pos.y + 2.5 * T.scale, z.pos.z)); G.audio.play('headshot', { gain: 0.6 }); }
@@ -159,6 +172,8 @@
     });
     G.events.on('hit', ({ z, dmg, part, crit }) => {
       G.ui.hit(part === 'head' || crit);
+      const note = z.hitNote; z.hitNote = null;
+      if (note) { if (note.word) { G.ui.pop(note.word, 'dmg leg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z)); return; } dmg = Math.max(1, Math.round(dmg * note.mul)); }
       if (crit) { G.ui.pop('CRIT', 'critword', new THREE.Vector3(z.pos.x, z.pos.y + 2.4 * z.T.scale, z.pos.z)); G.audio.play('crit', { gain: 0.6 }); G.player.shake.v += 1.5; }
       G.ui.pop(String(dmg), crit ? 'dmg crit big' : part === 'head' ? 'dmg crit' : part === 'leg' ? 'dmg leg' : 'dmg', new THREE.Vector3(z.pos.x + (G.rng.next() - 0.5) * 0.6, z.pos.y + 1.9 * z.T.scale, z.pos.z));
     });
@@ -243,7 +258,7 @@
       G.state = 'playing'; G.ui.show(null); G.lock();
     }
     function newGame() {
-      lineupShow(false);
+      lineupShow(false); G.events.emit('game:new');
       G.build.reset(G.hero.id);
       G.zombies.clear(); G.fx.clear(); G.player.reset(); G.weapons.reset(); G.allies.clear(); G.gear.clear(); G.hero.reset(); G.sky.clear(); G.build.apply(); G.gear.state.bombs = G.build.bombCap();
       G.coins = +(BZ.params.coins || 0); G.score = 0; G.kills = 0;
