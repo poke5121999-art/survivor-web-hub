@@ -22,7 +22,7 @@ for (const mapId of PM.MAP_ORDER) {
   const u = sim.active, def = u.shots[0];
   sim.wind = 0;
   const m = PM.Sim.muzzle(Object.assign({}, u, { angle: 60, facing: u.facing }));
-  const v = def.v * (0.15 + 0.85 * 0.42), vx = Math.cos(Math.PI / 3) * v * u.facing, vy = Math.sin(Math.PI / 3) * v;
+  const v = def.v * PM.RULES.vScale * (0.15 + 0.85 * 0.42), vx = Math.cos(Math.PI / 3) * v * u.facing, vy = Math.sin(Math.PI / 3) * v;
   const pre = PM.Sim.trace(sim, u, def, u.facing, 60, 42).impacts[0], wasSolid = sim.terrain.solid(pre.x, pre.y - 1), deepSolid = sim.terrain.solid(pre.x, pre.y - def.dig - 1.5);
   sim.fireNow({ angle: 60, power: 42, shot: 0 });
   until(sim, () => drain(sim, 'boom').length > 0);
@@ -79,15 +79,18 @@ for (const mapId of PM.MAP_ORDER) {
 {
   const sim = mk({ teams: [[{ kind: 'tegiac' }], [{ kind: 'coc' }]] });
   sim.wind = 0;
-  const u = sim.active, pred = PM.Sim.trace(sim, u, u.shots[1], 1, 55, 45);
-  sim.fireNow({ angle: 55, power: 45, shot: 1 });
+  let aim = null;
+  const u = sim.active;
+  for (let p = 20; p <= 60 && !aim; p += 2) { const r = PM.Sim.trace(sim, u, u.shots[1], 1, 62, p).impacts[0]; if (r && !r.lost && sim.terrain.solid(r.x, r.y - 6) && sim.terrain.solid(r.x + 4, r.y - 4)) aim = p; }
+  const pred = PM.Sim.trace(sim, u, u.shots[1], 1, 62, aim);
+  sim.fireNow({ angle: 62, power: aim, shot: 1 });
   until(sim, () => drain(sim, 'boom').length > 0);
   const entry = drain(sim, 'bounce')[0], boom = drain(sim, 'boom')[0];
   const dug = Math.hypot(boom.x - entry.x, boom.y - entry.y);
   check(dug > 5 && dug <= 9.3, `drill shot burrows ${dug.toFixed(1)} m into the ground before it bursts`);
   check(Math.hypot(pred.impacts[0].x - boom.x, pred.impacts[0].y - boom.y) < 1.5, 'the dry-run predicts where the drill bursts');
   sim.advance(4); sim.events.length = 0; sim.skip(); until(sim, () => sim.phase === 'turn' && sim.active === u);
-  u.special = 100; sim.fireNow({ angle: 55, power: 45, shot: 2 });
+  u.special = 100; sim.fireNow({ angle: 62, power: aim, shot: 2 });
   until(sim, () => sim.phase !== 'flight');
   check(drain(sim, 'boom').length >= 5, `quake leaves a line of aftershocks (${drain(sim, 'boom').length} blasts)`);
 }
@@ -201,6 +204,15 @@ for (const [a, b] of [['oc', 'tegiac'], ['sua', 'chuon'], ['coc', 'rua'], ['nhim
   const town = mk({ map: 'pho' }), v = town.units[0], y0 = v.y;
   town.terrain.carve(v.x, v.y - 0.8, 2.6); town.advance(3);
   check(v.alive && v.y < y0 - 8, `a unit drops through a holed deck to the level below (${y0.toFixed(1)} -> ${v.y.toFixed(1)})`);
+}
+
+{
+  const sim = mk({ teams: [[{ kind: 'coc', ai: 'hard' }], [{ kind: 'coc', ai: 'hard' }]] });
+  sim.advance(0.7);
+  sim.units[1].alive = false; sim.units[1].hp = 0;
+  let threw = null;
+  try { until(sim, () => false, 120 * 20); } catch (err) { threw = err.message; }
+  check(threw === null && sim.phase === 'over' && sim.winner === 0, 'a match ends cleanly when the last enemy dies while the AI is still thinking' + (threw ? ': ' + threw : ''));
 }
 
 for (const level of ['easy', 'medium', 'hard']) {

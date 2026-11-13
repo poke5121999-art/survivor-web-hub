@@ -10,7 +10,7 @@
     id: 'vinhda', name: 'Vịnh Đá Vôi', w: 168, h: 96, cell: 0.25, seaY: 18, g: 24, windMax: 11,
     blurb: 'Các tháp đá vôi đứng rời nhau giữa vịnh. Nước dâng sau mỗi lượt, bãi cát giữa vịnh ngập trước.',
     hazard: { kind: 'tide', perTurn: 0.6, max: 36 },
-    spawns: [[22, 37, 60, 80], [147, 131, 108, 91]],
+    spawns: [[37, 22, 60, 80], [131, 147, 108, 91]],
     trees: [15, 30, 43, 125, 139, 154],
     deco: { hedges: false },
     sd(x, y) {
@@ -45,7 +45,7 @@
     id: 'lolua', name: 'Lò Rèn Núi Lửa', w: 168, h: 96, cell: 0.25, seaY: 15, g: 24, windMax: 7,
     blurb: 'Núi lửa có miệng ở giữa và hai hầm dung nham xuyên sườn. Sau mỗi phát bắn có một tảng đá lửa rơi xuống đâu đó.',
     hazard: { kind: 'rocks', def: { id: 'dalua', name: 'Đá Lửa', kind: 'shell', dmg: 130, radius: 3.6, dig: 2.6, knock: 6, windK: 0.3, gravK: 1, size: 0.6 } },
-    spawns: [[24, 40, 58, 72], [146, 130, 110, 96]],
+    spawns: [[40, 58, 24, 72], [130, 110, 146, 96]],
     trees: [],
     deco: { hedges: false, tufts: false, spikes: { color: 0x2a2630, emissive: 0xff5a14, glow: 0.35 } },
     sd(x, y) {

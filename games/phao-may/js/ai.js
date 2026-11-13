@@ -15,7 +15,7 @@
       if (v.team !== u.team) { s += d + (raw >= v.hp + v.shield ? 300 : 0); hitEnemy = true; }
       else s -= 1.6 * d + (raw >= v.hp ? 500 : 0);
     }
-    for (const id in rep.heal) s += rep.heal[id] * 0.9;
+    for (const id in rep.heal) s += rep.heal[id] * 0.55;
     if (rep.swap !== undefined && sim.units[rep.swap].team !== u.team) s += sim.units[rep.swap].y > u.y ? 80 : 10;
     if (!hitEnemy) {
       let near = 200;
@@ -88,6 +88,7 @@
 
   function decide(sim, u, b, best) {
     const L = PM.AI_LEVELS[u.ai], mem = sim.brains[u.id];
+    if (!sim.units.some((v) => v.alive && v.team !== u.team)) { b.state = 'done'; sim.skip(); return; }
     const hitsEnemy = best.rep && Object.keys(best.rep.dmg).some((id) => sim.units[id].team !== u.team);
     if (L.moves && !b.moved && !hitsEnemy && u.fuel > 2) {
       const enemies = sim.units.filter((v) => v.alive && v.team !== u.team);

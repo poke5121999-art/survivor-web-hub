@@ -47,7 +47,7 @@
         const f = 1 - 0.65 * (d / spec.radius);
         if (spec.heal) {
           if (owner && u.team === owner.team) {
-            const amt = Math.min(u.maxHp - u.hp, Math.round(spec.heal * f));
+            const amt = Math.min(u.maxHp - u.hp, Math.round(spec.heal * f * (u === owner ? spec.selfHeal || 1 : 1)));
             if (ctx.dry) ctx.report.heal[u.id] = (ctx.report.heal[u.id] || 0) + amt;
             else if (amt > 0) { u.hp += amt; emit(ctx, { type: 'heal', unit: u.id, amount: amt, x: u.x, y: u.y + u.radius }); }
           }
@@ -294,7 +294,7 @@
     let mx = cx + dx * u.barrel, my = cy + dy * u.barrel;
     const hit = ctx.terrain.raycast(cx, cy, mx, my);
     if (hit) { mx = cx + (hit.x - cx) * 0.9; my = cy + (hit.y - cy) * 0.9; }
-    const sp = def.v * (0.15 + 0.85 * power / 100);
+    const sp = def.v * R.vScale * (0.15 + 0.85 * power / 100);
     if (def.kind === 'spread') {
       for (let i = 0; i < def.count; i++) {
         const b = a + (i - (def.count - 1) / 2) * def.spread * RAD * facing, k = 1 - Math.abs(i - (def.count - 1) / 2) * 0.015;
@@ -497,7 +497,7 @@
       sim.time += DT; sim.steps++;
       const u = sim.active;
       if (sim.phase === 'turn') {
-        if (!u.alive) { sim.phase = 'settle'; sim.settleT = 0; sim.restT = 0; }
+        if (!u.alive || teamsAlive(sim).size <= 1) { sim.phase = 'settle'; sim.settleT = 0; sim.restT = 0; }
         else {
           if (u.ai && PM.AI) PM.AI.drive(sim, u);
           const inp = sim.input;

@@ -54,8 +54,8 @@
     name: 'Sứa Trời', title: 'Khí cầu tiếp sức', hp: 820, weight: 85, fuel: 26, speed: 6, aimMin: 5, aimMax: 85, aimSpeed: 40, barrel: 1.7, radius: 1.2,
     blurb: 'Khí cầu sứa bay lơ lửng, đi xa nhất, máu mỏng nhất. Đẩy đối thủ khỏi mép đảo và hồi máu cho đội.',
     shots: [
-      { id: 'bongnuoc', name: 'Bóng Nước', kind: 'shell', v: 53, dmg: 170, radius: 4.6, dig: 1.2, knock: 14, delay: 75, windK: 1.2, gravK: 1, size: 0.5, desc: 'Ít sát thương, hất văng rất mạnh.' },
-      { id: 'donghoi', name: 'Dòng Hồi', kind: 'shell', v: 53, dmg: 0, heal: 280, radius: 5, dig: 0, knock: 0, delay: 85, windK: 1, gravK: 1, size: 0.45, desc: 'Hồi tới 280 máu cho đồng đội trong vùng nổ, kể cả mình.' },
+      { id: 'bongnuoc', name: 'Bóng Nước', kind: 'shell', v: 53, dmg: 170, radius: 4.6, dig: 1.2, knock: 12, delay: 75, windK: 1.2, gravK: 1, size: 0.5, desc: 'Ít sát thương, hất văng mạnh nhất game.' },
+      { id: 'donghoi', name: 'Dòng Hồi', kind: 'shell', v: 53, dmg: 0, heal: 240, selfHeal: 0.4, radius: 5, dig: 0, knock: 0, delay: 110, windK: 1, gravK: 1, size: 0.45, desc: 'Hồi tới 240 máu cho đồng đội trong vùng nổ. Tự hồi cho mình chỉ được 40%.' },
       { id: 'doicho', name: 'Đổi Chỗ', kind: 'swap', special: true, v: 58, dmg: 140, radius: 2.6, dig: 1.4, knock: 0, delay: 100, windK: 0.5, gravK: 0.9, size: 0.4, desc: 'Trúng ai thì đổi chỗ với người đó.' }
     ]
   };
@@ -63,10 +63,10 @@
     name: 'Rùa Chuông', title: 'Pháo đài chuông đồng', hp: 1500, weight: 115, fuel: 9, speed: 3.5, aimMin: 15, aimMax: 75, aimSpeed: 30, barrel: 1.7, radius: 1.35,
     blurb: 'Rùa cõng chuông đồng, máu dày nhất. Sóng chuông đẩy lùi, mai rùa che cho cả đội.',
     shots: [
-      { id: 'songchuong', name: 'Sóng Chuông', kind: 'shell', v: 53, dmg: 205, radius: 5.6, dig: 2.0, knock: 17, delay: 85, windK: 0.8, gravK: 1, size: 0.5, desc: 'Vùng nổ rộng, hố nông, đẩy lùi mạnh.' },
+      { id: 'songchuong', name: 'Sóng Chuông', kind: 'shell', v: 53, dmg: 205, radius: 5.6, dig: 2.0, knock: 11, delay: 85, windK: 0.8, gravK: 1, size: 0.5, desc: 'Vùng nổ rộng, hố nông, đẩy lùi mạnh.' },
       { id: 'mairua', name: 'Mai Rùa', kind: 'guard', v: 0, absorb: 380, reach: 9, dmg: 0, radius: 0, dig: 0, delay: 40, windK: 0, gravK: 0, size: 0.3, desc: 'Không bắn. Khiên 380 cho mình, nửa số đó cho đồng đội đứng gần.' },
-      { id: 'hoichuong', name: 'Hồi Chuông Lớn', kind: 'quake', special: true, v: 53, count: 2, gap: 5.2, dmg: 250, radius: 5.2, dig: 2.6, knock: 15, delay: 140, windK: 0.8, gravK: 1, size: 0.6,
-        child: { id: 'vongchuong', name: 'Vọng Chuông', kind: 'shell', dmg: 170, radius: 4.4, dig: 2.2, knock: 14, windK: 0, gravK: 1, size: 0.3 }, desc: 'Nổ rồi dội thêm hai nhịp về mỗi phía.' }
+      { id: 'hoichuong', name: 'Hồi Chuông Lớn', kind: 'quake', special: true, v: 53, count: 2, gap: 5.2, dmg: 250, radius: 5.2, dig: 2.6, knock: 11, delay: 140, windK: 0.8, gravK: 1, size: 0.6,
+        child: { id: 'vongchuong', name: 'Vọng Chuông', kind: 'shell', dmg: 170, radius: 4.4, dig: 2.2, knock: 9, windK: 0, gravK: 1, size: 0.3 }, desc: 'Nổ rồi dội thêm hai nhịp về mỗi phía.' }
     ]
   };
 
@@ -105,12 +105,12 @@
   };
 
   PM.AI_LEVELS = {
-    easy: { name: 'Dễ', angErr: 4.5, powErr: 9, whiff: 0.3, items: false, moves: false, special: 0.5, learn: 0.85 },
+    easy: { name: 'Dễ', angErr: 4.5, powErr: 9, whiff: 0.3, items: false, moves: true, special: 0.5, learn: 0.85 },
     medium: { name: 'Vừa', angErr: 1.8, powErr: 4, whiff: 0.08, items: true, moves: true, special: 1, learn: 0.7 },
     hard: { name: 'Khó', angErr: 0.35, powErr: 0.9, whiff: 0, items: true, moves: true, special: 1, learn: 0.5 }
   };
 
-  PM.RULES = { dt: 1 / 120, turnTime: 25, chargeRate: 50, stepUp: 0.9, slide: 1.55, walkSlope: 1.45, fallSafe: 6, fallDmg: 20, skipDelay: 50, moveDelay: 1.5, specialPerTurn: 10, itemSlots: 3 };
+  PM.RULES = { vScale: 1.16, dt: 1 / 120, turnTime: 25, chargeRate: 50, stepUp: 0.9, slide: 1.55, walkSlope: 1.45, fallSafe: 6, fallDmg: 20, skipDelay: 50, moveDelay: 1.5, specialPerTurn: 10, itemSlots: 3 };
 
   // Smooth curve through hand-placed [x, y] points (cubic Hermite, finite-difference tangents).
   PM.curve = function (pts) {

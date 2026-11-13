@@ -967,7 +967,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/phao-may.png",
     // three.js r160, không asset: xem games/phao-may/README.md. Kiểm: node games/phao-may/tools/play.js
     path: "games/phao-may/index.html",
-    rev: "20261114h",
+    rev: "20261114i",
     status: "available",
     tags: ["Bắn pháo", "Theo lượt", "Phá địa hình"]
   }

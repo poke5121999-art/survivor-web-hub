@@ -44,6 +44,8 @@ node games/phao-may/tools/audio.js       # dựng mọi âm thanh, soi NaN và c
 node games/phao-may/tools/shot.js <tên> "<query>" [góc máy ...]   # chụp ảnh vào .chk/
 node games/phao-may/tools/bench.js       # đo khung hình trên GPU thật nếu Chrome với tới
 node games/phao-may/tools/balance.js     # bảng tỉ lệ thắng giữa các cỗ pháo (máy mức Khó đấu nhau)
+node games/phao-may/tools/matrix.js      # mọi bản đồ × mọi mức máy trong node, và kiểm mọi cỗ pháo bắn tới được bên kia (chạy ~5 phút)
+node games/phao-may/tools/tour.js        # một trận máy đấu máy trọn vẹn trên trang thật cho từng bản đồ × mức máy
 PM_GL=gl-egl node games/phao-may/tools/sheet.js   # bảng duyệt hình vào .chk/sheet-*.png
 ```
 
