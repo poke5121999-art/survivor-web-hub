@@ -126,7 +126,6 @@
 
   PM.Units3D = function (G) {
     const THREE = globalThis.THREE, scene = G.scene, sim = G.sim;
-    G.shared = G.shared || {};
     const group = new THREE.Group(); scene.add(group);
     const list = sim.units.map((u) => {
       const model = MODELS[u.kind](G, u.team);

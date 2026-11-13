@@ -12,7 +12,7 @@ session(async (br, base) => {
   if (pre) console.log('eval ->', JSON.stringify(await page.evaluate(pre)));
   for (const s of shots.length ? shots : ['wide']) {
     const pose = /^[\d.-]+,/.test(s) ? (() => { const [x, y, dist] = s.split(',').map(Number); return { x, y, dist }; })() : s;
-    await page.evaluate((p) => { window.__setShot(p); window.__step(3); }, pose);
+    if (s === 'keep') await page.evaluate(() => window.__step(1)); else await page.evaluate((p) => { window.__setShot(p); window.__step(3); }, pose);
     const file = path.join(CHK, `${name}-${String(s).replace(/[^\w.-]/g, '_')}.png`);
     await page.screenshot({ path: file });
     console.log('saved', file);

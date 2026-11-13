@@ -8,8 +8,8 @@
   // One anti-aliasing method (FXAA in the last pass); low has none and is meant for phones.
   PM.QUALITY = {
     low: { dpr: 1, scale: 0.85, shadow: 1024, soft: false, ao: 0, rays: 0, bloom: 3, fxaa: false, tex: 256, parts: 0.45, cloudShells: 2, deco: 0.5, shadowEvery: 3 },
-    medium: { dpr: 1.25, scale: 1, shadow: 2048, soft: true, ao: 8, rays: 14, bloom: 5, fxaa: true, tex: 512, parts: 1, cloudShells: 4, deco: 1, shadowEvery: 2 },
-    high: { dpr: 1.75, scale: 1, shadow: 4096, soft: true, ao: 14, rays: 28, bloom: 6, fxaa: true, tex: 1024, parts: 1.6, cloudShells: 6, deco: 1.5, shadowEvery: 1 }
+    medium: { dpr: 1.25, scale: 1, shadow: 2048, soft: true, ao: 8, rays: 24, bloom: 5, fxaa: true, tex: 512, parts: 1, cloudShells: 4, deco: 1, shadowEvery: 2 },
+    high: { dpr: 1.75, scale: 1, shadow: 4096, soft: true, ao: 14, rays: 40, bloom: 6, fxaa: true, tex: 1024, parts: 1.6, cloudShells: 6, deco: 1.5, shadowEvery: 1 }
   };
   PM.QUALITY_ORDER = ['low', 'medium', 'high'];
 
@@ -102,11 +102,11 @@
     float ign(vec2 p){ return fract(52.9829189*fract(dot(p, vec2(0.06711056, 0.00583715)))); }
     void main(){
       vec2 dir = (uSunUv - vUv) / float(RAY_TAPS) * 0.85;
-      vec2 uv = vUv + dir * ign(gl_FragCoord.xy); float w = 1.0; vec3 acc = vec3(0.0);
+      vec2 uv = vUv; float w = 1.0; vec3 acc = vec3(0.0);
       for (int i = 0; i < RAY_TAPS; i++) {
         float sky = step(0.9999, texture(tDepth, uv).x);
         vec3 c = texture(tSrc, uv).rgb;
-        acc += min(c, vec3(8.0)) * sky * w * smoothstep(2.2, 5.0, max(c.r, max(c.g, c.b)));
+        acc += min(c, vec3(10.0)) * sky * w * smoothstep(5.0, 12.0, max(c.r, max(c.g, c.b)));
         w *= 0.95; uv += dir;
       }
       o = vec4(acc / float(RAY_TAPS) * uOn, 1.0);

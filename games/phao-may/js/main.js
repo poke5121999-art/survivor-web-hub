@@ -54,7 +54,7 @@
 
   function simFrame(dt) {
     const sim = G.sim;
-    if (!sim || G.state !== 'playing') return;
+    if (!sim || G.paused || (G.state !== 'playing' && G.state !== 'title')) return;
     G.acc = (G.acc || 0) + dt * G.simSpeed;
     const DT = PM.RULES.dt;
     let n = 0;
@@ -69,7 +69,7 @@
     for (const ev of evs) G.bus.emit('sim:' + ev.type, ev);
   }
 
-  function frame(dt) {
+  function frame(dt, noDraw) {
     G.time += dt;
     simFrame(dt);
     if (G.terrainMesh) G.terrainMesh.sync();
@@ -85,7 +85,7 @@
     }
     G.rig.update(dt);
     G.gfx.env.fogStart = G.rig.dist + 16;
-    G.gfx.render(G.scene, G.camera, dt);
+    if (!noDraw) G.gfx.render(G.scene, G.camera, dt);
     window.__frames++;
   }
 
@@ -101,6 +101,7 @@
       G.gfx = PM.Gfx(G);
       G.rig = PM.CameraRig(G);
       G.gfx.setQuality(pickQuality());
+      G.shared = {};
       await nextFrame();
       progress(0.3, 'Nung vật liệu');
       G.bake = PM.Bake(G);
@@ -109,13 +110,15 @@
       progress(0.6, 'Dựng đảo');
       if (PM.Meta) G.meta = PM.Meta(G);
       if (PM.Audio) G.audio = addModule('audio', PM.Audio.init(G));
+      if (G.audio && G.settings.volume !== undefined) G.audio.setVolume(G.settings.volume);
       if (PM.Input) G.input = addModule('input', PM.Input(G));
       if (PM.UI) G.ui = addModule('ui', PM.UI(G));
       window.addEventListener('resize', () => G.gfx.resize());
       await nextFrame();
 
       const cfg = PM.matchFromParams ? PM.matchFromParams() : null;
-      if (P.autostart || P.show) {
+      if (P.autostart) {
+        G.demo = false;
         G.startMatch(cfg || { seed: +(P.seed || 1), map: P.map || 'doiche', first: 0, playerTeam: 0,
           teams: [[{ kind: P.unit || 'coc', ai: P.auto ? (P.ai || 'hard') : null, items: ['heal', 'double', 'tele'] }], [{ kind: P.foe || 'chuon', ai: P.ai || 'medium', items: ['heal', 'shield', 'boost'] }]] });
       } else if (G.ui && G.ui.showTitle) G.ui.showTitle();
@@ -133,7 +136,11 @@
           frame(Math.min(sm, 1 / 20));
         });
       }
-      window.__step = (n, dt) => { for (let i = 0; i < (n || 1); i++) frame(dt || 1 / 60); return window.__frames; };
+      // readPixels after each frame forces the GPU to finish it; without that a headless GPU queues hundreds of frames and the next screenshot times out.
+      const px = new Uint8Array(4);
+      window.__step = (n, dt) => { const gl = G.renderer.getContext(); for (let i = 0; i < (n || 1); i++) { frame(dt || 1 / 60); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); } return window.__frames; };
+      // Run whole frames (sim, effects, camera, HUD) without drawing, then draw one.
+      window.__tick = (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60, true); window.__step(1, dt || 1 / 60); return window.__frames; };
       // Advance the match without drawing, then draw one frame.
       window.__sim = (seconds) => { const steps = Math.round(seconds / PM.RULES.dt); for (let i = 0; i < steps && G.sim && G.sim.phase !== 'over'; i++) { G.sim.step(); if (i % 4 === 0) drainEvents(); } drainEvents(); frame(1 / 60); return G.sim ? G.sim.phase : null; };
       window.__setShot = (o) => { if (typeof o === 'string') o = SHOTS[o] || SHOTS.wide; G.rig.focus(o.x, o.y, o.dist, true); G.rig.manual = 1e9; frame(1 / 60); };

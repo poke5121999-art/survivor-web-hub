@@ -538,7 +538,7 @@
       src.connect(humGain); humGain.connect(buses.world.input); src.start();
     }
 
-    function on(topic, fn) { G.bus.on(topic, (ev) => { if (ctx) fn(ev || {}); }); }
+    function on(topic, fn) { const battle = topic.indexOf('sim:') === 0; G.bus.on(topic, (ev) => { if (ctx && !(battle && G.demo)) fn(ev || {}); }); }
     function wire() {
       on('sim:fire', (ev) => {
         stopCharge();

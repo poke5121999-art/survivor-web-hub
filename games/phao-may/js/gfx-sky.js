@@ -13,8 +13,8 @@
       vec3 c = mix(mix(uHorizon, uMid, smoothstep(0.0, 0.09, up)), uZenith, smoothstep(0.06, 0.34, up));
       c = mix(c, uGround, smoothstep(0.0, -0.25, up));
       float sd = max(dot(d, uSunDir), 0.0);
-      c += uSunCol * (pow(sd, 10.0) * 0.16 + pow(sd, 90.0) * 0.7 + pow(sd, 900.0) * 3.0);
-      c += uSunCol * smoothstep(0.9992, 0.9997, sd) * 40.0;
+      c += uSunCol * (pow(sd, 10.0) * 0.12 + pow(sd, 90.0) * 0.4 + pow(sd, 900.0) * 2.0);
+      c += uSunCol * smoothstep(0.99975, 0.9999, sd) * 40.0;
       if (up > -0.02) {
         vec2 p = d.xz / (up + 0.18);
         float n = texture2D(tNoise, p*0.045 + vec2(uTime*0.0016, 0.0)).r;
@@ -111,7 +111,7 @@
       zenith: [0.13, 0.27, 0.62], mid: [0.66, 0.42, 0.50], horizon: [1.05, 0.56, 0.28], ground: [0.50, 0.36, 0.46], sunDir: [-0.25, 0.062, -0.966], sunCol: [1.7, 0.9, 0.42],
       cloudLit: [1.45, 0.92, 0.66], cloudDark: [0.30, 0.25, 0.44], cover: 0.4,
       keyDir: [-0.55, 0.62, 0.56], keyCol: [1.0, 0.84, 0.64], keyInt: 3.6, rimInt: 2.0, hemiInt: 0.5, bounce: [0.5, 0.34, 0.3],
-      seaLit: [1.15, 0.78, 0.62], seaShade: [0.26, 0.22, 0.40], fog: [0.80, 0.52, 0.48], fogStart: 150, fogDen: 0.0015, mist: 0.22, exposure: 1.0, bloom: 0.45, rays: 0.55
+      seaLit: [1.15, 0.78, 0.62], seaShade: [0.26, 0.22, 0.40], fog: [0.80, 0.52, 0.48], fogStart: 150, fogDen: 0.0015, mist: 0.22, exposure: 1.0, bloom: 0.4, rays: 0.9
     }
   };
 })();
