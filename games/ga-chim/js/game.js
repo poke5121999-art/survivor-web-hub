@@ -29,16 +29,9 @@ export class Game {
     this.bindUI();
     const E = G.events;
     E.on('player:hit', (h) => this.onHit(h));
-    E.on('enemy:dead', ({ e }) => { this.score += e.type === 'crawler' ? 100 : 150; if (e.type !== 'raider') G.audio.play('boom', { pos: e.pos, vol: 0.6 }); else G.audio.play('hurt', { pos: e.pos, rate: 0.7 }); this.hitmark(true); });
-    E.on('enemy:alert', (e) => G.audio.play(e.type === 'crawler' ? 'screech' : 'servo', { pos: e.pos }));
-    E.on('crawler:tell', (e) => G.audio.play('screech', { pos: e.pos, rate: 1.2 }));
-    E.on('crawler:step', (p) => G.audio.play('click', { pos: p, vol: 0.35, rate: 0.6 }));
-    E.on('drone:tell', (e) => G.audio.play('servo', { pos: e.pos, rate: 1.6 }));
-    E.on('drone:shot', (s) => { G.audio.play('rifle', { pos: s.from, rate: 1.35, vol: 0.45 }); G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
-    E.on('drone:crash', (e) => G.audio.play('boom', { pos: e.pos, vol: 0.5 }));
-    E.on('raider:shot', (s) => { G.audio.play('rifle', { pos: s.from, vol: 0.55, rate: 1.1 }); G.weapon.tracer(s.from, s.to); G.fx.add(0, s.from, null, 0.18, new THREE.Color(6, 3, 1), 0.05); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
-    E.on('raider:tell', (e) => G.audio.play('click', { pos: e.pos, rate: 0.8 }));
-    E.on('raider:step', (p) => G.audio.play('step_gravel', { pos: p, vol: 0.4 }));
+    E.on('enemy:dead', ({ e }) => { this.score += e.type === 'crawler' ? 100 : 150; this.hitmark(true); });
+    E.on('drone:shot', (s) => { G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
+    E.on('raider:shot', (s) => { G.weapon.tracer(s.from, s.to); G.fx.add(0, s.from, null, 0.18, new THREE.Color(6, 3, 1), 0.05); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
   }
   bindUI() {
     const G = this.G;
@@ -81,7 +74,6 @@ export class Game {
     this.lock(); this.resume();
     this.msg(this.mode === 'mission' ? 'GA CHÌM — 19:42. Mất điện toàn ga. Bật lại ba gác ghi.' : 'THỦ THÀNH. Đợt đầu đang tới.', 5);
     if (this.mode === 'mission') this.seedRoamers(); else this.waveT = 3;
-    G.audio.play('sting', { vol: 0.6 });
   }
   seedRoamers() {
     const G = this.G; const pts = [[-10.4, -40, 'crawler'], [-13, -22, 'raider'], [-2, -70, 'crawler'], [-29, -60, 'drone'], [0.8, -58, 'raider'], [6, -100, 'crawler'], [-15.6, -110, 'raider'], [14, -140, 'drone'], [-30, -140, 'crawler'], [-2, -125, 'raider'], [-10.4, -95, 'raider']];
@@ -94,7 +86,6 @@ export class Game {
   onHit(h) {
     const G = this.G; const P = G.player; if (P.dead || this.state !== 'playing') return;
     P.hp -= h.dmg; this.hurt = Math.min(1, this.hurt + h.dmg / 40); P.lastHit = G.t;
-    G.audio.play('hurt');
     // damage direction arc
     const rel = h.from.clone().sub(P.pos); const a = Math.atan2(rel.x, -rel.z) + P.yaw;
     const arc = $('dmgdir'); arc.style.transform = `translate(-50%,-50%) rotate(${-a}rad)`; arc.classList.remove('on'); void arc.offsetWidth; arc.classList.add('on');
@@ -105,20 +96,20 @@ export class Game {
     document.body.classList.add('dead'); document.exitPointerLock && document.exitPointerLock();
     $('endTitle').textContent = 'BẠN ĐÃ NGÃ XUỐNG'; $('endSub').textContent = this.mode === 'mission' ? `Gác ghi đã bật: ${this.objectives.filter((o) => o.done).length}/3 · Hạ ${G.enemies.kills} máy` : `Đợt ${this.wave} · ${this.score} điểm`;
     if (this.mode === 'holdout' && this.score > this.best()) { try { localStorage.setItem('gachim.best.v1', String(this.score)); } catch (e) {} }
-    G.audio.play('sting', { vol: 0.8, rate: 0.7 });
+    G.audio.emit('player:dead');
   }
   complete() {
     const G = this.G; this.state = 'complete'; document.body.classList.add('dead', 'won'); document.exitPointerLock && document.exitPointerLock();
     $('endTitle').textContent = 'ĐẦU MÁY ĐÃ RỜI GA'; $('endSub').textContent = `Hạ ${G.enemies.kills} máy · ${Math.round(G.t)} giây`;
-    G.audio.play('sting', { vol: 0.9, rate: 1.25 });
+    G.audio.emit('extraction:reached');
   }
   restore(o) {
     const G = this.G; o.done = true;
     const lamp = G.level.lamps.find((l) => l.kind === 'cabin' && l.id === o.id); if (lamp) G.lights.setLampPower(lamp, 1);
-    G.audio.play('sting', { vol: 0.7 }); this.score += 500;
+    G.audio.emit('objective:done', {}); this.score += 500;
     const left = this.objectives.filter((x) => !x.done).length;
     if (left) this.msg(`Gác ghi ${o.id} có điện. Còn ${left}.`, 4);
-    else { this.msg('Cả ba gác ghi đã có điện. Đầu máy đang sáng đèn — lên buồng lái!', 6); if (this.loco) G.lights.setLampPower(this.loco, 1); G.level.locoLit && G.level.locoLit(); }
+    else { G.audio.emit('objective:all'); this.msg('Cả ba gác ghi đã có điện. Đầu máy đang sáng đèn — lên buồng lái!', 6); if (this.loco) G.lights.setLampPower(this.loco, 1); G.level.locoLit && G.level.locoLit(); }
     // a counterattack answers every restored cabin
     this.spawnWave(3 + (3 - left) * 2, o.pos);
   }
@@ -147,7 +138,7 @@ export class Game {
         const d = o.pos.distanceTo(P.pos);
         if (d < 2.4) {
           prompt = `Giữ [E] để bật điện gác ghi ${o.id}`;
-          if (eKey) { o.progress = Math.min(1, o.progress + dt / 4); if (Math.floor(o.progress * 8) !== Math.floor((o.progress - dt / 4) * 8)) G.audio.play('click', { vol: 0.6 }); if (o.progress >= 1) this.restore(o); }
+          if (eKey) { o.progress = Math.min(1, o.progress + dt / 4); if (Math.floor(o.progress * 8) !== Math.floor((o.progress - dt / 4) * 8)) G.audio.play('ui_click', { gain: 0.6 }); if (o.progress >= 1) this.restore(o); }
           $('holdbar').style.setProperty('--p', o.progress);
         }
       }

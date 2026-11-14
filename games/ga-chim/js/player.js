@@ -67,7 +67,7 @@ export class Player {
     this.grounded = true; this.coyote = 0; this.jumpBuf = 0; this.crouch = 0; this.stepAcc = 0;
     this.keys = new Set(); this.mouse = { l: false, r: false }; this.look = { dx: 0, dy: 0 };
     this.sens = 0.0022; this.hp = 100; this.dead = false; this.landed = 0; this.camY = this.eye;
-    this.recoil = { p: 0, y: 0 }; this.fov = 74; this.indoor = false; this.events = [];
+    this.rec = { x: 0, y: 0, b: 0, m: 0, hold: 0 }; this.shake = 0; this.shakeT = 0; this.fov = 74; this.indoor = false; this.events = [];
     this.bind();
   }
   bind() {
@@ -111,13 +111,16 @@ export class Player {
     const adsK = lerp(1, 0.6, weapon ? weapon.ads : 0);
     this.yaw -= this.look.dx * this.sens * adsK; this.pitch -= this.look.dy * this.sens * adsK;
     this.lookDX = this.look.dx; this.lookDY = this.look.dy; this.look.dx = this.look.dy = 0;
-    // recoil recovers
-    this.pitch += this.recoil.p * dt * 18; this.yaw += this.recoil.y * dt * 18;
-    this.recoil.p = damp(this.recoil.p, 0, 14, dt); this.recoil.y = damp(this.recoil.y, 0, 14, dt);
+    // recoil (Saltline weapon.md §4): transient part held .09 s, decays at 6.5, camera chases it at 34
+    const R = this.rec; R.hold -= dt;
+    if (R.hold <= 0) { R.x = damp(R.x, 0, 6.5, dt); R.y = damp(R.y, 0, 6.5, dt); }
+    R.b = damp(R.b, R.x, 34, dt); R.m = damp(R.m, R.y, 34, dt);
+    this.shake = Math.max(0, this.shake - dt * 1.7); this.shakeT += dt;
     this.pitch = clamp(this.pitch, -1.45, 1.45);
     if (this.dead) { this.vel.set(0, 0, 0); this.applyCam(dt); return; }
     // move
     const f = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0), s = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+    this.moveX = s; this.moveY = f;
     const crouching = k.has('ControlLeft') || k.has('KeyC');
     this.crouch = damp(this.crouch, crouching ? 1 : 0, 12, dt);
     const ads = this.mouse.r;
@@ -160,6 +163,11 @@ export class Player {
     this.sprinting = sprinting; this.ads = ads; this.moving = moved > 0.002;
     this.applyCam(dt);
   }
+  addRecoil(pitch, yaw) {
+    this.pitch += pitch * 0.35; this.yaw += yaw * 0.35;
+    const R = this.rec; R.x = clamp(R.x + pitch * 0.65, -0.3, 0.3); R.y = clamp(R.y + yaw * 0.65, -0.2, 0.2); R.hold = 0.09;
+  }
+  addShake(a) { this.shake = Math.min(1, this.shake + a); }
   surface() {
     const x = this.pos.x; let onTrack = false;
     for (const tx of [-24, -18.5, -13, -7.5, -2, 3.5, 9]) if (Math.abs(x - tx) < 1.6) onTrack = true;
@@ -173,11 +181,12 @@ export class Player {
     this.camY = damp(this.camY, eye, 18, dt);
     this.landed = damp(this.landed, 0, 6, dt);
     cam.position.set(this.pos.x, this.pos.y + this.camY - this.landed * 0.2, this.pos.z);
-    const w = this.G.weapon; const ck = w && w.camKick;
-    cam.rotation.set(this.pitch + (ck ? ck.p.x * 0.01 : 0), this.yaw, ck ? ck.r.x * 0.006 : 0, 'YXZ');
+    const w = this.G.weapon; const R = this.rec; const sh = this.shake * this.shake, T = this.shakeT;
+    const sp = sh * 0.03 * (Math.sin(T * 43.1) + 0.6 * Math.sin(T * 71.7 + 1.3)), sy = sh * 0.03 * (Math.sin(T * 37.3) + 0.6 * Math.sin(T * 83.9 + 0.7)), sr = sh * 0.045 * (Math.sin(T * 29.7) + 0.6 * Math.sin(T * 61.3 + 2.1));
+    cam.rotation.set(clamp(this.pitch + R.b, -1.5, 1.5) + sp, this.yaw + R.m + sy, sr, 'YXZ');
     const target = w && w.ads > 0.5 ? 52 : this.sprinting ? 80 : 74;
     this.fov = damp(this.fov, target, 10, dt);
-    const f = this.fov - (ck ? ck.fov.x * 1.2 : 0);
+    const f = this.fov;
     if (Math.abs(cam.fov - f) > 0.01) { cam.fov = f; cam.updateProjectionMatrix(); }
   }
 }

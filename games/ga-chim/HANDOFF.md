@@ -33,3 +33,11 @@ Game FPS gốc dựng toàn bằng code (three.js r170 vendored). Chuẩn đồ 
 - Súng vẽ cùng render target với `gl.depthRange(0, 0.05)`; mọi pass hậu kỳ coi depth < 0.05 là "không phải thế giới". Không còn `clearDepth` trong `Weapon.draw`.
 - `js/post.js` là bản port chuỗi Saltline: depthhalf, AO, SSR (giữ của mình), sương thể tích đọc shadow map, composite, bloom 6/5, streak, tự phơi sáng 1x1, grade (flare, ACES/AgX, split tone), FXAA. Hằng số ở `TUNE`.
 - Bẫy đã sập: bầu trời nung env sinh NaN khi `pow(ts, n)` gặp ts hơi âm, PMREM làm nhoè NaN ra cả map, cả thế giới thành đen. Đã kẹp `ts` về [0,1]. Kiểm bằng `node tools/probe.js "<expr>" "&q=low"` (đọc pixel HDR qua `__px`).
+
+## 2026-11-14 (rev 20261114f): súng, cách bắn và âm thanh port từ Saltline
+
+- `js/sl/weapon-sl.js` và `js/sl/audio-sl.js` là file SINH bằng `node tools/port-sl-weapon.js` và `node tools/port-sl-audio.js` từ `D:\ref-saltline-gh\work\game.pretty.js` (Saltline của Felix Rieseberg, ghi công ở đầu file). Đừng sửa tay; sửa tool (đổi chữ khắc, tắt còi tàu biển/hải âu) hoặc lớp nối.
+- `js/weapon.js` là lớp nối: đưa input, người chơi, phép bắn trúng, vỏ đạn thế giới (60 vỏ, nảy .32-.48, nằm 4 s rồi thu nhỏ .7 s), vệt đạn 260 m/s cho bộ điều khiển súng của Saltline. `js/gunmodel.js` cũ đã xoá.
+- Giật camera theo Saltline nằm trong `Player.addRecoil` / `addShake` (35% giữ lại, 65% hồi, giữ .09 s, hồi 6.5, đuổi 34).
+- `js/audio.js` là lớp nối âm thanh: chuyển sự kiện game (`G.events`) sang bảng sự kiện Saltline (`weapon:fire`, `impact`, `player:step`, `enemy:*`, `thunder`, `objective:*`). Lính (raider) không có trong Saltline nên dùng `rifle_shot` 3D.
+- Kiểm: `node tools/fire-strip.js <out>` (dải khung hình lúc bắn), `node tools/probe.js "<expr>" "&noaudio="` rồi gọi `__G.audio.engine.selfTest({})` (peak, clip, NaN).

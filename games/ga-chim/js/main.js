@@ -85,6 +85,9 @@ async function boot() {
   G.enemies = new Enemies(G, G.grid);
   G.puddleAt = (p) => (p.z < -60 && p.z > -115);
   G.game = new Game(G);
+  G.audio.bind();
+  setStatus('Đang lắp súng…'); await frame();
+  await G.weapon.init();
   G.updaters.push(['player', (dt) => { if (G.game.state === 'playing' || G.game.state === 'dead') G.player.update(dt, G.weapon); }]);
   G.updaters.push(['combat', (dt) => combat(dt)]);
   G.updaters.push(['weapon', (dt) => {
@@ -163,60 +166,25 @@ function isIndoor(p) {
 }
 
 // shooting: hitscan against enemies and level boxes, impacts, tracers, sound
-let shotLatch = false;
 function combat(dt) {
   const P = G.player, W = G.weapon, A = G.audio;
   if (G.game.state !== 'playing' || P.dead) return;
   for (const ev of P.events) {
-    if (Array.isArray(ev) && ev[0] === 'step') A.play('step_' + ev[1], { vol: P.sprinting ? 0.9 : 0.6 });
-    else if (ev === 'land') { A.play('thud', { vol: 0.5 }); P.landedKick = 0.8; }
-    else if (ev === 'jump') A.play('step_' + P.surface(), { vol: 0.5 });
+    if (Array.isArray(ev) && ev[0] === 'step') A.emit('player:step', { surface: ev[1] === 'water' ? 'water' : ev[1] === 'metal' ? 'metal' : 'concrete', sprint: P.sprinting, pos: P.pos });
+    else if (ev === 'land') { A.emit('player:land', { speed: Math.abs(P.lastVy || 5), surface: P.surface() }); P.landedKick = 0.8; }
+    else if (ev === 'jump') A.emit('player:jump');
   }
   P.events.length = 0;
   for (const ev of W.events) {
-    if (ev === 'reload') A.play('click', { rate: 0.7 });
-    else if (ev === 'magout') A.play('click', { rate: 0.55, vol: 0.8 });
-    else if (ev === 'magin') A.play('thud', { rate: 1.8, vol: 0.5 });
-    else if (ev === 'reloaded') A.play('click', { rate: 1.2 });
-    else if (Array.isArray(ev) && ev[0] === 'shell') A.play('shell', { pos: ev[1], vol: 0.5 });
+    if (Array.isArray(ev) && ev[0] === 'shell') A.emit('shell:bounce', { pos: ev[1], surface: G.puddleAt(ev[1]) ? 'water' : 'concrete' });
   }
   W.events.length = 0;
   if (P.keys.has('KeyR')) W.startReload();
-  if (P.keys.has('KeyF')) W.startInspect();
   if (P.keys.has('KeyV') && W.startMelee()) {
-    A.play('thud', { vol: 0.5, rate: 1.4 });
+    A.emit('weapon:melee');
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(G.camera.quaternion);
-    setTimeout(() => { const hit = G.enemies.raycast(G.camera.position, fwd, 2.4); if (hit) { G.enemies.damage(hit.e, 55, fwd, false); G.game.hitmark(!hit.e.alive); A.play('ping', { pos: G.camera.position.clone().addScaledVector(fwd, hit.t), rate: 0.6 }); } }, 160);
+    setTimeout(() => { const hit = G.enemies.raycast(G.camera.position, fwd, 2.4); if (hit) { G.enemies.damage(hit.e, 55, fwd, false); G.game.hitmark(!hit.e.alive); A.emit('impact', { point: G.camera.position.clone().addScaledVector(fwd, hit.t), surface: 'metal', enemy: true }); } }, 160);
   }
-  if (P.mouse.l) {
-    if (W.ammo === 0 && !W.busy) { if (!shotLatch) { A.play('click', { rate: 1.6 }); W.startReload(); } shotLatch = true; return; }
-    const shot = W.fire(G.camera);
-    if (shot) {
-      P.lastShot = G.t;
-      P.recoil.p += shot.recoil.p * 60 * dt * 0 + shot.recoil.p; P.recoil.y += shot.recoil.y;
-      A.play('rifle'); A.play('thud', { vol: 0.35, rate: 0.8 }); A.play('tail', { vol: isIndoor(G.camera.position) ? 0.7 : 1 });
-      G.fx.add(2, shot.muzzle, new THREE.Vector3(0, 0.4, 0).add(shot.dir.clone().multiplyScalar(0.6)), 0.05, new THREE.Color(0.22, 0.21, 0.2), 0.9, { grow: 4, a: 0.35, drag: 2 });
-      const o = shot.origin, d = shot.dir; const maxD = 220;
-      const he = G.enemies.raycast(o, d, maxD);
-      const hw = G.grid.ray(o, d, maxD);
-      let gT = d.y < -0.001 ? -o.y / d.y : Infinity;
-      const tW = hw ? hw.t : Infinity;
-      if (he && he.t < Math.min(tW, gT)) {
-        const p = o.clone().addScaledVector(d, he.t);
-        G.fx.impact(p, d.clone().negate(), 'metal'); A.play('ping', { pos: p });
-        const killed = G.enemies.damage(he.e, 34 * (0.9 + Math.random() * 0.2), d, he.head);
-        G.game.hitmark(killed); A.play('click', { rate: he.head ? 2.6 : 2.1, vol: 0.7 }); if (killed) A.play('ping', { rate: 0.7, vol: 0.5 });
-        W.tracer(shot.muzzle, p);
-      } else if (tW < gT && tW < maxD) {
-        const p = o.clone().addScaledVector(d, tW);
-        G.fx.impact(p, hw.n, 'metal'); A.play('ping', { pos: p, vol: 0.6 }); W.tracer(shot.muzzle, p);
-      } else if (gT < maxD) {
-        const p = o.clone().addScaledVector(d, gT);
-        const wet = G.puddleAt(p);
-        G.fx.impact(p, new THREE.Vector3(0, 1, 0), wet ? 'water' : 'ground'); A.play('thud', { pos: p, vol: 0.4 }); W.tracer(shot.muzzle, p);
-      } else W.tracer(shot.muzzle, o.clone().addScaledVector(d, 200));
-    }
-  } else shotLatch = false;
 }
 
 // lightning and thunder at random, re-tinting the sky and the environment
@@ -224,10 +192,9 @@ let nextFlash = 8;
 function storm(dt) {
   nextFlash -= dt;
   const fx = G.postFx;
-  if (nextFlash <= 0) { nextFlash = 14 + Math.random() * 22; fx.flashT = 0.6; G.thunderIn = 0.8 + Math.random() * 2.5; }
+  if (nextFlash <= 0) { nextFlash = 14 + Math.random() * 22; fx.flashT = 0.6; G.audio.emit('thunder', { intensity: 0.45 + Math.random() * 0.55 }); }
   if (fx.flashT > 0) { fx.flashT -= dt; const t = 0.6 - fx.flashT; fx.flash = Math.max(0, Math.sin(t * 40) * Math.exp(-t * 6)) * 1.2; } else fx.flash = 0;
   U.uFlash.value = fx.flash;
-  if (G.thunderIn > 0) { G.thunderIn -= dt; if (G.thunderIn <= 0) G.audio.play('thunder', { vol: 0.8 }); }
   // camera shake from explosions
   if (fx.shake > 0) { fx.shake = Math.max(0, fx.shake - dt * 2); const s = fx.shake * 0.02; G.camera.rotation.x += (Math.random() - 0.5) * s; G.camera.rotation.y += (Math.random() - 0.5) * s; }
 }
