@@ -34,10 +34,12 @@ async function launch() {
   return require(PW).chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + gl, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 }
 
-// query: URL params without the leading '?'. opts: { viewport, touch }. Returns { page, problems, close }.
+// query: URL params without the leading '?'. opts: { viewport, touch, ctx, init: { fn, arg } (runs before the page's own scripts) }. Returns { page, problems, close }.
 async function open(br, base, query, opts = {}) {
-  const ctx = await br.newContext({ viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: !!opts.touch, isMobile: !!opts.touch });
-  await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'smoke@test' })); } catch (e) {} });
+  // Pages that talk over ?fakenet=1 must share one context (BroadcastChannel and localStorage stop at its edge): pass the first page's ctx.
+  const ctx = opts.ctx || await br.newContext({ viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: !!opts.touch, isMobile: !!opts.touch });
+  if (!opts.ctx) await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'smoke@test' })); } catch (e) {} });
+  if (opts.init && !opts.ctx) await ctx.addInitScript(opts.init.fn, opts.init.arg);
   const page = await ctx.newPage();
   const problems = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
@@ -47,7 +49,7 @@ async function open(br, base, query, opts = {}) {
   await page.waitForFunction('window.__ready === true || (document.getElementById("fatal") && document.getElementById("fatal").style.display === "block")', null, { timeout: 180000 });
   // The boot curtain fades over 0.5 s; screenshots must not wait for it.
   await page.evaluate(() => { const b = document.getElementById('boot'); if (b) b.style.display = 'none'; });
-  return { page, problems, close: () => ctx.close() };
+  return { page, problems, ctx, close: () => (opts.ctx ? page.close() : ctx.close()) };
 }
 
 async function session(fn) {

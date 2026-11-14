@@ -6,6 +6,7 @@
 //   reliable    lobby, start, welcome, hello, mine, final snapshot: resent until the peer acks the message type
 //   droppable   snapshots, inputs, heartbeats
 import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
+import { nearestRegion } from './net/region.js';
 import { snapshot, applySnapshot, createMirror, packEvents, SNAP_TICKS } from './netstate.js';
 import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
@@ -134,14 +135,16 @@ const fakeStore = {
 const TRANSPORTS = {
   relay: {
     async host(o) {
-      const room = await hostRoom({ name: o.name, isPrivate: o.isPrivate, playerName: o.playerName, mode: o.mode, map: o.map, maxPlayers: MAX_PLAYERS });
-      return { link: room.link, code: room.code, room, publish: (p) => room.publish(p), lock: (v) => room.lock(v), free: (uid) => room.free(uid), close: () => room.close() };
+      const near = await nearestRegion();
+      const room = await hostRoom({ name: o.name, isPrivate: o.isPrivate, region: near ? near.region : undefined, playerName: o.playerName, mode: o.mode, map: o.map, maxPlayers: MAX_PLAYERS });
+      return { link: room.link, code: room.code, region: room.region, room, publish: (p) => room.publish(p), lock: (v) => room.lock(v), free: (uid) => room.free(uid), close: () => room.close() };
     },
     async join(o) {
       const room = await joinRoom({ code: o.code, lobbyId: o.lobbyId, playerName: o.playerName });
       return { link: room.link, code: room.lobby.lobbyCode || o.code || '', uid: room.uid, leave: (k) => room.leave(k) };
     },
-    list: () => listRelayRooms(),
+    // Opening the room list is the sign that a room may be hosted soon: measure the regions while the player reads it.
+    list: () => { nearestRegion(); return listRelayRooms(); },
   },
   fake: {
     async host(o) {
@@ -191,7 +194,7 @@ export function makeOnline(G) {
   const emit = (topic, data) => G.bus.emit(topic, data);
 
   const online = {
-    state: 'off', role: null, code: '', error: '', me: null, lobby: null, mySlot: -1, rosterData: null, mirror: null,
+    state: 'off', role: null, code: '', region: '', error: '', me: null, lobby: null, mySlot: -1, rosterData: null, mirror: null,
     stats: { snapsSent: 0, snapsRecv: 0, bytesSent: 0, inputsSent: 0, inputsRecv: 0 },
   };
   const listeners = new Set();
@@ -471,7 +474,7 @@ export function makeOnline(G) {
     try {
       const c = await net.host({ name: name || `Phòng của ${pname}`, isPrivate, playerName: pname, mode: 'tdm', map: 'denrung' });
       if (mine !== ticket || online.state !== 'connecting') { c.close(); return false; }
-      online.lobby = newLobby(pname); online.me = 'p0'; online.code = c.code; pidN = 0;
+      online.lobby = newLobby(pname); online.me = 'p0'; online.code = c.code; online.region = c.region || ''; pidN = 0;
       attach(c, 'host');
       fire('ready');
       return true;
