@@ -201,8 +201,7 @@ export const MODES = {
   tudo:  { name: 'Hỗn chiến', blurb: 'Mười cỗ máy, không đồng đội. Ai hạ gục 10 lần trước thì thắng.', target: 10, duration: 300, mission: 'Không có đồng đội: hạ gục {target} lần trước mọi người' },
   trum:  { name: 'Săn trùm', blurb: 'Năm người hợp sức hạ Cự Thần trước khi dùng hết 12 mạng.', target: 1, duration: 360, mission: 'Hạ Cự Thần trước khi cả đội dùng hết {lives} mạng', lives: 12 },
 };
-// 'nha' joins this list when its HUD ships.
-export const MODE_ORDER = ['tdm', 'chiem', 'tudo', 'trum'];
+export const MODE_ORDER = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
 
 // Bosses use the same row shape as MECHS and the same skill primitives. heavy: shrugs off most stuns, knockback and pulls.
 export const BOSSES = {

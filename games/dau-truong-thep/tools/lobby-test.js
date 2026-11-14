@@ -18,7 +18,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 (async () => {
   fs.mkdirSync(CHK, { recursive: true });
   const { MECHS } = await import('../js/data.js');
-  const srv = await serve();
+  const srv = process.env.DTT_BASE ? { base: process.env.DTT_BASE, close() {} } : await serve();
   const gl = process.env.DTT_GL || 'gl-egl';
   const br = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + gl, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
@@ -113,8 +113,12 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   await A.click('#ui .lobby .map[data-k="cangbang"]');
   await A.click('#ui .lobby .seg [data-k="easy"]');
   await until(B, '__G.online.lobby.mode === "chiem" && __G.online.lobby.map === "cangbang" && __G.online.lobby.diff === "easy"', 'B sees the new settings');
+  const kv0 = await B.evaluate(() => [...document.querySelectorAll('#ui .lobby .kv b')].map((b) => b.textContent));
+  check(kv0.join() === 'Chiếm điểm,Cảng Băng,Theo bố cục,Dễ', `guest reads settings read-only, theme "Theo bố cục" by default: ${kv0.join(' / ')}`);
+  await A.click('#ui .lobby .th[data-k="lava"]');
+  await until(B, '__G.online.lobby.theme === "lava"', 'B sees the theme');
   const kv = await B.evaluate(() => [...document.querySelectorAll('#ui .lobby .kv b')].map((b) => b.textContent));
-  check(kv.join() === 'Chiếm điểm,Cảng Băng,Dễ', `guest reads settings read-only: ${kv.join(' / ')}`);
+  check(kv.join() === 'Chiếm điểm,Cảng Băng,Núi lửa,Dễ', `guest reads the chosen theme read-only: ${kv.join(' / ')}`);
   check(JSON.stringify(await model(A)) === JSON.stringify(await model(B)), 'both pages hold the identical lobby model');
   await sleep(300);
   await shot(A, 'host'); await shot(B, 'guest');
@@ -142,7 +146,10 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(ia.mode === 'match' && ib.mode === 'match', 'both pages reach __G.mode === "match"');
   check(ia.map === 'cangbang' && ib.map === 'cangbang' && ia.rule === 'chiem' && ib.rule === 'chiem', `same map ${ia.map} and mode ${ia.rule} on both`);
   check(ia.units === 10 && ib.units === 10, '10 units on both pages');
-  check(ia.me === 0 && ib.me === 5 && ib.me === ib.mySlot && ib.name === 'Khách Hai' && ib.mech === 'ung' && ia.mech === 'trau', `A owns slot ${ia.me} (${ia.mech}), B owns slot ${ib.me} (${ib.mech}, "${ib.name}")`);
+  const th = await Promise.all([A, B].map((p) => p.evaluate(() => __G.match.map.theme)));
+  check(th.join() === 'lava,lava', `both matches use the host's theme: ${th.join(',')}`);
+  // Joiners now default to the host's team, so B's slot is no longer fixed at 5: it only has to be its own, non-zero slot.
+  check(ia.me === 0 && ib.me > 0 && ib.me === ib.mySlot && ib.name === 'Khách Hai' && ib.mech === 'ung' && ia.mech === 'trau', `A owns slot ${ia.me} (${ia.mech}), B owns slot ${ib.me} (${ib.mech}, "${ib.name}")`);
   const hudB = await B.evaluate(() => ({ weapon: document.querySelector('#ui .slot').title, me: document.querySelector('#ui .pc.me .pc-name').textContent, lobby: !!document.querySelector('#ui .lobby.on'), hud: !!document.querySelector('#ui .hud.on') }));
   check(hudB.weapon === MECHS.ung.weapon.name && hudB.me === 'Khách Hai' && !hudB.lobby && hudB.hud, `B's HUD shows its own mech (weapon "${hudB.weapon}")`);
   check((await A.evaluate('document.querySelector("#ui .slot").title')) === MECHS.trau.weapon.name, 'A\'s HUD shows A\'s mech');

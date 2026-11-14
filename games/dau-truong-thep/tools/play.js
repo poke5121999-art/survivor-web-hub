@@ -31,6 +31,14 @@ session(async (br, base) => {
     await g.close();
   }
 
+  for (const theme of ['city', 'swamp', 'autumn', 'canyon', 'random']) {
+    const g = await open(br, base, `manual&noaudio&autostart&spectate&seed=${theme.length * 7}&bots=normal&q=low&map=random&theme=${theme}`);
+    const r = await g.page.evaluate(() => { for (let i = 0; i < 40; i++) window.__step(30, i % 10 === 0); const m = window.__G.match; return { map: m.map.key, theme: m.map.theme, hazards: m.map.hazards.length, world: window.__G.gfx.world.theme === undefined ? null : m.map.theme, t: m.time, errors: window.__errors }; });
+    check(r.t > 30 && (theme === 'random' || r.theme === theme), `[theme ${theme}] a match runs on layout ${r.map} with theme ${r.theme} (${r.hazards} hazards)`);
+    check(r.errors.length === 0 && g.problems.length === 0, `[theme ${theme}] no errors` + (r.errors[0] ? ': ' + r.errors[0].slice(0, 200) : '') + (g.problems[0] ? ' ' + g.problems[0].slice(0, 200) : ''));
+    await g.close();
+  }
+
   for (const map of ['xuongcat', 'cangbang', 'mienglua']) {
     const g = await open(br, base, `manual&noaudio&autostart&spectate&seed=21&bots=normal&q=low&map=${map}`);
     const r = await g.page.evaluate(() => {
@@ -45,7 +53,7 @@ session(async (br, base) => {
     await g.close();
   }
 
-  for (const mode of ['chiem', 'tudo', 'trum']) {
+  for (const mode of ['nha', 'chiem', 'tudo', 'trum']) {
     const g = await open(br, base, `manual&noaudio&autostart&seed=31&bots=normal&q=low&mode=${mode}&mech=tho`);
     const r = await g.page.evaluate(() => {
       const G = window.__G; let guard = 0;

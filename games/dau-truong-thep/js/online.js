@@ -8,7 +8,7 @@
 import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { snapshot, applySnapshot, createMirror, packEvents, SNAP_TICKS } from './netstate.js';
 import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
-import { MAPS } from './maps.js';
+import { MAPS, THEMES, pickArena } from './maps.js';
 import { mulberry } from './rng.js';
 
 const PROTOCOL = 1;
@@ -307,7 +307,7 @@ export function makeOnline(G) {
   // ---- lobby model (host owns it, guests hold a copy) -------------------------------------------------------------
   const newLobby = (hostName) => ({
     players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], paint: null, mods: { hp: 1, dmg: 1 }, team: 0, ready: true, host: true }],
-    map: 'denrung', mode: 'tdm', diff: 'normal',
+    map: 'denrung', theme: null, mode: 'tdm', diff: 'normal',
   });
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
   // Co-op by default: joiners side with the host against bots until that team is full. Players switch sides for PvP.
@@ -513,16 +513,18 @@ export function makeOnline(G) {
     return true;
   };
 
-  online.setRoom = function setRoom({ map, mode, diff } = {}) {
+  online.setRoom = function setRoom({ map, theme, mode, diff } = {}) {
     if (online.role !== 'host' || online.state !== 'lobby') return false;
     const L = online.lobby;
     online.error = '';
     if (mode && MODES[mode] && mode !== L.mode) {
       if (mode === 'trum' && L.players.length > TEAM_SIZE) { online.error = T.bossFull; return false; }
       L.mode = mode;
-      L.players.forEach((p, i) => { p.team = mode === 'trum' ? 0 : p.host ? 0 : i % 2; });
+      if (mode === 'trum') L.players.forEach((p) => { p.team = 0; });
     }
-    if (map && MAPS[map]) L.map = map;
+    if (map && (MAPS[map] || map === 'random')) L.map = map;
+    // theme: a THEMES key, 'random', or null for the layout's own theme
+    if (theme !== undefined && (theme === null || theme === 'random' || THEMES[theme])) L.theme = theme;
     if (diff && DIFFICULTY[diff]) L.diff = diff;
     publishRoom(); broadcastLobby(); changed();
     return true;
@@ -575,7 +577,9 @@ export function makeOnline(G) {
       if (L.mode === 'trum') add({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true });
     }
     const rule = MODES[L.mode];
-    return { rosterData: { map: L.map, mode: L.mode, seed, target: rule.target, duration: rule.duration, units }, slots };
+    // 'random' is resolved here on the host, so every machine gets the same concrete layout and theme.
+    const arena = pickArena(L.map, L.theme, seed);
+    return { rosterData: { map: arena.map, theme: arena.theme, mode: L.mode, seed, target: rule.target, duration: rule.duration, units }, slots };
   }
 
   online.start = function start() {

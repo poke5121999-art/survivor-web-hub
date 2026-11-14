@@ -1,6 +1,7 @@
 // Keyboard + mouse and twin-stick touch. sample(u) turns the current device state into one sim input.
 import { RULES } from './data.js';
 import { icon } from './ui.js';
+import * as K from './keys.js';
 
 const BLOCK = 'button,input,select,textarea,a,[data-block]';
 const AIM_REACH = 14;
@@ -8,7 +9,7 @@ const AIM_REACH = 14;
 export function makeInput(G) {
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const keys = new Set();
-  const mouse = { x: 0, y: 0, seen: false, down: false };
+  const mouse = { x: 0, y: 0, seen: false };
   const sticks = { move: null, aim: null };
   const btn = { s1: false, s2: false, ult: false, heal: false };
   let scripted = null, touchOn = false, lastAim = 0, R = 56;
@@ -18,11 +19,12 @@ export function makeInput(G) {
 
   addEventListener('keydown', (e) => {
     if (typing(e.target)) return;
-    if (e.code === 'Space' && running()) e.preventDefault();
+    // Space scrolls and Tab moves focus: both would fight the match while it runs.
+    if (running() && (e.code === 'Space' || e.code === 'Tab' || K.actionOf(e.code))) e.preventDefault();
     keys.add(e.code);
   });
   addEventListener('keyup', (e) => keys.delete(e.code));
-  addEventListener('blur', () => { keys.clear(); mouse.down = false; });
+  addEventListener('blur', () => { keys.clear(); });
   addEventListener('contextmenu', (e) => { if (running() || touch) e.preventDefault(); });
   addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true; }
@@ -30,9 +32,9 @@ export function makeInput(G) {
   addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse') return;
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
-    if (e.button === 0 && !(e.target.closest && e.target.closest(BLOCK))) mouse.down = true;
+    if (e.button <= 2 && !(e.target.closest && e.target.closest(BLOCK))) { keys.add('Mouse' + e.button); if (e.button === 1 && running()) e.preventDefault(); }
   });
-  addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse' && e.button === 0) mouse.down = false; });
+  addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') keys.delete('Mouse' + e.button); });
 
   /* ---- touch layer ---- */
   let layer = null, stickEls = null;
@@ -43,12 +45,12 @@ export function makeInput(G) {
     layer.id = 'touch';
     layer.innerHTML = `<div class="stick move"><i></i></div><div class="stick aim"><i></i></div>`;
     stickEls = { move: layer.children[0], aim: layer.children[1] };
-    const defs = [['ult', 'SPACE', 'ult'], ['s1', 'Q', ''], ['s2', 'E', ''], ['heal', 'F', 'item']];
-    for (const [k, label, cls] of defs) {
+    const defs = [['ult', 'ult'], ['s1', ''], ['s2', ''], ['heal', 'item']];
+    for (const [k, cls] of defs) {
       const b = document.createElement('button');
       b.className = `tbtn ${k} ${cls}`;
       b.dataset.block = '';
-      b.innerHTML = `<span class="tb-i"></span><i class="tb-cd"></i><b class="tb-t"></b><kbd>${label}</kbd>`;
+      b.innerHTML = `<span class="tb-i"></span><i class="tb-cd"></i><b class="tb-t"></b>`;
       layer.appendChild(b);
       tbtns[k] = { root: b, ic: b.firstChild, t: b.querySelector('.tb-t'), p: -1, txt: '', iconKey: '' };
       const down = (e) => { e.preventDefault(); e.stopPropagation(); btn[k] = true; b._pid = e.pointerId; b.classList.add('down'); try { b.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } };
@@ -126,10 +128,10 @@ export function makeInput(G) {
   function sample(u) {
     if (scripted) return typeof scripted === 'function' ? scripted(G.match, u) : scripted;
     let mx = 0, mz = 0;
-    if (keys.has('KeyW') || keys.has('ArrowUp')) mz -= 1;
-    if (keys.has('KeyS') || keys.has('ArrowDown')) mz += 1;
-    if (keys.has('KeyA') || keys.has('ArrowLeft')) mx -= 1;
-    if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
+    if (K.isDown('up', keys)) mz -= 1;
+    if (K.isDown('down', keys)) mz += 1;
+    if (K.isDown('left', keys)) mx -= 1;
+    if (K.isDown('right', keys)) mx += 1;
     const ms = sticks.move;
     if (ms) {
       const dx = (ms.x - ms.ox) / R, dy = (ms.y - ms.oy) / R;
@@ -139,7 +141,7 @@ export function makeInput(G) {
     const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
 
-    let aim = lastAim, fire = mouse.down, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
+    let aim = lastAim, fire = K.isDown('fire', keys), tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
     const as = sticks.aim;
     if (as) {
       const dx = as.x - as.ox, dy = as.y - as.oy, l = Math.hypot(dx, dy);
@@ -156,13 +158,13 @@ export function makeInput(G) {
     lastAim = aim;
     return {
       mx, mz, aim, fire, tx, tz,
-      s1: keys.has('KeyQ') || btn.s1, s2: keys.has('KeyE') || btn.s2,
-      ult: keys.has('Space') || btn.ult, heal: keys.has('KeyF') || btn.heal,
+      s1: K.isDown('s1', keys) || btn.s1, s2: K.isDown('s2', keys) || btn.s2,
+      ult: K.isDown('ult', keys) || btn.ult, heal: K.isDown('heal', keys) || btn.heal,
     };
   }
 
   return {
-    touch, sample, setTouchVisible, updateTouch,
+    touch, sample, setTouchVisible, updateTouch, pressed: keys,
     script: (s) => { scripted = s || null; },
   };
 }

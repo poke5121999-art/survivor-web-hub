@@ -1,6 +1,6 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, PAINTS, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
-import { MAP_ORDER } from './maps.js';
+import { MAP_ORDER, THEMES } from './maps.js';
 
 const KEY = 'dtt.save.v1';
 const VERSION = 1;
@@ -13,7 +13,7 @@ const frac = (v, d) => (isNum(v) ? Math.min(1, Math.max(0, v)) : d);
 function defaults() {
   return {
     v: VERSION, name: 'Phi công', coins: 0, xp: 0, level: 1,
-    owned: MECH_ORDER.filter((k) => MECHS[k].price === 0), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], mode: MODE_ORDER[0],
+    owned: MECH_ORDER.filter((k) => MECHS[k].price === 0), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0],
     settings: { quality: 'medium', volume: 0.8, music: 0.5 },
     stats: { matches: 0, wins: 0, kills: 0 },
     upgrades: {}, paints: {}, ownedPaints: ['goc'], trophies: 0,
@@ -60,7 +60,9 @@ function clean(raw) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 16) : d.name,
     coins: int(raw.coins, d.coins), level: int(raw.level, 1, 1, 999), xp: int(raw.xp, 0),
     owned: MECH_ORDER.filter((k) => owned.has(k)),
-    mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAP_ORDER.includes(raw.map) ? raw.map : d.map,
+    mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAP_ORDER.includes(raw.map) || raw.map === 'random' ? raw.map : d.map,
+    // null = the layout's own theme
+    theme: raw.theme === 'random' || Object.prototype.hasOwnProperty.call(THEMES, raw.theme) ? raw.theme : null,
     mode: MODE_ORDER.includes(raw.mode) ? raw.mode : d.mode,
     settings: {
       quality: QUALITIES.includes(s.quality) ? s.quality : d.settings.quality,
@@ -149,7 +151,7 @@ export function makeMeta() {
     const xp = (win ? REWARDS.xpWin : draw ? Math.round((REWARDS.xpWin + REWARDS.xpLose) / 2) : REWARDS.xpLose) + me.kills * REWARDS.xpPerKill;
     const levelBefore = data.level, xpBefore = data.xp;
     const rankBefore = rankOf(data.trophies), trophiesBefore = data.trophies;
-    const trophy = mode === 'tdm' || mode === 'chiem';
+    const trophy = mode === 'tdm' || mode === 'chiem' || mode === 'nha';
     if (trophy) data.trophies = Math.max(0, data.trophies + (win ? TROPHIES.win : draw ? TROPHIES.draw : -TROPHIES.lose));
     const rankAfter = rankOf(data.trophies);
     data.coins += coins;

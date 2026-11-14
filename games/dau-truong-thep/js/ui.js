@@ -2,8 +2,9 @@
 import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, upgradeMods, PAINTS, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
 import { rankOf, placeOf } from './meta.js';
 import * as MAPMOD from './maps.js';
-const { MAPS, MAP_ORDER } = MAPMOD;
-import { visibleTo } from './sim.js';
+const { MAPS, MAP_ORDER, THEMES, THEME_ORDER } = MAPMOD;
+import { visibleTo, towerOpen } from './sim.js';
+import * as K from './keys.js';
 
 /* ---------- icons ---------- */
 const SOFT = 'fill="currentColor" fill-opacity=".26"';
@@ -69,6 +70,12 @@ const ICONS = {
   exit: '<path d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4M15 8l4 4-4 4M19 12H9"/>',
   swap: '<path d="M4 8h14M14 4.500L18 8l-4 3.500M20 16H6M10 12.500L6 16l4 3.500"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  tower: `<path d="M7 21V9L5.500 7V4h3v1.500h1.500V4h4v1.500h1.500V4h3v3L17 9v12z" ${SOFT}/><path d="M10.500 21v-4h3v4M10.500 12.500h3"/>`,
+  city: '<path d="M4 21V10h5v11M9 21V4h6v17M15 21v-7h5v7M3 21h18"/><path d="M11 8h2M11 12h2M11 16h2"/>',
+  swamp: '<path d="M3 19c2-2 3-2 5 0s3 2 5 0 3-2 5 0 1.500 1 3 0"/><path d="M8 16V8M8 11l-2.500-2.500M8 12.500l2.500-2.500M16 16V6M16 9.500l-2.500-2.500M16 11l2.500-2.500"/>',
+  dice: `<rect x="4" y="4" width="16" height="16" rx="3" ${SOFT}/><circle cx="9" cy="9" r="1.200" fill="currentColor"/><circle cx="15" cy="15" r="1.200" fill="currentColor"/><circle cx="12" cy="12" r="1.200" fill="currentColor"/>`,
+  canyon: `<path d="M3 20l4-9 3 4 3-8 4 7 4-3v9z" ${SOFT}/>`,
+  layout: `<path d="M9 4L3 6.500V20l6-2.500 6 2.500 6-2.500V4l-6 2.500z" ${SOFT}/><path d="M9 4v13.500M15 6.500V20"/>`,
   crate: `<rect x="4" y="6" width="16" height="13" rx="1.500" ${SOFT}/><path d="M4 11h16M12 6v13"/>`,
 };
 const has = Object.prototype.hasOwnProperty;
@@ -92,11 +99,11 @@ const flag = (n, c, on) => { on = !!on; if (n['_f' + c] !== on) { n['_f' + c] = 
 const pop = (n, from = 1.45, ms = 320) => { if (n.animate) n.animate([{ transform: `scale(${from})` }, { transform: 'scale(1)' }], { duration: ms, easing: 'cubic-bezier(.2,1.4,.4,1)' }); };
 
 const SLOT_DEFS = [
-  { k: 'fire', key: 'Chuột', cls: '' },
-  { k: 's1', key: 'Q', cls: '' },
-  { k: 's2', key: 'E', cls: '' },
-  { k: 'ult', key: 'SPACE', cls: 'ult' },
-  { k: 'heal', key: 'F', cls: 'item' },
+  { k: 'fire', cls: '' },
+  { k: 's1', cls: '' },
+  { k: 's2', cls: '' },
+  { k: 'ult', cls: 'ult' },
+  { k: 'heal', cls: 'item' },
 ];
 const BUFFS = [
   ['hasteT', 'Tăng tốc', 'haste', 'good'], ['dmgT', 'Sát thương', 'power', 'good'], ['rapidT', 'Bắn nhanh', 'boost', 'good'],
@@ -164,9 +171,9 @@ export function makeUI(G) {
   const slotEls = {};
   for (const d of SLOT_DEFS) {
     const s = el('div', 'slot ' + d.cls);
-    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><kbd>${d.key}</kbd>`;
+    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><kbd>${esc(K.labelFor(d.k))}</kbd>`;
     H.slots.appendChild(s);
-    slotEls[d.k] = { root: s, ic: s.firstChild, t: s.querySelector('.sl-t'), total: 1, prev: 0 };
+    slotEls[d.k] = { root: s, ic: s.firstChild, t: s.querySelector('.sl-t'), kbd: s.querySelector('kbd'), total: 1, prev: 0 };
   }
   const buffEls = BUFFS.map((b) => {
     const c = el('span', 'chip ' + b[3], `${icon(b[2])}<em>${b[1]}</em><b></b>`);
@@ -278,6 +285,104 @@ export function makeUI(G) {
         S.pOwner[e.point] = e.team;
         if (e.team === myTeam) announce('Đã chiếm cứ điểm ' + letter, was >= 0 ? 'Giành lại từ tay địch' : '', 'mine');
         else announce(was === myTeam ? 'Mất cứ điểm ' + letter : 'Địch chiếm cứ điểm ' + letter, '', 'foe');
+      },
+    },
+
+    nha: {
+      minuteSub: 'Trụ nhà còn nhiều máu hơn sẽ thắng',
+      top(m) {
+        const pips = (team, mineSide) => {
+          const ts = m.towers.filter((t) => t.team === team);
+          const subs = ts.filter((t) => t.kind === 'sub'), main = ts.filter((t) => t.kind === 'main');
+          return (mineSide ? subs.concat(main) : main.concat(subs))
+            .map((t) => `<div class="tw ${t.kind}" data-tw="${t.id}" data-state="up" title="${t.kind === 'main' ? 'Trụ chính' : 'Trụ phụ'}"><i class="tw-f"></i><span class="tw-lk">${icon('lock')}</span></div>`).join('');
+        };
+        return `<div class="sc nh">
+          <div class="sc-side nh-side mine t${myColor}"><div class="sc-col"><div class="tws">${pips(myTeam, true)}</div><div class="sc-bar"><i data-r="bar0"></i></div></div></div>
+          <div class="sc-mid"><small>Trụ hạ <b data-r="k0">0</b> : <b data-r="k1">0</b></small><span class="sc-clock" data-r="clock">8:00</span></div>
+          <div class="sc-side nh-side foe t${1 - myColor}"><div class="sc-col"><div class="tws">${pips(1 - myTeam, false)}</div><div class="sc-bar"><i data-r="bar1"></i></div></div></div>
+        </div>`;
+      },
+      cols: teamCols,
+      build(m) {
+        S.tw = {}; S.twHit = {}; S.atkAt = -99; S.blkAt = -99; S.mainOpen = {};
+        const pipEls = {};
+        H.topBar.querySelectorAll('[data-tw]').forEach((n) => { pipEls[n.dataset.tw] = n; });
+        for (const t of m.towers) {
+          const bar = el('div', `twb ${t.kind} t${t.color}`, `<span class="twb-l">${icon('lock')}</span><div class="twb-hp"><i></i></div>`);
+          bar.classList.add('off');
+          fx.appendChild(bar);
+          S.tw[t.id] = { pip: pipEls[t.id], bar, fill: bar.querySelector('.twb-hp i') };
+          if (t.kind === 'main') S.mainOpen[t.team] = towerOpen(m, t);
+        }
+      },
+      tick(m) {
+        const hp = [0, 0], mx = [0, 0];
+        for (const t of m.towers) {
+          const w = S.tw[t.id];
+          if (!w) continue;
+          const open = towerOpen(m, t), state = !t.alive ? 'down' : open ? 'up' : 'locked';
+          const pct = Math.round(clamp01(t.alive ? t.hp / t.maxHp : 0) * 100) + '%';
+          if (w.pip) {
+            if (w.pip.dataset.state !== state) w.pip.dataset.state = state;
+            setVar(w.pip, '--hp', pct);
+            flag(w.pip, 'hit', uiT - (S.twHit[t.id] ?? -99) < 0.5);
+          }
+          hp[t.team] += t.alive ? t.hp : 0; mx[t.team] += t.maxHp;
+          if (t.kind === 'main' && t.alive && open !== S.mainOpen[t.team]) {
+            S.mainOpen[t.team] = open;
+            if (open && !m.over) {
+              if (t.team === myTeam) announce('Trụ chính nhà mình đã mở, về thủ!', 'Địch có thể phá trụ chính', 'foe');
+              else announce('Trụ chính của địch đã mở', 'Dồn lực phá trụ chính', 'mine');
+            }
+          }
+          const pr = t.alive ? G.project(t.x, 6, t.z) : null;
+          flag(w.bar, 'off', !pr || !pr.visible);
+          if (pr && pr.visible) {
+            w.bar.style.transform = `translate3d(${pr.x.toFixed(1)}px,${pr.y.toFixed(1)}px,0) translate(-50%,-100%)`;
+            setScale(w.fill, t.hp / t.maxHp);
+            flag(w.bar, 'locked', !open);
+          }
+        }
+        if (T.k0._v !== String(m.score[myTeam])) { setText(T.k0, String(m.score[myTeam])); pop(T.k0); }
+        if (T.k1._v !== String(m.score[1 - myTeam])) { setText(T.k1, String(m.score[1 - myTeam])); pop(T.k1); }
+        setScale(T.bar0, hp[myTeam] / (mx[myTeam] || 1)); setScale(T.bar1, hp[1 - myTeam] / (mx[1 - myTeam] || 1));
+      },
+      mini(g, m, X, Z) {
+        for (const t of m.towers) {
+          const x = X(t.x), z = Z(t.z), r = t.kind === 'main' ? 6.2 : 4.4, col = TEAMS[t.color].css;
+          if (!t.alive) {
+            g.strokeStyle = '#7b838c'; g.lineWidth = 1.6;
+            g.beginPath(); g.moveTo(x - 3, z - 3); g.lineTo(x + 3, z + 3); g.moveTo(x + 3, z - 3); g.lineTo(x - 3, z + 3); g.stroke();
+            continue;
+          }
+          const age = uiT - (S.twHit[t.id] ?? -99);
+          if (age < 1.2) {
+            g.strokeStyle = `rgba(255,255,255,${(1 - age / 1.2).toFixed(2)})`; g.lineWidth = 2;
+            g.beginPath(); g.arc(x, z, r + 2 + age * 8, 0, 7); g.stroke();
+          }
+          g.fillStyle = col; g.strokeStyle = '#05080b'; g.lineWidth = 1.6;
+          g.beginPath();
+          for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; g.lineTo(x + Math.cos(a) * r * 1.2, z + Math.sin(a) * r * 1.2); }
+          g.closePath(); g.fill(); g.stroke();
+          if (t.kind === 'main') { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, z, 1.8, 0, 7); g.fill(); }
+          if (!towerOpen(m, t)) { g.strokeStyle = '#fff'; g.lineWidth = 1; g.strokeRect(x - r - 1.5, z - r - 1.5, 2 * r + 3, 2 * r + 3); }
+        }
+      },
+      event(e, m) {
+        const t = e.tower != null ? m.towers[e.tower] : null;
+        if (!t) return;
+        if (e.t === 'towerHit') {
+          S.twHit[t.id] = uiT;
+          if (t.team === myTeam && m.time - S.atkAt > 8) { S.atkAt = m.time; announce('Trụ nhà đang bị tấn công', t.kind === 'main' ? 'Trụ chính' : 'Trụ phụ', 'foe'); }
+          if (e.by === G.me) addFloat(`tw${t.id}|dealt`, 'dealt', e.amt, e.x, e.z);
+        } else if (e.t === 'towerBlock') {
+          if (t.team !== myTeam && m.time - S.blkAt > 1.5) { S.blkAt = m.time; addFloat('', 'other', 0, e.x, e.z, 'Trụ đang khóa', 1.1); }
+        } else if (e.t === 'towerDown') {
+          const foe = t.team !== myTeam;
+          if (t.kind === 'sub') announce(foe ? 'Trụ phụ của địch đã đổ' : 'Trụ phụ nhà mình đã đổ', foe ? '' : 'Giữ chặt trụ còn lại', foe ? 'mine' : 'foe');
+          else announce(foe ? 'Đã phá trụ chính của địch' : 'Trụ chính nhà mình đã sập', '', foe ? 'mine' : 'foe');
+        }
       },
     },
 
@@ -437,7 +542,7 @@ export function makeUI(G) {
     g.fillStyle = '#9aa3ad';
     for (const w of mp.walls) g.fillRect(X(w.x0), Z(w.z0), Math.max(2, (w.x1 - w.x0) * mmScale), Math.max(2, (w.z1 - w.z0) * mmScale));
     mmStatic = c;
-    H.mmn.textContent = mp.name;
+    H.mmn.textContent = `${mp.name} · ${(THEMES[mp.theme] || {}).name || ''}`;
     H.mm.style.aspectRatio = `${W} / ${Hh}`;
   }
   function drawMini(m, me) {
@@ -635,6 +740,7 @@ export function makeUI(G) {
       // skills
       for (const d of SLOT_DEFS) {
         const s = slotEls[d.k], rem = me.cd[d.k];
+        setText(s.kbd, K.labelFor(d.k));
         const p = Math.round(clamp01(rem / s.total) * 100);
         setVar(s.root, '--p', p + '%');
         setText(s.t, d.k !== 'fire' && rem > 0.05 ? (rem >= 10 ? String(Math.ceil(rem)) : vn(rem, 1)) : '');
@@ -688,6 +794,7 @@ export function makeUI(G) {
     }
 
     stepFloats(dt);
+    if (sbOn) { sbAcc += dt; if (sbAcc >= 0.25) { sbAcc = 0; sb.innerHTML = sbHtml(m); } }
 
     for (let i = feed.length - 1; i >= 0; i--) {
       const f = feed[i], age = uiT - f.t0;
@@ -709,7 +816,7 @@ export function makeUI(G) {
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(true);
   }
   function hideHUD() {
-    hudOn = false;
+    hudOn = false; syncScore();
     root.classList.remove('in-hud');
     hud.classList.remove('on'); fx.classList.remove('on');
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
@@ -731,8 +838,9 @@ export function makeUI(G) {
     pausedLive = onlinePlaying();
     PA.title.textContent = pausedLive ? 'Trận đang diễn ra' : 'Tạm dừng';
     PA.quit.textContent = pausedLive ? 'Rời trận' : 'Về sảnh';
-    PA.hint.textContent = pausedLive ? 'Trận không dừng khi bạn mở menu. Nhấn Esc để quay lại' : 'Nhấn Esc để tiếp tục';
-    paused = true; pauseEl.classList.add('on');
+    const pk = K.labelFor('pause');
+    PA.hint.textContent = pausedLive ? `Trận không dừng khi bạn mở menu. Nhấn ${pk} để quay lại` : `Nhấn ${pk} để tiếp tục`;
+    paused = true; pauseEl.classList.add('on'); syncScore();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
     if (!pausedLive) G.bus.emit('ui:pause', { paused: true });
   }
@@ -747,9 +855,52 @@ export function makeUI(G) {
   PA.resume.onclick = hidePause;
   PA.quit.onclick = () => { hidePause(); G.bus.emit('ui:menu'); };
   H.pauseBtn.onclick = showPause;
+  // Esc always resumes so a bad rebind can never trap the player in the pause menu.
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape' && hudOn && G.match && !G.match.over) { e.preventDefault(); togglePause(); }
+    if (e.repeat || !hudOn || !G.match || G.match.over) return;
+    if (K.has('pause', e.code) || (paused && e.code === 'Escape')) { e.preventDefault(); togglePause(); }
   });
+
+  /* ================= scoreboard (hold) ================= */
+  const sb = el('div', 'sb');
+  root.appendChild(sb);
+  const held = new Set();
+  let sbOn = false, sbAcc = 0;
+  const teamName = (t) => (TEAMS[t].name === 'Lam' ? 'Đội Lam' : 'Đội Hỏa');
+  function sbHtml(m) {
+    const rows = m.units.map((u) => ({ id: u.id, team: u.team, name: u.name, mech: u.mech, kills: u.kills, deaths: u.deaths, assists: u.assists, dmg: Math.round(u.dmg), healed: Math.round(u.healed),
+      rating: u.kills * 3 + u.assists * 1.5 + u.dmg / 600 }));
+    const sum = { rows, mvp: -1 };
+    const mp = m.map, left = m.duration - m.time;
+    let body, score = '';
+    if (m.mode === 'tudo') {
+      const order = rows.slice().sort((a, b) => (m.score[b.id] || 0) - (m.score[a.id] || 0) || a.deaths - b.deaths || a.id - b.id);
+      body = `<div class="tb t1 ffa"><div class="tb-h"><span>#</span><span>Phi công</span><span>Hạ gục</span><span>Sát thương</span><span>Hồi máu</span></div>
+        ${order.map((r, i) => `<div class="tb-r${r.id === G.me ? ' me' : ''}"><span class="tb-ic"><b class="plc${i < 3 ? ' top' : ''}">${i + 1}</b></span><span class="tb-n"><b>${esc(r.name)}</b><small>${MECHS[r.mech].name}</small></span><span class="kda"><b>${m.score[r.id] || 0}</b> <small>/ ${r.deaths}</small></span><span>${r.dmg}</span><span>${r.healed}</span></div>`).join('')}</div>`;
+    } else if (m.mode === 'trum') {
+      const b = bossOf(m);
+      body = teamTable(sum, myTeam, teamName(myTeam));
+      score = b ? `<span>${esc(b.name)} <b>${fmtN(Math.max(0, b.hp))}</b> / ${fmtN(b.maxHp)}</span><span>Mạng <b>${Math.max(0, m.lives)}</b></span>` : '';
+    } else {
+      body = `<div class="sb-two">${teamTable(sum, myTeam, teamName(myTeam))}${teamTable(sum, 1 - myTeam, teamName(1 - myTeam))}</div>`;
+      if (m.mode === 'nha') {
+        const hp = (team) => m.towers.filter((t) => t.team === team && t.alive).reduce((a, t) => a + t.hp, 0);
+        score = `<span class="t${myColor}">Trụ ta <b>${fmtN(hp(myTeam))}</b></span><span class="t${1 - myColor}">Trụ địch <b>${fmtN(hp(1 - myTeam))}</b></span>`;
+      } else score = `<span class="t${myColor}"><b>${m.score[myTeam]}</b></span><span>:</span><span class="t${1 - myColor}"><b>${m.score[1 - myTeam]}</b></span>`;
+    }
+    return `<div class="sb-box"><div class="sb-h"><b>${MODES[m.mode].name}</b><span class="sb-sc">${score}</span><span class="sb-m">${esc(mp.name)} · ${esc((THEMES[mp.theme] || {}).name || '')} · ${mmss(left)}</span></div>${body}
+      <p class="hint">Thả ${esc(K.labelFor('score'))} để đóng bảng điểm</p></div>`;
+  }
+  function syncScore() {
+    const m = G.match, on = !!(hudOn && m && !paused && K.isDown('score', held));
+    if (on !== sbOn) { sbOn = on; sb.classList.toggle('on', on); if (on) { sb.innerHTML = sbHtml(m); sbAcc = 0; } }
+  }
+  const typingIn = (t) => t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+  window.addEventListener('keydown', (e) => { if (!typingIn(e.target)) { held.add(e.code); syncScore(); } });
+  window.addEventListener('keyup', (e) => { held.delete(e.code); syncScore(); });
+  window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button <= 2 && !(e.target.closest && e.target.closest('button,input,select,a'))) { held.add('Mouse' + e.button); syncScore(); } });
+  window.addEventListener('pointerup', (e) => { held.delete('Mouse' + e.button); syncScore(); });
+  window.addEventListener('blur', () => { held.clear(); syncScore(); });
 
   /* ================= menu ================= */
   const menu = el('div', 'screen menu');
@@ -778,6 +929,7 @@ export function makeUI(G) {
           <h3>Chế độ</h3><div class="modes" data-r="modes"></div><p class="mode-bl" data-r="modeBl"></p>
           <h3>Độ khó</h3><div class="seg" data-r="diff"></div>
           <h3>Đấu trường</h3><div class="maps" data-r="maps"></div>
+          <h3>Môi trường</h3><div class="themes" data-r="themes"></div><p class="mode-bl th-bl" data-r="themeBl"></p>
         </div>
         <div class="acts">
           <div class="prow"><button class="play" data-r="play"><span>Vào trận</span></button><button class="netbtn" data-r="net" hidden>${icon('globe')}<span>Chơi mạng</span></button></div>
@@ -796,7 +948,7 @@ export function makeUI(G) {
     { label: 'Tầm bắn', f: (d) => d.weapon.range, fmt: (v) => vn(v, 1) + ' m' },
   ].map((s) => ({ ...s, max: maxOf(s.f) }));
 
-  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], modeKey = MODE_ORDER[0], menuInit = false, tab = 'info';
+  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], menuInit = false, tab = 'info';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
 
@@ -871,13 +1023,13 @@ export function makeUI(G) {
     if (!own) tab = 'info';
     const wdesc = `Sát thương ${w.dmg}${w.splash ? ' (nổ lan)' : ''}, tầm ${vn(w.range, 1)} m, ${vn(1 / w.cd, 1)} phát mỗi giây.`;
     const rows = [
-      { ic: 'weapon', key: 'Chuột', name: w.name, desc: wdesc, cd: '' },
-      ...d.skills.map((s, i) => ({ ic: s.icon, key: ['Q', 'E', 'SPACE'][i], name: s.name, desc: s.desc, cd: vn(s.cd, 0) + ' giây', ult: i === 2 })),
+      { ic: 'weapon', key: K.labelFor('fire'), name: w.name, desc: wdesc, cd: '' },
+      ...d.skills.map((s, i) => ({ ic: s.icon, key: K.labelFor(['s1', 's2', 'ult'][i]), name: s.name, desc: s.desc, cd: vn(s.cd, 0) + ' giây', ult: i === 2 })),
     ];
     const lv = levelOf(sel);
     const body = tab === 'garage' && own ? renderGarage(d, own) : `
       <div class="stats">${STAT.map((s) => { const v = s.f(d); return `<div class="st"><span>${s.label}</span><div class="bar"><i style="width:${Math.max(10, v / s.max * 100).toFixed(0)}%"></i></div><b>${s.fmt(v)}</b></div>`; }).join('')}</div>
-      <div class="kit">${rows.map((r) => `<div class="sk${r.ult ? ' ult' : ''}"><div class="sk-ic">${icon(r.ic)}<kbd>${r.key}</kbd></div><div class="sk-tx"><b>${r.name}${r.cd ? `<small>${r.cd}</small>` : ''}</b><p>${r.desc}</p></div></div>`).join('')}</div>`;
+      <div class="kit">${rows.map((r) => `<div class="sk${r.ult ? ' ult' : ''}"><div class="sk-ic">${icon(r.ic)}<kbd>${esc(r.key)}</kbd></div><div class="sk-tx"><b>${r.name}${r.cd ? `<small>${r.cd}</small>` : ''}</b><p>${r.desc}</p></div></div>`).join('')}</div>`;
     M.detail.innerHTML = `
       <div class="md-head"><img alt="" src="${portrait(sel, 0, own ? paintOf(sel) : undefined)}"><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && lv ? `<em class="md-lv">+${lv}</em>` : ''}</h2><p>${d.blurb}</p></div></div>
       ${own ? `<div class="tabs"><button data-tab="info" class="${tab === 'info' ? 'on' : ''}">${icon('info')}Chi tiết</button><button data-tab="garage" class="${tab === 'garage' ? 'on' : ''}">${icon('wrench')}Gara</button></div>`
@@ -909,12 +1061,23 @@ export function makeUI(G) {
     M.play.firstChild.textContent = own ? 'Vào trận' : 'Mua ' + MECHS[sel].name;
     M.play.classList.toggle('buying', !own);
   }
-  const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss' };
-  const THEME_ICON = { jungle: 'leaf', desert: 'dune', ice: 'flake', lava: 'flame' };
+  const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss', nha: 'tower' };
+  const THEME_ICON = { jungle: 'leaf', desert: 'dune', ice: 'flake', lava: 'flame', city: 'city', swamp: 'swamp', autumn: 'leaf', canyon: 'canyon', random: 'dice', layout: 'layout' };
   const HAZARD_TEXT = { vent: 'Họng lửa phụt', ice: 'Băng trơn trượt', lava: 'Hồ dung nham', mud: 'Bùn lầy chậm bước' };
-  // The hazard line is derived from the map's own hazard list so a new map cannot drift from its label.
-  // Newer maps keep only [x, z, r] and let the theme decide the kind; older rows start with the kind.
-  const hazardOf = (mp) => { const h0 = (mp.hazards || [])[0], th = MAPMOD.THEMES && MAPMOD.THEMES[mp.theme], kind = typeof (h0 || [])[0] === 'string' ? h0[0] : h0 && th ? th.hazard : (h0 && h0.kind); return kind ? { kind, text: HAZARD_TEXT[kind] || kind } : { kind: 'none', text: 'Không có bẫy' }; };
+  const validTheme = (t) => t === 'random' || (typeof t === 'string' && has.call(THEMES, t));
+  const themeName = (t) => (t === 'random' ? 'Ngẫu nhiên' : validTheme(t) ? THEMES[t].name : 'Theo bố cục');
+  // The hazard line follows the theme actually in force: the chosen one, else the layout's own. A layout with no hazard spots stays clear whatever the theme says.
+  function hazardFor(mp, th) {
+    if (th === 'random') return { kind: 'rand', text: 'Mối nguy đổi theo môi trường' };
+    const hz = THEMES[validTheme(th) ? th : mp.theme].hazard;
+    return hz && (mp.hazards || []).length ? { kind: hz, text: HAZARD_TEXT[hz] || hz } : { kind: 'none', text: 'Không có bẫy' };
+  }
+  const THEME_BLURB = { layout: 'Mỗi bố cục giữ môi trường riêng của nó.', random: 'Mỗi trận bốc thăm một môi trường, mối nguy cũng đổi theo.' };
+  const themeBlurb = (t) => (t === 'random' ? THEME_BLURB.random : validTheme(t) ? THEMES[t].blurb : THEME_BLURB.layout);
+  const themeTiles = (cur, attr, cls) => [null, ...THEME_ORDER, 'random'].map((k) => {
+    const id = k === null ? 'layout' : k;
+    return `<button class="th${k === cur ? ' on' : ''}${cls || ''}" ${attr}="${id}" title="${esc(themeBlurb(k))}"><span class="sw ${k === null ? 'layout' : k === 'random' ? 'rnd' : k}">${icon(THEME_ICON[id])}</span><span class="th-n">${esc(themeName(k))}</span></button>`;
+  }).join('');
   function renderSetup() {
     M.diff.innerHTML = '';
     for (const k of Object.keys(DIFFICULTY)) {
@@ -931,20 +1094,25 @@ export function makeUI(G) {
     }
     M.modeBl.textContent = MODES[modeKey].blurb;
     M.maps.innerHTML = '';
-    for (const k of MAP_ORDER) {
-      const mp = MAPS[k], hz = hazardOf(mp);
-      const b = el('button', 'map' + (k === mapKey ? ' on' : ''), `<span class="sw ${mp.theme}">${icon(THEME_ICON[mp.theme] || 'generic')}</span><span class="mp-t"><b>${mp.name}</b><em class="hz ${hz.kind}">${hz.text}</em><small>${mp.blurb}</small></span>`);
-      b.dataset.map = k; b.dataset.theme = mp.theme;
+    for (const k of [...MAP_ORDER, 'random']) {
+      const rnd = k === 'random', mp = MAPS[k];
+      const sw = rnd ? 'rnd' : validTheme(themeKey) && themeKey !== 'random' ? themeKey : mp.theme;
+      const hz = rnd ? { kind: 'rand', text: 'Bố cục bốc thăm mỗi trận' } : hazardFor(mp, themeKey);
+      const b = el('button', 'map' + (k === mapKey ? ' on' : ''), `<span class="sw ${sw}">${icon(rnd ? 'dice' : THEME_ICON[sw] || 'generic')}</span><span class="mp-t"><b>${rnd ? 'Ngẫu nhiên' : mp.name}</b><em class="hz ${hz.kind}">${hz.text}</em><small>${rnd ? 'Một trong các bố cục, chốt khi vào trận.' : mp.blurb}</small></span>`);
+      b.dataset.map = k; b.dataset.theme = rnd ? '' : sw;
       b.onclick = () => { mapKey = k; renderSetup(); };
       M.maps.appendChild(b);
     }
+    M.themes.innerHTML = themeTiles(themeKey, 'data-th');
+    M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
+    M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
   }
-  const makeChoice = (mech, df, map, mode) => ({ mech, diff: df, map, mode, mods: upgradeMods(levelOf(mech)), paint: paintOf(mech) });
+  const makeChoice = (mech, df, map, mode, theme) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, mods: upgradeMods(levelOf(mech)), paint: paintOf(mech) });
   M.play.onclick = () => {
     if (!ownedMech(sel)) { buyMech(sel); return; }
-    choice = makeChoice(sel, diff, mapKey, modeKey);
+    choice = makeChoice(sel, diff, mapKey, modeKey, themeKey);
     const d = meta();
-    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.mode = modeKey; G.meta.save(); }
+    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; G.meta.save(); }
     G.bus.emit('ui:play', choice);
   };
   M.name.addEventListener('change', () => {
@@ -968,7 +1136,7 @@ export function makeUI(G) {
   function showMenu() {
     hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
-    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] ? d.map : mapKey; modeKey = MODES[d.mode] ? d.mode : modeKey; }
+    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; }
     if (!menuInit) { menuInit = true; applySettings(); }
     renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
@@ -999,10 +1167,18 @@ export function makeUI(G) {
 
   const settings = el('div', 'modal');
   settings.dataset.block = '';
-  settings.innerHTML = `<div class="modal-box"><div class="hazard"></div><h2>Cài đặt</h2>
-    <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
-    <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
-    <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
+  settings.innerHTML = `<div class="modal-box" data-r="box"><div class="hazard"></div><h2>Cài đặt</h2>
+    <div class="st-tabs" data-r="stTabs"><button data-st="gen" class="on">Chung</button><button data-st="keys">Phím</button></div>
+    <div class="st-pane" data-pane="gen">
+      <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
+      <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
+      <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
+    </div>
+    <div class="st-pane" data-pane="keys" hidden>
+      <div class="klist" data-r="klist"></div>
+      <div class="kmsg" data-r="kmsg" aria-live="polite"></div>
+      <button class="btn" data-r="kreset">Về mặc định</button>
+    </div>
     <button class="btn big" data-r="close">Xong</button></div>`;
   const ST = refs(settings);
   const QL = [['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']];
@@ -1027,31 +1203,114 @@ export function makeUI(G) {
   };
   ST.vol.onchange = ST.mus.onchange = () => G.meta.save();
   ST.close.onclick = () => settings.classList.remove('on');
-  M.bSet.onclick = () => { renderSettings(); settings.classList.add('on'); };
+  M.bSet.onclick = () => { renderSettings(); settings.querySelector('[data-st="keys"]').hidden = isTouch(); setSettingsTab('gen'); settings.classList.add('on'); };
+
+  /* ---- key binding tab ---- */
+  let kTab = 'gen', cap = null, conflict = null, lastBound = '', lastBoundAt = 0;
+  const actLabel = (id) => (K.ACTIONS.find((a) => a.id === id) || {}).label || id;
+  function setSettingsTab(t) {
+    kTab = t === 'keys' && !isTouch() ? 'keys' : 'gen';
+    settings.querySelectorAll('[data-st]').forEach((b) => b.classList.toggle('on', b.dataset.st === kTab));
+    settings.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== kTab; });
+    ST.box.classList.toggle('wide', kTab === 'keys');
+    if (kTab === 'keys') renderKeys(); else endCapture();
+  }
+  function renderKeys(focus) {
+    const b = K.getBindings();
+    ST.klist.innerHTML = K.ACTIONS.map((a) => `<div class="kr"><span class="kr-n">${a.label}</span><span class="kr-k">${b[a.id].map((c, i) => {
+      const on = cap && cap.id === a.id && cap.slot === i;
+      return `<button class="kcap${on ? ' on' : ''}" data-act="${a.id}" data-slot="${i}" aria-label="${a.label}: ${esc(K.codeName(c))}">${on ? 'Bấm phím mới…' : esc(K.codeName(c))}</button>`;
+    }).join('')}</span></div>`).join('');
+    if (conflict) {
+      ST.kmsg.className = 'kmsg ask';
+      ST.kmsg.innerHTML = `<span>Phím <b>${esc(K.codeName(conflict.code))}</b> đang dùng cho <b>${esc(actLabel(conflict.other))}</b>. Hoán đổi hai phím?</span><button class="btn" data-r="kswap">Hoán đổi</button><button class="btn" data-r="kcancel">Hủy</button>`;
+      ST.kmsg.querySelector('[data-r="kswap"]').focus();
+    } else {
+      ST.kmsg.className = 'kmsg';
+      ST.kmsg.textContent = cap ? `Bấm phím mới cho «${actLabel(cap.id)}». Esc để hủy.` : 'Chọn một ô rồi bấm phím mới. Chuột phải và chuột giữa cũng được; chuột trái: bấm lại vào ô đang chờ.';
+    }
+    if (focus) { const n = ST.klist.querySelector(`[data-act="${focus.id}"][data-slot="${focus.slot}"]`); if (n) n.focus(); }
+  }
+  function endCapture(refocus) {
+    const was = cap;
+    cap = null; conflict = null;
+    if (kTab === 'keys') renderKeys(refocus && was);
+  }
+  function doBind(code, swap) {
+    const r = K.bind(cap.id, code, cap.slot, swap ? { swap: true } : undefined);
+    if (r.ok) { lastBound = code; lastBoundAt = Date.now(); endCapture(true); return; }
+    if (r.conflict) { conflict = { code, other: r.conflict }; renderKeys(); return; }
+    toast('Không dùng được phím này cho hành động này');
+  }
+  ST.klist.addEventListener('click', (e) => {
+    const b = e.target.closest('.kcap');
+    if (!b) return;
+    const id = b.dataset.act, slot = +b.dataset.slot;
+    // A second click on the waiting cell is the only way to pick the left mouse button without every stray click binding it.
+    if (cap && !conflict && cap.id === id && cap.slot === slot) { doBind('Mouse0'); return; }
+    cap = { id, slot }; conflict = null;
+    renderKeys({ id, slot });
+  });
+  ST.kmsg.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.r === 'kswap') doBind(conflict.code, true); else endCapture(true);
+  });
+  ST.kreset.onclick = () => { endCapture(); K.resetBindings(); toast('Đã về phím mặc định'); renderKeys(); };
+  settings.querySelectorAll('[data-st]').forEach((b) => { b.onclick = () => setSettingsTab(b.dataset.st); });
+  window.addEventListener('keydown', (e) => {
+    if (!cap) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (e.repeat) return;
+    if (e.code === 'Escape') { endCapture(true); return; }
+    if (conflict) { if (e.code === 'Enter') doBind(conflict.code, true); return; }
+    doBind(e.code);
+  }, true);
+  window.addEventListener('keyup', (e) => {
+    if (e.code === lastBound && Date.now() - lastBoundAt < 700) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  settings.addEventListener('pointerdown', (e) => {
+    if (!cap || conflict || e.button === 0) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    doBind('Mouse' + e.button);
+  }, true);
+  settings.addEventListener('contextmenu', (e) => { if (cap) e.preventDefault(); });
 
   const help = el('div', 'modal');
   help.dataset.block = '';
-  const kc = (t) => `<kbd>${t}</kbd>`;
+  const kc = (t) => `<kbd>${esc(t)}</kbd>`;
   help.innerHTML = `<div class="modal-box wide"><div class="hazard"></div><h2>Cách chơi</h2>
-    <p class="lead">Hai đội năm cơ giáp. Đội nào hạ gục đủ điểm mục tiêu trước, hoặc dẫn điểm khi hết giờ, sẽ thắng.</p>
-    <div class="help-cols">
+    <p class="lead">Hai đội năm cơ giáp. Đội nào hạ gục đủ điểm mục tiêu trước, hoặc dẫn điểm khi hết giờ, sẽ thắng. Ở chế độ Thủ nhà, hạ hai trụ phụ rồi phá trụ chính của địch.</p>
+    <div class="help-cols" data-r="cols"></div><button class="btn big" data-r="close">Đã hiểu</button></div>`;
+  const HP = refs(help);
+  function renderHelp() {
+    const L = K.labelFor;
+    HP.cols.innerHTML = `
       <div><h4>Máy tính</h4><ul>
-        <li><span>${kc('W')}${kc('A')}${kc('S')}${kc('D')}</span>Di chuyển</li>
+        <li><span>${['up', 'left', 'down', 'right'].map((a) => kc(L(a))).join('')}</span>Di chuyển</li>
         <li><span>${kc('Chuột')}</span>Ngắm theo con trỏ</li>
-        <li><span>${kc('Chuột trái')}</span>Bắn</li>
-        <li><span>${kc('Q')}${kc('E')}${kc('SPACE')}</span>Chiêu 1, chiêu 2, tuyệt kỹ</li>
-        <li><span>${kc('F')}</span>Dùng bình máu</li>
-        <li><span>${kc('Esc')}</span>Tạm dừng</li></ul></div>
+        <li><span>${kc(L('fire'))}</span>Bắn</li>
+        <li><span>${kc(L('s1'))}${kc(L('s2'))}${kc(L('ult'))}</span>Chiêu 1, chiêu 2, tuyệt kỹ</li>
+        <li><span>${kc(L('heal'))}</span>Dùng bình máu</li>
+        <li><span>${kc(L('score'))}</span>Giữ để xem bảng điểm</li>
+        <li><span>${kc(L('pause'))}</span>Tạm dừng</li></ul>
+        <p class="hint">Đổi phím trong Cài đặt, tab Phím.</p></div>
       <div><h4>Cảm ứng</h4><ul>
         <li><span>Cần trái</span>Chạm nửa trái màn hình để đi</li>
         <li><span>Cần phải</span>Kéo để ngắm, kéo xa là tự bắn</li>
         <li><span>Nút tròn</span>Chiêu 1, chiêu 2, tuyệt kỹ, bình máu</li></ul>
-        <h4>Mẹo</h4><ul class="tips"><li>Núp trong bụi cỏ để tàng hình trước địch.</li><li>Nhặt hòm tiếp tế rơi giữa sân để tăng sức mạnh.</li></ul></div>
-    </div><button class="btn big" data-r="close">Đã hiểu</button></div>`;
-  const HP = refs(help);
+        <h4>Mẹo</h4><ul class="tips"><li>Núp trong bụi cỏ để tàng hình trước địch.</li><li>Nhặt hòm tiếp tế rơi giữa sân để tăng sức mạnh.</li><li>Trụ chính chỉ bị thương khi hai trụ phụ của đội đó đã đổ.</li></ul></div>`;
+  }
   HP.close.onclick = () => help.classList.remove('on');
-  M.bHelp.onclick = () => help.classList.add('on');
-  function closeModals() { settings.classList.remove('on'); help.classList.remove('on'); confirmEl.classList.remove('on'); confirmFn = null; }
+  M.bHelp.onclick = () => { renderHelp(); help.classList.add('on'); };
+  // A rebind shows up everywhere a key is printed, at once.
+  K.onChange(() => {
+    for (const d of SLOT_DEFS) setText(slotEls[d.k].kbd, K.labelFor(d.k));
+    if (menu.classList.contains('on')) renderDetail();
+    if (help.classList.contains('on')) renderHelp();
+    if (paused) PA.hint.textContent = PA.hint.textContent.replace(/Nhấn .+? để/, `Nhấn ${K.labelFor('pause')} để`);
+  });
+  function closeModals() { endCapture(); settings.classList.remove('on'); help.classList.remove('on'); confirmEl.classList.remove('on'); confirmFn = null; }
   root.append(settings, help, confirmEl);
 
   /* ================= result ================= */
@@ -1154,8 +1413,31 @@ export function makeUI(G) {
         base: win ? 'Hạ Cự Thần' : 'Tham chiến',
       };
     },
+    // The summary carries no tower data, so the verdict and final tower HP come from the finished match.
+    nha(summary, x) {
+      const mt = x.mt, base = RESULT.teams(summary, x), tw = (G.match && G.match.towers) || [];
+      const mine = (team) => tw.filter((t) => t.team === team);
+      const hp = (team) => mine(team).reduce((a, t) => a + (t.alive ? t.hp : 0), 0);
+      const fallen = tw.find((t) => t.kind === 'main' && !t.alive);
+      const outcome = base.outcome;
+      let title, sub;
+      if (fallen) {
+        title = fallen.team !== mt ? 'ĐÃ PHÁ TRỤ CHÍNH' : 'NHÀ ĐÃ SẬP';
+        sub = fallen.team !== mt ? 'Trụ chính của địch đã đổ' : 'Trụ chính nhà mình đã đổ';
+      } else {
+        title = { win: 'Thắng khi hết giờ', lose: 'Thua khi hết giờ', draw: 'Hòa khi hết giờ' }[outcome];
+        sub = { win: 'Trụ nhà còn nhiều máu hơn địch', lose: 'Trụ địch còn nhiều máu hơn nhà mình', draw: 'Hai bên còn lượng máu trụ bằng nhau' }[outcome];
+      }
+      const group = (team) => `<div class="rtw t${team}"><b>${teamName(team)}</b><em>${fmtN(hp(team))}</em>${mine(team).slice().sort((a, b) => (a.kind === 'main') - (b.kind === 'main')).map((t) => `<span class="rt${t.alive ? '' : ' dead'}${t.kind === 'main' ? ' main' : ''}" style="--hp:${Math.round(clamp01(t.alive ? t.hp / t.maxHp : 0) * 100)}%"><small>${t.kind === 'main' ? 'Chính' : 'Phụ'}</small><i></i><b>${t.alive ? fmtN(t.hp) : 'Đã đổ'}</b></span>`).join('')}</div>`;
+      return {
+        outcome, title, sub,
+        score: `<b class="t${mt}">${summary.score[mt]}</b><span>:</span><b class="t${1 - mt}">${summary.score[1 - mt]}</b><small>trụ đã hạ · ${mmss(summary.time)}</small>`,
+        body: (tw.length ? `<div class="rs-tw">${group(mt)}${group(1 - mt)}</div>` : '') + base.body,
+        base: { win: 'Chiến thắng', draw: 'Hòa', lose: 'Tham chiến' }[outcome],
+      };
+    },
   };
-  const RESULT_OF = { tdm: 'teams', chiem: 'teams', tudo: 'tudo', trum: 'trum' };
+  const RESULT_OF = { tdm: 'teams', chiem: 'teams', tudo: 'tudo', trum: 'trum', nha: 'nha' };
 
   function showResult(summary, rewards) {
     hideHUD(); hideMenu(); hidePause();
@@ -1182,7 +1464,7 @@ export function makeUI(G) {
         <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : '<button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
       </div>`;
     const R = refs(result);
-    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey)); G.bus.emit('ui:play', choice); };
+    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme)); G.bus.emit('ui:play', choice); };
     R.lobby.onclick = () => G.bus.emit('ui:menu');
     if (rw) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };
@@ -1238,7 +1520,7 @@ export function makeUI(G) {
   const myName = () => { const d = meta(); return (d && d.name) || 'Phi công'; };
   const setEntryErr = (t) => { OE.err.textContent = t || ''; OE.err.hidden = !t; };
   const modeName = (k) => (MODES[k] ? MODES[k].name : '');
-  const mapName = (k) => (MAPS[k] ? MAPS[k].name : '');
+  const mapName = (k) => (k === 'random' ? 'Ngẫu nhiên' : MAPS[k] ? MAPS[k].name : '');
 
   function commitName() {
     const d = meta();
@@ -1362,13 +1644,14 @@ export function makeUI(G) {
     if (!host) {
       const mp = MAPS[L.map];
       return `<div class="kv"><span>Chế độ</span><b>${esc(modeName(L.mode))}</b></div><p class="mode-bl">${esc((MODES[L.mode] || {}).blurb || '')}</p>
-        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>
+        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>
         <p class="hint">Chỉ chủ phòng đổi được thiết lập.</p>`;
     }
     return `<h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
       <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
       <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
-      <h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}</div>`;
+      <h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
+      <h3>Môi trường</h3><div class="themes">${themeTiles(validTheme(L.theme) ? L.theme : null, 'data-k').replace(/<button class="th/g, '<button data-a="theme" class="th')}</div>`;
   }
 
   function renderLobby() {
@@ -1444,6 +1727,7 @@ export function makeUI(G) {
       case 'swap': if (o.swapTeam(b.dataset.pid) === false) lobbyMsg = o.error; break;
       case 'mode': if (o.setRoom({ mode: k }) === false) lobbyMsg = o.error; break;
       case 'map': o.setRoom({ map: k }); break;
+      case 'theme': o.setRoom({ theme: k === 'layout' ? null : k }); break;
       case 'diff': o.setRoom({ diff: k }); break;
       case 'start': if (o.start() === false) { lobbyMsg = o.error; shake(b); } break;
       default:

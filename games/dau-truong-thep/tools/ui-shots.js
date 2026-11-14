@@ -101,7 +101,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
           };
         });
         check(T('menu') + ': title, 8 cards with portraits, 4 skill rows, 4 stat bars', r.title === 'Đấu Trường Thép' && r.cards.length === 8 && r.cards.every((x) => x === 'data:image') && r.skills === 4 && r.bars === 4 && r.roleSvg === 8, JSON.stringify(r));
-        check(T('menu') + ': difficulty, map, player name, play button filled', r.diff === 3 && r.map >= 1 && r.name && r.play === 'Vào trận' && r.desc > 10, JSON.stringify(r));
+        check(T('menu') + ': difficulty, map, player name, play button filled', r.diff === 3 && r.map === 5 && r.name && r.play === 'Vào trận' && r.desc > 10, JSON.stringify(r));
         check(T('menu') + ': 4 locked mechs show lock and price', r.lock === 4);
         if (ctxName === 'desktop') check(T('menu') + ': all 8 cards fit without scrolling at 1280x720', r.inside && !r.scrolls, JSON.stringify(r));
         else check(T('menu') + ': phone roster either fits or scrolls (reachability checked below)', true);
@@ -234,7 +234,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         });
         check(T('hud') + ': score, clock, 10 portrait cards, some dead', /^\d+$/.test(r.k0) && /^\d:\d\d$/.test(r.clock) && r.cards === 10 && r.dead >= 1, JSON.stringify(r));
         check(T('hud') + ': minimap painted', r.mmLit > 300, 'lit ' + r.mmLit);
-        check(T('hud') + ': 5 skill slots with icons and key hints', r.slots.length === 5 && r.slots.every(Boolean) && r.keys === 'Chuột,Q,E,SPACE,F', r.keys);
+        check(T('hud') + ': 5 skill slots with icons and key hints', r.slots.length === 5 && r.slots.every(Boolean) && r.keys === 'Chuột trái,Q,E,Cách,F', r.keys);
         check(T('hud') + ': hp text, nameplates incl. own, buff chips', /\d+ \/ \d+/.test(r.hp) && r.nps >= 2 && r.self === 1 && r.chips >= 3, JSON.stringify(r));
         check(T('hud') + ': a kill reported to the HUD shows in the kill feed', r.feed >= 1, 'feed ' + r.feed);
         check(T('hud') + ': mission line text', /chạm 25 điểm/.test(r.mission), r.mission);
@@ -333,7 +333,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         });
         check(T('menu-modes') + ': mode picker lists every mode of MODE_ORDER with its Vietnamese name', r.modes.join() === MODE_ORDER.map((k) => k + ':' + MODES[k].name).join(), r.modes.join());
         check(T('menu-modes') + ': saved mode (trum) is preselected and its blurb is shown', r.on === 'trum' && r.blurb === 'Năm người hợp sức hạ Cự Thần trước khi dùng hết 12 mạng.', JSON.stringify(r));
-        check(T('menu-modes') + ': map picker shows 4 maps with theme swatch, name and hazard in words', r.maps.join('\n') === 'denrung|jungle|Đền Rừng|Không có bẫy\nxuongcat|desert|Xưởng Cát|Họng lửa phụt\ncangbang|ice|Cảng Băng|Băng trơn trượt\nmienglua|lava|Miệng Lửa|Hồ dung nham' && r.swIcons === 4 && r.blurbs.length === 4, r.maps.join(' ; '));
+        check(T('menu-modes') + ': map picker shows 4 layouts + Ngẫu nhiên with swatch, name and hazard in words', r.maps.join('\n') === 'denrung|jungle|Đền Rừng|Không có bẫy\nxuongcat|desert|Xưởng Cát|Họng lửa phụt\ncangbang|ice|Cảng Băng|Băng trơn trượt\nmienglua|lava|Miệng Lửa|Hồ dung nham\nrandom|rnd|Ngẫu nhiên|Bố cục bốc thăm mỗi trận' && r.swIcons === 15 && r.blurbs.length === 5, r.maps.join(' ; '));
         check(T('menu-modes') + ': saved map (mienglua) preselected, play button inside the viewport, difficulty still 3 buttons', r.mapOn === 'mienglua' && r.playIn && r.segs === 3, JSON.stringify(r));
       });
       await page.click('#ui .mode[data-mode="chiem"]');
@@ -474,6 +474,303 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         await ctx.close();
       }
 
+      // ----- keys: bindings API, Phím tab, HUD hints, scoreboard (a desktop-input context at both sizes: touch hides every key hint)
+      const KEYS = '/games/dau-truong-thep/js/keys.js';
+      const DEF = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], fire: ['Mouse0'], s1: ['KeyQ'], s2: ['KeyE'], ult: ['Space'], heal: ['KeyF'], score: ['Tab'], pause: ['Escape'] };
+      const getB = (pg) => pg.evaluate(async (u) => (await import(u)).getBindings(), KEYS);
+      const sampleOf = (pg) => pg.evaluate(() => { const i = __G.input.sample(__G.match.units[0]); return { s1: i.s1, s2: i.s2, fire: i.fire, ult: i.ult, heal: i.heal, mx: i.mx, mz: i.mz }; });
+      const ACTION_IDS = Object.keys(DEF);
+      if (ctxName === 'desktop') {
+        ({ ctx, page, errs } = await open(browser, T('keys-api'), vp, false, 'screen=hud&manual=1&auto=0&mech=soi&freeze=1&warp=5'));
+        let r = await page.evaluate(async (u) => { const K = await import(u); return { b: K.getBindings(), l: ['up', 's1', 'fire', 'ult', 'heal', 'score', 'pause'].map(K.labelFor), n: K.ACTIONS.length }; }, KEYS);
+        check('keys: defaults are WASD+arrows, Mouse0 fire, Q/E/Space/F, Tab scoreboard, Esc pause; labels in Vietnamese', JSON.stringify(r.b) === JSON.stringify(DEF) && r.l.join() === 'W,Q,Chuột trái,Cách,F,Tab,Esc' && r.n === 11, JSON.stringify(r));
+        r = await page.evaluate(async (u) => (await import(u)).bind('s1', 'KeyR'), KEYS);
+        check('keys: bind(s1, KeyR) -> { ok: true, conflict: null }', r.ok === true && r.conflict === null, JSON.stringify(r));
+        await page.keyboard.down('KeyR');
+        const withR = await sampleOf(page);
+        await page.keyboard.up('KeyR'); await page.keyboard.down('KeyQ');
+        const withQ = await sampleOf(page);
+        await page.keyboard.up('KeyQ');
+        check('keys: after rebinding skill 1 to KeyR, KeyR triggers s1 and KeyQ no longer does', withR.s1 === true && withQ.s1 === false && withR.s2 === false, JSON.stringify([withR, withQ]));
+        r = await page.evaluate(async (u) => { const K = await import(u); return { r: K.bind('fire', 'KeyR'), fire: K.getBindings().fire, s1: K.getBindings().s1 }; }, KEYS);
+        check('keys: binding fire to a key s1 uses reports conflict "s1" and changes nothing', r.r.ok === false && r.r.conflict === 's1' && r.fire.join() === 'Mouse0' && r.s1.join() === 'KeyR', JSON.stringify(r));
+        r = await page.evaluate(async (u) => { const K = await import(u); const x = K.bind('fire', 'KeyR', 0, { swap: true }); return { x, b: K.getBindings() }; }, KEYS);
+        check('keys: swapping leaves both actions bound: fire = KeyR, s1 = Mouse0', r.x.ok && r.b.fire.join() === 'KeyR' && r.b.s1.join() === 'Mouse0' && ACTION_IDS.every((id) => r.b[id].length > 0 && r.b[id].every(Boolean)), JSON.stringify(r.b));
+        await page.mouse.move(600, 300); await page.mouse.down();
+        const m1 = await sampleOf(page);
+        await page.mouse.up(); await page.keyboard.down('KeyR');
+        const m2 = await sampleOf(page);
+        await page.keyboard.up('KeyR');
+        check('keys: after the swap the mouse button casts skill 1 and KeyR fires', m1.s1 === true && m1.fire === false && m2.fire === true && m2.s1 === false, JSON.stringify([m1, m2]));
+        r = await page.evaluate(async (u) => { const K = await import(u); K.resetBindings(); return K.getBindings(); }, KEYS);
+        check('keys: resetBindings restores every default', JSON.stringify(r) === JSON.stringify(DEF), JSON.stringify(r));
+        r = await page.evaluate(async (u) => { const K = await import(u); return { a: K.bind('s2', 'Mouse1'), b: K.bind('up', 'Mouse1'), c: K.bind('pause', 'Mouse2'), s2: K.getBindings().s2, up: K.getBindings().up }; }, KEYS);
+        check('keys: a mouse button binds to skills but never to movement or pause', r.a.ok && !r.b.ok && !r.c.ok && r.s2.join() === 'Mouse1' && r.up.join() === 'KeyW,ArrowUp', JSON.stringify(r));
+        await page.evaluate(async (u) => { const K = await import(u); K.resetBindings(); K.bind('s2', 'KeyT'); K.bind('up', 'KeyI', 0); }, KEYS);
+        await page.reload(); await page.waitForFunction(() => window.__ready === true);
+        r = await getB(page);
+        check('keys: bindings survive a reload (localStorage dtt.keys.v1)', r.s2.join() === 'KeyT' && r.up.join() === 'KeyI,ArrowUp' && r.s1.join() === 'KeyQ' && (await page.evaluate(() => JSON.parse(localStorage.getItem('dtt.keys.v1')).v)) === 1, JSON.stringify(r));
+        const garbage = [
+          ['not json', '{{{ nope', DEF],
+          ['wrong shape', '{"v":1,"b":{"s1":5,"fire":["KeyZ"],"up":["KeyI","Mouse1"]}}', { ...DEF, fire: ['KeyZ'], up: ['KeyI', 'ArrowUp'] }],
+          ['key taken by an earlier action', '{"v":1,"b":{"s2":["KeyQ"]}}', DEF],
+          ['unknown version', '{"v":7,"b":{"s1":["KeyR"]}}', DEF],
+        ];
+        for (const [what, raw, want] of garbage) {
+          await page.evaluate((x) => localStorage.setItem('dtt.keys.v1', x), raw);
+          await page.reload(); await page.waitForFunction(() => window.__ready === true);
+          r = await getB(page);
+          check(`keys: garbage in dtt.keys.v1 (${what}) falls back slot by slot to defaults`, JSON.stringify(r) === JSON.stringify(want), JSON.stringify(r));
+        }
+        check('keys: no console errors in the API runs', errs.length === 0 && (await page.evaluate(() => window.__errors.length)) === 0, errs.join('|'));
+        await ctx.close();
+      }
+
+      // Phím tab: idle, capturing, conflict prompt, swap, cancel, keyboard only, reset
+      ({ ctx, page, errs } = await open(browser, T('keys-tab'), vp, false, 'screen=menu&fresh=1'));
+      await page.click('#ui [data-r="bSet"]');
+      await page.click('#ui [data-st="keys"]');
+      await shot(page, errs, T('keys-idle'), async () => {
+        const r = await page.evaluate(() => ({
+          rows: document.querySelectorAll('#ui .kr').length, caps: [...document.querySelectorAll('#ui .kcap')].map((b) => b.textContent),
+          names: [...document.querySelectorAll('#ui .kr-n')].map((n) => n.textContent), reset: !!document.querySelector('#ui [data-r="kreset"]'),
+          on: document.querySelector('#ui .modal.on h2').textContent,
+        }));
+        check(T('keys-idle') + ': Phím tab lists 11 actions with their keys in Vietnamese and a "Về mặc định" button',
+          r.on === 'Cài đặt' && r.rows === 11 && r.caps.join() === 'W,↑,S,↓,A,←,D,→,Chuột trái,Q,E,Cách,F,Tab,Esc' && r.names[0] === 'Đi lên' && r.names.includes('Bảng điểm (giữ)') && r.reset, JSON.stringify(r));
+      }, 300);
+      await page.click('#ui .kcap[data-act="s1"][data-slot="0"]');
+      await shot(page, errs, T('keys-capture'), async () => {
+        const r = await page.evaluate(() => ({ on: [...document.querySelectorAll('#ui .kcap.on')].map((b) => b.textContent), msg: document.querySelector('#ui [data-r="kmsg"]').textContent }));
+        check(T('keys-capture') + ': clicking a key waits with "Bấm phím mới…" and names the action', r.on.join() === 'Bấm phím mới…' && /Chiêu 1/.test(r.msg) && /Esc/.test(r.msg), JSON.stringify(r));
+      }, 250);
+      await page.keyboard.press('KeyR');
+      let kb = await page.evaluate(async (u) => ({ b: (await import(u)).getBindings().s1, cap: document.querySelector('#ui .kcap[data-act="s1"]').textContent, still: document.querySelectorAll('#ui .kcap.on').length }), KEYS);
+      check(T('keys') + ': pressing KeyR in capture binds it to Chiêu 1 and the cell reads "R"', kb.b.join() === 'KeyR' && kb.cap === 'R' && kb.still === 0, JSON.stringify(kb));
+      await page.click('#ui .kcap[data-act="fire"][data-slot="0"]');
+      await page.keyboard.press('KeyR');
+      await shot(page, errs, T('keys-conflict'), async () => {
+        const r = await page.evaluate(async (u) => ({ msg: document.querySelector('#ui [data-r="kmsg"]').textContent, btns: [...document.querySelectorAll('#ui [data-r="kmsg"] button')].map((b) => b.textContent), fire: (await import(u)).getBindings().fire }), KEYS);
+        check(T('keys-conflict') + ': a used key asks "Hoán đổi" or "Hủy", naming the key and the owner, nothing changed yet', /Phím R đang dùng cho Chiêu 1/.test(r.msg) && r.btns.join() === 'Hoán đổi,Hủy' && r.fire.join() === 'Mouse0', JSON.stringify(r));
+      }, 250);
+      await page.click('#ui [data-r="kswap"]');
+      kb = await page.evaluate(async (u) => ({ b: (await import(u)).getBindings(), caps: Object.fromEntries([...document.querySelectorAll('#ui .kcap')].map((b) => [b.dataset.act + b.dataset.slot, b.textContent])) }), KEYS);
+      check(T('keys') + ': Hoán đổi gives fire KeyR and Chiêu 1 the left mouse button, both still shown', kb.b.fire.join() === 'KeyR' && kb.b.s1.join() === 'Mouse0' && kb.caps.fire0 === 'R' && kb.caps.s10 === 'Chuột trái', JSON.stringify(kb));
+      await page.click('#ui .kcap[data-act="s2"][data-slot="0"]');
+      await page.keyboard.press('Escape');
+      kb = await page.evaluate(async (u) => ({ s2: (await import(u)).getBindings().s2, on: document.querySelectorAll('#ui .kcap.on').length, modal: !!document.querySelector('#ui .modal.on'), paused: __G.ui.paused }), KEYS);
+      check(T('keys') + ': Esc cancels the capture, keeps E, leaves the dialog open', kb.s2.join() === 'KeyE' && kb.on === 0 && kb.modal && kb.paused === false, JSON.stringify(kb));
+      await page.click('#ui .kcap[data-act="s2"][data-slot="0"]');
+      await page.keyboard.press('KeyR');
+      await page.keyboard.press('Escape');
+      kb = await page.evaluate(async (u) => ({ b: (await import(u)).getBindings(), msg: document.querySelectorAll('#ui [data-r="kmsg"] button').length }), KEYS);
+      check(T('keys') + ': Esc on the conflict prompt cancels the swap', kb.b.s2.join() === 'KeyE' && kb.b.fire.join() === 'KeyR' && kb.msg === 0, JSON.stringify(kb));
+      await page.focus('#ui .kcap[data-act="heal"][data-slot="0"]');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('KeyY');
+      kb = await page.evaluate(async (u) => ({ heal: (await import(u)).getBindings().heal, act: document.activeElement && document.activeElement.dataset.act }), KEYS);
+      check(T('keys') + ': keyboard only: Enter on a cell, then a key; focus returns to that cell', kb.heal.join() === 'KeyY' && kb.act === 'heal', JSON.stringify(kb));
+      await page.focus('#ui .kcap[data-act="up"][data-slot="1"]');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('KeyJ');
+      kb = await page.evaluate(async (u) => (await import(u)).getBindings().up, KEYS);
+      check(T('keys') + ': the second movement slot rebinds on its own, WASD slot untouched', kb.join() === 'KeyW,KeyJ', kb.join());
+      await page.click('#ui .kcap[data-act="ult"][data-slot="0"]');
+      // The waiting cell pulses, which Playwright reads as "not stable" forever; a person can click it, so skip that wait.
+      await page.click('#ui .kcap[data-act="ult"][data-slot="0"]', { force: true });
+      kb = await page.evaluate(async (u) => (await import(u)).getBindings(), KEYS);
+      check(T('keys') + ': a second click on the waiting cell picks the left mouse button, which fire/s1 already own: conflict, nothing lost', kb.ult.join() === 'Space' && kb.s1.join() === 'Mouse0' && (await page.evaluate(() => document.querySelector('#ui [data-r="kmsg"]').textContent)).includes('Chuột trái'), JSON.stringify(kb));
+      await page.click('#ui [data-r="kcancel"]');
+      // help and the garage kit show the bound keys at once
+      await page.click('#ui .modal.on [data-r="close"]');
+      const kit = await page.evaluate(() => [...document.querySelectorAll('#ui .detail .sk-ic kbd')].map((k) => k.textContent).join());
+      check(T('keys') + ': the garage skill rows show bound keys (fire R, Chiêu 1 Chuột trái, Chiêu 2 E, ult Cách)', kit === 'R,Chuột trái,E,Cách', kit);
+      await page.click('#ui [data-r="bHelp"]');
+      const help = await page.evaluate(() => [...document.querySelectorAll('#ui .help-cols kbd')].map((k) => k.textContent).join());
+      check(T('keys') + ': "Cách chơi" lists the bound keys', help === 'W,A,S,D,Chuột,R,Chuột trái,E,Cách,Y,Tab,Esc', help);
+      await page.click('#ui .modal.on [data-r="close"]');
+      await page.click('#ui [data-r="bSet"]'); await page.click('#ui [data-st="keys"]');
+      await page.click('#ui [data-r="kreset"]');
+      kb = await getB(page);
+      check(T('keys') + ': "Về mặc định" restores the table', JSON.stringify(kb) === JSON.stringify(DEF), JSON.stringify(kb));
+      await ctx.close();
+
+      // HUD after a rebind: slot labels equal labelFor, pause hint and the pause key follow
+      ({ ctx, page, errs } = await open(browser, T('hud-rebound'), vp, false, 'screen=hud&fresh=1&freeze=1&warp=60&mech=soi'));
+      await page.evaluate(async (u) => { const K = await import(u); K.bind('s1', 'KeyR'); K.bind('ult', 'KeyV'); K.bind('fire', 'Mouse2'); K.bind('pause', 'KeyP'); }, KEYS);
+      await shot(page, errs, T('hud-rebound'), async () => {
+        const r = await page.evaluate(async (u) => { const K = await import(u); return { dom: [...document.querySelectorAll('#ui .slot kbd')].map((k) => k.textContent), lab: ['fire', 's1', 's2', 'ult', 'heal'].map(K.labelFor) }; }, KEYS);
+        check(T('hud-rebound') + ': slot labels equal labelFor and show the new keys (Chuột phải, R, E, V, F)', r.dom.join() === r.lab.join() && r.dom.join() === 'Chuột phải,R,E,V,F', JSON.stringify(r));
+      }, 400);
+      await page.evaluate(() => __G.ui.showPause());
+      const ph = await page.evaluate(() => document.querySelector('#ui .pause [data-r="hint"]').textContent);
+      check(T('hud-rebound') + ': pause hint names the bound key', ph === 'Nhấn P để tiếp tục', ph);
+      await page.evaluate(() => __G.ui.hidePause());
+      await page.keyboard.press('KeyP');
+      const p1 = await page.evaluate(() => __G.ui.paused);
+      await page.keyboard.press('Escape');
+      const p2 = await page.evaluate(() => __G.ui.paused);
+      check(T('hud-rebound') + ': the rebound pause key pauses, Esc still resumes', p1 === true && p2 === false, `${p1}/${p2}`);
+      await ctx.close();
+
+      // scoreboard (hold)
+      for (const mode of ['tdm', 'nha', 'tudo']) {
+        ({ ctx, page, errs } = await open(browser, T('scoreboard-' + mode), vp, false, `screen=hud&mode=${mode}&nha=1&fresh=1&freeze=1&warp=300&mech=soi`));
+        const off0 = await page.evaluate(() => getComputedStyle(document.querySelector('#ui .sb')).display);
+        await page.keyboard.down('Tab');
+        await shot(page, errs, T('scoreboard-' + mode), async () => {
+          const r = await page.evaluate(() => ({
+            on: document.querySelector('#ui .sb').classList.contains('on'), tables: document.querySelectorAll('#ui .sb .tb').length, rows: document.querySelectorAll('#ui .sb .tb-r').length,
+            head: document.querySelector('#ui .sb .tb-h').textContent.replace(/\s+/g, ' '), top: document.querySelector('#ui .sb-h').textContent.replace(/\s+/g, ' '), me: document.querySelectorAll('#ui .sb .tb-r.me').length,
+          }));
+          const want = { tdm: [2, 10, 'Đấu đội'], nha: [2, 10, 'Thủ nhà'], tudo: [1, 10, 'Hỗn chiến'] }[mode];
+          check(T('scoreboard-' + mode) + ': holding Tab shows the overlay with ' + want[0] + ' table(s), 10 players, mode name, my row marked', r.on && r.tables === want[0] && r.rows === want[1] && r.top.includes(want[2]) && r.me === 1 && /Sát thương/.test(r.head) && (mode === 'tudo' ? /Hạ gục/.test(r.head) : /K \/ D \/ A/.test(r.head)), JSON.stringify(r));
+          if (mode === 'nha') check(T('scoreboard-nha') + ': shows both teams total tower HP', /Trụ ta [0-9.]+\s*Trụ địch [0-9.]+/.test(r.top), r.top);
+        }, 500);
+        await page.keyboard.up('Tab');
+        await page.waitForTimeout(100);
+        const on1 = await page.evaluate(() => document.querySelector('#ui .sb').classList.contains('on'));
+        check(T('scoreboard-' + mode) + ': releasing Tab hides it (hidden before: ' + off0 + ')', on1 === false && off0 === 'none');
+        if (mode === 'tdm') {
+          await page.evaluate(async (u) => (await import(u)).bind('score', 'KeyB'), KEYS);
+          await page.keyboard.down('Tab'); await page.waitForTimeout(80);
+          const tabOff = await page.evaluate(() => document.querySelector('#ui .sb').classList.contains('on'));
+          await page.keyboard.up('Tab'); await page.keyboard.down('KeyB'); await page.waitForTimeout(80);
+          const bOn = await page.evaluate(() => document.querySelector('#ui .sb').classList.contains('on'));
+          await page.keyboard.up('KeyB');
+          check(T('scoreboard') + ': the scoreboard key is rebindable (KeyB shows it, Tab no longer does)', !tabOff && bOn, `${tabOff}/${bOn}`);
+        }
+        await ctx.close();
+      }
+
+      // ----- theme picker and random arena
+      ({ ctx, page, errs } = await open(browser, T('menu-themes'), vp, touch, 'screen=menu&fresh=1'));
+      const themeNames = ['Theo bố cục', 'Rừng mưa', 'Sa mạc', 'Băng tuyết', 'Núi lửa', 'Phố đổ nát', 'Đầm đêm', 'Rừng thu', 'Hẻm đá đỏ', 'Ngẫu nhiên'];
+      const hz = () => page.evaluate(() => [...document.querySelectorAll('#ui .map')].map((b) => b.querySelector('.hz').textContent));
+      await page.click('#ui .th[data-th="lava"]');
+      await page.evaluate(() => { const o = document.querySelector('#ui .setup .opts'); o.scrollTop = o.scrollHeight; });
+      await shot(page, errs, T('menu-themes'), async () => {
+        const r = await page.evaluate(() => ({
+          tiles: [...document.querySelectorAll('#ui .th')].map((b) => b.querySelector('.th-n').textContent), on: [...document.querySelectorAll('#ui .th.on')].map((b) => b.dataset.th),
+          sw: [...document.querySelectorAll('#ui .th .sw')].every((s) => s.querySelector('svg')), maps: [...document.querySelectorAll('#ui .map')].map((b) => b.dataset.map),
+          bl: document.querySelector('#ui [data-r="themeBl"]').textContent, play: document.querySelector('#ui .play').getBoundingClientRect().bottom <= innerHeight + 1,
+        }));
+        check(T('menu-themes') + ': 10 theme tiles (Theo bố cục, 8 themes in order, Ngẫu nhiên) each with a swatch icon; the map list ends with "random"', r.tiles.join() === themeNames.join() && r.sw && r.maps.join() === 'denrung,xuongcat,cangbang,mienglua,random', JSON.stringify(r));
+        check(T('menu-themes') + ': chosen theme (lava) is the only one marked and its blurb names the hazard in words', r.on.join() === 'lava' && r.bl === 'Núi lửa: Hồ dung nham đốt cháy ai bước vào.' && r.play, JSON.stringify(r));
+      }, 300);
+      check(T('menu-themes') + ': every layout shows the hazard of lava, not its own', (await hz()).slice(0, 4).join() === Array(4).fill('Hồ dung nham').join(), (await hz()).join());
+      await page.click('#ui .th[data-th="swamp"]');
+      check(T('menu-themes') + ': swamp -> Bùn lầy chậm bước on every layout', (await hz()).slice(0, 4).join() === Array(4).fill('Bùn lầy chậm bước').join(), (await hz()).join());
+      await page.click('#ui .th[data-th="jungle"]');
+      check(T('menu-themes') + ': jungle -> Không có bẫy on every layout', (await hz()).slice(0, 4).join() === Array(4).fill('Không có bẫy').join(), (await hz()).join());
+      await page.click('#ui .th[data-th="random"]');
+      check(T('menu-themes') + ': random theme -> hazard text says it follows the arena; random layout has its own line', (await hz()).join() === Array(4).fill('Mối nguy đổi theo môi trường').concat('Bố cục bốc thăm mỗi trận').join(), (await hz()).join());
+      await page.click('#ui .th[data-th="layout"]');
+      check(T('menu-themes') + ': Theo bố cục returns each layout to its own hazard', (await hz()).join() === 'Không có bẫy,Họng lửa phụt,Băng trơn trượt,Hồ dung nham,Bố cục bốc thăm mỗi trận', (await hz()).join());
+      await page.click('#ui .play');
+      let pl = await page.evaluate(() => ({ p: window.__log.filter((l) => l[0] === 'ui:play').map((l) => l[1]), s: JSON.parse(localStorage.getItem('dtt.save.v1')) }));
+      check(T('menu-themes') + ': ui:play carries theme null for "Theo bố cục", saved as null', pl.p.length === 1 && pl.p[0].theme === null && pl.s.theme === null && pl.p[0].map === 'denrung', JSON.stringify(pl));
+      await page.evaluate(() => __G.ui.showMenu());
+      await page.click('#ui .map[data-map="random"]'); await page.click('#ui .th[data-th="ice"]');
+      await page.click('#ui .play');
+      pl = await page.evaluate(() => ({ p: window.__log.filter((l) => l[0] === 'ui:play').map((l) => l[1]).pop(), s: JSON.parse(localStorage.getItem('dtt.save.v1')), m: __G.match.map.theme, name: document.querySelector('#ui .mm-name').textContent }));
+      check(T('menu-themes') + ': ui:play carries map "random" + theme "ice"; meta saves both; the match really uses ice', pl.p.map === 'random' && pl.p.theme === 'ice' && pl.s.map === 'random' && pl.s.theme === 'ice' && pl.m === 'ice', JSON.stringify(pl));
+      check(T('menu-themes') + ': the minimap title names the layout and the theme actually used', pl.name === `${await page.evaluate(() => __G.match.map.name)} · Băng tuyết`, pl.name);
+      await page.evaluate(() => __G.ui.showMenu());
+      const back = await page.evaluate(() => ({ map: document.querySelector('#ui .map.on').dataset.map, th: document.querySelector('#ui .th.on').dataset.th }));
+      check(T('menu-themes') + ': the menu reopens on the saved random map and theme', back.map === 'random' && back.th === 'ice', JSON.stringify(back));
+      await ctx.close();
+
+      // lobby: host picks the theme, guest sees it read-only
+      ({ ctx, page, errs } = await open(browser, T('lobby-theme'), vp, touch, 'screen=lobby&role=host&fill=4&fresh=1'));
+      await page.click('#ui .lobby .th[data-k="lava"]');
+      await page.click('#ui .lobby .map[data-k="random"]');
+      await page.evaluate(() => { const o = document.querySelector('#ui .lb-set .opts'); if (o) o.scrollTop = o.scrollHeight; });
+      await shot(page, errs, T('lobby-theme'), async () => {
+        const r = await page.evaluate(() => ({ calls: __G.online.calls.filter((c) => c[0] === 'setRoom').map((c) => JSON.stringify(c[1])), L: [__G.online.lobby.theme, __G.online.lobby.map], tiles: document.querySelectorAll('#ui .lb-set .th').length, on: document.querySelector('#ui .lb-set .th.on').dataset.k, mapOn: document.querySelector('#ui .lb-set .map.on').dataset.k }));
+        check(T('lobby-theme') + ': host picker has 10 theme tiles and a random map; clicks reach online.setRoom({ theme }) and ({ map: "random" })', r.tiles === 10 && r.calls.join() === '{"theme":"lava"},{"map":"random"}' && r.L.join() === 'lava,random' && r.on === 'lava' && r.mapOn === 'random', JSON.stringify(r));
+      }, 300);
+      await page.click('#ui .lobby .th[data-k="layout"]');
+      check(T('lobby-theme') + ': Theo bố cục sends { theme: null }', await page.evaluate(() => JSON.stringify(__G.online.calls.filter((c) => c[0] === 'setRoom').pop()[1]) === '{"theme":null}' && __G.online.lobby.theme === null));
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('lobby-theme-guest'), vp, touch, 'screen=lobby&role=guest&fill=5&fresh=1'));
+      await page.evaluate(() => { __G.online.lobby.theme = 'swamp'; __G.online.lobby.map = 'random'; __G.bus.emit('net:lobby', __G.online.lobby); });
+      const gk = await page.evaluate(() => [...document.querySelectorAll('#ui .lb-set .kv')].map((k) => k.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
+      check(T('lobby-theme-guest') + ': guest sees the room theme read-only ("Đầm đêm") and the random layout', gk === 'Chế độĐấu đội | Đấu trườngNgẫu nhiên | Môi trườngĐầm đêm | Độ khó botVừa' && (await page.evaluate(() => document.querySelectorAll('#ui .lb-set .th').length)) === 0, gk);
+      await ctx.close();
+
+      // ----- nha: HUD
+      ({ ctx, page, errs } = await open(browser, T('hud-nha'), vp, touch, 'screen=hud&mode=nha&fresh=1&freeze=1&warp=60&mech=soi'));
+      const tw = {
+        info: () => page.evaluate(() => { const m = __G.match, out = {}; for (const t of m.towers) { const n = document.querySelector(`#ui .tw[data-tw="${t.id}"]`); out[t.id] = { team: t.team, kind: t.kind, state: n && n.dataset.state, hp: n && n.style.getPropertyValue('--hp'), lock: n && getComputedStyle(n.querySelector('.tw-lk')).display }; } return out; }),
+        ids: () => page.evaluate(() => ({ mySub: __G.match.towers.filter((t) => t.team === 0 && t.kind === 'sub').map((t) => t.id), foeSub: __G.match.towers.filter((t) => t.team === 1 && t.kind === 'sub').map((t) => t.id), myMain: __G.match.towers.find((t) => t.team === 0 && t.kind === 'main').id, foeMain: __G.match.towers.find((t) => t.team === 1 && t.kind === 'main').id })),
+      };
+      await page.evaluate(() => { window.__anns = []; const b = document.querySelector('#ui .ann b'); new MutationObserver(() => window.__anns.push(b.textContent)).observe(b, { childList: true, characterData: true, subtree: true }); });
+      const ID = await tw.ids();
+      await shot(page, errs, T('hud-nha'), async () => {
+        const r = await page.evaluate(() => ({
+          pips: document.querySelectorAll('#ui .tw').length, mains: document.querySelectorAll('#ui .tw.main').length, subs: document.querySelectorAll('#ui .tw.sub').length, mission: document.querySelector('#ui .mission').textContent,
+          clock: document.querySelector('#ui [data-r="clock"]').textContent, bars: document.querySelectorAll('#ui .twb').length, cols: document.querySelectorAll('#ui .pc').length, mm: document.querySelector('#ui .mm-name').textContent,
+          kills: document.querySelector('#ui [data-r="k0"]').textContent + ':' + document.querySelector('#ui [data-r="k1"]').textContent,
+        }));
+        check(T('hud-nha') + ': top bar has 3 pips per team (4 small + 2 big), clock, tower score 0:0, mission from MODES.nha, 10 portrait cards', r.pips === 6 && r.mains === 2 && r.subs === 4 && /^[78]:\d\d$/.test(r.clock) && r.kills === '0:0' && r.mission === MODES.nha.mission && r.cols === 10 && r.bars === 6, JSON.stringify(r));
+        check(T('hud-nha') + ': minimap title shows layout and theme', /^Đền Rừng · Rừng mưa$/.test(r.mm), r.mm);
+        const info = await tw.info();
+        check(T('hud-nha') + ': at the start every sub is up at 100%, both mains are locked with a visible lock', [...ID.mySub, ...ID.foeSub].every((i) => info[i].state === 'up' && info[i].hp === '100%' && info[i].lock === 'none') && [ID.myMain, ID.foeMain].every((i) => info[i].state === 'locked' && info[i].lock !== 'none' && info[i].hp === '100%'), JSON.stringify(info));
+      }, 700);
+      // forced tower state drives the pips
+      await page.evaluate((id) => { const m = __G.match; m.towers[id.mySub[0]].hp = 3500; m.towers[id.foeSub[0]].hp = 0; m.towers[id.foeSub[0]].alive = false; m.towers[id.foeMain].hp = 8250; }, ID);
+      await page.waitForTimeout(150);
+      let info = await tw.info();
+      check(T('hud-nha') + ': pips follow forced hp/alive: my sub 3500/7000 = 50%, foe sub dead, foe main still locked', info[ID.mySub[0]].hp === '50%' && info[ID.mySub[0]].state === 'up' && info[ID.foeSub[0]].state === 'down' && info[ID.foeMain].state === 'locked' && info[ID.foeMain].hp === '75%' && info[ID.foeSub[1]].state === 'up', JSON.stringify(info));
+      await page.evaluate((id) => { const m = __G.match, t = m.towers[id.foeSub[0]]; __G.ui.event({ t: 'towerDown', tower: t.id, team: 1, kind: 'sub', by: 0, x: t.x, z: t.z }); }, ID);
+      await page.waitForFunction(() => window.__anns.includes('Trụ phụ của địch đã đổ'), null, { timeout: 4000 }).catch(() => {});
+      await page.evaluate((id) => { const m = __G.match, t = m.towers[id.mySub[1]]; __G.ui.event({ t: 'towerHit', tower: t.id, by: 5, x: t.x, z: t.z, amt: 300 }); __G.ui.event({ t: 'towerHit', tower: t.id, by: 5, x: t.x, z: t.z, amt: 300 }); const f = m.towers[id.foeSub[1]]; __G.ui.event({ t: 'towerHit', tower: f.id, by: 0, x: f.x, z: f.z, amt: 212 }); }, ID);
+      await page.waitForTimeout(250);
+      const hitNow = await page.evaluate((id) => ({ pip: document.querySelector(`#ui .tw[data-tw="${id.mySub[1]}"]`).classList.contains('hit'), num: [...document.querySelectorAll('#ui .fn.dealt')].filter((n) => n.style.display !== 'none').map((n) => n.textContent).join() }), ID);
+      check(T('hud-nha') + ': my hit on a tower floats its damage (212); a hit on my sub flashes its pip', hitNow.num === '212' && hitNow.pip === true, JSON.stringify(hitNow));
+      await page.waitForFunction(() => window.__anns.includes('Trụ nhà đang bị tấn công'), null, { timeout: 5000 }).catch(() => {});
+      const anns1 = await page.evaluate(() => window.__anns.slice());
+      check(T('hud-nha') + ': announcements: "Trụ phụ của địch đã đổ" then "Trụ nhà đang bị tấn công", the second sent once for two hits', anns1.includes('Trụ phụ của địch đã đổ') && anns1.filter((x) => x === 'Trụ nhà đang bị tấn công').length === 1, anns1.join(' | '));
+      await page.waitForTimeout(600);
+      const mm1 = await page.evaluate((id) => {
+        const m = __G.match, c = document.querySelector('#ui .mm canvas'), g = c.getContext('2d'), sc = c.width / m.map.w;
+        const px = (t) => Array.from(g.getImageData(Math.round((t.x + m.map.hw) * sc), Math.round((t.z + m.map.hd) * sc), 1, 1).data.slice(0, 3));
+        return { alive: px(m.towers[id.mySub[0]]), dead: px(m.towers[id.foeSub[0]]) };
+      }, ID);
+      const near = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 60;
+      check(T('hud-nha') + ': minimap draws a live tower in its team colour and a dead one as a grey rubble mark', near(mm1.alive, [53, 184, 255]) && !near(mm1.dead, [255, 90, 54]) && !near(mm1.dead, [53, 184, 255]), JSON.stringify(mm1));
+      await shot(page, errs, T('hud-nha-sub'), null, 500);
+      // second foe sub down: the main opens
+      await page.evaluate((id) => { const m = __G.match, t = m.towers[id.foeSub[1]]; t.hp = 0; t.alive = false; __G.ui.event({ t: 'towerDown', tower: t.id, team: 1, kind: 'sub', by: 0, x: t.x, z: t.z }); }, ID);
+      await page.waitForFunction(() => window.__anns.includes('Trụ chính của địch đã mở'), null, { timeout: 8000 }).catch(() => {});
+      info = await tw.info();
+      const anns2 = await page.evaluate(() => window.__anns.slice());
+      check(T('hud-nha') + ': both foe subs down: foe main is open (lock gone) and "Trụ chính của địch đã mở" is announced', info[ID.foeMain].state === 'up' && info[ID.foeMain].lock === 'none' && info[ID.myMain].state === 'locked' && anns2.includes('Trụ chính của địch đã mở'), JSON.stringify(info[ID.foeMain]) + anns2.join(' | '));
+      await shot(page, errs, T('hud-nha-open'), null, 300);
+      await page.evaluate((id) => { const m = __G.match; m.score[0] = 2; for (const i of id.mySub) { m.towers[i].hp = 0; m.towers[i].alive = false; } }, ID);
+      await page.waitForFunction(() => window.__anns.includes('Trụ chính nhà mình đã mở, về thủ!'), null, { timeout: 9000 }).catch(() => {});
+      const anns3 = await page.evaluate(() => ({ a: window.__anns.slice(), k: document.querySelector('#ui [data-r="k0"]').textContent }));
+      check(T('hud-nha') + ': my subs down: "Trụ chính nhà mình đã mở, về thủ!" and the score bar reads 2', anns3.a.includes('Trụ chính nhà mình đã mở, về thủ!') && anns3.k === '2', JSON.stringify(anns3));
+      await ctx.close();
+
+      // ----- nha: result
+      for (const [tag, q, title, trophies, outcome] of [['win', '', 'ĐÃ PHÁ TRỤ CHÍNH', 322, 'win'], ['lose', '&lose=1', 'NHÀ ĐÃ SẬP', 288, 'lose'], ['clock', '&clock=win', 'Thắng khi hết giờ', 322, 'win']]) {
+        ({ ctx, page, errs } = await open(browser, T('result-nha-' + tag), vp, touch, `screen=result&mode=nha&fresh=1&trophies=300&warp=100${q}`));
+        await shot(page, errs, T('result-nha-' + tag), async () => {
+          const r = await page.evaluate(() => ({
+            h1: document.querySelector('#ui .rs-banner h1').textContent, banner: document.querySelector('#ui .rs-banner').className, score: document.querySelector('#ui .rs-score').textContent.replace(/\s/g, ''),
+            groups: document.querySelectorAll('#ui .rtw').length, towers: [...document.querySelectorAll('#ui .rtw')].map((g) => [...g.querySelectorAll('.rt b')].map((b) => b.textContent).join('/')),
+            tables: document.querySelectorAll('#ui .rs-tables .tb').length, rows: document.querySelectorAll('#ui .rs-tables .tb-r').length, tr: !!document.querySelector('#ui [data-r="trN"]'), trophies: __G.meta.get().trophies,
+          }));
+          const wantTowers = { win: ['2.300/Đã đổ/8.800', 'Đã đổ/Đã đổ/Đã đổ'], lose: ['Đã đổ/Đã đổ/Đã đổ', 'Đã đổ/7.000/6.200'], clock: ['3.200/7.000/9.000', '7.000/5.100/7.400'] }[tag];
+          check(T('result-nha-' + tag) + `: verdict "${title}", banner ${outcome}, cúp ${trophies}, reward block with trophies, 2 tower groups, 2 tables of 5`, r.h1 === title && r.banner.includes(outcome) && r.groups === 2 && r.tables === 2 && r.rows === 10 && r.tr && r.trophies === trophies, JSON.stringify(r));
+          check(T('result-nha-' + tag) + ': final tower HP of both teams is printed', JSON.stringify(r.towers) === JSON.stringify(wantTowers), JSON.stringify(r.towers));
+        }, 1700);
+        await ctx.close();
+      }
+
       // ----- online: entry screen (fake G.online, see ui-harness.html)
       const calls = (pg) => pg.evaluate(() => __G.online.calls.map((c) => c[0] + (c[1] && c[1].mode ? ':' + c[1].mode : '') + (c[1] && c[1].map ? ':' + c[1].map : '') + (typeof c[1] === 'string' ? ':' + c[1] : '')));
       ({ ctx, page, errs } = await open(browser, T('online'), vp, touch, 'screen=online&fresh=1&listms=1500'));
@@ -546,7 +843,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         }));
         check(T('lobby-host') + ': code K7QX2, two team columns with 5 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 10 && r.bots === 6 && r.botText === 'Bot', JSON.stringify(r));
         check(T('lobby-host') + ': one own row, one host badge, 4 portraits, 4 owned mechs with one selected, "Đổi đội" on every player', r.me === 1 && r.host === 1 && r.imgs === 'data:image,data:image,data:image,data:image' && r.mine === 4 && r.sel === 1 && r.swaps === 4, JSON.stringify(r));
-        check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 4 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
+        check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 5 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
         check(T('lobby-host') + ': entering pushes my mech, paint and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","paint":"goc","mods":{"hp":1,"dmg":1}}', r.calls.join());
       });
       await page.click('#ui .lobby [data-a="start"]');
@@ -567,7 +864,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
           start: !!document.querySelector('#ui .lobby [data-a="start"]'), ready: !!document.querySelector('#ui .lobby [data-a="ready"]'), modes: document.querySelectorAll('#ui .lb-set .mode').length, swaps: document.querySelectorAll('#ui .seat .btn.mini').length,
           kv: [...document.querySelectorAll('#ui .lb-set .kv b')].map((b) => b.textContent).join(), me: document.querySelector('#ui .seat.me .st-n > span').textContent,
         }));
-        check(T('lobby-guest') + ': guest has Sẵn sàng, read-only settings, no Bắt đầu, no per-player swap', !r.start && r.ready && r.modes === 0 && r.swaps === 0 && r.kv === 'Đấu đội,Đền Rừng,Vừa' && r.me === 'Phi công', JSON.stringify(r));
+        check(T('lobby-guest') + ': guest has Sẵn sàng, read-only settings, no Bắt đầu, no per-player swap', !r.start && r.ready && r.modes === 0 && r.swaps === 0 && r.kv === 'Đấu đội,Đền Rừng,Theo bố cục,Vừa' && r.me === 'Phi công', JSON.stringify(r));
       });
       await page.click('#ui .lobby [data-a="ready"]');
       check(T('lobby-guest') + ': Sẵn sàng toggles my ready flag (true -> false)', (await page.evaluate(() => __G.online.lobby.players[1].ready)) === false && (await page.getAttribute('#ui .lobby [data-a="ready"]', 'aria-pressed')) === 'false');
