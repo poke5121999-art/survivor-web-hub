@@ -14,7 +14,7 @@ export const RULES = {
   regenDelay: 7, regen: 0.025,
   assistWindow: 7, revealOnFire: 1.2, bushSight: 3.4,
   healItem: { cd: 24, frac: 0.38, dur: 2.2 },
-  lava: { dps: 380 }, ice: { grip: 2.2 }, vent: { period: 6, warn: 1.3, dmg: 520 },
+  lava: { dps: 380 }, ice: { grip: 2.2 }, mud: { slow: 0.4 }, vent: { period: 6, warn: 1.3, dmg: 520 },
   crate: { first: 12, every: [15, 22], fall: 3.2, max: 3, life: 40, radius: 1.5 },
 };
 
@@ -195,9 +195,13 @@ export const MODES = {
   tdm:   { name: 'Đấu đội', blurb: 'Đội nào hạ gục 25 lần trước thì thắng.', target: 25, duration: 300, mission: 'Hạ gục đối thủ, đội nào chạm {target} điểm trước sẽ thắng' },
   chiem: { name: 'Chiếm điểm', blurb: 'Giữ ba cứ điểm để tích điểm. Hạ gục không tính điểm, chỉ mở đường.', target: 200, duration: 360, mission: 'Đứng trong vòng để chiếm cứ điểm, đội nào đủ {target} điểm trước sẽ thắng',
            radius: 4.6, captureTime: 4, every: 2.5 },
+  // Two-sided base mode. The main tower cannot be hurt while a secondary tower of its team stands. Respawns get longer as the match goes on.
+  nha:   { name: 'Thủ nhà', blurb: 'Mỗi căn cứ có 2 trụ phụ và 1 trụ chính. Phá trụ chính của địch trước khi nhà mình sập.', target: 3, duration: 480, mission: 'Hạ hai trụ phụ rồi phá trụ chính của địch, đồng thời giữ trụ nhà',
+           tower: { sub: 7000, main: 11000, radius: 1.7, range: 13, dmg: 270, cd: 1.0, windup: 0.4, speed: 32, aggro: 2 }, respawn: { base: 5, perMin: 1, max: 12 } },
   tudo:  { name: 'Hỗn chiến', blurb: 'Mười cỗ máy, không đồng đội. Ai hạ gục 10 lần trước thì thắng.', target: 10, duration: 300, mission: 'Không có đồng đội: hạ gục {target} lần trước mọi người' },
   trum:  { name: 'Săn trùm', blurb: 'Năm người hợp sức hạ Cự Thần trước khi dùng hết 12 mạng.', target: 1, duration: 360, mission: 'Hạ Cự Thần trước khi cả đội dùng hết {lives} mạng', lives: 12 },
 };
+// 'nha' joins this list when its HUD ships.
 export const MODE_ORDER = ['tdm', 'chiem', 'tudo', 'trum'];
 
 // Bosses use the same row shape as MECHS and the same skill primitives. heavy: shrugs off most stuns, knockback and pulls.

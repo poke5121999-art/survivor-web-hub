@@ -18,6 +18,14 @@ const THEMES = {
     sun: [0xe8f2ff, 2.2], hemi: [0xdfeeff, 0x7d93ad, 0.8], clear: 0x0e1722, exposure: 0.85 },
   lava: { base: 'basalt', path: 'ash', lo: [0.8, 0.8, 0.8], hi: [1.25, 1.15, 1.1], pave: [0.5, 0.45, 0.45], stone: 0x6e6468, grass: 0.08, leaf: [0.9, 0.35, 0.15], fern: 0.12, broad: 0, tall: 'dead', tallRate: 0.3, bush: [1.1, 0.5, 0.3],
     sun: [0xffc9a0, 2.3], hemi: [0xffb080, 0x40201a, 0.75], clear: 0x120807, exposure: 1.05 },
+  city: { base: 'asphalt', path: 'concrete', lo: [0.8, 0.8, 0.8], hi: [1.2, 1.2, 1.2], pave: [0.75, 0.75, 0.78], stone: 0xb4b2ae, grass: 0.14, leaf: [0.8, 0.9, 0.6], fern: 0.3, broad: 0, tall: 'dead', tallRate: 0.18, bush: [0.75, 0.85, 0.6],
+    sun: [0xffb37a, 2.6], hemi: [0xb9a6d9, 0x3a3540, 0.8], clear: 0x14121a, exposure: 1.05 },
+  swamp: { base: 'grass', path: 'mud', lo: [0.3, 0.5, 0.5], hi: [0.6, 0.85, 0.7], pave: [0.5, 0.6, 0.6], stone: 0x7e9a96, grass: 1, leaf: [0.45, 0.8, 0.8], fern: 1.2, broad: 1, tall: 'palm', tallRate: 0.3, bush: [0.5, 0.9, 0.85],
+    sun: [0x9fc4ff, 1.25], hemi: [0x4a6aa8, 0x12261f, 0.6], clear: 0x050b10, exposure: 1.25, fireflies: true },
+  autumn: { base: 'grass', path: 'dirt', lo: [1.5, 0.75, 0.3], hi: [2.1, 1.25, 0.45], pave: [1.05, 0.95, 0.85], stone: 0xe6d2b4, grass: 0.8, leaf: [2.6, 1.0, 0.3], fern: 0.8, broad: 0.6, tall: 'dead', tallRate: 0.22, bush: [1.5, 0.8, 0.35],
+    sun: [0xffc27a, 3.2], hemi: [0xffd9b0, 0x6a4a2a, 0.8], clear: 0x1a1008, exposure: 0.98 },
+  canyon: { base: 'sand', path: 'track', lo: [1.15, 0.6, 0.45], hi: [1.35, 0.78, 0.55], pave: [1.1, 0.75, 0.6], stone: 0xe08a62, grass: 0.1, leaf: [1.4, 1.0, 0.5], fern: 0.15, broad: 0.1, tall: 'dead', tallRate: 0.1, bush: [1.0, 0.8, 0.45],
+    sun: [0xffd0a0, 3.4], hemi: [0xffe0c8, 0x8a4630, 0.85], clear: 0x24100a, exposure: 0.95 },
 };
 
 const MARGIN = 18;
@@ -61,7 +69,7 @@ function groundSampler(map) {
     }
     for (const c of map.rounds) dark = Math.max(dark, (1 - smooth(0, 1.2, Math.hypot(x - c.x, z - c.z) - c.r)) * 0.45);
     let scorched = path;
-    for (const h of map.hazards) if (h.kind !== 'ice') { const d = Math.hypot(x - h.x, z - h.z) - h.r; scorched = Math.max(scorched, 1 - smooth(0, 1.8, d + wob * 0.5)); dark = Math.max(dark, (1 - smooth(0, 1.2, d)) * 0.4); }
+    for (const h of map.hazards) if (h.kind === 'lava' || h.kind === 'vent') { const d = Math.hypot(x - h.x, z - h.z) - h.r; scorched = Math.max(scorched, 1 - smooth(0, 1.8, d + wob * 0.5)); dark = Math.max(dark, (1 - smooth(0, 1.2, d)) * 0.4); }
     const outside = Math.max(Math.abs(x) - map.hw, Math.abs(z) - map.hd);
     dark = Math.max(dark, smooth(-1.5, 7, outside + wob) * 0.62);
     const macro = noise(x * 0.07, z * 0.07) * 0.6 + noise(x * 0.19 + 5, z * 0.19 + 3) * 0.4;
@@ -200,6 +208,9 @@ function buildStructures(map, rng) {
     } else if (c.kind === 'spire') {
       b.use('ruin', 0x8a8088).push().move(0, 2.2, 0).rotZ(rng.range(-0.12, 0.12)).cyl(0.08, c.r * 1.5, 4.4, 5).pop();
       b.push().move(c.r * 0.8, 0.9, 0.2).rotZ(-0.3).cyl(0.05, c.r * 0.8, 1.8, 5).pop();
+    } else if (c.kind === 'lamp') {
+      b.use('metal', 0x4a4f57).push().move(0, 0.2, 0).cyl(c.r * 0.7, c.r * 0.9, 0.4, 8).pop().push().move(0, 2.2, 0).cyl(0.09, 0.12, 4.0, 8).pop().push().move(0.45, 4.15, 0).box(1.1, 0.1, 0.16).pop();
+      b.use('glow').push().move(0.85, 4.06, 0).box(0.36, 0.06, 0.2).pop();
     } else if (c.kind === 'pine') {
       b.use('wood', 0x6b5038).push().move(0, 0.7, 0).cyl(c.r * 0.6, c.r * 0.8, 1.4, 7).pop();
     } else {
@@ -399,6 +410,12 @@ export function makeWorld(G, map, tex) {
     if (h.kind === 'lava') {
       const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), lavaMat);
       m.position.set(h.x, 0.05, h.z); m.scale.setScalar(h.r * 1.08); m.renderOrder = 1; group.add(m);
+    } else if (h.kind === 'mud') {
+      const mat = tex.material('mud').clone(); mat.vertexColors = false; mat.transparent = true; mat.opacity = 0.95; mat.color.set(map.theme === 'canyon' ? 0xd9a070 : 0x8a8a70);
+      const g = new THREE.CircleGeometry(h.r, 40).rotateX(-Math.PI / 2), uv = g.attributes.uv, pp = g.attributes.position;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (pp.getX(i) + h.x) * 0.2, (pp.getZ(i) + h.z) * 0.2);
+      const m = new THREE.Mesh(g, mat);
+      m.position.set(h.x, 0.04, h.z); m.receiveShadow = true; group.add(m);
     } else if (h.kind === 'ice') {
       const mat = tex.material('frost').clone(); mat.vertexColors = false; mat.color.set(0x6fa9d6); mat.transparent = true; mat.opacity = 0.92; mat.envMapIntensity = 0.7;
       const g = new THREE.CircleGeometry(h.r, 40).rotateX(-Math.PI / 2), uv = g.attributes.uv, pp = g.attributes.position;

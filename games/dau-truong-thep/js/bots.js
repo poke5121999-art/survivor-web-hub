@@ -1,9 +1,11 @@
 // Bot AI. One call per bot per tick, pure: reads the match, keeps its memory in u.brain, draws randomness only from m.rng.
 // States: push (go toward the enemy / the lane objective), fight (hold a preferred range and shoot),
 // retreat (heal at base or a heal crate), grab (drive onto an airdrop crate).
+// Mode nha (two-sided base) adds an objective layer on top: nhaPlan() picks attack / defend / wave for each bot, nhaMove() walks it,
+// towerGuard() keeps it out of an enemy tower's range unless the group is already there. Mechs do not collide, so every bot keeps its own spacing.
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
-import { visibleTo } from './sim.js';
+import { visibleTo, towerOpen } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -36,6 +38,7 @@ function newBrain(m, u) {
   const lane = u.slot === 4 ? (m.rng() < 0.5 ? -14 : 14) : LANES[u.slot % 5];
   return {
     state: 'push', since: 0, lane, patrol: 0, goal: null,
+    born: m.time, rot: 0, idleT: 0, np: null, otId: -1, waitT: -1, twHp: {}, twHit: {}, spotT: -9, spotFor: -1, stage: [0, 0], stand: [0, 0],
     path: null, pi: 0, pathT: -9, pgx: 0, pgz: 0, forceRepath: false,
     seen: {}, tgt: -1, engageAt: 0, aim: u.aim, err: 0, errTo: 0, errNext: 0,
     strafe: 1, strafeNext: 0, dutyOn: true, dutyNext: 0,
@@ -73,11 +76,15 @@ export function botInput(m, u) {
 
   perceive(m, u, b, D, now);
   const lob = !!w.lob;
+  const np = mode === 'nha' && !isBoss ? nhaPlan(m, u, b, D, role, w, now) : null;
+  b.np = np;
   const mech = pickTarget(m, u, b, D, now, w, role);
   const enemies = b.enemies;
   // Target: an enemy mech; an enemy turret when no mech can be hit; for a lobbing weapon also a mech seen a moment ago.
+  // In nha a tower the weapon reaches is a target too (see nhaTarget).
   let tgt = mech;
-  if (!mech || !canHit(m, u, mech, w, D)) {
+  if (np) tgt = nhaTarget(m, u, b, np, mech, w, enemies, D, now);
+  else if (!mech || !canHit(m, u, mech, w, D)) {
     const tur = pickTurret(m, u, w);
     if (tur) tgt = tur;
     else if (!mech && lob) tgt = pickGhost(m, u, b, w, now);
@@ -139,6 +146,9 @@ export function botInput(m, u) {
   } else if (plan) {
     const r = chiemMove(m, u, b, D, role, plan, tgt, td, w, los, now, hpFrac, underFire, enemies, state);
     mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
+  } else if (np) {
+    const r = nhaMove(m, u, b, D, role, np, tgt, td, w, los, now, hpFrac, underFire, enemies);
+    mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
   } else if (state === 'fight') {
     const r = fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies);
     mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
@@ -172,9 +182,12 @@ export function botInput(m, u) {
     if (td < 1.6) mvx = mvz = 0; else { mvx = (unitTgt.x - u.x) / td; mvz = (unitTgt.z - u.z) / td; }
   }
 
+  // mechs pass through each other: keep my own distance from allies (grouping, lanes, standing on a point, around the boss)
+  if (!isBoss) { const sp = spacing(m, u); mvx += sp[0]; mvz += sp[1]; }
   let len = hyp(mvx, mvz);
+  if (len > 1) { mvx /= len; mvz /= len; len = 1; }
+  if (np && len > 1e-3) { const g = towerGuard(m, u, D, np, mvx, mvz); if (g) { mvx = g[0]; mvz = g[1]; len = hyp(mvx, mvz); if (len > 1) { mvx /= len; mvz /= len; len = 1; } } }
   if (len > 1e-3) {
-    if (len > 1) { mvx /= len; mvz /= len; len = 1; }
     const f = freeDir(m, u, b, mvx, mvz);
     mvx = f[0] * len; mvz = f[1] * len;
   } else mvx = mvz = 0;
@@ -193,7 +206,8 @@ export function botInput(m, u) {
   aimAng = b.aim;
 
   // skills (may snap the aim for a flick)
-  const ctx = { m, u, b, D, role, tgt: unitTgt, td: unitTgt ? td : 1e9, los: unitTgt ? los : false, enemies, hpFrac, underFire, state, w, aimPt, near, allyNear };
+  const ctx = { m, u, b, D, role, tgt: unitTgt, td: unitTgt ? td : 1e9, los: unitTgt ? los : false, enemies, hpFrac, underFire, state, w, aimPt, near, allyNear,
+    ttgt: tgt && tgt.tower ? tgt : null, ttd: td, tlos: los };
   const sk = chooseSkill(ctx);
   if (sk) {
     out[SLOTS[sk.slot]] = true;
@@ -238,9 +252,9 @@ function baseOf(m, team) {
   if (m.mode === 'tudo' || (team !== 0 && team !== 1)) return null;
   return m.map.bases[team] || null;
 }
-// My own base (regen, retreat) and the enemy base I must not enter (it burns in tdm and chiem only). null when the mode has none.
+// My own base (regen, retreat) and the enemy base I must not enter (it burns in tdm and chiem only; in nha the towers guard it instead). null when the mode has none.
 function ownOf(m, u) { return u.def.boss ? null : baseOf(m, u.team); }
-function foeOf(m, u) { return u.def.boss || m.mode === 'trum' ? null : baseOf(m, 1 - u.team); }
+function foeOf(m, u) { return u.def.boss || m.mode === 'trum' || m.mode === 'nha' ? null : baseOf(m, 1 - u.team); }
 const bossOf = (m) => { for (const x of m.units) if (x.def.boss) return x; return null; };
 
 function lavaNear(map, x, z, pad) {
@@ -255,6 +269,45 @@ function iceAt(map, x, z) {
   for (const h of map.hazards) if (h.kind === 'ice' && d2(x, z, h.x, h.z) < h.r * h.r) return h;
   return null;
 }
+// Mud slows every mech except hover and heavy ones, so for those it is not there.
+const mudProof = (u) => !!(u.def.hover || u.def.heavy);
+function mudAt(map, x, z) {
+  for (const h of map.hazards) if (h.kind === 'mud' && d2(x, z, h.x, h.z) < h.r * h.r) return h;
+  return null;
+}
+const MUD_CELLS = new WeakMap();
+function mudCells(map) {
+  let c = MUD_CELLS.get(map);
+  if (c) return c;
+  c = [];
+  const nav = map.nav;
+  for (const h of map.hazards) {
+    if (h.kind !== 'mud') continue;
+    for (let j = 0; j < nav.rows; j++) for (let i = 0; i < nav.cols; i++) {
+      const cx = -map.hw + (i + 0.5) * nav.cell, cz = -map.hd + (j + 0.5) * nav.cell;
+      if (hyp(cx - h.x, cz - h.z) < h.r + 0.7) c.push(j * nav.cols + i);
+    }
+  }
+  MUD_CELLS.set(map, c);
+  return c;
+}
+function mudSeg(map, x0, z0, x1, z1) {
+  for (const h of map.hazards) if (h.kind === 'mud' && segCircle(x0, z0, x1 - x0, z1 - z0, h.x, h.z, h.r) <= 1) return true;
+  return false;
+}
+function pathLen(x, z, p) { let L = 0; for (const q of p) { L += hyp(q[0] - x, q[1] - z); x = q[0]; z = q[1]; } return L; }
+function pathMud(map, x, z, p) { for (const q of p) { if (mudSeg(map, x, z, q[0], q[1])) return true; x = q[0]; z = q[1]; } return false; }
+// A* that goes around mud when a path of similar length exists (the mud cells are blocked for one search, then released).
+function findPathMud(m, u, x0, z0, x1, z1) {
+  const map = m.map, p0 = findPath(map, x0, z0, x1, z1);
+  if (mudProof(u) || !map.hazards.some((h) => h.kind === 'mud') || !pathMud(map, x0, z0, p0)) return p0;
+  const nav = map.nav, set = [];
+  for (const i of mudCells(map)) if (!nav.blocked[i]) { nav.blocked[i] = 1; set.push(i); }
+  const p1 = findPath(map, x0, z0, x1, z1);
+  for (const i of set) nav.blocked[i] = 0;
+  return pathLen(x0, z0, p1) <= pathLen(x0, z0, p0) * 1.35 + 4 && !pathMud(map, x0, z0, p1) ? p1 : p0;
+}
+
 function ventNear(m, x, z, pad) {
   for (const v of m.vents) if (d2(x, z, v.x, v.z) < (v.r + pad) * (v.r + pad)) return true;
   return false;
@@ -389,7 +442,7 @@ function fleeGoal(m, u, b, enemies, now) {
     const a = k * Math.PI / 8;
     for (const r of [7, 11]) {
       const x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r;
-      if (solidAt(map, x, z, 1.3) || lavaNear(map, x, z, 1.6) || ventNear(m, x, z, 0.6)) continue;
+      if (solidAt(map, x, z, 1.3) || lavaNear(map, x, z, 1.6) || ventNear(m, x, z, 0.6) || (!mudProof(u) && mudAt(map, x, z))) continue;
       if (!losClear(map, u.x, u.z, x, z, u.radius * 0.8) || lavaSeg(map, u.x, u.z, x, z, 0.8)) continue;
       let s = 0;
       for (const e of thr) {
@@ -450,7 +503,7 @@ function standPos(m, u, P, enemies) {
   for (let ring = 0; ring < 3; ring++) for (let k = 0; k < (ring ? 8 : 1); k++) {
     const rr = [0, 0.45, 0.78][ring] * P.r, a = k * Math.PI / 4 + ring * 0.4;
     const x = P.x + Math.cos(a) * rr, z = P.z + Math.sin(a) * rr;
-    if (solidAt(map, x, z, u.radius + 0.2) || propAt(m, x, z, u.radius) || lavaNear(map, x, z, u.radius + 0.9) || ventNear(m, x, z, u.radius + 0.4)) continue;
+    if (solidAt(map, x, z, u.radius + 0.2) || propAt(m, x, z, u.radius) || lavaNear(map, x, z, u.radius + 0.9) || ventNear(m, x, z, u.radius + 0.4) || (!mudProof(u) && mudAt(map, x, z))) continue;
     let s = -hyp(x - u.x, z - u.z) * 0.1 - rr * 0.05;
     if (ne && !losClear(map, ne.x, ne.z, x, z, 0.2)) s += 3;
     for (const o of m.units) if (o !== u && o.team === u.team && o.alive && o.brain && o.brain.pt === P.id && hyp(o.brain.stand[0] - x, o.brain.stand[1] - z) < 2.2) s -= 1.5;
@@ -505,6 +558,11 @@ function aimAtPoint(u, e, w, lead) {
   return leadPoint(u, e, w.speed, lead);
 }
 
+// A prop on the line stops a shot too (it can be shot away, but a bot does not count on that when it picks a firing spot).
+function propBlocks(m, x0, z0, x1, z1) {
+  for (const p of m.props) if (p.alive && segCircle(x0, z0, x1 - x0, z1 - z0, p.x, p.z, p.r + 0.3) <= 1) return true;
+  return false;
+}
 function wallBlocks(m, x0, z0, x1, z1, r) {
   for (const z of m.zones) {
     if (z.kind !== 'wall') continue;
@@ -587,6 +645,11 @@ function pickTarget(m, u, b, D, now, w, role) {
       for (const o of b.enemies) if (o !== e && hyp(o.x - e.x, o.z - e.z) < 6) c++;
       s += 1.5 * c;
     }
+    if (b.np && D.skill >= 0.5) {
+      // never chase a kill deep under a standing tower
+      const R = m.rule.tower.range;
+      for (const t of m.towers) if (t.alive && t.team === e.team && hyp(e.x - t.x, e.z - t.z) < R - 1.5 && hyp(u.x - t.x, u.z - t.z) > R + 0.5) { s -= 25; break; }
+    }
     let team = 0;
     for (const k in e.hitBy) { const a = m.units[k]; if (a.team === u.team && a !== u && now - e.hitBy[k] < 2.5) team++; }
     for (const a of m.units) if (a !== u && a.team === u.team && a.alive && a.brain && a.brain.tgt === e.id) team++;
@@ -613,6 +676,7 @@ function pickCrate(m, u, b, hpFrac, enemies, plan) {
     if (c.fall > 0) continue;
     if (foe && d2(c.x, c.z, foe[0], foe[1]) < br * br) continue;
     if (lavaNear(m.map, c.x, c.z, 1.2)) continue;
+    if (m.mode === 'nha' && underTower(m, u.team, c.x, c.z, 1.5)) continue;
     if (plan && !(c.type === 'heal' && hpFrac < 0.6) && hyp(c.x - plan.P.x, c.z - plan.P.z) > plan.P.r + 7) continue;
     const dm = hyp(c.x - u.x, c.z - u.z);
     let ok = false;
@@ -645,7 +709,7 @@ function setState(m, u, b, D, now, hpFrac, outnumbered, crate, tgt, td, w, inOwn
       else if (trum) stay = hpFrac < 0.85;
       else stay = hpFrac < 0.7;
       next = stay ? 'retreat' : 'push';
-    } else if (hpFrac < thr || flee) {
+    } else if (hpFrac < thr || flee || (b.np && b.np.hunted && hpFrac < b.np.stepOut)) {
       next = 'retreat';
       b.retreatGoal = null;
       if (flee) { b.fleeUntil = now + 2.2; b.fleeCool = now + 7; b.fleeG = null; }
@@ -801,6 +865,12 @@ function fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, en
     const id = hyp(u.x - ice.x, u.z - ice.z) || 1;
     ax += (u.x - ice.x) / id * 0.6; az += (u.z - ice.z) / id * 0.6;
   }
+  // mud slows: do not stand in it to fight
+  const mud = mudProof(u) ? null : mudAt(m.map, u.x, u.z);
+  if (mud) {
+    const id = hyp(u.x - mud.x, u.z - mud.z) || 1;
+    ax += (u.x - mud.x) / id * 0.9; az += (u.z - mud.z) / id * 0.9;
+  }
   return [ux * radial + sx + ax, uz * radial + sz + az, null, null, false];
 }
 
@@ -813,7 +883,7 @@ function findCover(m, u, tx, tz) {
       const px = u.x + Math.cos(a) * r, pz = u.z + Math.sin(a) * r;
       if (solidAt(map, px, pz, u.radius + 0.3)) continue;
       if (foe && d2(px, pz, foe[0], foe[1]) < (RULES.baseRadius + 1.5) ** 2) continue;
-      if (lavaNear(map, px, pz, 1.2) || ventNear(m, px, pz, 0.6)) continue;
+      if (lavaNear(map, px, pz, 1.2) || ventNear(m, px, pz, 0.6) || (!mudProof(u) && mudAt(map, px, pz))) continue;
       if (losClear(map, tx, tz, px, pz, 0.2)) continue;
       if (!losClear(map, u.x, u.z, px, pz, u.radius * 0.7)) continue;
       if (r < bd) { bd = r; best = [px, pz]; }
@@ -827,7 +897,7 @@ function goTo(m, u, b, gx, gz, now) {
   const map = m.map;
   const dg = hyp(gx - u.x, gz - u.z);
   if (dg < 0.7) return null;
-  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.radius * 0.9 + 0.1)) {
+  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.radius * 0.9 + 0.1) && (mudProof(u) || !mudSeg(map, u.x, u.z, gx, gz))) {
     b.path = null;
     const dv = lavaDetour(map, u.x, u.z, gx, gz);
     return dv ? [dv[0] - u.x, dv[1] - u.z] : [gx - u.x, gz - u.z];
@@ -835,7 +905,7 @@ function goTo(m, u, b, gx, gz, now) {
   const moved = hyp(gx - b.pgx, gz - b.pgz);
   const since = now - b.pathT;
   if (!b.path || b.forceRepath || (since >= 0.5 && (moved > 2 || since > 2)) || (moved > 8 && since >= 0.2)) {
-    b.path = findPath(map, u.x, u.z, gx, gz); b.pi = 0; b.pathT = now; b.pgx = gx; b.pgz = gz; b.forceRepath = false;
+    b.path = findPathMud(m, u, u.x, u.z, gx, gz); b.pi = 0; b.pathT = now; b.pgx = gx; b.pgz = gz; b.forceRepath = false;
   }
   const p = b.path;
   while (b.pi < p.length - 1 && hyp(p[b.pi][0] - u.x, p[b.pi][1] - u.z) < 1.0) b.pi++;
@@ -1207,6 +1277,7 @@ function pullSkill(c, s) {
   return false;
 }
 
+const TOWER_SKILLS = { volley: 1, barrage: 1, beam: 1 };
 function chooseSkill(c) {
   const { u, b, D, m, role } = c;
   if (u.cast || u.dash || u.stunT > 0) return null;
@@ -1216,11 +1287,274 @@ function chooseSkill(c) {
     if (u.cd[SLOTS[i]] > 0) continue;
     const s = u.def.skills[i], fn = SKILL_AI[s.do];
     if (!fn) continue;
+    // a tower in reach is a target for the damage skills that fire at a point (rockets, shell barrage, the beam)
+    const onTower = !c.tgt && c.ttgt && TOWER_SKILLS[s.do];
+    if (onTower) { c.tgt = c.ttgt; c.td = c.ttd; c.los = c.tlos; }
     sk.x = c.tgt ? c.tgt.x : u.x; sk.z = c.tgt ? c.tgt.z : u.z; sk.aim = null; sk.mx = null; sk.mz = null;
-    if (!fn(c, s)) continue;
+    const ok = fn(c, s);
+    if (onTower) { c.tgt = null; c.td = 1e9; c.los = false; }
+    if (!ok) continue;
     if (D.skill < 1 && m.rng() > p * role.eager[i]) continue;
     sk.slot = i;
     return sk;
   }
   return null;
+}
+
+// ---- spacing --------------------------------------------------------------------------------------------------------------------
+// Mechs no longer push each other apart, so a bot moves itself off allies that are closer than their radii plus a margin.
+function spacing(m, u) {
+  let ax = 0, az = 0;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive) continue;
+    const dx = u.x - a.x, dz = u.z - a.z, d = hyp(dx, dz), want = u.radius + a.radius + 0.7;
+    if (d >= want) continue;
+    const k = (want - d) / want;
+    if (d > 1e-3) { ax += dx / d * k; az += dz / d * k; } else { ax += Math.cos(u.id * 2.4) * k; az += Math.sin(u.id * 2.4) * k; }
+  }
+  return [ax * 3, az * 3];
+}
+
+// ---- base mode (nha): objective layer ---------------------------------------------------------------------------------------------
+// attack: push as a group to an enemy tower (a sub tower first, split by slot, then the weaker; the main tower only once it is open)
+// defend: an own tower is being hit or has enemies in its range: the nearest bots fall back to fight under it (everyone when the main is open)
+// wave:   just respawned while the team is mostly dead: wait at the rally point so the wave pushes together
+const nhaR = (m) => m.rule.tower.range;
+const towerPseudo = (t) => { const p = pseudo(-200 - t.id, t.x, t.z, t.r, t.hp, t.maxHp); p.tower = t; return p; };
+
+function underTower(m, team, x, z, pad) {
+  const R = nhaR(m) + pad;
+  for (const t of m.towers) if (t.alive && t.team !== team && d2(x, z, t.x, t.z) < R * R) return true;
+  return false;
+}
+
+// May I step into tower t's range now? At least one ally (best the tank) already there, or the tower is busy shooting an ally.
+function entryOK(m, u, D, t) {
+  if (D.skill < 0.5) return true;   // easy bots dive carelessly
+  const R = nhaR(m) + 0.8;
+  let n = 0, tank = false;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive || d2(a.x, a.z, t.x, t.z) > R * R) continue;
+    if (a.brain && a.brain.state === 'retreat') continue;
+    n++; if (a.def.roleKey === 'tank') tank = true;
+  }
+  const charging = t.target >= 0 && t.target !== u.id && m.units[t.target].team === u.team;
+  // the other team is two mechs down (respawning): nobody is there to hold the tower's aggro against, go in together
+  let mineAlive = 0, foeAlive = 0;
+  for (const a of m.units) if (a.alive && !a.def.boss) { if (a.team === u.team) mineAlive++; else foeAlive++; }
+  if (mineAlive - foeAlive >= 2) return true;
+  if (D.skill >= 0.9) return tank || n >= 2 || (charging && n >= 1);
+  return n >= 1 || charging;
+}
+
+const ROT_TRY = [0, 0.5, -0.5, 1.0, -1.0];   // sides of the tower to try for a clear shot (never round the back: the way there is inside its range)
+function nhaPlan(m, u, b, D, role, w, now) {
+  const R = nhaR(m), own = baseOf(m, u.team) || [0, 0];
+  const mine = [], foes = [];
+  for (const t of m.towers) {
+    if (t.team === u.team) {
+      const p = b.twHp[t.id];
+      if (p !== undefined && t.hp < p - 0.5) b.twHit[t.id] = now;
+      b.twHp[t.id] = t.hp;
+      if (t.alive) mine.push(t);
+    } else if (t.alive) foes.push(t);
+  }
+  const smart = D.skill >= 0.5, hard = D.skill >= 0.9;
+  let hunted = false;
+  for (const t of foes) if (t.target === u.id) hunted = true;
+  const P = { kind: 'attack', T: null, defT: null, hunted, stepOut: hard ? 0.45 : smart ? 0.38 : 0, allow: true, outside: role === ROLE.sniper || role === ROLE.artillery, stage: null, stand: null };
+
+  // defend
+  let defT = null, dsc = 0, dnear = 0;
+  for (const t of mine) {
+    const hit = now - (b.twHit[t.id] ?? -99) < 3;
+    let near = 0;
+    for (const e of m.units) if (e.team !== u.team && e.alive && d2(e.x, e.z, t.x, t.z) < (R + 2) * (R + 2) && visibleTo(m, e, u.team)) near++;
+    if (!hit && !near) continue;
+    const open = towerOpen(m, t);
+    const sc = (t.kind === 'main' && open && near ? 100 : 0) + near * 10 + (hit ? 6 : 0) + (1 - t.hp / t.maxHp) * 4;
+    if (sc > dsc) { dsc = sc; defT = t; dnear = near; }
+  }
+  if (defT) {
+    const mainOpen = defT.kind === 'main' && towerOpen(m, defT) && dnear > 0;
+    const everyone = mainOpen && smart;
+    const nd = hard ? 3 : smart ? (dnear >= 3 ? 3 : 2) : (mainOpen ? 1 : 0);
+    let rank = 0;
+    const dm = d2(u.x, u.z, defT.x, defT.z);
+    for (const a of m.units) {
+      if (a === u || a.team !== u.team || !a.alive || a.def.boss) continue;
+      const da = d2(a.x, a.z, defT.x, defT.z);
+      if (da < dm || (da === dm && a.id < u.id)) rank++;
+    }
+    if (everyone || rank < nd) { P.kind = 'defend'; P.defT = defT; return P; }
+  }
+
+  // wave: respawned into a team that was just wiped
+  if (smart && now - b.born < 12) {
+    let alive = 0, soon = 0;
+    for (const a of m.units) if (a.team === u.team && !a.def.boss) { if (a.alive) alive++; else if (a.respawnT <= 9) soon++; }
+    if (alive <= 2 && soon >= 1) { P.kind = 'wave'; return P; }
+  }
+
+  // attack: which tower
+  const subs = foes.filter((t) => t.kind === 'sub');
+  let OT = b.otId >= 0 ? m.towers[b.otId] : null;
+  if (!OT || !OT.alive || OT.team === u.team) OT = null;
+  if (!subs.length) OT = foes.find((t) => t.kind === 'main') || null;
+  else {
+    const split = m.time < 50 || subs.length < 2;
+    let cand = split ? (subs.length === 2 ? subs[u.slot < 3 ? 0 : 1] : subs[0]) : (subs[0].hp <= subs[1].hp ? subs[0] : subs[1]);
+    if (!OT || OT.kind === 'main') OT = cand;
+    else if (!split && cand !== OT && cand.hp < OT.hp * 0.7) OT = cand;
+  }
+  b.otId = OT ? OT.id : -1;
+  if (!OT) return P;
+  P.T = OT;
+  if (b.spotFor !== OT.id) { b.rot = 0; b.rotN = 0; b.idleT = now; }
+  if (b.spotFor !== OT.id || now - b.spotT > 0.8) { b.spotFor = OT.id; b.spotT = now; nhaSpots(m, u, b, P, w, R, own); }
+  P.stage = b.stage; P.stand = b.stand;
+
+  let allow = entryOK(m, u, D, OT);
+  if (!allow && !P.outside) {
+    // nobody is in range yet: the tankiest healthy bot leads once enough of the group is with it, or when waiting got too long
+    const near = hyp(u.x - P.stage[0], u.z - P.stage[1]) < 6 || d2(u.x, u.z, OT.x, OT.z) < (R + 9) * (R + 9);
+    if (near) { if (b.waitT < 0) b.waitT = now; } else b.waitT = -1;
+    const waited = b.waitT >= 0 ? now - b.waitT : 0;
+    let lead = null, ls = -1, others = 0, soon = 0;
+    for (const a of m.units) {
+      if (a.team !== u.team || a.def.boss) continue;
+      if (!a.alive) { if (a.respawnT <= 10) soon++; continue; }
+      if (a !== u) others++;
+      if ((a.brain && a.brain.state === 'retreat') || a.hp < a.maxHp * 0.6) continue;
+      const sc = a.maxHp - a.id * 1e-3;
+      if (sc > ls) { ls = sc; lead = a; }
+    }
+    let with_ = 0;
+    for (const a of m.units) if (a !== u && a.team === u.team && a.alive && d2(a.x, a.z, u.x, u.z) < 400 && !(a.brain && a.brain.state === 'retreat')) with_++;
+    // alone (nobody alive or about to respawn) I never dive; with company, waiting too long breaks the deadlock
+    const company = others + soon;
+    if (lead === u && with_ >= Math.max(1, Math.min(1, company))) allow = true;
+    if (company > 0 && waited > (hard ? 5 : 7)) allow = true;
+  } else b.waitT = -1;
+  P.allow = allow;
+  return P;
+}
+
+// Where to wait (stage: just outside the tower's range) and where to shoot from (stand), spread around the tower by slot so nobody stacks.
+function nhaSpots(m, u, b, P, w, R, own) {
+  const OT = P.T, map = m.map, imm = mudProof(u);
+  const a0 = Math.atan2(own[1] - OT.z, own[0] - OT.x) + b.rot;
+  const ok = (x, z) => !solidAt(map, x, z, u.radius + 0.3) && !lavaNear(map, x, z, u.radius + 0.9) && !ventNear(m, x, z, u.radius + 0.4) && (imm || !mudAt(map, x, z)) && !m.towers.some((t) => t !== OT && t.alive && t.team !== u.team && hyp(x - t.x, z - t.z) < (P.outside ? R + 1.6 : t.r + 2.6));
+  const pick = (dist, lat, needLos, grow = 0) => {
+    let fb = null;
+    for (let j = 0; j < (needLos && grow ? 3 : 1); j++) for (let k = 0; k < 15; k++) {
+      const d = dist + j * grow, a = a0 + lat + ((k + 1) >> 1) * 0.28 * (k & 1 ? 1 : -1), x = OT.x + Math.cos(a) * d, z = OT.z + Math.sin(a) * d;
+      if (!ok(x, z)) continue;
+      if (!fb) fb = [x, z];
+      if (needLos && (!losClear(map, x, z, OT.x, OT.z, 0.2) || propBlocks(m, x, z, OT.x, OT.z))) continue;
+      return [x, z];
+    }
+    return fb || [OT.x + Math.cos(a0 + lat) * dist, OT.z + Math.sin(a0 + lat) * dist];
+  };
+  b.stage = pick(R + 5, (u.slot - 2) * 0.3, false);
+  const dd = P.outside ? Math.max(R + 1.6, Math.min(R + 3.5, w.range * 0.8)) : Math.max(OT.r + 2.8, Math.min(R - 1.8, w.range * 0.72));
+  b.stand = pick(dd, (u.slot - 2) * (P.outside ? 0.2 : 0.42), !w.lob, P.outside ? 1.5 : 0);
+}
+
+// The nearest enemy tower that can be hurt now (main towers only when open: no shot is wasted on a blocked one) and that my weapon reaches.
+function pickTowerTarget(m, u, w) {
+  let best = null, bd = 1e9;
+  for (const t of m.towers) {
+    if (!t.alive || t.team === u.team || !towerOpen(m, t)) continue;
+    const d = hyp(t.x - u.x, t.z - u.z);
+    if (d - t.r * 0.5 > w.range - 0.4 || d >= bd) continue;
+    if (!w.lob && (!losClear(m.map, u.x, u.z, t.x, t.z, 0.2) || wallBlocks(m, u.x, u.z, t.x, t.z, 0.2))) continue;
+    bd = d; best = t;
+  }
+  return best ? towerPseudo(best) : null;
+}
+
+// Fight mechs first; shoot a tower when no enemy mech is within 8 m of me (never when I am defending).
+function nhaTarget(m, u, b, np, mech, w, enemies, D, now) {
+  const mechOK = !!mech && canHit(m, u, mech, w, D);
+  const tt = np.kind === 'defend' ? null : pickTowerTarget(m, u, w);
+  if (tt) {
+    let contest = false;
+    for (const e of enemies) if (d2(e.x, e.z, u.x, u.z) < 64) { contest = true; break; }
+    if (!mechOK || !contest) return tt;
+  }
+  if (mechOK) return mech;
+  const tur = pickTurret(m, u, w);
+  if (tur) return tur;
+  if (!mech && w.lob) return pickGhost(m, u, b, w, now);
+  return mech;
+}
+
+function nhaMove(m, u, b, D, role, np, tgt, td, w, los, now, hpFrac, underFire, enemies) {
+  const R = nhaR(m), own = baseOf(m, u.team) || [0, 0];
+  const mechTgt = tgt && !tgt.pseudo;
+  if (np.kind === 'wave') {
+    const L = hyp(own[0], own[1]) || 1, ox = -own[0] / L, oz = -own[1] / L;
+    const g = safeGoal(m, u, own[0] + ox * 9 - oz * (u.slot - 2) * 2.4, own[1] + oz * 9 + ox * (u.slot - 2) * 2.4);
+    return hyp(g[0] - u.x, g[1] - u.z) < 1.3 ? [0, 0, null, null, true] : [0, 0, g[0], g[1], false];
+  }
+  if (np.kind === 'defend') {
+    const T = np.defT, leash = R + 3.5, dT = hyp(u.x - T.x, u.z - T.z);
+    let ne = null, nd = 1e9;
+    for (const e of enemies) { const d = hyp(e.x - T.x, e.z - T.z); if (d < nd) { nd = d; ne = e; } }
+    const back = () => {
+      // a spot between the tower and the threat, inside the tower's range
+      const dir = ne ? Math.atan2(ne.z - T.z, ne.x - T.x) : Math.atan2(-T.z, -T.x);
+      const g = safeGoal(m, u, T.x + Math.cos(dir + (u.slot - 2) * 0.35) * 5, T.z + Math.sin(dir + (u.slot - 2) * 0.35) * 5);
+      return hyp(g[0] - u.x, g[1] - u.z) < 1 ? [0, 0, null, null, true] : [0, 0, g[0], g[1], false];
+    };
+    if (mechTgt) {
+      if (dT > leash) return back();
+      const fm = fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies);
+      if (fm[2] !== null && hyp(fm[2] - T.x, fm[3] - T.z) > leash) return back();
+      return fm;
+    }
+    return back();
+  }
+  if (!np.T) return [0, 0, 0, 0, false];
+  // an enemy mech within 8 m contests me: fight it. A farther one is shot at on the way (see nhaTarget), the tower stays the goal.
+  if (mechTgt && (td < 8 || !np.T)) return fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies);
+  const go = np.allow || np.outside;
+  const S = go ? np.stand : np.stage;
+  const near = hyp(S[0] - u.x, S[1] - u.z) < 1.0;
+  // standing at the firing spot with nothing to shoot for a while (a prop or wall in the way): try another side of the tower
+  if (tgt || !go || !near) b.idleT = now;
+  else if (now - b.idleT > 1.6) { b.rotN = (b.rotN || 0) + 1; b.rot = ROT_TRY[b.rotN % ROT_TRY.length]; b.idleT = now; b.spotT = -9; }
+  if (tgt && tgt.pseudo && tgt.tower && (near || !go)) {
+    // shooting the tower: strafe while inside its range (its shot is aimed at where I am now), otherwise hold
+    const T = tgt.tower, d = hyp(u.x - T.x, u.z - T.z);
+    if (d < R + 0.5 && D.dodge > 0.2) {
+      if (now >= b.strafeNext) { b.strafe = m.rng() < 0.5 ? -1 : 1; b.strafeNext = now + 0.7 + m.rng() * 0.9; }
+      const amp = (0.35 + 0.65 * D.dodge) * 0.9;
+      return [-(T.z - u.z) / d * b.strafe * amp, (T.x - u.x) / d * b.strafe * amp, null, null, false];
+    }
+    return [0, 0, null, null, true];
+  }
+  return near ? [0, 0, null, null, true] : [0, 0, S[0], S[1], false];
+}
+
+// Stay out of an enemy tower's range unless the group is already in it. Easy bots have no guard.
+function towerGuard(m, u, D, np, mx, mz) {
+  if (D.skill < 0.5) return null;
+  const R = nhaR(m);
+  let ox = mx, oz = mz, hit = false;
+  for (const t of m.towers) {
+    if (!t.alive || t.team === u.team) continue;
+    const dx = u.x - t.x, dz = u.z - t.z, d = hyp(dx, dz);
+    if (d > R + 4.5) continue;
+    // a sniper or artillery never goes in (its stand-off is range + 1.2 m, whatever the path to the firing spot does); the rest need the group
+    const keep = np.outside;
+    if (!keep && (np.T === t ? np.allow : entryOK(m, u, D, t))) continue;
+    const lim = keep ? R + 1.2 : R + 0.1;
+    const nx = dx / (d || 1), nz = dz / (d || 1), inward = -(ox * nx + oz * nz);
+    if (d >= lim) {
+      if (inward > 0 && d - inward * 1.6 < lim + 0.3) { ox += nx * inward; oz += nz * inward; hit = true; }
+    } else { if (inward > 0) { ox += nx * inward; oz += nz * inward; } ox += nx * 1.2; oz += nz * 1.2; hit = true; }
+  }
+  return hit ? [ox, oz] : null;
 }

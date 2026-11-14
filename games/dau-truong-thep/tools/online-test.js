@@ -51,7 +51,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const lob = await Promise.all([H, A, B].map(async (p) => (await info(p)).lobby));
   check(same(lob[0], lob[1]) && same(lob[0], lob[2]), 'all three lobbies are identical');
   const teams = lob[0].players.map((p) => p.team);
-  check(teams.filter((t) => t === 0).length === 2 && teams.filter((t) => t === 1).length === 1, `teams auto-balance (${teams.join('')})`);
+  check(teams.join('') === '000', `joiners side with the host for co-op (${teams.join('')})`);
   await H.evaluate("__h.online.setRoom({ map: 'cangbang', mode: 'tdm', diff: 'easy' })");
   await A.evaluate("__h.online.setMine({ mech: 'ung', ready: true })");
   await B.evaluate("__h.online.setMine({ mech: 'hac', paint: 'vang', mods: { hp: 1.2, dmg: 1.1 }, ready: true })");
@@ -60,7 +60,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const ls = (await info(B)).lobby;
   check(ls.map === 'cangbang' && ls.diff === 'easy' && ls.players[1].mech === 'ung' && ls.players[2].paint === 'vang', 'room settings and picks reach every guest');
   check(await A.evaluate('__h.online.start()') === false && (await info(A)).state === 'lobby', 'a guest cannot start the match');
-  check(await H.evaluate('__h.online.swapTeam("p1")') && (await H.evaluate('__h.online.lobby.players[1].team')) === 0, 'host swaps a guest to the other team');
+  check(await H.evaluate('__h.online.swapTeam("p1")') && (await H.evaluate('__h.online.lobby.players[1].team')) === 1, 'host swaps a guest to the other team');
   await H.evaluate('__h.online.swapTeam("p1")');
   check(await H.evaluate('__h.online.start()'), 'host starts the match');
 

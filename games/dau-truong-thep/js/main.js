@@ -2,7 +2,7 @@
 
 import * as THREE from '../vendor/three.module.min.js';
 import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES } from './data.js';
-import { MAPS } from './maps.js';
+import { MAPS, THEMES, pickArena } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
 import { mulberry } from './rng.js';
@@ -41,7 +41,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), mode: qs.get('mode'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), mode: qs.get('mode'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -76,17 +76,18 @@ async function boot() {
   scene.environment = makeEnvironment(renderer);
 
   await progress(0.3, 'Dựng đấu trường');
-  let world = null, worldKey = null;
-  function useMap(key) {
-    if (worldKey === key) return;
+  let world = null, worldKey = null, arena = null;
+  function useMap(key, theme) {
+    theme = THEMES[theme] ? theme : MAPS[key].theme;
+    if (worldKey === key + '/' + theme) return;
     if (world) { scene.remove(world.group); world.dispose(); }
-    const map = createMatch({ map: key, seed: 1, roster: [] }).map;
-    world = G.gfx.world = makeWorld(G, map, tex); worldKey = key;
+    const map = createMatch({ map: key, theme, seed: 1, roster: [] }).map;
+    world = G.gfx.world = makeWorld(G, map, tex); worldKey = key + '/' + theme; arena = { map: key, theme };
     scene.add(world.group);
     renderer.setClearColor(world.theme.clear, 1);
     if (G.gfx.post) G.gfx.post.uniforms.uExposure.value = world.theme.exposure;
   }
-  useMap(MAPS[params.map] ? params.map : (MAPS[save.map] ? save.map : 'denrung'));
+  useMap(MAPS[params.map] ? params.map : (MAPS[save.map] ? save.map : 'denrung'), params.theme || save.theme);
 
   await progress(0.55, 'Lắp ráp cỗ máy');
   const mechs = (G.gfx.mechs = makeMechs(G, tex));
@@ -137,7 +138,8 @@ async function boot() {
     const seed = params.seed !== null ? params.seed : (Date.now() & 0x7fffffff);
     const rng = mulberry(seed ^ 0x51ed);
     const diff = DIFFICULTY[choice.diff] ? choice.diff : 'normal';
-    useMap(MAPS[choice.map] ? choice.map : worldKey);
+    // The menu's background match keeps the arena already built; a real match builds what was chosen ('random' resolves from the seed).
+    if (!attract) { const a = pickArena(choice.map, choice.theme, seed); useMap(a.map, a.theme); }
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
     const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
     const bot = attract || params.spectate;
@@ -149,7 +151,7 @@ async function boot() {
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
     else for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff });
     mechs.clear(); fx.clear();
-    G.match = createMatch({ map: worldKey, seed, roster, mode });
+    G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;
     enterMatch(0, attract);
     if (!attract) { G.audio.setScene && G.audio.setScene('match'); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start'); }
@@ -163,7 +165,7 @@ async function boot() {
   }
 
   G.bus.on('net:start', ({ rosterData, mySlot, role, mirror }) => {
-    useMap(rosterData.map);
+    useMap(rosterData.map, rosterData.theme);
     mechs.clear(); fx.clear();
     G.match = role === 'host' ? createMatch(matchOptions(rosterData)) : mirror;
     net = role; G.paused = false; G.choice = null;
@@ -291,11 +293,11 @@ async function boot() {
     draw(dt);
   }
 
-  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', mode: params.mode || s.mode || 'tdm' }; };
+  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm' }; };
   G.bus.on('ui:play', (choice) => { G.paused = false; startMatch(choice, false); });
   G.bus.on('ui:menu', () => { G.paused = false;
     // Leaving an online match or its result screen goes back to the room, not to the solo menu.
-    if (net) { const stay = G.match && G.match.over; net = null; if (stay) G.online.toLobby(); else G.online.leave(); G.ui.hideHUD(); startMatch(defaultChoice(), true); if (stay && G.ui.showLobby) G.ui.showLobby(); else G.ui.showMenu(); return; } G.audio.setScene && G.audio.setScene('menu'); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); });
+    if (net) { const stay = G.match && G.match.over; net = null; if (stay) G.online.toLobby(); else G.online.leave(); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.audio.setScene && G.audio.setScene('menu'); if (stay && G.ui.showLobby) G.ui.showLobby(); else G.ui.showMenu(); return; } G.audio.setScene && G.audio.setScene('menu'); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); });
   G.bus.on('ui:pause', (p) => { G.paused = !!(p && p.paused); });
   G.bus.on('quality:set', (q) => { if (!QUALITY[q] || q === Q.name) return; const s = meta.get(); s.settings.quality = q; s.settings.qualityChosen = true; meta.save(); location.reload(); });
   const wake = () => { G.audio.resume(); };

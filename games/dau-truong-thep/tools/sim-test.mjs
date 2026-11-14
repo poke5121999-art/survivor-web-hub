@@ -1,7 +1,7 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
-import { createMatch, step, visibleTo, hidden, unitSpeed } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
-import { solidAt, MAP_ORDER, compileMap } from '../js/maps.js';
+import { solidAt, MAP_ORDER, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES } from '../js/data.js';
 
 let failed = 0, passed = 0;
@@ -986,8 +986,10 @@ section('23 chiem bots');
     return m;
   };
   const a = mkc((m) => [m.points[0].x + 1, m.points[0].z]);
-  run(a, Math.ceil(25 / TICK), () => allInputs(a));
-  check('23h bots shoot an enemy standing on a point (it loses hp, the point stays unowned by team 1)', a.units[5].hp < a.units[5].maxHp - 3000 && a.points[0].owner !== 1, `dmg ${(a.units[5].maxHp - a.units[5].hp).toFixed(0)}`);
+  // mechs no longer block each other, so the dummy is held on its spot (a knockback would roll it into a bush and out of sight)
+  let minHp = 1e9;
+  run(a, Math.ceil(25 / TICK), () => { put(a.units[5], a.points[0].x + 1, a.points[0].z); minHp = Math.min(minHp, a.units[5].hp); return allInputs(a); });
+  check('23h bots shoot an enemy standing on a point (it loses hp) and come onto the point to contest it', minHp < a.units[5].maxHp - 3000 && a.units.slice(0, 5).some((u) => Math.hypot(u.x - a.points[0].x, u.z - a.points[0].z) < a.points[0].r + 1), `dmg ${(a.units[5].maxHp - minHp).toFixed(0)}`);
   const f = mkc(() => [34, -21]);
   let maxFar = 0;
   run(f, Math.ceil(30 / TICK), () => {
@@ -1257,6 +1259,561 @@ const TALLY = {};
   fact('27-balance with normal bots on both sides the players win the raid 40..60% of the time', TALLY.normal.pw / TALLY.normal.n >= 0.4 && TALLY.normal.pw / TALLY.normal.n <= 0.6, `${TALLY.normal.pw}/${TALLY.normal.n}`);
   check('27a every difficulty finishes all 8 raids with a winner', DIFFS3.every((d) => TALLY[d].n === 8));
   check('27b the boss is not a pushover on any difficulty: players lose lives (avg lives left < lives at start)', DIFFS3.every((d) => TALLY[d].lives < MODES.trum.lives), DIFFS3.map((d) => TALLY[d].lives.toFixed(1)).join('/'));
+}
+
+// ======================================================================================================================
+// Base mode (nha), no collisions between mechs, mud, themes, and the bots that play them
+// ======================================================================================================================
+const NH = MODES.nha, TW = NH.tower, TR = TW.range;
+const nhaM = (roster, opts = {}) => createMatch({ seed: 7, mode: 'nha', roster, ...opts });
+const dead = (u) => { u.alive = false; u.respawnT = 1e9; };
+const spend = (u) => { u.maxHp = u.hp = 1e9; };
+// no wall, round obstacle or prop on the straight line (shots stop at all three)
+function clearLine(m, x0, z0, x1, z1) {
+  if (!losClear(m.map, x0, z0, x1, z1, 0.4)) return false;
+  const dx = x1 - x0, dz = z1 - z0, L2 = dx * dx + dz * dz;
+  for (const p of m.props) {
+    if (!p.alive) continue;
+    const k = Math.max(0, Math.min(1, ((p.x - x0) * dx + (p.z - z0) * dz) / L2));
+    if (Math.hypot(x0 + dx * k - p.x, z0 + dz * k - p.z) < p.r + 0.6) return false;
+  }
+  return true;
+}
+const inBush = (m, x, z) => m.map.bushes.some((b) => Math.hypot(b.x - x, b.z - z) < b.r + 0.8);
+// a free spot `dist` from tower t (not in a bush, where units hide), scanning the circle from angle a0 (optionally with a clear line to the tower)
+function ringSpot(m, t, dist, a0 = 0, los = false) {
+  for (const dd of los ? [0, -1, 1, -2, 2] : [0]) for (let k = 0; k < 60; k++) {
+    const d = dist + dd, a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.1, x = t.x + Math.cos(a) * d, z = t.z + Math.sin(a) * d;
+    if (solidAt(m.map, x, z, 1.6) || inBush(m, x, z) || m.towers.some((o) => o !== t && Math.hypot(o.x - x, o.z - z) < o.r + 1.8)) continue;
+    if (los && !clearLine(m, x, z, t.x, t.z)) continue;
+    return [x, z, a];
+  }
+  return null;
+}
+// the spot on the side of the tower that faces `team`'s own base
+const facing = (m, t, dist, team, los) => { const b = m.map.bases[team]; return ringSpot(m, t, dist, Math.atan2(b[1] - t.z, b[0] - t.x), los); };
+const navCell = (map, x, z) => map.nav.blocked[Math.floor((z + map.hd) / map.nav.cell) * map.nav.cols + Math.floor((x + map.hw) / map.nav.cell)];
+
+section('29 nha rules (towers, aggro, win conditions)');
+for (const key of MAP_ORDER) {
+  const m = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
+  const t0 = m.towers.filter((t) => t.team === 0), t1 = m.towers.filter((t) => t.team === 1);
+  check(`29a ${key}: 3 towers per team (2 sub + 1 main) with the rule hp`, t0.length === 3 && t1.length === 3 && [t0, t1].every((ts) => ts.filter((t) => t.kind === 'sub').length === 2 && ts.filter((t) => t.kind === 'main').length === 1 && ts.every((t) => t.hp === TW[t.kind] && t.alive && t.r === TW.radius)));
+  const mir = t0.map((t, i) => Math.hypot(t.x + t1[i].x, t.z + t1[i].z));
+  check(`29b ${key}: the two teams' towers mirror each other through the centre (same kinds, each within 3 m of the exact mirror)`, t0.every((t, i) => t.kind === t1[i].kind) && Math.max(...mir) < 0.05, mir.map((d) => d.toFixed(2)).join(' '));
+  check(`29b2 ${key}: ... exactly (within 5 cm)`, Math.max(...mir) < 0.05, `offsets ${mir.map((d) => d.toFixed(2)).join(' ')}`);
+  check(`29c ${key}: no tower stands inside a wall or a round obstacle or off the map`, m.towers.every((t) => !solidAt(m.map, t.x, t.z, t.r)));
+  check(`29d ${key}: no spawn pad is inside a tower (each team)`, m.towers.every((t) => [0, 1].every((tm) => m.map.spawns[tm].every((p) => Math.hypot(p[0] - t.x, p[1] - t.z) > t.r + 1.3))));
+}
+{
+  const m = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const T = m.towers[1], p = ringSpot(m, T, 8, 0.5);
+  put(m.units[1], p[0], p[1]);
+  const ev = run(m, 90);
+  const lost = m.units[1].maxHp - m.units[1].hp;
+  check('29e a tower damages an enemy standing in its range, in whole shots of rule.tower.dmg', lost >= TW.dmg && lost % TW.dmg === 0 && ev.some((e) => e.t === 'towerFire' && e.tower === 1), `lost ${lost}`);
+  const o = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const q = [0, 1, 2].map((k) => ringSpot(o, o.towers[k], TR + 2, 0.5)).find((s, k) => s && o.towers.every((w) => w.team === 1 || Math.hypot(w.x - s[0], w.z - s[1]) > TR + 0.8));
+  put(o.units[1], q[0], q[1]);
+  const ev2 = run(o, 90);
+  check('29f a tower does not damage an enemy 2 m outside its range (no shot at all)', o.units[1].hp === o.units[1].maxHp && !ev2.some((e) => e.t === 'towerFire' && o.towers[e.tower].team === 0), `hp ${o.units[1].hp}`);
+}
+{
+  // aggro: A (nearest) and B (farther) are both in range; B hits my unit U: the tower turns to B
+  const m = nhaM([solo('trau', 0), solo('trau', 1), solo('ung', 1)]);
+  const [U, A, Bm] = m.units;
+  let found = false, T = m.towers[1];
+  for (const tw of [m.towers[1], m.towers[2], m.towers[0]]) for (let k = 0; k < 72 && !found; k++) for (const [d1, d2] of [[0.8, 1.7], [-0.8, -1.7], [0.5, 1.4], [-0.5, -1.4], [1.2, 2.4], [-1.2, -2.4]]) {
+    const a = k * 0.0873, at = (ang, r) => [tw.x + Math.cos(ang) * r, tw.z + Math.sin(ang) * r];
+    const pa = at(a, 5.5), pb = at(a + d1, 10), pu = at(a + d2, 4);
+    if ([pa, pb, pu].some((p) => solidAt(m.map, p[0], p[1], 1.5) || inBush(m, p[0], p[1]) || m.towers.some((o) => o !== tw && Math.hypot(o.x - p[0], o.z - p[1]) < 4)) || !clearLine(m, pb[0], pb[1], pu[0], pu[1])) continue;
+    put(A, pa[0], pa[1]); put(Bm, pb[0], pb[1]); put(U, pu[0], pu[1]); found = true; T = tw; break;
+  }
+  spend(U); spend(A); spend(Bm);
+  step(m, [IN, IN, IN]);
+  const before = T.target;
+  let after = -2, hit = false;
+  for (let i = 0; i < 40 && !hit; i++) {
+    step(m, [IN, IN, inp({ fire: true, aim: toward(Bm, U) })]);
+    if (m.events.some((e) => e.t === 'hit' && e.id === U.id && e.by === Bm.id)) { hit = true; after = T.target; }
+  }
+  check('29g aggro: with two enemies in range the tower first aims at the nearest', found && before === A.id, `target ${before}, A ${A.id}`);
+  check('29h aggro: the enemy that just hurt my unit becomes the tower target', hit && after === Bm.id, `target ${after}, B ${Bm.id}`);
+}
+{
+  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const T = m.towers[1], S = m.units[1], p = ringSpot(m, T, 9, 0.5, true);
+  spend(S); put(S, p[0], p[1]);
+  const ev = run(m, 20, (i) => [IN, inp({ fire: i === 0, aim: toward(S, T) })]);
+  check('29i an enemy shot damages a sub tower by exactly the shot damage', T.hp === TW.sub - MECHS.ung.weapon.dmg && ev.some((e) => e.t === 'towerHit' && e.tower === 1 && e.amt === MECHS.ung.weapon.dmg), `hp ${T.hp}`);
+}
+{
+  // main tower: no damage and a towerBlock event while a sub stands; hurt after both subs fall
+  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const main = m.towers[0], S = m.units[1];
+  spend(S);
+  const shoot = (tw, ticks) => {
+    const p = ringSpot(m, tw, 9, 0.5, true);
+    put(S, p[0], p[1]); S.cd.fire = 0;
+    return run(m, ticks, (i) => [IN, inp({ fire: true, aim: toward(S, tw) })]);
+  };
+  const ev = shoot(main, 50);
+  check('29j the main tower takes no damage while a sub stands, and shots emit towerBlock', main.hp === TW.main && !towerOpen(m, main) && ev.some((e) => e.t === 'towerBlock' && e.tower === 0), `hp ${main.hp}`);
+  m.towers[1].hp = m.towers[2].hp = 100;
+  const e1 = shoot(m.towers[1], 25), e2 = shoot(m.towers[2], 25);
+  check('29k destroying the subs: towerDown events, score counts them for the shooter, the main opens', !m.towers[1].alive && !m.towers[2].alive && e1.concat(e2).filter((e) => e.t === 'towerDown' && e.kind === 'sub').length === 2 && m.score[1] === 2 && towerOpen(m, main), `score ${m.score}`);
+  shoot(main, 25);
+  check('29l after both subs are gone the main tower takes damage (one rail shot)', main.hp === TW.main - MECHS.ung.weapon.dmg, `hp ${main.hp}`);
+  const nb = m.map.nav, tcell = navCell(m.map, m.towers[1].x, m.towers[1].z);
+  check('29m a fallen tower unblocks its nav cells (a standing one blocks them)', tcell === 0 && navCell(m.map, main.x, main.z) === 1 && nb.blocked.length > 0);
+}
+{
+  // the end: main falls -> match over, shooter's team wins
+  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const main = m.towers[0], S = m.units[1];
+  spend(S);
+  m.towers[1].alive = false; m.towers[2].alive = false; main.hp = 200;
+  const p = ringSpot(m, main, 9, 0.5, true);
+  put(S, p[0], p[1]);
+  const ev = run(m, 25, (i) => [IN, inp({ fire: i === 0, aim: toward(S, main) })]);
+  check('29n destroying the main tower ends the match at once, the destroying team wins', m.over && m.winner === 1 && !main.alive && ev.some((e) => e.t === 'towerDown' && e.kind === 'main') && ev.some((e) => e.t === 'over' && e.winner === 1) && m.time < 3, `over ${m.over} winner ${m.winner}`);
+  const m3 = nhaM([solo('ung', 0), solo('trau', 1)]);
+  m3.towers[4].alive = false; m3.towers[5].alive = false; m3.towers[3].hp = 200; spend(m3.units[0]);
+  const p3 = ringSpot(m3, m3.towers[3], 9, 0.5, true);
+  put(m3.units[0], p3[0], p3[1]); dead(m3.units[1]);
+  run(m3, 25, (i) => [inp({ fire: i === 0, aim: toward(m3.units[0], m3.towers[3]) }), IN]);
+  check('29o ... and team 0 wins when it is team 0 that destroys the enemy main', m3.over && m3.winner === 0, `winner ${m3.winner}`);
+}
+{
+  // the clock: more total tower hp wins; equal is a draw
+  const clock = (edit) => { const m = nhaM([solo('trau', 0), solo('trau', 1)]); edit(m); m.time = m.duration - 2 * TICK; run(m, 5); return m; };
+  const a = clock((m) => { m.towers[3].hp = 9000; }), b = clock((m) => { m.towers[0].hp = 9000; }), c = clock(() => {});
+  const d = clock((m) => { m.towers[1].alive = false; m.towers[1].hp = 0; });
+  check('29p at the clock the team with more total tower hp wins (team 0 / team 1 / draw when equal)', a.over && a.winner === 0 && b.over && b.winner === 1 && c.over && c.winner === -1, `${a.winner} ${b.winner} ${c.winner}`);
+  check('29q a team that lost a sub (less total hp) loses on the clock', d.over && d.winner === 1, `winner ${d.winner}`);
+}
+{
+  // towers are solid
+  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const T = m.towers[1], U = m.units[0], p = ringSpot(m, T, 6, 0.5, true);
+  put(U, p[0], p[1]); dead(m.units[1]);
+  let minD = 1e9;
+  run(m, 90, () => { minD = Math.min(minD, Math.hypot(U.x - T.x, U.z - T.z)); return [inp({ mx: T.x - U.x, mz: T.z - U.z }), IN]; });
+  check('29r a unit driving into a tower is stopped at the tower radius + its own radius', minD >= T.r + U.radius - 0.05 && Math.hypot(U.x - T.x, U.z - T.z) < T.r + U.radius + 0.6, `min ${minD.toFixed(2)} need ${(T.r + U.radius).toFixed(2)}`);
+}
+{
+  // tower shots fly over walls: a spot in range with no clear line to the tower still gets hit
+  let m = null, spot = null, T = null;
+  for (const key of MAP_ORDER) {
+    const probe = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
+    for (const t of probe.towers.filter((q) => q.team === 0)) for (let k = 0; k < 72 && !spot; k++) for (const d of [6, 8, 10]) {
+      const x = t.x + Math.cos(k * 0.0873) * d, z = t.z + Math.sin(k * 0.0873) * d;
+      if (!solidAt(probe.map, x, z, 1.5) && !inBush(probe, x, z) && !losClear(probe.map, x, z, t.x, t.z, 0.3) && probe.towers.every((o) => o.team === 1 || Math.hypot(o.x - x, o.z - z) > TR + 1 || o === t || Math.hypot(o.x - x, o.z - z) > o.r + 2)) { spot = [x, z]; m = probe; T = t; break; }
+    }
+    if (spot) break;
+  }
+  check('29s sanity: found a spot in tower range with a wall between it and the tower', !!spot);
+  put(m.units[1], spot[0], spot[1]);
+  const ev = run(m, 90);
+  check('29t a tower shot passes over the wall and hurts the unit behind it', m.units[1].hp < m.units[1].maxHp && ev.some((e) => e.t === 'towerFire') && !ev.some((e) => e.t === 'impact' && e.on === 'wall' && Math.hypot(e.x - T.x, e.z - T.z) < TR), `hp ${m.units[1].hp}/${m.units[1].maxHp}`);
+}
+{
+  // no burn at the enemy base, own base still heals, respawn grows with the clock
+  const m = nhaM([solo('trau', 0), solo('trau', 1)]);
+  for (const t of m.towers) if (t.team === 0) t.alive = false;
+  const e = m.units[1], base0 = m.map.bases[0];
+  put(e, base0[0], base0[1]); put(m.units[0], 0, 20);
+  run(m, 60);
+  check('29u in nha an enemy standing in the base does not burn (hp unchanged after 2 s)', e.hp === e.maxHp, `hp ${e.hp}/${e.maxHp}`);
+  const c = mk({ seed: 7, mode: 'tdm', roster: [solo('trau', 0), solo('trau', 1)] });
+  put(c.units[1], c.map.bases[0][0], c.map.bases[0][1]); put(c.units[0], 0, 20);
+  run(c, 60);
+  check('29u2 control: in tdm the same unit burns', c.units[1].hp < c.units[1].maxHp - RULES.baseBurn, `hp ${c.units[1].hp}`);
+  const h = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const u0 = h.units[0], b1 = h.map.bases[0];
+  put(u0, b1[0] - 3, b1[1]); u0.hp = u0.maxHp * 0.5; dead(h.units[1]);
+  run(h, 30);
+  check('29v own base still heals in nha', u0.hp > u0.maxHp * 0.5 + 100, `hp ${u0.hp}`);
+}
+{
+  const R = NH.respawn;
+  const deathAt = (tt) => {
+    const m = nhaM([solo('ung', 0), solo('trau', 1)]);
+    const [a, b] = m.units;
+    put(a, -5, -1); put(b, 3, -1); b.hp = 100; m.time = tt;
+    for (let i = 0; i < 20; i++) { step(m, [inp({ fire: i === 0, aim: 0 }), IN]); if (m.events.some((e) => e.t === 'death' && e.id === 1)) return b.respawnT; }
+    return -1;
+  };
+  const got = [0, 120, 300].map(deathAt), want = [0, 120, 300].map((tt) => Math.min(R.max, R.base + R.perMin * tt / 60));
+  check('29w respawn time follows rule.respawn (base + perMin x minutes, capped at max)', got.every((g, i) => Math.abs(g - want[i]) < 0.1) && got[2] > got[1] && got[1] > got[0], `got ${got.map((g) => g.toFixed(2))} want ${want}`);
+}
+
+section('30 rule change: mechs do not collide');
+{
+  const meet = (ta, tb, mechB) => {
+    const m = mk({ seed: 1, roster: [solo('trau', ta), solo(mechB, tb)] });
+    const [a, b] = m.units;
+    put(a, -4, -1); put(b, 2, -1); b.vx = b.vz = 0;
+    let minD = 1e9;
+    run(m, 150, () => { minD = Math.min(minD, Math.hypot(a.x - b.x, a.z - b.z)); return [inp({ mx: b.x - a.x, mz: b.z - a.z }), IN]; });
+    return { d: Math.hypot(a.x - b.x, a.z - b.z), minD, rs: a.radius + b.radius };
+  };
+  const en = meet(0, 1, 'soi'), al = meet(0, 0, 'soi');
+  check('30a two enemy units driving into each other end at overlapping positions (centres closer than the radii sum)', en.d < en.rs * 0.5 && en.minD < en.rs * 0.5, `end ${en.d.toFixed(2)} min ${en.minD.toFixed(2)} sum ${en.rs}`);
+  check('30b same for two allies', al.d < al.rs * 0.5 && al.minD < al.rs * 0.5, `end ${al.d.toFixed(2)} min ${al.minD.toFixed(2)} sum ${al.rs}`);
+  const m = mk({ seed: 1, roster: [solo('trau', 0), solo('soi', 1)] });
+  const [a, b] = m.units;
+  put(a, -14, 0); put(b, 30, 20);
+  run(m, 120, () => [inp({ mx: 1 }), IN]);
+  const wall = m.map.walls.find((w) => w.x0 > -14 && w.x0 < -9 && w.z0 < 0 && w.z1 > 0);
+  check('30c a wall still blocks a unit (it stops at the wall face)', !!wall && a.x <= wall.x0 - a.radius + 0.01 && a.x > wall.x0 - a.radius - 0.5, `x ${a.x.toFixed(2)} wall ${wall && wall.x0}`);
+  const pr = m.props[0];
+  put(a, pr.x - 5, pr.z);
+  run(m, 100, () => [inp({ mx: pr.x - a.x, mz: pr.z - a.z }), IN]);
+  check('30d a prop still blocks a unit', pr.alive && a.x < pr.x && Math.hypot(a.x - pr.x, a.z - pr.z) >= pr.r + a.radius - 0.05, `x ${a.x.toFixed(2)} prop ${pr.x}`);
+  put(a, m.map.hw - 4, -1);
+  run(m, 100, () => [inp({ mx: 1 }), IN]);
+  check('30e the map edge still blocks a unit', a.x <= m.map.hw - a.radius + 1e-6 && a.x > m.map.hw - a.radius - 0.5, `x ${a.x.toFixed(2)} edge ${m.map.hw}`);
+}
+
+section('31 mud');
+{
+  const speed = (theme, edit) => {
+    const m = createMatch({ seed: 3, map: 'cangbang', theme, roster: [solo('soi', 0), solo('trau', 1)] });
+    const u = m.units[0], h = m.map.hazards[0];
+    if (edit) u.def = edit(u.def);
+    put(m.units[1], 33, 20); put(u, -6, 0);
+    let x0 = 0, hp0 = u.hp;
+    for (let i = 0; i < 45; i++) { step(m, [inp({ mx: 1 }), IN]); if (i === 14) x0 = u.x; }
+    return { v: (u.x - x0) / (30 * TICK), inMud: !!h && Math.hypot(u.x - h.x, u.z - h.z) < h.r, hp: u.hp === hp0, kind: h && h.kind };
+  };
+  const mud = speed('swamp'), dry = speed('jungle'), hover = speed('swamp', (d) => ({ ...d, hover: true })), heavy = speed('swamp', (d) => ({ ...d, heavy: true }));
+  check('31a the swamp theme turns the layout hazards into mud', mud.kind === 'mud' && mud.inMud);
+  check('31b a non-hover unit in mud moves at (1 - RULES.mud.slow) of its speed', Math.abs(mud.v / dry.v - (1 - RULES.mud.slow)) < 0.05, `ratio ${(mud.v / dry.v).toFixed(3)}`);
+  check('31c a hover unit moves at full speed in mud', Math.abs(hover.v / dry.v - 1) < 0.03, `ratio ${(hover.v / dry.v).toFixed(3)}`);
+  check('31d a heavy unit moves at full speed in mud', Math.abs(heavy.v / dry.v - 1) < 0.03, `ratio ${(heavy.v / dry.v).toFixed(3)}`);
+  check('31e mud does no damage', mud.hp && hover.hp);
+}
+
+section('32 themes and layouts');
+{
+  let builds = 0, okKind = 0, okLava = 0, total = 0, throws = 0;
+  for (const key of MAP_ORDER) for (const th of THEME_ORDER) {
+    total++;
+    try {
+      const map = compileMap(key, th);
+      builds++;
+      const want = THEMES[th].hazard;
+      if (map.theme === th && map.hazards.every((h) => h.kind === want) && (want ? map.hazards.length > 0 : map.hazards.length === 0)) okKind++;
+      if (want === 'lava' ? map.hazards.every((h) => navCell(map, h.x, h.z) === 1) : map.hazards.every((h) => navCell(map, h.x, h.z) === 0 || solidAt(map, h.x, h.z, 1.25))) okLava++;
+    } catch (e) { throws++; }
+  }
+  check(`32a compileMap builds every layout x every theme (${total} pairs)`, builds === total && throws === 0, `${builds}/${total}`);
+  check('32b the hazards take the theme kind (none for a theme without hazards), the map reports its theme', okKind === total, `${okKind}/${total}`);
+  check('32c lava blocks the nav grid at its centre; mud, ice and vents do not', okLava === total, `${okLava}/${total}`);
+  check('32d the theme ids all exist (8) and each of lava/ice/vent/mud is used by some theme', THEME_ORDER.length === 8 && ['lava', 'ice', 'vent', 'mud'].every((k) => THEME_ORDER.some((t) => THEMES[t].hazard === k)));
+  const seen = new Set(), maps = new Set(), themes = new Set();
+  let det = true;
+  for (let s = 1; s <= 40; s++) {
+    const a = pickArena('random', 'random', s), b = pickArena('random', 'random', s);
+    if (a.map !== b.map || a.theme !== b.theme) det = false;
+    maps.add(a.map); themes.add(a.theme); seen.add(a.map + '/' + a.theme);
+  }
+  check('32e pickArena("random", "random", seed) is deterministic per seed', det);
+  check('32f over 40 seeds it covers every layout and at least 6 of the 8 themes', maps.size === MAP_ORDER.length && themes.size >= 6, `${maps.size} layouts, ${themes.size} themes, ${seen.size} pairs`);
+  const f = pickArena('cangbang', 'random', 5), g = pickArena('random', 'lava', 5);
+  check('32g a fixed layout or theme is kept when the other is random', f.map === 'cangbang' && THEME_ORDER.includes(f.theme) && g.theme === 'lava' && MAP_ORDER.includes(g.map));
+}
+
+section('33 nha bots: tower aggro, siege, defence, waves');
+{
+  const BT = (mech, team, diff = 'hard') => ({ team, mech, name: mech + team, bot: true, diff });
+  const nm = (roster, opts = {}) => nhaM(roster, { map: 'denrung', seed: 5, ...opts });
+  // lone bot at the staging spot of the enemy sub tower: it never steps into range (easy bots do)
+  const lone = (diff, mech = 'soi') => {
+    const m = nm([BT(mech, 0, diff), BT('trau', 1, diff)]);
+    dead(m.units[1]);
+    const T = m.towers[4], p = facing(m, T, TR + 5, 0);
+    put(m.units[0], p[0], p[1]);
+    let minD = 1e9;
+    run(m, Math.ceil(25 / TICK), () => { for (const t of m.towers) if (t.team === 1 && t.alive) minD = Math.min(minD, Math.hypot(m.units[0].x - t.x, m.units[0].z - t.z)); return allInputs(m); });
+    return minD;
+  };
+  const lh = lone('hard'), ln = lone('normal'), le = lone('easy');
+  console.log(`closest approach to an enemy tower for a lone assault bot over 25 s: hard ${lh.toFixed(1)} m, normal ${ln.toFixed(1)} m, easy ${le.toFixed(1)} m (tower range ${TR})`);
+  check('33a a lone hard bot does not dive under an enemy tower (never inside the range)', lh > TR - 0.3, `${lh.toFixed(1)}`);
+  check('33b a lone normal bot does not dive either', ln > TR - 0.3, `${ln.toFixed(1)}`);
+  check('33c an easy bot dives carelessly (goes inside the range)', le < TR - 0.5, `${le.toFixed(1)}`);
+
+  // a tank standing in range: the bot goes in to hit the tower
+  const withTank = (diff) => {
+    const m = nm([BT('soi', 0, diff), solo('trau', 0), BT('trau', 1, diff)]);
+    dead(m.units[2]); spend(m.units[1]);
+    const T = m.towers[4], p = facing(m, T, TR + 5, 0), q = facing(m, T, 9, 0, true);
+    put(m.units[0], p[0], p[1]); put(m.units[1], q[0], q[1]);
+    let minD = 1e9;
+    run(m, Math.ceil(22 / TICK), () => { minD = Math.min(minD, Math.hypot(m.units[0].x - T.x, m.units[0].z - T.z)); return allInputs(m); });
+    return { minD, hp: T.hp };
+  };
+  const wt = withTank('hard');
+  check('33d with the tank already in range a hard bot enters the range and the tower loses hp', wt.minD < TR - 0.5 && wt.hp < TW.sub, `min ${wt.minD.toFixed(1)} hp ${wt.hp}`);
+
+  // a hunted, hurt (40%) bot steps out of range; an easy one stays
+  const hurt = (diff) => {
+    const m = nm([BT('soi', 0, diff), solo('trau', 0), BT('trau', 1, diff)]);
+    dead(m.units[2]); spend(m.units[1]);
+    const T = m.towers[4], p = facing(m, T, 8, 0, true), q = facing(m, T, 10.5, 0, true);
+    put(m.units[0], p[0], p[1]); put(m.units[1], q[0], q[1]);
+    m.units[0].hp = m.units[0].maxHp * 0.4;
+    const u = m.units[0];
+    let d15 = 0;
+    run(m, 90, (i) => { if (i === 45) d15 = Math.hypot(u.x - T.x, u.z - T.z); return allInputs(m); });
+    return { out: d15 > TR, alive: u.alive };
+  };
+  const hh = hurt('hard'), he_ = hurt('easy');
+  check('33e a hard bot below 45% hp that the tower targets steps out of range within 1.5 s', hh.alive && hh.out);
+  check('33f ... an easy one is still inside the range then', !he_.out);
+
+  // long range mechs siege from outside the range
+  for (const mech of ['loi', 'ung']) {
+    let best = null;
+    for (const T of [{ id: 4 }, { id: 5 }]) {
+      const mm = nm([BT(mech, 0), BT('trau', 1)]); dead(mm.units[1]);
+      const t = mm.towers[T.id], p = facing(mm, t, TR + 5, 0);
+      put(mm.units[0], p[0], p[1]);
+      let minD = 1e9;
+      run(mm, Math.ceil(70 / TICK), () => { if (t.alive) minD = Math.min(minD, Math.hypot(mm.units[0].x - t.x, mm.units[0].z - t.z)); return allInputs(mm); });
+      if (!best || mm.towers[T.id].hp < best.hp) best = { hp: t.hp, minD, alive: mm.units[0].alive };
+    }
+    check(`33g a ${mech} bot sieges a tower from outside its range (hp lost > 1500, closest ${best.minD.toFixed(1)} m > ${TR})`, best.alive && best.minD > TR && TW.sub - best.hp > 1500, `hp ${best.hp} min ${best.minD.toFixed(1)}`);
+  }
+
+  // nothing is wasted on a main tower that is not open
+  {
+    const m = nm([BT('trau', 0), BT('trau', 1)]);
+    dead(m.units[1]);
+    const main = m.towers[3], p = facing(m, main, 8, 0, true);
+    put(m.units[0], p[0], p[1]);
+    let blocks = 0;
+    run(m, Math.ceil(12 / TICK), () => allInputs(m)).forEach((e) => { if (e.t === 'towerBlock') blocks++; });
+    check('33h bots hold fire on a main tower that is not open (no towerBlock from 12 s next to it)', blocks === 0 && main.hp === TW.main, `blocks ${blocks}`);
+  }
+
+  // defence: a hit own sub tower pulls the nearest 2-3 bots (hard), easy bots mostly stay on the attack
+  const defend = (diff) => {
+    const mechs = ['trau', 'soi', 'hac', 'bocap', 'tho'];
+    const m = nm([...mechs.map((k, i) => BT(k, 0, diff)), BT('trau', 1, diff)]);
+    dead(m.units[5]);
+    const T = m.towers[1];
+    mechs.forEach((k, i) => put(m.units[i], [-6, -2, 2, 12, 22][i], [4, -4, 4, -4, 4][i]));
+    let n = 0;
+    run(m, Math.ceil(5 / TICK), (i) => { if (i % 15 === 0) T.hp -= 100; return allInputs(m); });
+    for (const u of m.units.slice(0, 5)) if (u.alive && Math.hypot(u.x - T.x, u.z - T.z) < TR + 1) n++;
+    return n;
+  };
+  const dh = defend('hard'), de = defend('easy'), dn = defend('normal');
+  console.log(`bots back under a hit own sub tower after 5 s (of 5): hard ${dh}, normal ${dn}, easy ${de}`);
+  check('33i hard: a hit own tower pulls the nearest 2-3 bots back under it', dh >= 2 && dh <= 4, `${dh}`);
+  check('33j normal also defends (2-3), easy rarely does (fewer than hard)', dn >= 2 && de < dh && de <= 1, `normal ${dn} easy ${de}`);
+  const allDef = (diff) => {
+    const mechs = ['trau', 'soi', 'hac', 'bocap', 'tho'];
+    const m = nm([...mechs.map((k) => BT(k, 0, diff)), solo('trau', 1)]);
+    const main = m.towers[0];
+    m.towers[1].alive = false; m.towers[1].hp = 0; m.towers[2].alive = false; m.towers[2].hp = 0;
+    const e = m.units[5]; spend(e); put(e, main.x + 8, main.z + 1);
+    mechs.forEach((k, i) => put(m.units[i], [-2, 4, 8, 12, 16][i], [4, -4, 4, -4, 4][i]));
+    let n = 0;
+    run(m, Math.ceil(9 / TICK), () => allInputs(m));
+    for (const u of m.units.slice(0, 5)) if (u.alive && Math.hypot(u.x - main.x, u.z - main.z) < TR + 3) n++;
+    return n;
+  };
+  const ah = allDef('hard'), ae = allDef('easy');
+  console.log(`bots under the open own main tower with enemies near it after 9 s (of 5): hard ${ah}, easy ${ae}`);
+  check('33k own main tower open with an enemy next to it: everyone (hard) defends', ah >= 4, `${ah}`);
+  check('33l ... easy bots mostly do not', ae < ah && ae <= 3, `${ae}`);
+
+  // a respawn wave pushes together: two fresh bots wait for the other three
+  {
+    const m = nm([...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k) => BT(k, 0)), BT('trau', 1)]);
+    dead(m.units[5]);
+    for (const i of [2, 3, 4]) { m.units[i].alive = false; m.units[i].respawnT = 4; }
+    const base = m.map.bases[0];
+    let dEarly = 0, dLate = 0;
+    run(m, Math.ceil(9 / TICK), () => {
+      const alive = m.units.slice(0, 5).filter((u) => u.alive);
+      if (Math.abs(m.time - 3.5) < TICK / 2) dEarly = Math.max(...alive.map((u) => Math.hypot(u.x - base[0], u.z - base[1])));
+      return allInputs(m);
+    });
+    for (const u of m.units.slice(0, 5)) dLate = Math.max(dLate, Math.hypot(u.x - base[0], u.z - base[1]));
+    check('33m a wave of two waits at the rally point near the base until the rest respawn, then all go', dEarly < 14 && dLate > 14, `early ${dEarly.toFixed(1)} late ${dLate.toFixed(1)}`);
+  }
+}
+
+section('34 bots: spacing and mud');
+{
+  const pairMin = (units) => { let q = 1e9; for (let i = 0; i < units.length; i++) for (let j = i + 1; j < units.length; j++) q = Math.min(q, Math.hypot(units[i].x - units[j].x, units[i].z - units[j].z)); return q; };
+  for (const mode of ['tdm', 'chiem', 'nha']) {
+    const m = createMatch({ seed: 9, mode, roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'trau', name: 'x' }] });
+    dead(m.units[5]);
+    for (let i = 0; i < 5; i++) put(m.units[i], -20, 0);
+    let sum = 0, n = 0;
+    run(m, Math.ceil(6 / TICK), () => { if (m.time > 3) { sum += pairMin(m.units.slice(0, 5).filter((u) => u.alive)); n++; } return allInputs(m); });
+    check(`34a ${mode}: five bots starting on the same spot are apart within 3 s (closest pair avg > 1.5 m in 3-6 s)`, sum / n > 1.5, `${(sum / n).toFixed(2)} m`);
+  }
+  {
+    // chiem: five bots holding one point do not stack
+    const m = createMatch({ seed: 9, map: 'denrung', mode: 'chiem', roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' })), solo('trau', 1)] });
+    dead(m.units[5]);
+    const P = m.points[0];
+    for (let i = 0; i < 5; i++) put(m.units[i], P.x, P.z);
+    for (const p of m.points) if (p !== P) p.owner = 0;
+    let sum = 0, n = 0;
+    run(m, Math.ceil(10 / TICK), () => { if (m.time > 5) { sum += pairMin(m.units.slice(0, 5)); n++; } return allInputs(m); });
+    check('34b chiem: bots around a control point keep their distance (closest pair avg > 1.5 m)', sum / n > 1.5, `${(sum / n).toFixed(2)} m`);
+  }
+  {
+    // trum: the squad around the boss does not stack
+    const m = createMatch({ seed: 9, map: 'denrung', mode: 'trum', roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'titan', name: 'B' }] });
+    const boss = m.units[5]; boss.maxHp = boss.hp = 1e9; boss.def = { ...boss.def, skills: boss.def.skills.map((s) => ({ ...s, cd: 1e9 })) }; for (const k in boss.cd) boss.cd[k] = 1e9;
+    let sum = 0, n = 0;
+    run(m, Math.ceil(30 / TICK), () => { for (const u of m.units.slice(0, 5)) { u.maxHp = u.hp = 1e9; } if (m.time > 20) { sum += pairMin(m.units.slice(0, 5)); n++; } return allInputs(m); });
+    check('34c trum: the squad around the boss keeps its distance (closest pair avg > 1.5 m, 20-30 s)', sum / n > 1.5, `${(sum / n).toFixed(2)} m`);
+  }
+  {
+    // mud (injected into open ground on denrung): a hurt bot retreating past a mud disc goes around it; a hover bot (immune) drives through
+    const mudMatch = (edit, diff = 'hard') => {
+      const m = createMatch({ seed: 3, map: 'denrung', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff }, solo('trau', 1)] });
+      m.map.hazards.push({ id: 99, kind: 'mud', x: 1.8, z: 2.8, r: 2.5 });
+      if (edit) m.units[0].def = edit(m.units[0].def);
+      dead(m.units[1]);
+      return m;
+    };
+    const ticksIn = (edit) => {
+      const m = mudMatch(edit), u = m.units[0], h = m.map.hazards.find((q) => q.id === 99);
+      put(u, 7, -1); u.hp = u.maxHp * 0.25;
+      let n = 0;
+      run(m, Math.ceil(2.6 / TICK), () => { if (Math.hypot(u.x - h.x, u.z - h.z) < h.r) n++; return allInputs(m); });
+      return n;
+    };
+    const around = ticksIn(), hover = ticksIn((d) => ({ ...d, hover: true }));
+    console.log(`ticks inside a 2.5 m mud disc on the way to the base (2.6 s): normal mech ${around}, hover mech ${hover}`);
+    check('34d a bot routes around a mud disc when the detour is short (a hover bot goes through)', hover >= 15 && around <= hover * 0.2, `mech ${around} hover ${hover}`);
+    const stand = () => {
+      const m = mudMatch(null);
+      m.map.hazards.find((q) => q.id === 99).x = 1; m.map.hazards.find((q) => q.id === 99).z = -1;
+      m.units[1].alive = true; m.units[1].respawnT = 0;
+      const u = m.units[0], e = m.units[1], h = m.map.hazards.find((q) => q.id === 99);
+      h.r = 4;
+      spend(e); put(u, h.x, h.z); put(e, h.x + 9, h.z);
+      let n = 0, all = Math.ceil(8 / TICK);
+      run(m, all, () => { put(e, h.x + 9, h.z); if (Math.hypot(u.x - h.x, u.z - h.z) < h.r) n++; return allInputs(m); });
+      return n / all;
+    };
+    const fr = stand();
+    check('34e a bot that fights from the middle of mud drifts out of it (< 50% of 8 s inside)', fr < 0.5, `${(100 * fr).toFixed(0)}%`);
+  }
+}
+
+section('35 bot matches: layout x theme, and the nha matches');
+// same five mechs on both sides (rotating with the seed) so a result is about the bots, not the roster
+const nhaRoster = (seed, d0, d1) => { const r = []; for (let t = 0; t < 2; t++) for (let k = 0; k < 5; k++) r.push({ team: t, mech: MECH_ORDER[(seed + k) % 8], name: `n${t}${k}`, bot: true, diff: t ? d1 : d0 }); return r; };
+function runNha(seed, map, d0 = 'normal', d1 = 'normal', opts = {}) {
+  const m = createMatch({ seed, map, theme: opts.theme, mode: opts.mode || 'nha', duration: opts.duration, roster: nhaRoster(seed, d0, d1) });
+  const dist = m.units.map(() => 0), alive = m.units.map(() => 0), wallT = m.units.map(() => 0);
+  let bad = null, nonFinite = 0, ticks = 0, thinkTotal = 0, thinkWorst = 0, deathsUnder = 0, deaths = 0, cluSum = 0, cluN = 0, cluLow = 0;
+  const limit = Math.ceil(m.duration / TICK) + 5;
+  while (!m.over && ticks < limit) {
+    const t0 = process.hrtime.bigint();
+    const inputs = allInputs(m);
+    const dt = Number(process.hrtime.bigint() - t0) / 1e6;
+    thinkTotal += dt; if (dt > thinkWorst) thinkWorst = dt;
+    for (const i of inputs) if (i && !(Number.isFinite(i.mx + i.mz + i.aim + i.tx + i.tz) && ['fire', 's1', 's2', 'ult', 'heal'].every((k) => typeof i[k] === 'boolean'))) nonFinite++;
+    step(m, inputs);
+    ticks++;
+    for (const e of m.events) if (e.t === 'death') {
+      deaths++;
+      const u = m.units[e.id];
+      for (const t of m.towers) if (t.alive && t.team !== u.team && Math.hypot(e.x - t.x, e.z - t.z) < TR) { deathsUnder++; break; }
+    }
+    for (const u of m.units) {
+      if (!Number.isFinite(u.x) || !Number.isFinite(u.z) || !Number.isFinite(u.hp)) { bad = bad || `NaN unit ${u.id} tick ${m.tick}`; continue; }
+      if (!u.alive) continue;
+      alive[u.id] += TICK;
+      if (Math.abs(u.x) > m.map.hw || Math.abs(u.z) > m.map.hd) bad = bad || `out of bounds unit ${u.id} tick ${m.tick}`;
+      if (solidAt(m.map, u.x, u.z, u.radius * 0.5)) { if (++wallT[u.id] > 90) bad = bad || `inside a wall for 3 s: unit ${u.id} (${u.mech}) tick ${m.tick} (${u.x.toFixed(1)}, ${u.z.toFixed(1)})`; } else wallT[u.id] = 0;
+      const s = Math.hypot(u.x - u.px, u.z - u.pz);
+      if (s < 2) dist[u.id] += s;
+    }
+    if (m.tick % 3 === 0) for (let t = 0; t < 2; t++) {
+      // closest pair of allied bots that are not retreating and are within 8 m of each other (a group): how far apart do they stay
+      const bs = m.units.filter((u) => u.team === t && u.alive && u.brain && u.brain.state !== 'retreat');
+      let q = 1e9;
+      for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) q = Math.min(q, Math.hypot(bs[i].x - bs[j].x, bs[i].z - bs[j].z));
+      if (q < 8) { cluSum += q; cluN++; if (q < 1.0) cluLow++; }
+    }
+  }
+  const hp = [0, 0], full = [0, 0];
+  for (const t of m.towers) { hp[t.team] += t.hp; full[t.team] += t.maxHp; }
+  const mainDown = m.towers.some((t) => t.kind === 'main' && !t.alive);
+  return { m, seed, map, dist, alive, bad, nonFinite, ticks, thinkTotal, thinkWorst, deathsUnder, deaths, mainDown, towerDmg: [full[0] - hp[0], full[1] - hp[1]], cluAvg: cluN ? cluSum / cluN : 9, cluLow, cluN };
+}
+const stuckList = (rs) => { const slow = []; for (const r of rs) for (const u of r.m.units) { const v = r.dist[u.id] / Math.max(1, r.alive[u.id]); if (r.alive[u.id] > 12 && v < 0.15) slow.push(`${r.map}/${r.seed}${r.m.map.theme} ${u.mech} ${v.toFixed(2)} m/s`); } return slow; };
+{
+  // every theme at least once, layouts rotating; short nha matches
+  const pairs = THEME_ORDER.map((th, i) => [MAP_ORDER[i % MAP_ORDER.length], th]);
+  const rs = pairs.map(([map, th], i) => runNha(70 + i, map, 'normal', 'normal', { theme: th, duration: 150 }));
+  check(`35a ${rs.length} layout x theme bot matches (every theme once) ran with no NaN, nothing out of bounds or inside a wall`, rs.every((r) => !r.bad), rs.filter((r) => r.bad).map((r) => `${r.map}/${r.m.map.theme}: ${r.bad}`)[0]);
+  check('35b no non-finite or non-boolean bot input in those matches', rs.every((r) => r.nonFinite === 0));
+  const sl = stuckList(rs);
+  check('35c no stuck bot in those matches (alive-time speed >= 0.15 m/s)', sl.length === 0, sl.slice(0, 4).join('; '));
+  check('35d the themes were really in play (8 different themes built)', new Set(rs.map((r) => r.m.map.theme)).size === 8);
+  console.log(`theme matches: ${rs.map((r) => `${r.map}/${r.m.map.theme}`).join(' ')}`);
+}
+const NHA_RS = [];
+{
+  // 10 seeds, normal vs normal, four layouts
+  for (let i = 0; i < 10; i++) NHA_RS.push(runNha(81 + i, MAP_ORDER[i % 4]));
+  const rs = NHA_RS, n = rs.length;
+  const ended = rs.filter((r) => r.mainDown).length, len = rs.reduce((a, r) => a + r.m.time, 0) / n;
+  const dmgAvg = rs.reduce((a, r) => a + r.towerDmg[0] + r.towerDmg[1], 0) / (2 * n);
+  const dUnder = rs.reduce((a, r) => a + r.deathsUnder, 0), dAll = rs.reduce((a, r) => a + r.deaths, 0);
+  const clu = rs.reduce((a, r) => a + r.cluAvg * r.cluN, 0) / Math.max(1, rs.reduce((a, r) => a + r.cluN, 0)), low = rs.reduce((a, r) => a + r.cluLow, 0) / Math.max(1, rs.reduce((a, r) => a + r.cluN, 0));
+  console.log(`nha normal vs normal (${n} matches): ${ended} ended by a main tower falling, avg length ${len.toFixed(0)} s (${(len / 60).toFixed(1)} min), lengths ${rs.map((r) => r.m.time.toFixed(0)).join(' ')}`);
+  console.log(`  score ${rs.map((r) => r.m.score.join('-')).join(' ')}; avg tower damage per team ${dmgAvg.toFixed(0)} of ${2 * TW.sub + TW.main}; deaths under an enemy tower ${dUnder} of ${dAll} (${(100 * dUnder / Math.max(1, dAll)).toFixed(0)}%), ${(dAll / n).toFixed(0)} deaths/match`);
+  console.log(`  closest pair of grouped allied bots: avg ${clu.toFixed(2)} m, ${(100 * low).toFixed(1)}% of group-ticks under 1 m`);
+  const wins = [0, 0, 0]; for (const r of rs) wins[r.m.winner < 0 ? 2 : r.m.winner]++;
+  console.log(`  wins team0/team1/draw ${wins.join('/')}`);
+  check('35e nha matches: no NaN, nothing out of bounds or inside a wall; all end (m.over)', rs.every((r) => !r.bad && r.m.over), rs.filter((r) => r.bad).map((r) => r.bad)[0]);
+  fact('35-balance nha normal vs normal: most matches (>= 6 of 10) end by a main tower falling before the clock', ended >= 6, `${ended}/${n}`);
+  check('35f nha matches: the towers fall (>= 4 of 10 end by a main tower before the clock; before the bots were taught none did) and every match destroys at least 2 towers', ended >= 4 && rs.every((r) => r.m.score[0] + r.m.score[1] >= 2), `${ended}/${n}, scores ${rs.map((r) => r.m.score.join('-')).join(' ')}`);
+  fact('35-balance nha normal vs normal: average length 4..7 minutes', len >= 240 && len <= 420, `${len.toFixed(0)} s`);
+  check('35g nha matches last at least 2.5 minutes on average (no rush) and tower damage is real (> 15000 per team)', len > 150 && dmgAvg > 15000, `${len.toFixed(0)} s, ${dmgAvg.toFixed(0)}`);
+  const sl = stuckList(rs);
+  check('35h no stuck bot in the nha matches', sl.length === 0, sl.slice(0, 4).join('; '));
+  check('35i bots do not stack: closest allied pair of a group stays > 1.5 m on average (time-averaged)', clu > 1.5, `${clu.toFixed(2)} m`);
+  check('35j deaths under an enemy tower are a minority of all deaths (< 40%)', dUnder < 0.4 * dAll, `${dUnder}/${dAll}`);
+  check('35k both teams destroy towers (neither team is passive: every match has damage on both sides)', rs.every((r) => r.towerDmg[0] > 0 && r.towerDmg[1] > 0));
+}
+{
+  // hard vs easy: sides alternate
+  let hw = 0, ew = 0, dr = 0, hDmg = 0, eDmg = 0, len = 0;
+  const N = 6, rs = [];
+  for (let i = 0; i < N; i++) {
+    const swap = i % 2 === 1, r = runNha(91 + i, MAP_ORDER[i % 4], swap ? 'easy' : 'hard', swap ? 'hard' : 'easy');
+    rs.push(r);
+    const ht = swap ? 1 : 0;
+    if (r.m.winner === ht) hw++; else if (r.m.winner === 1 - ht) ew++; else dr++;
+    hDmg += r.towerDmg[1 - ht]; eDmg += r.towerDmg[ht]; len += r.m.time;
+  }
+  console.log(`nha hard vs easy (${N}): hard ${hw} - easy ${ew} (draws ${dr}), tower damage dealt by hard ${(hDmg / N).toFixed(0)} vs easy ${(eDmg / N).toFixed(0)}, avg length ${(len / N).toFixed(0)} s`);
+  check('35l nha: hard beats easy clearly (>= 5 of 6, more than twice the wins) and deals more tower damage', hw >= 5 && hw > ew * 2 && hDmg > eDmg, `${hw}-${ew}`);
+  check('35m the hard-vs-easy matches are clean (no NaN, no wall)', rs.every((r) => !r.bad && r.nonFinite === 0));
+  NHA_RS.push(...rs);
+}
+{
+  const tt = NHA_RS.reduce((a, r) => a + r.thinkTotal, 0), tk = NHA_RS.reduce((a, r) => a + r.ticks, 0), worst = Math.max(...NHA_RS.map((r) => r.thinkWorst));
+  console.log(`bot think time nha: avg ${(tt / tk).toFixed(3)} ms/tick (all 10 bots), worst ${worst.toFixed(2)} ms`);
+  check('35n think time in nha: avg under 1 ms/tick, worst tick under 30 ms', tt / tk < 1 && worst < 30, `${(tt / tk).toFixed(3)} ms, worst ${worst.toFixed(2)}`);
 }
 
 // think time over all the new modes

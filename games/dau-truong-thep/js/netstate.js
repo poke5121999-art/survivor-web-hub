@@ -79,7 +79,8 @@ export function snapshot(m) {
       if (!extra.has(key)) { extra.set(key, SHOT_KINDS.length + xk.length); xk.push([s.vis, s.speed, s.r]); }
       k = extra.get(key);
     }
-    return [s.id, s.owner, k, rd(s.x), rd(s.z), ang(Math.atan2(s.dz, s.dx))];
+    // A tower's shot has no unit owner: it travels as -1 - towerId.
+    return [s.id, s.owner >= 0 ? s.owner : -1 - (s.tower || 0), k, rd(s.x), rd(s.z), ang(Math.atan2(s.dz, s.dx))];
   });
   const zones = m.zones.map((z) => {
     const row = [z.id, ZONE_KINDS.indexOf(z.kind), z.owner, rd(z.x), rd(z.z), rd(z.r), rd(z.age), rd(num(z.delay))];
@@ -93,6 +94,7 @@ export function snapshot(m) {
     k: m.tick, sc: m.score.slice(), o: m.over ? 1 : 0, w: m.winner, l: m.lives,
     pt: m.points.map((p) => [p.owner, rd(p.prog, 1000)]),
     vt: m.vents.map((v) => [rd(v.t), v.warn ? 1 : 0]),
+    tw: m.towers.map((t) => [Math.round(t.hp), t.alive ? 1 : 0, rd(t.charge), ang(t.aim), t.target]),
     u: m.units.map(unitRow), s: shots, z: zones,
     c: m.crates.map((c) => [c.id, rd(c.x), rd(c.z), PICKUP_KEYS.indexOf(c.type), rd(c.fall), rd(c.age)]),
     p: mask,
@@ -105,7 +107,7 @@ export function snapshot(m) {
 // before a match exists; both feed createMirror and matchOptions.)
 export function roster(m) {
   return {
-    map: m.map.key, mode: m.mode, seed: m.seed, target: m.target, duration: m.duration,
+    map: m.map.key, theme: m.map.theme, mode: m.mode, seed: m.seed, target: m.target, duration: m.duration,
     units: m.units.map((u) => ({ team: m.mode === 'tudo' ? 0 : u.team, color: u.color, mech: u.mech, name: u.name, bot: u.bot, diff: u.diff,
       paint: u.paint, radius: u.radius, maxHp: u.maxHp, mods: { hp: u.maxHp / u.def.hp, dmg: u.dmgMod } })),
   };
@@ -115,7 +117,7 @@ export function roster(m) {
 // only matters in team modes.
 export function matchOptions(rosterData) {
   return {
-    map: rosterData.map, mode: rosterData.mode, seed: rosterData.seed, target: rosterData.target, duration: rosterData.duration,
+    map: rosterData.map, theme: rosterData.theme, mode: rosterData.mode, seed: rosterData.seed, target: rosterData.target, duration: rosterData.duration,
     roster: rosterData.units.map((r) => ({ team: r.team, mech: r.mech, name: r.name, bot: r.bot, diff: r.diff, paint: r.paint, mods: r.mods })),
   };
 }
@@ -142,6 +144,7 @@ export function applySnapshot(m, snap, dt) {
   m.score = snap.sc.slice(); m.over = !!snap.o; m.winner = snap.w; m.lives = snap.l;
   snap.pt.forEach((p, i) => { if (m.points[i]) { m.points[i].owner = p[0]; m.points[i].prog = p[1]; } });
   snap.vt.forEach((v, i) => { if (m.vents[i]) { m.vents[i].t = v[0]; m.vents[i].warn = !!v[1]; } });
+  (snap.tw || []).forEach((r, i) => { const t = m.towers[i]; if (t) { t.hp = r[0]; t.alive = !!r[1]; t.charge = r[2]; t.aim = r[3]; t.target = r[4]; } });
 
   snap.u.forEach((r, i) => {
     const u = m.units[i];
@@ -169,14 +172,14 @@ export function applySnapshot(m, snap, dt) {
   const kinds = (k) => (k < SHOT_KINDS.length ? SHOT_KINDS[k] : (() => { const x = (snap.xk || [])[k - SHOT_KINDS.length] || ['bullet', 30, 0.2]; return { vis: x[0], speed: x[1], r: x[2] }; })());
   const seen = new Map();
   m.shots = snap.s.map((r) => {
-    const kind = kinds(r[2]), owner = m.units[r[1]];
+    const kind = kinds(r[2]), owner = r[1] >= 0 ? m.units[r[1]] : m.towers[-1 - r[1]];
     let s = net.shots.get(r[0]);
     const dx = Math.cos(r[5]), dz = Math.sin(r[5]);
     if (s) { s.px = s.x; s.pz = s.z; } else {
       s = { id: r[0] };
       s.px = r[3] - dx * kind.speed * dts; s.pz = r[4] - dz * kind.speed * dts;
     }
-    s.team = owner ? owner.team : 0; s.color = owner ? owner.color : 0; s.owner = r[1];
+    s.team = owner ? owner.team : 0; s.color = owner ? owner.color : 0; s.owner = r[1] >= 0 ? r[1] : -1;
     s.x = r[3]; s.z = r[4]; s.dx = dx; s.dz = dz; s.speed = kind.speed; s.vis = kind.vis; s.r = kind.r;
     seen.set(s.id, s);
     return s;

@@ -44,7 +44,7 @@ export const MAPS = {
       [[-9, -14.5], [-7, -6]], [[-12.5, 15.8], [-12.5, 7], [-14, -1.5]],
     ],
     plaza: [0, 0, 8.5],
-    hazards: [],
+    hazards: [[-12.5, -6.5, 2.4], [-6, 13, 2.6], [-20, -14.5, 2.4]],
   },
   xuongcat: {
     name: 'Xưởng Cát', theme: 'desert', size: [84, 48],
@@ -78,7 +78,7 @@ export const MAPS = {
       [[-31, 0], [-27, 13.5], [-17, 10], [-7, 11], [0, 15]],
     ],
     plaza: [0, 0, 6],
-    hazards: [['vent', -1.5, -4.2, 2.3], ['vent', -10.5, 5.5, 2.3]],
+    hazards: [[-1.5, -4.2, 2.3], [-10.5, 5.5, 2.3]],
   },
   cangbang: {
     name: 'Cảng Băng', theme: 'ice', size: [74, 54],
@@ -111,7 +111,7 @@ export const MAPS = {
       [[-27, 0], [-25, 13.5], [-17, 18], [-7, 14.5], [0, 14]],
     ],
     plaza: [0, 0, 5],
-    hazards: [['ice', 0, 0, 7.5], ['ice', -11.5, 9.5, 4], ['ice', -13.5, -18.5, 3.6]],
+    hazards: [[0, 0, 7.5], [-11.5, 9.5, 4], [-13.5, -18.5, 3.6]],
   },
   mienglua: {
     name: 'Miệng Lửa', theme: 'lava', size: [78, 50],
@@ -143,13 +143,34 @@ export const MAPS = {
       [[-29, 0], [-26, 14], [-17, 16.5], [-8, 17], [0, 15]],
     ],
     plaza: [0, 0, 5.5],
-    hazards: [['lava', -16.5, -10, 3.4], ['lava', -13.5, 10.5, 3.2], ['lava', -4.5, -9.5, 2.4], ['lava', 0, 9.5, 2.8]],
+    hazards: [[-16.5, -10, 3.4], [-13.5, 10.5, 3.2], [-4.5, -9.5, 2.4], [0, 9.5, 2.8]],
   },
 };
 
 export const MAP_ORDER = ['denrung', 'xuongcat', 'cangbang', 'mienglua'];
 
-// hazard: [kind, x, z, radius]   kind: lava (burns), ice (slippery), vent (a flame jet every few seconds, with a warning)
+// A theme dresses any layout: it decides what the layout's hazard spots become and what stands where the layout says "tree".
+// hazard kinds: lava (burns), ice (slippery), vent (a flame jet every few seconds, with a warning), mud (slows). null: no hazards.
+export const THEMES = {
+  jungle: { name: 'Rừng mưa', hazard: null, tree: 'tree', blurb: 'Rừng rậm xanh mướt, không có mối nguy.' },
+  desert: { name: 'Sa mạc', hazard: 'vent', tree: 'cactus', blurb: 'Cát nóng, họng lửa phụt theo nhịp.' },
+  ice: { name: 'Băng tuyết', hazard: 'ice', tree: 'pine', blurb: 'Mặt băng trơn: lao nhanh, khó dừng.' },
+  lava: { name: 'Núi lửa', hazard: 'lava', tree: 'spire', blurb: 'Hồ dung nham đốt cháy ai bước vào.' },
+  city: { name: 'Phố đổ nát', hazard: 'vent', tree: 'lamp', blurb: 'Đường nhựa nứt vỡ, ống ga phụt lửa.' },
+  swamp: { name: 'Đầm đêm', hazard: 'mud', tree: 'tree', blurb: 'Trời tối, đom đóm bay, bùn lầy làm chậm bước.' },
+  autumn: { name: 'Rừng thu', hazard: null, tree: 'tree', blurb: 'Lá vàng đỏ dưới nắng chiều, không có mối nguy.' },
+  canyon: { name: 'Hẻm đá đỏ', hazard: 'mud', tree: 'cactus', blurb: 'Đá đỏ khô cằn, vũng cát lún làm chậm bước.' },
+};
+export const THEME_ORDER = ['jungle', 'desert', 'ice', 'lava', 'city', 'swamp', 'autumn', 'canyon'];
+
+// Layout and theme for a match. 'random' picks from the seed, so every machine in a room builds the same arena.
+export function pickArena(map, theme, seed) {
+  let h = (seed ^ 0x9e3779b9) >>> 0;
+  const next = () => { h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0; return (h ^ (h >>> 15)) >>> 0; };
+  const m = MAPS[map] ? map : MAP_ORDER[next() % MAP_ORDER.length];
+  const t = THEMES[theme] ? theme : (theme === 'random' || !MAPS[map] ? THEME_ORDER[next() % THEME_ORDER.length] : MAPS[m].theme);
+  return { map: m, theme: t };
+}
 
 const CELL = 1;
 const NAV_RADIUS = 1.25;
@@ -157,20 +178,21 @@ const NAV_RADIUS = 1.25;
 const rot = (p) => [-p[0], -p[1]];
 const centred = (p) => Math.abs(p[0]) < 1e-6 && Math.abs(p[1]) < 1e-6;
 
-export function compileMap(key) {
-  const src = MAPS[key];
+export function compileMap(key, themeKey) {
+  const src = MAPS[key], theme = THEMES[themeKey] ? themeKey : src.theme, T = THEMES[theme];
   const both = (list, flip) => list.concat(list.filter((it) => !centred(it)).map(flip));
   const walls = both(src.walls, (w) => [-w[0], -w[1], w[2], w[3], w[4], w[5]])
     .map((w, i) => ({ id: i, x: w[0], z: w[1], w: w[2], d: w[3], h: w[4], kind: w[5], x0: w[0] - w[2] / 2, x1: w[0] + w[2] / 2, z0: w[1] - w[3] / 2, z1: w[1] + w[3] / 2 }));
-  const rounds = both(src.rounds, (c) => [-c[0], -c[1], c[2], c[3]]).map((c, i) => ({ id: i, x: c[0], z: c[1], r: c[2], kind: c[3] }));
+  const TREES = ['tree', 'cactus', 'pine', 'spire', 'lamp'];
+  const rounds = both(src.rounds, (c) => [-c[0], -c[1], c[2], c[3]]).map((c, i) => ({ id: i, x: c[0], z: c[1], r: c[2], kind: TREES.includes(c[3]) ? T.tree : c[3] }));
   const bushes = both(src.bushes, (b) => [-b[0], -b[1], b[2]]).map((b, i) => ({ id: i, x: b[0], z: b[1], r: b[2] }));
   const props = both(src.props, (p) => [-p[0], -p[1], p[2]]).map((p, i) => ({ id: i, x: p[0], z: p[1], kind: p[2] }));
   const cratePoints = both(src.cratePoints, rot);
-  const hazards = both((src.hazards || []).filter((h) => h[3] > 0.1), (h) => [h[0], -h[1], -h[2], h[3]]).map((h, i) => ({ id: i, kind: h[0], x: h[1], z: h[2], r: h[3] }));
+  const hazards = T.hazard ? both(src.hazards || [], (h) => [-h[0], -h[1], h[2]]).map((h, i) => ({ id: i, kind: T.hazard, x: h[0], z: h[1], r: h[2] })) : [];
   const paths = src.paths.concat(src.paths.map((line) => line.map(rot)));
   const [W, D] = src.size;
   const map = {
-    key, name: src.name, theme: src.theme, w: W, d: D, hw: W / 2, hd: D / 2,
+    key, name: src.name, theme, w: W, d: D, hw: W / 2, hd: D / 2,
     walls, rounds, bushes, props, cratePoints, paths, hazards, plaza: src.plaza,
     bases: [src.base, rot(src.base)],
     spawns: [src.spawns, src.spawns.map(rot)],
@@ -244,6 +266,15 @@ export function segCircle(x0, z0, dx, dz, cx, cz, r) {
   if (disc < 0) return 2;
   const t = (-b - Math.sqrt(disc)) / (2 * a);
   return t >= 0 && t <= 1 ? t : 2;
+}
+
+// Marks (or clears) the nav cells a round obstacle covers, for things that appear after the map is compiled, such as towers.
+export function navBlock(map, x, z, r, on) {
+  const nav = map.nav, reach = r + NAV_RADIUS;
+  for (let j = 0; j < nav.rows; j++) for (let i = 0; i < nav.cols; i++) {
+    const cx = -map.hw + (i + 0.5) * nav.cell, cz = -map.hd + (j + 0.5) * nav.cell;
+    if (Math.hypot(cx - x, cz - z) < reach) nav.blocked[j * nav.cols + i] = on ? 1 : (solidAt(map, cx, cz, NAV_RADIUS) ? 1 : 0);
+  }
 }
 
 export const losClear = (map, x0, z0, x1, z1, r = 0.2) => castStatic(map, x0, z0, x1, z1, r) > 1;

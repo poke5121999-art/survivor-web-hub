@@ -310,7 +310,8 @@ export function makeOnline(G) {
     map: 'denrung', mode: 'tdm', diff: 'normal',
   });
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
-  const pickTeam = () => (online.lobby.mode === 'trum' || teamSize(0) <= teamSize(1) ? 0 : 1);
+  // Co-op by default: joiners side with the host against bots until that team is full. Players switch sides for PvP.
+  const pickTeam = () => (online.lobby.mode === 'trum' || teamSize(0) < TEAM_SIZE ? 0 : 1);
   const humansCap = () => (online.lobby.mode === 'trum' ? TEAM_SIZE : MAX_PLAYERS);
   const lobbyPlayer = (pid) => online.lobby && online.lobby.players.find((p) => p.id === pid);
   const cleanName = (n) => String(n || '').trim().slice(0, 24) || T.guestName;

@@ -116,6 +116,31 @@ const SETS = {
     albedo = mix(vec3(0.15, 0.12, 0.11), vec3(0.30, 0.25, 0.22), n) * (0.82 + fine * 0.35);
     albedo = mix(albedo, vec3(0.07, 0.06, 0.06), (1.0 - smoothstep(0.1, 0.2, peb.x)) * step(0.8, peb.z) * 0.8);
     height = n * 0.6 + fine * 0.2; rough = 0.95; metal = 0.0;`,
+  asphalt: /* glsl */`
+    float n = fbm(uv, 6.0), fine = fbm(uv + 2.2, 96.0);
+    vec3 c = voro(uv + n * 0.05, 5.0);
+    float crack = 1.0 - smoothstep(0.0, 0.025, c.y);
+    float patch_ = smoothstep(0.55, 0.6, fbm(uv + 5.0, 3.0));
+    albedo = mix(vec3(0.085, 0.085, 0.09), vec3(0.15, 0.15, 0.155), n) * (0.8 + fine * 0.45);
+    albedo = mix(albedo, albedo * 0.7, patch_);
+    albedo = mix(albedo, vec3(0.02), crack);
+    height = 0.5 - crack * 0.4 + fine * 0.12; rough = 0.82 - patch_ * 0.2; metal = 0.0;`,
+  concrete: /* glsl */`
+    vec2 g = uv * 3.0; vec2 f = fract(g);
+    float rnd = hash(floor(g), 3.0), n = fbm(uv, 7.0), fine = fbm(uv + 9.1, 80.0);
+    float edge = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+    float gap = 1.0 - smoothstep(0.008, 0.022, edge);
+    float stain = smoothstep(0.5, 0.8, fbm(uv + 3.0, 4.0));
+    albedo = vec3(0.42 + rnd * 0.08) * (0.86 + fine * 0.22) * (1.0 - stain * 0.25);
+    float crack = 1.0 - smoothstep(0.0, 0.02, voro(uv + n * 0.04, 7.0).y);
+    albedo = mix(albedo, vec3(0.06), max(gap, crack * 0.7));
+    height = (1.0 - gap) * 0.6 - crack * 0.25 + fine * 0.1; rough = 0.85; metal = 0.0;`,
+  mud: /* glsl */`
+    float n = fbm(uv, 5.0), fine = fbm(uv + 4.2, 48.0);
+    float wet = smoothstep(0.4, 0.6, fbm(uv + 7.0, 4.0));
+    albedo = mix(vec3(0.10, 0.075, 0.045), vec3(0.20, 0.15, 0.09), n) * (0.85 + fine * 0.3);
+    albedo = mix(albedo, albedo * 0.6, wet);
+    height = n * 0.6 * (1.0 - wet * 0.7) + fine * 0.1; rough = mix(0.9, 0.12, wet); metal = 0.0;`,
   metal: /* glsl */`
     vec2 g = uv * 2.0; vec2 cell = floor(g), f = fract(g);
     float rnd = hash(cell, 2.0), n = fbm(uv, 6.0), fine = fbm(uv + 8.3, 80.0);

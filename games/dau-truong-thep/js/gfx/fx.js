@@ -4,7 +4,7 @@
 import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
 import { TEAMS, PICKUPS, RULES } from '../data.js';
-import { visibleTo } from '../sim.js';
+import { visibleTo, towerOpen } from '../sim.js';
 
 const TEAM_HDR = [new THREE.Color(0.25, 0.85, 2.0), new THREE.Color(2.1, 0.55, 0.16)];
 const C = (r, g, b) => new THREE.Color(r, g, b);
@@ -21,6 +21,7 @@ const SHOT_LOOK = {
   pellet: { len: 1.5, wid: 0.42, white: 0.4 },
   frost: { len: 2.0, wid: 0.8, white: 0.6, trail: 'spark' },
   rivet: { len: 1.9, wid: 0.4, white: 0.3 },
+  tower: { len: 2.6, wid: 1.5, white: 0.35, trail: 'spark' },
 };
 
 function particles(max, additive) {
@@ -327,6 +328,10 @@ export function makeFx(G, mechs) {
         else explosion(e.x, e.z, e.r, e.why === 'mine' ? ARC : FIRE, e.why !== 'mine');
         break;
       case 'capture': if (e.team >= 0) { ring(e.x, e.z, 7, TEAM_HDR[e.team], 0.7); burst(e.x, 0.5, e.z, 30, TEAM_HDR[e.team], 4, 1, 0.3, 0.2, add, { lift: 6, drag: 1 }); } break;
+      case 'towerFire': { const t = m.towers[e.tower]; flash(e.x, 5, e.z, TEAM_HDR[t.color], 26, 0.15); ring(e.x, e.z, 2.6, TEAM_HDR[t.color], 0.3, 0.6); break; }
+      case 'towerHit': burst(e.x + rnd(-1, 1), rnd(1, 4), e.z + rnd(-1, 1), 5, STONE, 4, 0.6, 0.35, 0.8, alp, { grav: 10, a: 0.9 }); add.emit(e.x, 2.5, e.z, WHITE, { v: [0, 0, 0], life: 0.08, size: 1.4, grow: 1.5, a: 0.5 }); break;
+      case 'towerBlock': ring(e.x, e.z, 3.2, ARC, 0.3, 0.7); break;
+      case 'towerDown': { const t = m.towers[e.tower]; explosion(e.x, e.z, 4.5, FIRE, true); burst(e.x, 2, e.z, 40, STONE, 10, 1.3, 0.5, 1.4, alp, { grav: 14, drag: 0.4, a: 1 }); ring(e.x, e.z, 9, TEAM_HDR[t.color], 0.9); kick(e.x, e.z, 1.2); break; }
       case 'ventWarn': ground(1, e.x, e.z, e.r, C(2.2, 0.5, 0.1), { life: RULES.vent.warn, sweep: true }); break;
       case 'nova':
         ring(e.x, e.z, e.r, FIRE, 0.55); ring(e.x, e.z, e.r * 0.7, WHITE, 0.35); scorch(e.x, e.z, e.r * 0.75);
@@ -377,7 +382,7 @@ export function makeFx(G, mechs) {
       if (n >= SHOT_MAX) break;
       const look = SHOT_LOOK[s.vis], x = s.px + (s.x - s.px) * alpha, z = s.pz + (s.z - s.pz) * alpha;
       QT.setFromAxisAngle(UP, -Math.atan2(s.dz, s.dx));
-      S.set(look.len, 1, look.wid); P.set(x - s.dx * look.len * 0.25, 1.5, z - s.dz * look.len * 0.25);
+      S.set(look.len, 1, look.wid); P.set(x - s.dx * look.len * 0.25, s.vis === 'tower' ? 2.4 : 1.5, z - s.dz * look.len * 0.25);
       shotMesh.setMatrixAt(n, M.compose(P, QT, S));
       shotMesh.setColorAt(n, col.copy(TEAM_HDR[s.color]).lerp(WHITE, look.white));
       n++;
@@ -479,6 +484,41 @@ export function makeFx(G, mechs) {
   }
   function clearPoints() { for (const v of pointViews) { release(v.rim); release(v.fill); group.remove(v.beacon); v.beacon.material.dispose(); } pointViews.length = 0; }
 
+  // Base-mode towers: a stone keep with a team crystal that brightens while it charges a shot; the main tower wears a ward until both secondaries fall.
+  const towerViews = [];
+  function towerModel(t) {
+    const main = t.kind === 'main', k = main ? 1.3 : 1, b = new Builder(0.4);
+    b.use('stone', 0xd8d0c0).push().move(0, 0.3, 0).cyl(t.r * 1.05, t.r * 1.15, 0.6, 8).pop();
+    b.tint(0xc4bca8).push().move(0, 0.6 + 1.6 * k, 0).cyl(t.r * 0.72, t.r * 0.95, 3.2 * k, 8).pop();
+    b.tint(0xe2dac8).push().move(0, 0.6 + 3.2 * k + 0.2, 0).cyl(t.r * 0.95, t.r * 0.8, 0.4, 8).pop();
+    for (let i = 0; i < 8; i++) { const a = i * 0.785; b.tint(0xbdb5a2).push().move(Math.cos(a) * t.r * 0.85, 0.6 + 3.2 * k + 0.6, Math.sin(a) * t.r * 0.85).box(0.36, 0.45, 0.36).pop(); }
+    b.use('paint', TEAMS[t.color].color);
+    for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.39; b.push().move(Math.cos(a) * t.r * 0.84, 0.6 + 1.5 * k, Math.sin(a) * t.r * 0.84).rotY(-a).box(0.08, 2.2 * k, 0.6).pop(); }
+    b.push().move(0, 0.6 + 3.2 * k + 0.75, 0).cyl(0.3, 0.5, 0.5, 6).pop();
+    const g = b.build(), root = new THREE.Group(), stone = G.gfx.tex.material('ruin'), metal = G.gfx.tex.material('metal');
+    for (const [geo, mat] of [[g.stone, stone], [g.paint, metal]]) { const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh); }
+    const orb = new THREE.Mesh(new THREE.OctahedronGeometry(main ? 0.75 : 0.55), new THREE.MeshBasicMaterial({ color: TEAM_HDR[t.color].clone(), toneMapped: false }));
+    orb.position.y = 0.6 + 3.2 * k + 1.7; root.add(orb);
+    const ward = new THREE.Mesh(domeGeo, domeMaterial(TEAM_HDR[t.color].clone().lerp(WHITE, 0.3)));
+    ward.scale.set(t.r * 1.9, 0.6 + 3.2 * k + 2.6, t.r * 1.9); ward.visible = false; ward.renderOrder = 6; root.add(ward);
+    root.position.set(t.x, 0, t.z);
+    const mark = ground(2, t.x, t.z, t.r * 1.6, TEAM_HDR[t.color], { alpha: 0.6 });
+    return { root, orb, ward, mark, alive: true };
+  }
+  function syncTowers(m) {
+    while (towerViews.length < m.towers.length) { const v = towerModel(m.towers[towerViews.length]); group.add(v.root); towerViews.push(v); }
+    m.towers.forEach((t, i) => {
+      const v = towerViews[i];
+      if (v.alive !== t.alive) { v.alive = t.alive; v.root.visible = t.alive; v.mark.u.uA.value = t.alive ? 0.6 : 0; }
+      if (!t.alive) return;
+      v.orb.rotation.y = time * 1.5; v.orb.scale.setScalar(1 + t.charge * 0.7);
+      v.orb.material.color.copy(TEAM_HDR[t.color]).multiplyScalar(0.8 + t.charge * 2.2);
+      v.ward.visible = !towerOpen(m, t); if (v.ward.visible) { v.ward.material.uniforms.uTime.value = time; v.ward.material.uniforms.uA.value = 0.45; }
+      if (t.charge > 0 && t.target >= 0) { const u = m.units[t.target]; if (Math.random() < 0.5) add.emit(t.x + (u.x - t.x) * Math.random(), 3 + Math.random(), t.z + (u.z - t.z) * Math.random(), TEAM_HDR[t.color], { v: [0, 0, 0], life: 0.12, size: 0.25, grow: 0.3, a: 0.7 }); }
+    });
+  }
+  function clearTowers() { for (const v of towerViews) { group.remove(v.root); release(v.mark); } towerViews.length = 0; }
+
   const casts = new Map();
   function syncCasts(m) {
     const myTeam = m.units[G.me].team, seen = new Set();
@@ -520,7 +560,8 @@ export function makeFx(G, mechs) {
   function update(m, alpha, dt, t) {
     time = t;
     if (m) {
-      syncShots(m, alpha); syncZones(m, dt); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m);
+      syncShots(m, alpha); syncZones(m, dt); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m); syncTowers(m);
+      if (G.gfx.world && G.gfx.world.theme.fireflies && Math.random() < dt * 14) { const f = G.camera.position; add.emit(f.x + rnd(-22, 22), rnd(0.6, 2.6), f.z - 22 + rnd(-16, 14), C(1.6, 2.2, 0.5), { v: [rnd(-0.6, 0.6), rnd(-0.1, 0.3), rnd(-0.6, 0.6)], life: rnd(1.5, 3), size: 0.16, grow: 1, a: 0.9 }); }
       for (const h of m.map.hazards) if (h.kind === 'lava' && Math.random() < dt * 3) { const a = Math.random() * 6.283, d = Math.random() * h.r; add.emit(h.x + Math.cos(a) * d, 0.2, h.z + Math.sin(a) * d, EMBER, { v: [rnd(-0.3, 0.3), rnd(1, 3), rnd(-0.3, 0.3)], life: 1.2, size: 0.2, grow: 0.3 }); }
     } else shotMesh.count = 0;
     for (let i = groundLive.length - 1; i >= 0; i--) {
@@ -550,7 +591,7 @@ export function makeFx(G, mechs) {
     crateViews.clear();
     for (const [, v] of casts) { if (v.g) release(v.g); if (v.b) v.b.life = 0; }
     casts.clear();
-    clearPoints();
+    clearPoints(); clearTowers();
     while (groundLive.length) release(groundLive[0]);
     shotMesh.count = 0;
   }

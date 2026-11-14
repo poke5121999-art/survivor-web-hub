@@ -73,6 +73,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
 }
 
 (async () => {
+  const { MODE_ORDER, MODES } = await import('../js/data.js');
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
   base = srv.base;
@@ -218,6 +219,8 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
       await page.waitForTimeout(400);
       await shot(page, errs, T('hud'), async () => {
         const r = await page.evaluate(() => {
+          // The feed fades after 5 s, so whether a bot kill is still listed depends on timing: report one kill here instead.
+          { const G = window.__G, m = G.match, foe = m.units.find((u) => u.team !== m.units[G.me].team); G.ui.event({ t: 'death', id: foe.id, by: G.me, assists: [], x: foe.x, z: foe.z }); }
           const t = (s) => (document.querySelector(s) || {}).textContent;
           const mm = document.querySelector('#ui .mm canvas'), px = mm.getContext('2d').getImageData(0, 0, mm.width, mm.height).data;
           let lit = 0; for (let i = 0; i < px.length; i += 4) if (px[i] > 120 || px[i + 1] > 120 || px[i + 2] > 120) lit++;
@@ -233,7 +236,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         check(T('hud') + ': minimap painted', r.mmLit > 300, 'lit ' + r.mmLit);
         check(T('hud') + ': 5 skill slots with icons and key hints', r.slots.length === 5 && r.slots.every(Boolean) && r.keys === 'Chuột,Q,E,SPACE,F', r.keys);
         check(T('hud') + ': hp text, nameplates incl. own, buff chips', /\d+ \/ \d+/.test(r.hp) && r.nps >= 2 && r.self === 1 && r.chips >= 3, JSON.stringify(r));
-        check(T('hud') + ': kill feed has entries after fighting', r.feed >= 1, 'feed ' + r.feed);
+        check(T('hud') + ': a kill reported to the HUD shows in the kill feed', r.feed >= 1, 'feed ' + r.feed);
         check(T('hud') + ': mission line text', /chạm 25 điểm/.test(r.mission), r.mission);
       });
       // floating numbers: feed synthetic events at the player
@@ -328,7 +331,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
             playIn: play.bottom <= vh + 1 && play.top >= 0, segs: document.querySelectorAll('#ui .seg button').length,
           };
         });
-        check(T('menu-modes') + ': mode picker lists the 4 modes in MODE_ORDER with Vietnamese names', r.modes.join() === 'tdm:Đấu đội,chiem:Chiếm điểm,tudo:Hỗn chiến,trum:Săn trùm', r.modes.join());
+        check(T('menu-modes') + ': mode picker lists every mode of MODE_ORDER with its Vietnamese name', r.modes.join() === MODE_ORDER.map((k) => k + ':' + MODES[k].name).join(), r.modes.join());
         check(T('menu-modes') + ': saved mode (trum) is preselected and its blurb is shown', r.on === 'trum' && r.blurb === 'Năm người hợp sức hạ Cự Thần trước khi dùng hết 12 mạng.', JSON.stringify(r));
         check(T('menu-modes') + ': map picker shows 4 maps with theme swatch, name and hazard in words', r.maps.join('\n') === 'denrung|jungle|Đền Rừng|Không có bẫy\nxuongcat|desert|Xưởng Cát|Họng lửa phụt\ncangbang|ice|Cảng Băng|Băng trơn trượt\nmienglua|lava|Miệng Lửa|Hồ dung nham' && r.swIcons === 4 && r.blurbs.length === 4, r.maps.join(' ; '));
         check(T('menu-modes') + ': saved map (mienglua) preselected, play button inside the viewport, difficulty still 3 buttons', r.mapOn === 'mienglua' && r.playIn && r.segs === 3, JSON.stringify(r));
@@ -470,6 +473,152 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
         }, 2200);
         await ctx.close();
       }
+
+      // ----- online: entry screen (fake G.online, see ui-harness.html)
+      const calls = (pg) => pg.evaluate(() => __G.online.calls.map((c) => c[0] + (c[1] && c[1].mode ? ':' + c[1].mode : '') + (c[1] && c[1].map ? ':' + c[1].map : '') + (typeof c[1] === 'string' ? ':' + c[1] : '')));
+      ({ ctx, page, errs } = await open(browser, T('online'), vp, touch, 'screen=online&fresh=1&listms=1500'));
+      check(T('online') + ': room list shows a loading state first', /Đang tìm phòng/.test(await page.textContent('#ui .rm-list')) && (await page.locator('#ui .rm-list .spin').count()) === 1);
+      await page.waitForSelector('#ui .rm-list .rm');
+      await shot(page, errs, T('online'), async () => {
+        const r = await page.evaluate(() => ({
+          title: document.querySelector('#ui .online h2').textContent, name: document.querySelector('#ui .online [data-r="name"]').value, ph: document.querySelector('#ui .online [data-r="room"]').placeholder,
+          rows: [...document.querySelectorAll('#ui .rm-list .rm')].map((x) => [x.querySelector('.rm-n b').textContent, x.querySelector('.rm-n small').textContent, ...[...x.querySelectorAll(':scope > span')].slice(1).map((s) => s.textContent), x.querySelector('button').textContent, x.querySelector('button').disabled].join('|')),
+          menuHidden: !document.querySelector('#ui .menu.on'), wait: !!document.querySelector('#ui .ol-wait.on'), err: !document.querySelector('#ui .online > .ol-err').hidden,
+        }));
+        check(T('online') + ': title, player name from meta, default room name placeholder', r.title === 'Chơi mạng' && r.name === 'Phi công' && r.ph === 'Phòng của Phi công' && r.menuHidden && !r.wait && !r.err, JSON.stringify(r));
+        check(T('online') + ': room list rows: name, host, mode, map, players/max, join (full room disabled)', r.rows.join(' ; ') === 'Phòng của Bão Số 9|Chủ phòng: Bão Số 9|Đấu đội|Đền Rừng|3/10|Vào|false ; Săn trùm cuối tuần|Chủ phòng: Cò Lả|Săn trùm|Miệng Lửa|5/10|Vào|false ; Hỗn chiến chớp nhoáng|Chủ phòng: Mèo Mun|Hỗn chiến|Cảng Băng|10/10|Đầy|true', r.rows.join(' ; '));
+      }, 300);
+      await page.click('#ui .online [data-r="priv"]');
+      check(T('online') + ': private toggle flips', (await page.getAttribute('#ui .online [data-r="priv"]', 'aria-pressed')) === 'true');
+      await page.fill('#ui .online [data-r="room"]', 'Phòng thử');
+      await page.click('#ui .online [data-r="create"]');
+      await page.waitForSelector('#ui .lobby.on');
+      let cl = JSON.stringify((await page.evaluate(() => __G.online.calls.find((c) => c[0] === 'host')))[1]);
+      check(T('online') + ': Tạo phòng calls host with room name, private flag and player name', cl === '{"name":"Phòng thử","isPrivate":true,"playerName":"Phi công"}', cl);
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('online-states'), vp, touch, 'screen=online&norooms=1'));
+      await page.waitForSelector('#ui .rm-empty b');
+      check(T('online') + ': empty list message', /Chưa có phòng nào đang mở/.test(await page.textContent('#ui .rm-list')) && /Hãy tạo phòng mới/.test(await page.textContent('#ui .rm-list')));
+      await page.fill('#ui .online [data-r="code"]', '');
+      await page.click('#ui .online [data-r="joinCode"]');
+      check(T('online') + ': empty code shows an inline hint, no join call', (await page.textContent('#ui .online > .ol-err')) === 'Hãy nhập mã phòng.' && !(await calls(page)).includes('join'));
+      await page.fill('#ui .online [data-r="code"]', 'xxxxx');
+      check(T('online') + ': code field upper-cases', (await page.inputValue('#ui .online [data-r="code"]')) === 'XXXXX');
+      await page.click('#ui .online [data-r="joinCode"]');
+      await page.waitForFunction(() => !document.querySelector('#ui .online > .ol-err').hidden && /Không tìm thấy phòng/.test(document.querySelector('#ui .online > .ol-err').textContent));
+      await shot(page, errs, T('online-error'), async () => {
+        check(T('online') + ': failed join shows online.error inline, form is usable again', (await page.textContent('#ui .online > .ol-err')) === 'Không tìm thấy phòng. Hãy kiểm tra lại mã phòng.' && !(await page.evaluate(() => !!document.querySelector('#ui .ol-wait.on'))));
+      }, 200);
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('online-fail'), vp, touch, 'screen=online&listfail=1'));
+      await page.waitForSelector('#ui .rm-empty b');
+      check(T('online') + ': list failure message and a working refresh', /Không tải được danh sách phòng/.test(await page.textContent('#ui .rm-list')));
+      await page.click('#ui .online [data-r="refresh"]');
+      await page.waitForFunction(() => __G.online.calls.filter((c) => c[0] === 'list').length >= 2);
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('online-wait'), vp, touch, 'screen=online&hold=1'));
+      await page.click('#ui .online [data-r="create"]');
+      await page.waitForSelector('#ui .ol-wait.on');
+      await shot(page, errs, T('online-wait'), async () => {
+        const w = await page.evaluate(() => ({ h: document.querySelector('#ui .ol-wait h2').textContent, btn: document.querySelector('#ui .ol-wait [data-r="cancel"]').textContent, st: __G.online.state }));
+        check(T('online') + ': connecting overlay with a Hủy button', w.h === 'Đang kết nối' && w.btn === 'Hủy' && w.st === 'connecting', JSON.stringify(w));
+      }, 300);
+      await page.click('#ui .ol-wait [data-r="cancel"]');
+      await page.waitForFunction(() => !document.querySelector('#ui .ol-wait.on'));
+      check(T('online') + ': cancel calls leave() and returns to the form', (await calls(page)).includes('leave') && (await page.evaluate(() => __G.online.state)) === 'off');
+      await page.click('#ui .online [data-r="back"]');
+      check(T('online') + ': Quay lại returns to the menu', await page.evaluate(() => !!document.querySelector('#ui .menu.on') && !document.querySelector('#ui .online.on')));
+      await ctx.close();
+
+      // ----- online: lobby, host and guest, per mode
+      ({ ctx, page, errs } = await open(browser, T('lobby-host'), vp, touch, 'screen=lobby&role=host&fill=4&fresh=1'));
+      await shot(page, errs, T('lobby-host'), async () => {
+        const r = await page.evaluate(() => ({
+          code: document.querySelector('#ui .lb-code b').textContent, cols: document.querySelectorAll('#ui .lb-team').length, seats: document.querySelectorAll('#ui .lb-team .seat').length, bots: document.querySelectorAll('#ui .seat.bot').length,
+          botText: [...new Set([...document.querySelectorAll('#ui .seat.bot .st-n')].map((n) => n.textContent))].join(), me: document.querySelectorAll('#ui .seat.me').length, host: document.querySelectorAll('#ui .seat .badge').length,
+          imgs: [...document.querySelectorAll('#ui .seat:not(.bot) img')].map((i) => i.src.slice(0, 10)).join(), mine: document.querySelectorAll('#ui .lm').length, sel: document.querySelectorAll('#ui .lm.sel').length,
+          swaps: document.querySelectorAll('#ui .seat .btn.mini').length, modes: document.querySelectorAll('#ui .lb-set .mode').length, maps: document.querySelectorAll('#ui .lb-set .map').length, diffs: document.querySelectorAll('#ui .lb-set .seg button').length,
+          start: !!document.querySelector('#ui .lobby [data-a="start"]'), ready: !!document.querySelector('#ui .lobby [data-a="ready"]'), swapMe: !document.querySelector('#ui .lobby [data-a="swapme"]').disabled,
+          calls: __G.online.calls.filter((c) => c[0] === 'setMine').map((c) => JSON.stringify(c[1])),
+        }));
+        check(T('lobby-host') + ': code K7QX2, two team columns with 5 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 10 && r.bots === 6 && r.botText === 'Bot', JSON.stringify(r));
+        check(T('lobby-host') + ': one own row, one host badge, 4 portraits, 4 owned mechs with one selected, "Đổi đội" on every player', r.me === 1 && r.host === 1 && r.imgs === 'data:image,data:image,data:image,data:image' && r.mine === 4 && r.sel === 1 && r.swaps === 4, JSON.stringify(r));
+        check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 4 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
+        check(T('lobby-host') + ': entering pushes my mech, paint and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","paint":"goc","mods":{"hp":1,"dmg":1}}', r.calls.join());
+      });
+      await page.click('#ui .lobby [data-a="start"]');
+      check(T('lobby-host') + ': Bắt đầu with an unready player shows online.error inline', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Còn người chơi chưa sẵn sàng.');
+      await page.click('#ui .lobby .mode[data-k="chiem"]'); await page.click('#ui .lobby .map[data-k="cangbang"]'); await page.click('#ui .lobby .seg [data-k="hard"]');
+      await page.click('#ui .lobby .lm[data-k="soi"]'); await page.click('#ui .lobby [data-a="swapme"]'); await page.click('#ui .lobby .seat[data-pid="p2"] [data-a="swap"]');
+      const hc = await page.evaluate(() => ({ calls: __G.online.calls.slice(-7).map((c) => c[0] + ':' + JSON.stringify(c[1])), L: __G.online.lobby.mode + ',' + __G.online.lobby.map + ',' + __G.online.lobby.diff, mech: __G.online.lobby.players[0].mech, sel: document.querySelector('#ui .lm.sel b').textContent, teams: __G.online.lobby.players.map((p) => p.team).join('') }));
+      check(T('lobby-host') + ': mode, map, difficulty, mech and both swap buttons reach online.*', hc.L === 'chiem,cangbang,hard' && hc.mech === 'soi' && hc.sel === 'Sói Lửa' && hc.teams === '1111', JSON.stringify(hc));
+      await page.click('#ui .lobby .mode[data-k="trum"]');
+      check(T('lobby-host') + ': Săn trùm with 4 players: one team and a boss card, swap buttons gone', await page.evaluate(() => document.querySelectorAll('#ui .lb-team').length === 2 && !!document.querySelector('#ui .bossbox') && document.querySelectorAll('#ui .seat .btn.mini').length === 0 && document.querySelector('#ui .lobby [data-a="swapme"]').disabled));
+      await page.click('#ui .lobby [data-a="leave"]');
+      check(T('lobby-host') + ': Rời phòng calls leave() and shows the menu', (await calls(page)).includes('leave') && await page.evaluate(() => !!document.querySelector('#ui .menu.on') && !document.querySelector('#ui .lobby.on')));
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('lobby-guest'), vp, touch, 'screen=lobby&role=guest&fill=5&fresh=1'));
+      await shot(page, errs, T('lobby-guest'), async () => {
+        const r = await page.evaluate(() => ({
+          start: !!document.querySelector('#ui .lobby [data-a="start"]'), ready: !!document.querySelector('#ui .lobby [data-a="ready"]'), modes: document.querySelectorAll('#ui .lb-set .mode').length, swaps: document.querySelectorAll('#ui .seat .btn.mini').length,
+          kv: [...document.querySelectorAll('#ui .lb-set .kv b')].map((b) => b.textContent).join(), me: document.querySelector('#ui .seat.me .st-n > span').textContent,
+        }));
+        check(T('lobby-guest') + ': guest has Sẵn sàng, read-only settings, no Bắt đầu, no per-player swap', !r.start && r.ready && r.modes === 0 && r.swaps === 0 && r.kv === 'Đấu đội,Đền Rừng,Vừa' && r.me === 'Phi công', JSON.stringify(r));
+      });
+      await page.click('#ui .lobby [data-a="ready"]');
+      check(T('lobby-guest') + ': Sẵn sàng toggles my ready flag (true -> false)', (await page.evaluate(() => __G.online.lobby.players[1].ready)) === false && (await page.getAttribute('#ui .lobby [data-a="ready"]', 'aria-pressed')) === 'false');
+      await page.click('#ui .lobby [data-a="swapme"]');
+      check(T('lobby-guest') + ': Đổi đội asks online.swapTeam(online.me)', (await calls(page)).includes('swapTeam:p1'), (await calls(page)).join());
+      await ctx.close();
+
+      for (const [mode, tag, seats, extra] of [['tudo', 'tudo', 10, 'one list'], ['trum', 'trum', 5, 'one team + boss']]) {
+        ({ ctx, page, errs } = await open(browser, T('lobby-' + tag), vp, touch, `screen=lobby&role=guest&fill=${mode === 'tudo' ? 7 : 4}&rmode=${mode}&fresh=1`));
+        await shot(page, errs, T('lobby-' + tag), async () => {
+          const r = await page.evaluate(() => ({ teams: document.querySelectorAll('#ui .lb-team').length, seats: document.querySelectorAll('#ui .lb-team .seat').length, boss: !!document.querySelector('#ui .bossbox'), swap: document.querySelector('#ui .lobby [data-a="swapme"]').disabled, head: document.querySelector('#ui .lb-th b').textContent }));
+          if (mode === 'tudo') check(T('lobby-tudo') + ': Hỗn chiến is one list of 10 seats, Đổi đội disabled', r.teams === 1 && r.seats === 10 && r.head === 'Hỗn chiến' && r.swap, JSON.stringify(r));
+          else check(T('lobby-trum') + ': Săn trùm is one team of 5 seats plus the boss card, Đổi đội disabled', r.teams === 2 && r.seats === 5 && r.boss && r.swap, JSON.stringify(r));
+        });
+        await ctx.close();
+      }
+
+      // the lobby follows net:state: losing the room closes it, going to playing hides it
+      ({ ctx, page, errs } = await open(browser, T('lobby-lost'), vp, touch, 'screen=lobby&role=guest&fill=3&fresh=1'));
+      await page.evaluate(() => { __G.online.error = 'Chủ phòng đã rời đi.'; __G.online.state = 'off'; __G.bus.emit('net:state', { state: 'off', role: null }); });
+      check(T('lobby-lost') + ': net:state off closes the lobby, shows the menu and the reason', await page.evaluate(() => !document.querySelector('#ui .lobby.on') && !!document.querySelector('#ui .menu.on') && document.querySelector('#ui .toast').textContent === 'Chủ phòng đã rời đi.'));
+      await page.evaluate(() => { __G.online.seed('guest', 3, 'tdm'); __G.ui.showLobby(); });
+      check(T('lobby-lost') + ': showLobby() reopens it from the model', await page.evaluate(() => !!document.querySelector('#ui .lobby.on') && document.querySelectorAll('#ui .seat:not(.bot)').length === 3));
+      await page.evaluate(() => { __G.online.state = 'playing'; __G.bus.emit('net:state', { state: 'playing', role: 'guest' }); });
+      check(T('lobby-lost') + ': net:state playing closes the lobby', await page.evaluate(() => !document.querySelector('#ui .lobby.on')));
+      await page.evaluate(() => { __G.ui.hideLobby(); __G.online.state = 'off'; __G.ui.showLobby(); });
+      check(T('lobby-lost') + ': showLobby() with no room falls back to the menu', await page.evaluate(() => !!document.querySelector('#ui .menu.on') && !document.querySelector('#ui .lobby.on')));
+      await ctx.close();
+
+      // ----- online match: pause without pausing, result without "Đấu tiếp"
+      ({ ctx, page, errs } = await open(browser, T('pause-online'), vp, touch, 'screen=pause&onl=1&mech=ung'));
+      await shot(page, errs, T('pause-online'), async () => {
+        const r = await page.evaluate(() => ({ t: document.querySelector('#ui .pause').textContent, paused: __G.ui.paused, quit: document.querySelector('#ui .pause [data-r="quit"]').textContent, ev: (window.__log || []).filter((l) => l[0] === 'ui:pause').map((l) => l[1].paused) }));
+        check(T('pause-online') + ': menu says "Rời trận", ui:pause is never emitted, the match keeps running', r.quit === 'Rời trận' && r.paused === true && r.ev.length === 0 && !/Về sảnh/.test(r.t), JSON.stringify(r));
+      }, 400);
+      const tk = await page.evaluate(() => __G.match.tick); await page.waitForTimeout(500);
+      check(T('pause-online') + ': simulation ticks on while the menu is open', (await page.evaluate(() => __G.match.tick)) > tk);
+      await page.click('#ui .pause [data-r="resume"]');
+      check(T('pause-online') + ': Tiếp tục closes it quietly', await page.evaluate(() => !document.querySelector('#ui .pause.on') && (window.__log || []).filter((l) => l[0] === 'ui:pause').length === 0));
+      await page.evaluate(() => __G.ui.showPause()); await page.click('#ui .pause [data-r="quit"]');
+      check(T('pause-online') + ': Rời trận emits ui:menu', await page.evaluate(() => (window.__log || []).some((l) => l[0] === 'ui:menu')));
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, T('result-online'), vp, touch, 'screen=result&onl=1&fresh=1&mech=soi'));
+      await shot(page, errs, T('result-online'), async () => {
+        const b = await page.evaluate(() => [...document.querySelectorAll('#ui .rs-btns button')].map((x) => x.textContent));
+        check(T('result-online') + ': only "Về phòng", no "Đấu tiếp"', b.join('|') === 'Về phòng', b.join('|'));
+      }, 1800);
+      await page.click('#ui .rs-btns [data-r="lobby"]');
+      check(T('result-online') + ': Về phòng emits ui:menu', await page.evaluate(() => (window.__log || []).some((l) => l[0] === 'ui:menu')));
+      await ctx.close();
 
       // ----- icon sheet
       if (ctxName === 'desktop') {

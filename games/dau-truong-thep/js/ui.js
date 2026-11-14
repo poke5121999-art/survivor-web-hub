@@ -1,7 +1,8 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
 import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, upgradeMods, PAINTS, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
 import { rankOf, placeOf } from './meta.js';
-import { MAPS, MAP_ORDER } from './maps.js';
+import * as MAPMOD from './maps.js';
+const { MAPS, MAP_ORDER } = MAPMOD;
 import { visibleTo } from './sim.js';
 
 /* ---------- icons ---------- */
@@ -62,6 +63,12 @@ const ICONS = {
   dune: `<circle cx="16.500" cy="7.500" r="3" ${SOFT}/><path d="M2.500 19c3-6 6-6 9 0 2-3.500 4.500-3.500 6.500-1l3.500 1"/>`,
   flake: '<path d="M12 3v18M4.200 7.500l15.600 9M4.200 16.500l15.600-9"/>',
   flame: `<path d="M12 3c1 4 5 6 5 11a5 5 0 01-10 0c0-2 1-3.500 2-4.500 0 2 1 3 2 3 0-3-1-6 1-9.500z" ${SOFT}/>`,
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3.500 3 3.500 15 0 18M12 3c-3.500 3-3.500 15 0 18"/>',
+  copy: `<rect x="8.500" y="8.500" width="11.500" height="11.500" rx="2" ${SOFT}/><path d="M15.500 8.500V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7.500a2 2 0 002 2h2.500"/>`,
+  check: '<path d="M5 12.500l4.500 4.500L19 7.500"/>',
+  exit: '<path d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4M15 8l4 4-4 4M19 12H9"/>',
+  swap: '<path d="M4 8h14M14 4.500L18 8l-4 3.500M20 16H6M10 12.500L6 16l4 3.500"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
   crate: `<rect x="4" y="6" width="16" height="13" rx="1.500" ${SOFT}/><path d="M4 11h16M12 6v13"/>`,
 };
 const has = Object.prototype.hasOwnProperty;
@@ -711,22 +718,30 @@ export function makeUI(G) {
   /* ================= pause ================= */
   const pauseEl = el('div', 'screen pause');
   pauseEl.dataset.block = '';
-  pauseEl.innerHTML = `<div class="box"><div class="hazard"></div><h2>Tạm dừng</h2>
+  pauseEl.innerHTML = `<div class="box"><div class="hazard"></div><h2 data-r="title">Tạm dừng</h2>
     <button class="btn big" data-r="resume">Tiếp tục</button><button class="btn big danger" data-r="quit">Về sảnh</button>
-    <p class="hint">Nhấn Esc để tiếp tục</p></div>`;
+    <p class="hint" data-r="hint">Nhấn Esc để tiếp tục</p></div>`;
   const PA = refs(pauseEl);
   root.appendChild(pauseEl);
+  // An online match has other people in it: the menu opens over a running game and never emits ui:pause.
+  const onlinePlaying = () => !!(G.online && G.online.state === 'playing');
+  let pausedLive = false;
   function showPause() {
     if (!hudOn || paused) return;
+    pausedLive = onlinePlaying();
+    PA.title.textContent = pausedLive ? 'Trận đang diễn ra' : 'Tạm dừng';
+    PA.quit.textContent = pausedLive ? 'Rời trận' : 'Về sảnh';
+    PA.hint.textContent = pausedLive ? 'Trận không dừng khi bạn mở menu. Nhấn Esc để quay lại' : 'Nhấn Esc để tiếp tục';
     paused = true; pauseEl.classList.add('on');
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
-    G.bus.emit('ui:pause', { paused: true });
+    if (!pausedLive) G.bus.emit('ui:pause', { paused: true });
   }
   function hidePause() {
     if (!paused) { pauseEl.classList.remove('on'); return; }
     paused = false; pauseEl.classList.remove('on');
     if (hudOn && G.input && G.input.setTouchVisible) G.input.setTouchVisible(true);
-    G.bus.emit('ui:pause', { paused: false });
+    if (!pausedLive) G.bus.emit('ui:pause', { paused: false });
+    pausedLive = false;
   }
   const togglePause = () => (paused ? hidePause() : showPause());
   PA.resume.onclick = hidePause;
@@ -765,7 +780,7 @@ export function makeUI(G) {
           <h3>Đấu trường</h3><div class="maps" data-r="maps"></div>
         </div>
         <div class="acts">
-          <button class="play" data-r="play"><span>Vào trận</span></button>
+          <div class="prow"><button class="play" data-r="play"><span>Vào trận</span></button><button class="netbtn" data-r="net" hidden>${icon('globe')}<span>Chơi mạng</span></button></div>
           <div class="row2"><button class="btn" data-r="bSet">${icon('gear')}Cài đặt</button><button class="btn" data-r="bHelp">${icon('help')}Cách chơi</button></div>
         </div>
       </section>
@@ -896,9 +911,10 @@ export function makeUI(G) {
   }
   const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss' };
   const THEME_ICON = { jungle: 'leaf', desert: 'dune', ice: 'flake', lava: 'flame' };
-  const HAZARD_TEXT = { vent: 'Họng lửa phụt', ice: 'Băng trơn trượt', lava: 'Hồ dung nham' };
+  const HAZARD_TEXT = { vent: 'Họng lửa phụt', ice: 'Băng trơn trượt', lava: 'Hồ dung nham', mud: 'Bùn lầy chậm bước' };
   // The hazard line is derived from the map's own hazard list so a new map cannot drift from its label.
-  const hazardOf = (mp) => { const kind = ((mp.hazards || [])[0] || [])[0]; return kind ? { kind, text: HAZARD_TEXT[kind] || kind } : { kind: 'none', text: 'Không có bẫy' }; };
+  // Newer maps keep only [x, z, r] and let the theme decide the kind; older rows start with the kind.
+  const hazardOf = (mp) => { const h0 = (mp.hazards || [])[0], th = MAPMOD.THEMES && MAPMOD.THEMES[mp.theme], kind = typeof (h0 || [])[0] === 'string' ? h0[0] : h0 && th ? th.hazard : (h0 && h0.kind); return kind ? { kind, text: HAZARD_TEXT[kind] || kind } : { kind: 'none', text: 'Không có bẫy' }; };
   function renderSetup() {
     M.diff.innerHTML = '';
     for (const k of Object.keys(DIFFICULTY)) {
@@ -950,14 +966,15 @@ export function makeUI(G) {
   }
 
   function showMenu() {
-    hideHUD(); hideResult(); hidePause();
+    hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
     if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] ? d.map : mapKey; modeKey = MODES[d.mode] ? d.mode : modeKey; }
     if (!menuInit) { menuInit = true; applySettings(); }
     renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
+    M.net.hidden = !G.online;
     menu.classList.add('on');
   }
-  function hideMenu() { menu.classList.remove('on'); closeModals(); }
+  function hideMenu() { menu.classList.remove('on'); closeModals(); hideEntry(); hideLobby(); }
 
   /* ---- settings + help modals ---- */
   const toastEl = el('div', 'toast'); root.appendChild(toastEl);
@@ -1147,7 +1164,7 @@ export function makeUI(G) {
     const mt = meRow ? meRow.team : myTeam;
     const view = RESULT[RESULT_OF[mode]](summary, { me: meRow, mt });
     const outcome = view.outcome;
-    const rw = rewards;
+    const rw = rewards, live = onlinePlaying();
     const parts = rw ? [
       [view.base, rw.parts.base], ['Hạ gục', rw.parts.kills], ['Hỗ trợ', rw.parts.assists], ['Sát thương lên trùm', rw.parts.boss || 0], ['MVP', rw.parts.mvp],
     ].filter((p) => p[1] > 0) : [];
@@ -1162,10 +1179,10 @@ export function makeUI(G) {
           <div class="rw-xp"><div class="rw-top"><span>Cấp <b data-r="rl">${rw.levelBefore}</b></span><span data-r="rx">+0 XP</span></div><div class="xpbar"><i data-r="rf"></i></div><em class="lvup" data-r="up">Lên cấp!</em></div>
           ${rw.trophy ? trophyHtml(rw) : ''}
           <div class="rw-parts">${parts.map((p) => `<span>${p[0]} <b>+${p[1]}</b></span>`).join('')}</div></div>` : '<div></div>'}
-        <div class="rs-btns"><button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button></div>
+        <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : '<button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
       </div>`;
     const R = refs(result);
-    R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey)); G.bus.emit('ui:play', choice); };
+    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey)); G.bus.emit('ui:play', choice); };
     R.lobby.onclick = () => G.bus.emit('ui:menu');
     if (rw) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };
@@ -1184,13 +1201,276 @@ export function makeUI(G) {
     }
   }
 
+  /* ================= online: entry screen and lobby ================= */
+  const TEAM_NAME = ['Đội Lam', 'Đội Hỏa'];
+  const seatsOf = (mode) => (mode === 'tudo' ? 10 : 5);
+  const entry = el('div', 'screen online');
+  entry.dataset.block = '';
+  entry.innerHTML = `
+    <header class="ol-head">
+      <button class="btn" data-r="back">${icon('back')}Quay lại</button>
+      <div class="ol-title"><h2>Chơi mạng</h2><span>Mở phòng hoặc vào phòng của bạn bè</span></div>
+      <label class="ol-me"><small>Tên phi công</small><input class="in" data-r="name" maxlength="16" spellcheck="false" aria-label="Tên phi công"></label>
+    </header>
+    <p class="ol-err" data-r="err" role="alert" hidden></p>
+    <div class="ol-body">
+      <section class="panel ol-make">
+        <h3>Tạo phòng</h3>
+        <input class="in" data-r="room" maxlength="24" spellcheck="false" aria-label="Tên phòng">
+        <button class="tog" data-r="priv" aria-pressed="false"><i></i><span>Phòng riêng tư<small>Chỉ vào được bằng mã phòng</small></span></button>
+        <button class="btn big primary" data-r="create">${icon('globe')}Tạo phòng</button>
+        <h3>Vào bằng mã</h3>
+        <div class="ol-code"><input class="in code" data-r="code" maxlength="12" spellcheck="false" autocomplete="off" placeholder="Mã phòng" aria-label="Mã phòng"><button class="btn big" data-r="joinCode">Vào</button></div>
+      </section>
+      <section class="panel ol-rooms">
+        <div class="ol-rh"><h3>Phòng đang mở</h3><button class="btn" data-r="refresh">${icon('refresh')}Làm mới</button></div>
+        <div class="rm rm-h"><span>Phòng</span><span>Chế độ</span><span>Đấu trường</span><span>Người</span><span></span></div>
+        <div class="rm-list" data-r="list"></div>
+      </section>
+    </div>
+    <div class="ol-wait" data-r="wait"><div class="box"><div class="hazard"></div><div class="spin"></div><h2>Đang kết nối</h2><p class="hint">Vui lòng chờ trong giây lát</p><button class="btn big" data-r="cancel">Hủy</button></div></div>`;
+  const OE = refs(entry);
+  const lobbyEl = el('div', 'screen lobby');
+  lobbyEl.dataset.block = '';
+  root.append(entry, lobbyEl);
+
+  let entryOn = false, lobbyOn = false, privateRoom = false, lobbyMsg = '', roomsTicket = 0, roomsTimer = 0, roomsShown = false;
+  const myName = () => { const d = meta(); return (d && d.name) || 'Phi công'; };
+  const setEntryErr = (t) => { OE.err.textContent = t || ''; OE.err.hidden = !t; };
+  const modeName = (k) => (MODES[k] ? MODES[k].name : '');
+  const mapName = (k) => (MAPS[k] ? MAPS[k].name : '');
+
+  function commitName() {
+    const d = meta();
+    if (!d) return;
+    d.name = OE.name.value.trim().slice(0, 16) || 'Phi công';
+    OE.name.value = d.name; G.meta.save();
+    OE.room.placeholder = 'Phòng của ' + d.name;
+  }
+  OE.name.addEventListener('change', commitName);
+  for (const i of [OE.name, OE.room, OE.code]) i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') i.blur(); });
+  OE.code.addEventListener('keydown', (e) => { if (e.key === 'Enter') OE.joinCode.click(); });
+  OE.code.addEventListener('input', () => { OE.code.value = OE.code.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''); });
+
+  function renderRooms(state, rows) {
+    const L = OE.list;
+    if (state === 'loading') { L.innerHTML = '<div class="rm-empty"><div class="spin sm"></div><b>Đang tìm phòng…</b></div>'; return; }
+    if (state === 'error') { L.innerHTML = '<div class="rm-empty"><b>Không tải được danh sách phòng.</b><span>Hãy kiểm tra mạng rồi bấm Làm mới.</span></div>'; return; }
+    if (!rows.length) { L.innerHTML = '<div class="rm-empty"><b>Chưa có phòng nào đang mở</b><span>Hãy tạo phòng mới rồi gửi mã cho bạn bè.</span></div>'; return; }
+    L.innerHTML = rows.map((r) => {
+      const full = r.players >= r.max;
+      return `<div class="rm" data-room="${esc(r.id)}"><span class="rm-n"><b>${esc(r.name)}</b><small>Chủ phòng: ${esc(r.host)}</small></span><span>${esc(modeName(r.mode))}</span><span>${esc(mapName(r.map))}</span><span class="rm-p${full ? ' full' : ''}">${r.players}/${r.max}</span>
+        <button class="btn" data-join="${esc(r.id)}"${full ? ' disabled' : ''}>${full ? 'Đầy' : 'Vào'}</button></div>`;
+    }).join('');
+  }
+  async function refreshRooms(quiet) {
+    const o = G.online, ticket = ++roomsTicket;
+    if (!quiet || !roomsShown) renderRooms('loading');
+    o.error = '';
+    let rows = [];
+    try { rows = await o.listRooms(); } catch (e) { o.error = 'x'; }
+    if (ticket !== roomsTicket || !entryOn) return;
+    roomsShown = true;
+    if (o.error) { o.error = ''; renderRooms('error'); } else renderRooms('rows', Array.isArray(rows) ? rows : []);
+  }
+
+  function showEntry() {
+    const o = G.online;
+    if (!o) return;
+    if (o.state === 'lobby') { openLobby(false); return; }
+    hideHUD(); hideResult(); hidePause(); closeModals(); hideLobby();
+    menu.classList.remove('on');
+    entryOn = true; roomsShown = false;
+    OE.name.value = myName(); OE.room.placeholder = 'Phòng của ' + myName(); OE.code.value = '';
+    setEntryErr('');
+    entry.classList.add('on');
+    syncOnline();
+    renderRooms('loading');
+    refreshRooms(false);
+    clearInterval(roomsTimer);
+    roomsTimer = setInterval(() => { if (entryOn && G.online.state === 'off') refreshRooms(true); }, 4000);
+  }
+  function hideEntry() {
+    entryOn = false; clearInterval(roomsTimer); roomsTicket++;
+    entry.classList.remove('on');
+  }
+
+  const afterAttempt = () => { if (G.online.state === 'off') setEntryErr(G.online.error); };
+  async function attempt(fn) {
+    if (G.online.state !== 'off') return;
+    commitName(); setEntryErr('');
+    const ok = await fn();
+    if (!ok) afterAttempt();
+  }
+  OE.create.onclick = () => attempt(() => G.online.host({ name: OE.room.value.trim() || undefined, isPrivate: privateRoom, playerName: myName() }));
+  OE.joinCode.onclick = () => {
+    const code = OE.code.value.trim();
+    if (!code) { setEntryErr('Hãy nhập mã phòng.'); shake(OE.code); OE.code.focus(); return; }
+    attempt(() => G.online.join({ code, playerName: myName() }));
+  };
+  OE.list.onclick = (e) => {
+    const b = e.target.closest('[data-join]');
+    if (b && !b.disabled) attempt(() => G.online.join({ lobbyId: b.dataset.join, playerName: myName() }));
+  };
+  OE.priv.onclick = () => { privateRoom = !privateRoom; OE.priv.setAttribute('aria-pressed', String(privateRoom)); };
+  OE.refresh.onclick = () => { if (G.online.state === 'off') refreshRooms(false); };
+  OE.cancel.onclick = () => { G.online.leave(); setEntryErr(''); };
+  OE.back.onclick = () => showMenu();
+  M.net.onclick = () => showEntry();
+  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && entryOn && G.online.state === 'off') showMenu(); });
+
+  /* ---- lobby ---- */
+  const lobbyMe = () => { const o = G.online; return o && o.lobby && o.lobby.players.find((p) => p.id === o.me); };
+  const mechDef = (k) => MECHS[k] || BOSSES[k] || { name: k, role: '' };
+
+  // Paint and upgrade mods always come from the save; the mech is the saved favourite on first entry and the lobby's own afterwards.
+  function pushMine(first) {
+    const o = G.online, me = lobbyMe(), d = meta();
+    if (!me || !d) return;
+    let mech = !first && ownedMech(me.mech) ? me.mech : d.mech;
+    if (!ownedMech(mech)) mech = MECH_ORDER.find(ownedMech) || MECH_ORDER[0];
+    o.setMine({ mech, paint: paintOf(mech), mods: upgradeMods(levelOf(mech)) });
+  }
+
+  function seatHtml(p, ffa) {
+    const o = G.online, me = p.id === o.me, d = mechDef(p.mech);
+    const swap = o.role === 'host' && !ffa && o.lobby.mode !== 'trum' ? `<button class="btn mini" data-a="swap" data-pid="${esc(p.id)}" title="Chuyển ${esc(p.name)} sang đội kia">${icon('swap')}Đổi đội</button>` : '';
+    return `<div class="seat t${ffa ? 2 : p.team}${me ? ' me' : ''}${p.ready ? ' rdy' : ''}" data-pid="${esc(p.id)}">
+      <img alt="" src="${portrait(p.mech, p.team, p.paint)}">
+      <div class="st-t"><b class="st-n"><span>${esc(p.name)}</span>${p.host ? '<em class="badge">Chủ phòng</em>' : ''}${me ? '<em class="you">Bạn</em>' : ''}</b><span class="st-m">${roleIcon(p.mech)}${d.name}</span></div>
+      <div class="st-r"><span class="rdy-p">${icon(p.ready ? 'check' : 'pause')}${p.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}</span>${swap}</div>
+    </div>`;
+  }
+  const botSeat = (t) => `<div class="seat bot t${t}"><div class="bot-ph">${icon('generic')}</div><div class="st-t"><b class="st-n">Bot</b><span class="st-m">Máy sẽ điền chỗ trống</span></div></div>`;
+  function teamHtml(L, team, title) {
+    const ps = L.players.filter((p) => p.team === team), n = seatsOf(L.mode);
+    return `<div class="lb-team t${team}"><div class="lb-th"><b>${title}</b><small>${ps.length} / ${n}</small></div><div class="seats">${ps.map((p) => seatHtml(p, false)).join('')}${botSeat(team).repeat(Math.max(0, n - ps.length))}</div></div>`;
+  }
+  function teamsHtml(L) {
+    if (L.mode === 'tudo') {
+      const n = seatsOf('tudo');
+      return `<div class="lb-team ffa"><div class="lb-th"><b>Hỗn chiến</b><small>${L.players.length} / ${n}</small></div><div class="seats">${L.players.map((p) => seatHtml(p, true)).join('')}${botSeat(2).repeat(Math.max(0, n - L.players.length))}</div></div>`;
+    }
+    if (L.mode === 'trum') {
+      const boss = BOSSES.titan;
+      return teamHtml(L, 0, TEAM_NAME[0]) + `<div class="lb-team t1 boss"><div class="lb-th"><b>Trùm</b><small>Bot</small></div><div class="bossbox"><div class="bot-ph">${icon('boss')}</div><b>${boss.name}</b><span>Hạ trùm trước khi cả đội hết mạng</span></div></div>`;
+    }
+    return teamHtml(L, 0, TEAM_NAME[0]) + teamHtml(L, 1, TEAM_NAME[1]);
+  }
+
+  function settingsHtml(L, host) {
+    if (!host) {
+      const mp = MAPS[L.map];
+      return `<div class="kv"><span>Chế độ</span><b>${esc(modeName(L.mode))}</b></div><p class="mode-bl">${esc((MODES[L.mode] || {}).blurb || '')}</p>
+        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>
+        <p class="hint">Chỉ chủ phòng đổi được thiết lập.</p>`;
+    }
+    return `<h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
+      <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
+      <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
+      <h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}</div>`;
+  }
+
+  function renderLobby() {
+    const o = G.online, L = o && o.lobby;
+    if (!L || !lobbyOn) return;
+    const host = o.role === 'host', me = lobbyMe() || {}, ffaOrBoss = L.mode === 'tudo' || L.mode === 'trum';
+    const waiting = L.players.filter((p) => !p.ready).length;
+    const owned = MECH_ORDER.filter(ownedMech);
+    const lv = levelOf(me.mech), paint = PAINTS[me.paint] || PAINTS.goc;
+    const keep = lobbyEl.querySelector('.lb-teams'), top = keep ? keep.scrollTop : 0;
+    lobbyEl.innerHTML = `
+      <header class="ol-head lb-head">
+        <button class="btn danger" data-a="leave">${icon('exit')}Rời phòng</button>
+        <div class="lb-code"><small>Mã phòng</small><b data-r="code">${esc(o.code)}</b><button class="btn" data-a="copy">${icon('copy')}Chép mã</button></div>
+        <div class="lb-info"><b>${L.players.length} người chơi</b><span>${host ? 'Bạn là chủ phòng' : 'Chờ chủ phòng bắt đầu'}</span></div>
+      </header>
+      <div class="lb-body">
+        <div class="lb-main">
+          <div class="lb-teams m-${L.mode}">${teamsHtml(L)}</div>
+          <section class="panel lb-mine"><div class="lb-mh"><h3>Cơ giáp của bạn</h3><small>Sơn ${esc(paint.name)}${lv ? ` · Nâng cấp +${lv}` : ''}, lấy từ kho của bạn</small></div>
+            <div class="lm-grid">${owned.map((k) => `<button class="lm${k === me.mech ? ' sel' : ''}" data-a="mech" data-k="${k}"><img alt="" src="${portrait(k, me.team || 0, paintOf(k))}"><span><b>${MECHS[k].name}</b><em>${roleIcon(k)}${MECHS[k].role}</em></span></button>`).join('')}</div></section>
+        </div>
+        <div class="lb-side">
+          <section class="panel setup lb-set"><h3>Thiết lập phòng</h3><div class="opts">${settingsHtml(L, host)}</div></section>
+          <section class="panel lb-act">
+            ${lobbyMsg ? `<p class="ol-err">${esc(lobbyMsg)}</p>` : ''}
+            <div class="lb-hint">${host ? (waiting ? `Còn ${waiting} người chưa sẵn sàng` : 'Mọi người đã sẵn sàng') : (me.ready ? 'Đã sẵn sàng, chờ chủ phòng bắt đầu' : 'Bấm Sẵn sàng khi bạn đã chọn xong')}</div>
+            ${host ? '<button class="play go" data-a="start"><span>Bắt đầu</span></button>' : `<button class="btn big rdy-btn${me.ready ? ' on' : ''}" data-a="ready" aria-pressed="${!!me.ready}">${icon('check')}Sẵn sàng</button>`}
+            <button class="btn" data-a="swapme"${ffaOrBoss ? ' disabled' : ''}>${icon('swap')}Đổi đội</button>
+          </section>
+        </div>
+      </div>`;
+    const t = lobbyEl.querySelector('.lb-teams');
+    if (t) t.scrollTop = top;
+  }
+
+  function openLobby(fresh) {
+    hideHUD(); hideResult(); hidePause(); closeModals(); hideEntry();
+    menu.classList.remove('on');
+    lobbyOn = true; lobbyMsg = '';
+    lobbyEl.classList.add('on');
+    pushMine(fresh);
+    renderLobby();
+  }
+  function hideLobby() { lobbyOn = false; lobbyEl.classList.remove('on'); }
+  function showLobby() {
+    if (!G.online || G.online.state !== 'lobby') { showMenu(); return; }
+    openLobby(false);
+  }
+
+  async function copyCode() {
+    const code = G.online.code;
+    try { await navigator.clipboard.writeText(code); toast('Đã chép mã phòng ' + code); return; } catch (e) { /* no clipboard permission: fall back below */ }
+    const t = el('textarea'); t.value = code; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* not allowed */ }
+    t.remove();
+    toast(ok ? 'Đã chép mã phòng ' + code : 'Không chép được, hãy gõ tay mã ' + code);
+  }
+
+  lobbyEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-a]');
+    const o = G.online;
+    if (!b || b.disabled || !o) return;
+    const k = b.dataset.k, me = lobbyMe() || {};
+    lobbyMsg = '';
+    switch (b.dataset.a) {
+      case 'leave': o.leave(); if (lobbyOn) showMenu(); return;
+      case 'copy': copyCode(); return;
+      case 'mech': { const d = meta(); if (d) { d.mech = k; G.meta.save(); } o.setMine({ mech: k, paint: paintOf(k), mods: upgradeMods(levelOf(k)) }); break; }
+      case 'ready': o.setMine({ ready: !me.ready }); break;
+      case 'swapme': if (o.swapTeam(o.me) === false && o.role === 'host') lobbyMsg = o.error; break;
+      case 'swap': if (o.swapTeam(b.dataset.pid) === false) lobbyMsg = o.error; break;
+      case 'mode': if (o.setRoom({ mode: k }) === false) lobbyMsg = o.error; break;
+      case 'map': o.setRoom({ map: k }); break;
+      case 'diff': o.setRoom({ diff: k }); break;
+      case 'start': if (o.start() === false) { lobbyMsg = o.error; shake(b); } break;
+      default:
+    }
+    renderLobby();
+  });
+
+  // The connection table lives in online.js; this only follows it. Leaving or losing the room closes the lobby.
+  function syncOnline() {
+    const o = G.online;
+    if (!o) return;
+    OE.wait.classList.toggle('on', entryOn && o.state === 'connecting');
+    if (o.state === 'lobby' && entryOn) { openLobby(true); return; }
+    if (!lobbyOn) return;
+    if (o.state === 'lobby') renderLobby();
+    else if (o.state === 'off') { showMenu(); if (o.error) toast(o.error); } else hideLobby();
+  }
+  G.bus.on('net:state', syncOnline);
+  G.bus.on('net:lobby', () => { lobbyMsg = ''; if (lobbyOn && G.online.state === 'lobby') renderLobby(); });
+
   /* ================= rotate hint ================= */
   const rot = el('div', 'rotate', `<svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="8" width="24" height="42" rx="4"/><path d="M28 44h8"/><path d="M50 22c6 3 8 9 5 15M55 37l-1-6M55 37l-6-1"/></svg><b>Xoay ngang máy</b><span>Đấu Trường Thép chơi ở chế độ màn hình ngang</span>`);
   root.appendChild(rot);
 
   return {
     showMenu, hideMenu, showHUD, hideHUD, update, event, showResult,
-    showPause, hidePause, togglePause, announce, toast,
+    showPause, hidePause, togglePause, announce, toast, showLobby, hideLobby, showOnline: showEntry, hideOnline: hideEntry,
     get paused() { return paused; },
   };
 }

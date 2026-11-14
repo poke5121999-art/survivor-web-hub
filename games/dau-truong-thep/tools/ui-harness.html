@@ -73,6 +73,85 @@ const G = {
   },
   groundAt(cx, cy) { const s = scale(); return [(cx - W / 2) / s, (cy - H / 2) / s]; },
 };
+
+// A stand-in for online.js: the same surface the UI reads (state, lobby, error, calls) driven by URL params, so every screen can be shot without a network.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: null, calls: [] };
+{
+  const emit = () => { bus.emit('net:state', { state: fo.state, role: fo.role }); bus.emit('net:lobby', fo.lobby); };
+  const NAMES = ['Chủ Phòng', 'Bão Số 9', 'Cò Lả', 'Mèo Mun', 'Tí Sắt', 'Gió Chướng', 'Nắp Chai', 'Bánh Tét', 'Sấm Rền', 'Lúa Non'];
+  const mine = () => fo.lobby.players.find((p) => p.id === fo.me);
+  let held = null;
+  fo.seed = (role, fill, mode) => {
+    const ps = [];
+    for (let i = 0; i < fill; i++) ps.push({ id: 'p' + i, name: NAMES[i], mech: MECH_ORDER[(i * 3) % MECH_ORDER.length], paint: i === 2 ? 'vang' : null, mods: { hp: 1, dmg: 1 }, team: mode === 'trum' ? 0 : i % 2, ready: i === 0 || i % 2 === 1, host: i === 0 });
+    fo.me = role === 'host' ? 'p0' : 'p1'; fo.role = role; fo.code = 'K7QX2'; fo.state = 'lobby';
+    if (role === 'host') ps[0].name = meta.get().name; else ps[1].name = meta.get().name;
+    fo.lobby = { players: ps, map: 'denrung', mode, diff: 'normal' };
+  };
+  const connect = async (call, ok) => {
+    fo.calls.push(call);
+    if (fo.state !== 'off') return false;
+    fo.state = 'connecting'; fo.error = ''; emit();
+    if (q.get('hold')) await new Promise((r) => { held = r; }); else await sleep(80);
+    if (fo.state !== 'connecting') return false;
+    const bad = ok();
+    if (bad) { fo.error = bad; fo.state = 'off'; emit(); return false; }
+    emit();
+    return true;
+  };
+  fo.host = (a) => connect(['host', a], () => { fo.seed('host', +(q.get('fill') || 1), q.get('rmode') || 'tdm'); return ''; });
+  fo.join = (a) => connect(['join', a], () => {
+    if (String(a.code || '').toUpperCase() === 'XXXXX') return 'Không tìm thấy phòng. Hãy kiểm tra lại mã phòng.';
+    fo.seed('guest', +(q.get('fill') || 3), q.get('rmode') || 'tdm'); return '';
+  });
+  fo.listRooms = async () => {
+    fo.calls.push(['list']);
+    await sleep(+(q.get('listms') || 60));
+    if (q.get('listfail')) { fo.error = 'Không tải được danh sách phòng.'; return []; }
+    if (q.has('norooms')) return [];
+    return [
+      { id: 'AB3D9', name: 'Phòng của Bão Số 9', mode: 'tdm', map: 'denrung', host: 'Bão Số 9', players: 3, max: 10 },
+      { id: 'QW8ZK', name: 'Săn trùm cuối tuần', mode: 'trum', map: 'mienglua', host: 'Cò Lả', players: 5, max: 10 },
+      { id: 'LM4TT', name: 'Hỗn chiến chớp nhoáng', mode: 'tudo', map: 'cangbang', host: 'Mèo Mun', players: 10, max: 10 },
+    ];
+  };
+  fo.leave = () => {
+    if (fo.state === 'off') return;
+    fo.calls.push(['leave']); fo.state = 'off'; fo.role = null; fo.lobby = null; fo.me = null; fo.code = '';
+    if (held) held(); emit();
+  };
+  fo.setMine = (m) => {
+    if (fo.state !== 'lobby') return false;
+    const p = mine(); fo.calls.push(['setMine', m]);
+    for (const k of ['mech', 'paint', 'mods']) if (k in m) p[k] = m[k];
+    if (typeof m.ready === 'boolean' && !p.host) p.ready = m.ready;
+    bus.emit('net:lobby', fo.lobby); return true;
+  };
+  fo.setRoom = (r) => {
+    fo.calls.push(['setRoom', r]); fo.error = '';
+    if (fo.role !== 'host') return false;
+    if (r.mode === 'trum' && fo.lobby.players.length > 5) { fo.error = 'Chế độ Săn trùm tối đa 5 người chơi.'; return false; }
+    Object.assign(fo.lobby, r);
+    if (r.mode) fo.lobby.players.forEach((p, i) => { p.team = r.mode === 'trum' ? 0 : p.host ? 0 : i % 2; });
+    bus.emit('net:lobby', fo.lobby); return true;
+  };
+  fo.swapTeam = (id) => {
+    fo.calls.push(['swapTeam', id]);
+    if (fo.role !== 'host') return false;
+    const p = fo.lobby.players.find((x) => x.id === id);
+    if (!p || fo.lobby.mode === 'trum' || fo.lobby.mode === 'tudo') return false;
+    p.team = 1 - p.team; bus.emit('net:lobby', fo.lobby); return true;
+  };
+  fo.start = () => {
+    fo.calls.push(['start']); fo.error = '';
+    if (fo.lobby.players.some((p) => !p.ready)) { fo.error = 'Còn người chơi chưa sẵn sàng.'; return false; }
+    return true;
+  };
+  fo.toLobby = () => { fo.state = 'lobby'; emit(); return true; };
+  fo.onLobby = () => () => {};
+}
+G.online = fo;
 G.input = makeInput(G);
 G.ui = makeUI(G);
 window.__G = G;
@@ -188,7 +267,12 @@ async function iconSheet() {
 function boot() {
   if (screen === 'icons') { iconSheet().then(() => { window.__ready = true; }); return; }
   if (screen === 'menu') { G.ui.showMenu(); }
-  else {
+  else if (screen === 'online') { G.ui.showMenu(); G.ui.showOnline(); }
+  else if (screen === 'lobby') {
+    fo.seed(q.get('role') || 'host', +(q.get('fill') || 4), q.get('rmode') || 'tdm');
+    G.ui.showLobby();
+  } else {
+    if (q.get('onl')) fo.state = 'playing';
     newMatch({});
     G.ui.showHUD();
     const warp = +(q.get('warp') || (screen === 'hud' ? 700 : 1500));

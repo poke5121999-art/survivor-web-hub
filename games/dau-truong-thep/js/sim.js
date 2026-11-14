@@ -9,16 +9,16 @@
 
 import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES } from './data.js';
 import { mulberry } from './rng.js';
-import { compileMap, castStatic, segCircle, solidAt } from './maps.js';
+import { compileMap, castStatic, segCircle, solidAt, navBlock } from './maps.js';
 
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 
 export function createMatch(opts) {
-  const map = compileMap(opts.map || 'denrung');
+  const map = compileMap(opts.map || 'denrung', opts.theme);
   const mode = MODES[opts.mode] ? opts.mode : 'tdm', rule = MODES[mode];
   const m = {
-    mode, rule, lives: rule.lives || 0, points: [],
+    mode, rule, lives: rule.lives || 0, points: [], towers: [],
     map, seed: opts.seed >>> 0, rng: mulberry(opts.seed >>> 0), tick: 0, time: 0,
     target: opts.target || rule.target, duration: opts.duration || rule.duration,
     units: [], shots: [], zones: [], crates: [], events: [],
@@ -43,6 +43,17 @@ export function createMatch(opts) {
     spawn(m, u, true);
   }
   if (mode === 'tudo') m.score = m.units.map(() => 0);
+  if (mode === 'nha') {
+    const T = rule.tower, [bx, bz] = map.bases[0], toMid = bx < 0 ? 1 : -1;
+    const spots = [['main', bx + toMid * 6, bz], ['sub', bx + toMid * 13.5, bz - 9.5], ['sub', bx + toMid * 13.5, bz + 9.5]];
+    // Team 1's towers are the exact mirror of team 0's, so a nudge away from a wall is the same for both.
+    const placed = spots.map(([kind, sx, sz]) => [kind, ...freeSpot(map, sx, sz)]);
+    for (let t = 0; t < 2; t++) for (const [kind, sx, sz] of placed) {
+      const x = t ? -sx : sx, z = t ? -sz : sz;
+      m.towers.push({ id: m.towers.length, team: t, color: t, kind, x, z, r: T.radius, hp: T[kind], maxHp: T[kind], alive: true, cd: 1, charge: 0, aim: t ? Math.PI : 0, target: -1 });
+      navBlock(map, x, z, T.radius, true);
+    }
+  }
   if (mode === 'chiem') {
     const spots = [[0, 0], [-map.hw * 0.4, -map.hd * 0.58], [map.hw * 0.4, map.hd * 0.58]];
     m.points = spots.map((p, i) => { const [x, z] = freeSpot(map, p[0], p[1]); return { id: i, x, z, r: rule.radius, owner: -1, prog: 0, acc: 0 }; });
@@ -93,16 +104,21 @@ export function step(m, inputs) {
   if (m.over) return;
   m.tick++; m.time += TICK;
   for (const u of m.units) stepUnit(m, u, clean(inputs && inputs[u.id]));
-  separate(m);
   stepShots(m);
   stepZones(m);
   stepCrates(m);
   stepVents(m);
   if (m.mode === 'chiem') stepPoints(m);
+  if (m.mode === 'nha') stepTowers(m);
   const timeUp = m.time >= m.duration;
   if (m.mode === 'trum') {
     const boss = m.units.find((u) => u.def.boss);
     if (!boss.alive) finish(m, 0); else if (m.lives <= 0 || timeUp) finish(m, 1);
+  } else if (m.mode === 'nha') {
+    const hp = [0, 0];
+    for (const t of m.towers) if (t.alive) hp[t.team] += t.hp;
+    const fallen = m.towers.find((t) => t.kind === 'main' && !t.alive);
+    if (fallen) finish(m, 1 - fallen.team); else if (timeUp) finish(m, hp[0] === hp[1] ? -1 : hp[0] > hp[1] ? 0 : 1);
   } else {
     const lead = Math.max(...m.score);
     if (lead >= m.target || timeUp) finish(m, m.score.filter((s) => s === lead).length > 1 ? -1 : m.score.indexOf(lead));
@@ -118,6 +134,45 @@ function clean(inp) {
 function finish(m, winner) {
   m.over = true; m.winner = winner;
   m.events.push({ t: 'over', winner });
+}
+
+export const towerOpen = (m, t) => t.alive && (t.kind === 'sub' || !m.towers.some((o) => o.team === t.team && o.kind === 'sub' && o.alive));
+
+function hurtTower(m, t, amount, src) {
+  if (!t.alive || !src || src.team === t.team) return;
+  if (!towerOpen(m, t)) { m.events.push({ t: 'towerBlock', tower: t.id, x: t.x, z: t.z }); return; }
+  t.hp -= amount; src.dmg += amount;
+  m.events.push({ t: 'towerHit', tower: t.id, by: src.id, x: t.x, z: t.z, amt: amount });
+  if (t.hp > 0) return;
+  t.hp = 0; t.alive = false; m.score[src.team]++;
+  navBlock(m.map, t.x, t.z, t.r, false);
+  m.events.push({ t: 'towerDown', tower: t.id, team: t.team, kind: t.kind, by: src.id, x: t.x, z: t.z });
+}
+
+// Towers shoot the enemy that most recently hurt one of their mechs (within rule.tower.aggro seconds), otherwise the nearest one they can see.
+function stepTowers(m) {
+  const T = m.rule.tower;
+  for (const t of m.towers) {
+    if (!t.alive) continue;
+    t.cd -= TICK;
+    let best = null, score = -1;
+    for (const u of m.units) {
+      if (u.team === t.team || !u.alive || !visibleTo(m, u, t.team)) continue;
+      const d2 = dist2(u.x, u.z, t.x, t.z);
+      if (d2 > T.range * T.range) continue;
+      const s = (m.time - (u.hurtAllyAt ?? -99) <= T.aggro ? 1000 : 0) + (T.range * T.range - d2);
+      if (s > score) { score = s; best = u; }
+    }
+    if (!best) { t.charge = 0; t.target = -1; continue; }
+    t.target = best.id; t.aim = Math.atan2(best.z - t.z, best.x - t.x);
+    if (t.cd > 0) continue;
+    t.charge += TICK / T.windup;
+    if (t.charge < 1) continue;
+    t.charge = 0; t.cd = T.cd;
+    const dx = Math.cos(t.aim), dz = Math.sin(t.aim), x = t.x + dx * (t.r + 0.4), z = t.z + dz * (t.r + 0.4);
+    m.shots.push({ id: m.nextId++, team: t.team, color: t.color, owner: -1, tower: t.id, x, z, px: x, pz: z, dx, dz, speed: T.speed, left: T.range + 3, dmg: T.dmg, splash: 0, knock: 0, slow: 0, slowDur: 0, r: 0.3, vis: 'tower', over: true });
+    m.events.push({ t: 'towerFire', tower: t.id, x: t.x, z: t.z, a: t.aim });
+  }
 }
 
 // Control points: a team alone on a point pulls its progress toward that team; a full bar flips the owner. Owned points pay score on a timer.
@@ -178,12 +233,13 @@ function stepUnit(m, u, inp) {
   if (m.mode !== 'tudo' && !u.def.boss) {
     const own = m.map.bases[u.team], foe = m.map.bases[1 - u.team], br = RULES.baseRadius;
     if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
-    else if (m.mode !== 'trum' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
+    else if (m.mode !== 'trum' && m.mode !== 'nha' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
   }
   let grip = 14;
   for (const h of m.map.hazards) {
     if (h.kind === 'vent' || dist2(u.x, u.z, h.x, h.z) > h.r * h.r) continue;
     if (h.kind === 'ice') grip = RULES.ice.grip;
+    else if (h.kind === 'mud') { if (!u.def.hover && !u.def.heavy) { u.slowT = Math.max(u.slowT, 0.2); u.slowF = Math.max(u.slowT > 0.2 ? u.slowF : 0, RULES.mud.slow); } }
     else { burn(m, u, RULES.lava.dps * dt); if (!u.alive) return; }
   }
   if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
@@ -366,6 +422,11 @@ const FINISH = {
       if (along < 0 || along > len) continue;
       if (Math.abs((p.x - u.x) * dz - (p.z - u.z) * dx) < s.width / 2 + p.r) damageProp(m, p, dmg, u);
     }
+    for (const t of m.towers) {
+      if (!t.alive || t.team === u.team) continue;
+      const along = (t.x - u.x) * dx + (t.z - u.z) * dz;
+      if (along > 0 && along < len + t.r && Math.abs((t.x - u.x) * dz - (t.z - u.z) * dx) < s.width / 2 + t.r) hurtTower(m, t, dmg, u);
+    }
     u.revealT = RULES.revealOnFire;
     m.events.push({ t: 'beam', id: u.id, x0: u.x, z0: u.z, x1, z1, w: s.width });
   },
@@ -415,6 +476,7 @@ function resolveStatic(m, u) {
     if (pass === 0) {
       for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r);
       for (const z of m.zones) if (z.kind === 'wall') for (const q of z.pts) pushOut(u, q[0], q[1], z.r + r);
+      for (const t of m.towers) if (t.alive) pushOut(u, t.x, t.z, t.r + r);
     }
     u.x = Math.max(-map.hw + r, Math.min(map.hw - r, u.x));
     u.z = Math.max(-map.hd + r, Math.min(map.hd - r, u.z));
@@ -428,21 +490,6 @@ function pushOut(u, cx, cz, rr) {
   u.x = cx + dx / d * rr; u.z = cz + dz / d * rr;
 }
 
-function separate(m) {
-  const us = m.units;
-  for (let i = 0; i < us.length; i++) {
-    const a = us[i]; if (!a.alive) continue;
-    for (let j = i + 1; j < us.length; j++) {
-      const b = us[j]; if (!b.alive) continue;
-      const rr = (a.radius + b.radius) * 0.92, dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz;
-      if (d2 >= rr * rr) continue;
-      const d = Math.sqrt(d2) || 1e-3, push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
-      a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
-      resolveStatic(m, a); resolveStatic(m, b);
-    }
-  }
-}
-
 function stepShots(m) {
   const map = m.map;
   for (let i = m.shots.length - 1; i >= 0; i--) {
@@ -450,11 +497,16 @@ function stepShots(m) {
     const len = Math.min(s.left, s.speed * TICK);
     const ex = s.dx * len, ez = s.dz * len;
     s.px = s.x; s.pz = s.z;
-    let best = castStatic(map, s.x, s.z, s.x + ex, s.z + ez, s.r * 0.5), what = 'wall', hitUnit = null, hitProp = null;
+    let best = s.over ? 2 : castStatic(map, s.x, s.z, s.x + ex, s.z + ez, s.r * 0.5), what = 'wall', hitUnit = null, hitProp = null, hitTower = null;
+    for (const t of m.towers) {
+      if (!t.alive || t.team === s.team) continue;
+      const k = segCircle(s.x, s.z, ex, ez, t.x, t.z, t.r + s.r);
+      if (k < best) { best = k; what = 'tower'; hitTower = t; }
+    }
     for (const p of m.props) {
-      if (!p.alive) continue;
+      if (!p.alive || s.over) continue;
       const t = segCircle(s.x, s.z, ex, ez, p.x, p.z, p.r + s.r);
-      if (t < best) { best = t; what = 'prop'; hitProp = p; }
+      if (t < best) { best = t; what = 'prop'; hitProp = p; hitTower = null; }
     }
     let hitZone = null;
     for (const z of m.zones) {
@@ -471,21 +523,22 @@ function stepShots(m) {
     for (const u of m.units) {
       if (u.team === s.team || !u.alive) continue;
       const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r);
-      if (t < best) { best = t; what = 'unit'; hitUnit = u; hitProp = null; }
+      if (t < best) { best = t; what = 'unit'; hitUnit = u; hitProp = null; hitTower = null; }
     }
     if (best > 1) {
       s.x += ex; s.z += ez; s.left -= len;
       if (s.left > 1e-4) continue;
       what = 'end';
     } else { s.x += ex * best; s.z += ez * best; }
-    const owner = m.units[s.owner];
-    if (what === 'unit') {
+    const owner = s.owner >= 0 ? m.units[s.owner] : null;
+    if (what === 'tower') hurtTower(m, hitTower, s.dmg, owner);
+    else if (what === 'unit') {
       damage(m, hitUnit, s.dmg, owner);
       if (s.knock && hitUnit.alive) { hitUnit.kx += s.dx * s.knock * 3; hitUnit.kz += s.dz * s.knock * 3; }
       if (s.slow && hitUnit.alive) { hitUnit.slowT = Math.max(hitUnit.slowT, s.slowDur); hitUnit.slowF = Math.max(hitUnit.slowF, s.slow); }
     } else if (what === 'prop') damageProp(m, hitProp, s.dmg, owner);
     else if (what === 'turret') hitZone.hp -= s.dmg;
-    if (s.splash && what !== 'dome') areaDamage(m, owner, s.x, s.z, s.splash, s.dmg * 0.6, null, hitUnit);
+    if (s.splash && what !== 'dome' && owner) areaDamage(m, owner, s.x, s.z, s.splash, s.dmg * 0.6, null, hitUnit);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
   }
@@ -578,6 +631,7 @@ function areaDamage(m, src, x, z, r, dmg, fx, skip) {
     const reach = r + p.r;
     if (dist2(p.x, p.z, x, z) < reach * reach) damageProp(m, p, dmg * scale, src);
   }
+  for (const t of m.towers) { const reach = r + t.r; if (t.alive && t.team !== src.team && dist2(t.x, t.z, x, z) < reach * reach) hurtTower(m, t, dmg * scale * 0.75, src); }
 }
 
 function damageProp(m, p, amount, src) {
@@ -599,7 +653,7 @@ function damage(m, u, amount, src) {
     if (u.shield <= 0) { u.shieldT = 0; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
   }
   u.hp -= left; u.combatT = 0;
-  if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
+  if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.hurtAllyAt = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
   m.events.push({ t: 'hit', id: u.id, by: src ? src.id : -1, x: u.x, z: u.z, amt: left, absorbed });
   if (u.hp <= 0) kill(m, u, src);
 }
@@ -621,7 +675,8 @@ function heal(m, u, amount, src, quiet) {
 }
 
 function kill(m, u, src) {
-  u.hp = 0; u.alive = false; u.deaths++; u.respawnT = RULES.respawn;
+  const R = m.rule.respawn;
+  u.hp = 0; u.alive = false; u.deaths++; u.respawnT = R ? Math.min(R.max, R.base + R.perMin * m.time / 60) : RULES.respawn;
   const assists = [];
   let by = -1;
   if (src && src.team !== u.team) {
