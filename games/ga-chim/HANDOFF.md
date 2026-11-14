@@ -41,3 +41,10 @@ Game FPS gốc dựng toàn bằng code (three.js r170 vendored). Chuẩn đồ 
 - Giật camera theo Saltline nằm trong `Player.addRecoil` / `addShake` (35% giữ lại, 65% hồi, giữ .09 s, hồi 6.5, đuổi 34).
 - `js/audio.js` là lớp nối âm thanh: chuyển sự kiện game (`G.events`) sang bảng sự kiện Saltline (`weapon:fire`, `impact`, `player:step`, `enemy:*`, `thunder`, `objective:*`). Lính (raider) không có trong Saltline nên dùng `rifle_shot` 3D.
 - Kiểm: `node tools/fire-strip.js <out>` (dải khung hình lúc bắn), `node tools/probe.js "<expr>" "&noaudio="` rồi gọi `__G.audio.engine.selfTest({})` (peak, clip, NaN).
+
+## 2026-11-14 (rev 20261114g): mặt đất ướt, vũng nước, mưa và mô hình ướt theo Saltline
+
+- `js/sl/ground-sl.js` SINH bằng `node tools/port-sl-ground.js`: bản đồ vũng (mask 1024 px phủ x -60..140, z -140..60), shader mặt đất (vũng, viền thấm, quầng ẩm, gợn mưa chỉ ở vũng sâu >8 cm trong 34 m), gương phẳng, mưa 9000 vệt + tia bắn tung trên vũng. Tool thay phần của bến cảng: bảng 46 vũng sinh theo lối đi giữa các đường ray, vệt bánh xe dọc lối đi, khu ngập x -28..14 z -112..-66, không vạch sơn, không bê tông kè.
+- `js/ground.js` là lớp nối; `G.puddleAt` hỏi `ground.isPuddle` nên tiếng bước chân, đạn trúng nước khớp với hình. Sấm do module mưa hẹn giờ, gọi `G.thunder`. `js/rain.js` và mặt nhựa đường cũ trong `level.js` đã bỏ.
+- `js/mats.js`: mô hình ướt §3.4 với bảng `WET` theo từng bề mặt (tối đi, nhám khi ướt, ướt mặt đứng, hạt nước), trong nhà chỉ ướt 12%, chân tường có dải nước bắn.
+- Bẫy: `tools/sl-port-lib.js` là thư viện chung cho 3 tool port (bảng tên rút gọn three.js, tìm tên tự do bằng acorn).

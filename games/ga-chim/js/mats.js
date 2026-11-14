@@ -18,7 +18,8 @@ const FRAG_HEAD = /* glsl */`
 uniform float uTime, uRain, uGunWet; uniform vec4 uFlood; uniform vec4 uIndoor[4]; uniform float uIndoorH[4];
 uniform sampler2D tAlb, tOrm, tNrm;
 uniform vec3 uPaint;
-uniform float uScale, uNScale, uMacro, uWetK, uPuddle, uDrops, uRoughK, uMetalK, uAOK, uWetR;
+uniform float uScale, uNScale, uMacro, uWetK, uPuddle, uDrops, uRoughK, uMetalK, uAOK, uWetR, uGrime;
+uniform vec4 uWetP;
 varying vec3 vTP; varying vec3 vTN; varying vec3 vWP; varying vec3 vWN;
 ${NOISE}
 ${RIPPLES}
@@ -36,6 +37,7 @@ function patch(shader, o) {
     uPaint: { value: new THREE.Color(o.paint ?? 0xffffff) },
     uScale: { value: o.scale ?? 0.5 }, uNScale: { value: o.nscale ?? 1 }, uMacro: { value: o.macro ?? 0.25 },
     uWetK: { value: o.wet === false ? 0 : (o.wetK ?? 1) }, uPuddle: { value: o.puddles === 'flood' ? 0.75 : o.puddles ? 1 : 0 }, uDrops: { value: o.drops ? 1 : 0 },
+    uWetP: { value: wetParams(o) }, uGrime: { value: o.grime ?? (BIG.has(o.surf) ? 0.35 : 0.2) },
     uRoughK: { value: o.roughK ?? 1 }, uMetalK: { value: o.metalK ?? 1 }, uAOK: { value: o.aoK ?? 1 }, uWetR: { value: o.wetRough ?? 0.16 },
   });
   const objectSpace = o.space === 'object';
@@ -66,18 +68,28 @@ function patch(shader, o) {
       float macro2 = vn(vWP.xz*0.6+vWP.y*0.3);
       vec3 col = alb.rgb * mix(vec3(1.0), uPaint, alb.a);
       col *= mix(1.0, 0.72 + 0.56*macro, uMacro);
-      // wetness
-      float up = smoothstep(0.25, 0.9, WN.y);
-      float side = 1.0 - abs(WN.y);
-      float under = smoothstep(-0.1, -0.6, WN.y);
-      float wet = uRain * uWetK * (up*0.9 + side*0.35) * (1.0 - under);
-      float streak = 0.0;
-      if (uWetK > 0.0) {
-        float u = dot(vWP.xz, vec2(0.707, 0.707)) * 22.0 + vWP.x * 9.0;
-        float film = vn(vec2(u, vWP.y * 0.35 + uTime * 0.25));
-        float lane = smoothstep(0.35, 0.0, abs(fract(u * 0.5) - 0.5)) ;
-        streak = smoothstep(0.55, 0.85, film) * lane * side * uRain * uWetK * 0.7;
+      // wetness: Saltline mats.md §3.4. uWetP = (darken, roughMul, vertWet, bead)
+      float indoor = 0.0;
+      for (int i = 0; i < 4; i++) {
+        vec4 z = uIndoor[i];
+        vec2 dd = abs(vWP.xz - z.xy) - z.zw;
+        indoor = max(indoor, smoothstep(1.5, -2.5, max(dd.x, dd.y)) * step(vWP.y, uIndoorH[i] - 0.3));
       }
+      float up = smoothstep(0.15, 0.85, WN.y);
+      float expo = smoothstep(-0.4, -0.05, WN.y);
+      float sc = vWP.x + vWP.z;
+      float streak = smoothstep(0.12, 0.42, vn3(vec3(sc*9.0, vWP.y*0.55, sc*0.7+3.0)) * vn3(vec3(sc*29.0, vWP.y*1.1, 7.0))) * smoothstep(0.3, 0.7, vn3(vec3(sc*1.1, vWP.y*0.25, 1.7)));
+      float slW = uRain * uWetK * mix(1.0, 0.12, indoor) * expo;
+      float wet = slW * mix(uWetP.z * (0.55 + 0.9*streak), 0.75 + 0.5*macro, up);
+      float low = smoothstep(0.5, 0.0, vWP.y) * (1.0 - up) * expo;
+      wet += slW * low * 0.6;
+      col *= 1.0 - low * min(uGrime, 0.5) * 0.45;
+      float grime = smoothstep(0.5, 0.85, macro*0.6 + macro2*0.4 + (1.0 - orm.r)*0.3) * uGrime;
+      col *= 1.0 - grime * 0.35;
+      wet = clamp(wet, 0.0, 1.0);
+      float beadN = vn3(vWP*170.0)*0.6 + vn3(vWP*410.0 + 5.0)*0.4;
+      float beadF = clamp(1.0 - length(fwidth(vWP))*120.0, 0.0, 1.0);
+      float bead = smoothstep(0.6, 0.68, beadN) * uWetP.w * slW * beadF * (0.4 + 0.6*up + 0.5*streak);
       float puddle = 0.0;
       if (uPuddle > 0.5) {
         float pm = fbm2(vWP.xz*0.11 + 3.7) * 0.75 + fbm2(vWP.xz*0.45)*0.35;
@@ -105,15 +117,15 @@ function patch(shader, o) {
         dropN = (f - jit) / max(rad, 0.01) * bead * 0.9 * uGunWet;
         wet = max(wet, uGunWet*0.35);
       }
-      float porous = smoothstep(0.35, 0.9, orm.g);
-      col *= mix(1.0, mix(0.82, 0.6, porous), clamp(wet,0.,1.)) * mix(1.0, 0.45, puddle) * mix(1.0, 0.88, streak);
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(vec3(lum), col, 1.0 + 0.25*wet*uWetP.x*2.0);
+      col *= (1.0 - uWetP.x * wet) * mix(1.0, 0.45, puddle);
       diffuseColor.rgb *= col;
     `)
     .replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = clamp(orm.g * roughness * uRoughK, 0.02, 1.0);
-      float wetR = max(uWetR, roughnessFactor * 0.5);
-      roughnessFactor = mix(roughnessFactor, min(roughnessFactor, wetR), clamp(wet,0.,1.) * 0.8);
-      roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, streak);
+      roughnessFactor = mix(roughnessFactor, roughnessFactor * uWetP.y, wet);
+      roughnessFactor = clamp(mix(roughnessFactor, 0.05, bead), 0.045, 1.0);
       roughnessFactor = mix(roughnessFactor, 0.06, drop);
       roughnessFactor = mix(roughnessFactor, 0.03, puddle);
     `)
@@ -123,7 +135,7 @@ function patch(shader, o) {
     .replace('#include <normal_fragment_maps>', `
       {
         vec3 nX = texture2D(tNrm, P.zy).xyz*2.0-1.0, nY = texture2D(tNrm, P.xz).xyz*2.0-1.0, nZ = texture2D(tNrm, P.xy).xyz*2.0-1.0;
-        float ns = uNScale * (1.0 - puddle * 0.9) * (1.0 - clamp(wet,0.,1.)*0.15);
+        float ns = uNScale * (1.0 - puddle * 0.9) * (1.0 - 0.45 * wet * up);
         nX.xy *= ns; nY.xy *= ns; nZ.xy *= ns;
         nX = vec3(nX.xy + N0.zy, abs(nX.z) * N0.x);
         nY = vec3(nY.xy + N0.xz, abs(nY.z) * N0.y);
@@ -141,12 +153,6 @@ function patch(shader, o) {
     .replace('#include <aomap_fragment>', `
       {
         float aoT = mix(1.0, orm.r, uAOK);
-        float indoor = 0.0;
-        for (int i = 0; i < 4; i++) {
-          vec4 z = uIndoor[i];
-          vec2 dd = abs(vWP.xz - z.xy) - z.zw;
-          indoor = max(indoor, smoothstep(1.5, -2.5, max(dd.x, dd.y)) * step(vWP.y, uIndoorH[i] - 0.3));
-        }
         reflectedLight.indirectDiffuse *= aoT * mix(1.0, 0.16, indoor);
         reflectedLight.indirectSpecular *= mix(1.0, aoT, 0.7) * mix(1.0, 0.3, indoor);
       }
@@ -157,6 +163,17 @@ function patch(shader, o) {
     `);
   shader.fragmentShader = 'uniform mat4 modelMatrix;\n' + shader.fragmentShader;
 }
+
+// per-surface wet response (darken, roughMul, vertWet, bead), Saltline mats.md §4
+const WET = {
+  concrete: [0.42, 0.38, 0.5, 0], plasterBlock: [0.42, 0.38, 0.5, 0], brick: [0.42, 0.38, 0.5, 0], ballast: [0.42, 0.38, 0.5, 0],
+  asphalt: [0.45, 0.3, 0.5, 0], wood: [0.4, 0.5, 0.6, 0], rust: [0.3, 0.6, 0.55, 0],
+  paintedMetal: [0.05, 0.62, 0.65, 0.7], corrugated: [0, 0.7, 0.55, 0.5], steel: [0, 0.7, 0.55, 0.5],
+  polymer: [0.08, 0.62, 0.6, 0.5], anodized: [0, 0.75, 0.6, 0.5], phosphate: [0, 0.75, 0.6, 0.5],
+  fabric: [0.3, 0.7, 0.6, 0], camoWood: [0.3, 0.7, 0.6, 0], camoDesert: [0.3, 0.7, 0.6, 0], denim: [0.3, 0.7, 0.6, 0], leather: [0.1, 0.6, 0.6, 0.3], skin: [0.05, 0.6, 0.4, 0],
+};
+const BIG = new Set(['concrete', 'asphalt', 'ballast', 'plasterBlock']);
+function wetParams(o) { const w = o.wetP || WET[o.surf] || [0, 0.7, 0.55, 0.5]; return new THREE.Vector4(w[0], w[1], w[2], w[3]); }
 
 // o: { surf, paint, scale, nscale, rough, metal, wet, puddles, drops, space, macro, emissive, side }
 export function mat(o) {

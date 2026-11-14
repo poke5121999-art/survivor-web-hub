@@ -119,9 +119,7 @@ export function buildLevel(G) {
   const trackKit = (x) => (fn) => fn;
 
   // ---- ground: asphalt apron with a slight camber, concrete slab road west
-  const groundGeo = new THREE.PlaneGeometry(520, 520, 64, 64); groundGeo.rotateX(-Math.PI / 2);
-  const ground = new THREE.Mesh(groundGeo, materialFor('asphalt'));
-  ground.position.set(-10, 0, -70); ground.receiveShadow = true; G.scene.add(ground);
+  // (the ground itself is the Saltline apron built in js/ground.js)
 
   // ---- tracks: ballast bed, sleepers, rails, in chunks
   for (let t = 0; t < TRACK_X.length; t++) {

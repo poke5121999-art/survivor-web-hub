@@ -5,7 +5,7 @@ import { U, setBaker } from './mats.js';
 import { makeSky } from './sky.js';
 import { buildLevel } from './level.js';
 import { Lights } from './lights.js';
-import { Rain } from './rain.js';
+import { buildGround } from './ground.js';
 import { Post } from './post.js';
 import { Weapon } from './weapon.js';
 import { Player, Grid } from './player.js';
@@ -16,9 +16,9 @@ import { Game, Events } from './game.js';
 
 const params = Object.fromEntries(new URLSearchParams(location.search));
 const QUALITY = {
-  low: { name: 'low', pr: 0.75, msaa: 0, ao: false, aoTaps: 8, volSteps: 12, ssr: false, ssrSteps: 16, shadow: 1024, lights: 4, spotShadows: 0, rain: 2500, splashes: 120, tex: 512 },
-  medium: { name: 'medium', pr: 1, msaa: 2, ao: true, aoTaps: 12, volSteps: 16, ssr: true, ssrSteps: 28, shadow: 2048, lights: 6, spotShadows: 0, rain: 5000, splashes: 220, tex: 1024 },
-  high: { name: 'high', pr: 1, msaa: 4, ao: true, aoTaps: 12, volSteps: 24, ssr: true, ssrSteps: 40, shadow: 4096, lights: 8, spotShadows: 1, rain: 8000, splashes: 320, tex: 1024 },
+  low: { name: 'low', rainQ: 0.5, planar: 0, pr: 0.75, msaa: 0, ao: false, aoTaps: 8, volSteps: 12, ssr: false, ssrSteps: 16, shadow: 1024, lights: 4, spotShadows: 0, rain: 2500, splashes: 120, tex: 512 },
+  medium: { name: 'medium', rainQ: 0.8, planar: 0.5, pr: 1, msaa: 2, ao: true, aoTaps: 12, volSteps: 16, ssr: true, ssrSteps: 28, shadow: 2048, lights: 6, spotShadows: 0, rain: 5000, splashes: 220, tex: 1024 },
+  high: { name: 'high', rainQ: 1, planar: 0.5, pr: 1, msaa: 4, ao: true, aoTaps: 12, volSteps: 24, ssr: true, ssrSteps: 40, shadow: 4096, lights: 8, spotShadows: 1, rain: 8000, splashes: 320, tex: 1024 },
 };
 function pickQuality() {
   if (params.q && QUALITY[params.q]) return QUALITY[params.q];
@@ -60,7 +60,8 @@ async function boot() {
     const rot = Math.abs(Math.sin(e.y)) > 0.7;
     U.uIndoor.value[i].set(p.x, p.z, (rot ? z.l : z.w) / 2, (rot ? z.w : z.l) / 2); U.uIndoorH.value[i] = z.h;
   });
-  G.rain = new Rain(G, G.level.lamps, G.level.dryZones);
+  setStatus('Đang làm ngập sân ga…'); await frame();
+  G.ground = buildGround(G); G.rain = G.ground;
   G.post = new Post(G);
   {
     // dusty interior for the volumetric pass: the biggest covered hall
@@ -83,7 +84,7 @@ async function boot() {
   G.audio = new Audio(G);
   G.player = new Player(G, G.grid);
   G.enemies = new Enemies(G, G.grid);
-  G.puddleAt = (p) => (p.z < -60 && p.z > -115);
+  G.puddleAt = (p) => G.ground.isPuddle(p.x, p.z);
   G.game = new Game(G);
   G.audio.bind();
   setStatus('Đang lắp súng…'); await frame();
@@ -147,11 +148,12 @@ function step(dt) {
   G.t += dt; G.dt = dt; U.uTime.value = G.t;
   for (const [tag, fn] of G.updaters) guard(tag, () => fn(dt, G.t));
   guard('lights', () => G.lights.update(dt, G.camera.position));
-  guard('rain', () => G.rain.update(dt, G.t, G.camera));
+  guard('ground', () => G.ground.update(dt));
 }
 function render() {
   guard('render', () => {
     G.camera.updateMatrixWorld();
+    if (G.ground) G.ground.prePass(G.renderer, G.camera);
     G.post.render(() => {
       G.renderer.render(G.scene, G.camera);
       if (G.drawViewmodel) G.drawViewmodel();
@@ -188,12 +190,11 @@ function combat(dt) {
 }
 
 // lightning and thunder at random, re-tinting the sky and the environment
-let nextFlash = 8;
+// the rain module schedules thunder (Saltline: first 22-47 s, then every 30-60 s); this plays the flash
+G.thunder = (intensity) => { G.postFx.flashT = 0.6; G.postFx.flashK = 0.5 + 0.5 * intensity; if (G.audio) G.audio.emit('thunder', { intensity }); };
 function storm(dt) {
-  nextFlash -= dt;
   const fx = G.postFx;
-  if (nextFlash <= 0) { nextFlash = 14 + Math.random() * 22; fx.flashT = 0.6; G.audio.emit('thunder', { intensity: 0.45 + Math.random() * 0.55 }); }
-  if (fx.flashT > 0) { fx.flashT -= dt; const t = 0.6 - fx.flashT; fx.flash = Math.max(0, Math.sin(t * 40) * Math.exp(-t * 6)) * 1.2; } else fx.flash = 0;
+  if (fx.flashT > 0) { fx.flashT -= dt; const t = 0.6 - fx.flashT; fx.flash = Math.max(0, Math.sin(t * 40) * Math.exp(-t * 6)) * 1.2 * (fx.flashK || 1); } else fx.flash = 0;
   U.uFlash.value = fx.flash;
   // camera shake from explosions
   if (fx.shake > 0) { fx.shake = Math.max(0, fx.shake - dt * 2); const s = fx.shake * 0.02; G.camera.rotation.x += (Math.random() - 0.5) * s; G.camera.rotation.y += (Math.random() - 0.5) * s; }
