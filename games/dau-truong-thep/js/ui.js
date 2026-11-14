@@ -409,7 +409,7 @@ export function makeUI(G) {
       setScale(H.shBar, me.shield > 0 ? me.shield / Math.max(1, me.shieldMax) : 0);
       const frac = me.alive ? me.hp / me.maxHp : 1;
       const lowQ = frac < 0.35 ? Math.round((0.35 - frac) / 0.35 * 10) : 0;
-      if (lowQ !== S.lowQ) { S.lowQ = lowQ; H.vig.style.setProperty('--v', (lowQ / 10).toFixed(1)); flag(H.vig, 'on', lowQ > 0); }
+      if (lowQ !== S.lowQ) { S.lowQ = lowQ; H.vig.style.setProperty('--v', (0.4 + 0.6 * lowQ / 10).toFixed(2)); flag(H.vig, 'on', lowQ > 0); }
 
       // skills
       for (const d of SLOT_DEFS) {

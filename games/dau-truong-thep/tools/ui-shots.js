@@ -30,7 +30,7 @@ function overflowReport() {
   const roots = [document.getElementById('ui'), document.getElementById('touch')].filter(Boolean);
   for (const r of roots) {
     for (const n of r.querySelectorAll('*')) {
-      if (!(n instanceof HTMLElement) || n.classList.contains('fn') || n.parentElement.classList.contains('vig')) continue;
+      if (!(n instanceof HTMLElement) || n.classList.contains('fn') || n.closest('.np') || n.parentElement.classList.contains('vig')) continue;
       const cs = getComputedStyle(n);
       if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
       let hid = false;

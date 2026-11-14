@@ -13,11 +13,11 @@ const FIRE = C(2.2, 1.0, 0.25), EMBER = C(1.6, 0.4, 0.08), WHITE = C(2, 2, 2), S
 
 // How each projectile looks: length and width of the streak, how much it is tinted by the team colour, and what it trails.
 const SHOT_LOOK = {
-  bullet: { len: 1.5, wid: 0.3, white: 0.35 },
-  shell: { len: 1.5, wid: 0.75, white: 0.2, trail: 'smoke' },
-  rail: { len: 5.5, wid: 0.42, white: 0.5 },
-  pulse: { len: 1.0, wid: 0.72, white: 0.15 },
-  rocket: { len: 1.7, wid: 0.5, white: 0.3, trail: 'fire' },
+  bullet: { len: 2.1, wid: 0.5, white: 0.35 },
+  shell: { len: 2.2, wid: 1.25, white: 0.2, trail: 'spark' },
+  rail: { len: 7, wid: 0.7, white: 0.5 },
+  pulse: { len: 1.6, wid: 1.15, white: 0.15 },
+  rocket: { len: 2.2, wid: 0.9, white: 0.3, trail: 'fire' },
 };
 
 function particles(max, additive) {
@@ -127,7 +127,7 @@ export function makeFx(G, mechs) {
   }
   function release(g) { g.mesh.visible = false; const i = groundLive.indexOf(g); if (i >= 0) groundLive.splice(i, 1); groundPool.push(g); }
   const ring = (x, z, r, color, life = 0.45, alpha = 1) => ground(0, x, z, r, color, { life, sweep: true, alpha });
-  const scorch = (x, z, r) => { if (Q.name !== 'low') ground(3, x, z, r, WHITE, { life: 14, fade: 4 }); };
+  const scorch = (x, z, r) => { if (Q.name !== 'low') ground(3, x, z, r * 0.8, WHITE, { life: 9, fade: 4, alpha: 0.55 }); };
 
   const lights = [];
   for (let i = 0; i < Q.lights; i++) { const l = new THREE.PointLight(0xffffff, 0, 16, 1.6); l.userData.t = 0; group.add(l); lights.push(l); }
@@ -195,14 +195,14 @@ export function makeFx(G, mechs) {
 
   function crateModel(type) {
     const b = new Builder(0.8), c = new THREE.Color(PICKUPS[type].color);
-    b.use('box', 0x4b5560).push().move(0, 0.55, 0).box(1.3, 1.0, 1.3).pop();
-    b.tint(0x2c3138);
+    b.use('box', 0x97a2ad).push().move(0, 0.55, 0).box(1.3, 1.0, 1.3).pop();
+    b.tint(0x3a424c);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.push().move(sx * 0.62, 0.55, sz * 0.62).box(0.16, 1.1, 0.16).pop();
     b.push().move(0, 1.08, 0).box(1.4, 0.08, 1.4).pop();
     b.use('glow');
     for (const s of [-1, 1]) b.push().move(0, 0.55, s * 0.66).box(0.9, 0.2, 0.02).pop().push().move(s * 0.66, 0.55, 0).box(0.02, 0.2, 0.9).pop();
     b.push().move(0, 1.13, 0).box(0.5, 0.03, 0.5).pop();
-    b.use('chute');
+    b.use('chute', 0xffffff);
     const can = new THREE.SphereGeometry(2.1, 12, 5, 0, Math.PI * 2, 0, Math.PI * 0.42).toNonIndexed();
     can.computeVertexNormals();
     const cc = [], p = can.attributes.position;
@@ -214,7 +214,7 @@ export function makeFx(G, mechs) {
     const g = b.build(), root = new THREE.Group();
     const box = new THREE.Mesh(g.box, G.gfx.tex.material('metal')); box.castShadow = true;
     const glow = new THREE.Mesh(g.glow, new THREE.MeshBasicMaterial({ color: c.clone().multiplyScalar(2.6), toneMapped: false }));
-    const chute = new THREE.Mesh(g.chute, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide })); chute.castShadow = true;
+    const chute = new THREE.Mesh(g.chute, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, emissive: 0x333333 }));
     root.add(box, glow, chute);
     const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.75, 9, 12, 1, true).translate(0, 4.5, 0), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       uniforms: { uColor: { value: c.clone().multiplyScalar(1.4) } }, vertexShader: QUAD_VERT,
@@ -235,7 +235,7 @@ export function makeFx(G, mechs) {
     burst(x, 0.9, z, Math.round(10 * k * (big ? 1.5 : 1)), tint, r * 3.0, 0.4, r * 0.55, 0.7, add, { grow: 1.6, drag: 5, a: 0.6 });
     add.emit(x, 0.9, z, WHITE, { v: [0, 0, 0], life: 0.14, size: r * 1.5, grow: 1.5, a: 0.8 });
     burst(x, 0.6, z, Math.round(14 * k), EMBER, r * 6, 0.7, 0.16, 1.2, add, { grav: 14, drag: 0.6 });
-    burst(x, 1.0, z, Math.round(9 * k * (big ? 1.5 : 1)), SMOKE, r * 1.6, 1.3, r * 0.9, 0.5, alp, { grow: 2.6, drag: 2.2, lift: 1.4, a: 0.55 });
+    burst(x, 1.0, z, Math.round(5 * k * (big ? 1.5 : 1)), SMOKE, r * 1.4, 0.9, r * 0.6, 0.5, alp, { grow: 2.2, drag: 2.2, lift: 1.8, a: 0.22 });
     ring(x, z, r * 1.25, tint, 0.4);
     scorch(x, z, r * 0.8);
     flash(x, 1.6, z, tint, big ? 60 : 34, 0.28);
@@ -267,7 +267,7 @@ export function makeFx(G, mechs) {
         const c = TEAM_HDR[u.team], heavy = e.vis === 'shell' || e.vis === 'rail' || e.vis === 'rocket';
         const dx = Math.cos(e.a), dz = Math.sin(e.a);
         for (let i = 0; i < (heavy ? 7 : 3); i++) add.emit(V.x, V.y, V.z, i ? c : WHITE, { v: [dx * rnd(2, 9) + rnd(-1.5, 1.5), rnd(-0.5, 1.5), dz * rnd(2, 9) + rnd(-1.5, 1.5)], life: rnd(0.06, 0.14), size: heavy ? rnd(0.5, 0.9) : rnd(0.3, 0.5), grow: 0.4, drag: 6 });
-        if (heavy) { alp.emit(V.x, V.y, V.z, SMOKE, { v: [dx * 2, 0.8, dz * 2], life: 0.7, size: 0.7, grow: 2.4, drag: 2, a: 0.4 }); flash(V.x, V.y, V.z, c, 14, 0.1); }
+        if (heavy) { alp.emit(V.x, V.y, V.z, SMOKE, { v: [dx * 2, 0.8, dz * 2], life: 0.5, size: 0.5, grow: 2.2, drag: 2, a: 0.18 }); flash(V.x, V.y, V.z, c, 14, 0.1); }
         if (e.id === G.me) shake = Math.min(1.2, shake + (heavy ? 0.16 : 0.035));
         break;
       }
@@ -302,7 +302,7 @@ export function makeFx(G, mechs) {
       }
       case 'death': {
         explosion(e.x, e.z, 2.6, FIRE, true);
-        burst(e.x, 1.0, e.z, 16, SMOKE, 9, 1.1, 0.3, 1.4, alp, { grav: 15, drag: 0.4, a: 1 });
+        burst(e.x, 1.0, e.z, 14, SMOKE, 9, 1.0, 0.22, 1.4, alp, { grav: 15, drag: 0.4, a: 0.9, grow: 0.8 });
         burst(e.x, 1.0, e.z, 12, TEAM_HDR[u.team], 7, 0.8, 0.3, 1.2, add, { grav: 9 });
         ring(e.x, e.z, 4.5, TEAM_HDR[u.team], 0.6);
         break;
@@ -335,8 +335,8 @@ export function makeFx(G, mechs) {
       shotMesh.setMatrixAt(n, M.compose(P, QT, S));
       shotMesh.setColorAt(n, col.copy(TEAM_HDR[s.team]).lerp(WHITE, look.white));
       n++;
-      if (look.trail === 'fire') { add.emit(x - s.dx * 0.7, 1.5, z - s.dz * 0.7, FIRE, { v: [rnd(-0.5, 0.5), rnd(-0.3, 0.6), rnd(-0.5, 0.5)], life: 0.22, size: 0.42, grow: 0.3 }); if (Math.random() < 0.5) alp.emit(x - s.dx, 1.5, z - s.dz, SMOKE, { v: [0, 0.6, 0], life: 0.7, size: 0.4, grow: 2.6, a: 0.35 }); }
-      else if (look.trail === 'smoke' && Math.random() < 0.6) alp.emit(x - s.dx * 0.6, 1.5, z - s.dz * 0.6, SMOKE, { v: [0, 0.4, 0], life: 0.45, size: 0.35, grow: 2.2, a: 0.3 });
+      if (look.trail === 'fire') { add.emit(x - s.dx * 0.7, 1.5, z - s.dz * 0.7, FIRE, { v: [rnd(-0.5, 0.5), rnd(-0.3, 0.6), rnd(-0.5, 0.5)], life: 0.22, size: 0.42, grow: 0.3 }); if (Math.random() < 0.4) alp.emit(x - s.dx, 1.5, z - s.dz, SMOKE, { v: [0, 0.6, 0], life: 0.5, size: 0.3, grow: 2.2, a: 0.16 }); }
+      else if (look.trail === 'spark') add.emit(x - s.dx * 0.8, 1.5, z - s.dz * 0.8, TEAM_HDR[s.team], { v: [rnd(-0.6, 0.6), rnd(-0.2, 0.5), rnd(-0.6, 0.6)], life: 0.2, size: 0.5, grow: 0.2, a: 0.7 });
     }
     shotMesh.count = n;
     shotMesh.instanceMatrix.needsUpdate = true;

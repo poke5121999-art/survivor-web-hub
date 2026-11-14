@@ -204,7 +204,7 @@
 #ui .fn.pick { font-size: 1.15em; color: var(--brass2); background: rgba(6, 8, 12, .8); padding: .2em .7em; box-shadow: inset 0 0 0 1px var(--brass); }
 
 /* ---------- screens ---------- */
-#ui .screen { position: absolute; inset: 0; display: none; pointer-events: auto; }
+#ui .screen { position: absolute; inset: 0; display: none; pointer-events: auto; z-index: 4; }
 #ui .screen.on { display: flex; animation: fadeIn .3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } }
 #ui .menu { flex-direction: column; padding: 1em 1.6em 1.2em; gap: .9em; background: radial-gradient(ellipse at 25% 0%, rgba(18, 40, 34, .84), rgba(5, 8, 11, .94) 75%); }
@@ -275,7 +275,7 @@
 #ui .play:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; animation: none; }
 #ui .row2 { display: flex; gap: .5em; } #ui .row2 .btn { flex: 1; padding: .55em .3em; font-size: .9em; white-space: nowrap; }
 
-#ui .modal { position: absolute; inset: 0; display: none; place-items: center; pointer-events: auto; background: rgba(3, 5, 8, .72); z-index: 3; }
+#ui .modal { position: absolute; inset: 0; display: none; place-items: center; pointer-events: auto; background: rgba(3, 5, 8, .72); z-index: 6; }
 #ui .modal.on { display: grid; animation: fadeIn .2s ease-out; }
 #ui .modal-box { width: min(30em, 94%); max-height: 94%; overflow: auto; padding: 0 1.4em 1.2em; display: flex; flex-direction: column; gap: .9em; clip-path: polygon(.6em 0, 100% 0, 100% calc(100% - .6em), calc(100% - .6em) 100%, 0 100%, 0 .6em); }
 #ui .modal-box.wide { width: min(46em, 96%); }
@@ -294,8 +294,9 @@
 #ui .pause { align-items: center; justify-content: center; background: rgba(3, 5, 8, .62); }
 #ui .box { width: 18em; padding: 0 1.4em 1.2em; display: flex; flex-direction: column; gap: .7em; text-align: center; clip-path: polygon(.6em 0, 100% 0, 100% calc(100% - .6em), calc(100% - .6em) 100%, 0 100%, 0 .6em); }
 #ui .box .hazard { margin: 0 -1.4em; } #ui .box h2 { margin: .3em 0; font-size: 2em; text-transform: uppercase; letter-spacing: .12em; color: var(--brass2); }
+#ui.is-touch .hint { display: none; }
 #ui .hint { margin: 0; font-size: .8em; color: var(--dim); }
-#ui .toast { position: absolute; left: 50%; bottom: 2em; transform: translate(-50%, 1em); padding: .5em 1.2em; background: rgba(8, 10, 14, .92); box-shadow: inset 0 0 0 1px var(--brass); opacity: 0; transition: opacity .25s, transform .25s; z-index: 4; }
+#ui .toast { position: absolute; left: 50%; bottom: 2em; transform: translate(-50%, 1em); padding: .5em 1.2em; background: rgba(8, 10, 14, .92); box-shadow: inset 0 0 0 1px var(--brass); opacity: 0; transition: opacity .25s, transform .25s; z-index: 7; }
 #ui .toast.on { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------- result ---------- */

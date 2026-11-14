@@ -47,7 +47,7 @@ const SETS = {
     albedo = mix(vec3(0.20, 0.125, 0.07), vec3(0.36, 0.255, 0.15), n);
     albedo = mix(albedo, vec3(0.34, 0.31, 0.26) * (0.5 + peb.z * 0.5), stone * 0.8);
     float crack = 1.0 - smoothstep(0.0, 0.04, voro(uv + n * 0.05, 7.0).y);
-    albedo *= (0.78 + fine * 0.45) * (1.0 - crack * 0.22);
+    albedo *= (0.86 + fine * 0.28) * (1.0 - crack * 0.22);
     height = n * 0.5 + stone * 0.4 - crack * 0.3 + fine * 0.15; rough = 0.95 - stone * 0.25; metal = 0.0;`,
   pave: /* glsl */`
     vec2 g = uv * 4.0; float row = floor(g.y); g.x += mod(row, 2.0) * 0.5;

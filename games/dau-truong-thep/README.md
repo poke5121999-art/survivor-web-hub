@@ -60,4 +60,17 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 
 `?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high`, `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
 
-`window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris}`, `__step(n, draw)` (advance n sim ticks, draw once if `draw`), `__setShot({x, z, dist, pitch, yaw})` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__show(kind, key)` (showcase one mech, effect or map).
+`window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris, quality, scale}`, `__step(n, draw)` (advance n sim ticks, draw one frame if `draw`), `__setShot({x, z, dist, pitch, yaw} | null)` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__start(choice, attract)` (start a match).
+
+## Tools
+
+| Tool | What it proves |
+|---|---|
+| `node tools/sim-test.mjs` | Rules of the simulation and the bots, in Node: hits, walls, bushes, every skill, airdrops, respawn, match end, determinism, hard beats easy |
+| `node tools/play.js` | The real page in headless Chrome: full bot matches at every quality tier, scripted player input, HUD, result screen, saved rewards, menu, keyboard and mouse, phone layout |
+| `node tools/audio.js` | Every synthesised sound and music stem: no NaN, no clipping, levels, event coverage |
+| `node tools/ui-shots.js` | HUD and menu screens in a harness at desktop and phone sizes |
+| `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
+| `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
+
+Browser tools need `PLAYWRIGHT_PATH`. `DTT_GL=gl-egl` uses the hardware GPU, `DTT_BASE=<hub url>` runs against a deployed hub.

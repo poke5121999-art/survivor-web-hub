@@ -46,8 +46,8 @@ export const MECHS = {
   soi: {
     name: 'Sói Lửa', role: 'Xung kích', roleKey: 'assault', price: 0, tint: 0xd9843a,
     blurb: 'Hai nòng liên thanh, cơ động. Áp sát, xả đạn rồi rút.',
-    hp: 2300, speed: 6.5, radius: 1.0,
-    weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 56, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
+    hp: 2500, speed: 6.5, radius: 1.0,
+    weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 60, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
     skills: [
       { id: 'rocket', name: 'Rocket Chùm', cd: 8, do: 'volley', n: 3, fan: 0.22, dmg: 190, speed: 24, range: 15, splash: 2.4, r: 0.3, vis: 'rocket', icon: 'rocket',
         desc: 'Phóng ba quả rocket toả hình quạt, nổ lan khi chạm.' },
@@ -60,8 +60,8 @@ export const MECHS = {
   ung: {
     name: 'Ưng Nhãn', role: 'Bắn tỉa', roleKey: 'sniper', price: 0, tint: 0x7c6bd6,
     blurb: 'Súng ray tầm xa, máu mỏng. Giữ khoảng cách, bẫy kẻ lao vào.',
-    hp: 1750, speed: 6.0, radius: 0.95,
-    weapon: { name: 'Súng Ray', cd: 1.35, dmg: 430, speed: 62, range: 23, r: 0.2, vis: 'rail' },
+    hp: 1700, speed: 6.0, radius: 0.95,
+    weapon: { name: 'Súng Ray', cd: 1.5, dmg: 390, speed: 62, range: 23, r: 0.2, vis: 'rail' },
     skills: [
       { id: 'min', name: 'Mìn Xung Điện', cd: 11, do: 'mine', trigger: 2.1, blast: 3, dmg: 260, stun: 1.2, arm: 0.8, life: 35, cast: 9, icon: 'mine',
         desc: 'Ném một quả mìn tới con trỏ. Địch chạm vào bị giật choáng.' },
@@ -74,8 +74,8 @@ export const MECHS = {
   hac: {
     name: 'Bạch Hạc', role: 'Hỗ trợ', roleKey: 'support', price: 0, tint: 0x59c9a5,
     blurb: 'Hồi máu, làm chậm và dựng vòm chắn đạn cho cả đội.',
-    hp: 2050, speed: 6.2, radius: 1.0,
-    weapon: { name: 'Xung Quang', cd: 0.34, dmg: 78, speed: 30, range: 14, r: 0.26, vis: 'pulse' },
+    hp: 2300, speed: 6.2, radius: 1.0,
+    weapon: { name: 'Xung Quang', cd: 0.32, dmg: 90, speed: 30, range: 14, r: 0.26, vis: 'pulse' },
     skills: [
       { id: 'hoiphuc', name: 'Suối Hồi Phục', cd: 13, do: 'zone', at: 'self', radius: 5, dur: 4.5, hps: 150, vis: 'heal', icon: 'heal',
         desc: 'Tạo vùng hồi 150 máu mỗi giây cho đồng đội đứng trong, kéo dài 4,5 giây.' },
