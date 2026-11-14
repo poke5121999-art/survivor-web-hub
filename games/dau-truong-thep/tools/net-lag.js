@@ -6,9 +6,10 @@
 //   scenarios  lan    fakenet, no added delay
 //              wifi   fakenet, 120 ms RTT +-40 ms jitter, 2 % loss
 //              phone  fakenet, 250 ms RTT +-60 ms jitter, 3 % loss
+//              bad    fakenet, 300 ms RTT +-150 ms jitter, 15 % loss (nothing should break)
 //              relay  the real Unity Relay, no added delay (use with DTT_BASE on the deployed hub)
 //   NL_GUESTS=1,4   guest counts to run per scenario (default 1)      NL_SECS=25   seconds of play measured
-//   NL_MODE=tdm|nha NL_TAG=before   -> .chk/net-lag-<tag>.json
+//   NL_MODE=tdm|nha NL_TRIALS=20 (input-latency trials per role) NL_TAG=before   -> .chk/net-lag-<tag>.json
 //
 // The delay, jitter and loss are added here, outside the game: an init script wraps BroadcastChannel (the fakenet
 // carrier) and counts WebSocket bytes (the relay carrier), so the same tool measures any build of the game.
@@ -16,7 +17,7 @@
 const { launch, open, CHK, fs, path } = require('./lib.js');
 const { serve } = require('../../../tools/thumb-lib.js');
 
-const SCENARIOS = { lan: { rtt: 0, jit: 0, loss: 0 }, wifi: { rtt: 120, jit: 40, loss: 2 }, phone: { rtt: 250, jit: 60, loss: 3 }, relay: { real: true, rtt: 0, jit: 0, loss: 0 } };
+const SCENARIOS = { lan: { rtt: 0, jit: 0, loss: 0 }, wifi: { rtt: 120, jit: 40, loss: 2 }, phone: { rtt: 250, jit: 60, loss: 3 }, bad: { rtt: 300, jit: 150, loss: 15 }, relay: { real: true, rtt: 0, jit: 0, loss: 0 } };
 const ENV = process['env'];
 const SECS = Number(ENV.NL_SECS || 25), MODE = ENV.NL_MODE || 'tdm', TAG = ENV.NL_TAG || 'run';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -237,7 +238,8 @@ async function run(br, base, name, guests) {
     const A = Gs[0], slot = await A.evaluate('__G.me');
     await sleep(2500);
 
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 0], [-1, 0], [0.7, 0.7], [-0.7, -0.7], [1, 0], [-1, 0]];
+    const eight = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7]];
+    const dirs = Array.from({ length: Number(ENV.NL_TRIALS || 20) }, (_, i) => eight[i % 8]);
     const lat = { guest: [], host: [] };
     for (const [role, page] of [['guest', A], ['host', H]]) {
       for (const d of dirs) { const r = await page.evaluate(([mx, mz]) => window.__trial(mx, mz, 1.6), d); if (r.alive) lat[role].push(r); }
