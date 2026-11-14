@@ -84,6 +84,16 @@
     mesh(torso, box(0.7, 0.12, 0.24), mats.shirt, 0, 0.64, -0.07);
     n.aura = new THREE.Sprite(M.glowMat(BLOOD, 0.2)); n.aura.position.set(0, 1.3, 0); n.aura.scale.setScalar(4); root.add(n.aura);
     n.handGlow = new THREE.Sprite(M.glowMat(BLOOD, 0)); n.handGlow.scale.setScalar(0.5); n.arms[1].hand.add(n.handGlow);
+    // detail and things that trail: a lace jabot, waistcoat buttons, a belt, epaulettes and a brooch that glows; two coat
+    // tails behind and a medallion on its chain
+    if (M.detail) {
+      const GOLDV = 0xffc23a, INK = 0x140608;
+      M.detail(torso, 'torso', [[-0.08, 0.5, 0.15, 0.08, 0.62, 0.2, PALE], [-0.06, 0.38, 0.15, 0.06, 0.5, 0.19, PALE], [-0.02, 0.1, 0.15, 0.02, 0.14, 0.17, GOLDV], [-0.02, 0.2, 0.15, 0.02, 0.24, 0.17, GOLDV], [-0.02, 0.3, 0.15, 0.02, 0.34, 0.17, GOLDV],
+        [-0.26, 0.02, -0.16, 0.26, 0.08, 0.16, DARKRED], [-0.05, 0.01, 0.15, 0.05, 0.09, 0.18, GOLDV], [0.24, 0.6, -0.14, 0.42, 0.66, 0.14, CRIM], [-0.42, 0.6, -0.14, -0.24, 0.66, 0.14, CRIM], [0.38, 0.52, -0.12, 0.42, 0.6, 0.12, GOLDV], [-0.42, 0.52, -0.12, -0.38, 0.6, 0.12, GOLDV]]);
+      M.detail(torso, 'brooch', [[-0.04, 0.6, 0.16, 0.04, 0.68, 0.2, BLOOD]], true);
+      for (const s of [-1, 1]) M.dangle(torso, s * 0.14, 0.06, -0.15, 'tail', [[-0.11, -0.75, -0.02, 0.11, 0, 0.02, INK], [-0.11, -0.75, 0.02, 0.11, -0.05, 0.03, CRIM], [-0.11, -0.8, -0.02, -0.03, -0.75, 0.02, INK], [0.04, -0.82, -0.02, 0.11, -0.75, 0.02, INK]], { k: 1.3, s: 3.5, rx: 0.15 });
+      M.dangle(torso, 0, 0.5, 0.17, 'medal', [[-0.01, -0.22, -0.01, 0.01, 0, 0.01, GOLDV], [-0.04, -0.3, -0.015, 0.04, -0.22, 0.015, BLOOD]], { k: 0.8, s: 6 });
+    }
     return { g, n, a: {} };
   }
 

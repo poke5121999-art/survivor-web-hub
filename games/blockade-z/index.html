@@ -213,7 +213,8 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 /* ---- Settings popup ---- */
 #settings { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(8, 6, 4, .72); backdrop-filter: blur(3px); padding: 12px; }
 #settings.on { display: flex; animation: setin .18s ease-out; } @keyframes setin { from { opacity: 0; } }
-.set-card { width: min(760px, 100%); max-height: min(92vh, 640px); display: flex; flex-direction: column; background: linear-gradient(#2a2118, #1a140e); border: 3px solid #5a4a30; box-shadow: 0 0 0 3px #000, 0 18px 50px rgba(0, 0, 0, .6); color: #f0e6cc; animation: setcard .22s cubic-bezier(.2, 1.1, .3, 1); }
+.set-card { width: min(760px, 100%); max-height: min(92vh, 640px); display: flex; flex-direction: column; background: linear-gradient(#2a2118, #1a140e); border: 3px solid #5a4a30; box-shadow: 0 0 0 3px #000, 0 18px 50px rgba(0, 0, 0, .6); color: #f0e6cc; }
+#settings.pop .set-card { animation: setcard .22s cubic-bezier(.2, 1.1, .3, 1); }
 @keyframes setcard { from { transform: translateY(14px) scale(.97); } }
 .set-card header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; } .set-card h2 { margin: 0; font: 900 24px/1 var(--f); color: var(--gold); letter-spacing: .04em; text-shadow: 3px 3px 0 #000; }
 .set-x { width: 34px; height: 34px; font: 700 16px var(--mono); color: #f0e6cc; background: #3a2e20; border: 2px solid #5a4a30; cursor: pointer; } .set-x:hover { border-color: var(--gold); }
@@ -235,7 +236,7 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 .set-key.clash button { background: #ff9a6a; } .set-key em { grid-column: 1 / -1; font: 400 11px var(--mono); color: #ff9a6a; font-style: normal; }
 .set-card footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 10px 16px 14px; border-top: 3px solid #5a4a30; }
 @media (max-width: 700px), (max-height: 460px) { .set-card { max-height: 96vh; } .set-card h2 { font-size: 18px; } .set-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 28px; padding: 5px 0; } .set-row label small { display: none; } .set-key { width: 100%; } .set-body { min-height: 90px; } .set-card footer { padding: 6px 12px 8px; } .set-card nav button { padding: 6px 9px; } }
-@media (prefers-reduced-motion: reduce) { #settings.on, .set-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #settings.on, #settings.pop .set-card { animation: none; } }
 /* ---- what Settings drives ---- */
 #fps { position: fixed; left: 8px; top: 40px; z-index: 30; font: 700 12px var(--mono); color: #b8ff9a; text-shadow: 1px 1px 0 #000; display: none; pointer-events: none; } body.showfps #fps { display: block; }
 #hud { zoom: var(--hud-scale, 1); } #touch { opacity: var(--touch-opacity, 1); } body.touch #touch .tb, body.touch #touch button { zoom: var(--touch-scale, 1); }
@@ -483,46 +484,46 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113zs"></script>
-<script type="module" src="js/core.js?v=20261113zs"></script>
-<script type="module" src="js/i18n.js?v=20261113zs"></script>
-<script type="module" src="js/lang-vi.js?v=20261113zs"></script>
-<script type="module" src="js/lang-en.js?v=20261113zs"></script>
+<script type="module" src="js/boot.js?v=20261113zt"></script>
+<script type="module" src="js/core.js?v=20261113zt"></script>
+<script type="module" src="js/i18n.js?v=20261113zt"></script>
+<script type="module" src="js/lang-vi.js?v=20261113zt"></script>
+<script type="module" src="js/lang-en.js?v=20261113zt"></script>
 <script type="module">
   // the language switch on the title screen (the full Settings popup has it too)
   const BZ = window.BZ; BZ.applyStatic();
   const b = document.createElement('button'); b.id = 'langbtn'; b.type = 'button'; const other = BZ.LANGS.find((x) => x[0] !== BZ.lang); b.textContent = other[1]; b.title = 'Language';
   b.addEventListener('click', () => BZ.setLang(other[0])); document.getElementById('title').appendChild(b);
 </script>
-<script type="module" src="js/art.js?v=20261113zs"></script>
-<script type="module" src="js/world.js?v=20261113zs"></script>
-<script type="module" src="js/destruct.js?v=20261113zs"></script>
-<script type="module" src="js/audio.js?v=20261113zs"></script>
-<script type="module" src="js/fx.js?v=20261113zs"></script>
-<script type="module" src="js/zombies.js?v=20261113zs"></script>
-<script type="module" src="js/zkinds.js?v=20261113zs"></script>
-<script type="module" src="js/bosses.js?v=20261113zs"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113zs"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113zs"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113zs"></script>
-<script type="module" src="js/boss-alien.js?v=20261113zs"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113zs"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113zs"></script>
-<script type="module" src="js/weapons.js?v=20261113zs"></script>
-<script type="module" src="js/allies.js?v=20261113zs"></script>
-<script type="module" src="js/heroes.js?v=20261113zs"></script>
-<script type="module" src="js/castanim.js?v=20261113zs"></script>
-<script type="module" src="js/build.js?v=20261113zs"></script>
-<script type="module" src="js/sky.js?v=20261113zs"></script>
-<script type="module" src="js/coop.js?v=20261113zs"></script>
-<script type="module" src="js/post.js?v=20261113zs"></script>
-<script type="module" src="js/polish.js?v=20261113zs"></script>
-<script type="module" src="js/gear.js?v=20261113zs"></script>
-<script type="module" src="js/player.js?v=20261113zs"></script>
-<script type="module" src="js/tps.js?v=20261113zs"></script>
-<script type="module" src="js/ui.js?v=20261113zs"></script>
-<script type="module" src="js/settings.js?v=20261113zs"></script>
-<script type="module" src="js/meta.js?v=20261113zs"></script>
-<script type="module" src="js/main.js?v=20261113zs"></script>
+<script type="module" src="js/art.js?v=20261113zt"></script>
+<script type="module" src="js/world.js?v=20261113zt"></script>
+<script type="module" src="js/destruct.js?v=20261113zt"></script>
+<script type="module" src="js/audio.js?v=20261113zt"></script>
+<script type="module" src="js/fx.js?v=20261113zt"></script>
+<script type="module" src="js/zombies.js?v=20261113zt"></script>
+<script type="module" src="js/zkinds.js?v=20261113zt"></script>
+<script type="module" src="js/bosses.js?v=20261113zt"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zt"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zt"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zt"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zt"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zt"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zt"></script>
+<script type="module" src="js/weapons.js?v=20261113zt"></script>
+<script type="module" src="js/allies.js?v=20261113zt"></script>
+<script type="module" src="js/heroes.js?v=20261113zt"></script>
+<script type="module" src="js/castanim.js?v=20261113zt"></script>
+<script type="module" src="js/build.js?v=20261113zt"></script>
+<script type="module" src="js/sky.js?v=20261113zt"></script>
+<script type="module" src="js/coop.js?v=20261113zt"></script>
+<script type="module" src="js/post.js?v=20261113zt"></script>
+<script type="module" src="js/polish.js?v=20261113zt"></script>
+<script type="module" src="js/gear.js?v=20261113zt"></script>
+<script type="module" src="js/player.js?v=20261113zt"></script>
+<script type="module" src="js/tps.js?v=20261113zt"></script>
+<script type="module" src="js/ui.js?v=20261113zt"></script>
+<script type="module" src="js/settings.js?v=20261113zt"></script>
+<script type="module" src="js/meta.js?v=20261113zt"></script>
+<script type="module" src="js/main.js?v=20261113zt"></script>
 </body>
 </html>

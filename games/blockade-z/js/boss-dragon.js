@@ -69,6 +69,19 @@
       n.legs.push({ hip, knee, foot, front: z > 0 });
     }
     const aura = new THREE.Sprite(M.glowMat(VIO, 0.25)); aura.position.set(0, 1.4, 0); aura.scale.setScalar(5); g.add(aura); n.aura = aura;
+    // detail and things that trail: armour plates on shoulders and hips, a ridge down the back, brow ridges and cheek fins,
+    // two long glowing whiskers, tatters under the wings and streamers on the tail tip
+    if (M.detail) {
+      const DK = 0x120c1c, DK2 = 0x2e2244, BONE = 0xe8e0f0;
+      M.detail(body, 'body', [[0.5, 0.08, 0.2, 0.62, 0.42, 0.78, DK], [-0.62, 0.08, 0.2, -0.5, 0.42, 0.78, DK], [0.41, -0.02, -1.25, 0.52, 0.3, -0.6, DK], [-0.52, -0.02, -1.25, -0.41, 0.3, -0.6, DK], [-0.15, 0.39, -1.3, 0.15, 0.45, 0.76, DK2],
+        [-0.34, -0.56, -0.3, 0.34, -0.5, 0.6, DK2], [-0.28, -0.56, -1.2, 0.28, -0.5, -0.4, DK2], [0.5, -0.3, 0.55, 0.58, -0.1, 0.8, BONE, [0, 0, 0.4]], [-0.58, -0.3, 0.55, -0.5, -0.1, 0.8, BONE, [0, 0, -0.4]]]);
+      M.detail(head, 'head', [[0.1, 0.22, 0.12, 0.33, 0.3, 0.5, DK, [0, 0, 0.25]], [-0.33, 0.22, 0.12, -0.1, 0.3, 0.5, DK, [0, 0, -0.25]], [0.3, -0.12, -0.2, 0.36, 0.2, 0.2, DK2, [0, 0.35, 0]], [-0.36, -0.12, -0.2, -0.3, 0.2, 0.2, DK2, [0, -0.35, 0]],
+        [0.08, 0.08, 0.9, 0.16, 0.14, 1.0, DK], [-0.16, 0.08, 0.9, -0.08, 0.14, 1.0, DK]]);
+      M.detail(jaw, 'jaw', [[-0.05, -0.18, 0.32, 0.05, -0.08, 0.5, BONE, [0.3, 0, 0]]]);
+      for (const s of [-1, 1]) M.dangle(head, s * 0.2, -0.06, 0.92, 'whisk', [[-0.018, -0.34, -0.018, 0.018, 0, 0.018, VIO], [-0.014, -0.62, -0.014, 0.014, -0.34, 0.014, PALE]], { glow: true, k: 1.5, s: 5, rx: 0.5 });
+      for (const w of n.wings) for (const u of [0.45, 1.05]) M.dangle(w.wing, w.s * u, -0.02, -1.0, 'tatter', [[-0.11, -0.4, -0.012, 0.11, 0, 0.012, 0x3a1a5a], [-0.07, -0.62, -0.012, 0.05, -0.4, 0.012, 0x2e1448]], { k: 1.3, s: 3.5, rx: 0.3 });
+      for (const s of [-1, 1]) M.dangle(p, s * 0.06, 0, -0.2, 'stream', [[-0.02, -0.02, -0.75, 0.02, 0.02, 0, VIO], [-0.014, -0.014, -1.2, 0.014, 0.014, -0.75, PALE]], { glow: true, k: 0.8, s: 3 });
+    }
     return { g, n, a: {} };
   }
 

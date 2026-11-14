@@ -91,6 +91,18 @@
     for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; mesh(n.wheel, box(0.05, 0.05, 0.05), pale, Math.cos(a) * 0.95, Math.sin(a) * 0.95, 0).scale.setScalar(0.7); }
     mesh(n.wheel, OCT, rune, 0, 0, 0).scale.setScalar(0.3);
     n.aura = new THREE.Sprite(M.glowMat(CY, 0.12)); n.aura.position.set(0, 1.2, 0); n.aura.scale.setScalar(5.5); g.add(n.aura);
+    // detail and things that trail: slabs of plate on the shoulders, cracks and rune lines, a broken collar of standing stones,
+    // a belt of blocks; moss and roots hang from the arms, shoulders and belt, and chains from the wrists
+    if (M.detail) {
+      M.detail(torso, 'torso', [[0.5, 1.1, -0.4, 0.98, 1.3, 0.42, DARK], [-0.98, 1.1, -0.4, -0.5, 1.3, 0.42, DARK], [0.62, 1.3, -0.2, 0.86, 1.48, 0.2, STONE, [0, 0, -0.3]], [-0.86, 1.3, -0.2, -0.62, 1.48, 0.2, STONE, [0, 0, 0.3]],
+        [-0.5, 1.14, -0.5, -0.3, 1.5, -0.36, STONE, [0.15, 0, 0.1]], [0.3, 1.14, -0.5, 0.5, 1.42, -0.36, STONE, [0.15, 0, -0.1]], [-0.1, 1.14, -0.52, 0.1, 1.36, -0.38, DARK],
+        [-0.74, 0.18, -0.48, 0.74, 0.34, 0.48, DARK], [-0.2, 0.14, 0.44, 0.2, 0.4, 0.54, STONE], [-0.72, 0.5, 0.44, -0.4, 0.56, 0.47, DARK, [0, 0, 0.5]], [0.3, 0.86, 0.44, 0.68, 0.92, 0.47, DARK, [0, 0, -0.4]],
+        [0.3, 0.3, 0.44, 0.7, 0.9, 0.455, MOSS], [-0.7, 0.9, 0.44, -0.46, 1.14, 0.455, MOSS], [-0.71, 0.4, -0.2, -0.7, 0.8, 0.3, MOSS], [0.7, 0.6, -0.3, 0.71, 1.0, 0.1, MOSS]]);
+      M.detail(torso, 'runes', [[-0.5, 0.62, 0.451, -0.44, 0.9, 0.46, CY], [0.44, 0.5, 0.451, 0.5, 0.74, 0.46, CY], [-0.3, 0.3, 0.451, 0.3, 0.33, 0.46, CY2]], true);
+      for (const s of [-1, 1]) { M.dangle(torso, s * 0.8, 1.1, 0.36, 'moss', [[-0.16, -0.5, -0.02, 0.16, 0, 0.02, MOSS], [-0.1, -0.78, -0.02, 0.04, -0.5, 0.02, 0x3a5a20], [0.06, -0.66, -0.02, 0.14, -0.5, 0.02, 0x3a5a20]], { k: 0.8, s: 2.5 });
+        M.dangle(torso, s * 0.5, 0.2, 0.5, 'root', [[-0.03, -0.6, -0.03, 0.03, 0, 0.03, 0x4a3a26], [-0.02, -0.9, -0.02, 0.02, -0.6, 0.02, 0x3a2c1c], [0.0, -0.4, 0.0, 0.14, -0.36, 0.03, 0x4a3a26]], { k: 0.9, s: 2.5 }); }
+      for (const k of ['fistL', 'fistR']) if (n[k]) M.dangle(n[k], 0, 0.5, 0.3, 'chain', [[-0.04, -0.2, -0.04, 0.04, 0, 0.04, DARK], [-0.03, -0.42, -0.05, 0.03, -0.22, 0.05, 0x2a2a28], [-0.04, -0.64, -0.04, 0.04, -0.44, 0.04, DARK], [-0.03, -0.86, -0.05, 0.03, -0.66, 0.05, 0x2a2a28]], { k: 1.2, s: 3 });
+    }
     return { g, n, a: {} };
   }
 

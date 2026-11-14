@@ -172,6 +172,9 @@
     return (garbGeo[key] = out);
   }
   let garbMat = null; let garbGlow = null;
+  // the same merged-box builder and its two materials (lit, glowing) for the big bosses' detail (js/bosses.js)
+  BZ.boxGeo = (key, boxes) => garbGeometry(key, boxes);
+  BZ.boxMats = () => { garbMat = garbMat || new THREE.MeshLambertMaterial({ map: BZ.tex('z_garb'), vertexColors: true }); garbGlow = garbGlow || new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }); return { lit: garbMat, glow: garbGlow }; };
   BZ.GARB = GARB;
   BZ.zExtras = (G, b) => {
     const X = {}; const sh = G.quality.shadow > 0;

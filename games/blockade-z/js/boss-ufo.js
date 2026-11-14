@@ -58,6 +58,17 @@
       n.struts.push(hinge);
     }
     const aura = new THREE.Sprite(M.glowMat(CYAN, 0.12)); aura.position.set(0, 0, 0); aura.scale.setScalar(7.5); g.add(aura); n.aura = aura;
+    // detail and things that trail: hull panels and rivet lines, a ring of vents under the rim, an antenna cluster behind
+    // the dome, fins; four cables under the belly and a pennant on the antenna
+    if (M.detail) {
+      const boxes = []; const vents = [];
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const c = Math.cos(a); const s = Math.sin(a); boxes.push([c * 1.18 - 0.11, 0.185, s * 1.18 - 0.05, c * 1.18 + 0.11, 0.2, s * 1.18 + 0.05, i % 2 ? DARK : 0x6c7682, [0, -a, 0]]); vents.push([c * 1.32 - 0.06, -0.035, s * 1.32 - 0.03, c * 1.32 + 0.06, -0.015, s * 1.32 + 0.03, i % 3 ? CYAN : MAG, [0, -a, 0]]); }
+      boxes.push([-0.02, 0.3, -0.5, 0.02, 0.85, -0.46, DARK], [-0.1, 0.56, -0.5, 0.1, 0.58, -0.46, DARK], [-0.06, 0.7, -0.5, 0.06, 0.72, -0.46, DARK], [0.25, 0.3, -0.42, 0.28, 0.6, -0.39, DARK], [-0.28, 0.3, -0.42, -0.25, 0.52, -0.39, DARK],
+        [-0.03, 0.2, -1.5, 0.03, 0.44, -1.05, 0x6c7682, [0.35, 0, 0]], [1.05, 0.2, -0.03, 1.5, 0.3, 0.03, 0x6c7682], [-1.5, 0.2, -0.03, -1.05, 0.3, 0.03, 0x6c7682]);
+      M.detail(tilt, 'hull', boxes); M.detail(tilt, 'vents', vents.concat([[-0.03, 0.85, -0.51, 0.03, 0.9, -0.45, MAG], [0.24, 0.6, -0.43, 0.29, 0.64, -0.38, YEL]]), true);
+      for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4; M.dangle(tilt, Math.cos(a) * 0.5, -0.14, Math.sin(a) * 0.5, 'cable', [[-0.018, -0.5, -0.018, 0.018, 0, 0.018, DARK], [-0.03, -0.58, -0.03, 0.03, -0.5, 0.03, STEEL], [-0.02, -0.62, -0.02, 0.02, -0.58, 0.02, CYAN]], { k: 1.4, s: 3 }); }
+      M.dangle(tilt, 0, 0.82, -0.48, 'pennant', [[-0.006, -0.1, -0.3, 0.006, 0, 0, MAG], [-0.006, -0.08, -0.5, 0.006, -0.02, -0.3, YEL]], { glow: true, k: 0.6, s: 4 });
+    }
     return { g, n, a: {} };
   }
   function i2(s) { return s > 0 ? MAG : YEL; }

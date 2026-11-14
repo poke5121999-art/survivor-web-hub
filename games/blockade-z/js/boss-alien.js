@@ -79,6 +79,17 @@
       n.legs.push({ hip, knee, foot, toes });
     }
     const aura = new THREE.Sprite(M.glowMat(PLASMA, 0.14)); aura.position.set(0, 1.2, 0); aura.scale.setScalar(4.2); g.add(aura); n.aura = aura;
+    // detail and things that trail: ribbed armour on the chest and shoulders, a spine of vents down the back, a crest on the
+    // skull, knee and hip guards; four feelers off the back of the head and two power cables from the pack to the cannon
+    if (M.detail) {
+      M.detail(spine, 'spine', [[-0.3, 0.42, 0.16, 0.3, 0.48, 0.2, DARK], [-0.3, 0.3, 0.16, -0.08, 0.36, 0.2, DARK], [0.08, 0.3, 0.16, 0.3, 0.36, 0.2, DARK], [-0.26, 0.18, 0.16, 0.26, 0.24, 0.2, DARK],
+        [0.28, 0.48, -0.16, 0.44, 0.6, 0.16, DARK], [-0.44, 0.48, -0.16, -0.28, 0.6, 0.16, DARK], [0.4, 0.58, -0.08, 0.46, 0.7, 0.08, 0x2a3830], [-0.46, 0.58, -0.08, -0.4, 0.7, 0.08, 0x2a3830],
+        [-0.16, 0.08, -0.3, 0.16, 0.56, -0.17, DARK], [-0.1, 0.5, -0.36, 0.1, 0.62, -0.28, 0x2a3830], [-0.22, 0.0, -0.18, 0.22, 0.06, 0.18, 0x2a3830]]);
+      M.detail(spine, 'vents', [[-0.08, 0.14, -0.31, 0.08, 0.17, -0.3, PLASMA], [-0.08, 0.24, -0.31, 0.08, 0.27, -0.3, PLASMA], [-0.08, 0.34, -0.31, 0.08, 0.37, -0.3, PLASMA], [-0.08, 0.44, -0.31, 0.08, 0.47, -0.3, TEAL]], true);
+      M.detail(head, 'crest', [[-0.03, 0.3, -0.26, 0.03, 0.46, 0.16, DARK, [-0.25, 0, 0]], [0.12, 0.24, -0.24, 0.16, 0.36, 0.06, DARK, [-0.25, 0, 0.2]], [-0.16, 0.24, -0.24, -0.12, 0.36, 0.06, DARK, [-0.25, 0, -0.2]]]);
+      for (const [x, y] of [[-0.12, 0.2], [0.12, 0.2], [-0.07, 0.08], [0.07, 0.08]]) M.dangle(head, x, y, -0.2, 'feeler', [[-0.02, -0.02, -0.4, 0.02, 0.02, 0, GREY], [-0.014, -0.014, -0.66, 0.014, 0.014, -0.4, 0x5e7e60], [-0.022, -0.022, -0.72, 0.022, 0.022, -0.66, PLASMA]], { k: 1.2, s: 4, rx: -0.25 });
+      for (const s of [-1, 1]) M.dangle(spine, s * 0.12, 0.34, -0.3, 'cable', [[-0.02, -0.5, -0.02, 0.02, 0, 0.02, 0x101814], [-0.024, -0.3, -0.024, 0.024, -0.26, 0.024, PLASMA]], { k: 1, s: 4, rx: 0.2 });
+    }
     return { g, n, a: {} };
   }
 

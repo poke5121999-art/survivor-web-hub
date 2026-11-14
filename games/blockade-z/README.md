@@ -276,6 +276,16 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 
 Đạn thường cũng rõ hơn. Axit, tơ, đá ném, rocket và đạn kỹ năng đều có quầng sáng, vệt dài và chớp khi trúng; vệt đạn súng có lớp sáng bọc ngoài. `tools/projshots.js` chụp cận các loại đạn đang bay.
 
+### Sức nặng và chi tiết của sáu boss lớn
+
+Sáu boss có rig riêng (`js/boss-*.js`: Rồng, Pharaoh, Bá Tước, Kẻ Xâm Lăng, Đĩa Bay, Hộ Vệ) dùng chung một lớp chuyển động chạy sau `kit.pose` trong `js/bosses.js`, hàm `weight(z, R, S, dt)`:
+
+- Trước mỗi chiêu thân nén xuống và ngả ra sau (lấy đà), ra đòn thì bật tới, hết chiêu thì nảy lại một nhịp rồi lắng. Mức nén theo `S.t / S.dur` của chiêu đang chạy (`S.cur`).
+- Lúc đứng yên thân phồng xẹp theo nhịp thở.
+- Thứ treo trên người (`dangle`: dải vải, xích, râu, ống, tua) đung đưa theo tốc độ đi, tốc độ xoay và giật theo từng chiêu.
+
+Rig thêm chi tiết qua hai helper nhận từ tham số `M` của `rig()`: `detail(parent, key, boxes, glow)` gộp nhiều hộp thành một mesh (một draw call cho cả cụm), `dangle(parent, x, y, z, key, boxes, opt)` treo một cụm như thế vào một điểm. Hình học lấy từ `BZ.boxGeo` (có cache theo khoá), vật liệu từ `BZ.boxMats` (hai vật liệu dùng chung: thường và phát sáng). Tên node cũ (`mouth`, `eye`, `muzzle`, `handR`, `belly`, viên ngọc Pharaoh), hit box và gốc tia giữ nguyên. `tools/bosses.js` vẫn là bài kiểm cho cả sáu.
+
 ## Cảm giác đòn (polish)
 
 - `js/polish.js`: dùng kỹ năng thì màn hình loé màu nhân vật và súng chúc xuống một nhịp (`S.castT` trong `js/weapons.js`); tối thượng loé to hơn, khựng thời gian 0,12 giây; tối thượng đầy thì viền màn hình sáng lên một lần; chọn nâng cấp thì thẻ nảy và toé tia.

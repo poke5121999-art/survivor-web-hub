@@ -302,12 +302,33 @@
       }
       return true;
     }
+    // Weight, the same for every big boss, on top of its own pose: the whole body gathers itself (sinks, leans back) over the
+    // first fifth of a move and drives through it (stretches, leans in); when the move ends it settles with a damped bounce;
+    // at rest it breathes. Whatever hangs off it (dangles) trails behind its motion and its turning, and jolts with each move.
+    function weight(z, R, S, dt) {
+      const A = R.w; if (!A) return; const cur = S.cur; const k = cur ? BZ.clamp(S.t / Math.max(0.05, S.dur), 0, 1) : 0; let sq = 0; let lean = 0;
+      if (cur) { if (k < 0.2) { const e = Math.sin((k / 0.2) * Math.PI / 2); sq = -0.07 * e; lean = -0.1 * e; } else { const e = Math.max(0, 1 - (k - 0.2) / 0.28); sq = 0.055 * e; lean = 0.11 * e; } }
+      if (A.was && !cur) A.rec = 1; A.was = cur; A.rec = Math.max(0, A.rec - dt * 1.9);
+      const settle = A.rec > 0 ? Math.sin(A.rec * 10) * 0.04 * A.rec : 0;
+      A.sq += (sq - A.sq) * Math.min(1, dt * 13); A.lean += (lean - A.lean) * Math.min(1, dt * 9);
+      const s = A.sq + settle + Math.sin(z.bob * 1.6) * 0.012;
+      if (R.a && R.a.sx !== undefined) R.g.scale.y *= 1 + s; else R.g.scale.set(1 - s * 0.45, 1 + s, 1 - s * 0.45); // (one kit scales its own body: it only gets the vertical part)
+      R.g.rotation.x = A.lean;
+      if (!R.dangles.length) return;
+      const fwdV = z.vel.x * Math.sin(z.yaw) + z.vel.z * Math.cos(z.yaw); const turn = z.yawV || 0;
+      for (const d of R.dangles) {
+        const tx = BZ.clamp(fwdV * 0.07 * d.k, -1, 1) + Math.sin(z.bob * (1.5 + d.ph * 0.13) + d.ph) * 0.08 * d.k - A.sq * 3 * d.k - BZ.clamp(z.vel.y * 0.04, -0.4, 0.4) * d.k;
+        const tz = BZ.clamp(turn * 0.14 * d.k, -0.7, 0.7) + Math.sin(z.bob * 1.2 + d.ph * 2) * 0.05 * d.k;
+        d.rx += (tx - d.rx) * Math.min(1, dt * d.s); d.rz += (tz - d.rz) * Math.min(1, dt * d.s); d.g.rotation.x = d.rx0 + d.rx; d.g.rotation.z = d.rz;
+      }
+    }
     function pose(z, dt, sp) {
       const kit = kitOf(z); const R = z.body.x[z.T.rig]; if (!R) return;
       if (!z.bs) init(z);
       const S = z.bs; if (!host() && S.cur) { S.t += dt; if (S.t >= S.dur + 0.3) S.cur = null; }
       z.bob = (z.bob || 0) + dt;
       kit.pose(z, R, dt, sp, S, ctx);
+      weight(z, R, S, dt);
       for (const B of beams) if (B.z === z && B.anchor) place(B);
     }
     function boxes(z) {
@@ -318,7 +339,15 @@
       const X = z.body.x; const T = z.T;
       for (const id in BZ.BOSS_KITS) if (X[id]) X[id].g.visible = false;
       if (T.kind !== 'boss2') return;
-      if (!X[T.rig]) { const R = BZ.BOSS_KITS[T.rig].rig(G, z.body, { V, glowMat, addMat }); R.g.visible = false; z.body.root.add(R.g); BZ.whiteVC(R.g); X[T.rig] = R; }
+      if (!X[T.rig]) {
+        // what a kit can add to its rig beyond its own meshes: detail(parent, key, boxes, glow) is one merged mesh of boxes
+        // ([x0, y0, z0, x1, y1, z1, colour, rotation]); dangle(parent, x, y, z, key, boxes, opt) hangs such a mesh from a point,
+        // and the shared pose below swings every dangle with the body's speed, its turning and its moves
+        const dangles = []; const sh = G.quality.shadow > 0; const mats = BZ.boxMats();
+        const detail = (parent, key, boxes, glow) => { const m = new THREE.Mesh(BZ.boxGeo(T.rig + ':' + key, boxes), glow ? mats.glow : mats.lit); m.castShadow = sh && !glow; parent.add(m); return m; };
+        const dangle = (parent, x, y, z, key, boxes, o = {}) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); detail(g, key, boxes, o.glow); dangles.push({ g, k: o.k || 1, s: o.s || 4, ph: dangles.length * 1.7, rx0: o.rx || 0, rx: 0, rz: 0 }); return g; };
+        const R = BZ.BOSS_KITS[T.rig].rig(G, z.body, { V, glowMat, addMat, detail, dangle }); R.dangles = dangles; R.w = { sq: 0, lean: 0, rec: 0, was: null }; R.g.visible = false; z.body.root.add(R.g); BZ.whiteVC(R.g); X[T.rig] = R;
+      }
       X[T.rig].g.visible = true; z.body.hips.visible = false; z.bs = null;
       const k = BZ.BOSS_KITS[T.rig]; if (k.dress) k.dress(z, X[T.rig]);
     }

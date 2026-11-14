@@ -78,7 +78,9 @@ BZ.makeSettings = (G) => {
     else if (d.reset) reset(d.reset === 'tab' ? TABS.find((x) => x[0] === tab)[1].map((x) => x[0]) : TABS.flatMap((x) => x[1]).map((x) => x[0]));
     else if ('close' in d) close();
   });
-  function open(t) { if (t) tab = t; binding = null; render(); el.classList.add('on'); }
+  // the card pops in when the popup opens, not each time a tab or an option redraws it
+  let popT = 0;
+  function open(t) { if (t) tab = t; binding = null; render(); el.classList.add('on', 'pop'); clearTimeout(popT); popT = setTimeout(() => el.classList.remove('pop'), 260); }
   function close() { binding = null; el.classList.remove('on'); BZ.store.save(S); }
   document.body.appendChild(el);
   return { open, close, apply, isOpen: () => el.classList.contains('on'), bound, tabs: TABS.map((t) => t[0]) };

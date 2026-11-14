@@ -88,6 +88,15 @@
     n.shards = [];
     for (let i = 0; i < 6; i++) { const sg = grp(hover, 0, 1.8, -0.5); mesh(sg, box(0.07, 0.07, 0.2), i % 2 ? gold : mats.pants, 0, 0, 0); sg.userData.i = i; n.shards.push(sg); }
     n.aura = new THREE.Sprite(M.glowMat(GOLD, 0.2)); n.aura.position.set(0, 1.5, 0); n.aura.scale.setScalar(4); hover.add(n.aura);
+    // detail and things that trail: a broad collar, a scarab on the chest, a belt with its gem, shoulder guards, a loose
+    // bandage across the ribs; two sashes down the back, an apron tab in front and the lappets of the headcloth
+    if (M.detail) {
+      M.detail(torso, 'torso', [[-0.36, 0.5, -0.2, 0.36, 0.56, 0.22, GOLD], [-0.3, 0.44, 0.18, 0.3, 0.5, 0.22, LAPIS], [-0.1, 0.28, 0.18, 0.1, 0.4, 0.21, LAPIS], [-0.22, 0.32, 0.18, -0.1, 0.36, 0.2, GOLD], [0.1, 0.32, 0.18, 0.22, 0.36, 0.2, GOLD],
+        [-0.31, 0.0, -0.2, 0.31, 0.07, 0.2, GOLD], [-0.05, -0.01, 0.19, 0.05, 0.08, 0.23, LAPIS], [-0.3, 0.14, 0.18, 0.3, 0.18, 0.2, SAND2, [0, 0, 0.25]], [0.3, 0.46, -0.16, 0.46, 0.54, 0.16, GOLD], [-0.46, 0.46, -0.16, -0.3, 0.54, 0.16, GOLD]]);
+      for (const s of [-1, 1]) M.dangle(torso, s * 0.18, 0.45, -0.2, 'sash', [[-0.07, -0.9, -0.015, 0.07, 0, 0.015, LAPIS], [-0.07, -0.98, -0.016, 0.07, -0.9, 0.016, GOLD]], { k: 1.3, s: 3.5, rx: 0.12 });
+      M.dangle(torso, 0, 0.02, 0.2, 'tab', [[-0.09, -0.5, -0.015, 0.09, 0, 0.015, LAPIS], [-0.09, -0.56, -0.016, 0.09, -0.5, 0.016, GOLD], [-0.03, -0.3, 0.015, 0.03, -0.2, 0.02, GOLD]], { k: 0.9, s: 4 });
+      for (const s of [-1, 1]) M.dangle(head, s * 0.21, 0.12, 0.12, 'lappet', [[-0.06, -0.42, -0.03, 0.06, 0, 0.03, GOLD], [-0.061, -0.34, -0.031, 0.061, -0.28, 0.031, LAPIS], [-0.061, -0.2, -0.031, 0.061, -0.14, 0.031, LAPIS], [-0.061, -0.06, -0.031, 0.061, 0, 0.031, LAPIS]], { k: 0.7, s: 5 });
+    }
     return { g, n, a: {} };
   }
 
