@@ -1502,6 +1502,6 @@
     }
 
     const sig = () => ({ ...SG, guard: S.guard, blades: blades.length, rockets: rockets.length, rings: rings.slice(), clouds: clouds.slice(), pins: pins.slice() });
-    return { deadTick, DRAW_FP, S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { dbgDir: () => ({ trailPts, projs, PATDIR }), deadTick, DRAW_FP, S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();

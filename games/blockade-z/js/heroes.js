@@ -456,12 +456,14 @@
     const acc = BZ.clamp(((s.speed || 0) - (J.spd === undefined ? s.speed || 0 : J.spd)) / Math.max(dt, 1e-3), -30, 30); J.spd = s.speed || 0; const accL = ease(J, 'acc', acc * 0.012, 6, dt);
     let twist = -Math.sin(ph) * (0.18 + sprint * 0.12) * run; let lean = 0.05 * run + sprint * 0.36 * run + Math.sin(s.t * 2.1) * 0.02 + accL + land * 0.3 + rise * 0.1 - fall * 0.14;
     const mode = s.mode; const bump = sw >= 0 ? Math.sin(Math.PI * Math.min(1, sw)) : 0; // 0 -> 1 -> 0 over a swing
+    // which way this swing sweeps, as the weapon declares it (PATDIR in js/weapons.js): -1 right to left, 1 left to right, 0 straight
+    const dsw = { gr2l: -1, r2l: -1, spin: -1, spin360: -1, clawR: -1, gl2r: 1, l2r: 1, clawL: 1 }[s.pat] || 0;
     if (sw >= 0) {
       if (mode === 'spear') { twist += 0.3 * bump; lean += 0.22 * bump; }
       else if (mode === 'fists') { twist += (s.pat === 'jabL' ? -0.45 : 0.45) * bump; lean += 0.14 * bump; }
       else if (mode === 'throw') { twist += BZ.lerp(-0.5, 0.5, Math.min(1, sw / 0.6)); lean += 0.2 * bump; }
       else if (mode === 'claws') { twist += (s.pat === 'clawL' ? -0.6 : 0.6) * bump; lean += 0.2 * bump; }
-      else { twist += sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
+      else { twist += (sw < 0.3 ? BZ.lerp(0, 0.7, sw / 0.3) : sw < 0.6 ? BZ.lerp(0.7, -0.75, (sw - 0.3) / 0.3) : BZ.lerp(-0.75, 0, (sw - 0.6) / 0.4)) * (dsw || 0.3); lean += sw > 0.3 && sw < 0.7 ? 0.18 : 0; }
     }
     lean += -(s.cast || 0) * 0.15 - (s.kick || 0) * 0.02;
     // a hit snaps the chest away from where it came from (hd: 0 = from the front), and it settles back
@@ -483,7 +485,7 @@
     } else if (mode === 'melee' || mode === 'sword2') {
       if (sw >= 0) {
         const up = sw < 0.3 ? sw / 0.3 : 0; const down = sw >= 0.3 && sw < 0.6 ? (sw - 0.3) / 0.3 : sw >= 0.6 ? 1 : 0; const back = sw >= 0.6 ? (sw - 0.6) / 0.4 : 0;
-        RA = [BZ.lerp(BZ.lerp(-0.8, -2.9, up), -0.35, down) * (1 - back) + -0.8 * back, BZ.lerp(0.3, -0.5, down) * (1 - back), BZ.lerp(-1.3, -0.1, down) * (1 - back) - 0.9 * back];
+        RA = [BZ.lerp(BZ.lerp(-0.8, -2.9, up), -0.35, down) * (1 - back) + -0.8 * back, BZ.lerp(0.45, -0.5, down) * dsw * (1 - back), BZ.lerp(-1.3, -0.1, down) * (1 - back) - 0.9 * back];
         LA = [-0.6 - down * 0.4, -0.2, -0.9];
       } else {
         RA = [-0.7 - Math.sin(ph) * 0.3 * run, 0.1, -0.95]; LA = [-0.4 + Math.sin(ph) * 0.6 * run, -0.15, -0.6 - run * 0.4];
@@ -560,7 +562,7 @@
     }
     const fast = sw >= 0 ? 32 : 16;
     m.armR.rotation.x = ease(J, 'rax', RA[0], fast, dt); m.armR.rotation.z = ease(J, 'raz', RA[1], fast, dt); m.elbowR.rotation.x = ease(J, 'rex', RA[2], fast, dt);
-    if (s.pat === 'spin360' && sw >= 0 && mode === 'glaive') m.hips.rotation.y = sw * sw * (3 - 2 * sw) * Math.PI * 2;
+    if (s.pat === 'spin360' && sw >= 0 && mode === 'glaive') m.hips.rotation.y = -sw * sw * (3 - 2 * sw) * Math.PI * 2;
     if (ik) {
       // two-bone reach: the left hand goes to a point on the shaft held by the right hand
       m.root.updateMatrixWorld(true);

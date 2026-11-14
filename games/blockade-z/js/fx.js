@@ -59,10 +59,12 @@
 
     // Tracers
     const tracers = [];
-    const trGeo = new THREE.BoxGeometry(0.03, 0.03, 1); trGeo.translate(0, 0, -0.5);
+    // the body runs along +z: lookAt() turns an object's +z toward its target, so it reaches from the muzzle to the point hit
+    // (it used to run along -z, which drew every tracer backwards, out through the shooter)
+    const trGeo = new THREE.BoxGeometry(0.03, 0.03, 1); trGeo.translate(0, 0, 0.5);
     const trMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.85 });
     // each tracer is a hot core inside a soft additive glow, so it reads against a bright sky too
-    const trGlowGeo = new THREE.BoxGeometry(0.13, 0.13, 1); trGlowGeo.translate(0, 0, -0.5);
+    const trGlowGeo = new THREE.BoxGeometry(0.13, 0.13, 1); trGlowGeo.translate(0, 0, 0.5);
     for (let i = 0; i < 16; i++) {
       const m = new THREE.Mesh(trGeo, trMat.clone()); m.visible = false; scene.add(m);
       const g = new THREE.Mesh(trGlowGeo, new THREE.MeshBasicMaterial({ color: 0xff9a30, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.add(g);
@@ -495,6 +497,6 @@
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; pools.length = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0; scorchAt.length = 0;
     }
 
-    return { burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, jetOut, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
+    return { dbgTracers: tracers, burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, jetOut, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
   };
 })();

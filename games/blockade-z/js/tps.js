@@ -12,7 +12,7 @@
     const pivot = V(); const fwd = V(); const right = V(); const up = V(); const want = V(); const tmp = V();
     // where a hit came from, relative to the way the hero faces (0 = from the front): the body flinches away from it, and falls that way when it dies
     G.events.on('player:hurt', ({ from }) => { const P = G.player; let d = 0; if (from) d = BZ.wrapAngle(Math.atan2(-(from.x - P.pos.x), -(from.z - P.pos.z)) - P.yaw); sp.hurtN = (sp.hurtN || 0) + 1; sp.hurtDir = d; sp.deadDir = Math.abs(d) < Math.PI / 2 ? 1 : -1; });
-    const sp = { kick: BZ.spring(180, 14), kickL: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 };
+    const sp = { kick: BZ.spring(180, 14), kickL: BZ.spring(180, 14), cast: 0, swing: 0, shots: 0, land: BZ.spring(160, 12), lean: 0, phase: 0, air: 0 }; T.dbgRib = () => sp.rib;
     let curDist = 3.6;
 
     const btn = document.getElementById('viewbtn');

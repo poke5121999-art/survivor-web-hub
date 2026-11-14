@@ -120,6 +120,8 @@ BZ.makeCoop = (G) => {
     }
     let side = 0;
     if (W.dual) { a.side = 1 - (a.side === undefined ? 1 : a.side); side = a.side; (side ? a.m.handL : a.m.handR).getWorldPosition(muzzle); muzzle.addScaledVector(aimDir, 0.55); if (side) a.kL = 6; else a.kR = 6; }
+    // from the tip of the gun the avatar holds (as the shooter sees it on their own screen), not from the chest
+    else if (a.m && a.m.tip) { a.root.updateMatrixWorld(true); a.m.tip.getWorldPosition(muzzle); }
     else muzzle.set(a.pos.x, a.pos.y + 1.4, a.pos.z).addScaledVector(aimDir, 0.9);
     if (W.spinUp) { a.spinT = 0.5; a.heat = Math.min(1, (a.heat || 0) + n / 95); }
     // the signature looks: Y Tá's left pistol shoots green darts, Mưa's hot rounds trail orange, Kỹ Sư's nails, Pháo Thủ's splitting rocket
