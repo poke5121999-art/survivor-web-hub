@@ -13,7 +13,8 @@ Real-time top-down 5v5 mech arena shooter. three.js r160 (vendored), ES modules,
 | `js/main.js` | Boot, shared state `G`, main loop, URL params, test hooks |
 | `js/gfx/*.js` | Renderer: textures, world, mechs, effects, post chain |
 | `js/audio.js` | Synthesised sound and music |
-| `js/ui.js`, `js/input.js`, `js/meta.js`, `css/ui.css` | HUD, menus, garage, input devices, save data |
+| `js/ui.js`, `js/input.js`, `js/keys.js`, `js/meta.js`, `css/ui.css` | HUD, menus, garage, lobby, input devices (keyboard, mouse, touch, gamepad), key bindings, save data |
+| `js/net/`, `js/netstate.js`, `js/online.js` | Online play: Unity Relay rooms (copied from Blockade Z, tag `dauthep`), snapshots and mirror match, lobby and host/guest state machine |
 | `tools/` | Node and Playwright checks |
 
 ## Rules that keep it testable and ready for online play
@@ -49,6 +50,12 @@ Skill primitives (`do`): `shield, dash, blink, nova (windup, optional repeat/gap
 
 Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], rounds[{x, z, r, kind}], bushes[{id, x, z, r}], props, cratePoints, bases[2] = [x, z], spawns[2], nav`.
 
+## Modes, themes, online
+
+- Modes are rows in `MODES` (`tdm`, `nha`, `chiem`, `tudo`, `trum`); `createMatch({ mode })`. `nha` adds `m.towers`, `chiem` adds `m.points`, `trum` adds `m.lives` and a `BOSSES` unit, `tudo` gives every unit its own team. `u.color` (0 or 1) is the palette index the renderer and HUD use.
+- A theme (`THEMES` in `maps.js`) dresses any layout and decides what the layout's hazard spots are (`lava`, `ice`, `vent`, `mud`). `createMatch({ map, theme })`; `pickArena(map, theme, seed)` resolves `'random'`.
+- Online is host-authoritative: the host steps the real match, guests send inputs and render a mirror match built by `createMirror` and updated by `applySnapshot` (15 Hz, events in between). `?fakenet=1` swaps the relay for a BroadcastChannel.
+
 ## Shared state `G` (browser)
 
 `G = { THREE, params, quality, bus, renderer, scene, camera, match, me, meta, audio, ui, input, gfx }`
@@ -60,7 +67,7 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 
 ## URL params and test hooks
 
-`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high`, `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
+`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high`, `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key|random`, `?theme=key|random`, `?mode=key`, `?fakenet=1`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
 
 `window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris, quality, scale}`, `__step(n, draw)` (advance n sim ticks, draw one frame if `draw`), `__setShot({x, z, dist, pitch, yaw} | null)` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__start(choice, attract)` (start a match).
 
@@ -71,7 +78,11 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/sim-test.mjs` | Rules of the simulation and the bots, in Node: hits, walls, bushes, every skill, airdrops, respawn, match end, determinism, hard beats easy |
 | `node tools/play.js` | The real page in headless Chrome: full bot matches at every quality tier, scripted player input, HUD, result screen, saved rewards, menu, keyboard and mouse, phone layout |
 | `node tools/audio.js` | Every synthesised sound and music stem: no NaN, no clipping, levels, event coverage |
-| `node tools/ui-shots.js` | HUD and menu screens in a harness at desktop and phone sizes |
+| `node tools/ui-shots.js` | HUD, menu, garage, lobby, key binding, gamepad and chat screens in a harness at desktop and phone sizes (about 5 minutes) |
+| `node tools/netstate-test.mjs` | Snapshot → mirror equals the real match in every mode; events replay in order; snapshot size |
+| `node tools/online-test.js` | Host and two guests in a harness over `?fakenet=1`: lobby, start, inputs, leave, chat |
+| `node tools/lobby-test.js` | Two real game pages over `?fakenet=1`: create, join by code, pick, start, play, result, back to the room |
+| `node tools/relay-live.js` | Three pages over the REAL Unity Relay: join by list and by code, one full co-op match, same score and result everywhere. Run with `DTT_BASE` on the deployed hub |
 | `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 
