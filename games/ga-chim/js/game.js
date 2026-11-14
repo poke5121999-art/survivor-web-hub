@@ -29,13 +29,16 @@ export class Game {
     this.bindUI();
     const E = G.events;
     E.on('player:hit', (h) => this.onHit(h));
-    E.on('enemy:dead', ({ e }) => { this.score += e.type === 'crawler' ? 100 : 150; G.audio.play('boom', { pos: e.pos, vol: 0.6 }); this.hitmark(true); });
+    E.on('enemy:dead', ({ e }) => { this.score += e.type === 'crawler' ? 100 : 150; if (e.type !== 'raider') G.audio.play('boom', { pos: e.pos, vol: 0.6 }); else G.audio.play('hurt', { pos: e.pos, rate: 0.7 }); this.hitmark(true); });
     E.on('enemy:alert', (e) => G.audio.play(e.type === 'crawler' ? 'screech' : 'servo', { pos: e.pos }));
     E.on('crawler:tell', (e) => G.audio.play('screech', { pos: e.pos, rate: 1.2 }));
     E.on('crawler:step', (p) => G.audio.play('click', { pos: p, vol: 0.35, rate: 0.6 }));
     E.on('drone:tell', (e) => G.audio.play('servo', { pos: e.pos, rate: 1.6 }));
     E.on('drone:shot', (s) => { G.audio.play('zap', { pos: s.from }); G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
     E.on('drone:crash', (e) => G.audio.play('boom', { pos: e.pos, vol: 0.5 }));
+    E.on('raider:shot', (s) => { G.audio.play('rifle', { pos: s.from, vol: 0.55, rate: 1.1 }); G.weapon.tracer(s.from, s.to); G.fx.add(0, s.from, null, 0.18, new THREE.Color(6, 3, 1), 0.05); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
+    E.on('raider:tell', (e) => G.audio.play('click', { pos: e.pos, rate: 0.8 }));
+    E.on('raider:step', (p) => G.audio.play('step_gravel', { pos: p, vol: 0.4 }));
   }
   bindUI() {
     const G = this.G;
@@ -81,7 +84,7 @@ export class Game {
     G.audio.play('sting', { vol: 0.6 });
   }
   seedRoamers() {
-    const G = this.G; const pts = [[-10.4, -40, 'crawler'], [-2, -70, 'crawler'], [-29, -60, 'drone'], [6, -100, 'crawler'], [-15.6, -110, 'crawler'], [14, -140, 'drone'], [-30, -140, 'crawler'], [-2, -125, 'drone']];
+    const G = this.G; const pts = [[-10.4, -40, 'crawler'], [-13, -22, 'raider'], [-2, -70, 'crawler'], [-29, -60, 'drone'], [0.8, -58, 'raider'], [6, -100, 'crawler'], [-15.6, -110, 'raider'], [14, -140, 'drone'], [-30, -140, 'crawler'], [-2, -125, 'raider'], [-10.4, -95, 'raider']];
     for (const [x, z, t] of pts) G.enemies.spawn(t, new THREE.Vector3(x, 0, z));
   }
   resume() { if (this.state === 'paused') this.state = 'playing'; document.body.classList.remove('paused'); window.__paused = false; }
@@ -124,7 +127,7 @@ export class Game {
     const pts = this.spawnPoints.slice().sort((a, b) => (near ? a.distanceTo(near) - b.distanceTo(near) : this.r() - 0.5)).filter((p) => p.distanceTo(G.player.pos) > 25).slice(0, 4);
     for (let i = 0; i < n; i++) {
       const p = pts[i % pts.length].clone().add(new THREE.Vector3(this.r.range(-4, 4), 0, this.r.range(-4, 4)));
-      const e = G.enemies.spawn(this.r() < 0.3 ? 'drone' : 'crawler', p); e.alert = 1; e.state = 'hunt';
+      const rr = this.r(); const e = G.enemies.spawn(rr < 0.25 ? 'drone' : rr < 0.6 ? 'raider' : 'crawler', p); e.alert = 1; e.state = 'hunt';
     }
   }
   update(dt) {

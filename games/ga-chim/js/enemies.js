@@ -4,6 +4,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { Kit, chamferBox, cylinder, lathe } from './kit.js';
 import { mat, noMask, keepAlpha } from './mats.js';
 import { rng, clamp, damp, lerp } from './rng.js';
+import { buildRaider, animateRaider } from './humans.js';
 
 const TOKENS = { max: 2, gap: 1.25 };
 let M = null;
@@ -103,6 +104,8 @@ export class Enemies {
     if (type === 'crawler') {
       Object.assign(e, crawlerModel(e.seed)); e.speed = 5.6 + this.r() * 0.8; e.radius = 0.6;
       e.legs.forEach((L) => { this.G.scene.add(L.upper); this.G.scene.add(L.lower); L.foot.copy(L.hip).applyAxisAngle(new THREE.Vector3(0, 1, 0), e.yaw).add(e.pos).setY(0); L.foot.x += Math.sign(L.hip.x) * 0.35; });
+    } else if (type === 'raider') {
+      e.m = buildRaider(e.seed); e.root = e.m.root; e.hp = 100; e.speed = 4.2; e.radius = 0.4; e.phase = 0; e.orbit = this.r() < 0.5 ? 1 : -1; e.hit = 0; e.fireK = 0;
     } else {
       Object.assign(e, droneModel(e.seed)); e.pos.y = 5 + this.r() * 1.5; e.speed = 5; e.radius = 0.5; e.orbit = this.r() < 0.5 ? 1 : -1;
     }
@@ -119,7 +122,9 @@ export class Enemies {
       if (!e.alive) continue;
       const spheres = e.type === 'crawler'
         ? [[e.root.localToWorld(new THREE.Vector3(0, 0.6, 0)), 0.62, false], [e.root.localToWorld(new THREE.Vector3(0, 0.66, -0.75)), 0.24, true]]
-        : [[e.pos, 0.55, false]];
+        : e.type === 'raider'
+          ? [[e.m.j.chest.getWorldPosition(new THREE.Vector3()), 0.3, false], [e.m.j.hips.getWorldPosition(new THREE.Vector3()), 0.26, false], [e.m.j.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.03, 0)), 0.14, true], [e.pos.clone().setY(e.pos.y + 0.5), 0.22, false]]
+          : [[e.pos, 0.55, false]];
       for (const [c, rr, head] of spheres) {
         const oc = o.clone().sub(c); const b = oc.dot(d); const cc = oc.lengthSq() - rr * rr; const h = b * b - cc;
         if (h < 0) continue; const t = -b - Math.sqrt(h);
@@ -133,13 +138,14 @@ export class Enemies {
     e.hp -= dmg * (head ? 1.7 : 1);
     e.alert = 1; e.state = 'hunt';
     if (e.type === 'crawler') { e.vel.addScaledVector(dir, 1.2); }
+    if (e.type === 'raider') e.hit = 1;
     if (e.hp <= 0) { this.kill(e, dir); return true; }
     return false;
   }
   kill(e, dir) {
     e.alive = false; e.dead = 0; this.kills++;
-    const p = e.type === 'crawler' ? e.root.localToWorld(new THREE.Vector3(0, 0.6, 0)) : e.pos.clone();
-    this.G.fx.explosion(p, e.type === 'crawler' ? 0.6 : 0.5);
+    const p = e.type === 'crawler' ? e.root.localToWorld(new THREE.Vector3(0, 0.6, 0)) : e.type === 'raider' ? e.pos.clone().setY(e.pos.y + 1.1) : e.pos.clone();
+    if (e.type !== 'raider') this.G.fx.explosion(p, e.type === 'crawler' ? 0.6 : 0.5);
     this.G.events.emit('enemy:dead', { e, p });
     if (e.type === 'drone') { e.vel.set(dir.x * 2, 0, dir.z * 2); e.spin = (this.r() - 0.5) * 8; }
     if (e.atkToken) { this.tokens--; e.atkToken = false; }
@@ -155,16 +161,17 @@ export class Enemies {
     for (const e of this.list) {
       e.t += dt;
       if (!e.alive) { this.updateDead(e, dt); continue; }
-      const toP = head.clone().sub(e.type === 'crawler' ? e.pos.clone().setY(0.8) : e.pos);
+      const toP = head.clone().sub(e.type === 'drone' ? e.pos : e.pos.clone().setY(e.pos.y + (e.type === 'raider' ? 1.55 : 0.8)));
       const dist = toP.length();
       // perception: exposure meter
       if (e.state !== 'hunt') {
-        const seen = dist < (e.type === 'drone' ? 42 : 30) && (e.t % 0.3 < dt * 1.5 ? (e.los = this.losTo(e.type === 'crawler' ? e.pos.clone().setY(0.9) : e.pos, head)) : e.los);
+        const seen = dist < (e.type === 'crawler' ? 30 : 42) && (e.t % 0.3 < dt * 1.5 ? (e.los = this.losTo(e.type === 'drone' ? e.pos : e.pos.clone().setY(e.pos.y + (e.type === 'raider' ? 1.6 : 0.9)), head)) : e.los);
         const noise = player.lastShot && G.t - player.lastShot < 0.4 && dist < 60 ? 1 : 0;
         e.alert = clamp(e.alert + (seen ? dt * (1.6 - dist / 40) : -dt * 0.2) + noise, 0, 1);
         if (e.alert >= 1) { e.state = 'hunt'; G.events.emit('enemy:alert', e); }
       }
       if (e.type === 'crawler') this.updateCrawler(e, dt, player, toP, dist);
+      else if (e.type === 'raider') this.updateRaider(e, dt, player, toP, dist, head);
       else this.updateDrone(e, dt, player, toP, dist, head);
     }
   }
@@ -293,8 +300,70 @@ export class Enemies {
     e.cone.material.uniforms.uC.value.setRGB(1, tell ? 0.6 : 0.25, tell ? 0.4 : 0.15).multiplyScalar(tell ? 2.2 : 1);
     e.cone.rotation.x = e.state === 'hunt' ? clamp(Math.atan2(e.pos.y - head.y, Math.hypot(toP.x, toP.z)), 0.1, 1.4) : 0.6;
   }
+  updateRaider(e, dt, player, toP, dist, head) {
+    const G = this.G; const eye = e.pos.clone().setY(e.pos.y + 1.6);
+    let want = new THREE.Vector3(); let aim = 0;
+    if (e.state === 'hunt') {
+      const flat = new THREE.Vector3(toP.x, 0, toP.z).normalize();
+      if (e.t % 0.35 < dt * 1.5) e.los = this.losTo(eye, head);
+      // advance until in range with line of sight, then strafe while shooting
+      if (!e.los || dist > 24) want.copy(flat);
+      else if (dist < 9) want.copy(flat).negate();
+      else want.set(-flat.z, 0, flat.x).multiplyScalar(e.orbit * 0.6);
+      if (e.t % 4 < dt) e.orbit *= -1;
+      e.cd -= dt;
+      if (e.atk > 0) {
+        e.atk -= dt; aim = 1; want.multiplyScalar(0.25);
+        e.m.eyeGlow.visible = e.atk > 0.5;
+        if (e.atk < 0.5) {
+          e.burstT = (e.burstT || 0) - dt;
+          if (e.burstT <= 0 && e.shots > 0) {
+            e.burstT = 0.12; e.shots--; e.fireK = 1;
+            const from = e.m.muzzle.getWorldPosition(new THREE.Vector3());
+            const acc = (player.speed > 2 ? 0.4 : 0.7) * (1 - dist / 60) * (player.crouch > 0.5 ? 0.8 : 1);
+            const hitP = e.los && this.r() < acc;
+            const to = head.clone().add(new THREE.Vector3(this.r.range(-1, 1), this.r.range(-0.7, 0.3), this.r.range(-1, 1)).multiplyScalar(hitP ? 0 : 1.4));
+            G.events.emit('raider:shot', { from, to, hit: hitP, e });
+            if (hitP) G.events.emit('player:hit', { dmg: 9 * G.diff.dmg, from });
+          }
+        }
+        if (e.atk <= 0) { e.cd = 1.6 + this.r() * 1.2; this.freeToken(e); e.m.eyeGlow.visible = false; }
+      } else if (e.cd <= 0 && e.los && dist < 34 && this.takeToken(e)) { e.atk = 1.15; e.shots = 3 + Math.floor(this.r() * 3); G.events.emit('raider:tell', e); }
+      aim = Math.max(aim, e.los && dist < 34 ? 0.6 : 0);
+    } else {
+      want.set(Math.sin(e.t * 0.25 + e.id), 0, Math.cos(e.t * 0.2 + e.id * 2)).multiplyScalar(0.35);
+    }
+    const sp = e.state === 'hunt' ? e.speed : 1.3;
+    e.vel.x = damp(e.vel.x, want.x * sp, 6, dt); e.vel.z = damp(e.vel.z, want.z * sp, 6, dt);
+    e.pos.x += e.vel.x * dt; e.pos.z += e.vel.z * dt;
+    for (const b of this.grid.near(e.pos.x, e.pos.z, 1.0)) {
+      if (b.max.y < e.pos.y + 0.4 || b.min.y > e.pos.y + 1.7) continue;
+      const cx = clamp(e.pos.x, b.min.x, b.max.x), cz = clamp(e.pos.z, b.min.z, b.max.z);
+      const dx = e.pos.x - cx, dz = e.pos.z - cz, d2 = dx * dx + dz * dz;
+      if (d2 < e.radius * e.radius && d2 > 1e-6) { const d = Math.sqrt(d2); e.pos.x += dx / d * (e.radius - d); e.pos.z += dz / d * (e.radius - d); }
+    }
+    let g = 0; for (const b of this.grid.near(e.pos.x, e.pos.z, 0.4)) if (e.pos.x > b.min.x && e.pos.x < b.max.x && e.pos.z > b.min.z && e.pos.z < b.max.z && b.max.y < e.pos.y + 0.5 && b.max.y > g) g = b.max.y;
+    e.pos.y = damp(e.pos.y, g, 12, dt);
+    const face = e.state === 'hunt' ? Math.atan2(-toP.x, -toP.z) : Math.atan2(-e.vel.x, -e.vel.z);
+    if (e.state === 'hunt' || Math.hypot(e.vel.x, e.vel.z) > 0.2) e.yaw = lerpAngle(e.yaw, face, 1 - Math.exp(-7 * dt));
+    e.root.position.copy(e.pos); e.root.rotation.y = e.yaw;
+    const hv = Math.hypot(e.vel.x, e.vel.z);
+    const local = new THREE.Vector3(e.vel.x, 0, e.vel.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -e.yaw);
+    const prevPh = e.phase; e.phase += dt * hv * 2.1;
+    if (hv > 1 && Math.floor(e.phase / Math.PI) !== Math.floor(prevPh / Math.PI)) G.events.emit('raider:step', e.pos);
+    e.hit = Math.max(0, e.hit - dt * 4); e.fireK = Math.max(0, e.fireK - dt * 10);
+    e.aimK = damp(e.aimK || 0, aim, 6, dt);
+    const dl = hv > 0.05 ? new THREE.Vector2(local.x, -local.z).normalize() : new THREE.Vector2(0, 1);
+    animateRaider(e.m, { t: e.t, speed: hv, phase: e.phase, dirLocal: dl, aim: e.aimK, fire: e.fireK, hit: e.hit, dead: 0 }, dt);
+  }
   updateDead(e, dt) {
     e.dead += dt;
+    if (e.type === 'raider') {
+      animateRaider(e.m, { t: e.t, speed: 0, phase: e.phase, aim: 0, fire: 0, hit: 0, dead: Math.min(1, e.dead * 1.2) }, dt);
+      e.m.eyeGlow.visible = false;
+      if (e.dead > 25 && !e.removed) { this.G.scene.remove(e.root); e.removed = true; }
+      return;
+    }
     if (e.type === 'drone') {
       if (e.pos.y > 0.3) { e.vel.y -= 14 * dt; e.pos.addScaledVector(e.vel, dt); e.root.rotation.z += (e.spin || 3) * dt; e.root.rotation.x += 2 * dt; if (e.pos.y <= 0.3) { e.pos.y = 0.3; this.G.fx.explosion(e.pos.clone(), 0.35); this.G.events.emit('drone:crash', e); } }
       e.root.position.copy(e.pos); e.cone.visible = false;

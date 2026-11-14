@@ -12,7 +12,7 @@ const OUT = process.argv[2]; fs.mkdirSync(OUT, { recursive: true });
   const page = await ctx.newPage(); const logs = [];
   page.on('console', (m) => { if (m.type() === 'error') logs.push(m.text()); });
   page.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
-  await page.goto(srv.base + '/games/ga-chim/index.html?nolock=1&q=medium');
+  await page.goto((process.env.GC_URL || srv.base + '/games/ga-chim/index.html') + '?nolock=1&q=medium');
   await page.waitForFunction('window.__ready === true || window.__fatal', null, { timeout: 120000 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(OUT, '0-title.jpg'), quality: 85 });
