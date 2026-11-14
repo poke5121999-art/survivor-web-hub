@@ -4,6 +4,7 @@
 <script type="module">
 import * as A from '../js/audio.js';
 import { MECHS } from '../js/data.js';
+import { THEMES } from '../js/maps.js';
 
 const SR = 48000;
 
@@ -29,22 +30,32 @@ function fft(re, im) {
     }
   }
 }
-function centroid(a, sr) {
-  const F = 1024, frames = Math.max(1, Math.min(160, Math.floor(a.length / F)));
-  const hop = Math.max(F, Math.floor((a.length - F) / frames));
-  let num = 0, den = 0;
-  const re = new Float64Array(F), im = new Float64Array(F);
+// One pass of STFT frames gives everything the gates need: centroid, a 24-band spectral envelope (dB, mean removed), low-band share.
+const BANDS = 24;
+function spectral(a, sr) {
+  const F = 1024, frames = Math.max(1, Math.min(160, Math.floor(a.length / F))), hop = Math.max(F, Math.floor((a.length - F) / frames));
+  const re = new Float64Array(F), im = new Float64Array(F), band = new Float64Array(BANDS);
+  let num = 0, den = 0, low = 0;
+  const edge = (b) => 50 * Math.pow(16000 / 50, b / BANDS);
   for (let f = 0; f < frames; f++) {
     const s0 = f * hop;
     if (s0 + F > a.length) break;
     for (let i = 0; i < F; i++) { re[i] = a[s0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / F)); im[i] = 0; }
     fft(re, im);
-    for (let k = 1; k < F / 2; k++) { const p = re[k] * re[k] + im[k] * im[k]; num += p * k * sr / F; den += p; }
+    for (let k = 1; k < F / 2; k++) {
+      const p = re[k] * re[k] + im[k] * im[k], hz = k * sr / F;
+      num += p * hz; den += p;
+      if (hz < 150) low += p;
+      if (hz >= 50 && hz < 16000) band[Math.min(BANDS - 1, Math.floor(Math.log(hz / 50) / Math.log(16000 / 50) * BANDS))] += p;
+    }
   }
-  return den > 0 ? num / den : 0;
+  const db = Array.from(band, (p) => 10 * Math.log10(p + 1e-9));
+  const mean = db.reduce((x, y) => x + y, 0) / BANDS;
+  return { centroid: den > 0 ? num / den : 0, env: db.map((v) => v - mean), lowFrac: den > 0 ? low / den : 0 };
 }
+const centroid = (a, sr) => spectral(a, sr).centroid;
 function stats(chans, sr) {
-  let peak = 0, clipped = 0, nan = 0, sq = 0, count = 0, jump = 0;
+  let peak = 0, clipped = 0, nan = 0, sq = 0, count = 0, jump = 0, dsq = 0;
   for (const a of chans) {
     for (let i = 0; i < a.length; i++) {
       const x = a[i];
@@ -53,38 +64,60 @@ function stats(chans, sr) {
       if (v > peak) peak = v;
       if (v >= 0.999) clipped++;
       sq += x * x; count++;
+      if (i) dsq += (x - a[i - 1]) * (x - a[i - 1]);
     }
     jump = Math.max(jump, Math.abs(a[0] - a[a.length - 1]));
   }
-  return { peak, rms: Math.sqrt(sq / Math.max(1, count)), clipped, nan, dur: chans[0].length / sr, centroid: centroid(chans[0], sr), loopJump: jump };
+  const a0 = chans[0], W = Math.max(1, Math.round(sr * 0.1));
+  // loudest 100 ms window, time to 90% of the energy, and the share of energy in the second half
+  let tot = 0;
+  for (let i = 0; i < a0.length; i++) tot += a0[i] * a0[i];
+  let win = 0, loud = 0, cum = 0, t90 = a0.length, late = 0;
+  for (let i = 0; i < a0.length; i++) {
+    win += a0[i] * a0[i];
+    if (i >= W) win -= a0[i - W] * a0[i - W];
+    if (win > loud) loud = win;
+    cum += a0[i] * a0[i];
+    if (cum >= 0.9 * tot && t90 === a0.length) t90 = i;
+    if (i >= a0.length / 2) late += a0[i] * a0[i];
+  }
+  const sp = spectral(a0, sr);
+  return { peak, rms: Math.sqrt(sq / Math.max(1, count)), clipped, nan, dur: a0.length / sr, centroid: sp.centroid, env: sp.env, lowFrac: sp.lowFrac,
+    loud: Math.sqrt(loud / W), t90: t90 / sr, lateFrac: tot > 0 ? late / tot : 0, loopJump: jump, seam: jump / Math.max(1e-6, Math.sqrt(dsq / Math.max(1, count))) };
 }
 
 window.__audioDiag = async () => {
-  const sounds = [], stems = [];
+  const sounds = [], stems = [], beds = [];
   for (const name of Object.keys(A.SOUNDS)) {
     const S = A.SOUNDS[name];
     for (let v = 0; v < S.n; v++) {
       const t = performance.now();
       const a = A.renderSound(name, v, SR);
       const ms = performance.now() - t;
-      sounds.push({ name, variant: v, expected: S.dur, ms, ...stats([a], SR) });
+      sounds.push({ name, variant: v, expected: S.dur, ms, bus: S.bus, vol: S.vol, ...stats([a], SR) });
     }
     await new Promise((r) => setTimeout(r, 0));
   }
   for (const name of Object.keys(A.STEMS)) {
     const { chans } = A.renderStem(name, A.MUSIC_SR);
     const len = A.stemInfo(name, A.MUSIC_SR).length;
-    stems.push({ name, expected: len / A.MUSIC_SR, ...stats(chans, A.MUSIC_SR) });
+    stems.push({ name, expected: len / A.MUSIC_SR, scene: A.STEMS[name].scene, ...stats(chans, A.MUSIC_SR) });
     await new Promise((r) => setTimeout(r, 0));
   }
-  return { sounds, stems };
+  for (const name of Object.keys(A.BEDS)) {
+    const t = performance.now();
+    const { chans, sr } = A.renderBed(name);
+    beds.push({ name, ms: performance.now() - t, expected: 16, vol: A.BEDS[name].vol, ...stats(chans, sr) });
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return { sounds, stems, beds, themes: Object.keys(THEMES), stemLevels: Object.fromEntries(Object.entries(A.STEMS).map(([k, st]) => [k, [st.lvl(0, 0), st.lvl(1, 0), st.lvl(0, 1), st.lvl(1, 1)]])) };
 };
 
 const SAMPLE = {
   fire: (x) => ({ t: 'fire', id: 1, vis: x.vis || 'bullet', x: 3, z: 2, a: 0, side: 0 }),
   skill: (x) => ({ t: 'skill', id: 1, slot: 0, skill: x.skill || 'giap', x: 3, z: 2, a: 0 }),
   impact: (x) => ({ t: 'impact', vis: x.vis || 'bullet', on: x.on || 'wall', x: 3, z: 2, dx: 1, dz: 0, splash: 0 }),
-  hit: () => ({ t: 'hit', id: 2, by: 1, x: 3, z: 2, amt: 50, absorbed: 0 }),
+  hit: (x) => ({ t: 'hit', id: 2, by: 1, x: 3, z: 2, amt: x.amt || 50, absorbed: 0 }),
   heal: () => ({ t: 'heal', id: 2, x: 3, z: 2, amt: 20 }),
   death: () => ({ t: 'death', id: 2, by: 1, assists: [], x: 3, z: 2 }),
   respawn: () => ({ t: 'respawn', id: 2, x: 3, z: 2 }),
@@ -103,7 +136,13 @@ const SAMPLE = {
   crateLand: () => ({ t: 'crateLand', id: 1, x: 3, z: 2 }),
   pickup: (x) => ({ t: 'pickup', id: 1, crate: 1, type: x.type || 'heal', x: 3, z: 2 }),
   over: () => ({ t: 'over', winner: 0 }),
+  // Base-mode events are not in the README's list; the coverage check adds them by hand.
+  towerFire: () => ({ t: 'towerFire', tower: 0, x: 3, z: 2, a: 0 }),
+  towerHit: () => ({ t: 'towerHit', tower: 0, by: 1, x: 3, z: 2, amt: 200 }),
+  towerBlock: () => ({ t: 'towerBlock', tower: 0, x: 3, z: 2 }),
+  towerDown: (x) => ({ t: 'towerDown', tower: 0, team: 1, kind: x.kind || 'sub', by: 1, x: 3, z: 2 }),
 };
+const TOWER_EVENTS = ['towerFire', 'towerHit', 'towerBlock', 'towerDown'];
 
 // Units 3..5 carry the mechs whose nova sounds differ; zones 10+ cover every field vis and the lobbed strike.
 const WORLD = () => ({
@@ -124,29 +163,27 @@ window.__audioCoverage = async () => {
     if (!n && !A.SILENT_EVENTS.includes(t)) missing.push(t);
     if (n && A.SILENT_EVENTS.includes(t)) silent.push(t);
   }
-  const vis = {}, skills = {}, extras = [], double = [];
+  const vis = {}, skills = {}, skillSounds = {}, double = [];
   const sounds = (ev) => A.planEvent(ev, m, 1).map((p) => p.s);
   for (const mech of Object.values(MECHS)) {
     vis[mech.weapon.vis] = A.planEvent(SAMPLE.fire({ vis: mech.weapon.vis }), m, 1).length;
     for (const s of mech.skills) {
       if (s.vis && s.do === 'volley') vis[s.vis] = A.planEvent(SAMPLE.fire({ vis: s.vis }), m, 1).length;
-      const own = A.planEvent(SAMPLE.skill({ skill: s.id }), m, 1).length;
+      const own = sounds(SAMPLE.skill({ skill: s.id }));
       const comp = A.SKILL_COMPANION[s.id];
-      let viaComp = 0;
-      if (comp === 'fire') viaComp = vis[s.vis] || 0;
-      else if (comp === 'zone') {
-        const [kind, id] = SKILL_ZONE[s.id];
-        viaComp = A.planEvent(SAMPLE.zone({ kind, id }), m, 1).length;
-      } else if (comp === 'nova') viaComp = A.planEvent(SAMPLE.nova({ id: SKILL_NOVA[s.id] }), m, 1).length;
-      if (comp && own) double.push(s.id);
-      skills[s.id] = own || viaComp;
+      let via = [];
+      if (comp === 'fire') via = sounds(SAMPLE.fire({ vis: s.vis }));
+      else if (comp === 'zone') { const [kind, id] = SKILL_ZONE[s.id]; via = sounds(SAMPLE.zone({ kind, id })); } else if (comp === 'nova') via = sounds(SAMPLE.nova({ id: SKILL_NOVA[s.id] }));
+      if (comp && own.length) double.push(s.id);
+      skills[s.id] = own.length || via.length;
+      skillSounds[s.id] = (own.length ? own : via).join('+');
     }
   }
   const sub = [];
   for (const k of ['strike', 'mine', 'barrel']) sub.push(['explode:' + k, A.planEvent(SAMPLE.explode({ why: k }), m, 1).length]);
   for (const k of ['crate', 'pot']) sub.push(['propBreak:' + k, A.planEvent(SAMPLE.propBreak({ kind: k }), m, 1).length]);
   for (const k of ['heal', 'power', 'haste', 'refresh', 'shield']) sub.push(['pickup:' + k, A.planEvent(SAMPLE.pickup({ type: k }), m, 1).length]);
-  for (const k of ['wall', 'dome']) sub.push(['impact:' + k, A.planEvent(SAMPLE.impact({ on: k }), m, 1).length]);
+  for (const k of ['wall', 'dome', 'turret']) sub.push(['impact:' + k, A.planEvent(SAMPLE.impact({ on: k }), m, 1).length]);
   for (const k of ['field']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k }), m, 1).length]);
   for (const k of ['wall', 'turret']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k }), m, 1).length], ['zoneEnd:' + k, A.planEvent(SAMPLE.zoneEnd({ kind: k }), m, 1).length]);
   sub.push(['zoneEnd:strike is silent', A.planEvent(SAMPLE.zoneEnd({ kind: 'strike' }), m, 1).length === 0 ? 1 : 0]);
@@ -156,7 +193,133 @@ window.__audioCoverage = async () => {
   for (const [k, id] of [['trau', 1], ['bocap', 3], ['bang', 4]]) sub.push(['nova:' + k, A.planEvent(SAMPLE.nova({ id }), m, 1).length]);
   sub.push(['nova sounds differ per mech', new Set([1, 3, 4].map((id) => sounds(SAMPLE.nova({ id }))[0])).size === 3 ? 1 : 0]);
   sub.push(['turretFire', A.planEvent(SAMPLE.turretFire(), m, 1).length]);
-  return { types, missing, silent, vis, skills, sub, extras, double };
+  for (const t of TOWER_EVENTS) sub.push([t, A.planEvent(SAMPLE[t]({}), m, 1).length]);
+  sub.push(['towerDown main differs from sub', sounds(SAMPLE.towerDown({ kind: 'main' }))[0] !== sounds(SAMPLE.towerDown({ kind: 'sub' }))[0] ? 1 : 0]);
+  sub.push(['towerDown heard from across the map', A.planEvent(SAMPLE.towerDown({}), m, 1)[0].far ? 1 : 0]);
+  sub.push(['hit heavy vs light armour', sounds(SAMPLE.hit({ amt: 300 }))[0] !== sounds(SAMPLE.hit({ amt: 40 }))[0] ? 1 : 0]);
+  sub.push(['impact surface sounds differ (wall, dome, frost on unit)', new Set([sounds(SAMPLE.impact({ on: 'wall' }))[0], sounds(SAMPLE.impact({ on: 'dome' }))[0], sounds({ ...SAMPLE.impact({ on: 'unit', vis: 'frost' }) })[0]]).size === 3 ? 1 : 0]);
+  return { types, missing, silent, vis, skills, skillSounds, sub, double, uiNames: A.UI_NAMES };
+};
+
+// ---------- the real engine on an OfflineAudioContext ----------
+const CACHE = {};
+const mkCtx = (sec) => new OfflineAudioContext(2, Math.round(sec * SR), SR);
+async function engine(ctx, G) {
+  let comp = null;
+  const orig = ctx.createDynamicsCompressor.bind(ctx);
+  ctx.createDynamicsCompressor = () => (comp = orig());
+  const a = await A.makeAudio(G, null, { ctx, cache: CACHE });
+  a.setScene('match');
+  let guard = 0;
+  while (a.stats().queued > 0 && guard++ < 100000) a.update(0.016, 0);
+  return { a, comp };
+}
+const mixStats = (buf) => {
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+  let peak = 0, sq = 0, pinned = 0, nan = 0;
+  for (let i = 0; i < n; i++) {
+    const x = Math.max(Math.abs(L[i]), Math.abs(R[i]));
+    if (x !== x) { nan++; continue; }
+    if (x > peak) peak = x;
+    if (x >= 0.95) pinned++;
+    sq += L[i] * L[i] + R[i] * R[i];
+  }
+  const rms = Math.sqrt(sq / (2 * n));
+  // loudest and quietest 1 s window: a fight that never breathes is as bad as one that clips
+  const W = SR; let lo = 9, hi = 0;
+  for (let s0 = 0; s0 + W <= n; s0 += W) { let q = 0; for (let i = s0; i < s0 + W; i++) q += L[i] * L[i] + R[i] * R[i]; const v = Math.sqrt(q / (2 * W)); if (v < lo) lo = v; if (v > hi) hi = v; }
+  return { peak, rms, crest: peak / Math.max(1e-9, rms), pinned: pinned / n, nan, loSec: lo, hiSec: hi };
+};
+const chanRms = (buf, t0, t1, ch) => { const d = buf.getChannelData(ch); let q = 0; const a = Math.round(t0 * SR), b = Math.round(t1 * SR); for (let i = a; i < b; i++) q += d[i] * d[i]; return Math.sqrt(q / (b - a)); };
+
+// A 20 s fight in base mode: ten mechs firing at their real fire rates, hits and impacts behind each shot, skills, explosions, deaths, towers, pickups.
+function fightScript(seed) {
+  let s = seed;
+  const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const kinds = ['soi', 'trau', 'hac', 'ung', 'bocap', 'loi', 'bang', 'tho', 'trau', 'soi'];
+  const m = { units: [], zones: [{ id: 7, vis: 'slow' }, { id: 10, kind: 'field', vis: 'smoke' }, { id: 13, kind: 'strike', lob: true }], towers: [], duration: 480, time: 0 };
+  kinds.forEach((k, i) => { const ang = r() * 6.28, rad = i ? 4 + r() * 16 : 0; m.units.push({ team: i < 5 ? 0 : 1, mech: k, x: Math.cos(ang) * rad, z: Math.sin(ang) * rad * 0.7, hp: 1, maxHp: 1, alive: true }); });
+  const ev = [];
+  const push = (t, e) => { if (t >= 0 && t < 19.8) ev.push({ t, e }); };
+  m.units.forEach((u, i) => {
+    const mech = MECHS[u.mech], w = mech.weapon;
+    for (let t = 0.2 + r() * 0.5; t < 19.5; t += w.cd * (0.9 + r() * 0.3)) {
+      if (r() < 0.12) { t += 0.8 * r(); continue; } // pauses, strafing
+      push(t, { t: 'fire', id: i, vis: w.vis, x: u.x, z: u.z, a: r() * 6.28, side: i & 1 });
+      const foe = m.units[(i < 5 ? 5 : 0) + Math.floor(r() * 5)];
+      const hit = r() < 0.7;
+      if (hit) { push(t + 0.15, { t: 'hit', id: m.units.indexOf(foe), by: i, x: foe.x, z: foe.z, amt: w.dmg > 200 ? 250 : w.dmg, absorbed: 0 }); push(t + 0.15, { t: 'impact', vis: w.vis, on: 'unit', x: foe.x, z: foe.z, dx: 1, dz: 0, splash: w.splash || 0 }); } else push(t + 0.2, { t: 'impact', vis: w.vis, on: r() < 0.7 ? 'wall' : 'prop', x: foe.x + 3, z: foe.z, dx: 1, dz: 0, splash: w.splash || 0 });
+      if (w.splash) push(t + (w.lob ? w.flight : 0.2), { t: 'explode', x: foe.x, z: foe.z, r: w.splash, why: 'strike' });
+    }
+    for (let t = 2 + r() * 4; t < 19; t += 6 + r() * 3) {
+      const sk = mech.skills[Math.floor(r() * 3)];
+      push(t, { t: 'skill', id: i, slot: 0, skill: sk.id, x: u.x, z: u.z, a: 0 });
+      if (sk.do === 'nova') push(t + (sk.windup || 0), { t: 'nova', id: i, x: u.x, z: u.z, r: sk.radius });
+      if (sk.do === 'beam') push(t + sk.windup, { t: 'beam', id: i, x0: u.x, z0: u.z, x1: u.x + 9, z1: u.z, w: 1 });
+      if (sk.do === 'barrage') for (let k = 0; k < 5; k++) push(t + 0.9 + k * 0.2, { t: 'explode', x: u.x + 5 + k, z: u.z, r: 3, why: 'strike' });
+    }
+  });
+  for (let t = 0.5; t < 19.5; t += 0.5 + r() * 0.5) push(t, { t: 'propHit', id: 1, x: (r() - 0.5) * 30, z: (r() - 0.5) * 20 });
+  for (let t = 1; t < 19; t += 1.1) { push(t, { t: 'towerFire', tower: 0, x: -20, z: 0, a: 0 }); push(t + 0.4, { t: 'towerHit', tower: 2, by: 0, x: 20, z: 0, amt: 270 }); if (r() < 0.3) push(t + 0.45, { t: 'towerBlock', tower: 2, x: 20, z: 0 }); }
+  push(14, { t: 'towerDown', tower: 2, team: 1, kind: 'sub', by: 0, x: 20, z: 0 });
+  push(6, { t: 'death', id: 7, by: 0, assists: [], x: m.units[7].x, z: m.units[7].z }); push(12, { t: 'death', id: 3, by: 6, assists: [], x: m.units[3].x, z: m.units[3].z }); push(17, { t: 'respawn', id: 7, x: -10, z: 4 });
+  push(2, { t: 'crateDrop', id: 1, x: 5, z: 5, type: 'heal' }); push(5, { t: 'crateLand', id: 1, x: 5, z: 5 }); push(8, { t: 'pickup', id: 0, crate: 1, type: 'power', x: 0, z: 0 }); push(10, { t: 'shieldBreak', id: 4, x: 8, z: 3 });
+  ev.sort((a, b) => a.t - b.t);
+  return { m, ev };
+}
+window.__mixdown = async (seed = 1) => {
+  const { m, ev } = fightScript(seed);
+  const G = { params: {}, match: { map: { theme: 'jungle' }, units: m.units, towers: m.towers, duration: 480, time: 100 }, me: 0 };
+  const ctx = mkCtx(20);
+  const { a, comp } = await engine(ctx, G);
+  a.setListener(0, 0);
+  a.update(0.016, 0.8);
+  a.update(0.016, 0.8);
+  for (const { t, e } of ev) a.event(e, m, 0, t);
+  const buf = await ctx.startRendering();
+  const st = a.stats();
+  const out = { ...mixStats(buf), events: ev.length, stolen: st.stolen, dropped: st.dropped, notReady: st.notReady, peakVoices: st.peakVoices, bed: st.bed, comp: { threshold: comp.threshold.value, ratio: comp.ratio.value } };
+  window.__lastMix = buf;
+  return out;
+};
+window.__mixdownWav = () => { const b = window.__lastMix; return wavB64([b.getChannelData(0), b.getChannelData(1)], SR); };
+
+// One context, five probes of the same heavy shot 2 s apart: own, far right, far left, out of range, near.
+window.__mixProbe = async () => {
+  const m = WORLD();
+  const G = { params: {}, match: null, me: 0 };
+  const ctx = mkCtx(11);
+  const { a } = await engine(ctx, G);
+  a.setListener(0, 0);
+  const fire = (id, x, z, t) => a.event({ t: 'fire', id, vis: 'shell', x, z, a: 0, side: 0 }, m, 0, t);
+  fire(0, 0, 0, 0.5); fire(2, 12, 0, 2.5); fire(2, -12, 0, 4.5); fire(2, 40, 0, 6.5); fire(2, 6, 0, 8.5);
+  const buf = await ctx.startRendering();
+  const w = (t) => [chanRms(buf, t, t + 0.6, 0), chanRms(buf, t, t + 0.6, 1)];
+  const st = a.stats();
+  return { own: w(0.5), right: w(2.5), left: w(4.5), far: w(6.5), near: w(8.5), ducks: st.ducks };
+};
+
+window.__tension = () => {
+  const mk = (o) => ({ duration: 300, time: 10, over: false, towers: [], units: [{ team: 0 }], ...o });
+  const tw = (hpMine, hpFoe) => [{ kind: 'main', team: 0, alive: true, hp: hpMine, maxHp: 100 }, { kind: 'main', team: 1, alive: true, hp: hpFoe, maxHp: 100 }, { kind: 'sub', team: 0, alive: true, hp: 100, maxHp: 100 }];
+  return {
+    calm: A.tensionOf(mk({}), 0), last30: A.tensionOf(mk({ time: 275 }), 0), last5: A.tensionOf(mk({ time: 295 }), 0),
+    towerOk: A.tensionOf(mk({ mode: 'nha', towers: tw(90, 90), duration: 480 }), 0), towerLow: A.tensionOf(mk({ mode: 'nha', towers: tw(15, 90), duration: 480 }), 0),
+    foeLow: A.tensionOf(mk({ mode: 'nha', towers: tw(90, 10), duration: 480 }), 0), over: A.tensionOf(mk({ time: 299, over: true }), 0), none: A.tensionOf(null, 0),
+  };
+};
+// Which pitch is the strongest in each bar of the bass stem (via autocorrelation-free FFT peak), to prove the progression is the one in the table.
+window.__bassRoots = () => {
+  const { chans, sr } = A.renderStem('m_bass', A.MUSIC_SR), a = chans[0], bar = Math.floor(a.length / 8), F = 8192, out = [];
+  for (let b = 0; b < 8; b++) {
+    const re = new Float64Array(F), im = new Float64Array(F), s0 = b * bar;
+    for (let i = 0; i < F; i++) { re[i] = a[s0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / F)); }
+    fft(re, im);
+    let best = 0, bk = 1;
+    for (let k = 3; k < F / 2; k++) { const p = re[k] * re[k] + im[k] * im[k], hz = k * sr / F; if (hz > 28 && hz < 400 && p > best) { best = p; bk = k; } }
+    out.push(Math.round(69 + 12 * Math.log2(bk * sr / F / 440)));
+  }
+  return { measured: out, expected: A.KEY_ROOTS.slice(), motif: A.MOTIF, menuMotif: A.MENU_MOTIF };
 };
 
 // Boot the real engine with a fake G, drive every public method and wait for the background render to drain.
@@ -167,7 +330,8 @@ window.__audioBoot = async () => {
   const off = await A.makeAudio({ params: { noaudio: true } });
   out.noopMethods = Object.keys(off).sort();
   out.noopCall = (() => { try { off.event({ t: 'fire' }, null, 0); off.ui('click'); off.update(0.016, 0.5); return true; } catch (e) { return false; } })();
-  const a = await A.makeAudio({ params: {} }, (f) => prog.push(f));
+  const G = { params: {}, match: { map: { theme: 'swamp' }, units: [], duration: 300, time: 100 }, me: 0 };
+  const a = await A.makeAudio(G, (f) => prog.push(f));
   out.bootMs = performance.now() - t0;
   out.methods = Object.keys(a).sort();
   out.progress = prog.length ? prog[prog.length - 1] : -1;
@@ -184,6 +348,7 @@ window.__audioBoot = async () => {
     for (const k of ['mine', 'field', 'dome', 'wall', 'turret']) { a.event(SAMPLE.zone({ kind: k }), m, 0); a.event(SAMPLE.zoneEnd({ kind: k }), m, 0); }
     for (const id of [10, 11, 12, 13]) a.event(SAMPLE.zone({ kind: id === 13 ? 'strike' : 'field', id }), m, 0);
     for (const id of [3, 4]) a.event(SAMPLE.nova({ id }), m, 0);
+    a.event(SAMPLE.towerDown({ kind: 'main' }), m, 0);
     a.event({ t: 'fire', id: 9, vis: 'bullet', x: 100, z: 0 }, m, 0);
     for (const n of A.UI_NAMES) a.ui(n);
     for (let i = 0; i < 30; i++) a.update(0.033, i / 30);
@@ -194,7 +359,103 @@ window.__audioBoot = async () => {
   await new Promise((r) => setTimeout(r, 300));
   for (let i = 0; i < 10; i++) a.update(0.033, 1);
   out.stats = a.stats();
+  // DOM wiring: pointer and click events on buttons reach ui() without anyone calling it
+  const mkBtn = (cls, r) => { const b = document.createElement('button'); b.className = cls; if (r) b.dataset.r = r; document.body.appendChild(b); return b; };
+  const before = { ...a.stats().ui };
+  const btns = [mkBtn('btn', 'back'), mkBtn('btn primary', 'create'), mkBtn('btn', 'refresh'), mkBtn('btn poor', 'up')];
+  btns[2].dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
+  for (const b of btns) b.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  const after = a.stats().ui;
+  out.dom = Object.fromEntries(['hover', 'back', 'confirm', 'click', 'deny'].map((k) => [k, (after[k] || 0) - ((before && before[k]) || 0)]));
+  btns.forEach((b) => b.remove());
   return out;
+};
+
+// ---------- listening levers: spectrogram sheets and WAV export ----------
+// Log-frequency spectrogram (40 Hz to 16 kHz) of one buffer into a canvas cell, with a label.
+function spectro(ctx2, a, sr, x0, y0, w, h, label) {
+  const F = 1024, cols = Math.min(w, 300), hop = Math.max(64, Math.floor((a.length - F) / cols));
+  const rows = h - 14, re = new Float64Array(F), im = new Float64Array(F);
+  const img = ctx2.createImageData(cols, rows);
+  const bins = new Int32Array(rows);
+  for (let y = 0; y < rows; y++) bins[y] = Math.min(F / 2 - 1, Math.round(40 * Math.pow(16000 / 40, 1 - y / (rows - 1)) * F / sr));
+  for (let c = 0; c < cols; c++) {
+    const s0 = c * hop;
+    for (let i = 0; i < F; i++) { re[i] = (s0 + i < a.length ? a[s0 + i] : 0) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / F)); im[i] = 0; }
+    fft(re, im);
+    for (let y = 0; y < rows; y++) {
+      const k = bins[y], p = re[k] * re[k] + im[k] * im[k];
+      const db = 10 * Math.log10(p + 1e-12), v = Math.max(0, Math.min(1, (db + 10) / 70));
+      const o = (y * cols + c) * 4;
+      img.data[o] = 255 * Math.min(1, v * 2.2); img.data[o + 1] = 255 * Math.max(0, Math.min(1, v * 2 - 0.7)); img.data[o + 2] = 255 * (v < 0.5 ? v * 1.4 : Math.max(0, 1.4 - v * 1.4));
+      img.data[o + 3] = 255;
+    }
+  }
+  const tmp = document.createElement('canvas'); tmp.width = cols; tmp.height = rows;
+  tmp.getContext('2d').putImageData(img, 0, 0);
+  ctx2.imageSmoothingEnabled = false;
+  ctx2.drawImage(tmp, x0, y0 + 14, w, rows);
+  ctx2.fillStyle = '#fff'; ctx2.font = '11px monospace';
+  ctx2.fillText(label, x0 + 2, y0 + 10);
+}
+function sheet(items, cols = 3, cw = 330, ch = 120) {
+  const rows = Math.ceil(items.length / cols), cv = document.createElement('canvas');
+  cv.width = cols * cw; cv.height = rows * ch;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
+  items.forEach((it, i) => spectro(g, it.data, it.sr, (i % cols) * cw + 2, Math.floor(i / cols) * ch, cw - 4, ch - 2, it.label));
+  return cv.toDataURL('image/png');
+}
+function wavB64(chans, sr) {
+  const n = chans[0].length, nc = chans.length, buf = new ArrayBuffer(44 + n * nc * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * nc * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * nc * 2, true);
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < nc; c++) { v.setInt16(o, Math.max(-1, Math.min(1, chans[c][i])) * 32767, true); o += 2; }
+  let s = ''; const u = new Uint8Array(buf);
+  for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192));
+  return btoa(s);
+}
+const tick = () => new Promise((r) => setTimeout(r, 0));
+window.__exportAll = async () => {
+  const out = [];
+  for (const name of Object.keys(A.SOUNDS)) {
+    const S = A.SOUNDS[name];
+    for (let v = 0; v < S.n; v++) out.push({ file: `sfx/${S.bus}/${name}${S.n > 1 ? '_' + v : ''}.wav`, b64: wavB64([A.renderSound(name, v, SR)], SR) });
+    await tick();
+  }
+  for (const name of Object.keys(A.STEMS)) { const { chans } = A.renderStem(name, A.MUSIC_SR); out.push({ file: `music/${name}.wav`, b64: wavB64(chans, A.MUSIC_SR) }); await tick(); }
+  for (const name of Object.keys(A.BEDS)) { const { chans, sr } = A.renderBed(name); out.push({ file: `amb/${name}.wav`, b64: wavB64(chans, sr) }); await tick(); }
+  const mix = await window.__mixdown(1);
+  out.push({ file: 'mix/busy-fight-20s.wav', b64: window.__mixdownWav() });
+  return out;
+};
+window.__sheets = async (groups) => {
+  const out = [];
+  for (const [file, prefixes] of groups) {
+    const items = [];
+    for (const name of Object.keys(A.SOUNDS)) {
+      if (!prefixes.some((p) => name.startsWith(p))) continue;
+      for (let v = 0; v < A.SOUNDS[name].n; v++) items.push({ label: `${name}#${v} ${A.SOUNDS[name].dur}s`, data: A.renderSound(name, v, SR), sr: SR });
+    }
+    if (prefixes.includes('@stems')) for (const name of Object.keys(A.STEMS)) { const { chans } = A.renderStem(name, A.MUSIC_SR); items.push({ label: name, data: chans[0], sr: A.MUSIC_SR }); }
+    if (prefixes.includes('@beds')) for (const name of Object.keys(A.BEDS)) { const { chans, sr } = A.renderBed(name); items.push({ label: name, data: chans[0], sr }); }
+    if (items.length) out.push({ file, png: sheet(items, 3) });
+    await tick();
+  }
+  return out;
+};
+window.__timing = () => {
+  const t0 = performance.now(); let nb = 0;
+  for (const name of Object.keys(A.SOUNDS)) for (let v = 0; v < A.SOUNDS[name].n; v++) { A.renderSound(name, v, SR); nb++; }
+  const t1 = performance.now();
+  for (const name of Object.keys(A.STEMS)) A.renderStem(name, A.MUSIC_SR);
+  const t2 = performance.now();
+  const one = (() => { const t = performance.now(); A.renderBed('jungle'); return performance.now() - t; })();
+  for (const name of Object.keys(A.BEDS)) if (name !== 'jungle') A.renderBed(name);
+  const t3 = performance.now();
+  return { sfxMs: Math.round(t1 - t0), stemMs: Math.round(t2 - t1), bedAllMs: Math.round(t3 - t2 + one), bedOneMs: Math.round(one), buffers: nb, sounds: Object.keys(A.SOUNDS).length, stems: Object.keys(A.STEMS).length, beds: Object.keys(A.BEDS).length };
 };
 window.__harnessReady = true;
 </script>
