@@ -114,7 +114,7 @@ const DESIGNS = {
     sk(b, 'dark', DARK).push().move(2.16, 1.22, 0).chamfer(0.22, 0.2, 0.32, 0.03).pop();
     for (const sz of [-1, 1]) sk(b, 'dark', LINE).push().move(2.16, 1.22, sz * 0.165).box(0.04, 0.12, 0.012).pop();
     lit(b, () => b.push().move(2.275, 1.22, 0).rotZ(X).cyl(0.08, 0.08, 0.02, 10).pop());
-    return { muzzle: 2.28, muzzleY: 1.22, S: 1.25, height: 2.0,
+    return { muzzle: 2.28, muzzleY: 1.22, S: 1, height: 2.0,
       parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.32 }, { name: 'tread', on: 'hull', kind: 'tread', step: 0.2 }] };
   },
 
@@ -175,7 +175,7 @@ const DESIGNS = {
     sk(b, 'steel', STEEL);
     for (let k = 0; k < 6; k++) { const a = k * TAU / 6; b.rod([0, Math.cos(a) * 0.065, Math.sin(a) * 0.065], [0.62, Math.cos(a) * 0.065, Math.sin(a) * 0.065], 0.024, 5); }
     sk(b, 'dark', GUN).push().move(0.12, 0, 0).rotZ(X).cyl(0.11, 0.11, 0.06, 8).pop().push().move(0.48, 0, 0).rotZ(X).cyl(0.1, 0.1, 0.05, 8).pop();
-    return { muzzle: 1.34, muzzleY: 1.2, S: 1.25, height: 2.1, legs, stride: 2.6,
+    return { muzzle: 1.34, muzzleY: 1.2, S: 1, height: 2.1, legs, stride: 2.08,
       parts: [{ name: 'drum', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', at: [[0.72, 1.2, 0.336], [0.72, 1.2, -0.336]] }] };
   },
 
@@ -230,7 +230,7 @@ const DESIGNS = {
     }
     for (const sz of [-1, 1]) sk(b, 'steel', STEEL).push().move(2.36, 1.3, sz * 0.085).rotY(sz * 0.18).chamfer(0.18, 0.1, 0.04, 0.015).pop();
     lit(b, () => b.push().move(1.25, 1.31, 0).box(2.04, 0.05, 0.06).pop().push().move(2.32, 1.3, 0).ball(0.06, 0).pop());
-    return { muzzle: 2.36, muzzleY: 1.3, S: 1.25, height: 2.0, legs, stride: 2.2,
+    return { muzzle: 2.36, muzzleY: 1.3, S: 1, height: 2.0, legs, stride: 1.76,
       parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.4 }] };
   },
 
@@ -277,7 +277,7 @@ const DESIGNS = {
     sk(b, 'steel', STEEL).push().move(-0.12, 1.54, 0).lathe([[0.03, 0], [0.2, 0.06], [0.24, 0.09]], 10).pop();
     lit(b, () => b.push().move(-0.12, 1.6, 0).ball(0.05, 0).pop());
     for (let i = 0; i < 3; i++) { const a = i * TAU / 3; b.push().move(-0.12, 1.55, 0).rotY(a); sk(b, 'dark', GUN).rod([0.2, 0.08, 0], [0.04, 0.24, 0], 0.012, 4); b.pop(); }
-    return { muzzle: 0.98, muzzleY: 1.18, S: 1.25, height: 1.8, hover: true,
+    return { muzzle: 0.98, muzzleY: 1.18, S: 1, height: 1.8, hover: true,
       parts: [{ name: 'halo', on: 'hull', kind: 'spin', axis: 'y', by: 'time', rate: 0.9, p: [0, 0.96, 0] }] };
   },
 
@@ -355,7 +355,7 @@ const DESIGNS = {
     sk(b, 'steel', STEEL).push().move(0, 0.12, 0).rotZ(X).lathe([[0.02, -0.04], [0.16, 0.0], [0.24, 0.06]], 10).pop();
     lit(b, () => b.push().move(0.06, 0.12, 0).ball(0.03, 0).pop());
     const dir = [Math.cos(0.8), Math.sin(0.8), 0];
-    return { muzzle: -0.2 + dir[0] * 0.95, muzzleY: 1.3 + dir[1] * 0.95, S: 1.25, height: 2.3,
+    return { muzzle: -0.2 + dir[0] * 0.95, muzzleY: 1.3 + dir[1] * 0.95, S: 1, height: 2.3,
       parts: [{ name: 'wheel', on: 'hull', kind: 'roll', axis: 'z', r: 0.34, at: [-0.82, 0, 0.82].flatMap((x) => [[x, 0.34, 0.78], [x, 0.34, -0.78]]) },
         { name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.35, dir: [-dir[0], -dir[1], 0] },
         { name: 'radar', on: 'turret', kind: 'spin', axis: 'y', by: 'time', rate: 2.2, p: [-0.78, 1.74, 0] }] };
@@ -417,7 +417,7 @@ const DESIGNS = {
       lit(b, () => b.push().move(1.205, 0.98, sz * 0.07).rotZ(X).cyl(0.055, 0.055, 0.01, 8).pop());
     }
     sk(b, 'dark', GUN).push().move(0.62, 0.98, 0).chamfer(0.36, 0.16, 0.3, 0.04).pop();
-    return { muzzle: 1.2, muzzleY: 0.98, S: 1.25, height: 1.7, legs, stride: 2.0,
+    return { muzzle: 1.2, muzzleY: 0.98, S: 1, height: 1.7, legs, stride: 1.6,
       parts: [{ name: 'tail', on: 'hull', kind: 'sway', p: [-0.84, 0.66, 0], model: true, amp: 0.14 }, { name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.18 }] };
   },
 
@@ -471,7 +471,7 @@ const DESIGNS = {
       b.geo(new THREE.OctahedronGeometry(0.1).scale(1, 2.8, 1));
       for (let k = 0; k < 3; k++) b.push().rotY(k * TAU / 3).move(0.32, -0.1, 0).geo(new THREE.OctahedronGeometry(0.05).scale(1, 2.2, 1)).pop();
     });
-    return { muzzle: 1.45, muzzleY: 1.18, S: 1.25, height: 2.3,
+    return { muzzle: 1.45, muzzleY: 1.18, S: 1, height: 2.3,
       parts: [{ name: 'drum', on: 'hull', kind: 'roll', axis: 'z', r: 0.3, p: [1.22, 0.32, 0] },
         { name: 'spire', on: 'turret', kind: 'spin', axis: 'y', by: 'time', rate: 1.2, p: [-0.25, 1.95, 0], bob: 0.06 }] };
   },
@@ -539,7 +539,7 @@ const DESIGNS = {
     b.use('beacon');
     sk(b, 'paint', trim).cyl(0.08, 0.08, 0.06, 8);
     lit(b, () => b.push().move(0.06, 0.07, 0).box(0.12, 0.06, 0.05).pop().push().move(-0.06, 0.07, 0).box(0.12, 0.06, 0.05).pop());
-    return { muzzle: 1.15, muzzleY: 1.32, S: 1.22, height: 2.1, legs, stride: 1.8,
+    return { muzzle: 1.15, muzzleY: 1.32, S: 0.98, height: 2.1, legs, stride: 1.44,
       parts: [{ name: 'nail', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', p: [0.6, 1.32, 0], kick: 6 },
         { name: 'beacon', on: 'turret', kind: 'spin', axis: 'y', by: 'time', rate: 5, p: [-0.1, 1.58, 0] },
         { name: 'hook', on: 'hull', kind: 'sway', p: [0.95, 1.88, 0.38], amp: 0.2, axis: 'z' }] };

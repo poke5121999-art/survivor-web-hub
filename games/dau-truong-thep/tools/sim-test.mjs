@@ -780,7 +780,7 @@ const raid = (seed, mapKey) => mk({ seed, map: mapKey, mode: 'trum', roster: [..
   let maxStun = 0, hit = false;
   run(m, 40, (i) => { maxStun = Math.max(maxStun, boss.stunT); return [inp({ aim: 0, s2: i === 0 }), inp()]; });
   check('20i heavy: a stunning charge (0.9 s) leaves the boss stunned <= 0.25 s', maxStun <= 0.25 + 1e-9 && boss.hp < boss.maxHp, `max stun ${maxStun.toFixed(2)} hp ${boss.hp}`);
-  const n = duel('trau', 'ung', [-5, -1], [6, -1]);
+  const n = duel('trau', 'ung', [-5, -1], [5, -1]);
   let ms = 0;
   run(n, 40, (i) => { ms = Math.max(ms, n.units[1].stunT); return [inp({ aim: 0, s2: i === 0 }), inp()]; });
   check('20j control: the same charge stuns an ordinary mech for ~0.9 s', ms > 0.7, `max stun ${ms.toFixed(2)}`);

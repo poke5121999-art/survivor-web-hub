@@ -8,12 +8,23 @@ import { allInputs } from '../js/bots.js';
 import { MAP_ORDER, NHA_ORDER } from '../js/maps.js';
 import { MECH_ORDER, TICK } from '../js/data.js';
 
+// "Against" = the unit's rim is within this distance of static geometry, a prop or a tower: stuck ticks there are collision jams,
+// the rest are bots reversing or starting from rest on open ground.
+const AGAINST = 0.3;
+function rimGap(m, u, x, z) {
+  let d = Math.min(m.map.hw - Math.abs(x), m.map.hd - Math.abs(z));
+  for (const w of m.map.walls) d = Math.min(d, Math.hypot(Math.max(w.x0 - x, 0, x - w.x1), Math.max(w.z0 - z, 0, z - w.z1)));
+  for (const c of m.map.rounds) d = Math.min(d, Math.hypot(c.x - x, c.z - z) - c.r);
+  for (const p of m.props) if (p.alive) d = Math.min(d, Math.hypot(p.x - x, p.z - z) - p.r);
+  for (const t of m.towers) if (t.alive) d = Math.min(d, Math.hypot(t.x - x, t.z - z) - t.r);
+  return d - u.radius;
+}
 const TAG = process.env.STUCK_TAG || 'run', SEEDS = [11, 12, 13], SIM_SECONDS = 120, CELL = 2;
 const LAYOUTS = [...MAP_ORDER.map((k) => [k, 'tdm']), ...NHA_ORDER.map((k) => [k, 'nha'])];
 const rotate = (i, off) => Array.from({ length: 5 }, (_, k) => MECH_ORDER[(i + off + k) % MECH_ORDER.length]);
 
 function playLayout(map, mode) {
-  const L = { wants: 0, stuck: 0, longest: 0, cells: new Map(), mech: {} };
+  const L = { wants: 0, stuck: 0, against: 0, longest: 0, cells: new Map(), acells: new Map(), mech: {} };
   for (const seed of SEEDS) {
     const roster = [];
     for (let t = 0; t < 2; t++) for (const mech of rotate(seed, t * 3)) roster.push({ team: t, mech, name: mech + t, bot: true, diff: 'normal' });
@@ -39,6 +50,7 @@ function playLayout(map, mode) {
         if (r > L.longest) L.longest = r;
         const key = Math.floor(p.x / CELL) + ',' + Math.floor(p.z / CELL);
         L.cells.set(key, (L.cells.get(key) || 0) + 1);
+        if (rimGap(m, u, p.x, p.z) < AGAINST) { L.against++; L.acells.set(key, (L.acells.get(key) || 0) + 1); }
       }
     }
   }
@@ -48,15 +60,17 @@ function playLayout(map, mode) {
 const out = {};
 for (const [map, mode] of LAYOUTS) {
   const L = playLayout(map, mode);
-  const worst = [...L.cells].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, n]) => {
+  const top = (cells) => [...cells].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, n]) => {
     const [i, j] = k.split(',').map(Number);
     return { x: i * CELL + CELL / 2, z: j * CELL + CELL / 2, ticks: n };
   });
+  const worst = top(L.cells), worstAgainst = top(L.acells);
   const mech = {};
   for (const k in L.mech) mech[k] = { wants: L.mech[k].wants, stuckPct: +(100 * L.mech[k].stuck / L.mech[k].wants).toFixed(2) };
-  out[map] = { mode, wants: L.wants, stuck: L.stuck, stuckPct: +(100 * L.stuck / L.wants).toFixed(2), longestRunSec: +(L.longest * TICK).toFixed(2), worstCells: worst, mech };
-  console.log(`${map.padEnd(9)} ${mode}  stuck ${out[map].stuckPct}% of ${L.wants}  longest ${out[map].longestRunSec}s`);
+  out[map] = { mode, wants: L.wants, stuck: L.stuck, stuckPct: +(100 * L.stuck / L.wants).toFixed(2), againstPct: +(100 * L.against / L.wants).toFixed(2), longestRunSec: +(L.longest * TICK).toFixed(2), worstCells: worst, worstAgainstCells: worstAgainst, mech };
+  console.log(`${map.padEnd(9)} ${mode}  stuck ${out[map].stuckPct}% (against an obstacle ${out[map].againstPct}%) of ${L.wants}  longest ${out[map].longestRunSec}s`);
   console.log('   worst cells: ' + worst.map((c) => `(${c.x},${c.z}):${c.ticks}`).join(' '));
+  console.log('   worst cells against an obstacle: ' + worstAgainst.map((c) => `(${c.x},${c.z}):${c.ticks}`).join(' '));
   console.log('   per mech: ' + Object.entries(mech).map(([k, v]) => `${k} ${v.stuckPct}%`).join('  '));
 }
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.chk');

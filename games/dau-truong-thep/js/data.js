@@ -33,7 +33,7 @@ export const MECHS = {
   trau: {
     name: 'Trâu Sắt', role: 'Trụ', roleKey: 'tank', price: 0, tint: 0x8fa3b5,
     blurb: 'Giáp dày, pháo nặng. Đi đầu, húc choáng và che đạn cho đồng đội.',
-    hp: 3400, speed: 5.1, radius: 1.2,
+    hp: 3400, speed: 5.1, radius: 0.96,
     weapon: { name: 'Pháo Búa', cd: 0.95, dmg: 250, speed: 27, range: 15, splash: 2.2, knock: 2.5, r: 0.34, vis: 'shell' },
     skills: [
       { id: 'giap', name: 'Giáp Phản Lực', cd: 12, do: 'shield', amount: 1000, dur: 4.5, icon: 'shield',
@@ -47,7 +47,7 @@ export const MECHS = {
   soi: {
     name: 'Sói Lửa', role: 'Xung kích', roleKey: 'assault', price: 0, tint: 0xd9843a,
     blurb: 'Hai nòng liên thanh, cơ động. Áp sát, xả đạn rồi rút.',
-    hp: 2500, speed: 6.5, radius: 1.0,
+    hp: 2500, speed: 6.5, radius: 0.8,
     weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 60, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
     skills: [
       { id: 'rocket', name: 'Rocket Chùm', cd: 8, do: 'volley', n: 3, fan: 0.22, dmg: 190, speed: 24, range: 15, splash: 2.4, r: 0.3, vis: 'rocket', icon: 'rocket',
@@ -61,7 +61,7 @@ export const MECHS = {
   ung: {
     name: 'Ưng Nhãn', role: 'Bắn tỉa', roleKey: 'sniper', price: 0, tint: 0x7c6bd6,
     blurb: 'Súng ray tầm xa, máu mỏng. Giữ khoảng cách, bẫy kẻ lao vào.',
-    hp: 1700, speed: 6.0, radius: 0.95,
+    hp: 1700, speed: 6.0, radius: 0.76,
     weapon: { name: 'Súng Ray', cd: 1.5, dmg: 390, speed: 62, range: 23, r: 0.2, vis: 'rail' },
     skills: [
       { id: 'min', name: 'Mìn Xung Điện', cd: 11, do: 'mine', trigger: 2.1, blast: 3, dmg: 260, stun: 1.2, arm: 0.8, life: 35, cast: 9, icon: 'mine',
@@ -75,7 +75,7 @@ export const MECHS = {
   hac: {
     name: 'Bạch Hạc', role: 'Hỗ trợ', roleKey: 'support', price: 0, tint: 0x59c9a5,
     blurb: 'Hồi máu, làm chậm và dựng vòm chắn đạn cho cả đội.',
-    hp: 2300, speed: 6.2, radius: 1.0,
+    hp: 2300, speed: 6.2, radius: 0.8,
     weapon: { name: 'Xung Quang', cd: 0.32, dmg: 100, speed: 30, range: 14, r: 0.26, vis: 'pulse' },
     skills: [
       { id: 'hoiphuc', name: 'Suối Hồi Phục', cd: 13, do: 'zone', at: 'self', radius: 5, dur: 4.5, hps: 150, vis: 'heal', icon: 'heal',
@@ -89,7 +89,7 @@ export const MECHS = {
   loi: {
     name: 'Lôi Công', role: 'Pháo kích', roleKey: 'artillery', price: 900, tint: 0x9aa03a,
     blurb: 'Cối bắn vòng qua tường. Đứng sau đồng đội, dội đạn vào chỗ địch tụ lại.',
-    hp: 1900, speed: 5.5, radius: 1.05,
+    hp: 1900, speed: 5.5, radius: 0.84,
     weapon: { name: 'Cối Sấm', cd: 1.6, dmg: 300, lob: true, flight: 0.85, range: 17, splash: 2.7, vis: 'mortar' },
     skills: [
       { id: 'khoi', name: 'Màn Khói', cd: 14, do: 'zone', at: 'target', cast: 12, radius: 4.6, dur: 5.5, hide: true, vis: 'smoke', icon: 'smoke',
@@ -103,7 +103,7 @@ export const MECHS = {
   bocap: {
     name: 'Bọ Cạp', role: 'Thọc sườn', roleKey: 'flanker', price: 900, tint: 0x6a5acd,
     blurb: 'Nhanh nhất đấu trường, súng chùm tầm ngắn. Vòng ra sau, kết liễu kẻ yếu máu rồi biến mất.',
-    hp: 2200, speed: 7.3, radius: 0.95,
+    hp: 2200, speed: 7.3, radius: 0.76,
     weapon: { name: 'Súng Chùm', cd: 0.72, dmg: 62, n: 5, fan: 0.09, speed: 30, range: 9, r: 0.18, vis: 'pellet' },
     skills: [
       { id: 'vomoi', name: 'Vồ Mồi', cd: 8, do: 'dash', dist: 9, speed: 32, dmg: 170, stun: 0.4, knock: 1, icon: 'dash',
@@ -117,7 +117,7 @@ export const MECHS = {
   bang: {
     name: 'Băng Nha', role: 'Khống chế', roleKey: 'control', price: 1200, tint: 0x9fd8ff,
     blurb: 'Mỗi phát bắn làm chậm. Dựng tường băng chia cắt đội hình, gọi bão tuyết giữ chân cả nhóm.',
-    hp: 2700, speed: 5.8, radius: 1.05,
+    hp: 2700, speed: 5.8, radius: 0.84,
     weapon: { name: 'Gai Băng', cd: 0.36, dmg: 88, speed: 28, range: 13, r: 0.24, slow: 0.2, slowDur: 1.2, vis: 'frost' },
     skills: [
       { id: 'tuongbang', name: 'Tường Băng', cd: 14, do: 'wall', cast: 4, n: 5, r: 0.75, gap: 1.35, dur: 4.5, icon: 'wall',
@@ -131,7 +131,7 @@ export const MECHS = {
   tho: {
     name: 'Thợ Rèn', role: 'Công binh', roleKey: 'engineer', price: 1200, tint: 0xc9762b,
     blurb: 'Đặt ụ súng tự bắn, hút địch vào hố từ rồi rải mìn giữ đất.',
-    hp: 2700, speed: 5.6, radius: 1.1,
+    hp: 2700, speed: 5.6, radius: 0.88,
     weapon: { name: 'Súng Đinh', cd: 0.45, dmg: 118, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' },
     skills: [
       { id: 'usung', name: 'Ụ Súng', cd: 15, do: 'turret', cast: 5, hp: 800, dur: 18, range: 11, dmg: 55, rate: 0.3, icon: 'turret',
