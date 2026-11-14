@@ -10,21 +10,21 @@ import { TEAMS, RULES } from '../data.js';
 
 // Everything that changes with the map's theme: ground textures and tints, stone tint, how much of each plant grows, light.
 const THEMES = {
-  jungle: { base: 'grass', path: 'dirt', lo: [0.62, 0.8, 0.55], hi: [1.25, 1.15, 0.8], pave: [1, 1, 1], stone: 0xffffff, grass: 1, leaf: [1, 1, 1], fern: 1, broad: 1, tall: 'palm', tallRate: 0.36, bush: [1, 1, 1],
+  jungle: { growth: 'moss', base: 'grass', path: 'dirt', lo: [0.62, 0.8, 0.55], hi: [1.25, 1.15, 0.8], pave: [1, 1, 1], stone: 0xffffff, grass: 1, leaf: [1, 1, 1], fern: 1, broad: 1, tall: 'palm', tallRate: 0.36, bush: [1, 1, 1],
     sun: [0xfff0d2, 3.1], hemi: [0xcfe8ff, 0x4d6a2e, 0.85], clear: 0x0b1a0d, exposure: 1 },
-  desert: { base: 'sand', path: 'track', lo: [0.85, 0.85, 0.85], hi: [1.12, 1.08, 1.0], pave: [1.05, 0.95, 0.8], stone: 0xf2d9ae, grass: 0.22, leaf: [1.5, 1.1, 0.5], fern: 0.3, broad: 0.25, tall: 'palm', tallRate: 0.14, bush: [1.0, 0.85, 0.5],
+  desert: { growth: 'sand', base: 'sand', path: 'track', lo: [0.85, 0.85, 0.85], hi: [1.12, 1.08, 1.0], pave: [1.05, 0.95, 0.8], stone: 0xf2d9ae, grass: 0.22, leaf: [1.5, 1.1, 0.5], fern: 0.3, broad: 0.25, tall: 'palm', tallRate: 0.14, bush: [1.0, 0.85, 0.5],
     sun: [0xffe6b8, 3.5], hemi: [0xd9e6ff, 0x8a6a3c, 0.9], clear: 0x2a1f12, exposure: 0.95 },
-  ice: { base: 'snow', path: 'track', lo: [0.85, 0.9, 0.98], hi: [1.05, 1.05, 1.05], pave: [0.8, 0.9, 1.05], stone: 0xb9d2e8, grass: 0.12, leaf: [1.3, 1.6, 2.0], fern: 0.2, broad: 0, tall: 'pine', tallRate: 0.42, bush: [0.9, 1.15, 1.35],
+  ice: { growth: 'snow', base: 'snow', path: 'track', lo: [0.85, 0.9, 0.98], hi: [1.05, 1.05, 1.05], pave: [0.8, 0.9, 1.05], stone: 0xb9d2e8, grass: 0.12, leaf: [1.9, 1.4, 3.2], fern: 0.2, broad: 0, tall: 'pine', tallRate: 0.42, bush: [1.6, 1.25, 3.0],
     sun: [0xe8f2ff, 2.2], hemi: [0xdfeeff, 0x7d93ad, 0.8], clear: 0x0e1722, exposure: 0.85 },
-  lava: { base: 'basalt', path: 'ash', lo: [0.8, 0.8, 0.8], hi: [1.25, 1.15, 1.1], pave: [0.5, 0.45, 0.45], stone: 0x6e6468, grass: 0.08, leaf: [0.9, 0.35, 0.15], fern: 0.12, broad: 0, tall: 'dead', tallRate: 0.3, bush: [1.1, 0.5, 0.3],
+  lava: { growth: 'ash', base: 'basalt', path: 'ash', lo: [0.8, 0.8, 0.8], hi: [1.25, 1.15, 1.1], pave: [0.5, 0.45, 0.45], stone: 0x6e6468, grass: 0.08, leaf: [0.9, 0.35, 0.15], fern: 0.12, broad: 0, tall: 'dead', tallRate: 0.3, bush: [1.1, 0.5, 0.3],
     sun: [0xffc9a0, 2.3], hemi: [0xffb080, 0x40201a, 0.75], clear: 0x120807, exposure: 1.05 },
-  city: { base: 'asphalt', path: 'concrete', lo: [0.8, 0.8, 0.8], hi: [1.2, 1.2, 1.2], pave: [0.75, 0.75, 0.78], stone: 0xb4b2ae, grass: 0.14, leaf: [0.8, 0.9, 0.6], fern: 0.3, broad: 0, tall: 'dead', tallRate: 0.18, bush: [0.75, 0.85, 0.6],
+  city: { growth: 'grime', base: 'asphalt', path: 'concrete', lo: [0.8, 0.8, 0.8], hi: [1.2, 1.2, 1.2], pave: [0.75, 0.75, 0.78], stone: 0xb4b2ae, grass: 0.14, leaf: [0.8, 0.9, 0.6], fern: 0.3, broad: 0, tall: 'dead', tallRate: 0.18, bush: [0.75, 0.85, 0.6],
     sun: [0xffb37a, 2.6], hemi: [0xb9a6d9, 0x3a3540, 0.8], clear: 0x14121a, exposure: 1.05 },
-  swamp: { base: 'grass', path: 'mud', lo: [0.3, 0.5, 0.5], hi: [0.6, 0.85, 0.7], pave: [0.5, 0.6, 0.6], stone: 0x7e9a96, grass: 1, leaf: [0.45, 0.8, 0.8], fern: 1.2, broad: 1, tall: 'palm', tallRate: 0.3, bush: [0.5, 0.9, 0.85],
+  swamp: { growth: 'moss', base: 'grass', path: 'mud', lo: [0.3, 0.5, 0.5], hi: [0.6, 0.85, 0.7], pave: [0.5, 0.6, 0.6], stone: 0x7e9a96, grass: 1, leaf: [0.45, 0.8, 0.8], fern: 1.2, broad: 1, tall: 'palm', tallRate: 0.3, bush: [0.5, 0.9, 0.85],
     sun: [0x9fc4ff, 1.25], hemi: [0x4a6aa8, 0x12261f, 0.6], clear: 0x050b10, exposure: 1.25, fireflies: true },
-  autumn: { base: 'grass', path: 'dirt', lo: [1.5, 0.75, 0.3], hi: [2.1, 1.25, 0.45], pave: [1.05, 0.95, 0.85], stone: 0xe6d2b4, grass: 0.8, leaf: [2.6, 1.0, 0.3], fern: 0.8, broad: 0.6, tall: 'dead', tallRate: 0.22, bush: [1.5, 0.8, 0.35],
+  autumn: { growth: 'dry', base: 'grass', path: 'dirt', lo: [1.5, 0.75, 0.3], hi: [2.1, 1.25, 0.45], pave: [1.05, 0.95, 0.85], stone: 0xe6d2b4, grass: 0.8, leaf: [2.6, 1.0, 0.3], fern: 0.8, broad: 0.6, tall: 'dead', tallRate: 0.22, bush: [1.5, 0.8, 0.35],
     sun: [0xffc27a, 3.2], hemi: [0xffd9b0, 0x6a4a2a, 0.8], clear: 0x1a1008, exposure: 0.98 },
-  canyon: { base: 'sand', path: 'track', lo: [1.15, 0.6, 0.45], hi: [1.35, 0.78, 0.55], pave: [1.1, 0.75, 0.6], stone: 0xe08a62, grass: 0.1, leaf: [1.4, 1.0, 0.5], fern: 0.15, broad: 0.1, tall: 'dead', tallRate: 0.1, bush: [1.0, 0.8, 0.45],
+  canyon: { growth: 'sand', base: 'sand', path: 'track', lo: [1.15, 0.6, 0.45], hi: [1.35, 0.78, 0.55], pave: [1.1, 0.75, 0.6], stone: 0xe08a62, grass: 0.1, leaf: [1.4, 1.0, 0.5], fern: 0.15, broad: 0.1, tall: 'dead', tallRate: 0.1, bush: [1.0, 0.8, 0.45],
     sun: [0xffd0a0, 3.4], hemi: [0xffe0c8, 0x8a4630, 0.85], clear: 0x24100a, exposure: 0.95 },
 };
 
@@ -61,6 +61,7 @@ function groundSampler(map) {
     const path = 1 - smooth(1.3, 2.9, dPath + wob);
     let pave = 0;
     for (const c of discs) pave = Math.max(pave, 1 - smooth(c[2] - 0.7, c[2] + 0.5, Math.hypot(x - c[0], z - c[1]) + wob * 0.5));
+    for (const y of map.yards) pave = Math.max(pave, (1 - smooth(-0.6, 1.0, Math.max(y[0] - x, x - y[1], y[2] - z, z - y[3]) + wob * 0.6)) * 0.92);
     let dark = 0;
     for (const w of map.walls) {
       const d = Math.hypot(Math.max(w.x0 - x, 0, x - w.x1), Math.max(w.z0 - z, 0, z - w.z1));
@@ -90,7 +91,7 @@ function splatTexture(map, sample) {
 }
 
 function groundMaterial(tex, splat, map, wind, blendNormals, theme) {
-  const grass = tex.bake(theme.base), dirt = tex.bake(theme.path), pave = tex.bake('pave');
+  const grass = tex.bake(theme.base), dirt = tex.bake(theme.path), pave = tex.bake('pave', theme.growth);
   const m = new THREE.MeshStandardMaterial({ map: grass.map, normalMap: grass.normal, roughness: 0.93, metalness: 0, envMapIntensity: 0.35 });
   m.normalScale.setScalar(1.3);
   m.onBeforeCompile = (sh) => {
@@ -159,6 +160,25 @@ function buildStructures(map, rng) {
         for (const sx of [-1, 1]) b.push().move(ox + sx * (len / 2 + 0.03), y + 1.3, 0).box(0.06, 2.3, thick * 0.9).pop();
         b.tint(0x30353b).push().move(ox, y + 2.6, 0).box(len + 0.1, 0.1, thick + 0.1).pop();
       }
+    } else if (w.kind === 'rampart') {
+      const sh = shadeBox(w.h), team = map.yards.findIndex((y) => w.x > y[0] && w.x < y[1] && w.z > y[2] && w.z < y[3]), glow = team < 0 ? 'glow' : 'glow' + team;
+      b.use('ruin', 0xb9b09c).push().move(0, 0.3, 0).box(len + 0.7, 0.6, thick + 0.7).pop();
+      b.push().move(0, w.h * 0.5, 0).tint(0xdcd2bb).box(len, w.h, thick, sh).pop();
+      b.push().move(0, w.h + 0.13, 0).tint(0xc9c0aa).box(len + 0.36, 0.26, thick + 0.36).pop();
+      const nm = Math.max(2, Math.round(len / 1.15));
+      for (let i = 0; i < nm; i++) for (const sz of [-1, 1]) b.push().move(-len / 2 + (i + 0.5) * (len / nm), w.h + 0.56, sz * (thick / 2 + 0.02)).tint(0xe4dac4).box(len / nm * 0.56, 0.6, 0.34).pop();
+      const nb = Math.max(1, Math.round(len / 4.5));
+      for (let i = 0; i < nb; i++) for (const sz of [-1, 1]) b.push().move(-len / 2 + (i + 0.5) * (len / nb), w.h * 0.36, sz * (thick / 2 + 0.16)).tint(0xbdb39e).box(0.7, w.h * 0.72, 0.36, sh).pop();
+      for (const sx of [-1, 1]) {
+        b.use('ruin', 0xd6ccb6).push().move(sx * len / 2, 0, 0);
+        b.push().move(0, (w.h + 0.9) / 2, 0).cyl(thick * 0.72, thick * 0.86, w.h + 0.9, 8, sh).pop();
+        b.push().move(0, w.h + 1.05, 0).tint(0xc2b8a2).cyl(thick * 0.9, thick * 0.74, 0.3, 8).pop();
+        b.use('metal', 0x4a525c).push().move(0, w.h + 2.5, 0).cyl(0.05, 0.07, 2.7, 6).pop();
+        b.use(glow).push().move(0.02, w.h + 3.25, 0.5).box(0.05, 0.95, 0.95).pop().push().move(0, w.h + 1.22, 0).geo(new THREE.RingGeometry(thick * 0.4, thick * 0.54, 8).rotateX(-Math.PI / 2)).pop();
+        b.pop();
+      }
+      b.use(glow);
+      for (const sz of [-1, 1]) b.push().move(0, w.h * 0.6, sz * (thick / 2 + 0.01)).box(len * 0.84, 0.11, 0.03).pop();
     } else if (w.kind === 'block') {
       const sh = shadeBox(w.h);
       b.use('ruin', 0xc9c0ac).push().move(0, 0.25, 0).box(len + 0.5, 0.5, thick + 0.5).pop();
@@ -220,6 +240,18 @@ function buildStructures(map, rng) {
     }
     b.pop();
   }
+  for (const t of map.towers) {
+    const r = t.kind === 'main' ? 4.6 : 3.3;
+    b.push().move(t.x, 0, t.z);
+    b.use('pave', 0xcfc7b6).push().move(0, 0.07, 0).cyl(r, r + 0.3, 0.14, 12).pop().push().move(0, 0.2, 0).tint(0xe2dac8).cyl(r - 0.9, r - 0.7, 0.14, 12).pop();
+    b.use('glow' + t.team).push().move(0, 0.16, 0).geo(new THREE.RingGeometry(r - 0.5, r - 0.3, 48).rotateX(-Math.PI / 2)).pop();
+    if (t.kind === 'main') for (let i = 0; i < 4; i++) {
+      const a = i * 1.5708 + 0.785;
+      b.use('ruin', 0xd6ccb6).push().move(Math.cos(a) * (r - 0.1), 0.9, Math.sin(a) * (r - 0.1)).cyl(0.3, 0.42, 1.8, 6).pop();
+      b.use('glow' + t.team).push().move(Math.cos(a) * (r - 0.1), 2.0, Math.sin(a) * (r - 0.1)).cyl(0.2, 0.26, 0.4, 6).pop();
+    }
+    b.pop();
+  }
   for (let t = 0; t < 2; t++) {
     const [bx, bz] = map.bases[t];
     b.push().move(bx, 0, bz);
@@ -275,7 +307,7 @@ export function makeWorld(G, map, tex) {
   ground.receiveShadow = true; group.add(ground);
 
   const mats = {
-    ruin: tex.material('ruin').clone(), pave: tex.material('pave').clone(), wood: tex.material('wood'), metal: tex.material('metal'),
+    ruin: tex.material('ruin', { growth: theme.growth }).clone(), pave: tex.material('pave', { growth: theme.growth }).clone(), wood: tex.material('wood'), metal: tex.material('metal'),
     plain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 }),
     glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.15, 0.35), toneMapped: false }),
     glow0: new THREE.MeshBasicMaterial({ color: new THREE.Color(TEAMS[0].color).multiplyScalar(2.2), toneMapped: false }),

@@ -8,7 +8,7 @@
 import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { snapshot, applySnapshot, createMirror, packEvents, SNAP_TICKS } from './netstate.js';
 import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
-import { MAPS, THEMES, pickArena } from './maps.js';
+import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
 
 const PROTOCOL = 1;
@@ -574,6 +574,7 @@ export function makeOnline(G) {
       if (mode === 'trum') L.players.forEach((p) => { p.team = 0; });
     }
     if (map && (MAPS[map] || map === 'random')) L.map = map;
+    L.map = fitMap(L.map, L.mode);
     // theme: a THEMES key, 'random', or null for the layout's own theme
     if (theme !== undefined && (theme === null || theme === 'random' || THEMES[theme])) L.theme = theme;
     if (diff && DIFFICULTY[diff]) L.diff = diff;
@@ -629,7 +630,7 @@ export function makeOnline(G) {
     }
     const rule = MODES[L.mode];
     // 'random' is resolved here on the host, so every machine gets the same concrete layout and theme.
-    const arena = pickArena(L.map, L.theme, seed);
+    const arena = pickArena(L.map, L.theme, seed, L.mode);
     return { rosterData: { map: arena.map, theme: arena.theme, mode: L.mode, seed, target: rule.target, duration: rule.duration, units }, slots };
   }
 

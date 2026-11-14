@@ -53,8 +53,11 @@ session(async (br, base) => {
     await g.close();
   }
 
-  for (const mode of ['nha', 'chiem', 'tudo', 'trum']) {
-    const g = await open(br, base, `manual&noaudio&autostart&seed=31&bots=normal&q=low&mode=${mode}&mech=tho`);
+  for (const [mode, map] of [['nha', 'luythep'], ['nha', 'hemcheo'], ['nha', 'denrung'], ['chiem', ''], ['tudo', ''], ['trum', 'luythep']]) {
+    const g = await open(br, base, `manual&noaudio&autostart&seed=31&bots=normal&q=low&mode=${mode}&mech=tho${map ? '&map=' + map : ''}`);
+    const arena = await g.page.evaluate(() => ({ key: window.__G.match.map.key, yards: window.__G.match.map.yards.length, towers: window.__G.match.towers.length }));
+    if (mode === 'nha') check(['luythep', 'hemcheo'].includes(arena.key) && (map === 'denrung' || arena.key === map) && arena.yards === 2 && arena.towers === 6, `[nha, asked for ${map}] the match runs on a base-assault layout with two yards and six towers (${arena.key})`);
+    else check(!['luythep', 'hemcheo'].includes(arena.key) && arena.towers === 0, `[${mode}${map ? ', asked for ' + map : ''}] the match runs on an arena layout (${arena.key})`);
     const r = await g.page.evaluate(() => {
       const G = window.__G; let guard = 0;
       G.match.units[0].bot = true;
@@ -62,9 +65,9 @@ session(async (br, base) => {
       const res = document.querySelector('#ui .screen.result');
       return { mode: G.match.mode, over: G.match.over, units: G.match.units.length, state: G.mode, shown: !!res && getComputedStyle(res).display !== 'none', errors: window.__errors };
     });
-    check(r.over && r.mode === mode && r.state === 'result' && r.shown, `[${mode}] a full match in this mode ends on the result screen (${r.units} units)`);
+    check(r.over && r.mode === mode && r.state === 'result' && r.shown, `[${mode}${map ? ' ' + map : ''}] a full match in this mode ends on the result screen (${r.units} units)`);
     check(r.errors.length === 0 && g.problems.length === 0, `[${mode}] no errors` + (r.errors[0] ? ': ' + r.errors[0].slice(0, 200) : '') + (g.problems[0] ? ' ' + g.problems[0].slice(0, 200) : ''));
-    await g.page.screenshot({ path: path.join(CHK, `play-result-${mode}.png`) });
+    await g.page.screenshot({ path: path.join(CHK, `play-result-${mode}${map ? '-' + map : ''}.png`) });
     await g.close();
   }
 
@@ -116,6 +119,14 @@ session(async (br, base) => {
     const menu = await p.evaluate(() => { const s = document.querySelector('#ui .screen.menu'); return !!s && getComputedStyle(s).display !== 'none' && window.__G.mode === 'attract'; });
     check(menu, 'without ?autostart the menu shows over a live bot match');
     await p.screenshot({ path: path.join(CHK, 'play-menu.png') });
+    const pick = await p.evaluate(() => {
+      const maps = () => [...document.querySelectorAll('#ui .screen.menu [data-map]')].map((b) => b.dataset.map).join();
+      const out = [maps()];
+      document.querySelector('#ui .screen.menu [data-mode="nha"]').click(); out.push(maps(), document.querySelector('#ui .screen.menu [data-map].on').dataset.map);
+      document.querySelector('#ui .screen.menu [data-mode="tdm"]').click(); out.push(maps(), document.querySelector('#ui .screen.menu [data-map].on').dataset.map);
+      return out;
+    });
+    check(pick.join('|') === 'denrung,xuongcat,cangbang,mienglua,random|luythep,hemcheo,random|luythep|denrung,xuongcat,cangbang,mienglua,random|denrung', `the menu offers only base-assault layouts for Thủ nhà and only arenas for the other modes (${pick.join('|')})`);
     await p.evaluate(() => window.__G.bus.emit('ui:play', { mech: 'trau', diff: 'easy', map: 'denrung' }));
     await p.waitForTimeout(1500);
     const hud = await p.evaluate(() => ({ mode: window.__G.mode, me: window.__G.match.units[0].mech, bot: window.__G.match.units[0].bot, t: window.__G.match.time,

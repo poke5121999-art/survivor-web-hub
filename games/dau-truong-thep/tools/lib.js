@@ -10,7 +10,26 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const CHK = path.join(ROOT, '.chk');
 const GAME = '/games/dau-truong-thep/index.html';
 
-function launch() {
+// One Chrome at a time on this shared box: every tool waits for the lock file, which names the PID that holds it.
+const LOCK = path.join(CHK, '.chrome.lock');
+async function lockChrome() {
+  fs.mkdirSync(CHK, { recursive: true });
+  for (;;) {
+    try { fs.writeFileSync(LOCK, String(process.pid), { flag: 'wx' }); break; } catch (e) {
+      let holder = 0; try { holder = Number(fs.readFileSync(LOCK, 'utf8')); } catch (e2) {}
+      let alive = holder === process.pid; if (!alive && holder) { try { process.kill(holder, 0); alive = true; } catch (e3) {} }
+      if (holder === process.pid) break;
+      if (!alive) { try { fs.unlinkSync(LOCK); } catch (e4) {} continue; }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  const free = () => { try { if (Number(fs.readFileSync(LOCK, 'utf8')) === process.pid) fs.unlinkSync(LOCK); } catch (e) {} };
+  process.on('exit', free);
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { free(); process.exit(1); });
+}
+
+async function launch() {
+  await lockChrome();
   const gl = process.env.DTT_GL || 'swiftshader';
   return require(PW).chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + gl, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 }
@@ -45,4 +64,4 @@ function checker() {
   return check;
 }
 
-module.exports = { launch, open, session, checker, ROOT, CHK, fs, path };
+module.exports = { lockChrome, launch, open, session, checker, ROOT, CHK, fs, path };

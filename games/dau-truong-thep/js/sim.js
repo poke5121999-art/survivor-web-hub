@@ -9,14 +9,14 @@
 
 import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES } from './data.js';
 import { mulberry } from './rng.js';
-import { compileMap, castStatic, segCircle, solidAt, navBlock } from './maps.js';
+import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from './maps.js';
 
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 
 export function createMatch(opts) {
-  const map = compileMap(opts.map || 'denrung', opts.theme);
-  const mode = MODES[opts.mode] ? opts.mode : 'tdm', rule = MODES[mode];
+  const mode = MODES[opts.mode] ? opts.mode : 'tdm', rule = MODES[mode], pool = mapsFor(mode);
+  const map = compileMap(pool.includes(opts.map) ? opts.map : pool[0], opts.theme);
   const m = {
     mode, rule, lives: rule.lives || 0, points: [], towers: [],
     map, seed: opts.seed >>> 0, rng: mulberry(opts.seed >>> 0), tick: 0, time: 0,
@@ -44,14 +44,10 @@ export function createMatch(opts) {
   }
   if (mode === 'tudo') m.score = m.units.map(() => 0);
   if (mode === 'nha') {
-    const T = rule.tower, [bx, bz] = map.bases[0], toMid = bx < 0 ? 1 : -1;
-    const spots = [['main', bx + toMid * 6, bz], ['sub', bx + toMid * 13.5, bz - 9.5], ['sub', bx + toMid * 13.5, bz + 9.5]];
-    // Team 1's towers are the exact mirror of team 0's, so a nudge away from a wall is the same for both.
-    const placed = spots.map(([kind, sx, sz]) => [kind, ...freeSpot(map, sx, sz)]);
-    for (let t = 0; t < 2; t++) for (const [kind, sx, sz] of placed) {
-      const x = t ? -sx : sx, z = t ? -sz : sz;
-      m.towers.push({ id: m.towers.length, team: t, color: t, kind, x, z, r: T.radius, hp: T[kind], maxHp: T[kind], alive: true, cd: 1, charge: 0, aim: t ? Math.PI : 0, target: -1 });
-      navBlock(map, x, z, T.radius, true);
+    const T = rule.tower;
+    for (const p of map.towers) {
+      m.towers.push({ id: m.towers.length, team: p.team, color: p.team, kind: p.kind, x: p.x, z: p.z, r: T.radius, hp: T[p.kind], maxHp: T[p.kind], alive: true, cd: 1, charge: 0, aim: p.team ? Math.PI : 0, target: -1 });
+      navBlock(map, p.x, p.z, T.radius, true);
     }
   }
   if (mode === 'chiem') {

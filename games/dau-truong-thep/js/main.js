@@ -2,7 +2,7 @@
 
 import * as THREE from '../vendor/three.module.min.js';
 import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES } from './data.js';
-import { MAPS, THEMES, pickArena } from './maps.js';
+import { MAPS, THEMES, pickArena, compileMap, mapsFor } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
 import { mulberry } from './rng.js';
@@ -81,7 +81,7 @@ async function boot() {
     theme = THEMES[theme] ? theme : MAPS[key].theme;
     if (worldKey === key + '/' + theme) return;
     if (world) { scene.remove(world.group); world.dispose(); }
-    const map = createMatch({ map: key, theme, seed: 1, roster: [] }).map;
+    const map = compileMap(key, theme);
     world = G.gfx.world = makeWorld(G, map, tex); worldKey = key + '/' + theme; arena = { map: key, theme };
     scene.add(world.group);
     renderer.setClearColor(world.theme.clear, 1);
@@ -139,13 +139,14 @@ async function boot() {
     const rng = mulberry(seed ^ 0x51ed);
     const diff = DIFFICULTY[choice.diff] ? choice.diff : 'normal';
     // The menu's background match keeps the arena already built; a real match builds what was chosen ('random' resolves from the seed).
-    if (!attract) { const a = pickArena(choice.map, choice.theme, seed); useMap(a.map, a.theme); }
+    const mode = !attract && MODES[choice.mode] ? choice.mode : 'tdm';
+    if (!attract) { const a = pickArena(choice.map, choice.theme, seed, mode); useMap(a.map, a.theme); }
+    else if (!mapsFor(mode).includes(arena.map)) useMap(mapsFor(mode)[0], arena.theme);
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
     const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
     const bot = attract || params.spectate;
     const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint }];
     const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
-    const mode = !attract && MODES[choice.mode] ? choice.mode : 'tdm';
     const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
     for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff });
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });

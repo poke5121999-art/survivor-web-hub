@@ -48,12 +48,13 @@ Events (`m.events`, valid until the next `step`): `fire {id, vis, x, z, a, side}
 
 Skill primitives (`do`): `shield, dash, blink, nova (windup, optional repeat/gap), beam, volley, buff (haste, rapid, stealth), barrage (disc or line), mine, minefield, zone (field: hps, dps, slow, hide, pull), dome, recoil, wall, turret`. Weapons are shots (`n` pellets with `fan`, optional `slow`) or lobbed strikes (`lob`, `flight`).
 
-Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], rounds[{x, z, r, kind}], bushes[{id, x, z, r}], props, cratePoints, bases[2] = [x, z], spawns[2], nav`.
+Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], rounds[{x, z, r, kind}], bushes[{id, x, z, r}], props, cratePoints, bases[2] = [x, z], spawns[2], nav`, towers[{team, kind: 'main' | 'sub', x, z}], yards[2] = [x0, x1, z0, z1]` (the last two are empty on arena layouts).
 
 ## Modes, themes, online
 
 - Modes are rows in `MODES` (`tdm`, `nha`, `chiem`, `tudo`, `trum`); `createMatch({ mode })`. `nha` adds `m.towers`, `chiem` adds `m.points`, `trum` adds `m.lives` and a `BOSSES` unit, `tudo` gives every unit its own team. `u.color` (0 or 1) is the palette index the renderer and HUD use.
-- A theme (`THEMES` in `maps.js`) dresses any layout and decides what the layout's hazard spots are (`lava`, `ice`, `vent`, `mud`). `createMatch({ map, theme })`; `pickArena(map, theme, seed)` resolves `'random'`.
+- Layouts come in two pools: arenas (`MAP_ORDER`) for every mode except `nha`, and base-assault layouts (`NHA_ORDER`: `luythep`, `hemcheo`) built around their towers for `nha`. `mapsFor(mode)` is the pool, `fitMap(map, mode)` keeps a choice inside it, and `createMatch` falls back to the pool's first layout when given one from the other pool. A base-assault layout lists its own `towers` and the `yard` they stand in; walls of kind `rampart` enclose the yard. Keep a wall to wait behind near the ring just outside each sub tower's range: without it bot sieges stall (`sim-test` 29z11).
+- A theme (`THEMES` in `maps.js`) dresses any layout and decides what the layout's hazard spots are (`lava`, `ice`, `vent`, `mud`). `createMatch({ map, theme })`; `pickArena(map, theme, seed, mode)` resolves `'random'` inside the mode's pool.
 - Online is host-authoritative: the host steps the real match, guests send inputs and render a mirror match built by `createMirror` and updated by `applySnapshot` (15 Hz, events in between). `?fakenet=1` swaps the relay for a BroadcastChannel.
 
 ## Shared state `G` (browser)
@@ -86,4 +87,4 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 
-Browser tools need `PLAYWRIGHT_PATH`. `DTT_GL=gl-egl` uses the hardware GPU, `DTT_BASE=<hub url>` runs against a deployed hub.
+Browser tools need `PLAYWRIGHT_PATH`. They take a lock file (`.chk/.chrome.lock`) so only one Chrome runs at a time on a shared machine. `DTT_GL=gl-egl` uses the hardware GPU, `DTT_BASE=<hub url>` runs against a deployed hub.

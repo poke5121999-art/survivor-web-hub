@@ -92,6 +92,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
   base = srv.base;
+  await require('./lib.js').lockChrome();
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + (process.env.DTT_GL || 'swiftshader'), '--enable-unsafe-swiftshader'] });
   try {
     const sizes = [['desktop', { width: 1280, height: 720 }, false], ['phone', { width: 780, height: 360 }, true]];

@@ -16,6 +16,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 (async () => {
   const srv = await serve();
+  await require('./lib.js').lockChrome();
   const br = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const ctx = await br.newContext({ viewport: { width: 640, height: 360 } });
@@ -216,6 +217,8 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   await until(H, '__h.online.lobby.players.length === 3', 'host sees B again');
   await A.evaluate('__h.online.setMine({ ready: true })'); await B.evaluate("__h.online.setMine({ mech: 'bang', ready: true })");
   await until(H, '__h.online.lobby.players.every((p) => p.ready)', 'ready again');
+  const fit = await H.evaluate("(() => { const o = __h.online, out = []; o.setRoom({ mode: 'nha' }); out.push(o.lobby.map); o.setRoom({ map: 'denrung' }); out.push(o.lobby.map); o.setRoom({ map: 'hemcheo' }); out.push(o.lobby.map); o.setRoom({ mode: 'tdm' }); out.push(o.lobby.map); return out; })()");
+  check(fit.join() === 'luythep,luythep,hemcheo,denrung', `the room keeps a base-assault layout in Thủ nhà and an arena elsewhere (${fit.join()})`);
   check(await H.evaluate("__h.online.setRoom({ mode: 'trum' })"), 'room switches to Săn trùm with 3 players');
   check(await H.evaluate('__h.online.start()'), 'second match starts');
   await until(A, "__h.online.state === 'playing' && __h.view && __h.view.tick > 20", 'A in the second match');

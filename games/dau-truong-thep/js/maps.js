@@ -2,7 +2,7 @@
 // compileMap() rotates them 180 degrees around the centre to make the right half, so both teams get the same ground.
 // Pure data and geometry: no three.js here.
 
-// wall:  [x, z, width(x), depth(z), height, kind]     kind: ruin | block | fence
+// wall:  [x, z, width(x), depth(z), height, kind]     kind: ruin | block | fence | container | rampart (the wall of a base yard)
 // round: [x, z, radius, kind]                        kind: pillar | rock | tree  (blocks movement and shots)
 // bush:  [x, z, radius]
 // prop:  [x, z, kind]                                kind: crate | barrel | pot   (destructible)
@@ -145,9 +145,85 @@ export const MAPS = {
     plaza: [0, 0, 5.5],
     hazards: [[-16.5, -10, 3.4], [-13.5, 10.5, 3.2], [-4.5, -9.5, 2.4], [0, 9.5, 2.8]],
   },
+  // Base-assault layouts (mode nha only). towers: [kind, x, z] of team 0; yard: [x0, x1, z0, z1], the walled base the towers stand in.
+  luythep: {
+    name: 'Lũy Thép', theme: 'jungle', size: [104, 54], mode: 'nha',
+    blurb: 'Hai pháo đài ở hai đầu sân. Cổng giữa và hai cửa sườn đều có trụ phụ canh, trụ chính nằm giữa sân trong.',
+    base: [-46, 0],
+    spawns: [[-47, 0], [-46, -3], [-46, 3], [-48.5, -1.8], [-48.5, 1.8]],
+    towers: [['main', -35.5, 0], ['sub', -24, -11.5], ['sub', -24, 11.5]],
+    yard: [-52, -17.5, -20.5, 20.5],
+    walls: [
+      [-18.5, -5.5, 2, 6, 3.2, 'rampart'], [-18.5, 5.5, 2, 6, 3.2, 'rampart'],
+      [-39, -19.5, 26, 2, 3.0, 'rampart'], [-39, 19.5, 26, 2, 3.0, 'rampart'],
+      [-31.5, -6.5, 5, 1.6, 1.5, 'fence'], [-31.5, 6.5, 5, 1.6, 1.5, 'fence'],
+      [-11, -9, 6, 1.8, 2.4, 'ruin'], [-11, 9.5, 6, 1.8, 2.4, 'ruin'],
+      [-5, -21, 6, 1.8, 2.4, 'ruin'], [-5, 21.5, 5, 1.8, 2.4, 'ruin'],
+      [-7.5, 0, 2.4, 5, 3.4, 'block'], [-2, -13.5, 5, 1.8, 2.2, 'ruin'],
+    ],
+    rounds: [
+      [-16.6, -3.4, 0.9, 'pillar'], [-16.6, 3.4, 0.9, 'pillar'],
+      [-4.5, -16.5, 1.4, 'rock'], [-5, 16.5, 1.3, 'rock'], [-10.5, -25, 1.5, 'rock'], [-3.5, 7, 1.1, 'rock'], [-1.5, 24.5, 1.3, 'rock'],
+      [-33.5, -25.2, 0.5, 'tree'], [-38, -23.6, 0.5, 'tree'], [-43, -24.6, 0.5, 'tree'], [-33.5, 25.2, 0.5, 'tree'], [-38.5, 23.6, 0.5, 'tree'], [-44, 23.5, 0.5, 'tree'],
+      [-1.2, -5.8, 0.5, 'tree'], [-8.3, 5.4, 0.45, 'tree'], [-1.5, -24.5, 0.5, 'tree'], [-12, 24.5, 0.5, 'tree'], [-14.5, -25.6, 0.5, 'tree'],
+    ],
+    bushes: [[-11.5, -22, 2.5], [-9.5, 17.5, 2.4], [-1, -18, 2.3], [-2.5, 18.5, 2.2], [-11.5, -3.5, 1.9], [-23, -23.5, 2.2], [-24, 23.5, 2.2]],
+    props: [
+      [-28, -2.6, 'crate'], [-29.2, -3.6, 'crate'], [-28.5, 3.5, 'barrel'], [-42, -10, 'pot'], [-42, 10, 'pot'],
+      [-4.4, -7.6, 'crate'], [-4.2, 12.4, 'barrel'], [-6.5, -18.6, 'pot'], [-4.5, 3.6, 'crate'], [-9.8, -2, 'barrel'], [-5, -5, 'pot'],
+    ],
+    cratePoints: [[0, 0], [-10, -17.5], [0.5, -18.5], [-9.5, 21.5], [-3, -2.5], [-3.5, 11.5]],
+    paths: [
+      [[-50, 0], [-40, 0], [-37.5, -3.5], [-33, 0], [-18.5, 0], [-10, 1], [0, 0]],
+      [[-33, 0], [-27, -6.5], [-21.5, -15.5], [-12, -17.5], [0, -18.5], [10, -17.5]],
+      [[-33, 0], [-27, 6.5], [-21.5, 15.5], [-12, 18], [0, 17.5]],
+      [[-10, -17.5], [-11, -7], [-10, 1]],
+    ],
+    plaza: [0, 0, 6.5],
+    hazards: [[-3, -10, 2.0], [-12, 2.8, 2.0], [0, 10.5, 2.6]],
+  },
+  hemcheo: {
+    name: 'Hẻm Chéo', theme: 'canyon', size: [94, 62], mode: 'nha',
+    blurb: 'Hai căn cứ nằm chéo góc. Mỗi trụ phụ canh một cửa: đường vòng dài dẫn tới cửa này, đường tắt giữa sân dẫn tới cửa kia.',
+    base: [-40.5, 22],
+    spawns: [[-41.5, 23], [-40.5, 19.5], [-37.5, 23], [-43.5, 20], [-39.5, 25.5]],
+    towers: [['main', -33, 9.5], ['sub', -22, 16.5], ['sub', -30, -4.5]],
+    yard: [-47, -17.5, -10.5, 31],
+    walls: [
+      [-18.5, 8, 2, 8, 3.2, 'rampart'], [-18.5, 26, 2, 10, 3.2, 'rampart'], [-18.5, -6.5, 2, 6, 3.2, 'rampart'],
+      [-41, -9.5, 12, 2, 3.0, 'rampart'], [-21.75, -9.5, 6.5, 2, 3.0, 'rampart'],
+      [-4.5, 17.5, 1.8, 6, 2.4, 'ruin'], [-2, 27, 1.8, 5, 2.2, 'ruin'], [-10, -20, 7, 1.8, 2.4, 'ruin'], [-22, -22.5, 1.8, 6, 2.4, 'ruin'],
+      [-8, -3, 2.6, 5, 3.4, 'block'], [-6.5, 6, 5, 1.8, 2.4, 'ruin'], [-4, -11.5, 1.8, 5, 2.4, 'ruin'], [-38, -21.5, 5, 1.6, 1.5, 'fence'],
+    ],
+    rounds: [
+      [-16.6, -4, 0.9, 'pillar'], [-16.6, 4.5, 0.9, 'pillar'], [-3.6, 2.4, 0.95, 'pillar'],
+      [-14, -13, 1.4, 'rock'], [-26, -23, 1.5, 'rock'], [-7, 28, 1.3, 'rock'], [-1, 14, 1.2, 'rock'], [-41, -25, 1.6, 'rock'], [-6, -27, 1.4, 'rock'],
+      [-18, -27.5, 0.5, 'tree'], [-31.5, -26, 0.5, 'tree'], [-43.5, -15.5, 0.5, 'tree'], [-1.5, -19.5, 0.5, 'tree'],
+      [-12.5, -28, 0.5, 'tree'], [-44.5, -28.5, 0.5, 'tree'], [-12, 29.5, 0.5, 'tree'],
+    ],
+    bushes: [[-8, 23, 2.5], [-2.5, 21.5, 2.2], [-16, -17, 2.5], [-4, -23, 2.3], [-11, -8, 2.0], [-32.5, -25, 2.4], [-12.5, 2.5, 1.9]],
+    props: [
+      [-26, 5.5, 'crate'], [-27.2, 6.6, 'crate'], [-38.5, 1, 'pot'], [-26, 25, 'barrel'], [-2.6, 15, 'crate'], [-13, -18, 'barrel'],
+      [-5, 1, 'crate'], [-5.5, -7.5, 'barrel'], [-19, -17, 'pot'], [-1, 21, 'pot'],
+    ],
+    cratePoints: [[0, 0], [-9, 22], [-11, -16], [-3, -17], [-2.5, 8.5], [-23, -27.5]],
+    paths: [
+      [[-41, 22], [-33, 14], [-26, 5], [-18.5, 0.3], [-10, 1.5], [0, 0]],
+      [[-33, 14], [-24, 20], [-18.5, 16.5], [-12, 22], [0, 22.5], [9, 20.5]],
+      [[-33, 14], [-27, 2], [-30, -9.5], [-27, -21], [-14, -24], [0, -23.5], [9, -21.5]],
+      [[-11, -16], [-10, 1.5]],
+    ],
+    plaza: [0, 0, 6],
+    hazards: [[-8.5, -14.5, 2.3], [-8, 12.5, 2.2], [-18, -24, 2.3]],
+  },
 };
 
+// A layout belongs to one pool: the base-assault layouts are built around their towers, the arenas serve every other mode.
 export const MAP_ORDER = ['denrung', 'xuongcat', 'cangbang', 'mienglua'];
+export const NHA_ORDER = ['luythep', 'hemcheo'];
+export const mapsFor = (mode) => (mode === 'nha' ? NHA_ORDER : MAP_ORDER);
+// The map choice a mode can keep: 'random' or a layout of its pool, otherwise the pool's first layout.
+export const fitMap = (map, mode) => (map === 'random' || mapsFor(mode).includes(map) ? map : mapsFor(mode)[0]);
 
 // A theme dresses any layout: it decides what the layout's hazard spots become and what stands where the layout says "tree".
 // hazard kinds: lava (burns), ice (slippery), vent (a flame jet every few seconds, with a warning), mud (slows). null: no hazards.
@@ -164,11 +240,11 @@ export const THEMES = {
 export const THEME_ORDER = ['jungle', 'desert', 'ice', 'lava', 'city', 'swamp', 'autumn', 'canyon'];
 
 // Layout and theme for a match. 'random' picks from the seed, so every machine in a room builds the same arena.
-export function pickArena(map, theme, seed) {
+export function pickArena(map, theme, seed, mode) {
   let h = (seed ^ 0x9e3779b9) >>> 0;
   const next = () => { h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0; return (h ^ (h >>> 15)) >>> 0; };
-  const m = MAPS[map] ? map : MAP_ORDER[next() % MAP_ORDER.length];
-  const t = THEMES[theme] ? theme : (theme === 'random' || !MAPS[map] ? THEME_ORDER[next() % THEME_ORDER.length] : MAPS[m].theme);
+  const pool = mapsFor(mode), m = pool.includes(map) ? map : pool[next() % pool.length];
+  const t = THEMES[theme] ? theme : (theme === 'random' || m !== map ? THEME_ORDER[next() % THEME_ORDER.length] : MAPS[m].theme);
   return { map: m, theme: t };
 }
 
@@ -196,6 +272,8 @@ export function compileMap(key, themeKey) {
     walls, rounds, bushes, props, cratePoints, paths, hazards, plaza: src.plaza,
     bases: [src.base, rot(src.base)],
     spawns: [src.spawns, src.spawns.map(rot)],
+    towers: (src.towers || []).flatMap(([kind, x, z]) => [{ team: 0, kind, x, z }, { team: 1, kind, x: -x, z: -z }]).sort((a, b) => a.team - b.team),
+    yards: src.yard ? [src.yard, [-src.yard[1], -src.yard[0], -src.yard[3], -src.yard[2]]] : [],
   };
   map.nav = buildNav(map);
   return map;

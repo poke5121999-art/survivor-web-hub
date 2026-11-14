@@ -20,6 +20,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const { MECHS } = await import('../js/data.js');
   const srv = process.env.DTT_BASE ? { base: process.env.DTT_BASE, close() {} } : await serve();
   const gl = process.env.DTT_GL || 'gl-egl';
+  await require('./lib.js').lockChrome();
   const br = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + gl, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const ctx = await br.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });

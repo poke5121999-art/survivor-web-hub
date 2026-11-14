@@ -2,7 +2,7 @@
 import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, upgradeMods, PAINTS, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
 import { rankOf, placeOf } from './meta.js';
 import * as MAPMOD from './maps.js';
-const { MAPS, MAP_ORDER, THEMES, THEME_ORDER } = MAPMOD;
+const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
 import { visibleTo, towerOpen } from './sim.js';
 import * as K from './keys.js';
 
@@ -364,7 +364,7 @@ export function makeUI(G) {
       },
       mini(g, m, X, Z) {
         for (const t of m.towers) {
-          const x = X(t.x), z = Z(t.z), r = t.kind === 'main' ? 6.2 : 4.4, col = TEAMS[t.color].css;
+          const x = X(t.x), z = Z(t.z), r = t.kind === 'main' ? 7.6 : 4.8, col = TEAMS[t.color].css;
           if (!t.alive) {
             g.strokeStyle = '#7b838c'; g.lineWidth = 1.6;
             g.beginPath(); g.moveTo(x - 3, z - 3); g.lineTo(x + 3, z + 3); g.moveTo(x + 3, z - 3); g.lineTo(x - 3, z + 3); g.stroke();
@@ -379,7 +379,7 @@ export function makeUI(G) {
           g.beginPath();
           for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; g.lineTo(x + Math.cos(a) * r * 1.2, z + Math.sin(a) * r * 1.2); }
           g.closePath(); g.fill(); g.stroke();
-          if (t.kind === 'main') { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, z, 1.8, 0, 7); g.fill(); }
+          if (t.kind === 'main') { g.fillStyle = '#fff'; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? 2 : 4.6; g.lineTo(x + Math.cos(a) * q, z + Math.sin(a) * q); } g.closePath(); g.fill(); }
           if (!towerOpen(m, t)) { g.strokeStyle = '#fff'; g.lineWidth = 1; g.strokeRect(x - r - 1.5, z - r - 1.5, 2 * r + 3, 2 * r + 3); }
         }
       },
@@ -544,6 +544,10 @@ export function makeUI(G) {
       g.fillStyle = col + (h.kind === 'vent' ? '55' : '44'); g.strokeStyle = col; g.lineWidth = 1;
       g.beginPath(); g.arc(X(h.x), Z(h.z), h.r * mmScale, 0, 7); g.fill(); g.stroke();
     }
+    mp.yards.forEach((y, t) => {
+      g.fillStyle = TEAMS[t].css + '30'; g.strokeStyle = TEAMS[t].css + 'aa'; g.lineWidth = 1.5;
+      g.fillRect(X(y[0]), Z(y[2]), (y[1] - y[0]) * mmScale, (y[3] - y[2]) * mmScale); g.strokeRect(X(y[0]) + 0.75, Z(y[2]) + 0.75, (y[1] - y[0]) * mmScale - 1.5, (y[3] - y[2]) * mmScale - 1.5);
+    });
     for (let t = 0; t < 2 && (m.mode === 'tdm' || m.mode === 'chiem'); t++) {
       const [bx, bz] = mp.bases[t];
       g.fillStyle = TEAMS[t].css + '33'; g.strokeStyle = TEAMS[t].css; g.lineWidth = 1.5;
@@ -1119,12 +1123,12 @@ export function makeUI(G) {
     for (const k of MODE_ORDER) {
       const b = el('button', 'mode' + (k === modeKey ? ' on' : ''), `${icon(MODE_ICON[k])}<span>${MODES[k].name}</span>`);
       b.dataset.mode = k;
-      b.onclick = () => { modeKey = k; renderSetup(); };
+      b.onclick = () => { modeKey = k; mapKey = fitMap(mapKey, k); renderSetup(); };
       M.modes.appendChild(b);
     }
     M.modeBl.textContent = MODES[modeKey].blurb;
     M.maps.innerHTML = '';
-    for (const k of [...MAP_ORDER, 'random']) {
+    for (const k of [...mapsFor(modeKey), 'random']) {
       const rnd = k === 'random', mp = MAPS[k];
       const sw = rnd ? 'rnd' : validTheme(themeKey) && themeKey !== 'random' ? themeKey : mp.theme;
       const hz = rnd ? { kind: 'rand', text: 'Bố cục bốc thăm mỗi trận' } : hazardFor(mp, themeKey);
@@ -1166,7 +1170,7 @@ export function makeUI(G) {
   function showMenu() {
     hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
-    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; }
+    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; mapKey = fitMap(mapKey, modeKey); }
     if (!menuInit) { menuInit = true; applySettings(); }
     renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
@@ -1799,7 +1803,7 @@ export function makeUI(G) {
     return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
       <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
       <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
-      </div><div class="grp g-map"><h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
+      </div><div class="grp g-map"><h3>Đấu trường</h3><div class="maps">${mapsFor(L.mode).map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
       </div><div class="grp g-theme"><h3>Môi trường</h3><div class="themes">${themeTiles(validTheme(L.theme) ? L.theme : null, 'data-k').replace(/<button class="th/g, '<button data-a="theme" class="th')}</div></div>`;
   }
 

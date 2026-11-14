@@ -59,7 +59,7 @@ const SETS = {
     st = mix(st, vec3(0.42, 0.40, 0.30), smoothstep(0.5, 0.8, n) * 0.5);
     float moss = (1.0 - smoothstep(0.0, 0.1, edge - n * 0.08)) * smoothstep(0.35, 0.6, fbm(uv + 9.0, 5.0));
     albedo = mix(st * (0.75 + fine * 0.5), vec3(0.08, 0.06, 0.04), gap);
-    albedo = mix(albedo, vec3(0.10, 0.22, 0.05), moss * 0.85);
+    albedo = mix(albedo, GROWTH_LO, moss * 0.85);
     vec3 ch = voro(uv, 30.0);
     float chip = smoothstep(0.62, 0.7, ch.z) * (1.0 - smoothstep(0.1, 0.2, ch.x));
     albedo *= 1.0 - chip * 0.25;
@@ -75,7 +75,7 @@ const SETS = {
     float moss = smoothstep(0.5, 0.75, fbm(uv + 4.0, 4.0) + gap * 0.3);
     albedo = st * (0.72 + fine * 0.55) * (1.0 - streak);
     albedo = mix(albedo, vec3(0.06, 0.05, 0.04), gap * 0.9);
-    albedo = mix(albedo, mix(vec3(0.07, 0.17, 0.04), vec3(0.20, 0.30, 0.07), fine), moss * 0.8);
+    albedo = mix(albedo, mix(GROWTH_LO, GROWTH_HI, fine), moss * 0.8);
     height = (1.0 - gap) * (0.55 + rnd * 0.3) + fine * 0.2 + moss * 0.08; rough = 0.86 + moss * 0.1; metal = 0.0;`,
   sand: /* glsl */`
     float n = fbm(uv, 4.0), fine = fbm(uv + 2.9, 64.0);
@@ -167,6 +167,12 @@ const SETS = {
     height = (1.0 - gap) * 0.6 + rings * 0.12 + grain * 0.2; rough = 0.8; metal = 0.0;`,
 };
 
+// What settles in the seams and on top of stonework (the pave and ruin sets): [dark, light] colours per climate.
+const GROWTH = {
+  moss: ['0.08, 0.19, 0.045', '0.20, 0.30, 0.07'], snow: ['0.74, 0.82, 0.92', '0.95, 0.97, 1.0'], sand: ['0.46, 0.36, 0.22', '0.62, 0.50, 0.31'],
+  ash: ['0.03, 0.026, 0.026', '0.11, 0.06, 0.045'], grime: ['0.045, 0.045, 0.05', '0.13, 0.13, 0.12'], dry: ['0.24, 0.15, 0.04', '0.46, 0.28, 0.07'],
+};
+
 export function makeTextures(renderer, size) {
   const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
@@ -179,8 +185,9 @@ export function makeTextures(renderer, size) {
   };
   const cache = {};
 
-  function bake(name) {
-    if (cache[name]) return cache[name];
+  function bake(name, growth = 'moss') {
+    const key = growth === 'moss' ? name : name + '~' + growth, [lo, hi] = GROWTH[growth];
+    if (cache[key]) return cache[key];
     const mrt = new THREE.WebGLMultipleRenderTargets(size, size, 2, { depthBuffer: false });
     tune(mrt.texture[0], true); tune(mrt.texture[1], false);
     const surf = new THREE.RawShaderMaterial({
@@ -188,7 +195,7 @@ export function makeTextures(renderer, size) {
       fragmentShader: `precision highp float; in vec2 vUv; layout(location = 0) out vec4 oA; layout(location = 1) out vec4 oB;
         ${NOISE}
         void main() { vec2 uv = vUv; vec3 albedo; float height, rough, metal;
-          ${SETS[name]}
+          ${SETS[name].replace(/GROWTH_LO/g, `vec3(${lo})`).replace(/GROWTH_HI/g, `vec3(${hi})`)}
           oA = vec4(max(albedo, 0.0), 1.0); oB = vec4(clamp(height, 0.0, 1.0), clamp(rough, 0.04, 1.0), clamp(metal, 0.0, 1.0), 1.0); }`,
     });
     quad.material = surf;
@@ -207,14 +214,14 @@ export function makeTextures(renderer, size) {
     renderer.setRenderTarget(nrt); renderer.render(scene, cam);
     renderer.setRenderTarget(null);
     surf.dispose(); norm.dispose();
-    return (cache[name] = { map: mrt.texture[0], orm: mrt.texture[1], normal: nrt.texture });
+    return (cache[key] = { map: mrt.texture[0], orm: mrt.texture[1], normal: nrt.texture });
   }
 
   // A MeshStandardMaterial wearing a baked set, tinted by vertex colours. The builder's UVs are world-scaled.
   function material(name, opts = {}) {
     const key = name + JSON.stringify(opts);
     if (cache[key]) return cache[key];
-    const set = bake(name);
+    const set = bake(name, opts.growth);
     const m = new THREE.MeshStandardMaterial({
       map: set.map, normalMap: set.normal, roughnessMap: set.orm, metalnessMap: set.orm,
       roughness: 1, metalness: 1, vertexColors: true, envMapIntensity: opts.reflect ?? 1,

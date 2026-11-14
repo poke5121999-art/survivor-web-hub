@@ -1,6 +1,6 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, PAINTS, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
-import { MAP_ORDER, THEMES } from './maps.js';
+import { MAP_ORDER, MAPS, THEMES } from './maps.js';
 
 const KEY = 'dtt.save.v1';
 const VERSION = 1;
@@ -60,7 +60,7 @@ function clean(raw) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 16) : d.name,
     coins: int(raw.coins, d.coins), level: int(raw.level, 1, 1, 999), xp: int(raw.xp, 0),
     owned: MECH_ORDER.filter((k) => owned.has(k)),
-    mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAP_ORDER.includes(raw.map) || raw.map === 'random' ? raw.map : d.map,
+    mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAPS[raw.map] || raw.map === 'random' ? raw.map : d.map,
     // null = the layout's own theme
     theme: raw.theme === 'random' || Object.prototype.hasOwnProperty.call(THEMES, raw.theme) ? raw.theme : null,
     mode: MODE_ORDER.includes(raw.mode) ? raw.mode : d.mode,

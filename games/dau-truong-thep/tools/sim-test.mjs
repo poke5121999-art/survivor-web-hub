@@ -1,7 +1,7 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
 import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
-import { solidAt, MAP_ORDER, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
+import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES } from '../js/data.js';
 
 let failed = 0, passed = 0;
@@ -1295,7 +1295,7 @@ const facing = (m, t, dist, team, los) => { const b = m.map.bases[team]; return 
 const navCell = (map, x, z) => map.nav.blocked[Math.floor((z + map.hd) / map.nav.cell) * map.nav.cols + Math.floor((x + map.hw) / map.nav.cell)];
 
 section('29 nha rules (towers, aggro, win conditions)');
-for (const key of MAP_ORDER) {
+for (const key of NHA_ORDER) {
   const m = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
   const t0 = m.towers.filter((t) => t.team === 0), t1 = m.towers.filter((t) => t.team === 1);
   check(`29a ${key}: 3 towers per team (2 sub + 1 main) with the rule hp`, t0.length === 3 && t1.length === 3 && [t0, t1].every((ts) => ts.filter((t) => t.kind === 'sub').length === 2 && ts.filter((t) => t.kind === 'main').length === 1 && ts.every((t) => t.hp === TW[t.kind] && t.alive && t.r === TW.radius)));
@@ -1404,7 +1404,7 @@ for (const key of MAP_ORDER) {
 {
   // tower shots fly over walls: a spot in range with no clear line to the tower still gets hit
   let m = null, spot = null, T = null;
-  for (const key of MAP_ORDER) {
+  for (const key of NHA_ORDER) {
     const probe = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
     for (const t of probe.towers.filter((q) => q.team === 0)) for (let k = 0; k < 72 && !spot; k++) for (const d of [6, 8, 10]) {
       const x = t.x + Math.cos(k * 0.0873) * d, z = t.z + Math.sin(k * 0.0873) * d;
@@ -1498,7 +1498,7 @@ section('31 mud');
 section('32 themes and layouts');
 {
   let builds = 0, okKind = 0, okLava = 0, total = 0, throws = 0;
-  for (const key of MAP_ORDER) for (const th of THEME_ORDER) {
+  for (const key of [...MAP_ORDER, ...NHA_ORDER]) for (const th of THEME_ORDER) {
     total++;
     try {
       const map = compileMap(key, th);
@@ -1523,6 +1523,61 @@ section('32 themes and layouts');
   check('32f over 40 seeds it covers every layout and at least 6 of the 8 themes', maps.size === MAP_ORDER.length && themes.size >= 6, `${maps.size} layouts, ${themes.size} themes, ${seen.size} pairs`);
   const f = pickArena('cangbang', 'random', 5), g = pickArena('random', 'lava', 5);
   check('32g a fixed layout or theme is kept when the other is random', f.map === 'cangbang' && THEME_ORDER.includes(f.theme) && g.theme === 'lava' && MAP_ORDER.includes(g.map));
+}
+
+section('29z base-assault layouts: built for the mode');
+{
+  const R = MODES.nha.tower.range;
+  const pathLen = (map, a, b) => { let L = 0, p = a; for (const q of findPath(map, a[0], a[1], b[0], b[1])) { L += Math.hypot(q[0] - p[0], q[1] - p[1]); p = q; } return { L, end: p }; };
+  check('29z1 at least two layouts are made for nha and no arena layout is offered for it', NHA_ORDER.length >= 2 && NHA_ORDER.every((k) => MAPS[k].mode === 'nha' && !MAP_ORDER.includes(k)) && mapsFor('nha') === NHA_ORDER && mapsFor('tdm') === MAP_ORDER);
+  for (const key of NHA_ORDER) for (const th of ['jungle', 'lava', 'swamp']) {
+    const map = compileMap(key, th), tag = `${key}/${th}`;
+    const own = map.towers.filter((t) => t.team === 0), foe = map.towers.filter((t) => t.team === 1), main = own.find((t) => t.kind === 'main'), subs = own.filter((t) => t.kind === 'sub');
+    const [x0, x1, z0, z1] = map.yards[0], inYard = (x, z, pad = 0) => x > x0 - pad && x < x1 + pad && z > z0 - pad && z < z1 + pad;
+    check(`29z2 ${tag}: the towers stand clear of walls, obstacles and each other`, map.towers.every((t) => !solidAt(map, t.x, t.z, 2.4) && map.towers.every((o) => o === t || Math.hypot(o.x - t.x, o.z - t.z) > 8)));
+    check(`29z3 ${tag}: main tower and spawn are inside the walled yard, the sub towers guard its edge`, inYard(main.x, main.z) && inYard(...map.bases[0]) && subs.every((t) => inYard(t.x, t.z, 1)) && subs.every((t) => Math.min(t.x - x0, x1 - t.x, t.z - z0, z1 - t.z) < 9));
+    const spawn = map.spawns[1][0], toMain = pathLen(map, spawn, [main.x + 3 * Math.sign(-main.x), main.z]);
+    const toSubs = subs.map((t) => pathLen(map, spawn, [t.x + 3 * Math.sign(-t.x), t.z]).L);
+    check(`29z4 ${tag}: the enemy's walk reaches both sub towers before the main tower`, toSubs.every((L) => L < toMain.L), `subs ${toSubs.map((L) => L.toFixed(0)).join(' ')} main ${toMain.L.toFixed(0)}`);
+    // every way in to the main tower is watched: block nothing, then walk from each lane start and see the route cross a sub tower's range
+    let watched = 0, routes = 0;
+    for (const start of [spawn, [0, -map.hd + 3], [0, map.hd - 3], [0, 0]]) {
+      routes++;
+      let p = start, seen = false;
+      for (const q of findPath(map, start[0], start[1], main.x + 4, main.z)) {
+        for (let k = 0; k <= 8; k++) { const x = p[0] + (q[0] - p[0]) * k / 8, z = p[1] + (q[1] - p[1]) * k / 8; if (subs.some((t) => Math.hypot(t.x - x, t.z - z) < R)) seen = true; }
+        p = q;
+      }
+      if (seen) watched++;
+    }
+    check(`29z5 ${tag}: every route to the main tower crosses a sub tower's range`, watched === routes, `${watched}/${routes}`);
+    check(`29z6 ${tag}: the main tower is out of reach of both spawns' towers and at least 60 m from the enemy main tower`, Math.hypot(main.x - foe[0].x, main.z - foe[0].z) > 60 && own.every((t) => foe.every((o) => Math.hypot(t.x - o.x, t.z - o.z) > 2 * R + 6)));
+    check(`29z7 ${tag}: spawns, props and airdrop points are on free ground; no airdrop lands inside a yard`, map.spawns.flat().every((s) => !solidAt(map, s[0], s[1], 1.3)) && map.props.every((p) => !solidAt(map, p.x, p.z, 0.5)) && map.cratePoints.every((c) => !solidAt(map, c[0], c[1], 1.2) && !inYard(c[0], c[1])));
+    check(`29z8 ${tag}: all four lane ends of the nav grid connect (spawn to spawn, both flanks)`, pathLen(map, map.spawns[0][0], map.spawns[1][0]).L < 220 && [[0, -map.hd + 3], [0, map.hd - 3]].every((f) => { const r = pathLen(map, map.spawns[0][0], f); return Math.hypot(r.end[0] - f[0], r.end[1] - f[1]) < 3; }));
+  }
+  for (const key of NHA_ORDER) {
+    const map = compileMap(key), [x0, x1, z0, z1] = map.yards[0];
+    // attackers wait just outside a sub tower's range: that ring must be open ground on the side away from the yard, or they stack on the few free spots
+    for (const t of map.towers.filter((q) => q.team === 0 && q.kind === 'sub')) {
+      let free = 0, n = 0, inside = 0;
+      for (let k = 0; k < 72; k++) for (const d of [R + 0.8, R + 2]) {
+        const x = t.x + Math.cos(k * 0.0873) * d, z = t.z + Math.sin(k * 0.0873) * d;
+        if (x > x0 - 1.6 && x < x1 + 1.6 && z > z0 - 1.6 && z < z1 + 1.6) continue;
+        if (Math.abs(x) > map.hw - 2 || Math.abs(z) > map.hd - 2) continue;
+        n++; if (!solidAt(map, x, z, 1.5)) free++;
+      }
+      // bot matches showed it: with no wall to wait behind at that ring, sieges stall and most matches run out the clock
+      const cover = map.walls.filter((w) => { const d = Math.hypot(Math.max(w.x0 - t.x, 0, t.x - w.x1), Math.max(w.z0 - t.z, 0, t.z - w.z1)); return !(w.x > x0 && w.x < x1 && w.z > z0 && w.z < z1) && d > R - 4 && d < R + 4; }).length;
+      check(`29z11 ${key}: the staging ring outside the sub tower at ${t.x},${t.z} is mostly open (>= 70% free) and has a wall to wait behind`, n > 20 && free / n >= 0.7 && cover >= 1, `${free}/${n} free, ${cover} cover walls`);
+    }
+  }
+  let ok = true, both = new Set();
+  for (let sd = 1; sd <= 30; sd++) { const a = pickArena('random', 'random', sd, 'nha'); both.add(a.map); if (!NHA_ORDER.includes(a.map)) ok = false; if (NHA_ORDER.includes(pickArena('random', 'random', sd, 'tdm').map)) ok = false; }
+  check('29z9 a random arena for nha is always a base-assault layout (both come up), for other modes never', ok && both.size === NHA_ORDER.length);
+  check('29z10 a layout of the wrong pool is replaced: fitMap, pickArena and createMatch agree', fitMap('denrung', 'nha') === NHA_ORDER[0] && fitMap('luythep', 'tdm') === MAP_ORDER[0] && fitMap('random', 'nha') === 'random' && fitMap('hemcheo', 'nha') === 'hemcheo'
+    && NHA_ORDER.includes(pickArena('denrung', null, 3, 'nha').map) && pickArena('hemcheo', null, 3, 'nha').map === 'hemcheo' && pickArena('hemcheo', null, 3, 'nha').theme === MAPS.hemcheo.theme
+    && createMatch({ seed: 1, mode: 'tdm', map: 'luythep', roster: [] }).map.key === MAP_ORDER[0] && createMatch({ seed: 1, mode: 'nha', map: 'denrung', roster: [] }).map.key === NHA_ORDER[0]
+    && createMatch({ seed: 1, mode: 'tdm', roster: [] }).towers.length === 0);
 }
 
 section('33 nha bots: tower aggro, siege, defence, waves');
@@ -1605,7 +1660,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
     const m = nm([...mechs.map((k, i) => BT(k, 0, diff)), BT('trau', 1, diff)]);
     dead(m.units[5]);
     const T = m.towers[1];
-    mechs.forEach((k, i) => put(m.units[i], [-6, -2, 2, 12, 22][i], [4, -4, 4, -4, 4][i]));
+    mechs.forEach((k, i) => put(m.units[i], T.x + [13.5, 17.5, 21.5, 31.5, 41.5][i], [4, -4, 4, -4, 4][i]));
     let n = 0;
     run(m, Math.ceil(5 / TICK), (i) => { if (i % 15 === 0) T.hp -= 100; return allInputs(m); });
     for (const u of m.units.slice(0, 5)) if (u.alive && Math.hypot(u.x - T.x, u.z - T.z) < TR + 1) n++;
@@ -1621,7 +1676,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
     const main = m.towers[0];
     m.towers[1].alive = false; m.towers[1].hp = 0; m.towers[2].alive = false; m.towers[2].hp = 0;
     const e = m.units[5]; spend(e); put(e, main.x + 8, main.z + 1);
-    mechs.forEach((k, i) => put(m.units[i], [-2, 4, 8, 12, 16][i], [4, -4, 4, -4, 4][i]));
+    mechs.forEach((k, i) => put(m.units[i], main.x + [22.5, 23.5, 25.5, 31.5, 33.5][i], main.z + [3, -4, 5, -4, 3][i]));
     let n = 0;
     run(m, Math.ceil(9 / TICK), () => allInputs(m));
     for (const u of m.units.slice(0, 5)) if (u.alive && Math.hypot(u.x - main.x, u.z - main.z) < TR + 3) n++;
@@ -1655,7 +1710,8 @@ section('34 bots: spacing and mud');
   for (const mode of ['tdm', 'chiem', 'nha']) {
     const m = createMatch({ seed: 9, mode, roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'trau', name: 'x' }] });
     dead(m.units[5]);
-    for (let i = 0; i < 5; i++) put(m.units[i], -20, 0);
+    // open ground: the nha layouts have a gate where the arenas have a field
+    for (let i = 0; i < 5; i++) put(m.units[i], mode === 'nha' ? 0 : -20, 0);
     let sum = 0, n = 0;
     run(m, Math.ceil(6 / TICK), () => { if (m.time > 3) { sum += pairMin(m.units.slice(0, 5).filter((u) => u.alive)); n++; } return allInputs(m); });
     check(`34a ${mode}: five bots starting on the same spot are apart within 3 s (closest pair avg > 1.5 m in 3-6 s)`, sum / n > 1.5, `${(sum / n).toFixed(2)} m`);
@@ -1772,7 +1828,7 @@ const stuckList = (rs) => { const slow = []; for (const r of rs) for (const u of
 const NHA_RS = [];
 {
   // 10 seeds, normal vs normal, four layouts
-  for (let i = 0; i < 10; i++) NHA_RS.push(runNha(81 + i, MAP_ORDER[i % 4]));
+  for (let i = 0; i < 10; i++) NHA_RS.push(runNha(81 + i, NHA_ORDER[i % 2]));
   const rs = NHA_RS, n = rs.length;
   const ended = rs.filter((r) => r.mainDown).length, len = rs.reduce((a, r) => a + r.m.time, 0) / n;
   const dmgAvg = rs.reduce((a, r) => a + r.towerDmg[0] + r.towerDmg[1], 0) / (2 * n);
@@ -1799,7 +1855,7 @@ const NHA_RS = [];
   let hw = 0, ew = 0, dr = 0, hDmg = 0, eDmg = 0, len = 0;
   const N = 6, rs = [];
   for (let i = 0; i < N; i++) {
-    const swap = i % 2 === 1, r = runNha(91 + i, MAP_ORDER[i % 4], swap ? 'easy' : 'hard', swap ? 'hard' : 'easy');
+    const swap = i % 2 === 1, r = runNha(91 + i, NHA_ORDER[i % 2], swap ? 'easy' : 'hard', swap ? 'hard' : 'easy');
     rs.push(r);
     const ht = swap ? 1 : 0;
     if (r.m.winner === ht) hw++; else if (r.m.winner === 1 - ht) ew++; else dr++;
