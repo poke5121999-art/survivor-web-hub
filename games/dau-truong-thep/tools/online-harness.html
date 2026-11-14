@@ -1,0 +1,90 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Online harness</title>
+<!-- A host/guest client without three.js: the host steps the real simulation at 30 Hz, a guest only applies snapshots.
+     Driven by tools/online-test.js through window.__h. Use ?fakenet=1 (BroadcastChannel). -->
+<body style="font:12px monospace;background:#111;color:#ddd">
+<pre id="out">online harness</pre>
+<script type="module">
+import { makeOnline } from '../js/online.js';
+import { createMatch, step } from '../js/sim.js';
+import { allInputs } from '../js/bots.js';
+import { TICK } from '../js/data.js';
+import { matchOptions, packEvents } from '../js/netstate.js';
+
+const topics = [];
+const handlers = new Map();
+const G = {
+  params: { fakenet: new URLSearchParams(location.search).get('fakenet') },
+  match: null,
+  bus: {
+    on(t, fn) { (handlers.get(t) || handlers.set(t, []).get(t)).push(fn); },
+    emit(t, d) {
+      topics.push([t, t === 'net:start' ? { slot: d.mySlot, units: d.rosterData.units.length, role: d.role } : t === 'net:lost' ? { reason: d.reason } : null]);
+      for (const fn of handlers.get(t) || []) fn(d);
+    },
+  },
+};
+const online = makeOnline(G);
+const NEUTRAL = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+
+const h = window.__h = {
+  online, G, topics, script: null, hold: false, hostLog: [], guestLog: [], hist: new Map(), view: null, forceOver: false,
+  info() {
+    const m = h.mirror || G.match;
+    return {
+      state: online.state, role: online.role, code: online.code, error: online.error, me: online.me, mySlot: online.mySlot,
+      lobby: online.lobby, topics: topics.map((t) => t[0]),
+      roster: online.rosterData && online.rosterData.units.map((u) => [u.team, u.mech, u.name, u.bot, u.pid, u.diff]),
+      rosterMeta: online.rosterData && [online.rosterData.map, online.rosterData.mode, online.rosterData.seed],
+      tick: m ? m.tick : 0, over: m ? m.over : false, score: m ? m.score : null,
+      units: m ? m.units.map((u) => ({ x: u.x, z: u.z, hp: u.hp, alive: u.alive, bot: u.bot })) : null,
+      lastTopic: topics.length ? topics[topics.length - 1] : null,
+    };
+  },
+  posAt(tick) { return h.hist.get(tick) || null; },
+  current() { const m = G.match; return m ? { tick: m.tick, pos: m.units.map((u) => [u.x, u.z]) } : null; },
+  async start() { return online.start(); },
+};
+
+function hostStep() {
+  const m = G.match;
+  const human = online.remoteInputs();
+  if (h.script && online.mySlot >= 0 && !m.units[online.mySlot].bot) human[online.mySlot] = h.script;
+  if (h.forceOver) { m.duration = m.time + 0.05; h.forceOver = false; }
+  step(m, allInputs(m, human));
+  online.afterStep(m);
+  for (const e of packEvents(m.events)) h.hostLog.push(JSON.stringify(e));
+  h.hist.set(m.tick, m.units.map((u) => [u.x, u.z]));
+  h.hist.delete(m.tick - 150);
+}
+
+online.onLobby(() => {});
+G.bus.on('net:start', (d) => {
+  h.hostLog = []; h.guestLog = []; h.hist = new Map();
+  if (d.role === 'host') G.match = createMatch(matchOptions(d.rosterData));
+  else { G.match = null; h.mirror = d.mirror; }
+});
+G.bus.on('net:state', (d) => { if (d.state !== 'playing') { h.mirror = null; if (d.state !== 'lobby') G.match = null; } });
+
+let last = performance.now(), acc = 0;
+setInterval(() => {
+  const now = performance.now();
+  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  if (online.role === 'host' && online.state === 'playing' && G.match) {
+    while (acc >= TICK) {
+      acc -= TICK;
+      if (h.hold && G.match.tick % 2 === 0) { acc = 0; break; }
+      hostStep();
+    }
+  } else acc = 0;
+  if (online.role === 'guest' && online.state === 'playing' && h.mirror) {
+    online.sendInput(h.script || NEUTRAL);
+    const { alpha } = online.frame(now);
+    const m = h.mirror;
+    for (const e of m.events) h.guestLog.push(JSON.stringify(e));
+    h.view = { tick: m.tick, alpha, pos: m.units.map((u) => [u.px + (u.x - u.px) * alpha, u.pz + (u.z - u.pz) * alpha]), raw: m.units.map((u) => [u.x, u.z]), over: m.over };
+  }
+}, 8);
+window.__ready = true;
+</script>

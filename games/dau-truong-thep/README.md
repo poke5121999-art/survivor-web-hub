@@ -26,7 +26,7 @@ Real-time top-down 5v5 mech arena shooter. three.js r160 (vendored), ES modules,
 ## Simulation contract
 
 ```js
-const m = createMatch({ map: 'denrung', seed, roster });   // roster: [{ team: 0|1, mech, name, bot, diff }]
+const m = createMatch({ map: 'denrung', seed, roster });   // roster: [{ team: 0|1, mech, name, bot, diff, mods: { hp, dmg }, paint }]
 step(m, inputs);                                           // inputs[unit.id] = input
 // input = { mx, mz, aim, fire, s1, s2, ult, heal, tx, tz }
 //   mx, mz: move vector (-1..1)     aim: radians     tx, tz: world point under the cursor (ground-targeted skills)
@@ -39,11 +39,13 @@ Unit `u`: `id` (= index in `m.units`), `team, mech, def (MECHS row), name, bot, 
 
 Shot: `id, team, owner, x, z, px, pz, dx, dz, speed, left (range left), dmg, splash, r, vis`.
 
-Zone: `id, kind ('strike' | 'mine' | 'field' | 'dome'), team, owner, x, z, r, age, delay, dur`, plus `total` (strike), `blast` (mine), `vis` ('heal' | 'slow', field).
+Zone: `id, kind ('strike' | 'mine' | 'field' | 'dome' | 'wall' | 'turret'), team, owner, x, z, r, age, delay, dur`, plus `total`, `lob`, `x0`, `z0` (strike; a lobbed weapon shell is a strike with `lob`), `blast` (mine), `vis` ('heal' | 'slow' | 'smoke' | 'blizzard' | 'magnet'), `hide`, `pull` (field), `pts[[x, z]]` (wall: circles of radius `r` that block movement and shots), `hp`, `maxHp`, `aim`, `range` (turret).
 
 Crate: `id, x, z, type (PICKUPS key), fall (> 0 while descending), age`.
 
-Events (`m.events`, valid until the next `step`): `fire {id, vis, x, z, a, side}`, `skill {id, slot, skill, x, z, a}`, `impact {vis, on: unit|wall|prop|dome|end, x, z, dx, dz, splash}`, `hit {id, by, x, z, amt, absorbed}`, `heal {id, x, z, amt}`, `death {id, by, assists[], x, z}`, `respawn {id, x, z}`, `explode {x, z, r, why}`, `nova {id, x, z, r}`, `beam {id, x0, z0, x1, z1, w}`, `ram`, `shieldBreak`, `item {id}`, `zone`, `zoneEnd`, `propHit`, `propBreak {id, kind, x, z}`, `crateDrop {id, x, z, type}`, `crateLand`, `pickup {id, crate, type, x, z}`, `over {winner}`.
+Events (`m.events`, valid until the next `step`): `fire {id, vis, x, z, a, side}`, `skill {id, slot, skill, x, z, a}`, `impact {vis, on: unit|wall|prop|dome|end, x, z, dx, dz, splash}`, `hit {id, by, x, z, amt, absorbed}`, `heal {id, x, z, amt}`, `death {id, by, assists[], x, z}`, `respawn {id, x, z}`, `explode {x, z, r, why}`, `nova {id, x, z, r}`, `beam {id, x0, z0, x1, z1, w}`, `ram`, `shieldBreak`, `item {id}`, `zone`, `zoneEnd`, `propHit`, `propBreak {id, kind, x, z}`, `crateDrop {id, x, z, type}`, `crateLand`, `pickup {id, crate, type, x, z}`, `turretFire {id, zone, x, z, a}`, `over {winner}`.
+
+Skill primitives (`do`): `shield, dash, blink, nova (windup, optional repeat/gap), beam, volley, buff (haste, rapid, stealth), barrage (disc or line), mine, minefield, zone (field: hps, dps, slow, hide, pull), dome, recoil, wall, turret`. Weapons are shots (`n` pellets with `fan`, optional `slow`) or lobbed strikes (`lob`, `flight`).
 
 Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], rounds[{x, z, r, kind}], bushes[{id, x, z, r}], props, cratePoints, bases[2] = [x, z], spawns[2], nav`.
 

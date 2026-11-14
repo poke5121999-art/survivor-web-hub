@@ -1,7 +1,7 @@
 // Boot, shared state G, main loop, URL params and test hooks. See README.md for the contracts.
 
 import * as THREE from '../vendor/three.module.min.js';
-import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES } from './data.js';
+import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES } from './data.js';
 import { MAPS } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
@@ -15,6 +15,8 @@ import { makeAudio } from './audio.js';
 import { makeUI } from './ui.js';
 import { makeInput } from './input.js';
 import { makeMeta } from './meta.js';
+import { makeOnline } from './online.js';
+import { matchOptions } from './netstate.js';
 
 const QUALITY = {
   low:    { name: 'low',    scale: 0.7,  dpr: 1,   shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.5, fxaa: false },
@@ -39,7 +41,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), mode: qs.get('mode'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -70,7 +72,7 @@ async function boot() {
 
   await progress(0.1, 'Nung thép');
   const tex = (G.gfx.tex = makeTextures(renderer, Q.tex));
-  for (const n of ['grass', 'dirt', 'pave', 'ruin', 'metal', 'wood']) tex.bake(n);
+  for (const n of ['pave', 'ruin', 'metal', 'wood']) tex.bake(n);
   scene.environment = makeEnvironment(renderer);
 
   await progress(0.3, 'Dựng đấu trường');
@@ -81,6 +83,8 @@ async function boot() {
     const map = createMatch({ map: key, seed: 1, roster: [] }).map;
     world = G.gfx.world = makeWorld(G, map, tex); worldKey = key;
     scene.add(world.group);
+    renderer.setClearColor(world.theme.clear, 1);
+    if (G.gfx.post) G.gfx.post.uniforms.uExposure.value = world.theme.exposure;
   }
   useMap(MAPS[params.map] ? params.map : (MAPS[save.map] ? save.map : 'denrung'));
 
@@ -89,7 +93,8 @@ async function boot() {
   const fx = (G.gfx.fx = makeFx(G, mechs));
   scene.add(mechs.group, fx.group);
   const post = (G.gfx.post = makePost(renderer, Q));
-  G.portrait = (key, team) => mechs.portrait(key, team);
+  post.uniforms.uExposure.value = world.theme.exposure;
+  G.portrait = (key, team, paint) => mechs.portrait(key, team, paint);
 
   let governor = 1, cssW = 1, cssH = 1;
   function resize() {
@@ -119,11 +124,14 @@ async function boot() {
   G.audio = await makeAudio(G, (f) => progress(0.7 + f * 0.15));
   if (save.settings) { G.audio.setVolume(save.settings.volume ?? 0.8); G.audio.setMusic(save.settings.music ?? 0.6); }
   G.input = makeInput(G);
+  G.online = makeOnline(G);
   await progress(0.9, 'Mở cổng đấu trường');
   G.ui = makeUI(G);
 
   const focus = new THREE.Vector3(), camOff = new THREE.Vector3();
   let shot = null, time = 0, acc = 0, intensity = 0, overAt = 0;
+  // net: null for a local match, 'host' when this machine runs the simulation for a room, 'guest' when it only renders the host's snapshots.
+  let net = null, netAlpha = 1;
 
   function startMatch(choice, attract) {
     const seed = params.seed !== null ? params.seed : (Date.now() & 0x7fffffff);
@@ -133,23 +141,57 @@ async function boot() {
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
     const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
     const bot = attract || params.spectate;
-    const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff }];
-    const rest = MECH_ORDER.filter((k) => k !== pick);
-    for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: i < rest.length ? rest[i] : rng.pick(MECH_ORDER), name: names.pop(), bot: true, diff });
-    for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: i < MECH_ORDER.length ? MECH_ORDER[i] : rng.pick(MECH_ORDER), name: names.pop(), bot: true, diff });
+    const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint }];
+    const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
+    const mode = !attract && MODES[choice.mode] ? choice.mode : 'tdm';
+    const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
+    for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff });
+    if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
+    else for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff });
     mechs.clear(); fx.clear();
-    G.match = createMatch({ map: worldKey, seed, roster });
-    G.me = 0; G.choice = choice; G.mode = attract ? 'attract' : 'match'; acc = 0; overAt = 0;
-    const u = G.match.units[0]; focus.set(u.x, 0, u.z);
-    document.body.classList.toggle('in-match', !attract);
+    G.match = createMatch({ map: worldKey, seed, roster, mode });
+    net = null; G.choice = choice;
+    enterMatch(0, attract);
     if (!attract) { G.audio.setScene && G.audio.setScene('match'); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start'); }
   }
+
+  function enterMatch(me, attract) {
+    G.me = me; G.mode = attract ? 'attract' : 'match'; acc = 0; overAt = 0;
+    if (G.match.mode === 'tudo') G.match.units[me].color = 0;
+    const u = G.match.units[me]; focus.set(u.x, 0, u.z);
+    document.body.classList.toggle('in-match', !attract);
+  }
+
+  G.bus.on('net:start', ({ rosterData, mySlot, role, mirror }) => {
+    useMap(rosterData.map);
+    mechs.clear(); fx.clear();
+    G.match = role === 'host' ? createMatch(matchOptions(rosterData)) : mirror;
+    net = role; G.paused = false; G.choice = null;
+    enterMatch(mySlot, false);
+    G.audio.setScene && G.audio.setScene('match'); G.ui.hideMenu(); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start');
+  });
+  G.bus.on('net:lost', (e) => { if (!net) return; net = null; G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); if (G.ui.toast) G.ui.toast((e && e.reason) || 'Mất kết nối với chủ phòng'); });
 
   function tick() {
     const m = G.match, me = m.units[G.me];
     const human = {};
     if (!me.bot) human[me.id] = G.input.sample(me);
+    if (net === 'host') Object.assign(human, G.online.remoteInputs());
     step(m, allInputs(m, human));
+    if (net === 'host') G.online.afterStep(m);
+    dispatch(m);
+  }
+
+  // Guests do not simulate: they send their input and replay what the host's snapshots and events say.
+  function guestFrame() {
+    const me = G.online.mirror.units[G.me];
+    G.online.sendInput(G.input.sample(me));
+    netAlpha = G.online.frame(performance.now()).alpha;
+    G.match = G.online.mirror;
+    dispatch(G.match);
+  }
+
+  function dispatch(m) {
     const live = G.mode === 'match';
     for (const e of m.events) {
       try { mechs.event(e); fx.event(e, m); if (live) { G.audio.event(e, m, G.me); G.ui.event(e); } } catch (err) { fail('event ' + e.t, err); }
@@ -170,11 +212,14 @@ async function boot() {
 
   function advance(dt) {
     const m = G.match;
-    if (!m || G.paused) return;
+    if (!m || (G.paused && !net)) return;
     if (G.mode === 'match' || G.mode === 'attract') {
-      acc += dt;
-      for (let n = 0; acc >= TICK && n < 4; n++) { acc -= TICK; if (!m.over) tick(); }
-      if (acc > TICK) acc = 0;
+      if (net === 'guest') guestFrame();
+      else {
+        acc += dt;
+        for (let n = 0; acc >= TICK && n < 4; n++) { acc -= TICK; if (!m.over) tick(); }
+        if (acc > TICK) acc = 0;
+      }
       if (m.over && overAt && time - overAt > (G.mode === 'attract' ? 3 : 1.6)) { if (G.mode === 'attract') startMatch(G.choice || defaultChoice(), true); else endMatch(); }
     }
   }
@@ -221,7 +266,7 @@ async function boot() {
   const guard = (tag, fn) => { try { fn(); } catch (err) { if (!once[tag]) { once[tag] = 1; fail('loop ' + tag, err); } } };
 
   function draw(dt) {
-    const m = G.match, alpha = params.manual ? 1 : Math.min(1, acc / TICK);
+    const m = G.match, alpha = net === 'guest' ? netAlpha : params.manual ? 1 : Math.min(1, acc / TICK);
     G.alpha = alpha;
     guard('world', () => world.update(time, m));
     guard('mechs', () => { if (m) mechs.sync(m, alpha, dt, time); });
@@ -246,9 +291,11 @@ async function boot() {
     draw(dt);
   }
 
-  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung' }; };
+  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', mode: params.mode || s.mode || 'tdm' }; };
   G.bus.on('ui:play', (choice) => { G.paused = false; startMatch(choice, false); });
-  G.bus.on('ui:menu', () => { G.paused = false; G.audio.setScene && G.audio.setScene('menu'); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); });
+  G.bus.on('ui:menu', () => { G.paused = false;
+    // Leaving an online match or its result screen goes back to the room, not to the solo menu.
+    if (net) { const stay = G.match && G.match.over; net = null; if (stay) G.online.toLobby(); else G.online.leave(); G.ui.hideHUD(); startMatch(defaultChoice(), true); if (stay && G.ui.showLobby) G.ui.showLobby(); else G.ui.showMenu(); return; } G.audio.setScene && G.audio.setScene('menu'); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); });
   G.bus.on('ui:pause', (p) => { G.paused = !!(p && p.paused); });
   G.bus.on('quality:set', (q) => { if (!QUALITY[q] || q === Q.name) return; const s = meta.get(); s.settings.quality = q; s.settings.qualityChosen = true; meta.save(); location.reload(); });
   const wake = () => { G.audio.resume(); };

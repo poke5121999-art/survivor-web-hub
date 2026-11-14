@@ -13,6 +13,14 @@ const ROLE = {
   assault: { pref: [0.4, 0.75], kite: false, peek: false, strafe: 1,    follow: false, eager: [1, 1, 1] },
   sniper:  { pref: [0.7, 0.95], kite: true,  peek: true,  strafe: 0.6,  follow: false, eager: [1, 1, 0.9] },
   support: { pref: [0.55, 0.85], kite: true, peek: false, strafe: 0.8,  follow: true,  eager: [1, 1, 1] },
+  // artillery: longest range, stays behind its allies (behind) and never strays far from them (tether, metres)
+  artillery: { pref: [0.65, 0.95], kite: true, peek: false, strafe: 0.4, follow: true, behind: true, tether: 9, eager: [1, 1, 1] },
+  // flanker: short range, goes for low-HP isolated targets (isolate, lowHp), breaks off sooner when focused (cautious)
+  flanker: { pref: [0.25, 0.7], kite: false, peek: false, strafe: 1.2, follow: false, isolate: 1, lowHp: 1, cautious: 0.1, eager: [1, 1, 1] },
+  // boss: slow, big, never retreats; walks at the best group and lets the skills do the work (see bossGoal, SKILL_AI)
+  boss: { pref: [0.25, 0.5], kite: false, peek: false, strafe: 0, follow: false, boss: true, eager: [1, 1, 1] },
+  control:  { pref: [0.5, 0.85], kite: false, peek: false, strafe: 0.7, follow: true, tether: 11, eager: [1, 1, 1] },
+  engineer: { pref: [0.45, 0.8], kite: false, peek: false, strafe: 0.6, follow: true, tether: 11, eager: [1, 1, 1] },
 };
 const LANES = [0, -14, 14, 0, 14];
 const SLOTS = ['s1', 's2', 'ult'];
@@ -32,6 +40,8 @@ function newBrain(m, u) {
     seen: {}, tgt: -1, engageAt: 0, aim: u.aim, err: 0, errTo: 0, errNext: 0,
     strafe: 1, strafeNext: 0, dutyOn: true, dutyNext: 0,
     sx: u.x, sz: u.z, sT: 0, stuck: 0, cmd: 0, sideUntil: 0, sideX: 0, sideZ: 0, propId: -1, propUntil: 0,
+    pt: -1, planT: -9, stand: [0, 0], standT: -9, fleeUntil: 0, fleeCool: 0, lastThreat: -9, fleeG: null, fleeT: -9,
+    goalT: -9, noLosT: -9, novaC: null, novaFlag: false, novaAt: 0, dashFlag: undefined,
     coverX: 0, coverZ: 0, coverT: -9, hasCover: false, ss: 1, dodge: {}, retreatGoal: null, crate: -1,
     out: { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 },
     enemies: [], sk: { x: 0, z: 0, aim: null, mx: null, mz: null },
@@ -55,23 +65,44 @@ export function botInput(m, u) {
   const map = m.map, now = m.time, w = u.def.weapon;
   const out = b.out;
   out.fire = out.s1 = out.s2 = out.ult = out.heal = false;
+  const mode = m.mode, isBoss = !!role.boss;
 
   const hpFrac = u.hp / u.maxHp;
-  const foe = map.bases[1 - u.team], own = map.bases[u.team];
-  const inOwnBase = d2(u.x, u.z, own[0], own[1]) < (RULES.baseRadius - 0.5) ** 2;
+  const own = ownOf(m, u);
+  const inOwnBase = !!own && d2(u.x, u.z, own[0], own[1]) < (RULES.baseRadius - 0.5) ** 2;
 
   perceive(m, u, b, D, now);
-  const tgt = pickTarget(m, u, b, D, now, w);
+  const lob = !!w.lob;
+  const mech = pickTarget(m, u, b, D, now, w, role);
   const enemies = b.enemies;
+  // Target: an enemy mech; an enemy turret when no mech can be hit; for a lobbing weapon also a mech seen a moment ago.
+  let tgt = mech;
+  if (!mech || !canHit(m, u, mech, w, D)) {
+    const tur = pickTurret(m, u, w);
+    if (tur) tgt = tur;
+    else if (!mech && lob) tgt = pickGhost(m, u, b, w, now);
+  }
+  const unitTgt = tgt && !tgt.pseudo ? tgt : null;
   let td = tgt ? hyp(tgt.x - u.x, tgt.z - u.z) : 1e9;
 
-  let near = 0, allyNear = 0;
-  for (const e of enemies) if (d2(e.x, e.z, u.x, u.z) < 196) near++;
+  let near = 0, allyNear = 0, hunters = 0, nearest = 1e9;
+  for (const e of enemies) {
+    const dd = d2(e.x, e.z, u.x, u.z);
+    if (dd < 196) near++;
+    if (dd < nearest) nearest = dd;
+    if (dd < 169 && e.brain && e.brain.tgt === u.id) hunters++;
+  }
+  if (nearest < 400) b.lastThreat = now;
   for (const a of m.units) if (a !== u && a.team === u.team && a.alive && d2(a.x, a.z, u.x, u.z) < 196) allyNear++;
-  const outnumbered = near - allyNear >= 2;
+  const outnumbered = mode === 'tudo' ? near >= 2 : mode === 'trum' ? false : near - allyNear >= 2;
+  // free-for-all: two hunters (or three mechs close) is a fight nobody wins; run, break the line of sight, come back later
+  const flee = mode === 'tudo' && now >= b.fleeCool && (hunters >= 2 || (near >= 3 && u.combatT < 2)) &&
+    !(unitTgt && unitTgt.hp < unitTgt.maxHp * 0.15 && td < 8);
+  const plan = mode === 'chiem' && !isBoss ? chiemPlan(m, u, b, role, now, enemies) : null;
+  const bossU = mode === 'trum' && !isBoss ? bossOf(m) : null;
 
-  const crate = pickCrate(m, u, b, hpFrac, enemies);
-  setState(m, u, b, D, now, hpFrac, outnumbered, crate, tgt, td, w, inOwnBase);
+  const crate = isBoss ? null : pickCrate(m, u, b, hpFrac, enemies, plan);
+  setState(m, u, b, D, now, hpFrac, outnumbered, crate, tgt, td, w, inOwnBase, role, flee);
 
   let gx = null, gz = null, hold = false, aimX = null, aimZ = null;
   let mvx = 0, mvz = 0;
@@ -80,20 +111,37 @@ export function botInput(m, u) {
 
   let los = false, aimPt = null, aimAng = u.aim;
   if (tgt) {
-    aimPt = leadPoint(u, tgt, w.speed, D.lead);
-    los = losClear(map, u.x, u.z, aimPt[0], aimPt[1], Math.min(0.2, w.r * 0.6));
+    aimPt = aimAtPoint(u, tgt, w, D.lead);
+    los = losClear(map, u.x, u.z, aimPt[0], aimPt[1], Math.min(0.2, (w.r || 0.3) * 0.6)) && !wallBlocks(m, u.x, u.z, aimPt[0], aimPt[1], 0.2);
     aimX = aimPt[0]; aimZ = aimPt[1];
   }
+  const canFire = lob ? !!tgt : los;
 
-  if (state === 'fight') {
-    const r = fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire);
-    mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
+  if (isBoss) {
+    const g = bossGoal(m, u, b, enemies);
+    if (g) { gx = g[0]; gz = g[1]; } else hold = true;
   } else if (state === 'retreat') {
-    const g = b.retreatGoal || own;
-    if (inOwnBase) hold = true; else { gx = g[0]; gz = g[1]; }
+    if (own) {
+      const g = b.retreatGoal || own;
+      if (inOwnBase) hold = true; else { gx = g[0]; gz = g[1]; }
+    } else {
+      // no base in this mode: a heal crate, else out of their sight
+      const hc = healCrateNear(m, u, 26);
+      const g = hc ? [hc.x, hc.z] : fleeGoal(m, u, b, enemies, now);
+      gx = g[0]; gz = g[1];
+    }
   } else if (state === 'grab') {
     const c = m.crates.find((k) => k.id === b.crate);
     if (c) { gx = c.x; gz = c.z; }
+  } else if (bossU && bossU.alive && tgt && tgt === bossU) {
+    const r = trumMove(m, u, b, D, role, bossU, td, w, los, now, hpFrac);
+    mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3];
+  } else if (plan) {
+    const r = chiemMove(m, u, b, D, role, plan, tgt, td, w, los, now, hpFrac, underFire, enemies, state);
+    mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
+  } else if (state === 'fight') {
+    const r = fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies);
+    mvx = r[0]; mvz = r[1]; gx = r[2]; gz = r[3]; hold = r[4];
   } else {
     const g = pushGoal(m, u, b, role, now, tgt);
     gx = g[0]; gz = g[1];
@@ -105,14 +153,23 @@ export function botInput(m, u) {
   }
   if (hold && !tgt) { mvx = mvz = 0; }
 
-  // incoming ground attacks: step out of red circles and off armed mines
-  const avoid = dodgeZones(m, u, b, D);
+  // incoming ground attacks: step out of red circles and off armed mines; the boss's nova ring and charge line
+  const threat = bossThreat(m, u, b, D, now);
+  const avoid = threat || (isBoss ? null : dodgeZones(m, u, b, D));
   if (avoid) { mvx = avoid[0] * 1.5 + mvx * 0.3; mvz = avoid[1] * 1.5 + mvz * 0.3; }
+  // lava under or beside us, a vent about to blast: out, whatever the plan was
+  const esc = hazardEscape(m, u, b);
+  if (esc) { mvx = esc[0] * 1.6 + mvx * 0.15; mvz = esc[1] * 1.6 + mvz * 0.15; }
 
   const unstuck = stuckLogic(m, u, b, now);
   if (unstuck) {
     if (unstuck.prop) { aimX = unstuck.prop.x; aimZ = unstuck.prop.z; mvx = mvz = 0; }
-    else { mvx = unstuck.mx; mvz = unstuck.mz; }
+    else if (!esc && !threat) { mvx = unstuck.mx; mvz = unstuck.mz; }
+  }
+
+  // a spinning slash that lets us move (nova with move: 1): keep closing in on the enemy
+  if (u.cast && u.cast.skill.do === 'nova' && u.cast.skill.move >= 1 && unitTgt) {
+    if (td < 1.6) mvx = mvz = 0; else { mvx = (unitTgt.x - u.x) / td; mvz = (unitTgt.z - u.z) / td; }
   }
 
   let len = hyp(mvx, mvz);
@@ -130,13 +187,13 @@ export function botInput(m, u) {
   else desired = b.aim;
   if (now >= b.errNext) { b.errNext = now + 0.3 + m.rng() * 0.4; b.errTo = (m.rng() * 2 - 1) * D.aimErr; }
   b.err += (b.errTo - b.err) * Math.min(1, 7 * TICK);
-  const turnRate = 4.5 + 8 * D.skill;
+  const turnRate = (isBoss ? 3.2 : 4.5) + 8 * D.skill;
   const noisy = desired + (aimX !== null ? b.err : 0);
   b.aim = u.cast && u.cast.lock ? u.cast.aim : turnTo(b.aim, noisy, turnRate * TICK);
   aimAng = b.aim;
 
   // skills (may snap the aim for a flick)
-  const ctx = { m, u, b, D, role, tgt, td, los, enemies, hpFrac, underFire, state, w, aimPt };
+  const ctx = { m, u, b, D, role, tgt: unitTgt, td: unitTgt ? td : 1e9, los: unitTgt ? los : false, enemies, hpFrac, underFire, state, w, aimPt, near, allyNear };
   const sk = chooseSkill(ctx);
   if (sk) {
     out[SLOTS[sk.slot]] = true;
@@ -145,17 +202,17 @@ export function botInput(m, u) {
     aimX = b.sk.x; aimZ = b.sk.z;
   }
 
-  // heal item
-  if (u.cd.heal <= 0 && hpFrac < 0.6 && (underFire || state === 'retreat' || hpFrac < 0.4)) out.heal = true;
+  // heal item (the boss has none)
+  if (!isBoss && u.cd.heal <= 0 && hpFrac < 0.6 && (underFire || state === 'retreat' || hpFrac < 0.4)) out.heal = true;
 
   // fire
   let fire = false;
-  if (tgt && los) {
-    const aimErrNow = Math.abs(angDiff(aimAng, desired));
+  if (tgt && canFire) {
+    const aimErrNow = lob ? 0 : Math.abs(angDiff(aimAng, desired));
     const reach = hyp(aimPt[0] - u.x, aimPt[1] - u.z) - tgt.radius * 0.5 <= w.range;
     const ready = now >= b.engageAt;
     const size = Math.atan2(tgt.radius, Math.max(1, td)) + 0.1;
-    if (reach && ready && aimErrNow < size + 0.06 && !domeBlocks(m, u, aimPt) && duty(m, b, D, now)) fire = true;
+    if (reach && ready && aimErrNow < size + 0.06 && (lob || !domeBlocks(m, u, aimPt)) && duty(m, b, D, now)) fire = true;
   }
   if (unstuck && unstuck.prop) {
     const p = unstuck.prop, a = Math.atan2(p.z - u.z, p.x - u.x);
@@ -164,8 +221,331 @@ export function botInput(m, u) {
   out.fire = fire && !(u.cast && u.cast.skill);
 
   out.mx = mvx; out.mz = mvz; out.aim = aimAng;
-  if (aimX !== null) { out.tx = aimX; out.tz = aimZ; } else { out.tx = u.x + Math.cos(aimAng) * 8; out.tz = u.z + Math.sin(aimAng) * 8; }
+  if (aimX !== null) {
+    out.tx = aimX; out.tz = aimZ;
+    if (lob && !sk && b.err) {   // aim noise on a lobbed shell: rotate the aim point about the bot
+      const c = Math.cos(b.err * 0.6), s = Math.sin(b.err * 0.6), dx = aimX - u.x, dz = aimZ - u.z;
+      out.tx = u.x + dx * c - dz * s; out.tz = u.z + dx * s + dz * c;
+    }
+  } else { out.tx = u.x + Math.cos(aimAng) * 8; out.tz = u.z + Math.sin(aimAng) * 8; }
+  return guard(out, u);
+}
+
+// ---- modes and hazards -------------------------------------------------------------------------------------------------------
+
+// The one place that knows whether a team has a base: free-for-all (team ids 0..9) has none.
+function baseOf(m, team) {
+  if (m.mode === 'tudo' || (team !== 0 && team !== 1)) return null;
+  return m.map.bases[team] || null;
+}
+// My own base (regen, retreat) and the enemy base I must not enter (it burns in tdm and chiem only). null when the mode has none.
+function ownOf(m, u) { return u.def.boss ? null : baseOf(m, u.team); }
+function foeOf(m, u) { return u.def.boss || m.mode === 'trum' ? null : baseOf(m, 1 - u.team); }
+const bossOf = (m) => { for (const x of m.units) if (x.def.boss) return x; return null; };
+
+function lavaNear(map, x, z, pad) {
+  for (const h of map.hazards) if (h.kind === 'lava' && d2(x, z, h.x, h.z) < (h.r + pad) * (h.r + pad)) return true;
+  return false;
+}
+function lavaSeg(map, x0, z0, x1, z1, pad) {
+  for (const h of map.hazards) if (h.kind === 'lava' && segCircle(x0, z0, x1 - x0, z1 - z0, h.x, h.z, h.r + pad) <= 1) return true;
+  return false;
+}
+function iceAt(map, x, z) {
+  for (const h of map.hazards) if (h.kind === 'ice' && d2(x, z, h.x, h.z) < h.r * h.r) return h;
+  return null;
+}
+function ventNear(m, x, z, pad) {
+  for (const v of m.vents) if (d2(x, z, v.x, v.z) < (v.r + pad) * (v.r + pad)) return true;
+  return false;
+}
+
+// A straight line from (x,z) to (tx,tz) that crosses lava: the point beside the disc to aim at instead (null when the line is clear).
+function lavaDetour(map, x, z, tx, tz) {
+  let best = null, bt = 2;
+  for (const h of map.hazards) {
+    if (h.kind !== 'lava') continue;
+    const t = segCircle(x, z, tx - x, tz - z, h.x, h.z, h.r + 0.6);
+    if (t > 0 && t <= 1 && t < bt) { bt = t; best = h; }
+  }
+  if (!best) return null;
+  const dx = tx - x, dz = tz - z, L = hyp(dx, dz) || 1, px = -dz / L, pz = dx / L;
+  const sgn = ((best.x - x) * px + (best.z - z) * pz) >= 0 ? 1 : -1, R = best.r + 1.8;
+  return [best.x - sgn * px * R, best.z - sgn * pz * R];
+}
+
+// Out of lava, off the rim of it, and off a vent that is warned or about to be.
+function hazardEscape(m, u, b) {
+  let ax = 0, az = 0, any = false;
+  for (const h of m.map.hazards) {
+    if (h.kind !== 'lava') continue;
+    const d = hyp(u.x - h.x, u.z - h.z);
+    if (d < h.r + 0.45) { const k = d || 1; ax += d ? (u.x - h.x) / k : 1; az += d ? (u.z - h.z) / k : 0; any = true; }
+  }
+  for (const v of m.vents) {
+    const d = hyp(u.x - v.x, u.z - v.z);
+    if (d < v.r + u.radius * 0.5 + 0.7 && (v.warn || v.t < 2.2)) { const k = d || 1; ax += d ? (u.x - v.x) / k : 1; az += d ? (u.z - v.z) / k : 0; any = true; }
+  }
+  return any ? [ax, az] : null;
+}
+
+// Boss raid, players' side: leave the nova ring before it lands, and step off the charge line when the boss faces us with its dash ready.
+function bossThreat(m, u, b, D, now) {
+  if (m.mode !== 'trum' || u.def.boss) return null;
+  const boss = bossOf(m);
+  if (!boss || !boss.alive) return null;
+  const pd = 0.5 + 0.5 * Math.min(1, D.dodge / 0.8);   // how often this bot sees it coming: easy 0.5, normal 0.72, hard 1
+  const dx = u.x - boss.x, dz = u.z - boss.z, d = hyp(dx, dz) || 1;
+  const c = boss.cast;
+  if (c && c.skill.do === 'nova') {
+    if (b.novaC !== c) { b.novaC = c; b.novaFlag = m.rng() < pd; b.novaAt = now + D.react * 0.3 * m.rng(); }
+    if (b.novaFlag && now >= b.novaAt && d < c.skill.radius + u.radius * 0.5 + 0.9) return [dx / d, dz / d];
+    return null;
+  }
+  if (boss.cd.s2 > 1) b.dashFlag = undefined;
+  const dashing = boss.dash;
+  if (!c && (dashing || boss.cd.s2 <= 0.45)) {
+    if (!dashing && b.dashFlag === undefined) b.dashFlag = m.rng() < pd;
+    if (dashing || b.dashFlag) {
+      const ax = dashing ? boss.dash.dx : Math.cos(boss.aim), az = dashing ? boss.dash.dz : Math.sin(boss.aim);
+      const along = dx * ax + dz * az, lat = -dx * az + dz * ax;
+      const reach = (dashing ? boss.dash.left : boss.def.skills[1].dist) + boss.radius + u.radius + 1;
+      if (along > 0 && along < reach && Math.abs(lat) < boss.radius + u.radius + 1.8) { const sg = lat >= 0 ? 1 : -1; return [-az * sg, ax * sg]; }
+    }
+  }
+  return null;
+}
+
+// Boss: walk at the best group of enemies it can see (many near each other, near me), stop a few metres short of it. null = stand and shoot.
+function bossGoal(m, u, b, enemies) {
+  let best = null, bs = -1e9;
+  for (const e of enemies) {
+    let n = 0, cx = 0, cz = 0;
+    for (const o of enemies) if (hyp(o.x - e.x, o.z - e.z) < 8) { n++; cx += o.x; cz += o.z; }
+    const s = n * 6 - hyp(e.x - u.x, e.z - u.z);
+    if (s > bs) { bs = s; best = [cx / n, cz / n]; }
+  }
+  if (!best) {
+    let bt = -1e9;
+    for (const id in b.seen) if (b.seen[id].t > bt && m.units[id].alive) { bt = b.seen[id].t; best = [b.seen[id].x, b.seen[id].z]; }
+  }
+  if (!best) return [0, 0];
+  const dx = best[0] - u.x, dz = best[1] - u.z, d = hyp(dx, dz);
+  if (d < 6.5) return null;
+  const k = (d - 5.5) / d;
+  return [u.x + dx * k, u.z + dz * k];
+}
+
+// Where, around the boss, to stand: a ring just outside its nova (or at the weapon's reach), spread by slot, apart from allies.
+function ringRadius(w) { return w.range >= 11.8 ? Math.min(20, Math.max(9.9, w.range * 0.85)) : w.range * 0.9; }
+
+function trumMove(m, u, b, D, role, boss, td, w, los, now, hpFrac) {
+  const dx = u.x - boss.x, dz = u.z - boss.z, d = hyp(dx, dz) || 1, ox = dx / d, oz = dz / d;
+  const R = ringRadius(w);
+  // out of reach or behind a wall: walk toward it until we see it; once we do, hold a moment so we shoot before backing off
+  if (d > R + 5 || (!los && !w.lob)) { if (!los) b.noLosT = now; return [0, 0, d > R + 5 && los ? boss.x + ox * R * 0.9 : boss.x, d > R + 5 && los ? boss.z + oz * R * 0.9 : boss.z, false]; }
+  if (now - b.noLosT < 1.0 && d > R * 0.6) return [0, 0, null, null, true];
+  // slot angle among the living allies (including me), a fifth of a circle apart
+  let k = 0, n = 0;
+  for (const a of m.units) if (a.team === u.team && a.alive) { if (a.id < u.id) k++; n++; }
+  const want = 0.5 + (k / Math.max(1, n)) * 2 * Math.PI, cur = Math.atan2(dz, dx), da = angDiff(cur, want);
+  if (now >= b.strafeNext) { b.strafe = m.rng() < 0.5 ? -1 : 1; b.strafeNext = now + 0.9 + m.rng() * 1.1; }
+  const radial = Math.max(-1, Math.min(1, (R - d) / 3));
+  const tang = Math.abs(da) > 0.3 ? Math.max(-1, Math.min(1, da * 1.4)) * 0.7 : b.strafe * 0.3 * (0.35 + 0.65 * D.dodge) * role.strafe;
+  let mx = ox * radial - oz * tang, mz = oz * radial + ox * tang;
+  // spread: push off allies closer than 7 m
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive) continue;
+    const ax = u.x - a.x, az = u.z - a.z, ad = hyp(ax, az);
+    if (ad < 7 && ad > 1e-3) { const f = (7 - ad) / 7 * 1.5; mx += ax / ad * f; mz += az / ad * f; }
+  }
+  // the healer and the other followers keep the group in reach
+  if (role.follow) {
+    let cx = 0, cz = 0, c = 0;
+    for (const a of m.units) if (a !== u && a.team === u.team && a.alive) { cx += a.x; cz += a.z; c++; }
+    if (c) { cx /= c; cz /= c; const ad = hyp(cx - u.x, cz - u.z); if (ad > (role.tether || 10) + 3) { mx += (cx - u.x) / ad * 0.35; mz += (cz - u.z) / ad * 0.35; } }
+  }
+  return [mx, mz, null, null, false];
+}
+
+// Free-for-all and base-less retreat: nearest heal crate, else the spot that is out of every pursuer's sight and far from them.
+function healCrateNear(m, u, maxD) {
+  let best = null, bd = maxD;
+  for (const c of m.crates) {
+    if (c.fall > 0 || c.type !== 'heal') continue;
+    const d = hyp(c.x - u.x, c.z - u.z);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+function fleeGoal(m, u, b, enemies, now) {
+  if (b.fleeG && now - b.fleeT < 0.4) return b.fleeG;
+  b.fleeT = now;
+  const map = m.map, thr = enemies.filter((e) => d2(e.x, e.z, u.x, u.z) < 484);
+  if (!thr.length) return (b.fleeG = [u.x, u.z]);
+  let best = null, bs = -1e9;
+  for (let k = 0; k < 16; k++) {
+    const a = k * Math.PI / 8;
+    for (const r of [7, 11]) {
+      const x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r;
+      if (solidAt(map, x, z, 1.3) || lavaNear(map, x, z, 1.6) || ventNear(m, x, z, 0.6)) continue;
+      if (!losClear(map, u.x, u.z, x, z, u.radius * 0.8) || lavaSeg(map, u.x, u.z, x, z, 0.8)) continue;
+      let s = 0;
+      for (const e of thr) {
+        s += Math.min(hyp(x - e.x, z - e.z), 16);
+        if (!losClear(map, e.x, e.z, x, z, 0.2)) s += 5;
+      }
+      s /= thr.length;
+      if (iceAt(map, x, z)) s -= 1;
+      if (s > bs) { bs = s; best = [x, z]; }
+    }
+  }
+  if (!best) {
+    let cx = 0, cz = 0;
+    for (const e of thr) { cx += e.x; cz += e.z; }
+    cx /= thr.length; cz /= thr.length;
+    const d = hyp(u.x - cx, u.z - cz) || 1;
+    best = [u.x + (u.x - cx) / d * 6, u.z + (u.z - cz) / d * 6];
+  }
+  return (b.fleeG = best);
+}
+
+// ---- control points ----------------------------------------------------------------------------------------------------------
+// Slot -> point it favours (team 0 sees the points as 0 = middle, 1 = near its base, 2 = far; team 1 the other way round).
+const PT_AFF = [[0, 1, 2], [0, 2, 1]];
+
+// Which point to go to: the one that needs capturing or defending most, spread over the squad, followers go where the squad is.
+function chiemPlan(m, u, b, role, now, enemies) {
+  const pts = m.points;
+  if (!pts.length) return null;
+  if (b.pt < 0 || now - b.planT > 0.6) {
+    b.planT = now;
+    const aff = PT_AFF[u.team & 1][u.slot % 3];
+    let best = 0, bs = -1e9;
+    for (const p of pts) {
+      const mine = u.team === 0 ? -p.prog : p.prog;   // 1 = fully ours
+      const need = (1 - mine) / 2;
+      let ePres = 0;
+      for (const e of enemies) if (hyp(e.x - p.x, e.z - p.z) < p.r + 3) ePres++;
+      let al = 0;
+      for (const a of m.units) if (a !== u && a.team === u.team && a.alive && a.brain && a.brain.pt === p.id) al++;
+      let s = need * 2.2 + (ePres ? (p.owner === u.team ? 1.3 : 0.6) : 0) - 0.75 * al + (p.id === aff ? 0.9 : 0) - hyp(p.x - u.x, p.z - u.z) / 45 + (b.pt === p.id ? 0.5 : 0);
+      if (role.follow) s += 1.5 * al;
+      if (s > bs) { bs = s; best = p.id; }
+    }
+    b.pt = best;
+  }
+  const P = pts[b.pt];
+  if (b.standT < 0 || now - b.standT > 0.7 || hyp(b.stand[0] - P.x, b.stand[1] - P.z) > P.r) { b.standT = now; b.stand = standPos(m, u, P, enemies); }
+  return { P, S: b.stand };
+}
+
+// A spot inside the point's circle: clear of walls, lava and vents, hidden from the nearest enemy when there is such a spot, spread from allies.
+function standPos(m, u, P, enemies) {
+  const map = m.map;
+  let ne = null, nd = 28;
+  for (const e of enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; ne = e; } }
+  let best = null, bs = -1e9;
+  for (let ring = 0; ring < 3; ring++) for (let k = 0; k < (ring ? 8 : 1); k++) {
+    const rr = [0, 0.45, 0.78][ring] * P.r, a = k * Math.PI / 4 + ring * 0.4;
+    const x = P.x + Math.cos(a) * rr, z = P.z + Math.sin(a) * rr;
+    if (solidAt(map, x, z, u.radius + 0.2) || propAt(m, x, z, u.radius) || lavaNear(map, x, z, u.radius + 0.9) || ventNear(m, x, z, u.radius + 0.4)) continue;
+    let s = -hyp(x - u.x, z - u.z) * 0.1 - rr * 0.05;
+    if (ne && !losClear(map, ne.x, ne.z, x, z, 0.2)) s += 3;
+    for (const o of m.units) if (o !== u && o.team === u.team && o.alive && o.brain && o.brain.pt === P.id && hyp(o.brain.stand[0] - x, o.brain.stand[1] - z) < 2.2) s -= 1.5;
+    if (iceAt(map, x, z)) s -= 0.6;
+    if (s > bs) { bs = s; best = [x, z]; }
+  }
+  return best || [P.x, P.z];
+}
+
+// Hold the point's circle while it is not safely ours, shoot whatever comes within reach, never chase far from it.
+function chiemMove(m, u, b, D, role, plan, tgt, td, w, los, now, hpFrac, underFire, enemies, state) {
+  const { P, S } = plan;
+  const dc = hyp(u.x - P.x, u.z - P.z);
+  let on = 0;
+  for (const e of enemies) if (hyp(e.x - P.x, e.z - P.z) < P.r + 1) on++;
+  const mine = (u.team === 0 ? -P.prog : P.prog) >= 1 && P.owner === u.team;
+  const holdIn = !mine || on > 0;
+  const leash = P.r + 2.5 + w.range * 0.3;
+  if (state !== 'fight' || !tgt) {
+    if (dc < P.r - 1 && !holdIn && hyp(S[0] - u.x, S[1] - u.z) < 1.2) return [0, 0, null, null, true];
+    return [0, 0, S[0], S[1], false];
+  }
+  const fm = fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies);
+  if (dc > leash) return [0, 0, S[0], S[1], false];
+  if (fm[2] !== null && hyp(fm[2] - P.x, fm[3] - P.z) > P.r + 1.5) return [0, 0, S[0], S[1], false];
+  if (!holdIn && dc < P.r + 1.5) return fm;
+  if (fm[2] !== null) return fm;
+  let mx = fm[0], mz = fm[1];
+  const ox = dc > 1e-3 ? (u.x - P.x) / dc : 0, oz = dc > 1e-3 ? (u.z - P.z) / dc : 0;
+  const edge = P.r - 1.0;
+  if (dc > edge) {
+    const k = mx * ox + mz * oz;
+    if (k > 0) { mx -= ox * k; mz -= oz * k; }
+    mx -= ox * 0.5 * Math.min(1, (dc - edge) / 1.5); mz -= oz * 0.5 * Math.min(1, (dc - edge) / 1.5);
+  }
+  return [mx, mz, null, null, false];
+}
+
+// Last line of defence: whatever the logic above produced, the simulation only ever gets finite numbers.
+function guard(out, u) {
+  const ua = Number.isFinite(u.aim) ? u.aim : 0;
+  if (!Number.isFinite(out.mx) || !Number.isFinite(out.mz)) { out.mx = 0; out.mz = 0; }
+  if (!Number.isFinite(out.aim)) out.aim = ua;
+  if (!Number.isFinite(out.tx) || !Number.isFinite(out.tz)) { out.tx = u.x + Math.cos(out.aim) * 8; out.tz = u.z + Math.sin(out.aim) * 8; }
+  out.fire = !!out.fire; out.s1 = !!out.s1; out.s2 = !!out.s2; out.ult = !!out.ult; out.heal = !!out.heal;
   return out;
+}
+
+// Where to aim at e: a flying shot leads by distance / speed, a lobbed shell by its flight time (both scaled by `lead`).
+function aimAtPoint(u, e, w, lead) {
+  if (w.lob) return [e.x + (e.vx || 0) * w.flight * lead, e.z + (e.vz || 0) * w.flight * lead];
+  return leadPoint(u, e, w.speed, lead);
+}
+
+function wallBlocks(m, x0, z0, x1, z1, r) {
+  for (const z of m.zones) {
+    if (z.kind !== 'wall') continue;
+    for (const q of z.pts) if (segCircle(x0, z0, x1 - x0, z1 - z0, q[0], q[1], z.r + r) <= 1) return true;
+  }
+  return false;
+}
+
+// Can u hit this mech right now with its weapon?
+function canHit(m, u, e, w, D) {
+  const p = aimAtPoint(u, e, w, D.lead);
+  if (hyp(p[0] - u.x, p[1] - u.z) - e.radius * 0.5 > w.range) return false;
+  if (w.lob) return true;
+  return losClear(m.map, u.x, u.z, p[0], p[1], Math.min(0.2, w.r * 0.6)) && !wallBlocks(m, u.x, u.z, p[0], p[1], 0.2);
+}
+
+function pseudo(id, x, z, radius, hp, maxHp) { return { pseudo: true, id, x, z, vx: 0, vz: 0, radius, hp, maxHp, invulnT: 0 }; }
+
+// Nearest enemy turret that the weapon can reach (lobbed shells need no line of sight).
+function pickTurret(m, u, w) {
+  let best = null, bd = 1e9;
+  for (const z of m.zones) {
+    if (z.kind !== 'turret' || z.team === u.team || z.hp <= 0) continue;
+    const d = hyp(z.x - u.x, z.z - u.z);
+    if (d > w.range * 1.3 || d >= bd) continue;
+    if (!w.lob && (!losClear(m.map, u.x, u.z, z.x, z.z, 0.2) || wallBlocks(m, u.x, u.z, z.x, z.z, 0.2))) continue;
+    bd = d; best = z;
+  }
+  return best ? pseudo(-100 - best.id, best.x, best.z, best.r, best.hp, best.maxHp) : null;
+}
+
+// A lobbing bot keeps shelling the spot where an enemy was last seen for a moment.
+function pickGhost(m, u, b, w, now) {
+  let best = null, bt = -1e9;
+  for (const id in b.seen) {
+    const s = b.seen[id], e = m.units[id];
+    if (!e.alive || now - s.t > 1.5 || s.t < bt) continue;
+    if (hyp(s.x - u.x, s.z - u.z) > w.range * 1.25) continue;
+    bt = s.t; best = s;
+  }
+  return best ? pseudo(-1, best.x, best.z, 1, 1, 1) : null;
 }
 
 function perceive(m, u, b, D, now) {
@@ -182,7 +562,7 @@ function perceive(m, u, b, D, now) {
   for (const id in b.seen) if (now - b.seen[id].t > 6) delete b.seen[id];
 }
 
-function pickTarget(m, u, b, D, now, w) {
+function pickTarget(m, u, b, D, now, w, role) {
   let best = null, bs = -1e9;
   for (const e of b.enemies) {
     if (e.invulnT > 0.3) continue;
@@ -190,11 +570,35 @@ function pickTarget(m, u, b, D, now, w) {
     if (d > 36) continue;
     let s = -d - 14 * (e.hp / e.maxHp) * (0.5 + 0.5 * D.skill);
     if (b.tgt === e.id) s += 4;
+    if (m.mode === 'tudo') {
+      // third-party: someone else is already hitting it or it is busy with someone else
+      let others = 0;
+      for (const k in e.hitBy) if (+k !== u.id && now - e.hitBy[k] < 3) others++;
+      const busy = e.brain && e.brain.tgt >= 0 && e.brain.tgt !== u.id && m.units[e.brain.tgt].alive;
+      if (others || busy) s += 3 + 5 * D.focus;
+    } else if (m.mode === 'chiem') {
+      // enemies on a point matter, enemies far from every point are not worth a trip
+      let dp = 1e9, pr = 4.6, held = false;
+      for (const p of m.points) { const dd = hyp(e.x - p.x, e.z - p.z); if (dd < dp) { dp = dd; pr = p.r; held = p.owner === e.team && (e.team === 0 ? -p.prog : p.prog) >= 1; } }
+      if (dp < pr + 0.5) s += held ? 4 : 8; else s -= Math.max(0, dp - 6) * 0.5;
+    } else if (role.boss) {
+      s += (e.def.roleKey === 'support' ? 6 : 0);
+      let c = 0;
+      for (const o of b.enemies) if (o !== e && hyp(o.x - e.x, o.z - e.z) < 6) c++;
+      s += 1.5 * c;
+    }
     let team = 0;
     for (const k in e.hitBy) { const a = m.units[k]; if (a.team === u.team && a !== u && now - e.hitBy[k] < 2.5) team++; }
     for (const a of m.units) if (a !== u && a.team === u.team && a.alive && a.brain && a.brain.tgt === e.id) team++;
     s += D.focus * 5 * Math.min(2, team);
     if (e.hp < e.maxHp * 0.4) s += D.focus * 6;
+    if (role.lowHp) s += role.lowHp * D.skill * 10 * (1 - e.hp / e.maxHp);
+    if (role.isolate || w.lob) {
+      let others = 0;
+      for (const o of b.enemies) if (o !== e && d2(o.x, o.z, e.x, e.z) < 64) others++;
+      if (role.isolate) s += role.isolate * D.skill * 4 * (2 - Math.min(2, others));
+      if (w.lob) s += 2.5 * Math.min(2, others);   // shells splash: prefer a clump
+    }
     if (s > bs) { bs = s; best = e; }
   }
   const id = best ? best.id : -1;
@@ -202,12 +606,14 @@ function pickTarget(m, u, b, D, now, w) {
   return best;
 }
 
-function pickCrate(m, u, b, hpFrac, enemies) {
+function pickCrate(m, u, b, hpFrac, enemies, plan) {
   let best = null, bd = 1e9;
-  const foe = m.map.bases[1 - u.team], br = RULES.baseRadius + 1;
+  const foe = foeOf(m, u), br = RULES.baseRadius + 1;
   for (const c of m.crates) {
     if (c.fall > 0) continue;
-    if (d2(c.x, c.z, foe[0], foe[1]) < br * br) continue;
+    if (foe && d2(c.x, c.z, foe[0], foe[1]) < br * br) continue;
+    if (lavaNear(m.map, c.x, c.z, 1.2)) continue;
+    if (plan && !(c.type === 'heal' && hpFrac < 0.6) && hyp(c.x - plan.P.x, c.z - plan.P.z) > plan.P.r + 7) continue;
     const dm = hyp(c.x - u.x, c.z - u.z);
     let ok = false;
     const healNeed = c.type === 'heal' && hpFrac < 0.6;
@@ -227,23 +633,31 @@ function pickCrate(m, u, b, hpFrac, enemies) {
   return best;
 }
 
-function setState(m, u, b, D, now, hpFrac, outnumbered, crate, tgt, td, w, inOwnBase) {
+function setState(m, u, b, D, now, hpFrac, outnumbered, crate, tgt, td, w, inOwnBase, role, flee) {
   let next = b.state;
-  const thr = D.retreat + (outnumbered ? 0.08 : 0);
-  if (b.state === 'retreat') {
-    if (hpFrac >= 0.7) next = 'push';
-    else if (u.cd.heal > 0 && hpFrac > 0.6 && !inOwnBase) next = b.state;
-  } else if (hpFrac < thr) {
-    next = 'retreat';
-    b.retreatGoal = null;
-  } else if (crate && (!tgt || td > 9 || hyp(crate.x - u.x, crate.z - u.z) < 6)) next = 'grab';
-  else if (tgt && (td <= w.range * 1.25 || (b.state === 'fight' && td <= w.range * 1.6))) next = 'fight';
-  else next = 'push';
+  const tudo = m.mode === 'tudo', trum = m.mode === 'trum';
+  if (role.boss) next = tgt && td <= w.range * 1.25 ? 'fight' : 'push';
+  else {
+    const thr = D.retreat + (outnumbered ? 0.08 : 0) + (role.cautious && outnumbered ? role.cautious : 0) + (trum ? 0.14 : 0);
+    if (b.state === 'retreat') {
+      let stay;
+      if (tudo) stay = !(now >= b.fleeUntil && (hpFrac >= 0.7 || (hpFrac >= 0.5 && now - b.lastThreat > 2.5) || now - b.since > 14));
+      else if (trum) stay = hpFrac < 0.85;
+      else stay = hpFrac < 0.7;
+      next = stay ? 'retreat' : 'push';
+    } else if (hpFrac < thr || flee) {
+      next = 'retreat';
+      b.retreatGoal = null;
+      if (flee) { b.fleeUntil = now + 2.2; b.fleeCool = now + 7; b.fleeG = null; }
+    } else if (crate && (!tgt || td > 9 || hyp(crate.x - u.x, crate.z - u.z) < 6)) next = 'grab';
+    else if (tgt && (td <= w.range * 1.25 || (b.state === 'fight' && td <= w.range * 1.6))) next = 'fight';
+    else next = 'push';
+  }
   if (next === 'grab') b.crate = crate.id;
   if (next === 'retreat') {
-    const own = m.map.bases[u.team];
+    const own = ownOf(m, u);
     b.retreatGoal = own;
-    for (const c of m.crates) {
+    if (own) for (const c of m.crates) {
       if (c.fall > 0 || c.type !== 'heal') continue;
       const dc = hyp(c.x - u.x, c.z - u.z);
       if (dc < 0.8 * hyp(own[0] - u.x, own[1] - u.z) && dc < 25) { b.retreatGoal = [c.x, c.z]; break; }
@@ -279,9 +693,16 @@ function pushGoal(m, u, b, role, now, tgt) {
     }
     if (ally) return hyp(ally.x - u.x, ally.z - u.z) < 5 ? [u.x, u.z] : safeGoal(m, u, ally.x - dir * 2, ally.z);
   }
-  if (!b.goal || hyp(b.goal[0] - u.x, b.goal[1] - u.z) < 2.2) {
+  if (!b.goal || hyp(b.goal[0] - u.x, b.goal[1] - u.z) < 2.2 || (m.mode === 'tudo' && now - b.goalT > 4)) {
+    b.goalT = now;
     if (b.goal) b.patrol++;
-    if (b.patrol === 0) b.goal = [dir * 4, b.lane];
+    if (m.mode === 'tudo') {
+      // head for the nearest scrap (somebody who fired a moment ago), else anywhere
+      let fx = null, fd = 1e9;
+      for (const a of m.units) if (a !== u && a.alive && a.combatT < 3 && hyp(a.x - u.x, a.z - u.z) < fd) { fd = hyp(a.x - u.x, a.z - u.z); fx = a; }
+      b.goal = fx && fd > 8 ? [fx.x, fx.z] : [m.rng.range(-m.map.hw + 6, m.map.hw - 6), m.rng.range(-m.map.hd + 6, m.map.hd - 6)];
+    }
+    else if (b.patrol === 0) b.goal = [dir * 4, b.lane];
     else if (b.patrol === 1) b.goal = [dir * 19, b.lane * 0.7];
     else b.goal = [dir * m.rng.range(-8, 22), m.rng.pick([-15, 0, 15]) + m.rng.range(-3, 3)];
     b.goal = safeGoal(m, u, b.goal[0], b.goal[1]);
@@ -291,19 +712,20 @@ function pushGoal(m, u, b, role, now, tgt) {
 
 // nearest open point to (x,z) that is not inside walls and not inside the enemy base
 function safeGoal(m, u, x, z) {
-  const map = m.map, foe = map.bases[1 - u.team], R = RULES.baseRadius + 2.5;
-  const dx = x - foe[0], dz = z - foe[1], dd = hyp(dx, dz);
-  if (dd < R) { const k = R / (dd || 1); x = foe[0] + (dd ? dx * k : R); z = foe[1] + (dd ? dz * k : 0); }
-  if (!solidAt(map, x, z, 1.3)) return [x, z];
+  const map = m.map, foe = foeOf(m, u), R = RULES.baseRadius + 2.5;
+  const dx = foe ? x - foe[0] : 1e3, dz = foe ? z - foe[1] : 0, dd = hyp(dx, dz);
+  if (foe && dd < R) { const k = R / (dd || 1); x = foe[0] + (dd ? dx * k : R); z = foe[1] + (dd ? dz * k : 0); }
+  if (!solidAt(map, x, z, 1.3) && !lavaNear(map, x, z, 1.2)) return [x, z];
   for (let r = 1; r < 8; r++) for (let k = 0; k < 8; k++) {
     const a = k * Math.PI / 4, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
-    if (!solidAt(map, px, pz, 1.3) && d2(px, pz, foe[0], foe[1]) > R * R) return [px, pz];
+    if (!solidAt(map, px, pz, 1.3) && !lavaNear(map, px, pz, 1.2) && (!foe || d2(px, pz, foe[0], foe[1]) > R * R)) return [px, pz];
   }
   return [x, z];
 }
 
 function leadPoint(u, e, speed, lead) {
   let px = e.x, pz = e.z;
+  if (!(speed > 0)) return [px, pz];
   const vx = e.vx || 0, vz = e.vz || 0;
   for (let i = 0; i < 2; i++) {
     const t = hyp(px - u.x, pz - u.z) / speed;
@@ -330,7 +752,7 @@ function domeBlocks(m, u, p) {
   return false;
 }
 
-function fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire) {
+function fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire, enemies) {
   const lo = w.range * role.pref[0], hi = w.range * role.pref[1];
   const ux = (tgt.x - u.x) / (td || 1), uz = (tgt.z - u.z) / (td || 1);
   if (now >= b.strafeNext) { b.strafe = m.rng() < 0.5 ? -1 : 1; b.strafeNext = now + 0.7 + m.rng() * 0.9 / (0.4 + D.dodge); }
@@ -345,26 +767,53 @@ function fightMove(m, u, b, D, role, tgt, td, w, los, now, hpFrac, underFire) {
     }
   } else b.hasCover = false;
 
-  if (!los) return [0, 0, tgt.x, tgt.z, false];
+  // allies: the one closest to me and the one closest to the target
+  let near = null, nd = 1e9, front = null, fd = 1e9;
+  if (role.tether || role.behind) for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive) continue;
+    const dm = hyp(a.x - u.x, a.z - u.z), dt = hyp(a.x - tgt.x, a.z - tgt.z);
+    if (dm < nd) { nd = dm; near = a; }
+    if (dt < fd && dm < 22) { fd = dt; front = a; }
+  }
+  // a lobbing weapon needs no line of sight: hold range instead of walking up to the target
+  if (!los && !w.lob) return [0, 0, tgt.x, tgt.z, false];
 
   let radial = 0;
   if (td < lo) radial = role.kite ? -1 : -0.6;
   else if (td > hi) radial = 1;
   if (role.kite && td < lo * 0.7) radial = -1.3;
-  const amp = role.strafe * (0.35 + 0.65 * D.dodge) + (underFire ? 0.2 : 0);
+  let ax = 0, az = 0;
+  if (near && role.behind && front && td < fd + 1.5 && hyp(front.x - u.x, front.z - u.z) > 2.5) {
+    // I am ahead of every ally: drop back behind them
+    const k = hyp(front.x - u.x, front.z - u.z) || 1;
+    ax = (front.x - u.x) / k; az = (front.z - u.z) / k;
+    if (radial > 0) radial = 0;
+  } else if (near && role.tether && nd > role.tether) {
+    const k = nd || 1;
+    ax = (near.x - u.x) / k * 0.9; az = (near.z - u.z) / k * 0.9;
+    if (radial > 0) radial *= 0.4;
+  }
+  const ice = iceAt(m.map, u.x, u.z);
+  // strafing on ice mostly slides: do less of it, and drift toward the rim
+  const amp = (role.strafe * (0.35 + 0.65 * D.dodge) + (underFire ? 0.2 : 0)) * (ice ? 0.35 : 1);
   const sx = -uz * b.strafe * amp, sz = ux * b.strafe * amp;
-  return [ux * radial + sx, uz * radial + sz, null, null, false];
+  if (ice) {
+    const id = hyp(u.x - ice.x, u.z - ice.z) || 1;
+    ax += (u.x - ice.x) / id * 0.6; az += (u.z - ice.z) / id * 0.6;
+  }
+  return [ux * radial + sx + ax, uz * radial + sz + az, null, null, false];
 }
 
 function findCover(m, u, tx, tz) {
-  const map = m.map, foe = map.bases[1 - u.team];
+  const map = m.map, foe = foeOf(m, u);
   let best = null, bd = 1e9;
   for (let k = 0; k < 12; k++) {
     const a = k * Math.PI / 6;
     for (let r = 3; r <= 6; r += 3) {
       const px = u.x + Math.cos(a) * r, pz = u.z + Math.sin(a) * r;
       if (solidAt(map, px, pz, u.radius + 0.3)) continue;
-      if (d2(px, pz, foe[0], foe[1]) < (RULES.baseRadius + 1.5) ** 2) continue;
+      if (foe && d2(px, pz, foe[0], foe[1]) < (RULES.baseRadius + 1.5) ** 2) continue;
+      if (lavaNear(map, px, pz, 1.2) || ventNear(m, px, pz, 0.6)) continue;
       if (losClear(map, tx, tz, px, pz, 0.2)) continue;
       if (!losClear(map, u.x, u.z, px, pz, u.radius * 0.7)) continue;
       if (r < bd) { bd = r; best = [px, pz]; }
@@ -378,7 +827,11 @@ function goTo(m, u, b, gx, gz, now) {
   const map = m.map;
   const dg = hyp(gx - u.x, gz - u.z);
   if (dg < 0.7) return null;
-  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.radius * 0.9 + 0.1)) { b.path = null; return [gx - u.x, gz - u.z]; }
+  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.radius * 0.9 + 0.1)) {
+    b.path = null;
+    const dv = lavaDetour(map, u.x, u.z, gx, gz);
+    return dv ? [dv[0] - u.x, dv[1] - u.z] : [gx - u.x, gz - u.z];
+  }
   const moved = hyp(gx - b.pgx, gz - b.pgz);
   const since = now - b.pathT;
   if (!b.path || b.forceRepath || (since >= 0.5 && (moved > 2 || since > 2)) || (moved > 8 && since >= 0.2)) {
@@ -389,11 +842,13 @@ function goTo(m, u, b, gx, gz, now) {
   while (b.pi < p.length - 1 && losClear(map, u.x, u.z, p[b.pi + 1][0], p[b.pi + 1][1], u.radius + 0.1)) b.pi++;
   const wp = p[b.pi];
   if (b.pi >= p.length - 1 && hyp(wp[0] - u.x, wp[1] - u.z) < 0.8) return null;
-  return [wp[0] - u.x, wp[1] - u.z];
+  const dv = lavaDetour(map, u.x, u.z, wp[0], wp[1]);
+  return dv ? [dv[0] - u.x, dv[1] - u.z] : [wp[0] - u.x, wp[1] - u.z];
 }
 
 function inFoe(m, u, x, z) {
-  const foe = m.map.bases[1 - u.team], R = RULES.baseRadius + 0.6;
+  const foe = foeOf(m, u), R = RULES.baseRadius + 0.6;
+  if (!foe) return false;
   const dn = d2(x, z, foe[0], foe[1]);
   return dn < R * R && dn <= d2(u.x, u.z, foe[0], foe[1]) + 1e-6;
 }
@@ -403,11 +858,15 @@ function freeDir(m, u, b, dx, dz) {
   const len = hyp(dx, dz);
   if (len < 1e-6) return [0, 0];
   const ux = dx / len, uz = dz / len, map = m.map, rr = u.radius * 0.8;
+  // on ice the velocity follows the command slowly: look further ahead and give lava a wider berth
+  const ice = iceAt(map, u.x, u.z), look = ice ? 3.2 : 1.6, pad = ice ? 1.6 : 0.5;
   for (let i = 0; i < STEER.length; i++) {
     const a = STEER[i] * b.ss, c = Math.cos(a), s = Math.sin(a);
     const vx = ux * c - uz * s, vz = ux * s + uz * c;
-    const px = u.x + vx * 1.6, pz = u.z + vz * 1.6;
+    const px = u.x + vx * look, pz = u.z + vz * look;
     if (solidAt(map, px, pz, rr) || inFoe(m, u, px, pz) || propAt(m, px, pz, rr)) continue;
+    if (lavaNear(map, px, pz, pad) || lavaNear(map, u.x + vx * look * 0.5, u.z + vz * look * 0.5, pad)) continue;
+    if (m.vents.length) { let bad = false; for (const v of m.vents) if (v.warn && d2(px, pz, v.x, v.z) < (v.r + 0.4) * (v.r + 0.4)) bad = true; if (bad) continue; }
     if (i > 0 && i < 3) b.ss = a >= 0 ? 1 : -1;
     return [vx, vz];
   }
@@ -416,22 +875,28 @@ function freeDir(m, u, b, dx, dz) {
 
 function propAt(m, x, z, r) {
   for (const p of m.props) if (p.alive && d2(p.x, p.z, x, z) < (p.r + r) * (p.r + r)) return true;
+  for (const zn of m.zones) {
+    if (zn.kind !== 'wall') continue;
+    for (const q of zn.pts) if (d2(q[0], q[1], x, z) < (zn.r + r) * (zn.r + r)) return true;
+  }
   return false;
 }
 
 function dodgeZones(m, u, b, D) {
-  if (D.dodge <= 0) return null;
+  const pd = m.mode === 'trum' ? Math.max(D.dodge, 0.55) : D.dodge;   // against the boss every bot at least tries
+  if (pd <= 0) return null;
   let ax = 0, az = 0, any = false;
   for (const z of m.zones) {
     if (z.team === u.team) continue;
     let rad = 0;
     if (z.kind === 'strike' && z.delay > 0.12) rad = z.r + 0.6;
     else if (z.kind === 'mine' && z.delay <= 0) rad = z.r + 0.8;
+    else if (z.kind === 'field' && (z.dps > 0 || z.pull > 0)) rad = z.r + 0.4;
     else continue;
     const dd = hyp(u.x - z.x, u.z - z.z);
     if (dd > rad + u.radius) continue;
     let flag = b.dodge[z.id];
-    if (flag === undefined) flag = b.dodge[z.id] = m.rng() < D.dodge;
+    if (flag === undefined) flag = b.dodge[z.id] = m.rng() < pd;
     if (!flag) continue;
     const k = dd || 1;
     ax += (u.x - z.x) / k; az += (u.z - z.z) / k; any = true;
@@ -473,18 +938,21 @@ const SKILL_AI = {
   shield(c) { return c.u.shield <= 0 && c.underFire && c.enemies.length > 0; },
   dash(c, s) {
     const { u, tgt, td, los } = c;
-    if (!tgt || !los || c.hpFrac < 0.3) return false;
+    if (!tgt || !los || (c.hpFrac < 0.3 && !c.role.boss)) return false;
+    if (c.m.mode === 'trum' && !c.role.boss) return false;   // charging a boss only lands us in its nova ring
     const reach = s.dist + tgt.radius * 0.6;
     if (td < u.radius + tgt.radius + 1.6 || td > reach) return false;
     const a = Math.atan2(tgt.z - u.z, tgt.x - u.x);
     if (inFoe(c.m, u, u.x + Math.cos(a) * s.dist, u.z + Math.sin(a) * s.dist)) return false;
+    if (lavaSeg(c.m.map, u.x, u.z, u.x + Math.cos(a) * s.dist, u.z + Math.sin(a) * s.dist, 0.5)) return false;
     c.b.sk.aim = a;
     return true;
   },
   nova(c, s) {
     const { u, tgt } = c;
     let n = 0;
-    for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) n++;
+    for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
+    if (c.role.boss) return n >= 2 || (n >= 1 && c.D.skill >= 0.9);   // the ring is telegraphed: worth it on two, or on one for a hard boss
     if (n >= 2) return true;
     return n >= 1 && (c.hpFrac < 0.5 || (tgt && tgt.hp <= s.dmg * 0.9) || c.D.skill >= 0.9);
   },
@@ -496,20 +964,97 @@ const SKILL_AI = {
     c.b.sk.x = p[0]; c.b.sk.z = p[1];
     return losClear(c.m.map, u.x, u.z, p[0], p[1], 0.3);
   },
-  buff(c) {
+  buff(c, s) {
     const { u, tgt, td, w } = c;
+    if (s.stealth) {
+      // flanker: vanish before closing in, or to break contact when hurt and hunted
+      if (u.stealthT > 0 || u.hasteT > 0) return false;
+      if (c.state === 'retreat' || (c.underFire && c.hpFrac < 0.55)) return c.enemies.length > 0;
+      return !!tgt && td > w.range * 0.7 && td < w.range + 9 && c.state !== 'grab';
+    }
     if (u.hasteT > 0 || u.rapidT > 0) return false;
     if (c.state === 'retreat') return c.enemies.length > 0;
     return !!tgt && td < w.range + 4 && c.state !== 'grab';
   },
   barrage(c, s) {
     const { u, tgt, td } = c;
+    if (s.line) return lineBarrage(c, s);
+    if (c.role.boss) {
+      // the densest group within reach
+      const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 3), s.radius);
+      if (!g) return false;
+      const d = hyp(g.x - u.x, g.z - u.z), k = d > s.cast ? s.cast / d : 1;
+      c.b.sk.x = u.x + (g.x - u.x) * k; c.b.sk.z = u.z + (g.z - u.z) * k;
+      return true;
+    }
     if (!tgt || td > s.cast || td < 3.5) return false;
     let cx = 0, cz = 0, n = 0;
     const p = leadPoint(u, { x: tgt.x, z: tgt.z, vx: tgt.vx, vz: tgt.vz }, 6, c.D.lead * 0.6);
     for (const e of c.enemies) if (hyp(e.x - tgt.x, e.z - tgt.z) < s.radius) { cx += e.x; cz += e.z; n++; }
-    c.b.sk.x = (p[0] + cx / n) / 2; c.b.sk.z = (p[1] + cz / n) / 2;
+    if (n) { c.b.sk.x = (p[0] + cx / n) / 2; c.b.sk.z = (p[1] + cz / n) / 2; } else { c.b.sk.x = p[0]; c.b.sk.z = p[1]; }
     return true;
+  },
+  minefield(c, s) {
+    const { u, tgt, td, m } = c;
+    if (!tgt || td < 3 || td > s.cast + 3) return false;
+    const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 4), s.radius * 0.8);
+    let px, pz;
+    if (g && g.n >= 2) { px = g.x; pz = g.z; }
+    else {
+      // a lone enemy: only where it has to squeeze through, or to cover a retreat
+      const p = leadPoint(u, tgt, 8, c.D.lead * 0.7);
+      if (!(c.state === 'retreat' || c.hpFrac < 0.5 || chokepoint(m.map, p[0], p[1]))) return false;
+      px = p[0]; pz = p[1];
+    }
+    const d = hyp(px - u.x, pz - u.z);
+    if (d > s.cast + 1.5 || d < 2.5) return false;
+    c.b.sk.x = px; c.b.sk.z = pz;
+    return true;
+  },
+  turret(c, s) {
+    const { u, tgt, td, m } = c;
+    for (const z of m.zones) if (z.kind === 'turret' && z.owner === u.id) return false;
+    if (!tgt || td > s.range + s.cast + 1 || td < 3) return false;
+    // as far toward the enemy as the cast allows, but keep the target inside the turret's range
+    const a = Math.atan2(tgt.z - u.z, tgt.x - u.x);
+    for (let k = Math.min(s.cast, Math.max(2, td - 4)); k >= 1.5; k -= 1) {
+      const x = u.x + Math.cos(a) * k, z = u.z + Math.sin(a) * k;
+      if (solidAt(m.map, x, z, 1.0) || inFoe(m, u, x, z)) continue;
+      if (hyp(tgt.x - x, tgt.z - z) > s.range) continue;
+      c.b.sk.x = x; c.b.sk.z = z;
+      return true;
+    }
+    return false;
+  },
+  wall(c, s) {
+    const { u, tgt, td, m } = c;
+    if (!tgt || td > 15 || td < 3) return false;
+    const retreating = c.state === 'retreat' || (c.hpFrac < 0.4 && c.underFire);
+    const chased = c.near - c.allyNear >= 1 && c.underFire;
+    // winning: our own shots must not run into the wall
+    const winning = c.allyNear + 1 >= c.near && !retreating;
+    if (winning || !(retreating || chased)) return false;
+    const a = Math.atan2(tgt.z - u.z, tgt.x - u.x);
+    const cx = u.x + Math.cos(a) * s.cast, cz = u.z + Math.sin(a) * s.cast, half = (s.n - 1) / 2 * s.gap + 1.5;
+    for (const o of m.units) if (o !== u && o.team === u.team && o.alive && hyp(o.x - cx, o.z - cz) < half) return false;
+    if (solidAt(m.map, cx, cz, 0.6)) return false;
+    c.b.sk.aim = a;
+    return true;
+  },
+  recoil(c, s) {
+    const { u, m } = c;
+    let near = null, nd = 1e9;
+    for (const e of c.enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; near = e; } }
+    if (!near || nd > s.radius * 0.9) return false;
+    const base = Math.atan2(near.z - u.z, near.x - u.x);
+    for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
+      const a = base + da, ex = u.x - Math.cos(a) * s.dist, ez = u.z - Math.sin(a) * s.dist;
+      if (solidAt(m.map, ex, ez, u.radius * 0.8) || inFoe(m, u, ex, ez) || lavaSeg(m.map, u.x, u.z, ex, ez, 0.5)) continue;
+      if (!losClear(m.map, u.x, u.z, ex, ez, u.radius * 0.7)) continue;
+      c.b.sk.aim = a;   // the recoil throws the caster opposite to its aim
+      return true;
+    }
+    return false;
   },
   mine(c, s) {
     const { u, tgt, td } = c;
@@ -527,7 +1072,7 @@ const SKILL_AI = {
     const base = Math.atan2(u.z - tgt.z, u.x - tgt.x), map = c.m.map;
     for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
       const a = base + da, ex = u.x + Math.cos(a) * s.dist, ez = u.z + Math.sin(a) * s.dist;
-      if (solidAt(map, ex, ez, u.radius * 0.8) || inFoe(c.m, u, ex, ez)) continue;
+      if (solidAt(map, ex, ez, u.radius * 0.8) || inFoe(c.m, u, ex, ez) || lavaSeg(map, u.x, u.z, ex, ez, 0.5)) continue;
       if (!losClear(map, u.x, u.z, ex, ez, u.radius * 0.7)) continue;
       c.b.sk.mx = Math.cos(a); c.b.sk.mz = Math.sin(a);
       return true;
@@ -546,7 +1091,9 @@ const SKILL_AI = {
     return true;
   },
   zone(c, s) {
-    const { u, tgt, td } = c;
+    const { u, tgt, td, m } = c;
+    if (s.hide) return smokeSkill(c, s);
+    if (s.pull) return pullSkill(c, s);
     if (s.hps || s.at === 'self') {
       let miss = 0;
       for (const a of c.m.units) {
@@ -556,6 +1103,12 @@ const SKILL_AI = {
       return miss >= 0.5;
     }
     if (!tgt || td > s.cast + 1 || td < 3) return false;
+    const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 2), s.radius * 0.8);
+    if (g && g.n >= 2 && hyp(g.x - u.x, g.z - u.z) <= s.cast + 1) {
+      const k = Math.min(1, s.cast / (hyp(g.x - u.x, g.z - u.z) || 1));
+      c.b.sk.x = u.x + (g.x - u.x) * k; c.b.sk.z = u.z + (g.z - u.z) * k;
+      return true;
+    }
     const p = leadPoint(u, tgt, 12, c.D.lead * 0.5);
     const d = hyp(p[0] - u.x, p[1] - u.z), k = Math.min(1, s.cast / (d || 1));
     c.b.sk.x = u.x + (p[0] - u.x) * k; c.b.sk.z = u.z + (p[1] - u.z) * k;
@@ -569,9 +1122,90 @@ const SKILL_AI = {
       if (a.team !== u.team || !a.alive || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius) continue;
       if (a.hp < a.maxHp * 0.6) hurt++;
     }
+    if (c.m.mode === 'tudo') return c.underFire && c.hpFrac < 0.7;   // no allies: a dome only ever covers me, and only when I am the one being shot
     return hurt >= 2 || (hurt >= 1 && c.hpFrac < 0.55 && c.underFire);
   },
 };
+
+// Densest group of enemies within r of one of them: { x, z, n } (centre of the group) or null.
+function cluster(list, r) {
+  let best = null;
+  for (const e of list) {
+    let n = 0, cx = 0, cz = 0;
+    for (const o of list) if (hyp(o.x - e.x, o.z - e.z) <= r) { n++; cx += o.x; cz += o.z; }
+    if (!best || n > best.n) best = { x: cx / n, z: cz / n, n };
+  }
+  return best;
+}
+
+// A spot is a chokepoint when walls close in on three or more of eight sides.
+function chokepoint(map, x, z) {
+  let blocked = 0;
+  for (let k = 0; k < 8; k++) if (solidAt(map, x + Math.cos(k * Math.PI / 4) * 2.5, z + Math.sin(k * Math.PI / 4) * 2.5, 0.8)) blocked++;
+  return blocked >= 3;
+}
+
+// Line barrage: strikes march along the aim direction from the aim point, so aim along the enemy line.
+function lineBarrage(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || td < 3.5) return false;
+  const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 4), 6);
+  if (!g) return false;
+  if (g.n < 2 && !(tgt.hp <= s.dmg * 2 || c.D.skill >= 0.9)) return false;
+  const mem = c.enemies.filter((e) => hyp(e.x - g.x, e.z - g.z) <= 6);
+  let a = Math.atan2(tgt.z - u.z, tgt.x - u.x), far = 0;
+  for (const p of mem) for (const q of mem) {
+    const d = hyp(p.x - q.x, p.z - q.z);
+    if (d > far) { far = d; a = Math.atan2(q.z - p.z, q.x - p.x); }
+  }
+  const lead = c.D.lead * 0.5;
+  let px = g.x + (tgt.vx || 0) * lead, pz = g.z + (tgt.vz || 0) * lead;
+  const d = hyp(px - u.x, pz - u.z);
+  if (d > s.cast + 2) return false;
+  if (d > s.cast) { px = u.x + (px - u.x) * s.cast / d; pz = u.z + (pz - u.z) * s.cast / d; }
+  c.b.sk.x = px; c.b.sk.z = pz; c.b.sk.aim = a;
+  return true;
+}
+
+// Smoke: drop it on myself, or on a badly hurt ally under fire, when hunted or backing off.
+function smokeSkill(c, s) {
+  const { u, m } = c;
+  if (!c.enemies.length || u.bush >= 0) return false;
+  if (!(c.state === 'retreat' || (c.underFire && c.hpFrac < 0.8))) return false;
+  let px = u.x, pz = u.z, worst = c.hpFrac;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive || a.combatT > 1.2 || a.bush >= 0) continue;
+    const f = a.hp / a.maxHp;
+    if (f < 0.45 && f < worst - 0.1 && hyp(a.x - u.x, a.z - u.z) <= s.cast) { worst = f; px = a.x; pz = a.z; }
+  }
+  for (const z of m.zones) if (z.kind === 'field' && z.hide && z.team === u.team && hyp(z.x - px, z.z - pz) < z.r * 0.6) return false;
+  c.b.sk.x = px; c.b.sk.z = pz;
+  return true;
+}
+
+// Pull field: on two or more enemies, or on a spot where a strike of ours is about to land, or to pin a nearly dead one.
+function pullSkill(c, s) {
+  const { u, tgt, td, m } = c;
+  for (const z of m.zones) {
+    if (z.kind !== 'strike' || z.team !== u.team || z.delay < 0.35 || z.delay > 2.2) continue;
+    if (hyp(z.x - u.x, z.z - u.z) > s.cast + 1) continue;
+    for (const e of c.enemies) if (hyp(e.x - z.x, e.z - z.z) < s.radius * 0.8 + z.r * 0.5) { c.b.sk.x = z.x; c.b.sk.z = z.z; return true; }
+  }
+  const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 2), s.radius * 0.8);
+  if (g && g.n >= 2) {
+    const d = hyp(g.x - u.x, g.z - u.z);
+    if (d > s.cast + 1 || d < 3) return false;
+    const k = Math.min(1, s.cast / (d || 1));
+    c.b.sk.x = u.x + (g.x - u.x) * k; c.b.sk.z = u.z + (g.z - u.z) * k;
+    return true;
+  }
+  if (tgt && td >= 3 && td <= s.cast && tgt.hp < tgt.maxHp * 0.35) {
+    const p = leadPoint(u, tgt, 12, c.D.lead * 0.5);
+    c.b.sk.x = p[0]; c.b.sk.z = p[1];
+    return true;
+  }
+  return false;
+}
 
 function chooseSkill(c) {
   const { u, b, D, m, role } = c;

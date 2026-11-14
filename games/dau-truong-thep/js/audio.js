@@ -119,6 +119,18 @@ function tones(sr, D, list) {
   });
 }
 
+// Nail gun: a bright tick, a short metal ring and a dull thunk. Variant shifts pitch so a fast stream does not machine-gun one sample.
+function rivet(sr, r, v, D) {
+  const bp = svf(sr), hp = lp1(sr, 2500), f = 1500 + v * 500 + rnd(r, 0, 80);
+  let ph = 0;
+  return mk(sr, D, (t) => {
+    const x = r() * 2 - 1;
+    bp.run(x, 3200 + v * 900, 3);
+    ph += TAU * (70 + 90 * ex(-t * 70)) / sr;
+    return bp.nbp * ex(-t / 0.005) * 1.1 + (x - hp(x)) * ex(-t / 0.0025) * 0.6 + (Math.sin(TAU * f * t) + 0.5 * Math.sin(TAU * f * 2.43 * t)) * ex(-t / 0.03) * 0.35 + Math.sin(ph) * ex(-t / 0.04) * 0.9;
+  });
+}
+
 // ---------- Sound table ----------
 // vol: playback level (buffers are all normalised); duck: how far the world and music bus drop under the player's own copy.
 export const SOUNDS = {
@@ -176,6 +188,56 @@ export const SOUNDS = {
         return bp.nbp * ad(t, 0.06, 0.28) * 1.2 + rum(r() * 2 - 1) * ex(-t / 0.4) + Math.sin(ph) * ex(-t / 0.06) * 0.9 + (x - hi(x)) * ad(t, 0.1, 0.25) * 0.25;
       });
     } },
+
+  fire_mortar: { n: 1, dur: 0.8, bus: 'gun', max: 2, pri: 6, vol: 0.85, duck: 0.25,
+    gen: (sr, r, v, D) => {
+      const a = nlp(sr, 260), b = nlp(sr, 1400), bp = svf(sr);
+      let ph = 0;
+      return mk(sr, D, (t) => {
+        ph += TAU * (40 + 95 * ex(-t * 18)) / sr;
+        bp.run(r() * 2 - 1, 190, 9);
+        return Math.tanh(1.5 * (Math.sin(ph) * ex(-t / 0.2) * 1.1 + a(r() * 2 - 1) * ex(-t / 0.09) * 0.9 + b(r() * 2 - 1) * ex(-t / 0.02) * 0.5 + bp.nbp * ex(-t / 0.18) * 0.3));
+      });
+    } },
+  mortar_whistle: { n: 1, dur: 0.85, bus: 'world', max: 3, pri: 5, vol: 0.5,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const u = t / D, f = 2600 - 1800 * Math.pow(u, 0.8);
+        p += TAU * f * (1 + 0.01 * Math.sin(TAU * 9 * t)) / sr;
+        bp.run(r() * 2 - 1, f, 6);
+        return (Math.sin(p) + 0.25 * Math.sin(2 * p) + bp.nbp * 0.25) * Math.pow(u, 1.5);
+      });
+    } },
+  fire_pellet: { n: 2, dur: 0.35, bus: 'gun', max: 3, pri: 6, vol: 0.8, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      const a = nlp(sr, 2200), low = nlp(sr, 400), hp = lp1(sr, 2500);
+      const crack = [];
+      for (let k = 0; k < 5; k++) crack.push([r() * 0.02, 0.3 + r() * 0.3]);
+      let ph = 0;
+      return mk(sr, D, (t) => {
+        ph += TAU * (60 + 110 * ex(-t * 45)) / sr;
+        const x = r() * 2 - 1, hi = x - hp(x);
+        let c = 0;
+        for (const [t0, g] of crack) if (t > t0) c += hi * g * ex(-(t - t0) / 0.003);
+        return Math.tanh(1.6 * (a(r() * 2 - 1) * ex(-t / (0.05 + v * 0.01)) + hi * ex(-t / 0.012) * 0.8 + Math.sin(ph) * ex(-t / 0.09) * 0.9 + low(r() * 2 - 1) * ex(-t / 0.15) * 0.4 + c));
+      });
+    } },
+  fire_frost: { n: 2, dur: 0.3, bus: 'gun', max: 4, pri: 4, vol: 0.55,
+    gen: (sr, r, v, D) => {
+      const f0 = 2600 + v * 500 + r() * 80, hp = lp1(sr, 5000), R = [1, 1.51, 2.19, 3.07], T = [0.09, 0.06, 0.04, 0.03];
+      let p = 0;
+      return mk(sr, D, (t) => {
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += Math.sin(TAU * f0 * R[k] * t) * ex(-t / T[k]) * (0.8 - k * 0.15);
+        p += TAU * (1800 + 2600 * ex(-t * 40)) / sr;
+        const x = r() * 2 - 1;
+        return s * (0.75 + 0.25 * Math.sin(TAU * 45 * t)) + Math.sin(p) * ex(-t / 0.03) * 0.6 + (x - hp(x)) * ex(-t / 0.004) * 0.7;
+      });
+    } },
+  fire_rivet: { n: 2, dur: 0.2, bus: 'gun', max: 4, pri: 4, vol: 0.6, gen: rivet },
+  fire_turret: { n: 2, dur: 0.2, bus: 'gun', max: 3, pri: 3, vol: 0.3, gen: rivet },
 
   hit_metal: { n: 3, dur: 0.35, bus: 'world', max: 5, pri: 3, vol: 0.5,
     gen: (sr, r, v, D) => {
@@ -375,6 +437,177 @@ export const SOUNDS = {
         const x = r() * 2 - 1;
         const whump = t > 0.9 ? Math.sin(TAU * 70 * (t - 0.9)) * ex(-(t - 0.9) / 0.12) * 1.2 : 0;
         return (Math.sin(p) + Math.sin(1.5 * p) + 0.6 * Math.sin(2 * p)) * env * 0.6 + (x - hp(x)) * env * 0.2 + whump;
+      });
+    } },
+
+  sk_smoke: { n: 1, dur: 1.4, bus: 'world', max: 2, pri: 5, vol: 0.7,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), body = nlp(sr, 900), pop = nlp(sr, 1500);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (70 + 150 * ex(-t * 40)) / sr;
+        bp.run(r() * 2 - 1, 3600, 0.7);
+        return Math.sin(p) * ex(-t / 0.06) * 1.1 + pop(r() * 2 - 1) * ex(-t / 0.03) * 0.8 + bp.nbp * ad(t, 0.15, 0.5) * 0.5 + body(r() * 2 - 1) * ad(t, 0.25, 0.4) * 0.3;
+      });
+    } },
+  sk_recoil: { n: 1, dur: 0.6, bus: 'world', max: 2, pri: 7, vol: 0.9, duck: 0.2,
+    gen: (sr, r, v, D) => {
+      const base = blast(sr, r, { fc0: 2600, fc1: 300, fk: 14, dec: 0.15, th0: 110, th1: 40, thk: 30, thd: 0.15, thA: 1, rum: 0.2, rumA: 0.4, debris: 2, dAt: 0.05, dSpan: 0.2 });
+      const bp = svf(sr);
+      return mk(sr, D, (t) => { bp.run(r() * 2 - 1, 2500 * ex(-t * 9) + 400, 1.2); return base(t) + bp.nbp * ex(-t / 0.15) * 0.5; });
+    } },
+  sk_heavy_call: { n: 1, dur: 1.3, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const f = svf(sr), rum = nlp(sr, 150);
+      let s1 = 0, s2 = 0;
+      return mk(sr, D, (t) => {
+        s1 = (s1 + 98 / sr) % 1; s2 = (s2 + 147 / sr) % 1;
+        let g = 0;
+        for (const t0 of [0, 0.3, 0.6]) if (t > t0) g += ad(t - t0, 0.01, 0.22);
+        f.run((2 * s1 - 1) + 0.6 * (2 * s2 - 1), 450 + 700 * Math.min(g, 1), 1.2);
+        return f.lp * g + rum(r() * 2 - 1) * ad(t, 0.2, 0.5) * 0.8;
+      });
+    } },
+  sk_pounce: { n: 1, dur: 0.45, bus: 'world', max: 2, pri: 6, vol: 0.75,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), hp = lp1(sr, 3000);
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(x, 3000 * ex(-t * 6) + 500, 1.8);
+        const claw = (t < 0.01 ? 1 : 0) + (t > 0.05 ? ex(-(t - 0.05) / 0.004) : 0);
+        return bp.nbp * ad(t, 0.02, 0.12) * 1.3 + (x - hp(x)) * claw * 0.6 + Math.sin(TAU * 90 * t) * ex(-t / 0.05) * 0.5;
+      });
+    } },
+  sk_cloak: { n: 1, dur: 1.0, bus: 'world', max: 2, pri: 5, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      const sh = [], bp = svf(sr);
+      for (let k = 0; k < 7; k++) sh.push({ t: r() * 0.4, f: rnd(r, 1500, 5500), am: rnd(r, 9, 14), a: rnd(r, 0.3, 0.6) });
+      let p = 0;
+      return mk(sr, D, (t) => {
+        let s = 0;
+        for (const q of sh) if (t > q.t) s += Math.sin(TAU * q.f * (t - q.t)) * ex(-(t - q.t) / 0.35) * q.a * (0.6 + 0.4 * Math.sin(TAU * q.am * t));
+        p += TAU * (2400 * ex(-t * 2.2) + 500) / sr;
+        bp.run(r() * 2 - 1, 5000 * ex(-t * 2) + 1200, 1.5);
+        return s + Math.sin(p) * ad(t, 0.1, 0.3) * 0.3 + bp.nbp * ad(t, 0.05, 0.25) * 0.25;
+      });
+    } },
+  sk_spin: { n: 1, dur: 0.45, bus: 'world', max: 2, pri: 5, vol: 0.7,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      return mk(sr, D, (t) => {
+        const u = Math.sin(Math.PI * clamp(t / 0.4, 0, 1));
+        bp.run(r() * 2 - 1, 700 + 700 * u, 1.6);
+        const pass = 0.55 + 0.45 * Math.sin(TAU * 18 * t);
+        const ring = (Math.sin(TAU * 1900 * t) + 0.5 * Math.sin(TAU * 4600 * t)) * Math.pow(Math.max(0, Math.sin(TAU * 9 * t)), 8) * 0.3;
+        return bp.nbp * pass * u * 1.1 + ring * ex(-t / 0.4);
+      });
+    } },
+  sk_ice_wall: { n: 1, dur: 1.0, bus: 'world', max: 2, pri: 6, vol: 0.85,
+    gen: (sr, r, v, D) => {
+      const cr = [], hp = lp1(sr, 3000), bp = svf(sr), rum = nlp(sr, 120);
+      for (let k = 0; k < 6; k++) cr.push({ t: r() * 0.3, f: rnd(r, 1800, 4000), a: rnd(r, 0.4, 0.9) });
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1, hi = x - hp(x);
+        let s = 0;
+        for (const q of cr) if (t > q.t) s += hi * ex(-(t - q.t) / 0.004) * q.a + Math.sin(TAU * q.f * (t - q.t)) * ex(-(t - q.t) / 0.1) * q.a * 0.4;
+        bp.run(r() * 2 - 1, 250 + 750 * (t / D), 2);
+        return s + bp.nbp * ad(t, 0.15, 0.3) * 0.7 + rum(r() * 2 - 1) * ad(t, 0.05, 0.3) * 0.9 + Math.sin(TAU * 55 * t) * ex(-t / 0.12) * 0.8;
+      });
+    } },
+  sk_ice_break: { n: 1, dur: 0.5, bus: 'world', max: 3, pri: 4, vol: 0.5,
+    gen: (sr, r, v, D) => {
+      const pings = [], hp = lp1(sr, 4000);
+      for (let k = 0; k < 8; k++) pings.push({ t: r() * 0.12, f: rnd(r, 3000, 8000), d: rnd(r, 0.05, 0.15), a: rnd(r, 0.3, 0.6) });
+      return mk(sr, D, (t) => {
+        let s = 0;
+        for (const q of pings) if (t > q.t) s += Math.sin(TAU * q.f * (t - q.t)) * ex(-(t - q.t) / q.d) * q.a;
+        const x = r() * 2 - 1;
+        return s + (x - hp(x)) * ex(-t / 0.03) * 0.8;
+      });
+    } },
+  sk_frost_nova: { n: 1, dur: 0.9, bus: 'world', max: 2, pri: 6, vol: 0.85,
+    gen: (sr, r, v, D) => {
+      const pings = [], hp = lp1(sr, 4000);
+      for (let k = 0; k < 6; k++) pings.push({ t: rnd(r, 0.02, 0.2), f: rnd(r, 2500, 6000), a: rnd(r, 0.25, 0.5) });
+      let p = 0, q = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (3500 * ex(-t * 8) + 400) / sr;
+        q += TAU * (40 + 80 * ex(-t * 20)) / sr;
+        let s = 0;
+        for (const g of pings) if (t > g.t) s += Math.sin(TAU * g.f * (t - g.t)) * ex(-(t - g.t) / 0.25) * g.a;
+        const x = r() * 2 - 1;
+        return Math.sin(q) * ex(-t / 0.15) + Math.sin(p) * ex(-t / 0.3) * 0.6 + (x - hp(x)) * ex(-t / 0.05) * 0.7 + s;
+      });
+    } },
+  sk_blizzard: { n: 1, dur: 2.4, bus: 'world', max: 1, pri: 6, vol: 0.7,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), hp = lp1(sr, 3000);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const env = Math.min(1, t / 0.5, (D - t) / 0.7);
+        const gust = 0.65 + 0.35 * Math.sin(TAU * 0.9 * t + 1) * Math.sin(TAU * 0.37 * t);
+        bp.run(r() * 2 - 1, 600 + 450 * Math.sin(TAU * 0.9 * t) + 300 * Math.sin(TAU * 2.3 * t), 0.9);
+        p += TAU * (900 + 120 * Math.sin(TAU * 1.3 * t)) / sr;
+        const x = r() * 2 - 1;
+        return (bp.nbp * 0.9 * gust + Math.sin(p) * 0.1 * gust + (x - hp(x)) * 0.2) * env;
+      });
+    } },
+  sk_turret: { n: 1, dur: 0.9, bus: 'world', max: 2, pri: 5, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const R = [1, 2.35, 3.7, 5.1], T = [0.2, 0.14, 0.1, 0.07], hp = lp1(sr, 2500);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += Math.sin(TAU * 310 * R[k] * t) * ex(-t / T[k]) * (0.9 - k * 0.15);
+        const x = r() * 2 - 1, w = t - 0.18;
+        let whirr = 0;
+        if (w > 0) {
+          p += TAU * (250 + 500 * (1 - ex(-w * 6))) / sr;
+          whirr = (Math.sin(p) + 0.5 * Math.sin(2 * p) + 0.3 * Math.sin(3 * p)) * (1 + 0.4 * Math.sin(TAU * 38 * t)) * Math.min(1, w / 0.05) * ex(-w / 0.5) * 0.4;
+        }
+        const click = t > 0.62 ? (x - hp(x)) * ex(-(t - 0.62) / 0.004) * 0.8 : 0;
+        return s * 0.6 + (x - hp(x)) * ex(-t / 0.006) * 0.8 + whirr + click;
+      });
+    } },
+  sk_magnet: { n: 1, dur: 1.5, bus: 'world', max: 2, pri: 5, vol: 0.75,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const u = t / D, e2 = u * u;
+        const hum = (Math.sin(TAU * 58 * t) + 0.5 * Math.sin(TAU * 116.5 * t) + 0.25 * Math.sin(TAU * 175 * t)) * (0.75 + 0.25 * Math.sin(TAU * 6 * t)) * Math.min(1, t / 0.1) * (t < 1.3 ? 1 : ex(-(t - 1.3) / 0.1));
+        p += TAU * (120 + 780 * e2) / sr;
+        bp.run(r() * 2 - 1, 200 + 2200 * e2, 1.4);
+        const thud = t > 1.3 ? Math.sin(TAU * 60 * (t - 1.3)) * ex(-(t - 1.3) / 0.12) * 1.2 : 0;
+        return hum * 0.6 + Math.sin(p) * e2 * 0.4 + bp.nbp * e2 * 0.6 + thud;
+      });
+    } },
+  sk_minefield: { n: 1, dur: 1.0, bus: 'world', max: 2, pri: 5, vol: 0.65,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 2500), bs = [];
+      const pitch = [1760, 2093, 2349, 2637];
+      for (let k = 0; k < 5; k++) bs.push({ t: 0.05 + k * 0.13 + r() * 0.05, f: pitch[Math.floor(r() * 4)] });
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        let s = 0;
+        for (const b of bs) if (t > b.t) {
+          const tt = t - b.t;
+          s += (Math.sin(TAU * b.f * tt) + 0.3 * Math.sin(TAU * b.f * 3 * tt)) * ex(-tt / 0.05) * 0.6 + (x - hp(x)) * ex(-tt / 0.003) * 0.5 + Math.sin(TAU * 80 * tt) * ex(-tt / 0.03) * 0.4;
+        }
+        return s;
+      });
+    } },
+  turret_break: { n: 1, dur: 0.55, bus: 'world', max: 3, pri: 5, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      const R = [1, 2.7, 4.1, 6.3], bp = svf(sr), hp = lp1(sr, 2000), step = Math.round(sr / 800);
+      let gate = 1;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) gate = r() > 0.4 ? 1 : 0;
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += Math.sin(TAU * 420 * R[k] * t) * ex(-t / (0.15 - k * 0.025)) * (0.8 - k * 0.15);
+        bp.run(r() * 2 - 1, 1500, 1);
+        const x = r() * 2 - 1;
+        return s * 0.6 + bp.nbp * ex(-t / 0.12) * 0.9 + (x - hp(x)) * gate * (t < 0.15 ? 0.5 : 0) + Math.sin(TAU * 90 * t) * ex(-t / 0.05) * 0.6;
       });
     } },
 
@@ -769,10 +1002,22 @@ export function renderStem(name, sr) {
 }
 
 // ---------- Event -> sound mapping (pure) ----------
+// zoneEnd is silent except for the wall and turret kinds.
 export const SILENT_EVENTS = ['zoneEnd'];
 // Skills whose sound comes from a companion event instead of the `skill` event itself.
-export const SKILL_COMPANION = { rocket: 'fire', min: 'zone', truongcham: 'zone', vom: 'zone' };
-const SKILL_SND = { giap: 'sk_shield', huc: 'sk_dash', diachan: 'sk_quake_wind', tangap: 'sk_buff', muahoa: 'fire_rocket', luot: 'sk_blink', tia: 'sk_beam_charge', hoiphuc: 'sk_heal' };
+export const SKILL_COMPANION = {
+  rocket: 'fire', min: 'zone', truongcham: 'zone', vom: 'zone',
+  khoi: 'zone', baotuyet: 'zone', hotu: 'zone', tuongbang: 'zone', usung: 'zone',
+  xungbang: 'nova', locthep: 'nova',
+};
+const SKILL_SND = {
+  giap: 'sk_shield', huc: 'sk_dash', diachan: 'sk_quake_wind', tangap: 'sk_buff', muahoa: 'fire_rocket', luot: 'sk_blink', tia: 'sk_beam_charge', hoiphuc: 'sk_heal',
+  giatlui: 'sk_recoil', thienloi: 'sk_heavy_call', vomoi: 'sk_pounce', nguytrang: 'sk_cloak', baimin: 'sk_minefield',
+};
+// Field zones sound by their `vis`; the zone event carries only the id.
+const FIELD_SND = { slow: 'sk_slow', smoke: 'sk_smoke', blizzard: 'sk_blizzard', magnet: 'sk_magnet' };
+// The nova event has no skill id, so the caster's mech picks the sound.
+const NOVA_SND = { bocap: 'sk_spin', bang: 'sk_frost_nova' };
 
 export function planEvent(e, m, me) {
   const out = [];
@@ -780,6 +1025,7 @@ export function planEvent(e, m, me) {
   const unitPos = (id) => (m && m.units && m.units[id]) || null;
   switch (e.t) {
     case 'fire': add('fire_' + e.vis, e.x, e.z, e.id === me); break;
+    case 'turretFire': add('fire_turret', e.x, e.z); break;
     case 'skill': add(SKILL_SND[e.skill], e.x, e.z, e.id === me); break;
     case 'impact':
       if (e.on === 'dome' || (e.on === 'wall' && e.vis === 'pulse')) add('hit_shield', e.x, e.z);
@@ -798,21 +1044,25 @@ export function planEvent(e, m, me) {
       else if (e.why === 'mine') { add('sk_mine_zap', e.x, e.z); add('expl_small', e.x, e.z); }
       else add('expl_small', e.x, e.z);
       break;
-    case 'nova': add('sk_quake_slam', e.x, e.z, e.id === me); break;
+    case 'nova': { const u = unitPos(e.id); add((u && NOVA_SND[u.mech]) || 'sk_quake_slam', e.x, e.z, e.id === me); break; }
     case 'beam': add('sk_beam_fire', e.x0, e.z0, e.id === me); break;
     case 'ram': add('ram_clang', e.x, e.z, e.id === me); break;
     case 'shieldBreak': add('shield_break', e.x, e.z, e.id === me); break;
     case 'item': { const u = unitPos(e.id); add('sk_heal', u ? u.x : undefined, u ? u.z : undefined, e.id === me); break; }
     case 'zone': {
-      if (e.kind === 'strike') add('sk_barrage_wind', e.x, e.z);
+      const z = m && m.zones && m.zones.find((q) => q.id === e.id);
+      if (e.kind === 'strike') add(z && z.lob ? 'mortar_whistle' : 'sk_barrage_wind', e.x, e.z);
       else if (e.kind === 'mine') add('sk_mine_arm', e.x, e.z);
       else if (e.kind === 'dome') add('sk_dome', e.x, e.z);
-      else if (e.kind === 'field') {
-        const z = m && m.zones && m.zones.find((q) => q.id === e.id);
-        if (z && z.vis === 'slow') add('sk_slow', e.x, e.z);
-      }
+      else if (e.kind === 'wall') add('sk_ice_wall', e.x, e.z);
+      else if (e.kind === 'turret') add('sk_turret', e.x, e.z);
+      else if (e.kind === 'field' && z) add(FIELD_SND[z.vis], e.x, e.z);
       break;
     }
+    case 'zoneEnd':
+      if (e.kind === 'turret') add('turret_break', e.x, e.z);
+      else if (e.kind === 'wall') add('sk_ice_break', e.x, e.z);
+      break;
     case 'propHit': add('prop_hit', e.x, e.z); break;
     case 'propBreak': add(e.kind === 'pot' ? 'pot_break' : e.kind === 'crate' ? 'crate_break' : null, e.x, e.z); break;
     case 'crateDrop': add('crate_drop', e.x, e.z); break;
@@ -841,7 +1091,7 @@ function noop() {
 
 const MAX_DIST = 32;
 const POOL = 20;
-const PRIORITY = ['fire_shell', ['fire_bullet', 3], 'fire_rail', 'fire_pulse', 'fire_rocket', ['hit_metal', 3], 'hit_wall', 'expl_small', 'ui_click'];
+const PRIORITY = ['fire_shell', ['fire_bullet', 3], 'fire_rail', 'fire_pulse', 'fire_rocket', 'fire_mortar', ['fire_pellet', 2], ['fire_frost', 2], ['fire_rivet', 2], ['hit_metal', 3], 'hit_wall', 'expl_small', 'ui_click'];
 
 export async function makeAudio(G, onProgress) {
   const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);

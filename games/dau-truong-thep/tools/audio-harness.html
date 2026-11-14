@@ -89,13 +89,14 @@ const SAMPLE = {
   death: () => ({ t: 'death', id: 2, by: 1, assists: [], x: 3, z: 2 }),
   respawn: () => ({ t: 'respawn', id: 2, x: 3, z: 2 }),
   explode: (x) => ({ t: 'explode', x: 3, z: 2, r: 3, why: x.why || 'strike' }),
-  nova: () => ({ t: 'nova', id: 1, x: 3, z: 2, r: 6 }),
+  nova: (x) => ({ t: 'nova', id: x.id === undefined ? 1 : x.id, x: 3, z: 2, r: 6 }),
   beam: () => ({ t: 'beam', id: 1, x0: 3, z0: 2, x1: 9, z1: 2, w: 1 }),
   ram: () => ({ t: 'ram', id: 1, x: 3, z: 2 }),
   shieldBreak: () => ({ t: 'shieldBreak', id: 1, x: 3, z: 2 }),
   item: () => ({ t: 'item', id: 1 }),
-  zone: (x) => ({ t: 'zone', id: 7, kind: x.kind || 'strike', x: 3, z: 2 }),
-  zoneEnd: () => ({ t: 'zoneEnd', id: 7, kind: 'strike', x: 3, z: 2 }),
+  zone: (x) => ({ t: 'zone', id: x.id || 7, kind: x.kind || 'strike', x: 3, z: 2 }),
+  zoneEnd: (x) => ({ t: 'zoneEnd', id: 7, kind: x.kind || 'strike', x: 3, z: 2 }),
+  turretFire: () => ({ t: 'turretFire', id: 7, zone: 7, x: 3, z: 2, a: 0 }),
   propHit: () => ({ t: 'propHit', id: 1, x: 3, z: 2 }),
   propBreak: (x) => ({ t: 'propBreak', id: 1, kind: x.kind || 'crate', x: 3, z: 2 }),
   crateDrop: () => ({ t: 'crateDrop', id: 1, x: 3, z: 2, type: 'heal' }),
@@ -104,18 +105,27 @@ const SAMPLE = {
   over: () => ({ t: 'over', winner: 0 }),
 };
 
+// Units 3..5 carry the mechs whose nova sounds differ; zones 10+ cover every field vis and the lobbed strike.
+const WORLD = () => ({
+  units: [{ team: 0, mech: 'trau' }, { team: 0, mech: 'trau' }, { team: 1, mech: 'trau' }, { team: 0, mech: 'bocap' }, { team: 0, mech: 'bang' }],
+  zones: [{ id: 7, vis: 'slow' }, { id: 10, kind: 'field', vis: 'smoke' }, { id: 11, kind: 'field', vis: 'blizzard' }, { id: 12, kind: 'field', vis: 'magnet' }, { id: 13, kind: 'strike', lob: true }],
+});
+const SKILL_ZONE = { min: ['mine', 7], truongcham: ['field', 7], vom: ['dome', 7], khoi: ['field', 10], baotuyet: ['field', 11], hotu: ['field', 12], tuongbang: ['wall', 7], usung: ['turret', 7] };
+const SKILL_NOVA = { xungbang: 4, locthep: 3 };
+
 window.__audioCoverage = async () => {
   const txt = await (await fetch('../README.md')).text();
   const line = txt.split('\n').find((l) => l.startsWith('Events ('));
   const types = [...line.slice(line.indexOf('):')).matchAll(/`(\w+)(?:\s*\{[^`]*\})?`/g)].map((m) => m[1]);
-  const m = { units: [{ team: 0 }, { team: 0 }, { team: 1 }], zones: [{ id: 7, vis: 'slow' }] };
+  const m = WORLD();
   const silent = [], missing = [];
   for (const t of types) {
     const n = A.planEvent(SAMPLE[t] ? SAMPLE[t]({}) : { t }, m, 1).length;
     if (!n && !A.SILENT_EVENTS.includes(t)) missing.push(t);
     if (n && A.SILENT_EVENTS.includes(t)) silent.push(t);
   }
-  const vis = {}, skills = {}, extras = [];
+  const vis = {}, skills = {}, extras = [], double = [];
+  const sounds = (ev) => A.planEvent(ev, m, 1).map((p) => p.s);
   for (const mech of Object.values(MECHS)) {
     vis[mech.weapon.vis] = A.planEvent(SAMPLE.fire({ vis: mech.weapon.vis }), m, 1).length;
     for (const s of mech.skills) {
@@ -125,9 +135,10 @@ window.__audioCoverage = async () => {
       let viaComp = 0;
       if (comp === 'fire') viaComp = vis[s.vis] || 0;
       else if (comp === 'zone') {
-        const kind = { min: 'mine', truongcham: 'field', vom: 'dome' }[s.id];
-        viaComp = A.planEvent(SAMPLE.zone({ kind }), m, 1).length;
-      }
+        const [kind, id] = SKILL_ZONE[s.id];
+        viaComp = A.planEvent(SAMPLE.zone({ kind, id }), m, 1).length;
+      } else if (comp === 'nova') viaComp = A.planEvent(SAMPLE.nova({ id: SKILL_NOVA[s.id] }), m, 1).length;
+      if (comp && own) double.push(s.id);
       skills[s.id] = own || viaComp;
     }
   }
@@ -137,7 +148,15 @@ window.__audioCoverage = async () => {
   for (const k of ['heal', 'power', 'haste', 'refresh', 'shield']) sub.push(['pickup:' + k, A.planEvent(SAMPLE.pickup({ type: k }), m, 1).length]);
   for (const k of ['wall', 'dome']) sub.push(['impact:' + k, A.planEvent(SAMPLE.impact({ on: k }), m, 1).length]);
   for (const k of ['field']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k }), m, 1).length]);
-  return { types, missing, silent, vis, skills, sub, extras };
+  for (const k of ['wall', 'turret']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k }), m, 1).length], ['zoneEnd:' + k, A.planEvent(SAMPLE.zoneEnd({ kind: k }), m, 1).length]);
+  sub.push(['zoneEnd:strike is silent', A.planEvent(SAMPLE.zoneEnd({ kind: 'strike' }), m, 1).length === 0 ? 1 : 0]);
+  sub.push(['zone:strike lobbed (whistle)', sounds(SAMPLE.zone({ id: 13 })).includes('mortar_whistle') ? 1 : 0]);
+  sub.push(['zone:strike barrage (not mortar whistle)', sounds(SAMPLE.zone({})).includes('sk_barrage_wind') ? 1 : 0]);
+  for (const [k, id] of [['smoke', 10], ['blizzard', 11], ['magnet', 12]]) sub.push(['zone:field ' + k, A.planEvent(SAMPLE.zone({ kind: 'field', id }), m, 1).length]);
+  for (const [k, id] of [['trau', 1], ['bocap', 3], ['bang', 4]]) sub.push(['nova:' + k, A.planEvent(SAMPLE.nova({ id }), m, 1).length]);
+  sub.push(['nova sounds differ per mech', new Set([1, 3, 4].map((id) => sounds(SAMPLE.nova({ id }))[0])).size === 3 ? 1 : 0]);
+  sub.push(['turretFire', A.planEvent(SAMPLE.turretFire(), m, 1).length]);
+  return { types, missing, silent, vis, skills, sub, extras, double };
 };
 
 // Boot the real engine with a fake G, drive every public method and wait for the background render to drain.
@@ -155,8 +174,16 @@ window.__audioBoot = async () => {
   try {
     await a.resume();
     a.setVolume(0.7); a.setMusic(0.5); a.mute(false); a.setListener(0, 0); a.setScene('match');
-    const m = { units: [{ team: 0, x: 0, z: 0 }, { team: 0 }, { team: 1 }], zones: [{ id: 7, vis: 'slow' }] };
+    const m = WORLD();
+    m.units[0].x = 0; m.units[0].z = 0;
     for (const t of Object.keys(SAMPLE)) a.event(SAMPLE[t]({}), m, 0);
+    for (const mech of Object.values(MECHS)) {
+      a.event(SAMPLE.fire({ vis: mech.weapon.vis }), m, 0);
+      for (const s of mech.skills) a.event(SAMPLE.skill({ skill: s.id }), m, 0);
+    }
+    for (const k of ['mine', 'field', 'dome', 'wall', 'turret']) { a.event(SAMPLE.zone({ kind: k }), m, 0); a.event(SAMPLE.zoneEnd({ kind: k }), m, 0); }
+    for (const id of [10, 11, 12, 13]) a.event(SAMPLE.zone({ kind: id === 13 ? 'strike' : 'field', id }), m, 0);
+    for (const id of [3, 4]) a.event(SAMPLE.nova({ id }), m, 0);
     a.event({ t: 'fire', id: 9, vis: 'bullet', x: 100, z: 0 }, m, 0);
     for (const n of A.UI_NAMES) a.ui(n);
     for (let i = 0; i < 30; i++) a.update(0.033, i / 30);

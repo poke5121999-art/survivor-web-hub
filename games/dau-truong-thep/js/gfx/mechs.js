@@ -4,7 +4,7 @@
 
 import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
-import { TEAMS, MECHS } from '../data.js';
+import { TEAMS, MECHS, PAINTS, BOSSES } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 
 const DARK = 0x2b3038, STEEL = 0x8d98a6, PALE = 0xdfe6ee;
@@ -106,6 +106,110 @@ const DESIGNS = {
     b.push().move(0.1, 1.7, 0).ball(0.09, 0).pop();
     return { muzzle: 1.25, legs: 0, height: 1.8, hover: true };
   },
+  loi(b, paint, trim) {
+    for (const sz of [-1, 1]) for (const x of [-0.75, 0, 0.75]) {
+      b.use('hull', DARK).push().move(x, 0.36, sz * 0.82).rotX(X).cyl(0.36, 0.36, 0.34, 12).pop();
+      b.tint(STEEL).push().move(x, 0.36, sz * 1.0).rotX(X).cyl(0.16, 0.16, 0.04, 8).pop();
+    }
+    b.use('hull', paint).prism([[1.25, 0.45], [1.25, -0.45], [-1.2, -0.6], [-1.2, 0.6]], 0.5, 0.95);
+    b.tint(STEEL).push().move(0.85, 1.08, 0).box(0.7, 0.3, 0.8).pop();
+    b.use('glowH').push().move(1.21, 1.1, 0).box(0.03, 0.14, 0.6).pop();
+    for (const sz of [-1, 1]) {
+      b.use('hull', trim).push().move(-0.85, 1.05, sz * 0.38).box(0.6, 0.3, 0.3).pop();
+      b.tint(DARK).push().move(-1.25, 0.3, sz * 0.5).rotZ(0.5).box(0.5, 0.1, 0.16).pop();
+    }
+    b.use('turret', DARK).push().move(-0.1, 1.05, 0).cyl(0.55, 0.6, 0.2, 10).pop();
+    b.tint(paint).push().move(-0.2, 1.3, 0).box(0.7, 0.4, 0.7).pop();
+    b.tint(STEEL).push().move(0.35, 1.75, 0).rotZ(X + 0.7).cyl(0.26, 0.3, 1.5, 12).pop();
+    b.tint(DARK).push().move(0.83, 2.32, 0).rotZ(X + 0.7).cyl(0.31, 0.31, 0.16, 12).pop();
+    b.tint(trim).push().move(-0.1, 1.5, 0.45).box(0.5, 0.16, 0.1).pop().push().move(-0.1, 1.5, -0.45).box(0.5, 0.16, 0.1).pop();
+    b.use('glowT').push().move(0.9, 2.4, 0).rotZ(X + 0.7).cyl(0.2, 0.2, 0.03, 12).pop();
+    return { muzzle: 1.0, legs: 0, height: 2.4 };
+  },
+  bocap(b, paint, trim) {
+    for (let i = 0; i < 4; i++) {
+      const sz = i % 2 ? 1 : -1, x = i < 2 ? 0.45 : -0.45;
+      b.use('leg' + i, DARK).push().move(x, 0.55, sz * 0.62).rotX(sz * 0.5).box(0.14, 0.12, 0.7).pop();
+      b.tint(STEEL).push().move(x, 0.28, sz * 1.0).rotX(sz * -0.9).box(0.1, 0.1, 0.62).pop();
+      b.tint(paint).push().move(x, 0.62, sz * 0.9).box(0.2, 0.16, 0.16).pop();
+    }
+    b.use('hull', paint).prism([[1.0, 0], [0.5, 0.42], [-0.7, 0.36], [-0.95, 0], [-0.7, -0.36], [0.5, -0.42]], 0.5, 0.86);
+    b.tint(DARK).prism([[0.7, 0], [0.35, 0.26], [-0.5, 0.22], [-0.5, -0.22], [0.35, -0.26]], 0.86, 0.98);
+    for (const sz of [-1, 1]) {
+      b.tint(trim).push().move(1.05, 0.62, sz * 0.5).rotY(sz * -0.35).box(0.7, 0.16, 0.18).pop();
+      b.tint(STEEL).push().move(1.45, 0.62, sz * 0.36).rotY(sz * 0.5).box(0.4, 0.12, 0.12).pop();
+    }
+    let ty = 0.95, tx = -0.75;
+    for (let k = 0; k < 5; k++) { b.tint(k % 2 ? trim : DARK).push().move(tx, ty, 0).rotZ(-0.5 - k * 0.42).box(0.36, 0.2, 0.24).pop(); tx += Math.cos(1.9 - k * 0.42) * 0.3 - 0.02; ty += Math.sin(1.9 - k * 0.42) * 0.3 + 0.04; }
+    b.use('glowH').push().move(tx + 0.22, ty - 0.1, 0).rotZ(X).cyl(0.01, 0.1, 0.36, 6).pop();
+    b.push().move(0.72, 0.9, 0).box(0.2, 0.05, 0.3).pop();
+    b.use('turret', DARK).push().move(0.1, 1.04, 0).cyl(0.28, 0.32, 0.14, 8).pop();
+    for (const sz of [-1, 1]) {
+      b.tint(STEEL).push().move(0.65, 1.1, sz * 0.14).rotZ(X).cyl(0.085, 0.1, 0.9, 8).pop();
+      b.use('glowT').push().move(1.11, 1.1, sz * 0.14).rotZ(X).cyl(0.07, 0.07, 0.02, 8).pop().use('turret');
+    }
+    b.tint(paint).push().move(0.2, 1.12, 0).box(0.5, 0.2, 0.5).pop();
+    return { muzzle: 1.15, legs: 4, height: 1.9 };
+  },
+  bang(b, paint, trim) {
+    for (const sz of [-1, 1]) {
+      b.use('hull', DARK).push().move(0, 0.33, sz * 0.82).box(1.7, 0.5, 0.5).pop();
+      for (const e of [-0.85, 0.85]) b.push().move(e, 0.33, sz * 0.82).rotX(X).cyl(0.31, 0.31, 0.5, 10).pop();
+      b.tint(paint).push().move(0, 0.68, sz * 0.82).box(2.0, 0.1, 0.6).pop();
+    }
+    b.use('hull', PALE).prism([[1.0, 0.5], [1.15, 0], [1.0, -0.5], [-1.0, -0.5], [-1.0, 0.5]], 0.5, 1.0);
+    b.tint(paint).prism([[0.7, 0.4], [0.8, 0], [0.7, -0.4], [-0.8, -0.4], [-0.8, 0.4]], 1.0, 1.16);
+    for (const sz of [-1, 1]) b.use('glowH').push().move(-1.02, 0.75, sz * 0.25).box(0.03, 0.2, 0.2).pop();
+    b.use('turret', PALE).push().move(0, 1.3, 0).cyl(0.5, 0.58, 0.3, 6).pop();
+    for (let i = 0; i < 3; i++) { const a = i * 2.094; b.tint(trim).push().rotY(a).move(0.42, 1.62, 0).rotZ(0.5).box(0.12, 0.5, 0.12).pop(); }
+    b.tint(DARK).push().move(0.55, 1.34, 0).box(0.4, 0.22, 0.3).pop();
+    b.tint(STEEL).push().move(1.05, 1.34, 0).rotZ(X).cyl(0.07, 0.12, 0.8, 6).pop();
+    b.use('glowT').push().move(0, 1.95, 0).geo(new THREE.OctahedronGeometry(0.3).scale(1, 1.5, 1)).pop();
+    b.push().move(1.47, 1.34, 0).geo(new THREE.OctahedronGeometry(0.12)).pop();
+    return { muzzle: 1.5, legs: 0, height: 2.3 };
+  },
+  tho(b, paint, trim) {
+    for (const sz of [-1, 1]) for (const x of [-0.7, 0.7]) b.use('hull', DARK).push().move(x, 0.42, sz * 0.88).rotX(X).cyl(0.42, 0.42, 0.36, 12).pop();
+    b.use('hull', paint).push().move(0, 0.8, 0).box(2.3, 0.5, 1.4).pop();
+    b.tint(0xe0a81e).push().move(1.2, 0.6, 0).box(0.14, 0.36, 1.6).pop();
+    b.tint(DARK);
+    for (let i = -2; i <= 2; i++) b.push().move(1.28, 0.6, i * 0.32).rotX(0.6).box(0.02, 0.3, 0.1).pop();
+    b.tint(STEEL).push().move(0.7, 1.25, 0).box(0.7, 0.44, 1.1).pop();
+    b.use('glowH').push().move(1.06, 1.3, 0).box(0.02, 0.16, 0.8).pop();
+    b.use('hull', trim).push().move(-0.75, 1.2, 0.35).box(0.6, 0.34, 0.4).pop();
+    b.tint(DARK).push().move(-0.8, 1.5, -0.35).rotZ(0.9).box(1.0, 0.12, 0.12).pop();
+    b.tint(0xe0a81e).push().move(-0.42, 1.92, -0.35).rotZ(-0.3).box(0.6, 0.1, 0.1).pop();
+    b.use('turret', DARK).push().move(-0.05, 1.56, 0).cyl(0.34, 0.4, 0.18, 8).pop();
+    b.tint(paint).push().move(0.05, 1.78, 0).box(0.6, 0.32, 0.5).pop();
+    b.tint(STEEL).push().move(0.7, 1.78, 0).box(0.8, 0.18, 0.2).pop();
+    b.tint(trim).push().move(-0.1, 1.78, 0.36).rotX(X).cyl(0.2, 0.2, 0.22, 10).pop();
+    b.use('glowT').push().move(1.11, 1.78, 0).box(0.02, 0.1, 0.12).pop().push().move(0.0, 1.96, -0.1).box(0.14, 0.04, 0.14).pop();
+    return { muzzle: 1.2, legs: 0, height: 2.1 };
+  },
+  titan(b, paint, trim) {
+    for (let i = 0; i < 4; i++) {
+      const a = 0.785 + i * 1.5708, c = Math.cos(a), sn = Math.sin(a);
+      b.use('leg' + i, DARK).push().move(c * 1.7, 1.5, sn * 1.7).rotY(-a).rotZ(-0.5).box(1.6, 0.6, 0.7).pop();
+      b.tint(STEEL).push().move(c * 2.5, 0.75, sn * 2.5).cyl(0.42, 0.55, 1.5, 8).pop();
+      b.tint(paint).push().move(c * 2.5, 0.16, sn * 2.5).cyl(0.75, 0.9, 0.32, 8).pop();
+      b.tint(trim).push().move(c * 2.1, 1.75, sn * 2.1).rotY(-a).box(0.7, 0.5, 0.9).pop();
+    }
+    b.use('hull', DARK).push().move(0, 1.7, 0).cyl(2.0, 1.7, 0.9, 8).pop();
+    b.tint(paint).push().move(0, 2.35, 0).cyl(1.75, 2.05, 0.5, 8).pop();
+    b.tint(trim).push().move(0, 2.7, 0).cyl(1.3, 1.6, 0.3, 8).pop();
+    for (let i = 0; i < 8; i++) { const a = i * 0.785 + 0.39; b.use('glowH').push().move(Math.cos(a) * 2.02, 1.75, Math.sin(a) * 2.02).rotY(-a).box(0.04, 0.3, 0.5).pop(); }
+    b.use('turret', paint).push().move(0, 3.2, 0).cyl(1.05, 1.25, 0.8, 8).pop();
+    b.tint(DARK).push().move(0.9, 3.2, 0).box(0.7, 0.7, 2.2).pop();
+    for (const sz of [-0.8, 0, 0.8]) {
+      b.tint(STEEL).push().move(2.0, 3.2, sz).rotZ(X).cyl(0.2, 0.24, 2.0, 10).pop();
+      b.tint(DARK).push().move(3.0, 3.2, sz).box(0.36, 0.44, 0.5).pop();
+      b.use('glowT').push().move(3.2, 3.2, sz).rotZ(X).cyl(0.13, 0.13, 0.03, 10).pop().use('turret');
+    }
+    for (const sz of [-1, 1]) b.tint(trim).push().move(-0.3, 3.3, sz * 1.3).box(1.4, 0.9, 0.3).pop();
+    b.tint(DARK).push().move(-0.9, 4.0, 0).cyl(0.5, 0.6, 0.5, 8).pop();
+    b.use('glowT').push().move(-0.9, 4.3, 0).ball(0.42, 1).pop().push().move(0.3, 3.65, 0).box(0.5, 0.1, 0.9).pop();
+    return { muzzle: 3.2, legs: 4, height: 4.4, muzzleY: 3.2 };
+  },
 };
 
 function shieldMaterial() {
@@ -131,9 +235,10 @@ export function makeMechs(G, tex) {
   const bubbleGeo = new THREE.IcosahedronGeometry(1, 3);
   const views = new Map();
 
-  function build(key, team) {
-    const def = MECHS[key], b = new Builder(0.42);
-    const paint = new THREE.Color(TEAMS[team].color).lerp(new THREE.Color(0.5, 0.5, 0.5), 0.12).multiplyScalar(0.9), info = DESIGNS[key](b, paint, new THREE.Color(def.tint));
+  function build(key, team, paintKey) {
+    const def = MECHS[key] || BOSSES[key], b = new Builder(0.42);
+    const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : def.tint;
+    const paint = new THREE.Color(TEAMS[team].color).lerp(new THREE.Color(0.5, 0.5, 0.5), 0.12).multiplyScalar(0.9), info = DESIGNS[key](b, paint, new THREE.Color(trimHex));
     const geos = b.build();
     const mat = baseMat.clone();
     const glow = new THREE.MeshBasicMaterial({ color: new THREE.Color(TEAMS[team].color).multiplyScalar(2.6).addScalar(0.25), toneMapped: false });
@@ -148,12 +253,12 @@ export function makeMechs(G, tex) {
 
   function view(u) {
     let v = views.get(u.id);
-    if (v && v.mech === u.mech && v.team === u.team) return v;
+    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint) return v;
     if (v) group.remove(v.root);
-    v = build(u.mech, u.team);
-    v.mech = u.mech; v.team = u.team;
+    v = build(u.mech, u.color, u.paint);
+    v.mech = u.mech; v.team = u.color; v.paint = u.paint;
     const mine = u.id === G.me;
-    const tc = new THREE.Color(TEAMS[u.team].color);
+    const tc = new THREE.Color(TEAMS[u.color].color);
     v.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: mine ? new THREE.Color(1.6, 1.6, 1.6) : tc.clone().multiplyScalar(1.5), transparent: true, opacity: mine ? 0.95 : 0.8, depthWrite: false, toneMapped: false }));
     v.ring.scale.setScalar(u.radius * 1.15); v.ring.position.y = 0.06; v.ring.renderOrder = 2;
     v.root.add(v.ring);
@@ -162,7 +267,7 @@ export function makeMechs(G, tex) {
       v.aim.position.y = 0.07; v.aim.renderOrder = 2; v.root.add(v.aim);
     }
     v.bubble = new THREE.Mesh(bubbleGeo, shieldMaterial());
-    v.bubble.scale.setScalar(u.radius * 1.45); v.bubble.position.y = 1.0; v.bubble.visible = false; v.bubble.renderOrder = 5;
+    v.bubble.scale.setScalar(u.radius * 1.45); v.bubble.position.y = u.radius; v.bubble.visible = false; v.bubble.renderOrder = 5;
     v.root.add(v.bubble);
     v.kick = 0; v.flash = 0; v.walk = 0; v.spawn = 1; v.headingV = u.heading; v.lastX = u.x; v.lastZ = u.z; v.wasAlive = false;
     group.add(v.root); views.set(u.id, v);
@@ -209,7 +314,7 @@ export function makeMechs(G, tex) {
       if (sh) {
         const un = v.bubble.material.uniforms;
         un.uTime.value = time; un.uHit.value = Math.max(0, un.uHit.value - dt * 5);
-        if (u.invulnT > 0 && u.shield <= 0) un.uColor.value.setRGB(1, 1, 1); else un.uColor.value.set(TEAMS[u.team].color).lerp(new THREE.Color(1, 0.9, 0.4), 0.35);
+        if (u.invulnT > 0 && u.shield <= 0) un.uColor.value.setRGB(1, 1, 1); else un.uColor.value.set(TEAMS[u.color].color).lerp(new THREE.Color(1, 0.9, 0.4), 0.35);
       }
       if (v.aim) v.aim.rotation.y = -u.aim;
       v.ring.material.opacity = (u.id === G.me ? 0.95 : 0.8) * (0.85 + 0.15 * Math.sin(time * 3 + u.id));
@@ -228,21 +333,22 @@ export function makeMechs(G, tex) {
   function muzzle(u, side, out) {
     const v = views.get(u.id), len = v ? v.info.muzzle : u.radius;
     const c = Math.cos(u.aim), s = Math.sin(u.aim);
-    return out.set(u.x + c * len - s * side, 1.55, u.z + s * len + c * side);
+    return out.set(u.x + c * len - s * side, v && v.info.muzzleY ? v.info.muzzleY : 1.55, u.z + s * len + c * side);
   }
 
   function clear() { for (const v of views.values()) group.remove(v.root); views.clear(); }
 
   // Renders one mech alone into a square data URL, for menus and the HUD.
   const shots = {};
-  function portrait(key, team, size = 128) {
-    const id = key + team + size;
+  function portrait(key, team, paintKey, size = 128) {
+    const id = key + team + (paintKey || '') + size;
     if (shots[id]) return shots[id];
-    const r = G.renderer, v = build(key, team), scene = new THREE.Scene();
+    const r = G.renderer, v = build(key, team, paintKey), scene = new THREE.Scene();
     scene.environment = G.scene.environment;
     scene.add(v.root, new THREE.HemisphereLight(0xffffff, 0x334455, 1.2));
     const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(-2, 5, 3); scene.add(sun);
     v.turret.rotation.y = -0.5; v.hull.rotation.y = -0.15;
+    v.root.scale.setScalar(Math.min(1, 1.15 / v.def.radius));
     const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
     cam.position.set(4.6, 5.0, 5.6); cam.lookAt(0.25, 0.95, 0);
     const rt = new THREE.WebGLRenderTarget(size, size, { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace });

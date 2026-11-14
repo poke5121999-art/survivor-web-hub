@@ -77,6 +77,45 @@ const SETS = {
     albedo = mix(albedo, vec3(0.06, 0.05, 0.04), gap * 0.9);
     albedo = mix(albedo, mix(vec3(0.07, 0.17, 0.04), vec3(0.20, 0.30, 0.07), fine), moss * 0.8);
     height = (1.0 - gap) * (0.55 + rnd * 0.3) + fine * 0.2 + moss * 0.08; rough = 0.86 + moss * 0.1; metal = 0.0;`,
+  sand: /* glsl */`
+    float n = fbm(uv, 4.0), fine = fbm(uv + 2.9, 64.0);
+    float rip = sin((uv.y * 34.0 + n * 7.0 + sin(uv.x * 12.566) * 0.6) * 6.2832) * 0.5 + 0.5;
+    albedo = mix(vec3(0.50, 0.36, 0.20), vec3(0.74, 0.58, 0.36), n * 0.6 + rip * 0.25);
+    vec3 peb = voro(uv, 26.0);
+    albedo = mix(albedo, vec3(0.36, 0.3, 0.24), (1.0 - smoothstep(0.08, 0.16, peb.x)) * step(0.86, peb.z) * 0.7);
+    albedo *= 0.88 + fine * 0.24;
+    height = n * 0.4 + rip * 0.45 + fine * 0.1; rough = 0.96; metal = 0.0;`,
+  track: /* glsl */`
+    float n = fbm(uv, 5.0), fine = fbm(uv + 1.1, 48.0);
+    float tread = smoothstep(0.35, 0.65, sin(uv.y * 150.8) * 0.5 + 0.5) * smoothstep(0.4, 0.7, vnoise(vec2(uv.x * 8.0, 1.0), 8.0));
+    albedo = mix(vec3(0.33, 0.25, 0.16), vec3(0.48, 0.38, 0.25), n) * (0.84 + fine * 0.3) * (1.0 - tread * 0.25);
+    height = n * 0.5 - tread * 0.3 + fine * 0.15; rough = 0.93; metal = 0.0;`,
+  snow: /* glsl */`
+    float n = fbm(uv, 5.0), fine = fbm(uv + 6.1, 72.0);
+    albedo = mix(vec3(0.62, 0.72, 0.86), vec3(0.93, 0.96, 1.0), smoothstep(0.25, 0.75, n));
+    float spark = step(0.985, hash(floor(uv * 512.0), 512.0));
+    albedo += spark * 0.25; albedo *= 0.94 + fine * 0.1;
+    height = n * 0.8 + fine * 0.1; rough = 0.78 - spark * 0.4; metal = 0.0;`,
+  frost: /* glsl */`
+    float n = fbm(uv, 4.0), fine = fbm(uv + 3.3, 56.0);
+    vec3 c1 = voro(uv + n * 0.06, 6.0), c2 = voro(uv + 0.37, 17.0);
+    float crack = (1.0 - smoothstep(0.0, 0.035, c1.y)) + (1.0 - smoothstep(0.0, 0.02, c2.y)) * 0.5;
+    albedo = mix(vec3(0.30, 0.50, 0.68), vec3(0.62, 0.80, 0.92), n) * (0.92 + fine * 0.14);
+    albedo = mix(albedo, vec3(0.95, 0.98, 1.0), clamp(crack, 0.0, 1.0) * 0.75);
+    height = 0.5 - clamp(crack, 0.0, 1.0) * 0.4 + fine * 0.05; rough = 0.16 + clamp(crack, 0.0, 1.0) * 0.4 + fine * 0.1; metal = 0.0;`,
+  basalt: /* glsl */`
+    float n = fbm(uv, 5.0), fine = fbm(uv + 4.4, 64.0);
+    vec3 c = voro(uv + n * 0.04, 9.0);
+    float crack = 1.0 - smoothstep(0.0, 0.05, c.y);
+    albedo = mix(vec3(0.055, 0.05, 0.055), vec3(0.16, 0.145, 0.14), c.z * 0.6 + n * 0.4) * (0.8 + fine * 0.45);
+    albedo = mix(albedo, vec3(0.02, 0.015, 0.015), crack);
+    height = (1.0 - crack) * (0.5 + c.z * 0.3) + fine * 0.15; rough = 0.72 + fine * 0.2; metal = 0.0;`,
+  ash: /* glsl */`
+    float n = fbm(uv, 5.0), fine = fbm(uv + 7.7, 60.0);
+    vec3 peb = voro(uv, 20.0);
+    albedo = mix(vec3(0.15, 0.12, 0.11), vec3(0.30, 0.25, 0.22), n) * (0.82 + fine * 0.35);
+    albedo = mix(albedo, vec3(0.07, 0.06, 0.06), (1.0 - smoothstep(0.1, 0.2, peb.x)) * step(0.8, peb.z) * 0.8);
+    height = n * 0.6 + fine * 0.2; rough = 0.95; metal = 0.0;`,
   metal: /* glsl */`
     vec2 g = uv * 2.0; vec2 cell = floor(g), f = fract(g);
     float rnd = hash(cell, 2.0), n = fbm(uv, 6.0), fine = fbm(uv + 8.3, 80.0);

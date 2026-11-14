@@ -1,43 +1,75 @@
 // The match simulation. Pure and deterministic: fixed 30 Hz ticks, one seeded RNG, no three.js, no DOM.
 // The same code runs in the browser, in Node tests, and (later) on the host of an online room.
 //
-//   const m = createMatch({ map, seed, roster });   roster: [{ team, mech, name, bot, diff }]
+//   const m = createMatch({ map, seed, roster, mode });   roster: [{ team, mech, name, bot, diff }]   mode: a MODES key (default tdm)
 //   step(m, inputs);                                inputs[unit.id] = { mx, mz, aim, fire, s1, s2, ult, heal, tx, tz }
 //   m.events                                        what happened during the last tick, for effects, sound and HUD
 //
 // Angles are radians in the XZ plane: direction = (cos a, sin a).
 
-import { TICK, RULES, PICKUPS, MECHS, PROPS } from './data.js';
+import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES } from './data.js';
 import { mulberry } from './rng.js';
-import { compileMap, castStatic, segCircle } from './maps.js';
+import { compileMap, castStatic, segCircle, solidAt } from './maps.js';
 
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 
 export function createMatch(opts) {
   const map = compileMap(opts.map || 'denrung');
+  const mode = MODES[opts.mode] ? opts.mode : 'tdm', rule = MODES[mode];
   const m = {
+    mode, rule, lives: rule.lives || 0, points: [],
     map, seed: opts.seed >>> 0, rng: mulberry(opts.seed >>> 0), tick: 0, time: 0,
-    target: opts.target || RULES.target, duration: opts.duration || RULES.duration,
+    target: opts.target || rule.target, duration: opts.duration || rule.duration,
     units: [], shots: [], zones: [], crates: [], events: [],
     props: map.props.map((p) => ({ id: p.id, x: p.x, z: p.z, kind: p.kind, r: PROPS[p.kind].r, hp: PROPS[p.kind].hp, alive: true })),
     score: [0, 0], over: false, winner: -1, nextId: 1, crateT: RULES.crate.first,
+    vents: map.hazards.filter((h) => h.kind === 'vent').map((h, i) => ({ id: h.id, x: h.x, z: h.z, r: h.r, t: RULES.vent.period * (0.5 + 0.5 * (i % 2)), warn: false })),
   };
   const slot = [0, 0];
   for (const r of opts.roster) {
-    const def = MECHS[r.mech];
+    const def = MECHS[r.mech] || BOSSES[r.mech];
+    // In free-for-all every unit is its own team; `color` is the palette index the renderer uses (0 = ally look, 1 = enemy look).
+    const team = mode === 'tudo' ? m.units.length : r.team;
     const mods = r.mods || {};
     const u = {
-      id: m.units.length, team: r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
-      slot: slot[r.team]++, radius: def.radius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: mods.dmg || 1,
-      x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0,
+      id: m.units.length, team, color: mode === 'tudo' ? 1 : r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
+      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, radius: def.radius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: mods.dmg || 1,
+      x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
       kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, pickups: 0, hitBy: {}, brain: null,
     };
     m.units.push(u);
     spawn(m, u, true);
   }
+  if (mode === 'tudo') m.score = m.units.map(() => 0);
+  if (mode === 'chiem') {
+    const spots = [[0, 0], [-map.hw * 0.4, -map.hd * 0.58], [map.hw * 0.4, map.hd * 0.58]];
+    m.points = spots.map((p, i) => { const [x, z] = freeSpot(map, p[0], p[1]); return { id: i, x, z, r: rule.radius, owner: -1, prog: 0, acc: 0 }; });
+  }
   return m;
+}
+
+function freeSpot(map, x, z) {
+  for (let ring = 0; ring < 8; ring++) for (let k = 0; k < 8; k++) {
+    const a = k * 0.785, px = x + Math.cos(a) * ring * 1.5, pz = z + Math.sin(a) * ring * 1.5;
+    if (!solidAt(map, px, pz, 2.2)) return [px, pz];
+  }
+  return [x, z];
+}
+
+// Where a unit appears: its team's base pad, or in free-for-all the open spot farthest from everyone alive.
+function spawnPoint(m, u) {
+  if (m.mode !== 'tudo') return m.map.spawns[u.team][u.slot % 5];
+  const spots = m.map.spawns[0].concat(m.map.spawns[1], m.map.cratePoints);
+  let best = spots[u.id % spots.length], bd = -1;
+  for (const p of spots) {
+    if (solidAt(m.map, p[0], p[1], u.radius)) continue;
+    let d = 1e9;
+    for (const o of m.units) if (o !== u && o.alive) d = Math.min(d, dist2(o.x, o.z, p[0], p[1]));
+    if (d > bd) { bd = d; best = p; }
+  }
+  return best;
 }
 
 function clearStatus(u) {
@@ -48,7 +80,7 @@ function clearStatus(u) {
 }
 
 function spawn(m, u, first) {
-  const p = m.map.spawns[u.team][u.slot % 5];
+  const p = spawnPoint(m, u);
   u.x = u.px = p[0]; u.z = u.pz = p[1];
   u.hp = u.maxHp; u.alive = true; u.respawnT = 0;
   clearStatus(u);
@@ -60,16 +92,47 @@ export function step(m, inputs) {
   m.events.length = 0;
   if (m.over) return;
   m.tick++; m.time += TICK;
-  for (const u of m.units) stepUnit(m, u, (inputs && inputs[u.id]) || NO_INPUT);
+  for (const u of m.units) stepUnit(m, u, clean(inputs && inputs[u.id]));
   separate(m);
   stepShots(m);
   stepZones(m);
   stepCrates(m);
-  const lead = Math.max(m.score[0], m.score[1]);
-  if (lead >= m.target || m.time >= m.duration) {
-    m.over = true;
-    m.winner = m.score[0] === m.score[1] ? -1 : (m.score[0] > m.score[1] ? 0 : 1);
-    m.events.push({ t: 'over', winner: m.winner });
+  stepVents(m);
+  if (m.mode === 'chiem') stepPoints(m);
+  const timeUp = m.time >= m.duration;
+  if (m.mode === 'trum') {
+    const boss = m.units.find((u) => u.def.boss);
+    if (!boss.alive) finish(m, 0); else if (m.lives <= 0 || timeUp) finish(m, 1);
+  } else {
+    const lead = Math.max(...m.score);
+    if (lead >= m.target || timeUp) finish(m, m.score.filter((s) => s === lead).length > 1 ? -1 : m.score.indexOf(lead));
+  }
+}
+
+// Inputs come from bots, devices and (online) other machines: a non-finite number must never reach the simulation.
+function clean(inp) {
+  if (!inp) return NO_INPUT;
+  return Number.isFinite(inp.mx + inp.mz + inp.aim + inp.tx + inp.tz) ? inp : NO_INPUT;
+}
+
+function finish(m, winner) {
+  m.over = true; m.winner = winner;
+  m.events.push({ t: 'over', winner });
+}
+
+// Control points: a team alone on a point pulls its progress toward that team; a full bar flips the owner. Owned points pay score on a timer.
+function stepPoints(m) {
+  const R = m.rule;
+  for (const p of m.points) {
+    let a = 0, b = 0;
+    for (const u of m.units) if (u.alive && dist2(u.x, u.z, p.x, p.z) < p.r * p.r) { if (u.team === 0) a++; else b++; }
+    const dir = a && !b ? -1 : b && !a ? 1 : 0;
+    if (dir) {
+      p.prog = Math.max(-1, Math.min(1, p.prog + dir * TICK / R.captureTime * (1 + 0.25 * (Math.max(a, b) - 1))));
+      const owner = p.prog <= -1 ? 0 : p.prog >= 1 ? 1 : p.owner;
+      if (owner !== p.owner) { p.owner = owner; p.acc = 0; m.events.push({ t: 'capture', point: p.id, team: owner, x: p.x, z: p.z }); }
+    }
+    if (p.owner >= 0) { p.acc += TICK; if (p.acc >= R.every) { p.acc -= R.every; m.score[p.owner] += 1; } }
   }
 }
 
@@ -110,13 +173,23 @@ function stepUnit(m, u, inp) {
   if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; } }
   u.combatT += dt;
   u.bush = bushAt(m.map, u.x, u.z);
+  if (u.bush < 0) for (const z of m.zones) if (z.hide && dist2(u.x, u.z, z.x, z.z) < z.r * z.r) { u.bush = 1000 + z.id; break; }
 
-  const own = m.map.bases[u.team], foe = m.map.bases[1 - u.team], br = RULES.baseRadius;
-  if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
-  else if (dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
-  if (u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
+  if (m.mode !== 'tudo' && !u.def.boss) {
+    const own = m.map.bases[u.team], foe = m.map.bases[1 - u.team], br = RULES.baseRadius;
+    if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
+    else if (m.mode !== 'trum' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
+  }
+  let grip = 14;
+  for (const h of m.map.hazards) {
+    if (h.kind === 'vent' || dist2(u.x, u.z, h.x, h.z) > h.r * h.r) continue;
+    if (h.kind === 'ice') grip = RULES.ice.grip;
+    else { burn(m, u, RULES.lava.dps * dt); if (!u.alive) return; }
+  }
+  if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
   if (u.healT > 0) { u.healT -= dt; heal(m, u, u.healRate * dt, u, true); }
 
+  if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   const stunned = u.stunT > 0;
   if (stunned) { inp = NO_INPUT; u.cast = null; }
   else u.aim = u.cast && u.cast.lock ? u.cast.aim : inp.aim;
@@ -132,7 +205,7 @@ function stepUnit(m, u, inp) {
     let mx = inp.mx, mz = inp.mz;
     const len = Math.hypot(mx, mz);
     if (len > 1) { mx /= len; mz /= len; }
-    const k = Math.min(1, 14 * dt);
+    const k = Math.min(1, grip * dt);
     u.vx += (mx * sp - u.vx) * k; u.vz += (mz * sp - u.vz) * k;
     moveUnit(m, u, (u.vx + u.kx) * dt, (u.vz + u.kz) * dt);
     if (len > 0.2) u.heading = turnTo(u.heading, Math.atan2(mz, mx), 9 * dt);
@@ -154,17 +227,25 @@ function stepUnit(m, u, inp) {
     CAST[s.do](m, u, s, inp);
     return;
   }
-  if (inp.fire && u.cd.fire <= 0) fireWeapon(m, u);
+  if (inp.fire && u.cd.fire <= 0) fireWeapon(m, u, inp);
 }
 
-function fireWeapon(m, u) {
+function fireWeapon(m, u, inp) {
   const w = u.def.weapon;
   u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
-  const a = u.aim + (w.spread ? (m.rng() - 0.5) * 2 * w.spread : 0);
+  if (w.lob) {
+    // A lobbed shell is a delayed strike at the aim point: it flies over walls and everyone sees where it lands.
+    const [x, z] = aimPoint(u, inp, w.range);
+    addZone(m, u, { kind: 'strike', lob: true, x0: u.x, z0: u.z, x, z, r: w.splash, delay: w.flight, total: w.flight, dmg: w.dmg });
+    m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a: u.aim, side: 0 });
+    return;
+  }
+  const n = w.n || 1;
   let side = 0;
   if (w.alt) { u.barrel ^= 1; side = u.barrel ? w.alt : -w.alt; }
-  spawnShot(m, u, w, a, side);
-  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a, side });
+  const base = u.aim + (w.spread ? (m.rng() - 0.5) * 2 * w.spread : 0);
+  for (let i = 0; i < n; i++) spawnShot(m, u, w, base + (i - (n - 1) / 2) * (w.fan || 0), side);
+  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a: base, side });
 }
 
 function spawnShot(m, u, w, a, side) {
@@ -174,7 +255,7 @@ function spawnShot(m, u, w, a, side) {
   if (castStatic(m.map, u.x, u.z, x, z, w.r) <= 1) { x = u.x; z = u.z; }
   m.shots.push({
     id: m.nextId++, team: u.team, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: w.speed, left: w.range,
-    dmg: w.dmg * u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1), splash: w.splash || 0, knock: w.knock || 0, r: w.r, vis: w.vis,
+    color: u.color, dmg: w.dmg * u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1), splash: w.splash || 0, knock: w.knock || 0, slow: w.slow || 0, slowDur: w.slowDur || 0, r: w.r, vis: w.vis,
   });
 }
 
@@ -196,7 +277,7 @@ const CAST = {
     u.dash = { dx, dz, left: s.dist, speed: s.speed, s, hit: [] };
     u.stealthT = s.stealth + s.dist / s.speed; u.revealT = 0;
   },
-  nova(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.35, lock: false, aim: u.aim }; },
+  nova(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0.35, lock: false, aim: u.aim, left: s.repeat || 1 }; },
   beam(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim }; },
   volley(m, u, s) {
     for (let i = 0; i < s.n; i++) spawnShot(m, u, s, u.aim + (i - (s.n - 1) / 2) * s.fan, 0);
@@ -205,12 +286,41 @@ const CAST = {
   buff(m, u, s) {
     if (s.haste) { u.hasteT = s.dur; u.hasteF = s.haste; }
     if (s.rapid) { u.rapidT = s.dur; u.rapidF = s.rapid; }
+    if (s.stealth) { u.stealthT = s.stealth; u.revealT = 0; }
+  },
+  recoil(m, u, s) {
+    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius });
+    areaDamage(m, u, u.x, u.z, s.radius, s.dmg, s, null);
+    u.dash = { dx: -Math.cos(u.aim), dz: -Math.sin(u.aim), left: s.dist, speed: s.speed, s: { ...s, dmg: 0 }, hit: [] };
+  },
+  wall(m, u, s) {
+    const dx = Math.cos(u.aim), dz = Math.sin(u.aim), cx = u.x + dx * s.cast, cz = u.z + dz * s.cast, pts = [];
+    for (let i = 0; i < s.n; i++) {
+      const k = (i - (s.n - 1) / 2) * s.gap, x = cx - dz * k, z = cz + dx * k;
+      if (!solidAt(m.map, x, z, s.r * 0.5)) pts.push([x, z]);
+    }
+    addZone(m, u, { kind: 'wall', x: cx, z: cz, r: s.r, pts, dur: s.dur, a: u.aim });
+  },
+  turret(m, u, s, inp) {
+    let [x, z] = aimPoint(u, inp, s.cast);
+    if (solidAt(m.map, x, z, 0.8)) { x = u.x; z = u.z; }
+    addZone(m, u, { kind: 'turret', x, z, r: 0.8, hp: s.hp, maxHp: s.hp, dur: s.dur, range: s.range, dmg: s.dmg, rate: s.rate, cd: 0.6, aim: u.aim });
+  },
+  minefield(m, u, s, inp) {
+    const [cx, cz] = aimPoint(u, inp, s.cast);
+    for (let i = 0; i < s.n; i++) {
+      const a = (i / s.n) * 6.283 + m.rng(), d = i ? s.radius * 0.7 : 0;
+      addZone(m, u, { kind: 'mine', x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: s.trigger, blast: s.blast, delay: s.arm, dur: s.life, dmg: s.dmg, stun: s.stun });
+    }
   },
   barrage(m, u, s, inp) {
     const [cx, cz] = aimPoint(u, inp, s.cast);
+    const ux = Math.cos(u.aim), uz = Math.sin(u.aim);
     for (let i = 0; i < s.n; i++) {
-      const a = m.rng() * 6.283, d = i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0;
-      addZone(m, u, { kind: 'strike', x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: s.blast, delay: s.delay + (i / s.n) * s.span, total: s.delay + (i / s.n) * s.span, dmg: s.dmg });
+      // line: strikes march from the aim point along the aim direction; otherwise they scatter in a disc.
+      const a = s.line ? 0 : m.rng() * 6.283, d = s.line ? 0 : (i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0);
+      const lx = s.line ? ux * s.gap * (i - (s.n - 1) / 2) : 0, lz = s.line ? uz * s.gap * (i - (s.n - 1) / 2) : 0;
+      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay: s.delay + (i / s.n) * s.span, total: s.delay + (i / s.n) * s.span, dmg: s.dmg });
     }
   },
   mine(m, u, s, inp) {
@@ -219,7 +329,7 @@ const CAST = {
   },
   zone(m, u, s, inp) {
     const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
-    addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: s.dps || 0, slow: s.slow || 0, acc: 0 });
+    addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: s.dps || 0, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0 });
   },
   dome(m, u, s) {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
@@ -233,9 +343,10 @@ const CAST = {
 
 // What a wind-up skill does when the wind-up completes.
 const FINISH = {
-  nova(m, u, s) {
+  nova(m, u, s, c) {
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius });
     areaDamage(m, u, u.x, u.z, s.radius, s.dmg, s, null);
+    if (c.left > 1 && u.alive) u.cast = { ...c, t: s.gap, total: s.gap, left: c.left - 1 };
   },
   beam(m, u, s, c) {
     const dx = Math.cos(c.aim), dz = Math.sin(c.aim);
@@ -301,7 +412,10 @@ function resolveStatic(m, u) {
       }
     }
     for (const c of map.rounds) pushOut(u, c.x, c.z, c.r + r);
-    if (pass === 0) for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r);
+    if (pass === 0) {
+      for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r);
+      for (const z of m.zones) if (z.kind === 'wall') for (const q of z.pts) pushOut(u, q[0], q[1], z.r + r);
+    }
     u.x = Math.max(-map.hw + r, Math.min(map.hw - r, u.x));
     u.z = Math.max(-map.hd + r, Math.min(map.hd - r, u.z));
   }
@@ -342,11 +456,17 @@ function stepShots(m) {
       const t = segCircle(s.x, s.z, ex, ez, p.x, p.z, p.r + s.r);
       if (t < best) { best = t; what = 'prop'; hitProp = p; }
     }
+    let hitZone = null;
     for (const z of m.zones) {
-      if (z.kind !== 'dome' || z.team === s.team) continue;
-      if (dist2(s.x, s.z, z.x, z.z) < z.r * z.r) continue;
-      const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r);
-      if (t < best) { best = t; what = 'dome'; hitProp = null; }
+      if (z.kind === 'wall') {
+        for (const q of z.pts) { const t = segCircle(s.x, s.z, ex, ez, q[0], q[1], z.r + s.r); if (t < best) { best = t; what = 'wall'; hitProp = null; hitZone = null; } }
+      } else if (z.kind === 'turret' && z.team !== s.team) {
+        const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r + s.r);
+        if (t < best) { best = t; what = 'turret'; hitProp = null; hitZone = z; }
+      } else if (z.kind === 'dome' && z.team !== s.team && dist2(s.x, s.z, z.x, z.z) >= z.r * z.r) {
+        const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r);
+        if (t < best) { best = t; what = 'dome'; hitProp = null; hitZone = null; }
+      }
     }
     for (const u of m.units) {
       if (u.team === s.team || !u.alive) continue;
@@ -362,7 +482,9 @@ function stepShots(m) {
     if (what === 'unit') {
       damage(m, hitUnit, s.dmg, owner);
       if (s.knock && hitUnit.alive) { hitUnit.kx += s.dx * s.knock * 3; hitUnit.kz += s.dz * s.knock * 3; }
+      if (s.slow && hitUnit.alive) { hitUnit.slowT = Math.max(hitUnit.slowT, s.slowDur); hitUnit.slowF = Math.max(hitUnit.slowF, s.slow); }
     } else if (what === 'prop') damageProp(m, hitProp, s.dmg, owner);
+    else if (what === 'turret') hitZone.hp -= s.dmg;
     if (s.splash && what !== 'dome') areaDamage(m, owner, s.x, s.z, s.splash, s.dmg * 0.6, null, hitUnit);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
@@ -370,10 +492,10 @@ function stepShots(m) {
 }
 
 function addZone(m, u, z) {
-  z.id = m.nextId++; z.team = u.team; z.owner = u.id; z.age = 0;
+  z.id = m.nextId++; z.team = u.team; z.color = u.color; z.owner = u.id; z.age = 0;
   if (z.delay === undefined) z.delay = 0;
   m.zones.push(z);
-  m.events.push({ t: 'zone', id: z.id, kind: z.kind, x: z.x, z: z.z });
+  m.events.push({ t: 'zone', id: z.id, kind: z.kind, x: z.x, z: z.z, vis: z.vis, lob: !!z.lob });
 }
 
 function stepZones(m) {
@@ -403,11 +525,30 @@ function stepZones(m) {
         if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
         if (u.team === z.team) { if (z.hps && pulse) heal(m, u, z.hps * 0.5, owner); }
         else {
+          if (z.pull && !u.def.heavy) { const d = Math.sqrt(dist2(u.x, u.z, z.x, z.z)); if (d > 0.6) moveUnit(m, u, (z.x - u.x) / d * z.pull * dt, (z.z - u.z) / d * z.pull * dt); }
           if (z.slow) { u.slowT = Math.max(u.slowT, 0.3); u.slowF = Math.max(u.slowT > 0.3 ? u.slowF : 0, z.slow); }
           if (z.dps && pulse) damage(m, u, z.dps * 0.5, owner);
         }
       }
       if (z.age > z.dur) done = true;
+    } else if (z.kind === 'turret') {
+      z.cd -= dt;
+      let best = null, bd = z.range * z.range;
+      for (const u of m.units) {
+        if (u.team === z.team || !u.alive || !visibleTo(m, u, z.team)) continue;
+        const d = dist2(u.x, u.z, z.x, z.z);
+        if (d < bd && castStatic(m.map, z.x, z.z, u.x, u.z, 0.15) > 1) { bd = d; best = u; }
+      }
+      if (best) {
+        z.aim = Math.atan2(best.z - z.z, best.x - z.x);
+        if (z.cd <= 0) {
+          z.cd = z.rate;
+          const dx = Math.cos(z.aim), dz = Math.sin(z.aim);
+          m.shots.push({ id: m.nextId++, team: z.team, color: z.color, owner: z.owner, x: z.x + dx, z: z.z + dz, px: z.x + dx, pz: z.z + dz, dx, dz, speed: 30, left: z.range + 1, dmg: z.dmg * owner.dmgMod, splash: 0, knock: 0, slow: 0, slowDur: 0, r: 0.18, vis: 'rivet' });
+          m.events.push({ t: 'turretFire', id: z.owner, zone: z.id, x: z.x, z: z.z, a: z.aim });
+        }
+      }
+      if (z.hp <= 0 || z.age > z.dur) done = true;
     } else if (z.age > z.dur) done = true;
     if (done) { m.zones.splice(i, 1); m.events.push({ t: 'zoneEnd', id: z.id, kind: z.kind, x: z.x, z: z.z }); }
   }
@@ -465,7 +606,8 @@ function damage(m, u, amount, src) {
 
 function burn(m, u, amount) {
   u.invulnT = 0;
-  const last = Object.keys(u.hitBy).map(Number).sort((a, b) => u.hitBy[b] - u.hitBy[a])[0];
+  // Only a recent attacker gets credit for a death by lava, vent or base fire.
+  const last = Object.keys(u.hitBy).map(Number).filter((k) => m.time - u.hitBy[k] <= RULES.assistWindow).sort((a, b) => u.hitBy[b] - u.hitBy[a])[0];
   damage(m, u, amount, last === undefined ? null : m.units[last]);
 }
 
@@ -483,12 +625,14 @@ function kill(m, u, src) {
   const assists = [];
   let by = -1;
   if (src && src.team !== u.team) {
-    by = src.id; src.kills++; m.score[src.team]++;
+    by = src.id; src.kills++;
+    if (m.mode === 'tdm' || m.mode === 'tudo') m.score[src.team]++;
     for (const k in u.hitBy) {
       const o = m.units[k];
       if (o !== src && o.team !== u.team && m.time - u.hitBy[k] <= RULES.assistWindow) { o.assists++; assists.push(o.id); }
     }
-  } else m.score[1 - u.team]++;
+  } else if (m.mode === 'tdm') m.score[1 - u.team]++;
+  if (m.mode === 'trum') { if (u.def.boss) u.respawnT = 1e9; else m.lives--; }
   m.events.push({ t: 'death', id: u.id, by, assists, x: u.x, z: u.z });
   clearStatus(u);
 }
@@ -516,10 +660,26 @@ function stepCrates(m) {
     let taker = null;
     for (const u of m.units) {
       const rr = C.radius + u.radius;
-      if (u.alive && dist2(u.x, u.z, c.x, c.z) < rr * rr) { taker = u; break; }
+      if (u.alive && !u.def.boss && dist2(u.x, u.z, c.x, c.z) < rr * rr) { taker = u; break; }
     }
     if (taker) { applyPickup(m, taker, c.type); m.events.push({ t: 'pickup', id: taker.id, crate: c.id, type: c.type, x: c.x, z: c.z }); }
     if (taker || c.age > C.life) m.crates.splice(i, 1);
+  }
+}
+
+// Flame vents: a warning ring for RULES.vent.warn seconds, then a blast that hurts every mech of both teams standing on it.
+function stepVents(m) {
+  const V = RULES.vent;
+  for (const v of m.vents) {
+    v.t -= TICK;
+    if (!v.warn && v.t <= V.warn) { v.warn = true; m.events.push({ t: 'ventWarn', id: v.id, x: v.x, z: v.z, r: v.r }); }
+    if (v.t > 0) continue;
+    v.t = V.period; v.warn = false;
+    m.events.push({ t: 'explode', x: v.x, z: v.z, r: v.r, why: 'vent' });
+    for (const u of m.units) {
+      const reach = v.r + u.radius * 0.5;
+      if (u.alive && dist2(u.x, u.z, v.x, v.z) < reach * reach) burn(m, u, V.dmg);
+    }
   }
 }
 
@@ -541,7 +701,7 @@ export function summary(m) {
     rating: u.kills * 3 + u.assists * 1.5 + u.dmg / 600 + u.healed / 450 - u.deaths,
   }));
   const mvp = rows.reduce((a, b) => (b.rating > a.rating ? b : a)).id;
-  return { rows, mvp, score: m.score.slice(), winner: m.winner, time: m.time };
+  return { rows, mvp, mode: m.mode, score: m.score.slice(), winner: m.winner, time: m.time, lives: m.lives };
 }
 
 const dist2 = (ax, az, bx, bz) => (ax - bx) * (ax - bx) + (az - bz) * (az - bz);

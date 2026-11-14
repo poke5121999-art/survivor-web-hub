@@ -85,6 +85,20 @@ export function plantGeos(rng) {
     b.pop();
   }
   out.palm = b.build().main;
+
+  b = new Builder();
+  for (let i = 0; i < 5; i++) {
+    const g = 0.75 + i * 0.07;
+    b.tint(new THREE.Color(0.1 * g, 0.3 * g, 0.2 * g)).push().move(0, 0.9 + i * 0.95, 0).rotY(i * 0.7).cyl(0.05, 1.9 - i * 0.36, 1.5, 7).pop();
+    b.tint(new THREE.Color(0.8, 0.88, 0.95)).push().move(0, 1.35 + i * 0.95, 0).rotY(i * 0.7).cyl(0.02, 1.0 - i * 0.19, 0.62, 7).pop();
+  }
+  out.pine = b.tint(0xffffff).build().main;
+
+  b = new Builder();
+  b.tint(new THREE.Color(0.07, 0.055, 0.05));
+  b.push().move(0, 2.0, 0).cyl(0.1, 0.3, 4.0, 6).pop();
+  for (let i = 0; i < 5; i++) b.push().move(0, 1.6 + i * 0.5, 0).rotY(i * 2.3).rotZ(0.9).move(0, 0.6, 0).cyl(0.03, 0.09, 1.2 + (i % 2) * 0.5, 5).pop();
+  out.dead = b.tint(0xffffff).build().main;
   return out;
 }
 

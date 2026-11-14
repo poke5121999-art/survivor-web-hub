@@ -13,7 +13,8 @@
 <body>
 <canvas id="scene"></canvas>
 <script type="module">
-import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES } from '../js/data.js';
+import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES, PAINTS, BOSSES, MODES } from '../js/data.js';
+import { MAPS } from '../js/maps.js';
 import { createMatch, step, summary } from '../js/sim.js';
 import { mulberry } from '../js/rng.js';
 import { makeUI } from '../js/ui.js';
@@ -36,9 +37,10 @@ function resize() { cv.width = W = innerWidth; cv.height = H = innerHeight; }
 addEventListener('resize', resize); resize();
 const scale = () => (G.match ? Math.min(W / (G.match.map.w * 0.62), H / (G.match.map.d * 0.75)) : 10);
 
-function portrait(key, team) {
+function portrait(key, team, paint) {
+  (window.__portraitCalls = window.__portraitCalls || []).push([key, team, paint]);
   const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d'), col = '#' + MECHS[key].tint.toString(16).padStart(6, '0');
+  const g = c.getContext('2d'), col = '#' + (MECHS[key] || BOSSES[key]).tint.toString(16).padStart(6, '0');
   const grd = g.createRadialGradient(64, 50, 8, 64, 64, 90);
   grd.addColorStop(0, team ? '#6a3a2c' : '#2c5a72'); grd.addColorStop(1, '#10151a');
   g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
@@ -46,6 +48,8 @@ function portrait(key, team) {
   g.beginPath(); g.arc(64, 44, 22, 0, 7); g.fillStyle = col; g.fill(); g.strokeStyle = '#0008'; g.lineWidth = 4; g.stroke();
   g.fillStyle = '#0d1116'; g.fillRect(48, 38, 32, 9); g.fillStyle = team ? '#ff5a36' : '#35b8ff'; g.fillRect(52, 40, 24, 5);
   g.fillStyle = '#20262d'; g.fillRect(8, 56, 20, 12); g.fillRect(100, 56, 20, 12);
+  const pc = PAINTS[paint] && PAINTS[paint].color;
+  if (pc != null) { g.fillStyle = '#' + pc.toString(16).padStart(6, '0'); g.fillRect(34, 84, 60, 8); g.fillRect(48, 36, 32, 3); }
   return c.toDataURL();
 }
 
@@ -55,6 +59,10 @@ const bus = {
   emit(t, d) { (window.__log = window.__log || []).push([t, d]); (handlers[t] || []).forEach((f) => f(d)); },
 };
 const meta = makeMeta();
+if (q.get('coins')) meta.get().coins = +q.get('coins');
+if (q.get('trophies')) meta.get().trophies = +q.get('trophies');
+if (MODES[q.get('mode')]) meta.get().mode = q.get('mode');
+if (MAPS[q.get('map')]) meta.get().map = q.get('map');
 const G = {
   bus, meta, match: null, me: 0, alpha: 1,
   audio: { setVolume(v) { window.__vol = v; }, setMusic(v) { window.__mus = v; } },
@@ -90,16 +98,24 @@ function bot(m, u) {
   };
 }
 
+const modeParam = () => (MODES[q.get('mode')] ? q.get('mode') : 'tdm');
+const mapParam = () => (MAPS[q.get('map')] ? q.get('map') : 'denrung');
+
 function newMatch(choice) {
   const mech = (choice && choice.mech) || q.get('mech') || 'soi';
+  const mode = (choice && MODES[choice.mode] && choice.mode) || modeParam();
+  const map = (choice && MAPS[choice.map] && choice.map) || mapParam();
   const roster = [];
   const names = BOT_NAMES.slice();
-  for (let i = 0; i < 10; i++) {
-    const team = i % 2;
-    roster.push({ team, mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % 4], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal' });
-  }
-  G.match = createMatch({ map: 'denrung', seed: +(q.get('seed') || 7), roster });
+  const mine = (i) => ({ mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % MECH_ORDER.length], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal', mods: i === 0 && choice && choice.mods, paint: i === 0 && choice && choice.paint });
+  // trum: five mechs against one boss; every other mode: ten mechs (tudo makes each its own team inside the sim).
+  if (mode === 'trum') {
+    for (let i = 0; i < 5; i++) roster.push({ team: 0, ...mine(i) });
+    roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff: 'normal' });
+  } else for (let i = 0; i < 10; i++) roster.push({ team: i % 2, ...mine(i) });
+  G.match = createMatch({ map, seed: +(q.get('seed') || 7), roster, mode });
   G.me = 0;
+  G.match.units[0].color = 0;
   if (!q.has('manual')) G.input.script(q.get('auto') === '0' ? null : (m, u) => bot(m, u));
 }
 
@@ -120,7 +136,7 @@ bus.on('ui:play', (c) => { newMatch(c); G.ui.showHUD(); });
 let last = performance.now(), acc = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (G.match && !paused) {
+  if (G.match && !paused && !q.get('freeze')) {
     acc += dt;
     while (acc >= TICK) { tick(); acc -= TICK; }
     G.alpha = acc / TICK;
@@ -132,11 +148,12 @@ function frame(now) {
     g2.fillStyle = 'rgba(30,70,30,.6)'; for (const b of m.map.bushes) { g2.beginPath(); g2.arc(X(b.x), Z(b.z), b.r * s, 0, 7); g2.fill(); }
     g2.fillStyle = '#8a8f86'; for (const w of m.map.walls) g2.fillRect(X(w.x0), Z(w.z0), (w.x1 - w.x0) * s, (w.z1 - w.z0) * s);
     g2.fillStyle = '#5e6b4a'; for (const r of m.map.rounds) { g2.beginPath(); g2.arc(X(r.x), Z(r.z), r.r * s, 0, 7); g2.fill(); }
+    for (const p of m.points) { g2.strokeStyle = p.owner < 0 ? '#fff' : TEAMS[p.owner].css; g2.lineWidth = 4; g2.beginPath(); g2.arc(X(p.x), Z(p.z), p.r * s, 0, 7); g2.stroke(); }
     for (const c of m.crates) { g2.fillStyle = '#e8d27a'; g2.fillRect(X(c.x) - 8, Z(c.z) - 8, 16, 16); }
     for (const sh of m.shots) { g2.fillStyle = '#fff'; g2.fillRect(X(sh.x) - 2, Z(sh.z) - 2, 4, 4); }
     for (const u of m.units) {
       if (!u.alive) continue;
-      g2.fillStyle = TEAMS[u.team].css; g2.beginPath(); g2.arc(X(u.x), Z(u.z), u.radius * s, 0, 7); g2.fill();
+      g2.fillStyle = TEAMS[u.color].css; g2.beginPath(); g2.arc(X(u.x), Z(u.z), u.radius * s, 0, 7); g2.fill();
       g2.strokeStyle = '#000'; g2.lineWidth = 3; g2.beginPath(); g2.moveTo(X(u.x), Z(u.z)); g2.lineTo(X(u.x) + Math.cos(u.aim) * u.radius * s * 1.6, Z(u.z) + Math.sin(u.aim) * u.radius * s * 1.6); g2.stroke();
     }
     G.ui.update(paused ? 0 : dt);
@@ -152,7 +169,24 @@ function demoTweaks() {
   if (q.get('meDead')) { me.alive = false; me.hp = 0; me.respawnT = 3.2; }
 }
 
+async function iconSheet() {
+  const { icon } = await import('../js/ui.js');
+  const names = new Set(['weapon', 'shield', 'dash', 'quake', 'rocket', 'boost', 'barrage', 'mine', 'blink', 'beam', 'heal', 'slow', 'dome', 'trophy', 'wrench', 'up', 'info', 'nope-unknown-icon']);
+  for (const k of MECH_ORDER) { names.add(MECHS[k].roleKey); for (const s of MECHS[k].skills) names.add(s.icon); }
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;padding:10px;align-content:start;background:#151a20;color:#ffd467;font:11px sans-serif;overflow:auto';
+  for (const n of names) {
+    const c = document.createElement('div');
+    c.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;background:#07090c;padding:8px 2px';
+    c.innerHTML = icon(n) + '<span style="color:#98a5b3">' + n + '</span>';
+    c.firstChild.style.cssText = 'width:40px;height:40px';
+    box.appendChild(c);
+  }
+  document.body.appendChild(box);
+}
+
 function boot() {
+  if (screen === 'icons') { iconSheet().then(() => { window.__ready = true; }); return; }
   if (screen === 'menu') { G.ui.showMenu(); }
   else {
     newMatch({});
@@ -163,7 +197,21 @@ function boot() {
     if (screen === 'result') {
       const m = G.match;
       if (q.get('levelup')) { const d = meta.get(); d.level = 1; d.xp = 190; }
-      if (!m.over) { m.score[0] = 25; m.score[1] = 17; m.over = true; m.winner = 0; }
+      if (m.mode === 'tudo') {
+        // me finishes in ?place= (default 3); the others take the remaining distinct scores.
+        const place = Math.max(1, Math.min(10, +(q.get('place') || 3))), pool = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        const mineScore = pool.splice(place - 1, 1)[0];
+        m.units.forEach((u) => { u.kills = u.id === G.me ? mineScore : pool.shift(); m.score[u.id] = u.kills; });
+        m.winner = m.units.find((u) => u.kills === 12).id; m.over = true;
+      } else if (m.mode === 'trum') {
+        const boss = m.units.find((u) => u.def.boss), won = !q.get('lose');
+        m.units.forEach((u) => { if (!u.def.boss) u.dmg = 3000 + u.id * 2500 + (u.id === G.me ? 4000 : 0); });
+        m.lives = won ? 5 : 0; boss.hp = won ? 0 : boss.maxHp * 0.3; boss.alive = !won;
+        m.winner = won ? 0 : 1; m.over = true;
+      } else {
+        if (q.get('lose')) { m.score[0] = 12; m.score[1] = 25; m.winner = 1; m.over = true; }
+        if (!m.over) { m.score[0] = 25; m.score[1] = 17; m.over = true; m.winner = 0; }
+      }
       const sm = summary(m);
       G.ui.showResult(sm, meta.applyResult(sm, G.me));
     } else {

@@ -49,6 +49,9 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     for (const [v, n] of Object.entries(cov.vis)) check(n > 0, `weapon vis '${v}' has a fire sound`);
     for (const [k, n] of Object.entries(cov.skills)) check(n > 0, `skill '${k}' makes a sound`);
     for (const [k, n] of cov.sub) check(n > 0, `${k} makes a sound`);
+    check(cov.double.length === 0, 'no skill plays both its own sound and a companion event' + (cov.double.length ? ' (double: ' + cov.double.join(', ') + ')' : ''));
+    check(Object.keys(cov.skills).length === 24, `all ${Object.keys(cov.skills).length} skill ids covered (expect 24)`);
+    for (const v of ['shell', 'bullet', 'rail', 'pulse', 'mortar', 'pellet', 'frost', 'rivet']) check(cov.vis[v] > 0, `all-mechs weapon vis '${v}' present`);
 
     const boot = await page.evaluate('window.__audioBoot()');
     check(boot.errors.length === 0, 'engine accepts every event and ui call' + (boot.errors.length ? ': ' + boot.errors[0] : ''));

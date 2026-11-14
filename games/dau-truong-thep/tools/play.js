@@ -31,6 +31,35 @@ session(async (br, base) => {
     await g.close();
   }
 
+  for (const map of ['xuongcat', 'cangbang', 'mienglua']) {
+    const g = await open(br, base, `manual&noaudio&autostart&spectate&seed=21&bots=normal&q=low&map=${map}`);
+    const r = await g.page.evaluate(() => {
+      const G = window.__G; let guard = 0; const seen = {};
+      while (!G.match.over && guard++ < 400) { window.__step(30, guard % 25 === 0); for (const u of G.match.units) seen[u.mech] = 1; }
+      window.__step(1, true);
+      return { over: G.match.over, score: G.match.score, map: G.match.map.key, mechs: Object.keys(seen).length, errors: window.__errors };
+    });
+    check(r.over && r.map === map, `[${map}] bot match ends on the chosen map: ${r.score.join('-')} with ${r.mechs} different mechs`);
+    check(r.errors.length === 0 && g.problems.length === 0, `[${map}] no errors` + (r.errors[0] ? ': ' + r.errors[0].slice(0, 200) : '') + (g.problems[0] ? ' ' + g.problems[0].slice(0, 200) : ''));
+    await g.page.screenshot({ path: path.join(CHK, `play-${map}.png`) });
+    await g.close();
+  }
+
+  for (const mode of ['chiem', 'tudo', 'trum']) {
+    const g = await open(br, base, `manual&noaudio&autostart&seed=31&bots=normal&q=low&mode=${mode}&mech=tho`);
+    const r = await g.page.evaluate(() => {
+      const G = window.__G; let guard = 0;
+      G.match.units[0].bot = true;
+      while (G.mode !== 'result' && guard++ < 500) window.__step(30, guard % 25 === 0);
+      const res = document.querySelector('#ui .screen.result');
+      return { mode: G.match.mode, over: G.match.over, units: G.match.units.length, state: G.mode, shown: !!res && getComputedStyle(res).display !== 'none', errors: window.__errors };
+    });
+    check(r.over && r.mode === mode && r.state === 'result' && r.shown, `[${mode}] a full match in this mode ends on the result screen (${r.units} units)`);
+    check(r.errors.length === 0 && g.problems.length === 0, `[${mode}] no errors` + (r.errors[0] ? ': ' + r.errors[0].slice(0, 200) : '') + (g.problems[0] ? ' ' + g.problems[0].slice(0, 200) : ''));
+    await g.page.screenshot({ path: path.join(CHK, `play-result-${mode}.png`) });
+    await g.close();
+  }
+
   {
     const g = await open(br, base, 'manual&noaudio&autostart&seed=5&mech=soi&bots=normal&q=low');
     const p = g.page;

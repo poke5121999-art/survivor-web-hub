@@ -8,6 +8,18 @@ import { mulberry } from '../rng.js';
 import { solidAt } from '../maps.js';
 import { TEAMS, RULES } from '../data.js';
 
+// Everything that changes with the map's theme: ground textures and tints, stone tint, how much of each plant grows, light.
+const THEMES = {
+  jungle: { base: 'grass', path: 'dirt', lo: [0.62, 0.8, 0.55], hi: [1.25, 1.15, 0.8], pave: [1, 1, 1], stone: 0xffffff, grass: 1, leaf: [1, 1, 1], fern: 1, broad: 1, tall: 'palm', tallRate: 0.36, bush: [1, 1, 1],
+    sun: [0xfff0d2, 3.1], hemi: [0xcfe8ff, 0x4d6a2e, 0.85], clear: 0x0b1a0d, exposure: 1 },
+  desert: { base: 'sand', path: 'track', lo: [0.85, 0.85, 0.85], hi: [1.12, 1.08, 1.0], pave: [1.05, 0.95, 0.8], stone: 0xf2d9ae, grass: 0.22, leaf: [1.5, 1.1, 0.5], fern: 0.3, broad: 0.25, tall: 'palm', tallRate: 0.14, bush: [1.0, 0.85, 0.5],
+    sun: [0xffe6b8, 3.5], hemi: [0xd9e6ff, 0x8a6a3c, 0.9], clear: 0x2a1f12, exposure: 0.95 },
+  ice: { base: 'snow', path: 'track', lo: [0.85, 0.9, 0.98], hi: [1.05, 1.05, 1.05], pave: [0.8, 0.9, 1.05], stone: 0xb9d2e8, grass: 0.12, leaf: [1.3, 1.6, 2.0], fern: 0.2, broad: 0, tall: 'pine', tallRate: 0.42, bush: [0.9, 1.15, 1.35],
+    sun: [0xe8f2ff, 2.2], hemi: [0xdfeeff, 0x7d93ad, 0.8], clear: 0x0e1722, exposure: 0.85 },
+  lava: { base: 'basalt', path: 'ash', lo: [0.8, 0.8, 0.8], hi: [1.25, 1.15, 1.1], pave: [0.5, 0.45, 0.45], stone: 0x6e6468, grass: 0.08, leaf: [0.9, 0.35, 0.15], fern: 0.12, broad: 0, tall: 'dead', tallRate: 0.3, bush: [1.1, 0.5, 0.3],
+    sun: [0xffc9a0, 2.3], hemi: [0xffb080, 0x40201a, 0.75], clear: 0x120807, exposure: 1.05 },
+};
+
 const MARGIN = 18;
 const SPLAT_PPM = 3;
 const TILE = 0.21;
@@ -48,10 +60,12 @@ function groundSampler(map) {
       if (w.kind !== 'fence') pave = Math.max(pave, (1 - smooth(0.3, 1.3, d + wob * 0.4)) * 0.8);
     }
     for (const c of map.rounds) dark = Math.max(dark, (1 - smooth(0, 1.2, Math.hypot(x - c.x, z - c.z) - c.r)) * 0.45);
+    let scorched = path;
+    for (const h of map.hazards) if (h.kind !== 'ice') { const d = Math.hypot(x - h.x, z - h.z) - h.r; scorched = Math.max(scorched, 1 - smooth(0, 1.8, d + wob * 0.5)); dark = Math.max(dark, (1 - smooth(0, 1.2, d)) * 0.4); }
     const outside = Math.max(Math.abs(x) - map.hw, Math.abs(z) - map.hd);
     dark = Math.max(dark, smooth(-1.5, 7, outside + wob) * 0.62);
     const macro = noise(x * 0.07, z * 0.07) * 0.6 + noise(x * 0.19 + 5, z * 0.19 + 3) * 0.4;
-    return { path, pave, macro, shade: 1 - dark, outside };
+    return { path: scorched, pave, macro, shade: 1 - dark, outside };
   };
 }
 
@@ -67,31 +81,32 @@ function splatTexture(map, sample) {
   return t;
 }
 
-function groundMaterial(tex, splat, map, wind, blendNormals) {
-  const grass = tex.bake('grass'), dirt = tex.bake('dirt'), pave = tex.bake('pave');
+function groundMaterial(tex, splat, map, wind, blendNormals, theme) {
+  const grass = tex.bake(theme.base), dirt = tex.bake(theme.path), pave = tex.bake('pave');
   const m = new THREE.MeshStandardMaterial({ map: grass.map, normalMap: grass.normal, roughness: 0.93, metalness: 0, envMapIntensity: 0.35 });
   m.normalScale.setScalar(1.3);
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, {
       tSplat: { value: splat }, tDirt: { value: dirt.map }, tPave: { value: pave.map }, tDirtO: { value: dirt.orm }, tPaveO: { value: pave.orm },
       tDirtN: { value: dirt.normal }, tPaveN: { value: pave.normal }, uTime: wind.uTime,
+      uLo: { value: new THREE.Vector3(...theme.lo) }, uHi: { value: new THREE.Vector3(...theme.hi) }, uPaveTint: { value: new THREE.Vector3(...theme.pave) },
       uSplat: { value: new THREE.Vector2(1 / (TILE * (map.w + MARGIN * 2)), 1 / (TILE * (map.d + MARGIN * 2))) },
     });
     sh.vertexShader = 'uniform vec2 uSplat; varying vec2 vSplatUv;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n vSplatUv = uv * uSplat + 0.5;');
-    sh.fragmentShader = `uniform sampler2D tSplat, tDirt, tPave, tDirtO, tPaveO, tDirtN, tPaveN; uniform float uTime; varying vec2 vSplatUv; float gDirt, gPave;\n` + sh.fragmentShader
+    sh.fragmentShader = `uniform sampler2D tSplat, tDirt, tPave, tDirtO, tPaveO, tDirtN, tPaveN; uniform float uTime; uniform vec3 uLo, uHi, uPaveTint; varying vec2 vSplatUv; float gDirt, gPave;\n` + sh.fragmentShader
       .replace('#include <map_fragment>', `
         vec4 sp = texture2D(tSplat, vSplatUv);
         vec3 grassC = mix(texture2D(map, vMapUv).rgb, texture2D(map, vMapUv * 0.31 + 0.37).rgb, 0.45);
-        grassC *= mix(vec3(0.62, 0.8, 0.55), vec3(1.25, 1.15, 0.8), sp.b);
+        grassC *= mix(uLo, uHi, sp.b);
         vec4 dO = texture2D(tDirtO, vMapUv * 1.3), pO = texture2D(tPaveO, vMapUv * 0.8);
         gDirt = smoothstep(0.32, 0.62, sp.r + (dO.r - 0.5) * 0.55);
         gPave = smoothstep(0.42, 0.58, sp.g + (pO.r - 0.5) * 0.4);
         vec3 gc = mix(grassC, texture2D(tDirt, vMapUv * 1.3).rgb * mix(0.8, 1.15, sp.b), gDirt);
-        gc = mix(gc, texture2D(tPave, vMapUv * 0.8).rgb, gPave);
+        gc = mix(gc, texture2D(tPave, vMapUv * 0.8).rgb * uPaveTint, gPave);
         float cloud = texture2D(tSplat, vSplatUv * 1.6 + vec2(uTime * 0.006, uTime * 0.0035)).b;
         gc *= sp.a * (0.8 + 0.3 * smoothstep(0.3, 0.7, cloud));
         diffuseColor.rgb *= gc;`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(mix(0.93, 0.96, gDirt), 0.8, gPave);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(mix(0.93, texture2D(tDirtO, vMapUv * 1.3).g, gDirt), 0.8, gPave);');
     if (blendNormals) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>',
       THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0',
         'mix(mix(texture2D( normalMap, vNormalMapUv ).xyz, texture2D( tDirtN, vMapUv * 1.3 ).xyz, gDirt), texture2D( tPaveN, vMapUv * 0.8 ).xyz, gPave) * 2.0 - 1.0'));
@@ -125,6 +140,16 @@ function buildStructures(map, rng) {
         const s = rng.range(0.3, 0.55);
         b.push().move(rng.range(-len / 2, len / 2), s * 0.35, (thick / 2 + rng.range(0.35, 0.9)) * rng.sign()).rotY(rng() * 3).rotX(rng.range(-0.3, 0.3))
           .use('ruin', 0xb8b0a0).box(s * 1.3, s * 0.8, s).pop();
+      }
+    } else if (w.kind === 'container') {
+      const hues = [0xc9a227, 0x6b7a3a, 0xcfd4d6, 0x7a2f2f, 0x4f5f6b];
+      for (let y = 0; y + 1 < w.h; y += 2.6) {
+        const c = new THREE.Color(rng.pick(hues)), ox = y ? rng.range(-0.3, 0.3) : 0;
+        b.use('metal').tint(c).push().move(ox, y + 1.3, 0).box(len, 2.55, thick).pop();
+        b.tint(c.clone().multiplyScalar(0.72));
+        for (let k = 0; k < Math.round(len / 0.5); k++) for (const sz of [-1, 1]) b.push().move(ox - len / 2 + 0.25 + k * 0.5, y + 1.3, sz * (thick / 2 + 0.03)).box(0.16, 2.3, 0.06).pop();
+        for (const sx of [-1, 1]) b.push().move(ox + sx * (len / 2 + 0.03), y + 1.3, 0).box(0.06, 2.3, thick * 0.9).pop();
+        b.tint(0x30353b).push().move(ox, y + 2.6, 0).box(len + 0.1, 0.1, thick + 0.1).pop();
       }
     } else if (w.kind === 'block') {
       const sh = shadeBox(w.h);
@@ -169,6 +194,14 @@ function buildStructures(map, rng) {
       g.computeVertexNormals();
       b.use('ruin').tint(0xffffff).geo(g, (v, n) => (n.y > 0.55 ? 0.75 : 1) * (0.55 + 0.45 * smooth(0, c.r, v.y)));
       g.dispose();
+    } else if (c.kind === 'cactus') {
+      b.use('plain', 0x4f8a3c).push().move(0, 1.5, 0).cyl(c.r * 0.8, c.r * 0.9, 3.0, 8).pop().push().move(0, 3.05, 0).ball(c.r * 0.8, 1).pop();
+      for (const sx of [-1, 1]) b.push().move(sx * 0.62, 1.5 + sx * 0.3, 0).rotZ(sx * 1.57).cyl(0.2, 0.22, 0.7, 7).pop().push().move(sx * 0.9, 2.1 + sx * 0.3, 0).cyl(0.2, 0.22, 1.2, 7).pop();
+    } else if (c.kind === 'spire') {
+      b.use('ruin', 0x8a8088).push().move(0, 2.2, 0).rotZ(rng.range(-0.12, 0.12)).cyl(0.08, c.r * 1.5, 4.4, 5).pop();
+      b.push().move(c.r * 0.8, 0.9, 0.2).rotZ(-0.3).cyl(0.05, c.r * 0.8, 1.8, 5).pop();
+    } else if (c.kind === 'pine') {
+      b.use('wood', 0x6b5038).push().move(0, 0.7, 0).cyl(c.r * 0.6, c.r * 0.8, 1.4, 7).pop();
     } else {
       b.use('wood', 0x7d6142);
       let y = 0, lean = 0;
@@ -217,7 +250,7 @@ function buildProps(rng) {
 }
 
 export function makeWorld(G, map, tex) {
-  const Q = G.quality, rng = mulberry('world:' + map.key);
+  const Q = G.quality, rng = mulberry('world:' + map.key), theme = THEMES[map.theme] || THEMES.jungle;
   const group = new THREE.Group();
   const wind = { uTime: { value: 0 } };
   const sample = groundSampler(map);
@@ -227,15 +260,17 @@ export function makeWorld(G, map, tex) {
   const gg = new THREE.PlaneGeometry(gw, gd).rotateX(-Math.PI / 2);
   const guv = gg.attributes.uv, gp = gg.attributes.position;
   for (let i = 0; i < guv.count; i++) guv.setXY(i, gp.getX(i) * TILE, gp.getZ(i) * TILE);
-  const ground = new THREE.Mesh(gg, groundMaterial(tex, splat, map, wind, Q.name !== 'low'));
+  const ground = new THREE.Mesh(gg, groundMaterial(tex, splat, map, wind, Q.name !== 'low', theme));
   ground.receiveShadow = true; group.add(ground);
 
   const mats = {
-    ruin: tex.material('ruin'), pave: tex.material('pave'), wood: tex.material('wood'), metal: tex.material('metal'),
+    ruin: tex.material('ruin').clone(), pave: tex.material('pave').clone(), wood: tex.material('wood'), metal: tex.material('metal'),
+    plain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 }),
     glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.15, 0.35), toneMapped: false }),
     glow0: new THREE.MeshBasicMaterial({ color: new THREE.Color(TEAMS[0].color).multiplyScalar(2.2), toneMapped: false }),
     glow1: new THREE.MeshBasicMaterial({ color: new THREE.Color(TEAMS[1].color).multiplyScalar(2.2), toneMapped: false }),
   };
+  mats.ruin.color.set(theme.stone); mats.pave.color.setRGB(...theme.pave);
   const st = buildStructures(map, rng);
   for (const k in st) {
     const mesh = new THREE.Mesh(st[k], mats[k]);
@@ -244,11 +279,12 @@ export function makeWorld(G, map, tex) {
 
   const P = plantGeos(mulberry('plants'));
   const leaf = leafMaterial(wind, 0.07), blade = leafMaterial(wind, 0.2, { roughness: 0.8 }), tall = leafMaterial(wind, 0.03);
-  const tintOf = (x, z) => { const m = sample(x, z).macro, k = 0.7 + rng() * 0.5; return [k * (0.75 + m * 0.6), k * (0.95 + m * 0.15), k * (0.7 + m * 0.3)]; };
+  const L = theme.leaf;
+  const tintOf = (x, z) => { const m = sample(x, z).macro, k = 0.7 + rng() * 0.5; return [k * (0.75 + m * 0.6) * L[0], k * (0.95 + m * 0.15) * L[1], k * (0.7 + m * 0.3) * L[2]]; };
   const free = (x, z, r) => !solidAt(map, x, z, r);
 
   const grass = [];
-  const want = Math.round(12000 * Q.foliage);
+  const want = Math.round(12000 * Q.foliage * theme.grass);
   for (let tries = 0; grass.length < want && tries < want * 6; tries++) {
     const x = rng.range(-map.hw - 5, map.hw + 5), z = rng.range(-map.hd - 5, map.hd + 5), s = sample(x, z);
     if (s.path > 0.3 || s.pave > 0.35 || rng() > 0.35 + s.macro * 0.9) continue;
@@ -269,11 +305,11 @@ export function makeWorld(G, map, tex) {
   }
   for (const c of map.rounds) if (c.kind !== 'tree') for (let i = 0; i < 4; i++) { const a = rng() * 6.283; edgeSpots.push([c.x + Math.cos(a) * (c.r + 0.5), c.z + Math.sin(a) * (c.r + 0.5)]); }
   for (const [x, z] of edgeSpots) {
-    if (rng() > Q.foliage * 0.9 || sample(x, z).path > 0.5) continue;
-    if (rng() < 0.22) broads.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.42, 0.62), c: tintOf(x, z) });
+    if (rng() > Q.foliage * 0.9 * theme.fern || sample(x, z).path > 0.5) continue;
+    if (rng() < 0.22 * theme.broad) broads.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.42, 0.62), c: tintOf(x, z) });
     else ferns.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.55, 0.95), c: tintOf(x, z) });
   }
-  for (let i = 0; i < 260 * Q.foliage; i++) {
+  for (let i = 0; i < 260 * Q.foliage * theme.fern; i++) {
     const x = rng.range(-map.hw, map.hw), z = rng.range(-map.hd, map.hd), s = sample(x, z);
     if (s.path > 0.15 || s.pave > 0.2 || !free(x, z, 0.3)) continue;
     ferns.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.4, 0.75), c: tintOf(x, z) });
@@ -290,33 +326,38 @@ export function makeWorld(G, map, tex) {
     const front = z > map.hd;
     const roll = rng();
     // No palms along the camera-side edge: seen from this angle a tall crown there would cover the playfield.
-    if (!front && roll < 0.36 && row > 0 && (Math.abs(x) < map.hw || row > 1)) {
+    if (!front && roll < theme.tallRate && row > 0 && (Math.abs(x) < map.hw || row > 1) && theme.tall !== 'palm') {
+      palms.push({ x, z, yaw: rng() * 6.283, s: rng.range(1.0, 1.9), c: theme.tall === 'pine' ? [1, 1, 1] : [1, 1, 1] });
+    } else if (!front && roll < theme.tallRate && row > 0 && (Math.abs(x) < map.hw || row > 1)) {
       const h = rng.range(5.5, 9), lean = rng.range(-0.6, 0.6), yaw = rng() * 6.283;
       trunks.push().move(x, 0, z).rotY(yaw).use('wood', 0x8f7658);
       for (let k = 0; k < 6; k++) trunks.push().move(lean * (k / 6) * (k / 6) * 2, h * (k + 0.5) / 6, 0).rotZ(-lean * k * 0.07).cyl(0.2 - k * 0.012, 0.23 - k * 0.012, h / 6 + 0.05, 7).pop();
       trunks.pop();
       const ox = Math.cos(-yaw) * lean * 1.4, oz = Math.sin(-yaw) * lean * 1.4;
       palms.push({ x: x + ox, y: h, z: z + oz, yaw: rng() * 6.283, s: rng.range(0.85, 1.25), c: tintOf(x, z) });
-    } else if (roll < 0.7) broads.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.9, 1.6) * (front ? 0.6 : 1), c: tintOf(x, z) });
-    else ferns.push({ x, z, yaw: rng() * 6.283, s: rng.range(1.0, 1.7), c: tintOf(x, z) });
+    } else if (roll < 0.7 * theme.broad) broads.push({ x, z, yaw: rng() * 6.283, s: rng.range(0.9, 1.6) * (front ? 0.6 : 1), c: tintOf(x, z) });
+    else if (rng() < Math.max(0.35, theme.fern)) ferns.push({ x, z, yaw: rng() * 6.283, s: rng.range(1.0, 1.7), c: tintOf(x, z) });
   }
+  const pines = [];
+  for (const c of map.rounds) if (c.kind === 'pine') pines.push({ x: c.x, y: 0.5, z: c.z, yaw: rng() * 6.283, s: rng.range(0.75, 0.95), c: [1, 1, 1] });
   for (const c of map.rounds) if (c.kind === 'tree') crowns.push({ x: c.x + 0.3, y: 3.35, z: c.z, yaw: rng() * 6.283, s: rng.range(0.8, 1.05), c: tintOf(c.x, c.z) });
 
   const cast = Q.name !== 'low';
   group.add(instanced(P.fern, leaf, ferns, { cast }));
   group.add(instanced(P.broad, leaf, broads, { cast }));
   group.add(instanced(P.crown, tall, crowns, { cast: true }));
-  group.add(instanced(P.palm, tall, palms, { cast }));
+  group.add(instanced(P[theme.tall], tall, palms, { cast }));
+  if (pines.length) group.add(instanced(P.pine, tall, pines, { cast: true }));
   const tg = trunks.build();
   if (tg.wood) { const m = new THREE.Mesh(tg.wood, mats.wood); m.castShadow = true; m.receiveShadow = true; group.add(m); }
 
   const puffs = [];
   for (const bu of map.bushes) {
-    puffs.push({ x: bu.x, z: bu.z, yaw: rng() * 6.283, s: bu.r * 0.82, sy: 0.8, c: [1, 1, 1] });
+    puffs.push({ x: bu.x, z: bu.z, yaw: rng() * 6.283, s: bu.r * 0.82, sy: 0.8, c: theme.bush });
     const n = 5;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * 6.283 + rng(), k = 0.75 + rng() * 0.35;
-      puffs.push({ x: bu.x + Math.cos(a) * bu.r * 0.58, z: bu.z + Math.sin(a) * bu.r * 0.58, yaw: rng() * 6.283, s: bu.r * rng.range(0.42, 0.55), sy: 0.9, c: [k, k, k * 0.9] });
+      puffs.push({ x: bu.x + Math.cos(a) * bu.r * 0.58, z: bu.z + Math.sin(a) * bu.r * 0.58, yaw: rng() * 6.283, s: bu.r * rng.range(0.42, 0.55), sy: 0.9, c: [k * theme.bush[0], k * theme.bush[1], k * 0.9 * theme.bush[2]] });
     }
   }
   const bushMat = leafMaterial(wind, 0.05);
@@ -338,8 +379,44 @@ export function makeWorld(G, map, tex) {
     propMesh[kind] = mesh; group.add(mesh);
   }
 
-  const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x4d6a2e, 0.85);
-  const sun = new THREE.DirectionalLight(0xfff0d2, 3.1);
+  const lavaMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, uniforms: { uTime: wind.uTime, uR: { value: 1 } },
+    vertexShader: 'varying vec2 vP; void main() { vP = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uTime; varying vec2 vP;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+      void main() {
+        float r = length(vP);
+        vec2 q = vP * 5.0 + vec2(uTime * 0.12, uTime * 0.07);
+        float crust = n(q) * 0.6 + n(q * 2.3 - uTime * 0.1) * 0.4;
+        float edge = 1.0 - smoothstep(0.82, 1.0, r + (n(vP * 9.0) - 0.5) * 0.12);
+        vec3 hot = mix(vec3(3.2, 1.3, 0.2), vec3(2.2, 0.35, 0.04), smoothstep(0.3, 0.6, crust));
+        vec3 c = mix(hot, vec3(0.1, 0.03, 0.02), smoothstep(0.52, 0.66, crust));
+        gl_FragColor = vec4(c, edge);
+      }`,
+  });
+  for (const h of map.hazards) {
+    if (h.kind === 'lava') {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), lavaMat);
+      m.position.set(h.x, 0.05, h.z); m.scale.setScalar(h.r * 1.08); m.renderOrder = 1; group.add(m);
+    } else if (h.kind === 'ice') {
+      const mat = tex.material('frost').clone(); mat.vertexColors = false; mat.color.set(0x6fa9d6); mat.transparent = true; mat.opacity = 0.92; mat.envMapIntensity = 0.7;
+      const g = new THREE.CircleGeometry(h.r, 40).rotateX(-Math.PI / 2), uv = g.attributes.uv, pp = g.attributes.position;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (pp.getX(i) + h.x) * 0.16, (pp.getZ(i) + h.z) * 0.16);
+      const m = new THREE.Mesh(g, mat);
+      m.position.set(h.x, 0.04, h.z); m.receiveShadow = true; group.add(m);
+    } else {
+      const b = new Builder(0.4);
+      b.use('main', 0x3a3d42).push().move(0, 0.05, 0).cyl(h.r * 0.55, h.r * 0.62, 0.1, 20).pop();
+      for (let i = -2; i <= 2; i++) b.tint(0x22252a).push().move(i * h.r * 0.2, 0.11, 0).box(0.1, 0.04, h.r * 0.95).pop();
+      const m = new THREE.Mesh(b.build().main, mats.metal); m.position.set(h.x, 0, h.z); m.receiveShadow = true; group.add(m);
+      const ringM = new THREE.Mesh(new THREE.RingGeometry(h.r * 0.94, h.r, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xb8551a, toneMapped: false }));
+      ringM.position.set(h.x, 0.07, h.z); group.add(ringM);
+    }
+  }
+
+  const hemi = new THREE.HemisphereLight(theme.hemi[0], theme.hemi[1], theme.hemi[2]);
+  const sun = new THREE.DirectionalLight(theme.sun[0], theme.sun[1]);
   sun.castShadow = true;
   sun.shadow.mapSize.setScalar(Q.shadow);
   const sc = sun.shadow.camera;
@@ -365,7 +442,7 @@ export function makeWorld(G, map, tex) {
     }
   }
 
-  return { group, update, focus, sample, sun, hemi, SUN_DIR, dispose() { group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); splat.dispose(); } };
+  return { group, update, focus, sample, sun, hemi, SUN_DIR, theme, dispose() { group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); splat.dispose(); } };
 }
 
 // A small gradient sky rendered once into a PMREM environment, so metal has something to reflect.

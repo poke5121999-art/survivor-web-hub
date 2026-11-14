@@ -1,0 +1,80 @@
+// An arena room on Unity Gaming Services (adapted from games/blockade-z/js/net/room.js): the Lobby row is the
+// listing and the code, the Relay allocation carries the game.
+import { Ugs, lobbyData } from './ugs.js';
+import { RelayLink } from './relay.js';
+
+const HEARTBEAT = 15;   // Lobby hides a room whose host has not called heartbeat for 30 s
+
+export async function hostRoom({ name, isPrivate, region, playerName, mode = 'tdm', map = 'denrung', maxPlayers = 10 }) {
+  const ugs = await new Ugs().signIn();
+  const alloc = await ugs.allocate(maxPlayers - 1, region);
+  const relay = await ugs.joinCode(alloc.allocationId);
+  const link = await new RelayLink(alloc, { role: 'host' }).open();
+  let lobby;
+  try {
+    lobby = await ugs.createLobby({ name, maxPlayers, isPrivate, playerName,
+      data: lobbyData({ mode, map, relay, host: playerName, region: alloc.region || region }) });
+  } catch (e) {
+    link.close();
+    throw e;
+  }
+  const beat = setInterval(() => { ugs.signIn().then(() => ugs.heartbeat(lobby.id)).catch(() => {}); }, HEARTBEAT * 1000);
+  let closed = false;
+  return {
+    ugs, link, lobby, code: lobby.lobbyCode, region: alloc.region || region,
+    // A guest that vanished keeps its lobby seat until the host frees it.
+    free(uid) { if (uid) ugs.removePlayer(lobby.id, uid).catch(() => {}); },
+    // The listing follows the lobby screen; a started match locks the room so nobody joins half-way.
+    publish({ mode, map }) {
+      const pub = v => ({ visibility: 'public', value: String(v) });
+      const data = {};
+      if (mode) data.mode = pub(mode);
+      if (map) data.map = pub(map);
+      ugs.signIn().then(() => ugs.updateLobby(lobby.id, { data })).catch(() => {});
+    },
+    lock(isLocked) { ugs.signIn().then(() => ugs.updateLobby(lobby.id, { isLocked })).catch(() => {}); },
+    close(keepalive = false) {
+      if (closed) return;
+      closed = true;
+      clearInterval(beat);
+      ugs.deleteLobby(lobby.id, keepalive).catch(() => {});
+      link.close();
+    },
+  };
+}
+
+// relay: a reconnect after the link dropped goes straight back to the allocation it knew; the lobby seat is still its.
+export async function joinRoom({ lobbyId, code, playerName, relay: known = null, lobbyCode = null }) {
+  const ugs = await new Ugs().signIn();
+  const lobby = known ? { id: lobbyId, lobbyCode, data: { relay: { value: known } } }
+    : lobbyId ? await ugs.joinLobbyById(lobbyId, playerName) : await ugs.joinLobbyByCode(code, playerName);
+  const relay = lobby.data && lobby.data.relay && lobby.data.relay.value;
+  if (!relay) {
+    ugs.leaveLobby(lobby.id).catch(() => {});
+    throw new Error('phòng này không có mã relay');
+  }
+  let link;
+  try {
+    link = await new RelayLink(await ugs.joinRelay(relay), { role: 'client' }).open();
+  } catch (e) {
+    ugs.leaveLobby(lobby.id).catch(() => {});
+    throw e;
+  }
+  let left = false;
+  return {
+    ugs, link, lobby, relay, uid: ugs.playerId,
+    leave(keepalive = false) {
+      if (left) return;
+      left = true;
+      ugs.leaveLobby(lobby.id, keepalive).catch(() => {});
+    },
+  };
+}
+
+export async function listRooms() {
+  const ugs = await new Ugs().signIn();
+  const rows = await ugs.listLobbies();
+  const v = (l, k) => (l.data && l.data[k] ? l.data[k].value : '');
+  return rows.map(l => ({ id: l.id, name: l.name, mode: v(l, 'mode') || 'tdm', map: v(l, 'map') || 'denrung', host: v(l, 'host'), region: v(l, 'region'),
+    players: l.maxPlayers - l.availableSlots, max: l.maxPlayers }));
+}

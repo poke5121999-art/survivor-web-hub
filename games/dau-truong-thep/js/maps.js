@@ -36,7 +36,7 @@ export const MAPS = {
       [-12, -7, 'barrel'], [-3.2, 15.5, 'barrel'], [-23.5, -11, 'barrel'],
       [-22, 12.5, 'pot'], [-21, 13.6, 'pot'], [-6.5, 3.6, 'pot'], [-29.5, -5.5, 'pot'], [-2.4, -8.6, 'pot'],
     ],
-    cratePoints: [[0, 0], [-15, -6.5], [0, -9.5], [-22.5, -15.5], [-8.5, 17], [-23, 7]],
+    cratePoints: [[0, 0], [-17, -7.5], [0, -9.5], [-18, -15], [-8.5, 17], [-23, 7]],
     paths: [
       [[-37, 0], [-29, 0], [-22, -1], [-14, -1.5], [-12, -5.5], [-7, -6], [0, 0]],
       [[-29, 0], [-26, -13.5], [-20, -16], [-9, -14.5], [0, -14], [8, -15]],
@@ -44,10 +44,112 @@ export const MAPS = {
       [[-9, -14.5], [-7, -6]], [[-12.5, 15.8], [-12.5, 7], [-14, -1.5]],
     ],
     plaza: [0, 0, 8.5],
+    hazards: [],
+  },
+  xuongcat: {
+    name: 'Xưởng Cát', theme: 'desert', size: [84, 48],
+    blurb: 'Bãi container giữa sa mạc. Đường bắn dài, ít chỗ nấp, hai họng lửa phụt theo nhịp ở lối giữa.',
+    base: [-36, 0],
+    spawns: [[-37, 0], [-36, -3], [-36, 3], [-38.5, -1.8], [-38.5, 1.8]],
+    walls: [
+      [-29, -9, 2.4, 6, 2.6, 'container'], [-29, 9, 2.4, 6, 2.6, 'container'],
+      [-19, -3.5, 6, 2.4, 2.6, 'container'], [-19, 5.5, 6, 2.4, 2.6, 'container'], [-19, 5.5, 6, 2.4, 5.2, 'container'],
+      [-12, -13, 2.4, 6, 2.6, 'container'], [-10, 14.5, 6, 2.4, 2.6, 'container'],
+      [-6.5, 0, 2.4, 6, 2.6, 'container'],
+      [-22, -17, 7, 1.6, 2.2, 'ruin'], [-24, 17.5, 5, 1.6, 2.2, 'ruin'],
+      [-2, -19.5, 1.6, 5, 1.5, 'fence'], [-1, 20, 1.6, 4.5, 1.5, 'fence'],
+    ],
+    rounds: [
+      [-3.2, -8, 0.9, 'pillar'], [-3.2, 8, 0.9, 'pillar'],
+      [-33, -16, 1.6, 'rock'], [-32, 17.5, 1.4, 'rock'], [-15, 10.5, 1.2, 'rock'], [-25, 0.5, 1.1, 'rock'], [-8, -20, 1.5, 'rock'],
+      [-14.5, -19.5, 0.5, 'cactus'], [-27, 13.5, 0.5, 'cactus'], [-5, 11.5, 0.5, 'cactus'], [-21, -10.5, 0.5, 'cactus'], [-37, 10, 0.5, 'cactus'],
+      [-38, -12, 0.5, 'cactus'], [-16, 20.5, 0.5, 'cactus'],
+    ],
+    bushes: [[-25, -14, 2.4], [-14.5, -8.5, 2.2], [-12, 19.5, 2.4], [-24, 12, 2.0], [-2, -14.5, 2.2], [-8, 7.5, 2.0]],
+    props: [
+      [-15.5, 0.5, 'crate'], [-16.6, 1.6, 'crate'], [-9.5, -8, 'crate'], [-26, 5.5, 'crate'], [-4, 17, 'crate'],
+      [-13, 4, 'barrel'], [-22.5, -7, 'barrel'], [-6.5, -15.5, 'barrel'], [-2.5, 3.8, 'barrel'],
+      [-30.5, -3.5, 'pot'], [-17.5, 14, 'pot'],
+    ],
+    cratePoints: [[0, 0], [-13, -3.5], [0, -14], [-22, 14.5], [-9, 19], [-26, -4.5]],
+    paths: [
+      [[-41, 0], [-31, 0], [-23, 1], [-12, 0.5], [-2, 4.5], [0, 0]],
+      [[-31, 0], [-27, -14], [-17, -15.5], [-6, -11], [0, -14]],
+      [[-31, 0], [-27, 13.5], [-17, 10], [-7, 11], [0, 15]],
+    ],
+    plaza: [0, 0, 6],
+    hazards: [['vent', -1.5, -4.2, 2.3], ['vent', -10.5, 5.5, 2.3]],
+  },
+  cangbang: {
+    name: 'Cảng Băng', theme: 'ice', size: [74, 54],
+    blurb: 'Bến cảng đóng băng. Mặt băng giữa sân trơn trượt: lao vào thì nhanh, dừng lại thì khó.',
+    base: [-31, 0],
+    spawns: [[-32, 0], [-31, -3], [-31, 3], [-33.5, -1.8], [-33.5, 1.8]],
+    walls: [
+      [-24.5, -7.5, 1.8, 6, 2.6, 'ruin'], [-24.5, 7.5, 1.8, 6, 2.6, 'ruin'],
+      [-16, -14, 8, 1.8, 2.4, 'ruin'], [-14, 13.5, 9, 1.8, 2.4, 'ruin'],
+      [-12.5, -2, 3, 3, 3.6, 'block'], [-4.5, 9.5, 2.6, 5, 3.2, 'block'],
+      [-5, -20.5, 6, 2.4, 2.6, 'container'], [-20, 21, 6, 2.4, 2.6, 'container'],
+      [-18.5, 4, 1.6, 4, 1.5, 'fence'],
+    ],
+    rounds: [
+      [-7, -8.5, 1.0, 'pillar'], [-1.5, -3.2, 0.95, 'pillar'],
+      [-27, -17, 1.6, 'rock'], [-10, 20.5, 1.4, 'rock'], [-29.5, 13, 1.3, 'rock'], [-19, -6.5, 1.1, 'rock'],
+      [-21, -20, 0.55, 'pine'], [-12.5, -9, 0.55, 'pine'], [-27, 19.5, 0.55, 'pine'], [-33, -11, 0.55, 'pine'], [-33.5, 9.5, 0.55, 'pine'],
+      [-8.5, 16.5, 0.55, 'pine'], [-1, 22.5, 0.55, 'pine'], [-15.5, 8, 0.5, 'pine'], [-2, -13, 0.5, 'pine'],
+    ],
+    bushes: [[-22, -12.5, 2.4], [-11, -18, 2.3], [-20, 12, 2.3], [-9, 5, 2.0], [-28, -2.5, 1.8], [-3, 17, 2.3], [-15.5, -5.8, 1.8]],
+    props: [
+      [-16, 0.5, 'crate'], [-9.5, -13, 'crate'], [-13, 17.5, 'crate'], [-25.5, 13.5, 'crate'],
+      [-8.5, 1.5, 'barrel'], [-21, -16.5, 'barrel'], [-6, 21.5, 'barrel'],
+      [-22.5, 3, 'pot'], [-3.5, -17.5, 'pot'], [-27.5, -10.5, 'pot'],
+    ],
+    cratePoints: [[0, 0], [-16.5, -9.5], [0, -17], [-23, 16.5], [-9, 10], [-20, -1]],
+    paths: [
+      [[-36, 0], [-27, 0], [-20, 0.5], [-14.5, 2.5], [-7, 3.5], [0, 0]],
+      [[-27, 0], [-25, -13], [-17, -18], [-6, -16.5], [0, -17]],
+      [[-27, 0], [-25, 13.5], [-17, 18], [-7, 14.5], [0, 14]],
+    ],
+    plaza: [0, 0, 5],
+    hazards: [['ice', 0, 0, 7.5], ['ice', -11.5, 9.5, 4], ['ice', -13.5, -18.5, 3.6]],
+  },
+  mienglua: {
+    name: 'Miệng Lửa', theme: 'lava', size: [78, 50],
+    blurb: 'Lòng núi lửa. Các hồ dung nham chia sân thành những dải đá hẹp: đứng vào là cháy.',
+    base: [-33, 0],
+    spawns: [[-34, 0], [-33, -3], [-33, 3], [-35.5, -1.8], [-35.5, 1.8]],
+    walls: [
+      [-26, -8, 1.8, 5.5, 2.6, 'ruin'], [-26, 8, 1.8, 5.5, 2.6, 'ruin'],
+      [-15, 0, 2.6, 5, 3.4, 'block'], [-6, -13.5, 5, 1.8, 2.4, 'ruin'], [-7.5, 12.5, 6, 1.8, 2.4, 'ruin'],
+      [-20.5, -19, 5, 1.8, 2.2, 'ruin'], [-21, 19.5, 4.5, 1.8, 2.2, 'ruin'], [-2.5, 5.5, 1.8, 4, 2.4, 'ruin'],
+    ],
+    rounds: [
+      [-4.2, -4.4, 0.95, 'pillar'],
+      [-29, -15.5, 1.7, 'rock'], [-30, 15, 1.5, 'rock'], [-11.5, 6.5, 1.2, 'rock'], [-9.5, -6, 1.2, 'rock'], [-23.5, 2.5, 1.1, 'rock'],
+      [-14, -22, 1.6, 'rock'], [-2, 21.5, 1.5, 'rock'],
+      [-21, -4.5, 0.55, 'spire'], [-12.5, 20.5, 0.55, 'spire'], [-34.5, -19, 0.6, 'spire'], [-35, 10.5, 0.55, 'spire'], [-1.5, -21.5, 0.6, 'spire'],
+      [-25.5, -22, 0.55, 'spire'], [-6.5, 2.5, 0.5, 'spire'],
+    ],
+    bushes: [[-23.5, -13.5, 2.3], [-9.5, -19.5, 2.3], [-25, 13.5, 2.3], [-3.5, 15.5, 2.2], [-19.5, 5.5, 1.9], [-1.5, -9.5, 2.0]],
+    props: [
+      [-19, -1.5, 'crate'], [-10, -10.5, 'crate'], [-12.5, 15.5, 'crate'], [-28.5, 3.5, 'crate'],
+      [-18, 8, 'barrel'], [-3.5, -16.5, 'barrel'], [-23, -7.5, 'barrel'],
+      [-6.5, 8, 'pot'], [-29.5, -5, 'pot'], [-16, -5, 'pot'],
+    ],
+    cratePoints: [[0, 0], [-19, -9], [0, -17.5], [-21.5, 10.5], [-9, 17.5], [-9.5, 0]],
+    paths: [
+      [[-37, 0], [-29, 0], [-21, 0.5], [-18.5, 4.5], [-10, 3], [0, 0]],
+      [[-29, 0], [-26, -14], [-17.5, -17], [-7, -17.5], [0, -17.5]],
+      [[-29, 0], [-26, 14], [-17, 16.5], [-8, 17], [0, 15]],
+    ],
+    plaza: [0, 0, 5.5],
+    hazards: [['lava', -16.5, -10, 3.4], ['lava', -13.5, 10.5, 3.2], ['lava', -4.5, -9.5, 2.4], ['lava', 0, 9.5, 2.8]],
   },
 };
 
-export const MAP_ORDER = ['denrung'];
+export const MAP_ORDER = ['denrung', 'xuongcat', 'cangbang', 'mienglua'];
+
+// hazard: [kind, x, z, radius]   kind: lava (burns), ice (slippery), vent (a flame jet every few seconds, with a warning)
 
 const CELL = 1;
 const NAV_RADIUS = 1.25;
@@ -64,11 +166,12 @@ export function compileMap(key) {
   const bushes = both(src.bushes, (b) => [-b[0], -b[1], b[2]]).map((b, i) => ({ id: i, x: b[0], z: b[1], r: b[2] }));
   const props = both(src.props, (p) => [-p[0], -p[1], p[2]]).map((p, i) => ({ id: i, x: p[0], z: p[1], kind: p[2] }));
   const cratePoints = both(src.cratePoints, rot);
+  const hazards = both((src.hazards || []).filter((h) => h[3] > 0.1), (h) => [h[0], -h[1], -h[2], h[3]]).map((h, i) => ({ id: i, kind: h[0], x: h[1], z: h[2], r: h[3] }));
   const paths = src.paths.concat(src.paths.map((line) => line.map(rot)));
   const [W, D] = src.size;
   const map = {
     key, name: src.name, theme: src.theme, w: W, d: D, hw: W / 2, hd: D / 2,
-    walls, rounds, bushes, props, cratePoints, paths, plaza: src.plaza,
+    walls, rounds, bushes, props, cratePoints, paths, hazards, plaza: src.plaza,
     bases: [src.base, rot(src.base)],
     spawns: [src.spawns, src.spawns.map(rot)],
   };
@@ -81,7 +184,7 @@ function buildNav(map) {
   const blocked = new Uint8Array(cols * rows);
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = -map.hw + (i + 0.5) * CELL, z = -map.hd + (j + 0.5) * CELL;
-    blocked[j * cols + i] = solidAt(map, x, z, NAV_RADIUS) ? 1 : 0;
+    blocked[j * cols + i] = solidAt(map, x, z, NAV_RADIUS) || map.hazards.some((h) => h.kind === 'lava' && Math.hypot(h.x - x, h.z - z) < h.r + 0.9) ? 1 : 0;
   }
   return { cols, rows, blocked, cell: CELL };
 }
