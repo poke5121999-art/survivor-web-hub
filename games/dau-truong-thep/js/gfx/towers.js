@@ -193,7 +193,7 @@ export function makeTowers(G, fx) {
       const warded = !towerOpen(m, t);
       v.ward.visible = warded;
       if (warded) {
-        const un = v.ward.material.uniforms; un.uTime.value = time; un.uA.value = 0.42; un.uHitT.value = Math.max(0, un.uHitT.value - dt * 2.5);
+        const un = v.ward.material.uniforms; un.uTime.value = time; un.uA.value = 0.2; un.uHitT.value = Math.max(0, un.uHitT.value - dt * 2.5);
         if (!v.tether) v.tether = [];
         let n = 0;
         for (const o of m.towers) if (o.team === t.team && o.kind === 'sub' && o.alive) {

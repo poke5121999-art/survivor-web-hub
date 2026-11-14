@@ -7,6 +7,7 @@ const VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(posit
 const pass = (frag, uniforms) => new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false });
 
 const AO = `
+  precision highp sampler2D;
   uniform sampler2D tDepth; uniform mat4 uInvProj; uniform vec2 uProj; uniform float uRadius; varying vec2 vUv;
   vec3 viewPos(vec2 uv) { vec4 c = vec4(uv * 2.0 - 1.0, texture2D(tDepth, uv).x * 2.0 - 1.0, 1.0); vec4 v = uInvProj * c; return v.xyz / v.w; }
   void main() {
@@ -112,7 +113,7 @@ export function makePost(renderer, Q) {
     W = w; H = h;
     for (const t of [hdr, ldr, ao, ...chain.flatMap((c) => [c.down, c.up])]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
     hdr = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
-    hdr.depthTexture = new THREE.DepthTexture(w, h, THREE.UnsignedIntType);
+    hdr.depthTexture = new THREE.DepthTexture(w, h, THREE.FloatType);
     ldr = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     ao = new THREE.WebGLRenderTarget(Math.ceil(w / 2), Math.ceil(h / 2), { depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     chain = [];

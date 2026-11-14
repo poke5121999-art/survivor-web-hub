@@ -434,12 +434,12 @@ export function makeFx(G, mechs) {
   function explosion(x, z, r, tint, big, opts = {}) {
     const hot = tint === FIRE || tint === EMBER;
     glow(x, 1.2, z, WHITE, 0.1, r * 1.6, 0.6, K.GLOW, 1.4);
-    glow(x, 1.0, z, tint, 0.3, r * 3.0, 0.7, K.GLOW, 1.2);
+    glow(x, 1.0, z, tint, 0.3, r * 2.3, 0.5, K.GLOW, 1.2);
     glow(x, 1.3, z, WHITE, 0.09, r * 2.2, 1, K.STAR, 1.6);
     const nf = N((big ? 9 : 5) * Math.min(1.6, r / 2.2 + 0.4));
     if (hot) for (let i = 0; i < nf; i++) {
       const a = Math.random() * 6.283, d = Math.random() * r * 0.45, s = rnd(1, r * 1.7);
-      ovr.emit(x + Math.cos(a) * d, rnd(0.6, 1.6), z + Math.sin(a) * d, Math.cos(a) * s, rnd(1.5, 4.5), Math.sin(a) * s, SMOKE, rnd(0.75, 1.15), r * rnd(0.6, 0.95), 2.0, 3.2, -2.2, 1, K.FIREBALL);
+      ovr.emit(x + Math.cos(a) * d, rnd(0.6, 1.6), z + Math.sin(a) * d, Math.cos(a) * s, rnd(1.5, 4.5), Math.sin(a) * s, SMOKE, rnd(0.6, 0.95), r * rnd(0.45, 0.72), 2.0, 3.2, -2.2, 1, K.FIREBALL);
     } else for (let i = 0; i < nf; i++) { const a = Math.random() * 6.283; glow(x + Math.cos(a) * r * 0.3, rnd(0.6, 1.4), z + Math.sin(a) * r * 0.3, tint, rnd(0.3, 0.5), r * 0.7, 0.7, K.FLAME, 1.6, Math.cos(a) * r, rnd(1, 3), Math.sin(a) * r); }
     puffs(x, 1.1, z, N(big ? 5 : 3), hot ? SMOKE : FOG, r * 0.5, r * 0.9, big ? 2.4 : 1.7, r * 0.7, 2.6, 2.4, hot ? 0.6 : 0.35, K.SMOKE, 1.6, -0.5);
     sparks(x, 0.9, z, N(big ? 18 : 10), hot ? EMBER : tint, r * 7, 0.65, 0.07, 0.8, 18);
@@ -514,14 +514,14 @@ export function makeFx(G, mechs) {
 
   function respawn(e, u) {
     const tc = TEAM_HDR[u.color];
-    column(e.x, e.z, tc, 1.4, 16, 1.1);
+    column(e.x, e.z, tc.clone().multiplyScalar(0.5), 0.9, 13, 0.75);
     ground(9, e.x, e.z, 2.6, tc, { life: 1.8, sweep: true });
     emitter(3, e.x, e.z, 1.4, 0.1, tc, 1.3);
     ring(e.x, e.z, 3.4, tc, 0.5); ring(e.x, e.z, 1.8, WHITE, 0.25);
     glow(e.x, 1.2, e.z, WHITE, 0.25, 4, 1, K.STAR, 1.3);
     for (let i = 0; i < N(16); i++) { const a = Math.random() * 6.283, d = rnd(0.4, 1.6); str.emit(e.x + Math.cos(a) * d, rnd(0.1, 0.6), e.z + Math.sin(a) * d, 0, rnd(4, 9), 0, tc, rnd(0.4, 0.8), 0.06, 0.06, -2, 0.5, 1); }
     puffs(e.x, 0.3, e.z, N(6), dust, 0.8, 4, 0.7, 0.8, 2.4, 0.5, 0.45, K.DUST, 3.2);
-    flash(e.x, 3, e.z, tc, 40, 0.5);
+    flash(e.x, 3, e.z, tc, 22, 0.4);
   }
 
   function impact(e, m) {

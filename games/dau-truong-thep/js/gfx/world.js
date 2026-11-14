@@ -428,14 +428,30 @@ export function makeWorld(G, map, tex) {
     fragmentShader: `uniform float uTime; varying vec2 vP;
       float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+      // x: distance to the nearest plate edge, y: a random value per plate
+      vec2 plates(vec2 p) {
+        vec2 i = floor(p), f = fract(p); float d1 = 9.0, d2 = 9.0, id = 0.0;
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+          vec2 g = vec2(float(x), float(y)), o = vec2(h(i + g), h(i + g + 17.3));
+          o = 0.5 + 0.38 * sin(uTime * 0.25 + 6.2832 * o);
+          float d = length(g + o - f);
+          if (d < d1) { d2 = d1; d1 = d; id = h(i + g + 4.1); } else if (d < d2) d2 = d;
+        }
+        return vec2(d2 - d1, id);
+      }
       void main() {
-        float r = length(vP);
-        vec2 q = vP * 5.0 + vec2(uTime * 0.12, uTime * 0.07);
-        float crust = n(q) * 0.6 + n(q * 2.3 - uTime * 0.1) * 0.4;
-        float edge = 1.0 - smoothstep(0.82, 1.0, r + (n(vP * 9.0) - 0.5) * 0.12);
-        vec3 hot = mix(vec3(3.2, 1.3, 0.2), vec3(2.2, 0.35, 0.04), smoothstep(0.3, 0.6, crust));
-        vec3 c = mix(hot, vec3(0.1, 0.03, 0.02), smoothstep(0.52, 0.66, crust));
-        gl_FragColor = vec4(c, edge);
+        float r = length(vP), wob = (n(vP * 7.0) - 0.5) * 0.14;
+        vec2 flow = vec2(n(vP * 2.0 + uTime * 0.05), n(vP * 2.0 - uTime * 0.04 + 7.0)) - 0.5;
+        vec2 pl = plates(vP * 3.4 + flow * 0.9);
+        float pulse = 0.75 + 0.25 * sin(uTime * 1.3 + pl.y * 20.0);
+        float crack = 1.0 - smoothstep(0.03, 0.2, pl.x);
+        float molten = smoothstep(0.55, 0.9, n(vP * 1.6 + uTime * 0.06) + (pl.y - 0.5) * 0.5);
+        vec3 crust = mix(vec3(0.05, 0.022, 0.018), vec3(0.2, 0.05, 0.02), n(vP * 14.0) * (0.4 + pl.y * 0.6));
+        vec3 hot = mix(vec3(2.4, 0.42, 0.05), vec3(3.4, 1.5, 0.3), crack * crack) * pulse;
+        vec3 c = mix(crust, hot, max(crack, molten * (0.55 + 0.45 * smoothstep(0.0, 0.5, pl.x))));
+        float lip = smoothstep(0.74, 0.9, r + wob);
+        c = mix(c, vec3(0.045, 0.03, 0.028) + vec3(0.9, 0.16, 0.02) * (1.0 - smoothstep(0.74, 0.86, r + wob)), lip);
+        gl_FragColor = vec4(c, 1.0 - smoothstep(0.93, 1.02, r + wob));
       }`,
   });
   for (const h of map.hazards) {
