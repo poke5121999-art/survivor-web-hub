@@ -1,0 +1,121 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>audio test</title><link rel="icon" href="data:,"></head>
+<body>
+<!-- Techniques studied from Voxel Engine by mattshumer (spawn.co), analysis/audio-physical.md; code is our own. -->
+<script type="module">
+import { createAudio } from './index.js';
+const CL = ['stone', 'wood', 'metal', 'glass', 'soft', 'leaf', 'plaster'];
+const A = createAudio({ classOf: (m) => CL[((m | 0) % 7 + 7) % 7], isLoose: (m) => (m | 0) % 2 === 1 });
+window.A = A;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const results = {}; let maxVoices = 0, rec = null;
+
+// frame pump: calls handleEvents every ~16 ms (empty unless events are pending)
+let pending = [];
+setInterval(() => {
+  const ev = pending; pending = [];
+  A.setListener(0, 0, 0, 0, 0, -1);
+  A.handleEvents(ev, 0.016);
+  maxVoices = Math.max(maxVoices, A.stats().voices);
+}, 16);
+
+async function tap() { // AudioWorklet tap on the master output (no deprecated nodes)
+  const ctx = A._ctx;
+  const src = `class T extends AudioWorkletProcessor { process(i) { const c = i[0]; if (c && c[0]) this.port.postMessage([c[0].slice(), (c[1] || c[0]).slice()]); return true; } } registerProcessor('tap', T);`;
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  const node = new AudioWorkletNode(ctx, 'tap', { numberOfInputs: 1, numberOfOutputs: 0 });
+  node.port.onmessage = (e) => { if (rec) rec.push(e.data[0], e.data[1]); };
+  A._out.connect(node);
+}
+function analyse(blocks, sr) {
+  let peak = 0, maxRms = 0;
+  const win = Math.round(0.05 * sr);
+  for (let c = 0; c < 2; c++) {
+    const parts = blocks.filter((_, i) => i % 2 === c);
+    const all = new Float32Array(parts.reduce((s, p) => s + p.length, 0)); let o = 0;
+    for (const p of parts) { all.set(p, o); o += p.length; }
+    for (let s = 0; s + win <= all.length; s += win) {
+      let e = 0; for (let i = s; i < s + win; i++) { const a = all[i]; e += a * a; if (Math.abs(a) > peak) peak = Math.abs(a); }
+      maxRms = Math.max(maxRms, Math.sqrt(e / win));
+    }
+  }
+  return { peak: +peak.toFixed(4), rms: +maxRms.toFixed(4) };
+}
+async function measure(name, ms, fn) {
+  await sleep(300);
+  rec = []; maxVoices = 0;
+  fn(); await sleep(ms);
+  const blocks = rec; rec = null;
+  results[name] = { ...analyse(blocks, A._ctx.sampleRate), voices: maxVoices };
+}
+const E = (kind, o = {}) => ({ kind, x: 2, y: 0, z: -2, mag: 1, mat: 0, a: 0, b: 0, ...o });
+
+window.runAll = async () => {
+  const preState = A.stats().ctxState;
+  A.handleEvents([E('impact')], 0.016); A.setFire(1, 0, 0, 0); // before start: must be no-ops
+  A.start(); A.start();
+  const t0 = performance.now();
+  while (!A.ready && performance.now() - t0 < 20000) await sleep(20);
+  if (!A.ready) return { error: "bank not ready", stats: A.stats(), lastError: A.lastError, worst: A.worst };
+  await tap();
+  const waitCtx = performance.now();
+  while (A._ctx.state !== 'running' && performance.now() - waitCtx < 3000) { A._ctx.resume().catch(() => {}); await sleep(50); }
+  const kinds = {
+    impact: () => pending.push(E('impact', { mag: 60, a: 4, mat: 0 })),
+    impact_metal: () => pending.push(E('impact', { mag: 60, a: 4, mat: 2 })),
+    impact_glass: () => pending.push(E('impact', { mag: 60, a: 4, mat: 3 })),
+    impact_wood: () => pending.push(E('impact', { mag: 60, a: 4, mat: 1 })),
+    impact_soft: () => pending.push(E('impact', { mag: 60, a: 4, mat: 4 })),
+    impact_leaf: () => pending.push(E('impact', { mag: 60, a: 4, mat: 5 })),
+    impact_plaster: () => pending.push(E('impact', { mag: 60, a: 4, mat: 6 })),
+    thud: () => pending.push(E('thud', { mag: 3000, a: 5 })),
+    break: () => pending.push(E('break', { mag: 80 })),
+    fracture: () => pending.push(E('fracture', { mag: 6 })),
+    detach: () => pending.push(E('detach', { mag: 200 })),
+    glass: () => pending.push(E('glass', { mag: 30 })),
+    shot: () => pending.push(E('shot', { mag: 1, b: 0 })),
+    hammer: () => pending.push(E('hammer', { mag: 0.8, mat: 1 })),
+    creak: () => pending.push(E('creak', { mag: 1.0, b: 0.5, mat: 1 })),
+    ignite: () => pending.push(E('ignite', { mag: 3 })),
+    rubble: () => pending.push(E('rubble', { mag: 40, mat: 0 })),
+    mobhit: () => pending.push(E('mobhit', { mag: 5 })),
+    mobdie: () => pending.push(E('mobdie')),
+    unknown: () => pending.push(E('whatever')),
+  };
+  for (const [k, fn] of Object.entries(kinds)) await measure(k, k === 'rubble' || k === 'creak' ? 1800 : 1300, fn);
+  // fire loop
+  await measure('fire', 2500, () => { const iv = setInterval(() => A.setFire(1, 2, 0, -2), 16); setTimeout(() => clearInterval(iv), 2300); });
+  await sleep(2500);
+  A.setFire(0, 2, 0, -2);
+  await sleep(500);
+  // explosions last (they duck everything for ~1.7 s)
+  const blastsOut = {};
+  for (let b = 0; b < 5; b++) { await measure('explosion_b' + b, 3500, () => pending.push(E('explosion', { mag: 4, a: 1, b }))); await sleep(2500); }
+  // 3 s collapse: 300 mixed events per frame x 60 frames
+  rec = []; maxVoices = 0;
+  const kindsMix = ['impact', 'impact', 'impact', 'thud', 'break', 'fracture', 'detach', 'glass', 'rubble', 'rubble', 'creak', 'explosion', 'shot', 'mobhit'];
+  let cloudsMax = 0, voicesMax = 0;
+  for (let f = 0; f < 60; f++) {
+    const ev = [];
+    for (let i = 0; i < 300; i++) {
+      const k = kindsMix[(Math.random() * kindsMix.length) | 0];
+      const o = { x: (Math.random() - 0.5) * 20, y: Math.random() * 5, z: -2 - Math.random() * 15, mat: (Math.random() * 7) | 0 };
+      if (k === 'impact' || k === 'thud') Object.assign(o, { mag: 20 + Math.random() * 3000, a: 0.5 + Math.random() * 8 });
+      else if (k === 'explosion') Object.assign(o, { mag: 1 + Math.random() * 4, a: 0.5 + Math.random(), b: (Math.random() * 5) | 0 });
+      else if (k === 'creak') Object.assign(o, { mag: 0.8 + Math.random() * 0.6, b: Math.random() * 3 });
+      else Object.assign(o, { mag: 1 + Math.random() * 120 });
+      ev.push(E(k, o));
+    }
+    pending = pending.concat(ev);
+    await sleep(50);
+    const s = A.stats(); voicesMax = Math.max(voicesMax, s.voices); cloudsMax = Math.max(cloudsMax, s.clouds);
+  }
+  await sleep(1200);
+  const collapse = { ...analyse(rec, A._ctx.sampleRate), voicesMax, cloudsMax, voicesPeakSampled: maxVoices };
+  rec = null;
+  A.setMuted(true); A.setMuted(false); A.setMaster(0.5);
+  return { preState, kinds: results, collapse, stats: A.stats(), sampleRate: A._ctx.sampleRate };
+};
+window.__ready = true;
+</script>
+</body></html>

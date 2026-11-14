@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Phòng thí nghiệm phá huỷ voxel</title>
+<link rel="icon" href="data:,">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="cross"></div>
+
+<div id="top">
+  <button id="btnPicker" class="pill">Mô hình ▾</button>
+  <button id="btnReset" class="pill">Làm lại</button>
+  <button id="btnSlow" class="pill">Quay chậm</button>
+  <button id="btnView" class="pill">Góc nhìn: quay quanh</button>
+  <button id="btnQuality" class="pill">Chất lượng: vừa</button>
+  <button id="btnSound" class="pill">Âm thanh: bật</button>
+</div>
+
+<div id="picker" class="panel hidden">
+  <div class="row"><b>Công trình</b></div>
+  <div id="listBuild" class="grid"></div>
+  <div class="row"><b>Vật nhỏ</b></div>
+  <div id="listProp" class="grid"></div>
+  <div class="row"><b>Sinh vật voxel</b></div>
+  <div id="listMob" class="grid"></div>
+  <div class="row">
+    <label>Hạt giống <input id="seed" type="number" value="1" min="0" max="99999"></label>
+    <button id="btnDice">Ngẫu nhiên</button>
+  </div>
+  <div class="row">
+    <label><input id="keep" type="checkbox"> Giữ cảnh cũ</label>
+    <label><input id="wander" type="checkbox" checked> Sinh vật đi lại</label>
+  </div>
+  <div class="row"><button id="btnRow" class="wide">Xếp hàng tất cả</button></div>
+</div>
+
+<div id="stats" class="panel"></div>
+<div id="hint" class="panel">Chạm / bấm để dùng công cụ · kéo để xoay · hai ngón / chuột phải để dời · lăn / chụm để phóng</div>
+
+<div id="tools"></div>
+
+<div id="touchFps" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <button id="btnJump">Nhảy</button>
+  <button id="btnFire">Bắn</button>
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>

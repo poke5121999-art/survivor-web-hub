@@ -1001,5 +1001,21 @@ window.HUB_GAMES = [
     rev: "20261114h",
     status: "available",
     tags: ["Bắn súng", "Góc nhìn thứ nhất", "Không asset", "Máy tính"]
+  },
+  {
+    id: "voxel-lab",
+    title: "Lab Phá Huỷ Voxel",
+    tagline: "Chọn nhà, cầu, tháp hay quái dựng từ khối voxel 10 cm rồi bắn, nổ, đốt cho sập.",
+    desc: "Trang thử nghiệm phá huỷ: 11 loại công trình (nhà ống, nhà gạch, chung cư, tháp kính, nhà kho, tháp nước, cầu đá, cầu thép, tường thành, chòi tranh, cây xăng) cùng xe, thùng phuy, cây, và 6 sinh vật voxel. Mỗi mô hình sinh theo seed với nhiều biến thể. Tám công cụ: súng, búa, lựu đạn, rocket, bom hẹn giờ, quả tạ, lửa, laser cắt chân. Khoét theo độ bền vật liệu, phần mất chỗ tựa rơi xuống, gạch vụn chất đống, lửa lan và làm cháy cột đỡ, tiếng va chạm tổng hợp theo vật liệu. Không tải tệp hình hay tiếng nào.",
+    genre: "khac",
+    accent: "#e8743b",
+    en: { title: "Voxel Demolition Lab", tagline: "Pick a house, bridge, tower or monster built from 10 cm voxels, then shoot, blast and burn it down.", desc: "A destruction sandbox: 11 building types, vehicles, barrels, trees and 6 voxel creatures, each generated from a seed with several variants. Eight tools: gun, hammer, grenade, rocket, timed satchel, wrecking ball, fire and a base-cutting laser. Carving follows material toughness, unsupported parts fall, rubble piles up, fire spreads and weakens supports, and impact sounds are synthesized per material. No image or audio file is downloaded." },
+    thumbnail: "assets/thumbnails/voxel-lab.png",
+    // three.js r170 vendored, không asset, kỹ thuật học từ Voxel Engine (mattshumer, spawn.co), viết lại sạch. Nguồn gốc: D:\voxel-lab trên HOB-THOR;
+    // hook kiểm: ?harness + window.__lab; xem games/voxel-lab/README.md.
+    path: "games/voxel-lab/index.html",
+    rev: "20261114a",
+    status: "available",
+    tags: ["Thử nghiệm", "Phá huỷ", "Không asset"]
   }
 ];
