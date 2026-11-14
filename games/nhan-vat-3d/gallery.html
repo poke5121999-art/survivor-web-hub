@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<title>Lanternfall Humanoids</title>
+<meta name="description" content="Characters built with the Lanternfall character kit (by loktar00), ported to three.js r170: the game's own heroes and monsters, and new themes composed from its body, wardrobe, material and animation code.">
+<style>
+:root{--bg:#0b0d10;--panel:rgba(14,17,21,.86);--line:#2a3038;--text:#d9dde2;--mute:#8c96a1;--acc:#d8b26a;--acc2:#7fb0d8}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#0b0d10;--panel:rgba(14,17,21,.86);--line:#2a3038;--text:#d9dde2;--mute:#8c96a1}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{position:fixed;inset:0;display:grid;grid-template-columns:300px 1fr;grid-template-rows:1fr auto}
+#view{position:relative;grid-column:2;grid-row:1;overflow:hidden;min-height:0}
+#view canvas{position:absolute;left:0;top:0;display:block}
+#view canvas.fx2d{width:100%;height:100%;pointer-events:none}
+#side{grid-column:1;grid-row:1 / span 2;background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:14px 14px 10px}
+h1{font-size:17px;margin:0 0 2px;letter-spacing:.02em}
+.sub{color:var(--mute);font-size:12px;margin:0 0 12px}
+.grp{margin:0 0 12px}
+.lab{color:var(--mute);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 5px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+button,select,input{font:inherit;color:var(--text);background:#161a20;border:1px solid var(--line);border-radius:6px}
+button{padding:5px 9px;cursor:pointer;min-height:32px}
+button:hover{border-color:#46505c}
+button[aria-pressed="true"]{border-color:var(--acc);color:#fff;background:#2a2417}
+button:disabled{opacity:.35;cursor:default}
+select{width:100%;padding:6px 8px;min-height:34px}
+.seed{display:flex;gap:6px}
+.seed input{width:90px;padding:5px 8px}
+#stats{font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b9c2cc;background:#10141a;border:1px solid var(--line);border-radius:6px;padding:7px 9px;white-space:pre-wrap}
+#note{color:var(--mute);font-size:12px;margin-top:6px}
+footer{grid-column:2;grid-row:2;background:var(--panel);border-top:1px solid var(--line);padding:6px 12px;font-size:12px;color:var(--mute)}
+footer a,#side a{color:var(--acc)}
+@media (max-width: 760px){
+  #app{grid-template-columns:1fr;grid-template-rows:56vh auto auto;position:static;min-height:100%}
+  html,body{height:auto}
+  #view{grid-column:1;grid-row:1;height:56vh}
+  #side{grid-column:1;grid-row:2;border-right:0;border-top:1px solid var(--line);overflow:visible;padding:12px 16px}
+  footer{grid-column:1;grid-row:3;padding:8px 16px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view"><canvas class="gl"></canvas><canvas class="fx2d"></canvas></div>
+  <aside id="side">
+    <h1>Lanternfall humanoids</h1>
+    <p class="sub">Lanternfall's character kit on three.js r170: its own cast, then new themes built from the same body, wardrobe, material and animation code.</p>
+    <div class="grp"><div class="lab">Set</div><select id="set"></select></div>
+    <div class="grp"><div class="lab">Figures</div><div class="chips" id="variants"></div></div>
+    <div class="grp"><div class="lab">Animation</div><div class="chips" id="anims"></div></div>
+    <div class="grp"><div class="lab">View</div><div class="chips" id="views"></div></div>
+    <div class="grp"><div class="lab">Seed</div><div class="seed"><input id="seed" type="number" min="1" step="1" inputmode="numeric" aria-label="Seed"><button id="rand">Randomize</button></div><div id="note"></div></div>
+    <div class="grp"><div class="lab">Counts</div><div id="stats">...</div></div>
+  </aside>
+  <footer>Characters, mesh kit, surface shader, animation and render pipeline: <a href="https://github.com/loktar00/lanternfall">Lanternfall by loktar00</a> (ported from commit ada0fd5 with generator scripts; internal use). New themes are composed from that kit. three.js r170 (MIT).</footer>
+</div>
+<script type="module">
+import { HEROES, HERO_ORDER } from './lib/lf/heroes.js';
+import { MONSTERS, MON_ORDER } from './lib/lf/monsters.js';
+import { createStage } from './lib/stage.js';
+import { THEMES, THEME_ORDER } from './lib/themes.js';
+
+const $ = (id) => document.getElementById(id);
+const QP = new URLSearchParams(location.search);
+const ANIMS = ['idle', 'walk', 'run', 'attack', 'hit', 'death'];
+const VIEWN = { front: 'Front', '3/4': '3/4', back: 'Back', face: 'Face' };
+const SETS = [['lf-heroes', 'Lanternfall: heroes'], ['lf-monsters', 'Lanternfall: monsters'], ...THEME_ORDER.map((k) => ['t-' + k, 'Theme: ' + THEMES[k].label])];
+const st = { set: QP.get('t') ? (QP.get('t').startsWith('lf-') ? QP.get('t') : 't-' + QP.get('t')) : 'lf-heroes', v: QP.has('v') ? QP.get('v') : 'all', anim: QP.get('a') || 'idle', view: QP.get('view') || 'front', seed: +(QP.get('s') || 1) };
+const stage = createStage($('view'));
+window.__stage = stage;
+
+for (const [k, n] of SETS) { const o = document.createElement('option'); o.value = k; o.textContent = n; $('set').appendChild(o); }
+function entriesFor() {
+  if (st.set === 'lf-heroes' || st.set === 'lf-monsters') {
+    const order = st.set === 'lf-heroes' ? HERO_ORDER : MON_ORDER, defs = st.set === 'lf-heroes' ? HEROES : MONSTERS;
+    const list = order.map((n) => ({ key: n, label: n, def: defs[n] }));
+    return st.v === 'all' ? list : list.filter((e) => e.key === st.v);
+  }
+  const th = THEMES[st.set.slice(2)];
+  const list = th.variants.map((vn, i) => ({ key: st.set + ':' + i + ':' + st.seed, label: vn, def: th.make(i, st.seed) }));
+  return st.v === 'all' ? list : [list[+st.v] || list[0]];
+}
+function chips(el, items, cur, onPick, disabled) {
+  el.innerHTML = '';
+  for (const [k, n] of items) { const b = document.createElement('button'); b.textContent = n; b.setAttribute('aria-pressed', String(k === cur)); if (disabled && disabled(k)) b.disabled = true; b.onclick = () => onPick(k); el.appendChild(b); }
+}
+function refreshUI() {
+  $('set').value = st.set;
+  const isLF = st.set.startsWith('lf-');
+  const vItems = [['all', isLF ? 'All' : 'All 3']].concat(isLF ? (st.set === 'lf-heroes' ? HERO_ORDER : MON_ORDER).map((n) => [n, n]) : THEMES[st.set.slice(2)].variants.map((n, i) => [String(i), n]));
+  chips($('variants'), vItems, st.v, (k) => { st.v = k; load(); });
+  chips($('anims'), ANIMS.map((a) => [a, a]), st.anim, (a) => { st.anim = a; stage.setAnim(a); refreshUI(); sync(); });
+  chips($('views'), Object.entries(VIEWN), st.view, (v) => { st.view = v; stage.setView(v); refreshUI(); sync(); }, (v) => v === 'face' && st.v === 'all');
+  $('seed').value = st.seed; $('seed').disabled = $('rand').disabled = isLF;
+  $('note').textContent = isLF ? 'Lanternfall figures are fixed designs; the seed applies to the new themes.' : 'Same seed, same figures. Variants differ in silhouette; the seed shifts colours, proportions and kit.';
+}
+function sync() { const q = new URLSearchParams({ t: st.set.startsWith('lf-') ? st.set : st.set.slice(2), v: st.v, a: st.anim, view: st.view, s: st.seed }); history.replaceState(null, '', '?' + q); }
+function showStats(s) {
+  if (!s) return;
+  $('stats').textContent = `${s.figures} figure${s.figures > 1 ? 's' : ''}, ${s.meshes} mesh${s.meshes > 1 ? 'es' : ''} (1 draw + shadows each)\n` +
+    `triangles ${s.tris.toLocaleString()}  vertices ${s.verts.toLocaleString()}\n` +
+    `frame draw calls ${s.calls} (scene, 2 shadow maps, 6 post passes)\n` + (s.fps ? `fps ${s.fps.toFixed(0)}\n` : '') +
+    s.per.map((p) => `  ${p.label}: ${p.tris.toLocaleString()} tris`).join('\n');
+}
+function load() {
+  if (st.view === 'face' && st.v === 'all') st.view = 'front';
+  const t0 = performance.now(); const s = stage.show(entriesFor(), st.anim, st.view);
+  window.__info = Object.assign(s, { buildMs: performance.now() - t0 });
+  showStats(s); refreshUI(); sync();
+}
+stage.state.onStats = (s) => { window.__info = Object.assign(window.__info || {}, s); showStats(s); };
+$('set').onchange = () => { st.set = $('set').value; st.v = 'all'; load(); };
+$('rand').onclick = () => { st.seed = 1 + Math.floor(Math.random() * 99999); load(); };
+$('seed').onchange = () => { st.seed = Math.max(1, Math.floor(+$('seed').value) || 1); load(); };
+window.__load = (o) => { Object.assign(st, o); stage.setView(st.view); load(); return window.__info; };
+load();
+</script>
+</body>
+</html>

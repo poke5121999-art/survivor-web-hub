@@ -1017,5 +1017,21 @@ window.HUB_GAMES = [
     rev: "20261114a",
     status: "available",
     tags: ["Thử nghiệm", "Phá huỷ", "Không asset"]
+  },
+  {
+    id: "nhan-vat-3d",
+    title: "Xưởng Nhân Vật 3D",
+    tagline: "Xem chín kiểu nhân vật dựng hoàn toàn bằng code: lính, samurai, nông dân nón lá, pháp sư, zombie, yêu tinh.",
+    desc: "Trang trưng bày nhân vật 3D không dùng tệp model hay texture. Chín chủ đề (lính đặc nhiệm, lính tương lai, người sống sót, nông dân áo bà ba nón lá, samurai, pháp sư, zombie, yêu tinh, quái to con), mỗi chủ đề ba biến thể, nút ngẫu nhiên theo seed, sáu động tác: đứng, đi, chạy, đánh, trúng đòn, gục. Bộ dựng thân, áo nhiều lớp, chất liệu và chuyển động port từ Lanternfall của loktar00, có trang xem dàn nhân vật gốc.",
+    genre: "khac",
+    accent: "#ffb878",
+    en: { title: "3D Character Workshop", tagline: "Nine kinds of characters built entirely from code: soldiers, samurai, a conical-hat farmer, mages, zombies, goblins.", desc: "A 3D character gallery with no model or texture files. Nine themes with three variants each, a seed randomizer and six animations. The body builder, layered clothing, surface shader and animation are ported from Lanternfall by loktar00; the original roster is viewable too." },
+    thumbnail: "assets/thumbnails/nhan-vat-3d.png",
+    // Port từ Lanternfall (github.com/loktar00/lanternfall @ ada0fd5) bằng generator tools/port-lf-*.js, gate: node tools/gate.js.
+    // Dùng nội bộ, có ghi công ở chân trang. Nguồn làm việc: D:\lf-humanoid trên HOB-THOR.
+    path: "games/nhan-vat-3d/index.html",
+    rev: "20261114a",
+    status: "available",
+    tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   }
 ];

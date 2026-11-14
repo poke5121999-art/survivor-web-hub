@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<title>Lanternfall Gallery Port</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000}
+#gl{position:absolute;left:0;top:0;display:block}
+#fx2d{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#credit{position:absolute;left:8px;bottom:6px;font:12px/1.3 system-ui,sans-serif;color:#9aa3ad;opacity:.75;pointer-events:auto}
+#credit a{color:#c7b48a}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas><canvas id="fx2d"></canvas>
+<div id="credit">Lanternfall's own gallery, ported to three.js r170. Characters and code by <a href="https://github.com/loktar00/lanternfall">loktar00 / Lanternfall</a>. Query: <code>?gallery&amp;set=heroes|monsters|all&amp;fig=&amp;anim=</code></div>
+<script type="module">
+// Boot exactly like Lanternfall src/90-main.js:233-237 (LF.boot up to the gallery branch), with the ported modules.
+import { THREE, LF, QS } from './lib/lf-host.js';
+import './lib/lf/heroes.js';
+import './lib/lf/monsters.js';
+import { world } from './lib/lf/world.js';
+import { gfx } from './lib/lf/post.js';
+import { fx } from './lib/lf/fx.js';
+import { gallery } from './lib/lf/gallery.js';
+try {
+  const canvas = document.getElementById('gl'), renderer = gfx.init(canvas);
+  const scene = LF.scene = new THREE.Scene(), cam = LF.cam = new THREE.PerspectiveCamera(30, 16 / 9, 0.5, 2600);
+  world.init(scene, renderer); fx.init(scene, cam);
+  const onResize = () => { gfx.resize(); cam.aspect = gfx.W / gfx.H; cam.updateProjectionMatrix(); fx.resize(); };
+  window.addEventListener('resize', onResize); onResize();
+  if (QS.has('credit') && QS.get('credit') === '0') document.getElementById('credit').style.display = 'none';
+  gallery(scene, cam);
+} catch (e) { console.error(e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f88;position:absolute;top:0">' + e.message + '</pre>'); }
+</script>
+</body>
+</html>
