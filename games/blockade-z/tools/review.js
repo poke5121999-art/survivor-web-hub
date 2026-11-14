@@ -18,7 +18,7 @@ const BOT = `(() => { const G = __G; const P = G.player; let t = null; let best 
 
 (async () => {
   const srv = await serve();
-  const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&';
+  const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=' + (process.env.BZ_LANG || 'vi') + '&';
   const br = await require(PW).chromium.launch({ channel: process.env.BZ_CHANNEL || 'chrome', headless: true, args: ['--ignore-gpu-blocklist'] });
   const problems = [];
   async function open(query, mobile) {

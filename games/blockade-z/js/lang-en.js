@@ -514,7 +514,7 @@ window.BZ.STR.en = {
   "html.62": "Refresh",
   "html.63": "Back",
   "html.64": "Up to 4 players over Unity Relay. The host runs the zombies and waves; late joiners pick a hero and drop straight into the ongoing fight.",
-  "html.65": "Hits taken",
+  "html.65": "You got bitten",
   "html.66": "Survived to wave",
   "html.67": "Zombies killed",
   "html.68": "Accuracy",

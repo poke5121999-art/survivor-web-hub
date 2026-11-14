@@ -77,6 +77,9 @@ const VI = '/[ăâêôơưđĂÂÊÔƠƯĐàáảãạằắẳẵặầấẩ�
       const n0 = document.querySelectorAll('.pop').length; G.ui.pop('77', 'dmg', new G.THREE.Vector3(0, 1, 9)); G.ui.pop('WAVE', 'word', new G.THREE.Vector3(0, 1, 9)); __sim(0.05); r.pops = document.querySelectorAll('.pop').length - n0; r.dmgShown = [...document.querySelectorAll('.pop')].some((e) => e.textContent === '77'); return r; })()`);
     check(play.k > 2 && Math.abs(play.space) < 0.5, `in play the new key jumps and the old one no longer does (K: ${play.k} m/s up, Space: ${play.space})`);
     check(!play.dmgShown, 'with damage numbers off, none is shown');
+    // the starting view
+    { const fp = await page.evaluate('__G.tps.on'); await page.evaluate("__G.settings.view = 'tp'; BZ.store.save(__G.settings)"); await load('nolock=1&noaudio=1&seed=5&autostart=1&god=1'); const tp = await page.evaluate('__G.tps.on'); await page.evaluate("__G.settings.view = 'fp'; BZ.store.save(__G.settings)");
+      check(fp === false && tp === true, `"Starting view: third person" starts the run in third person (${fp} -> ${tp})`); }
     // Pause: resume, settings, restart, hub; no sliders left on it
     const pz = await page.evaluate(`(() => { dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP', bubbles: true })); __sim(0.05); const c = document.querySelector('#pause'); return { on: c.classList.contains('on'), inputs: c.querySelectorAll('input, select').length, acts: [...c.querySelectorAll('[data-act]')].map((b) => b.dataset.act) }; })()`);
     check(pz.on && pz.inputs === 0 && pz.acts.includes('resume') && pz.acts.includes('settings') && pz.acts.includes('restart'), `Pause is down to its buttons (${pz.acts.join(', ')})`);

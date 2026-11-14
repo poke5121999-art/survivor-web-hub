@@ -11,6 +11,9 @@
   --ink: #15110c; --bone: #fff4dc; --gold: #f4c04a; --gold-d: #b9801c; --red: #e0402c; --green: #6cc644; --plate: rgba(21, 17, 12, .78);
   --f: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; --mono: ui-monospace, 'Consolas', 'Courier New', monospace;
   --px: 3px 3px 0 #000;
+  /* the scale everything new is cut to: type sizes, spacing steps, the two border weights, how long things move */
+  --t-xs: 11px; --t-s: 13px; --t-m: 15px; --t-l: 18px; --t-xl: 24px; --t-xxl: 30px;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --b-thin: 2px; --b-thick: 3px; --ease-out: cubic-bezier(.2, 1.1, .3, 1); --fast: .12s; --move: .22s;
 }
 html, body { margin: 0; height: 100%; background: #1d160e; color: var(--bone); overflow: hidden; font-family: var(--f); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 #view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; touch-action: none; outline: none; }
@@ -242,6 +245,13 @@ body.xh-circle #cross i:not(:nth-child(5)) { display: none; } body.xh-circle #cr
 body.xh-tee #cross i:nth-child(1) { display: none; }
 /* colour-blind: the reds and greens of the interface become orange and blue */
 body.cb { --red: #ff8a1a; --green: #3aa0ff; } body.cb #hp i, body.cb .hpbar i { filter: hue-rotate(25deg) saturate(1.2); } body.cb .dmg.crit, body.cb #marker.kill::before, body.cb #marker.kill::after { filter: hue-rotate(200deg); }
+/* ---- one feel for every screen: cards rise in, buttons answer the pointer and the keyboard, HUD text is edged ---- */
+.screen.on .card, .screen.on .sel-panel, .screen.on .sel-bottom { animation: cardin var(--move) var(--ease-out) backwards; } @keyframes cardin { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+#pause.on, #dead.on, #pick.on, #coop.on { animation: veil var(--move) ease-out; } @keyframes veil { from { background-color: transparent; opacity: 0; } }
+.btn:focus-visible, #settings button:focus-visible, #langbtn:focus-visible, .set-ctl input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+#hud { text-shadow: 1px 1px 0 #000, 0 0 4px rgba(0, 0, 0, .65); }
+#langbtn { transition: border-color var(--fast), color var(--fast), transform var(--fast); } #langbtn:active { transform: translate(1px, 1px); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; } }
 #prompt.on { display: block; pointer-events: auto; cursor: pointer; z-index: 12; } body.touch #prompt { top: 56%; padding: 10px 16px; } #prompt b { color: #ffc050; } #prompt kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 4px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
 @keyframes blink { 50% { opacity: .2; } }
 #pops .pop { position: absolute; transform: translate(-50%, -50%); font: 900 16px var(--mono); color: var(--gold); text-shadow: 2px 2px 0 #000; white-space: nowrap; animation: popin .16s cubic-bezier(.2, 1.5, .4, 1) backwards; will-change: left, top, opacity; }
@@ -346,7 +356,7 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   .sel-bottom { gap: 6px; max-width: 100%; } .sel-act .btn { font-size: 14px; padding: 7px 18px; }
   #title { align-items: flex-start; overflow-y: auto; } #title .in { padding-top: 34px; } #logo { width: min(330px, 46vw); } #title p.tag { font-size: 13px; margin-top: 4px; max-width: 420px; } #title .note { display: none; } #title .row { margin-top: 8px; } #title .btn { font-size: 15px; padding: 8px 18px; }
   .pick-head b { font-size: 22px; } .pick-head small { font-size: 11px; } #pick { gap: 8px; }
-  .card { padding: 12px 16px; } .card h2 { font-size: 22px; margin-bottom: 6px; } #dead dl { font-size: 13px; gap: 3px 20px; }
+  .card { padding: 12px 16px; } .card h2 { font-size: 22px; margin-bottom: 6px; } #dead dl { font-size: 13px; gap: 3px 20px; } #dead h2 { font-size: 28px; margin-bottom: 0; } #dead .row { margin-top: 6px; gap: 8px; } #dead .btn { font-size: 14px; padding: 8px 14px; }
 }
 /* a phone held upright: ask for landscape, a tap dismisses */
 #rotate { display: none; position: fixed; inset: 0; z-index: 70; background: rgba(20, 14, 8, .94); flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
@@ -473,46 +483,46 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113zr"></script>
-<script type="module" src="js/core.js?v=20261113zr"></script>
-<script type="module" src="js/i18n.js?v=20261113zr"></script>
-<script type="module" src="js/lang-vi.js?v=20261113zr"></script>
-<script type="module" src="js/lang-en.js?v=20261113zr"></script>
+<script type="module" src="js/boot.js?v=20261113zs"></script>
+<script type="module" src="js/core.js?v=20261113zs"></script>
+<script type="module" src="js/i18n.js?v=20261113zs"></script>
+<script type="module" src="js/lang-vi.js?v=20261113zs"></script>
+<script type="module" src="js/lang-en.js?v=20261113zs"></script>
 <script type="module">
   // the language switch on the title screen (the full Settings popup has it too)
   const BZ = window.BZ; BZ.applyStatic();
   const b = document.createElement('button'); b.id = 'langbtn'; b.type = 'button'; const other = BZ.LANGS.find((x) => x[0] !== BZ.lang); b.textContent = other[1]; b.title = 'Language';
   b.addEventListener('click', () => BZ.setLang(other[0])); document.getElementById('title').appendChild(b);
 </script>
-<script type="module" src="js/art.js?v=20261113zr"></script>
-<script type="module" src="js/world.js?v=20261113zr"></script>
-<script type="module" src="js/destruct.js?v=20261113zr"></script>
-<script type="module" src="js/audio.js?v=20261113zr"></script>
-<script type="module" src="js/fx.js?v=20261113zr"></script>
-<script type="module" src="js/zombies.js?v=20261113zr"></script>
-<script type="module" src="js/zkinds.js?v=20261113zr"></script>
-<script type="module" src="js/bosses.js?v=20261113zr"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113zr"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113zr"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113zr"></script>
-<script type="module" src="js/boss-alien.js?v=20261113zr"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113zr"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113zr"></script>
-<script type="module" src="js/weapons.js?v=20261113zr"></script>
-<script type="module" src="js/allies.js?v=20261113zr"></script>
-<script type="module" src="js/heroes.js?v=20261113zr"></script>
-<script type="module" src="js/castanim.js?v=20261113zr"></script>
-<script type="module" src="js/build.js?v=20261113zr"></script>
-<script type="module" src="js/sky.js?v=20261113zr"></script>
-<script type="module" src="js/coop.js?v=20261113zr"></script>
-<script type="module" src="js/post.js?v=20261113zr"></script>
-<script type="module" src="js/polish.js?v=20261113zr"></script>
-<script type="module" src="js/gear.js?v=20261113zr"></script>
-<script type="module" src="js/player.js?v=20261113zr"></script>
-<script type="module" src="js/tps.js?v=20261113zr"></script>
-<script type="module" src="js/ui.js?v=20261113zr"></script>
-<script type="module" src="js/settings.js?v=20261113zr"></script>
-<script type="module" src="js/meta.js?v=20261113zr"></script>
-<script type="module" src="js/main.js?v=20261113zr"></script>
+<script type="module" src="js/art.js?v=20261113zs"></script>
+<script type="module" src="js/world.js?v=20261113zs"></script>
+<script type="module" src="js/destruct.js?v=20261113zs"></script>
+<script type="module" src="js/audio.js?v=20261113zs"></script>
+<script type="module" src="js/fx.js?v=20261113zs"></script>
+<script type="module" src="js/zombies.js?v=20261113zs"></script>
+<script type="module" src="js/zkinds.js?v=20261113zs"></script>
+<script type="module" src="js/bosses.js?v=20261113zs"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zs"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zs"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zs"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zs"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zs"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zs"></script>
+<script type="module" src="js/weapons.js?v=20261113zs"></script>
+<script type="module" src="js/allies.js?v=20261113zs"></script>
+<script type="module" src="js/heroes.js?v=20261113zs"></script>
+<script type="module" src="js/castanim.js?v=20261113zs"></script>
+<script type="module" src="js/build.js?v=20261113zs"></script>
+<script type="module" src="js/sky.js?v=20261113zs"></script>
+<script type="module" src="js/coop.js?v=20261113zs"></script>
+<script type="module" src="js/post.js?v=20261113zs"></script>
+<script type="module" src="js/polish.js?v=20261113zs"></script>
+<script type="module" src="js/gear.js?v=20261113zs"></script>
+<script type="module" src="js/player.js?v=20261113zs"></script>
+<script type="module" src="js/tps.js?v=20261113zs"></script>
+<script type="module" src="js/ui.js?v=20261113zs"></script>
+<script type="module" src="js/settings.js?v=20261113zs"></script>
+<script type="module" src="js/meta.js?v=20261113zs"></script>
+<script type="module" src="js/main.js?v=20261113zs"></script>
 </body>
 </html>

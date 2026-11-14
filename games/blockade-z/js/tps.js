@@ -7,7 +7,7 @@
   const THREE = window.THREE;
 
   BZ.makeTps = (G) => {
-    const T = { on: BZ.params.tp === '1', dist: 3.6, model: null, hero: null, gun: null };
+    const T = { on: BZ.params.tp === '1' || (BZ.params.fp !== '1' && BZ.params.tp !== '0' && G.settings.view === 'tp') /* the view Settings starts a run in, unless the address says */, dist: 3.6, model: null, hero: null, gun: null };
     const V = () => new THREE.Vector3();
     const pivot = V(); const fwd = V(); const right = V(); const up = V(); const want = V(); const tmp = V();
     // where a hit came from, relative to the way the hero faces (0 = from the front): the body flinches away from it, and falls that way when it dies

@@ -24,8 +24,8 @@
     { id: 'whale', kind: 'whale', name: BZ.t("meta.7"), vnd: 2490000, tag: 'PAY TO WIN', desc: BZ.t("meta.8") },
   ];
   const GOLD_PACKS = [{ id: 'au1', gems: 100, gold: 5000 }, { id: 'au2', gems: 500, gold: 30000 }, { id: 'au3', gems: 1500, gold: 100000 }];
-  const vnd = (n) => n.toLocaleString('vi-VN') + BZ.t("meta.9");
-  const num = (n) => Math.round(n).toLocaleString('vi-VN');
+  const vnd = (n) => BZ.num(n) + BZ.t("meta.9");
+  const num = (n) => BZ.num(Math.round(n));
   const css = (c) => '#' + c.toString(16).padStart(6, '0');
   const day = () => Math.floor((Date.now() + 7 * 3600e3) / 86400e3);
 
