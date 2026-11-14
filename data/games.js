@@ -920,7 +920,7 @@ window.HUB_GAMES = [
     // trên ssh linux2), xem README.md và FEATURES.md ở đó. Kiểm trên Pages:
     // TWT_URL=https://poke5121999-art.github.io/twt-proc-web/ node tools/play.cjs tools/flow.cjs
     path: "https://poke5121999-art.github.io/twt-proc-web/",
-    rev: "20261114g",
+    rev: "20261114h",
     status: "available",
     tags: ["Kinh doanh", "Sinh tồn", "Góc nhìn thứ nhất", "Máy tính"]
   },
