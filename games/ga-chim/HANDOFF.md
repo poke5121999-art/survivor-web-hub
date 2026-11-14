@@ -1,26 +1,35 @@
-# Ga Chìm: bàn giao (2026-11-14)
+# Ga Chìm: ghi chú cho phiên sau (2026-11-14)
 
-Game FPS gốc dựng bằng code, chuẩn chất lượng là clip gameplay Saltline (`linux2:~/saltline/yt/f/*.jpg`). Chưa commit, chưa lên hub.
+Game FPS gốc dựng toàn bằng code (three.js r170 vendored). Chuẩn đồ hoạ là clip gameplay Saltline (`linux2:~/saltline/yt/f/*.jpg`). Chuẩn tư thế cầm súng là clip CoD do chủ dự án gửi (youtube v_PcbQI75-8).
 
-## Đã có
-- `js/bake.js`: nung vật liệu PBR trên GPU (15 loại bề mặt).
-- `js/mats.js`: vật liệu triplanar, mặt ướt, vũng nước, vùng ngập, nước đọng trên súng, giảm sáng trong nhà.
-- `js/sky.js`: trời giông, khe nắng, env map.
-- `js/post.js`: AO, SSR, god rays, sương, bloom, tonemap, grade.
-- `js/level.js` và `js/props.js`: bãi ga 7 đường ray, các loại toa, đầu máy, cột điện, giàn đèn, 3 gác ghi, nhà kho, sân ga, đồ lặt vặt.
-- `js/lights.js` và `js/rain.js`: đèn và mưa.
-- `js/gunmodel.js` và `js/weapon.js`: súng carbine và tay, có lò xo giật, chớp lửa, vỏ đạn, đường đạn. Chưa nối điều khiển.
-- Chụp ảnh: `node games/ga-chim/tools/shots.js <outDir> yard,alley,flood,platform,shed,boxcar,gun,gunads [q] [&param]`. Cờ debug: `nocone norays nofog nossr noao nobloom norain dry`.
+## Đang chạy trên hub
+- Thẻ `ga-chim` trong `data/games.js`. Đường dẫn `games/ga-chim/index.html`.
+- Đẩy qua worktree thưa `D:\hub-gachim` (dựng từ `origin/main`). Không đẩy từ `D:\survivor-web-hub`, vì main ở đó lệch origin hàng trăm commit và đang chứa việc dở của agent khác.
+- Cách đẩy: `git fetch` rồi `git checkout --detach origin/main`, chép `games/ga-chim` sang, nâng `rev` của thẻ và `?v=` trong `index.html`, commit, rồi `git push origin HEAD:main`.
 
-## Lỗi đang mở
-- Súng và tay trông xám sáng thay vì đen hoặc nâu. Đã thử hạ env xuống 0.35 và tắt mưa, ảnh vẫn không đổi. Uniform `uPaint` của găng tay đúng (6b5a40). Bước tiếp theo: in giá trị albedo trong shader của lớp viewmodel, xem ánh sáng chiếu vào layer 1 và depth của lượt vẽ viewmodel.
-- Tư thế bàn tay chưa ôm đúng báng súng.
+## Công cụ kiểm
+- `node games/ga-chim/tools/shots.js <out> yard,alley,flood,platform,shed,boxcar,gun,gunads [q] [&cờ]`. Cờ debug: `nocone norays nofog nossr noao nobloom norain dry vmdebug`.
+- `node games/ga-chim/tools/play.js <out>`. Đặt `GC_URL=<url Pages>` để chạy trên Pages.
+- `tools/poses.js`: các tư thế cầm súng.
+- `tools/raiders.js` và `tools/raiders2.js`: địch là người.
+- Script chụp nào cũng phải đặt `hub.session.v1` trong localStorage, nếu không cổng đăng nhập chặn và game không chạy.
+
+## Bẫy đã gặp
+- Tia nắng (radial blur) phủ một lớp sáng lên cả màn hình, làm súng và vật tối bị xám. Đã giới hạn tia nắng quanh vị trí mặt trời.
+- Đèn pha cường độ 2600 cd làm sáng chói mặt đứng. Đã hạ xuống 650.
+- Vật liệu three.js thường ghi alpha bằng 1, nên SSR coi nó là mặt phản chiếu. Phải bọc bằng `noMask()`.
+- Viewmodel vẽ ở layer 1 với camera riêng. Mọi đèn phải gọi `layers.enableAll()`.
 
 ## Còn phải làm
-- Điều khiển người chơi và va chạm.
-- Bắn trúng và hiệu ứng va chạm.
-- Kẻ địch: bọ sắt bò, drone.
-- Nhiệm vụ: bật điện 3 gác ghi rồi lên đầu máy.
-- HUD, màn tiêu đề, âm thanh.
-- So từng cảnh với khung Saltline.
-- Thumbnail, thẻ hub `ga-chim`, kiểm tra trên Pages.
+- Kẻ cướp còn thô: mặt nạ, tay và vải chưa đủ chi tiết. Animation còn đơn giản.
+- Chưa so từng cảnh với khung Saltline.
+- Bàn tay viewmodel và đoạn tay trái tháo lắp băng đạn khi nạp cần chỉnh thêm.
+- Âm thanh mới chỉ kiểm bằng phổ, chưa có người nghe.
+
+## 2026-11-14 (rev 20261114e): ánh sáng và hậu kỳ theo Saltline
+
+- Đèn: một DirectionalLight màu (1,.72,.42) cường độ 9, bỏ HemisphereLight; ánh sáng nền lấy từ PMREM của bầu trời, `environmentIntensity = 2`. Nguồn số: `D:\ref-saltline-gh\work\analysis\render.md`.
+- Bóng: `installPCSS` trong `js/lights.js` thay `getShadow` của three (blocker search + Vogel 16 tap), cần `PCFShadowMap`. Tắt bằng `?nopcss=1`.
+- Súng vẽ cùng render target với `gl.depthRange(0, 0.05)`; mọi pass hậu kỳ coi depth < 0.05 là "không phải thế giới". Không còn `clearDepth` trong `Weapon.draw`.
+- `js/post.js` là bản port chuỗi Saltline: depthhalf, AO, SSR (giữ của mình), sương thể tích đọc shadow map, composite, bloom 6/5, streak, tự phơi sáng 1x1, grade (flare, ACES/AgX, split tone), FXAA. Hằng số ở `TUNE`.
+- Bẫy đã sập: bầu trời nung env sinh NaN khi `pow(ts, n)` gặp ts hơi âm, PMREM làm nhoè NaN ra cả map, cả thế giới thành đen. Đã kẹp `ts` về [0,1]. Kiểm bằng `node tools/probe.js "<expr>" "&q=low"` (đọc pixel HDR qua `__px`).

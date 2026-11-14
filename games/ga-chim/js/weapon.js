@@ -42,12 +42,18 @@ export class Weapon {
     this.flashMat = fm; this.flashT = 0;
     // shells
     this.shells = [];
-    const shellGeo = new THREE.CylinderGeometry(0.0048, 0.0048, 0.045, 10); shellGeo.rotateX(Math.PI / 2);
-    this.shellMat = new THREE.MeshStandardMaterial({ color: 0xc9a050, metalness: 1, roughness: 0.28 });
-    noMask(this.shellMat);
-    this.shellMesh = new THREE.InstancedMesh(shellGeo, this.shellMat, 40);
+    const prof = [[0, -0.0225], [0.0048, -0.0225], [0.0048, -0.0205], [0.0041, -0.0195], [0.0048, -0.0185], [0.0047, 0.009], [0.0033, 0.014], [0.0031, 0.0225], [0, 0.0225]];
+    const shellGeo = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 12); shellGeo.rotateX(Math.PI / 2);
+    this.shellMat = noMask(new THREE.MeshStandardMaterial({ color: 0xd6a85a, metalness: 1, roughness: 0.22, envMapIntensity: 1.4 }));
+    // casings fly in viewmodel space first (they leave the port next to the gun), then drop into the world
+    this.vmShellMesh = new THREE.InstancedMesh(shellGeo, this.shellMat, 16);
+    this.vmShellMesh.count = 0; this.vmShellMesh.frustumCulled = false; this.vmShellMesh.layers.set(1); this.vmShellMesh.renderOrder = 21;
+    this.holder.add(this.vmShellMesh);
+    this.shellMesh = new THREE.InstancedMesh(shellGeo, this.shellMat, 60);
     this.shellMesh.count = 0; this.shellMesh.frustumCulled = false; this.shellMesh.castShadow = false;
     G.scene.add(this.shellMesh);
+    this.vmShells = [];
+    this.camKick = { p: new Spring(900, 38), r: new Spring(700, 30), fov: new Spring(500, 28) };
     // tracers
     this.tracers = [];
     const tm = new THREE.MeshBasicMaterial({ color: new THREE.Color(10, 6, 2.5), transparent: true, depthWrite: false });
@@ -66,21 +72,20 @@ export class Weapon {
     this.cool = 60 / RIFLE.rpm; this.ammo--;
     const r = this.r;
     const S = this.S, a = this.ads;
-    S.kZ.kick(lerp(0.9, 0.45, a)); S.kP.kick(lerp(1.4, 0.55, a)); S.kY.kick(r.range(-0.6, 0.6) * lerp(1, 0.4, a)); S.kR.kick(r.range(-1.2, 1.2) * lerp(1, 0.3, a));
-    this.flashT = 0.05; this.flashMat.uniforms.uSeed.value = r(); this.flash.rotation.z = r() * 6.28; this.flash.scale.setScalar(r.range(0.8, 1.25));
+    S.kZ.kick(lerp(1.7, 0.8, a)); S.kP.kick(lerp(2.3, 0.9, a)); S.kY.kick(r.range(-0.8, 0.8) * lerp(1, 0.4, a)); S.kR.kick(r.range(-1.6, 1.6) * lerp(1, 0.35, a));
+    this.camKick.p.kick(lerp(1.0, 0.7, a)); this.camKick.r.kick(r.range(-0.6, 0.6)); this.camKick.fov.kick(1);
+    this.flashT = 0.055; this.flashMat.uniforms.uSeed.value = r(); this.flash.rotation.z = r() * 6.28; this.flash.scale.setScalar(r.range(1.0, 1.5) * lerp(1, 0.75, a));
     this.bloom = Math.min(this.bloom + 0.35, 1.6);
     const spread = lerp(RIFLE.spreadHip, RIFLE.spreadAds, a) * (1 + this.bloom);
     const dir = new THREE.Vector3(r.range(-1, 1) * spread, r.range(-1, 1) * spread, -1).normalize().applyQuaternion(cam.quaternion);
     // eject a shell
-    const e = this.root.userData.eject.clone(); this.root.userData.gun.localToWorld(e);
-    const vmToWorld = this.vmToWorld(e);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
-    this.spawnShell(vmToWorld, right.multiplyScalar(r.range(2.2, 3.2)).add(up.multiplyScalar(r.range(1.2, 2.0))));
+    const e = this.root.userData.eject.clone(); this.root.userData.gun.localToWorld(e); this.holder.worldToLocal(e);
+    if (this.vmShells.length >= 16) this.vmShells.shift();
+    this.vmShells.push({ p: e, v: new THREE.Vector3(r.range(1.6, 2.4), r.range(0.9, 1.5), r.range(0.15, 0.5)), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)), w: new THREE.Vector3(r.range(-4, 4), r.range(-3, 3), r.range(16, 28)), t: 0 });
     // muzzle world position for tracer start
     const m = this.root.userData.muzzle.clone(); this.root.userData.gun.localToWorld(m);
     const muzzleW = this.vmToWorld(m);
-    this.G.lights.muzzle.position.copy(muzzleW); this.G.lights.muzzle.intensity = 22;
+    this.G.lights.muzzle.position.copy(muzzleW); this.G.lights.muzzle.intensity = 70;
     return { origin: cam.position.clone(), dir, muzzle: muzzleW, recoil: { p: RIFLE.recoilPitch * lerp(1, 0.6, a), y: r.range(-1, 1) * RIFLE.recoilYaw } };
   }
   // the viewmodel is drawn with its own camera at the eye; map a viewmodel-space world point to the world camera frustum
@@ -90,9 +95,9 @@ export class Weapon {
     const d = p.distanceTo(this.vmCam.position);
     return new THREE.Vector3(ndc.x, ndc.y, 0.5).unproject(cam).sub(cam.position).normalize().multiplyScalar(d).add(cam.position);
   }
-  spawnShell(pos, vel) {
-    if (this.shells.length >= 40) this.shells.shift();
-    this.shells.push({ p: pos.clone(), v: vel.clone(), q: new THREE.Quaternion(), w: new THREE.Vector3(this.r.range(-20, 20), this.r.range(-20, 20), this.r.range(-20, 20)), life: 6, bounced: 0 });
+  spawnShell(pos, vel, q, w) {
+    if (this.shells.length >= 60) this.shells.shift();
+    this.shells.push({ p: pos.clone(), v: vel.clone(), q: q ? q.clone() : new THREE.Quaternion(), w: w ? w.clone() : new THREE.Vector3(this.r.range(-20, 20), this.r.range(-20, 20), this.r.range(-20, 20)), life: 12, bounced: 0 });
   }
   tracer(from, to) {
     const len = from.distanceTo(to);
@@ -194,6 +199,22 @@ export class Weapon {
     const target = st.indoor ? 0 : (U.uRain.value > 0 ? 1 : 0);
     this.wet = damp(this.wet, target, target > this.wet ? 0.25 : 0.06, dt);
     U.uGunWet.value = this.wet;
+    // casings in viewmodel space: gravity expressed in the camera frame, leave after ~0.35 s
+    const camQ = G.camera.quaternion; const gLocal = new THREE.Vector3(0, -9.8, 0).applyQuaternion(camQ.clone().invert());
+    const mv = new THREE.Matrix4(); let nv = 0;
+    for (const s of this.vmShells) {
+      s.t += dt; s.v.addScaledVector(gLocal, dt); s.p.addScaledVector(s.v, dt);
+      s.q.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(s.w.x * dt, s.w.y * dt, s.w.z * dt)));
+      if (s.t > 0.35) {
+        const wp = s.p.clone().applyQuaternion(camQ).add(G.camera.position);
+        const wv = s.v.clone().applyQuaternion(camQ); if (st.vel) wv.add(st.vel);
+        this.spawnShell(wp, wv, camQ.clone().multiply(s.q), s.w); s.dead = true; continue;
+      }
+      mv.compose(s.p, s.q, new THREE.Vector3(1, 1, 1)); this.vmShellMesh.setMatrixAt(nv++, mv);
+    }
+    this.vmShells = this.vmShells.filter((s) => !s.dead);
+    this.vmShellMesh.count = nv; this.vmShellMesh.instanceMatrix.needsUpdate = true;
+    for (const k in this.camKick) this.camKick[k].update(dt);
     // shells
     const m4 = new THREE.Matrix4(); let n = 0;
     for (const s of this.shells) {
@@ -218,7 +239,6 @@ export class Weapon {
   }
   draw(renderer) {
     renderer.autoClear = false;
-    renderer.clearDepth();
     renderer.render(this.G.scene, this.vmCam);
   }
 }

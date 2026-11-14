@@ -16,9 +16,9 @@ import { Game, Events } from './game.js';
 
 const params = Object.fromEntries(new URLSearchParams(location.search));
 const QUALITY = {
-  low: { name: 'low', pr: 0.75, msaa: 0, ao: false, ssr: false, ssrSteps: 16, shadow: 1024, lights: 4, spotShadows: 0, rain: 2500, splashes: 120, tex: 512 },
-  medium: { name: 'medium', pr: 1, msaa: 4, ao: true, ssr: true, ssrSteps: 28, shadow: 2048, lights: 6, spotShadows: 0, rain: 5000, splashes: 220, tex: 1024 },
-  high: { name: 'high', pr: 1, msaa: 4, ao: true, ssr: true, ssrSteps: 40, shadow: 4096, lights: 8, spotShadows: 1, rain: 8000, splashes: 320, tex: 1024 },
+  low: { name: 'low', pr: 0.75, msaa: 0, ao: false, aoTaps: 8, volSteps: 12, ssr: false, ssrSteps: 16, shadow: 1024, lights: 4, spotShadows: 0, rain: 2500, splashes: 120, tex: 512 },
+  medium: { name: 'medium', pr: 1, msaa: 2, ao: true, aoTaps: 12, volSteps: 16, ssr: true, ssrSteps: 28, shadow: 2048, lights: 6, spotShadows: 0, rain: 5000, splashes: 220, tex: 1024 },
+  high: { name: 'high', pr: 1, msaa: 4, ao: true, aoTaps: 12, volSteps: 24, ssr: true, ssrSteps: 40, shadow: 4096, lights: 8, spotShadows: 1, rain: 8000, splashes: 320, tex: 1024 },
 };
 function pickQuality() {
   if (params.q && QUALITY[params.q]) return QUALITY[params.q];
@@ -41,7 +41,7 @@ async function boot() {
   if (!renderer.capabilities.isWebGL2) throw new Error('WebGL2 is not available');
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5) * G.quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   G.renderer = renderer;
   G.scene = new THREE.Scene();
@@ -62,8 +62,21 @@ async function boot() {
   });
   G.rain = new Rain(G, G.level.lamps, G.level.dryZones);
   G.post = new Post(G);
+  {
+    // dusty interior for the volumetric pass: the biggest covered hall
+    const z = G.level.dryZones.slice().sort((a, b) => b.w * b.l - a.w * a.l)[0];
+    if (z) {
+      const iz = U.uIndoor.value[G.level.dryZones.indexOf(z)] || U.uIndoor.value[0];
+      if (iz && iz.z > 0) G.post.setInteriorBox(new THREE.Vector3(iz.x - iz.z, 0, iz.y - iz.w), new THREE.Vector3(iz.x + iz.z, z.h, iz.y + iz.w), 1.5);
+    }
+  }
   G.weapon = new Weapon(G);
-  G.drawViewmodel = () => { const r = G.renderer; const ac = r.autoClear; G.weapon.draw(r); r.autoClear = ac; };
+  // gun pass: same HDR target, depth squeezed into 0..0.05 so post passes can tell it from the world; env x1.35
+  G.drawViewmodel = () => {
+    const r = G.renderer; const gl = r.getContext(); const ac = r.autoClear; const env = G.scene.environmentIntensity;
+    G.scene.environmentIntensity = env * 1.35; gl.depthRange(0, 0.05);
+    try { G.weapon.draw(r); } finally { gl.depthRange(0, 1); G.scene.environmentIntensity = env; r.autoClear = ac; }
+  };
   G.events = new Events();
   G.grid = new Grid(G.level.colliders);
   G.fx = new FX(G);
@@ -80,8 +93,9 @@ async function boot() {
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(G.camera.quaternion);
     const wh = G.grid.ray(G.camera.position, fwd, 1.2);
     const wall = wh ? clampN(1 - (wh.t - 0.45) / 0.55, 0, 1) : 0;
-    G.weapon.update(dt, { moving: P.moving, speed: P.speed || 0, sprinting: P.sprinting, ads: P.ads || G.vmAds, lookDX: P.lookDX || 0, lookDY: P.lookDY || 0, grounded: P.grounded !== false, landed: P.landedKick || 0, indoor: isIndoor(G.camera.position), groundAt: (p) => 0, wall, crouch: P.crouch > 0.5 });
+    G.weapon.update(dt, { vel: P.vel, moving: P.moving, speed: P.speed || 0, sprinting: P.sprinting, ads: P.ads || G.vmAds, lookDX: P.lookDX || 0, lookDY: P.lookDY || 0, grounded: P.grounded !== false, landed: P.landedKick || 0, indoor: isIndoor(G.camera.position), groundAt: (p) => 0, wall, crouch: P.crouch > 0.5 });
     P.landedKick = 0;
+    G.postFx.ads = G.weapon.ads || 0;
   }]);
   G.updaters.push(['enemies', (dt) => { if (G.game.state !== 'title') G.enemies.update(dt, G.player); }]);
   G.updaters.push(['fx', (dt) => G.fx.update(dt)]);
@@ -100,11 +114,8 @@ async function boot() {
   if (params.nocone) G.lights.cones.visible = false;
   if (params.dry) U.uRain.value = 0;
   if (params.norain) { G.rain.mesh.visible = false; G.rain.splash.visible = false; }
-  if (params.norays) G.post.comp.u.uRaysK.value = 0;
-  if (params.nofog) G.post.comp.u.uFogD.value = 0;
   if (params.nossr) G.quality.ssr = false;
   if (params.noao) G.quality.ao = false;
-  if (params.nobloom) G.post.final.u.uBloomK.value = 0;
   // warm up shader programs so the first real frame does not hitch
   renderer.compile(G.scene, G.camera);
   window.addEventListener('resize', onResize);
@@ -130,7 +141,7 @@ function loop() {
   render();
 }
 function step(dt) {
-  G.t += dt; U.uTime.value = G.t;
+  G.t += dt; G.dt = dt; U.uTime.value = G.t;
   for (const [tag, fn] of G.updaters) guard(tag, () => fn(dt, G.t));
   guard('lights', () => G.lights.update(dt, G.camera.position));
   guard('rain', () => G.rain.update(dt, G.t, G.camera));
@@ -141,7 +152,7 @@ function render() {
     G.post.render(() => {
       G.renderer.render(G.scene, G.camera);
       if (G.drawViewmodel) G.drawViewmodel();
-    }, G.camera, G.t);
+    }, G.camera, G.t, G.dt);
   });
 }
 
@@ -183,7 +194,8 @@ function combat(dt) {
     if (shot) {
       P.lastShot = G.t;
       P.recoil.p += shot.recoil.p * 60 * dt * 0 + shot.recoil.p; P.recoil.y += shot.recoil.y;
-      A.play('rifle'); A.play('tail', { vol: isIndoor(G.camera.position) ? 0.7 : 1 });
+      A.play('rifle'); A.play('thud', { vol: 0.35, rate: 0.8 }); A.play('tail', { vol: isIndoor(G.camera.position) ? 0.7 : 1 });
+      G.fx.add(2, shot.muzzle, new THREE.Vector3(0, 0.4, 0).add(shot.dir.clone().multiplyScalar(0.6)), 0.05, new THREE.Color(0.22, 0.21, 0.2), 0.9, { grow: 4, a: 0.35, drag: 2 });
       const o = shot.origin, d = shot.dir; const maxD = 220;
       const he = G.enemies.raycast(o, d, maxD);
       const hw = G.grid.ray(o, d, maxD);
@@ -193,7 +205,7 @@ function combat(dt) {
         const p = o.clone().addScaledVector(d, he.t);
         G.fx.impact(p, d.clone().negate(), 'metal'); A.play('ping', { pos: p });
         const killed = G.enemies.damage(he.e, 34 * (0.9 + Math.random() * 0.2), d, he.head);
-        G.game.hitmark(killed);
+        G.game.hitmark(killed); A.play('click', { rate: he.head ? 2.6 : 2.1, vol: 0.7 }); if (killed) A.play('ping', { rate: 0.7, vol: 0.5 });
         W.tracer(shot.muzzle, p);
       } else if (tW < gT && tW < maxD) {
         const p = o.clone().addScaledVector(d, tW);

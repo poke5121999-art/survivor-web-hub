@@ -22,6 +22,37 @@ float scratches(vec2 uv, float P, float seed){
 
 // Each entry: GLSL body that sets alb, rough, metal, h (0..1), ao, paint (mask, 1 = takes the tint).
 export const SURF = {
+  camoWood: `
+    vec2 q = uv + vec2(pfbm(uv*3.,3.,4), pfbm(uv*3.+7.,3.,4))*.25;
+    float a = pfbm(q*2.,2.,5), b = pfbm(q*2.+3.3,2.,5), c = pfbm(q*4.+9.1,4.,4);
+    vec3 col = vec3(.30,.27,.18);
+    col = mix(col, vec3(.16,.21,.12), step(.5,a));
+    col = mix(col, vec3(.24,.17,.10), step(.56,b));
+    col = mix(col, vec3(.05,.05,.045), step(.62,c));
+    vec2 w = uv*vec2(110.,110.); float weave = (sin(w.x*3.1416)*.5+.5)*(sin(w.y*3.1416)*.5+.5);
+    float dirt = smoothstep(.55,.9,pfbm(uv*3.+2.,3.,5));
+    alb = col*(.85+.25*weave)*(1.-.3*dirt); paint = 0.;
+    rough=.9; metal=0.; h=.35+.5*weave; ao=.8+.2*weave;`,
+  camoDesert: `
+    vec2 q = uv + vec2(pfbm(uv*3.,3.,4), pfbm(uv*3.+7.,3.,4))*.25;
+    float a = pfbm(q*2.,2.,5), b = pfbm(q*3.+3.3,3.,5);
+    vec3 col = vec3(.50,.43,.31);
+    col = mix(col, vec3(.40,.33,.23), step(.5,a));
+    col = mix(col, vec3(.30,.24,.17), step(.58,b));
+    vec2 w = uv*vec2(110.,110.); float weave = (sin(w.x*3.1416)*.5+.5)*(sin(w.y*3.1416)*.5+.5);
+    float dirt = smoothstep(.55,.9,pfbm(uv*3.+2.,3.,5));
+    alb = col*(.85+.25*weave)*(1.-.3*dirt); paint = 0.;
+    rough=.9; metal=0.; h=.35+.5*weave; ao=.8+.2*weave;`,
+  denim: `
+    vec2 w = uv*vec2(140.,140.); float tw = fract((w.x+w.y)*.5);
+    float twill = smoothstep(.2,.5,tw)*smoothstep(.9,.6,tw);
+    float fade = pfbm(uv*2.,2.,5); float worn = smoothstep(.6,.85,pfbm(uv*5.+1.,5.,4));
+    alb = mix(vec3(.10,.15,.25), vec3(.32,.38,.48), fade*.6+worn*.5)*(.85+.25*twill); paint = 0.;
+    rough=.92; metal=0.; h=.4+.4*twill; ao=.85+.15*twill;`,
+  skin: `
+    float n = pfbm(uv*6.,6.,5); vec3 v = pvor(uv*60.,60.);
+    alb = vec3(.62,.42,.33)*(.9+.15*n); paint = 1.;
+    rough=.55+.15*smoothstep(.0,.3,v.x); metal=0.; h=.5+.1*n-.05*smoothstep(.1,0.,v.x); ao=1.;`,
   concrete: `
     vec2 p=uv*4.;
     float m=pfbm(p,4.,6);

@@ -998,7 +998,7 @@ window.HUB_GAMES = [
     // three.js r170 vendored, mọi vật liệu nung trên GPU lúc khởi động. Chụp ảnh: node games/ga-chim/tools/shots.js <out>;
     // chơi thử tự động: node games/ga-chim/tools/play.js <out>; tư thế súng: tools/poses.js. Ghi chú: games/ga-chim/HANDOFF.md.
     path: "games/ga-chim/index.html",
-    rev: "20261114c",
+    rev: "20261114e",
     status: "available",
     tags: ["Bắn súng", "Góc nhìn thứ nhất", "Không asset", "Máy tính"]
   }

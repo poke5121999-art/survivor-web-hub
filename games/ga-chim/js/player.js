@@ -173,10 +173,11 @@ export class Player {
     this.camY = damp(this.camY, eye, 18, dt);
     this.landed = damp(this.landed, 0, 6, dt);
     cam.position.set(this.pos.x, this.pos.y + this.camY - this.landed * 0.2, this.pos.z);
-    cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
-    const w = this.G.weapon;
+    const w = this.G.weapon; const ck = w && w.camKick;
+    cam.rotation.set(this.pitch + (ck ? ck.p.x * 0.01 : 0), this.yaw, ck ? ck.r.x * 0.006 : 0, 'YXZ');
     const target = w && w.ads > 0.5 ? 52 : this.sprinting ? 80 : 74;
     this.fov = damp(this.fov, target, 10, dt);
-    if (Math.abs(cam.fov - this.fov) > 0.01) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
+    const f = this.fov - (ck ? ck.fov.x * 1.2 : 0);
+    if (Math.abs(cam.fov - f) > 0.01) { cam.fov = f; cam.updateProjectionMatrix(); }
   }
 }

@@ -33,7 +33,7 @@ export function gunMaterials() {
     poly: mat({ ...base, surf: 'polymer', scale: 7, wetRough: 0.3 }),
     polyTan: mat({ ...base, surf: 'polymer', scale: 7, paint: 0xffffff, env: 0.8 }),
     steel: mat({ ...base, surf: 'steel', scale: 12, roughK: 0.6 }),
-    glove: mat({ ...base, surf: 'fabric', scale: 3, color: 0x5e4e38, drops: true, wetRough: 0.55, nscale: 0.5 }),
+    glove: mat({ ...base, surf: 'fabric', scale: 3, color: 0x3b362e, drops: true, wetRough: 0.55, nscale: 0.5 }),
     leather: mat({ ...base, surf: 'leather', scale: 8, color: 0x2a2520, wetRough: 0.35 }),
     sleeve: mat({ ...base, surf: 'fabric', scale: 2, color: 0x1a2026, drops: true, roughK: 0.85, wetRough: 0.42, nscale: 0.5 }),
     lens: noMask(new THREE.MeshPhysicalMaterial({ color: 0x0a1a12, roughness: 0.02, metalness: 0.0, transmission: 0, envMapIntensity: 2.2, clearcoat: 1, clearcoatRoughness: 0.02, transparent: true, opacity: 0.55, depthWrite: false })),
