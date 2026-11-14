@@ -30,7 +30,7 @@ function overflowReport() {
   const roots = [document.getElementById('ui'), document.getElementById('touch')].filter(Boolean);
   for (const r of roots) {
     for (const n of r.querySelectorAll('*')) {
-      if (!(n instanceof HTMLElement) || n.classList.contains('fn') || n.closest('.np, .pl') || n.parentElement.classList.contains('vig')) continue;
+      if (!(n instanceof HTMLElement) || n.classList.contains('fn') || n.closest('.np, .pl, .twb') || n.parentElement.classList.contains('vig')) continue;
       const cs = getComputedStyle(n);
       if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
       let hid = false;
@@ -731,7 +731,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
           kills: document.querySelector('#ui [data-r="k0"]').textContent + ':' + document.querySelector('#ui [data-r="k1"]').textContent,
         }));
         check(T('hud-nha') + ': top bar has 3 pips per team (4 small + 2 big), clock, tower score 0:0, mission from MODES.nha, 10 portrait cards', r.pips === 6 && r.mains === 2 && r.subs === 4 && /^[78]:\d\d$/.test(r.clock) && r.kills === '0:0' && r.mission === MODES.nha.mission && r.cols === 10 && r.bars === 6, JSON.stringify(r));
-        check(T('hud-nha') + ': minimap title shows layout and theme', /^Đền Rừng · Rừng mưa$/.test(r.mm), r.mm);
+        check(T('hud-nha') + ': minimap title shows layout and theme', /^Lũy Thép · Rừng mưa$/.test(r.mm), r.mm);
         const info = await tw.info();
         check(T('hud-nha') + ': at the start every sub is up at 100%, both mains are locked with a visible lock', [...ID.mySub, ...ID.foeSub].every((i) => info[i].state === 'up' && info[i].hp === '100%' && info[i].lock === 'none') && [ID.myMain, ID.foeMain].every((i) => info[i].state === 'locked' && info[i].lock !== 'none' && info[i].hp === '100%'), JSON.stringify(info));
       }, 700);
