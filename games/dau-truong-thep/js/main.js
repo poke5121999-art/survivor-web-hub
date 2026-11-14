@@ -23,7 +23,7 @@ const QUALITY = {
   medium: { name: 'medium', scale: 0.85, dpr: 1.5, shadow: 2048, tex: 1024, foliage: 0.65, particles: 800,  lights: 2, ao: true,  bloom: true, bloomLevels: 5, bloomGain: 0.75, fxaa: true },
   high:   { name: 'high',   scale: 1,    dpr: 2,   shadow: 4096, tex: 2048, foliage: 1,    particles: 1400, lights: 3, ao: true,  bloom: true, bloomLevels: 6, bloomGain: 0.85, fxaa: true },
 };
-const CAM = { fov: 32, pitch: 57 * Math.PI / 180, width: 36, minDepth: 17.5 };
+const CAM = { fov: 32, pitch: 57 * Math.PI / 180, width: 33.5, minDepth: 17.5 };
 
 const errors = (window.__errors = []);
 const fail = (tag, err) => { const msg = `[${tag}] ${err && err.stack ? err.stack : err}`; if (errors.length < 50) errors.push(msg); console.error(msg); };
