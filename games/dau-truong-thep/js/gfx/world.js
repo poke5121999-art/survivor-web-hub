@@ -11,21 +11,21 @@ import { TEAMS, RULES } from '../data.js';
 // Everything that changes with the map's theme: ground textures and tints, stone tint, how much of each plant grows, light.
 const THEMES = {
   jungle: { growth: 'moss', base: 'grass', path: 'dirt', lo: [0.62, 0.8, 0.55], hi: [1.25, 1.15, 0.8], pave: [1, 1, 1], stone: 0xffffff, grass: 1, leaf: [1, 1, 1], fern: 1, broad: 1, tall: 'palm', tallRate: 0.36, bush: [1, 1, 1],
-    sun: [0xfff0d2, 3.1], hemi: [0xcfe8ff, 0x4d6a2e, 0.85], clear: 0x0b1a0d, exposure: 1 },
+    sun: [0xfff0d2, 3.1], hemi: [0xcfe8ff, 0x4d6a2e, 0.85], clear: 0x0b1a0d, exposure: 1, grade: { sat: 1.16, con: 0.35, vig: 0.5, shadow: [0.94, 1.0, 1.05], high: [1.04, 1.0, 0.94] } },
   desert: { growth: 'sand', base: 'sand', path: 'track', lo: [0.85, 0.85, 0.85], hi: [1.12, 1.08, 1.0], pave: [1.05, 0.95, 0.8], stone: 0xf2d9ae, grass: 0.22, leaf: [1.5, 1.1, 0.5], fern: 0.3, broad: 0.25, tall: 'palm', tallRate: 0.14, bush: [1.0, 0.85, 0.5],
-    sun: [0xffe6b8, 3.5], hemi: [0xd9e6ff, 0x8a6a3c, 0.9], clear: 0x2a1f12, exposure: 0.95 },
+    sun: [0xffe6b8, 3.5], hemi: [0xd9e6ff, 0x8a6a3c, 0.9], clear: 0x2a1f12, exposure: 0.95, grade: { sat: 1.1, con: 0.3, vig: 0.45, shadow: [0.92, 0.98, 1.07], high: [1.07, 1.0, 0.9] } },
   ice: { growth: 'snow', base: 'snow', path: 'track', lo: [0.85, 0.9, 0.98], hi: [1.05, 1.05, 1.05], pave: [0.8, 0.9, 1.05], stone: 0xb9d2e8, grass: 0.12, leaf: [1.9, 1.4, 3.2], fern: 0.2, broad: 0, tall: 'pine', tallRate: 0.42, bush: [1.6, 1.25, 3.0],
-    sun: [0xe8f2ff, 2.2], hemi: [0xdfeeff, 0x7d93ad, 0.8], clear: 0x0e1722, exposure: 0.85 },
+    sun: [0xe8f2ff, 2.2], hemi: [0xdfeeff, 0x7d93ad, 0.8], clear: 0x0e1722, exposure: 0.85, grade: { sat: 1.0, con: 0.4, vig: 0.55, shadow: [0.86, 0.95, 1.12], high: [0.98, 1.0, 1.04] } },
   lava: { growth: 'ash', base: 'basalt', path: 'ash', lo: [0.8, 0.8, 0.8], hi: [1.25, 1.15, 1.1], pave: [0.5, 0.45, 0.45], stone: 0x6e6468, grass: 0.08, leaf: [0.9, 0.35, 0.15], fern: 0.12, broad: 0, tall: 'dead', tallRate: 0.3, bush: [1.1, 0.5, 0.3],
-    sun: [0xffc9a0, 2.3], hemi: [0xffb080, 0x40201a, 0.75], clear: 0x120807, exposure: 1.05 },
+    sun: [0xffc9a0, 2.3], hemi: [0xffb080, 0x40201a, 0.75], clear: 0x120807, exposure: 1.05, grade: { sat: 1.2, con: 0.45, vig: 0.75, shadow: [1.08, 0.92, 0.9], high: [1.08, 0.98, 0.88] } },
   city: { growth: 'grime', base: 'asphalt', path: 'concrete', lo: [0.8, 0.8, 0.8], hi: [1.2, 1.2, 1.2], pave: [0.75, 0.75, 0.78], stone: 0xb4b2ae, grass: 0.14, leaf: [0.8, 0.9, 0.6], fern: 0.3, broad: 0, tall: 'dead', tallRate: 0.18, bush: [0.75, 0.85, 0.6],
-    sun: [0xffb37a, 2.6], hemi: [0xb9a6d9, 0x3a3540, 0.8], clear: 0x14121a, exposure: 1.05 },
+    sun: [0xffb37a, 2.6], hemi: [0xb9a6d9, 0x3a3540, 0.8], clear: 0x14121a, exposure: 1.05, grade: { sat: 0.95, con: 0.42, vig: 0.65, shadow: [0.9, 0.94, 1.08], high: [1.08, 0.98, 0.9] } },
   swamp: { growth: 'moss', base: 'grass', path: 'mud', lo: [0.3, 0.5, 0.5], hi: [0.6, 0.85, 0.7], pave: [0.5, 0.6, 0.6], stone: 0x7e9a96, grass: 1, leaf: [0.45, 0.8, 0.8], fern: 1.2, broad: 1, tall: 'palm', tallRate: 0.3, bush: [0.5, 0.9, 0.85],
-    sun: [0x9fc4ff, 1.25], hemi: [0x4a6aa8, 0x12261f, 0.6], clear: 0x050b10, exposure: 1.25, fireflies: true },
+    sun: [0x9fc4ff, 1.25], hemi: [0x4a6aa8, 0x12261f, 0.6], clear: 0x050b10, exposure: 1.25, fireflies: true, grade: { sat: 1.05, con: 0.4, vig: 0.85, shadow: [0.82, 0.98, 1.12], high: [0.95, 1.04, 1.0] } },
   autumn: { growth: 'dry', base: 'grass', path: 'dirt', lo: [1.5, 0.75, 0.3], hi: [2.1, 1.25, 0.45], pave: [1.05, 0.95, 0.85], stone: 0xe6d2b4, grass: 0.8, leaf: [2.6, 1.0, 0.3], fern: 0.8, broad: 0.6, tall: 'dead', tallRate: 0.22, bush: [1.5, 0.8, 0.35],
-    sun: [0xffc27a, 3.2], hemi: [0xffd9b0, 0x6a4a2a, 0.8], clear: 0x1a1008, exposure: 0.98 },
+    sun: [0xffc27a, 3.2], hemi: [0xffd9b0, 0x6a4a2a, 0.8], clear: 0x1a1008, exposure: 0.98, grade: { sat: 1.2, con: 0.32, vig: 0.5, shadow: [1.0, 0.94, 0.98], high: [1.08, 1.0, 0.88] } },
   canyon: { growth: 'sand', base: 'sand', path: 'track', lo: [1.15, 0.6, 0.45], hi: [1.35, 0.78, 0.55], pave: [1.1, 0.75, 0.6], stone: 0xe08a62, grass: 0.1, leaf: [1.4, 1.0, 0.5], fern: 0.15, broad: 0.1, tall: 'dead', tallRate: 0.1, bush: [1.0, 0.8, 0.45],
-    sun: [0xffd0a0, 3.4], hemi: [0xffe0c8, 0x8a4630, 0.85], clear: 0x24100a, exposure: 0.95 },
+    sun: [0xffd0a0, 3.4], hemi: [0xffe0c8, 0x8a4630, 0.85], clear: 0x24100a, exposure: 0.95, grade: { sat: 1.15, con: 0.36, vig: 0.5, shadow: [0.96, 0.92, 1.05], high: [1.07, 0.99, 0.9] } },
 };
 
 const MARGIN = 18;

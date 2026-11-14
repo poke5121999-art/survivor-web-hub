@@ -50,7 +50,7 @@ const UP = `
   }`;
 
 const COMPOSITE = `
-  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uAO; uniform vec2 uAOPx; varying vec2 vUv;
+  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uAO, uSat, uContrast, uVig; uniform vec3 uShadow, uHigh; uniform vec2 uAOPx; varying vec2 vUv;
   vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
   void main() {
     vec3 c = texture2D(tMap, vUv).rgb;
@@ -61,11 +61,11 @@ const COMPOSITE = `
     c += texture2D(tBloom, vUv).rgb * uBloom;
     c = aces(c * uExposure);
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = mix(vec3(l), c, 1.14);
-    c = mix(c, c * c * (3.0 - 2.0 * c), 0.35);
-    c *= mix(vec3(1.0), vec3(1.03, 1.0, 0.95), 0.6);
+    c = mix(vec3(l), c, uSat);
+    c = mix(c, c * c * (3.0 - 2.0 * c), uContrast);
+    c *= mix(uShadow, uHigh, smoothstep(0.02, 0.6, l));
     vec2 q = vUv - 0.5;
-    c *= 1.0 - dot(q, q) * 0.5;
+    c *= 1.0 - dot(q, q) * uVig;
     c = pow(c, vec3(1.0 / 2.2));
     c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     gl_FragColor = vec4(c, dot(c, vec3(0.299, 0.587, 0.114)));
@@ -102,7 +102,7 @@ export function makePost(renderer, Q) {
   const mBright = pass(BRIGHT, { tMap: { value: null }, uPx: { value: new THREE.Vector2() }, uThreshold: { value: 1.15 } });
   const mDown = pass(DOWN, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
   const mUp = pass(UP, { tMap: { value: null }, tAdd: { value: null }, uPx: { value: new THREE.Vector2() } });
-  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() } });
+  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uSat: { value: 1.14 }, uContrast: { value: 0.35 }, uVig: { value: 0.5 }, uShadow: { value: new THREE.Vector3(1, 1, 1) }, uHigh: { value: new THREE.Vector3(1.02, 1, 0.97) }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() } });
   const mFxaa = pass(FXAA, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
 
   function draw(mat, target) { quad.material = mat; renderer.setRenderTarget(target); renderer.render(scene, cam); }
@@ -157,5 +157,10 @@ export function makePost(renderer, Q) {
     } else draw(mComp, null);
   }
 
-  return { resize, render, state, uniforms: mComp.uniforms, get size() { return [W, H]; } };
+  // look: a theme row from world.js ({ exposure, grade: { sat, con, vig, shadow, high } })
+  function grade(look) {
+    const u = mComp.uniforms, g = look.grade;
+    u.uExposure.value = look.exposure; u.uSat.value = g.sat; u.uContrast.value = g.con; u.uVig.value = g.vig; u.uShadow.value.set(...g.shadow); u.uHigh.value.set(...g.high);
+  }
+  return { resize, render, state, grade, uniforms: mComp.uniforms, get size() { return [W, H]; } };
 }

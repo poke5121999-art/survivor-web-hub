@@ -85,7 +85,7 @@ async function boot() {
     world = G.gfx.world = makeWorld(G, map, tex); worldKey = key + '/' + theme; arena = { map: key, theme };
     scene.add(world.group);
     renderer.setClearColor(world.theme.clear, 1);
-    if (G.gfx.post) G.gfx.post.uniforms.uExposure.value = world.theme.exposure;
+    if (G.gfx.post) G.gfx.post.grade(world.theme);
   }
   useMap(MAPS[params.map] ? params.map : (MAPS[save.map] ? save.map : 'denrung'), params.theme || save.theme);
 
@@ -94,7 +94,7 @@ async function boot() {
   const fx = (G.gfx.fx = makeFx(G, mechs));
   scene.add(mechs.group, fx.group);
   const post = (G.gfx.post = makePost(renderer, Q));
-  post.uniforms.uExposure.value = world.theme.exposure;
+  post.grade(world.theme);
   G.portrait = (key, team, paint) => mechs.portrait(key, team, paint);
 
   let governor = 1, cssW = 1, cssH = 1;
@@ -306,7 +306,8 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'match' && !G.ui.paused) G.ui.showPause(); last = performance.now(); });
 
   window.__step = (n = 1, render = true) => {
-    for (let i = 0; i < n; i++) { time += TICK; if (G.match && !G.match.over) tick(); else advance(0); }
+    // Ticks that are not drawn still age the effects: otherwise every particle spawned during a long silent step is alive in the next frame.
+    for (let i = 0; i < n; i++) { time += TICK; if (G.match && !G.match.over) tick(); else advance(0); if (G.match && !(render && i === n - 1)) fx.update(G.match, 1, TICK, time); }
     if (render) { draw(TICK); const gl = renderer.getContext(), px = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); }
     return G.match ? G.match.tick : 0;
   };
