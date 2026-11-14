@@ -229,6 +229,7 @@ BZ.makeCoop = (G) => {
     if (x.k === 'boom') { G.fx.explosion(V(x.p), x.s); G.audio.playAt('boom', V(x.p), { gain: 1.2 }); C.events.push({ k: 'boom', p: x.p, s: x.s, skip: p.pid }); }
     else if (x.k === 'freeze') G.hero.freezeAt(V(x.p));
     else if (x.k === 'picked') { if (C.onPicked) C.onPicked(p.pid, x.n); }
+    else if (x.k === 'vx') { if (G.vox && G.vox.street) G.vox.street.act(x, p.pid); }
     else if (x.k === 'door') { const D = G.destruct.doors[x.i]; if (D) G.destruct.setDoor(D, x.s ? 1 : 0); }
     else if (x.k === 'glass') { const q = G.destruct.pieces[x.id]; if (q && q.tag === 'glass') G.destruct.hurt(q, (x.d || 20) * 0.3, new THREE.Vector3()); }
     else if (x.k === 'hx') { G.hero.remote(x.s, x.a, p.pid); C.events.push({ k: 'hx', s: x.s, a: x.a }); }
@@ -299,6 +300,7 @@ BZ.makeCoop = (G) => {
     else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? BZ.t("coop.8") : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
     else if (e.k === 'zk') G.zombies.kinds.remote(e.z);
     else if (e.k === 'tb') G.destruct.remote(e.e);
+    else if (e.k === 'vx') { if (G.vox && G.vox.street) G.vox.street.remote(e.e); }
     else if (e.k === 'hx') G.hero.remote(e.s, e.a, e.a.by);
     else if (e.k === 'ann') { if (e.banner) G.ui.banner(e.title, e.sub, e.secs || 2.2); else G.ui.announce(e.title, e.sub, e.cls); if (e.snd) G.audio.play(e.snd, { gain: 0.8 }); }
   }

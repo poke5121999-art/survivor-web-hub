@@ -25,13 +25,17 @@
     // that can crack, break and fall. Its faces stay in the merged world mesh (no extra draw calls); breaking one
     // collapses its vertices. Boxes without a solid (signs, bars, glass) ride along with the piece they touch.
     const pieces = []; const decor = []; let brk = false; let tagN = 0; let winN = 0; const doors = [];
+    // ?vox=1: the shophouse row is handed to js/vox/street.js as a list of boxes instead of being built here
+    const vcap = BZ.vox && BZ.vox.on && BZ.vox.want('street') ? (BZ.vox.capture = []) : null; let vcapOn = false; let voxRay = null;
     const box = (min, max, mats, opt) => {
+      if (vcapOn) { vcap.push({ min, max, mats, opt }); return B; }
       if (!brk) return B.box(min, max, mats, opt);
       B.tagId = ++tagN; B.box(min, max, mats, opt); B.tagId = null;
       decor.push({ t: tagN, min, max, mats, opt, m: B.m.clone(), own: null });
       return B;
     };
     const block = (min, max, mats, tag = 'stone', opt) => {
+      if (vcapOn) { vcap.push({ min, max, mats, opt, tag, solid: true }); return; }
       box(min, max, mats, opt); solid(min, max, tag);
       if (brk) { const d = decor[decor.length - 1]; const p = { id: pieces.length, min, max, tag, boxes: [d], solid: solids[solids.length - 1] }; d.own = p; p.solid.piece = p; pieces.push(p); }
     };
@@ -180,6 +184,7 @@
 
     // ---------- 2. Shophouse row: three narrow two-storey shops, painted plaster, signboards ----------
     const SHOPS = [['plaster_yellow', 'sign_taphoa', 1.9], ['plaster_teal', 'sign_caphe', 2.6], ['plaster_pink', 'sign_pho', 2.2]];
+    vcapOn = !!vcap;
     SHOPS.forEach(([mat, sg, shutter], i) => {
       const x0 = -31 + i * 4.6; const x1 = x0 + 4.6; const z0 = -14; const z1 = -5;
       storey(x0, z0, x1, z1, 0, 3.2, mat, { s: [[x0 + 0.5, x1 - 0.5, 0, 2.7]], n: [[x0 + 1.6, x0 + 2.8, 1.2, 2.2]] });
@@ -193,6 +198,7 @@
       block([x0 + 0.35, 0, z0 + 0.35], [x1 - 0.35, 1.9, z0 + 0.9], 'plank', 'wood');
       block([x0 + 0.35, 0, z1 - 3.2], [x0 + 1.9, 1.0, z1 - 2.5], 'crate', 'wood', { uv: 'fit' });
     });
+    vcapOn = false;
 
     // ---------- 3. Guard post: concrete, barred windows, outside stair to a sandbagged roof ----------
     {
@@ -370,11 +376,13 @@
     for (let x = -26; x < -22; x += 0.25) box([x, 7.9, -26.02], [x + 0.18, 8.1 - (x % 0.5 ? 0.15 : 0), -25.98], ['plaster_pink', 'plaster_teal', 'plaster_white'][Math.abs(Math.round(x * 4)) % 3], { vary: 0 });
     box([-26.2, 6.85, -26.05], [-26.1, 8.2, -25.95], 'metal_dark'); box([-22, 6.85, -26.05], [-21.9, 8.2, -25.95], 'metal_dark'); box([-26.2, 8.15, -26.01], [-21.9, 8.17, -25.99], 'metal_dark', { vary: 0 });
     // shophouse roofs
+    vcapOn = !!vcap;
     SHOPS.forEach((_, i) => {
       const x0 = -31 + i * 4.6; const y = 7.0 + i * 0.6;
       parapet(x0 - 0.1, -14.1, x0 + 4.7, -4.9, y, 0.45);
       if (i === 0) tankOnRoof(x0 + 2.3, y, -11); else if (i === 1) { ac(x0 + 1, y, -12); vent(x0 + 3.4, y, -8); } else { aerial(x0 + 3.5, y, -12.5, 2.4); ac(x0 + 0.8, y, -8.5); }
     });
+    vcapOn = false;
     // guard post roof already has sandbags; add a searchlight and a vent
     block([15.2, 4.5, -31.4], [16, 5.2, -30.6], 'metal_dark', 'metal'); box([15.25, 5.2, -31.35], [15.95, 5.6, -30.65], 'lamp', { flat: true, vary: 0 }); vent(26.6, 4.5, -23.4);
     // kiosk, warehouse and church tower tops
@@ -621,7 +629,7 @@
         for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) {
           const list = hash.get((cx0 + ox) * 4096 + (cz0 + oz)); if (!list) continue;
           for (const s of list) {
-            if (s.mark === stamp) continue; s.mark = stamp;
+            if (s.mark === stamp) continue; s.mark = stamp; if (s.vox) continue; // (voxel collision boxes are coarse; the voxel ray below gives the exact hit)
             const h = rayBox(o, d, s, best ? best.t : maxT);
             if (h && (!best || h.t < best.t)) best = { t: h.t, normal: h.n, tag: s.tag, s };
           }
@@ -631,6 +639,7 @@
         const t = -o.y / d.y;
         if (t > 0 && t < (best ? best.t : maxT)) best = { t, normal: [0, 1, 0], tag: 'stone' };
       }
+      if (voxRay) { const v = voxRay(o, d, best ? best.t : maxT); if (v) best = v; }
       return best;
     }
     const lineOfSight = (a, b) => {
@@ -668,7 +677,7 @@
       // by day the far skyline sits in the smog: let fog take it so it reads as distant haze, not black towers
       skyline.traverse((m) => { if (!m.isMesh) return; const f = k < 0.5; if (m.material.fog !== f) { m.material.fog = f; m.material.needsUpdate = true; } m.material.color.setHex(f ? 0xb8c2d0 : 0x9098a8); });
     }
-    return { doors, update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, pieces, removeSolid, addSolid, rebuildGrids, spawns, HALF, group, sky, clouds, setNight, cloudMat,
+    return { setVoxRay: (f) => { voxRay = f; }, doors, update, solids, raycast, lineOfSight, moveBox, overlaps, updateFlow, flowDir, flowStats, pieces, removeSolid, addSolid, rebuildGrids, spawns, HALF, group, sky, clouds, setNight, cloudMat,
       isBlocked: (x, z) => { const cx = toCell(x); const cz = toCell(z); return cx < 0 || cz < 0 || cx >= N || cz >= N || !!blocked[idx(cx, cz)]; } };
   };
 })();

@@ -56,7 +56,7 @@
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I);
     if (boxes.some((b) => b[3])) for (const q of groups) g.addGroup(q.start, q.count, q.materialIndex);
-    g.computeBoundingBox(); g.computeBoundingSphere(); return g;
+    g.computeBoundingBox(); g.computeBoundingSphere(); g.userData.boxes = boxes; return g;
   }
   // thigh (hip down to the knee), then the shin with a torn cuff, a bare ankle and a foot; the knee is its own pivot
   const G_LEG = multi([[[-0.13, -0.2, -0.13], [0.13, 0.02, 0.13], 0.98], [[-0.12, -0.4, -0.12], [0.12, -0.2, 0.12], 0.9], [[-0.135, -0.13, 0.08], [-0.02, -0.05, 0.14], 0.7]]);
@@ -326,7 +326,7 @@
       z.stillT = 0; z.stuck = 0; z.ax = NaN; z.regated = (z.regated || 0) + 1; stats.regated++;
       z.body.root.position.copy(z.pos);
     }
-    function update(dt) { update0(dt); for (const z of list) if (z.body.root.visible && !z.T.rig) joints(z, dt); }
+    function update(dt) { update0(dt); for (const z of list) if (z.body.root.visible && !z.T.rig) { joints(z, dt); if (z.vox && BZ.vox.animZombie) BZ.vox.animZombie(z, dt); } }
     function update0(dt) {
       K.update(dt);
       if (G.coop && G.coop.guest) { puppets(dt); return; }

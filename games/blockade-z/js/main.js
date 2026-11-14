@@ -10,6 +10,7 @@
     const G = (window.__G = { THREE, events: BZ.events(), rng: BZ.rng(+(BZ.params.seed || 0) || Date.now()), state: 'boot', score: 0, kills: 0, god: BZ.params.god === '1', noLock: BZ.params.nolock === '1' || BZ.isTouch });
     G.settings = BZ.store.load();
     G.quality = BZ.pickQuality(G.settings.quality);
+    if (BZ.vox && BZ.vox.on) await BZ.vox.load(); // ?vox=1: the voxel prototype's modules (js/vox/)
 
     await step(BZ.t("main.2"), 0.05);
     const canvas = document.getElementById('view');
@@ -54,10 +55,11 @@
     G.sky = BZ.makeSky(G);
     G.coop = BZ.makeCoop(G);
     G.polish = BZ.makePolish(G);
-    G.post = BZ.makePost(G);
+    G.post = (BZ.vox && BZ.vox.on && BZ.vox.makePost || BZ.makePost)(G);
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     G.meta = BZ.makeMeta(G);
+    if (BZ.vox && BZ.vox.on) BZ.vox.make(G);
     { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = BZ.t("main.7") + b.score + BZ.t("main.8") + b.wave; }
     await step(BZ.t("main.9"), 0.8);
     for (let i = 0; i < 6 && G.audio.ready() < 0.5; i++) { G.audio.update(); await new Promise((r) => setTimeout(r, 0)); }
@@ -407,6 +409,7 @@
       G.world.clouds.position.x = (performance.now() / 1000) * 0.6 % 60;
       G.world.update(dt);
       safe('destruct', () => G.destruct.update(gdt));
+      if (G.vox) G.vox.update(gdt, dt);
       safe('sky', () => G.sky.update(gdt, G.state === 'playing'));
       safe('coop', () => G.coop.update(dt));
     }

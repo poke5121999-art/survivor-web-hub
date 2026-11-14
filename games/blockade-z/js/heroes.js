@@ -268,6 +268,7 @@
     textures(h);
     const L = h.look; const C = (c) => BZ.cellTex(c); const id = h.id;
     const part = (name, boxes) => {
+      if (BZ.vox && BZ.vox.on && BZ.vox.heroPart && BZ.vox.hero === id) return BZ.vox.heroPart(id, name, boxes);
       const B = new BZ.Builder('hero:' + id + ':' + name);
       // a box may carry a 4th entry: a brightness (same material, darker or lighter through vertex colour, so no extra draw call) or { k, rect }
       for (const [a, b, m, o] of boxes) { const k = typeof o === 'number' ? o : o && o.k ? o.k : 1; B.box(a, b, m, { uv: 'fit', vary: 0, tint: [k, k, k], rect: o && o.rect }); }
@@ -413,6 +414,7 @@
       }
     }
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    if (BZ.vox && BZ.vox.on && BZ.vox.hero === id) { out.vox = true; out.heroId = id; }
     return out;
   }
 
@@ -594,6 +596,7 @@
     if (dead > 0) { const d = Math.min(1, dead * 3); m.kneeL.rotation.x += (1.5 - m.kneeL.rotation.x) * d; m.kneeR.rotation.x += (1.1 - m.kneeR.rotation.x) * d; m.legL.rotation.x += (-0.9 - m.legL.rotation.x) * d; m.legR.rotation.x += (-0.5 - m.legR.rotation.x) * d; m.hips.position.y -= 0.3 * d; }
     castAnim(m, s, dt);
     heroExtras(m, s, dt);
+    if (m.vox && BZ.vox.animHero) BZ.vox.animHero(m, s, dt);
   };
   // where each kind of weapon comes from when it is drawn: r / l = the arm pose at the source [shoulder x, shoulder z, elbow x],
   // at = the share of the draw spent reaching for it, tw / ln = a twist and a lean through it, spin = turns the weapon makes coming out
