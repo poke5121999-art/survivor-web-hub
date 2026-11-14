@@ -7,83 +7,83 @@
 
   // s1 / s2: cd = seconds to recharge one charge, dur = how long an active effect lasts; ult.cost = damage to charge it
   const HEROES = [
-    { id: 'gio', name: 'Gió', role: 'Lướt nhanh', color: 0x56c8ff, hp: 100, speed: 1.12,
-      passive: 'Chạy nhanh hơn 12%.',
-      s1: { key: 'dash', name: 'Lướt', cd: 2.6, charges: 3, desc: 'Lướt 6 m theo hướng đang đi, không mất máu khi lướt, chém mọi zombie trên đường.' },
-      s2: { key: 'gust', name: 'Lốc xoáy', cd: 9, desc: 'Thả một cơn lốc lăn về phía trước 13 m, hất tung và quật ngã zombie trên đường.' },
-      ult: { key: 'blades', name: 'Trảm Phong', cost: 1600, desc: 'Lao chém liền mạch qua 10 zombie gần nhất trong 20 m, mỗi nhát 160, không ai chạm được bạn.' },
+    { id: 'gio', name: BZ.t("heroes.1"), role: BZ.t("heroes.2"), color: 0x56c8ff, hp: 100, speed: 1.12,
+      passive: BZ.t("heroes.3"),
+      s1: { key: 'dash', name: BZ.t("heroes.4"), cd: 2.6, charges: 3, desc: BZ.t("heroes.5") },
+      s2: { key: 'gust', name: BZ.t("heroes.6"), cd: 9, desc: BZ.t("heroes.7") },
+      ult: { key: 'blades', name: BZ.t("heroes.8"), cost: 1600, desc: BZ.t("heroes.9") },
       look: { skin: 0xe8b58a, hair: 0x2a1a10, eye: 0x1a3050, shirt: 0x2f9ad8, shirt2: 0xe8f4ff, pants: 0x2a3140, boot: 0x1c1c22 } },
-    { id: 'thep', name: 'Thép', role: 'Lá chắn', color: 0xffc040, hp: 150, speed: 0.94,
-      passive: '150 máu. Giáp tự hồi 2 mỗi giây, tới 50.',
-      s1: { key: 'invuln', name: 'Khiên vàng', cd: 22, dur: 5, desc: 'Trong 5 giây không mất máu, khiên vàng hất văng và đốt zombie chạm vào người.' },
-      s2: { key: 'charge', name: 'Húc', cd: 8, desc: 'Lao thẳng 10 m, húc ngã và đẩy dạt mọi zombie trên đường, chịu ít sát thương khi lao.' },
-      ult: { key: 'quake', name: 'Động Đất', cost: 1400, desc: 'Nện đất: zombie trong 12 m ăn tới 340 sát thương, ngã nhào và lạnh cóng.' },
+    { id: 'thep', name: BZ.t("heroes.10"), role: BZ.t("heroes.11"), color: 0xffc040, hp: 150, speed: 0.94,
+      passive: BZ.t("heroes.12"),
+      s1: { key: 'invuln', name: BZ.t("heroes.13"), cd: 22, dur: 5, desc: BZ.t("heroes.14") },
+      s2: { key: 'charge', name: BZ.t("heroes.15"), cd: 8, desc: BZ.t("heroes.16") },
+      ult: { key: 'quake', name: BZ.t("heroes.17"), cost: 1400, desc: BZ.t("heroes.18") },
       look: { skin: 0xc8946a, hair: 0x101010, eye: 0x202020, shirt: 0x6a737e, shirt2: 0xffb030, pants: 0x3a3f46, boot: 0x22252a } },
-    { id: 'yta', name: 'Y Tá', role: 'Hồi máu', color: 0x60e070, hp: 100, speed: 1,
-      passive: 'Không trúng đòn 4 giây thì tự hồi 3 máu mỗi giây. Hồi máu cũng nạp tối thượng.',
-      s1: { key: 'heal', name: 'Hồi máu', cd: 15, desc: 'Hồi 50 máu ngay, thêm 30 máu trong 4 giây, lính thuê trong 10 m hồi đầy máu.' },
-      s2: { key: 'dart', name: 'Phi tiêu độc', cd: 7, desc: 'Phóng ống tiêm vỡ ra đám khí độc 3,5 m trong 4 giây, zombie trong đó trúng độc dồn.' },
-      ult: { key: 'revive', name: 'Hồi Sinh', cost: 1100, desc: 'Cả đội đầy máu, người đã gục đứng dậy ngay; 6 giây sau đó bạn chịu nửa sát thương.' },
+    { id: 'yta', name: BZ.t("heroes.19"), role: BZ.t("build.17"), color: 0x60e070, hp: 100, speed: 1,
+      passive: BZ.t("heroes.20"),
+      s1: { key: 'heal', name: BZ.t("build.17"), cd: 15, desc: BZ.t("heroes.21") },
+      s2: { key: 'dart', name: BZ.t("heroes.22"), cd: 7, desc: BZ.t("heroes.23") },
+      ult: { key: 'revive', name: BZ.t("heroes.24"), cost: 1100, desc: BZ.t("heroes.25") },
       look: { skin: 0xf0c8a0, hair: 0x6a3a1a, eye: 0x3a5a20, shirt: 0xf2f2ee, shirt2: 0xe02a2a, pants: 0x7ab0d8, boot: 0xe8e8e8 } },
-    { id: 'mua', name: 'Mưa Đạn', role: 'Xả đạn', color: 0xff7a30, hp: 100, speed: 1,
-      passive: 'Nạp đạn nhanh hơn 25%.',
-      s1: { key: 'storm', name: 'Bão đạn', cd: 24, dur: 6, desc: 'Trong 6 giây bắn nhanh gấp đôi, không tốn đạn, mỗi phát toả thêm đạn lạc.' },
-      s2: { key: 'cluster', name: 'Lựu đạn chùm', cd: 10, desc: 'Ném lựu đạn nổ rồi văng ra 5 quả con nổ tiếp.' },
-      ult: { key: 'drones', name: 'Mưa Thép', cost: 1800, desc: 'Hai khẩu súng trên vai tự bắn zombie gần nhất trong 7 giây.' },
+    { id: 'mua', name: BZ.t("heroes.26"), role: BZ.t("heroes.27"), color: 0xff7a30, hp: 100, speed: 1,
+      passive: BZ.t("heroes.28"),
+      s1: { key: 'storm', name: BZ.t("heroes.29"), cd: 24, dur: 6, desc: BZ.t("heroes.30") },
+      s2: { key: 'cluster', name: BZ.t("heroes.31"), cd: 10, desc: BZ.t("heroes.32") },
+      ult: { key: 'drones', name: BZ.t("heroes.33"), cost: 1800, desc: BZ.t("heroes.34") },
       look: { skin: 0xd8a070, hair: 0x2a1a10, eye: 0x101010, shirt: 0x222222, shirt2: 0xd8322a, pants: 0x55663c, boot: 0x2a2018 } },
-    { id: 'bong', name: 'Bóng', role: 'Leo tường', color: 0xb070ff, hp: 90, speed: 1.06, wallRun: true, doubleJump: true,
-      passive: 'Chạy trên tường, chạy lên tường, đạp tường bật nhảy, nhảy hai lần.',
-      s1: { key: 'blink', name: 'Bước bóng', cd: 7, desc: 'Dịch chuyển 9 m, để lại một cái bóng nhử zombie trong 3 giây.' },
-      s2: { key: 'shuriken', name: 'Phi tiêu', cd: 5, charges: 2, desc: 'Phóng 3 phi tiêu toả quạt, mỗi chiếc xuyên qua 3 zombie.' },
-      ult: { key: 'vanish', name: 'Ám Sát', cost: 1500, desc: 'Tàng hình 7 giây: zombie mất dấu bạn, chạy nhanh hơn, mỗi đòn gây gấp 2,5 và luôn chí mạng.' },
+    { id: 'bong', name: BZ.t("heroes.35"), role: BZ.t("heroes.36"), color: 0xb070ff, hp: 90, speed: 1.06, wallRun: true, doubleJump: true,
+      passive: BZ.t("heroes.37"),
+      s1: { key: 'blink', name: BZ.t("heroes.38"), cd: 7, desc: BZ.t("heroes.39") },
+      s2: { key: 'shuriken', name: BZ.t("heroes.40"), cd: 5, charges: 2, desc: BZ.t("heroes.41") },
+      ult: { key: 'vanish', name: BZ.t("heroes.42"), cost: 1500, desc: BZ.t("heroes.43") },
       look: { skin: 0xe0b090, hair: 0x14101c, eye: 0xc080ff, shirt: 0x1c1826, shirt2: 0x8a40e0, pants: 0x18141e, boot: 0x0e0c12, mask: 0x8a40e0 } },
-    { id: 'phao', name: 'Pháo Thủ', role: 'Không kích', color: 0xff4a3a, hp: 110, speed: 0.97,
-      passive: 'Tên lửa của Pháo Thủ (không kích, Mưa Pháo, bazooka) và mìn nổ to hơn 25%.',
-      s1: { key: 'strike', name: 'Không kích', cd: 28, desc: 'Đánh dấu chỗ đang ngắm, 1 giây sau 6 quả đạn pháo dội xuống.' },
-      s2: { key: 'mine', name: 'Mìn dính', cd: 6, charges: 2, desc: 'Ném mìn dính xuống đất, nổ khi zombie tới gần 2 m.' },
-      ult: { key: 'barrage', name: 'Mưa Pháo', cost: 1800, desc: '20 quả pháo cày một đường dài 30 m theo hướng bạn nhìn.' },
+    { id: 'phao', name: BZ.t("heroes.44"), role: BZ.t("heroes.45"), color: 0xff4a3a, hp: 110, speed: 0.97,
+      passive: BZ.t("heroes.46"),
+      s1: { key: 'strike', name: BZ.t("heroes.45"), cd: 28, desc: BZ.t("heroes.47") },
+      s2: { key: 'mine', name: BZ.t("heroes.48"), cd: 6, charges: 2, desc: BZ.t("heroes.49") },
+      ult: { key: 'barrage', name: BZ.t("heroes.50"), cost: 1800, desc: BZ.t("heroes.51") },
       look: { skin: 0xd09a70, hair: 0x3a2a1a, eye: 0x202020, shirt: 0x5a6a3a, shirt2: 0xd85a20, pants: 0x4a5532, boot: 0x2a2418, beard: 0x3a2a1a } },
-    { id: 'bang', name: 'Băng', role: 'Đóng băng', color: 0x9ae8ff, hp: 100, speed: 1,
-      passive: 'Đạn và lưỡi kiếm làm zombie chậm 25% trong 1 giây.',
-      s1: { key: 'freeze', name: 'Sóng băng', cd: 18, desc: 'Đóng băng mọi zombie trong 9 m suốt 3,5 giây; chết khi đang đóng băng thì vỡ vụn.' },
-      s2: { key: 'lance', name: 'Mũi băng', cd: 6, desc: 'Phóng mũi băng xuyên 35 m: 170 sát thương và hai lớp lạnh cho mọi zombie trên đường.' },
-      ult: { key: 'blizzard', name: 'Kỷ Băng Hà', cost: 1500, desc: 'Bão tuyết 14 m quanh bạn trong 8 giây: zombie lạnh dần rồi đóng băng.' },
+    { id: 'bang', name: BZ.t("build.31"), role: BZ.t("heroes.52"), color: 0x9ae8ff, hp: 100, speed: 1,
+      passive: BZ.t("heroes.53"),
+      s1: { key: 'freeze', name: BZ.t("heroes.54"), cd: 18, desc: BZ.t("heroes.55") },
+      s2: { key: 'lance', name: BZ.t("heroes.56"), cd: 6, desc: BZ.t("heroes.57") },
+      ult: { key: 'blizzard', name: BZ.t("heroes.58"), cost: 1500, desc: BZ.t("heroes.59") },
       look: { skin: 0xf4dcd0, hair: 0xe8f4ff, eye: 0x40e0ff, shirt: 0x8cc8e8, shirt2: 0xf4f8ff, pants: 0x3a5a7a, boot: 0xe8f0f8 } },
-    { id: 'hoa', name: 'Hoả', role: 'Phóng lửa', color: 0xff6a20, hp: 110, speed: 1,
-      passive: 'Một phần tư số đạn trúng làm zombie bốc cháy. Không bị lửa đốt.',
-      s1: { key: 'molotov', name: 'Bom xăng', cd: 8, desc: 'Ném chai xăng thành vũng lửa 3 m cháy 5 giây.' },
-      s2: { key: 'rocketjump', name: 'Phản lực', cd: 7, desc: 'Nổ dưới chân bắn bạn lên cao, đốt zombie quanh chỗ nổ.' },
-      ult: { key: 'dragon', name: 'Hoả Long', cost: 1600, desc: 'Phun lửa 10 m trước mặt trong 6 giây.' },
+    { id: 'hoa', name: BZ.t("heroes.60"), role: BZ.t("heroes.61"), color: 0xff6a20, hp: 110, speed: 1,
+      passive: BZ.t("heroes.62"),
+      s1: { key: 'molotov', name: BZ.t("heroes.63"), cd: 8, desc: BZ.t("heroes.64") },
+      s2: { key: 'rocketjump', name: BZ.t("heroes.65"), cd: 7, desc: BZ.t("heroes.66") },
+      ult: { key: 'dragon', name: BZ.t("heroes.67"), cost: 1600, desc: BZ.t("heroes.68") },
       look: { skin: 0xd09a70, hair: 0x1a1010, eye: 0xffa020, shirt: 0x3a2a24, shirt2: 0xff6a20, pants: 0x2a2420, boot: 0x1a1410 } },
-    { id: 'sam', name: 'Sấm', role: 'Gọi sét', color: 0x7ab0ff, hp: 100, speed: 1.02,
-      passive: 'Cứ phát trúng thứ năm thì phóng điện, nhảy sang zombie bên cạnh.',
-      s1: { key: 'orb', name: 'Cầu sét', cd: 9, desc: 'Thả quả cầu sét trôi chậm 4 giây, giật mọi zombie trong 4,5 m.' },
-      s2: { key: 'smite', name: 'Lôi phạt', cd: 7, desc: 'Gọi sét đánh xuống chỗ đang ngắm: 125 sát thương trong 3 m.' },
-      ult: { key: 'thunder', name: 'Thiên Lôi', cost: 1700, desc: 'Sáu giây sét giáng liên tục vào zombie trong 25 m quanh bạn.' },
+    { id: 'sam', name: BZ.t("heroes.69"), role: BZ.t("heroes.70"), color: 0x7ab0ff, hp: 100, speed: 1.02,
+      passive: BZ.t("heroes.71"),
+      s1: { key: 'orb', name: BZ.t("heroes.72"), cd: 9, desc: BZ.t("heroes.73") },
+      s2: { key: 'smite', name: BZ.t("heroes.74"), cd: 7, desc: BZ.t("heroes.75") },
+      ult: { key: 'thunder', name: BZ.t("heroes.76"), cost: 1700, desc: BZ.t("heroes.77") },
       look: { skin: 0xe8c0a0, hair: 0xf0f0ff, eye: 0x9ad8ff, shirt: 0x1e2a4a, shirt2: 0xffe040, pants: 0x1a2236, boot: 0x10141e } },
-    { id: 'doc', name: 'Độc', role: 'Gieo dịch', color: 0x8aff40, hp: 100, speed: 1,
-      passive: 'Một phần năm số đạn trúng tẩm độc. Zombie chết khi đang trúng độc thì toả độc ra xung quanh.',
-      s1: { key: 'cloud', name: 'Mây độc', cd: 9, desc: 'Ném bình khí độc thành đám mây 4,5 m trong 6 giây.' },
-      s2: { key: 'drain', name: 'Hút sinh', cd: 10, desc: 'Rút sinh lực mọi zombie trong 14 m: 35 sát thương mỗi con, 70 nếu nó đang trúng độc, hồi máu cho bạn.' },
-      ult: { key: 'plague', name: 'Đại Dịch', cost: 1500, desc: 'Sóng dịch 18 m tẩm 5 lớp độc, 8 giây sau zombie quanh bạn bị lây thêm.' },
+    { id: 'doc', name: BZ.t("build.35"), role: BZ.t("heroes.78"), color: 0x8aff40, hp: 100, speed: 1,
+      passive: BZ.t("heroes.79"),
+      s1: { key: 'cloud', name: BZ.t("heroes.80"), cd: 9, desc: BZ.t("heroes.81") },
+      s2: { key: 'drain', name: BZ.t("heroes.82"), cd: 10, desc: BZ.t("heroes.83") },
+      ult: { key: 'plague', name: BZ.t("heroes.84"), cost: 1500, desc: BZ.t("heroes.85") },
       look: { skin: 0xb8c8a0, hair: 0x2a3a1a, eye: 0x9aff40, shirt: 0x2a3a24, shirt2: 0x8aff40, pants: 0x1e2a1a, boot: 0x141a10, mask: 0x3a4a30 } },
-    { id: 'ky', name: 'Kỹ Sư', role: 'Dựng tháp', color: 0xffb020, hp: 105, speed: 0.98,
-      passive: 'Có sẵn nhánh Kỹ sư cấp 1: đầu mỗi đợt tự dựng một tháp súng cạnh bạn.',
-      s1: { key: 'turret', name: 'Dựng tháp', cd: 14, charges: 2, desc: 'Dựng ngay một tháp súng trước mặt.' },
-      s2: { key: 'repair', name: 'Giáp khẩn', cd: 12, desc: 'Thêm 60 giáp cho bạn, lính thuê quanh 10 m hồi 60 máu.' },
-      ult: { key: 'artillery', name: 'Pháo Đài', cost: 1800, desc: 'Dựng khẩu pháo lớn bắn tên lửa vào zombie gần nhất trong 14 giây.' },
+    { id: 'ky', name: BZ.t("heroes.86"), role: BZ.t("heroes.87"), color: 0xffb020, hp: 105, speed: 0.98,
+      passive: BZ.t("heroes.88"),
+      s1: { key: 'turret', name: BZ.t("heroes.87"), cd: 14, charges: 2, desc: BZ.t("heroes.89") },
+      s2: { key: 'repair', name: BZ.t("heroes.90"), cd: 12, desc: BZ.t("heroes.91") },
+      ult: { key: 'artillery', name: BZ.t("heroes.92"), cost: 1800, desc: BZ.t("heroes.93") },
       look: { skin: 0xd8a070, hair: 0x4a2a1a, eye: 0x202020, shirt: 0xd88a20, shirt2: 0x3a3a3a, pants: 0x5a4a32, boot: 0x2a2018 } },
-    { id: 'soi', name: 'Sói', role: 'Hoá sói', color: 0xd08a40, hp: 110, speed: 1.08,
-      passive: 'Mỗi con zombie hạ được hồi 4 máu. Chạy nhanh hơn 8%.',
-      s1: { key: 'lunge', name: 'Vồ cắn', cd: 7, desc: 'Vồ 8 m tới chỗ tâm ngắm (ngửa lên thì vồ lên cao), đáp xuống cắn 90 sát thương kèm chảy máu, hồi 15 máu.' },
-      s2: { key: 'howl', name: 'Tru gọi bầy', cd: 14, desc: 'Tru một tiếng: zombie trong 10 m hoảng sợ bỏ chạy 2,5 giây, ba con sói hồn lao ra cắn xé trong 8 giây.' },
-      ult: { key: 'werewolf', name: 'Hoá Sói', cost: 1600, desc: 'Hoá người sói 12 giây: vuốt cào hai nhát chém lan 70, chạy nhanh hơn 35%, nhảy cao hơn, chịu ít hơn 40% sát thương, hút 15% máu; Vồ cắn hồi rất nhanh.' },
+    { id: 'soi', name: BZ.t("heroes.94"), role: BZ.t("heroes.95"), color: 0xd08a40, hp: 110, speed: 1.08,
+      passive: BZ.t("heroes.96"),
+      s1: { key: 'lunge', name: BZ.t("heroes.97"), cd: 7, desc: BZ.t("heroes.98") },
+      s2: { key: 'howl', name: BZ.t("heroes.99"), cd: 14, desc: BZ.t("heroes.100") },
+      ult: { key: 'werewolf', name: BZ.t("heroes.101"), cost: 1600, desc: BZ.t("heroes.102") },
       look: { skin: 0xd0a07a, hair: 0x5a4632, eye: 0xffb030, shirt: 0x5a3e26, shirt2: 0x9a948a, pants: 0x3e3226, boot: 0x2a1e14, beard: 0x5a4632 } },
-    { id: 'nhen', name: 'Nhện Đồng', role: 'Đu tơ', color: 0xe0a048, hp: 100, speed: 1.04, wallRun: true, doubleJump: true,
-      passive: 'Chạy trên tường, chạy lên tường, đạp tường bật nhảy, nhảy hai lần.',
-      s1: { key: 'swing', name: 'Đu tơ', cd: 5, charges: 2, desc: 'Bắn sợi tơ tới chỗ tâm ngắm chạm (tường, mái, đất) trong 30 m rồi đu theo cung tới đó; ngắm mép mái thì đu lên mái. Đáp xuống đá văng zombie quanh chân 90 sát thương kèm một lớp tơ.' },
-      s2: { key: 'yank', name: 'Kéo tơ', cd: 7, desc: 'Bắn tơ dính zombie dưới tâm ngắm, giật nó về trước mặt rồi trói nó cùng tối đa 2 con cạnh bên 2 giây.' },
-      ult: { key: 'webnet', name: 'Lưới Tơ Khổng Lồ', cost: 1300, desc: 'Tung tấm lưới rộng 12 m về phía trước: trói mọi zombie dưới lưới 3 giây, rồi tơ siết lại và nổ 300 sát thương.' },
+    { id: 'nhen', name: BZ.t("heroes.103"), role: BZ.t("heroes.104"), color: 0xe0a048, hp: 100, speed: 1.04, wallRun: true, doubleJump: true,
+      passive: BZ.t("heroes.37"),
+      s1: { key: 'swing', name: BZ.t("heroes.104"), cd: 5, charges: 2, desc: BZ.t("heroes.105") },
+      s2: { key: 'yank', name: BZ.t("heroes.106"), cd: 7, desc: BZ.t("heroes.107") },
+      ult: { key: 'webnet', name: BZ.t("heroes.108"), cost: 1300, desc: BZ.t("heroes.109") },
       look: { skin: 0xc89a78, hair: 0x16161c, eye: 0xffb040, shirt: 0x1c1c22, shirt2: 0xc8863a, pants: 0x18181e, boot: 0x101014 } },
   ];
   // each hero fights with one weapon, the whole run
@@ -983,7 +983,7 @@
         fx(a) {
           const at = v3(a.p); G.fx.pop(at, 0.6, [0x60e070, 0xc0ffc0]); G.fx.burst(at, 10, [0x60e070, 0xffffff], { speed: 2, size: 0.07, life: 0.6, grav: -2 });
           if (a.to !== me()) return; const p = P(); const before = p.hp; p.hp = Math.min(p.maxHp, p.hp + (a.n || 10));
-          if (p.hp > before) { G.ui.pop('+' + Math.round(p.hp - before) + ' máu', 'heal'); G.audio.play('pickup', { gain: 0.4, rate: 1.6 }); }
+          if (p.hp > before) { G.ui.pop('+' + Math.round(p.hp - before) + BZ.t("heroes.110"), 'heal'); G.audio.play('pickup', { gain: 0.4, rate: 1.6 }); }
         },
       },
       heal: {
@@ -993,7 +993,7 @@
           ring3(w.pos, 3.2, 0xffffff, 0x60e070, 0.7); for (let i = 0; i < 8; i++) G.fx.puff(V().set(w.pos.x + Math.cos(i) * 0.5, w.pos.y + 0.2 + i * 0.3, w.pos.z + Math.sin(i) * 0.5), { glow: true, vel: V().set(0, 2.2, 0), s0: 0.4, s1: 0.1, life: 1, c0: 0xffffff, c1: 0x60e070, a0: 1, spin: 0, delay: i * 0.05 });
           if (!mine(a)) return;
           const p = P(); const before = p.hp; p.hp = Math.min(p.maxHp, p.hp + 50); H.t.heal = 4; chargeHeal(p.hp - before + 30);
-          G.audio.play('pickup', { gain: 0.9, rate: 1.2 }); G.ui.pop('+50 máu', 'heal'); overlay('green', 0.9);
+          G.audio.play('pickup', { gain: 0.9, rate: 1.2 }); G.ui.pop(BZ.t("heroes.111"), 'heal'); overlay('green', 0.9);
         },
         host(a) { const w = who(a.by); if (!w) return; for (const al of G.allies.list) if (al.alive && Math.hypot(al.pos.x - w.pos.x, al.pos.z - w.pos.z) < 10) { al.hp = BZ.ALLY.hp; G.fx.burst(V().set(al.pos.x, 1.2, al.pos.z), 10, [0x60e070, 0xc0ffc0], { speed: 2, size: 0.1, life: 1, grav: -3 }); } },
       },
@@ -1007,7 +1007,7 @@
           ring3(w.pos, 15, 0xc0ffc0, 0x60e070, 0.8);
           for (let i = 0; i < 30; i++) G.fx.puff(V().set(w.pos.x + G.rng.range(-1, 1), w.pos.y + i * 0.25, w.pos.z + G.rng.range(-1, 1)), { glow: true, vel: V().set(0, 3, 0), s0: 0.5, s1: 0.1, life: 0.9, c0: 0xe0ffe0, c1: 0x60e070, a0: 1 });
           G.audio.play('pickup', { gain: 1, rate: 0.7 }); G.audio.play('wave_clear', { gain: 0.6, rate: 1.2 });
-          const p = P(); if (!p.alive) { p.alive = true; G.ui.banner('HỒI SINH', 'đồng đội kéo bạn dậy', 1.6); }
+          const p = P(); if (!p.alive) { p.alive = true; G.ui.banner(BZ.t("heroes.112"), BZ.t("heroes.113"), 1.6); }
           const before = p.hp; p.hp = p.maxHp; overlay('green', 1.2);
           if (mine(a)) { H.t.revive = 6; chargeHeal(p.maxHp - before); }
         },
@@ -1128,7 +1128,7 @@
           const w = who(a.by); if (!w) return; const p = w.pos;
           for (let i = 0; i < 40; i++) { const ang = (i / 40) * Math.PI * 2; G.fx.burst(V().set(p.x + Math.cos(ang) * 1.2, p.y + 0.4, p.z + Math.sin(ang) * 1.2), 1, [0xbfefff, 0x60d8ff, 0xffffff], { dir: V().set(Math.cos(ang), 0.15, Math.sin(ang)), push: 12, speed: 1, size: 0.14, life: 0.8, grav: 2, drag: 1.2, bounce: 0 }); }
           G.audio.playAt('saber_hit', p, { gain: 1, rate: 1.8 }); G.audio.playAt('clank', p, { gain: 0.8, rate: 1.6 });
-          if (mine(a)) { overlay('blue', 0.6); const n = G.zombies.list.filter((z) => z.alive && Math.hypot(z.pos.x - p.x, z.pos.z - p.z) < 9).length; G.ui.pop(n ? `đóng băng ${n}` : 'không có zombie gần', 'heal'); }
+          if (mine(a)) { overlay('blue', 0.6); const n = G.zombies.list.filter((z) => z.alive && Math.hypot(z.pos.x - p.x, z.pos.z - p.z) < 9).length; G.ui.pop(n ? BZ.t("heroes.114", [n]) : BZ.t("heroes.115"), 'heal'); }
         },
         host(a) { const w = who(a.by); if (w) freezeAt(w.pos); },
       },
@@ -1224,7 +1224,7 @@
           const w = who(a.by); if (!w) return; const me3 = V().set(w.pos.x, w.pos.y + 1.2, w.pos.z); let n = 0;
           for (const z of near(w.pos, 14, 6)) { const pz = poisoned(z); n += pz ? 1 : 0.5; G.fx.arc(V().set(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z), me3, 0x9aff40); if (mine(a)) hit(z, pz ? 70 : 35, V().set(z.pos.x - w.pos.x, 0, z.pos.z - w.pos.z).normalize(), { imp: 0.6 }); }
           G.audio.playAt('saber_hit', me3, { gain: 0.7, rate: 0.7 });
-          if (mine(a)) { const p = P(); const amt = Math.min(45, Math.round(n * 7)); p.hp = Math.min(p.maxHp, p.hp + amt); G.ui.pop('+' + amt + ' máu', 'heal'); overlay('green', 0.5); }
+          if (mine(a)) { const p = P(); const amt = Math.min(45, Math.round(n * 7)); p.hp = Math.min(p.maxHp, p.hp + amt); G.ui.pop('+' + amt + BZ.t("heroes.110"), 'heal'); overlay('green', 0.5); }
         },
       },
       plague: { fx(a) {
@@ -1257,7 +1257,7 @@
           const w = who(a.by); if (!w) return; ring3(w.pos, 10, 0x9ad8ff, 0x3a7ad8, 0.5);
           G.fx.burst(V().set(w.pos.x, w.pos.y + 1, w.pos.z), 24, [0x9ad8ff, 0xffffff, 0xffb020], { speed: 3, size: 0.08, life: 0.8, grav: -2 });
           G.audio.play('buy', { gain: 0.7, rate: 0.8 });
-          if (mine(a)) { const p = P(); p.armor = Math.min(100, p.armor + 60); G.ui.pop('+60 giáp', 'heal'); }
+          if (mine(a)) { const p = P(); p.armor = Math.min(100, p.armor + 60); G.ui.pop(BZ.t("heroes.116"), 'heal'); }
         },
         host(a) { const w = who(a.by); if (!w) return; for (const al of G.allies.list) if (al.alive && Math.hypot(al.pos.x - w.pos.x, al.pos.z - w.pos.z) < 10) al.hp = Math.min(BZ.ALLY.hp, al.hp + 60); },
       },
@@ -1385,7 +1385,7 @@
       },
     };
     // ---------- Sói ----------
-    function healMe(n) { const p = P(); if (!p.alive || !(n > 0)) return; const b = p.hp; p.hp = Math.min(p.maxHp, p.hp + n); if (p.hp - b >= 5) G.ui.pop('+' + Math.round(p.hp - b) + ' máu', 'heal'); }
+    function healMe(n) { const p = P(); if (!p.alive || !(n > 0)) return; const b = p.hp; p.hp = Math.min(p.maxHp, p.hp + n); if (p.hp - b >= 5) G.ui.pop('+' + Math.round(p.hp - b) + BZ.t("heroes.110"), 'heal'); }
     function biteFx(at, w) {
       const c = V().set(at.x, at.y + 0.9, at.z);
       G.fx.burst(c, 26, [0xc0281e, 0x8a1410, 0xe8e0c8], { speed: 5, size: 0.1, life: 0.8 });
@@ -1651,7 +1651,7 @@
     function overlay(kind, secs) { if (!fxEl) return; fxEl.className = 'on ' + kind; fxT = secs; }
 
     // the ultimate fills from damage dealt (and healing for Y Tá), a little on its own, faster with the Tối thượng upgrade
-    function chargeDmg(d) { if ((H.t.ultOn || 0) > 0 || H.ult >= 1) return; const was = H.ult; H.ult = Math.min(1, H.ult + d / H.def.ult.cost * G.build.ultMul()); if (was < 1 && H.ult >= 1) { G.ui.banner('TỐI THƯỢNG SẴN SÀNG', H.def.ult.name + ' · bấm Q', 1.6); G.audio.play('marker', { gain: 0.8, rate: 1.3 }); } }
+    function chargeDmg(d) { if ((H.t.ultOn || 0) > 0 || H.ult >= 1) return; const was = H.ult; H.ult = Math.min(1, H.ult + d / H.def.ult.cost * G.build.ultMul()); if (was < 1 && H.ult >= 1) { G.ui.banner(BZ.t("heroes.117"), H.def.ult.name + BZ.t("heroes.118"), 1.6); G.audio.play('marker', { gain: 0.8, rate: 1.3 }); } }
     function chargeHeal(n) { if (H.def.id === 'yta') chargeDmg(n * 2); }
     G.events.on('hit', ({ dmg }) => chargeDmg(dmg || 0));
     G.events.on('hit', ({ dmg, melee }) => { if (H.wolfOn && melee) healMe((dmg || 0) * 0.15); });

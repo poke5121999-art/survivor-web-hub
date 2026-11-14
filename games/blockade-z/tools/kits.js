@@ -21,7 +21,7 @@ const SHOTS = { gust: 0.4, quake: 0.15, drones: 1, blizzard: 2, dragon: 1.2, thu
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?fp=1&select=1&nolock=1&seed=9&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&fp=1&select=1&nolock=1&seed=9&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = await page.evaluate('BZ.HEROES.map((h) => [h.id, h.s1.key, h.s2.key, h.ult.key])');
     check(heroes.length === 13, `thirteen heroes to pick (${heroes.length})`);

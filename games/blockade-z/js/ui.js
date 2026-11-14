@@ -77,14 +77,14 @@
     el.select = $('#select'); el.coop = $('#coop');
     // ---- co-op menu ----
     const coopName = $('#coop-name'); const coopList = $('#coop-list'); const coopStat = $('#coop-status'); const coopCode = $('#coop-code');
-    coopName.addEventListener('change', () => { G.settings.coopName = coopName.value.trim().slice(0, 16) || 'Người chơi'; BZ.store.save(G.settings); });
+    coopName.addEventListener('change', () => { G.settings.coopName = coopName.value.trim().slice(0, 16) || BZ.t("coop.1"); BZ.store.save(G.settings); });
     function coopStatus(t) { coopStat.textContent = t; }
     async function coopRender() {
-      coopName.value = G.settings.coopName || ''; coopList.innerHTML = '<p class="muted">Đang tìm phòng…</p>';
+      coopName.value = G.settings.coopName || ''; coopList.innerHTML = BZ.t("ui.1");
       try {
         const rooms = await G.coop.listRooms();
-        coopList.innerHTML = rooms.length ? rooms.map((r) => `<button class="item" data-room="${r.id}"><b>${r.host}</b><small>${r.players}/${r.max} người · đợt ${r.wave}${r.region ? ' · ' + r.region : ''}</small><span>VÀO</span></button>`).join('') : '<p class="muted">Chưa có phòng nào mở. Tạo phòng rồi gửi mã cho bạn.</p>';
-      } catch (e) { coopList.innerHTML = '<p class="muted">Không lấy được danh sách phòng: ' + (e.message || e) + '</p>'; }
+        coopList.innerHTML = rooms.length ? rooms.map((r) => BZ.t("ui.2", [r.id, r.host, r.players, r.max, r.wave, r.region ? ' · ' + r.region : ''])).join('') : BZ.t("ui.3");
+      } catch (e) { coopList.innerHTML = BZ.t("ui.4") + (e.message || e) + '</p>'; }
     }
     coopList.addEventListener('click', (e) => { const b = e.target.closest('[data-room]'); if (b) G.events.emit('ui:coopjoin', { lobbyId: b.dataset.room === 'FAKE' ? null : b.dataset.room, code: 'FAKE' }); });
     $('#coop-join').addEventListener('click', () => { const c = coopCode.value.trim(); if (c) G.events.emit('ui:coopjoin', { code: c }); });
@@ -100,7 +100,7 @@
       $('#sel-name').textContent = h.name; $('#sel-role').textContent = h.role;
       $('#sel-hp').style.width = Math.min(100, h.hp / 1.5) + '%'; $('#sel-hpn').textContent = h.hp;
       $('#sel-spd').style.width = Math.round((h.speed || 1) * 80) + '%'; $('#sel-spdn').textContent = Math.round((h.speed || 1) * 100) + '%';
-      for (const k of ['s1', 's2']) { const s = h[k]; $('#sel-' + k).textContent = s.name + (s.charges ? ` · ${s.charges} lượt, hồi ${s.cd} giây` : ` · hồi ${s.cd} giây`); $('#sel-' + k + 'd').textContent = s.desc; }
+      for (const k of ['s1', 's2']) { const s = h[k]; $('#sel-' + k).textContent = s.name + (s.charges ? BZ.t("ui.5", [s.charges, s.cd]) : BZ.t("ui.6", [s.cd])); $('#sel-' + k + 'd').textContent = s.desc; }
       $('#sel-kit').textContent = G.weapons.WEAPONS[h.weapon].name;
       $('#sel-ult').textContent = h.ult.name; $('#sel-ultd').textContent = h.ult.desc; $('#sel-passive').textContent = h.passive;
       selRow.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
@@ -115,12 +115,12 @@
     const CAT = Object.fromEntries(G.build.CATS);
     function pickRender(ids, n) {
       const B = G.build;
-      el.pickHead.innerHTML = `<small>HẾT ĐỢT ${n}</small><b>Chọn 1 nâng cấp</b>`;
+      el.pickHead.innerHTML = BZ.t("ui.7", [n]);
       el.pickList.innerHTML = ids.map((id, k) => {
         const u = B.def(id); const l = B.lv(id); const un = B.unlocks(id);
         return `<button class="up" data-cat="${u.cat}" data-pick="${id}" style="--d:${k * 90}ms"><kbd>${k + 1}</kbd><i>${u.icon}</i><span class="cat">${CAT[u.cat]}</span><b>${u.name}</b>
           <em>${'<u class="on"></u>'.repeat(l)}<u class="nw"></u>${'<u></u>'.repeat(u.max - l - 1)}</em>
-          <small>${l ? u.d(l) + '<br>' : ''}<span class="nx">▶ ${u.d(l + 1)}</span></small>${un.length ? `<p class="unl">✦ mở cộng hưởng ${un.map((r) => r.name).join(', ')}</p>` : ''}</button>`;
+          <small>${l ? u.d(l) + '<br>' : ''}<span class="nx">▶ ${u.d(l + 1)}</span></small>${un.length ? BZ.t("ui.8", [un.map((r) => r.name).join(', ')]) : ''}</button>`;
       }).join('');
       const own = B.UP.filter((u) => B.lv(u.id)).map((u) => `<span>${u.icon} ${u.name} ${B.lv(u.id)}</span>`).join('');
       const res = B.RES.filter((r) => B.has(r.id)).map((r) => `<span class="on">✦ ${r.name}</span>`).join('');
@@ -128,7 +128,7 @@
       el.pickWaitEl.textContent = ''; el.pick.classList.remove('done');
     }
     function pickWait() { el.pick.classList.add('done'); pickTick(); }
-    function pickTick() { if (!el.pick.classList.contains('done')) return; const w = G.wave.waiting(); const t = w ? `Đang chờ ${w} người chọn…` : 'Vào đợt sau…'; if (el.pickWaitEl.textContent !== t) el.pickWaitEl.textContent = t; }
+    function pickTick() { if (!el.pick.classList.contains('done')) return; const w = G.wave.waiting(); const t = w ? BZ.t("ui.9", [w]) : BZ.t("ui.10"); if (el.pickWaitEl.textContent !== t) el.pickWaitEl.textContent = t; }
     el.pickList.addEventListener('click', (e) => { const b = e.target.closest('[data-pick]'); if (b && !el.pick.classList.contains('done')) { b.classList.add('chosen'); G.events.emit('pick', b.dataset.pick); } });
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act],[data-buy]');
@@ -182,20 +182,20 @@
       // a door within reach: say which key works it (a button on a phone)
       { const D = G.state === 'playing' && P.alive && G.destruct ? G.destruct.nearDoor() : null; const want = D ? (D.state ? 'open' : 'shut') : '';
         if (doorSeen !== want) { doorSeen = want; if (!promptEl) { promptEl = document.createElement('div'); promptEl.id = 'prompt'; el.hud.appendChild(promptEl); promptEl.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); G.destruct.useDoor(); }, { passive: false }); promptEl.addEventListener('click', () => G.destruct.useDoor()); }
-          promptEl.classList.toggle('on', !!want); if (want) promptEl.innerHTML = (BZ.isTouch ? '<b>CHẠM</b> ' : '<kbd>E</kbd>') + (want === 'open' ? 'Mở cửa' : 'Đóng cửa'); } }
+          promptEl.classList.toggle('on', !!want); if (want) promptEl.innerHTML = (BZ.isTouch ? BZ.t("ui.11") : '<kbd>E</kbd>') + (want === 'open' ? BZ.t("ui.12") : BZ.t("ui.13")); } }
       // first person: the jetpack's fire and smoke lick up from the bottom edge while it burns
       const jf = jetEl || (jetEl = $('#jetfx')); if (jf) { const on = P.jetting && !(G.tps && G.tps.on); if (jf.classList.contains('on') !== on) jf.classList.toggle('on', on); if (on) jf.classList.toggle('low', P.fuel < 22); }
       el.fuel.style.width = P.fuel + '%'; el.fuel.parentElement.classList.toggle('on', P.hasJet && (P.fuel < 99.5 || P.jetting));
       el.ammo.textContent = w.melee ? '⚔' : a.mag; el.reserve.textContent = w.melee ? '' : a.reserve === Infinity ? '∞' : a.reserve;
       el.ammo.classList.toggle('low', !w.melee && a.mag <= Math.ceil(w.mag / 4));
-      el.wname.textContent = w.name + (W.S.phase === 'reload' ? ' · đang nạp' : '');
+      el.wname.textContent = w.name + (W.S.phase === 'reload' ? BZ.t("ui.14") : '');
       el.reloadHint.classList.toggle('on', a.mag === 0 && a.reserve > 0 && W.S.phase !== 'reload');
       slotEls.forEach((s, i) => {
         const id = W.S.inv[i]; const img = s.querySelector('img');
         if (s.dataset.id !== (id || '')) { s.dataset.id = id || ''; img.src = id ? icon(id) : ''; img.style.visibility = id ? 'visible' : 'hidden'; }
         s.className = (id ? 'own' : '') + (id && W.cur() === id ? ' cur' : '');
         const st = id && W.state[id];
-        s.lastChild.textContent = !id ? 'trống' : W.WEAPONS[id].melee ? W.WEAPONS[id].name : st.mag + '/' + (st.reserve === Infinity ? '∞' : st.reserve);
+        s.lastChild.textContent = !id ? BZ.t("ui.15") : W.WEAPONS[id].melee ? W.WEAPONS[id].name : st.mag + '/' + (st.reserve === Infinity ? '∞' : st.reserve);
       });
       const Hh = G.hero; const hd = Hh.def;
       if (skillFor !== hd) {
@@ -209,11 +209,11 @@
       const u = Hh.ult; ultEl.style.setProperty('--u', u); ultEl.classList.toggle('ready', u >= 1); ultEl.classList.toggle('active', (Hh.t.ultOn || 0) > 0);
       const ub = ultEl.querySelector('b'); const ut = (Hh.t.ultOn || 0) > 0 ? '●' : u >= 1 ? (BZ.isTouch ? '★' : 'Q') : Math.floor(u * 100) + '%'; if (ub.textContent !== ut) ub.textContent = ut;
       const envEl = document.getElementById('env'); const wid = G.sky.weather(); const wname = BZ.WEATHERS[wid].name;
-      const envTxt = (G.env.night ? '🌙 Đêm' : '☀ Ngày') + (wid !== 'clear' ? ' · ' + wname : '');
+      const envTxt = (G.env.night ? BZ.t("ui.16") : BZ.t("ui.17")) + (wid !== 'clear' ? ' · ' + wname : '');
       if (envEl.textContent !== envTxt) { envEl.textContent = envTxt; envEl.classList.toggle('hot', wid === 'bloodmoon' || wid === 'storm'); }
-      const cb = G.coop && G.coop.on ? `PHÒNG ${G.coop.code} · ${G.coop.players()} người${G.coop.host ? ' · bạn là chủ phòng' : ''}` : '';
+      const cb = G.coop && G.coop.on ? BZ.t("ui.19", [G.coop.code, G.coop.players(), G.coop.host ? BZ.t("ui.18") : '']) : '';
       if (coopBar.textContent !== cb) { coopBar.textContent = cb; coopBar.classList.toggle('on', !!cb); }
-      el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? 'nghỉ' : `còn ${G.wave.remaining()} zombie`;
+      el.wave.textContent = G.wave.n; el.left.textContent = G.wave.phase === 'break' ? BZ.t("ui.20") : BZ.t("ui.21", [G.wave.remaining()]);
       el.score.textContent = G.score;
       const boss = G.zombies.boss(); el.boss.classList.toggle('on', !!boss);
       if (boss) { const bw = Math.max(0, boss.hp / boss.maxHp) * 100 + '%'; if (el.bossName.textContent !== boss.T.name) el.bossName.textContent = boss.T.name; el.bossFill.style.width = bw; if (el.bossTrail) el.bossTrail.style.width = bw; }
@@ -240,7 +240,7 @@
     }
     function setDead(s) {
       countUp($('#dead-wave'), s.wave, 500, 1100); countUp($('#dead-kills'), s.kills, 800, 1250); countUp($('#dead-score'), s.score, 1100, 1400);
-      $('#dead-acc').textContent = s.acc + '%'; $('#dead-best').textContent = s.best.score + ' (đợt ' + s.best.wave + ')';
+      $('#dead-acc').textContent = s.acc + '%'; $('#dead-best').textContent = s.best.score + BZ.t("ui.22") + s.best.wave + ')';
       $('#dead-record').style.display = s.record ? 'block' : 'none';
     }
     function settingsSync() {

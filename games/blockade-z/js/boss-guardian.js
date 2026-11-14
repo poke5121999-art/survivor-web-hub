@@ -172,7 +172,7 @@
 
   const moves = {
     slam: {
-      dur: 1.9, cd: 5, say: 'ĐẬP ĐÔI',
+      dur: 1.9, cd: 5, say: BZ.t("boss-guardian.1"),
       when: (z, P, d) => d < 26,
       start(z, S, P, C) {
         const f = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z).normalize(); const r = C.V().set(f.z, 0, -f.x);
@@ -190,7 +190,7 @@
       tick(z, dt, P, S, C) { hold(z, dt, C); if (S.t < 0.7) toward(z, P, dt, 3, C); },
     },
     eyebeam: {
-      dur: 3.0, cd: 6, say: 'TIA MẮT CỔ',
+      dur: 3.0, cd: 6, say: BZ.t("boss-guardian.2"),
       when: (z, P, d) => d < 38,
       start(z, S, P, C) {
         // the eye sits high on a body this tall, so aim through a player's chest and carry on to the ground,
@@ -212,7 +212,7 @@
       },
     },
     rockrain: {
-      dur: 2.5, cd: 8, say: 'MƯA ĐÁ',
+      dur: 2.5, cd: 8, say: BZ.t("boss-guardian.3"),
       start(z, S, P, C) {
         C.G.audio.playAt('roar', z.pos, { gain: 1.0, rate: 0.6 });
         const n = C.rage(z) ? 7 : 5;
@@ -228,7 +228,7 @@
       tick(z, dt, P, S, C) { hold(z, dt, C); toward(z, P, dt, 2, C); },
     },
     spikes: {
-      dur: 2.2, cd: 7, say: 'GAI ĐÁ',
+      dur: 2.2, cd: 7, say: BZ.t("boss-guardian.4"),
       when: (z, P, d) => d < 32,
       start(z, S, P, C) {
         const dir = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); const dist = dir.length(); dir.normalize();
@@ -251,7 +251,7 @@
       tick(z, dt, P, S, C) { hold(z, dt, C); if (S.t < 0.6) toward(z, P, dt, 5, C); },
     },
     overcharge: {
-      dur: 2.6, cd: 9, say: 'TRÀN RUNE',
+      dur: 2.6, cd: 9, say: BZ.t("boss-guardian.5"),
       when: (z, P, d) => d < 20,
       start(z, S, P, C) {
         const at = flat(C, z.pos.x, z.pos.z);
@@ -276,7 +276,7 @@
       tick(z, dt, P, S, C) { hold(z, dt, C); toward(z, P, dt, 1.5, C); },
     },
     charge: {
-      dur: 2.8, cd: 8, say: 'XUNG KÍCH',
+      dur: 2.8, cd: 8, say: BZ.t("boss-guardian.6"),
       when: (z, P, d) => d > 6 && d < 36,
       start(z, S, P, C) {
         const dir = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); const dist = dir.length(); dir.normalize();
@@ -301,7 +301,7 @@
   };
 
   BZ.bossKit('guardian', {
-    type: { hp: 6400, speed: 3.6, dmg: 34, rate: 2, windup: 0.6, scale: 3.4, skin: 'gd_stone', face: 'gd_face', shirt: ['gd_dark'], pants: ['gd_legs'], score: 6500, eye: CY, name: 'HỘ VỆ CỔ ĐẠI' },
+    type: { hp: 6400, speed: 3.6, dmg: 34, rate: 2, windup: 0.6, scale: 3.4, skin: 'gd_stone', face: 'gd_face', shirt: ['gd_dark'], pants: ['gd_legs'], score: 6500, eye: CY, name: BZ.t("boss-guardian.7") },
     colors: [CY, STONE, PALE],
     rig,
     hits: [['head', 'head', 0.3, 0], ['body', 'chest', 0.75, 0], ['body', 'torso', 0.55, 0], ['body', 'footL', 0.5, 0.2]],

@@ -19,7 +19,7 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=5&noaudio=1&tod=0.42&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=5&noaudio=1&tod=0.42&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const stage = `(() => { const G = __G; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear(); __setShot('plaza'); const P = G.player; P.pos.set(0, 0, 9); P.yaw = 0; P.pitch = -0.12; P.vel.set(0, 0, 0); })()`;
     const hideHud = "for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }";
@@ -126,7 +126,7 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
       // (the sampling must not depend on how one wave happens to go: the game is kept in play, the street is swept as soon as a dozen are out so the wave keeps spawning, and the wave is replayed up to twelve times)
       let iters = 0; for (let i = 0; i < 3000; i++) { iters = i; if (G.state !== 'playing') G.state = 'playing'; __sim(0.2); for (const z of G.zombies.list) if (z.alive) { seen.add(z.type); if (z.elite) elites++; } if (G.zombies.aliveCount() > 12) G.zombies.clear();
         if (SP.filter((t) => seen.has(t)).length >= 6 && elites > 0) break;
-        if (G.wave.phase !== 'fight' || (G.wave.toSpawn === 0 && G.zombies.aliveCount() === 0)) { if (waves >= 12) break; waves++; G.zombies.clear(); G.state = 'playing'; G.startWave(REPLAY_WAVE); G.wave.bossAt = -1; } }
+        /* once the wave has put out everything it has, it is over for this sampling: the few left standing (out of reach of a player who cannot be hurt) used to hold it open for the rest of the 3000 steps */ if (G.wave.phase !== 'fight' || G.wave.toSpawn === 0) { if (waves >= 12) break; waves++; G.zombies.clear(); G.state = 'playing'; G.startWave(REPLAY_WAVE); G.wave.bossAt = -1; } }
       return { wave: G.wave.n, types: [...seen], elites, waves, iters, end: G.state + '/' + G.wave.phase + '/' + G.wave.toSpawn }; })()`.replace('G.wave.n + 1', '9').replace('REPLAY_WAVE', '9'));
     console.log('late', JSON.stringify(late));
     check(late.types.filter((t) => ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker', 'burner', 'frost', 'spider'].includes(t)).length >= 6, `wave ${late.wave} brings at least six special kinds through the gates (${late.types.join(', ')}; ${late.waves} run${late.waves > 1 ? 's' : ''} of the wave)`);

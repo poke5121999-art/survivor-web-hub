@@ -19,7 +19,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const shot = async (name) => { await page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }"); await page.waitForTimeout(200); await page.screenshot({ path: path.join(OUT, `tps-${name}.png`) }); };
     const base = `const G = __G; G.state = 'playing'; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear(); const P = G.player;`;

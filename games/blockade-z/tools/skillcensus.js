@@ -18,7 +18,7 @@ const SUPPORT = ['heal', 'invuln', 'vanish', 'revive', 'repair', 'blink'];
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'sk@test' })); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=13&noaudio=1&q=low&weather=clear&tod=0.45');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=13&noaudio=1&q=low&weather=clear&tod=0.45');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = process.env.HEROES ? process.env.HEROES.split(',') : await page.evaluate('BZ.HEROES.map((h) => h.id)');
     for (const id of heroes) for (const slot of ['s1', 's2', 'ult']) {

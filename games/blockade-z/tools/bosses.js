@@ -19,7 +19,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=7&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=7&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const ids = process.env.BOSSES ? process.env.BOSSES.split(',') : await page.evaluate('Object.keys(BZ.BOSS_KITS)');
     console.log('bosses', ids.join(','));

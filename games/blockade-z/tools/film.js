@@ -21,7 +21,7 @@ const FR = OUTF.replace(/\.mp4$/, '') + '-frames'; fs.rmSync(FR, { recursive: tr
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'film@test' })); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + `/games/blockade-z/index.html?${VIEW}&autostart=1&nolock=1&seed=7&noaudio=1&q=high&tod=${TOD}&weather=clear&hero=${HERO}`);
+    await page.goto((process.env.BZ_BASE || srv.base) + `/games/blockade-z/index.html?lang=vi&${VIEW}&autostart=1&nolock=1&seed=7&noaudio=1&q=high&tod=${TOD}&weather=clear&hero=${HERO}`);
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     // the real-time loop stops; only __sim advances the game, one film frame at a time
     await page.evaluate('__G.renderer.setAnimationLoop(null)');

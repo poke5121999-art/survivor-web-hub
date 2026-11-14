@@ -6,13 +6,13 @@
 
   // w = how often it is picked; night = only picked after dark
   const WEATHERS = {
-    clear: { name: 'Trời quang', desc: '', w: 3 },
-    rain: { name: 'Mưa', desc: 'Đường trơn: zombie chậm 10%', w: 2 },
-    storm: { name: 'Bão sét', desc: 'Sét đánh trúng zombie bất kỳ lúc nào', w: 1.5 },
-    fog: { name: 'Sương mù', desc: 'Không nhìn xa được, nhưng điểm gấp rưỡi', w: 1.4 },
-    snow: { name: 'Tuyết rơi', desc: 'Zombie chậm 20%, người cũng chậm 8%', w: 1.2 },
-    bloodmoon: { name: 'Trăng máu', desc: 'Zombie trâu hơn 30% và nhanh hơn 15%, điểm gấp đôi', w: 1.1, night: true },
-    ash: { name: 'Gió tro', desc: 'Gió tạt làm đạn lệch nhiều hơn', w: 1.1 },
+    clear: { name: BZ.t("sky.1"), desc: '', w: 3 },
+    rain: { name: BZ.t("sky.2"), desc: BZ.t("sky.3"), w: 2 },
+    storm: { name: BZ.t("sky.4"), desc: BZ.t("sky.5"), w: 1.5 },
+    fog: { name: BZ.t("sky.6"), desc: BZ.t("sky.7"), w: 1.4 },
+    snow: { name: BZ.t("sky.8"), desc: BZ.t("sky.9"), w: 1.2 },
+    bloodmoon: { name: BZ.t("sky.10"), desc: BZ.t("sky.11"), w: 1.1, night: true },
+    ash: { name: BZ.t("sky.12"), desc: BZ.t("sky.13"), w: 1.1 },
   };
   BZ.WEATHERS = WEATHERS;
   const C = (h) => new THREE.Color(h);
@@ -144,7 +144,7 @@
       G.renderer.setClearColor(look.fog);
       // the night falls / day breaks
       if (playing && S.lastNight !== null && S.lastNight !== env.night) {
-        if (env.night) G.ui.announce('MÀN ĐÊM BUÔNG XUỐNG', 'zombie nhanh hơn 15%', 'hot'); else G.ui.announce('TRỜI SÁNG', 'zombie chậm lại', '');
+        if (env.night) G.ui.announce(BZ.t("sky.14"), BZ.t("sky.15"), 'hot'); else G.ui.announce(BZ.t("sky.16"), BZ.t("sky.17"), '');
       }
       S.lastNight = env.night;
       // rules of the fight

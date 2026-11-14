@@ -18,13 +18,13 @@
     { id: 'g330', kind: 'gems', gems: 300, bonus: 30, vnd: 109000 },
     { id: 'g1090', kind: 'gems', gems: 980, bonus: 110, vnd: 299000 },
     { id: 'g2240', kind: 'gems', gems: 1980, bonus: 260, vnd: 599000 },
-    { id: 'g8080', kind: 'gems', gems: 6480, bonus: 1600, vnd: 1990000, tag: 'HỜI NHẤT' },
-    { id: 'starter', kind: 'starter', name: 'Gói khởi đầu', once: true, vnd: 49000, tag: 'MỘT LẦN', desc: '680 💎 · 20.000 vàng · 1 vé SSR chắc chắn' },
-    { id: 'month', kind: 'month', name: 'Thẻ tháng', vnd: 109000, desc: 'Nhận ngay 300 💎, sau đó 90 💎 mỗi ngày trong 30 ngày' },
-    { id: 'whale', kind: 'whale', name: 'Gói Bá Chủ', vnd: 2490000, tag: 'PAY TO WIN', desc: 'Nhân vật đang chọn lên ngay cấp 30 ★5, kèm 10.000 💎' },
+    { id: 'g8080', kind: 'gems', gems: 6480, bonus: 1600, vnd: 1990000, tag: BZ.t("meta.1") },
+    { id: 'starter', kind: 'starter', name: BZ.t("meta.2"), once: true, vnd: 49000, tag: BZ.t("meta.3"), desc: BZ.t("meta.4") },
+    { id: 'month', kind: 'month', name: BZ.t("meta.5"), vnd: 109000, desc: BZ.t("meta.6") },
+    { id: 'whale', kind: 'whale', name: BZ.t("meta.7"), vnd: 2490000, tag: 'PAY TO WIN', desc: BZ.t("meta.8") },
   ];
   const GOLD_PACKS = [{ id: 'au1', gems: 100, gold: 5000 }, { id: 'au2', gems: 500, gold: 30000 }, { id: 'au3', gems: 1500, gold: 100000 }];
-  const vnd = (n) => n.toLocaleString('vi-VN') + 'đ';
+  const vnd = (n) => n.toLocaleString('vi-VN') + BZ.t("meta.9");
   const num = (n) => Math.round(n).toLocaleString('vi-VN');
   const css = (c) => '#' + c.toString(16).padStart(6, '0');
   const day = () => Math.floor((Date.now() + 7 * 3600e3) / 86400e3);
@@ -54,8 +54,8 @@
     // ---------- daily: login gems, the month card's share, one free wish ----------
     function dailyTick() {
       const d = day(); const got = [];
-      if (S.daily !== d) { S.daily = d; S.gems += 100; got.push('+100 💎 đăng nhập'); }
-      if (S.month > d - 1 && S.monthDay !== d) { S.monthDay = d; S.gems += 90; got.push('+90 💎 thẻ tháng'); }
+      if (S.daily !== d) { S.daily = d; S.gems += 100; got.push(BZ.t("meta.10")); }
+      if (S.month > d - 1 && S.monthDay !== d) { S.monthDay = d; S.gems += 90; got.push(BZ.t("meta.11")); }
       if (got.length) { save(); toast(got.join(' · ')); }
     }
 
@@ -80,9 +80,9 @@
       const g = 300 + Math.floor(rng() * 4) * 100; S.gold += g; return { tier, kind: 'gold', n: g };
     }
     function wish(n, how) {
-      if (how === 'free') { if (S.freePull === day()) return toast('Hôm nay đã dùng lượt miễn phí'); S.freePull = day(); }
-      else if (how === 'ticket') { if (S.tickets < 1) return toast('Không còn vé SSR'); S.tickets--; }
-      else { const cost = n === 10 ? PULL10 : PULL * n; if (S.gems < cost) { toast('Thiếu kim cương, ghé cửa hàng nạp thêm'); return tab('shop'); } S.gems -= cost; }
+      if (how === 'free') { if (S.freePull === day()) return toast(BZ.t("meta.12")); S.freePull = day(); }
+      else if (how === 'ticket') { if (S.tickets < 1) return toast(BZ.t("meta.13")); S.tickets--; }
+      else { const cost = n === 10 ? PULL10 : PULL * n; if (S.gems < cost) { toast(BZ.t("meta.14")); return tab('shop'); } S.gems -= cost; }
       const out = [];
       for (let i = 0; i < n; i++) out.push(roll(how === 'ticket' ? 'ssr' : n === 10 && i === n - 1 && !out.some((o) => o.tier !== 'n' && o.tier !== 'r') ? 'sr' : null));
       save(); reveal(out); render();
@@ -92,51 +92,49 @@
     function levelUp(id, times = 1) {
       const h = hs(id); let done = 0;
       while (done < times && h.lv < lvCap(h.star) && S.gold >= lvCost(h.lv)) { S.gold -= lvCost(h.lv); h.lv++; done++; }
-      if (!done) toast(h.lv >= lvCap(h.star) ? (h.lv >= MAX_LV ? 'Đã cấp tối đa' : 'Lên sao để mở thêm cấp') : 'Thiếu vàng');
+      if (!done) toast(h.lv >= lvCap(h.star) ? (h.lv >= MAX_LV ? BZ.t("meta.15") : BZ.t("meta.16")) : BZ.t("meta.17"));
       else { G.audio && G.audio.play('buy'); flashCard(id); }
       save(); render();
     }
     function starUp(id) {
       const h = hs(id); const c = STAR_COST[h.star];
-      if (h.star >= 5) return toast('Đã đủ 5 sao');
-      if (h.shard < c) return toast(`Cần ${c} mảnh, đang có ${h.shard}`);
+      if (h.star >= 5) return toast(BZ.t("meta.18"));
+      if (h.shard < c) return toast(BZ.t("meta.19", [c, h.shard]));
       h.shard -= c; h.star++; G.audio && G.audio.play('buy'); save(); render(); flashCard(id, true);
     }
     function unlock(id, gems) {
       const h = hs(id); if (h.own) return;
-      if (gems) { if (S.gems < BUY_HERO) { toast('Thiếu kim cương'); return tab('shop'); } S.gems -= BUY_HERO; }
-      else { if (h.shard < UNLOCK) return toast(`Cần ${UNLOCK} mảnh`); h.shard -= UNLOCK; }
+      if (gems) { if (S.gems < BUY_HERO) { toast(BZ.t("meta.20")); return tab('shop'); } S.gems -= BUY_HERO; }
+      else { if (h.shard < UNLOCK) return toast(BZ.t("meta.21", [UNLOCK])); h.shard -= UNLOCK; }
       h.own = true; save(); reveal([{ tier: 'ssr', id, kind: 'hero', isNew: true }]); render();
     }
 
     // ---------- pretend shop ----------
     function grant(p) {
       const first = !S.bought[p.id]; S.bought[p.id] = (S.bought[p.id] || 0) + 1; S.spent += p.vnd; const lines = [];
-      if (p.kind === 'gems') { const g = p.gems * (first ? 2 : 1) + (p.bonus || 0); S.gems += g; lines.push(`+${num(g)} 💎` + (first ? ' (x2 lần đầu)' : '')); }
-      if (p.kind === 'starter') { S.gems += 680; S.gold += 20000; S.tickets += 1; lines.push('+680 💎', '+20.000 vàng', '+1 vé SSR'); }
-      if (p.kind === 'month') { S.gems += 300; S.month = Math.max(S.month, day()) + 30; S.monthDay = day(); lines.push('+300 💎', 'Thẻ tháng tới hết ngày thứ 30'); }
-      if (p.kind === 'whale') { const id = sel; const h = hs(id); h.own = true; h.star = 5; h.lv = MAX_LV; S.gems += 10000; lines.push(BZ.HEROES.find((x) => x.id === id).name + ' lên cấp 30 ★5', '+10.000 💎'); }
+      if (p.kind === 'gems') { const g = p.gems * (first ? 2 : 1) + (p.bonus || 0); S.gems += g; lines.push(`+${num(g)} 💎` + (first ? BZ.t("meta.22") : '')); }
+      if (p.kind === 'starter') { S.gems += 680; S.gold += 20000; S.tickets += 1; lines.push('+680 💎', BZ.t("meta.23"), BZ.t("meta.24")); }
+      if (p.kind === 'month') { S.gems += 300; S.month = Math.max(S.month, day()) + 30; S.monthDay = day(); lines.push('+300 💎', BZ.t("meta.25")); }
+      if (p.kind === 'whale') { const id = sel; const h = hs(id); h.own = true; h.star = 5; h.lv = MAX_LV; S.gems += 10000; lines.push(BZ.HEROES.find((x) => x.id === id).name + BZ.t("meta.26"), '+10.000 💎'); }
       save(); return lines;
     }
     function buy(p) {
-      if (p.once && S.bought[p.id]) return toast('Gói này chỉ mua được một lần');
-      const name = p.name || `${num(p.gems)} kim cương`;
-      modal(`<h3>Thanh toán giả lập</h3><div class="mm-pay"><b>${name}</b><em>${vnd(p.vnd)}</em></div>
-        <p class="mm-warn">Đây là cửa hàng giả lập để thử cảm giác nạp tiền trong game. Không có thanh toán thật, không nhập thẻ, không trừ đồng nào.</p>
-        <div class="row"><button class="btn" data-mm="pay">Xác nhận (giả lập)</button><button class="btn ghost" data-mm="close">Huỷ</button></div>`, (act) => {
+      if (p.once && S.bought[p.id]) return toast(BZ.t("meta.27"));
+      const name = p.name || BZ.t("meta.28", [num(p.gems)]);
+      modal(BZ.t("meta.29", [name, vnd(p.vnd)]), (act) => {
         if (act !== 'pay') return true;
-        document.querySelector('#mm-modal .mm-modal').innerHTML = '<div class="mm-spin"></div><p>Đang xử lý…</p>';
+        document.querySelector('#mm-modal .mm-modal').innerHTML = BZ.t("meta.30");
         setTimeout(() => {
           const lines = grant(p); G.audio && G.audio.play('buy');
-          document.querySelector('#mm-modal .mm-modal').innerHTML = `<h3>Nạp thành công</h3><div class="mm-got">${lines.map((l) => `<span>${l}</span>`).join('')}</div><p class="muted">VIP ${vip()} · đã nạp giả lập ${vnd(S.spent)}</p><div class="row"><button class="btn" data-mm="close">OK</button></div>`;
+          document.querySelector('#mm-modal .mm-modal').innerHTML = BZ.t("meta.31", [lines.map((l) => `<span>${l}</span>`).join(''), vip(), vnd(S.spent)]);
           render();
         }, 700);
         return false;
       });
     }
     function buyGold(p) {
-      if (S.gems < p.gems) { toast('Thiếu kim cương'); return; }
-      S.gems -= p.gems; S.gold += p.gold; G.audio && G.audio.play('buy'); save(); render(); toast(`+${num(p.gold)} vàng`);
+      if (S.gems < p.gems) { toast(BZ.t("meta.20")); return; }
+      S.gems -= p.gems; S.gold += p.gold; G.audio && G.audio.play('buy'); save(); render(); toast(BZ.t("meta.32", [num(p.gold)]));
     }
 
     // ---------- earnings after a run ----------
@@ -256,10 +254,7 @@
 `;
     document.head.appendChild(style);
     const box = document.createElement('div');
-    box.innerHTML = `<section id="meta"><div class="mm-top"><button class="btn ghost small" data-mm="back">◀ Về</button><span class="grow"></span><span class="mm-cur vip" id="mm-vip"></span><span class="mm-cur"><i>🪙</i><b id="mm-gold"></b></span><span class="mm-cur"><i>💎</i><b id="mm-gems"></b></span><button class="btn small" data-mm="tab:shop">+ Nạp</button></div>
-      <div class="mm-tabs"><button data-mm="tab:gacha">Triệu hồi</button><button data-mm="tab:heroes">Nhân vật</button><button data-mm="tab:shop">Cửa hàng</button></div><div class="mm-body" id="mm-body"></div></section>
-      <div id="mm-reveal"><div class="rays"></div><h2 id="mm-rtitle"></h2><div class="cards" id="mm-cards"></div><div class="row" style="position:relative"><button class="btn" data-mm="rclose">Nhận</button><button class="btn ghost" data-mm="ragain">Triệu hồi tiếp</button></div></div>
-      <div id="mm-modal"><div class="mm-modal"></div></div><div id="mm-toast"></div>`;
+    box.innerHTML = BZ.t("meta.33");
     while (box.firstChild) document.body.appendChild(box.firstChild);
     const $ = (s) => document.querySelector(s);
     const root = $('#meta'); const body = $('#mm-body');
@@ -270,7 +265,7 @@
       const row = title.querySelector('.row');
       const bar = document.createElement('div'); bar.className = 'meta-bar'; bar.id = 'meta-bar';
       const doors = document.createElement('div'); doors.className = 'row meta-row';
-      doors.innerHTML = '<button class="btn ghost" data-mm="open:gacha">✦ Triệu hồi</button><button class="btn ghost" data-mm="open:heroes">⬆ Nhân vật</button><button class="btn ghost" data-mm="open:shop">💎 Cửa hàng</button>';
+      doors.innerHTML = BZ.t("meta.34");
       if (row) { row.after(doors); row.before(bar); }
     }
     const dead = $('#dead dl'); if (dead) { const p = document.createElement('div'); p.id = 'dead-loot'; dead.after(p); }
@@ -303,32 +298,19 @@
     const HB = (id) => BZ.HEROES.find((h) => h.id === id);
     function renderGacha() {
       const f = HB(featured()); const free = S.freePull !== day();
-      body.innerHTML = `<div class="mm-banner" style="--hc:${css(f.color)}"><div class="pic">${face(f.id)}</div><div>
-        <small>BANNER HÔM NAY · TỈ LỆ CAO</small><h3>${f.name} · ${f.role}</h3>
-        <p>SSR ${(RATES[0][1] * 100).toFixed(1)}% (một nửa ra ${f.name}) · SR ${RATES[1][1] * 100}% (8 mảnh) · R ${(RATES[2][1] * 100).toFixed(1)}% (3 mảnh) · N ${RATES[3][1] * 100}% (vàng)</p>
-        <p>SSR ra nhân vật mới, trùng thì đổi 25 mảnh. ${UNLOCK} mảnh ghép được một nhân vật chưa có. Mười lượt chắc chắn có SR trở lên.</p>
-        <div class="mm-pity"><i style="width:${(S.pity / PITY) * 100}%"></i></div><p>Bảo hiểm: chắc chắn ra SSR sau <b>${PITY - S.pity}</b> lượt nữa · đã triệu hồi ${S.pulls} lượt</p>
-        <div class="mm-btns">${free ? '<button class="btn" data-mm="wish:free">Miễn phí hôm nay</button>' : ''}<button class="btn" data-mm="wish:1">×1 <em>${PULL} 💎</em></button><button class="btn" data-mm="wish:10">×10 <em>${num(PULL10)} 💎</em></button>${S.tickets ? `<button class="btn" data-mm="wish:ticket">Vé SSR ×${S.tickets}</button>` : ''}</div>
-      </div></div>`;
+      body.innerHTML = BZ.t("meta.37", [css(f.color), face(f.id), f.name, f.role, (RATES[0][1] * 100).toFixed(1), f.name, RATES[1][1] * 100, (RATES[2][1] * 100).toFixed(1), RATES[3][1] * 100, UNLOCK, (S.pity / PITY) * 100, PITY - S.pity, S.pulls, free ? BZ.t("meta.35") : '', PULL, num(PULL10), S.tickets ? BZ.t("meta.36", [S.tickets]) : '']);
     }
     function heroCard(h) {
       const s = hs(h.id); const nextShard = s.own ? STAR_COST[s.star] || 0 : UNLOCK;
-      return `<button class="mm-hero ${s.own ? '' : 'lock'} ${h.id === sel ? 'on' : ''}" data-mm="hero:${h.id}" data-hid="${h.id}" style="--hc:${css(h.color)}">
-        ${s.own ? `<span class="lv">Lv ${s.lv}</span>` : '<span class="lk">🔒</span>'}${face(h.id)}<b>${h.name}</b><div class="st">${'★'.repeat(s.star)}${'☆'.repeat(5 - s.star)}</div>
-        <div class="sh"><i style="width:${nextShard ? Math.min(100, (s.shard / nextShard) * 100) : 100}%"></i></div><small>${s.shard}${nextShard ? '/' + nextShard : ''} mảnh</small></button>`;
+      return BZ.t("meta.38", [s.own ? '' : 'lock', h.id === sel ? 'on' : '', h.id, h.id, css(h.color), s.own ? `<span class="lv">Lv ${s.lv}</span>` : '<span class="lk">🔒</span>', face(h.id), h.name, '★'.repeat(s.star), '☆'.repeat(5 - s.star), nextShard ? Math.min(100, (s.shard / nextShard) * 100) : 100, s.shard, nextShard ? '/' + nextShard : '']);
     }
     function renderHeroes() {
       const h = HB(sel) || BZ.HEROES[0]; const s = hs(h.id); const cap = lvCap(s.star);
       const pct = (x) => '+' + Math.round((x - 1) * 100) + '%';
-      const lvBtn = s.lv < cap ? `<button class="btn" data-mm="lv:${h.id}:1">Lên cấp <em>${num(lvCost(s.lv))} 🪙</em></button><button class="btn ghost" data-mm="lv:${h.id}:10">Lên tối đa</button>` : '';
-      const stBtn = s.star < 5 ? `<button class="btn" data-mm="star:${h.id}">Lên ★${s.star + 1} <em>${STAR_COST[s.star]} mảnh</em></button>` : '';
-      const acts = s.own ? lvBtn + stBtn : `<button class="btn" data-mm="unlock:${h.id}">Ghép <em>${UNLOCK} mảnh</em></button><button class="btn" data-mm="unlockg:${h.id}">Mở ngay <em>${num(BUY_HERO)} 💎</em></button>`;
-      body.innerHTML = `<div class="mm-grid">${BZ.HEROES.map(heroCard).join('')}</div>
-        <div class="mm-detail" style="--hc:${css(h.color)}"><div class="pic">${face(h.id)}</div><div>
-          <h3>${h.name} <small style="color:#ffd76a">${'★'.repeat(s.star)}</small></h3><p class="muted">${h.role} · ${s.own ? `cấp ${s.lv}/${cap} (lên sao để mở tới ${MAX_LV})` : 'chưa có'}</p>
-          <div class="stats"><span>Lực chiến<b>${num(power(h.id))}</b></span><span>Sát thương<b>${pct(live ? 1 + 0.035 * (s.lv - 1) + 0.12 * s.star + 0.03 * vip() : 1)}</b></span><span>Máu<b>${Math.round(h.hp * (1 + 0.025 * (s.lv - 1) + 0.08 * s.star + 0.02 * vip()))}</b></span><span>Mảnh<b>${s.shard}</b></span></div>
-          <p class="muted">Mỗi cấp +3,5% sát thương, +2,5% máu. Mỗi sao +12% sát thương, +8% máu, mở thêm 4 cấp. VIP ${vip()} cộng thêm ${vip() * 3}% sát thương.</p>
-          <div class="mm-btns">${acts}</div></div></div>`;
+      const lvBtn = s.lv < cap ? BZ.t("meta.39", [h.id, num(lvCost(s.lv)), h.id]) : '';
+      const stBtn = s.star < 5 ? BZ.t("meta.40", [h.id, s.star + 1, STAR_COST[s.star]]) : '';
+      const acts = s.own ? lvBtn + stBtn : BZ.t("meta.41", [h.id, UNLOCK, h.id, num(BUY_HERO)]);
+      body.innerHTML = BZ.t("meta.44", [BZ.HEROES.map(heroCard).join(''), css(h.color), face(h.id), h.name, '★'.repeat(s.star), h.role, s.own ? BZ.t("meta.42", [s.lv, cap, MAX_LV]) : BZ.t("meta.43"), num(power(h.id)), pct(live ? 1 + 0.035 * (s.lv - 1) + 0.12 * s.star + 0.03 * vip() : 1), Math.round(h.hp * (1 + 0.025 * (s.lv - 1) + 0.08 * s.star + 0.02 * vip())), s.shard, vip(), vip() * 3, acts]);
     }
     function renderShop() {
       const v = vip(); const next = VIP[v + 1];
@@ -337,14 +319,9 @@
         const cls = p.kind === 'whale' ? 'whale' : p.kind === 'gems' ? '' : 'special';
         const title = p.kind === 'gems' ? `${num(p.gems)}${p.bonus ? ` +${num(p.bonus)}` : ''} 💎` : p.name;
         const icon = p.kind === 'gems' ? (p.gems >= 6000 ? '💎💎💎' : p.gems >= 1000 ? '💎💎' : '💎') : p.kind === 'month' ? '📅' : p.kind === 'whale' ? '👑' : '🎁';
-        return `<button class="mm-pack ${cls} ${done ? 'done' : ''}" data-mm="buy:${p.id}">${p.tag ? `<span class="tag">${p.tag}</span>` : ''}${first ? '<span class="x2">x2 LẦN ĐẦU</span>' : ''}<div class="gem">${icon}</div><b>${title}</b><small>${p.desc || ''}${p.kind === 'whale' ? ` (đang chọn: ${HB(sel).name})` : ''}</small><em>${done ? 'Đã mua' : vnd(p.vnd)}</em></button>`;
+        return `<button class="mm-pack ${cls} ${done ? 'done' : ''}" data-mm="buy:${p.id}">${p.tag ? `<span class="tag">${p.tag}</span>` : ''}${first ? BZ.t("meta.45") : ''}<div class="gem">${icon}</div><b>${title}</b><small>${p.desc || ''}${p.kind === 'whale' ? BZ.t("meta.46", [HB(sel).name]) : ''}</small><em>${done ? BZ.t("meta.47") : vnd(p.vnd)}</em></button>`;
       };
-      body.innerHTML = `<div class="mm-shop"><div class="mm-vip"><b>VIP ${v}</b> · đã nạp giả lập ${vnd(S.spent)}${next ? ` · nạp thêm ${vnd(next - S.spent)} để lên VIP ${v + 1}` : ' · VIP tối đa'}
-        <div class="mm-pity"><i style="width:${next ? ((S.spent - VIP[v]) / (next - VIP[v])) * 100 : 100}%"></i></div><small>Mỗi bậc VIP: +3% sát thương, +2% máu cho mọi nhân vật, +20% vàng sau mỗi trận${S.month > day() - 1 ? ` · Thẻ tháng còn ${S.month - day() + 1} ngày` : ''}</small></div>
-        <h4>Kim cương</h4><div class="mm-packs">${PACKS.filter((p) => p.kind === 'gems').map(pack).join('')}</div>
-        <h4>Gói đặc biệt</h4><div class="mm-packs">${PACKS.filter((p) => p.kind !== 'gems').map(pack).join('')}</div>
-        <h4>Đổi vàng</h4><div class="mm-packs">${GOLD_PACKS.map((p) => `<button class="mm-pack special" data-mm="gold:${p.id}"><div class="gem">🪙</div><b>${num(p.gold)} vàng</b><small>dùng để lên cấp nhân vật</small><em>${num(p.gems)} 💎</em></button>`).join('')}</div>
-        <p class="muted">Cửa hàng giả lập: bấm mua chỉ cộng số vào tài khoản trong máy này. Không có thanh toán thật.</p></div>`;
+      body.innerHTML = BZ.t("meta.52", [v, vnd(S.spent), next ? BZ.t("meta.48", [vnd(next - S.spent), v + 1]) : BZ.t("meta.49"), next ? ((S.spent - VIP[v]) / (next - VIP[v])) * 100 : 100, S.month > day() - 1 ? BZ.t("meta.50", [S.month - day() + 1]) : '', PACKS.filter((p) => p.kind === 'gems').map(pack).join(''), PACKS.filter((p) => p.kind !== 'gems').map(pack).join(''), GOLD_PACKS.map((p) => BZ.t("meta.51", [p.id, num(p.gold), num(p.gems)])).join('')]);
     }
     function flashCard(id) { const c = body.querySelector(`[data-hid="${id}"]`); if (c) { c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } }
 
@@ -352,12 +329,12 @@
     function reveal(out) {
       const best = out.some((o) => o.tier === 'ssr') ? 'ssr' : out.some((o) => o.tier === 'sr') ? 'sr' : 'r';
       const R = $('#mm-reveal'); R.style.setProperty('--rc', best === 'ssr' ? '#ffcc40' : best === 'sr' ? '#c080ff' : '#6ab0ff');
-      $('#mm-rtitle').textContent = best === 'ssr' ? (out.some((o) => o.isNew) ? 'NHÂN VẬT MỚI!' : 'SSR!') : best === 'sr' ? 'Hiếm!' : 'Kết quả triệu hồi';
+      $('#mm-rtitle').textContent = best === 'ssr' ? (out.some((o) => o.isNew) ? BZ.t("meta.53") : 'SSR!') : best === 'sr' ? BZ.t("meta.54") : BZ.t("meta.55");
       const TC = { ssr: '#ffcc40', sr: '#d8a0ff', r: '#8ac8ff', n: '#c8b890' };
       $('#mm-cards').innerHTML = out.map((o, i) => {
         const h = o.id && HB(o.id); const cc = h ? css(h.color) : '#7a6030';
-        const inner = o.kind === 'gold' ? `<div class="big">🪙</div><b>${o.n} vàng</b>` : o.kind === 'hero' ? `${face(o.id)}<b>${h.name}</b><small>${h.role}</small>` : `${face(o.id)}<b>${h.name}</b><small>+${o.n} mảnh</small>`;
-        return `<div class="mm-card ${o.tier}" style="--d:${0.12 + i * 0.12}s;--cc:${cc};--tc:${TC[o.tier]}"><div class="in"><div class="b">✦</div><div class="f"><span class="t">${RNAME[o.tier]}</span>${o.isNew ? '<span class="new">MỚI</span>' : ''}${inner}</div></div></div>`;
+        const inner = o.kind === 'gold' ? BZ.t("meta.56", [o.n]) : o.kind === 'hero' ? `${face(o.id)}<b>${h.name}</b><small>${h.role}</small>` : BZ.t("meta.57", [face(o.id), h.name, o.n]);
+        return `<div class="mm-card ${o.tier}" style="--d:${0.12 + i * 0.12}s;--cc:${cc};--tc:${TC[o.tier]}"><div class="in"><div class="b">✦</div><div class="f"><span class="t">${RNAME[o.tier]}</span>${o.isNew ? BZ.t("meta.58") : ''}${inner}</div></div></div>`;
       }).join('');
       R.classList.add('on'); lastWish = out.length;
       if (G.audio) { G.audio.play('switch', { gain: 0.7 }); setTimeout(() => G.audio.play(best === 'ssr' ? 'buy' : 'switch', { gain: 0.8 }), 300 + out.length * 120); }
@@ -391,7 +368,7 @@
     G.events.on('player:dead', (e) => {
       if (!live || (G.coop.on && !(e && e.final))) return;
       const l = payout(G.wave ? G.wave.n : 1, G.kills || 0); const el = $('#dead-loot');
-      if (el) el.textContent = `+${num(l.gold)} vàng${l.gems ? ` · +${l.gems} 💎` : ''}${vip() ? ` (VIP ${vip()} +${vip() * 20}%)` : ''}`;
+      if (el) el.textContent = BZ.t("meta.59", [num(l.gold), l.gems ? ` · +${l.gems} 💎` : '', vip() ? ` (VIP ${vip()} +${vip() * 20}%)` : '']);
     });
 
     // the pick screen marks heroes not owned yet and says how to get them
@@ -400,19 +377,18 @@
       document.querySelectorAll('#sel-row button').forEach((b, k) => b.classList.toggle('lock', !owns(BZ.HEROES[k].id)));
       const h = BZ.HEROES[i]; const s = hs(h.id);
       let tag = $('#sel-meta'); if (!tag) { tag = document.createElement('span'); tag.id = 'sel-meta'; const n = $('#sel-name'); n && n.parentNode.appendChild(tag); }
-      tag.textContent = s.own ? `Lv ${s.lv} ${'★'.repeat(s.star)} · lực chiến ${num(power(h.id))}` : `🔒 chưa có · ${s.shard}/${UNLOCK} mảnh, mở ở Triệu hồi`;
-      const go = document.querySelector('[data-act="selgo"]'); if (go) go.textContent = s.own ? 'Vào trận' : 'Mở khoá';
+      tag.textContent = s.own ? BZ.t("meta.60", [s.lv, '★'.repeat(s.star), num(power(h.id))]) : BZ.t("meta.61", [s.shard, UNLOCK]);
+      const go = document.querySelector('[data-act="selgo"]'); if (go) go.textContent = s.own ? BZ.t("meta.62") : BZ.t("meta.63");
     }
     function lockedPick(id) {
       const h = HB(id); const s = hs(id); sel = id; makePortraits();
-      modal(`<h3>${h.name} chưa có</h3><div class="mm-lkpic">${face(id)}</div><p>${s.shard}/${UNLOCK} mảnh · đang có ${num(S.gems)} 💎</p>
-        <div class="row" style="flex-wrap:wrap;justify-content:center">${s.shard >= UNLOCK ? '<button class="btn" data-mm="lk:shard">Ghép mảnh</button>' : ''}<button class="btn" data-mm="lk:gems">Mở ${num(BUY_HERO)} 💎</button><button class="btn ghost" data-mm="lk:gacha">Đi triệu hồi</button><button class="btn ghost" data-mm="close">Thôi</button></div>`);
+      modal(BZ.t("meta.65", [h.name, face(id), s.shard, UNLOCK, num(S.gems), s.shard >= UNLOCK ? BZ.t("meta.64") : '', num(BUY_HERO)]));
     }
     function lockedAct(x) {
       closeModal();
       if (x === 'gacha') { G.events.emit('meta:leaveSelect'); return open('gacha'); }
       const id = sel; unlock(id, x === 'gems'); $('#mm-reveal').classList.remove('on');
-      if (hs(id).own) { const i = BZ.HEROES.findIndex((h) => h.id === id); G.ui.selectRender(i); decorateSelect(i); toast(HB(id).name + ' đã mở khoá'); }
+      if (hs(id).own) { const i = BZ.HEROES.findIndex((h) => h.id === id); G.ui.selectRender(i); decorateSelect(i); toast(HB(id).name + BZ.t("meta.66")); }
     }
 
     paintCur();

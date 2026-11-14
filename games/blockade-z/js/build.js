@@ -5,42 +5,42 @@
 
   // cost of level n (0-based) = base * grow^n
   const UP = [
-    { id: 'dmg', cat: 'fire', name: 'Sát thương', icon: '🔥', max: 10, d: (l) => `+${l * 10}% sát thương mọi vũ khí` },
-    { id: 'crit', cat: 'fire', name: 'Chí mạng', icon: '🎯', max: 8, d: (l) => `+${l * 4}% tỉ lệ chí mạng` },
-    { id: 'critDmg', cat: 'fire', name: 'Sát thương chí mạng', icon: '💥', max: 6, d: (l) => `chí mạng x${(2 + l * 0.25).toFixed(2)}` },
-    { id: 'rate', cat: 'fire', name: 'Tốc bắn', icon: '⚡', max: 8, d: (l) => `+${l * 6}% tốc độ bắn và chém` },
-    { id: 'reload', cat: 'fire', name: 'Nạp đạn', icon: '🔄', max: 6, d: (l) => `nạp nhanh hơn ${l * 10}%` },
-    { id: 'mag', cat: 'fire', name: 'Băng đạn lớn', icon: '📦', max: 6, d: (l) => `+${l * 15}% sức chứa băng, +${l * 15}% đạn dự trữ` },
-    { id: 'melee', cat: 'fire', name: 'Lưỡi bén', icon: '🗡', max: 6, d: (l) => `cận chiến +${l * 15}% sát thương, +${l * 5}% tầm` },
-    { id: 'hp', cat: 'live', name: 'Máu tối đa', icon: '❤', max: 8, d: (l) => `+${l * 20} máu tối đa` },
-    { id: 'regen', cat: 'live', name: 'Hồi máu', icon: '✚', max: 6, d: (l) => `hồi ${(l * 0.8).toFixed(1)} máu mỗi giây` },
-    { id: 'armor', cat: 'live', name: 'Giáp', icon: '🛡', max: 6, d: (l) => `giảm ${l * 5}% sát thương nhận vào` },
-    { id: 'speed', cat: 'live', name: 'Tốc chạy', icon: '👟', max: 5, d: (l) => `+${l * 5}% tốc độ chạy` },
-    { id: 'cd', cat: 'skill', name: 'Hồi chiêu', icon: '⏱', max: 6, d: (l) => `kỹ năng hồi nhanh hơn ${l * 8}%` },
-    { id: 'pow', cat: 'skill', name: 'Uy lực kỹ năng', icon: '✨', max: 6, d: (l) => `kỹ năng mạnh và lâu hơn ${l * 15}%` },
-    { id: 'ult', cat: 'skill', name: 'Nạp chiêu cuối', icon: '🌟', max: 5, d: (l) => `chiêu cuối nạp nhanh hơn ${l * 12}%` },
-    { id: 'fire_el', cat: 'elem', el: 'burn', name: 'Lửa', icon: '🔥', max: 5, d: (l) => `${l * 9}% đòn đánh đốt cháy (${6 + l * 5} sát thương/giây)` },
-    { id: 'ice_el', cat: 'elem', el: 'chill', name: 'Băng', icon: '❄', max: 5, d: (l) => `${l * 10}% đòn làm lạnh, 4 lớp lạnh thì đóng băng` },
-    { id: 'shock_el', cat: 'elem', el: 'shock', name: 'Điện', icon: '⚡', max: 5, d: (l) => `${l * 8}% đòn phóng điện lan sang ${1 + Math.ceil(l / 2)} con gần` },
-    { id: 'poison_el', cat: 'elem', el: 'poison', name: 'Độc', icon: '☠', max: 5, d: (l) => `${l * 10}% đòn tẩm độc, độc cộng dồn 5 lớp` },
-    { id: 'blood_el', cat: 'elem', name: 'Hút máu', icon: '🩸', max: 5, d: (l) => `hồi ${(l * 1.5).toFixed(1)}% sát thương gây ra thành máu` },
-    { id: 'blast_el', cat: 'elem', name: 'Nổ', icon: '💣', max: 5, d: (l) => `${l * 10}% zombie chết thì nổ tung (bán kính ${(2.5 + l * 0.3).toFixed(1)} m)` },
-    { id: 'squad', cat: 'help', name: 'Chỉ huy', icon: '🪖', max: 3, d: (l) => `${l} lính đi theo, chết thì đợt sau có lính mới` },
-    { id: 'eng', cat: 'help', name: 'Kỹ sư', icon: '🔧', max: 3, d: (l) => `${l} súng máy tự dựng quanh bạn mỗi đợt` },
-    { id: 'jet', cat: 'help', name: 'Jetpack', icon: '🚀', max: 3, d: (l) => (l ? `bay được, nhiên liệu +${(l - 1) * 40}%` : 'mở jetpack: nhảy rồi giữ Space') },
+    { id: 'dmg', cat: 'fire', name: BZ.t("build.1"), icon: '🔥', max: 10, d: (l) => BZ.t("build.2", [l * 10]) },
+    { id: 'crit', cat: 'fire', name: BZ.t("build.3"), icon: '🎯', max: 8, d: (l) => BZ.t("build.4", [l * 4]) },
+    { id: 'critDmg', cat: 'fire', name: BZ.t("build.5"), icon: '💥', max: 6, d: (l) => BZ.t("build.6", [(2 + l * 0.25).toFixed(2)]) },
+    { id: 'rate', cat: 'fire', name: BZ.t("build.7"), icon: '⚡', max: 8, d: (l) => BZ.t("build.8", [l * 6]) },
+    { id: 'reload', cat: 'fire', name: BZ.t("build.9"), icon: '🔄', max: 6, d: (l) => BZ.t("build.10", [l * 10]) },
+    { id: 'mag', cat: 'fire', name: BZ.t("build.11"), icon: '📦', max: 6, d: (l) => BZ.t("build.12", [l * 15, l * 15]) },
+    { id: 'melee', cat: 'fire', name: BZ.t("build.13"), icon: '🗡', max: 6, d: (l) => BZ.t("build.14", [l * 15, l * 5]) },
+    { id: 'hp', cat: 'live', name: BZ.t("build.15"), icon: '❤', max: 8, d: (l) => BZ.t("build.16", [l * 20]) },
+    { id: 'regen', cat: 'live', name: BZ.t("build.17"), icon: '✚', max: 6, d: (l) => BZ.t("build.18", [(l * 0.8).toFixed(1)]) },
+    { id: 'armor', cat: 'live', name: BZ.t("build.19"), icon: '🛡', max: 6, d: (l) => BZ.t("build.20", [l * 5]) },
+    { id: 'speed', cat: 'live', name: BZ.t("build.21"), icon: '👟', max: 5, d: (l) => BZ.t("build.22", [l * 5]) },
+    { id: 'cd', cat: 'skill', name: BZ.t("build.23"), icon: '⏱', max: 6, d: (l) => BZ.t("build.24", [l * 8]) },
+    { id: 'pow', cat: 'skill', name: BZ.t("build.25"), icon: '✨', max: 6, d: (l) => BZ.t("build.26", [l * 15]) },
+    { id: 'ult', cat: 'skill', name: BZ.t("build.27"), icon: '🌟', max: 5, d: (l) => BZ.t("build.28", [l * 12]) },
+    { id: 'fire_el', cat: 'elem', el: 'burn', name: BZ.t("build.29"), icon: '🔥', max: 5, d: (l) => BZ.t("build.30", [l * 9, 6 + l * 5]) },
+    { id: 'ice_el', cat: 'elem', el: 'chill', name: BZ.t("build.31"), icon: '❄', max: 5, d: (l) => BZ.t("build.32", [l * 10]) },
+    { id: 'shock_el', cat: 'elem', el: 'shock', name: BZ.t("build.33"), icon: '⚡', max: 5, d: (l) => BZ.t("build.34", [l * 8, 1 + Math.ceil(l / 2)]) },
+    { id: 'poison_el', cat: 'elem', el: 'poison', name: BZ.t("build.35"), icon: '☠', max: 5, d: (l) => BZ.t("build.36", [l * 10]) },
+    { id: 'blood_el', cat: 'elem', name: BZ.t("build.37"), icon: '🩸', max: 5, d: (l) => BZ.t("build.38", [(l * 1.5).toFixed(1)]) },
+    { id: 'blast_el', cat: 'elem', name: BZ.t("build.39"), icon: '💣', max: 5, d: (l) => BZ.t("build.40", [l * 10, (2.5 + l * 0.3).toFixed(1)]) },
+    { id: 'squad', cat: 'help', name: BZ.t("build.41"), icon: '🪖', max: 3, d: (l) => BZ.t("build.42", [l]) },
+    { id: 'eng', cat: 'help', name: BZ.t("build.43"), icon: '🔧', max: 3, d: (l) => BZ.t("build.44", [l]) },
+    { id: 'jet', cat: 'help', name: 'Jetpack', icon: '🚀', max: 3, d: (l) => (l ? BZ.t("build.45", [(l - 1) * 40]) : BZ.t("build.46")) },
   ];
-  const CATS = [['fire', 'Hoả lực'], ['live', 'Sinh tồn'], ['skill', 'Kỹ năng'], ['elem', 'Nguyên tố'], ['help', 'Hỗ trợ']];
+  const CATS = [['fire', BZ.t("build.47")], ['live', BZ.t("build.48")], ['skill', BZ.t("build.49")], ['elem', BZ.t("build.50")], ['help', BZ.t("build.51")]];
   // two branches deep enough at once
   const RES = [
-    { id: 'inferno', name: 'Hoả ngục', need: { fire_el: 3, blast_el: 3 }, d: 'zombie đang cháy chết là nổ tung' },
-    { id: 'super', name: 'Siêu dẫn', need: { ice_el: 3, shock_el: 3 }, d: 'Vỡ vụn gây sát thương gấp đôi' },
-    { id: 'parasite', name: 'Ký sinh', need: { poison_el: 3, blood_el: 3 }, d: 'độc đang ăn mòn zombie hồi máu cho bạn' },
-    { id: 'firestorm', name: 'Bão lửa', need: { fire_el: 3, shock_el: 3 }, d: 'tia điện lan tới đâu châm lửa tới đó' },
-    { id: 'fortress', name: 'Pháo đài', need: { squad: 2, eng: 2 }, d: 'lính và súng máy bắn nhanh hơn 50%' },
-    { id: 'assassin', name: 'Sát thủ', need: { dmg: 5, crit: 5 }, d: 'chí mạng xuyên thêm 1 con, sát thương chí mạng +50%' },
-    { id: 'undying', name: 'Bất khuất', need: { hp: 5, regen: 3 }, d: 'máu dưới 25% thì bất tử 3 giây, mỗi đợt một lần' },
-    { id: 'overload', name: 'Quá tải', need: { cd: 3, pow: 3 }, d: 'mỗi lần dùng kỹ năng phát một sóng chấn quanh bạn' },
-    { id: 'frostbite', name: 'Tê cóng', need: { ice_el: 3, poison_el: 2 }, d: 'zombie đang lạnh nhận thêm 40% sát thương độc' },
+    { id: 'inferno', name: BZ.t("build.52"), need: { fire_el: 3, blast_el: 3 }, d: BZ.t("build.53") },
+    { id: 'super', name: BZ.t("build.54"), need: { ice_el: 3, shock_el: 3 }, d: BZ.t("build.55") },
+    { id: 'parasite', name: BZ.t("build.56"), need: { poison_el: 3, blood_el: 3 }, d: BZ.t("build.57") },
+    { id: 'firestorm', name: BZ.t("build.58"), need: { fire_el: 3, shock_el: 3 }, d: BZ.t("build.59") },
+    { id: 'fortress', name: BZ.t("build.60"), need: { squad: 2, eng: 2 }, d: BZ.t("build.61") },
+    { id: 'assassin', name: BZ.t("build.62"), need: { dmg: 5, crit: 5 }, d: BZ.t("build.63") },
+    { id: 'undying', name: BZ.t("build.64"), need: { hp: 5, regen: 3 }, d: BZ.t("build.65") },
+    { id: 'overload', name: BZ.t("build.66"), need: { cd: 3, pow: 3 }, d: BZ.t("build.67") },
+    { id: 'frostbite', name: BZ.t("build.68"), need: { ice_el: 3, poison_el: 2 }, d: BZ.t("build.69") },
   ];
   // a hero starts with a level in the branch that fits it
   const AFFINITY = { gio: { speed: 1 }, thep: { armor: 1 }, yta: { regen: 1 }, mua: { rate: 1 }, bong: { crit: 1 }, phao: { blast_el: 1 }, bang: { ice_el: 1 }, hoa: { fire_el: 1 }, sam: { shock_el: 1 }, doc: { poison_el: 1 }, ky: { eng: 1 } };
@@ -64,7 +64,7 @@
       L[id]++;
       apply();
       const now = RES.filter((r) => has(r.id) && !before.includes(r.id));
-      for (const r of now) { G.ui.announce('CỘNG HƯỞNG: ' + r.name.toUpperCase(), r.d, 'hot'); G.audio.play('streak', { gain: 0.6 }); }
+      for (const r of now) { G.ui.announce(BZ.t("build.70") + r.name.toUpperCase(), r.d, 'hot'); G.audio.play('streak', { gain: 0.6 }); }
       G.events.emit('build:changed', { id, lv: L[id] });
       return true;
     }
@@ -122,7 +122,7 @@
     function update(dt) {
       const P = G.player; if (!P.alive) return;
       if (lv('regen')) P.hp = Math.min(P.maxHp, P.hp + 0.8 * lv('regen') * dt);
-      if (has('undying') && !B.undyingUsed && P.hp < P.maxHp * 0.25) { B.undyingUsed = true; G.hero.t.invuln = Math.max(G.hero.t.invuln || 0, 3); G.ui.announce('BẤT KHUẤT', 'bất tử 3 giây', 'hot'); }
+      if (has('undying') && !B.undyingUsed && P.hp < P.maxHp * 0.25) { B.undyingUsed = true; G.hero.t.invuln = Math.max(G.hero.t.invuln || 0, 3); G.ui.announce(BZ.t("build.71"), BZ.t("build.72"), 'hot'); }
     }
     G.events.on('wave:start', () => { B.undyingUsed = false; }); G.events.on('coop:wave', () => { B.undyingUsed = false; });
     return Object.assign(B, { lv, def, has, reset, grant, offer, unlocks, apply, dmgMul, critAdd, critMul, rateMul, reloadMul, magMul, meleeMul, meleeRange, armorMul, speedMul, cdMul, powMul, ultMul,

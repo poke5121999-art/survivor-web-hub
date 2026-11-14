@@ -7,10 +7,10 @@
     walker: { hp: 100, speed: 2.1, dmg: 12, rate: 1.1, windup: 0.4, scale: 1, skin: 'z_skin', face: 'z_face', shirt: ['z_vest', 'z_shirt_red', 'z_shirt_dark'], pants: ['z_pants', 'z_pants_brown'], score: 100, voice: 'groan', eye: 0xff3020, hunch: 0.08, droop: 0.5 },
     runner: { hp: 60, speed: 4.3, dmg: 8, rate: 0.8, windup: 0.28, scale: 0.92, skin: 'z_skin_runner', face: 'z_face_runner', shirt: ['z_shirt_red'], pants: ['z_pants_dark', 'z_pants'], score: 150, voice: 'screech', eye: 0xffd23a, hunch: 0.38, droop: 0.15 },
     flyer: { hp: 45, speed: 7, dmg: 8, rate: 0.9, windup: 0.22, scale: 0.85, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 200, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0 },
-    giant: { hp: 2600, speed: 2.2, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.9, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: 'KHỔNG LỒ' },
-    thrower: { hp: 1700, speed: 1.85, dmg: 20, rate: 1.4, windup: 0.5, scale: 2.2, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: 'KẺ NÉM ĐÁ' },
-    phantom: { hp: 1300, speed: 3.6, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.7, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: 'BÓNG MA' },
-    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.3, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: 'CHÚA DƠI' },
+    giant: { hp: 2600, speed: 2.2, dmg: 35, rate: 2.0, windup: 0.7, scale: 2.9, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'roar', eye: 0xff2a10, hunch: 0.2, droop: 0, boss: 'giant', name: BZ.t("zombies.1") },
+    thrower: { hp: 1700, speed: 1.85, dmg: 20, rate: 1.4, windup: 0.5, scale: 2.2, skin: 'z_skin', face: 'z_face_brute', shirt: ['z_vest'], pants: ['z_pants'], score: 2500, voice: 'roar', eye: 0xffa020, hunch: 0.15, droop: 0, boss: 'thrower', name: BZ.t("zombies.2") },
+    phantom: { hp: 1300, speed: 3.6, dmg: 22, rate: 1.0, windup: 0.3, scale: 1.7, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 2500, voice: 'screech', eye: 0x80ffff, hunch: 0.3, droop: 0.2, boss: 'phantom', name: BZ.t("zombies.3") },
+    queen: { hp: 1400, speed: 6, dmg: 18, rate: 1.2, windup: 0.3, scale: 2.3, fly: true, skin: 'z_skin_flyer', face: 'z_face_flyer', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 3000, voice: 'screech', eye: 0xff40ff, hunch: 0.5, droop: 0, boss: 'queen', name: BZ.t("zombies.4") },
     brute: { hp: 480, speed: 1.6, dmg: 30, rate: 1.7, windup: 0.6, scale: 1.45, skin: 'z_skin_brute', face: 'z_face_brute', shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], score: 500, voice: 'roar', eye: 0xff2a10, hunch: 0.15, droop: 0 },
   };
   BZ.ZOMBIES = TYPES;
@@ -634,10 +634,10 @@
     // st.burn = { t, dps, by }  st.chill = { t, n, by }  st.shock = { t, by }  st.poison = { t, n, dps, by }
     const V3s = () => new THREE.Vector3();
     const REACT = {
-      steam: { name: 'NỔ HƠI', col: [0xe8f0ff, 0xb8c8d8, 0xffffff] },
-      shatter: { name: 'VỠ VỤN', col: [0xdff6ff, 0x9ad8ff, 0xffffff] },
-      gas: { name: 'NỔ KHÍ ĐỘC', col: [0x9aff60, 0x5ac030, 0xffe060] },
-      spread: { name: 'LAN ĐỘC', col: [0x9aff60, 0x60e0ff] },
+      steam: { name: BZ.t("zombies.5"), col: [0xe8f0ff, 0xb8c8d8, 0xffffff] },
+      shatter: { name: BZ.t("zombies.6"), col: [0xdff6ff, 0x9ad8ff, 0xffffff] },
+      gas: { name: BZ.t("zombies.7"), col: [0x9aff60, 0x5ac030, 0xffe060] },
+      spread: { name: BZ.t("zombies.8"), col: [0x9aff60, 0x60e0ff] },
     };
     function hurtBy(z, amount, by, dot = true) { return damage(z, amount, 'body', V3s().set(0, 0, 1), 0.5, { dot, net: true, by, credit: !by || by === 'h' || (G.coop && by === G.coop.me) }); }
     function applyStatus(z, kind, pow = 1, by = 'h') {
@@ -673,7 +673,7 @@
       const combo = otherBy && otherBy !== by; const k = (combo ? 1.5 : 1) * pow;
       G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 });
       G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1], a0: 1 });
-      G.ui.pop((combo ? 'PHỐI HỢP · ' : '') + R.name, combo ? 'critword' : 'dmg crit', V3s().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
+      G.ui.pop((combo ? BZ.t("coop.8") : '') + R.name, combo ? 'critword' : 'dmg crit', V3s().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
       G.audio.playAt(kind === 'shatter' ? 'clank' : 'boom', z.pos, { gain: 0.9, rate: kind === 'shatter' ? 1.6 : 1.4 });
       G.events.emit('react', { z, kind, combo, by, otherBy });
       if (kind === 'shatter') {

@@ -16,8 +16,8 @@
     let curDist = 3.6;
 
     const btn = document.getElementById('viewbtn');
-    const label = () => { if (btn) btn.querySelector('span').textContent = T.on ? 'NGÔI 3' : 'NGÔI 1'; };
-    function toggle() { T.on = !T.on; label(); G.ui.announce(T.on ? 'GÓC NHÌN THỨ BA' : 'GÓC NHÌN THỨ NHẤT', 'phím V hoặc nút góc phải để đổi', ''); }
+    const label = () => { if (btn) btn.querySelector('span').textContent = T.on ? BZ.t("tps.1") : BZ.t("tps.2"); };
+    function toggle() { T.on = !T.on; label(); G.ui.announce(T.on ? BZ.t("tps.3") : BZ.t("tps.4"), BZ.t("tps.5"), ''); }
     addEventListener('keydown', (e) => { if (e.code === 'KeyV' && G.state === 'playing') toggle(); });
     if (btn) {
       btn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggle(); }, { passive: false });

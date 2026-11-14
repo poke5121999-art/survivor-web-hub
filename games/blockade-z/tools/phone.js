@@ -18,7 +18,7 @@ const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(
 
 (async () => {
   const srv = await serve();
-  const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?';
+  const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&';
   const br = await require(PW).chromium.launch({ channel: process.env.BZ_CHANNEL || 'chrome', headless: true, args: ['--ignore-gpu-blocklist'] });
   const problems = [];
   try {

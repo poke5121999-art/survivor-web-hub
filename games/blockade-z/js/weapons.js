@@ -4,49 +4,49 @@
   const THREE = window.THREE;
 
   const WEAPONS = {
-    pistol: { name: 'Súng lục', key: '1', price: 120, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol', impulse: 1, crit: 0.14,
+    pistol: { name: BZ.t("weapons.1"), key: '1', price: 120, dmg: 34, head: 2, rpm: 380, auto: false, mag: 12, reserve: Infinity, pellets: 1, spread: 0.006, moveSpread: 0.018, range: 90, reload: 1.15, snd: 'pistol', impulse: 1, crit: 0.14,
       kick: { back: 0.05, rise: 2.2, yaw: 0.6, cam: 0.012 }, adsFov: 62 },
     shotgun: { name: 'Shotgun', key: '2', price: 350, dmg: 20, head: 1.5, rpm: 70, auto: false, mag: 6, reserve: 30, pellets: 9, spread: 0.065, moveSpread: 0.075, range: 32, perShell: 0.42, snd: 'shotgun', impulse: 0.45,
       kick: { back: 0.14, rise: 6, yaw: 1.4, cam: 0.045 }, adsFov: 64 },
     smg: { name: 'SMG', key: '3', price: 0, dmg: 21, head: 1.8, rpm: 780, auto: true, mag: 40, reserve: Infinity, pellets: 1, spread: 0.016, moveSpread: 0.03, range: 60, reload: 1.6, snd: 'smg', impulse: 0.55,
       kick: { back: 0.035, rise: 1.2, yaw: 0.8, cam: 0.006 }, adsFov: 60, tracer: 3 },
-    rifle: { name: 'Súng trường', key: '4', price: 900, dmg: 46, head: 2.5, rpm: 540, auto: true, mag: 30, reserve: 120, pellets: 1, spread: 0.005, moveSpread: 0.022, range: 120, reload: 2.0, snd: 'rifle', impulse: 1.4, pierce: 2,
+    rifle: { name: BZ.t("weapons.2"), key: '4', price: 900, dmg: 46, head: 2.5, rpm: 540, auto: true, mag: 30, reserve: 120, pellets: 1, spread: 0.005, moveSpread: 0.022, range: 120, reload: 2.0, snd: 'rifle', impulse: 1.4, pierce: 2,
       kick: { back: 0.05, rise: 1.8, yaw: 0.9, cam: 0.01 }, adsFov: 45, tracer: 2 },
     bazooka: { name: 'Bazooka', key: '5', price: 1200, dmg: 0, head: 1, rpm: 50, auto: false, mag: 1, reserve: 10, pellets: 1, spread: 0.002, moveSpread: 0.012, range: 150, reload: 2.8, snd: 'rocket', impulse: 3, rocket: true,
       kick: { back: 0.3, rise: 7, yaw: 1, cam: 0.06 }, adsFov: 55 },
     // melee: swing = seconds per swing, hitAt = when the edge lands, arc = half-angle of the cone it sweeps, cleave = bodies per swing
     katana: { name: 'Katana', price: 300, melee: true, cut: 'blade', dmg: 58, head: 1.7, swing: 0.36, hitAt: 0.13, range: 2.7, arc: 1.05, cleave: 3, impulse: 1.3, crit: 0.22, lunge: 3.2, stop: 0.055,
       snd: 'slash', hitSnd: 'chop', combo: ['r2l', 'l2r', 'over'], trail: 0xa8fff0, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
-    axe: { name: 'Rìu', price: 250, melee: true, cut: 'axe', dmg: 105, head: 1.6, swing: 0.66, hitAt: 0.3, range: 2.6, arc: 0.85, cleave: 2, impulse: 3, crit: 0.12, lunge: 2.2, stop: 0.1,
+    axe: { name: BZ.t("weapons.3"), price: 250, melee: true, cut: 'axe', dmg: 105, head: 1.6, swing: 0.66, hitAt: 0.3, range: 2.6, arc: 0.85, cleave: 2, impulse: 3, crit: 0.12, lunge: 2.2, stop: 0.1,
       snd: 'heavy', hitSnd: 'cleave', combo: ['over', 'r2l'], trail: 0xffd8a0, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.03 }, adsFov: 70 },
-    saber: { name: 'Kiếm ánh sáng', price: 1500, melee: true, cut: 'saber', dmg: 82, head: 1.5, swing: 0.4, hitAt: 0.15, range: 3.0, arc: 1.25, cleave: 4, impulse: 1.1, crit: 0.2, lunge: 3.6, stop: 0.06,
+    saber: { name: BZ.t("weapons.4"), price: 1500, melee: true, cut: 'saber', dmg: 82, head: 1.5, swing: 0.4, hitAt: 0.15, range: 3.0, arc: 1.25, cleave: 4, impulse: 1.1, crit: 0.2, lunge: 3.6, stop: 0.06,
       snd: 'saber_swing', hitSnd: 'saber_hit', combo: ['r2l', 'l2r', 'spin'], trail: 0x60f0ff, glow: 0x60e8ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.014 }, adsFov: 70 },
     // pf: per-pattern overrides (arc, dmg, imp, cleave, range, fall, shove); fall = damage kept by each further body in a swing
-    spear: { name: 'Thương', price: 700, melee: true, hold: 'spear', cut: 'blade', dmg: 54, head: 1.8, swing: 0.34, hitAt: 0.12, range: 3.9, arc: 0.2, cleave: 4, fall: 0.9, impulse: 1.5, crit: 0.18, lunge: 2.2, stop: 0.04,
+    spear: { name: BZ.t("weapons.5"), price: 700, melee: true, hold: 'spear', cut: 'blade', dmg: 54, head: 1.8, swing: 0.34, hitAt: 0.12, range: 3.9, arc: 0.2, cleave: 4, fall: 0.9, impulse: 1.5, crit: 0.18, lunge: 2.2, stop: 0.04,
       snd: 'slash', hitSnd: 'chop', combo: ['thrust', 'thrust', 'thrust'], idleKF: 'idleSpear', trail: 0x8fdcff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.012 }, adsFov: 70 },
-    longsword: { name: 'Trường kiếm', price: 900, melee: true, hold: 'sword2', cut: 'blade', dmg: 96, head: 1.6, swing: 0.6, hitAt: 0.26, range: 2.9, arc: 1.15, cleave: 4, impulse: 2.2, crit: 0.2, lunge: 2.6, stop: 0.085,
+    longsword: { name: BZ.t("weapons.6"), price: 900, melee: true, hold: 'sword2', cut: 'blade', dmg: 96, head: 1.6, swing: 0.6, hitAt: 0.26, range: 2.9, arc: 1.15, cleave: 4, impulse: 2.2, crit: 0.2, lunge: 2.6, stop: 0.085,
       snd: 'heavy', hitSnd: 'cleave', combo: ['r2l', 'l2r', 'over'], pf: { over: { dmg: 1.6, imp: 1.5, arc: 0.9 } }, idleKF: 'idleSword', trail: 0xdfe8ff, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.026 }, adsFov: 70 },
-    glaive: { name: 'Đại đao', price: 1100, melee: true, hold: 'glaive', cut: 'blade', dmg: 74, head: 1.5, swing: 0.5, hitAt: 0.2, range: 3.5, arc: 1.2, cleave: 4, impulse: 1.8, crit: 0.16, lunge: 2.4, stop: 0.07,
+    glaive: { name: BZ.t("weapons.7"), price: 1100, melee: true, hold: 'glaive', cut: 'blade', dmg: 74, head: 1.5, swing: 0.5, hitAt: 0.2, range: 3.5, arc: 1.2, cleave: 4, impulse: 1.8, crit: 0.16, lunge: 2.4, stop: 0.07,
       snd: 'heavy', hitSnd: 'cleave', combo: ['gr2l', 'gl2r', 'spin360'], pf: { spin360: { arc: Math.PI, dmg: 1.3, cleave: 9, imp: 2, range: 3.3, fall: 0.9 } }, idleKF: 'idleGlaive', trail: 0xa8ff70, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.022 }, adsFov: 70 },
-    fists: { name: 'Nắm đấm', price: 0, melee: true, hold: 'fists', noTrail: true, dmg: 28, head: 1.8, swing: 0.24, hitAt: 0.08, range: 2.1, arc: 0.6, cleave: 1, impulse: 0.8, crit: 0.15, lunge: 1.8, stop: 0.03,
+    fists: { name: BZ.t("weapons.8"), price: 0, melee: true, hold: 'fists', noTrail: true, dmg: 28, head: 1.8, swing: 0.24, hitAt: 0.08, range: 2.1, arc: 0.6, cleave: 1, impulse: 0.8, crit: 0.15, lunge: 1.8, stop: 0.03,
       snd: 'swipe', hitSnd: 'hit', combo: ['jabR', 'jabL', 'upper'], pf: { upper: { dmg: 2.6, imp: 3.2, shove: 7, arc: 0.8, cleave: 2, range: 2.3 } }, idleKF: 'idleFist', mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.01 }, adsFov: 70 },
     // spinUp = seconds of barrel spin before the first round; slow = per-frame speed kept while the trigger is held; carry = keep the fractional wait between rounds
-    minigun: { name: 'Súng máy', key: '6', price: 0, dmg: 17, head: 1.6, rpm: 1300, auto: true, mag: 240, reserve: Infinity, pellets: 1, spread: 0.028, moveSpread: 0.05, range: 70, reload: 3.2, snd: 'smg', impulse: 0.45, crit: 0.05,
+    minigun: { name: BZ.t("weapons.9"), key: '6', price: 0, dmg: 17, head: 1.6, rpm: 1300, auto: true, mag: 240, reserve: Infinity, pellets: 1, spread: 0.028, moveSpread: 0.05, range: 70, reload: 3.2, snd: 'smg', impulse: 0.45, crit: 0.05,
       kick: { back: 0.02, rise: 0.5, yaw: 0.5, cam: 0.003 }, adsFov: 64, tracer: 2, spinUp: 0.4, slow: 0.95, carry: true, noAds: true },
-    dualpistol: { name: 'Súng đôi', key: '7', price: 0, dmg: 46, head: 2, rpm: 520, auto: true, mag: 30, reserve: Infinity, pellets: 1, spread: 0.012, moveSpread: 0.03, range: 80, reload: 1.5, snd: 'pistol', impulse: 0.8, crit: 0.12,
+    dualpistol: { name: BZ.t("weapons.10"), key: '7', price: 0, dmg: 46, head: 2, rpm: 520, auto: true, mag: 30, reserve: Infinity, pellets: 1, spread: 0.012, moveSpread: 0.03, range: 80, reload: 1.5, snd: 'pistol', impulse: 0.8, crit: 0.12,
       kick: { back: 0.03, rise: 1.3, yaw: 0.9, cam: 0.007 }, adsFov: 62, tracer: 2, carry: true, dual: true, noAds: true, hipX: -0.2 },
     // thrown: real projectiles. speed m/s, grav m/s2, windup = seconds the arm draws back before the release, hide = seconds the item is gone from the hand
     javelin: { name: 'Phi lao', key: '8', price: 0, dmg: 170, head: 2, rpm: 80, auto: false, mag: 3, reserve: Infinity, pellets: 1, spread: 0.004, moveSpread: 0.02, range: 110, reload: 1.0, snd: 'heavy', impulse: 2.4, crit: 0.15,
       thrown: 'javelin', hold: 'throw', speed: 58, grav: 8, pierce: 3, windup: 0.11, throwT: 0.42, hide: 0.5, kick: { back: 0.15, rise: -3, yaw: 0.4, cam: 0.02 }, adsFov: 58, noAds: true, rsnd: [[0.25, 'switch'], [0.7, 'rack']] },
-    shuriken: { name: 'Phi tiêu', key: '9', price: 0, dmg: 46, head: 1.8, rpm: 190, auto: true, mag: 15, reserve: Infinity, pellets: 3, fan: 0.075, spread: 0.004, moveSpread: 0.02, range: 70, reload: 1.0, snd: 'swipe', impulse: 0.7, crit: 0.14,
+    shuriken: { name: BZ.t("heroes.40"), key: '9', price: 0, dmg: 46, head: 1.8, rpm: 190, auto: true, mag: 15, reserve: Infinity, pellets: 3, fan: 0.075, spread: 0.004, moveSpread: 0.02, range: 70, reload: 1.0, snd: 'swipe', impulse: 0.7, crit: 0.14,
       thrown: 'shuriken', hold: 'throw', speed: 52, grav: 0, pierce: 1, windup: 0.04, throwT: 0.28, hide: 0.2, kick: { back: 0.05, rise: -1, yaw: 0.3, cam: 0.006 }, adsFov: 58, noAds: true, rsnd: [[0.3, 'switch'], [0.7, 'mag_in']] },
     // Sói: a quick one-handed hunting hatchet (every third hit that lands opens a bleed); in the beast form, two claws that tear across
-    hatchet: { name: 'Rìu săn', price: 0, melee: true, cut: 'blade', dmg: 60, head: 1.6, swing: 0.32, hitAt: 0.11, range: 2.6, arc: 0.95, cleave: 2, impulse: 1.6, crit: 0.16, lunge: 2.8, stop: 0.05,
+    hatchet: { name: BZ.t("weapons.11"), price: 0, melee: true, cut: 'blade', dmg: 60, head: 1.6, swing: 0.32, hitAt: 0.11, range: 2.6, arc: 0.95, cleave: 2, impulse: 1.6, crit: 0.16, lunge: 2.8, stop: 0.05,
       snd: 'slash', hitSnd: 'chop', combo: ['r2l', 'l2r', 'over'], pf: { over: { dmg: 1.25, imp: 1.4 } }, idleKF: 'idleHatchet', trail: 0xffc890, mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.018 }, adsFov: 70 },
-    claws: { name: 'Vuốt sói', price: 0, melee: true, hold: 'claws', noTrail: true, cut: 'blade', dmg: 70, head: 1.4, swing: 0.26, hitAt: 0.09, range: 2.9, arc: 1.1, cleave: 4, fall: 0.85, impulse: 1.6, crit: 0.15, lunge: 3.2, stop: 0.045,
+    claws: { name: BZ.t("weapons.12"), price: 0, melee: true, hold: 'claws', noTrail: true, cut: 'blade', dmg: 70, head: 1.4, swing: 0.26, hitAt: 0.09, range: 2.9, arc: 1.1, cleave: 4, fall: 0.85, impulse: 1.6, crit: 0.15, lunge: 3.2, stop: 0.045,
       snd: 'slash', hitSnd: 'chop', combo: ['clawR', 'clawL'], idleKF: 'idleFist', mag: Infinity, reserve: Infinity, spread: 0, moveSpread: 0, kick: { cam: 0.016 }, adsFov: 70 },
     // Nhện Đồng: a crossbow strapped to the wrist; each bolt leaves a web stack, the third roots the zombie
-    webbow: { name: 'Nỏ tơ', key: '0', price: 0, dmg: 74, head: 2, rpm: 330, auto: true, mag: 14, pierce: 2, reserve: Infinity, pellets: 1, spread: 0.005, moveSpread: 0.016, range: 70, reload: 1.4, snd: 'swipe', impulse: 0.6, crit: 0.12,
+    webbow: { name: BZ.t("weapons.13"), key: '0', price: 0, dmg: 74, head: 2, rpm: 330, auto: true, mag: 14, pierce: 2, reserve: Infinity, pellets: 1, spread: 0.005, moveSpread: 0.016, range: 70, reload: 1.4, snd: 'swipe', impulse: 0.6, crit: 0.12,
       hold: 'wrist', web: true, kick: { back: 0.04, rise: 1.4, yaw: 0.5, cam: 0.008 }, adsFov: 58, tracer: 1, rsnd: [[0.25, 'switch'], [0.7, 'rack']] },
   };
   BZ.WEAPONS = WEAPONS;
@@ -640,7 +640,7 @@
       if (bleedNow) {
         SG.bleeds++; const z = hit[0].z; const at = chestOf(z);
         G.fx.burst(at, 30, [0xc0281e, 0x8a1410, 0x5a0a08], { dir: sweep, push: 6, speed: 4, size: 0.1, life: 1 }); G.fx.puff(at, { glow: true, s0: 0.6, s1: 1.8, life: 0.2, c0: 0xffe0c0, c1: 0xc0281e, a0: 1, spin: 0 });
-        G.ui.pop('CHẢY MÁU', 'critword', at.clone().setY(at.y + 1.2)); G.audio.playAt('gore', at, { gain: 0.8, rate: 1.1 });
+        G.ui.pop(BZ.t("weapons.14"), 'critword', at.clone().setY(at.y + 1.2)); G.audio.playAt('gore', at, { gain: 0.8, rate: 1.1 });
       }
       if (S.cur === 'claws') { clawMarks(o, fx, fz, dirX < 0 ? 1 : -1); if (hit.length) G.audio.playAt('gore', o, { gain: 0.35, rate: 1.4 }); }
       const pi = ((sw.n || 1) - 1) % w.combo.length;
@@ -891,7 +891,7 @@
       const at = V().set(P.pos.x - Math.sin(P.yaw) * 0.7, P.pos.y + 1.25, P.pos.z - Math.cos(P.yaw) * 0.7);
       G.fx.burst(at, 10, [0xfff2a0, 0xffd080, 0xd0e4ff], { dir: V().set(dx / l, 0.3, dz / l), push: 3, speed: 3, size: 0.05, life: 0.35 });
       G.fx.puff(at, { glow: true, s0: 0.6, s1: 1.4, life: 0.12, c0: 0xffffff, c1: 0x60a0ff, a0: 1 });
-      if (SG.t - SG.blockSnd > 0.08) { SG.blockSnd = SG.t; G.audio.play('clank', { gain: 0.9, rate: G.rng.range(0.85, 1.0) }); G.ui.pop('ĐỠ', 'critword', at.clone().setY(at.y + 0.5)); }
+      if (SG.t - SG.blockSnd > 0.08) { SG.blockSnd = SG.t; G.audio.play('clank', { gain: 0.9, rate: G.rng.range(0.85, 1.0) }); G.ui.pop(BZ.t("weapons.15"), 'critword', at.clone().setY(at.y + 0.5)); }
       return 0.2;
     }
 
@@ -958,7 +958,7 @@
       for (const at of [from, to]) { G.fx.pop(at, 0.9, [0xb060ff, 0x5a20a0]); for (let i = 0; i < 6; i++) G.fx.puff(at.clone().add(V().set(G.rng.range(-0.4, 0.4), G.rng.range(-0.8, 0.6), G.rng.range(-0.4, 0.4))), { vel: V().set(0, 0.8, 0), drag: 1.5, s0: 0.5, s1: 1.4, life: 0.8, c0: 0x2a1040, c1: 0x5a3080, a0: 0.7 }); }
       G.audio.play('saber_on', { gain: 0.8, rate: 1.9 }); G.audio.play('swipe', { gain: 0.8, rate: 0.6 });
       SG.sureCrit = true; SG.tpCd = 6; SG.mark = null; SG.tps++;
-      G.ui.pop('CHÍ MẠNG KẾ', 'critword', V().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
+      G.ui.pop(BZ.t("weapons.16"), 'critword', V().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
       return true;
     }
 
@@ -1163,12 +1163,12 @@
     const hud = { el: null, k: '' };
     function sigHud() {
       if (!hud.el) { hud.el = document.getElementById('sigbar'); if (!hud.el) return; hud.lab = hud.el.querySelector('small'); hud.bar = hud.el.querySelector('i'); }
-      const alt = document.body.classList.contains('touch') ? 'NÚT NGẮM' : 'CHUỘT PHẢI';
+      const alt = document.body.classList.contains('touch') ? BZ.t("weapons.17") : BZ.t("weapons.18");
       let label = ''; let frac = 0; let cls = '';
-      if (S.cur === 'minigun') { label = SG.jamT > 0 ? 'KẸT ĐẠN · XẢ HƠI' : SG.heat > 0.6 ? 'NÓNG · ĐẠN LỬA' : 'NHIỆT NÒNG'; frac = SG.jamT > 0 ? SG.jamT / 1.2 : SG.heat; cls = SG.jamT > 0 ? 'jam' : SG.heat > 0.6 ? 'hot' : 'heat'; }
-      else if (S.cur === 'shuriken') { const rdy = SG.tpCd <= 0; label = !rdy ? 'DỊCH CHUYỂN ' + SG.tpCd.toFixed(1) + ' s' : SG.mark ? alt + ' · DỊCH CHUYỂN' : 'DỊCH CHUYỂN · CẦN ĐÁNH DẤU'; frac = rdy ? 1 : 1 - SG.tpCd / 6; cls = rdy && SG.mark ? 'ready' : 'cd'; }
-      else if (S.cur === 'longsword') { label = S.guard > 0.5 ? 'GIƠ KHIÊN · CHẶN 80%' : alt + ' · GIƠ KHIÊN'; frac = S.guard; cls = 'shield'; }
-      else if (S.cur === 'hatchet') { const n = SG.axeN % 3; label = n === 2 ? 'NHÁT KẾ · CHẢY MÁU' : 'CHẢY MÁU · ' + (n + 1) + '/3'; frac = (n + 1) / 3; cls = n === 2 ? 'ready' : 'cd'; }
+      if (S.cur === 'minigun') { label = SG.jamT > 0 ? BZ.t("weapons.19") : SG.heat > 0.6 ? BZ.t("weapons.20") : BZ.t("weapons.21"); frac = SG.jamT > 0 ? SG.jamT / 1.2 : SG.heat; cls = SG.jamT > 0 ? 'jam' : SG.heat > 0.6 ? 'hot' : 'heat'; }
+      else if (S.cur === 'shuriken') { const rdy = SG.tpCd <= 0; label = !rdy ? BZ.t("weapons.22") + SG.tpCd.toFixed(1) + ' s' : SG.mark ? alt + BZ.t("weapons.23") : BZ.t("weapons.24"); frac = rdy ? 1 : 1 - SG.tpCd / 6; cls = rdy && SG.mark ? 'ready' : 'cd'; }
+      else if (S.cur === 'longsword') { label = S.guard > 0.5 ? BZ.t("weapons.25") : alt + BZ.t("weapons.26"); frac = S.guard; cls = 'shield'; }
+      else if (S.cur === 'hatchet') { const n = SG.axeN % 3; label = n === 2 ? BZ.t("weapons.27") : BZ.t("weapons.28") + (n + 1) + '/3'; frac = (n + 1) / 3; cls = n === 2 ? 'ready' : 'cd'; }
       const key = label + cls + Math.round(frac * 40);
       if (key === hud.k) return; hud.k = key;
       hud.el.className = label ? 'on ' + cls : ''; if (!label) return;

@@ -24,7 +24,7 @@ const BOT = `(() => { const G = __G; const P = G.player; let t = null; let best 
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'clip@test' })); } catch (e) {} });
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.log('pageerror ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?' + QUERY + '&autostart=1&nolock=1&god=1&noaudio=1&seed=' + (process.env.SEED || 5));
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&' + QUERY + '&autostart=1&nolock=1&god=1&noaudio=1&seed=' + (process.env.SEED || 5));
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     await page.evaluate("__setShot('plaza')");
     if (process.env.SETUP) await page.evaluate(process.env.SETUP);

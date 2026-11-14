@@ -16,7 +16,7 @@ let fails = 0; const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ')
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'meta@test' })); localStorage.removeItem('blockadez.meta.v1'); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?meta=1&nolock=1&seed=5&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&meta=1&nolock=1&seed=5&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const ev = (s) => page.evaluate(s);
     const shot = (n) => page.screenshot({ path: path.join(OUT, n + '.png') });

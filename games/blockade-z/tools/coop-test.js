@@ -19,7 +19,7 @@ const BASE = process.env.BZ_BASE;
   const q = `nolock=1&noaudio=1&god=0${FAKE ? '&fakenet=1' : ''}`;
   const A = await ctx.newPage(); const B = await ctx.newPage();
   for (const [n, p] of [['A', A], ['B', B]]) { p.on('pageerror', (e) => console.log(n, 'PAGEERR', e.message)); p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(n, m.type(), m.text().slice(0, 300)); }); }
-  const url = (BASE || srv.base) + '/games/blockade-z/index.html?seed=3&' + q;
+  const url = (BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&seed=3&' + q;
   await A.goto(url); await B.goto(url.replace('seed=3', 'seed=4'));
   await A.waitForFunction('window.__ready === true'); await B.waitForFunction('window.__ready === true');
   await A.evaluate("__G.settings.coopName = 'Chu'; __G.events.emit('ui:coophost')");

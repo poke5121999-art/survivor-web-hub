@@ -151,7 +151,7 @@
 
   const moves = {
     scarabs: {
-      dur: 2.0, cd: 4, say: 'BẦY BỌ HUNG',
+      dur: 2.0, cd: 4, say: BZ.t("boss-pharaoh.1"),
       when: (z, P, d) => d < 40,
       tick(z, dt, P, S, C) {
         z.vel.x = z.vel.z = 0; turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 6);
@@ -169,7 +169,7 @@
       },
     },
     pillars: {
-      dur: 2.8, cd: 6, say: 'TRỤ CÁT HÀNH QUÂN',
+      dur: 2.8, cd: 6, say: BZ.t("boss-pharaoh.2"),
       when: (z, P, d) => d < 38,
       start(z, S, P, C) {
         const dir = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); const d0 = dir.length(); dir.normalize();
@@ -185,7 +185,7 @@
       tick(z, dt, P, S, C) { z.vel.x = z.vel.z = 0; if (S.t < 0.8) turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 6); },
     },
     curse: {
-      dur: 3.3, cd: 8, say: 'LỜI NGUYỀN VÀNG',
+      dur: 3.3, cd: 8, say: BZ.t("boss-pharaoh.3"),
       when: (z, P, d) => d < 30,
       start(z, S, P, C) {
         const a0 = Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z); S.data.base = a0; S.data.dir = C.G.rng.chance(0.5) ? 1 : -1;
@@ -206,7 +206,7 @@
       },
     },
     mummies: {
-      dur: 2.4, cd: 9, say: 'GỌI XÁC ƯỚP',
+      dur: 2.4, cd: 9, say: BZ.t("boss-pharaoh.4"),
       when: (z, P, d) => d < 40,
       start(z, S, P, C) {
         const ps = C.players(); const n = C.rage(z) ? 4 : 3;
@@ -221,7 +221,7 @@
       tick(z, dt, P, S, C) { z.vel.x = z.vel.z = 0; turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 5); },
     },
     sandsink: {
-      dur: 2.9, cd: 7, say: 'CHÌM CÁT',
+      dur: 2.9, cd: 7, say: BZ.t("boss-pharaoh.5"),
       when: (z, P, d) => d > 4,
       start(z, S, P, C) {
         const out = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); if (out.lengthSq() < 0.01) out.set(0, 0, 1); out.normalize();
@@ -238,7 +238,7 @@
       tick(z, dt, P, S, C) { z.vel.x = z.vel.z = 0; if (S.t > RISE) turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 10); },
     },
     orbring: {
-      dur: 2.2, cd: 6, say: 'VÒNG CẦU CÁT',
+      dur: 2.2, cd: 6, say: BZ.t("boss-pharaoh.6"),
       when: (z, P, d) => d < 36,
       start(z, S, P, C) {
         C.shock(C.V().set(z.pos.x, 0.05, z.pos.z), 5, 0.7, GOLD, 0);
@@ -259,7 +259,7 @@
   };
 
   BZ.bossKit('pharaoh', {
-    type: { hp: 5000, speed: 5, dmg: 28, rate: 2, windup: 0.5, scale: 3.2, skin: 'pf_wrap', face: 'pf_face', shirt: ['pf_collar'], pants: ['pf_skirt'], score: 6000, eye: GLOW, name: 'PHARAOH XÁC ƯỚP' },
+    type: { hp: 5000, speed: 5, dmg: 28, rate: 2, windup: 0.5, scale: 3.2, skin: 'pf_wrap', face: 'pf_face', shirt: ['pf_collar'], pants: ['pf_skirt'], score: 6000, eye: GLOW, name: BZ.t("boss-pharaoh.7") },
     colors: [GOLD, LAPIS, GLOW],
     rig,
     hits: [['head', 'head', 0.26, 0.15], ['body', 'chest', 0.4, 0], ['body', 'torso', 0.35, -0.2], ['body', 'root', 0.5, 0.9]],

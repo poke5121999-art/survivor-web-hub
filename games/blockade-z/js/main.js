@@ -4,14 +4,14 @@
   const THREE = window.THREE;
   const bootMsg = document.getElementById('boot-msg'); const bootFill = document.getElementById('boot-fill');
   const step = async (msg, k) => { bootMsg.textContent = msg; bootFill.style.width = Math.round(k * 100) + '%'; await new Promise((r) => setTimeout(r, 0)); };
-  const fatal = (e) => { const f = document.getElementById('fatal'); f.textContent = 'Blockade Z không khởi động được: ' + (e && e.stack || e); f.style.display = 'block'; console.error('[fatal]', e); };
+  const fatal = (e) => { const f = document.getElementById('fatal'); f.textContent = BZ.t("main.1") + (e && e.stack || e); f.style.display = 'block'; console.error('[fatal]', e); };
 
   try {
     const G = (window.__G = { THREE, events: BZ.events(), rng: BZ.rng(+(BZ.params.seed || 0) || Date.now()), state: 'boot', score: 0, kills: 0, god: BZ.params.god === '1', noLock: BZ.params.nolock === '1' || BZ.isTouch });
     G.settings = BZ.store.load();
     G.quality = BZ.pickQuality(G.settings.quality);
 
-    await step('Dựng renderer', 0.05);
+    await step(BZ.t("main.2"), 0.05);
     const canvas = document.getElementById('view');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
     renderer.autoClear = false;
@@ -35,15 +35,15 @@
     scene.add(sun); scene.add(sun.target);
     G.hemi = hemi; G.sun = sun;
 
-    await step('Vẽ texture pixel', 0.15);
+    await step(BZ.t("main.3"), 0.15);
     for (const k of BZ.texKeys()) BZ.tex(k);
-    await step('Xây thị trấn', 0.35);
+    await step(BZ.t("main.4"), 0.35);
     G.world = BZ.makeWorld(G);
-    await step('Gọi zombie', 0.5);
+    await step(BZ.t("main.5"), 0.5);
     G.fx = BZ.makeFx(G);
     G.audio = BZ.makeAudio(G);
     G.zombies = BZ.makeZombies(G);
-    await step('Lắp súng', 0.65);
+    await step(BZ.t("main.6"), 0.65);
     G.player = BZ.makePlayer(G);
     G.build = BZ.makeBuild(G);
     G.weapons = BZ.makeWeapons(G);
@@ -58,10 +58,10 @@
     G.gear = BZ.makeGear(G);
     G.ui = BZ.makeUI(G);
     G.meta = BZ.makeMeta(G);
-    { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = 'Kỷ lục: ' + b.score + ' điểm · đợt ' + b.wave; }
-    await step('Tổng hợp âm thanh', 0.8);
+    { const b = BZ.store.best(); if (b.score) document.getElementById('best').textContent = BZ.t("main.7") + b.score + BZ.t("main.8") + b.wave; }
+    await step(BZ.t("main.9"), 0.8);
     for (let i = 0; i < 6 && G.audio.ready() < 0.5; i++) { G.audio.update(); await new Promise((r) => setTimeout(r, 0)); }
-    await step('Sẵn sàng', 1);
+    await step(BZ.t("main.10"), 1);
 
     // ---- sizing and dynamic resolution ----
     let scale = G.quality.scale;
@@ -93,8 +93,8 @@
     G.party = { count: party, hp: () => 1 + 0.35 * (party() - 1), alive: () => 1 + 0.4 * (party() - 1) };
     function startWave(n) {
       wave.n = n; wave.phase = 'fight'; wave.total = Math.round(BZ.WAVE.count(n) * (1 + 0.6 * (party() - 1))); wave.toSpawn = wave.total; wave.killed = 0; wave.spawnT = 1.5;
-      G.ui.banner('ĐỢT ' + n, wave.total + ' zombie đang kéo tới', 2.4);
-      G.events.emit('ann', { banner: true, title: 'ĐỢT ' + n, sub: wave.total + ' zombie đang kéo tới', secs: 2.4, snd: 'wave_start' });
+      G.ui.banner(BZ.t("main.11") + n, wave.total + BZ.t("main.12"), 2.4);
+      G.events.emit('ann', { banner: true, title: BZ.t("main.11") + n, sub: wave.total + BZ.t("main.12"), secs: 2.4, snd: 'wave_start' });
       revive();
       G.audio.play('wave_start'); G.audio.setMusic({ music_drone: 0.38, music_perc: 0.55 });
       G.events.emit('wave:start', n);
@@ -142,7 +142,7 @@
       const z = G.zombies.spawn(type, wave.n, gate); if (!z) return null;
       const T = z.T;
       if (BZ.params.elite || (!T.boss && !T.pack && type !== 'flyer' && G.rng.chance(BZ.eliteChance(wave.n)))) G.zombies.elite(z, BZ.params.elite);
-      if (T.tip && !seen.has(type)) { seen.add(type); G.ui.banner(T.name, T.tip + ' · từ cổng ' + gate.name, 2.6); G.events.emit('ann', { banner: true, title: T.name, sub: T.tip, secs: 2.6 }); }
+      if (T.tip && !seen.has(type)) { seen.add(type); G.ui.banner(T.name, T.tip + BZ.t("main.13") + gate.name, 2.6); G.events.emit('ann', { banner: true, title: T.name, sub: T.tip, secs: 2.6 }); }
       return z;
     }
     G.events.on('game:new', () => seen.clear());
@@ -150,7 +150,7 @@
       if (wave.phase === 'fight') {
         wave.spawnT -= dt;
         if (wave.bossAt > 0) { wave.bossAt -= dt; if (wave.bossAt <= 0) { const P = G.player; const gate = [...G.world.spawns].sort((a, b) => Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - Math.hypot(a.x - P.pos.x, a.z - P.pos.z))[0];
-          const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, 'từ cổng ' + gate.name, 'hot'); G.events.emit('ann', { title: 'BOSS: ' + z.T.name, sub: 'từ cổng ' + gate.name, cls: 'hot' }); G.audio.play('wave_start', { rate: 0.7 }); G.audio.play('siren'); } } }
+          const z = G.zombies.spawn(wave.bossType, wave.n, gate); if (z) { wave.total++; G.ui.announce('BOSS: ' + z.T.name, BZ.t("main.14") + gate.name, 'hot'); G.events.emit('ann', { title: 'BOSS: ' + z.T.name, sub: BZ.t("main.14") + gate.name, cls: 'hot' }); G.audio.play('wave_start', { rate: 0.7 }); G.audio.play('siren'); } } }
         if (wave.toSpawn > 0 && wave.spawnT <= 0 && G.zombies.aliveCount() < Math.min(50, BZ.WAVE.maxAlive(wave.n) * G.party.alive())) {
           const r = G.rng.next(); const n = wave.n; const W = BZ.WAVE;
           const b = W.bruteShare(n); const f = b + W.flyerShare(n); const ru = f + W.runnerShare(n);
@@ -163,8 +163,8 @@
           if (type === 'flyer' || ZT.pack) {
             const k = Math.min(wave.toSpawn, type === 'flyer' ? 3 + Math.floor(n / 3) : G.rng.int(ZT.pack[0], ZT.pack[1]));
             for (let i = 0; i < k; i++) if (spawnOne(type, gate)) wave.toSpawn--;
-            if (type === 'flyer') G.ui.banner('ZOMBIE BAY', k + ' con từ hướng ' + gate.name, 1.4);
-          } else if (spawnOne(type, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner('ZOMBIE TO XÁC', 'từ cổng ' + gate.name, 1.6); }
+            if (type === 'flyer') G.ui.banner('ZOMBIE BAY', k + BZ.t("main.15") + gate.name, 1.4);
+          } else if (spawnOne(type, gate)) { wave.toSpawn--; if (type === 'brute') G.ui.banner(BZ.t("main.16"), BZ.t("main.14") + gate.name, 1.6); }
           wave.spawnT = BZ.WAVE.spawnGap(n) * G.rng.range(0.6, 1.4);
         }
         if (wave.toSpawn === 0 && wave.killed >= wave.total) endWave();
@@ -192,10 +192,10 @@
       if (combo.n >= 2) {
         const title = combo.n >= 8 ? 'RAMPAGE' : MULTI[combo.n] || 'MULTI KILL';
         const bonus = 50 * combo.n; G.score += bonus;
-        G.ui.announce(title, (combo.n >= 6 ? combo.n + ' con · ' : '') + '+' + bonus + ' điểm', combo.n >= 5 ? 'hot' : '');
+        G.ui.announce(title, (combo.n >= 6 ? combo.n + BZ.t("main.streak") : '') + '+' + bonus + BZ.t("main.17"), combo.n >= 5 ? 'hot' : '');
         G.audio.play('streak', { gain: 0.55, rate: 1 + Math.min(combo.n, 8) * 0.05 });
       }
-      if (combo.streak > 0 && combo.streak % 15 === 0) { G.ui.announce('CHUỖI ' + combo.streak, 'hạ liên tiếp không mất máu', 'streak'); G.audio.play('streak', { gain: 0.5, rate: 0.8 }); }
+      if (combo.streak > 0 && combo.streak % 15 === 0) { G.ui.announce(BZ.t("main.18") + combo.streak, BZ.t("main.19"), 'streak'); G.audio.play('streak', { gain: 0.5, rate: 0.8 }); }
       G.audio.play('coin', { gain: 0.6 });
     });
     G.events.on('hit', ({ z, dmg, part, crit }) => {
@@ -208,12 +208,12 @@
     const combo = { n: 0, t: 0, streak: 0 };
     G.events.on('player:hurt', ({ dmg, from }) => { combo.streak = 0; G.player.hurt(dmg, from); });
     // co-op: a downed player waits for the next wave; the fight ends when everyone is down
-    function revive() { const P = G.player; if (G.coop.on && !P.alive) { P.alive = true; P.hp = P.maxHp; G.ui.banner('HỒI SINH', 'vào đợt mới', 1.6); } }
+    function revive() { const P = G.player; if (G.coop.on && !P.alive) { P.alive = true; P.hp = P.maxHp; G.ui.banner(BZ.t("heroes.112"), BZ.t("main.20"), 1.6); } }
     G.events.on('coop:wave', () => revive());
     G.events.on('coop:over', () => { if (G.state === 'playing') { G.coop.downed = false; G.events.emit('player:dead', { final: true }); } });
     G.events.on('coop:lost', () => { G.state = 'title'; G.ui.show('title'); unlockPointer(); });
     G.events.on('player:dead', (e) => {
-      if (G.coop.on && !(e && e.final)) { G.ui.banner('BẠN ĐÃ GỤC', 'hồi sinh khi đợt sau bắt đầu, đồng đội còn đánh', 3); G.audio.setMusic({ music_drone: 0.3, music_perc: 0.2 }); return; }
+      if (G.coop.on && !(e && e.final)) { G.ui.banner(BZ.t("main.21"), BZ.t("main.22"), 3); G.audio.setMusic({ music_drone: 0.3, music_perc: 0.2 }); return; }
       G.state = 'dead'; unlockPointer();
       const best = BZ.store.best(); const record = G.score > best.score;
       if (record) BZ.store.saveBest({ score: G.score, wave: wave.n });
@@ -226,7 +226,7 @@
     G.events.on('buy', (id) => {
       const W = G.weapons; const P = G.player;
       if ((id === 'ally' && G.allies.count() >= BZ.ALLY.max) || (id === 'turret' && G.gear.turrets.length >= BZ.TURRET.max) || (id === 'jetpack' && P.hasJet)) { G.audio.play('deny'); return; }
-      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') { if (G.coop.guest) G.coop.act({ k: 'ally' }); else G.allies.hire(); } else if (id === 'turret') { if (G.coop.guest) G.coop.act({ k: 'turret' }); else G.gear.placeTurret(); } else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', 'nhảy rồi giữ Space để bay', 2); }
+      if (W.WEAPONS[id]) W.give(id); else if (id === 'ammo') W.refill(); else if (id === 'heal') P.hp = P.maxHp; else if (id === 'armor') P.armor = Math.min(100, P.armor + 50); else if (id === 'ally') { if (G.coop.guest) G.coop.act({ k: 'ally' }); else G.allies.hire(); } else if (id === 'turret') { if (G.coop.guest) G.coop.act({ k: 'turret' }); else G.gear.placeTurret(); } else if (id === 'jetpack') { P.hasJet = true; P.fuel = 100; G.ui.banner('JETPACK', BZ.t("main.23"), 2); }
       G.audio.play('buy');
     });
     G.events.on('upgrade', (id) => { if (G.build.grant(id)) squadUp(); });
@@ -330,10 +330,10 @@
     async function coopGo(fn, label) {
       G.audio.unlock(); G.ui.coopStatus(label + '…');
       try { await fn(); G.ui.coopStatus(''); openSelect(); }
-      catch (e) { console.warn('[coop]', e); G.ui.coopStatus('Không được: ' + (e.message || e)); if (G.coop.on) G.coop.stop(); }
+      catch (e) { console.warn('[coop]', e); G.ui.coopStatus(BZ.t("main.24") + (e.message || e)); if (G.coop.on) G.coop.stop(); }
     }
-    G.events.on('ui:coophost', () => coopGo(() => G.coop.create(), 'Đang tạo phòng'));
-    G.events.on('ui:coopjoin', (arg) => coopGo(() => G.coop.join(arg), 'Đang vào phòng'));
+    G.events.on('ui:coophost', () => coopGo(() => G.coop.create(), BZ.t("main.25")));
+    G.events.on('ui:coopjoin', (arg) => coopGo(() => G.coop.join(arg), BZ.t("main.26")));
     window.__coop = G.coop;
     G.events.on('ui:play_', openSelect);
     G.events.on('ui:pickhero', openSelect);

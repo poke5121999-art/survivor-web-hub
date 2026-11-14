@@ -14,7 +14,7 @@ const OUT = process.argv[2] || path.join(__dirname, '..', '..', '..', '.proj-blo
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'proj@test' })); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=3&noaudio=1&tod=' + (process.env.TOD || '0.45') + '&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=3&noaudio=1&tod=' + (process.env.TOD || '0.45') + '&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     await page.evaluate(`(() => { const G = __G; const T = G.THREE; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear();
       const P = G.player; P.pos.set(0, 0, 10); P.yaw = 0; P.pitch = 0.05; P.vel.set(0, 0, 0);

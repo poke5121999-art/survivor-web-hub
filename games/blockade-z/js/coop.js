@@ -58,7 +58,7 @@ BZ.makeCoop = (G) => {
   const v3 = (v) => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)];
   const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
   C.v3 = v3;
-  const nameOf = () => (G.settings.coopName || 'Người chơi').slice(0, 16);
+  const nameOf = () => (G.settings.coopName || BZ.t("coop.1")).slice(0, 16);
 
   // ---------- other players: hero body, the gun they hold, a name tag ----------
   const avatars = new Map(); // pid -> avatar
@@ -183,7 +183,7 @@ BZ.makeCoop = (G) => {
   // ---------- host ----------
   function hostListen() {
     C.link.onMessage = (from, f) => { const m = C.framer.unpack(from, f); if (m) hostReceive(from, m); };
-    C.link.onPeerLeft = (from) => leave(from, 'rời phòng');
+    C.link.onPeerLeft = (from) => leave(from, BZ.t("coop.2"));
   }
   {
     const E = G.events;
@@ -202,17 +202,17 @@ BZ.makeCoop = (G) => {
   function hostReceive(from, m) {
     let p = C.peers.get(from);
     if (m.t === 'hello') {
-      if (!p) { p = { id: from, pid: 'p' + (++pidN), name: String(m.name || 'Khách').slice(0, 16), hero: m.hero, heard: 0, ready: false }; C.peers.set(from, p); }
+      if (!p) { p = { id: from, pid: 'p' + (++pidN), name: String(m.name || BZ.t("coop.3")).slice(0, 16), hero: m.hero, heard: 0, ready: false }; C.peers.set(from, p); }
       p.heard = performance.now() / 1000; p.ready = true; p.hero = m.hero || p.hero;
       avatar(p.pid, p.name, p.hero);
       send(from, { t: 'welcome', you: p.pid, wave: [G.wave.n, G.wave.phase], sky: [G.sky.S.t, G.sky.weather()] });
-      G.ui.banner(p.name.toUpperCase() + ' VÀO PHÒNG', BZ.HEROES.find((x) => x.id === p.hero)?.name || '', 2);
+      G.ui.banner(p.name.toUpperCase() + BZ.t("coop.4"), BZ.HEROES.find((x) => x.id === p.hero)?.name || '', 2);
       G.audio.play('wave_clear', { gain: 0.5 });
       return;
     }
     if (!p) return;
     p.heard = performance.now() / 1000;
-    if (m.t === 'bye') { leave(from, 'rời phòng'); return; }
+    if (m.t === 'bye') { leave(from, BZ.t("coop.2")); return; }
     if (m.t !== 'g') return;
     if (m.hero && m.hero !== p.hero) { p.hero = m.hero; avatar(p.pid, p.name, p.hero); }
     const a = avatar(p.pid, p.name, p.hero);
@@ -246,7 +246,7 @@ BZ.makeCoop = (G) => {
   }
   function hostTick(dt) {
     const t = performance.now() / 1000;
-    for (const [id, p] of C.peers) if (t - p.heard > PEER_TIMEOUT) leave(id, 'mất kết nối');
+    for (const [id, p] of C.peers) if (t - p.heard > PEER_TIMEOUT) leave(id, BZ.t("coop.5"));
     C.sendT -= dt; if (C.sendT > 0) return; C.sendT = 1 / RATE;
     const pl = [['h', nameOf(), G.hero.id, ...myPose()]];
     for (const p of C.peers.values()) { const a = avatars.get(p.pid); if (a && a.init) pl.push([p.pid, p.name, p.hero, +a.tgt.x.toFixed(2), +a.tgt.y.toFixed(2), +a.tgt.z.toFixed(2), +a.tyaw.toFixed(2), +a.pitch.toFixed(2), G.weapons.ORDER.indexOf(a.weapon), a.shots, (a.alive ? 1 : 0) | ((a.flags || 0) & 14), a.hp]); }
@@ -261,7 +261,7 @@ BZ.makeCoop = (G) => {
   // ---------- guest ----------
   function guestListen() {
     C.link.onMessage = (from, f) => { const m = C.framer.unpack(from, f); if (m) guestReceive(m); };
-    C.link.onClose = (why) => { if (!C.on) return; G.ui.banner('MẤT PHÒNG', why === 'host left' ? 'chủ phòng đã rời' : 'mất kết nối', 3); stop(); G.events.emit('coop:lost'); };
+    C.link.onClose = (why) => { if (!C.on) return; G.ui.banner(BZ.t("coop.6"), why === 'host left' ? BZ.t("coop.7") : BZ.t("coop.5"), 3); stop(); G.events.emit('coop:lost'); };
   }
   function guestReceive(m) {
     if (m.t === 'welcome') {
@@ -296,7 +296,7 @@ BZ.makeCoop = (G) => {
     } else if (e.k === 'sev' && z && z.alive) Z.sever(z, e.part, new THREE.Vector3(e.d[0], 0, e.d[1]).normalize(), { cut: e.cut, net: true });
     else if (e.k === 'boom') { G.fx.explosion(V(e.p), e.s); G.audio.playAt('boom', V(e.p), { gain: 1.2 }); const pd = G.player.pos.distanceTo(V(e.p)); if (pd < 18) G.player.shake.v += (18 - pd) * 0.8; }
     else if (e.k === 'bolt') G.sky.strike(V(e.p), true);
-    else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? 'PHỐI HỢP · ' : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
+    else if (e.k === 'react' && z) { const R = G.zombies.REACT[e.kind]; const at = new THREE.Vector3(z.pos.x, z.pos.y + 1.1 * z.T.scale, z.pos.z); G.fx.burst(at, 26, R.col, { speed: 5, size: 0.12, life: 0.7 }); G.fx.puff(at, { glow: true, s0: 1.5, s1: 4, life: 0.35, c0: R.col[0], c1: R.col[1] }); G.ui.pop((e.combo ? BZ.t("coop.8") : '') + R.name, e.combo ? 'critword' : 'dmg crit', at.setY(at.y + 1.5)); }
     else if (e.k === 'zk') G.zombies.kinds.remote(e.z);
     else if (e.k === 'tb') G.destruct.remote(e.e);
     else if (e.k === 'hx') G.hero.remote(e.s, e.a, e.a.by);
@@ -312,24 +312,24 @@ BZ.makeCoop = (G) => {
 
   // ---------- lifecycle ----------
   async function host() {
-    C.status = 'Đang tạo phòng…';
+    C.status = BZ.t("coop.9");
     if (fake) { C.code = 'FAKE'; C.link = fakeLink('host', 'FAKE'); await C.link.open(); C.room = { code: 'FAKE', close: () => C.link.close() }; }
     else { C.room = await hostRoom({ name: nameOf() + ' · Blockade Z', isPrivate: false, playerName: nameOf() }); C.link = C.room.link; C.code = C.room.code; }
     C.on = true; C.host = true; C.guest = false; C.me = 'h';
     hostListen();
-    C.status = 'Phòng ' + C.code;
+    C.status = BZ.t("coop.10") + C.code;
     return C.code;
   }
   async function join({ code, lobbyId }) {
-    C.status = 'Đang vào phòng…';
+    C.status = BZ.t("coop.11");
     if (fake) { C.link = fakeLink('client', 'FAKE'); await C.link.open(); C.room = { leave: () => C.link.close() }; C.code = 'FAKE'; }
     else { C.room = await joinRoom({ code, lobbyId, playerName: nameOf() }); C.link = C.room.link; C.code = C.room.lobby.lobbyCode || code; }
     C.on = true; C.guest = true; C.host = false;
     guestListen();
-    const welcome = new Promise((resolve, reject) => { C.onWelcome = resolve; setTimeout(() => reject(new Error('chủ phòng không trả lời')), 10000); });
+    const welcome = new Promise((resolve, reject) => { C.onWelcome = resolve; setTimeout(() => reject(new Error(BZ.t("coop.12"))), 10000); });
     send(C.link.hostId, { t: 'hello', name: nameOf(), hero: G.hero.id });
     await welcome; C.onWelcome = null;
-    C.status = 'Phòng ' + C.code;
+    C.status = BZ.t("coop.10") + C.code;
     return C.code;
   }
   function stop() {

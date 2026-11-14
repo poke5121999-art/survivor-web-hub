@@ -206,6 +206,7 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #reloadhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font: 900 15px var(--mono); color: #ff6a50; text-shadow: 2px 2px 0 #000; display: none; letter-spacing: .1em; }
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
 #prompt { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); padding: 6px 12px; border: 3px solid #000; background: rgba(28, 22, 16, .85); box-shadow: inset 0 0 0 2px #6a4a20; font: 700 14px var(--mono); color: var(--bone); white-space: nowrap; display: none; }
+#langbtn { position: absolute; right: 16px; bottom: 14px; font: 700 12px var(--mono); color: #e8dcc0; background: rgba(20, 14, 8, .7); border: 2px solid #5a4a30; padding: 6px 10px; cursor: pointer; } #langbtn:hover { border-color: var(--gold); color: #fff; }
 #prompt.on { display: block; pointer-events: auto; cursor: pointer; z-index: 12; } body.touch #prompt { top: 56%; padding: 10px 16px; } #prompt b { color: #ffc050; } #prompt kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 4px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
 @keyframes blink { 50% { opacity: .2; } }
 #pops .pop { position: absolute; transform: translate(-50%, -50%); font: 900 16px var(--mono); color: var(--gold); text-shadow: 2px 2px 0 #000; white-space: nowrap; animation: popin .16s cubic-bezier(.2, 1.5, .4, 1) backwards; will-change: left, top, opacity; }
@@ -326,9 +327,9 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
 <div id="grade"></div>
 <a class="hub" href="../../index.html">← Hub</a>
 
-<div id="boot"><div class="mk">BLOCKADE Z</div><div class="bar"><i id="boot-fill"></i></div><div id="boot-msg">Đang tải</div></div>
+<div id="boot"><div class="mk">BLOCKADE Z</div><div class="bar"><i id="boot-fill"></i></div><div id="boot-msg"><t-x k="html.3"></t-x></div></div>
 <div id="fatal"></div>
-<div id="rotate"><i>📱</i><b>Xoay ngang điện thoại</b><span>Blockade Z chơi ở màn hình ngang · chạm để vẫn chơi dọc</span></div>
+<div id="rotate"><i>📱</i><b><t-x k="html.4"></t-x></b><span><t-x k="html.5"></t-x></span></div>
 
 <div id="hud">
   <div id="vignette"></div>
@@ -341,96 +342,96 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div id="banner"></div>
   <div id="announce"></div>
   <div id="bossbar"><b>BOSS</b><div><u></u><i></i></div></div>
-  <div id="reloadhint">HẾT ĐẠN · BẤM R</div>
-  <div class="plate" id="wave"><small>ĐỢT</small><b>1</b><span>còn 0 zombie</span><em id="env"></em></div>
-  <div class="plate" id="score">ĐIỂM <b>0</b></div>
-  <div id="skill"><kbd>F</kbd><span>Kỹ năng</span><div class="dots"></div></div>
-  <div id="skill2" class="sk"><kbd>C</kbd><span>Kỹ năng</span><div class="dots"></div></div>
-  <div id="ult"><b>0%</b><span>Tối thượng</span></div>
+  <div id="reloadhint"><t-x k="html.6"></t-x></div>
+  <div class="plate" id="wave"><small><t-x k="html.7"></t-x></small><b>1</b><span><t-x k="html.8"></t-x></span><em id="env"></em></div>
+  <div class="plate" id="score"><t-x k="html.9"></t-x> <b>0</b></div>
+  <div id="skill"><kbd>F</kbd><span><t-x k="build.49"></t-x></span><div class="dots"></div></div>
+  <div id="skill2" class="sk"><kbd>C</kbd><span><t-x k="build.49"></t-x></span><div class="dots"></div></div>
+  <div id="ult"><b>0%</b><span><t-x k="html.10"></t-x></span></div>
   <div id="herotag"></div>
   <div id="coopbar"></div>
-  <div class="plate" id="hp"><b>100</b><small>MÁU</small><div class="bar"><s style="width:100%"></s><i style="width:100%"></i><u id="armor"></u></div></div>
-  <div class="plate" id="ammo"><div id="wname">Súng lục</div><b>12</b><span>∞</span></div>
+  <div class="plate" id="hp"><b>100</b><small><t-x k="html.11"></t-x></small><div class="bar"><s style="width:100%"></s><i style="width:100%"></i><u id="armor"></u></div></div>
+  <div class="plate" id="ammo"><div id="wname"><t-x k="weapons.1"></t-x></div><b>12</b><span>∞</span></div>
   <div id="sigbar"><small></small><div><i></i></div></div>
   <div id="fuel"><small>JETPACK</small><i></i></div>
   <div id="slots"></div>
-  <button id="viewbtn" type="button" title="Đổi góc nhìn (phím V)"><kbd>V</kbd> <span>NGÔI 3</span></button>
+  <button id="viewbtn" type="button" data-t-title="html.1"><kbd>V</kbd> <span><t-x k="tps.1"></t-x></span></button>
 </div>
 
 <div id="touch">
   <div id="stick"><i></i></div>
-  <div class="tb" data-btn="fire">BẮN</div>
-  <div class="tb" data-btn="ads">NGẮM</div>
-  <div class="tb" data-btn="jump">NHẢY</div>
-  <div class="tb" data-btn="reload">NẠP</div>
+  <div class="tb" data-btn="fire"><t-x k="html.12"></t-x></div>
+  <div class="tb" data-btn="ads"><t-x k="html.13"></t-x></div>
+  <div class="tb" data-btn="jump"><t-x k="html.14"></t-x></div>
+  <div class="tb" data-btn="reload"><t-x k="html.15"></t-x></div>
   <div class="tb" data-btn="skill" style="display:none"></div>
   <div class="tb" data-act="pause">II</div>
 </div>
 
 <section class="screen" id="title">
   <div class="in">
-    <div><canvas id="logo"></canvas><div class="sub">BỐN CỔNG · MỘT QUẢNG TRƯỜNG · KHÔNG LỐI THOÁT</div></div>
-    <p class="tag">Thị trấn khối vuông bị zombie vây kín bốn cổng. Giữ quảng trường qua từng đợt, hết mỗi đợt chọn một nâng cấp.</p>
+    <div><canvas id="logo"></canvas><div class="sub"><t-x k="html.16"></t-x></div></div>
+    <p class="tag"><t-x k="html.17"></t-x></p>
     <div id="best"></div>
-    <div class="row"><button class="btn" data-act="play">Chơi</button><button class="btn" data-act="coop">Chơi cùng bạn</button><button class="btn ghost" data-act="settings">Cài đặt</button></div>
-    <details class="keys"><summary>⌨ PHÍM ĐIỀU KHIỂN</summary><div>
-      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi · <kbd>Shift</kbd> chạy · <kbd>Space</kbd> nhảy · <kbd>Chuột</kbd> nhìn<br>
-      <kbd>Chuột trái</kbd> bắn · <kbd>Chuột phải</kbd> ngắm · <kbd>R</kbd> nạp<br>
-      <kbd>F</kbd> <kbd>C</kbd> kỹ năng · <kbd>Q</kbd> chiêu tối thượng · có jetpack thì giữ <kbd>Space</kbd> trên không để bay<br>
-      <kbd>V</kbd> đổi góc nhìn thứ nhất / thứ ba · <kbd>E</kbd> đóng, mở cửa · <kbd>T</kbd> ngắm nghía vũ khí · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> chọn nâng cấp · <kbd>Esc</kbd> tạm dừng
+    <div class="row"><button class="btn" data-act="play"><t-x k="html.18"></t-x></button><button class="btn" data-act="coop"><t-x k="html.19"></t-x></button><button class="btn ghost" data-act="settings"><t-x k="html.20"></t-x></button></div>
+    <details class="keys"><summary><t-x k="html.21"></t-x></summary><div>
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <t-x k="html.22"></t-x> <kbd>Shift</kbd> <t-x k="html.23"></t-x> <kbd>Space</kbd> <t-x k="html.24"></t-x> <kbd><t-x k="html.25"></t-x></kbd> <t-x k="html.26"></t-x><br>
+      <kbd><t-x k="html.27"></t-x></kbd> <t-x k="html.28"></t-x> <kbd><t-x k="html.29"></t-x></kbd> <t-x k="html.30"></t-x> <kbd>R</kbd> <t-x k="html.31"></t-x><br>
+      <kbd>F</kbd> <kbd>C</kbd> <t-x k="html.32"></t-x> <kbd>Q</kbd> <t-x k="html.33"></t-x> <kbd>Space</kbd> <t-x k="html.34"></t-x><br>
+      <kbd>V</kbd> <t-x k="html.35"></t-x> <kbd>E</kbd> <t-x k="html.36"></t-x> <kbd>T</kbd> <t-x k="html.37"></t-x> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <t-x k="html.38"></t-x> <kbd>Esc</kbd> <t-x k="html.39"></t-x>
     </div></details>
-    <div class="note">Mọi khối, texture, zombie, súng và âm thanh đều được vẽ và tổng hợp bằng code ngay trong trình duyệt.</div>
+    <div class="note"><t-x k="html.40"></t-x></div>
   </div>
 </section>
 
 <section class="screen" id="pause">
   <div class="card">
-    <h2>Tạm dừng</h2>
-    <label>Độ nhạy chuột <input id="set-sens" type="range" min="0.2" max="3" step="0.05"><span></span></label>
-    <label>Âm lượng <input id="set-vol" type="range" min="0" max="1" step="0.05"><span></span></label>
-    <label>Góc nhìn <input id="set-fov" type="range" min="65" max="100" step="1"><span></span></label>
-    <label>Đồ hoạ <select id="set-q"><option value="auto">Tự động</option><option value="low">Thấp</option><option value="medium">Vừa</option><option value="high">Cao</option></select><span></span></label>
-    <div class="row"><button class="btn" data-act="resume">Tiếp tục</button><button class="btn ghost" data-act="restart">Chơi lại</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
+    <h2><t-x k="html.41"></t-x></h2>
+    <label><t-x k="html.42"></t-x> <input id="set-sens" type="range" min="0.2" max="3" step="0.05"><span></span></label>
+    <label><t-x k="html.43"></t-x> <input id="set-vol" type="range" min="0" max="1" step="0.05"><span></span></label>
+    <label><t-x k="html.44"></t-x> <input id="set-fov" type="range" min="65" max="100" step="1"><span></span></label>
+    <label><t-x k="html.45"></t-x> <select id="set-q"><option value="auto"><t-x k="html.46"></t-x></option><option value="low"><t-x k="html.47"></t-x></option><option value="medium"><t-x k="html.48"></t-x></option><option value="high">Cao</option></select><span></span></label>
+    <div class="row"><button class="btn" data-act="resume"><t-x k="html.49"></t-x></button><button class="btn ghost" data-act="restart"><t-x k="html.50"></t-x></button><a class="btn ghost" href="../../index.html" style="text-decoration:none"><t-x k="html.51"></t-x></a></div>
   </div>
 </section>
 
 <section class="screen" id="select">
   <div class="sel-panel">
-    <h2>Chọn nhân vật</h2>
+    <h2><t-x k="html.52"></t-x></h2>
     <div class="sel-name"><b id="sel-name"></b><span id="sel-role"></span></div>
-    <div class="sel-stats"><label>Máu <i><em id="sel-hp"></em></i><span id="sel-hpn"></span></label><label>Tốc độ <i><em id="sel-spd"></em></i><span id="sel-spdn"></span></label></div>
-    <div class="sel-kit"><small>Vũ khí</small> <b id="sel-kit"></b></div>
+    <div class="sel-stats"><label><t-x k="html.53"></t-x> <i><em id="sel-hp"></em></i><span id="sel-hpn"></span></label><label><t-x k="html.54"></t-x> <i><em id="sel-spd"></em></i><span id="sel-spdn"></span></label></div>
+    <div class="sel-kit"><small><t-x k="html.55"></t-x></small> <b id="sel-kit"></b></div>
     <div class="sel-skill"><kbd>F</kbd><b id="sel-s1"></b><p id="sel-s1d"></p></div>
     <div class="sel-skill"><kbd>C</kbd><b id="sel-s2"></b><p id="sel-s2d"></p></div>
-    <div class="sel-skill ult"><kbd>Q</kbd><b id="sel-ult"></b><small>tối thượng</small><p id="sel-ultd"></p></div>
-    <div class="sel-passive"><small>Nội tại</small><p id="sel-passive"></p></div>
+    <div class="sel-skill ult"><kbd>Q</kbd><b id="sel-ult"></b><small><t-x k="html.56"></t-x></small><p id="sel-ultd"></p></div>
+    <div class="sel-passive"><small><t-x k="html.57"></t-x></small><p id="sel-passive"></p></div>
   </div>
   <div class="sel-bottom">
     <div class="sel-row" id="sel-row"></div>
-    <div class="sel-act"><button class="btn ghost" data-act="selprev">◀</button><button class="btn" data-act="selgo">Vào trận</button><button class="btn ghost" data-act="selnext">▶</button></div>
+    <div class="sel-act"><button class="btn ghost" data-act="selprev">◀</button><button class="btn" data-act="selgo"><t-x k="meta.62"></t-x></button><button class="btn ghost" data-act="selnext">▶</button></div>
   </div>
 </section>
 
 <section class="screen" id="coop">
   <div class="card">
-    <h2>Chơi cùng bạn</h2>
-    <label class="coop-row">Tên của bạn <input id="coop-name" maxlength="16" placeholder="Người chơi"></label>
-    <div class="row"><button class="btn" data-act="coophost">Tạo phòng</button></div>
-    <div class="coop-row"><input id="coop-code" maxlength="8" placeholder="Mã phòng" style="text-transform:uppercase"><button class="btn small" id="coop-join">Vào bằng mã</button></div>
-    <h3 class="coop-h">Phòng đang mở</h3>
+    <h2><t-x k="html.19"></t-x></h2>
+    <label class="coop-row"><t-x k="html.58"></t-x> <input id="coop-name" maxlength="16" data-t-placeholder="coop.1"></label>
+    <div class="row"><button class="btn" data-act="coophost"><t-x k="html.59"></t-x></button></div>
+    <div class="coop-row"><input id="coop-code" maxlength="8" data-t-placeholder="html.2" style="text-transform:uppercase"><button class="btn small" id="coop-join"><t-x k="html.60"></t-x></button></div>
+    <h3 class="coop-h"><t-x k="html.61"></t-x></h3>
     <div id="coop-list"></div>
     <p id="coop-status" class="muted"></p>
-    <div class="row"><button class="btn ghost small" data-act="coop">Làm mới</button><button class="btn ghost small" data-act="coopback">Quay lại</button></div>
-    <p class="muted">Tối đa 4 người, nối qua Unity Relay. Chủ phòng giữ zombie và đợt; người vào sau chọn nhân vật rồi nhảy thẳng vào trận đang đánh.</p>
+    <div class="row"><button class="btn ghost small" data-act="coop"><t-x k="html.62"></t-x></button><button class="btn ghost small" data-act="coopback"><t-x k="html.63"></t-x></button></div>
+    <p class="muted"><t-x k="html.64"></t-x></p>
   </div>
 </section>
 
 <section class="screen" id="dead">
   <div class="card">
-    <h2>Bị cắn rồi</h2>
-    <dl><dt>Trụ tới đợt</dt><dd id="dead-wave">0</dd><dt>Zombie hạ</dt><dd id="dead-kills">0</dd><dt>Độ chính xác</dt><dd id="dead-acc">0%</dd><dt>Điểm</dt><dd id="dead-score">0</dd><dt>Kỷ lục</dt><dd id="dead-best">0</dd></dl>
-    <div id="dead-record">KỶ LỤC MỚI!</div>
-    <div class="row"><button class="btn" data-act="restart">Chơi lại</button><button class="btn ghost" data-act="pickhero">Đổi nhân vật</button><a class="btn ghost" href="../../index.html" style="text-decoration:none">Về hub</a></div>
+    <h2><t-x k="html.65"></t-x></h2>
+    <dl><dt><t-x k="html.66"></t-x></dt><dd id="dead-wave">0</dd><dt><t-x k="html.67"></t-x></dt><dd id="dead-kills">0</dd><dt><t-x k="html.68"></t-x></dt><dd id="dead-acc">0%</dd><dt><t-x k="html.69"></t-x></dt><dd id="dead-score">0</dd><dt><t-x k="html.70"></t-x></dt><dd id="dead-best">0</dd></dl>
+    <div id="dead-record"><t-x k="html.71"></t-x></div>
+    <div class="row"><button class="btn" data-act="restart"><t-x k="html.50"></t-x></button><button class="btn ghost" data-act="pickhero"><t-x k="html.72"></t-x></button><a class="btn ghost" href="../../index.html" style="text-decoration:none"><t-x k="html.51"></t-x></a></div>
   </div>
 </section>
 
@@ -441,36 +442,45 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113zp"></script>
-<script type="module" src="js/core.js?v=20261113zp"></script>
-<script type="module" src="js/art.js?v=20261113zp"></script>
-<script type="module" src="js/world.js?v=20261113zp"></script>
-<script type="module" src="js/destruct.js?v=20261113zp"></script>
-<script type="module" src="js/audio.js?v=20261113zp"></script>
-<script type="module" src="js/fx.js?v=20261113zp"></script>
-<script type="module" src="js/zombies.js?v=20261113zp"></script>
-<script type="module" src="js/zkinds.js?v=20261113zp"></script>
-<script type="module" src="js/bosses.js?v=20261113zp"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113zp"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113zp"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113zp"></script>
-<script type="module" src="js/boss-alien.js?v=20261113zp"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113zp"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113zp"></script>
-<script type="module" src="js/weapons.js?v=20261113zp"></script>
-<script type="module" src="js/allies.js?v=20261113zp"></script>
-<script type="module" src="js/heroes.js?v=20261113zp"></script>
-<script type="module" src="js/castanim.js?v=20261113zp"></script>
-<script type="module" src="js/build.js?v=20261113zp"></script>
-<script type="module" src="js/sky.js?v=20261113zp"></script>
-<script type="module" src="js/coop.js?v=20261113zp"></script>
-<script type="module" src="js/post.js?v=20261113zp"></script>
-<script type="module" src="js/polish.js?v=20261113zp"></script>
-<script type="module" src="js/gear.js?v=20261113zp"></script>
-<script type="module" src="js/player.js?v=20261113zp"></script>
-<script type="module" src="js/tps.js?v=20261113zp"></script>
-<script type="module" src="js/ui.js?v=20261113zp"></script>
-<script type="module" src="js/meta.js?v=20261113zp"></script>
-<script type="module" src="js/main.js?v=20261113zp"></script>
+<script type="module" src="js/boot.js?v=20261113zq"></script>
+<script type="module" src="js/core.js?v=20261113zq"></script>
+<script type="module" src="js/i18n.js?v=20261113zq"></script>
+<script type="module" src="js/lang-vi.js?v=20261113zq"></script>
+<script type="module" src="js/lang-en.js?v=20261113zq"></script>
+<script type="module">
+  // the language switch on the title screen (the full Settings popup has it too)
+  const BZ = window.BZ; BZ.applyStatic();
+  const b = document.createElement('button'); b.id = 'langbtn'; b.type = 'button'; const other = BZ.LANGS.find((x) => x[0] !== BZ.lang); b.textContent = other[1]; b.title = 'Language';
+  b.addEventListener('click', () => BZ.setLang(other[0])); document.getElementById('title').appendChild(b);
+</script>
+<script type="module" src="js/art.js?v=20261113zq"></script>
+<script type="module" src="js/world.js?v=20261113zq"></script>
+<script type="module" src="js/destruct.js?v=20261113zq"></script>
+<script type="module" src="js/audio.js?v=20261113zq"></script>
+<script type="module" src="js/fx.js?v=20261113zq"></script>
+<script type="module" src="js/zombies.js?v=20261113zq"></script>
+<script type="module" src="js/zkinds.js?v=20261113zq"></script>
+<script type="module" src="js/bosses.js?v=20261113zq"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zq"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zq"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zq"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zq"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zq"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zq"></script>
+<script type="module" src="js/weapons.js?v=20261113zq"></script>
+<script type="module" src="js/allies.js?v=20261113zq"></script>
+<script type="module" src="js/heroes.js?v=20261113zq"></script>
+<script type="module" src="js/castanim.js?v=20261113zq"></script>
+<script type="module" src="js/build.js?v=20261113zq"></script>
+<script type="module" src="js/sky.js?v=20261113zq"></script>
+<script type="module" src="js/coop.js?v=20261113zq"></script>
+<script type="module" src="js/post.js?v=20261113zq"></script>
+<script type="module" src="js/polish.js?v=20261113zq"></script>
+<script type="module" src="js/gear.js?v=20261113zq"></script>
+<script type="module" src="js/player.js?v=20261113zq"></script>
+<script type="module" src="js/tps.js?v=20261113zq"></script>
+<script type="module" src="js/ui.js?v=20261113zq"></script>
+<script type="module" src="js/meta.js?v=20261113zq"></script>
+<script type="module" src="js/main.js?v=20261113zq"></script>
 </body>
 </html>

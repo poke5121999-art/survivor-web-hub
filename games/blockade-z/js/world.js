@@ -8,7 +8,7 @@
   const HALF = 36;          // inner wall line
   const GRID_HALF = 46;     // walk grid covers the gate corridors too
   const GATES = [
-    { name: 'BẮC', dir: [0, -1] }, { name: 'NAM', dir: [0, 1] }, { name: 'TÂY', dir: [-1, 0] }, { name: 'ĐÔNG', dir: [1, 0] },
+    { name: BZ.t("world.1"), dir: [0, -1] }, { name: 'NAM', dir: [0, 1] }, { name: BZ.t("world.2"), dir: [-1, 0] }, { name: BZ.t("world.3"), dir: [1, 0] },
   ];
 
   BZ.makeWorld = (G) => {

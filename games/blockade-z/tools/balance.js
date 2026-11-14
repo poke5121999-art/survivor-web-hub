@@ -19,7 +19,7 @@ const CROWD = +(process.env.CROWD || 9);
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'bal@test' })); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=9&noaudio=1&q=low&weather=clear&tod=0.45');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=9&noaudio=1&q=low&weather=clear&tod=0.45');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = process.env.HEROES ? process.env.HEROES.split(',') : await page.evaluate('BZ.HEROES.map((h) => h.id)');
     for (const id of heroes) {

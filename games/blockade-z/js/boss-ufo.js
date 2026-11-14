@@ -108,7 +108,7 @@
 
   const moves = {
     tractor: {
-      dur: 4.0, cd: 9, say: 'TIA HÚT',
+      dur: 4.0, cd: 9, say: BZ.t("boss-ufo.1"),
       when: (z, P, d) => d < 44,
       start(z, S, P, C) {
         const T = ground(P.pos.x, P.pos.z); S.data.T = T; S.data.next = 0.9;
@@ -126,7 +126,7 @@
       },
     },
     bomb: {
-      dur: 3.3, cd: 8, say: 'ĐỢT ONG BOM',
+      dur: 3.3, cd: 8, say: BZ.t("boss-ufo.2"),
       start(z, S, P, C) {
         const bt = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); const perp = C.V().set(-bt.z, 0, bt.x); if (perp.lengthSq() < 0.01) perp.set(1, 0, 0); perp.normalize().multiplyScalar(C.G.rng.chance(0.5) ? 1 : -1);
         const A = ground(BZ.clamp(P.pos.x - perp.x * 20, -lim, lim), BZ.clamp(P.pos.z - perp.z * 20, -lim, lim)); const B = ground(BZ.clamp(P.pos.x + perp.x * 20, -lim, lim), BZ.clamp(P.pos.z + perp.z * 20, -lim, lim));
@@ -152,7 +152,7 @@
       },
     },
     laserRing: {
-      dur: 3.6, cd: 10, say: 'VÒNG LASER XOAY',
+      dur: 3.6, cd: 10, say: BZ.t("boss-ufo.3"),
       start(z, S, P, C) {
         const N = C.rage(z) ? 6 : 4; const a0 = C.G.rng.range(0, 6.3); const dir = C.G.rng.chance(0.5) ? 1 : -1;
         Object.assign(S.data, { N, a0, dir, w: C.rage(z) ? 1.3 : 1.0, next: 0.9 });
@@ -174,7 +174,7 @@
       },
     },
     invade: {
-      dur: 2.2, cd: 12, say: 'ĐỘI XÂM LĂNG',
+      dur: 2.2, cd: 12, say: BZ.t("boss-ufo.4"),
       when: (z, P, d, C) => { const L = C.G.zombies.list; return !L || L.filter((q) => q.alive).length < 16; },
       start(z, S, P, C) {
         const n = C.rage(z) ? 4 : 3; const a0 = C.G.rng.range(0, 6.3);
@@ -194,7 +194,7 @@
       tick(z, dt, P, S, C) { hover(z, dt, C, 8); turnTo(z, toward(z, P), dt, 3); },
     },
     emp: {
-      dur: 2.1, cd: 8, say: 'SÓNG XUNG ĐIỆN TỪ',
+      dur: 2.1, cd: 8, say: BZ.t("boss-ufo.5"),
       start(z, S, P, C) {
         const at = C.V().set(z.pos.x, 0.05, z.pos.z);
         C.warn({ at: at.clone(), r: 7, dur: 0.85, col: CYAN, fire: () => {
@@ -206,7 +206,7 @@
       tick(z, dt, P, S, C) { hover(z, dt, C, 7.8, 8); z.vel.x *= 0.9; z.vel.z *= 0.9; turnTo(z, toward(z, P), dt, 3); },
     },
     salvo: {
-      dur: 2.5, cd: 7, say: 'LOẠT CẦU TÌM',
+      dur: 2.5, cd: 7, say: BZ.t("boss-ufo.6"),
       tick(z, dt, P, S, C) {
         hover(z, dt, C); turnTo(z, toward(z, P), dt, 4);
         const n = C.rage(z) ? 6 : 4; const D = S.data; D.i = D.i || 0;
@@ -220,7 +220,7 @@
   };
 
   BZ.bossKit('ufo', {
-    type: { hp: 5600, speed: 9, dmg: 30, rate: 2, windup: 0.5, scale: SC, skin: 'bu_alien', face: 'bu_face', shirt: ['bu_hull'], pants: ['bu_dark'], score: 6000, eye: MAG, name: 'ĐĨA BAY', flyBoss: true },
+    type: { hp: 5600, speed: 9, dmg: 30, rate: 2, windup: 0.5, scale: SC, skin: 'bu_alien', face: 'bu_face', shirt: ['bu_hull'], pants: ['bu_dark'], score: 6000, eye: MAG, name: BZ.t("boss-ufo.7"), flyBoss: true },
     colors: [CYAN, MAG, 0xffffff],
     rig,
     init: (z, S) => { z.pos.y = 8.5; S.rest = 1.2; },

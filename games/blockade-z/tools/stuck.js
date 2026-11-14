@@ -16,7 +16,7 @@ const SPOTS = process.env.SPOTS ? JSON.parse(process.env.SPOTS) : [[0, 0, 5], [-
     const ctx = await br.newContext({ viewport: { width: 960, height: 540 } });
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'stuck@test' })); } catch (e) {} });
     const page = await ctx.newPage();
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=11&noaudio=1&god=1&q=low');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=11&noaudio=1&god=1&q=low');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const res = [];
     for (const [x, y, z] of SPOTS) {

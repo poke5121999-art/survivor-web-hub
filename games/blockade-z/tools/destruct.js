@@ -20,7 +20,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const shot = async (name) => { await page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }"); await page.waitForTimeout(200); await page.screenshot({ path: path.join(OUT, `brk-${name}.png`) }); };
     // look at the guard post's south face (z = -22, x 14..28) from the forecourt

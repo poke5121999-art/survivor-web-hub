@@ -78,7 +78,7 @@ const SKILLS = `(() => { const G = __G; const T = G.THREE; const V = () => new T
     await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'dirs@test' })); } catch (e) {} });
     const page = await ctx.newPage(); const problems = [];
     page.on('pageerror', (e) => problems.push(e.message));
-    const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&god=1&noaudio=1&seed=5&tod=0.5&post=0';
+    const base = (process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&god=1&noaudio=1&seed=5&tod=0.5&post=0';
     await page.goto(base + '&hero=gio'); await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = (await page.evaluate('BZ.HEROES.map((h) => h.id)')).filter((h) => !ONLY || ONLY.includes(h));
     for (const h of heroes) {

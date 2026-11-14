@@ -141,7 +141,7 @@
 
   const moves = {
     plasma: {
-      dur: 1.9, cd: 3.5, say: 'LOẠT ĐẠN PLASMA',
+      dur: 1.9, cd: 3.5, say: BZ.t("boss-alien.1"),
       when: (z, P, d) => d < 40,
       tick(z, dt, P, S, C) {
         hold(z, dt, C); C.face(z, P, dt, 9);
@@ -159,7 +159,7 @@
       },
     },
     laser: {
-      dur: 2.9, cd: 7, say: 'TIA LASER SẠC',
+      dur: 2.9, cd: 7, say: BZ.t("boss-alien.2"),
       when: (z, P, d) => d < 34,
       start(z, S, P, C) {
         const b0 = bearing(z, P); const dist = Math.hypot(P.pos.x - z.pos.x, P.pos.z - z.pos.z); const R = BZ.clamp(dist * 1.3, 9, 22); const dir = C.G.rng.chance(0.5) ? 1 : -1; const half = 0.55;
@@ -180,7 +180,7 @@
       },
     },
     grenade: {
-      dur: 2.0, cd: 6, say: 'LỰU HẤP DẪN',
+      dur: 2.0, cd: 6, say: BZ.t("boss-alien.3"),
       when: (z, P, d) => d > 4 && d < 36,
       start(z, S, P, C) {
         const land = C.V().set(P.pos.x, 0.4, P.pos.z); const d = Math.hypot(land.x - z.pos.x, land.z - z.pos.z); const T = BZ.clamp(d / 15, 0.7, 1.6);
@@ -199,7 +199,7 @@
       },
     },
     blink: {
-      dur: 1.9, cd: 6, say: 'DỊCH CHUYỂN',
+      dur: 1.9, cd: 6, say: BZ.t("boss-alien.4"),
       start(z, S, P, C) {
         const base = C.G.rng.range(0, 6.28); let dest = null;
         for (let k = 0; k < 9 && !dest; k++) { const a = base + k * 0.7; const x = P.pos.x + Math.sin(a) * 5.5; const zz = P.pos.z + Math.cos(a) * 5.5; if (C.inArena(x, zz, 3) && !C.G.world.overlaps([x - 0.6, 0, zz - 0.6], [x + 0.6, 3, zz + 0.6])) dest = C.V().set(x, 0, zz); }
@@ -220,7 +220,7 @@
       },
     },
     mines: {
-      dur: 2.3, cd: 8, say: 'MÌN AXIT',
+      dur: 2.3, cd: 8, say: BZ.t("boss-alien.5"),
       start(z, S, P, C) {
         const n = C.rage(z) ? 9 : 6; let c = 0;
         for (const p of C.players()) for (let i = 0; i < n; i++) {
@@ -237,7 +237,7 @@
       tick(z, dt, P, S, C) { hold(z, dt, C); C.face(z, P, dt, 4); },
     },
     summon: {
-      dur: 1.9, cd: 10, say: 'GỌI TRINH SÁT',
+      dur: 1.9, cd: 10, say: BZ.t("boss-alien.6"),
       when: (z, P, d, C) => { const L = C.G.zombies.list; return !L || L.filter((q) => q.alive).length < 16; },
       start(z, S, P, C) {
         C.warn({ at: C.V().set(z.pos.x, 0, z.pos.z), r: 4, dur: 0.75, col: PLASMA, fire: () => {
@@ -252,7 +252,7 @@
   };
 
   BZ.bossKit('alien', {
-    type: { hp: 4800, speed: 7, dmg: 28, rate: 2, windup: 0.5, scale: 3.0, skin: 'ba_skin', face: 'ba_face', shirt: ['ba_armor'], pants: ['ba_dark'], score: 5500, eye: PLASMA, name: 'KẺ XÂM LĂNG' },
+    type: { hp: 4800, speed: 7, dmg: 28, rate: 2, windup: 0.5, scale: 3.0, skin: 'ba_skin', face: 'ba_face', shirt: ['ba_armor'], pants: ['ba_dark'], score: 5500, eye: PLASMA, name: BZ.t("boss-alien.7") },
     colors: [PLASMA, TEAL, PALE],
     rig,
     init: (z, S) => { S.rest = 1.2; },

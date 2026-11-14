@@ -35,7 +35,7 @@ const SHEET_PY = [
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const heroes = await page.evaluate(() => BZ.HEROES.map((h) => [h.id, h.s1.key, h.s2.key, h.ult.key]));
     for (let i = 0; i < heroes.length; i++) {

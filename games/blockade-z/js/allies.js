@@ -105,7 +105,7 @@
       if (a.hp <= 0) {
         a.alive = false; a.dying = 0.001; a.body.barBg.visible = false;
         G.audio.playAt('hurt', a.pos, { gain: 0.9 });
-        G.ui.banner('LÍNH NGÃ', 'còn ' + count() + ' lính', 1.6);
+        G.ui.banner(BZ.t("allies.1"), BZ.t("allies.2") + count() + BZ.t("allies.3"), 1.6);
       }
     }
 

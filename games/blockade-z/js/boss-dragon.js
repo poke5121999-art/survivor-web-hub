@@ -127,7 +127,7 @@
 
   const moves = {
     barrage: {
-      dur: 1.9, cd: 4, say: 'MƯA CẦU HƯ KHÔNG',
+      dur: 1.9, cd: 4, say: BZ.t("boss-dragon.1"),
       when: (z, P, d) => d < 46,
       tick(z, dt, P, S, C) {
         C.fly(z, dt, z.pos.x, Math.max(6, z.pos.y), z.pos.z, 4); turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 6);
@@ -141,7 +141,7 @@
       },
     },
     dive: {
-      dur: 2.3, cd: 6, say: 'BỔ NHÀO',
+      dur: 2.3, cd: 6, say: BZ.t("boss-dragon.2"),
       when: (z, P, d) => d > 7,
       start(z, S, P, C) {
         const a = C.V().set(z.pos.x, 0, z.pos.z); const dir = C.V().set(P.pos.x - a.x, 0, P.pos.z - a.z); const len = Math.min(40, dir.length() * 2 + 6); dir.normalize();
@@ -165,7 +165,7 @@
       },
     },
     breath: {
-      dur: 3.1, cd: 7, say: 'HƠI THỞ HƯ KHÔNG',
+      dur: 3.1, cd: 7, say: BZ.t("boss-dragon.3"),
       when: (z, P, d) => d < 30,
       start(z, S, P, C) {
         const d = C.V().set(z.pos.x - P.pos.x, 0, z.pos.z - P.pos.z); if (d.lengthSq() < 0.01) d.set(1, 0, 0); d.normalize();
@@ -190,7 +190,7 @@
       look(z, S) { S.data.sweep = 0; },
     },
     meteor: {
-      dur: 2.4, cd: 10, say: 'SAO BĂNG HƯ KHÔNG',
+      dur: 2.4, cd: 10, say: BZ.t("boss-dragon.4"),
       start(z, S, P, C) {
         C.G.audio.playAt('roar', z.pos, { gain: 1.3, rate: 0.55 });
         const n = C.rage(z) ? 6 : 4;
@@ -203,7 +203,7 @@
       tick(z, dt, P, S, C) { C.fly(z, dt, z.pos.x, 13, z.pos.z, 8); turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 4); },
     },
     tailspin: {
-      dur: 1.2, cd: 4, say: 'QUẬT ĐUÔI',
+      dur: 1.2, cd: 4, say: BZ.t("boss-dragon.5"),
       when: (z, P, d) => d < 9,
       tick(z, dt, P, S, C) {
         z.vel.set(0, 0, 0); if (z.pos.y > 0.05) C.fly(z, dt, z.pos.x, 0, z.pos.z, 20, 6);
@@ -214,7 +214,7 @@
   };
 
   BZ.bossKit('dragon', {
-    type: { hp: 5200, speed: 10, dmg: 30, rate: 2, windup: 0.5, scale: 2.6, skin: 'bd_scale', face: 'bd_face', shirt: ['bd_wing'], pants: ['bd_belly'], score: 6000, eye: 0xe070ff, name: 'RỒNG HƯ KHÔNG', flyBoss: true },
+    type: { hp: 5200, speed: 10, dmg: 30, rate: 2, windup: 0.5, scale: 2.6, skin: 'bd_scale', face: 'bd_face', shirt: ['bd_wing'], pants: ['bd_belly'], score: 6000, eye: 0xe070ff, name: BZ.t("boss-dragon.6"), flyBoss: true },
     colors: [VIO, VIO2, PALE],
     rig,
     dress: (z) => { z.body.mats.shirt.side = THREE.DoubleSide; },

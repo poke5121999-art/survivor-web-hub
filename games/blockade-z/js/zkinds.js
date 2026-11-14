@@ -79,17 +79,17 @@
   // ---- the new types; `kind` picks the behaviour, `parts` the extra pieces, `rig` swaps the whole body ----
   const Z = (o) => ({ shirt: ['z_shirt_dark'], pants: ['z_pants_dark'], voice: 'groan', hunch: 0.1, droop: 0.3, ...o });
   Object.assign(BZ.ZOMBIES, {
-    spitter: Z({ hp: 70, speed: 2.0, dmg: 10, rate: 1.2, windup: 0.35, scale: 0.95, skin: 'z_skin_spit', face: 'z_face_spit', shirt: ['z_shirt_dark', 'z_vest'], pants: ['z_pants', 'z_pants_brown'], score: 250, eye: 0x9aff40, hunch: 0.25, kind: 'spit', parts: ['sac'], name: 'KẺ PHUN', tip: 'phun axit từ xa; vũng axit đốt máu và làm chậm' }),
-    bloater: Z({ hp: 160, speed: 1.35, dmg: 0, rate: 2, windup: 0.9, scale: 1.2, skin: 'z_skin_bloat', face: 'z_face_bloat', shirt: ['z_shirt_red'], score: 300, eye: 0xffe040, hunch: -0.05, droop: 0.1, kind: 'bloat', parts: ['belly'], noDown: true, noTower: true, name: 'KẺ PHÌNH', tip: 'áp sát là phát nổ; bắn nổ nó giữa bầy để nổ lây' }),
-    hound: Z({ hp: 55, speed: 6.2, dmg: 9, rate: 0.75, windup: 0.18, scale: 0.8, skin: 'z_skin_hound', face: 'z_face_hound', shirt: ['z_hound_back'], pants: ['z_skin_hound'], score: 150, voice: 'screech', eye: 0xffd23a, kind: 'hound', quad: true, noDown: true, noTower: true, pack: [3, 5], name: 'CHÓ XÁC', tip: 'chạy theo đàn và vồ từ năm mét' }),
-    shielder: Z({ hp: 180, speed: 1.8, dmg: 16, rate: 1.3, windup: 0.5, scale: 1.1, skin: 'z_skin', face: 'z_face', shirt: ['z_shirt_dark'], score: 400, eye: 0xff3020, kind: 'shield', parts: ['shield'], shieldHp: 320, noDown: true, name: 'KẺ KHIÊN', tip: 'khiên chặn đạn phía trước: bắn đầu, đánh vòng hoặc dùng bom' }),
-    armored: Z({ hp: 240, speed: 1.6, dmg: 22, rate: 1.5, windup: 0.55, scale: 1.25, skin: 'z_skin_brute', face: 'z_face_brute', score: 500, voice: 'roar', eye: 0xff3b1f, hunch: 0.12, droop: 0, kind: 'armor', parts: ['plate', 'helmet'], armor: 420, noDown: true, name: 'KẺ GIÁP', tip: 'giáp chặn 70% sát thương: bắn chân, đốt hoặc tẩm độc' }),
-    shrieker: Z({ hp: 90, speed: 2.4, dmg: 8, rate: 1.0, windup: 0.35, scale: 1.05, skin: 'z_skin_shriek', face: 'z_face_shriek', shirt: ['z_shirt_red', 'z_shirt_dark'], pants: ['z_pants'], score: 350, voice: 'screech', eye: 0xf0f0ff, hunch: 0.3, droop: 0.4, kind: 'shriek', parts: ['hair'], name: 'KẺ THÉT', tip: 'tiếng thét làm bầy cuồng lên và gọi thêm: hạ nó trước' }),
-    burner: Z({ hp: 130, speed: 2.4, dmg: 14, rate: 1.1, windup: 0.4, scale: 1.05, skin: 'z_skin_burn', face: 'z_face_burn', shirt: ['z_shirt_dark'], score: 350, eye: 0xffc040, kind: 'burn', immune: 'burn', weak: 'chill', glow: 0x3a1204, name: 'XÁC CHÁY', tip: 'không sợ lửa, sợ băng; chết thì bùng cháy' }),
-    frost: Z({ hp: 150, speed: 1.9, dmg: 12, rate: 1.2, windup: 0.45, scale: 1.1, skin: 'z_skin_frost', face: 'z_face_frost', shirt: ['z_shirt_dark'], score: 350, eye: 0x80e0ff, kind: 'frost', immune: 'chill', weak: 'burn', glow: 0x0a2440, hitFx: { slow: 1.6 }, name: 'XÁC BĂNG', tip: 'không sợ băng, sợ lửa; chết thì đóng băng cả bầy quanh nó' }),
-    spider: Z({ hp: 40, speed: 5.6, dmg: 7, rate: 0.8, windup: 0.2, scale: 0.55, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 120, voice: 'screech', eye: 0xff2a20, kind: 'spider', rig: 'spider', noDown: true, noTower: true, hitFx: { slow: 0.8 }, pack: [4, 6], name: 'NHỆN ĐỘC', tip: 'bầy nhện nhỏ chạy nhanh, cắn làm chậm' }),
-    egg: Z({ hp: 60, speed: 0, dmg: 0, rate: 9, windup: 9, scale: 1, skin: 'z_egg', face: 'z_egg', shirt: ['z_egg'], pants: ['z_egg'], score: 80, voice: 'groan', eye: 0x9aff40, kind: 'egg', rig: 'egg', noDown: true, noTower: true, name: 'TRỨNG NHỆN' }),
-    brood: Z({ hp: 3200, speed: 2.6, dmg: 30, rate: 1.6, windup: 0.5, scale: 2.7, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 3200, voice: 'roar', eye: 0xff2a20, kind: 'spider', rig: 'spider', boss: 'brood', noDown: true, noTower: true, hitFx: { slow: 1.2 }, name: 'NHỆN CHÚA' }),
+    spitter: Z({ hp: 70, speed: 2.0, dmg: 10, rate: 1.2, windup: 0.35, scale: 0.95, skin: 'z_skin_spit', face: 'z_face_spit', shirt: ['z_shirt_dark', 'z_vest'], pants: ['z_pants', 'z_pants_brown'], score: 250, eye: 0x9aff40, hunch: 0.25, kind: 'spit', parts: ['sac'], name: BZ.t("zkinds.1"), tip: BZ.t("zkinds.2") }),
+    bloater: Z({ hp: 160, speed: 1.35, dmg: 0, rate: 2, windup: 0.9, scale: 1.2, skin: 'z_skin_bloat', face: 'z_face_bloat', shirt: ['z_shirt_red'], score: 300, eye: 0xffe040, hunch: -0.05, droop: 0.1, kind: 'bloat', parts: ['belly'], noDown: true, noTower: true, name: BZ.t("zkinds.3"), tip: BZ.t("zkinds.4") }),
+    hound: Z({ hp: 55, speed: 6.2, dmg: 9, rate: 0.75, windup: 0.18, scale: 0.8, skin: 'z_skin_hound', face: 'z_face_hound', shirt: ['z_hound_back'], pants: ['z_skin_hound'], score: 150, voice: 'screech', eye: 0xffd23a, kind: 'hound', quad: true, noDown: true, noTower: true, pack: [3, 5], name: BZ.t("zkinds.5"), tip: BZ.t("zkinds.6") }),
+    shielder: Z({ hp: 180, speed: 1.8, dmg: 16, rate: 1.3, windup: 0.5, scale: 1.1, skin: 'z_skin', face: 'z_face', shirt: ['z_shirt_dark'], score: 400, eye: 0xff3020, kind: 'shield', parts: ['shield'], shieldHp: 320, noDown: true, name: BZ.t("zkinds.7"), tip: BZ.t("zkinds.8") }),
+    armored: Z({ hp: 240, speed: 1.6, dmg: 22, rate: 1.5, windup: 0.55, scale: 1.25, skin: 'z_skin_brute', face: 'z_face_brute', score: 500, voice: 'roar', eye: 0xff3b1f, hunch: 0.12, droop: 0, kind: 'armor', parts: ['plate', 'helmet'], armor: 420, noDown: true, name: BZ.t("zkinds.9"), tip: BZ.t("zkinds.10") }),
+    shrieker: Z({ hp: 90, speed: 2.4, dmg: 8, rate: 1.0, windup: 0.35, scale: 1.05, skin: 'z_skin_shriek', face: 'z_face_shriek', shirt: ['z_shirt_red', 'z_shirt_dark'], pants: ['z_pants'], score: 350, voice: 'screech', eye: 0xf0f0ff, hunch: 0.3, droop: 0.4, kind: 'shriek', parts: ['hair'], name: BZ.t("zkinds.11"), tip: BZ.t("zkinds.12") }),
+    burner: Z({ hp: 130, speed: 2.4, dmg: 14, rate: 1.1, windup: 0.4, scale: 1.05, skin: 'z_skin_burn', face: 'z_face_burn', shirt: ['z_shirt_dark'], score: 350, eye: 0xffc040, kind: 'burn', immune: 'burn', weak: 'chill', glow: 0x3a1204, name: BZ.t("zkinds.13"), tip: BZ.t("zkinds.14") }),
+    frost: Z({ hp: 150, speed: 1.9, dmg: 12, rate: 1.2, windup: 0.45, scale: 1.1, skin: 'z_skin_frost', face: 'z_face_frost', shirt: ['z_shirt_dark'], score: 350, eye: 0x80e0ff, kind: 'frost', immune: 'chill', weak: 'burn', glow: 0x0a2440, hitFx: { slow: 1.6 }, name: BZ.t("zkinds.15"), tip: BZ.t("zkinds.16") }),
+    spider: Z({ hp: 40, speed: 5.6, dmg: 7, rate: 0.8, windup: 0.2, scale: 0.55, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 120, voice: 'screech', eye: 0xff2a20, kind: 'spider', rig: 'spider', noDown: true, noTower: true, hitFx: { slow: 0.8 }, pack: [4, 6], name: BZ.t("zkinds.17"), tip: BZ.t("zkinds.18") }),
+    egg: Z({ hp: 60, speed: 0, dmg: 0, rate: 9, windup: 9, scale: 1, skin: 'z_egg', face: 'z_egg', shirt: ['z_egg'], pants: ['z_egg'], score: 80, voice: 'groan', eye: 0x9aff40, kind: 'egg', rig: 'egg', noDown: true, noTower: true, name: BZ.t("zkinds.19") }),
+    brood: Z({ hp: 3200, speed: 2.6, dmg: 30, rate: 1.6, windup: 0.5, scale: 2.7, skin: 'z_spider', face: 'z_spider_face', shirt: ['z_spider_back'], pants: ['z_spider_leg'], score: 3200, voice: 'roar', eye: 0xff2a20, kind: 'spider', rig: 'spider', boss: 'brood', noDown: true, noTower: true, hitFx: { slow: 1.2 }, name: BZ.t("zkinds.20") }),
   });
 
   // which specials join a wave, from which wave, and how often (share of the spawns)
@@ -100,8 +100,8 @@
     return null;
   };
   BZ.ELITE = {
-    swift: { name: 'NHANH', col: 0xffe040 }, tough: { name: 'TRÂU', col: 0xff8a30 }, regen: { name: 'TỰ HỒI', col: 0x60ff80 },
-    volatile: { name: 'BÙNG NỔ', col: 0xff3020 }, vampire: { name: 'HÚT MÁU', col: 0xc030ff }, frenzy: { name: 'CUỒNG', col: 0xff2060 },
+    swift: { name: 'NHANH', col: 0xffe040 }, tough: { name: BZ.t("zkinds.21"), col: 0xff8a30 }, regen: { name: BZ.t("zkinds.22"), col: 0x60ff80 },
+    volatile: { name: BZ.t("zkinds.23"), col: 0xff3020 }, vampire: { name: BZ.t("zkinds.24"), col: 0xc030ff }, frenzy: { name: BZ.t("zkinds.25"), col: 0xff2060 },
   };
   const ELITE_IDS = Object.keys(BZ.ELITE);
   BZ.eliteChance = (n) => (n < 3 ? 0 : Math.min(0.12, 0.015 * n));
@@ -237,8 +237,8 @@
     // effects a hit leaves on a player: slow and root (web); guests get them with the hurt message
     function playerFx(P, fx) {
       if (!fx || P !== G.player) return;
-      if (fx.slow) { if (!(P.slowT > 0)) G.ui.pop('CHẬM', 'dmg leg'); P.slowT = Math.max(P.slowT || 0, fx.slow); }
-      if (fx.root) { G.ui.pop('DÍNH TƠ', 'critword'); P.rootT = Math.max(P.rootT || 0, fx.root); }
+      if (fx.slow) { if (!(P.slowT > 0)) G.ui.pop(BZ.t("zkinds.26"), 'dmg leg'); P.slowT = Math.max(P.slowT || 0, fx.slow); }
+      if (fx.root) { G.ui.pop(BZ.t("zkinds.27"), 'critword'); P.rootT = Math.max(P.rootT || 0, fx.root); }
     }
 
     function dress(z, T) {
@@ -474,13 +474,13 @@
       G.fx.gib(X.shield, V().copy(dir || V().set(0, 0, 1)).multiplyScalar(-3).add(V().set(G.rng.range(-1, 1), 4, G.rng.range(-1, 1))));
       X.shield.visible = false;
       G.audio.playAt('clank', z.pos, { gain: 1.2, rate: 0.6 });
-      if (!quiet) G.ui.pop('VỠ KHIÊN', 'critword', V().set(z.pos.x, z.pos.y + 2.4 * z.T.scale, z.pos.z));
+      if (!quiet) G.ui.pop(BZ.t("zkinds.28"), 'critword', V().set(z.pos.x, z.pos.y + 2.4 * z.T.scale, z.pos.z));
     }
     function breakArmor(z, dir, quiet) {
       const X = z.body.x; if (!X.plate.visible) return; z.armor = 0;
       for (const k of ['plate', 'padL', 'padR', 'helmet', 'visor']) { G.fx.gib(X[k], V().set(G.rng.range(-3, 3), G.rng.range(3, 6), G.rng.range(-3, 3))); X[k].visible = false; }
       G.audio.playAt('clank', z.pos, { gain: 1.3, rate: 0.5 });
-      if (!quiet) G.ui.pop('VỠ GIÁP', 'critword', V().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
+      if (!quiet) G.ui.pop(BZ.t("zkinds.29"), 'critword', V().set(z.pos.x, z.pos.y + 2.6 * z.T.scale, z.pos.z));
     }
     function sparks(at, n) { G.fx.burst(at, n, [0xfff0a0, 0xffc040, 0xffffff], { speed: 5, size: 0.05, life: 0.3 }); }
     // a hit that a shield or armour soaks up; returns the damage that gets through
@@ -492,7 +492,7 @@
         if (dir.x * f.x + dir.z * f.z < -0.3) {
           const at = V().set(z.pos.x, z.pos.y + 0.9 * T.scale, z.pos.z).addScaledVector(f, 0.5 * T.scale);
           sparks(at, 8); if (G.rng.chance(0.5)) G.audio.playAt('clank', at, { gain: 0.5, rate: G.rng.range(1.2, 1.6) });
-          z.hitNote = { mul: 0, word: 'CHẶN' };
+          z.hitNote = { mul: 0, word: BZ.t("zkinds.30") };
           if (!visual) { z.shieldHp -= amount * (opt.cut === 'axe' ? 2.5 : opt.cut ? 1.5 : 1); if (z.fp) z.fp.v -= 3; if (z.shieldHp <= 0) breakShield(z, dir); }
           return 0;
         }

@@ -140,7 +140,7 @@
 
   const moves = {
     bats: {
-      dur: 2.0, cd: 4, say: 'BẦY DƠI MÁU',
+      dur: 2.0, cd: 4, say: BZ.t("boss-vampire.1"),
       when: (z, P, d) => d < 40,
       tick(z, dt, P, S, C) {
         z.vel.x = z.vel.z = 0; turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 6);
@@ -156,7 +156,7 @@
       },
     },
     blooddash: {
-      dur: 2.2, cd: 6, say: 'LAO HUYẾT',
+      dur: 2.2, cd: 6, say: BZ.t("boss-vampire.2"),
       when: (z, P, d) => d > 6 && d < 38,
       start(z, S, P, C) {
         const a = C.V().set(z.pos.x, 0, z.pos.z); const dir = C.V().set(P.pos.x - a.x, 0, P.pos.z - a.z); const d0 = dir.length(); dir.normalize();
@@ -181,7 +181,7 @@
       },
     },
     bloodnova: {
-      dur: 2.2, cd: 6, say: 'BÃO HUYẾT',
+      dur: 2.2, cd: 6, say: BZ.t("boss-vampire.3"),
       when: (z, P, d) => d < 36,
       start(z, S, P, C) {
         C.shock(C.V().set(z.pos.x, 0.05, z.pos.z), 5, 0.8, BLOOD, 0);
@@ -203,7 +203,7 @@
       },
     },
     mist: {
-      dur: 2.1, cd: 7, say: 'SƯƠNG MÁU',
+      dur: 2.1, cd: 7, say: BZ.t("boss-vampire.4"),
       when: (z, P, d) => d > 4,
       start(z, S, P, C) {
         const out = C.V().set(P.pos.x - z.pos.x, 0, P.pos.z - z.pos.z); if (out.lengthSq() < 0.01) out.set(0, 0, 1); out.normalize();
@@ -221,7 +221,7 @@
       tick(z, dt, P, S, C) { z.vel.x = z.vel.z = 0; if (S.t > MIST_IN) turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 10); },
     },
     bloodrain: {
-      dur: 2.7, cd: 9, say: 'MƯA MÁU',
+      dur: 2.7, cd: 9, say: BZ.t("boss-vampire.5"),
       when: (z, P, d) => d < 44,
       start(z, S, P, C) {
         C.G.audio.playAt('roar', z.pos, { gain: 1, rate: 0.55 });
@@ -238,7 +238,7 @@
       tick(z, dt, P, S, C) { z.vel.x = z.vel.z = 0; turnTo(z, Math.atan2(P.pos.x - z.pos.x, P.pos.z - z.pos.z), dt, 4); },
     },
     drain: {
-      dur: 2.8, cd: 8, say: 'HÚT SINH LỰC',
+      dur: 2.8, cd: 8, say: BZ.t("boss-vampire.6"),
       when: (z, P, d) => d < 22,
       start(z, S, P, C) {
         const T = C.nearest(z.pos) || P; S.data.target = T;
@@ -271,7 +271,7 @@
   };
 
   BZ.bossKit('vampire', {
-    type: { hp: 4800, speed: 6, dmg: 28, rate: 2, windup: 0.5, scale: 2.9, skin: 'vb_skin', face: 'vb_face', shirt: ['vb_cape'], pants: ['vb_pants'], score: 6000, eye: BLOOD, name: 'BÁ TƯỚC MÁU' },
+    type: { hp: 4800, speed: 6, dmg: 28, rate: 2, windup: 0.5, scale: 2.9, skin: 'vb_skin', face: 'vb_face', shirt: ['vb_cape'], pants: ['vb_pants'], score: 6000, eye: BLOOD, name: BZ.t("boss-vampire.7") },
     colors: [BLOOD, CRIM, PALE],
     rig,
     hits: [['head', 'head', 0.22, 0.16], ['body', 'chest', 0.4, 0], ['body', 'torso', 0.35, -0.2], ['body', 'root', 0.45, 0.6]],

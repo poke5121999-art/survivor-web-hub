@@ -26,7 +26,7 @@ const STAGE = `(() => { const G = __G; G.state = 'shots'; G.wave.toSpawn = 0; G.
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.log('pageerror ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) console.log('console ' + m.text().slice(0, 240)); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?autostart=1&nolock=1&god=1&noaudio=1&seed=5&tod=0.5&q=high&post=0&fp=1');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&god=1&noaudio=1&seed=5&tod=0.5&q=high&post=0&fp=1');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const ids = await page.evaluate(STAGE);
     const shot = async (name) => { await page.evaluate('__sim(0)'); await page.waitForTimeout(250); await page.screenshot({ path: path.join(OUT, name + '.png') }); console.log('shot ' + name); };

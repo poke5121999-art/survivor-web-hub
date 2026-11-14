@@ -333,8 +333,8 @@
     }
   });
   // signs: a board with pixel text, painted after the pixel pass
-  const SIGNS = { sign_taphoa: ['TẠP HÓA', 0x2a6ab8, 0xffffff], sign_caphe: ['CÀ PHÊ', 0x6a3a1a, 0xf4d090], sign_pho: ['PHỞ 24H', 0xc8302a, 0xffe060],
-    sign_xang: ['XĂNG DẦU', 0x1a7a3a, 0xffffff], sign_trambac: ['TRẠM GÁC', 0x2a3a6a, 0xffffff], sign_kho: ['KHO 7', 0x3a3a3a, 0xe8b820] };
+  const SIGNS = { sign_taphoa: [BZ.t("art.1"), 0x2a6ab8, 0xffffff], sign_caphe: [BZ.t("art.2"), 0x6a3a1a, 0xf4d090], sign_pho: [BZ.t("art.3"), 0xc8302a, 0xffe060],
+    sign_xang: [BZ.t("art.4"), 0x1a7a3a, 0xffffff], sign_trambac: [BZ.t("art.5"), 0x2a3a6a, 0xffffff], sign_kho: ['KHO 7', 0x3a3a3a, 0xe8b820] };
   for (const [key, [text, bg, fg]] of Object.entries(SIGNS)) {
     def(key, 64, 16, ({ set }) => {
       for (let y = 0; y < 16; y++) for (let x = 0; x < 64; x++) set(x, y, shade(hex(bg), y === 0 || x === 0 ? 1.25 : y === 15 || x === 63 ? 0.6 : 1));

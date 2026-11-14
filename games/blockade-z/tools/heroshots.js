@@ -22,7 +22,7 @@ const { FIND_ROOF } = require('./roofspot.js');
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?fp=1&select=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&fp=1&select=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const clearHud = () => page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }");
     const snap = async (name, clip) => { await clearHud(); await page.waitForTimeout(160); const f = path.join(OUT, name + '.png'); await page.screenshot({ path: f, clip }); shots.push(f); };
