@@ -110,6 +110,10 @@ export class Ugs {
     return call('lobby join', `${LOBBY}/${id}/join`, { token: this.token, body: this.player(playerName) });
   }
 
+  getLobby(id) {
+    return call('lobby get', `${LOBBY}/${id}`, { method: 'GET', token: this.token });
+  }
+
   updateLobby(id, patch) {
     return call('lobby update', `${LOBBY}/${id}`, { token: this.token, body: patch });
   }

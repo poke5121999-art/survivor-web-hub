@@ -5,23 +5,77 @@ import { RelayLink } from './relay.js';
 
 const HEARTBEAT = 15;   // Lobby hides a room whose host has not called heartbeat for 30 s
 
+const RELINK_TRIES = 3;
+
+// The relay drops a host allocation that went quiet (a throttled background tab, a network blip) while the Lobby row
+// lives on through heartbeats, so the list kept offering a join code the relay no longer knew ("join code not found").
+// The host now hands the game a stable link that re-allocates on loss and republishes the new code in the lobby;
+// if that fails the lobby row is deleted so nobody is sent to a dead room.
 export async function hostRoom({ name, isPrivate, region, playerName, maxPlayers = 4 }) {
   const ugs = await new Ugs().signIn();
-  const alloc = await ugs.allocate(maxPlayers - 1, region);
-  const relay = await ugs.joinCode(alloc.allocationId);
-  const link = await new RelayLink(alloc, { role: 'host' }).open();
+  const open = async () => {
+    const alloc = await ugs.allocate(maxPlayers - 1, region);
+    const relay = await ugs.joinCode(alloc.allocationId);
+    return { alloc, relay, link: await new RelayLink(alloc, { role: 'host' }).open() };
+  };
+  let cur = await open();
+  const reg = cur.alloc.region || region;
   let lobby;
   try {
     lobby = await ugs.createLobby({ name, maxPlayers, isPrivate, playerName,
-      data: lobbyData({ wave: 1, relay, host: playerName, region: alloc.region || region }) });
+      data: lobbyData({ wave: 1, relay: cur.relay, host: playerName, region: reg }) });
   } catch (e) {
-    link.close();
+    cur.link.close();
     throw e;
   }
-  const beat = setInterval(() => { ugs.signIn().then(() => ugs.heartbeat(lobby.id)).catch(() => {}); }, HEARTBEAT * 1000);
-  let closed = false;
-  return {
-    ugs, link, lobby, code: lobby.lobbyCode, region: alloc.region || region,
+  let closed = false, relinking = false;
+  const L = {
+    role: 'host', relinks: 0,
+    onMessage() {}, onPeer() {}, onPeerLeft() {}, onClose() {},
+    get peers() { return cur.link.peers; },
+    get hostId() { return cur.link.hostId; },
+    get id() { return cur.link.id; },
+    get stats() { return cur.link.stats; },
+    get alive() { return !cur.link.closed; },
+    send: (to, p) => cur.link.send(to, p),
+    broadcast: (p) => cur.link.broadcast(p),
+    drop: (peer) => cur.link.drop(peer),
+    close: () => room.close(),
+  };
+  const wire = (link) => {
+    link.onMessage = (...a) => L.onMessage(...a);
+    link.onPeer = (...a) => L.onPeer(...a);
+    link.onPeerLeft = (...a) => L.onPeerLeft(...a);
+    link.onClose = (why) => { if (!closed && link === cur.link) relink(why); };
+  };
+  async function relink(why) {
+    if (relinking || closed) return;
+    relinking = true;
+    for (const p of [...cur.link.peers]) L.onPeerLeft(p);
+    for (let i = 0; i < RELINK_TRIES && !closed; i++) {
+      try {
+        await ugs.signIn();
+        const next = await open();
+        if (closed) { next.link.close(); break; }
+        await ugs.updateLobby(lobby.id, { data: lobbyData({ wave: room.wave, relay: next.relay, host: playerName, region: next.alloc.region || reg }) });
+        cur = next; wire(cur.link); L.relinks++;
+        relinking = false;
+        return;
+      } catch (e) {
+        await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+      }
+    }
+    relinking = false;
+    if (!closed) { room.close(); L.onClose(`relay lost: ${why}`); }
+  }
+  wire(cur.link);
+  const beat = setInterval(() => {
+    if (closed) return;
+    if (cur.link.closed) { relink('link closed'); return; }
+    ugs.signIn().then(() => ugs.heartbeat(lobby.id)).catch(() => {});
+  }, HEARTBEAT * 1000);
+  const room = {
+    ugs, link: L, lobby, code: lobby.lobbyCode, region: reg, wave: 1,
     // A guest that vanished keeps its lobby seat until the host frees it.
     free(uid) { if (uid) ugs.removePlayer(lobby.id, uid).catch(() => {}); },
     close(keepalive = false) {
@@ -29,9 +83,10 @@ export async function hostRoom({ name, isPrivate, region, playerName, maxPlayers
       closed = true;
       clearInterval(beat);
       ugs.deleteLobby(lobby.id, keepalive).catch(() => {});
-      link.close();
+      cur.link.close();
     },
   };
+  return room;
 }
 
 // relay: a reconnect after the link dropped goes straight back to the allocation it knew; the lobby seat is still its.
@@ -46,7 +101,19 @@ export async function joinRoom({ lobbyId, code, playerName, relay: known = null,
   }
   let link;
   try {
-    link = await new RelayLink(await ugs.joinRelay(relay), { role: 'client' }).open();
+    let alloc;
+    try {
+      alloc = await ugs.joinRelay(relay);
+    } catch (e) {
+      // The host may be re-allocating right now: read the lobby again and try its newest code once.
+      if (!/join code not found|404/.test(String(e.message))) throw e;
+      await new Promise((r) => setTimeout(r, 2500));
+      const fresh = await ugs.getLobby(lobby.id).catch(() => null);
+      const code2 = fresh && fresh.data && fresh.data.relay && fresh.data.relay.value;
+      if (!code2 || code2 === relay) throw new Error('this room has closed (its host is gone); pick another room');
+      alloc = await ugs.joinRelay(code2);
+    }
+    link = await new RelayLink(alloc, { role: 'client' }).open();
   } catch (e) {
     ugs.leaveLobby(lobby.id).catch(() => {});
     throw e;
