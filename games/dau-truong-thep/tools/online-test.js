@@ -62,6 +62,60 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(await A.evaluate('__h.online.start()') === false && (await info(A)).state === 'lobby', 'a guest cannot start the match');
   check(await H.evaluate('__h.online.swapTeam("p1")') && (await H.evaluate('__h.online.lobby.players[1].team')) === 1, 'host swaps a guest to the other team');
   await H.evaluate('__h.online.swapTeam("p1")');
+
+  // ---- room chat in the lobby -------------------------------------------------------------------------------------
+  const sayOn = (P, t) => P.evaluate((x) => __h.online.say(x), t);
+  const texts = (P) => P.evaluate('window.__chat.map((m) => m.text)');
+  for (const P of [H, A, B]) await P.evaluate("window.__chat = []; __h.G.bus.on('net:chat', (m) => window.__chat.push(m))");
+  const arrived = (n, what) => Promise.all([H, A, B].map((P) => until(P, `window.__chat.length >= ${n}`, what)));
+  check(await sayOn(H, 'h1') && (await arrived(1, 'first line everywhere')).every(Boolean), 'host says a line, host and both guests receive it');
+  check(await sayOn(A, 'a1') && (await arrived(2, 'a1')).every(Boolean), 'guest A says a line, it is relayed to the host and to guest B');
+  check(await sayOn(B, 'b1') && (await arrived(3, 'b1')).every(Boolean), 'guest B says a line, it reaches the host and guest A');
+  await sayOn(H, 'h2'); await arrived(4, 'h2');
+  await sayOn(A, 'a2'); await arrived(5, 'a2');
+  const logs = await Promise.all([H, A, B].map(texts));
+  check(logs.every((l) => l.join() === 'h1,a1,b1,h2,a2'), `all three pages hold the same lines in the same order (${logs[0].join(' ')})`);
+  const first = await H.evaluate('window.__chat.slice(0, 3)');
+  check(first.map((m) => m.id).join() === 'p0,p1,p2' && first.map((m) => m.name).join() === 'Chủ,Khách A,Khách B' && first.every((m) => m.team === 0 && typeof m.t === 'number' && m.t > 1e12), `payload is { id, name, team, text, t }: ${JSON.stringify(first[1])}`);
+  const mirror = await B.evaluate('window.__chat.slice(0, 3).map((m) => m.id + ":" + m.name).join()');
+  check(mirror === 'p0:Chủ,p1:Khách A,p2:Khách B', 'a guest sees the same sender ids and names as the host');
+
+  const before = (await texts(H)).length;
+  check(!(await sayOn(A, '   ')) && !(await sayOn(A, '\u0001\u0007')), 'an empty line, or one that is only control characters, is not sent');
+  const long = ' ' + 'é'.repeat(200);
+  check(await sayOn(B, long), 'a 200-character line is accepted');
+  await arrived(6, 'long line');
+  const cut = await Promise.all([H, A, B].map((P) => P.evaluate('window.__chat[5].text')));
+  check(cut.every((t) => t === 'é'.repeat(120)), `an over-long line is trimmed and cut to 120 characters on host and guests (${cut.map((t) => t.length).join('/')})`);
+  await sayOn(A, 'he\u0001l\u0007lo​\n!');
+  await arrived(7, 'control characters');
+  const ctl = await Promise.all([H, A, B].map((P) => P.evaluate('window.__chat[6].text')));
+  check(ctl.every((t) => t === 'hello​!') || ctl.every((t) => t === 'hello!'), `control characters are stripped (${JSON.stringify(ctl[0])})`);
+  check((await texts(H)).length === before + 2, 'the refused lines never reached the room');
+
+  // 6th line in 10 s: host first (it has sent h1, h2 already), then a guest that only sent nothing yet
+  for (const P of [H, A, B]) await P.evaluate('window.__chat = []');
+  const hr = [];
+  for (const t of ['h3', 'h4', 'h5', 'h6']) hr.push(await sayOn(H, t));
+  await sleep(500);
+  const hostLog = await Promise.all([H, A, B].map(texts));
+  check(hr.join() === 'true,true,true,false' && hostLog.every((l) => l.join() === 'h3,h4,h5'), `host: the 6th line within 10 s is dropped (results ${hr.join('/')}, everyone saw ${hostLog[0].join(' ')})`);
+  const C = await open('C');
+  check(await C.evaluate(`__h.online.join({ code: '${code}', playerName: 'Khách C' })`), 'guest C joins to test its own limit');
+  await until(H, '__h.online.lobby.players.length === 4', 'host sees C');
+  for (const P of [H, A, B]) await P.evaluate('window.__chat = []');
+  await C.evaluate("window.__chat = []; __h.G.bus.on('net:chat', (m) => window.__chat.push(m))");
+  const cr = [];
+  for (let i = 1; i <= 6; i++) cr.push(await sayOn(C, 'c' + i));
+  await sleep(700);
+  const cLogs = await Promise.all([H, A, B].map(texts));
+  check(cr.join() === 'true,true,true,true,true,false' && cLogs.every((l) => l.join() === 'c1,c2,c3,c4,c5'), `guest: its 6th line within 10 s is dropped (results ${cr.join('/')}, host saw ${cLogs[0].join(' ')})`);
+  await C.evaluate('__h.online.leave()');
+  await until(H, '__h.online.lobby.players.length === 3', 'C gone again');
+  check(!(await sayOn(C, 'x')), 'say() on a page that is not in a room returns false');
+  await C.close();
+  for (const P of [H, A, B]) await P.evaluate('window.__chat = []');
+
   check(await H.evaluate('__h.online.start()'), 'host starts the match');
 
   // ---- playing --------------------------------------------------------------------------------------------------
@@ -82,6 +136,11 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(!lateOk && late.state === 'off' && /đã bắt đầu/.test(late.error), `late joiner is refused: "${late.error}"`);
   await D.close();
 
+  // chat keeps working while the match runs, and the 10 s window slides: retry until the earlier lines expire
+  let inMatch = false;
+  for (let i = 0; i < 30 && !inMatch; i++) { inMatch = await sayOn(B, 'trong trận'); if (!inMatch) await sleep(500); }
+  await until(H, 'window.__chat.length >= 1', 'in-match line on host'); await until(A, 'window.__chat.length >= 1', 'in-match line on A');
+  check(inMatch && (await texts(H)).join() === 'trong trận' && (await texts(A)).join() === 'trong trận', 'during a match a guest line reaches the host and the other guest (and a refused line is accepted again once the window has slid)');
   await sleep(3000);
   // guests track the host while the fight runs: same tick history, interpolated within 1.5 m of the host's live position
   let near = 0, total = 0, worstHist = 0, maxCur = 0;

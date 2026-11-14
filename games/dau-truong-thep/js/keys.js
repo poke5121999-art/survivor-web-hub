@@ -120,3 +120,7 @@ export function resetBindings() {
   state = Object.fromEntries(ACTIONS.map((a) => [a.id, a.default.slice()]));
   save(); fire();
 }
+
+// Standard-mapping gamepad: what each button is called on the pad and which action it drives. Fixed, not rebindable.
+const PAD_LABEL = { fire: 'RT', s1: 'LB', s2: 'RB', ult: 'LT', heal: 'X', score: 'Back', pause: 'Start' };
+export const padLabelFor = (id) => PAD_LABEL[id] || '';

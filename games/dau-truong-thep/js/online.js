@@ -25,6 +25,9 @@ const INPUT_RATE = 1 / 30;
 const WELCOME_TIMEOUT = 8;
 const EXTRAPOLATE = 0.1;
 const SNAP_DT = SNAP_TICKS * TICK;
+const CHAT_MAX = 120;
+const CHAT_BURST = 5;        // messages allowed per player ...
+const CHAT_WINDOW = 10;      // ... in this many seconds
 const EVENT_RING = 20;      // batches kept for a guest whose acks are late: about 1.3 s of lost packets are repaired
 
 const T = {
@@ -171,6 +174,9 @@ const TRANSPORTS = {
   },
 };
 
+// Control characters out, whitespace trimmed, cut to CHAT_MAX characters (by code point, so an emoji is never split).
+const cleanChat = (t) => [...String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, '').trim()].slice(0, CHAT_MAX).join('').trim();
+
 const NEUTRAL = (aim = 0) => ({ mx: 0, mz: 0, aim, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 });
 const FLAGS = ['fire', 's1', 's2', 'ult', 'heal'];
 const finite = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
@@ -263,9 +269,11 @@ export function makeOnline(G) {
   }
   const send = (peer, msg) => sendText(peer.link, JSON.stringify(msg));
   // A message type has one pending copy per peer: the newest supersedes the older one.
-  function sendRel(peer, msg) {
+  // A chat line is its own key: two lines in a row must both survive until acked.
+  function sendRel(peer, msg, key = msg.t) {
     msg.rid = ++relId;
-    peer.pending.set(msg.t, { msg, at: clock(), tries: 0 });
+    if (key !== msg.t) msg.pk = key;
+    peer.pending.set(key, { msg, at: clock(), tries: 0 });
     send(peer, msg);
   }
   const joined = () => [...peers.values()].filter((p) => p.pid);
@@ -274,7 +282,7 @@ export function makeOnline(G) {
 
   function peerOf(id) {
     let p = peers.get(id);
-    if (!p) { p = { link: id, pid: null, slot: -1, pending: new Map(), seen: {}, heard: clock(), input: null, inputSeq: 0, inputAt: 0, ack: 0, uid: null }; peers.set(id, p); }
+    if (!p) { p = { link: id, pid: null, slot: -1, pending: new Map(), seen: {}, chatSeen: new Set(), chatTimes: [], heard: clock(), input: null, inputSeq: 0, inputAt: 0, ack: 0, uid: null }; peers.set(id, p); }
     return p;
   }
 
@@ -293,9 +301,15 @@ export function makeOnline(G) {
       return;
     }
     if (msg.rid) {
-      send(peer, { t: 'ack', k: msg.t, rid: msg.rid });
-      if ((peer.seen[msg.t] || 0) >= msg.rid) return;
-      peer.seen[msg.t] = msg.rid;
+      send(peer, { t: 'ack', k: msg.pk || msg.t, rid: msg.rid });
+      if (msg.pk) {
+        if (peer.chatSeen.has(msg.rid)) return;
+        peer.chatSeen.add(msg.rid);
+        if (peer.chatSeen.size > 200) peer.chatSeen.delete(peer.chatSeen.values().next().value);
+      } else {
+        if ((peer.seen[msg.t] || 0) >= msg.rid) return;
+        peer.seen[msg.t] = msg.rid;
+      }
     }
     const table = online.role === 'host' ? HOST_MSG : GUEST_MSG;
     const h = table[msg.t];
@@ -362,6 +376,7 @@ export function makeOnline(G) {
       broadcastLobby(); changed();
     },
     swap(peer) { swapTeam(peer.pid); },
+    say(peer, m) { acceptChat(peer.pid, peer, m.text); },
     in(peer, m) {
       if (!(m.q > peer.inputSeq)) return;
       peer.inputSeq = m.q;
@@ -399,6 +414,10 @@ export function makeOnline(G) {
       lastRecvQ = m.q;
       online.stats.snapsRecv++;
       queue.push(m);
+    },
+    chat(peer, m) {
+      if (online.state === 'connecting') return;
+      emit('net:chat', { id: String(m.id), name: String(m.name || '').slice(0, 24), team: m.team | 0, text: cleanChat(m.text), t: Number(m.at) || Date.now() });
     },
     hb() {},
     bye() { lose(T.hostLeft); },
@@ -498,6 +517,38 @@ export function makeOnline(G) {
     fire('leave');
   };
   if (typeof addEventListener === 'function') addEventListener('pagehide', () => online.leave(true));
+
+  // ---- room chat ----------------------------------------------------------------------------------------------
+  // The host is the only judge of the rate limit and the only relay: a guest's line comes back as the same broadcast everyone gets.
+  function allowChat(bucket) {
+    const now = clock();
+    while (bucket.length && now - bucket[0] >= CHAT_WINDOW) bucket.shift();
+    if (bucket.length >= CHAT_BURST) return false;
+    bucket.push(now);
+    return true;
+  }
+  const hostChatTimes = [];
+  function acceptChat(pid, peer, raw) {
+    const text = cleanChat(raw), p = lobbyPlayer(pid);
+    if (!text || !p || online.state === 'connecting') return false;
+    if (!allowChat(peer ? peer.chatTimes : hostChatTimes)) return false;
+    const line = { id: p.id, name: p.name, team: p.team, text, t: Date.now() };
+    const wire = { t: 'chat', id: line.id, name: line.name, team: line.team, text, at: line.t };
+    for (const q of joined()) sendRel(q, { ...wire }, 'chat' + (relId + 1));
+    emit('net:chat', line);
+    return true;
+  }
+  const guestChatTimes = [];
+  // Returns false when the line is empty, the room is not open, or the sender is over 5 lines in 10 s.
+  online.say = function say(text) {
+    if (online.state !== 'lobby' && online.state !== 'playing') return false;
+    const clean = cleanChat(text);
+    if (!clean) return false;
+    if (online.role === 'host') return acceptChat(online.me, null, clean);
+    if (!allowChat(guestChatTimes)) return false;
+    sendRel(peerOf(link.hostId), { t: 'say', text: clean }, 'say' + (relId + 1));
+    return true;
+  };
 
   // ---- public: lobby --------------------------------------------------------------------------------------------
   online.onLobby = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };

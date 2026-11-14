@@ -5,6 +5,16 @@ import * as K from './keys.js';
 
 const BLOCK = 'button,input,select,textarea,a,[data-block]';
 const AIM_REACH = 14;
+const PAD_DEAD = 0.18, PAD_FIRE = 0.35;
+// Standard-mapping button indices.
+const PB = { A: 0, X: 2, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, DPAD: [12, 14, 15, 13] };
+// Radial dead zone, rescaled so a stick just past it reads near 0 and a full push reads exactly 1.
+function stick(x, y) {
+  const m = Math.hypot(x, y);
+  if (m < PAD_DEAD) return [0, 0, 0];
+  const k = (Math.min(1, m) - PAD_DEAD) / (1 - PAD_DEAD);
+  return [x / m * k, y / m * k, k];
+}
 
 export function makeInput(G) {
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -12,7 +22,10 @@ export function makeInput(G) {
   const mouse = { x: 0, y: 0, seen: false };
   const sticks = { move: null, aim: null };
   const btn = { s1: false, s2: false, ult: false, heal: false };
-  let scripted = null, touchOn = false, lastAim = 0, R = 56;
+  let scripted = null, touchOn = false, lastAim = 0, R = 56, chatting = false, device = 'kb';
+  let padFn = () => (typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []);
+  const pad = { present: false, mx: 0, mz: 0, ax: 0, az: 0, ad: 0, fire: false, s1: false, s2: false, ult: false, heal: false };
+  const edge = { start: false, back: false, dpad: [false, false, false, false] };
 
   const running = () => !!(G.match && !G.match.over);
   const typing = (t) => t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
@@ -21,13 +34,14 @@ export function makeInput(G) {
     if (typing(e.target)) return;
     // Space scrolls and Tab moves focus: both would fight the match while it runs.
     if (running() && (e.code === 'Space' || e.code === 'Tab' || K.actionOf(e.code))) e.preventDefault();
+    device = 'kb';
     keys.add(e.code);
   });
   addEventListener('keyup', (e) => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); });
   addEventListener('contextmenu', (e) => { if (running() || touch) e.preventDefault(); });
   addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true; }
+    if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true; device = 'kb'; }
   }, { passive: true });
   addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse') return;
@@ -125,13 +139,71 @@ export function makeInput(G) {
     }
   }
 
+
+  /* ---- gamepad ---- */
+  const readPad = () => {
+    let list = [];
+    try { list = padFn() || []; } catch (e) { list = []; }
+    for (const p of list) if (p && p.connected !== false && p.axes && p.axes.length >= 2 && p.buttons) return p;
+    return null;
+  };
+  // Reads the pad once per call and turns button edges into bus events; sample() and the frame loop below both call it.
+  function poll() {
+    const p = readPad();
+    pad.present = !!p;
+    if (!p) {
+      Object.assign(pad, { mx: 0, mz: 0, ax: 0, az: 0, ad: 0, fire: false, s1: false, s2: false, ult: false, heal: false });
+      if (edge.back) { edge.back = false; G.bus.emit('input:score', { down: false }); }
+      edge.start = false; edge.dpad.fill(false);
+      return;
+    }
+    const b = (i) => { const x = p.buttons[i]; return !!x && (x.pressed || x.value > 0.5); };
+    const [lx, lz] = stick(p.axes[0] || 0, p.axes[1] || 0);
+    const [rx, rz, rd] = p.axes.length >= 4 ? stick(p.axes[2] || 0, p.axes[3] || 0) : [0, 0, 0];
+    pad.mx = lx; pad.mz = lz; pad.ax = rx; pad.az = rz; pad.ad = rd;
+    pad.fire = rd > PAD_FIRE || b(PB.RT);
+    pad.s1 = b(PB.LB); pad.s2 = b(PB.RB); pad.ult = b(PB.LT) || b(PB.A); pad.heal = b(PB.X);
+    const start = b(PB.START), back = b(PB.BACK), dp = PB.DPAD.map(b);
+    if (lx || lz || rd || pad.fire || pad.s1 || pad.s2 || pad.ult || pad.heal || start || back || dp.some(Boolean)) device = 'pad';
+    if (start && !edge.start) G.bus.emit('input:pause');
+    if (back !== edge.back) G.bus.emit('input:score', { down: back });
+    dp.forEach((d, i) => { if (d && !edge.dpad[i]) G.bus.emit('input:phrase', i); });
+    edge.start = start; edge.back = back; edge.dpad = dp;
+  }
+  // Start must still work while the match is paused and sample() is not being called.
+  if (typeof requestAnimationFrame === 'function') {
+    const loop = () => { poll(); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+  function rumble(kind) {
+    const d = G.meta && G.meta.get && G.meta.get();
+    if (d && d.settings && d.settings.rumble === false) return false;
+    if (device !== 'pad') return false;
+    const p = readPad(), va = p && p.vibrationActuator;
+    if (!va || typeof va.playEffect !== 'function') return false;
+    const [duration, strongMagnitude, weakMagnitude] = kind === 'death' ? [500, 1, 0.8] : [180, 0.8, 0.4];
+    try {
+      const r = va.playEffect(va.type || 'dual-rumble', { startDelay: 0, duration, strongMagnitude, weakMagnitude });
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+    } catch (e) { return false; }
+    return true;
+  }
+  // Typing in the chat box: held keys and mouse buttons stop counting until it closes.
+  function setChatting(on) {
+    chatting = !!on;
+    if (chatting) { keys.clear(); }
+  }
+
   function sample(u) {
+    poll();
     if (scripted) return typeof scripted === 'function' ? scripted(G.match, u) : scripted;
+    const kd = (id) => !chatting && K.isDown(id, keys);
     let mx = 0, mz = 0;
-    if (K.isDown('up', keys)) mz -= 1;
-    if (K.isDown('down', keys)) mz += 1;
-    if (K.isDown('left', keys)) mx -= 1;
-    if (K.isDown('right', keys)) mx += 1;
+    if (kd('up')) mz -= 1;
+    if (kd('down')) mz += 1;
+    if (kd('left')) mx -= 1;
+    if (kd('right')) mx += 1;
+    if (pad.mx || pad.mz) { mx = pad.mx; mz = pad.mz; }
     const ms = sticks.move;
     if (ms) {
       const dx = (ms.x - ms.ox) / R, dy = (ms.y - ms.oy) / R;
@@ -141,9 +213,12 @@ export function makeInput(G) {
     const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
 
-    let aim = lastAim, fire = K.isDown('fire', keys), tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
+    let aim = lastAim, fire = kd('fire') || pad.fire, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
     const as = sticks.aim;
-    if (as) {
+    if (pad.ad > 0) {
+      aim = Math.atan2(pad.az, pad.ax);
+      tx = u.x + Math.cos(aim) * pad.ad * AIM_REACH; tz = u.z + Math.sin(aim) * pad.ad * AIM_REACH;
+    } else if (as) {
       const dx = as.x - as.ox, dy = as.y - as.oy, l = Math.hypot(dx, dy);
       const defl = Math.min(1, l / R);
       if (l > 4) {
@@ -151,20 +226,22 @@ export function makeInput(G) {
         tx = u.x + Math.cos(aim) * defl * AIM_REACH; tz = u.z + Math.sin(aim) * defl * AIM_REACH;
       }
       if (defl > 0.3) fire = true;
-    } else if (mouse.seen) {
+    } else if (mouse.seen && device !== 'pad') {
       const g = G.groundAt(mouse.x, mouse.y);
       if (g) { tx = g[0]; tz = g[1]; aim = Math.atan2(tz - u.z, tx - u.x); }
     }
     lastAim = aim;
     return {
       mx, mz, aim, fire, tx, tz,
-      s1: K.isDown('s1', keys) || btn.s1, s2: K.isDown('s2', keys) || btn.s2,
-      ult: K.isDown('ult', keys) || btn.ult, heal: K.isDown('heal', keys) || btn.heal,
+      s1: kd('s1') || btn.s1 || pad.s1, s2: kd('s2') || btn.s2 || pad.s2,
+      ult: kd('ult') || btn.ult || pad.ult, heal: kd('heal') || btn.heal || pad.heal,
     };
   }
 
   return {
     touch, sample, setTouchVisible, updateTouch, pressed: keys,
+    setPadSource: (fn) => { padFn = typeof fn === 'function' ? fn : () => []; },
+    device: () => device, rumble, setChatting, padState: () => ({ ...pad }),
     script: (s) => { scripted = s || null; },
   };
 }

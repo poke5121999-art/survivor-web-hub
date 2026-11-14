@@ -55,6 +55,21 @@ async function open(browser, name, vp, touch, query) {
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
   page.on('pageerror', (e) => errs.push(e.message));
   page.on('response', (r) => { if (r.status() >= 400) errs.push('http ' + r.status() + ' ' + r.url()); });
+  // Phones show one setup group at a time: a click on a picker in a hidden group first opens its tab.
+  // Pulsing buttons never count as stable under the GPU renderer, so they are clicked with force.
+  const click = page.click.bind(page);
+  page.click = async (sel, o) => {
+    if (typeof sel === 'string') {
+      await page.evaluate((q) => {
+        const n = document.querySelector(q), g = n && n.closest && n.closest('.grp');
+        if (!g || g.offsetParent) return;
+        const k = g.classList.contains('g-map') ? 'map' : g.classList.contains('g-theme') ? 'theme' : 'mode';
+        const b = n.closest('.lobby') ? document.querySelector(`#ui .lobby .su-tabs [data-k="${k}"]`) : document.querySelector(`#ui .menu .su-tabs [data-su="${k}"]`);
+        if (b) b.click();
+      }, sel);
+    }
+    return click(sel, typeof sel === 'string' && /\.play|\.netbtn|\.go\b|data-a="start"/.test(sel) ? { force: true, ...o } : o);
+  };
   await page.goto(base + PAGE + '?' + query);
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 15000 });
   return { ctx, page, errs };
@@ -77,7 +92,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
   base = srv.base;
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=' + (process.env.DTT_GL || 'swiftshader'), '--enable-unsafe-swiftshader'] });
   try {
     const sizes = [['desktop', { width: 1280, height: 720 }, false], ['phone', { width: 780, height: 360 }, true]];
     for (const [ctxName, vp, touch] of sizes) {
@@ -587,7 +602,7 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
       check(T('keys') + ': the garage skill rows show bound keys (fire R, Chiêu 1 Chuột trái, Chiêu 2 E, ult Cách)', kit === 'R,Chuột trái,E,Cách', kit);
       await page.click('#ui [data-r="bHelp"]');
       const help = await page.evaluate(() => [...document.querySelectorAll('#ui .help-cols kbd')].map((k) => k.textContent).join());
-      check(T('keys') + ': "Cách chơi" lists the bound keys', help === 'W,A,S,D,Chuột,R,Chuột trái,E,Cách,Y,Tab,Esc', help);
+      check(T('keys') + ': "Cách chơi" lists the bound keys', help === 'W,A,S,D,Chuột,R,Chuột trái,E,Cách,Y,Tab,Esc,Enter,Cần trái,Cần phải,RT,LB,RB,LT,X,Start,Back,▲,◀,▶,▼', help);
       await page.click('#ui .modal.on [data-r="close"]');
       await page.click('#ui [data-r="bSet"]'); await page.click('#ui [data-st="keys"]');
       await page.click('#ui [data-r="kreset"]');
@@ -994,6 +1009,291 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
       const noTouch = await page.evaluate(() => !document.getElementById('touch') && __G.input.touch === false);
       check('input: no touch layer on desktop', noTouch);
       await ctx.close();
+    }
+
+    // ----- gamepad: a fake pad drives the same sample() the real one does
+    {
+      const { ctx, page, errs } = await open(browser, 'pad', { width: 1280, height: 720 }, false, 'screen=hud&manual=1&auto=0&fresh=1&mech=soi');
+      await page.evaluate(() => {
+        const mk = () => ({ pressed: false, value: 0 });
+        window.__pad = { id: 'fake', index: 1, connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, mk),
+          vibrationActuator: { type: 'dual-rumble', playEffect(type, o) { (window.__rumbles = window.__rumbles || []).push([type, o.duration, o.strongMagnitude]); return Promise.resolve(); } } };
+        // The first slot is empty on purpose: navigator.getGamepads() has holes.
+        __G.input.setPadSource(() => [null, window.__pad]);
+        window.__ax = (a) => { window.__pad.axes = a; };
+        window.__bt = (i, v) => { window.__pad.buttons[i] = { pressed: v > 0.5, value: v }; };
+        window.__off = () => { window.__pad.axes = [0, 0, 0, 0]; window.__pad.buttons = Array.from({ length: 17 }, mk); };
+        window.__smp = () => { const u = __G.match.units[0]; const i = __G.input.sample(u); return { ...i, ux: u.x, uz: u.z }; };
+      });
+      const S = async (axes, btn) => page.evaluate(([a, b]) => { __off(); __ax(a); for (const k in b) __bt(+k, b[k]); return __smp(); }, [axes, btn || {}]);
+      const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+      let r = await S([0, 0, 0, 0]);
+      check('pad: resting sticks give no move, no fire', r.mx === 0 && r.mz === 0 && !r.fire && !r.s1 && !r.ult, JSON.stringify(r));
+      r = await S([1, 0, 0, 0]);
+      check('pad: left stick (1, 0) gives mx = 1, mz = 0', near(r.mx, 1) && near(r.mz, 0) && !r.fire, JSON.stringify(r));
+      r = await S([0, -1, 0, 0]);
+      check('pad: left stick up (0, -1) gives mz = -1', near(r.mz, -1) && near(r.mx, 0), JSON.stringify(r));
+      r = await S([0.1, 0.1, 0, 0]);
+      check('pad: left stick inside the 0.18 dead zone gives exactly 0', r.mx === 0 && r.mz === 0, JSON.stringify(r));
+      r = await S([0.3, 0, 0, 0]);
+      check('pad: dead zone is rescaled, 0.3 reads (0.3 - 0.18) / 0.82 = 0.146', near(r.mx, 0.12 / 0.82, 1e-9), JSON.stringify(r));
+      r = await S([0.8, 0.8, 0, 0]);
+      check('pad: a diagonal push is clamped to length 1 (0.707, 0.707)', near(r.mx, Math.SQRT1_2, 1e-9) && near(r.mz, Math.SQRT1_2, 1e-9), JSON.stringify(r));
+      r = await S([0, 0, 0, -1]);
+      check('pad: right stick up fires, aims -90 degrees, target 14 m ahead', r.fire && near(r.aim, -Math.PI / 2) && near(r.tx, r.ux, 1e-6) && near(r.tz, r.uz - 14, 1e-6), JSON.stringify(r));
+      r = await S([0, 0, 1, 0]);
+      check('pad: right stick right fires, aim 0, target ux + 14', r.fire && near(r.aim, 0) && near(r.tx, r.ux + 14, 1e-6) && near(r.tz, r.uz, 1e-6), JSON.stringify(r));
+      r = await S([0, 0, 0.3, 0]);
+      check('pad: right stick at 15% aims (target ux + 2.05) but does not fire', !r.fire && near(r.aim, 0) && near(r.tx, r.ux + 14 * 0.12 / 0.82, 1e-9), JSON.stringify(r));
+      r = await S([0, 0, 0.45, 0]);
+      const below = !r.fire;
+      r = await S([0, 0, 0.5, 0]);
+      check('pad: fire starts above 35% deflection (raw 0.45 = 33% no, raw 0.5 = 39% yes)', below && r.fire, below + '/' + JSON.stringify(r));
+      r = await S([0, 0, 0.1, 0.1]);
+      check('pad: right stick in the dead zone keeps the last aim (target 8 m ahead of it) and holds fire', !r.fire && near(r.aim, 0) && near(r.tx, r.ux + 8, 1e-6), JSON.stringify(r));
+      const flags = async (btn) => { const x = await S([0, 0, 0, 0], btn); return [x.fire, x.s1, x.s2, x.ult, x.heal].join(); };
+      check('pad: RT fires', (await flags({ 7: 0.8 })) === 'true,false,false,false,false');
+      check('pad: LB is skill 1, RB is skill 2', (await flags({ 4: 1 })) === 'false,true,false,false,false' && (await flags({ 5: 1 })) === 'false,false,true,false,false');
+      check('pad: LT and A are the ultimate, a half-pulled LT (0.3) is not', (await flags({ 6: 0.9 })) === 'false,false,false,true,false' && (await flags({ 0: 1 })) === 'false,false,false,true,false' && (await flags({ 6: 0.3 })) === 'false,false,false,false,false');
+      check('pad: X uses the heal item', (await flags({ 2: 1 })) === 'false,false,false,false,true');
+
+      // hints follow the device that was used last
+      await S([0, 0, 0, 0], { 4: 1 });
+      await page.waitForTimeout(250);
+      const padKeys = await page.evaluate(() => ({ dev: __G.input.device(), k: [...document.querySelectorAll('#ui .slot kbd')].map((k) => k.textContent).join() }));
+      check('pad: after pad input the HUD hints read RT, LB, RB, LT, X', padKeys.dev === 'pad' && padKeys.k === 'RT,LB,RB,LT,X', JSON.stringify(padKeys));
+      await shot(page, errs, 'pad-hud', null, 200);
+      await page.evaluate(() => __off());
+      await page.keyboard.press('KeyW');
+      await page.waitForTimeout(250);
+      const kbKeys = await page.evaluate(() => ({ dev: __G.input.device(), k: [...document.querySelectorAll('#ui .slot kbd')].map((k) => k.textContent).join() }));
+      check('pad: a key press switches the hints back to Chuột trái, Q, E, Cách, F', kbKeys.dev === 'kb' && kbKeys.k === 'Chuột trái,Q,E,Cách,F', JSON.stringify(kbKeys));
+      await page.evaluate(() => __bt(2, 1));
+      await page.waitForTimeout(100);
+      await page.evaluate(() => __off());
+      await page.mouse.move(400, 300); await page.mouse.move(420, 320);
+      await page.waitForTimeout(250);
+      check('pad: mouse movement also switches back to the keyboard hints', (await page.evaluate(() => __G.input.device())) === 'kb' && (await page.evaluate(() => document.querySelector('#ui .slot kbd').textContent)) === 'Chuột trái');
+
+      // Start pauses and resumes (polled even while paused), Back holds the scoreboard
+      await page.evaluate(() => __bt(9, 1));
+      await page.waitForTimeout(200);
+      let st = await page.evaluate(() => ({ paused: __G.ui.paused, hint: document.querySelector('#ui .pause [data-r="hint"]').textContent }));
+      check('pad: Start pauses and the pause hint names Start', st.paused === true && st.hint === 'Nhấn Start để tiếp tục', JSON.stringify(st));
+      await page.evaluate(() => __off()); await page.waitForTimeout(100);
+      await page.evaluate(() => __bt(9, 1)); await page.waitForTimeout(200);
+      check('pad: a second Start press resumes', (await page.evaluate(() => __G.ui.paused)) === false);
+      await page.evaluate(() => __off()); await page.waitForTimeout(100);
+      await page.evaluate(() => __bt(8, 1)); await page.waitForTimeout(250);
+      const sbOn = await page.evaluate(() => document.querySelector('#ui .sb').classList.contains('on'));
+      await page.evaluate(() => __off()); await page.waitForTimeout(250);
+      const sbOff = await page.evaluate(() => document.querySelector('#ui .sb').classList.contains('on'));
+      check('pad: holding Back shows the scoreboard, letting go hides it', sbOn && !sbOff, `${sbOn}/${sbOff}`);
+
+      // rumble: only on a big hit and on death, only with the pad as the last device, setting respected, no actuator is fine
+      await page.evaluate(() => { __bt(2, 1); __smp(); __off(); window.__rumbles = []; });
+      const hit = (amt) => page.evaluate((a) => { __G.ui.event({ t: 'hit', id: 0, by: 1, amt: a, absorbed: 0, x: 0, z: 0 }); return window.__rumbles.length; }, amt);
+      check('pad: a 300 hit rumbles, a 100 hit does not', (await hit(300)) === 1 && (await hit(100)) === 1);
+      await page.evaluate(() => { __G.ui.event({ t: 'death', id: 0, by: 1, assists: [], x: 0, z: 0 }); });
+      const rum = await page.evaluate(() => window.__rumbles);
+      check('pad: death rumbles for 500 ms at full strength', rum.length === 2 && rum[1][1] === 500 && rum[1][2] === 1 && rum[0][0] === 'dual-rumble', JSON.stringify(rum));
+      await page.evaluate(() => { __G.meta.get().settings.rumble = false; });
+      check('pad: the Rung tay cầm setting off silences it', (await hit(400)) === 2);
+      await page.evaluate(() => { __G.meta.get().settings.rumble = true; });
+      await page.keyboard.press('KeyW');
+      check('pad: with the keyboard as last device nothing rumbles', (await hit(400)) === 2);
+      const noAct = await page.evaluate(() => { __G.input.setPadSource(() => [{ connected: true, mapping: 'standard', axes: [0.9, 0, 0, 0], buttons: [] }]); const i = __smp(); const r = __G.input.rumble('hit'); return { mx: i.mx, r, dev: __G.input.device() }; });
+      check('pad: a pad without vibrationActuator still plays (mx 0.88) and rumble() just says false', noAct.dev === 'pad' && noAct.r === false && near(noAct.mx, (0.9 - 0.18) / 0.82, 1e-9), JSON.stringify(noAct));
+      const gone = await page.evaluate(() => { __G.input.setPadSource(() => { throw new Error('no pads'); }); const i = __smp(); return i.mx; });
+      check('pad: a throwing pad source is ignored', gone === 0);
+
+      // d-pad sends quick phrases in an online match
+      await page.evaluate(() => { __G.online.state = 'playing'; __G.input.setPadSource(() => [window.__pad]); __off(); __bt(12, 1); });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => { __off(); });
+      await page.waitForTimeout(100);
+      await page.evaluate(() => { __bt(14, 1); });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => __off());
+      const says = await page.evaluate(() => ({ calls: __G.online.calls.filter((c) => c[0] === 'say').map((c) => c[1]), lines: [...document.querySelectorAll('#ui .in-match .cl span')].map((n) => n.textContent), hint: getComputedStyle(document.querySelector('#ui .in-match .cl-pad')).display }));
+      check('pad: d-pad up and left send "Đẩy trụ!" and "Về thủ!" and both show in the match log', says.calls.join('|') === 'Đẩy trụ!|Về thủ!' && says.lines.join('|') === 'Đẩy trụ!|Về thủ!', JSON.stringify(says));
+      check('pad: the d-pad phrase hint row is shown for pad players', says.hint === 'flex', says.hint);
+      await shot(page, errs, 'pad-hud-chat', null, 300);
+      await ctx.close();
+    }
+
+    // ----- gamepad: settings toggle and the help column
+    {
+      const { ctx, page, errs } = await open(browser, 'pad-set', { width: 1280, height: 720 }, false, 'screen=menu&fresh=1');
+      await page.click('#ui [data-r="bSet"]');
+      const t0 = await page.getAttribute('#ui [data-r="rumble"]', 'aria-pressed');
+      await page.click('#ui [data-r="rumble"]');
+      const t1 = await page.evaluate(() => ({ p: document.querySelector('#ui [data-r="rumble"]').getAttribute('aria-pressed'), saved: JSON.parse(localStorage.getItem('dtt.save.v1')).settings.rumble, off: __G.input.rumble('hit') }));
+      check('pad: the settings toggle "Rung tay cầm" starts on, turns off, is saved, and rumble() then refuses', t0 === 'true' && t1.p === 'false' && t1.saved === false && t1.off === false, t0 + JSON.stringify(t1));
+      await shot(page, errs, 'pad-settings', null, 250);
+      await page.click('#ui [data-r="rumble"]');
+      check('pad: the toggle turns back on', (await page.getAttribute('#ui [data-r="rumble"]', 'aria-pressed')) === 'true');
+      await page.click('#ui .modal.on [data-r="close"]');
+      await page.click('#ui [data-r="bHelp"]');
+      await shot(page, errs, 'pad-help', async () => {
+        const h = await page.evaluate(() => ({ cols: document.querySelectorAll('#ui .help-cols > div').length, heads: [...document.querySelectorAll('#ui .help-cols h4')].map((n) => n.textContent).join(), pad: document.querySelectorAll('#ui .help-cols > div:nth-child(2) kbd').length }));
+        check('pad: help has three columns, Máy tính / Tay cầm / Cảm ứng, with the pad glyphs', h.cols === 3 && /^Máy tính,Tay cầm,Cảm ứng/.test(h.heads) && h.pad >= 10, JSON.stringify(h));
+      }, 300);
+      await ctx.close();
+    }
+
+    // ----- room chat
+    {
+      const SEL = '#ui .lobby .chatbox.in-lobby';
+      let { ctx, page, errs } = await open(browser, 'chat-lobby', { width: 1280, height: 720 }, false, 'screen=lobby&role=host&fill=4&fresh=1');
+      await page.evaluate(() => {
+        for (const [id, name, team, text] of [['p1', 'Bão Số 9', 1, 'Sẵn sàng chưa mọi người?'], ['p2', 'Cò Lả', 0, 'Đợi tôi chọn máy một chút nhé, sắp xong rồi']]) __G.bus.emit('net:chat', { id, name, team, text, t: Date.now() });
+      });
+      await page.fill(SEL + ' input', '<b>x</b> xin chào <img src=x onerror=alert(1)>');
+      await page.press(SEL + ' input', 'Enter');
+      await page.waitForTimeout(100);
+      const c = await page.evaluate((sel) => {
+        const rows = [...document.querySelectorAll(sel + ' .cl')], last = rows[rows.length - 1];
+        return { n: rows.length, who: last.querySelector('b').textContent, text: last.querySelector('span').textContent, html: last.querySelector('span').innerHTML, kids: last.querySelectorAll('span *').length, imgs: document.querySelectorAll('#ui img[src="x"]').length, input: document.querySelector(sel + ' input').value, calls: __G.online.calls.filter((x) => x[0] === 'say').length };
+      }, SEL);
+      check('chat: a line typed in the lobby is sent through online.say and shown with the sender name', c.n === 3 && c.who === 'Phi công' && c.calls === 1 && c.input === '', JSON.stringify(c));
+      check('chat: "<b>x</b>" is shown as text, never parsed (no element inside the line, no <img> created, html is escaped)', c.text === '<b>x</b> xin chào <img src=x onerror=alert(1)>' && c.kids === 0 && c.imgs === 0 && c.html.startsWith('&lt;b&gt;x&lt;/b&gt;'), JSON.stringify(c));
+      const teams = await page.evaluate((sel) => [...document.querySelectorAll(sel + ' .cl')].map((r) => r.className.replace('cl ', '').replace(' mine', '')).join(), SEL);
+      check('chat: names carry their team colour class (t1 for Hỏa, t0 for Lam)', teams === 't1,t0,t0', teams);
+      await page.fill(SEL + ' input', 'chưa gửi');
+      await page.evaluate(() => { __G.bus.emit('net:lobby', __G.online.lobby); __G.bus.emit('net:chat', { id: 'p1', name: 'Bão Số 9', team: 1, text: 'tin mới', t: 1 }); });
+      const keep = await page.evaluate((sel) => ({ v: document.querySelector(sel + ' input').value, focus: document.activeElement === document.querySelector(sel + ' input'), n: document.querySelectorAll(sel + ' .cl').length }), SEL);
+      check('chat: a lobby redraw and an incoming line keep the half-typed text and the focus', keep.v === 'chưa gửi' && keep.focus && keep.n === 4, JSON.stringify(keep));
+      await page.click(SEL + ' [data-q="1"]');
+      const q = await page.evaluate(() => __G.online.calls.filter((x) => x[0] === 'say').pop()[1]);
+      check('chat: a quick phrase button sends its phrase ("Về thủ!")', q === 'Về thủ!', q);
+      await shot(page, errs, 'lobby-chat', null, 300);
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, 'chat-rate', { width: 1280, height: 720 }, false, 'screen=lobby&role=guest&fill=3&fresh=1'));
+      for (let i = 1; i <= 6; i++) { await page.fill(SEL + ' input', 'dòng ' + i); await page.press(SEL + ' input', 'Enter'); }
+      await page.waitForTimeout(100);
+      const rl = await page.evaluate((sel) => ({ lines: [...document.querySelectorAll(sel + ' .cl span')].map((n) => n.textContent), left: document.querySelector(sel + ' input').value, toast: document.querySelector('#ui .toast').textContent }), SEL);
+      check('chat: the 6th line inside 10 s is refused: 5 lines shown, text kept, toast says to wait', rl.lines.join('|') === 'dòng 1|dòng 2|dòng 3|dòng 4|dòng 5' && rl.left === 'dòng 6' && rl.toast === 'Gửi quá nhanh, hãy chờ vài giây', JSON.stringify(rl));
+      await ctx.close();
+
+      // in a match: Enter opens, typing is walled off from the game keys, Esc closes without pausing
+      ({ ctx, page, errs } = await open(browser, 'chat-match', { width: 1280, height: 720 }, false, 'screen=hud&onl=1&manual=1&auto=0&mech=soi&fresh=1'));
+      const smp = () => page.evaluate(() => { const i = __G.input.sample(__G.match.units[0]); return [i.mx, i.mz, i.s1, i.fire].join(); });
+      const MS = '#ui .chatbox.in-match';
+      await page.keyboard.down('KeyD');
+      await page.waitForTimeout(80);
+      check('chat: D held moves right before the chat opens', (await smp()).startsWith('1,'));
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(100);
+      const op = await page.evaluate((sel) => ({ open: document.querySelector(sel).classList.contains('open'), focus: document.activeElement === document.querySelector(sel + ' input') }), MS);
+      check('chat: Enter opens the match chat and focuses its input', op.open && op.focus, JSON.stringify(op));
+      check('chat: with the chat open the held D no longer moves the unit', (await smp()).startsWith('0,0,false'));
+      await page.keyboard.type('wasd q');
+      const typed = await page.evaluate((sel) => ({ v: document.querySelector(sel + ' input').value, paused: __G.ui.paused, mv: (() => { const i = __G.input.sample(__G.match.units[0]); return i.mx + ',' + i.s1; })() }), MS);
+      check('chat: game keys typed into the box become text (wasd q) and do not move, cast or pause', typed.v === 'wasd q' && !typed.paused && typed.mv === '0,false', JSON.stringify(typed));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(100);
+      const cl = await page.evaluate((sel) => ({ open: document.querySelector(sel).classList.contains('open'), paused: __G.ui.paused, focus: document.activeElement && document.activeElement.tagName }), MS);
+      check('chat: Esc closes the box without opening the pause menu', !cl.open && cl.paused === false && cl.focus !== 'INPUT', JSON.stringify(cl));
+      await page.keyboard.up('KeyD');
+      await page.keyboard.down('KeyD'); await page.waitForTimeout(60);
+      check('chat: after closing, keys move the unit again', (await smp()).startsWith('1,'));
+      await page.keyboard.up('KeyD');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('Hay lắm <i>x</i>');
+      await shot(page, errs, 'chat-match-open', null, 250);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(100);
+      const sent = await page.evaluate((sel) => ({ calls: __G.online.calls.filter((x) => x[0] === 'say').map((x) => x[1]), line: document.querySelector(sel + ' .cl span').textContent, kids: document.querySelectorAll(sel + ' .cl span *').length, open: document.querySelector(sel).classList.contains('open') }), MS);
+      check('chat: Enter sends the line, shows it escaped in the match log and closes the box', sent.calls.join() === 'Hay lắm <i>x</i>' && sent.line === 'Hay lắm <i>x</i>' && sent.kids === 0 && !sent.open, JSON.stringify(sent));
+      await page.evaluate(() => { for (const [n, t, x] of [['Bão Số 9', 1, 'Đẩy trụ!'], ['Cò Lả', 0, 'Cần hồi máu ở giữa sân, ai gần thì hỗ trợ nhé']]) __G.bus.emit('net:chat', { id: 'p3', name: n, team: t, text: x, t: Date.now() }); });
+      await shot(page, errs, 'chat-match', null, 300);
+      await page.waitForTimeout(9800);
+      const faded = await page.evaluate((sel) => [...document.querySelectorAll(sel + ' .cl')].every((r) => r.classList.contains('old')), MS);
+      check('chat: match log lines fade out after about 9 s', faded);
+      await ctx.close();
+
+      ({ ctx, page, errs } = await open(browser, 'chat-offline', { width: 1280, height: 720 }, false, 'screen=hud&manual=1&auto=0&mech=soi'));
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(100);
+      const off = await page.evaluate((sel) => ({ open: document.querySelector(sel).classList.contains('open'), shown: getComputedStyle(document.querySelector(sel)).display }), MS);
+      check('chat: in a local match Enter does nothing and the chat box is not shown', !off.open && off.shown === 'none', JSON.stringify(off));
+      await ctx.close();
+
+      // touch: a small button opens the box, quick phrases send
+      ({ ctx, page, errs } = await open(browser, 'chat-touch', { width: 780, height: 360 }, true, 'screen=hud&onl=1&manual=1&auto=0&mech=ung&fresh=1'));
+      await page.waitForTimeout(400);
+      const bt = await page.evaluate(() => { const b = document.querySelector('#ui .chatbtn').getBoundingClientRect(); return { w: Math.round(b.width), shown: getComputedStyle(document.querySelector('#ui .chatbtn')).display }; });
+      check('chat: touch players get a small chat button (about 17 px) beside the pause button', bt.shown !== 'none' && bt.w >= 16 && bt.w <= 30, JSON.stringify(bt));
+      await page.click('#ui .chatbtn', { force: true });
+      await page.waitForTimeout(150);
+      await shot(page, errs, 'chat-touch-open', async () => {
+        const o = await page.evaluate(() => ({ open: document.querySelector('#ui .chatbox.in-match').classList.contains('open'), q: [...document.querySelectorAll('#ui .in-match .cl-q')].filter((b) => b.offsetParent).map((b) => b.textContent.replace(/[▲◀▶▼]/g, '')) }));
+        check('chat: the button opens the box with four quick phrases', o.open && o.q.join('|') === 'Đẩy trụ!|Về thủ!|Cần hồi máu|Hay lắm!', JSON.stringify(o));
+      }, 200);
+      await page.click('#ui .in-match .cl-q[data-q="2"]', { force: true });
+      const tq = await page.evaluate(() => ({ calls: __G.online.calls.filter((x) => x[0] === 'say').map((x) => x[1]), open: document.querySelector('#ui .chatbox.in-match').classList.contains('open'), line: document.querySelector('#ui .in-match .cl span').textContent }));
+      check('chat: tapping "Cần hồi máu" sends it, logs it and closes the box', tq.calls.join() === 'Cần hồi máu' && tq.line === 'Cần hồi máu' && !tq.open, JSON.stringify(tq));
+      await ctx.close();
+    }
+
+    // ----- phone polish: setup tabs, unclipped names, 11 px body text
+    {
+      const NAMES = '.map b, .th-n, .mc-nm > b, .mode span, .su-tabs button, .seg button';
+      const TEXT = '.mode-bl, .th-bl, .sk-tx p, .md-head p, .mc-role, .map b, .map .hz, .th-n, .mode span, .seg button, .su-tabs button, .sk-tx b';
+      let { ctx, page, errs } = await open(browser, 'phone-setup', { width: 780, height: 360 }, true, 'screen=menu&fresh=1&map=xuongcat');
+      const tabs = await page.evaluate(() => [...document.querySelectorAll('#ui .menu .su-tabs button')].map((b) => b.textContent + ':' + (b.offsetParent ? 'shown' : 'hidden')).join());
+      check('phone: the setup column has three tabs, Chế độ / Đấu trường / Môi trường', tabs === 'Chế độ:shown,Đấu trường:shown,Môi trường:shown', tabs);
+      for (const [k, label] of [['mode', 'Chế độ'], ['map', 'Đấu trường'], ['theme', 'Môi trường']]) {
+        await page.click(`#ui .menu .su-tabs [data-su="${k}"]`);
+        await shot(page, errs, `phone-menu-${k}`, async () => {
+          const r = await page.evaluate((a) => {
+            const o = document.querySelector('#ui .setup .opts'), ob = o.getBoundingClientRect(), play = document.querySelector('#ui .play').getBoundingClientRect();
+            const tiles = [...o.querySelectorAll('button')].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect());
+            return { fit: o.scrollHeight <= o.clientHeight + 1, play: play.bottom <= innerHeight + 1 && play.top >= 0, inside: tiles.every((t) => t.top >= ob.top - 1 && t.bottom <= ob.bottom + 1 && t.right <= ob.right + 1), n: tiles.length, on: document.querySelector('#ui .menu .su-tabs .on').textContent, ...(() => { const out = { clipped: [], small: [] }; for (const n of document.querySelectorAll('#ui .menu ' + a[0])) if (n.offsetParent && n.scrollWidth > n.clientWidth) out.clipped.push(n.textContent.trim()); for (const n of document.querySelectorAll('#ui .menu ' + a[1])) if (n.offsetParent && n.textContent.trim() && parseFloat(getComputedStyle(n).fontSize) < 11) out.small.push(n.className + ':' + getComputedStyle(n).fontSize); return out; })() };
+          }, [NAMES, TEXT]);
+          check(`phone: tab ${label}: its pickers fit the column without scrolling, every button inside it, play button on screen`, r.fit && r.inside && r.play && r.n >= 3 && r.on === label, JSON.stringify(r));
+          check(`phone: tab ${label}: no name or label is clipped (scrollWidth <= clientWidth)`, r.clipped.length === 0, r.clipped.join(' | '));
+          check(`phone: tab ${label}: body text is at least 11 px`, r.small.length === 0, r.small.join(' | '));
+        }, 250);
+      }
+      await page.click('#ui .menu .su-tabs [data-su="map"]');
+      const sand = await page.evaluate(() => { const b = document.querySelector('#ui .map[data-map="xuongcat"] b'); return { t: b.textContent, ok: b.scrollWidth <= b.clientWidth, w: b.clientWidth }; });
+      check('phone: the map name "Xưởng Cát" is fully visible in the menu', sand.t === 'Xưởng Cát' && sand.ok, JSON.stringify(sand));
+      await page.click('#ui .menu .su-tabs [data-su="theme"]');
+      await page.click('#ui .th[data-th="lava"]');
+      const th = await page.evaluate(() => ({ on: document.querySelector('#ui .th.on').dataset.th, tab: document.querySelector('#ui .menu .su-tabs .on').textContent }));
+      check('phone: the theme picker is one tap away and a theme can be chosen there', th.on === 'lava' && th.tab === 'Môi trường', JSON.stringify(th));
+      await ctx.close();
+
+      for (const [role, fill] of [['host', 5], ['guest', 5]]) {
+        ({ ctx, page, errs } = await open(browser, 'phone-lobby-' + role, { width: 780, height: 360 }, true, `screen=lobby&role=${role}&fill=${fill}&fresh=1&map=xuongcat`));
+        await page.evaluate(() => { __G.online.lobby.map = 'xuongcat'; __G.bus.emit('net:lobby', __G.online.lobby); for (const [id, name, team, text] of [['p2', 'Cò Lả', 0, 'Đợi tôi chọn máy nhé'], ['p3', 'Mèo Mun', 1, 'Sẵn sàng rồi, bắt đầu thôi']]) __G.bus.emit('net:chat', { id, name, team, text, t: Date.now() }); });
+        for (const k of role === 'host' ? ['mode', 'map', 'theme'] : ['mode']) {
+          if (role === 'host') await page.click(`#ui .lobby .su-tabs [data-k="${k}"]`);
+          await shot(page, errs, `phone-lobby-${role}-${k}`, async () => {
+            const r = await page.evaluate(() => {
+              const clipped = [];
+              for (const n of document.querySelectorAll('#ui .lobby .map b, #ui .lobby .th-n, #ui .lobby .su-tabs button, #ui .lobby .mode span, #ui .lobby .lm b')) if (n.offsetParent && n.scrollWidth > n.clientWidth) clipped.push(n.textContent.trim());
+              const chat = document.querySelector('#ui .lobby .chatbox').getBoundingClientRect(), inp = document.querySelector('#ui .lobby .chatbox input').getBoundingClientRect();
+              const fs = parseFloat(getComputedStyle(document.querySelector('#ui .lobby .chatbox input')).fontSize);
+              return { clipped, chat: chat.height > 30 && chat.bottom <= innerHeight && chat.right <= innerWidth, input: inp.width > 120 && inp.height > 14, fs, lines: document.querySelectorAll('#ui .lobby .cl').length };
+            });
+            check(`phone: ${role} lobby (${k}): map and theme names are not clipped`, r.clipped.length === 0, r.clipped.join(' | '));
+            check(`phone: ${role} lobby (${k}): the chat box and its input are on screen, lines shown, text at least 11 px`, r.chat && r.input && r.lines === 2 && r.fs >= 11, JSON.stringify(r));
+          }, 250);
+        }
+        if (role === 'host') {
+          await page.click('#ui .lobby .su-tabs [data-k="map"]');
+          const lm = await page.evaluate(() => { const b = document.querySelector('#ui .lobby .map[data-k="xuongcat"] b'); return { t: b.textContent, ok: b.scrollWidth <= b.clientWidth }; });
+          check('phone: the map name "Xưởng Cát" is fully visible in the lobby', lm.t === 'Xưởng Cát' && lm.ok, JSON.stringify(lm));
+          await page.click('#ui .lobby .su-tabs [data-k="theme"]');
+          await page.click('#ui .lobby .th[data-k="ice"]');
+          check('phone: the lobby theme picker is one tap away and reaches online.setRoom({ theme })', (await page.evaluate(() => __G.online.calls.filter((c) => c[0] === 'setRoom').pop()[1].theme)) === 'ice');
+        }
+        await ctx.close();
+      }
     }
 
     // ----- icons: every skill and role icon is real, unknown names fall back without throwing

@@ -14,7 +14,7 @@ function defaults() {
   return {
     v: VERSION, name: 'Phi công', coins: 0, xp: 0, level: 1,
     owned: MECH_ORDER.filter((k) => MECHS[k].price === 0), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0],
-    settings: { quality: 'medium', volume: 0.8, music: 0.5 },
+    settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true },
     stats: { matches: 0, wins: 0, kills: 0 },
     upgrades: {}, paints: {}, ownedPaints: ['goc'], trophies: 0,
   };
@@ -67,6 +67,7 @@ function clean(raw) {
     settings: {
       quality: QUALITIES.includes(s.quality) ? s.quality : d.settings.quality,
       volume: frac(s.volume, d.settings.volume), music: frac(s.music, d.settings.music),
+      rumble: typeof s.rumble === 'boolean' ? s.rumble : d.settings.rumble,
     },
     stats: { matches: int(st.matches, 0), wins: int(st.wins, 0), kills: int(st.kills, 0) },
     upgrades: {}, paints: {}, ownedPaints: ['goc'], trophies: int(raw.trophies, 0),

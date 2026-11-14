@@ -76,6 +76,7 @@ const ICONS = {
   dice: `<rect x="4" y="4" width="16" height="16" rx="3" ${SOFT}/><circle cx="9" cy="9" r="1.200" fill="currentColor"/><circle cx="15" cy="15" r="1.200" fill="currentColor"/><circle cx="12" cy="12" r="1.200" fill="currentColor"/>`,
   canyon: `<path d="M3 20l4-9 3 4 3-8 4 7 4-3v9z" ${SOFT}/>`,
   layout: `<path d="M9 4L3 6.500V20l6-2.500 6 2.500 6-2.500V4l-6 2.500z" ${SOFT}/><path d="M9 4v13.500M15 6.500V20"/>`,
+  chat: `<path d="M4 5.500h16v10.500H10l-4.500 3.500V16H4z" ${SOFT}/><path d="M8 9.500h8M8 12.500h5"/>`,
   crate: `<rect x="4" y="6" width="16" height="13" rx="1.500" ${SOFT}/><path d="M4 11h16M12 6v13"/>`,
 };
 const has = Object.prototype.hasOwnProperty;
@@ -113,6 +114,15 @@ const BUFFS = [
 const STREAK = ['', '', 'Hạ đôi', 'Hạ ba', 'Hạ bốn', 'Hạ năm'];
 const FLOAT_MAX = 40;
 const NP_Y = 2.7;
+const BIG_HIT = 250;
+
+// Phone landscape shows one of these three groups at a time (CSS hides the tab row elsewhere), so every picker is one tap away.
+const SU_TABS = [['mode', 'Chế độ'], ['map', 'Đấu trường'], ['theme', 'Môi trường']];
+const SU_TAB_NAMES = SU_TABS.map((t) => t[0]);
+const setupTabs = (attr, cur) => `<div class="su-tabs">${SU_TABS.map(([k, n]) => `<button ${attr.replace('{k}', k)}${k === cur ? ' class="on"' : ''}>${n}</button>`).join('')}</div>`;
+const CHAT_PHRASES = ['Đẩy trụ!', 'Về thủ!', 'Cần hồi máu', 'Hay lắm!'];
+// d-pad up, left, right, down: the order input.js emits input:phrase indices in.
+const PHRASE_GLYPH = ['▲', '◀', '▶', '▼'];
 
 export function makeUI(G) {
   const root = el('div'); root.id = 'ui';
@@ -121,6 +131,9 @@ export function makeUI(G) {
   document.body.appendChild(root);
   const isTouch = () => !!(G.input ? G.input.touch : ('ontouchstart' in window || navigator.maxTouchPoints > 0));
   root.classList.toggle('is-touch', isTouch());
+  // Key hints follow whichever device produced the last input.
+  const padMode = () => !!(G.input && G.input.device && G.input.device() === 'pad');
+  const hintLabel = (id) => (padMode() ? K.padLabelFor(id) || K.labelFor(id) : K.labelFor(id));
 
   const meta = () => G.meta && G.meta.get();
   const portraits = {};
@@ -135,7 +148,7 @@ export function makeUI(G) {
   // Accepts a unit (u.def covers bosses) or a mech key; a bare MECHS[key] lookup is undefined for 'titan'.
   const roleIcon = (x) => { const d = typeof x === 'string' ? MECHS[x] || BOSSES[x] : x && x.def; return icon(d ? d.roleKey : 'generic'); };
 
-  let hudOn = false, paused = false, uiT = 0;
+  let hudOn = false, paused = false, uiT = 0, chatOpen = false;
   let choice = null;
 
   /* ================= HUD ================= */
@@ -158,6 +171,7 @@ export function makeUI(G) {
       </div>
       <div class="slots" data-r="slots"></div>
     </div>
+    <button class="chatbtn" data-block data-r="chatBtn" aria-label="Nhắn tin" hidden>${icon('chat')}</button>
     <div class="vig" data-r="vig"><i></i></div>
     <div class="ann" data-r="ann"><b></b><small></small></div>
     <div class="warn" data-r="warn"><b></b></div>
@@ -171,7 +185,7 @@ export function makeUI(G) {
   const slotEls = {};
   for (const d of SLOT_DEFS) {
     const s = el('div', 'slot ' + d.cls);
-    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><kbd>${esc(K.labelFor(d.k))}</kbd>`;
+    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><kbd>${esc(hintLabel(d.k))}</kbd>`;
     H.slots.appendChild(s);
     slotEls[d.k] = { root: s, ic: s.firstChild, t: s.querySelector('.sl-t'), kbd: s.querySelector('kbd'), total: 1, prev: 0 };
   }
@@ -544,6 +558,7 @@ export function makeUI(G) {
     mmStatic = c;
     H.mmn.textContent = `${mp.name} · ${(THEMES[mp.theme] || {}).name || ''}`;
     H.mm.style.aspectRatio = `${W} / ${Hh}`;
+    root.style.setProperty('--mmr', (Hh / W).toFixed(3));
   }
   function drawMini(m, me) {
     const g = mmCtx, mp = m.map;
@@ -662,6 +677,7 @@ export function makeUI(G) {
         const v = m.units[e.id];
         if (!v) break;
         const mine = e.by === me, taken = e.id === me;
+        if (taken && e.amt >= BIG_HIT && G.input && G.input.rumble) G.input.rumble('hit');
         if (!mine && !taken && !visibleTo(m, v, myTeam)) break;
         const kind = taken ? 'taken' : mine ? 'dealt' : 'other';
         if (e.amt >= 1) addFloat(`${e.id}|${kind}`, kind, e.amt, e.x, e.z);
@@ -674,6 +690,7 @@ export function makeUI(G) {
       case 'death': {
         const v = m.units[e.id], k = e.by >= 0 ? m.units[e.by] : null;
         if (!v) break;
+        if (e.id === me && G.input && G.input.rumble) G.input.rumble('death');
         addFeed(k, v, e.assists);
         if (e.id === me) S.killedBy = k ? k.name : '';
         if (k) {
@@ -740,7 +757,7 @@ export function makeUI(G) {
       // skills
       for (const d of SLOT_DEFS) {
         const s = slotEls[d.k], rem = me.cd[d.k];
-        setText(s.kbd, K.labelFor(d.k));
+        setText(s.kbd, hintLabel(d.k));
         const p = Math.round(clamp01(rem / s.total) * 100);
         setVar(s.root, '--p', p + '%');
         setText(s.t, d.k !== 'fire' && rem > 0.05 ? (rem >= 10 ? String(Math.ceil(rem)) : vn(rem, 1)) : '');
@@ -802,6 +819,7 @@ export function makeUI(G) {
       if (age > 5.5) { f.row.remove(); feed.splice(i, 1); }
     }
     annStep();
+    chatStep();
     if (G.input && G.input.updateTouch) G.input.updateTouch();
   }
 
@@ -816,6 +834,7 @@ export function makeUI(G) {
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(true);
   }
   function hideHUD() {
+    closeChat();
     hudOn = false; syncScore();
     root.classList.remove('in-hud');
     hud.classList.remove('on'); fx.classList.remove('on');
@@ -838,8 +857,9 @@ export function makeUI(G) {
     pausedLive = onlinePlaying();
     PA.title.textContent = pausedLive ? 'Trận đang diễn ra' : 'Tạm dừng';
     PA.quit.textContent = pausedLive ? 'Rời trận' : 'Về sảnh';
-    const pk = K.labelFor('pause');
+    const pk = hintLabel('pause');
     PA.hint.textContent = pausedLive ? `Trận không dừng khi bạn mở menu. Nhấn ${pk} để quay lại` : `Nhấn ${pk} để tiếp tục`;
+    closeChat();
     paused = true; pauseEl.classList.add('on'); syncScore();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
     if (!pausedLive) G.bus.emit('ui:pause', { paused: true });
@@ -855,6 +875,7 @@ export function makeUI(G) {
   PA.resume.onclick = hidePause;
   PA.quit.onclick = () => { hidePause(); G.bus.emit('ui:menu'); };
   H.pauseBtn.onclick = showPause;
+  G.bus.on('input:pause', () => { if (hudOn && G.match && !G.match.over && !chatOpen) togglePause(); });
   // Esc always resumes so a bad rebind can never trap the player in the pause menu.
   window.addEventListener('keydown', (e) => {
     if (e.repeat || !hudOn || !G.match || G.match.over) return;
@@ -865,7 +886,7 @@ export function makeUI(G) {
   const sb = el('div', 'sb');
   root.appendChild(sb);
   const held = new Set();
-  let sbOn = false, sbAcc = 0;
+  let sbOn = false, sbAcc = 0, padScore = false;
   const teamName = (t) => (TEAMS[t].name === 'Lam' ? 'Đội Lam' : 'Đội Hỏa');
   function sbHtml(m) {
     const rows = m.units.map((u) => ({ id: u.id, team: u.team, name: u.name, mech: u.mech, kills: u.kills, deaths: u.deaths, assists: u.assists, dmg: Math.round(u.dmg), healed: Math.round(u.healed),
@@ -889,10 +910,10 @@ export function makeUI(G) {
       } else score = `<span class="t${myColor}"><b>${m.score[myTeam]}</b></span><span>:</span><span class="t${1 - myColor}"><b>${m.score[1 - myTeam]}</b></span>`;
     }
     return `<div class="sb-box"><div class="sb-h"><b>${MODES[m.mode].name}</b><span class="sb-sc">${score}</span><span class="sb-m">${esc(mp.name)} · ${esc((THEMES[mp.theme] || {}).name || '')} · ${mmss(left)}</span></div>${body}
-      <p class="hint">Thả ${esc(K.labelFor('score'))} để đóng bảng điểm</p></div>`;
+      <p class="hint">Thả ${esc(hintLabel('score'))} để đóng bảng điểm</p></div>`;
   }
   function syncScore() {
-    const m = G.match, on = !!(hudOn && m && !paused && K.isDown('score', held));
+    const m = G.match, on = !!(hudOn && m && !paused && (K.isDown('score', held) || padScore));
     if (on !== sbOn) { sbOn = on; sb.classList.toggle('on', on); if (on) { sb.innerHTML = sbHtml(m); sbAcc = 0; } }
   }
   const typingIn = (t) => t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
@@ -901,6 +922,8 @@ export function makeUI(G) {
   window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button <= 2 && !(e.target.closest && e.target.closest('button,input,select,a'))) { held.add('Mouse' + e.button); syncScore(); } });
   window.addEventListener('pointerup', (e) => { held.delete('Mouse' + e.button); syncScore(); });
   window.addEventListener('blur', () => { held.clear(); syncScore(); });
+  // The pad's Back button is polled by input.js, which reports its edges on the bus.
+  G.bus.on('input:score', (e) => { padScore = !!(e && e.down); syncScore(); });
 
   /* ================= menu ================= */
   const menu = el('div', 'screen menu');
@@ -925,11 +948,12 @@ export function makeUI(G) {
       <section class="panel roster"><h3>Chọn cơ giáp</h3><div class="cards" data-r="cards"></div></section>
       <section class="panel detail" data-r="detail"></section>
       <section class="panel setup">
-        <div class="opts">
-          <h3>Chế độ</h3><div class="modes" data-r="modes"></div><p class="mode-bl" data-r="modeBl"></p>
-          <h3>Độ khó</h3><div class="seg" data-r="diff"></div>
-          <h3>Đấu trường</h3><div class="maps" data-r="maps"></div>
-          <h3>Môi trường</h3><div class="themes" data-r="themes"></div><p class="mode-bl th-bl" data-r="themeBl"></p>
+        ${setupTabs('data-su="{k}"', 'mode')}
+        <div class="opts" data-r="opts" data-tab="mode">
+          <div class="grp g-mode"><h3>Chế độ</h3><div class="modes" data-r="modes"></div><p class="mode-bl" data-r="modeBl"></p>
+          <h3>Độ khó</h3><div class="seg" data-r="diff"></div></div>
+          <div class="grp g-map"><h3>Đấu trường</h3><div class="maps" data-r="maps"></div></div>
+          <div class="grp g-theme"><h3>Môi trường</h3><div class="themes" data-r="themes"></div><p class="mode-bl th-bl" data-r="themeBl"></p></div>
         </div>
         <div class="acts">
           <div class="prow"><button class="play" data-r="play"><span>Vào trận</span></button><button class="netbtn" data-r="net" hidden>${icon('globe')}<span>Chơi mạng</span></button></div>
@@ -948,6 +972,12 @@ export function makeUI(G) {
     { label: 'Tầm bắn', f: (d) => d.weapon.range, fmt: (v) => vn(v, 1) + ' m' },
   ].map((s) => ({ ...s, max: maxOf(s.f) }));
 
+  let suTab = 'mode';
+  function applySuTab() {
+    M.opts.dataset.tab = suTab;
+    menu.querySelectorAll('[data-su]').forEach((b) => b.classList.toggle('on', b.dataset.su === suTab));
+  }
+  menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
   let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], menuInit = false, tab = 'info';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
@@ -1173,6 +1203,7 @@ export function makeUI(G) {
       <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
       <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
+      <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
     </div>
     <div class="st-pane" data-pane="keys" hidden>
       <div class="klist" data-r="klist"></div>
@@ -1192,7 +1223,14 @@ export function makeUI(G) {
     }
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
+    ST.rumble.setAttribute('aria-pressed', String(d.settings.rumble !== false));
   }
+  ST.rumble.onclick = () => {
+    const d = meta(); if (!d) return;
+    d.settings.rumble = d.settings.rumble === false;
+    G.meta.save(); renderSettings();
+    if (d.settings.rumble && G.input && G.input.rumble) G.input.rumble('hit');
+  };
   ST.vol.oninput = () => {
     const d = meta(), v = ST.vol.value / 100; d.settings.volume = v; ST.vTxt.textContent = ST.vol.value + '%';
     if (G.audio && G.audio.setVolume) G.audio.setVolume(v);
@@ -1279,7 +1317,7 @@ export function makeUI(G) {
   const help = el('div', 'modal');
   help.dataset.block = '';
   const kc = (t) => `<kbd>${esc(t)}</kbd>`;
-  help.innerHTML = `<div class="modal-box wide"><div class="hazard"></div><h2>Cách chơi</h2>
+  help.innerHTML = `<div class="modal-box wide help"><div class="hazard"></div><h2>Cách chơi</h2>
     <p class="lead">Hai đội năm cơ giáp. Đội nào hạ gục đủ điểm mục tiêu trước, hoặc dẫn điểm khi hết giờ, sẽ thắng. Ở chế độ Thủ nhà, hạ hai trụ phụ rồi phá trụ chính của địch.</p>
     <div class="help-cols" data-r="cols"></div><button class="btn big" data-r="close">Đã hiểu</button></div>`;
   const HP = refs(help);
@@ -1293,8 +1331,18 @@ export function makeUI(G) {
         <li><span>${kc(L('s1'))}${kc(L('s2'))}${kc(L('ult'))}</span>Chiêu 1, chiêu 2, tuyệt kỹ</li>
         <li><span>${kc(L('heal'))}</span>Dùng bình máu</li>
         <li><span>${kc(L('score'))}</span>Giữ để xem bảng điểm</li>
-        <li><span>${kc(L('pause'))}</span>Tạm dừng</li></ul>
+        <li><span>${kc(L('pause'))}</span>Tạm dừng</li>
+        <li><span>${kc('Enter')}</span>Nhắn tin khi chơi mạng</li></ul>
         <p class="hint">Đổi phím trong Cài đặt, tab Phím.</p></div>
+      <div><h4>Tay cầm</h4><ul>
+        <li><span>${kc('Cần trái')}</span>Di chuyển</li>
+        <li><span>${kc('Cần phải')}</span>Ngắm, đẩy quá nửa là tự bắn</li>
+        <li><span>${kc('RT')}</span>Bắn</li>
+        <li><span>${kc('LB')}${kc('RB')}${kc('LT')}</span>Chiêu 1, chiêu 2, tuyệt kỹ</li>
+        <li><span>${kc('X')}</span>Dùng bình máu</li>
+        <li><span>${kc('Start')}${kc('Back')}</span>Tạm dừng, giữ để xem bảng điểm</li>
+        <li><span>${kc('▲')}${kc('◀')}${kc('▶')}${kc('▼')}</span>Câu nhanh khi chơi mạng</li></ul>
+        <p class="hint">Cắm tay cầm rồi bấm một nút bất kỳ.</p></div>
       <div><h4>Cảm ứng</h4><ul>
         <li><span>Cần trái</span>Chạm nửa trái màn hình để đi</li>
         <li><span>Cần phải</span>Kéo để ngắm, kéo xa là tự bắn</li>
@@ -1305,10 +1353,10 @@ export function makeUI(G) {
   M.bHelp.onclick = () => { renderHelp(); help.classList.add('on'); };
   // A rebind shows up everywhere a key is printed, at once.
   K.onChange(() => {
-    for (const d of SLOT_DEFS) setText(slotEls[d.k].kbd, K.labelFor(d.k));
+    for (const d of SLOT_DEFS) setText(slotEls[d.k].kbd, hintLabel(d.k));
     if (menu.classList.contains('on')) renderDetail();
     if (help.classList.contains('on')) renderHelp();
-    if (paused) PA.hint.textContent = PA.hint.textContent.replace(/Nhấn .+? để/, `Nhấn ${K.labelFor('pause')} để`);
+    if (paused) PA.hint.textContent = PA.hint.textContent.replace(/Nhấn .+? để/, `Nhấn ${hintLabel('pause')} để`);
   });
   function closeModals() { endCapture(); settings.classList.remove('on'); help.classList.remove('on'); confirmEl.classList.remove('on'); confirmFn = null; }
   root.append(settings, help, confirmEl);
@@ -1483,6 +1531,106 @@ export function makeUI(G) {
     }
   }
 
+  /* ================= room chat ================= */
+  // Two boxes show the same lines: one inside the lobby screen, one over the match. Lines are built with textContent only.
+  const teamCls = (m) => { const L = G.online && G.online.lobby; return L && L.mode === 'tudo' ? 'tx' : 't' + (m.team === 1 ? 1 : 0); };
+  function chatLineEl(m) {
+    const row = el('div', 'cl ' + teamCls(m) + (G.online && m.id === G.online.me ? ' mine' : ''));
+    const who = el('b'), txt = el('span');
+    who.textContent = m.name; txt.textContent = m.text;
+    row.append(who, txt);
+    row._at = performance.now();
+    return row;
+  }
+  function makeChatBox(kind, hint) {
+    const box = el('div', 'chatbox ' + kind);
+    box.innerHTML = `<div class="cl-log" data-r="log" aria-live="polite"></div>
+      <div class="cl-pad" data-r="padHint">${CHAT_PHRASES.map((p, i) => `<span><i>${PHRASE_GLYPH[i]}</i>${esc(p)}</span>`).join('')}</div>
+      <div class="cl-panel" data-r="panel">
+        <div class="cl-quick" data-r="quick">${CHAT_PHRASES.map((p, i) => `<button type="button" class="cl-q" data-q="${i}"><i>${PHRASE_GLYPH[i]}</i>${esc(p)}</button>`).join('')}</div>
+        <form class="cl-row" data-r="form" autocomplete="off"><input class="in" data-r="input" maxlength="120" spellcheck="false" placeholder="${esc(hint)}" aria-label="Tin nhắn trong phòng"><button class="btn" type="submit">Gửi</button></form>
+      </div>`;
+    return { box, R: refs(box) };
+  }
+  // Returns false when nothing went out; a refused line (too fast, room closed) tells the player why.
+  function sayLine(text) {
+    const t = String(text == null ? '' : text).trim();
+    if (!t || !G.online || typeof G.online.say !== 'function') return false;
+    const ok = G.online.say(t) !== false;
+    if (!ok) toast('Gửi quá nhanh, hãy chờ vài giây');
+    return ok;
+  }
+  const lobbyChat = makeChatBox('in-lobby panel', 'Nhắn cho cả phòng…');
+  const hudChat = makeChatBox('in-match', 'Nhắn cho cả phòng, Enter để gửi, Esc để đóng');
+  hudChat.box.dataset.block = '';
+  function wireChat(cb, after) {
+    const R = cb.R;
+    R.input.addEventListener('keydown', (e) => {
+      // Nothing typed here may reach the pause key, the game keys or the scoreboard.
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); after('esc'); }
+    });
+    R.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (R.input.value.trim() === '') { after('empty'); return; }
+      if (sayLine(R.input.value)) { R.input.value = ''; after('sent'); }
+    });
+    R.quick.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-q]');
+      if (b && sayLine(CHAT_PHRASES[+b.dataset.q])) after('sent');
+    });
+  }
+  function openChat() {
+    if (!hudOn || chatOpen || paused || !onlinePlaying() || (G.match && G.match.over)) return false;
+    chatOpen = true;
+    hudChat.box.classList.add('open');
+    if (G.input && G.input.setChatting) G.input.setChatting(true);
+    hudChat.R.input.value = '';
+    hudChat.R.input.focus();
+    return true;
+  }
+  function closeChat() {
+    if (!chatOpen) return;
+    chatOpen = false;
+    hudChat.box.classList.remove('open');
+    hudChat.R.input.blur();
+    if (G.input && G.input.setChatting) G.input.setChatting(false);
+  }
+  wireChat(hudChat, () => closeChat());
+  wireChat(lobbyChat, (what) => { if (what === 'esc') lobbyChat.R.input.blur(); });
+  hud.appendChild(hudChat.box);
+  window.addEventListener('keydown', (e) => {
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat && !typingIn(e.target) && openChat()) e.preventDefault();
+  });
+  H.chatBtn.onclick = () => { if (chatOpen) closeChat(); else openChat(); };
+  G.bus.on('input:phrase', (i) => {
+    if (hudOn && !paused && onlinePlaying() && !(G.match && G.match.over) && CHAT_PHRASES[i]) sayLine(CHAT_PHRASES[i]);
+  });
+  const LOBBY_LINES = 40, HUD_LINES = 6;
+  G.bus.on('net:chat', (m) => {
+    if (!m || typeof m.text !== 'string') return;
+    const line = { id: String(m.id), name: String(m.name == null ? '' : m.name), team: m.team | 0, text: m.text };
+    for (const [cb, max] of [[lobbyChat, LOBBY_LINES], [hudChat, HUD_LINES]]) {
+      const log = cb.R.log;
+      log.appendChild(chatLineEl(line));
+      while (log.childElementCount > max) log.firstChild.remove();
+      log.scrollTop = log.scrollHeight;
+    }
+  });
+  const clearChat = () => { lobbyChat.R.log.textContent = ''; hudChat.R.log.textContent = ''; };
+  // The match log fades its lines on its own; an open box keeps them all.
+  function chatStep() {
+    const now = performance.now();
+    for (const row of hudChat.R.log.children) {
+      const age = now - row._at;
+      row.classList.toggle('old', !chatOpen && age > 9000);
+    }
+    flag(hudChat.box, 'pad', padMode());
+    const live = onlinePlaying();
+    H.chatBtn.hidden = !live;
+    flag(hudChat.box, 'live', live);
+  }
+
   /* ================= online: entry screen and lobby ================= */
   const TEAM_NAME = ['Đội Lam', 'Đội Hỏa'];
   const seatsOf = (mode) => (mode === 'tudo' ? 10 : 5);
@@ -1516,6 +1664,7 @@ export function makeUI(G) {
   lobbyEl.dataset.block = '';
   root.append(entry, lobbyEl);
 
+  let lobbyTab = 'mode';
   let entryOn = false, lobbyOn = false, privateRoom = false, lobbyMsg = '', roomsTicket = 0, roomsTimer = 0, roomsShown = false;
   const myName = () => { const d = meta(); return (d && d.name) || 'Phi công'; };
   const setEntryErr = (t) => { OE.err.textContent = t || ''; OE.err.hidden = !t; };
@@ -1647,11 +1796,11 @@ export function makeUI(G) {
         <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>
         <p class="hint">Chỉ chủ phòng đổi được thiết lập.</p>`;
     }
-    return `<h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
+    return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
       <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
       <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
-      <h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
-      <h3>Môi trường</h3><div class="themes">${themeTiles(validTheme(L.theme) ? L.theme : null, 'data-k').replace(/<button class="th/g, '<button data-a="theme" class="th')}</div>`;
+      </div><div class="grp g-map"><h3>Đấu trường</h3><div class="maps">${MAP_ORDER.map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
+      </div><div class="grp g-theme"><h3>Môi trường</h3><div class="themes">${themeTiles(validTheme(L.theme) ? L.theme : null, 'data-k').replace(/<button class="th/g, '<button data-a="theme" class="th')}</div></div>`;
   }
 
   function renderLobby() {
@@ -1662,6 +1811,8 @@ export function makeUI(G) {
     const owned = MECH_ORDER.filter(ownedMech);
     const lv = levelOf(me.mech), paint = PAINTS[me.paint] || PAINTS.goc;
     const keep = lobbyEl.querySelector('.lb-teams'), top = keep ? keep.scrollTop : 0;
+    // The redraw below detaches the chat box, so the typing state has to be read first.
+    const cin = lobbyChat.R.input, typing = document.activeElement === cin, at = [cin.selectionStart, cin.selectionEnd];
     lobbyEl.innerHTML = `
       <header class="ol-head lb-head">
         <button class="btn danger" data-a="leave">${icon('exit')}Rời phòng</button>
@@ -1671,11 +1822,12 @@ export function makeUI(G) {
       <div class="lb-body">
         <div class="lb-main">
           <div class="lb-teams m-${L.mode}">${teamsHtml(L)}</div>
+          <div data-slot="chat"></div>
           <section class="panel lb-mine"><div class="lb-mh"><h3>Cơ giáp của bạn</h3><small>Sơn ${esc(paint.name)}${lv ? ` · Nâng cấp +${lv}` : ''}, lấy từ kho của bạn</small></div>
             <div class="lm-grid">${owned.map((k) => `<button class="lm${k === me.mech ? ' sel' : ''}" data-a="mech" data-k="${k}"><img alt="" src="${portrait(k, me.team || 0, paintOf(k))}"><span><b>${MECHS[k].name}</b><em>${roleIcon(k)}${MECHS[k].role}</em></span></button>`).join('')}</div></section>
         </div>
         <div class="lb-side">
-          <section class="panel setup lb-set"><h3>Thiết lập phòng</h3><div class="opts">${settingsHtml(L, host)}</div></section>
+          <section class="panel setup lb-set"><h3>Thiết lập phòng</h3>${host ? setupTabs('data-a="sutab" data-k="{k}"', lobbyTab) : ''}<div class="opts" data-tab="${lobbyTab}">${settingsHtml(L, host)}</div></section>
           <section class="panel lb-act">
             ${lobbyMsg ? `<p class="ol-err">${esc(lobbyMsg)}</p>` : ''}
             <div class="lb-hint">${host ? (waiting ? `Còn ${waiting} người chưa sẵn sàng` : 'Mọi người đã sẵn sàng') : (me.ready ? 'Đã sẵn sàng, chờ chủ phòng bắt đầu' : 'Bấm Sẵn sàng khi bạn đã chọn xong')}</div>
@@ -1686,6 +1838,12 @@ export function makeUI(G) {
       </div>`;
     const t = lobbyEl.querySelector('.lb-teams');
     if (t) t.scrollTop = top;
+    const slot = lobbyEl.querySelector('[data-slot="chat"]');
+    if (slot) {
+      slot.replaceWith(lobbyChat.box);
+      lobbyChat.R.log.scrollTop = lobbyChat.R.log.scrollHeight;
+      if (typing) { cin.focus({ preventScroll: true }); try { cin.setSelectionRange(at[0], at[1]); } catch (e) { /* selection not supported */ } }
+    }
   }
 
   function openLobby(fresh) {
@@ -1721,6 +1879,7 @@ export function makeUI(G) {
     switch (b.dataset.a) {
       case 'leave': o.leave(); if (lobbyOn) showMenu(); return;
       case 'copy': copyCode(); return;
+      case 'sutab': lobbyTab = SU_TAB_NAMES.includes(k) ? k : 'mode'; break;
       case 'mech': { const d = meta(); if (d) { d.mech = k; G.meta.save(); } o.setMine({ mech: k, paint: paintOf(k), mods: upgradeMods(levelOf(k)) }); break; }
       case 'ready': o.setMine({ ready: !me.ready }); break;
       case 'swapme': if (o.swapTeam(o.me) === false && o.role === 'host') lobbyMsg = o.error; break;
@@ -1745,6 +1904,7 @@ export function makeUI(G) {
     if (o.state === 'lobby') renderLobby();
     else if (o.state === 'off') { showMenu(); if (o.error) toast(o.error); } else hideLobby();
   }
+  G.bus.on('net:state', () => { if (G.online && G.online.state === 'off') { clearChat(); closeChat(); } });
   G.bus.on('net:state', syncOnline);
   G.bus.on('net:lobby', () => { lobbyMsg = ''; if (lobbyOn && G.online.state === 'lobby') renderLobby(); });
 

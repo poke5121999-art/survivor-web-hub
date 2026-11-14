@@ -98,6 +98,28 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(sa[0].name === 'Chủ Nhà' && sa[0].host && sa[0].me && sa[1].name === 'Khách Hai' && !sa[1].host && !sa[1].ready && sb[1].me && !sb[0].me, `seats: ${sa.map((s) => s.name + (s.host ? ' (chủ phòng)' : '')).join(', ')}; "Bạn" marks each own seat`);
   check(await B.locator('#ui .lobby .lb-code b').textContent() === code && (await B.locator('#ui .lobby [data-a="mode"]').count()) === 0 && (await B.locator('#ui .lobby [data-a="start"]').count()) === 0, 'guest sees the code, no host controls');
 
+  // ---- chat in the lobby: a line typed in B's lobby UI shows up in A's ------------------------------------------------
+  const CH = '#ui .lobby .chatbox.in-lobby';
+  const chatRows = (p) => p.evaluate((sel) => [...document.querySelectorAll(sel + ' .cl')].map((r) => `${r.querySelector('b').textContent}|${r.querySelector('span').textContent}|${r.querySelectorAll('span *').length}`), CH);
+  check(await A.locator(CH + ' input').isVisible() && await B.locator(CH + ' input').isVisible(), 'both lobbies show the chat box with its input');
+  await B.fill(CH + ' input', 'Chào chủ phòng <b>x</b>');
+  await B.press(CH + ' input', 'Enter');
+  await until(A, `document.querySelectorAll("${CH} .cl").length === 1`, 'B\'s line on A');
+  await until(B, `document.querySelectorAll("${CH} .cl").length === 1`, 'B\'s line on B');
+  await sleep(300);
+  const ca = await chatRows(A), cb = await chatRows(B);
+  check(ca.join() === 'Khách Hai|Chào chủ phòng <b>x</b>|0' && cb.join() === ca.join(), `a line typed in B's lobby shows in A's lobby as text, once on each page (${ca.join()})`);
+  check(await B.evaluate((sel) => document.querySelector(sel + ' input').value === '', CH), 'B\'s input is empty after sending');
+  await A.click(CH + ' [data-q="3"]');
+  await until(B, `document.querySelectorAll("${CH} .cl").length === 2`, 'A\'s quick phrase on B');
+  await until(A, `document.querySelectorAll("${CH} .cl").length === 2`, 'A\'s quick phrase on A');
+  check((await chatRows(B))[1] === 'Chủ Nhà|Hay lắm!|0', `the host's quick phrase "Hay lắm!" reaches B (${(await chatRows(B))[1]})`);
+  await A.fill(CH + ' input', 'chưa gửi xong');
+  await A.evaluate(() => { const o = __G.online; for (let i = 0; i < 3; i++) __G.bus.emit('net:lobby', o.lobby); });
+  check(await A.evaluate((sel) => document.querySelector(sel + ' input').value === 'chưa gửi xong' && document.activeElement === document.querySelector(sel + ' input'), CH), 'a lobby redraw on A keeps its half-typed chat line and focus');
+  await A.fill(CH + ' input', '');
+  await A.evaluate(() => document.activeElement && document.activeElement.blur());
+
   // ---- B picks a different mech and readies ------------------------------------------------------------------------
   const was = (await seats(B))[1].mech;
   check(was === MECHS.trau.name, `B starts on the saved favourite (${was})`);
@@ -122,6 +144,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(JSON.stringify(await model(A)) === JSON.stringify(await model(B)), 'both pages hold the identical lobby model');
   await sleep(300);
   await shot(A, 'host'); await shot(B, 'guest');
+  await shot(A, 'chat-host'); await shot(B, 'chat-guest');
 
   // ---- phone-size lobby (A, 780x360), then back --------------------------------------------------------------------
   await A.setViewportSize({ width: 780, height: 360 }); await sleep(400);
@@ -136,6 +159,9 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
     }
     return bad.slice(0, 5);
   });
+  await shot(A, 'chat-phone');
+  const phoneChat = await A.evaluate(() => { const r = document.querySelector('#ui .lobby .chatbox input').getBoundingClientRect(); return r.width > 120 && r.bottom <= innerHeight && r.right <= innerWidth && document.querySelectorAll('#ui .lobby .chatbox .cl').length === 2; });
+  check(phoneChat, 'phone lobby: the chat input and both lines are on screen at 780x360');
   check(phoneOk.length === 0, 'phone lobby: nothing pokes out of 780x360' + (phoneOk.length ? ' ' + phoneOk.join(',') : ''));
   await A.setViewportSize({ width: 1280, height: 720 }); await sleep(300);
 
@@ -179,6 +205,20 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   check(after[0] - before[0] > 3, `holding D on B moved its unit ${(after[0] - before[0]).toFixed(1)} m along +x on A`);
   await sleep(500);
   check(dist(await posOf(A, ib.me), await posOf(B, ib.me)) <= 2, 'B\'s view and A agree on B\'s unit after the move');
+
+  // ---- chat in the match: Enter opens it on B, typing d's does not walk B's unit, the line shows on A ---------------------
+  const walkFrom = await posOf(A, ib.me);
+  await B.keyboard.press('Enter');
+  await until(B, 'document.querySelector("#ui .chatbox.in-match.open")', 'B chat box open');
+  await B.keyboard.type('dddddddd');
+  await sleep(700);
+  check(dist(await posOf(A, ib.me), walkFrom) < 0.8, `typing d's in the chat box does not move B's unit on A (${dist(await posOf(A, ib.me), walkFrom).toFixed(2)} m)`);
+  await B.fill('#ui .chatbox.in-match input', 'Đẩy trụ nào <i>x</i>');
+  await B.keyboard.press('Enter');
+  await until(A, '[...document.querySelectorAll("#ui .chatbox.in-match .cl span")].some((n) => n.textContent === "Đẩy trụ nào <i>x</i>")', 'B\'s match line on A');
+  check(await A.evaluate(() => { const r = [...document.querySelectorAll('#ui .chatbox.in-match .cl')].pop(); return r.querySelector('b').textContent === 'Khách Hai' && r.querySelectorAll('span *').length === 0; }) && await B.evaluate('!document.querySelector("#ui .chatbox.in-match.open")'), 'the match line from B reads "Khách Hai: Đẩy trụ nào <i>x</i>" as text on A, and B\'s box closed after sending');
+  await sleep(300);
+  await shot(A, 'chat-match'); await shot(B, 'chat-match-guest');
 
   check((await errorsOf(A)).length === 0 && (await errorsOf(B)).length === 0, 'no window.__errors on A or B during the match');
 

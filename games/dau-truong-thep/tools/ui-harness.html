@@ -151,6 +151,21 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
     if (fo.lobby.players.some((p) => !p.ready)) { fo.error = 'Còn người chơi chưa sẵn sàng.'; return false; }
     return true;
   };
+  // Same contract as online.say: false for an empty line, a closed room or the 6th line in 10 s; otherwise the line comes back on net:chat.
+  const chatTimes = [];
+  fo.say = (text) => {
+    fo.calls.push(['say', text]);
+    if (fo.state !== 'lobby' && fo.state !== 'playing') return false;
+    const t = [...String(text).replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim()].slice(0, 120).join('').trim();
+    if (!t) return false;
+    const now = performance.now() / 1000;
+    while (chatTimes.length && now - chatTimes[0] >= 10) chatTimes.shift();
+    if (chatTimes.length >= 5) return false;
+    chatTimes.push(now);
+    const me = (fo.lobby && mine()) || { id: 'p0', name: meta.get().name, team: 0 };
+    bus.emit('net:chat', { id: me.id, name: me.name, team: me.team, text: t, t: Date.now() });
+    return true;
+  };
   fo.toLobby = () => { fo.state = 'lobby'; emit(); return true; };
   fo.onLobby = () => () => {};
 }
