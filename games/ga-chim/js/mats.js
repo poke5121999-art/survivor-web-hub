@@ -35,7 +35,7 @@ function patch(shader, o) {
     tAlb: { value: o.set.albedo }, tOrm: { value: o.set.orm }, tNrm: { value: o.set.normal },
     uPaint: { value: new THREE.Color(o.paint ?? 0xffffff) },
     uScale: { value: o.scale ?? 0.5 }, uNScale: { value: o.nscale ?? 1 }, uMacro: { value: o.macro ?? 0.25 },
-    uWetK: { value: o.wet === false ? 0 : (o.wetK ?? 1) }, uPuddle: { value: o.puddles ? 1 : 0 }, uDrops: { value: o.drops ? 1 : 0 },
+    uWetK: { value: o.wet === false ? 0 : (o.wetK ?? 1) }, uPuddle: { value: o.puddles === 'flood' ? 0.75 : o.puddles ? 1 : 0 }, uDrops: { value: o.drops ? 1 : 0 },
     uRoughK: { value: o.roughK ?? 1 }, uMetalK: { value: o.metalK ?? 1 }, uAOK: { value: o.aoK ?? 1 }, uWetR: { value: o.wetRough ?? 0.16 },
   });
   const objectSpace = o.space === 'object';
@@ -73,8 +73,10 @@ function patch(shader, o) {
       float wet = uRain * uWetK * (up*0.9 + side*0.35) * (1.0 - under);
       float streak = 0.0;
       if (uWetK > 0.0) {
-        vec2 sp = vec2(dot(vWP.xz, vec2(0.707,0.707))*7.0 + vWP.x*3.1, vWP.y*0.9 + uTime*0.55);
-        streak = smoothstep(0.62, 0.9, vn(vec2(sp.x, sp.y*1.0)) * vn(vec2(sp.x*0.5+3.0, sp.y*3.0+uTime*0.8)) * 2.2) * side * uRain * uWetK;
+        float u = dot(vWP.xz, vec2(0.707, 0.707)) * 22.0 + vWP.x * 9.0;
+        float film = vn(vec2(u, vWP.y * 0.35 + uTime * 0.25));
+        float lane = smoothstep(0.35, 0.0, abs(fract(u * 0.5) - 0.5)) ;
+        streak = smoothstep(0.55, 0.85, film) * lane * side * uRain * uWetK * 0.7;
       }
       float puddle = 0.0;
       if (uPuddle > 0.5) {
@@ -82,33 +84,38 @@ function patch(shader, o) {
         vec2 fd = max(uFlood.xy - vWP.xz, vWP.xz - uFlood.zw);
         float flood = smoothstep(6.0, -4.0, max(fd.x, fd.y) + (fbm2(vWP.xz*0.08)-0.5)*14.0);
         pm += flood * 0.45;
+        if (uPuddle < 0.9) pm = mix(0.0, pm, flood);
         puddle = smoothstep(0.58, 0.64, pm) * up * uRain;
         wet = max(wet, smoothstep(0.48, 0.58, pm) * up * uRain);
       }
       // gun droplets: beads that sit, rivulets that crawl down in object space
       float drop = 0.0; vec2 dropN = vec2(0.0);
       if (uDrops > 0.5 && uGunWet > 0.01) {
-        vec2 q = vec2(vTP.x*55.0 + vTP.z*31.0, vTP.y*55.0);
+        vec2 q = vec2(vTP.x*140.0 + vTP.z*83.0, vTP.y*140.0);
         vec2 cell = floor(q); vec2 f = fract(q) - 0.5;
-        float rnd = h12(cell);
-        float bead = smoothstep(0.32, 0.1, length(f + (h22(cell)-0.5)*0.4)) * step(0.55, rnd);
-        float col2 = floor(vTP.x*80.0 + vTP.z*40.0);
+        float rnd = h12(cell); vec2 jit = (h22(cell) - 0.5) * 0.5;
+        float rad = 0.12 + 0.18 * h12(cell + 4.7);
+        float topFace = 0.35 + 0.65 * smoothstep(-0.2, 0.8, WN.y);
+        float bead = smoothstep(rad, rad * 0.35, length((f - jit) * vec2(1.0, 0.8))) * step(1.0 - 0.22 * topFace, rnd);
+        float col2 = floor(vTP.x*160.0 + vTP.z*90.0);
         float lane = h12(vec2(col2, 3.1));
-        float yy = vTP.y*20.0 + uTime*(0.25 + lane*0.6) + lane*10.0;
-        float riv = smoothstep(0.75, 0.98, fract(yy)) * step(0.82, lane) * smoothstep(0.5, 0.2, abs(fract(vTP.x*80.0+vTP.z*40.0)-0.5));
-        float head = smoothstep(0.93, 0.99, fract(yy)) * step(0.82, lane);
-        drop = max(bead, riv) * uGunWet;
-        dropN = (f + (h22(cell)-0.5)*0.4) * bead * 2.5 * uGunWet + vec2(0.0, head) * uGunWet;
-        wet = max(wet, uGunWet*0.55);
+        float yy = vTP.y*14.0 + uTime*(0.12 + lane*0.3) + lane*10.0;
+        float riv = smoothstep(0.82, 0.98, fract(yy)) * step(0.96, lane) * smoothstep(0.5, 0.15, abs(fract(vTP.x*160.0+vTP.z*90.0)-0.5)) * (1.0 - topFace * 0.5);
+        drop = max(bead, riv * 0.8) * uGunWet;
+        dropN = (f - jit) / max(rad, 0.01) * bead * 0.9 * uGunWet;
+        wet = max(wet, uGunWet*0.35);
       }
-      col *= mix(1.0, 0.58, clamp(wet,0.,1.)) * mix(1.0, 0.35, puddle) * mix(1.0, 0.8, streak);
+      float porous = smoothstep(0.35, 0.9, orm.g);
+      col *= mix(1.0, mix(0.82, 0.6, porous), clamp(wet,0.,1.)) * mix(1.0, 0.45, puddle) * mix(1.0, 0.88, streak);
       diffuseColor.rgb *= col;
     `)
     .replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = clamp(orm.g * roughness * uRoughK, 0.02, 1.0);
-      roughnessFactor = mix(roughnessFactor, min(roughnessFactor, uWetR), clamp(wet,0.,1.) * 0.85);
-      roughnessFactor = mix(roughnessFactor, min(roughnessFactor, uWetR * 0.3), max(streak*0.8, drop));
-      roughnessFactor = mix(roughnessFactor, 0.015, puddle);
+      float wetR = max(uWetR, roughnessFactor * 0.5);
+      roughnessFactor = mix(roughnessFactor, min(roughnessFactor, wetR), clamp(wet,0.,1.) * 0.8);
+      roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, streak);
+      roughnessFactor = mix(roughnessFactor, 0.06, drop);
+      roughnessFactor = mix(roughnessFactor, 0.03, puddle);
     `)
     .replace('#include <metalnessmap_fragment>', `
       float metalnessFactor = clamp(orm.b * metalness * uMetalK, 0.0, 1.0) * (1.0 - puddle);
@@ -116,16 +123,16 @@ function patch(shader, o) {
     .replace('#include <normal_fragment_maps>', `
       {
         vec3 nX = texture2D(tNrm, P.zy).xyz*2.0-1.0, nY = texture2D(tNrm, P.xz).xyz*2.0-1.0, nZ = texture2D(tNrm, P.xy).xyz*2.0-1.0;
-        float ns = uNScale * (1.0 - puddle) * (1.0 - clamp(wet,0.,1.)*0.35);
+        float ns = uNScale * (1.0 - puddle * 0.9) * (1.0 - clamp(wet,0.,1.)*0.15);
         nX.xy *= ns; nY.xy *= ns; nZ.xy *= ns;
         nX = vec3(nX.xy + N0.zy, abs(nX.z) * N0.x);
         nY = vec3(nY.xy + N0.xz, abs(nY.z) * N0.y);
         nZ = vec3(nZ.xy + N0.xy, abs(nZ.z) * N0.z);
         vec3 tnw = normalize(nX.zyx*tw.x + nY.xzy*tw.y + nZ.xyz*tw.z);
         ${objectSpace ? 'tnw = normalize(mat3(modelMatrix) * tnw);' : ''}
-        if (puddle > 0.0 || wet > 0.3) {
-          vec2 rp = rainRipple(vWP.xz*2.2, uTime*1.6) * uRain;
-          tnw = normalize(mix(tnw, WN, puddle) + vec3(rp.x, 0.0, rp.y) * (puddle*0.9 + wet*0.15) * up);
+        if (puddle > 0.01) {
+          vec2 rp = rainRipple(vWP.xz*3.2, uTime*1.3) * uRain;
+          tnw = normalize(mix(tnw, WN, puddle * 0.85) + vec3(rp.x, 0.0, rp.y) * puddle * 0.35 * up);
         }
         if (drop > 0.0) tnw = normalize(tnw + (mat3(modelMatrix) * vec3(dropN.x, dropN.y, 0.0)));
         normal = normalize((viewMatrix * vec4(tnw, 0.0)).xyz);
@@ -146,7 +153,7 @@ function patch(shader, o) {
     `)
     .replace('#include <dithering_fragment>', `
       #include <dithering_fragment>
-      gl_FragColor.a = ${objectSpace ? '0.0' : 'clamp(puddle + wet*0.45*up, 0.0, 1.0)'};
+      gl_FragColor.a = ${objectSpace ? '0.0' : 'clamp(puddle * 0.9 + wet*0.1*up, 0.0, 1.0)'};
     `);
   shader.fragmentShader = 'uniform mat4 modelMatrix;\n' + shader.fragmentShader;
 }

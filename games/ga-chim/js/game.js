@@ -34,7 +34,7 @@ export class Game {
     E.on('crawler:tell', (e) => G.audio.play('screech', { pos: e.pos, rate: 1.2 }));
     E.on('crawler:step', (p) => G.audio.play('click', { pos: p, vol: 0.35, rate: 0.6 }));
     E.on('drone:tell', (e) => G.audio.play('servo', { pos: e.pos, rate: 1.6 }));
-    E.on('drone:shot', (s) => { G.audio.play('zap', { pos: s.from }); G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
+    E.on('drone:shot', (s) => { G.audio.play('rifle', { pos: s.from, rate: 1.35, vol: 0.45 }); G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
     E.on('drone:crash', (e) => G.audio.play('boom', { pos: e.pos, vol: 0.5 }));
     E.on('raider:shot', (s) => { G.audio.play('rifle', { pos: s.from, vol: 0.55, rate: 1.1 }); G.weapon.tracer(s.from, s.to); G.fx.add(0, s.from, null, 0.18, new THREE.Color(6, 3, 1), 0.05); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
     E.on('raider:tell', (e) => G.audio.play('click', { pos: e.pos, rate: 0.8 }));
