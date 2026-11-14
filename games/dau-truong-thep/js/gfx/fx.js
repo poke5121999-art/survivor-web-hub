@@ -18,15 +18,15 @@ const GROUND_DUST = { grass: C(0.4, 0.34, 0.24), sand: C(0.78, 0.64, 0.45), snow
 
 // Projectile looks: shader shape (k), quad length and width in metres, and what they trail.
 const SHOT_LOOK = {
-  bullet: { k: 0, len: 2.4, wid: 0.55 },
-  shell: { k: 1, len: 2.6, wid: 1.4, trail: 'spark' },
+  bullet: { k: 0, len: 3.1, wid: 0.8 },
+  shell: { k: 1, len: 3.0, wid: 1.75, trail: 'spark' },
   rail: { k: 2, len: 7.5, wid: 0.9, trail: 'line' },
-  pulse: { k: 3, len: 1.9, wid: 1.3, trail: 'arc' },
-  rocket: { k: 4, len: 3.0, wid: 1.0, trail: 'fire' },
-  pellet: { k: 5, len: 1.4, wid: 0.5 },
-  frost: { k: 6, len: 2.3, wid: 0.95, trail: 'ice' },
-  rivet: { k: 7, len: 2.1, wid: 0.55 },
-  tower: { k: 8, len: 3.4, wid: 2.0, trail: 'tower' },
+  pulse: { k: 3, len: 2.4, wid: 1.65, trail: 'arc' },
+  rocket: { k: 4, len: 3.7, wid: 1.3, trail: 'fire' },
+  pellet: { k: 5, len: 1.9, wid: 0.72 },
+  frost: { k: 6, len: 2.9, wid: 1.25, trail: 'ice' },
+  rivet: { k: 7, len: 2.7, wid: 0.8 },
+  tower: { k: 8, len: 4.4, wid: 2.7, trail: 'tower' },
   mortar: { k: 9, len: 1.3, wid: 1.3 },
 };
 const IMPACT_COLOR = { frost: ICE, pulse: ARC, rail: WHITE, tower: WHITE };

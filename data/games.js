@@ -982,7 +982,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/dau-truong-thep.png",
     // three.js r160, không asset: xem games/dau-truong-thep/README.md. Kiểm: node games/dau-truong-thep/tools/sim-test.mjs && node games/dau-truong-thep/tools/play.js
     path: "games/dau-truong-thep/index.html",
-    rev: "20261114h",
+    rev: "20261114i",
     status: "available",
     tags: ["Bắn súng", "Đấu đội 5v5", "Săn trùm"]
   },
