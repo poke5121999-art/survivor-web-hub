@@ -21,8 +21,10 @@ export class Builder {
   scale(x, y, z) { this.m.multiply(T.makeScale(x, y ?? x, z ?? x)); return this; }
   use(mat, color) { this.mat = mat; if (color !== undefined) this.color.set(color); return this; }
   tint(color) { this.color.set(color); return this; }
+  // Per-vertex roughness and metalness multipliers, written as a `surf` attribute once any call sets them.
+  surface(rough, metal) { this.surf = [rough, metal]; return this; }
 
-  batch() { return this.batches[this.mat] || (this.batches[this.mat] = { p: [], n: [], u: [], c: [] }); }
+  batch() { return this.batches[this.mat] || (this.batches[this.mat] = { p: [], n: [], u: [], c: [], s: [] }); }
 
   // Append a three.js geometry, transformed by the current matrix and tinted with the current colour (times its own vertex colours, if any).
   // shade: optional (localPos, localNormal) → brightness multiplier, for baked gradients such as darkening toward the ground.
@@ -41,6 +43,7 @@ export class Builder {
       if (ay >= ax && ay >= az) b.u.push(V.x * s, V.z * s); else if (ax >= az) b.u.push(V.z * s, V.y * s); else b.u.push(V.x * s, V.y * s);
       if (col) b.c.push(this.color.r * k * col.getX(i), this.color.g * k * col.getY(i), this.color.b * k * col.getZ(i));
       else b.c.push(this.color.r * k, this.color.g * k, this.color.b * k);
+      if (this.surf) b.s.push(this.surf[0], this.surf[1]);
     }
     if (src !== g) src.dispose();
     return this;
@@ -58,11 +61,41 @@ export class Builder {
     g.computeVertexNormals();
     this.geo(g, shade); g.dispose(); return this;
   }
-  // Extruded polygon in the XZ plane (points as [x, z]), from y0 to y1.
-  prism(pts, y0, y1) {
+  // Extruded polygon in the XZ plane (points as [x, z]), from y0 to y1. bevel > 0 chamfers every edge inside the outline.
+  prism(pts, y0, y1, bevel = 0) {
     const sh = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], -p[1])));
-    const g = new THREE.ExtrudeGeometry(sh, { depth: y1 - y0, bevelEnabled: false });
-    g.rotateX(-Math.PI / 2); g.translate(0, y0, 0);
+    const c = Math.min(bevel, (y1 - y0) * 0.45);
+    const g = new THREE.ExtrudeGeometry(sh, c > 0
+      ? { depth: y1 - y0 - 2 * c, bevelEnabled: true, bevelThickness: c, bevelSize: c, bevelOffset: -c, bevelSegments: 1 }
+      : { depth: y1 - y0, bevelEnabled: false });
+    g.rotateX(-Math.PI / 2); g.translate(0, y0 + c, 0);
+    this.geo(g); g.dispose(); return this;
+  }
+  // Box with every edge chamfered by c.
+  chamfer(w, h, d, c = 0.05) {
+    c = Math.min(c, w * 0.45, h * 0.45, d * 0.45);
+    const sh = new THREE.Shape([new THREE.Vector2(-w / 2 + c, -h / 2 + c), new THREE.Vector2(w / 2 - c, -h / 2 + c), new THREE.Vector2(w / 2 - c, h / 2 - c), new THREE.Vector2(-w / 2 + c, h / 2 - c)]);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: d - 2 * c, bevelEnabled: true, bevelThickness: c, bevelSize: c, bevelSegments: 1 });
+    g.translate(0, 0, -(d - 2 * c) / 2);
+    this.geo(g); g.dispose(); return this;
+  }
+  // Surface of revolution around Y. profile: [[radius, y], ...] from bottom to top.
+  lathe(profile, sides = 12) {
+    const g = new THREE.LatheGeometry(profile.map((p) => new THREE.Vector2(p[0], p[1])), sides);
+    const f = g.toNonIndexed(); f.computeVertexNormals(); g.dispose();
+    this.geo(f); f.dispose(); return this;
+  }
+  // Cylinder of radius r from point a to point b ([x, y, z] in the current frame).
+  rod(a, b, r, sides = 6, r2 = r) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], len = Math.hypot(dx, dy, dz) || 1e-4;
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
+    this.push(); this.m.multiply(T.compose(new THREE.Vector3((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), q, new THREE.Vector3(1, 1, 1)));
+    this.cyl(r2, r, len, sides); return this.pop();
+  }
+  // Smooth tube through points ([x, y, z]), for cables and hoses.
+  tube(pts, r, sides = 5, segs = 8) {
+    const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+    const g = new THREE.TubeGeometry(curve, segs, r, sides, false);
     this.geo(g); g.dispose(); return this;
   }
 
@@ -74,6 +107,7 @@ export class Builder {
       g.setAttribute('normal', new THREE.Float32BufferAttribute(b.n, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(b.u, 2));
       g.setAttribute('color', new THREE.Float32BufferAttribute(b.c, 3));
+      if (b.s.length && b.s.length === b.p.length / 3 * 2) g.setAttribute('surf', new THREE.Float32BufferAttribute(b.s, 2));
       g.computeBoundingSphere();
       out[k] = g;
     }
