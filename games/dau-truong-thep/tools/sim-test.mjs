@@ -1470,10 +1470,58 @@ section('30 rule change: mechs do not collide');
   const pr = m.props[0];
   put(a, pr.x - 5, pr.z);
   run(m, 100, () => [inp({ mx: pr.x - a.x, mz: pr.z - a.z }), IN]);
-  check('30d a prop still blocks a unit', pr.alive && a.x < pr.x && Math.hypot(a.x - pr.x, a.z - pr.z) >= pr.r + a.radius - 0.05, `x ${a.x.toFixed(2)} prop ${pr.x}`);
+  // head-on into a round slides around it (30s), so the unit no longer stays on the near side: it must still not overlap the prop
+  check('30d a prop still blocks a unit', pr.alive && Math.hypot(a.x - pr.x, a.z - pr.z) >= pr.r + a.radius - 0.05, `x ${a.x.toFixed(2)} prop ${pr.x}`);
   put(a, m.map.hw - 4, -1);
   run(m, 100, () => [inp({ mx: 1 }), IN]);
   check('30e the map edge still blocks a unit', a.x <= m.map.hw - a.radius + 1e-6 && a.x > m.map.hw - a.radius - 0.5, `x ${a.x.toFixed(2)} edge ${m.map.hw}`);
+}
+
+section('30s sliding: a mech driven into scenery keeps moving along it');
+{
+  // Scenery is replaced by one obstacle on open ground. The unit starts at full speed; contact = a tick that moves less than a free tick.
+  const slide = (mech, setup, from, ang, ticks = 90) => {
+    const m = mk({ seed: 1, roster: [solo(mech, 0), solo('ung', 1)] });
+    m.map.walls = []; m.map.rounds = []; m.props = []; m.zones = []; m.towers = [];
+    setup(m);
+    const [u, o] = m.units;
+    put(o, 30, 20);
+    put(u, from[0], from[1]);
+    const mx = Math.cos(ang), mz = Math.sin(ang), sp = unitSpeed(u);
+    u.vx = mx * sp; u.vz = mz * sp;
+    let contact = 0, sum = 0, min = 1, endX = u.x;
+    for (let i = 0; i < ticks; i++) {
+      const x0 = u.x, z0 = u.z;
+      step(m, [inp({ mx, mz }), IN]);
+      const f = Math.hypot(u.x - x0, u.z - z0) / (sp * TICK);
+      if (f < 0.999) { contact++; sum += f; min = Math.min(min, f); }
+    }
+    return { u, m, contact, mean: contact ? sum / contact : 1, min };
+  };
+  const wall = (x0, x1, z0, z1) => ({ x0, x1, z0, z1, x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, h: 2, kind: 'ruin' });
+  const FIT = 0.6;
+  for (const key of MECH_ORDER) {
+    const r = MECHS[key].radius;
+    const cases = {
+      'long wall at 45 deg': () => slide(key, (m) => { m.map.walls.push(wall(-20, 20, 0, 2)); }, [-6, -5], Math.PI / 4),
+      'wall corner, grazing': () => slide(key, (m) => { m.map.walls.push(wall(0, 6, 0, 6)); }, [-5, -4.6 - r * 0.2], Math.PI / 4),
+      'round pillar, glancing': () => slide(key, (m) => { m.map.rounds.push({ id: 0, x: 0, z: 0, r: 1, kind: 'pillar' }); }, [-5, -5 + (1 + r) * 0.7 * Math.SQRT2], Math.PI / 4),
+      'tower, glancing': () => slide(key, (m) => { m.towers.push({ x: 0, z: 0, r: 1.7, alive: true }); }, [-5, -5 + (1.7 + r) * 0.7 * Math.SQRT2], Math.PI / 4),
+      'gap between two rounds': () => slide(key, (m) => { for (const z of [-1.2 - r, 1.2 + r]) m.map.rounds.push({ id: z > 0 ? 1 : 0, x: 0, z, r: 1, kind: 'pillar' }); }, [-8, -3], Math.atan2(3, 8), 120),
+    };
+    for (const [name, run1] of Object.entries(cases)) {
+      const o = run1();
+      const gap = name.startsWith('gap');
+      const through = gap ? o.u.x > 3 : true;
+      check(`30s ${key}: ${name}: keeps >= ${FIT * 100}% of its speed, never stops dead${gap ? ', gets through' : ''}`, o.mean >= FIT && o.min > 0.05 && through, `contact ${o.contact} ticks, mean ${o.mean.toFixed(2)}, min ${o.min.toFixed(2)}, x ${o.u.x.toFixed(1)}`);
+    }
+    const head = {
+      'corner, exactly diagonal': slide(key, (m) => { m.map.walls.push(wall(0, 6, 0, 6)); }, [-5, -5], Math.PI / 4, 150),
+      'pillar, exactly head-on': slide(key, (m) => { m.map.rounds.push({ id: 0, x: 0, z: 0, r: 1, kind: 'pillar' }); }, [-5, 0], 0, 150),
+      'tower, exactly head-on': slide(key, (m) => { m.towers.push({ x: 0, z: 0, r: 1.7, alive: true }); }, [-5, 0], 0, 150),
+    };
+    for (const [name, o] of Object.entries(head)) check(`30s ${key}: ${name}: never stalls, ends up past the obstacle`, o.min > 0.02 && o.u.x > 3, `contact ${o.contact} ticks, min ${o.min.toFixed(2)}, at (${o.u.x.toFixed(1)}, ${o.u.z.toFixed(1)})`);
+  }
 }
 
 section('31 mud');

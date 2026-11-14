@@ -459,10 +459,16 @@ function stepDash(m, u) {
 function moveUnit(m, u, dx, dz) {
   const dist = Math.hypot(dx, dz);
   const n = Math.max(1, Math.ceil(dist / 0.45));
-  for (let i = 0; i < n; i++) { u.x += dx / n; u.z += dz / n; resolveStatic(m, u); }
+  for (let i = 0; i < n; i++) { u.x += dx / n; u.z += dz / n; resolveStatic(m, u, dx / n, dz / n); }
 }
 
-function resolveStatic(m, u) {
+// Pushing out along the radial normal alone leaves a unit that drives exactly head-on into a round or a wall corner with no
+// tangential motion at all. Curved contacts therefore also shift the unit along the surface, towards the side it was already
+// sliding to (counter-clockwise on an exact tie), by this fraction of how deep it had sunk in.
+const SLIDE = 0.15;
+
+// (sx, sz) is the step that brought the unit here; it only picks the side to slide to.
+function resolveStatic(m, u, sx, sz) {
   const map = m.map, r = u.radius;
   // Two passes: pushing out of a prop can push back into a wall.
   for (let pass = 0; pass < 2; pass++) {
@@ -470,28 +476,32 @@ function resolveStatic(m, u) {
       const cx = Math.max(w.x0, Math.min(u.x, w.x1)), cz = Math.max(w.z0, Math.min(u.z, w.z1));
       const dx = u.x - cx, dz = u.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= r * r) continue;
-      if (d2 > 1e-8) { const d = Math.sqrt(d2); u.x = cx + dx / d * r; u.z = cz + dz / d * r; }
+      if (d2 > 1e-8) {
+        if (cx !== u.x && cz !== u.z) pushOut(u, cx, cz, r, sx, sz);
+        else { const d = Math.sqrt(d2); u.x = cx + dx / d * r; u.z = cz + dz / d * r; }
+      }
       else {
         const l = u.x - w.x0, rt = w.x1 - u.x, t = u.z - w.z0, b = w.z1 - u.z, mn = Math.min(l, rt, t, b);
         if (mn === l) u.x = w.x0 - r; else if (mn === rt) u.x = w.x1 + r; else if (mn === t) u.z = w.z0 - r; else u.z = w.z1 + r;
       }
     }
-    for (const c of map.rounds) pushOut(u, c.x, c.z, c.r + r);
+    for (const c of map.rounds) pushOut(u, c.x, c.z, c.r + r, sx, sz);
     if (pass === 0) {
-      for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r);
-      for (const z of m.zones) if (z.kind === 'wall') for (const q of z.pts) pushOut(u, q[0], q[1], z.r + r);
-      for (const t of m.towers) if (t.alive) pushOut(u, t.x, t.z, t.r + r);
+      for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r, sx, sz);
+      for (const z of m.zones) if (z.kind === 'wall') for (const q of z.pts) pushOut(u, q[0], q[1], z.r + r, sx, sz);
+      for (const t of m.towers) if (t.alive) pushOut(u, t.x, t.z, t.r + r, sx, sz);
     }
     u.x = Math.max(-map.hw + r, Math.min(map.hw - r, u.x));
     u.z = Math.max(-map.hd + r, Math.min(map.hd - r, u.z));
   }
 }
 
-function pushOut(u, cx, cz, rr) {
+function pushOut(u, cx, cz, rr, sx, sz) {
   const dx = u.x - cx, dz = u.z - cz, d2 = dx * dx + dz * dz;
   if (d2 >= rr * rr) return;
-  const d = Math.sqrt(d2) || 1e-4;
-  u.x = cx + dx / d * rr; u.z = cz + dz / d * rr;
+  const d = Math.sqrt(d2) || 1e-4, nx = dx / d, nz = dz / d;
+  const side = sz * nx - sx * nz >= 0 ? SLIDE : -SLIDE, depth = rr - d;
+  u.x = cx + nx * rr - nz * side * depth; u.z = cz + nz * rr + nx * side * depth;
 }
 
 function stepShots(m) {
