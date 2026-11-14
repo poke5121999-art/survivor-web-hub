@@ -145,7 +145,10 @@ void main(){
   }
   if (hit < 0.5) { gl_FragColor = vec4(0.); return; }
   vec2 e = smoothstep(0.0, 0.12, hitUV) * smoothstep(1.0, 0.88, hitUV);
-  gl_FragColor = vec4(texture2D(tColor, hitUV).rgb, e.x * e.y * mask);
+  vec3 rc = texture2D(tColor, hitUV).rgb;
+  float ra = e.x * e.y * mask;
+  if (any(isnan(rc)) || any(isinf(rc)) || isnan(ra)) { rc = vec3(0.0); ra = 0.0; }
+  gl_FragColor = vec4(min(rc, vec3(400.0)), clamp(ra, 0.0, 1.0));
 }`;
 
 const VOL_FS = /* glsl */`${COMMON}

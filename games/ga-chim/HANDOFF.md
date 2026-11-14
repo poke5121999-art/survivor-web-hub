@@ -48,3 +48,9 @@ Game FPS gốc dựng toàn bằng code (three.js r170 vendored). Chuẩn đồ 
 - `js/ground.js` là lớp nối; `G.puddleAt` hỏi `ground.isPuddle` nên tiếng bước chân, đạn trúng nước khớp với hình. Sấm do module mưa hẹn giờ, gọi `G.thunder`. `js/rain.js` và mặt nhựa đường cũ trong `level.js` đã bỏ.
 - `js/mats.js`: mô hình ướt §3.4 với bảng `WET` theo từng bề mặt (tối đi, nhám khi ướt, ướt mặt đứng, hạt nước), trong nhà chỉ ướt 12%, chân tường có dải nước bắn.
 - Bẫy: `tools/sl-port-lib.js` là thư viện chung cho 3 tool port (bảng tên rút gọn three.js, tìm tên tự do bằng acorn).
+
+## 2026-11-14 (rev 20261114h): hiệu ứng theo Saltline (vệt đạn, va chạm, khói, mảnh vỡ, vỏ đạn, decal)
+
+- `js/sl/fx-sl.js` SINH bằng `node tools/port-sl-fx.js` (dòng 39420-41201): 2 pool hạt (khói/bụi có chiếu sáng 1400, cộng sáng 3200), vệt đạn (lõi .024 m ×16 HDR, quầng ×6, đốm đầu, khói theo vệt, 260 m/s), bảng va chạm theo bề mặt, bọt nước khi trúng vũng, mảnh vỡ, vỏ đạn, decal, nổ. Nghe chung bus sự kiện Saltline (`G.audio.bus`): `impact` cần `point, normal, dir, surface, enemy`.
+- `js/fx.js` cũ và vỏ đạn/vệt đạn tự viết trong `weapon.js` đã bỏ. Địch bắn: `G.weapon.tracer(from, to, true)` dùng màu vệt địch của Saltline.
+- Bẫy: SSR sinh NaN ở pixel có hạt cộng sáng, NaN loang thành ô vuông đen quanh đầu nòng. SSR giờ chặn NaN/Inf. Hạt không ghi kênh alpha (mặt nạ SSR). Cách khoanh: đếm pixel half-float có số mũ 31 trong `compRT` khi bật/tắt từng pass (`&nossr=1`, `&noao=1`, `&nofog=1`).

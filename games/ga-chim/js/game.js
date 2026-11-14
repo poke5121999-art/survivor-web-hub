@@ -30,8 +30,17 @@ export class Game {
     const E = G.events;
     E.on('player:hit', (h) => this.onHit(h));
     E.on('enemy:dead', ({ e }) => { this.score += e.type === 'crawler' ? 100 : 150; this.hitmark(true); });
-    E.on('drone:shot', (s) => { G.weapon.tracer(s.from, s.to); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
-    E.on('raider:shot', (s) => { G.weapon.tracer(s.from, s.to); G.fx.add(0, s.from, null, 0.18, new THREE.Color(6, 3, 1), 0.05); if (!s.hit) { const d = s.to.clone().sub(s.from).normalize(); const hit = G.grid.ray(s.from, d, 80); if (hit) G.fx.impact(s.from.clone().addScaledVector(d, hit.t), hit.n, 'metal'); } });
+    // enemy shots: tracer, and when they miss, an impact on whatever the round meets (FX + sound read the same event)
+    const enemyShot = (s) => {
+      G.weapon.tracer(s.from, s.to, true);
+      const d = s.to.clone().sub(s.from).normalize();
+      if (s.hit) return;
+      const hw = G.grid.ray(s.from, d, 80); const gT = d.y < -0.001 ? -s.from.y / d.y : Infinity;
+      if (hw && hw.t < gT) G.audio.emit('impact', { from: 'enemy', point: s.from.clone().addScaledVector(d, hw.t), normal: hw.n, dir: d, surface: 'metal' });
+      else if (gT < 80) { const p = s.from.clone().addScaledVector(d, gT); G.audio.emit('impact', { from: 'enemy', point: p, normal: new THREE.Vector3(0, 1, 0), dir: d, surface: G.puddleAt(p) ? 'water' : 'concrete' }); }
+    };
+    E.on('drone:shot', enemyShot);
+    E.on('raider:shot', (s) => { if (G.slfx) G.slfx.muzzleFlash(s.from, s.to.clone().sub(s.from).normalize(), { scale: 0.9 }); enemyShot(s); });
   }
   bindUI() {
     const G = this.G;

@@ -8,14 +8,6 @@ import { keepAlpha, U } from './mats.js';
 
 export const RIFLE = { name: 'K9 CARBINE', mag: 30, reserve: 150 };
 
-function shellGeometry() {
-  // 5.8 mm rifle case, length .052, centred, base radius .0062 with rim step, neck .0031
-  const p = [[0, -0.026], [0.0062, -0.026], [0.0062, -0.0236], [0.0054, -0.0228], [0.0062, -0.022], [0.0061, 0.012], [0.0034, 0.018], [0.0031, 0.026], [0, 0.026]];
-  const g = new THREE.LatheGeometry(p.map(([x, y]) => new THREE.Vector2(x, y)), 10);
-  g.rotateX(Math.PI / 2);
-  return g;
-}
-
 export class Weapon {
   constructor(G) {
     this.G = G;
@@ -24,17 +16,7 @@ export class Weapon {
     this.vmCam.layers.set(1);
     if (!G.camera.parent) G.scene.add(G.camera);
     this.wet = 0; this.reloadReq = false; this.meleeT = 0;
-    const r = mulberry(7177);
-    this.r = r;
-    // world casings: one InstancedMesh, pool of 60, rest 4 s then shrink over .7 s
-    this.shellMesh = new THREE.InstancedMesh(shellGeometry(), new THREE.MeshStandardMaterial({ color: 0xb08d3c, roughness: 0.3, metalness: 1 }), 60);
-    this.shellMesh.count = 0; this.shellMesh.frustumCulled = false; this.shellMesh.castShadow = false; this.shellMesh.receiveShadow = true;
-    G.scene.add(this.shellMesh);
-    this.shells = []; this.shellNext = 0;
-    // tracers: 260 m/s, at most 5.7 m long
-    const tm = new THREE.MeshBasicMaterial({ color: new THREE.Color(10, 6, 2.5), transparent: true, depthWrite: false });
-    tm.userData.additive = true; keepAlpha(tm);
-    this.tracerGeo = new THREE.BoxGeometry(0.01, 0.01, 1); this.tracerMat = tm; this.tracers = [];
+    this.r = mulberry(7177);
   }
   async init() {
     const G = this.G, self = this;
@@ -48,9 +30,9 @@ export class Weapon {
       mats: { get: (name) => self.libMat(name) },
       render: { lightPool: { flash: (pos, color, intensity, dist, ttl) => self.muzzleFlash(pos, color, intensity, dist, ttl) } },
       fx: {
-        tracer: (from, to) => self.tracer(from, to),
-        shell: (pos, vel) => self.spawnShell(pos, vel),
-        smoke: (pos, o) => G.fx && G.fx.add(2, pos.clone(), new THREE.Vector3(0, o.rise || 0.5, 0), o.size || 0.1, new THREE.Color(0.22, 0.21, 0.2), o.life || 1.3, { grow: 3, a: o.alpha || 0.22, drag: 1.5 }),
+        tracer: (from, to) => G.slfx && G.slfx.tracer(from, to),
+        shell: (pos, vel) => G.slfx && G.slfx.shell(pos, vel),
+        smoke: (pos, o) => G.slfx && G.slfx.smoke(pos, o),
       },
       combat: { playerShot: (o, d, opt) => self.hitTest(o, d, opt) },
       get player() {
@@ -90,20 +72,20 @@ export class Weapon {
   // hit test shared with the rest of the game: enemies, level boxes, ground plane
   hitTest(o, d, opt) {
     const G = this.G, A = G.audio; const maxD = (opt && opt.range) || 220;
-    const hit = (point, surface, enemy, part) => A.emit('impact', { point, surface, enemy, part, from: 'player' });
+    const hit = (point, normal, surface, enemy, part) => A.emit('impact', { point, normal, dir: d, surface, enemy, part, from: 'player' });
     const he = G.enemies.raycast(o, d, maxD);
     const hw = G.grid.ray(o, d, maxD);
     const gT = d.y < -0.001 ? -o.y / d.y : Infinity;
     const tW = hw ? hw.t : Infinity;
     if (he && he.t < Math.min(tW, gT)) {
       const p = o.clone().addScaledVector(d, he.t);
-      G.fx.impact(p, d.clone().negate(), 'metal'); hit(p, 'metal', true, he.head ? 'weak' : 'body');
+      hit(p, d.clone().negate(), 'metal', true, he.head ? 'weak' : 'body');
       const killed = G.enemies.damage(he.e, 34 * (0.9 + Math.random() * 0.2), d, he.head);
       G.game.hitmark(killed);
       return { point: p };
     }
-    if (tW < gT && tW < maxD) { const p = o.clone().addScaledVector(d, tW); G.fx.impact(p, hw.n, 'metal'); hit(p, hw.surface || 'metal'); return { point: p }; }
-    if (gT < maxD) { const p = o.clone().addScaledVector(d, gT); const wet = G.puddleAt(p); G.fx.impact(p, new THREE.Vector3(0, 1, 0), wet ? 'water' : 'ground'); hit(p, wet ? 'water' : 'concrete'); return { point: p }; }
+    if (tW < gT && tW < maxD) { const p = o.clone().addScaledVector(d, tW); hit(p, hw.n, hw.surface || 'metal'); return { point: p }; }
+    if (gT < maxD) { const p = o.clone().addScaledVector(d, gT); const wet = G.puddleAt(p); hit(p, new THREE.Vector3(0, 1, 0), wet ? 'water' : 'concrete'); return { point: p }; }
     return null;
   }
   onEvent(name, data) {
@@ -125,25 +107,8 @@ export class Weapon {
   startReload() { this.reloadReq = true; return true; }
   startInspect() {}
   startMelee() { if (this.meleeT > 0) return false; this.meleeT = 0.55; return true; }
-  spawnShell(pos, vel) {
-    const r = this.r;
-    const s = {
-      p: pos.clone(), v: vel.clone(), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(r() * 6.28, r() * 6.28, r() * 6.28)),
-      w: new THREE.Vector3((r() - 0.5) * 40, (r() - 0.5) * 20, (r() - 0.5) * 40), age: 0, rest: -1, bounces: 0, floor: this.floorAt(pos),
-    };
-    this.shells[this.shellNext] = s; this.shellNext = (this.shellNext + 1) % 60;
-  }
-  floorAt(p) {
-    const hit = this.G.grid.ray(p.clone().setY(p.y + 0.25), new THREE.Vector3(0, -1, 0), 6);
-    return (hit ? p.y + 0.25 - hit.t : 0) + 0.0065;
-  }
-  tracer(from, to) {
-    const len = from.distanceTo(to);
-    if (len < 2) return;
-    const mesh = new THREE.Mesh(this.tracerGeo, this.tracerMat); mesh.renderOrder = 9;
-    this.G.scene.add(mesh);
-    this.tracers.push({ mesh, from: from.clone(), to: to.clone(), t: 0, len });
-  }
+  // enemy rounds use Saltline's enemy tracer (warmer, wider); the player's come from the controller
+  tracer(from, to, enemy) { if (this.G.slfx) this.G.slfx.tracer(from, to, enemy ? { color: 0xffc070, speed: 260, width: 0.035 } : {}); }
   update(dt, st) {
     const G = this.G;
     if (!this.sl) return;
@@ -157,46 +122,6 @@ export class Weapon {
     const target = st.indoor ? 0 : (U.uRain.value > 0 ? 1 : 0);
     this.wet = damp(this.wet, target, target > this.wet ? 0.25 : 0.06, dt);
     this.sl.setWetness(this.wet); U.uGunWet.value = this.wet;
-    this.updateShells(dt);
-    for (const t of this.tracers) {
-      t.t += dt * 260;
-      const a = Math.min(t.t, t.len), b = Math.max(0, a - 5.7);
-      const pa = t.from.clone().lerp(t.to, a / t.len), pb = t.from.clone().lerp(t.to, b / t.len);
-      t.mesh.position.copy(pa).add(pb).multiplyScalar(0.5); t.mesh.lookAt(pa); t.mesh.scale.set(1, 1, Math.max(0.01, a - b));
-      if (b >= t.len - 0.01) { G.scene.remove(t.mesh); t.dead = true; }
-    }
-    this.tracers = this.tracers.filter((t) => !t.dead);
-  }
-  updateShells(dt) {
-    const r = this.r, m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1), sc = new THREE.Vector3(); let n = 0;
-    const dq = new THREE.Quaternion();
-    for (let i = 0; i < this.shells.length; i++) {
-      const s = this.shells[i]; if (!s) continue;
-      s.age += dt;
-      if (s.rest >= 0) {
-        s.rest += dt;
-        if (s.rest > 4.7) { this.shells[i] = null; continue; }
-      } else {
-        s.v.y -= 9.81 * dt; s.p.addScaledVector(s.v, dt);
-        dq.set(s.w.x * dt * 0.5, s.w.y * dt * 0.5, s.w.z * dt * 0.5, 0).multiply(s.q);
-        s.q.set(s.q.x + dq.x, s.q.y + dq.y, s.q.z + dq.z, s.q.w + dq.w).normalize();
-        if (s.p.y <= s.floor && s.v.y < 0) {
-          s.p.y = s.floor;
-          if (s.bounces < 2) this.events.push(['shell', s.p.clone()]);
-          if (s.v.y > -0.9 || s.bounces >= 4) { s.v.set(0, 0, 0); s.rest = 0; s.q.setFromEuler(new THREE.Euler(Math.PI / 2, 0, r() * 6.28, 'ZXY')); }
-          else {
-            const e = 0.32 + r() * 0.16; s.v.y = -s.v.y * e;
-            s.v.x = s.v.x * 0.6 + (r() - 0.5) * 0.6; s.v.z = s.v.z * 0.6 + (r() - 0.5) * 0.6;
-            s.w.set((r() - 0.5) * 50, (r() - 0.5) * 30, (r() - 0.5) * 50); s.bounces++;
-            if (s.bounces === 1) s.floor = this.floorAt(s.p);
-          }
-        }
-        if (s.age > 8 && s.rest < 0) { s.v.set(0, 0, 0); s.rest = 0; }
-      }
-      const k = s.rest > 4 ? Math.max(0, 1 - (s.rest - 4) / 0.7) : 1;
-      m4.compose(s.p, s.q, sc.copy(one).multiplyScalar(k)); this.shellMesh.setMatrixAt(n++, m4);
-    }
-    this.shellMesh.count = n; this.shellMesh.instanceMatrix.needsUpdate = true; this.shellMesh.visible = n > 0;
   }
   draw(renderer) {
     renderer.autoClear = false;

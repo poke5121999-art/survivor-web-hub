@@ -63,8 +63,8 @@ export class Audio {
     E.on('raider:tell', (e) => this.play('reload_bolt', { pos: e.pos, gain: 0.6, pitch: 0.9 }));
     E.on('crawler:step', (p) => B.emit('enemy:step', { pos: p, type: 'hound', speed: 3 }));
     E.on('raider:step', (p) => this.play('step_concrete', { pos: p, gain: 0.45 }));
-    E.on('drone:shot', (s) => { B.emit('enemy:fire', { type: 'gull', pos: s.from }); this.enemyImpact(s); });
-    E.on('raider:shot', (s) => { this.play('rifle_shot', { pos: s.from, gain: 0.75, pitch: 1.06 }); this.enemyImpact(s); });
+    E.on('drone:shot', (s) => B.emit('enemy:fire', { type: 'gull', pos: s.from }));
+    E.on('raider:shot', (s) => this.play('rifle_shot', { pos: s.from, gain: 0.75, pitch: 1.06 }));
     E.on('drone:crash', (e) => B.emit('explosion', { pos: e.pos, size: 0.6 }));
   }
   enemyImpact(s) {

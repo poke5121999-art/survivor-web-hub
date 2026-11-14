@@ -6,11 +6,11 @@ import { makeSky } from './sky.js';
 import { buildLevel } from './level.js';
 import { Lights } from './lights.js';
 import { buildGround } from './ground.js';
+import { createSaltlineFx } from './sl/fx-sl.js';
 import { Post } from './post.js';
 import { Weapon } from './weapon.js';
 import { Player, Grid } from './player.js';
 import { Enemies } from './enemies.js';
-import { FX } from './fx.js';
 import { Audio } from './audio.js';
 import { Game, Events } from './game.js';
 
@@ -80,13 +80,37 @@ async function boot() {
   };
   G.events = new Events();
   G.grid = new Grid(G.level.colliders);
-  G.fx = new FX(G);
   G.audio = new Audio(G);
   G.player = new Player(G, G.grid);
   G.enemies = new Enemies(G, G.grid);
   G.puddleAt = (p) => G.ground.isPuddle(p.x, p.z);
   G.game = new Game(G);
   G.audio.bind();
+  setStatus('Đang nạp đạn vạch và khói…'); await frame();
+  // Saltline FX: particle pools, tracers, impact table, shells, decals; listens to the shared Saltline event bus
+  G.slfx = await createSaltlineFx({
+    scene: G.scene, camera: G.camera, params: G.params, rng: { fork: () => Math.random },
+    events: G.audio.bus, get player() { return G.player; },
+    ground: { isPuddle: (x, z) => G.ground.isPuddle(x, z) },
+    render: { lightPool: { flash: (pos, color, intensity, dist, ttl) => G.weapon.muzzleFlash(pos, color, intensity, dist, ttl) }, depthTexture: null },
+    physics: {
+      raycast: (o, d, max) => {
+        const hw = G.grid.ray(o, d, max); const gT = d.y < -1e-4 ? -o.y / d.y : Infinity;
+        if (hw && hw.t <= gT && hw.t <= max) return { point: o.clone().addScaledVector(d, hw.t), normal: hw.n, surface: 'metal', distance: hw.t };
+        if (gT <= max) { const p = o.clone().addScaledVector(d, gT); return { point: p, normal: new THREE.Vector3(0, 1, 0), surface: G.ground.isPuddle(p.x, p.z) ? 'water' : 'concrete', distance: gT }; }
+        return null;
+      },
+    },
+  });
+  // particles must not write the SSR reflectivity mask in alpha
+  G.slfx.root.traverse((o) => {
+    const m = o.material; if (!m || m.blending === THREE.NoBlending || (!m.transparent && m.blending === THREE.NormalBlending)) return;
+    if (m.blending === THREE.AdditiveBlending) { m.blending = THREE.CustomBlending; m.blendSrc = THREE.SrcAlphaFactor; m.blendDst = THREE.OneFactor; m.blendEquation = THREE.AddEquation; }
+    if (m.blending === THREE.NormalBlending) { m.blending = THREE.CustomBlending; m.blendSrc = m.premultipliedAlpha ? THREE.OneFactor : THREE.SrcAlphaFactor; m.blendDst = THREE.OneMinusSrcAlphaFactor; m.blendEquation = THREE.AddEquation; }
+    if (m.blending === THREE.CustomBlending) { m.blendEquationAlpha = THREE.AddEquation; m.blendSrcAlpha = THREE.ZeroFactor; m.blendDstAlpha = THREE.OneFactor; }
+    m.needsUpdate = true;
+  });
+  G.updaters.push(['slfx', (dt) => G.slfx.update(dt)]);
   setStatus('Đang lắp súng…'); await frame();
   await G.weapon.init();
   G.updaters.push(['player', (dt) => { if (G.game.state === 'playing' || G.game.state === 'dead') G.player.update(dt, G.weapon); }]);
@@ -102,7 +126,6 @@ async function boot() {
     G.postFx.ads = G.weapon.ads || 0;
   }]);
   G.updaters.push(['enemies', (dt) => { if (G.game.state !== 'title') G.enemies.update(dt, G.player); }]);
-  G.updaters.push(['fx', (dt) => G.fx.update(dt)]);
   G.updaters.push(['game', (dt) => G.game.update(dt)]);
   G.updaters.push(['audio', (dt) => G.audio.update(dt, { indoor: isIndoor(G.camera.position), combat: G.game.combat, dead: G.player.dead, hurt: G.game.hurt })]);
   G.updaters.push(['storm', (dt) => storm(dt)]);
@@ -178,7 +201,6 @@ function combat(dt) {
   }
   P.events.length = 0;
   for (const ev of W.events) {
-    if (Array.isArray(ev) && ev[0] === 'shell') A.emit('shell:bounce', { pos: ev[1], surface: G.puddleAt(ev[1]) ? 'water' : 'concrete' });
   }
   W.events.length = 0;
   if (P.keys.has('KeyR')) W.startReload();

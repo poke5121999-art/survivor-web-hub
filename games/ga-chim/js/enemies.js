@@ -145,7 +145,7 @@ export class Enemies {
   kill(e, dir) {
     e.alive = false; e.dead = 0; this.kills++;
     const p = e.type === 'crawler' ? e.root.localToWorld(new THREE.Vector3(0, 0.6, 0)) : e.type === 'raider' ? e.pos.clone().setY(e.pos.y + 1.1) : e.pos.clone();
-    if (e.type !== 'raider') this.G.fx.explosion(p, e.type === 'crawler' ? 0.6 : 0.5);
+    if (e.type !== 'raider') this.G.slfx.explosion(p, e.type === 'crawler' ? 0.7 : 0.55);
     this.G.events.emit('enemy:dead', { e, p });
     if (e.type === 'drone') { e.vel.set(dir.x * 2, 0, dir.z * 2); e.spin = (this.r() - 0.5) * 8; }
     if (e.atkToken) { this.tokens--; e.atkToken = false; }
@@ -365,12 +365,12 @@ export class Enemies {
       return;
     }
     if (e.type === 'drone') {
-      if (e.pos.y > 0.3) { e.vel.y -= 14 * dt; e.pos.addScaledVector(e.vel, dt); e.root.rotation.z += (e.spin || 3) * dt; e.root.rotation.x += 2 * dt; if (e.pos.y <= 0.3) { e.pos.y = 0.3; this.G.fx.explosion(e.pos.clone(), 0.35); this.G.events.emit('drone:crash', e); } }
+      if (e.pos.y > 0.3) { e.vel.y -= 14 * dt; e.pos.addScaledVector(e.vel, dt); e.root.rotation.z += (e.spin || 3) * dt; e.root.rotation.x += 2 * dt; if (e.pos.y <= 0.3) { e.pos.y = 0.3; this.G.slfx.explosion(e.pos.clone(), 0.45); this.G.events.emit('drone:crash', e); } }
       e.root.position.copy(e.pos); e.cone.visible = false;
     } else {
       e.body.position.y = damp(e.body.position.y, 0.25, 6, dt); e.body.rotation.z = damp(e.body.rotation.z, 0.3, 4, dt);
       if (e.dead < 0.6) this.legsIK(e, dt, 0);
-      if (e.dead % 0.25 < dt && e.dead < 5) this.G.fx.add(2, e.root.localToWorld(new THREE.Vector3(0, 0.7, 0.3)), new THREE.Vector3(0, 0.8, 0), 0.3, new THREE.Color(0.06, 0.06, 0.06), 2.5, { grow: 1.5, a: 0.6 });
+      if (e.dead % 0.25 < dt && e.dead < 5) this.G.slfx.smoke(e.root.localToWorld(new THREE.Vector3(0, 0.7, 0.3)), { size: 0.35, life: 2.5, rise: 0.8, count: 1, alpha: 0.5 });
     }
     if (e.dead > 25 && !e.removed) { this.G.scene.remove(e.root); e.legs && e.legs.forEach((L) => { this.G.scene.remove(L.upper); this.G.scene.remove(L.lower); }); e.removed = true; }
   }
