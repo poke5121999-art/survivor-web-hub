@@ -1399,7 +1399,7 @@ for (const key of NHA_ORDER) {
   put(U, p[0], p[1]); dead(m.units[1]);
   let minD = 1e9;
   run(m, 90, () => { minD = Math.min(minD, Math.hypot(U.x - T.x, U.z - T.z)); return [inp({ mx: T.x - U.x, mz: T.z - U.z }), IN]; });
-  check('29r a unit driving into a tower is stopped at the tower radius + its own radius', minD >= T.r + U.radius - 0.05 && Math.hypot(U.x - T.x, U.z - T.z) < T.r + U.radius + 0.6, `min ${minD.toFixed(2)} need ${(T.r + U.radius).toFixed(2)}`);
+  check('29r a unit driving into a tower is stopped at the tower radius + its own radius', minD >= T.r + U.moveRadius - 0.05 && Math.hypot(U.x - T.x, U.z - T.z) < T.r + U.moveRadius + 0.6, `min ${minD.toFixed(2)} need ${(T.r + U.moveRadius).toFixed(2)}`);
 }
 {
   // tower shots fly over walls: a spot in range with no clear line to the tower still gets hit
@@ -1466,15 +1466,15 @@ section('30 rule change: mechs do not collide');
   put(a, -14, 0); put(b, 30, 20);
   run(m, 120, () => [inp({ mx: 1 }), IN]);
   const wall = m.map.walls.find((w) => w.x0 > -14 && w.x0 < -9 && w.z0 < 0 && w.z1 > 0);
-  check('30c a wall still blocks a unit (it stops at the wall face)', !!wall && a.x <= wall.x0 - a.radius + 0.01 && a.x > wall.x0 - a.radius - 0.5, `x ${a.x.toFixed(2)} wall ${wall && wall.x0}`);
+  check('30c a wall still blocks a unit (it stops at the wall face)', !!wall && a.x <= wall.x0 - a.moveRadius + 0.01 && a.x > wall.x0 - a.moveRadius - 0.5, `x ${a.x.toFixed(2)} wall ${wall && wall.x0}`);
   const pr = m.props[0];
   put(a, pr.x - 5, pr.z);
   run(m, 100, () => [inp({ mx: pr.x - a.x, mz: pr.z - a.z }), IN]);
   // head-on into a round slides around it (30s), so the unit no longer stays on the near side: it must still not overlap the prop
-  check('30d a prop still blocks a unit', pr.alive && Math.hypot(a.x - pr.x, a.z - pr.z) >= pr.r + a.radius - 0.05, `x ${a.x.toFixed(2)} prop ${pr.x}`);
+  check('30d a prop still blocks a unit', pr.alive && Math.hypot(a.x - pr.x, a.z - pr.z) >= pr.r + a.moveRadius - 0.05, `x ${a.x.toFixed(2)} prop ${pr.x}`);
   put(a, m.map.hw - 4, -1);
   run(m, 100, () => [inp({ mx: 1 }), IN]);
-  check('30e the map edge still blocks a unit', a.x <= m.map.hw - a.radius + 1e-6 && a.x > m.map.hw - a.radius - 0.5, `x ${a.x.toFixed(2)} edge ${m.map.hw}`);
+  check('30e the map edge still blocks a unit', a.x <= m.map.hw - a.moveRadius + 1e-6 && a.x > m.map.hw - a.moveRadius - 0.5, `x ${a.x.toFixed(2)} edge ${m.map.hw}`);
 }
 
 section('30s sliding: a mech driven into scenery keeps moving along it');
@@ -1521,6 +1521,13 @@ section('30s sliding: a mech driven into scenery keeps moving along it');
       'tower, exactly head-on': slide(key, (m) => { m.towers.push({ x: 0, z: 0, r: 1.7, alive: true }); }, [-5, 0], 0, 150),
     };
     for (const [name, o] of Object.entries(head)) check(`30s ${key}: ${name}: never stalls, ends up past the obstacle`, o.min > 0.02 && o.u.x > 3, `contact ${o.contact} ticks, min ${o.min.toFixed(2)}, at (${o.u.x.toFixed(1)}, ${o.u.z.toFixed(1)})`);
+  }
+  // one movement radius: every playable mech fits the same openings and is stopped by the same ones
+  const door = (mech, g) => slide(mech, (m) => { m.map.walls.push(wall(-1, 1, g / 2, 20), wall(-1, 1, -20, -g / 2)); }, [-6, 0], 0, 150).u.x;
+  const W = RULES.moveRadius * 2;
+  for (const mech of ['trau', 'bocap']) {
+    check(`30s ${mech}: a door ${(W + 0.1).toFixed(2)} m wide lets it through`, door(mech, W + 0.1) > 3, `x ${door(mech, W + 0.1).toFixed(2)}`);
+    check(`30s ${mech}: a door ${(W - 0.4).toFixed(2)} m wide stops it`, door(mech, W - 0.4) < -1, `x ${door(mech, W - 0.4).toFixed(2)}`);
   }
 }
 

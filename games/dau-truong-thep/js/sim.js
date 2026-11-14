@@ -34,7 +34,7 @@ export function createMatch(opts) {
     const mods = r.mods || {};
     const u = {
       id: m.units.length, team, color: mode === 'tudo' ? 1 : r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
-      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, radius: def.radius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: mods.dmg || 1,
+      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, radius: def.radius, moveRadius: def.boss ? def.radius : RULES.moveRadius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: mods.dmg || 1,
       x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
       kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, pickups: 0, hitBy: {}, brain: null,
@@ -71,7 +71,7 @@ function spawnPoint(m, u) {
   const spots = m.map.spawns[0].concat(m.map.spawns[1], m.map.cratePoints);
   let best = spots[u.id % spots.length], bd = -1;
   for (const p of spots) {
-    if (solidAt(m.map, p[0], p[1], u.radius)) continue;
+    if (solidAt(m.map, p[0], p[1], u.moveRadius)) continue;
     let d = 1e9;
     for (const o of m.units) if (o !== u && o.alive) d = Math.min(d, dist2(o.x, o.z, p[0], p[1]));
     if (d > bd) { bd = d; best = p; }
@@ -469,7 +469,7 @@ const SLIDE = 0.15;
 
 // (sx, sz) is the step that brought the unit here; it only picks the side to slide to.
 function resolveStatic(m, u, sx, sz) {
-  const map = m.map, r = u.radius;
+  const map = m.map, r = u.moveRadius;
   // Two passes: pushing out of a prop can push back into a wall.
   for (let pass = 0; pass < 2; pass++) {
     for (const w of map.walls) {

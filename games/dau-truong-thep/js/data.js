@@ -12,7 +12,7 @@ export const RULES = {
   target: 25, duration: 300, respawn: 5, spawnGuard: 2.5,
   baseRadius: 6.5, baseRegen: 0.12, baseBurn: 420,
   regenDelay: 7, regen: 0.025,
-  assistWindow: 7, revealOnFire: 1.2, bushSight: 3.4,
+  moveRadius: 0.72, assistWindow: 7, revealOnFire: 1.2, bushSight: 3.4,
   healItem: { cd: 24, frac: 0.38, dur: 2.2 },
   lava: { dps: 380 }, ice: { grip: 2.2 }, mud: { slow: 0.4 }, vent: { period: 6, warn: 1.3, dmg: 520 },
   crate: { first: 12, every: [15, 22], fall: 3.2, max: 3, life: 40, radius: 1.5 },

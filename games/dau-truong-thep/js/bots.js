@@ -443,7 +443,7 @@ function fleeGoal(m, u, b, enemies, now) {
     for (const r of [7, 11]) {
       const x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r;
       if (solidAt(map, x, z, 1.3) || lavaNear(map, x, z, 1.6) || ventNear(m, x, z, 0.6) || (!mudProof(u) && mudAt(map, x, z))) continue;
-      if (!losClear(map, u.x, u.z, x, z, u.radius * 0.8) || lavaSeg(map, u.x, u.z, x, z, 0.8)) continue;
+      if (!losClear(map, u.x, u.z, x, z, u.moveRadius * 0.8) || lavaSeg(map, u.x, u.z, x, z, 0.8)) continue;
       let s = 0;
       for (const e of thr) {
         s += Math.min(hyp(x - e.x, z - e.z), 16);
@@ -503,7 +503,7 @@ function standPos(m, u, P, enemies) {
   for (let ring = 0; ring < 3; ring++) for (let k = 0; k < (ring ? 8 : 1); k++) {
     const rr = [0, 0.45, 0.78][ring] * P.r, a = k * Math.PI / 4 + ring * 0.4;
     const x = P.x + Math.cos(a) * rr, z = P.z + Math.sin(a) * rr;
-    if (solidAt(map, x, z, u.radius + 0.2) || propAt(m, x, z, u.radius) || lavaNear(map, x, z, u.radius + 0.9) || ventNear(m, x, z, u.radius + 0.4) || (!mudProof(u) && mudAt(map, x, z))) continue;
+    if (solidAt(map, x, z, u.moveRadius + 0.2) || propAt(m, x, z, u.moveRadius) || lavaNear(map, x, z, u.moveRadius + 0.9) || ventNear(m, x, z, u.moveRadius + 0.4) || (!mudProof(u) && mudAt(map, x, z))) continue;
     let s = -hyp(x - u.x, z - u.z) * 0.1 - rr * 0.05;
     if (ne && !losClear(map, ne.x, ne.z, x, z, 0.2)) s += 3;
     for (const o of m.units) if (o !== u && o.team === u.team && o.alive && o.brain && o.brain.pt === P.id && hyp(o.brain.stand[0] - x, o.brain.stand[1] - z) < 2.2) s -= 1.5;
@@ -881,11 +881,11 @@ function findCover(m, u, tx, tz) {
     const a = k * Math.PI / 6;
     for (let r = 3; r <= 6; r += 3) {
       const px = u.x + Math.cos(a) * r, pz = u.z + Math.sin(a) * r;
-      if (solidAt(map, px, pz, u.radius + 0.3)) continue;
+      if (solidAt(map, px, pz, u.moveRadius + 0.3)) continue;
       if (foe && d2(px, pz, foe[0], foe[1]) < (RULES.baseRadius + 1.5) ** 2) continue;
       if (lavaNear(map, px, pz, 1.2) || ventNear(m, px, pz, 0.6) || (!mudProof(u) && mudAt(map, px, pz))) continue;
       if (losClear(map, tx, tz, px, pz, 0.2)) continue;
-      if (!losClear(map, u.x, u.z, px, pz, u.radius * 0.7)) continue;
+      if (!losClear(map, u.x, u.z, px, pz, u.moveRadius * 0.7)) continue;
       if (r < bd) { bd = r; best = [px, pz]; }
     }
   }
@@ -897,7 +897,7 @@ function goTo(m, u, b, gx, gz, now) {
   const map = m.map;
   const dg = hyp(gx - u.x, gz - u.z);
   if (dg < 0.7) return null;
-  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.radius * 0.9 + 0.1) && (mudProof(u) || !mudSeg(map, u.x, u.z, gx, gz))) {
+  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.moveRadius * 0.9 + 0.1) && (mudProof(u) || !mudSeg(map, u.x, u.z, gx, gz))) {
     b.path = null;
     const dv = lavaDetour(map, u.x, u.z, gx, gz);
     return dv ? [dv[0] - u.x, dv[1] - u.z] : [gx - u.x, gz - u.z];
@@ -909,7 +909,7 @@ function goTo(m, u, b, gx, gz, now) {
   }
   const p = b.path;
   while (b.pi < p.length - 1 && hyp(p[b.pi][0] - u.x, p[b.pi][1] - u.z) < 1.0) b.pi++;
-  while (b.pi < p.length - 1 && losClear(map, u.x, u.z, p[b.pi + 1][0], p[b.pi + 1][1], u.radius + 0.1)) b.pi++;
+  while (b.pi < p.length - 1 && losClear(map, u.x, u.z, p[b.pi + 1][0], p[b.pi + 1][1], u.moveRadius + 0.1)) b.pi++;
   const wp = p[b.pi];
   if (b.pi >= p.length - 1 && hyp(wp[0] - u.x, wp[1] - u.z) < 0.8) return null;
   const dv = lavaDetour(map, u.x, u.z, wp[0], wp[1]);
@@ -1119,8 +1119,8 @@ const SKILL_AI = {
     const base = Math.atan2(near.z - u.z, near.x - u.x);
     for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
       const a = base + da, ex = u.x - Math.cos(a) * s.dist, ez = u.z - Math.sin(a) * s.dist;
-      if (solidAt(m.map, ex, ez, u.radius * 0.8) || inFoe(m, u, ex, ez) || lavaSeg(m.map, u.x, u.z, ex, ez, 0.5)) continue;
-      if (!losClear(m.map, u.x, u.z, ex, ez, u.radius * 0.7)) continue;
+      if (solidAt(m.map, ex, ez, u.moveRadius * 0.8) || inFoe(m, u, ex, ez) || lavaSeg(m.map, u.x, u.z, ex, ez, 0.5)) continue;
+      if (!losClear(m.map, u.x, u.z, ex, ez, u.moveRadius * 0.7)) continue;
       c.b.sk.aim = a;   // the recoil throws the caster opposite to its aim
       return true;
     }
@@ -1142,8 +1142,8 @@ const SKILL_AI = {
     const base = Math.atan2(u.z - tgt.z, u.x - tgt.x), map = c.m.map;
     for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
       const a = base + da, ex = u.x + Math.cos(a) * s.dist, ez = u.z + Math.sin(a) * s.dist;
-      if (solidAt(map, ex, ez, u.radius * 0.8) || inFoe(c.m, u, ex, ez) || lavaSeg(map, u.x, u.z, ex, ez, 0.5)) continue;
-      if (!losClear(map, u.x, u.z, ex, ez, u.radius * 0.7)) continue;
+      if (solidAt(map, ex, ez, u.moveRadius * 0.8) || inFoe(c.m, u, ex, ez) || lavaSeg(map, u.x, u.z, ex, ez, 0.5)) continue;
+      if (!losClear(map, u.x, u.z, ex, ez, u.moveRadius * 0.7)) continue;
       c.b.sk.mx = Math.cos(a); c.b.sk.mz = Math.sin(a);
       return true;
     }
@@ -1444,7 +1444,7 @@ function nhaPlan(m, u, b, D, role, w, now) {
 function nhaSpots(m, u, b, P, w, R, own) {
   const OT = P.T, map = m.map, imm = mudProof(u);
   const a0 = Math.atan2(own[1] - OT.z, own[0] - OT.x) + b.rot;
-  const ok = (x, z) => !solidAt(map, x, z, u.radius + 0.3) && !lavaNear(map, x, z, u.radius + 0.9) && !ventNear(m, x, z, u.radius + 0.4) && (imm || !mudAt(map, x, z)) && !m.towers.some((t) => t !== OT && t.alive && t.team !== u.team && hyp(x - t.x, z - t.z) < (P.outside ? R + 1.6 : t.r + 2.6));
+  const ok = (x, z) => !solidAt(map, x, z, u.moveRadius + 0.3) && !lavaNear(map, x, z, u.moveRadius + 0.9) && !ventNear(m, x, z, u.moveRadius + 0.4) && (imm || !mudAt(map, x, z)) && !m.towers.some((t) => t !== OT && t.alive && t.team !== u.team && hyp(x - t.x, z - t.z) < (P.outside ? R + 1.6 : t.r + 2.6));
   const pick = (dist, lat, needLos, grow = 0) => {
     let fb = null;
     for (let j = 0; j < (needLos && grow ? 3 : 1); j++) for (let k = 0; k < 15; k++) {
