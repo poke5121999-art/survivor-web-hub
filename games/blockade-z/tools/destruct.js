@@ -131,6 +131,33 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     check(dr.near && dr.used && dr.state === 1 && dr.shut < 1.7 && dr.inSolids && dr.swing < 0.3, `the use key shuts the door in front of the player and it blocks (ray ${dr.shut} m)`);
     check(dr2.hpShot < dr2.hp0 && dr2.state === 2 && !dr2.inSolids && !dr2.visible && dr2.secs > 1 && dr2.floating === 0, `${dr2.zs} zombies break a shut door down in ${dr2.secs} s and nothing is left hanging`);
     check(dr2.restored, 'a new run hangs every door again, open');
+    // what stands on a roof comes down with it: a turret set on an upper floor, a hired soldier and the player all fall when the
+    // slab under them breaks, the turret loses rounds to the drop, and nothing is left standing on air
+    const rf = await page.evaluate(`(() => { const G = __G; const T = G.THREE; __newGame(); G.wave.toSpawn = 0; G.wave.bossAt = -1; G.zombies.clear(); G.god = true; G.state = 'playing'; __sim(0.2);
+      const X = G.destruct; const P = G.player; const free = (x, y, z) => !G.world.overlaps([x - 0.45, y + 0.1, z - 0.45], [x + 0.45, y + 1.8, z + 0.45]);
+      const slab = X.pieces.filter((p) => !p.broken && p.tag !== 'glass' && p.max[1] - p.min[1] < 0.5 && p.min[1] > 2.4 && p.max[0] - p.min[0] > 2.6 && p.max[2] - p.min[2] > 2.6)
+        .find((p) => { const cx = (p.min[0] + p.max[0]) / 2; const cz = (p.min[2] + p.max[2]) / 2; return free(cx, p.max[1], cz) && free(cx + 0.9, p.max[1], cz) && free(cx - 0.9, p.max[1], cz) && G.fx.floorY(cx, p.max[1] + 0.5, cz) > p.max[1] - 0.05; });
+      if (!slab) return { slab: false }; const top = slab.max[1]; const cx = (slab.min[0] + slab.max[0]) / 2; const cz = (slab.min[2] + slab.max[2]) / 2; const r = { slab: true, top: +top.toFixed(2) };
+      // the player in the middle, a turret a step to one side (placed 2 m ahead of a stand-in facing -z), a soldier on the other
+      P.pos.set(cx, top, cz); P.vel.set(0, 0, 0); P.yaw = 0; __sim(0.1);
+      r.placed = G.gear.placeTurret({ pos: new T.Vector3(cx + 0.9, top, cz + 2), yaw: 0 }); const t = G.gear.turrets[G.gear.turrets.length - 1]; r.turretY = +t.pos.y.toFixed(2); const ammo0 = t.ammo;
+      G.allies.hire(); const a = G.allies.list.find((q) => q.alive);
+      // the soldier starts in the street: with the player a storey up he comes over and jumps up beside them
+      a.pos.set(cx + 5, 0, cz + 6); a.pos.y = G.fx.floorY(a.pos.x, 1, a.pos.z); a.vel.set(0, 0, 0); r.streetY = +a.pos.y.toFixed(2); let secs = 0; while (secs < 8 && !(Math.abs(a.pos.y - top) < 0.1 && !a.leap)) { __sim(0.05); secs += 0.05; P.pos.x = cx; P.pos.z = cz; } r.upIn = +secs.toFixed(1); r.upY = +a.pos.y.toFixed(2);
+      a.pos.set(cx - 0.9, top, cz); a.vel.set(0, 0, 0); const hp0 = a.hp;
+      for (let i = 0; i < 20; i++) { __sim(0.05); P.pos.x = cx; P.pos.z = cz; a.pos.x = cx - 0.9; a.pos.z = cz; } r.before = { p: +P.pos.y.toFixed(2), t: +t.pos.y.toFixed(2), a: +a.pos.y.toFixed(2) };
+      X.hurt(slab, 1e6, new T.Vector3(0, -1, 0)); r.broken = slab.broken;
+      for (let i = 0; i < 80; i++) { __sim(0.05); a.pos.x = BZ.clamp(a.pos.x, cx - 1.2, cx + 1.2); }
+      const alive = G.gear.turrets.includes(t); r.after = { p: +P.pos.y.toFixed(2), t: alive ? +t.pos.y.toFixed(2) : -1, a: +a.pos.y.toFixed(2) };
+      r.turret = { alive, ammo0, ammo: t.ammo, fall: +(t.lastFall || 0).toFixed(2), falling: t.fallY !== null }; r.ally = { alive: a.alive, hp0, hp: a.hp, fall: +(a.lastFall || 0).toFixed(2), ground: a.ground };
+      r.floating = G.fx.floaters().length; r.underP = +G.fx.floorY(P.pos.x, P.pos.y + 0.3, P.pos.z).toFixed(2); r.underA = +G.fx.floorY(a.pos.x, a.pos.y + 0.3, a.pos.z).toFixed(2); G.allies.clear(); G.gear.clear(); return r; })()`);
+    console.log('roof', JSON.stringify(rf));
+    check(rf.slab && rf.placed && Math.abs(rf.turretY - rf.top) < 0.1 && Math.abs(rf.before.a - rf.top) < 0.1 && Math.abs(rf.before.p - rf.top) < 0.1, `a turret, a soldier and the player stand on an upper floor (y ${rf.top}: turret ${rf.before && rf.before.t}, soldier ${rf.before && rf.before.a}, player ${rf.before && rf.before.p})`);
+    check(Math.abs(rf.upY - rf.top) < 0.1 && rf.streetY < rf.top - 1, `a soldier in the street (y ${rf.streetY}) climbs to the player's floor in ${rf.upIn} s (y ${rf.upY})`);
+    check(rf.broken && rf.after.p < rf.top - 1 && Math.abs(rf.after.p - rf.underP) < 0.15, `the floor breaks and the player falls to what is below (y ${rf.after && rf.after.p})`);
+    check(rf.turret && (!rf.turret.alive || (rf.after.t < rf.top - 1 && !rf.turret.falling && rf.turret.fall > 1 && rf.turret.ammo < rf.turret.ammo0)), `the turret falls with it and pays for the drop (y ${rf.after && rf.after.t}, fell ${rf.turret && rf.turret.fall} m, rounds ${rf.turret && rf.turret.ammo0} -> ${rf.turret && rf.turret.ammo})`);
+    check(rf.ally && rf.after.a < rf.top - 1 && Math.abs(rf.after.a - rf.underA) < 0.15 && rf.ally.ground, `the soldier falls with it and lands (y ${rf.after && rf.after.a}, fell ${rf.ally && rf.ally.fall} m, hp ${rf.ally && rf.ally.hp0} -> ${rf.ally && rf.ally.hp})`);
+    check(rf.floating === 0, 'nothing is left hanging after the floor went');
     check(problems.length === 0, 'no console errors' + (problems.length ? ': ' + problems.slice(0, 3).join(' | ') : ''));
   } finally { await br.close(); srv.close(); }
   console.log(fails.length ? fails.length + ' FAIL' : 'ALL PASS');

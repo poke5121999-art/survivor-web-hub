@@ -101,7 +101,7 @@
     function hurt(a, dmg) {
       if (!a.alive) return;
       a.hp -= dmg; a.flash = 0.1; if (a.flinch) a.flinch.v += 9;
-      G.fx.burst(new THREE.Vector3(a.pos.x, 1.2, a.pos.z), 5, [0xb3201a, 0x7a1410], { size: 0.1 });
+      G.fx.burst(new THREE.Vector3(a.pos.x, a.pos.y + 1.2, a.pos.z), 5, [0xb3201a, 0x7a1410], { size: 0.1 });
       if (a.hp <= 0) {
         a.alive = false; a.dying = 0.001; a.body.barBg.visible = false;
         G.audio.playAt('hurt', a.pos, { gain: 0.9 });
@@ -127,7 +127,7 @@
         a.seekT -= dt;
         if (a.seekT <= 0) {
           a.seekT = 0.3; a.target = null; let bd = ALLY.range;
-          eye.set(a.pos.x, 1.55, a.pos.z);
+          eye.set(a.pos.x, a.pos.y + 1.55, a.pos.z);
           for (const z of G.zombies.list) {
             if (!z.alive) continue;
             const d = Math.hypot(z.pos.x - a.pos.x, z.pos.z - a.pos.z);
@@ -146,8 +146,30 @@
         }
         const dx = tx - a.pos.x; const dz = tz - a.pos.z; const dist = Math.hypot(dx, dz);
         const want = dist > stop ? Math.min(ALLY.speed * (melee ? 1.15 : 1), dist * 2 + 1) : 0;
-        a.vel.x = BZ.damp(a.vel.x, dist > 0.01 ? (dx / dist) * want : 0, 8, dt); a.vel.z = BZ.damp(a.vel.z, dist > 0.01 ? (dz / dist) * want : 0, 8, dt); a.vel.y = 0;
-        G.world.moveBox(a.pos, a.vel, dt, 0.3, 1.8, out, 0.45); a.vel.y -= 20 * dt;
+        a.vel.x = BZ.damp(a.vel.x, dist > 0.01 ? (dx / dist) * want : 0, 8, dt); a.vel.z = BZ.damp(a.vel.z, dist > 0.01 ? (dz / dist) * want : 0, 8, dt);
+        // Up to the player's level: when the player has stood a storey above for a moment and the soldier cannot walk there, he
+        // jumps up to his slot beside them (or to the player's own spot when the slot has no floor).
+        const above = P.pos.y - a.pos.y;
+        if (a.leap) {
+          const L = a.leap; L.t += dt; const k = Math.min(1, L.t / L.dur); a.pos.lerpVectors(L.from, L.to, k); a.pos.y += Math.sin(Math.PI * k) * L.h; a.vel.set(0, 0, 0); a.airY = null;
+          if (k >= 1) { a.leap = null; a.landT = 0.3; a.pos.copy(L.to); }
+        } else {
+          a.upT = above > 1.3 && P.onGround !== false && Math.hypot(P.pos.x - a.pos.x, P.pos.z - a.pos.z) < 14 ? (a.upT || 0) + dt : 0;
+          if (a.upT > 1.2 && a.ground !== false) {
+            let to = new THREE.Vector3(tx, G.fx.floorY(tx, P.pos.y + 0.6, tz), tz);
+            if (Math.abs(to.y - P.pos.y) > 0.7 || G.world.overlaps([to.x - 0.3, to.y + 0.1, to.z - 0.3], [to.x + 0.3, to.y + 1.8, to.z + 0.3])) to = P.pos.clone();
+            a.leap = { from: a.pos.clone(), to, t: 0, dur: 0.55 + Math.min(0.5, above * 0.06), h: 1.2 + above * 0.25 }; a.upT = 0; G.audio.playAt('land', a.pos, { gain: 0.5, rate: 1.3 });
+          }
+          // gravity, like everyone else: the floor going out from under him drops him, and a long drop hurts
+          a.vel.y -= 22 * dt; const y0 = a.pos.y;
+          G.world.moveBox(a.pos, a.vel, dt, 0.3, 1.8, out, 0.45); a.ground = !!out.ground;
+          if (out.ground) {
+            if (a.airY != null) { const h = a.airY - a.pos.y; a.airY = null; if (h > 1.2) { a.landT = 0.35; for (let k = 0; k < 6; k++) { const an = k / 6 * Math.PI * 2; G.fx.puff(a.pos.clone().setY(a.pos.y + 0.12), { vel: new THREE.Vector3(Math.cos(an) * 2.4, 0.5, Math.sin(an) * 2.4), drag: 4, s0: 0.3, s1: 1, life: 0.6, c0: 0xd8d0c0, c1: 0xa8a090, a0: 0.7 }); } G.audio.playAt('land', a.pos, { gain: 0.7 }); }
+              if (h > 3) { a.lastFall = h; hurt(a, Math.round((h - 3) * 8)); if (!a.alive) continue; } }
+            a.vel.y = 0;
+          } else a.airY = Math.max(a.airY == null ? y0 : a.airY, a.pos.y);
+        }
+        a.landT = Math.max(0, (a.landT || 0) - dt);
         // face the target, else the walking direction
         const sp = Math.hypot(a.vel.x, a.vel.z);
         const faceYaw = a.target ? Math.atan2(a.target.pos.x - a.pos.x, a.target.pos.z - a.pos.z) : sp > 0.4 ? Math.atan2(a.vel.x, a.vel.z) : a.yaw + a.twist;
@@ -186,12 +208,12 @@
           if (!WP && ++a.shots >= 24) { a.shots = 0; a.cReload = 1.5; G.audio.playAt('mag_out', a.pos, { gain: 0.5 }); setTimeout(() => G.audio.playAt('mag_in', a.pos, { gain: 0.5 }), 900); }
           a.kick.v += WP && WP.rocket ? 14 : 6;
           a.cool = (WP ? Math.max(60 / WP.rpm * (WP.auto ? 1.5 : 1.2), 0.12) * G.rng.range(0.9, 1.2) : G.rng.range(ALLY.fire[0], ALLY.fire[1])) / (G.build.has('fortress') ? 1.5 : 1);
-          const z = a.target; const muzzle = new THREE.Vector3(a.pos.x + Math.sin(a.yaw) * 0.7, 1.35, a.pos.z + Math.cos(a.yaw) * 0.7);
+          const z = a.target; const muzzle = new THREE.Vector3(a.pos.x + Math.sin(a.yaw) * 0.7, a.pos.y + 1.35, a.pos.z + Math.cos(a.yaw) * 0.7);
           if (WP) { a.weap.mag--; if (a.weap.mag <= 0) { if (a.weap.reserve > 0) a.reload = WP.reload || 2; else equip(a, null); } }
           const hit = G.rng.chance(ALLY.accuracy); const head = hit && G.rng.chance(ALLY.head);
           const end = new THREE.Vector3(z.pos.x + (hit ? 0 : G.rng.range(-0.8, 0.8)), z.pos.y + (head ? 1.7 : 1.0) * z.T.scale + (hit ? 0 : G.rng.range(0.3, 0.9)), z.pos.z + (hit ? 0 : G.rng.range(-0.8, 0.8)));
           if (WP && WP.rocket) {
-            G.gear.fireRocket(muzzle.clone().setY(1.45), new THREE.Vector3(z.pos.x - muzzle.x, z.pos.y + 1.0 * z.T.scale - 1.45, z.pos.z - muzzle.z).normalize());
+            G.gear.fireRocket(muzzle.clone().setY(a.pos.y + 1.45), new THREE.Vector3(z.pos.x - muzzle.x, z.pos.y + 1.0 * z.T.scale - (a.pos.y + 1.45), z.pos.z - muzzle.z).normalize());
             G.audio.playAt('rocket', a.pos, { gain: 0.7 }); G.fx.muzzle(muzzle); b.flash.visible = true; a.flash = 0.08;
           } else {
           G.fx.tracer(muzzle, end); G.fx.muzzle(muzzle);
@@ -222,6 +244,10 @@
         const crouch = a.aimK * (1 - run) * 0.06;
         b.hips.position.y = 0.75 - crouch + Math.abs(Math.cos(a.phase)) * 0.05 * Math.min(1, sp / 1.5);
         b.hips.rotation.z = swing * 0.05 * run;
+        // in the air the knees come up and the arms go wide; a landing sinks into the knees and comes back up
+        { const air = a.leap || a.ground === false ? 1 : 0; a.airK = BZ.damp(a.airK || 0, air, 14, dt); const land = a.landT > 0 ? Math.sin(Math.min(1, a.landT / 0.35) * Math.PI) : 0;
+          if (a.airK > 0.02) { b.legL.rotation.x = BZ.lerp(b.legL.rotation.x, -0.9, a.airK); b.legR.rotation.x = BZ.lerp(b.legR.rotation.x, -0.35, a.airK); }
+          b.hips.position.y -= 0.3 * land; if (land > 0) { b.legL.rotation.x -= 0.7 * land; b.legR.rotation.x -= 0.7 * land; } }
         // chest: twist toward the target, lean into the run, kick back on each shot, flinch when hit
         b.chest.rotation.set(a.lean - kick * 0.02 - flinch * 0.03, a.twist, -swing * 0.04 * run + flinch * 0.02);
         b.mount.position.z = 0.36 - kick * 0.012;
@@ -254,18 +280,18 @@
         b.root.position.copy(a.pos); b.root.rotation.y = a.yaw;
         for (const m of Object.values(b.mats)) m.emissive.setHex(a.flash > 0.05 ? 0xb01010 : 0);
         b.barBg.visible = a.hp < ALLY.hp;
-        if (b.barBg.visible) { b.barBg.position.set(a.pos.x, 2.25, a.pos.z); b.barBg.quaternion.copy(G.camera.quaternion); const k = Math.max(0.001, a.hp / ALLY.hp); b.barFg.scale.x = k; b.barFg.position.x = -0.35 * (1 - k); }
+        if (b.barBg.visible) { b.barBg.position.set(a.pos.x, a.pos.y + 2.25, a.pos.z); b.barBg.quaternion.copy(G.camera.quaternion); const k = Math.max(0.001, a.hp / ALLY.hp); b.barFg.scale.x = k; b.barFg.position.x = -0.35 * (1 - k); }
       }
     }
     G.events.on('wave:end', () => { for (const a of list) if (a.alive) a.cheer = 1.6; });
-    // co-op guests: the host's soldiers, placed from the snapshot ([x, z, yaw]) and animated walking with the gun up
+    // co-op guests: the host's soldiers, placed from the snapshot ([x, z, yaw, y]) and animated walking with the gun up
     function mirror(rows) {
       rows = rows || [];
       while (list.length < rows.length) list.push({ body: makeBody(list.length), pos: new THREE.Vector3(), vel: new THREE.Vector3() });
       list.forEach((a, i) => {
         const r = rows[i];
         if (!r) { if (a.puppet) { a.alive = false; a.body.root.visible = false; a.body.barBg.visible = false; } return; }
-        if (!a.alive || !a.puppet) { Object.assign(a, { alive: true, puppet: true, dying: 0, hp: ALLY.hp, phase: 0, slot: i, weap: null, kick: BZ.spring(260, 18), flinch: BZ.spring(160, 12) }); a.pos.set(r[0], 0, r[1]); a.yaw = r[2]; a.body.root.visible = true; a.body.root.rotation.x = 0; }
+        if (!a.alive || !a.puppet) { Object.assign(a, { alive: true, puppet: true, dying: 0, hp: ALLY.hp, phase: 0, slot: i, weap: null, kick: BZ.spring(260, 18), flinch: BZ.spring(160, 12) }); a.pos.set(r[0], r[3] || 0, r[1]); a.yaw = r[2]; a.body.root.visible = true; a.body.root.rotation.x = 0; }
         a.net = r;
       });
     }
@@ -273,13 +299,13 @@
       for (const a of list) {
         if (!a.alive || !a.puppet || !a.net) continue;
         const b = a.body; const bx = a.pos.x; const bz = a.pos.z;
-        a.pos.x = BZ.damp(a.pos.x, a.net[0], 12, dt); a.pos.z = BZ.damp(a.pos.z, a.net[1], 12, dt);
+        a.pos.x = BZ.damp(a.pos.x, a.net[0], 12, dt); a.pos.z = BZ.damp(a.pos.z, a.net[1], 12, dt); a.pos.y = BZ.damp(a.pos.y, a.net[3] || 0, 14, dt);
         a.yaw += BZ.wrapAngle(a.net[2] - a.yaw) * Math.min(1, dt * 12);
         const sp = Math.hypot(a.pos.x - bx, a.pos.z - bz) / Math.max(dt, 1e-3);
         a.phase += dt * sp * 2.6; const sw = Math.sin(a.phase) * Math.min(1, sp / 2) * 0.75;
         b.legL.rotation.x = sw; b.legR.rotation.x = -sw; b.hips.position.y = 0.75 + Math.abs(Math.cos(a.phase)) * 0.05 * Math.min(1, sp / 1.5);
         b.chest.rotation.set(Math.min(1, sp / 5) * 0.15, 0, 0); b.armR.rotation.set(-1.42, -0.18, 0); b.armL.rotation.set(-1.28, 0.5, 0); b.mount.rotation.set(0, 0, 0);
-        b.root.position.set(a.pos.x, 0, a.pos.z); b.root.rotation.y = a.yaw; b.barBg.visible = false;
+        b.root.position.set(a.pos.x, a.pos.y, a.pos.z); b.root.rotation.y = a.yaw; b.barBg.visible = false;
       }
     }
     function clear() { for (const a of list) { a.alive = false; a.dying = 0; a.fetch = null; a.pendingHit = null; equip(a, null); a.body.root.visible = false; a.body.barBg.visible = false; } }

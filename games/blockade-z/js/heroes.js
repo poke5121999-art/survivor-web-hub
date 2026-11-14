@@ -1606,9 +1606,17 @@
     const starMat = new THREE.MeshBasicMaterial({ color: 0xd8c8ff });
     function starMesh() { const m = new THREE.Mesh(starGeo, starMat); m.rotation.x = 0.3; G.scene.add(m); return m; }
     let mineId = 0;
+    // a thing set down on a floor (a mine, the big gun) falls when that floor breaks, and lands with dust on whatever is below
+    function dropWith(q, obj, dt) {
+      const p = q.pos; if (!(p.y > 0.05) && !q.vy) return; q.supT = (q.supT || 0) - dt;
+      if (!q.vy) { if (q.supT > 0) return; q.supT = 0.15; if (G.fx.floorY(p.x, p.y + 0.3, p.z) >= p.y - 0.12) return; q.vy = -0.01; }
+      q.vy -= 22 * dt; p.y += q.vy * dt; const fy = G.fx.floorY(p.x, p.y + 0.3, p.z);
+      if (p.y <= fy) { p.y = fy; q.vy = 0; for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; G.fx.puff(V().set(p.x, fy + 0.1, p.z), { vel: V().set(Math.cos(a) * 2, 0.4, Math.sin(a) * 2), drag: 4, s0: 0.25, s1: 0.9, life: 0.5, c0: 0xd8d0c0, c1: 0xa8a090, a0: 0.6 }); } G.audio.playAt('impact', p, { gain: 0.6, rate: 0.8 }); }
+      obj.position.y = p.y;
+    }
     function updateMines(dt) {
       for (let i = H.mines.length - 1; i >= 0; i--) {
-        const q = H.mines[i]; q.t += dt; q.light.material.color.setHex(q.t > 0.6 && Math.sin(q.t * 12) > 0 ? 0xff2a20 : 0x401010);
+        const q = H.mines[i]; q.t += dt; dropWith(q, q.m, dt); q.light.material.color.setHex(q.t > 0.6 && Math.sin(q.t * 12) > 0 ? 0xff2a20 : 0x401010);
         if (!mine(q.a)) { if (q.t > q.life + 2) { G.scene.remove(q.m); H.mines.splice(i, 1); } continue; }
         const trig = q.t > 0.6 && G.zombies.list.some((z) => z.alive && Math.hypot(z.pos.x - q.pos.x, z.pos.z - q.pos.z) < 2.2 && Math.abs(z.pos.y - q.pos.y) < 2);
         if (trig || q.t > q.life) {
@@ -1621,7 +1629,7 @@
     ABIL.mine.aim = ((f) => () => { const a = f(); a.id = me() + ':' + (++mineId); return a; })(ABIL.mine.aim);
     function updateCannons(dt) {
       for (let i = H.cannons.length - 1; i >= 0; i--) {
-        const c = H.cannons[i]; c.t += dt; const s = Math.min(1, c.t / 0.35); c.m.root.scale.setScalar(s < 1 ? s * (1.15 - 0.15 * s) : 1);
+        const c = H.cannons[i]; c.t += dt; dropWith(c, c.m.root, dt); const s = Math.min(1, c.t / 0.35); c.m.root.scale.setScalar(s < 1 ? s * (1.15 - 0.15 * s) : 1);
         if (c.t > c.life) { G.fx.burst(c.pos.clone().setY(c.pos.y + 1), 26, [0x8a8478, 0xffb020], { speed: 4, size: 0.14, life: 0.8 }); G.scene.remove(c.m.root); H.cannons.splice(i, 1); continue; }
         const muzzle = V().set(c.pos.x, c.pos.y + 1.4, c.pos.z);
         let best = null; let bd = 38;

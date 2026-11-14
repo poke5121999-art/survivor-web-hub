@@ -109,25 +109,29 @@
       const P = at || G.player;
       const f = new THREE.Vector3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
       let pos = null;
+      // it stands on whatever floor is under the spot: the street, a roof, a balcony, an upper storey (the first free spot on the
+      // placer's own level wins; a spot that would drop it more than a storey is passed over)
+      const y0 = P.pos.y || 0; const under = (x, z) => G.fx.floorY(x, y0 + 0.7, z);
       for (const dist of [2, 1.4, 2.8, 0.9]) {
-        const c = P.pos.clone().addScaledVector(f, dist); c.y = 0;
-        if (!G.world.overlaps([c.x - 0.5, 0.01, c.z - 0.5], [c.x + 0.5, 1.4, c.z + 0.5])) { pos = c; break; }
+        const c = P.pos.clone().addScaledVector(f, dist); c.y = under(c.x, c.z);
+        if (Math.abs(c.y - y0) > 1.3) continue;
+        if (!G.world.overlaps([c.x - 0.5, c.y + 0.05, c.z - 0.5], [c.x + 0.5, c.y + 1.4, c.z + 0.5])) { pos = c; break; }
       }
-      if (!pos) pos = new THREE.Vector3(P.pos.x, 0, P.pos.z);
+      if (!pos) pos = new THREE.Vector3(P.pos.x, under(P.pos.x, P.pos.z), P.pos.z);
       const t = turretParts();
       t.root.position.copy(pos); scene.add(t.root);
       // drops in from a squash: stretches up with a spark ring, then settles (update() runs the scale)
       t.root.scale.set(1.3, 0.05, 1.3);
-      G.fx.burst(pos.clone().setY(0.3), 22, [0xffb020, 0xffffff, 0x8d97a3], { speed: 5, size: 0.09, life: 0.6, grav: 6 });
-      G.fx.puff(pos.clone().setY(0.5), { glow: true, s0: 0.8, s1: 3.2, life: 0.35, c0: 0xffffff, c1: 0x60c8ff, a0: 1, spin: 0 });
+      G.fx.burst(pos.clone().setY(pos.y + 0.3), 22, [0xffb020, 0xffffff, 0x8d97a3], { speed: 5, size: 0.09, life: 0.6, grav: 6 });
+      G.fx.puff(pos.clone().setY(pos.y + 0.5), { glow: true, s0: 0.8, s1: 3.2, life: 0.35, c0: 0xffffff, c1: 0x60c8ff, a0: 1, spin: 0 });
       const bar = new THREE.Mesh(BAR, new THREE.MeshBasicMaterial({ color: 0x3a9ad8, depthWrite: false, transparent: true, opacity: 0.8 })); scene.add(bar);
-      turrets.push({ ...t, born: 0, pos, ammo: TURRET.ammo, cool: 0, seekT: 0, target: null, yaw: P.yaw, flashT: 0, bar });
+      turrets.push({ ...t, born: 0, pos, vy: 0, fallY: null, supT: 0, ammo: TURRET.ammo, cool: 0, seekT: 0, target: null, yaw: P.yaw, flashT: 0, bar });
       G.audio.play('buy', { gain: 0.6 });
       return true;
     }
     function removeTurret(i) {
       const t = turrets[i];
-      G.fx.burst(t.pos.clone().setY(1), 14, [0x2a2e35, 0x8d97a3, 0xf08a24], { size: 0.12 });
+      G.fx.burst(t.pos.clone().setY(t.pos.y + 1), 14, [0x2a2e35, 0x8d97a3, 0xf08a24], { size: 0.12 });
       G.audio.playAt('impact', t.pos, { gain: 0.8 });
       scene.remove(t.root); scene.remove(t.bar); turrets.splice(i, 1);
     }
@@ -138,8 +142,23 @@
       for (let i = turrets.length - 1; i >= 0; i--) {
         const t = turrets[i];
         if (t.born < 0.45) { t.born += dt; const k = Math.min(1, t.born / 0.4); const e = k < 1 ? 1 - Math.pow(1 - k, 3) * Math.cos(k * 9) : 1; t.root.scale.set(1 + (1 - e) * 0.3, Math.max(0.05, e), 1 + (1 - e) * 0.3); if (t.born < dt * 3 + 0.2 && G.rng.chance(0.5)) G.fx.burst(t.pos.clone().setY(0.4 + k), 3, [0xffb020, 0xffffff], { speed: 2.5, size: 0.06, life: 0.3, grav: 6 }); if (k >= 1) t.root.scale.set(1, 1, 1); }
+        // what holds it up: when the floor under it breaks it falls, and the landing costs it rounds (a long drop wrecks it)
+        t.supT -= dt;
+        if (t.fallY === null && t.pos.y > 0.05 && t.supT <= 0) { t.supT = 0.12; if (G.fx.floorY(t.pos.x, t.pos.y + 0.3, t.pos.z) < t.pos.y - 0.12) { t.fallY = t.pos.y; t.vy = 0; } }
+        if (t.fallY !== null) {
+          t.vy -= 22 * dt; t.pos.y += t.vy * dt; const fy = G.fx.floorY(t.pos.x, t.pos.y + 0.3, t.pos.z);
+          t.root.rotation.z = Math.sin(t.pos.y * 3) * 0.12; t.root.rotation.x = Math.cos(t.pos.y * 2.3) * 0.1;
+          if (t.pos.y <= fy + 0.001 && t.vy < 0) {
+            const h = t.fallY - fy; t.pos.y = fy; t.fallY = null; t.vy = 0; t.root.rotation.set(0, 0, 0); t.supT = 0;
+            for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; G.fx.puff(t.pos.clone().setY(fy + 0.12), { vel: new THREE.Vector3(Math.cos(a) * 3, 0.5, Math.sin(a) * 3), drag: 4, s0: 0.35, s1: 1.3, life: 0.7, c0: 0xd8d0c0, c1: 0xa8a090, a0: 0.7 }); }
+            G.fx.burst(t.pos.clone().setY(fy + 0.3), 10, [0xffb020, 0x8d97a3, 0x2a2e35], { speed: 4, size: 0.08, life: 0.6 }); G.audio.playAt('impact', t.pos, { gain: 1, rate: 0.7 });
+            if (h > 1.2) t.ammo -= Math.round(TURRET.ammo * Math.min(1, (h - 1) / 8)); t.lastFall = h;
+            if (t.ammo <= 0) { removeTurret(i); continue; }
+          }
+          t.root.position.copy(t.pos); t.bar.position.set(t.pos.x, t.pos.y + 1.75, t.pos.z); t.bar.quaternion.copy(G.camera.quaternion); continue;
+        }
         t.seekT -= dt;
-        eye.set(t.pos.x, 1.05, t.pos.z);
+        eye.set(t.pos.x, t.pos.y + 1.05, t.pos.z);
         if (t.seekT <= 0 || (t.target && !t.target.alive)) {
           t.seekT = 0.25; t.target = null; let bd = TURRET.range;
           for (const z of G.zombies.list) {
@@ -152,7 +171,7 @@
         if (z) {
           const want = Math.atan2(-(z.pos.x - t.pos.x), -(z.pos.z - t.pos.z));
           t.yaw += BZ.wrapAngle(want - t.yaw) * Math.min(1, dt * 12);
-          const dy = z.pos.y + 1.1 * z.T.scale - 1.05; const dh = Math.hypot(z.pos.x - t.pos.x, z.pos.z - t.pos.z);
+          const dy = z.pos.y + 1.1 * z.T.scale - (t.pos.y + 1.05); const dh = Math.hypot(z.pos.x - t.pos.x, z.pos.z - t.pos.z);
           t.head.rotation.x = BZ.damp(t.head.rotation.x, Math.atan2(dy, dh), 10, dt);
           t.cool -= dt;
           if (t.cool <= 0 && Math.abs(BZ.wrapAngle(want - t.yaw)) < 0.2) {
@@ -173,7 +192,7 @@
           }
         } else t.yaw += dt * 0.6;
         t.head.rotation.y = t.yaw; t.head.position.z = BZ.damp(t.head.position.z, 0, 18, dt);
-        t.bar.position.set(t.pos.x, 1.75, t.pos.z); t.bar.quaternion.copy(G.camera.quaternion);
+        t.bar.position.set(t.pos.x, t.pos.y + 1.75, t.pos.z); t.bar.quaternion.copy(G.camera.quaternion);
         const k = Math.max(0.001, t.ammo / TURRET.ammo); t.bar.scale.x = k;
         if (t.ammo <= 0) removeTurret(i);
       }

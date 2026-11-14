@@ -250,7 +250,7 @@ BZ.makeCoop = (G) => {
     C.sendT -= dt; if (C.sendT > 0) return; C.sendT = 1 / RATE;
     const pl = [['h', nameOf(), G.hero.id, ...myPose()]];
     for (const p of C.peers.values()) { const a = avatars.get(p.pid); if (a && a.init) pl.push([p.pid, p.name, p.hero, +a.tgt.x.toFixed(2), +a.tgt.y.toFixed(2), +a.tgt.z.toFixed(2), +a.tyaw.toFixed(2), +a.pitch.toFixed(2), G.weapons.ORDER.indexOf(a.weapon), a.shots, (a.alive ? 1 : 0) | ((a.flags || 0) & 14), a.hp]); }
-    const al = G.allies.list.filter((q) => q.alive).map((q) => [+q.pos.x.toFixed(2), +q.pos.z.toFixed(2), +q.yaw.toFixed(2)]);
+    const al = G.allies.list.filter((q) => q.alive).map((q) => [+q.pos.x.toFixed(2), +q.pos.z.toFixed(2), +q.yaw.toFixed(2), +q.pos.y.toFixed(2)]); // (the height last: older rows had three)
     const ev = C.events.splice(0);
     const msg = { t: 's', z: G.zombies.snapshot(), pl, al, wv: [G.wave.n, G.wave.phase, G.wave.remaining(), G.wave.waiting()], sky: [+G.sky.S.t.toFixed(4), G.sky.weather()], ev };
     for (const [id, p] of C.peers) { if (!p.ready) continue; const mine = { ...msg, ev: ev.filter((e) => e.skip !== p.pid) }; send(id, mine); }
