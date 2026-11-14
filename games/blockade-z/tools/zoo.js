@@ -117,6 +117,12 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     console.log('body', JSON.stringify(body));
     check(body.knee > 0.3 && body.elbow < -0.3, `a walking zombie bends its knees and elbows (knee up to ${body.knee} rad, elbow ${body.elbow})`);
     check(body.headMats === 2, `the head draws in two calls (${body.headMats} materials)`);
+    // a spider is cheap to draw (they come in swarms): its eight legs are two instanced meshes, and they follow the leg bones
+    { const sp = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); __sim(0.1); const P = G.player; const z = G.zombies.spawn('spider', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(P.pos.x - Math.sin(P.yaw) * 5, 0, P.pos.z - Math.cos(P.yaw) * 5); z.speed = 0; z.cd = 99; __sim(0.2);
+        const X = z.body.x; let draws = 0; X.spider.traverseVisible((o) => { if (o.isMesh) draws += Array.isArray(o.material) ? o.geometry.groups.length : 1; });
+        const m = new G.THREE.Matrix4(); const p = new G.THREE.Vector3(); let off = 0; X.legs.forEach((l, k) => { X.legU.getMatrixAt(k, m); p.setFromMatrixPosition(m); off = Math.max(off, p.distanceTo(l.hip.position)); });
+        const n0 = G.fx.debug().gibs; G.zombies.kill(z, 'body', new G.THREE.Vector3(0, 0, 1), {}); __sim(0.1); const r = { draws, legs: X.legU.count + X.legL.count, off: +off.toFixed(3), gibs: G.fx.debug().gibs - n0 }; G.zombies.clear(); return r; })()`);
+      check(sp.draws <= 10 && sp.legs === 16 && sp.off < 0.01 && sp.gibs >= 16, `a spider draws in ${sp.draws} calls, its ${sp.legs} leg bones as two instanced meshes that sit on the hips (off by ${sp.off}); it still bursts into ${sp.gibs} pieces`); }
     check(body.pieceMeshes === 2 && body.crawl, `a severed leg flies off with its shin (${body.pieceMeshes} meshes in the piece) and the zombie crawls`);
     // a real late wave: the specials and elites come through the gates on their own
     const late = await page.evaluate(`(() => { const G = __G; G.god = true; G.zombies.clear(); const seen = new Set(); let elites = 0;

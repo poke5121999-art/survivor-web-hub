@@ -106,6 +106,12 @@
   const ELITE_IDS = Object.keys(BZ.ELITE);
   BZ.eliteChance = (n) => (n < 3 ? 0 : Math.min(0.12, 0.015 * n));
 
+  // a spider's leg bones as instances: the upper bone of a left leg is the right one turned half round
+  const LEG_M = new THREE.Matrix4(); const LEG_FLIP = new THREE.Matrix4().makeRotationY(Math.PI);
+  function legMats(X) {
+    X.legs.forEach((l, k) => { l.hip.updateMatrix(); l.knee.updateMatrix(); LEG_M.copy(l.hip.matrix); if (l.s < 0) LEG_M.multiply(LEG_FLIP); X.legU.setMatrixAt(k, LEG_M); X.legL.setMatrixAt(k, LEG_M.multiplyMatrices(l.hip.matrix, l.knee.matrix)); });
+    X.legU.instanceMatrix.needsUpdate = true; X.legL.instanceMatrix.needsUpdate = true;
+  }
   // ---- extra pieces built once per pooled body, hidden unless the type uses them ----
   const geo = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); return g; };
   const lam = (key, em) => new THREE.MeshLambertMaterial({ map: BZ.tex(key), emissive: em || 0, emissiveMap: em ? BZ.tex(key) : null });
@@ -113,7 +119,7 @@
   const TAIL = geo(0.1, 0.5, 0.1, 0, -0.25, 0);
   const PLATE = geo(0.98, 1.3, 0.08, 0, 0, 0); const CHEST = geo(0.62, 0.52, 0.4, 0, 0.42, 0); const PAD = geo(0.3, 0.16, 0.3, 0, -0.02, 0);
   const HELM = geo(0.58, 0.3, 0.58, 0, 0.38, 0); const VISOR = geo(0.5, 0.06, 0.04, 0, 0.32, 0.29); const HAIR = geo(0.54, 0.7, 0.12, 0, 0.12, -0.27);
-  const CEPH = geo(0.62, 0.38, 0.6, 0, 0, 0); const ABD = geo(0.95, 0.75, 1.05, 0, 0, -0.5); const FANG = geo(0.07, 0.18, 0.07, 0, -0.09, 0);
+  const CEPH = geo(0.62, 0.38, 0.6, 0, 0, 0); const ABD = geo(0.95, 0.75, 1.05, 0, 0, -0.5); CEPH.clearGroups(); CEPH.addGroup(0, 24, 0); CEPH.addGroup(24, 6, 1); CEPH.addGroup(30, 6, 0); // skin, the face on the front, skin: three draws, not six
   const UPPER_R = geo(0.55, 0.09, 0.09, 0.275, 0, 0); const UPPER_L = geo(0.55, 0.09, 0.09, -0.275, 0, 0); const LOWER = geo(0.08, 0.8, 0.08, 0, -0.4, 0);
   const GEM = new THREE.OctahedronGeometry(0.16, 0);
   const EGG = [geo(0.7, 0.5, 0.7, 0, 0.25, 0), geo(0.56, 0.3, 0.56, 0, 0.62, 0), geo(0.36, 0.16, 0.36, 0, 0.85, 0)];
@@ -190,28 +196,33 @@
     add(b.head, HAIR, lam('z_hair'), 'hair');
     // spider: cephalothorax with the face, an abdomen that sways, two fangs, eight legs of two bones each
     const sg = new THREE.Group(); sg.visible = false; b.root.add(sg); X.spider = sg;
-    const ceph = new THREE.Mesh(CEPH, [b.mats.skin, b.mats.skin, b.mats.skin, b.mats.skin, b.mats.face, b.mats.skin]); ceph.position.set(0, 0.5, 0.28); ceph.castShadow = sh; sg.add(ceph);
+    const ceph = new THREE.Mesh(CEPH, [b.mats.skin, b.mats.face]); ceph.position.set(0, 0.5, 0.28); ceph.castShadow = sh; sg.add(ceph);
     const abd = new THREE.Group(); abd.position.set(0, 0.6, 0); sg.add(abd); const am2 = new THREE.Mesh(ABD, b.mats.shirt); am2.castShadow = sh; abd.add(am2);
-    for (const s of [-1, 1]) { const f = new THREE.Mesh(FANG, b.mats.pants); f.position.set(s * 0.12, 0.34, 0.58); sg.add(f); }
     // spider detail: the abdomen tapers to a spinneret and carries a row of spines, the head has a brow, two palps and a cluster of lit eyes
     { garbMat = garbMat || new THREE.MeshLambertMaterial({ map: BZ.tex('z_garb'), vertexColors: true }); garbGlow = garbGlow || new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
       const DK = 0x1c1030, DK2 = 0x2c1a48, GRN = 0x7ad020, PALE = 0xd8d0e0, EYE = 0xff3020;
       const ab = [[-0.36, -0.28, -1.25, 0.36, 0.26, -1.02, DK2], [-0.2, -0.18, -1.42, 0.2, 0.14, -1.25, DK], [-0.07, -0.2, -1.52, 0.07, -0.06, -1.4, PALE], [0.475, -0.12, -0.85, 0.53, 0.0, -0.3, DK], [-0.53, -0.12, -0.85, -0.475, 0.0, -0.3, DK], [-0.3, -0.42, -0.9, 0.3, -0.375, -0.15, DK]];
       for (let i = 0; i < 4; i++) ab.push([-0.05, 0.36, -0.24 - i * 0.22, 0.05, 0.5 - i * 0.02, -0.14 - i * 0.22, GRN, [-0.35, 0, 0]]);
       const am = new THREE.Mesh(garbGeometry('spiderAbd', ab), garbMat); am.castShadow = sh; abd.add(am);
-      const hd = [[-0.27, 0.19, 0.08, 0.27, 0.26, 0.31, DK], [-0.21, -0.2, 0.28, -0.11, -0.06, 0.5, DK2, [0.3, 0, 0]], [0.11, -0.2, 0.28, 0.21, -0.06, 0.5, DK2, [0.3, 0, 0]], [-0.33, -0.05, -0.2, -0.31, 0.12, 0.2, DK2], [0.31, -0.05, -0.2, 0.33, 0.12, 0.2, DK2]];
+      const hd = [[-0.27, 0.19, 0.08, 0.27, 0.26, 0.31, DK], [-0.21, -0.2, 0.28, -0.11, -0.06, 0.5, DK2, [0.3, 0, 0]], [0.11, -0.2, 0.28, 0.21, -0.06, 0.5, DK2, [0.3, 0, 0]], [-0.33, -0.05, -0.2, -0.31, 0.12, 0.2, DK2], [0.31, -0.05, -0.2, 0.33, 0.12, 0.2, DK2],
+        [-0.155, -0.34, 0.265, -0.085, -0.16, 0.335, DK], [0.085, -0.34, 0.265, 0.155, -0.16, 0.335, DK]]; // the last two are the fangs
       const hm = new THREE.Mesh(garbGeometry('spiderHead', hd), garbMat); hm.castShadow = sh; ceph.add(hm);
       const ey = [[-0.2, 0.06], [-0.08, 0.11], [0.08, 0.11], [0.2, 0.06], [-0.13, -0.02], [0.13, -0.02]].map(([x, y]) => [x - 0.03, y - 0.03, 0.3, x + 0.03, y + 0.03, 0.315, EYE]);
       ceph.add(new THREE.Mesh(garbGeometry('spiderEyes', ey), garbGlow)); }
-    const legs = [];
+    // the eight legs are two instanced meshes (all the upper bones, all the lower ones): two draws for a spider instead of sixteen.
+    // The hip and knee groups carry the pose; legMats() copies it into the instances. Each bone also keeps a hidden mesh, which is
+    // what flies off as a gib when the spider bursts.
+    const legs = []; const legU = new THREE.InstancedMesh(UPPER_R, b.mats.pants, 8); const legL = new THREE.InstancedMesh(LOWER, b.mats.pants, 8);
+    for (const im of [legU, legL]) { im.castShadow = sh; im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.4, 0.1), 1.7); sg.add(im); }
     for (const s of [1, -1]) for (let i = 0; i < 4; i++) {
       const hip = new THREE.Group(); hip.position.set(s * 0.28, 0.5, 0.42 - i * 0.2); sg.add(hip);
-      const up = new THREE.Mesh(s > 0 ? UPPER_R : UPPER_L, b.mats.pants); up.castShadow = sh; hip.add(up);
+      const up = new THREE.Mesh(s > 0 ? UPPER_R : UPPER_L, b.mats.pants); up.visible = false; hip.add(up);
       const knee = new THREE.Group(); knee.position.x = s * 0.55; hip.add(knee);
-      const lo = new THREE.Mesh(LOWER, b.mats.pants); lo.castShadow = sh; knee.add(lo);
+      const lo = new THREE.Mesh(LOWER, b.mats.pants); lo.visible = false; knee.add(lo);
       legs.push({ hip, knee, s, i, spread: s * [-0.75, -0.25, 0.2, 0.6][i] });
     }
-    X.ceph = ceph; X.abd = abd; X.legs = legs;
+    X.legU = legU; X.legL = legL;
+    X.ceph = ceph; X.abd = abd; X.legs = legs; legMats(X);
     const eg = new THREE.Group(); eg.visible = false; b.root.add(eg); X.eggG = eg;
     for (const g of EGG) { const m = new THREE.Mesh(g, b.mats.skin); m.castShadow = sh; eg.add(m); }
     X.aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
@@ -471,7 +482,7 @@
       if (T.kind === 'boss2') return B().die(z, dir);
       if (T.rig) {
         const b = z.body; b.root.updateMatrixWorld(true);
-        const meshes = []; (T.rig === 'spider' ? X.spider : X.eggG).traverse((o) => { if (o.isMesh) meshes.push(o); });
+        const meshes = []; (T.rig === 'spider' ? X.spider : X.eggG).traverse((o) => { if (o.isMesh && !o.isInstancedMesh) meshes.push(o); });
         for (const m of meshes) G.fx.gib(m, V().set(G.rng.range(-3, 3), G.rng.range(3, 7), G.rng.range(-3, 3)).addScaledVector(dir, 2));
         const goo = T.rig === 'egg' ? [0xd8d0b0, 0x9aff40, 0x5ac030] : [0x9aff40, 0x3a8a20, 0x2a1a30];
         G.fx.burst(at, T.boss ? 60 : 24, goo, { speed: T.boss ? 9 : 5, size: T.boss ? 0.2 : 0.1, life: 0.9 });
@@ -608,6 +619,7 @@
         l.hip.rotation.set(0, l.spread + (L ? 0 : Math.cos(ph) * 0.25 * run), l.s * (0.6 + lift));
         l.knee.rotation.z = -l.s * (0.3 - (L ? 0.6 : 0) + lift * 0.4);
       }
+      legMats(X);
       X.spider.position.y = (L ? 0.1 : 0) + Math.abs(Math.sin(g)) * 0.03 * run;
       X.abd.rotation.x = 0.15 + Math.sin(z.bob * 2) * 0.05 + (act ? 0.3 : 0);
       X.abd.rotation.y = Math.sin(g * 0.5) * 0.08 * run;

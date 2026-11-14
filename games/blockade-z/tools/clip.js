@@ -3,6 +3,7 @@
 // WARM = seconds of fight simulated before recording starts; EVERY = one sheet tile per that many frames.
 // SETUP = JS run once before the warm-up; STEP = path of a JS file run before every frame instead of the aiming bot (it sees the
 // frame number as __f, counted from -WARM*10 during the warm-up), to film one scripted moment rather than a fight.
+// CAM = "x,y,z,tx,ty,tz[,fov]": film from a fixed camera at x,y,z looking at tx,ty,tz instead of through the player's eyes.
 'use strict';
 const path = require('path');
 const fs = require('fs');
@@ -12,6 +13,7 @@ const PW = process.env.PLAYWRIGHT_PATH || 'playwright-core';
 const OUT = process.argv[2] || '.chk-polish/clip'; fs.mkdirSync(OUT, { recursive: true });
 const SECS = +(process.env.SECS || 6); const FPS = +(process.env.FPS || 20); const WARM = +(process.env.WARM || 8); const EVERY = +(process.env.EVERY || 5);
 const QUERY = process.env.QUERY || 'fp=1&hero=mua&wave=4';
+const CAM = process.env.CAM ? process.env.CAM.split(',').map(Number) : null;
 const STEP = process.env.STEP ? fs.readFileSync(process.env.STEP, 'utf8') : null;
 const BOT = `(() => { const G = __G; const P = G.player; let t = null; let best = 1e9;
   for (const z of G.zombies.list) { if (!z.alive) continue; const d = Math.hypot(z.pos.x - P.pos.x, z.pos.z - P.pos.z); if (d < best) { best = d; t = z; } }
@@ -36,7 +38,10 @@ const BOT = `(() => { const G = __G; const P = G.player; let t = null; let best 
     for (const f of fs.readdirSync(OUT)) if (/^f\d+\.jpg$/.test(f)) fs.unlinkSync(path.join(OUT, f));
     const n = Math.round(SECS * FPS);
     for (let i = 0; i < n; i++) {
-      await drive(i); await page.evaluate(`__sim(${1 / FPS}, ${1 / FPS / 2})`);
+      // the fixed camera: one evaluate plays the frame and leaves the game paused (no tick of its own between frames, no camera
+      // of its own, the hero's body still drawn), so the clip advances by exactly 1/FPS a frame
+      if (CAM) await page.evaluate(`(() => { const G = __G; G.state = 'playing'; window.__f = ${i}; ${STEP || BOT}; __sim(${1 / FPS}, ${1 / FPS / 2}); G.state = 'paused'; const c = G.camera; c.position.set(${CAM[0]}, ${CAM[1]}, ${CAM[2]}); c.fov = ${CAM[6] || 45}; c.updateProjectionMatrix(); c.lookAt(${CAM[3]}, ${CAM[4]}, ${CAM[5]}); c.rotation.reorder('YXZ'); __sim(0); })()`);
+      else { await drive(i); await page.evaluate(`__sim(${1 / FPS}, ${1 / FPS / 2})`); }
       await page.screenshot({ path: path.join(OUT, 'f' + String(i).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 80 });
     }
     console.log('frames ' + n);

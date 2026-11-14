@@ -241,6 +241,10 @@ Tinh anh (`BZ.ELITE`) từ đợt 3, tỉ lệ `1,5% × số đợt` tối đa 1
 
 Co-op: hàng trạng thái của zombie mang thêm cờ 256 khiên, 512 giáp, 1024 cuồng, 2048 đang ra chiêu, và cột thứ 9 là tinh anh. Đạn axit, tơ, vũng nguy hiểm, tiếng thét, nổ băng đi qua sự kiện `zk`. Chậm và trói chân đến máy người vào sau cùng tin nhắn `hurt`.
 
+### Số lần vẽ của nhện
+
+Nhện đi theo bầy nên phải rẻ. Một con vẽ trong 9 draw call (trước là 28): tám chân là hai `InstancedMesh` (mọi đốt trên, mọi đốt dưới), `legMats()` trong `js/zkinds.js` chép tư thế từ các nhóm `hip` / `knee` sang; thân đầu chia 3 nhóm vật liệu thay vì 6; hai răng nanh nằm chung mesh chi tiết đầu. Mỗi đốt chân vẫn giữ một mesh ẩn để văng ra thành mảnh khi nhện nổ. Cảnh đo 30 zombie ở `?q=low`: 527 → 489 draw call (rev `za` là 470). `tools/zoo.js` kiểm số lần vẽ và vị trí chân.
+
 ### Trang phục của bốn boss đời đầu
 
 Khổng Lồ, Kẻ Ném Đá, Bóng Ma và Chúa Dơi dùng thân zombie chung phóng to. Bảng `GARB` trong `js/zkinds.js` cho mỗi con một bộ đồ riêng: Khổng Lồ có giáp vai sắt cắm gai xương, ngà, đai sọ và hàng gai sống lưng; Kẻ Ném Đá đeo gùi đá, tay phải bọc đá; Bóng Ma trùm mũ và áo choàng rách viền sáng xanh; Chúa Dơi đội vương miện, tai dơi lớn, cổ lông. Mỗi bộ là một mesh gộp cho từng xương (`hips`, `head`, `armL`, `armR`) cùng một mesh phần phát sáng, tức thêm tối đa 6 draw call và chỉ trên con boss đó. Thân, hit box và tên xương không đổi.
