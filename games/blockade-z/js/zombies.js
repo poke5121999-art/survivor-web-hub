@@ -20,9 +20,9 @@
     count: (n) => Math.min(12 + 4 * n, 100),
     runnerShare: (n) => (n < 2 ? 0 : Math.min(0.4, 0.08 * (n - 1))),
     bruteShare: (n) => (n < 4 ? 0 : Math.min(0.15, 0.04 * (n - 3))),
-    hpMul: (n) => Math.min(4.5, 1.25 + 0.13 * (n - 1)),
-    dmgMul: (n) => Math.min(1.7, 0.8 + 0.05 * (n - 1)),
-    speedMul: (n) => Math.min(1.45, 1.15 + 0.02 * (n - 1)),
+    hpMul: (n) => Math.min(3.6, 1.0 + 0.1 * (n - 1)),   // máu, kéo theo giáp và khiên (zkinds.js:283); nerf 2026-11-14 từ 1.25 + 0.13n, trần 4.5
+    dmgMul: (n) => Math.min(1.35, 0.65 + 0.04 * (n - 1)),   // nerf 2026-11-14 từ 0.8 + 0.05n, trần 1.7
+    speedMul: (n) => Math.min(1.25, 1.0 + 0.015 * (n - 1)),   // nerf 2026-11-14 từ 1.15 + 0.02n, trần 1.45
     maxAlive: (n) => Math.min(14 + 2 * n, 30),
     flyerShare: (n) => Math.min(0.3, 0.12 + 0.03 * n),
     spawnGap: (n) => Math.max(0.25, 0.7 - 0.04 * n),
