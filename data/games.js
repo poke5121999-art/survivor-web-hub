@@ -985,5 +985,21 @@ window.HUB_GAMES = [
     rev: "20261114e",
     status: "available",
     tags: ["Bắn súng", "Đấu đội 5v5", "Săn trùm"]
+  },
+  {
+    id: "ga-chim",
+    title: "Ga Chìm",
+    tagline: "Bắn súng góc nhìn thứ nhất trong một ga hàng hoá ngập nước giữa bão, dựng toàn bằng code.",
+    desc: "Bão đánh sập điện cả ga, máy móc gác bãi quay sang săn người. Bật lại ba gác ghi dưới làn đạn rồi lên đầu máy rời ga, hoặc giữ bãi trước từng đợt máy ở chế độ thủ thành. Mưa, vũng nước phản chiếu, nắng xuyên khung sắt, súng ướt nước và mọi âm thanh đều sinh ra ngay trong trình duyệt bằng three.js, không tải tệp hình hay tiếng nào.",
+    genre: "hanh-dong",
+    accent: "#ffb347",
+    en: { title: "Ga Chim (Sunken Depot)", tagline: "A first-person shooter in a flooded freight yard during a storm, built entirely from code.", desc: "A storm has knocked out the yard's power and the guard machines now hunt people. Restore three switch cabins under fire, then board the locomotive, or hold the yard against endless waves in Holdout. Rain, reflective puddles, light shafts, a rain-soaked rifle and every sound are generated in the browser with three.js; no image or audio file is downloaded." },
+    thumbnail: "assets/thumbnails/ga-chim.png",
+    // three.js r170 vendored, mọi vật liệu nung trên GPU lúc khởi động. Chụp ảnh: node games/ga-chim/tools/shots.js <out>;
+    // chơi thử tự động: node games/ga-chim/tools/play.js <out>; tư thế súng: tools/poses.js. Ghi chú: games/ga-chim/HANDOFF.md.
+    path: "games/ga-chim/index.html",
+    rev: "20261114a",
+    status: "available",
+    tags: ["Bắn súng", "Góc nhìn thứ nhất", "Không asset", "Máy tính"]
   }
 ];

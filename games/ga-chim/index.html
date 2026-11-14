@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ga Chìm</title>
+<script src="../../js/game-gate.js?v=20261103"></script>
+<link rel="stylesheet" href="css/ui.css?v=20261114b">
+</head>
+<body class="title">
+<canvas id="view"></canvas>
+<div id="boot"><div class="bootTitle">GA CHÌM</div><div id="bootStatus">Đang khởi động…</div></div>
+<pre id="fatal"></pre>
+
+<section id="titleUI">
+  <div class="kicker">TUYẾN HÀNG HOÁ PHÍA BẮC · 19:42</div>
+  <h1>GA CHÌM</h1>
+  <div class="rule"></div>
+  <p class="lede">Bão đánh sập điện cả ga. Máy móc gác bãi đã quay sang săn người. Bật lại ba gác ghi, rồi lên đầu máy rời ga.</p>
+  <div class="row"><button id="btnStart" class="primary">VÀO GA</button></div>
+  <div class="seg"><span>CHẾ ĐỘ</span><button data-mode="mission">NHIỆM VỤ</button><button data-mode="holdout">THỦ THÀNH</button></div>
+  <div class="seg"><span>ĐỘ KHÓ</span><button data-diff="standard">THƯỜNG</button><button data-diff="hard">KHÓ</button><button data-diff="brutal">TÀN KHỐC</button></div>
+  <div class="seg"><span>ĐỒ HOẠ</span><button data-q="low">THẤP</button><button data-q="medium">VỪA</button><button data-q="high">CAO</button></div>
+  <p class="hint" id="modeHint"></p>
+  <p class="hint" id="best"></p>
+  <p class="hint small">Mọi bề mặt, máy móc và âm thanh đều được sinh ra ngay trong trình duyệt. Không tải về một tệp hình hay tiếng nào.</p>
+  <div class="keys">
+    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> đi</div><div><kbd>CHUỘT</kbd> nhìn</div><div><kbd>CHUỘT TRÁI</kbd> bắn</div><div><kbd>CHUỘT PHẢI</kbd> ngắm</div>
+    <div><kbd>R</kbd> nạp đạn</div><div><kbd>E</kbd> tương tác</div><div><kbd>SHIFT</kbd> chạy</div><div><kbd>CTRL</kbd> cúi</div><div><kbd>SPACE</kbd> nhảy</div><div><kbd>ESC</kbd> tạm dừng</div>
+  </div>
+</section>
+
+<section id="hud">
+  <div id="objpanel"><div class="objhead">NHIỆM VỤ</div><div id="objlist"></div></div>
+  <div id="marks"></div>
+  <div id="xhair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmark"></div>
+  <div id="dmgdir"></div>
+  <div id="prompt"></div><div id="holdbar"></div>
+  <div id="msg"></div>
+  <div id="hpbox"><div class="lbl">SỨC KHOẺ</div><div id="hpbar"><div id="hpfill"></div></div></div>
+  <div id="ammobox"><div id="wname">K9 CARBINE</div><div><span id="ammo">30</span><span class="sep">/</span><span id="reserve">150</span></div></div>
+</section>
+
+<section id="pauseUI">
+  <h2>TẠM DỪNG</h2>
+  <div class="row"><button id="btnResume" class="primary">TIẾP TỤC</button></div>
+  <label>Độ nhạy chuột <input id="sens" type="range" min="6" max="60"></label>
+  <label>Âm lượng <input id="vol" type="range" min="0" max="100"></label>
+</section>
+
+<section id="endUI">
+  <h2 id="endTitle"></h2><p id="endSub"></p>
+  <div class="row"><button id="btnRetry" class="primary">CHƠI LẠI</button><button id="btnTitle">VỀ MÀN ĐẦU</button></div>
+</section>
+
+<script type="module" src="js/main.js?v=20261114b"></script>
+</body>
+</html>
