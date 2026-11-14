@@ -20,6 +20,7 @@ Real-time top-down 5v5 mech arena shooter. three.js r160 (vendored), ES modules,
 ## Rules that keep it testable and ready for online play
 
 - `sim.js`, `maps.js`, `bots.js`, `data.js`, `rng.js` never import three.js or touch the DOM. They run in Node.
+- Every playable mech moves as the same circle (`RULES.moveRadius`, `u.moveRadius`), so an opening lets all of them through or none; `u.radius` is the size shots and rams hit. A layout edit must leave `tools/gaps.mjs` with no tight or false opening.
 - All randomness in a match comes from `m.rng`. Same seed and same inputs give the same match.
 - The renderer, audio and HUD only read match state and `m.events`. They never write to it.
 - Angles are radians in the XZ plane, direction = `(cos a, sin a)`. +x is right on screen, +z is toward the camera (down on screen).
@@ -91,6 +92,8 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/relay-live.js` | Three pages over the REAL Unity Relay: join by list and by code, one full co-op match, same score and result everywhere. Run with `DTT_BASE` on the deployed hub |
 | `node tools/net-lag.js [lan,wifi,phone,relay]` | Lag in numbers, per role: input-to-screen time of the guest's own mech, how far behind and how smoothly it sees the others, send rates, bytes per second, frame time. Adds delay, jitter and loss itself, so it measures any build. `NL_GUESTS=4`, `NL_MODE=nha`, `DTT_BASE` for the deployed hub |
 | `node tools/relay-regions.js` | Round trip from this machine to every Unity Relay region, and which one a room gets when none is asked for |
+| `node tools/stuck.mjs` | Bot matches on every layout: share of ticks a mech wants to move and cannot, split into "against an obstacle" and open ground. `STUCK_TAG`, and an env var to point it at another `js/` tree for a before number |
+| `node tools/gaps.mjs` | Every opening of every layout against the movement radius: routes connected, tight openings (under body + 0.5 m) and false ones (look passable, are not), each with the layout rows that form it. Both lists must be empty |
 | `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 
