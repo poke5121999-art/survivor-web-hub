@@ -301,6 +301,27 @@ Co-op: chủ phòng chạy chiêu và tính trúng. Máy khách nhận từng ch
 - **Nhân vật:** bụi toả quanh chân khi rơi nhanh hơn 7 m/s (`js/player.js`); cú nhảy trên không của Bóng là một vòng lộn (`js/tps.js`); phím `T` (hoặc đứng yên 14 giây) ngắm nghía vũ khí ở góc nhìn thứ nhất (`inspectPose` trong `js/weapons.js`), bắn hay chém thì cắt ngay.
 - **Đồ vật:** tháp súng có vòng xoay, hòm đạn, hãm lửa, trống đạn, cảm biến, ăng-ten (`js/gear.js`); xe hơi có gầm, nắp máy, trụ kính, cản, đèn, gương, vè bánh; cột đèn có đế và chụp (`js/world.js`). Tất cả gộp trong Builder sẵn có nên không thêm draw call.
 
+## Ngôn ngữ và cài đặt
+
+- **Bảng chuỗi:** mọi chữ người chơi đọc nằm trong `js/lang-en.js` và `js/lang-vi.js`, mỗi dòng một khoá. Code lấy chữ bằng `BZ.t('khoá', [giá trị])` (giá trị thế vào `{0}`, `{1}`); chữ tĩnh của trang nằm trong `<t-x k="khoá"></t-x>`, còn `title` / `placeholder` / `aria-label` dùng `data-t-title="khoá"`. `js/i18n.js` điền chúng lúc nạp trang.
+- **Mặc định là tiếng Anh.** Lựa chọn lưu ở `localStorage['blockadez.lang']`; `?lang=vi` hoặc `?lang=en` đè lên cho một lần mở. Bảng nhân vật và nâng cấp được dựng lúc nạp module nên đổi ngôn ngữ sẽ tải lại trang.
+- **Thêm một chuỗi:** thêm cùng một khoá vào cả hai bảng rồi gọi `BZ.t`. `tools/strings.js` (không cần trình duyệt) kiểm không còn chữ tiếng Việt ngoài bảng, hai bảng cùng khoá, cùng placeholder, cùng thẻ HTML, và mọi khoá code gọi đều có. Chuỗi tiếng Việt không dấu thì kiểm này không bắt được, phải tự rà.
+- **Các tool test** mở game với `lang=vi` (các so sánh chữ cũ viết bằng tiếng Việt); `tools/ui.js` kiểm phía tiếng Anh.
+- **Popup Settings** (`js/settings.js`): mở từ màn title và màn Tạm dừng, Esc để đóng. Năm tab: Chung, Đồ hoạ, Âm thanh, Điều khiển, Giao diện. Mỗi mục áp ngay, lưu ngay (`BZ.store`), có nút về mặc định riêng; mặc định của tất cả nằm trong `BZ.SETTINGS_DEF` (`js/core.js`).
+- **Đổi phím:** bấm vào hành động rồi bấm phím mới. Một listener ở pha capture, đăng ký ngay khi `js/settings.js` nạp, gửi lại phím người chơi chọn dưới mã phím gốc mà game vẫn nghe (`BZ.KEY_ACTIONS`), và nuốt phím gốc đã bị dời đi. Nhờ vậy không handler nào khác phải biết về việc đổi phím. Hai hành động chung một phím thì bị đánh dấu.
+
+## Hướng của tracer, vệt chém, viên đạn
+
+`tools/dirs.js` đo thay vì nhìn bằng mắt, cho vũ khí riêng của 13 nhân vật, ở ba góc ngắm (ngang, ngửa 45°, cúi 30°) và hai góc nhìn:
+- thân tracer chạy từ đầu nòng tới điểm trúng (thân dựng theo trục +z vì `lookAt()` quay +z của vật về đích), điểm đầu cách đầu nòng dưới 0,3 m ở góc nhìn thứ ba;
+- mũi projectile theo vận tốc (rocket có mũi ở −z), vật dài nằm dọc đường bay;
+- vệt chém quét đúng chiều khai báo trong `PATDIR` (`js/weapons.js`) và giống nhau ở hai góc nhìn; `animHero` đọc chiều đó qua `dsw`;
+- tia lửa va chạm bật về phía người bắn; projectile của kỹ năng bay theo hướng ngắm.
+
+## Đứng trên mái và rơi theo nhà sập
+
+Tháp súng (`js/gear.js`) đặt lên sàn ngay dưới điểm đặt, kể cả mái và sàn tầng; lính thuê (`js/allies.js`) có trọng lực và nhảy lên chỗ người chơi khi người chơi đứng cao hơn một tầng; mìn và khẩu pháo lớn (`js/heroes.js`, `dropWith`) cũng bám sàn. Mặt đỡ vỡ thì tất cả rơi xuống mặt bên dưới: tháp mất đạn theo độ cao, lính mất máu khi rơi quá 3 m. `tools/destruct.js` kiểm cả chuỗi này.
+
 ## Chọn nâng cấp và đường build
 
 - Không có shop, không có tiền. Hết mỗi đợt, mỗi người chơi được chọn 1 trong 3 nâng cấp (`G.build.offer`, ưu tiên ba nhánh khác nhau), bấm thẻ hoặc phím 1, 2, 3. Chọn xong thì vào đợt sau ngay. Trong co-op, đợt sau chỉ bắt đầu khi mọi người đã chọn (khách gửi `picked` lên chủ phòng); nếu một người bỏ máy quá 60 giây thì vẫn đi tiếp.

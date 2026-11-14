@@ -140,6 +140,7 @@
 
     const pops = [];
     function pop(text, cls, world) {
+      if (G.settings.showDmg === false && /^dmg/.test(cls || '')) return;
       const d = document.createElement('div'); d.className = 'pop ' + (cls || ''); d.textContent = text; el.pops.appendChild(d);
       pops.push({ d, t: 0, world: world && world.clone(), y: 0 });
       if (pops.length > 14) { const o = pops.shift(); o.d.remove(); }
@@ -243,14 +244,7 @@
       $('#dead-acc').textContent = s.acc + '%'; $('#dead-best').textContent = s.best.score + BZ.t("ui.22") + s.best.wave + ')';
       $('#dead-record').style.display = s.record ? 'block' : 'none';
     }
-    function settingsSync() {
-      const s = G.settings;
-      for (const [id, key, fmt] of [['#set-sens', 'sens', (x) => x.toFixed(2)], ['#set-vol', 'volume', (x) => Math.round(x * 100) + '%'], ['#set-fov', 'fov', (x) => Math.round(x) + '°']]) {
-        const inp = $(id); inp.value = s[key]; inp.nextElementSibling.textContent = fmt(+s[key]);
-        inp.oninput = () => { s[key] = +inp.value; inp.nextElementSibling.textContent = fmt(+inp.value); G.events.emit('settings', s); };
-      }
-      const q = $('#set-q'); q.value = s.quality; q.onchange = () => { s.quality = q.value; G.events.emit('settings', s); };
-    }
+    function settingsSync() {} // (the sliders moved to the Settings popup, js/settings.js)
     return { kill, announce, show, pickRender, pickWait, pickTick, pop, banner, hit, hurt, stick, update, setDead, settingsSync, selectRender, coopRender, coopStatus };
   };
 })();

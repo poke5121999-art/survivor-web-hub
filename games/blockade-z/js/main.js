@@ -66,7 +66,7 @@
     // ---- sizing and dynamic resolution ----
     let scale = G.quality.scale;
     function resize() {
-      const dpr = Math.min(devicePixelRatio || 1, G.quality.maxDpr) * scale;
+      const dpr = Math.min(devicePixelRatio || 1, G.quality.maxDpr) * scale * BZ.clamp(G.settings.resScale || 1, 0.4, 1);
       renderer.setPixelRatio(dpr);
       renderer.setSize(innerWidth, innerHeight, false);
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -250,7 +250,10 @@
     G.events.on('wave:start', () => { waveSupplies(); squadUp(); turretsUp(); });
     G.events.on('coop:wave', () => waveSupplies());
     G.events.on('settings', (s) => {
-      BZ.store.save(s); G.audio.setVolume(s.volume);
+      BZ.store.save(s); G.audio.setVolume(s.volume); if (G.audio.setMix) G.audio.setMix(s);
+      if (camera.fov !== s.fov && !(G.weapons && G.weapons.S.ads > 0.01)) { camera.fov = s.fov; camera.updateProjectionMatrix(); }
+      sun.castShadow = !!s.shadows && G.quality.shadow > 0; if (G.post) { if (G.post.can === undefined) G.post.can = G.post.on; G.post.on = G.post.can && s.bloom !== false; }
+      if (G.quality.particles0 === undefined) G.quality.particles0 = G.quality.particles; G.quality.particles = G.quality.particles0 * BZ.clamp(s.fxDensity ?? 1, 0.2, 1); resize();
       const q = BZ.pickQuality(s.quality);
       if (q.name !== G.quality.name) { G.quality.scale = q.scale; G.quality.maxDpr = q.maxDpr; scale = q.scale; G.quality.name = q.name; resize(); }
     });
@@ -344,7 +347,7 @@
     window.__select = { open: openSelect, pick: selectPick, go: selectGo, lineup };
     G.events.on('ui:resume', play);
     G.events.on('ui:restart', newGame);
-    G.events.on('ui:settings', () => { G.ui.settingsSync(); G.ui.show('pause'); });
+    G.events.on('ui:settings', () => G.cfg.open());
     addEventListener('keydown', (e) => {
       if (G.state === 'pick' && /^Digit[1-3]$/.test(e.code)) { const id = G.pickOpts[+e.code.slice(5) - 1]; if (id) choose(id); }
       if (e.code === 'KeyP' && G.state === 'playing') pause();
@@ -418,7 +421,10 @@
       window.__stats.draws = renderer.info.render.calls; window.__stats.tris = renderer.info.render.triangles;
     }
     renderer.info.autoReset = false;
-    renderer.setAnimationLoop(() => {
+    let capT = 0;
+    renderer.setAnimationLoop((now) => {
+      // a frame cap (Settings): frames that come sooner than the cap allows are skipped
+      const cap = G.settings.fpsCap; if (cap > 0 && now !== undefined) { if (now - capT < 1000 / cap - 1.5) return; capT = now; }
       const raw = Math.min(clock.getDelta(), 0.1);
       smooth = BZ.lerp(smooth, raw, 0.2);
       const dt = Math.min(smooth, 1 / 20);
@@ -436,6 +442,7 @@
     };
     window.__newGame = newGame;
 
+    G.cfg = BZ.makeSettings(G); G.cfg.apply();
     document.getElementById('boot').classList.add('done');
     G.state = 'title'; G.ui.show('title'); G.audio.setMusic({ music_drone: 0.5, music_perc: 0 });
     window.__ready = true;

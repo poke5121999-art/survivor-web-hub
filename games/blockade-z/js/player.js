@@ -37,9 +37,9 @@
       if (G.state !== 'playing' || BZ.isTouch) return;
       if (document.pointerLockElement !== canvas && !G.noLock) { G.lock(); return; }
       if (e.button === 0) input.fire = true;
-      if (e.button === 2) input.ads = true;
+      if (e.button === 2) input.ads = G.settings.adsToggle ? !input.ads : true; // aim: held, or switched on and off
     });
-    addEventListener('mouseup', (e) => { if (e.button === 0) input.fire = false; if (e.button === 2) input.ads = false; });
+    addEventListener('mouseup', (e) => { if (e.button === 0) input.fire = false; if (e.button === 2 && !G.settings.adsToggle) input.ads = false; });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('mousemove', (e) => {
       if (G.state !== 'playing') return;
@@ -103,8 +103,8 @@
       input.lookX = lookDX; input.lookY = lookDY;
       if (!P.alive) { lookDX = lookDY = 0; input.fire = false; }
 
-      const sens = 0.0022 * s.sens * (1 - G.weapons.S.ads * 0.45);
-      P.yaw -= lookDX * sens; P.pitch = BZ.clamp(P.pitch - lookDY * sens, -1.5, 1.5);
+      const sens = 0.0022 * s.sens * (1 - G.weapons.S.ads * 0.45 * (2 - BZ.clamp(s.adsSens ?? 1, 0.2, 2))); const invY = s.invertY ? -1 : 1;
+      P.yaw -= lookDX * sens; P.pitch = BZ.clamp(P.pitch - lookDY * sens * invY, -1.5, 1.5);
       lookDX = lookDY = 0;
 
       // movement
@@ -183,11 +183,11 @@
       }
 
       // camera
-      const kp = P.kickP.step(dt); const ky = P.kickY.step(dt); const sh = P.shake.step(dt);
+      const kp = P.kickP.step(dt); const ky = P.kickY.step(dt); const sh = P.shake.step(dt); const s2 = G.settings;
       const bobA = Math.min(1, hs / 4) * (P.onGround ? 1 : 0) * (1 - G.weapons.S.ads * 0.8);
       const cam = G.camera;
       cam.position.set(P.pos.x, P.pos.y + MOVE.eye - P.landDip - (P.stepLag || 0) + Math.abs(Math.sin(P.stride * Math.PI)) * 0.045 * bobA * (P.sprinting ? 1.6 : 1), P.pos.z);
-      cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02 - (P.wallK || 0) * 0.14, 'YXZ');
+      cam.rotation.set(P.pitch + kp, P.yaw + ky, Math.sin(P.stride * Math.PI) * 0.006 * bobA + sh * 0.02 * (s2.shake ?? 1) - (P.wallK || 0) * 0.14, 'YXZ');
       if (G.tps) G.tps.place(cam, P, dt);
       // recoil recovery: most of the kick returns, a little stays (like real recoil)
       P.pitch += kp * dt * 0.6;

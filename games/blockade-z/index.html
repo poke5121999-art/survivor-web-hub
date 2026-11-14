@@ -207,6 +207,41 @@ a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-
 #reloadhint.on { display: block; animation: blink .5s steps(2) infinite; }
 #prompt { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); padding: 6px 12px; border: 3px solid #000; background: rgba(28, 22, 16, .85); box-shadow: inset 0 0 0 2px #6a4a20; font: 700 14px var(--mono); color: var(--bone); white-space: nowrap; display: none; }
 #langbtn { position: absolute; right: 16px; bottom: 14px; font: 700 12px var(--mono); color: #e8dcc0; background: rgba(20, 14, 8, .7); border: 2px solid #5a4a30; padding: 6px 10px; cursor: pointer; } #langbtn:hover { border-color: var(--gold); color: #fff; }
+/* ---- Settings popup ---- */
+#settings { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(8, 6, 4, .72); backdrop-filter: blur(3px); padding: 12px; }
+#settings.on { display: flex; animation: setin .18s ease-out; } @keyframes setin { from { opacity: 0; } }
+.set-card { width: min(760px, 100%); max-height: min(92vh, 640px); display: flex; flex-direction: column; background: linear-gradient(#2a2118, #1a140e); border: 3px solid #5a4a30; box-shadow: 0 0 0 3px #000, 0 18px 50px rgba(0, 0, 0, .6); color: #f0e6cc; animation: setcard .22s cubic-bezier(.2, 1.1, .3, 1); }
+@keyframes setcard { from { transform: translateY(14px) scale(.97); } }
+.set-card header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; } .set-card h2 { margin: 0; font: 900 24px/1 var(--f); color: var(--gold); letter-spacing: .04em; text-shadow: 3px 3px 0 #000; }
+.set-x { width: 34px; height: 34px; font: 700 16px var(--mono); color: #f0e6cc; background: #3a2e20; border: 2px solid #5a4a30; cursor: pointer; } .set-x:hover { border-color: var(--gold); }
+.set-card nav { display: flex; gap: 4px; padding: 6px 16px 0; border-bottom: 3px solid #5a4a30; overflow-x: auto; }
+.set-card nav button { font: 700 13px var(--mono); color: #c8b890; background: #241c14; border: 2px solid #5a4a30; border-bottom: 0; padding: 8px 12px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s; }
+.set-card nav button:hover { color: #fff; } .set-card nav button.on { background: var(--gold); color: #1a1208; border-color: var(--gold); }
+.set-body { padding: 8px 16px; overflow-y: auto; flex: 1; min-height: 180px; }
+.set-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) 30px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.set-row label { font: 700 14px var(--mono); } .set-row label small, .set-keys-h small { display: block; font: 400 11px var(--mono); color: #a89878; margin-top: 2px; }
+.set-ctl { display: flex; align-items: center; gap: 8px; min-width: 0; } .set-ctl input[type=range] { flex: 1; min-width: 0; accent-color: var(--gold); } .set-ctl output { font: 700 12px var(--mono); min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+.set-def { width: 28px; height: 28px; font: 700 15px var(--mono); color: #f0e6cc; background: #3a2e20; border: 2px solid #5a4a30; cursor: pointer; } .set-def:disabled { opacity: .25; cursor: default; } .set-def:not(:disabled):hover { border-color: var(--gold); }
+.set-seg { display: flex; flex-wrap: wrap; gap: 3px; } .set-seg button { font: 700 12px var(--mono); color: #c8b890; background: #241c14; border: 2px solid #5a4a30; padding: 5px 9px; cursor: pointer; transition: background .12s; } .set-seg button.on { background: var(--gold); color: #1a1208; border-color: var(--gold); }
+.set-tog { display: flex; align-items: center; gap: 8px; background: none; border: 0; color: #c8b890; font: 700 12px var(--mono); cursor: pointer; padding: 2px; }
+.set-tog i { position: relative; width: 40px; height: 20px; background: #241c14; border: 2px solid #5a4a30; } .set-tog i::after { content: ''; position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; background: #8a7a5a; transition: transform .14s, background .14s; }
+.set-tog.on i { border-color: var(--gold); } .set-tog.on i::after { transform: translateX(20px); background: var(--gold); } .set-tog.on { color: #fff; }
+.set-keys { padding: 10px 0 4px; } .set-keys-h { display: grid; grid-template-columns: 1fr 30px; align-items: center; margin-bottom: 6px; font: 700 14px var(--mono); } .set-keys-h small { grid-column: 1; }  .set-keys-h .set-def { grid-column: 2; grid-row: 1 / span 2; }
+.set-key { display: inline-grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; width: calc(50% - 6px); margin: 2px 3px 2px 0; padding: 4px 6px; background: rgba(0, 0, 0, .22); font: 700 12px var(--mono); vertical-align: top; }
+.set-key button { min-width: 64px; font: 700 12px var(--mono); color: #1a1208; background: #e8dcc0; border: 2px solid #000; border-bottom-width: 4px; padding: 3px 8px; cursor: pointer; } .set-key button.wait { background: var(--gold); animation: setwait .7s steps(2) infinite; } @keyframes setwait { 50% { opacity: .55; } }
+.set-key.clash button { background: #ff9a6a; } .set-key em { grid-column: 1 / -1; font: 400 11px var(--mono); color: #ff9a6a; font-style: normal; }
+.set-card footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 10px 16px 14px; border-top: 3px solid #5a4a30; }
+@media (max-width: 700px), (max-height: 460px) { .set-card { max-height: 96vh; } .set-card h2 { font-size: 18px; } .set-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 28px; padding: 5px 0; } .set-row label small { display: none; } .set-key { width: 100%; } .set-body { min-height: 90px; } .set-card footer { padding: 6px 12px 8px; } .set-card nav button { padding: 6px 9px; } }
+@media (prefers-reduced-motion: reduce) { #settings.on, .set-card { animation: none; } }
+/* ---- what Settings drives ---- */
+#fps { position: fixed; left: 8px; top: 40px; z-index: 30; font: 700 12px var(--mono); color: #b8ff9a; text-shadow: 1px 1px 0 #000; display: none; pointer-events: none; } body.showfps #fps { display: block; }
+#hud { zoom: var(--hud-scale, 1); } #touch { opacity: var(--touch-opacity, 1); } body.touch #touch .tb, body.touch #touch button { zoom: var(--touch-scale, 1); }
+#cross i { background: var(--xhair, #fff); }
+body.xh-dot #cross i:not(:nth-child(5)) { display: none; } body.xh-dot #cross i:nth-child(5) { display: block; width: 5px; height: 5px; left: -2px; top: -2px; border-radius: 50%; }
+body.xh-circle #cross i:not(:nth-child(5)) { display: none; } body.xh-circle #cross i:nth-child(5) { display: block; width: 18px; height: 18px; left: -10px; top: -10px; border-radius: 50%; background: none; border: 2px solid var(--xhair, #fff); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000; }
+body.xh-tee #cross i:nth-child(1) { display: none; }
+/* colour-blind: the reds and greens of the interface become orange and blue */
+body.cb { --red: #ff8a1a; --green: #3aa0ff; } body.cb #hp i, body.cb .hpbar i { filter: hue-rotate(25deg) saturate(1.2); } body.cb .dmg.crit, body.cb #marker.kill::before, body.cb #marker.kill::after { filter: hue-rotate(200deg); }
 #prompt.on { display: block; pointer-events: auto; cursor: pointer; z-index: 12; } body.touch #prompt { top: 56%; padding: 10px 16px; } #prompt b { color: #ffc050; } #prompt kbd { display: inline-block; min-width: 18px; text-align: center; padding: 0 4px; margin-right: 4px; border: 2px solid #000; background: #e6d3ad; color: #000; font: 900 12px/18px var(--mono); }
 @keyframes blink { 50% { opacity: .2; } }
 #pops .pop { position: absolute; transform: translate(-50%, -50%); font: 900 16px var(--mono); color: var(--gold); text-shadow: 2px 2px 0 #000; white-space: nowrap; animation: popin .16s cubic-bezier(.2, 1.5, .4, 1) backwards; will-change: left, top, opacity; }
@@ -387,11 +422,7 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
 <section class="screen" id="pause">
   <div class="card">
     <h2><t-x k="html.41"></t-x></h2>
-    <label><t-x k="html.42"></t-x> <input id="set-sens" type="range" min="0.2" max="3" step="0.05"><span></span></label>
-    <label><t-x k="html.43"></t-x> <input id="set-vol" type="range" min="0" max="1" step="0.05"><span></span></label>
-    <label><t-x k="html.44"></t-x> <input id="set-fov" type="range" min="65" max="100" step="1"><span></span></label>
-    <label><t-x k="html.45"></t-x> <select id="set-q"><option value="auto"><t-x k="html.46"></t-x></option><option value="low"><t-x k="html.47"></t-x></option><option value="medium"><t-x k="html.48"></t-x></option><option value="high">Cao</option></select><span></span></label>
-    <div class="row"><button class="btn" data-act="resume"><t-x k="html.49"></t-x></button><button class="btn ghost" data-act="restart"><t-x k="html.50"></t-x></button><a class="btn ghost" href="../../index.html" style="text-decoration:none"><t-x k="html.51"></t-x></a></div>
+    <div class="row"><button class="btn" data-act="resume"><t-x k="html.49"></t-x></button><button class="btn ghost" data-act="settings"><t-x k="set.pause.settings"></t-x></button><button class="btn ghost" data-act="restart"><t-x k="html.50"></t-x></button><a class="btn ghost" href="../../index.html" style="text-decoration:none"><t-x k="html.51"></t-x></a></div>
   </div>
 </section>
 
@@ -442,45 +473,46 @@ body.touch #coopbar { left: 50%; top: auto; bottom: 4px; transform: translateX(-
   <div class="owned"></div>
 </section>
 
-<script type="module" src="js/boot.js?v=20261113zq"></script>
-<script type="module" src="js/core.js?v=20261113zq"></script>
-<script type="module" src="js/i18n.js?v=20261113zq"></script>
-<script type="module" src="js/lang-vi.js?v=20261113zq"></script>
-<script type="module" src="js/lang-en.js?v=20261113zq"></script>
+<script type="module" src="js/boot.js?v=20261113zr"></script>
+<script type="module" src="js/core.js?v=20261113zr"></script>
+<script type="module" src="js/i18n.js?v=20261113zr"></script>
+<script type="module" src="js/lang-vi.js?v=20261113zr"></script>
+<script type="module" src="js/lang-en.js?v=20261113zr"></script>
 <script type="module">
   // the language switch on the title screen (the full Settings popup has it too)
   const BZ = window.BZ; BZ.applyStatic();
   const b = document.createElement('button'); b.id = 'langbtn'; b.type = 'button'; const other = BZ.LANGS.find((x) => x[0] !== BZ.lang); b.textContent = other[1]; b.title = 'Language';
   b.addEventListener('click', () => BZ.setLang(other[0])); document.getElementById('title').appendChild(b);
 </script>
-<script type="module" src="js/art.js?v=20261113zq"></script>
-<script type="module" src="js/world.js?v=20261113zq"></script>
-<script type="module" src="js/destruct.js?v=20261113zq"></script>
-<script type="module" src="js/audio.js?v=20261113zq"></script>
-<script type="module" src="js/fx.js?v=20261113zq"></script>
-<script type="module" src="js/zombies.js?v=20261113zq"></script>
-<script type="module" src="js/zkinds.js?v=20261113zq"></script>
-<script type="module" src="js/bosses.js?v=20261113zq"></script>
-<script type="module" src="js/boss-dragon.js?v=20261113zq"></script>
-<script type="module" src="js/boss-pharaoh.js?v=20261113zq"></script>
-<script type="module" src="js/boss-vampire.js?v=20261113zq"></script>
-<script type="module" src="js/boss-alien.js?v=20261113zq"></script>
-<script type="module" src="js/boss-ufo.js?v=20261113zq"></script>
-<script type="module" src="js/boss-guardian.js?v=20261113zq"></script>
-<script type="module" src="js/weapons.js?v=20261113zq"></script>
-<script type="module" src="js/allies.js?v=20261113zq"></script>
-<script type="module" src="js/heroes.js?v=20261113zq"></script>
-<script type="module" src="js/castanim.js?v=20261113zq"></script>
-<script type="module" src="js/build.js?v=20261113zq"></script>
-<script type="module" src="js/sky.js?v=20261113zq"></script>
-<script type="module" src="js/coop.js?v=20261113zq"></script>
-<script type="module" src="js/post.js?v=20261113zq"></script>
-<script type="module" src="js/polish.js?v=20261113zq"></script>
-<script type="module" src="js/gear.js?v=20261113zq"></script>
-<script type="module" src="js/player.js?v=20261113zq"></script>
-<script type="module" src="js/tps.js?v=20261113zq"></script>
-<script type="module" src="js/ui.js?v=20261113zq"></script>
-<script type="module" src="js/meta.js?v=20261113zq"></script>
-<script type="module" src="js/main.js?v=20261113zq"></script>
+<script type="module" src="js/art.js?v=20261113zr"></script>
+<script type="module" src="js/world.js?v=20261113zr"></script>
+<script type="module" src="js/destruct.js?v=20261113zr"></script>
+<script type="module" src="js/audio.js?v=20261113zr"></script>
+<script type="module" src="js/fx.js?v=20261113zr"></script>
+<script type="module" src="js/zombies.js?v=20261113zr"></script>
+<script type="module" src="js/zkinds.js?v=20261113zr"></script>
+<script type="module" src="js/bosses.js?v=20261113zr"></script>
+<script type="module" src="js/boss-dragon.js?v=20261113zr"></script>
+<script type="module" src="js/boss-pharaoh.js?v=20261113zr"></script>
+<script type="module" src="js/boss-vampire.js?v=20261113zr"></script>
+<script type="module" src="js/boss-alien.js?v=20261113zr"></script>
+<script type="module" src="js/boss-ufo.js?v=20261113zr"></script>
+<script type="module" src="js/boss-guardian.js?v=20261113zr"></script>
+<script type="module" src="js/weapons.js?v=20261113zr"></script>
+<script type="module" src="js/allies.js?v=20261113zr"></script>
+<script type="module" src="js/heroes.js?v=20261113zr"></script>
+<script type="module" src="js/castanim.js?v=20261113zr"></script>
+<script type="module" src="js/build.js?v=20261113zr"></script>
+<script type="module" src="js/sky.js?v=20261113zr"></script>
+<script type="module" src="js/coop.js?v=20261113zr"></script>
+<script type="module" src="js/post.js?v=20261113zr"></script>
+<script type="module" src="js/polish.js?v=20261113zr"></script>
+<script type="module" src="js/gear.js?v=20261113zr"></script>
+<script type="module" src="js/player.js?v=20261113zr"></script>
+<script type="module" src="js/tps.js?v=20261113zr"></script>
+<script type="module" src="js/ui.js?v=20261113zr"></script>
+<script type="module" src="js/settings.js?v=20261113zr"></script>
+<script type="module" src="js/meta.js?v=20261113zr"></script>
+<script type="module" src="js/main.js?v=20261113zr"></script>
 </body>
 </html>

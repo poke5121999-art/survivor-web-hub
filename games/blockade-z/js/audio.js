@@ -415,6 +415,8 @@
       play, playAt, duck,
       unlock() { if (ctx.state !== 'running') ctx.resume().catch(() => {}); },
       setVolume(v) { master.gain.setTargetAtTime(v, ctx.currentTime, 0.05); },
+      // the groups of Settings: music; effects (guns, the world, the ambience); voice and notices (the interface bus)
+      setMix(s) { const set = (n, base, k) => bus[n].gain.setTargetAtTime(base * BZ.clamp(k ?? 1, 0, 1), ctx.currentTime, 0.05); set('music', 0.42, s.music); set('gun', 0.9, s.sfx); set('world', 0.85, s.sfx); set('amb', 0.35, s.sfx); set('ui', 0.6, s.voice); },
       setMusic(mix) { musicMix = { ...musicMix, ...mix }; applyMusic(); },
       debug: () => ({ state: ctx.state, ready: Object.keys(bufs).length, queued: queue.length }),
     };

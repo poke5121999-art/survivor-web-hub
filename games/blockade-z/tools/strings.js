@@ -53,7 +53,13 @@ const viInEn = ke.filter((k) => VI.test(en[k]));
 check(viInEn.length === 0, `no Vietnamese left in the English table${viInEn.length ? ': ' + viInEn.slice(0, 8).join(', ') : ''}`);
 const empty = ke.filter((k) => typeof en[k] !== 'string' || (!en[k].length && vi[k].length));
 check(empty.length === 0, `no English entry is empty${empty.length ? ': ' + empty.slice(0, 8).join(', ') : ''}`);
-const unknown = [...used].filter((k) => !(k in vi));
+// the Settings popup builds its keys: T('x') is 'set.x', and the option, hint, tab and key names come from its own lists
+{ const src = noComments(fs.readFileSync(path.join(ROOT, 'js', 'settings.js'), 'utf8')); for (const m of src.matchAll(/\bT\('([^']+)'/g)) if (!/\.$/.test(m[1])) used.add('set.' + m[1]); for (const m of src.matchAll(/\bT\(\w+ \? '(\w+)' : '(\w+)'\)/g)) { used.add('set.' + m[1]); used.add('set.' + m[2]); }
+  const ids = [...src.matchAll(/\['(\w+)', '(?:range|toggle|select|lang|keys)'/g)].map((m) => m[1]); for (const id of ids) { used.add('set.o.' + id); used.add('set.h.' + id); }
+  for (const m of src.matchAll(/\['[\w]+', '((?:view|q|fps|xh|col)\.[\w]+)'\]|\[\d+, '(fps\.[\w]+)'\]/g)) used.add('set.' + (m[1] || m[2]));
+  for (const m of src.matchAll(/^\s*\['(general|graphics|audio|controls|interface)', \[/gm)) used.add('set.tab.' + m[1]);
+  const acts = src.slice(src.indexOf('BZ.KEY_ACTIONS = '), src.indexOf('const XCOL')); for (const m of acts.matchAll(/\['(\w+)', '\w+'\]/g)) used.add('set.key.' + m[1]); }
+const unknown = [...used].filter((k) => !(k in vi) && !/\.$/.test(k));
 check(unknown.length === 0 && used.size > 100, `every key the code asks for (${used.size}) is in the table${unknown.length ? '; unknown: ' + unknown.slice(0, 8).join(', ') : ''}`);
 const unused = kv.filter((k) => !used.has(k));
 check(unused.length === 0, `no key in the table is unused${unused.length ? ' (' + unused.length + '): ' + unused.slice(0, 8).join(', ') : ''}`);

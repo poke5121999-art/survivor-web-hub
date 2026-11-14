@@ -77,11 +77,17 @@ BZ.QUALITY = {
   high: { name: 'high', scale: 1, maxDpr: 2, shadow: 2048, particles: 1, far: 120 },
 };
 
+// every setting and what it starts as (js/settings.js draws the popup and applies them)
+BZ.SETTINGS_DEF = { view: 'fp', showDmg: true, showFps: false,
+  quality: 'auto', resScale: 1, fpsCap: 0, shadows: true, bloom: true, shake: 1, fxDensity: 1, fov: 78,
+  volume: 0.8, music: 1, sfx: 1, voice: 1, muteBlur: true,
+  sens: 1, adsSens: 1, invertY: false, adsToggle: false, keys: {},
+  hudScale: 1, xhair: 'cross', xhairColor: 'white', touchOpacity: 1, touchScale: 1, colorBlind: false };
 const SETTINGS_KEY = 'blockadez.settings.v1';
 const BEST_KEY = 'blockadez.best.v1';
 BZ.store = {
   load() {
-    const def = { quality: 'auto', sens: 1, volume: 0.8, fov: 78 };
+    const def = { ...BZ.SETTINGS_DEF };
     try { return { ...def, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch { return def; }
   },
   save(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {} },
