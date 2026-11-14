@@ -14,7 +14,7 @@ Real-time top-down 5v5 mech arena shooter. three.js r160 (vendored), ES modules,
 | `js/gfx/*.js` | Renderer: textures, world, mechs, effects, post chain |
 | `js/audio.js` | Synthesised sound and music |
 | `js/ui.js`, `js/input.js`, `js/keys.js`, `js/meta.js`, `css/ui.css` | HUD, menus, garage, lobby, input devices (keyboard, mouse, touch, gamepad), key bindings, save data |
-| `js/net/`, `js/netstate.js`, `js/online.js` | Online play: Unity Relay rooms (copied from Blockade Z, tag `dauthep`), snapshots and mirror match, lobby and host/guest state machine |
+| `js/net/`, `js/netstate.js`, `js/predict.js`, `js/online.js` | Online play: Unity Relay rooms (copied from Blockade Z, tag `dauthep`) and region choice, wire format and mirror match, prediction of the guest's own mech, lobby and host/guest state machine |
 | `tools/` | Node and Playwright checks |
 
 ## Rules that keep it testable and ready for online play
@@ -55,7 +55,12 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 - Modes are rows in `MODES` (`tdm`, `nha`, `chiem`, `tudo`, `trum`); `createMatch({ mode })`. `nha` adds `m.towers`, `chiem` adds `m.points`, `trum` adds `m.lives` and a `BOSSES` unit, `tudo` gives every unit its own team. `u.color` (0 or 1) is the palette index the renderer and HUD use.
 - Layouts come in two pools: arenas (`MAP_ORDER`) for every mode except `nha`, and base-assault layouts (`NHA_ORDER`: `luythep`, `hemcheo`) built around their towers for `nha`. `mapsFor(mode)` is the pool, `fitMap(map, mode)` keeps a choice inside it, and `createMatch` falls back to the pool's first layout when given one from the other pool. A base-assault layout lists its own `towers` and the `yard` they stand in; walls of kind `rampart` enclose the yard. Keep a wall to wait behind near the ring just outside each sub tower's range: without it bot sieges stall (`sim-test` 29z11).
 - A theme (`THEMES` in `maps.js`) dresses any layout and decides what the layout's hazard spots are (`lava`, `ice`, `vent`, `mud`). `createMatch({ map, theme })`; `pickArena(map, theme, seed, mode)` resolves `'random'` inside the mode's pool.
-- Online is host-authoritative: the host steps the real match, guests send inputs and render a mirror match built by `createMirror` and updated by `applySnapshot` (15 Hz, events in between). `?fakenet=1` swaps the relay for a BroadcastChannel.
+- Online is host-authoritative: the host steps the real match, guests send inputs and render a mirror match built by `createMirror` and updated by `applySnapshot`. `?fakenet=1` swaps the relay for a BroadcastChannel.
+  - Wire: snapshots (every tick, 30 Hz) and inputs are binary (`encodeSnap`, `encodeInputPacket` in `netstate.js`); lobby and control messages are JSON. Scoreboard numbers and the broken-prop mask ride on every 10th snapshot. Event batches ride on snapshots and are sent again only when no ack came back within a round trip.
+  - The guest's own mech is predicted (`predict.js`): each local tick runs the same `walk()` the host runs, the host answers with the number of the last input it applied, and the guest replays the later ones from the host's position. Dashes, knock-backs and respawns arrive as corrections that the picture glides over.
+  - Everyone else is drawn in the past by one snapshot interval plus the measured arrival jitter (`drawTime` in `online.js`), interpolated between two snapshots.
+  - The host runs one input per guest per tick, in order, from a small queue that also absorbs jitter (`nextInput`).
+  - A room is hosted in the Relay region with the shortest round trip from the host (`net/region.js`, cached for a day). Without it Unity answered `us-central1` for a host in Vietnam.
 
 ## Shared state `G` (browser)
 
@@ -80,10 +85,12 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/play.js` | The real page in headless Chrome: full bot matches at every quality tier, scripted player input, HUD, result screen, saved rewards, menu, keyboard and mouse, phone layout |
 | `node tools/audio.js` | Every synthesised sound and music stem: no NaN, no clipping, levels, event coverage |
 | `node tools/ui-shots.js` | HUD, menu, garage, lobby, key binding, gamepad and chat screens in a harness at desktop and phone sizes (about 5 minutes) |
-| `node tools/netstate-test.mjs` | Snapshot → mirror equals the real match in every mode; events replay in order; snapshot size |
+| `node tools/netstate-test.mjs` | Snapshot → bytes → mirror equals the real match in every mode; events replay in order; packet size; the guest's predicted mech lands where the host puts it, with and without delay |
 | `node tools/online-test.js` | Host and two guests in a harness over `?fakenet=1`: lobby, start, inputs, leave, chat |
 | `node tools/lobby-test.js` | Two real game pages over `?fakenet=1`: create, join by code, pick, start, play, result, back to the room |
 | `node tools/relay-live.js` | Three pages over the REAL Unity Relay: join by list and by code, one full co-op match, same score and result everywhere. Run with `DTT_BASE` on the deployed hub |
+| `node tools/net-lag.js [lan,wifi,phone,relay]` | Lag in numbers, per role: input-to-screen time of the guest's own mech, how far behind and how smoothly it sees the others, send rates, bytes per second, frame time. Adds delay, jitter and loss itself, so it measures any build. `NL_GUESTS=4`, `NL_MODE=nha`, `DTT_BASE` for the deployed hub |
+| `node tools/relay-regions.js` | Round trip from this machine to every Unity Relay region, and which one a room gets when none is asked for |
 | `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 

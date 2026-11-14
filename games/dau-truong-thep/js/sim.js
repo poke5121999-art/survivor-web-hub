@@ -209,6 +209,24 @@ export function unitSpeed(u) {
   return s;
 }
 
+export function gripAt(map, x, z) {
+  for (const h of map.hazards) if (h.kind === 'ice' && dist2(x, z, h.x, h.z) <= h.r * h.r) return RULES.ice.grip;
+  return 14;
+}
+
+// One tick of driving: steer the velocity toward the stick, move, slide along what is solid. A guest runs this same
+// function on its own mech between snapshots (predict.js), so the host and the guest agree on where a stick input leads.
+export function walk(m, u, inp, grip) {
+  const sp = u.stunT > 0 ? 0 : unitSpeed(u);
+  let mx = inp.mx, mz = inp.mz;
+  const len = Math.hypot(mx, mz);
+  if (len > 1) { mx /= len; mz /= len; }
+  const k = Math.min(1, grip * TICK);
+  u.vx += (mx * sp - u.vx) * k; u.vz += (mz * sp - u.vz) * k;
+  moveUnit(m, u, (u.vx + u.kx) * TICK, (u.vz + u.kz) * TICK);
+  if (len > 0.2) u.heading = turnTo(u.heading, Math.atan2(mz, mx), 9 * TICK);
+}
+
 function bushAt(map, x, z) {
   for (const b of map.bushes) { const dx = b.x - x, dz = b.z - z; if (dx * dx + dz * dz < b.r * b.r) return b.id; }
   return -1;
@@ -231,11 +249,10 @@ function stepUnit(m, u, inp) {
     if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
     else if (m.mode !== 'trum' && m.mode !== 'nha' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
   }
-  let grip = 14;
+  const grip = gripAt(m.map, u.x, u.z);
   for (const h of m.map.hazards) {
-    if (h.kind === 'vent' || dist2(u.x, u.z, h.x, h.z) > h.r * h.r) continue;
-    if (h.kind === 'ice') grip = RULES.ice.grip;
-    else if (h.kind === 'mud') { if (!u.def.hover && !u.def.heavy) { u.slowT = Math.max(u.slowT, 0.2); u.slowF = Math.max(u.slowT > 0.2 ? u.slowF : 0, RULES.mud.slow); } }
+    if (h.kind === 'vent' || h.kind === 'ice' || dist2(u.x, u.z, h.x, h.z) > h.r * h.r) continue;
+    if (h.kind === 'mud') { if (!u.def.hover && !u.def.heavy) { u.slowT = Math.max(u.slowT, 0.2); u.slowF = Math.max(u.slowT > 0.2 ? u.slowF : 0, RULES.mud.slow); } }
     else { burn(m, u, RULES.lava.dps * dt); if (!u.alive) return; }
   }
   if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
@@ -252,16 +269,7 @@ function stepUnit(m, u, inp) {
   }
 
   if (u.dash) stepDash(m, u);
-  else {
-    const sp = stunned ? 0 : unitSpeed(u);
-    let mx = inp.mx, mz = inp.mz;
-    const len = Math.hypot(mx, mz);
-    if (len > 1) { mx /= len; mz /= len; }
-    const k = Math.min(1, grip * dt);
-    u.vx += (mx * sp - u.vx) * k; u.vz += (mz * sp - u.vz) * k;
-    moveUnit(m, u, (u.vx + u.kx) * dt, (u.vz + u.kz) * dt);
-    if (len > 0.2) u.heading = turnTo(u.heading, Math.atan2(mz, mx), 9 * dt);
-  }
+  else walk(m, u, inp, grip);
   u.kx *= 0.8; u.kz *= 0.8;
   if (stunned || !u.alive) return;
 

@@ -132,6 +132,7 @@ function lookup(frames, i) {
 //   delay      how far behind the host the guest's picture runs (the shift that fits best)
 //   errNow     distance to where the host has the mech at the same instant
 //   errLag     distance to the host's path once that delay is taken out: what is left is warping
+//   snapsPerSec, stallsPerSec: per second of play, counted over all the listed units together
 //   snap       a drawn step at least 12 cm longer than the fastest the mech truly moved within +-120 ms
 //   stall      a drawn step of nothing while the mech truly moved faster than 2 m/s throughout
 function smooth(host, guest, units) {
@@ -152,7 +153,7 @@ function smooth(host, guest, units) {
     return n ? sum / n : Infinity;
   };
   let D = 0, best = Infinity;
-  for (let d = 0; d <= 700; d += 10) { const e = errAt(d); if (e < best) { best = e; D = d; } }
+  for (let d = -400; d <= 700; d += 10) { const e = errAt(d); if (e < best) { best = e; D = d; } }
   const nowErr = [], lagErr = [];
   errAt(0, nowErr); errAt(D, lagErr);
   let snaps = 0, stalls = 0, secs = 0;
@@ -179,7 +180,7 @@ function smooth(host, guest, units) {
         seen++;
       }
       if (!seen || teleport) continue;
-      if (d - vmax * dt > 0.12) snaps++;
+      if (d - vmax * dt > 0.12) { snaps++; if (ENV.NL_DEBUG && snaps <= 12) console.log(`  snap unit ${i} t ${Math.round(b[0])} ms: drew ${d.toFixed(2)} m in ${(dt * 1000).toFixed(0)} ms, host top speed nearby ${vmax.toFixed(1)} m/s, from (${a[1 + i * 2].toFixed(2)}, ${a[2 + i * 2].toFixed(2)})`); }
       else if (d < 0.004 && vmin > 2) stalls++;
     }
   }
@@ -284,8 +285,8 @@ function print(r) {
   console.log(`host   sends ${f1(h.snapsPerSec)} snapshots/s per guest, ${f0(h.bytesPerSnap)} B per snapshot, ${f0(h.txBytesPerSecPerGuest)} B/s per guest (${f1(h.txBytesPerSecPerGuest * 8 / 1000)} kbit/s), biggest datagram ${h.maxDatagram} B`);
   console.log(`guest  sends ${f1(g.inputsPerSec)} inputs/s, ${f0(g.bytesPerInput)} B each, ${f0(g.txBytesPerSec)} B/s | receives ${f1(g.snapsRecvPerSec)} snapshots/s | frame ${f1(g.frame.avg)} ms avg, p95 ${f1(g.frame.p95)}`);
   console.log(`input  own move on screen after: guest ${f0(g.inputLatency.move.avg)} ms avg (p95 ${f0(g.inputLatency.move.p95)}, n ${g.inputLatency.move.n}), host ${f0(h.inputLatency.move.avg)} ms (n ${h.inputLatency.move.n}) | own aim: guest ${f0(g.inputLatency.aim.avg)} ms (p95 ${f0(g.inputLatency.aim.p95)}), host ${f0(h.inputLatency.aim.avg)} ms`);
-  console.log(`remote mechs on guest: shown ${g.remote.delay} ms behind host | error vs host now ${f2(g.remote.errNow.avg)} m avg, p95 ${f2(g.remote.errNow.p95)} | path error ${f2(g.remote.errLag.avg)} m avg, p95 ${f2(g.remote.errLag.p95)} | snaps ${f2(g.remote.snapsPerSec)}/s, stalls ${f2(g.remote.stallsPerSec)}/s per mech`);
-  console.log(`own mech on guest:     shown ${g.own.delay} ms behind host | error vs host now ${f2(g.own.errNow.avg)} m avg, p95 ${f2(g.own.errNow.p95)} | snaps ${f2(g.own.snapsPerSec)}/s, stalls ${f2(g.own.stallsPerSec)}/s`);
+  console.log(`remote mechs on guest: shown ${g.remote.delay} ms behind host | error vs host now ${f2(g.remote.errNow.avg)} m avg, p95 ${f2(g.remote.errNow.p95)} | path error ${f2(g.remote.errLag.avg)} m avg, p95 ${f2(g.remote.errLag.p95)} | snaps ${f2(g.remote.snapsPerSec)}/s, stalls ${f2(g.remote.stallsPerSec)}/s (all of them together)`);
+  console.log(`own mech on guest:     shown ${g.own.delay < 0 ? -g.own.delay + ' ms ahead of' : g.own.delay + ' ms behind'} host | error vs host now ${f2(g.own.errNow.avg)} m avg, p95 ${f2(g.own.errNow.p95)} | snaps ${f2(g.own.snapsPerSec)}/s, stalls ${f2(g.own.stallsPerSec)}/s`);
   console.log(`shots  guest: ${g.shots.steps} drawn steps, ${f1(g.shots.jerkPct)} % jerky, mean step error ${f1(g.shots.devPct)} % | host: ${f1(h.shots.jerkPct)} % jerky, ${f1(h.shots.devPct)} %`);
   if (r.errors.length) console.log('ERRORS ' + r.errors.slice(0, 4).join(' | '));
 }

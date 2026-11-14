@@ -10,7 +10,7 @@ import { makeOnline } from '../js/online.js';
 import { createMatch, step } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { TICK } from '../js/data.js';
-import { matchOptions, packEvents } from '../js/netstate.js';
+import { matchOptions, packEvents, unpackEvents } from '../js/netstate.js';
 
 const topics = [];
 const handlers = new Map();
@@ -54,7 +54,7 @@ function hostStep() {
   if (h.forceOver) { m.duration = m.time + 0.05; h.forceOver = false; }
   step(m, allInputs(m, human));
   online.afterStep(m);
-  for (const e of packEvents(m.events)) h.hostLog.push(JSON.stringify(e));
+  for (const e of unpackEvents(JSON.parse(JSON.stringify(packEvents(m.events))))) h.hostLog.push(JSON.stringify(e));
   h.hist.set(m.tick, m.units.map((u) => [u.x, u.z]));
   h.hist.delete(m.tick - 150);
 }

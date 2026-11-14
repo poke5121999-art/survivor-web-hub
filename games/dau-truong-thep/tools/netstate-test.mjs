@@ -1,9 +1,11 @@
 // Node test for js/netstate.js: `node tools/netstate-test.mjs`. Exits 1 on any failure.
-// Real bot matches in every mode, snapshotted every 2 ticks into a mirror, compared field by field.
+// Real bot matches in every mode, snapshotted every 2 ticks, sent as bytes into a mirror, compared field by field.
+// Then the guest's prediction of its own mech against the host, with and without delay.
 import { createMatch, step, visibleTo, hidden, unitSpeed } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODE_ORDER, TICK } from '../js/data.js';
-import { snapshot, roster, createMirror, applySnapshot, packEvents } from '../js/netstate.js';
+import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput } from '../js/netstate.js';
+import { createPredictor } from '../js/predict.js';
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -11,6 +13,8 @@ const check = (name, cond, detail = '') => {
 };
 
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
+// Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
+const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
@@ -37,7 +41,7 @@ function diff(real, mir) {
   real.units.forEach((u, i) => {
     const o = mir.units[i], w = `unit${i}.`;
     eq(w + 'x', u.x, o.x, 0.02); eq(w + 'z', u.z, o.z, 0.02);
-    eq(w + 'aim', u.aim, o.aim, 0.0006); eq(w + 'heading', u.heading, o.heading);
+    eq(w + 'aim', turn(u.aim, o.aim), 0, 0.0006); eq(w + 'heading', turn(u.heading, o.heading), 0, 0.0056);
     eq(w + 'hp', u.hp, o.hp, 1); eq(w + 'maxHp', u.maxHp, o.maxHp, 0); eq(w + 'alive', u.alive, o.alive);
     eq(w + 'bot', u.bot, o.bot); eq(w + 'dash', !!u.dash, !!o.dash);
     for (const k of TIMERS) eq(w + k, u[k], o[k]);
@@ -47,7 +51,7 @@ function diff(real, mir) {
     eq(w + 'cast', !!u.cast, !!o.cast);
     if (u.cast && o.cast) {
       eq(w + 'cast.skill', u.cast.skill.id, o.cast.skill.id); eq(w + 'cast.t', u.cast.t, o.cast.t); eq(w + 'cast.total', u.cast.total, o.cast.total);
-      eq(w + 'cast.aim', u.cast.aim, o.cast.aim, 0.0006); eq(w + 'cast.move', u.cast.move, o.cast.move);
+      eq(w + 'cast.aim', turn(u.cast.aim, o.cast.aim), 0, 0.0006); eq(w + 'cast.move', u.cast.move, o.cast.move);
     }
     eq(w + 'def', u.def, o.def); eq(w + 'team', u.team, o.team); eq(w + 'color', u.color, o.color);
     eq(w + 'unitSpeed', unitSpeed(u), unitSpeed(o), 0.2);
@@ -73,7 +77,8 @@ function diff(real, mir) {
     for (const k of ZONE_FIELDS[z.kind]) {
       const rv = z[k] ?? (k === 'lob' ? false : 0);   // a plain strike has no lob, x0, z0
       if (typeof rv === 'boolean') eq(w + k, rv, !!o[k]);
-      else eq(w + k, rv, o[k], k === 'aim' || k === 'a' ? 0.0006 : k === 'hp' ? 1 : 0.011);
+      else if (k === 'aim' || k === 'a') eq(w + k, turn(rv, o[k]), 0, 0.0006);
+      else eq(w + k, rv, o[k], k === 'hp' ? 1 : 0.011);
     }
     if (z.kind === 'wall') {
       eq(w + 'pts', z.pts.length, o.pts.length, 0);
@@ -131,19 +136,23 @@ function mirrorRun(label, m, ticks, inputsFor) {
     for (const e of m.events) pending.push(e);
     if (m.tick % 2) continue;
     const snap = snapshot(m);
-    const text = JSON.stringify(snap), batch = JSON.stringify(packEvents(pending));
-    t.snaps++; t.maxLen = Math.max(t.maxLen, text.length); t.sumLen += text.length; t.maxShots = Math.max(t.maxShots, m.shots.length);
-    sizes.push({ len: text.length, shots: m.shots.length, units: m.units.length });
+    const batch = JSON.stringify(packEvents(pending));
+    // Every 5th snapshot carries the slow facts; the comparison below runs on those, where the mirror must be whole.
+    const slow = t.snaps % 5 === 0, bytes = encodeSnapPacket(t.snaps + 1, 7, 1, [{ seq: t.snaps + 1, json: batch }], encodeSnap(snap, { stats: slow, props: slow }));
+    t.snaps++; t.maxLen = Math.max(t.maxLen, bytes.length); t.sumLen += bytes.length; t.maxShots = Math.max(t.maxShots, m.shots.length);
+    sizes.push({ len: bytes.length, json: JSON.stringify(snap).length + batch.length, shots: m.shots.length, units: m.units.length });
+    const packet = decodeSnapPacket(bytes);
     const before = new Map(mir.shots.map((s) => [s.id, { s, x: s.x, z: s.z }]));
     const prevPos = mir.units.map((u) => [u.x, u.z, u.alive]);
-    applySnapshot(mir, JSON.parse(text), 2 * TICK);
-    mir.events = JSON.parse(batch);
+    applySnapshot(mir, packet.snap, 2 * TICK);
+    mir.events = packet.batches[0][1];
+    if (packet.q !== t.snaps || packet.applied !== 7 || packet.base !== 1 || packet.batches[0][0] !== t.snaps) t.bad.push('packet header differs at tick ' + m.tick);
     // events replay in order, none lost or duplicated
     const want = JSON.stringify(wireEvents(pending));
     t.events += pending.length;
     if (JSON.stringify(mir.events) !== want) { t.lost++; t.bad.push('events differ at tick ' + m.tick); }
     pending = [];
-    const d = diff(m, mir);
+    const d = slow ? diff(m, mir) : [];
     if (d.length) t.bad.push(`tick ${m.tick}: ${d.slice(0, 4).join('; ')}`);
     // interpolation pair: previous snapshot position, identity kept for shots in two consecutive snapshots
     mir.units.forEach((u, k) => {
@@ -219,16 +228,81 @@ console.log('\n# snapshot size');
   const avg = Math.round(lens.reduce((a, b) => a + b, 0) / lens.length), max = Math.max(...lens);
   const worst = sizes.reduce((a, b) => (b.len > a.len ? b : a));
   const busyAvg = busy.length ? Math.round(busy.reduce((a, b) => a + b.len, 0) / busy.length) : 0;
-  console.log(`  all ${lens.length} snapshots: avg ${avg} B, max ${max} B (${worst.shots} shots, ${worst.units} units); busy (>=15 shots) ${busy.length}: avg ${busyAvg} B`);
-  check(`snapshot stays under 6000 bytes (max ${max})`, max < 6000);
+  const json = Math.round(sizes.reduce((a, b) => a + b.json, 0) / sizes.length);
+  console.log(`  all ${lens.length} packets (snapshot + its events): avg ${avg} B, max ${max} B (${worst.shots} shots, ${worst.units} units); busy (>=15 shots) ${busy.length}: avg ${busyAvg} B; the same as JSON: avg ${json} B`);
+  check(`an average packet is under 500 bytes (${avg}) and a third of its JSON (${json})`, avg < 500 && avg < json / 3);
+  check(`the biggest packet fits two datagrams (max ${max})`, max < 2200);
 }
 {
   // synthetic worst case: 10 units, 60 shots in the air
   const m = createMatch({ map: 'denrung', seed: 2, roster: makeRoster('tdm', 'hard') });
   for (let i = 0; i < 60; i++) m.shots.push({ id: 1000 + i, team: i % 2, owner: i % 10, x: i * 1.234 - 30, z: 12.345 - i * 0.77, px: 0, pz: 0, dx: Math.cos(i), dz: Math.sin(i), speed: 34, left: 10, color: i % 2, vis: 'bullet', r: 0.2, dmg: 60, splash: 0 });
-  const len = JSON.stringify(snapshot(m)).length;
+  const len = encodeSnap(snapshot(m)).length;
   console.log(`  synthetic 10 units + 60 shots: ${len} B`);
-  check(`10 units + 60 shots under 4 KB (${len})`, len < 4096);
+  check(`10 units + 60 shots fit one datagram (${len})`, len < 1100);
+}
+
+console.log('\n# input packets');
+{
+  const raw = [{ mx: 0.123456, mz: -1, aim: 2.5, fire: true, s1: false, s2: true, ult: false, heal: false, tx: 12.34, tz: -7.89 }, { mx: -0.5, mz: 0.25, aim: -3.1, fire: false, s1: true, s2: false, ult: true, heal: true, tx: -40, tz: 26 }];
+  const sent = raw.map(wireInput), p = decodeInputPacket(encodeInputPacket(4321, 99, 17, sent));
+  check('input packet: numbers, acks and both inputs come back as sent', p.q === 4321 && p.snapQ === 99 && p.evAck === 17 && JSON.stringify(p.inputs.map(wireInput)) === JSON.stringify(sent), JSON.stringify(p));
+  check(`input packet with three inputs is ${encodeInputPacket(4321, 99, 17, [sent[0], sent[1], sent[0]]).length} bytes (under 40)`, encodeInputPacket(4321, 99, 17, [sent[0], sent[1], sent[0]]).length < 40);
+  const evs = [{ t: 'hit', id: 1, by: 2, x: 1.234, z: -2, amt: 30, absorbed: 0 }, { t: 'zone', id: 3, kind: 'field', x: 1, z: 2, vis: 'heal', lob: false }, { t: 'brandNew', a: 1 }];
+  check('events: a known shape, a shape with an extra key and an unknown type all survive', JSON.stringify(unpackEvents(JSON.parse(JSON.stringify(packEvents(evs))))) === JSON.stringify(wireEvents(evs)));
+}
+
+console.log('\n# prediction: the guest drives its own mech, the host confirms');
+// One human on the host's match, driven through walls, cover and ice by a wandering stick. The guest sends each input
+// `lag` ticks before the host runs it and hears the result `lag` ticks after. worst: the largest gap between where the
+// guest drew its mech when it made input q and where the host put the mech after running q.
+function predictRun(map, theme, lag, kick) {
+  const m = createMatch({ map, theme, seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'trau', name: 'Bot', bot: true, diff: 'easy' }] });
+  const mir = createMirror(JSON.parse(JSON.stringify(roster(m))));
+  const pred = createPredictor(mir, 0);
+  const drawn = new Map(), toHost = [], toGuest = [];
+  let worst = 0, sum = 0, n = 0, moved = 0, applied = 0;
+  const bot = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  // The other mech is out of the match: nothing but the stick (and the kicks below) moves the guest's mech.
+  Object.assign(m.units[1], { alive: false, hp: 0, respawnT: 1e6 });
+  applySnapshot(mir, snapshot(m));
+  pred.correct(0, m.units[0].x, m.units[0].z, true, false);
+  for (let i = 0; i < 1500; i++) {
+    const a = Math.sin(i / 37) * 2.2 + i / 90;
+    const inp = wireInput({ ...bot, mx: Math.cos(a), mz: Math.sin(a), aim: a });
+    // A long dt lets the glide over a correction finish: what is compared is where the predictor has the mech.
+    const q = pred.tick(inp), pose = pred.pose(1, 10, 0, 0);
+    drawn.set(q, [pose.x, pose.z]);
+    toHost.push({ at: i + lag, q, inp });
+    const due = toHost.length && toHost[0].at <= i ? toHost.shift() : null;
+    if (kick && i % 200 === 150) { m.units[0].kx += 9; m.units[0].kz -= 6; }
+    const before = [m.units[0].x, m.units[0].z];
+    step(m, [due ? due.inp : bot, bot]);
+    if (due) {
+      applied = due.q;
+      const d = drawn.get(due.q), e = Math.hypot(d[0] - m.units[0].x, d[1] - m.units[0].z);
+      worst = Math.max(worst, e); sum += e; n++;
+      moved += Math.hypot(m.units[0].x - before[0], m.units[0].z - before[1]);
+      drawn.delete(due.q);
+    }
+    toGuest.push({ at: i + lag, applied, snap: decodeSnap(encodeSnap(snapshot(m))) });
+    while (toGuest.length && toGuest[0].at <= i) {
+      const g = toGuest.shift(), r = g.snap.u[0];
+      applySnapshot(mir, g.snap, TICK);
+      pred.correct(g.applied, r[0], r[1], !!(r[6] & 1), !!(r[6] & 2));
+    }
+  }
+  return { worst, avg: sum / n, moved };
+}
+{
+  const a = predictRun('denrung', null, 0, false);
+  check(`no delay: the guest's mech is where the host puts it (worst ${a.worst.toFixed(3)} m over ${a.moved.toFixed(0)} m driven)`, a.worst < 0.05 && a.moved > 150);
+  const b = predictRun('denrung', null, 6, false);
+  check(`200 ms each way: still the same path, to the rounding (worst ${b.worst.toFixed(3)} m, avg ${b.avg.toFixed(3)} m)`, b.worst < 0.08 && b.moved > 150);
+  const c = predictRun('cangbang', 'tuyet', 6, false);
+  check(`200 ms each way on ice: same path (worst ${c.worst.toFixed(3)} m, avg ${c.avg.toFixed(3)} m)`, c.worst < 0.08 && c.moved > 100);
+  const d = predictRun('denrung', null, 6, true);
+  check(`knock-backs the guest cannot foresee are corrected, not accumulated (avg ${d.avg.toFixed(3)} m, worst ${d.worst.toFixed(2)} m)`, d.avg < 0.25 && d.worst < 4);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

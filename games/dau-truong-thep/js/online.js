@@ -2,12 +2,14 @@
 // guests that send inputs and render snapshots. main.js owns the match and the screens; this file owns the wire.
 //
 //   connection  off -> connecting -> lobby -> playing -> lobby      (FSM below, one table)
-//   messages    { type -> handler } per role (HOST_MSG, GUEST_MSG)
+//   messages    { type -> handler } per role (HOST_MSG, GUEST_MSG), JSON; snapshots and inputs are binary (netstate.js)
 //   reliable    lobby, start, welcome, hello, mine, final snapshot: resent until the peer acks the message type
-//   droppable   snapshots, inputs, heartbeats
+//   droppable   snapshots, inputs, heartbeats. Event batches ride on snapshots and are sent again when no ack came back.
+//   guest       drives its own mech at once (predict.js) and draws everyone else a little in the past, between snapshots
 import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { nearestRegion } from './net/region.js';
-import { snapshot, applySnapshot, createMirror, packEvents, SNAP_TICKS } from './netstate.js';
+import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS } from './netstate.js';
+import { createPredictor } from './predict.js';
 import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
@@ -22,14 +24,19 @@ const RESEND_TRIES = 24;     // 12 s without an ack: the peer is gone
 const PEER_TIMEOUT = 10;     // host: no packet at all from a guest
 const HOST_TIMEOUT = 5;      // guest: no packet at all from the host
 const INPUT_SILENCE = 1;     // host: a guest quiet this long gets a neutral input
-const INPUT_RATE = 1 / 30;
+const INPUT_REPEAT = 3;      // inputs per packet: the newest and the two before it, so one lost packet loses nothing
+const INPUT_QUEUE_MAX = 6;   // host: inputs waiting per guest before the oldest are skipped (a burst after a stall)
+const SLOW_EVERY = 10;       // snapshots between two that carry the slow facts (scoreboard numbers, broken props)
+const EVENT_BYTES = 700;     // event text per packet: with the snapshot it stays inside one datagram
+const CLOCK_WINDOW = 3;      // guest: seconds of snapshot arrivals that set the drawing delay
+const DELAY_MAX = 0.4;
 const WELCOME_TIMEOUT = 8;
 const EXTRAPOLATE = 0.1;
 const SNAP_DT = SNAP_TICKS * TICK;
 const CHAT_MAX = 120;
 const CHAT_BURST = 5;        // messages allowed per player ...
 const CHAT_WINDOW = 10;      // ... in this many seconds
-const EVENT_RING = 20;      // batches kept for a guest whose acks are late: about 1.3 s of lost packets are repaired
+const EVENT_RING = 60;      // event batches kept for sending again: 2 s
 
 const T = {
   hostLeft: 'Chủ phòng đã rời đi.',
@@ -60,12 +67,12 @@ function explain(e) {
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-// Text messages cut into frames of at most FRAME bytes: [index, count, id lo, id hi, ...]. A message missing a frame
+// Messages cut into frames of at most FRAME bytes: [index, count, id lo, id hi, ...]. A message missing a frame
 // is dropped when the next one from that peer arrives; only snapshots and inputs are allowed to be lost this way.
 class Framer {
   constructor() { this.id = 0; this.parts = new Map(); }
-  pack(text) {
-    const body = enc.encode(text), n = Math.max(1, Math.ceil(body.length / FRAME)), id = (this.id = (this.id + 1) & 0xffff), out = [];
+  pack(body) {
+    const n = Math.max(1, Math.ceil(body.length / FRAME)), id = (this.id = (this.id + 1) & 0xffff), out = [];
     for (let i = 0; i < n; i++) {
       const c = body.subarray(i * FRAME, (i + 1) * FRAME), f = new Uint8Array(4 + c.length);
       f[0] = i; f[1] = n; f[2] = id & 255; f[3] = id >> 8; f.set(c, 4);
@@ -75,7 +82,7 @@ class Framer {
   }
   unpack(from, f) {
     const i = f[0], n = f[1], body = f.subarray(4);
-    if (n === 1) return dec.decode(body);
+    if (n === 1) return body;
     const key = from + ':' + (f[2] | (f[3] << 8));
     const entry = this.parts.get(key) || { at: performance.now(), parts: [] };
     entry.parts[i] = body.slice();
@@ -85,7 +92,7 @@ class Framer {
     const all = new Uint8Array(entry.parts.reduce((s, p) => s + p.length, 0));
     let at = 0;
     for (const p of entry.parts) { all.set(p, at); at += p.length; }
-    return dec.decode(all);
+    return all;
   }
   prune() {
     const old = performance.now() - 3000;
@@ -183,8 +190,6 @@ const cleanChat = (t) => [...String(t == null ? '' : t).replace(/[\u0000-\u001f\
 const NEUTRAL = (aim = 0) => ({ mx: 0, mz: 0, aim, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 });
 const FLAGS = ['fire', 's1', 's2', 'ult', 'heal'];
 const finite = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
-const wrapAim = (a) => (Number.isFinite(a) ? Math.atan2(Math.sin(a), Math.cos(a)) : 0);
-const r2 = (v) => Math.round(v * 100) / 100;
 const clock = () => performance.now() / 1000;
 
 export function makeOnline(G) {
@@ -199,12 +204,18 @@ export function makeOnline(G) {
   };
   const listeners = new Set();
   let link = null, conn = null, framer = new Framer(), pump = null, ticket = 0;
-  let peers = new Map();         // link id -> { link, pid, slot, pending, seen, heard, input, inputSeq, inputAt, ack, uid }
+  let peers = new Map();         // link id -> { link, pid, slot, pending, seen, heard, uid, ...freshInputs() }
   let relId = 0, pidN = 0;
   // host
-  let evq = [], sinceSend = 0, snapSeq = 0, ring = [], finalSent = false, gone = new Set();
+  let evq = [], sinceSend = 0, snapSeq = 0, evSeq = 0, ring = [], finalSent = false, gone = new Set(), sentAt = new Map(), propsKey = '', propsLeft = 0;
   // guest
-  let inSeq = 0, pendIn = null, lastIn = 0, lastRecvQ = 0, evSeq = 0, queue = [], play = null, lastFrame = 0, lastHb = 0, hostHeard = 0, idle = 0;
+  let lastHb = 0, hostHeard = 0;
+  // buf: snapshots not yet drawn, oldest first. held: the two the mirror is drawn between. drawAt: the host time being drawn.
+  // arrivals: [local time, host time] of recent snapshots, from which the drawing delay comes.
+  let buf = [], held = null, drawAt = 0, arrivals = [], lastFrame = 0, snapQ = 0, newestK = -1;
+  // late: events that arrived for a snapshot already drawn; they play with the next frame.
+  let evAck = 0, evSeen = new Set(), late = [];
+  let predictor = null, own = null, sample = null, pressed = 0, tickAcc = 0, recent = [];
 
   // ---- connection state machine -------------------------------------------------------------------------------
   const FSM = {
@@ -218,7 +229,7 @@ export function makeOnline(G) {
     lobby(from) {
       if (from === 'playing') {
         online.mirror = null; online.rosterData = null; online.mySlot = -1;
-        queue = []; play = null; gone = new Set(); evq = []; ring = [];
+        buf = []; held = null; gone = new Set(); evq = []; ring = [];
         if (online.role === 'host') {
           for (const p of online.lobby.players) if (!p.host) p.ready = false;
           conn.lock(false);
@@ -265,12 +276,12 @@ export function makeOnline(G) {
   }
 
   // ---- sending --------------------------------------------------------------------------------------------------
-  function sendText(to, text) {
+  function sendBytes(to, bytes) {
     if (!link) return;
-    online.stats.bytesSent += text.length;
-    for (const f of framer.pack(text)) link.send(to, f);
+    online.stats.bytesSent += bytes.length;
+    for (const f of framer.pack(bytes)) link.send(to, f);
   }
-  const send = (peer, msg) => sendText(peer.link, JSON.stringify(msg));
+  const send = (peer, msg) => sendBytes(peer.link, enc.encode(JSON.stringify(msg)));
   // A message type has one pending copy per peer: the newest supersedes the older one.
   // A chat line is its own key: two lines in a row must both survive until acked.
   function sendRel(peer, msg, key = msg.t) {
@@ -283,21 +294,32 @@ export function makeOnline(G) {
   function toAll(msg) { for (const p of joined()) send(p, msg); }
   function broadcastLobby() { for (const p of joined()) sendRel(p, { t: 'lobby', lobby: online.lobby }); }
 
+  // Host, per guest. queue: inputs not yet run, by number. applied: the last number run. evAck: every event batch up to
+  // it has arrived there. evSent: batch -> when it last went out. rtt: seconds, from snapshot out to its echo in an input.
+  const freshInputs = () => ({ input: null, inputAt: clock(), applied: 0, queue: new Map(), low: 99, lowN: 0, evAck: 0, evSent: new Map(), rtt: 0 });
+
   function peerOf(id) {
     let p = peers.get(id);
-    if (!p) { p = { link: id, pid: null, slot: -1, pending: new Map(), seen: {}, chatSeen: new Set(), chatTimes: [], heard: clock(), input: null, inputSeq: 0, inputAt: 0, ack: 0, uid: null }; peers.set(id, p); }
+    if (!p) { p = { link: id, pid: null, slot: -1, pending: new Map(), seen: {}, chatSeen: new Set(), chatTimes: [], heard: clock(), uid: null, ...freshInputs() }; peers.set(id, p); }
     return p;
   }
 
   function onPacket(from, bytes) {
-    const text = framer.unpack(from, bytes);
-    if (text === null) return;
-    let msg;
-    try { msg = JSON.parse(text); } catch (e) { return; }
-    if (!msg || typeof msg.t !== 'string') return;
+    const body = framer.unpack(from, bytes);
+    if (body === null || !body.length) return;
     const peer = peerOf(from);
     peer.heard = clock();
     if (online.role === 'guest') hostHeard = peer.heard;
+    if (body[0] !== 123) {
+      try {
+        if (body[0] === PKT_INPUT && online.role === 'host' && peer.pid) takeInputs(peer, decodeInputPacket(body));
+        else if (body[0] === PKT_SNAP && online.role === 'guest') takeSnapshot(decodeSnapPacket(body));
+      } catch (e) { /* a damaged packet is a lost packet */ }
+      return;
+    }
+    let msg;
+    try { msg = JSON.parse(dec.decode(body)); } catch (e) { return; }
+    if (!msg || typeof msg.t !== 'string') return;
     if (msg.t === 'ack') {
       const p = peer.pending.get(msg.k);
       if (p && p.msg.rid === msg.rid) peer.pending.delete(msg.k);
@@ -380,15 +402,6 @@ export function makeOnline(G) {
     },
     swap(peer) { swapTeam(peer.pid); },
     say(peer, m) { acceptChat(peer.pid, peer, m.text); },
-    in(peer, m) {
-      if (!(m.q > peer.inputSeq)) return;
-      peer.inputSeq = m.q;
-      const f = m.f | 0, mv = m.m || [], tp = m.p || [];
-      const inp = { mx: finite(mv[0], -1, 1), mz: finite(mv[1], -1, 1), aim: wrapAim(m.r), tx: finite(tp[0], -200, 200), tz: finite(tp[1], -200, 200) };
-      FLAGS.forEach((k, i) => { inp[k] = !!(f & (1 << i)); });
-      peer.input = inp; peer.inputAt = clock(); peer.ack = m.a | 0;
-      online.stats.inputsRecv++;
-    },
     hb() {},
     bye(peer) { removePlayer(peer, 'rời phòng'); },
   };
@@ -409,15 +422,12 @@ export function makeOnline(G) {
       if (online.state !== 'lobby' && online.state !== 'playing') return;
       const mySlot = m.slots[online.me];
       if (mySlot === undefined) return;
-      lastRecvQ = 0; evSeq = 0; queue = []; play = null; idle = 0; lastFrame = 0; pendIn = null; inSeq = 0;
-      fire('start', { rosterData: m.rosterData, mySlot, mirror: createMirror(m.rosterData) });
+      const mirror = createMirror(m.rosterData);
+      resetGuest(mirror, mySlot);
+      fire('start', { rosterData: m.rosterData, mySlot, mirror });
     },
-    snap(peer, m) {
-      if (online.state !== 'playing' || !online.mirror || !(m.q > lastRecvQ)) return;
-      lastRecvQ = m.q;
-      online.stats.snapsRecv++;
-      queue.push(m);
-    },
+    // The last snapshot of a match arrives this way (reliable, whole); every other one is binary.
+    snap(peer, m) { takeSnapshot({ q: m.q, applied: m.a | 0, base: 0, batches: (m.b || []).map((b) => [b[0], unpackEvents(b[1])]), snap: m.s }); },
     chat(peer, m) {
       if (online.state === 'connecting') return;
       emit('net:chat', { id: String(m.id), name: String(m.name || '').slice(0, 24), team: m.team | 0, text: cleanChat(m.text), t: Number(m.at) || Date.now() });
@@ -445,7 +455,6 @@ export function makeOnline(G) {
     if (online.role === 'host') {
       for (const peer of [...peers.values()]) if (peer.pid && now - peer.heard > PEER_TIMEOUT) removePlayer(peer, 'mất kết nối');
     } else if (online.role === 'guest' && online.state !== 'connecting' && hostHeard && now - hostHeard > HOST_TIMEOUT) lose(T.hostLost);
-    if (online.role === 'guest') flushInput(now);
   }
 
   function attach(c, role) {
@@ -647,10 +656,10 @@ export function makeOnline(G) {
     const { rosterData, slots } = buildRoster(L);
     conn.lock(true);
     for (const peer of joined()) {
-      peer.slot = slots[peer.pid]; peer.input = null; peer.inputSeq = 0; peer.inputAt = clock(); peer.ack = 0;
+      peer.slot = slots[peer.pid]; Object.assign(peer, freshInputs());
       sendRel(peer, { t: 'start', rosterData, slots });
     }
-    evq = []; ring = []; snapSeq = 0; sinceSend = 0; finalSent = false; gone = new Set();
+    evq = []; ring = []; snapSeq = 0; evSeq = 0; sinceSend = 0; finalSent = false; gone = new Set(); sentAt = new Map(); propsKey = ''; propsLeft = 0;
     fire('start', { rosterData, mySlot: slots[online.me], mirror: null });
     return true;
   };
@@ -658,6 +667,42 @@ export function makeOnline(G) {
   online.toLobby = function toLobby() { return fire('back'); };
 
   // ---- host, every tick -----------------------------------------------------------------------------------------
+  function takeInputs(peer, p) {
+    if (online.state !== 'playing' || peer.slot < 0) return;
+    p.inputs.forEach((inp, i) => { const q = p.q - i; if (q > peer.applied && !peer.queue.has(q)) peer.queue.set(q, inp); });
+    peer.inputAt = clock();
+    if (p.evAck > peer.evAck) { peer.evAck = p.evAck; for (const k of peer.evSent.keys()) if (k <= p.evAck) peer.evSent.delete(k); }
+    const out = sentAt.get(p.snapQ);
+    if (out !== undefined) { const rtt = peer.inputAt - out; peer.rtt = peer.rtt ? peer.rtt * 0.85 + rtt * 0.15 : rtt; }
+    online.stats.inputsRecv++;
+  }
+
+  // Skip the oldest waiting inputs down to `keep`. A button pressed in a skipped input is pressed in the next one kept.
+  function skipInputs(peer, keep) {
+    const keys = [...peer.queue.keys()].sort((a, b) => a - b);
+    let carry = 0;
+    while (keys.length > keep) {
+      const k = keys.shift(), inp = peer.queue.get(k);
+      FLAGS.forEach((f, i) => { if (inp[f]) carry |= 1 << i; });
+      peer.queue.delete(k); peer.applied = k;
+    }
+    if (keys.length) FLAGS.forEach((f, i) => { if (carry & (1 << i)) peer.queue.get(keys[0])[f] = true; });
+  }
+
+  // One input per guest per tick, in the order the guest made them: the guest's prediction counts on that. The queue
+  // is the jitter buffer: it fills by itself when a tick finds it empty, and gives a tick back when it stayed full.
+  function nextInput(peer, now) {
+    const q = peer.queue;
+    if (q.size > INPUT_QUEUE_MAX) skipInputs(peer, 2);
+    if (!q.size) return !peer.input || now - peer.inputAt > INPUT_SILENCE ? NEUTRAL(peer.input ? peer.input.aim : 0) : peer.input;
+    let k = peer.applied + 1;
+    if (!q.has(k)) k = Math.min(...q.keys());
+    peer.input = q.get(k); q.delete(k); peer.applied = k;
+    peer.low = Math.min(peer.low, q.size);
+    if (++peer.lowN >= 60) { if (peer.low >= 2) skipInputs(peer, q.size - 1); peer.low = 99; peer.lowN = 0; }
+    return peer.input;
+  }
+
   online.remoteInputs = function remoteInputs() {
     const out = {};
     if (online.role !== 'host' || online.state !== 'playing') return out;
@@ -668,14 +713,23 @@ export function makeOnline(G) {
     }
     for (const peer of peers.values()) {
       if (peer.slot < 0 || gone.has(peer.slot)) continue;
-      const stale = !peer.input || now - peer.inputAt > INPUT_SILENCE;
-      out[peer.slot] = stale ? NEUTRAL(peer.input ? peer.input.aim : 0) : peer.input;
+      out[peer.slot] = nextInput(peer, now);
     }
     return out;
   };
 
-  function packet(seq, snapJson, batches) {
-    return `{"t":"snap","q":${seq},"s":${snapJson},"b":[${batches.map((b) => b.json).join(',')}]}`;
+  // Event batches this guest has not acknowledged: new ones, and old ones once a round trip passed without the ack.
+  function batchesFor(peer, now) {
+    const wait = Math.min(1, Math.max(0.1, (peer.rtt || 0.2) * 1.5 + 0.06)), out = [];
+    let bytes = 0;
+    for (const b of ring) {
+      if (b.seq <= peer.evAck) continue;
+      const last = peer.evSent.get(b.seq);
+      if (last !== undefined && now - last < wait) continue;
+      if (out.length && bytes + b.json.length > EVENT_BYTES) break;
+      peer.evSent.set(b.seq, now); out.push(b); bytes += b.json.length;
+    }
+    return out;
   }
 
   online.afterStep = function afterStep(m) {
@@ -685,73 +739,134 @@ export function makeOnline(G) {
     const last = m.over;
     if (sinceSend < SNAP_TICKS && !last) return;
     sinceSend = 0;
-    const seq = ++snapSeq, ev = packEvents(evq);
-    evq = [];
-    ring.push({ seq, json: JSON.stringify([seq, ev]) });
-    if (ring.length > EVENT_RING) ring.shift();
+    const seq = ++snapSeq, now = clock();
+    if (evq.length) {
+      ring.push({ seq: ++evSeq, json: JSON.stringify(packEvents(evq)) });
+      if (ring.length > EVENT_RING) ring.shift();
+      evq = [];
+    }
     const targets = joined().filter((p) => p.slot >= 0);
     if (!targets.length) { if (last) finalSent = true; return; }
-    const snap = snapshot(m), snapJson = JSON.stringify(snap);
+    const snap = snapshot(m), slow = seq % SLOW_EVERY === 1, key = snap.p.join();
+    if (key !== propsKey) { propsKey = key; propsLeft = 3; }
+    const body = last ? null : encodeSnap(snap, { stats: slow, props: slow || propsLeft-- > 0 });
+    sentAt.set(seq, now);
+    if (sentAt.size > 240) sentAt.delete(sentAt.keys().next().value);
     for (const peer of targets) {
-      const batches = ring.filter((b) => b.seq > peer.ack);
-      if (last) sendRel(peer, { t: 'snap', q: seq, s: snap, b: batches.map((b) => JSON.parse(b.json)), fin: 1 });
-      else sendText(peer.link, packet(seq, snapJson, batches));
+      if (last) sendRel(peer, { t: 'snap', q: seq, a: peer.applied, s: snap, b: ring.filter((b) => b.seq > peer.evAck).map((b) => [b.seq, JSON.parse(b.json)]), fin: 1 });
+      else sendBytes(peer.link, encodeSnapPacket(seq, peer.applied, ring.length ? ring[0].seq : evSeq + 1, batchesFor(peer, now), body));
       online.stats.snapsSent++;
     }
     if (last) finalSent = true;
   };
 
-  // ---- guest, every frame ---------------------------------------------------------------------------------------
-  // input: { mx, mz, aim, fire, s1, s2, ult, heal, tx, tz }. Call as often as you like; it sends at 30 Hz and keeps a
-  // button pressed in between so a short tap is not lost.
+  // ---- guest ----------------------------------------------------------------------------------------------------
+  function resetGuest(mirror, slot) {
+    buf = []; held = null; drawAt = 0; arrivals = []; lastFrame = 0; snapQ = 0; newestK = -1;
+    evAck = 0; evSeen = new Set(); late = [];
+    predictor = createPredictor(mirror, slot); own = null; sample = null; pressed = 0; tickAcc = 0; recent = [];
+  }
+
+  function takeSnapshot(p) {
+    const m = online.mirror;
+    if (online.state !== 'playing' || !m || !predictor) return;
+    const now = clock(), k = p.snap.k;
+    online.stats.snapsRecv++;
+    if (p.q > snapQ) snapQ = p.q;
+    p.events = [];
+    for (const [seq, events] of p.batches) {
+      if (seq <= evAck || evSeen.has(seq)) continue;
+      evSeen.add(seq);
+      for (const e of events) p.events.push(e);
+    }
+    if (p.base - 1 > evAck) evAck = p.base - 1;
+    while (evSeen.has(evAck + 1)) evAck++;
+    for (const seq of evSeen) if (seq <= evAck) evSeen.delete(seq);
+    if (k > newestK) {
+      newestK = k;
+      const r = p.snap.u[online.mySlot];
+      if (r) predictor.correct(p.applied, r[0], r[1], !!(r[6] & 1), !!(r[6] & 2));
+    }
+    arrivals.push([now, k * TICK]);
+    while (arrivals.length > 2 && now - arrivals[0][0] > CLOCK_WINDOW) arrivals.shift();
+    // A snapshot older than the one on screen still delivers its events.
+    if (held && k <= held.k) { late.push(...p.events); return; }
+    let at = buf.length;
+    while (at > 0 && buf[at - 1].snap.k > k) at--;
+    if (at > 0 && buf[at - 1].snap.k === k) { buf[at - 1].events.push(...p.events); return; }
+    buf.splice(at, 0, p);
+  }
+  // The host time to draw now: the newest arrival seen from the fastest path, minus one snapshot interval and the
+  // jitter that 9 arrivals in 10 stay under.
+  function drawTime(now) {
+    let base = Infinity;
+    for (const a of arrivals) base = Math.min(base, a[0] - a[1]);
+    const lag = arrivals.map((a) => a[0] - a[1] - base).sort((x, y) => x - y);
+    const jitter = lag[Math.floor((lag.length - 1) * 0.9)] || 0;
+    online.stats.delay = Math.min(DELAY_MAX, SNAP_DT + jitter + 0.008);
+    return now - base - online.stats.delay;
+  }
+
+  function applyNext() {
+    const p = buf.shift(), m = online.mirror, u = m.units[online.mySlot];
+    // The own mech is drawn from the predictor; the mirror's own interval is kept aside and put back for the snapshot to move on from.
+    if (own) { u.x = own.x; u.z = own.z; }
+    applySnapshot(m, p.snap, held ? Math.max(TICK, (p.snap.k - held.k) * TICK) : undefined);
+    own = { x: u.x, z: u.z, px: u.px, pz: u.pz };
+    held = { k: p.snap.k, from: held ? held.k : p.snap.k };
+    for (const e of p.events) m.events.push(e);
+  }
+
+  // The input a frame holds. A button pressed between two ticks stays pressed until a tick has sent it.
   online.sendInput = function sendInput(input) {
     if (online.role !== 'guest' || online.state !== 'playing' || !input) return;
-    const held = pendIn ? pendIn.f : 0;
-    let f = 0;
-    FLAGS.forEach((k, i) => { if (input[k]) f |= 1 << i; });
-    pendIn = { f: f | held, mx: input.mx, mz: input.mz, aim: input.aim, tx: input.tx, tz: input.tz };
-    flushInput(clock());
+    sample = input;
+    FLAGS.forEach((k, i) => { if (input[k]) pressed |= 1 << i; });
   };
-  function flushInput(now) {
-    if (!pendIn || now - lastIn < INPUT_RATE || !link || online.state !== 'playing') return;
-    lastIn = now;
-    const i = pendIn;
-    pendIn = null;
-    send(peerOf(link.hostId), { t: 'in', q: ++inSeq, a: lastRecvQ, m: [r2(i.mx || 0), r2(i.mz || 0)], r: Math.round(wrapAim(i.aim || 0) * 1000) / 1000, f: i.f, p: [Math.round((i.tx || 0) * 10) / 10, Math.round((i.tz || 0) * 10) / 10] });
-    online.stats.inputsSent++;
-  }
-
-  // The mirror always holds an interval: px = the snapshot before, x = the newest one applied. `play` times it.
-  function applyNext() {
-    const e = queue.shift(), m = online.mirror;
-    const dur = play ? Math.max(TICK, (e.s.k - play.k) * TICK) : SNAP_DT;
-    applySnapshot(m, e.s, play ? dur : undefined);
-    play = { k: e.s.k, elapsed: 0, dur };
-    for (const [seq, ev] of e.b) if (seq > evSeq) { evSeq = seq; for (const x of ev) m.events.push(x); }
-  }
 
   // now: milliseconds, performance.now() style. Returns { alpha }: draw each unit and shot at px + (x - px) * alpha.
-  // Snapshots play one interval behind arrival; past the newest one the picture extrapolates for at most 100 ms.
-  online.frame = function frame(now) {
+  online.frame = function frame(nowMs) {
     const m = online.mirror;
-    if (online.role !== 'guest' || !m) return { alpha: 1 };
-    const dt = lastFrame ? Math.min(0.1, Math.max(0, (now - lastFrame) / 1000)) : 0;
+    if (online.role !== 'guest' || !m || !predictor) return { alpha: 1 };
+    const now = nowMs / 1000, dt = lastFrame ? Math.min(0.1, Math.max(0, now - lastFrame)) : 0;
     lastFrame = now;
-    m.events = [];
-    if (!play) {
-      idle = queue.length ? idle + dt : 0;
-      if (queue.length >= 2 || idle > 0.25) applyNext();
-      return { alpha: 1 };
+    m.events = late; late = [];
+
+    let alpha = 1;
+    if (!held) { if (buf.length >= 2 || (buf.length && now - arrivals[0][0] > 0.25)) { applyNext(); drawAt = held.k * TICK; } }
+    else {
+      const want = drawTime(now);
+      drawAt = Math.abs(want - drawAt) > 0.3 ? want : drawAt + dt * (1 + Math.max(-0.08, Math.min(0.08, (want - drawAt) * 2)));
+      while (buf.length && drawAt >= held.k * TICK) applyNext();
+      const span = Math.max(TICK, (held.k - held.from) * TICK);
+      alpha = Math.max(0, Math.min(1 + EXTRAPOLATE / span, 1 - (held.k * TICK - drawAt) / span));
     }
-    while (queue.length > 8) applyNext();
-    play.elapsed += dt * (queue.length > 3 ? 2 : queue.length > 2 ? 1.4 : 1);
-    if (queue.length && play.elapsed >= play.dur) {
-      const late = play.elapsed - play.dur;
-      applyNext();
-      // After a stall the clock restarts at the new snapshot instead of racing through the queue.
-      play.elapsed = late > EXTRAPOLATE ? 0 : late;
+
+    const u = m.units[online.mySlot];
+    if (sample) {
+      tickAcc += dt;
+      let ran = 0;
+      for (; tickAcc >= TICK && ran < 4; ran++) {
+        tickAcc -= TICK;
+        const inp = wireInput(sample);
+        FLAGS.forEach((k, i) => { if (pressed & (1 << i)) inp[k] = true; });
+        pressed = 0;
+        predictor.tick(inp);
+        recent.unshift(inp);
+        if (recent.length > INPUT_REPEAT) recent.pop();
+      }
+      if (tickAcc > TICK) tickAcc = 0;
+      if (ran) { sendBytes(link.hostId, encodeInputPacket(predictor.seq, snapQ, evAck, recent)); online.stats.inputsSent += ran; }
+      if (u.alive && !(u.stunT > 0) && !(u.cast && u.cast.lock)) u.aim = sample.aim;
     }
-    return { alpha: Math.min(play.elapsed / play.dur, 1 + EXTRAPOLATE / play.dur) };
+    if (own) {
+      const p = predictor.pose(tickAcc / TICK, dt, own.px + (own.x - own.px) * alpha, own.pz + (own.z - own.pz) * alpha);
+      const dx = p.free ? p.dx : own.x - own.px, dz = p.free ? p.dz : own.z - own.pz;
+      // Everything is drawn at px + (x - px) * alpha: these two points put the own mech at p and keep its tick of motion.
+      u.px = p.x - dx * alpha; u.pz = p.z - dz * alpha; u.x = u.px + dx; u.z = u.pz + dz;
+      if (p.free) u.heading = p.heading;
+    }
+    return { alpha };
   };
 
   return online;
