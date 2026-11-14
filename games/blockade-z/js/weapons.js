@@ -385,6 +385,7 @@
   BZ.GUN_PARTS = GUNS;
 
   const DRAW_FP = 0.45; // seconds a weapon takes to come out in first person
+  const HOLSTER_FP = 0.26; // and to go away: its own draw, run backwards (the sword back over the shoulder, the launcher back up onto it...)
   const seg = (t, a, b) => BZ.clamp((t - a) / (b - a), 0, 1);
   const ease = (x) => x * x * (3 - 2 * x);
   const RELOAD_SOUNDS = [[0.15, 'mag_out'], [0.6, 'mag_in'], [0.8, 'rack']];
@@ -1283,8 +1284,8 @@
       S.ads = BZ.damp(S.ads, wantAds ? 1 : 0, 14, dt);
 
       if (S.phase === 'holster') {
-        S.t += dt; S.drop.x = Math.min(1, S.t / 0.18);
-        if (S.t >= 0.18) {
+        S.t += dt; { const hk = Math.min(1, S.t / HOLSTER_FP); S.drop.x = hk * hk; }
+        if (S.t >= HOLSTER_FP) {
           models[S.cur].visible = false; models[S.cur].userData.flash.visible = false;
           S.cur = S.next; S.next = null; models[S.cur].visible = true; S.phase = 'draw'; S.t = 0; G.audio.play('switch', { gain: 0.7 }); if (S.cur === 'saber') G.audio.play('saber_on', { gain: 0.8 });
         }
@@ -1389,9 +1390,9 @@
       else { rig.position.y += 0.05 * a; rig.position.x -= 0.07 * a; rig.position.z += 0.04 * a; rig.rotateY(0.55 * a * turn); rig.rotateZ(0.85 * a * turn); rig.rotateX(0.18 * a); }
     }
     function drawPose(wm, dt) {
-      const k = S.phase === 'draw' ? Math.min(1, S.t / DRAW_FP) : S.phase === 'holster' ? 0 : 1; S.drawK = k;
+      const k = S.phase === 'draw' ? Math.min(1, S.t / DRAW_FP) : S.phase === 'holster' ? 1 - Math.min(1, S.t / HOLSTER_FP) : 1; S.drawK = k;
       if (k >= 1) { S.drawEvt = 0; return; }
-      const e = (1 - k) * (1 - k); const id = S.cur; const hold = wm.hold || (wm.melee ? 'melee' : 'gun'); const once = (n, at, fn) => { if (k >= at && !(S.drawEvt & n)) { S.drawEvt |= n; fn(); } };
+      const e = (1 - k) * (1 - k); const id = S.cur; const hold = wm.hold || (wm.melee ? 'melee' : 'gun'); const once = (n, at, fn) => { if (S.phase === 'draw' && k >= at && !(S.drawEvt & n)) { S.drawEvt |= n; fn(); } };
       if (id === 'minigun') { rig.position.y -= 0.22 * e; rig.rotateZ(0.5 * e); if (k > 0.45) S.spinAng += dt * 30 * (1 - k) * 2; }                          // heaved up, then the barrels spin once to test
       else if (id === 'bazooka') { rig.position.x += 0.32 * e; rig.position.y += 0.2 * e; rig.rotateZ(-1.1 * e); rig.rotateX(0.5 * e); }                       // swung down off the shoulder
       else if (id === 'shotgun') { rig.rotateZ(0.6 * e); rig.rotateY(-0.4 * e); once(1, 0.55, () => { S.pumpT = 0.38; G.audio.play('rack', { gain: 0.7 }); }); } // up, then racked
@@ -1502,6 +1503,6 @@
     }
 
     const sig = () => ({ ...SG, guard: S.guard, blades: blades.length, rockets: rockets.length, rings: rings.slice(), clouds: clouds.slice(), pins: pins.slice() });
-    return { dbgDir: () => ({ trailPts, projs, PATDIR }), deadTick, DRAW_FP, S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
+    return { HOLSTER_FP, dbgDir: () => ({ trailPts, projs, PATDIR }), deadTick, DRAW_FP, S, state, WEAPONS, ORDER, cosmeticThrow, takenMul, sig, remoteSwing, bodyFx, heatGlow, cosmeticRocket: (from, dir) => clusterRocket(from, dir, true), magOf, resOf, update, render, startReload, select, give, refill, reset, has, cur: () => S.cur, ammo, spread: () => (W().spread + S.bloom) * (1 - S.ads * 0.6), adsFov: () => W().adsFov };
   };
 })();

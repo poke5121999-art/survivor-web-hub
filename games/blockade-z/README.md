@@ -212,6 +212,10 @@ Thân nhân vật (`BZ.heroModel`) có cột sống, hông, đùi, đầu gối,
 
 `tools/tps.js` chụp nhân vật đứng, chạy, bắn, chém và nhảy. Nó kiểm phát bắn trúng thứ dưới tâm ngắm, kiểm camera không lọt vào tường ở 40 chỗ sát mép bản đồ, và kiểm phím `V` cùng nút trên màn hình.
 
+### Cất súng
+
+Đổi vũ khí thì món đang cầm được cất đi bằng chính động tác rút chạy ngược (`HOLSTER_FP = 0.26` giây ở góc nhìn thứ nhất trong `js/weapons.js`; ở góc nhìn thứ ba `st.draw` trong `js/tps.js` chạy lùi), rồi món mới mới được rút ra. `tools/weapons.js` kiểm `S.drawK` giảm dần trong pha `holster` và vũ khí đổi sau đó.
+
 ### Jetpack
 
 Có nâng cấp jetpack (`P.hasJet`) thì nhân vật đeo một bộ jetpack sau lưng ở góc nhìn thứ ba và trên avatar co-op (`BZ.heroJet` trong `js/heroes.js`: bình nhiên liệu, hai ống phụt, dây đeo, gắn vào `spine`). Khi bay, mỗi ống phụt lửa lõi sáng có quầng và nhả khói (`fx.jet`), có đèn hắt xuống; nhiên liệu dưới mức thấp thì lửa chập chờn, hết thì tắt kèm một phụt khói (`fx.jetOut`). Góc nhìn thứ nhất thấy quầng lửa ở mép dưới màn hình (`#jetfx`). Co-op gửi hai bit trong `flags` của tư thế: 4 là có jetpack, 8 là đang phụt. `tools/tps.js` kiểm model hiện khi có jetpack, có hạt lửa khói khi bay và tắt khi thôi.

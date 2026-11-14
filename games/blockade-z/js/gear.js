@@ -70,6 +70,7 @@
         }
         s.pos.addScaledVector(s.vel, dt); s.m.position.copy(s.pos);
         if (s.kind === 'rocket') { s.m.lookAt(s.pos.clone().add(s.vel)); s.m.rotateY(Math.PI); }
+        else if (s.kind === 'rock') { s.acc = (s.acc || 0) + dt * 24; while (s.acc > 1) { s.acc -= 1; G.fx.puff(s.pos.clone(), { vel: s.vel.clone().multiplyScalar(-0.05), drag: 2, s0: 0.3, s1: 0.85, life: 0.55, c0: 0x9a9488, c1: 0x6a645c, a0: 0.5 }); } } // a thrown boulder drags dust behind it
       }
     }
 

@@ -229,6 +229,11 @@ const NEW = [['spear', 'bang', 'fp'], ['longsword', 'thep', 'fp'], ['glaive', 'd
       G.hero.set('ky'); __newGame(); G.wave.toSpawn = 0; G.zombies.clear(); __sim(0.25); const S = W.S; G.player.input.fire = true; __sim(0.05); G.player.input.fire = false; out.cut = { phase: S.phase, shots: S.shots }; __sim(0.5);
       const P = W.parts ? W.parts() : null; return out; })()`);
     console.log('fp draws', JSON.stringify(fpd));
+    // putting a weapon away: its own draw, run backwards, in first and in third person, and then the next one comes out
+    const hol = await page.evaluate(`(() => { const G = __G; const W = G.weapons; const S = W.S; G.state = 'playing'; G.player.alive = true; G.player.input.fire = false; __sim(0.8); const ids = W.ORDER.filter((id) => W.WEAPONS[id]); const from = W.cur(); const b = ids.find((id) => id !== from) || 'pistol'; S.inv = [from, b]; W.select(b); const ph0 = S.phase; const ks = []; for (let i = 0; i < 12 && S.phase === 'holster'; i++) { __sim(1 / 60); ks.push(+S.drawK.toFixed(2)); } const mid = S.phase; __sim(0.8); return { from, ph0, ks, mid, end: S.phase, cur: W.cur(), secs: W.HOLSTER_FP }; })()`);
+    console.log('holster', JSON.stringify(hol));
+    if (hol.ph0 === 'holster') check(hol.ks.length >= 6 && hol.ks[0] > hol.ks[hol.ks.length - 2] && hol.end === 'ready' && hol.cur !== hol.from, `a weapon goes away as its draw run backwards (draw ${hol.ks[0]} -> ${hol.ks[hol.ks.length - 2]} over ${hol.secs} s), then the next comes out`);
+    else console.log('(no second weapon to switch to in this run: holster not exercised)');
     // looking the weapon over: T starts it, it runs its length and ends by itself, and a shot drops it at once
     const insp = await page.evaluate(`(() => { const G = __G; const S = G.weapons.S; const P = G.player; G.state = 'playing'; P.alive = true; P.input.fire = false; G.zombies.clear(); __sim(0.8);
       dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' })); __sim(0.5); const mid = S.inspT || 0; __sim(1.6); const end = S.inspT || 0;

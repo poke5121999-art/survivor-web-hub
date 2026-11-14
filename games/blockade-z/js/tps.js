@@ -106,7 +106,7 @@
       sp.drawT = Math.min(1, (sp.drawT === undefined ? 0 : sp.drawT) + dt / BZ.DRAW_TIME); if (sp.gunSeen !== T.gun) { sp.gunSeen = T.gun; sp.drawT = 0; }
       // a shot or a swing cuts the draw short
       if (sp.drawT < 1 && (sp.swing > 0 || G.player.input.fire)) sp.drawT = Math.min(1, sp.drawT + dt * 6);
-      st.draw = sp.drawT; st.vy = P.vel.y; st.wall = P.wallRun || 0; st.hurt = sp.hurtN || 0; st.hurtDir = sp.hurtDir || 0;
+      st.draw = S.phase === 'holster' ? Math.max(0, 1 - S.t / G.weapons.HOLSTER_FP) : sp.drawT; /* putting it away is its draw run backwards */ st.vy = P.vel.y; st.wall = P.wallRun || 0; st.hurt = sp.hurtN || 0; st.hurtDir = sp.hurtDir || 0;
       st.speed = hs; st.back = back; st.air = sp.air; st.sprint = P.sprinting; st.pitch = P.pitch; st.mode = BZ.holdOf(W); st.pat = S.lastPat; st.wind = !!S.wind;
       st.swing = sp.swing > 0 ? 1 - sp.swing / (W.throwT || W.swing || 0.5) : -1; st.kick = sp.kick.step(dt); st.kickL = sp.kickL.step(dt);
       if (M.gun) { M.gun.visible = !(W.thrown && (S.hideT > 0 || (S.phase === 'reload' && S.t / W.reload < 0.55))); const bar = M.gun.getObjectByName('barrels'); if (bar) bar.rotation.z = S.spinAng; }

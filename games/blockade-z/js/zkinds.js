@@ -222,6 +222,16 @@
     for (const id in GARB) { const list = (X.garb[id] = []);
       for (const bone of ['hips', 'head', 'armL', 'armR']) if (GARB[id][bone]) { const m = new THREE.Mesh(garbGeometry(id + bone, GARB[id][bone]), garbMat); m.castShadow = sh; m.visible = false; m.userData.garb = id; b[bone].add(m); list.push(m); }
       for (const bone in GARB[id].glow || {}) { const m = new THREE.Mesh(garbGeometry(id + bone + 'g', GARB[id].glow[bone]), garbGlow); m.visible = false; m.userData.garb = id; b[bone].add(m); list.push(m); } }
+    // the hound: a muzzle with teeth, ears laid back, a ridge of bone down the spine, ribs showing; the egg: a puddle of slime,
+    // lit veins up its sides and a cracked crown
+    { const M2 = BZ.boxMats(); const HD = 0x4a120e, HD2 = 0x7a2218, BN = 0xe8dcc0, SL = 0x4a6a1a, VN = 0xb8ff40;
+      const hh = new THREE.Mesh(garbGeometry('houndHead', [[-0.15, 0.06, 0.24, 0.15, 0.27, 0.52, HD2], [-0.06, 0.2, 0.52, 0.06, 0.28, 0.56, 0x140808], [-0.13, 0.0, 0.22, 0.13, 0.06, 0.48, HD], [-0.13, 0.03, 0.44, -0.09, 0.11, 0.49, BN], [0.09, 0.03, 0.44, 0.13, 0.11, 0.49, BN], [-0.05, 0.03, 0.47, -0.02, 0.09, 0.5, BN], [0.02, 0.03, 0.47, 0.05, 0.09, 0.5, BN],
+        [-0.24, 0.42, -0.2, -0.12, 0.66, -0.12, HD, [-0.5, 0, 0.2]], [0.12, 0.42, -0.2, 0.24, 0.66, -0.12, HD, [-0.5, 0, -0.2]], [-0.2, 0.3, 0.2, 0.2, 0.36, 0.27, HD]]), M2.lit); hh.visible = false; hh.castShadow = sh; b.head.add(hh); X.houndHead = hh;
+      const ribs = [[-0.045, 0.06, -0.21, 0.045, 0.7, -0.15, HD]]; for (let i = 0; i < 5; i++) { ribs.push([-0.03, 0.1 + i * 0.13, -0.25, 0.03, 0.17 + i * 0.13, -0.2, BN]); if (i < 4) { ribs.push([0.26, 0.16 + i * 0.12, -0.1, 0.285, 0.2 + i * 0.12, 0.13, BN], [-0.285, 0.16 + i * 0.12, -0.1, -0.26, 0.2 + i * 0.12, 0.13, BN]); } }
+      const hb = new THREE.Mesh(garbGeometry('houndBody', ribs), M2.lit); hb.visible = false; hb.castShadow = sh; b.torso.add(hb); X.houndBody = hb;
+      eg.add(new THREE.Mesh(garbGeometry('eggBody', [[-0.52, 0, -0.5, 0.5, 0.03, 0.52, SL], [-0.62, 0, -0.2, -0.5, 0.02, 0.3, SL], [0.3, 0, 0.5, 0.56, 0.02, 0.66, SL], [-0.19, 0.93, -0.19, -0.06, 1.02, -0.05, 0x8a9a5a, [0.2, 0, 0.3]], [0.04, 0.93, 0.02, 0.18, 1.0, 0.16, 0x8a9a5a, [-0.3, 0, -0.2]], [-0.36, 0.2, 0.34, -0.3, 0.44, 0.37, 0x6a7a3a], [0.2, 0.1, -0.37, 0.3, 0.4, -0.34, 0x6a7a3a]]), M2.lit));
+      const veins = []; for (const [x, z, ax] of [[0.352, 0.05, 0], [-0.352, -0.1, 0], [0.1, 0.352, 1], [-0.12, -0.352, 1]]) { veins.push(ax ? [x - 0.025, 0.08, z - 0.006, x + 0.025, 0.46, z + 0.006, VN] : [x - 0.006, 0.08, z - 0.025, x + 0.006, 0.46, z + 0.025, VN]); veins.push(ax ? [x - 0.07, 0.3, z - 0.006, x + 0.07, 0.34, z + 0.006, VN] : [x - 0.006, 0.3, z - 0.07, x + 0.006, 0.34, z + 0.07, VN]); }
+      eg.add(new THREE.Mesh(garbGeometry('eggVeins', veins), M2.glow)); }
     X.gem = new THREE.Mesh(GEM, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false })); X.gem.visible = false; b.root.add(X.gem);
     b.x = X;
   };
@@ -247,7 +257,7 @@
     function dress(z, T) {
       const b = z.body; const X = b.x; const parts = T.parts || [];
       for (const k of ['sac', 'belly', 'shield', 'plate', 'padL', 'padR', 'helmet', 'visor', 'hair', 'tail']) X[k].visible = false;
-      X.tail.visible = !!T.quad; b.head.scale.setScalar(T.quad ? 0.78 : 1); b.armL.position.x = T.quad ? -0.2 : -0.36; b.armR.position.x = T.quad ? 0.2 : 0.36;
+      X.tail.visible = !!T.quad; X.houndHead.visible = X.houndBody.visible = !!T.quad; b.head.scale.setScalar(T.quad ? 0.78 : 1); b.armL.position.x = T.quad ? -0.2 : -0.36; b.armR.position.x = T.quad ? 0.2 : 0.36;
       for (const id in X.garb) { const on = T.boss === id; for (const m of X.garb[id]) m.visible = on; }
       for (const k of parts) { X[k].visible = true; if (k === 'plate') X.padL.visible = X.padR.visible = true; if (k === 'helmet') X.visor.visible = true; }
       b.hips.visible = !T.rig; X.spider.visible = T.rig === 'spider'; X.eggG.visible = T.rig === 'egg';
