@@ -1,0 +1,173 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>audio harness</title>
+<script type="module">
+import * as A from '../js/audio.js';
+import { MECHS } from '../js/data.js';
+
+const SR = 48000;
+
+// Energy-weighted spectral centroid over up to 160 frames spread across the buffer.
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2;
+        const xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+}
+function centroid(a, sr) {
+  const F = 1024, frames = Math.max(1, Math.min(160, Math.floor(a.length / F)));
+  const hop = Math.max(F, Math.floor((a.length - F) / frames));
+  let num = 0, den = 0;
+  const re = new Float64Array(F), im = new Float64Array(F);
+  for (let f = 0; f < frames; f++) {
+    const s0 = f * hop;
+    if (s0 + F > a.length) break;
+    for (let i = 0; i < F; i++) { re[i] = a[s0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / F)); im[i] = 0; }
+    fft(re, im);
+    for (let k = 1; k < F / 2; k++) { const p = re[k] * re[k] + im[k] * im[k]; num += p * k * sr / F; den += p; }
+  }
+  return den > 0 ? num / den : 0;
+}
+function stats(chans, sr) {
+  let peak = 0, clipped = 0, nan = 0, sq = 0, count = 0, jump = 0;
+  for (const a of chans) {
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i];
+      if (x !== x) { nan++; continue; }
+      const v = Math.abs(x);
+      if (v > peak) peak = v;
+      if (v >= 0.999) clipped++;
+      sq += x * x; count++;
+    }
+    jump = Math.max(jump, Math.abs(a[0] - a[a.length - 1]));
+  }
+  return { peak, rms: Math.sqrt(sq / Math.max(1, count)), clipped, nan, dur: chans[0].length / sr, centroid: centroid(chans[0], sr), loopJump: jump };
+}
+
+window.__audioDiag = async () => {
+  const sounds = [], stems = [];
+  for (const name of Object.keys(A.SOUNDS)) {
+    const S = A.SOUNDS[name];
+    for (let v = 0; v < S.n; v++) {
+      const t = performance.now();
+      const a = A.renderSound(name, v, SR);
+      const ms = performance.now() - t;
+      sounds.push({ name, variant: v, expected: S.dur, ms, ...stats([a], SR) });
+    }
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  for (const name of Object.keys(A.STEMS)) {
+    const { chans } = A.renderStem(name, A.MUSIC_SR);
+    const len = A.stemInfo(name, A.MUSIC_SR).length;
+    stems.push({ name, expected: len / A.MUSIC_SR, ...stats(chans, A.MUSIC_SR) });
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return { sounds, stems };
+};
+
+const SAMPLE = {
+  fire: (x) => ({ t: 'fire', id: 1, vis: x.vis || 'bullet', x: 3, z: 2, a: 0, side: 0 }),
+  skill: (x) => ({ t: 'skill', id: 1, slot: 0, skill: x.skill || 'giap', x: 3, z: 2, a: 0 }),
+  impact: (x) => ({ t: 'impact', vis: x.vis || 'bullet', on: x.on || 'wall', x: 3, z: 2, dx: 1, dz: 0, splash: 0 }),
+  hit: () => ({ t: 'hit', id: 2, by: 1, x: 3, z: 2, amt: 50, absorbed: 0 }),
+  heal: () => ({ t: 'heal', id: 2, x: 3, z: 2, amt: 20 }),
+  death: () => ({ t: 'death', id: 2, by: 1, assists: [], x: 3, z: 2 }),
+  respawn: () => ({ t: 'respawn', id: 2, x: 3, z: 2 }),
+  explode: (x) => ({ t: 'explode', x: 3, z: 2, r: 3, why: x.why || 'strike' }),
+  nova: () => ({ t: 'nova', id: 1, x: 3, z: 2, r: 6 }),
+  beam: () => ({ t: 'beam', id: 1, x0: 3, z0: 2, x1: 9, z1: 2, w: 1 }),
+  ram: () => ({ t: 'ram', id: 1, x: 3, z: 2 }),
+  shieldBreak: () => ({ t: 'shieldBreak', id: 1, x: 3, z: 2 }),
+  item: () => ({ t: 'item', id: 1 }),
+  zone: (x) => ({ t: 'zone', id: 7, kind: x.kind || 'strike', x: 3, z: 2 }),
+  zoneEnd: () => ({ t: 'zoneEnd', id: 7, kind: 'strike', x: 3, z: 2 }),
+  propHit: () => ({ t: 'propHit', id: 1, x: 3, z: 2 }),
+  propBreak: (x) => ({ t: 'propBreak', id: 1, kind: x.kind || 'crate', x: 3, z: 2 }),
+  crateDrop: () => ({ t: 'crateDrop', id: 1, x: 3, z: 2, type: 'heal' }),
+  crateLand: () => ({ t: 'crateLand', id: 1, x: 3, z: 2 }),
+  pickup: (x) => ({ t: 'pickup', id: 1, crate: 1, type: x.type || 'heal', x: 3, z: 2 }),
+  over: () => ({ t: 'over', winner: 0 }),
+};
+
+window.__audioCoverage = async () => {
+  const txt = await (await fetch('../README.md')).text();
+  const line = txt.split('\n').find((l) => l.startsWith('Events ('));
+  const types = [...line.slice(line.indexOf('):')).matchAll(/`(\w+)(?:\s*\{[^`]*\})?`/g)].map((m) => m[1]);
+  const m = { units: [{ team: 0 }, { team: 0 }, { team: 1 }], zones: [{ id: 7, vis: 'slow' }] };
+  const silent = [], missing = [];
+  for (const t of types) {
+    const n = A.planEvent(SAMPLE[t] ? SAMPLE[t]({}) : { t }, m, 1).length;
+    if (!n && !A.SILENT_EVENTS.includes(t)) missing.push(t);
+    if (n && A.SILENT_EVENTS.includes(t)) silent.push(t);
+  }
+  const vis = {}, skills = {}, extras = [];
+  for (const mech of Object.values(MECHS)) {
+    vis[mech.weapon.vis] = A.planEvent(SAMPLE.fire({ vis: mech.weapon.vis }), m, 1).length;
+    for (const s of mech.skills) {
+      if (s.vis && s.do === 'volley') vis[s.vis] = A.planEvent(SAMPLE.fire({ vis: s.vis }), m, 1).length;
+      const own = A.planEvent(SAMPLE.skill({ skill: s.id }), m, 1).length;
+      const comp = A.SKILL_COMPANION[s.id];
+      let viaComp = 0;
+      if (comp === 'fire') viaComp = vis[s.vis] || 0;
+      else if (comp === 'zone') {
+        const kind = { min: 'mine', truongcham: 'field', vom: 'dome' }[s.id];
+        viaComp = A.planEvent(SAMPLE.zone({ kind }), m, 1).length;
+      }
+      skills[s.id] = own || viaComp;
+    }
+  }
+  const sub = [];
+  for (const k of ['strike', 'mine', 'barrel']) sub.push(['explode:' + k, A.planEvent(SAMPLE.explode({ why: k }), m, 1).length]);
+  for (const k of ['crate', 'pot']) sub.push(['propBreak:' + k, A.planEvent(SAMPLE.propBreak({ kind: k }), m, 1).length]);
+  for (const k of ['heal', 'power', 'haste', 'refresh', 'shield']) sub.push(['pickup:' + k, A.planEvent(SAMPLE.pickup({ type: k }), m, 1).length]);
+  for (const k of ['wall', 'dome']) sub.push(['impact:' + k, A.planEvent(SAMPLE.impact({ on: k }), m, 1).length]);
+  for (const k of ['field']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k }), m, 1).length]);
+  return { types, missing, silent, vis, skills, sub, extras };
+};
+
+// Boot the real engine with a fake G, drive every public method and wait for the background render to drain.
+window.__audioBoot = async () => {
+  const out = { errors: [] };
+  const prog = [];
+  const t0 = performance.now();
+  const off = await A.makeAudio({ params: { noaudio: true } });
+  out.noopMethods = Object.keys(off).sort();
+  out.noopCall = (() => { try { off.event({ t: 'fire' }, null, 0); off.ui('click'); off.update(0.016, 0.5); return true; } catch (e) { return false; } })();
+  const a = await A.makeAudio({ params: {} }, (f) => prog.push(f));
+  out.bootMs = performance.now() - t0;
+  out.methods = Object.keys(a).sort();
+  out.progress = prog.length ? prog[prog.length - 1] : -1;
+  try {
+    await a.resume();
+    a.setVolume(0.7); a.setMusic(0.5); a.mute(false); a.setListener(0, 0); a.setScene('match');
+    const m = { units: [{ team: 0, x: 0, z: 0 }, { team: 0 }, { team: 1 }], zones: [{ id: 7, vis: 'slow' }] };
+    for (const t of Object.keys(SAMPLE)) a.event(SAMPLE[t]({}), m, 0);
+    a.event({ t: 'fire', id: 9, vis: 'bullet', x: 100, z: 0 }, m, 0);
+    for (const n of A.UI_NAMES) a.ui(n);
+    for (let i = 0; i < 30; i++) a.update(0.033, i / 30);
+  } catch (e) { out.errors.push(String(e && e.stack || e)); }
+  const t1 = performance.now();
+  while (a.stats().queued > 0 && performance.now() - t1 < 150000) await new Promise((r) => setTimeout(r, 100));
+  out.drainMs = performance.now() - t1;
+  await new Promise((r) => setTimeout(r, 300));
+  for (let i = 0; i < 10; i++) a.update(0.033, 1);
+  out.stats = a.stats();
+  return out;
+};
+window.__harnessReady = true;
+</script>

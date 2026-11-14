@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1a0d">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Đấu Trường Thép</title>
+<style>
+html, body { margin: 0; height: 100%; background: #0b1a0d; color: #e9eef2; overflow: hidden; font-family: 'Arial Narrow', 'Roboto Condensed', 'Segoe UI', system-ui, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+#view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
+a.hub { position: fixed; left: max(8px, env(safe-area-inset-left)); top: 6px; z-index: 30; font: 700 12px/1 system-ui, sans-serif; color: #fff; opacity: .7; text-decoration: none; padding: 6px 9px; background: rgba(10, 14, 18, .55); border: 1px solid rgba(255, 255, 255, .25); }
+body.in-match a.hub { display: none; }
+#boot { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(ellipse at 50% 40%, #1b2a1c 0%, #0a120b 70%); transition: opacity .5s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .mk { font: 900 clamp(30px, 6vw, 58px)/1 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif; letter-spacing: .14em; color: #f2b632; text-shadow: 0 3px 0 #5a3a00, 0 0 28px rgba(242, 182, 50, .35); }
+#boot .bar { width: min(340px, 70vw); height: 8px; background: #1c242b; border: 1px solid #4a5560; transform: skewX(-18deg); }
+#boot .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f2b632, #ffe08a); transition: width .2s; }
+#boot-msg { font: 700 13px system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #9fb0bd; }
+#fatal { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: #4a1010; color: #ffd9d0; font: 13px/1.5 ui-monospace, Consolas, monospace; padding: 14px 18px; white-space: pre-wrap; max-height: 45vh; overflow: auto; }
+</style>
+<link rel="stylesheet" href="css/ui.css?v=20261114a">
+</head>
+<body>
+<canvas id="view" tabindex="0"></canvas>
+<a class="hub" href="../../index.html">‹ Hub</a>
+<div id="boot"><div class="mk">ĐẤU TRƯỜNG THÉP</div><div class="bar"><i></i></div><div id="boot-msg">Khởi động</div></div>
+<div id="fatal"></div>
+<script type="module" src="js/main.js?v=20261114a"></script>
+</body>
+</html>

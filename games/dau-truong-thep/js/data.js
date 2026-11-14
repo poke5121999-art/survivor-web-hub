@@ -1,0 +1,111 @@
+// Every tunable of the game lives here as a table. Units: metres, seconds, hit points.
+// The simulation (sim.js) reads these rows; nothing in this file touches three.js.
+
+export const TICK = 1 / 30;
+
+export const TEAMS = [
+  { id: 0, name: 'Lam', color: 0x35b8ff, css: '#35b8ff' },
+  { id: 1, name: 'Hỏa', color: 0xff5a36, css: '#ff5a36' },
+];
+
+export const RULES = {
+  target: 25, duration: 300, respawn: 5, spawnGuard: 2.5,
+  baseRadius: 6.5, baseRegen: 0.12, baseBurn: 420,
+  regenDelay: 7, regen: 0.025,
+  assistWindow: 7, revealOnFire: 1.2, bushSight: 3.4,
+  healItem: { cd: 24, frac: 0.38, dur: 2.2 },
+  crate: { first: 12, every: [15, 22], fall: 3.2, max: 3, life: 40, radius: 1.5 },
+};
+
+// Airdrop pickups. `w` is the draw weight.
+export const PICKUPS = {
+  heal:    { name: 'Hồi máu',      w: 3, color: 0x54e36b, heal: 0.45 },
+  power:   { name: 'Tăng sát thương', w: 2, color: 0xff7a3d, dmgUp: 1.35, dur: 12 },
+  haste:   { name: 'Tăng tốc',     w: 2, color: 0x5fe0ff, haste: 1.3, dur: 12 },
+  refresh: { name: 'Hồi chiêu',    w: 2, color: 0xc48bff, refresh: true },
+  shield:  { name: 'Khiên năng lượng', w: 2, color: 0xffd94a, shield: 800, dur: 15 },
+};
+
+// Skill effects are rows interpreted by the registry in sim.js (CAST). `do` picks the primitive.
+// Slots: weapon (left mouse), skills[0] = Q, skills[1] = E, skills[2] = SPACE (ultimate).
+export const MECHS = {
+  trau: {
+    name: 'Trâu Sắt', role: 'Trụ', roleKey: 'tank', price: 0, tint: 0x8fa3b5,
+    blurb: 'Giáp dày, pháo nặng. Đi đầu, húc choáng và che đạn cho đồng đội.',
+    hp: 3400, speed: 5.1, radius: 1.2,
+    weapon: { name: 'Pháo Búa', cd: 0.95, dmg: 250, speed: 27, range: 15, splash: 2.2, knock: 2.5, r: 0.34, vis: 'shell' },
+    skills: [
+      { id: 'giap', name: 'Giáp Phản Lực', cd: 12, do: 'shield', amount: 1000, dur: 4.5, icon: 'shield',
+        desc: 'Bật khiên năng lượng hấp thụ 1000 sát thương trong 4,5 giây.' },
+      { id: 'huc', name: 'Húc Thép', cd: 10, do: 'dash', dist: 8.5, speed: 27, dmg: 240, stun: 0.9, knock: 4, icon: 'dash',
+        desc: 'Lao thẳng theo hướng ngắm, húc trúng ai thì gây sát thương và làm choáng.' },
+      { id: 'diachan', name: 'Địa Chấn', cd: 38, do: 'nova', windup: 0.75, radius: 6.5, dmg: 520, slow: 0.5, slowDur: 3, knock: 3, icon: 'quake',
+        desc: 'Dậm nát mặt đất: sau một nhịp lấy đà, mọi kẻ địch quanh bạn chịu sát thương lớn và bị làm chậm.' },
+    ],
+  },
+  soi: {
+    name: 'Sói Lửa', role: 'Xung kích', roleKey: 'assault', price: 0, tint: 0xd9843a,
+    blurb: 'Hai nòng liên thanh, cơ động. Áp sát, xả đạn rồi rút.',
+    hp: 2300, speed: 6.5, radius: 1.0,
+    weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 56, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
+    skills: [
+      { id: 'rocket', name: 'Rocket Chùm', cd: 8, do: 'volley', n: 3, fan: 0.22, dmg: 190, speed: 24, range: 15, splash: 2.4, r: 0.3, vis: 'rocket', icon: 'rocket',
+        desc: 'Phóng ba quả rocket toả hình quạt, nổ lan khi chạm.' },
+      { id: 'tangap', name: 'Tăng Áp', cd: 14, do: 'buff', haste: 1.45, rapid: 1.35, dur: 4, icon: 'boost',
+        desc: 'Trong 4 giây chạy nhanh hơn 45% và bắn nhanh hơn 35%.' },
+      { id: 'muahoa', name: 'Mưa Hỏa Tiễn', cd: 42, do: 'barrage', n: 9, radius: 5.5, blast: 2.6, dmg: 230, delay: 0.9, span: 1.8, cast: 16, icon: 'barrage',
+        desc: 'Gọi chín quả hỏa tiễn dội xuống vùng con trỏ. Vòng đỏ báo trước chỗ rơi.' },
+    ],
+  },
+  ung: {
+    name: 'Ưng Nhãn', role: 'Bắn tỉa', roleKey: 'sniper', price: 0, tint: 0x7c6bd6,
+    blurb: 'Súng ray tầm xa, máu mỏng. Giữ khoảng cách, bẫy kẻ lao vào.',
+    hp: 1750, speed: 6.0, radius: 0.95,
+    weapon: { name: 'Súng Ray', cd: 1.35, dmg: 430, speed: 62, range: 23, r: 0.2, vis: 'rail' },
+    skills: [
+      { id: 'min', name: 'Mìn Xung Điện', cd: 11, do: 'mine', trigger: 2.1, blast: 3, dmg: 260, stun: 1.2, arm: 0.8, life: 35, cast: 9, icon: 'mine',
+        desc: 'Ném một quả mìn tới con trỏ. Địch chạm vào bị giật choáng.' },
+      { id: 'luot', name: 'Lướt Bóng', cd: 11, do: 'blink', dist: 7, speed: 30, stealth: 2.2, icon: 'blink',
+        desc: 'Lướt nhanh theo hướng đang đi (hoặc lùi lại) rồi tàng hình 2,2 giây.' },
+      { id: 'tia', name: 'Tia Xuyên Phá', cd: 44, do: 'beam', windup: 0.9, range: 30, width: 1.1, dmg: 950, icon: 'beam',
+        desc: 'Nạp năng lượng rồi bắn một tia xuyên qua mọi kẻ địch trên đường thẳng. Tường vẫn chặn được.' },
+    ],
+  },
+  hac: {
+    name: 'Bạch Hạc', role: 'Hỗ trợ', roleKey: 'support', price: 0, tint: 0x59c9a5,
+    blurb: 'Hồi máu, làm chậm và dựng vòm chắn đạn cho cả đội.',
+    hp: 2050, speed: 6.2, radius: 1.0,
+    weapon: { name: 'Xung Quang', cd: 0.34, dmg: 78, speed: 30, range: 14, r: 0.26, vis: 'pulse' },
+    skills: [
+      { id: 'hoiphuc', name: 'Suối Hồi Phục', cd: 13, do: 'zone', at: 'self', radius: 5, dur: 4.5, hps: 150, vis: 'heal', icon: 'heal',
+        desc: 'Tạo vùng hồi 150 máu mỗi giây cho đồng đội đứng trong, kéo dài 4,5 giây.' },
+      { id: 'truongcham', name: 'Trường Trì Trệ', cd: 12, do: 'zone', at: 'target', cast: 13, radius: 4.5, dur: 4, dps: 45, slow: 0.45, vis: 'slow', icon: 'slow',
+        desc: 'Ném một trường năng lượng tới con trỏ: địch bên trong bị chậm 45% và mất máu dần.' },
+      { id: 'vom', name: 'Vòm Bảo Hộ', cd: 48, do: 'dome', radius: 6, dur: 5.5, shield: 600, heal: 450, icon: 'dome',
+        desc: 'Dựng vòm chặn mọi đạn địch bay vào trong 5,5 giây, đồng đội trong vòm được hồi máu và nhận khiên.' },
+    ],
+  },
+};
+
+export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac'];
+
+// Bot tuning. aimErr: radians of aim noise; react: seconds before a new target is engaged;
+// skill: chance per second to use a ready skill when it makes sense; lead: how well shots lead a moving target (0..1).
+export const DIFFICULTY = {
+  easy:   { name: 'Dễ',   aimErr: 0.30, react: 0.75, skill: 0.25, lead: 0.2, focus: 0.3, retreat: 0.18, dodge: 0.0, fireDuty: 0.55 },
+  normal: { name: 'Vừa',  aimErr: 0.14, react: 0.40, skill: 0.6,  lead: 0.6, focus: 0.6, retreat: 0.28, dodge: 0.35, fireDuty: 0.8 },
+  hard:   { name: 'Khó',  aimErr: 0.05, react: 0.18, skill: 1.0,  lead: 0.95, focus: 1.0, retreat: 0.35, dodge: 0.8, fireDuty: 1 },
+};
+
+export const BOT_NAMES = ['Tí Sắt', 'Mèo Mun', 'Cò Lả', 'Bão Số 9', 'Ông Kẹ', 'Chuồn Kim', 'Gió Chướng', 'Nắp Chai', 'Bánh Tét', 'Sấm Rền',
+  'Lúa Non', 'Đá Cuội', 'Chớp Bể', 'Mưa Nguồn', 'Cua Đồng', 'Tre Già', 'Bụi Đời', 'Sao Hôm', 'Kiến Lửa', 'Vịt Bầu'];
+
+export const REWARDS = { win: 120, lose: 60, draw: 80, perKill: 8, perAssist: 4, mvp: 40, xpWin: 100, xpLose: 60, xpPerKill: 5 };
+export const levelXp = (level) => 200 + (level - 1) * 120;
+
+// Destructible props. Barrels explode when destroyed and hurt the destroyer's enemies.
+export const PROPS = {
+  crate:  { hp: 320, r: 0.8 },
+  barrel: { hp: 110, r: 0.6, blast: { radius: 3.6, dmg: 360, knock: 3 } },
+  pot:    { hp: 50,  r: 0.5 },
+};

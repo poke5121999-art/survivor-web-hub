@@ -1,0 +1,554 @@
+// The match simulation. Pure and deterministic: fixed 30 Hz ticks, one seeded RNG, no three.js, no DOM.
+// The same code runs in the browser, in Node tests, and (later) on the host of an online room.
+//
+//   const m = createMatch({ map, seed, roster });   roster: [{ team, mech, name, bot, diff }]
+//   step(m, inputs);                                inputs[unit.id] = { mx, mz, aim, fire, s1, s2, ult, heal, tx, tz }
+//   m.events                                        what happened during the last tick, for effects, sound and HUD
+//
+// Angles are radians in the XZ plane: direction = (cos a, sin a).
+
+import { TICK, RULES, PICKUPS, MECHS, PROPS } from './data.js';
+import { mulberry } from './rng.js';
+import { compileMap, castStatic, segCircle } from './maps.js';
+
+const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+const SLOTS = ['s1', 's2', 'ult'];
+
+export function createMatch(opts) {
+  const map = compileMap(opts.map || 'denrung');
+  const m = {
+    map, seed: opts.seed >>> 0, rng: mulberry(opts.seed >>> 0), tick: 0, time: 0,
+    target: opts.target || RULES.target, duration: opts.duration || RULES.duration,
+    units: [], shots: [], zones: [], crates: [], events: [],
+    props: map.props.map((p) => ({ id: p.id, x: p.x, z: p.z, kind: p.kind, r: PROPS[p.kind].r, hp: PROPS[p.kind].hp, alive: true })),
+    score: [0, 0], over: false, winner: -1, nextId: 1, crateT: RULES.crate.first,
+  };
+  const slot = [0, 0];
+  for (const r of opts.roster) {
+    const def = MECHS[r.mech];
+    const mods = r.mods || {};
+    const u = {
+      id: m.units.length, team: r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
+      slot: slot[r.team]++, radius: def.radius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: mods.dmg || 1,
+      x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0,
+      hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
+      kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, pickups: 0, hitBy: {}, brain: null,
+    };
+    m.units.push(u);
+    spawn(m, u, true);
+  }
+  return m;
+}
+
+function clearStatus(u) {
+  u.shield = 0; u.shieldMax = 0; u.shieldT = 0; u.slowT = 0; u.slowF = 0; u.stunT = 0;
+  u.hasteT = 0; u.hasteF = 1; u.rapidT = 0; u.rapidF = 1; u.dmgT = 0; u.dmgF = 1;
+  u.stealthT = 0; u.invulnT = 0; u.healT = 0; u.healRate = 0; u.revealT = 0; u.combatT = 99;
+  u.cast = null; u.dash = null; u.bush = -1; u.kx = 0; u.kz = 0; u.vx = 0; u.vz = 0; u.hitBy = {};
+}
+
+function spawn(m, u, first) {
+  const p = m.map.spawns[u.team][u.slot % 5];
+  u.x = u.px = p[0]; u.z = u.pz = p[1];
+  u.hp = u.maxHp; u.alive = true; u.respawnT = 0;
+  clearStatus(u);
+  u.invulnT = first ? 0 : RULES.spawnGuard;
+  if (!first) m.events.push({ t: 'respawn', id: u.id, x: u.x, z: u.z });
+}
+
+export function step(m, inputs) {
+  m.events.length = 0;
+  if (m.over) return;
+  m.tick++; m.time += TICK;
+  for (const u of m.units) stepUnit(m, u, (inputs && inputs[u.id]) || NO_INPUT);
+  separate(m);
+  stepShots(m);
+  stepZones(m);
+  stepCrates(m);
+  const lead = Math.max(m.score[0], m.score[1]);
+  if (lead >= m.target || m.time >= m.duration) {
+    m.over = true;
+    m.winner = m.score[0] === m.score[1] ? -1 : (m.score[0] > m.score[1] ? 0 : 1);
+    m.events.push({ t: 'over', winner: m.winner });
+  }
+}
+
+export const hidden = (u) => u.stealthT > 0 || (u.bush >= 0 && u.revealT <= 0);
+
+// Can `team` see unit u? Hidden units are seen only by an enemy standing next to them.
+export function visibleTo(m, u, team) {
+  if (u.team === team || !hidden(u)) return true;
+  const s = RULES.bushSight;
+  for (const o of m.units) {
+    if (o.team !== team || !o.alive) continue;
+    const dx = o.x - u.x, dz = o.z - u.z;
+    if (dx * dx + dz * dz < s * s) return true;
+  }
+  return false;
+}
+
+export function unitSpeed(u) {
+  let s = u.def.speed;
+  if (u.hasteT > 0) s *= u.hasteF;
+  if (u.slowT > 0) s *= 1 - u.slowF;
+  if (u.cast) s *= u.cast.move;
+  return s;
+}
+
+function bushAt(map, x, z) {
+  for (const b of map.bushes) { const dx = b.x - x, dz = b.z - z; if (dx * dx + dz * dz < b.r * b.r) return b.id; }
+  return -1;
+}
+
+function stepUnit(m, u, inp) {
+  const dt = TICK;
+  u.px = u.x; u.pz = u.z;
+  if (!u.alive) { u.respawnT -= dt; if (u.respawnT <= 0) spawn(m, u, false); return; }
+
+  for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' && u.rapidT > 0 ? u.rapidF : 1));
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; } }
+  u.combatT += dt;
+  u.bush = bushAt(m.map, u.x, u.z);
+
+  const own = m.map.bases[u.team], foe = m.map.bases[1 - u.team], br = RULES.baseRadius;
+  if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
+  else if (dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
+  if (u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
+  if (u.healT > 0) { u.healT -= dt; heal(m, u, u.healRate * dt, u, true); }
+
+  const stunned = u.stunT > 0;
+  if (stunned) { inp = NO_INPUT; u.cast = null; }
+  else u.aim = u.cast && u.cast.lock ? u.cast.aim : inp.aim;
+
+  if (u.cast) {
+    u.cast.t -= dt;
+    if (u.cast.t <= 0) { const c = u.cast; u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
+  }
+
+  if (u.dash) stepDash(m, u);
+  else {
+    const sp = stunned ? 0 : unitSpeed(u);
+    let mx = inp.mx, mz = inp.mz;
+    const len = Math.hypot(mx, mz);
+    if (len > 1) { mx /= len; mz /= len; }
+    const k = Math.min(1, 14 * dt);
+    u.vx += (mx * sp - u.vx) * k; u.vz += (mz * sp - u.vz) * k;
+    moveUnit(m, u, (u.vx + u.kx) * dt, (u.vz + u.kz) * dt);
+    if (len > 0.2) u.heading = turnTo(u.heading, Math.atan2(mz, mx), 9 * dt);
+  }
+  u.kx *= 0.8; u.kz *= 0.8;
+  if (stunned || !u.alive) return;
+
+  if (inp.heal && u.cd.heal <= 0 && u.hp < u.maxHp) {
+    u.cd.heal = RULES.healItem.cd; u.healT = RULES.healItem.dur; u.healRate = u.maxHp * RULES.healItem.frac / RULES.healItem.dur;
+    m.events.push({ t: 'item', id: u.id });
+  }
+  if (u.cast || u.dash) return;
+  for (let i = 0; i < 3; i++) {
+    const key = SLOTS[i];
+    if (!inp[key] || u.cd[key] > 0) continue;
+    const s = u.def.skills[i];
+    u.cd[key] = s.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
+    m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
+    CAST[s.do](m, u, s, inp);
+    return;
+  }
+  if (inp.fire && u.cd.fire <= 0) fireWeapon(m, u);
+}
+
+function fireWeapon(m, u) {
+  const w = u.def.weapon;
+  u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
+  const a = u.aim + (w.spread ? (m.rng() - 0.5) * 2 * w.spread : 0);
+  let side = 0;
+  if (w.alt) { u.barrel ^= 1; side = u.barrel ? w.alt : -w.alt; }
+  spawnShot(m, u, w, a, side);
+  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a, side });
+}
+
+function spawnShot(m, u, w, a, side) {
+  const dx = Math.cos(a), dz = Math.sin(a), off = u.radius + 0.25;
+  let x = u.x + dx * off - dz * side, z = u.z + dz * off + dx * side;
+  // A muzzle poking through a wall must not fire from the far side.
+  if (castStatic(m.map, u.x, u.z, x, z, w.r) <= 1) { x = u.x; z = u.z; }
+  m.shots.push({
+    id: m.nextId++, team: u.team, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: w.speed, left: w.range,
+    dmg: w.dmg * u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1), splash: w.splash || 0, knock: w.knock || 0, r: w.r, vis: w.vis,
+  });
+}
+
+const aimPoint = (u, inp, range) => {
+  let dx = inp.tx - u.x, dz = inp.tz - u.z;
+  const d = Math.hypot(dx, dz);
+  if (d > range) { dx *= range / d; dz *= range / d; }
+  return [u.x + dx, u.z + dz];
+};
+
+// What a skill does the moment its key is pressed.
+const CAST = {
+  shield(m, u, s) { u.shield = Math.max(u.shield, s.amount); u.shieldMax = u.shield; u.shieldT = s.dur; },
+  dash(m, u, s) { u.dash = { dx: Math.cos(u.aim), dz: Math.sin(u.aim), left: s.dist, speed: s.speed, s, hit: [] }; },
+  blink(m, u, s, inp) {
+    let dx = inp.mx, dz = inp.mz;
+    const len = Math.hypot(dx, dz);
+    if (len > 0.2) { dx /= len; dz /= len; } else { dx = -Math.cos(u.aim); dz = -Math.sin(u.aim); }
+    u.dash = { dx, dz, left: s.dist, speed: s.speed, s, hit: [] };
+    u.stealthT = s.stealth + s.dist / s.speed; u.revealT = 0;
+  },
+  nova(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.35, lock: false, aim: u.aim }; },
+  beam(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim }; },
+  volley(m, u, s) {
+    for (let i = 0; i < s.n; i++) spawnShot(m, u, s, u.aim + (i - (s.n - 1) / 2) * s.fan, 0);
+    m.events.push({ t: 'fire', id: u.id, vis: s.vis, x: u.x, z: u.z, a: u.aim, side: 0 });
+  },
+  buff(m, u, s) {
+    if (s.haste) { u.hasteT = s.dur; u.hasteF = s.haste; }
+    if (s.rapid) { u.rapidT = s.dur; u.rapidF = s.rapid; }
+  },
+  barrage(m, u, s, inp) {
+    const [cx, cz] = aimPoint(u, inp, s.cast);
+    for (let i = 0; i < s.n; i++) {
+      const a = m.rng() * 6.283, d = i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0;
+      addZone(m, u, { kind: 'strike', x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: s.blast, delay: s.delay + (i / s.n) * s.span, total: s.delay + (i / s.n) * s.span, dmg: s.dmg });
+    }
+  },
+  mine(m, u, s, inp) {
+    const [x, z] = aimPoint(u, inp, s.cast);
+    addZone(m, u, { kind: 'mine', x, z, r: s.trigger, blast: s.blast, delay: s.arm, dur: s.life, dmg: s.dmg, stun: s.stun });
+  },
+  zone(m, u, s, inp) {
+    const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
+    addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: s.dps || 0, slow: s.slow || 0, acc: 0 });
+  },
+  dome(m, u, s) {
+    addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
+    for (const o of m.units) {
+      if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
+      heal(m, o, s.heal, u);
+      o.shield = Math.max(o.shield, s.shield); o.shieldMax = o.shield; o.shieldT = s.dur;
+    }
+  },
+};
+
+// What a wind-up skill does when the wind-up completes.
+const FINISH = {
+  nova(m, u, s) {
+    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius });
+    areaDamage(m, u, u.x, u.z, s.radius, s.dmg, s, null);
+  },
+  beam(m, u, s, c) {
+    const dx = Math.cos(c.aim), dz = Math.sin(c.aim);
+    const t = Math.min(1, castStatic(m.map, u.x, u.z, u.x + dx * s.range, u.z + dz * s.range, 0.2));
+    const len = s.range * t, x1 = u.x + dx * len, z1 = u.z + dz * len;
+    const dmg = s.dmg * u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1);
+    for (const o of m.units) {
+      if (o.team === u.team || !o.alive) continue;
+      const along = (o.x - u.x) * dx + (o.z - u.z) * dz;
+      if (along < 0 || along > len + o.radius) continue;
+      const side = Math.abs((o.x - u.x) * dz - (o.z - u.z) * dx);
+      if (side < s.width / 2 + o.radius) damage(m, o, dmg, u);
+    }
+    for (const p of m.props) {
+      if (!p.alive) continue;
+      const along = (p.x - u.x) * dx + (p.z - u.z) * dz;
+      if (along < 0 || along > len) continue;
+      if (Math.abs((p.x - u.x) * dz - (p.z - u.z) * dx) < s.width / 2 + p.r) damageProp(m, p, dmg, u);
+    }
+    u.revealT = RULES.revealOnFire;
+    m.events.push({ t: 'beam', id: u.id, x0: u.x, z0: u.z, x1, z1, w: s.width });
+  },
+};
+
+function stepDash(m, u) {
+  const d = u.dash, s = d.s;
+  const stepLen = Math.min(d.left, d.speed * TICK);
+  const bx = u.x, bz = u.z;
+  moveUnit(m, u, d.dx * stepLen, d.dz * stepLen);
+  const moved = Math.hypot(u.x - bx, u.z - bz);
+  d.left -= stepLen;
+  u.heading = Math.atan2(d.dz, d.dx);
+  if (s.dmg) for (const o of m.units) {
+    if (o.team === u.team || !o.alive || d.hit.includes(o.id)) continue;
+    const rr = u.radius + o.radius + 0.35;
+    if (dist2(o.x, o.z, u.x, u.z) > rr * rr) continue;
+    d.hit.push(o.id);
+    damage(m, o, s.dmg * u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1), u);
+    if (o.alive) { o.stunT = Math.max(o.stunT, s.stun); o.kx += d.dx * s.knock * 4; o.kz += d.dz * s.knock * 4; }
+    m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
+  }
+  if (d.left <= 0.01 || moved < stepLen * 0.4) { u.dash = null; u.vx = d.dx * 2; u.vz = d.dz * 2; }
+}
+
+function moveUnit(m, u, dx, dz) {
+  const dist = Math.hypot(dx, dz);
+  const n = Math.max(1, Math.ceil(dist / 0.45));
+  for (let i = 0; i < n; i++) { u.x += dx / n; u.z += dz / n; resolveStatic(m, u); }
+}
+
+function resolveStatic(m, u) {
+  const map = m.map, r = u.radius;
+  // Two passes: pushing out of a prop can push back into a wall.
+  for (let pass = 0; pass < 2; pass++) {
+    for (const w of map.walls) {
+      const cx = Math.max(w.x0, Math.min(u.x, w.x1)), cz = Math.max(w.z0, Math.min(u.z, w.z1));
+      const dx = u.x - cx, dz = u.z - cz, d2 = dx * dx + dz * dz;
+      if (d2 >= r * r) continue;
+      if (d2 > 1e-8) { const d = Math.sqrt(d2); u.x = cx + dx / d * r; u.z = cz + dz / d * r; }
+      else {
+        const l = u.x - w.x0, rt = w.x1 - u.x, t = u.z - w.z0, b = w.z1 - u.z, mn = Math.min(l, rt, t, b);
+        if (mn === l) u.x = w.x0 - r; else if (mn === rt) u.x = w.x1 + r; else if (mn === t) u.z = w.z0 - r; else u.z = w.z1 + r;
+      }
+    }
+    for (const c of map.rounds) pushOut(u, c.x, c.z, c.r + r);
+    if (pass === 0) for (const p of m.props) if (p.alive) pushOut(u, p.x, p.z, p.r + r);
+    u.x = Math.max(-map.hw + r, Math.min(map.hw - r, u.x));
+    u.z = Math.max(-map.hd + r, Math.min(map.hd - r, u.z));
+  }
+}
+
+function pushOut(u, cx, cz, rr) {
+  const dx = u.x - cx, dz = u.z - cz, d2 = dx * dx + dz * dz;
+  if (d2 >= rr * rr) return;
+  const d = Math.sqrt(d2) || 1e-4;
+  u.x = cx + dx / d * rr; u.z = cz + dz / d * rr;
+}
+
+function separate(m) {
+  const us = m.units;
+  for (let i = 0; i < us.length; i++) {
+    const a = us[i]; if (!a.alive) continue;
+    for (let j = i + 1; j < us.length; j++) {
+      const b = us[j]; if (!b.alive) continue;
+      const rr = (a.radius + b.radius) * 0.92, dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz;
+      if (d2 >= rr * rr) continue;
+      const d = Math.sqrt(d2) || 1e-3, push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
+      a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
+      resolveStatic(m, a); resolveStatic(m, b);
+    }
+  }
+}
+
+function stepShots(m) {
+  const map = m.map;
+  for (let i = m.shots.length - 1; i >= 0; i--) {
+    const s = m.shots[i];
+    const len = Math.min(s.left, s.speed * TICK);
+    const ex = s.dx * len, ez = s.dz * len;
+    s.px = s.x; s.pz = s.z;
+    let best = castStatic(map, s.x, s.z, s.x + ex, s.z + ez, s.r * 0.5), what = 'wall', hitUnit = null, hitProp = null;
+    for (const p of m.props) {
+      if (!p.alive) continue;
+      const t = segCircle(s.x, s.z, ex, ez, p.x, p.z, p.r + s.r);
+      if (t < best) { best = t; what = 'prop'; hitProp = p; }
+    }
+    for (const z of m.zones) {
+      if (z.kind !== 'dome' || z.team === s.team) continue;
+      if (dist2(s.x, s.z, z.x, z.z) < z.r * z.r) continue;
+      const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r);
+      if (t < best) { best = t; what = 'dome'; hitProp = null; }
+    }
+    for (const u of m.units) {
+      if (u.team === s.team || !u.alive) continue;
+      const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r);
+      if (t < best) { best = t; what = 'unit'; hitUnit = u; hitProp = null; }
+    }
+    if (best > 1) {
+      s.x += ex; s.z += ez; s.left -= len;
+      if (s.left > 1e-4) continue;
+      what = 'end';
+    } else { s.x += ex * best; s.z += ez * best; }
+    const owner = m.units[s.owner];
+    if (what === 'unit') {
+      damage(m, hitUnit, s.dmg, owner);
+      if (s.knock && hitUnit.alive) { hitUnit.kx += s.dx * s.knock * 3; hitUnit.kz += s.dz * s.knock * 3; }
+    } else if (what === 'prop') damageProp(m, hitProp, s.dmg, owner);
+    if (s.splash && what !== 'dome') areaDamage(m, owner, s.x, s.z, s.splash, s.dmg * 0.6, null, hitUnit);
+    m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
+    m.shots.splice(i, 1);
+  }
+}
+
+function addZone(m, u, z) {
+  z.id = m.nextId++; z.team = u.team; z.owner = u.id; z.age = 0;
+  if (z.delay === undefined) z.delay = 0;
+  m.zones.push(z);
+  m.events.push({ t: 'zone', id: z.id, kind: z.kind, x: z.x, z: z.z });
+}
+
+function stepZones(m) {
+  const dt = TICK;
+  for (let i = m.zones.length - 1; i >= 0; i--) {
+    const z = m.zones[i], owner = m.units[z.owner];
+    z.age += dt;
+    let done = false;
+    if (z.kind === 'strike') {
+      z.delay -= dt;
+      if (z.delay <= 0) { explode(m, owner, z.x, z.z, z.r, z.dmg, null, 'strike'); done = true; }
+    } else if (z.kind === 'mine') {
+      if (z.delay > 0) z.delay -= dt;
+      else {
+        for (const u of m.units) {
+          if (u.team === z.team || !u.alive) continue;
+          const rr = z.r + u.radius * 0.5;
+          if (dist2(u.x, u.z, z.x, z.z) < rr * rr) { explode(m, owner, z.x, z.z, z.blast, z.dmg, { stun: z.stun }, 'mine'); done = true; break; }
+        }
+      }
+      if (z.age > z.dur) done = true;
+    } else if (z.kind === 'field') {
+      z.acc += dt;
+      const pulse = z.acc >= 0.5;
+      if (pulse) z.acc -= 0.5;
+      for (const u of m.units) {
+        if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
+        if (u.team === z.team) { if (z.hps && pulse) heal(m, u, z.hps * 0.5, owner); }
+        else {
+          if (z.slow) { u.slowT = Math.max(u.slowT, 0.3); u.slowF = Math.max(u.slowT > 0.3 ? u.slowF : 0, z.slow); }
+          if (z.dps && pulse) damage(m, u, z.dps * 0.5, owner);
+        }
+      }
+      if (z.age > z.dur) done = true;
+    } else if (z.age > z.dur) done = true;
+    if (done) { m.zones.splice(i, 1); m.events.push({ t: 'zoneEnd', id: z.id, kind: z.kind, x: z.x, z: z.z }); }
+  }
+}
+
+function explode(m, src, x, z, r, dmg, fx, why) {
+  m.events.push({ t: 'explode', x, z, r, why });
+  areaDamage(m, src, x, z, r, dmg, fx, null);
+}
+
+// Damage with falloff (100% at the centre, 50% at the rim) to enemies of src and to props. fx may carry slow, slowDur, stun, knock.
+function areaDamage(m, src, x, z, r, dmg, fx, skip) {
+  const scale = src.dmgMod * (src.dmgT > 0 ? src.dmgF : 1);
+  for (const u of m.units) {
+    if (u.team === src.team || !u.alive || u === skip) continue;
+    const reach = r + u.radius * 0.6, d2 = dist2(u.x, u.z, x, z);
+    if (d2 > reach * reach) continue;
+    const d = Math.sqrt(d2);
+    damage(m, u, dmg * scale * (1 - 0.5 * Math.min(1, d / r)), src);
+    if (!u.alive || !fx) continue;
+    if (fx.slow) { u.slowT = Math.max(u.slowT, fx.slowDur); u.slowF = fx.slow; }
+    if (fx.stun) u.stunT = Math.max(u.stunT, fx.stun);
+    if (fx.knock && d > 0.01) { u.kx += (u.x - x) / d * fx.knock * 3; u.kz += (u.z - z) / d * fx.knock * 3; }
+  }
+  for (const p of m.props) {
+    if (!p.alive) continue;
+    const reach = r + p.r;
+    if (dist2(p.x, p.z, x, z) < reach * reach) damageProp(m, p, dmg * scale, src);
+  }
+}
+
+function damageProp(m, p, amount, src) {
+  if (!p.alive) return;
+  p.hp -= amount;
+  m.events.push({ t: 'propHit', id: p.id, x: p.x, z: p.z });
+  if (p.hp > 0) return;
+  p.alive = false;
+  m.events.push({ t: 'propBreak', id: p.id, kind: p.kind, x: p.x, z: p.z });
+  const b = PROPS[p.kind].blast;
+  if (b) explode(m, src, p.x, p.z, b.radius, b.dmg / (src.dmgMod * (src.dmgT > 0 ? src.dmgF : 1)), { knock: b.knock }, 'barrel');
+}
+
+function damage(m, u, amount, src) {
+  if (!u.alive || u.invulnT > 0 || amount <= 0) return;
+  let left = amount, absorbed = 0;
+  if (u.shield > 0) {
+    absorbed = Math.min(u.shield, left); u.shield -= absorbed; left -= absorbed;
+    if (u.shield <= 0) { u.shieldT = 0; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
+  }
+  u.hp -= left; u.combatT = 0;
+  if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
+  m.events.push({ t: 'hit', id: u.id, by: src ? src.id : -1, x: u.x, z: u.z, amt: left, absorbed });
+  if (u.hp <= 0) kill(m, u, src);
+}
+
+function burn(m, u, amount) {
+  u.invulnT = 0;
+  const last = Object.keys(u.hitBy).map(Number).sort((a, b) => u.hitBy[b] - u.hitBy[a])[0];
+  damage(m, u, amount, last === undefined ? null : m.units[last]);
+}
+
+function heal(m, u, amount, src, quiet) {
+  if (!u.alive) return;
+  const got = Math.min(u.maxHp - u.hp, amount);
+  if (got <= 0) return;
+  u.hp += got;
+  if (src) src.healed += got;
+  if (!quiet && got >= 1) m.events.push({ t: 'heal', id: u.id, x: u.x, z: u.z, amt: got });
+}
+
+function kill(m, u, src) {
+  u.hp = 0; u.alive = false; u.deaths++; u.respawnT = RULES.respawn;
+  const assists = [];
+  let by = -1;
+  if (src && src.team !== u.team) {
+    by = src.id; src.kills++; m.score[src.team]++;
+    for (const k in u.hitBy) {
+      const o = m.units[k];
+      if (o !== src && o.team !== u.team && m.time - u.hitBy[k] <= RULES.assistWindow) { o.assists++; assists.push(o.id); }
+    }
+  } else m.score[1 - u.team]++;
+  m.events.push({ t: 'death', id: u.id, by, assists, x: u.x, z: u.z });
+  clearStatus(u);
+}
+
+function stepCrates(m) {
+  const C = RULES.crate;
+  m.crateT -= TICK;
+  if (m.crateT <= 0) {
+    m.crateT = m.rng.range(C.every[0], C.every[1]);
+    const free = m.map.cratePoints.filter((p) => !m.crates.some((c) => c.x === p[0] && c.z === p[1]));
+    if (m.crates.length < C.max && free.length) {
+      const p = m.rng.pick(free);
+      const keys = Object.keys(PICKUPS);
+      let roll = m.rng() * keys.reduce((a, k) => a + PICKUPS[k].w, 0), type = keys[0];
+      for (const k of keys) { roll -= PICKUPS[k].w; if (roll <= 0) { type = k; break; } }
+      const c = { id: m.nextId++, x: p[0], z: p[1], type, fall: C.fall, age: 0 };
+      m.crates.push(c);
+      m.events.push({ t: 'crateDrop', id: c.id, x: c.x, z: c.z, type });
+    }
+  }
+  for (let i = m.crates.length - 1; i >= 0; i--) {
+    const c = m.crates[i];
+    if (c.fall > 0) { c.fall -= TICK; if (c.fall <= 0) m.events.push({ t: 'crateLand', id: c.id, x: c.x, z: c.z }); continue; }
+    c.age += TICK;
+    let taker = null;
+    for (const u of m.units) {
+      const rr = C.radius + u.radius;
+      if (u.alive && dist2(u.x, u.z, c.x, c.z) < rr * rr) { taker = u; break; }
+    }
+    if (taker) { applyPickup(m, taker, c.type); m.events.push({ t: 'pickup', id: taker.id, crate: c.id, type: c.type, x: c.x, z: c.z }); }
+    if (taker || c.age > C.life) m.crates.splice(i, 1);
+  }
+}
+
+function applyPickup(m, u, type) {
+  const p = PICKUPS[type];
+  u.pickups++;
+  if (p.heal) heal(m, u, u.maxHp * p.heal, null);
+  if (p.dmgUp) { u.dmgT = p.dur; u.dmgF = p.dmgUp; }
+  if (p.haste) { u.hasteT = p.dur; u.hasteF = p.haste; }
+  if (p.refresh) { u.cd.s1 = 0; u.cd.s2 = 0; u.cd.ult = 0; u.cd.heal = 0; }
+  if (p.shield) { u.shield = Math.max(u.shield, p.shield); u.shieldMax = u.shield; u.shieldT = p.dur; }
+}
+
+// End-of-match table: one row per unit with a rating, and the id of the MVP.
+export function summary(m) {
+  const rows = m.units.map((u) => ({
+    id: u.id, team: u.team, name: u.name, mech: u.mech, bot: u.bot, kills: u.kills, deaths: u.deaths, assists: u.assists,
+    dmg: Math.round(u.dmg), healed: Math.round(u.healed),
+    rating: u.kills * 3 + u.assists * 1.5 + u.dmg / 600 + u.healed / 450 - u.deaths,
+  }));
+  const mvp = rows.reduce((a, b) => (b.rating > a.rating ? b : a)).id;
+  return { rows, mvp, score: m.score.slice(), winner: m.winner, time: m.time };
+}
+
+const dist2 = (ax, az, bx, bz) => (ax - bx) * (ax - bx) + (az - bz) * (az - bz);
+
+function turnTo(a, b, max) {
+  let d = b - a;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return a + Math.max(-max, Math.min(max, d));
+}

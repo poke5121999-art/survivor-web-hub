@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Đấu Trường Thép: thử giao diện</title>
+<link rel="stylesheet" href="../css/ui.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #3f7a3a; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<script type="module">
+import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES } from '../js/data.js';
+import { createMatch, step, summary } from '../js/sim.js';
+import { mulberry } from '../js/rng.js';
+import { makeUI } from '../js/ui.js';
+import { makeInput } from '../js/input.js';
+import { makeMeta } from '../js/meta.js';
+
+const q = new URLSearchParams(location.search);
+const screen = q.get('screen') || 'menu';
+window.__errors = [];
+addEventListener('error', (e) => window.__errors.push(String(e.message)));
+addEventListener('unhandledrejection', (e) => window.__errors.push(String(e.reason)));
+
+if (q.get('lock')) MECHS[q.get('lock')].price = 600;
+if (q.get('fresh')) { try { localStorage.removeItem('dtt.save.v1'); } catch (e) { /* ignore */ } }
+
+const cv = document.getElementById('scene');
+const g2 = cv.getContext('2d');
+let W = 0, H = 0, S = 1;
+function resize() { cv.width = W = innerWidth; cv.height = H = innerHeight; }
+addEventListener('resize', resize); resize();
+const scale = () => (G.match ? Math.min(W / (G.match.map.w * 0.62), H / (G.match.map.d * 0.75)) : 10);
+
+function portrait(key, team) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), col = '#' + MECHS[key].tint.toString(16).padStart(6, '0');
+  const grd = g.createRadialGradient(64, 50, 8, 64, 64, 90);
+  grd.addColorStop(0, team ? '#6a3a2c' : '#2c5a72'); grd.addColorStop(1, '#10151a');
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = col; g.fillRect(34, 46, 60, 52); g.fillStyle = '#20262d'; g.fillRect(40, 98, 12, 18); g.fillRect(76, 98, 12, 18);
+  g.beginPath(); g.arc(64, 44, 22, 0, 7); g.fillStyle = col; g.fill(); g.strokeStyle = '#0008'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#0d1116'; g.fillRect(48, 38, 32, 9); g.fillStyle = team ? '#ff5a36' : '#35b8ff'; g.fillRect(52, 40, 24, 5);
+  g.fillStyle = '#20262d'; g.fillRect(8, 56, 20, 12); g.fillRect(100, 56, 20, 12);
+  return c.toDataURL();
+}
+
+const handlers = {};
+const bus = {
+  on(t, f) { (handlers[t] = handlers[t] || []).push(f); },
+  emit(t, d) { (window.__log = window.__log || []).push([t, d]); (handlers[t] || []).forEach((f) => f(d)); },
+};
+const meta = makeMeta();
+const G = {
+  bus, meta, match: null, me: 0, alpha: 1,
+  audio: { setVolume(v) { window.__vol = v; }, setMusic(v) { window.__mus = v; } },
+  portrait,
+  project(x, y, z) {
+    const s = scale(), px = W / 2 + x * s, py = H / 2 + z * s - y * s * 0.45;
+    return { x: px, y: py, visible: px > -20 && px < W + 20 && py > -20 && py < H + 20 };
+  },
+  groundAt(cx, cy) { const s = scale(); return [(cx - W / 2) / s, (cy - H / 2) / s]; },
+};
+G.input = makeInput(G);
+G.ui = makeUI(G);
+window.__G = G;
+
+const rnd = mulberry(1234);
+const ang = (ax, az, bx, bz) => Math.atan2(bz - az, bx - ax);
+function bot(m, u) {
+  const b = u.brain || (u.brain = { t: 0, tx: 0, tz: 0 });
+  let en = null, ed = 1e9;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive) continue;
+    const d = Math.hypot(o.x - u.x, o.z - u.z);
+    if (d < ed) { ed = d; en = o; }
+  }
+  if (m.time > b.t) { b.t = m.time + 1 + rnd() * 1.5; b.tx = (rnd() - 0.5) * (m.map.w - 14); b.tz = (rnd() - 0.5) * (m.map.d - 14); }
+  const tx = en && ed > 9 ? en.x : b.tx, tz = en && ed > 9 ? en.z : b.tz;
+  const mv = ang(u.x, u.z, tx, tz);
+  const aim = en ? ang(u.x, u.z, en.x, en.z) : mv;
+  const R = rnd;
+  return {
+    mx: Math.cos(mv), mz: Math.sin(mv), aim, fire: !!en && ed < 14, tx: en ? en.x : tx, tz: en ? en.z : tz,
+    s1: R() < 0.02, s2: R() < 0.015, ult: R() < 0.006, heal: u.hp < u.maxHp * 0.6,
+  };
+}
+
+function newMatch(choice) {
+  const mech = (choice && choice.mech) || q.get('mech') || 'soi';
+  const roster = [];
+  const names = BOT_NAMES.slice();
+  for (let i = 0; i < 10; i++) {
+    const team = i % 2;
+    roster.push({ team, mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % 4], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal' });
+  }
+  G.match = createMatch({ map: 'denrung', seed: +(q.get('seed') || 7), roster });
+  G.me = 0;
+  if (!q.has('manual')) G.input.script(q.get('auto') === '0' ? null : (m, u) => bot(m, u));
+}
+
+function tick() {
+  const m = G.match;
+  if (!m || m.over) return;
+  const inp = {};
+  for (const u of m.units) inp[u.id] = u.id === G.me ? G.input.sample(u) : bot(m, u);
+  step(m, inp);
+  for (const e of m.events) G.ui.event(e);
+}
+
+let paused = false;
+bus.on('ui:pause', (d) => { paused = d.paused; });
+bus.on('ui:menu', () => { G.match = null; G.ui.showMenu(); });
+bus.on('ui:play', (c) => { newMatch(c); G.ui.showHUD(); });
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (G.match && !paused) {
+    acc += dt;
+    while (acc >= TICK) { tick(); acc -= TICK; }
+    G.alpha = acc / TICK;
+  }
+  g2.fillStyle = '#437f3d'; g2.fillRect(0, 0, W, H);
+  const m = G.match;
+  if (m) {
+    const s = scale(), X = (x) => W / 2 + x * s, Z = (z) => H / 2 + z * s;
+    g2.fillStyle = 'rgba(30,70,30,.6)'; for (const b of m.map.bushes) { g2.beginPath(); g2.arc(X(b.x), Z(b.z), b.r * s, 0, 7); g2.fill(); }
+    g2.fillStyle = '#8a8f86'; for (const w of m.map.walls) g2.fillRect(X(w.x0), Z(w.z0), (w.x1 - w.x0) * s, (w.z1 - w.z0) * s);
+    g2.fillStyle = '#5e6b4a'; for (const r of m.map.rounds) { g2.beginPath(); g2.arc(X(r.x), Z(r.z), r.r * s, 0, 7); g2.fill(); }
+    for (const c of m.crates) { g2.fillStyle = '#e8d27a'; g2.fillRect(X(c.x) - 8, Z(c.z) - 8, 16, 16); }
+    for (const sh of m.shots) { g2.fillStyle = '#fff'; g2.fillRect(X(sh.x) - 2, Z(sh.z) - 2, 4, 4); }
+    for (const u of m.units) {
+      if (!u.alive) continue;
+      g2.fillStyle = TEAMS[u.team].css; g2.beginPath(); g2.arc(X(u.x), Z(u.z), u.radius * s, 0, 7); g2.fill();
+      g2.strokeStyle = '#000'; g2.lineWidth = 3; g2.beginPath(); g2.moveTo(X(u.x), Z(u.z)); g2.lineTo(X(u.x) + Math.cos(u.aim) * u.radius * s * 1.6, Z(u.z) + Math.sin(u.aim) * u.radius * s * 1.6); g2.stroke();
+    }
+    G.ui.update(paused ? 0 : dt);
+  }
+  requestAnimationFrame(frame);
+}
+
+function demoTweaks() {
+  const m = G.match, me = m.units[0];
+  if (q.get('low')) { me.hp = me.maxHp * 0.18; }
+  if (q.get('buffs')) { me.hasteT = 8; me.hasteF = 1.3; me.dmgT = 11; me.dmgF = 1.35; me.shield = 500; me.shieldMax = 800; me.shieldT = 9; me.slowT = 2; me.slowF = .4; }
+  if (q.get('dead')) { const a = m.units.find((u) => u.team === 0 && u.id !== 0); a.alive = false; a.respawnT = 3.4; a.hp = 0; }
+  if (q.get('meDead')) { me.alive = false; me.hp = 0; me.respawnT = 3.2; }
+}
+
+function boot() {
+  if (screen === 'menu') { G.ui.showMenu(); }
+  else {
+    newMatch({});
+    G.ui.showHUD();
+    const warp = +(q.get('warp') || (screen === 'hud' ? 700 : 1500));
+    for (let i = 0; i < warp && !G.match.over; i++) tick();
+    G.ui.update(1);
+    if (screen === 'result') {
+      const m = G.match;
+      if (q.get('levelup')) { const d = meta.get(); d.level = 1; d.xp = 190; }
+      if (!m.over) { m.score[0] = 25; m.score[1] = 17; m.over = true; m.winner = 0; }
+      const sm = summary(m);
+      G.ui.showResult(sm, meta.applyResult(sm, G.me));
+    } else {
+      demoTweaks();
+      if (screen === 'pause') G.ui.showPause();
+    }
+  }
+  window.__ready = true;
+}
+requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
+boot();
+</script>
+</body>
+</html>
