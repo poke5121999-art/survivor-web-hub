@@ -37,10 +37,11 @@ export function createWearMaterial({ quality = 1, ...params } = {}) {
     Object.assign(sh.uniforms, wearUniforms);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
+attribute float aAO; varying float vAO;
 attribute vec4 aCol2; attribute vec4 aUnder; attribute vec4 aMat; attribute vec4 aLoc; attribute vec4 aHalf;
 varying vec4 vCol2; varying vec4 vUnder; varying vec4 vMat; varying vec4 vLoc; varying vec4 vHalf; varying vec3 vWPos; varying float vSeed; varying float vObjY;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vObjY = transformed.y; vCol2=aCol2; vUnder=aUnder; vMat=aMat; vLoc=aLoc; vHalf=aHalf; vSeed=aHalf.w;
+vAO = aAO; vObjY = transformed.y; vCol2=aCol2; vUnder=aUnder; vMat=aMat; vLoc=aLoc; vHalf=aHalf; vSeed=aHalf.w;
 vec4 spW = vec4(transformed,1.0);
 #ifdef USE_INSTANCING
 spW = instanceMatrix*spW; vSeed += dot(instanceMatrix[3].xyz, vec3(1.71,3.13,5.37));
@@ -49,7 +50,7 @@ spW = modelMatrix*spW; vWPos = spW.xyz;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform float uChip, uRust, uDirt, uSplat, uChipWidth, uDirtHeight;
-uniform vec3 uRustA, uRustB, uDirtCol, uBlood;
+uniform vec3 uRustA, uRustB, uDirtCol, uBlood; varying float vAO;
 varying vec4 vCol2; varying vec4 vUnder; varying vec4 vMat; varying vec4 vLoc; varying vec4 vHalf; varying vec3 vWPos; varying float vSeed; varying float vObjY;
 ${NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
@@ -109,6 +110,7 @@ float splClus = smoothstep(0.52, 0.66, spF(sp * 0.45 + 13.0));
 float splLow = 1.0 - smoothstep(propH * 0.2, propH * 0.65, vObjY);
 spl *= splClus * mix(0.2, 1.0, splLow);
 diffuseColor.rgb = mix(diffuseColor.rgb, uBlood * (0.8 + 0.4*spN(sp*40.0)), spl);
+diffuseColor.rgb *= vAO;
 `)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 roughnessFactor = mix(spRough, spRough*0.75, chip); roughnessFactor = mix(roughnessFactor, 0.95, max(rust, dirt*0.6)); roughnessFactor = mix(roughnessFactor, 0.35, spl);`)

@@ -1058,7 +1058,7 @@ window.HUB_GAMES = [
     en: { title: "3D Weapon Kit", tagline: "72 weapons and tools built from code: knives, nail bats, katanas, axes, guns, frying-pan shields.", desc: "Knives, nail bats, saw-blade bats, sledgehammers, pipe maces, katanas, axes, a pickaxe, a giant wrench, a chainsaw sword, sign and pan shields, seven guns traced from the concept art and 14 tools, each with grip points for characters. No model or texture files." },
     thumbnail: "assets/thumbnails/kho-vu-khi-3d.png",
     path: "games/kho-vu-khi-3d/index.html",
-    rev: "20261115a",
+    rev: "20261115b",
     status: "available",
     tags: ["Thử nghiệm","Vũ khí 3D","Không asset"]
   },

@@ -350,19 +350,18 @@ export function chairWood(seed = 1, opts = {}) {
   const w3 = p.paint('wood', { color: '#6a4a44', under: '#c0a090' });
   const sy = 0.44;
   p.in(body, () => {
-    p.box([0.48, 0.06, 0.46], { at: [0, sy, 0], paint: w2, bevel: 0.015, segs: 1 });
-    p.box([0.01, 0.062, 0.46], { at: [-0.1, sy, 0], paint: w3, bevel: 0.002 });
-    p.box([0.01, 0.062, 0.46], { at: [0.1, sy, 0], paint: w3, bevel: 0.002 });
+    // chunky toy chair (sheet): 3 fat seat planks with real gaps, thick legs, two big back boards
+    for (const k of [-1, 0, 1]) p.soft([0.5, 0.075, 0.148], { at: [0, sy, k * 0.158], rot: [0, k * 0.02, 0], paint: k ? w2 : w1, r: 0.025 });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      const back = sz < 0, hh = back ? 0.82 : sy - 0.03;
-      if (opts.broken && back && sx > 0) { p.box([0.07, 0.2, 0.07], { at: [sx * 0.19, 0.1, sz * 0.18], rot: [0, 0, 0.04], paint: w1, bevel: 0.012, segs: 1 }); continue; }
-      p.box([0.07, hh, 0.07], { at: [sx * 0.19, hh / 2, sz * 0.18], paint: w1, bevel: 0.014, segs: 1 });
+      const back = sz < 0, hh = back ? 0.86 : sy - 0.03;
+      if (opts.broken && back && sx > 0) { p.soft([0.1, 0.2, 0.1], { at: [sx * 0.19, 0.1, sz * 0.18], rot: [0, 0, 0.04], paint: w1, r: 0.025 }); continue; }
+      p.soft([0.1, hh, 0.1], { at: [sx * 0.19, hh / 2, sz * 0.18], paint: w1, r: 0.026 });
     }
-    for (const sx of [-1, 1]) p.box([0.04, 0.04, 0.32], { at: [sx * 0.19, 0.16, 0], paint: w1, bevel: 0.01 });
-    p.box([0.34, 0.04, 0.04], { at: [0, 0.16, 0.18], paint: w1, bevel: 0.01 });
-    p.box([0.36, 0.11, 0.035], { at: [0, 0.58, -0.18], paint: w2, bevel: 0.012, segs: 1 });
-    if (!opts.broken) p.box([0.34, 0.1, 0.035], { at: [0, 0.74, -0.18], rot: [0, 0, 0.05], paint: w2, bevel: 0.012, segs: 1 });
-    for (const sx of [-1, 1]) p.cyl(0.012, 0.02, { at: [sx * 0.15, 0.58, -0.158], rot: [PI / 2, 0, 0], paint: p.paint('metal', { color: '#cfd2d4' }), seg: 6 });
+    for (const sx of [-1, 1]) p.soft([0.06, 0.06, 0.32], { at: [sx * 0.19, 0.16, 0], paint: w3, r: 0.018 });
+    p.soft([0.34, 0.06, 0.06], { at: [0, 0.16, 0.18], paint: w3, r: 0.018 });
+    p.soft([0.5, 0.16, 0.06], { at: [0, 0.6, -0.19], rot: [0, 0, -0.04], paint: w2, r: 0.025 });
+    if (!opts.broken) p.soft([0.44, 0.14, 0.06], { at: [0.02, 0.79, -0.19], rot: [0, 0, 0.07], paint: w2, r: 0.025 });
+    for (const sx of [-1, 1]) p.cyl(0.018, 0.02, { at: [sx * 0.17, 0.6, -0.158], rot: [PI / 2, 0, 0], paint: p.paint('metal', { color: '#cfd2d4' }), seg: 8 });
     p.box([0.04, 0.005, 0.04], { at: [-0.08, 0.473, 0.1], rot: [0, 0.5, 0], paint: p.paint('paint', { color: '#d9a642', chip: 0.5 }) });
   });
   if (opts.broken) body.rotation.set(0.0, 0.2, 0.2);
@@ -375,16 +374,16 @@ export function stool(seed = 1, opts = {}) {
   const w1 = p.paint('wood', { color: opts.color || '#a47f78', under: '#d0aa98', chip: 0.3 });
   const w2 = p.paint('wood', { color: '#b58f86', under: '#d0aa98', chip: 0.3 });
   const sy = 0.44;
-  p.box([0.52, 0.045, 0.1], { at: [0, sy, -0.12], paint: w2, bevel: 0.014, segs: 1 });
-  p.box([0.52, 0.055, 0.12], { at: [0, sy, 0.0], paint: w1, bevel: 0.016, segs: 1 });
-  p.box([0.52, 0.045, 0.1], { at: [0, sy, 0.12], rot: [0.03, 0, 0], paint: w2, bevel: 0.014, segs: 1 });
-  for (const sx of [-1, 1]) p.box([0.05, 0.04, 0.34], { at: [sx * 0.17, sy - 0.045, 0], paint: w1, bevel: 0.01, segs: 1 });
+  p.soft([0.54, 0.07, 0.11], { at: [0, sy, -0.125], paint: w2, r: 0.024 });
+  p.soft([0.54, 0.08, 0.12], { at: [0, sy, 0.0], paint: w1, r: 0.026 });
+  p.soft([0.54, 0.07, 0.11], { at: [0, sy, 0.125], rot: [0.03, 0, 0], paint: w2, r: 0.024 });
+  for (const sx of [-1, 1]) p.soft([0.07, 0.06, 0.36], { at: [sx * 0.17, sy - 0.06, 0], paint: w1, r: 0.02 });
   const L = Math.hypot(0.42, 0.34);
   for (const sx of [-1, 1]) for (const k of [-1, 1]) {
     const th = k * 0.68;
-    p.box([0.055, L, 0.03], { at: [sx * 0.2, 0.21, 0], rot: [th, 0, 0], paint: k > 0 ? w1 : w2, bevel: 0.01, segs: 1 });
+    p.soft([0.08, L, 0.055], { at: [sx * 0.2, 0.21, 0], rot: [th, 0, 0], paint: k > 0 ? w1 : w2, r: 0.022 });
   }
-  p.box([0.44, 0.04, 0.035], { at: [0, 0.12, 0.1], paint: w1, bevel: 0.01, segs: 1 });
+  p.soft([0.44, 0.06, 0.055], { at: [0, 0.12, 0.1], paint: w1, r: 0.02 });
   if (opts.broken) p.box([0.04, 0.2, 0.03], { at: [0.1, 0.1, 0.3], rot: [1.3, 0.3, 0.4], paint: w1, bevel: 0.008, segs: 1 });
   return p.done();
 }

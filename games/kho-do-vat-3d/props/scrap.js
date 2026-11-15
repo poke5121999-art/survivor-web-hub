@@ -39,9 +39,9 @@ export function scrapCart(seed = 1, opts = {}) {
 
   // pushing handle (rear) + cross brace, grey grab rail along each flank
   const hl = opts.handle === 'long' ? 1.55 : 1.25;
-  p.tube([[-0.7, 0.62, -0.3], [-hl, 1.0, -0.3], [-hl, 1.0, 0.3], [-0.7, 0.62, 0.3]], 0.03, { paint: steel, seg: 6, smooth: false });
-  p.tube([[-0.95, 0.9, -0.3], [-0.95, 0.9, 0.3]], 0.022, { paint: steel, seg: 6 });
-  for (const s of [-1, 1]) p.tube([[-0.5, 0.78, s * (W / 2 + 0.03)], [-0.3, 1.0, s * (W / 2 + 0.05)], [0.3, 1.0, s * (W / 2 + 0.05)], [0.55, 0.8, s * (W / 2 + 0.03)]], 0.024, { paint: p.paint('metal', { color: '#9aa0a5', chip: 0.3, rust: 0.2 }), seg: 6, smooth: true });
+  p.tube([[-0.7, 0.62, -0.3], [-hl, 1.0, -0.3], [-hl, 1.0, 0.3], [-0.7, 0.62, 0.3]], 0.05, { paint: steel, seg: 8, smooth: false });
+  p.tube([[-0.95, 0.9, -0.3], [-0.95, 0.9, 0.3]], 0.04, { paint: steel, seg: 8 });
+  for (const s of [-1, 1]) p.tube([[-0.5, 0.78, s * (W / 2 + 0.03)], [-0.3, 1.0, s * (W / 2 + 0.05)], [0.3, 1.0, s * (W / 2 + 0.05)], [0.55, 0.8, s * (W / 2 + 0.03)]], 0.042, { paint: p.paint('metal', { color: '#9aa0a5', chip: 0.3, rust: 0.2, metal: 0.25 }), seg: 8, smooth: true });
 
   // rebar spike clusters stuck into the hull + welded crosses on the hood
   const cl = [[-0.5, 1.0, -0.2, [0, 1, -0.5]], [0.05, 1.12, 0.25, [0.4, 1, 0.3]], [0.35, 1.02, -0.28, [0.5, 0.7, -0.9]], [0.7, 0.9, 0.2, [1, 0.5, 0.2]],
@@ -49,8 +49,8 @@ export function scrapCart(seed = 1, opts = {}) {
   for (let i = 0; i < Math.min(spikes, cl.length); i++) { const c = cl[i]; parts.rebar(p, { at: [c[0], c[1], c[2]], dir: c[3], count: 2 + (i % 2), len: 0.18 + (i % 3) * 0.04, spread: 0.1 }); }
   const bar = p.paint('rusty', { color: '#4a4540', rust: 0.5 });
   for (const [x, z] of [[0.3, 0.2], [-0.25, -0.18]]) {
-    p.tube([[x - 0.14, 1.07, z], [x + 0.14, 1.09, z]], 0.012, { paint: bar, seg: 5, smooth: false });
-    p.tube([[x, 1.08, z - 0.1], [x + 0.02, 1.1, z + 0.1]], 0.012, { paint: bar, seg: 5, smooth: false });
+    p.tube([[x - 0.14, 1.07, z], [x + 0.14, 1.09, z]], 0.022, { paint: bar, seg: 6, smooth: false });
+    p.tube([[x, 1.08, z - 0.1], [x + 0.02, 1.1, z + 0.1]], 0.022, { paint: bar, seg: 6, smooth: false });
   }
 
   // big wheels: black tyre with a large grey hub disc

@@ -171,23 +171,30 @@ export function waterBarrierRed(seed = 1, opts = {}) { return waterBarrier('wate
 // ---- crowd barriers (tube frames)
 function crowdFrame(p, o) {
   const W = o.width ?? 1.9, H = o.height ?? 1.0, st = p.paint('steel', { color: o.color || '#8a9298', chip: 0.15, rust: 0.25, dirt: 0.5 });
-  const hw = W / 2, rr = 0.022, bend = o.bend || 0, n = o.bars ?? 12;
+  const hw = W / 2, rr = 0.036, bend = o.bend || 0, n = o.bars ?? 9; // chunky toy tubes (sheet), few fat bars
   const missing = new Set(o.missing || []);
   for (let i = 1; i < n; i++) {
     if (missing.has(i)) continue;
     const x = -hw + (W * i) / n, t = i / n;
     const dz = bend ? bend * Math.sin(t * PI) * (0.4 + p.r()) : 0;
-    p.tube([[x, 0.2, 0], [x, H * 0.6, dz * 0.6], [x, H - 0.05, dz]], 0.015, { paint: st, seg: 5, smooth: false });
+    p.tube([[x, 0.2, 0], [x, H * 0.6, dz * 0.6], [x, H - 0.05, dz]], 0.026, { paint: st, seg: 7, smooth: false });
   }
-  for (const s of [-1, 1]) p.tube([[s * hw, 0.04, 0], [s * hw, H - 0.04, 0]], rr, { paint: st, seg: 6 });
+  for (const s of [-1, 1]) p.rtube([[s * hw, 0.05, 0], [s * hw, o.gap ? H - 0.04 : H - 0.17, 0]], rr, { paint: st });
   const rail = (y, x0, x1, sag = 0) => {
     const pts = [];
     for (let i = 0; i <= 6; i++) { const t = i / 6; pts.push([x0 + (x1 - x0) * t, y, sag ? sag * Math.sin(t * PI) : 0]); }
-    p.tube(pts, rr, { paint: st, seg: 6, smooth: false });
+    p.tube(pts, rr, { paint: st, seg: 8, smooth: true });
+    for (const q of [pts[0], pts[6]]) p.sphere(rr * 1.05, { at: q, paint: st, seg: 7 });
   };
-  if (o.gap) { rail(H - 0.03, -hw, o.gap[0], bend * 0.2); rail(H - 0.03, o.gap[1], hw, -bend * 0.5); } else rail(H - 0.03, -hw, hw, bend * 0.5);
+  if (o.gap) { rail(H - 0.03, -hw, o.gap[0], bend * 0.2); rail(H - 0.03, o.gap[1], hw, -bend * 0.5); }
+  else { // top rail bends down into the posts with big round corners (one smooth tube)
+    const c = 0.1, top = H - 0.03, pts = [[-hw, top - c * 1.4, 0], [-hw + c * 0.3, top - c * 0.3, 0]];
+    for (let i = 0; i <= 4; i++) { const t = i / 4, x = -hw + c * 1.2 + (2 * hw - c * 2.4) * t; pts.push([x, top, bend * 0.5 * Math.sin(t * PI)]); }
+    pts.push([hw - c * 0.3, top - c * 0.3, 0], [hw, top - c * 1.4, 0]);
+    p.tube(pts, rr * 1.02, { paint: st, seg: 8, smooth: true, steps: 40 });
+  }
   rail(0.2, -hw, hw, bend * 0.2);
-  for (const s of [-1, 1]) p.tube([[s * hw, 0.1, -0.3], [s * hw, 0.04, 0], [s * hw, 0.1, 0.3]], 0.024, { paint: st, seg: 6, smooth: false });
+  for (const s of [-1, 1]) p.rtube([[s * hw, 0.1, -0.3], [s * hw, 0.045, 0], [s * hw, 0.1, 0.3]], 0.038, { paint: st, smooth: false });
   return { W, H, hw };
 }
 export function barrierSteel(seed = 1, opts = {}) {
@@ -197,19 +204,19 @@ export function barrierSteel(seed = 1, opts = {}) {
 }
 export function barrierSteelBroken(seed = 1, opts = {}) {
   const p = new Prop('barrier_steel_broken', seed, opts);
-  crowdFrame(p, { bend: 0.25, missing: [4, 5, 9], gap: [-0.1, 0.25], color: '#7c848a' });
-  p.tube([[0.1, 0.9, 0.05], [0.2, 0.6, 0.35], [0.28, 0.5, 0.45]], 0.011, { paint: p.paint('steel', { color: '#7c848a' }), seg: 5, smooth: false });
+  crowdFrame(p, { bend: 0.25, missing: [3, 4, 7], gap: [-0.1, 0.25], color: '#7c848a' });
+  p.tube([[0.1, 0.9, 0.05], [0.2, 0.6, 0.35], [0.28, 0.5, 0.45]], 0.024, { paint: p.paint('steel', { color: '#7c848a' }), seg: 5, smooth: false });
   return p.done();
 }
 export function barrierCrowdRed(seed = 1, opts = {}) {
   const p = new Prop('barrier_crowd_red', seed, opts);
-  const { W, H } = crowdFrame(p, { color: '#8e969c', bars: 11 });
-  const tape = p.paint('paint', { color: RED, col2: WHITE, pattern: 'stripes', patW: 0.08, chip: 0.4 * p.wear / 0.6, under: '#c9c9c4', rust: 0, dirt: 0.2 });
+  const { W, H } = crowdFrame(p, { color: '#8e969c', bars: 9 });
+  const tape = p.paint('paint', { color: RED, col2: WHITE, pattern: 'stripes', patW: 0.13, chip: 0.4 * p.wear / 0.6, under: '#c9c9c4', rust: 0, dirt: 0.2 });
   const a = Math.atan2(H * 0.62, W * 0.9), len = Math.hypot(W * 0.9, H * 0.62);
-  p.box([len, 0.11, 0.012], { at: [0, H * 0.52, 0.03], rot: [0, 0, a], paint: tape, bevel: 0.004 });
-  p.box([len, 0.11, 0.012], { at: [0, H * 0.52, 0.045], rot: [0, 0, -a], paint: tape, bevel: 0.004 });
-  p.box([W - 0.1, 0.12, 0.012], { at: [0, H * 0.84, 0.026], rot: [0, 0, 0.01], paint: tape, bevel: 0.004 });
-  p.box([W - 0.1, 0.1, 0.012], { at: [0, H * 0.3, -0.026], paint: tape, bevel: 0.004 });
+  p.box([len, 0.11, 0.026], { at: [0, H * 0.52, 0.03], rot: [0, 0, a], paint: tape, bevel: 0.004 });
+  p.box([len, 0.11, 0.026], { at: [0, H * 0.52, 0.045], rot: [0, 0, -a], paint: tape, bevel: 0.004 });
+  p.box([W - 0.1, 0.12, 0.026], { at: [0, H * 0.84, 0.026], rot: [0, 0, 0.01], paint: tape, bevel: 0.004 });
+  p.box([W - 0.1, 0.1, 0.026], { at: [0, H * 0.3, -0.026], paint: tape, bevel: 0.004 });
   return p.done();
 }
 

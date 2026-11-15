@@ -42,6 +42,7 @@ Bảng ô tham chiếu ↔ id: `ref/props.md`.
 
 ```
 lib/geo.js            bevelBox, bevelCyl, lathe, torus, extrude, tube, blob, creaseNormals, deform, noise3
+lib/soft.js           softBox (hộp bo tròn + phồng mặt), sphere, shellLoft (vỏ loft mặt cắt siêu elip / chữ nhật bo góc), rrectRing, sectionPts
 lib/wear-material.js  material "painted wear" (MeshStandardMaterial + onBeforeCompile), glow, glass
 lib/prop.js           class Prop: gom mảnh -> merge 1 mesh / node / material, params, update
 lib/parts.js          cụm dùng chung: drum, tyre, wheel, strapBox, strapRing, decal, cinderBlock, plank, loop, rebar
@@ -80,6 +81,14 @@ Mảnh (`p.box / cyl / lathe / torus / extrude / tube / blob / geom`) nhận chu
 - `p.extrude([[x,y],...], depth, { bevel, holes })` đùn theo Z, tâm ở z = 0; pháp tuyến mượt trong góc < 40°.
   Bẫy đã gặp: vát của extrude nới profile ra ngoài thêm ~0.9 × bevel, nên mảnh dán lên mặt extrude phải đặt lệch ra thêm chừng đó.
 - `p.tube([[x,y,z],...], radius, { seg, smooth })` ống, tay nắm, khung ghế, dây.
+- `p.soft([w,h,d], { r, bulge, segs })` hộp bo tròn kiểu đồ chơi (bán kính mặc định 24% cạnh nhỏ nhất, `bulge` m mặt phồng ra);
+  bán kính nhỏ không phồng thì tự dùng hộp vát 44 tam giác cho rẻ. `p.sphere(r)`. `p.rtube(pts, r, { smooth })` ống có đầu tròn
+  (polyline `smooth: false` = mỗi đoạn một ống + khớp cầu, dùng cho khung, cản, lồng).
+- `p.shell(stations, o, paints)` vỏ loft dọc Z (thân xe): mỗi trạm `{ z, hw, yb, yt, belt, gh }`; `o.rect: { rT, rB, ns, na, nt, bulge, bulgeT }`
+  cho mặt cắt chữ nhật bo góc (thân hộp cạnh tròn), không có `rect` thì là siêu elip (`n, nT, nB`).
+  `o.region(q)` trả `{ key, grp, inset, inner }` hoặc `null` (lỗ) cho từng ô lưới: khác `grp` thì có vách dày `thick` (cửa cắt ra từ vỏ),
+  cùng `grp` mà `inset` sâu hơn thì có bậc lõm mềm (kính lõm, rãnh ron); `inner: true` thêm mặt trong. `paints` ánh xạ key -> paint hoặc `{ paint, node, shift }`.
+  Mẫu đầy đủ: `props/vehicles.js` (cửa tài xế là chính mảng vỏ cắt ra, đóng phẳng khít, mở thấy nội thất).
 - `p.attach(obj)` gắn Object3D bất kỳ (lửa); `p.onUpdate((dt, t) => ...)` cho chuyển động.
 - Thêm prop vào kit: hàm có tên (camelCase của id) + phần tử trong `PROPS` của file nhóm; `props/index.js` tự gom.
 
@@ -97,6 +106,7 @@ Mỗi đỉnh mang thông số sơn của mảnh nó thuộc về (attribute), s
 | bẩn | dốc từ chân vật lên (y vật thể) + vệt loang | `paint.dirt`, `uDirtHeight`, `uDirtCol` |
 | máu / sơn bắn | vệt bắn noise ngưỡng cao + giọt nhỏ | `paint.splat` (lượng), `paint.splatScale` (cỡ vệt, 1 = mặc định, 0.4 = vụn như trên xe), `uBlood` |
 | bề mặt | roughness / metalness theo preset; chỗ tróc bóng hơn, gỉ / bẩn nhám | `paint.rough`, `paint.metal` |
+| AO nướng | `Prop.done()` voxel hoá cả prop rồi bắn 14 tia bán cầu từ mỗi đỉnh -> attribute `aAO` (khe, gầm thanh, hốc bánh, kính lõm tối đi); shader nhân vào màu | `opts.ao: false` tắt, `opts.aoStrength` |
 
 Preset (`PRESETS` trong `lib/prop.js`): `paint, metal, steel, rusty, concrete, wood, plywood, plastic, rubber,
 fabric, tarp, chrome, glass, glow`. `wear` của prop nhân chip/gỉ/bẩn của preset (trừ khi ghi đè giá trị cụ thể).
@@ -106,7 +116,7 @@ Instancing: hoạt động với `InstancedMesh` (mỗi instance tự lệch see
 
 ## Ngân sách tam giác
 
-Mục tiêu (chất lượng cao): đồ nhỏ ≤ 1 500, đồ vừa ≤ 4 000, đồ lớn / cụm ≤ 10 000, xe ≤ 25 000; 1–4 draw mỗi prop
+Mục tiêu (chất lượng cao): đồ nhỏ ≤ 1 500, đồ vừa ≤ 4 000, đồ lớn / cụm ≤ 10 000, xe ≤ 30 000 (bản bọc giáp 27–29k từ 2026-11-15, bánh lốp tròn + gai); 1–4 draw mỗi prop
 (1 draw / node chuyển động / material). Số đo thật của từng prop: `shots/stats.json` (sinh bởi `node tools/shoot.mjs`)
 và bảng ở cuối file này.
 
@@ -120,7 +130,7 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 
 ## Số đo từng prop (chất lượng cao, đo 2026-11-15 bằng `node tools/shoot.mjs`)
 
-106 prop, 240 biến thể; trung vị 1 020 tam giác; xe 8 800–14 800; tổng (biến thể nặng nhất mỗi prop) 174 395.
+106 prop, 240 biến thể; trung vị 1 228 tam giác; xe 19 900–29 000 (đo lại 2026-11-15 sau vòng "bớt cứng"); tổng (biến thể nặng nhất mỗi prop) 174 395.
 
 | id | tam giác (min–max biến thể) | draw | biến thể | tham số |
 |---|---|---|---|---|
@@ -133,9 +143,9 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 | `jersey_striped_long` | 1020 | 1 | 2 | — |
 | `water_barrier_white` | 3812 | 1 | 2 | — (hốc nêm khoét thật, thân cắt đoạn dọc trục X) |
 | `water_barrier_red` | 1140 | 1 | 2 | — |
-| `barrier_crowd_red` | 808 | 1 | 2 | — |
-| `barrier_steel` | 656 | 1 | 2 | — |
-| `barrier_steel_broken` | 692 | 1 | 2 | — |
+| `barrier_crowd_red` | 2440 | 1 | 2 | — (khung ống dày, 9 song, góc uốn tròn) |
+| `barrier_steel` | 2264 | 1 | 2 | — |
+| `barrier_steel_broken` | 2924 | 1 | 2 | — |
 | `sawhorse` | 568–612 | 1 | 2 | — |
 | `cone` | 392 | 1 | 2 | — |
 | `traffic_drum` | 600 | 1 | 2 | — |
@@ -145,7 +155,7 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 | `flood_light` | 1232 | 2 | 2 | — |
 | `fence_broken` | 736–792 | 1 | 2 | — |
 | `fence_panel` | 532–656 | 1 | 3 | — (opts `width, planks, height, lean, gaps`) |
-| `scrap_cart` | 3894–5682 | 3 | 3 | roll (opts `wheels 2/4, handle, spikes, load: none/drum/tyre`) |
+| `scrap_cart` | 4090–5878 | 3–5 | 3 | roll (opts `wheels 2/4, handle, spikes, load: none/drum/tyre`) |
 | `drum_blue` | 672 | 1 | 3 | — |
 | `drums_blue_strapped` | 2032 | 1 | 2 | — |
 | `drums_on_pallet` | 3440 | 1 | 2 | — |
@@ -184,8 +194,8 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 | `tarp_crate_green` | 2696–2740 | 1 | 3 | — |
 | `tarp_crate_blue` | 2952 | 1 | 2 | — |
 | `chair_plastic` | 1800 | 1 | 2 | — |
-| `chair_wood` | 1032–1140 | 1 | 2 | — |
-| `stool` | 1080–1188 | 1 | 2 | — |
+| `chair_wood` | 688–732 | 1 | 2 | — (ván mập, chân 10 cm) |
+| `stool` | 440–548 | 1 | 2 | — |
 | `car_seat_sport` | 740 | 1 | 2 | — |
 | `car_seat` | 220–300 | 1 | 2 | — |
 | `camp_chair` | 720 | 1 | 2 | — |
@@ -227,13 +237,17 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 | `kettle_stove` | 1328 | 1 | 2 | — |
 | `lug_wrench` | 324–380 | 1 | 3 | — |
 | `shell_casings` | 960–2160 | 1 | 2 | — |
-| `pickup` | 9860–14756 | 9 | 3 | doors, speed, steer |
-| `van` | 9446–14282 | 11 | 3 | doors, speed, steer |
-| `hatchback` | 8824–13460 | 9 | 3 | doors, speed, steer |
+| `pickup` | 19908–26780 | 9 | 3 | doors, speed, steer |
+| `van` | 23144–29048 | 11 | 3 | doors, speed, steer |
+| `hatchback` | 22456–28020 | 9 | 3 | doors, speed, steer |
 
 ## Showcase
 
 `index.html`: 4 bố cục theo 4 ảnh gốc (đặt từng prop vào đúng ô của nó trên ảnh, camera khớp ảnh) + tab Biến thể (mọi biến thể ở kích thước thật). Bấm một đồ để xem riêng: xoay/zoom, seed, độ cũ, thanh trượt tham số mở/động, ô ảnh gốc. Nút Ảnh gốc phủ ảnh tham chiếu 50% lên khung. Nút Chất lượng: Cao/Thấp (Thấp: tắt bóng, pixel ratio 1, noise 1 octave, ít đoạn tròn).
+
+Bảng xe: mỗi ô có camera phối cảnh riêng (`SHEETS.vehicles.perCell = { elev: 10, fov: 30 }` trong `js/app.js`, `cellCam` đặt khung cho xe lấp đầy ô, `renderCells` vẽ từng ô bằng viewport/scissor), vì ảnh gốc là 6 lần render riêng, góc thấp 3/4. Bấm vào ô vẫn mở xem riêng.
+
+Đèn: hemisphere 2.1 (fill lớn), key 2.1 chếch trước-trái, fill 0.7, rim 1.1 từ sau-phải.
 
 `tools/ui-test.mjs` chạy thử ở bề ngang điện thoại 390 px và desktop (không tràn ngang, 0 lỗi console).
 
@@ -247,3 +261,15 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 
 Rào bê tông / rào nhựa dựng từ nhiều `extrude` ngắn dọc X (`lowBody` / vòng `prof2` trong `props/concrete.js`); đoạn có khe dùng profile đã cắt,
 nên khe xe nâng và hốc nêm là hình học lõm, không phải mảng tối dán. Bevel đoạn nhỏ 0.004 để mối nối không lộ rãnh.
+
+## Vòng "bớt cứng" (2026-11-15)
+
+Chủ dự án chê xe "quá cứng nhắc so với bản gốc". Đã làm:
+- Thân xe là một vỏ `p.shell` mặt cắt chữ nhật bo góc lớn (rT 0.17–0.2 m), hông và nóc phồng nhẹ, mái thu vào trên đường eo; hốc bánh là đáy mặt cắt nâng
+  thành cung tròn + viền vè đùn dày; kính là tấm lõm 3 cm có bậc mềm; ron nắp capô là rãnh lõm; cửa tài xế cắt ra từ chính vỏ (khít, có độ dày, mở thấy nội thất).
+- Bánh to hơn ~15%, lốp mặt cắt tròn phồng + 2 hàng gai so le, mâm lòng chảo sâu; mọi thanh / ống / tấm dày ×1.5–2, ống đầu tròn; gai ít hơn mà mập hơn.
+- Thép xe hạ metalness (0.15–0.3) vì không có env map nên kim loại cao ra đen.
+- AO nướng theo đỉnh cho mọi prop; đèn mềm hơn + rim; camera ô xe riêng từng ô.
+- Kit: rào ống (khung uốn tròn, 9 song dày), ghế gỗ, ghế đẩu, xe đẩy phế liệu làm dày lại.
+Bẫy đã gặp: mặt cắt siêu elip cho ra xe tròn như con bọ (beetle) — bảng gốc là hộp cạnh bo, nên phải dùng `rect`; ống `smooth: false` nhiều đoạn
+bị TubeGeometry lấy mẫu đều theo chiều dài làm méo góc -> `rtube` tách từng đoạn; Bash heredoc trên máy này nuốt chuỗi có dấu nháy, viết script bằng Write.

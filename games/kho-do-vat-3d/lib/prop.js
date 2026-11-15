@@ -2,6 +2,7 @@
 // into one mesh per material (wear / glow / glass / fire), expose parameters + update().
 import * as THREE from '../vendor/three.module.min.js';
 import { bevelBox, bevelCyl, lathe, torus, extrude, tube, blob, deform } from './geo.js';
+import { softBox, sphere, shellLoft } from './soft.js';
 import { createWearMaterial, createGlowMaterial, createGlassMaterial } from './wear-material.js';
 import { rng } from './rng.js';
 
@@ -82,6 +83,38 @@ export class Prop {
   extrude(pts, depth, o = {}) { return this.add(extrude(pts, depth, { bevel: o.bevel ?? 0.012, holes: o.holes || [], curveSegs: o.curveSegs ?? 6 }), o); }
   tube(points, radius, o = {}) { return this.add(tube(points, radius, o), o); }
   blob(r, o = {}) { return this.add(blob(r, o.detail ?? 1), o); }
+  // soft (toy-like) pieces: rounded box, bevel radius default 24% of the smallest side, optional face bulge
+  soft(size, o = {}) {
+    const r = o.r ?? Math.min(...size) * 0.24, segs = o.segs ?? (r >= 0.07 ? 2 : 1);
+    // small flat pieces: a chamfer box with rolled normals (44 tris) reads the same as a 1-step rounded box (108)
+    if (segs === 1 && !o.bulge && !o.segs) return this.add(bevelBox(size[0], size[1], size[2], Math.min(r, Math.min(...size) * 0.45)), o);
+    return this.add(softBox(size[0], size[1], size[2], r, { segs, mid: o.mid ?? (o.bulge ? 2 : 1), bulge: o.bulge ?? 0 }), o);
+  }
+  sphere(r, o = {}) { return this.add(sphere(r, o.seg ?? 10), o); }
+  // tube with round end caps (bars, cages, bull bars)
+  rtube(points, radius, o = {}) {
+    if (o.smooth === false && points.length > 2) { // polyline: one straight tube per segment + round joints
+      for (let i = 0; i < points.length - 1; i++) this.rtube([points[i], points[i + 1]], radius, { ...o, caps: o.caps !== false || i > 0 || i < points.length - 2 ? true : false });
+      return null;
+    }
+    const g = this.tube(points, radius, { seg: 7, steps: o.smooth === false ? 1 : 0, ...o });
+    if (o.caps !== false) for (const q of [points[0], points[points.length - 1]]) this.sphere(radius * 1.02, { paint: o.paint, node: o.node, at: q, seg: o.capSeg ?? 6 });
+    return g;
+  }
+  // superellipse shell loft. paints: { key: paint | { paint, node, shift: [x,y,z] } }; 'K:in' falls back to paints.inner,
+  // other keys to paints.body; a key mapped to null is skipped.
+  shell(stations, o = {}, paints = {}) {
+    const parts = shellLoft(stations, o);
+    for (const [k, g] of parts) {
+      let p = paints[k];
+      if (p === undefined) p = k.endsWith(':in') ? paints.inner : paints.body;
+      if (!p) { g.dispose(); continue; }
+      const cfg = p.paint ? p : { paint: p };
+      if (cfg.shift) g.translate(cfg.shift[0], cfg.shift[1], cfg.shift[2]);
+      this.add(g, { paint: cfg.paint, node: cfg.node, deform: cfg.deform });
+    }
+    return parts;
+  }
   geom(g, o = {}) { if (!g.userData.kind && g.userData.kind !== 0) g.userData.kind = 2; return this.add(g, o); }
 
   add(g, o) {
@@ -111,7 +144,7 @@ export class Prop {
       aUnder.set([under[0], under[1], under[2], paint.rough ?? 0.7], i * 4);
       aMat.set([paint.chip ?? 0, paint.rust ?? 0, Math.min(0.99, paint.dirt ?? 0), Math.round(Math.max(0.1, paint.splatScale ?? 1) * 10) + 0.05 + 0.9 * Math.min(1, paint.splat ?? 0)], i * 4);
       aLoc.set([pos.getX(i) - xc, pos.getY(i) - yc, pos.getZ(i) - zc, kind * 2 + metal], i * 4);
-      if (kind === 2) aHalf.set([0, 0, 0, seed], i * 4); // tubes / blobs: no edges
+      if (kind === 2) aHalf.set([ud.edgeW && ew ? ew.getX(i) : 0, 0, 0, seed], i * 4); // tubes / blobs: no edges; shells: curvature
       else aHalf.set([half[0], half[1], half[2], seed], i * 4);
       if (color) color.set(base, i * 3);
     }
@@ -151,6 +184,7 @@ export class Prop {
       const code = Math.max(1, Math.min(999, Math.round((y1 - Math.max(0, y0)) / 0.05)));
       for (const list of this.nodes.values()) for (const it of list) { const a = it.g.attributes.aMat; if (!a) continue; for (let i = 0; i < a.count; i++) a.array[i * 4 + 2] = code + 0.05 + 0.9 * Math.min(1, a.array[i * 4 + 2]); }
     }
+    if (this.opts.ao !== false) bakeAO(this.root, this.nodes, this.opts.quality ?? 1, this.opts.aoStrength ?? 1);
     for (const [node, list] of this.nodes) {
       const byMat = new Map();
       for (const it of list) { if (!byMat.has(it.mat)) byMat.set(it.mat, []); byMat.get(it.mat).push(it.g); }
@@ -176,7 +210,7 @@ export class Prop {
   }
 }
 
-const ATTRS = [['position', 3], ['normal', 3], ['color', 3], ['aCol2', 4], ['aUnder', 4], ['aMat', 4], ['aLoc', 4], ['aHalf', 4]];
+const ATTRS = [['position', 3], ['normal', 3], ['color', 3], ['aAO', 1], ['aCol2', 4], ['aUnder', 4], ['aMat', 4], ['aLoc', 4], ['aHalf', 4]];
 export function mergeGeoms(list) {
   let vc = 0, ic = 0;
   for (const g of list) { vc += g.attributes.position.count; ic += g.index ? g.index.count : g.attributes.position.count; }
@@ -189,7 +223,7 @@ export function mergeGeoms(list) {
     ATTRS.forEach(([name, k], a) => {
       const src = g.attributes[name];
       if (src) bufs[a].set(src.array.subarray(0, n * k), vo * k);
-      else if (name === 'color') bufs[a].fill(1, vo * k, (vo + n) * k);
+      else if (name === 'color' || name === 'aAO') bufs[a].fill(1, vo * k, (vo + n) * k);
     });
     if (g.index) { const s = g.index.array; for (let i = 0; i < s.length; i++) idx[io + i] = s[i] + vo; io += s.length; }
     else { for (let i = 0; i < n; i++) idx[io + i] = vo + i; io += n; }
@@ -203,3 +237,71 @@ export function mergeGeoms(list) {
 }
 
 export function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) % 100000; }
+
+// Baked vertex ambient occlusion: voxelise every wear/glow piece of the prop (rest pose), then march a
+// few hemisphere rays from each vertex. Crevices (joints, under bars, wheel wells, inset windows) darken;
+// written to attribute aAO (1 = open) which the wear shader multiplies into the paint.
+const AO_DIRS = (() => { // cosine-weighted hemisphere directions around +Z
+  const out = [], K = 14, ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < K; i++) { const u = (i + 0.5) / K, r = Math.sqrt(u) * 0.95, a = i * ga; out.push([Math.cos(a) * r, Math.sin(a) * r, Math.sqrt(1 - r * r)]); }
+  return out;
+})();
+function bakeAO(root, nodes, quality, strength) {
+  root.updateMatrixWorld(true);
+  const items = [];
+  for (const [node, list] of nodes) for (const it of list) if (it.mat !== 'glass') items.push({ g: it.g, m: node.matrixWorld, mat: it.mat });
+  if (!items.length) return;
+  const box = new THREE.Box3(), tb = new THREE.Box3();
+  for (const it of items) { it.g.computeBoundingBox(); tb.copy(it.g.boundingBox).applyMatrix4(it.m); box.union(tb); }
+  const size = box.getSize(new THREE.Vector3()), maxD = Math.max(size.x, size.y, size.z);
+  if (!(maxD > 0)) return;
+  const cell = Math.min(0.06, Math.max(0.006, maxD / (quality > 0 ? 110 : 60)));
+  const pad = 3, o = box.min.clone().subScalar(pad * cell);
+  const nx = Math.ceil(size.x / cell) + pad * 2 + 1, ny = Math.ceil(size.y / cell) + pad * 2 + 1, nz = Math.ceil(size.z / cell) + pad * 2 + 1;
+  if (nx * ny * nz > 6e6) return;
+  const occ = new Uint8Array(nx * ny * nz);
+  const id = (x, y, z) => { const i = Math.floor((x - o.x) / cell), j = Math.floor((y - o.y) / cell), k = Math.floor((z - o.z) / cell); return i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz ? (k * ny + j) * nx + i : -1; };
+  const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+  const W = [];
+  for (const it of items) {
+    const pos = it.g.attributes.position, n = pos.count, wp = new Float32Array(n * 3), v = new THREE.Vector3();
+    for (let i = 0; i < n; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(it.m); wp[i * 3] = v.x; wp[i * 3 + 1] = v.y; wp[i * 3 + 2] = v.z; }
+    W.push(wp);
+    const idx = it.g.index ? it.g.index.array : null, tc = idx ? idx.length : n;
+    for (let t = 0; t < tc; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      A.fromArray(wp, a * 3); B.fromArray(wp, b * 3); C.fromArray(wp, c * 3);
+      const e = Math.max(A.distanceTo(B), B.distanceTo(C), C.distanceTo(A));
+      const st = Math.min(300, Math.max(1, Math.ceil(e / (cell * 0.7))));
+      for (let p = 0; p <= st; p++) for (let q = 0; q <= st - p; q++) {
+        const u = p / st, w = q / st;
+        const k = id(A.x + (B.x - A.x) * u + (C.x - A.x) * w, A.y + (B.y - A.y) * u + (C.y - A.y) * w, A.z + (B.z - A.z) * u + (C.z - A.z) * w);
+        if (k >= 0) occ[k] = 1;
+      }
+    }
+  }
+  const Rmax = Math.min(0.45, Math.max(0.03, maxD * 0.09)), steps = Math.max(3, Math.ceil(Rmax / cell));
+  const nm = new THREE.Matrix3(), N = new THREE.Vector3(), T = new THREE.Vector3(), Bt = new THREE.Vector3();
+  items.forEach((it, ii) => {
+    if (it.mat !== 'wear') return;
+    const nor = it.g.attributes.normal, wp = W[ii], n = wp.length / 3, ao = new Float32Array(n);
+    nm.getNormalMatrix(it.m);
+    for (let i = 0; i < n; i++) {
+      N.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
+      if (Math.abs(N.y) < 0.9) T.set(0, 1, 0); else T.set(1, 0, 0);
+      T.cross(N).normalize(); Bt.crossVectors(N, T);
+      const sx = wp[i * 3] + N.x * cell * 1.6, sy = wp[i * 3 + 1] + N.y * cell * 1.6, sz = wp[i * 3 + 2] + N.z * cell * 1.6;
+      let occl = 0;
+      for (const d of AO_DIRS) {
+        const dx = T.x * d[0] + Bt.x * d[1] + N.x * d[2], dy = T.y * d[0] + Bt.y * d[1] + N.y * d[2], dz = T.z * d[0] + Bt.z * d[1] + N.z * d[2];
+        if (dy < -0.2 && sy + dy * Rmax < Math.max(0, box.min.y)) { occl += 0.4; continue; } // ground below
+        for (let s = 1; s <= steps; s++) {
+          const t = s * cell, k = id(sx + dx * t, sy + dy * t, sz + dz * t);
+          if (k >= 0 && occ[k]) { occl += 1 - (t / Rmax) * 0.6; break; }
+        }
+      }
+      ao[i] = Math.max(0.3, 1 - strength * 0.85 * (occl / AO_DIRS.length));
+    }
+    it.g.setAttribute('aAO', new THREE.BufferAttribute(ao, 1));
+  });
+}

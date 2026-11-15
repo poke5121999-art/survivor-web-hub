@@ -2,6 +2,7 @@
 export { Prop, PRESETS, sharedMaterials, mergeGeoms } from './prop.js';
 export { createWearMaterial, createGlowMaterial, createGlassMaterial, wearUniforms } from './wear-material.js';
 export { bevelBox, bevelCyl, lathe, torus, extrude, tube, blob, deform, creaseNormals, noise3, setGeoQuality } from './geo.js';
+export { softBox, sphere, shellLoft, rrectRing, sectionPts, thetaX, thetaY } from './soft.js';
 export { makeFire, tickFire } from './fire.js';
 export { rng } from './rng.js';
 export * as parts from './parts.js';

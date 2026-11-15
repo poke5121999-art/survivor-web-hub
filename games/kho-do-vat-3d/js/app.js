@@ -7,7 +7,8 @@ function updateProps(groups, dt, t) { tickFire(t); for (const g of groups) g.use
 
 const SHEETS = {
   props:    { img: 'ref/owner-props-sheet.webp', w: 1461, h: 829, elev: 34, fov: 24, dist: 30 },
-  vehicles: { img: 'ref/owner-vehicles-sheet.webp', w: 1378, h: 773, elev: 10, fov: 13, dist: 55 },
+  // vehicles: every cell has its own perspective camera (the sheet is 6 separate renders, low 3/4 view)
+  vehicles: { img: 'ref/owner-vehicles-sheet.webp', w: 1378, h: 773, elev: 10, fov: 13, dist: 55, perCell: { elev: 10, fov: 30 } },
   workshop: { img: 'ref/owner-workshop-scene.webp', w: 1446, h: 848, elev: 34, fov: 24, dist: 30 },
   campfire: { img: 'ref/owner-campfire-scene.webp', w: 1437, h: 761, elev: 22, fov: 24, dist: 30 },
 };
@@ -26,12 +27,13 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#1c1d23');
-const hemi = new THREE.HemisphereLight(0xe8ecff, 0x4a4540, 1.7);
+const hemi = new THREE.HemisphereLight(0xedf0ff, 0x5a544d, 2.1); // big soft fill (the sheets read soft, low contrast)
 scene.add(hemi);
-const key = new THREE.DirectionalLight(0xfff1e0, 2.4);
+const key = new THREE.DirectionalLight(0xfff1e0, 2.1);
 key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
 scene.add(key, key.target);
-const fill = new THREE.DirectionalLight(0xd6e2ff, 0.9); fill.position.set(6, 6, 14); scene.add(fill);
+const fill = new THREE.DirectionalLight(0xd6e2ff, 0.7); fill.position.set(6, 6, 14); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xe4ecff, 1.1); rim.position.set(5, 7, -12); scene.add(rim); // back rim: separates soft forms from the dark bg
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.ShadowMaterial({ opacity: 0.42 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const camera = new THREE.PerspectiveCamera(24, 1, 0.05, 500);
@@ -131,9 +133,11 @@ function build(info, seed, opts) {
 function layoutSheet(name) {
   sheetName = name; clearGroup(layoutGroup); clearGroup(inspectGroup); live = [];
   document.querySelectorAll('[data-sheet]').forEach((b) => b.classList.toggle('on', b.dataset.sheet === name));
+  cellMode = false;
   if (name === 'variants') return layoutVariants();
   const sh = SHEETS[name], cam = sheetCam(sh);
   const cells = BOXES.filter((c) => SHEET_OF[c.sheet] === name);
+  cellMode = !!sh.perCell;
   const missing = [];
   for (const c of cells) {
     const info = propInfo(c.prop);
@@ -147,12 +151,59 @@ function layoutSheet(name) {
     if (name === 'workshop' || name === 'campfire') yaw += info.sceneYaw ?? 0;
     g.rotation.y = yaw;
     layoutGroup.add(g);
-    fitToBox(cam, sh, g, c.box);
+    if (sh.perCell) { g.position.x = layoutGroup.children.length * 40; g.userData.box = c.box; g.userData.cam = cellCam(g, sh, c.box); }
+    else fitToBox(cam, sh, g, c.box);
     g.userData.cell = c.cell;
   }
   if (missing.length) console.info('chưa có prop:', missing.join(', '));
   frameSheet();
   fitShadow(layoutGroup);
+}
+// Camera of its own for one cell: perspective at (elev, fov), framed so the prop fills its box.
+function cellCam(obj, sh, box) {
+  const pc = sh.perCell, bw = box[2] - box[0], bh = box[3] - box[1];
+  const c = new THREE.PerspectiveCamera(pc.fov, bw / bh, 0.05, 500);
+  const b = new THREE.Box3().setFromObject(obj, true), tgt = b.getCenter(new THREE.Vector3());
+  const e = THREE.MathUtils.degToRad(pc.elev), dir = new THREE.Vector3(0, Math.sin(e), Math.cos(e));
+  let dist = b.getSize(new THREE.Vector3()).length() / (2 * Math.tan(THREE.MathUtils.degToRad(pc.fov / 2)));
+  const v = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3();
+  obj.updateMatrixWorld(true);
+  for (let it = 0; it < 8; it++) {
+    c.position.copy(tgt).addScaledVector(dir, dist); c.lookAt(tgt); c.updateMatrixWorld(); c.updateProjectionMatrix();
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    obj.traverse((m) => {
+      if (!m.isMesh || !m.visible) return;
+      const p = m.geometry.attributes.position, step = Math.max(1, Math.floor(p.count / 3000));
+      for (let i = 0; i < p.count; i += step) { v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld).project(c); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+    });
+    const k = Math.min(2 / (x1 - x0), 2 / (y1 - y0)) * 0.97;
+    const hh = dist * Math.tan(THREE.MathUtils.degToRad(pc.fov / 2)), hw = hh * c.aspect;
+    right.setFromMatrixColumn(c.matrixWorld, 0); up.setFromMatrixColumn(c.matrixWorld, 1);
+    tgt.addScaledVector(right, ((x0 + x1) / 2) * hw).addScaledVector(up, ((y0 + y1) / 2) * hh);
+    dist /= Math.pow(k, 0.9);
+  }
+  c.position.copy(tgt).addScaledVector(dir, dist); c.lookAt(tgt); c.updateMatrixWorld(); c.updateProjectionMatrix();
+  return c;
+}
+let cellMode = false;
+function sheetRect(box) { // sheet-pixel box -> canvas rect (contain-fit, same as the reference overlay)
+  const sh = SHEETS[sheetName], w = innerWidth, h = innerHeight, s = Math.min(w / sh.w, h / sh.h);
+  const ox = (w - sh.w * s) / 2, oy = (h - sh.h * s) / 2;
+  return { x: ox + box[0] * s, y: oy + box[1] * s, w: (box[2] - box[0]) * s, h: (box[3] - box[1]) * s };
+}
+function renderCells() {
+  const w = innerWidth, h = innerHeight, all = layoutGroup.children;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h); renderer.clear();
+  renderer.setScissorTest(true);
+  for (const g of all) {
+    const r = sheetRect(g.userData.box), y = h - r.y - r.h;
+    for (const o of all) o.visible = o === g && g.userData.hidden !== true;
+    fitShadow(g);
+    renderer.setViewport(r.x, y, r.w, r.h); renderer.setScissor(r.x, y, r.w, r.h);
+    renderer.render(scene, g.userData.cam);
+  }
+  for (const o of all) o.visible = o.userData.hidden !== true;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h);
 }
 function layoutVariants() {
   let x = 0, z = 0, rowH = 0; const maxW = 16;
@@ -179,7 +230,7 @@ function frameSheet() {
 function fitShadow(group) {
   const b = new THREE.Box3().setFromObject(group, true); if (b.isEmpty()) return;
   const c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length() / 2 + 1;
-  key.position.copy(c).add(new THREE.Vector3(-0.55, 1, 0.65).normalize().multiplyScalar(r * 2));
+  key.position.copy(c).add(new THREE.Vector3(-0.5, 1, 0.85).normalize().multiplyScalar(r * 2));
   key.target.position.copy(c);
   const sc = key.shadow.camera; sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r; sc.near = 0.1; sc.far = r * 4; sc.updateProjectionMatrix();
 }
@@ -189,6 +240,10 @@ const side = document.getElementById('side');
 let cur = null;
 function pick(x, y) {
   if (!layoutGroup.visible) return;
+  if (cellMode) {
+    for (const g of layoutGroup.children) { const r = sheetRect(g.userData.box); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return inspect(g.userData.info, g.userData.seed ?? 1, g.userData.cell); }
+    return;
+  }
   const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((x / innerWidth) * 2 - 1, 1 - (y / innerHeight) * 2), camera);
   const hit = ray.intersectObjects(layoutGroup.children, true)[0];
   if (!hit) return;
@@ -275,7 +330,7 @@ const clock = new THREE.Clock(); let t = 0, fpsT = 0, frames = 0, fps = 0;
 function frame() {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
   updateProps(live, dt, t);
-  renderer.render(scene, camera);
+  if (cellMode && layoutGroup.visible && !cur) renderCells(); else renderer.render(scene, camera);
   frames++; fpsT += dt; if (fpsT > 0.5) { fps = Math.round(frames / fpsT); frames = 0; fpsT = 0; }
   const info = renderer.info.render;
   stats.textContent = `${live.length} đồ · ${info.triangles.toLocaleString()} tam giác · ${info.calls} draw · ${fps} fps`;
@@ -291,7 +346,8 @@ frame();
 window.SP = {
   ready: true, PROPS, BOXES,
   async sheet(name) { layoutSheet(name); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); return { count: layoutGroup.children.length, tris: renderer.info.render.triangles }; },
-  isolate(cell) { layoutGroup.children.forEach((g) => { g.visible = cell == null || g.userData.cell === cell; }); renderer.render(scene, camera); },
+  isolate(cell) { layoutGroup.children.forEach((g) => { g.visible = cell == null || g.userData.cell === cell; g.userData.hidden = !g.visible; }); if (cellMode) renderCells(); else renderer.render(scene, camera); },
+  cams() { return layoutGroup.children.map((g) => { const c = g.userData.cam; if (!c) return null; const d = new THREE.Vector3(); c.getWorldDirection(d); return { cell: g.userData.cell, pos: c.position.toArray().map((v) => +v.toFixed(2)), dir: d.toArray().map((v) => +v.toFixed(3)), fov: c.fov, aspect: +c.aspect.toFixed(2), gpos: g.position.toArray() }; }); },
   perProp() { return layoutGroup.children.map((g) => ({ id: g.userData.prop, cell: g.userData.cell, tris: g.userData.tris, draws: g.userData.draws })); },
   allProps() { const out = []; for (const info of PROPS) { const vars = info.variants?.length ? info.variants : [{ label: '-', seed: 1, opts: {} }]; for (const v of vars) { let g; try { g = info.build(v.seed, { quality, ...v.opts }); } catch (e) { out.push({ id: info.id, variant: v.label, error: String(e.message) }); continue; } out.push({ id: info.id, variant: v.label, tris: g.userData.tris, draws: g.userData.draws, params: Object.keys(g.userData.params || {}) }); g.traverse((o) => o.isMesh && o.geometry.dispose()); } } return out; },
   inspect(id, seed = 1, opts = {}) { inspect(propInfo(id), seed, null, opts); },

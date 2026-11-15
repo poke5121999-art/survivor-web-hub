@@ -1,19 +1,22 @@
-// Vehicles: armoured post-apocalyptic pickup, van and hatchback (front faces +Z).
-// Body = two side panels (extruded side profile with window / door holes) joined by
-// double-faced lofted strips along the profile (roof, hood, windshield, floor), so
-// doors open onto a real interior. Wheels roll (speed), front wheels steer (steer).
+// Vehicles: armoured post-apocalyptic pickup, van and hatchback (front faces +Z, driver side +X).
+// Chunky toy look (owner sheet): the body is one superellipse-section shell lofted along Z (lib/soft.js
+// shellLoft) - puffy sides, big rounded corners, roof tucked in above the belt line, wheel arches as a
+// rounded rise of the section bottom. Windows are inset dark panels with a soft step, the driver door is
+// cut out of the same shell (so it closes flush and opens onto a real interior), seams are inset grooves.
+// Bars / tubes / plates are thick and round-ended, wheels are big balloon tyres with tread blocks.
+// Wheels roll (speed), front wheels steer (steer).
 import * as THREE from '../vendor/three.module.min.js';
 import { Prop } from '../lib/prop.js';
-import { creaseNormals, extrude as geoExtrude } from '../lib/geo.js';
-import * as parts from '../lib/parts.js';
+import { extrude as geoExtrude } from '../lib/geo.js';
+import { sectionPts } from '../lib/soft.js';
 
 const PI = Math.PI;
 const SIDE = [0, -PI / 2, 0]; // extrude shape (x=z, y=y), depth along world X
+const lerp = (a, b, t) => a + (b - a) * t;
 
-// Extrude with the flat caps marked "not edge" so the wear shader chips only the bevelled
-// rim (lib extrude flags every cap vertex as crease -> a whole flat face reads as chipped metal).
+// Extrude with the flat caps marked "not edge" so the wear shader chips only the bevelled rim.
 function ext(p, pts, depth, o = {}) {
-  const g = geoExtrude(pts, depth, { bevel: o.bevel ?? 0.012, holes: o.holes || [], curveSegs: o.curveSegs ?? 6 });
+  const g = geoExtrude(pts, depth, { bevel: o.bevel ?? 0.03, holes: o.holes || [], curveSegs: o.curveSegs ?? 8 });
   const ew = g.attributes.aEdgeW, pos = g.attributes.position;
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
   if (ew) for (let i = 0; i < pos.count; i += 3) {
@@ -23,123 +26,89 @@ function ext(p, pts, depth, o = {}) {
   return p.geom(g, o);
 }
 
-// ---------- 2D helpers (side profile coords [z, y])
-function arch(zc, yc, r, yb, n = 9) {
-  const out = [[zc - r, yb]];
-  for (let k = 0; k <= n; k++) { const a = PI - (PI * k) / n; out.push([zc + r * Math.cos(a), yc + r * Math.sin(a)]); }
-  out.push([zc + r, yb]);
+// ---------- side-profile helpers ([z, y])
+function prof(pts, z) {
+  if (z <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (z <= pts[i][0]) { const [z0, y0] = pts[i - 1], [z1, y1] = pts[i]; return lerp(y0, y1, (z - z0) / (z1 - z0)); }
+  return pts[pts.length - 1][1];
+}
+const sprof = (pts, z, r = 0.12) => [-1, -0.5, 0, 0.5, 1].reduce((s, k) => s + prof(pts, z + k * r), 0) / 5; // rounded corners
+function archLift(z, arches, yb) {
+  let y = yb;
+  for (const a of arches) { const d = z - a.z; if (Math.abs(d) < a.r) y = Math.max(y, a.y + Math.sqrt(a.r * a.r - d * d)); }
+  return y;
+}
+// Body stations from profile functions; rounded ends (radius r0 rear / r1 front, shrink k0 / k1).
+function stations(c) {
+  const { z0, z1, step = 0.17, r0 = 0.15, r1 = 0.2, k0 = 0.7, k1 = 0.7 } = c;
+  let zs = [];
+  for (let z = z0 + r0; z < z1 - r1 - 1e-6; z += step) zs.push(z);
+  zs.push(z1 - r1);
+  for (const z of c.extra || []) if (z > z0 + r0 && z < z1 - r1) zs.push(z);
+  for (const a of c.arches || []) for (let k = 0; k <= 10; k++) { const z = a.z - a.r * Math.cos((k * PI) / 10); if (z > z0 + r0 && z < z1 - r1) zs.push(z); }
+  zs.sort((a, b) => a - b); zs = zs.filter((z, i) => i === 0 || z - zs[i - 1] > 0.011);
+  const at = (z, sh = 0) => {
+    const yb = archLift(z, c.arches || [], c.yb(z)) + sh * 0.6, yt = c.yt(z) - sh;
+    return { z, hw: c.hw(z) - sh, yb, yt: Math.max(yt, yb + 0.04), belt: c.belt, gh: c.gh };
+  };
+  const out = [];
+  for (let s = 4; s >= 1; s--) { const a = (s / 4) * (PI / 2); out.push(at(z0 + r0 - r0 * Math.sin(a), r0 * k0 * (1 - Math.cos(a)))); }
+  for (const z of zs) out.push(at(z));
+  for (let s = 1; s <= 4; s++) { const a = (s / 4) * (PI / 2); out.push(at(z1 - r1 + r1 * Math.sin(a), r1 * k1 * (1 - Math.cos(a)))); }
   return out;
 }
-function inset(pts, d) { // offset a simple polygon inward by d
-  let a = 0;
-  for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; }
-  const s = a > 0 ? 1 : -1, n = pts.length, L = [];
-  for (let i = 0; i < n; i++) {
-    const p = pts[i], q = pts[(i + 1) % n], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1;
-    const nx = (-dy / l) * s * d, ny = (dx / l) * s * d;
-    L.push([p[0] + nx, p[1] + ny, dx, dy]);
-  }
-  return L.map((e, i) => {
-    const f = L[(i + n - 1) % n];
-    const den = f[2] * e[3] - f[3] * e[2];
-    if (Math.abs(den) < 1e-9) return [e[0], e[1]];
-    const t = ((e[0] - f[0]) * e[3] - (e[1] - f[1]) * e[2]) / den;
-    return [f[0] + f[2] * t, f[1] + f[3] * t];
-  });
-}
-const lerp2 = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
 
-// Strip between x0..x1 along a polyline of [z,y]; outward faces when the polyline runs
-// in the profile's CCW order (front -> roof -> rear -> bottom). flip = inner face.
-function loftGeom(pts, x0, x1, flip) {
-  const pos = [];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [az, ay] = pts[i], [bz, by] = pts[i + 1];
-    const A0 = [x0, ay, az], A1 = [x1, ay, az], B0 = [x0, by, bz], B1 = [x1, by, bz];
-    const tri = flip ? [A0, B0, B1, A0, B1, A1] : [A0, B1, B0, A0, A1, B1];
-    for (const v of tri) pos.push(...v);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  creaseNormals(g, 40);
-  g.userData = { kind: 2 };
-  return g;
-}
-function loft(p, pts, x0, x1, paint, inner, node) {
-  p.geom(loftGeom(pts, x0, x1, false), { paint, node });
-  if (inner) p.geom(loftGeom(pts, x0, x1, true), { paint: inner, node });
-}
-// Box lying on the profile line a->b at fraction f: size [x, along line, thickness], off = outward.
-function onLine(p, a, b, f, size, o = {}) {
-  const dz = b[0] - a[0], dy = b[1] - a[1], th = Math.atan2(dz, dy), off = o.off ?? 0;
-  const z = a[0] + dz * f + Math.cos(th) * off, y = a[1] + dy * f - Math.sin(th) * off;
-  return p.box(size, { at: [o.x ?? 0, y, z], rot: [th + (o.tilt || 0), o.yaw || 0, o.roll || 0], paint: o.paint, bevel: o.bevel, node: o.node, deform: o.deform });
-}
-// Cone spike from `at` pointing along dir (unit-ish [x,y,z]).
-function spike(p, at, dir, len, r, paint, seg = 5) {
+// ---------- chunky parts
+function spike(p, at, dir, len, r, paint, seg = 6) { // fat cone, rounded tip
   const d = new THREE.Vector3(...dir).normalize();
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
-  const e = new THREE.Euler().setFromQuaternion(q);
-  p.cyl(r, len, { r2: 0.004, at: [at[0] + d.x * len / 2, at[1] + d.y * len / 2, at[2] + d.z * len / 2], rot: [e.x, e.y, e.z], paint, seg, bevel: 0.004 });
+  const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d));
+  p.cyl(r, len, { r2: r * 0.22, at: [at[0] + d.x * len / 2, at[1] + d.y * len / 2, at[2] + d.z * len / 2], rot: [e.x, e.y, e.z], paint, seg, bevel: r * 0.2 });
 }
 function lamp(p, at, s, glow, housing, face = 1) { // square lamp facing +Z (face=1) or -Z
-  p.box([s[0] + 0.04, s[1] + 0.04, 0.08], { at: [at[0], at[1], at[2] - face * 0.03], paint: housing, bevel: 0.015 });
-  p.box([s[0], s[1], 0.03], { at: [at[0], at[1], at[2] + face * 0.02], paint: glow, bevel: 0.008 });
+  p.soft([s[0] + 0.08, s[1] + 0.08, 0.12], { at: [at[0], at[1], at[2] - face * 0.03], paint: housing, r: 0.035 });
+  p.soft([s[0], s[1], 0.05], { at: [at[0], at[1], at[2] + face * 0.035], paint: glow, r: 0.016, segs: 2, mid: 1 });
 }
 function roundLamp(p, at, r, glow, housing, face = 1) {
-  p.cyl(r + 0.025, 0.08, { at: [at[0], at[1], at[2] - face * 0.02], rot: [PI / 2, 0, 0], paint: housing, seg: 12, bevel: 0.012 });
-  p.cyl(r, 0.03, { at: [at[0], at[1], at[2] + face * 0.025], rot: [PI / 2, 0, 0], paint: glow, seg: 12, bevel: 0.006 });
+  p.cyl(r + 0.035, 0.1, { at: [at[0], at[1], at[2] - face * 0.02], rot: [PI / 2, 0, 0], paint: housing, seg: 12, bevel: 0.03 });
+  p.cyl(r, 0.04, { at: [at[0], at[1], at[2] + face * 0.035], rot: [PI / 2, 0, 0], paint: glow, seg: 12, bevel: 0.012 });
 }
-// Half-torus fender flare around a wheel arch on side `side`.
-function flare(p, zc, yc, r, x, paint) {
-  p.torus(r, 0.045, { arc: PI, seg: 10, tube: 5, at: [x, yc, zc], rot: [-PI / 2, PI / 2, 0], order: 'YXZ', scale: [1, 1.7, 1], paint });
+// Thick rounded fender lip around a wheel arch (half annulus extruded, big bevel).
+function flare(p, a, x, paint, w = 0.13) {
+  const pts = [], n = 12;
+  for (let k = 0; k <= n; k++) { const t = PI - (k * PI) / n; pts.push([a.z + (a.r + w) * Math.cos(t), a.y + (a.r + w) * Math.sin(t)]); }
+  for (let k = n; k >= 0; k--) { const t = PI - (k * PI) / n; pts.push([a.z + (a.r - 0.02) * Math.cos(t), a.y + (a.r - 0.02) * Math.sin(t)]); }
+  ext(p, pts, 0.11, { at: [x, 0, 0], rot: SIDE, paint, bevel: 0.04 });
 }
-
-// ---------- body shell
-function shell(p, s) {
-  const x1 = s.hw - s.t * 0.5;
-  for (const side of [1, -1]) {
-    const holes = s.holes.filter((h) => !h.side || h.side === side).map((h) => h.pts);
-    ext(p, s.outline, s.t, { holes, at: [side * (s.hw - s.t / 2), 0, 0], rot: SIDE, paint: s.paint, bevel: 0.016,
-      deform: s.dent ? { amp: s.dent, freq: 2.2, axis: [1, 0.4, 0.4] } : undefined });
-    for (const h of s.holes) if (h.glass && (!h.side || h.side === side))
-      ext(p, h.pts, 0.016, { at: [side * (s.hw - s.t / 2), 0, 0], rot: SIDE, paint: s.glass, bevel: 0.004 });
-  }
-  for (const st of s.strips) {
-    const xa = st.x0 ?? -x1, xb = st.x1 ?? x1;
-    if (st.glass) { // glass centre, painted pillars at the sides
-      const e = st.edge ?? 0.12;
-      loft(p, st.pts, xa + e, xb - e, s.glass, null);
-      loft(p, st.pts, xa, xa + e, st.paint || s.paint, s.inner);
-      loft(p, st.pts, xb - e, xb, st.paint || s.paint, s.inner);
-    } else loft(p, st.pts, xa, xb, st.paint || s.paint, st.inner === false ? null : s.inner);
-  }
+// Balloon tyre (round shoulders, bulging sidewall) as a lathe around local Y.
+function tyrePts(R, w, ri) {
+  const hw = w / 2, rs = w * 0.44, pts = [[ri, -hw * 0.74], [ri + (R - ri) * 0.4, -hw * 0.98]];
+  for (let k = 0; k <= 3; k++) { const t = (k / 3) * (PI / 2); pts.push([R - rs + rs * Math.sin(t), -hw + rs - rs * Math.cos(t)]); }
+  pts.push([R * 1.012, 0]);
+  for (let k = 3; k >= 0; k--) { const t = (k / 3) * (PI / 2); pts.push([R - rs + rs * Math.sin(t), hw - rs + rs * Math.cos(t)]); }
+  pts.push([ri + (R - ri) * 0.4, hw * 0.98], [ri, hw * 0.74], [ri, -hw * 0.74]);
+  return pts;
 }
-// Side door (hinge at the front edge): extruded panel + window glass in its own node.
-function sideDoor(p, s, d) { // d.fixed: never opens -> merged into the body (no extra draws)
-  const base = [d.side * (s.hw - s.t / 2), 0, d.hinge];
-  const n = d.fixed ? p.cur : p.node(d.name, { at: base });
-  const A = (v) => (d.fixed ? [v[0] + base[0], v[1], v[2] + base[2]] : v);
-  const loc = inset(d.pts, 0.012).map(([z, y]) => [z - d.hinge, y]);
-  const win = d.win.map(([z, y]) => [z - d.hinge, y]);
+// Rolling wheel node (axis X): balloon tyre + staggered chunky tread blocks + deep-dish rim with round holes.
+function wheel(p, o) {
+  const { R, w, P, out = 1 } = o, ri = R * 0.6, rot = [0, 0, PI / 2];
+  const n = p.node(o.name || 'wheel', { at: o.at, parent: o.parent });
   p.in(n, () => {
-    ext(p, loc, s.t * 0.9, { holes: [win], at: A([0, 0, 0]), rot: SIDE, paint: s.paint, bevel: 0.008, deform: s.dent ? { amp: s.dent * 0.6, freq: 3 } : undefined });
-    ext(p, win, 0.016, { at: A([0, 0, 0]), rot: SIDE, paint: s.glass, bevel: 0.004 });
-    // inner trim panel + handle
-    const zs = loc.map((q) => q[0]), ys = loc.map((q) => q[1]);
-    const zmin = Math.min(...zs), zmax = Math.max(...zs), ymin = Math.min(...ys), yw = Math.min(...win.map((q) => q[1]));
-    p.box([0.03, yw - ymin - 0.12, zmax - zmin - 0.16], { at: A([-d.side * s.t * 0.55, (yw + ymin) / 2, (zmin + zmax) / 2]), paint: s.inner, bevel: 0.01 });
-    p.box([0.03, 0.035, 0.14], { at: A([d.side * s.t * 0.55, yw - 0.1, zmin + 0.16]), paint: s.trim, bevel: 0.008 });
+    p.lathe(tyrePts(R, w, ri), { seg: 20, paint: P.rubber, rot });
+    const nb = o.blocks ?? 9;
+    for (let row = 0; row < 2; row++) for (let k = 0; k < nb; k++) {
+      const a = ((k + row * 0.5) / nb) * PI * 2, rb = R - 0.004;
+      p.box([w * 0.4, 0.05, (PI * 2 * R / nb) * 0.55], { at: [(row ? 1 : -1) * w * 0.2, Math.cos(a) * rb, Math.sin(a) * rb], rot: [a, 0, 0], paint: P.rubber, bevel: 0.016 });
+    }
+    const rr = ri + 0.012, hw = w / 2, hb = hw * 0.3;
+    p.lathe([[0, -hb], [rr * 0.3, -hb], [rr * 0.38, -0.03], [rr * 0.8, -0.04], [rr * 0.88, -hw * 0.6], [rr, -hw * 0.72],
+      [rr, hw * 0.72], [rr * 0.88, hw * 0.6], [rr * 0.8, 0.04], [rr * 0.38, 0.03], [rr * 0.3, hb], [0, hb]], { seg: 16, paint: P.tyreRim, rot });
+    if (o.holes) for (let k = 0; k < 4; k++) { // round holes in the dish (dark discs just proud of the outer face)
+      const a = (k / 4) * PI * 2 + 0.3;
+      p.cyl(rr * 0.13, 0.012, { at: [out * 0.045, Math.cos(a) * rr * 0.58, Math.sin(a) * rr * 0.58], rot, paint: P.trim, seg: 7, bevel: 0 });
+    }
+    p.cyl(rr * 0.26, 0.06, { at: [out * hb, 0, 0], rot, paint: P.hub, seg: 10, bevel: 0.02 });
   });
   return n;
-}
-// Fold a static node's pieces into its parent (saves its draw calls); node must not move.
-function bake(p, n) {
-  const list = p.nodes.get(n), host = p.nodes.get(n.parent);
-  if (!list || !host) return;
-  n.updateMatrix();
-  for (const it of list) { it.g.applyMatrix4(n.matrix); host.push(it); }
-  p.nodes.delete(n); n.parent.remove(n);
 }
 function wheels(p, o) {
   const list = [], steers = [];
@@ -147,12 +116,7 @@ function wheels(p, o) {
     const at = [sx * o.x, o.R, z];
     let parent = null;
     if (front) { parent = p.node('steer', { at }); steers.push(parent); }
-    const w = parts.wheel(p, { name: 'wheel', at: front ? [0, 0, 0] : at, parent, R: o.R, w: o.w, ri: o.R * 0.6, rimPaint: o.rim });
-    if (o.hub) p.in(w, () => { // hub cap + lug ring on the outside
-      p.cyl(o.R * 0.2, 0.04, { at: [sx * (o.w * 0.32), 0, 0], rot: [0, 0, PI / 2], paint: o.hub, seg: 8, bevel: 0.01 });
-      for (let k = 0; k < 5; k++) { const a = (k / 5) * PI * 2; p.cyl(0.018, 0.03, { at: [sx * o.w * 0.33, Math.sin(a) * o.R * 0.3, Math.cos(a) * o.R * 0.3], rot: [0, 0, PI / 2], paint: o.hub, seg: 6, bevel: 0.004 }); }
-    });
-    list.push(w);
+    list.push(wheel(p, { name: 'wheel', at: front ? [0, 0, 0] : at, parent, R: o.R, w: o.w, P: o.P, out: sx }));
   }
   return { list, steers };
 }
@@ -162,155 +126,181 @@ function drive(p, wh, R, opts) {
   p.param('speed', speed, (v) => { speed = v; }, [0, 20]);
   p.onUpdate((dt) => { const a = (speed * dt) / R; for (const w of wh.list) w.rotation.x += a; });
 }
+// Fold a static node's pieces into its parent (saves draw calls); node must not move.
+function bake(p, n) {
+  const list = p.nodes.get(n), host = p.nodes.get(n.parent);
+  if (!list || !host) return;
+  n.updateMatrix();
+  for (const it of list) { it.g.applyMatrix4(n.matrix); host.push(it); }
+  p.nodes.delete(n); n.parent.remove(n);
+}
 function common(p, opts, color) {
-  const blood = opts.blood ?? 0.15;
+  const blood = opts.blood ?? 0.15, w = p.wear / 0.6;
   return {
-    body: p.paint('paint', { color: opts.color || color, under: '#8e9397', splatScale: 0.4, splat: blood * 0.75, chip: 0.6 * p.wear / 0.6, rust: 0.1 * p.wear / 0.6 }),
-    glass: p.paint('glass', { color: '#55748f' }),
-    inner: p.paint('paint', { color: '#3a3b40', chip: 0, rust: 0, dirt: 0.35 }),
+    body: p.paint('paint', { color: opts.color || color, under: '#8e9397', splatScale: 0.55, splat: blood * 0.7, chip: 0.25 * w, rust: 0.02 * w, rough: 0.58 }),
+    glass: p.paint('glass', { color: '#283846' }),
+    inner: p.paint('paint', { color: '#2e2f34', chip: 0, rust: 0, dirt: 0.3 }),
     seat: p.paint('fabric', { color: '#4a4643' }),
-    trim: p.paint('plastic', { color: '#2f3034', chip: 0.05 }),
-    steel: p.paint('steel', { color: '#6c7378', splatScale: 0.4, splat: blood * 1.8 }),
-    dark: p.paint('steel', { color: '#45494e', under: '#8b9196', splatScale: 0.4, splat: blood * 1.4 }),
-    plate: p.paint('steel', { color: '#7d8489', under: '#a5abb0', rust: 0.2 * p.wear / 0.6, splatScale: 0.4, splat: blood * 1.6 }),
-    rusty: p.paint('rusty', { splatScale: 0.4, splat: blood * 0.5 }),
-    wood: p.paint('wood', { color: '#a3735a', under: '#c69a78', splatScale: 0.4, splat: blood * 0.4 }),
-    tyreRim: p.paint('steel', { color: '#5a5f64', under: '#9aa0a5' }),
-    hub: p.paint('metal', { color: '#9aa1a6' }),
+    trim: p.paint('plastic', { color: '#34363b', chip: 0.05, splatScale: 0.55, splat: blood * 0.6 }),
+    steel: p.paint('steel', { color: '#80878c', metal: 0.2, splatScale: 0.55, splat: blood * 1.6, rust: 0.08 * w }),
+    dark: p.paint('steel', { color: '#5d6268', metal: 0.15, under: '#8b9196', splatScale: 0.55, splat: blood * 1.3, rust: 0.06 * w }),
+    plate: p.paint('steel', { color: '#8e9499', metal: 0.15, under: '#b4b9bc', rust: 0.12 * w, splatScale: 0.55, splat: blood * 1.6 }),
+    wood: p.paint('wood', { color: '#a08074', under: '#c0a08c', splatScale: 0.55, splat: blood * 0.5 }),
+    tyreRim: p.paint('steel', { color: '#878d92', metal: 0.2, under: '#a3a9ae', chip: 0.15 }),
+    hub: p.paint('metal', { color: '#a3aaae', metal: 0.3 }),
     glowW: p.paint('glow', { color: '#fff4d2' }),
     glowR: p.paint('glow', { color: '#ff4a35' }),
-    glowA: p.paint('glow', { color: '#ffb23a' }),
-    rubber: p.paint('rubber'),
+    rubber: p.paint('rubber', { color: '#2e2f33' }),
   };
 }
-function interior(p, P, o) { // seats, dash, steering wheel (driver on +X)
+function interior(p, P, o) { // chunky seats, dash, steering wheel (driver on +X)
   const { hw, zSeat, zDash, yFloor, yDash, seats = 2 } = o;
-  p.box([hw * 2 - 0.2, 0.08, Math.abs(zDash - zSeat) + 0.5], { at: [0, yFloor + 0.04, (zSeat + zDash) / 2], paint: P.inner, bevel: 0.01 });
-  const sx = seats === 1 ? [0] : [hw * 0.45, -hw * 0.45], sw = seats === 1 ? hw * 1.6 : hw * 0.7;
+  p.soft([hw * 2 - 0.24, 0.08, Math.abs(zDash - zSeat) + 0.5], { at: [0, yFloor + 0.05, (zSeat + zDash) / 2], paint: P.inner, r: 0.03 });
+  const sx = seats === 1 ? [0] : [hw * 0.45, -hw * 0.45], sw = seats === 1 ? hw * 1.55 : hw * 0.72;
   for (const x of sx) {
-    p.box([sw, 0.16, 0.5], { at: [x, yFloor + 0.38, zSeat + 0.15], paint: P.seat, bevel: 0.04 });
-    p.box([sw, 0.62, 0.14], { at: [x, yFloor + 0.72, zSeat - 0.12], rot: [-0.18, 0, 0], paint: P.seat, bevel: 0.04 });
+    p.soft([sw, 0.2, 0.52], { at: [x, yFloor + 0.38, zSeat + 0.15], paint: P.seat, r: 0.08, bulge: 0.02 });
+    p.soft([sw, 0.64, 0.18], { at: [x, yFloor + 0.74, zSeat - 0.12], rot: [-0.18, 0, 0], paint: P.seat, r: 0.08, bulge: 0.02 });
   }
-  p.box([hw * 2 - 0.14, 0.22, 0.4], { at: [0, yDash, zDash], paint: P.trim, bevel: 0.04 });
-  p.torus(0.17, 0.022, { at: [hw * 0.45, yDash + 0.12, zDash - 0.32], rot: [-0.5, 0, 0], seg: 12, tube: 5, paint: P.trim });
-  p.cyl(0.025, 0.3, { at: [hw * 0.45, yDash + 0.04, zDash - 0.2], rot: [1.07, 0, 0], paint: P.trim, seg: 6 });
+  p.soft([hw * 2 - 0.2, 0.24, 0.44], { at: [0, yDash, zDash], paint: P.trim, r: 0.1 });
+  p.torus(0.17, 0.035, { at: [hw * 0.45, yDash + 0.12, zDash - 0.32], rot: [-0.5, 0, 0], seg: 14, tube: 6, paint: P.trim });
+  p.cyl(0.035, 0.3, { at: [hw * 0.45, yDash + 0.04, zDash - 0.2], rot: [1.07, 0, 0], paint: P.trim, seg: 8 });
+}
+// Bar lying on the line a->b (side profile [z,y]) at fraction f, pushed `off` outward.
+function onLine(a, b, f, off) {
+  const dz = b[0] - a[0], dy = b[1] - a[1], th = Math.atan2(dz, dy);
+  return { y: a[1] + dy * f - Math.sin(th) * off, z: a[0] + dz * f + Math.cos(th) * off, th };
+}
+function doorPaints(P, node, shift) {
+  return { door: { paint: P.body, node, shift }, 'door:in': { paint: P.inner, node, shift }, doorGlass: { paint: P.glass, node, shift } };
 }
 
 // =====================================================================================
 // 1. Pickup: light-blue, roof light bar + spare tyre, welded windscreen plates,
 //    plank side rails, caged rear window, spiked plough, rear bumper spikes.
-// opts: color, armor (0|1), blood (splat 0..1), doors (0..1 driver door), speed, steer, dent
+// opts: color, armor (0|1), blood (splat 0..1), doors (0..1 driver door), speed, steer
 export function pickup(seed = 1, opts = {}) {
   const p = new Prop('pickup', seed, opts);
   const P = common(p, opts, '#5ea6c4');
   const armor = opts.armor ?? 1;
-  const hw = 0.97, t = 0.06, R = 0.46, zf = 1.42, zr = -1.45, ar = 0.57, ay = 0.48, yb = 0.40;
-  const zF = 2.30, zB = -2.34, yHood = 1.30, yRail = 1.30, yRoof = 1.98, yBed = 0.86;
-  const front = [[zF, yb], [zF + 0.06, 0.54], [zF + 0.06, 1.14], [zF - 0.04, 1.24], [1.05, yHood]];
-  const ws = [[1.05, yHood], [0.56, yRoof - 0.05]];
-  const roof = [[0.56, yRoof - 0.05], [0.44, yRoof], [-0.54, yRoof], [-0.62, yRoof - 0.05]];
-  const bottom = [[zB + 0.06, yb], ...arch(zr, ay, ar, yb), ...arch(zf, ay, ar, yb), [zF, yb]];
-  const outline = [...front, ...roof, [-0.66, yRail], [zB + 0.06, yRail], [zB, yRail - 0.08], [zB, 0.52], ...bottom];
-  const doorPts = [[-0.58, 0.50], [0.83, 0.50], [0.83, 1.32], [0.50, 1.88], [-0.52, 1.89], [-0.58, 1.84]];
-  const doorWin = [[0.70, 1.40], [0.46, 1.80], [-0.48, 1.80], [-0.50, 1.40]];
-  const S = { hw, t, outline, paint: P.body, glass: P.glass, inner: P.inner, trim: P.trim, dent: opts.dent ?? 0.008,
-    holes: [{ pts: doorPts }],
-    strips: [
-      { pts: front }, { pts: ws, glass: true, edge: 0.1 }, { pts: roof },
-      { pts: [[-0.62, yRoof - 0.05], [-0.627, 1.82]] }, { pts: [[-0.627, 1.82], [-0.648, 1.48]], glass: true, edge: 0.3 },
-      { pts: [[-0.648, 1.48], [-0.66, yRail], [-0.66, yBed]] },
-      { pts: [[-0.66, yBed], [zB + 0.08, yBed]] },
-      { pts: [[zB, 0.52], ...bottom] },
-    ] };
-  shell(p, S);
-  const doorL = sideDoor(p, S, { name: 'door', side: 1, hinge: 0.83, pts: doorPts, win: doorWin });
-  sideDoor(p, S, { name: 'door_r', side: -1, fixed: true, hinge: 0.83, pts: doorPts, win: doorWin });
+  const hw = 0.98, R = 0.54, tw = 0.38, xw = 0.79, zf = 1.5, zr = -1.56, yb0 = 0.46;
+  const arF = { z: zf, y: R + 0.03, r: R + 0.1 }, arR = { z: zr, y: R + 0.03, r: R + 0.1 };
+  const zF = 2.36, zC = -0.74, zB = -2.42, yRail = 1.42, yBed = 0.9;
+  const ytP = [[zC, 1.96], [0.5, 1.98], [1.04, 1.4], [1.9, 1.36], [zF, 1.28]];
+  const dz0 = -0.56, dz1 = 0.76, wz0 = -0.47, wz1 = 0.6, wy = 1.47;
+  const st = stations({ z0: zC, z1: zF, r0: 0.14, r1: 0.2, k0: 0.5, k1: 0.6, step: 0.16,
+    hw: (z) => (z > 1.8 ? hw - (z - 1.8) * 0.05 : hw), yt: (z) => sprof(ytP, z, 0.09), yb: () => yb0, arches: [arF],
+    belt: 1.44, gh: 0.1, extra: [dz0, dz1, wz0, wz1, 0.56, 0.98, 1.14, 1.17] });
+  const doorL = p.node('door', { at: [hw, 0, dz1] });
+  p.shell(st, { rect: { rT: 0.17, rB: 0.1, ns: 3, na: 4, nt: 3, bulge: 0.025, bulgeT: 0.04 }, thick: 0.05, cap0: 'body', cap1: 'body',
+    region: (q) => {
+      const sideF = Math.abs(q.nx) > 0.84;
+      if (sideF && q.z > dz0 && q.z < dz1 && q.y > yb0 + 0.05 && q.y < 1.93) {
+        const k = q.side > 0 ? 'door' : 'doorR';
+        if (q.z > wz0 && q.z < wz1 && q.y > wy) return { key: k + 'Glass', grp: k, inset: 0.03 };
+        return { key: k, inset: 0.008, inner: true };
+      }
+      if (q.top && !sideF && q.z > 0.56 && q.z < 0.98 && Math.abs(q.nx) < 0.74) return { key: "glass", grp: "body", inset: 0.035 };
+      if (q.top && q.z > 1.14 && q.z < 1.17 && q.y > 1.2) return { key: 'body', inset: 0.016 }; // hood seam groove
+      return { key: 'body', inner: q.z > -0.62 && q.z < 0.84 };
+    } }, { body: P.body, inner: P.inner, glass: P.glass, doorRGlass: P.glass, ...doorPaints(P, doorL, [-hw, 0, -dz1]) });
   p.param('doors', opts.doors ?? 0, (v) => { doorL.rotation.y = -v * 1.15; });
-  interior(p, P, { hw, zSeat: -0.32, zDash: 0.72, yFloor: yb, yDash: 1.2, seats: 1 });
-  // tailgate, bed rail caps, rocker trim
-  p.box([hw * 2 - t, yRail - 0.52, 0.09], { at: [0, (yRail + 0.52) / 2, zB + 0.045], paint: P.body, bevel: 0.02 });
-  p.box([0.42, 0.1, 0.03], { at: [0, yRail - 0.17, zB - 0.005], paint: P.trim, bevel: 0.01 });
+  interior(p, P, { hw, zSeat: -0.32, zDash: 0.74, yFloor: yb0, yDash: 1.22, seats: 1 });
+  // cab rear window (on the back cap)
+  p.soft([1.36, 0.42, 0.06], { at: [0, 1.66, zC - 0.005], paint: P.trim, r: 0.03 });
+  p.soft([1.22, 0.32, 0.05], { at: [0, 1.66, zC - 0.02], paint: P.glass, r: 0.03 });
+  // chassis: dark tubs filling the wheel wells + frame under the cab
+  p.soft([xw * 2 - tw - 0.06, 0.52, arF.r * 2 + 0.2], { at: [0, 0.66, zf], paint: P.trim, r: 0.1 });
+  p.soft([1.3, 0.22, zF - zB - 0.6], { at: [0, 0.4, (zF + zB) / 2], paint: P.trim, r: 0.08 });
+  // bed: thick rounded side slabs with arch notch, floor, front wall, tailgate, rail caps
   for (const sx of [1, -1]) {
-    p.box([0.1, 0.05, -0.66 - zB], { at: [sx * (hw - 0.04), yRail + 0.02, (zB - 0.66) / 2], paint: P.trim, bevel: 0.015 });
-    p.box([0.05, 0.13, (zf - ar) - (zr + ar) - 0.02], { at: [sx * (hw + 0.01), yb + 0.08, (zf - ar + zr + ar) / 2], paint: P.trim, bevel: 0.015 });
-    p.box([0.05, 0.13, (zr - ar) - zB - 0.02], { at: [sx * (hw + 0.01), yb + 0.08, (zB + zr - ar) / 2], paint: P.trim, bevel: 0.015 });
+    const pts = [[zB, 0.5]];
+    for (let k = 0; k <= 12; k++) { const t = PI - (k * PI) / 12; pts.push([zr + arR.r * Math.cos(t), arR.y + arR.r * Math.sin(t)]); }
+    pts.push([zC - 0.02, 0.5], [zC - 0.02, yRail], [zB, yRail]);
+    ext(p, pts, 0.15, { at: [sx * (hw - 0.075), 0, 0], rot: SIDE, paint: P.body, bevel: 0.05 });
+    p.soft([0.22, 0.09, zC - zB - 0.02], { at: [sx * (hw - 0.07), yRail + 0.03, (zC + zB) / 2], paint: P.trim, r: 0.04 });
+    flare(p, arF, sx * (hw + 0.015), P.trim);
+    flare(p, arR, sx * (hw + 0.02), P.trim);
+    // rocker trim between the wheels
+    p.soft([0.12, 0.17, (zf - arF.r) - zC + 0.1], { at: [sx * (hw + 0.01), yb0 + 0.08, (zf - arF.r + zC) / 2], paint: P.trim, r: 0.05 });
+    // mirrors
+    p.soft([0.07, 0.2, 0.16], { at: [sx * (hw + 0.14), 1.52, 0.78], paint: P.trim, r: 0.03 });
+    p.soft([0.16, 0.05, 0.05], { at: [sx * (hw + 0.06), 1.46, 0.8], paint: P.trim, r: 0.02 });
   }
-  // front: grille, headlights, bumper, fender flares, mirrors, tail lights
-  p.box([1.2, 0.36, 0.06], { at: [0, 0.98, zF + 0.06], paint: P.trim, bevel: 0.02 });
-  for (let i = 0; i < 4; i++) p.box([1.1, 0.035, 0.03], { at: [0, 0.86 + i * 0.08, zF + 0.09], paint: P.hub, bevel: 0.008 });
-  p.box([0.08, 0.36, 0.05], { at: [0, 0.98, zF + 0.1], paint: P.hub, bevel: 0.01 });
+  p.soft([hw * 2 - 0.26, 0.12, zC - zB - 0.1], { at: [0, yBed, (zC + zB) / 2], paint: P.inner, r: 0.04 });
+  p.soft([xw * 2 - tw - 0.08, 0.4, zC - zB - 0.1], { at: [0, 0.68, (zC + zB) / 2], paint: P.trim, r: 0.08 });
+  p.soft([hw * 2 - 0.1, 0.56, 0.12], { at: [0, yBed + 0.24, zC - 0.08], paint: P.body, r: 0.05 });
+  p.soft([hw * 2 - 0.02, yRail - 0.5, 0.16], { at: [0, (yRail + 0.5) / 2, zB + 0.06], paint: P.body, r: 0.06, bulge: 0.015 });
+  p.soft([0.46, 0.12, 0.05], { at: [0, yRail - 0.2, zB - 0.02], paint: P.trim, r: 0.025 });
+  // front: grille, headlights, bumper; tail lights
+  p.soft([1.2, 0.42, 0.14], { at: [0, 0.98, zF - 0.02], paint: P.trim, r: 0.06 });
+  for (const y of [0.88, 0.99, 1.1]) p.rtube([[-0.5, y, zF + 0.06], [0.5, y, zF + 0.06]], 0.028, { paint: P.hub, smooth: false });
+  p.soft([0.11, 0.42, 0.08], { at: [0, 0.98, zF + 0.07], paint: P.hub, r: 0.035 });
   for (const sx of [1, -1]) {
-    for (const k of [0, 1]) roundLamp(p, [sx * (0.62 + k * 0.15), 1.0, zF + 0.06], 0.055, P.glowW, P.trim);
-    lamp(p, [sx * (hw - 0.12), yRail - 0.18, zB - 0.01], [0.13, 0.2], P.glowR, P.trim, -1);
-    flare(p, zf, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    flare(p, zr, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    p.box([0.04, 0.17, 0.13], { at: [sx * (hw + 0.11), 1.48, 0.74], paint: P.trim, bevel: 0.015 });
-    p.box([0.13, 0.03, 0.03], { at: [sx * (hw + 0.045), 1.42, 0.77], paint: P.trim, bevel: 0.008 });
+    p.soft([0.34, 0.2, 0.1], { at: [sx * 0.72, 1.0, zF - 0.06], paint: P.trim, r: 0.05 });
+    for (const k of [0, 1]) roundLamp(p, [sx * (0.65 + k * 0.15), 1.0, zF - 0.02], 0.05, P.glowW, P.trim);
+    lamp(p, [sx * (hw - 0.14), yRail - 0.22, zB - 0.03], [0.14, 0.22], P.glowR, P.trim, -1);
   }
-  p.box([2.06, 0.24, 0.24], { at: [0, 0.56, zF + 0.16], paint: P.steel, bevel: 0.035 });
-  const wh = wheels(p, { R, w: 0.32, x: 0.84, zf, zr, rim: P.tyreRim, hub: P.hub });
+  p.soft([2.12, 0.28, 0.32], { at: [0, 0.6, zF + 0.1], paint: P.steel, r: 0.09, bulge: 0.01 });
+  const wh = wheels(p, { R, w: tw, x: xw, zf, zr, P });
   drive(p, wh, R, opts);
 
   if (armor) {
-    // bull bar
-    const zb = zF + 0.24;
+    // bull bar (thick round tubes)
+    const zb = zF + 0.3;
     for (const sx of [1, -1]) {
-      p.tube([[sx * 0.5, 0.62, zb], [sx * 0.5, 1.16, zb], [sx * 0.42, 1.24, zb - 0.1]], 0.04, { paint: P.dark, seg: 6 });
-      p.tube([[sx * 0.88, 0.62, zb], [sx * 0.88, 0.98, zb - 0.02], [sx * 0.8, 1.08, zb - 0.12]], 0.035, { paint: P.dark, seg: 6 });
+      p.rtube([[sx * 0.48, 0.66, zb], [sx * 0.48, 1.16, zb], [sx * 0.4, 1.26, zb - 0.14]], 0.06, { paint: P.dark });
+      p.rtube([[sx * 0.9, 0.66, zb - 0.02], [sx * 0.9, 1.0, zb - 0.04], [sx * 0.8, 1.1, zb - 0.18]], 0.055, { paint: P.dark });
     }
-    p.tube([[-0.92, 0.94, zb + 0.01], [0.92, 0.94, zb + 0.01]], 0.035, { paint: P.dark, seg: 6, smooth: false });
-    // spiked plough: blades + spikes under the bumper
-    for (const x of [-0.78, -0.26, 0.26, 0.78]) {
-      ext(p, [[0, 0.08], [0.6, -0.04], [0.56, -0.09], [0, -0.07]], 0.05, { at: [x + p.range(-0.04, 0.04), 0.42, zF + 0.2], rot: [0, -PI / 2 + p.range(-0.15, 0.15), 0], paint: P.plate, bevel: 0.01 });
+    p.rtube([[-0.95, 0.96, zb + 0.01], [0.95, 0.96, zb + 0.01]], 0.055, { paint: P.dark, smooth: false });
+    // spiked plough: 4 fat blades under the bumper + fat spikes
+    for (const x of [-0.74, -0.25, 0.25, 0.74]) {
+      ext(p, [[0, 0.1], [0.46, -0.1], [0.4, -0.17], [0, -0.09]], 0.1, { at: [x + p.range(-0.04, 0.04), 0.42, zF + 0.2], rot: [0, -PI / 2 + p.range(-0.15, 0.15), 0], paint: P.plate, bevel: 0.03 });
     }
-    p.box([1.95, 0.18, 0.05], { at: [0, 0.4, zF + 0.3], rot: [0.5, 0, 0], paint: P.plate, bevel: 0.015 });
-    for (const x of [-0.88, -0.44, 0.0, 0.44, 0.88]) spike(p, [x, 0.44, zF + 0.3], [p.range(-0.15, 0.15), -0.1, 1], 0.26, 0.035, P.steel);
-    // welded windscreen plates (slit in between) + straps + bolts
-    onLine(p, ws[0], ws[1], 0.24, [hw * 2 - 0.1, 0.32, 0.035], { off: 0.03, paint: P.plate, roll: p.range(-0.04, 0.04), deform: { amp: 0.01, freq: 5 } });
-    onLine(p, ws[0], ws[1], 0.74, [hw * 2 - 0.16, 0.26, 0.035], { off: 0.03, paint: P.plate, roll: p.range(-0.04, 0.04), deform: { amp: 0.01, freq: 5 } });
-    for (const x of [-0.42, 0.42]) {
-      onLine(p, ws[0], ws[1], 0.5, [0.08, 0.86, 0.03], { off: 0.065, x, paint: P.dark });
-      for (const f of [0.12, 0.88]) onLine(p, ws[0], ws[1], f, [0.045, 0.045, 0.03], { off: 0.09, x, paint: P.hub });
+    p.soft([1.98, 0.22, 0.09], { at: [0, 0.42, zF + 0.32], rot: [0.5, 0, 0], paint: P.plate, r: 0.04 });
+    for (const x of [-0.8, 0, 0.8]) spike(p, [x, 0.46, zF + 0.34], [p.range(-0.12, 0.12), -0.1, 1], 0.26, 0.065, P.steel);
+    // welded windscreen plates (slit between) + two straps
+    const wA = [1.0, 1.42], wB = [0.56, 1.95];
+    for (const [f, h, wdt] of [[0.26, 0.34, hw * 2 - 0.22], [0.76, 0.28, hw * 2 - 0.3]]) {
+      const L = onLine(wA, wB, f, 0.04);
+      p.soft([wdt, h, 0.06], { at: [0, L.y, L.z], rot: [L.th + PI / 2 - PI / 2, 0, p.range(-0.04, 0.04)], order: 'XYZ', paint: P.plate, r: 0.025, bulge: 0.01 });
     }
-    // roof rack with light bar, spare tyre and jerry can
-    const ry = yRoof + 0.14;
+    for (const x of [-0.42, 0.42]) { const L = onLine(wA, wB, 0.5, 0.08); p.soft([0.11, 0.86, 0.05], { at: [x, L.y, L.z], rot: [L.th, 0, 0], paint: P.dark, r: 0.02 }); }
+    // roof rack (round tubes) with light bar, spare tyre and jerry can
+    const ry = 2.12;
     for (const sx of [1, -1]) {
-      p.box([0.06, 0.06, 1.1], { at: [sx * 0.8, ry, -0.05], paint: P.dark, bevel: 0.015 });
-      for (const z of [0.42, -0.52]) p.box([0.05, 0.16, 0.05], { at: [sx * 0.8, yRoof + 0.06, z], paint: P.dark, bevel: 0.01 });
+      p.rtube([[sx * 0.8, ry, 0.5], [sx * 0.8, ry, -0.58]], 0.04, { paint: P.dark, smooth: false });
+      for (const z of [0.42, -0.5]) p.rtube([[sx * 0.8, ry, z], [sx * 0.86, 1.96, z]], 0.035, { paint: P.dark, smooth: false });
     }
-    for (const z of [0.46, 0.0, -0.5]) p.box([1.66, 0.05, 0.06], { at: [0, ry, z], paint: P.dark, bevel: 0.012 });
-    p.box([1.6, 0.06, 0.1], { at: [0, ry + 0.08, 0.48], paint: P.trim, bevel: 0.015 });
-    for (let i = 0; i < 4; i++) lamp(p, [-0.57 + i * 0.38, ry + 0.2, 0.5], [0.22, 0.14], P.glowW, P.trim);
-    parts.tyre(p, { R: 0.36, w: 0.2, ri: 0.21, rim: true, rimPaint: P.tyreRim, at: [-0.28, ry + 0.13, -0.18], rot: [0.04, 0, 0.05] });
+    for (const z of [0.48, -0.05, -0.56]) p.rtube([[-0.8, ry, z], [0.8, ry, z]], 0.035, { paint: P.dark, smooth: false });
+    p.soft([1.66, 0.09, 0.14], { at: [0, ry + 0.08, 0.5], paint: P.trim, r: 0.035 });
+    for (let i = 0; i < 4; i++) lamp(p, [-0.57 + i * 0.38, ry + 0.22, 0.52], [0.22, 0.15], P.glowW, P.trim);
+    p.lathe(tyrePts(0.37, 0.22, 0.22), { seg: 22, paint: P.rubber, at: [-0.28, ry + 0.14, -0.2], rot: [0.04, 0, 0.05] });
+    p.cyl(0.21, 0.12, { at: [-0.28, ry + 0.14, -0.2], paint: P.tyreRim, seg: 16, bevel: 0.03 });
     const green = p.paint('paint', { color: '#8fce3a', splat: 0 });
-    p.box([0.36, 0.2, 0.45], { at: [0.45, ry + 0.13, -0.22], rot: [0, 0.1, 0], paint: green, bevel: 0.03 });
-    parts.strapBox(p, { size: [0.36, 0.2, 0.45], at: [0.45, ry + 0.13, -0.22], axis: 'z', t: 0, width: 0.04, buckle: false });
-    // plank side rails in the bed (posts + boards)
+    p.soft([0.38, 0.24, 0.48], { at: [0.45, ry + 0.15, -0.22], rot: [0, 0.1, 0], paint: green, r: 0.06, bulge: 0.012 });
+    p.soft([0.42, 0.05, 0.08], { at: [0.45, ry + 0.27, -0.22], rot: [0, 0.1, 0], paint: P.trim, r: 0.02 });
+    // plank side rails in the bed: fat posts + 2 thick boards per side
     for (const sx of [1, -1]) {
-      for (const z of [-0.82, -1.6, zB + 0.12]) p.box([0.08, 0.78, 0.08], { at: [sx * (hw - 0.05), yRail + 0.3, z], rot: [p.range(-0.08, 0.08), 0, sx * p.range(0, 0.1)], paint: P.wood, bevel: 0.015 });
-      for (const y of [yRail + 0.2, yRail + 0.42]) parts.plank(p, { size: [1.62, 0.03, 0.13], at: [sx * (hw + 0.005), y + p.range(-0.03, 0.03), -1.5], rot: [PI / 2, PI / 2 + p.range(-0.05, 0.05), 0], paint: P.wood });
+      for (const z of [-0.86, -1.62, zB + 0.14]) p.soft([0.12, 0.84, 0.12], { at: [sx * (hw - 0.07), yRail + 0.34, z], rot: [p.range(-0.08, 0.08), 0, sx * p.range(0, 0.08)], paint: P.wood, r: 0.035 });
+      for (const y of [yRail + 0.24, yRail + 0.5]) p.soft([0.07, 0.17, 1.66], { at: [sx * (hw + 0.0), y + p.range(-0.03, 0.03), -1.52], rot: [p.range(-0.05, 0.05), 0, 0], paint: P.wood, r: 0.025 });
     }
-    // caged rear window
-    const cz = -0.72;
-    p.box([1.42, 0.05, 0.05], { at: [0, 1.86, cz], paint: P.dark });
-    p.box([1.42, 0.05, 0.05], { at: [0, 1.42, cz], paint: P.dark });
-    for (let i = 0; i <= 6; i++) p.box([0.025, 0.44, 0.025], { at: [-0.66 + i * 0.22, 1.64, cz - 0.02], paint: P.dark, bevel: 0.006 });
-    for (const y of [1.54, 1.72]) p.box([1.38, 0.025, 0.025], { at: [0, y, cz - 0.04], paint: P.dark, bevel: 0.006 });
+    // caged rear window: round frame + 4 bars + 1 rail
+    const cz = zC - 0.1;
+    p.rtube([[-0.72, 1.42, cz], [-0.72, 1.9, cz], [0.72, 1.9, cz], [0.72, 1.42, cz], [-0.72, 1.42, cz]], 0.035, { paint: P.dark, smooth: false, caps: false });
+    for (let i = 0; i < 4; i++) { const x = -0.43 + i * 0.29; p.rtube([[x, 1.42, cz - 0.03], [x, 1.9, cz - 0.03]], 0.022, { paint: P.dark, smooth: false }); }
+    p.rtube([[-0.72, 1.66, cz - 0.05], [0.72, 1.66, cz - 0.05]], 0.022, { paint: P.dark, smooth: false });
     // rear bumper with spiked brackets
-    p.box([1.96, 0.15, 0.15], { at: [0, 0.52, zB - 0.2], paint: P.dark, bevel: 0.035 });
+    p.soft([2.0, 0.2, 0.22], { at: [0, 0.54, zB - 0.2], paint: P.dark, r: 0.07 });
     for (const x of [-0.62, 0, 0.62]) {
-      p.box([0.13, 0.22, 0.24], { at: [x, 0.52, zB - 0.12], paint: P.plate, bevel: 0.02 });
-      spike(p, [x, 0.52, zB - 0.26], [0, 0, -1], 0.17, 0.042, P.steel);
+      p.soft([0.16, 0.26, 0.26], { at: [x, 0.54, zB - 0.12], paint: P.plate, r: 0.05 });
+      spike(p, [x, 0.54, zB - 0.3], [0, 0, -1], 0.17, 0.06, P.steel);
     }
-    for (const sx of [1, -1]) {
-      p.box([0.2, 0.3, 0.12], { at: [sx * 0.86, 0.6, zB - 0.06], rot: [0, sx * 0.2, 0], paint: P.plate, bevel: 0.02 });
-      spike(p, [sx * 0.95, 0.52, zB - 0.26], [sx * 0.3, 0, -1], 0.15, 0.035, P.steel);
-    }
+    for (const sx of [1, -1]) p.soft([0.24, 0.34, 0.14], { at: [sx * 0.86, 0.62, zB - 0.07], rot: [0, sx * 0.2, 0], paint: P.plate, r: 0.04 });
     // welded plate patches
-    for (const sx of [1, -1]) p.box([0.02, 0.3, 0.42], { at: [sx * (hw + 0.012), 0.86, -1.95], rot: [p.range(-0.1, 0.1), 0, 0], paint: P.plate, bevel: 0.006 });
-    p.box([0.02, 0.26, 0.36], { at: [-(hw + 0.02), 0.8, 2.0], rot: [0.12, 0, 0], paint: P.plate, bevel: 0.006 });
+    for (const sx of [1, -1]) p.soft([0.05, 0.32, 0.44], { at: [sx * (hw + 0.02), 0.88, -1.98], rot: [p.range(-0.1, 0.1), 0, 0], paint: P.plate, r: 0.02 });
+    p.soft([0.05, 0.28, 0.38], { at: [-(hw + 0.02), 1.0, 2.0], rot: [0.12, 0, 0], paint: P.plate, r: 0.02 });
   } else {
-    p.box([1.96, 0.15, 0.16], { at: [0, 0.54, zB - 0.1], paint: P.steel, bevel: 0.03 });
+    p.soft([2.0, 0.18, 0.2], { at: [0, 0.56, zB - 0.1], paint: P.steel, r: 0.06 });
   }
   return p.done();
 }
@@ -323,112 +313,119 @@ export function van(seed = 1, opts = {}) {
   const p = new Prop('van', seed, opts);
   const P = common(p, opts, '#6a6c70');
   const armor = opts.armor ?? 1;
-  const hw = 1.0, t = 0.06, R = 0.4, zf = 1.6, zr = -1.5, ar = 0.5, ay = 0.42, yb = 0.34, zb = -2.44;
-  const front = [[2.40, yb], [2.48, 0.48], [2.48, 0.92], [2.38, 1.05], [1.75, 1.12]];
-  const ws = [[1.75, 1.12], [1.20, 1.92]];
-  const roof = [[1.20, 1.92], [1.05, 2.08], [-2.32, 2.10], [zb, 2.0]];
-  const bottom = [[-2.38, yb], ...arch(zr, ay, ar, yb), ...arch(zf, ay, ar, yb), [2.40, yb]];
-  const outline = [...front, [1.20, 1.92], [1.05, 2.08], [-2.32, 2.10], [zb, 2.0], [zb, 0.46], ...bottom];
-  const doorPts = [[0.35, 0.46], [1.02, 0.46], [1.02, 0.86], [1.30, 1.08], [1.0, 1.90], [0.35, 1.90]];
-  const doorWin = [[1.12, 1.22], [0.92, 1.82], [0.45, 1.82], [0.45, 1.22]];
-  const S = { hw, t, outline, paint: P.body, glass: P.glass, inner: P.inner, trim: P.trim, dent: opts.dent ?? 0.01,
-    holes: [{ pts: doorPts }],
-    strips: [{ pts: front }, { pts: ws, glass: true, edge: 0.1 }, { pts: roof }, { pts: [[zb, 0.46], ...bottom] }] };
-  shell(p, S);
-  const doorL = sideDoor(p, S, { name: 'door', side: 1, hinge: 1.15, pts: doorPts, win: doorWin });
-  sideDoor(p, S, { name: 'door_r', side: -1, fixed: true, hinge: 1.15, pts: doorPts, win: doorWin });
-  interior(p, P, { hw, zSeat: 0.45, zDash: 1.45, yFloor: 0.5, yDash: 1.15 });
-  // rear frame around the cargo opening + cargo floor
-  p.box([hw * 2, 0.14, 0.08], { at: [0, 1.99, zb + 0.04], paint: P.body, bevel: 0.02 });
-  p.box([hw * 2, 0.16, 0.12], { at: [0, 0.5, zb + 0.05], paint: P.body, bevel: 0.02 });
-  for (const sx of [1, -1]) p.box([0.09, 1.6, 0.08], { at: [sx * (hw - 0.045), 1.25, zb + 0.04], paint: P.body, bevel: 0.02 });
-  p.box([hw * 2 - 0.12, 0.06, 2.75], { at: [0, 0.56, zb + 1.4], paint: P.inner, bevel: 0.01 });
-  // cargo: crates, sacks, shelf
-  p.box([0.55, 0.45, 0.5], { at: [-0.55, 0.82, -1.9], rot: [0, 0.1, 0], paint: P.wood, bevel: 0.02 });
-  p.box([0.45, 0.35, 0.4], { at: [-0.55, 1.22, -1.85], rot: [0, -0.2, 0], paint: p.paint('plywood'), bevel: 0.02 });
-  p.box([0.5, 0.3, 0.6], { at: [0.55, 0.74, -1.6], paint: p.paint('plastic', { color: '#2f6fb0' }), bevel: 0.03 });
-  p.box([0.3, 0.05, 1.6], { at: [hw - 0.2, 1.45, -1.2], paint: P.inner, bevel: 0.01 });
-  // rear doors (hinged at the outer edges)
-  const rear = [];
+  const hw = 1.0, R = 0.47, tw = 0.34, xw = 0.83, zf = 1.62, zr = -1.55, yb0 = 0.4, zb = -2.46, zF = 2.52;
+  const arF = { z: zf, y: R + 0.03, r: R + 0.09 }, arR = { z: zr, y: R + 0.03, r: R + 0.09 };
+  const ytP = [[zb, 2.08], [1.16, 2.1], [1.8, 1.3], [2.3, 1.18], [zF, 1.08]];
+  const sh = { rect: { rT: 0.2, rB: 0.1, ns: 3, na: 4, nt: 3, bulge: 0.02, bulgeT: 0.03 } };
+  const st = stations({ z0: zb, z1: zF, r0: 0.05, r1: 0.22, k0: 0.4, k1: 0.6, step: 0.24,
+    hw: (z) => (z > 2.0 ? hw - (z - 2.0) * 0.06 : hw), yt: (z) => sprof(ytP, z, 0.1), yb: () => yb0, arches: [arF, arR],
+    belt: 1.3, gh: 0.07, extra: [0.3, 0.4, 1.0, 1.22, 1.3, 1.18, 1.76, 1.86, 1.89] });
+  const doorL = p.node('door', { at: [hw, 0, 1.3] });
+  p.shell(st, { ring: 30, ...sh, thick: 0.05, cap0: null, cap1: 'body',
+    region: (q) => {
+      const sideF = Math.abs(q.nx) > 0.84;
+      const inDoor = sideF && q.z > 0.3 && q.y > yb0 + 0.06 && q.y < 2.02 && (q.z < 1.0 || (q.y > 1.12 && q.z < 1.3));
+      if (inDoor) {
+        const k = q.side > 0 ? 'door' : 'doorR';
+        if (q.z > 0.4 && q.z < 1.22 && q.y > 1.32 && q.y < 1.94) return { key: k + 'Glass', grp: k, inset: 0.03 };
+        return { key: k, inset: 0.008, inner: true };
+      }
+      if (q.top && !sideF && q.z > 1.18 && q.z < 1.76 && Math.abs(q.nx) < 0.74) return { key: 'glass', grp: 'body', inset: 0.035 };
+      if (q.top && q.z > 1.86 && q.z < 1.89 && q.y > 1.0) return { key: 'body', inset: 0.016 };
+      return { key: 'body', inner: q.z < 1.36 };
+    } }, { body: P.body, inner: P.inner, glass: P.glass, doorRGlass: P.glass, ...doorPaints(P, doorL, [-hw, 0, -1.3]) });
+  interior(p, P, { hw, zSeat: 0.5, zDash: 1.42, yFloor: 0.5, yDash: 1.18 });
+  // chassis tubs + cargo floor + cargo
+  for (const a of [arF, arR]) p.soft([xw * 2 - tw - 0.06, 0.46, a.r * 2 + 0.14], { at: [0, 0.62, a.z], paint: P.trim, r: 0.1 });
+  p.soft([1.3, 0.2, zF - zb - 0.4], { at: [0, 0.36, (zF + zb) / 2], paint: P.trim, r: 0.08 });
+  p.soft([hw * 2 - 0.16, 0.1, 2.6], { at: [0, 0.56, zb + 1.35], paint: P.inner, r: 0.03 });
+  p.soft([0.58, 0.48, 0.52], { at: [-0.5, 0.85, -1.95], rot: [0, 0.1, 0], paint: P.wood, r: 0.05, bulge: 0.01 });
+  p.soft([0.46, 0.36, 0.42], { at: [-0.5, 1.27, -1.9], rot: [0, -0.2, 0], paint: p.paint('plywood'), r: 0.05 });
+  p.soft([0.52, 0.32, 0.62], { at: [0.52, 0.77, -1.7], paint: p.paint('plastic', { color: '#2f6fb0' }), r: 0.07 });
+  // rear frame lip around the open back
+  const rs = st[0], rear = sectionPts(rs, sh, 40);
+  // rear doors: the end section split in two halves, extruded with a fat bevel; hinged at the outer edges
+  const rearN = [];
   for (const sx of [1, -1]) {
-    const n = p.node(sx > 0 ? 'rear_door_l' : 'rear_door_r', { at: [sx * (hw - 0.05), 0, zb - 0.01] });
-    const w = hw - 0.06;
+    const half = rear.filter(([x]) => sx * x >= -0.001).map(([x, y]) => [sx * Math.max(0, sx * x), y]);
+    half.sort((a, b) => Math.atan2(a[1] - 1.2, sx * a[0]) - Math.atan2(b[1] - 1.2, sx * b[0]));
+    const edge = sx * (rs.hw - 0.04);
+    const n = p.node(sx > 0 ? 'rear_door_l' : 'rear_door_r', { at: [edge, 0, zb - 0.02] });
     p.in(n, () => {
-      const pts = [[0, 0.56], [-sx * w, 0.56], [-sx * w, 1.92], [0, 1.92]];
-      const win = [[-sx * 0.14, 1.25], [-sx * (w - 0.1), 1.25], [-sx * (w - 0.1), 1.8], [-sx * 0.14, 1.8]];
-      ext(p, pts, 0.05, { holes: [win], at: [0, 0, 0], paint: P.body, bevel: 0.01, deform: { amp: 0.006, freq: 3 } });
-      ext(p, win, 0.016, { paint: P.glass, bevel: 0.004 });
-      p.box([w - 0.16, 0.6, 0.03], { at: [-sx * w / 2, 0.92, 0.035], paint: P.inner, bevel: 0.01 });
-      p.box([0.03, 0.03, 0.12], { at: [-sx * (w - 0.08), 1.15, -0.04], rot: [0, 0, PI / 2], paint: P.trim, bevel: 0.008 });
-      p.box([0.03, 0.14, 0.03], { at: [-sx * (w - 0.08), 1.15, -0.06], paint: P.hub, bevel: 0.008 });
-      if (armor) for (let k = 0; k < 3; k++) p.box([0.035, 0.6, 0.03], { at: [-sx * (0.25 + k * 0.2), 1.52, -0.04], rot: [0, 0, p.range(-0.06, 0.06)], paint: P.plate, bevel: 0.008 });
-      for (const y of [0.75, 1.7]) p.box([0.05, 0.12, 0.06], { at: [0, y, -0.02], paint: P.dark, bevel: 0.01 });
+      const pts = [[0, rs.yb + 0.08], ...half.filter(([, y]) => y > rs.yb + 0.08 && y < rs.yt - 0.06).map(([x, y]) => [x * 0.985, y]), [0, rs.yt - 0.06]]
+        .map(([x, y]) => [x - edge, y]);
+      const wx0 = -sx * 0.14, wx1 = -sx * (Math.abs(edge) - 0.12);
+      const win = [[wx0, 1.3], [wx1, 1.3], [wx1, 1.86], [wx0, 1.86]];
+      ext(p, pts, 0.08, { holes: [win], paint: P.body, bevel: 0.03 });
+      ext(p, win, 0.03, { paint: P.glass, bevel: 0.008 });
+      p.soft([Math.abs(edge) - 0.2, 0.62, 0.04], { at: [-sx * Math.abs(edge) / 2, 0.96, 0.05], paint: P.inner, r: 0.02 });
+      p.soft([0.05, 0.05, 0.14], { at: [-sx * (Math.abs(edge) - 0.1), 1.16, -0.06], paint: P.trim, r: 0.02 });
+      if (armor) for (let k = 0; k < 3; k++) p.rtube([[-sx * (0.26 + k * 0.2), 1.24, -0.06], [-sx * (0.26 + k * 0.2 + p.range(-0.03, 0.03)), 1.86, -0.06]], 0.026, { paint: P.plate, smooth: false });
+      for (const y of [0.78, 1.72]) p.soft([0.08, 0.14, 0.08], { at: [0, y, -0.02], paint: P.dark, r: 0.03 });
     });
-    if (sx < 0) rear.push(n); else bake(p, n); // only the far-side (-X) rear door opens, as on the sheet
+    if (sx < 0) rearN.push(n); else bake(p, n); // only the far-side (-X) rear door opens, as on the sheet
   }
   p.param('doors', opts.doors ?? 0, (v) => {
     doorL.rotation.y = -v * 1.15;
-    for (const n of rear) n.rotation.y = v * 1.75;
+    for (const n of rearN) n.rotation.y = v * 1.75;
   });
   // front details
-  p.box([1.2, 0.26, 0.06], { at: [0, 0.82, 2.48], paint: P.trim, bevel: 0.02 });
-  for (let i = 0; i < 3; i++) p.box([1.1, 0.03, 0.03], { at: [0, 0.74 + i * 0.08, 2.51], paint: P.hub, bevel: 0.008 });
+  p.soft([1.24, 0.3, 0.12], { at: [0, 0.84, zF - 0.06], paint: P.trim, r: 0.05 });
+  for (const y of [0.78, 0.9]) p.rtube([[-0.5, y, zF + 0.0], [0.5, y, zF + 0.0]], 0.026, { paint: P.hub, smooth: false });
   for (const sx of [1, -1]) {
-    lamp(p, [sx * 0.75, 0.84, 2.48], [0.24, 0.13], P.glowW, P.trim);
-    lamp(p, [sx * (hw - 0.1), 1.0, zb - 0.06], [0.1, 0.26], P.glowR, P.trim, -1);
-    flare(p, zf, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    flare(p, zr, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    p.box([0.04, 0.24, 0.14], { at: [sx * (hw + 0.12), 1.45, 1.35], paint: P.trim, bevel: 0.015 });
-    p.box([0.14, 0.03, 0.03], { at: [sx * (hw + 0.05), 1.38, 1.38], paint: P.trim, bevel: 0.008 });
-    p.box([0.14, 0.05, 2.0], { at: [sx * (hw + 0.05), 0.38, -0.05], paint: P.dark, bevel: 0.015 }); // side step
+    lamp(p, [sx * 0.74, 0.86, zF - 0.06], [0.24, 0.14], P.glowW, P.trim);
+    lamp(p, [sx * (hw - 0.1), 1.0, zb - 0.05], [0.1, 0.28], P.glowR, P.trim, -1);
+    flare(p, arF, sx * (hw + 0.015), P.trim, 0.12);
+    flare(p, arR, sx * (hw + 0.015), P.trim, 0.12);
+    p.soft([0.07, 0.26, 0.16], { at: [sx * (hw + 0.14), 1.5, 1.34], paint: P.trim, r: 0.03 });
+    p.soft([0.16, 0.05, 0.05], { at: [sx * (hw + 0.06), 1.42, 1.38], paint: P.trim, r: 0.02 });
+    p.soft([0.18, 0.08, 1.9], { at: [sx * (hw + 0.04), 0.4, -0.02], paint: P.dark, r: 0.035 }); // side step
   }
-  p.box([2.05, 0.2, 0.2], { at: [0, 0.5, 2.6], paint: P.steel, bevel: 0.03 });
-  p.box([2.0, 0.14, 0.14], { at: [0, 0.48, zb - 0.1], paint: P.dark, bevel: 0.03 });
-  const wh = wheels(p, { R, w: 0.3, x: 0.86, zf, zr, rim: P.tyreRim, hub: P.hub });
+  p.soft([2.08, 0.24, 0.26], { at: [0, 0.52, zF + 0.06], paint: P.steel, r: 0.08 });
+  p.soft([2.02, 0.17, 0.18], { at: [0, 0.48, zb - 0.1], paint: P.dark, r: 0.06 });
+  const wh = wheels(p, { R, w: tw, x: xw, zf, zr, P });
   drive(p, wh, R, opts);
 
   if (opts.rack !== false) { // roof rack + load
     const ry = 2.24;
     for (const sx of [1, -1]) {
-      p.box([0.06, 0.06, 3.3], { at: [sx * 0.98, ry, -0.62], paint: P.dark, bevel: 0.015 });
-      for (const z of [0.9, -0.6, -2.15]) p.box([0.05, 0.16, 0.05], { at: [sx * 0.96, 2.16, z], paint: P.dark, bevel: 0.01 });
+      p.rtube([[sx * 0.98, ry, 1.1], [sx * 0.98, ry, -2.28]], 0.04, { paint: P.dark, smooth: false });
+      p.rtube([[sx * 1.0, ry + 0.12, 1.1], [sx * 1.0, ry + 0.12, -2.28]], 0.032, { paint: P.dark, smooth: false });
+      for (const z of [0.9, -0.6, -2.15]) p.rtube([[sx * 0.96, 2.1, z], [sx * 0.98, ry + 0.12, z]], 0.032, { paint: P.dark, smooth: false });
     }
-    for (const z of [1.0, 0.4, -0.2, -0.8, -1.4, -2.2]) p.box([2.0, 0.05, 0.07], { at: [0, ry, z], paint: P.dark, bevel: 0.012 });
-    for (const sx of [1, -1]) p.box([0.05, 0.12, 3.3], { at: [sx * 1.0, ry + 0.09, -0.62], paint: P.dark, bevel: 0.012 });
-    // water tank along Z
-    const tank = p.paint('plastic', { color: '#3e7f9c', under: '#9fc3d0', splat: 0.15 });
-    p.lathe([[0, -0.6], [0.3, -0.6], [0.36, -0.54], [0.37, -0.3], [0.37, 0.3], [0.36, 0.54], [0.3, 0.6], [0, 0.6]], { seg: 16, at: [0.05, ry + 0.4, -1.0], rot: [PI / 2, 0, 0], paint: tank });
-    for (const z of [-1.35, -0.65]) parts.strapRing(p, { r: 0.37, width: 0.07, at: [0.05, ry + 0.4, z], rot: [PI / 2, 0, 0], seg: 16 });
-    // solar panel (front left), crates (rear), jerry can, light bar
-    p.box([0.85, 0.05, 0.75], { at: [-0.5, ry + 0.1, 0.45], rot: [0.06, 0, 0], paint: p.paint('plastic', { color: '#2b3d70', col2: '#8aa4d8', pattern: 'grid', patW: 0.12, chip: 0, splat: 0 }), bevel: 0.015 });
-    p.box([0.9, 0.06, 0.8], { at: [-0.5, ry + 0.06, 0.45], rot: [0.06, 0, 0], paint: P.hub, bevel: 0.015 });
-    p.box([0.5, 0.36, 0.5], { at: [0.62, ry + 0.22, -1.9], rot: [0, 0.15, 0], paint: P.wood, bevel: 0.02 });
-    p.box([0.42, 0.3, 0.4], { at: [-0.6, ry + 0.19, -2.0], rot: [0, -0.1, 0], paint: p.paint('plywood'), bevel: 0.02 });
+    for (const z of [1.0, 0.35, -0.3, -0.95, -1.6, -2.2]) p.soft([1.96, 0.06, 0.1], { at: [0, ry, z], paint: P.dark, r: 0.025 });
+    const tank = p.paint('plastic', { color: '#3e7f9c', under: '#9fc3d0', splat: 0.1 });
+    p.lathe([[0, -0.6], [0.3, -0.6], [0.37, -0.53], [0.39, -0.3], [0.39, 0.3], [0.37, 0.53], [0.3, 0.6], [0, 0.6]], { seg: 18, at: [0.05, ry + 0.42, -1.0], rot: [PI / 2, 0, 0], paint: tank });
+    for (const z of [-1.35, -0.65]) p.torus(0.39, 0.035, { at: [0.05, ry + 0.42, z], rot: [PI / 2, 0, 0], seg: 18, tube: 5, paint: P.trim });
+    p.soft([0.88, 0.07, 0.78], { at: [-0.5, ry + 0.1, 0.45], rot: [0.06, 0, 0], paint: p.paint('plastic', { color: '#2b3d70', col2: '#8aa4d8', pattern: 'grid', patW: 0.14, chip: 0, splat: 0 }), r: 0.025 });
+    p.soft([0.94, 0.06, 0.84], { at: [-0.5, ry + 0.05, 0.45], rot: [0.06, 0, 0], paint: P.hub, r: 0.025 });
+    p.soft([0.52, 0.38, 0.52], { at: [0.62, ry + 0.23, -1.9], rot: [0, 0.15, 0], paint: P.wood, r: 0.05, bulge: 0.01 });
+    p.soft([0.44, 0.32, 0.42], { at: [-0.6, ry + 0.2, -2.0], rot: [0, -0.1, 0], paint: p.paint('plywood'), r: 0.05 });
     const red = p.paint('paint', { color: '#d1322b', splat: 0 });
-    p.box([0.16, 0.4, 0.32], { at: [0.55, ry + 0.24, 0.45], paint: red, bevel: 0.03 });
-    p.tube([[0.55, ry + 0.44, 0.35], [0.55, ry + 0.5, 0.42], [0.55, ry + 0.5, 0.52]], 0.015, { paint: red, seg: 5 });
-    p.box([0.3, 0.32, 0.3], { at: [0.12, ry + 0.2, 0.5], paint: P.wood, bevel: 0.02 });
-    p.box([1.7, 0.06, 0.08], { at: [0, ry + 0.12, 1.12], paint: P.dark, bevel: 0.015 });
-    for (let i = 0; i < 4; i++) roundLamp(p, [-0.6 + i * 0.4, ry + 0.26, 1.16], 0.08, P.glowW, P.trim);
+    p.soft([0.2, 0.42, 0.34], { at: [0.55, ry + 0.25, 0.45], paint: red, r: 0.06, bulge: 0.01 });
+    p.rtube([[0.55, ry + 0.46, 0.36], [0.55, ry + 0.52, 0.42], [0.55, ry + 0.52, 0.52]], 0.024, { paint: red });
+    p.soft([0.32, 0.34, 0.32], { at: [0.12, ry + 0.21, 0.5], paint: P.wood, r: 0.05 });
+    p.soft([1.74, 0.08, 0.12], { at: [0, ry + 0.12, 1.14], paint: P.dark, r: 0.03 });
+    for (let i = 0; i < 4; i++) roundLamp(p, [-0.6 + i * 0.4, ry + 0.28, 1.18], 0.085, P.glowW, P.trim);
   }
   if (armor) {
-    // grille bars over the windscreen
-    for (const x of [-0.9, 0.9]) onLine(p, ws[0], ws[1], 0.5, [0.06, 0.98, 0.05], { off: 0.06, x, paint: P.dark });
-    for (let i = 0; i < 6; i++) onLine(p, ws[0], ws[1], 0.1 + i * 0.16, [1.84, 0.035, 0.035], { off: 0.08, paint: P.steel });
-    for (const x of [-0.45, 0, 0.45]) onLine(p, ws[0], ws[1], 0.5, [0.03, 0.95, 0.03], { off: 0.1, x, paint: P.steel });
-    // spiked ram: tube frame + blades
-    for (const sx of [1, -1]) p.tube([[sx * 0.7, 0.5, 2.7], [sx * 0.7, 1.0, 2.66], [sx * 0.55, 1.1, 2.5]], 0.035, { paint: P.dark, seg: 6 });
-    p.tube([[-0.95, 0.8, 2.72], [0.95, 0.8, 2.72]], 0.035, { paint: P.dark, seg: 6, smooth: false });
+    // grille cage over the windscreen: round frame posts + 6 fat bars
+    const wA = [1.84, 1.22], wB = [1.06, 2.06];
+    for (const x of [-0.92, 0.92]) { const a = onLine(wA, wB, 0.0, 0.07), b = onLine(wA, wB, 1.0, 0.07); p.rtube([[x, a.y, a.z], [x, b.y, b.z]], 0.045, { paint: P.dark, smooth: false }); }
+    for (let i = 0; i < 6; i++) { const L = onLine(wA, wB, 0.1 + i * 0.16, 0.1); p.rtube([[-0.92, L.y, L.z], [0.92, L.y, L.z]], 0.03, { paint: P.steel, smooth: false }); }
+    // spiked ram: thick tube frame + 5 fat blades
+    for (const sx of [1, -1]) p.rtube([[sx * 0.7, 0.5, 2.74], [sx * 0.7, 1.0, 2.7], [sx * 0.55, 1.1, 2.52]], 0.06, { paint: P.dark });
+    p.rtube([[-0.98, 0.8, 2.76], [0.98, 0.8, 2.76]], 0.06, { paint: P.dark, smooth: false });
     for (let i = 0; i < 5; i++) {
       const x = -0.84 + i * 0.42;
-      ext(p, [[0, 0.12], [0.62, -0.18], [0.55, -0.24], [0, -0.1]], 0.06, { at: [x, 0.62, 2.68], rot: [0, -PI / 2 + p.range(-0.1, 0.1), 0], paint: P.plate, bevel: 0.012 });
+      ext(p, [[0, 0.14], [0.48, -0.26], [0.39, -0.32], [0, -0.12]], 0.11, { at: [x, 0.62, 2.72], rot: [0, -PI / 2 + p.range(-0.1, 0.1), 0], paint: P.plate, bevel: 0.03 });
     }
     // rear bumper teeth
-    for (let i = 0; i < 6; i++) ext(p, [[-0.08, 0], [0.08, 0], [0, -0.16]], 0.03, { at: [-0.75 + i * 0.3, 0.44, zb - 0.16], rot: [-0.4, 0, 0], paint: P.plate, bevel: 0.006 });
+    for (let i = 0; i < 5; i++) ext(p, [[-0.1, 0], [0.1, 0], [0, -0.18]], 0.06, { at: [-0.72 + i * 0.36, 0.44, zb - 0.18], rot: [-0.4, 0, 0], paint: P.plate, bevel: 0.02 });
     // side plank patch (-X) and corrugated rust sheet (+X)
-    for (let k = 0; k < 4; k++) parts.plank(p, { size: [0.95, 0.03, 0.14], at: [-(hw + 0.02), 1.35 - k * 0.15, -0.9 + p.range(-0.05, 0.05)], rot: [PI / 2, PI / 2 + p.range(-0.06, 0.06), 0], paint: P.wood });
+    for (let k = 0; k < 3; k++) p.soft([0.07, 0.18, 0.98], { at: [-(hw + 0.03), 1.42 - k * 0.2, -0.9 + p.range(-0.05, 0.05)], rot: [p.range(-0.06, 0.06), 0, 0], paint: P.wood, r: 0.025 });
     const sheet = p.paint('rusty', { color: '#8a5a3c', splat: 0.2 });
-    for (let k = 0; k < 5; k++) p.box([0.03, 0.12, 0.9], { at: [hw + 0.02 + (k % 2) * 0.012, 1.55 - k * 0.1, -0.9], rot: [0.05, 0, 0], paint: sheet, bevel: 0.01 });
+    for (let k = 0; k < 4; k++) p.soft([0.05, 0.14, 0.92], { at: [hw + 0.03 + (k % 2) * 0.015, 1.6 - k * 0.12, -0.9], rot: [0.05, 0, 0], paint: sheet, r: 0.02 });
   }
   return p.done();
 }
@@ -441,113 +438,123 @@ export function hatchback(seed = 1, opts = {}) {
   const p = new Prop('hatchback', seed, opts);
   const P = common(p, opts, '#8cc63c');
   const armor = opts.armor ?? 1;
-  const hw = 0.88, t = 0.05, R = 0.35, zf = 1.30, zr = -1.25, ar = 0.44, ay = 0.37, yb = 0.30;
-  const front = [[1.95, yb], [2.05, 0.42], [2.05, 0.78], [1.95, 0.88], [1.05, 0.98]];
-  const ws = [[1.05, 0.98], [0.30, 1.44]];
-  const roof = [[0.30, 1.44], [0.15, 1.48], [-1.30, 1.48], [-1.45, 1.44]];
-  const hatch = [[-1.45, 1.44], [-1.82, 1.06]];
-  const rearF = [[-1.82, 1.06], [-1.92, 0.98], [-1.95, 0.42], [-1.88, yb]];
-  const bottom = [[-1.88, yb], ...arch(zr, ay, ar, yb, 8), ...arch(zf, ay, ar, yb, 8), [1.95, yb]];
-  const outline = [...front, [0.30, 1.44], [0.15, 1.48], [-1.30, 1.48], [-1.45, 1.44], [-1.82, 1.06], [-1.92, 0.98], [-1.95, 0.42], ...bottom];
-  const doorPts = [[-0.30, 0.40], [0.82, 0.40], [0.82, 1.06], [0.24, 1.42], [-0.30, 1.42]];
-  const doorWin = [[0.66, 1.12], [0.28, 1.37], [-0.22, 1.37], [-0.22, 1.12]];
-  const rearWin = [[-0.42, 1.0], [-0.42, 1.40], [-1.25, 1.40], [-1.62, 1.04]];
-  const S = { hw, t, outline, paint: P.body, glass: P.glass, inner: P.inner, trim: P.trim, dent: opts.dent ?? 0.008,
-    holes: [{ pts: doorPts }, { pts: rearWin, glass: true }],
-    strips: [{ pts: front }, { pts: ws, glass: true, edge: 0.1 }, { pts: roof }, { pts: hatch, glass: true, edge: 0.14 }, { pts: [...rearF, ...bottom.slice(1)] }] };
-  shell(p, S);
-  const doorL = sideDoor(p, S, { name: 'door', side: 1, hinge: 0.82, pts: doorPts, win: doorWin });
-  sideDoor(p, S, { name: 'door_r', side: -1, fixed: true, hinge: 0.82, pts: doorPts, win: doorWin });
+  const hw = 0.95, R = 0.42, tw = 0.33, xw = 0.79, zf = 1.32, zr = -1.27, yb0 = 0.34, zF = 2.08, zB = -1.98;
+  const arF = { z: zf, y: R + 0.03, r: R + 0.09 }, arR = { z: zr, y: R + 0.03, r: R + 0.09 };
+  const ytP = [[zB, 1.02], [-1.84, 1.12], [-1.5, 1.48], [0.3, 1.5], [1.02, 1.02], [1.9, 0.97], [zF, 0.94]];
+  const st = stations({ z0: zB, z1: zF, r0: 0.16, r1: 0.2, k0: 0.55, k1: 0.6, step: 0.15,
+    hw: (z) => hw - Math.max(0, z - 1.7) * 0.1 - Math.max(0, -1.6 - z) * 0.08, yt: (z) => sprof(ytP, z, 0.14), yb: () => yb0, arches: [arF, arR],
+    belt: 1.08, gh: 0.1, extra: [-0.3, 0.76, -0.22, 0.64, -1.3, -0.4, 0.32, 0.98, -1.74, -1.44, 1.12, 1.15] });
+  const doorL = p.node('door', { at: [hw, 0, 0.76] });
+  p.shell(st, { rect: { rT: 0.18, rB: 0.1, ns: 3, na: 4, nt: 3, bulge: 0.03, bulgeT: 0.05 }, thick: 0.045, cap0: 'body', cap1: 'body',
+    region: (q) => {
+      const sideF = Math.abs(q.nx) > 0.82;
+      if (sideF && q.z > -0.3 && q.z < 0.76 && q.y > yb0 + 0.05 && q.y < 1.45) {
+        const k = q.side > 0 ? 'door' : 'doorR';
+        if (q.z > -0.22 && q.z < 0.64 && q.y > 1.1) return { key: k + 'Glass', grp: k, inset: 0.028 };
+        return { key: k, inset: 0.008, inner: true };
+      }
+      if (sideF && q.z > -1.3 && q.z < -0.4 && q.y > 1.1 && q.y < 1.42) return { key: 'glass', grp: 'body', inset: 0.028 };
+      if (q.top && !sideF && q.z > 0.32 && q.z < 0.98 && Math.abs(q.nx) < 0.72) return { key: 'glass', grp: 'body', inset: 0.032 };
+      if (q.top && !sideF && q.z > -1.74 && q.z < -1.44 && Math.abs(q.nx) < 0.72) return { key: 'glass', grp: 'body', inset: 0.03 };
+      if (q.top && q.z > 1.12 && q.z < 1.15 && q.y > 0.8) return { key: 'body', inset: 0.014 };
+      return { key: 'body', inner: q.z > -1.5 && q.z < 0.9 };
+    } }, { body: P.body, inner: P.inner, glass: P.glass, doorRGlass: P.glass, ...doorPaints(P, doorL, [-hw, 0, -0.76]) });
   p.param('doors', opts.doors ?? 0, (v) => { doorL.rotation.y = -v * 1.15; });
-  interior(p, P, { hw, zSeat: -0.15, zDash: 0.78, yFloor: yb, yDash: 0.92 });
-  p.box([hw * 2 - 0.2, 0.55, 0.16], { at: [0, 0.82, -0.95], rot: [-0.15, 0, 0], paint: P.seat, bevel: 0.04 });
+  interior(p, P, { hw, zSeat: -0.12, zDash: 0.8, yFloor: yb0, yDash: 0.94 });
+  p.soft([hw * 2 - 0.3, 0.55, 0.2], { at: [0, 0.86, -0.95], rot: [-0.15, 0, 0], paint: P.seat, r: 0.08 });
+  for (const a of [arF, arR]) p.soft([xw * 2 - tw - 0.06, 0.4, a.r * 2 + 0.12], { at: [0, 0.54, a.z], paint: P.trim, r: 0.1 });
+  p.soft([1.1, 0.18, zF - zB - 0.5], { at: [0, 0.32, (zF + zB) / 2], paint: P.trim, r: 0.07 });
   // front / rear details
-  p.box([0.9, 0.18, 0.05], { at: [0, 0.6, 2.05], paint: P.trim, bevel: 0.02 });
+  p.soft([0.92, 0.2, 0.1], { at: [0, 0.6, zF - 0.03], paint: P.trim, r: 0.045 });
   for (const sx of [1, -1]) {
-    ext(p, [[0, 0], [0.3, 0.02], [0.32, 0.1], [0.04, 0.12]], 0.04, { at: [sx * 0.55, 0.72, 2.04], rot: [0, sx > 0 ? 0 : PI, 0], paint: P.glowW, bevel: 0.006 });
-    lamp(p, [sx * 0.68, 0.86, -1.95], [0.22, 0.09], P.glowR, P.trim, -1);
-    flare(p, zf, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    flare(p, zr, ay, ar + 0.02, sx * (hw + 0.005), P.trim);
-    p.box([0.04, 0.12, 0.16], { at: [sx * (hw + 0.1), 1.08, 0.72], paint: P.trim, bevel: 0.015 });
-    p.box([0.12, 0.03, 0.03], { at: [sx * (hw + 0.04), 1.03, 0.75], paint: P.trim, bevel: 0.008 });
+    p.soft([0.34, 0.16, 0.12], { at: [sx * 0.66, 0.76, zF - 0.07], paint: P.trim, r: 0.05 }); p.soft([0.28, 0.11, 0.05], { at: [sx * 0.66, 0.77, zF - 0.0], paint: P.glowW, r: 0.03 });
+    lamp(p, [sx * 0.66, 0.86, zB + 0.04], [0.22, 0.1], P.glowR, P.trim, -1);
+    flare(p, arF, sx * (hw + 0.0), P.body, 0.1);
+    flare(p, arR, sx * (hw - 0.02), P.body, 0.1);
+    p.soft([0.07, 0.15, 0.18], { at: [sx * (hw + 0.1), 1.1, 0.72], paint: P.trim, r: 0.03 });
+    p.soft([0.14, 0.05, 0.05], { at: [sx * (hw + 0.04), 1.05, 0.75], paint: P.trim, r: 0.02 });
+    p.soft([0.1, 0.13, 1.56], { at: [sx * (hw + 0.0), yb0 + 0.07, 0.0], paint: P.trim, r: 0.045 });
   }
-  p.box([1.7, 0.16, 0.14], { at: [0, 0.42, 2.08], paint: P.trim, bevel: 0.03 });
-  p.box([1.7, 0.16, 0.14], { at: [0, 0.42, -1.98], paint: P.trim, bevel: 0.03 });
-  p.box([0.38, 0.12, 0.02], { at: [0, 0.62, -1.96], paint: p.paint('paint', { color: '#e8e2cf', chip: 0.3, splat: 0 }), bevel: 0.006 });
-  const wh = wheels(p, { R, w: 0.26, x: 0.75, zf, zr, rim: P.tyreRim, hub: P.hub });
+  p.soft([1.74, 0.18, 0.18], { at: [0, 0.42, zF + 0.0], paint: P.trim, r: 0.07 });
+  p.soft([1.74, 0.18, 0.18], { at: [0, 0.42, zB - 0.02], paint: P.trim, r: 0.07 });
+  p.soft([0.4, 0.13, 0.04], { at: [0, 0.62, zB - 0.02], paint: p.paint('paint', { color: '#e8e2cf', chip: 0.3, splat: 0 }), r: 0.015 });
+  const wh = wheels(p, { R, w: tw, x: xw, zf, zr, P });
   drive(p, wh, R, opts);
   // roof rails
-  for (const sx of [1, -1]) p.tube([[sx * 0.72, 1.48, 0.2], [sx * 0.74, 1.6, 0.05], [sx * 0.74, 1.6, -1.25], [sx * 0.72, 1.48, -1.38]], 0.028, { paint: P.dark, seg: 6 });
-  for (const z of [-0.2, -1.1]) p.tube([[-0.74, 1.6, z], [0.74, 1.6, z]], 0.025, { paint: P.dark, seg: 6, smooth: false });
+  for (const sx of [1, -1]) p.rtube([[sx * 0.66, 1.49, 0.2], [sx * 0.68, 1.62, 0.04], [sx * 0.68, 1.62, -1.25], [sx * 0.66, 1.49, -1.4]], 0.04, { paint: P.dark });
+  for (const z of [-0.2, -1.1]) p.rtube([[-0.68, 1.62, z], [0.68, 1.62, z]], 0.035, { paint: P.dark, smooth: false, caps: false });
 
   if (opts.gun !== false) { // barrel + machine gun on a tripod
     const bp = p.paint('wood', { color: '#7a4b38', under: '#a87a5e', splat: (opts.blood ?? 0.55) * 0.3 });
-    const br = 0.3;
-    p.lathe([[0, -0.52], [br * 0.86, -0.52], [br * 0.92, -0.48], [br, -0.2], [br * 1.02, 0], [br, 0.2], [br * 0.92, 0.48], [br * 0.86, 0.52], [0, 0.52]],
-      { seg: 14, at: [0.12, 1.6 + br, -1.0], rot: [PI / 2, 0, 0], paint: bp });
-    for (const z of [-1.38, -1.12, -0.88, -0.62]) parts.strapRing(p, { r: br * (Math.abs(z + 1.0) > 0.3 ? 0.95 : 1.01), width: 0.05, at: [0.12, 1.6 + br, z], rot: [PI / 2, 0, 0], seg: 14, paint: P.dark });
-    p.cyl(br * 0.8, 0.02, { at: [0.12, 1.6 + br, -0.48], rot: [PI / 2, 0, 0], paint: p.paint('metal', { color: '#b8bcbe' }), seg: 14 });
-    for (const z of [-0.8, -1.2]) p.box([0.7, 0.025, 0.06], { at: [0.12, 1.6 + br * 2 + 0.01, z], paint: P.trim, bevel: 0.006 });
-    // tripod
-    const gy = 1.6, gz = 0.0, top = [-0.05, gy + 0.55, gz];
-    for (let k = 0; k < 3; k++) { const a = (k / 3) * PI * 2 + 0.4; p.tube([[top[0] + Math.sin(a) * 0.36, gy, gz + Math.cos(a) * 0.36], top], 0.018, { paint: P.dark, seg: 5, smooth: false }); }
+    const br = 0.31;
+    p.lathe([[0, -0.52], [br * 0.86, -0.52], [br * 0.94, -0.46], [br, -0.2], [br * 1.03, 0], [br, 0.2], [br * 0.94, 0.46], [br * 0.86, 0.52], [0, 0.52]],
+      { seg: 16, at: [0.12, 1.64 + br, -1.0], rot: [PI / 2, 0, 0], paint: bp });
+    for (const z of [-1.36, -0.64]) p.torus(br * 0.98, 0.032, { at: [0.12, 1.64 + br, z], rot: [PI / 2, 0, 0], seg: 16, tube: 5, paint: P.dark });
+    p.cyl(br * 0.8, 0.03, { at: [0.12, 1.64 + br, -0.48], rot: [PI / 2, 0, 0], paint: p.paint('metal', { color: '#b8bcbe' }), seg: 16 });
+    for (const z of [-0.82, -1.18]) p.soft([0.72, 0.04, 0.08], { at: [0.12, 1.64 + br * 2 + 0.01, z], paint: P.trim, r: 0.018 });
+    const gy = 1.62, gz = 0.0, top = [-0.05, gy + 0.55, gz];
+    for (let k = 0; k < 3; k++) { const a = (k / 3) * PI * 2 + 0.4; p.rtube([[top[0] + Math.sin(a) * 0.38, gy, gz + Math.cos(a) * 0.38], top], 0.03, { paint: P.dark, smooth: false }); }
     const gun = p.paint('steel', { color: '#3c3f44', under: '#7a8086', chip: 0.2 });
-    p.box([0.12, 0.16, 0.5], { at: [top[0], top[1] + 0.1, gz + 0.05], paint: gun, bevel: 0.02 });
-    p.cyl(0.04, 0.5, { at: [top[0], top[1] + 0.12, gz + 0.55], rot: [PI / 2, 0, 0], paint: gun, seg: 8 });
-    p.cyl(0.022, 0.25, { at: [top[0], top[1] + 0.12, gz + 0.9], rot: [PI / 2, 0, 0], paint: gun, seg: 6 });
-    p.box([0.16, 0.12, 0.16], { at: [top[0] + 0.12, top[1] + 0.06, gz + 0.05], paint: p.paint('paint', { color: '#4e5a3a', chip: 0.3 }), bevel: 0.015 });
-    p.box([0.05, 0.12, 0.14], { at: [top[0], top[1] + 0.06, gz - 0.25], rot: [0.3, 0, 0], paint: P.wood, bevel: 0.012 });
-    p.box([0.16, 0.1, 0.1], { at: [top[0], top[1] + 0.24, gz + 0.1], paint: gun, bevel: 0.015 });
+    p.soft([0.16, 0.2, 0.52], { at: [top[0], top[1] + 0.11, gz + 0.05], paint: gun, r: 0.04 });
+    p.cyl(0.055, 0.5, { at: [top[0], top[1] + 0.13, gz + 0.56], rot: [PI / 2, 0, 0], paint: gun, seg: 10, bevel: 0.015 });
+    p.cyl(0.035, 0.24, { at: [top[0], top[1] + 0.13, gz + 0.9], rot: [PI / 2, 0, 0], paint: gun, seg: 8, bevel: 0.01 });
+    p.soft([0.18, 0.15, 0.18], { at: [top[0] + 0.14, top[1] + 0.07, gz + 0.05], paint: p.paint('paint', { color: '#4e5a3a', chip: 0.3 }), r: 0.035 });
+    p.soft([0.07, 0.14, 0.16], { at: [top[0], top[1] + 0.07, gz - 0.25], rot: [0.3, 0, 0], paint: P.wood, r: 0.025 });
+    p.soft([0.2, 0.12, 0.12], { at: [top[0], top[1] + 0.27, gz + 0.1], paint: gun, r: 0.04 });
   }
   if (armor) {
-    // slatted windscreen armour
-    for (const x of [-0.8, 0.8]) onLine(p, ws[0], ws[1], 0.5, [0.06, 0.92, 0.04], { off: 0.05, x, paint: P.dark });
-    for (let i = 0; i < 4; i++) onLine(p, ws[0], ws[1], 0.16 + i * 0.22, [1.7, 0.1, 0.03], { off: 0.08, paint: P.plate, roll: p.range(-0.03, 0.03) });
-    // side window crossbars
+    // slatted windscreen armour: 2 posts + 4 fat slats
+    const wA = [1.04, 0.98], wB = [0.24, 1.5];
+    for (const x of [-0.78, 0.78]) { const L = onLine(wA, wB, 0.5, 0.06); p.soft([0.09, 0.96, 0.07], { at: [x, L.y, L.z], rot: [L.th, 0, 0], paint: P.dark, r: 0.03 }); }
+    for (let i = 0; i < 4; i++) { const L = onLine(wA, wB, 0.16 + i * 0.22, 0.11); p.soft([1.66, 0.13, 0.05], { at: [0, L.y, L.z], rot: [L.th, 0, p.range(-0.03, 0.03)], paint: P.plate, r: 0.022 }); }
+    // side window crossbars (round)
     for (const sx of [1, -1]) {
-      p.box([0.03, 0.035, 1.05], { at: [sx * (hw + 0.03), 1.2, -0.95], rot: [0.42, 0, 0], paint: P.dark, bevel: 0.008 });
-      p.box([0.03, 0.035, 1.05], { at: [sx * (hw + 0.03), 1.2, -0.95], rot: [-0.42, 0, 0], paint: P.dark, bevel: 0.008 });
-      p.box([0.03, 0.035, 0.75], { at: [sx * (hw + 0.035), 1.26, 0.25], rot: [0.5, 0, 0], paint: P.dark, bevel: 0.008 });
+      const x = sx * (hw - 0.05);
+      p.rtube([[x, 1.1, -1.32], [x, 1.42, -0.42]], 0.026, { paint: P.dark, smooth: false });
+      p.rtube([[x, 1.42, -1.32], [x, 1.1, -0.42]], 0.026, { paint: P.dark, smooth: false });
     }
-    // mesh hood guard: tilted frame with diagonal lattice
-    const hz = 1.64, hy = 1.12, tilt = -0.9, gw = 1.55, gh = 0.64;
+    // mesh hood guard: round frame + coarse diagonal lattice
+    const hz = 1.64, hy = 1.12, tilt = -0.9, gw = 1.55, gh = 0.66;
     const G = new THREE.Matrix4().makeRotationX(tilt).setPosition(0, hy, hz);
     const at = (x, y, z = 0) => new THREE.Vector3(x, y, z).applyMatrix4(G).toArray();
-    for (const y of [-gh / 2, gh / 2]) p.box([gw, 0.05, 0.05], { at: at(0, y), rot: [tilt, 0, 0], paint: P.dark, bevel: 0.012 });
-    for (const x of [-gw / 2, gw / 2]) p.box([0.05, gh, 0.05], { at: at(x, 0), rot: [tilt, 0, 0], paint: P.dark, bevel: 0.012 });
-    for (let i = -3; i <= 3; i++) for (const s of [1, -1]) {
-      p.box([0.02, gh * 1.25, 0.015], { at: at(i * 0.21, 0, 0.01), rot: [tilt, 0, s * 0.75], order: 'XYZ', paint: P.steel, bevel: 0.004 });
+    p.rtube([at(-gw / 2, -gh / 2), at(-gw / 2, gh / 2), at(gw / 2, gh / 2), at(gw / 2, -gh / 2), at(-gw / 2, -gh / 2)], 0.04, { paint: P.dark, smooth: false, caps: false });
+    for (let i = -4; i <= 4; i++) for (const s of [1, -1]) {
+      const x0 = i * 0.2 - s * gh * 0.5, x1 = i * 0.2 + s * gh * 0.5;
+      const cx0 = Math.max(-gw / 2, Math.min(gw / 2, x0)), cx1 = Math.max(-gw / 2, Math.min(gw / 2, x1));
+      const y0 = -gh / 2 + (cx0 - x0) * s, y1 = gh / 2 - (x1 - cx1) * s;
+      if (Math.abs(cx1 - cx0) < 0.05) continue;
+      p.tube([at(cx0, y0, 0.01), at(cx1, y1, 0.01)], 0.016, { paint: P.steel, seg: 5, smooth: false });
     }
-    for (const sx of [1, -1]) p.box([0.05, 0.4, 0.05], { at: [sx * 0.72, 1.16, 1.42], rot: [0, 0, 0], paint: P.dark, bevel: 0.01 });
-    // front tube bumper + spiked plates
-    p.tube([[-0.85, 0.75, 2.05], [-0.8, 0.78, 2.2], [0.8, 0.78, 2.2], [0.85, 0.75, 2.05]], 0.04, { paint: P.dark, seg: 6 });
+    for (const sx of [1, -1]) p.rtube([[sx * 0.72, 0.96, 1.46], [sx * 0.72, 1.32, 1.42]], 0.035, { paint: P.dark, smooth: false });
+    // front tube bumper + two big spiked plates
+    p.rtube([[-0.86, 0.76, 2.06], [-0.8, 0.79, 2.24], [0.8, 0.79, 2.24], [0.86, 0.76, 2.06]], 0.06, { paint: P.dark });
     for (const sx of [1, -1]) {
-      p.box([0.75, 0.46, 0.08], { at: [sx * 0.45, 0.42, 2.22], rot: [-0.12, sx * -0.12, 0], paint: P.dark, bevel: 0.02, deform: { amp: 0.012, freq: 4 } });
+      p.soft([0.76, 0.5, 0.11], { at: [sx * 0.45, 0.43, 2.25], rot: [-0.12, sx * -0.12, 0], paint: P.dark, r: 0.04, bulge: 0.015 });
       for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++)
-        spike(p, [sx * (0.2 + c * 0.24), 0.3 + r * 0.22, 2.26 - c * 0.03 * sx * sx], [sx * 0.15, 0.05, 1], 0.17, 0.06, P.steel, 4);
+        spike(p, [sx * (0.22 + c * 0.23), 0.32 + r * 0.22, 2.29 - c * 0.03], [sx * 0.15, 0.05, 1], 0.15, 0.065, P.steel);
     }
     // rear tube bumper + winch
-    p.tube([[-0.85, 0.5, -2.0], [-0.8, 0.52, -2.12], [0.8, 0.52, -2.12], [0.85, 0.5, -2.0]], 0.035, { paint: P.dark, seg: 6 });
-    p.box([0.5, 0.2, 0.18], { at: [0, 0.6, -2.12], paint: P.dark, bevel: 0.025 });
-    p.cyl(0.08, 0.34, { at: [0, 0.6, -2.22], rot: [0, 0, PI / 2], paint: P.steel, seg: 10 });
-    for (const sx of [1, -1]) p.cyl(0.1, 0.03, { at: [sx * 0.18, 0.6, -2.22], rot: [0, 0, PI / 2], paint: P.dark, seg: 10 });
-    p.box([0.08, 0.06, 0.12], { at: [0, 0.52, -2.33], paint: P.steel, bevel: 0.01 });
+    p.rtube([[-0.86, 0.5, -2.0], [-0.8, 0.53, -2.14], [0.8, 0.53, -2.14], [0.86, 0.5, -2.0]], 0.055, { paint: P.dark });
+    p.soft([0.52, 0.24, 0.2], { at: [0, 0.62, -2.13], paint: P.dark, r: 0.06 });
+    p.cyl(0.09, 0.34, { at: [0, 0.62, -2.24], rot: [0, 0, PI / 2], paint: P.steel, seg: 12, bevel: 0.02 });
+    for (const sx of [1, -1]) p.cyl(0.115, 0.04, { at: [sx * 0.18, 0.62, -2.24], rot: [0, 0, PI / 2], paint: P.dark, seg: 12, bevel: 0.012 });
+    p.soft([0.1, 0.08, 0.14], { at: [0, 0.53, -2.35], paint: P.steel, r: 0.025 });
   }
   return p.done();
 }
 
 export const PROPS = [
-  { id: 'pickup', name: 'Xe bán tải bọc thép', build: pickup, yaw: 0.55, backYaw: 3.95,
+  { id: 'pickup', name: 'Xe bán tải bọc thép', build: pickup, yaw: 0.66, backYaw: 3.95,
     variants: [
       { label: 'xanh nhạt', seed: 1, opts: {} },
       { label: 'đỏ trơn', seed: 2, opts: { color: '#c4473a', armor: 0, blood: 0, wear: 0.4 } },
       { label: 'ô-liu mở cửa', seed: 3, opts: { color: '#7d8a4a', doors: 1, blood: 0.5, wear: 0.9 } }] },
-  { id: 'van', name: 'Xe van bọc thép', build: van, yaw: 0.55, backYaw: 3.95, sheetOpts: { doors: 1 },
+  { id: 'van', name: 'Xe van bọc thép', build: van, yaw: 0.62, backYaw: 3.95, sheetOpts: { doors: 1 },
     variants: [
       { label: 'xám', seed: 1, opts: {} },
       { label: 'mở cửa', seed: 1, opts: { doors: 1 } },
       { label: 'be trơn', seed: 2, opts: { color: '#c9b98f', armor: 0, rack: false, blood: 0, wear: 0.4 } }] },
-  { id: 'hatchback', name: 'Hatchback súng máy', build: hatchback, yaw: 0.35, backYaw: 3.9,
+  { id: 'hatchback', name: 'Hatchback súng máy', build: hatchback, yaw: 0.46, backYaw: 3.9,
     variants: [
       { label: 'xanh lá', seed: 1, opts: {} },
       { label: 'cam trơn', seed: 2, opts: { color: '#e07a2a', armor: 0, gun: false, blood: 0, wear: 0.4 } },
