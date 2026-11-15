@@ -1,8 +1,15 @@
-# Blockade Z: bản voxel (mặc định từ rev 20261114zb)
+# Blockade Z: bản voxel (mặc định từ rev 20261114zb; hiện 20261114zc)
 
 Trạng thái ngày 2026-11-15. Chưa commit, chưa push. Mọi thứ nằm trong worktree `D:\hub-bzvox` (tách khỏi `origin/main` 79786fb2, đã gồm bản sửa relink co-op 4a90e73f và nerf quái e381cc6c).
 
 Voxel thay hẳn bản hộp: mở game là vào bản voxel, không còn nút bật tắt cho người chơi. `?vox=0` là lối lùi ẩn về bản hộp cũ (để gỡ lỗi và so ảnh); `destruct.js` chỉ còn phá nhà ở chế độ đó. Bậc voxel đi theo Cài đặt > Đồ hoạ > Chất lượng (low = 0,2 m; medium và high = 0,1 m); `?voxq=` ép bậc khi thử.
+
+## Bàn giao 2026-11-15 (đọc trước)
+
+- **Đã push:** a3f9a202 (bản voxel thay hẳn, rev 20261114zb, đang chạy trên Pages) và bản sửa test rev 20261114zc: `tools/smoke.js` kiểm "walker chồng lên mái" ở một mái thật của thị trấn mới (tìm bằng `roofspot.js`; bản hộp `vox=0` vẫn dùng mái trạm gác cũ). Nguyên nhân trượt 3/3: test đứng ở toạ độ trạm gác cũ (21, 4.5, -27), nay nằm trong trụ sở phường. Không phải lỗi gameplay: zombie vẫn chồng tháp lên tới mái cà phê 7,3 m (đỉnh 8,7 đến 11,25 m). smoke voxel 50/50 ba lần liền, smoke `vox=0` 50/50.
+- **Quan sát chưa truy:** trong ba lần đó, ở bản voxel cuối bài chồng tháp chỉ còn 0 đến 1 walker sống và 0 đến 1 con đứng trên mái (bản hộp: 10 sống, 8 trên mái). Có thể zombie rơi chết hoặc bị mái hiên/dù hất khỏi mép; cần xem lại.
+- **Chưa làm sau khi push zc:** chạy `BZ_BASE=https://poke5121999-art.github.io/survivor-web-hub node games/blockade-z/tools/smoke.js` khi Pages dựng xong (khoảng 70 giây sau push).
+- **Việc tiếp:** các mục trong "Điểm yếu đã biết" bên dưới; ưu tiên zombie đứng lại ở thềm chung cư, vỏ mỏng (mái ngói, bồn nước) rơi nguyên mảng, chọn lại điểm đứng cho `stuck.js`, xếp lại 10 lô nhỏ bị bỏ, coop-test "boss chết bên khách" ở `vox=0`.
 
 ## Thị trấn: kiến trúc riêng, dựng bằng voxel
 
