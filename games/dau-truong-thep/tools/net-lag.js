@@ -7,34 +7,87 @@
 //              wifi   fakenet, 120 ms RTT +-40 ms jitter, 2 % loss
 //              phone  fakenet, 250 ms RTT +-60 ms jitter, 3 % loss
 //              bad    fakenet, 300 ms RTT +-150 ms jitter, 15 % loss (nothing should break)
+//              4g     fakenet, the guest on Vietnamese 4G: RTT to the relay 60 to 150 ms, and every 2 to 5 s the link
+//                     stalls for 200 to 600 ms and then hands over everything at once. The host is on fibre (30 ms)
+//              isp    fakenet, the guest on another ISP with a worse route to the relay: RTT 130 ms +-40, 2 % of
+//                     segments retransmitted. The host is on fibre (30 ms)
 //              relay  the real Unity Relay, no added delay (use with DTT_BASE on the deployed hub)
 //   NL_GUESTS=1,4   guest counts to run per scenario (default 1)      NL_SECS=25   seconds of play measured
 //   NL_MODE=tdm|nha NL_TRIALS=20 (input-latency trials per role) NL_TAG=before   -> .chk/net-lag-<tag>.json
 //
 // The delay, jitter and loss are added here, outside the game: an init script wraps BroadcastChannel (the fakenet
 // carrier) and counts WebSocket bytes (the relay carrier), so the same tool measures any build of the game.
+// lan, wifi, phone and bad treat every message on its own (late ones overtake, lost ones stay lost), like UDP.
+// 4g and isp model what a browser really has to the relay, a WebSocket: one ordered stream per machine, where a late or
+// lost segment holds back everything behind it and the backlog then arrives in one burst.
 'use strict';
 const { launch, open, CHK, fs, path } = require('./lib.js');
 const { serve } = require('../../../tools/thumb-lib.js');
 
-const SCENARIOS = { lan: { rtt: 0, jit: 0, loss: 0 }, wifi: { rtt: 120, jit: 40, loss: 2 }, phone: { rtt: 250, jit: 60, loss: 3 }, bad: { rtt: 300, jit: 150, loss: 15 }, relay: { real: true, rtt: 0, jit: 0, loss: 0 } };
+// A stream link is one machine's access line to the relay: leg and jit are one way, in ms; a lost segment waits rto ms
+// for its retransmit; stall: [every lo, every hi, length lo, length hi] in ms.
+const FIBRE = { leg: 15, jit: 3, loss: 0, rto: 0 };
+const SCENARIOS = {
+  lan: { rtt: 0, jit: 0, loss: 0 }, wifi: { rtt: 120, jit: 40, loss: 2 }, phone: { rtt: 250, jit: 60, loss: 3 }, bad: { rtt: 300, jit: 150, loss: 15 },
+  '4g': { rtt: 135, jit: 50, loss: 1, stream: { host: FIBRE, guest: { leg: 52, jit: 22, loss: 1, rto: 250, stall: [2000, 5000, 200, 600] } } },
+  isp: { rtt: 160, jit: 46, loss: 2, stream: { host: FIBRE, guest: { leg: 65, jit: 20, loss: 2, rto: 300 } } },
+  relay: { real: true, rtt: 0, jit: 0, loss: 0 },
+};
 const ENV = process['env'];
 const SECS = Number(ENV.NL_SECS || 25), MODE = ENV.NL_MODE || 'tdm', TAG = ENV.NL_TAG || 'run';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function netShim(cfg) {
-  const nl = (window.__nl = { tx: 0, txN: 0, txMax: 0, rx: 0, rxN: 0, dropped: 0 });
+  const nl = (window.__nl = { tx: 0, txN: 0, txMax: 0, rx: 0, rxN: 0, dropped: 0, stalls: [] });
   const sent = (n) => { nl.tx += n; nl.txN++; if (n > nl.txMax) nl.txMax = n; };
   const BC = window.BroadcastChannel;
+
+  // The stream model. Each page owns its access line; up and down are two ordered queues that one stall freezes together.
+  let seed = 20261115;
+  const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const line = { up: [], down: [], last: { up: 0, down: 0 }, stallEnd: 0, nextStall: 0, timer: 0 };
+  const mine = () => { const G = window.__G, role = G && G.online && G.online.role; return cfg.stream && role ? cfg.stream[role === 'host' ? 'host' : 'guest'] : null; };
+  function pump() {
+    const L = mine(), now = performance.now();
+    if (L && L.stall) {
+      if (!line.nextStall) line.nextStall = now + L.stall[0] + rnd() * (L.stall[1] - L.stall[0]);
+      if (now >= line.nextStall) {
+        line.stallEnd = now + L.stall[2] + rnd() * (L.stall[3] - L.stall[2]);
+        line.nextStall = line.stallEnd + L.stall[0] + rnd() * (L.stall[1] - L.stall[0]);
+        nl.stalls.push([performance.timeOrigin + now, performance.timeOrigin + line.stallEnd]);
+      }
+    }
+    if (now < line.stallEnd) return;
+    for (const q of [line.up, line.down]) while (q.length && q[0].t <= now) q.shift().go();
+  }
+  function carry(dir, L, go) {
+    let t = performance.now() + L.leg + (rnd() * 2 - 1) * L.jit;
+    if (rnd() * 100 < L.loss) { t += L.rto; nl.dropped++; }
+    t = Math.max(t, line.last[dir]);
+    line.last[dir] = t;
+    line[dir].push({ t, go });
+    if (!line.timer) line.timer = setInterval(pump, 2);
+  }
+
   window.BroadcastChannel = class extends BC {
     constructor(name) { super(name); this.__game = String(name).startsWith('dtt-fakenet-'); }
     postMessage(m) {
       if (!this.__game || !m || m.k !== 'msg') return super.postMessage(m);
       sent(m.data.byteLength);
+      const L = mine();
+      if (L) return carry('up', L, () => { try { super.postMessage(m); } catch (e) { /* channel closed */ } });
+      if (cfg.stream) return super.postMessage(m);
       if (Math.random() * 100 < cfg.loss) { nl.dropped++; return; }
       const wait = cfg.rtt / 2 + (Math.random() * 2 - 1) * cfg.jit / 2;
       if (wait <= 0) return super.postMessage(m);
       setTimeout(() => { try { super.postMessage(m); } catch (e) { /* channel closed */ } }, wait);
+    }
+    get onmessage() { return super.onmessage; }
+    set onmessage(fn) {
+      super.onmessage = !fn || !this.__game ? fn : (e) => {
+        const L = e.data && e.data.k === 'msg' ? mine() : null;
+        if (L) carry('down', L, () => fn(e)); else fn(e);
+      };
     }
   };
   const WS = window.WebSocket;
@@ -60,6 +113,7 @@ function probe(t0) {
       else if (tr.at) {
         if (tr.move === null && Math.hypot(x - tr.rest[0], z - tr.rest[1]) > 0.03) tr.move = t - tr.at;
         if (tr.aim === null && turn(a, tr.rest[2]) > 0.2) tr.aim = t - tr.at;
+        if (tr.shot === null && m.shots.some((s) => s.owner === G.me && !tr.old.has(s.id))) tr.shot = t - tr.at;
       }
     }
     if (!P.on) { last = t; return; }
@@ -79,16 +133,17 @@ function probe(t0) {
     const idle = { mx: 0, mz: 0, aim: u.aim, fire: false, s1: false, s2: false, ult: false, heal: false, tx: u.x, tz: u.z };
     window.__input(idle);
     setTimeout(() => {
-      const tr = (P.trial = { at: 0, rest: null, move: null, aim: null, alive: false });
+      const tr = (P.trial = { at: 0, rest: null, move: null, aim: null, shot: null, old: new Set(), alive: false });
       const wait = () => {
         if (tr.rest === null) return requestAnimationFrame(wait);
         setTimeout(() => {
           const me = G.match.units[G.me], v = views.get(G.me);
           tr.rest = [v.root.position.x, v.root.position.z, v.turret.rotation.y];
           tr.alive = me.alive && !(me.stunT > 0);
+          for (const s of G.match.shots) tr.old.add(s.id);
           tr.at = now();
-          window.__input({ ...idle, mx, mz, aim: idle.aim + swing });
-          setTimeout(() => { P.trial = null; window.__input(idle); resolve({ move: tr.move, aim: tr.aim, alive: tr.alive && G.match.units[G.me].alive }); }, 1200);
+          window.__input({ ...idle, mx, mz, aim: idle.aim + swing, fire: true });
+          setTimeout(() => { P.trial = null; window.__input(idle); resolve({ move: tr.move, aim: tr.aim, shot: tr.shot, alive: tr.alive && G.match.units[G.me].alive }); }, 1200);
         }, 37 + Math.random() * 40);
       };
       wait();
@@ -158,6 +213,7 @@ function smooth(host, guest, units) {
   const nowErr = [], lagErr = [];
   errAt(0, nowErr); errAt(D, lagErr);
   let snaps = 0, stalls = 0, secs = 0;
+  const jumps = [];
   for (const i of units) {
     const hs = [];
     for (let k = 1; k < host.length; k++) {
@@ -181,12 +237,26 @@ function smooth(host, guest, units) {
         seen++;
       }
       if (!seen || teleport) continue;
-      if (d - vmax * dt > 0.12) { snaps++; if (ENV.NL_DEBUG && snaps <= 12) console.log(`  snap unit ${i} t ${Math.round(b[0])} ms: drew ${d.toFixed(2)} m in ${(dt * 1000).toFixed(0)} ms, host top speed nearby ${vmax.toFixed(1)} m/s, from (${a[1 + i * 2].toFixed(2)}, ${a[2 + i * 2].toFixed(2)})`); }
+      if (d - vmax * dt > 0.12) { snaps++; jumps.push([b[0], d - vmax * dt, i]); if (ENV.NL_DEBUG && snaps <= 12) console.log(`  snap unit ${i} t ${Math.round(b[0])} ms: drew ${d.toFixed(2)} m in ${(dt * 1000).toFixed(0)} ms, host top speed nearby ${vmax.toFixed(1)} m/s, from (${a[1 + i * 2].toFixed(2)}, ${a[2 + i * 2].toFixed(2)})`); }
       else if (d < 0.004 && vmin > 2) stalls++;
     }
   }
   const per = units.length ? secs / units.length : 0;
-  return { delay: D, errNow: stat(nowErr), errLag: stat(lagErr), snapsPerSec: per ? snaps / per : NaN, stallsPerSec: per ? stalls / per : NaN, snaps, stalls, secs: per };
+  return { delay: D, errNow: stat(nowErr), errLag: stat(lagErr), snapsPerSec: per ? snaps / per : NaN, stallsPerSec: per ? stalls / per : NaN, snaps, stalls, secs: per, jumps };
+}
+
+// What the guest sees in the second and a half after each stall of its line: how many stalls were followed by a jump,
+// and the biggest one. A jump's size is how much longer the drawn step was than the mech could truly have moved.
+function afterStalls(stalls, t0, from, to, sm) {
+  const rows = stalls.map(([a, b]) => [a - t0, b - t0]).filter(([a, b]) => a >= from && b + 1500 <= to);
+  let hit = 0, worst = 0, len = 0;
+  for (const [a, b] of rows) {
+    const mine = sm.jumps.filter((j) => j[0] >= a && j[0] <= b + 1500);
+    if (mine.length) hit++;
+    for (const j of mine) worst = Math.max(worst, j[1]);
+    len += b - a;
+  }
+  return { stalls: rows.length, avgLen: rows.length ? len / rows.length : NaN, withJump: hit, worstJump: worst, worstAnywhere: sm.jumps.reduce((w, j) => Math.max(w, j[1]), 0) };
 }
 
 // Shots: each drawn step should be speed * dt long. A jerk is a step off by more than 60 % and 0.25 m.
@@ -211,7 +281,7 @@ async function until(page, expr, ms, label) {
 async function run(br, base, name, guests) {
   const sc = SCENARIOS[name];
   const query = (sc.real ? '' : 'fakenet=1&') + 'noaudio&q=low';
-  const opts = { viewport: { width: 960, height: 540 }, init: { fn: netShim, arg: { rtt: sc.rtt, jit: sc.jit, loss: sc.loss } } };
+  const opts = { viewport: { width: 960, height: 540 }, init: { fn: netShim, arg: { rtt: sc.rtt, jit: sc.jit, loss: sc.loss, stream: sc.stream || null } } };
   const S = [];
   for (let i = 0; i <= guests; i++) S.push(await open(br, base, query, sc.real || !i ? opts : { ...opts, ctx: S[0].ctx }));
   const H = S[0].page, Gs = S.slice(1).map((s) => s.page), all = [H, ...Gs];
@@ -254,11 +324,15 @@ async function run(br, base, name, guests) {
     const m1 = [await mark(H), await mark(A)];
     for (const p of all) await p.evaluate(() => { window.__probe.on = false; });
     const dh = await H.evaluate(() => window.__probeTake()), dg = await A.evaluate(() => window.__probeTake());
+    const stalls = await A.evaluate(() => window.__nl.stalls);
+    const netStats = await A.evaluate(() => (window.__G.online.netStats ? window.__G.online.netStats() : null));
     const errors = [];
     for (const [i, s] of S.entries()) for (const x of [...await s.page.evaluate('window.__errors'), ...s.problems]) errors.push((i ? 'guest' : 'host') + ': ' + String(x).slice(0, 200));
 
     const n = dh.frames[0] ? (dh.frames[0].length - 1) / 2 : 0;
     const others = [...Array(n).keys()].filter((i) => i !== slot);
+    const remote = smooth(dh.frames, dg.frames, others), own = smooth(dh.frames, dg.frames, [slot]);
+    const span = dg.frames.length ? [dg.frames[0][0], dg.frames[dg.frames.length - 1][0]] : [0, 0];
     const secH = (m1[0].t - m0[0].t) / 1000, secG = (m1[1].t - m0[1].t) / 1000;
     const d = (a, b, k) => b.nl[k] - a.nl[k], ds = (a, b, k) => (b.st[k] || 0) - (a.st[k] || 0);
     return {
@@ -267,13 +341,15 @@ async function run(br, base, name, guests) {
         frame: stat(dh.dts), netCost: stat(dh.hostCost), snapsPerSec: ds(m0[0], m1[0], 'snapsSent') / secH / guests,
         txBytesPerSecPerGuest: d(m0[0], m1[0], 'tx') / secH / guests, datagramsPerSec: d(m0[0], m1[0], 'txN') / secH, maxDatagram: m1[0].nl.txMax,
         bytesPerSnap: d(m0[0], m1[0], 'tx') / Math.max(1, ds(m0[0], m1[0], 'snapsSent')),
-        inputLatency: { move: stat(lat.host.map((r) => r.move)), aim: stat(lat.host.map((r) => r.aim)) }, shots: shotJerk(dh.shots),
+        inputLatency: { move: stat(lat.host.map((r) => r.move)), aim: stat(lat.host.map((r) => r.aim)), shot: stat(lat.host.map((r) => r.shot)) }, shots: shotJerk(dh.shots),
       },
       guest: {
         frame: stat(dg.dts), snapsRecvPerSec: ds(m0[1], m1[1], 'snapsRecv') / secG, inputsPerSec: ds(m0[1], m1[1], 'inputsSent') / secG,
         txBytesPerSec: d(m0[1], m1[1], 'tx') / secG, bytesPerInput: d(m0[1], m1[1], 'tx') / Math.max(1, ds(m0[1], m1[1], 'inputsSent')),
-        inputLatency: { move: stat(lat.guest.map((r) => r.move)), aim: stat(lat.guest.map((r) => r.aim)) },
-        remote: smooth(dh.frames, dg.frames, others), own: smooth(dh.frames, dg.frames, [slot]), shots: shotJerk(dg.shots),
+        inputLatency: { move: stat(lat.guest.map((r) => r.move)), aim: stat(lat.guest.map((r) => r.aim)), shot: stat(lat.guest.map((r) => r.shot)) },
+        remote, own, shots: shotJerk(dg.shots),
+        afterStalls: { remote: afterStalls(stalls, t0, span[0], span[1], remote), own: afterStalls(stalls, t0, span[0], span[1], own) },
+        readout: netStats,
       },
       errors,
     };
@@ -289,6 +365,11 @@ function print(r) {
   console.log(`input  own move on screen after: guest ${f0(g.inputLatency.move.avg)} ms avg (p95 ${f0(g.inputLatency.move.p95)}, n ${g.inputLatency.move.n}), host ${f0(h.inputLatency.move.avg)} ms (n ${h.inputLatency.move.n}) | own aim: guest ${f0(g.inputLatency.aim.avg)} ms (p95 ${f0(g.inputLatency.aim.p95)}), host ${f0(h.inputLatency.aim.avg)} ms`);
   console.log(`remote mechs on guest: shown ${g.remote.delay} ms behind host | error vs host now ${f2(g.remote.errNow.avg)} m avg, p95 ${f2(g.remote.errNow.p95)} | path error ${f2(g.remote.errLag.avg)} m avg, p95 ${f2(g.remote.errLag.p95)} | snaps ${f2(g.remote.snapsPerSec)}/s, stalls ${f2(g.remote.stallsPerSec)}/s (all of them together)`);
   console.log(`own mech on guest:     shown ${g.own.delay < 0 ? -g.own.delay + ' ms ahead of' : g.own.delay + ' ms behind'} host | error vs host now ${f2(g.own.errNow.avg)} m avg, p95 ${f2(g.own.errNow.p95)} | snaps ${f2(g.own.snapsPerSec)}/s, stalls ${f2(g.own.stallsPerSec)}/s`);
+  const as = g.afterStalls;
+  console.log(`own shot on screen after pressing fire: guest ${f0(g.inputLatency.shot.avg)} ms avg (p95 ${f0(g.inputLatency.shot.p95)}, n ${g.inputLatency.shot.n}), host ${f0(h.inputLatency.shot.avg)} ms (n ${h.inputLatency.shot.n})`);
+  console.log(`biggest jump drawn: remote mechs ${f2(as.remote.worstAnywhere)} m, own mech ${f2(as.own.worstAnywhere)} m`);
+  if (as.remote.stalls) console.log(`after a stall of the guest's line (${as.remote.stalls} stalls, ${f0(as.remote.avgLen)} ms on average): remote mechs jumped after ${as.remote.withJump} of them, biggest ${f2(as.remote.worstJump)} m | own mech jumped after ${as.own.withJump}, biggest ${f2(as.own.worstJump)} m`);
+  if (g.readout) console.log('readout ' + JSON.stringify(g.readout));
   console.log(`shots  guest: ${g.shots.steps} drawn steps, ${f1(g.shots.jerkPct)} % jerky, mean step error ${f1(g.shots.devPct)} % | host: ${f1(h.shots.jerkPct)} % jerky, ${f1(h.shots.devPct)} %`);
   if (r.errors.length) console.log('ERRORS ' + r.errors.slice(0, 4).join(' | '));
 }
