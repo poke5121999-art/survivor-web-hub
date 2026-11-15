@@ -1033,5 +1033,33 @@ window.HUB_GAMES = [
     rev: "20261114a",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
+  },
+  {
+    id: "kho-do-vat-3d",
+    title: "Kho Đồ Vật 3D",
+    tagline: "Hơn 100 món đồ bãi phế liệu và 3 xe bọc thép dựng hoàn toàn bằng code, đặt cạnh ảnh mẫu để so.",
+    desc: "Container, xe moóc, rào chắn, khối bê tông, thùng phuy, pallet, bàn thợ, máy phát điện, ghế, lốp, cọc giao thông, đồ xưởng súng và ba chiếc xe bọc thép kiểu tận thế. Mỗi món sinh theo seed với bản mới, cũ, hỏng; cửa, nắp, ngăn kéo mở được; dùng chung một chất liệu sơn tróc, rỉ sét, vết máu. Không tải tệp model hay texture nào.",
+    genre: "khac",
+    accent: "#e0533c",
+    en: { title: "3D Prop Kit", tagline: "Over 100 junkyard props and 3 armoured vehicles built entirely from code, shown next to the concept art.", desc: "Containers, trailers, barriers, concrete blocks, drums, pallets, a workbench, a generator, chairs, tyres, cones, gunsmith gear and three post-apocalyptic armoured vehicles, each generated from a seed with new, worn and broken variants and opening doors, lids and drawers. No model or texture files." },
+    thumbnail: "assets/thumbnails/kho-do-vat-3d.png",
+    path: "games/kho-do-vat-3d/index.html",
+    rev: "20261115a",
+    status: "available",
+    tags: ["Thử nghiệm","Đồ vật 3D","Không asset"]
+  },
+  {
+    id: "kho-vu-khi-3d",
+    title: "Kho Vũ Khí 3D",
+    tagline: "72 vũ khí và dụng cụ dựng bằng code: dao, gậy đinh, katana, rìu, súng, khiên chảo.",
+    desc: "Dao các loại, gậy bóng chày đóng đinh, gậy lưỡi cưa, búa tạ, chuỳ ống nước, katana, rìu, cuốc chim, mỏ lết khổng lồ, kiếm cưa máy, khiên biển báo, chảo, bảy khẩu súng lấy đường viền từ ảnh mẫu, cùng 14 dụng cụ như cuốc, cào, xẻng, cưa. Mỗi món có điểm cầm tay để gắn vào nhân vật. Không tải tệp model hay texture nào.",
+    genre: "khac",
+    accent: "#9aa7b5",
+    en: { title: "3D Weapon Kit", tagline: "72 weapons and tools built from code: knives, nail bats, katanas, axes, guns, frying-pan shields.", desc: "Knives, nail bats, saw-blade bats, sledgehammers, pipe maces, katanas, axes, a pickaxe, a giant wrench, a chainsaw sword, sign and pan shields, seven guns traced from the concept art and 14 tools, each with grip points for characters. No model or texture files." },
+    thumbnail: "assets/thumbnails/kho-vu-khi-3d.png",
+    path: "games/kho-vu-khi-3d/index.html",
+    rev: "20261115a",
+    status: "available",
+    tags: ["Thử nghiệm","Vũ khí 3D","Không asset"]
   }
 ];

@@ -1,0 +1,612 @@
+{
+ "guns": [
+  {
+   "id": "rifle-side-fold",
+   "cell": 52,
+   "lengthCm": 95,
+   "grip": [
+    82,
+    66
+   ],
+   "parts": [
+    {
+     "name": "mag",
+     "rect": [
+      108,
+      56,
+      142,
+      96
+     ]
+    },
+    {
+     "name": "grip",
+     "rect": [
+      70,
+      57,
+      93,
+      92
+     ]
+    },
+    {
+     "name": "stock",
+     "rect": [
+      6,
+      28,
+      60,
+      82
+     ]
+    },
+    {
+     "name": "barrel",
+     "rect": [
+      130,
+      28,
+      206,
+      56
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      222,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ak-taped",
+   "cell": 53,
+   "lengthCm": 92,
+   "grip": [
+    80,
+    66
+   ],
+   "parts": [
+    {
+     "name": "mag",
+     "rect": [
+      103,
+      52,
+      147,
+      94
+     ]
+    },
+    {
+     "name": "grip",
+     "rect": [
+      72,
+      54,
+      90,
+      82
+     ]
+    },
+    {
+     "name": "stock",
+     "rect": [
+      22,
+      38,
+      80,
+      68
+     ]
+    },
+    {
+     "name": "barrel",
+     "rect": [
+      146,
+      26,
+      255,
+      56
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      255,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "shovel-rifle",
+   "cell": 54,
+   "lengthCm": 92,
+   "grip": [
+    104,
+    70
+   ],
+   "parts": [
+    {
+     "name": "mag",
+     "rect": [
+      134,
+      68,
+      162,
+      100
+     ]
+    },
+    {
+     "name": "grip",
+     "rect": [
+      92,
+      56,
+      113,
+      100
+     ]
+    },
+    {
+     "name": "stock",
+     "rect": [
+      38,
+      26,
+      84,
+      68
+     ]
+    },
+    {
+     "name": "barrel",
+     "rect": [
+      153,
+      32,
+      232,
+      60
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      263,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "shotgun-pump-tape",
+   "cell": 55,
+   "lengthCm": 100,
+   "grip": [
+    82,
+    64
+   ],
+   "parts": [
+    {
+     "name": "grip",
+     "rect": [
+      66,
+      52,
+      102,
+      84
+     ]
+    },
+    {
+     "name": "stock",
+     "rect": [
+      0,
+      34,
+      74,
+      66
+     ]
+    },
+    {
+     "name": "pump",
+     "rect": [
+      160,
+      36,
+      228,
+      60
+     ]
+    },
+    {
+     "name": "barrel",
+     "rect": [
+      134,
+      30,
+      256,
+      60
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      255,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "smg-fold-stock",
+   "cell": 56,
+   "lengthCm": 70,
+   "grip": [
+    110,
+    66
+   ],
+   "parts": [
+    {
+     "name": "mag",
+     "rect": [
+      135,
+      48,
+      160,
+      98
+     ]
+    },
+    {
+     "name": "grip",
+     "rect": [
+      103,
+      57,
+      120,
+      82
+     ]
+    },
+    {
+     "name": "stock",
+     "rect": [
+      47,
+      30,
+      104,
+      66
+     ]
+    },
+    {
+     "name": "barrel",
+     "rect": [
+      149,
+      28,
+      205,
+      53
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      205,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "machine-pistol-a",
+   "cell": 57,
+   "lengthCm": 34,
+   "grip": [
+    72,
+    66
+   ],
+   "parts": [
+    {
+     "name": "foregrip",
+     "rect": [
+      62,
+      52,
+      85,
+      80
+     ]
+    },
+    {
+     "name": "suppressor",
+     "rect": [
+      107,
+      34,
+      128,
+      54
+     ]
+    },
+    {
+     "name": "rear",
+     "rect": [
+      34,
+      34,
+      58,
+      58
+     ]
+    },
+    {
+     "name": "receiver",
+     "rect": [
+      0,
+      0,
+      144,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "machine-pistol-b",
+   "cell": 58,
+   "lengthCm": 30,
+   "grip": [
+    40,
+    66
+   ],
+   "parts": [
+    {
+     "name": "grip",
+     "rect": [
+      28,
+      54,
+      54,
+      86
+     ]
+    },
+    {
+     "name": "slide",
+     "rect": [
+      0,
+      0,
+      133,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thrower-teal-hex",
+   "cell": 33,
+   "lengthCm": 21,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "ring",
+     "rect": [
+      0,
+      139,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thrower-teal-slim",
+   "cell": 34,
+   "lengthCm": 19,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "ring",
+     "rect": [
+      0,
+      139,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "karambit",
+   "cell": 40,
+   "lengthCm": 17,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "handle",
+     "rect": [
+      0,
+      116,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kukri",
+   "cell": 42,
+   "lengthCm": 40,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "handle",
+     "rect": [
+      0,
+      113,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kunai-green",
+   "cell": 47,
+   "lengthCm": 26,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "ring",
+     "rect": [
+      0,
+      146,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "wrap",
+     "rect": [
+      0,
+      127,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kunai-purple",
+   "cell": 48,
+   "lengthCm": 26,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "ring",
+     "rect": [
+      0,
+      141,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "wrap",
+     "rect": [
+      0,
+      122,
+      400,
+      400
+     ]
+    },
+    {
+     "name": "blade",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ladder-saw",
+   "cell": 32,
+   "lengthCm": 90,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "body",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thrower-slim",
+   "cell": 14,
+   "lengthCm": 18,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "body",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thrower-slot",
+   "cell": 15,
+   "lengthCm": 17,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "body",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thrower-hex",
+   "cell": 16,
+   "lengthCm": 18,
+   "grip": "auto",
+   "axis": "y",
+   "parts": [
+    {
+     "name": "body",
+     "rect": [
+      0,
+      0,
+      400,
+      400
+     ]
+    }
+   ]
+  }
+ ]
+}

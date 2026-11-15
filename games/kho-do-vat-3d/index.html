@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stylized Props Kit</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg: #1c1d23; --panel: rgba(20,21,26,.86); --line: #34363f; --ink: #e9e9ee; --dim: #9a9cab; --acc: #ffb84d; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: linear-gradient(var(--panel), transparent); pointer-events: none; }
+  #bar > * { pointer-events: auto; }
+  #bar h1 { font-size: 14px; margin: 0 8px 0 0; font-weight: 650; letter-spacing: .02em; }
+  button, select { background: #2a2c34; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font: inherit; cursor: pointer; }
+  button.on { border-color: var(--acc); color: var(--acc); }
+  #stats { margin-left: auto; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #side { position: fixed; right: 12px; top: 52px; width: 300px; max-height: calc(100vh - 64px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: none; }
+  #side.show { display: block; }
+  #side h2 { font-size: 15px; margin: 0 0 4px; }
+  #side .meta { color: var(--dim); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  #side label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  #side label span { width: 70px; color: var(--dim); }
+  #side input[type=range] { flex: 1; }
+  #side .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  #side img { width: 100%; border-radius: 6px; background: #111; margin-top: 6px; }
+  #hint { position: fixed; left: 12px; bottom: 10px; color: var(--dim); pointer-events: none; }
+  @media (max-width: 640px) {
+    #bar { padding: 6px 16px; }
+    #bar h1 { width: 100%; }
+    #stats { width: 100%; margin-left: 0; }
+    #side { left: 16px; right: 16px; width: auto; top: auto; bottom: 12px; max-height: 46vh; }
+    body.inspecting #hint { display: none; }
+    #side img { max-height: 120px; object-fit: contain; }
+  }
+</style>
+</head>
+<body>
+<div id="bar">
+  <h1>Stylized Props Kit</h1>
+  <button data-sheet="props" class="on">Sheet đồ</button>
+  <button data-sheet="vehicles">Xe</button>
+  <button data-sheet="workshop">Xưởng</button>
+  <button data-sheet="campfire">Lửa trại</button>
+  <button data-sheet="variants">Biến thể</button>
+  <button id="q">Chất lượng: Cao</button>
+  <button id="ref">Ảnh gốc</button>
+  <span id="stats"></span>
+</div>
+<div id="side">
+  <div class="row"><button id="back">← Về bảng</button></div>
+  <h2 id="pname"></h2>
+  <div class="meta" id="pmeta"></div>
+  <label><span>Seed</span><input id="pseed" type="range" min="1" max="50" step="1" value="1"><b id="pseedv">1</b></label>
+  <label><span>Độ cũ</span><input id="pwear" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+  <div id="pparams"></div>
+  <div class="row" id="pvars"></div>
+  <img id="pref" alt="ô tham chiếu">
+</div>
+<div id="hint">Kéo để xoay · cuộn/chụm để zoom · chuột phải/2 ngón để kéo · bấm vào đồ để xem riêng</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

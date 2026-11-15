@@ -1,0 +1,1391 @@
+[
+ {
+  "cell": "01",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "container_open",
+  "desc": "Container 20ft đỏ, cửa mở",
+  "box": [
+   47,
+   91,
+   348,
+   333
+  ]
+ },
+ {
+  "cell": "02",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "scrap_pile_a",
+  "desc": "Đống phế liệu: máy, lốp, thùng, ván, rào",
+  "box": [
+   366,
+   102,
+   520,
+   196
+  ]
+ },
+ {
+  "cell": "03",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "scrap_pile_b",
+  "desc": "Đống phế liệu: máy, 2 lốp, thùng cam, gạch",
+  "box": [
+   557,
+   105,
+   683,
+   176
+  ]
+ },
+ {
+  "cell": "04",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "lockers_triple",
+  "desc": "Tủ locker thép 3 ngăn",
+  "box": [
+   704,
+   99,
+   778,
+   193
+  ]
+ },
+ {
+  "cell": "05",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "barrier_crowd_red",
+  "desc": "Rào chắn đám đông sọc đỏ trắng",
+  "box": [
+   801,
+   102,
+   889,
+   163
+  ]
+ },
+ {
+  "cell": "06",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "barrier_steel_broken",
+  "desc": "Rào thép đám đông gãy cong",
+  "box": [
+   995,
+   114,
+   1089,
+   171
+  ]
+ },
+ {
+  "cell": "07",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "caravan",
+  "desc": "Toa caravan xanh lá, cửa mở, thang, lan can",
+  "box": [
+   1041,
+   100,
+   1408,
+   367
+  ]
+ },
+ {
+  "cell": "08",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "barrier_steel",
+  "desc": "Rào thép đám đông",
+  "box": [
+   899,
+   126,
+   983,
+   189
+  ]
+ },
+ {
+  "cell": "09",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tool_chest_red",
+  "desc": "Tủ đồ nghề đỏ, ngăn kéo mở",
+  "box": [
+   444,
+   229,
+   532,
+   302
+  ]
+ },
+ {
+  "cell": "10",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "fridge_yellow",
+  "desc": "Tủ lạnh vàng, cửa hé",
+  "box": [
+   558,
+   206,
+   620,
+   299
+  ]
+ },
+ {
+  "cell": "11",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "cabinet_yellow",
+  "desc": "Tủ vàng nhỏ mở cửa",
+  "box": [
+   654,
+   207,
+   705,
+   286
+  ]
+ },
+ {
+  "cell": "12",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tarp_crate_green",
+  "desc": "Thùng gỗ phủ bạt xanh lá, dây đai",
+  "box": [
+   741,
+   201,
+   886,
+   293
+  ]
+ },
+ {
+  "cell": "13",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tarp_crate_blue",
+  "desc": "Thùng gỗ phủ bạt xanh dương, dây đai",
+  "box": [
+   914,
+   195,
+   1022,
+   296
+  ]
+ },
+ {
+  "cell": "14",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "safe_small",
+  "desc": "Tủ sắt nhỏ mở cửa",
+  "box": [
+   369,
+   241,
+   425,
+   310
+  ]
+ },
+ {
+  "cell": "15",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_striped",
+  "desc": "Dải phân cách bê tông sọc đỏ trắng",
+  "box": [
+   53,
+   310,
+   194,
+   407
+  ]
+ },
+ {
+  "cell": "16",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_stained",
+  "desc": "Dải phân cách bê tông loang ố",
+  "box": [
+   243,
+   330,
+   373,
+   439
+  ]
+ },
+ {
+  "cell": "17",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_broken_mid",
+  "desc": "Dải phân cách vỡ giữa, lòi thép",
+  "box": [
+   399,
+   336,
+   530,
+   433
+  ]
+ },
+ {
+  "cell": "18",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "mattress",
+  "desc": "Nệm cũ",
+  "box": [
+   538,
+   334,
+   670,
+   430
+  ]
+ },
+ {
+  "cell": "19",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "sleep_mat_flat",
+  "desc": "Tấm trải ngủ trải phẳng",
+  "box": [
+   654,
+   303,
+   775,
+   365
+  ]
+ },
+ {
+  "cell": "20",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "car_bench_seat",
+  "desc": "Ghế băng sau ô tô",
+  "box": [
+   783,
+   318,
+   890,
+   404
+  ]
+ },
+ {
+  "cell": "21",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_blue",
+  "desc": "Thùng phuy nhựa xanh",
+  "box": [
+   905,
+   310,
+   946,
+   377
+  ]
+ },
+ {
+  "cell": "22",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drums_blue_strapped",
+  "desc": "Cặp phuy xanh buộc dây",
+  "box": [
+   993,
+   313,
+   1064,
+   390
+  ]
+ },
+ {
+  "cell": "23",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_broken_end",
+  "desc": "Dải phân cách gãy đầu, lòi thép",
+  "box": [
+   1300,
+   329,
+   1432,
+   441
+  ]
+ },
+ {
+  "cell": "24",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "bedroll_open",
+  "desc": "Cuộn chăn ngủ mở dở",
+  "box": [
+   690,
+   387,
+   789,
+   451
+  ]
+ },
+ {
+  "cell": "25",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drums_on_pallet",
+  "desc": "Phuy trên pallet buộc dây",
+  "box": [
+   903,
+   377,
+   1034,
+   482
+  ]
+ },
+ {
+  "cell": "26",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "concrete_block_tarp",
+  "desc": "Khối bê tông phủ bạt xanh + gạch block",
+  "box": [
+   1096,
+   380,
+   1266,
+   473
+  ]
+ },
+ {
+  "cell": "27",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_plain",
+  "desc": "Dải phân cách bê tông trơn thấp",
+  "box": [
+   68,
+   428,
+   240,
+   504
+  ]
+ },
+ {
+  "cell": "28",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "pallet_table",
+  "desc": "Bàn pallet kê gạch, phủ bạt",
+  "box": [
+   279,
+   449,
+   412,
+   538
+  ]
+ },
+ {
+  "cell": "29",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "pallet",
+  "desc": "Pallet gỗ",
+  "box": [
+   434,
+   455,
+   554,
+   528
+  ]
+ },
+ {
+  "cell": "30",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "workbench",
+  "desc": "Bàn thợ có ê-tô, đèn",
+  "box": [
+   568,
+   436,
+   710,
+   584
+  ]
+ },
+ {
+  "cell": "31",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "sleep_roll_orange",
+  "desc": "Cuộn đệm cam",
+  "box": [
+   738,
+   474,
+   821,
+   509
+  ]
+ },
+ {
+  "cell": "32",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "bedroll_tied",
+  "desc": "Cuộn chăn buộc dây",
+  "box": [
+   809,
+   427,
+   874,
+   464
+  ]
+ },
+ {
+  "cell": "33",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_red_rusty",
+  "desc": "Phuy đỏ gỉ",
+  "box": [
+   1045,
+   455,
+   1090,
+   531
+  ]
+ },
+ {
+  "cell": "34",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "generator",
+  "desc": "Máy phát điện xách tay",
+  "box": [
+   1280,
+   440,
+   1369,
+   517
+  ]
+ },
+ {
+  "cell": "35",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "water_barrier_white",
+  "desc": "Rào nhựa trắng loang",
+  "box": [
+   39,
+   500,
+   169,
+   608
+  ]
+ },
+ {
+  "cell": "36",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "water_barrier_red",
+  "desc": "Rào nhựa đỏ",
+  "box": [
+   184,
+   530,
+   314,
+   626
+  ]
+ },
+ {
+  "cell": "37",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_red_dented",
+  "desc": "Phuy đỏ móp",
+  "box": [
+   744,
+   529,
+   797,
+   606
+  ]
+ },
+ {
+  "cell": "38",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "chair_plastic",
+  "desc": "Ghế nhựa",
+  "box": [
+   823,
+   492,
+   882,
+   580
+  ]
+ },
+ {
+  "cell": "39",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "chair_wood",
+  "desc": "Ghế gỗ",
+  "box": [
+   905,
+   492,
+   968,
+   582
+  ]
+ },
+ {
+  "cell": "40",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "burn_barrel",
+  "desc": "Phuy đốt lửa có lỗ, củi",
+  "box": [
+   994,
+   523,
+   1042,
+   596
+  ]
+ },
+ {
+  "cell": "41",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_broken_long",
+  "desc": "Dải phân cách dài gãy, lòi thép",
+  "box": [
+   1111,
+   491,
+   1264,
+   557
+  ]
+ },
+ {
+  "cell": "42",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jersey_striped_long",
+  "desc": "Dải phân cách dài sọc đỏ trắng",
+  "box": [
+   1263,
+   524,
+   1437,
+   625
+  ]
+ },
+ {
+  "cell": "43",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "car_seat_sport",
+  "desc": "Ghế ô tô thể thao",
+  "box": [
+   363,
+   556,
+   441,
+   660
+  ]
+ },
+ {
+  "cell": "44",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "car_seat",
+  "desc": "Ghế ô tô nâu",
+  "box": [
+   470,
+   548,
+   545,
+   652
+  ]
+ },
+ {
+  "cell": "45",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "barrel_table",
+  "desc": "Phuy kê ván phủ bạt",
+  "box": [
+   562,
+   589,
+   654,
+   689
+  ]
+ },
+ {
+  "cell": "46",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "trash_can",
+  "desc": "Thùng rác kim loại",
+  "box": [
+   678,
+   589,
+   743,
+   672
+  ]
+ },
+ {
+  "cell": "47",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "burn_bucket",
+  "desc": "Thùng cắt thấp chứa củi",
+  "box": [
+   1061,
+   552,
+   1108,
+   607
+  ]
+ },
+ {
+  "cell": "48",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_orange_white",
+  "desc": "Phuy cam trắng",
+  "box": [
+   1195,
+   595,
+   1248,
+   682
+  ]
+ },
+ {
+  "cell": "49",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "flood_light",
+  "desc": "Đèn pha chân ba",
+  "box": [
+   41,
+   605,
+   126,
+   787
+  ]
+ },
+ {
+  "cell": "50",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "sawhorse",
+  "desc": "Rào chắn kiểu ngựa gỗ",
+  "box": [
+   128,
+   641,
+   226,
+   746
+  ]
+ },
+ {
+  "cell": "51",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "traffic_drum",
+  "desc": "Cột giao thông sọc",
+  "box": [
+   253,
+   637,
+   292,
+   697
+  ]
+ },
+ {
+  "cell": "52",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "traffic_barrel",
+  "desc": "Thùng giao thông cam trắng",
+  "box": [
+   315,
+   624,
+   365,
+   698
+  ]
+ },
+ {
+  "cell": "53",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "stool",
+  "desc": "Ghế đẩu gỗ",
+  "box": [
+   743,
+   643,
+   800,
+   703
+  ]
+ },
+ {
+  "cell": "54",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_blue_b",
+  "desc": "Phuy nhựa xanh có vòi",
+  "box": [
+   823,
+   601,
+   879,
+   688
+  ]
+ },
+ {
+  "cell": "55",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_rusty",
+  "desc": "Phuy gỉ",
+  "box": [
+   899,
+   601,
+   945,
+   674
+  ]
+ },
+ {
+  "cell": "56",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tyre",
+  "desc": "Lốp xe nằm",
+  "box": [
+   967,
+   624,
+   1035,
+   674
+  ]
+ },
+ {
+  "cell": "57",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "gas_cylinder_tall",
+  "desc": "Bình gas cao",
+  "box": [
+   1060,
+   616,
+   1101,
+   708
+  ]
+ },
+ {
+  "cell": "58",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_red_white",
+  "desc": "Phuy đỏ trắng dấu lửa",
+  "box": [
+   1125,
+   609,
+   1177,
+   697
+  ]
+ },
+ {
+  "cell": "59",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "drum_blue_plastic",
+  "desc": "Can nhựa xanh lớn",
+  "box": [
+   1285,
+   635,
+   1342,
+   727
+  ]
+ },
+ {
+  "cell": "60",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "fire_extinguisher",
+  "desc": "Bình chữa cháy",
+  "box": [
+   1370,
+   605,
+   1415,
+   696
+  ]
+ },
+ {
+  "cell": "61",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "cone",
+  "desc": "Cọc nón giao thông",
+  "box": [
+   228,
+   703,
+   269,
+   763
+  ]
+ },
+ {
+  "cell": "62",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "gas_cylinder_small",
+  "desc": "Bình gas mini đỏ",
+  "box": [
+   375,
+   694,
+   413,
+   750
+  ]
+ },
+ {
+  "cell": "63",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tyre_flat",
+  "desc": "Săm/lốp mỏng nằm",
+  "box": [
+   428,
+   668,
+   497,
+   710
+  ]
+ },
+ {
+  "cell": "64",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "tyre_big",
+  "desc": "Lốp to nằm",
+  "box": [
+   496,
+   699,
+   569,
+   754
+  ]
+ },
+ {
+  "cell": "65",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "log_stump",
+  "desc": "Khúc gỗ đứng",
+  "box": [
+   600,
+   700,
+   630,
+   762
+  ]
+ },
+ {
+  "cell": "66",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "log_thin",
+  "desc": "Khúc gỗ mảnh",
+  "box": [
+   663,
+   692,
+   685,
+   750
+  ]
+ },
+ {
+  "cell": "67",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "plank_standing",
+  "desc": "Ván dựng",
+  "box": [
+   718,
+   708,
+   742,
+   774
+  ]
+ },
+ {
+  "cell": "68",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "camp_chair",
+  "desc": "Ghế xếp dã ngoại",
+  "box": [
+   822,
+   705,
+   880,
+   769
+  ]
+ },
+ {
+  "cell": "69",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "bucket",
+  "desc": "Xô",
+  "box": [
+   900,
+   716,
+   937,
+   759
+  ]
+ },
+ {
+  "cell": "70",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "bucket_handle",
+  "desc": "Xô có quai",
+  "box": [
+   956,
+   691,
+   992,
+   746
+  ]
+ },
+ {
+  "cell": "71",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "toolbox",
+  "desc": "Hộp đồ nghề thép mở nắp",
+  "box": [
+   1010,
+   708,
+   1063,
+   766
+  ]
+ },
+ {
+  "cell": "72",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jerry_can_red",
+  "desc": "Can xăng đỏ",
+  "box": [
+   1178,
+   708,
+   1218,
+   763
+  ]
+ },
+ {
+  "cell": "73",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jerry_can_red_small",
+  "desc": "Can xăng đỏ nhỏ",
+  "box": [
+   1253,
+   712,
+   1297,
+   762
+  ]
+ },
+ {
+  "cell": "74",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "jerry_can_yellow",
+  "desc": "Can xăng vàng",
+  "box": [
+   1352,
+   712,
+   1393,
+   762
+  ]
+ },
+ {
+  "cell": "75",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "cinder_block",
+  "desc": "Gạch block",
+  "box": [
+   297,
+   721,
+   341,
+   756
+  ]
+ },
+ {
+  "cell": "76",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "plank_broken",
+  "desc": "Ván gãy",
+  "box": [
+   751,
+   723,
+   806,
+   770
+  ]
+ },
+ {
+  "cell": "77",
+  "sheet": "owner-props-sheet.webp",
+  "prop": "case_red",
+  "desc": "Hộp đỏ mở nắp",
+  "box": [
+   1100,
+   733,
+   1139,
+   763
+  ]
+ },
+ {
+  "cell": "78",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "pickup",
+  "view": "front",
+  "desc": "Xe bán tải xanh nhạt — trước 3/4",
+  "box": [
+   25,
+   118,
+   355,
+   332
+  ]
+ },
+ {
+  "cell": "79",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "pickup",
+  "view": "back",
+  "desc": "Xe bán tải — sau 3/4",
+  "box": [
+   365,
+   118,
+   752,
+   330
+  ]
+ },
+ {
+  "cell": "80",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "van",
+  "view": "front",
+  "desc": "Xe van xám — trước 3/4",
+  "box": [
+   0,
+   455,
+   345,
+   742
+  ]
+ },
+ {
+  "cell": "81",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "van",
+  "view": "back",
+  "desc": "Xe van — sau 3/4, cửa mở",
+  "box": [
+   345,
+   455,
+   775,
+   728
+  ]
+ },
+ {
+  "cell": "82",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "hatchback",
+  "view": "front",
+  "desc": "Hatchback xanh lá, súng máy — trước 3/4",
+  "box": [
+   893,
+   60,
+   1305,
+   378
+  ]
+ },
+ {
+  "cell": "83",
+  "sheet": "owner-vehicles-sheet.webp",
+  "prop": "hatchback",
+  "view": "back",
+  "desc": "Hatchback — sau 3/4",
+  "box": [
+   865,
+   445,
+   1368,
+   752
+  ]
+ },
+ {
+  "cell": "84",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "gunsmith_bench",
+  "desc": "Bàn thợ súng: ngăn kéo mở, ốp góc kim loại, tấm hậu",
+  "box": [
+   425,
+   240,
+   1012,
+   748
+  ]
+ },
+ {
+  "cell": "85",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "reloading_press",
+  "desc": "Máy nạp đạn đỏ",
+  "box": [
+   482,
+   292,
+   602,
+   468
+  ]
+ },
+ {
+  "cell": "86",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "cutting_mat",
+  "desc": "Tấm lót cắt xanh",
+  "box": [
+   608,
+   328,
+   872,
+   442
+  ]
+ },
+ {
+  "cell": "87",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "bench_vise",
+  "desc": "Ê-tô kẹp bàn xanh lime",
+  "box": [
+   883,
+   332,
+   1002,
+   498
+  ]
+ },
+ {
+  "cell": "88",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "desk_lamp",
+  "desc": "Đèn bàn khớp gập, đầu sáng",
+  "box": [
+   762,
+   95,
+   998,
+   342
+  ]
+ },
+ {
+  "cell": "89",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "walkie_talkie",
+  "desc": "Bộ đàm",
+  "box": [
+   772,
+   298,
+   814,
+   397
+  ]
+ },
+ {
+  "cell": "90",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "ashtray",
+  "desc": "Gạt tàn có tàn thuốc",
+  "box": [
+   598,
+   418,
+   667,
+   452
+  ]
+ },
+ {
+  "cell": "91",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "bottles_oil",
+  "desc": "Chai keo / dầu",
+  "box": [
+   750,
+   232,
+   824,
+   337
+  ]
+ },
+ {
+  "cell": "92",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "mug",
+  "desc": "Cốc",
+  "box": [
+   637,
+   318,
+   674,
+   360
+  ]
+ },
+ {
+  "cell": "93",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "dynamite_bundle",
+  "desc": "Bó thuốc nổ",
+  "box": [
+   568,
+   395,
+   620,
+   424
+  ]
+ },
+ {
+  "cell": "94",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "detonator_box",
+  "desc": "Hộp kích nổ đỏ có nút",
+  "box": [
+   832,
+   508,
+   922,
+   572
+  ]
+ },
+ {
+  "cell": "95",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "steel_cabinet_open",
+  "desc": "Tủ thép xám mở cửa, có can xăng",
+  "box": [
+   122,
+   362,
+   458,
+   792
+  ]
+ },
+ {
+  "cell": "96",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "gas_cylinder_tall",
+  "desc": "Bình gas cao (cảnh xưởng)",
+  "box": [
+   172,
+   260,
+   299,
+   422
+  ]
+ },
+ {
+  "cell": "97",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "gas_bottle_red",
+  "desc": "Bình gas đỏ",
+  "box": [
+   70,
+   478,
+   147,
+   667
+  ]
+ },
+ {
+  "cell": "98",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "tool_chest_rolling",
+  "desc": "Tủ đồ nghề đỏ, ngăn kéo đầy đồ",
+  "box": [
+   1028,
+   298,
+   1397,
+   652
+  ]
+ },
+ {
+  "cell": "99",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "kettle_stove",
+  "desc": "Ấm trên bếp ga du lịch, tem cảnh báo",
+  "box": [
+   1240,
+   220,
+   1362,
+   390
+  ]
+ },
+ {
+  "cell": "100",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "chair_wood",
+  "desc": "Ghế gỗ (cảnh xưởng)",
+  "box": [
+   918,
+   512,
+   1167,
+   812
+  ]
+ },
+ {
+  "cell": "101",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "lug_wrench",
+  "desc": "Tay vặn ốc bánh xe",
+  "box": [
+   1172,
+   672,
+   1238,
+   740
+  ]
+ },
+ {
+  "cell": "102",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "shell_casings",
+  "desc": "Vỏ đạn đồng + đầu lọc vương sàn",
+  "box": [
+   712,
+   722,
+   808,
+   752
+  ]
+ },
+ {
+  "cell": "103",
+  "sheet": "owner-workshop-scene.webp",
+  "prop": "fire_extinguisher",
+  "desc": "Bình chữa cháy (cảnh xưởng)",
+  "box": [
+   782,
+   497,
+   822,
+   597
+  ]
+ },
+ {
+  "cell": "104",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "burn_barrel",
+  "desc": "Phuy đốt đang cháy",
+  "box": [
+   652,
+   358,
+   812,
+   692
+  ]
+ },
+ {
+  "cell": "105",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "firewood_pile",
+  "desc": "Đống củi",
+  "box": [
+   183,
+   628,
+   382,
+   722
+  ]
+ },
+ {
+  "cell": "106",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "firewood_split",
+  "desc": "Thanh củi chẻ",
+  "box": [
+   398,
+   643,
+   492,
+   722
+  ]
+ },
+ {
+  "cell": "107",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "hatchet",
+  "desc": "Rìu tay",
+  "box": [
+   556,
+   656,
+   662,
+   722
+  ]
+ },
+ {
+  "cell": "108",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "backpack_red",
+  "desc": "Ba lô đỏ đai đạn",
+  "box": [
+   98,
+   472,
+   238,
+   614
+  ]
+ },
+ {
+  "cell": "109",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "backpack_yellow",
+  "desc": "Ba lô vàng buộc túi ngủ",
+  "box": [
+   1112,
+   512,
+   1347,
+   642
+  ]
+ },
+ {
+  "cell": "110",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "chair_plastic",
+  "desc": "Ghế nhựa đổ (cảnh lửa trại)",
+  "box": [
+   68,
+   388,
+   362,
+   588
+  ],
+  "opts": {
+   "tipped": true
+  }
+ },
+ {
+  "cell": "111",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "fence_broken",
+  "desc": "Hàng rào ván gãy",
+  "box": [
+   1098,
+   138,
+   1362,
+   447
+  ]
+ },
+ {
+  "cell": "112",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "mattress",
+  "desc": "Nệm trải (cảnh lửa trại)",
+  "box": [
+   882,
+   462,
+   1392,
+   707
+  ]
+ },
+ {
+  "cell": "113",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "concrete_block_tarp",
+  "desc": "Khối bê tông phủ bạt (cảnh lửa trại)",
+  "box": [
+   88,
+   202,
+   567,
+   422
+  ]
+ },
+ {
+  "cell": "114",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "soda_can",
+  "desc": "Lon nước",
+  "box": [
+   645,
+   360,
+   678,
+   412
+  ]
+ },
+ {
+  "cell": "115",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "drums_blue_strapped",
+  "desc": "Phuy xanh/gỉ buộc dây (cảnh lửa trại)",
+  "box": [
+   715,
+   182,
+   812,
+   388
+  ]
+ }
+]
