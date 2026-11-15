@@ -119,3 +119,4 @@ Sinh bằng `python tools/crop.py`. Cột `prop` là id hàm build trong `props/
 | 113 | owner-campfire-scene.webp | `concrete_block_tarp` | Khối bê tông phủ bạt (cảnh lửa trại) | 88,202,567,422 |
 | 114 | owner-campfire-scene.webp | `soda_can` | Lon nước | 645,360,678,412 |
 | 115 | owner-campfire-scene.webp | `drums_blue_strapped` | Phuy xanh/gỉ buộc dây (cảnh lửa trại) | 715,182,812,388 |
+| 116 | owner-campfire-scene.webp | `scrap_cart` | Xe đẩy phế liệu hàn, bánh to, thép gai | 722,108,1100,420 |

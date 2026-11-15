@@ -104,6 +104,10 @@ float splSc = max(floor(vMat.w), 1.0) * 0.1;
 float splAmt = clamp((fract(vMat.w) - 0.05) / 0.9, 0.0, 1.0) * uSplat;
 float nS = spF(sp * 4.0 / splSc + 77.0) + spN(sp * 22.0 / splSc) * 0.18;
 float spl = smoothstep(0.76 - splAmt*0.16, 0.79 - splAmt*0.16, nS) * step(0.01, splAmt);
+// splatter gathers in a few clusters and mostly on the lower part of the prop (bumpers, sills, lower doors)
+float splClus = smoothstep(0.52, 0.66, spF(sp * 0.45 + 13.0));
+float splLow = 1.0 - smoothstep(propH * 0.2, propH * 0.65, vObjY);
+spl *= splClus * mix(0.2, 1.0, splLow);
 diffuseColor.rgb = mix(diffuseColor.rgb, uBlood * (0.8 + 0.4*spN(sp*40.0)), spl);
 `)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>

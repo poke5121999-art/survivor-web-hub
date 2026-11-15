@@ -4,8 +4,22 @@ import * as THREE from '../vendor/three.module.min.js';
 import * as parts from '../lib/parts.js';
 
 const PI = Math.PI;
-const JERSEY = [[-0.32, 0], [0.32, 0], [0.32, 0.1], [0.17, 0.27], [0.12, 0.8], [-0.12, 0.8], [-0.17, 0.27], [-0.32, 0.1]];
-const JLOW = [[-0.32, 0], [0.32, 0], [0.32, 0.1], [0.17, 0.27], [-0.17, 0.27], [-0.32, 0.1]];
+const JERSEY = [[-0.32, 0], [0.32, 0], [0.32, 0.09], [0.25, 0.13], [0.25, 0.17], [0.17, 0.27], [0.12, 0.8], [-0.12, 0.8], [-0.17, 0.27], [-0.25, 0.17], [-0.25, 0.13], [-0.32, 0.09]];
+const JLOW = [[-0.32, 0], [0.32, 0], [0.32, 0.09], [0.25, 0.13], [0.25, 0.17], [0.17, 0.27], [-0.17, 0.27], [-0.25, 0.17], [-0.25, 0.13], [-0.32, 0.09]];
+
+// Real fork-lift tunnels: the lower body is cut into sections along the barrier; in a slot section the
+// foot flange is removed so a through-opening (roof at y = flange top) remains. Geometry, not decals.
+function tunnelProfile(prof) {
+  const [x3, y3] = prof[3], roof = y3 - 0.01;
+  return [[-x3, roof], [x3, roof], ...prof.slice(4, prof.length - 2)];
+}
+function lowBody(p, prof, x0, x1, xs, paint, sw = 0.3) {
+  const tun = tunnelProfile(prof);
+  const seg = (pr, a, b) => { if (b - a > 0.02) p.extrude(pr, b - a, { rot: [0, PI / 2, 0], at: [(a + b) / 2, 0, 0], paint, bevel: 0.004 }); };
+  let cur = x0;
+  for (const x of [...xs].sort((m, n) => m - n)) { seg(prof, cur, x - sw / 2); seg(tun, x - sw / 2, x + sw / 2); cur = x + sw / 2; }
+  seg(prof, cur, x1);
+}
 const RED = '#d8262a', WHITE = '#f2f2ee';
 
 function concretePaint(p, o) {
@@ -49,7 +63,7 @@ function jersey(id, seed, opts, dflt = {}) {
   const con = concretePaint(p, o);
   const kind = o.broken;
   if (!kind) {
-    p.extrude(JERSEY, L, { rot: [0, PI / 2, 0], paint: con, bevel: 0.025 });
+    lowBody(p, JERSEY, -h, h, [-L * 0.27, L * 0.27], con);
     if (o.stripes) bands(p, -L * 0.43, L * 0.43);
     for (const x of [-L * 0.32, L * 0.32]) parts.loop(p, { at: [x, 0.8, 0], w: 0.12, h: 0.08 });
     return p.done();
@@ -57,7 +71,7 @@ function jersey(id, seed, opts, dflt = {}) {
   const top = jagged(p, L, kind);
   if (kind === 'end') {
     const bl = L * 0.6;
-    p.extrude(JLOW, bl, { rot: [0, PI / 2, 0], at: [-h + bl / 2, 0, 0], paint: con, bevel: 0.025 });
+    lowBody(p, JLOW, -h, -h + bl, [-L * 0.3], con);
     // snapped lower slab: diagonal edge reaching the floor
     p.extrude([[-h + bl - 0.05, 0], [h - 0.02, 0], [h - 0.14, 0.12], [h - 0.3, 0.2], [h - 0.5, 0.27], [-h + bl - 0.05, 0.27]], 0.46, { paint: con, bevel: 0.02 });
     p.extrude([[-h, 0.22], ...top, [h * 0.6, 0.22]], 0.25, { paint: con, bevel: 0.02 });
@@ -65,12 +79,12 @@ function jersey(id, seed, opts, dflt = {}) {
     for (let i = 0; i < brk.length; i++) parts.rebar(p, { at: [brk[i][0], brk[i][1] - 0.03, 0], dir: [0.7, 0.8, 0.1], count: 2, len: 0.22, spread: 0.12 });
     parts.rebar(p, { at: [h - 0.04, 0.12, 0], dir: [1, 0.3, 0], count: 3, len: 0.24, spread: 0.3 });
   } else if (kind === 'long') {
-    p.extrude(JLOW, L, { rot: [0, PI / 2, 0], paint: con, bevel: 0.025 });
+    lowBody(p, JLOW, -h, h, [-L * 0.3, L * 0.05, L * 0.35], con);
     p.extrude([[-h, 0.22], ...top, [h, 0.22]], 0.25, { paint: con, bevel: 0.02 });
     for (let i = 3; i < top.length; i++) parts.rebar(p, { at: [top[i][0], top[i][1] - 0.02, 0], dir: [0.5, 1, 0.1], count: 2, len: 0.24, spread: 0.14 });
     parts.rebar(p, { at: [h - 0.02, 0.24, 0], dir: [1, 0.4, 0], count: 5, len: 0.3, spread: 0.22 });
   } else {
-    p.extrude(JLOW, L, { rot: [0, PI / 2, 0], paint: con, bevel: 0.025 });
+    lowBody(p, JLOW, -h, h, [-L * 0.3, L * 0.3], con);
     p.extrude([[-h, 0.22], ...top, [h, 0.22]], 0.25, { paint: con, bevel: 0.02 });
     const lo = top.filter((q) => q[1] < 0.7 && q[1] > 0.28);
     for (let i = 0; i < lo.length; i += 2) parts.rebar(p, { at: [lo[i][0], lo[i][1] - 0.02, 0], dir: [0.15, 1, 0.1], count: 2, len: 0.2, spread: 0.12 });
@@ -93,8 +107,8 @@ export function jerseyPlain(seed = 1, opts = {}) {
   const p = new Prop('jersey_plain', seed, opts);
   const L = opts.length ?? 2.0;
   const con = p.paint('concrete', opts.stains ? { pattern: 'stains', col2: '#7d6d60', patW: 0.5 } : { pattern: 'mottle', col2: '#a9a99e', patW: 0.4 });
-  const low = [[-0.3, 0], [0.3, 0], [0.3, 0.1], [0.16, 0.24], [0.11, 0.6], [-0.11, 0.6], [-0.16, 0.24], [-0.3, 0.1]];
-  p.extrude(low, L, { rot: [0, PI / 2, 0], paint: con, bevel: 0.03 });
+  const low = [[-0.3, 0], [0.3, 0], [0.3, 0.09], [0.24, 0.12], [0.24, 0.15], [0.16, 0.24], [0.11, 0.6], [-0.11, 0.6], [-0.16, 0.24], [-0.24, 0.15], [-0.24, 0.12], [-0.3, 0.09]];
+  lowBody(p, low, -L / 2, L / 2, [-L * 0.27, L * 0.27], con);
   for (const x of [-L * 0.32, L * 0.32]) parts.loop(p, { at: [x, 0.6, 0], w: 0.12, h: 0.08 });
   return p.done();
 }
@@ -109,11 +123,38 @@ function waterBarrier(id, seed, opts, color, white) {
   const L = opts.length ?? 1.3;
   const pl = p.paint('plastic', white ? { color, pattern: 'stains', col2: '#8f8a82', patW: 0.5, chip: 0.05, under: '#d0d0cc' } : { color, chip: 0.3, under: '#f06a60', dirt: 0.35, pattern: 'mottle', col2: '#f2574c', patW: 0.5 });
   const prof = [[-0.24, 0.2], [0.24, 0.2], [0.26, 0.3], [0.2, 0.46], [0.19, 0.6], [0.15, 0.78], [0.1, 0.88], [-0.1, 0.88], [-0.15, 0.78], [-0.19, 0.6], [-0.2, 0.46], [-0.26, 0.3]];
-  p.extrude(prof, L, { rot: [0, PI / 2, 0], paint: pl, bevel: 0.04, deform: opts.dent ? { amp: opts.dent, freq: 4 } : undefined });
+  // carved wedge hollows on both faces: body is cut into sections along X, each section's profile has the face
+  // pushed in by `dep` from y0 up to a height that shrinks toward the hollow edge (stepped wedge, wide at the bottom).
+  const dent = opts.dent ? { amp: opts.dent, freq: 4 } : undefined;
+  const R = prof.slice(1, 7), dep = 0.07, y0 = 0.27;
+  const wAt = (y) => { for (let i = 0; i < R.length - 1; i++) if (y <= R[i + 1][1]) { const t = (y - R[i][1]) / (R[i + 1][1] - R[i][1]); return R[i][0] + (R[i + 1][0] - R[i][0]) * t; } return R[R.length - 1][0]; };
+  const prof2 = (yt) => { // right side up to yt (inset between y0..yt), mirrored back down
+    const r = [];
+    for (const [x, y] of R) if (y < y0 - 1e-6) r.push([x, y]);
+    r.push([wAt(y0), y0], [wAt(y0) - dep, y0]);
+    for (const [x, y] of R) if (y > y0 + 1e-6 && y < yt - 1e-6) r.push([x - dep, y]);
+    r.push([wAt(yt) - dep, yt], [wAt(yt), yt]);
+    for (const [x, y] of R) if (y > yt + 1e-6) r.push([x, y]);
+    return [...r, ...r.slice().reverse().map(([x, y]) => [-x, y])];
+  };
+  const hc = [-L * 0.15, L * 0.15], hws = [0.1, 0.075, 0.05], tops = [0.46, 0.62, 0.78];
+  const cuts = new Set([-L / 2, L / 2]);
+  for (const c of hc) for (const w of hws) { cuts.add(c - w); cuts.add(c + w); }
+  const xsorted = [...cuts].sort((m, n) => m - n), cache = new Map();
+  for (let i = 0; i < xsorted.length - 1; i++) {
+    const a = xsorted[i], b = xsorted[i + 1], m = (a + b) / 2;
+    let yt = 0;
+    for (const c of hc) for (let k = 0; k < 3; k++) if (Math.abs(m - c) < hws[k]) yt = Math.max(yt, tops[k]);
+    const pr = yt ? (cache.get(yt) || (cache.set(yt, prof2(yt)), cache.get(yt))) : prof;
+    p.extrude(pr, b - a, { rot: [0, PI / 2, 0], at: [m, 0, 0], paint: pl, bevel: 0.004, deform: dent });
+  }
   // three feet with two arched notches between them
   const fw = L * 0.22;
   for (const x of [-L * 0.39, 0, L * 0.39]) p.box([fw, 0.22, 0.5], { at: [x, 0.11, 0], paint: pl, bevel: 0.035 });
-  for (const x of [-L * 0.195, L * 0.195]) p.box([L * 0.17, 0.06, 0.48], { at: [x, 0.19, 0], paint: pl, bevel: 0.03 });
+  for (const x of [-L * 0.195, L * 0.195]) {
+    p.box([L * 0.17, 0.06, 0.48], { at: [x, 0.19, 0], paint: pl, bevel: 0.03 });
+    for (const sx of [-1, 1]) p.box([0.06, 0.06, 0.5], { at: [x + sx * L * 0.075, 0.17, 0], rot: [0, 0, sx * PI / 4], paint: pl, bevel: 0.012 });
+  }
   // big vertical rib bulges on both faces
   for (const s of [1, -1]) for (const x of [-L * 0.3, 0, L * 0.3]) {
     p.box([0.2, 0.52, 0.09], { at: [x, 0.5, s * 0.215], rot: [s * 0.12, 0, 0], paint: pl, bevel: 0.03 });

@@ -1044,7 +1044,7 @@ window.HUB_GAMES = [
     en: { title: "3D Prop Kit", tagline: "Over 100 junkyard props and 3 armoured vehicles built entirely from code, shown next to the concept art.", desc: "Containers, trailers, barriers, concrete blocks, drums, pallets, a workbench, a generator, chairs, tyres, cones, gunsmith gear and three post-apocalyptic armoured vehicles, each generated from a seed with new, worn and broken variants and opening doors, lids and drawers. No model or texture files." },
     thumbnail: "assets/thumbnails/kho-do-vat-3d.png",
     path: "games/kho-do-vat-3d/index.html",
-    rev: "20261115a",
+    rev: "20261115b"
     status: "available",
     tags: ["Thử nghiệm","Đồ vật 3D","Không asset"]
   },

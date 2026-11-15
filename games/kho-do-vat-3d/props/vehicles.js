@@ -165,14 +165,14 @@ function drive(p, wh, R, opts) {
 function common(p, opts, color) {
   const blood = opts.blood ?? 0.15;
   return {
-    body: p.paint('paint', { color: opts.color || color, under: '#8e9397', splatScale: 0.4, splat: blood, chip: 0.6 * p.wear / 0.6, rust: 0.1 * p.wear / 0.6 }),
+    body: p.paint('paint', { color: opts.color || color, under: '#8e9397', splatScale: 0.4, splat: blood * 0.75, chip: 0.6 * p.wear / 0.6, rust: 0.1 * p.wear / 0.6 }),
     glass: p.paint('glass', { color: '#55748f' }),
     inner: p.paint('paint', { color: '#3a3b40', chip: 0, rust: 0, dirt: 0.35 }),
     seat: p.paint('fabric', { color: '#4a4643' }),
     trim: p.paint('plastic', { color: '#2f3034', chip: 0.05 }),
-    steel: p.paint('steel', { color: '#6c7378', splatScale: 0.4, splat: blood * 0.7 }),
-    dark: p.paint('steel', { color: '#45494e', under: '#8b9196', splatScale: 0.4, splat: blood * 0.5 }),
-    plate: p.paint('steel', { color: '#7d8489', under: '#a5abb0', rust: 0.2 * p.wear / 0.6, splatScale: 0.4, splat: blood * 0.6 }),
+    steel: p.paint('steel', { color: '#6c7378', splatScale: 0.4, splat: blood * 1.8 }),
+    dark: p.paint('steel', { color: '#45494e', under: '#8b9196', splatScale: 0.4, splat: blood * 1.4 }),
+    plate: p.paint('steel', { color: '#7d8489', under: '#a5abb0', rust: 0.2 * p.wear / 0.6, splatScale: 0.4, splat: blood * 1.6 }),
     rusty: p.paint('rusty', { splatScale: 0.4, splat: blood * 0.5 }),
     wood: p.paint('wood', { color: '#a3735a', under: '#c69a78', splatScale: 0.4, splat: blood * 0.4 }),
     tyreRim: p.paint('steel', { color: '#5a5f64', under: '#9aa0a5' }),

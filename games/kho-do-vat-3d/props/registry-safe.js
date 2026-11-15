@@ -1,6 +1,6 @@
 // Fault-tolerant registry for the showcase/tools: a broken group file logs an error
 // instead of blanking the whole page. Games should import lib/index.js instead.
-const GROUPS = ['concrete', 'drums', 'furniture', 'metal', 'workshop', 'vehicles'];
+const GROUPS = ['concrete', 'drums', 'furniture', 'metal', 'workshop', 'vehicles', 'scrap'];
 const res = await Promise.allSettled(GROUPS.map((g) => import(`./${g}.js`)));
 export const PROPS = [];
 res.forEach((r, i) => {

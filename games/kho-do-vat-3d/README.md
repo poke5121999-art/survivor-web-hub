@@ -47,7 +47,7 @@ lib/prop.js           class Prop: gom mảnh -> merge 1 mesh / node / material, 
 lib/parts.js          cụm dùng chung: drum, tyre, wheel, strapBox, strapRing, decal, cinderBlock, plank, loop, rebar
 lib/fire.js           lửa low-poly lay động + đèn tuỳ chọn
 lib/index.js          cổng public: buildProp, PROPS, updateProps, mọi hàm prop có tên
-props/*.js            các nhóm prop (concrete, drums, furniture, metal, workshop, vehicles)
+props/*.js            các nhóm prop (concrete, drums, furniture, metal, workshop, vehicles, scrap)
 tools/                segment.py / crop.py (cắt ô), shoot.mjs (render + so sánh), solo.mjs (chụp cận), compare.py
 ```
 
@@ -120,18 +120,18 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 
 ## Số đo từng prop (chất lượng cao, đo 2026-11-15 bằng `node tools/shoot.mjs`)
 
-104 prop, 234 biến thể; trung vị 1 020 tam giác; xe 8 800–14 800; tổng (biến thể nặng nhất mỗi prop) 174 395.
+106 prop, 240 biến thể; trung vị 1 020 tam giác; xe 8 800–14 800; tổng (biến thể nặng nhất mỗi prop) 174 395.
 
 | id | tam giác (min–max biến thể) | draw | biến thể | tham số |
 |---|---|---|---|---|
-| `jersey_striped` | 932–1020 | 1 | 3 | — |
+| `jersey_striped` | 1532 | 1 | 3 | — (khe xe nâng là đường hầm khoét thật) |
 | `jersey_stained` | 932 | 1 | 2 | — |
 | `jersey_broken_mid` | 1252–1428 | 1 | 2 | — |
 | `jersey_broken_end` | 1584 | 1 | 2 | — |
 | `jersey_plain` | 932 | 1 | 2 | — |
 | `jersey_broken_long` | 1582–1584 | 1 | 2 | — |
 | `jersey_striped_long` | 1020 | 1 | 2 | — |
-| `water_barrier_white` | 1140 | 1 | 2 | — |
+| `water_barrier_white` | 3812 | 1 | 2 | — (hốc nêm khoét thật, thân cắt đoạn dọc trục X) |
 | `water_barrier_red` | 1140 | 1 | 2 | — |
 | `barrier_crowd_red` | 808 | 1 | 2 | — |
 | `barrier_steel` | 656 | 1 | 2 | — |
@@ -144,6 +144,8 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 | `concrete_block_tarp` | 1128 | 1 | 2 | — |
 | `flood_light` | 1232 | 2 | 2 | — |
 | `fence_broken` | 736–792 | 1 | 2 | — |
+| `fence_panel` | 532–656 | 1 | 3 | — (opts `width, planks, height, lean, gaps`) |
+| `scrap_cart` | 3894–5682 | 3 | 3 | roll (opts `wheels 2/4, handle, spikes, load: none/drum/tyre`) |
 | `drum_blue` | 672 | 1 | 3 | — |
 | `drums_blue_strapped` | 2032 | 1 | 2 | — |
 | `drums_on_pallet` | 3440 | 1 | 2 | — |
@@ -234,3 +236,14 @@ node tools/solo.mjs cone,pallet --variants                # chụp cận từng 
 `index.html`: 4 bố cục theo 4 ảnh gốc (đặt từng prop vào đúng ô của nó trên ảnh, camera khớp ảnh) + tab Biến thể (mọi biến thể ở kích thước thật). Bấm một đồ để xem riêng: xoay/zoom, seed, độ cũ, thanh trượt tham số mở/động, ô ảnh gốc. Nút Ảnh gốc phủ ảnh tham chiếu 50% lên khung. Nút Chất lượng: Cao/Thấp (Thấp: tắt bóng, pixel ratio 1, noise 1 octave, ít đoạn tròn).
 
 `tools/ui-test.mjs` chạy thử ở bề ngang điện thoại 390 px và desktop (không tràn ngang, 0 lỗi console).
+
+## Xe đẩy phế liệu + rào ván (cảnh lửa trại)
+
+`import { scrapCart, fencePanel } from '.../lib/index.js'` (hoặc `buildProp('scrap_cart' | 'fence_panel', seed, opts)`).
+`scrap_cart`: trục dài X, tay đẩy ở -X, mũi ở +X, `set('roll', 0..1)` quay 4 bánh. `fence_panel`: dài theo X, ván hướng +Z.
+Ô so sánh 116 (`ref/boxes.json`) dùng `scrap_cart`; `props/registry-safe.js` phải liệt kê `scrap` (đã thêm).
+
+## Khoét lõm thật
+
+Rào bê tông / rào nhựa dựng từ nhiều `extrude` ngắn dọc X (`lowBody` / vòng `prof2` trong `props/concrete.js`); đoạn có khe dùng profile đã cắt,
+nên khe xe nâng và hốc nêm là hình học lõm, không phải mảng tối dán. Bevel đoạn nhỏ 0.004 để mối nối không lộ rãnh.

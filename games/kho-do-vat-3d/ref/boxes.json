@@ -1387,5 +1387,17 @@
    812,
    388
   ]
+ },
+ {
+  "cell": "116",
+  "sheet": "owner-campfire-scene.webp",
+  "prop": "scrap_cart",
+  "desc": "Xe đẩy phế liệu hàn, bánh to, thép gai",
+  "box": [
+   722,
+   108,
+   1100,
+   420
+  ]
  }
 ]

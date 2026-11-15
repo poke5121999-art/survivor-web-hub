@@ -5,12 +5,55 @@ import * as parts from '../lib/parts.js';
 
 
 const PI = Math.PI;
+
+// Soft rounded box: subdivided BoxGeometry -> rounded box -> puff/sag/bulge/folds/hem. Returns geometry (use p.geom).
+function softGeom(size, o = {}) {
+  const [w, h, d] = size, hw = w / 2, hh = h / 2, hd = d / 2;
+  const n = (dim, mx) => Math.max(2, Math.min(mx, Math.round(dim / 0.075)));
+  const sx = o.sx ?? n(w, 10), sy = o.sy ?? Math.max(2, Math.min(6, Math.round(h / 0.08))), sz = o.sz ?? n(d, 9);
+  const g = new THREE.BoxGeometry(w, h, d, sx, sy, sz);
+  const r = Math.min(o.r ?? 0.05, Math.min(hw, hh, hd) * 0.95);
+  const pos = g.attributes.position, nor = g.attributes.normal;
+  const puff = o.puff ?? 0, bulge = o.bulge ?? 0, fold = o.fold, hem = o.hem, ridge = o.ridge, flare = o.flare ?? 0, ph = o.phase ?? 0;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const cx = Math.max(-(hw - r), Math.min(hw - r, x)), cy = Math.max(-(hh - r), Math.min(hh - r, y)), cz = Math.max(-(hd - r), Math.min(hd - r, z));
+    let nx = x - cx, ny = y - cy, nz = z - cz; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    x = cx + nx * r; y = cy + ny * r; z = cz + nz * r;
+    const u = x / hw, v = z / hd, wv = y / hh, t = (y + hh) / (2 * hh);
+    if (puff && y > 0) y += puff * (1 - u * u) * (1 - v * v) * Math.min(1, y / hh + 0.2);
+    if (bulge) { const k = 1 + bulge * (1 - wv * wv); x *= k; z *= k; }
+    if (fold && Math.abs(ny) < 0.8) {
+      const sc = Math.abs(nz) > Math.abs(nx) ? x : z;
+      const off = fold.amp * Math.sin(fold.freq * sc + ph + 2.1 * (Math.abs(nz) > Math.abs(nx) ? 0 : 1)) * (0.25 + 0.75 * (1 - t));
+      x += nx * off; z += nz * off;
+    }
+    if (flare) { x += nx * flare * (1 - t); z += nz * flare * (1 - t); }
+    if (ridge && ny > 0.6) y += ridge.amp * Math.sin(ridge.freq * (ridge.axis === 'z' ? z : x) + ph);
+    if (hem && t < 0.35) y -= hem.amp * (0.5 + 0.5 * Math.sin(hem.freq * (x + 1.3 * z) + ph)) * (1 - t / 0.35);
+    pos.setXYZ(i, x, y, z); nor.setXYZ(i, nx, ny, nz);
+  }
+  g.deleteAttribute('uv');
+  return g;
+}
+// rolled pad / sleeping roll along local Y (rotate with rot), slightly bulged, rounded ends
+function softRollPts(r, len, bulge = 0.08) {
+  const pts = [[0, -len / 2]]; const N = 8;
+  for (let k = 0; k <= N; k++) { const s = k / N; pts.push([r * (0.93 + bulge * Math.sin(Math.PI * s)) * (k === 0 || k === N ? 0.9 : 1), -len / 2 + len * s]); }
+  pts.push([0, len / 2]); return pts;
+}
+
 // Prop with a cheaper box(): thin parts are flat 12-tri boxes, others 1-segment bevels (108 tris);
 // pass hi:true for soft chunky parts (2-segment bevel). parts.* helpers call p.box so they benefit too.
 function mk(id, seed, opts) {
   const p = new Prop(id, seed, opts);
   const box = p.box.bind(p);
-  p.box = (size, o = {}) => box(size, { ...o, round: o.hi ? 2 : (o.segs === 1 ? 1 : 0) });
+  p.box = (size, o = {}) => {
+    if (!o.hi) return box(size, { ...o, round: o.segs === 1 ? 1 : 0 });
+    const m = Math.min(...size);
+    const g = softGeom(size, { r: (o.bevel ?? 0.03) * 1.8, puff: o.puff ?? Math.min(0.03, m * 0.1), bulge: o.bulge ?? 0.03, ...(o.soft || {}) });
+    return p.geom(g, o);
+  };
   const cyl = p.cyl.bind(p);
   p.cyl = (r, h, o = {}) => cyl(r, h, { ...o, seg: o.seg ?? 10, bevel: (r < 0.03 || h < 0.03) ? 0 : o.bevel });
   return p;
@@ -49,15 +92,10 @@ export function pallet(seed = 1, opts = {}) {
 // Draped tarp over a box region (w x d, top at topY). Soft deformed bevel boxes + gathered folds.
 function tarpOver(p, o) {
   const { w, d, topY, drop = 0.2, over = 0.04, paint } = o, at = o.at || [0, 0, 0];
-  const t = 0.04, f = o.flare ?? 0.1, dm = { amp: o.amp ?? 0.014, freq: 6 };
-  const W = w + over * 2, D = d + over * 2;
-  p.box([W, t, D], { at: [at[0], topY + t / 2, at[2]], paint, bevel: 0.05, hi: true, deform: dm });
-  p.box([W, drop, t], { at: [at[0], topY - drop / 2 + 0.01, at[2] + D / 2 - t / 2 + 0.006], rot: [f, 0, 0], paint, bevel: 0.015, segs: 1, deform: dm });
-  p.box([W, drop * 0.9, t], { at: [at[0], topY - drop * 0.45 + 0.01, at[2] - D / 2 + t / 2 - 0.006], rot: [-f, 0, 0], paint, bevel: 0.015, segs: 1, deform: dm });
-  p.box([t, drop * 0.95, D], { at: [at[0] + W / 2 - t / 2 + 0.006, topY - drop * 0.475 + 0.01, at[2]], rot: [0, 0, -f], paint, bevel: 0.015, segs: 1, deform: dm });
-  p.box([t, drop * 0.85, D], { at: [at[0] - W / 2 + t / 2 - 0.006, topY - drop * 0.425 + 0.01, at[2]], rot: [0, 0, f], paint, bevel: 0.015, segs: 1, deform: dm });
-  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) // gathered folds at the corners
-    p.box([0.07, drop * 0.8, 0.07], { at: [at[0] + sx * (W / 2 - 0.01), topY - drop * 0.4, at[2] + sz * (D / 2 - 0.01)], rot: [sz * 0.08, 0.5 * sx * sz, sx * -0.08], paint, bevel: 0.025, segs: 1, deform: { amp: 0.008, freq: 8 } });
+  const t = 0.04, W = w + over * 2, D = d + over * 2, H = drop + t;
+  const g = softGeom([W, H, D], { r: 0.06, sx: 12, sy: 6, sz: 9, puff: 0.03, bulge: 0.0, flare: o.flare ?? 0.03,
+    fold: { amp: o.amp ?? 0.02, freq: 21 }, hem: { amp: 0.045, freq: 8 }, ridge: { amp: 0.012, freq: 17, axis: 'z' }, phase: p.r() * 6 });
+  p.geom(g, { paint, at: [at[0], topY + t - H / 2, at[2]] });
 }
 function tarpPaint(p, color, col2) {
   return p.paint('tarp', { color, col2, under: color, pattern: 'mottle', patW: 0.18, chip: 0, dirt: 0.5 * Math.min(1.4, 0.5 + p.wear / 1.2) });
@@ -104,11 +142,11 @@ function tarpCrate(id, seed, opts, def) {
   const sp = p.paint('fabric', { color: '#3e4640', chip: 0, rust: 0 });
   const bandH = drop + 0.05;
   const bx = def.straps || [-0.28, 0.28];
-  for (const x of bx) parts.strapBox(p, { size: [w, bandH, d + 0.13], at: [x, h + 0.04 - bandH / 2 + 0.014, 0], axis: 'x', t: 0, width: 0.075, paint: sp });
+  for (const x of bx) parts.strapBox(p, { size: [w, bandH, d + 0.13 + (def.strapPad ?? 0)], at: [x, h + 0.04 - bandH / 2 + 0.014 + (def.strapLift ?? 0), 0], axis: 'x', t: 0, width: 0.075, paint: sp });
   return p.done();
 }
 export function tarpCrateGreen(seed = 1, opts = {}) { return tarpCrate('tarp_crate_green', seed, opts, { color: '#80c648', col2: '#64a83a' }); }
-export function tarpCrateBlue(seed = 1, opts = {}) { return tarpCrate('tarp_crate_blue', seed, opts, { color: '#4a54cc', col2: '#363ea8', w: 0.8, h: 0.62, d: 0.72, rows: 3, brace: true, drop: 0.26, over: 0.07, straps: [-0.15, 0.15] }); }
+export function tarpCrateBlue(seed = 1, opts = {}) { return tarpCrate('tarp_crate_blue', seed, opts, { color: '#4a54cc', col2: '#363ea8', w: 0.8, h: 0.62, d: 0.72, rows: 3, brace: true, drop: 0.26, over: 0.07, straps: [-0.15, 0.15], strapLift: 0.04, strapPad: 0.1 }); }
 
 // ---------------------------------------------------------------- mattresses & mats
 export function mattress(seed = 1, opts = {}) {
@@ -132,15 +170,14 @@ export function mattress(seed = 1, opts = {}) {
 }
 export function sleepMatFlat(seed = 1, opts = {}) {
   const p = mk('sleep_mat_flat', seed, opts);
-  const c = p.paint('fabric', { color: opts.color || '#cdc0b8', under: '#9a8e8a', dirt: 0.5, rough: 0.9 });
+  const c = p.paint('fabric', { color: opts.color || '#cdc0b8', col2: '#a89c96', pattern: 'grid', patW: 0.42, under: '#9a8e8a', dirt: 0.5, rough: 0.9 });
   const top = p.paint('fabric', { color: '#ddd2cb', under: '#9a8e8a', dirt: 0.4, rough: 0.9 });
   const seam = p.paint('fabric', { color: '#8d827d', chip: 0, dirt: 0.3 });
-  p.box([1.3, 0.08, 0.64], { at: [0, 0.04, 0], paint: c, bevel: 0.03, hi: true, deform: { amp: 0.005, freq: 5 } });
-  p.box([1.28, 0.012, 0.62], { at: [0, 0.084, 0], paint: top, bevel: 0.005 });
-  for (const x of [-0.215, 0.215]) p.box([0.014, 0.008, 0.6], { at: [x, 0.092, 0], paint: seam, bevel: 0.002 });
-  p.box([1.26, 0.008, 0.014], { at: [0, 0.092, 0], paint: seam, bevel: 0.002 });
+  // quilted, puffy pad: soft box with wave ridges across the length, rolled edges
+  p.box([1.3, 0.1, 0.64], { at: [0, 0.05, 0], paint: c, bevel: 0.04, hi: true, puff: 0.035, bulge: 0.05,
+    soft: { ridge: { amp: 0.02, freq: 8.5, axis: 'x' }, hem: { amp: 0.012, freq: 6 }, sx: 16, sz: 8 }, deform: { amp: 0.01, freq: 3 } });
   if (opts.rolled) p.cyl(0.08, 0.6, { at: [0.8, 0.08, 0.5], rot: [0, 0, PI / 2], paint: top, bevel: 0.02, seg: 12 });
-  p.box([0.12, 0.008, 0.1], { at: [0.4, 0.1, 0.1], rot: [0, 0.4, 0], paint: p.paint('paint', { color: '#e4b83a', chip: 0.3 }), bevel: 0.002 });
+  p.box([0.12, 0.008, 0.1], { at: [0.4, 0.14, 0.1], rot: [0, 0.4, 0], paint: p.paint('paint', { color: '#e4b83a', chip: 0.3 }), bevel: 0.002 });
   return p.done();
 }
 export function bedrollOpen(seed = 1, opts = {}) {
@@ -148,7 +185,7 @@ export function bedrollOpen(seed = 1, opts = {}) {
   const pad = p.paint('fabric', { color: opts.padColor || '#a39990', col2: '#857c74', under: '#857c74', pattern: 'stains', patW: 0.2, dirt: 0.6 });
   const roll = p.paint('fabric', { color: '#ecebe8', col2: '#d4d2cc', under: '#d4d2cc', pattern: 'stains', patW: 0.2, dirt: 0.5 });
   p.box([1.2, 0.09, 0.85], { at: [0, 0.045, 0.1], paint: pad, bevel: 0.035, hi: true, deform: { amp: 0.006, freq: 4 } });
-  p.cyl(0.17, 0.95, { at: [-0.25, 0.2, -0.24], rot: [0, 0, PI / 2], paint: roll, bevel: 0.07, seg: 14, deform: { amp: 0.008, freq: 4 } });
+  p.lathe(softRollPts(0.17, 0.95, 0.06), { at: [-0.25, 0.2, -0.24], rot: [0, 0, PI / 2], paint: roll, seg: 14 });
   const band = p.paint('fabric', { color: '#b8b3ac', chip: 0, dirt: 0.5 });
   if (!opts.loose) for (const x of [-0.5, 0.0]) p.cyl(0.176, 0.035, { at: [x, 0.2, -0.24], rot: [0, 0, PI / 2], paint: band, seg: 14 });
   p.box([0.1, 0.008, 0.08], { at: [0.35, 0.094, 0.3], rot: [0, 0.5, 0], paint: p.paint('paint', { color: '#e0a83a', chip: 0.2 }), bevel: 0.002 });
@@ -156,7 +193,7 @@ export function bedrollOpen(seed = 1, opts = {}) {
 }
 function roll(p, o) { // rolled sleeping pad along X
   const { len, r, at, paint, bands = [] } = o;
-  p.cyl(r, len, { at, rot: [0, 0, PI / 2], paint, bevel: 0.035, seg: 14, deform: { amp: 0.006, freq: 5 } });
+  p.lathe(softRollPts(r, len), { at, rot: [0, 0, PI / 2], paint, seg: 14 });
   const sp = p.paint('fabric', { color: o.strapColor || '#34373c', chip: 0, rust: 0 });
   for (const x of bands) {
     p.cyl(r + 0.008, 0.08, { at: [at[0] + x, at[1], at[2]], rot: [0, 0, PI / 2], paint: sp, bevel: 0.004, seg: 14 });
@@ -184,13 +221,13 @@ function seatBody(p, o) {
   const { w, depth = 0.5, cushionH = 0.16, backH = 0.62, recline = 0.2, paint, side, y0 = 0.12 } = o;
   const baseP = p.paint('metal', { color: '#3a3d42' });
   p.box([w - 0.06, y0, depth - 0.1], { at: [0, y0 / 2, 0], paint: baseP, bevel: 0.015 });
-  p.box([w, cushionH, depth], { at: [0, y0 + cushionH / 2, 0], paint, bevel: 0.05, deform: { amp: 0.008, freq: 4 } });
+  p.box([w, cushionH, depth], { at: [0, y0 + cushionH / 2, 0], paint, bevel: 0.05, hi: true, puff: 0.03, bulge: 0.06, deform: { amp: 0.008, freq: 4 } });
   const by = y0 + cushionH + 0.02, bz = -depth / 2 + 0.07;
   const c = Math.cos(recline), s = Math.sin(recline);
-  p.box([w, backH, 0.14], { at: [0, by + backH / 2 * c, bz - backH / 2 * s], rot: [-recline, 0, 0], paint, bevel: 0.05, deform: { amp: 0.008, freq: 4 } });
+  p.box([w, backH, 0.14], { at: [0, by + backH / 2 * c, bz - backH / 2 * s], rot: [-recline, 0, 0], paint, bevel: 0.05, hi: true, puff: 0.025, bulge: 0.08, deform: { amp: 0.008, freq: 4 } });
   if (side) for (const sx of [-1, 1]) {
-    p.box([0.09, cushionH + 0.07, depth * 0.9], { at: [sx * (w / 2 - 0.035), y0 + cushionH / 2 + 0.025, 0.02], paint: side, bevel: 0.035 });
-    p.box([0.1, backH * 0.9, 0.2], { at: [sx * (w / 2 - 0.04), by + backH * 0.45 * c, bz - backH * 0.45 * s + 0.03], rot: [-recline, 0, 0], paint: side, bevel: 0.04 });
+    p.box([0.09, cushionH + 0.07, depth * 0.9], { at: [sx * (w / 2 - 0.035), y0 + cushionH / 2 + 0.025, 0.02], paint: side, bevel: 0.035, hi: true });
+    p.box([0.1, backH * 0.9, 0.2], { at: [sx * (w / 2 - 0.04), by + backH * 0.45 * c, bz - backH * 0.45 * s + 0.03], rot: [-recline, 0, 0], paint: side, bevel: 0.04, hi: true });
   }
   return { by, bz, c, s };
 }
@@ -236,21 +273,69 @@ export function carSeat(seed = 1, opts = {}) {
 }
 
 // ---------------------------------------------------------------- chairs, stool
+// One continuous lofted shell: seat -> bent, cupped fan back with radiating slits (quads omitted), double-skinned.
+function chairShell(p, paint) {
+  const NU = 40, NS = 5, NB = 11, NV = NS + NB;
+  let path = [];
+  for (let k = 0; k <= 40; k++) { // centreline in (z, y): seat then leaning back
+    const a = k / 40;
+    if (a <= 0.46) { const q = a / 0.46; path.push([0.25 - 0.47 * q, 0.44 - 0.012 * Math.sin(Math.PI * q)]); }
+    else { const q = (a - 0.46) / 0.54; path.push([-0.22 - Math.sin(0.3) * 0.58 * q, 0.44 + Math.cos(0.3) * 0.58 * q]); }
+  }
+  for (let pass = 0; pass < 6; pass++) path = path.map((pt, k) => k === 0 || k === path.length - 1 ? pt : [(path[k - 1][0] + pt[0] * 2 + path[k + 1][0]) / 4, (path[k - 1][1] + pt[1] * 2 + path[k + 1][1]) / 4]);
+  const at = (a) => { const f = Math.min(0.9999, a) * 40, k = Math.floor(f), e = f - k; return [path[k][0] + (path[k + 1][0] - path[k][0]) * e, path[k][1] + (path[k + 1][1] - path[k][1]) * e]; };
+  const P = new Float32Array((NU + 1) * (NV + 1) * 3);
+  const vA = (iv) => iv <= NS ? 0.46 * iv / NS * 0.999 : 0.46 + 0.54 * (iv - NS) / NB; // parameter along path
+  for (let iv = 0; iv <= NV; iv++) for (let iu = 0; iu <= NU; iu++) {
+    const u = iu / NU * 2 - 1, a = vA(iv), [z, y] = at(a), back = Math.max(0, (a - 0.46) / 0.54);
+    const hw = 0.25 + 0.04 * back, cup = 0.075 * back * u * u, lip = 0.03 * Math.pow(Math.abs(u), 4) * (1 - back);
+    const idx = (iv * (NU + 1) + iu) * 3;
+    const ny = Math.sin(0.3) * back, nz = Math.cos(0.3) * back; // back normal blend (forward = +z)
+    P[idx] = u * hw; P[idx + 1] = y + lip - cup * ny * 0.0 + (back > 0 ? 0 : 0); P[idx + 2] = z + cup * nz * 1.0 + cup * 0;
+    if (back > 0) { P[idx + 1] += cup * ny; }
+  }
+  const skip = (iv, iu) => {
+    if (iv < NS + 4) return false; const q = (iv - NS - 4) / (NB - 4);
+    if (iv >= NV - 1) { const uc = ((iu + 0.5) / NU) * 2 - 1; if (Math.abs(uc) > 0.82 - 0.0) return true; }
+    for (let k = 0; k < 5; k++) { const uk = (k - 2) * 0.29 * (0.5 + 0.5 * q); const c0 = Math.min(NU - 1, Math.max(1, Math.floor((uk + 1) / 2 * NU))); if (iu === c0 || iu === c0 - 1) return iv < NV - 1 && q < 0.95; }
+    return false;
+  };
+  const outer = new THREE.BufferGeometry();
+  outer.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  const ind = [];
+  for (let iv = 0; iv < NV; iv++) for (let iu = 0; iu < NU; iu++) {
+    if (skip(iv, iu)) continue;
+    const a = iv * (NU + 1) + iu, b = a + 1, c = a + NU + 1, d = c + 1;
+    ind.push(a, c, b, b, c, d);
+  }
+  outer.setIndex(ind); outer.computeVertexNormals();
+  const n = outer.attributes.normal, th = 0.045, cnt = (NU + 1) * (NV + 1);
+  const P2 = new Float32Array(cnt * 6), N2 = new Float32Array(cnt * 6);
+  for (let k = 0; k < cnt; k++) {
+    let nx = n.getX(k), ny = n.getY(k), nz = n.getZ(k);
+    P2[k * 3] = P[k * 3]; P2[k * 3 + 1] = P[k * 3 + 1]; P2[k * 3 + 2] = P[k * 3 + 2];
+    N2[k * 3] = nx; N2[k * 3 + 1] = ny; N2[k * 3 + 2] = nz;
+    P2[cnt * 3 + k * 3] = P[k * 3] - nx * th; P2[cnt * 3 + k * 3 + 1] = P[k * 3 + 1] - ny * th; P2[cnt * 3 + k * 3 + 2] = P[k * 3 + 2] - nz * th;
+    N2[cnt * 3 + k * 3] = -nx; N2[cnt * 3 + k * 3 + 1] = -ny; N2[cnt * 3 + k * 3 + 2] = -nz;
+  }
+  const I2 = [];
+  for (let k = 0; k < ind.length; k += 3) { I2.push(ind[k], ind[k + 1], ind[k + 2]); I2.push(ind[k] + cnt, ind[k + 2] + cnt, ind[k + 1] + cnt); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(P2, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N2, 3));
+  g.setIndex(I2);
+  return p.geom(g, { paint });
+}
 export function chairPlastic(seed = 1, opts = {}) {
   const p = mk('chair_plastic', seed, opts);
   const body = p.node('body');
   const pl = p.paint('plastic', { color: opts.color || '#eceff0', under: '#c9cdcf', chip: 0.0, dirt: 0.7 * Math.min(1.4, 0.5 + p.wear / 1.2) });
   p.in(body, () => {
     const sy = 0.44;
-    p.box([0.5, 0.06, 0.46], { at: [0, sy, 0.02], paint: pl, bevel: 0.03, hi: true });
+    chairShell(p, pl);
     for (const sx of [-1, 1]) {
-      p.tube([[sx * 0.24, 0.0, 0.3], [sx * 0.22, sy * 0.5, 0.24], [sx * 0.25, sy + 0.2, 0.2], [sx * 0.26, sy + 0.22, -0.1], [sx * 0.24, sy + 0.2, -0.2]], 0.032, { paint: pl, seg: 7 });
-      p.tube([[sx * 0.25, 0.0, -0.3], [sx * 0.22, sy * 0.5, -0.22], [sx * 0.22, sy, -0.2]], 0.03, { paint: pl, seg: 7 });
+      p.tube([[sx * 0.25, 0.0, 0.32], [sx * 0.23, sy * 0.5, 0.26], [sx * 0.26, sy + 0.2, 0.2], [sx * 0.27, sy + 0.22, -0.1], [sx * 0.27, sy + 0.2, -0.27]], 0.032, { paint: pl, seg: 7 });
+      p.tube([[sx * 0.27, 0.0, -0.33], [sx * 0.23, sy * 0.5, -0.24], [sx * 0.22, sy - 0.03, -0.2]], 0.03, { paint: pl, seg: 7 });
     }
-    const holes = [];
-    for (let k = 0; k < 5; k++) { const x0 = (k - 2) * 0.07, x1 = (k - 2) * 0.115; holes.push([[x0 - 0.011, 0.1], [x0 + 0.011, 0.1], [x1 + 0.017, 0.4], [x1 - 0.017, 0.4]]); }
-    const shape = [[-0.21, 0], [0.21, 0], [0.27, 0.28], [0.275, 0.42], [0.2, 0.52], [0, 0.55], [-0.2, 0.52], [-0.275, 0.42], [-0.27, 0.28]];
-    p.extrude(shape, 0.04, { holes, bevel: 0.012, at: [0, sy + 0.03, -0.2], rot: [-0.2, 0, 0], paint: pl });
   });
   if (opts.tipped) { body.rotation.order = 'YXZ'; body.rotation.set(-1.32, 0, 0.08); }
   const root = p.done();
@@ -514,7 +599,7 @@ export function backpackYellow(seed = 1, opts = {}) {
   for (const sx of [-1, 1]) p.box([0.1, 0.3, 0.24], { at: [sx * 0.3, 0.17, 0.0], paint: fb2, bevel: 0.05, hi: true });
   if (opts.roll !== false) {
     const pink = p.paint('fabric', { color: '#e8527e', col2: '#c93a62', under: '#c93a62', pattern: 'stains', patW: 0.3, dirt: 0.4 });
-    p.cyl(0.1, 0.5, { at: [0, 0.71, 0.0], rot: [0, 0, PI / 2], paint: pink, bevel: 0.03, seg: 12 });
+    p.lathe(softRollPts(0.1, 0.5), { at: [0, 0.71, 0.0], rot: [0, 0, PI / 2], paint: pink, seg: 12 });
     for (const x of [-0.14, 0.14]) p.cyl(0.108, 0.04, { at: [x, 0.71, 0], rot: [0, 0, PI / 2], paint: dark, seg: 12 });
     p.cyl(0.06, 0.01, { at: [0.255, 0.71, 0], rot: [0, 0, PI / 2], paint: p.paint('fabric', { color: '#a82a4c', chip: 0 }), seg: 10 });
   }

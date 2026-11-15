@@ -7,7 +7,7 @@ function updateProps(groups, dt, t) { tickFire(t); for (const g of groups) g.use
 
 const SHEETS = {
   props:    { img: 'ref/owner-props-sheet.webp', w: 1461, h: 829, elev: 34, fov: 24, dist: 30 },
-  vehicles: { img: 'ref/owner-vehicles-sheet.webp', w: 1378, h: 773, elev: 15, fov: 13, dist: 55 },
+  vehicles: { img: 'ref/owner-vehicles-sheet.webp', w: 1378, h: 773, elev: 10, fov: 13, dist: 55 },
   workshop: { img: 'ref/owner-workshop-scene.webp', w: 1446, h: 848, elev: 34, fov: 24, dist: 30 },
   campfire: { img: 'ref/owner-campfire-scene.webp', w: 1437, h: 761, elev: 22, fov: 24, dist: 30 },
 };
