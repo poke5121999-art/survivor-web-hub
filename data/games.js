@@ -1076,5 +1076,20 @@ window.HUB_GAMES = [
     rev: "20261115b",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
+  },
+  {
+    id: "nhan-vat-voxel",
+    title: "Nhân Vật Khối Voxel",
+    tagline: "168 nhân vật dựng bằng khối voxel: 120 người sống sót, zombie, anh hùng và boss của Blockade Z, đều cử động được.",
+    desc: "Dàn nhân vật chibi theo ảnh mẫu của chủ dự án được cắt thành khối voxel bằng code, giữ nguyên động tác đứng, đi, chạy, đánh, trúng đòn, ngã; cùng 13 anh hùng, 14 loại zombie và 11 boss voxel của Blockade Z. Thanh kéo độ mịn từ 12 tới 64 khối theo chiều cao, bấm vào một nhân vật để xoay xem gần và so với bản mượt. Không tải tệp model hay texture nào.",
+    genre: "khac",
+    accent: "#7bd36a",
+    en: { title: "Voxel Block Characters", tagline: "168 characters built from voxel blocks: 120 survivors, zombies, Blockade Z heroes and bosses, all animated.", desc: "The chibi roster from the owner concept art cut into voxel blocks by code, keeping idle, walk, run, attack, hit and death animations, plus Blockade Z voxel heroes, zombies and bosses. A detail slider from 12 to 64 blocks tall and a click-to-inspect view with a smooth comparison. No model or texture files." },
+    thumbnail: "assets/thumbnails/nhan-vat-voxel.png",
+    // Nguồn làm việc: D:/voxel-chars trên HOB-THOR; bộ cắt voxel dùng lại được, xem games/nhan-vat-voxel/README.md.
+    path: "games/nhan-vat-voxel/index.html",
+    rev: "20261115a",
+    status: "available",
+    tags: ["Thử nghiệm", "Voxel", "Nhân vật 3D", "Không asset"]
   }
 ];

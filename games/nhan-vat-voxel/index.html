@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nhân Vật Voxel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23ffb347'/%3E%3C/svg%3E">
+<meta name="description" content="Một trang, nhiều nhân vật dựng bằng khối voxel: 120 người sống sót, 10 zombie chibi và dàn nhân vật Blockade Z, có hoạt ảnh, chỉ bằng code.">
+<style>
+  :root { --bg: #14151b; --panel: #1e1f27; --line: #33343f; --ink: #ecebf2; --dim: #9c9aab; --acc: #ffb347; --acc2: #7fd6c2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, 'Segoe UI', sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 16px 6px; }
+  header h1 { font-size: 16px; margin: 0 6px 0 0; letter-spacing: .02em; }
+  header h1 b { color: var(--acc); font-weight: 800; }
+  .tabs, .ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .ctl { padding: 0 16px 8px; gap: 8px 14px; }
+  button, select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; font: inherit; cursor: pointer; min-height: 32px; }
+  button:hover, select:hover { border-color: #4a4b58; }
+  button.on { border-color: var(--acc); color: var(--acc); }
+  button:disabled { opacity: .45; cursor: default; }
+  button small { color: var(--dim); font-variant-numeric: tabular-nums; }
+  label { display: flex; align-items: center; gap: 8px; color: var(--dim); }
+  input[type=range] { width: 150px; accent-color: var(--acc); }
+  #nval { color: var(--ink); font-variant-numeric: tabular-nums; min-width: 9ch; }
+  #stats { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 16px 8px; color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  #stats b { color: var(--ink); font-weight: 600; }
+  #wrap { position: relative; flex: 1; min-height: 0; }
+  canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #prog { position: absolute; left: 16px; top: 10px; padding: 6px 10px; border-radius: 7px; background: rgba(20,21,27,.82); color: var(--dim); font-size: 12.5px; pointer-events: none; }
+  #prog:empty { display: none; }
+  #hint { position: absolute; right: 16px; bottom: 10px; color: var(--dim); font-size: 12px; pointer-events: none; text-align: right; background: rgba(20,21,27,.6); padding: 4px 8px; border-radius: 6px; }
+  #tip { position: absolute; pointer-events: none; background: rgba(20,21,27,.92); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 12px; display: none; white-space: nowrap; }
+  #inspect { position: fixed; inset: 0; background: #0d0e13; display: none; flex-direction: column; z-index: 5; }
+  #inspect.on { display: flex; }
+  #inspect .bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; align-items: center; }
+  #inspect .bar strong { margin-right: 6px; }
+  #iwrap { position: relative; flex: 1; min-height: 0; }
+  #icv { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+  #ilab { position: absolute; left: 0; right: 0; top: 8px; display: none; justify-content: space-around; pointer-events: none; color: var(--dim); font-size: 12px; }
+  #ilab.on { display: flex; }
+  #istat { color: var(--dim); padding: 6px 16px 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  footer { color: var(--dim); font-size: 11.5px; padding: 4px 16px 8px; }
+  footer a { color: var(--dim); }
+  @media (max-width: 560px) { header h1 { width: 100%; } input[type=range] { width: 110px; } #hint { display: none; } footer { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><b>Voxel</b> nhân vật</h1>
+  <div class="tabs" id="tabs"></div>
+</header>
+<div class="ctl">
+  <label>Hoạt ảnh <select id="anim"></select></label>
+  <label>Độ mịn <input id="dens" type="range" min="12" max="64" step="2" value="32"> <span id="nval"></span></label>
+  <button id="fit" title="Thu nhỏ để thấy cả nhóm trên một màn">Xem cả nhóm</button>
+</div>
+<div id="stats"></div>
+<div id="wrap">
+  <canvas class="gl" id="grid"></canvas>
+  <div id="prog"></div>
+  <div id="tip"></div>
+  <div id="hint">Kéo hoặc lăn chuột để cuộn · chạm một nhân vật để xem gần</div>
+</div>
+<footer>Mỗi nhân vật được cắt thành khối voxel bằng code từ bản mượt (kit Lanternfall của loktar00, preset chibi theo sheet của chủ dự án) và dàn voxel của Blockade Z. three.js r170 (MIT).</footer>
+<div id="inspect">
+  <div class="bar">
+    <button id="close">← Lưới</button>
+    <strong id="iname"></strong>
+    <span id="ianims" class="tabs"></span>
+    <button id="cmp">So với bản mượt</button>
+  </div>
+  <div id="iwrap"><canvas id="icv"></canvas><div id="ilab"><span>Voxel</span><span>Bản mượt</span></div></div>
+  <div id="istat"></div>
+</div>
+<script type="module">
+import { THREE } from './lib/lf-host.js';
+import { createRenderer, studioEnv, addLights, Actor } from './lib/chibi/stage.js';
+import { createPost } from './lib/chibi/post.js';
+import { ROSTER, ZOMBIES } from './lib/roster/index.js';
+import { buildChibi } from './lib/chibi/compose.js';
+import { VoxActor, voxChibi } from './vox/chibi.js';
+import { loadCast, CastActor } from './vox/bz.js';
+
+const QS = new URLSearchParams(location.search);
+const ANIMS = [['idle', 'Đứng'], ['ready', 'Thủ thế'], ['walk', 'Đi'], ['run', 'Chạy'], ['attack', 'Đánh'], ['hit', 'Trúng đòn'], ['death', 'Ngã']];
+const TABS = [
+  { id: 'survivors', label: 'Người sống sót', kind: 'chibi', specs: () => ROSTER },
+  { id: 'zombies', label: 'Zombie', kind: 'chibi', specs: () => ZOMBIES },
+  { id: 'bz-heroes', label: 'BZ anh hùng', kind: 'bz', group: 'heroes' },
+  { id: 'bz-zombies', label: 'BZ zombie', kind: 'bz', group: 'zombies' },
+  { id: 'bz-bosses', label: 'BZ boss', kind: 'bz', group: 'bosses' },
+];
+const DEFS = new Map();
+const defOf = (sp) => { let d = DEFS.get(sp.id); if (!d) { d = buildChibi(sp); DEFS.set(sp.id, d); } return d; };
+let CAST = null; // Blockade Z data (data/bz-cast.js), loaded on first use
+const castP = loadCast().then((c) => (CAST = c)).catch((e) => { console.warn('bz cast not loaded:', e.message); CAST = { chars: [] }; });
+
+/* ---------------- state ---------------- */
+const S = { tab: QS.get('tab') || 'survivors', anim: QS.get('a') || 'idle', n: +(QS.get('n') || 32), fit: QS.has('fit') };
+const inspectN = () => Math.min(64, Math.round(S.n * 1.5 / 2) * 2); // inspect is 1.5x finer than the grid
+
+/* ---------------- UI ---------------- */
+const tabsEl = document.getElementById('tabs');
+for (const t of TABS) { const b = document.createElement('button'); b.dataset.t = t.id; b.innerHTML = `${t.label} <small></small>`; b.onclick = () => showTab(t.id); tabsEl.appendChild(b); t.btn = b; }
+const animSel = document.getElementById('anim');
+for (const [k, l] of ANIMS) { const o = document.createElement('option'); o.value = k; o.textContent = l; animSel.appendChild(o); }
+animSel.value = S.anim; animSel.onchange = () => setGridAnim(animSel.value);
+const dens = document.getElementById('dens'), nval = document.getElementById('nval');
+dens.value = S.n;
+const showN = () => (nval.textContent = `${S.n} khối · xem gần ${inspectN()}`);
+showN();
+dens.oninput = () => { S.n = +dens.value; showN(); };
+dens.onchange = () => { S.n = +dens.value; showN(); rebuildGrid(); };
+function tabCounts() {
+  for (const t of TABS) {
+    const n = t.kind === 'chibi' ? t.specs().length : CAST ? CAST.chars.filter((c) => c.group === t.group).length : '…';
+    t.btn.querySelector('small').textContent = n; t.btn.disabled = t.kind === 'bz' && CAST && n === 0;
+  }
+}
+
+/* ---------------- grid ---------------- */
+const gcv = document.getElementById('grid'), R = createRenderer(gcv, { preserve: true, exposure: 0.8 });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1b23); const env = studioEnv(R); scene.environment = env;
+addLights(scene, 'studio');
+const PG = createPost(R, { radius: 0.2, strength: 2.2, vignette: 0 });
+const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+const TILT = 0.12;
+let actors = [], L = { cols: 10, cw: 1, rh: 2.1, rows: 1, scroll: 0, maxScroll: 0, vh: 1 }, queue = [], buildTok = 0;
+
+function itemsFor(tabId) {
+  const t = TABS.find((q) => q.id === tabId);
+  if (t.kind === 'chibi') return t.specs().map((sp) => ({ kind: 'chibi', sp, id: sp.id, name: sp.name }));
+  return (CAST ? CAST.chars.filter((c) => c.group === t.group) : []).map((c) => ({ kind: 'bz', c, id: c.id, name: c.name }));
+}
+function cellSize(tabId) {
+  if (tabId === 'bz-bosses') return { cw: 3.2, rh: 4.4, px: 260 };
+  if (tabId === 'zombies' || tabId === 'bz-zombies') return { cw: 1.35, rh: 2.3, px: 120 };
+  if (tabId === 'bz-heroes') return { cw: 1.2, rh: 2.3, px: 110 };
+  return { cw: 1.0, rh: 2.1, px: 92 };
+}
+function layout() {
+  const w = gcv.clientWidth || 1, h = gcv.clientHeight || 1, cs = cellSize(S.tab), n = Math.max(1, actors.length || queue.length);
+  L.cw = cs.cw; L.rh = cs.rh; L.cols = Math.max(2, Math.min(n, 20, Math.floor(w / cs.px)));
+  // everyone on one screen: when asked, or by itself when the cells would still be at least the normal size (small groups)
+  let fc = 1; while (fc < n && Math.ceil(n / fc) * L.rh + 0.25 > fc * L.cw * h / w) fc++;
+  if (S.fit || w / fc >= cs.px) L.cols = fc;
+  L.rows = Math.ceil(n / L.cols);
+  const W = L.cols * L.cw, vh = W * h / w; L.vh = vh;
+  L.maxScroll = Math.max(0, L.rows * L.rh + 0.25 - vh);
+  L.scroll = Math.min(L.maxScroll, Math.max(0, L.scroll));
+  R.setSize(w, h, false);
+  cam.left = -W / 2; cam.right = W / 2; cam.top = vh / 2; cam.bottom = -vh / 2; cam.updateProjectionMatrix();
+  // rows go down from y = 0; the view top sits at the first row's head plus the scroll
+  const cy = L.rh - 0.15 - vh / 2 - L.scroll;
+  cam.position.set(0, cy + 30 * Math.sin(TILT), 30 * Math.cos(TILT)); cam.lookAt(0, cy, 0);
+  for (const a of actors) placeActor(a);
+}
+function placeActor(a) {
+  const i = a.idx, c = i % L.cols, r = Math.floor(i / L.cols);
+  if (a.fitK === undefined) { // shrink anything taller or wider than its cell (bosses, Soi in beast form); the inspect view keeps true size
+    const bb = a.mesh.geometry.boundingBox, s = a.mesh.scale.x, fly = bb.min.y > 0.25; // flyers hover: bring them down into the cell
+    a.lift = fly ? -(bb.min.y - 0.15) * s : 0;
+    const hh = Math.max(0.5, (bb.max.y - (fly ? bb.min.y - 0.15 : 0)) * s), ww = (bb.max.x - bb.min.x) * s;
+    a.fitK = Math.min(1, (L.rh - 0.3) / hh, (L.cw * 1.15) / Math.max(0.3, ww)); a.root.scale.setScalar(a.fitK);
+  }
+  a.root.position.set((c - (L.cols - 1) / 2) * L.cw - (a.dogMesh ? 0.1 : 0), -r * L.rh + a.lift * a.fitK, 0);
+  if (a.dogMesh) { a.dogMesh.scale.setScalar(a.v.dog.k * 0.5 * ((a.def.pet && a.def.pet.k) || 1)); a.dogMesh.position.set(0.36, 0, 0.25); a.dogMesh.rotation.y = -0.2; }
+}
+function clearGrid() { for (const a of actors) { scene.remove(a.root); a.dispose && a.dispose(); } actors = []; queue = []; }
+function showTab(id) {
+  S.tab = id; for (const t of TABS) t.btn.classList.toggle('on', t.id === id);
+  L.scroll = 0; rebuildGrid(); syncURL();
+}
+async function rebuildGrid() {
+  const tok = ++buildTok; clearGrid();
+  const t = TABS.find((q) => q.id === S.tab);
+  if (t.kind === 'bz' && !CAST) { setProg('Đang tải dàn Blockade Z…'); await castP; tabCounts(); if (tok !== buildTok) return; }
+  queue = itemsFor(S.tab).map((it, idx) => Object.assign({ idx }, it));
+  if (!queue.length) setProg(t.kind === 'bz' ? 'Chưa có dữ liệu Blockade Z (data/bz-cast.js).' : 'Không có nhân vật.');
+  layout();
+}
+function makeActor(it, n, o) {
+  if (it.kind === 'chibi') return new VoxActor(defOf(it.sp), n, o);
+  return new CastActor(it.c, Object.assign({ coarse: n <= 24 ? 2 : 1 }, o)); // Blockade Z grids are 1/32 m; coarse densities halve them
+}
+function pumpBuild() {
+  if (!queue.length) return;
+  const t0 = performance.now();
+  while (queue.length && performance.now() - t0 < 14) {
+    const it = queue.shift();
+    const a = makeActor(it, S.n, { t0: 2 + (it.idx % 20) * 1.3 + Math.floor(it.idx / 20) * 0.7, shadows: false });
+    a.idx = it.idx; a.item = it; a.inPlace = true; a.root.rotation.y = 0.22; scene.add(a.root); placeActor(a); a.setMode(S.anim);
+    for (let i = 0; i < 30; i++) a.update(1 / 30, 0); // settle into the carry pose
+    actors.push(a);
+  }
+  const total = actors.length + queue.length;
+  setProg(queue.length ? `Đang cắt voxel ${actors.length}/${total}…` : '');
+}
+function setProg(s) { document.getElementById('prog').textContent = s; }
+function setGridAnim(m) { S.anim = m; for (const a of actors) a.setMode(m); if (cur) setAnim(m); syncURL(); }
+const speedOf = (a, m) => m === 'walk' ? 1.5 * ((a.def && a.def.speedK) || 1) : m === 'run' ? 3.4 * ((a.def && a.def.speedK) || 1) : 0;
+
+// scrolling: wheel, drag (mouse or touch); tap = inspect
+{
+  let down = null, moved = 0;
+  gcv.addEventListener('wheel', (e) => { e.preventDefault(); L.scroll = Math.min(L.maxScroll, Math.max(0, L.scroll + e.deltaY * L.vh / gcv.clientHeight)); layout(); }, { passive: false });
+  gcv.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY, L.scroll]; moved = 0; gcv.setPointerCapture(e.pointerId); });
+  gcv.addEventListener('pointermove', (e) => {
+    if (down) { const dy = e.clientY - down[1]; moved = Math.max(moved, Math.abs(dy) + Math.abs(e.clientX - down[0])); L.scroll = Math.min(L.maxScroll, Math.max(0, down[2] + dy * L.vh / gcv.clientHeight)); layout(); return; }
+    const a = pick(e); const tip = document.getElementById('tip');
+    if (a && e.pointerType === 'mouse') { tip.style.display = 'block'; tip.textContent = a.item.name; const r = gcv.getBoundingClientRect(); tip.style.left = (e.clientX - r.left + 12) + 'px'; tip.style.top = (e.clientY - r.top + 12) + 'px'; } else tip.style.display = 'none';
+  });
+  const up = (e) => { if (down && moved < 8) { const a = pick(e); if (a) inspect(a.item); } down = null; };
+  gcv.addEventListener('pointerup', up); gcv.addEventListener('pointercancel', () => (down = null));
+  gcv.addEventListener('pointerleave', () => (document.getElementById('tip').style.display = 'none'));
+}
+function pick(e) {
+  const r = gcv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  const c = Math.floor(x * L.cols), wy = y * L.vh + L.scroll, row = Math.floor(wy / L.rh);
+  return actors.find((a) => a.idx === row * L.cols + c) || null;
+}
+window.addEventListener('resize', () => { layout(); iresize(); });
+
+/* ---------------- inspect ---------------- */
+const icv = document.getElementById('icv'), IR = createRenderer(icv, { shadows: true, preserve: true, exposure: 0.95 });
+const iscene = new THREE.Scene(); iscene.background = new THREE.Color(0x1b1c23); iscene.environment = env;
+const IL = addLights(iscene, 'studio', { shadowLight: 'key', shadowR: 5 });
+const PI2 = createPost(IR, { radius: 0.22, strength: 2.2, vignette: 0.3 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.MeshStandardMaterial({ color: 0x2a2b34, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; iscene.add(ground);
+const icam = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+let cur = null, smooth = null, curItem = null, compare = QS.has('cmp'), anim = S.anim, walkA = 0;
+const orbit = { yaw: 0.35, pitch: 0.12, dist: 5.2, ty: 0.9 };
+const ianims = document.getElementById('ianims');
+for (const [k, l] of ANIMS) { const b = document.createElement('button'); b.textContent = l; b.dataset.a = k; b.onclick = () => setAnim(k); ianims.appendChild(b); }
+function setAnim(m) {
+  anim = m;
+  for (const a of [cur, smooth]) if (a) { a.setMode(m); if (m !== 'walk' && m !== 'run') a.root.rotation.y = 0; }
+  ianims.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.a === m));
+}
+function inspect(it) {
+  if (cur) { iscene.remove(cur.root); cur.dispose && cur.dispose(); cur = null; }
+  if (smooth) { iscene.remove(smooth.root); smooth = null; }
+  curItem = it; cur = makeActor(it, inspectN(), { t0: 3 }); iscene.add(cur.root);
+  const h = it.kind === 'bz' ? it.c.height : 1.85;
+  orbit.ty = h * 0.5; orbit.dist = Math.max(3.2, h * 2.8); orbit.yaw = compare ? 0 : 0.35; walkA = 0;
+  document.getElementById('cmp').style.display = it.kind === 'chibi' ? '' : 'none';
+  if (compare && it.kind === 'chibi') { smooth = new Actor(defOf(it.sp), { t0: 3 }); iscene.add(smooth.root); }
+  document.getElementById('cmp').classList.toggle('on', !!smooth);
+  document.getElementById('ilab').classList.toggle('on', !!smooth);
+  setAnim(anim === 'idle' ? S.anim : anim);
+  document.getElementById('iname').textContent = it.name;
+  document.getElementById('inspect').classList.add('on'); iresize(); syncURL();
+}
+document.getElementById('cmp').onclick = () => { compare = !compare; if (curItem) inspect(curItem); };
+document.getElementById('close').onclick = () => { document.getElementById('inspect').classList.remove('on'); if (cur) { iscene.remove(cur.root); cur.dispose && cur.dispose(); } if (smooth) iscene.remove(smooth.root); cur = smooth = curItem = null; syncURL(); };
+function iresize() { const w = icv.clientWidth, h = icv.clientHeight; if (!w || !h) return; IR.setSize(w, h, false); icam.aspect = w / h; icam.updateProjectionMatrix(); }
+{
+  const pts = new Map();
+  icv.addEventListener('pointerdown', (e) => { icv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); });
+  icv.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return; const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (orbit.pd) orbit.dist = Math.min(40, Math.max(1.0, orbit.dist * orbit.pd / d)); orbit.pd = d; return; }
+    orbit.yaw -= (e.clientX - prev[0]) * 0.008; orbit.pitch = Math.min(1.3, Math.max(-0.3, orbit.pitch + (e.clientY - prev[1]) * 0.005));
+  });
+  const up = (e) => { pts.delete(e.pointerId); orbit.pd = 0; }; icv.addEventListener('pointerup', up); icv.addEventListener('pointercancel', up);
+  icv.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.min(40, Math.max(1.0, orbit.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+}
+
+/* ---------------- stats + loop ---------------- */
+const statsEl = document.getElementById('stats');
+let last = performance.now(), fpsT = 0, fpsN = 0, fps = 0, statT = 0, gridCalls = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  fpsN++; fpsT += dt; if (fpsT >= 0.5) { fps = fpsN / fpsT; fpsN = 0; fpsT = 0; }
+  const open = document.getElementById('inspect').classList.contains('on');
+  if (!open) {
+    pumpBuild();
+    for (const a of actors) a.update(dt, speedOf(a, S.anim));
+    R.info.reset(); PG.render(scene, cam); gridCalls = R.info.render.calls;
+    if ((statT += dt) > 0.4) { statT = 0; renderStats(); }
+  } else if (cur) {
+    const list = smooth ? [cur, smooth] : [cur];
+    let sp = speedOf(cur, anim), centre = new THREE.Vector3();
+    list.forEach((a, k) => {
+      const off = smooth ? (k === 0 ? -0.75 : 0.75) : 0;
+      if (sp) { const rr = 2.2; walkA += k === 0 ? sp * dt / rr : 0; a.root.position.set(Math.sin(walkA) * rr + off, 0, Math.cos(walkA) * rr); a.root.rotation.y = walkA + Math.PI / 2; }
+      else a.root.position.set(off, 0, 0);
+      a.update(dt, sp);
+    });
+    if (sp) centre.set(Math.sin(walkA) * 2.2, 0, Math.cos(walkA) * 2.2);
+    icam.position.set(centre.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, orbit.ty + Math.sin(orbit.pitch) * orbit.dist, centre.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+    icam.lookAt(centre.x, orbit.ty, centre.z);
+    IL.key.position.set(centre.x - 3, 7, centre.z + 6); IL.key.target.position.copy(centre); IL.key.target.updateMatrixWorld();
+    IR.info.reset(); PI2.render(iscene, icam);
+    if ((statT += dt) > 0.4) {
+      statT = 0;
+      document.getElementById('istat').textContent = `${cur.vox().toLocaleString('vi')} khối · ${Math.round(cur.tris()).toLocaleString('vi')} tam giác · ${cur.draws()} draw cho nhân vật · ${IR.info.render.calls} draw cả khung (có bóng) · độ mịn ${cur.n || ''} · ${fps.toFixed(0)} fps`
+        + (smooth ? ` · bản mượt ${Math.round(smooth.tris()).toLocaleString('vi')} tam giác` : '');
+    }
+  }
+}
+function renderStats() {
+  let vox = 0, tris = 0, vis = 0; const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+  const sph = new THREE.Sphere();
+  for (const a of actors) { vox += a.vox(); tris += a.tris(); sph.copy(a.mesh.geometry.boundingSphere).applyMatrix4(a.mesh.matrixWorld); if (fr.intersectsSphere(sph)) vis++; }
+  statsEl.innerHTML = `<span><b>${actors.length}</b> nhân vật</span><span><b>${vox.toLocaleString('vi')}</b> khối</span><span><b>${tris.toLocaleString('vi')}</b> tam giác</span>`
+    + `<span><b>${gridCalls}</b> draw (đang thấy ${vis})</span><span><b>${fps.toFixed(0)}</b> fps</span>`;
+  window.__stats = { chars: actors.length, vox, tris, calls: gridCalls, visible: vis, fps, building: queue.length };
+}
+function syncURL() {
+  const u = new URL(location); u.searchParams.set('tab', S.tab); u.searchParams.set('a', S.anim); u.searchParams.set('n', S.n);
+  if (curItem) u.searchParams.set('inspect', curItem.id); else u.searchParams.delete('inspect');
+  if (compare && curItem) u.searchParams.set('cmp', '1'); else u.searchParams.delete('cmp');
+  if (S.fit) u.searchParams.set('fit', '1'); else u.searchParams.delete('fit');
+  history.replaceState(null, '', u);
+}
+
+const fitBtn = document.getElementById('fit');
+fitBtn.classList.toggle('on', S.fit);
+fitBtn.onclick = () => { S.fit = !S.fit; fitBtn.classList.toggle('on', S.fit); L.scroll = 0; layout(); syncURL(); };
+tabCounts(); castP.then(tabCounts);
+showTab(S.tab);
+requestAnimationFrame(frame);
+if (QS.get('inspect')) {
+  const id = QS.get('inspect');
+  const go = () => { const sp = [...ROSTER, ...ZOMBIES].find((s) => s.id === id); if (sp) return inspect({ kind: 'chibi', sp, id, name: sp.name }); const c = CAST && CAST.chars.find((q) => q.id === id); if (c) inspect({ kind: 'bz', c, id, name: c.name }); };
+  const orb = () => { if (QS.get('orbit')) { const [y, p, d, ty] = QS.get('orbit').split(',').map(Number); Object.assign(orbit, { yaw: y, pitch: p, dist: d, ty }); } };
+  if ([...ROSTER, ...ZOMBIES].some((s) => s.id === id)) { go(); orb(); } else castP.then(() => { go(); orb(); });
+}
+
+// hooks for tools/shoot.js
+window.__vc = {
+  ready: () => !queue.length && actors.length > 0,
+  stats: () => window.__stats,
+  inspect: (id) => { const sp = [...ROSTER, ...ZOMBIES].find((s) => s.id === id); if (sp) return inspect({ kind: 'chibi', sp, id, name: sp.name }), true; const c = CAST && CAST.chars.find((q) => q.id === id); if (c) return inspect({ kind: 'bz', c, id, name: c.name }), true; return false; },
+  close: () => document.getElementById('close').click(),
+  anim: (m) => setAnim(m), gridAnim: (m) => { animSel.value = m; setGridAnim(m); },
+  orbit: (y, p, d, ty) => { orbit.yaw = y; if (p !== undefined) orbit.pitch = p; if (d) orbit.dist = d; if (ty) orbit.ty = ty; },
+  tab: (t) => showTab(t), density: (n) => { S.n = n; dens.value = n; showN(); rebuildGrid(); },
+  compare: (on) => { compare = on; if (curItem) inspect(curItem); },
+  scroll: (s) => { L.scroll = s; layout(); }, layout: () => ({ ...L }),
+  cur: () => cur, smooth: () => smooth, ids: () => actors.map((a) => a.item.id),
+};
+</script>
+</body>
+</html>
