@@ -77,6 +77,14 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
   - A room is hosted in the Relay region with the shortest round trip from the host (`net/region.js`, cached for a day). Without it Unity answered `us-central1` for a host in Vietnam. A guest measures its own round trips after joining and sends them to the host (`net` message); `fairRegion` names a region that would serve the worst-placed guest at least 40 ms better. Nothing moves the room there yet.
   - `G.online.netStats()` is the readout a player can turn on (default key F8, Settings, or the pause menu): region, round trip to the host (`pg`/`po` pings), jitter, silences, interpolation delay and buffer, how far the picture is behind or ahead, prediction corrections, traffic. The host sees each guest's round trip, input queue and guessed ticks.
 
+## Auto-aim on touch (Addendum 8)
+
+- `js/autoaim.js` is pure (runs in Node). `pickTarget(m, u, prev, opts)` returns `{ kind: 'unit'|'tower'|'zone', id, x, z, r }` or null: enemies only, inside `weaponRange` (or `opts.range`), in line of sight, visible to my team; enemy decoys rank as units, enemy turret zones come next, towers only when nothing else is in range (and only when `towerOpen`). `opts.priority`: `near` (default), `lowhp`, `lowpct`. `aimFor` gives `{ aim, tx, tz }` with lead factor `LEAD` (0.7) on a smoothed velocity (`createTracker`); rays and charge beams aim straight, lobs aim the ground point after their flight. `fireOk` holds the trigger while the turret still swings toward the target. `skillAim(m, u, skill, target)` is driven by `SKILL_MODES` keyed by `do` (dir, ground, ally, self); `pickAlly` finds the most hurt ally.
+- The lock is a small state object (`newLock`, `updateLock`, `pinLock`) owned by `touch.js`: kept while valid, dropped on death, range, line of sight or hidden; replaced by a tap on an enemy in the right half of the screen, cleared by a drag-aim. Auto-aim only fills `aim`, `tx`, `tz` of the input, so the turret turns at the mech's rate and spread still applies. A co-op guest runs it on its own client and sends the result like any input.
+- Fire button: tap or hold without dragging = auto, drag = manual as before (and clears the lock). Skill tap = quick-cast through `skillAim`, drag = manual. No target in reach = the old behaviour. Mouse input never runs any of it.
+- `G.input.lock` is `null` or `{ kind, id, x, z, r }` (the ring and edge arrow in `js/gfx/fx.js`). Settings live in `controls.aim = { v, auto, priority, pad }` in the save; `G.input.layout.get()` reports `autoAim`, `aimPriority`, `padAim` and `layout.set({ autoAim, aimPriority, padAim })` writes them. `padAim` (default off) gives a gamepad trigger the same auto-aim when the right stick is idle.
+- `node tools/aim-compare.mjs` plays a scripted touch auto-aim player against a scripted good mouse player in bot matches and fails when touch wins by more than about 5%; lower `LEAD` if it does.
+
 ## Shared state `G` (browser)
 
 `G = { THREE, params, quality, bus, renderer, scene, camera, match, me, meta, audio, ui, input, gfx }`
@@ -84,13 +92,14 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 - `G.bus.on(topic, fn)`, `G.bus.emit(topic, data)`. Topics: `sim` (each sim event, payload = event), `match:start`, `match:over`, `ui:play {mech, diff, map}`, `ui:menu`, `quality:set`.
 - `G.match` is the current match or null. `G.me` is the id of the player's unit.
 - `G.project(x, y, z)` → `{ x, y, visible }` in CSS pixels. `G.groundAt(clientX, clientY)` → `[x, z]` on the ground plane.
-- `G.portrait(mechKey, team)` → data URL of a rendered mech portrait (128 px).
+- `G.portrait(mechKey, team, paint, glow, decal)` → data URL of a rendered mech portrait: 128 px per device pixel ratio, up to 384 px.
+- `G.sharpness = { get() → 'auto' | 'sharp' | 'max', set(mode), modes: [{ key, name, hint }] }`: the "Độ nét" setting, applied live. Stored under `localStorage` key `dtt.sharp.v1` (meta.js drops settings keys it does not know when it loads, so `settings.sharpness` alone would not survive a reload); the player's quality pick is likewise kept in `dtt.quality.v1`.
 
 ## URL params and test hooks
 
-`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high`, `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key|random`, `?theme=key|random`, `?mode=key`, `?fakenet=1`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
+`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high` (disables the governor), `?sharp=auto|sharp|max`, `?sharpen=0` (no contrast-adaptive sharpening), `?legacyres=1` (test hook: the resolution rule and governor from before Addendum 9, for before/after numbers), `?govms=N` (test hook: the governor is fed frame times of at least N ms), `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key|random`, `?theme=key|random`, `?mode=key`, `?fakenet=1`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
 
-`window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris, quality, scale}`, `__step(n, draw)` (advance n sim ticks, draw one frame if `draw`), `__setShot({x, z, dist, pitch, yaw} | null)` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__start(choice, attract)` (start a match).
+`window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris, quality, scale (render scale: buffer px per CSS px per axis), dpr, buffer [w, h], governor (steps shed), governorStep, sharpness}`, `__step(n, draw)` (advance n sim ticks, draw one frame if `draw`), `__setShot({x, z, dist, pitch, yaw} | null)` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__start(choice, attract)` (start a match).
 
 ## Tools
 
@@ -108,7 +117,12 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/relay-regions.js` | Round trip from this machine to every Unity Relay region, and which one a room gets when none is asked for |
 | `node tools/stuck.mjs` | Bot matches on every layout: share of ticks a mech wants to move and cannot, split into "against an obstacle" and open ground. `STUCK_TAG`, and an env var to point it at another `js/` tree for a before number |
 | `node tools/gaps.mjs` | Every opening of every layout against the movement radius: routes connected, tight openings (under body + 0.5 m) and false ones (look passable, are not), each with the layout rows that form it. Both lists must be empty |
-| `node tools/bench.js [tiers] [phone]` | Frame cost per quality tier in a busy fight |
+| `node tools/bench.js [tiers] [phone] [cpu4]` | Frame cost per quality tier in a busy fight (phone = 844x390 at DPR 3; cpu4 = 4x CPU throttle) |
+| `node tools/sharp.js` | Phone sharpness, before (`?legacyres=1`) and after, at the owner's phone shapes and others: buffer vs CSS box vs device pixels, what the governor settles at (native, CPU throttle, `?govms`), a Laplacian sharpness number, 1:1 crops and `.chk/sharp/sheet.png`; fails when the render scale drops under 1.0 CSS px, the picture is not sharper, or the buffer stops matching the visual viewport after load, first tap, rotation or browser bar changes |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 
 Browser tools need `PLAYWRIGHT_PATH`. They take a lock file (`.chk/.chrome.lock`) so only one Chrome runs at a time on a shared machine. `DTT_GL=gl-egl` uses the hardware GPU, `DTT_BASE=<hub url>` runs against a deployed hub.
+
+## Render resolution (Addendum 9)
+
+The 3D buffer is `renderScale(mode, tier, dpr, g)` buffer pixels per CSS pixel per axis (table `RES` in `js/gfx/post.js`), rounded to whole device pixels. `auto` (default): ceiling min(DPR, 1.5) on low and min(DPR, 2) on medium and high, floor 1.0. `sharp`: ceiling min(DPR, 2), floor 1.5. `max`: native DPR, the governor never touches it. `g` (1 to 0) is how much of the range the governor has left. The governor sheds cost in the order of the `steps` table in `main.js` (bloom levels, AO, shadow map size, resolution) and gives it back in reverse; recovery is a probe after a stretch of on-time frames, because a 60 Hz screen never reports frames under 13 ms. Below device resolution the composite sharpens (5 taps, clamped to the local min and max, strength grows with the gap); FXAA runs only at 1.5 or more buffer pixels per CSS pixel. On screens above 100 Hz the loop draws every other refresh.

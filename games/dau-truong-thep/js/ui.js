@@ -663,7 +663,7 @@ export function makeUI(G) {
     if (perfAcc < 0.5) return;
     const st = window.__stats, fps = st && st.fps > 0 ? Math.round(st.fps) : Math.round(perfN / perfAcc);
     perfAcc = 0; perfN = 0;
-    let txt = fps + ' FPS';
+    let txt = fps + ' FPS' + (st && st.scale > 0 && st.buffer ? ' · x' + (Math.round(st.scale * 100) / 100).toString().replace('.', ',') : '');
     const ns = onlinePlaying() ? netStats() : null;
     if (ns) {
       const rtt = ns.role === 'host' ? Math.max(0, ...(ns.guests || []).map((g) => +g.rtt || 0)) : ns.rtt;
@@ -891,7 +891,9 @@ export function makeUI(G) {
           setText(T.chgT, c >= ch.max ? 'Đầy' : c >= ch.min ? 'Sẵn sàng' : '');
           const cur = G.input && G.input.cursor && G.input.cursor();
           const pr = cur && cur.seen ? { x: cur.x, y: cur.y, visible: true } : G.project(me.x, 0.4, me.z);
-          if (pr.visible) T.chg.style.transform = `translate3d(${pr.x.toFixed(1)}px,${(pr.y + (cur && cur.seen ? 26 : 56)).toFixed(1)}px,0) translate(-50%,0)`;
+          // Kept whole on screen when the cursor sits at an edge.
+          const cx = Math.max(50, Math.min(innerWidth - 50, pr.x)), cy = Math.min(innerHeight - 34, pr.y + (cur && cur.seen ? 26 : 56));
+          if (pr.visible) T.chg.style.transform = `translate3d(${cx.toFixed(1)}px,${cy.toFixed(1)}px,0) translate(-50%,0)`;
         }
       }
       flag(H.slots, 'off', !me.alive);
@@ -1572,12 +1574,16 @@ export function makeUI(G) {
     <div class="st-tabs" data-r="stTabs"><button data-st="gen" class="on">Chung</button><button data-st="keys">Phím</button></div>
     <div class="st-pane" data-pane="gen">
       <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
+      <div class="fld"><span>Độ nét</span><div class="seg" data-r="sh"></div><small class="fld-hint" data-r="shHint"></small></div>
       <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
       <button class="tog" data-r="netro" aria-pressed="false"><i></i><span>Hiện thông số mạng (co-op)<small>RTT, jitter, khựng hình… ở góc trái khi chơi nhiều người</small></span></button>
+      <button class="tog" data-r="padAim" aria-pressed="false"><i></i><span>Tự nhắm (tay cầm)<small>Giữ cò bắn mà không đẩy cần phải: tháp pháo tự quay về địch trong tầm</small></span></button>
       <div class="tgrp" data-r="touchGrp" hidden>
         <h3>Điều khiển cảm ứng</h3>
+        <button class="tog" data-r="autoAim" aria-pressed="true"><i></i><span>Tự nhắm (cảm ứng)<small>Chạm hoặc giữ nút bắn: tự nhắm địch gần trong tầm. Kéo nút để tự ngắm</small></span></button>
+        <div class="fld"><span>Ưu tiên mục tiêu</span><div class="seg" data-r="aimPrio"></div></div>
         <button class="tog" data-r="fixStick" aria-pressed="false"><i></i><span>Cần điều khiển cố định<small>Cần đi nằm yên ở góc trái, không hiện theo ngón tay</small></span></button>
         <div class="row2"><button class="btn" data-r="lyEdit">Sửa bố cục nút</button><button class="btn danger" data-r="lyReset">Về mặc định</button></div>
       </div>
@@ -1590,25 +1596,50 @@ export function makeUI(G) {
     <button class="btn big" data-r="close">Xong</button></div>`;
   const ST = refs(settings);
   const QL = [['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']];
+  const PRIO = [['near', 'Gần nhất'], ['lowhp', 'Máu thấp nhất'], ['lowpct', 'Máu % thấp nhất']];
   function renderSettings() {
     const d = meta(); if (!d) return;
     ST.q.innerHTML = '';
     for (const [k, n] of QL) {
-      const b = el('button', d.settings.quality === k ? 'on' : '', n);
+      // The tier in use, not the saved field: the page may have started on another tier than the save says.
+      const b = el('button', (G.quality ? G.quality.name : d.settings.quality) === k ? 'on' : '', n);
       b.onclick = () => { d.settings.quality = k; G.meta.save(); G.bus.emit('quality:set', k); renderSettings(); };
       ST.q.appendChild(b);
+    }
+    ST.sh.innerHTML = ''; ST.shHint.textContent = '';
+    ST.sh.parentNode.hidden = !G.sharpness;
+    if (G.sharpness) for (const m of G.sharpness.modes) {
+      const on = G.sharpness.get() === m.key, b = el('button', on ? 'on' : '', m.name);
+      if (on) ST.shHint.textContent = m.hint;
+      b.onclick = () => { G.sharpness.set(m.key); renderSettings(); };
+      ST.sh.appendChild(b);
     }
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
     ST.rumble.setAttribute('aria-pressed', String(d.settings.rumble !== false));
     ST.netro.setAttribute('aria-pressed', String(!!d.settings.netReadout));
     ST.touchGrp.hidden = !isTouch();
-    const ly = layoutApi();
+    const ly = layoutApi(), lg = ly && ly.get && ly.get();
+    ST.autoAim.setAttribute('aria-pressed', String(!lg || lg.autoAim !== false));
+    ST.padAim.setAttribute('aria-pressed', String(!!(lg && lg.padAim)));
+    ST.aimPrio.innerHTML = '';
+    for (const [k, n] of PRIO) {
+      const b = el('button', lg && lg.aimPriority === k ? 'on' : '', n);
+      b.onclick = () => { if (ly && ly.set) ly.set({ aimPriority: k }); renderSettings(); };
+      ST.aimPrio.appendChild(b);
+    }
     ST.fixStick.setAttribute('aria-pressed', String(!!(ly && ly.get && ly.get() && ly.get().fixedStick)));
     ST.lyEdit.hidden = hudOn;
   }
   // G.input.layout comes from the touch module; missing means the buttons do nothing rather than throw.
   const layoutApi = () => (G.input && G.input.layout) || null;
+  const toggleAim = (field) => () => {
+    const ly = layoutApi(), lg = ly && ly.get && ly.get();
+    if (ly && ly.set) ly.set({ [field]: field === 'padAim' ? !(lg && lg.padAim) : !(lg && lg.autoAim !== false) });
+    renderSettings();
+  };
+  ST.autoAim.onclick = toggleAim('autoAim');
+  ST.padAim.onclick = toggleAim('padAim');
   ST.fixStick.onclick = () => {
     const ly = layoutApi();
     if (ly && ly.set) { const cur = !!(ly.get && ly.get() && ly.get().fixedStick); ly.set({ fixedStick: !cur }); }

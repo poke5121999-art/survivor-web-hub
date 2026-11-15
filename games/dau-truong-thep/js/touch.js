@@ -1,7 +1,9 @@
 // Touch controls for landscape phones: floating stick on the left, fire button and a skill arc on the right.
 // Layout is one table (CONTROLS) plus the player's overrides from the save data; every pointer runs a small state machine (STATES).
-import { RULES } from './data.js';
+import { RULES, TICK } from './data.js';
+import { turnRate } from './sim.js';
 import { icon } from './ui.js';
+import { newLock, clearLock, updateLock, pinLock, pickTarget, pickAt, aimFor, fireOk, skillSpec, skillReach, skillAim, createTracker } from './autoaim.js';
 
 // x, y: centre of the control in design px from its anchor corner (inside the safe area). size: diameter in design px.
 // One scale factor from the short side turns design px into CSS px; it never drops below 1, so no target is under 48 px.
@@ -18,6 +20,8 @@ const NAMES = { move: 'Cần gạt di chuyển', fire: 'Nút bắn', s1: 'Chiêu
 const BASE_SHORT = 390, MIN_PX = 48, MAX_SIZE = 150;
 const SLOT_KEY = ['s1', 's2', 'ult'];
 const STICK_DEAD = 0.12, FIRE_DRAG = 9, TAP_MS = 220, HOLD_MS = 170, GROUND_DEF = 0.7, AIM_REACH = 12;
+const ARM_MS = 90, FIRE_TAP_MS = 700, LOCK_IDLE_MS = 4000, ALIGN = 0.12;   // how long a tap waits for the turret, how long a ring outlives the last shot, skill alignment
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // What each skill draws and how far a drag may reach. mode: 'dir' = fixed length along the aim, 'ground' = the drag sets the distance up to `range`, 'self' = no aiming.
 const line = (range, width) => ({ kind: 'line', mode: 'dir', range, radius: 0, width });
@@ -66,11 +70,22 @@ export function makeTouch(G, opts) {
   const rects = {}, cancel = { cx: 0, cy: 0, r: 40 };
   const hint = { slot: 0, kind: 'line', x: 0, z: 0, tx: 0, tz: 0, range: 0, radius: 0, width: 0, cancel: false };
   const api = { hint: null };
+  // Auto-aim state: the lock (what the ring shows), smoothed target velocities, a released fire tap still waiting for the turret.
+  const lock = newLock(), track = createTracker();
+  let fireTap = null, lockSeen = 0;
 
   /* ---- layout data ---- */
-  const store = () => { const d = G.meta && G.meta.get && G.meta.get(); if (!d) return null; if (!d.controls || d.controls.v !== 1) d.controls = { v: 1, fixedStick: false, o: {} }; return d.controls; };
+  const defaultAim = () => ({ v: 1, auto: true, priority: 'near', pad: false });
+  const store = () => {
+    const d = G.meta && G.meta.get && G.meta.get(); if (!d) return null;
+    if (!d.controls || d.controls.v !== 1) d.controls = { v: 1, fixedStick: false, o: {}, aim: defaultAim() };
+    if (!d.controls.aim) d.controls.aim = defaultAim();
+    return d.controls;
+  };
   const overrides = () => { const s = store(); return s ? s.o : fallback.o; };
-  const fallback = { v: 1, fixedStick: false, o: {} };
+  const fallback = { v: 1, fixedStick: false, o: {}, aim: defaultAim() };
+  const aimCfg = () => { const s = store(); return s ? s.aim : fallback.aim; };
+  const autoOn = () => touchOn && aimCfg().auto !== false;
   const fixed = () => { const s = store(); return !!(s ? s.fixedStick : fallback.fixedStick); };
   const persist = () => { try { if (G.meta && G.meta.save) G.meta.save(); } catch (e) { /* a blocked store keeps the layout for this page only */ } };
   const merged = (c) => { const o = overrides()[c.id]; return o ? { ...c, ...o } : { ...c }; };
@@ -119,9 +134,26 @@ export function makeTouch(G, opts) {
   function release(p) {
     const u = lastU, s = skillRow(p);
     const shape = shapeOf(s), c = rects[p.ctl.id];
-    const a = p.state === 'skill-press' ? null : Math.atan2(p.y - c.cy, p.x - c.cx);
+    const tap = p.state === 'skill-press';
+    const a = tap ? null : Math.atan2(p.y - c.cy, p.x - c.cx);
     const frac = a === null ? GROUND_DEF : clamp01((distOf(p, c.cx, c.cy) - tapOf(p)) / (reachOf(p) - tapOf(p)));
     pending = { slot: p.ctl.slot, aim: a, frac, shape, t0: performance.now(), sent: false, u };
+    if (tap && autoOn()) assist(pending, u, s);
+  }
+  // A tapped skill aims by what skillAim says for its primitive; no target and no ally means the old quick-cast.
+  function assist(pd, u, s) {
+    const m = G.match;
+    if (!m || !u || !u.alive) return;
+    track.see(m);
+    const o = { track, priority: aimCfg().priority }, sp = skillSpec(s);
+    const t = sp.mode === 'ally' ? null : pickTarget(m, u, lock.target, { ...o, range: skillReach(u, s) });
+    const r = skillAim(m, u, s, t, o);
+    if (!r) return;
+    pd.aim = r.aim; pd.tx = r.tx; pd.tz = r.tz; pd.fixedAim = true; pd.mode = sp.mode;
+    pd.mx = s.do === 'blink' ? Math.cos(r.aim) : null; pd.mz = s.do === 'blink' ? Math.sin(r.aim) : null;
+    // The sim casts along the turret, so the key waits for it to swing round (read() holds it).
+    pd.life = TAP_MS + Math.min(1000, Math.abs(angDiff(u.aim, r.aim)) / turnRate(u) * 1000);
+    hold = { aim: r.aim, tx: r.tx, tz: r.tz, until: performance.now() + HOLD_MS };
   }
   const STATES = {
     stick: {
@@ -131,7 +163,11 @@ export function makeTouch(G, opts) {
       },
       up: () => 'idle',
     },
-    fire: { move(p) { if (distOf(p, p.ox, p.oy) > FIRE_DRAG) return 'fire-drag'; }, up: () => 'idle' },
+    fire: {
+      move(p) { if (distOf(p, p.ox, p.oy) > FIRE_DRAG) return 'fire-drag'; },
+      // A quick tap may end before the turret has turned: keep the trigger for a moment so the one shot still goes out.
+      up(p) { const now = performance.now(); if (autoOn() && lastU && !lastU.def.weapon.charge && now - p.t0 < TAP_MS) fireTap = { t0: now, sent: false }; return 'idle'; },
+    },
     'fire-drag': { up: () => 'idle' },
     press: { up: () => 'idle' },
     'skill-press': {
@@ -192,6 +228,15 @@ export function makeTouch(G, opts) {
       if (e.target.closest && e.target.closest('button,input,select,textarea,a,[data-block]')) return;
       if (e.clientX >= innerWidth / 2 || [...P.values()].some((p) => p.state === 'stick')) return;
       startStick(e);
+    });
+    // A tap on an enemy in the right half of the screen picks it as the target.
+    addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch' || !autoOn() || editing || e.clientX < innerWidth / 2) return;
+      if (e.target.closest && e.target.closest('button,input,select,textarea,a,[data-block]')) return;
+      const m = G.match, u = lastU, g = G.groundAt && G.groundAt(e.clientX, e.clientY);
+      if (!m || !u || !u.alive || !g) return;
+      const t = pickAt(m, u, g[0], g[1]);
+      if (t) { pinLock(lock, m, t); lockSeen = performance.now(); }
     });
     addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'touch') return;
@@ -350,7 +395,7 @@ export function makeTouch(G, opts) {
     lastU = u;
     out.move = null; out.fire = false; out.aim = null; out.tx = out.tz = null; out.mx = out.mz = null; out.s1 = out.s2 = out.ult = out.heal = false;
     const now = performance.now();
-    let any = false;
+    let any = false, held = false, dragging = false, heldAt = 0;
     for (const p of P.values()) {
       any = true;
       if (p.state === 'stick') {
@@ -358,6 +403,7 @@ export function makeTouch(G, opts) {
         if (Math.hypot(dx, dy) > STICK_DEAD) out.move = [dx, dy];
       } else if (p.state === 'fire' || p.state === 'fire-drag') {
         out.fire = true;
+        if (p.state === 'fire') { held = true; heldAt = p.t0; } else dragging = true;
         if (p.state === 'fire-drag' && out.aim === null) { out.aim = Math.atan2(p.y - p.oy, p.x - p.ox); }
       } else if (p.state === 'press' && p.ctl.kind === 'heal') out.heal = true;
       else if (p.state === 'skill-aim' || p.state === 'skill-cancel') {
@@ -369,12 +415,13 @@ export function makeTouch(G, opts) {
         out.tx = u.x + Math.cos(a) * d; out.tz = u.z + Math.sin(a) * d;
       }
     }
+    if (dragging || out.aim === null) autoFire(u, held, dragging, now, heldAt);
     // A tap shorter than one tick still counts once.
     if (latch.heal) { out.heal = true; latch.heal = false; }
     if (pending) {
       const key = SLOT_KEY[pending.slot];
       // The flag stays up until a tick has seen it and the skill started its cooldown, or the grace period ends; the sim gates the rest.
-      if ((pending.sent && u.cd[key] > 0.2) || now - pending.t0 > TAP_MS || pending.u !== u) pending = null;
+      if ((pending.sent && u.cd[key] > 0.2) || now - pending.t0 > (pending.life || TAP_MS) || pending.u !== u) pending = null;
       else {
         if (!pending.fixedAim) {
           const s = u.def.skills[pending.slot], sh = pending.shape, a = pending.aim === null ? lastAimOf() : pending.aim;
@@ -385,7 +432,8 @@ export function makeTouch(G, opts) {
           pending.fixedAim = true;
           hold = { aim: a, tx: pending.tx, tz: pending.tz, until: now + HOLD_MS };
         }
-        out[key] = true; pending.sent = true;
+        const aimed = pending.mode !== 'dir' && pending.mode !== 'ground' || Math.abs(angDiff(u.aim, pending.aim)) - turnRate(u) * TICK <= ALIGN;
+        if (aimed) { out[key] = true; pending.sent = true; }
         out.aim = pending.aim; out.tx = pending.tx; out.tz = pending.tz;
         if (pending.mx !== null) { out.mx = pending.mx; out.mz = pending.mz; }
         return out;
@@ -395,6 +443,27 @@ export function makeTouch(G, opts) {
     else if (hold && now >= hold.until) hold = null;
     return any || out.aim !== null ? out : null;
   }
+  // The main weapon on touch: a held or just-tapped fire button picks and keeps a target and only supplies aim, tx, tz; a drag never gets here.
+  function autoFire(u, held, dragging, now, heldAt) {
+    const m = G.match;
+    if (!autoOn() || !m || !u.alive) { clearLock(lock); fireTap = null; return; }
+    track.see(m);
+    if (dragging) { clearLock(lock); fireTap = null; return; }
+    if (fireTap && (fireTap.done || now - fireTap.t0 > FIRE_TAP_MS)) fireTap = null;
+    const prio = aimCfg().priority;
+    if (!held && !fireTap) {
+      if (lock.target) { if (now - lockSeen > LOCK_IDLE_MS) clearLock(lock); else updateLock(lock, m, u, { priority: prio, acquire: false }); }
+      return;
+    }
+    lockSeen = now;
+    const t = updateLock(lock, m, u, { priority: prio });
+    if (!t) { fireTap = null; return; }
+    const a = aimFor(m, u, t, { track }), ok = fireOk(u, a.aim, t);
+    out.aim = a.aim; out.tx = a.tx; out.tz = a.tz;
+    // The first moments of a press may be the start of a drag: no shot yet, so a drag never leaks one at the enemy.
+    out.fire = ok && !(held && !fireTap && now - heldAt < ARM_MS);
+    if (fireTap) { if (ok && u.cd.fire <= 0) fireTap.sent = true; else if (fireTap.sent && u.cd.fire > 0) fireTap.done = true; }
+  }
   let aimOf = () => 0;
   const lastAimOf = () => aimOf();
 
@@ -402,7 +471,7 @@ export function makeTouch(G, opts) {
     touchOn = !!on;
     if (!layer) return;
     layer.classList.toggle('on', touchOn || editing);
-    if (!touchOn) { for (const p of [...P.values()]) endPointer(p); pending = null; hold = null; latch.heal = false; api.hint = null; }
+    if (!touchOn) { for (const p of [...P.values()]) endPointer(p); pending = null; hold = null; latch.heal = false; api.hint = null; clearLock(lock); fireTap = null; }
   }
 
   /* ---- layout editor ---- */
@@ -495,17 +564,21 @@ export function makeTouch(G, opts) {
         setOverride(id, patch);
       }
     }
+    const a = aimCfg();
+    if (typeof o.autoAim === 'boolean') a.auto = o.autoAim;
+    if (['near', 'lowhp', 'lowpct'].includes(o.aimPriority)) a.priority = o.aimPriority;
+    if (typeof o.padAim === 'boolean') a.pad = o.padAim;
     persist();
     if (layer) layoutAll();
   }
   function get() {
     if (layer) layoutAll(); else { /* no DOM on desktop: report the table only */ }
     return {
-      v: 1, fixedStick: fixed(), scale: env.S, editing,
+      v: 1, fixedStick: fixed(), scale: env.S, editing, autoAim: aimCfg().auto !== false, aimPriority: aimCfg().priority, padAim: !!aimCfg().pad,
       controls: CONTROLS.map((c0) => { const c = merged(c0), r = rects[c.id]; return { ...c, rect: r ? { l: r.l, t: r.t, w: r.sz, h: r.sz } : null }; }),
     };
   }
 
   const layout = { edit: openEditor, close, reset, get, set };
-  return { read, setVisible, layout, get hint() { return api.hint; }, bindAim: (fn) => { aimOf = fn; }, frame, get on() { return touchOn; } };
+  return { read, setVisible, layout, aimCfg, get lock() { return lock.target; }, get hint() { return api.hint; }, bindAim: (fn) => { aimOf = fn; }, frame, get on() { return touchOn; } };
 }

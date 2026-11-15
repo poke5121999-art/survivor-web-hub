@@ -23,8 +23,8 @@ function fingers(cdp) {
 const G = (p, fn, arg) => p.evaluate(fn, arg);
 const rectOf = (p, id) => p.evaluate((id) => { const r = document.querySelector(`#touch [data-id="${id}"]`).getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }, id);
 
-async function begin(br, base, vp, extra = '') {
-  const g = await open(br, base, `autostart&noaudio&seed=3&mech=tho&q=low${extra}`, { viewport: vp, touch: true });
+async function begin(br, base, vp, extra = '', mech = 'tho') {
+  const g = await open(br, base, `autostart&noaudio&seed=3&mech=${mech}&q=low${extra}`, { viewport: vp, touch: true });
   await wait(g.page, 500);
   g.f = fingers(await g.ctx.newCDPSession(g.page));
   return g;
@@ -90,8 +90,9 @@ session(async (br, base) => {
   await wait(p, 600);
   const a3 = await me(), s3 = await mine();
   await g.f.up(2);
-  check(near(a3.aim, a2.aim, 0.2) && s3.length > 0, `holding fire without a drag shoots along the last aim (${a3.aim.toFixed(2)}, ${s3.length} shots)`);
+  check(near(a3.aim, -Math.PI / 2, 0.2) && s3.length > 0, `holding fire without a drag now turns to the enemy in range up the screen (aim ${a3.aim.toFixed(2)}, ${s3.length} shots)`);
 
+  await place(p, 5, 34, -20 + 15);
   // 3. Skills: tap Q casts it and starts the cooldown; the button shows it.
   await p.evaluate(() => { const u = __G.match.units[0]; u.cd.s1 = 0; u.cd.s2 = 0; u.cd.ult = 0; __G.match.zones.length = 0; });
   const q = await rectOf(p, 's1');
@@ -163,6 +164,212 @@ session(async (br, base) => {
   check(Math.hypot(base1.cx - base0.cx, base1.cy - base0.cy) < 1.5 && f1.x - f0.x > 1.5, `fixedStick keeps the base at ${base0.cx.toFixed(0)},${base0.cy.toFixed(0)} and steers from it (dx ${(f1.x - f0.x).toFixed(1)})`);
   await g.f.up(1);
   await G(p, () => __G.input.layout.set({ fixedStick: false }));
+
+
+  // 7b. Auto-aim. Every unit but mine is frozen where the scene puts it; hp is set per scene.
+  const FAR = [[34, -9], [34, -6], [34, -3], [34, 0], [34, 3]];
+  // Switching Tự nhắm off for a moment drops any lock left from the last scene.
+  const scene = async (pg, spec) => { const was = await pg.evaluate(() => { const a = __G.input.layout.get().autoAim; __G.input.layout.set({ autoAim: false }); return a; }); await wait(pg, 120); await pg.evaluate((a) => __G.input.layout.set({ autoAim: a }), was); await setScene(pg, spec); };
+  const setScene = (pg, spec) => pg.evaluate(([spec, far]) => {
+    clearInterval(window.__calm); clearInterval(window.__freeze);
+    const m = __G.match, me = m.units[0];
+    me.maxHp = me.hp = 1e6; me.stunT = 0; for (const k in me.cd) me.cd[k] = 0;
+    me.x = me.px = spec.me[0]; me.z = me.pz = spec.me[1]; me.vx = me.vz = 0; if (spec.aim !== undefined) me.aim = spec.aim;
+    m.zones.length = 0; m.shots.length = 0;
+    m.units.forEach((u, i) => {
+      if (!i) return;
+      const s = spec.units[i] || {}, at = s.at || far[(i - 1) % 5];
+      u.x = u.px = at[0]; u.z = u.pz = at[1]; u.vx = u.vz = 0;
+      u.maxHp = s.max || 1e6; u.hp = s.hp || u.maxHp; u.alive = true; u.stealthT = s.stealth ? 1e9 : 0; u.shield = 0; u.hasteT = 0;
+      u.bush = -1;
+    });
+    window.__freeze = setInterval(() => { for (const u of m.units) if (u.id) { u.stunT = 60; u.vx = u.vz = 0; if (u.alive && spec.units[u.id] && spec.units[u.id].stealth) u.stealthT = 1e9; } }, 15);
+    window.__rec.clear();
+  }, [spec, FAR]);
+  const lockOf = (pg) => pg.evaluate(() => { const k = __G.input.lock; return k ? { kind: k.kind, id: k.id } : null; });
+  const dirTo = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]);
+  const holdFire = async (pg, ms) => { await g.f.down(2, fr.cx, fr.cy); await wait(pg, ms); const l = await lockOf(pg); const sh = await mine(); await g.f.up(2); return { lock: l, shots: sh }; };
+  const aimsAt = (shots, a, tol = 0.3) => shots.length > 0 && shots.every((s) => near(Math.atan2(s.dz, s.dx), a, tol));
+  const setAim = (pg, o) => pg.evaluate((o) => __G.input.layout.set(o), o);
+  const aimCfg = (pg) => pg.evaluate(() => { const l = __G.input.layout.get(); return { auto: l.autoAim, prio: l.aimPriority }; });
+
+  // Nearest enemy, not the one the turret happened to face (turret faces east where the far one stands).
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [9, 0] }, 6: { at: [0, -5] } } });
+  let r = await holdFire(p, 700);
+  check(r.lock && r.lock.id === 6 && aimsAt(r.shots, -Math.PI / 2), `holding fire locks the nearest enemy (id ${r.lock && r.lock.id}) and shoots it, not the one the turret faced (${r.shots.length} shots)`);
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [9, 0] }, 6: { at: [0, -5] } } });
+  await g.f.tap(fr.cx, fr.cy, 60);
+  await wait(p, 600);
+  const tapShots = await mine();
+  check(tapShots.length >= 1 && aimsAt(tapShots, -Math.PI / 2), `a quick tap fires once at the nearest enemy (${tapShots.length} shots)`);
+
+  // Sticky: the lock stays while a second enemy moves slightly closer.
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [0, -6] }, 6: { at: [6.8, 0] } } });
+  await g.f.down(2, fr.cx, fr.cy);
+  await wait(p, 300);
+  const l1 = await lockOf(p);
+  await place(p, 6, 5.2, 0);
+  await wait(p, 300);
+  const l2 = await lockOf(p);
+  await place(p, 6, 2, 0);
+  await wait(p, 300);
+  const l3 = await lockOf(p);
+  await g.f.up(2);
+  check(l1 && l1.id === 5 && l2 && l2.id === 5 && l3 && l3.id === 5, `the lock stays on the same enemy while another closes in (${l1 && l1.id}, ${l2 && l2.id}, ${l3 && l3.id})`);
+
+  // Drops: death, out of range, behind a wall; then the next valid enemy.
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [0, -5] }, 6: { at: [7, 0] } } });
+  await g.f.down(2, fr.cx, fr.cy);
+  await wait(p, 300);
+  const d0 = await lockOf(p);
+  await p.evaluate(() => { __G.match.units[5].alive = false; });
+  await wait(p, 300);
+  const d1 = await lockOf(p);
+  await place(p, 6, 30, 0);
+  await wait(p, 300);
+  const d2 = await lockOf(p);
+  await g.f.up(2);
+  check(d0 && d0.id === 5 && d1 && d1.id === 6 && d2 === null, `the lock drops on death (to ${d1 && d1.id}) and when the target leaves range (${JSON.stringify(d2)})`);
+  const wp = await p.evaluate(async () => {
+    const M = await import('./js/maps.js'), map = __G.match.map;
+    for (const w of map.walls) {
+      const cx = (w.x0 + w.x1) / 2, cz = (w.z0 + w.z1) / 2;
+      for (const [dx, dz] of [[1, 0], [0, 1]]) {
+        const h = (dx ? w.x1 - w.x0 : w.z1 - w.z0) / 2 + 2.2, a = [cx - dx * h, cz - dz * h], b = [cx + dx * h, cz + dz * h];
+        if (2 * h < 11 && !M.solidAt(map, a[0], a[1], 0.9) && !M.solidAt(map, b[0], b[1], 0.9) && !M.losClear(map, a[0], a[1], b[0], b[1])) {
+          for (let k = 0; k < 16; k++) {
+            const t = [a[0] + Math.cos(k * 0.3927) * 4.5, a[1] + Math.sin(k * 0.3927) * 4.5];
+            if (!M.solidAt(map, t[0], t[1], 0.9) && M.losClear(map, a[0], a[1], t[0], t[1], 0.5)) return { a, b, c: t };
+          }
+        }
+      }
+    }
+    return null;
+  });
+  check(!!wp, 'the map has a wall to test line of sight with');
+  if (wp) {
+    await scene(p, { me: wp.a, aim: 0, units: { 5: { at: wp.b }, 6: { at: wp.c } } });
+    await g.f.down(2, fr.cx, fr.cy);
+    await wait(p, 300);
+    const w1 = await lockOf(p);
+    await g.f.up(2);
+    check(w1 && w1.id === 6, `an enemy behind a wall is not locked while another is in the clear (locked ${w1 && w1.id})`);
+  }
+
+  // Drag overrides: aim follows the thumb, the lock is cleared; tapping again re-acquires.
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [0, -6] } } });
+  await g.f.down(2, fr.cx, fr.cy);
+  await wait(p, 250);
+  const g0 = await lockOf(p);
+  await g.f.move(2, fr.cx - 40, fr.cy);
+  await wait(p, 600);
+  const g1 = await lockOf(p), ga = await me(), gs = await mine();
+  await g.f.up(2);
+  check(g0 && g0.id === 5 && g1 === null && near(ga.aim, Math.PI, 0.25), `dragging the fire button clears the lock and the aim follows the thumb (lock ${JSON.stringify(g1)}, aim ${ga.aim.toFixed(2)})`);
+  check(gs.some((s) => s.dx < -0.8), 'shots go where the thumb points, not at the enemy');
+  await forget();
+  await g.f.tap(fr.cx, fr.cy, 60);
+  await wait(p, 300);
+  check((await lockOf(p)) && (await lockOf(p)).id === 5, 'tapping fire again locks the enemy again');
+
+  // Priority options in one scene: C is nearest, A has the least hp, B the lowest share.
+  const prioScene = { me: [0, 0], aim: 0, units: { 5: { at: [8, 0], hp: 500, max: 1000 }, 6: { at: [0, 9], hp: 800, max: 4000 }, 7: { at: [-5, 0] } } };
+  const picks = {};
+  for (const prio of ['near', 'lowhp', 'lowpct']) {
+    await setAim(p, { aimPriority: prio });
+    await scene(p, prioScene);
+    await g.f.down(2, fr.cx, fr.cy);
+    await wait(p, 120);
+    picks[prio] = (await lockOf(p) || {}).id;
+    await g.f.up(2);
+    await wait(p, 700);
+  }
+  await setAim(p, { aimPriority: 'near' });
+  check(picks.near === 7 && picks.lowhp === 5 && picks.lowpct === 6, `priority picks the nearest (${picks.near}), the lowest hp (${picks.lowhp}) and the lowest share (${picks.lowpct})`);
+
+  // Tap on an enemy on screen picks it even though another is nearer.
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [3, 0] }, 6: { at: [8, -3.5] } } });
+  const px = await p.evaluate(() => { const q = __G.project(8, 0, -3.5); return [q.x, q.y]; });
+  await g.f.tap(px[0], px[1], 50);
+  await wait(p, 150);
+  const tl = await lockOf(p);
+  r = await holdFire(p, 700);
+  check(tl && tl.id === 6 && r.lock && r.lock.id === 6 && aimsAt(r.shots, dirTo([0, 0], [8, -3.5]), 0.3), `tapping an enemy on screen locks it (${tl && tl.id}) and fire follows it`);
+
+  // A hidden enemy is never locked, however near.
+  await scene(p, { me: [0, 0], aim: 0, units: { 5: { at: [0, -5], stealth: true }, 6: { at: [8, 0] } } });
+  r = await holdFire(p, 500);
+  check(r.lock && r.lock.id === 6 && aimsAt(r.shots, 0), `a stealthed enemy nearby is skipped (locked ${r.lock && r.lock.id})`);
+
+  // No enemy in range: the old behaviour, along the last aim.
+  await g.f.down(2, fr.cx, fr.cy); await g.f.move(2, fr.cx + 40, fr.cy); await wait(p, 300); await g.f.up(2);
+  await scene(p, { me: [0, 0], units: {} });
+  r = await holdFire(p, 500);
+  check(r.lock === null && aimsAt(r.shots, 0, 0.2), `no enemy in range fires along the last aim as before (${r.shots.length} shots, lock ${JSON.stringify(r.lock)})`);
+
+  // Setting off: today's tap and hold, even with an enemy next to the mech.
+  await setAim(p, { autoAim: false });
+  await scene(p, { me: [0, 0], units: { 5: { at: [0, -5] } } });
+  r = await holdFire(p, 500);
+  check(r.lock === null && aimsAt(r.shots, 0, 0.2), `with Tự nhắm off, holding fire keeps the last aim (${r.shots.length} shots)`);
+  await setAim(p, { autoAim: true });
+
+  // Settings survive a reload.
+  await setAim(p, { autoAim: false, aimPriority: 'lowpct', padAim: true });
+  const sv = await G(p, () => JSON.parse(localStorage.getItem('dtt.save.v1')).controls.aim);
+  await p.reload();
+  await p.waitForFunction('window.__ready === true', null, { timeout: 120000 });
+  await wait(p, 500);
+  const rl = await aimCfg(p), rp = await G(p, () => __G.input.layout.get().padAim);
+  check(sv.auto === false && sv.priority === 'lowpct' && sv.pad === true && rl.auto === false && rl.prio === 'lowpct' && rp === true, `Tự nhắm settings are saved under controls.aim and survive a reload (${JSON.stringify(rl)})`);
+  await setAim(p, { autoAim: true, aimPriority: 'near', padAim: false });
+  await G(p, () => { window.__rec = new Map(); setInterval(() => { for (const s of __G.match.shots) if (s.owner === 0 && !window.__rec.has(s.id)) window.__rec.set(s.id, { dx: s.dx, dz: s.dz, hook: !!s.hook }); }, 8); });
+
+  // Skills. Each needs its own mech, so a fresh page; the scene helper is reused.
+  const skillPage = async (mech) => {
+    const t = await begin(br, base, vp, '', mech);
+    await t.page.evaluate(() => { window.__rec = new Map(); setInterval(() => { for (const s of __G.match.shots) if (s.owner === 0 && !window.__rec.has(s.id)) window.__rec.set(s.id, { dx: s.dx, dz: s.dz, hook: !!s.hook }); }, 8); });
+    return t;
+  };
+  let t = await skillPage('mangxa');
+  await scene(t.page, { me: [0, 0], aim: 0, units: { 5: { at: [0, -8] }, 6: { at: [9, 3] } } });
+  let br2 = await rectOf(t.page, 's1');
+  await t.f.tap(br2.cx, br2.cy);
+  await wait(t.page, 700);
+  const hk = await t.page.evaluate(() => [...window.__rec.values()].filter((s) => s.hook));
+  check(hk.length === 1 && aimsAt(hk, -Math.PI / 2, 0.2), `tapping a directional skill (Móc Xích) casts toward the lock, the nearest enemy (${hk.length} hooks)`);
+  check((await t.page.evaluate(() => window.__errors)).length === 0 && t.problems.length === 0, 'no errors in the directional skill page');
+  await t.close();
+
+  t = await skillPage('hac');
+  const zoneAt = (pg) => pg.evaluate(() => { const z = __G.match.zones.find((q) => q.kind === 'field'); return z && [z.x, z.z]; });
+  br2 = await rectOf(t.page, 's2');
+  await scene(t.page, { me: [0, 0], aim: 0, units: { 5: { at: [0, -8] } } });
+  await t.f.tap(br2.cx, br2.cy);
+  await wait(t.page, 700);
+  const za = await zoneAt(t.page);
+  check(!!za && Math.hypot(za[0] - 0, za[1] + 8) < 1.2, `tapping an area skill lands it on the lock (${za ? za.map((v) => v.toFixed(1)) : 'none'} for an enemy at 0,-8)`);
+  await scene(t.page, { me: [0, 0], aim: 0, units: { 5: { at: [0, -14] } } });
+  await t.f.tap(br2.cx, br2.cy);
+  await wait(t.page, 900);
+  const zb = await zoneAt(t.page);
+  check(!!zb && Math.abs(Math.hypot(zb[0], zb[1]) - 13) < 0.8 && Math.abs(zb[0]) < 1, `an enemy past cast range gets the area clamped to 13 m (${zb ? zb.map((v) => v.toFixed(1)) : 'none'})`);
+  await scene(t.page, { me: [0, 0], aim: 0, units: {} });
+  await t.f.tap(br2.cx, br2.cy);
+  await wait(t.page, 500);
+  const zc = await zoneAt(t.page), cd = await t.page.evaluate(() => __G.match.units[0].cd.s2);
+  check(cd > 5, `with nobody in range the skill still casts as before (cooldown ${cd.toFixed(1)}, zone ${zc ? zc.map((v) => v.toFixed(1)) : 'none'})`);
+  await t.close();
+
+  t = await skillPage('kimquy');
+  br2 = await rectOf(t.page, 's1');
+  await scene(t.page, { me: [0, 0], aim: 0, units: { 1: { at: [-6, 2], hp: 2000, max: 3000 }, 2: { at: [4, 6], hp: 900, max: 3000 }, 3: { at: [0, -7], hp: 2800, max: 3000 }, 5: { at: [9, 0] } } });
+  await t.f.tap(br2.cx, br2.cy);
+  await wait(t.page, 600);
+  const sh = await t.page.evaluate(() => __G.match.units.slice(0, 5).map((u) => u.shield));
+  check(sh[2] > 0 && sh[1] === 0 && sh[3] === 0 && sh[0] === 0, `tapping Khiên Tặng shields the most hurt ally in range (shields ${sh.map((v) => v.toFixed(0))})`);
+  check((await t.page.evaluate(() => window.__errors)).length === 0 && t.problems.length === 0, 'no errors in the ally skill page');
+  await t.close();
 
   check((await p.evaluate(() => window.__errors)).length === 0 && g.problems.length === 0, 'no errors during the touch session' + (g.problems[0] ? ': ' + g.problems[0].slice(0, 200) : ''));
 
@@ -236,6 +443,20 @@ session(async (br, base) => {
   const dm = await d.page.evaluate(() => { const u = __G.match.units[0]; return { dx: u.x - __G.match.map.spawns[0][0][0], fired: __G.match.shots.some((s) => s.owner === 0) || u.cd.fire > 0 }; });
   await d.page.keyboard.up('d'); await d.page.mouse.up();
   check(dm.dx > 1 && dm.fired, `keyboard and mouse still move and fire (dx ${dm.dx.toFixed(1)})`);
+  // A mouse never auto-aims: an enemy right beside the mech, the cursor the other way, shots follow the cursor.
+  await d.page.evaluate(() => {
+    window.__rec = new Map(); setInterval(() => { for (const s of __G.match.shots) if (s.owner === 0 && !window.__rec.has(s.id)) window.__rec.set(s.id, { dx: s.dx, dz: s.dz }); }, 8);
+    const m = __G.match, me = m.units[0]; me.maxHp = me.hp = 1e6;
+    setInterval(() => { for (const u of m.units) if (u.id) { u.stunT = 60; u.hp = u.maxHp = 1e6; } }, 15);
+    m.units.forEach((u, i) => { if (i) { u.x = u.px = u.team ? 34 : -34; u.z = u.pz = -20 + i * 3; } });
+    me.x = me.px = 0; me.z = me.pz = 0; m.units[5].x = m.units[5].px = 0; m.units[5].z = m.units[5].pz = -5;
+  });
+  const cur = await d.page.evaluate(() => { const q = __G.project(8, 0, 0); return [q.x, q.y]; });
+  await d.page.mouse.move(cur[0], cur[1]); await d.page.mouse.down();
+  await wait(d.page, 700);
+  const ms = await d.page.evaluate(() => ({ lock: __G.input.lock, shots: [...window.__rec.values()] }));
+  await d.page.mouse.up();
+  check(ms.lock === null && ms.shots.length > 0 && ms.shots.every((s) => s.dx > 0.8), `a mouse-driven page never auto-aims (${ms.shots.length} shots along the cursor, lock ${JSON.stringify(ms.lock)})`);
   check((await d.page.evaluate(() => window.__errors)).length === 0 && d.problems.length === 0, 'no errors on desktop');
   await d.close();
   check.done();

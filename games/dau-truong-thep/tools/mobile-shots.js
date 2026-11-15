@@ -6,7 +6,7 @@ const { execFileSync } = require('child_process');
 const { session, open, CHK, fs, path } = require('./lib.js');
 const OUT = path.join(CHK, 'mobile-ui');
 const PROFILES = [['iphone', 844, 390], ['android', 915, 412], ['small', 740, 360], ['tablet', 1180, 820]];
-const STATES = ['fight', 'nha', 'minimap', 'pause', 'editor', 'garage', 'shop', 'lobby'];
+const STATES = ['fight', 'autoaim', 'autoaim-settings', 'nha', 'minimap', 'pause', 'editor', 'garage', 'shop', 'lobby'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const failures = [], saved = [];
 
@@ -70,6 +70,37 @@ async function skillButton(page) {
   return r;
 }
 
+// Auto-aim: three frozen enemies in the clear around the mech, the right thumb holding fire without dragging; the shot is taken while held.
+async function autoAimShot(page, w, h) {
+  const spot = await page.evaluate(async () => {
+    const M = await import('./js/maps.js'), m = __G.match, me = m.units[0], map = m.map;
+    me.maxHp = me.hp = 1e6;
+    const free = [];
+    for (let k = 0; k < 24; k++) for (const d of [8, 6.5, 5]) {
+      const a = k / 24 * 6.2832, x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d;
+      if (!M.solidAt(map, x, z, 0.9) && M.losClear(map, me.x, me.z, x, z, 0.5)) free.push([x, z, a, d]);
+    }
+    const pick = [], used = [];
+    for (const f of free) { if (used.every((a) => Math.abs(Math.atan2(Math.sin(a - f[2]), Math.cos(a - f[2]))) > 0.9)) { used.push(f[2]); pick.push(f); } if (pick.length === 3) break; }
+    const foes = m.units.filter((u) => u.team !== me.team);
+    foes.forEach((u, i) => { const f = pick[i]; u.stunT = 1e6; u.hp = u.maxHp; if (f) { u.x = u.px = f[0]; u.z = u.pz = f[1]; } else { u.x = u.px = 40; u.z = u.pz = -30 + i * 3; } });
+    for (const u of m.units) if (u.id && u.team === me.team) { u.stunT = 1e6; }
+    return pick.length;
+  });
+  if (spot < 2) throw new Error('no open ground around the mech for the auto-aim scene');
+  const cdp = await page.context().newCDPSession(page);
+  const f = await page.evaluate(() => { const b = document.querySelector('#touch [data-id="fire"]').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
+  const send = (type, tp) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: tp });
+  await send('touchStart', [{ x: f[0], y: f[1], id: 1 }]);
+  await sleep(900);
+  const lock = await page.evaluate(() => __G.input.lock);
+  if (!lock) { await send('touchEnd', []); throw new Error('no target ring: G.input.lock is null while fire is held'); }
+  const file = path.join(OUT, 'tmp-autoaim.png');
+  await page.screenshot({ path: file });
+  await send('touchEnd', []);
+  return file;
+}
+
 async function contactSheet(files) {
   const list = JSON.stringify(files);
   execFileSync('python3', ['-I', '-c', `import sys, json, os
@@ -115,6 +146,12 @@ session(async (br, base) => {
       await need(P, '#ui .lb-code b', 'room code'); await sleep(500); return P;
     });
     await g.ctx.close();
+    g = await openIn(br, base, Q + '&fakenet=1', w, h);
+    await state(prof, 'autoaim-settings', async () => {
+      await tap(g.page, '#ui [data-r="bSet"]', 'settings button'); await need(g.page, '#ui .modal.on [data-r="autoAim"]', 'Tự nhắm entry', 4000);
+      await g.page.evaluate(() => document.querySelector('#ui [data-r="touchGrp"]').scrollIntoView({ block: 'center' })); await sleep(400); return g.page;
+    });
+    await g.ctx.close();
     // Thủ nhà
     g = await openIn(br, base, Q + '&mode=nha&autostart&mech=trau', w, h);
     await state(prof, 'nha', async () => { await waitMatch(g.page); await need(g.page, '#ui .hud.on', 'HUD'); return g.page; });
@@ -126,6 +163,7 @@ session(async (br, base) => {
       await waitMatch(M); await need(M, '#touch.on', 'touch controls');
       return fightShot(M, w, h);
     });
+    await state(prof, 'autoaim', async () => { await need(M, '#touch.on', 'touch controls'); return autoAimShot(M, w, h); });
     await state(prof, 'minimap', async () => { await tap(M, '#ui .mm', 'minimap'); await need(M, '#ui .mm.big', 'expanded minimap'); await sleep(500); return M; });
     await M.evaluate(() => document.querySelector('#ui .mm') && document.querySelector('#ui .mm').classList.remove('big'));
     await state(prof, 'pause', async () => { await tap(M, '#ui .pausebtn', 'pause button'); await need(M, '#ui .pause.on', 'pause menu'); await sleep(400); return M; });

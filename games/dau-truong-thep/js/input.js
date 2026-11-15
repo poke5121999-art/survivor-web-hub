@@ -1,6 +1,7 @@
 // Keyboard + mouse and twin-stick touch. sample(u) turns the current device state into one sim input.
 import { makeTouch } from './touch.js';
 import * as K from './keys.js';
+import { newLock, clearLock, updateLock, aimFor, fireOk, createTracker } from './autoaim.js';
 
 const BLOCK = 'button,input,select,textarea,a,[data-block]';
 const AIM_REACH = 14, TOUCH_REACH = 12;
@@ -50,6 +51,17 @@ export function makeInput(G) {
   /* ---- touch layer: touch.js owns the pointers, the buttons and the layout ---- */
   const tc = makeTouch(G, { touch });
   tc.bindAim(() => lastAim);
+  // Gamepad auto-aim (an option, off by default): the trigger without the right stick picks and keeps a target, like the touch fire button.
+  const padLock = newLock(), padTrack = createTracker();
+  function padAssist(u) {
+    const m = G.match, cfg = tc.aimCfg();
+    if (!cfg.pad || device !== 'pad' || !m || !u.alive || !pad.fire || pad.ad > 0) { clearLock(padLock); return null; }
+    padTrack.see(m);
+    const t = updateLock(padLock, m, u, { priority: cfg.priority });
+    if (!t) return null;
+    const a = aimFor(m, u, t, { track: padTrack });
+    return { aim: a.aim, tx: a.tx, tz: a.tz, fire: fireOk(u, a.aim, t) };
+  }
 
   /* ---- gamepad ---- */
   const readPad = () => {
@@ -124,12 +136,15 @@ export function makeInput(G) {
 
     let aim = lastAim, fire = kd('fire') || pad.fire, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
     if (t && t.fire) fire = true;
+    const padAuto = !(t && t.aim !== null) && padAssist(u);
     if (pad.ad > 0) {
       aim = Math.atan2(pad.az, pad.ax);
       tx = u.x + Math.cos(aim) * pad.ad * AIM_REACH; tz = u.z + Math.sin(aim) * pad.ad * AIM_REACH;
     } else if (t && t.aim !== null) {
       aim = t.aim;
       tx = t.tx !== null ? t.tx : u.x + Math.cos(aim) * TOUCH_REACH; tz = t.tz !== null ? t.tz : u.z + Math.sin(aim) * TOUCH_REACH;
+    } else if (padAuto) {
+      aim = padAuto.aim; tx = padAuto.tx; tz = padAuto.tz; fire = padAuto.fire;
     } else if (mouse.seen && device !== 'pad') {
       const g = G.groundAt(mouse.x, mouse.y);
       if (g) { tx = g[0]; tz = g[1]; aim = Math.atan2(tz - u.z, tx - u.x); }
@@ -144,7 +159,7 @@ export function makeInput(G) {
 
   return {
     touch, sample, setTouchVisible: tc.setVisible, updateTouch: () => {}, pressed: keys,
-    layout: tc.layout, get aimHint() { return tc.hint; },
+    layout: tc.layout, get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
     setPadSource: (fn) => { padFn = typeof fn === 'function' ? fn : () => []; },
     device: () => device, cursor: () => (mouse.seen && device !== 'pad' && !touch ? mouse : { seen: false }), rumble, setChatting, padState: () => ({ ...pad }),
     script: (s) => { scripted = s || null; },

@@ -27,7 +27,7 @@ function defaults() {
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
     lv: {}, paints: {}, glows: {}, decals: {}, ownedPaints: ['goc'], ownedGlows: ['goc'], ownedDecals: ['goc'], trophies: 0,
     shop: { starter: false, passUntil: 0, lastDaily: '', bought: {}, log: [] },
-    controls: { v: CONTROLS_V, fixedStick: false, o: {} },
+    controls: { v: CONTROLS_V, fixedStick: false, o: {}, aim: cleanAim(null) },
   };
 }
 
@@ -37,6 +37,12 @@ const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 // A different `v` drops the overrides, so a later layout table can change without leaving controls in the wrong place.
 const CONTROLS_V = 1;
 const CONTROL_FIELDS = [['x', -50, 1500], ['y', -50, 1500], ['size', 48, 220], ['opacity', 0.2, 1]];
+// Auto-aim settings live in controls.aim with their own version, so a layout change never resets them. pad: the gamepad option.
+const AIM_V = 1, AIM_PRIO = ['near', 'lowhp', 'lowpct'];
+function cleanAim(raw) {
+  const a = obj(raw), same = a.v === AIM_V;
+  return { v: AIM_V, auto: same ? a.auto !== false : true, priority: same && AIM_PRIO.includes(a.priority) ? a.priority : 'near', pad: same && a.pad === true };
+}
 function cleanControls(raw) {
   const r = obj(raw), same = r.v === CONTROLS_V, o = {};
   if (same) {
@@ -47,7 +53,7 @@ function cleanControls(raw) {
       if (Object.keys(e).length) o[id] = e;
     }
   }
-  return { v: CONTROLS_V, fixedStick: same && r.fixedStick === true, o };
+  return { v: CONTROLS_V, fixedStick: same && r.fixedStick === true, o, aim: cleanAim(r.aim) };
 }
 
 export function rankOf(trophies) {

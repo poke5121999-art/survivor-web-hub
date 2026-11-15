@@ -1168,3 +1168,10 @@ html.dtt-portrait #touch { display: none !important; }
   #ui .sh-sec.k-gems .sh-grid { grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr)); grid-auto-flow: row; }
   #ui .sh-sec, #ui .sh-sec.k-starter, #ui .sh-sec.k-pass, #ui .sh-sec.k-bundle { grid-column: 1 / -1; }
 }
+
+/* Auto-aim: edge arrow toward a locked enemy that is off-screen (js/gfx/fx.js). */
+.tc-lockarrow { position: fixed; left: 0; top: 0; z-index: 55; display: none; width: 0; height: 0; margin: -7px 0 0 -9px; pointer-events: none;
+  border-style: solid; border-width: 7px 0 7px 15px; border-color: transparent transparent transparent #35b8ff; opacity: .85; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .9)); }
+.tc-lockarrow[data-team="1"] { border-left-color: #ff5a36; }
+
+.fld-hint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: #9fb0bd; }

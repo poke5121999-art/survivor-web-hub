@@ -258,6 +258,12 @@ const HINT_FRAG = `
       if (an > uHalf) discard;
       float edge = (1.0 - smoothstep(0.0, 0.06, uHalf - an)) * 0.5 + (1.0 - smoothstep(0.0, w * 0.6, 1.0 - r)) * 0.6;
       a = 0.22 + edge * 0.7;
+    } else if (uMode == 5) {
+      // Target bracket: four short arcs on a thin ring.
+      if (r > 1.0 || r < 0.8) discard;
+      float turn = fract(atan(p.y, p.x) / 6.28318 * 4.0 + uTime * 0.12);
+      a = step(turn, 0.58) * (1.0 - smoothstep(0.9, 1.0, r)) * 0.95;
+      if (a < 0.01) discard;
     } else {
       if (r > 1.0) discard;
       float cross = (1.0 - smoothstep(0.0, 0.08, min(abs(p.x), abs(p.y)))) * step(r, 0.6) * step(0.15, r);
@@ -1328,9 +1334,35 @@ export function makeFx(G, mechs) {
     else if (hintShown) { hintShown = false; for (const p of hintParts) p.mesh.visible = false; }
   }
 
+  // Auto-aim target: a bracket on the locked enemy in my team colour, and a small arrow at the screen edge while it is off-screen.
+  // Nothing is created until the first lock and nothing runs while G.input.lock is null.
+  let lockPart = null, lockArrow = null, lockShown = false;
+  function updateLock(m) {
+    const k = G.input && G.input.lock;
+    if (!k) {
+      if (lockShown) { lockShown = false; if (lockPart) lockPart.mesh.visible = false; if (lockArrow) lockArrow.style.display = 'none'; }
+      return;
+    }
+    if (!lockPart) lockPart = hintPart();
+    lockShown = true;
+    const me = m && m.units[G.me], col = HINT_TEAM[me ? me.color | 0 : 0] || HINT_TEAM[0];
+    const r = Math.max(1.0, k.r + 0.55) * (1 + 0.04 * Math.sin(time * 6));
+    placeHint(lockPart, 5, k.x, k.z, r, r, 0, col, 0.95);
+    const p = G.project(k.x, 0.6, k.z), W = innerWidth, H = innerHeight, pad = 26;
+    const off = !p.visible || p.x < pad || p.x > W - pad || p.y < pad || p.y > H - pad;
+    if (!off) { if (lockArrow) lockArrow.style.display = 'none'; return; }
+    if (!lockArrow) { lockArrow = document.createElement('i'); lockArrow.className = 'tc-lockarrow'; lockArrow.setAttribute('aria-hidden', 'true'); document.body.appendChild(lockArrow); }
+    let dx = p.x - W / 2, dy = p.y - H / 2;
+    if (!p.visible) { dx = -dx; dy = -dy; }
+    const k2 = Math.min((W / 2 - pad) / (Math.abs(dx) || 1e-3), (H / 2 - pad) / (Math.abs(dy) || 1e-3));
+    lockArrow.style.display = 'block';
+    lockArrow.style.transform = `translate3d(${(W / 2 + dx * k2).toFixed(1)}px,${(H / 2 + dy * k2).toFixed(1)}px,0) rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
+    lockArrow.dataset.team = me ? me.color | 0 : 0;
+  }
+
   function update(m, alpha, dt, t) {
     time = t; frame++; FX_TIME.value = t;
-    updateHint(m);
+    updateHint(m); updateLock(m);
     nShots = 0;
     if (m) {
       const th = G.gfx.world && G.gfx.world.theme;

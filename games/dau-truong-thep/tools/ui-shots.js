@@ -270,7 +270,7 @@ async function phoneSuite(browser) {
     await shot(page, errs, T('settings-touch'), async () => {
       await phoneAudit(page, T('settings-touch'));
       const r = await page.evaluate(() => { const b = document.querySelector('#ui [data-r="touchGrp"]'); return { shown: !!b.offsetParent, h3: b.querySelector('h3').textContent, btns: [...b.querySelectorAll('button')].map((x) => x.textContent.trim().slice(0, 22)) }; });
-      check(T('settings-touch') + ': group "Điều khiển cảm ứng" with the three controls', r.shown && r.h3 === 'Điều khiển cảm ứng' && r.btns.length === 3 && /Cần điều khiển cố định/.test(r.btns[0]) && r.btns[1] === 'Sửa bố cục nút' && r.btns[2] === 'Về mặc định', JSON.stringify(r));
+      check(T('settings-touch') + ': group "Điều khiển cảm ứng" with Tự nhắm, the priority choice and the three layout controls', r.shown && r.h3 === 'Điều khiển cảm ứng' && r.btns.length === 7 && /^Tự nhắm \(cảm ứng\)/.test(r.btns[0]) && r.btns.slice(1, 4).join('|') === 'Gần nhất|Máu thấp nhất|Máu % thấp nhất' && /Cần điều khiển cố định/.test(r.btns[4]) && r.btns[5] === 'Sửa bố cục nút' && r.btns[6] === 'Về mặc định', JSON.stringify(r));
     }, 200);
     await page.tap('#ui [data-r="fixStick"]');
     let ly = await page.evaluate(() => ({ fixed: __G.input.layout.get().fixedStick, pressed: document.querySelector('#ui [data-r="fixStick"]').getAttribute('aria-pressed') }));
