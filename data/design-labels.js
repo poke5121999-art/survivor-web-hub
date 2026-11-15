@@ -552,7 +552,24 @@
         "tts.pitchMax": { label: "Người chơi: giọng cao nhất", unit: "Hz", min: 40, max: 400 },
         "tts.botPitchMin": { label: "Bot: giọng trầm nhất", unit: "Hz", min: 40, max: 400, help: "Khoảng riêng cho bot (chưa nối câu nói của bot)." },
         "tts.botPitchMax": { label: "Bot: giọng cao nhất", unit: "Hz", min: 40, max: 400 },
-        "tts.speed": { label: "Tốc độ đọc", min: 0.5, max: 2, help: "1 = nhịp gốc. Mỗi người lệch thêm ±8% theo id." }
+        "tts.speed": { label: "Tốc độ đọc", min: 0.5, max: 2, help: "1 = nhịp gốc. Mỗi người lệch thêm ±8% theo id." },
+        "noise": { label: "Tiếng ồn người chơi", help: "Bước chân, nói qua mic, ném, thả đồ, đồ va đập đều gây tiếng; quái trong tầm quay tới chỗ phát tiếng. Thanh tiếng ồn dưới khung tiền bệ đọc cùng con số (tầm nghe tính bằng ô). Có hiệu lực ngay lần game tải bảng." },
+        "noise.refHear": { label: "Thính tai chuẩn của thanh", min: 1, max: 20, help: "Thanh quy bước chân ra ô theo một con quái có tầm nghe bấy nhiêu (đa số quái là 5). Chỉ đổi thanh, không đổi tai quái." },
+        "noise.max": { label: "Thanh đầy ở", unit: "ô", min: 4, max: 40, help: "Mặc định 12. Thanh đỏ từ 70% trở lên: 12 ô thì chỉ nước rút (9 ô) ra đỏ, chạy thường (7,8 ô) vàng." },
+        "noise.hold": { label: "Thanh giữ đỉnh", unit: "giây", min: 0, max: 5, help: "Sau một tiếng to (ném, va đập...), thanh đứng ở đỉnh bấy nhiêu giây rồi mới tụt." },
+        "noise.fall": { label: "Thanh tụt", unit: "ô/giây", min: 0.5, max: 100 },
+        "noise.voiceMin": { label: "Nói: mic từ mức này mới tính", pct: true, min: 0, max: 1, help: "Độ to mic 0–100%. Dưới mức này coi như im (tiếng ồn nền)." },
+        "noise.voiceR0": { label: "Nói nhỏ: quái nghe trong", unit: "ô", min: 0, max: 30, help: "Bán kính khi mic vừa vượt ngưỡng; to dần tới mức nói to." },
+        "noise.voiceR1": { label: "Nói to hết cỡ: quái nghe trong", unit: "ô", min: 0, max: 30 },
+        "noise.voiceStr": { label: "Nói: độ cảnh giác gây cho quái", min: 0, max: 10, help: "Ném 1,5; cửa vỡ 2. Càng cao quái càng hăng tới chỗ đó." },
+        "noise.voiceTick": { label: "Nói: xét tiếng mỗi", unit: "giây", min: 0.05, max: 2 },
+        "noise.dropR": { label: "Thả đồ: quái nghe trong", unit: "ô", min: 0, max: 30, help: "Cho món nhỏ nhất." },
+        "noise.dropSizeStep": { label: "Thả đồ: cộng thêm mỗi bậc cỡ món", unit: "ô", min: 0, max: 10 },
+        "noise.dropStr": { label: "Thả đồ: độ cảnh giác", min: 0, max: 10 },
+        "noise.impactR0": { label: "Va đập nhẹ: quái nghe trong", unit: "ô", min: 0, max: 30, help: "Chỉ tính cú va làm đồ mất giá. Cú vừa quá ngưỡng dùng số này, cú mạnh nhất dùng số dưới." },
+        "noise.impactR1": { label: "Va đập mạnh nhất: quái nghe trong", unit: "ô", min: 0, max: 30 },
+        "noise.impactStr": { label: "Va đập: độ cảnh giác", min: 0, max: 10 },
+        "noise.impactGap": { label: "Va đập: một món kêu cách nhau ít nhất", unit: "giây", min: 0, max: 5 }
       }
     },
 
