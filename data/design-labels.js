@@ -569,7 +569,12 @@
         "noise.impactR0": { label: "Va đập nhẹ: quái nghe trong", unit: "ô", min: 0, max: 30, help: "Chỉ tính cú va làm đồ mất giá. Cú vừa quá ngưỡng dùng số này, cú mạnh nhất dùng số dưới." },
         "noise.impactR1": { label: "Va đập mạnh nhất: quái nghe trong", unit: "ô", min: 0, max: 30 },
         "noise.impactStr": { label: "Va đập: độ cảnh giác", min: 0, max: 10 },
-        "noise.impactGap": { label: "Va đập: một món kêu cách nhau ít nhất", unit: "giây", min: 0, max: 5 }
+        "noise.impactGap": { label: "Va đập: một món kêu cách nhau ít nhất", unit: "giây", min: 0, max: 5 },
+        "vent": { label: "Ống thông gió", help: "Nắp ống sát tường bắc ở vài phòng ngẫu nhiên, mỗi phòng tối đa một nắp; làng quê, đấu đội, hướng dẫn, trạm, phòng xe, phòng bệ và hành lang không có. Bấm E: đẩy nắp ra, chui vào, bò, ra ở nắp kế trong phòng khác. Đang kéo loot thì món rơi lại trước nắp. Quái không vào được ống, không thấy và không đánh người đã chui vào. Có hiệu lực từ nhà dựng sau khi game tải bảng." },
+        "vent.count": { label: "Số nắp tối đa mỗi nhà", unit: "nắp", min: 0, max: 12, help: "Mặc định 4. Nhà xếp được dưới 2 nắp thì không có ống; đặt 0 hoặc 1 là tắt ống." },
+        "vent.openSec": { label: "Thời gian đẩy nắp", unit: "giây", min: 0.05, max: 2, help: "Mặc định 0,35. Dùng cho cả nắp vào lẫn nắp ra. Lúc đẩy nắp người chơi vẫn hiện, quái vẫn đánh được." },
+        "vent.enterSec": { label: "Thời gian chui vào / trồi ra", unit: "giây", min: 0.05, max: 2, help: "Mặc định 0,35." },
+        "vent.crawlSec": { label: "Thời gian bò trong ống", unit: "giây", min: 0.3, max: 5, help: "Mặc định 1. Như nhau với mọi cặp nắp, gần hay xa. Cả lượt chui = 2 × đẩy nắp + 2 × chui + bò (mặc định 2,4 giây)." }
       }
     },
 
