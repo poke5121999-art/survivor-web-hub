@@ -1,5 +1,5 @@
 // Attach a built weapon to a character hand. Compatible with an inHand(group, side, aim) style API.
-import * as THREE from './three.js';
+import * as THREE from '../vendor/three.module.min.js';
 
 const _x = new THREE.Vector3(), _m1 = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 

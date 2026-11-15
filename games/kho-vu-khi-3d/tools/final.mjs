@@ -1,28 +1,32 @@
-import { serve, launch } from './pw.mjs';
-const srv = serve(8767, 150000); const b = await launch(); const errs = [];
-const run = async (name, url, w, h, act) => {
-  const pg = await b.newPage({ viewport: { width: w, height: h } });
-  pg.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errs.push(name + ': ' + m.text()); });
-  pg.on('pageerror', (e) => errs.push(name + ' PAGEERR ' + e.message));
-  await pg.goto('http://localhost:8767/' + url); await pg.waitForFunction('window.__ready', null, { timeout: 60000 });
-  if (act) await act(pg);
-  await pg.waitForTimeout(600); await pg.screenshot({ path: `shots/${name}.png` });
-  errs.push(...(await pg.evaluate('window.__errors')).map((e) => name + ' ' + e)); await pg.close();
-};
-await run('desktop-sheet1', 'index.html', 1500, 900);
-await run('desktop-sheet2', 'index.html', 1500, 900, async (pg) => { await pg.click('[data-sheet="2"]'); });
-await run('inspect-gun', 'index.html#shotgun-pump-tape', 1000, 1000, async (pg) => { await pg.click('#variant'); });
-await run('inspect-hand', 'index.html#kitchen-knife', 900, 900, async (pg) => { await pg.check('#hand'); });
-await run('phone-grid', 'index.html', 390, 844);
-await run('phone-inspect', 'index.html#katana-red', 390, 844);
-await run('variant1-sheet', 'index.html?shot=1&variant=1', 1477, 718);
-// click-to-inspect
-const pg = await b.newPage({ viewport: { width: 1500, height: 900 } });
-pg.on('pageerror', (e) => errs.push('click PAGEERR ' + e.message));
-await pg.goto('http://localhost:8767/index.html'); await pg.waitForFunction('window.__ready');
-const box = await (await pg.$('canvas')).boundingBox(); const k = box.width / 1477;
-await pg.mouse.click(box.x + 308 * k, box.y + 293 * k); await pg.waitForTimeout(500);
-console.log('inspect title after click:', await pg.textContent('#winfo h2'));
-const tris = await pg.evaluate(() => window.__app.weapons.map((w, i) => [w.id, window.__app.getWeapon(i, 0).userData.weapon.tris, window.__app.getWeapon(i, 1).userData.weapon.tris]));
-console.log(JSON.stringify(tris));
-console.log('errors:', JSON.stringify(errs)); await b.close(); srv.close(); process.exit(0);
+// End-to-end check: desktop wall + grid, real mouse click to inspect + orbit drag + zoom, quality toggle, phone width.
+// Writes shots/final-*.png and prints console errors (must be none).
+import { serve, launch, open } from './pw.mjs';
+const srv = serve(8798, 400000); const browser = await launch();
+const base = 'http://localhost:8798/index.html';
+let bad = 0;
+try {
+  // desktop
+  let { page, errors } = await open(browser, base, { w: 1600, h: 900 });
+  await page.waitForTimeout(500); await page.screenshot({ path: 'shots/final-wall.png' });
+  // click the TR-9 on the wall (project its centre to screen)
+  const xy = await page.evaluate(() => { const it = __api.state.items.find((x) => x.w.id === 'tr9'); const THREE_V = it.holder.getWorldPosition(it.holder.position.clone()); const b = it.meta.bounds.clone().applyMatrix4(it.holder.matrixWorld); const c = b.getCenter(THREE_V); c.project(__api.camera); return [(c.x * 0.5 + 0.5) * innerWidth, (-c.y * 0.5 + 0.5) * innerHeight]; });
+  await page.mouse.click(xy[0], xy[1]); await page.waitForTimeout(600);
+  const insp = await page.evaluate(() => (__api.state.inspect ? __api.state.inspect.meta.id : null));
+  console.log('click ->', insp); if (insp !== 'tr9') bad++;
+  await page.mouse.move(800, 450); await page.mouse.down(); await page.mouse.move(950, 420, { steps: 8 }); await page.mouse.up();
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -300);
+  await page.waitForTimeout(400); await page.screenshot({ path: 'shots/final-inspect-close.png' });
+  await page.click('#q'); await page.waitForTimeout(800); await page.screenshot({ path: 'shots/final-inspect-low.png' });
+  await page.click('#back'); await page.click('[data-view=grid]'); await page.waitForTimeout(600); await page.screenshot({ path: 'shots/final-grid.png' });
+  const fps = await page.evaluate(() => new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { if (++n < 60) requestAnimationFrame(f); else r(Math.round(60000 / (performance.now() - t0))); }; requestAnimationFrame(f); }));
+  console.log('desktop fps (low, headless)', fps, 'errors', errors.length); if (errors.length) { console.log(errors.join('\n')); bad++; }
+  await page.close();
+  // phone
+  ({ page, errors } = await open(browser, base + '?view=grid', { w: 390, h: 844 }));
+  await page.waitForTimeout(500); await page.screenshot({ path: 'shots/final-phone-grid.png' });
+  const sw = await page.evaluate(() => document.documentElement.scrollWidth); console.log('phone scrollWidth', sw); if (sw > 390) bad++;
+  await page.evaluate(() => __api.inspect('katana-red')); await page.waitForTimeout(500); await page.screenshot({ path: 'shots/final-phone-inspect.png' });
+  console.log('phone errors', errors.length); if (errors.length) { console.log(errors.join('\n')); bad++; }
+} finally { await browser.close(); srv.close(); }
+console.log(bad ? 'FAIL ' + bad : 'PASS');
+process.exit(bad ? 1 : 0);

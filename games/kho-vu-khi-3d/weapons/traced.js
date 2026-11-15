@@ -1,80 +1,89 @@
-// Melee weapons whose silhouette is TRACED from the owner sheet (tools/trace-profile.js -> lib/guns/data.js).
-// Origin is bottom-centre of the item, +Y up the weapon, thin parts extruded along Z, details added on top.
-import { weapon } from '../lib/weapon.js';
-import DATA from '../lib/guns/data.js';
+// Silhouettes traced from the owner's sheet by the stylized kit's tools/trace-profile.js (copied as traced-data.js,
+// cm, origin bottom-centre). Here they are rebuilt as real steel: one-piece blanks with ground edges, cord wraps,
+// screwed scales.
+import { weapon } from '../js/weapon.js';
+import DATA from './traced-data.js';
+import { G, C, edgeRuns, wrap, arc, roundPoly } from './common.js';
 
-const lum = (c, m = 1.15) => (Math.min(255, c[0] * m) << 16) | (Math.min(255, c[1] * m) << 8) | Math.min(255, c[2] * m);
+const bounds = (pts) => { const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]); return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; };
+const part = (id, name) => DATA[id].parts.find((p) => p.name === name);
 
-/** Extrude every traced part of `id`; returns bounds per part and overall. spec[name] = {d, col, t} */
-function tr(k, id, spec = {}) {
-  const g = DATA[id], B = {};
-  for (const p of g.parts) {
-    if (p.outline.length < 3) continue;
-    const s = spec[p.name] || {};
-    const xs = p.outline.map((q) => q[0]), ys = p.outline.map((q) => q[1]);
-    B[p.name] = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
-    k.blade(p.outline, { holes: p.holes.length ? p.holes : undefined, d: s.d ?? 1, b: Math.min(0.4, (s.d ?? 1) * 0.2), col: s.col ?? lum(p.color), t: s.t ?? 0, cs: 2, nofat: true });
-  }
-  const xs = g.outline.map((q) => q[0]), ys = g.outline.map((q) => q[1]);
-  const top = g.outline.reduce((a, q) => (q[1] > a[1] ? q : a), g.outline[0]);
-  const all = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), top };
-  return { g, B, all };
-}
-const sock = (k, T, gripY, edge = true) => {
-  k.grip([0, gripY, 0], [0, 1, 0], [1, 0, 0]); k.tip([T.all.top[0], T.all.y1, 0]);
-  if (edge) k.edge([T.all.x1, T.all.y0 + (T.all.y1 - T.all.y0) * 0.45, 0], [T.all.top[0] + 0.2, T.all.y1 * 0.95, 0]);
-};
-
-function thrower(id, name, o = {}) {
+/** one-piece throwing knife: blank with a ground double edge on the upper part, paracord wrap, ring pommel */
+export function thrower(id, name, o = {}) {
   return weapon(id, name, { rot: 0 }, (k) => {
-    const T = tr(k, id, { ring: { d: 1.1, col: 0x7f9fb0 }, blade: { d: 1.0, col: 0x86acba }, body: { d: 1.0, col: o.col ?? 0x7fa6b4 } });
-    if (o.band) k.box([T.all.x1 - T.all.x0 + 0.3, 0.8, 1.3], { p: [(T.all.x0 + T.all.x1) / 2, (T.all.y1 - T.all.y0) * 0.3, 0], col: 0x3d5a66, t: 1, b: 0.2, nofat: true });
-    sock(k, T, (T.all.y1 - T.all.y0) * 0.3);
-  });
-}
-function kunai(id, name, wrapCol) {
-  return weapon(id, name, { rot: 0 }, (k) => {
-    const T = tr(k, id, { ring: { d: 1.0, col: 0xa7b4bf }, wrap: { d: 1.7, col: wrapCol, t: 2 }, blade: { d: 0.9, col: 0xa4b8ae } });
-    const w = T.B.wrap, cx = (w.x0 + w.x1) / 2;
-    k.tape(w.y0 + 0.2, w.y1 - 0.2, 1, { p: [cx, 0, 0], rx: (w.x1 - w.x0) / 2.3, rz: 0.9, col: wrapCol, band: 1.0, n: 8 });
-    k.box([0.5, (T.B.blade.y1 - T.B.blade.y0) * 0.6, 1.1], { p: [cx, T.B.blade.y0 + (T.B.blade.y1 - T.B.blade.y0) * 0.5, 0], col: 0x7a8d84, t: 0, b: 0.15, nofat: true });
-    sock(k, T, (w.y0 + w.y1) / 2);
+    const d = DATA[id];
+    const body = part(id, 'body'), ring = part(id, 'ring'), blade = part(id, 'blade');
+    const all = body || blade, b = bounds(all.outline), L = b.y1 - b.y0;
+    const steel = o.mat ?? 'steel_satin';
+    const edgeFrom = body ? b.y0 + L * 0.5 : b.y0 + L * 0.2;
+    k.add(G.blade(all.outline, { d: 0.42, b: 0.05, edge: edgeRuns(all.outline, (p) => p[1] > edgeFrom), grind: 0.9, thin: 0.14, holes: all.holes.length ? all.holes : null }), steel, { wear: 0.25, grain: 'y', blood: o.blood });
+    if (ring) k.add(G.extrude(ring.outline, 0.45, 0.1, ring.holes.length ? ring.holes : [arc(0, 1.7, 0.75, 360, 0, 14).slice(0, -1)]), steel, { wear: 0.3 });
+    else k.add(G.pipe(0.55, 0.47, 0.25, 14), steel, { p: [0, b.y0 + 1.0, -0.235], r: [90, 0, 0] });
+    // handle zone: cord wrap or skeleton slot
+    const hy0 = b.y0 + (ring ? 3.6 : 2.2), hy1 = b.y0 + L * (body ? 0.42 : 0.38);
+    const hw = body ? Math.min(1.05, (b.x1 - b.x0) * 0.42) : 0.8;
+    if (id === 'thrower-slot') k.add(G.box(0.5, (hy1 - hy0) * 0.7, 0.5, 0.2), 'steel_dark', { p: [0, (hy0 + hy1) / 2, 0] });
+    else wrap(k, hy0, hy1, hw, 0.32, ['rope'], { band: 0.5, tilt: 14, t: 0.12, over: 0.05, col: o.cord ?? [0.55, 0.75, 0.8] });
+    k.grip([0, (hy0 + hy1) / 2, 0], [0, 1, 0], [1, 0, 0]);
+    const top = all.outline.reduce((a, q) => (q[1] > a[1] ? q : a));
+    k.tip([top[0], top[1], 0]); k.edge([b.x1, edgeFrom, 0], [top[0], b.y1 * 0.95, 0]);
   });
 }
 
-export default [
-  thrower('thrower-slim', 'Throwing knife (slim)'),
-  thrower('thrower-slot', 'Throwing knife (slot)'),
-  thrower('thrower-hex', 'Throwing knife (hex)'),
-  thrower('thrower-teal-hex', 'Throwing knife (hex pommel)', { band: false }),
-  thrower('thrower-teal-slim', 'Throwing knife (slim ring)'),
-  kunai('kunai-green', 'Kunai (green)', 0x6f9a2e),
-  kunai('kunai-purple', 'Kunai (purple)', 0x8a3fc0),
+export function kunai(id, name, wrapCol) {
+  return weapon(id, name, { rot: 0 }, (k) => {
+    const ring = part(id, 'ring'), wr = part(id, 'wrap'), bl = part(id, 'blade');
+    const w = bounds(wr.outline), bb = bounds(bl.outline), cx = (w.x0 + w.x1) / 2;
+    k.add(G.blade(bl.outline, { d: 0.55, b: 0.05, edge: edgeRuns(bl.outline, (p) => p[1] > bb.y0 + 1.5), grind: 1.4, thin: 0.12 }), 'steel_dark', { wear: 0.35, grain: 'y' });
+    // diamond ridge along the blade centre
+    k.add(G.blade([[0, bb.y0 + 1], [0.5, bb.y0 + 6], [0, bb.y1 - 0.8], [-0.5, bb.y0 + 6]], { d: 0.75, b: 0.03 }), 'steel_dark', { wear: 0.3 });
+    k.add(G.cyl(0.55, 0.55, w.y1 - w.y0, 12, 0.1), 'steel_dark', { p: [cx, w.y0, 0] });
+    wrap(k, w.y0 + 0.2, w.y1 - 0.2, Math.max(0.65, (w.x1 - w.x0) / 3.2), 0.62, ['fabric', wrapCol], { band: 0.9, tilt: 16, cross: true, t: 0.1 });
+    k.add(G.extrude(ring.outline, 0.5, 0.12, ring.holes.length ? ring.holes : [arc(0, (bounds(ring.outline).y1) / 2, 0.8, 360, 0, 14).slice(0, -1)]), 'steel_dark', { wear: 0.35 });
+    k.grip([cx, (w.y0 + w.y1) / 2, 0], [0, 1, 0], [1, 0, 0]); k.tip([0, bb.y1, 0]); k.edge([bb.x1, bb.y0 + 4, 0], [0.2, bb.y1 - 1, 0]);
+  });
+}
 
-  weapon('karambit', 'Karambit', { rot: 0, rust: 0.2 }, (k) => {
-    const T = tr(k, 'karambit', { handle: { d: 2.8, col: 0x2a2b30, t: 1 }, blade: { d: 0.9, col: 0xa9bac6 } });
-    const h = T.B.handle;
-    k.box([h.x1 - h.x0 + 0.5, 1.3, 3.2], { p: [(h.x0 + h.x1) / 2 + 0.2, h.y1 - 0.5, 0], col: 0xc23a36, t: 1, b: 0.25, nofat: true });
-    for (let i = 0; i < 2; i++) k.cyl(0.38, 0.38, 0.4, { p: [(h.x0 + h.x1) / 2 + 0.2, h.y0 + 2 + i * 3, 1.5], r: [90, 0, 0], col: 0x8d96a0, t: 0, n: 6, nofat: true });
-    sock(k, T, h.y0 + (h.y1 - h.y0) * 0.5);
-  }),
+export const karambit = () => weapon('karambit', 'Karambit', { rot: 0 }, (k) => {
+  const h = part('karambit', 'handle'), bl = part('karambit', 'blade'), hb = bounds(h.outline), bb = bounds(bl.outline);
+  // inner (concave) curve is the edge: points on the +X half of the hooked blade, below its tip
+  const tip = bl.outline.reduce((a, q) => (q[1] > a[1] ? q : a));
+  k.add(G.blade(bl.outline, { d: 0.42, b: 0.05, edge: edgeRuns(bl.outline, (p) => p[0] > tip[0] - 0.2 && p[1] < tip[1] - 0.2 && p[1] > bb.y0 + 0.6), grind: 1.0, thin: 0.12 }), 'steel_dark', { wear: 0.3, grain: 'y' });
+  k.add(G.extrude(h.outline, 0.38, 0.04, h.holes.length ? h.holes : null), 'steel_satin', {});
+  for (const s of [-1, 1]) k.add(G.extrude(h.outline.map(([x, y]) => [x * 0.96, y]), 0.6, 0.25, h.holes.length ? h.holes : null), ['polymer', 0x22252a], { p: [0, 0, s * 0.49] });
+  k.add(G.pipe(1.15, 1.7, 0.3, 18), 'steel_satin', { p: [(hb.x0 + hb.x1) / 2, hb.y0 + 1.2, -0.85], r: [90, 0, 0] });
+  k.add(G.box(hb.x1 - hb.x0 + 0.3, 1.1, 1.9, 0.3), ['paint', C.red], { p: [(hb.x0 + hb.x1) / 2 + 0.1, hb.y1 - 0.6, 0] });
+  for (let i = 0; i < 2; i++) k.add(G.cyl(0.28, 0.28, 1.85, 10, 0.06), 'steel_satin', { p: [(hb.x0 + hb.x1) / 2 + 0.2, hb.y0 + 3.2 + i * 2.6, -0.925], r: [90, 0, 0] });
+  k.grip([(hb.x0 + hb.x1) / 2, (hb.y0 + hb.y1) / 2, 0], [0, 1, 0], [1, 0, 0]); k.tip([tip[0], tip[1], 0]); k.edge([bb.x1, bb.y0 + 2, 0], [tip[0], tip[1] - 1, 0]);
+});
 
-  weapon('kukri', 'Kukri', { rot: 0, rust: 0.3 }, (k) => {
-    const T = tr(k, 'kukri', { handle: { d: 2.6, col: 0x232429, t: 1 }, blade: { d: 0.9, col: 0xa3b4bf } });
-    const h = T.B.handle;
-    k.box([h.x1 - h.x0 + 0.8, 1.2, 3.0], { p: [(h.x0 + h.x1) / 2, h.y1, 0], col: 0x6d7782, t: 0, b: 0.25, nofat: true });
-    sock(k, T, h.y0 + (h.y1 - h.y0) * 0.45);
-  }),
+export const kukri = () => weapon('kukri', 'Kukri', { rot: 0 }, (k) => {
+  const h = part('kukri', 'handle'), bl = part('kukri', 'blade'), hb = bounds(h.outline), bb = bounds(bl.outline);
+  const cx = (hb.x0 + hb.x1) / 2;
+  // edge on the concave (+X) side of the recurve
+  k.add(G.blade(bl.outline, { d: 0.75, b: 0.06, edge: edgeRuns(bl.outline, (p) => p[0] > cx + 0.6 && p[1] > bb.y0 + 1.2), grind: 2.4, thin: 0.09 }), 'steel_satin', { wear: 0.25, grain: 'y' });
+  const hw = hb.x1 - hb.x0;
+  k.add(G.lathe([[0, 0], [hw * 0.55, 0], [hw * 0.62, 0.6], [hw * 0.48, 3], [hw * 0.6, 7], [hw * 0.5, 11.5], [hw * 0.56, 14], [0, 14.4]].map(([r, y]) => [r * 0.95, y]), 18), 'wood', { p: [cx, hb.y0, 0], col: [0.45, 0.34, 0.3], grain: 'y' });
+  k.add(G.cyl(hw * 0.6, hw * 0.6, 1.0, 18, 0.15), 'brass', { p: [cx, hb.y1 - 0.7, 0], wear: 0.3 });
+  k.add(G.cyl(hw * 0.62, hw * 0.55, 0.7, 18, 0.15), 'brass', { p: [cx, hb.y0, 0], wear: 0.3 });
+  k.grip([cx, hb.y0 + 7, 0], [0, 1, 0], [1, 0, 0]);
+  const tip = bl.outline.reduce((a, q) => (q[1] > a[1] ? q : a));
+  k.tip([tip[0], tip[1], 0]); k.edge([bb.x1, bb.y0 + 6, 0], [tip[0], tip[1] - 2, 0]);
+});
 
-  weapon('ladder-saw', 'Frame saw', { hands: 2, rot: 0, rust: 0.3, blood: 0.1 }, (k) => {
-    const T = tr(k, 'ladder-saw', { body: { d: 1.6, col: 0x93a2ad } });
-    const a = T.all, mid = (a.y0 + a.y1) / 2;
-    k.cyl(2.0, 2.0, 3.2, { p: [a.x0 + 0.9, mid + 3, 0], col: 0xe9822e, t: 1, n: 6, nofat: true });
-    k.cyl(1.3, 1.3, 4.4, { p: [a.x0 + 0.9, mid + 4.4, 0], r: [0, 0, 90], col: 0xe9822e, t: 1, n: 6, nofat: true });
-    k.box([3.2, 3.2, 3.0], { p: [a.x0 + 1.4, a.y1 - 1.6, 0], col: 0x2f6fe0, t: 1, b: 0.6, nofat: true });
-    k.box([3.2, 3.2, 3.0], { p: [a.x0 + 1.4, a.y0 + 1.6, 0], col: 0x2f6fe0, t: 1, b: 0.6, nofat: true });
-    k.box([5.2, 3.0, 3.0], { p: [a.x1 - 6, a.y1 - 2, 0], col: 0x6a737c, t: 0, b: 0.6, nofat: true });
-    k.box([5.2, 3.0, 3.0], { p: [a.x1 - 6, a.y0 + 2, 0], col: 0x6a737c, t: 0, b: 0.6, nofat: true });
-    k.grip([a.x0 + 1, mid - 12, 0], [0, 1, 0], [1, 0, 0]); k.grip2([a.x1 - 6, mid, 0], [0, 1, 0], [1, 0, 0]); k.tip([0, a.y1, 0]);
-  }),
-];
+export const ladderSaw = () => weapon('ladder-saw', 'Frame saw', { hands: 2, rot: 0, blood: 0.12 }, (k) => {
+  const body = part('ladder-saw', 'body'), b = bounds(body.outline), mid = (b.y0 + b.y1) / 2;
+  // tubular steel frame (C-shape) + toothed blade along the open side, tensioner, end blocks
+  const fx = b.x0 + 1.2;
+  k.add(G.cyl(1.05, 1.05, b.y1 - b.y0 - 4, 16, 0.1), ['paint', 0x8a949c], { p: [fx, b.y0 + 2, 0], wear: 0.3, grime: 0.3 });
+  for (const y of [b.y0 + 2, b.y1 - 2]) k.add(G.cyl(0.95, 0.95, b.x1 - b.x0 - 4.5, 14, 0.1), ['paint', 0x8a949c], { p: [fx, y, 0], r: [0, 0, -90], wear: 0.3 });
+  const bx = b.x1 - 2.6, teethPts = [];
+  for (let i = 0; i <= 30; i++) { const y = b.y0 + 3 + (b.y1 - b.y0 - 6) * i / 30; teethPts.push([bx + 2.2 + (i % 2) * 0.9, y]); }
+  const blade = [[bx - 1.6, b.y0 + 3], ...teethPts, [bx - 1.6, b.y1 - 3]];
+  k.add(G.blade(blade, { d: 0.14, b: 0.02, edge: [[1, teethPts.length]], grind: 0.8 }), 'steel_rusty', { wear: 0.2, blood: 0.18 });
+  for (const y of [b.y0 + 2, b.y1 - 2]) k.add(G.box(4.2, 2.6, 2.4, 0.4), ['paint', 0x2a55b0], { p: [b.x1 - 3.4, y, 0], wear: 0.4 });
+  k.add(G.cyl(1.5, 1.5, 3.4, 8, 0.2), ['paint', C.orange], { p: [fx, mid + 2, 0], wear: 0.4 });
+  k.add(G.cyl(0.6, 0.6, 5, 10, 0.1), 'steel_satin', { p: [fx - 2.4, mid + 3.7, 0], r: [0, 0, -90] });
+  wrap(k, b.y0 + 6, mid - 6, 1.1, 1.1, ['tape', C.tapeDirty], { band: 1.8 });
+  k.grip([fx, mid - 12, 0], [0, 1, 0], [1, 0, 0]); k.grip2([fx, mid + 12, 0], [0, 1, 0], [1, 0, 0]); k.tip([bx, b.y1, 0]); k.edge([bx + 2, b.y0 + 4, 0], [bx + 2, b.y1 - 4, 0]);
+});

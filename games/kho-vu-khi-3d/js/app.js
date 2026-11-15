@@ -1,251 +1,241 @@
-import * as THREE from '../lib/three.js';
-import { weapons } from '../weapons/index.js';
-import cells from '../lib/sheet-layout.js';
-import { inHand } from '../lib/attach.js';
+// Showcase: weapons hung on a painted concrete wall under Saltline's sun + sky light, or in a labelled grid.
+// Click one to take it off the wall and orbit it up close. URL: ?q=low|high, ?view=grid, ?inspect=<id>,
+// ?only=<id>&shot=1 (single weapon framed for screenshots; &yaw=deg &pitch=deg &rot=deg &dist=m), ?wet=1, ?variant=1.
+import * as THREE from '../vendor/three.module.min.js';
+import { Render } from './render.js';
+import { Mats } from './mats.js';
+import { setMats, REGISTRY } from './weapon.js';
+import { planeUV } from './sl/mats-sl.js';
 
-const Q = new URLSearchParams(location.search);
-const SHOT = Q.get('shot');            // '1' | '2' -> bare exact-size sheet render for compare shots
-const VARIANT = +(Q.get('variant') || 0);
-const SHEETS = { 1: { w: 1477, h: 718, cls: 'sheet1' }, 2: { w: 2000, h: 1125, cls: 'sheet2' } };
-const $ = (s) => document.querySelector(s);
-const errors = [];
-addEventListener('error', (e) => errors.push(String(e.message)));
-window.__errors = errors;
+const P = new URLSearchParams(location.search);
+const canvas = document.getElementById('c');
+const $ = (id) => document.getElementById(id);
+if (P.has('shot')) document.body.classList.add('shot');
+window.__errors = [];
+window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: !!SHOT });
-renderer.setClearColor(0x000000, 0);
-const canvas = renderer.domElement;
-$('#stage').appendChild(canvas);
+let qName = P.get('q') || (matchMedia('(max-width: 700px)').matches ? 'low' : 'high');
+const R = new Render(canvas, qName);
+const mats = new Mats(R.renderer, qName === 'low' ? 512 : 1024);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 60);
+const state = { view: P.get('view') || 'sheet', items: [], inspect: null, labels: true, socks: false, variant: +(P.get('variant') || 0) };
 
-// ---------- environment (gradient dome + softboxes, no files) ----------
-function makeEnv() {
-  const sc = new THREE.Scene();
-  const geo = new THREE.SphereGeometry(10, 24, 16), pos = geo.attributes.position, col = [];
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i) / 10, c = y > 0 ? new THREE.Color(0.8, 0.82, 0.92).lerp(new THREE.Color(1.15, 1.15, 1.25), y) : new THREE.Color(0.2, 0.19, 0.25).lerp(new THREE.Color(0.08, 0.08, 0.11), -y);
-    col.push(c.r, c.g, c.b);
+await mats.ready;
+setMats(mats);
+await import('../weapons/index.js');
+$('boot').remove();
+
+// ---------- wall ----------
+const WALL_W = 11, WALL_H = 9;
+const wallMat = mats.sl.get('concrete', { color: 0x8a919c });
+const wall = new THREE.Mesh(planeUV(WALL_W * 1.6, WALL_H * 1.6), wallMat);
+wall.receiveShadow = true; R.scene.add(wall);
+const floor = new THREE.Mesh(planeUV(WALL_W, 4).rotateX(-Math.PI / 2), mats.sl.get('concrete'));
+floor.receiveShadow = true; R.scene.add(floor);
+
+// ---------- build ----------
+const t0 = performance.now();
+const only = P.get('only');
+const list = only ? REGISTRY.filter((w) => w.id === only) : REGISTRY;
+if (only && !list.length) throw new Error('weapon not found: ' + only);
+for (const w of list) {
+  const g = w.build(1, { variant: state.variant });
+  const holder = new THREE.Group(); holder.add(g); R.scene.add(holder);
+  state.items.push({ w, g, holder, meta: g.userData.weapon });
+}
+const buildMs = performance.now() - t0;
+const totalTris = state.items.reduce((a, it) => a + it.meta.tris, 0);
+console.log('[kit] built', state.items.length, 'weapons,', totalTris, 'tris in', buildMs.toFixed(0), 'ms');
+
+// ---------- layout ----------
+// sheet rows follow the owner's sheets: combat sheet rows 1-4 (row 4 = guns + the TR-9 port), tools sheet last
+const ROWS = [[1, 16], [17, 32], [33, 51], [52, 59], [60, 73]];
+function layout() {
+  const items = state.items;
+  if (only) {
+    const it = items[0]; const b = it.meta.bounds, c = b.getCenter(new THREE.Vector3());
+    it.holder.position.set(0, 0, 0); it.holder.rotation.set(0, 0, (+(P.get('rot') || 0)) * Math.PI / 180); it.holder.scale.setScalar(1);
+    it.g.position.set(-c.x, -c.y + 1.2, -c.z + 0.5);
+    placeWall(0.5 - Math.max(0.05, it.meta.size.z * 0.5) - 0.12);
+    return;
   }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  sc.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
-  for (const [x, y, z, s] of [[-6, 6, 6, 5], [7, 3, 4, 3], [0, 7, -7, 4]]) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s * 0.6), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 6, 6.5), side: THREE.DoubleSide }));
-    m.position.set(x, y, z); m.lookAt(0, 0, 0); sc.add(m);
+  if (state.view === 'sheet') {
+    let y = WALL_H - 0.55;
+    ROWS.forEach(([a, b]) => {
+      const row = items.slice(a - 1, b); if (!row.length) return;
+      const gap = 0.12; const widths = row.map((it) => it.meta.size.x); const H = Math.max(...row.map((it) => it.meta.size.y));
+      let x = -(widths.reduce((s, v) => s + v, 0) + gap * (row.length - 1)) / 2;
+      row.forEach((it, i) => {
+        const bb = it.meta.bounds, c = bb.getCenter(new THREE.Vector3());
+        it.holder.scale.setScalar(1); it.holder.rotation.set(0, 0, 0);
+        it.holder.position.set(x + widths[i] / 2 - c.x, y - H / 2 - c.y, 0.18 - c.z);
+        it.g.position.set(0, 0, 0); it.home = it.holder.position.clone();
+        x += widths[i] + gap;
+      });
+      y -= H + 0.22;
+    });
+  } else {
+    const n = items.length, cols = Math.max(5, Math.round(Math.sqrt(n * 1.15 * Math.max(0.4, camera.aspect)))), cell = 0.62;
+    items.forEach((it, i) => {
+      const r = Math.floor(i / cols), cI = i % cols; const s = it.meta.size, m = Math.max(s.x, s.y);
+      const sc = Math.min(1.6, (cell * 0.84) / m); const c = it.meta.bounds.getCenter(new THREE.Vector3());
+      it.holder.scale.setScalar(sc); it.holder.rotation.set(0, 0, 0);
+      it.holder.position.set((cI - (cols - 1) / 2) * cell - c.x * sc, WALL_H - 0.45 - r * cell - c.y * sc, 0.16 - c.z * sc);
+      it.g.position.set(0, 0, 0); it.home = it.holder.position.clone();
+    });
   }
-  return new THREE.PMREMGenerator(renderer).fromScene(sc, 0.02).texture;
+  placeWall(0);
 }
-const env = makeEnv();
-
-function addLights(scene) {
-  scene.environment = env;
-  scene.add(new THREE.HemisphereLight(0xe6eeff, 0x56506a, 1.15));
-  const key = new THREE.DirectionalLight(0xfff3e4, 1.25); key.position.set(-1.2, 1.6, 2.5); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xa9c0ff, 0.55); rim.position.set(2, 0.5, -1); scene.add(rim);
+function placeWall(z) {
+  wall.position.set(0, WALL_H / 2 - 0.2, z); floor.position.set(0, -0.2, z + 2);
+  R.lastBox = new THREE.Box3(new THREE.Vector3(-WALL_W / 2, -0.25, z - 0.1), new THREE.Vector3(WALL_W / 2, WALL_H, z + 1.8));
+  R.fitShadow(R.lastBox);
 }
 
-// ---------- weapon cache ----------
-let _blob = null;
-function blobTex() {
-  if (_blob) return _blob;
-  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
-  const g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, 'rgba(8,10,30,0.9)'); g.addColorStop(0.55, 'rgba(8,10,30,0.35)'); g.addColorStop(1, 'rgba(8,10,30,0)');
-  x.fillStyle = g; x.fillRect(0, 0, 64, 64); _blob = new THREE.CanvasTexture(c); _blob.colorSpace = THREE.SRGBColorSpace; return _blob;
+// ---------- camera ----------
+const orbit = { target: new THREE.Vector3(), yaw: 0, pitch: 0, dist: 8, min: 0.06, max: 14 };
+function frameAll() {
+  const box = new THREE.Box3(); state.items.forEach((it) => box.expandByObject(it.holder));
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const fov = camera.fov * Math.PI / 180, fit = Math.max(s.y / 2 / Math.tan(fov / 2), s.x / 2 / Math.tan(fov / 2) / camera.aspect);
+  orbit.target.copy(c); orbit.yaw = 0; orbit.pitch = 0.04; orbit.dist = fit * 1.06 + 0.3; orbit.min = 0.5; orbit.max = fit * 2;
 }
-const cache = new Map();
-function getWeapon(i, variant = 0, seed = 1) {
-  const key = i + ':' + variant + ':' + seed;
-  if (!cache.has(key)) cache.set(key, weapons[i].build(seed, { variant }));
-  return cache.get(key);
+function frameItem(it, close = false) {
+  const box = new THREE.Box3().setFromObject(it.holder); const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const fov = camera.fov * Math.PI / 180; const m = Math.max(s.x / camera.aspect, s.y);
+  orbit.target.copy(c); orbit.dist = (m / 2) / Math.tan(fov / 2) * (close ? 1.3 : 1.45); orbit.min = 0.05; orbit.max = Math.max(3, orbit.dist * 3);
 }
-const cellFor = (i) => cells[i];
-
-// ---------- sheet / grid view ----------
-let mode = 'sheet', sheetNo = 1, scene = null, cam = null, placed = [], viewW = 0, viewH = 0;
-
-function layoutRects(sheetNo) {
-  const list = weapons.map((w, i) => ({ i, c: cellFor(i) })).filter((o) => o.c && o.c.sheet === sheetNo);
-  if (mode === 'sheet') {
-    const S = SHEETS[sheetNo];
-    return { W: S.w, H: S.h, items: list.map(({ i, c }) => ({ i, cx: (c.bbox[0] + c.bbox[2]) / 2, cy: (c.bbox[1] + c.bbox[3]) / 2, bw: c.bbox[2] - c.bbox[0], bh: c.bbox[3] - c.bbox[1] })) };
-  }
-  const cols = innerWidth < 520 ? 3 : innerWidth < 900 ? 5 : 8, cs = 150, rows = Math.ceil(list.length / cols);
-  return { W: cols * cs, H: rows * cs, items: list.map(({ i }, n) => ({ i, cx: (n % cols + 0.5) * cs, cy: (Math.floor(n / cols) + 0.5) * cs, bw: cs - 26, bh: cs - 26 })) };
+function applyCam() {
+  const { target: t, yaw, pitch, dist } = orbit;
+  camera.position.set(t.x + Math.sin(yaw) * Math.cos(pitch) * dist, t.y + Math.sin(pitch) * dist, t.z + Math.cos(yaw) * Math.cos(pitch) * dist);
+  camera.lookAt(t); camera.near = Math.max(0.005, dist * 0.02); camera.far = 60; camera.updateProjectionMatrix();
 }
 
-function buildSheet() {
-  scene = new THREE.Scene(); addLights(scene); placed = [];
-  const { W, H, items } = layoutRects(sheetNo);
-  viewW = W; viewH = H;
-  cam = new THREE.OrthographicCamera(0, W, H, 0, 1, 4000); cam.position.set(0, 0, 2000); cam.updateMatrixWorld();
-  for (const it of items) {
-    const w = weapons[it.i], g = getWeapon(it.i, VARIANT).clone(true);
-    g.traverse((o) => { if (o.isMesh) o.material = getWeapon(it.i, VARIANT).getObjectByName('body').material; });
-    const rotDeg = mode === 'sheet' ? (w.rot || 0) : 0;
-    const holder = new THREE.Group(); holder.add(g); holder.rotation.z = rotDeg * Math.PI / 180;
-    holder.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(holder, true), size = box.getSize(new THREE.Vector3());
-    const s = it.bh >= it.bw ? it.bh / Math.max(size.y, 1e-4) : it.bw / Math.max(size.x, 1e-4);
-    const ctr = box.getCenter(new THREE.Vector3());
-    holder.scale.setScalar(s);
-    holder.position.set(it.cx - ctr.x * s, H - it.cy - ctr.y * s, 0);
-    scene.add(holder); placed.push({ i: it.i, holder, cx: it.cx, cy: it.cy });
-    if (sheetNo === 2 || mode !== 'sheet') {   // soft contact / ground shadow blob
-      const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: sheetNo === 2 ? 0.55 : 0.35 }));
-      const bw = (box.max.x - box.min.x) * s * 1.08 + 16, bh = (box.max.y - box.min.y) * s * 1.02 + 16;
-      sh.scale.set(bw, bh, 1); sh.position.set(it.cx + (mode === 'sheet' ? 16 : 6), H - it.cy - (mode === 'sheet' ? 22 : 8), -80); sh.renderOrder = -1; scene.add(sh);
-    }
-  }
-  resize();
+// ---------- inspect ----------
+const sockGroup = new THREE.Group(); R.scene.add(sockGroup);
+function inspect(it) {
+  if (state.inspect && state.inspect !== it) uninspect(false);
+  state.inspect = it; document.body.classList.add('inspect');
+  // take it off the wall: 0.9 m in front, at eye height
+  it.holder.position.copy(it.home).add(new THREE.Vector3(0, 0, 0.9)); it.holder.scale.setScalar(1);
+  if (state.view === 'grid') { const c = it.meta.bounds.getCenter(new THREE.Vector3()); it.holder.position.set(it.home.x, it.home.y, 1.1 - c.z); }
+  frameItem(it, true); orbit.yaw = 0.35; orbit.pitch = 0.18;
+  const m = it.meta;
+  $('wname').textContent = m.name;
+  const f = (v) => v.toArray().map((x) => x.toFixed(3)).join(', ');
+  $('winfo').innerHTML = [['id', m.id], ['loại', m.kind + ', ' + m.hands + ' tay'], ['tam giác', m.tris.toLocaleString()], ['cỡ (m)', f(m.size)],
+    ['grip', m.grip ? f(m.grip.pos) : '-'], ['muzzle/tip', m.muzzle ? f(m.muzzle.pos) : m.tip ? f(m.tip) : '-']].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('');
+  showSockets();
+  history.replaceState(null, '', '?inspect=' + m.id + (qName !== 'high' ? '&q=' + qName : ''));
+}
+function uninspect(reframe = true) {
+  const it = state.inspect; if (!it) return;
+  if (state.view === 'grid') layout(); else { it.holder.position.copy(it.home); }
+  state.inspect = null; document.body.classList.remove('inspect'); sockGroup.clear();
+  if (reframe) frameAll();
+  history.replaceState(null, '', location.pathname);
+}
+function showSockets() {
+  sockGroup.clear(); const it = state.inspect; if (!it || !state.socks) return;
+  const cols = { grip: 0xff3030, grip2: 0xff9a20, muzzle: 0xffe040, tip: 0x40e0ff, edge: 0x40ff70 };
+  it.holder.updateMatrixWorld(true);
+  for (const n of Object.keys(cols)) { const o = it.g.getObjectByName(n); if (!o) continue;
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.006, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(cols[n]).multiplyScalar(4) }));
+    o.getWorldPosition(s.position); sockGroup.add(s); }
 }
 
-function resize() {
-  if (mode === 'inspect') return;
-  const wrap = $('#stage'), avail = SHOT ? viewW : wrap.clientWidth || innerWidth;
-  const cw = SHOT ? viewW : Math.min(avail, viewW * 1.6), ch = Math.round(cw * viewH / viewW);
-  renderer.setPixelRatio(SHOT ? 1 : Math.min(devicePixelRatio, 2));
-  renderer.setSize(cw, ch); canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
-  wrap.style.height = ch + 'px';
-}
-
-// ---------- inspector ----------
-let insp = null;
-const orbit = { az: 0.35, pol: 1.25, dist: 2.6, tx: 0, ty: 0, tz: 0 };
-const ptr = new Map();
-let showSock = true, showHand = false, inspVariant = 0, inspSeed = 1;
-const SOCK_COL = { grip: 0xff3b30, grip2: 0xff9f0a, muzzle: 0xffe14a, tip: 0x32e6ff, edge: 0x34e07a };
-
-function openInspect(i) {
-  mode = 'inspect'; document.body.classList.add('inspecting');
-  insp = { i, scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(32, 1, 0.01, 50) };
-  addLights(insp.scene); rebuildInspect();
-  $('#panel').hidden = false; resizeInspect();
-  history.replaceState(null, '', '#' + weapons[i].id);
-}
-function rebuildInspect() {
-  const i = insp.i, w = weapons[i];
-  if (insp.group) insp.scene.remove(insp.group);
-  const g = w.build(inspSeed, { variant: inspVariant }), meta = g.userData.weapon;
-  const grp = new THREE.Group(); grp.add(g);
-  const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
-  const s = 1.3 / Math.max(size.x, size.y, size.z);
-  g.position.sub(ctr); grp.scale.setScalar(s);
-  insp.group = grp; insp.s = s; insp.weapon = g;
-  const marks = new THREE.Group(); insp.marks = marks; grp.add(marks);
-  const addDot = (p, c, r = 0.012) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r / s, 10, 8), new THREE.MeshBasicMaterial({ color: c, depthTest: false })); m.position.copy(p).sub(ctr); m.renderOrder = 10; marks.add(m); };
-  for (const n of ['grip', 'grip2', 'muzzle', 'tip']) if (meta[n]) addDot(meta[n].pos || meta[n], SOCK_COL[n]);
-  if (meta.edge) { addDot(meta.edge.a, SOCK_COL.edge, 0.008); addDot(meta.edge.b, SOCK_COL.edge, 0.008); }
-  marks.visible = showSock;
-  insp.hand = null;
-  if (showHand && meta.grip) {
-    const hand = new THREE.Group(), skin = new THREE.MeshStandardMaterial({ color: 0xe0a47a, roughness: 0.8 });
-    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.045), skin), arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.3, 8), skin);
-    arm.rotation.z = Math.PI / 2; arm.position.x = -0.17; hand.add(fist, arm);
-    const aim = new THREE.Vector3(1, 0, 0);
-    g.position.set(0, 0, 0); inHand(g, hand, 'r', aim, new THREE.Vector3(0, 1, 0));
-    hand.position.set(0, 0, 0); grp.add(hand); insp.hand = hand;
-    marks.visible = false;
-    // recenter hand+weapon
-    grp.updateMatrixWorld(true);
-    const b2 = new THREE.Box3().setFromObject(grp), c2 = b2.getCenter(new THREE.Vector3());
-    hand.position.sub(c2.divideScalar(s)); grp.scale.setScalar(s);
-  }
-  insp.scene.add(grp);
-  const rot = (w.kind === 'gun' || w.id.includes('rake')) ? 0 : 0;
-  orbit.dist = 2.6; orbit.az = 0.35; orbit.pol = 1.3;
-  const wi = $('#winfo');
-  const sz = meta.size, dims = [sz.x, sz.y, sz.z].map((v) => (v * 100).toFixed(0));
-  wi.innerHTML = `<h2>${w.name}</h2><div class="muted">#${String(i + 1).padStart(2, '0')} · ${w.id} · ${w.kind} · ${w.hands}-handed</div>
-    <div class="kv"><span>triangles</span><b>${meta.tris}</b><span>size cm</span><b>${dims[0]} × ${dims[1]} × ${dims[2]}</b>
-    <span>sockets</span><b>${['grip', 'grip2', 'muzzle', 'tip', 'edge'].filter((n) => meta[n]).join(', ')}</b></div>`;
-}
-function resizeInspect() {
-  const wrap = $('#stage'), w = wrap.clientWidth, h = Math.max(320, Math.min(innerHeight * 0.62, w * 0.9));
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(w, h);
-  canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; wrap.style.height = h + 'px';
-  insp.cam.aspect = w / h; insp.cam.updateProjectionMatrix();
-}
-function closeInspect() {
-  mode = document.body.classList.contains('grid') ? 'grid' : 'sheet'; insp = null; document.body.classList.remove('inspecting'); $('#panel').hidden = true;
-  history.replaceState(null, '', location.pathname + location.search);
-  buildSheet();
-}
-
-canvas.addEventListener('pointerdown', (e) => { ptr.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false }); canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointermove', (e) => {
-  const p = ptr.get(e.pointerId);
-  if (p && mode === 'inspect') {
-    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-    if (ptr.size === 1) { orbit.az -= dx * 0.008; orbit.pol = Math.min(3.0, Math.max(0.15, orbit.pol - dy * 0.008)); }
-  }
-  if (p && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 5) p.moved = true;
-  if (!p && mode === 'sheet') { const h = hit(e); canvas.style.cursor = h ? 'pointer' : 'default'; $('#tip').textContent = h ? weapons[h.i].name + ' · ' + (h.tris) + ' tris' : ''; }
-});
-canvas.addEventListener('pointerup', (e) => {
-  const p = ptr.get(e.pointerId); ptr.delete(e.pointerId);
-  if (p && !p.moved && mode === 'sheet') { const h = hit(e); if (h) openInspect(h.i); }
-});
-canvas.addEventListener('wheel', (e) => { if (mode === 'inspect') { e.preventDefault(); orbit.dist = Math.min(6, Math.max(0.6, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1))); } }, { passive: false });
-let pinch = 0;
-canvas.addEventListener('touchmove', (e) => { if (mode === 'inspect' && e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (pinch) orbit.dist = Math.min(6, Math.max(0.6, orbit.dist * pinch / d)); pinch = d; e.preventDefault(); } }, { passive: false });
-canvas.addEventListener('touchend', () => { pinch = 0; });
-
+// ---------- input ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-function hit(e) {
-  if (!scene) return null;
-  const r = canvas.getBoundingClientRect();
-  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-  ray.setFromCamera(ndc, cam);
-  let best = null;
-  for (const p of placed) {
-    const mesh = p.holder.getObjectByName('body'); if (!mesh) continue;
-    const h = ray.intersectObject(mesh, false)[0];
-    if (h && (!best || h.distance < best.d)) best = { i: p.i, d: h.distance, tris: mesh.geometry.attributes.position.count / 3 };
-  }
-  return best;
+const pts = new Map(); let drag = null, pinch0 = 0, moved = 0;
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); moved = 0;
+  if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); } drag = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointermove', (e) => {
+  if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0) zoom(pinch0 / d); pinch0 = d; moved += 10; return; }
+  if (!drag) return; const dx = e.clientX - drag[0], dy = e.clientY - drag[1]; drag = [e.clientX, e.clientY]; moved += Math.abs(dx) + Math.abs(dy);
+  if (state.inspect) { orbit.yaw -= dx * 0.008; orbit.pitch = Math.max(-1.45, Math.min(1.45, orbit.pitch + dy * 0.008)); }
+  else { orbit.target.x -= dx * orbit.dist * 0.0012; orbit.target.y += dy * orbit.dist * 0.0012; }
+});
+const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0;
+  if (moved < 6 && e.type === 'pointerup') click(e); drag = null; };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+function zoom(f) { orbit.dist = Math.max(orbit.min, Math.min(orbit.max, orbit.dist * f)); }
+function click(e) {
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(state.items.map((it) => it.holder), true);
+  if (!hits.length) { if (state.inspect) uninspect(); return; }
+  let o = hits[0].object; while (o && !state.items.find((it) => it.holder === o)) o = o.parent;
+  const it = state.items.find((x) => x.holder === o); if (it) inspect(it);
+}
+document.querySelectorAll('[data-view]').forEach((b) => b.onclick = () => { uninspect(false); state.view = b.dataset.view;
+  document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('on', x === b)); layout(); frameAll(); });
+$('q').onclick = () => { qName = qName === 'high' ? 'low' : 'high'; R.setQuality(qName); $('q').textContent = 'Chất lượng: ' + (qName === 'high' ? 'cao' : 'thấp'); };
+$('q').textContent = 'Chất lượng: ' + (qName === 'high' ? 'cao' : 'thấp');
+$('tm').onclick = () => { R.agxMix = R.agxMix > 0.5 ? 0.25 : 1; $('tm').textContent = R.agxMix > 0.5 ? 'AgX' : 'ACES/AgX'; };
+$('wet').onclick = () => { const w = $('wet').classList.toggle('on'); mats.setWet(w ? 1 : 0); $('wet').textContent = w ? 'Ướt mưa' : 'Khô'; };
+$('lbl').onclick = () => { state.labels = !state.labels; $('lbl').classList.toggle('on', state.labels); };
+$('lbl').classList.toggle('on', state.labels);
+$('back').onclick = () => uninspect();
+const step = (d) => { const i = state.items.indexOf(state.inspect); const it = state.items[(i + d + state.items.length) % state.items.length]; uninspect(false); inspect(it); };
+$('prev').onclick = () => step(-1); $('next').onclick = () => step(1);
+$('socks').onclick = () => { state.socks = !state.socks; $('socks').classList.toggle('on', state.socks); showSockets(); };
+$('variant').onclick = () => { const it = state.inspect; if (!it) return; const v = it.meta.variant ? 0 : 1;
+  it.holder.remove(it.g); it.g = it.w.build(1 + v, { variant: v }); it.meta = it.g.userData.weapon; it.holder.add(it.g); $('variant').classList.toggle('on', !!v); inspect(it); };
+if (P.get('wet') === '1') { mats.setWet(1); $('wet').classList.add('on'); $('wet').textContent = 'Ướt mưa'; }
+
+// ---------- labels ----------
+const labelBox = $('labels'); const labelEls = state.items.map((it) => { const d = document.createElement('div'); d.innerHTML = `${it.meta.name}<b>${it.meta.tris}</b>`; labelBox.appendChild(d); return d; });
+const tmpV = new THREE.Vector3();
+function updLabels() {
+  const show = state.labels && !state.inspect && !only && !state.solo && orbit.dist < 6.5;
+  labelBox.style.display = show ? '' : 'none'; if (!show) return;
+  state.items.forEach((it, i) => { const b = new THREE.Box3().setFromObject(it.holder); tmpV.set((b.min.x + b.max.x) / 2, b.min.y, b.max.z).project(camera);
+    const el = labelEls[i]; el.style.left = ((tmpV.x * 0.5 + 0.5) * innerWidth) + 'px'; el.style.top = ((-tmpV.y * 0.5 + 0.5) * innerHeight + 2) + 'px'; });
 }
 
-// ---------- UI ----------
-function buildList() {
-  const rows = weapons.map((w, i) => ({ w, i, t: getWeapon(i, 0).userData.weapon.tris, c: cells[i] }));
-  const total = rows.reduce((a, r) => a + r.t, 0);
-  $('#total').textContent = `${weapons.length} weapons · ${total.toLocaleString()} tris total · avg ${Math.round(total / weapons.length)} · max ${Math.max(...rows.map((r) => r.t))}`;
-  $('#list').innerHTML = rows.map((r) => `<button data-i="${r.i}"><span>${String(r.i + 1).padStart(2, '0')} ${r.w.name}</span><b>${r.t}</b></button>`).join('');
-  $('#list').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { scrollTo({ top: 0 }); openInspect(+b.dataset.i); } });
-}
-function setSheet(n) { sheetNo = n; document.body.dataset.sheet = n; document.querySelectorAll('button[data-sheet]').forEach((b) => b.classList.toggle('on', +b.dataset.sheet === n)); if (mode !== 'inspect') buildSheet(); }
-
+// ---------- loop ----------
+function resize() { R.resize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+layout();
+if (only) {
+  const it = state.items[0]; frameItem(it, true);
+  orbit.yaw = (+(P.get('yaw') || 0)) * Math.PI / 180; orbit.pitch = (+(P.get('pitch') || 0)) * Math.PI / 180;
+  if (P.get('dist')) orbit.dist = +P.get('dist');
+  if (P.get('fov')) { camera.fov = +P.get('fov'); frameItem(it, true); if (P.get('dist')) orbit.dist = +P.get('dist'); }
+} else frameAll();
+if (P.get('inspect')) { const it = state.items.find((x) => x.w.id === P.get('inspect')); if (it) inspect(it); }
+document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('on', x.dataset.view === state.view));
+$('stat').textContent = `${state.items.length} món · ${totalTris.toLocaleString()} tam giác`;
+let frames = 0; const clock = new THREE.Clock();
 function frame() {
+  applyCam(); R.render(camera, clock.getElapsedTime()); updLabels();
+  if (++frames === 3) { window.__ready = true; console.log('[kit] mats', JSON.stringify(mats.stats())); }
   requestAnimationFrame(frame);
-  if (mode === 'inspect' && insp) {
-    const c = insp.cam, d = orbit.dist;
-    c.position.set(d * Math.sin(orbit.pol) * Math.sin(orbit.az), d * Math.cos(orbit.pol), d * Math.sin(orbit.pol) * Math.cos(orbit.az));
-    c.lookAt(0, 0, 0); renderer.render(insp.scene, c);
-  } else if (scene) renderer.render(scene, cam);
 }
-
-async function main() {
-  buildList();
-  if (SHOT) {
-    document.body.classList.add('shot'); sheetNo = +SHOT; document.body.dataset.sheet = SHOT;
-    buildSheet(); renderer.render(scene, cam); renderer.render(scene, cam);
-    window.__ready = true; return;
-  }
-  document.querySelectorAll('button[data-sheet]').forEach((b) => b.addEventListener('click', () => setSheet(+b.dataset.sheet)));
-  $('#back').addEventListener('click', closeInspect);
-  $('#view').addEventListener('click', () => { document.body.classList.toggle('grid'); mode = 'sheet'; mode = document.body.classList.contains('grid') ? 'grid' : 'sheet'; buildSheet(); });
-  $('#variant').addEventListener('click', () => { inspVariant ^= 1; $('#variant').textContent = 'Wear variant ' + (inspVariant + 1); rebuildInspect(); });
-  $('#reseed').addEventListener('click', () => { inspSeed = (inspSeed % 9) + 1; rebuildInspect(); });
-  $('#socks').addEventListener('change', (e) => { showSock = e.target.checked; if (insp) insp.marks.visible = showSock && !showHand; });
-  $('#hand').addEventListener('change', (e) => { showHand = e.target.checked; if (insp) rebuildInspect(); });
-  $('#prev').addEventListener('click', () => { insp.i = (insp.i + weapons.length - 1) % weapons.length; rebuildInspect(); });
-  $('#next').addEventListener('click', () => { insp.i = (insp.i + 1) % weapons.length; rebuildInspect(); });
-  addEventListener('resize', () => { if (mode === 'inspect') resizeInspect(); else buildSheet(); });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape' && mode === 'inspect') closeInspect(); });
-  if (innerWidth < 720) document.body.classList.add('grid'), mode = 'grid';
-  setSheet(1);
-  const h = decodeURIComponent(location.hash.slice(1)), hi = weapons.findIndex((w) => w.id === h);
-  if (hi >= 0) openInspect(hi);
-  window.__ready = true;
-  frame();
+frame();
+// solo(id, rotDeg, yawDeg, pitchDeg): show one weapon alone in front of the wall, framed (used by tools/compare.mjs)
+function solo(id, rot = 0, yaw = 0, pitch = 0, close = true) {
+  uninspect(false); let found = null;
+  for (const it of state.items) { const on = it.w.id === id; it.holder.visible = on; if (on) found = it; }
+  if (!found) throw new Error('weapon not found: ' + id);
+  const it = found, c = it.meta.bounds.getCenter(new THREE.Vector3());
+  it.holder.scale.setScalar(1); it.holder.rotation.set(0, 0, rot * Math.PI / 180); it.holder.position.set(0, 0, 0);
+  it.g.position.set(-c.x, -c.y + 1.4, -c.z + 0.45);
+  placeWall(0.45 - Math.max(0.03, it.meta.size.z * 0.5) - 0.12);
+  frameItem(it, close); orbit.yaw = yaw * Math.PI / 180; orbit.pitch = pitch * Math.PI / 180; applyCam();
+  labelBox.style.display = 'none'; state.solo = true;
+  return { id, tris: it.meta.tris, size: it.meta.size.toArray() };
 }
-main();
-window.__app = { weapons, openInspect, getWeapon, hit };
+// viewmodel(id): Saltline's hip pose (weapon.md §5: p [.118,-.122,-.275] r [.034,.085,-.03], view fov 54) for side-by-sides
+function viewmodel(id) {
+  solo(id); const it = state.items.find((x) => x.w.id === id);
+  camera.fov = 54; camera.updateProjectionMatrix();
+  const cam = new THREE.Vector3(0, 1.45, 1.6); orbit.target.set(0, 1.45, 0); orbit.yaw = 0; orbit.pitch = 0; orbit.dist = 1.6; applyCam();
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.034, 0.085, -0.03, 'YXZ')).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2));
+  it.holder.quaternion.copy(q); it.g.position.set(0, 0, 0);
+  it.holder.position.copy(cam).add(new THREE.Vector3(0.118, -0.122, -0.275));
+  placeWall(-0.6);
+  return true;
+}
+window.__api = { viewmodel, state, R, mats, camera, orbit, inspect: (id) => inspect(state.items.find((x) => x.w.id === id)), solo, REGISTRY };

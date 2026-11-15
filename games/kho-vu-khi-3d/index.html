@@ -1,63 +1,60 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="utf-8">
 <script src="../../js/game-gate.js?v=20261103"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stylized Weapons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kho Vũ Khí 3D</title>
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f1016; --panel:#171925; --ink:#e8eaf2; --mut:#8c92a8; --acc:#ffb347; --line:#2a2d3d; }
-  * { box-sizing: border-box; }
-  html,body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif; }
-  body[data-sheet="1"] #stage { background: radial-gradient(120% 140% at 30% 20%, #20212c, #14151d 60%, #101118); }
-  body[data-sheet="2"] #stage { background: linear-gradient(#3e5d98, #213069 55%, #1b2757); }
-  body.inspecting #stage { background: radial-gradient(90% 90% at 50% 40%, #272a3a, #101118); }
-  header { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); }
-  header h1 { font-size:16px; margin:0 8px 0 0; letter-spacing:.04em; }
-  button, .btn { background:#22253a; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 12px; font:inherit; cursor:pointer; }
-  button.on { background:var(--acc); color:#1a1205; border-color:var(--acc); }
-  button:hover { border-color:var(--acc); }
-  #tip { color:var(--mut); min-height:1.4em; margin-left:auto; }
-  #stage { width:100%; overflow:hidden; position:relative; }
-  canvas { display:block; touch-action:none; margin:0 auto; }
-  body.shot header, body.shot #panel, body.shot #lists, body.shot #tip { display:none; }
-  body.shot { margin:0; background:transparent; }
-  body.shot #stage { width:auto; }
-  body.shot[data-sheet="1"] #stage { background: radial-gradient(120% 140% at 30% 20%, #20212c, #14151d 60%, #101118); }
-  #panel { padding:12px 16px; display:grid; gap:10px; max-width:1100px; margin:0 auto; }
-  #panel .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .kv { display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin-top:6px; }
-  .kv span,.muted { color:var(--mut); }
-  h2 { margin:0; font-size:18px; }
-  #lists { padding:8px 16px 40px; max-width:1300px; margin:0 auto; }
-  #lists summary { cursor:pointer; padding:8px 0; color:var(--mut); }
-  #list { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:6px; }
-  #list button { display:flex; justify-content:space-between; gap:8px; text-align:left; padding:5px 10px; font-size:13px; }
-  #list b { color:var(--acc); font-weight:600; }
-  body:not(.inspecting) #panel { display:none; }
-  [hidden] { display:none !important; }
-  label { color:var(--mut); }
+  :root { --bg:#0c0e12; --panel:rgba(16,19,25,.86); --ink:#e9e6df; --mut:#9aa0a8; --acc:#e8a33a; --line:rgba(255,255,255,.12); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:14px/1.35 "Barlow Condensed", system-ui, sans-serif; overflow:hidden; }
+  canvas#c { position:fixed; inset:0; width:100vw; height:100vh; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; padding:10px 16px; background:linear-gradient(rgba(8,10,14,.85), rgba(8,10,14,0)); pointer-events:none; }
+  header > * { pointer-events:auto; }
+  h1 { font:800 20px/1 "Big Shoulders Display", Impact, sans-serif; letter-spacing:.06em; margin:0 10px 0 0; }
+  button { background:rgba(30,34,44,.9); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 10px; font:600 14px "Barlow Condensed", sans-serif; cursor:pointer; }
+  button.on { background:var(--acc); color:#170f02; border-color:var(--acc); }
+  #stat { color:var(--mut); font:500 12px "IBM Plex Mono", monospace; margin-left:auto; }
+  #labels { position:fixed; inset:0; pointer-events:none; }
+  #labels div { position:absolute; transform:translate(-50%, 0); font:600 11px "Barlow Condensed", sans-serif; color:#d9d4c8; text-shadow:0 1px 2px #000; white-space:nowrap; }
+  #labels div b { color:var(--acc); font:500 10px "IBM Plex Mono", monospace; margin-left:4px; }
+  #panel { position:fixed; left:16px; right:16px; bottom:16px; max-width:560px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px; backdrop-filter:blur(6px); }
+  #panel h2 { margin:0 0 4px; font:700 20px "Barlow Condensed", sans-serif; }
+  #panel .kv { display:grid; grid-template-columns:auto 1fr; gap:1px 12px; font:500 12px "IBM Plex Mono", monospace; color:var(--mut); }
+  #panel .kv b { color:var(--ink); font-weight:500; }
+  #panel .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #hint { position:fixed; left:16px; bottom:12px; color:var(--mut); font:500 12px "IBM Plex Mono", monospace; }
+  body.inspect #hint { display:none; }
+  body:not(.inspect) #panel { display:none; }
+  #boot { position:fixed; inset:0; display:grid; place-items:center; color:var(--mut); font:500 14px "IBM Plex Mono", monospace; }
+  body.shot header, body.shot #panel, body.shot #hint, body.shot #labels { display:none !important; }
+  @media (max-width:600px) { header { padding:8px 16px; } h1 { font-size:17px; width:100%; } #stat { width:100%; margin:0; } }
 </style>
 </head>
-<body data-sheet="1">
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
 <header>
-  <h1>STYLIZED WEAPONS</h1>
-  <button data-sheet="1" class="on">Sheet 1 - combat</button>
-  <button data-sheet="2">Sheet 2 - tools</button>
-  <button id="view">Sheet / grid</button>
-  <span id="total" class="muted"></span>
-  <span id="tip"></span>
+  <h1>KHO VŨ KHÍ 3D</h1>
+  <button data-view="sheet" class="on">Tường</button>
+  <button data-view="grid">Lưới</button>
+  <button id="q">Chất lượng: cao</button>
+  <button id="tm">ACES/AgX</button>
+  <button id="wet">Khô</button>
+  <button id="lbl">Nhãn</button>
+  <span id="stat"></span>
 </header>
-<div id="stage"></div>
-<section id="panel" hidden>
-  <div class="row"><button id="back">&larr; Back</button><button id="prev">&lsaquo;</button><button id="next">&rsaquo;</button>
-    <button id="variant">Wear variant 1</button><button id="reseed">Reseed</button>
-    <label><input type="checkbox" id="socks" checked> sockets</label><label><input type="checkbox" id="hand"> hand demo</label></div>
-  <div id="winfo"></div>
-  <div class="muted">drag = orbit, wheel / pinch = zoom. Dots: red grip, orange grip2, yellow muzzle, cyan tip, green edge.</div>
+<div id="hint">Bấm vào một món để xem gần · kéo = xoay · lăn / chụm = phóng to</div>
+<section id="panel">
+  <h2 id="wname"></h2>
+  <div class="kv" id="winfo"></div>
+  <div class="row"><button id="back">&larr; Quay lại</button><button id="prev">&lsaquo;</button><button id="next">&rsaquo;</button><button id="variant">Biến thể mòn</button><button id="socks">Điểm cầm</button></div>
 </section>
-<section id="lists"><details><summary>All weapons and triangle counts</summary><div id="list"></div></details></section>
+<div id="boot">đang nướng vật liệu…</div>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

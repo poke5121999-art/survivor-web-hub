@@ -1051,14 +1051,14 @@ window.HUB_GAMES = [
   {
     id: "kho-vu-khi-3d",
     title: "Kho Vũ Khí 3D",
-    tagline: "72 vũ khí và dụng cụ dựng bằng code: dao, gậy đinh, katana, rìu, súng, khiên chảo.",
+    tagline: "73 vũ khí và dụng cụ dựng bằng code theo chất lượng Saltline: thép thật, gỗ, gỉ, sơn tróc, băng keo.",
     desc: "Dao các loại, gậy bóng chày đóng đinh, gậy lưỡi cưa, búa tạ, chuỳ ống nước, katana, rìu, cuốc chim, mỏ lết khổng lồ, kiếm cưa máy, khiên biển báo, chảo, bảy khẩu súng lấy đường viền từ ảnh mẫu, cùng 14 dụng cụ như cuốc, cào, xẻng, cưa. Mỗi món có điểm cầm tay để gắn vào nhân vật. Không tải tệp model hay texture nào.",
     genre: "khac",
     accent: "#9aa7b5",
     en: { title: "3D Weapon Kit", tagline: "72 weapons and tools built from code: knives, nail bats, katanas, axes, guns, frying-pan shields.", desc: "Knives, nail bats, saw-blade bats, sledgehammers, pipe maces, katanas, axes, a pickaxe, a giant wrench, a chainsaw sword, sign and pan shields, seven guns traced from the concept art and 14 tools, each with grip points for characters. No model or texture files." },
     thumbnail: "assets/thumbnails/kho-vu-khi-3d.png",
     path: "games/kho-vu-khi-3d/index.html",
-    rev: "20261115b",
+    rev: "20261115c",
     status: "available",
     tags: ["Thử nghiệm","Vũ khí 3D","Không asset"]
   },
