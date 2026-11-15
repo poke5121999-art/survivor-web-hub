@@ -1033,7 +1033,7 @@ window.HUB_GAMES = [
     rev: "20261114a",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
-  },
+  },
   {
     id: "kho-do-vat-3d",
     title: "Kho Đồ Vật 3D",
