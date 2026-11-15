@@ -48,8 +48,9 @@ P_.rifle = (c, o) => { // AK / carbine, two hands. o.ak: curved mag + wood
 P_.shotgun = (c, o) => { const r = P_.rifle(c, Object.assign({ optic: false, wood: [0.4, 0.2, 0.09], long: 0.06 }, o)); return r; };
 P_.smg = (c, o) => {
   inHand(c, -1, 'gun', () => { const { g } = c; mat(c, o.col || [0.05, 0.05, 0.055], S_METAL, 0); rbox(g, 0, 0.16, -0.06, 0.042, 0.26, 0.07); g.tube([[0, 0.25, -0.07], [0, 0.36, -0.07]], 0.011, { seg: 8, sub: 1 }); g.tr(0, 0.0, -0.035, PI / 2 + 0.35, 0, 0); g.box(0.03, 0.09, 0.04, 6); g.pop(); g.tr(0, 0.1, -0.02, PI / 2, 0, 0); g.box(0.028, 0.16, 0.035, 6); g.pop(); });
-  return { pose: 'pistol' };
+  return { pose: o.pose || 'smgUp' };
 };
+
 P_.pistol = (c, o) => {
   const side = o.side || -1; inHand(c, side, 'gun', () => { const { g } = c; mat(c, o.col || [0.06, 0.06, 0.065], S_METAL, 0); rbox(g, 0, 0.13, -0.06, 0.032, 0.17, 0.045); g.tr(0, 0.0, -0.03, PI / 2 + 0.3, 0, 0); g.box(0.028, 0.09, 0.04, 6); g.pop(); });
   return { pose: side < 0 ? 'pistol' : 'idle' };
@@ -116,7 +117,23 @@ P_.binoculars = (c, o) => { // held up to the eyes: built on the head bone in fr
 };
 const MAP_RX = 1.4; // the map pose lifts the forearms ~1.6 rad: tip the sheet back up so it faces forward
 P_.map = (c, o) => { inHand(c, -1, 'hang', () => { const { g } = c; mat(c, [0.07, 0.3, 0.11], S_CLOTH, 0); g.tr(0, 0, 0.04, MAP_RX, 0, 0); g.surf(6, 4, (u, v) => [-0.06 + u * 0.56, 0.2 - v * 0.42, 0.07 + Math.sin(u * PI) * 0.03], { thick: 0.004 }); mat(c, [0.85, 0.9, 0.95], S_CLOTH, 0); g.tube([[0.04, 0.1, 0.11], [0.18, -0.02, 0.105], [0.3, 0.04, 0.105], [0.42, -0.1, 0.09]], 0.007, { seg: 4, sub: 2 }); g.pop(); }); return { pose: 'map' }; };
-P_.guitar = (c, o) => { inHand(c, -1, 'blade', () => { const { g } = c; mat(c, o.col || [0.55, 0.32, 0.15], S_WOOD, 0); g.tr(0.06, 0.05, 0.1, 0, 0, 0, 1.45, 1.45, 1.45); g.loft([{ y: -0.04, rx: 0.12, rz: 0.04 }, { y: 0.1, rx: 0.14, rz: 0.05 }, { y: 0.2, rx: 0.1, rz: 0.05 }, { y: 0.3, rx: 0.12, rz: 0.05 }, { y: 0.38, rx: 0.05, rz: 0.04 }], { seg: 14, sub: 2, cap0: true, cap1: true }); mat(c, [0.2, 0.12, 0.06], S_WOOD, 0); g.tr(0, -0.04, 0); rbox(g, 0, 0, 0, 0.04, 0.4, 0.02); g.pop(); g.pop(); }); return { pose: 'guitar' }; };
+// round 4: acoustic guitar slung on the chest (built on the chest bone, not in the fist): figure-8 body at the right
+// hip facing forward, sound hole, neck rising to the left; the left hand is IK-pinned to the neck, the right strums.
+export const GUITAR = { x: -0.1, y: 1.0, z: 0.23, th: 1.12, hold: 0.46 };
+P_.guitar = (c, o) => {
+  const { g } = c, G = GUITAR, k = o.k || 1.3;
+  g.bone('chest'); g.tr(G.x, G.y, G.z, 0, 0, -G.th, k, k, k);
+  mat(c, o.col || [0.34, 0.16, 0.06], S_WOOD, 0);
+  g.loft([[-0.215, 0.02], [-0.2, 0.12], [-0.15, 0.175], [-0.07, 0.18], [0.0, 0.135], [0.05, 0.115], [0.11, 0.14], [0.17, 0.13], [0.215, 0.07], [0.23, 0.01]].map(([y, r]) => ({ y, rx: r, rz: 0.055, sq: 2 })), { seg: 24, sub: 2, cap0: true, cap1: true });
+  mat(c, [0.12, 0.07, 0.035], S_WOOD, 0); g.tr(0, 0.07, 0.056); g.sphere(0.045, 0.045, 0.006, 14, 4); g.pop();       // sound hole
+  mat(c, [0.2, 0.12, 0.06], S_WOOD, 0); g.tr(0, -0.11, 0.056); g.box(0.09, 0.022, 0.012, 4); g.pop();                // bridge
+  mat(c, [0.3, 0.17, 0.08], S_WOOD, 0); rbox(g, 0, 0.48, 0.02, 0.048, 0.52, 0.032);                                // neck
+  rbox(g, 0, 0.79, 0.015, 0.07, 0.11, 0.03);                                                                        // headstock
+  mat(c, [0.85, 0.82, 0.7], S_METAL, 0); for (const x of [-0.012, 0.012]) { g.tr(x, 0.24, 0.058); g.box(0.003, 0.5, 0.003, 4); g.pop(); } // strings
+  g.pop();
+  const a = G.th, p = [G.x + Math.sin(a) * G.hold * k, G.y + Math.cos(a) * G.hold * k, G.z + 0.05];
+  return { pose: 'guitar', grip: { side: 1, bone: 'chest', point: p, pole: [0.3, -1, -0.4] } };
+};
 P_.extinguisher = (c, o) => { inHand(c, 1, 'hang', () => { const { g } = c; mat(c, o.col || [0.85, 0.1, 0.08], S_PLASTIC, 0); g.tr(0, -0.42, 0); g.lathe([[0.06, 0], [0.065, 0.02], [0.065, 0.34], [0.03, 0.39], [0.0, 0.39]], 12, { cap0: true }); g.pop(); mat(c, [0.1, 0.1, 0.1], S_PLASTIC, 0); rbox(g, 0, 0.0, 0, 0.03, 0.06, 0.06); }); return { pose: 'carry' }; };
 P_.crutch = (c, o) => { const side = o.side || 1; inHand(c, side, 'hang', () => { const { g } = c; mat(c, o.col || [0.4, 0.45, 0.5], S_METAL, 0); g.tube([[0, 0.1, -0.02], [0, -0.85, 0.02]], 0.012, { seg: 6, sub: 1 }); mat(c, [0.1, 0.1, 0.1], S_RUBBER, 0); g.tr(0, -0.85, 0.02); cyl(g, -0.03, 0.0, 0.016); g.pop(); g.tr(0, 0.1, -0.02, 0, 0, PI / 2); cyl(g, -0.05, 0.05, 0.018); g.pop(); }); return { pose: 'crutch' }; };
 P_.sign = (c, o) => { inHand(c, 1, 'hang', () => { const { g } = c; mat(c, [0.6, 0.6, 0.62], S_METAL, 0); g.tube([[0, 0.1, 0.0], [0, -0.75, 0.0]], 0.012, { seg: 6, sub: 1 }); mat(c, [0.95, 0.95, 0.95], S_PLASTIC, 0); g.tr(0, 0.32, 0.0); g.lathe([[0.0, 0], [0.2, 0.0], [0.2, 0.01], [0, 0.01]].map(([r, y]) => [r, y]), 3); g.pop(); g.tr(0, 0.28, 0.02, PI / 2, 0, 0); g.loft([{ y: 0, rx: 0.2, rz: 0.17, sq: 1 }, { y: 0.012, rx: 0.2, rz: 0.17, sq: 1 }], { seg: 3, sub: 1, cap0: true, cap1: true }); g.pop(); mat(c, o.col || [0.2, 0.4, 0.9], S_PLASTIC, 0); g.tr(0, 0.28, 0.035, PI / 2, 0, 0); g.loft([{ y: 0, rx: 0.15, rz: 0.13, sq: 1 }, { y: 0.004, rx: 0.15, rz: 0.13, sq: 1 }], { seg: 3, sub: 1, cap1: true }); g.pop(); }); return { pose: 'carry' }; };

@@ -28,13 +28,17 @@ export function chibiRig(P) {
 
 // ---- profile tables (ascending y) ----
 // torso: [y, rx, rzFront, rzBack, sq]
-const TP = [[0.86, 0.17, 0.12, 0.13, 2.2], [0.94, 0.205, 0.135, 0.15, 2.2], [1.02, 0.212, 0.142, 0.15, 2.2], [1.12, 0.2, 0.138, 0.136, 2.15], [1.24, 0.212, 0.15, 0.138, 2.2],
-  [1.36, 0.232, 0.16, 0.142, 2.25], [1.48, 0.248, 0.16, 0.148, 2.3], [1.565, 0.25, 0.148, 0.138, 2.25], [1.625, 0.222, 0.125, 0.12, 2.1], [1.665, 0.14, 0.095, 0.095, 2.05], [1.7, 0.08, 0.072, 0.078, 2.0], [1.78, 0.074, 0.068, 0.074, 2.0]];
-// arm: [y, r, xoff, zoff]
-const AP = [[0.985, 0.054, 0.05, 0.02], [1.06, 0.062, 0.045, 0.02], [1.16, 0.07, 0.038, 0.015], [1.27, 0.073, 0.03, 0.01], [1.38, 0.086, 0.02, 0.005], [1.5, 0.097, 0.01, 0], [1.6, 0.102, 0, 0], [1.66, 0.09, -0.012, 0], [1.705, 0.045, -0.024, 0]];
-// leg: [y, rx, rzFront, rzBack, xoff]
-const LP = [[0.1, 0.06, 0.062, 0.064, 0.005], [0.22, 0.067, 0.067, 0.074, 0.005], [0.36, 0.076, 0.074, 0.085, 0.005], [0.5, 0.082, 0.084, 0.082, 0.004], [0.64, 0.095, 0.099, 0.097, 0.003],
-  [0.78, 0.106, 0.108, 0.11, 0], [0.9, 0.112, 0.114, 0.12, -0.004], [0.99, 0.11, 0.11, 0.12, -0.01]];
+// Round 4 ("vinyl toy"): cross-sections near-elliptic (sq ~2.0-2.1, was up to 2.3 = boxy), waist pulled in, chest
+// fuller, and the shoulder line slopes from the neck down into the deltoid instead of a flat shelf with a ball on it.
+const TP = [[0.86, 0.17, 0.122, 0.13, 2.05], [0.94, 0.205, 0.137, 0.152, 2.05], [1.02, 0.21, 0.14, 0.15, 2.05], [1.12, 0.19, 0.134, 0.132, 2.0], [1.24, 0.204, 0.15, 0.136, 2.05],
+  [1.36, 0.228, 0.163, 0.142, 2.1], [1.46, 0.242, 0.165, 0.148, 2.1], [1.54, 0.242, 0.155, 0.142, 2.1], [1.6, 0.226, 0.138, 0.128, 2.05], [1.645, 0.186, 0.112, 0.108, 2.0], [1.68, 0.11, 0.082, 0.086, 2.0], [1.71, 0.08, 0.072, 0.078, 2.0], [1.78, 0.074, 0.068, 0.074, 2.0]];
+// arm: [y, r, xoff, zoff]. Round deltoid that sinks into the shoulder slope, slimmer upper arm, a soft elbow, a thick
+// forearm that tapers into the wrist (was a straight tube widening to the top).
+const AP = [[0.985, 0.051, 0.05, 0.02], [1.04, 0.061, 0.047, 0.022], [1.12, 0.071, 0.042, 0.02], [1.2, 0.069, 0.036, 0.014], [1.27, 0.064, 0.03, 0.01], [1.36, 0.071, 0.022, 0.005],
+  [1.46, 0.081, 0.014, 0], [1.54, 0.09, 0.004, 0], [1.6, 0.09, -0.01, 0], [1.638, 0.074, -0.024, 0], [1.664, 0.036, -0.036, 0]];
+// leg: [y, rx, rzFront, rzBack, xoff]. Calf bulges at the back, knee eases in, thigh full.
+const LP = [[0.1, 0.058, 0.06, 0.062, 0.005], [0.2, 0.066, 0.066, 0.078, 0.005], [0.3, 0.075, 0.07, 0.092, 0.005], [0.4, 0.075, 0.073, 0.086, 0.005], [0.5, 0.079, 0.083, 0.078, 0.004], [0.64, 0.095, 0.1, 0.096, 0.003],
+  [0.78, 0.107, 0.11, 0.111, 0], [0.9, 0.113, 0.116, 0.121, -0.004], [0.99, 0.11, 0.11, 0.12, -0.01]];
 // head: [y, rx, rzFront, rzBack]  (ellipse rings, centre z = HZ)
 const HT = [[1.742, 0.02, 0.02, 0.02], [1.76, 0.085, 0.095, 0.075], [1.795, 0.132, 0.148, 0.118], [1.855, 0.16, 0.172, 0.152], [1.93, 0.171, 0.178, 0.17], [2.0, 0.169, 0.172, 0.177],
   [2.06, 0.155, 0.152, 0.165], [2.11, 0.12, 0.113, 0.128], [2.145, 0.066, 0.06, 0.07], [2.162, 0.004, 0.004, 0.004]];
@@ -53,7 +57,7 @@ export const bump = (y, c, w) => Math.max(0, 1 - ((y - c) / w) ** 2);
 
 // body shape options: k (width), belly (m), bust (m), kz (depth)
 export function torsoRing(B, y, grow = 0) {
-  const r = samp(TP, y), k = (B.k || 1) * 1.07, kz = (B.kz || 1) * 1.05, bl = (B.belly || 0) * bump(y, 1.13, 0.3), bu = (B.bust || 0) * bump(y, 1.4, 0.1);
+  const r = samp(TP, y), k = (B.k || 1) * 1.02, kz = (B.kz || 1) * 1.04, bl = (B.belly || 0) * bump(y, 1.13, 0.3), bu = (B.bust || 0) * bump(y, 1.4, 0.1);
   const nk = smooth(1.66, 1.62, y); // shoulders and chest get the width factor, the neck does not
   return { y, rx: r[1] * lerp(1, k, nk) + bl * 0.75 + grow, rz: r[2] * lerp(1, kz, nk) + bl + bu + grow, rb: r[3] * lerp(1, kz, nk) + bl * 0.25 + grow, sq: r[4] };
 }
@@ -64,7 +68,7 @@ export function torso(g, B, o = {}) {
   ys.unshift(y0); ys.push(y1); if (B.belly) { for (const y of [1.0, 1.13, 1.26]) if (y > y0 + 0.02 && y < y1 - 0.02 && !ys.includes(y)) ys.push(y); ys.sort((a, b) => a - b); }
   const gr = o.grow || 0, rings = ys.map((y) => { const r = torsoRing(B, y, gr + (o.flare ? o.flare * smooth(o.flareY || y1, y0, y) : 0)); if (o.sq) r.sq = o.sq; return r; });
   g.bone(o.bone || TW);
-  return g.loft(rings, { seg: o.seg || 22, sub: 3, arc: o.arc, thick: o.thick, cap0: o.cap0, cap1: o.cap1 });
+  return g.loft(rings, { seg: o.seg || 26, sub: 3, arc: o.arc, thick: o.thick, cap0: o.cap0, cap1: o.cap1 });
 }
 export function armRings(P, side, y0, y1, grow = 0, k = 1) {
   return span(AP, y0, y1).map((r) => ({ y: r[0], rx: r[1] * k + grow, rz: r[1] * k * 1.04 + grow, x: side * (P.sh + r[2]), z: r[3] }));
@@ -73,7 +77,7 @@ export function arm(g, P, side, o = {}) {
   const U = side > 0 ? 'lUp' : 'rUp', F = side > 0 ? 'lFore' : 'rFore';
   g.bone(o.bone || jb(U, F, J.el, 0.06));
   const y0 = o.y0 === undefined ? 0.985 : o.y0, y1 = o.y1 === undefined ? 1.69 : o.y1;
-  return g.loft(armRings(P, side, y0, y1, o.grow || 0, o.k || 1), { seg: o.seg || 12, sub: 3, thick: o.thick, cap0: o.cap0, cap1: o.cap1 === undefined ? y1 >= 1.68 : o.cap1 });
+  return g.loft(armRings(P, side, y0, y1, o.grow || 0, o.k || 1), { seg: o.seg || 16, sub: 3, thick: o.thick, cap0: o.cap0, cap1: o.cap1 === undefined ? y1 >= 1.68 : o.cap1 });
 }
 export function legRings(P, side, y0, y1, grow = 0, k = 1) {
   return span(LP, y0, y1).map((r) => ({ y: r[0], rx: r[1] * k + grow, rz: r[2] * k + grow, rb: r[3] * k + grow, x: side * (P.hp + r[4]) }));
@@ -82,7 +86,7 @@ export function leg(g, P, side, o = {}) {
   const T = side > 0 ? 'lThigh' : 'rThigh', S = side > 0 ? 'lShin' : 'rShin';
   g.bone(o.bone || jb(T, S, J.knee, 0.06));
   const y0 = o.y0 === undefined ? 0.1 : o.y0, y1 = o.y1 === undefined ? 0.99 : o.y1;
-  return g.loft(legRings(P, side, y0, y1, o.grow || 0, o.k || 1), { seg: o.seg || 14, sub: 3, thick: o.thick, cap0: o.cap0, cap1: o.cap1, arc: o.arc });
+  return g.loft(legRings(P, side, y0, y1, o.grow || 0, o.k || 1), { seg: o.seg || 16, sub: 3, thick: o.thick, cap0: o.cap0, cap1: o.cap1, arc: o.arc });
 }
 
 // chunky shoe / boot. o: top (boot shaft height), kind: 'sneaker' | 'boot' | 'welly' | 'shoe', col, sole, lace
@@ -92,26 +96,37 @@ export function shoe(g, P, side, o = {}) {
   g.bone(jb(S, F, 0.15, 0.04));
   g.mat(o.col, o.rough || 0.7, 0, o.type || S_CLOTH, o.dirt || 0);
   // upper: rings rise from the sole; front extends into a round toe
+  // round 4: puffy toy shoe, near-elliptic sections, a domed toe box and a rolled collar at the top
   g.loft([
-    { y: 0.03, x, rx: w * 1.08, rz: 0.19, rb: 0.085, z: 0.0, sq: 2.3 },
-    { y: 0.075, x, rx: w * 1.1, rz: 0.185, rb: 0.088, z: 0.0, sq: 2.4 },
-    { y: 0.12, x, rx: w * 1.02, rz: 0.13, rb: 0.084, z: 0.0, sq: 2.3 },
-    { y: 0.16, x, rx: w * 0.92, rz: 0.08, rb: 0.078, z: 0, sq: 2.1 },
-    { y: Math.max(0.2, top), x, rx: w * 0.9 + (top > 0.2 ? 0.006 : 0), rz: 0.074, rb: 0.076, z: 0, sq: 2 },
-  ], { seg: 16, sub: 3, cap0: true, cap1: top < 0.19 });
-  // sole: a slightly wider rounded slab
+    { y: 0.032, x, rx: w * 1.1, rz: 0.19, rb: 0.088, z: 0.0, sq: 2.15 },
+    { y: 0.07, x, rx: w * 1.16, rz: 0.192, rb: 0.092, z: 0.0, sq: 2.15 },
+    { y: 0.105, x, rx: w * 1.1, rz: 0.165, rb: 0.09, z: 0.0, sq: 2.1 },
+    { y: 0.14, x, rx: w * 0.98, rz: 0.105, rb: 0.084, z: 0.0, sq: 2.05 },
+    { y: 0.17, x, rx: w * 0.93, rz: 0.08, rb: 0.08, z: 0, sq: 2 },
+    { y: Math.max(0.2, top), x, rx: w * 0.92 + (top > 0.2 ? 0.008 : 0), rz: 0.078, rb: 0.08, z: 0, sq: 2 },
+  ], { seg: 22, sub: 3, cap0: true, cap1: top < 0.19 });
+  { const yt = Math.max(0.2, top); g.loft([{ y: yt - 0.022, x, rx: w * 0.93 + 0.006, rz: 0.082, rb: 0.084 }, { y: yt - 0.008, x, rx: w * 0.93 + 0.016, rz: 0.092, rb: 0.094 }, { y: yt + 0.006, x, rx: w * 0.93 + 0.004, rz: 0.08, rb: 0.082 }], { seg: 20, sub: 2, thick: 0.004 }); }
+  // sole: a wider slab with a rounded edge (bulges at mid height)
   g.bone(F); g.mat(o.sole || [0.85, 0.85, 0.82], 0.85, 0, S_RUBBER, 0);
-  g.loft([{ y: 0.0, x, rx: w * 1.12, rz: 0.2, rb: 0.092, sq: 2.6 }, { y: 0.038, x, rx: w * 1.16, rz: 0.205, rb: 0.095, sq: 2.6 }], { seg: 16, sub: 1, cap0: true, cap1: true });
-  if (o.toe) { g.mat(o.toe, 0.7, 0, S_CLOTH, 0); g.tr(x, 0.075, 0.12); g.sphere(w * 0.98, 0.05, 0.075, 10, 6); g.pop(); }
+  g.loft([{ y: 0.0, x, rx: w * 1.1, rz: 0.198, rb: 0.09, sq: 2.25 }, { y: 0.022, x, rx: w * 1.2, rz: 0.21, rb: 0.1, sq: 2.25 }, { y: 0.044, x, rx: w * 1.16, rz: 0.204, rb: 0.096, sq: 2.25 }], { seg: 22, sub: 2, cap0: true, cap1: true });
+  if (o.toe) { g.mat(o.toe, 0.7, 0, S_CLOTH, 0); g.tr(x, 0.075, 0.12); g.sphere(w * 1.0, 0.052, 0.078, 14, 8); g.pop(); }
   if (o.lace) { g.mat(o.lace, 0.8, 0, S_CLOTH, 0); g.bone(jb(S, F, 0.15, 0.04)); for (let i = 0; i < 3; i++) { const yy = 0.1 + i * 0.03, zz = 0.13 - i * 0.025; g.tube([[x - w * 0.5, yy, zz], [x, yy + 0.008, zz + 0.012], [x + w * 0.5, yy, zz]], 0.007, { seg: 5, sub: 2 }); } }
 }
 
 // mitten fist at the hand frame; palm faces the body, thumb on the front
 export function fist(g, P, side, col, o = {}) {
-  const H = side > 0 ? 'lHand' : 'rHand', x = side * (P.sh + 0.05), y = J.grip + 0.01, k = o.k || 1.36;
+  const H = side > 0 ? 'lHand' : 'rHand', x = side * (P.sh + 0.05), y = J.grip + 0.01, k = o.k || 1.24;
   g.bone(H); g.mat(col, o.rough || 0.6, 0, o.type === undefined ? S_SKIN : o.type, 0);
-  g.tr(x, y, 0.005); g.sphere(0.05 * k, 0.07 * k, 0.064 * k, 12, 8); g.pop();
-  g.tr(x - side * 0.022 * k, y + 0.02, 0.05 * k, 0.5, 0, side * 0.3); g.sphere(0.024 * k, 0.034 * k, 0.024 * k, 8, 5); g.pop();
+  if (o.open) { // open claw (zombies): flat palm, four splayed fat fingers curling in, thumb forward
+    g.tr(x, y + 0.012, 0.0); g.sphere(0.036 * k, 0.056 * k, 0.06 * k, 14, 8); g.pop();
+    for (let i = 0; i < 4; i++) { const z = (i - 1.5) * 0.03 * k, sp = (i - 1.5) * 0.18; g.tube([[x, y - 0.03 * k, z], [x - side * 0.006, y - 0.075 * k, z + sp * 0.06], [x - side * 0.03 * k, y - 0.1 * k, z + sp * 0.09]], (t) => 0.014 * k * (1 - 0.3 * t), { seg: 6, sub: 2 }); }
+    g.tube([[x - side * 0.01, y, 0.04 * k], [x - side * 0.03 * k, y - 0.03 * k, 0.075 * k]], 0.014 * k, { seg: 6, sub: 1 });
+    return;
+  }
+  // round 4: chunky toy mitten: palm ball, a rolled finger mass curling toward the body, a fat thumb
+  g.tr(x, y + 0.008, 0.002); g.sphere(0.052 * k, 0.062 * k, 0.062 * k, 16, 10); g.pop();
+  g.tr(x - side * 0.008 * k, y - 0.034 * k, 0.008 * k); g.sphere(0.05 * k, 0.036 * k, 0.06 * k, 14, 8); g.pop();
+  g.tr(x - side * 0.024 * k, y + 0.012, 0.05 * k, 0.5, 0, side * 0.3); g.sphere(0.026 * k, 0.036 * k, 0.026 * k, 10, 6); g.pop();
   if (o.cuff) { g.mat(o.cuff, 0.7, 0, S_CLOTH, 0); g.bone(jb(side > 0 ? 'lFore' : 'rFore', H, J.wr, 0.02)); g.loft(armRings(P, side, 0.97, 1.04, 0.012), { seg: 12, sub: 1, thick: 0.006 }); }
 }
 
@@ -127,7 +142,8 @@ export function headFrontZ(x, y, grow = 0) { const r = headRing(y, grow); const 
 // a shell that follows the head over a rim: rim(a) -> y at angle a; covers from the rim up to the crown
 // (or to `top(a)`), pushed out by grow (+flare at the rim). Used for hair, caps, helmets, hoods.
 export function headShell(g, o) {
-  const grow = o.grow || 0.012, nu = o.nu || 26, nv = o.nv || 10, top = HEAD_TOP + grow;
+  // round 4: shells are denser (x1.25 around, x1.2 up) so hats and hair read smooth, not faceted, at close range
+  const grow = o.grow || 0.012, nu = Math.round((o.nu || 26) * 1.25), nv = (o.nv || 10) > 2 ? Math.round((o.nv || 10) * 1.2) : (o.nv || 10), top = HEAD_TOP + grow;
   const a0 = o.arc ? o.arc[0] : 0, a1 = o.arc ? o.arc[1] : TAU;
   g.surf(nu, nv, (u, v) => {
     const a = a0 + (a1 - a0) * u + (o.arc ? 0 : PI / 2), yr = o.rim(a), yt = o.top ? o.top(a) : top;
@@ -152,26 +168,52 @@ export function head(g, f) {
   g.loft(HT.map((r) => ({ y: r[0], rx: r[1], rz: r[2], rb: r[3], z: HZ, sq: 2 })), { seg: 28, sub: 3, cap0: true });
   // ears
   for (const s of [1, -1]) { g.tr(s * 0.168, 1.915, HZ - 0.01, 0, s * 0.35, 0); g.sphere(0.024, 0.042, 0.034, 10, 6); g.pop(); }
-  // nose nub
-  g.mat(skin.map((c) => c * 0.93), 0.6, 0, S_SKIN, 0);
-  const nz = headFrontZ(0, 1.885); g.tr(0, 1.885, nz - 0.004); g.sphere(0.026 * (f.nose || 1), 0.025 * (f.nose || 1), 0.026, 10, 6); g.pop();
-  // eyes: small white, big dark iris, highlight
-  const ey = EYE_Y + (f.eyeY || 0), ex = 0.064, ek = f.eyeK || 1;
+  // nose: a soft rounded button with a bridge, slightly darker than the face
+  g.mat(skin.map((c) => c * 0.9), 0.6, 0, S_SKIN, 0);
+  const nk = f.nose || 1, nz = headFrontZ(0, 1.882);
+  g.tr(0, 1.882, nz - 0.006); g.sphere(0.03 * nk, 0.028 * nk, 0.03 * nk, 12, 8); g.pop();
+  g.tr(0, 1.912, headFrontZ(0, 1.912) - 0.008); g.sphere(0.017 * nk, 0.03 * nk, 0.016 * nk, 8, 6); g.pop();
+  // eyes (round 4): bigger oval whites, a dark iris with a deeper pupil and a highlight, an upper lid line that
+  // carries the expression (lid: 0 open .. 1 sleepy), lower lash hint; brows thicker and higher
+  const ey = EYE_Y + (f.eyeY || 0), ex = 0.066, ek = f.eyeK || 1, lid = f.lid === undefined ? 0.35 : f.lid;
   for (const s of [1, -1]) {
-    const z = headFrontZ(s * ex, ey);
-    g.mat([0.9, 0.88, 0.85], 0.3, 0, S_EYE, 0); g.tr(s * ex, ey, z - 0.006, 0, s * 0.36, 0); g.sphere(0.026 * ek, 0.03 * ek, 0.012, 10, 6); g.pop();
-    g.mat(f.eye || [0.035, 0.022, 0.016], 0.2, 0, S_EYE, 0); g.tr(s * (ex - 0.002), ey - 0.002, z - 0.001, 0, s * 0.36, 0); g.sphere(0.019 * ek, 0.024 * ek, 0.008, 10, 6); g.pop();
-    g.mat([1, 1, 1], 0.2, 0, S_GLOW, 0.6); g.tr(s * (ex - 0.008) , ey + 0.01, z + 0.006); g.sphere(0.005, 0.005, 0.003, 5, 3); g.pop();
-    // brow
-    const by = ey + 0.05 + (f.browY || 0), bz = headFrontZ(s * 0.065, by) + 0.002;
+    const z = headFrontZ(s * ex, ey), ry = s * 0.38;
+    if (ek > 0.01) {
+      g.mat([0.9, 0.88, 0.85], 0.3, 0, S_EYE, 0); g.tr(s * ex, ey, z - 0.008, 0, ry, 0); g.sphere(0.028 * ek, 0.034 * ek, 0.014, 14, 8); g.pop();
+      g.mat(f.eye || [0.055, 0.028, 0.014], 0.2, 0, S_EYE, 0); g.tr(s * (ex - 0.001), ey - 0.003, z - 0.002, 0, ry, 0); g.sphere(0.021 * ek, 0.027 * ek, 0.009, 12, 6); g.pop();
+      g.mat([0.008, 0.006, 0.005], 0.2, 0, S_EYE, 0); g.tr(s * (ex - 0.001), ey - 0.004, z + 0.0015, 0, ry, 0); g.sphere(0.012 * ek, 0.015 * ek, 0.006, 10, 5); g.pop();
+      g.mat([1, 1, 1], 0.2, 0, S_GLOW, 0.8); g.tr(s * (ex - 0.008), ey + 0.009, z + 0.006); g.sphere(0.0065 * ek, 0.0075 * ek, 0.003, 6, 4); g.pop();
+
+      // upper lid: skin cap over the top of the eye, its edge lower with `lid`, plus a dark lash line on the edge
+      const ly = ey + 0.036 * ek - lid * 0.026 * ek;
+      g.mat(skin.map((c) => c * 0.94), 0.6, 0, S_SKIN, 0);
+      g.tr(s * ex, ey, z - 0.008, 0, ry, 0);
+      g.surf(10, 4, (u, v) => { const a = lerp(0.12, PI - 0.12, u), yy = lerp(ly - ey, 0.04 * ek, v); return [Math.cos(a) * 0.034 * ek, yy + Math.sin(a) * 0.004, 0.016 + 0.004 * (1 - v)]; }, { thick: 0.003 });
+      g.pop();
+      g.mat([0.04, 0.025, 0.02], 0.7, 0, S_HAIR, 0);
+      g.tr(s * ex, ey, z - 0.008, 0, ry, 0);
+      g.tube([[-0.035 * ek, ly - ey - 0.002 * ek, 0.012], [0, ly - ey + 0.006 * ek, 0.02], [0.035 * ek, ly - ey - 0.002 * ek, 0.012], [0.044 * ek, ly - ey + 0.004 * ek, 0.008]].map((p) => [s > 0 ? p[0] : -p[0], p[1], p[2]]), 0.0042, { seg: 5, sub: 3, flatten: 0.7 });
+      g.pop();
+    }
+    // brow: thick soft wedge; browTilt > 0 = angry (inner end low), < 0 = worried
+    const by = ey + 0.062 + (f.browY || 0), bz = headFrontZ(s * 0.066, by) + 0.003, bt = f.browTilt || 0;
     g.mat(f.brow || NEUT, 0.8, 0, S_HAIR, 0);
-    g.tube([[s * 0.028, by - 0.004 + (f.browTilt || 0) * 0.5, bz - 0.004], [s * 0.065, by + 0.006, bz], [s * 0.1, by - 0.004 - (f.browTilt || 0), bz - 0.012]], (f.browW || 1) * 0.009, { seg: 6, sub: 2, flatten: 0.6 });
+    g.tube([[s * 0.026, by - 0.006 - bt * 0.5, bz - 0.005], [s * 0.066, by + 0.007, bz], [s * 0.106, by - 0.002 + bt * 0.3, bz - 0.014]], (t) => (f.browW || 1) * 0.012 * (1 - 0.35 * t), { seg: 6, sub: 3, flatten: 0.55 });
   }
-  // mouth
-  const my = 1.828, mz = headFrontZ(0, my) + 0.001, sm = f.smile === undefined ? 0.006 : f.smile;
-  g.mat(f.mouth || [0.22, 0.06, 0.05], 0.6, 0, S_SKIN, 0);
-  g.tube([[-0.04, my + sm, mz - 0.01], [0, my, mz], [0.04, my + sm, mz - 0.01]], 0.0065, { seg: 6, sub: 3, flatten: 0.7 });
+  // mouth: 'smile' (default), 'grin' (open, teeth), 'flat', 'smirk', 'o'
+  const my = 1.826, mz = headFrontZ(0, my) + 0.001, sm = f.smile === undefined ? 0.008 : f.smile, ms = f.mouthShape || 'smile';
+  g.mat(f.mouth || [0.24, 0.07, 0.06], 0.6, 0, S_SKIN, 0);
+  if (ms === 'grin') {
+    g.tr(0, my - 0.004, mz - 0.012); g.surf(12, 4, (u, v) => { const a = lerp(0.1, PI - 0.1, u); return [Math.cos(a) * 0.042, -Math.sin(a) * 0.026 * v + 0.006 * Math.cos(a) * Math.cos(a), 0.012 - 0.004 * v]; }, { thick: 0.004 }); g.pop();
+    g.mat([0.92, 0.9, 0.84], 0.4, 0, S_SKIN, 0); g.tr(0, my - 0.001, mz - 0.003); g.sphere(0.03, 0.007, 0.006, 10, 4); g.pop();
+  } else if (ms === 'o') { g.tr(0, my - 0.004, mz - 0.006); g.sphere(0.014, 0.017, 0.008, 10, 6); g.pop(); }
+  else {
+    const L = ms === 'smirk' ? [sm * 0.2, sm * 1.8] : ms === 'flat' ? [0.001, 0.001] : [sm, sm];
+    g.tube([[-0.042, my + L[0], mz - 0.012], [-0.018, my - 0.002, mz - 0.002], [0.018, my - 0.002, mz - 0.002], [0.042, my + L[1], mz - 0.012]], (t) => 0.0062 * (0.6 + 0.4 * Math.sin(t * PI)), { seg: 6, sub: 3, flatten: 0.7 });
+    g.mat(skin.map((c) => c * 0.86), 0.6, 0, S_SKIN, 0); g.tr(0, my - 0.02, headFrontZ(0, my - 0.02) - 0.004); g.sphere(0.022, 0.008, 0.008, 8, 4); g.pop(); // lower lip shadow
+  }
 }
+
 
 // hair styles over the head (o.col, o.style)
 export function hair(g, o) {
@@ -180,8 +222,21 @@ export function hair(g, o) {
   g.mat(col, 0.65, 0, S_HAIR, 0);
   const shell = (yF, yS, yB, grow, extra) => headShell(g, Object.assign({ rim: rimFn(yF, yS, yB), grow, nu: 28, nv: 9, thick: 0.006 }, extra || {}));
   if (st === 'buzz') { shell(2.03, 1.97, 1.86, 0.004); return; }
+  // round 4: soft chunky locks along the hairline (fringe at the front, tufts over the ears, a nape lump) so hair
+  // reads as sculpted masses instead of a painted bowl
+  // side-swept rolled fringe: one soft tube along the hairline, thick in the middle, lower on one side
+  const locks = (yF, n, spread, k = 1) => {
+    const half = (n - 1) / 2 * spread, pts = [];
+    for (let i = 0; i <= 8; i++) { const t = i / 8, a = PI / 2 + lerp(half, -half, t), y = yF + 0.03 * (1 - t) - 0.012 * Math.sin(t * PI); pts.push(headPt(a, y, 0.012)); }
+    g.tube(pts, (t) => 0.024 * k * (0.55 + 0.45 * Math.sin(Math.min(1, t * 1.3) * PI)), { seg: 10, sub: 3, flatten: 0.6 });
+  };
+
+  const tufts = (y, k = 1) => { for (const s of [1, -1]) { const p = headPt(PI / 2 - s * 1.05, y, 0.004); g.tr(p[0], p[1], p[2], 0, s * 0.5, 0); g.sphere(0.014 * k, 0.04 * k, 0.026 * k, 8, 6); g.pop(); } }; // sideburns
   if (st === 'short' || st === 'quiff' || st === 'flattop' || st === 'mohawk' || st === 'bun' || st === 'pony' || st === 'spiky') {
     shell(2.035, 1.97, 1.78, 0.014, { flare: 0.006 });
+    if (st === 'short' || st === 'bun' || st === 'pony') { locks(2.045, 4, 0.36); tufts(1.95); }
+
+    if (st === 'quiff' || st === 'spiky') tufts(1.95);
     if (st === 'quiff') { g.tr(0, 2.11, 0.1, -0.5, 0, 0); g.sphere(0.12, 0.06, 0.09, 12, 7); g.pop(); g.tr(0.02, 2.14, 0.0, -0.2, 0, 0.1); g.sphere(0.12, 0.05, 0.12, 12, 6); g.pop(); }
     if (st === 'flattop') { g.loft([{ y: 2.06, rx: 0.15, rz: 0.15, z: HZ }, { y: 2.2, rx: 0.15, rz: 0.15, z: HZ }, { y: 2.24, rx: 0.135, rz: 0.135, z: HZ }], { seg: 18, sub: 1, cap1: true }); }
     if (st === 'mohawk') { g.tr(0, 2.12, HZ); g.sphere(0.035, 0.1, 0.17, 8, 8); g.pop(); }
@@ -192,10 +247,12 @@ export function hair(g, o) {
   }
   if (st === 'bob' || st === 'long') {
     shell(1.995, st === 'long' ? 1.8 : 1.84, st === 'long' ? 1.66 : 1.78, 0.022, { flare: 0.03 });
+    locks(2.01, 6, 0.28, 1.05);
     return;
   }
   if (st === 'afro') { shell(2.02, 1.93, 1.84, 0.02); g.tr(0, 2.08, HZ - 0.01); g.sphere(0.22, 0.17, 0.22, 16, 10); g.pop(); return; }
-  if (st === 'side') { shell(2.02, 1.96, 1.84, 0.016, { flare: 0.004 }); g.tr(0.05, 2.1, 0.11, -0.4, 0, -0.4); g.sphere(0.11, 0.05, 0.08, 10, 6); g.pop(); return; }
+  if (st === 'side') { shell(2.02, 1.96, 1.84, 0.016, { flare: 0.004 }); g.tr(0.05, 2.1, 0.11, -0.4, 0, -0.4); g.sphere(0.11, 0.05, 0.08, 14, 8); g.pop(); tufts(1.95); return; }
+
   shell(2.035, 1.97, 1.84, 0.014);
 }
 

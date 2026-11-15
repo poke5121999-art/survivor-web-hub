@@ -1073,7 +1073,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/nhan-vat-chibi.png",
     // Bộ chibi trong games/nhan-vat-3d (lib/chibi, lib/roster); nguồn làm việc D:\lf-humanoid trên HOB-THOR, xem STATUS.md.
     path: "games/nhan-vat-3d/roster.html",
-    rev: "20261115a",
+    rev: "20261115b",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   }

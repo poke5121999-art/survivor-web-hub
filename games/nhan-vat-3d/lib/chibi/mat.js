@@ -34,7 +34,7 @@ const FMAIN = `
   float dirtK = 1.;
   float fold = cn3(rp*vec3(24.,6.,24.)) * .6 + cn3(rp*vec3(9.,3.,9.)+4.) * .4; // soft cloth folds (vertical-ish wrinkles)
   bool clothy = (ty > .5 && ty < 3.5) || (ty > 8.5 && ty < 9.5) || (ty > 10.5 && ty < 11.5) || ty > 14.5;
-  if (clothy) col *= .8 + .32*fold;
+  if (clothy) col *= (.8 + .32*fold) * .82; // round 4: cloth mid-tones a step darker, like the sheet
   if (ty < .5) { col *= .96 + .08*soft; }
   else if (ty < 1.5) { col *= .95 + .08*soft; }
   else if (ty < 2.5) { // check / plaid: two band sets across the body, dark where they cross, thin light lines
@@ -71,11 +71,13 @@ const FMAIN = `
     col = mix(col, vec3(.16,.012,.01), sp*.85);
     float sm = smoothstep(.6, .67, cfb(rp*vec3(5.,3.5,5.)+31.)) * smoothstep(.28, .6, vMat.w); // soaked blood stains on heavily worn clothes
     col = mix(col, vec3(.2,.018,.012) + col*.08, sm*.78);
-    col *= 1. - .18*vMat.w*(1.-smoothstep(0.,.55,rp.y));
+    col *= 1. - .3*vMat.w*(1.-smoothstep(0.,.6,rp.y)); // grime climbs from the ground
+    float smear = smoothstep(.45, .75, cfb(rp*vec3(3.,7.,3.)+17.)) * vMat.w; col *= 1. - .22*smear; // broad dull smears
+
   }
   col *= mix(.56, 1., smoothstep(.0, 1.45, rp.y)); // soft ground occlusion: legs a touch darker than the head
   float l = dot(col, vec3(.2126,.7152,.0722)); col = max(vec3(0.), mix(vec3(l), col, uSat));
-  if (l > .42) col *= (.42 + (l - .42)*.45) / l; // soft cap on bright albedo: sheet whites read light grey
+  if (l > .38) col *= (.38 + (l - .38)*.45) / l; // soft cap on bright albedo: sheet whites read light grey
   diffuseColor.rgb = col * uDim; cbRough = clamp(rough,.05,1.); cbMetal = clamp(metal,0.,1.); cbEmis = em + uFlash; cbType = ty;
 }
 `;

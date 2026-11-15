@@ -48,6 +48,10 @@ See `SKILL-NOTES.md` for line ranges, the host shim, r158 -> r170 traps and the 
 Stylized people for the code-only Walking Trade remake and later games, built from the owner's own concept sheets
 (`ref/owner-roster-nanobanana.webp` 6x20, `ref/owner-zombies-sheet.webp` 2x5, two scene images). Same kit underneath:
 one skinned mesh, one material, one draw per character (a pet dog is its own mesh, +1 draw), Lanternfall's HumanAnim.
+Round 4 ("vinyl toy"): rounded elliptic lofts, sloped shoulders into round deltoids, thick forearms and calves, puffy
+shoes, chunky mittens, rolled hems / cuffs / collars, rolled fringe hair, faces with whites, iris, pupil, highlight,
+eyelids and mouth shapes, port-arms rifles, raised SMGs, a real guitar, per-garment top-to-bottom gradient and heavier
+grime. 23-37k triangles per character (mean 28.7k). See STATUS.md for the round log and the honest gaps.
 
 | Page | What |
 |---|---|
@@ -57,11 +61,11 @@ one skinned mesh, one material, one draw per character (a pet dog is its own mes
 
 | Path | What |
 |---|---|
-| `lib/chibi/body.js` | rig (humanRig's 28 bones, longer torso/arms, Lanternfall leg joints), body tables, shoe, mitten fist, head + face, hair, beard, `headShell` |
+| `lib/chibi/body.js` | rig (humanRig's 28 bones, longer torso/arms, Lanternfall leg joints), body tables, shoe, mitten fist / open claw, head + face (eyes, lids, brows, nose, mouth shapes), hair + rolled fringe, beard, `headShell` |
 | `lib/chibi/mat.js` | clean stylized material (check / camo / floral prints, soft lift, rim, light spatter) |
-| `lib/chibi/wear.js`, `headgear.js`, `props.js` | garment / headgear / held-prop builders, all `(c, opts)` |
+| `lib/chibi/wear.js`, `headgear.js`, `props.js` | garment / headgear / held-prop builders, all `(c, opts)`; `roll()` rolled hem bead |
 | `lib/chibi/poses.js` | carry / ready / clips per pose, scene poses (sit, lean, inspect, desk), zombie shamble + lunge |
-| `lib/chibi/compose.js` | `buildChibi(spec)` -> Lanternfall-shaped def; zombie face and wounds |
+| `lib/chibi/compose.js` | `buildChibi(spec)` -> Lanternfall-shaped def; zombie face and wounds; per-garment gradient (`trackPieces`) |
 | `lib/chibi/stage.js`, `dog.js`, `scene-kit.js`, `scene-page.js` | studio stage + `Actor`, dog companion, hand sockets for external meshes, scene runner |
 | `lib/roster/row1..6.js`, `zombies.js`, `scenes.js` | one data spec per character |
 | `ref/cells/`, `ref/zcells/`, `ref/roster.md` | per-character crops (`tools/crop-roster.py`, `tools/crop-zombies.py`) and the description list |
@@ -71,5 +75,5 @@ Checks (server first: `node tools/serve.js 8765 1800 &`): `node tools/shoot-rost
 `shots/roster/side-r1..r6.png`, `side-z.png`, `lineup.png`, `stats.json`), `node tools/shoot-scenes.js`
 (`shots/roster/scene-campfire.png`, `scene-workshop.png`), `node tools/peek-roster.js <ids> <out.png> [anim]`
 (front / 3/4 / side / back; `DIST=1.6 TY=1.55` for faces), `node tools/pose-tune-roster.js <id> <out.png> '[{bone:[x,y,z]},...]'`
-(try carry-pose candidates live, one row each), `node tools/shoot-phone.js` (390 px wide: overflow + console errors,
+(try carry-pose candidates live, one row each; `POSE=<name>` starts from any pose), `node tools/shoot-phone.js` (390 px wide: overflow + console errors,
 `shots/roster/phone-*.png`).

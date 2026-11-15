@@ -7,7 +7,7 @@ const { launch, openPage, sheet, save } = require('./pw-lib.js');
   const [id, out, cands] = process.argv.slice(2);
   const list = JSON.parse(cands); const b = await launch(); const cells = [];
   try {
-    const { page, errors } = await openPage(b, `http://127.0.0.1:8765/roster.html?inspect=${id}&a=idle`, { w: 420, h: 640 });
+    const { page, errors } = await openPage(b, `http://127.0.0.1:8765/roster.html?inspect=${id}&a=idle${process.env.POSE ? "&pose=" + process.env.POSE : ""}`, { w: 420, h: 640 });
     await page.waitForTimeout(500);
     for (let k = 0; k < list.length; k++) {
       await page.evaluate((bones) => { const st = window.__cur().an.st; if (!st._orig) st._orig = JSON.parse(JSON.stringify(st.carry)); st.carry = Object.assign(JSON.parse(JSON.stringify(st._orig)), bones); }, list[k]);

@@ -25,9 +25,12 @@ function zombieFace(g, z, skin) {
   const ey = EYE_Y + 0.012, ex = 0.08, eyeCol = z.eyes === 'orange' ? [1, 0.45, 0.05] : z.eyes === 'red' ? [1, 0.12, 0.1] : z.eyes === 'pink' ? [1, 0.45, 0.6] : null;
   for (const s of [1, -1]) {
     const zz = headFrontZ(s * ex, ey), k = (s === (z.big || 1) ? 1.15 : 1) * 1.3;
-    g.mat([0.94, 0.94, 0.9], 0.25, 0, S_EYE, 0); g.tr(s * ex, ey, zz - 0.012, 0, s * 0.35, 0); g.sphere(0.046 * k, 0.05 * k, 0.03, 12, 8); g.pop();
-    if (eyeCol) { g.mat(eyeCol, 0.3, 0, S_GLOW, 1.4); g.tr(s * ex, ey, zz + 0.014, 0, s * 0.35, 0); g.sphere(0.03 * k, 0.032 * k, 0.008, 10, 6); g.pop(); }
-    g.mat([0.03, 0.02, 0.02], 0.2, 0, S_EYE, 0); g.tr(s * (ex - 0.004), ey - 0.004, zz + 0.019, 0, s * 0.35, 0); g.sphere(0.012 * k, 0.013 * k, 0.004, 8, 4); g.pop();
+    // round 4: bulging eyeballs (deeper), glowing iris ring, a clear dark pupil in front, a wet highlight
+    g.mat([0.94, 0.94, 0.9], 0.25, 0, S_EYE, 0); g.tr(s * ex, ey, zz - 0.012, 0, s * 0.35, 0); g.sphere(0.046 * k, 0.05 * k, 0.042, 16, 10); g.pop();
+    if (eyeCol) { g.mat(eyeCol, 0.3, 0, S_GLOW, 2.2); g.tr(s * ex, ey, zz + 0.022, 0, s * 0.35, 0); g.sphere(0.03 * k, 0.032 * k, 0.01, 14, 6); g.pop(); }
+    g.mat([0.03, 0.02, 0.02], 0.2, 0, S_EYE, 0); g.tr(s * (ex - 0.002), ey - 0.002, zz + 0.03, 0, s * 0.35, 0); g.sphere((eyeCol ? 0.014 : 0.011) * k, (eyeCol ? 0.015 : 0.012) * k, 0.005, 10, 5); g.pop();
+    g.mat([1, 1, 1], 0.2, 0, S_GLOW, 0.8); g.tr(s * (ex - 0.014), ey + 0.016, zz + 0.032); g.sphere(0.007, 0.008, 0.003, 6, 4); g.pop();
+
     g.mat(skin.map((v) => v * 0.7), 0.6, 0, S_SKIN, 0); g.tube([[s * 0.025, ey + 0.06, headFrontZ(s * 0.03, ey + 0.06) - 0.004], [s * 0.075, ey + 0.065, headFrontZ(s * 0.075, ey + 0.065)], [s * 0.115, ey + 0.05, headFrontZ(s * 0.11, ey + 0.05) - 0.01]], 0.011, { seg: 6, sub: 2, flatten: 0.6 });
   }
   // open mouth with teeth
@@ -36,6 +39,24 @@ function zombieFace(g, z, skin) {
   g.mat([0.92, 0.9, 0.78], 0.4, 0, S_SKIN, 0); for (const x of [-0.026, 0.0, 0.028]) { g.tr(x, my + 0.028, mz + 0.01); g.box(0.016, 0.02, 0.01, 4); g.pop(); }
   g.tr(0.014, my - 0.05, mz + 0.008); g.box(0.016, 0.016, 0.01, 4); g.pop();
   if (z.brain) { g.mat([0.95, 0.5, 0.6], 0.5, 0, S_SKIN, 0); g.tr(0.02, 2.12, HZ - 0.02); g.sphere(0.13, 0.07, 0.12, 14, 8); g.pop(); g.mat([0.75, 0.3, 0.4], 0.5, 0, S_SKIN, 0); for (const a of [-0.05, 0.03, 0.09]) g.tube([[a, 2.18, 0.08], [a + 0.02, 2.19, -0.02], [a - 0.01, 2.18, -0.1]], 0.008, { seg: 4, sub: 2 }); }
+}
+// Per-garment top-to-bottom gradient (round 4): every g.mat() call starts a "piece"; after the build each cloth piece
+// taller than 6 cm is shaded from x1.04 at its top to x0.74 at its bottom (bind-space y), like the sheet's garments
+// that darken toward the hem. Done on the CPU vertex colours, so it costs nothing per frame and needs no extra attribute.
+const GRAD_TYPES = new Set([S_CLOTH, 2, 3, 9, 11, 12, 15]);
+function trackPieces(g) {
+  const pieces = [], m0 = g.mat.bind(g);
+  g.mat = (col, r, me, t, w) => { pieces.push({ i: g.P.length / 3, t }); return m0(col, r, me, t, w); };
+  return () => {
+    pieces.push({ i: g.P.length / 3 });
+    for (let k = 0; k < pieces.length - 1; k++) {
+      const a = pieces[k].i, b = pieces[k + 1].i; if (b - a < 8 || !GRAD_TYPES.has(pieces[k].t)) continue;
+      let lo = 1e9, hi = -1e9; for (let i = a; i < b; i++) { const y = g.P[i * 3 + 1]; if (y < lo) lo = y; if (y > hi) hi = y; }
+      if (hi - lo < 0.06) continue;
+      for (let i = a; i < b; i++) { const t = (g.P[i * 3 + 1] - lo) / (hi - lo), f = lerp(0.74, 1.04, Math.pow(t, 0.8)); g.Cc[i * 3] *= f; g.Cc[i * 3 + 1] *= f; g.Cc[i * 3 + 2] *= f; }
+    }
+    g.mat = m0;
+  };
 }
 function wounds(c, list) {
   const { g, P } = c;
@@ -49,11 +70,12 @@ function wounds(c, list) {
 }
 
 export function buildChibi(raw) {
-  const sp = lin(raw), b = sp.body || {}, P = { sh: b.sh || 0.23, hp: b.hp || 0.11 }, B = { k: b.k || 1, kz: b.kz || 1, belly: b.belly || 0, bust: b.bust || 0 };
+  const sp = lin(raw), b = sp.body || {}, P = { sh: b.sh || 0.22, hp: b.hp || 0.11 }, B = { k: b.k || 1, kz: b.kz || 1, belly: b.belly || 0, bust: b.bust || 0 };
   const skin = sp.skin || C(SKIN.light), hk = b.head || 1, zombie = sp.zombie;
   let meta = [];
   function build() {
-    const rig = chibiRig(P), g = new Geo(rig), c = { g, P, B, skin, dirt: sp.dirt === undefined ? 0.3 : sp.dirt, glove: null, spec: sp };
+    const rig = chibiRig(P), g = new Geo(rig), c = { g, P, B, skin, dirt: zombie ? (sp.dirt === undefined ? 0.3 : sp.dirt) : Math.min(1, (sp.dirt === undefined ? 0.3 : sp.dirt) * 1.25 + 0.08), glove: null, spec: sp };
+    const endPieces = trackPieces(g);
     skinBody(c, sp);
     if (sp.bottom) bottom(c, sp.bottom);
     if (sp.top) top(c, sp.top);
@@ -61,7 +83,7 @@ export function buildChibi(raw) {
     for (const s of [1, -1]) shoe(g, P, s, Object.assign({ col: C(0x2a2a2e), sole: C(0xe8e6e0), dirt: c.dirt * 0.6 }, sh, s < 0 && sh.right ? sh.right : {}));
     meta = [];
     for (const [n, o] of sp.wear || []) { if (!WEAR[n]) throw new Error('wear piece not found: ' + n); WEAR[n](c, o || {}); }
-    for (const s of [1, -1]) fist(g, P, s, c.glove || skin, { type: c.glove ? S_CLOTH : S_SKIN, cuff: c.gloveCuff });
+    for (const s of [1, -1]) fist(g, P, s, c.glove || skin, { type: c.glove ? S_CLOTH : S_SKIN, cuff: c.gloveCuff, open: !!zombie && !c.glove });
     if (zombie && zombie.wounds) wounds(c, zombie.wounds);
     if (zombie && zombie.torn !== false) { // ragged hems on the shirt and trouser legs
       const tc = sp.top && (sp.top.col || (sp.top.stripes && sp.top.stripes[0])), bc = sp.bottom && (sp.bottom.col || (sp.bottom.stripes && sp.bottom.stripes[0]));
@@ -77,7 +99,9 @@ export function buildChibi(raw) {
     for (const [n, o] of sp.head || []) { if (!HEADGEAR[n]) throw new Error('headgear not found: ' + n); HEADGEAR[n](c, o || {}); }
     g.pop(); g.pop();
     for (const [n, o] of sp.props || []) { if (!PROPS[n]) throw new Error('prop not found: ' + n); meta.push(PROPS[n](c, o || {}) || {}); }
+    endPieces();
     const fig = new Figure(g, rig); fig.P = P; fig.fx = {};
+
     return toonify(fig);
   }
   // pose: explicit > first prop's pose > idle
@@ -90,7 +114,8 @@ export function buildChibi(raw) {
   const mir = sp.mirror !== undefined ? sp.mirror : (PZ0.library && pname !== 'wave' && ((h >> 3) & 1) === 1);
   const PZ = mir ? Object.assign({}, PZ0, { carry: mirrorPose(PZ0.carry), ready: PZ0.ready }) : PZ0;
   const grip = (meta.find((m) => m.grip) || {}).grip || null;
-  const twoHanded = pname === 'rifle' || pname === 'twohand' || pname === 'twohandLow' || pname === 'rifleRelaxed' || pname === 'inspect';
+  const twoHanded = pname === 'rifle' || pname === 'twohand' || pname === 'twohandLow' || pname === 'rifleRelaxed' || pname === 'inspect' || pname === 'guitar';
+
   const style = { carry: PZ.carry, ready: PZ.ready || PZ.carry, clips: PZ.clips || {}, swingL: PZ.swingL === undefined ? (PZ.swing || 0.85) : PZ.swingL, swingR: PZ.swingR === undefined ? (PZ.swing || 0.85) : PZ.swingR,
     strideAmp: 1, stride: PZ.stride || 1, gait: PZ.gait || { bounce: 1, sway: 1, lean: 1 }, downPose: DOWN_POSE, readyRoot: -0.03, post: PZ.post };
   return { id: raw.id, name: raw.name, role: raw.role, build, style, scale: SCALE * (b.h || 1), death: 'down', grip: twoHanded ? grip : null, pet: sp.pet || null,

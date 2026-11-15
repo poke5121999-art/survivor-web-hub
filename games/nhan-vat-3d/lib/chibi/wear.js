@@ -19,6 +19,15 @@ export function bands(c, y0, y1, n, cols, t, fn) {
   for (let i = 0; i < n; i++) { mat(c, cols[i % cols.length], t); fn(lerp(y0, y1, i / n), lerp(y0, y1, (i + 1) / n), i); }
 }
 
+// rolled edge (round 4): a soft bead around a hem / cuff so garments read as thick cloth with rounded edges.
+// ringAt(y, grow) -> loft ring; the bead spans [y - h/2, y + h/2] and bulges out by `out` at its middle.
+export function roll(g, ringAt, y, h, grow, out = 0.012, seg) {
+  const rs = [[-0.5, 0.15], [-0.25, 0.75], [0, 1], [0.25, 0.75], [0.5, 0.15]].map(([t, k]) => Object.assign(ringAt(y + t * h, grow + out * k), { y: y + t * h }));
+  return g.loft(rs, { seg: seg || 24, sub: 2 });
+}
+export const armRing = (P, s, k = 1) => (y, gr) => armRings(P, s, y, y + 0.001, gr, k)[0];
+export const legRing = (P, s, k = 1) => (y, gr) => legRings(P, s, y, y + 0.001, gr, k)[0];
+
 /* ---------- core: top / bottom / skin ---------- */
 // top: { kind: tee|long|rolled|tank|bare|crop|suit, col, sleeve (colour), pat, stripes: [colA, colB, n], y0, puff }
 export function top(c, o) {
@@ -26,14 +35,14 @@ export function top(c, o) {
   const y0 = o.y0 || (k === 'crop' ? 1.24 : 0.95);
   if (k === 'bare') return;
   if (o.stripes) bands(c, y0, 1.7, o.stripes[2] || 8, [o.stripes[0], o.stripes[1]], t, (a, b) => torso(g, B, { y0: a, y1: b, grow: gr, thick: 0.004 }));
-  else { mat(c, o.col, t); torso(g, B, { y0, y1: 1.7, grow: gr, thick: 0.008 }); }
+  else { mat(c, o.col, t); torso(g, B, { y0, y1: 1.7, grow: gr, thick: 0.008 }); roll(g, (y, q) => torsoRing(B, y, q), y0 + 0.01, 0.034, gr, 0.011); }
   const sl = k === 'tank' || k === 'vestonly' ? 0 : k === 'tee' || k === 'crop' ? 1.42 : k === 'rolled' ? 1.2 : 1.0;
   if (sl) both((s) => {
     if (o.stripes && o.sleeveStripes !== false) bands(c, sl, 1.69, Math.max(2, Math.round((1.69 - sl) / 0.09)), [o.stripes[0], o.stripes[1]], t, (a, b) => arm(g, P, s, { y0: a, y1: b, grow: gr + 0.004, cap1: b > 1.68, thick: 0.004 }));
     else { mat(c, o.sleeve || o.col, t); arm(g, P, s, { y0: sl, y1: 1.69, grow: gr + 0.006, k: o.puff ? 1.08 : 1.04, thick: 0.007 }); }
     if (o.cuff || k === 'rolled' || k === 'tee' || k === 'crop') { // rolled cuff / sewn hem: a fatter band at the sleeve end
       const st = o.stripes && o.sleeveStripes !== false; mat(c, o.cuff || (st ? o.stripes[0] : (o.sleeve || o.col)), t);
-      arm(g, P, s, { y0: sl, y1: sl + (k === 'rolled' ? 0.06 : 0.03), grow: gr + (k === 'rolled' ? 0.022 : 0.012), k: 1.04, cap1: false, thick: 0.006 });
+      roll(g, armRing(P, s, 1.04), sl + (k === 'rolled' ? 0.03 : 0.012), k === 'rolled' ? 0.07 : 0.036, gr + 0.006, k === 'rolled' ? 0.02 : 0.011, 18);
     }
   });
   if (o.collar) collar(c, { col: o.collarCol || o.col, open: o.collar === 'open' });
@@ -55,9 +64,9 @@ export function bottom(c, o) {
     both((s) => bands(c, end, 0.99, o.stripes[2] || 7, [o.stripes[1], o.stripes[0]], t, (a, b) => leg(g, P, s, { y0: a, y1: b, grow: gr, k: 1.04, thick: 0.004 })));
   } else {
     mat(c, o.col, t); torso(g, B, { y0: 0.86, y1: o.y1 || 1.08, grow: gr + 0.004, cap0: true, thick: 0.006 });
-    both((s) => { const col = o.legs ? o.legs[s > 0 ? 0 : 1] : o.col; leg1(s, col, end, 0.99); });
+    both((s) => { const col = o.legs ? o.legs[s > 0 ? 0 : 1] : o.col; leg1(s, col, end, 0.99); if (!o.cuff && end > 0.18) roll(g, legRing(P, s, o.k || 1.04), end + 0.01, 0.034, gr, 0.01, 18); });
   }
-  if (o.cuff) both((s) => { mat(c, o.cuff, S_CLOTH); leg(g, P, s, { y0: end, y1: end + 0.05, grow: gr + 0.01, k: 1.04, thick: 0.004 }); });
+  if (o.cuff) both((s) => { mat(c, o.cuff, S_CLOTH); g.bone(jb(s > 0 ? 'lThigh' : 'rThigh', s > 0 ? 'lShin' : 'rShin', J.knee, 0.06)); roll(g, legRing(P, s, 1.04), end + 0.025, 0.055, gr + 0.004, 0.014, 18); });
   if (o.rip) both((s) => { if (s === o.rip || o.rip === 2) { mat(c, c.skin, S_SKIN, 0); g.bone(jb(s > 0 ? 'lThigh' : 'rThigh', s > 0 ? 'lShin' : 'rShin', J.knee, 0.06)); g.tr(s * (P.hp + 0.005), 0.52, 0.075); g.sphere(0.045, 0.035, 0.022, 8, 5); g.pop(); } });
 }
 // exposed skin: arms below the sleeve, legs below the trousers, a bare torso
@@ -79,14 +88,16 @@ W.collar = (c, o) => collar(c, o);
 function collar(c, o) {
   const { g } = c; mat(c, o.col, S_CLOTH); g.bone(chainY([['neck', 9], ['chest', 1.66]], 0.03));
   const a = o.open ? front(0.35) : undefined;
-  g.loft([{ y: 1.66, rx: 0.13, rz: 0.11, rb: 0.105, sq: 2 }, { y: 1.71, rx: 0.1, rz: 0.1, rb: 0.095, sq: 2 }, { y: 1.75, rx: 0.095, rz: 0.098, rb: 0.096, sq: 2 }], { seg: 18, sub: 2, arc: a, thick: 0.008 });
+  // round 4: a folded-over collar: rises from the shoulders, rolls outward at the top edge
+  g.loft([{ y: 1.655, rx: 0.15, rz: 0.12, rb: 0.115, sq: 2 }, { y: 1.69, rx: 0.112, rz: 0.104, rb: 0.1, sq: 2 }, { y: 1.725, rx: 0.1, rz: 0.1, rb: 0.098, sq: 2 }, { y: 1.75, rx: 0.108, rz: 0.11, rb: 0.106, sq: 2 }, { y: 1.758, rx: 0.098, rz: 0.1, rb: 0.096, sq: 2 }], { seg: 24, sub: 2, arc: a, thick: 0.01 });
 }
 // vest / jacket body. o: col, pat, open (gap rad), y0, y1, grow, sleeves (y), puff (quilted), stripes [col, y...]
 W.vest = (c, o) => {
   const { g, P, B } = c, t = ty(o), gr = o.grow || 0.03, y0 = o.y0 || 0.98, y1 = o.y1 || 1.66;
   mat(c, o.col, t);
   if (o.puff) { const n = 5; for (let i = 0; i < n; i++) { const a = lerp(y0, y1, i / n), b = lerp(y0, y1, (i + 1) / n); g.bone(TW); const rs = [a, (a + b) / 2, b].map((y, j) => torsoRing(B, y, gr + (j === 1 ? 0.022 : 0.004))); g.loft(rs, { seg: 22, sub: 2, arc: o.open ? front(o.open) : undefined, thick: 0.006 }); } }
-  else torso(g, B, { y0, y1, grow: gr, arc: o.open ? front(o.open) : undefined, thick: 0.012, flare: o.flare, seg: 24 });
+  else { torso(g, B, { y0, y1, grow: gr, arc: o.open ? front(o.open) : undefined, thick: 0.012, flare: o.flare, seg: 26 }); if (!o.open && !o.flare) roll(g, (y, q) => torsoRing(B, y, q), y0 + 0.012, 0.036, gr, 0.012); }
+
   if (o.sleeves) both((s) => { mat(c, o.sleeveCol || o.col, t); arm(g, P, s, { y0: o.sleeves, y1: 1.69, grow: gr * 0.8 + 0.01, k: 1.06, thick: 0.008 }); });
   if (o.stripes) for (const y of o.stripes.ys) { mat(c, o.stripes.col, S_PLASTIC, 0); torso(g, B, { y0: y, y1: y + 0.04, grow: gr + 0.006, arc: o.open ? front(o.open) : undefined, thick: 0.004 }); if (o.sleeves && o.stripes.arms) both((s) => arm(g, P, s, { y0: y - 0.12, y1: y - 0.08, grow: gr * 0.8 + 0.02, k: 1.06, cap1: false, thick: 0.004 })); }
   if (o.buttons) { mat(c, o.buttons, S_PLASTIC, 0); g.bone(TW); for (let i = 0; i < 4; i++) { const y = lerp(1.08, 1.5, i / 3), z = torsoRing(B, y, gr).rz + 0.006; for (const x of (o.double ? [-0.06, 0.06] : [0])) { g.tr(x, y, z); g.sphere(0.012, 0.012, 0.006, 6, 4); g.pop(); } } }
