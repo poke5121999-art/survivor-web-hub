@@ -66,6 +66,7 @@ session(async (br, base) => {
       return { mode: G.match.mode, over: G.match.over, units: G.match.units.length, state: G.mode, shown: !!res && getComputedStyle(res).display !== 'none', errors: window.__errors };
     });
     check(r.over && r.mode === mode && r.state === 'result' && r.shown, `[${mode}${map ? ' ' + map : ''}] a full match in this mode ends on the result screen (${r.units} units)`);
+    check(r.units === (mode === 'trum' ? 4 : 6), `[${mode}] default team size 3: ${mode === 'trum' ? '3 hunters and the boss' : 'six mechs'} (${r.units})`);
     check(r.errors.length === 0 && g.problems.length === 0, `[${mode}] no errors` + (r.errors[0] ? ': ' + r.errors[0].slice(0, 200) : '') + (g.problems[0] ? ' ' + g.problems[0].slice(0, 200) : ''));
     await g.page.screenshot({ path: path.join(CHK, `play-result-${mode}${map ? '-' + map : ''}.png`) });
     await g.close();
@@ -153,6 +154,49 @@ session(async (br, base) => {
     check(t.q === want, `a phone defaults to ${want} quality by its memory (${t.q})`);
     await p.screenshot({ path: path.join(CHK, 'play-phone.png') });
     check((await p.evaluate(() => window.__errors)).length === 0 && g.problems.length === 0, 'no errors on the phone layout' + (g.problems[0] ? ': ' + g.problems[0].slice(0, 200) : ''));
+    await g.close();
+  }
+  // Team size: the menu's selector, the saved choice, ?size, old saves.
+  const sideCount = (page) => page.evaluate(() => { const m = window.__G.match; return { n: m.units.length, t0: m.units.filter((u) => u.team === 0).length, t1: m.units.filter((u) => u.team === 1).length, me: m.units[0].bot, mode: m.mode, errors: window.__errors }; });
+  for (const n of [1, 2, 3]) {
+    const g = await open(br, base, 'noaudio&seed=2&q=low');
+    const p = g.page;
+    await p.waitForTimeout(400);
+    const sizes = await p.evaluate(() => [...document.querySelectorAll('#ui .screen.menu [data-size]')].map((b) => b.dataset.size + (b.classList.contains('on') ? '*' : '')).join());
+    if (n === 1) check(sizes === '1,2,3*', `the menu offers 1v1, 2v2 and 3v3 with 3v3 preselected (${sizes})`);
+    await p.evaluate((n) => { document.querySelector(`#ui .screen.menu [data-size="${n}"]`).click(); document.querySelector('#ui .screen.menu [data-r="play"]').click(); }, n);
+    await p.waitForTimeout(600);
+    const r = await sideCount(p);
+    check(r.mode === 'tdm' && r.n === 2 * n && r.t0 === n && r.t1 === n && r.me === false, `[size ${n}] playing from the menu builds ${n} mechs a side, the first one is the player (${r.t0} v ${r.t1})`);
+    const saved = await p.evaluate(() => ({ size: JSON.parse(localStorage.getItem('dtt.save.v1')).size, choice: window.__G.choice.size, hud: document.querySelectorAll('#ui .col .pc').length }));
+    check(saved.size === n && saved.choice === n, `[size ${n}] the choice is saved with the rest (${saved.size}) and travels in the match choice (${saved.choice})`);
+    check(saved.hud === 2 * n, `[size ${n}] the HUD shows ${2 * n} team chips, no empty slots (${saved.hud})`);
+    check(r.errors.length === 0 && g.problems.length === 0, `[size ${n}] no errors` + (g.problems[0] ? ': ' + g.problems[0].slice(0, 200) : ''));
+    await g.close();
+  }
+  for (const [mode, n, want] of [['tudo', 2, 4], ['tudo', 3, 6], ['trum', 1, 4], ['trum', 2, 4]]) {
+    const g = await open(br, base, `manual&noaudio&autostart&seed=4&q=low&mode=${mode}&size=${n}`);
+    const r = await sideCount(g.page);
+    check(r.n === want, `[?size=${n}, ${mode}] ${mode === 'trum' ? 'three hunters and the boss whatever the size' : `${want} mechs, each for itself`} (${r.n})`);
+    await g.close();
+  }
+  {
+    const g = await open(br, base, 'noaudio&seed=2&q=low');
+    await g.page.waitForTimeout(400);
+    const hidden = await g.page.evaluate(() => { document.querySelector('#ui .screen.menu [data-mode="trum"]').click(); const b = document.querySelector('#ui .screen.menu [data-r="sizeBox"]'); return b.hidden || getComputedStyle(b).display === 'none'; });
+    check(hidden, 'the size selector is hidden for Săn trùm');
+    await g.close();
+  }
+  for (const old of [5, 4, 'x']) {
+    const g = await open(br, base, 'noaudio&seed=2&q=low', { init: { fn: (v) => { try { if (!localStorage.getItem('dtt.save.v1')) localStorage.setItem('dtt.save.v1', JSON.stringify({ v: 2, size: v, coins: 10 })); } catch (e) {} }, arg: old } });
+    await g.page.waitForTimeout(400);
+    const r = await g.page.evaluate(() => ({ size: window.__G.meta.get().size, on: document.querySelector('#ui .screen.menu [data-size].on').dataset.size, coins: window.__G.meta.get().coins }));
+    check(r.size === 3 && r.on === '3' && r.coins === 10, `an old save with size ${JSON.stringify(old)} falls back to 3v3 and keeps the rest (${r.size}, selector ${r.on}, coins ${r.coins})`);
+    await g.close();
+  }
+  {
+    const g = await open(br, base, 'manual&noaudio&autostart&seed=4&q=low&size=5');
+    check((await sideCount(g.page)).n === 6, '?size=5 is not a size: three a side');
     await g.close();
   }
   check.done();

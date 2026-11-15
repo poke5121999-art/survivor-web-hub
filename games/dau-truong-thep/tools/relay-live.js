@@ -1,6 +1,6 @@
 // Co-op over the REAL Unity Relay (no fakenet): three separate pages (own browser contexts, so own Unity identities) on one hub URL.
 // The host creates a public room; guest A finds it in the room list and joins by lobby id; guest B joins by the room code.
-// All three play one full team match against bots, and the script compares score, kills and the result on every machine.
+// All three stay on the host's team (3v3: they fill it, no allied bots) and play one full match against three bots, and the script compares score, kills and the result on every machine.
 //   DTT_BASE=https://<hub> node tools/relay-live.js        (without DTT_BASE it serves the local tree; the relay is still the real one)
 'use strict';
 const { launch, open, checker, CHK, fs, path } = require('./lib.js');
@@ -41,7 +41,7 @@ const PILOT = `window.__input((m, u) => {
 
     let row = null;
     for (let i = 0; i < 12 && !row; i++) { const rows = await A.evaluate('__G.online.listRooms()'); row = rows.find((r) => r.name === room) || null; if (!row) await sleep(1500); }
-    check(!!row, 'guest A sees the room in the public room list' + (row ? ` (${row.players}/${row.max}, host ${row.host})` : ''));
+    check(!!row && row.max === 6, 'guest A sees the room in the public room list as players/6' + (row ? ` (${row.players}/${row.max}, host ${row.host})` : ''));
     if (row) await A.evaluate(({ id, name }) => { window.__G.online.join({ lobbyId: id, playerName: name }); }, { id: row.id, name: names[1] });
     check(await until(A, `__G.online.state === 'lobby'`, 40000, 'guest A lobby'), 'guest A joins from the list (by lobby id)');
     await B.evaluate(({ code, name }) => { window.__G.online.join({ code, playerName: name }); }, { code, name: names[2] });
@@ -61,17 +61,18 @@ const PILOT = `window.__input((m, u) => {
       await sleep(500);
     }
     check(lobbies[0] === lobbies[1] && lobbies[1] === lobbies[2], 'all three machines show the same lobby: ' + lobbies[0]);
-    check(JSON.parse(lobbies[0]).every((p) => p[2] === 0), 'all three humans are on the same team (co-op against bots)');
+    check(JSON.parse(lobbies[0]).every((p) => p[2] === 0), 'all three humans are on the same team and fill it (3v3 co-op against bots)');
 
     const started = await H.evaluate('__G.online.start()');
     check(started !== false, 'host starts the match' + (started === false ? ': ' + (await H.evaluate('__G.online.error')) : ''));
-    for (const [i, p] of [H, A, B].entries()) check(await until(p, `__G.mode === 'match' && __G.match && __G.match.units.length === 10`, 40000, 'match on ' + names[i]), `${names[i]}: the match is running with 10 units`);
+    for (const [i, p] of [H, A, B].entries()) check(await until(p, `__G.mode === 'match' && __G.match && __G.match.units.length === 6`, 40000, 'match on ' + names[i]), `${names[i]}: the match is running with 6 units`);
     for (const p of [H, A, B]) await p.evaluate(PILOT);
     const info = [];
-    for (const p of [H, A, B]) info.push(await p.evaluate(`({ me: __G.me, role: __G.online.role, humans: __G.match.units.filter((u) => !u.bot).map((u) => u.id + ':' + u.team + ':' + u.mech).join(','), mech: __G.match.units[__G.me].mech })`));
+    for (const p of [H, A, B]) info.push(await p.evaluate(`({ team0: __G.match.units.filter((u) => u.team === 0).every((u) => !u.bot), me: __G.me, role: __G.online.role, humans: __G.match.units.filter((u) => !u.bot).map((u) => u.id + ':' + u.team + ':' + u.mech).join(','), mech: __G.match.units[__G.me].mech })`));
+    check(info.every((i) => i.team0), 'team 0 is the three humans, no allied bots');
     check(info[0].role === 'host' && info[1].role === 'guest' && info[2].role === 'guest', 'one host, two guests');
     check(new Set(info.map((i) => i.me)).size === 3 && info[1].mech === 'soi' && info[2].mech === 'hac', `each machine drives its own mech (slots ${info.map((i) => i.me).join(', ')})`);
-    check(info[0].humans === info[1].humans && info[1].humans === info[2].humans && info[0].humans.split(',').length === 3, 'same three human units everywhere, bots fill the other seven: ' + info[0].humans);
+    check(info[0].humans === info[1].humans && info[1].humans === info[2].humans && info[0].humans.split(',').length === 3, 'same three human units everywhere, bots fill the other three: ' + info[0].humans);
 
     await sleep(8000);
     const before = await H.evaluate(`(() => { const u = __G.match.units[${info[1].me}]; return [u.x, u.z]; })()`);

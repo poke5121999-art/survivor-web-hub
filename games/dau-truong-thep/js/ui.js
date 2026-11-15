@@ -1,6 +1,6 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
-import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, PAINTS, GLOWS, DECALS, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv } from './data.js';
-import { rankOf, placeOf } from './meta.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, PAINTS, GLOWS, DECALS, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize } from './data.js';
+import { rankOf, placeOf, podiumOf } from './meta.js';
 import * as MAPMOD from './maps.js';
 const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
 import { visibleTo, towerOpen } from './sim.js';
@@ -276,6 +276,10 @@ export function makeUI(G) {
     setScale(T.bar0, a / target); setScale(T.bar1, b / target);
   }
 
+  // The player's own bars are green; amber under 35 % and red under 20 % keep the low-health warning readable.
+  const hpTier = (node, u) => { const f = u.hp / u.maxHp; flag(node, 'hp-mid', f >= 0.2 && f < 0.35); flag(node, 'hp-low', f < 0.2); };
+  // Free-for-all has at most 2 * 3 mechs: every one fits in the standings.
+  const RK_ROWS = 6;
   const warn = (text) => { H.warn.firstChild.textContent = text; S.warnT = 2.4; };
 
   // One row per game mode: how its top bar, side columns, minimap extras, world labels and events are built and kept current.
@@ -461,14 +465,14 @@ export function makeUI(G) {
         setText(T.w1, rival ? (sc[rival.id] > mine ? 'Dẫn đầu: ' : 'Đối thủ: ') + rival.name : '');
         const order = m.units.slice().sort((a, b) => sc[b.id] - sc[a.id] || a.deaths - b.deaths || a.id - b.id);
         const myPlace = order.findIndex((u) => u.id === G.me);
-        const shown = order.slice(0, 5);
-        if (myPlace >= 5) shown.push(order[myPlace]);
-        const sig = shown.map((u) => u.id).join() + '|' + (myPlace >= 5 ? 'g' : '');
+        const shown = order.slice(0, RK_ROWS);
+        if (myPlace >= RK_ROWS) shown.push(order[myPlace]);
+        const sig = shown.map((u) => u.id).join() + '|' + (myPlace >= RK_ROWS ? 'g' : '');
         if (sig !== S.rkSig) {
           S.rkSig = sig;
           S.rkList.innerHTML = '';
           shown.forEach((u, i) => {
-            if (i === 5) S.rkList.appendChild(el('div', 'rk-gap', '···'));
+            if (i === RK_ROWS) S.rkList.appendChild(el('div', 'rk-gap', '···'));
             S.rkList.appendChild(S.rows[u.id].root);
           });
         }
@@ -543,7 +547,7 @@ export function makeUI(G) {
     hud.dataset.mode = m.mode;
     H.topBar.innerHTML = MH.top(m);
     T = refs(H.topBar);
-    H.mission.textContent = m.rule.mission.replace('{target}', m.target).replace('{lives}', m.rule.lives || m.lives);
+    H.mission.textContent = m.rule.mission.replace('{target}', m.target).replace('{lives}', m.lives || m.rule.lives);
     if (T.tgt) setText(T.tgt, String(m.target));
     MH.cols(m);
     for (const u of m.units) addPlate(u);
@@ -763,7 +767,7 @@ export function makeUI(G) {
         const v = m.units[e.id];
         if (!v) break;
         const mine = e.by === me, taken = e.id === me;
-        if (taken && e.amt >= BIG_HIT && G.input && G.input.rumble) G.input.rumble('hit');
+        if (taken && e.amt >= BIG_HIT && G.input) { if (G.input.rumble) G.input.rumble('hit'); if (G.input.haptic) G.input.haptic('hit'); }
         if (!mine && !taken && !visibleTo(m, v, myTeam)) break;
         const kind = taken ? 'taken' : mine ? 'dealt' : 'other';
         if (e.amt >= 1) addFloat(`${e.id}|${kind}`, kind, e.amt, e.x, e.z);
@@ -776,7 +780,8 @@ export function makeUI(G) {
       case 'death': {
         const v = m.units[e.id], k = e.by >= 0 ? m.units[e.by] : null;
         if (!v) break;
-        if (e.id === me && G.input && G.input.rumble) G.input.rumble('death');
+        if (e.id === me && G.input) { if (G.input.rumble) G.input.rumble('death'); if (G.input.haptic) G.input.haptic('death'); }
+        else if (k && k.id === me && G.input && G.input.haptic) G.input.haptic('kill');
         addFeed(k, v, e.assists);
         if (e.id === me) S.killedBy = k ? k.name : '';
         if (k) {
@@ -851,6 +856,7 @@ export function makeUI(G) {
       const c = cards[u.id];
       if (!c) continue;
       setScale(c.hp, u.alive ? u.hp / u.maxHp : 0);
+      if (u.id === G.me) hpTier(c.root, u);
       flag(c.root, 'dead', !u.alive);
       flag(c.root, 'marked', u.alive && u.markT > 0);
       if (!u.alive) setText(c.dead, String(Math.max(1, Math.ceil(u.respawnT))));
@@ -862,7 +868,8 @@ export function makeUI(G) {
       setScale(H.hpBar, me.hp / me.maxHp);
       setText(H.hpNum, Math.ceil(Math.max(0, me.hp)) + ' / ' + me.maxHp + (me.shield > 0 ? '  +' + Math.ceil(me.shield) : ''));
       flag(hpb, 'has-shield', me.shield > 0);
-      flag(hpb, 'low', me.hp / me.maxHp < 0.35);
+      flag(hpb, 'low', me.hp / me.maxHp < 0.2);
+      flag(hpb, 'mid', me.hp / me.maxHp >= 0.2 && me.hp / me.maxHp < 0.35);
       setScale(H.shBar, me.shield > 0 ? me.shield / Math.max(1, me.shieldMax) : 0);
       const frac = me.alive ? me.hp / me.maxHp : 1;
       const lowQ = frac < 0.35 ? Math.round((0.35 - frac) / 0.35 * 10) : 0;
@@ -876,6 +883,7 @@ export function makeUI(G) {
         setVar(s.root, '--p', p + '%');
         setText(s.t, d.k !== 'fire' && rem > 0.05 ? (rem >= 10 ? String(Math.ceil(rem)) : vn(rem, 1)) : '');
         if (s.prev > 0 && rem <= 0 && me.alive && s.root.animate) s.root.animate([{ filter: 'brightness(2.4)', transform: 'scale(1.18)' }, { filter: 'none', transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' });
+        if (s.prev > 0 && rem <= 0 && me.alive && d.k === 'ult' && G.input && G.input.haptic) G.input.haptic('ult');
         s.prev = rem;
         flag(s.root, 'ready', rem <= 0);
         flag(s.root, 'idle', d.k === 'heal' && me.hp >= me.maxHp);
@@ -935,6 +943,7 @@ export function makeUI(G) {
       if (!on) continue;
       np.root.style.transform = `translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0) translate(-50%,-100%)`;
       setScale(np.f, u.hp / u.maxHp);
+      if (u.id === G.me) hpTier(np.root, u);
       flag(np.shBox, 'on', u.shield > 0);
       if (u.shield > 0) setScale(np.sh, u.shield / Math.max(1, u.shieldMax));
       flag(np.root, 'ghost', u.stealthT > 0 || u.bush >= 0);
@@ -1149,7 +1158,7 @@ export function makeUI(G) {
   menu.dataset.block = '';
   menu.innerHTML = `
     <header class="mn-head">
-      <div class="logo"><h1>Đấu Trường Thép</h1><span>Cơ giáp 5 đấu 5 · Thời gian thực</span></div>
+      <div class="logo"><h1>Đấu Trường Thép</h1><span>Cơ giáp 3 đấu 3 · Thời gian thực</span></div>
       <div class="player">
         <div class="lvl"><small>Cấp</small><b data-r="lvl">1</b></div>
         <div class="pl-main">
@@ -1171,7 +1180,8 @@ export function makeUI(G) {
         ${setupTabs('data-su="{k}"', 'mode')}
         <div class="opts" data-r="opts" data-tab="mode">
           <div class="grp g-mode"><h3>Chế độ</h3><div class="modes" data-r="modes"></div><p class="mode-bl" data-r="modeBl"></p>
-          <h3>Độ khó</h3><div class="seg" data-r="diff"></div></div>
+          <h3>Độ khó</h3><div class="seg" data-r="diff"></div>
+          <div data-r="sizeBox"><h3>Cỡ đội</h3><div class="seg" data-r="size"></div></div></div>
           <div class="grp g-map"><h3>Đấu trường</h3><div class="maps" data-r="maps"></div></div>
           <div class="grp g-theme"><h3>Môi trường</h3><div class="themes" data-r="themes"></div><p class="mode-bl th-bl" data-r="themeBl"></p></div>
         </div>
@@ -1194,7 +1204,7 @@ export function makeUI(G) {
   }
   menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
   let shopOn = false;
-  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], menuInit = false, tab = 'info';
+  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'info';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
 
@@ -1488,6 +1498,15 @@ export function makeUI(G) {
       b.onclick = () => { diff = k; renderSetup(); };
       M.diff.appendChild(b);
     }
+    // Săn trùm always fields TEAM_SIZE hunters, so the pick would do nothing there.
+    M.sizeBox.hidden = modeKey === 'trum';
+    M.size.innerHTML = '';
+    for (const n of TEAM_SIZES) {
+      const b = el('button', n === sizeKey ? 'on' : '', `${n} đấu ${n}`);
+      b.dataset.size = n;
+      b.onclick = () => { sizeKey = n; renderSetup(); };
+      M.size.appendChild(b);
+    }
     M.modes.innerHTML = '';
     for (const k of MODE_ORDER) {
       const b = el('button', 'mode' + (k === modeKey ? ' on' : ''), `${icon(MODE_ICON[k])}<span>${MODES[k].name}</span>`);
@@ -1510,12 +1529,12 @@ export function makeUI(G) {
     M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
     M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
   }
-  const makeChoice = (mech, df, map, mode, theme) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, mods: { lv: lvOf(mech) }, ...cosOf(mech) });
+  const makeChoice = (mech, df, map, mode, theme, size) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, size: cleanSize(size === undefined ? sizeKey : size), mods: { lv: lvOf(mech) }, ...cosOf(mech) });
   M.play.onclick = () => {
     if (!ownedMech(sel)) { buyMech(sel); return; }
     choice = makeChoice(sel, diff, mapKey, modeKey, themeKey);
     const d = meta();
-    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; G.meta.save(); }
+    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; d.size = sizeKey; G.meta.save(); }
     G.bus.emit('ui:play', choice);
   };
   M.name.addEventListener('change', () => {
@@ -1539,7 +1558,7 @@ export function makeUI(G) {
   function showMenu() {
     hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
-    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; mapKey = fitMap(mapKey, modeKey); }
+    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); }
     if (!menuInit) { menuInit = true; applySettings(); }
     renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
@@ -1580,8 +1599,10 @@ export function makeUI(G) {
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
       <button class="tog" data-r="netro" aria-pressed="false"><i></i><span>Hiện thông số mạng (co-op)<small>RTT, jitter, khựng hình… ở góc trái khi chơi nhiều người</small></span></button>
       <button class="tog" data-r="padAim" aria-pressed="false"><i></i><span>Tự nhắm (tay cầm)<small>Giữ cò bắn mà không đẩy cần phải: tháp pháo tự quay về địch trong tầm</small></span></button>
+      <div class="fld"><span>Rung màn hình</span><div class="seg" data-r="shakeSeg"></div></div>
       <div class="tgrp" data-r="touchGrp" hidden>
         <h3>Điều khiển cảm ứng</h3>
+        <div class="fld"><span>Rung điện thoại</span><div class="seg" data-r="vibeSeg"></div><small class="fld-hint">Chỉ rung khi bị đòn nặng, bị hạ, hạ gục địch hoặc tuyệt chiêu sẵn sàng</small></div>
         <button class="tog" data-r="autoAim" aria-pressed="true"><i></i><span>Tự nhắm (cảm ứng)<small>Chạm hoặc giữ nút bắn: tự nhắm địch gần trong tầm. Kéo nút để tự ngắm</small></span></button>
         <div class="fld"><span>Ưu tiên mục tiêu</span><div class="seg" data-r="aimPrio"></div></div>
         <button class="tog" data-r="fixStick" aria-pressed="false"><i></i><span>Cần điều khiển cố định<small>Cần đi nằm yên ở góc trái, không hiện theo ngón tay</small></span></button>
@@ -1596,6 +1617,7 @@ export function makeUI(G) {
     <button class="btn big" data-r="close">Xong</button></div>`;
   const ST = refs(settings);
   const QL = [['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']];
+  const FEEL = [['off', 'Tắt'], ['light', 'Nhẹ'], ['strong', 'Mạnh']];
   const PRIO = [['near', 'Gần nhất'], ['lowhp', 'Máu thấp nhất'], ['lowpct', 'Máu % thấp nhất']];
   function renderSettings() {
     const d = meta(); if (!d) return;
@@ -1616,6 +1638,15 @@ export function makeUI(G) {
     }
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
+    for (const [seg, field] of [[ST.shakeSeg, 'shake'], [ST.vibeSeg, 'vibe']]) {
+      seg.innerHTML = '';
+      for (const [k, n] of FEEL) {
+        const b = el('button', d.settings[field] === k ? 'on' : '', n);
+        b.dataset.k = k;
+        b.onclick = () => { d.settings[field] = k; G.meta.save(); renderSettings(); if (field === 'vibe' && G.input && G.input.hapticTest) G.input.hapticTest(); };
+        seg.appendChild(b);
+      }
+    }
     ST.rumble.setAttribute('aria-pressed', String(d.settings.rumble !== false));
     ST.netro.setAttribute('aria-pressed', String(!!d.settings.netReadout));
     ST.touchGrp.hidden = !isTouch();
@@ -1750,7 +1781,7 @@ export function makeUI(G) {
   help.dataset.block = '';
   const kc = (t) => `<kbd>${esc(t)}</kbd>`;
   help.innerHTML = `<div class="modal-box wide help"><div class="hazard"></div><h2>Cách chơi</h2>
-    <p class="lead">Hai đội năm cơ giáp. Đội nào hạ gục đủ điểm mục tiêu trước, hoặc dẫn điểm khi hết giờ, sẽ thắng. Ở chế độ Thủ nhà, hạ hai trụ phụ rồi phá trụ chính của địch.</p>
+    <p class="lead">Hai đội cơ giáp, mỗi đội 1 đến 3 máy, bạn chọn cỡ đội trong phần Thiết lập. Đội nào hạ gục đủ điểm mục tiêu trước, hoặc dẫn điểm khi hết giờ, sẽ thắng. Ở chế độ Thủ nhà, hạ hai trụ phụ rồi phá trụ chính của địch.</p>
     <div class="help-cols" data-r="cols"></div><button class="btn big" data-r="close">Đã hiểu</button></div>`;
   const HP = refs(help);
   function renderHelp() {
@@ -1863,13 +1894,13 @@ export function makeUI(G) {
     },
     tudo(summary, x) {
       const n = summary.rows.length, place = placeOf(summary, G.me);
-      const outcome = place === 1 ? 'win' : place <= 3 ? 'draw' : 'lose';
+      const podium = podiumOf(n), outcome = place === 1 ? 'win' : place <= podium ? 'draw' : 'lose';
       const sc = (r) => (Array.isArray(summary.score) && summary.score.length >= n ? summary.score[r.id] : r.kills);
       const order = summary.rows.slice().sort((a, b) => placeOf(summary, a.id) - placeOf(summary, b.id));
       const me = x.me || {};
       return {
         outcome, title: `Hạng ${place}/${n}`,
-        sub: place === 1 ? 'Bạn là cỗ máy cuối cùng đứng vững' : place <= 3 ? 'Bạn đã lên bục vinh danh' : 'Chưa lọt vào top 3',
+        sub: place === 1 ? 'Bạn là cỗ máy cuối cùng đứng vững' : place <= podium ? 'Bạn đã lên bục vinh danh' : podium > 1 ? `Chưa lọt vào top ${podium}` : 'Bạn không về nhất',
         score: `<b class="t0">${sc(me)}</b><small>hạ gục · ${mmss(summary.time)}</small>`,
         body: `<div class="rs-tables one"><div class="tb t1 ffa"><div class="tb-h"><span>#</span><span>Phi công</span><span>Hạ gục</span><span>Sát thương</span><span>Hồi máu</span></div>
           ${order.map((r, i) => `<div class="tb-r${r.id === G.me ? ' me' : ''}"><span class="tb-ic"><b class="plc${i < 3 ? ' top' : ''}">${i + 1}</b></span>
@@ -1945,7 +1976,7 @@ export function makeUI(G) {
         <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : '<button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
       </div>`;
     const R = refs(result);
-    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme)); G.bus.emit('ui:play', choice); };
+    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme), choice ? choice.size : d.size); G.bus.emit('ui:play', choice); };
     R.lobby.onclick = () => G.bus.emit('ui:menu');
     if (rw) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };
@@ -2066,7 +2097,7 @@ export function makeUI(G) {
 
   /* ================= online: entry screen and lobby ================= */
   const TEAM_NAME = ['Đội Lam', 'Đội Hỏa'];
-  const seatsOf = (mode) => (mode === 'tudo' ? 10 : 5);
+  const seatsOf = (L) => (L.mode === 'tudo' ? 2 * cleanSize(L.size) : L.mode === 'trum' ? TEAM_SIZE : cleanSize(L.size));
   const entry = el('div', 'screen online');
   entry.dataset.block = '';
   entry.innerHTML = `
@@ -2207,12 +2238,12 @@ export function makeUI(G) {
   }
   const botSeat = (t) => `<div class="seat bot t${t}"><div class="bot-ph">${icon('generic')}</div><div class="st-t"><b class="st-n">Bot</b><span class="st-m">Máy sẽ điền chỗ trống</span></div></div>`;
   function teamHtml(L, team, title) {
-    const ps = L.players.filter((p) => p.team === team), n = seatsOf(L.mode);
+    const ps = L.players.filter((p) => p.team === team), n = seatsOf(L);
     return `<div class="lb-team t${team}"><div class="lb-th"><b>${title}</b><small>${ps.length} / ${n}</small></div><div class="seats">${ps.map((p) => seatHtml(p, false)).join('')}${botSeat(team).repeat(Math.max(0, n - ps.length))}</div></div>`;
   }
   function teamsHtml(L) {
     if (L.mode === 'tudo') {
-      const n = seatsOf('tudo');
+      const n = seatsOf(L);
       return `<div class="lb-team ffa"><div class="lb-th"><b>Hỗn chiến</b><small>${L.players.length} / ${n}</small></div><div class="seats">${L.players.map((p) => seatHtml(p, true)).join('')}${botSeat(2).repeat(Math.max(0, n - L.players.length))}</div></div>`;
     }
     if (L.mode === 'trum') {
@@ -2226,12 +2257,13 @@ export function makeUI(G) {
     if (!host) {
       const mp = MAPS[L.map];
       return `<div class="kv"><span>Chế độ</span><b>${esc(modeName(L.mode))}</b></div><p class="mode-bl">${esc((MODES[L.mode] || {}).blurb || '')}</p>
-        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>
+        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>${L.mode === 'trum' ? '' : `<div class="kv"><span>Cỡ đội</span><b>${cleanSize(L.size)} đấu ${cleanSize(L.size)}</b></div>`}
         <p class="hint">Chỉ chủ phòng đổi được thiết lập.</p>`;
     }
     return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
       <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
       <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
+      ${L.mode === 'trum' ? '' : `<h3>Cỡ đội</h3><div class="seg" data-r="lobbySize">${TEAM_SIZES.map((n) => `<button class="${n === cleanSize(L.size) ? 'on' : ''}" data-a="size" data-k="${n}">${n} đấu ${n}</button>`).join('')}</div>`}
       </div><div class="grp g-map"><h3>Đấu trường</h3><div class="maps">${mapsFor(L.mode).map((k) => `<button class="map${k === L.map ? ' on' : ''}" data-a="map" data-k="${k}"><span class="sw ${MAPS[k].theme}">${icon(THEME_ICON[MAPS[k].theme] || 'generic')}</span><span class="mp-t"><b>${MAPS[k].name}</b></span></button>`).join('')}<button class="map${L.map === 'random' ? ' on' : ''}" data-a="map" data-k="random"><span class="sw rnd">${icon('dice')}</span><span class="mp-t"><b>Ngẫu nhiên</b></span></button></div>
       </div><div class="grp g-theme"><h3>Môi trường</h3><div class="themes">${themeTiles(validTheme(L.theme) ? L.theme : null, 'data-k').replace(/<button class="th/g, '<button data-a="theme" class="th')}</div></div>`;
   }
@@ -2321,6 +2353,7 @@ export function makeUI(G) {
       case 'map': o.setRoom({ map: k }); break;
       case 'theme': o.setRoom({ theme: k === 'layout' ? null : k }); break;
       case 'diff': o.setRoom({ diff: k }); break;
+      case 'size': if (o.setRoom({ size: Number(k) }) === false) lobbyMsg = o.error; break;
       case 'start': if (o.start() === false) { lobbyMsg = o.error; shake(b); } break;
       default:
     }

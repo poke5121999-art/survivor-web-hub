@@ -1,12 +1,14 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 // No DOM: storage and the clock are injected (makeMeta({ storage, now })) so Node can run it.
-import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, PAINTS, GLOWS, DECALS, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, NO_LV, GEM_RATE, GEMS, SHOP, PASS } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, PAINTS, GLOWS, DECALS, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS } from './data.js';
 import { MAP_ORDER, MAPS, THEMES } from './maps.js';
 
 // The key keeps its v1 name so a player's progress is found; the version lives in `v` and clean() migrates older shapes.
 const KEY = 'dtt.save.v1';
 const VERSION = 2;
 const QUALITIES = ['low', 'medium', 'high'];
+// Phone vibration and camera shake: off, light (default), strong.
+export const FEEL_LEVELS = ['off', 'light', 'strong'];
 const DAY = 86400000;
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -22,8 +24,8 @@ const FREE_MECHS = () => MECH_ORDER.filter((k) => MECHS[k].price === 0);
 function defaults() {
   return {
     v: VERSION, name: 'Phi công', coins: 0, gems: 0, xp: 0, level: 1,
-    owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0],
-    settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false },
+    owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0], size: TEAM_SIZE,
+    settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light' },
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
     lv: {}, paints: {}, glows: {}, decals: {}, ownedPaints: ['goc'], ownedGlows: ['goc'], ownedDecals: ['goc'], trophies: 0,
     shop: { starter: false, passUntil: 0, lastDaily: '', bought: {}, log: [] },
@@ -81,6 +83,9 @@ export function placeOf(summary, id) {
   return order.findIndex((r) => r.id === id) + 1;
 }
 
+// Free-for-all places that count as a podium: 1st wins, 2nd-3rd draw when six or more fly (3v3 and up); a field of four or fewer has one winner and losers.
+export const podiumOf = (n) => (n >= 6 ? 3 : 1);
+
 // xp is the xp earned inside the current level; a level needs levelXp(level).
 // Migration: v1 stored one level per mech (`upgrades`); it becomes that level on every track, so nothing paid for is lost.
 function clean(raw) {
@@ -98,11 +103,14 @@ function clean(raw) {
     // null = the layout's own theme
     theme: raw.theme === 'random' || has(THEMES, raw.theme) ? raw.theme : null,
     mode: MODE_ORDER.includes(raw.mode) ? raw.mode : d.mode,
+    size: cleanSize(raw.size),
     settings: {
       quality: QUALITIES.includes(s.quality) ? s.quality : d.settings.quality,
       volume: frac(s.volume, d.settings.volume), music: frac(s.music, d.settings.music),
       rumble: typeof s.rumble === 'boolean' ? s.rumble : d.settings.rumble,
       netReadout: typeof s.netReadout === 'boolean' ? s.netReadout : d.settings.netReadout,
+      vibe: FEEL_LEVELS.includes(s.vibe) ? s.vibe : d.settings.vibe,
+      shake: FEEL_LEVELS.includes(s.shake) ? s.shake : d.settings.shake,
     },
     stats: { matches: int(st.matches, 0), wins: int(st.wins, 0), kills: int(st.kills, 0), lastWinDay: typeof st.lastWinDay === 'string' ? st.lastWinDay.slice(0, 10) : '' },
     lv: {}, paints: {}, glows: {}, decals: {}, trophies: int(raw.trophies, 0), controls: cleanControls(raw.controls),
@@ -244,9 +252,9 @@ export function makeMeta(opts = {}) {
     if (!me) return null;
     const mode = modeOf(summary);
     const place = mode === 'tudo' ? placeOf(summary, meId) : 0;
-    // tudo pays by place (1st wins, 2nd-3rd draw); every other mode asks whether the player's team won.
+    // tudo pays by place (1st wins, the next few draw); every other mode asks whether the player's team won.
     const win = mode === 'tudo' ? place === 1 : summary.winner === me.team;
-    const draw = mode === 'tudo' ? place === 2 || place === 3 : summary.winner === -1;
+    const draw = mode === 'tudo' ? place >= 2 && place <= podiumOf(summary.rows.length) : summary.winner === -1;
     const mvp = summary.mvp === meId;
     const base = win ? REWARDS.win : draw ? REWARDS.draw : REWARDS.lose;
     // A boss kill is one frag for the whole team, so trum pays for damage dealt to the boss instead.

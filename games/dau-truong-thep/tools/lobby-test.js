@@ -80,7 +80,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   await until(B, 'document.querySelector("#ui .online.on")', 'B entry screen');
   await until(B, `document.querySelector('#ui .rm[data-room="${code}"]')`, 'A\'s room in the list', 8000);
   const row = await B.evaluate(() => { const r = document.querySelector('#ui .rm-list .rm'); return r ? [r.querySelector('.rm-n b').textContent, r.querySelector('.rm-n small').textContent, ...[...r.querySelectorAll(':scope > span')].slice(1).map((s) => s.textContent)] : []; });
-  check(row.join('|') === 'Phòng thử|Chủ phòng: Chủ Nhà|Đấu đội|Đền Rừng|1/10', `room list row: ${row.join(' | ')}`);
+  check(row.join('|') === 'Phòng thử|Chủ phòng: Chủ Nhà|Đấu đội|Đền Rừng|1/6', `room list row: ${row.join(' | ')}`);
   await B.fill('#ui .online [data-r="name"]', 'Khách Hai');
   await B.press('#ui .online [data-r="name"]', 'Tab');
   await B.fill('#ui .online [data-r="code"]', 'zzzzz');
@@ -137,15 +137,30 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   await A.click('#ui .lobby .seg [data-k="easy"]');
   await until(B, '__G.online.lobby.mode === "chiem" && __G.online.lobby.map === "cangbang" && __G.online.lobby.diff === "easy"', 'B sees the new settings');
   const kv0 = await B.evaluate(() => [...document.querySelectorAll('#ui .lobby .kv b')].map((b) => b.textContent));
-  check(kv0.join() === 'Chiếm điểm,Cảng Băng,Theo bố cục,Dễ', `guest reads settings read-only, theme "Theo bố cục" by default: ${kv0.join(' / ')}`);
+  check(kv0.join() === 'Chiếm điểm,Cảng Băng,Theo bố cục,Dễ,3 đấu 3', `guest reads settings read-only, theme "Theo bố cục" by default: ${kv0.join(' / ')}`);
   await A.click('#ui .lobby .th[data-k="lava"]');
   await until(B, '__G.online.lobby.theme === "lava"', 'B sees the theme');
   const kv = await B.evaluate(() => [...document.querySelectorAll('#ui .lobby .kv b')].map((b) => b.textContent));
-  check(kv.join() === 'Chiếm điểm,Cảng Băng,Núi lửa,Dễ', `guest reads the chosen theme read-only: ${kv.join(' / ')}`);
+  check(kv.join() === 'Chiếm điểm,Cảng Băng,Núi lửa,Dễ,3 đấu 3', `guest reads the chosen theme read-only: ${kv.join(' / ')}`);
   check(JSON.stringify(await model(A)) === JSON.stringify(await model(B)), 'both pages hold the identical lobby model');
   await sleep(300);
   await shot(A, 'host'); await shot(B, 'guest');
   await shot(A, 'chat-host'); await shot(B, 'chat-guest');
+
+  // ---- team size: 3 seats a side by default; 1v1 is refused while both players share a team, 2v2 is taken -------------------
+  const seatCount = (p) => p.evaluate(() => [0, 1].map((t) => document.querySelectorAll(`#ui .lobby .lb-team.t${t} .seat`).length + ':' + document.querySelector(`#ui .lobby .lb-team.t${t} .lb-th small`).textContent.trim()).join(' '));
+  check(await seatCount(A) === '3:2 / 3 3:0 / 3' && await seatCount(B) === await seatCount(A), `lobby: three seats on each team, bots fill the empty ones (${await seatCount(A)})`);
+  check((await A.evaluate('__G.online.lobby.size')) === 3 && (await A.locator('#ui .lobby [data-a="size"].on').getAttribute('data-k')) === '3', 'host lobby: size 3 is preselected');
+  await A.click('#ui .lobby [data-a="size"][data-k="1"]');
+  const refused = (await A.textContent('#ui .lobby .lb-act .ol-err')).trim();
+  check(/Chưa thể chọn 1 đấu 1/.test(refused) && (await A.evaluate('__G.online.lobby.size')) === 3 && (await B.evaluate('__G.online.lobby.size')) === 3, `size 1 is refused while two players share a team, nobody is kicked: "${refused}"`);
+  await A.click('#ui .lobby [data-a="size"][data-k="2"]');
+  await until(B, '__G.online.lobby.size === 2', 'B sees size 2');
+  await sleep(200);
+  check(await seatCount(A) === '2:2 / 2 2:0 / 2' && await seatCount(B) === await seatCount(A) && (await B.evaluate(() => [...document.querySelectorAll('#ui .lobby .kv b')].pop().textContent)) === '2 đấu 2', `2v2: two seats a side on both pages, the guest reads "2 đấu 2" (${await seatCount(B)})`);
+  await shot(A, 'size2');
+  await A.click('#ui .lobby [data-a="size"][data-k="3"]');
+  await until(B, '__G.online.lobby.size === 3', 'B sees size 3 again');
 
   // ---- phone-size lobby (A, 780x360), then back --------------------------------------------------------------------
   await A.setViewportSize({ width: 780, height: 360 }); await sleep(400);
@@ -172,7 +187,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const ia = await info(A), ib = await info(B);
   check(ia.mode === 'match' && ib.mode === 'match', 'both pages reach __G.mode === "match"');
   check(ia.map === 'cangbang' && ib.map === 'cangbang' && ia.rule === 'chiem' && ib.rule === 'chiem', `same map ${ia.map} and mode ${ia.rule} on both`);
-  check(ia.units === 10 && ib.units === 10, '10 units on both pages');
+  check(ia.units === 6 && ib.units === 6, '6 units on both pages (3 a side)');
   const th = await Promise.all([A, B].map((p) => p.evaluate(() => __G.match.map.theme)));
   check(th.join() === 'lava,lava', `both matches use the host's theme: ${th.join(',')}`);
   // Joiners now default to the host's team, so B's slot is no longer fixed at 5: it only has to be its own, non-zero slot.
@@ -180,6 +195,9 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const hudB = await B.evaluate(() => ({ weapon: document.querySelector('#ui .slot').title, me: document.querySelector('#ui .pc.me .pc-name').textContent, lobby: !!document.querySelector('#ui .lobby.on'), hud: !!document.querySelector('#ui .hud.on') }));
   check(hudB.weapon === MECHS.ung.weapon.name && hudB.me === 'Khách Hai' && !hudB.lobby && hudB.hud, `B's HUD shows its own mech (weapon "${hudB.weapon}")`);
   check((await A.evaluate('document.querySelector("#ui .slot").title')) === MECHS.trau.weapon.name, 'A\'s HUD shows A\'s mech');
+  const own = (p) => p.evaluate(() => { const bg = (n) => getComputedStyle(n.querySelector('.np-hp i')).backgroundColor, self = document.querySelector('#ui .np.self'); return { me: __G.me, selfN: document.querySelectorAll('#ui .np.self').length, self: self && bg(self), ally: bg(document.querySelector('#ui .np.t0:not(.self)')), foe: bg(document.querySelector('#ui .np.t1')), chip: getComputedStyle(document.querySelector('#ui .pc.me .pc-hp i')).backgroundColor }; });
+  const oa = await own(A), ob = await own(B);
+  check([oa, ob].every((o) => o.selfN === 1 && o.self === 'rgb(125, 255, 90)' && o.chip === 'rgb(125, 255, 90)' && o.ally === 'rgb(53, 184, 255)' && o.foe === 'rgb(255, 90, 54)'), `own health bar is green on the host (slot ${oa.me}) and on the co-op guest (slot ${ob.me}); allies blue, enemies red`);
 
   // ---- mirror tracks the host ------------------------------------------------------------------------------------
   await sleep(5000);

@@ -214,7 +214,7 @@ async function phoneSuite(browser) {
       await shot(page, errs, T('hud-' + mode), async () => {
         await phoneAudit(page, T('hud-' + mode), { zones: true });
         const r = await page.evaluate(() => ({ touch: document.getElementById('ui').classList.contains('is-touch'), slots: getComputedStyle(document.querySelector('#ui .slots')).display, perf: document.querySelector('#ui .perf').textContent, set: !!document.querySelector('#ui .setbtn') && document.querySelector('#ui .setbtn').getBoundingClientRect().width >= 47.5, cards: document.querySelectorAll('#ui .pc').length, np: [...document.querySelectorAll('#ui .np:not(.off) .np-hp')].map((n) => n.getBoundingClientRect().height) }));
-        check(T('hud-' + mode) + ': touch HUD (own skill bar hidden, ping/FPS readout, settings button, team chips)', r.touch && r.slots === 'none' && /58 FPS/.test(r.perf) && r.set && (mode === 'tudo' ? r.cards === 0 : r.cards >= 5), JSON.stringify(r));
+        check(T('hud-' + mode) + ': touch HUD (own skill bar hidden, ping/FPS readout, settings button, team chips)', r.touch && r.slots === 'none' && /58 FPS/.test(r.perf) && r.set && (mode === 'tudo' ? r.cards === 0 : r.cards === (mode === 'trum' ? 3 : 6)), JSON.stringify(r));
         check(T('hud-' + mode) + ': health bars over tanks are at least 5 px tall', r.np.length > 0 && r.np.every((x) => x >= 4.9), JSON.stringify(r.np));
       }, 500);
       await ctx.close();
@@ -270,7 +270,7 @@ async function phoneSuite(browser) {
     await shot(page, errs, T('settings-touch'), async () => {
       await phoneAudit(page, T('settings-touch'));
       const r = await page.evaluate(() => { const b = document.querySelector('#ui [data-r="touchGrp"]'); return { shown: !!b.offsetParent, h3: b.querySelector('h3').textContent, btns: [...b.querySelectorAll('button')].map((x) => x.textContent.trim().slice(0, 22)) }; });
-      check(T('settings-touch') + ': group "Điều khiển cảm ứng" with Tự nhắm, the priority choice and the three layout controls', r.shown && r.h3 === 'Điều khiển cảm ứng' && r.btns.length === 7 && /^Tự nhắm \(cảm ứng\)/.test(r.btns[0]) && r.btns.slice(1, 4).join('|') === 'Gần nhất|Máu thấp nhất|Máu % thấp nhất' && /Cần điều khiển cố định/.test(r.btns[4]) && r.btns[5] === 'Sửa bố cục nút' && r.btns[6] === 'Về mặc định', JSON.stringify(r));
+      check(T('settings-touch') + ': group "Điều khiển cảm ứng" with Rung điện thoại (Tắt/Nhẹ/Mạnh), Tự nhắm, the priority choice and the three layout controls', r.shown && r.h3 === 'Điều khiển cảm ứng' && r.btns.length === 10 && r.btns.slice(0, 3).join('|') === 'Tắt|Nhẹ|Mạnh' && /^Tự nhắm \(cảm ứng\)/.test(r.btns[3]) && r.btns.slice(4, 7).join('|') === 'Gần nhất|Máu thấp nhất|Máu % thấp nhất' && /Cần điều khiển cố định/.test(r.btns[7]) && r.btns[8] === 'Sửa bố cục nút' && r.btns[9] === 'Về mặc định', JSON.stringify(r));
     }, 200);
     await page.tap('#ui [data-r="fixStick"]');
     let ly = await page.evaluate(() => ({ fixed: __G.input.layout.get().fixedStick, pressed: document.querySelector('#ui [data-r="fixStick"]').getAttribute('aria-pressed') }));
@@ -379,14 +379,14 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
             inside: cs.every((c) => { const b = c.getBoundingClientRect(); return b.top >= pb.top - 1 && b.bottom <= pb.bottom + 1; }),
             scrolls: panel.scrollHeight > panel.clientHeight + 1,
             skills: document.querySelectorAll('#ui .detail .sk').length, bars: document.querySelectorAll('#ui .detail .st .bar i').length,
-            diff: document.querySelectorAll('#ui .seg button').length, map: document.querySelectorAll('#ui .map').length,
+            diff: document.querySelectorAll('#ui .seg[data-r="diff"] button').length, size: document.querySelectorAll('#ui .seg[data-r="size"] button').length, map: document.querySelectorAll('#ui .map').length,
             name: document.querySelector('#ui .pl-name').value, play: document.querySelector('#ui .play').textContent.trim(),
             lock: document.querySelectorAll('#ui .mc.locked').length, desc: document.querySelector('#ui .sk-tx p').textContent.length,
             roleSvg: document.querySelectorAll('#ui .mc-role svg').length,
           };
         });
         check(T('menu') + ': title, 16 cards with portraits, 4 skill rows, 8 stat bars', r.title === 'Đấu Trường Thép' && r.cards.length === 16 && r.cards.every((x) => x === 'data:image') && r.skills === 4 && r.bars === 8 && r.roleSvg === 16, JSON.stringify(r));
-        check(T('menu') + ': difficulty, map, player name, play button filled', r.diff === 3 && r.map === 5 && r.name && r.play === 'Vào trận' && r.desc > 10, JSON.stringify(r));
+        check(T('menu') + ': difficulty (3), team size (3 buttons), map, player name, play button filled', r.diff === 3 && r.size === 3 && r.map === 5 && r.name && r.play === 'Vào trận' && r.desc > 10, JSON.stringify(r));
         check(T('menu') + ': 12 locked mechs show lock and price', r.lock === 12);
         check(T('menu') + ': 16 cards overflow the roster panel, which scrolls (reachability checked below)', r.scrolls, JSON.stringify(r));
         const rk = await page.evaluate(() => ({ name: document.querySelector('#ui [data-r="rkName"]').textContent, tr: document.querySelector('#ui [data-r="rkTr"]').textContent, next: document.querySelector('#ui [data-r="rkNext"]').textContent, fill: document.querySelector('#ui [data-r="rkFill"]').style.transform }));
@@ -623,12 +623,12 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
             feed: document.querySelectorAll('#ui .kf').length, chips: vis('#ui .chip').length, mission: t('#ui .mission'), role: document.querySelectorAll('#ui .pc-role svg').length,
           };
         });
-        check(T('hud') + ': score, clock, 10 portrait cards, some dead', /^\d+$/.test(r.k0) && /^\d:\d\d$/.test(r.clock) && r.cards === 10 && r.dead >= 1, JSON.stringify(r));
+        check(T('hud') + ': score, clock, 6 portrait cards (3 a side), some dead', /^\d+$/.test(r.k0) && /^\d:\d\d$/.test(r.clock) && r.cards === 6 && r.dead >= 1, JSON.stringify(r));
         check(T('hud') + ': minimap painted', r.mmLit > 300, 'lit ' + r.mmLit);
         check(T('hud') + ': 5 skill slots with icons and key hints', r.slots.length === 5 && r.slots.every(Boolean) && r.keys === 'Chuột trái,Q,E,Cách,F', r.keys);
         check(T('hud') + ': hp text, nameplates incl. own, buff chips', /\d+ \/ \d+/.test(r.hp) && r.nps >= 2 && r.self === 1 && r.chips >= 3, JSON.stringify(r));
         check(T('hud') + ': a kill reported to the HUD shows in the kill feed', r.feed >= 1, 'feed ' + r.feed);
-        check(T('hud') + ': mission line text', /chạm 25 điểm/.test(r.mission), r.mission);
+        check(T('hud') + ': mission line text', /chạm \d+ điểm/.test(r.mission), r.mission);
       });
       // floating numbers: feed synthetic events at the player
       await page.evaluate(() => {
@@ -689,7 +689,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           flourish: document.querySelector('#ui [data-r="trUp"]').classList.contains('on') && getComputedStyle(document.querySelector('#ui [data-r="trUp"]')).display !== 'none', flText: document.querySelector('#ui [data-r="trUp"]').textContent,
           saved: __G.meta.get().trophies,
         }));
-        check(T('result') + ': THẮNG banner, score, 10 rows, one mine, one MVP', r.banner === 'Thắng' && /25:17/.test(r.score) && r.rows === 10 && r.me === 1 && r.mvp === 1, JSON.stringify(r));
+        check(T('result') + ': THẮNG banner, score, 6 rows, one mine, one MVP', r.banner === 'Thắng' && /^\d+:\d+/.test(r.score) && r.rows === 6 && r.me === 1 && r.mvp === 1, JSON.stringify(r));
         check(T('result') + ': rewards animate to non-zero, level-up shown', /\+[1-9]\d*/.test(r.coins) && /\+[1-9]\d* XP/.test(r.xp) && r.up && r.lvl === '2', JSON.stringify(r));
         check(T('result') + ': Đấu tiếp and Về sảnh buttons', r.btns.join('|') === 'Đấu tiếp|Về sảnh', r.btns.join('|'));
         check(T('result') + ': 90 + 22 = 112 cúp, +22 shown, rank-up flourish "Lên hạng! Đồng"', r.trN === '112' && r.trD === '+22' && r.saved === 112 && r.rank === 'Đồng' && r.flourish && r.flText === 'Lên hạng! Đồng', JSON.stringify(r));
@@ -719,11 +719,11 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
             maps: [...document.querySelectorAll('#ui .map')].map((b) => b.dataset.map + '|' + b.querySelector('.sw').className.replace('sw ', '') + '|' + b.querySelector('b').textContent + '|' + b.querySelector('.hz').textContent),
             blurbs: [...document.querySelectorAll('#ui .map small')].map((n) => n.textContent.length > 20),
             mapOn: document.querySelector('#ui .map.on').dataset.map, swIcons: document.querySelectorAll('#ui .sw svg').length,
-            playIn: play.bottom <= vh + 1 && play.top >= 0, segs: document.querySelectorAll('#ui .seg button').length,
+            playIn: play.bottom <= vh + 1 && play.top >= 0, segs: document.querySelectorAll('#ui .seg[data-r="diff"] button').length,
           };
         });
         check(T('menu-modes') + ': mode picker lists every mode of MODE_ORDER with its Vietnamese name', r.modes.join() === MODE_ORDER.map((k) => k + ':' + MODES[k].name).join(), r.modes.join());
-        check(T('menu-modes') + ': saved mode (trum) is preselected and its blurb is shown', r.on === 'trum' && r.blurb === 'Năm người hợp sức hạ Cự Thần trước khi dùng hết 12 mạng.', JSON.stringify(r));
+        check(T('menu-modes') + ': saved mode (trum) is preselected and its blurb is shown', r.on === 'trum' && r.blurb === MODES.trum.blurb, JSON.stringify(r));
         check(T('menu-modes') + ': map picker shows 4 layouts + Ngẫu nhiên with swatch, name and hazard in words', r.maps.join('\n') === 'denrung|jungle|Đền Rừng|Không có bẫy\nxuongcat|desert|Xưởng Cát|Họng lửa phụt\ncangbang|ice|Cảng Băng|Băng trơn trượt\nmienglua|lava|Miệng Lửa|Hồ dung nham\nrandom|rnd|Ngẫu nhiên|Bố cục bốc thăm mỗi trận' && r.swIcons === 15 && r.blurbs.length === 5, r.maps.join(' ; '));
         check(T('menu-modes') + ': saved map (mienglua) preselected, play button inside the viewport, difficulty still 3 buttons', r.mapOn === 'mienglua' && r.playIn && r.segs === 3, JSON.stringify(r));
       });
@@ -749,8 +749,8 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
 
       ({ ctx, page, errs } = await hudOpen('tdm'));
       await shot(page, errs, T('hud-tdm'), async () => {
-        const r = await page.evaluate(() => ({ mission: document.querySelector('#ui .mission').textContent, cols: document.querySelectorAll('#ui .pc').length, pts: document.querySelectorAll('#ui .ppt').length, rk: document.querySelectorAll('#ui .rkr').length, boss: document.querySelectorAll('#ui .bh').length, foe: getComputedStyle(document.querySelector('#ui .col.foe')).display }));
-        check(T('hud-tdm') + ': unchanged bar: 10 portrait cards, both columns, no points, no ranking, no boss bar, mission from MODES.tdm', r.cols === 10 && r.foe !== 'none' && r.pts === 0 && r.rk === 0 && r.boss === 0 && r.mission === 'Hạ gục đối thủ, đội nào chạm 25 điểm trước sẽ thắng', JSON.stringify(r));
+        const r = await page.evaluate(() => ({ mission: document.querySelector('#ui .mission').textContent, cols: document.querySelectorAll('#ui .pc').length, pts: document.querySelectorAll('#ui .ppt').length, rk: document.querySelectorAll('#ui .rkr').length, boss: document.querySelectorAll('#ui .bh').length, foe: getComputedStyle(document.querySelector('#ui .col.foe')).display, want: __G.match.rule.mission.replace('{target}', __G.match.target) }));
+        check(T('hud-tdm') + ': unchanged bar: 6 portrait cards, both columns, no points, no ranking, no boss bar, mission from MODES.tdm with the match target', r.cols === 6 && r.foe !== 'none' && r.pts === 0 && r.rk === 0 && r.boss === 0 && r.mission === r.want, JSON.stringify(r));
       });
       await ctx.close();
 
@@ -769,7 +769,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
         }));
         check(T('hud-chiem') + ': three point pips A/B/C reflect forced owners (mine, foe, none) and ring progress 100/100/50%', r.pips.join() === 'A:mine:100%,B:foe:100%,C:none:50%', r.pips.join());
         check(T('hud-chiem') + ': world labels show letter + state: Của ta / Của địch / 50%', r.labels.join() === 'ACủa ta,BCủa địch,C50%', r.labels.join());
-        check(T('hud-chiem') + ': scores 60 vs 45 toward the match target, both columns kept, mission has {target} filled', r.k.join() === '60,45' && r.tgt === String(r.target) && r.bar === `scaleX(${Math.round(60 / r.target * 200) / 200})` && r.cards === 10 && r.mission === `Đứng trong vòng để chiếm cứ điểm, đội nào đủ ${r.target} điểm trước sẽ thắng`, JSON.stringify(r));
+        check(T('hud-chiem') + ': scores 60 vs 45 toward the match target, both columns kept, mission has {target} filled', r.k.join() === '60,45' && r.tgt === String(r.target) && r.bar === `scaleX(${Math.round(60 / r.target * 200) / 200})` && r.cards === 6 && r.mission === `Đứng trong vòng để chiếm cứ điểm, đội nào đủ ${r.target} điểm trước sẽ thắng`, JSON.stringify(r));
       });
       await page.evaluate(() => __G.ui.event({ t: 'capture', point: 1, team: 0, x: 0, z: 0 }));
       await page.waitForFunction(() => document.querySelector('#ui .ann b').textContent === 'Đã chiếm cứ điểm B', null, { timeout: 4000 }).then(() => check(T('hud-chiem') + ': capture by my team announces "Đã chiếm cứ điểm B"', true), () => check(T('hud-chiem') + ': capture by my team announces "Đã chiếm cứ điểm B"', false, 'got ' + '?'));
@@ -779,47 +779,47 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await ctx.close();
 
       ({ ctx, page, errs } = await hudOpen('tudo'));
-      await page.evaluate(() => { const m = __G.match; [3, 9, 1, 7, 2, 5, 0, 4, 6, 8].forEach((v, i) => { m.score[i] = v; }); });
+      await page.evaluate(() => { const m = __G.match; [3, 9, 1, 7, 2, 5].forEach((v, i) => { m.score[i] = v; }); });
       await shot(page, errs, T('hud-tudo'), async () => {
         const r = await page.evaluate(() => ({
           rows: [...document.querySelectorAll('#ui .rkr:not([hidden])')].map((n) => n.dataset.id + ':' + n.querySelector('.rk-p').textContent + ':' + n.querySelector('.rk-k').textContent),
-          me: document.querySelector('#ui .rkr.me').dataset.id, k: [document.querySelector('#ui [data-r="k0"]').textContent, document.querySelector('#ui [data-r="k1"]').textContent],
+          gap: document.querySelectorAll('#ui .rk-gap').length, me: document.querySelector('#ui .rkr.me').dataset.id, k: [document.querySelector('#ui [data-r="k0"]').textContent, document.querySelector('#ui [data-r="k1"]').textContent],
           who: document.querySelector('#ui [data-r="w1"]').textContent, target: __G.match.target, tgt: document.querySelector('#ui [data-r="tgt"]').textContent,
           foe: getComputedStyle(document.querySelector('#ui .col.foe')).display, pc: document.querySelectorAll('#ui .pc').length,
           badPlates: document.querySelectorAll('#ui .np:not(.self).t0').length, plates: document.querySelectorAll('#ui .np.t1').length, selfT0: document.querySelectorAll('#ui .np.self.t0').length,
           mission: document.querySelector('#ui .mission').textContent,
         }));
         const names = await page.evaluate(() => __G.match.units[__G.match.units.length - 1].name);
-        check(T('hud-tudo') + ': ranking = top 5 by kills (ids 1,9,3,8,5 on 9,8,7,6,5) then my own row at place 7 with 3 kills', r.rows.join() === '1:1:9,9:2:8,3:3:7,8:4:6,5:5:5,0:7:3' && r.me === '0', r.rows.join());
+        check(T('hud-tudo') + ': ranking = all six mechs by kills (ids 1,3,5,0,4,2 on 9,7,5,3,2,1), no gap row', r.rows.join() === '1:1:9,3:2:7,5:3:5,0:4:3,4:5:2,2:6:1' && r.gap === 0 && r.me === '0', r.rows.join());
         check(T('hud-tudo') + ': top bar = my 3 kills vs leader 9 toward the target, leader named; no right column, no team cards', r.k.join() === '3,9' && /^Dẫn đầu: /.test(r.who) && r.tgt === String(r.target) && r.foe === 'none' && r.pc === 0, JSON.stringify(r));
-        check(T('hud-tudo') + ': the 9 other nameplates (plus any decoy plate, which copies its owner) use the enemy colour, mine the ally colour; mission has {target} filled', r.badPlates === 0 && r.plates >= 9 && r.selfT0 === 1 && r.mission === `Không có đồng đội: hạ gục ${r.target} lần trước mọi người`, JSON.stringify(r));
+        check(T('hud-tudo') + ': the 5 other nameplates (plus any decoy plate, which copies its owner) use the enemy colour, mine the ally colour; mission has {target} filled', r.badPlates === 0 && r.plates >= 5 && r.selfT0 === 1 && r.mission === `Không có đồng đội: hạ gục ${r.target} lần trước mọi người`, JSON.stringify(r));
       });
       await page.evaluate(() => { __G.ui.event({ t: 'death', id: 2, by: 3, assists: [], x: 0, z: 0 }); });
       await page.waitForTimeout(200);
       {
         const f = await page.evaluate(() => ({ t0: document.querySelectorAll('#ui .kf b.t0').length, t1: document.querySelectorAll('#ui .kf b.t1').length }));
         check(T('hud-tudo') + ': kill feed between two rivals uses no ally colour', f.t0 === 0 && f.t1 === 2, JSON.stringify(f));
-        await page.evaluate(() => { const m = __G.match; m.score[0] = 11; m.score[9] = 4; });
+        await page.evaluate(() => { const m = __G.match; m.score[0] = 11; });
         await page.waitForTimeout(250);
         const r2 = await page.evaluate(() => ({ rows: [...document.querySelectorAll('#ui .rkr:not([hidden])')].map((n) => n.dataset.id).join(), who: document.querySelector('#ui [data-r="w1"]').textContent }));
-        check(T('hud-tudo') + ': ranking re-sorts live: my 11 kills puts me first, rival label switches to "Đối thủ"', r2.rows === '0,1,3,8,5' && /^Đối thủ: /.test(r2.who), JSON.stringify(r2));
+        check(T('hud-tudo') + ': ranking re-sorts live: my 11 kills puts me first, rival label switches to "Đối thủ"', r2.rows === '0,1,3,5,4,2' && /^Đối thủ: /.test(r2.who), JSON.stringify(r2));
       }
       await ctx.close();
 
       ({ ctx, page, errs } = await hudOpen('trum'));
-      await page.evaluate(() => { const m = __G.match, b = m.units.find((u) => u.def.boss); b.hp = b.maxHp * 0.5; m.lives = 7; });
+      await page.evaluate(() => { const m = __G.match, b = m.units.find((u) => u.def.boss); window.__lives0 = m.lives; b.hp = b.maxHp * 0.5; m.lives = 7; });
       await shot(page, errs, T('hud-trum'), async () => {
         const r = await page.evaluate(() => ({
           w: document.querySelector('#ui .bh-fill').style.width, num: document.querySelector('#ui [data-r="num"]').textContent, name: document.querySelector('#ui [data-r="bname"]').textContent,
           pips: document.querySelectorAll('#ui .lp').length, on: document.querySelectorAll('#ui .lp.on').length, lvn: document.querySelector('#ui [data-r="lvn"]').textContent,
           mine: document.querySelectorAll('#ui .col.mine .pc').length, foe: getComputedStyle(document.querySelector('#ui .col.foe')).display, bossPlate: document.querySelectorAll('#ui .np.boss').length,
           bossBar: document.querySelector('#ui .np.boss .np-hp').getBoundingClientRect().width, plain: document.querySelector('#ui .np:not(.boss):not(.self) .np-hp').getBoundingClientRect().width,
-          mission: document.querySelector('#ui .mission').textContent, max: __G.match.units.find((u) => u.def.boss).maxHp,
+          mission: document.querySelector('#ui .mission').textContent, max: __G.match.units.find((u) => u.def.boss).maxHp, lives0: window.__lives0,
         }));
         const dots = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         check(T('hud-trum') + ': boss bar named Cự Thần, fill width 50% at half hp, numbers half / max with dot thousands', r.name === 'Cự Thần' && r.w === '50%' && r.num === `${dots(r.max / 2)} / ${dots(r.max)}`, JSON.stringify(r));
-        check(T('hud-trum') + ': 12 life pips with 7 lit and count 7; left column = my 5 mechs; no right column', r.pips === 12 && r.on === 7 && r.lvn === '7' && r.mine === 5 && r.foe === 'none', JSON.stringify(r));
-        check(T('hud-trum') + ': boss nameplate is wider than a normal one; mission has {lives} filled', r.bossPlate === 1 && r.bossBar > r.plain * 1.5 && r.mission === 'Hạ Cự Thần trước khi cả đội dùng hết 12 mạng', JSON.stringify(r));
+        check(T('hud-trum') + ': one life pip per starting life with 7 lit and count 7; left column = my 3 hunters; no right column', r.pips === r.lives0 && r.pips > 0 && r.on === 7 && r.lvn === '7' && r.mine === 3 && r.foe === 'none', JSON.stringify(r));
+        check(T('hud-trum') + ': boss nameplate is wider than a normal one; mission has {lives} filled', r.bossPlate === 1 && r.bossBar > r.plain * 1.5 && r.mission === `Hạ Cự Thần trước khi cả đội dùng hết ${r.lives0} mạng`, JSON.stringify(r));
       });
       await page.evaluate(() => { const b = __G.match.units.find((u) => u.def.boss); b.hp = b.maxHp * 0.1; });
       await page.waitForTimeout(250);
@@ -857,9 +857,9 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
             dmg: [...document.querySelectorAll('#ui .bd b')].map((n) => n.textContent).join(), trophyBlock: !!document.querySelector('#ui [data-r="trN"]'), trophies: __G.meta.get().trophies,
             places: [...document.querySelectorAll('#ui .tb-ic .plc')].map((n) => n.textContent).join(),
           }));
-          if (tag === 'chiem') check(T('result-chiem') + ': two team tables of 5, banner Thắng, trophy block shown and +22 cúp saved', r.tables === 2 && r.rows === 10 && r.banner === 'Thắng' && r.mine === 1 && r.trophyBlock && r.trophies === 322, JSON.stringify(r));
-          if (tag === 'tudo') check(T('result-tudo') + ': one ranking of 10, banner "Hạng 3/10", my row 3rd and highlighted, drawn colour, no trophy block, cúp unchanged 300', r.tables === 1 && r.rows === 10 && r.banner === 'Hạng 3/10' && r.meIdx === 2 && r.mine === 1 && /draw/.test(r.cls) && !r.trophyBlock && r.trophies === 300 && r.places === '1,2,3,4,5,6,7,8,9,10', JSON.stringify(r));
-          if (tag === 'trum') check(T('result-trum') + ': "Đã hạ Cự Thần", 5 rows sorted by damage on the boss, no trophy block, cúp unchanged', r.banner === 'Đã hạ Cự Thần' && /win/.test(r.cls) && r.rows === 5 && r.dmg === '13.000,10.500,8.000,7.000,5.500' && !r.trophyBlock && r.trophies === 300, JSON.stringify(r));
+          if (tag === 'chiem') check(T('result-chiem') + ': two team tables of 3, banner Thắng, trophy block shown and +22 cúp saved', r.tables === 2 && r.rows === 6 && r.banner === 'Thắng' && r.mine === 1 && r.trophyBlock && r.trophies === 322, JSON.stringify(r));
+          if (tag === 'tudo') check(T('result-tudo') + ': one ranking of 6, banner "Hạng 3/6", my row 3rd and highlighted, drawn colour, no trophy block, cúp unchanged 300', r.tables === 1 && r.rows === 6 && r.banner === 'Hạng 3/6' && r.meIdx === 2 && r.mine === 1 && /draw/.test(r.cls) && !r.trophyBlock && r.trophies === 300 && r.places === '1,2,3,4,5,6', JSON.stringify(r));
+          if (tag === 'trum') check(T('result-trum') + ': "Đã hạ Cự Thần", 3 rows sorted by damage on the boss, no trophy block, cúp unchanged', r.banner === 'Đã hạ Cự Thần' && /win/.test(r.cls) && r.rows === 3 && r.dmg === '8.000,7.000,5.500' && !r.trophyBlock && r.trophies === 300, JSON.stringify(r));
           if (tag === 'trum-lose') check(T('result-trum-lose') + ': "Cự Thần thắng" with the lose banner', r.banner === 'Cự Thần thắng' && /lose/.test(r.cls) && r.trophies === 300, JSON.stringify(r));
         }, 2200);
         await ctx.close();
@@ -1014,8 +1014,8 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
             on: document.querySelector('#ui .sb').classList.contains('on'), tables: document.querySelectorAll('#ui .sb .tb').length, rows: document.querySelectorAll('#ui .sb .tb-r').length,
             head: document.querySelector('#ui .sb .tb-h').textContent.replace(/\s+/g, ' '), top: document.querySelector('#ui .sb-h').textContent.replace(/\s+/g, ' '), me: document.querySelectorAll('#ui .sb .tb-r.me').length,
           }));
-          const want = { tdm: [2, 10, 'Đấu đội'], nha: [2, 10, 'Thủ nhà'], tudo: [1, 10, 'Hỗn chiến'] }[mode];
-          check(T('scoreboard-' + mode) + ': holding Tab shows the overlay with ' + want[0] + ' table(s), 10 players, mode name, my row marked', r.on && r.tables === want[0] && r.rows === want[1] && r.top.includes(want[2]) && r.me === 1 && /Sát thương/.test(r.head) && (mode === 'tudo' ? /Hạ gục/.test(r.head) : /K \/ D \/ A/.test(r.head)), JSON.stringify(r));
+          const want = { tdm: [2, 6, 'Đấu đội'], nha: [2, 6, 'Thủ nhà'], tudo: [1, 6, 'Hỗn chiến'] }[mode];
+          check(T('scoreboard-' + mode) + ': holding Tab shows the overlay with ' + want[0] + ' table(s), 6 players, mode name, my row marked', r.on && r.tables === want[0] && r.rows === want[1] && r.top.includes(want[2]) && r.me === 1 && /Sát thương/.test(r.head) && (mode === 'tudo' ? /Hạ gục/.test(r.head) : /K \/ D \/ A/.test(r.head)), JSON.stringify(r));
           if (mode === 'nha') check(T('scoreboard-nha') + ': shows both teams total tower HP', /Trụ ta [0-9.]+\s*Trụ địch [0-9.]+/.test(r.top), r.top);
         }, 500);
         await page.keyboard.up('Tab');
@@ -1088,7 +1088,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       ({ ctx, page, errs } = await open(browser, T('lobby-theme-guest'), vp, touch, 'screen=lobby&role=guest&fill=5&fresh=1'));
       await page.evaluate(() => { __G.online.lobby.theme = 'swamp'; __G.online.lobby.map = 'random'; __G.bus.emit('net:lobby', __G.online.lobby); });
       const gk = await page.evaluate(() => [...document.querySelectorAll('#ui .lb-set .kv')].map((k) => k.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
-      check(T('lobby-theme-guest') + ': guest sees the room theme read-only ("Đầm đêm") and the random layout', gk === 'Chế độĐấu đội | Đấu trườngNgẫu nhiên | Môi trườngĐầm đêm | Độ khó botVừa' && (await page.evaluate(() => document.querySelectorAll('#ui .lb-set .th').length)) === 0, gk);
+      check(T('lobby-theme-guest') + ': guest sees the room theme read-only ("Đầm đêm") and the random layout', gk === 'Chế độĐấu đội | Đấu trườngNgẫu nhiên | Môi trườngĐầm đêm | Độ khó botVừa | Cỡ đội3 đấu 3' && (await page.evaluate(() => document.querySelectorAll('#ui .lb-set .th').length)) === 0, gk);
       await ctx.close();
 
       // ----- nha: HUD
@@ -1105,16 +1105,16 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           clock: document.querySelector('#ui [data-r="clock"]').textContent, bars: document.querySelectorAll('#ui .twb').length, cols: document.querySelectorAll('#ui .pc').length, mm: document.querySelector('#ui .mm-name').textContent,
           kills: document.querySelector('#ui [data-r="k0"]').textContent + ':' + document.querySelector('#ui [data-r="k1"]').textContent,
         }));
-        check(T('hud-nha') + ': top bar has 3 pips per team (4 small + 2 big), clock, tower score 0:0, mission from MODES.nha, 10 portrait cards', r.pips === 6 && r.mains === 2 && r.subs === 4 && /^[78]:\d\d$/.test(r.clock) && r.kills === '0:0' && r.mission === MODES.nha.mission && r.cols === 10 && r.bars === 6, JSON.stringify(r));
+        check(T('hud-nha') + ': top bar has 3 pips per team (4 small + 2 big), clock, tower score 0:0, mission from MODES.nha, 6 portrait cards', r.pips === 6 && r.mains === 2 && r.subs === 4 && /^[78]:\d\d$/.test(r.clock) && r.kills === '0:0' && r.mission === MODES.nha.mission && r.cols === 6 && r.bars === 6, JSON.stringify(r));
         check(T('hud-nha') + ': minimap title shows layout and theme', /^Lũy Thép · Rừng mưa$/.test(r.mm), r.mm);
         const info = await tw.info();
         check(T('hud-nha') + ': at the start every sub is up at 100%, both mains are locked with a visible lock', [...ID.mySub, ...ID.foeSub].every((i) => info[i].state === 'up' && info[i].hp === '100%' && info[i].lock === 'none') && [ID.myMain, ID.foeMain].every((i) => info[i].state === 'locked' && info[i].lock !== 'none' && info[i].hp === '100%'), JSON.stringify(info));
       }, 700);
       // forced tower state drives the pips
-      await page.evaluate((id) => { const m = __G.match; m.towers[id.mySub[0]].hp = 3500; m.towers[id.foeSub[0]].hp = 0; m.towers[id.foeSub[0]].alive = false; m.towers[id.foeMain].hp = 8250; }, ID);
+      await page.evaluate((id) => { const m = __G.match; m.towers[id.mySub[0]].hp = m.towers[id.mySub[0]].maxHp / 2; m.towers[id.foeSub[0]].hp = 0; m.towers[id.foeSub[0]].alive = false; m.towers[id.foeMain].hp = m.towers[id.foeMain].maxHp * 0.75; }, ID);
       await page.waitForTimeout(150);
       let info = await tw.info();
-      check(T('hud-nha') + ': pips follow forced hp/alive: my sub 3500/7000 = 50%, foe sub dead, foe main still locked', info[ID.mySub[0]].hp === '50%' && info[ID.mySub[0]].state === 'up' && info[ID.foeSub[0]].state === 'down' && info[ID.foeMain].state === 'locked' && info[ID.foeMain].hp === '75%' && info[ID.foeSub[1]].state === 'up', JSON.stringify(info));
+      check(T('hud-nha') + ': pips follow forced hp/alive: my sub at half its HP = 50%, foe sub dead, foe main still locked', info[ID.mySub[0]].hp === '50%' && info[ID.mySub[0]].state === 'up' && info[ID.foeSub[0]].state === 'down' && info[ID.foeMain].state === 'locked' && info[ID.foeMain].hp === '75%' && info[ID.foeSub[1]].state === 'up', JSON.stringify(info));
       await page.evaluate((id) => { const m = __G.match, t = m.towers[id.foeSub[0]]; __G.ui.event({ t: 'towerDown', tower: t.id, team: 1, kind: 'sub', by: 0, x: t.x, z: t.z }); }, ID);
       await page.waitForFunction(() => window.__anns.includes('Trụ phụ của địch đã đổ'), null, { timeout: 4000 }).catch(() => {});
       await page.evaluate((id) => { const m = __G.match, t = m.towers[id.mySub[1]]; __G.ui.event({ t: 'towerHit', tower: t.id, by: 5, x: t.x, z: t.z, amt: 300 }); __G.ui.event({ t: 'towerHit', tower: t.id, by: 5, x: t.x, z: t.z, amt: 300 }); const f = m.towers[id.foeSub[1]]; __G.ui.event({ t: 'towerHit', tower: f.id, by: 0, x: f.x, z: f.z, amt: 212 }); }, ID);
@@ -1153,10 +1153,11 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           const r = await page.evaluate(() => ({
             h1: document.querySelector('#ui .rs-banner h1').textContent, banner: document.querySelector('#ui .rs-banner').className, score: document.querySelector('#ui .rs-score').textContent.replace(/\s/g, ''),
             groups: document.querySelectorAll('#ui .rtw').length, towers: [...document.querySelectorAll('#ui .rtw')].map((g) => [...g.querySelectorAll('.rt b')].map((b) => b.textContent).join('/')),
-            tables: document.querySelectorAll('#ui .rs-tables .tb').length, rows: document.querySelectorAll('#ui .rs-tables .tb-r').length, tr: !!document.querySelector('#ui [data-r="trN"]'), trophies: __G.meta.get().trophies,
+            subMax: __G.match.towers.find((t) => t.kind === 'sub').maxHp, tables: document.querySelectorAll('#ui .rs-tables .tb').length, rows: document.querySelectorAll('#ui .rs-tables .tb-r').length, tr: !!document.querySelector('#ui [data-r="trN"]'), trophies: __G.meta.get().trophies,
           }));
-          const wantTowers = { win: ['2.300/Đã đổ/8.800', 'Đã đổ/Đã đổ/Đã đổ'], lose: ['Đã đổ/Đã đổ/Đã đổ', 'Đã đổ/7.000/6.200'], clock: ['3.200/7.000/9.000', '7.000/5.100/7.400'] }[tag];
-          check(T('result-nha-' + tag) + `: verdict "${title}", banner ${outcome}, cúp ${trophies}, reward block with trophies, 2 tower groups, 2 tables of 5`, r.h1 === title && r.banner.includes(outcome) && r.groups === 2 && r.tables === 2 && r.rows === 10 && r.tr && r.trophies === trophies, JSON.stringify(r));
+          const sub = String(r.subMax).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+          const wantTowers = { win: ['2.300/Đã đổ/8.800', 'Đã đổ/Đã đổ/Đã đổ'], lose: ['Đã đổ/Đã đổ/Đã đổ', `Đã đổ/${sub}/6.200`], clock: [`3.200/${sub}/9.000`, `${sub}/5.100/7.400`] }[tag];
+          check(T('result-nha-' + tag) + `: verdict "${title}", banner ${outcome}, cúp ${trophies}, reward block with trophies, 2 tower groups, 2 tables of 3`, r.h1 === title && r.banner.includes(outcome) && r.groups === 2 && r.tables === 2 && r.rows === 6 && r.tr && r.trophies === trophies, JSON.stringify(r));
           check(T('result-nha-' + tag) + ': final tower HP of both teams is printed', JSON.stringify(r.towers) === JSON.stringify(wantTowers), JSON.stringify(r.towers));
         }, 1700);
         await ctx.close();
@@ -1174,7 +1175,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           menuHidden: !document.querySelector('#ui .menu.on'), wait: !!document.querySelector('#ui .ol-wait.on'), err: !document.querySelector('#ui .online > .ol-err').hidden,
         }));
         check(T('online') + ': title, player name from meta, default room name placeholder', r.title === 'Chơi mạng' && r.name === 'Phi công' && r.ph === 'Phòng của Phi công' && r.menuHidden && !r.wait && !r.err, JSON.stringify(r));
-        check(T('online') + ': room list rows: name, host, mode, map, players/max, join (full room disabled)', r.rows.join(' ; ') === 'Phòng của Bão Số 9|Chủ phòng: Bão Số 9|Đấu đội|Đền Rừng|3/10|Vào|false ; Săn trùm cuối tuần|Chủ phòng: Cò Lả|Săn trùm|Miệng Lửa|5/10|Vào|false ; Hỗn chiến chớp nhoáng|Chủ phòng: Mèo Mun|Hỗn chiến|Cảng Băng|10/10|Đầy|true', r.rows.join(' ; '));
+        check(T('online') + ': room list rows: name, host, mode, map, players/max, join (full room disabled)', r.rows.join(' ; ') === 'Phòng của Bão Số 9|Chủ phòng: Bão Số 9|Đấu đội|Đền Rừng|3/6|Vào|false ; Săn trùm cuối tuần|Chủ phòng: Cò Lả|Săn trùm|Miệng Lửa|3/6|Vào|false ; Hỗn chiến chớp nhoáng|Chủ phòng: Mèo Mun|Hỗn chiến|Cảng Băng|6/6|Đầy|true', r.rows.join(' ; '));
       }, 300);
       await page.click('#ui .online [data-r="priv"]');
       check(T('online') + ': private toggle flips', (await page.getAttribute('#ui .online [data-r="priv"]', 'aria-pressed')) === 'true');
@@ -1228,23 +1229,35 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           code: document.querySelector('#ui .lb-code b').textContent, cols: document.querySelectorAll('#ui .lb-team').length, seats: document.querySelectorAll('#ui .lb-team .seat').length, bots: document.querySelectorAll('#ui .seat.bot').length,
           botText: [...new Set([...document.querySelectorAll('#ui .seat.bot .st-n')].map((n) => n.textContent))].join(), me: document.querySelectorAll('#ui .seat.me').length, host: document.querySelectorAll('#ui .seat .badge').length,
           imgs: [...document.querySelectorAll('#ui .seat:not(.bot) img')].map((i) => i.src.slice(0, 10)).join(), mine: document.querySelectorAll('#ui .lm').length, sel: document.querySelectorAll('#ui .lm.sel').length,
-          swaps: document.querySelectorAll('#ui .seat .btn.mini').length, modes: document.querySelectorAll('#ui .lb-set .mode').length, maps: document.querySelectorAll('#ui .lb-set .map').length, diffs: document.querySelectorAll('#ui .lb-set .seg button').length,
+          swaps: document.querySelectorAll('#ui .seat .btn.mini').length, modes: document.querySelectorAll('#ui .lb-set .mode').length, maps: document.querySelectorAll('#ui .lb-set .map').length, diffs: document.querySelectorAll('#ui .lb-set [data-a="diff"]').length,
           start: !!document.querySelector('#ui .lobby [data-a="start"]'), ready: !!document.querySelector('#ui .lobby [data-a="ready"]'), swapMe: !document.querySelector('#ui .lobby [data-a="swapme"]').disabled,
           calls: __G.online.calls.filter((c) => c[0] === 'setMine').map((c) => JSON.stringify(c[1])),
         }));
-        check(T('lobby-host') + ': code K7QX2, two team columns with 5 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 10 && r.bots === 6 && r.botText === 'Bot', JSON.stringify(r));
+        check(T('lobby-host') + ': code K7QX2, two team columns with 3 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 6 && r.bots === 2 && r.botText === 'Bot', JSON.stringify(r));
         check(T('lobby-host') + ': one own row, one host badge, 4 portraits, 4 owned mechs with one selected, "Đổi đội" on every player', r.me === 1 && r.host === 1 && r.imgs === 'data:image,data:image,data:image,data:image' && r.mine === 4 && r.sel === 1 && r.swaps === 4, JSON.stringify(r));
         check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 5 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
         check(T('lobby-host') + ': entering pushes my mech, paint and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","paint":"goc","glow":"goc","decal":"goc","mods":{"lv":[0,0,0,0,0]}}', r.calls.join());
       });
       await page.click('#ui .lobby [data-a="start"]');
       check(T('lobby-host') + ': Bắt đầu with an unready player shows online.error inline', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Còn người chơi chưa sẵn sàng.');
+      {
+        const sizes = await page.evaluate(() => [...document.querySelectorAll('#ui .lobby [data-a="size"]')].map((b) => b.dataset.k + (b.classList.contains('on') ? '*' : '') + ':' + b.textContent).join());
+        check(T('lobby-host') + ': host sees a size selector 1v1 / 2v2 / 3v3 with 3v3 on', sizes === '1:1 đấu 1,2:2 đấu 2,3*:3 đấu 3', sizes);
+        await page.click('#ui .lobby [data-a="size"][data-k="1"]');
+        const no = await page.evaluate(() => ({ msg: (document.querySelector('#ui .lobby .lb-act .ol-err') || {}).textContent, size: __G.online.lobby.size, n: __G.online.lobby.players.length }));
+        check(T('lobby-host') + ': 1v1 with two players on a team is refused inline and nobody is removed', /^Chưa thể chọn 1 đấu 1/.test(no.msg) && no.size === 3 && no.n === 4, JSON.stringify(no));
+        await page.click('#ui .lobby [data-a="size"][data-k="2"]');
+        const two = await page.evaluate(() => ({ size: __G.online.lobby.size, seats: document.querySelectorAll('#ui .lb-team .seat').length, bots: document.querySelectorAll('#ui .seat.bot').length, on: document.querySelector('#ui .lobby [data-a="size"].on').dataset.k }));
+        check(T('lobby-host') + ': 2v2 is taken: two seats a side, no bot seats left with 4 players', two.size === 2 && two.seats === 4 && two.bots === 0 && two.on === '2', JSON.stringify(two));
+        await page.click('#ui .lobby [data-a="size"][data-k="3"]');
+      }
       await page.click('#ui .lobby .mode[data-k="chiem"]'); await page.click('#ui .lobby .map[data-k="cangbang"]'); await page.click('#ui .lobby .seg [data-k="hard"]');
       await page.click('#ui .lobby .lm[data-k="soi"]'); await page.click('#ui .lobby [data-a="swapme"]'); await page.click('#ui .lobby .seat[data-pid="p2"] [data-a="swap"]');
       const hc = await page.evaluate(() => ({ calls: __G.online.calls.slice(-7).map((c) => c[0] + ':' + JSON.stringify(c[1])), L: __G.online.lobby.mode + ',' + __G.online.lobby.map + ',' + __G.online.lobby.diff, mech: __G.online.lobby.players[0].mech, sel: document.querySelector('#ui .lm.sel b').textContent, teams: __G.online.lobby.players.map((p) => p.team).join('') }));
-      check(T('lobby-host') + ': mode, map, difficulty, mech and both swap buttons reach online.*', hc.L === 'chiem,cangbang,hard' && hc.mech === 'soi' && hc.sel === 'Sói Lửa' && hc.teams === '1111', JSON.stringify(hc));
+      check(T('lobby-host') + ': mode, map, difficulty, mech and both swap buttons reach online.*', hc.L === 'chiem,cangbang,hard' && hc.mech === 'soi' && hc.sel === 'Sói Lửa' && hc.teams === '1101', JSON.stringify(hc));
+      check(T('lobby-host') + ': a swap into a full team (3 a side) is refused inline', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Mỗi đội tối đa 3 người chơi.');
       await page.click('#ui .lobby .mode[data-k="trum"]');
-      check(T('lobby-host') + ': Săn trùm with 4 players: one team and a boss card, swap buttons gone', await page.evaluate(() => document.querySelectorAll('#ui .lb-team').length === 2 && !!document.querySelector('#ui .bossbox') && document.querySelectorAll('#ui .seat .btn.mini').length === 0 && document.querySelector('#ui .lobby [data-a="swapme"]').disabled));
+      check(T('lobby-host') + ': Săn trùm with 4 players is refused ("tối đa 3"), the lobby stays as it was', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Chế độ Săn trùm tối đa 3 người chơi.' && await page.evaluate(() => !document.querySelector('#ui .bossbox') && __G.online.lobby.mode === 'chiem'));
       await page.click('#ui .lobby [data-a="leave"]');
       check(T('lobby-host') + ': Rời phòng calls leave() and shows the menu', (await calls(page)).includes('leave') && await page.evaluate(() => !!document.querySelector('#ui .menu.on') && !document.querySelector('#ui .lobby.on')));
       await ctx.close();
@@ -1255,7 +1268,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
           start: !!document.querySelector('#ui .lobby [data-a="start"]'), ready: !!document.querySelector('#ui .lobby [data-a="ready"]'), modes: document.querySelectorAll('#ui .lb-set .mode').length, swaps: document.querySelectorAll('#ui .seat .btn.mini').length,
           kv: [...document.querySelectorAll('#ui .lb-set .kv b')].map((b) => b.textContent).join(), me: document.querySelector('#ui .seat.me .st-n > span').textContent,
         }));
-        check(T('lobby-guest') + ': guest has Sẵn sàng, read-only settings, no Bắt đầu, no per-player swap', !r.start && r.ready && r.modes === 0 && r.swaps === 0 && r.kv === 'Đấu đội,Đền Rừng,Theo bố cục,Vừa' && r.me === 'Phi công', JSON.stringify(r));
+        check(T('lobby-guest') + ': guest has Sẵn sàng, read-only settings, no Bắt đầu, no per-player swap', !r.start && r.ready && r.modes === 0 && r.swaps === 0 && r.kv === 'Đấu đội,Đền Rừng,Theo bố cục,Vừa,3 đấu 3' && r.me === 'Phi công', JSON.stringify(r));
       });
       await page.click('#ui .lobby [data-a="ready"]');
       check(T('lobby-guest') + ': Sẵn sàng toggles my ready flag (true -> false)', (await page.evaluate(() => __G.online.lobby.players[1].ready)) === false && (await page.getAttribute('#ui .lobby [data-a="ready"]', 'aria-pressed')) === 'false');
@@ -1263,12 +1276,12 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       check(T('lobby-guest') + ': Đổi đội asks online.swapTeam(online.me)', (await calls(page)).includes('swapTeam:p1'), (await calls(page)).join());
       await ctx.close();
 
-      for (const [mode, tag, seats, extra] of [['tudo', 'tudo', 10, 'one list'], ['trum', 'trum', 5, 'one team + boss']]) {
-        ({ ctx, page, errs } = await open(browser, T('lobby-' + tag), vp, touch, `screen=lobby&role=guest&fill=${mode === 'tudo' ? 7 : 4}&rmode=${mode}&fresh=1`));
+      for (const [mode, tag, seats, extra] of [['tudo', 'tudo', 6, 'one list'], ['trum', 'trum', 3, 'one team + boss']]) {
+        ({ ctx, page, errs } = await open(browser, T('lobby-' + tag), vp, touch, `screen=lobby&role=guest&fill=${mode === 'tudo' ? 5 : 3}&rmode=${mode}&fresh=1`));
         await shot(page, errs, T('lobby-' + tag), async () => {
           const r = await page.evaluate(() => ({ teams: document.querySelectorAll('#ui .lb-team').length, seats: document.querySelectorAll('#ui .lb-team .seat').length, boss: !!document.querySelector('#ui .bossbox'), swap: document.querySelector('#ui .lobby [data-a="swapme"]').disabled, head: document.querySelector('#ui .lb-th b').textContent }));
-          if (mode === 'tudo') check(T('lobby-tudo') + ': Hỗn chiến is one list of 10 seats, Đổi đội disabled', r.teams === 1 && r.seats === 10 && r.head === 'Hỗn chiến' && r.swap, JSON.stringify(r));
-          else check(T('lobby-trum') + ': Săn trùm is one team of 5 seats plus the boss card, Đổi đội disabled', r.teams === 2 && r.seats === 5 && r.boss && r.swap, JSON.stringify(r));
+          if (mode === 'tudo') check(T('lobby-tudo') + ': Hỗn chiến is one list of 6 seats, Đổi đội disabled', r.teams === 1 && r.seats === 6 && r.head === 'Hỗn chiến' && r.swap, JSON.stringify(r));
+          else check(T('lobby-trum') + ': Săn trùm is one team of 3 seats plus the boss card, Đổi đội disabled', r.teams === 2 && r.seats === 3 && r.boss && r.swap, JSON.stringify(r));
         });
         await ctx.close();
       }
@@ -1853,7 +1866,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       check('meta: junk, array, null, out-of-range and wrong-typed saves load as valid data', Object.values(r.out).every(Boolean), JSON.stringify(r.out));
       check('meta: garbage upgrades/paints are clamped or dropped (level 99 -> 5, unknown keys gone, trophies >= 0)', r.weirdOk);
       check('meta: an old save without the new fields loads with defaults and keeps coins and level', r.oldOk);
-      check('meta: applyResult pays win + kills + assists + mvp, +22 trophies, persists, versioned', r.base.res.coins === 120 + 40 + 8 + 40 && r.base.res.xp === 125 && r.base.res.win && r.base.res.mvp && r.base.saved && r.base.ver === 2 && r.base.res.gems === 12 && r.base.res.trophiesBefore === 0 && r.base.res.trophiesAfter === 22 && r.base.res.rankAfter.name === 'Sắt', JSON.stringify(r.base));
+      check('meta: applyResult pays win + kills + assists + mvp, +22 trophies, persists, versioned', r.base.res.coins === 145 + 50 + 10 + 48 && r.base.res.xp === 125 && r.base.res.win && r.base.res.mvp && r.base.saved && r.base.ver === 2 && r.base.res.gems === 12 && r.base.res.trophiesBefore === 0 && r.base.res.trophiesAfter === 22 && r.base.res.rankAfter.name === 'Sắt', JSON.stringify(r.base));
       const L = r.log;
       check('meta: upgrade(mech, track) refuses an unowned mech, a bad or missing track, charges 120 then 210 on one track, refuses when poor', L.notOwned === false && L.badTrack === false && L.noTrack === false && L.up1 === true && L.c1 === 880 && L.l1 === '1,0,0,0,0' && L.up2 === true && L.c2 === 670 && L.l2 === '2,0,0,0,0' && L.poor === false && L.cPoor === 100 && L.lPoor === '2,0,0,0,0', JSON.stringify(L));
       check('meta: levels 3..5 on a track cost 300 + 390 + 480, level 6 refused without charging', L.c5 === 99999 - 1170 && L.l5 === 5 && L.max === false && L.cMax === L.c5, JSON.stringify(L));
@@ -1863,7 +1876,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       check('meta: a v1 save migrates (one level L becomes L on every track, capped at 5, coins, paints and paint choice kept)', L.mig === '2|321|3,3,3,3,3|5,5,5,5,5|true|vang|goc,vang|0', L.mig);
       check('meta: starter pack grants gems, coins, mech and paint at once and only once; unknown id refused', L.shopBad === false && L.starter === 'true|300|1000|thancong|vang|false|Đã mua|300|1000|true|true|true', L.starter);
       check('meta: pass needs a purchase for the daily claim, extends by 30 days, daily gems once per calendar day, again the next day', L.dailyNoPass === 0 && L.pass === '30|500|true|30|true' && L.daily1 === 30 && L.daily2 === 0 && L.gDaily === 530 && L.dailyNextDay === 30 && L.passStack[0] === 60 && L.passStack[1] === 2 && L.passStack[2] === 3, JSON.stringify([L.dailyNoPass, L.pass, L.daily1, L.daily2, L.gDaily, L.dailyNextDay, L.passStack]));
-      check('meta: with the pass match coins x1.5 (208 -> 312), gems: level-up +20, MVP +2, first win of the day +10 once per day; expired pass stops all of it', L.rw1 === '312|104|1.5|32|20|2|10|2' && L.rw2[0] === 0 && L.rw3[0] === 10 && L.rw3[1] === 0 && L.expired[0] === false && L.expired[1] === 0 && L.expired[2] === 0 && L.expired[3] === 1, JSON.stringify([L.rw1, L.rw2, L.rw3, L.expired]));
+      check('meta: with the pass match coins x1.5 (253 -> 380), gems: level-up +20, MVP +2, first win of the day +10 once per day; expired pass stops all of it', L.rw1 === '380|127|1.5|32|20|2|10|2' && L.rw2[0] === 0 && L.rw3[0] === 10 && L.rw3[1] === 0 && L.expired[0] === false && L.expired[1] === 0 && L.expired[2] === 0 && L.expired[3] === 1, JSON.stringify([L.rw1, L.rw2, L.rw3, L.expired]));
       check('meta: a throwing or full store never breaks the game (save() returns false, data stays in memory)', L.badStore);
       check('meta: rank() boundaries 0/99 Sắt, 100/249 Đồng, 250 Bạc, 1000+ Kim Cương with no next', r.rk.join(' ') === '0:Sắt:Đồng@100 0:Sắt:Đồng@100 1:Đồng:Bạc@250 1:Đồng:Bạc@250 2:Bạc:Vàng@450 5:Kim Cương:- 5:Kim Cương:-' && L.top, r.rk.join(' '));
       check('meta: trophies loss -12, draw +4, never below 0, promotion at 100 and demotion', L.lose.join() === '10,0' && L.draw.join() === '0,4' && L.promo.join() === '121,Sắt,Đồng,#c98a52' && L.demo.join() === '88,Đồng,Sắt' && L.floor.join() === '0,0', JSON.stringify(L));
@@ -1882,6 +1895,10 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
         out.placeTie = placeOf(ffa(5, [12, 9, 8, 7, 6, 4, 3, 2, 1], 1), 0);
         const boss = (won, dmg) => ({ rows: [...Array.from({ length: 5 }, (_, i) => row(i, 0, { dmg: i === 0 ? dmg : 1000, kills: 0 })), row(5, 1, { mech: 'titan' })], mvp: 3, winner: won ? 0 : 1, score: [0, 0], time: 200 });
         out.bossWin = pay(boss(true, 8000)); out.bossLose = pay(boss(false, 8000));
+        const ffaN = (n, myPlace) => { const kills = Array.from({ length: n }, (_, i) => (i === 0 ? n - myPlace + 1 : i < myPlace ? n - i + 1 : n - i)); return { rows: kills.map((k, i) => row(i, i, { kills: k })), mvp: 1, winner: kills.indexOf(Math.max(...kills)), score: kills, time: 100, mode: 'tudo' }; };
+        out.ffa6 = [1, 2, 3, 4, 6].map((p) => pay(ffaN(6, p))[3] + ':' + pay(ffaN(6, p))[2]);
+        out.ffa2 = [1, 2].map((p) => pay(ffaN(2, p))[3] + ':' + pay(ffaN(2, p))[2]);
+        out.sizes = [5, 4, 0, 1, 2, 3, 'x', null].map((v) => { localStorage.setItem(KEY, JSON.stringify({ size: v })); return makeMeta().get().size; }); localStorage.removeItem(KEY); out.sizeDef = makeMeta().get().size;
         out.tdm = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 0, score: [25, 3], time: 90 });
         out.chiem = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 1, score: [20, 150], time: 90, mode: 'chiem' });
         out.modes = [modeOf(ffa(1, [1, 1, 1, 1, 1, 1, 1, 1, 1], 0)), modeOf(boss(true, 1)), modeOf({ rows: [row(0, 0), row(1, 1)] }), modeOf({ mode: 'chiem', rows: [] })];
@@ -1890,10 +1907,12 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
         localStorage.removeItem(KEY); out.defMode = makeMeta().get().mode;
         return out;
       });
-      check('meta: tudo pays by place: 1st = win 120+12*8 and +100 xp, 2nd/3rd = draw 80, 6th = lose 60; cúp untouched (100)', m2.first.slice(0, 3).join() === '216,160,true' && m2.first[4] === 100 && m2.first[5] === false && m2.first[6] === 1 && m2.first[7] === 1
-        && m2.third[0] === 80 + 8 * 8 && m2.third[3] === true && m2.third[2] === false && m2.third[4] === 100 && m2.third[6] === 3 && m2.second[0] === 80 + 10 * 8 && m2.second[6] === 2 && m2.sixth[0] === 60 + 5 * 8 && m2.sixth[2] === false && m2.sixth[3] === false && m2.sixth[4] === 100 && m2.sixth[6] === 5 + 1, JSON.stringify(m2));
-      check('meta: trum win = 1.5x win base (180) + damage part round(8*8000/4000)=16 ; loss = 60 + 16; cúp untouched', m2.bossWin[0] === 180 + 16 && m2.bossWin[2] === true && m2.bossWin[4] === 100 && m2.bossWin[5] === false && m2.bossLose[0] === 60 + 16 && m2.bossLose[2] === false, JSON.stringify([m2.bossWin, m2.bossLose]));
+      check('meta: tudo pays by place: 1st = win 145+12*10 and +100 xp, 2nd/3rd = draw 96, 6th = lose 72; cúp untouched (100)', m2.first.slice(0, 3).join() === '265,160,true' && m2.first[4] === 100 && m2.first[5] === false && m2.first[6] === 1 && m2.first[7] === 1
+        && m2.third[0] === 96 + 8 * 10 && m2.third[3] === true && m2.third[2] === false && m2.third[4] === 100 && m2.third[6] === 3 && m2.second[0] === 96 + 10 * 10 && m2.second[6] === 2 && m2.sixth[0] === 72 + 5 * 10 && m2.sixth[2] === false && m2.sixth[3] === false && m2.sixth[4] === 100 && m2.sixth[6] === 5 + 1, JSON.stringify(m2));
+      check('meta: trum win = 1.5x win base (218) + damage part round(10*8000/4000)=20 ; loss = 72 + 20; cúp untouched', m2.bossWin[0] === 218 + 20 && m2.bossWin[2] === true && m2.bossWin[4] === 100 && m2.bossWin[5] === false && m2.bossLose[0] === 72 + 20 && m2.bossLose[2] === false, JSON.stringify([m2.bossWin, m2.bossLose]));
       check('meta: trophies still change in tdm (+22) and chiem (loss -12), mode is inferred from the summary shape', m2.tdm[4] === 122 && m2.tdm[5] === true && m2.chiem[4] === 88 && m2.chiem[5] === true && m2.modes.join() === 'tudo,trum,tdm,chiem', JSON.stringify([m2.tdm, m2.chiem, m2.modes]));
+      check('meta: free-for-all of 6 (3v3): 1st wins, 2nd and 3rd draw, 4th and 6th lose; of 2 (1v1): the loser loses, no draw', m2.ffa6.join() === 'false:true,true:false,true:false,false:false,false:false' && m2.ffa2.join() === 'false:true,false:false', JSON.stringify([m2.ffa6, m2.ffa2]));
+      check('meta: saved team size is 1, 2 or 3; 4, 5, 0, text, null and a missing key fall back to 3', m2.sizes.join() === '3,3,3,1,2,3,3,3' && m2.sizeDef === 3, JSON.stringify([m2.sizes, m2.sizeDef]));
       check('meta: last mode is saved, garbage falls back to tdm, default is tdm', m2.savedMode === 'trum' && m2.badMode === 'tdm' && m2.defMode === 'tdm', JSON.stringify([m2.savedMode, m2.badMode, m2.defMode]));
       await ctx.close();
     }

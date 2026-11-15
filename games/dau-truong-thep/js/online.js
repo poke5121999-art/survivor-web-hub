@@ -10,15 +10,14 @@ import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { nearestRegion } from './net/region.js';
 import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS, F_GUESS } from './netstate.js';
 import { createPredictor, createGunner } from './predict.js';
-import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, GLOWS, DECALS, DIFFICULTY, BOT_NAMES, TICK, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
+import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, GLOWS, DECALS, DIFFICULTY, BOT_NAMES, TICK, TEAM_SIZE, cleanSize, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
 import { walk, gripAt, turnRate } from './sim.js';
 
 const PROTOCOL = 1;
 const FRAME = 1100;          // Relay datagrams stay under the ~1400 B MTU; bigger messages are cut into frames
-const MAX_PLAYERS = 10;
-const TEAM_SIZE = 5;
+const MAX_PLAYERS = 2 * TEAM_SIZE;   // what a room can hold at the largest size; the host's lobby size lowers it
 const HEARTBEAT = 1;
 const RESEND = 0.5;
 const RESEND_TRIES = 24;     // 12 s without an ack: the peer is gone
@@ -58,8 +57,10 @@ const T = {
   generic: 'Không kết nối được. Hãy kiểm tra mạng rồi thử lại.',
   list: 'Không tải được danh sách phòng.',
   notReady: 'Còn người chơi chưa sẵn sàng.',
-  bossFull: 'Chế độ Săn trùm tối đa 5 người chơi.',
-  teamFull: 'Mỗi đội tối đa 5 người chơi.',
+  bossFull: `Chế độ Săn trùm tối đa ${TEAM_SIZE} người chơi.`,
+  teamFull: (n) => `Mỗi đội tối đa ${n} người chơi.`,
+  sizeBlocked: (n) => `Chưa thể chọn ${n} đấu ${n}: có đội đang đông hơn ${n} người. Hãy chuyển bớt người sang đội kia.`,
+  sizeBlockedFfa: (n) => `Chưa thể chọn ${n} đấu ${n}: phòng đang có nhiều hơn ${2 * n} người.`,
   guestName: 'Người chơi',
 };
 
@@ -166,7 +167,7 @@ const TRANSPORTS = {
     async host(o) {
       const code = Math.random().toString(36).slice(2, 7).toUpperCase();
       const link = fakeLink('host', code);
-      let row = { code, name: o.name, mode: o.mode, map: o.map, host: o.playerName, players: 1, max: MAX_PLAYERS, at: Date.now(), locked: false };
+      let row = { code, name: o.name, mode: o.mode, map: o.map, host: o.playerName, players: 1, max: o.max || MAX_PLAYERS, at: Date.now(), locked: false };
       const save = () => { const s = fakeStore.read(); s[code] = { ...row, at: Date.now() }; fakeStore.write(s); };
       save();
       const beat = setInterval(save, 1500);
@@ -176,7 +177,7 @@ const TRANSPORTS = {
         lock: (v) => { row.locked = v; save(); },
         free() {},
         close: () => { clearInterval(beat); const s = fakeStore.read(); delete s[code]; fakeStore.write(s); },
-        count: (n) => { row.players = n; save(); },
+        count: (n, max) => { row.players = n; if (max) row.max = max; save(); },
       };
     },
     async join(o) {
@@ -369,12 +370,19 @@ export function makeOnline(G) {
   // ---- lobby model (host owns it, guests hold a copy) -------------------------------------------------------------
   const newLobby = (hostName) => ({
     players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], paint: null, glow: null, decal: null, mods: { lv: NO_LV }, team: 0, ready: true, host: true }],
-    map: 'denrung', theme: null, mode: 'tdm', diff: 'normal',
+    map: 'denrung', theme: null, mode: 'tdm', diff: 'normal', size: TEAM_SIZE,
   });
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
   // Co-op by default: joiners side with the host against bots until that team is full. Players switch sides for PvP.
-  const pickTeam = () => (online.lobby.mode === 'trum' || teamSize(0) < TEAM_SIZE ? 0 : 1);
-  const humansCap = () => (online.lobby.mode === 'trum' ? TEAM_SIZE : MAX_PLAYERS);
+  const sizeOf = (L = online.lobby) => cleanSize(L && L.size);
+  const pickTeam = () => (online.lobby.mode === 'trum' || teamSize(0) < sizeOf() ? 0 : 1);
+  const humansCap = () => (online.lobby.mode === 'trum' ? TEAM_SIZE : 2 * sizeOf());
+  // Why a lobby cannot be played at `size` in `mode`, or '' when it can.
+  const sizeProblem = (L, mode, size) => {
+    if (mode === 'trum') return L.players.length > TEAM_SIZE ? T.bossFull : '';
+    if (mode === 'tudo') return L.players.length > 2 * size ? T.sizeBlockedFfa(size) : '';
+    return [0, 1].some((t) => L.players.filter((p) => p.team === t).length > size) ? T.sizeBlocked(size) : '';
+  };
   const lobbyPlayer = (pid) => online.lobby && online.lobby.players.find((p) => p.id === pid);
   const cleanName = (n) => String(n || '').trim().slice(0, 24) || T.guestName;
   function cleanMine(p, m) {
@@ -385,7 +393,7 @@ export function makeOnline(G) {
     if (m.mods && typeof m.mods === 'object') p.mods = { lv: cleanLv(m.mods.lv) };
     if (!p.host && typeof m.ready === 'boolean') p.ready = m.ready;
   }
-  function publishRoom() { conn && conn.publish && conn.publish({ mode: online.lobby.mode, map: online.lobby.map }); conn && conn.count && conn.count(online.lobby.players.length); }
+  function publishRoom() { conn && conn.publish && conn.publish({ mode: online.lobby.mode, map: online.lobby.map }); conn && conn.count && conn.count(online.lobby.players.length, humansCap()); }
 
   function removePlayer(peer, why) {
     if (!peer.pid) { peers.delete(peer.link); return; }
@@ -625,14 +633,18 @@ export function makeOnline(G) {
     return true;
   };
 
-  online.setRoom = function setRoom({ map, theme, mode, diff } = {}) {
+  online.setRoom = function setRoom({ map, theme, mode, diff, size } = {}) {
     if (online.role !== 'host' || online.state !== 'lobby') return false;
     const L = online.lobby;
     online.error = '';
-    if (mode && MODES[mode] && mode !== L.mode) {
-      if (mode === 'trum' && L.players.length > TEAM_SIZE) { online.error = T.bossFull; return false; }
-      L.mode = mode;
-      if (mode === 'trum') L.players.forEach((p) => { p.team = 0; });
+    const nextMode = mode && MODES[mode] ? mode : L.mode, nextSize = size === undefined ? sizeOf() : cleanSize(size);
+    if (nextMode !== L.mode || nextSize !== sizeOf()) {
+      // Leaving Săn trùm puts everyone on team 0, so the side-by-side check runs on that layout.
+      const view = L.mode === 'trum' && nextMode !== 'trum' ? { players: L.players.map((p) => ({ ...p, team: 0 })) } : L;
+      const why = sizeProblem(view, nextMode, nextSize);
+      if (why) { online.error = why; return false; }
+      L.mode = nextMode; L.size = nextSize;
+      if (nextMode === 'trum') L.players.forEach((p) => { p.team = 0; });
     }
     if (map && (MAPS[map] || map === 'random')) L.map = map;
     L.map = fitMap(L.map, L.mode);
@@ -651,7 +663,7 @@ export function makeOnline(G) {
     }
     if (!p || online.state !== 'lobby' || L.mode === 'trum' || L.mode === 'tudo') return false;
     const to = 1 - p.team;
-    if (teamSize(to) >= TEAM_SIZE) { online.error = T.teamFull; return false; }
+    if (teamSize(to) >= sizeOf()) { online.error = T.teamFull(sizeOf()); return false; }
     p.team = to;
     broadcastLobby(); changed();
     return true;
@@ -673,7 +685,7 @@ export function makeOnline(G) {
       return { team: r.team, color: L.mode === 'tudo' ? 1 : r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: L.diff, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null,
         mods: lv ? { lv } : {}, radius: def.radius, maxHp: def.hp, pid: r.pid || null };
     };
-    const units = [], slots = {};
+    const size = sizeOf(L), units = [], slots = {};
     const botMech = (taken) => {
       const free = MECH_ORDER.filter((k) => !taken.includes(k)).sort(() => rng() - 0.5);
       const k = free.length ? free[0] : MECH_ORDER[Math.floor(rng() * MECH_ORDER.length)];
@@ -684,19 +696,18 @@ export function makeOnline(G) {
     if (L.mode === 'tudo') {
       const taken = L.players.map((p) => p.mech);
       for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
-      while (units.length < MAX_PLAYERS) add({ team: units.length < 5 ? 0 : 1, mech: botMech(taken), name: names.pop(), bot: true });
+      while (units.length < 2 * size) add({ team: units.length < size ? 0 : 1, mech: botMech(taken), name: names.pop(), bot: true });
     } else {
       for (const team of L.mode === 'trum' ? [0] : [0, 1]) {
         const mine = L.players.filter((p) => p.team === team), taken = mine.map((p) => p.mech);
         for (const p of mine) add({ team, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
-        for (let i = mine.length; i < TEAM_SIZE; i++) add({ team, mech: botMech(taken), name: names.pop(), bot: true });
+        for (let i = mine.length; i < (L.mode === 'trum' ? TEAM_SIZE : size); i++) add({ team, mech: botMech(taken), name: names.pop(), bot: true });
       }
       if (L.mode === 'trum') add({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true });
     }
-    const rule = MODES[L.mode];
     // 'random' is resolved here on the host, so every machine gets the same concrete layout and theme.
     const arena = pickArena(L.map, L.theme, seed, L.mode);
-    return { rosterData: { map: arena.map, theme: arena.theme, mode: L.mode, seed, target: rule.target, duration: rule.duration, units }, slots };
+    return { rosterData: { map: arena.map, theme: arena.theme, mode: L.mode, seed, units }, slots };
   }
 
   online.start = function start() {
@@ -704,8 +715,8 @@ export function makeOnline(G) {
     const L = online.lobby;
     online.error = '';
     if (L.players.some((p) => !p.ready)) { online.error = T.notReady; return false; }
-    if (L.mode === 'trum' && L.players.length > TEAM_SIZE) { online.error = T.bossFull; return false; }
-    if (L.mode !== 'tudo' && L.mode !== 'trum' && (teamSize(0) > TEAM_SIZE || teamSize(1) > TEAM_SIZE)) { online.error = T.teamFull; return false; }
+    const why = sizeProblem(L, L.mode, sizeOf(L));
+    if (why) { online.error = why; return false; }
     const { rosterData, slots } = buildRoster(L);
     conn.lock(true);
     for (const peer of joined()) {

@@ -229,6 +229,13 @@ export function makeTouch(G, opts) {
       if (e.clientX >= innerWidth / 2 || [...P.values()].some((p) => p.state === 'stick')) return;
       startStick(e);
     });
+    // Android starts its long-press gesture (and buzzes) from a touchstart nobody cancelled; the thumbs on the play field cancel it.
+    addEventListener('touchstart', (e) => {
+      if (!touchOn || editing || !e.cancelable) return;
+      // Only the play field itself: HUD widgets (minimap, buttons, chat) still need the click a touch makes.
+      if (!(e.target.id === 'view' || (e.target.closest && e.target.closest('#touch')))) return;
+      e.preventDefault();
+    }, { passive: false });
     // A tap on an enemy in the right half of the screen picks it as the target.
     addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch' || !autoOn() || editing || e.clientX < innerWidth / 2) return;

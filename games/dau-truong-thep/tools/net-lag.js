@@ -12,7 +12,8 @@
 //              isp    fakenet, the guest on another ISP with a worse route to the relay: RTT 130 ms +-40, 2 % of
 //                     segments retransmitted. The host is on fibre (30 ms)
 //              relay  the real Unity Relay, no added delay (use with DTT_BASE on the deployed hub)
-//   NL_GUESTS=1,4   guest counts to run per scenario (default 1)      NL_SECS=25   seconds of play measured
+//   NL_GUESTS=1,4   guest counts to run per scenario (default 1; a room holds 6, so at most 5 guests: more are cut to 5.
+//                   The first two guests join the host's team, the rest fill the other team)      NL_SECS=25   seconds of play measured
 //   NL_MODE=tdm|nha NL_TRIALS=20 (input-latency trials per role) NL_TAG=before   -> .chk/net-lag-<tag>.json
 //
 // The delay, jitter and loss are added here, outside the game: an init script wraps BroadcastChannel (the fakenet
@@ -376,7 +377,9 @@ function print(r) {
 
 (async () => {
   const names = (process.argv[2] || 'lan,wifi,phone').split(',').filter((n) => SCENARIOS[n]);
-  const counts = (ENV.NL_GUESTS || '1').split(',').map(Number);
+  const MAX_GUESTS = 5;
+  const counts = (ENV.NL_GUESTS || '1').split(',').map(Number).map((n) => Math.min(MAX_GUESTS, Math.max(1, n || 1)));
+  if ((ENV.NL_GUESTS || '').split(',').some((n) => Number(n) > MAX_GUESTS)) console.log(`NL_GUESTS capped at ${MAX_GUESTS}: a room holds 6 players`);
   const srv = ENV.DTT_BASE ? { base: ENV.DTT_BASE, close() {} } : await serve();
   const br = await launch();
   const out = [];

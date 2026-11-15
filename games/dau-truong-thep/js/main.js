@@ -1,7 +1,7 @@
 // Boot, shared state G, main loop, URL params and test hooks. See README.md for the contracts.
 
 import * as THREE from '../vendor/three.module.min.js';
-import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES, cleanLv } from './data.js';
+import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES, cleanLv, TEAM_SIZE, cleanSize } from './data.js';
 import { MAPS, THEMES, pickArena, compileMap, mapsFor } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
@@ -49,7 +49,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), sharp: qs.get('sharp'), sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), sharp: qs.get('sharp'), sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -190,9 +190,11 @@ async function boot() {
     const botMods = { lv: cleanLv(!attract && choice.mods && choice.mods.lv).map((l) => Math.floor(l / 2)) };
     const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
     const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
-    for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
+    // Săn trùm always sends TEAM_SIZE hunters at the boss; the other modes follow the chosen size (free-for-all: 2 * size mechs in all).
+    const size = mode === 'trum' ? TEAM_SIZE : cleanSize(choice.size);
+    for (let i = 0; i < size - 1; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
-    else for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
+    else for (let i = 0; i < size; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
     mechs.clear(); fx.clear();
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;
@@ -286,9 +288,10 @@ async function boot() {
       focus.x = Math.max(-m.map.hw + 9, Math.min(m.map.hw - 9, focus.x)); focus.z = Math.max(-m.map.hd + 5, Math.min(m.map.hd - 2, focus.z));
     }
     camOff.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist);
-    const s = fx.shake * fx.shake * 0.5;
+    const sk = meta.get().settings.shake, s = fx.shake * fx.shake * 0.5 * (sk === 'off' ? 0 : sk === 'strong' ? 1 : 0.5);
     camera.position.copy(focus).add(camOff);
-    camera.position.x += (Math.sin(time * 71) + Math.sin(time * 113)) * s; camera.position.y += Math.sin(time * 97) * s;
+    stats.shake = s;
+    if (s > 0) { camera.position.x += (Math.sin(time * 71) + Math.sin(time * 113)) * s; camera.position.y += Math.sin(time * 97) * s; }
     camera.lookAt(focus.x, focus.y, focus.z);
     world.focus(focus.x, focus.z + 2);
   }
@@ -379,7 +382,7 @@ async function boot() {
     draw(dt);
   }
 
-  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm' }; };
+  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm', size: cleanSize(params.size !== null ? Number(params.size) : s.size) }; };
   G.bus.on('ui:play', (choice) => { G.paused = false; startMatch(choice, false); });
   G.bus.on('ui:menu', () => { G.paused = false;
     // Leaving an online match or its result screen goes back to the room, not to the solo menu.

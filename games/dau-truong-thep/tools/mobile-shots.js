@@ -6,7 +6,7 @@ const { execFileSync } = require('child_process');
 const { session, open, CHK, fs, path } = require('./lib.js');
 const OUT = path.join(CHK, 'mobile-ui');
 const PROFILES = [['iphone', 844, 390], ['android', 915, 412], ['small', 740, 360], ['tablet', 1180, 820]];
-const STATES = ['fight', 'autoaim', 'autoaim-settings', 'nha', 'minimap', 'pause', 'editor', 'garage', 'shop', 'lobby'];
+const STATES = ['fight', 'autoaim', 'ownhp', 'feel-settings', 'autoaim-settings', 'nha', 'minimap', 'pause', 'editor', 'garage', 'shop', 'lobby'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const failures = [], saved = [];
 
@@ -147,6 +147,11 @@ session(async (br, base) => {
     });
     await g.ctx.close();
     g = await openIn(br, base, Q + '&fakenet=1', w, h);
+    await state(prof, 'feel-settings', async () => {
+      await tap(g.page, '#ui [data-r="bSet"]', 'settings button'); await need(g.page, '#ui .modal.on [data-r="vibeSeg"] button', 'Rung điện thoại entry', 4000);
+      await g.page.evaluate(() => document.querySelector('#ui [data-r="shakeSeg"]').parentNode.scrollIntoView({ block: 'start' })); await sleep(400); return g.page;
+    });
+    await g.page.evaluate(() => document.querySelector('#ui .modal.on [data-r="close"]').click());
     await state(prof, 'autoaim-settings', async () => {
       await tap(g.page, '#ui [data-r="bSet"]', 'settings button'); await need(g.page, '#ui .modal.on [data-r="autoAim"]', 'Tự nhắm entry', 4000);
       await g.page.evaluate(() => document.querySelector('#ui [data-r="touchGrp"]').scrollIntoView({ block: 'center' })); await sleep(400); return g.page;
@@ -164,6 +169,16 @@ session(async (br, base) => {
       return fightShot(M, w, h);
     });
     await state(prof, 'autoaim', async () => { await need(M, '#touch.on', 'touch controls'); return autoAimShot(M, w, h); });
+    // The player's bar, an ally's and an enemy's, all in view and each at a different health.
+    await state(prof, 'ownhp', async () => {
+      await M.evaluate(() => {
+        const m = __G.match, me = m.units[0], ally = m.units.find((u) => u.id && u.team === me.team), foe = m.units.find((u) => u.team !== me.team);
+        for (const u of m.units) if (u.id) u.stunT = 1e6;
+        ally.x = ally.px = me.x + 4; ally.z = ally.pz = me.z + 1.5; foe.x = foe.px = me.x - 4; foe.z = foe.pz = me.z + 1.5;
+        me.hp = me.maxHp * 0.8; ally.hp = ally.maxHp * 0.7; foe.hp = foe.maxHp * 0.55;
+      });
+      await sleep(600); return M;
+    });
     await state(prof, 'minimap', async () => { await tap(M, '#ui .mm', 'minimap'); await need(M, '#ui .mm.big', 'expanded minimap'); await sleep(500); return M; });
     await M.evaluate(() => document.querySelector('#ui .mm') && document.querySelector('#ui .mm').classList.remove('big'));
     await state(prof, 'pause', async () => { await tap(M, '#ui .pausebtn', 'pause button'); await need(M, '#ui .pause.on', 'pause menu'); await sleep(400); return M; });

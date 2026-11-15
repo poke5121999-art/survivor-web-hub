@@ -13,7 +13,7 @@
 <body>
 <canvas id="scene"></canvas>
 <script type="module">
-import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES, PAINTS, GLOWS, DECALS, BOSSES, MODES, MODE_ORDER, NO_LV } from '../js/data.js';
+import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES, PAINTS, GLOWS, DECALS, BOSSES, MODES, MODE_ORDER, NO_LV, TEAM_SIZE, cleanSize } from '../js/data.js';
 import { MAPS, THEMES, pickArena } from '../js/maps.js';
 import { createMatch, step, summary } from '../js/sim.js';
 import { mulberry } from '../js/rng.js';
@@ -95,7 +95,7 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
     for (let i = 0; i < fill; i++) ps.push({ id: 'p' + i, name: NAMES[i], mech: MECH_ORDER[(i * 3) % MECH_ORDER.length], paint: i === 2 ? 'vang' : null, mods: { lv: i === 1 ? [2, 1, 3, 0, 4] : NO_LV }, team: mode === 'trum' ? 0 : i % 2, ready: i === 0 || i % 2 === 1, host: i === 0 });
     fo.me = role === 'host' ? 'p0' : 'p1'; fo.role = role; fo.code = 'K7QX2'; fo.state = 'lobby';
     if (role === 'host') ps[0].name = meta.get().name; else ps[1].name = meta.get().name;
-    fo.lobby = { players: ps, map: 'denrung', theme: null, mode, diff: 'normal' };
+    fo.lobby = { players: ps, map: 'denrung', theme: null, mode, diff: 'normal', size: cleanSize(+(q.get('lsize') || TEAM_SIZE)) };
   };
   const connect = async (call, ok) => {
     fo.calls.push(call);
@@ -119,9 +119,9 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
     if (q.get('listfail')) { fo.error = 'Không tải được danh sách phòng.'; return []; }
     if (q.has('norooms')) return [];
     return [
-      { id: 'AB3D9', name: 'Phòng của Bão Số 9', mode: 'tdm', map: 'denrung', host: 'Bão Số 9', players: 3, max: 10 },
-      { id: 'QW8ZK', name: 'Săn trùm cuối tuần', mode: 'trum', map: 'mienglua', host: 'Cò Lả', players: 5, max: 10 },
-      { id: 'LM4TT', name: 'Hỗn chiến chớp nhoáng', mode: 'tudo', map: 'cangbang', host: 'Mèo Mun', players: 10, max: 10 },
+      { id: 'AB3D9', name: 'Phòng của Bão Số 9', mode: 'tdm', map: 'denrung', host: 'Bão Số 9', players: 3, max: 6 },
+      { id: 'QW8ZK', name: 'Săn trùm cuối tuần', mode: 'trum', map: 'mienglua', host: 'Cò Lả', players: 3, max: 6 },
+      { id: 'LM4TT', name: 'Hỗn chiến chớp nhoáng', mode: 'tudo', map: 'cangbang', host: 'Mèo Mun', players: 6, max: 6 },
     ];
   };
   fo.leave = () => {
@@ -139,7 +139,12 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
   fo.setRoom = (r) => {
     fo.calls.push(['setRoom', r]); fo.error = '';
     if (fo.role !== 'host') return false;
-    if (r.mode === 'trum' && fo.lobby.players.length > 5) { fo.error = 'Chế độ Săn trùm tối đa 5 người chơi.'; return false; }
+    if (r.mode === 'trum' && fo.lobby.players.length > TEAM_SIZE) { fo.error = 'Chế độ Săn trùm tối đa 3 người chơi.'; return false; }
+    if (r.size !== undefined) {
+      const n = cleanSize(r.size), side = (t) => fo.lobby.players.filter((p) => p.team === t).length;
+      if (fo.lobby.mode === 'tudo' ? fo.lobby.players.length > 2 * n : fo.lobby.mode !== 'trum' && Math.max(side(0), side(1)) > n) { fo.error = `Chưa thể chọn ${n} đấu ${n}: có đội đang đông hơn ${n} người. Hãy chuyển bớt người sang đội kia.`; return false; }
+      r = { ...r, size: n };
+    }
     Object.assign(fo.lobby, r);
     if (r.mode) fo.lobby.players.forEach((p, i) => { p.team = r.mode === 'trum' ? 0 : p.host ? 0 : i % 2; });
     bus.emit('net:lobby', fo.lobby); return true;
@@ -149,6 +154,7 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
     if (fo.role !== 'host') return false;
     const p = fo.lobby.players.find((x) => x.id === id);
     if (!p || fo.lobby.mode === 'trum' || fo.lobby.mode === 'tudo') return false;
+    if (fo.lobby.players.filter((x) => x.team === 1 - p.team).length >= cleanSize(fo.lobby.size)) { fo.error = `Mỗi đội tối đa ${cleanSize(fo.lobby.size)} người chơi.`; return false; }
     p.team = 1 - p.team; bus.emit('net:lobby', fo.lobby); return true;
   };
   fo.start = () => {
@@ -221,11 +227,12 @@ function newMatch(choice) {
   const roster = [];
   const names = BOT_NAMES.slice();
   const mine = (i) => ({ mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % MECH_ORDER.length], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal', mods: i === 0 && choice && choice.mods, paint: i === 0 && choice && choice.paint, glow: i === 0 && choice && choice.glow, decal: i === 0 && choice && choice.decal });
-  // trum: five mechs against one boss; every other mode: ten mechs (tudo makes each its own team inside the sim).
+  // trum: TEAM_SIZE mechs against one boss; every other mode: 2 * size mechs (tudo makes each its own team inside the sim). ?size=1|2|3.
+  const size = mode === 'trum' ? TEAM_SIZE : cleanSize(+(choice && choice.size || q.get('size') || TEAM_SIZE));
   if (mode === 'trum') {
-    for (let i = 0; i < 5; i++) roster.push({ team: 0, ...mine(i) });
+    for (let i = 0; i < size; i++) roster.push({ team: 0, ...mine(i) });
     roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff: 'normal' });
-  } else for (let i = 0; i < 10; i++) roster.push({ team: i % 2, ...mine(i) });
+  } else for (let i = 0; i < 2 * size; i++) roster.push({ team: i % 2, ...mine(i) });
   G.match = createMatch({ map, theme: arena.theme, seed, roster, mode });
   G.me = 0;
   G.match.units[0].color = 0;
@@ -326,7 +333,7 @@ function boot() {
       if (q.get('levelup')) { const d = meta.get(); d.level = 1; d.xp = 190; }
       if (m.mode === 'tudo') {
         // me finishes in ?place= (default 3); the others take the remaining distinct scores.
-        const place = Math.max(1, Math.min(10, +(q.get('place') || 3))), pool = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        const n = m.units.length, place = Math.max(1, Math.min(n, +(q.get('place') || 3))), pool = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1].slice(0, n);
         const mineScore = pool.splice(place - 1, 1)[0];
         m.units.forEach((u) => { u.kills = u.id === G.me ? mineScore : pool.shift(); m.score[u.id] = u.kills; });
         m.winner = m.units.find((u) => u.kills === 12).id; m.over = true;
@@ -353,8 +360,8 @@ function boot() {
         }
         m.over = true;
       } else {
-        if (q.get('lose')) { m.score[0] = 12; m.score[1] = 25; m.winner = 1; m.over = true; }
-        if (!m.over) { m.score[0] = 25; m.score[1] = 17; m.over = true; m.winner = 0; }
+        if (q.get('lose')) { m.score[0] = Math.round(m.target * 0.5); m.score[1] = m.target; m.winner = 1; m.over = true; }
+        if (!m.over) { m.score[0] = m.target; m.score[1] = Math.round(m.target * 0.68); m.over = true; m.winner = 0; }
       }
       const sm = summary(m);
       G.ui.showResult(sm, meta.applyResult(sm, G.me));

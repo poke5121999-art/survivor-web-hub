@@ -3,7 +3,7 @@
   --brass: #e0a93b; --brass2: #ffd467; --ink: #e9eef3; --ac: #35b8ff; --hot: #ff4d4d;
   position: fixed; inset: 0; z-index: 60; pointer-events: none; display: none; color: var(--ink);
   font: 800 14px/1 'Arial Narrow', 'Roboto Condensed', 'Segoe UI', system-ui, sans-serif; font-stretch: condensed;
-  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none;
+  -webkit-touch-callout: none; -webkit-user-drag: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none;
 }
 #touch.tc[data-team="1"] { --ac: #ff5a36; }
 #touch.tc.on { display: block; }

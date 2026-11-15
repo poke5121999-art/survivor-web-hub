@@ -38,6 +38,9 @@ export function makeInput(G) {
   addEventListener('keyup', (e) => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); });
   addEventListener('contextmenu', (e) => { if (running() || touch) e.preventDefault(); });
+  // A held thumb must not start a text selection, an image drag or a callout: Android buzzes once per long press.
+  addEventListener('selectstart', (e) => { if ((running() || touch) && !typing(e.target)) e.preventDefault(); });
+  addEventListener('dragstart', (e) => { if (running() || touch) e.preventDefault(); });
   addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true; device = 'kb'; }
   }, { passive: true });
@@ -97,6 +100,28 @@ export function makeInput(G) {
   if (typeof requestAnimationFrame === 'function') {
     const loop = () => { poll(); requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
+  }
+  // Phone haptics: sparse, deliberate moments only, one table per level. Never called for the player's own firing.
+  const HAPTIC = {
+    hit:   { light: [15], strong: [35] },
+    death: { light: [20, 50, 20], strong: [40, 60, 40] },
+    ult:   { light: [12], strong: [25] },
+    kill:  { light: [12], strong: [28] },
+  };
+  const HAPTIC_GAP = 400;
+  let lastHaptic = -1e9;
+  function haptic(kind) {
+    const d = G.meta && G.meta.get && G.meta.get();
+    const level = d && d.settings ? d.settings.vibe : 'light';
+    if (level === 'off' || !touch || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false;
+    // Chrome refuses (and logs) a vibrate before the first tap on the page.
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return false;
+    const pat = HAPTIC[kind] && HAPTIC[kind][level];
+    const now = performance.now();
+    if (!pat || now - lastHaptic < HAPTIC_GAP) return false;
+    lastHaptic = now;
+    try { navigator.vibrate(pat); } catch (e) { return false; }
+    return true;
   }
   function rumble(kind) {
     const d = G.meta && G.meta.get && G.meta.get();
@@ -161,7 +186,7 @@ export function makeInput(G) {
     touch, sample, setTouchVisible: tc.setVisible, updateTouch: () => {}, pressed: keys,
     layout: tc.layout, get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
     setPadSource: (fn) => { padFn = typeof fn === 'function' ? fn : () => []; },
-    device: () => device, cursor: () => (mouse.seen && device !== 'pad' && !touch ? mouse : { seen: false }), rumble, setChatting, padState: () => ({ ...pad }),
+    device: () => device, cursor: () => (mouse.seen && device !== 'pad' && !touch ? mouse : { seen: false }), rumble, haptic, hapticTest: () => { lastHaptic = -1e9; return haptic('hit'); }, setChatting, padState: () => ({ ...pad }),
     script: (s) => { scripted = s || null; },
   };
 }

@@ -645,7 +645,8 @@ export function makeFx(G, mechs) {
     ring(x, z, r * 1.4, hot ? SHOCK : tint, 0.32, 0.55);
     if (opts.scorch !== false) scorch(x, z, r * 0.95, 3, hot ? 1.3 : 0.6, hot ? EMBER : tint);
     flash(x, 1.8, z, hot ? FIRE : tint, big ? 70 : 38, 0.32);
-    kick(x, z, big ? 0.6 : 0.32);
+    // Every shell lands here, the player's own included, so this is kept small: shake marks hits taken and big blasts, not shooting.
+    kick(x, z, big ? 0.15 : 0.08);
   }
 
   function kick(x, z, amount) {
@@ -757,7 +758,7 @@ export function makeFx(G, mechs) {
     else if (e.vis === 'pulse') { ring(x, z, 1.4, ARC, 0.22); for (let i = 0; i < 3; i++) { const a = Math.random() * 6.283; str.emit(x, y, z, Math.cos(a) * 1.2, rnd(-0.3, 0.3), Math.sin(a) * 1.2, ARC, 0.12, 0.05, 0, 0, 0, 1); } }
     else if (e.vis === 'rail') { flash(x, y, z, ARC, 24, 0.14); ring(x, z, 1.6, tc, 0.25); }
     else if (e.vis === 'sabot') { flash(x, y, z, WHITE, 30, 0.14); ring(x, z, 1.5, tc, 0.22); sparks(x, y, z, N(7), WHITE, 16, 0.3, 0.05, 0.3, 6, e.dx, e.dz, 0.25); }
-    else if (e.vis === 'slug') { puffs(x, y - 0.3, z, 1, dust, 0.2, 1, 0.6, 0.5, 2.2, 0.4, 0.35, K.DUST); kick(x, z, 0.08); }
+    else if (e.vis === 'slug') { puffs(x, y - 0.3, z, 1, dust, 0.2, 1, 0.6, 0.5, 2.2, 0.4, 0.35, K.DUST); kick(x, z, 0.02); }
     else if (e.vis === 'tower') { ring(x, z, 2.4, tc, 0.3); sparks(x, y, z, N(10), tc, 10, 0.4, 0.08, 0.7, 10); flash(x, y, z, tc, 30, 0.2); kick(x, z, 0.25); }
   }
 
@@ -795,7 +796,6 @@ export function makeFx(G, mechs) {
         if (e.vis === 'rail') { ring(V.x, V.z, 1.2, c, 0.2); }
         else if (e.vis === 'howitzer') { puffs(V.x + dx * 0.8, V.y - 0.3, V.z + dz * 0.8, N(4), SMOKE, 0.5, 3, 1.6, 0.9, 3, 0.8, 0.45, K.SMOKE, 1.6, -0.3); ring(V.x, V.z, 2.2, SHOCK, 0.25, 0.6); flash(V.x, V.y, V.z, FIRE, 40, 0.14); }
         else if (e.vis === 'sabot') { str.emit(V.x + dx * 9, V.y, V.z + dz * 9, dx * 9, 0, dz * 9, WHITE, 0.14, 0.14, 0, 0, 0, 1); ring(V.x, V.z, 1.6, WHITE, 0.2); }
-        if (e.id === G.me) shake = Math.min(1.2, shake + (heavy ? 0.16 : 0.035));
         break;
       }
       case 'impact': impact(e, m); break;
