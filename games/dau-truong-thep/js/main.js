@@ -10,7 +10,7 @@ import { makeTextures } from './gfx/tex.js';
 import { makeWorld, makeEnvironment } from './gfx/world.js';
 import { makeMechs } from './gfx/mechs.js';
 import { makeFx } from './gfx/fx.js';
-import { makePost } from './gfx/post.js';
+import { makePost, renderScale, sharpenFor } from './gfx/post.js';
 import { makeAudio } from './audio.js';
 import { makeUI } from './ui.js';
 import { makeInput } from './input.js';
@@ -20,10 +20,17 @@ import { makeOnline } from './online.js';
 import { matchOptions } from './netstate.js';
 
 const QUALITY = {
-  low:    { name: 'low',    scale: 0.7,  dpr: 1,   shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.5, fxaa: false },
-  medium: { name: 'medium', scale: 0.85, dpr: 1.5, shadow: 2048, tex: 1024, foliage: 0.65, particles: 800,  lights: 2, ao: true,  bloom: true, bloomLevels: 5, bloomGain: 0.75, fxaa: true },
-  high:   { name: 'high',   scale: 1,    dpr: 2,   shadow: 4096, tex: 2048, foliage: 1,    particles: 1400, lights: 3, ao: true,  bloom: true, bloomLevels: 6, bloomGain: 0.85, fxaa: true },
+  low:    { name: 'low',    shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.5, fxaa: false },
+  medium: { name: 'medium', shadow: 2048, tex: 1024, foliage: 0.65, particles: 800,  lights: 2, ao: true,  bloom: true, bloomLevels: 5, bloomGain: 0.75, fxaa: true },
+  high:   { name: 'high',   shadow: 4096, tex: 2048, foliage: 1,    particles: 1400, lights: 3, ao: true,  bloom: true, bloomLevels: 6, bloomGain: 0.85, fxaa: true },
 };
+// Test hook ?legacyres=1: the resolution rule before Addendum 9, [scale, dpr cap] per tier: pixel ratio = min(dpr, cap) * scale * governor.
+const LEGACY_RES = { low: [0.7, 1], medium: [0.85, 1.5], high: [1, 2] };
+const SHARP_MODES = [
+  { key: 'auto', name: 'Tự động', hint: 'Cân bằng độ nét và pin: máy tự hạ độ nét khi hình giật' },
+  { key: 'sharp', name: 'Nét', hint: 'Sắc hơn, hao pin hơn một chút, máy ấm lên khi chơi lâu' },
+  { key: 'max', name: 'Rất nét', hint: 'Rất nét: hình sắc nhất, máy nóng và hao pin hơn' },
+];
 const CAM = { fov: 32, pitch: 57 * Math.PI / 180, width: 33.5, minDepth: 17.5 };
 
 const errors = (window.__errors = []);
@@ -42,7 +49,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), mode: qs.get('mode'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), sharp: qs.get('sharp'), sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -55,9 +62,13 @@ async function boot() {
 
   const meta = makeMeta(), save = meta.get();
   const phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
-  // A saved tier counts only when the player picked it in settings; otherwise phones start on low and everything else on medium.
+  // meta.js drops settings keys it does not know when it loads, so the player's own picks (tier, sharpness) are kept under keys of their own.
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
   const st = save.settings || (save.settings = {});
-  const qName = QUALITY[params.q] ? params.q : (st.qualityChosen && QUALITY[st.quality] ? st.quality : (phone ? 'low' : 'medium'));
+  const chosen = lsGet('dtt.quality.v1');
+  // Without a pick: phones with at least 6 GB (Chrome reports deviceMemory, capped at 8) start on medium, other phones on low, everything else on medium. The governor sheds cost from there.
+  const qName = QUALITY[params.q] ? params.q : (QUALITY[chosen] ? chosen : (phone && (params.legacyres || !((navigator.deviceMemory || 0) >= 6)) ? 'low' : 'medium'));
   const Q = QUALITY[qName];
   st.quality = qName;
 
@@ -67,6 +78,7 @@ async function boot() {
   renderer.setClearColor(0x0b1a0d, 1);
   renderer.info.autoReset = false;
 
+  let shadowSize = Q.shadow;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, 1, 220);
   const G = (window.__G = { THREE, params, quality: Q, bus: makeBus(), renderer, scene, camera, match: null, me: 0, meta, gfx: {}, mode: 'boot', choice: null });
@@ -86,6 +98,7 @@ async function boot() {
     const map = compileMap(key, theme);
     world = G.gfx.world = makeWorld(G, map, tex); worldKey = key + '/' + theme; arena = { map: key, theme };
     scene.add(world.group);
+    applyShadow();
     renderer.setClearColor(world.theme.clear, 1);
     if (G.gfx.post) G.gfx.post.grade(world.theme);
   }
@@ -97,18 +110,43 @@ async function boot() {
   scene.add(mechs.group, fx.group);
   const post = (G.gfx.post = makePost(renderer, Q));
   post.grade(world.theme);
-  G.portrait = (...a) => mechs.portrait(...a);
+  // Portraits are rendered at device pixels (128 px per DPR 1, up to 384): a 128 px image shown at 100 CSS px on a DPR 3 phone is blurry.
+  const portraitSize = () => (params.legacyres ? 128 : Math.round(128 * Math.min(3, Math.max(1, window.devicePixelRatio || 1))));
+  G.portrait = (key, team, paint, a, b) => {
+    const opt = a && typeof a === 'object' ? { ...a } : typeof a === 'number' ? { size: a } : { glow: a || undefined, decal: b || undefined };
+    if (!opt.size) opt.size = portraitSize();
+    return mechs.portrait(key, team, paint, opt);
+  };
 
-  let governor = 1, cssW = 1, cssH = 1;
+  let sharpMode = SHARP_MODES.some((m) => m.key === params.sharp) ? params.sharp : null;
+  if (!sharpMode) { const v = lsGet('dtt.sharp.v1'); sharpMode = SHARP_MODES.some((m) => m.key === v) ? v : (SHARP_MODES.some((m) => m.key === st.sharpness) ? st.sharpness : 'auto'); }
+  let resG = 1, governor = 1, cssW = 1, cssH = 1;
+  const stats = (window.__stats = { fps: 0, ms: 0, calls: 0, tris: 0, quality: Q.name, scale: 1, dpr: 1, buffer: [0, 0], governor: 0, governorStep: '', sharpness: sharpMode });
   function resize() {
     const vs = G.fullscreen.size(); cssW = Math.max(1, Math.round(vs.w)); cssH = Math.max(1, Math.round(vs.h));
-    const pr = Math.min(window.devicePixelRatio || 1, Q.dpr) * Q.scale * governor;
+    const dpr = window.devicePixelRatio || 1, legacy = params.legacyres;
+    const want = legacy ? Math.min(dpr, LEGACY_RES[Q.name][1]) * LEGACY_RES[Q.name][0] * governor : renderScale(sharpMode, Q.name, dpr, resG);
+    // Whole device pixels: floor(css * pr) lands on round(css * want); the 0.001 keeps float error from dropping a pixel.
+    const pr = (Math.round(cssW * want) + 0.001) / cssW;
     renderer.setPixelRatio(pr); renderer.setSize(cssW, cssH, false);
-    const w = Math.floor(cssW * pr), h = Math.floor(cssH * pr);
+    const w = canvas.width, h = canvas.height;
     post.resize(w, h);
+    if (!legacy) post.state.fxaa = Q.fxaa && w / cssW >= 1.45;
+    post.setSharpen(legacy || !params.sharpen ? 0 : sharpenFor(w / cssW, dpr));
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
     fx.setPointScale(h, CAM.fov);
+    stats.scale = w / cssW; stats.dpr = dpr; stats.buffer = [w, h];
   }
+  G.sharpness = {
+    modes: SHARP_MODES,
+    get: () => sharpMode,
+    set(m) {
+      if (!SHARP_MODES.some((x) => x.key === m)) return false;
+      sharpMode = m; stats.sharpness = m; lsSet('dtt.sharp.v1', m);
+      const s = meta.get(); if (s.settings) { s.settings.sharpness = m; meta.save(); }
+      resize(); return true;
+    },
+  };
   G.fullscreen.onviewport(resize);
   resize();
 
@@ -159,6 +197,7 @@ async function boot() {
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;
     enterMatch(0, attract);
+    warmUntil = performance.now() + 3000;
     if (!attract) { G.audio.setScene && G.audio.setScene('match'); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start'); }
   }
 
@@ -254,19 +293,57 @@ async function boot() {
     world.focus(focus.x, focus.z + 2);
   }
 
-  const stats = (window.__stats = { fps: 0, ms: 0, calls: 0, tris: 0, quality: Q.name, scale: 1 });
-  let slow = 0, fast = 0;
-  function govern(ms) {
-    if (params.manual || params.q) return;
-    if (ms > 20) { slow++; fast = 0; } else if (ms < 13) { fast++; slow = 0; } else { slow = 0; fast = 0; }
-    if (slow > 40) {
-      slow = 0;
+  // Governor: when frames are slow, cost is shed down this list in order, and given back in reverse order.
+  // Bloom goes first, then AO, then the shadow map, and resolution last, in four steps from the ceiling to the floor of renderScale().
+  // Particle budget is not a step: fx.js sizes its buffers once, so it has no way to shrink at run time.
+  function sunLight() { let l = null; scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) l = o; }); return l; }
+  function applyShadow() {
+    const l = sunLight();
+    if (!l || l.shadow.mapSize.x === shadowSize) return;
+    l.shadow.mapSize.setScalar(shadowSize); if (l.shadow.map) { l.shadow.map.dispose(); l.shadow.map = null; }
+  }
+  const steps = [
+    { name: 'bloom', down() { if (post.state.bloomLevels <= 0) return false; post.setBloomLevels(post.state.bloomLevels - 1); return true; }, up() { if (post.state.bloomLevels >= Q.bloomLevels) return false; post.setBloomLevels(post.state.bloomLevels + 1); return true; } },
+    { name: 'ao', down() { if (!post.state.ao) return false; post.state.ao = false; return true; }, up() { if (!Q.ao || post.state.ao) return false; post.state.ao = true; return true; } },
+    { name: 'shadow', down() { if (shadowSize <= 512) return false; shadowSize /= 2; applyShadow(); return true; }, up() { if (shadowSize >= Q.shadow) return false; shadowSize *= 2; applyShadow(); return true; } },
+    { name: 'resolution', down() { if (resG <= 0 || sharpMode === 'max') return false; resG = Math.max(0, resG - 0.25); resize(); return true; }, up() { if (resG >= 1) return false; resG = Math.min(1, resG + 0.25); resize(); return true; } },
+  ];
+  let idx = 0, level = 0, slow = 0, fastMs = 0, holdUp = 6000, lastUp = -1e9, warmUntil = performance.now() + 4000;
+  const shedDown = () => { for (; idx < steps.length; idx++) if (steps[idx].down()) { level++; return true; } return false; };
+  const shedUp = () => {
+    if (idx >= steps.length) idx = steps.length - 1;
+    for (; idx >= 0; idx--) if (steps[idx].up()) { level--; return true; }
+    idx = 0; return false;
+  };
+  // The old governor, kept for ?legacyres=1.
+  let lSlow = 0, lFast = 0;
+  function governLegacy(ms) {
+    if (ms > 20) { lSlow++; lFast = 0; } else if (ms < 13) { lFast++; lSlow = 0; } else { lSlow = 0; lFast = 0; }
+    if (lSlow > 40) {
+      lSlow = 0;
       if (governor > 0.62) { governor = Math.max(0.6, governor - 0.12); resize(); }
       else if (post.state.ao) post.state.ao = false;
       else if (post.state.fxaa) post.state.fxaa = false;
-      G.bus.emit('quality:auto', { scale: governor });
-    } else if (fast > 240 && governor < 1) { fast = 0; governor = Math.min(1, governor + 0.06); resize(); }
-    stats.scale = governor;
+    } else if (lFast > 240 && governor < 1) { lFast = 0; governor = Math.min(1, governor + 0.06); resize(); }
+  }
+  // Frames in the first seconds after boot or a match start (shader compile, texture bake) say nothing about the device, and a stalled tab is not a slow GPU.
+  // 60 Hz vsync gives 16.7 ms every frame, so "fast" cannot mean under 13 ms: recovery is a probe after holdUp ms of frames on time, and a probe that fails within 10 s doubles the wait.
+  function govern(raw) {
+    if (params.manual || params.q) return;
+    if (params.legacyres) { governLegacy(raw); return; }
+    const now = performance.now();
+    if (now < warmUntil || raw > 250 || document.hidden) { slow = 0; fastMs = 0; return; }
+    const ms = Math.max(raw, params.govms);
+    if (ms > 20) { slow++; fastMs = 0; } else if (ms < 18.5) { fastMs += ms; slow = 0; } else slow = 0;
+    const note = () => G.bus.emit('quality:auto', { level, step: steps[Math.min(idx, steps.length - 1)].name, scale: stats.scale });
+    if (slow > 40) {
+      slow = 0; fastMs = 0;
+      if (shedDown()) { if (now - lastUp < 10000) holdUp = Math.min(60000, holdUp * 2); note(); }
+    } else if (fastMs > holdUp && level > 0) {
+      fastMs = 0;
+      if (shedUp()) { lastUp = now; note(); }
+    }
+    stats.governor = level; stats.governorStep = level ? steps[Math.min(idx, steps.length - 1)].name : '';
   }
 
   const once = {};
@@ -289,9 +366,13 @@ async function boot() {
     stats.calls = renderer.info.render.calls; stats.tris = renderer.info.render.triangles;
   }
 
-  let last = performance.now(), ema = 16;
+  // A 120 Hz screen would draw every 8.3 ms: render at half that rate, so the GPU and the battery are not asked for 120 fps.
+  let last = performance.now(), ema = 16, pend = 0;
   function frame(now) {
-    const raw = now - last; last = now;
+    let raw = now - last; last = now;
+    pend += raw;
+    if (pend < 12 && raw < 10 && !params.manual) return;
+    raw = pend; pend = 0;
     const dt = Math.min(0.1, raw / 1000);
     ema += (raw - ema) * 0.05; stats.ms = ema; stats.fps = 1000 / ema;
     if (!params.manual) { time += dt; advance(dt); govern(raw); }
@@ -304,7 +385,7 @@ async function boot() {
     // Leaving an online match or its result screen goes back to the room, not to the solo menu.
     if (net) { const stay = G.match && G.match.over; net = null; if (stay) G.online.toLobby(); else G.online.leave(); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.audio.setScene && G.audio.setScene('menu'); if (stay && G.ui.showLobby) G.ui.showLobby(); else G.ui.showMenu(); return; } G.audio.setScene && G.audio.setScene('menu'); G.ui.hideHUD(); startMatch(defaultChoice(), true); G.ui.showMenu(); });
   G.bus.on('ui:pause', (p) => { G.paused = !!(p && p.paused); });
-  G.bus.on('quality:set', (q) => { if (!QUALITY[q] || q === Q.name) return; const s = meta.get(); s.settings.quality = q; s.settings.qualityChosen = true; meta.save(); location.reload(); });
+  G.bus.on('quality:set', (q) => { if (!QUALITY[q] || q === Q.name) return; const s = meta.get(); s.settings.quality = q; s.settings.qualityChosen = true; meta.save(); lsSet('dtt.quality.v1', q); location.reload(); });
   const wake = () => { G.audio.resume(); };
   window.addEventListener('pointerdown', wake); window.addEventListener('keydown', wake);
   document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'match' && !G.ui.paused) G.ui.showPause(); last = performance.now(); });

@@ -149,7 +149,8 @@ session(async (br, base) => {
     await p.waitForTimeout(800);
     const t = await p.evaluate(() => ({ q: window.__stats.quality, touch: window.__G.input.touch, over: [...document.querySelectorAll('#ui .hud *')].filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 2 || r.bottom > innerHeight + 2 || r.left < -2); }).length }));
     check(t.touch, 'a touch device gets the twin-stick controls');
-    check(t.q === 'low', `a phone defaults to low quality (${t.q})`);
+    const want = (await p.evaluate(() => navigator.deviceMemory || 0)) >= 6 ? 'medium' : 'low';
+    check(t.q === want, `a phone defaults to ${want} quality by its memory (${t.q})`);
     await p.screenshot({ path: path.join(CHK, 'play-phone.png') });
     check((await p.evaluate(() => window.__errors)).length === 0 && g.problems.length === 0, 'no errors on the phone layout' + (g.problems[0] ? ': ' + g.problems[0].slice(0, 200) : ''));
     await g.close();

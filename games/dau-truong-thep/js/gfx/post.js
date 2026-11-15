@@ -1,5 +1,20 @@
 // Post chain, no EffectComposer: scene → HDR target (with depth) → AO (half res) → bloom down/up → composite (tone map, grade, vignette) → FXAA.
-// One anti-aliasing method only (FXAA). `low` skips AO and FXAA and uses a short bloom chain.
+// One anti-aliasing method only (FXAA), used only where the buffer has at least 1.5 pixels per CSS pixel. Below device resolution a contrast-adaptive sharpen runs inside the composite (no extra pass).
+// The composite always samples the full-size scene target; only AO (half) and bloom (mip chain) use smaller ones.
+
+// Render resolution: buffer pixels per CSS pixel per axis = floor + (ceiling - floor) * g, g in 0..1 is how much of the range the governor has left.
+// ceiling = min(devicePixelRatio, cap); floor = min(floor, ceiling).
+export const RES = {
+  auto:  { cap: { low: 1.5, medium: 2, high: 2 }, floor: 1.0 },
+  sharp: { cap: { low: 2, medium: 2, high: 2 }, floor: 1.5 },
+  max:   { cap: { low: 9, medium: 9, high: 9 }, floor: 9 },
+};
+export function renderScale(mode, quality, dpr, g) {
+  const m = RES[mode] || RES.auto, hi = Math.min(dpr, (m.cap[quality] || m.cap.medium)), lo = Math.min(m.floor, hi);
+  return lo + (hi - lo) * Math.max(0, Math.min(1, g));
+}
+// How hard to sharpen: 0 at device resolution, up to 0.7 at half of it.
+export const sharpenFor = (pr, dpr) => Math.max(0, Math.min(0.7, (1 - pr / dpr) * 1.4));
 
 import * as THREE from '../../vendor/three.module.min.js';
 
@@ -50,10 +65,17 @@ const UP = `
   }`;
 
 const COMPOSITE = `
-  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uAO, uSat, uContrast, uVig; uniform vec3 uShadow, uHigh; uniform vec2 uAOPx; varying vec2 vUv;
+  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uAO, uSat, uContrast, uVig; uniform vec3 uShadow, uHigh; uniform vec2 uAOPx, uPx; uniform float uSharp; varying vec2 vUv;
   vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
   void main() {
     vec3 c = texture2D(tMap, vUv).rgb;
+    if (uSharp > 0.0) {
+      vec3 n = texture2D(tMap, vUv + vec2(0.0, -uPx.y)).rgb, s = texture2D(tMap, vUv + vec2(0.0, uPx.y)).rgb, w = texture2D(tMap, vUv + vec2(-uPx.x, 0.0)).rgb, e = texture2D(tMap, vUv + vec2(uPx.x, 0.0)).rgb;
+      vec3 mn = min(c, min(min(n, s), min(w, e))), mx = max(c, max(max(n, s), max(w, e)));
+      float lo = min(mn.r, min(mn.g, mn.b)), hi = max(mx.r, max(mx.g, mx.b));
+      float k = uSharp * clamp(1.0 - (hi - lo) / (hi + 0.25), 0.2, 1.0);
+      c = clamp(c + k * (c * 4.0 - n - s - w - e) * 0.5, mn, mx);
+    }
     if (uAO > 0.0) {
       float ao = (texture2D(tAO, vUv + uAOPx * vec2(-0.5, -0.5)).r + texture2D(tAO, vUv + uAOPx * vec2(0.5, -0.5)).r + texture2D(tAO, vUv + uAOPx * vec2(-0.5, 0.5)).r + texture2D(tAO, vUv + uAOPx * vec2(0.5, 0.5)).r) * 0.25;
       c *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 2.0, max(c.r, max(c.g, c.b)))));
@@ -95,14 +117,14 @@ export function makePost(renderer, Q) {
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); quad.frustumCulled = false; scene.add(quad);
   const half = { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
   let hdr, ldr, ao, chain = [], W = 0, H = 0;
-  const state = { ao: Q.ao, bloom: Q.bloom, fxaa: Q.fxaa };
+  const state = { ao: Q.ao, bloom: Q.bloom, fxaa: Q.fxaa, bloomLevels: Q.bloomLevels };
 
   const mAO = pass(AO, { tDepth: { value: null }, uInvProj: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Vector2() }, uRadius: { value: 0.9 } });
   mAO.extensions = { derivatives: true };
   const mBright = pass(BRIGHT, { tMap: { value: null }, uPx: { value: new THREE.Vector2() }, uThreshold: { value: 1.15 } });
   const mDown = pass(DOWN, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
   const mUp = pass(UP, { tMap: { value: null }, tAdd: { value: null }, uPx: { value: new THREE.Vector2() } });
-  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uSat: { value: 1.14 }, uContrast: { value: 0.35 }, uVig: { value: 0.5 }, uShadow: { value: new THREE.Vector3(1, 1, 1) }, uHigh: { value: new THREE.Vector3(1.02, 1, 0.97) }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() } });
+  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uSat: { value: 1.14 }, uContrast: { value: 0.35 }, uVig: { value: 0.5 }, uShadow: { value: new THREE.Vector3(1, 1, 1) }, uHigh: { value: new THREE.Vector3(1.02, 1, 0.97) }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uSharp: { value: 0 } });
   const mFxaa = pass(FXAA, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
 
   function draw(mat, target) { quad.material = mat; renderer.setRenderTarget(target); renderer.render(scene, cam); }
@@ -117,11 +139,25 @@ export function makePost(renderer, Q) {
     ldr = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     ao = new THREE.WebGLRenderTarget(Math.ceil(w / 2), Math.ceil(h / 2), { depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     chain = [];
-    let cw = w, ch = h;
-    for (let i = 0; i < Q.bloomLevels; i++) {
+    buildChain();
+    mComp.uniforms.uPx.value.set(1 / w, 1 / h);
+  }
+
+  function buildChain() {
+    for (const c of chain) { c.down.dispose(); c.up.dispose(); }
+    chain = [];
+    let cw = W, ch = H;
+    for (let i = 0; i < state.bloomLevels; i++) {
       cw = Math.max(2, cw >> 1); ch = Math.max(2, ch >> 1);
       chain.push({ w: cw, h: ch, down: new THREE.WebGLRenderTarget(cw, ch, half), up: new THREE.WebGLRenderTarget(cw, ch, half) });
     }
+  }
+  // The governor sheds bloom one level at a time; zero levels turns bloom off.
+  function setBloomLevels(n) {
+    n = Math.max(0, Math.min(Q.bloomLevels, n));
+    if (n === state.bloomLevels) return;
+    state.bloomLevels = n; state.bloom = Q.bloom && n > 0;
+    if (W) buildChain();
   }
 
   function render(sceneMain, camera) {
@@ -162,5 +198,5 @@ export function makePost(renderer, Q) {
     const u = mComp.uniforms, g = look.grade;
     u.uExposure.value = look.exposure; u.uSat.value = g.sat; u.uContrast.value = g.con; u.uVig.value = g.vig; u.uShadow.value.set(...g.shadow); u.uHigh.value.set(...g.high);
   }
-  return { resize, render, state, grade, uniforms: mComp.uniforms, get size() { return [W, H]; } };
+  return { resize, render, state, grade, setBloomLevels, setSharpen: (k) => { mComp.uniforms.uSharp.value = k; }, uniforms: mComp.uniforms, get size() { return [W, H]; } };
 }
