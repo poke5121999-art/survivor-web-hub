@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <script src="../../js/game-gate.js?v=20261103"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Nhân Vật Voxel</title>
+<title>Nhân Vật Khối</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23ffb347'/%3E%3C/svg%3E">
-<meta name="description" content="Một trang, nhiều nhân vật dựng bằng khối voxel: 120 người sống sót, 10 zombie chibi và dàn nhân vật Blockade Z, có hoạt ảnh, chỉ bằng code.">
+<meta name="description" content="Nhân vật khối kiểu hộp lớn bọc ảnh điểm: 120 người sống sót, 10 zombie, bản voxel mịn và dàn Blockade Z, có hoạt ảnh, chỉ bằng code.">
 <style>
   :root { --bg: #14151b; --panel: #1e1f27; --line: #33343f; --ink: #ecebf2; --dim: #9c9aab; --acc: #ffb347; --acc2: #7fd6c2; }
   * { box-sizing: border-box; }
@@ -49,12 +49,13 @@
 </head>
 <body>
 <header>
-  <h1><b>Voxel</b> nhân vật</h1>
+  <h1><b>Nhân vật</b> khối</h1>
   <div class="tabs" id="tabs"></div>
+  <div class="tabs" id="styles"><button id="styBlock" title="Mỗi nhân vật là vài hộp lớn bọc ảnh điểm, xoay ở vai, hông, cổ">Nhân vật khối</button><button id="styVox" title="Bản cắt voxel mịn từ mô hình chibi">Voxel mịn</button></div>
 </header>
 <div class="ctl">
   <label>Hoạt ảnh <select id="anim"></select></label>
-  <label>Độ mịn <input id="dens" type="range" min="12" max="64" step="2" value="32"> <span id="nval"></span></label>
+  <label id="densL">Độ mịn <input id="dens" type="range" min="12" max="64" step="2" value="32"> <span id="nval"></span></label>
   <button id="fit" title="Thu nhỏ để thấy cả nhóm trên một màn">Xem cả nhóm</button>
 </div>
 <div id="stats"></div>
@@ -64,7 +65,7 @@
   <div id="tip"></div>
   <div id="hint">Kéo hoặc lăn chuột để cuộn · chạm một nhân vật để xem gần</div>
 </div>
-<footer>Mỗi nhân vật được cắt thành khối voxel bằng code từ bản mượt (kit Lanternfall của loktar00, preset chibi theo sheet của chủ dự án) và dàn voxel của Blockade Z. three.js r170 (MIT).</footer>
+<footer>Nhân vật khối: đầu, thân, tay, chân là hộp lớn bọc ảnh điểm vẽ bằng code từ bảng mô tả từng nhân vật (block/). Bản voxel mịn: cắt thành khối voxel bằng code từ bản mượt (kit Lanternfall của loktar00, preset chibi theo sheet của chủ dự án) và dàn voxel của Blockade Z. three.js r170 (MIT).</footer>
 <div id="inspect">
   <div class="bar">
     <button id="close">← Lưới</button>
@@ -83,6 +84,7 @@ import { ROSTER, ZOMBIES } from './lib/roster/index.js';
 import { buildChibi } from './lib/chibi/compose.js';
 import { VoxActor, voxChibi } from './vox/chibi.js';
 import { loadCast, CastActor } from './vox/bz.js';
+import { BlockActor } from './block/actor.js';
 
 const QS = new URLSearchParams(location.search);
 const ANIMS = [['idle', 'Đứng'], ['ready', 'Thủ thế'], ['walk', 'Đi'], ['run', 'Chạy'], ['attack', 'Đánh'], ['hit', 'Trúng đòn'], ['death', 'Ngã']];
@@ -99,7 +101,7 @@ let CAST = null; // Blockade Z data (data/bz-cast.js), loaded on first use
 const castP = loadCast().then((c) => (CAST = c)).catch((e) => { console.warn('bz cast not loaded:', e.message); CAST = { chars: [] }; });
 
 /* ---------------- state ---------------- */
-const S = { tab: QS.get('tab') || 'survivors', anim: QS.get('a') || 'idle', n: +(QS.get('n') || 32), fit: QS.has('fit') };
+const S = { style: QS.get('style') === 'vox' ? 'vox' : 'block', tab: QS.get('tab') || 'survivors', anim: QS.get('a') || 'idle', n: +(QS.get('n') || 32), fit: QS.has('fit') };
 const inspectN = () => Math.min(64, Math.round(S.n * 1.5 / 2) * 2); // inspect is 1.5x finer than the grid
 
 /* ---------------- UI ---------------- */
@@ -114,6 +116,12 @@ const showN = () => (nval.textContent = `${S.n} khối · xem gần ${inspectN()
 showN();
 dens.oninput = () => { S.n = +dens.value; showN(); };
 dens.onchange = () => { S.n = +dens.value; showN(); rebuildGrid(); };
+const styBtn = { block: document.getElementById('styBlock'), vox: document.getElementById('styVox') };
+function setStyle(st) { S.style = st; styBtn.block.classList.toggle('on', st === 'block'); styBtn.vox.classList.toggle('on', st === 'vox'); syncDens(); if (actors.length || queue.length) rebuildGrid(); syncURL(); }
+const isBlock = () => S.style === 'block' && TABS.find((q) => q.id === S.tab).kind === 'chibi';
+function syncDens() { document.getElementById('densL').style.display = isBlock() ? 'none' : ''; document.getElementById('styles').style.display = TABS.find((q) => q.id === S.tab).kind === 'chibi' ? '' : 'none'; }
+styBtn.block.onclick = () => setStyle('block'); styBtn.vox.onclick = () => setStyle('vox');
+styBtn.block.classList.toggle('on', S.style === 'block'); styBtn.vox.classList.toggle('on', S.style === 'vox');
 function tabCounts() {
   for (const t of TABS) {
     const n = t.kind === 'chibi' ? t.specs().length : CAST ? CAST.chars.filter((c) => c.group === t.group).length : '…';
@@ -139,6 +147,7 @@ function cellSize(tabId) {
   if (tabId === 'bz-bosses') return { cw: 3.2, rh: 4.4, px: 260 };
   if (tabId === 'zombies' || tabId === 'bz-zombies') return { cw: 1.35, rh: 2.3, px: 120 };
   if (tabId === 'bz-heroes') return { cw: 1.2, rh: 2.3, px: 110 };
+  if (S.style === 'block') return { cw: 1.2, rh: 2.25, px: 96 };
   return { cw: 1.0, rh: 2.1, px: 92 };
 }
 function layout() {
@@ -171,7 +180,7 @@ function placeActor(a) {
 }
 function clearGrid() { for (const a of actors) { scene.remove(a.root); a.dispose && a.dispose(); } actors = []; queue = []; }
 function showTab(id) {
-  S.tab = id; for (const t of TABS) t.btn.classList.toggle('on', t.id === id);
+  S.tab = id; for (const t of TABS) t.btn.classList.toggle('on', t.id === id); syncDens();
   L.scroll = 0; rebuildGrid(); syncURL();
 }
 async function rebuildGrid() {
@@ -183,7 +192,7 @@ async function rebuildGrid() {
   layout();
 }
 function makeActor(it, n, o) {
-  if (it.kind === 'chibi') return new VoxActor(defOf(it.sp), n, o);
+  if (it.kind === 'chibi') return S.style === 'block' ? new BlockActor(it.sp, o) : new VoxActor(defOf(it.sp), n, o);
   return new CastActor(it.c, Object.assign({ coarse: n <= 24 ? 2 : 1 }, o)); // Blockade Z grids are 1/32 m; coarse densities halve them
 }
 function pumpBuild() {
@@ -197,7 +206,7 @@ function pumpBuild() {
     actors.push(a);
   }
   const total = actors.length + queue.length;
-  setProg(queue.length ? `Đang cắt voxel ${actors.length}/${total}…` : '');
+  setProg(queue.length ? (isBlock() ? `Đang dựng nhân vật khối ${actors.length}/${total}…` : `Đang cắt voxel ${actors.length}/${total}…`) : '');
 }
 function setProg(s) { document.getElementById('prog').textContent = s; }
 function setGridAnim(m) { S.anim = m; for (const a of actors) a.setMode(m); if (cur) setAnim(m); syncURL(); }
@@ -251,6 +260,7 @@ function inspect(it) {
   if (compare && it.kind === 'chibi') { smooth = new Actor(defOf(it.sp), { t0: 3 }); iscene.add(smooth.root); }
   document.getElementById('cmp').classList.toggle('on', !!smooth);
   document.getElementById('ilab').classList.toggle('on', !!smooth);
+  document.getElementById('ilab').firstElementChild.textContent = it.kind === 'chibi' && S.style === 'block' ? 'Khối' : 'Voxel';
   setAnim(anim === 'idle' ? S.anim : anim);
   document.getElementById('iname').textContent = it.name;
   document.getElementById('inspect').classList.add('on'); iresize(); syncURL();
@@ -308,12 +318,12 @@ function renderStats() {
   let vox = 0, tris = 0, vis = 0; const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
   const sph = new THREE.Sphere();
   for (const a of actors) { vox += a.vox(); tris += a.tris(); sph.copy(a.mesh.geometry.boundingSphere).applyMatrix4(a.mesh.matrixWorld); if (fr.intersectsSphere(sph)) vis++; }
-  statsEl.innerHTML = `<span><b>${actors.length}</b> nhân vật</span><span><b>${vox.toLocaleString('vi')}</b> khối</span><span><b>${tris.toLocaleString('vi')}</b> tam giác</span>`
+  statsEl.innerHTML = `<span><b>${actors.length}</b> nhân vật</span><span><b>${vox.toLocaleString('vi')}</b> ${isBlock() ? 'hộp' : 'khối'}</span><span><b>${tris.toLocaleString('vi')}</b> tam giác</span>`
     + `<span><b>${gridCalls}</b> draw (đang thấy ${vis})</span><span><b>${fps.toFixed(0)}</b> fps</span>`;
   window.__stats = { chars: actors.length, vox, tris, calls: gridCalls, visible: vis, fps, building: queue.length };
 }
 function syncURL() {
-  const u = new URL(location); u.searchParams.set('tab', S.tab); u.searchParams.set('a', S.anim); u.searchParams.set('n', S.n);
+  const u = new URL(location); u.searchParams.set('style', S.style); u.searchParams.set('tab', S.tab); u.searchParams.set('a', S.anim); u.searchParams.set('n', S.n);
   if (curItem) u.searchParams.set('inspect', curItem.id); else u.searchParams.delete('inspect');
   if (compare && curItem) u.searchParams.set('cmp', '1'); else u.searchParams.delete('cmp');
   if (S.fit) u.searchParams.set('fit', '1'); else u.searchParams.delete('fit');
@@ -341,7 +351,7 @@ window.__vc = {
   close: () => document.getElementById('close').click(),
   anim: (m) => setAnim(m), gridAnim: (m) => { animSel.value = m; setGridAnim(m); },
   orbit: (y, p, d, ty) => { orbit.yaw = y; if (p !== undefined) orbit.pitch = p; if (d) orbit.dist = d; if (ty) orbit.ty = ty; },
-  tab: (t) => showTab(t), density: (n) => { S.n = n; dens.value = n; showN(); rebuildGrid(); },
+  tab: (t) => showTab(t), style: (st) => setStyle(st), density: (n) => { S.n = n; dens.value = n; showN(); rebuildGrid(); },
   compare: (on) => { compare = on; if (curItem) inspect(curItem); },
   scroll: (s) => { L.scroll = s; layout(); }, layout: () => ({ ...L }),
   cur: () => cur, smooth: () => smooth, ids: () => actors.map((a) => a.item.id),

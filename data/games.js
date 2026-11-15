@@ -1080,7 +1080,7 @@ window.HUB_GAMES = [
   {
     id: "nhan-vat-voxel",
     title: "Nhân Vật Khối Voxel",
-    tagline: "168 nhân vật dựng bằng khối voxel: 120 người sống sót, zombie, anh hùng và boss của Blockade Z, đều cử động được.",
+    tagline: "168 nhân vật kiểu khối hộp ảnh pixel: 120 người sống sót, zombie, anh hùng và boss của Blockade Z, đều cử động được.",
     desc: "Dàn nhân vật chibi theo ảnh mẫu của chủ dự án được cắt thành khối voxel bằng code, giữ nguyên động tác đứng, đi, chạy, đánh, trúng đòn, ngã; cùng 13 anh hùng, 14 loại zombie và 11 boss voxel của Blockade Z. Thanh kéo độ mịn từ 12 tới 64 khối theo chiều cao, bấm vào một nhân vật để xoay xem gần và so với bản mượt. Không tải tệp model hay texture nào.",
     genre: "khac",
     accent: "#7bd36a",
@@ -1088,7 +1088,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/nhan-vat-voxel.png",
     // Nguồn làm việc: D:/voxel-chars trên HOB-THOR; bộ cắt voxel dùng lại được, xem games/nhan-vat-voxel/README.md.
     path: "games/nhan-vat-voxel/index.html",
-    rev: "20261115a",
+    rev: "20261115b",
     status: "available",
     tags: ["Thử nghiệm", "Voxel", "Nhân vật 3D", "Không asset"]
   }
