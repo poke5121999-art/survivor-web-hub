@@ -10,7 +10,7 @@ const { chromium } = require(PW);
 const OUT = ROOT + '/.chk';
 const PAGE = '/games/dau-truong-thep/tools/ui-harness.html';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, marksFlagged = 0, marksScreens = 0;
 const failures = [];
 function check(name, ok, info) {
   if (ok) pass++; else { fail++; failures.push(name + (info ? ' :: ' + info : '')); }
@@ -48,8 +48,49 @@ function overflowReport() {
   return bad.slice(0, 8);
 }
 
+// Vietnamese capitals carry stacked marks (Ầ, Ẩ, Ở, Ế, Ỗ, Ặ) that rise above the cap height, and some of them come from a fallback face whose ascent is
+// taller than the main face. An element with such text must keep its line box tall enough (line-height >= 1.3 em) and no clipping ancestor may cut the
+// top of the text's glyph box. Clippers: overflow other than visible, clip-path, and background-clip: text (the ink only paints inside the box).
+function marksReport() {
+  const out = [], root = document.getElementById('ui'), inkCtx = document.createElement('canvas');
+  const HAS = /\p{Lu}̛?[̀́̂̃̆̉]/u;
+  const hidden = (n) => { for (let p = n; p && p !== document.body; p = p.parentElement) { const c = getComputedStyle(p); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return true; } return false; };
+  for (const n of root.querySelectorAll('*')) {
+    if (!(n instanceof HTMLElement) || n.closest('.rotate') && !n.closest('.portrait-lock')) continue;
+    const texts = [...n.childNodes].filter((c) => c.nodeType === 3 && c.textContent.trim());
+    if (!texts.length) continue;
+    const cs = getComputedStyle(n);
+    const caps = (t) => (cs.textTransform === 'uppercase' ? t.toUpperCase() : t).normalize('NFD');
+    const hit = texts.filter((t) => HAS.test(caps(t.textContent)));
+    if (!hit.length || hidden(n)) continue;
+    const label = `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]} "${hit[0].textContent.trim().slice(0, 14)}"`;
+    const fsz = parseFloat(cs.fontSize), lh = cs.lineHeight === 'normal' ? 0 : parseFloat(cs.lineHeight);
+    if (!(lh / fsz >= 1.3 - 1e-3)) { out.push(`${label} line-height ${(lh / fsz).toFixed(2)}`); continue; }
+    const rg = document.createRange(); rg.selectNodeContents(hit[0]);
+    const rect = rg.getClientRects()[0];
+    if (!rect) continue;
+    // The range rect is the glyph box of the main face; the stacked marks can come from a fallback face and stand taller. Ink top = rect top + main ascent - ink ascent.
+    const cx = inkCtx.getContext('2d');
+    cx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; cx.fontStretch = cs.fontStretch;
+    const capsText = [...caps(hit[0].textContent).normalize('NFC')].filter((ch) => HAS.test(ch.normalize('NFD'))).join('');
+    const m = cx.measureText(capsText);
+    const top = Math.min(rect.top, rect.top + m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
+    for (let p = n; p && p !== document.body; p = p.parentElement) {
+      const c = getComputedStyle(p);
+      const clips = c.overflowY !== 'visible' || c.clipPath !== 'none' || (p === n && /text/.test(c.webkitBackgroundClip || c.backgroundClip));
+      if (!clips) continue;
+      const b = p.getBoundingClientRect(), edge = b.top + (c.overflowY !== 'visible' ? parseFloat(c.borderTopWidth) || 0 : 0);
+      // a line already cut by scrolling or by the screen edge is not a missing-mark case
+      if (top < edge - 0.5 && rect.top >= edge - 0.5) { out.push(`${label} text top ${top.toFixed(1)} (ink) above the clip of ${p.tagName.toLowerCase()}.${String(p.className).split(' ')[0]} at ${edge.toFixed(1)}`); break; }
+    }
+  }
+  return out;
+}
+
 async function open(browser, name, vp, touch, query) {
   const ctx = await browser.newContext({ viewport: vp, hasTouch: touch, deviceScaleFactor: 1 });
+  // UI_CSS=<file> serves that stylesheet in place of css/ui.css: a before number for the tone-mark check.
+  if (process.env.UI_CSS) await ctx.route('**/css/ui.css', (r) => r.fulfill({ path: process.env.UI_CSS, contentType: 'text/css' }));
   const page = await ctx.newPage();
   const errs = [];
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
@@ -83,6 +124,9 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
   check(`${tag}: no console errors`, errs.length === 0 && (await page.evaluate(() => window.__errors.length)) === 0, errs.concat(await page.evaluate(() => window.__errors)).join(' | '));
   const bad = skipOverflow ? [] : await page.evaluate(overflowReport);
   check(`${tag}: nothing overflows the viewport`, bad.length === 0, bad.join('; '));
+  const marks = await page.evaluate(marksReport);
+  marksFlagged += marks.length; marksScreens++;
+  check(`${tag}: Vietnamese capitals keep room for their tone marks`, marks.length === 0, marks.slice(0, 6).join('; '));
   if (expectFn) await expectFn();
   return file;
 }
@@ -1859,6 +1903,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
     await browser.close();
     srv.close();
   }
+  console.log(`\ntone-mark check: ${marksFlagged} elements flagged on ${marksScreens} screens`);
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail) { console.log(failures.map((f) => ' - ' + f).join('\n')); process.exit(1); }
 })().catch((e) => { console.error(e); process.exit(2); });

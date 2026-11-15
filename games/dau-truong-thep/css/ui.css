@@ -973,10 +973,15 @@
 #ui .sh-head { display: flex; align-items: center; gap: 1em; } #ui .sh-head h2 { margin: 0; font-size: 2em; text-transform: uppercase; letter-spacing: .1em; color: var(--brass2); }
 #ui .sh-bal { margin-left: auto; display: flex; gap: 1.2em; } #ui .sh-bal .coins:first-child { color: #8fe3ff; }
 #ui .sh-demo { margin: 0; padding: .3em .8em; align-self: flex-start; font-size: .85em; color: var(--brass2); background: rgba(224, 169, 59, .12); box-shadow: inset 0 0 0 1px rgba(224, 169, 59, .4); }
-#ui .sh-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 1em; padding-right: .3em; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+#ui .sh-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-content: start; gap: .9em .7em; padding: .4em .3em .2em 0; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+#ui .sh-row { display: contents; }
+#ui .sh-sec { display: flex; flex-direction: column; min-width: 0; grid-column: 1 / -1; }
+#ui .sh-sec.k-starter { grid-column: span 1; } #ui .sh-sec.k-pass { grid-column: span 2; } #ui .sh-sec.k-bundle { grid-column: span 3; }
 #ui .sh-sec h3 { margin: 0 0 .4em; font-size: .85em; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
-#ui .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: .6em; }
-#ui .sh-card { display: flex; flex-direction: column; gap: .5em; padding: .7em .8em; background: linear-gradient(180deg, #232a33, #14181d); box-shadow: inset 0 0 0 1px #2c3541; clip-path: polygon(.5em 0, 100% 0, 100% calc(100% - .5em), calc(100% - .5em) 100%, 0 100%, 0 .5em); }
+#ui .sh-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr)); gap: .6em; }
+#ui .sh-sec.k-starter .sh-grid, #ui .sh-sec.k-pass .sh-grid { grid-template-columns: 1fr; }
+#ui .sh-sec.k-gems .sh-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+#ui .sh-card { min-width: 0; display: flex; flex-direction: column; gap: .5em; padding: .7em .8em; background: linear-gradient(180deg, #232a33, #14181d); box-shadow: inset 0 0 0 1px #2c3541; clip-path: polygon(.5em 0, 100% 0, 100% calc(100% - .5em), calc(100% - .5em) 100%, 0 100%, 0 .5em); }
 #ui .sh-card.k-starter, #ui .sh-card.k-pass { box-shadow: inset 0 0 0 1px var(--brass); background: linear-gradient(180deg, #2f2a1b, #16140f); }
 #ui .sh-card.done { opacity: .6; }
 #ui .sh-t { display: flex; flex-direction: column; gap: .1em; } #ui .sh-t b { font-size: 1.15em; } #ui .sh-t em { font-style: normal; font-size: .78em; color: var(--good); font-weight: 800; }
@@ -1004,10 +1009,9 @@
   #ui .stats { grid-template-columns: 1fr; gap: .3em; } #ui .st { grid-template-columns: 4.2em minmax(0, 1fr) 4.4em; font-size: .8em; }
   #ui .tabs button { font-size: .72em; gap: .2em; } #ui .tabs button svg { display: none; }
   #ui .passive, #ui .tr, #ui .pk { padding: .35em .5em; } #ui .tr-b .upbtn { font-size: .78em; padding: .3em .5em; }
-  #ui .shop { padding: .5em .9em .6em; gap: .4em; } #ui .sh-head h2 { font-size: 1.4em; } #ui .sh-grid { grid-template-columns: repeat(auto-fill, minmax(12.5em, 1fr)); gap: .4em; } #ui .sh-card { padding: .5em .6em; gap: .3em; }
+  #ui .shop { padding: .5em .9em .6em; gap: .4em; } #ui .sh-head h2 { font-size: 1.4em; } #ui .sh-body { gap: .6em .5em; } #ui .sh-grid { gap: .4em; } #ui .sh-card { padding: .5em .6em; gap: .3em; }
   #ui .sh-card li { font-size: .8em; } #ui .sh-demo { font-size: .75em; }
 }
-#ui .sh-row { display: flex; flex-wrap: wrap; gap: 1em 1.4em; } #ui .sh-row .sh-sec { flex: 1 1 15em; min-width: 0; max-width: 24em; } #ui .sh-row .sh-grid { grid-template-columns: 1fr; }
 #ui .rw-gem { color: #8fe3ff; }
 
 /* ---------- touch HUD (phones and tablets) ----------
@@ -1058,7 +1062,7 @@
 #ui.is-touch .pc-dead b { font-size: 1.1em; }
 #ui.is-touch .pc.marked { box-shadow: none; } #ui.is-touch .pc.marked .pc-img { box-shadow: 0 0 0 2px var(--bad); }
 /* free-for-all: a short league table under the map, three lines at most */
-#ui.is-touch .hud[data-mode="tudo"] .col.mine { left: var(--sl); right: auto; top: calc(var(--st) + var(--mmw) * var(--mmr) + 1.9em); width: 9.5em; flex-direction: column; gap: .2em; }
+#ui.is-touch .hud[data-mode="tudo"] .col.mine { left: var(--sl); right: auto; top: calc(var(--st) + var(--mmw) * var(--mmr) + 1.5em); width: 9.5em; flex-direction: column; gap: .2em; }
 #ui.is-touch .rk-h, #ui.is-touch .rk-gap { display: none; }
 #ui.is-touch .rkr:nth-child(n+3):not(.me) { display: none; }
 #ui.is-touch .rk-n { font-size: max(11px, .82em); }
@@ -1137,6 +1141,30 @@ html.dtt-portrait #touch { display: none !important; }
   #ui.is-touch .lb-body { grid-template-columns: minmax(0, 1fr) 19em; }
   #ui.is-touch .lm-grid { grid-auto-columns: 10.5em; }
   #ui.is-touch .su-tabs button { letter-spacing: 0; padding-left: .1em; padding-right: .1em; }
+  #ui.is-touch .opts h3 { margin-bottom: -.3em; }
 }
 #ui.is-touch .netro { max-height: calc(50vh - var(--st) - var(--mmw) * var(--mmr) - 2em); }
 @supports (height: 100dvh) { #ui.is-touch .netro { max-height: calc(50dvh - var(--st) - var(--mmw) * var(--mmr) - 2em); } }
+
+/* ---------- Vietnamese capitals ----------
+   Ầ Ẩ Ở Ế Ỗ Ặ stack a mark above the capital, and the face that draws it is often a fallback taller than the main one (Liberation Sans Narrow has no Ở or Ầ,
+   Noto Sans fills in). In a 1.25 line the mark ends up above the line box and a clipping parent cuts it. Every uppercase label gets the taller line and
+   screens keep padding above their first heading; tools/ui-shots.js fails when a mark could be clipped. */
+#ui { --caps-lh: 1.4; }
+#ui .btn, #ui .sc-mid small, #ui .mm-name, #ui .ann b, #ui .rsp-t, #ui .logo h1, #ui .logo span, #ui .lvl small, #ui .panel h3, #ui .mc-role, #ui .md-head h2, #ui .role,
+#ui .tabs button, #ui .st-tabs button, #ui .garage h4, #ui .gn span, #ui .rk-tx b, #ui .seg button, #ui .play, #ui .modal-box h2, #ui .fld > span, #ui .help-cols h4, #ui .box h2,
+#ui .rs-banner h1, #ui .rs-banner p, #ui .tb-h, #ui .lvup, #ui .rankup, #ui .rotate b, #ui .sc-col small, #ui .pl small, #ui .rk-h, #ui .bt-h b, #ui .bt-h small, #ui .lv small,
+#ui .warn b, #ui .netbtn, #ui .ol-title h2, #ui .ol-title span, #ui .ol-me small, #ui .lb-code small, #ui .in.code, #ui .rm-h, #ui .lb-th b, #ui .badge, #ui .st-m, #ui .bossbox b,
+#ui .lm em, #ui .kv span, #ui .sb-h > b, #ui .rt small, #ui .shopbtn, #ui .passive h4, #ui .perks h4, #ui .sh-head h2, #ui .sh-sec h3, #ui .sl-st, #ui .chg b, #ui .np-mk, #ui .np-dc { line-height: var(--caps-lh); }
+#ui .sc-col small, #ui .rt small, #ui .sl-st, #ui .tb-n b { padding-top: .2em; }
+#ui .rk-n { padding-top: .2em; margin-top: -.2em; }
+/* gradient-filled titles paint only inside their own box, so the box itself needs the room */
+#ui .logo h1, #ui .rs-banner h1, #ui .ol-title h2 { padding: .12em 0 .08em; margin-top: -.1em; margin-bottom: -.1em; }
+#ui .opts { padding-top: .15em; }
+/* player names are typed by people and can start with Ô, Ố, Ế... */
+#ui .np-n, #ui .pc-name, #ui .rk-n, #ui .tb-n b, #ui .kf b, #ui .rm-n b { line-height: var(--caps-lh); }
+@media (max-width: 640px) {
+  #ui .sh-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #ui .sh-sec.k-gems .sh-grid { grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr)); grid-auto-flow: row; }
+  #ui .sh-sec, #ui .sh-sec.k-starter, #ui .sh-sec.k-pass, #ui .sh-sec.k-bundle { grid-column: 1 / -1; }
+}
