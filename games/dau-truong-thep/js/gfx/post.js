@@ -40,12 +40,13 @@ const AO = `
     gl_FragColor = vec4(vec3(clamp(1.0 - occ / 8.0 * 1.9, 0.0, 1.0)), 1.0);
   }`;
 
+const THRESH = 1.5, BCLAMP = '6.0';
 const BRIGHT = `
   uniform sampler2D tMap; uniform vec2 uPx; uniform float uThreshold; varying vec2 vUv;
   void main() {
     vec3 c = (texture2D(tMap, vUv + uPx * vec2(-1, -1)).rgb + texture2D(tMap, vUv + uPx * vec2(1, -1)).rgb + texture2D(tMap, vUv + uPx * vec2(-1, 1)).rgb + texture2D(tMap, vUv + uPx * vec2(1, 1)).rgb) * 0.25;
     float l = max(c.r, max(c.g, c.b));
-    gl_FragColor = vec4(min(c * max(0.0, l - uThreshold) / max(l, 1e-4), vec3(12.0)), 1.0);
+    gl_FragColor = vec4(min(c * max(0.0, l - uThreshold) / max(l, 1e-4), vec3(${BCLAMP})), 1.0);
   }`;
 
 const DOWN = `
@@ -65,8 +66,15 @@ const UP = `
   }`;
 
 const COMPOSITE = `
-  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uAO, uSat, uContrast, uVig; uniform vec3 uShadow, uHigh; uniform vec2 uAOPx, uPx; uniform float uSharp; varying vec2 vUv;
+  uniform sampler2D tMap, tBloom, tAO; uniform float uBloom, uExposure, uBright, uLift, uKnee, uPeak, uAO, uSat, uContrast, uVig, uHiDesat; uniform vec3 uShadow, uHigh; uniform vec2 uAOPx, uPx; uniform float uSharp; varying vec2 vUv;
   vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+  // Highlight shoulder after ACES: above uKnee the brightest channel rolls off towards uPeak (below white) with its hue kept, so effects get bright but not flat white.
+  vec3 shoulder(vec3 c) {
+    float m = max(c.r, max(c.g, c.b));
+    if (m <= uKnee) return c;
+    float s = uKnee + (uPeak - uKnee) * (1.0 - exp(-(m - uKnee) / (uPeak - uKnee)));
+    return c * (s / m);
+  }
   void main() {
     vec3 c = texture2D(tMap, vUv).rgb;
     if (uSharp > 0.0) {
@@ -81,9 +89,10 @@ const COMPOSITE = `
       c *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 2.0, max(c.r, max(c.g, c.b)))));
     }
     c += texture2D(tBloom, vUv).rgb * uBloom;
-    c = aces(c * uExposure);
+    c = shoulder(aces(c * uExposure * uBright));
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = mix(vec3(l), c, uSat);
+    c = mix(vec3(l), c, uSat * (1.0 - uHiDesat * smoothstep(0.45, 0.9, l)));
+    c += uLift * (1.0 - c);
     c = mix(c, c * c * (3.0 - 2.0 * c), uContrast);
     c *= mix(uShadow, uHigh, smoothstep(0.02, 0.6, l));
     vec2 q = vUv - 0.5;
@@ -117,14 +126,15 @@ export function makePost(renderer, Q) {
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); quad.frustumCulled = false; scene.add(quad);
   const half = { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
   let hdr, ldr, ao, chain = [], W = 0, H = 0;
+  let bloomScale = 1;
   const state = { ao: Q.ao, bloom: Q.bloom, fxaa: Q.fxaa, bloomLevels: Q.bloomLevels };
 
   const mAO = pass(AO, { tDepth: { value: null }, uInvProj: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Vector2() }, uRadius: { value: 0.9 } });
   mAO.extensions = { derivatives: true };
-  const mBright = pass(BRIGHT, { tMap: { value: null }, uPx: { value: new THREE.Vector2() }, uThreshold: { value: 1.15 } });
+  const mBright = pass(BRIGHT, { tMap: { value: null }, uPx: { value: new THREE.Vector2() }, uThreshold: { value: THRESH } });
   const mDown = pass(DOWN, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
   const mUp = pass(UP, { tMap: { value: null }, tAdd: { value: null }, uPx: { value: new THREE.Vector2() } });
-  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uSat: { value: 1.14 }, uContrast: { value: 0.35 }, uVig: { value: 0.5 }, uShadow: { value: new THREE.Vector3(1, 1, 1) }, uHigh: { value: new THREE.Vector3(1.02, 1, 0.97) }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uSharp: { value: 0 } });
+  const mComp = pass(COMPOSITE, { tMap: { value: null }, tBloom: { value: null }, tAO: { value: null }, uBloom: { value: 0.55 }, uExposure: { value: 1.0 }, uBright: { value: 1.0 }, uLift: { value: 0.0015 }, uHiDesat: { value: 0.2 }, uKnee: { value: 0.5 }, uPeak: { value: 0.84 }, uSat: { value: 1.14 }, uContrast: { value: 0.35 }, uVig: { value: 0.5 }, uShadow: { value: new THREE.Vector3(1, 1, 1) }, uHigh: { value: new THREE.Vector3(1.02, 1, 0.97) }, uAO: { value: 0 }, uAOPx: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uSharp: { value: 0 } });
   const mFxaa = pass(FXAA, { tMap: { value: null }, uPx: { value: new THREE.Vector2() } });
 
   function draw(mat, target) { quad.material = mat; renderer.setRenderTarget(target); renderer.render(scene, cam); }
@@ -183,7 +193,7 @@ export function makePost(renderer, Q) {
         draw(mUp, chain[i].up); src = chain[i].up;
       }
       mComp.uniforms.tBloom.value = src.texture;
-      mComp.uniforms.uBloom.value = Q.bloomGain / chain.length;
+      mComp.uniforms.uBloom.value = Q.bloomGain / chain.length * bloomScale;
     } else mComp.uniforms.uBloom.value = 0;
     mComp.uniforms.tMap.value = hdr.texture;
     if (state.fxaa) {
@@ -196,7 +206,7 @@ export function makePost(renderer, Q) {
   // look: a theme row from world.js ({ exposure, grade: { sat, con, vig, shadow, high } })
   function grade(look) {
     const u = mComp.uniforms, g = look.grade;
-    u.uExposure.value = look.exposure; u.uSat.value = g.sat; u.uContrast.value = g.con; u.uVig.value = g.vig; u.uShadow.value.set(...g.shadow); u.uHigh.value.set(...g.high);
+    u.uExposure.value = look.exposure; u.uLift.value = g.lift ?? 0.0015; u.uHiDesat.value = g.hiDesat ?? 0.2; u.uSat.value = g.sat; u.uContrast.value = g.con; u.uVig.value = g.vig; u.uShadow.value.set(...g.shadow); u.uHigh.value.set(...g.high);
   }
-  return { resize, render, state, grade, setBloomLevels, setSharpen: (k) => { mComp.uniforms.uSharp.value = k; }, uniforms: mComp.uniforms, get size() { return [W, H]; } };
+  return { resize, render, state, grade, setBloomLevels, setBright: (k) => { mComp.uniforms.uBright.value = k; }, setBloomScale: (k) => { bloomScale = k; }, setPeak: (k) => { mComp.uniforms.uPeak.value = k; }, setSharpen: (k) => { mComp.uniforms.uSharp.value = k; }, uniforms: mComp.uniforms, get size() { return [W, H]; } };
 }

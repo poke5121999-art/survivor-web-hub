@@ -920,7 +920,7 @@ window.HUB_GAMES = [
     // trên ssh linux2), xem README.md và FEATURES.md ở đó. Kiểm trên Pages:
     // TWT_URL=https://poke5121999-art.github.io/twt-proc-web/ node tools/play.cjs tools/flow.cjs
     path: "https://poke5121999-art.github.io/twt-proc-web/",
-    rev: "20261116a",
+    rev: "20261116b",
     status: "available",
     tags: ["Kinh doanh", "Sinh tồn", "Góc nhìn thứ nhất", "Máy tính"]
   },
@@ -982,7 +982,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/dau-truong-thep.png",
     // three.js r160, không asset: xem games/dau-truong-thep/README.md. Kiểm: node games/dau-truong-thep/tools/sim-test.mjs && node games/dau-truong-thep/tools/play.js
     path: "games/dau-truong-thep/index.html",
-    rev: "20261116a",
+    rev: "20261116b",
     status: "available",
     tags: ["Bắn súng", "Đấu đội 3v3", "Săn trùm"]
   },

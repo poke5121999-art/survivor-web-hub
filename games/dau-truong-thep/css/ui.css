@@ -337,6 +337,8 @@
 #ui .modal-box.wide { width: min(46em, 96%); }
 #ui .modal-box .hazard { margin: 0 -1.4em; } #ui .modal-box h2 { margin: .2em 0 0; font-size: 1.6em; text-transform: uppercase; letter-spacing: .1em; color: var(--brass2); }
 #ui .fld { display: flex; flex-direction: column; gap: .4em; } #ui .fld > span { display: flex; justify-content: space-between; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; font-size: .85em; } #ui .fld b { color: var(--ink); }
+#ui .tgrp[hidden] { display: none; }
+#ui .tgrp { display: flex; flex-direction: column; gap: .6em; } #ui .tgrp h3 { margin: .2em 0 0; font-size: .85em; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); line-height: var(--caps-lh); }
 #ui input[type=range] { width: 100%; height: 1.4em; accent-color: var(--brass); cursor: pointer; margin: 0; }
 #ui .lead { margin: 0; color: #c3ccd6; line-height: 1.35; }
 #ui .help-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4em; }

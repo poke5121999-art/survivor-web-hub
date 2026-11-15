@@ -2,6 +2,7 @@
 //   EYES_THEMES=jungle,city EYES_TIERS=medium node tools/eyes.js      measure (default: every theme, tiers low,medium,high) into .chk/eyes/rows/
 //   node tools/eyes.js --ults [theme]                                 flash table per ultimate (quiet fights, medium) + tower shots in ?mode=nha
 //   node tools/eyes.js --report                                       merge rows into .chk/eyes/<tag>.json, <tag>.md and <tag>-sheet.png (no game run except one page for the sheet)
+//   node tools/eyes.js --compare                                     before and after rows (EYES_BEFORE, EYES_AFTER tags) into .chk/eyes/after.md and sheet.png
 //   node tools/eyes.js --check [--no-run]                             measure (EYES_TIERS default medium) then exit 1 when a busy-fight frame clips more than EYES_MAXCLIP % to white (default 5),
 //                                                                     a white frame occurs, flashes exceed EYES_MAXFLASH per second (default 3, worst 1 s window) or the busy view above 0.85 exceeds EYES_MAXBRIGHT % (default 25)
 // EYES_TAG=before|after names the output set. DTT_BASE=<hub url> measures the deployed build. EYES_FORCE=1 re-measures rows that exist. DTT_GL=gl-egl for the GPU.
@@ -11,7 +12,12 @@
 'use strict';
 const { session, CHK, fs, path } = require('./lib.js');
 const OUT = path.join(CHK, 'eyes'), ROWS = path.join(OUT, 'rows');
-const TAG = process.env.EYES_TAG || 'before';
+const TAG = process.env.EYES_TAG || (process.argv.includes('--check') ? 'check' : 'before');
+// EYES_CALM=1 measures with "Giảm chớp sáng" on (?calm=1); EYES_BRIGHT=1.2 sets the brightness override. Such rows get their own files and are not merged into the report.
+let EXTRA = '', VARIANT = '';
+const setVariant = (calm) => { EXTRA = (calm ? '&calm=1' : '') + (process.env.EYES_BRIGHT ? '&bright=' + process.env.EYES_BRIGHT : ''); VARIANT = (calm ? '-calm' : '') + (process.env.EYES_BRIGHT ? '-b' + process.env.EYES_BRIGHT : ''); };
+setVariant(!!process.env.EYES_CALM);
+const heavyWanted = (theme, tier) => tier === 'medium' || (tier === 'low' && (theme === 'ice' || theme === 'desert'));
 const UA = 'Mozilla/5.0 (Linux; Android 15; 2509FPN0BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
 const VIEW = { width: 1002, height: 461 }, DPR = 2.75;
 const argv = process.argv.slice(2), has = (f) => argv.includes(f);
@@ -23,12 +29,16 @@ const LAYOUT = { jungle: ['denrung'], desert: ['xuongcat'], ice: ['cangbang'], l
 const FALLBACK_THEMES = ['jungle', 'desert', 'ice', 'lava', 'city', 'swamp', 'autumn', 'canyon'];
 const ULT_MECHS = ['hoalong', 'ung', 'soi', 'thancong', 'loi'];
 
-// Limits proposed to the tuning agent. Every one has a reason in the report.
+// Limits enforced by --check. They are tighter than the first proposal (calm mean 0.60, busy share above 0.85 25%, white clip 5%) because the owner found the
+// first build uncomfortable although 7 of 8 themes passed those; the values below are what the tuned build reaches with margin, on every theme, in the gentle
+// fight, the heavy 3v3, the forced-overlap ultimates and the tower fight. "calm" is the "Giảm chớp sáng" setting on: its own, lower caps.
 const LIMITS = {
-  calmMeanMin: 0.25, calmMeanMax: 0.60, calmWhiteMax: 0.02, calmBlackMax: 0.20,
-  busyWhiteMax: Number(process.env.EYES_MAXCLIP || 5) / 100, busyBrightMax: Number(process.env.EYES_MAXBRIGHT || 25) / 100, whiteFrameShare: 0.6,
+  calmMeanMin: 0.25, calmMeanMax: 0.54, calmWhiteMax: 0.005, calmBlackMax: 0.20,
+  busyWhiteMax: Number(process.env.EYES_MAXCLIP || 1.5) / 100, busyBrightMax: Number(process.env.EYES_MAXBRIGHT || 8) / 100, whiteFrameShare: 0.6, jumpMax: 0.06,
   flashPerSecMax: Number(process.env.EYES_MAXFLASH || 3), hudContrastMin: 4.5,
+  calmModeWhiteMax: 0.005, calmModeBrightMax: 0.04,
 };
+const SEQS = ['busy', 'heavy', 'overlap', 'nha'];
 
 // ---------------------------------------------------------------------------------------------------- in the page
 function inPage() {
@@ -63,7 +73,8 @@ function inPage() {
     let c = 0, thr = 255; for (let i = 255; i >= 0; i--) { c += hist[i]; if (c >= n * 0.25) { thr = i; break; } }
     let sTop = 0, nTop = 0; for (let i = 0; i < n; i++) if (A.bin[i] >= thr) { sTop += A.sat[i]; nTop++; }
     return { W, H, n, meanL: sumL / n, meanY: sumY / n, medianL: q(0.5), p95L: q(0.95), p99L: q(0.99), white: white / n, black: black / n, a85: a85 / n,
-      sat10: Array.from(sat10, (v) => v / n), satTop: nTop ? sTop / nTop : 0, cells: Array.from(cell, (v, i) => v / Math.max(1, cellN[i])) };
+      sat10: Array.from(sat10, (v) => v / n), satTop: nTop ? sTop / nTop : 0, cells: Array.from(cell, (v, i) => v / Math.max(1, cellN[i])),
+      cellMed: Array.from(cell, (v, i) => v / Math.max(1, cellN[i])).sort((a, b) => a - b)[64] };
   }
   // The frame as RGB top-down at 1/stride, kept for the PNG and the HUD sampling.
   function store(stride) {
@@ -156,33 +167,47 @@ function inPage() {
   };
 
   // Busy: a real fight, the player ultimates every 2.5 s (and uses both skills in natural fights), bots with their ultimate recharged every 2.5 s, one tick per drawn frame.
-  // o: { frames, quiet (only the player and three foes, the foes cannot die), tower (stand 9 m from the enemy sub tower, nothing else alive) }
+  // o: { frames, quiet (only the player and three foes, the foes cannot die), tower (stand 9 m from the enemy sub tower, nothing else alive),
+  //      mode: 'heavy' (3v3, every ultimate and skill recharged each second, everyone keeps fighting),
+  //            'overlap' (3v3 on the plaza, every mech casts ult, s1 and s2 inside the same 0.1 s window every 2.5 s),
+  //            'nha' (as overlap, in ?mode=nha beside the enemy sub tower so tower shots land with the ultimates) }
   E.busy = (o) => {
-    const m = G.match, me = m.units[G.me], frames = o.frames || 180, map = m.map;
+    const m = G.match, me = m.units[G.me], frames = o.frames || 180, map = m.map, mode = o.mode || '';
     window.__setShot(null);
     let target = () => nearestFoe(me);
+    const near = mode === 'overlap' || mode === 'nha';
+    const gatherAll = () => {
+      let T = null;
+      if (mode === 'nha') { T = m.map.towers.filter((t) => t.team !== me.team && t.kind === 'sub')[0]; const l = Math.hypot(T.x, T.z) || 1; me.x = me.px = T.x - T.x / l * 9; me.z = me.pz = T.z - T.z / l * 9; }
+      else { me.x = me.px = map.plaza[0] - 2.2; me.z = me.pz = map.plaza[1]; }
+      gather(me, 4.5); let k = 0;
+      for (const u of units()) if (u !== me && u.team === me.team && u.alive) { u.x = u.px = me.x + (k % 2 ? -1.8 : 0.4); u.z = u.pz = me.z + (k - 0.5) * 2.2; k++; }
+    };
     if (o.tower) {
       const T = m.map.towers.filter((t) => t.team !== me.team && t.kind === 'sub')[0], l = Math.hypot(T.x, T.z) || 1;
       me.x = me.px = T.x - T.x / l * 9; me.z = me.pz = T.z - T.z / l * 9; park(me, 0, 0); target = () => T;
-    } else { gather(me); if (o.quiet) park(me, 0, 3); }
+    } else if (near) gatherAll();
+    else { gather(me); if (o.quiet) park(me, 0, 3); }
     me.aim = 0; me.hp = me.maxHp;
     let fi = 0;
-    window.__input(() => { const f = target() || { x: me.x + 1, z: me.z }, ph = fi % 75; return { mx: 0, mz: 0, aim: Math.atan2(f.z - me.z, f.x - me.x), fire: fi > 3, s1: !o.quiet && ph >= 30 && ph < 33, s2: !o.quiet && ph >= 50 && ph < 53, ult: ph < 3, heal: false, tx: f.x, tz: f.z }; });
+    const per = mode === 'heavy' ? 30 : 75;
+    window.__input(() => { const f = target() || { x: me.x + 1, z: me.z }, ph = fi % per, p2 = mode === 'heavy' ? ph + 20 : ph; return { mx: 0, mz: 0, aim: Math.atan2(f.z - me.z, f.x - me.x), fire: fi > 3, s1: !o.quiet && p2 >= 30 && p2 < 33, s2: !o.quiet && p2 >= 50 && p2 < 53, ult: ph < 3, heal: false, tx: f.x, tz: f.z }; });
+    if (near) window.__botHook = (mm, inputs) => { const ph = fi % 75; for (const u of mm.units) { const i = inputs[u.id]; if (!i || !u.alive || u === me) continue; if (ph < 3) i.ult = true; if (ph >= 30 && ph < 33) i.s1 = true; if (ph >= 50 && ph < 53) i.s2 = true; } };
     for (let i = 0; i < 26; i++) draw1(); // the camera settles on the new spot, no input effects yet are asked: the script starts at fi = 0 below
     const L = [], Y = [], W = [], B = [], A85 = [], S = [], SATTOP = [], minCells = new Float64Array(128).fill(1);
-    let best = null, ults = 0, ms = 0; const prev = new Map(); for (const u of units()) prev.set(u.id, u.cd.ult);
+    let best = null, ults = 0, ms = 0;
+    const count = (e) => { if (!count.dead && e && e.t === 'skill' && e.slot === 2) ults++; }; G.bus.on('sim', count);
     for (fi = 0; fi < frames; fi++) {
-      if (fi % 75 === 0) { me.cd.ult = 0; if (!o.quiet) for (const u of units()) if (u.alive) u.cd.ult = 0; }
-      if (fi % 90 === 0 && fi) { if (!o.tower) gather(me); }
-      me.hp = me.maxHp; if (o.quiet) for (const u of units()) if (u !== me && u.alive) u.hp = u.maxHp;
+      if (fi % per === 0) { me.cd.ult = 0; if (!o.quiet) for (const u of units()) if (u.alive) { u.cd.ult = 0; if (mode) { u.cd.s1 = 0; u.cd.s2 = 0; } } }
+      if (fi % 90 === 0 && fi) { if (near) gatherAll(); else if (!o.tower) gather(me); }
+      me.hp = me.maxHp; if (o.quiet || near) for (const u of units()) if (u !== me && u.alive) u.hp = u.maxHp;
       const t0 = performance.now(); draw1(); ms += performance.now() - t0;
       const s = analyse(4);
       L.push(s.meanL); Y.push(s.meanY); W.push(s.white); B.push(s.black); A85.push(s.a85); SATTOP.push(s.satTop);
       for (let i = 0; i < 128; i++) if (s.cells[i] < minCells[i]) minCells[i] = s.cells[i];
-      for (const u of units()) { const c = u.cd.ult, p = prev.get(u.id); if (p !== undefined && p <= 0.05 && c > 1) ults++; prev.set(u.id, c); }
       if (!best || s.a85 + s.white * 2 > best.score) { best = { score: s.a85 + s.white * 2, idx: fi, s }; window.__eyesBest = store(2); best.cellInfo = brightCells(s.cells, null); best.cams = null; }
     }
-    window.__input(null);
+    window.__input(null); window.__botHook = null; count.dead = true;
     best.cellInfo = best.cellInfo.map((c) => ({ ...c, baseline: +minCells[c.cell[1] * 16 + c.cell[0]].toFixed(3), what: minCells[c.cell[1] * 16 + c.cell[0]] > 0.7 ? c.what.replace(/^effect on /, 'floor:') : 'effect on ' + c.what.replace(/^floor:|^effect on /, '') }));
     return { frames, L, Y, W, B, A85, SATTOP, best: { idx: best.idx, meanL: best.s.meanL, white: best.s.white, a85: best.s.a85, black: best.s.black, sat10: best.s.sat10, satTop: best.s.satTop, medianL: best.s.medianL, cellInfo: best.cellInfo }, ults, msPerFrame: ms / frames };
   };
@@ -255,25 +280,39 @@ const savePng = async (page, which, file) => { const b64 = await page.evaluate((
 const queryFor = (theme, tier, mech, extra = '') => { const [map, mode] = LAYOUT[theme] || ['denrung']; return `manual&noaudio&autostart&q=${tier}&seed=7&bots=normal&mech=${mech}&theme=${theme}&map=${map}${mode ? '&mode=' + mode : ''}${extra}`; };
 
 async function measure(br, base, theme, tier) {
-  const g = await openGame(br, base, queryFor(theme, tier, 'hoalong'));
+  const g = await openGame(br, base, queryFor(theme, tier, 'hoalong', EXTRA));
   const { page } = g;
-  const row = { tag: TAG, theme, tier, layout: LAYOUT[theme] || ['denrung'], when: new Date().toISOString(), base };
+  const row = { tag: TAG, variant: VARIANT || undefined, theme, tier, layout: LAYOUT[theme] || ['denrung'], when: new Date().toISOString(), base };
   row.look = await page.evaluate(() => window.__eyes.look());
   row.calm = await page.evaluate(() => window.__eyes.calm());
-  await savePng(page, 'Calm', path.join(OUT, `${TAG}-${theme}-${tier}-calm.png`));
+  await savePng(page, 'Calm', path.join(OUT, `${TAG}${VARIANT}-${theme}-${tier}-calm.png`));
   // HUD
   await page.evaluate(() => window.__eyes.hudSetup());
   await sleep(700);
-  if (tier === 'medium') await page.screenshot({ path: path.join(OUT, `${TAG}-${theme}-${tier}-calm-hud.png`) });
+  if (tier === 'medium' && !VARIANT) await page.screenshot({ path: path.join(OUT, `${TAG}-${theme}-${tier}-calm-hud.png`) });
   row.hud = hudContrast(await page.evaluate(() => window.__eyes.hud()));
-  // busy
-  row.busyRaw = await page.evaluate(() => window.__eyes.busy({ frames: 180 }));
-  const b = row.busyRaw; row.busy = { ...flashMetrics(b.L, b.A85, b.W), best: b.best, ults: b.ults, msPerFrame: +b.msPerFrame.toFixed(1), meanSatTop: +(b.SATTOP.reduce((x, y) => x + y, 0) / b.SATTOP.length).toFixed(3), meanBlack: +(b.B.reduce((x, y) => x + y, 0) / b.B.length).toFixed(3) };
-  delete row.busyRaw.best; row.series = { L: b.L.map((v) => +v.toFixed(3)), A85: b.A85.map((v) => +v.toFixed(3)), W: b.W.map((v) => +v.toFixed(3)) };
-  delete row.busyRaw;
-  await savePng(page, 'Best', path.join(OUT, `${TAG}-${theme}-${tier}-busy.png`));
+  // busy: the gentle 6 s fight, then the heavy ones (medium, and low on the two brightest themes)
+  const seq = async (name, mode) => {
+    const raw = await page.evaluate((md) => window.__eyes.busy({ frames: 180, mode: md }), mode);
+    const r = { ...flashMetrics(raw.L, raw.A85, raw.W), best: raw.best, ults: raw.ults, msPerFrame: +raw.msPerFrame.toFixed(1), meanSatTop: +(raw.SATTOP.reduce((x, y) => x + y, 0) / raw.SATTOP.length).toFixed(3), meanBlack: +(raw.B.reduce((x, y) => x + y, 0) / raw.B.length).toFixed(3),
+      series: { L: raw.L.map((v) => +v.toFixed(3)), A85: raw.A85.map((v) => +v.toFixed(3)), W: raw.W.map((v) => +v.toFixed(3)) } };
+    await savePng(page, 'Best', path.join(OUT, `${TAG}${VARIANT}-${theme}-${tier}-${name}.png`));
+    return r;
+  };
+  const gentle = await seq('busy', '');
+  row.busy = gentle; row.series = gentle.series; delete gentle.series;
+  if (heavyWanted(theme, tier)) {
+    row.heavy = await seq('heavy', 'heavy'); row.overlap = await seq('overlap', 'overlap');
+  }
   row.problems = g.problems.slice(0, 5);
   await g.ctx.close();
+  if (heavyWanted(theme, tier)) {
+    const n = await openGame(br, base, `manual&noaudio&autostart&q=${tier}&seed=7&bots=normal&mech=hoalong&theme=${theme}&map=luythep&mode=nha${EXTRA}`);
+    const raw = await n.page.evaluate(() => window.__eyes.busy({ frames: 180, mode: 'nha' }));
+    row.nha = { ...flashMetrics(raw.L, raw.A85, raw.W), best: raw.best, ults: raw.ults, msPerFrame: +raw.msPerFrame.toFixed(1), meanSatTop: +(raw.SATTOP.reduce((x, y) => x + y, 0) / raw.SATTOP.length).toFixed(3), series: { L: raw.L.map((v) => +v.toFixed(3)), A85: raw.A85.map((v) => +v.toFixed(3)), W: raw.W.map((v) => +v.toFixed(3)) } };
+    await savePng(n.page, 'Best', path.join(OUT, `${TAG}${VARIANT}-${theme}-${tier}-nha.png`));
+    await n.ctx.close();
+  }
   return row;
 }
 
@@ -288,11 +327,11 @@ async function ultRow(br, base, theme, mech, tower) {
   return row;
 }
 
-const rowFile = (theme, tier) => path.join(ROWS, `${TAG}-${theme}-${tier}.json`);
+const rowFile = (theme, tier) => path.join(ROWS, `${TAG}${VARIANT}-${theme}-${tier}.json`);
 async function themeList() {
   try { const m = await import(require('url').pathToFileURL(path.join(process.env.EYES_GAME_DIR || path.join(__dirname, '..'), 'js', 'maps.js')).href); return m.THEME_ORDER || Object.keys(m.THEMES); } catch (e) { return FALLBACK_THEMES; }
 }
-const loadRows = (tiers) => { const out = []; for (const f of fs.existsSync(ROWS) ? fs.readdirSync(ROWS) : []) if (f.startsWith(TAG + '-') && f.endsWith('.json')) { const r = JSON.parse(fs.readFileSync(path.join(ROWS, f), 'utf8')); if (!tiers || r.kind === 'ult' || tiers.includes(r.tier)) out.push(r); } return out; };
+const loadRows = (tiers) => { const out = []; for (const f of fs.existsSync(ROWS) ? fs.readdirSync(ROWS) : []) if (f.startsWith(TAG + VARIANT + '-') && f.endsWith('.json')) { const r = JSON.parse(fs.readFileSync(path.join(ROWS, f), 'utf8')); if ((r.kind === 'ult' || (r.variant || '') === VARIANT) && (!tiers || r.kind === 'ult' || tiers.includes(r.tier))) out.push(r); } return out; };
 
 // ---------------------------------------------------------------------------------------------------- verdicts
 function verdict(r) {
@@ -392,6 +431,50 @@ async function sheet(br, base, themes, get) {
   await ctx.close();
 }
 
+// --compare: before and after rows side by side (EYES_BEFORE and EYES_AFTER name the tags) into .chk/eyes/after.md and .chk/eyes/sheet.png.
+async function compare(br) {
+  const B = process['env'].EYES_BEFORE || 'before', A = process['env'].EYES_AFTER || 'after', themes = await themeList();
+  const load = (tag, variant = '') => { const m = {}; for (const f of fs.existsSync(ROWS) ? fs.readdirSync(ROWS) : []) if (f.startsWith(tag + variant + '-') && f.endsWith('.json')) { const r = JSON.parse(fs.readFileSync(path.join(ROWS, f), 'utf8')); if (r.kind !== 'ult' && (r.variant || '') === variant) m[r.theme + '/' + r.tier] = r; } return m; };
+  const rb = load(B), ra = load(A), rc = load(A, '-calm');
+  const worst = (r) => { const ks = SEQS.filter((k) => r && r[k]); const w = (f) => Math.max(...ks.map((k) => r[k][f])); return { a85: w('maxA85'), clip: w('maxWhite'), fl: w('worstSecond'), jump: w('maxJump'), maxL: w('maxL'), sat: Math.max(...ks.map((k) => r[k].meanSatTop)), ms: Math.max(...ks.map((k) => r[k].msPerFrame)) }; };
+  const pickScene = (r) => SEQS.filter((k) => k !== 'busy' && r[k]).sort((x, y) => r[y].best.a85 - r[x].best.a85)[0];
+  const md = ['# Eye comfort, before and after', '', `Phone profile 1002x461 CSS px at DPR ${DPR}. Before = tag "${B}" (local build, nothing changed), after = tag "${A}". Worst case over four fights per row: gentle 6 s bot fight, heavy 3v3 (every ultimate and skill recharged each second), forced overlap (all six mechs cast ult, s1, s2 inside 0.1 s every 2.5 s) and the same in ?mode=nha beside the enemy sub tower. Heavy rows exist for medium on every theme and for low on ice and desert; other rows hold the gentle fight only.`, '',
+    '| theme | tier | calm mean before / after | calm floor-cell median b / a | share above 0.85 b / a | white clip b / a | flashes per s (worst 1 s) b / a | max frame jump b / a | sat of brightest 25% b / a | after, Giảm chớp sáng on: share above 0.85 / clip / jump |', '|---|---|---|---|---|---|---|---|---|---|'];
+  for (const t of themes) for (const q of ['low', 'medium', 'high']) {
+    const b = rb[t + '/' + q], a = ra[t + '/' + q]; if (!b || !a) continue;
+    const wb = worst(b), wa = worst(a), c = rc[t + '/' + q], wc = c ? worst(c) : null;
+    md.push(`| ${t} | ${q} | ${b.calm.meanL.toFixed(2)} / ${a.calm.meanL.toFixed(2)} | ${(b.calm.cellMed || 0).toFixed(2)} / ${(a.calm.cellMed || 0).toFixed(2)} | ${pc(wb.a85)} / ${pc(wa.a85)} | ${pc(wb.clip)} / ${pc(wa.clip)} | ${wb.fl} / ${wa.fl} | ${wb.jump.toFixed(3)} / ${wa.jump.toFixed(3)} | ${wb.sat.toFixed(2)} / ${wa.sat.toFixed(2)} | ${wc ? `${pc(wc.a85)} / ${pc(wc.clip)} / ${wc.jump.toFixed(3)}` : '-'} |`);
+  }
+  md.push('', '## Frame time in the busy fight (ms/frame, this machine, gentle sequence)', '', '| theme | tier | before | after |', '|---|---|---|---|');
+  for (const t of themes) for (const q of ['low', 'medium', 'high']) { const b = rb[t + '/' + q], a = ra[t + '/' + q]; if (b && a) md.push(`| ${t} | ${q} | ${b.busy.msPerFrame} | ${a.busy.msPerFrame} |`); }
+  md.push('', `Limits enforced by --check: ${JSON.stringify(LIMITS)}`, '');
+  fs.writeFileSync(path.join(OUT, 'after.md'), md.join('\n') + '\n'); console.log(path.join(OUT, 'after.md'));
+  const cells = [];
+  for (const t of themes) {
+    const b = rb[t + '/medium'], a = ra[t + '/medium']; if (!b || !a) continue;
+    const sc = pickScene(b) || 'busy', img = (tag, n) => { const f = path.join(OUT, `${tag}-${t}-medium-${n}.png`); return fs.existsSync(f) ? fs.readFileSync(f).toString('base64') : ''; };
+    cells.push({ imgs: [img(B, 'calm'), img(A, 'calm'), img(B, sc), img(A, sc)], labels: [`${t} calm BEFORE  L ${b.calm.meanL.toFixed(2)}`, `AFTER  L ${a.calm.meanL.toFixed(2)}`, `BEFORE ${sc}  >0.85 ${pc(b[sc].best.a85)}  white ${pc(b[sc].best.white)}`, `AFTER ${sc}  >0.85 ${pc(a[sc].best.a85)}  white ${pc(a[sc].best.white)}`] });
+  }
+  const refPath = path.join(process['env'].HOME, 'handoff', 'dau-truong-thep-ref.webp'), ref = fs.existsSync(refPath) ? fs.readFileSync(refPath).toString('base64') : '';
+  const ctx = await br.newContext({ viewport: { width: 1200, height: 800 } }), page = await ctx.newPage();
+  const png = await page.evaluate(async ({ cells, ref }) => {
+    const ld = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+    const CW = 501, CH = 231, GAP = 4, LAB = 20, W = CW * 4 + GAP * 3;
+    const refImg = ref ? await ld('data:image/webp;base64,' + ref) : null, refH = refImg ? Math.round(refImg.height * (CW * 2 + GAP) / refImg.width) : 0;
+    const c = document.createElement('canvas'); c.width = W; c.height = (refImg ? refH + LAB + GAP : 0) + cells.length * (CH + LAB + GAP);
+    const x = c.getContext('2d'); x.fillStyle = '#111'; x.fillRect(0, 0, c.width, c.height); x.font = 'bold 14px sans-serif'; x.textBaseline = 'middle';
+    let y = 0;
+    if (refImg) { x.fillStyle = '#fff'; x.fillText("reference (owner's): bright, saturated, soft", 6, LAB / 2); x.drawImage(refImg, 0, LAB, CW * 2 + GAP, refH); y = refH + LAB + GAP; }
+    for (const cell of cells) {
+      for (let i = 0; i < 4; i++) { const ox = i * (CW + GAP); x.fillStyle = '#ffd'; x.fillText(cell.labels[i], ox + 6, y + LAB / 2); if (cell.imgs[i]) x.drawImage(await ld('data:image/png;base64,' + cell.imgs[i]), ox, y + LAB, CW, CH); }
+      y += CH + LAB + GAP;
+    }
+    return c.toDataURL('image/png').split(',')[1];
+  }, { cells, ref });
+  const file = path.join(OUT, 'sheet.png'); fs.writeFileSync(file, Buffer.from(png, 'base64')); console.log(file);
+  await ctx.close();
+}
+
 function codeRefs() {
   const G = path.join(__dirname, '..', 'js'), out = [];
   const find = (file, re, label, max = 12) => { try { const lines = fs.readFileSync(path.join(G, file), 'utf8').split('\n'); let n = 0; lines.forEach((l, i) => { if (n < max && re.test(l)) { out.push(`${label}: js/${file}:${i + 1} ${l.trim().slice(0, 150)}`); n++; } }); } catch (e) {} };
@@ -409,6 +492,7 @@ function codeRefs() {
 (async () => {
   fs.mkdirSync(ROWS, { recursive: true });
   const themes = csv(process.env.EYES_THEMES, await themeList()), tiers = csv(process.env.EYES_TIERS, has('--check') ? ['medium'] : ['low', 'medium', 'high']);
+  if (has('--compare')) { await session(async (br) => compare(br)); return; }
   if (has('--report')) { await session(async (br, base) => report(br, base)); return; }
   if (has('--ults')) {
     const theme = argv[argv.indexOf('--ults') + 1] && !argv[argv.indexOf('--ults') + 1].startsWith('--') ? argv[argv.indexOf('--ults') + 1] : 'jungle';
@@ -422,23 +506,37 @@ function codeRefs() {
     return;
   }
   const done = [];
-  if (!has('--no-run')) await session(async (br, base) => {
-    for (const t of themes) for (const q of tiers) {
-      if (fs.existsSync(rowFile(t, q)) && !process.env.EYES_FORCE && !has('--check')) { console.log('have', t, q); done.push([t, q]); continue; }
-      const r = await measure(br, base, t, q); fs.writeFileSync(rowFile(t, q), JSON.stringify(r));
-      console.log(`${t}/${q}: calm L ${r.calm.meanL.toFixed(2)} white ${pc(r.calm.white)} | busy maxWhite ${pc(r.busy.maxWhite)} max>0.85 ${pc(r.busy.maxA85)} worst1s ${r.busy.worstSecond} whiteFrames ${r.busy.whiteFrames} | ${r.busy.msPerFrame} ms/frame`);
-    }
-  });
+  const variants = has('--check') ? [false, true] : [!!process.env.EYES_CALM];
+  for (const calm of variants) {
+    setVariant(calm);
+    if (!has('--no-run')) await session(async (br, base) => {
+      for (const t of themes) for (const q of tiers) {
+        if (fs.existsSync(rowFile(t, q)) && !process.env.EYES_FORCE && !has('--check')) { console.log('have', t, q); done.push([t, q]); continue; }
+        const r = await measure(br, base, t, q); fs.writeFileSync(rowFile(t, q), JSON.stringify(r));
+        console.log(`${t}/${q}${calm ? ' (calm on)' : ''}: calm L ${r.calm.meanL.toFixed(2)} white ${pc(r.calm.white)} | busy maxWhite ${pc(r.busy.maxWhite)} max>0.85 ${pc(r.busy.maxA85)} worst1s ${r.busy.worstSecond} whiteFrames ${r.busy.whiteFrames} | ${r.busy.msPerFrame} ms/frame`);
+      }
+    });
+  }
   if (has('--check')) {
     let bad = 0;
-    for (const t of themes) for (const q of tiers) {
-      if (!fs.existsSync(rowFile(t, q))) continue;
-      const r = JSON.parse(fs.readFileSync(rowFile(t, q), 'utf8')), b = r.busy, f = [];
-      if (b.maxWhite > LIMITS.busyWhiteMax) f.push(`white clip ${pc(b.maxWhite)} > ${pc(LIMITS.busyWhiteMax)}`);
-      if (b.whiteFrames > 0) f.push(`${b.whiteFrames} white frame(s)`);
-      if (b.worstSecond >= LIMITS.flashPerSecMax) f.push(`${b.worstSecond} large flashes in one second (limit < ${LIMITS.flashPerSecMax})`);
-      if (b.maxA85 > LIMITS.busyBrightMax) f.push(`${pc(b.maxA85)} of the view above 0.85 > ${pc(LIMITS.busyBrightMax)}`);
-      console.log((f.length ? 'FAIL ' : 'PASS ') + `${t}/${q} ` + f.join('; ')); if (f.length) bad++;
+    for (const calm of variants) {
+      setVariant(calm);
+      for (const t of themes) for (const q of tiers) {
+        if (!fs.existsSync(rowFile(t, q))) continue;
+        const r = JSON.parse(fs.readFileSync(rowFile(t, q), 'utf8')), f = [];
+        const wMax = calm ? LIMITS.calmModeWhiteMax : LIMITS.busyWhiteMax, bMax = calm ? LIMITS.calmModeBrightMax : LIMITS.busyBrightMax;
+        if (r.calm.meanL > LIMITS.calmMeanMax) f.push(`calm frame mean ${r.calm.meanL.toFixed(2)} > ${LIMITS.calmMeanMax}`);
+        if (r.calm.meanL < LIMITS.calmMeanMin) f.push(`calm frame mean ${r.calm.meanL.toFixed(2)} < ${LIMITS.calmMeanMin}`);
+        for (const k of SEQS) {
+          const b = r[k]; if (!b) continue;
+          if (b.maxWhite > wMax) f.push(`${k}: white clip ${pc(b.maxWhite)} > ${pc(wMax)}`);
+          if (b.whiteFrames > 0) f.push(`${k}: ${b.whiteFrames} white frame(s)`);
+          if (b.worstSecond >= LIMITS.flashPerSecMax) f.push(`${k}: ${b.worstSecond} large flashes in one second (limit < ${LIMITS.flashPerSecMax})`);
+          if (b.maxA85 > bMax) f.push(`${k}: ${pc(b.maxA85)} of the view above 0.85 > ${pc(bMax)}`);
+          if (b.maxJump > LIMITS.jumpMax) f.push(`${k}: frame-to-frame jump ${b.maxJump} > ${LIMITS.jumpMax}`);
+        }
+        console.log((f.length ? 'FAIL ' : 'PASS ') + `${t}/${q}${calm ? ' calm-on' : ''} ` + f.join('; ')); if (f.length) bad++;
+      }
     }
     console.log(bad ? `\n${bad} row(s) FAILED` : '\nALL PASS'); process.exit(bad ? 1 : 0);
   }

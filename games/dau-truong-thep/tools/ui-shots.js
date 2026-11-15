@@ -506,7 +506,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       // settings
       await page.click('#ui [data-r="bSet"]');
       await page.click('#ui .modal.on .seg button:nth-child(3)');
-      await page.evaluate(() => { const r = document.querySelector('#ui .modal.on input[type=range]'); r.value = 35; r.dispatchEvent(new Event('input')); });
+      await page.evaluate(() => { const r = document.querySelector('#ui .modal.on input[type=range]:not([data-r="bri"])'); r.value = 35; r.dispatchEvent(new Event('input')); });
       await shot(page, errs, T('menu-settings'), async () => {
         const s = await page.evaluate(() => ({ vol: window.__vol, q: __G.meta.get().settings.quality, log: (window.__log || []).filter((l) => l[0] === 'quality:set').map((l) => l[1]) }));
         check(T('settings') + ': volume and quality wired', s.vol === 0.35 && s.q === 'high' && s.log.includes('high'), JSON.stringify(s));

@@ -8,9 +8,9 @@ import { visibleTo } from '../sim.js';
 import { makePoints, makeStreaks, makeDebris, premul, additive, K } from './fxkit.js';
 import { makeTowers } from './towers.js';
 
-const TEAM_HDR = [new THREE.Color(0.25, 0.85, 2.0), new THREE.Color(2.1, 0.55, 0.16)];
+const TEAM_HDR = [new THREE.Color(0.3, 0.88, 1.85), new THREE.Color(1.95, 0.6, 0.2)];
 const C = (r, g, b) => new THREE.Color(r, g, b);
-const FIRE = C(2.2, 1.0, 0.25), EMBER = C(1.9, 0.55, 0.1), WHITE = C(2, 2, 2), SMOKE = C(0.16, 0.15, 0.14), SOOT = C(0.07, 0.065, 0.06), DUST = C(0.42, 0.36, 0.27),
+const FIRE_N = C(1, 0.62, 0.3), FIRE = C(2.2, 1.0, 0.25), EMBER = C(1.9, 0.55, 0.1), WHITE = C(2, 2, 2), SMOKE = C(0.16, 0.15, 0.14), SOOT = C(0.07, 0.065, 0.06), DUST = C(0.42, 0.36, 0.27),
   HEAL = C(0.35, 1.9, 0.5), ICE = C(0.9, 1.6, 2.2), FOG = C(0.62, 0.64, 0.66), ARC = C(0.5, 1.2, 2.4), VIOLET = C(1.2, 0.5, 2.2), WOOD = C(0.4, 0.26, 0.12), CLAY = C(0.55, 0.3, 0.18), STONE = C(0.5, 0.47, 0.4),
   METAL = C(0.22, 0.23, 0.25), ICECHUNK = C(0.75, 0.9, 1.0), GOLD = C(2.2, 1.9, 0.4), SHOCK = C(2.2, 1.6, 1.0), FIREFLY = C(1.6, 2.2, 0.5), DANGER = C(2.2, 0.4, 0.2), VENT = C(2.2, 0.5, 0.1),
   HOLO = C(0.5, 1.7, 2.3), RED = C(2.4, 0.22, 0.12), RALLY = C(1.5, 2.1, 0.45), CAGE = C(1.0, 1.5, 1.2);
@@ -272,6 +272,15 @@ const HINT_FRAG = `
     gl_FragColor = vec4(uColor * a, a * uA);
   }`;
 
+// Flash table, one column per mode: [normal, calm]. "Giảm chớp sáng" picks the second column; nothing else in this file branches on it.
+//   power  scales every flash light (they were tuned for a 2.2x HDR colour on a 2 m high point light)  life  their duration
+//   tint   how far a near-white flash colour moves towards the fire colour          dist  reach of a flash light in metres
+//   budget caps the summed intensity of all flash lights in one frame               glow  alpha of additive glow quads (white ones also drop to SOFT_WHITE)
+//   ground alpha of additive ground discs and rings (decals untouched)
+//   core   width and whiteness of the beam core (shader uniform)                    bloom scale of the bloom gain      peak  where the highlight shoulder tops out (post.js)
+export const FLASH = { power: [0.18, 0.08], life: [0.7, 0.5], tint: [0.55, 0.85], dist: [11, 8], budget: [18, 8], glow: [0.7, 0.5], ground: [0.75, 0.55], core: [0.6, 0.4], bloom: [1, 0.55], peak: [0.84, 0.76] };
+const SOFT_WHITE = C(1.5, 1.42, 1.3);
+
 export function makeFx(G, mechs) {
   const Q = G.quality, low = Q.name === 'low', group = new THREE.Group();
   const QK = Math.min(1.5, Q.particles / 800), N = (x) => Math.max(1, Math.round(x * QK));
@@ -280,11 +289,12 @@ export function makeFx(G, mechs) {
   const deb = makeDebris(low ? 24 : Q.name === 'medium' ? 60 : 110, debrisMat, Q.name === 'high', (x, y, z, left) => ovr.emit(x, y + 0.2, z, rnd(-0.3, 0.3), 1.2, rnd(-0.3, 0.3), SMOKE, 1.1, 0.45, 2.6, 1.2, -0.8, Math.min(0.5, left * 0.4), K.SMOKE));
   group.add(ovr.pts, add.pts, str.mesh, deb.mesh);
   const rnd = (a, b) => a + Math.random() * (b - a);
-  let shake = 0, time = 0, frame = 0, dust = DUST;
+  let shake = 0, time = 0, frame = 0, dust = DUST, fcol = 0;
+  const BEAM_CORE = { value: FLASH.core[0] };
   const V = new THREE.Vector3();
 
   // Bursts. glow/spark go to the additive pools, puff to the premultiplied pool.
-  const glow = (x, y, z, c, life, size, a = 1, k = K.GLOW, grow = 1.3, vx = 0, vy = 0, vz = 0) => add.emit(x, y, z, vx, vy, vz, c, life, size, grow, 0, 0, a, k);
+  const glow = (x, y, z, c, life, size, a = 1, k = K.GLOW, grow = 1.3, vx = 0, vy = 0, vz = 0) => add.emit(x, y, z, vx, vy, vz, c === WHITE ? SOFT_WHITE : c, life, size, grow, 0, 0, a * FLASH.glow[fcol], k);
   function sparks(x, y, z, n, c, speed, life, width = 0.06, up = 0.6, grav = 16, dx = 0, dz = 0, spread = 1) {
     for (let i = 0; i < n; i++) {
       let a = Math.random() * 6.283;
@@ -322,8 +332,8 @@ export function makeFx(G, mechs) {
     if (mode === 3 || mode === 7) premul(g.mesh.material); else additive(g.mesh.material);
     g.mesh.visible = true; g.mesh.position.set(x, mode === 3 || mode === 7 ? 0.07 + groundLive.length * 0.0004 : 0.13, z); g.mesh.scale.set(r, 1, r);
     g.mesh.rotation.y = opts.rot || 0; g.mesh.renderOrder = mode === 3 || mode === 7 ? 2 : 3;
-    g.u.uMode.value = mode; g.u.uColor.value.copy(color); g.u.uT.value = opts.heat ? 1 : 0; g.u.uA.value = opts.alpha ?? 1; g.u.uSeed.value = Math.random() * 50;
-    g.age = 0; g.life = opts.life ?? 0; g.fade = opts.fade ?? 0; g.sweep = !!opts.sweep; g.alpha = opts.alpha ?? 1; g.heat = opts.heat || 0; g.r = r;
+    g.u.uMode.value = mode; g.u.uColor.value.copy(color); g.u.uT.value = opts.heat ? 1 : 0; g.alpha = opts.alpha ?? 1; g.u.uA.value = g.alpha * (mode === 3 || mode === 7 ? 1 : FLASH.ground[fcol]); g.u.uSeed.value = Math.random() * 50;
+    g.age = 0; g.life = opts.life ?? 0; g.fade = opts.fade ?? 0; g.sweep = !!opts.sweep; g.heat = opts.heat || 0; g.r = r;
     groundLive.push(g);
     return g;
   }
@@ -338,12 +348,15 @@ export function makeFx(G, mechs) {
   }
 
   const lights = [];
-  for (let i = 0; i < Q.lights; i++) { const l = new THREE.PointLight(0xffffff, 0, 18, 1.6); l.userData.t = 0; group.add(l); lights.push(l); }
+  for (let i = 0; i < Q.lights; i++) { const l = new THREE.PointLight(0xffffff, 0, FLASH.dist[0], 1.6); l.userData.t = 0; group.add(l); lights.push(l); }
   function flash(x, y, z, color, power, life = 0.22) {
     let best = null;
     for (const l of lights) if (!best || l.userData.t < best.userData.t) best = l;
     if (!best) return;
-    best.position.set(x, y, z); best.color.copy(color); best.userData.t = life; best.userData.life = life; best.userData.p = power;
+    const mx = Math.max(color.r, color.g, color.b, 1e-3), life2 = life * FLASH.life[fcol];
+    best.position.set(x, y, z); best.color.copy(color).multiplyScalar(1 / mx);
+    if (Math.min(color.r, color.g, color.b) > mx * 0.75) best.color.lerp(FIRE_N, FLASH.tint[fcol]);
+    best.distance = FLASH.dist[fcol]; best.userData.t = life2; best.userData.life = life2; best.userData.p = power * FLASH.power[fcol];
   }
 
   // Projectiles: one instanced quad per shot plus a soft shadow under it, so height reads on any ground.
@@ -388,21 +401,21 @@ export function makeFx(G, mechs) {
     let b = beamPool.pop();
     if (!b) {
       const mat = additive(new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, vertexShader: QUAD_VERT,
-        uniforms: { uColor: { value: new THREE.Color() }, uA: { value: 1 }, uTime: { value: 0 }, uLen: { value: 1 }, uKind: { value: 0 }, uSeed: { value: 0 } },
-        fragmentShader: `uniform vec3 uColor; uniform float uA, uTime, uLen, uKind, uSeed; varying vec2 vUv;
+        uniforms: { uColor: { value: new THREE.Color() }, uA: { value: 1 }, uTime: { value: 0 }, uLen: { value: 1 }, uKind: { value: 0 }, uSeed: { value: 0 }, uCore: BEAM_CORE },
+        fragmentShader: `uniform vec3 uColor; uniform float uA, uTime, uLen, uKind, uSeed, uCore; varying vec2 vUv;
           float h1(float x) { return fract(sin(x * 127.1 + uSeed) * 43758.5); }
           float n1(float x) { float i = floor(x), f = fract(x); return mix(h1(i), h1(i + 1.0), f * f * (3.0 - 2.0 * f)); }
           void main() {
             float y = vUv.y * 2.0 - 1.0, x = vUv.x * uLen, ends = smoothstep(0.0, 0.4, x) * (1.0 - smoothstep(uLen - 0.4, uLen, x));
             vec3 c; float a;
             if (uKind < 0.5) {
-              float core = 1.0 - smoothstep(0.0, 0.16, abs(y)), halo = pow(1.0 - smoothstep(0.0, 1.0, abs(y)), 2.0);
+              float core = 1.0 - smoothstep(0.0, 0.16 * uCore, abs(y)), halo = pow(1.0 - smoothstep(0.0, 1.0, abs(y)), 2.0);
               float arcs = 0.0;
               for (int i = 0; i < 3; i++) { float fi = float(i);
                 float off = (n1(x * 0.9 + uTime * (14.0 + fi * 9.0) + fi * 31.0) - 0.5) * 1.3 + (n1(x * 3.5 - uTime * 25.0 + fi * 13.0) - 0.5) * 0.45;
                 arcs += 1.0 - smoothstep(0.0, 0.05, abs(y - off)); }
               float fl = 0.8 + 0.2 * sin(x * 2.0 - uTime * 70.0);
-              c = uColor * halo * 0.8 * fl + mix(uColor * 1.4, vec3(2.6), 0.5) * core + mix(uColor * 1.3, vec3(2.2), 0.3) * arcs; a = 1.0;
+              c = uColor * halo * 0.8 * fl + mix(uColor * 1.4, vec3(2.6), 0.5 * uCore) * core + mix(uColor * 1.3, vec3(2.2), 0.3) * arcs; a = 1.0;
             } else if (uKind < 1.5) {
               float line = 1.0 - smoothstep(0.0, 0.3, abs(y)), dash = step(0.4, fract(x * 0.8 - uTime * 3.0));
               c = uColor * (line * (0.5 + 0.5 * dash) + (1.0 - abs(y)) * 0.15); a = 1.0;
@@ -414,8 +427,8 @@ export function makeFx(G, mechs) {
               float ring = 1.0 - smoothstep(0.0, 0.14, abs(length(vec2((lk - 0.5) / 0.52, y / mix(0.85, 0.35, alt))) - 1.0));
               c = (mix(vec3(0.8, 0.82, 0.85), uColor, 0.4) * ring * 1.3 + uColor * (1.0 - abs(y)) * 0.12); a = 1.0;
             } else if (uKind < 4.5) {
-              float core = 1.0 - smoothstep(0.0, 0.12, abs(y)), halo = exp(-y * y * 7.0), fl = 0.82 + 0.18 * sin(uTime * 90.0 + x * 3.0);
-              c = (uColor * halo * 1.3 + mix(uColor, vec3(2.4), 0.6) * core * 1.7) * fl; a = 1.0;
+              float core = 1.0 - smoothstep(0.0, 0.12 * uCore, abs(y)), halo = exp(-y * y * 7.0), fl = 0.82 + 0.18 * sin(uTime * 90.0 + x * 3.0);
+              c = (uColor * halo * 1.3 + mix(uColor, vec3(2.4), 0.6 * uCore) * core * 1.7) * fl; a = 1.0;
             } else if (uKind < 5.5) {
               float s1 = 0.4 * sin(x * 2.4 - uTime * 9.0), s2 = -s1;
               float st = (1.0 - smoothstep(0.0, 0.1, abs(y - s1))) + (1.0 - smoothstep(0.0, 0.1, abs(y - s2)));
@@ -424,11 +437,11 @@ export function makeFx(G, mechs) {
             } else if (uKind < 6.5) {
               c = uColor * (1.0 - smoothstep(0.0, 0.3, abs(y))) * 0.3; a = 1.0;
             } else {
-              float core = 1.0 - smoothstep(0.0, 0.1, abs(y)), arcs = 0.0;
+              float core = 1.0 - smoothstep(0.0, 0.1 * uCore, abs(y)), arcs = 0.0;
               for (int i = 0; i < 2; i++) { float fi = float(i);
                 float off = (n1(x * 1.3 + uTime * (16.0 + fi * 7.0) + fi * 31.0) - 0.5) * 1.1;
                 arcs += 1.0 - smoothstep(0.0, 0.07, abs(y - off)); }
-              c = mix(uColor, vec3(2.2), 0.4) * core + uColor * (arcs * 1.1 + exp(-y * y * 5.0) * 0.3); a = 1.0;
+              c = mix(uColor, vec3(2.2), 0.4 * uCore) * core + uColor * (arcs * 1.1 + exp(-y * y * 5.0) * 0.3); a = 1.0;
             }
             gl_FragColor = vec4(c * uA * ends * a, 0.0);
           }` }));
@@ -1401,12 +1414,14 @@ export function makeFx(G, mechs) {
       const k = c.age / c.life, slam = Math.min(1, c.age / 0.12);
       c.mesh.scale.set(c.r * (0.3 + 0.9 * Math.min(1, k * 3)) * (1 - k * 0.4), c.h * slam, c.r * (0.3 + 0.9 * Math.min(1, k * 3)) * (1 - k * 0.4));
       c.mesh.position.y = c.h * (1 - slam) * 0.6;
-      c.u.uA.value = (1 - k) * (1 - k) * 1.6; c.u.uTime.value = t;
+      c.u.uA.value = (1 - k) * (1 - k) * 1.6 * FLASH.glow[fcol]; c.u.uTime.value = t;
       const sy = Math.min(1, k * 2.2);
       c.scan.position.y = 0.1 + sy * 2.6; c.scan.scale.setScalar(1.6 - sy * 0.5); c.scan.material.opacity = (1 - sy) * 1.0;
       if (c.age >= c.life) { c.mesh.visible = c.scan.visible = false; cols.splice(i, 1); colPool.push(c); }
     }
-    for (const l of lights) { if (l.userData.t > 0) { l.userData.t -= dt; l.intensity = l.userData.p * Math.max(0, l.userData.t / l.userData.life); } else l.intensity = 0; }
+    let lit = 0;
+    for (const l of lights) { if (l.userData.t > 0) { l.userData.t -= dt; l.intensity = l.userData.p * Math.max(0, l.userData.t / l.userData.life); lit += l.intensity; } else l.intensity = 0; }
+    if (lit > FLASH.budget[fcol]) { const k = FLASH.budget[fcol] / lit; for (const l of lights) l.intensity *= k; }
     stepEmitters(dt);
     add.update(dt); ovr.update(dt); str.update(dt); deb.update(dt);
     shake = Math.max(0, shake - dt * 2.6);
@@ -1429,5 +1444,11 @@ export function makeFx(G, mechs) {
 
   const setPointScale = (h, fovDeg) => { const s = h / (2 * Math.tan(fovDeg * Math.PI / 360)); add.mat.uniforms.uScale.value = s; ovr.mat.uniforms.uScale.value = s; };
 
-  return { group, event, update, clear, setPointScale, get shake() { return shake; }, ring, explosion };
+  function setCalm(on) {
+    fcol = on ? 1 : 0; BEAM_CORE.value = FLASH.core[fcol];
+    for (const l of lights) l.distance = FLASH.dist[fcol];
+    const p = G.gfx.post; if (p) { p.setBloomScale(FLASH.bloom[fcol]); p.setPeak(FLASH.peak[fcol]); }
+  }
+  setCalm(false);
+  return { group, event, update, clear, setPointScale, setCalm, get shake() { return shake; }, ring, explosion };
 }

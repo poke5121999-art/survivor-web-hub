@@ -20,9 +20,9 @@ import { makeOnline } from './online.js';
 import { matchOptions } from './netstate.js';
 
 const QUALITY = {
-  low:    { name: 'low',    shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.5, fxaa: false },
-  medium: { name: 'medium', shadow: 2048, tex: 1024, foliage: 0.65, particles: 800,  lights: 2, ao: true,  bloom: true, bloomLevels: 5, bloomGain: 0.75, fxaa: true },
-  high:   { name: 'high',   shadow: 4096, tex: 2048, foliage: 1,    particles: 1400, lights: 3, ao: true,  bloom: true, bloomLevels: 6, bloomGain: 0.85, fxaa: true },
+  low:    { name: 'low',    shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.3, fxaa: false },
+  medium: { name: 'medium', shadow: 2048, tex: 1024, foliage: 0.65, particles: 800,  lights: 2, ao: true,  bloom: true, bloomLevels: 5, bloomGain: 0.45, fxaa: true },
+  high:   { name: 'high',   shadow: 4096, tex: 2048, foliage: 1,    particles: 1400, lights: 3, ao: true,  bloom: true, bloomLevels: 6, bloomGain: 0.5, fxaa: true },
 };
 // Test hook ?legacyres=1: the resolution rule before Addendum 9, [scale, dpr cap] per tier: pixel ratio = min(dpr, cap) * scale * governor.
 const LEGACY_RES = { low: [0.7, 1], medium: [0.85, 1.5], high: [1, 2] };
@@ -31,6 +31,9 @@ const SHARP_MODES = [
   { key: 'sharp', name: 'Nét', hint: 'Sắc hơn, hao pin hơn một chút, máy ấm lên khi chơi lâu' },
   { key: 'max', name: 'Rất nét', hint: 'Rất nét: hình sắc nhất, máy nóng và hao pin hơn' },
 ];
+const BRIGHT_RANGE = [0.8, 1.2];
+// "Giảm chớp sáng" starts on for touch devices unless the player has chosen: see README, "Eye comfort".
+const CALM_ON_TOUCH = true;
 const CAM = { fov: 32, pitch: 57 * Math.PI / 180, width: 33.5, minDepth: 17.5 };
 
 const errors = (window.__errors = []);
@@ -49,7 +52,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), sharp: qs.get('sharp'), sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), sharp: qs.get('sharp'), bright: qs.has('bright') ? Number(qs.get('bright')) : null, calm: qs.has('calm') ? qs.get('calm') !== '0' : null, sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -117,6 +120,23 @@ async function boot() {
     if (!opt.size) opt.size = portraitSize();
     return mechs.portrait(key, team, paint, opt);
   };
+
+  // "Hình ảnh" settings. Brightness is a display exposure multiplier; calm ("Giảm chớp sáng") switches the flash table to its second column. Both apply live.
+  const touchDefault = phone || matchMedia('(pointer: coarse)').matches;
+  const look = { brightness: 1, calm: false };
+  const cleanBright = (v) => (Number.isFinite(v) ? Math.round(Math.min(BRIGHT_RANGE[1], Math.max(BRIGHT_RANGE[0], v)) * 100) / 100 : 1);
+  function applyLook(save) {
+    post.setBright(look.brightness); fx.setCalm(look.calm);
+    if (save) { st.brightness = look.brightness; st.calm = look.calm; meta.save(); }
+  }
+  look.brightness = cleanBright(params.bright !== null ? params.bright : st.brightness);
+  look.calm = params.calm !== null ? params.calm : (typeof st.calm === 'boolean' ? st.calm : touchDefault && CALM_ON_TOUCH);
+  G.look = {
+    get: () => ({ brightness: look.brightness, calm: look.calm }),
+    set: (o) => { if (o && o.brightness !== undefined) look.brightness = cleanBright(Number(o.brightness)); if (o && o.calm !== undefined) look.calm = !!o.calm; applyLook(true); },
+    range: BRIGHT_RANGE,
+  };
+  applyLook(false);
 
   let sharpMode = SHARP_MODES.some((m) => m.key === params.sharp) ? params.sharp : null;
   if (!sharpMode) { const v = lsGet('dtt.sharp.v1'); sharpMode = SHARP_MODES.some((m) => m.key === v) ? v : (SHARP_MODES.some((m) => m.key === st.sharpness) ? st.sharpness : 'auto'); }
@@ -225,7 +245,9 @@ async function boot() {
     const human = {};
     if (!me.bot) human[me.id] = G.input.sample(me);
     if (net === 'host') Object.assign(human, G.online.remoteInputs());
-    step(m, allInputs(m, human));
+    const inputs = allInputs(m, human);
+    if (window.__botHook) window.__botHook(m, inputs);
+    step(m, inputs);
     if (net === 'host') G.online.afterStep(m);
     dispatch(m);
   }
@@ -401,6 +423,7 @@ async function boot() {
   };
   window.__setShot = (s) => { shot = s || null; };
   window.__input = (v) => G.input.script(v);
+  window.__botHook = null; // test hook: fn(match, inputs) may edit the inputs before each sim tick (forces bot ultimates in tools/eyes.js)
   window.__start = (choice, attract) => startMatch({ ...defaultChoice(), ...(choice || {}) }, !!attract);
 
   if (params.autostart) startMatch(defaultChoice(), false);

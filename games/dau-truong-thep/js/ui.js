@@ -1592,8 +1592,13 @@ export function makeUI(G) {
   settings.innerHTML = `<div class="modal-box" data-r="box"><div class="hazard"></div><h2>Cài đặt</h2>
     <div class="st-tabs" data-r="stTabs"><button data-st="gen" class="on">Chung</button><button data-st="keys">Phím</button></div>
     <div class="st-pane" data-pane="gen">
-      <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
-      <div class="fld"><span>Độ nét</span><div class="seg" data-r="sh"></div><small class="fld-hint" data-r="shHint"></small></div>
+      <div class="tgrp" data-r="imgGrp">
+        <h3>Hình ảnh</h3>
+        <div class="fld"><span>Chất lượng đồ họa</span><div class="seg" data-r="q"></div></div>
+        <div class="fld"><span>Độ nét</span><div class="seg" data-r="sh"></div><small class="fld-hint" data-r="shHint"></small></div>
+        <div class="fld" data-r="briFld"><span>Độ sáng <b data-r="brTxt"></b></span><input type="range" min="80" max="120" step="5" data-r="bri" aria-label="Độ sáng"></div>
+        <button class="tog" data-r="calm" aria-pressed="false"><i></i><span>Giảm chớp sáng<small>Vụ nổ và tuyệt chiêu chỉ ánh lên nhẹ, ít chói hơn, dịu mắt hơn trên màn hình sáng</small></span></button>
+      </div>
       <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
@@ -1636,6 +1641,9 @@ export function makeUI(G) {
       b.onclick = () => { G.sharpness.set(m.key); renderSettings(); };
       ST.sh.appendChild(b);
     }
+    const lk = G.look && G.look.get();
+    ST.briFld.hidden = ST.calm.hidden = !lk;
+    if (lk) { ST.bri.value = Math.round(lk.brightness * 100); ST.brTxt.textContent = ST.bri.value + '%'; ST.calm.setAttribute('aria-pressed', String(lk.calm)); }
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
     for (const [seg, field] of [[ST.shakeSeg, 'shake'], [ST.vibeSeg, 'vibe']]) {
@@ -1702,6 +1710,8 @@ export function makeUI(G) {
     if (G.audio && G.audio.setMusic) G.audio.setMusic(v);
   };
   ST.vol.onchange = ST.mus.onchange = () => G.meta.save();
+  ST.bri.oninput = () => { if (!G.look) return; G.look.set({ brightness: ST.bri.value / 100 }); ST.brTxt.textContent = ST.bri.value + '%'; };
+  ST.calm.onclick = () => { if (!G.look) return; G.look.set({ calm: !G.look.get().calm }); renderSettings(); };
   ST.close.onclick = () => settings.classList.remove('on');
   function openSettings() { renderSettings(); settings.querySelector('[data-st="keys"]').hidden = isTouch(); setSettingsTab('gen'); settings.classList.add('on'); }
   M.bSet.onclick = openSettings;

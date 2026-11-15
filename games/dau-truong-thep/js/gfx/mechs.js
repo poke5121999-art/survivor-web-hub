@@ -1109,10 +1109,10 @@ export function makeMechs(G, tex) {
     b.use('hull').surface(1, 1);
     const info = (DESIGNS[key] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
     const geos = b.build();
-    const glowBase = gc.clone().multiplyScalar(4.2).addScalar(0.55);
+    const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     const rimBase = tc.clone().multiplyScalar(0.28), rim = rimBase.clone();
     const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
-    const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(2.2).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();
     hull.rotation.order = 'YZX';
     const S = info.S || 1;
