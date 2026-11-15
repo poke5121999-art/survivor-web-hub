@@ -3,10 +3,12 @@
 // ECON_MATCHES (default 30) real matches, ECON_PLAYERS (default 300) simulated players, ECON_DAY matches per calendar day (default 5).
 import { createMatch, step, summary } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
-import { MECHS, MECH_ORDER, MODE_ORDER, BOT_NAMES, TICK, UPGRADE, TRACKS, PERKS, PAINTS, GLOWS, DECALS, GEM_RATE } from '../js/data.js';
+import { MECHS, MECH_ORDER, MODE_ORDER, BOT_NAMES, TICK, UPGRADE, TRACKS, PERKS, PAINTS, GLOWS, DECALS, GEM_RATE, TEAM_SIZE } from '../js/data.js';
 import { makeMeta } from '../js/meta.js';
 import { mapsFor } from '../js/maps.js';
 
+// ECON_SIZE mechs a side (default TEAM_SIZE, 3; 5 reproduces the old 5v5 table)
+const ECON_SIZE = +process.env.ECON_SIZE || TEAM_SIZE;
 const N = +process.env.ECON_MATCHES || 30, PLAYERS = +process.env.ECON_PLAYERS || 300, PER_DAY = +process.env.ECON_DAY || 5;
 const lcg = (s) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
 
@@ -16,9 +18,11 @@ function playOne(seed, mode) {
   const mine = pick(MECH_ORDER);
   const roster = [{ team: 0, mech: mine, name: 'Bạn', bot: true, diff: 'normal' }];
   const others = (n) => Array.from({ length: n }, () => pick(MECH_ORDER));
-  others(4).forEach((k, i) => roster.push({ team: 0, mech: k, name: BOT_NAMES[i], bot: true, diff: 'normal' }));
+  // 3v3 (TEAM_SIZE): the player's side has three mechs; free-for-all has six in all, the raid three hunters against the boss
+  const SIZE = ECON_SIZE;
+  others(mode === 'tudo' ? 5 : SIZE - 1).forEach((k, i) => roster.push({ team: mode === 'tudo' ? i % 2 : 0, mech: k, name: BOT_NAMES[i], bot: true, diff: 'normal' }));
   if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff: 'normal' });
-  else others(5).forEach((k, i) => roster.push({ team: 1, mech: k, name: BOT_NAMES[5 + i], bot: true, diff: 'normal' }));
+  else if (mode !== 'tudo') others(SIZE).forEach((k, i) => roster.push({ team: 1, mech: k, name: BOT_NAMES[5 + i], bot: true, diff: 'normal' }));
   const m = createMatch({ seed, roster, mode, map: pick(mapsFor(mode)) });
   const limit = Math.ceil(m.duration / TICK) + 5;
   for (let t = 0; !m.over && t < limit; t++) step(m, allInputs(m));

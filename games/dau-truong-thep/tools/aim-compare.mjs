@@ -1,5 +1,5 @@
 // Balance check for touch auto-aim (Addendum 8, item 7): a scripted player in real bot matches, once driven like a touch player with auto-aim
-// and once like a good mouse player. Both move exactly as a normal bot would (botInput's mx, mz); only aim and fire differ.
+// and once like a good mouse player. Matches are 3v3 (the largest the game offers). Both move exactly as a normal bot would (botInput's mx, mz); only aim and fire differ.
 //   node tools/aim-compare.mjs           AC_SEEDS=matches per mech and script (default 10)   AC_TICKS=sim ticks per match (default 3600)
 // Exit 1 when touch auto-aim beats the good mouse player clearly: hit rate or damage per second in range more than 5% higher overall
 // (or 15% on a single mech, which is the noise a few matches leave); the fix is a lower LEAD in js/autoaim.js.
@@ -17,8 +17,8 @@ const MOUSE = { lead: 0.9, noise: 0.03 }, TOUCH_LEAD = +(process.env.AC_LEAD || 
 
 const roster = (mech) => [
   { team: 0, mech, name: 'P', bot: false },
-  ...FRIENDS.filter((k) => k !== mech).slice(0, 4).map((k) => ({ team: 0, mech: k, name: k, bot: true, diff: 'normal' })),
-  ...FOES.map((k) => ({ team: 1, mech: k === mech ? 'kimquy' : k, name: k, bot: true, diff: 'normal' })),
+  ...FRIENDS.filter((k) => k !== mech).slice(0, 2).map((k) => ({ team: 0, mech: k, name: k, bot: true, diff: 'normal' })),
+  ...FOES.slice(0, 3).map((k) => ({ team: 1, mech: k === mech ? 'kimquy' : k, name: k, bot: true, diff: 'normal' })),
 ];
 
 // One input from the bot's own movement plus the script's aim and fire.

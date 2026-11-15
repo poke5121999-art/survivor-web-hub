@@ -38,6 +38,8 @@ ROLE.sniper.outside = true; ROLE.artillery.outside = true;
 // chiem: a lobbing or planted mech stands on the point instead of behind its allies, so its team has a body there to contest it
 const ROLE_CHIEM = { artillery: { ...ROLE.artillery, behind: false, tether: 0 }, siege: { ...ROLE.siege, behind: false, tether: 0 } };
 const LANES = [0, -14, 14, 0, 14];
+// Lateral lane per slot for a small match: one mech takes the middle, two split the sides, three use the first three lanes above.
+const LANES_SMALL = { 1: [0], 2: [-10, 10] };
 const SLOTS = ['s1', 's2', 'ult'];
 const STEER = [0, 0.5, -0.5, 1.0, -1.0, 1.7, -1.7];
 const NO = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
@@ -48,7 +50,7 @@ const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI;
 const turnTo = (a, b, max) => a + Math.max(-max, Math.min(max, angDiff(a, b)));
 
 function newBrain(m, u) {
-  const lane = u.slot === 4 ? (m.rng() < 0.5 ? -14 : 14) : LANES[u.slot % 5];
+  const lane = m.size <= 2 ? LANES_SMALL[m.size][u.slot % m.size] : u.slot === 4 ? (m.rng() < 0.5 ? -14 : 14) : LANES[u.slot % 5];
   return {
     state: 'push', since: 0, lane, patrol: 0, goal: null,
     born: m.time, rot: 0, idleT: 0, np: null, otId: -1, waitT: -1, twHp: {}, twHit: {}, spotT: -9, spotFor: -1, stage: [0, 0], stand: [0, 0],
@@ -78,7 +80,7 @@ export function botInput(m, u) {
   if (!u.alive) { u.brain = null; return NO; }
   const b = u.brain || (u.brain = newBrain(m, u));
   const D = DIFFICULTY[u.diff] || DIFFICULTY.normal;
-  const role = (m.mode === 'chiem' && ROLE_CHIEM[u.def.roleKey]) || ROLE[u.def.roleKey] || ROLE.assault;
+  const role = (m.mode === 'chiem' && m.size > 3 && ROLE_CHIEM[u.def.roleKey]) || ROLE[u.def.roleKey] || ROLE.assault;
   const map = m.map, now = m.time, w = u.stance ? plantedWeapon(b, u) : u.def.weapon;
   const out = b.out;
   out.fire = out.s1 = out.s2 = out.ult = out.heal = false;
@@ -1780,6 +1782,7 @@ function underTower(m, team, x, z, pad) {
 // May I step into tower t's range now? At least one ally (best the tank) already there, or the tower is busy shooting an ally.
 function entryOK(m, u, D, t) {
   if (D.skill < 0.5) return true;   // easy bots dive carelessly
+  if (m.size <= 1) return true;   // nobody to wait for
   const R = nhaR(m) + 0.8;
   let n = 0, tank = false;
   for (const a of m.units) {
@@ -1791,7 +1794,7 @@ function entryOK(m, u, D, t) {
   // the other team is two mechs down (respawning): nobody is there to hold the tower's aggro against, go in together
   let mineAlive = 0, foeAlive = 0;
   for (const a of m.units) if (a.alive && !a.def.boss) { if (a.team === u.team) mineAlive++; else foeAlive++; }
-  if (mineAlive - foeAlive >= 2) return true;
+  if (mineAlive - foeAlive >= Math.min(2, m.size - 1)) return true;
   if (D.skill >= 0.9) return tank || n >= 2 || (charging && n >= 1);
   return n >= 1 || charging;
 }
@@ -1827,7 +1830,8 @@ function nhaPlan(m, u, b, D, role, w, now) {
   if (defT) {
     const mainOpen = defT.kind === 'main' && towerOpen(m, defT) && dnear > 0;
     const everyone = mainOpen && smart;
-    const nd = hard ? 3 : smart ? (dnear >= 3 ? 3 : 2) : (mainOpen ? 1 : 0);
+    // never the whole team: at least one mech keeps attacking unless the main tower is the one in danger
+    const nd = everyone ? 9 : Math.min(hard ? 3 : smart ? (dnear >= 3 ? 3 : 2) : (mainOpen ? 1 : 0), Math.max(1, m.size - 1));
     let rank = 0;
     const dm = d2(u.x, u.z, defT.x, defT.z);
     for (const a of m.units) {
@@ -1842,7 +1846,7 @@ function nhaPlan(m, u, b, D, role, w, now) {
   if (smart && now - b.born < 12) {
     let alive = 0, soon = 0;
     for (const a of m.units) if (a.team === u.team && !a.def.boss) { if (a.alive) alive++; else if (a.respawnT <= 9) soon++; }
-    if (alive <= 2 && soon >= 1) { P.kind = 'wave'; return P; }
+    if (alive <= Math.floor(m.size * 0.4) && soon >= 1) { P.kind = 'wave'; return P; }
   }
 
   // attack: which tower

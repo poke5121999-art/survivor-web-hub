@@ -7,7 +7,7 @@
 //
 // Angles are radians in the XZ plane: direction = (cos a, sin a).
 
-import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES, buildDef } from './data.js';
+import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES, buildDef, matchSize, ruleFor } from './data.js';
 import { mulberry } from './rng.js';
 import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from './maps.js';
 
@@ -15,15 +15,15 @@ const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult:
 const SLOTS = ['s1', 's2', 'ult'];
 
 export function createMatch(opts) {
-  const mode = MODES[opts.mode] ? opts.mode : 'tdm', rule = MODES[mode], pool = mapsFor(mode);
+  const mode = MODES[opts.mode] ? opts.mode : 'tdm', size = matchSize(mode, opts.roster), rule = ruleFor(mode, size), pool = mapsFor(mode);
   const map = compileMap(pool.includes(opts.map) ? opts.map : pool[0], opts.theme);
   const m = {
-    mode, rule, lives: rule.lives || 0, points: [], towers: [],
+    mode, rule, size, lives: rule.lives || 0, points: [], towers: [],
     map, seed: opts.seed >>> 0, rng: mulberry(opts.seed >>> 0), tick: 0, time: 0,
     target: opts.target || rule.target, duration: opts.duration || rule.duration,
     units: [], shots: [], zones: [], crates: [], events: [],
     props: map.props.map((p) => ({ id: p.id, x: p.x, z: p.z, kind: p.kind, r: PROPS[p.kind].r, hp: PROPS[p.kind].hp, alive: true })),
-    score: [0, 0], over: false, winner: -1, nextId: 1, crateT: RULES.crate.first,
+    score: [0, 0], over: false, winner: -1, nextId: 1, crateT: rule.crate.first,
     vents: map.hazards.filter((h) => h.kind === 'vent').map((h, i) => ({ id: h.id, x: h.x, z: h.z, r: h.r, t: RULES.vent.period * (0.5 + 0.5 * (i % 2)), warn: false })),
   };
   const slot = [0, 0];
@@ -34,7 +34,7 @@ export function createMatch(opts) {
     const team = mode === 'tudo' ? m.units.length : r.team;
     const u = {
       id: m.units.length, team, color: mode === 'tudo' ? 1 : r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
-      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null, radius: def.radius, moveRadius: def.boss ? def.radius : RULES.moveRadius, maxHp: Math.round(def.hp * (mods.hp || 1)), dmgMod: (mods.dmg || 1) * (def.dmgUp || 1),
+      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null, radius: def.radius, moveRadius: def.boss ? def.radius : RULES.moveRadius, maxHp: Math.round(def.hp * (mods.hp || 1) * (def.boss ? rule.bossHp || 1 : 1)), dmgMod: (mods.dmg || 1) * (def.dmgUp || 1),
       lv: def.lv || null, passive: def.passive ? def.passive.do : null, stanceDef: def.skills.find((s) => s.do === 'stance') || null,
       x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
@@ -85,7 +85,7 @@ function clearStatus(u) {
   u.hasteT = 0; u.hasteF = 1; u.rapidT = 0; u.rapidF = 1; u.dmgT = 0; u.dmgF = 1;
   u.stealthT = 0; u.invulnT = 0; u.healT = 0; u.healRate = 0; u.revealT = 0; u.combatT = 99;
   u.armorT = 0; u.armorF = 0; u.reflectF = 0; u.rageT = 0; u.rageF = 0; u.markT = 0; u.markBy = -1; u.markAmp = 0; u.markEx = 0;
-  u.primeT = 0; u.charge = 0; u.stance = false; u.ambushT = 0;
+  u.primeT = 0; u.charge = 0; u.stance = false; u.ambushT = 0; u.woundT = 0;
   u.cast = null; u.dash = null; u.bush = -1; u.kx = 0; u.kz = 0; u.vx = 0; u.vz = 0; u.hitBy = {};
 }
 
@@ -234,7 +234,7 @@ export function armorOf(m, u) {
     const P = o.def.passive;
     if (dist2(o.x, o.z, u.x, u.z) < P.radius * P.radius) { a += P.armor; break; }
   }
-  return Math.min(0.75, a);
+  return Math.min(RULES.armorCap, a);
 }
 
 export function gripAt(map, x, z, u) {
@@ -286,6 +286,7 @@ function stepUnit(m, u, inp) {
     else { burn(m, u, RULES.lava.dps * dt); if (!u.alive) return; }
   }
   if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
+  if (u.woundT > 0) u.woundT -= dt;
   if (u.healT > 0) { u.healT -= dt; heal(m, u, u.healRate * dt, u, true); }
 
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
@@ -472,7 +473,7 @@ const CAST = {
   rally(m, u, s) {
     for (const o of m.units) {
       if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
-      heal(m, o, s.heal, u);
+      heal(m, o, s.heal * (o === u ? RULES.selfHealMul : 1), u);
       o.slowT = 0; o.stunT = 0; o.markT = 0;
       o.hasteT = Math.max(o.hasteT, s.dur); o.hasteF = Math.max(o.hasteT > s.dur ? o.hasteF : 1, s.haste);
     }
@@ -558,7 +559,7 @@ const CAST = {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
     for (const o of m.units) {
       if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
-      heal(m, o, s.heal, u);
+      heal(m, o, s.heal * (o === u ? RULES.selfHealMul : 1), u);
       o.shield = Math.max(o.shield, s.shield); o.shieldMax = o.shield; o.shieldT = s.dur;
     }
   },
@@ -850,7 +851,7 @@ function stepZones(m) {
       for (const u of m.units) {
         if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
         if (u.team === z.team) {
-          if (z.hps && pulse) heal(m, u, z.hps * 0.5, owner);
+          if (z.hps && pulse) heal(m, u, z.hps * 0.5 * (u === owner ? RULES.selfHealMul : 1), owner);
           if (z.armor) { u.armorF = Math.max(u.armorT > 0.3 ? u.armorF : 0, z.armor); u.armorT = Math.max(u.armorT, 0.3); }
         } else {
           // pull > 0 drags toward the centre, pull < 0 shoves out of the field.
@@ -896,7 +897,7 @@ function stepZones(m) {
           if (f < wf) { wf = f; worst = u; }
         }
         z.target = worst ? worst.id : -1;
-        if (worst) heal(m, worst, z.hps * 0.5, owner);
+        if (worst) heal(m, worst, z.hps * 0.5 * (worst === owner ? RULES.selfHealMul : 1), owner);
       }
       if (!owner.alive || z.age > z.dur) done = true;
     } else if (z.kind === 'wire') {
@@ -981,6 +982,7 @@ function damage(m, u, amount, src, raw) {
     if (u.shield <= 0) { u.shieldT = 0; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
   }
   u.hp -= left; u.combatT = 0;
+  if (foe && left + absorbed >= RULES.wound.frac * u.maxHp) u.woundT = RULES.wound.dur;
   if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.hurtAllyAt = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
   m.events.push({ t: 'hit', id: u.id, by: src ? src.id : -1, x: u.x, z: u.z, amt: left, absorbed });
   if (foe && foe.alive && left > 0) {
@@ -1005,6 +1007,7 @@ function burn(m, u, amount) {
 
 function heal(m, u, amount, src, quiet) {
   if (!u.alive) return;
+  if (u.woundT > 0) amount *= RULES.wound.mul;
   const got = Math.min(u.maxHp - u.hp, amount);
   if (src && src !== u && src.passive === 'overheal' && amount - got >= 1) {
     const P = src.def.passive, add = Math.min(amount - got, P.cap - u.shield);
@@ -1018,7 +1021,7 @@ function heal(m, u, amount, src, quiet) {
 
 function kill(m, u, src) {
   const R = m.rule.respawn;
-  u.hp = 0; u.alive = false; u.deaths++; u.respawnT = R ? Math.min(R.max, R.base + R.perMin * m.time / 60) : RULES.respawn;
+  u.hp = 0; u.alive = false; u.deaths++; u.respawnT = Math.min(R.max, R.base + R.perMin * m.time / 60);
   const assists = [];
   let by = -1;
   if (src && src.team !== u.team) {
@@ -1044,7 +1047,7 @@ function takedown(m, o) {
 }
 
 function stepCrates(m) {
-  const C = RULES.crate;
+  const C = m.rule.crate;
   m.crateT -= TICK;
   if (m.crateT <= 0) {
     m.crateT = m.rng.range(C.every[0], C.every[1]);
