@@ -1030,7 +1030,7 @@ window.HUB_GAMES = [
     // Port từ Lanternfall (github.com/loktar00/lanternfall @ ada0fd5) bằng generator tools/port-lf-*.js, gate: node tools/gate.js.
     // Dùng nội bộ, có ghi công ở chân trang. Nguồn làm việc: D:\lf-humanoid trên HOB-THOR.
     path: "games/nhan-vat-3d/index.html",
-    rev: "20261114a",
+    rev: "20261115a",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   },
@@ -1044,7 +1044,7 @@ window.HUB_GAMES = [
     en: { title: "3D Prop Kit", tagline: "Over 100 junkyard props and 3 armoured vehicles built entirely from code, shown next to the concept art.", desc: "Containers, trailers, barriers, concrete blocks, drums, pallets, a workbench, a generator, chairs, tyres, cones, gunsmith gear and three post-apocalyptic armoured vehicles, each generated from a seed with new, worn and broken variants and opening doors, lids and drawers. No model or texture files." },
     thumbnail: "assets/thumbnails/kho-do-vat-3d.png",
     path: "games/kho-do-vat-3d/index.html",
-    rev: "20261115b"
+    rev: "20261115b",
     status: "available",
     tags: ["Thử nghiệm","Đồ vật 3D","Không asset"]
   },
@@ -1061,5 +1061,20 @@ window.HUB_GAMES = [
     rev: "20261115a",
     status: "available",
     tags: ["Thử nghiệm","Vũ khí 3D","Không asset"]
+  },
+  {
+    id: "nhan-vat-chibi",
+    title: "Dàn Nhân Vật Chibi",
+    tagline: "120 người sống sót và 10 zombie kiểu chibi dựng bằng code theo bảng ảnh mẫu, kèm hai cảnh lửa trại và xưởng súng.",
+    desc: "Dàn nhân vật mập mạp dễ thương: đầu bếp, đồ bảo hộ hoá chất, cảnh sát, lính cứu hoả, y tá, thợ mỏ, lính rằn ri, punk, người nuôi ong và nhiều nghề khác, có mũ, mặt nạ, đồ cầm tay và chó đi cùng; 10 zombie hoạt hình mắt lồi. Bấm một người để xoay xem và chọn động tác. Hai cảnh ghép người với đồ vật và vũ khí: lửa trại bên thùng phuy và xưởng sửa súng. Không tải tệp model hay texture nào.",
+    genre: "khac",
+    accent: "#f0a33a",
+    en: { title: "Chibi Character Roster", tagline: "120 chibi survivors and 10 zombies built from code after a concept sheet, plus a campfire and a gunsmith scene.", desc: "Chunky stylized survivors of every trade with headgear, masks, held props and dogs, and ten cartoon zombies; click one to orbit it and pick an animation. Two scenes combine the characters with the prop and weapon kits. No model or texture files." },
+    thumbnail: "assets/thumbnails/nhan-vat-chibi.png",
+    // Bộ chibi trong games/nhan-vat-3d (lib/chibi, lib/roster); nguồn làm việc D:\lf-humanoid trên HOB-THOR, xem STATUS.md.
+    path: "games/nhan-vat-3d/roster.html",
+    rev: "20261115a",
+    status: "available",
+    tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   }
 ];

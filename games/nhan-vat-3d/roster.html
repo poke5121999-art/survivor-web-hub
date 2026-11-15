@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roster Chibi</title>
+<style>
+  :root { --bg: #15151b; --panel: #1f1f27; --ink: #e8e6ef; --dim: #9a98a8; --acc: #ffb347; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; overflow-x: hidden; }
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  button { background: var(--panel); color: var(--ink); border: 1px solid #34343f; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.on { border-color: var(--acc); color: var(--acc); }
+  #wrap { position: relative; width: 100%; }
+  canvas.gl { display: block; width: 100%; touch-action: none; }
+  #info { padding: 6px 16px; color: var(--dim); min-height: 1.4em; }
+  #inspect { position: fixed; inset: 0; background: #0b0b10; display: none; flex-direction: column; z-index: 5; }
+  #inspect.on { display: flex; }
+  #inspect .bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; align-items: center; }
+  #inspect canvas { flex: 1; min-height: 0; width: 100%; touch-action: none; }
+  #istat { color: var(--dim); padding: 0 16px 10px; }
+  #list { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px 24px; }
+  #list button { font-size: 12px; padding: 4px 8px; }
+  footer { color: var(--dim); font-size: 12px; padding: 0 16px 20px; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Roster chibi</h1>
+  <button data-v="sheet" class="on">Sheet 6×20</button>
+  <button data-v="zombies">Zombies</button>
+  <span id="count"></span>
+</header>
+<div id="wrap"><canvas class="gl" id="grid"></canvas></div>
+<div id="info">Chạm một nhân vật để xem gần, xoay và chạy hoạt ảnh.</div>
+<div id="list"></div>
+<footer>Kit nhân vật port từ <a href="https://github.com/loktar00/lanternfall">Lanternfall by loktar00</a> (@ ada0fd5); preset chibi-survivor, thiết kế theo sheet của chủ dự án. three.js r170 (MIT).</footer>
+<div id="inspect">
+  <div class="bar">
+    <button id="close">← Lưới</button>
+    <strong id="iname"></strong>
+    <span style="flex:1"></span>
+    <span id="anims"></span>
+  </div>
+  <canvas id="icv"></canvas>
+  <div id="istat"></div>
+</div>
+<script type="module">
+import { THREE } from './lib/lf-host.js';
+import { createRenderer, studioEnv, addLights, Actor } from './lib/chibi/stage.js';
+import { createPost } from './lib/chibi/post.js';
+import { ROSTER, ZOMBIES } from './lib/roster/index.js';
+import { buildChibi } from './lib/chibi/compose.js';
+
+const QS = new URLSearchParams(location.search);
+const DEFS = new Map();
+const defOf = (sp) => { let d = DEFS.get(sp.id); if (!d) { d = buildChibi(sp); DEFS.set(sp.id, d); } return d; };
+const BG = 0x1a1b23, TILT = 0.12; // grid camera looks slightly down, like the sheet
+
+/* ---------------- grid ---------------- */
+const gcv = document.getElementById('grid'), R = createRenderer(gcv, { preserve: true, exposure: 0.78 });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(BG); scene.environment = studioEnv(R);
+addLights(scene, 'studio');
+const PG = createPost(R, { radius: 0.24, strength: 2.6, vignette: 0 });
+const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+let view = QS.get('v') || 'sheet', actors = [], layout = { cols: 20, rows: 6, cw: 1.0, rh: 2.05 };
+const still = QS.has('still');
+
+function cellsFor(v) {
+  if (v === 'zombies') return ZOMBIES.map((sp, i) => ({ sp, r: Math.floor(i / 5), c: i % 5 }));
+  return ROSTER.map((sp) => { const m = /^r(\d+)c(\d+)$/.exec(sp.id); return { sp, r: +m[1] - 1, c: +m[2] - 1 }; });
+}
+function showGrid(v) {
+  view = v; for (const a of actors) scene.remove(a.root); actors = [];
+  layout = v === 'zombies' ? { cols: 5, rows: 2, cw: 1.55, rh: 2.3 } : { cols: 20, rows: 6, cw: 1.0, rh: 2.05 };
+  for (const cell of cellsFor(v)) {
+    const a = new Actor(defOf(cell.sp), { t0: 2 + cell.c * 1.3 + cell.r * 0.7, shadows: false });
+    a.root.position.set((cell.c - (layout.cols - 1) / 2) * layout.cw - (a.dog ? 0.12 : 0), -cell.r * layout.rh, 0);
+    a.root.rotation.y = v === 'zombies' ? 0.1 : 0.22; a.cell = cell; scene.add(a.root); actors.push(a);
+    for (let i = 0; i < 40; i++) a.update(1 / 30); // settle into the carry pose (also when ?still)
+    if (a.dog) a.dog.mesh.scale.setScalar(0.42 * (cell.sp.pet.k || 1)), a.dog.mesh.position.set(0.42, 0, 0.25);
+  }
+  document.querySelectorAll('header button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('count').textContent = `${actors.length} nhân vật`;
+  const list = document.getElementById('list'); list.innerHTML = '';
+  for (const a of actors) { const b = document.createElement('button'); b.textContent = `${a.cell.sp.id} ${a.def.name}`; b.onclick = () => inspect(a.cell.sp); list.appendChild(b); }
+  resize();
+}
+function resize() {
+  const w = gcv.clientWidth, h = Math.round(w * (layout.rows * layout.rh + 0.15) / (layout.cols * layout.cw));
+  gcv.style.height = h + 'px'; R.setSize(w, h, false);
+  const W = layout.cols * layout.cw / 2, Ht = (layout.rows * layout.rh) / 2;
+  cam.left = -W; cam.right = W; cam.top = Ht; cam.bottom = -Ht; const cy = -(layout.rows - 1) * layout.rh / 2 + 0.95; cam.position.set(0, cy + 30 * Math.sin(TILT), 30 * Math.cos(TILT)); cam.lookAt(0, cy, 0); cam.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+gcv.addEventListener('click', (e) => {
+  const r = gcv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  const c = Math.floor(x * layout.cols), row = Math.floor(y * layout.rows);
+  const a = actors.find((q) => q.cell.c === c && q.cell.r === row); if (a) inspect(a.cell.sp);
+});
+document.querySelectorAll('header button').forEach((b) => b.onclick = () => showGrid(b.dataset.v));
+
+/* ---------------- inspect ---------------- */
+const icv = document.getElementById('icv'), IR = createRenderer(icv, { shadows: true, preserve: true });
+const iscene = new THREE.Scene(); iscene.background = new THREE.Color(0x1b1b22); iscene.environment = scene.environment;
+const IL = addLights(iscene, 'studio', { shadowLight: 'key', shadowR: 4 });
+const PI = createPost(IR, { radius: 0.24, strength: 2.4, vignette: 0.3 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.MeshStandardMaterial({ color: 0x2a2a33, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; iscene.add(ground);
+const icam = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+let cur = null, orbit = { yaw: 0.35, pitch: 0.12, dist: 5.2, ty: 0.9 }, anim = 'idle', walkA = 0;
+const ANIMS = ['idle', 'ready', 'walk', 'run', 'attack', 'hit', 'death'];
+const animBox = document.getElementById('anims');
+for (const n of ANIMS) { const b = document.createElement('button'); b.textContent = n; b.dataset.a = n; b.onclick = () => setAnim(n); animBox.appendChild(b); }
+function setAnim(n) { anim = n; if (cur) { cur.setMode(n); if (n !== 'walk' && n !== 'run') { cur.root.position.set(0, 0, 0); cur.root.rotation.y = 0; } } animBox.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.a === n)); }
+function inspect(sp) {
+  if (cur) iscene.remove(cur.root);
+  cur = new Actor(defOf(sp), { t0: 3 }); iscene.add(cur.root); setAnim(anim);
+  document.getElementById('iname').textContent = `${sp.id} · ${cur.def.name}`;
+  document.getElementById('inspect').classList.add('on'); iresize();
+  const u = new URL(location); u.searchParams.set('inspect', sp.id); history.replaceState(null, '', u);
+}
+document.getElementById('close').onclick = () => { document.getElementById('inspect').classList.remove('on'); const u = new URL(location); u.searchParams.delete('inspect'); history.replaceState(null, '', u); };
+function iresize() { const w = icv.clientWidth, h = icv.clientHeight; if (!w || !h) return; IR.setSize(w, h, false); icam.aspect = w / h; icam.updateProjectionMatrix(); }
+window.addEventListener('resize', iresize);
+{ // orbit: drag to turn, wheel / pinch to zoom
+  let drag = null; const pts = new Map();
+  icv.addEventListener('pointerdown', (e) => { icv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); drag = [e.clientX, e.clientY]; });
+  icv.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return; const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (orbit.pd) orbit.dist = Math.min(12, Math.max(1.2, orbit.dist * orbit.pd / d)); orbit.pd = d; return; }
+    orbit.yaw -= (e.clientX - prev[0]) * 0.008; orbit.pitch = Math.min(1.2, Math.max(-0.3, orbit.pitch + (e.clientY - prev[1]) * 0.005));
+  });
+  const up = (e) => { pts.delete(e.pointerId); orbit.pd = 0; }; icv.addEventListener('pointerup', up); icv.addEventListener('pointercancel', up);
+  icv.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.min(12, Math.max(1.2, orbit.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), statT = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  const open = document.getElementById('inspect').classList.contains('on');
+  if (!open) {
+    if (!still) for (const a of actors) a.update(dt);
+    R.info.reset(); PG.render(scene, cam);
+  } else if (cur) {
+    let sp = 0;
+    if (anim === 'walk' || anim === 'run') { sp = (anim === 'walk' ? 1.5 : 3.4) * (cur.def.speedK || 1); walkA += sp * dt / 2.2; cur.root.position.set(Math.sin(walkA) * 2.2, 0, Math.cos(walkA) * 2.2 - 0.0); cur.root.rotation.y = walkA + Math.PI / 2; }
+    cur.update(dt, sp);
+    const t = anim === 'walk' || anim === 'run' ? cur.root.position : new THREE.Vector3();
+    icam.position.set(t.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, orbit.ty + Math.sin(orbit.pitch) * orbit.dist, t.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+    icam.lookAt(t.x, orbit.ty, t.z); IL.key.position.set(t.x - 3, 6, t.z + 6); IL.key.target.position.copy(t); IL.key.target.updateMatrixWorld();
+    IR.info.reset(); PI.render(iscene, icam);
+    if ((statT += dt) > 0.4) { statT = 0; document.getElementById('istat').textContent = `${Math.round(cur.tris()).toLocaleString()} tam giác · ${cur.draws()} draw cho nhân vật${cur.dog ? ' + chó' : ''} · ${IR.info.render.calls} draw cả khung (có bóng) · pose ${cur.def.pose}`; }
+  }
+}
+showGrid(view);
+if (QS.get('inspect')) { let sp = [...ROSTER, ...ZOMBIES].find((s) => s.id === QS.get('inspect')); if (sp) { if (QS.get('a')) anim = QS.get('a'); if (QS.get('pose')) sp = Object.assign({}, sp, { id: sp.id + ':' + QS.get('pose'), pose: QS.get('pose') }); inspect(sp); } } // ?pose= tries another pose on a character
+requestAnimationFrame(frame);
+
+// hooks for tools/shoot-roster.js: render one character alone, front, framed like a sheet cell
+window.__cur = () => cur;
+window.__orbit = (y, p, d, ty) => { orbit.yaw = y; if (p !== undefined) orbit.pitch = p; if (d) orbit.dist = d; if (ty) orbit.ty = ty; };
+window.__roster = { ROSTER, ZOMBIES, defOf, actors: () => actors,
+  stats: () => actors.map((a) => ({ id: a.cell.sp.id, tris: a.tris(), draws: a.draws() })),
+  solo(id, o = {}) {
+    const sp = [...ROSTER, ...ZOMBIES].find((s) => s.id === id); if (!sp) return false;
+    for (const a of actors) a.root.visible = a.cell.sp.id === id;
+    const a = actors.find((q) => q.cell.sp.id === id); if (!a) return false;
+    const p = a.root.position, w = o.w || 1.25, h = w * (o.aspect || 1.75);
+    const px = gcv.clientWidth; gcv.style.height = Math.round(px * h / w) + 'px'; R.setSize(px, Math.round(px * h / w), false);
+    cam.left = -w / 2; cam.right = w / 2; cam.top = h / 2; cam.bottom = -h / 2; const cx = p.x + (a.dog ? 0.12 : 0), cy = p.y + h / 2 - 0.05; cam.position.set(cx, cy + 30 * Math.sin(TILT), 30 * Math.cos(TILT)); cam.lookAt(cx, cy, 0); cam.updateProjectionMatrix();
+    return true;
+  },
+  all() { for (const a of actors) a.root.visible = true; resize(); },
+};
+</script>
+</body>
+</html>

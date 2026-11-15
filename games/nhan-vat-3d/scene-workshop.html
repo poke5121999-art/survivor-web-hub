@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xưởng Súng</title>
+<style>
+  :root { --bg: #0c0d14; --ink: #e8e6ef; --dim: #9a98a8; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #cv { display: block; width: 100vw; height: 100vh; touch-action: none; }
+  #hud { position: fixed; left: 12px; bottom: 10px; right: 12px; color: var(--dim); pointer-events: none; }
+  #hud a { color: var(--dim); pointer-events: auto; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "./ext/stylized-props/vendor/three.module.min.js": "./vendor/three.module.min.js",
+  "./ext/stylized-weapons/vendor/three.module.min.js": "./vendor/three.module.min.js"
+} }
+</script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">Xưởng súng: 2 nhân vật chibi (kéo để xoay). Đồ vật: kit stylized-props, súng: kit stylized-weapons. Kit nhân vật port từ <a href="https://github.com/loktar00/lanternfall">Lanternfall by loktar00</a>. <span id="miss"></span></div>
+<script type="module">
+import { runScene } from './lib/chibi/scene-page.js';
+import { WORKSHOP } from './lib/roster/scenes.js';
+const S = Object.fromEntries(WORKSHOP.map((s) => [s.id, s]));
+runScene({
+  light: 'workshop', exposure: 1.05,
+  cam: { pos: [1.15, 3.85, 4.2], target: [-0.15, 0.8, -0.35] }, fov: 32,
+  cast: [
+    { scale: 1.2, spec: S['ws-soldier'], at: [-1.2, 0, -1.0], yaw: 0.45, weapon: { id: 'ak-taped', pole: [0.5, -1, -0.2] } },
+    { scale: 1.2, spec: S['ws-smoker'], at: [1.25, 0.06, 0.55], yaw: -2.15, t0: 5 },
+  ],
+  props: [
+    { id: 'gunsmith_bench', at: [0.15, 0, -0.45], yaw: 0.25, seed: 1, opts: { drawers: 0.6 } },
+    { id: 'chair_wood', at: [1.32, 0, 0.62], yaw: -2.15, seed: 1 },
+    { id: 'desk_lamp', at: [0.85, 0.95, -0.8], yaw: -0.4, seed: 1 },
+    { id: 'reloading_press', at: [-0.55, 0.95, -0.35], yaw: 0.3, seed: 1 },
+    { id: 'cutting_mat', at: [0.15, 0.95, -0.35], yaw: 0.25, seed: 1 },
+    { id: 'bench_vise', at: [0.95, 0.95, -0.25], yaw: 0.25, seed: 1 },
+    { id: 'walkie_talkie', at: [0.4, 0.97, -0.45], yaw: 0.2, seed: 1 },
+    { id: 'ashtray', at: [-0.15, 0.95, -0.05], seed: 1 },
+    { id: 'bottles_oil', at: [0.15, 0.95, -0.85], seed: 1 },
+    { id: 'mug', at: [-0.35, 0.95, -0.75], seed: 1 },
+    { id: 'dynamite_bundle', at: [-0.5, 0.95, 0.0], yaw: 0.4, seed: 1 },
+    { id: 'steel_cabinet_open', at: [-2.4, 0, -0.1], yaw: 0.35, seed: 1 },
+    { id: 'gas_cylinder_tall', at: [-2.7, 0, -0.95], seed: 1 },
+    { id: 'gas_bottle_red', at: [-3.15, 0, 0.3], seed: 1 },
+    { id: 'tool_chest_rolling', at: [2.15, 0, -0.75], yaw: -0.35, seed: 1 },
+    { id: 'kettle_stove', at: [2.3, 1.05, -0.9], yaw: -0.3, seed: 1 },
+    { id: 'lug_wrench', at: [2.2, 0, 1.1], yaw: 0.8, seed: 1 },
+    { id: 'shell_casings', at: [0.3, 0, 1.0], seed: 1 },
+    { id: 'fire_extinguisher', at: [0.75, 0, -0.75], seed: 1 },
+  ],
+  looseWeapons: [{ id: 'rifle-side-fold', at: [-2.05, 0.55, 0.75], rz: 0.12 }, { id: 'shotgun-pump-tape', at: [-1.75, 0.55, 0.9], rz: -0.1 }],
+  spots: [{ at: [0.6, 2.0, -0.6], col: 0xffd28a, intensity: 9, dist: 7, shadow: true }],
+  onInfo: (i) => { document.getElementById('miss').textContent = i.missing.length ? 'Thay tạm bằng khối: ' + i.missing.join(', ') : ''; },
+});
+</script>
+</body>
+</html>
