@@ -61,6 +61,7 @@
       const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), new THREE.MeshBasicMaterial({ map: BZ.tex('flash'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
       flash.visible = false; gun.add(flash);
       root.traverse((o) => { if (o.isMesh) o.castShadow = G.quality.shadow > 0; });
+      if (BZ.vox && BZ.vox.on && BZ.vox.voxTree) BZ.vox.voxTree(root, 1 / 32); // voxel look (default; ?vox=0 keeps the boxes)
       const barBg = new THREE.Mesh(G_BAR, new THREE.MeshBasicMaterial({ color: 0x0c1a08, depthWrite: false }));
       const barFg = new THREE.Mesh(G_BAR, new THREE.MeshBasicMaterial({ color: 0x6cd44a, depthWrite: false })); barFg.position.z = 0.002; barBg.add(barFg);
       G.scene.add(root); G.scene.add(barBg);

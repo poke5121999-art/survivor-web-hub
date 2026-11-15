@@ -200,6 +200,10 @@
     const FZ = [0.071, 0.024, -0.024, -0.071]; const FL = [[0.05, 0.036, 0.03], [0.055, 0.04, 0.032], [0.05, 0.037, 0.03], [0.04, 0.03, 0.026]];
     for (let f = 0; f < 4; f++) for (let j = 0; j < 3; j++) segs.push({ th: (0.05 - j * 0.006) * k, len: FL[f][j] * k, wd: (0.044 - j * 0.003) * k, sh: j === 0 ? 1.18 : j === 1 ? 1 : 0.84 });
     segs.push({ th: 0.05 * k, len: 0.055 * k, wd: 0.05 * k, sh: 1.05 }, { th: 0.044 * k, len: 0.042 * k, wd: 0.044 * k, sh: 0.86 });
+    // voxel look: every joint becomes a whole number of voxels (half the body's voxel, so a finger is still three across;
+    // the width rounds down so neighbouring fingers never share a face)
+    const vx = BZ.vox && BZ.vox.on && BZ.vox.handLook ? (o.vs || 1 / 32) / 2 : 0;
+    if (vx) for (const S of segs) { S.th = Math.max(1, Math.round(S.th / vx)) * vx; S.len = Math.max(1, Math.round(S.len / vx)) * vx; S.wd = Math.max(1, Math.floor(S.wd / vx + 0.25)) * vx; }
     const n = segs.length; const pos = new Float32Array(n * 72); const nor = new Float32Array(n * 72); const uv = new Float32Array(n * 48); const col = new Float32Array(n * 72); const idx = [];
     for (let i = 0; i < n; i++) for (let f = 0; f < 6; f++) {
       const b = i * 24 + f * 4; idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
@@ -210,7 +214,7 @@
     const pa = new THREE.BufferAttribute(pos, 3); pa.setUsage(THREE.DynamicDrawUsage); const na = new THREE.BufferAttribute(nor, 3); na.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('position', pa); geo.setAttribute('normal', na); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, -0.1 * k, 0), 0.3 * k); geo.boundingBox = new THREE.Box3(new THREE.Vector3(-0.15 * k, -0.28 * k, -0.15 * k), new THREE.Vector3(0.15 * k, 0.02 * k, 0.15 * k));
-    const mesh = new THREE.Mesh(geo, BZ.mat(texKey, { vc: true })); mesh.castShadow = true; mesh.name = 'hand';
+    const mesh = new THREE.Mesh(geo, vx ? BZ.vox.handLook(geo, segs, vx, BZ.vox.texAvg(texKey)) : BZ.mat(texKey, { vc: true })); mesh.castShadow = true; mesh.name = 'hand';
     const cur = { c: [0.3, 0.36, 0.42, 0.48], t: [0.25, 0.3], s: 0.25 };
     // write one box: origin O (the joint), unit axes T (thickness), D (down the finger), W (width); it spans D from 0 to len
     const put = (i, ox, oy, oz, T, D, W) => {
@@ -268,7 +272,7 @@
     textures(h);
     const L = h.look; const C = (c) => BZ.cellTex(c); const id = h.id;
     const part = (name, boxes) => {
-      if (BZ.vox && BZ.vox.on && BZ.vox.heroPart && BZ.vox.hero === id) return BZ.vox.heroPart(id, name, boxes);
+      if (BZ.vox && BZ.vox.on && BZ.vox.heroPart) return BZ.vox.heroPart(id, name, boxes); // voxel look (default; ?vox=0 keeps the boxes)
       const B = new BZ.Builder('hero:' + id + ':' + name);
       // a box may carry a 4th entry: a brightness (same material, darker or lighter through vertex colour, so no extra draw call) or { k, rect }
       for (const [a, b, m, o] of boxes) { const k = typeof o === 'number' ? o : o && o.k ? o.k : 1; B.box(a, b, m, { uv: 'fit', vary: 0, tint: [k, k, k], rect: o && o.rect }); }
@@ -414,7 +418,7 @@
       }
     }
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    if (BZ.vox && BZ.vox.on && BZ.vox.hero === id) { out.vox = true; out.heroId = id; }
+    if (BZ.vox && BZ.vox.on && BZ.vox.heroPart) { out.vox = true; out.heroId = id; }
     return out;
   }
 

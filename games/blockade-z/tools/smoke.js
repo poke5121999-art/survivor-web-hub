@@ -194,9 +194,9 @@ const BOT = `(() => {
         __sim(2.5); r.dmg = Math.round(hp0 - zs.reduce((a, z) => a + Math.max(0, z.hp), 0)); out[G.hero.id] = r;
       }
       __select.open(); __select.pick(4); __select.go(); __sim(0.3); G.zombies.clear(); G.wave.toSpawn = 0; G.wave.total = 999;
-      const P = G.player; P.pos.set(-15.62, 0, -20.6); P.yaw = 0; P.vel.set(0, 0, 0); __sim(0.2); P.touch.y = -1; P.jumpBuf = 0.13; let wall = 0; let top = 0;
+      const wo = G.vox && G.vox.street ? -20 : 0; /* voxel town: the wall to run along is the west perimeter wall (x = -36), the box town's is the apartment's east wall (x = -16) */ const P = G.player; P.pos.set(-15.62 + wo, 0, -20.6); P.yaw = 0; P.vel.set(0, 0, 0); __sim(0.2); P.touch.y = -1; P.jumpBuf = 0.13; let wall = 0; let top = 0;
       for (let i = 0; i < 70; i++) { __sim(1 / 60); if (P.wallRun) wall++; top = Math.max(top, P.pos.y); }
-      P.pos.set(-15.2, 0, -23.5); P.yaw = Math.PI / 2; P.vel.set(0, 0, 0); __sim(0.2); let climb = 0;
+      P.pos.set(-15.2 + wo, 0, -23.5); P.yaw = Math.PI / 2; P.vel.set(0, 0, 0); __sim(0.2); let climb = 0;
       for (let i = 0; i < 50; i++) { __sim(1 / 60); climb = Math.max(climb, P.pos.y); }
       P.touch.y = 0; out.wall = wall; out.wallTop = +top.toFixed(2); out.climb = +climb.toFixed(2);
       return out; })()`);

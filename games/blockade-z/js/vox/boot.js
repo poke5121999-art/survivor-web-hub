@@ -4,10 +4,10 @@
 // ?voxz=<type> (default walker), ?voxpost=0, ?voxaudio=0, ?voxanim=0, ?voxfx=0, ?voxstreet=0 switch one part off for bisecting.
 const BZ = (window.BZ = window.BZ || {});
 const P = BZ.params || Object.fromEntries(new URLSearchParams(location.search));
-const V = (BZ.vox = { on: P.vox === '1', mods: {}, order: [], hero: P.voxhero || 'mua', ztype: P.voxz || 'walker', want: (k) => P['vox' + k] !== '0' });
+const V = (BZ.vox = { on: P.vox !== '0', mods: {}, order: [], want: (k) => P['vox' + k] !== '0' });
 // a module registers a factory; BZ.vox.make(G) runs them in load order and hangs each result on G.vox[name]
 V.register = (name, make) => { V.mods[name] = make; if (!V.order.includes(name)) V.order.push(name); };
-const FILES = ['voxelize', 'zombie', 'street', 'fx', 'audio', 'anim', 'post', 'ui'];
+const FILES = ['voxelize', 'zombie', 'town', 'fx', 'audio', 'anim', 'post', 'ui'];
 V.load = async () => {
   for (const f of FILES) {
     try { await import('./' + f + '.js?v=' + (document.querySelector('script[src*="vox/boot.js"]') || { src: '' }).src.split('v=')[1]); }

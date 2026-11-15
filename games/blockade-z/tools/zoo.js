@@ -19,7 +19,7 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=5&noaudio=1&tod=0.42&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=5&noaudio=1&tod=0.42&weather=clear' + (process.env.BZ_EXTRA || '')); // BZ_EXTRA='&vox=0' runs the old box look
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const stage = `(() => { const G = __G; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear(); __setShot('plaza'); const P = G.player; P.pos.set(0, 0, 9); P.yaw = 0; P.pitch = -0.12; P.vel.set(0, 0, 0); })()`;
     const hideHud = "for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }";
@@ -111,18 +111,19 @@ const KINDS = ['spitter', 'bloater', 'hound', 'shielder', 'armored', 'shrieker',
     const body = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); G.fx.clear(); G.state = 'playing'; G.wave.toSpawn = 0; G.player.pos.set(0, 0, 20);
       const z = G.zombies.spawn('walker', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(0, 0, 0); let knee = 0; let elbow = 0;
       for (let i = 0; i < 120; i++) { __sim(1 / 60); knee = Math.max(knee, z.body.kneeL.rotation.x, z.body.kneeR.rotation.x); elbow = Math.min(elbow, z.body.elbowL.rotation.x); }
-      const headMats = z.body.head.material.length; const g0 = G.scene.children.length;
+      const headMats = Array.isArray(z.body.head.material) ? z.body.head.material.length : 1; const vox = !!G.vox; const g0 = G.scene.children.length;
       G.zombies.sever(z, 'legL', new G.THREE.Vector3(1, 0, 0)); const piece = G.scene.children[G.scene.children.length - 1];
-      return { knee: +knee.toFixed(2), elbow: +elbow.toFixed(2), headMats, added: G.scene.children.length - g0, pieceMeshes: piece.children.filter((c) => c.isMesh).length, crawl: z.crawl }; })()`);
+      return { knee: +knee.toFixed(2), elbow: +elbow.toFixed(2), headMats, vox, added: G.scene.children.length - g0, pieceMeshes: piece.children.filter((c) => c.isMesh).length, crawl: z.crawl }; })()`);
     console.log('body', JSON.stringify(body));
     check(body.knee > 0.3 && body.elbow < -0.3, `a walking zombie bends its knees and elbows (knee up to ${body.knee} rad, elbow ${body.elbow})`);
-    check(body.headMats === 2, `the head draws in two calls (${body.headMats} materials)`);
+    // (voxel look: the head is one voxel mesh with the face baked in, so one call; the box look keeps skin + face)
+    check(body.vox ? body.headMats === 1 : body.headMats === 2, `the head draws in ${body.vox ? 'one call' : 'two calls'} (${body.headMats} materials)`);
     // a spider is cheap to draw (they come in swarms): its eight legs are two instanced meshes, and they follow the leg bones
     { const sp = await page.evaluate(`(() => { const G = __G; G.zombies.clear(); __sim(0.1); const P = G.player; const z = G.zombies.spawn('spider', 1, { x: 0, z: 0, dir: [0, 1], name: 't' }); z.pos.set(P.pos.x - Math.sin(P.yaw) * 5, 0, P.pos.z - Math.cos(P.yaw) * 5); z.speed = 0; z.cd = 99; __sim(0.2);
         const X = z.body.x; let draws = 0; X.spider.traverseVisible((o) => { if (o.isMesh) draws += Array.isArray(o.material) ? o.geometry.groups.length : 1; });
         const m = new G.THREE.Matrix4(); const p = new G.THREE.Vector3(); let off = 0; X.legs.forEach((l, k) => { X.legU.getMatrixAt(k, m); p.setFromMatrixPosition(m); off = Math.max(off, p.distanceTo(l.hip.position)); });
-        const n0 = G.fx.debug().gibs; G.zombies.kill(z, 'body', new G.THREE.Vector3(0, 0, 1), {}); __sim(0.1); const r = { draws, legs: X.legU.count + X.legL.count, off: +off.toFixed(3), gibs: G.fx.debug().gibs - n0 }; G.zombies.clear(); return r; })()`);
-      check(sp.draws <= 10 && sp.legs === 16 && sp.off < 0.01 && sp.gibs >= 16, `a spider draws in ${sp.draws} calls, its ${sp.legs} leg bones as two instanced meshes that sit on the hips (off by ${sp.off}); it still bursts into ${sp.gibs} pieces`); }
+        const vp = () => (G.vox && G.vox.pool ? G.vox.pool.count() : 0); const n0 = G.fx.debug().gibs + vp(); G.zombies.kill(z, 'body', new G.THREE.Vector3(0, 0, 1), {}); __sim(0.1); const r = { draws, legs: X.legU.count + X.legL.count, off: +off.toFixed(3), gibs: G.fx.debug().gibs + vp() - n0 }; G.zombies.clear(); return r; })()`);
+      check(sp.draws <= 10 && sp.legs === 16 && sp.off < 0.01 && sp.gibs >= 16, `a spider draws in ${sp.draws} calls, its ${sp.legs} leg bones as two instanced meshes that sit on the hips (off by ${sp.off}); it still bursts into ${sp.gibs} pieces (gibs, or voxel chunks in the voxel look)`); }
     check(body.pieceMeshes === 2 && body.crawl, `a severed leg flies off with its shin (${body.pieceMeshes} meshes in the piece) and the zombie crawls`);
     // a real late wave: the specials and elites come through the gates on their own
     const late = await page.evaluate(`(() => { const G = __G; G.god = true; G.zombies.clear(); const seen = new Set(); let elites = 0;

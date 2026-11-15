@@ -175,6 +175,7 @@
       P.push(...g.attributes.position.array); N.push(...g.attributes.normal.array); U.push(...g.attributes.uv.array); for (let i = 0; i < n; i++) C.push(col.r, col.g, col.b); g.dispose();
     }
     const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); out.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    out.userData.garb = boxes; // the box list itself, for the voxel look (js/vox/voxelize.js)
     return (garbGeo[key] = out);
   }
   let garbMat = null; let garbGlow = null;
@@ -482,8 +483,9 @@
       if (T.kind === 'boss2') return B().die(z, dir);
       if (T.rig) {
         const b = z.body; b.root.updateMatrixWorld(true);
-        const meshes = []; (T.rig === 'spider' ? X.spider : X.eggG).traverse((o) => { if (o.isMesh && !o.isInstancedMesh) meshes.push(o); });
-        for (const m of meshes) G.fx.gib(m, V().set(G.rng.range(-3, 3), G.rng.range(3, 7), G.rng.range(-3, 3)).addScaledVector(dir, 2));
+        if (z.vox && G.vox && G.vox.zombie) G.vox.zombie.collapse(z, dir); // voxel look: the body falls into its voxels
+        else { const meshes = []; (T.rig === 'spider' ? X.spider : X.eggG).traverse((o) => { if (o.isMesh && !o.isInstancedMesh) meshes.push(o); });
+          for (const m of meshes) G.fx.gib(m, V().set(G.rng.range(-3, 3), G.rng.range(3, 7), G.rng.range(-3, 3)).addScaledVector(dir, 2)); }
         const goo = T.rig === 'egg' ? [0xd8d0b0, 0x9aff40, 0x5ac030] : [0x9aff40, 0x3a8a20, 0x2a1a30];
         G.fx.burst(at, T.boss ? 60 : 24, goo, { speed: T.boss ? 9 : 5, size: T.boss ? 0.2 : 0.1, life: 0.9 });
         G.fx.splat(V().set(z.pos.x, z.pos.y, z.pos.z), (T.boss ? 3 : 1) * T.scale);

@@ -268,15 +268,20 @@
   const glowSprite = (col, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: col, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.scale.setScalar(size); return s; };
   // a plain world-space copy (no arms, fogged, lit like the scene) for weapons lying on the ground or in a soldier's hands
   const worldCache = {};
+  // voxel look (default; ?vox=0 keeps the boxes): a gun's Builder records its boxes and the built group becomes one voxel mesh per moving part
+  const voxOn = () => !!(BZ.vox && BZ.vox.on && BZ.vox.voxBuilt);
+  const FP_VS = 0.01; const WG_VS = 1 / 48; // first-person viewmodel units; world model (third person, soldiers, pickups)
+  const mkB = (seed) => { const B = new BZ.Builder(seed); if (voxOn()) B.rec = []; return B; };
+  const voxG = (grp, vs) => { if (voxOn()) BZ.vox.voxBuilt(grp, vs); return grp; };
   BZ.worldGun = (id) => {
     if (!worldCache[id]) {
-      const D = GUNS[id]; const B = new BZ.Builder('wgun:' + id); const BB = new BZ.Builder('wgun:' + id + ':b');
+      const D = GUNS[id]; const B = mkB('wgun:' + id); const BB = mkB('wgun:' + id + ':b');
       const tilt = new THREE.Matrix4().makeRotationX(0.28);
       for (const p of D.parts) (p[7] === 'barrels' ? BB : B).box([p[0], p[1], p[2]], [p[3], p[4], p[5]], p[6], { uv: 'fit', vary: 0, flat: true });
       for (const p of D.grip) { B.push(tilt); B.box([p[0], p[1], p[2]], [p[3], p[4], p[5]], p[6], { uv: 'fit', vary: 0, flat: true }); B.pop(); }
       const matOpts = {}; for (const k of Object.keys(GLOW)) matOpts[k] = { emissive: GLOW[k] };
-      const main = B.build({ cast: false, matOpts });
-      if (BB.batches.size) { const grp = new THREE.Group(); grp.add(main); const bar = BB.build({ cast: false, matOpts }); bar.name = 'barrels'; grp.add(bar); worldCache[id] = grp; } else worldCache[id] = main;
+      const main = voxG(B.build({ cast: false, matOpts }), WG_VS);
+      if (BB.batches.size) { const grp = new THREE.Group(); grp.add(main); const bar = voxG(BB.build({ cast: false, matOpts }), WG_VS); bar.name = 'barrels'; grp.add(bar); worldCache[id] = grp; } else worldCache[id] = main;
     }
     const g = worldCache[id].clone();
     if (GUNS[id].saber) { const h = saberHalo(1.0); h.position.y = 0.72; g.add(h); }
@@ -331,39 +336,39 @@
     const D = GUNS[id];
     // One builder per moving part (body, slide, bolt, pump, mag) so reloads can animate them.
     const builders = {};
-    const builder = (r) => (builders[r] = builders[r] || new BZ.Builder('gun:' + id + ':' + r));
+    const builder = (r) => (builders[r] = builders[r] || mkB('gun:' + id + ':' + r));
     const box = (B, p) => B.box([p[0], p[1], p[2]], [p[3], p[4], p[5]], p[6], { uv: 'fit', vary: 0, flat: true });
     for (const p of D.parts) if (p[7] !== 'knuckle') box(builder(p[7] || 'body'), p);
     const tilt = new THREE.Matrix4().makeRotationX(0.28);
     for (const p of D.grip) { const B = builder(p[7] || 'body'); B.push(tilt); box(B, p); B.pop(); }
     const matOpts = {}; for (const k of Object.keys(GLOW)) matOpts[k] = { emissive: GLOW[k] };
     const g = new THREE.Group(); const parts = {};
-    for (const [r, B] of Object.entries(builders)) { const m = B.build({ matOpts }); m.name = r; g.add(m); parts[r] = m; }
+    for (const [r, B] of Object.entries(builders)) { const m = voxG(B.build({ matOpts }), FP_VS); m.name = r; g.add(m); parts[r] = m; }
     const items = Object.values(parts).slice(); // what leaves the hand when it is thrown
     if (id === 'shotgun') {
-      const SB = new BZ.Builder('shell');
+      const SB = mkB('shell');
       SB.box([-0.018, -0.018, -0.05], [0.018, 0.018, 0.03], 'g_red', { uv: 'fit', vary: 0, flat: true });
       SB.box([-0.019, -0.019, 0.03], [0.019, 0.019, 0.05], 'g_gold', { uv: 'fit', vary: 0, flat: true });
-      parts.shell = SB.build(); parts.shell.visible = false; g.add(parts.shell);
+      parts.shell = voxG(SB.build(), FP_VS); parts.shell.visible = false; g.add(parts.shell);
     }
     // Arms: gloved hand at the origin, camo forearm running back and down out of frame.
     const arm = (yaw, pitch, side) => {
-      const AB = new BZ.Builder('arm');
+      const AB = mkB('arm');
       AB.box([-0.047, -0.052, 0.03], [0.047, 0.052, 0.06], D.glove || 'glove', { uv: 'fit', vary: 0, tint: [0.7, 0.7, 0.7] });
       AB.push(new THREE.Matrix4().makeRotationY(yaw).multiply(new THREE.Matrix4().makeRotationX(pitch)));
       AB.box([-0.05, -0.055, 0.04], [0.05, 0.055, 0.22], D.sleeve ? D.sleeve : 'g_body2', { uv: 'fit', vary: 0 });
       AB.box([-0.055, -0.06, 0.2], [0.055, 0.06, 0.62], D.sleeve || 'sleeve', { uv: 'world', uvScale: 6, vary: 0 });
       AB.pop();
-      const out = AB.build();
+      const out = voxG(AB.build(), FP_VS);
       // the hand itself: a palm and fourteen finger joints in one mesh (BZ.makeHand), turned so the fingers reach forward and wrap what is held
-      const f = BZ.makeHand(D.glove || 'glove', side, { scale: 0.62 }); f.mesh.applyMatrix4(HAND_FP); f.mesh.position.set(0, 0, 0.045); f.mesh.castShadow = false; out.add(f.mesh); out.userData.fingers = f;
+      const f = BZ.makeHand(D.glove || 'glove', side, { scale: 0.62, vs: FP_VS * 2 }); f.mesh.applyMatrix4(HAND_FP); f.mesh.position.set(0, 0, 0.045); f.mesh.castShadow = false; out.add(f.mesh); out.userData.fingers = f;
       return out;
     };
     parts.handR = arm(...(D.armR || [0.35, 0.5]), -1); parts.handR.position.set(...(D.rh || [0, -0.07, 0.025])); parts.handR.rotation.x = D.hrot ? D.hrot[0] : 0.28; if (D.hyaw) parts.handR.rotation.y = D.hyaw[0]; g.add(parts.handR);
     parts.handL = arm(-0.55, 0.35, 1); parts.handL.rotation.x = D.hrot ? D.hrot[1] : D.dual ? 0.28 : 0; if (D.hyaw) parts.handL.rotation.y = D.hyaw[1]; g.add(parts.handL);
     if (D.parts.some((p) => p[7] === 'knuckle')) {
-      const KB = new BZ.Builder('knuckle'); for (const p of D.parts) if (p[7] === 'knuckle') box(KB, p);
-      for (const h of [parts.handR, parts.handL]) { h.add(KB.build({ matOpts })); h.scale.setScalar(D.kscale || 1.18); }
+      const KB = mkB('knuckle'); for (const p of D.parts) if (p[7] === 'knuckle') box(KB, p);
+      for (const h of [parts.handR, parts.handL]) { h.add(voxG(KB.build({ matOpts }), FP_VS)); h.scale.setScalar(D.kscale || 1.18); }
     }
     g.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.fog = false; } });
     const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: BZ.tex('flash'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));

@@ -249,12 +249,12 @@
         blob.add({ x: px, y: py + 0.3, z: pz, vx: tv.x, vy: tv.y, vz: tv.z, s0: 0.36 * P * rr(0.7, 1.2), s1: rr(0.5, 1.0) * P, rgb: [1.3, rr(0.4, 0.65), 0.1], life: rr(0.55, 1.05), drag: 4, g: -2.6 });
       }
       // smoke body and a rising column of square puffs
-      for (let i = 0; i < cnt(11 + 5 * P, f); i++) {
-        tv.set(rr(-1, 1), rr(0, 1), rr(-1, 1)).normalize().multiplyScalar(rr(1.5, 4.5 * Z));
-        dust.add({ x: px, y: py + 0.3, z: pz, vx: tv.x, vy: tv.y + 1, vz: tv.z, s0: 0.4 * P, s1: rr(1.0, 1.7) * P, c: shade(0x4a4640, 0.3), a: 0.55, life: rr(1.4, 2.6), drag: 1.6, g: -0.6 });
-      }
       for (let i = 0; i < cnt(8 + 3 * P, f); i++) {
-        dust.add({ x: px + rr(-0.3, 0.3) * P, y: py + 0.2 + i * 0.12, z: pz + rr(-0.3, 0.3) * P, vx: rr(-0.8, 0.8), vy: rr(3, 8 + 2 * P), vz: rr(-0.8, 0.8), s0: 0.35 * P, s1: rr(0.9, 1.4) * P, c: shade(0x7a7468, 0.25), a: 0.5, life: rr(1.8, 3.2), drag: 1.5, g: -0.5 });
+        tv.set(rr(-1, 1), rr(0, 1), rr(-1, 1)).normalize().multiplyScalar(rr(1.5, 4.5 * Z));
+        dust.add({ x: px, y: py + 0.3, z: pz, vx: tv.x, vy: tv.y + 1, vz: tv.z, s0: 0.4 * P, s1: rr(1.0, 1.7) * P, c: shade(0x4a4640, 0.3), a: 0.4, life: rr(1.4, 2.6), drag: 1.6, g: -0.6 });
+      }
+      for (let i = 0; i < cnt(6 + 2 * P, f); i++) {
+        dust.add({ x: px + rr(-0.3, 0.3) * P, y: py + 0.2 + i * 0.12, z: pz + rr(-0.3, 0.3) * P, vx: rr(-0.8, 0.8), vy: rr(3, 8 + 2 * P), vz: rr(-0.8, 0.8), s0: 0.35 * P, s1: rr(0.9, 1.4) * P, c: shade(0x7a7468, 0.25), a: 0.36, life: rr(1.8, 3.2), drag: 1.5, g: -0.5 });
       }
       // sparks min(90, 34P) streaks 6-26 m/s drag 1.4, embers 10P
       const up = new THREE.Vector3(0, 1, 0);
@@ -296,9 +296,9 @@
       const fy = G.fx && G.fx.floorY ? G.fx.floorY(px, py, pz) : 0;
       for (let i = 0; i < cnt(10 + 10 * m, f); i++) {
         const a = rnd() * 6.283; const sp = rr(1.5, 4.5 + m);
-        dust.add({ x: px + Math.cos(a) * 0.5 * m, y: fy + 0.2, z: pz + Math.sin(a) * 0.5 * m, vx: Math.cos(a) * sp, vy: rr(0.2, 1.4), vz: Math.sin(a) * sp, s0: 0.3 * m, s1: rr(1.0, 1.7) * m, c: shade(o.color ?? 0x8a847a, 0.18), a: 0.62, life: rr(1.3, 2.4), drag: 2, g: -0.2 });
+        dust.add({ x: px + Math.cos(a) * 0.5 * m, y: fy + 0.2, z: pz + Math.sin(a) * 0.5 * m, vx: Math.cos(a) * sp, vy: rr(0.2, 1.4), vz: Math.sin(a) * sp, s0: 0.3 * m, s1: rr(1.0, 1.7) * m, c: shade(o.color ?? 0x8a847a, 0.18), a: 0.62 * (o.a ?? 1), life: rr(1.3, 2.4), drag: 2, g: -0.2 });
       }
-      for (let i = 0; i < cnt(4 + 4 * m, f); i++) dust.add({ x: px + rr(-0.5, 0.5) * m, y: py, z: pz + rr(-0.5, 0.5) * m, vx: rr(-0.5, 0.5), vy: rr(0.5, 2.5), vz: rr(-0.5, 0.5), s0: 0.4 * m, s1: rr(1.0, 1.6) * m, c: shade(o.color ?? 0x8a847a, 0.15), a: 0.55, life: rr(1.6, 2.6), drag: 1.4, g: -0.4 });
+      for (let i = 0; i < cnt(4 + 4 * m, f); i++) dust.add({ x: px + rr(-0.5, 0.5) * m, y: py, z: pz + rr(-0.5, 0.5) * m, vx: rr(-0.5, 0.5), vy: rr(0.5, 2.5), vz: rr(-0.5, 0.5), s0: 0.4 * m, s1: rr(1.0, 1.6) * m, c: shade(o.color ?? 0x8a847a, 0.15), a: 0.55 * (o.a ?? 1), life: rr(1.6, 2.6), drag: 1.4, g: -0.4 });
       const s = 0.4 * Math.sqrt(m) * fall(cd, 14);
       longShakes.push({ t: 0, dur: 1.1 + 0.5 * m, amp: s, acc: 0 });
     }

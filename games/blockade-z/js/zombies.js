@@ -145,7 +145,7 @@
       z.crawl = false; z.landT = 0; z.throwT = 0; z.legHits = { legL: 0, legR: 0 }; z.frozen = 0; z.chillT = 0; z.st = {}; z.stFlags = 0; z.fxF = 0; z.rootT = 0; z.rootAt = null; z.fearT = 0;
       K.init(z, T, wave);
       for (const k of ['armL', 'armR', 'legL', 'legR', 'torso']) z.body[k].visible = true;
-      for (const s of Object.values(z.body.stumps)) { s.visible = false; s.material = BZ.mat('z_meat'); }
+      for (const s of Object.values(z.body.stumps)) { s.visible = false; if (!s.userData.voxS) s.material = BZ.mat('z_meat'); } // (a voxel stump keeps its voxel material)
       z.vel.set(0, 0, 0);
       z.yaw = Math.atan2(-gate.dir[0], -gate.dir[1]);
       z.phase = G.rng.range(0, 6); z.attackT = 0; z.windT = -1; z.flash = 0; z.voiceT = G.rng.range(1, 5); z.stuck = 0; z.sideT = 0; z.side = G.rng.next() < 0.5 ? 1 : -1; z.stillT = 0; z.ax = NaN; z.az = 0;
@@ -326,7 +326,7 @@
       z.stillT = 0; z.stuck = 0; z.ax = NaN; z.regated = (z.regated || 0) + 1; stats.regated++;
       z.body.root.position.copy(z.pos);
     }
-    function update(dt) { update0(dt); for (const z of list) if (z.body.root.visible && !z.T.rig) { joints(z, dt); if (z.vox && BZ.vox.animZombie) BZ.vox.animZombie(z, dt); } }
+    function update(dt) { update0(dt); for (const z of list) if (z.body.root.visible && !z.T.rig) { joints(z, dt); if (z.voxHum && !z.T.quad && BZ.vox.animZombie) BZ.vox.animZombie(z, dt); } }
     function update0(dt) {
       K.update(dt);
       if (G.coop && G.coop.guest) { puppets(dt); return; }
@@ -768,7 +768,7 @@
       const burn = opt.cut === 'saber'; const s = z.T.scale;
       const v = V3().copy(dir).multiplyScalar(G.rng.range(2.5, 5) * (opt.blast ? 1.8 : 1)).add(V3().set(G.rng.range(-1.2, 1.2), G.rng.range(2.5, 5) * (opt.blast ? 1.6 : 1), G.rng.range(-1.2, 1.2)));
       G.fx.gib(mesh, v, { burn });
-      mesh.visible = false; if (b.stumps[part]) { b.stumps[part].visible = true; b.stumps[part].material = burn ? burnMat : BZ.mat('z_meat'); }
+      mesh.visible = false; if (b.stumps[part]) { b.stumps[part].visible = true; if (!b.stumps[part].userData.voxS) b.stumps[part].material = burn ? burnMat : BZ.mat('z_meat'); }
       const at = mesh.getWorldPosition(V3());
       if (burn) G.fx.burst(at, 12, [0xffd060, 0xff8a20, 0x3a3a3c], { speed: 2.5, size: 0.08, life: 0.6, grav: -1 });
       else { G.fx.burst(at, 18, [0xc0281e, 0x8a1410, 0x9db08a], { dir, push: 3, size: 0.1, speed: 4.5 }); G.fx.splat(V3().set(at.x, z.pos.y, at.z), 1.1 * s); }

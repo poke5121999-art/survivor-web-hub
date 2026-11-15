@@ -1,4 +1,4 @@
-// Blockade Z voxel prototype: the vox panel and hit feedback (?vox=1).
+// Blockade Z voxel UI: hit feedback (and a debug-only panel behind ?voxui=dev).
 //  - a corner chip on the title and pause screens opens a small panel: voxel mode on/off (reloads without ?vox=1) and
 //    voxel quality low / medium / high (reloads with ?voxq=). Both are plain links to a new URL, so nothing hides state.
 //  - api.hit({ kill, head }) draws a pixel hit marker around the crosshair: white ticks for a hit, gold with a pip for a head, a larger red
@@ -86,7 +86,9 @@ body.vx-menu .vx-wrap { display: flex; }
   <div class="vx-seg" data-k="q"><button type="button" data-v="low" aria-pressed="${q === 'low'}">${L.low}</button><button type="button" data-v="medium" aria-pressed="${q === 'medium'}">${L.medium}</button><button type="button" data-v="high" aria-pressed="${q === 'high'}">${L.high}</button></div>
   <div class="vx-note" aria-live="polite"></div>
 </div>`;
-    doc.body.appendChild(wrap);
+    // Voxel is the game now: players get no switch. The panel is only attached with ?voxui=dev (debugging); ?vox=0 is the
+    // hidden fallback to the box version and the voxel detail follows Settings > Graphics > Quality.
+    if (P.voxui === 'dev') doc.body.appendChild(wrap);
     const chip = wrap.querySelector('.vx-chip'); const panel = wrap.querySelector('.vx-panel'); const note = wrap.querySelector('.vx-note');
     let isOpen = false;
     function open(v) {

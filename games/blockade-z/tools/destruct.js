@@ -1,3 +1,5 @@
+// (Box town only: this suite runs with ?vox=0, the hidden fallback. The voxel town, which is the default, is covered by
+// tools/voxdestruct.js.)
 // Breakable town: a rocket blows a hole in the apartment wall (cracks around it, the hole lets shots and zombies
 // through), knocking out the ground floor brings the floor above crashing down on a zombie, a boss slam breaks
 // what it lands next to, and a new run rebuilds everything. Screenshots of each step for review.
@@ -20,7 +22,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear&vox=0');
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const shot = async (name) => { await page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }"); await page.waitForTimeout(200); await page.screenshot({ path: path.join(OUT, `brk-${name}.png`) }); };
     // look at the guard post's south face (z = -22, x 14..28) from the forecourt

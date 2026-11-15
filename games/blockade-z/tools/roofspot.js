@@ -8,7 +8,9 @@ exports.FIND_ROOF = `(() => { const G = __G; const T = G.THREE; const V = (x, y,
       if (!wh || wh.t < 6 || Math.abs(wh.normal[1]) > 0.3) continue;
       const n = V(...wh.normal); const face = V(x, 1.1, z).addScaledVector(d, wh.t);
       const probe = V(face.x - n.x * 1.2, 14, face.z - n.z * 1.2); const dn = G.world.raycast(probe, V(0, -1, 0), 14); if (!dn) continue; const top = 14 - dn.t;
-      if (top < 2.6 || top > 8) continue;
+      if (top < 2.6 || top > 9) continue;
+      // the roof must be flat for a good metre behind the edge (a tree crown, a balcony or a steep tiled roof is no place to land)
+      let flat = true; for (const b of [1.8, 2.4]) { const q = G.world.raycast(V(face.x - n.x * b, 14, face.z - n.z * b), V(0, -1, 0), 14); if (!q || Math.abs(14 - q.t - top) > 0.35) flat = false; } if (!flat) continue;
       const hook = V(face.x, top - 0.45, face.z); const up = G.world.raycast(V(face.x + n.x * 0.3, top - 0.45, face.z + n.z * 0.3), V(-n.x, 0, -n.z), 1); if (!up) continue;
       return { x, z, yaw, top: +top.toFixed(2), hook: [hook.x + n.x * 0.05, hook.y, hook.z + n.z * 0.05], dist: +wh.t.toFixed(2) }; } }
   return null; })()`;

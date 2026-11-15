@@ -47,7 +47,7 @@ const PATH = `(async () => { const G = __G; const W = G.world; const P = G.playe
       await ctx.addInitScript(() => localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'perf@t' })));
       const page = await ctx.newPage(); const bad = [];
       page.on('pageerror', (e) => bad.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) bad.push(m.text().slice(0, 200)); });
-      await page.goto(srv.base + '/games/blockade-z/index.html?lang=vi&fp=1&autostart=1&nolock=1&noaudio=1&seed=4&hero=mua&tod=0.45&weather=clear&q=' + q + (vox ? '&vox=1' + (process.argv[2] || '') : ''));
+      await page.goto(srv.base + '/games/blockade-z/index.html?lang=vi&fp=1&autostart=1&nolock=1&noaudio=1&seed=4&hero=mua&tod=0.45&weather=clear&q=' + q + (vox ? (process.argv[2] || '') : '&vox=0'));
       await page.waitForFunction('window.__ready === true', null, { timeout: 90000 });
       const n = await page.evaluate(STAGE); const m = await page.evaluate(MEASURE);
       const row = { gpu: E.SWIFT ? 'swiftshader' : 'd3d11', vp, q, vox, spawned: n, ...m, problems: bad.length }; rows.push(row); console.log(JSON.stringify(row)); if (bad.length) console.log('  ' + bad.slice(0, 3).join(' | '));

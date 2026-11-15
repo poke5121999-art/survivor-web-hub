@@ -355,7 +355,8 @@
     function die(z, dir) {
       const kit = kitOf(z); const R = z.body.x[z.T.rig]; const s = z.T.scale; const cols = kit.colors || [0xffffff, 0xff8040];
       const at = V().set(z.pos.x, z.pos.y + 1.2 * s, z.pos.z);
-      if (R) { z.body.root.updateMatrixWorld(true); const meshes = []; R.g.traverse((o) => { if (o.isMesh && o.visible) meshes.push(o); }); for (const m of meshes) G.fx.gib(m, V().set(G.rng.range(-5, 5), G.rng.range(4, 10), G.rng.range(-5, 5)).addScaledVector(dir, 3)); R.g.visible = false; }
+      if (R && z.vox && G.vox && G.vox.zombie) { G.vox.zombie.collapse(z, dir); R.g.visible = false; } // voxel look: the body falls into its voxels
+      else if (R) { z.body.root.updateMatrixWorld(true); const meshes = []; R.g.traverse((o) => { if (o.isMesh && o.visible) meshes.push(o); }); for (const m of meshes) G.fx.gib(m, V().set(G.rng.range(-5, 5), G.rng.range(4, 10), G.rng.range(-5, 5)).addScaledVector(dir, 3)); R.g.visible = false; }
       for (let i = 0; i < 5; i++) after(i * 0.16, () => boom(at.clone().add(V().set(G.rng.range(-1, 1), G.rng.range(-0.5, 1), G.rng.range(-1, 1)).multiplyScalar(s)), 2.4 + i * 0.4, cols, { rate: 0.6 + i * 0.05 }));
       after(0.85, () => { flash(at, 30 * s / 3, cols[0], 0.8); shock(V().set(at.x, G.fx.floorY(at.x, z.pos.y, at.z) + 0.05, at.z), 14, 0.9, cols[0], 0); G.fx.explosion(at, 1.4); shakeAt(at, 18, 40); });
       G.fx.splat(V().set(z.pos.x, 0, z.pos.z), 3 * s);

@@ -19,7 +19,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&tp=1&autostart=1&nolock=1&seed=4&noaudio=1&tod=0.45&weather=clear' + (process.env.BZ_EXTRA || '')); // BZ_EXTRA='&vox=0' runs the old box look
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const shot = async (name) => { await page.evaluate("for (const id of ['banner','announce']) { const e = document.getElementById(id); if (e) e.classList.remove('on'); }"); await page.waitForTimeout(200); await page.screenshot({ path: path.join(OUT, `tps-${name}.png`) }); };
     const base = `const G = __G; G.state = 'playing'; G.god = true; G.wave.toSpawn = 0; G.wave.total = 999; G.wave.bossAt = -1; G.zombies.clear(); G.allies.clear(); const P = G.player;`;
@@ -46,10 +46,10 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(0, 0, 9); P.yaw = 0.5; P.vel.set(0, 0, 0); P.jumpBuf = 0.2; __sim(0.3); G.state = 'paused'; })()`);
     await shot('jump');
     const wall = await page.evaluate(`(() => { ${base} G.state = 'playing'; const W = G.world; let bad = 0; let n = 0; const c = G.camera.position;
-      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; P.pos.set(Math.cos(a) * 30, 0, Math.sin(a) * 30); P.yaw = a * 1.7; P.pitch = Math.sin(i) * 0.4; P.vel.set(0, 0, 0); __sim(1 / 30); __sim(1 / 30); n++;
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; P.pos.set(Math.cos(a) * 30, 0, Math.sin(a) * 30); if (W.overlaps([P.pos.x - 0.35, 0.05, P.pos.z - 0.35], [P.pos.x + 0.35, 1.75, P.pos.z + 0.35])) continue; /* (a spot of the ring where a building stands is no place for the player: not counted) */ P.yaw = a * 1.7; P.pitch = Math.sin(i) * 0.4; P.vel.set(0, 0, 0); __sim(1 / 30); __sim(1 / 30); n++;
         const inside = W.overlaps([c.x - 0.05, c.y - 0.05, c.z - 0.05], [c.x + 0.05, c.y + 0.05, c.z + 0.05]); if (inside) bad++; }
       return { bad, n }; })()`);
-    check(wall.bad <= 2, `the camera stays out of walls around the edge of the map (${wall.bad}/${wall.n} spots inside a wall)`);
+    check(wall.n >= 12 && wall.bad <= 2, `the camera stays out of walls around the edge of the map (${wall.bad}/${wall.n} open spots of the 40 on the ring inside a wall)`);
     await page.evaluate(`(() => { ${base} G.state = 'playing'; P.pos.set(-30.5, 0, 0); P.yaw = -Math.PI / 2; P.pitch = 0; __sim(0.3); G.state = 'paused'; })()`);
     await shot('wall');
     // V goes back to first person with the viewmodel

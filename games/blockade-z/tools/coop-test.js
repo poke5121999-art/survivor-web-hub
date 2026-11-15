@@ -13,10 +13,10 @@ const FAKE = process.env.FAKE !== '0';
 const BASE = process.env.BZ_BASE;
 (async () => {
   const srv = await serve();
-  const br = await require(process.env.PLAYWRIGHT_PATH || 'playwright-core').chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  const br = await require(process.env.PLAYWRIGHT_PATH || 'playwright-core').chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] }) // (GPU on: the voxel look on SwiftShader is too slow for the 900 ms waits below);
   const ctx = await br.newContext({ viewport: { width: 960, height: 540 } });
   await ctx.addInitScript(() => localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'd@t' })));
-  const q = `nolock=1&noaudio=1&god=0${FAKE ? '&fakenet=1' : ''}`;
+  const q = `nolock=1&noaudio=1&god=0${FAKE ? '&fakenet=1' : ''}${process.env.BZ_EXTRA || ''}`; // BZ_EXTRA='&vox=0' runs the box town
   const A = await ctx.newPage(); const B = await ctx.newPage();
   for (const [n, p] of [['A', A], ['B', B]]) { p.on('pageerror', (e) => console.log(n, 'PAGEERR', e.message)); p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(n, m.type(), m.text().slice(0, 300)); }); }
   const url = (BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&seed=3&' + q;
@@ -43,11 +43,11 @@ const BASE = process.env.BZ_BASE;
   // B kills a zombie: the hit goes to the host, the kill and the score come back to B
   const kill = await B.evaluate(`(async () => { const G = __G; const z = G.zombies.list.find((q) => q.alive); if (!z) return 'no zombie on guest'; const i = G.zombies.list.indexOf(z); const c0 = G.score;
     G.zombies.damage(z, 9999, 'head', new G.THREE.Vector3(0, 0, -1), 1); await new Promise((r) => setTimeout(r, 900));
-    return { i, pts: G.score - c0, aliveAfter: z.alive, dying: z.dying > 0, headless: z.headless }; })()`);
+    return { i, pts: G.score - c0, aliveAfter: z.alive, dying: z.dying > 0, headless: z.headless, voxPieces: G.vox && G.vox.pool ? G.vox.pool.count() : -1 }; })()`); // (voxel look: the dead body is no death animation, it falls apart into voxel pieces)
   console.log('guest kill', JSON.stringify(kill));
   const hostSide = await A.evaluate(`({ z: __G.zombies.list[${kill.i}] && __G.zombies.list[${kill.i}].alive, killed: __G.wave.killed })`);
   console.log('host after', JSON.stringify(hostSide));
-  check(kill.pts > 0 && kill.dying && hostSide.z === false && hostSide.killed >= 1, 'a guest kill goes through the host and scores for the guest');
+  check(kill.pts > 0 && (kill.voxPieces >= 0 ? !kill.aliveAfter && kill.voxPieces > 0 : kill.dying) && hostSide.z === false && hostSide.killed >= 1, 'a guest kill goes through the host and scores for the guest');
   check(await B.evaluate('__G.weapons.S.inv.join()') === await B.evaluate('__G.hero.def.weapon'), 'the guest holds its hero\'s one weapon');
   // each side draws the other's weapon on its body (the host's minigun, the guest's shuriken), and a thrown star flies on the other screen too
   const av = (P) => P.evaluate("(() => { const a = [...__G.coop.avatars.values()][0]; return { w: a.weapon, gun: !!(a.eq && a.eq.gun), barrels: !!(a.eq && a.eq.gun && a.eq.gun.getObjectByName('barrels')) }; })()");
@@ -93,6 +93,12 @@ const BASE = process.env.BZ_BASE;
   await A.waitForTimeout(1500);
   const gbk = await B.evaluate(`(() => { const G = __G; const ids = G.destruct.pieces.filter((p) => p.broken).map((p) => p.id).sort((a, b) => a - b); return { ids, solid: ids.some((i) => G.world.solids.includes(G.destruct.pieces[i].solid)) }; })()`);
   console.log("terrain", JSON.stringify({ host: tbh, guest: gbk.ids }));
+  if (await A.evaluate('!!(__G.vox && __G.vox.street)')) { // voxel town: the same blast must leave the same voxel world on both pages (commands, not voxels, cross the wire)
+    const vs = (P) => P.evaluate('(() => { const d = __G.vox.street.debug(); return { log: d.log, applied: d.applied, step: d.step, digest: d.digest, solid: d.solid, active: d.active }; })()');
+    let va = await vs(A); let vb = await vs(B); for (let i = 0; i < 40 && (va.active || vb.step !== va.step || vb.applied !== va.log); i++) { await A.waitForTimeout(500); va = await vs(A); vb = await vs(B); }
+    console.log('voxel town', JSON.stringify(va), JSON.stringify(vb));
+    check(va.log > 0 && vb.applied === va.log && va.digest === vb.digest && va.solid === vb.solid, `the guest sees the same voxels break (${va.log} commands on the host, ${vb.applied} applied by the guest, digest ${va.digest} / ${vb.digest})`);
+  } else
   check(tbh.length > 0 && tbh.every((i) => gbk.ids.includes(i)) && !gbk.solid, `the guest sees the same wall pieces break (${tbh.length} on the host, ${gbk.ids.length} on the guest)`);
   // the wave ends: both get three upgrade cards; the next wave waits until both have picked
   await A.evaluate(`(() => { const G = __G; G.zombies.clear(); G.wave.toSpawn = 0; G.wave.killed = G.wave.total; })()`);

@@ -19,7 +19,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=7&noaudio=1&tod=0.45&weather=clear');
+    await page.goto((process.env.BZ_BASE || srv.base) + '/games/blockade-z/index.html?lang=vi&autostart=1&nolock=1&seed=7&noaudio=1&tod=0.45&weather=clear' + (process.env.BZ_EXTRA || '')); // BZ_EXTRA='&vox=0' runs the old box look
     await page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     const ids = process.env.BOSSES ? process.env.BOSSES.split(',') : await page.evaluate('Object.keys(BZ.BOSS_KITS)');
     console.log('bosses', ids.join(','));
@@ -84,9 +84,10 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
         const B = G.zombies.kinds.bosses(); return { died, now: z.type, boss: !!G.zombies.boss(), cur: z.bs && z.bs.cur, fx: B.debug() }; })()`);
       check(end.died && !end.boss, `${id}: dies and bursts (${JSON.stringify(end)})`);
       // nothing it leaves may hang in the air: pieces fall and settle on a floor, pools and scorch marks lie on one, and the big slabs are gone soon after
-      const left = await page.evaluate(`(() => { const G = __G; __sim(4); const fl = G.fx.floaters();
+      // (voxel look: the body falls into voxel chunks from the debris pool instead of gibs: counted 1.3 s after the death, and whatever is still there at 4 s, the same moment the gibs are checked, must rest on the floor)
+      const left = await page.evaluate(`(() => { const G = __G; const P = G.vox && G.vox.pool; __sim(1.3); const vox = P ? P.count() : 0; __sim(2.7); const vfl = P ? P.floaters() : []; const fl = G.fx.floaters().concat(vfl.slice(0, 3).map((q) => ['voxel'].concat(q)));
         const hz = G.zombies.kinds.hazards.filter((h) => h.pos.y - G.fx.floorY(h.pos.x, h.pos.y + 0.2, h.pos.z) > 0.3).length; const mid = G.fx.debug();
-        __sim(6); return { fl, hz, pieces: mid.gibs, bigThen: mid.big, bigNow: G.fx.debug().big, fl2: G.fx.floaters() }; })()`);
+        __sim(6); return { fl, hz, pieces: mid.gibs + vox, bigThen: mid.big, bigNow: G.fx.debug().big, fl2: G.fx.floaters() }; })()`);
       check(left.pieces > 0 && left.fl.length === 0 && left.fl2.length === 0 && left.hz === 0, `${id}: nothing is left hanging in the air (${left.pieces} pieces; floating ${JSON.stringify(left.fl.concat(left.fl2).slice(0, 4))}, pools in the air ${left.hz})`);
       check(left.bigNow === 0, `${id}: the big slabs of the body sink away (${left.bigThen} at 5.5 s, ${left.bigNow} at 11.5 s)`);
       await page.screenshot({ path: path.join(OUT, `boss-${id}-after.png`) });
