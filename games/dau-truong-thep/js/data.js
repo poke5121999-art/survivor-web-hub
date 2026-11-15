@@ -38,9 +38,9 @@ export const MECHS = {
     passive: { do: 'steady', name: 'Lì Đòn', desc: 'Đẩy lùi và làm chậm lên Trâu Sắt chỉ còn một nửa.' },
     weapon: { name: 'Pháo Búa', cd: 0.95, dmg: 250, speed: 27, range: 15, splash: 2.2, knock: 2.5, r: 0.34, vis: 'shell' },
     skills: [
-      { id: 'giap', name: 'Giáp Phản Lực', cd: 12, do: 'shield', amount: 800, dur: 4.5, icon: 'shield',
+      { id: 'giap', name: 'Giáp Phản Lực', cd: 14, do: 'shield', amount: 800, dur: 4.5, icon: 'shield',
         desc: 'Bật khiên năng lượng hấp thụ 800 sát thương trong 4,5 giây.' },
-      { id: 'huc', name: 'Húc Thép', cd: 10, do: 'dash', dist: 8.5, speed: 27, dmg: 240, stun: 0.9, knock: 4, icon: 'dash',
+      { id: 'huc', name: 'Húc Thép', cd: 12, do: 'dash', dist: 8.5, speed: 27, dmg: 240, stun: 0.9, knock: 4, icon: 'dash',
         desc: 'Lao thẳng theo hướng ngắm, húc trúng ai thì gây sát thương và làm choáng.' },
       { id: 'diachan', name: 'Địa Chấn', cd: 38, do: 'nova', windup: 0.75, radius: 6.5, dmg: 520, slow: 0.5, slowDur: 3, knock: 3, icon: 'quake',
         desc: 'Dậm nát mặt đất: sau một nhịp lấy đà, mọi kẻ địch quanh bạn chịu sát thương lớn và bị làm chậm.' },
@@ -52,7 +52,7 @@ export const MECHS = {
     hp: 2500, speed: 6.5, radius: 0.8,
     armor: 0.05, accel: 1.2, turn: 14, towerMul: 1.0,
     passive: { do: 'frenzy', name: 'Máu Nóng', desc: 'Hạ gục hoặc trợ công thì chạy nhanh hơn 25% trong 3 giây.', haste: 1.25, dur: 3 },
-    weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 60, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
+    weapon: { name: 'Liên Thanh Đôi', cd: 0.16, dmg: 63, speed: 34, range: 13.5, spread: 0.05, r: 0.2, vis: 'bullet', alt: 0.42 },
     skills: [
       { id: 'rocket', name: 'Rocket Chùm', cd: 8, do: 'volley', n: 3, fan: 0.22, dmg: 190, speed: 24, range: 15, splash: 2.4, r: 0.3, vis: 'rocket', icon: 'rocket',
         desc: 'Phóng ba quả rocket toả hình quạt, nổ lan khi chạm.' },
@@ -86,8 +86,8 @@ export const MECHS = {
     passive: { do: 'aura', name: 'Hào Quang', desc: 'Đồng đội trong 6 m hồi 30 máu mỗi giây.', radius: 6, hps: 30 },
     weapon: { name: 'Xung Quang', cd: 0.32, dmg: 100, speed: 30, range: 14, r: 0.26, vis: 'pulse' },
     skills: [
-      { id: 'hoiphuc', name: 'Suối Hồi Phục', cd: 13, do: 'zone', at: 'self', radius: 5, dur: 4.5, hps: 150, vis: 'heal', icon: 'heal',
-        desc: 'Tạo vùng hồi 150 máu mỗi giây cho đồng đội đứng trong, kéo dài 4,5 giây.' },
+      { id: 'hoiphuc', name: 'Suối Hồi Phục', cd: 13, do: 'zone', at: 'self', radius: 5, dur: 4.5, hps: 135, vis: 'heal', icon: 'heal',
+        desc: 'Tạo vùng hồi 135 máu mỗi giây cho đồng đội đứng trong, kéo dài 4,5 giây.' },
       { id: 'truongcham', name: 'Trường Trì Trệ', cd: 12, do: 'zone', at: 'target', cast: 13, radius: 4.5, dur: 4, dps: 45, slow: 0.45, vis: 'slow', icon: 'slow',
         desc: 'Ném một trường năng lượng tới con trỏ: địch bên trong bị chậm 45% và mất máu dần.' },
       { id: 'vom', name: 'Vòm Bảo Hộ', cd: 48, do: 'dome', radius: 6, dur: 5.5, shield: 600, heal: 450, icon: 'dome',
@@ -130,7 +130,7 @@ export const MECHS = {
     name: 'Băng Nha', role: 'Khống chế', roleKey: 'control', price: 1200, tint: 0x9fd8ff,
     blurb: 'Mỗi phát bắn làm chậm. Dựng tường băng chia cắt đội hình, gọi bão tuyết giữ chân cả nhóm.',
     hp: 2700, speed: 5.8, radius: 0.84,
-    armor: 0.15, accel: 0.9, turn: 11, towerMul: 1.0,
+    armor: 0.15, accel: 0.9, turn: 11, towerMul: 1.5,
     passive: { do: 'brittle', name: 'Tê Cóng', desc: 'Gây thêm 20% sát thương lên kẻ đang bị làm chậm.', mul: 1.2 },
     weapon: { name: 'Gai Băng', cd: 0.36, dmg: 82, speed: 28, range: 13, r: 0.24, slow: 0.2, slowDur: 1.2, vis: 'frost' },
     skills: [
@@ -145,8 +145,8 @@ export const MECHS = {
   tho: {
     name: 'Thợ Rèn', role: 'Công binh', roleKey: 'engineer', price: 1200, tint: 0xc9762b,
     blurb: 'Đặt ụ súng tự bắn, hút địch vào hố từ rồi rải mìn giữ đất.',
-    hp: 2700, speed: 5.6, radius: 0.88,
-    armor: 0.15, accel: 0.9, turn: 12, towerMul: 1.2,
+    hp: 2350, speed: 5.6, radius: 0.88,
+    armor: 0.10, accel: 0.9, turn: 12, towerMul: 1.2,
     passive: { do: 'mechanic', name: 'Tay Nghề', desc: 'Ụ súng và mìn bền thêm 30% máu và thời gian.', mul: 1.3 },
     weapon: { name: 'Súng Đinh', cd: 0.45, dmg: 118, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' },
     skills: [
@@ -178,7 +178,7 @@ export const MECHS = {
     name: 'Mãng Xà', role: 'Bắt giữ', roleKey: 'hooker', price: 1500, tint: 0x4f8f6a,
     blurb: 'Móc kéo địch về, đổi chỗ với bất kỳ ai, nhốt cả nhóm trong lồng xích.',
     hp: 3000, speed: 5.7, radius: 0.88,
-    armor: 0.15, accel: 0.9, turn: 10, towerMul: 0.9,
+    armor: 0.15, accel: 0.9, turn: 10, towerMul: 1.3,
     passive: { do: 'trophy', name: 'Chiến Tích', desc: 'Hạ gục hoặc trợ công thì hồi 10% máu.', heal: 0.1 },
     weapon: { name: 'Nanh Thép', cd: 0.7, dmg: 165, speed: 30, range: 10.5, r: 0.28, vis: 'slug' },
     skills: [
@@ -196,7 +196,7 @@ export const MECHS = {
     hp: 3100, speed: 5.0, radius: 0.92,
     armor: 0.2, accel: 0.8, turn: 9, towerMul: 0.8,
     passive: { do: 'ward', name: 'Che Chở', desc: 'Đồng đội trong 5 m nhận ít hơn 15% sát thương.', radius: 5, armor: 0.15 },
-    weapon: { name: 'Súng Sóng', cd: 0.6, dmg: 62, n: 3, fan: 0.12, speed: 26, range: 9, knock: 0.8, r: 0.26, vis: 'wave' },
+    weapon: { name: 'Súng Sóng', cd: 0.6, dmg: 50, n: 3, fan: 0.12, speed: 26, range: 9, knock: 0.8, r: 0.26, vis: 'wave' },
     skills: [
       { id: 'khientang', name: 'Khiên Tặng', cd: 9, do: 'bless', cast: 12, pick: 3.5, shield: 700, dur: 4, icon: 'shield',
         desc: 'Phủ khiên 700 trong 4 giây cho đồng đội ở con trỏ. Không có ai ở đó thì khiên về mình.' },
@@ -209,8 +209,8 @@ export const MECHS = {
   hacho: {
     name: 'Hắc Hổ', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0x3b3f4a,
     blurb: 'Phun lửa sát mặt và hút máu từ sát thương. Vồ qua tường, đánh dấu con mồi rồi kết liễu.',
-    hp: 2900, speed: 6.0, radius: 0.88,
-    armor: 0.1, accel: 1.1, turn: 12, towerMul: 1.1,
+    hp: 3100, speed: 6.0, radius: 0.88,
+    armor: 0.1, accel: 1.1, turn: 12, towerMul: 1.4,
     passive: { do: 'lifesteal', name: 'Hút Máu', desc: 'Hồi máu bằng 18% sát thương gây ra.', frac: 0.18 },
     weapon: { name: 'Phun Lửa', cd: 0.12, dmg: 40, speed: 22, range: 7, spread: 0.14, r: 0.34, pierce: true, vis: 'flame' },
     skills: [
@@ -225,10 +225,10 @@ export const MECHS = {
   holy: {
     name: 'Hồ Ly', role: 'Ảo thuật', roleKey: 'trickster', price: 1600, tint: 0xe07a9a, hover: true,
     blurb: 'Thả bản sao đánh lừa địch, dịch chuyển xuyên tường. Máu mỏng, sống bằng mưu.',
-    hp: 2200, speed: 7.0, radius: 0.76,
+    hp: 2500, speed: 7.0, radius: 0.76,
     armor: 0, accel: 1.4, turn: 16, towerMul: 0.7,
     passive: { do: 'trait', name: 'Đệm Khí', desc: 'Bùn không làm chậm và băng không làm trượt.' },
-    weapon: { name: 'Phi Tiêu', cd: 0.22, dmg: 70, speed: 36, range: 14, r: 0.18, vis: 'dart' },
+    weapon: { name: 'Phi Tiêu', cd: 0.22, dmg: 84, speed: 36, range: 14, r: 0.18, vis: 'dart' },
     skills: [
       { id: 'phanthan', name: 'Phân Thân', cd: 12, do: 'decoy', n: 1, fan: 0, hp: 500, dur: 6, blast: 3, dmg: 160, stealth: 1.5, icon: 'decoy',
         desc: 'Thả một bản sao chạy theo hướng ngắm 6 giây còn bạn tàng hình 1,5 giây. Bản sao vỡ thì nổ.' },
@@ -241,10 +241,10 @@ export const MECHS = {
   domdom: {
     name: 'Đom Đóm', role: 'Quân y', roleKey: 'medic', price: 1600, tint: 0xd8e05a, hover: true,
     blurb: 'Ngắm tia vào đồng đội để hồi máu, vào địch để gây sát thương. Drone hồi máu bay theo.',
-    hp: 2200, speed: 6.5, radius: 0.76,
-    armor: 0, accel: 1.2, turn: 14, towerMul: 0.8,
+    hp: 2600, speed: 6.5, radius: 0.76,
+    armor: 0, accel: 1.2, turn: 14, towerMul: 1.2,
     passive: { do: 'overheal', name: 'Tràn Máu', desc: 'Hồi máu cho đồng đội đã đầy máu thì thành khiên, tối đa 300.', cap: 300, dur: 3 },
-    weapon: { name: 'Tia Nối', cd: 0.25, ray: true, range: 11, width: 0.7, dmg: 48, heal: 50, vis: 'link' },
+    weapon: { name: 'Tia Nối', cd: 0.25, ray: true, range: 11, width: 0.7, dmg: 48, heal: 58, vis: 'link' },
     skills: [
       { id: 'ongtho', name: 'Ong Thợ', cd: 16, do: 'drone', dur: 12, range: 7, hps: 70, icon: 'drone',
         desc: 'Thả drone bay theo bạn 12 giây, hồi 70 máu mỗi giây cho đồng đội yếu nhất trong 7 m.' },
@@ -260,7 +260,7 @@ export const MECHS = {
     hp: 2250, speed: 6.6, radius: 0.8,
     armor: 0.05, accel: 1.2, turn: 13, towerMul: 0.9,
     passive: { do: 'rebound', name: 'Dội Tường', desc: 'Mỗi lần nảy tường đĩa mạnh thêm 30%.', mul: 0.3 },
-    weapon: { name: 'Đĩa Nảy', cd: 0.5, dmg: 140, speed: 30, range: 21, r: 0.24, bounce: 2, vis: 'disc' },
+    weapon: { name: 'Đĩa Nảy', cd: 0.5, dmg: 148, speed: 30, range: 21, r: 0.24, bounce: 2, vis: 'disc' },
     skills: [
       { id: 'daydien', name: 'Dây Điện', cd: 12, do: 'wire', cast: 10, width: 6, dur: 14, dmg: 200, slow: 0.5, slowDur: 2, charges: 3, arm: 0.5, icon: 'wire',
         desc: 'Căng một dây điện dài 6 m ở con trỏ trong 14 giây. Địch băng qua mất 200 máu và chậm 50%. Dùng được 3 lần.' },
@@ -274,7 +274,7 @@ export const MECHS = {
     name: 'Hỏa Long', role: 'Pháo tia', roleKey: 'lancer', price: 1750, tint: 0xe0502a,
     blurb: 'Giữ nút bắn để nạp, thả ra phóng tia xuyên giáp. Diệt xe giáp dày, đuối khi đánh trụ.',
     hp: 2000, speed: 5.6, radius: 0.84,
-    armor: 0.05, accel: 0.9, turn: 8, towerMul: 0.5,
+    armor: 0.05, accel: 0.9, turn: 8, towerMul: 0.7,
     passive: { do: 'pierce', name: 'Xuyên Giáp', desc: 'Sát thương bỏ qua giáp.' },
     weapon: { name: 'Tia Tụ', cd: 0.45, charge: { min: 0.25, max: 1.3, hold: 0.6, dmg: [100, 440], range: [13, 22], width: [0.5, 0.9], move: 0.7 }, range: 22, vis: 'lance' },
     skills: [
@@ -334,7 +334,7 @@ export const PERKS = {
   trau: [perk('Đà Húc', 'Húc Thép lao xa 10,5 m và choáng 1,2 giây.', 1, { dist: 10.5, stun: 1.2 }), perk('Giáp Dày', 'Giáp Phản Lực hấp thụ 1200.', 0, { amount: 1200 }), perk('Dư Chấn', 'Địa Chấn rộng 7,5 m, làm chậm 4 giây.', 2, { radius: 7.5, slowDur: 4 })],
   soi: [perk('Rocket Thứ Tư', 'Rocket Chùm bắn bốn quả.', 0, { n: 4 }), perk('Bền Hơi', 'Tăng Áp kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Mưa Dày', 'Mưa Hỏa Tiễn dội 12 quả.', 2, { n: 12 })],
   ung: [perk('Xung Mạnh', 'Mìn Xung Điện choáng 1,8 giây.', 0, { stun: 1.8 }), perk('Bóng Dài', 'Lướt Bóng tàng hình 3,2 giây.', 1, { stealth: 3.2 }), perk('Tia Lớn', 'Tia Xuyên Phá rộng 1,6 m, gây 1100.', 2, { width: 1.6, dmg: 1100 })],
-  hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 200 mỗi giây.', 0, { hps: 200 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
+  hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 180 mỗi giây.', 0, { hps: 180 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
   loi: [perk('Khói Đặc', 'Màn Khói kéo dài 7,5 giây.', 0, { dur: 7.5 }), perk('Thuốc Nổ', 'Giật Lùi gây 260.', 1, { dmg: 260 }), perk('Bảy Tiếng Sấm', 'Thiên Lôi rơi bảy quả.', 2, { n: 7 })],
   bocap: [perk('Vồ Liên Hồi', 'Vồ Mồi hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Ẩn Sâu', 'Ngụy Trang kéo dài 5,5 giây.', 1, { stealth: 5.5, dur: 5.5 }), perk('Sáu Nhát', 'Lốc Thép chém sáu nhát.', 2, { repeat: 6 })],
   bang: [perk('Gai Buốt', 'Gai Băng làm chậm 30%.', 'weapon', { slow: 0.3 }), perk('Tường Dài', 'Tường Băng dài bảy khối.', 0, { n: 7 }), perk('Bão Dai', 'Bão Tuyết kéo dài 6,5 giây.', 2, { dur: 6.5 })],

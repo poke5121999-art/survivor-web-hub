@@ -2025,7 +2025,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('upgrade napdan 5: fires every 12 ticks (8 shots in 90 ticks) instead of every 14 (7 shots)', shots([0, 0, 0, 5, 0]) === 8 && shots([0, 0, 0, 0, 0]) === 7, `${shots([0, 0, 0, 5, 0])} vs ${shots([0, 0, 0, 0, 0])}`);
     const cs = arena([[R('trau', 0, [0, 0, 0, 0, 5]), 0, 0], [R('ung', 1), 30, 20]]);
     go(cs, 1, () => ({ 0: { s1: true } }));
-    check('upgrade chieu 5: trau Giap Phan Luc goes on cooldown 12 x 0.85 = 10.2 s', near(cs.units[0].cd.s1, 10.2, 1e-9), `cd ${cs.units[0].cd.s1}`);
+    check(`upgrade chieu 5: trau Giap Phan Luc goes on cooldown ${MECHS.trau.skills[0].cd} x 0.85 s`, near(cs.units[0].cd.s1, MECHS.trau.skills[0].cd * 0.85, 1e-9), `cd ${cs.units[0].cd.s1}`);
     const rockets = (lv) => { const m = arena([[R('soi', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); go(m, 1, () => ({ 0: { s1: true } })); return m.shots.length; };
     check('perk at total 6: soi rocket n 3 -> 4 (total 5 keeps 3)', rockets([2, 2, 2, 0, 0]) === 4 && rockets([2, 1, 2, 0, 0]) === 3, `${rockets([2, 2, 2, 0, 0])} / ${rockets([2, 1, 2, 0, 0])}`);
     const boost = (lv) => { const m = arena([[R('soi', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); go(m, 1, () => ({ 0: { s2: true } })); return m.units[0].hasteT; };
@@ -2247,7 +2247,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     go(m, 1, () => ({ 0: { s2: true } }));
     check('fortify: armour 0.2 + 0.5 = 0.7', near(armorOf(m, m.units[0]), 0.7, 1e-9), `armour ${armorOf(m, m.units[0])}`);
     go(m, 12, (i) => ({ 1: { fire: i === 0 } }));
-    check('fortify: tho 118 x 0.3 leaves kimquy 3100 - 35.4 = 3064.6 and the attacker takes 30% of that, 10.62 x 0.85 = 9.027', near(m.units[0].hp, 3064.6, 1e-9) && near(m.units[1].hp, 2700 - 9.027, 1e-9), `${m.units[0].hp} / ${m.units[1].hp}`);
+    check('fortify: tho 118 x 0.3 leaves kimquy 3100 - 35.4 = 3064.6 and the attacker takes 30% of that, 10.62 x (1 - tho armour)', near(m.units[0].hp, 3064.6, 1e-9) && near(m.units[1].hp, MECHS.tho.hp - 10.62 * (1 - MECHS.tho.armor), 1e-9), `${m.units[0].hp} / ${m.units[1].hp}`);
     const p = arena([[R('kimquy', 0), 0, 0], [R('ung', 1), 15, 0]]);
     go(p, 1, () => ({ 0: { s2: true } }));
     go(p, 20, (i) => ({ 1: { fire: i === 0 } }));
@@ -2281,7 +2281,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     const m = arena([[R('hacho', 0), 0, 0], [R('ung', 1), 25, 15]]);
     const a = m.units[0];
     go(m, 1, () => ({ 0: { s2: true } }));
-    check('rage: costs 8% of 2900 = 232 hp (2668) and grants lifesteal 45% for 4 s', near(a.hp, 2668, 1e-9) && near(a.rageF, 0.45, 1e-9) && near(a.rageT, 4, 1e-9), `hp ${a.hp} rage ${a.rageF}/${a.rageT}`);
+    check('rage: costs 8% of its max hp and grants lifesteal 45% for 4 s', near(a.hp, MECHS.hacho.hp * 0.92, 1e-9) && near(a.rageF, 0.45, 1e-9) && near(a.rageT, 4, 1e-9), `hp ${a.hp} rage ${a.rageF}/${a.rageT}`);
     const f = arena([[R('hacho', 0), 0, 0], [R('ung', 1), 4, 0]]);
     f.units[0].hp = 1000;
     go(f, 1, () => ({ 0: { s2: true } }));

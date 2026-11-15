@@ -35,6 +35,8 @@ const ROLE = {
   lancer:   { pref: [0.55, 0.95], kite: true, peek: false, strafe: 0.5, follow: false, eager: [1, 1, 1] },
 };
 ROLE.sniper.outside = true; ROLE.artillery.outside = true;
+// chiem: a lobbing or planted mech stands on the point instead of behind its allies, so its team has a body there to contest it
+const ROLE_CHIEM = { artillery: { ...ROLE.artillery, behind: false, tether: 0 }, siege: { ...ROLE.siege, behind: false, tether: 0 } };
 const LANES = [0, -14, 14, 0, 14];
 const SLOTS = ['s1', 's2', 'ult'];
 const STEER = [0, 0.5, -0.5, 1.0, -1.0, 1.7, -1.7];
@@ -76,7 +78,7 @@ export function botInput(m, u) {
   if (!u.alive) { u.brain = null; return NO; }
   const b = u.brain || (u.brain = newBrain(m, u));
   const D = DIFFICULTY[u.diff] || DIFFICULTY.normal;
-  const role = ROLE[u.def.roleKey] || ROLE.assault;
+  const role = (m.mode === 'chiem' && ROLE_CHIEM[u.def.roleKey]) || ROLE[u.def.roleKey] || ROLE.assault;
   const map = m.map, now = m.time, w = u.stance ? plantedWeapon(b, u) : u.def.weapon;
   const out = b.out;
   out.fire = out.s1 = out.s2 = out.ult = out.heal = false;
@@ -515,8 +517,8 @@ function chiemPlan(m, u, b, role, now, enemies) {
       for (const e of enemies) if (hyp(e.x - p.x, e.z - p.z) < p.r + 3) ePres++;
       let al = 0;
       for (const a of m.units) if (a !== u && a.team === u.team && a.alive && a.brain && a.brain.pt === p.id) al++;
+      // followers do not pile onto the point where their allies already are: stacking five on one point left the other two to the enemy (balance-log, step 1)
       let s = need * 2.2 + (ePres ? (p.owner === u.team ? 1.3 : 0.6) : 0) - 0.75 * al + (p.id === aff ? 0.9 : 0) - hyp(p.x - u.x, p.z - u.z) / 45 + (b.pt === p.id ? 0.5 : 0);
-      if (role.follow) s += 1.5 * al;
       if (s > bs) { bs = s; best = p.id; }
     }
     b.pt = best;
@@ -1288,8 +1290,11 @@ const SKILL_AI = {
     let nearest = 1e9;
     for (const e of enemies) nearest = Math.min(nearest, hyp(e.x - u.x, e.z - u.z));
     const closeR = m.mode === 'trum' ? 11 : 6.5;
-    if (u.stance) return state === 'retreat' || nearest < closeR || (b.pIdle > 1.2 && m.time - b.stanceAt > 1.5);
+    // chiem: plant only on the point (the planted reach covers it from there) and lift the legs when the plan moves elsewhere
+    const CP = m.mode === 'chiem' ? m.points[b.pt] : null;
+    if (u.stance) return state === 'retreat' || nearest < closeR || (b.pIdle > 1.2 && m.time - b.stanceAt > 1.5) || (CP && hyp(u.x - CP.x, u.z - CP.z) > CP.r + 0.5);
     if (state === 'retreat' || state === 'grab' || c.hpFrac < 0.3 || nearest < closeR + 3) return false;
+    if (m.mode === 'chiem' && (!CP || hyp(u.x - CP.x, u.z - CP.z) > CP.r - 0.8)) return false;
     if (m.mode === 'nha' && underTower(m, u.team, u.x, u.z, 0.8)) return false;
     const t = c.tgt;
     if (t && c.los && c.td >= 10 && c.td <= pr - 1.5 && c.near - c.allyNear < 2) return true;
