@@ -1,9 +1,11 @@
-// A guest's own mech, driven on the guest's machine. Pure: runs in Node.
+// A guest's own mech and its own gun, driven on the guest's machine. Pure: runs in Node.
 // The host is still the judge: every snapshot says where the mech stood after the host ran input number N. The guest
 // keeps the inputs it sent after N and walks them again from that spot with the host's own walk(), so the mech answers
 // the stick at once and still ends up where the host says. What the walk cannot know in advance (a knock-back, a dash,
 // a respawn) arrives as a correction, and the picture glides over it instead of jumping.
 import { walk, gripAt } from './sim.js';
+import { castStatic } from './maps.js';
+import { TICK } from './data.js';
 
 const KEEP = 90;          // inputs remembered: 3 s, far more than any round trip
 const AGREE = 0.03;       // metres: the host's rounding, not a disagreement
@@ -25,8 +27,21 @@ export function createPredictor(m, id) {
     e.x = body.x; e.z = body.z; e.vx = body.vx; e.vz = body.vz;
   };
 
+  // Where one more tick with this input would put the body, without moving it.
+  const peek = (inp) => {
+    const keep = { ...body };
+    walk(m, body, inp, gripAt(m.map, body.x, body.z));
+    const at = [body.x, body.z];
+    for (const k of Object.keys(body)) if (!(k in keep)) delete body[k];
+    Object.assign(body, keep);
+    return at;
+  };
+
   return {
     get seq() { return seq; },
+    get free() { return free; },
+    get x() { return body.x; },
+    get z() { return body.z; },
 
     // One local tick with the input just sent. Returns the input's number.
     tick(inp) {
@@ -40,27 +55,36 @@ export function createPredictor(m, id) {
     },
 
     // The host's word: after input `applied` the mech stood at (x, z), alive or not, dashing or not.
+    // Returns how far the body had to move to agree (metres; 0 when it already did).
     correct(applied, x, z, alive, dash) {
       const was = free;
       free = alive && !dash;
       // Taking over from the host: its spot is the start, and the record of it is what later snapshots are compared with.
-      if (!free || !was) { body.x = body.px = x; body.z = body.pz = z; body.vx = body.vz = 0; sent = [{ q: applied, x, z, vx: 0, vz: 0 }]; return; }
+      if (!free || !was) { body.x = body.px = x; body.z = body.pz = z; body.vx = body.vz = 0; sent = [{ q: applied, x, z, vx: 0, vz: 0 }]; return 0; }
       while (sent.length && sent[0].q < applied) sent.shift();
       const at = sent.length && sent[0].q === applied ? sent[0] : null;
-      if (at && Math.hypot(at.x - x, at.z - z) < AGREE) return;
+      if (at && Math.hypot(at.x - x, at.z - z) < AGREE) return 0;
       const bx = body.x, bz = body.z;
       if (at) { at.x = x; at.z = z; body.vx = at.vx; body.vz = at.vz; }
       body.x = body.px = x; body.z = body.pz = z;
       for (const e of sent) if (e.q > applied) step(e);
       // The body moved under the picture: the offset keeps the picture where it was.
       ex += bx - body.x; ez += bz - body.z;
+      return Math.hypot(bx - body.x, bz - body.z);
     },
 
     // Where to draw the mech now. frac: how far into the current local tick. dt: seconds since the last call.
-    // (mx, mz): where the mirror would draw it. Returns { x, z, dx, dz, heading, free }; dx, dz is one tick of motion.
-    pose(frac, dt, mx, mz) {
-      const dx = free ? body.x - body.px : 0, dz = free ? body.z - body.pz : 0;
-      const tx = free ? body.px + dx * frac : mx, tz = free ? body.pz + dz * frac : mz;
+    // (mx, mz): where the mirror would draw it. inp: what the stick says this frame.
+    // The mech is drawn on its way to where the tick in progress will put it, not on its way from the tick before: the
+    // stick shows on screen in the frame it moves, without waiting for the next tick.
+    // Returns { x, z, dx, dz, heading, free }; dx, dz is one tick of motion.
+    pose(frac, dt, mx, mz, inp) {
+      let tx = mx, tz = mz, dx = 0, dz = 0;
+      if (free) {
+        const to = inp ? peek(inp) : [body.x, body.z];
+        dx = to[0] - body.x; dz = to[1] - body.z;
+        tx = body.x + dx * frac; tz = body.z + dz * frac;
+      }
       if (free !== shownFree) { shownFree = free; ex = sx - tx; ez = sz - tz; }
       if (Math.hypot(ex, ez) > TELEPORT) ex = ez = 0;
       const k = Math.exp(-BLEND * dt);
@@ -70,3 +94,97 @@ export function createPredictor(m, id) {
     },
   };
 }
+
+const CREDIT_AGE = 2;     // seconds a predicted shot, flash or impact waits for the host's copy before it is forgotten
+const SAME_SPOT = 2.5;    // metres: the host's impact this close to a predicted one is the same impact
+
+function segCircle(x, z, ex, ez, cx, cz, r) {
+  const fx = x - cx, fz = z - cz, a = ex * ex + ez * ez, b = 2 * (fx * ex + fz * ez), c = fx * fx + fz * fz - r * r;
+  if (c <= 0) return 0;
+  const d = b * b - 4 * a * c;
+  if (a < 1e-9 || d < 0) return 2;
+  const t = (-b - Math.sqrt(d)) / (2 * a);
+  return t >= 0 && t <= 1 ? t : 2;
+}
+
+// The guest's own main weapon, shown the moment the trigger is pulled. The host still fires the real shot and judges
+// every hit; here a look-alike flies at once, and the host's copy of that shot, its muzzle flash and its impact are
+// swallowed when they arrive so nothing shows twice. A host shot nobody predicted is drawn as it comes.
+// Lobbed shells are not predicted: only their muzzle flash is.
+export function createGunner(m, id) {
+  const unit = m.units[id], w = unit.def.weapon;
+  const rapid = (unit.def.skills.find((s) => s.rapid) || { rapid: 1 }).rapid;
+  let cd = 0, barrel = 0, nextId = -1, flying = [];
+  const owed = { shot: [], fire: [], impact: [] };      // predictions the host has not echoed yet
+  const hidden = new Set();                             // host shot ids that a prediction already stands for
+  const fresh = (list, now) => { while (list.length && now - list[0].at > CREDIT_AGE) list.shift(); };
+
+  return {
+    // One local tick. (x, z): where the predictor has the mech. now: seconds. Returns the events to play this frame.
+    tick(inp, x, z, now) {
+      const events = [];
+      if (cd > 0) cd = Math.max(0, cd - TICK * (unit.rapidT > 0 ? rapid : 1));
+      const can = unit.alive && free(unit) && !(SKILL_KEYS.some((k) => inp[k] && !(unit.cd[k] > 0)));
+      if (inp.fire && cd <= 0 && can) {
+        cd = w.cd;
+        owed.fire.push({ at: now });
+        let side = 0;
+        if (w.alt) { barrel ^= 1; side = barrel ? w.alt : -w.alt; }
+        for (let i = 0; i < (w.lob ? 0 : w.n || 1); i++) {
+          const n = w.n || 1, a = inp.aim + (i - (n - 1) / 2) * (w.fan || 0), dx = Math.cos(a), dz = Math.sin(a), off = unit.radius + 0.25;
+          let sx = x + dx * off - dz * side, sz = z + dz * off + dx * side;
+          if (castStatic(m.map, x, z, sx, sz, w.r) <= 1) { sx = x; sz = z; }
+          flying.push({ id: nextId--, team: unit.team, color: unit.color, owner: id, x: sx, z: sz, px: sx, pz: sz, dx, dz, speed: w.speed, left: w.range, r: w.r, vis: w.vis });
+          owed.shot.push({ at: now });
+        }
+        events.push({ t: 'fire', id, vis: w.vis, x, z, a: inp.aim, side, local: true });
+      }
+      // A shot flies its first tick in the tick it is fired, so it leaves the muzzle in the frame the trigger is pulled.
+      for (let i = flying.length - 1; i >= 0; i--) {
+        const s = flying[i], len = Math.min(s.left, s.speed * TICK), ex = s.dx * len, ez = s.dz * len;
+        s.px = s.x; s.pz = s.z;
+        let best = castStatic(m.map, s.x, s.z, s.x + ex, s.z + ez, s.r * 0.5), on = 'wall';
+        for (const p of m.props) { if (!p.alive) continue; const t = segCircle(s.x, s.z, ex, ez, p.x, p.z, p.r + s.r); if (t < best) { best = t; on = 'prop'; } }
+        for (const u of m.units) { if (u.team === unit.team || !u.alive) continue; const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r); if (t < best) { best = t; on = 'unit'; } }
+        if (best > 1) { s.x += ex; s.z += ez; s.left -= len; if (s.left > 1e-4) continue; on = 'end'; }
+        else { s.x += ex * best; s.z += ez * best; }
+        events.push({ t: 'impact', vis: s.vis, on, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: w.splash || 0, local: true });
+        owed.impact.push({ at: now, x: s.x, z: s.z });
+        flying.splice(i, 1);
+      }
+      return events;
+    },
+
+    // The shots to draw: the host's list without the ones a prediction stands for, plus the predicted ones placed
+    // frac of a local tick along. Everything is drawn at px + (x - px) * alpha, so each is laid out for that alpha.
+    shots(host, frac, alpha, now) {
+      fresh(owed.shot, now);
+      const out = [], live = new Set();
+      for (const s of host) {
+        if (s.owner !== id || s.vis !== w.vis) { out.push(s); continue; }
+        live.add(s.id);
+        if (!hidden.has(s.id)) { if (!owed.shot.length) { out.push(s); continue; } owed.shot.shift(); hidden.add(s.id); }
+      }
+      for (const k of hidden) if (!live.has(k)) hidden.delete(k);
+      for (const s of flying) {
+        const dx = s.x - s.px, dz = s.z - s.pz, x = s.px + dx * frac, z = s.pz + dz * frac;
+        out.push({ ...s, px: x - dx * alpha, pz: z - dz * alpha, x: x + dx * (1 - alpha), z: z + dz * (1 - alpha) });
+      }
+      return out;
+    },
+
+    // false for a host event that a prediction already played.
+    keep(e, now) {
+      if (e.t === 'fire' && e.id === id && e.vis === w.vis) { fresh(owed.fire, now); if (owed.fire.length) { owed.fire.shift(); return false; } }
+      if (e.t === 'impact' && e.vis === w.vis && !w.lob) {
+        fresh(owed.impact, now);
+        const i = owed.impact.findIndex((o) => Math.hypot(o.x - e.x, o.z - e.z) < SAME_SPOT);
+        if (i >= 0) { owed.impact.splice(i, 1); return false; }
+      }
+      return true;
+    },
+  };
+}
+
+const SKILL_KEYS = ['s1', 's2', 'ult'];
+const free = (u) => !(u.stunT > 0) && !u.cast && !u.dash;

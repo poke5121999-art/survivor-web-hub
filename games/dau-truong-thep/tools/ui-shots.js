@@ -492,14 +492,14 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
 
       // ----- keys: bindings API, Phím tab, HUD hints, scoreboard (a desktop-input context at both sizes: touch hides every key hint)
       const KEYS = '/games/dau-truong-thep/js/keys.js';
-      const DEF = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], fire: ['Mouse0'], s1: ['KeyQ'], s2: ['KeyE'], ult: ['Space'], heal: ['KeyF'], score: ['Tab'], pause: ['Escape'] };
+      const DEF = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], fire: ['Mouse0'], s1: ['KeyQ'], s2: ['KeyE'], ult: ['Space'], heal: ['KeyF'], score: ['Tab'], pause: ['Escape'], netstat: ['F8'] };
       const getB = (pg) => pg.evaluate(async (u) => (await import(u)).getBindings(), KEYS);
       const sampleOf = (pg) => pg.evaluate(() => { const i = __G.input.sample(__G.match.units[0]); return { s1: i.s1, s2: i.s2, fire: i.fire, ult: i.ult, heal: i.heal, mx: i.mx, mz: i.mz }; });
       const ACTION_IDS = Object.keys(DEF);
       if (ctxName === 'desktop') {
         ({ ctx, page, errs } = await open(browser, T('keys-api'), vp, false, 'screen=hud&manual=1&auto=0&mech=soi&freeze=1&warp=5'));
-        let r = await page.evaluate(async (u) => { const K = await import(u); return { b: K.getBindings(), l: ['up', 's1', 'fire', 'ult', 'heal', 'score', 'pause'].map(K.labelFor), n: K.ACTIONS.length }; }, KEYS);
-        check('keys: defaults are WASD+arrows, Mouse0 fire, Q/E/Space/F, Tab scoreboard, Esc pause; labels in Vietnamese', JSON.stringify(r.b) === JSON.stringify(DEF) && r.l.join() === 'W,Q,Chuột trái,Cách,F,Tab,Esc' && r.n === 11, JSON.stringify(r));
+        let r = await page.evaluate(async (u) => { const K = await import(u); return { b: K.getBindings(), l: ['up', 's1', 'fire', 'ult', 'heal', 'score', 'pause', 'netstat'].map(K.labelFor), n: K.ACTIONS.length }; }, KEYS);
+        check('keys: defaults are WASD+arrows, Mouse0 fire, Q/E/Space/F, Tab scoreboard, Esc pause, F8 network readout; labels in Vietnamese', JSON.stringify(r.b) === JSON.stringify(DEF) && r.l.join() === 'W,Q,Chuột trái,Cách,F,Tab,Esc,F8' && r.n === 12, JSON.stringify(r));
         r = await page.evaluate(async (u) => (await import(u)).bind('s1', 'KeyR'), KEYS);
         check('keys: bind(s1, KeyR) -> { ok: true, conflict: null }', r.ok === true && r.conflict === null, JSON.stringify(r));
         await page.keyboard.down('KeyR');
@@ -552,8 +552,8 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
           names: [...document.querySelectorAll('#ui .kr-n')].map((n) => n.textContent), reset: !!document.querySelector('#ui [data-r="kreset"]'),
           on: document.querySelector('#ui .modal.on h2').textContent,
         }));
-        check(T('keys-idle') + ': Phím tab lists 11 actions with their keys in Vietnamese and a "Về mặc định" button',
-          r.on === 'Cài đặt' && r.rows === 11 && r.caps.join() === 'W,↑,S,↓,A,←,D,→,Chuột trái,Q,E,Cách,F,Tab,Esc' && r.names[0] === 'Đi lên' && r.names.includes('Bảng điểm (giữ)') && r.reset, JSON.stringify(r));
+        check(T('keys-idle') + ': Phím tab lists 12 actions with their keys in Vietnamese and a "Về mặc định" button',
+          r.on === 'Cài đặt' && r.rows === 12 && r.caps.join() === 'W,↑,S,↓,A,←,D,→,Chuột trái,Q,E,Cách,F,Tab,Esc,F8' && r.names.includes('Thông số mạng') && r.names[0] === 'Đi lên' && r.names.includes('Bảng điểm (giữ)') && r.reset, JSON.stringify(r));
       }, 300);
       await page.click('#ui .kcap[data-act="s1"][data-slot="0"]');
       await shot(page, errs, T('keys-capture'), async () => {
@@ -922,6 +922,80 @@ async function shot(page, errs, tag, expectFn, settle, skipOverflow) {
       check(T('pause-online') + ': Tiếp tục closes it quietly', await page.evaluate(() => !document.querySelector('#ui .pause.on') && (window.__log || []).filter((l) => l[0] === 'ui:pause').length === 0));
       await page.evaluate(() => __G.ui.showPause()); await page.click('#ui .pause [data-r="quit"]');
       check(T('pause-online') + ': Rời trận emits ui:menu', await page.evaluate(() => (window.__log || []).some((l) => l[0] === 'ui:menu')));
+      await ctx.close();
+
+      // ----- network readout: guest and host fixtures, clear of the other HUD parts, three ways to toggle
+      const NET_GUEST = { role: 'guest', transport: 'WebSocket (TCP/TLS) qua Unity Relay', region: 'asia-southeast1', hostRelayMs: 29, myRelayMs: 61, bestRegion: { region: 'asia-east1', ms: 38 }, rtt: 96, rttMax: 412, jitter: 38, snapRate: 30, lost: 0, late: 2, age: 17, gaps: 3, gapMax: 430, delay: 95, buffer: 2, behind: 0, ahead: 0, fixes: 0.4, fixMax: 0.12, down: 101, up: 9 };
+      const NET_HOST = { role: 'host', transport: 'fakenet (BroadcastChannel)', region: '', hostRelayMs: 29, myRelayMs: 29, bestRegion: null, guests: [{ name: 'Bão Số 9', rtt: 96, relayMs: 61, queue: 1, guessed: 12 }, { name: 'Cò Lả', rtt: 340, relayMs: null, queue: 3, guessed: NaN }] };
+      const netBoxes = () => page.evaluate(() => {
+        const r = (s) => [...document.querySelectorAll(s)].filter((n) => n.offsetParent || getComputedStyle(n).position === 'fixed').map((n) => { const b = n.getBoundingClientRect(); return { s, l: b.left, t: b.top, r: b.right, b: b.bottom }; }).filter((b) => b.r > b.l && b.b > b.t);
+        const n = document.querySelector('#ui .netro');
+        const nb = n && !n.hidden ? n.getBoundingClientRect() : null;
+        const others = [...r('#ui .mm'), ...r('#ui .slots .slot'), ...r('#ui .top-bar'), ...r('#ui .sc'), ...r('#ui .hpb'), ...r('#ui .pausebtn'), ...r('#touch .stick'), ...r('#touch .tbtn')];
+        const hit = nb ? others.filter((o) => o.l < nb.right && o.r > nb.left && o.t < nb.bottom && o.b > nb.top).map((o) => o.s) : [];
+        return { shown: !!nb, lines: n ? [...n.children].map((c) => c.textContent) : [], hit, touch: others.filter((o) => o.s.startsWith('#touch')).length, pe: n ? getComputedStyle(n).pointerEvents : '', box: nb && [nb.left, nb.top, nb.right, nb.bottom].map(Math.round) };
+      });
+      let net;
+      ({ ctx, page, errs } = await open(browser, T('net-off'), vp, touch, 'screen=hud&onl=1&fresh=1&freeze=1&warp=60&mech=ung'));
+      await page.evaluate((f) => { window.__net = f; }, NET_GUEST);
+      await shot(page, errs, T('net-off'), async () => {
+        await page.waitForTimeout(500);
+        net = await netBoxes();
+        check(T('net-off') + ': readout is off by default: nothing shown, no timer, no lines', !net.shown && net.lines.length === 0 && !(await page.evaluate(() => __G.ui.netReadout())), JSON.stringify(net));
+      }, 300);
+      await page.evaluate(() => __G.ui.netReadout(true));
+      await page.waitForTimeout(600);
+      net = await netBoxes();
+      const L = net.lines.join('\n');
+      check(T('net-guest') + ': guest block has the nine lines with their values', net.shown && net.lines.length === 10 && /^MẠNG · khách · asia-southeast1/.test(L) && /WebSocket \(TCP\/TLS\) qua Unity Relay/.test(L) && /RTT tới chủ phòng\s+96 ms \(xấu nhất 412\)/.test(L) && /bạn 61 ms · chủ phòng 29 ms/.test(L) && /Region gần bạn hơn: asia-east1 38 ms/.test(L) && /Jitter 38 ms · snapshot 30\/s · mất 0 · trễ 2/.test(L) && /17 ms trước · khựng 3 lần, dài nhất 430 ms/.test(L) && /2 snapshot · vẽ trễ 95 ms · đang đuổi 0 ms · đoán trước 0 ms/.test(L) && /0,4 lần\/s · lớn nhất 0,12 m/.test(L) && /↓ 101 kbit\/s · ↑ 9 kbit\/s/.test(L), L);
+      check(T('net-guest') + ': clear of minimap, skill bar, score bar, pause button and touch sticks; pointer-events none', net.hit.length === 0 && net.pe === 'none' && (!touch || net.touch >= 6), JSON.stringify({ hit: net.hit, pe: net.pe, touch: net.touch, box: net.box }));
+      const colors = await page.evaluate(() => [...document.querySelectorAll('#ui .netro span')].map((s) => s.className + ':' + s.textContent));
+      check(T('net-guest') + ': worst RTT and longest gap are red, a fine RTT is not coloured', colors.includes('bad:430 ms') && colors.includes('warn:412') === false && colors.includes('bad:412') && !colors.some((c) => c === 'warn:96 ms' || c === 'bad:96 ms'), colors.join('|'));
+      if (ctxName === 'desktop') await page.screenshot({ path: OUT + '/net-readout-guest.png' });
+      if (ctxName === 'phone') await page.screenshot({ path: OUT + '/net-readout-phone.png' });
+      await page.evaluate((f) => { window.__net = f; }, { ...NET_GUEST, rtt: null, jitter: NaN, bestRegion: null, behind: 140, gapMax: 200 });
+      await page.waitForTimeout(500);
+      net = await netBoxes();
+      check(T('net-guest') + ': a missing or NaN number prints – and the next sample repaints within 0.5 s; behind > 100 is amber, no best-region line', /RTT tới chủ phòng\s+– ms/.test(net.lines.join('\n')) && /Jitter – ms/.test(net.lines.join('\n')) && net.lines.length === 9 && (await page.evaluate(() => [...document.querySelectorAll('#ui .netro span')].map((s) => s.className + ':' + s.textContent))).join('|').includes('warn:140 ms'), net.lines.join('\n'));
+      await page.evaluate((f) => { window.__net = f; }, NET_HOST);
+      await page.waitForTimeout(500);
+      net = await netBoxes();
+      const LH = net.lines.join('\n');
+      check(T('net-host') + ': host block: header, transport, relay RTT, one line per guest, NaN as –', net.shown && /^MẠNG · chủ phòng\n/.test(LH) && /fakenet \(BroadcastChannel\)/.test(LH) && /RTT tới relay\s+29 ms/.test(LH) && /Bão Số 9\s+RTT 96 ms · tới relay 61 ms · hàng đợi input 1 · đoán 12 tick/.test(LH) && /Cò Lả\s+RTT 340 ms · tới relay – ms · hàng đợi input 3 · đoán – tick/.test(LH) && net.lines.length === 5 && net.hit.length === 0, JSON.stringify({ L: LH, hit: net.hit }));
+      if (ctxName === 'desktop') await page.screenshot({ path: OUT + '/net-readout-host.png' });
+      // key toggle: F8 off, F8 on; the choice is stored in the settings
+      await page.keyboard.press('F8'); await page.waitForTimeout(150);
+      let ns = await page.evaluate(() => ({ on: __G.ui.netReadout(), shown: !!document.querySelector('#ui .netro:not([hidden])'), saved: __G.meta.get().settings.netReadout, stored: JSON.parse(localStorage.getItem('dtt.save.v1')).settings.netReadout }));
+      check(T('net-key') + ': F8 turns the readout off, and the overlay is gone (hidden, not just empty)', !ns.on && !ns.shown && ns.saved === false && ns.stored === false, JSON.stringify(ns));
+      await page.keyboard.press('F8'); await page.waitForTimeout(350);
+      ns = await page.evaluate(() => ({ on: __G.ui.netReadout(), shown: !!document.querySelector('#ui .netro:not([hidden])'), stored: JSON.parse(localStorage.getItem('dtt.save.v1')).settings.netReadout }));
+      check(T('net-key') + ': F8 turns it on again and the state is saved', ns.on && ns.shown && ns.stored === true, JSON.stringify(ns));
+      // pause menu: summary line and the toggle button
+      await page.evaluate(() => __G.ui.showPause()); await page.waitForTimeout(400);
+      let pm = await page.evaluate(() => ({ line: document.querySelector('#ui .pause [data-r="netLine"]').textContent, btn: document.querySelector('#ui .pause [data-r="netBtn"]').textContent, vis: !document.querySelector('#ui .pause [data-r="netBtn"]').hidden }));
+      check(T('net-pause') + ': online pause menu shows the one-line summary and the button reads "bật"', pm.vis && /^Mạng: chủ phòng · RTT tới relay 29 ms · 2 khách$/.test(pm.line) && pm.btn === 'Thông số mạng: bật', JSON.stringify(pm));
+      await page.evaluate((f) => { window.__net = f; }, NET_GUEST);
+      await page.waitForTimeout(400);
+      if (ctxName === 'phone') await page.screenshot({ path: OUT + '/net-readout-phone-pause.png' });
+      pm = await page.evaluate(() => document.querySelector('#ui .pause [data-r="netLine"]').textContent);
+      check(T('net-pause') + ': guest summary follows the numbers', pm === 'Mạng: RTT 96 ms · jitter 38 ms · khựng 3 lần/10 s', pm);
+      await page.click('#ui .pause [data-r="netBtn"]');
+      ns = await page.evaluate(() => ({ on: __G.ui.netReadout(), btn: document.querySelector('#ui .pause [data-r="netBtn"]').textContent, shown: !!document.querySelector('#ui .netro:not([hidden])') }));
+      check(T('net-pause') + ': the pause button switches it off and says "tắt"', !ns.on && ns.btn === 'Thông số mạng: tắt' && !ns.shown, JSON.stringify(ns));
+      await page.click('#ui .pause [data-r="resume"]');
+      // settings row
+      await page.evaluate(() => { document.querySelector('#ui .pause'); });
+      ns = await page.evaluate(() => { const b = [...document.querySelectorAll('#ui .modal .tog')].find((x) => /Hiện thông số mạng \(co-op\)/.test(x.textContent)); b.click(); return { has: !!b, on: __G.ui.netReadout(), pressed: b.getAttribute('aria-pressed') }; });
+      check(T('net-settings') + ': settings row "Hiện thông số mạng (co-op)" toggles the same flag', ns.has && ns.on && ns.pressed === 'true', JSON.stringify(ns));
+      await page.evaluate(() => __G.ui.netReadout(false));
+      await ctx.close();
+      // outside an online match: nothing is drawn even when on; the pause menu has no network lines
+      ({ ctx, page, errs } = await open(browser, T('net-solo'), vp, touch, 'screen=pause&fresh=1&mech=ung'));
+      await page.evaluate((f) => { window.__net = f; __G.ui.netReadout(true); }, NET_GUEST);
+      await page.waitForTimeout(500);
+      net = await netBoxes();
+      const hid = await page.evaluate(() => document.querySelector('#ui .pause [data-r="netBtn"]').hidden && document.querySelector('#ui .pause [data-r="netLine"]').hidden);
+      check(T('net-solo') + ': a solo match shows no overlay and no network lines in the pause menu', !net.shown && hid, JSON.stringify({ net, hid }));
       await ctx.close();
 
       ({ ctx, page, errs } = await open(browser, T('result-online'), vp, touch, 'screen=result&onl=1&fresh=1&mech=soi'));

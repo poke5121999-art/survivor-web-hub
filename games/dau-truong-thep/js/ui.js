@@ -162,6 +162,7 @@ export function makeUI(G) {
     <div class="col foe" data-r="colB"></div>
     <button class="pausebtn" data-block data-r="pauseBtn" aria-label="Tạm dừng">${icon('pause')}</button>
     <div class="feed" data-r="feed"></div>
+    <div class="netro" data-r="netro" hidden></div>
     <div class="mm" data-r="mm"><canvas data-r="mmc"></canvas><span class="mm-name" data-r="mmn"></span></div>
     <div class="dock">
       <div class="buffs" data-r="buffs"></div>
@@ -832,7 +833,7 @@ export function makeUI(G) {
     hudOn = true;
     root.classList.add('in-hud');
     root.classList.toggle('is-touch', isTouch());
-    hud.classList.add('on'); fx.classList.add('on');
+    hud.classList.add('on'); fx.classList.add('on'); syncNet();
     if (G.match) { curMatch = null; setupMatch(G.match); }
     annQ.length = 0; annCur = null; H.ann.style.opacity = '0';
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(true);
@@ -841,7 +842,7 @@ export function makeUI(G) {
     closeChat();
     hudOn = false; syncScore();
     root.classList.remove('in-hud');
-    hud.classList.remove('on'); fx.classList.remove('on');
+    hud.classList.remove('on'); fx.classList.remove('on'); syncNet();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
   }
 
@@ -850,6 +851,7 @@ export function makeUI(G) {
   pauseEl.dataset.block = '';
   pauseEl.innerHTML = `<div class="box"><div class="hazard"></div><h2 data-r="title">Tạm dừng</h2>
     <button class="btn big" data-r="resume">Tiếp tục</button><button class="btn big danger" data-r="quit">Về sảnh</button>
+    <p class="netline" data-r="netLine" hidden></p><button class="btn" data-r="netBtn" hidden></button>
     <p class="hint" data-r="hint">Nhấn Esc để tiếp tục</p></div>`;
   const PA = refs(pauseEl);
   root.appendChild(pauseEl);
@@ -865,6 +867,7 @@ export function makeUI(G) {
     PA.hint.textContent = pausedLive ? `Trận không dừng khi bạn mở menu. Nhấn ${pk} để quay lại` : `Nhấn ${pk} để tiếp tục`;
     closeChat();
     paused = true; pauseEl.classList.add('on'); syncScore();
+    PA.netLine.hidden = PA.netBtn.hidden = !pausedLive; syncNet();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
     if (!pausedLive) G.bus.emit('ui:pause', { paused: true });
   }
@@ -873,7 +876,7 @@ export function makeUI(G) {
     paused = false; pauseEl.classList.remove('on');
     if (hudOn && G.input && G.input.setTouchVisible) G.input.setTouchVisible(true);
     if (!pausedLive) G.bus.emit('ui:pause', { paused: false });
-    pausedLive = false;
+    pausedLive = false; syncNet();
   }
   const togglePause = () => (paused ? hidePause() : showPause());
   PA.resume.onclick = hidePause;
@@ -884,6 +887,79 @@ export function makeUI(G) {
   window.addEventListener('keydown', (e) => {
     if (e.repeat || !hudOn || !G.match || G.match.over) return;
     if (K.has('pause', e.code) || (paused && e.code === 'Escape')) { e.preventDefault(); togglePause(); }
+  });
+
+  /* ================= network readout ================= */
+  // Runs only while shown (or while the online pause menu wants its summary); off means no timer and no DOM work.
+  let netTimer = 0;
+  const netOn = () => !!(meta() && meta().settings.netReadout);
+  const netStats = () => { try { return G.online && G.online.netStats ? G.online.netStats() : null; } catch (e) { return null; } };
+  const nn = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? (d ? v.toFixed(d).replace('.', ',') : String(Math.round(v))) : '–');
+  const level = (v, warn, bad) => (typeof v === 'number' && v > bad ? 'bad' : typeof v === 'number' && v > warn ? 'warn' : '');
+  // A line is a list of strings and [text, level] pairs.
+  function netLines(s) {
+    const host = s.role === 'host';
+    const out = [[`MẠNG · ${host ? 'chủ phòng' : 'khách'}${s.region ? ' · ' + s.region : ''}`], [s.transport || '–']];
+    if (host) {
+      out.push([`RTT tới relay  ${nn(s.hostRelayMs)} ms`]);
+      if (s.bestRegion) out.push([`Region gần bạn hơn: ${s.bestRegion.region} ${nn(s.bestRegion.ms)} ms`]);
+      if (s.fair) out.push([[`Region ${s.fair.region} đỡ trễ hơn cho khách xa nhất: ${nn(s.fair.ms)} ms thay vì ${nn(s.fair.now)} ms`, 'warn']]);
+      for (const g of s.guests || []) out.push([`${g.name}  RTT `, [`${nn(g.rtt)} ms`, level(g.rtt, 150, 300)], ` · tới relay ${nn(g.relayMs)} ms · hàng đợi input ${nn(g.queue)} · đoán ${nn(g.guessed)} tick`]);
+      if (!(s.guests || []).length) out.push(['Chưa có khách']);
+      return out;
+    }
+    out.push(['RTT tới chủ phòng  ', [`${nn(s.rtt)} ms`, level(s.rtt, 150, 300)], ' (xấu nhất ', [nn(s.rttMax), level(s.rttMax, 150, 300)], ')']);
+    out.push([`RTT tới relay      bạn ${nn(s.myRelayMs)} ms · chủ phòng ${nn(s.hostRelayMs)} ms`]);
+    if (s.bestRegion) out.push([`Region gần bạn hơn: ${s.bestRegion.region} ${nn(s.bestRegion.ms)} ms`]);
+    out.push([`Jitter ${nn(s.jitter)} ms · snapshot ${nn(s.snapRate)}/s · mất ${nn(s.lost)} · trễ ${nn(s.late)}`]);
+    out.push([`Snapshot mới nhất  ${nn(s.age)} ms trước · khựng ${nn(s.gaps)} lần, dài nhất `, [`${nn(s.gapMax)} ms`, level(s.gapMax, 150, 300)]]);
+    out.push([`Bộ đệm nội suy     ${nn(s.buffer)} snapshot · vẽ trễ ${nn(s.delay)} ms · đang đuổi `, [`${nn(s.behind)} ms`, s.behind > 100 ? 'warn' : ''], ` · đoán trước ${nn(s.ahead)} ms`]);
+    out.push([`Sửa dự đoán        ${nn(s.fixes, 1)} lần/s · lớn nhất ${nn(s.fixMax, 2)} m`]);
+    out.push([`Băng thông         ↓ ${nn(s.down)} kbit/s · ↑ ${nn(s.up)} kbit/s`]);
+    return out;
+  }
+  function paintNet(s) {
+    const lines = netLines(s), rows = H.netro.children;
+    while (rows.length < lines.length) H.netro.appendChild(el('div'));
+    while (rows.length > lines.length) H.netro.lastChild.remove();
+    lines.forEach((ln, i) => {
+      const row = rows[i], key = JSON.stringify(ln);
+      if (row._k === key) return;
+      row._k = key;
+      row.replaceChildren(...ln.map((p) => {
+        if (typeof p === 'string') return document.createTextNode(p);
+        const sp = el('span', p[1]); sp.textContent = p[0]; return sp;
+      }));
+    });
+  }
+  function netSummary(s) {
+    if (s.role === 'host') return `Mạng: chủ phòng · RTT tới relay ${nn(s.hostRelayMs)} ms · ${(s.guests || []).length} khách`;
+    return `Mạng: RTT ${nn(s.rtt)} ms · jitter ${nn(s.jitter)} ms · khựng ${nn(s.gaps)} lần/10 s`;
+  }
+  function netTick() {
+    const s = onlinePlaying() ? netStats() : null;
+    if (netOn() && hudOn) { H.netro.hidden = !s; if (s) paintNet(s); }
+    if (paused && pausedLive) setText(PA.netLine, s ? netSummary(s) : 'Mạng: chưa có số liệu');
+  }
+  function syncNet() {
+    const on = netOn();
+    PA.netBtn.textContent = `Thông số mạng: ${on ? 'bật' : 'tắt'}`;
+    const want = hudOn && onlinePlaying() && (on || (paused && pausedLive));
+    if (!on || !hudOn) H.netro.hidden = true;
+    if (want && !netTimer) netTimer = setInterval(netTick, 250);
+    else if (!want && netTimer) { clearInterval(netTimer); netTimer = 0; }
+    if (want) netTick();
+  }
+  function setNetReadout(v) {
+    const d = meta();
+    if (d && typeof v === 'boolean' && d.settings.netReadout !== v) { d.settings.netReadout = v; G.meta.save(); if (renderSettings) renderSettings(); }
+    syncNet();
+    return netOn();
+  }
+  PA.netBtn.onclick = () => setNetReadout(!netOn());
+  G.bus.on('net:state', syncNet);
+  window.addEventListener('keydown', (e) => {
+    if (!e.repeat && !typingIn(e.target) && K.has('netstat', e.code)) { e.preventDefault(); setNetReadout(!netOn()); }
   });
 
   /* ================= scoreboard (hold) ================= */
@@ -1208,6 +1284,7 @@ export function makeUI(G) {
       <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
+      <button class="tog" data-r="netro" aria-pressed="false"><i></i><span>Hiện thông số mạng (co-op)<small>RTT, jitter, khựng hình… ở góc trái khi chơi nhiều người</small></span></button>
     </div>
     <div class="st-pane" data-pane="keys" hidden>
       <div class="klist" data-r="klist"></div>
@@ -1228,7 +1305,9 @@ export function makeUI(G) {
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
     ST.rumble.setAttribute('aria-pressed', String(d.settings.rumble !== false));
+    ST.netro.setAttribute('aria-pressed', String(!!d.settings.netReadout));
   }
+  ST.netro.onclick = () => setNetReadout(!netOn());
   ST.rumble.onclick = () => {
     const d = meta(); if (!d) return;
     d.settings.rumble = d.settings.rumble === false;
@@ -1918,7 +1997,7 @@ export function makeUI(G) {
 
   return {
     showMenu, hideMenu, showHUD, hideHUD, update, event, showResult,
-    showPause, hidePause, togglePause, announce, toast, showLobby, hideLobby, showOnline: showEntry, hideOnline: hideEntry,
+    showPause, hidePause, togglePause, netReadout: setNetReadout, announce, toast, showLobby, hideLobby, showOnline: showEntry, hideOnline: hideEntry,
     get paused() { return paused; },
   };
 }

@@ -169,6 +169,8 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
   fo.toLobby = () => { fo.state = 'lobby'; emit(); return true; };
   fo.onLobby = () => () => {};
 }
+// window.__net is the fixture for what online.netStats() would return; null outside an online match.
+fo.netStats = () => (fo.state === 'playing' ? window.__net || null : null);
 G.online = fo;
 G.input = makeInput(G);
 G.ui = makeUI(G);

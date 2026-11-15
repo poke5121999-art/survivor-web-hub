@@ -5,7 +5,7 @@ import { createMatch, step, visibleTo, hidden, unitSpeed } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODE_ORDER, TICK } from '../js/data.js';
 import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput } from '../js/netstate.js';
-import { createPredictor } from '../js/predict.js';
+import { createPredictor, createGunner } from '../js/predict.js';
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -303,6 +303,53 @@ function predictRun(map, theme, lag, kick) {
   check(`200 ms each way on ice: same path (worst ${c.worst.toFixed(3)} m, avg ${c.avg.toFixed(3)} m)`, c.worst < 0.08 && c.moved > 100);
   const d = predictRun('denrung', null, 6, true);
   check(`knock-backs the guest cannot foresee are corrected, not accumulated (avg ${d.avg.toFixed(3)} m, worst ${d.worst.toFixed(2)} m)`, d.avg < 0.25 && d.worst < 4);
+}
+
+console.log('\n# the guest sees its own stick and its own gun at once');
+{
+  const m = createMatch({ map: 'denrung', seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'trau', name: 'Bot', bot: true, diff: 'easy' }] });
+  const mir = createMirror(JSON.parse(JSON.stringify(roster(m))));
+  Object.assign(m.units[1], { alive: false, hp: 0, respawnT: 1e6 });
+  applySnapshot(mir, snapshot(m));
+  const still = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+
+  const pred = createPredictor(mir, 0);
+  pred.correct(0, m.units[0].x, m.units[0].z, true, false);
+  const rest = pred.pose(0.5, 1 / 60, 0, 0, still), go = pred.pose(0.5, 1 / 60, 0, 0, { ...still, mx: 1 });
+  check(`a stick pushed between two ticks moves the picture in that frame (${(go.x - rest.x).toFixed(3)} m at half a tick)`, go.x - rest.x > 0.03 && rest.x === m.units[0].x);
+  pred.tick(wireInput({ ...still, mx: 1 }));
+  const after = pred.pose(0, 1 / 60, 0, 0, { ...still, mx: 1 });
+  check('the tick lands where the picture was heading', near(after.x, rest.x + (go.x - rest.x) * 2, 0.002));
+
+  // The guest holds the trigger for 2 s; the host runs each input 4 ticks later and its word comes back 4 ticks after that.
+  const LAG = 4, gun = createGunner(mir, 0), toHost = [], toGuest = [];
+  let local = 0, hostFired = 0, shownHostFire = 0, twice = 0, firstShotTick = -1, hostShotSeen = 0;
+  for (let i = 0; i < 110; i++) {
+    const now = i * TICK, inp = wireInput({ ...still, fire: i < 60 });
+    for (const e of gun.tick(inp, mir.units[0].x, mir.units[0].z, now)) if (e.t === 'fire') local++;
+    toHost.push({ at: i + LAG, inp });
+    const due = toHost[0].at <= i ? toHost.shift().inp : still;
+    step(m, [due, still]);
+    const fires = m.events.filter((e) => e.t === 'fire' && e.id === 0);
+    hostFired += fires.length;
+    toGuest.push({ at: i + LAG, snap: decodeSnap(encodeSnap(snapshot(m))), events: unpackEvents(packEvents(fires)) });
+    while (toGuest.length && toGuest[0].at <= i) {
+      const g = toGuest.shift();
+      applySnapshot(mir, g.snap, TICK);
+      hostShotSeen += mir.shots.filter((s) => s.owner === 0).length;
+      for (const e of g.events) if (gun.keep(e, now)) shownHostFire++;
+    }
+    const drawn = gun.shots(mir.shots, 1, 1, now).filter((s) => s.owner === 0);
+    if (firstShotTick < 0 && drawn.length) firstShotTick = i;
+    twice += drawn.filter((s) => s.id > 0).length;
+  }
+  check(`the first shot is on screen in the tick the trigger is pulled (tick ${firstShotTick})`, firstShotTick === 0);
+  check(`the guest's gun keeps the host's rhythm: ${local} shots predicted, ${hostFired} fired by the host`, local === hostFired && local === 12);
+  check(`no shot or muzzle flash shows twice (${hostShotSeen} host shot sightings hidden, ${twice} drawn, ${shownHostFire} host flashes played)`, hostShotSeen > 20 && twice === 0 && shownHostFire === 0);
+
+  const lone = createGunner(mir, 0);
+  const stray = [{ id: 77, owner: 0, vis: 'bullet', x: 1, z: 1, px: 1, pz: 1, dx: 1, dz: 0, speed: 34, r: 0.2 }];
+  check('a shot the host fired without a prediction is drawn as it comes', lone.shots(stray, 0, 1, 0).length === 1 && lone.keep({ t: 'fire', id: 0, vis: 'bullet' }, 0) === true);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

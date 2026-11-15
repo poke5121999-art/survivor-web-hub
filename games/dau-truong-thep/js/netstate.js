@@ -57,13 +57,15 @@ function decZoneField(v, type) {
   return v;
 }
 
+// F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4;
+export const F_GUESS = 8;
 const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 function unitRow(u) {
   const r = [rd(u.x), rd(u.z), ang(u.aim), rd(u.heading), Math.round(u.hp), u.maxHp,
-    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0), tm(u.respawnT)];
+    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0), tm(u.respawnT)];
   for (const k of CD) r.push(tm(u.cd[k]));
   for (const k of STATUS) r.push(tm(u[k]));
   r.push(u.bush, u.cast ? [u.def.skills.indexOf(u.cast.skill), rd(u.cast.t), rd(u.cast.total), ang(u.cast.aim)] : 0,

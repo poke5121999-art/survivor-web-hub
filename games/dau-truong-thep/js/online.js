@@ -8,11 +8,12 @@
 //   guest       drives its own mech at once (predict.js) and draws everyone else a little in the past, between snapshots
 import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { nearestRegion } from './net/region.js';
-import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS } from './netstate.js';
-import { createPredictor } from './predict.js';
+import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS, F_GUESS } from './netstate.js';
+import { createPredictor, createGunner } from './predict.js';
 import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
+import { walk, gripAt } from './sim.js';
 
 const PROTOCOL = 1;
 const FRAME = 1100;          // Relay datagrams stay under the ~1400 B MTU; bigger messages are cut into frames
@@ -29,9 +30,16 @@ const INPUT_QUEUE_MAX = 6;   // host: inputs waiting per guest before the oldest
 const SLOW_EVERY = 10;       // snapshots between two that carry the slow facts (scoreboard numbers, broken props)
 const EVENT_BYTES = 700;     // event text per packet: with the snapshot it stays inside one datagram
 const CLOCK_WINDOW = 3;      // guest: seconds of snapshot arrivals that set the drawing delay
-const DELAY_MAX = 0.4;
+const DELAY_MAX = 0.25;
 const WELCOME_TIMEOUT = 8;
-const EXTRAPOLATE = 0.1;
+const EXTRAPOLATE = 0.15;    // guest: seconds the picture may run past the newest snapshot, slowing to a stop
+const CATCH_UP = 0.25;       // guest: how much faster than real time the picture plays to make up for a stall
+const SLOW_DOWN = 0.15;
+const GLIDE = 6;              // guest: per second, how fast a mech drawn on a guess melts back onto its true path
+const RESYNC = 1;            // guest: seconds behind at which catching up is given up and the picture jumps
+const HOLD_MAX = 30;         // host: ticks a guest's mech may run on a guess and still be put right when its inputs come
+const PING = 0.5;
+const WINDOW = 10;           // seconds the readout looks back
 const SNAP_DT = SNAP_TICKS * TICK;
 const CHAT_MAX = 120;
 const CHAT_BURST = 5;        // messages allowed per player ...
@@ -144,12 +152,13 @@ const TRANSPORTS = {
     async host(o) {
       const near = await nearestRegion();
       const room = await hostRoom({ name: o.name, isPrivate: o.isPrivate, region: near ? near.region : undefined, playerName: o.playerName, mode: o.mode, map: o.map, maxPlayers: MAX_PLAYERS });
-      return { link: room.link, code: room.code, region: room.region, room, publish: (p) => room.publish(p), lock: (v) => room.lock(v), free: (uid) => room.free(uid), close: () => room.close() };
+      return { link: room.link, code: room.code, region: room.region, near, room, publish: (p) => room.publish(p), lock: (v) => room.lock(v), free: (uid) => room.free(uid), close: () => room.close() };
     },
     async join(o) {
       const room = await joinRoom({ code: o.code, lobbyId: o.lobbyId, playerName: o.playerName });
       return { link: room.link, code: room.lobby.lobbyCode || o.code || '', uid: room.uid, leave: (k) => room.leave(k) };
     },
+    probe: () => nearestRegion(),
     // Opening the room list is the sign that a room may be hosted soon: measure the regions while the player reads it.
     list: () => { nearestRegion(); return listRelayRooms(); },
   },
@@ -191,6 +200,12 @@ const NEUTRAL = (aim = 0) => ({ mx: 0, mz: 0, aim, fire: false, s1: false, s2: f
 const FLAGS = ['fire', 's1', 's2', 'ult', 'heal'];
 const finite = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
 const clock = () => performance.now() / 1000;
+// Things that happened in the last WINDOW seconds, for the readout: each with a size.
+function lately() {
+  const a = [];
+  const trim = () => { const old = clock() - WINDOW; while (a.length && a[0][0] < old) a.shift(); };
+  return { add(v = 1) { trim(); a.push([clock(), v]); }, get n() { trim(); return a.length; }, get max() { trim(); return a.reduce((m, e) => Math.max(m, e[1]), 0); }, get sum() { trim(); return a.reduce((t, e) => t + e[1], 0); } };
+}
 
 export function makeOnline(G) {
   const search = typeof location === 'undefined' ? '' : location.search;
@@ -200,7 +215,7 @@ export function makeOnline(G) {
 
   const online = {
     state: 'off', role: null, code: '', region: '', error: '', me: null, lobby: null, mySlot: -1, rosterData: null, mirror: null,
-    stats: { snapsSent: 0, snapsRecv: 0, bytesSent: 0, inputsSent: 0, inputsRecv: 0 },
+    stats: { snapsSent: 0, snapsRecv: 0, bytesSent: 0, bytesRecv: 0, inputsSent: 0, inputsRecv: 0 },
   };
   const listeners = new Set();
   let link = null, conn = null, framer = new Framer(), pump = null, ticket = 0;
@@ -215,7 +230,13 @@ export function makeOnline(G) {
   let buf = [], held = null, drawAt = 0, arrivals = [], lastFrame = 0, snapQ = 0, newestK = -1;
   // late: events that arrived for a snapshot already drawn; they play with the next frame.
   let evAck = 0, evSeen = new Set(), late = [];
-  let predictor = null, own = null, sample = null, pressed = 0, tickAcc = 0, recent = [];
+  // glide: per unit, how far its picture is held away from where the snapshots put it ([x, z], melting), the offset
+  // now written into the mirror, and where the guess being replaced would have drawn it.
+  let glide = [];
+  let predictor = null, gunner = null, hostShots = [], own = null, sample = null, pressed = 0, tickAcc = 0, recent = [];
+  // What the readout shows. watch: counted as it happens. rate: per second, refreshed once a second by tick().
+  const freshWatch = () => ({ gaps: lately(), lost: lately(), late: lately(), fixes: lately(), rtts: lately(), rtt: 0, arrived: 0, behind: 0, ahead: 0 });
+  let watch = freshWatch(), rate = { at: 0, snaps: 0, down: 0, up: 0, snapsRecv: 0, bytesRecv: 0, bytesSent: 0 }, lastPing = 0, myNet = null;
 
   // ---- connection state machine -------------------------------------------------------------------------------
   const FSM = {
@@ -296,7 +317,8 @@ export function makeOnline(G) {
 
   // Host, per guest. queue: inputs not yet run, by number. applied: the last number run. evAck: every event batch up to
   // it has arrived there. evSent: batch -> when it last went out. rtt: seconds, from snapshot out to its echo in an input.
-  const freshInputs = () => ({ input: null, inputAt: clock(), applied: 0, queue: new Map(), low: 99, lowN: 0, evAck: 0, evSent: new Map(), rtt: 0 });
+  // hold: where the guest's mech stood when its inputs stopped coming, while the host moves it on a guess.
+  const freshInputs = () => ({ input: null, inputAt: clock(), applied: 0, hold: null, guessed: lately(), queue: new Map(), low: 99, lowN: 0, evAck: 0, evSent: new Map(), rtt: 0 });
 
   function peerOf(id) {
     let p = peers.get(id);
@@ -309,6 +331,7 @@ export function makeOnline(G) {
     if (body === null || !body.length) return;
     const peer = peerOf(from);
     peer.heard = clock();
+    online.stats.bytesRecv += bytes.length;
     if (online.role === 'guest') hostHeard = peer.heard;
     if (body[0] !== 123) {
       try {
@@ -403,6 +426,9 @@ export function makeOnline(G) {
     swap(peer) { swapTeam(peer.pid); },
     say(peer, m) { acceptChat(peer.pid, peer, m.text); },
     hb() {},
+    pg(peer, m) { send(peer, { t: 'po', c: m.c }); },
+    // A guest's round trips to the Relay regions, measured from its own network.
+    net(peer, m) { if (Array.isArray(m.rows)) peer.net = m.rows.slice(0, 24).filter((r) => Array.isArray(r) && typeof r[0] === 'string' && Number.isFinite(r[1])); },
     bye(peer) { removePlayer(peer, 'rời phòng'); },
   };
 
@@ -433,6 +459,12 @@ export function makeOnline(G) {
       emit('net:chat', { id: String(m.id), name: String(m.name || '').slice(0, 24), team: m.team | 0, text: cleanChat(m.text), t: Number(m.at) || Date.now() });
     },
     hb() {},
+    po(peer, m) {
+      const ms = (clock() - Number(m.c)) * 1000;
+      if (!(ms >= 0 && ms < 60000)) return;
+      watch.rtt = watch.rtt ? watch.rtt * 0.7 + ms * 0.3 : ms;
+      watch.rtts.add(ms);
+    },
     bye() { lose(T.hostLeft); },
   };
 
@@ -450,6 +482,11 @@ export function makeOnline(G) {
         }
         p.at = now; send(peer, p.msg);
       }
+    }
+    if (online.role === 'guest' && online.state === 'playing' && now - lastPing >= PING) { lastPing = now; for (const p of peers.values()) send(p, { t: 'pg', c: now }); }
+    if (now - rate.at >= 1) {
+      const st = online.stats, dt = now - rate.at;
+      rate = { at: now, snaps: (st.snapsRecv - rate.snapsRecv) / dt, down: (st.bytesRecv - rate.bytesRecv) * 8 / 1000 / dt, up: (st.bytesSent - rate.bytesSent) * 8 / 1000 / dt, snapsRecv: st.snapsRecv, bytesRecv: st.bytesRecv, bytesSent: st.bytesSent };
     }
     if (now - lastHb >= HEARTBEAT) { lastHb = now; toAll({ t: 'hb' }); if (online.role === 'guest') for (const p of peers.values()) send(p, { t: 'hb' }); }
     if (online.role === 'host') {
@@ -484,6 +521,10 @@ export function makeOnline(G) {
       const c = await net.host({ name: name || `Phòng của ${pname}`, isPrivate, playerName: pname, mode: 'tdm', map: 'denrung' });
       if (mine !== ticket || online.state !== 'connecting') { c.close(); return false; }
       online.lobby = newLobby(pname); online.me = 'p0'; online.code = c.code; online.region = c.region || ''; pidN = 0;
+      myNet = c.near || null;
+      const row = myNet && myNet.rows && myNet.rows.find((r) => r.region === online.region);
+      // Guests read the room's region and the host's distance to it from the lobby they are sent.
+      online.lobby.net = { region: online.region, ms: row ? row.ms : null };
       attach(c, 'host');
       fire('ready');
       return true;
@@ -511,6 +552,12 @@ export function makeOnline(G) {
         }, 50);
       });
       if (online.state === 'connecting') { fail(T.noReply); return false; }
+      // How far this guest is from each region, for its own readout and for the host to weigh.
+      if (net.probe) net.probe().then((near) => {
+        if (mine !== ticket || !near || !near.rows) return;
+        myNet = near;
+        if (link && link.hostId) sendRel(peerOf(link.hostId), { t: 'net', rows: near.rows.map((r) => [r.region, r.ms]) });
+      });
       return online.state === 'lobby';
     } catch (e) {
       if (mine === ticket) fail(explain(e));
@@ -689,12 +736,41 @@ export function makeOnline(G) {
     if (keys.length) FLAGS.forEach((f, i) => { if (carry & (1 << i)) peer.queue.get(keys[0])[f] = true; });
   }
 
-  // One input per guest per tick, in the order the guest made them: the guest's prediction counts on that. The queue
-  // is the jitter buffer: it fills by itself when a tick finds it empty, and gives a tick back when it stayed full.
-  function nextInput(peer, now) {
+  // The late inputs are here: the mech goes back to where it stood when they stopped coming and walks them, all but
+  // the newest, which this tick runs. It ends up where the guest, who kept driving on its own screen, already is.
+  function settle(peer, u) {
+    const h = peer.hold, q = peer.queue, m = G.match;
+    peer.hold = null; u.guess = false;
+    if (!u.alive || u.dash || u.deaths !== h.deaths || h.ticks > HOLD_MAX) { skipInputs(peer, 1); return; }
+    // A guest cannot have made many more inputs than the ticks that passed: the surplus is skipped, not walked.
+    skipInputs(peer, h.ticks + 3);
+    Object.assign(u, h.at);
+    const keys = [...q.keys()].sort((a, b) => a - b);
+    let carry = 0;
+    while (keys.length > 1) {
+      const k = keys.shift(), inp = q.get(k);
+      walk(m, u, inp, gripAt(m.map, u.x, u.z));
+      FLAGS.forEach((f, i) => { if (inp[f]) carry |= 1 << i; });
+      q.delete(k); peer.applied = k;
+    }
+    FLAGS.forEach((f, i) => { if (carry & (1 << i)) q.get(keys[0])[f] = true; });
+  }
+
+  // One input per guest per tick, in the order the guest made them: the guest's prediction counts on that.
+  // A tick that finds no input runs the last one again, as a guess: the mech keeps moving on everyone's screen, the
+  // snapshot marks it F_GUESS so the guest does not take that position for the host's word, and settle() replaces the
+  // guess with the real inputs when they come, after one late packet or after a stall of half a second.
+  function nextInput(peer, now, u) {
     const q = peer.queue;
+    if (peer.hold && q.size) settle(peer, u);
     if (q.size > INPUT_QUEUE_MAX) skipInputs(peer, 2);
-    if (!q.size) return !peer.input || now - peer.inputAt > INPUT_SILENCE ? NEUTRAL(peer.input ? peer.input.aim : 0) : peer.input;
+    if (!q.size) {
+      if (!peer.input || now - peer.inputAt > INPUT_SILENCE) { peer.hold = null; u.guess = false; return NEUTRAL(peer.input ? peer.input.aim : 0); }
+      if (!peer.hold && u.alive && !u.dash) { peer.hold = { at: { x: u.x, z: u.z, vx: u.vx, vz: u.vz, heading: u.heading }, deaths: u.deaths, ticks: 0 }; u.guess = true; }
+      if (peer.hold) peer.hold.ticks++;
+      peer.guessed.add();
+      return peer.input;
+    }
     let k = peer.applied + 1;
     if (!q.has(k)) k = Math.min(...q.keys());
     peer.input = q.get(k); q.delete(k); peer.applied = k;
@@ -709,11 +785,11 @@ export function makeOnline(G) {
     const now = clock(), m = G.match;
     for (const slot of gone) {
       const u = m && m.units[slot];
-      if (u && !u.bot) { u.bot = true; u.brain = null; }
+      if (u && !u.bot) { u.bot = true; u.brain = null; u.guess = false; }
     }
     for (const peer of peers.values()) {
       if (peer.slot < 0 || gone.has(peer.slot)) continue;
-      out[peer.slot] = nextInput(peer, now);
+      if (m && m.units[peer.slot]) out[peer.slot] = nextInput(peer, now, m.units[peer.slot]);
     }
     return out;
   };
@@ -764,7 +840,9 @@ export function makeOnline(G) {
   function resetGuest(mirror, slot) {
     buf = []; held = null; drawAt = 0; arrivals = []; lastFrame = 0; snapQ = 0; newestK = -1;
     evAck = 0; evSeen = new Set(); late = [];
-    predictor = createPredictor(mirror, slot); own = null; sample = null; pressed = 0; tickAcc = 0; recent = [];
+    predictor = createPredictor(mirror, slot); gunner = createGunner(mirror, slot); hostShots = [];
+    own = null; sample = null; pressed = 0; tickAcc = 0; recent = [];
+    watch = freshWatch(); lastPing = 0; glide = mirror.units.map(() => ({ ox: 0, oz: 0, ax: 0, az: 0, x: NaN, z: NaN }));
   }
 
   function takeSnapshot(p) {
@@ -772,6 +850,10 @@ export function makeOnline(G) {
     if (online.state !== 'playing' || !m || !predictor) return;
     const now = clock(), k = p.snap.k;
     online.stats.snapsRecv++;
+    if (watch.arrived && now - watch.arrived > 0.1) watch.gaps.add((now - watch.arrived) * 1000);
+    watch.arrived = now;
+    if (snapQ && p.q > snapQ + 1) watch.lost.add(p.q - snapQ - 1);
+    else if (p.q < snapQ) watch.late.add();
     if (p.q > snapQ) snapQ = p.q;
     p.events = [];
     for (const [seq, events] of p.batches) {
@@ -785,7 +867,10 @@ export function makeOnline(G) {
     if (k > newestK) {
       newestK = k;
       const r = p.snap.u[online.mySlot];
-      if (r) predictor.correct(p.applied, r[0], r[1], !!(r[6] & 1), !!(r[6] & 2));
+      // While the host only guesses where this mech is (F_GUESS), the guest's own word stands.
+      const guess = r && predictor.free && (r[6] & 3) === 1 && (r[6] & F_GUESS);
+      const moved = r && !guess ? predictor.correct(p.applied, r[0], r[1], !!(r[6] & 1), !!(r[6] & 2)) : 0;
+      if (moved) watch.fixes.add(moved);
     }
     arrivals.push([now, k * TICK]);
     while (arrivals.length > 2 && now - arrivals[0][0] > CLOCK_WINDOW) arrivals.shift();
@@ -807,14 +892,22 @@ export function makeOnline(G) {
     return now - base - online.stats.delay;
   }
 
-  function applyNext() {
+  // Every event the host sent passes here once, in order. false: the guest's own gun already showed it (predict.js).
+  // online.onHostEvent, when set, sees them all: tests compare that stream with what the host produced.
+  function fromHost(e, now) {
+    if (online.onHostEvent) online.onHostEvent(e);
+    return gunner.keep(e, now);
+  }
+
+  function applyNext(now) {
     const p = buf.shift(), m = online.mirror, u = m.units[online.mySlot];
     // The own mech is drawn from the predictor; the mirror's own interval is kept aside and put back for the snapshot to move on from.
     if (own) { u.x = own.x; u.z = own.z; }
     applySnapshot(m, p.snap, held ? Math.max(TICK, (p.snap.k - held.k) * TICK) : undefined);
     own = { x: u.x, z: u.z, px: u.px, pz: u.pz };
+    hostShots = m.shots;
     held = { k: p.snap.k, from: held ? held.k : p.snap.k };
-    for (const e of p.events) m.events.push(e);
+    for (const e of p.events) if (fromHost(e, now)) m.events.push(e);
   }
 
   // The input a frame holds. A button pressed between two ticks stays pressed until a tick has sent it.
@@ -830,44 +923,112 @@ export function makeOnline(G) {
     if (online.role !== 'guest' || !m || !predictor) return { alpha: 1 };
     const now = nowMs / 1000, dt = lastFrame ? Math.min(0.1, Math.max(0, now - lastFrame)) : 0;
     lastFrame = now;
-    m.events = late; late = [];
+    m.events = late.filter((e) => fromHost(e, now)); late = [];
+    m.units.forEach((v, i) => { const g = glide[i]; v.x -= g.ax; v.px -= g.ax; v.z -= g.az; v.pz -= g.az; g.ax = g.az = 0; });
 
-    let alpha = 1;
-    if (!held) { if (buf.length >= 2 || (buf.length && now - arrivals[0][0] > 0.25)) { applyNext(); drawAt = held.k * TICK; } }
+    let alpha = 1, guessed = false;
+    if (!held) { if (buf.length >= 2 || (buf.length && now - arrivals[0][0] > 0.25)) { applyNext(now); drawAt = held.k * TICK; } }
     else {
-      const want = drawTime(now);
-      drawAt = Math.abs(want - drawAt) > 0.3 ? want : drawAt + dt * (1 + Math.max(-0.08, Math.min(0.08, (want - drawAt) * 2)));
-      while (buf.length && drawAt >= held.k * TICK) applyNext();
+      // drawAt is the host time on screen. It runs at the speed of the clock toward `want`, a little faster when a
+      // stall left it behind and a little slower when it got ahead, so the picture never jumps to make up time.
+      // edge is the newest host time in hand: past it there is only a guess, and the picture slows to a stop there.
+      const want = drawTime(now), edge = (buf.length ? buf[buf.length - 1].snap.k : held.k) * TICK, lag = want - drawAt;
+      if (Math.abs(lag) > RESYNC) drawAt = Math.min(want, edge);
+      else drawAt += dt * (1 + Math.max(-SLOW_DOWN, Math.min(CATCH_UP, lag * 2))) * Math.max(0, 1 - Math.max(0, drawAt - edge) / EXTRAPOLATE);
+      // Snapshots are about to replace a guess: note where the guess would have put each mech in this frame.
+      guessed = watch.ahead > 0.02 && buf.length > 0;
+      if (guessed) {
+        const a = 1 - (held.k * TICK - drawAt) / Math.max(TICK, (held.k - held.from) * TICK);
+        m.units.forEach((v, i) => { glide[i].x = v.px + (v.x - v.px) * a + glide[i].ox; glide[i].z = v.pz + (v.z - v.pz) * a + glide[i].oz; });
+      }
+      while (buf.length && drawAt >= held.k * TICK) applyNext(now);
       const span = Math.max(TICK, (held.k - held.from) * TICK);
       alpha = Math.max(0, Math.min(1 + EXTRAPOLATE / span, 1 - (held.k * TICK - drawAt) / span));
+      watch.behind = Math.max(0, want - drawAt); watch.ahead = Math.max(0, drawAt - edge);
     }
 
     const u = m.units[online.mySlot];
+    let inp = null;
     if (sample) {
       tickAcc += dt;
       let ran = 0;
       for (; tickAcc >= TICK && ran < 4; ran++) {
         tickAcc -= TICK;
-        const inp = wireInput(sample);
+        inp = wireInput(sample);
         FLAGS.forEach((k, i) => { if (pressed & (1 << i)) inp[k] = true; });
         pressed = 0;
         predictor.tick(inp);
+        const at = predictor.free ? predictor : own || u;
+        for (const e of gunner.tick(inp, at.x, at.z, now)) m.events.push(e);
         recent.unshift(inp);
         if (recent.length > INPUT_REPEAT) recent.pop();
       }
       if (tickAcc > TICK) tickAcc = 0;
       if (ran) { sendBytes(link.hostId, encodeInputPacket(predictor.seq, snapQ, evAck, recent)); online.stats.inputsSent += ran; }
       if (u.alive && !(u.stunT > 0) && !(u.cast && u.cast.lock)) u.aim = sample.aim;
+      inp = inp || wireInput(sample);
     }
     if (own) {
-      const p = predictor.pose(tickAcc / TICK, dt, own.px + (own.x - own.px) * alpha, own.pz + (own.z - own.pz) * alpha);
+      const p = predictor.pose(tickAcc / TICK, dt, own.px + (own.x - own.px) * alpha, own.pz + (own.z - own.pz) * alpha, inp);
       const dx = p.free ? p.dx : own.x - own.px, dz = p.free ? p.dz : own.z - own.pz;
       // Everything is drawn at px + (x - px) * alpha: these two points put the own mech at p and keep its tick of motion.
       u.px = p.x - dx * alpha; u.pz = p.z - dz * alpha; u.x = u.px + dx; u.z = u.pz + dz;
       if (p.free) u.heading = p.heading;
     }
+    // A mech drawn on a guess while the line was silent is not where the snapshots now say it was: its picture stays
+    // put and melts into the true path instead of hopping there.
+    const melt = Math.exp(-GLIDE * dt);
+    m.units.forEach((v, i) => {
+      if (i === online.mySlot) return;
+      const g = glide[i], x = v.px + (v.x - v.px) * alpha, z = v.pz + (v.z - v.pz) * alpha;
+      if (guessed && v.alive && Math.hypot(g.x - x, g.z - z) < 4) { g.ox = g.x - x; g.oz = g.z - z; }
+      else { g.ox *= melt; g.oz *= melt; }
+      g.ax = g.ox; g.az = g.oz;
+      v.x += g.ax; v.px += g.ax; v.z += g.az; v.pz += g.az;
+    });
+    if (held) m.shots = gunner.shots(hostShots, tickAcc / TICK, alpha, now);
     return { alpha };
   };
+
+  // ---- readout ----------------------------------------------------------------------------------------------------
+  // Numbers a player can screenshot when the match feels laggy. Times in ms, sizes in metres, traffic in kbit/s.
+  online.netStats = function netStats() {
+    if (online.state !== 'playing' || !online.role) return null;
+    const room = (online.lobby && online.lobby.net) || { region: online.region, ms: null };
+    const rows = (myNet && myNet.rows) || [];
+    const mine = rows.find((r) => r.region === room.region), best = rows[0];
+    const out = {
+      role: online.role, transport: fake ? 'fakenet (BroadcastChannel)' : 'WebSocket (TCP/TLS) qua Unity Relay', region: room.region || '',
+      hostRelayMs: room.ms, myRelayMs: mine ? mine.ms : null,
+      bestRegion: best && mine && best.region !== room.region && best.ms < mine.ms ? { region: best.region, ms: best.ms } : null,
+    };
+    if (online.role === 'host') {
+      out.guests = joined().filter((p) => p.slot >= 0).map((p) => ({ name: (lobbyPlayer(p.pid) || {}).name || p.pid, rtt: p.rtt ? p.rtt * 1000 : null, queue: p.queue.size, guessed: p.guessed.n, relayMs: ((p.net || []).find((r) => r[0] === room.region) || [])[1] ?? null }));
+      out.fair = fairRegion(rows, room.region);
+      return out;
+    }
+    const now = clock();
+    return Object.assign(out, {
+      rtt: watch.rtt || null, rttMax: watch.rtts.n ? watch.rtts.max : null, jitter: Math.max(0, ((online.stats.delay || 0) - SNAP_DT - 0.008) * 1000),
+      snapRate: rate.snaps, lost: watch.lost.sum, late: watch.late.n,
+      age: watch.arrived ? (now - watch.arrived) * 1000 : null, gaps: watch.gaps.n, gapMax: watch.gaps.max,
+      delay: (online.stats.delay || 0) * 1000, buffer: buf.length, behind: watch.behind * 1000, ahead: watch.ahead * 1000,
+      fixes: watch.fixes.n / WINDOW, fixMax: watch.fixes.max, down: rate.down, up: rate.up,
+    });
+  };
+
+  // The region where the worst-placed guest has the shortest way to the host (its leg plus the host's), when that
+  // beats the room's region by a margin worth moving for. null while it does not, or nothing was measured.
+  function fairRegion(hostRows, current) {
+    const guests = joined().map((p) => p.net).filter((n) => n && n.length);
+    if (!guests.length || !hostRows.length) return null;
+    const worst = (region, h) => Math.max(...guests.map((g) => { const r = g.find((x) => x[0] === region); return r ? h + r[1] : Infinity; }));
+    const now = hostRows.find((r) => r.region === current);
+    let best = null;
+    for (const r of hostRows) { const ms = worst(r.region, r.ms); if (!best || ms < best.ms) best = { region: r.region, ms }; }
+    const cur = now ? worst(current, now.ms) : Infinity;
+    return best && best.region !== current && cur - best.ms >= 40 ? { region: best.region, ms: best.ms, now: cur } : null;
+  }
 
   return online;
 }

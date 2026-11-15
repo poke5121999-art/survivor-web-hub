@@ -60,6 +60,7 @@ function hostStep() {
 }
 
 online.onLobby(() => {});
+online.onHostEvent = (e) => h.guestLog.push(JSON.stringify(e));
 G.bus.on('net:start', (d) => {
   h.hostLog = []; h.guestLog = []; h.hist = new Map();
   if (d.role === 'host') G.match = createMatch(matchOptions(d.rosterData));
@@ -82,7 +83,7 @@ setInterval(() => {
     online.sendInput(h.script || NEUTRAL);
     const { alpha } = online.frame(now);
     const m = h.mirror;
-    for (const e of m.events) h.guestLog.push(JSON.stringify(e));
+    // The guest's own gun shows its shots at once and swallows the host's copies: the wire is checked where it comes in.
     h.view = { tick: m.tick, alpha, pos: m.units.map((u) => [u.px + (u.x - u.px) * alpha, u.pz + (u.z - u.pz) * alpha]), raw: m.units.map((u) => [u.x, u.z]), over: m.over };
   }
 }, 8);

@@ -15,6 +15,7 @@ export const ACTIONS = [
   { id: 'heal', label: 'Dùng bình máu', default: ['KeyF'], mouse: true },
   { id: 'score', label: 'Bảng điểm (giữ)', default: ['Tab'], mouse: true },
   { id: 'pause', label: 'Tạm dừng', default: ['Escape'], mouse: false },
+  { id: 'netstat', label: 'Thông số mạng', default: ['F8'], mouse: false },
 ];
 
 const byId = new Map(ACTIONS.map((a) => [a.id, a]));

@@ -237,7 +237,7 @@ function smooth(host, guest, units) {
         seen++;
       }
       if (!seen || teleport) continue;
-      if (d - vmax * dt > 0.12) { snaps++; jumps.push([b[0], d - vmax * dt, i]); if (ENV.NL_DEBUG && snaps <= 12) console.log(`  snap unit ${i} t ${Math.round(b[0])} ms: drew ${d.toFixed(2)} m in ${(dt * 1000).toFixed(0)} ms, host top speed nearby ${vmax.toFixed(1)} m/s, from (${a[1 + i * 2].toFixed(2)}, ${a[2 + i * 2].toFixed(2)})`); }
+      if (d - vmax * dt > 0.12) { snaps++; jumps.push([b[0], d - vmax * dt, i]); if (ENV.NL_DEBUG && (snaps <= 12 || d - vmax * dt > 1)) console.log(`  snap unit ${i} t ${Math.round(b[0])} ms: drew ${d.toFixed(2)} m in ${(dt * 1000).toFixed(0)} ms, host top speed nearby ${vmax.toFixed(1)} m/s, from (${a[1 + i * 2].toFixed(2)}, ${a[2 + i * 2].toFixed(2)})`); }
       else if (d < 0.004 && vmin > 2) stalls++;
     }
   }
