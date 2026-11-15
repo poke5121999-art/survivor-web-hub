@@ -1,5 +1,5 @@
 // Listening levers: writes spectrogram sheets (PNG) and, on request, every sound as WAV.
-// Run: timeout 900 node tools/audio-export.js <sheetsDir> [wavDir]   e.g. .chk/before  (WAVs only when wavDir is given)
+// Run: timeout 900 node tools/audio-export.js <sheetsDir> [wavDir] [new]   e.g. .chk/before  (WAVs only when wavDir is given; `new` limits them to the Addendum 5 and 6 sounds plus a held-voice run and a new-mech fight)
 'use strict';
 const path = require('path');
 const fs = require('fs');
@@ -7,7 +7,7 @@ const PW = process.env.PLAYWRIGHT_PATH || path.join(process.env.HOME, '.cache/pw
 const { serve } = require('../../../tools/thumb-lib.js');
 
 const GROUPS = [
-  ['audio-weapons.png', ['fire_']], ['audio-weapons2.png', ['mortar_', 'turret_', 'tower_']],
+  ['audio-weapons.png', ['fire_']], ['audio-held-misc.png', ['ray_', 'charge_', 'beam_', 'st_', 'wire_', 'decoy_', 'drone_']], ['audio-weapons2.png', ['mortar_', 'turret_', 'tower_']],
   ['audio-impacts.png', ['hit_', 'impact_', 'prop_', 'crate_', 'pot_', 'shield_', 'ram_']],
   ['audio-explosions.png', ['expl_', 'death', 'respawn']],
   ['audio-skills.png', ['sk_']], ['audio-pickups.png', ['pickup_', 'heal_', 'airdrop', 'crate_drop']],
@@ -15,8 +15,8 @@ const GROUPS = [
   ['audio-music.png', ['@stems']], ['audio-ambience.png', ['@beds']],
 ];
 (async () => {
-  const [sheetDir, wavDir] = process.argv.slice(2);
-  if (!sheetDir) { console.log('usage: node tools/audio-export.js <sheetsDir> [wavDir]'); process.exit(2); }
+  const [sheetDir, wavDir, only] = process.argv.slice(2);
+  if (!sheetDir) { console.log('usage: node tools/audio-export.js <sheetsDir> [wavDir] [new]'); process.exit(2); }
   const srv = await serve();
   await require('./lib.js').lockChrome();
   const br = await require(PW).chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -32,7 +32,7 @@ const GROUPS = [
       console.log('sheet', path.join(sheetDir, s.file));
     }
     if (wavDir) {
-      const all = await page.evaluate('window.__exportAll()');
+      const all = await page.evaluate('window.__exportAll(' + (only === 'new') + ')');
       for (const f of all) { const p = path.join(wavDir, f.file); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, Buffer.from(f.b64, 'base64')); }
       console.log('wav', all.length, 'files in', wavDir);
     }

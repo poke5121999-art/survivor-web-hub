@@ -17,7 +17,7 @@ const tm = (v) => (v > 0 ? Math.max(0.01, rd(v)) : 0);
 const num = (v) => (Number.isFinite(v) ? v : 0);
 
 const PICKUP_KEYS = Object.keys(PICKUPS);
-const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret'];
+const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire'];
 
 // Shots are sent as [id, owner, kind, x, z, angle]. Team and colour come from the owner; speed, radius and look from
 // a kind table both ends build from the same data rows (weapons, volley skills, the turret). A kind the table lacks
@@ -38,17 +38,21 @@ addKind('rivet', 30, 0.18);
 const ZONE_EXTRA = {
   strike: [['total', 'n'], ['lob', 'b'], ['x0', 'n'], ['z0', 'n']],
   mine: [['dur', 'n'], ['blast', 'n']],
-  field: [['dur', 'n'], ['vis', 's'], ['hps', 'n'], ['dps', 'n'], ['slow', 'n'], ['hide', 'b'], ['pull', 'n']],
+  field: [['dur', 'n'], ['vis', 's'], ['hps', 'n'], ['dps', 'n'], ['slow', 'n'], ['hide', 'b'], ['pull', 'n'], ['cage', 'b'], ['held', 'i']],
   dome: [['dur', 'n']],
-  wall: [['dur', 'n'], ['a', 'a'], ['pts', 'p']],
+  wall: [['dur', 'n'], ['a', 'a'], ['pts', 'p'], ['screen', 'b']],
   turret: [['dur', 'n'], ['hp', 'i'], ['maxHp', 'i'], ['aim', 'a'], ['range', 'n']],
+  decoy: [['dur', 'n'], ['hp', 'i'], ['maxHp', 'i'], ['aim', 'a']],
+  drone: [['dur', 'n'], ['target', 'j']],
+  wire: [['dur', 'n'], ['pts', 'p'], ['left', 'i']],
 };
 
 function encZoneField(v, type) {
   if (type === 'b') return v ? 1 : 0;
   if (type === 's') return v || '';
   if (type === 'p') return (v || []).map((p) => [rd(p[0]), rd(p[1])]);
-  if (type === 'i') return Math.round(num(v));
+  if (type === 'i') return Math.max(0, Math.round(num(v)));
+  if (type === 'j') return Math.round(num(v ?? -1));
   if (type === 'a') return ang(num(v));
   return rd(num(v));
 }
@@ -58,14 +62,14 @@ function decZoneField(v, type) {
 }
 
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
-const F_ALIVE = 1, F_DASH = 2, F_BOT = 4;
+const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 function unitRow(u) {
   const r = [rd(u.x), rd(u.z), ang(u.aim), rd(u.heading), Math.round(u.hp), u.maxHp,
-    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0), tm(u.respawnT)];
+    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0) | (u.stance ? F_STANCE : 0), tm(u.respawnT)];
   for (const k of CD) r.push(tm(u.cd[k]));
   for (const k of STATUS) r.push(tm(u[k]));
   r.push(u.bush, u.cast ? [u.def.skills.indexOf(u.cast.skill), rd(u.cast.t), rd(u.cast.total), ang(u.cast.aim)] : 0,
@@ -112,7 +116,8 @@ export function roster(m) {
   return {
     map: m.map.key, theme: m.map.theme, mode: m.mode, seed: m.seed, target: m.target, duration: m.duration,
     units: m.units.map((u) => ({ team: m.mode === 'tudo' ? 0 : u.team, color: u.color, mech: u.mech, name: u.name, bot: u.bot, diff: u.diff,
-      paint: u.paint, radius: u.radius, maxHp: u.maxHp, mods: { hp: u.maxHp / u.def.hp, dmg: u.dmgMod } })),
+      paint: u.paint, glow: u.glow, decal: u.decal, radius: u.radius, maxHp: u.maxHp,
+      mods: { lv: u.lv, hp: u.maxHp / u.def.hp, dmg: u.dmgMod / (u.def.dmgUp || 1) } })),
   };
 }
 
@@ -121,7 +126,7 @@ export function roster(m) {
 export function matchOptions(rosterData) {
   return {
     map: rosterData.map, theme: rosterData.theme, mode: rosterData.mode, seed: rosterData.seed, target: rosterData.target, duration: rosterData.duration,
-    roster: rosterData.units.map((r) => ({ team: r.team, mech: r.mech, name: r.name, bot: r.bot, diff: r.diff, paint: r.paint, mods: r.mods })),
+    roster: rosterData.units.map((r) => ({ team: r.team, mech: r.mech, name: r.name, bot: r.bot, diff: r.diff, paint: r.paint, glow: r.glow, decal: r.decal, mods: r.mods })),
   };
 }
 
@@ -156,7 +161,7 @@ export function applySnapshot(m, snap, dt) {
     u.px = u.x; u.pz = u.z;
     u.x = r[0]; u.z = r[1]; u.aim = r[2]; u.heading = r[3]; u.hp = r[4];
     if (r[5] !== undefined) u.maxHp = r[5];
-    u.alive = !!(r[6] & F_ALIVE); u.dash = r[6] & F_DASH ? { remote: true } : null; u.bot = !!(r[6] & F_BOT);
+    u.alive = !!(r[6] & F_ALIVE); u.dash = r[6] & F_DASH ? { remote: true } : null; u.bot = !!(r[6] & F_BOT); u.stance = !!(r[6] & F_STANCE);
     u.respawnT = r[7];
     let at = 8;
     for (const k of CD) u.cd[k] = r[at++];
@@ -165,7 +170,7 @@ export function applySnapshot(m, snap, dt) {
     const c = r[at++];
     if (c) {
       const skill = u.def.skills[c[0]];
-      u.cast = { skill, t: c[1], total: c[2], aim: c[3], move: skill.move ?? (skill.do === 'beam' ? 0.12 : 0.35), lock: skill.do === 'beam' };
+      u.cast = { skill, t: c[1], total: c[2], aim: c[3], move: skill.move ?? (skill.do === 'beam' ? 0.12 : skill.do === 'stance' ? 0 : 0.35), lock: skill.do === 'beam' };
     } else u.cast = null;
     u.slowF = r[at++]; u.hasteF = r[at++];
     if (r[at] !== undefined) { u.kills = r[at++]; u.deaths = r[at++]; u.assists = r[at++]; u.dmg = r[at++]; u.healed = r[at++]; }
@@ -219,6 +224,9 @@ const EVENT_KEYS = {
   propHit: ['id', 'x', 'z'], propBreak: ['id', 'kind', 'x', 'z'], ram: ['id', 'x', 'z'], item: ['id'], nova: ['id', 'x', 'z', 'r'], shieldBreak: ['id', 'x', 'z'],
   beam: ['id', 'x0', 'z0', 'x1', 'z1', 'w'], crateDrop: ['id', 'x', 'z', 'type'], crateLand: ['id', 'x', 'z'], pickup: ['id', 'crate', 'type', 'x', 'z'],
   ventWarn: ['id', 'x', 'z', 'r'], towerHit: ['tower', 'by', 'x', 'z', 'amt'], towerFire: ['tower', 'x', 'z', 'a'], capture: ['point', 'team', 'x', 'z'],
+  ray: ['id', 'x0', 'z0', 'x1', 'z1', 'on'], hook: ['id', 'target', 'x', 'z'], swap: ['id', 'other', 'x0', 'z0', 'x1', 'z1'], stance: ['id', 'on', 'x', 'z'],
+  bless: ['id', 'to', 'skill', 'x', 'z'], rally: ['id', 'x', 'z', 'r'], leap: ['id', 'x0', 'z0', 'x', 'z', 'dur'], mark: ['id', 'target', 'x', 'z'],
+  warp: ['id', 'x0', 'z0', 'x', 'z'], zap: ['zone', 'id', 'x', 'z'], execute: ['id', 'by', 'x', 'z'],
 };
 const EVENT_TYPES = Object.keys(EVENT_KEYS);
 
@@ -279,11 +287,14 @@ class Reader {
   rest() { return this.b.subarray(this.n); }
 }
 
-// Unit row layout (see unitRow): 0 x, 1 z, 2 aim, 3 heading, 4 hp, 5 maxHp, 6 flags, 7 respawnT, 8-12 cooldowns,
-// 13-24 status, 25 bush, 26 cast, 27 slowF, 28 hasteF, 29-33 kills deaths assists dmg healed.
-// Mask bits 0-17 are the 18 timers, cooldowns first so a mech that is only cooling its gun needs one mask byte.
-const TIMER_AT = [8, 9, 10, 11, 12, 7, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
-const M_BUSH = 1 << 18, M_CAST = 1 << 19, M_SLOW = 1 << 20, M_HASTE = 1 << 21;
+// Unit row layout (see unitRow): 0 x, 1 z, 2 aim, 3 heading, 4 hp, 5 maxHp, 6 flags, 7 respawnT, then the cooldowns, the
+// status values, bush, cast, slowF, hasteF and five scoreboard numbers. The offsets follow the CD and STATUS lists, so a
+// new status only needs a name in STATUS.
+const AT_CD = 8, AT_STATUS = AT_CD + CD.length, AT_BUSH = AT_STATUS + STATUS.length, AT_CAST = AT_BUSH + 1, AT_SLOW = AT_BUSH + 2, AT_HASTE = AT_BUSH + 3, AT_STATS = AT_BUSH + 4, ROW_LEN = AT_STATS + 5;
+// The mask's low bits are the timers, cooldowns first so a mech that is only cooling its gun needs one mask byte.
+const TIMER_AT = [...CD.map((_, i) => AT_CD + i), 7, ...STATUS.map((_, i) => AT_STATUS + i)];
+const M_BUSH = 2 ** TIMER_AT.length, M_CAST = M_BUSH * 2, M_SLOW = M_BUSH * 4, M_HASTE = M_BUSH * 8;
+const has = (mask, bit) => Math.floor(mask / bit) % 2 === 1;
 const S_OVER = 1, S_STATS = 2, S_PROPS = 4, S_XK = 8, S_LIVES = 16;
 
 // snap: what snapshot(m) returns. stats: include maxHp and the scoreboard numbers. props: include the broken-prop mask.
@@ -301,18 +312,18 @@ export function encodeSnap(snap, { stats = true, props = true } = {}) {
   for (const r of snap.u) {
     w.i16(centi(r[0])); w.i16(centi(r[1])); w.u16(a16(r[2])); w.u16(a16(r[3])); w.u(r[4]); w.u8(r[6]);
     let mask = 0;
-    TIMER_AT.forEach((at, bit) => { if (r[at]) mask |= 1 << bit; });
-    if (r[25] !== -1) mask |= M_BUSH;
-    if (r[26]) mask |= M_CAST;
-    if (r[27]) mask |= M_SLOW;
-    if (r[28] !== 1) mask |= M_HASTE;
+    TIMER_AT.forEach((at, bit) => { if (r[at]) mask += 2 ** bit; });
+    if (r[AT_BUSH] !== -1) mask += M_BUSH;
+    if (r[AT_CAST]) mask += M_CAST;
+    if (r[AT_SLOW]) mask += M_SLOW;
+    if (r[AT_HASTE] !== 1) mask += M_HASTE;
     w.u(mask);
-    TIMER_AT.forEach((at, bit) => { if (mask & (1 << bit)) w.u(centi(r[at])); });
-    if (mask & M_BUSH) w.u(r[25]);
-    if (mask & M_CAST) { const c = r[26]; w.u8(c[0]); w.i(centi(c[1])); w.i(centi(c[2])); w.u16(a16(c[3])); }
-    if (mask & M_SLOW) w.u(centi(r[27]));
-    if (mask & M_HASTE) w.u(centi(r[28]));
-    if (stats) { w.u(r[5]); for (let i = 29; i < 34; i++) w.u(r[i]); }
+    TIMER_AT.forEach((at, bit) => { if (has(mask, 2 ** bit)) w.u(centi(r[at])); });
+    if (has(mask, M_BUSH)) w.u(r[AT_BUSH]);
+    if (has(mask, M_CAST)) { const c = r[AT_CAST]; w.u8(c[0]); w.i(centi(c[1])); w.i(centi(c[2])); w.u16(a16(c[3])); }
+    if (has(mask, M_SLOW)) w.u(centi(r[AT_SLOW]));
+    if (has(mask, M_HASTE)) w.u(centi(r[AT_HASTE]));
+    if (stats) { w.u(r[5]); for (let i = AT_STATS; i < ROW_LEN; i++) w.u(r[i]); }
   }
   w.u(snap.s.length);
   let last = 0;
@@ -326,6 +337,7 @@ export function encodeSnap(snap, { stats = true, props = true } = {}) {
       else if (type === 's') w.str(v);
       else if (type === 'p') { w.u(v.length); for (const q of v) { w.i16(centi(q[0])); w.i16(centi(q[1])); } }
       else if (type === 'i') w.u(v);
+      else if (type === 'j') w.i(v);
       else if (type === 'a') w.u16(a16(v));
       else w.i(centi(v));
     });
@@ -347,15 +359,15 @@ export function decodeSnap(bytes, at = 0) {
   snap.vt = list(r.u8(), () => [r.i() / 100, r.u8()]);
   snap.tw = list(r.u8(), () => [r.u(), r.u8(), r.i() / 100, unA16(r.u16()), r.i()]);
   snap.u = list(r.u8(), () => {
-    const row = new Array(34).fill(0);
+    const row = new Array(ROW_LEN).fill(0);
     row[0] = r.i16() / 100; row[1] = r.i16() / 100; row[2] = unA16(r.u16()); row[3] = unA16(r.u16()); row[4] = r.u(); row[6] = r.u8();
     const mask = r.u();
-    TIMER_AT.forEach((k, bit) => { if (mask & (1 << bit)) row[k] = r.u() / 100; });
-    row[25] = mask & M_BUSH ? r.u() : -1;
-    if (mask & M_CAST) row[26] = [r.u8(), r.i() / 100, r.i() / 100, unA16(r.u16())];
-    if (mask & M_SLOW) row[27] = r.u() / 100;
-    row[28] = mask & M_HASTE ? r.u() / 100 : 1;
-    if (flags & S_STATS) { row[5] = r.u(); for (let i = 29; i < 34; i++) row[i] = r.u(); } else { row[5] = undefined; row.length = 29; }
+    TIMER_AT.forEach((k, bit) => { if (has(mask, 2 ** bit)) row[k] = r.u() / 100; });
+    row[AT_BUSH] = has(mask, M_BUSH) ? r.u() : -1;
+    if (has(mask, M_CAST)) row[AT_CAST] = [r.u8(), r.i() / 100, r.i() / 100, unA16(r.u16())];
+    if (has(mask, M_SLOW)) row[AT_SLOW] = r.u() / 100;
+    row[AT_HASTE] = has(mask, M_HASTE) ? r.u() / 100 : 1;
+    if (flags & S_STATS) { row[5] = r.u(); for (let i = AT_STATS; i < ROW_LEN; i++) row[i] = r.u(); } else { row[5] = undefined; row.length = AT_STATS; }
     return row;
   });
   let last = 0;
@@ -367,6 +379,7 @@ export function decodeSnap(bytes, at = 0) {
       else if (type === 's') row.push(r.str());
       else if (type === 'p') row.push(list(r.u(), () => [r.i16() / 100, r.i16() / 100]));
       else if (type === 'i') row.push(r.u());
+      else if (type === 'j') row.push(r.i());
       else if (type === 'a') row.push(unA16(r.u16()));
       else row.push(r.i() / 100);
     }

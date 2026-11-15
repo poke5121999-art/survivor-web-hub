@@ -12,7 +12,9 @@ const TEAM_HDR = [new THREE.Color(0.25, 0.85, 2.0), new THREE.Color(2.1, 0.55, 0
 const C = (r, g, b) => new THREE.Color(r, g, b);
 const FIRE = C(2.2, 1.0, 0.25), EMBER = C(1.9, 0.55, 0.1), WHITE = C(2, 2, 2), SMOKE = C(0.16, 0.15, 0.14), SOOT = C(0.07, 0.065, 0.06), DUST = C(0.42, 0.36, 0.27),
   HEAL = C(0.35, 1.9, 0.5), ICE = C(0.9, 1.6, 2.2), FOG = C(0.62, 0.64, 0.66), ARC = C(0.5, 1.2, 2.4), VIOLET = C(1.2, 0.5, 2.2), WOOD = C(0.4, 0.26, 0.12), CLAY = C(0.55, 0.3, 0.18), STONE = C(0.5, 0.47, 0.4),
-  METAL = C(0.22, 0.23, 0.25), ICECHUNK = C(0.75, 0.9, 1.0), GOLD = C(2.2, 1.9, 0.4), SHOCK = C(2.2, 1.6, 1.0), FIREFLY = C(1.6, 2.2, 0.5), DANGER = C(2.2, 0.4, 0.2), VENT = C(2.2, 0.5, 0.1);
+  METAL = C(0.22, 0.23, 0.25), ICECHUNK = C(0.75, 0.9, 1.0), GOLD = C(2.2, 1.9, 0.4), SHOCK = C(2.2, 1.6, 1.0), FIREFLY = C(1.6, 2.2, 0.5), DANGER = C(2.2, 0.4, 0.2), VENT = C(2.2, 0.5, 0.1),
+  HOLO = C(0.5, 1.7, 2.3), RED = C(2.4, 0.22, 0.12), RALLY = C(1.5, 2.1, 0.45), CAGE = C(1.0, 1.5, 1.2);
+const FX_TIME = { value: 0 };
 const TEAM_PAINT = TEAMS.map((t) => new THREE.Color(t.color).multiplyScalar(0.75));
 const GROUND_DUST = { grass: C(0.4, 0.34, 0.24), sand: C(0.78, 0.64, 0.45), snow: C(0.86, 0.9, 0.96), basalt: C(0.26, 0.23, 0.23), asphalt: C(0.36, 0.34, 0.33) };
 
@@ -28,8 +30,16 @@ const SHOT_LOOK = {
   rivet: { k: 7, len: 2.7, wid: 0.8 },
   tower: { k: 8, len: 4.4, wid: 2.7, trail: 'tower' },
   mortar: { k: 9, len: 1.3, wid: 1.3 },
+  howitzer: { k: 10, len: 3.4, wid: 2.1, trail: 'smoke' },
+  sabot: { k: 11, len: 9, wid: 0.8, trail: 'sabot' },
+  slug: { k: 12, len: 2.0, wid: 1.1, trail: 'spark' },
+  hook: { k: 13, len: 2.6, wid: 1.6, chain: true },
+  wave: { k: 14, len: 3.2, wid: 2.8, trail: 'wave' },
+  flame: { k: 15, len: 1, wid: 1, skip: true },
+  dart: { k: 16, len: 2.2, wid: 0.5, trail: 'dart' },
+  disc: { k: 17, len: 2.4, wid: 1.1, trail: 'disc' },
 };
-const IMPACT_COLOR = { frost: ICE, pulse: ARC, rail: WHITE, tower: WHITE };
+const IMPACT_COLOR = { frost: ICE, pulse: ARC, rail: WHITE, tower: WHITE, flame: FIRE };
 
 const GROUND_FRAG = `
   uniform vec3 uColor; uniform float uT, uA, uTime, uSeed; uniform int uMode; varying vec2 vUv;
@@ -99,6 +109,61 @@ const SHOT_FRAG = `
       float core = exp(-d * d / 0.004), halo = exp(-d * d / 0.035);
       float tr = exp(-q.y * q.y / (0.0015 + 0.006 * tail)) * tail * tail * step(q.x, hx);
       rgb = W * core + c * (halo * 0.9 + tr * 0.9); occ = smoothstep(0.2, 0.0, d) * 0.35 + tr * 0.15;
+    } else if (k > 9.5) {
+      float kk = k - 10.0; vec2 o = q - vec2(hx, 0.0); d = length(o);
+      if (kk < 0.5) {
+        float bx = hx - 1.0; d = seg(q, vec2(bx, 0.0), vec2(hx - 0.22, 0.0));
+        float body = 1.0 - smoothstep(0.22, 0.26, d), nose = exp(-dot(o + vec2(0.1, 0.0), o + vec2(0.1, 0.0)) / 0.03);
+        float band = step(abs(q.x - (bx + 0.3)), 0.07) * body, band2 = step(abs(q.x - (bx + 0.5)), 0.04) * body;
+        float fx = clamp((bx - q.x) / 1.4, 0.0, 1.0), fl = 0.8 + 0.2 * sin(t * 1.1 + q.x * 9.0);
+        float flame = exp(-q.y * q.y / (0.01 + 0.07 * fx)) * (1.0 - fx) * step(q.x, bx + 0.05) * fl;
+        vec3 metal = vec3(0.22, 0.23, 0.2) * (1.4 - abs(q.y) * 3.5);
+        rgb = metal * body * (1.0 - band) + c * band * 1.5 + vec3(2.4, 1.8, 0.8) * band2 + c * nose * 1.2 + mix(vec3(3.0, 2.2, 1.0), vec3(2.4, 0.7, 0.1), fx) * flame * 1.8;
+        occ = body + smoothstep(0.3, 0.0, d) * 0.3;
+      } else if (kk < 1.5) {
+        float L = step(0.15, q.x) * step(q.x, hx);
+        float core = exp(-q.y * q.y / 0.0007) * L * (0.25 + 0.75 * tail * tail), halo = exp(-q.y * q.y / 0.02) * L * tail * tail;
+        float tip = exp(-dot(o, o) / 0.03), sh = 0.85 + 0.15 * sin(q.x * 14.0 - t * 2.0);
+        rgb = W * (core * 1.6 * sh + tip * 1.5) + c * (halo * 1.4 + exp(-q.y * q.y / 0.003) * L * tail * 0.8); occ = core * 0.2;
+      } else if (kk < 2.5) {
+        float bx = hx - 0.5; d = seg(q, vec2(bx, 0.0), vec2(hx - 0.12, 0.0));
+        float body = 1.0 - smoothstep(0.2, 0.24, d), nose = exp(-dot(o, o) / 0.04), ring = step(abs(q.x - (bx + 0.12)), 0.05) * body;
+        float tr = exp(-q.y * q.y / (0.01 + 0.03 * tail)) * pow(tail, 2.0) * step(q.x, bx) * 0.8;
+        vec3 cu = vec3(0.7, 0.4, 0.2) * (1.3 - abs(q.y) * 3.5);
+        rgb = cu * body * (1.0 - ring) + c * ring * 1.6 + vec3(3.0, 2.0, 1.0) * nose * 0.9 + c * (tr * 1.2 + exp(-d * d / 0.05) * 0.5); occ = body + smoothstep(0.3, 0.0, d) * 0.25;
+      } else if (kk < 3.5) {
+        float shaft = 1.0 - smoothstep(0.04, 0.06, seg(q, vec2(hx - 1.0, 0.0), vec2(hx - 0.35, 0.0))), claws = 0.0;
+        for (int i = 0; i < 2; i++) {
+          float sg = i == 0 ? 1.0 : -1.0;
+          float d1 = seg(q, vec2(hx - 0.4, 0.0), vec2(hx - 0.2, 0.34 * sg)), d2 = seg(q, vec2(hx - 0.2, 0.34 * sg), vec2(hx + 0.25, 0.2 * sg));
+          claws = max(claws, 1.0 - smoothstep(0.055, 0.08, min(d1, d2)));
+        }
+        float spike = 1.0 - smoothstep(0.06, 0.09, seg(q, vec2(hx - 0.4, 0.0), vec2(hx + 0.3, 0.0)));
+        float solid = max(max(shaft, claws), spike);
+        vec3 steel = vec3(0.55, 0.58, 0.62) * (1.2 - abs(q.y) * 0.8);
+        rgb = steel * solid + c * exp(-dot(o, o) / 0.15) * 0.9 + vec3(3.0, 2.4, 1.2) * exp(-dot(o - vec2(0.3, 0.0), o - vec2(0.3, 0.0)) / 0.01); occ = solid * 0.9;
+      } else if (kk < 4.5) {
+        float acc = 0.0, gl = 0.0;
+        for (int i = 0; i < 2; i++) {
+          float fi = float(i); vec2 p2 = q - vec2(hx - 1.0 - fi * 0.75, 0.0); float R = 1.0 - fi * 0.18 + 0.05 * sin(t * 0.6 + fi * 2.0), dd = length(p2);
+          float arcm = 1.0 - smoothstep(0.7, 1.0, abs(atan(p2.y, p2.x)));
+          acc += exp(-pow(dd - R, 2.0) / 0.004) * arcm * (1.0 - fi * 0.45); gl += exp(-pow(dd - R, 2.0) / 0.05) * arcm * (1.0 - fi * 0.4);
+        }
+        rgb = W * acc * 0.4 + c * (acc * 2.0 + gl * 0.5); occ = acc * 0.25;
+      } else if (kk < 5.5) {
+        rgb = vec3(0.0);
+      } else if (kk < 6.5) {
+        d = seg(q, vec2(hx - 0.45, 0.0), vec2(hx, 0.0));
+        float core = exp(-d * d / 0.0009), halo = exp(-d * d / 0.015), tr = exp(-q.y * q.y / 0.002) * pow(tail, 2.5) * step(q.x, hx);
+        rgb = W * core * 1.3 + c * (halo + tr * 1.2); occ = smoothstep(0.1, 0.0, d) * 0.3;
+      } else {
+        float dd = length(o), an = atan(o.y, o.x) + t * 0.45;
+        float R = 0.34 + 0.04 * step(0.5, fract(an * 5.0 / 6.2832)), body = 1.0 - smoothstep(R - 0.03, R, dd);
+        float rim = exp(-pow(dd - R + 0.04, 2.0) / 0.0012), hub = 1.0 - smoothstep(0.08, 0.12, dd);
+        float spoke = pow(abs(sin(an * 3.0)), 12.0) * step(dd, R * 0.9) * step(0.1, dd);
+        float tr = exp(-q.y * q.y / (0.01 + 0.03 * tail)) * pow(tail, 2.0) * step(q.x, hx - R) * 0.6;
+        rgb = vec3(0.5, 0.52, 0.56) * (0.8 + 0.4 * sin(an * 2.0)) * body * 0.6 + c * (rim * 2.0 + spoke * 0.8 + exp(-dd * dd / 0.12) * 0.7 + tr) + W * hub * 0.6; occ = body * 0.7;
+      }
     } else if (k < 1.5 || k > 8.5) {
       vec2 o = q - vec2(hx, 0.0); d = length(o);
       float rad = k > 8.5 ? 0.26 : 0.24, ball = 1.0 - smoothstep(rad * 0.75, rad, d), core = 1.0 - smoothstep(0.0, rad * 0.4, d);
@@ -168,6 +233,37 @@ const SHOT_FRAG = `
     occ = max(occ, clamp(dot(rgb, vec3(0.3, 0.5, 0.2)) * 0.9, 0.0, 0.7));
     float win = smoothstep(0.0, 0.22, vUv.y) * smoothstep(0.0, 0.22, 1.0 - vUv.y) * smoothstep(0.0, 0.06, vUv.x) * smoothstep(0.0, 0.1, 1.0 - vUv.x);
     gl_FragColor = vec4(rgb, clamp(occ, 0.0, 1.0)) * win;
+  }`;
+
+
+// Skill aim indicator (touch drag): one flat quad per piece, shape picked by uMode. 0 disc, 1 dashed range ring, 2 strip, 3 cone, 4 point.
+const HINT_FRAG = `
+  uniform vec3 uColor; uniform float uTime, uA, uHalf, uM; uniform int uMode; varying vec2 vUv;
+  void main() {
+    vec2 p = vUv * 2.0 - 1.0; float r = length(p), a = 0.0, w = min(0.3, 0.32 / uM);
+    if (uMode == 0) {
+      if (r > 1.0) discard;
+      a = 0.26 + (1.0 - smoothstep(0.0, w, 1.0 - r)) * 0.7;
+    } else if (uMode == 1) {
+      if (r > 1.0) discard;
+      float dash = step(0.5, fract(atan(p.y, p.x) * 12.0 / 3.14159 + uTime * 0.15));
+      a = (1.0 - smoothstep(0.0, w * 0.5, 1.0 - r)) * (0.3 + 0.55 * dash);
+    } else if (uMode == 2) {
+      float edge = 1.0 - smoothstep(0.0, w * 1.4, 1.0 - abs(p.y));
+      float flow = step(0.5, fract(p.x * uHalf * 0.25 - uTime * 0.8)) * 0.12;
+      a = 0.24 + edge * 0.6 + flow;
+    } else if (uMode == 3) {
+      if (r > 1.0) discard;
+      float an = abs(atan(p.y, p.x));
+      if (an > uHalf) discard;
+      float edge = (1.0 - smoothstep(0.0, 0.06, uHalf - an)) * 0.5 + (1.0 - smoothstep(0.0, w * 0.6, 1.0 - r)) * 0.6;
+      a = 0.22 + edge * 0.7;
+    } else {
+      if (r > 1.0) discard;
+      float cross = (1.0 - smoothstep(0.0, 0.08, min(abs(p.x), abs(p.y)))) * step(r, 0.6) * step(0.15, r);
+      a = 0.2 + (1.0 - smoothstep(0.0, w, 1.0 - r)) * 0.75 + cross * 0.7;
+    }
+    gl_FragColor = vec4(uColor * a, a * uA);
   }`;
 
 export function makeFx(G, mechs) {
@@ -304,9 +400,29 @@ export function makeFx(G, mechs) {
             } else if (uKind < 1.5) {
               float line = 1.0 - smoothstep(0.0, 0.3, abs(y)), dash = step(0.4, fract(x * 0.8 - uTime * 3.0));
               c = uColor * (line * (0.5 + 0.5 * dash) + (1.0 - abs(y)) * 0.15); a = 1.0;
-            } else {
+            } else if (uKind < 2.5) {
               float line = 1.0 - smoothstep(0.0, 0.5, abs(y)), flow = pow(0.5 + 0.5 * sin(x * 2.5 - uTime * 6.0), 6.0);
               c = uColor * line * (0.25 + flow * 0.9); a = 1.0;
+            } else if (uKind < 3.5) {
+              float u = x * 2.6, lk = fract(u), alt = mod(floor(u), 2.0);
+              float ring = 1.0 - smoothstep(0.0, 0.14, abs(length(vec2((lk - 0.5) / 0.52, y / mix(0.85, 0.35, alt))) - 1.0));
+              c = (mix(vec3(0.8, 0.82, 0.85), uColor, 0.4) * ring * 1.3 + uColor * (1.0 - abs(y)) * 0.12); a = 1.0;
+            } else if (uKind < 4.5) {
+              float core = 1.0 - smoothstep(0.0, 0.12, abs(y)), halo = exp(-y * y * 7.0), fl = 0.82 + 0.18 * sin(uTime * 90.0 + x * 3.0);
+              c = (uColor * halo * 1.3 + mix(uColor, vec3(2.4), 0.6) * core * 1.7) * fl; a = 1.0;
+            } else if (uKind < 5.5) {
+              float s1 = 0.4 * sin(x * 2.4 - uTime * 9.0), s2 = -s1;
+              float st = (1.0 - smoothstep(0.0, 0.1, abs(y - s1))) + (1.0 - smoothstep(0.0, 0.1, abs(y - s2)));
+              float pulse = pow(0.5 + 0.5 * sin(x * 1.3 - uTime * 8.0), 7.0), core = 1.0 - smoothstep(0.0, 0.14, abs(y));
+              c = uColor * (st * 0.9 + core * 0.6 + pulse * 1.3 * (1.0 - abs(y)) + exp(-y * y * 6.0) * 0.25); a = 1.0;
+            } else if (uKind < 6.5) {
+              c = uColor * (1.0 - smoothstep(0.0, 0.3, abs(y))) * 0.3; a = 1.0;
+            } else {
+              float core = 1.0 - smoothstep(0.0, 0.1, abs(y)), arcs = 0.0;
+              for (int i = 0; i < 2; i++) { float fi = float(i);
+                float off = (n1(x * 1.3 + uTime * (16.0 + fi * 7.0) + fi * 31.0) - 0.5) * 1.1;
+                arcs += 1.0 - smoothstep(0.0, 0.07, abs(y - off)); }
+              c = mix(uColor, vec3(2.2), 0.4) * core + uColor * (arcs * 1.1 + exp(-y * y * 5.0) * 0.3); a = 1.0;
             }
             gl_FragColor = vec4(c * uA * ends * a, 0.0);
           }` }));
@@ -316,14 +432,89 @@ export function makeFx(G, mechs) {
     const len = Math.max(0.01, Math.hypot(x1 - x0, z1 - z0));
     b.mesh.visible = true; b.mesh.position.set(x0, y, z0); b.mesh.rotation.y = -Math.atan2(z1 - z0, x1 - x0); b.mesh.scale.set(len, 1, width);
     b.u.uColor.value.copy(color); b.u.uA.value = 1; b.u.uLen.value = len; b.u.uKind.value = kind; b.u.uSeed.value = Math.random() * 100;
-    b.age = 0; b.life = life; b.power = kind === 0; b.width = width;
+    b.age = 0; b.life = life; b.power = kind === 0; b.width = width; b.rayOwner = -1; b.fade = false; b.kind = kind;
     beams.push(b);
     return b;
   }
-  function endBeam(b) { b.mesh.visible = false; const i = beams.indexOf(b); if (i >= 0) beams.splice(i, 1); beamPool.push(b); }
+  function endBeam(b) { b.rayOwner = -1; b.mesh.visible = false; const i = beams.indexOf(b); if (i >= 0) beams.splice(i, 1); beamPool.push(b); }
   function aimBeam(b, x0, z0, x1, z1, y = b.mesh.position.y) {
     const len = Math.max(0.01, Math.hypot(x1 - x0, z1 - z0));
     b.mesh.position.set(x0, y, z0); b.mesh.rotation.y = -Math.atan2(z1 - z0, x1 - x0); b.mesh.scale.x = len; b.u.uLen.value = len;
+  }
+
+  // A held ray weapon fires four times a second: one beam per unit is re-aimed and kept alive between hits so it reads as one line.
+  const rayBeams = new Map(), hookBeams = new Map(), sweepLen = new Map();
+  const plus = (x, y, z, c, s = 0.3) => { str.emit(x + s, y, z, 2 * s, 0, 0, c, 0.45, 0.07, 0, 0, 0, 1); str.emit(x, y + s * 1.3, z, 0, 2.6 * s, 0, c, 0.45, 0.07, 0, 0, 0, 1); };
+  function rayLine(u, e) {
+    const heal = e.on === 'ally', kind = heal ? 5 : e.on === 'none' ? 6 : 4, c = heal ? HEAL : TEAM_HDR[u.color], w = heal ? 1.3 : kind === 6 ? 0.5 : 0.9;
+    let b = rayBeams.get(u.id);
+    if (!b || b.rayOwner !== u.id || !b.mesh.visible) { b = beam(e.x0, e.z0, e.x1, e.z1, w, c, 0.32, kind, 1.5); b.rayOwner = u.id; rayBeams.set(u.id, b); }
+    b.age = 0; b.life = 0.32; b.fade = true; b.power = false; b.kind = kind; b.u.uKind.value = kind; b.u.uColor.value.copy(c); b.mesh.scale.z = b.width = w;
+    b.ex = e.x1 - u.x; b.ez = e.z1 - u.z;
+    mechs.muzzle(u, 0, V);
+    glow(V.x, V.y, V.z, c, 0.08, 0.7, 0.8, K.GLOW);
+    if (heal) { plus(e.x1, 1.9, e.z1, HEAL); for (let i = 0; i < N(3); i++) glow(e.x1 + rnd(-0.6, 0.6), rnd(0.5, 1.4), e.z1 + rnd(-0.6, 0.6), HEAL, 0.6, 0.26, 1, K.SPARK, 0.4, 0, rnd(1.5, 3), 0); }
+    else if (kind === 4) { glow(e.x1, 1.5, e.z1, WHITE, 0.08, 1.0, 1, K.STAR, 1.3); sparks(e.x1, 1.5, e.z1, N(3), c, 6, 0.25, 0.04, 0.4, 8); }
+  }
+  function hookChain(m, s, x, z) {
+    const o = m.units[s.owner]; if (!o) return;
+    mechs.muzzle(o, 0, V);
+    let b = hookBeams.get(s.id);
+    if (!b) { b = beam(V.x, V.z, x, z, 0.6, TEAM_HDR[s.color], 1e9, 3, 1.4); hookBeams.set(s.id, b); }
+    b.seenF = frame; aimBeam(b, V.x, V.z, x, z, 1.4);
+  }
+
+  // Cage and bastion shells, and the light screen: additive bands drawn on an open cylinder or a vertical plane.
+  const bandGeo = new THREE.CylinderGeometry(1, 1, 1, 48, 1, true).translate(0, 0.5, 0);
+  const screenGeo = new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0);
+  const postGeo = new THREE.CylinderGeometry(0.1, 0.15, 2.6, 6).translate(0, 1.3, 0), capGeo = new THREE.SphereGeometry(0.2, 8, 6);
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x2c3138, roughness: 0.5, metalness: 0.7 });
+  const droneBody = new THREE.SphereGeometry(0.2, 10, 8).scale(1, 0.7, 1), droneRing = new THREE.TorusGeometry(0.36, 0.03, 6, 20).rotateX(Math.PI / 2), droneBlade = new THREE.BoxGeometry(0.95, 0.015, 0.07);
+  function bandMat(color, mode) {
+    return additive(new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { uColor: { value: color.clone() }, uA: { value: 1 }, uMode: { value: mode }, uTime: FX_TIME },
+      vertexShader: 'varying vec2 vUv; varying float vF; void main() { vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vec3 n = normalize(normalMatrix * normal); vF = abs(dot(n, normalize(-mv.xyz))); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: `uniform vec3 uColor; uniform float uA, uMode, uTime; varying vec2 vUv; varying float vF;
+        void main() {
+          float ang = vUv.x * 6.2832, v = vUv.y, a;
+          if (uMode < 0.5) {
+            float bar = pow(abs(cos(ang * 7.0)), 14.0);
+            float link = (1.0 - smoothstep(0.0, 0.035, abs(v - 0.33))) + (1.0 - smoothstep(0.0, 0.035, abs(v - 0.72))) + (1.0 - smoothstep(0.0, 0.03, abs(v - 0.98)));
+            float flow = pow(0.5 + 0.5 * sin(v * 14.0 - uTime * 6.0 + ang * 3.0), 6.0), rim = pow(1.0 - vF, 2.0);
+            a = bar * (1.0 + flow * 0.5) + link * 0.7 + rim * 0.25 + 0.05;
+            a *= 1.0 - v * 0.35;
+          } else {
+            float rim = pow(1.0 - vF, 2.0), base = 1.0 - smoothstep(0.0, 0.15, v), top = 1.0 - smoothstep(0.0, 0.07, 1.0 - v);
+            float chev = pow(0.5 + 0.5 * sin(ang * 10.0 + v * 12.0 - uTime * 6.0), 8.0);
+            a = rim * 0.8 + base * 1.0 + top * 0.7 + chev * 0.3 * (1.0 - v * 0.5) + 0.05;
+          }
+          gl_FragColor = vec4(uColor * a * uA, 0.0);
+        }` }));
+  }
+  // The camera looks along the depth axis, so a screen across the aim line can be edge-on: a floor strip keeps it readable.
+  const stripGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0.5, 0, 0);
+  function stripMat(color) {
+    return additive(new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { uColor: { value: color.clone() }, uA: { value: 1 }, uLen: { value: 1 }, uTime: FX_TIME }, vertexShader: QUAD_VERT,
+      fragmentShader: `uniform vec3 uColor; uniform float uA, uLen, uTime; varying vec2 vUv;
+        void main() {
+          float x = vUv.x * uLen, y = abs(vUv.y * 2.0 - 1.0);
+          float core = 1.0 - smoothstep(0.0, 0.3, y), dash = 0.55 + 0.45 * pow(0.5 + 0.5 * sin(x * 5.0 - uTime * 4.0), 3.0);
+          float edge = 1.0 - smoothstep(0.0, 0.12, min(x, uLen - x));
+          float a = core * dash * 1.3 + (1.0 - smoothstep(0.4, 1.0, y)) * 0.3 + edge * 0.6;
+          gl_FragColor = vec4(uColor * a * uA, 0.0);
+        }` }));
+  }
+  function screenMat(color) {
+    return additive(new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { uColor: { value: color.clone() }, uA: { value: 1 }, uLen: { value: 1 }, uHitX: { value: 0 }, uHitT: { value: 0 }, uTime: FX_TIME },
+      vertexShader: QUAD_VERT,
+      fragmentShader: `uniform vec3 uColor; uniform float uA, uLen, uHitX, uHitT, uTime; varying vec2 vUv;
+        void main() {
+          float xm = vUv.x * uLen, v = vUv.y;
+          float vline = pow(abs(cos(xm * 4.7)), 30.0), scan = pow(0.5 + 0.5 * sin(v * 6.0 - uTime * 2.5), 10.0);
+          float edge = 1.0 - smoothstep(0.0, 0.2, min(xm, uLen - xm)), base = 1.0 - smoothstep(0.0, 0.08, v), top = 1.0 - smoothstep(0.0, 0.05, 1.0 - v);
+          float hit = uHitT * exp(-pow(xm - uHitX, 2.0) / 0.8) * (0.5 + 0.5 * sin(v * 18.0 - uTime * 30.0));
+          float a = (0.2 + vline * 0.4 + scan * 0.3 + edge * 0.8 + base * 1.0 + top * 0.7) * (1.0 - v * 0.4) + hit * 1.6;
+          gl_FragColor = vec4(uColor * a * uA, 0.0);
+        }` }));
   }
 
   // Respawn beam-in: a column of light that slams down, a scan ring rising through the mech, and a rune glyph.
@@ -526,10 +717,23 @@ export function makeFx(G, mechs) {
 
   function impact(e, m) {
     const look = SHOT_LOOK[e.vis] || SHOT_LOOK.bullet, x = e.x, z = e.z, y = e.vis === 'tower' ? 2 : 1.5;
-    if (e.splash) { explosion(x, z, e.splash, e.vis === 'frost' ? ICE : FIRE, e.splash > 2.5); return; }
+    if (e.splash) { if (e.vis === 'howitzer') explosion(x, z, e.splash * 1.3, FIRE, true); else explosion(x, z, e.splash, e.vis === 'frost' ? ICE : FIRE, e.splash > 2.5); return; }
     let tc = IMPACT_COLOR[e.vis];
     if (!tc) { const team = shotTeamNear(x, z, look.k); tc = team >= 0 ? TEAM_HDR[team] : FIRE; }
-    const heavy = look.k === 2 || look.k === 8, bx = -(e.dx || 0), bz = -(e.dz || 0);
+    const heavy = look.k === 2 || look.k === 8 || look.k === 10 || look.k === 11 || look.k === 12, bx = -(e.dx || 0), bz = -(e.dz || 0);
+    if (e.vis === 'flame') {
+      if (e.on !== 'end') { glow(x, y, z, FIRE, 0.2, 1.3, 0.7, K.FLAME, 1.5, 0, 1, 0); if (Math.random() < 0.5) sparks(x, y, z, 1, EMBER, 5, 0.3, 0.04, 0.6, 12, bx, bz, 0.9); }
+      return;
+    }
+    if (e.on === 'bounce') { glow(x, y, z, WHITE, 0.07, 1.0, 1, K.STAR, 1.4); glow(x, y, z, tc, 0.14, 1.2, 0.7); sparks(x, y, z, N(4), tc, 7, 0.22, 0.04, 0.4, 10, e.dx, e.dz, 0.6); return; }
+    if (e.on === 'screen') {
+      let best = null, bd = 9;
+      for (const [, v] of zoneViews) if (v.screen) { const d = Math.hypot(x - v.cx, z - v.cz); if (d < bd + v.half) { bd = d - v.half; best = v; } }
+      if (best) { const un = best.mat.uniforms, ax = best.dx, az = best.dz; un.uHitX.value = (x - best.x0) * ax + (z - best.z0) * az; un.uHitT.value = 1; }
+      glow(x, 1.2, z, tc, 0.18, 1.8, 0.9); glow(x, 1.3, z, WHITE, 0.07, 1.1, 1, K.STAR, 1.4);
+      sparks(x, 1.2, z, N(6), tc, 8, 0.3, 0.05, 0.5, 8, bx, bz, 0.9); return;
+    }
+    if (e.on === 'decoy') { glow(x, y, z, HOLO, 0.15, 1.6, 0.9); glow(x, y, z, WHITE, 0.07, 1.0, 1, K.STAR, 1.4); sparks(x, y, z, N(7), HOLO, 8, 0.3, 0.05, 0.5, 8, bx, bz, 0.9); return; }
     if (e.on === 'end') { glow(x, y, z, tc, 0.14, 0.5, 0.8); sparks(x, y, z, 2, tc, 3, 0.25, 0.04, 0.3, 6, -bx, -bz, 0.4); return; }
     glow(x, y, z, WHITE, 0.08, heavy ? 2.4 : 1.1, 1, K.STAR, 1.5);
     glow(x, y, z, tc, 0.18, heavy ? 3 : 1.4, 0.8, K.GLOW, 1.3);
@@ -546,6 +750,8 @@ export function makeFx(G, mechs) {
     if (e.vis === 'frost') { for (let i = 0; i < N(6); i++) { const a = Math.random() * 6.283, s = rnd(3, 7); str.emit(x, y, z, Math.cos(a) * s, rnd(1, 4), Math.sin(a) * s, ICE, 0.4, 0.07, 0.04, 14, 1, 1); } chips(x, y, z, N(3), ICECHUNK, 3, 0.6, 0.12); }
     else if (e.vis === 'pulse') { ring(x, z, 1.4, ARC, 0.22); for (let i = 0; i < 3; i++) { const a = Math.random() * 6.283; str.emit(x, y, z, Math.cos(a) * 1.2, rnd(-0.3, 0.3), Math.sin(a) * 1.2, ARC, 0.12, 0.05, 0, 0, 0, 1); } }
     else if (e.vis === 'rail') { flash(x, y, z, ARC, 24, 0.14); ring(x, z, 1.6, tc, 0.25); }
+    else if (e.vis === 'sabot') { flash(x, y, z, WHITE, 30, 0.14); ring(x, z, 1.5, tc, 0.22); sparks(x, y, z, N(7), WHITE, 16, 0.3, 0.05, 0.3, 6, e.dx, e.dz, 0.25); }
+    else if (e.vis === 'slug') { puffs(x, y - 0.3, z, 1, dust, 0.2, 1, 0.6, 0.5, 2.2, 0.4, 0.35, K.DUST); kick(x, z, 0.08); }
     else if (e.vis === 'tower') { ring(x, z, 2.4, tc, 0.3); sparks(x, y, z, N(10), tc, 10, 0.4, 0.08, 0.7, 10); flash(x, y, z, tc, 30, 0.2); kick(x, z, 0.25); }
   }
 
@@ -553,7 +759,15 @@ export function makeFx(G, mechs) {
     shield: (u) => { ring(u.x, u.z, 2.4, TEAM_HDR[u.color], 0.4); sparks(u.x, 1, u.z, N(8), TEAM_HDR[u.color], 4, 0.4, 0.05, 1, 2); },
     dash: (u) => puffs(u.x, 0.3, u.z, N(6), dust, 0.6, 3, 0.7, 0.9, 2.2, 0.6, 0.5, K.DUST, 3),
     blink: (u) => { for (let i = 0; i < N(14); i++) glow(u.x + rnd(-0.8, 0.8), rnd(0.3, 2), u.z + rnd(-0.8, 0.8), VIOLET, 0.45, 0.4, 1, K.SPARK, 0.3, 0, rnd(0, 2), 0); ring(u.x, u.z, 1.8, VIOLET, 0.35); },
-    buff: (u) => { sparks(u.x, 0.6, u.z, N(12), FIRE, 4, 0.5, 0.05, 1.5, -2); ring(u.x, u.z, 2.2, FIRE, 0.4); },
+    buff: (u, s) => {
+      if (s.armor) { ring(u.x, u.z, 2.8, GOLD, 0.5); ground(9, u.x, u.z, 2.2, GOLD, { life: 0.9, sweep: true }); sparks(u.x, 0.8, u.z, N(14), GOLD, 5, 0.5, 0.05, 1, 4); }
+      else if (s.lifesteal) { ring(u.x, u.z, 2.4, RED, 0.45); sparks(u.x, 0.6, u.z, N(16), RED, 5, 0.55, 0.05, 1.6, -2); }
+      else if (s.prime) { ring(u.x, u.z, 2.0, WHITE, 0.3); glow(u.x, 1.4, u.z, WHITE, 0.2, 3, 1, K.STAR, 1.3); sparks(u.x, 1, u.z, N(10), FIRE, 6, 0.4, 0.05, 1, -2); }
+      else { sparks(u.x, 0.6, u.z, N(12), FIRE, 4, 0.5, 0.05, 1.5, -2); ring(u.x, u.z, 2.2, FIRE, 0.4); }
+    },
+    decoy: (u) => { ring(u.x, u.z, 2.4, HOLO, 0.4); sparks(u.x, 1, u.z, N(12), HOLO, 5, 0.45, 0.05, 1, -1); glow(u.x, 1.3, u.z, HOLO, 0.25, 3, 0.8, K.STAR, 1.3); },
+    drone: (u) => { ring(u.x, u.z, 1.8, HEAL, 0.4); for (let i = 0; i < N(8); i++) glow(u.x + rnd(-0.7, 0.7), rnd(1, 2.4), u.z + rnd(-0.7, 0.7), HEAL, 0.6, 0.3, 1, K.SPARK, 0.4, 0, rnd(1, 2), 0); },
+    wall: (u, sk) => { if (sk.screen) ring(u.x, u.z, 2.2, TEAM_HDR[u.color], 0.35); },
     nova: (u) => puffs(u.x, 0.3, u.z, N(5), dust, 0.8, 2.5, 0.8, 0.9, 2.2, 0.4, 0.4, K.DUST),
     beam: (u) => ring(u.x, u.z, 1.8, TEAM_HDR[u.color], 0.5),
     dome: (u) => ring(u.x, u.z, 6.2, TEAM_HDR[u.color], 0.6),
@@ -565,13 +779,16 @@ export function makeFx(G, mechs) {
     switch (e.t) {
       case 'fire': {
         mechs.muzzle(u, e.side || 0, V);
-        const c = TEAM_HDR[u.color], look = SHOT_LOOK[e.vis] || SHOT_LOOK.bullet, heavy = look.k === 1 || look.k === 2 || look.k === 4 || look.k === 9 || look.k === 5;
+        const c = TEAM_HDR[u.color], look = SHOT_LOOK[e.vis] || SHOT_LOOK.bullet, heavy = look.k === 1 || look.k === 2 || look.k === 4 || look.k === 9 || look.k === 5 || look.k === 10 || look.k === 12;
         const dx = Math.cos(e.a), dz = Math.sin(e.a);
+        if (e.vis === 'flame') { glow(V.x + dx * 0.4, V.y, V.z + dz * 0.4, FIRE, 0.09, 1.2, 0.8, K.FLAME, 1.4, dx * 4, 0.3, dz * 4); break; }
         glow(V.x, V.y, V.z, WHITE, 0.06, heavy ? 1.5 : 0.9, 1, K.STAR, 1.2);
         glow(V.x + dx * 0.3, V.y, V.z + dz * 0.3, c, 0.1, heavy ? 1.6 : 0.8, 0.9, K.GLOW, 1.3);
         for (let i = 0; i < (heavy ? 5 : 2); i++) str.emit(V.x, V.y, V.z, dx * rnd(6, 14) + rnd(-2, 2), rnd(-0.5, 1), dz * rnd(6, 14) + rnd(-2, 2), c, rnd(0.06, 0.12), 0.06, 0.02, 0, 4, 1);
         if (heavy) { ovr.emit(V.x, V.y, V.z, dx * 2, 0.8, dz * 2, SMOKE, 0.6, 0.5, 2.6, 2, -0.5, 0.3, K.SMOKE); flash(V.x, V.y, V.z, c, 14, 0.1); }
         if (e.vis === 'rail') { ring(V.x, V.z, 1.2, c, 0.2); }
+        else if (e.vis === 'howitzer') { puffs(V.x + dx * 0.8, V.y - 0.3, V.z + dz * 0.8, N(4), SMOKE, 0.5, 3, 1.6, 0.9, 3, 0.8, 0.45, K.SMOKE, 1.6, -0.3); ring(V.x, V.z, 2.2, SHOCK, 0.25, 0.6); flash(V.x, V.y, V.z, FIRE, 40, 0.14); }
+        else if (e.vis === 'sabot') { str.emit(V.x + dx * 9, V.y, V.z + dz * 9, dx * 9, 0, dz * 9, WHITE, 0.14, 0.14, 0, 0, 0, 1); ring(V.x, V.z, 1.6, WHITE, 0.2); }
         if (e.id === G.me) shake = Math.min(1.2, shake + (heavy ? 0.16 : 0.035));
         break;
       }
@@ -585,6 +802,12 @@ export function makeFx(G, mechs) {
           for (let i = 0; i < N(18); i++) { const a = Math.random() * 6.283, d = Math.random() * e.r * 0.5; ovr.emit(e.x + Math.cos(a) * d, 0.4, e.z + Math.sin(a) * d, Math.cos(a) * 1.2, rnd(7, 14), Math.sin(a) * 1.2, SMOKE, rnd(0.6, 1.0), rnd(0.9, 1.5), 2, 1.2, 2, 1, K.FIREBALL); }
           sparks(e.x, 0.5, e.z, N(12), EMBER, 6, 0.9, 0.06, 2.5, 8);
           ring(e.x, e.z, e.r * 1.2, FIRE, 0.4); scorch(e.x, e.z, e.r * 0.8, 3, 1.5); flash(e.x, 2, e.z, FIRE, 50, 0.4); kick(e.x, e.z, 0.35);
+        } else if (e.why === 'decoy') {
+          const PINK = C(2.0, 0.7, 1.2);
+          ring(e.x, e.z, e.r * 1.3, HOLO, 0.45); ring(e.x, e.z, e.r * 0.7, WHITE, 0.3, 0.7); ground(9, e.x, e.z, e.r * 1.1, HOLO, { life: 0.7, sweep: true });
+          glow(e.x, 1.4, e.z, HOLO, 0.25, e.r * 1.6, 0.8, K.GLOW, 1.4); glow(e.x, 1.4, e.z, WHITE, 0.12, e.r * 1.4, 1, K.STAR, 1.5);
+          for (let i = 0, n = N(20); i < n; i++) { const a = Math.random() * 6.283, sp = rnd(2, e.r * 3); glow(e.x + Math.cos(a) * 0.5, rnd(0.6, 2), e.z + Math.sin(a) * 0.5, i % 3 ? HOLO : PINK, rnd(0.4, 0.7), 0.22, 1, K.SPARK, 0.3, Math.cos(a) * sp, rnd(0, 3), Math.sin(a) * sp); }
+          sparks(e.x, 1.2, e.z, N(12), PINK, e.r * 3, 0.4, 0.05, 0.6, 10); flash(e.x, 2, e.z, HOLO, 40, 0.25); kick(e.x, e.z, 0.2);
         } else explosion(e.x, e.z, e.r, e.why === 'mine' ? ARC : FIRE, e.why !== 'mine');
         break;
       case 'capture': if (e.team >= 0) { ring(e.x, e.z, 7, TEAM_HDR[e.team], 0.7); for (let i = 0; i < N(26); i++) { const a = Math.random() * 6.283, d = rnd(0, 6); str.emit(e.x + Math.cos(a) * d, 0.2, e.z + Math.sin(a) * d, 0, rnd(5, 10), 0, TEAM_HDR[e.team], rnd(0.6, 1), 0.07, 0.05, -2, 0.4, 1); } column(e.x, e.z, TEAM_HDR[e.team], 1.2, 12, 1.6); } break;
@@ -608,6 +831,16 @@ export function makeFx(G, mechs) {
       }
       case 'beam': {
         const tc = TEAM_HDR[u.color], dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1;
+        if (u.cast && u.cast.skill.do === 'sweep') { // one pulse of a continuous sweep: the beam itself is drawn by syncCasts
+          sweepLen.set(u.id, L);
+          for (let i = 0, n = Math.round(L / (low ? 4 : 2.2)); i <= n; i++) {
+            const t = i / Math.max(1, n), px = e.x0 + dx * t, pz = e.z0 + dz * t;
+            sparks(px, 1.5, pz, 1, i % 2 ? EMBER : tc, 5, 0.35, 0.05, 0.5, 6, -dz / L * (i % 2 ? 1 : -1), dx / L * (i % 2 ? 1 : -1), 0.4);
+            if (!low && i % 2 === 1 && Math.random() < 0.6) scorch(px, pz, 1.0, 3, 1.1, tc);
+          }
+          glow(e.x1, 1.5, e.z1, WHITE, 0.25, 4.5, 1, K.STAR, 1.3); flash(e.x1, 1.6, e.z1, tc, 36, 0.25); kick(e.x0, e.z0, 0.1);
+          break;
+        }
         beam(e.x0, e.z0, e.x1, e.z1, e.w * 3, tc, 0.55, 0);
         const n = Math.round(L / (low ? 2.5 : 1.3));
         for (let i = 0; i <= n; i++) {
@@ -620,16 +853,110 @@ export function makeFx(G, mechs) {
         flash(e.x1, 1.6, e.z1, tc, 60, 0.35); flash(e.x0, 1.6, e.z0, WHITE, 30, 0.2); kick(e.x0, e.z0, 0.7);
         break;
       }
+      case 'ray': rayLine(u, e); break;
+      case 'hook': {
+        const tc = TEAM_HDR[u.color];
+        mechs.muzzle(u, 0, V);
+        const b = beam(V.x, V.z, e.x, e.z, 0.6, tc, 0.35, 3, 1.4); b.fade = true;
+        glow(e.x, 1.4, e.z, WHITE, 0.1, 2.4, 1, K.STAR, 1.5); glow(e.x, 1.4, e.z, tc, 0.25, 2.8, 0.8);
+        sparks(e.x, 1.4, e.z, N(12), GOLD, 11, 0.4, 0.07, 0.7, 12); sparks(e.x, 1.4, e.z, N(6), WHITE, 8, 0.3, 0.05, 0.5, 12);
+        chips(e.x, 1.2, e.z, N(4), METAL, 5, 0.6, 0.14); ring(e.x, e.z, 2.2, WHITE, 0.3);
+        flash(e.x, 1.6, e.z, GOLD, 40, 0.2); kick(e.x, e.z, 0.4);
+        break;
+      }
+      case 'swap': {
+        const o = m.units[e.other], c0 = TEAM_HDR[u.color], c1 = TEAM_HDR[o ? o.color : u.color];
+        column(e.x0, e.z0, c0, 0.6, 9, 0.9); column(e.x1, e.z1, c1, 0.6, 9, 0.9);
+        ring(e.x0, e.z0, 2.4, c0, 0.4); ring(e.x1, e.z1, 2.4, c1, 0.4);
+        const b = beam(e.x0, e.z0, e.x1, e.z1, 0.9, WHITE, 0.4, 2, 1.3); b.fade = true;
+        glow(e.x0, 1.3, e.z0, WHITE, 0.2, 3, 1, K.STAR, 1.3); glow(e.x1, 1.3, e.z1, WHITE, 0.2, 3, 1, K.STAR, 1.3);
+        for (let i = 0, n = N(14); i < n; i++) { const t = Math.random(); glow(e.x0 + (e.x1 - e.x0) * t, rnd(0.4, 2), e.z0 + (e.z1 - e.z0) * t, i % 2 ? c0 : c1, 0.45, 0.35, 1, K.SPARK, 0.3, 0, rnd(0.5, 2), 0); }
+        sparks(e.x0, 1, e.z0, N(8), c0, 5, 0.4, 0.05, 1.5, -2); sparks(e.x1, 1, e.z1, N(8), c1, 5, 0.4, 0.05, 1.5, -2);
+        flash(e.x0, 2, e.z0, c0, 30, 0.25); flash(e.x1, 2, e.z1, c1, 30, 0.25);
+        break;
+      }
+      case 'stance': {
+        const R = u.radius * 1.3;
+        if (e.on) {
+          ring(e.x, e.z, 4.5, SHOCK, 0.45, 0.8); ring(e.x, e.z, 2.6, WHITE, 0.3, 0.5);
+          puffs(e.x, 0.3, e.z, N(9), dust, 1.2, 5, 0.9, 1.1, 2.4, 0.5, 0.55, K.DUST, 3);
+          for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.785; str.emit(e.x + Math.cos(a) * R, 0.05, e.z + Math.sin(a) * R, 0, -1.7, 0, C(2, 1.8, 1.4), 0.7, 0.14, 0, 0, 0, 1); }
+          chips(e.x, 0.3, e.z, N(8), STONE, 5, 0.8, 0.16); sparks(e.x, 0.4, e.z, N(10), EMBER, 6, 0.4, 0.05, 0.6, 14);
+          flash(e.x, 1.2, e.z, SHOCK, 30, 0.2); kick(e.x, e.z, 0.45);
+        } else { puffs(e.x, 0.3, e.z, N(5), dust, 0.9, 3, 0.7, 0.9, 2.2, 0.5, 0.45, K.DUST, 3); ring(e.x, e.z, 2.6, SHOCK, 0.3, 0.5); sparks(e.x, 0.4, e.z, N(6), EMBER, 4, 0.35, 0.05, 1, 6); }
+        break;
+      }
+      case 'bless': {
+        const o = m.units[e.to]; if (!o) break;
+        const sk = u && u.def.skills.find((k) => k.id === e.skill), c = sk && sk.shield ? C(0.9, 1.7, 2.4) : C(1.4, 2.2, 0.5);
+        if (u && u !== o) { const b = beam(u.x, u.z, o.x, o.z, 0.8, c, 0.35, 2, 1.5); b.fade = true; }
+        column(o.x, o.z, c, 0.7, 6, 1.0); ring(o.x, o.z, 2.6, c, 0.5); ring(o.x, o.z, 1.4, WHITE, 0.3);
+        if (sk && sk.shield) ground(9, o.x, o.z, 2.2, c, { life: 0.9, sweep: true });
+        for (let i = 0, n = N(16); i < n; i++) { const a = Math.random() * 6.283, d = rnd(0.3, 1.2); str.emit(o.x + Math.cos(a) * d, rnd(0.2, 1), o.z + Math.sin(a) * d, 0, rnd(3, 7), 0, c, rnd(0.4, 0.7), 0.06, 0.05, -2, 0.5, 1); }
+        glow(o.x, 1.3, o.z, WHITE, 0.2, 3, 1, K.STAR, 1.3); flash(o.x, 2, o.z, c, 24, 0.3);
+        break;
+      }
+      case 'rally': {
+        ring(e.x, e.z, e.r, RALLY, 0.7); ring(e.x, e.z, e.r * 0.7, GOLD, 0.55, 0.7); ring(e.x, e.z, e.r * 0.4, WHITE, 0.4, 0.6);
+        ground(9, e.x, e.z, e.r * 0.8, RALLY, { life: 1.2, sweep: true });
+        for (let i = 0, n = N(36); i < n; i++) { const a = Math.random() * 6.283, d = rnd(0, e.r); str.emit(e.x + Math.cos(a) * d, 0.2, e.z + Math.sin(a) * d, 0, rnd(4, 8), 0, i % 2 ? RALLY : GOLD, rnd(0.6, 1), 0.07, 0.05, -2, 0.4, 1); }
+        column(e.x, e.z, RALLY.clone().multiplyScalar(0.5), 0.8, 8, 1.2); glow(e.x, 1.2, e.z, WHITE, 0.2, 3.5, 0.6, K.STAR, 1.3); flash(e.x, 3, e.z, RALLY, 30, 0.4);
+        break;
+      }
+      case 'leap': {
+        puffs(e.x0, 0.3, e.z0, N(9), dust, 1, 5, 0.8, 1.1, 2.4, 0.6, 0.55, K.DUST, 3); ring(e.x0, e.z0, 2.6, WHITE, 0.3);
+        chips(e.x0, 0.3, e.z0, N(6), dust, 5, 0.7, 0.14); sparks(e.x0, 0.4, e.z0, N(8), EMBER, 6, 0.35, 0.05, 1, 12); kick(e.x0, e.z0, 0.3);
+        const sk = u.def.skills.find((k) => k.do === 'leap'), foe = u.team !== m.units[G.me].team;
+        ground(1, e.x, e.z, sk ? sk.radius : 3.2, foe ? C(2.2, 0.3, 0.12) : C(1.8, 1.2, 0.3), { life: e.dur + 0.05, sweep: true });
+        break;
+      }
+      case 'mark': {
+        ground(1, e.x, e.z, 2.4, RED, { life: 0.6, sweep: true }); ring(e.x, e.z, 3.4, RED, 0.4); ring(e.x, e.z, 1.6, WHITE, 0.25);
+        for (let i = 0; i < 4; i++) { const a = i * 1.5708; str.emit(e.x + Math.cos(a) * 5, 1.5, e.z + Math.sin(a) * 5, -Math.cos(a) * 40, 0, -Math.sin(a) * 40, RED, 0.14, 0.12, 0.03, 0, 0, 1); }
+        glow(e.x, 1.6, e.z, RED, 0.3, 4, 1, K.STAR, 1.4); glow(e.x, 1.6, e.z, WHITE, 0.1, 2, 1, K.GLOW, 1.2);
+        sparks(e.x, 1.4, e.z, N(12), RED, 9, 0.4, 0.06, 0.6, 10); flash(e.x, 2, e.z, RED, 50, 0.25); kick(e.x, e.z, 0.3);
+        break;
+      }
+      case 'warp': {
+        for (let i = 0, n = N(18); i < n; i++) { const a = Math.random() * 6.283, d = rnd(1.5, 3); str.emit(e.x0 + Math.cos(a) * d, rnd(0.3, 2), e.z0 + Math.sin(a) * d, -Math.cos(a) * d * 5, rnd(-0.5, 1), -Math.sin(a) * d * 5, VIOLET, 0.3, 0.05, 0.04, 0, 0, 1); }
+        glow(e.x0, 1.3, e.z0, VIOLET, 0.25, 3.4, 1, K.STAR, 0.2); ring(e.x0, e.z0, 2.2, VIOLET, 0.3); column(e.x0, e.z0, VIOLET, 0.35, 8, 0.7);
+        ring(e.x, e.z, 3, VIOLET, 0.45); ring(e.x, e.z, 1.6, WHITE, 0.3); sparks(e.x, 1.2, e.z, N(16), VIOLET, 9, 0.45, 0.06, 0.7, 8);
+        glow(e.x, 1.3, e.z, WHITE, 0.2, 4, 1, K.STAR, 1.4); column(e.x, e.z, VIOLET, 0.45, 10, 0.9); flash(e.x, 2, e.z, VIOLET, 40, 0.3);
+        break;
+      }
+      case 'zap': {
+        sparks(e.x, 1.4, e.z, N(16), ARC, 11, 0.35, 0.06, 0.8, 10); glow(e.x, 1.4, e.z, WHITE, 0.1, 2.4, 1, K.STAR, 1.5); glow(e.x, 1.4, e.z, ARC, 0.2, 2.6, 0.9);
+        for (let i = 0, n = N(5); i < n; i++) { const a = Math.random() * 6.283; str.emit(e.x, rnd(0.2, 2.2), e.z, Math.cos(a) * rnd(3, 7), rnd(-2, 3), Math.sin(a) * rnd(3, 7), ARC, 0.12, 0.04, 0.05, 0, 3, 1); }
+        ring(e.x, e.z, 1.8, ARC, 0.25); flash(e.x, 1.5, e.z, ARC, 40, 0.18); kick(e.x, e.z, 0.15);
+        break;
+      }
+      case 'execute': {
+        const x = e.x, z = e.z;
+        flash(x, 2.5, z, RED, 200, 0.5); glow(x, 1.5, z, WHITE, 0.2, 9, 1, K.STAR, 1.5); glow(x, 1.5, z, RED, 0.45, 9, 0.9, K.GLOW, 1.3);
+        ring(x, z, 8, RED, 0.55); ring(x, z, 5, WHITE, 0.3); ring(x, z, 3, RED, 0.35);
+        for (let i = 0, n = N(16); i < n; i++) { const a = (i / n) * 6.283; str.emit(x, 1.4, z, Math.cos(a) * 22, rnd(-0.5, 1.5), Math.sin(a) * 22, RED, 0.35, 0.12, 0.05, 0, 1, 1); }
+        str.emit(x + 3, 3.6, z, 6, 3, 0, WHITE, 0.3, 0.35, 0, 0, 0, 1); str.emit(x + 3, 3.6, z + 0.01, 6, 3, 0, RED, 0.35, 0.6, 0, 0, 0, 0.7);
+        sparks(x, 1.4, z, N(20), RED, 14, 0.5, 0.07, 0.8, 10); kick(x, z, 1.0);
+        break;
+      }
       case 'death': death(e, u); break;
       case 'respawn': respawn(e, u); break;
       case 'heal': for (let i = 0; i < 3; i++) glow(e.x + rnd(-0.8, 0.8), rnd(0.5, 1.6), e.z + rnd(-0.8, 0.8), HEAL, 0.8, 0.3, 1, K.SPARK, 0.6, 0, rnd(1.5, 3), 0); break;
       case 'item': ring(u.x, u.z, 2, HEAL, 0.5); break;
       case 'turretFire': glow(e.x + Math.cos(e.a) * 0.9, 1.1, e.z + Math.sin(e.a) * 0.9, WHITE, 0.06, 0.7, 1, K.STAR); for (let i = 0; i < 2; i++) str.emit(e.x + Math.cos(e.a), 1.1, e.z + Math.sin(e.a), Math.cos(e.a) * rnd(5, 10), rnd(0, 1), Math.sin(e.a) * rnd(5, 10), TEAM_HDR[u.color], 0.08, 0.05, 0.02, 0, 4, 1); break;
-      case 'zoneEnd':
-        if (e.kind === 'wall') { sparks(e.x, 1.0, e.z, N(18), ICE, 7, 0.6, 0.07, 1, 12); chips(e.x, 1, e.z, N(10), ICECHUNK, 5, 0.9, 0.2); }
+      case 'zoneEnd': {
+        const info = zoneInfo.get(e.id); zoneInfo.delete(e.id);
+        if (e.kind === 'wall' && info === 'screen') { sparks(e.x, 1.2, e.z, N(18), TEAM_HDR[0].clone().lerp(TEAM_HDR[1], 0.5), 6, 0.5, 0.05, 1.2, 4); glow(e.x, 1.2, e.z, WHITE, 0.2, 3, 0.8, K.STAR, 1.2); }
+        else if (e.kind === 'wall') { sparks(e.x, 1.0, e.z, N(18), ICE, 7, 0.6, 0.07, 1, 12); chips(e.x, 1, e.z, N(10), ICECHUNK, 5, 0.9, 0.2); }
         else if (e.kind === 'turret') explosion(e.x, e.z, 1.4, FIRE, false);
+        else if (e.kind === 'field' && info === 'cage') { sparks(e.x, 1.2, e.z, N(24), CAGE, 9, 0.6, 0.07, 1, 12); chips(e.x, 1.2, e.z, N(10), METAL, 5, 0.9, 0.2); ring(e.x, e.z, 6, CAGE, 0.4, 0.7); flash(e.x, 1.5, e.z, CAGE, 30, 0.25); }
+        else if (e.kind === 'field' && info === 'bastion') { ring(e.x, e.z, 6.5, GOLD, 0.5, 0.8); sparks(e.x, 1.2, e.z, N(18), GOLD, 8, 0.5, 0.05, 1, 4); }
+        else if (e.kind === 'decoy') { for (let i = 0, n = N(10); i < n; i++) glow(e.x + rnd(-0.6, 0.6), rnd(0.3, 1.6), e.z + rnd(-0.6, 0.6), HOLO, 0.7, 0.3, 1, K.SPARK, 0.3, 0, rnd(1.5, 3.5), 0); }
+        else if (e.kind === 'drone') { glow(e.x, 2.5, e.z, HEAL, 0.25, 2.4, 1, K.STAR, 1.3); sparks(e.x, 2.5, e.z, N(8), HEAL, 4, 0.5, 0.05, 0.5, 8); }
+        else if (e.kind === 'wire') { sparks(e.x, 1, e.z, N(14), ARC, 8, 0.4, 0.05, 0.8, 8); glow(e.x, 1, e.z, ARC, 0.2, 2.5, 0.9, K.STAR, 1.3); }
         break;
-      case 'skill': { const fn = SKILL_FX[u.def.skills[e.slot].do]; if (fn && visibleTo(m, u, m.units[G.me].team)) fn(u); break; }
+      }
+      case 'skill': { const sk = u.def.skills[e.slot], fn = SKILL_FX[sk.do]; if (fn && visibleTo(m, u, m.units[G.me].team)) fn(u, sk); break; }
       case 'ram': sparks(e.x, 1.2, e.z, N(14), FIRE, 9, 0.35, 0.07, 0.8, 12); glow(e.x, 1.2, e.z, WHITE, 0.08, 2, 1, K.STAR); ring(e.x, e.z, 2.4, WHITE, 0.3); kick(e.x, e.z, 0.5); break;
       case 'shieldBreak': sparks(e.x, 1.3, e.z, N(18), ARC, 8, 0.5, 0.06, 1, 8); ring(e.x, e.z, 2.6, ARC, 0.35); glow(e.x, 1.3, e.z, ARC, 0.2, 3, 1, K.STAR); break;
       case 'propHit': chips(e.x, 0.9, e.z, 3, WOOD, 3, 0.6, 0.14); break;
@@ -656,10 +983,26 @@ export function makeFx(G, mechs) {
       const look = SHOT_LOOK[s.vis] || SHOT_LOOK.bullet, x = s.px + (s.x - s.px) * alpha, z = s.pz + (s.z - s.pz) * alpha;
       let y = 1.5, tc = TEAM_HDR[s.color];
       if (s.vis === 'tower') { const t = m.towers[s.tower]; y = t ? Math.max(2, towers.crystalY(t) - Math.hypot(x - t.x, z - t.z) * 0.45) : 2.4; }
+      if (look.skip) { // flamethrower: no quad, additive fire blobs that swell and cool over the 7 m
+        const k = Math.min(1, s.flown / 7), f = Math.min(1, dt * 60);
+        col.set(1.2, 0.42, 0.05).lerp(C(0.9, 0.1, 0.02), k);
+        if (Math.random() < 0.6 * f) glow(x, 1.1 + k * 0.4, z, col, 0.2, 0.6 + k * 1.6, 0.26 * (1 - k * 0.5), K.FLAME, 1.5, rnd(-0.6, 0.6), rnd(0.3, 1.4), rnd(-0.6, 0.6));
+        if (k > 0.4 && Math.random() < 0.35 * f) ovr.emit(x, 1.4, z, rnd(-0.4, 0.4), 0.8, rnd(-0.4, 0.4), SMOKE, 0.7, 0.6, 2.6, 1, -0.6, 0.18, K.SMOKE);
+        continue;
+      }
       if (nShots < SHOT_MAX) { lastX[nShots] = x; lastZ[nShots] = z; lastK[nShots] = look.k; lastT[nShots] = s.color; }
       drawShot(look, x, y, z, s.dx, s.dz, tc, s.id);
+      if (look.chain) hookChain(m, s, x, z);
       const bx = x - s.dx * 0.6, bz = z - s.dz * 0.6, f = Math.min(1, dt * 60);
       switch (look.trail) {
+        case 'smoke':
+          glow(bx, y, bz, EMBER, 0.14, 0.4, 0.7, K.FLAME, 0.4, rnd(-0.3, 0.3), 0, rnd(-0.3, 0.3));
+          if (Math.random() < 0.9 * f) ovr.emit(bx - s.dx * 0.5, y, bz - s.dz * 0.5, rnd(-0.3, 0.3), 0.3, rnd(-0.3, 0.3), SMOKE, 1.2, 0.5, 3.4, 1, -0.4, 0.5, K.SMOKE);
+          break;
+        case 'sabot': str.emit(x, y, z, s.dx * s.speed * dt * 1.2, 0, s.dz * s.speed * dt * 1.2, WHITE, 0.5, 0.12, 0, 0, 0, 0.9); break;
+        case 'dart': str.emit(x, y, z, s.dx * s.speed * dt * 1.2, 0, s.dz * s.speed * dt * 1.2, tc, 0.2, 0.05, 0, 0, 0, 0.9); break;
+        case 'wave': if (Math.random() < 0.5 * f) glow(x - s.dz * rnd(-1, 1), y, z + s.dx * rnd(-1, 1), tc, 0.18, 0.2, 1, K.SPARK, 0.3); break;
+        case 'disc': if (Math.random() < 0.5 * f) glow(bx, y, bz, tc, 0.25, 0.24, 1, K.SPARK, 0.3, rnd(-0.5, 0.5), rnd(-0.2, 0.4), rnd(-0.5, 0.5)); break;
         case 'fire':
           glow(bx, y, bz, FIRE, 0.18, 0.5, 0.9, K.FLAME, 0.4, rnd(-0.4, 0.4), rnd(-0.2, 0.5), rnd(-0.4, 0.4));
           if (Math.random() < 0.7 * f) ovr.emit(bx - s.dx * 0.4, y, bz - s.dz * 0.4, rnd(-0.3, 0.3), 0.5, rnd(-0.3, 0.3), SMOKE, 0.7, 0.35, 3, 1, -0.6, 0.35, K.SMOKE);
@@ -676,7 +1019,18 @@ export function makeFx(G, mechs) {
     }
   }
 
-  function syncZones(m, dt) {
+  function sweepHooks() { for (const [id, b] of hookBeams) if (b.seenF !== frame) { endBeam(b); hookBeams.delete(id); } }
+
+  const zoneInfo = new Map();
+  function dropZone(v) {
+    if (v.g) release(v.g);
+    if (v.dome) { group.remove(v.dome); v.dome.material.dispose(); }
+    if (v.obj) group.remove(v.obj);
+    if (v.link) endBeam(v.link);
+    if (v.wire) endBeam(v.wire);
+    if (v.mats) for (const mt of v.mats) mt.dispose();
+  }
+  function syncZones(m, dt, alpha) {
     const myTeam = m.units[G.me].team;
     for (const z of m.zones) {
       let v = zoneViews.get(z.id);
@@ -685,8 +1039,51 @@ export function makeFx(G, mechs) {
         v = { seen: 0 };
         if (z.kind === 'strike') v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
         else if (z.kind === 'mine') v.g = ground(4, z.x, z.z, z.r, foe ? C(2.2, 0.4, 0.2) : ARC, { alpha: foe ? 0.55 : 1 });
-        else if (z.kind === 'field') v.g = ground(2, z.x, z.z, z.r, FIELD_COLOR[z.vis] || VIOLET, { alpha: z.vis === 'smoke' ? 0.35 : 1 });
-        else if (z.kind === 'wall') { v.obj = iceWall(z); group.add(v.obj); }
+        else if (z.kind === 'field' && z.vis === 'cage') {
+          zoneInfo.set(z.id, 'cage'); v.mats = []; v.obj = new THREE.Group(); v.obj.position.set(z.x, 0, z.z);
+          const mat = bandMat(tc.clone().lerp(CAGE, 0.2).multiplyScalar(1.4), 0), cap = new THREE.MeshBasicMaterial({ color: tc.clone().multiplyScalar(1.6), toneMapped: false });
+          v.mats.push(mat, cap);
+          const bars = new THREE.Mesh(bandGeo, mat); bars.scale.set(z.r, 2.6, z.r); bars.renderOrder = 7; v.obj.add(bars); v.bars = mat;
+          for (let i = 0; i < 14; i++) {
+            const a = i * Math.PI / 7, px = Math.sin(a) * z.r, pz = Math.cos(a) * z.r;
+            const post = new THREE.Mesh(postGeo, postMat); post.position.set(px, 0, pz); post.castShadow = true;
+            const top = new THREE.Mesh(capGeo, cap); top.position.set(px, 2.7, pz); v.obj.add(post, top);
+          }
+          group.add(v.obj); v.g = ground(2, z.x, z.z, z.r, tc, { alpha: 0.9 });
+        } else if (z.kind === 'field' && z.vis === 'bastion') {
+          zoneInfo.set(z.id, 'bastion'); v.mats = []; v.obj = new THREE.Group();
+          const mat = bandMat(tc.clone().lerp(GOLD, 0.55).multiplyScalar(1.3), 1); v.mats.push(mat);
+          const shell = new THREE.Mesh(bandGeo, mat); shell.scale.set(z.r, 1.8, z.r); shell.renderOrder = 7; v.obj.add(shell); v.bars = mat;
+          group.add(v.obj); v.g = ground(2, z.x, z.z, z.r, tc.clone().lerp(GOLD, 0.45), { alpha: 0.8 });
+        } else if (z.kind === 'field') v.g = ground(2, z.x, z.z, z.r, FIELD_COLOR[z.vis] || VIOLET, { alpha: z.vis === 'smoke' ? 0.35 : 1 });
+        else if (z.kind === 'wall' && z.screen) {
+          zoneInfo.set(z.id, 'screen'); v.screen = true; v.mats = []; v.obj = new THREE.Group();
+          const p0 = z.pts[0], p1 = z.pts[z.pts.length - 1], L0 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
+          v.dx = (p1[0] - p0[0]) / L0; v.dz = (p1[1] - p0[1]) / L0; v.x0 = p0[0] - v.dx * z.r * 0.6; v.z0 = p0[1] - v.dz * z.r * 0.6;
+          const len = L0 + z.r * 1.2; v.half = len / 2; v.cx = v.x0 + v.dx * v.half; v.cz = v.z0 + v.dz * v.half;
+          v.mat = screenMat(tc); v.mat.uniforms.uLen.value = len; v.mats.push(v.mat);
+          const sheet = new THREE.Mesh(screenGeo, v.mat); sheet.position.set(v.x0, 0, v.z0); sheet.rotation.y = -Math.atan2(v.dz, v.dx); sheet.scale.set(len, 2.4, 1); sheet.renderOrder = 7;
+          const cap = new THREE.MeshBasicMaterial({ color: tc.clone().multiplyScalar(2), toneMapped: false }); v.mats.push(cap);
+          v.strip = stripMat(tc); v.strip.uniforms.uLen.value = len; v.mats.push(v.strip);
+          const floor = new THREE.Mesh(stripGeo, v.strip); floor.position.set(v.x0, 0.12, v.z0); floor.rotation.y = -Math.atan2(v.dz, v.dx); floor.scale.set(len, 1, 1.5); floor.renderOrder = 3;
+          v.obj.add(sheet, floor);
+          for (const [px, pz] of [[v.x0, v.z0], [v.x0 + v.dx * len, v.z0 + v.dz * len]]) { const post = new THREE.Mesh(postGeo, postMat); post.scale.set(0.8, 0.95, 0.8); post.position.set(px, 0, pz); const top = new THREE.Mesh(capGeo, cap); top.position.set(px, 2.5, pz); v.obj.add(post, top); }
+          group.add(v.obj);
+        } else if (z.kind === 'wall') { v.obj = iceWall(z); group.add(v.obj); }
+        else if (z.kind === 'drone') {
+          v.mats = []; v.obj = new THREE.Group();
+          const core = new THREE.MeshBasicMaterial({ color: HEAL.clone().multiplyScalar(1.3), toneMapped: false }), rim = new THREE.MeshBasicMaterial({ color: tc.clone().multiplyScalar(1.6), toneMapped: false }), blade = new THREE.MeshBasicMaterial({ color: 0xcfd8e0, toneMapped: false });
+          v.mats.push(core, rim, blade);
+          v.ring = new THREE.Mesh(droneRing, rim); v.blades = new THREE.Group();
+          v.blades.add(new THREE.Mesh(droneBlade, blade), new THREE.Mesh(droneBlade, blade)); v.blades.children[1].rotation.y = Math.PI / 2; v.blades.position.y = 0.2;
+          v.obj.add(new THREE.Mesh(droneBody, core), v.ring, v.blades); group.add(v.obj);
+        } else if (z.kind === 'wire') {
+          v.mats = []; v.obj = new THREE.Group();
+          const cap = new THREE.MeshBasicMaterial({ color: tc.clone().multiplyScalar(2), toneMapped: false }); v.mats.push(cap);
+          for (const [px, pz] of z.pts) { const post = new THREE.Mesh(postGeo, postMat); post.scale.set(0.9, 0.55, 0.9); post.position.set(px, 0, pz); post.castShadow = true; const top = new THREE.Mesh(capGeo, cap); top.position.set(px, 1.5, pz); v.obj.add(post, top); }
+          group.add(v.obj); v.wire = beam(z.pts[0][0], z.pts[0][1], z.pts[1][0], z.pts[1][1], 1.5, tc, 1e9, 7, 1.0);
+          v.armed = z.delay <= 0;
+        }
         else if (z.kind === 'turret') { v.obj = turretModel(z.color); v.obj.position.set(z.x, 0, z.z); group.add(v.obj); v.g = ground(6, z.x, z.z, 1.6, tc); }
         else if (z.kind === 'dome') {
           v.dome = new THREE.Mesh(domeGeo, domeMaterial(tc.clone()));
@@ -713,6 +1110,19 @@ export function makeFx(G, mechs) {
       } else if (z.kind === 'mine') {
         v.g.u.uT.value = z.delay > 0 ? 0 : 1;
         if (!foe && Math.sin(time * 9 + z.id) > 0.97) glow(z.x, 0.25, z.z, ARC, 0.08, 0.5, 0.8, K.STAR);
+      } else if (z.kind === 'field' && (z.vis === 'cage' || z.vis === 'bastion')) {
+        const out = Math.min(1, z.age * 4, (z.dur - z.age) * 3), cage = z.vis === 'cage', o = m.units[z.owner];
+        let cx = z.x, cz = z.z;
+        if (z.follow && o) { cx = o.px + (o.x - o.px) * alpha; cz = o.pz + (o.z - o.pz) * alpha; v.g.mesh.position.x = cx; v.g.mesh.position.z = cz; }
+        v.obj.position.set(cx, 0, cz);
+        v.g.u.uA.value = out * (cage ? 0.9 : 0.8); v.bars.uniforms.uA.value = out;
+        const rise = Math.min(1, z.age * 5); v.obj.scale.y = Math.max(0.01, rise * (2 - rise));
+        if (cage) {
+          if (Math.random() < dt * (low ? 8 : 16)) { const a = Math.random() * 6.283, d = Math.sqrt(Math.random()) * z.r * 0.9; glow(cx + Math.cos(a) * d, 0.3, cz + Math.sin(a) * d, DANGER, 0.7, 0.22, 1, K.SPARK, 0.3, 0, rnd(1, 2.5), 0); }
+        } else {
+          col2.copy(tc).lerp(GOLD, 0.5);
+          for (let i = 0, n = low ? 1 : 2; i < n; i++) if (Math.random() < dt * 22) { const a = Math.random() * 6.283, r0 = z.r * rnd(0.45, 0.65); str.emit(cx + Math.cos(a) * r0, rnd(0.3, 1.5), cz + Math.sin(a) * r0, Math.cos(a) * 11, 0, Math.sin(a) * 11, col2, 0.28, 0.06, 0.06, 0, 1.2, 1); }
+        }
       } else if (z.kind === 'field') {
         v.g.u.uA.value = Math.min(1, z.age * 4, (z.dur - z.age) * 3);
         const a = Math.random() * 6.283, d = Math.sqrt(Math.random()) * z.r, px = z.x + Math.cos(a) * d, pz = z.z + Math.sin(a) * d;
@@ -728,12 +1138,35 @@ export function makeFx(G, mechs) {
       } else if (z.kind === 'wall') {
         const k = Math.min(1, z.age * 5), out = Math.min(1, (z.dur - z.age) * 4);
         v.obj.scale.y = Math.max(0.01, k * (2 - k) * out);
+        if (v.screen) {
+          v.mat.uniforms.uA.value = out; v.strip.uniforms.uA.value = out; v.mat.uniforms.uHitT.value = Math.max(0, v.mat.uniforms.uHitT.value - dt * 3);
+          if (Math.random() < dt * (low ? 4 : 9)) { const t = Math.random() * 2 * v.half; glow(v.x0 + v.dx * t, rnd(0.2, 2.2), v.z0 + v.dz * t, tc, 0.6, 0.2, 1, K.SPARK, 0.3, 0, rnd(0.3, 1), 0); }
+        }
+      } else if (z.kind === 'drone') {
+        const o = m.units[z.owner];
+        let px = z.x, pz = z.z;
+        if (o) { const ox = o.px + (o.x - o.px) * alpha, oz = o.pz + (o.z - o.pz) * alpha, ang = (z.age - (1 - alpha) / 30) * 2.2; px = ox + Math.cos(ang) * 1.5; pz = oz + Math.sin(ang) * 1.5; }
+        const py = 2.5 + Math.sin(time * 3 + z.id) * 0.12;
+        v.obj.position.set(px, py, pz); v.ring.rotation.y = time * 5; v.blades.rotation.y = time * 40; v.obj.scale.setScalar(1.6 * Math.min(1, z.age * 4) * Math.min(1, (z.dur - z.age) * 3));
+        glow(px, py, pz, HEAL, 0.06, 1.9, 0.6, K.GLOW, 1);
+        if (Math.random() < dt * 8) glow(px + rnd(-0.2, 0.2), py - 0.1, pz + rnd(-0.2, 0.2), HEAL, 0.7, 0.16, 1, K.SPARK, 0.3, 0, -1.2, 0);
+        const tg = z.target >= 0 ? m.units[z.target] : null;
+        if (tg && tg.alive) {
+          const tx = tg.px + (tg.x - tg.px) * alpha, tz = tg.pz + (tg.z - tg.pz) * alpha;
+          if (!v.link) v.link = beam(px, pz, tx, tz, 1.1, HEAL, 1e9, 5, 1.9);
+          aimBeam(v.link, px, pz, tx, tz, 1.9);
+        } else if (v.link) { endBeam(v.link); v.link = null; }
+      } else if (z.kind === 'wire') {
+        const live = z.delay <= 0, fl = live ? 1 + 0.25 * Math.sin(time * 50) : 0.2 + 0.05 * Math.sin(time * 8), out = Math.min(1, (z.dur - z.age) * 2);
+        v.wire.u.uA.value = fl * out;
+        if (live && !v.armed) { v.armed = true; for (const [px, pz] of z.pts) { glow(px, 1.5, pz, WHITE, 0.15, 1.8, 1, K.STAR, 1.3); sparks(px, 1.5, pz, N(6), ARC, 5, 0.3, 0.05, 0.6, 8); } }
+        if (live && Math.random() < dt * (low ? 6 : 14)) { const t = Math.random(); glow(z.pts[0][0] + (z.pts[1][0] - z.pts[0][0]) * t, 1.0 + rnd(-0.2, 0.3), z.pts[0][1] + (z.pts[1][1] - z.pts[0][1]) * t, ARC, 0.15, 0.3, 1, K.SPARK, 0.3, rnd(-1, 1), rnd(0.5, 2), rnd(-1, 1)); }
       } else if (z.kind === 'turret') {
         v.obj.children[1].rotation.y = -z.aim;
         v.obj.scale.setScalar(Math.min(1, 0.2 + z.age * 4));
       }
     }
-    for (const [id, v] of zoneViews) if (v.seen !== frame) { if (v.g) release(v.g); if (v.dome) { group.remove(v.dome); v.dome.material.dispose(); } if (v.obj) group.remove(v.obj); zoneViews.delete(id); }
+    for (const [id, v] of zoneViews) if (v.seen !== frame) { dropZone(v); zoneViews.delete(id); }
   }
 
   function syncCrates(m, dt) {
@@ -781,6 +1214,23 @@ export function makeFx(G, mechs) {
   function clearPoints() { for (const v of pointViews) { release(v.rim); release(v.fill); group.remove(v.beacon); v.beacon.material.dispose(); } pointViews.length = 0; }
 
   const casts = new Map();
+  // The sweep fires a pulse every 0.2 s; the beam is drawn here every frame as one steady quad that follows the turret.
+  function sweepBeam(u, v, s) {
+    const tc = TEAM_HDR[u.color];
+    mechs.muzzle(u, 0, V);
+    const mx = V.x, my = V.y, mz = V.z, dx = Math.cos(u.aim), dz = Math.sin(u.aim), len = sweepLen.get(u.id) ?? s.range;
+    if (!v.act) {
+      v.act = true; if (v.b) endBeam(v.b);
+      v.b = beam(mx, mz, mx + dx * len, mz + dz * len, s.width * 2.8, tc, 1e9, 0, 1.5); v.b.power = false;
+    }
+    const ex = u.x + dx * len, ez = u.z + dz * len;
+    aimBeam(v.b, mx, mz, ex, ez, 1.5);
+    v.b.u.uA.value = 0.95 + 0.12 * Math.sin(time * 61); v.b.mesh.scale.z = s.width * 2.8 * (0.94 + 0.06 * Math.sin(time * 47));
+    glow(mx, my, mz, WHITE, 0.06, 1.6, 1, K.STAR, 1); glow(mx + dx, my, mz + dz, tc, 0.07, 2.2, 0.8);
+    glow(ex, 1.5, ez, WHITE, 0.06, 2.6, 0.9, K.STAR, 1); glow(ex, 1.4, ez, FIRE, 0.1, 3.2, 0.6);
+    for (let i = 0, n = low ? 1 : 3; i < n; i++) { const t = Math.random(); sparks(mx + dx * len * t, 1.5, mz + dz * len * t, 1, i % 2 ? EMBER : tc, 5, 0.3, 0.05, 0.6, 6, -dz * (i % 2 ? 1 : -1), dx * (i % 2 ? 1 : -1), 0.4); }
+    if (Math.random() < 0.4) puffs(ex, 0.6, ez, 1, SMOKE, 0.4, 1.5, 0.8, 0.7, 2.6, 0.8, 0.3, K.SMOKE, 1.6, -0.5);
+  }
   function syncCasts(m) {
     const myTeam = m.units[G.me].team;
     for (const u of m.units) {
@@ -790,10 +1240,12 @@ export function makeFx(G, mechs) {
       if (!v) {
         v = { seen: 0 };
         if (s.do === 'nova') v.g = ground(1, u.x, u.z, s.radius, foe ? C(2.2, 0.3, 0.1) : C(1.8, 1.1, 0.3));
+        else if (s.do === 'stance') v.g = ground(1, u.x, u.z, 2.4, C(1.8, 1.4, 0.7));
         else v.b = beam(u.x, u.z, u.x + Math.cos(u.cast.aim) * s.range, u.z + Math.sin(u.cast.aim) * s.range, 0.6, foe ? C(2.2, 0.3, 0.2) : TEAM_HDR[u.color], 99, 1);
         casts.set(u.id, v);
       }
       v.seen = frame;
+      if (s.do === 'sweep' && u.cast.t <= s.dur) { sweepBeam(u, v, s); continue; }
       if (v.g) { v.g.mesh.position.x = u.x; v.g.mesh.position.z = u.z; v.g.u.uT.value = k; }
       if (v.b) {
         aimBeam(v.b, u.x, u.z, u.x + Math.cos(u.cast.aim) * s.range, u.z + Math.sin(u.cast.aim) * s.range, 1.5);
@@ -802,7 +1254,7 @@ export function makeFx(G, mechs) {
         if (Math.random() < 0.5) glow(u.x + Math.cos(u.cast.aim) * 1.5, 1.5, u.z + Math.sin(u.cast.aim) * 1.5, TEAM_HDR[u.color], 0.1, 0.6 + k * 1.6, 0.8, K.GLOW);
       }
     }
-    for (const [id, v] of casts) if (v.seen !== frame) { if (v.g) release(v.g); if (v.b) endBeam(v.b); casts.delete(id); }
+    for (const [id, v] of casts) if (v.seen !== frame) { if (v.g) release(v.g); if (v.b) endBeam(v.b); casts.delete(id); sweepLen.delete(id); }
   }
 
   function unitTrails(m, dt) {
@@ -812,6 +1264,20 @@ export function makeFx(G, mechs) {
       const sp = Math.hypot(u.x - u.px, u.z - u.pz) * 30;
       if (!u.def.hover && sp > 2 && Math.random() < dt * sp * 1.6) ovr.emit(u.x + rnd(-0.5, 0.5), 0.2, u.z + rnd(-0.5, 0.5), rnd(-0.5, 0.5), 0.7, rnd(-0.5, 0.5), dust, 0.8, 0.7, 2.2, 0, 0, 0.3, K.DUST);
       if (u.dash) glow(u.x, 1.0, u.z, TEAM_HDR[u.color], 0.25, 1.6, 0.5, K.GLOW, 0.2);
+      if (u.dash && u.dash.fly && Math.random() < dt * 30) ovr.emit(u.x, 0.9, u.z, rnd(-0.5, 0.5), 0.3, rnd(-0.5, 0.5), dust, 0.6, 0.9, 2.2, 1, 0, 0.35, K.DUST);
+      const ch = u.def.weapon.charge;
+      if (ch && (u.charge > 0 || u.primeT > 0)) { // charge lance: the muzzle swells as it fills, white-hot while primed
+        const k = Math.min(1, u.charge / ch.max), pr = u.primeT > 0 ? 1 : 0, tc = TEAM_HDR[u.color];
+        mechs.muzzle(u, 0, V);
+        const sz = 0.35 + k * 1.5 + pr * 0.5, fl = 0.85 + 0.15 * Math.sin(time * 40);
+        glow(V.x, V.y, V.z, pr ? WHITE : tc, 0.07, sz * fl, 0.45 + k * 0.5 + pr * 0.3, K.GLOW, 1);
+        if (k > 0.3 || pr) glow(V.x, V.y, V.z, WHITE, 0.06, (0.3 + k * 1.1) * fl, 0.5 + k * 0.5, K.STAR, 1);
+        if (Math.random() < dt * (12 + k * 40 + pr * 12)) { const a = Math.random() * 6.283, d = 0.9 + k * 1.2; glow(V.x + Math.cos(a) * d, V.y + rnd(-0.4, 0.4), V.z + Math.sin(a) * d, tc, 0.2, 0.18, 1, K.SPARK, 0.3, -Math.cos(a) * d / 0.2, 0, -Math.sin(a) * d / 0.2); }
+      }
+      if (u.armorT > 0 && Math.random() < dt * 14) { const a = time * 5 + Math.random(); glow(u.x + Math.cos(a) * 1.1, rnd(0.4, 1.8), u.z + Math.sin(a) * 1.1, GOLD, 0.45, 0.24, 1, K.SPARK, 0.3, 0, 0.4, 0); }
+      if (u.rageT > 0 && Math.random() < dt * 22) glow(u.x + rnd(-0.7, 0.7), rnd(0.5, 1.8), u.z + rnd(-0.7, 0.7), DANGER, 0.5, 0.34, 1, K.FLAME, 0.3, 0, 2.2, 0);
+      if (u.markT > 0) glow(u.x, 3.2, u.z, RED, 0.06, 0.9 + 0.25 * Math.sin(time * 14), 1, K.STAR, 1);
+      if (u.stance && Math.random() < dt * 2) ovr.emit(u.x + rnd(-1, 1), 0.2, u.z + rnd(-1, 1), 0, 0.2, 0, dust, 0.9, 0.7, 2.2, 1, 0, 0.18, K.DUST);
       if (u.hasteT > 0 && Math.random() < dt * 20) glow(u.x + rnd(-0.6, 0.6), 0.4, u.z + rnd(-0.6, 0.6), ARC, 0.4, 0.28, 1, K.SPARK, 0.3, 0, 1, 0);
       if (u.dmgT > 0 && Math.random() < dt * 20) glow(u.x + rnd(-0.7, 0.7), rnd(0.6, 1.8), u.z + rnd(-0.7, 0.7), FIRE, 0.45, 0.26, 1, K.FLAME, 0.3, 0, 2, 0);
       if (u.slowT > 0 && Math.random() < dt * 14) glow(u.x + rnd(-0.8, 0.8), 0.3, u.z + rnd(-0.8, 0.8), VIOLET, 0.5, 0.3, 1, K.SPARK, 0.3, 0, 0.5, 0);
@@ -822,13 +1288,54 @@ export function makeFx(G, mechs) {
     }
   }
 
+
+  // Touch skill aim: drawn on the ground in the team colour, red inside the cancel zone. Nothing exists until the first hint and nothing runs while G.input.aimHint is null.
+  const HINT_TEAM = [new THREE.Color(0.25, 0.75, 1), new THREE.Color(1, 0.45, 0.2)], HINT_CANCEL = new THREE.Color(1, 0.18, 0.15);
+  let hintParts = null, hintShown = false;
+  function hintPart() {
+    const mat = premul(new THREE.ShaderMaterial({ transparent: true, depthWrite: false, vertexShader: QUAD_VERT, fragmentShader: HINT_FRAG,
+      uniforms: { uColor: { value: new THREE.Color() }, uTime: { value: 0 }, uA: { value: 1 }, uHalf: { value: 1 }, uM: { value: 1 }, uMode: { value: 0 } } }));
+    mat.depthTest = false;
+    const mesh = new THREE.Mesh(flat, mat);
+    mesh.renderOrder = 4; mesh.frustumCulled = false; mesh.visible = false; group.add(mesh);
+    return { mesh, u: mat.uniforms };
+  }
+  function placeHint(part, mode, x, z, sx, sz, rot, color, a, half = 1) {
+    part.mesh.visible = true; part.mesh.position.set(x, 0.16, z); part.mesh.scale.set(sx, 1, sz); part.mesh.rotation.y = rot;
+    part.u.uMode.value = mode; part.u.uColor.value.copy(color); part.u.uA.value = a; part.u.uHalf.value = half; part.u.uM.value = Math.max(0.3, Math.min(sx, sz)); part.u.uTime.value = time;
+  }
+  function drawHint(h, myColor) {
+    if (!hintParts) hintParts = [hintPart(), hintPart()];
+    const col = h.cancel ? HINT_CANCEL : HINT_TEAM[myColor] || HINT_TEAM[0], a = h.cancel ? 0.75 : 1;
+    const [shape, ring] = hintParts, dx = h.tx - h.x, dz = h.tz - h.z, len = Math.hypot(dx, dz), rot = -Math.atan2(dz, dx);
+    hintShown = true; ring.mesh.visible = false;
+    if (h.kind === 'line') {
+      const l = Math.max(0.2, len), w = Math.max(0.5, h.width) / 2;
+      placeHint(shape, 2, (h.x + h.tx) / 2, (h.z + h.tz) / 2, l / 2, w, rot, col, a, l);
+      if (h.range > l + 0.5) placeHint(ring, 1, h.x, h.z, h.range, h.range, 0, col, a * 0.6);
+    } else if (h.kind === 'cone') {
+      const half = Math.atan2(h.width / 2, h.range);
+      placeHint(shape, 3, h.x, h.z, h.range, h.range, rot, col, a, half);
+    } else {
+      const r = Math.max(0.6, h.radius);
+      placeHint(shape, h.kind === 'point' ? 4 : 0, h.tx, h.tz, r, r, 0, col, a);
+      if (h.range > 1) placeHint(ring, 1, h.x, h.z, h.range, h.range, 0, col, a * 0.7);
+    }
+  }
+  function updateHint(m) {
+    const h = G.input && G.input.aimHint;
+    if (h) { const me = m && m.units[G.me]; drawHint(h, me ? me.color | 0 : 0); }
+    else if (hintShown) { hintShown = false; for (const p of hintParts) p.mesh.visible = false; }
+  }
+
   function update(m, alpha, dt, t) {
-    time = t; frame++;
+    time = t; frame++; FX_TIME.value = t;
+    updateHint(m);
     nShots = 0;
     if (m) {
       const th = G.gfx.world && G.gfx.world.theme;
       dust = (th && GROUND_DUST[th.base]) || DUST;
-      syncShots(m, alpha, dt); syncZones(m, dt); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m); towers.sync(m, dt, time);
+      syncShots(m, alpha, dt); sweepHooks(); syncZones(m, dt, alpha); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m); towers.sync(m, dt, time);
       if (th && th.fireflies && Math.random() < dt * 14) { const f = G.camera.position; add.emit(f.x + rnd(-22, 22), rnd(0.6, 2.6), f.z - 22 + rnd(-16, 14), rnd(-0.6, 0.6), rnd(-0.1, 0.3), rnd(-0.6, 0.6), FIREFLY, rnd(1.5, 3), 0.16, 1, 0, 0, 0.9, K.SPARK); }
       for (const h of m.map.hazards) if (h.kind === 'lava' && Math.random() < dt * 3) { const a = Math.random() * 6.283, d = Math.random() * h.r; glow(h.x + Math.cos(a) * d, 0.2, h.z + Math.sin(a) * d, EMBER, 1.2, 0.2, 1, K.SPARK, 0.3, rnd(-0.3, 0.3), rnd(1, 3), rnd(-0.3, 0.3)); }
     }
@@ -849,6 +1356,11 @@ export function makeFx(G, mechs) {
     for (let i = beams.length - 1; i >= 0; i--) {
       const b = beams[i]; b.age += dt;
       b.u.uTime.value = t;
+      if (b.rayOwner >= 0 && m) {
+        const u = m.units[b.rayOwner];
+        if (u) { mechs.muzzle(u, 0, V); const ex = u.x + b.ex, ez = u.z + b.ez; aimBeam(b, V.x, V.z, ex, ez, 1.5); if (b.kind !== 6) glow(ex, 1.4, ez, b.kind === 5 ? HEAL : TEAM_HDR[u.color], 0.06, b.kind === 5 ? 1.2 : 0.8, 0.7, K.GLOW, 1); }
+      }
+      if (b.fade) b.u.uA.value = Math.min(1, (b.life - b.age) / Math.min(0.06, b.life));
       if (b.power) { const k = 1 - b.age / b.life, pop = Math.min(1, b.age * 25); b.u.uA.value = Math.min(1.6, k * 2) * pop; b.mesh.scale.z = b.width * (0.3 + 0.7 * k) * (0.6 + 0.4 * pop); }
       if (b.age >= b.life) endBeam(b);
     }
@@ -869,8 +1381,8 @@ export function makeFx(G, mechs) {
   }
 
   function clear() {
-    for (const [, v] of zoneViews) { if (v.g) release(v.g); if (v.dome) group.remove(v.dome); if (v.obj) group.remove(v.obj); }
-    zoneViews.clear();
+    for (const [, v] of zoneViews) dropZone(v);
+    zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear();
     for (const [, v] of crateViews) { group.remove(v.root); release(v.mark); }
     crateViews.clear();
     for (const [, v] of casts) { if (v.g) release(v.g); if (v.b) endBeam(v.b); }

@@ -5,7 +5,7 @@
 // before each frame (follow a unit with __setShot, keep a tower's hp low, ...).
 // Writes .chk/clips/<name>.mp4 (30 fps) and .chk/<sheetDir>/<name>.png: <tiles> evenly spaced frames in a 3-column grid.
 // The HUD is hidden (FILM_HUD=1 keeps it). Helpers for evalJS: __film.follow(id, dist), __film.hot(dist) (follow the closest enemy
-// pair), __film.at(x, z, dist), __film.nearestFoe(id).
+// pair), __film.at(x, z, dist), __film.nearestFoe(id), __film.cast(key, dist, { allies, hold, quiet }) (skill slot s1/s2/ult or 'none', at a gathered cluster), __film.ult(dist, opts).
 'use strict';
 const { session, open, CHK, fs, path } = require('./lib.js');
 const { execFileSync } = require('child_process');
@@ -36,10 +36,15 @@ session(async (br, base) => {
         // Put up to n enemies of unit `id` in a loose cluster `d` ahead of it, facing it.
         gather: (id, d = 5.5, n = 3) => { const m = G.match, u = m.units[id], a = u.team ? Math.PI : 0, cx = u.x + Math.cos(a) * d, cz = u.z + Math.sin(a) * d; let k = 0;
           for (const o of m.units) if (o.team !== u.team && o.alive && k < n) { const b = k * 2.1 - 2.1; o.x = o.px = cx + Math.cos(a) * (k % 2) * 1.2; o.z = o.pz = cz + b; k++; } return [cx, cz]; },
-        // The player casts its ultimate at a gathered cluster, then keeps firing.
-        ult: (dist = 30) => { const m = G.match, u = m.units[G.me], [cx, cz] = window.__film.gather(G.me); u.cd.ult = 0; let t = 0;
-          window.__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: t > 4, s1: false, s2: false, ult: t < 4, heal: false, tx: cx, tz: cz }; });
+        // The player casts a skill slot (key s1, s2 or ult) at a gathered cluster of enemies, then keeps firing.
+        // opts.quiet: every other unit but the gathered foes (and the allies) is parked dead and the foes cannot die, so only the skill is on screen.
+        // opts.allies: also puts two hurt allies beside the player (heals, blessings). opts.hold: keep the fire button down from the start (charge weapons).
+        cast: (key = 'ult', dist = 30, opts = {}) => { const m = G.match, u = m.units[G.me], [cx, cz] = window.__film.gather(G.me); u.cd[key] = 0; let t = 0;
+          if (opts.quiet) { const keep = opts.allies ? 2 : 0; let a = 0, f = 0; u.hp = u.maxHp = 1e6; for (const o of m.units) { if (o === u) continue; if (o.team === u.team) { if (a++ >= keep) { o.alive = false; o.respawnT = 1e9; } } else if (f++ >= 3) { o.alive = false; o.respawnT = 1e9; } else o.hp = o.maxHp = 1e6; } }
+          if (opts.allies) { let k = 0; for (const o of m.units) if (o.team === u.team && o !== u && o.alive && k < 2) { o.x = o.px = u.x + 2 + k; o.z = o.pz = u.z + (k ? 2.2 : -2.2); o.hp = o.maxHp * 0.4; k++; } }
+          window.__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: opts.hold || t > 4, s1: key === 's1' && t < 4, s2: key === 's2' && t < 4, ult: key === 'ult' && t < 4, heal: false, tx: cx, tz: cz }; });
           pose((u.x + cx) / 2, (u.z + cz) / 2, dist); },
+        ult: (dist = 30, opts = {}) => window.__film.cast('ult', dist, opts),
       };
       window.__filmEach = (i) => { if (each) each(i); if (window.__filmUser) window.__filmUser(i); };
       // Effects only age when a frame is drawn, so the last 20 s before the clip are drawn tick by tick.

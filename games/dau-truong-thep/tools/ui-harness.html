@@ -13,7 +13,7 @@
 <body>
 <canvas id="scene"></canvas>
 <script type="module">
-import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES, PAINTS, BOSSES, MODES, MODE_ORDER } from '../js/data.js';
+import { MECHS, MECH_ORDER, TEAMS, TICK, BOT_NAMES, PAINTS, GLOWS, DECALS, BOSSES, MODES, MODE_ORDER, NO_LV } from '../js/data.js';
 import { MAPS, THEMES, pickArena } from '../js/maps.js';
 import { createMatch, step, summary } from '../js/sim.js';
 import { mulberry } from '../js/rng.js';
@@ -39,8 +39,8 @@ function resize() { cv.width = W = innerWidth; cv.height = H = innerHeight; }
 addEventListener('resize', resize); resize();
 const scale = () => (G.match ? Math.min(W / (G.match.map.w * 0.62), H / (G.match.map.d * 0.75)) : 10);
 
-function portrait(key, team, paint) {
-  (window.__portraitCalls = window.__portraitCalls || []).push([key, team, paint]);
+function portrait(key, team, paint, glow, decal) {
+  (window.__portraitCalls = window.__portraitCalls || []).push([key, team, paint, glow, decal]);
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const g = c.getContext('2d'), col = '#' + (MECHS[key] || BOSSES[key]).tint.toString(16).padStart(6, '0');
   const grd = g.createRadialGradient(64, 50, 8, 64, 64, 90);
@@ -62,6 +62,11 @@ const bus = {
 };
 const meta = makeMeta();
 if (q.get('coins')) meta.get().coins = +q.get('coins');
+// ?gems=N, ?own=all (every mech), ?lv=trau:3,3,3,3,3, ?pass=days left
+if (q.get('gems')) meta.get().gems = +q.get('gems');
+if (q.get('own') === 'all') meta.get().owned = MECH_ORDER.slice();
+if (q.get('lv')) { const [k, v] = q.get('lv').split(':'); if (MECHS[k]) meta.get().lv[k] = v.split(',').map(Number); }
+if (q.get('pass')) meta.get().shop.passUntil = Date.now() + (+q.get('pass') - 0.5) * 86400000;
 if (q.get('trophies')) meta.get().trophies = +q.get('trophies');
 if (MODES[q.get('mode')]) meta.get().mode = q.get('mode');
 if (MAPS[q.get('map')]) meta.get().map = q.get('map');
@@ -87,7 +92,7 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
   let held = null;
   fo.seed = (role, fill, mode) => {
     const ps = [];
-    for (let i = 0; i < fill; i++) ps.push({ id: 'p' + i, name: NAMES[i], mech: MECH_ORDER[(i * 3) % MECH_ORDER.length], paint: i === 2 ? 'vang' : null, mods: { hp: 1, dmg: 1 }, team: mode === 'trum' ? 0 : i % 2, ready: i === 0 || i % 2 === 1, host: i === 0 });
+    for (let i = 0; i < fill; i++) ps.push({ id: 'p' + i, name: NAMES[i], mech: MECH_ORDER[(i * 3) % MECH_ORDER.length], paint: i === 2 ? 'vang' : null, mods: { lv: i === 1 ? [2, 1, 3, 0, 4] : NO_LV }, team: mode === 'trum' ? 0 : i % 2, ready: i === 0 || i % 2 === 1, host: i === 0 });
     fo.me = role === 'host' ? 'p0' : 'p1'; fo.role = role; fo.code = 'K7QX2'; fo.state = 'lobby';
     if (role === 'host') ps[0].name = meta.get().name; else ps[1].name = meta.get().name;
     fo.lobby = { players: ps, map: 'denrung', theme: null, mode, diff: 'normal' };
@@ -127,7 +132,7 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
   fo.setMine = (m) => {
     if (fo.state !== 'lobby') return false;
     const p = mine(); fo.calls.push(['setMine', m]);
-    for (const k of ['mech', 'paint', 'mods']) if (k in m) p[k] = m[k];
+    for (const k of ['mech', 'paint', 'glow', 'decal', 'mods']) if (k in m) p[k] = m[k];
     if (typeof m.ready === 'boolean' && !p.host) p.ready = m.ready;
     bus.emit('net:lobby', fo.lobby); return true;
   };
@@ -173,6 +178,13 @@ const fo = { state: 'off', role: null, code: '', error: '', me: null, lobby: nul
 fo.netStats = () => (fo.state === 'playing' ? window.__net || null : null);
 G.online = fo;
 G.input = makeInput(G);
+// Stand-ins for the touch layout editor and the fullscreen module, used only while those modules are not loaded.
+if (G.input && !G.input.layout) {
+  const st = { fixedStick: false };
+  G.input.layout = { stub: true, calls: [], get: () => ({ ...st }), set(o) { Object.assign(st, o); this.calls.push(['set', o]); }, edit() { this.calls.push(['edit']); }, reset() { st.fixedStick = false; this.calls.push(['reset']); } };
+}
+if (!G.fullscreen && q.get('fs')) G.fullscreen = { supported: true, active: false, toggle() { this.active = !this.active; document.dispatchEvent(new Event('fullscreenchange')); } };
+if (q.get('fps')) window.__stats = { fps: +q.get('fps') };
 G.ui = makeUI(G);
 window.__G = G;
 
@@ -208,7 +220,7 @@ function newMatch(choice) {
   const map = arena.map;
   const roster = [];
   const names = BOT_NAMES.slice();
-  const mine = (i) => ({ mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % MECH_ORDER.length], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal', mods: i === 0 && choice && choice.mods, paint: i === 0 && choice && choice.paint });
+  const mine = (i) => ({ mech: i === 0 ? mech : MECH_ORDER[(i * 3 + 1) % MECH_ORDER.length], name: i === 0 ? meta.get().name : names[i], bot: i !== 0, diff: 'normal', mods: i === 0 && choice && choice.mods, paint: i === 0 && choice && choice.paint, glow: i === 0 && choice && choice.glow, decal: i === 0 && choice && choice.decal });
   // trum: five mechs against one boss; every other mode: ten mechs (tudo makes each its own team inside the sim).
   if (mode === 'trum') {
     for (let i = 0; i < 5; i++) roster.push({ team: 0, ...mine(i) });
@@ -268,12 +280,20 @@ function demoTweaks() {
   if (q.get('low')) { me.hp = me.maxHp * 0.18; }
   if (q.get('buffs')) { me.hasteT = 8; me.hasteF = 1.3; me.dmgT = 11; me.dmgF = 1.35; me.shield = 500; me.shieldMax = 800; me.shieldT = 9; me.slowT = 2; me.slowF = .4; }
   if (q.get('dead')) { const a = m.units.find((u) => u.team === 0 && u.id !== 0); a.alive = false; a.respawnT = 3.4; a.hp = 0; }
+  if (q.get('charge')) me.charge = +q.get('charge');
+  if (q.get('planted')) me.stance = true;
+  if (q.get('mark')) { const e = m.units.find((u) => u.team === 1); e.markT = 5; e.markBy = 0; me.markT = 5; }
+  if (q.get('decoy')) {
+    // one decoy of an enemy and one of mine, so both tags show
+    const dz = (owner, dx) => m.zones.push({ id: 9000 + owner.id, kind: 'decoy', team: owner.team, owner: owner.id, x: me.x + dx, z: me.z + 2, r: 0.8, hp: 90, maxHp: 140, age: 0, dur: 30, aim: 0, speed: 0, blast: 2, dmg: 1, delay: 0 });
+    dz(m.units.find((u) => u.team === 1), 4); dz(me, -4);
+  }
   if (q.get('meDead')) { me.alive = false; me.hp = 0; me.respawnT = 3.2; }
 }
 
 async function iconSheet() {
   const { icon } = await import('../js/ui.js');
-  const names = new Set(['weapon', 'shield', 'dash', 'quake', 'rocket', 'boost', 'barrage', 'mine', 'blink', 'beam', 'heal', 'slow', 'dome', 'trophy', 'wrench', 'up', 'info', 'nope-unknown-icon']);
+  const names = new Set(['gem', 'store', 'check', 'lock', 'coin', 'weapon', 'shield', 'dash', 'quake', 'rocket', 'boost', 'barrage', 'mine', 'blink', 'beam', 'heal', 'slow', 'dome', 'trophy', 'wrench', 'up', 'info', 'nope-unknown-icon']);
   for (const k of MECH_ORDER) { names.add(MECHS[k].roleKey); for (const s of MECHS[k].skills) names.add(s.icon); }
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;inset:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;padding:10px;align-content:start;background:#151a20;color:#ffd467;font:11px sans-serif;overflow:auto';

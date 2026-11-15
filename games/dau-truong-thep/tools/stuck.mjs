@@ -1,4 +1,5 @@
 // Stuck meter: bot-only matches on every layout, counting ticks where a unit wants to move and does not.
+//   STUCK_ROSTER=all makes the rosters cover every mech in MECH_ORDER.
 //   STUCK_TAG=before node tools/stuck.mjs      writes <repo>/.chk/stuck-<tag>.json
 //   STUCK_JS=<dir with js/>  measures another checkout of the game's js/ (e.g. an old commit); STUCK_SEEDS=6 seeds per layout (default 6)
 // Headline = stuck against an obstacle (rim within AGAINST of solid); the rest of the stuck ticks happen on open ground.
@@ -26,13 +27,15 @@ function rimGap(m, u, x, z) {
 }
 const TAG = process.env.STUCK_TAG || 'run', SEEDS = Array.from({ length: Number(process.env.STUCK_SEEDS) || 6 }, (_, i) => 11 + i), SIM_SECONDS = 120, CELL = 2;
 const LAYOUTS = [...MAP_ORDER.map((k) => [k, 'tdm']), ...NHA_ORDER.map((k) => [k, 'nha'])];
+// STUCK_ROSTER=all: windows of 10 mechs that together cover all of MECH_ORDER over the default 6 seeds (the default rosters leave out three mechs)
+const ALL = process.env.STUCK_ROSTER === 'all';
 const rotate = (i, off) => Array.from({ length: 5 }, (_, k) => MECH_ORDER[(i + off + k) % MECH_ORDER.length]);
 
 function playLayout(map, mode) {
   const L = { wants: 0, stuck: 0, against: 0, longest: 0, longestAgainst: 0, cells: new Map(), acells: new Map(), mech: {} };
   for (const seed of SEEDS) {
     const roster = [];
-    for (let t = 0; t < 2; t++) for (const mech of rotate(seed, t * 3)) roster.push({ team: t, mech, name: mech + t, bot: true, diff: 'normal' });
+    for (let t = 0; t < 2; t++) for (const mech of ALL ? rotate(seed * 3, t * 5) : rotate(seed, t * 3)) roster.push({ team: t, mech, name: mech + t, bot: true, diff: 'normal' });
     const m = createMatch({ seed, map, mode, roster });
     const run = new Map(), runA = new Map();
     for (let i = 0, n = Math.round(SIM_SECONDS / TICK); i < n && !m.over; i++) {

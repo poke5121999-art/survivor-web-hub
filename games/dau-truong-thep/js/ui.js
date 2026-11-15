@@ -1,5 +1,5 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
-import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, upgradeMods, PAINTS, RANKS, BOSSES, MODES, MODE_ORDER } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, PAINTS, GLOWS, DECALS, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv } from './data.js';
 import { rankOf, placeOf } from './meta.js';
 import * as MAPMOD from './maps.js';
 const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
@@ -35,6 +35,7 @@ const ICONS = {
   coin: `<circle cx="12" cy="12" r="8.500" ${SOFT}/><circle cx="12" cy="12" r="5"/><path d="M12 9.500v5"/>`,
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
   pause: '<path d="M8 5v14M16 5v14" stroke-width="3"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.500 9.500a2.500 2.500 0 114 2c-1 .8-1.500 1.200-1.500 2.500M12 17.500v.5"/>',
   smoke: `<path d="M7 17.500a4 4 0 010-8 5 5 0 019.500-1A4.300 4.300 0 0117 17.500z" ${SOFT}/><path d="M7 21h10" opacity=".6"/>`,
@@ -77,6 +78,34 @@ const ICONS = {
   canyon: `<path d="M3 20l4-9 3 4 3-8 4 7 4-3v9z" ${SOFT}/>`,
   layout: `<path d="M9 4L3 6.500V20l6-2.500 6 2.500 6-2.500V4l-6 2.500z" ${SOFT}/><path d="M9 4v13.500M15 6.500V20"/>`,
   chat: `<path d="M4 5.500h16v10.500H10l-4.500 3.500V16H4z" ${SOFT}/><path d="M8 9.500h8M8 12.500h5"/>`,
+  anchor: '<circle cx="12" cy="5" r="2"/><path d="M12 7v13M7.500 11h9M5 15a7 7 0 0014 0"/>',
+  pierce: '<path d="M3 12h17M16 8l4 4-4 4"/><path d="M8 7v10M12 8v8" opacity=".6"/>',
+  hook: '<path d="M12 3v11.500a3.500 3.500 0 11-3.500-3.500"/><path d="M9 6.500h6"/>',
+  cage: `<path d="M5 20V10a7 7 0 0114 0v10" ${SOFT}/><path d="M9 20V5.500M15 20V5.500M5 13h14M5 17h14"/>`,
+  shell: `<path d="M3 18a9 9 0 0118 0z" ${SOFT}/><path d="M12 9v9M7 12l3 3M17 12l-3 3"/>`,
+  leap: '<path d="M4 19c3-10 11-10 16 0"/><path d="M15.500 15l4.500 4-5.500.8"/>',
+  rage: `<circle cx="12" cy="14" r="6.500" ${SOFT}/><path d="M5 6.500l4.500 3.500M19 6.500L14.500 10M9 16.500h6"/>`,
+  mark: '<circle cx="12" cy="12" r="7.500"/><path d="M6.700 6.700l10.600 10.600M17.300 6.700L6.700 17.300"/>',
+  decoy: `<path d="M9 4l6 3.500v7L9 18l-6-3.500v-7z" ${SOFT}/><path d="M15 9l6 3.500v7L15 23" stroke-dasharray="2 2" opacity=".7"/>`,
+  warp: `<ellipse cx="12" cy="12" rx="4" ry="9" ${SOFT}/><path d="M2 12h6M16 12h6M19 9l3 3-3 3"/>`,
+  mirage: `<circle cx="9" cy="12" r="5" ${SOFT}/><circle cx="15" cy="12" r="5" opacity=".6"/><circle cx="12" cy="12" r="5" opacity=".3"/>`,
+  drone: `<circle cx="12" cy="12" r="3" ${SOFT}/><path d="M4 7h6M14 7h6M4 17h6M14 17h6M9.800 10.200L8 7M14.200 10.200L16 7M9.800 13.800L8 17M14.200 13.800L16 17"/>`,
+  rally: `<path d="M6 21V4"/><path d="M6 5h10l-2 3.500 2 3.500H6z" ${SOFT}/><path d="M19.500 4l1.500-1.500M20 9h2M19.500 14l1.500 1.500"/>`,
+  wire: '<path d="M3 17l6-8 6 8 6-8"/><circle cx="3" cy="17" r="1.600" fill="currentColor"/><circle cx="21" cy="9" r="1.600" fill="currentColor"/>',
+  ricochet: '<path d="M3 19l7-12 4 8 7-10"/><path d="M17 5h4v4"/>',
+  charge: `<circle cx="9" cy="12" r="4.500" ${SOFT}/><path d="M14 12h7M17.500 8.500L21 12l-3.500 3.500"/>`,
+  screen: `<rect x="8" y="3" width="8" height="18" rx="1" ${SOFT} stroke-dasharray="2 2"/><path d="M3 5v14M21 5v14" opacity=".5"/>`,
+  siege: `<path d="M3 20h13M5 20l2-4h7l2 4"/><path d="M8 14l9-6 2 3.500-9 5z" ${SOFT}/><circle cx="21" cy="8" r="1" fill="currentColor"/>`,
+  hooker: '<circle cx="12" cy="5" r="2"/><path d="M12 7v8a4 4 0 01-8 0M4 15h3M12 15c0 3 2.500 5 6 5"/>',
+  guardian: `<path d="M12 3l7 3v6c0 4.500-3 7.500-7 9-4-1.500-7-4.500-7-9V6z" ${SOFT}/><path d="M8.500 12l2.500 2.500 4.500-5"/>`,
+  bruiser: `<path d="M6 3l3 9M11 2.500l2 9.500M16 3.500l1 8.500"/><path d="M5 14h13l-1.500 7h-10z" ${SOFT}/>`,
+  trickster: `<path d="M4 8c4-2 12-2 16 0v4c0 4-4 7-8 7s-8-3-8-7z" ${SOFT}/><circle cx="9" cy="12" r="1.200" fill="currentColor"/><circle cx="15" cy="12" r="1.200" fill="currentColor"/>`,
+  medic: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>',
+  trickshot: '<path d="M3 5l8 13 4-6 6 7"/><circle cx="4" cy="5.500" r="1.600" fill="currentColor"/>',
+  lancer: `<path d="M2 12h6"/><path d="M8 7l5 5-5 5z" ${SOFT}/><path d="M13 12h9" stroke-width="3.500" opacity=".35"/><path d="M13 12h9"/>`,
+  gem: `<path d="M12 3l7 6-7 12L5 9z" ${SOFT}/><path d="M5 9h14M9.500 9L12 21l2.500-12M9 3.500L9.500 9M15 3.500L14.500 9"/>`,
+  store: `<path d="M4 9l1.500-5h13L20 9z" ${SOFT}/><path d="M5 9v11h14V9M9 20v-6h6v6"/>`,
+  planted: '<path d="M12 3v10M7.500 9L12 13.500 16.500 9M5 20h14M8 17h8"/>',
   crate: `<rect x="4" y="6" width="16" height="13" rx="1.500" ${SOFT}/><path d="M4 11h16M12 6v13"/>`,
 };
 const has = Object.prototype.hasOwnProperty;
@@ -137,13 +166,18 @@ export function makeUI(G) {
 
   const meta = () => G.meta && G.meta.get();
   const portraits = {};
-  const portrait = (mech, team, paint) => {
-    const k = mech + '|' + team + '|' + (paint || '');
-    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, paint) : ''; } catch (e) { portraits[k] = ''; } }
+  // glow and decal reach G.portrait as extra arguments; a renderer that ignores them just draws the paint.
+  const portrait = (mech, team, paint, glow, decal) => {
+    const k = mech + '|' + team + '|' + (paint || '') + '|' + (glow || '') + '|' + (decal || '');
+    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, paint, glow, decal) : ''; } catch (e) { portraits[k] = ''; } }
     return portraits[k];
   };
-  const paintOf = (mech) => { const d = meta(); return (d && d.paints && d.paints[mech]) || 'goc'; };
-  const levelOf = (mech) => { const d = meta(); return Math.min(UPGRADE.max, (d && d.upgrades && d.upgrades[mech]) || 0); };
+  const equipOf = (field) => (mech) => { const d = meta(); return (d && d[field] && d[field][mech]) || 'goc'; };
+  const paintOf = equipOf('paints'), glowOf = equipOf('glows'), decalOf = equipOf('decals');
+  const lvOf = (mech) => { const d = meta(); return cleanLv(d && d.lv && d.lv[mech]); };
+  const levelOf = (mech) => lvOf(mech).reduce((a, b) => a + b, 0);
+  const cosOf = (mech) => ({ paint: paintOf(mech), glow: glowOf(mech), decal: decalOf(mech) });
+  const mineImg = (mech, team, own) => (own ? portrait(mech, team, paintOf(mech), glowOf(mech), decalOf(mech)) : portrait(mech, team));
   const rankNow = () => (G.meta && G.meta.rank ? G.meta.rank() : rankOf(0));
   // Accepts a unit (u.def covers bosses) or a mech key; a bare MECHS[key] lookup is undefined for 'titan'.
   const roleIcon = (x) => { const d = typeof x === 'string' ? MECHS[x] || BOSSES[x] : x && x.def; return icon(d ? d.roleKey : 'generic'); };
@@ -161,9 +195,11 @@ export function makeUI(G) {
     <div class="col mine" data-r="colA"></div>
     <div class="col foe" data-r="colB"></div>
     <button class="pausebtn" data-block data-r="pauseBtn" aria-label="Tạm dừng">${icon('pause')}</button>
+    <button class="setbtn" data-block data-r="setBtn" aria-label="Cài đặt">${icon('gear')}</button>
     <div class="feed" data-r="feed"></div>
     <div class="netro" data-r="netro" hidden></div>
     <div class="mm" data-r="mm"><canvas data-r="mmc"></canvas><span class="mm-name" data-r="mmn"></span></div>
+    <div class="perf" data-r="perf"></div>
     <div class="dock">
       <div class="buffs" data-r="buffs"></div>
       <div class="hpb">
@@ -186,9 +222,9 @@ export function makeUI(G) {
   const slotEls = {};
   for (const d of SLOT_DEFS) {
     const s = el('div', 'slot ' + d.cls);
-    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><kbd>${esc(hintLabel(d.k))}</kbd>`;
+    s.innerHTML = `<div class="sl-ic"></div><i class="sl-cd"></i><b class="sl-t"></b><span class="sl-st"></span><kbd>${esc(hintLabel(d.k))}</kbd>`;
     H.slots.appendChild(s);
-    slotEls[d.k] = { root: s, ic: s.firstChild, t: s.querySelector('.sl-t'), kbd: s.querySelector('kbd'), total: 1, prev: 0 };
+    slotEls[d.k] = { root: s, ic: s.firstChild, t: s.querySelector('.sl-t'), st: s.querySelector('.sl-st'), stance: false, kbd: s.querySelector('kbd'), total: 1, prev: 0 };
   }
   const buffEls = BUFFS.map((b) => {
     const c = el('span', 'chip ' + b[3], `${icon(b[2])}<em>${b[1]}</em><b></b>`);
@@ -198,8 +234,8 @@ export function makeUI(G) {
 
   /* ---- per-match state ---- */
   let curMatch = null, myTeam = 0, myColor = 0, S = null, MH = null, T = {};
-  const cards = {}, nps = {};
-  let mmCtx = null, mmStatic = null, mmScale = 1;
+  const cards = {}, nps = {}, dnps = new Map();
+  let mmCtx = null, mmStatic = null, mmScale = 1, mmK = 1, mmBig = false;
 
   const fmtN = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   const bossOf = (m) => m.units.find((u) => u.def.boss);
@@ -210,7 +246,7 @@ export function makeUI(G) {
 
   function addCard(col, u) {
     const c = el('div', `pc t${u.color}${u.id === G.me ? ' me' : ''}`);
-    c.innerHTML = `<div class="pc-img"><img alt="" src="${portrait(u.mech, u.color, u.id === G.me ? paintOf(u.mech) : u.paint)}"><span class="pc-role">${roleIcon(u)}</span><div class="pc-dead"><b></b></div></div>
+    c.innerHTML = `<div class="pc-img"><img alt="" src="${u.id === G.me ? mineImg(u.mech, u.color, true) : portrait(u.mech, u.color, u.paint, u.glow, u.decal)}"><span class="pc-role">${roleIcon(u)}</span><span class="pc-mk">${icon('mark')}</span><div class="pc-dead"><b></b></div></div>
       <div class="pc-info"><span class="pc-name">${esc(u.name)}</span><div class="pc-hp"><i></i></div><span class="pc-kd">0 / 0</span></div>`;
     col.appendChild(c);
     cards[u.id] = { root: c, hp: c.querySelector('.pc-hp i'), dead: c.querySelector('.pc-dead b'), kd: c.querySelector('.pc-kd') };
@@ -218,8 +254,8 @@ export function makeUI(G) {
   function addPlate(u) {
     const np = el('div', `np t${u.color}${u.id === G.me ? ' self' : ''}${u.def.boss ? ' boss' : ''}`);
     np.innerHTML = u.id === G.me
-      ? '<span class="np-mark"></span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div>'
-      : `<span class="np-n">${roleIcon(u)}${esc(u.name)}</span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div>`;
+      ? `<span class="np-mark"></span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`
+      : `<span class="np-n">${roleIcon(u)}${esc(u.name)}</span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`;
     np.classList.add('off');
     fx.appendChild(np);
     nps[u.id] = { root: np, f: np.querySelector('.np-f'), sh: np.querySelector('.np-sh i'), shBox: np.querySelector('.np-sh') };
@@ -495,10 +531,12 @@ export function makeUI(G) {
     myTeam = me ? me.team : 0;
     myColor = me ? me.color | 0 : 0;
     MH = MODE_HUD[m.mode] || MODE_HUD.tdm;
+    mmBig = false; H.mm.classList.remove('big');
     S = { fb: false, streak: {}, oneMin: false, killedBy: '', miniAcc: 1, lowQ: -1, warnT: 0 };
     H.colA.innerHTML = ''; H.colB.innerHTML = ''; fx.innerHTML = '';
     for (const k in cards) delete cards[k];
     for (const k in nps) delete nps[k];
+    dnps.clear();
     floats.length = 0; freeFloats.length = 0; byKey.clear();
     H.feed.innerHTML = ''; feed.length = 0;
     hud.classList.toggle('solo', !!MH.solo);
@@ -517,8 +555,15 @@ export function makeUI(G) {
         s.ic.innerHTML = icon(d.k === 'fire' ? 'weapon' : d.k === 'heal' ? 'medkit' : sk.icon);
         s.total = d.k === 'fire' ? me.def.weapon.cd : d.k === 'heal' ? RULES.healItem.cd : sk.cd;
         s.root.title = d.k === 'fire' ? me.def.weapon.name : d.k === 'heal' ? 'Bình máu' : sk.name;
-        s.prev = 0;
+        s.prev = 0; s.stance = !!(sk && sk.do === 'stance');
       });
+      const ch = me.def.weapon.charge;
+      if (ch) {
+        T.chg = el('div', 'chg off', '<div class="chg-b"><i></i><u></u></div><b></b>');
+        T.chg.style.setProperty('--min', (ch.min / ch.max * 100).toFixed(1) + '%');
+        fx.appendChild(T.chg);
+        T.chgF = T.chg.querySelector('i'); T.chgT = T.chg.querySelector('b');
+      }
     }
     buildMini(m);
     hpb.classList.toggle('off', !me);
@@ -526,12 +571,15 @@ export function makeUI(G) {
 
   /* ---- minimap ---- */
   function buildMini(m) {
-    const mp = m.map, W = 216, Hh = Math.round(216 * mp.d / mp.w);
-    H.mmc.width = W; H.mmc.height = Hh;
+    // Touch: a smaller design width (so markers stay readable on the small map) drawn at 3x so the expanded map stays sharp.
+    const touch = isTouch(), W = touch ? 150 : 216, Hh = Math.round(W * m.map.d / m.map.w), mp = m.map;
+    mmK = touch ? 3 : 1;
+    H.mmc.width = W * mmK; H.mmc.height = Hh * mmK;
     mmCtx = H.mmc.getContext('2d');
     mmScale = W / mp.w;
-    const c = el('canvas'); c.width = W; c.height = Hh;
+    const c = el('canvas'); c.width = W * mmK; c.height = Hh * mmK;
     const g = c.getContext('2d');
+    g.setTransform(mmK, 0, 0, mmK, 0, 0);
     const X = (x) => (x + mp.hw) * mmScale, Z = (z) => (z + mp.hd) * mmScale;
     g.fillStyle = '#16221c'; g.fillRect(0, 0, W, Hh);
     g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 1;
@@ -567,7 +615,10 @@ export function makeUI(G) {
   }
   function drawMini(m, me) {
     const g = mmCtx, mp = m.map;
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(mmStatic, 0, 0);
+    g.setTransform(mmK, 0, 0, mmK, 0, 0);
+    const dot = mmK > 1 ? 1.5 : 1;
     const X = (x) => (x + mp.hw) * mmScale, Z = (z) => (z + mp.hd) * mmScale;
     for (const c of m.crates) {
       const col = '#' + PICKUPS[c.type].color.toString(16).padStart(6, '0');
@@ -580,15 +631,45 @@ export function makeUI(G) {
       if (!u.alive || u.id === G.me) continue;
       if (u.team !== myTeam && !u.def.boss && !visibleTo(m, u, myTeam)) continue;
       g.fillStyle = TEAMS[u.color].css; g.strokeStyle = '#05080b'; g.lineWidth = 1.5;
-      g.beginPath(); g.arc(X(u.x), Z(u.z), u.def.boss ? 6 : u.team === myTeam ? 3.8 : 3.4, 0, 7); g.fill(); g.stroke();
+      g.beginPath(); g.arc(X(u.x), Z(u.z), (u.def.boss ? 6 : u.team === myTeam ? 3.8 : 3.4) * dot, 0, 7); g.fill(); g.stroke();
+    }
+    for (const z of m.zones) {
+      if (z.kind !== 'decoy' || !m.units[z.owner]) continue;
+      g.fillStyle = TEAMS[m.units[z.owner].color].css; g.strokeStyle = '#05080b'; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(X(z.x), Z(z.z), 3.4 * dot, 0, 7); g.fill(); g.stroke();
     }
     if (me && me.alive) {
       const x = X(me.x), z = Z(me.z), a = me.aim;
-      g.save(); g.translate(x, z); g.rotate(a);
+      g.save(); g.translate(x, z); g.rotate(a); g.scale(dot, dot);
       g.fillStyle = '#fff'; g.strokeStyle = '#05080b'; g.lineWidth = 1.5;
       g.beginPath(); g.moveTo(8, 0); g.lineTo(-4.5, 5); g.lineTo(-2, 0); g.lineTo(-4.5, -5); g.closePath(); g.stroke(); g.fill();
       g.restore();
     }
+  }
+
+  // Touch: tap the corner map to enlarge it, tap again or anywhere else to shrink it.
+  function setMapBig(on) {
+    on = !!on && isTouch();
+    if (on === mmBig) return;
+    mmBig = on; H.mm.classList.toggle('big', on); if (S) S.miniAcc = 1;
+  }
+  H.mm.addEventListener('click', () => { if (isTouch()) setMapBig(!mmBig); });
+  addEventListener('pointerdown', (e) => { if (mmBig && !H.mm.contains(e.target)) setMapBig(false); }, true);
+
+  // Ping and FPS in the corner, refreshed twice a second.
+  let perfAcc = 0, perfN = 0;
+  function perfStep(dt) {
+    perfAcc += dt; perfN++;
+    if (perfAcc < 0.5) return;
+    const st = window.__stats, fps = st && st.fps > 0 ? Math.round(st.fps) : Math.round(perfN / perfAcc);
+    perfAcc = 0; perfN = 0;
+    let txt = fps + ' FPS';
+    const ns = onlinePlaying() ? netStats() : null;
+    if (ns) {
+      const rtt = ns.role === 'host' ? Math.max(0, ...(ns.guests || []).map((g) => +g.rtt || 0)) : ns.rtt;
+      if (typeof rtt === 'number' && Number.isFinite(rtt)) txt += ' · ' + Math.round(rtt) + ' ms';
+    }
+    setText(H.perf, txt);
   }
 
   /* ---- kill feed ---- */
@@ -720,6 +801,32 @@ export function makeUI(G) {
     }
   }
 
+  // A decoy shows the same name tag and HP bar as its owner to the other team, so it fools them; its own team sees a "bản sao" tag.
+  function decoyPlates(m, al) {
+    const live = new Set();
+    for (const z of m.zones) {
+      if (z.kind !== 'decoy') continue;
+      const owner = m.units[z.owner];
+      if (!owner) continue;
+      live.add(z.id);
+      let n = dnps.get(z.id);
+      const mine = z.team === myTeam;
+      if (!n) {
+        const root = el('div', `np t${owner.color}${owner.def.boss ? ' boss' : ''}${mine ? ' decoy' : ''}`,
+          `<span class="np-n">${roleIcon(owner)}${esc(owner.name)}${mine ? '<em class="np-dc">bản sao</em>' : ''}</span><div class="np-hp"><i class="np-f"></i></div>`);
+        fx.appendChild(root);
+        n = { root, f: root.querySelector('.np-f') };
+        dnps.set(z.id, n);
+      }
+      const p = G.project(z.x, NP_Y, z.z);
+      flag(n.root, 'off', !p.visible);
+      if (!p.visible) continue;
+      n.root.style.transform = `translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0) translate(-50%,-100%)`;
+      setScale(n.f, z.hp / Math.max(1, z.maxHp));
+    }
+    for (const [id, n] of dnps) if (!live.has(id)) { n.root.remove(); dnps.delete(id); }
+  }
+
   /* ---- update ---- */
   function update(dt) {
     const m = G.match;
@@ -730,6 +837,7 @@ export function makeUI(G) {
     const al = G.alpha == null ? 1 : G.alpha;
 
     MH.tick(m, me, dt, al);
+    if (isTouch()) perfStep(dt);
     const left = m.duration - m.time;
     setText(T.clock, mmss(left));
     flag(T.clock, 'warn', left <= 60); flag(T.clock, 'final', left <= 10);
@@ -744,6 +852,7 @@ export function makeUI(G) {
       if (!c) continue;
       setScale(c.hp, u.alive ? u.hp / u.maxHp : 0);
       flag(c.root, 'dead', !u.alive);
+      flag(c.root, 'marked', u.alive && u.markT > 0);
       if (!u.alive) setText(c.dead, String(Math.max(1, Math.ceil(u.respawnT))));
       setText(c.kd, u.kills + ' / ' + u.deaths);
     }
@@ -770,6 +879,20 @@ export function makeUI(G) {
         s.prev = rem;
         flag(s.root, 'ready', rem <= 0);
         flag(s.root, 'idle', d.k === 'heal' && me.hp >= me.maxHp);
+        if (s.stance) { flag(s.root, 'planted', me.stance); setText(s.st, me.stance ? 'Đã cắm' : ''); }
+      }
+      if (T.chg) {
+        const ch = me.def.weapon.charge, on = me.alive && (me.charge > 0 || me.primeT > 0);
+        flag(T.chg, 'off', !on);
+        if (on) {
+          const c = me.primeT > 0 ? ch.max : me.charge;
+          setScale(T.chgF, c / ch.max);
+          flag(T.chg, 'ready', c >= ch.min); flag(T.chg, 'full', c >= ch.max);
+          setText(T.chgT, c >= ch.max ? 'Đầy' : c >= ch.min ? 'Sẵn sàng' : '');
+          const cur = G.input && G.input.cursor && G.input.cursor();
+          const pr = cur && cur.seen ? { x: cur.x, y: cur.y, visible: true } : G.project(me.x, 0.4, me.z);
+          if (pr.visible) T.chg.style.transform = `translate3d(${pr.x.toFixed(1)}px,${(pr.y + (cur && cur.seen ? 26 : 56)).toFixed(1)}px,0) translate(-50%,0)`;
+        }
       }
       flag(H.slots, 'off', !me.alive);
 
@@ -813,7 +936,9 @@ export function makeUI(G) {
       flag(np.shBox, 'on', u.shield > 0);
       if (u.shield > 0) setScale(np.sh, u.shield / Math.max(1, u.shieldMax));
       flag(np.root, 'ghost', u.stealthT > 0 || u.bush >= 0);
+      flag(np.root, 'marked', u.markT > 0);
     }
+    decoyPlates(m, al);
 
     stepFloats(dt);
     if (sbOn) { sbAcc += dt; if (sbAcc >= 0.25) { sbAcc = 0; sb.innerHTML = sbHtml(m); } }
@@ -840,7 +965,7 @@ export function makeUI(G) {
   }
   function hideHUD() {
     closeChat();
-    hudOn = false; syncScore();
+    hudOn = false; syncScore(); setMapBig(false);
     root.classList.remove('in-hud');
     hud.classList.remove('on'); fx.classList.remove('on'); syncNet();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
@@ -850,7 +975,7 @@ export function makeUI(G) {
   const pauseEl = el('div', 'screen pause');
   pauseEl.dataset.block = '';
   pauseEl.innerHTML = `<div class="box"><div class="hazard"></div><h2 data-r="title">Tạm dừng</h2>
-    <button class="btn big" data-r="resume">Tiếp tục</button><button class="btn big danger" data-r="quit">Về sảnh</button>
+    <button class="btn big" data-r="resume">Tiếp tục</button><button class="btn big" data-r="fsBtn" hidden></button><button class="btn big" data-r="pSet" hidden>${icon('gear')}Cài đặt</button><button class="btn big danger" data-r="quit">Về sảnh</button>
     <p class="netline" data-r="netLine" hidden></p><button class="btn" data-r="netBtn" hidden></button>
     <p class="hint" data-r="hint">Nhấn Esc để tiếp tục</p></div>`;
   const PA = refs(pauseEl);
@@ -868,6 +993,7 @@ export function makeUI(G) {
     closeChat();
     paused = true; pauseEl.classList.add('on'); syncScore();
     PA.netLine.hidden = PA.netBtn.hidden = !pausedLive; syncNet();
+    syncFs(); PA.pSet.hidden = !isTouch();
     if (G.input && G.input.setTouchVisible) G.input.setTouchVisible(false);
     if (!pausedLive) G.bus.emit('ui:pause', { paused: true });
   }
@@ -880,8 +1006,19 @@ export function makeUI(G) {
   }
   const togglePause = () => (paused ? hidePause() : showPause());
   PA.resume.onclick = hidePause;
+  // The fullscreen module may not be loaded: the button appears only when it says it can work.
+  const fsApi = () => (G.fullscreen && G.fullscreen.supported ? G.fullscreen : null);
+  function syncFs() {
+    const f = fsApi();
+    PA.fsBtn.hidden = !f;
+    if (f) PA.fsBtn.innerHTML = `${icon('expand')}Toàn màn hình: ${f.active ? 'bật' : 'tắt'}`;
+  }
+  PA.fsBtn.onclick = () => { const f = fsApi(); if (f) { try { f.toggle(); } catch (e) { /* ignore */ } setTimeout(syncFs, 250); } };
+  document.addEventListener('fullscreenchange', syncFs);
+  PA.pSet.onclick = () => openSettings();
   PA.quit.onclick = () => { hidePause(); G.bus.emit('ui:menu'); };
   H.pauseBtn.onclick = showPause;
+  H.setBtn.onclick = () => { showPause(); if (paused) openSettings(); };
   G.bus.on('input:pause', () => { if (hudOn && G.match && !G.match.over && !chatOpen) togglePause(); });
   // Esc always resumes so a bad rebind can never trap the player in the pause menu.
   window.addEventListener('keydown', (e) => {
@@ -1021,7 +1158,8 @@ export function makeUI(G) {
           <div class="rk-badge">${icon('trophy')}</div>
           <div class="rk-tx"><b data-r="rkName">Sắt</b><span><i data-r="rkTr">0</i> cúp</span><div class="rk-bar" title=""><i data-r="rkFill"></i></div><small data-r="rkNext"></small></div>
         </div>
-        <div class="coins" data-r="coinBox">${icon('coin')}<b data-r="coins">0</b><small>xu</small></div>
+        <div class="wallet"><div class="coins" data-r="coinBox">${icon('coin')}<b data-r="coins">0</b><small>xu</small></div><div class="coins gems" data-r="gemBox">${icon('gem')}<b data-r="gems">0</b><small>TT</small></div></div>
+        <button class="shopbtn" data-r="shopBtn">${icon('store')}<span>Cửa hàng</span></button>
       </div>
     </header>
     <div class="mn-body">
@@ -1043,14 +1181,9 @@ export function makeUI(G) {
     </div>`;
   const M = refs(menu);
   root.appendChild(menu);
-
-  const maxOf = (f) => Math.max(...MECH_ORDER.map((k) => f(MECHS[k])));
-  const STAT = [
-    { label: 'Giáp', f: (d) => d.hp, fmt: (v) => String(v) },
-    { label: 'Tốc độ', f: (d) => d.speed, fmt: (v) => vn(v, 1) },
-    { label: 'Sát thương', f: (d) => d.weapon.dmg / d.weapon.cd, fmt: (v) => Math.round(v) + '/s' },
-    { label: 'Tầm bắn', f: (d) => d.weapon.range, fmt: (v) => vn(v, 1) + ' m' },
-  ].map((s) => ({ ...s, max: maxOf(s.f) }));
+  M.bSet.setAttribute('aria-label', 'Cài đặt'); M.bHelp.setAttribute('aria-label', 'Cách chơi');
+  // Phone landscape: settings and help become two icon buttons in the header, which frees the setup column for the pickers.
+  if (isTouch() && innerHeight <= 480) { const r2 = menu.querySelector('.row2'); r2.classList.add('in-head'); M.bSet.innerHTML = icon('gear'); M.bHelp.innerHTML = icon('help'); menu.querySelector('.mn-head').insertBefore(r2, menu.querySelector('.player')); }
 
   let suTab = 'mode';
   function applySuTab() {
@@ -1058,6 +1191,7 @@ export function makeUI(G) {
     menu.querySelectorAll('[data-su]').forEach((b) => b.classList.toggle('on', b.dataset.su === suTab));
   }
   menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
+  let shopOn = false;
   let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], menuInit = false, tab = 'info';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
@@ -1070,7 +1204,9 @@ export function makeUI(G) {
     const need = levelXp(d.level);
     M.xpFill.style.transform = `scaleX(${clamp01(d.xp / need)})`;
     M.xpTxt.textContent = `${d.xp} / ${need} XP`;
-    M.coins.textContent = d.coins;
+    M.coins.textContent = fmtN(d.coins);
+    M.gems.textContent = fmtN(d.gems || 0);
+    M.shopBtn.classList.toggle('dot', !!(G.meta.dailyReady && G.meta.dailyReady()));
     const rk = rankNow(), cur = RANKS[rk.index];
     M.rank.style.setProperty('--rc', rk.color);
     M.rkName.textContent = rk.name;
@@ -1085,82 +1221,166 @@ export function makeUI(G) {
       const c = el('button', 'mc' + (k === sel ? ' sel' : '') + (own ? '' : ' locked'));
       c.dataset.mech = k;
       const lv = levelOf(k);
-      c.innerHTML = `<img alt="" src="${portrait(k, 0, own ? paintOf(k) : undefined)}"><div class="mc-t"><span class="mc-role">${roleIcon(k)}${d.role}</span><div class="mc-nm"><b>${d.name}</b>${own ? (lv ? `<span class="mc-lv">+${lv}</span>` : '') : `<span class="mc-lock">${icon('lock')}<b>${d.price}</b></span>`}</div></div>`;
+      c.innerHTML = `<img alt="" src="${mineImg(k, 0, own)}"><div class="mc-t"><span class="mc-role">${roleIcon(k)}${d.role}</span><div class="mc-nm"><b>${d.name}</b>${own ? (lv ? `<span class="mc-lv">+${lv}</span>` : '') : `<span class="mc-lock">${icon('lock')}<b>${fmtN(d.price)}</b></span>`}</div></div>`;
       c.onclick = () => { sel = k; if (!ownedMech(k)) tab = 'info'; renderCards(); renderDetail(); renderPlay(); };
       M.cards.appendChild(c);
     }
+    const cur = M.cards.querySelector('.sel');
+    if (cur && cur.scrollIntoView && !M.cards._seen) { M.cards._seen = true; cur.scrollIntoView({ block: 'nearest' }); }
   }
 
   const shake = (n) => { if (n && n.animate) n.animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], { duration: 300 }); };
-  const noCoins = (n) => { shake(n); shake(M.coinBox); toast('Chưa đủ xu'); };
-  const refreshAll = () => { renderPlayer(); renderCards(); renderDetail(); renderPlay(); };
+  const noCoins = (n, gems) => { shake(n); shake(gems ? M.gemBox : M.coinBox); toast(gems ? 'Chưa đủ Tinh Thể' : 'Chưa đủ xu'); };
+  const refreshAll = () => { renderPlayer(); renderCards(); renderDetail(); renderPlay(); if (shopOn) renderShop(); };
+  const gemCost = (coins) => Math.ceil(coins / GEM_RATE);
+  // Buying with coins when they cover it, else with Tinh Thể; null when neither does.
+  const payFor = (price) => { const d = meta(); return !d ? null : d.coins >= price ? 'coins' : (d.gems || 0) >= gemCost(price) ? 'gems' : null; };
+  const priceHtml = (price, how) => (how === 'gems' ? `<b>${fmtN(gemCost(price))}</b> Tinh Thể` : `<b>${fmtN(price)}</b> xu`);
 
-  function buyMech(k) {
+  function buyMech(k, how) {
     const d = MECHS[k];
     if (!G.meta) return;
-    if (meta().coins < d.price) { noCoins(M.detail.querySelector('[data-r="buy"]') || M.play); return; }
-    ask(`Mở khóa ${d.name}?`, `Trả <b>${d.price}</b> xu để mang ${d.name} vào trận.`, 'Mở khóa', () => {
-      if (G.meta.buy(k)) { sel = k; refreshAll(); toast('Đã mở khóa ' + d.name); } else noCoins();
+    how = how || payFor(d.price);
+    if (!how || (how === 'gems' && meta().gems < gemCost(d.price)) || (how === 'coins' && meta().coins < d.price)) { noCoins(M.detail.querySelector('[data-r="buy"]') || M.play, how === 'gems'); return; }
+    ask(`Mở khóa ${d.name}?`, `Trả ${priceHtml(d.price, how)} để mang ${d.name} vào trận.`, 'Mở khóa', () => {
+      if (G.meta.buy(k, how)) { sel = k; refreshAll(); toast('Đã mở khóa ' + d.name); } else noCoins(null, how === 'gems');
     });
   }
 
-  const pct = (v) => Math.round((v - 1) * 100);
-  function renderGarage(d, own) {
-    const lv = levelOf(sel), maxed = lv >= UPGRADE.max, m = upgradeMods(lv), nx = upgradeMods(Math.min(UPGRADE.max, lv + 1));
-    const cost = maxed ? 0 : UPGRADE.cost(lv), coins = meta() ? meta().coins : 0;
-    const eq = paintOf(sel), op = (meta() && meta().ownedPaints) || ['goc'];
-    const gain = (label, key, base) => `<div class="gn"><span>${label}</span><b>${Math.round(base * m[key])}</b><em>+${pct(m[key])}%</em>${maxed ? '' : `<i>${icon('up')}+${pct(nx[key])}%</i>`}</div>`;
-    return `<div class="garage">
-      <div class="up" data-level="${lv}">
-        <div class="up-h"><h4>Nâng cấp</h4><div class="pips" aria-label="Cấp ${lv} trên ${UPGRADE.max}">${Array.from({ length: UPGRADE.max }, (_, i) => `<span class="pip${i < lv ? ' on' : ''}"></span>`).join('')}</div><b class="up-lv">Cấp ${lv} / ${UPGRADE.max}</b></div>
-        <div class="gains">${gain('Máu', 'hp', d.hp)}${gain('Sát thương', 'dmg', d.weapon.dmg)}</div>
-        <p class="up-note">Mỗi cấp tăng ${Math.round(UPGRADE.hp * 100)}% máu và ${Math.round(UPGRADE.dmg * 100)}% sát thương.</p>
-        <button class="btn upbtn${!maxed && coins < cost ? ' poor' : ''}" data-r="up"${maxed ? ' disabled' : ''}>${maxed ? 'Đã tối đa' : `${icon('up')}Nâng cấp · ${icon('coin')}<b>${cost}</b> xu`}</button>
-      </div>
-      <div class="paints">
-        <h4>Sơn viền</h4>
-        <div class="pgrid">${Object.keys(PAINTS).map((k) => {
-          const p = PAINTS[k], have = op.includes(k), on = eq === k;
-          const bg = p.color == null ? '' : ` style="background:#${p.color.toString(16).padStart(6, '0')}"`;
-          return `<button class="pt${have ? ' own' : ''}${on ? ' eq' : ''}" data-paint="${k}"><i class="${p.color == null ? 'orig' : ''}"${bg}></i><b>${p.name}</b><small>${on ? 'Đang dùng' : have ? 'Trang bị' : `${p.price} xu`}</small></button>`;
-        }).join('')}</div>
-      </div>
-    </div>`;
-  }
+  /* ---- garage: stat bars, upgrades, cosmetics ---- */
+  const wRate = (w) => 1 / (w.cd + (w.charge ? w.charge.max : 0));
+  const wDmg = (d) => ((w) => (w.dmg != null ? w.dmg : w.charge ? w.charge.dmg[1] : 0))(d.weapon) * (d.dmgUp || 1);
+  const STAT = [
+    { label: 'Máu', f: (d) => d.hp, fmt: (v) => fmtN(v) },
+    { label: 'Giáp', f: (d) => d.armor || 0, fmt: (v) => vn(v * 100, 1) + '%' },
+    { label: 'Tốc độ', f: (d) => d.speed, fmt: (v) => vn(v, 2) },
+    { label: 'Gia tốc', f: (d) => d.accel || 1, fmt: (v) => '×' + vn(v, 2) },
+    { label: 'Xoay tháp', f: (d) => d.turn || 0, fmt: (v) => vn(v, 1) },
+    { label: 'Tốc bắn', f: (d) => wRate(d.weapon), fmt: (v) => vn(v, 2) + '/s' },
+    { label: 'Tầm bắn', f: (d) => d.weapon.range, fmt: (v) => vn(v, 1) + ' m' },
+    { label: 'Phá trụ', f: (d) => d.towerMul || 1, fmt: (v) => '×' + vn(v, 1) },
+  ].map((s) => ({ ...s, max: Math.max(...MECH_ORDER.map((k) => s.f(MECHS[k]))) || 1 }));
 
-  function renderDetail() {
-    const d = MECHS[sel], own = ownedMech(sel), w = d.weapon;
-    if (!own) tab = 'info';
-    const wdesc = `Sát thương ${w.dmg}${w.splash ? ' (nổ lan)' : ''}, tầm ${vn(w.range, 1)} m, ${vn(1 / w.cd, 1)} phát mỗi giây.`;
+  // What one more level on a track changes, as "before → after" text.
+  const A = (a, b, fmt) => `${fmt(a)} → ${fmt(b)}`;
+  const TRACK_DIFF = [
+    (a, b) => [`Máu ${A(a.hp, b.hp, fmtN)}`, `Giáp ${A(a.armor * 100, b.armor * 100, (v) => vn(v, 1) + '%')}`],
+    (a, b) => [`Tốc độ ${A(a.speed, b.speed, (v) => vn(v, 2))}`, `Gia tốc ${A(a.accel, b.accel, (v) => vn(v, 2))}`],
+    (a, b) => [`Sát thương ${A(wDmg(a), wDmg(b), (v) => String(Math.round(v)))}`],
+    (a, b) => [`Tốc bắn ${A(wRate(a.weapon), wRate(b.weapon), (v) => vn(v, 2))}/s`, `Tầm bắn ${A(a.weapon.range, b.weapon.range, (v) => vn(v, 1))} m`],
+    (a, b) => [`Hồi chiêu ${a.skills.map((s) => vn(s.cd, 1)).join(' / ')} → ${b.skills.map((s) => vn(s.cd, 1)).join(' / ')} giây`],
+  ];
+  const bump = (lv, i) => lv.map((n, j) => (j === i ? n + 1 : n));
+
+  function renderStats(d, def, own) {
+    return `<div class="stats">${STAT.map((s) => {
+      const v = s.f(def), b = s.f(d), up = own && Math.abs(v - b) > 1e-9;
+      return `<div class="st"><span>${s.label}</span><div class="bar"><i style="width:${clamp01(v / s.max) * 100}%"></i>${up ? `<u style="left:${clamp01(b / s.max) * 100}%" title="Gốc ${s.fmt(b)}"></u>` : ''}</div><b${up ? ` class="up" title="Gốc ${s.fmt(b)}"` : ''}>${s.fmt(v)}</b></div>`;
+    }).join('')}</div>`;
+  }
+  function renderPerks(lv, own) {
+    const total = lv.reduce((a, b) => a + b, 0);
+    return `<div class="perks"><h4>Mốc chiêu thức</h4>${(PERKS[sel] || []).map((p, i) => {
+      const need = UPGRADE.perkAt[i], on = own && total >= need;
+      return `<div class="pk${on ? ' on' : ''}"><span class="pk-ic">${icon(on ? 'check' : 'lock')}</span><div><b>${p.name}</b><small>${on ? 'Đã mở' : `Cần tổng cấp ${need}${own ? ` (đang ${total})` : ''}`}</small><p>${p.desc}</p></div></div>`;
+    }).join('')}</div>`;
+  }
+  function renderInfo(d, def, own, lv) {
+    const w = def.weapon, ps = d.passive;
+    const wdesc = w.charge ? `Giữ để nạp, sát thương ${Math.round(w.charge.dmg[0] * def.dmgUp)} đến ${Math.round(w.charge.dmg[1] * def.dmgUp)}, tầm ${vn(w.charge.range[0], 0)} đến ${vn(w.charge.range[1], 0)} m.`
+      : w.ray ? `Tia tức thời tầm ${vn(w.range, 1)} m: hồi ${w.heal} cho đồng đội hoặc gây ${Math.round(w.dmg * def.dmgUp)} lên địch, ${vn(1 / w.cd, 1)} lần mỗi giây.`
+      : `Sát thương ${Math.round(wDmg(def))}${w.n > 1 ? ` x ${w.n}` : ''}${w.splash ? ' (nổ lan)' : ''}, tầm ${vn(w.range, 1)} m, ${vn(1 / w.cd, 1)} phát mỗi giây.`;
     const rows = [
       { ic: 'weapon', key: K.labelFor('fire'), name: w.name, desc: wdesc, cd: '' },
-      ...d.skills.map((s, i) => ({ ic: s.icon, key: K.labelFor(['s1', 's2', 'ult'][i]), name: s.name, desc: s.desc, cd: vn(s.cd, 0) + ' giây', ult: i === 2 })),
+      ...def.skills.map((s, i) => ({ ic: s.icon, key: K.labelFor(['s1', 's2', 'ult'][i]), name: s.name, desc: s.desc, cd: vn(s.cd, 1) + ' giây', ult: i === 2 })),
     ];
-    const lv = levelOf(sel);
-    const body = tab === 'garage' && own ? renderGarage(d, own) : `
-      <div class="stats">${STAT.map((s) => { const v = s.f(d); return `<div class="st"><span>${s.label}</span><div class="bar"><i style="width:${Math.max(10, v / s.max * 100).toFixed(0)}%"></i></div><b>${s.fmt(v)}</b></div>`; }).join('')}</div>
-      <div class="kit">${rows.map((r) => `<div class="sk${r.ult ? ' ult' : ''}"><div class="sk-ic">${icon(r.ic)}<kbd>${esc(r.key)}</kbd></div><div class="sk-tx"><b>${r.name}${r.cd ? `<small>${r.cd}</small>` : ''}</b><p>${r.desc}</p></div></div>`).join('')}</div>`;
+    return `${renderStats(d, def, own)}
+      <div class="passive"><span class="ps-ic">${icon(d.roleKey)}</span><div><h4>Nội tại · ${ps ? esc(ps.name) : '-'}</h4><p>${ps ? esc(ps.desc) : ''}</p></div></div>
+      <div class="kit">${rows.map((r) => `<div class="sk${r.ult ? ' ult' : ''}"><div class="sk-ic">${icon(r.ic)}<kbd>${esc(r.key)}</kbd></div><div class="sk-tx"><b>${r.name}${r.cd ? `<small>Hồi ${r.cd}</small>` : ''}</b><p>${r.desc}</p></div></div>`).join('')}</div>
+      ${renderPerks(lv, own)}`;
+  }
+
+  function renderUpgrades(d) {
+    const lv = lvOf(sel), total = lv.reduce((a, b) => a + b, 0), m = meta();
+    const rows = TRACKS.map((t, i) => {
+      const cur = lv[i], maxed = cur >= UPGRADE.max, cost = UPGRADE.cost(cur), g = gemCost(cost);
+      let diff = '', unlock = '';
+      if (!maxed) {
+        const nx = bump(lv, i);
+        diff = TRACK_DIFF[i](buildDef(sel, lv), buildDef(sel, nx)).join(', ');
+        if (perkCount(nx) > perkCount(lv)) unlock = `<em class="unlock">${icon('check')}Mở mốc: ${esc(PERKS[sel][perkCount(nx) - 1].name)}</em>`;
+      }
+      const why = (n, short) => (short > 0 ? `Thiếu ${fmtN(short)} ${n}` : '');
+      const cWhy = why('xu', cost - m.coins), gWhy = why('Tinh Thể', g - (m.gems || 0));
+      const btn = (pay, label, reason) => `<button class="btn upbtn${pay === 'gems' ? ' gem' : ''}" data-up="${i}" data-pay="${pay}"${maxed || reason ? ' disabled' : ''}${reason ? ` title="${reason}"` : ''}>${maxed ? 'Đã tối đa' : `${icon(pay === 'gems' ? 'gem' : 'coin')}<b>${fmtN(label)}</b>${reason ? `<small>${reason}</small>` : ''}`}</button>`;
+      return `<div class="tr${maxed ? ' max' : ''}" data-track="${t.key}">
+        <div class="tr-h"><b>${t.name}</b><div class="pips" aria-label="Cấp ${cur} trên ${UPGRADE.max}">${Array.from({ length: UPGRADE.max }, (_, j) => `<span class="pip${j < cur ? ' on' : ''}"></span>`).join('')}</div><span class="tr-lv">${cur} / ${UPGRADE.max}</span></div>
+        <p class="tr-d">${maxed ? t.desc.replace(' mỗi cấp', '') + ' (đã đủ)' : diff}</p>${unlock}
+        <div class="tr-b">${btn('coins', cost, cWhy)}${maxed ? '' : btn('gems', g, gWhy)}</div></div>`;
+    }).join('');
+    return `<div class="garage"><div class="up-sum"><b>Tổng cấp ${total} / ${UPGRADE.max * TRACKS.length}</b><span>${perkCount(lv)} / ${UPGRADE.perkAt.length} mốc chiêu thức · 1 Tinh Thể = ${GEM_RATE} xu</span></div>${rows}</div>`;
+  }
+
+  const COS = [
+    { kind: 'paint', title: 'Sơn viền', table: PAINTS, owned: 'ownedPaints', of: paintOf, buy: 'buyPaint', set: 'setPaint', sw: (r) => r.color },
+    { kind: 'glow', title: 'Màu phát sáng', table: GLOWS, owned: 'ownedGlows', of: glowOf, buy: 'buyGlow', set: 'setGlow', sw: (r) => r.color },
+    { kind: 'decal', title: 'Decal', table: DECALS, owned: 'ownedDecals', of: decalOf, buy: 'buyDecal', set: 'setDecal', sw: () => null },
+  ];
+  const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+  let preview = null;
+  function renderCosmetics() {
+    const m = meta();
+    return `<div class="garage">${COS.map((c) => `<div class="paints"><h4>${c.title}</h4><div class="pgrid">${Object.keys(c.table).map((k) => {
+      const r = c.table[k], have = (m[c.owned] || ['goc']).includes(k), on = c.of(sel) === k, col = c.sw(r);
+      const mark = c.kind === 'decal' ? `<i class="dc ${k}">${k === 'goc' ? '' : '<s></s>'}</i>` : `<i class="${col == null ? 'orig' : ''}"${col == null ? '' : ` style="background:${hex(col)}"`}></i>`;
+      return `<button class="pt${have ? ' own' : ''}${on ? ' eq' : ''}" data-cos="${c.kind}" data-k="${k}">${mark}<b>${r.name}</b><small>${on ? 'Đang dùng' : have ? 'Trang bị' : `${fmtN(r.price)} xu · ${gemCost(r.price)} TT`}</small></button>`;
+    }).join('')}</div></div>`).join('')}</div>`;
+  }
+  function paintHead(pv) {
+    const own = ownedMech(sel), img = M.detail.querySelector('.md-head img');
+    if (!img) return;
+    const c = { ...cosOf(sel), ...pv };
+    img.src = mineImg2(sel, own, c);
+    const g = GLOWS[c.glow];
+    if (g && g.color != null && own) img.style.setProperty('--gl', hex(g.color)); else img.style.removeProperty('--gl');
+  }
+  const mineImg2 = (mech, own, c) => (own ? portrait(mech, 0, c.paint, c.glow, c.decal) : portrait(mech, 0));
+
+  function renderDetail() {
+    const d = MECHS[sel], own = ownedMech(sel);
+    if (!own) tab = 'info';
+    if (!['info', 'up', 'cos'].includes(tab)) tab = 'info';
+    const lv = own ? lvOf(sel) : NO_LV, def = buildDef(sel, lv), total = lv.reduce((a, b) => a + b, 0);
+    const body = tab === 'up' && own ? renderUpgrades(d) : tab === 'cos' && own ? renderCosmetics() : renderInfo(d, def, own, lv);
+    const m = meta() || {}, gl = own && GLOWS[glowOf(sel)];
     M.detail.innerHTML = `
-      <div class="md-head"><img alt="" src="${portrait(sel, 0, own ? paintOf(sel) : undefined)}"><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && lv ? `<em class="md-lv">+${lv}</em>` : ''}</h2><p>${d.blurb}</p></div></div>
-      ${own ? `<div class="tabs"><button data-tab="info" class="${tab === 'info' ? 'on' : ''}">${icon('info')}Chi tiết</button><button data-tab="garage" class="${tab === 'garage' ? 'on' : ''}">${icon('wrench')}Gara</button></div>`
-        : `<button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${d.price}</b> xu</button>`}
+      <div class="md-head"><img alt="" src="${mineImg(sel, 0, own)}"${gl && gl.color != null ? ` style="--gl:${hex(gl.color)}"` : ''}><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && total ? `<em class="md-lv">+${total}</em>` : ''}</h2><p>${d.blurb}</p></div></div>
+      ${own ? `<div class="tabs"><button data-tab="info" class="${tab === 'info' ? 'on' : ''}">${icon('info')}Chi tiết</button><button data-tab="up" class="${tab === 'up' ? 'on' : ''}">${icon('wrench')}Nâng cấp</button><button data-tab="cos" class="${tab === 'cos' ? 'on' : ''}">${icon('dice')}Trang trí</button></div>`
+        : `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button></div>`}
       ${body}`;
     M.detail.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; renderDetail(); }; });
-    const buy = M.detail.querySelector('[data-r="buy"]');
-    if (buy) buy.onclick = () => buyMech(sel);
-    const up = M.detail.querySelector('[data-r="up"]');
-    if (up) up.onclick = () => {
-      if (G.meta && G.meta.upgrade(sel)) { refreshAll(); toast(`${d.name} lên cấp ${levelOf(sel)}`); pop(M.detail.querySelector('.up-lv'), 1.5, 400); }
-      else noCoins(up);
-    };
-    M.detail.querySelectorAll('[data-paint]').forEach((b) => {
+    const buy = M.detail.querySelector('[data-r="buy"]'), buyg = M.detail.querySelector('[data-r="buyg"]');
+    if (buy) buy.onclick = () => buyMech(sel, 'coins');
+    if (buyg) buyg.onclick = () => buyMech(sel, 'gems');
+    M.detail.querySelectorAll('[data-up]').forEach((b) => {
       b.onclick = () => {
-        const k = b.dataset.paint, p = PAINTS[k];
+        const i = +b.dataset.up, how = b.dataset.pay;
+        if (G.meta && G.meta.upgrade(sel, i, how)) { refreshAll(); toast(`${d.name}: ${TRACKS[i].name} lên cấp ${lvOf(sel)[i]}`); const row = M.detail.querySelector(`[data-track="${TRACKS[i].key}"] .tr-lv`); if (row) pop(row, 1.5, 400); }
+        else noCoins(b, how === 'gems');
+      };
+    });
+    M.detail.querySelectorAll('[data-cos]').forEach((b) => {
+      const c = COS.find((x) => x.kind === b.dataset.cos), k = b.dataset.k, r = c.table[k];
+      b.onmouseenter = b.onfocus = () => paintHead({ [c.kind]: k });
+      b.onmouseleave = b.onblur = () => paintHead({});
+      b.onclick = () => {
         if (!G.meta) return;
-        if (meta().ownedPaints.includes(k)) { G.meta.setPaint(sel, k); refreshAll(); return; }
-        if (meta().coins < p.price) { noCoins(b); return; }
-        ask(`Mua sơn ${p.name}?`, `Trả <b>${p.price}</b> xu, sơn sẽ được trang bị cho ${d.name}.`, 'Mua sơn', () => {
-          if (G.meta.buyPaint(k) && G.meta.setPaint(sel, k)) { refreshAll(); toast('Đã trang bị ' + p.name); } else noCoins();
+        if (meta()[c.owned].includes(k)) { G.meta[c.set](sel, k); refreshAll(); return; }
+        paintHead({ [c.kind]: k });
+        const how = payFor(r.price);
+        if (!how) { noCoins(b); return; }
+        ask(`Mua ${c.title.toLowerCase()} ${r.name}?`, `Trả ${priceHtml(r.price, how)}, món này sẽ được trang bị cho ${d.name}.`, 'Mua', () => {
+          if (G.meta[c.buy](k, how) && G.meta[c.set](sel, k)) { refreshAll(); toast('Đã trang bị ' + r.name); } else noCoins(null, how === 'gems');
         });
       };
     });
@@ -1171,6 +1391,77 @@ export function makeUI(G) {
     M.play.firstChild.textContent = own ? 'Vào trận' : 'Mua ' + MECHS[sel].name;
     M.play.classList.toggle('buying', !own);
   }
+  /* ---- shop (pretend: nothing is charged, nothing personal is asked) ---- */
+  const shopEl = el('div', 'screen shop');
+  shopEl.dataset.block = '';
+  shopEl.innerHTML = `
+    <header class="sh-head">
+      <button class="btn" data-r="back">${icon('back')}Quay lại</button>
+      <h2>Cửa hàng</h2>
+      <div class="sh-bal"><span class="coins" data-r="gemBox2">${icon('gem')}<b data-r="gems">0</b><small>Tinh Thể</small></span><span class="coins">${icon('coin')}<b data-r="coins">0</b><small>xu</small></span></div>
+    </header>
+    <p class="sh-demo">Bản thử, không thu tiền thật. Không cần thẻ, số điện thoại hay tài khoản nào.</p>
+    <div class="sh-body" data-r="body"></div>`;
+  const SH = refs(shopEl);
+  root.appendChild(shopEl);
+  const vnd = (n) => fmtN(n) + ' ₫';
+  const SHOP_SECTIONS = [['starter', 'Gói khởi đầu'], ['pass', 'Thẻ tháng'], ['bundle', 'Gói xe'], ['gems', 'Tinh Thể']];
+  const grantParts = (g) => {
+    const out = [];
+    if (g.gems) out.push(['gem', `${fmtN(g.gems)} Tinh Thể`]);
+    if (g.coins) out.push(['coin', `${fmtN(g.coins)} xu`]);
+    if (g.mech && MECHS[g.mech]) out.push(['tank', MECHS[g.mech].name]);
+    if (g.paint && PAINTS[g.paint]) out.push(['dice', `Sơn ${PAINTS[g.paint].name}`]);
+    if (g.glow && GLOWS[g.glow]) out.push(['flame', `Phát sáng ${GLOWS[g.glow].name}`]);
+    if (g.decal && DECALS[g.decal]) out.push(['flag', `Decal ${DECALS[g.decal].name}`]);
+    if (g.pass) out.push(['trophy', `Thẻ tháng ${g.pass} ngày`]);
+    return out;
+  };
+  function renderShop() {
+    const d = meta();
+    if (!d) return;
+    SH.coins.textContent = fmtN(d.coins); SH.gems.textContent = fmtN(d.gems || 0);
+    const sections = SHOP_SECTIONS.map(([kind, title]) => {
+      const rows = SHOP.filter((e) => e.kind === kind);
+      if (!rows.length) return '';
+      const cards = rows.map((e) => {
+        const bought = e.once && d.shop.bought[e.id];
+        const parts = grantParts(e.grants).map(([ic, t]) => `<li>${icon(ic)}${esc(t)}</li>`).join('');
+        let extra = '';
+        if (kind === 'pass') {
+          const left = G.meta.passDaysLeft();
+          extra = `<div class="pass-st">${left ? `<b>Còn ${left} ngày</b>` : '<b class="off">Chưa kích hoạt</b>'}<button class="btn mini claim" data-r="claim"${G.meta.dailyReady() ? '' : ' disabled'}>${icon('gem')}${G.meta.dailyReady() ? `Nhận ${PASS.daily} Tinh Thể hôm nay` : left ? 'Đã nhận hôm nay' : 'Cần thẻ để nhận mỗi ngày'}</button></div>`;
+        }
+        return `<div class="sh-card k-${kind}${bought ? ' done' : ''}" data-id="${e.id}">
+          <div class="sh-t"><b>${esc(e.name)}</b>${e.note ? `<em>${esc(e.note)}</em>` : ''}</div>
+          <ul>${parts}</ul>${extra}
+          <button class="btn sh-buy${bought ? '' : ' primary'}" data-buy="${e.id}"${bought ? ' disabled' : ''}>${bought ? 'Đã mua' : vnd(e.vnd)}</button></div>`;
+      }).join('');
+      return `<section class="sh-sec k-${kind}"><h3>${title}</h3><div class="sh-grid">${cards}</div></section>`;
+    });
+    SH.body.innerHTML = `<div class="sh-row">${sections[0]}${sections[1]}</div>${sections[2]}${sections[3]}`;
+    SH.body.querySelectorAll('[data-buy]').forEach((b) => {
+      b.onclick = () => {
+        const e = SHOP.find((x) => x.id === b.dataset.buy);
+        ask(`Mua ${e.name}?`, `Giá <b>${vnd(e.vnd)}</b>. Đây là bản thử nên không thu tiền thật. Bạn sẽ nhận ngay: ${grantParts(e.grants).map(([, t]) => esc(t)).join(', ')}.`, 'Xác nhận', () => {
+          const r = G.meta.shopBuy(e.id);
+          if (!r.ok) { toast(r.reason); return; }
+          const g = r.got, got = grantParts(g).map(([, t]) => t);
+          if (g.refund) got.push(`${fmtN(g.refund)} xu hoàn lại cho món đã có`);
+          refreshAll();
+          toast('Đã nhận: ' + got.join(', '), 4200);
+        });
+      };
+    });
+    const claim = SH.body.querySelector('[data-r="claim"]');
+    if (claim) claim.onclick = () => { const n = G.meta.claimDaily(); if (n) { refreshAll(); toast(`Đã nhận ${n} Tinh Thể hôm nay`); } };
+  }
+  function showShop() { if (!G.meta) return; shopOn = true; renderShop(); shopEl.classList.add('on'); }
+  function hideShop() { shopOn = false; shopEl.classList.remove('on'); }
+  SH.back.onclick = () => { hideShop(); renderPlayer(); };
+  M.shopBtn.onclick = showShop;
+  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && shopOn && !confirmEl.classList.contains('on')) hideShop(); });
+
   const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss', nha: 'tower' };
   const THEME_ICON = { jungle: 'leaf', desert: 'dune', ice: 'flake', lava: 'flame', city: 'city', swamp: 'swamp', autumn: 'leaf', canyon: 'canyon', random: 'dice', layout: 'layout' };
   const HAZARD_TEXT = { vent: 'Họng lửa phụt', ice: 'Băng trơn trượt', lava: 'Hồ dung nham', mud: 'Bùn lầy chậm bước' };
@@ -1217,7 +1508,7 @@ export function makeUI(G) {
     M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
     M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
   }
-  const makeChoice = (mech, df, map, mode, theme) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, mods: upgradeMods(levelOf(mech)), paint: paintOf(mech) });
+  const makeChoice = (mech, df, map, mode, theme) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, mods: { lv: lvOf(mech) }, ...cosOf(mech) });
   M.play.onclick = () => {
     if (!ownedMech(sel)) { buyMech(sel); return; }
     choice = makeChoice(sel, diff, mapKey, modeKey, themeKey);
@@ -1252,14 +1543,14 @@ export function makeUI(G) {
     M.net.hidden = !G.online;
     menu.classList.add('on');
   }
-  function hideMenu() { menu.classList.remove('on'); closeModals(); hideEntry(); hideLobby(); }
+  function hideMenu() { menu.classList.remove('on'); hideShop(); closeModals(); hideEntry(); hideLobby(); }
 
   /* ---- settings + help modals ---- */
   const toastEl = el('div', 'toast'); root.appendChild(toastEl);
   let toastT = 0;
-  function toast(text) {
+  function toast(text, ms = 1800) {
     toastEl.textContent = text; toastEl.classList.add('on');
-    clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), 1800);
+    clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), ms);
   }
 
   const confirmEl = el('div', 'modal');
@@ -1285,6 +1576,11 @@ export function makeUI(G) {
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
       <button class="tog" data-r="netro" aria-pressed="false"><i></i><span>Hiện thông số mạng (co-op)<small>RTT, jitter, khựng hình… ở góc trái khi chơi nhiều người</small></span></button>
+      <div class="tgrp" data-r="touchGrp" hidden>
+        <h3>Điều khiển cảm ứng</h3>
+        <button class="tog" data-r="fixStick" aria-pressed="false"><i></i><span>Cần điều khiển cố định<small>Cần đi nằm yên ở góc trái, không hiện theo ngón tay</small></span></button>
+        <div class="row2"><button class="btn" data-r="lyEdit">Sửa bố cục nút</button><button class="btn danger" data-r="lyReset">Về mặc định</button></div>
+      </div>
     </div>
     <div class="st-pane" data-pane="keys" hidden>
       <div class="klist" data-r="klist"></div>
@@ -1306,7 +1602,28 @@ export function makeUI(G) {
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
     ST.rumble.setAttribute('aria-pressed', String(d.settings.rumble !== false));
     ST.netro.setAttribute('aria-pressed', String(!!d.settings.netReadout));
+    ST.touchGrp.hidden = !isTouch();
+    const ly = layoutApi();
+    ST.fixStick.setAttribute('aria-pressed', String(!!(ly && ly.get && ly.get() && ly.get().fixedStick)));
+    ST.lyEdit.hidden = hudOn;
   }
+  // G.input.layout comes from the touch module; missing means the buttons do nothing rather than throw.
+  const layoutApi = () => (G.input && G.input.layout) || null;
+  ST.fixStick.onclick = () => {
+    const ly = layoutApi();
+    if (ly && ly.set) { const cur = !!(ly.get && ly.get() && ly.get().fixedStick); ly.set({ fixedStick: !cur }); }
+    renderSettings();
+  };
+  ST.lyEdit.onclick = () => {
+    const ly = layoutApi();
+    settings.classList.remove('on');
+    if (ly && ly.edit) ly.edit();
+  };
+  ST.lyReset.onclick = () => ask('Đặt lại bố cục nút?', 'Mọi nút điều khiển trở về vị trí và kích thước mặc định.', 'Đặt lại', () => {
+    const ly = layoutApi();
+    if (ly && ly.reset) ly.reset();
+    renderSettings(); toast('Đã đặt lại bố cục nút');
+  });
   ST.netro.onclick = () => setNetReadout(!netOn());
   ST.rumble.onclick = () => {
     const d = meta(); if (!d) return;
@@ -1324,7 +1641,8 @@ export function makeUI(G) {
   };
   ST.vol.onchange = ST.mus.onchange = () => G.meta.save();
   ST.close.onclick = () => settings.classList.remove('on');
-  M.bSet.onclick = () => { renderSettings(); settings.querySelector('[data-st="keys"]').hidden = isTouch(); setSettingsTab('gen'); settings.classList.add('on'); };
+  function openSettings() { renderSettings(); settings.querySelector('[data-st="keys"]').hidden = isTouch(); setSettingsTab('gen'); settings.classList.add('on'); }
+  M.bSet.onclick = openSettings;
 
   /* ---- key binding tab ---- */
   let kTab = 'gen', cap = null, conflict = null, lastBound = '', lastBoundAt = 0;
@@ -1579,7 +1897,7 @@ export function makeUI(G) {
     const outcome = view.outcome;
     const rw = rewards, live = onlinePlaying();
     const parts = rw ? [
-      [view.base, rw.parts.base], ['Hạ gục', rw.parts.kills], ['Hỗ trợ', rw.parts.assists], ['Sát thương lên trùm', rw.parts.boss || 0], ['MVP', rw.parts.mvp],
+      [view.base, rw.parts.base], ['Hạ gục', rw.parts.kills], ['Hỗ trợ', rw.parts.assists], ['Sát thương lên trùm', rw.parts.boss || 0], ['MVP', rw.parts.mvp], ['Thẻ tháng', rw.parts.pass || 0],
     ].filter((p) => p[1] > 0) : [];
     result.className = 'screen result on mode-' + mode;
     result.innerHTML = `
@@ -1589,6 +1907,7 @@ export function makeUI(G) {
       <div class="rs-foot">
         ${rw ? `<div class="rw">
           <div class="rw-coin">${icon('coin')}<b data-r="rc">+0</b><small>xu</small></div>
+          <div class="rw-coin rw-gem">${icon('gem')}<b data-r="rg">+0</b><small>TT</small></div>
           <div class="rw-xp"><div class="rw-top"><span>Cấp <b data-r="rl">${rw.levelBefore}</b></span><span data-r="rx">+0 XP</span></div><div class="xpbar"><i data-r="rf"></i></div><em class="lvup" data-r="up">Lên cấp!</em></div>
           ${rw.trophy ? trophyHtml(rw) : ''}
           <div class="rw-parts">${parts.map((p) => `<span>${p[0]} <b>+${p[1]}</b></span>`).join('')}</div></div>` : '<div></div>'}
@@ -1601,7 +1920,7 @@ export function makeUI(G) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };
       fill(rw.xpBefore / levelXp(rw.levelBefore), false);
       later(() => {
-        tween(R.rc, rw.coins, 1100, (v) => '+' + v); tween(R.rx, rw.xp, 1100, (v) => '+' + v + ' XP');
+        tween(R.rc, rw.coins, 1100, (v) => '+' + v); tween(R.rg, rw.gems || 0, 1100, (v) => '+' + v); tween(R.rx, rw.xp, 1100, (v) => '+' + v + ' XP');
         if (rw.levelAfter > rw.levelBefore) {
           fill(1, true);
           later(() => {
@@ -1843,14 +2162,14 @@ export function makeUI(G) {
     if (!me || !d) return;
     let mech = !first && ownedMech(me.mech) ? me.mech : d.mech;
     if (!ownedMech(mech)) mech = MECH_ORDER.find(ownedMech) || MECH_ORDER[0];
-    o.setMine({ mech, paint: paintOf(mech), mods: upgradeMods(levelOf(mech)) });
+    o.setMine({ mech, ...cosOf(mech), mods: { lv: lvOf(mech) } });
   }
 
   function seatHtml(p, ffa) {
     const o = G.online, me = p.id === o.me, d = mechDef(p.mech);
     const swap = o.role === 'host' && !ffa && o.lobby.mode !== 'trum' ? `<button class="btn mini" data-a="swap" data-pid="${esc(p.id)}" title="Chuyển ${esc(p.name)} sang đội kia">${icon('swap')}Đổi đội</button>` : '';
     return `<div class="seat t${ffa ? 2 : p.team}${me ? ' me' : ''}${p.ready ? ' rdy' : ''}" data-pid="${esc(p.id)}">
-      <img alt="" src="${portrait(p.mech, p.team, p.paint)}">
+      <img alt="" src="${portrait(p.mech, p.team, p.paint, p.glow, p.decal)}">
       <div class="st-t"><b class="st-n"><span>${esc(p.name)}</span>${p.host ? '<em class="badge">Chủ phòng</em>' : ''}${me ? '<em class="you">Bạn</em>' : ''}</b><span class="st-m">${roleIcon(p.mech)}${d.name}</span></div>
       <div class="st-r"><span class="rdy-p">${icon(p.ready ? 'check' : 'pause')}${p.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}</span>${swap}</div>
     </div>`;
@@ -1907,7 +2226,7 @@ export function makeUI(G) {
           <div class="lb-teams m-${L.mode}">${teamsHtml(L)}</div>
           <div data-slot="chat"></div>
           <section class="panel lb-mine"><div class="lb-mh"><h3>Cơ giáp của bạn</h3><small>Sơn ${esc(paint.name)}${lv ? ` · Nâng cấp +${lv}` : ''}, lấy từ kho của bạn</small></div>
-            <div class="lm-grid">${owned.map((k) => `<button class="lm${k === me.mech ? ' sel' : ''}" data-a="mech" data-k="${k}"><img alt="" src="${portrait(k, me.team || 0, paintOf(k))}"><span><b>${MECHS[k].name}</b><em>${roleIcon(k)}${MECHS[k].role}</em></span></button>`).join('')}</div></section>
+            <div class="lm-grid">${owned.map((k) => `<button class="lm${k === me.mech ? ' sel' : ''}" data-a="mech" data-k="${k}"><img alt="" src="${mineImg(k, me.team || 0, true)}"><span><b>${MECHS[k].name}</b><em>${roleIcon(k)}${MECHS[k].role}</em></span></button>`).join('')}</div></section>
         </div>
         <div class="lb-side">
           <section class="panel setup lb-set"><h3>Thiết lập phòng</h3>${host ? setupTabs('data-a="sutab" data-k="{k}"', lobbyTab) : ''}<div class="opts" data-tab="${lobbyTab}">${settingsHtml(L, host)}</div></section>
@@ -1963,7 +2282,7 @@ export function makeUI(G) {
       case 'leave': o.leave(); if (lobbyOn) showMenu(); return;
       case 'copy': copyCode(); return;
       case 'sutab': lobbyTab = SU_TAB_NAMES.includes(k) ? k : 'mode'; break;
-      case 'mech': { const d = meta(); if (d) { d.mech = k; G.meta.save(); } o.setMine({ mech: k, paint: paintOf(k), mods: upgradeMods(levelOf(k)) }); break; }
+      case 'mech': { const d = meta(); if (d) { d.mech = k; G.meta.save(); } o.setMine({ mech: k, ...cosOf(k), mods: { lv: lvOf(k) } }); break; }
       case 'ready': o.setMine({ ready: !me.ready }); break;
       case 'swapme': if (o.swapTeam(o.me) === false && o.role === 'host') lobbyMsg = o.error; break;
       case 'swap': if (o.swapTeam(b.dataset.pid) === false) lobbyMsg = o.error; break;
@@ -1992,8 +2311,36 @@ export function makeUI(G) {
   G.bus.on('net:lobby', () => { lobbyMsg = ''; if (lobbyOn && G.online.state === 'lobby') renderLobby(); });
 
   /* ================= rotate hint ================= */
-  const rot = el('div', 'rotate', `<svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="8" width="24" height="42" rx="4"/><path d="M28 44h8"/><path d="M50 22c6 3 8 9 5 15M55 37l-1-6M55 37l-6-1"/></svg><b>Xoay ngang máy</b><span>Đấu Trường Thép chơi ở chế độ màn hình ngang</span>`);
+  const rot = el('div', 'rotate', `<svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="8" width="24" height="42" rx="4"/><path d="M28 44h8"/><path d="M50 22c6 3 8 9 5 15M55 37l-1-6M55 37l-6-1"/></svg><b>Xoay ngang màn hình</b><span>Đấu Trường Thép chơi ở chế độ màn hình ngang</span>`);
   root.appendChild(rot);
+  // Only a phone-sized touch screen held upright gets the prompt; a tablet with a short side of 700 px or more plays fine either way.
+  function syncOrient() {
+    const lock = isTouch() && innerHeight > innerWidth && innerWidth < 700;
+    root.classList.toggle('portrait-lock', lock);
+    document.documentElement.classList.toggle('dtt-portrait', lock);
+  }
+  addEventListener('resize', syncOrient); addEventListener('orientationchange', syncOrient); syncOrient();
+
+  /* ================= 11 px floor on touch screens =================
+     The menu screens size their labels in em (down to .5em), which lands under 11 px on a phone. Each element that holds text and
+     renders smaller gets 11 px inline; parents come first, so children measured afterwards already see the bigger parent. */
+  const TXT_MIN = 11;
+  let floorQ = 0;
+  function floorText(rootEl) {
+    if (!isTouch()) return;
+    for (const n of rootEl.querySelectorAll('*')) {
+      if (n.closest('.rotate')) continue;
+      if (n.tagName !== 'INPUT' && !(n.firstChild && [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()))) continue;
+      if (n.style.fontSize === TXT_MIN + 'px') continue;
+      if (parseFloat(getComputedStyle(n).fontSize) < TXT_MIN - 0.05) n.style.fontSize = TXT_MIN + 'px';
+    }
+  }
+  const floorRoots = [menu, shopEl, settings, help, confirmEl, pauseEl, entry, lobbyEl, result];
+  const floorObs = new MutationObserver(() => {
+    if (floorQ) return;
+    floorQ = requestAnimationFrame(() => { floorQ = 0; for (const r of floorRoots) if (r.classList.contains('on') || r.querySelector('.on')) floorText(r); });
+  });
+  for (const r of floorRoots) floorObs.observe(r, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
 
   return {
     showMenu, hideMenu, showHUD, hideHUD, update, event, showResult,

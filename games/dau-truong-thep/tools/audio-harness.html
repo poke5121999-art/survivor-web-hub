@@ -94,7 +94,7 @@ window.__audioDiag = async () => {
       const t = performance.now();
       const a = A.renderSound(name, v, SR);
       const ms = performance.now() - t;
-      sounds.push({ name, variant: v, expected: S.dur, ms, bus: S.bus, vol: S.vol, ...stats([a], SR) });
+      sounds.push({ name, variant: v, expected: S.dur, ms, bus: S.bus, vol: S.vol, loop: S.loop !== undefined, ext: !!S.ext, ...stats([a], SR) });
     }
     await new Promise((r) => setTimeout(r, 0));
   }
@@ -123,12 +123,23 @@ const SAMPLE = {
   respawn: () => ({ t: 'respawn', id: 2, x: 3, z: 2 }),
   explode: (x) => ({ t: 'explode', x: 3, z: 2, r: 3, why: x.why || 'strike' }),
   nova: (x) => ({ t: 'nova', id: x.id === undefined ? 1 : x.id, x: 3, z: 2, r: 6 }),
-  beam: () => ({ t: 'beam', id: 1, x0: 3, z0: 2, x1: 9, z1: 2, w: 1 }),
+  beam: (x) => ({ t: 'beam', id: x.id === undefined ? 1 : x.id, x0: 3, z0: 2, x1: 9, z1: 2, w: 1 }),
   ram: () => ({ t: 'ram', id: 1, x: 3, z: 2 }),
   shieldBreak: () => ({ t: 'shieldBreak', id: 1, x: 3, z: 2 }),
   item: () => ({ t: 'item', id: 1 }),
   zone: (x) => ({ t: 'zone', id: x.id || 7, kind: x.kind || 'strike', x: 3, z: 2 }),
-  zoneEnd: (x) => ({ t: 'zoneEnd', id: 7, kind: x.kind || 'strike', x: 3, z: 2 }),
+  zoneEnd: (x) => ({ t: 'zoneEnd', id: x.id || 7, kind: x.kind || 'strike', x: 3, z: 2 }),
+  ray: (x) => ({ t: 'ray', id: 1, x0: 3, z0: 2, x1: 9, z1: 2, on: x.on || 'foe' }),
+  hook: () => ({ t: 'hook', id: 1, target: 2, x: 3, z: 2 }),
+  swap: () => ({ t: 'swap', id: 1, other: 2, x0: 3, z0: 2, x1: 8, z1: 2 }),
+  stance: (x) => ({ t: 'stance', id: 1, on: x.on === undefined ? 1 : x.on, x: 3, z: 2 }),
+  bless: (x) => ({ t: 'bless', id: 1, to: 2, skill: x.skill || 'khientang', x: 3, z: 2 }),
+  rally: () => ({ t: 'rally', id: 1, x: 3, z: 2, r: 8 }),
+  leap: () => ({ t: 'leap', id: 1, x0: 3, z0: 2, x: 9, z: 2, dur: 0.4 }),
+  mark: () => ({ t: 'mark', id: 1, target: 2, x: 3, z: 2 }),
+  warp: () => ({ t: 'warp', id: 1, x0: 3, z0: 2, x: 9, z: 2 }),
+  zap: () => ({ t: 'zap', zone: 24, id: 2, x: 3, z: 2 }),
+  execute: () => ({ t: 'execute', id: 2, by: 1, x: 3, z: 2 }),
   turretFire: () => ({ t: 'turretFire', id: 7, zone: 7, x: 3, z: 2, a: 0 }),
   propHit: () => ({ t: 'propHit', id: 1, x: 3, z: 2 }),
   propBreak: (x) => ({ t: 'propBreak', id: 1, kind: x.kind || 'crate', x: 3, z: 2 }),
@@ -144,18 +155,23 @@ const SAMPLE = {
 };
 const TOWER_EVENTS = ['towerFire', 'towerHit', 'towerBlock', 'towerDown'];
 
-// Units 3..5 carry the mechs whose nova sounds differ; zones 10+ cover every field vis and the lobbed strike.
+// Units 3..4 and 7 carry the mechs whose nova sounds differ; 5 is a lance mech between shots, 6 one in the middle of a sweep. Zones 10+ cover every field vis and the lobbed strike, 20+ the new zone kinds.
 const WORLD = () => ({
-  units: [{ team: 0, mech: 'trau' }, { team: 0, mech: 'trau' }, { team: 1, mech: 'trau' }, { team: 0, mech: 'bocap' }, { team: 0, mech: 'bang' }],
-  zones: [{ id: 7, vis: 'slow' }, { id: 10, kind: 'field', vis: 'smoke' }, { id: 11, kind: 'field', vis: 'blizzard' }, { id: 12, kind: 'field', vis: 'magnet' }, { id: 13, kind: 'strike', lob: true }],
+  units: [{ team: 0, mech: 'trau' }, { team: 0, mech: 'trau' }, { team: 1, mech: 'trau' }, { team: 0, mech: 'bocap' }, { team: 0, mech: 'bang' },
+    { team: 0, mech: 'hoalong', def: { weapon: { charge: {} } }, cast: null }, { team: 0, mech: 'hoalong', def: { weapon: { charge: {} } }, cast: { skill: { do: 'sweep' } } }, { team: 0, mech: 'hacho' }],
+  zones: [{ id: 7, vis: 'slow' }, { id: 10, kind: 'field', vis: 'smoke' }, { id: 11, kind: 'field', vis: 'blizzard' }, { id: 12, kind: 'field', vis: 'magnet' }, { id: 13, kind: 'strike', lob: true },
+    { id: 20, kind: 'field', vis: 'cage' }, { id: 21, kind: 'field', vis: 'bastion' }, { id: 22, kind: 'wall', screen: true }, { id: 23, kind: 'drone' }, { id: 24, kind: 'wire' }],
 });
-const SKILL_ZONE = { min: ['mine', 7], truongcham: ['field', 7], vom: ['dome', 7], khoi: ['field', 10], baotuyet: ['field', 11], hotu: ['field', 12], tuongbang: ['wall', 7], usung: ['turret', 7] };
+const SKILL_ZONE = { min: ['mine', 7], truongcham: ['field', 7], vom: ['dome', 7], khoi: ['field', 10], baotuyet: ['field', 11], hotu: ['field', 12], tuongbang: ['wall', 7], usung: ['turret', 7],
+  longxich: ['field', 20], thanhdong: ['field', 21], mansang: ['wall', 22], ongtho: ['drone', 23], daydien: ['wire', 24] };
 const SKILL_NOVA = { xungbang: 4, locthep: 3 };
 
 window.__audioCoverage = async () => {
   const txt = await (await fetch('../README.md')).text();
   const line = txt.split('\n').find((l) => l.startsWith('Events ('));
-  const types = [...line.slice(line.indexOf('):')).matchAll(/`(\w+)(?:\s*\{[^`]*\})?`/g)].map((m) => m[1]);
+  const added = txt.split('\n').find((l) => l.startsWith('- New events:'));
+  const names = (str) => [...str.matchAll(/`(\w+)(?:\s*\{[^`]*\})?`/g)].map((m) => m[1]);
+  const types = [...names(line.slice(line.indexOf('):'))), ...(added ? names(added.slice(added.indexOf(':') + 1, added.indexOf(';'))) : [])];
   const m = WORLD();
   const silent = [], missing = [];
   for (const t of types) {
@@ -166,14 +182,15 @@ window.__audioCoverage = async () => {
   const vis = {}, skills = {}, skillSounds = {}, double = [];
   const sounds = (ev) => A.planEvent(ev, m, 1).map((p) => p.s);
   for (const mech of Object.values(MECHS)) {
-    vis[mech.weapon.vis] = A.planEvent(SAMPLE.fire({ vis: mech.weapon.vis }), m, 1).length;
+    if (!mech.weapon.ray) vis[mech.weapon.vis] = A.planEvent(SAMPLE.fire({ vis: mech.weapon.vis }), m, 1).length;
     for (const s of mech.skills) {
-      if (s.vis && s.do === 'volley') vis[s.vis] = A.planEvent(SAMPLE.fire({ vis: s.vis }), m, 1).length;
+      if (s.vis && (s.do === 'volley' || s.do === 'hook')) vis[s.vis] = A.planEvent(SAMPLE.fire({ vis: s.vis }), m, 1).length;
       const own = sounds(SAMPLE.skill({ skill: s.id }));
       const comp = A.SKILL_COMPANION[s.id];
       let via = [];
       if (comp === 'fire') via = sounds(SAMPLE.fire({ vis: s.vis }));
       else if (comp === 'zone') { const [kind, id] = SKILL_ZONE[s.id]; via = sounds(SAMPLE.zone({ kind, id })); } else if (comp === 'nova') via = sounds(SAMPLE.nova({ id: SKILL_NOVA[s.id] }));
+      else if (comp) via = sounds(SAMPLE[comp]({ skill: s.id }));
       if (comp && own.length) double.push(s.id);
       skills[s.id] = own.length || via.length;
       skillSounds[s.id] = (own.length ? own : via).join('+');
@@ -189,9 +206,31 @@ window.__audioCoverage = async () => {
   sub.push(['zoneEnd:strike is silent', A.planEvent(SAMPLE.zoneEnd({ kind: 'strike' }), m, 1).length === 0 ? 1 : 0]);
   sub.push(['zone:strike lobbed (whistle)', sounds(SAMPLE.zone({ id: 13 })).includes('mortar_whistle') ? 1 : 0]);
   sub.push(['zone:strike barrage (not mortar whistle)', sounds(SAMPLE.zone({})).includes('sk_barrage_wind') ? 1 : 0]);
-  for (const [k, id] of [['smoke', 10], ['blizzard', 11], ['magnet', 12]]) sub.push(['zone:field ' + k, A.planEvent(SAMPLE.zone({ kind: 'field', id }), m, 1).length]);
-  for (const [k, id] of [['trau', 1], ['bocap', 3], ['bang', 4]]) sub.push(['nova:' + k, A.planEvent(SAMPLE.nova({ id }), m, 1).length]);
-  sub.push(['nova sounds differ per mech', new Set([1, 3, 4].map((id) => sounds(SAMPLE.nova({ id }))[0])).size === 3 ? 1 : 0]);
+  for (const [k, id] of [['smoke', 10], ['blizzard', 11], ['magnet', 12], ['cage', 20], ['bastion', 21]]) sub.push(['zone:field ' + k, A.planEvent(SAMPLE.zone({ kind: 'field', id }), m, 1).length]);
+  for (const [k, id] of [['trau', 1], ['bocap', 3], ['bang', 4], ['hacho', 7]]) sub.push(['nova:' + k, A.planEvent(SAMPLE.nova({ id }), m, 1).length]);
+  sub.push(['nova sounds differ per mech', new Set([1, 3, 4, 7].map((id) => sounds(SAMPLE.nova({ id }))[0])).size === 4 ? 1 : 0]);
+  // Addendum 5 and 6 events.
+  for (const k of ['bounce', 'screen', 'decoy']) sub.push(['impact:' + k, A.planEvent(SAMPLE.impact({ on: k }), m, 1).length]);
+  sub.push(['impact:wall of a flame is silent (the roar covers it)', A.planEvent(SAMPLE.impact({ on: 'wall', vis: 'flame' }), m, 1).length === 0 ? 1 : 0]);
+  sub.push(['impact:wall of a wave is energy, a slug is stone', sounds(SAMPLE.impact({ on: 'wall', vis: 'wave' }))[0] === 'imp_energy' && sounds(SAMPLE.impact({ on: 'wall', vis: 'slug' }))[0] === 'hit_wall' ? 1 : 0]);
+  sub.push(['explode:decoy', A.planEvent(SAMPLE.explode({ why: 'decoy' }), m, 1).length]);
+  for (const k of ['decoy', 'drone', 'wire']) sub.push(['zone:' + k, A.planEvent(SAMPLE.zone({ kind: k, id: { decoy: 7, drone: 23, wire: 24 }[k] }), m, 1).length]);
+  for (const k of ['drone', 'wire']) sub.push(['zoneEnd:' + k, A.planEvent(SAMPLE.zoneEnd({ kind: k }), m, 1).length]);
+  sub.push(['zoneEnd:decoy is silent (its explode sounds)', A.planEvent(SAMPLE.zoneEnd({ kind: 'decoy' }), m, 1).length === 0 ? 1 : 0]);
+  {
+    const memo = new Map();
+    const a = sounds(SAMPLE.zone({ kind: 'wall', id: 22 }))[0], b = sounds(SAMPLE.zone({ kind: 'wall', id: 7 }))[0];
+    A.planEvent(SAMPLE.zone({ kind: 'wall', id: 22 }), m, 1, memo);
+    const end = A.planEvent(SAMPLE.zoneEnd({ kind: 'wall', id: 22 }), m, 1, memo).map((p) => p.s)[0];
+    sub.push(['light screen sounds unlike an ice wall, up and down', a === 'sk_screen' && b === 'sk_ice_wall' && end === 'sk_screen_off' && !memo.size ? 1 : 0]);
+  }
+  sub.push(['ray: ally, foe and tower, none each sound; ally, foe, none differ', new Set(['ally', 'foe', 'none'].map((on) => sounds(SAMPLE.ray({ on }))[0])).size === 3 && sounds(SAMPLE.ray({ on: 'tower' })).length === 1 ? 1 : 0]);
+  sub.push(['stance plant and release differ', sounds(SAMPLE.stance({ on: 1 }))[0] !== sounds(SAMPLE.stance({ on: 0 }))[0] && sounds(SAMPLE.stance({ on: 0 })).length === 1 ? 1 : 0]);
+  sub.push(['bless: shield gift and speed boost differ', sounds(SAMPLE.bless({ skill: 'khientang' }))[0] !== sounds(SAMPLE.bless({ skill: 'tiepsuc' }))[0] ? 1 : 0]);
+  sub.push(['warp sounds at both ends', A.planEvent(SAMPLE.warp(), m, 1).length === 2 ? 1 : 0]);
+  sub.push(['beam: sweep is one held roar, a released lance is left to its fire sound, other beams unchanged', sounds(SAMPLE.beam({ id: 6 }))[0] === 'beam_sweep' && A.planEvent(SAMPLE.beam({ id: 5 }), m, 1).length === 0 && sounds(SAMPLE.beam({ id: 1 }))[0] === 'sk_beam_fire' ? 1 : 0]);
+  sub.push(['fire flame, ray and sweep are held voices with a key', ['flame', 'ray'].every((k) => A.planEvent(k === 'flame' ? SAMPLE.fire({ vis: 'flame' }) : SAMPLE.ray({}), m, 1).every((p) => p.key)) && A.planEvent(SAMPLE.beam({ id: 6 }), m, 1)[0].key === 'sweep:6' ? 1 : 0]);
+  sub.push(['every held sound is a loop and has a hold time', Object.values(A.SOUNDS).filter((q) => q.sustain).every((q) => q.loop !== undefined && q.sustain > 0.1) ? 1 : 0]);
   sub.push(['turretFire', A.planEvent(SAMPLE.turretFire(), m, 1).length]);
   for (const t of TOWER_EVENTS) sub.push([t, A.planEvent(SAMPLE[t]({}), m, 1).length]);
   sub.push(['towerDown main differs from sub', sounds(SAMPLE.towerDown({ kind: 'main' }))[0] !== sounds(SAMPLE.towerDown({ kind: 'sub' }))[0] ? 1 : 0]);
@@ -233,21 +272,24 @@ const mixStats = (buf) => {
 const chanRms = (buf, t0, t1, ch) => { const d = buf.getChannelData(ch); let q = 0; const a = Math.round(t0 * SR), b = Math.round(t1 * SR); for (let i = a; i < b; i++) q += d[i] * d[i]; return Math.sqrt(q / (b - a)); };
 
 // A 20 s fight in base mode: ten mechs firing at their real fire rates, hits and impacts behind each shot, skills, explosions, deaths, towers, pickups.
-function fightScript(seed) {
+const OLD_KINDS = ['soi', 'trau', 'hac', 'ung', 'bocap', 'loi', 'bang', 'tho', 'trau', 'soi'];
+const NEW_KINDS = ['thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'hacho', 'domdom'];
+function fightScript(seed, kinds = OLD_KINDS) {
   let s = seed;
   const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-  const kinds = ['soi', 'trau', 'hac', 'ung', 'bocap', 'loi', 'bang', 'tho', 'trau', 'soi'];
   const m = { units: [], zones: [{ id: 7, vis: 'slow' }, { id: 10, kind: 'field', vis: 'smoke' }, { id: 13, kind: 'strike', lob: true }], towers: [], duration: 480, time: 0 };
   kinds.forEach((k, i) => { const ang = r() * 6.28, rad = i ? 4 + r() * 16 : 0; m.units.push({ team: i < 5 ? 0 : 1, mech: k, x: Math.cos(ang) * rad, z: Math.sin(ang) * rad * 0.7, hp: 1, maxHp: 1, alive: true }); });
   const ev = [];
   const push = (t, e) => { if (t >= 0 && t < 19.8) ev.push({ t, e }); };
   m.units.forEach((u, i) => {
     const mech = MECHS[u.mech], w = mech.weapon;
-    for (let t = 0.2 + r() * 0.5; t < 19.5; t += w.cd * (0.9 + r() * 0.3)) {
+    for (let t = 0.2 + r() * 0.5; t < 19.5; t += (w.charge ? w.cd + 1 : w.cd) * (0.9 + r() * 0.3)) {
       if (r() < 0.12) { t += 0.8 * r(); continue; } // pauses, strafing
-      push(t, { t: 'fire', id: i, vis: w.vis, x: u.x, z: u.z, a: r() * 6.28, side: i & 1 });
       const foe = m.units[(i < 5 ? 5 : 0) + Math.floor(r() * 5)];
+      if (w.ray) { push(t, { t: 'ray', id: i, x0: u.x, z0: u.z, x1: foe.x, z1: foe.z, on: r() < 0.5 ? 'ally' : r() < 0.8 ? 'foe' : 'none' }); continue; }
+      push(t, { t: 'fire', id: i, vis: w.vis, x: u.x, z: u.z, a: r() * 6.28, side: i & 1 });
       const hit = r() < 0.7;
+      if (w.bounce) for (let k = 0; k < w.bounce; k++) push(t + 0.1 + k * 0.12, { t: 'impact', vis: w.vis, on: 'bounce', x: foe.x + k, z: foe.z, dx: 1, dz: 0, splash: 0 });
       if (hit) { push(t + 0.15, { t: 'hit', id: m.units.indexOf(foe), by: i, x: foe.x, z: foe.z, amt: w.dmg > 200 ? 250 : w.dmg, absorbed: 0 }); push(t + 0.15, { t: 'impact', vis: w.vis, on: 'unit', x: foe.x, z: foe.z, dx: 1, dz: 0, splash: w.splash || 0 }); } else push(t + 0.2, { t: 'impact', vis: w.vis, on: r() < 0.7 ? 'wall' : 'prop', x: foe.x + 3, z: foe.z, dx: 1, dz: 0, splash: w.splash || 0 });
       if (w.splash) push(t + (w.lob ? w.flight : 0.2), { t: 'explode', x: foe.x, z: foe.z, r: w.splash, why: 'strike' });
     }
@@ -256,6 +298,20 @@ function fightScript(seed) {
       push(t, { t: 'skill', id: i, slot: 0, skill: sk.id, x: u.x, z: u.z, a: 0 });
       if (sk.do === 'nova') push(t + (sk.windup || 0), { t: 'nova', id: i, x: u.x, z: u.z, r: sk.radius });
       if (sk.do === 'beam') push(t + sk.windup, { t: 'beam', id: i, x0: u.x, z0: u.z, x1: u.x + 9, z1: u.z, w: 1 });
+      const foe = m.units[(i < 5 ? 5 : 0) + Math.floor(r() * 5)], pos = { x: u.x, z: u.z };
+      if (sk.do === 'stance') { push(t + sk.setup, { t: 'stance', id: i, on: 1, ...pos }); push(t + 4, { t: 'stance', id: i, on: 0, ...pos }); }
+      if (sk.do === 'swap') push(t, { t: 'swap', id: i, other: m.units.indexOf(foe), x0: u.x, z0: u.z, x1: foe.x, z1: foe.z });
+      if (sk.do === 'bless') push(t, { t: 'bless', id: i, to: i, skill: sk.id, ...pos });
+      if (sk.do === 'rally') push(t, { t: 'rally', id: i, ...pos, r: sk.radius });
+      if (sk.do === 'leap') { push(t, { t: 'leap', id: i, x0: u.x, z0: u.z, x: u.x + 5, z: u.z, dur: sk.flight }); push(t + sk.flight, { t: 'nova', id: i, x: u.x + 5, z: u.z, r: sk.radius }); }
+      if (sk.do === 'mark') { push(t, { t: 'mark', id: i, target: m.units.indexOf(foe), x: foe.x, z: foe.z }); if (r() < 0.5) push(t + 3, { t: 'execute', id: m.units.indexOf(foe), by: i, x: foe.x, z: foe.z }); }
+      if (sk.do === 'warp') push(t, { t: 'warp', id: i, x0: u.x, z0: u.z, x: u.x + 6, z: u.z });
+      if (sk.do === 'decoy') { for (let k = 0; k < sk.n; k++) { push(t, { t: 'zone', id: 7, kind: 'decoy', x: u.x, z: u.z }); push(t + sk.dur, { t: 'explode', x: u.x + 6 + k, z: u.z, r: 3, why: 'decoy' }); } }
+      if (sk.do === 'wire') { push(t, { t: 'zone', id: 7, kind: 'wire', x: u.x, z: u.z }); push(t + 2, { t: 'zap', zone: 7, id: m.units.indexOf(foe), x: foe.x, z: foe.z }); }
+      if (sk.do === 'drone') push(t, { t: 'zone', id: 7, kind: 'drone', x: u.x, z: u.z });
+      if (sk.do === 'volley' && sk.bounce) push(t, { t: 'fire', id: i, vis: sk.vis, x: u.x, z: u.z, a: 0, side: 0 });
+      if (sk.do === 'hook') { push(t, { t: 'fire', id: i, vis: sk.vis, x: u.x, z: u.z, a: 0, side: 0 }); push(t + 0.4, { t: 'hook', id: i, target: m.units.indexOf(foe), x: foe.x, z: foe.z }); }
+      if (sk.do === 'sweep') { m.units[i].cast = { skill: { do: 'sweep' } }; for (let q = sk.windup; q < sk.windup + sk.dur; q += 0.2) push(t + q, { t: 'beam', id: i, x0: u.x, z0: u.z, x1: u.x + 9, z1: u.z, w: sk.width }); }
       if (sk.do === 'barrage') for (let k = 0; k < 5; k++) push(t + 0.9 + k * 0.2, { t: 'explode', x: u.x + 5 + k, z: u.z, r: 3, why: 'strike' });
     }
   });
@@ -267,8 +323,8 @@ function fightScript(seed) {
   ev.sort((a, b) => a.t - b.t);
   return { m, ev };
 }
-window.__mixdown = async (seed = 1) => {
-  const { m, ev } = fightScript(seed);
+window.__mixdown = async (seed = 1, kinds) => {
+  const { m, ev } = fightScript(seed, kinds);
   const G = { params: {}, match: { map: { theme: 'jungle' }, units: m.units, towers: m.towers, duration: 480, time: 100 }, me: 0 };
   const ctx = mkCtx(20);
   const { a, comp } = await engine(ctx, G);
@@ -283,6 +339,42 @@ window.__mixdown = async (seed = 1) => {
   return out;
 };
 window.__mixdownWav = () => { const b = window.__lastMix; return wavB64([b.getChannelData(0), b.getChannelData(1)], SR); };
+
+// Held voices: a flamethrower firing every 0.12 s, a link ray every 0.25 s and a sweep pulsing every 0.2 s must each sound as one continuous run, and stop soon after the last event.
+window.__sustainProbe = async () => {
+  const m = { units: [{ team: 0, mech: 'hacho' }, { team: 0, mech: 'hoalong', cast: { skill: { do: 'sweep' } } }], zones: [] };
+  const G = { params: {}, match: null, me: 0 };
+  // The offline mix carries the always-on music bed. Render the same mix with no events and subtract it sample by sample, so only the held voice is measured.
+  const quiet = async (last) => { const ctx = mkCtx(last + 2.5); const { a } = await engine(ctx, G); a.setListener(0, 0); return ctx.startRendering(); };
+  const run = async (emit, last) => {
+    const ctx = mkCtx(last + 2.5);
+    const { a } = await engine(ctx, G);
+    a.setListener(0, 0);
+    emit(a);
+    const buf = await ctx.startRendering(), q = await quiet(last);
+    const d = [0, 1].map((c) => { const x = buf.getChannelData(c), y = q.getChannelData(c), o = new Float32Array(x.length); for (let i = 0; i < x.length; i++) o[i] = x[i] - y[i]; return o; });
+    const win = (t0, t1) => { let sq = 0; const i0 = Math.round(t0 * SR), i1 = Math.round(t1 * SR); for (const c of d) for (let i = i0; i < i1; i++) sq += c[i] * c[i]; return Math.sqrt(sq / (2 * (i1 - i0))); };
+    const body = [], tail = [];
+    for (let t = 0.5; t + 0.05 <= last; t += 0.05) body.push(win(t, t + 0.05));
+    for (let t = last + 0.9; t + 0.05 <= last + 1.5; t += 0.05) tail.push(win(t, t + 0.05));
+    return { buf, min: Math.min(...body), max: Math.max(...body), mean: body.reduce((x, y) => x + y, 0) / body.length, after: tail.reduce((x, y) => x + y, 0) / tail.length, peak: mixStats(buf).peak };
+  };
+  const flame = await run((a) => { for (let t = 0.2; t < 3; t += 0.12) a.event({ t: 'fire', id: 0, vis: 'flame', x: 4, z: 0, a: 0, side: 0 }, m, 1, t); }, 3);
+  const ray = await run((a) => { for (let t = 0.2; t < 3; t += 0.25) a.event({ t: 'ray', id: 0, x0: 4, z0: 0, x1: 9, z1: 0, on: 'ally' }, m, 1, t); }, 3);
+  const sweep = await run((a) => { for (let t = 0.2; t < 3; t += 0.2) a.event({ t: 'beam', id: 1, x0: 4, z0: 0, x1: 9, z1: 0, w: 1.2 }, m, 1, t); }, 3);
+  // Each held sound in one file for listening: flame, ray, sweep, 3 s each with a 2.5 s tail.
+  window.__lastMix = await (async () => {
+    const ctx = mkCtx(12);
+    const { a } = await engine(ctx, G);
+    a.setListener(0, 0);
+    for (let t = 0.2; t < 3; t += 0.12) a.event({ t: 'fire', id: 0, vis: 'flame', x: 4, z: 0, a: 0, side: 0 }, m, 1, t);
+    for (let t = 4.2; t < 7; t += 0.25) a.event({ t: 'ray', id: 0, x0: 4, z0: 0, x1: 9, z1: 0, on: 'ally' }, m, 1, t);
+    for (let t = 8.2; t < 11; t += 0.2) a.event({ t: 'beam', id: 1, x0: 4, z0: 0, x1: 9, z1: 0, w: 1.2 }, m, 1, t);
+    return ctx.startRendering();
+  })();
+  const pick = (r) => ({ min: r.min, max: r.max, mean: r.mean, after: r.after, peak: r.peak });
+  return { flame: pick(flame), ray: pick(ray), sweep: pick(sweep) };
+};
 
 // One context, five probes of the same heavy shot 2 s apart: own, far right, far left, out of range, near.
 window.__mixProbe = async () => {
@@ -342,12 +434,19 @@ window.__audioBoot = async () => {
     m.units[0].x = 0; m.units[0].z = 0;
     for (const t of Object.keys(SAMPLE)) a.event(SAMPLE[t]({}), m, 0);
     for (const mech of Object.values(MECHS)) {
-      a.event(SAMPLE.fire({ vis: mech.weapon.vis }), m, 0);
+      a.event(mech.weapon.ray ? SAMPLE.ray({}) : SAMPLE.fire({ vis: mech.weapon.vis }), m, 0);
       for (const s of mech.skills) a.event(SAMPLE.skill({ skill: s.id }), m, 0);
     }
-    for (const k of ['mine', 'field', 'dome', 'wall', 'turret']) { a.event(SAMPLE.zone({ kind: k }), m, 0); a.event(SAMPLE.zoneEnd({ kind: k }), m, 0); }
-    for (const id of [10, 11, 12, 13]) a.event(SAMPLE.zone({ kind: id === 13 ? 'strike' : 'field', id }), m, 0);
-    for (const id of [3, 4]) a.event(SAMPLE.nova({ id }), m, 0);
+    for (const k of ['mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire']) { a.event(SAMPLE.zone({ kind: k }), m, 0); a.event(SAMPLE.zoneEnd({ kind: k }), m, 0); }
+    for (const id of [10, 11, 12, 13, 20, 21]) a.event(SAMPLE.zone({ kind: id === 13 ? 'strike' : 'field', id }), m, 0);
+    a.event(SAMPLE.zone({ kind: 'wall', id: 22 }), m, 0); a.event(SAMPLE.zoneEnd({ kind: 'wall', id: 22 }), m, 0);
+    for (const id of [3, 4, 7]) a.event(SAMPLE.nova({ id }), m, 0);
+    for (const id of [1, 5, 6]) a.event(SAMPLE.beam({ id }), m, 0);
+    for (const on of ['ally', 'foe', 'tower', 'none']) a.event(SAMPLE.ray({ on }), m, 0);
+    for (const on of ['bounce', 'screen', 'decoy', 'wall', 'unit']) a.event(SAMPLE.impact({ on, vis: 'disc' }), m, 0);
+    a.event(SAMPLE.stance({ on: 0 }), m, 0); a.event(SAMPLE.bless({ skill: 'tiepsuc' }), m, 0);
+    for (const ev of ['hook', 'swap', 'rally', 'leap', 'mark', 'warp', 'zap', 'execute']) a.event(SAMPLE[ev](), m, 0);
+    a.event(SAMPLE.explode({ why: 'decoy' }), m, 0);
     a.event(SAMPLE.towerDown({ kind: 'main' }), m, 0);
     a.event({ t: 'fire', id: 9, vis: 'bullet', x: 100, z: 0 }, m, 0);
     for (const n of A.UI_NAMES) a.ui(n);
@@ -418,12 +517,21 @@ function wavB64(chans, sr) {
   return btoa(s);
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
-window.__exportAll = async () => {
+window.__exportAll = async (onlyExt) => {
   const out = [];
   for (const name of Object.keys(A.SOUNDS)) {
     const S = A.SOUNDS[name];
+    if (onlyExt && !S.ext) continue;
     for (let v = 0; v < S.n; v++) out.push({ file: `sfx/${S.bus}/${name}${S.n > 1 ? '_' + v : ''}.wav`, b64: wavB64([A.renderSound(name, v, SR)], SR) });
     await tick();
+  }
+  if (onlyExt) {
+    // Held sounds are heard as a run, not a buffer: a 3 s flame and ray, and a busy fight of the new mechs.
+    await window.__sustainProbe();
+    out.push({ file: 'mix/held-flame-ray-sweep-3s.wav', b64: window.__mixdownWav() });
+    await window.__mixdown(3, NEW_KINDS);
+    out.push({ file: 'mix/busy-fight-new-mechs-20s.wav', b64: window.__mixdownWav() });
+    return out;
   }
   for (const name of Object.keys(A.STEMS)) { const { chans } = A.renderStem(name, A.MUSIC_SR); out.push({ file: `music/${name}.wav`, b64: wavB64(chans, A.MUSIC_SR) }); await tick(); }
   for (const name of Object.keys(A.BEDS)) { const { chans, sr } = A.renderBed(name); out.push({ file: `amb/${name}.wav`, b64: wavB64(chans, sr) }); await tick(); }

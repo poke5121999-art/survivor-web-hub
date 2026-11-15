@@ -15,15 +15,18 @@ const check = (name, cond, detail = '') => {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
 const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT'];
+const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
   strike: ['r', 'age', 'delay', 'total', 'lob', 'x0', 'z0'],
   mine: ['r', 'age', 'delay', 'dur', 'blast'],
-  field: ['r', 'age', 'delay', 'dur', 'vis', 'hide', 'pull', 'hps', 'dps', 'slow'],
+  field: ['r', 'age', 'delay', 'dur', 'vis', 'hide', 'pull', 'hps', 'dps', 'slow', 'cage', 'held'],
   dome: ['r', 'age', 'delay', 'dur'],
-  wall: ['r', 'age', 'delay', 'dur', 'a'],
+  wall: ['r', 'age', 'delay', 'dur', 'a', 'screen'],
   turret: ['r', 'age', 'delay', 'dur', 'hp', 'maxHp', 'aim', 'range'],
+  decoy: ['r', 'age', 'delay', 'dur', 'hp', 'maxHp', 'aim'],
+  drone: ['r', 'age', 'delay', 'dur'],
+  wire: ['r', 'age', 'delay', 'dur', 'left'],
 };
 
 // Every difference between the real match and the mirror, as strings.
@@ -43,7 +46,7 @@ function diff(real, mir) {
     eq(w + 'x', u.x, o.x, 0.02); eq(w + 'z', u.z, o.z, 0.02);
     eq(w + 'aim', turn(u.aim, o.aim), 0, 0.0006); eq(w + 'heading', turn(u.heading, o.heading), 0, 0.0056);
     eq(w + 'hp', u.hp, o.hp, 1); eq(w + 'maxHp', u.maxHp, o.maxHp, 0); eq(w + 'alive', u.alive, o.alive);
-    eq(w + 'bot', u.bot, o.bot); eq(w + 'dash', !!u.dash, !!o.dash);
+    eq(w + 'bot', u.bot, o.bot); eq(w + 'dash', !!u.dash, !!o.dash); eq(w + 'stance', !!u.stance, !!o.stance);
     for (const k of TIMERS) eq(w + k, u[k], o[k]);
     for (const k of COUNTS) eq(w + k, u[k], o[k], 0);
     for (const k in u.cd) eq(w + 'cd.' + k, u.cd[k], o.cd[k]);
@@ -80,7 +83,7 @@ function diff(real, mir) {
       else if (k === 'aim' || k === 'a') eq(w + k, turn(rv, o[k]), 0, 0.0006);
       else eq(w + k, rv, o[k], k === 'hp' ? 1 : 0.011);
     }
-    if (z.kind === 'wall') {
+    if (z.kind === 'wall' || z.kind === 'wire') {
       eq(w + 'pts', z.pts.length, o.pts.length, 0);
       z.pts.forEach((p, i) => { eq(w + 'pts.x', p[0], o.pts[i][0], 0.011); eq(w + 'pts.z', p[1], o.pts[i][1], 0.011); });
     }
@@ -97,7 +100,7 @@ const wireEvents = (events) => JSON.parse(JSON.stringify(events, (k, v) => (type
 function makeRoster(mode, diff) {
   const mech = (i) => MECH_ORDER[i % MECH_ORDER.length];
   const out = [];
-  for (let i = 0; i < 5; i++) out.push({ team: 0, mech: mech(i), name: 'A' + i, bot: true, diff, mods: i === 0 ? { hp: 1.2, dmg: 1.2 } : undefined, paint: i === 1 ? 'vang' : null });
+  for (let i = 0; i < 5; i++) out.push({ team: 0, mech: mech(i), name: 'A' + i, bot: true, diff, mods: i === 0 ? { hp: 1.2, dmg: 1.2 } : i === 2 ? { lv: [5, 4, 3, 2, 5] } : undefined, paint: i === 1 ? 'vang' : null, glow: i === 1 ? 'tim' : null, decal: i === 3 ? 'sao' : null });
   if (mode === 'trum') out.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
   else for (let i = 0; i < 5; i++) out.push({ team: 1, mech: mech(i + 3), name: 'B' + i, bot: true, diff });
   return out;
@@ -218,9 +221,9 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
     snaps += t.snaps; evTotal += t.events;
     if (t.bad.length || t.lost || !t.newShotOk || !t.pxOk || t.hidBad) { bad++; first.push(`${key}.${keyName}: ${t.bad[0] || 'order/px/shots'}`); }
   }
-  check(`skills: 24 casts mirrored over ${snaps} snapshots, ${evTotal} events`, bad === 0, first.slice(0, 3).join(' | '));
+  check(`skills: ${MECH_ORDER.length * 3} casts mirrored over ${snaps} snapshots, ${evTotal} events`, bad === 0, first.slice(0, 3).join(' | '));
 }
-check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret'].every((k) => seenKinds.has(k)));
+check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire'].every((k) => seenKinds.has(k)));
 
 console.log('\n# snapshot size');
 {

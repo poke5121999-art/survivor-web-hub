@@ -59,17 +59,20 @@ function* fill(R, sr, out) {
 }
 
 // Removes DC drift, softens the first/last samples so buffers never click, then normalises to peak 0.9 (levels live in the table's `vol`).
-function* finish(chans, sr, tailMs = 8) {
+function* finish(chans, sr, tailMs = 8, loop = false) {
   let peak = 0;
   for (const a of chans) {
-    let xp = 0, yp = 0;
-    for (let i = 0; i < a.length; i++) {
-      const x = a[i]; yp = x - xp + 0.995 * yp; xp = x; a[i] = yp;
-      if ((i & 32767) === 32767) yield;
+    // A loop must reach its last sample and start at its first without a dip or a filter run-in.
+    if (!loop) {
+      let xp = 0, yp = 0;
+      for (let i = 0; i < a.length; i++) {
+        const x = a[i]; yp = x - xp + 0.995 * yp; xp = x; a[i] = yp;
+        if ((i & 32767) === 32767) yield;
+      }
+      const nf = Math.min(a.length >> 1, Math.round(sr * tailMs / 1000));
+      for (let i = 0; i < nf; i++) a[a.length - 1 - i] *= i / nf;
+      for (let i = 0; i < 16 && i < a.length; i++) a[i] *= i / 16;
     }
-    const nf = Math.min(a.length >> 1, Math.round(sr * tailMs / 1000));
-    for (let i = 0; i < nf; i++) a[a.length - 1 - i] *= i / nf;
-    for (let i = 0; i < 16 && i < a.length; i++) a[i] *= i / 16;
     for (let i = 0; i < a.length; i++) {
       const v = Math.abs(a[i]); if (v > peak) peak = v;
       if ((i & 65535) === 65535) yield;
@@ -1000,14 +1003,543 @@ export const SOUNDS = {
         return l((2 * s1 - 1) + 0.5 * (2 * s2 - 1)) * on * 0.8 + th(t) * ex(-t / 0.5) * 0.9 * (k === 0 ? 1 : 0.4);
       });
     } },
+
+  // ---------- Addendum 5 and 6: the eight new mechs ----------
+  // `ext` marks these for the listening export. `sustain` (seconds) makes a sound a held voice: each event extends it, so a 0.12 s flamethrower is one roar, not a click train.
+  // `loop` is the cross-fade length (s) of a looping buffer; the generator is asked for dur + loop and the tail is folded into the head.
+  fire_howitzer: { ext: true, n: 3, dur: 1.5, bus: 'gun', max: 2, pri: 7, vol: 0.85, duck: 0.35,
+    gen: (sr, r, v, D) => {
+      // All sub: a falling boom with a slow rumble and a low breech ring, no crack at all, so it cannot be mistaken for the shell.
+      const sa = svf(sr), sb = svf(sr), se = svf(sr), mid = svf(sr); // two-pole, so the rumble falls away steeply above 100 Hz
+      const th = swp(70 + v * 5, 18, 10), sub = swp(40, 15, 4), cl = ring(78 + v * 5, [1, 1.9, 3.1], [0.5, 0.3, 0.15], [1, 0.5, 0.25]);
+      return mk(sr, D, (t) => {
+        mid.run(r() * 2 - 1, 260 + v * 20, 1.2); sa.run(r() * 2 - 1, 95 + v * 8, 0.8); sb.run(r() * 2 - 1, 48, 0.8); se.run(r() * 2 - 1, 70, 0.8);
+        const body = sa.lp * 14 * ex(-t / 0.18) * 1.6 + mid.nbp * ex(-t / 0.035) * 0.9; // a short low-mid knock so small speakers still hear it
+        const thump = th(t) * ex(-t / 0.5) * 1.3 + sub(t) * ex(-t / 0.9) * 1.1;
+        const clank = t > 0.08 ? cl(t - 0.08) * 0.6 : 0;
+        const tail = sb.lp * 20 * ex(-t / 0.8) * 1.0 + (t > 0.35 ? se.lp * 17 * ex(-(t - 0.35) / 0.4) * 0.6 : 0);
+        return body + thump + clank + tail;
+      });
+    } },
+  fire_sabot: { ext: true, n: 3, dur: 0.55, bus: 'gun', max: 4, pri: 6, vol: 0.85, duck: 0.1,
+    gen: (sr, r, v, D) => {
+      // The N-wave of a supersonic round: two razor cracks a few ms apart, a thin ring and almost no body.
+      const hp = lp1(sr, 5500), hp2 = lp1(sr, 3200), bp = svf(sr), air = nlp(sr, 3400 + v * 300);
+      const th = swp(230, 80, 80), f = 4300 + v * 350;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1, y = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 6800 * ex(-t * 28) + 2600, 2.5);
+        const c1 = (x - hp(x)) * ex(-t / 0.0011) * 1.7, c2 = t > 0.0034 ? (y - hp2(y)) * ex(-(t - 0.0034) / 0.0016) * 1.2 : 0;
+        const rg = (Math.sin(TAU * f * t) + 0.5 * Math.sin(TAU * f * 1.93 * t)) * ex(-t / 0.075) * 0.32;
+        return c1 + c2 + bp.nbp * ex(-t / 0.03) * 0.8 + rg + th(t) * ex(-t / 0.025) * 0.55 + air(r() * 2 - 1) * ex(-t / 0.14) * 0.3;
+      });
+    } },
+  fire_slug: { ext: true, n: 3, dur: 0.45, bus: 'gun', max: 4, pri: 5, vol: 0.9, duck: 0.12,
+    gen: (sr, r, v, D) => {
+      // A thick thud-shot: the energy sits in the mids, a hollow tock at ~400 Hz with a short wooden knock on top.
+      const hp = lp1(sr, 700), body = svf(sr), knock = nlp(sr, 1500);
+      const f = 380 + v * 25;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        body.run(r() * 2 - 1, 450, 1.4);
+        return Math.tanh(1.5 * (body.nbp * ex(-t / 0.05) * 1.2 + Math.sin(TAU * f * t) * ex(-t / 0.06) * 0.9 + Math.sin(TAU * f * 0.5 * t) * ex(-t / 0.09) * 0.6 + knock(r() * 2 - 1) * ex(-t / 0.012) * 0.7 +
+          (x - hp(x)) * ex(-t / 0.003) * 0.4));
+      });
+    } },
+  fire_hook: { ext: true, n: 3, dur: 0.75, bus: 'gun', max: 3, pri: 5, vol: 0.85,
+    gen: (sr, r, v, D) => {
+      // A launch clank, then the chain paying out: a run of metal ticks that slows and thins.
+      const cl = ring(500 + v * 40, [1, 2.7, 4.4, 6.1], [0.14, 0.1, 0.07, 0.05], [1, 0.6, 0.4, 0.25]), th = swp(210, 70, 40), hp = lp1(sr, 2500), bp = svf(sr);
+      const links = [];
+      let at = 0.05;
+      for (let k = 0; k < 13; k++) { links.push({ t: at, f: rnd(r, 1700, 3300), a: 0.5 * ex(-k * 0.13) + 0.12 }); at += 0.032 + k * 0.004 + r() * 0.012; }
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        let s = 0;
+        for (const q of links) if (t > q.t) { const tt = t - q.t; s += (Math.sin(TAU * q.f * tt) + 0.4 * Math.sin(TAU * q.f * 2.4 * tt)) * ex(-tt / 0.014) * q.a + (x - hp(x)) * ex(-tt / 0.002) * q.a * 0.6; }
+        bp.run(r() * 2 - 1, 600 + 1500 * Math.min(1, t / 0.25), 1.2);
+        return cl(t) * 0.7 + th(t) * ex(-t / 0.05) * 1.1 + s + bp.nbp * ad(t, 0.03, 0.12) * 0.35 + (x - hp(x)) * ex(-t / 0.003) * 0.6;
+      });
+    } },
+  fire_wave: { ext: true, n: 3, dur: 0.32, bus: 'gun', max: 4, pri: 4, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      // Phaser pulse: a fast falling chirp with FM shimmer.
+      const nz = nlp(sr, 3500), f1 = 560 + v * 45;
+      let p = 0, q = 0;
+      return mk(sr, D, (t) => {
+        const g = f1 + 2300 * ex(-t * 22);
+        p += TAU * g / sr; q += TAU * g * 2.01 / sr;
+        return (Math.sin(p + 1.7 * Math.sin(TAU * 86 * t)) * 0.8 + 0.3 * Math.sin(q)) * ad(t, 0.003, 0.085) + nz(r() * 2 - 1) * ex(-t / 0.012) * 0.3 + Math.sin(TAU * f1 * 0.5 * t) * ex(-t / 0.07) * 0.35;
+      });
+    } },
+  fire_flame: { ext: true, n: 3, dur: 0.6, loop: 0.08, sustain: 0.22, bus: 'gun', max: 1, pri: 5, vol: 0.55,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), hiss = svf(sr), lo = nlp(sr, 200), hp = lp1(sr, 3000);
+      let pop = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        if (r() < 0.002) pop = 0.6 + r() * 0.4;
+        pop *= ex(-1 / (sr * 0.003));
+        const flut = 0.72 + 0.28 * Math.sin(TAU * (10 + v * 3) * t + 1.4 * Math.sin(TAU * 2.9 * t));
+        bp.run(r() * 2 - 1, 1000 + 250 * Math.sin(TAU * 2.1 * t + v), 3);
+        hiss.run(r() * 2 - 1, 4000, 0.8);
+        return Math.tanh(1.3 * (bp.nbp * 1.0 * flut + hiss.nbp * 0.2 * flut + lo(r() * 2 - 1) * 0.1 + (x - hp(x)) * pop * 0.25));
+      });
+    } },
+  fire_dart: { ext: true, n: 3, dur: 0.2, bus: 'gun', max: 6, pri: 3, vol: 1,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 6500), bp = svf(sr), th = swp(300, 120, 100);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        p += TAU * (3300 + v * 200 + 2600 * (1 - ex(-t * 90))) / sr;
+        bp.run(r() * 2 - 1, 5200, 2);
+        return (x - hp(x)) * ex(-t / 0.0014) * 1.2 + Math.sin(p) * ex(-t / 0.022) * 0.5 + bp.nbp * ex(-t / 0.01) * 0.45 + th(t) * ex(-t / 0.015) * 0.3;
+      });
+    } },
+  fire_disc: { ext: true, n: 3, dur: 0.55, bus: 'gun', max: 4, pri: 5, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      // A metal disc leaves the launcher: spin whirr that falls away, a shing and a short whoosh.
+      const bp = svf(sr), hp = lp1(sr, 2500), th = swp(190, 80, 50), shing = ring(1450 + v * 110, [1, 2.32, 4.1, 6.4], [0.22, 0.15, 0.1, 0.06], [1, 0.6, 0.4, 0.25]);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        p += TAU * (900 + 900 * ex(-t * 6)) / sr;
+        bp.run(r() * 2 - 1, 500 + 3300 * (1 - ex(-t * 9)) * ex(-t * 1.5), 1.3);
+        const spin = (Math.sin(p) + 0.4 * Math.sin(2.02 * p)) * (0.55 + 0.45 * Math.sin(TAU * 62 * t)) * ad(t, 0.012, 0.13);
+        return spin * 0.55 + shing(t) * 0.55 + bp.nbp * ad(t, 0.02, 0.1) * 0.9 + th(t) * ex(-t / 0.03) * 0.6 + (x - hp(x)) * ex(-t / 0.003) * 0.6;
+      });
+    } },
+  fire_lance: { ext: true, n: 3, dur: 1.1, bus: 'gun', max: 2, pri: 7, vol: 0.9, duck: 0.25,
+    gen: (sr, r, v, D) => {
+      // Charge-beam release: a shot of bright zap falling over a deep sub thump, then a long high burn with nothing in the middle.
+      const hp = lp1(sr, 5000), hp2 = lp1(sr, 7000), th = swp(120, 34, 20);
+      let p1 = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1, y = r() * 2 - 1;
+        p1 += TAU * (7500 * ex(-t * 10) + 520 + v * 30) / sr;
+        return Math.sin(p1) * ex(-t / 0.3) * 0.6 + th(t) * ex(-t / 0.22) * 1.3 + (y - hp2(y)) * ad(t, 0.01, 0.45) * 0.9 + (x - hp(x)) * ex(-t / 0.005) * 0.9 + Math.sin(TAU * 62 * t) * ex(-t / 0.3) * 0.6;
+      });
+    } },
+  charge_hum: { ext: true, n: 1, dur: 0.5, loop: 0, sustain: 0.14, bus: 'world', max: 1, pri: 5, vol: 0.4,
+    // Whole cycles in 0.5 s so the loop is seamless; the engine bends the pitch up with the charge.
+    gen: (sr, r, v, D) => mk(sr, D, (t) => {
+      let s = 0;
+      for (let k = 1; k <= 5; k++) s += Math.sin(TAU * 110 * k * t) / k;
+      return s * 0.7 + Math.sin(TAU * 220 * t + 0.8) * 0.25 + Math.sin(TAU * 1400 * t) * (0.5 + 0.5 * Math.sin(TAU * 8 * t)) * 0.18;
+    }) },
+
+  ray_heal: { ext: true, n: 1, dur: 0.5, loop: 0, sustain: 0.38, bus: 'world', max: 1, pri: 4, vol: 0.32,
+    gen: (sr, r, v, D) => mk(sr, D, (t) => (Math.sin(TAU * 660 * t) + 0.55 * Math.sin(TAU * 990 * t) + 0.2 * Math.sin(TAU * 1320 * t)) * (0.75 + 0.25 * Math.sin(TAU * 6 * t))) },
+  ray_zap: { ext: true, n: 1, dur: 0.5, loop: 0.06, sustain: 0.38, bus: 'world', max: 1, pri: 4, vol: 0.4,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 2500), step = Math.round(sr / 900);
+      let gate = 1;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) gate = r() > 0.35 ? 1 : 0;
+        const x = r() * 2 - 1;
+        return (x - hp(x)) * gate * 0.8 + Math.sin(TAU * 1900 * t + 3 * Math.sin(TAU * 97 * t)) * 0.25 * (0.6 + 0.4 * Math.sin(TAU * 13 * t)) + Math.sin(TAU * 100 * t) * 0.3;
+      });
+    } },
+  ray_idle: { ext: true, n: 1, dur: 0.5, loop: 0.06, sustain: 0.38, bus: 'world', max: 1, pri: 3, vol: 0.3,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      return mk(sr, D, (t) => { bp.run(r() * 2 - 1, 1500, 2); return bp.nbp * (0.7 + 0.3 * Math.sin(TAU * 4 * t)) * 0.6 + Math.sin(TAU * 440 * t) * 0.12; });
+    } },
+  beam_sweep: { ext: true, n: 1, dur: 0.5, loop: 0.08, sustain: 0.3, bus: 'world', max: 1, pri: 7, vol: 0.55,
+    gen: (sr, r, v, D) => {
+      // The Thiên Hỏa Tuyến pulses every 0.2 s: one furnace roar while it burns.
+      const bp = svf(sr), hp = lp1(sr, 3500), lo = nlp(sr, 120);
+      return mk(sr, D, (t) => {
+        let s = 0;
+        for (let k = 1; k <= 6; k++) s += Math.sin(TAU * 110 * k * t) / k;
+        bp.run(r() * 2 - 1, 900 + 400 * Math.sin(TAU * 4 * t), 0.9);
+        const x = r() * 2 - 1;
+        return s * 0.5 * (0.8 + 0.2 * Math.sin(TAU * 12 * t)) + bp.nbp * 0.7 + (x - hp(x)) * 0.25 + lo(r() * 2 - 1) * 0.8;
+      });
+    } },
+
+  imp_ping: { ext: true, n: 3, dur: 0.3, bus: 'world', max: 3, pri: 2, vol: 0.4, gap: 0.05,
+    gen: (sr, r, v, D) => {
+      const f0 = 2200 + v * 420 + r() * 80, hp = lp1(sr, 4000);
+      const R = [1, 2.76, 5.4], T = [0.09, 0.05, 0.03];
+      return mk(sr, D, (t) => { let s = 0; for (let k = 0; k < 3; k++) s += Math.sin(TAU * f0 * R[k] * t) * ex(-t / T[k]) * (1 - k * 0.3); const x = r() * 2 - 1; return s * 0.7 + (x - hp(x)) * ex(-t / 0.002) * 0.6; });
+    } },
+  imp_absorb: { ext: true, n: 2, dur: 0.4, bus: 'world', max: 3, pri: 3, vol: 0.45, gap: 0.04,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), th = swp(165, 65, 40);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (1900 * ex(-t * 7) + 340 + v * 40) / sr;
+        bp.run(r() * 2 - 1, 1200, 1.5);
+        return Math.sin(p) * ex(-t / 0.12) * (0.6 + 0.4 * Math.sin(TAU * 30 * t)) + bp.nbp * ex(-t / 0.05) * 0.5 + th(t) * ex(-t / 0.06) * 0.9;
+      });
+    } },
+  imp_holo: { ext: true, n: 2, dur: 0.25, bus: 'world', max: 3, pri: 2, vol: 0.4, gap: 0.04,
+    gen: (sr, r, v, D) => {
+      const step = Math.round(sr / 3000);
+      let held = 0, p = 0;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) held = Math.round((r() * 2 - 1) * 4) / 4;
+        p += TAU * (2400 * ex(-t * 14) + 300 + v * 60) / sr;
+        return held * ex(-t / 0.03) * 0.9 + Math.round(Math.sin(p) * 4) / 4 * ex(-t / 0.07) * 0.5;
+      });
+    } },
+  hook_clamp: { ext: true, n: 2, dur: 0.5, bus: 'world', max: 2, pri: 6, vol: 0.85,
+    gen: (sr, r, v, D) => {
+      // Two jaw halves close 22 ms apart, then the reel bites.
+      const hp = lp1(sr, 2200), bp = svf(sr), th = swp(145, 48, 40), R = [1, 2.7, 4.4], T = [0.1, 0.07, 0.05];
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        let s = 0;
+        for (const t0 of [0, 0.022]) if (t >= t0) { const tt = t - t0; for (let k = 0; k < 3; k++) s += Math.sin(TAU * (880 + v * 90) * R[k] * tt) * ex(-tt / T[k]) * (0.9 - k * 0.25); s += (x - hp(x)) * ex(-tt / 0.002) * 0.9; }
+        bp.run(r() * 2 - 1, 2400, 1.5);
+        return s * 0.6 + th(t) * ex(-t / 0.07) * 1.2 + (t > 0.05 ? bp.nbp * ex(-(t - 0.05) / 0.05) * 0.4 : 0);
+      });
+    } },
+  sk_swap: { ext: true, n: 1, dur: 0.6, bus: 'world', max: 2, pri: 6, vol: 0.75,
+    gen: (sr, r, v, D) => {
+      // Two whooshes, one rising and one falling, as the mechs trade places.
+      const bp = svf(sr), th = swp(130, 50, 40);
+      return mk(sr, D, (t) => {
+        const a = clamp(t / 0.28, 0, 1), b = clamp((t - 0.17) / 0.28, 0, 1);
+        const e1 = t < 0.28 ? Math.pow(Math.sin(Math.PI * a), 2) : 0, e2 = t > 0.17 && t < 0.45 ? Math.pow(Math.sin(Math.PI * b), 2) : 0;
+        bp.run(r() * 2 - 1, e2 > e1 ? 2800 - 2400 * b : 400 + 2400 * a, 1.4);
+        return bp.nbp * (e1 + e2) * 1.1 + th(t) * ex(-t / 0.06) * 0.6 + (t > 0.17 ? th(t - 0.17) * ex(-(t - 0.17) / 0.06) * 0.5 : 0);
+      });
+    } },
+  st_plant: { ext: true, n: 1, dur: 1.0, bus: 'world', max: 2, pri: 6, vol: 0.85, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      // Hydraulic siege stance: an air hiss and a falling servo whine, then the legs hit the ground and lock.
+      const bp = svf(sr), th = swp(112, 34, 18), c1 = ring(150, [1, 2.3, 3.7], [0.3, 0.2, 0.12]), c2 = ring(260, [1, 2.7, 4.1], [0.12, 0.08, 0.05]), hp = lp1(sr, 2000);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 4200, 0.8);
+        p += TAU * (900 - 650 * clamp(t / 0.2, 0, 1)) / sr;
+        const hiss = bp.nbp * (t < 0.5 ? ad(t, 0.01, 0.22) : 0) * 0.6, whine = t < 0.2 ? Math.sin(p) * 0.35 * Math.min(1, t / 0.02) : 0;
+        const land = t > 0.18 ? th(t - 0.18) * ex(-(t - 0.18) / 0.2) * 1.3 + c1(t - 0.18) * 0.5 + (x - hp(x)) * ex(-(t - 0.18) / 0.01) * 0.7 : 0;
+        const lock = t > 0.36 ? c2(t - 0.36) * 0.6 + (x - hp(x)) * ex(-(t - 0.36) / 0.004) * 0.6 : 0;
+        return hiss + whine + land + lock;
+      });
+    } },
+  st_release: { ext: true, n: 1, dur: 0.7, bus: 'world', max: 2, pri: 5, vol: 0.7,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), hp = lp1(sr, 2500), th = swp(95, 40, 25);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 3000 + 1200 * clamp(t / 0.4, 0, 1), 0.9);
+        p += TAU * (250 + 600 * clamp(t / 0.4, 0, 1)) / sr;
+        let k = 0;
+        for (const t0 of [0.05, 0.12]) if (t > t0) k += ((x - hp(x)) * 0.9 + Math.sin(TAU * 1500 * (t - t0)) * 0.5) * ex(-(t - t0) / 0.004);
+        return bp.nbp * ad(t, 0.02, 0.2) * 0.5 + (t < 0.4 ? Math.sin(p) * 0.3 : 0) + k + (t > 0.42 ? th(t - 0.42) * ex(-(t - 0.42) / 0.1) * 0.8 : 0);
+      });
+    } },
+  sk_bless_shield: { ext: true, n: 1, dur: 1.1, bus: 'world', max: 2, pri: 5, vol: 0.65,
+    gen: (sr, r, v, D) => {
+      const list = [1568, 2093, 2637, 3136, 4186].map((f, i) => ({ f, t: i * 0.07, d: 0.34, w: W.bell, g: 0.9 - i * 0.1 }));
+      list.push({ f: 523.25, t: 0, d: 0.5, w: W.soft, a: 0.12, g: 0.4 }, { f: 783.99, t: 0.05, d: 0.5, w: W.soft, a: 0.12, g: 0.3 });
+      return tones(sr, D, list);
+    } },
+  sk_bless_boost: { ext: true, n: 1, dur: 0.8, bus: 'world', max: 2, pri: 5, vol: 0.65,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), list = [2349, 3136, 3951].map((f, i) => ({ f, t: 0.14 + i * 0.05, d: 0.22, w: W.bell, g: 0.8 }));
+      let p = 0;
+      return add(tones(sr, D, list), (t) => { p += TAU * (500 + 3500 * clamp(t / 0.22, 0, 1)) / sr; bp.run(r() * 2 - 1, 800 + 4000 * clamp(t / 0.22, 0, 1), 1.5); return t < 0.3 ? Math.sin(p) * Math.sin(Math.PI * clamp(t / 0.3, 0, 1)) * 0.4 + bp.nbp * Math.sin(Math.PI * clamp(t / 0.3, 0, 1)) * 0.3 : 0; });
+    } },
+  sk_rally: { ext: true, n: 1, dur: 1.8, bus: 'world', max: 2, pri: 6, vol: 0.75, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      const list = [[220, 1], [277.18, 0.8], [329.63, 0.8], [440, 0.7], [554.37, 0.5]].map(([f, g], i) => ({ f, t: i * 0.03, d: 0.7, w: W.soft, a: 0.35, g }));
+      list.push({ f: 110, t: 0, d: 0.8, w: W.sin, a: 0.3, g: 0.9 }, { f: 1760, t: 0.4, d: 0.6, w: W.bell, a: 0.05, g: 0.25 });
+      return tones(sr, D, list);
+    } },
+  sk_leap: { ext: true, n: 1, dur: 0.6, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), th = swp(145, 45, 40);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        bp.run(r() * 2 - 1, 250 + 2900 * Math.pow(clamp(t / 0.4, 0, 1), 1.5), 1.4);
+        p += TAU * (170 + 430 * (1 - ex(-t * 10))) / sr;
+        return th(t) * ex(-t / 0.07) * 1.1 + bp.nbp * Math.sin(Math.PI * clamp(t / 0.5, 0, 1)) * 0.9 + Math.sin(p) * ex(-t / 0.15) * 0.4;
+      });
+    } },
+  sk_leap_land: { ext: true, n: 1, dur: 0.9, bus: 'world', max: 2, pri: 6, vol: 0.85, duck: 0.2,
+    gen: (sr, r, v, D) => {
+      const base = blast(sr, r, { fc0: 2200, fc1: 260, fk: 10, dec: 0.25, th0: 85, th1: 28, thk: 20, thd: 0.25, thA: 1.2, rum: 0.35, rumA: 0.6, debris: 5, dAt: 0.08, dSpan: 0.4 });
+      const hp = lp1(sr, 3000);
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        let claw = 0;
+        for (const t0 of [0.03, 0.06, 0.09]) if (t > t0) claw += ((x - hp(x)) + Math.sin(TAU * 1100 * (t - t0))) * ex(-(t - t0) / 0.005) * 0.3;
+        return base(t) + claw;
+      });
+    } },
+  sk_mark: { ext: true, n: 1, dur: 1.5, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      // Death sentence: a tritone drone swells under two lock-on beeps and a heartbeat.
+      const th = swp(80, 38, 18);
+      const list = [{ f: 98, t: 0, d: 0.55, w: W.brass, a: 0.5, g: 0.7 }, { f: 138.6, t: 0, d: 0.55, w: W.brass, a: 0.5, g: 0.6 }, { f: 49, t: 0, d: 0.8, w: W.sin, a: 0.4, g: 0.8 }];
+      let p = 0;
+      return add(tones(sr, D, list), (t) => {
+        let s = 0;
+        for (const t0 of [0.45, 0.7]) if (t > t0) s += th(t - t0) * ex(-(t - t0) / 0.1) * 0.9;
+        for (const [t0, f] of [[0.85, 1400], [1.0, 880]]) if (t > t0) { p = TAU * f * (t - t0); s += Math.sin(p) * ex(-(t - t0) / 0.06) * 0.5; }
+        return s;
+      });
+    } },
+  sk_warp: { ext: true, n: 1, dur: 0.4, bus: 'world', max: 3, pri: 5, vol: 0.7, gap: 0.05,
+    gen: (sr, r, v, D) => {
+      const th = swp(220, 60, 45), hp = lp1(sr, 3500);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        p += TAU * (2600 * ex(-t * 40) + 260) / sr;
+        return Math.sin(p) * ex(-t / 0.05) * 1.0 + (x - hp(x)) * ex(-t / 0.006) * 0.8 + th(t) * ex(-t / 0.05) * 0.8 + Math.sin(TAU * 3100 * t) * ex(-t / 0.15) * 0.2;
+      });
+    } },
+  wire_zap: { ext: true, n: 3, dur: 0.5, bus: 'world', max: 3, pri: 5, vol: 0.75, gap: 0.04,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 2500), step = Math.round(sr / 1100);
+      let gate = 1, p = 0;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) gate = r() > 0.45 ? 1 : 0;
+        const x = r() * 2 - 1;
+        p += TAU * (950 * ex(-t * 10) + 320 + v * 30) / sr;
+        return (x - hp(x)) * ex(-t / 0.003) * 1.2 + (x - hp(x)) * gate * ex(-t / 0.1) * 0.6 + Math.sin(p + 4 * Math.sin(TAU * 131 * t)) * ex(-t / 0.15) * 0.6 + Math.sin(TAU * 100 * t) * ex(-t / 0.12) * 0.5;
+      });
+    } },
+  hit_execute: { ext: true, n: 1, dur: 1.0, bus: 'world', max: 2, pri: 8, vol: 1, duck: 0.35,
+    gen: (sr, r, v, D) => {
+      const base = blast(sr, r, { fc0: 1800, fc1: 200, fk: 8, dec: 0.3, th0: 70, th1: 22, thk: 12, thd: 0.4, thA: 1.3, rum: 0.6, rumA: 0.9, debris: 6, dAt: 0.05, dSpan: 0.4 });
+      const cr = ring(180, [1, 2.35, 3.71, 5.12], [0.5, 0.3, 0.2, 0.12], [1, 0.7, 0.5, 0.35]), hp = lp1(sr, 3000), bp = svf(sr);
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 3000 * ex(-t * 10) + 500, 1.2);
+        return base(t) + cr(t) * 0.4 + (x - hp(x)) * ex(-t / 0.003) * 0.8 + bp.nbp * ex(-t / 0.12) * 0.6;
+      });
+    } },
+  expl_decoy: { ext: true, n: 2, dur: 0.7, bus: 'world', max: 3, pri: 4, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      // A hologram collapsing: bit-crushed static, a falling blip and a scatter of glassy pings.
+      const th = swp(260, 70, 50), step = Math.round(sr / 4000), pings = [];
+      for (let k = 0; k < 6; k++) pings.push({ t: r() * 0.12, f: rnd(r, 2500, 7000), d: rnd(r, 0.08, 0.2), a: rnd(r, 0.2, 0.4) });
+      let held = 0, p = 0;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) held = Math.round((r() * 2 - 1) * 4) / 4;
+        p += TAU * (1800 * ex(-t * 10) + 200) / sr;
+        let s = 0;
+        for (const q of pings) if (t > q.t) s += Math.sin(TAU * q.f * (t - q.t)) * ex(-(t - q.t) / q.d) * q.a;
+        return held * ex(-t / 0.09) * 0.8 + Math.sin(p) * ex(-t / 0.2) * 0.5 + th(t) * ex(-t / 0.04) * 0.8 + s;
+      });
+    } },
+  decoy_spawn: { ext: true, n: 1, dur: 0.4, bus: 'world', max: 3, pri: 2, vol: 0.35, gap: 0.08,
+    gen: (sr, r, v, D) => {
+      const step = Math.round(sr * 0.012);
+      let f = 600, p = 0;
+      return mk(sr, D, (t, i) => {
+        if (i % step === 0) f = 600 + 1800 * clamp(t / 0.2, 0, 1) * (0.9 + 0.2 * r());
+        p += TAU * f / sr;
+        return Math.round(Math.sin(p) * 6) / 6 * ad(t, 0.01, 0.1) * 0.8 + Math.sin(TAU * 3200 * t) * ex(-t / 0.1) * 0.2;
+      });
+    } },
+  sk_decoy: { ext: true, n: 1, dur: 0.8, bus: 'world', max: 2, pri: 5, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      const list = [880, 1318.5, 1760].map((f, i) => ({ f, t: 0.1 + i * 0.07, d: 0.25, w: W.fm, g: 0.7 }));
+      const bp = svf(sr), th = swp(160, 60, 40);
+      return add(tones(sr, D, list), (t) => { bp.run(r() * 2 - 1, 500 + 3500 * clamp(t / 0.25, 0, 1), 1.6); return bp.nbp * Math.sin(Math.PI * clamp(t / 0.35, 0, 1)) * 0.5 + th(t) * ex(-t / 0.05) * 0.5; });
+    } },
+  sk_mirage: { ext: true, n: 1, dur: 1.3, bus: 'world', max: 2, pri: 6, vol: 0.75,
+    gen: (sr, r, v, D) => {
+      const list = [];
+      [[0, 659.25], [0.15, 880], [0.3, 1318.5]].forEach(([t, f]) => { list.push({ f, t, d: 0.5, w: W.fm, a: 0.05, g: 0.7 }, { f: f * 2.01, t: t + 0.04, d: 0.4, w: W.bell, g: 0.3 }); });
+      const bp = svf(sr);
+      return add(tones(sr, D, list), (t) => { bp.run(r() * 2 - 1, 600 + 4000 * clamp(t / 0.6, 0, 1), 1.4); return bp.nbp * Math.sin(Math.PI * clamp(t / 0.7, 0, 1)) * 0.5 + Math.sin(TAU * 110 * t) * ex(-t / 0.4) * 0.5; });
+    } },
+  sk_drone: { ext: true, n: 1, dur: 1.0, bus: 'world', max: 2, pri: 4, vol: 0.55,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (180 + 260 * (1 - ex(-t * 3))) / sr;
+        bp.run(r() * 2 - 1, 2500, 1.5);
+        return (Math.sin(p) + 0.5 * Math.sin(2 * p) + 0.25 * Math.sin(3 * p)) * (0.6 + 0.4 * Math.sin(TAU * 47 * t)) * ad(t, 0.25, 0.5) * 0.7 + bp.nbp * ad(t, 0.1, 0.3) * 0.3 + Math.sin(TAU * 2800 * t) * ex(-t / 0.08) * 0.3;
+      });
+    } },
+  drone_down: { ext: true, n: 1, dur: 0.5, bus: 'world', max: 2, pri: 2, vol: 0.4,
+    gen: (sr, r, v, D) => {
+      let p = 0;
+      return mk(sr, D, (t) => { p += TAU * (90 + 350 * ex(-t * 7)) / sr; return (Math.sin(p) + 0.4 * Math.sin(2 * p)) * (0.6 + 0.4 * Math.sin(TAU * 40 * t)) * ex(-t / 0.15); });
+    } },
+  sk_wire: { ext: true, n: 1, dur: 0.8, bus: 'world', max: 2, pri: 5, vol: 0.65,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 2500);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (150 + 80 * ex(-t * 8)) / sr;
+        let s = 0;
+        for (let k = 1; k <= 6; k++) s += Math.sin(p * k) / k;
+        const x = r() * 2 - 1;
+        let sp = 0;
+        for (const t0 of [0.05, 0.12]) if (t > t0) sp += (x - hp(x)) * ex(-(t - t0) / 0.002) * 0.8;
+        return s * ex(-t / 0.3) * 0.8 + sp + Math.sin(TAU * 120 * t) * ad(t, 0.2, 0.3) * 0.3;
+      });
+    } },
+  wire_snap: { ext: true, n: 1, dur: 0.45, bus: 'world', max: 3, pri: 3, vol: 0.5,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 3000);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (600 * ex(-t * 12) + 200) / sr;
+        const x = r() * 2 - 1;
+        return (x - hp(x)) * ex(-t / 0.004) * 1.1 + Math.sin(TAU * 2400 * t) * ex(-t / 0.06) * 0.35 + Math.sin(p) * ex(-t / 0.15) * 0.6;
+      });
+    } },
+  sk_cage: { ext: true, n: 1, dur: 1.2, bus: 'world', max: 2, pri: 6, vol: 0.85, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      // Chains whip out and close faster and faster, then the ring slams shut.
+      const hp = lp1(sr, 2200), cl = ring(210, [1, 2.35, 3.71, 5.12], [0.4, 0.28, 0.2, 0.12], [1, 0.7, 0.5, 0.35]), th = swp(115, 40, 25), links = [];
+      let at = 0;
+      for (let k = 0; k < 15; k++) { links.push({ t: at, f: rnd(r, 1500, 3000) }); at += 0.07 * Math.pow(0.9, k) + 0.012; }
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        let s = 0;
+        for (const q of links) if (t > q.t) { const tt = t - q.t; s += (Math.sin(TAU * q.f * tt) + (x - hp(x))) * ex(-tt / 0.01) * 0.4; }
+        const slam = t > 0.62 ? cl(t - 0.62) * 0.7 + th(t - 0.62) * ex(-(t - 0.62) / 0.12) * 1.2 + (x - hp(x)) * ex(-(t - 0.62) / 0.006) * 0.8 : 0;
+        return s + slam;
+      });
+    } },
+  sk_bastion: { ext: true, n: 1, dur: 1.4, bus: 'world', max: 2, pri: 7, vol: 0.8, duck: 0.2,
+    gen: (sr, r, v, D) => {
+      const gong = ring(140, [1, 1.59, 2.14, 2.65, 3.5], [0.9, 0.7, 0.5, 0.4, 0.3], [1, 0.8, 0.6, 0.5, 0.35]), th = swp(100, 36, 18);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const u = clamp(t / 0.8, 0, 1);
+        p += TAU * (80 + 320 * u * u) / sr;
+        return gong(t) * 0.55 + th(t) * ex(-t / 0.15) * 1.0 + (Math.sin(p) + 0.4 * Math.sin(2 * p)) * u * u * ex(-Math.max(0, t - 0.8) / 0.2) * 0.45;
+      });
+    } },
+  sk_screen: { ext: true, n: 1, dur: 0.9, bus: 'world', max: 2, pri: 5, vol: 0.6,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        p += TAU * (300 + 1300 * (1 - ex(-t * 6))) / sr;
+        bp.run(r() * 2 - 1, 3500, 3);
+        const sh = (0.7 + 0.3 * Math.sin(TAU * 11 * t)) * ad(t, 0.15, 0.35);
+        return Math.sin(p) * ad(t, 0.05, 0.25) * 0.5 + (Math.sin(TAU * 1400 * t) + 0.7 * Math.sin(TAU * 2100 * t) + 0.5 * Math.sin(TAU * 2800 * t)) * sh * 0.3 + bp.nbp * ad(t, 0.02, 0.1) * 0.3 + Math.sin(TAU * 220 * t) * ad(t, 0.1, 0.3) * 0.3;
+      });
+    } },
+  sk_screen_off: { ext: true, n: 1, dur: 0.4, bus: 'world', max: 3, pri: 3, vol: 0.4,
+    gen: (sr, r, v, D) => {
+      let p = 0;
+      return mk(sr, D, (t) => { p += TAU * (1600 * ex(-t * 8) + 300) / sr; return Math.sin(p) * ex(-t / 0.1) * 0.7 + Math.sin(TAU * 3300 * t) * ex(-t / 0.05) * 0.3; });
+    } },
+  sk_siege_call: { ext: true, n: 1, dur: 1.4, bus: 'world', max: 1, pri: 6, vol: 0.85, duck: 0.2,
+    gen: (sr, r, v, D) => {
+      // Fire order for the barrage: three tube thumps in a row, each with a whistle climbing away.
+      const body = nlp(sr, 300), th = swp(92, 32, 18), bp = svf(sr);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        let s = 0, wh = 0;
+        for (const t0 of [0, 0.24, 0.48]) if (t > t0) { const tt = t - t0; s += th(tt) * ex(-tt / 0.12) + body(r() * 2 - 1) * ex(-tt / 0.06) * 0.6; if (tt > 0.04 && tt < 0.7) wh += Math.sin(Math.PI * (tt - 0.04) / 0.66); }
+        p += TAU * (700 + 1400 * clamp(t / 1.2, 0, 1)) / sr;
+        bp.run(r() * 2 - 1, 1000 + 1500 * clamp(t / 1.2, 0, 1), 6);
+        return Math.tanh(1.3 * (s + (Math.sin(p) * 0.15 + bp.nbp * 0.2) * Math.min(1, wh)));
+      });
+    } },
+  sk_shell: { ext: true, n: 1, dur: 0.8, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const th = swp(100, 35, 16), cl = ring(210, [1, 2.3, 3.5, 5.2], [0.4, 0.3, 0.2, 0.12], [1, 0.7, 0.5, 0.3]), bp = svf(sr), hp = lp1(sr, 2800);
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 2500, 0.9);
+        let k = 0;
+        for (const t0 of [0.05, 0.12, 0.2]) if (t > t0) k += ((x - hp(x)) + Math.sin(TAU * 1700 * (t - t0))) * ex(-(t - t0) / 0.004) * 0.4;
+        return th(t) * ex(-t / 0.2) * 1.1 + cl(t) * 0.4 + bp.nbp * ex(-t / 0.15) * 0.5 + k;
+      });
+    } },
+  sk_rage: { ext: true, n: 1, dur: 1.0, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const f = svf(sr), nz = nlp(sr, 400), th = swp(85, 38, 20);
+      let s1 = 0;
+      return mk(sr, D, (t) => {
+        const u = clamp(t / 0.9, 0, 1);
+        s1 = (s1 + (60 + 40 * u) / sr) % 1;
+        f.run((2 * s1 - 1) * (0.6 + 0.4 * Math.sign(Math.sin(TAU * 28 * t))), 300 + 900 * u, 1.5);
+        let hb = 0;
+        for (const t0 of [0, 0.19]) if (t > t0) hb += th(t - t0) * ex(-(t - t0) / 0.1);
+        return Math.tanh(1.5 * (f.lp * ad(t, 0.05, 0.5) * 1.1 + nz(r() * 2 - 1) * ad(t, 0.1, 0.4) * 0.5 + hb));
+      });
+    } },
+  sk_ricochet: { ext: true, n: 1, dur: 0.7, bus: 'world', max: 2, pri: 5, vol: 0.7,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), hp = lp1(sr, 3000), shots = [];
+      for (let k = 0; k < 5; k++) shots.push({ t: k * 0.055, f: rnd(r, 1800, 3000), w: 0.2 + k * 0.06 + r() * 0.04, g: rnd(r, 2300, 3600) });
+      return mk(sr, D, (t) => {
+        const x = r() * 2 - 1;
+        bp.run(r() * 2 - 1, 3500, 2);
+        let s = 0;
+        for (const q of shots) {
+          if (t > q.t) s += (Math.sin(TAU * q.f * (t - q.t)) * 0.4 + bp.nbp * 0.7) * ex(-(t - q.t) / 0.012) + (x - hp(x)) * ex(-(t - q.t) / 0.002) * 0.5;
+          if (t > q.w) s += Math.sin(TAU * q.g * (t - q.w)) * ex(-(t - q.w) / 0.06) * 0.35;
+        }
+        return s;
+      });
+    } },
+  sk_disc_storm: { ext: true, n: 1, dur: 1.2, bus: 'world', max: 2, pri: 6, vol: 0.8, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      const bp = svf(sr), th = swp(150, 50, 30), pings = [];
+      for (let k = 0; k < 14; k++) pings.push({ t: 0.1 + r() * 0.7, f: rnd(r, 1800, 4200), a: rnd(r, 0.15, 0.35) });
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const u = Math.sin(Math.PI * clamp(t / 1.0, 0, 1));
+        p += TAU * (700 + 900 * u) / sr;
+        bp.run(r() * 2 - 1, 500 + 3000 * u, 1.3);
+        let s = 0;
+        for (const q of pings) if (t > q.t) s += Math.sin(TAU * q.f * (t - q.t)) * ex(-(t - q.t) / 0.07) * q.a;
+        return bp.nbp * u * 0.9 + Math.sin(p) * (0.55 + 0.45 * Math.sin(TAU * 90 * t)) * u * 0.4 + th(t) * ex(-t / 0.05) * 0.9 + s;
+      });
+    } },
+  sk_overload: { ext: true, n: 1, dur: 0.9, bus: 'world', max: 2, pri: 6, vol: 0.8,
+    gen: (sr, r, v, D) => {
+      const hp = lp1(sr, 3000);
+      let p = 0;
+      return mk(sr, D, (t) => {
+        const u = clamp(t / 0.65, 0, 1), x = r() * 2 - 1;
+        p += TAU * (200 + 3000 * u * u) / sr;
+        const ping = t > 0.68 ? (Math.sin(TAU * 3136 * (t - 0.68)) + Math.sin(TAU * 4186 * (t - 0.7)) * (t > 0.7 ? 1 : 0)) * ex(-(t - 0.68) / 0.1) * 0.6 : 0;
+        return (Math.sin(p) + 0.4 * Math.sin(2 * p)) * (0.15 + 0.85 * u) * (t < 0.66 ? 1 : 0) + (x - hp(x)) * u * u * 0.3 + Math.sin(TAU * 60 * t) * (0.5 + 0.5 * Math.sin(TAU * 14 * t)) * u * 0.5 + ping;
+      });
+    } },
+  sk_sweep_charge: { ext: true, n: 1, dur: 0.7, bus: 'world', max: 1, pri: 7, vol: 0.85, duck: 0.15,
+    gen: (sr, r, v, D) => {
+      // The furnace lights: two saws and a sub climb for the 0.5 s wind-up, then the roar takes over.
+      const f = svf(sr), nz = nlp(sr, 700);
+      let s1 = 0, s2 = 0, sb = 0;
+      return mk(sr, D, (t) => {
+        const u = clamp(t / 0.5, 0, 1);
+        s1 = (s1 + (80 + 1100 * u * u) / sr) % 1; s2 = (s2 + (80 + 1100 * u * u) * 1.5 / sr) % 1; sb += TAU * (38 + 40 * u) / sr;
+        f.run((2 * s1 - 1) + 0.6 * (2 * s2 - 1), 200 + 2800 * u * u, 1.6);
+        return f.lp * (0.2 + 0.8 * u) * 0.8 + Math.sin(sb) * u * 0.7 + (t > 0.5 ? nz(r() * 2 - 1) * ex(-(t - 0.5) / 0.15) * 0.8 : 0);
+      });
+    } },
 };
 
 function* soundSteps(name, variant, sr) {
   const S = SOUNDS[name];
-  const R = S.gen(sr, mulberry(fnv(name) + variant * 7919), variant, S.dur);
-  const out = new Float32Array(R.n);
+  const R = S.gen(sr, mulberry(fnv(name) + variant * 7919), variant, S.dur + (S.loop || 0));
+  let out = new Float32Array(R.n);
   yield* fill(R, sr, out);
-  return (yield* finish([out], sr))[0];
+  if (S.loop === undefined) return (yield* finish([out], sr))[0];
+  // Looping sound: the last `loop` seconds are folded into the first, so the buffer's end flows into its start.
+  const X = Math.round(sr * S.loop), n = out.length - X;
+  if (X > 0) {
+    const res = out.slice(0, n);
+    for (let j = 0; j < X; j++) { const w = (j / X) * Math.PI / 2; res[j] = out[j] * Math.sin(w) + out[n + j] * Math.cos(w); }
+    out = res;
+  }
+  return (yield* finish([out], sr, 0, true))[0];
 }
 export function renderSound(name, variant, sr) {
   const it = soundSteps(name, variant, sr);
@@ -1569,22 +2101,45 @@ export const SKILL_COMPANION = {
   rocket: 'fire', min: 'zone', truongcham: 'zone', vom: 'zone',
   khoi: 'zone', baotuyet: 'zone', hotu: 'zone', tuongbang: 'zone', usung: 'zone',
   xungbang: 'nova', locthep: 'nova',
+  camchot: 'stance', danxuyen: 'fire', mocxich: 'fire', hoanvi: 'swap', longxich: 'zone', khientang: 'bless', thanhdong: 'zone', vo: 'leap', dautu: 'mark',
+  xuyentuong: 'warp', ongtho: 'zone', tiepsuc: 'bless', vongsang: 'rally', daydien: 'zone', mansang: 'zone',
 };
 const SKILL_SND = {
   giap: 'sk_shield', huc: 'sk_dash', diachan: 'sk_quake_wind', tangap: 'sk_buff', muahoa: 'sk_rain', luot: 'sk_blink', tia: 'sk_beam_charge', hoiphuc: 'sk_heal',
   giatlui: 'sk_recoil', thienloi: 'sk_heavy_call', vomoi: 'sk_pounce', nguytrang: 'sk_cloak', baimin: 'sk_minefield',
+  oanhtac: 'sk_siege_call', mairua: 'sk_shell', cuongno: 'sk_rage', phanthan: 'sk_decoy', vudieu: 'sk_mirage', chumnay: 'sk_ricochet', baodia: 'sk_disc_storm',
+  quatai: 'sk_overload', thienhoa: 'sk_sweep_charge',
 };
 // Field zones sound by their `vis`; the zone event carries only the id.
-const FIELD_SND = { slow: 'sk_slow', smoke: 'sk_smoke', blizzard: 'sk_blizzard', magnet: 'sk_magnet' };
+const FIELD_SND = { slow: 'sk_slow', smoke: 'sk_smoke', blizzard: 'sk_blizzard', magnet: 'sk_magnet', cage: 'sk_cage', bastion: 'sk_bastion' };
 // The nova event has no skill id, so the caster's mech picks the sound.
-const NOVA_SND = { bocap: 'sk_spin', bang: 'sk_frost_nova' };
+const NOVA_SND = { bocap: 'sk_spin', bang: 'sk_frost_nova', hacho: 'sk_leap_land' };
+// A bless event names its skill: the shield gift and the speed boost shimmer differently.
+const BLESS_SND = { khientang: 'sk_bless_shield', tiepsuc: 'sk_bless_boost' };
+// What a projectile does to a wall. A flame is already roaring and says nothing.
+const WALL_SND = { pulse: 'imp_energy', wave: 'imp_energy', frost: 'imp_ice', flame: null };
+const UNIT_SND = { frost: 'imp_ice', pulse: 'imp_energy', wave: 'imp_energy' };
+const ZONE_END_SND = { turret: 'turret_break', wall: 'sk_ice_break', drone: 'drone_down', wire: 'wire_snap' };
 
-export function planEvent(e, m, me) {
+// `memo` (optional, owned by the engine) remembers what a zone was when it began: its end event carries neither `vis` nor `screen`, and the zone is gone by then.
+export function planEvent(e, m, me, memo) {
   const out = [];
-  const add = (s, x, z, own, far) => { if (SOUNDS[s]) out.push({ s, x, z, own: !!own, far: !!far }); };
+  // `key` names a held voice: later events with the same key extend it instead of starting another.
+  const add = (s, x, z, own, far, key, rate) => { if (SOUNDS[s]) out.push({ s, x, z, own: !!own, far: !!far, key: SOUNDS[s].sustain ? key || s : undefined, rate }); };
   const unitPos = (id) => (m && m.units && m.units[id]) || null;
   switch (e.t) {
-    case 'fire': add('fire_' + e.vis, e.x, e.z, e.id === me); break;
+    case 'fire': add('fire_' + e.vis, e.x, e.z, e.id === me, false, 'fire:' + e.id); break;
+    case 'ray': add(e.on === 'ally' ? 'ray_heal' : e.on === 'foe' || e.on === 'tower' ? 'ray_zap' : 'ray_idle', e.x0, e.z0, e.id === me, false, 'ray:' + e.id); break;
+    case 'hook': add('hook_clamp', e.x, e.z, e.id === me); break;
+    case 'swap': add('sk_swap', e.x0, e.z0, e.id === me || e.other === me); break;
+    case 'stance': add(e.on ? 'st_plant' : 'st_release', e.x, e.z, e.id === me); break;
+    case 'bless': add(BLESS_SND[e.skill] || 'sk_bless_boost', e.x, e.z, e.id === me || e.to === me); break;
+    case 'rally': add('sk_rally', e.x, e.z, e.id === me); break;
+    case 'leap': add('sk_leap', e.x0, e.z0, e.id === me); break;
+    case 'mark': add('sk_mark', e.x, e.z, e.id === me); break;
+    case 'warp': add('sk_warp', e.x0, e.z0, e.id === me); add('sk_warp', e.x, e.z, e.id === me); break;
+    case 'zap': add('wire_zap', e.x, e.z, e.id === me); break;
+    case 'execute': add('hit_execute', e.x, e.z, e.by === me || e.id === me); break;
     case 'turretFire': add('fire_turret', e.x, e.z); break;
     case 'towerFire': add('fire_tower', e.x, e.z); break;
     case 'towerHit': add('tower_hit', e.x, e.z, e.by === me); break;
@@ -1593,9 +2148,12 @@ export function planEvent(e, m, me) {
     case 'skill': add(SKILL_SND[e.skill], e.x, e.z, e.id === me); break;
     case 'impact':
       if (e.on === 'dome') add('hit_dome', e.x, e.z);
-      else if (e.on === 'wall') add(e.vis === 'pulse' ? 'imp_energy' : e.vis === 'frost' ? 'imp_ice' : 'hit_wall', e.x, e.z);
+      else if (e.on === 'wall') add(e.vis in WALL_SND ? WALL_SND[e.vis] : 'hit_wall', e.x, e.z);
       else if (e.on === 'turret') add('hit_metal', e.x, e.z);
-      else if (e.on === 'unit') { if (e.vis === 'frost') add('imp_ice', e.x, e.z); else if (e.vis === 'pulse') add('imp_energy', e.x, e.z); }
+      else if (e.on === 'bounce') add('imp_ping', e.x, e.z);
+      else if (e.on === 'screen') add('imp_absorb', e.x, e.z);
+      else if (e.on === 'decoy') add('imp_holo', e.x, e.z);
+      else if (e.on === 'unit') { if (UNIT_SND[e.vis]) add(UNIT_SND[e.vis], e.x, e.z); }
       if (e.splash > 0 && e.on !== 'dome') add('expl_small', e.x, e.z);
       break;
     case 'hit':
@@ -1608,10 +2166,17 @@ export function planEvent(e, m, me) {
       if (e.why === 'strike') add('expl_big', e.x, e.z);
       else if (e.why === 'barrel') add('expl_barrel', e.x, e.z);
       else if (e.why === 'mine') { add('sk_mine_zap', e.x, e.z); add('expl_small', e.x, e.z); }
+      else if (e.why === 'decoy') add('expl_decoy', e.x, e.z);
       else add('expl_small', e.x, e.z);
       break;
     case 'nova': { const u = unitPos(e.id); add((u && NOVA_SND[u.mech]) || 'sk_quake_slam', e.x, e.z, e.id === me); break; }
-    case 'beam': add('sk_beam_fire', e.x0, e.z0, e.id === me); break;
+    case 'beam': {
+      const u = unitPos(e.id);
+      if (u && u.cast && u.cast.skill && u.cast.skill.do === 'sweep') add('beam_sweep', e.x0, e.z0, e.id === me, false, 'sweep:' + e.id);
+      else if (u && (u.def && u.def.weapon ? u.def.weapon.charge : u.mech === 'hoalong')) break; // a released lance already sounded as its `fire`
+      else add('sk_beam_fire', e.x0, e.z0, e.id === me);
+      break;
+    }
     case 'ram': add('ram_clang', e.x, e.z, e.id === me); break;
     case 'shieldBreak': add('shield_break', e.x, e.z, e.id === me); break;
     case 'item': { const u = unitPos(e.id); add('sk_heal', u ? u.x : undefined, u ? u.z : undefined, e.id === me); break; }
@@ -1620,15 +2185,21 @@ export function planEvent(e, m, me) {
       if (e.kind === 'strike') add(z && z.lob ? 'mortar_whistle' : 'sk_barrage_wind', e.x, e.z);
       else if (e.kind === 'mine') add('sk_mine_arm', e.x, e.z);
       else if (e.kind === 'dome') add('sk_dome', e.x, e.z);
-      else if (e.kind === 'wall') add('sk_ice_wall', e.x, e.z);
+      else if (e.kind === 'wall') { const screen = !!(z && z.screen); if (memo) memo.set(e.id, { screen }); add(screen ? 'sk_screen' : 'sk_ice_wall', e.x, e.z); }
       else if (e.kind === 'turret') add('sk_turret', e.x, e.z);
-      else if (e.kind === 'field' && z) add(FIELD_SND[z.vis], e.x, e.z);
+      else if (e.kind === 'decoy') add('decoy_spawn', e.x, e.z);
+      else if (e.kind === 'drone') add('sk_drone', e.x, e.z);
+      else if (e.kind === 'wire') add('sk_wire', e.x, e.z);
+      else if (e.kind === 'field') add(FIELD_SND[(z && z.vis) || e.vis], e.x, e.z);
       break;
     }
-    case 'zoneEnd':
-      if (e.kind === 'turret') add('turret_break', e.x, e.z);
-      else if (e.kind === 'wall') add('sk_ice_break', e.x, e.z);
+    // A decoy's end is its `explode` (why: decoy), so its zoneEnd stays quiet.
+    case 'zoneEnd': {
+      const k = memo && memo.get(e.id);
+      if (memo) memo.delete(e.id);
+      add(e.kind === 'wall' && k && k.screen ? 'sk_screen_off' : ZONE_END_SND[e.kind], e.x, e.z);
       break;
+    }
     case 'propHit': add('prop_hit', e.x, e.z); break;
     case 'propBreak': add(e.kind === 'pot' ? 'pot_break' : e.kind === 'crate' ? 'crate_break' : null, e.x, e.z); break;
     case 'crateDrop': add('crate_drop', e.x, e.z); break;
@@ -1658,7 +2229,7 @@ function noop() {
 const MAX_DIST = 32;
 // Voices allowed per bus. Ten mechs firing share the gun bus: the loudest, nearest and highest-priority ones win.
 export const POOL = { gun: 14, world: 20, ui: 6 };
-const PRIORITY = ['fire_shell', 'fire_bullet', 'fire_rail', 'fire_pulse', 'fire_rocket', 'fire_mortar', 'fire_pellet', 'fire_frost', 'fire_rivet', 'hit_metal', 'hit_wall', 'expl_small', 'ui_click', 'ui_hover', 'ui_confirm', 'ui_back'];
+const PRIORITY = ['fire_howitzer', 'fire_sabot', 'fire_slug', 'fire_hook', 'fire_wave', 'fire_flame', 'fire_dart', 'fire_disc', 'fire_lance', 'fire_shell', 'fire_bullet', 'fire_rail', 'fire_pulse', 'fire_rocket', 'fire_mortar', 'fire_pellet', 'fire_frost', 'fire_rivet', 'hit_metal', 'hit_wall', 'expl_small', 'ui_click', 'ui_hover', 'ui_confirm', 'ui_back'];
 
 // How tense the match is, 0..1: the last 30 seconds, or a main tower close to falling in `nha`.
 export function tensionOf(m, meId) {
@@ -1842,21 +2413,29 @@ export async function makeAudio(G, onProgress, opts = {}) {
     }
   };
 
-  function play(name, o) {
-    const S = SOUNDS[name];
-    if (!S || !live()) return;
-    const T = o.at !== undefined ? o.at : now();
+  // Level, pan, distance filter and reverb send of a sound at a place; null when it is out of earshot.
+  function spatial(S, o) {
     let gain = S.vol, pan = 0, cutoff = 0, send = 0.05, near = 1;
     if (o.x !== undefined && o.x !== null && !o.own) {
       const dx = o.x - lis.x, dz = o.z - lis.z, d = Math.hypot(dx, dz);
       near = d < 3 ? 1 : Math.pow(1 - d / MAX_DIST, 1.6);
-      if (o.far) near = Math.max(near, 0.5); else if (d > MAX_DIST) return;
+      if (o.far) near = Math.max(near, 0.5); else if (d > MAX_DIST) return null;
       gain *= 0.7 * near;
       pan = clamp(dx / 16, -1, 1) * 0.9;
       cutoff = 1800 + 14000 * ex(-d / 10);
       send = 0.2 + 0.4 * (d / MAX_DIST);
     } else if (o.own) gain *= 1.3;
-    if (gain < 0.01) return;
+    return gain < 0.01 ? null : { gain, pan, cutoff, send, near };
+  }
+
+  function play(name, o) {
+    const S = SOUNDS[name];
+    if (!S || !live()) return;
+    const T = o.at !== undefined ? o.at : now();
+    const sp = spatial(S, o);
+    if (!sp) return;
+    let { gain } = sp;
+    const { pan, cutoff, send, near } = sp;
     if (S.gap && T - (lastPlayed[name] || -9) < S.gap) return;
 
     const pool = pools[S.bus];
@@ -1906,6 +2485,54 @@ export async function makeAudio(G, onProgress, opts = {}) {
     // The player's own heavy shots duck the world hard, any own shot a little, a heavy one nearby half as much.
     if (o.own) duck(S.duck || (S.bus === 'gun' ? 0.1 : 0), T);
     else if (S.duck && near > 0.5) duck(S.duck * 0.5, T);
+  }
+
+  // ----- held voices -----
+  // A flamethrower fires every 0.12 s and a link ray every 0.25 s: each event extends one looping voice that fades out `sustain` seconds after the last one.
+  const held = {};
+  const MAX_HELD = 8;
+  function sustain(name, o) {
+    const S = SOUNDS[name];
+    if (!S || !live()) return;
+    const T = o.at !== undefined ? o.at : now();
+    const sp = spatial(S, o);
+    if (!sp) return;
+    const key = o.key || name;
+    let rec = held[key];
+    if (rec && (rec.name !== name || rec.end < T)) { if (rec.name !== name) { try { rec.g.gain.cancelScheduledValues(T); rec.g.gain.setTargetAtTime(0, T, 0.02); rec.src.stop(T + 0.12); } catch (e) { /* gone */ } } delete held[key]; rec = null; }
+    if (!rec) {
+      if (Object.keys(held).length >= MAX_HELD && !o.own) return;
+      const ready = [];
+      for (let k = 0; k < S.n; k++) if (bufs[name + '|' + k]) ready.push(k);
+      if (!ready.length) { stats.notReady++; want(name); return; }
+      const src = ctx.createBufferSource();
+      src.buffer = bufs[name + '|' + ready[Math.floor(Math.random() * ready.length)]];
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      const nodes = [src, g];
+      let tail = src, filt = null, pn = null;
+      if (sp.cutoff) { filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = sp.cutoff; tail.connect(filt); tail = filt; nodes.push(filt); }
+      tail.connect(g);
+      let out = g;
+      if (ctx.createStereoPanner) { pn = ctx.createStereoPanner(); pn.pan.value = sp.pan; g.connect(pn); out = pn; nodes.push(pn); }
+      out.connect(bus[S.bus]);
+      const sd = ctx.createGain(); sd.gain.value = sp.send; g.connect(sd); sd.connect(revIn); nodes.push(sd);
+      rec = { name, src, g, filt, pn, end: T };
+      held[key] = rec;
+      src.onended = () => { if (held[key] === rec) delete held[key]; for (const n of nodes) { try { n.disconnect(); } catch (e) { /* gone */ } } };
+      src.start(T, Math.random() * src.buffer.duration);
+    }
+    rec.end = T + S.sustain + 0.4;
+    try {
+      rec.g.gain.cancelScheduledValues(T);
+      rec.g.gain.setTargetAtTime(sp.gain, T, 0.03);
+      rec.g.gain.setTargetAtTime(0, T + S.sustain, 0.07);
+      rec.src.stop(rec.end);
+      if (rec.pn) rec.pn.pan.setTargetAtTime(sp.pan, T, 0.05);
+      if (rec.filt && sp.cutoff) rec.filt.frequency.setTargetAtTime(sp.cutoff, T, 0.05);
+      if (o.rate) rec.src.playbackRate.setTargetAtTime(o.rate, T, 0.06);
+    } catch (e) { /* source already ended */ }
   }
 
   // ----- music and ambience -----
@@ -1975,7 +2602,8 @@ export async function makeAudio(G, onProgress, opts = {}) {
     }, true);
   }
 
-  let lastMatch = null, final30 = false, towerWarn = false, lastSec = 99;
+  const zoneMemo = new Map();
+  let lastMatch = null, final30 = false, towerWarn = false, lastSec = 99, chargeAcc = 0;
   const api = {
     resume() { return ctx.resume().then(startStems); },
     setVolume(v) { vol = clamp(v, 0, 1); master.gain.value = muted ? 0 : vol; },
@@ -1990,8 +2618,10 @@ export async function makeAudio(G, onProgress, opts = {}) {
     // `at` (seconds on the context clock) is for the offline mixdown test; the game never passes it.
     event(e, m, meId, at) {
       if (muted || !live()) return;
-      for (const p of planEvent(e, m, meId)) {
-        if (p.global) { const t = performance.now(); if (!offline && t - (lastPlayed.__over || 0) < 4000) continue; lastPlayed.__over = t; play(p.s, { at }); } else play(p.s, { ...p, at });
+      for (const p of planEvent(e, m, meId, zoneMemo)) {
+        if (p.global) { const t = performance.now(); if (!offline && t - (lastPlayed.__over || 0) < 4000) continue; lastPlayed.__over = t; play(p.s, { at }); }
+        else if (SOUNDS[p.s].sustain) sustain(p.s, { ...p, at });
+        else play(p.s, { ...p, at });
       }
     },
     ui(name) {
@@ -2017,6 +2647,17 @@ export async function makeAudio(G, onProgress, opts = {}) {
       }
       syncBed(t);
       if (bedRec) bedRec.g.gain.setTargetAtTime(bedRec.vol * (scene === 'match' ? 1 : 0.45), t, 0.8);
+      // A charge weapon hums while its trigger is held; the pitch climbs with the charge (the host and the single player see u.charge, a guest's mirror does not carry it).
+      chargeAcc += dt;
+      if (chargeAcc >= 0.05) {
+        chargeAcc = 0;
+        if (scene === 'match' && m && !m.over && live() && m.units) {
+          for (const u of m.units) {
+            const C = u.alive && u.charge > 0 && u.def && u.def.weapon && u.def.weapon.charge;
+            if (C) sustain('charge_hum', { x: u.x, z: u.z, own: u.id === (G && G.me), key: 'charge:' + u.id, rate: 0.6 + 1.5 * clamp(u.charge / C.max, 0, 1) });
+          }
+        }
+      }
       if (scene === 'match' && m && !m.over && live()) {
         const left = m.duration > 0 && Number.isFinite(m.duration) ? m.duration - m.time : Infinity;
         if (left <= 30 && !final30 && m.time > 5) { final30 = true; play('sting_final', {}); }

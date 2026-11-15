@@ -1,7 +1,7 @@
 // Boot, shared state G, main loop, URL params and test hooks. See README.md for the contracts.
 
 import * as THREE from '../vendor/three.module.min.js';
-import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES } from './data.js';
+import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES, cleanLv } from './data.js';
 import { MAPS, THEMES, pickArena, compileMap, mapsFor } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
@@ -14,6 +14,7 @@ import { makePost } from './gfx/post.js';
 import { makeAudio } from './audio.js';
 import { makeUI } from './ui.js';
 import { makeInput } from './input.js';
+import { makeFullscreen } from './fullscreen.js';
 import { makeMeta } from './meta.js';
 import { makeOnline } from './online.js';
 import { matchOptions } from './netstate.js';
@@ -70,6 +71,7 @@ async function boot() {
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, 1, 220);
   const G = (window.__G = { THREE, params, quality: Q, bus: makeBus(), renderer, scene, camera, match: null, me: 0, meta, gfx: {}, mode: 'boot', choice: null });
 
+  G.fullscreen = makeFullscreen(G);
   await progress(0.1, 'Nung thép');
   const tex = (G.gfx.tex = makeTextures(renderer, Q.tex));
   for (const n of ['pave', 'ruin', 'metal', 'wood']) tex.bake(n);
@@ -95,11 +97,11 @@ async function boot() {
   scene.add(mechs.group, fx.group);
   const post = (G.gfx.post = makePost(renderer, Q));
   post.grade(world.theme);
-  G.portrait = (key, team, paint) => mechs.portrait(key, team, paint);
+  G.portrait = (...a) => mechs.portrait(...a);
 
   let governor = 1, cssW = 1, cssH = 1;
   function resize() {
-    cssW = window.innerWidth; cssH = window.innerHeight;
+    const vs = G.fullscreen.size(); cssW = Math.max(1, Math.round(vs.w)); cssH = Math.max(1, Math.round(vs.h));
     const pr = Math.min(window.devicePixelRatio || 1, Q.dpr) * Q.scale * governor;
     renderer.setPixelRatio(pr); renderer.setSize(cssW, cssH, false);
     const w = Math.floor(cssW * pr), h = Math.floor(cssH * pr);
@@ -107,7 +109,7 @@ async function boot() {
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
     fx.setPointScale(h, CAM.fov);
   }
-  window.addEventListener('resize', resize);
+  G.fullscreen.onviewport(resize);
   resize();
 
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1), hit = new THREE.Vector3(), pv = new THREE.Vector3();
@@ -145,12 +147,14 @@ async function boot() {
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
     const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
     const bot = attract || params.spectate;
-    const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint }];
+    const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint, glow: attract ? null : choice.glow, decal: attract ? null : choice.decal }];
+    // Bots grow with the player at half pace, so upgrades are felt and a maxed mech still meets a fight.
+    const botMods = { lv: cleanLv(!attract && choice.mods && choice.mods.lv).map((l) => Math.floor(l / 2)) };
     const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
     const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
-    for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff });
+    for (let i = 0; i < 4; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
-    else for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff });
+    else for (let i = 0; i < 5; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
     mechs.clear(); fx.clear();
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;

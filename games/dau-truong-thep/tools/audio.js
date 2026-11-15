@@ -23,6 +23,24 @@ const SPEC = {
   fire_frost: { cen: [2000, 6000], dur: [0.25, 0.7] },
   fire_rivet: { cen: [600, 3000], dur: [0.15, 0.4] },
   fire_tower: { cen: [500, 2000], dur: [0.5, 1.2], low: 0.1 },
+  // Addendum 5 and 6 weapons (the held ones, flame and the hums, are looping buffers: their length is the loop).
+  fire_howitzer: { cen: [40, 400], dur: [1.2, 1.9], low: 0.8, t90: 0.35 },
+  fire_sabot: { cen: [3000, 7500], dur: [0.4, 0.7] },
+  fire_slug: { cen: [250, 900], dur: [0.3, 0.6] },
+  fire_hook: { cen: [700, 2000], dur: [0.6, 0.9] },
+  fire_wave: { cen: [1000, 2800], dur: [0.25, 0.4] },
+  fire_flame: { cen: [900, 2500], dur: [0.5, 0.7] },
+  fire_dart: { cen: [3000, 6500], dur: [0.15, 0.3] },
+  fire_disc: { cen: [1200, 3500], dur: [0.4, 0.7] },
+  fire_lance: { cen: [1000, 3500], dur: [0.9, 1.4], low: 0.15, t90: 0.2 },
+  charge_hum: { cen: [100, 500], dur: [0.4, 0.6] }, ray_heal: { cen: [400, 1200], dur: [0.4, 0.6] }, ray_zap: { cen: [3000, 9000], dur: [0.4, 0.6] },
+  ray_idle: { cen: [1000, 3500], dur: [0.4, 0.6] }, beam_sweep: { cen: [600, 2000], dur: [0.4, 0.6], low: 0.25 },
+  imp_ping: { cen: [2000, 6000], dur: [0.2, 0.4] }, imp_absorb: { cen: [600, 2000], dur: [0.3, 0.5] }, imp_holo: { cen: [900, 3000], dur: [0.15, 0.35] },
+  hook_clamp: { cen: [500, 1500], dur: [0.4, 0.6], low: 0.3 },
+  hit_execute: { cen: [300, 1100], dur: [0.8, 1.3], low: 0.3, t90: 0.2 },
+  expl_decoy: { cen: [1200, 3500], dur: [0.5, 0.9] },
+  sk_leap_land: { cen: [300, 1200], dur: [0.7, 1.1], low: 0.2 }, sk_bastion: { low: 0.3 }, sk_mark: { low: 0.5 }, sk_rage: { low: 0.4 }, sk_siege_call: { low: 0.4 }, sk_shell: { low: 0.3 },
+  st_plant: { low: 0.3, dur: [0.8, 1.3] }, sk_rally: { cen: [150, 700], dur: [1.4, 2.2] }, wire_zap: { cen: [800, 3000], dur: [0.4, 0.6] },
   hit_metal: { cen: [400, 2000], dur: [0.2, 0.5] }, hit_heavy: { cen: [200, 900], dur: [0.35, 0.8], low: 0.25 }, hit_wall: { cen: [800, 3000], dur: [0.2, 0.5] },
   hit_shield: { cen: [800, 3000], dur: [0.3, 0.7] }, hit_dome: { cen: [300, 1500], dur: [0.4, 0.9] },
   expl_small: { cen: [400, 1500], dur: [0.6, 1.5], low: 0.2 }, expl_big: { cen: [350, 1100], dur: [1.8, 3.2], low: 0.3, t90: 0.7 },
@@ -36,10 +54,14 @@ const SPEC = {
 };
 // Loudest 100 ms RMS times the table's playback level, per bus.
 const LOUD = { gun: [0.03, 0.55], world: [0.05, 0.55], ui: [0.03, 0.4] };
-const MECH_WEAPONS = ['fire_shell', 'fire_bullet', 'fire_rail', 'fire_pulse', 'fire_mortar', 'fire_pellet', 'fire_frost', 'fire_rivet'];
+const OLD_WEAPONS = ['fire_shell', 'fire_bullet', 'fire_rail', 'fire_pulse', 'fire_mortar', 'fire_pellet', 'fire_frost', 'fire_rivet'];
+const NEW_WEAPONS = ['fire_howitzer', 'fire_sabot', 'fire_slug', 'fire_hook', 'fire_wave', 'fire_flame', 'fire_dart', 'fire_disc', 'fire_lance'];
+const MECH_WEAPONS = [...OLD_WEAPONS, ...NEW_WEAPONS];
 const BED_SPEC = { jungle: { cen: [2500, 9000] }, desert: { cen: [600, 2200] }, ice: { cen: [800, 2500] }, lava: { cen: [400, 1600], low: 0.4 }, city: { cen: [300, 1200], low: 0.25 },
   swamp: { cen: [1200, 3500] }, autumn: { cen: [1200, 3500] }, canyon: { cen: [300, 1100] } };
-const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_call', 'sk_blizzard', 'sk_minefield'];
+const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_call', 'sk_blizzard', 'sk_minefield', 'sk_siege_call', 'sk_cage', 'sk_bastion', 'sk_rally', 'sk_mirage', 'sk_disc_storm'];
+// Loudness of the vis keys the sim emits, by the sound the plan picks: every one must be wired to a sound of its own.
+const NEW_VIS = ['howitzer', 'sabot', 'slug', 'hook', 'wave', 'flame', 'dart', 'disc', 'lance'];
 
 (async () => {
   const srv = process.env.DTT_BASE ? { base: process.env.DTT_BASE.replace(/\/$/, ''), close() {} } : await serve();
@@ -75,6 +97,7 @@ const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_c
         continue;
       }
       check(s.dur >= 0.03 && s.dur <= 6.5, `${s.label} duration ${f(s.dur, 3)}s`);
+      if (s.loop) check(s.seam < 4, `${s.label} loop seam ${f(s.seam)} (jump / typical sample step)`);
       check(Math.abs(s.dur - s.expected) < 0.002, `${s.label} matches table dur ${s.expected}`);
       const lv = s.loud * s.vol, [lo, hi] = LOUD[s.bus];
       check(lv >= lo && lv <= hi, `${s.label} loudness ${f(lv, 3)} on ${s.bus} bus (${lo}..${hi})`);
@@ -110,7 +133,7 @@ const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_c
     const W = MECH_WEAPONS.map((n) => c[n]);
     let minPair = 99, minName = '';
     for (let i = 0; i < W.length; i++) for (let j = i + 1; j < W.length; j++) { const x = dist(W[i], W[j]); if (x < minPair) { minPair = x; minName = W[i].name + ' / ' + W[j].name; } }
-    check(minPair >= 4.5, `mech weapons are distinct: closest pair ${minName} at ${f(minPair, 1)} dB spectral distance (>= 4.5)`);
+    check(minPair >= 4.5, `mech weapons (all 17) are distinct: closest pair ${minName} at ${f(minPair, 1)} dB spectral distance (>= 4.5)`);
     for (const n of ['fire_rocket', 'fire_tower']) {
       const m2 = Math.min(...[...MECH_WEAPONS, n === 'fire_rocket' ? 'fire_tower' : 'fire_rocket'].map((o) => dist(c[n], c[o])));
       check(m2 >= 3, `${n} differs from every other weapon (closest ${f(m2, 1)} dB, >= 3)`);
@@ -119,6 +142,11 @@ const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_c
     check(Math.max(...mw) / Math.min(...mw) <= 5, `mech weapons sit within 14 dB of each other (${f(Math.max(...mw) / Math.min(...mw), 1)}x)`);
     const spread = (n) => { const v = d.sounds.filter((s) => s.name === n); return Math.max(...v.map((a) => Math.max(...v.map((b) => (a === b ? 0 : dist(a, b)))))); };
     for (const n of MECH_WEAPONS) check(spread(n) > 0.3, `${n} variants differ from one another (${f(spread(n), 2)} dB)`);
+    // Everything new is there, in the table, with its own level.
+    const ext = [...new Set(d.sounds.filter((s) => s.ext).map((s) => s.name))];
+    check(ext.length >= 45, `${ext.length} new sounds in the table (marked ext)`);
+    for (const n of NEW_WEAPONS) check(!!c[n] && c[n].ext, `${n} is a new sound`);
+    check(d.sounds.filter((s) => s.loop).every((s) => s.ext), 'only the new held sounds loop');
     // Skills and ultimates.
     for (const n of ULTS) check(c[n].dur >= 1.0 && c[n].loud * c[n].vol >= 0.14, `ultimate sound ${n}: ${f(c[n].dur)} s, loudness ${f(c[n].loud * c[n].vol, 3)}`);
     // Ambience: one bed per theme, each its own.
@@ -163,11 +191,17 @@ const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_c
     for (const [k, n] of Object.entries(cov.skills)) check(n > 0, `skill '${k}' makes a sound`);
     for (const [k, n] of cov.sub) check(n > 0, `${k} makes a sound`);
     check(cov.double.length === 0, 'no skill plays both its own sound and a companion event' + (cov.double.length ? ' (double: ' + cov.double.join(', ') + ')' : ''));
-    check(Object.keys(cov.skills).length === 24, `all ${Object.keys(cov.skills).length} skill ids covered (expect 24)`);
+    check(Object.keys(cov.skills).length === 48, `all ${Object.keys(cov.skills).length} skill ids covered (expect 48)`);
+    const NEW_SKILLS = ['camchot', 'danxuyen', 'oanhtac', 'mocxich', 'hoanvi', 'longxich', 'khientang', 'mairua', 'thanhdong', 'vo', 'cuongno', 'dautu', 'phanthan', 'xuyentuong', 'vudieu', 'ongtho', 'tiepsuc', 'vongsang', 'daydien', 'chumnay', 'baodia', 'quatai', 'mansang', 'thienhoa'];
+    for (const k of NEW_SKILLS) check(cov.skills[k] > 0, `new skill '${k}' makes a sound (${cov.skillSounds[k]})`);
+    for (const e of ['ray', 'hook', 'swap', 'stance', 'bless', 'rally', 'leap', 'mark', 'warp', 'zap', 'execute']) check(cov.types.includes(e), `README lists the new event '${e}'`);
+    for (const v of NEW_VIS) check(cov.vis[v] > 0, `new weapon vis '${v}' present and sounds`);
     const bySound = {};
     for (const [k, snd] of Object.entries(cov.skillSounds)) (bySound[snd] = bySound[snd] || []).push(k);
     const dup = Object.entries(bySound).filter(([, ks]) => ks.length > 1);
     check(dup.length === 0, 'every skill has its own sound' + (dup.length ? ' (shared: ' + dup.map(([s, ks]) => s + ' by ' + ks.join('+')).join('; ') + ')' : ''));
+    const visSounds = new Set(Object.keys(cov.vis));
+    check(NEW_VIS.every((v) => visSounds.has(v)) && new Set(NEW_VIS.map((v) => 'fire_' + v)).size === NEW_VIS.length, 'each new vis key maps to its own fire sound');
     for (const v of ['shell', 'bullet', 'rail', 'pulse', 'mortar', 'pellet', 'frost', 'rivet']) check(cov.vis[v] > 0, `all-mechs weapon vis '${v}' present`);
     for (const n of ['hover', 'click', 'confirm', 'back', 'error', 'countdown', 'start', 'win', 'lose']) check(cov.uiNames.includes(n), `ui sound '${n}' exists`);
 
@@ -193,6 +227,21 @@ const ULTS = ['sk_quake_slam', 'sk_beam_fire', 'sk_dome', 'sk_rain', 'sk_heavy_c
     check(mix.stolen + mix.dropped > 0 && mix.peakVoices.gun <= 14 && mix.peakVoices.world <= 20, `voice limits held under load: gun ${mix.peakVoices.gun}/14, world ${mix.peakVoices.world}/20, ${mix.stolen} stolen, ${mix.dropped} dropped`);
     check(mix.notReady === 0, 'nothing skipped for want of a rendered buffer once the queue is drained');
     check(mix.bed === 'jungle', 'mixdown carries the jungle bed');
+    const mix2 = await page.evaluate(`window.__mixdown(3, ${JSON.stringify(['thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'hacho', 'domdom'])})`);
+    console.log(`INFO busy fight of the new mechs: ${mix2.events} events, peak ${f(mix2.peak)}, rms ${f(mix2.rms, 3)}, crest ${f(mix2.crest, 1)}, stolen ${mix2.stolen}, dropped ${mix2.dropped}, voices ${JSON.stringify(mix2.peakVoices)}`);
+    check(mix2.nan === 0 && mix2.peak <= 0.95, `new-mech fight peak ${f(mix2.peak)} (<= 0.95)`);
+    check(mix2.pinned < 0.002, `new-mech fight not pinned at the limiter: ${f(mix2.pinned * 100, 3)}% of samples >= 0.95`);
+    check(mix2.crest >= 3.2, `new-mech fight keeps dynamics: crest factor ${f(mix2.crest, 1)} (>= 3.2)`);
+    check(mix2.rms >= 0.06 && mix2.rms <= 0.25, `new-mech fight loudness rms ${f(mix2.rms, 3)} (0.06..0.25)`);
+    check(mix2.hiSec / mix2.loSec <= 3.5 && mix2.loSec > 0.03, `new-mech fight breathes: loudest second ${f(mix2.hiSec, 3)}, quietest ${f(mix2.loSec, 3)}`);
+    check(mix2.peakVoices.gun <= 14 && mix2.peakVoices.world <= 20 && mix2.notReady === 0, `new-mech fight voices gun ${mix2.peakVoices.gun}/14, world ${mix2.peakVoices.world}/20, nothing skipped for want of a buffer (${mix2.notReady})`);
+    // Held voices: continuous while events keep coming, gone soon after.
+    const held = await page.evaluate('window.__sustainProbe()');
+    for (const [k, h] of Object.entries(held)) {
+      check(h.min >= h.mean * 0.5 && h.mean > 0.004, `${k} is one continuous run: quietest 50 ms ${f(h.min, 4)} vs mean ${f(h.mean, 4)} (>= 50%)`);
+      check(h.max <= h.mean * 2.2 && h.peak <= 0.95, `${k} has no click train: loudest 50 ms ${f(h.max, 4)} vs mean ${f(h.mean, 4)} (<= 2.2x), peak ${f(h.peak)}`);
+      check(h.after < h.mean * 0.05, `${k} stops within a second of the last event (${f(h.after, 5)} vs ${f(h.mean, 4)})`);
+    }
     const pr = await page.evaluate('window.__mixProbe()');
     const mono = (a) => (a[0] + a[1]) / 2;
     check(mono(pr.own) > mono(pr.near) * 1.4, `own shot louder than the same shot 6 m away (${f(mono(pr.own), 3)} vs ${f(mono(pr.near), 3)})`);

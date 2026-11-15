@@ -5,8 +5,9 @@
 
 import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
-import { TEAMS, MECHS, PAINTS, BOSSES } from '../data.js';
+import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
+import { designsB } from './mechs-b.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
 const X = -Math.PI / 2, TAU = Math.PI * 2;
@@ -17,6 +18,8 @@ function sk(b, kind, color) { b.surface(SURF[kind][0], SURF[kind][1]); if (color
 // Team-colour lights share the mesh they sit on (surf.x < 0 marks them emissive). Flames get their own additive batch.
 function lit(b, f) { const s = b.surf; b.surface(-1, 0); f(); b.surf = s; return b; }
 function flame(b, f) { const m = b.mat; b.use('flame'); f(); b.use(m); return b; }
+// The same additive flame material, but riding the turret instead of the hull.
+function tflame(b, f) { const m = b.mat; b.use('tflame'); f(); b.use(m); return b; }
 // Polygon in the XY plane (points as [x, y]) extruded along z from z0 to z1.
 function side(b, pts, z0, z1, bevel = 0) { return b.push().rotX(Math.PI / 2).prism(pts.map((p) => [p[0], -p[1]]), z0, z1, bevel).pop(); }
 // Chamfered bar between two points of the XY plane, at the current z.
@@ -613,7 +616,311 @@ const DESIGNS = {
     return { muzzle: 3.26, muzzleY: 3.2, S: 1.12, height: 4.6, legs, stride: 4.5,
       parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.5 }, { name: 'radar', on: 'turret', kind: 'spin', axis: 'y', by: 'time', rate: 1.6, p: [-0.5, 4.28, 0] }] };
   },
+
+  thancong(b, paint, trim, deep) {
+    const PITCH = 0.3, cp = Math.cos(PITCH), sp = Math.sin(PITCH);
+    for (const sz of [-1, 1]) {
+      const zi = sz * 0.62, zo = sz * 1.2;
+      sk(b, 'rubber', RUB); side(b, [[-1.5, 0.3], [-1.3, 0.04], [1.3, 0.04], [1.56, 0.36], [1.4, 0.64], [-1.4, 0.64]], Math.min(zi, zo), Math.max(zi, zo), 0.03);
+      for (let i = 0; i < 6; i++) {
+        const x = -1.05 + i * 0.42;
+        sk(b, 'steel', STEEL).push().move(x, 0.3, sz * 1.19).rotX(X).cyl(0.18, 0.18, 0.04, 10).pop();
+        sk(b, 'dark', GUN).push().move(x, 0.3, sz * 1.215).rotX(X).cyl(0.07, 0.09, 0.04, 6).pop();
+      }
+      sk(b, 'dark', GUN).push().move(1.32, 0.36, sz * 1.2).rotX(X).cyl(0.22, 0.22, 0.06, 8).pop().push().move(-1.36, 0.36, sz * 1.2).rotX(X).cyl(0.22, 0.22, 0.06, 8).pop();
+      sk(b, 'paint', paint).push().move(0, 0.6, sz * 1.24).chamfer(2.7, 0.3, 0.06, 0.025).pop();
+      sk(b, 'paint', deep).push().move(0.1, 0.42, sz * 1.25).chamfer(2.0, 0.12, 0.04, 0.015).pop();
+      lit(b, () => b.push().move(0, 0.6, sz * 1.275).box(2.3, 0.03, 0.02).pop());
+      bolts(b, [-1.0, -0.4, 0.2, 0.8].map((x) => [x, 0.72, sz * 1.27]), 0.022);
+      b.use('tread'); sk(b, 'dark', GUN);
+      for (let x = -0.8; x <= 0.81; x += 0.2) b.push().move(x, 0.625, sz * 0.9).box(0.08, 0.04, 0.56).pop();
+      b.use('hull');
+    }
+    sk(b, 'dark', DARK).prism([[1.3, 0.6], [1.5, 0.3], [1.5, -0.3], [1.3, -0.6], [-1.2, -0.66], [-1.42, -0.4], [-1.42, 0.4], [-1.2, 0.66]], 0.3, 0.8, 0.06);
+    sk(b, 'paint', paint).prism([[1.1, 0.58], [1.3, 0.3], [1.3, -0.3], [1.1, -0.58], [-1.15, -0.62], [-1.34, -0.38], [-1.34, 0.38], [-1.15, 0.62]], 0.8, 0.92, 0.04);
+    b.push().move(1.4, 0.76, 0).rotZ(-0.6).chamfer(0.5, 0.1, 1.1, 0.03).pop();
+    lit(b, () => { for (const sz of [-1, 1]) b.push().move(1.5, 0.6, sz * 0.42).box(0.04, 0.07, 0.2).pop(); });
+    for (const x of [-0.7, 0.4]) line(b, x, 0.925, 0, 0.025, 1.0);
+    b.push().move(-0.95, 0.93, 0); vent(b, 0.4, 0.8, 6); b.pop();
+    sk(b, 'dark', GUN).push().move(-1.5, 0.58, 0).rotZ(-0.12).chamfer(0.12, 0.55, 1.1, 0.025).pop();
+    sk(b, 'paint', HAZ).push().move(-1.57, 0.78, 0).box(0.02, 0.06, 1.0).pop();
+    for (const sz of [-1, 1]) {
+      sk(b, 'steel', STEEL).push().move(-1.2, 0.95, sz * 0.5).rotZ(0.5).lathe([[0.07, 0], [0.09, 0.2], [0.07, 0.3]], 8).pop();
+      flame(b, () => b.push().move(-1.2, 0.95, sz * 0.5).rotZ(0.5).move(0, 0.42, 0).cyl(0.012, 0.07, 0.2, 6).pop());
+    }
+    for (let i = 0; i < 2; i++) {
+      const sz = i ? 1 : -1;
+      b.use('rig' + i);
+      sk(b, 'dark', GUN).push().rotZ(X).cyl(0.15, 0.15, 0.34, 8).pop();
+      sk(b, 'paint', paint).rod([0, 0.02, 0], [0, -0.62, sz * 0.82], 0.13, 6);
+      sk(b, 'dark', DARK).rod([0.17, 0, sz * 0.04], [0.17, -0.6, sz * 0.8], 0.045, 6).rod([-0.17, 0, sz * 0.04], [-0.17, -0.6, sz * 0.8], 0.045, 6);
+      sk(b, 'steel', STEEL).rod([0, 0.3, sz * 0.12], [0, -0.28, sz * 0.52], 0.035, 6);
+      b.push().move(0, -0.64, sz * 0.9);
+      sk(b, 'dark', GUN).cyl(0.3, 0.34, 0.1, 8);
+      sk(b, 'paint', trim).push().move(0, 0.06, 0).cyl(0.26, 0.26, 0.03, 8).pop();
+      lit(b, () => b.push().move(0, 0.08, 0).cyl(0.17, 0.17, 0.012, 8).pop());
+      sk(b, 'steel', STEEL).push().move(0, -0.09, 0).cyl(0.07, 0, 0.12, 5).pop();
+      b.pop();
+    }
+    b.use('turret');
+    sk(b, 'dark', GUN).push().move(-0.3, 0.94, 0).cyl(0.84, 0.9, 0.1, 16).pop();
+    sk(b, 'paint', paint).prism([[0.5, 0.5], [0.64, 0.3], [0.64, -0.3], [0.5, -0.5], [-0.85, -0.72], [-1.1, -0.5], [-1.1, 0.5], [-0.85, 0.72]], 0.98, 1.6, 0.07);
+    sk(b, 'paint', deep).push().move(-0.25, 1.62, 0).chamfer(1.5, 0.06, 1.0, 0.02).pop();
+    sk(b, 'paint', trim); for (const sz of [-1, 1]) b.push().move(-0.2, 1.655, sz * 0.4).box(1.2, 0.02, 0.07).pop();
+    sk(b, 'dark', GUN).push().move(-0.62, 1.66, 0.36).cyl(0.2, 0.22, 0.06, 10).pop();
+    lit(b, () => b.push().move(-0.62, 1.7, 0.36).cyl(0.13, 0.13, 0.01, 10).pop());
+    b.push().move(-0.5, 1.66, -0.36); vent(b, 0.4, 0.34, 4); b.pop();
+    lit(b, () => { for (const sz of [-1, 1]) b.push().move(-0.3, 1.3, sz * 0.745).rotY(sz * 0.2).box(0.9, 0.04, 0.02).pop(); b.push().move(-1.135, 1.3, 0).box(0.02, 0.06, 0.7).pop(); });
+    sk(b, 'dark', DARK).push().move(-1.05, 1.28, 0).chamfer(0.3, 0.5, 1.0, 0.04).pop();
+    sk(b, 'dark', GUN).push().move(0.56, 1.3, 0).chamfer(0.5, 0.62, 0.84, 0.05).pop();
+    for (const sz of [-1, 1]) {
+      const o = [-sp * 0.3, cp * 0.3];
+      sk(b, 'steel', STEEL).rod([0.4 + cp * 0.3 + o[0], 1.3 + sp * 0.3 + o[1], sz * 0.18], [0.4 + cp * 1.5 + o[0], 1.3 + sp * 1.5 + o[1], sz * 0.18], 0.035, 6);
+      sk(b, 'dark', GUN).rod([0.4 + cp * 0.3 + o[0], 1.3 + sp * 0.3 + o[1], sz * 0.18], [0.4 + cp * 0.95 + o[0], 1.3 + sp * 0.95 + o[1], sz * 0.18], 0.06, 6);
+    }
+    sk(b, 'dark', GUN).rod([-0.9, 1.62, -0.5], [-0.95, 2.4, -0.5], 0.012, 4);
+    lit(b, () => b.push().move(-0.95, 2.41, -0.5).ball(0.035, 0).pop());
+    b.use('barrel');
+    b.push().move(0.4, 1.3, 0).rotZ(X + PITCH);
+    sk(b, 'dark', DARK).lathe([[0.17, -0.4], [0.24, -0.34], [0.25, 0.5], [0.21, 0.56], [0.21, 1.2], [0.16, 1.26]], 12);
+    sk(b, 'steel', STEEL).lathe([[0.14, 1.2], [0.14, 2.8], [0.18, 2.86], [0.18, 3.1], [0.15, 3.14], [0.13, 3.3]], 12);
+    sk(b, 'dark', GUN).push().move(0, 1.9, 0).cyl(0.2, 0.2, 0.5, 10).pop();
+    sk(b, 'paint', trim);
+    for (const y of [0.1, 0.9]) b.push().move(0, y, 0).cyl(0.25, 0.25, 0.06, 12).pop();
+    sk(b, 'paint', HAZ).push().move(0, 3.0, 0).cyl(0.145, 0.145, 0.12, 12).pop();
+    sk(b, 'dark', BLACK); for (let k = 0; k < 3; k++) b.push().move(0, 3.0 + k * 0.1, 0).cyl(0.186, 0.186, 0.025, 12).pop();
+    lit(b, () => { b.push().move(0, 1.0, 0).geo(new THREE.TorusGeometry(0.215, 0.018, 4, 16).rotateX(Math.PI / 2)).pop(); b.push().move(0, 3.33, 0).cyl(0.1, 0.1, 0.02, 10).pop(); });
+    b.pop();
+    return { muzzle: 0.4 + cp * 3.3, muzzleY: 1.3 + sp * 3.3, S: 1.06, height: 2.6,
+      parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.5, dir: [-cp, -sp, 0] }, { name: 'tread', on: 'hull', kind: 'tread', step: 0.2 },
+        { name: 'rig0', on: 'hull', kind: 'deploy', by: 'stance', p: [-0.75, 0.72, -1.12], axis: 'x', a0: 0.75 * Math.PI, a1: 0 },
+        { name: 'rig1', on: 'hull', kind: 'deploy', by: 'stance', p: [-0.75, 0.72, 1.12], axis: 'x', a0: -0.75 * Math.PI, a1: 0 }] };
+  },
+
+  mangxa(b, paint, trim, deep) {
+    sk(b, 'dark', DARK).prism([[1.65, 0], [1.42, 0.32], [0.5, 0.5], [-0.7, 0.46], [-1.15, 0.3], [-1.2, 0], [-1.15, -0.3], [-0.7, -0.46], [0.5, -0.5], [1.42, -0.32]], 0.28, 0.64, 0.05);
+    for (const sz of [-1, 1]) {
+      sk(b, 'paint', deep).push().move(0.05, 0.42, sz * 0.5).rotX(sz * -0.25).chamfer(2.2, 0.26, 0.12, 0.03).pop();
+      lit(b, () => b.push().move(0.05, 0.4, sz * 0.545).box(1.9, 0.03, 0.02).pop());
+      for (let k = 0; k < 4; k++) sk(b, 'steel', STEEL).push().move(1.52 - k * 0.12, 0.6, sz * (0.12 + k * 0.05)).rotZ(-0.3).cyl(0, 0.035, 0.12, 4).pop();
+    }
+    for (const [i, x] of [1.12, 0.5, -0.1, -0.7].entries()) {
+      const w = 0.62 - i * 0.07;
+      sk(b, 'paint', i % 2 ? deep : paint).push().move(x, 0.7, 0).rotZ(0.12).chamfer(0.55, 0.12, w * 1.6, 0.035).pop();
+      sk(b, 'paint', trim).push().move(x - 0.2, 0.74, 0).box(0.04, 0.05, w * 1.35).pop();
+    }
+    lit(b, () => { b.push().move(0.2, 0.775, 0).box(1.9, 0.02, 0.05).pop(); for (const sz of [-1, 1]) b.push().move(1.5, 0.5, sz * 0.2).rotY(sz * 0.3).box(0.22, 0.05, 0.05).pop(); });
+    sk(b, 'dark', GUN).push().move(1.66, 0.4, 0).chamfer(0.1, 0.18, 0.5, 0.02).pop();
+    sk(b, 'paint', HAZ).push().move(-1.22, 0.47, 0).box(0.05, 0.12, 0.5).pop();
+    for (const sz of [-1, 1]) {
+      sk(b, 'steel', STEEL).push().move(-1.05, 0.62, sz * 0.22).rotZ(1.2).lathe([[0.06, 0], [0.08, 0.14], [0.1, 0.2]], 8).pop();
+      flame(b, () => b.push().move(-1.05, 0.62, sz * 0.22).rotZ(1.2).move(0, 0.3, 0).cyl(0.02, 0.09, 0.22, 6).pop());
+    }
+    b.use('wheel');
+    sk(b, 'rubber', RUB).push().rotX(X).cyl(0.27, 0.27, 0.24, 12).pop();
+    sk(b, 'rubber', BLACK);
+    for (let k = 0; k < 8; k++) b.push().rotZ(k * TAU / 8).move(0.26, 0, 0).box(0.05, 0.1, 0.26).pop();
+    sk(b, 'steel', STEEL).push().rotX(X).cyl(0.15, 0.15, 0.26, 8).pop();
+    lit(b, () => { for (const sz of [-1, 1]) b.push().move(0, 0, sz * 0.125).rotX(X).cyl(0.06, 0.06, 0.02, 6).pop(); });
+    b.use('tail');
+    const seg = [[0, 0], [-0.3, -0.03], [-0.6, -0.08], [-0.85, -0.02]];
+    for (let k = 0; k < seg.length - 1; k++) {
+      const s = 1 - k * 0.22;
+      sk(b, 'paint', k % 2 ? deep : paint); limb(b, seg[k], seg[k + 1], 0.3 * s, 0.34 * s, 0.05);
+      sk(b, 'dark', GUN).push().move(seg[k + 1][0], seg[k + 1][1], 0).rotX(X).cyl(0.1 * s, 0.1 * s, 0.28 * s, 8).pop();
+    }
+    sk(b, 'steel', STEEL).push().move(-1.05, 0.0, 0).rotZ(1.57).cyl(0, 0.09, 0.4, 5).pop();
+    lit(b, () => b.push().move(-1.27, 0.0, 0).ball(0.05, 0).pop());
+    b.use('turret');
+    sk(b, 'dark', GUN).push().move(0, 0.68, 0).cyl(0.62, 0.68, 0.1, 14).pop();
+    sk(b, 'paint', paint).prism([[0.5, 0.0], [0.34, -0.26], [-0.2, -0.42], [-0.66, -0.34], [-0.7, -0.02], [-0.25, -0.0], [0.2, 0.0]], 0.72, 1.12, 0.06);
+    sk(b, 'glass', BLACK).prism([[0.42, -0.04], [0.28, -0.22], [0.0, -0.3], [0.0, -0.04]], 1.12, 1.17, 0.02);
+    sk(b, 'paint', trim).push().move(-0.2, 1.14, -0.2).box(0.7, 0.02, 0.06).pop();
+    lit(b, () => b.push().move(-0.7, 0.95, -0.18).box(0.02, 0.07, 0.3).pop());
+    b.push().move(-0.35, 1.13, -0.2); vent(b, 0.3, 0.2, 3); b.pop();
+    sk(b, 'dark', GUN).push().move(0.1, 0.8, 0.62).chamfer(1.0, 0.16, 0.34, 0.03).pop();
+    sk(b, 'paint', deep).push().move(0.1, 0.9, 0.62).chamfer(0.8, 0.06, 0.28, 0.02).pop();
+    sk(b, 'dark', DARK).rod([-0.1, 0.92, 0.5], [0.5, 1.12, 0.5], 0.07, 6).rod([0.5, 1.12, 0.5], [1.15, 1.0, 0.5], 0.06, 6);
+    sk(b, 'steel', STEEL).push().move(0.5, 1.12, 0.5).ball(0.1, 0).pop().push().move(-0.1, 0.92, 0.5).ball(0.09, 0).pop();
+    sk(b, 'steel', STEEL).rod([0.05, 0.9, 0.7], [0.6, 1.08, 0.7], 0.025, 5);
+    sk(b, 'dark', GUN).tube([[-0.2, 1.38, 0.62], [0.2, 1.34, 0.6], [0.7, 1.2, 0.54], [1.2, 1.1, 0.5]], 0.028, 5, 10);
+    lit(b, () => b.push().move(1.2, 1.1, 0.5).ball(0.04, 0).pop());
+    sk(b, 'dark', GUN).push().move(0.3, 0.98, -0.2).chamfer(0.5, 0.34, 0.4, 0.05).pop();
+    b.use('barrel');
+    sk(b, 'steel', STEEL).push().move(0.55, 0.98, -0.2).rotZ(X).lathe([[0.1, -0.3], [0.1, 0.7], [0.14, 0.76], [0.14, 0.92], [0.1, 0.96]], 10).pop();
+    for (const sz of [-1, 1]) sk(b, 'steel', STEEL).push().move(1.5, 0.98, -0.2 + sz * 0.1).rotY(sz * -0.3).cyl(0, 0.04, 0.2, 4).pop();
+    lit(b, () => b.push().move(1.53, 0.98, -0.2).rotZ(X).cyl(0.06, 0.06, 0.02, 8).pop());
+    b.use('drum');
+    sk(b, 'steel', STEEL).rotX(X).cyl(0.36, 0.36, 0.36, 14);
+    sk(b, 'dark', GUN);
+    for (const sz of [-1, 1]) b.push().move(0, 0, sz * 0.2).rotX(X).cyl(0.44, 0.44, 0.06, 14).pop();
+    sk(b, 'dark', DARK);
+    for (let k = 0; k < 10; k++) b.push().rotZ(k * TAU / 10).move(0.4, 0, 0).box(0.1, 0.1, 0.4).pop();
+    sk(b, 'paint', trim);
+    for (let k = 0; k < 10; k++) b.push().rotZ(k * TAU / 10 + TAU / 20).move(0.36, 0, 0).box(0.08, 0.06, 0.3).pop();
+    lit(b, () => { b.push().rotX(X).cyl(0.1, 0.1, 0.5, 8).pop(); for (const sz of [-1, 1]) b.push().move(0, 0, sz * 0.231).rotX(X).cyl(0.34, 0.34, 0.01, 14).pop(); });
+    for (const [n, sz] of [['clawL', -1], ['clawR', 1]]) {
+      b.use(n);
+      sk(b, 'steel', STEEL).ball(0.09, 0);
+      sk(b, 'paint', paint).push().move(0, 0, sz * 0.02).prism([[0, sz * 0.09], [0.3, sz * 0.1], [0.55, sz * 0.02], [0.68, -sz * 0.14], [0.52, -sz * 0.06], [0.28, -sz * 0.0], [0, -sz * 0.08]], -0.07, 0.07, 0.025).pop();
+      sk(b, 'steel', STEEL).push().move(0.62, 0, -sz * 0.08).rotY(sz * -0.9).rotZ(X).cyl(0, 0.05, 0.2, 4).pop();
+      lit(b, () => b.push().move(0.25, 0.075, sz * 0.05).box(0.2, 0.012, 0.025).pop());
+    }
+    return { muzzle: 1.6, muzzleY: 0.98, S: 1.04, height: 1.6,
+      parts: [{ name: 'wheel', on: 'hull', kind: 'roll', axis: 'z', r: 0.27, at: [-0.85, -0.1, 0.65, 1.2].flatMap((x) => [[x, 0.27, 0.58], [x, 0.27, -0.58]]) },
+        { name: 'tail', on: 'hull', kind: 'sway', p: [-1.15, 0.5, 0], amp: 0.2 },
+        { name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.2 },
+        { name: 'drum', on: 'turret', kind: 'spin', axis: 'z', by: 'fire', p: [-0.1, 1.1, 0.5], kick: 9 },
+        { name: 'clawL', on: 'turret', kind: 'snap', axis: 'y', p: [1.2, 1.0, 0.5], a0: 0.5, amt: -0.5 },
+        { name: 'clawR', on: 'turret', kind: 'snap', axis: 'y', p: [1.2, 1.0, 0.5], a0: -0.5, amt: 0.5 }] };
+  },
+
+  kimquy(b, paint, trim, deep) {
+    const legs = [];
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + i * Math.PI / 2, sz = Math.sin(a) > 0 ? 1 : -1;
+      b.use('leg' + i);
+      sk(b, 'dark', GUN).ball(0.14, 0);
+      sk(b, 'dark', DARK); limb(b, [0, 0], [0.5, -0.12], 0.26, 0.26, 0.05);
+      sk(b, 'paint', deep); limb(b, [0.04, 0.05], [0.46, -0.08], 0.2, 0.3, 0.04);
+      sk(b, 'dark', DARK); limb(b, [0.5, -0.12], [0.72, -0.5], 0.2, 0.22, 0.04);
+      sk(b, 'dark', GUN).push().move(0.78, -0.55, 0).cyl(0.28, 0.32, 0.1, 8).pop();
+      sk(b, 'paint', trim); for (const dz of [-0.14, 0, 0.14]) b.push().move(0.98, -0.52, dz).rotZ(-1.2).cyl(0, 0.05, 0.16, 4).pop();
+      lit(b, () => b.push().move(0.62, -0.34, sz * 0.08).box(0.14, 0.03, 0.01).pop());
+      const c = Math.cos(a), s = Math.sin(a);
+      legs.push({ p: [c * 0.8, 0.6, s * 0.8], yaw: -a, ph: (i % 2) * Math.PI, kind: 'sweep', amp: 0.22 * sz, lift: 0.2 });
+    }
+    b.use('hull');
+    sk(b, 'dark', DARK).lathe([[0, 0.45], [0.9, 0.5], [1.12, 0.6], [1.2, 0.72]], 18);
+    sk(b, 'paint', paint).lathe([[1.2, 0.72], [1.24, 0.82], [1.12, 1.04], [0.82, 1.22], [0.42, 1.32], [0, 1.35]], 18);
+    sk(b, 'paint', deep).lathe([[1.05, 1.0], [1.0, 1.08], [0.9, 1.1], [0.88, 1.04]], 18);
+    lit(b, () => { b.push().move(0, 0.8, 0).geo(new THREE.TorusGeometry(1.225, 0.025, 4, 40).rotateX(Math.PI / 2)).pop(); b.push().move(0, 0.5, 0).cyl(0.3, 0.34, 0.03, 12).pop(); });
+    for (let i = 0; i < 8; i++) {
+      const a = i * TAU / 8 + TAU / 16;
+      b.push().rotY(a).move(0.78, 1.18, 0).rotZ(-0.55);
+      sk(b, 'paint', i % 2 ? paint : deep).chamfer(0.46, 0.07, 0.34, 0.02);
+      sk(b, 'paint', trim).push().move(0, 0.045, 0).box(0.34, 0.012, 0.05).pop();
+      b.pop();
+    }
+    for (let i = 0; i < 4; i++) {
+      b.push().rotY(i * TAU / 4).move(0.52, 1.3, 0).rotZ(-0.2);
+      line(b, 0, 0.03, 0, 0.5, 0.03);
+      lit(b, () => b.push().move(0, 0.035, 0).box(0.34, 0.012, 0.025).pop());
+      b.pop();
+    }
+    sk(b, 'dark', DARK).push().move(1.2, 0.68, 0).rotZ(-0.2).cyl(0.3, 0.36, 0.5, 10).pop();
+    sk(b, 'paint', paint).push().move(1.42, 0.72, 0).scale(1.4, 0.9, 1).ball(0.3, 1, 0.8).pop();
+    sk(b, 'glass', BLACK).push().move(1.6, 0.78, 0).box(0.1, 0.1, 0.38).pop();
+    lit(b, () => { for (const sz of [-1, 1]) b.push().move(1.66, 0.78, sz * 0.12).box(0.04, 0.05, 0.1).pop(); });
+    for (const sz of [-1, 1]) sk(b, 'paint', trim).push().move(1.48, 0.95, sz * 0.12).rotZ(-0.4).cyl(0, 0.05, 0.18, 4).pop();
+    sk(b, 'dark', GUN).push().move(-1.18, 0.62, 0).rotZ(1.6).cyl(0, 0.16, 0.3, 6).pop();
+    for (const sz of [-1, 1]) {
+      sk(b, 'steel', STEEL).push().move(-1.0, 0.7, sz * 0.4).rotZ(0.9).lathe([[0.06, 0], [0.08, 0.16], [0.06, 0.24]], 8).pop();
+      flame(b, () => b.push().move(-1.0, 0.7, sz * 0.4).rotZ(0.9).move(0, 0.34, 0).cyl(0.012, 0.07, 0.18, 6).pop());
+    }
+    b.use('emit');
+    sk(b, 'dark', GUN).push().move(0, 0.0, 0).cyl(0.2, 0.26, 0.12, 8).pop();
+    sk(b, 'steel', STEEL).lathe([[0.1, 0.05], [0.07, 0.3], [0.1, 0.5]], 8);
+    sk(b, 'paint', trim).push().move(0, 0.2, 0).cyl(0.14, 0.14, 0.05, 8).pop();
+    sk(b, 'ice', ICE).push().move(0, 0.72, 0).geo(new THREE.OctahedronGeometry(0.17).scale(1, 1.8, 1)).pop();
+    lit(b, () => {
+      b.push().move(0, 0.72, 0).geo(new THREE.OctahedronGeometry(0.11).scale(1, 1.8, 1)).pop();
+      b.push().move(0, 0.3, 0).geo(new THREE.TorusGeometry(0.15, 0.02, 4, 12).rotateX(Math.PI / 2)).pop();
+      b.push().move(0, 0.06, 0).cyl(0.17, 0.17, 0.02, 8).pop();
+    });
+    b.use('turret');
+    sk(b, 'dark', GUN).push().move(0, 1.34, 0).cyl(0.5, 0.56, 0.1, 12).pop();
+    sk(b, 'paint', paint).prism([[0.46, 0], [0.34, 0.3], [-0.2, 0.38], [-0.42, 0.22], [-0.42, -0.22], [-0.2, -0.38], [0.34, -0.3]], 1.38, 1.7, 0.07);
+    sk(b, 'glass', BLACK).prism([[0.38, 0], [0.26, 0.16], [0.06, 0.2], [0.06, -0.2], [0.26, -0.16]], 1.7, 1.75, 0.02);
+    sk(b, 'paint', trim).push().move(-0.18, 1.715, 0).box(0.4, 0.02, 0.08).pop();
+    lit(b, () => { b.push().move(-0.425, 1.55, 0).box(0.02, 0.06, 0.3).pop(); for (const sz of [-1, 1]) b.push().move(0.0, 1.52, sz * 0.375).rotY(sz * 0.2).box(0.4, 0.04, 0.02).pop(); });
+    b.push().move(-0.2, 1.7, 0); vent(b, 0.22, 0.26, 3); b.pop();
+    sk(b, 'dark', GUN).push().move(0.46, 1.52, 0).chamfer(0.18, 0.3, 0.46, 0.03).pop();
+    sk(b, 'dark', GUN).rod([-0.28, 1.7, 0.2], [-0.34, 2.2, 0.22], 0.01, 4);
+    lit(b, () => b.push().move(-0.34, 2.21, 0.22).ball(0.03, 0).pop());
+    b.use('barrel');
+    for (const dz of [-0.13, 0, 0.13]) {
+      b.push().move(0.5, 1.52, dz).rotY(dz * -1.0);
+      sk(b, 'steel', STEEL).rotZ(X).push().move(0, 0.2, 0).lathe([[0.065, -0.2], [0.065, 0.3], [0.085, 0.34], [0.085, 0.46]], 8).pop();
+      b.pop();
+    }
+    lit(b, () => b.push().move(1.0, 1.52, 0).box(0.02, 0.06, 0.36).pop());
+    return { muzzle: 1.02, muzzleY: 1.52, S: 1.02, height: 2.2, legs, stride: 1.7,
+      parts: [{ name: 'emit', on: 'hull', kind: 'pulse', own: true, at: [0, 1, 2, 3].map((i) => [Math.cos(Math.PI / 4 + i * Math.PI / 2) * 1.1, 0.78, Math.sin(Math.PI / 4 + i * Math.PI / 2) * 1.1]) },
+        { name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.2 }] };
+  },
+
+  hacho(b, paint, trim, deep) {
+    const legs = [];
+    for (let i = 0; i < 4; i++) {
+      const sz = i % 2 ? 1 : -1, front = i < 2, hx = front ? 0.62 : -0.8, hy = front ? 0.95 : 0.82;
+      const a = sz * (Math.PI / 2 + (front ? -0.35 : 0.3));
+      b.use('leg' + i);
+      sk(b, 'dark', GUN).ball(0.18, 0);
+      sk(b, 'dark', DARK); limb(b, [0, 0], [0.42, 0.18], 0.3, 0.3, 0.05);
+      sk(b, 'paint', front ? paint : deep); limb(b, [0.02, 0.07], [0.4, 0.2], 0.24, 0.38, 0.05);
+      sk(b, 'steel', STEEL).push().move(0.44, 0.18, 0).ball(0.12, 0).pop();
+      sk(b, 'dark', DARK); limb(b, [0.44, 0.18], [0.9, -hy + 0.1], 0.24, 0.26, 0.05);
+      sk(b, 'dark', GUN).push().move(0.95, -hy + 0.06, 0).cyl(0.18, 0.2, 0.14, 8).pop();
+      sk(b, 'paint', trim); for (const dz of [-0.1, 0, 0.1]) b.push().move(1.12, -hy + 0.04, dz).rotZ(-1.35).cyl(0, 0.05, 0.22, 4).pop();
+      lit(b, () => b.push().move(0.7, 0.04, sz * 0.14).box(0.2, 0.025, 0.01).pop());
+      legs.push({ p: [hx, hy, sz * 0.55], yaw: -a, ph: (front === (sz > 0) ? 0 : Math.PI), kind: 'sweep', amp: 0.28 * sz, lift: 0.22 });
+    }
+    b.use('hull');
+    sk(b, 'dark', DARK).prism([[1.0, 0.42], [1.1, 0.2], [1.1, -0.2], [1.0, -0.42], [-0.8, -0.5], [-1.25, -0.28], [-1.3, 0], [-1.25, 0.28], [-0.8, 0.5]], 0.62, 1.0, 0.06);
+    sk(b, 'paint', paint).push().move(0.38, 1.12, 0).rotZ(-0.22).chamfer(1.2, 0.5, 1.12, 0.1).pop();
+    sk(b, 'paint', deep).push().move(-0.72, 1.08, 0).rotZ(0.16).chamfer(1.3, 0.3, 0.98, 0.07).pop();
+    for (const sz of [-1, 1]) {
+      sk(b, 'paint', trim).push().move(0.4, 1.22, sz * 0.5).rotZ(-0.22).rotX(sz * -0.4).chamfer(0.9, 0.1, 0.1, 0.02).pop();
+    }
+    lit(b, () => { for (let k = 0; k < 4; k++) b.push().move(0.25 - k * 0.4, 1.4 - k * 0.09 - (k > 1 ? 0.04 : 0), 0).rotZ(k < 2 ? -0.22 : 0.16).box(0.08, 0.03, 0.9 - k * 0.1).pop(); });
+    b.push().move(-0.95, 1.25, 0); vent(b, 0.5, 0.5, 5); b.pop();
+    for (const sz of [-1, 1]) {
+      sk(b, 'dark', GUN).push().move(0.85, 0.95, sz * 0.52).rotZ(0.4).cyl(0.17, 0.17, 0.14, 8).pop();
+      lit(b, () => b.push().move(1.12, 1.0, sz * 0.4).box(0.03, 0.07, 0.14).pop());
+      sk(b, 'steel', STEEL).push().move(-1.1, 1.18, sz * 0.3).rotZ(1.0).lathe([[0.07, 0], [0.09, 0.16], [0.06, 0.26]], 8).pop();
+      flame(b, () => b.push().move(-1.1, 1.18, sz * 0.3).rotZ(1.0).move(0, 0.36, 0).cyl(0.012, 0.08, 0.2, 6).pop());
+      sk(b, 'dark', GUN).push().move(0.62, 1.0, sz * 0.55).ball(0.2, 1).pop();
+      sk(b, 'paint', paint).rod([0.62, 1.0, sz * 0.55], [0.98, 0.98, sz * 0.92], 0.15, 6);
+      sk(b, 'steel', STEEL).push().move(0.98, 0.98, sz * 0.92).ball(0.13, 0).pop();
+      sk(b, 'dark', DARK).rod([0.98, 0.98, sz * 0.92], [1.4, 0.92, sz * 1.18], 0.12, 6);
+      sk(b, 'paint', trim).rod([1.06, 0.98, sz * 0.97], [1.3, 0.95, sz * 1.12], 0.075, 6, 0.1);
+      sk(b, 'dark', GUN).push().move(1.4, 0.9, sz * 1.18).cyl(0.2, 0.22, 0.16, 8).pop();
+      sk(b, 'steel', STEEL).rod([1.4, 0.9, sz * 1.18], [1.4, 0.74, sz * 1.18], 0.05, 6);
+      lit(b, () => b.push().move(1.4, 0.985, sz * 1.18).cyl(0.17, 0.17, 0.01, 8).pop());
+    }
+    b.use('saw');
+    sk(b, 'steel', STEEL).lathe([[0.0, -0.025], [0.48, -0.02], [0.5, 0.0], [0.48, 0.02], [0, 0.03]], 24);
+    sk(b, 'steel', STEEL);
+    for (let k = 0; k < 14; k++) b.push().rotY(k * TAU / 14).move(0.5, 0, 0).rotY(0.5).prism([[0.1, 0.0], [-0.05, 0.1], [-0.05, -0.06]], -0.02, 0.02, 0.005).pop();
+    sk(b, 'dark', GUN);
+    for (let k = 0; k < 7; k++) b.push().rotY(k * TAU / 7).move(0.32, 0.028, 0).box(0.26, 0.012, 0.05).pop();
+    sk(b, 'dark', DARK).push().move(0, 0.03, 0).cyl(0.14, 0.14, 0.05, 10).pop();
+    lit(b, () => { b.push().move(0, 0.03, 0).geo(new THREE.TorusGeometry(0.22, 0.016, 4, 20).rotateX(Math.PI / 2)).pop(); b.push().move(0, 0.06, 0).cyl(0.06, 0.06, 0.02, 6).pop(); });
+    b.use('tail');
+    sk(b, 'paint', deep); limb(b, [0, 0], [-0.4, 0.12], 0.2, 0.2, 0.04); limb(b, [-0.4, 0.12], [-0.8, 0.0], 0.15, 0.15, 0.04);
+    lit(b, () => b.push().move(-0.82, 0.0, 0).ball(0.06, 0).pop());
+    b.use('turret');
+    sk(b, 'dark', GUN).push().move(0.45, 1.5, 0).cyl(0.34, 0.38, 0.08, 10).pop();
+    sk(b, 'paint', paint).prism([[0.7, 0.0], [0.5, 0.3], [0.0, 0.38], [-0.34, 0.26], [-0.34, -0.26], [0.0, -0.38], [0.5, -0.3]], 1.54, 1.82, 0.07);
+    sk(b, 'dark', DARK).push().move(0.78, 1.64, 0).chamfer(0.32, 0.22, 0.44, 0.04).pop();
+    sk(b, 'glass', BLACK).push().move(0.45, 1.835, 0).box(0.26, 0.02, 0.36).pop();
+    lit(b, () => { for (const sz of [-1, 1]) b.push().move(0.9, 1.7, sz * 0.14).rotY(sz * 0.3).box(0.06, 0.04, 0.1).pop(); b.push().move(0.1, 1.84, 0).box(0.3, 0.015, 0.05).pop(); });
+    sk(b, 'paint', HAZ);
+    for (const sz of [-1, 1]) b.push().move(0.0, 1.78, sz * 0.2).rotZ(X).cyl(0.11, 0.11, 0.5, 10).pop();
+    sk(b, 'dark', GUN).tube([[0.0, 1.8, 0.2], [0.3, 1.72, 0.14], [0.9, 1.66, 0.06]], 0.025, 5, 8);
+    sk(b, 'steel', STEEL).push().move(1.0, 1.64, 0).rotZ(X).lathe([[0.1, 0.0], [0.1, 0.5], [0.13, 0.54], [0.13, 0.6], [0.09, 0.64]], 10).pop();
+    sk(b, 'dark', DARK).push().move(1.08, 1.64, 0).rotZ(X).cyl(0.14, 0.14, 0.05, 10).pop();
+    lit(b, () => b.push().move(1.34, 1.64, 0).geo(new THREE.TorusGeometry(0.1, 0.02, 4, 12).rotateY(Math.PI / 2)).pop());
+    tflame(b, () => b.push().move(1.68, 1.64, 0).rotZ(X).cyl(0.0, 0.04, 0.13, 5).pop());
+    return { muzzle: 1.66, muzzleY: 1.64, S: 1.04, height: 2.0, legs, stride: 1.9,
+      parts: [{ name: 'saw', on: 'hull', kind: 'spin', axis: 'y', by: 'time', rate: 9, rage: 2.6, at: [[1.4, 0.74, 1.18], [1.4, 0.74, -1.18]] },
+        { name: 'tail', on: 'hull', kind: 'sway', p: [-1.3, 1.0, 0], amp: 0.16 }] };
+  },
 };
+
+// Four more designs live in mechs-b.js and draw with the same helpers.
+Object.assign(DESIGNS, designsB({ sk, lit, flame, tflame, side, limb, vent, bolts, hazard, line, DARK, GUN, STEEL, PALE, HAZ, BLACK, RUB, ICE, LINE, X, TAU }));
 
 const SHIELD_VERT = 'varying vec3 vN; varying vec3 vV; varying vec3 vP; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vP = position; gl_Position = projectionMatrix * mv; }';
 
@@ -683,28 +990,129 @@ function mechMaterial(base, rim, glow, low) {
 }
 
 const AXIS = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
-const Q = new THREE.Quaternion(), M4 = new THREE.Matrix4(), V3 = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
+const Q = new THREE.Quaternion(), M4 = new THREE.Matrix4(), V3 = new THREE.Vector3(), V3S = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
+const ARMOR_RIM = new THREE.Color(0.5, 0.7, 1.0), HOLO = new THREE.Color(0.35, 0.95, 1.0);
+const toward = (a, b, d) => (a < b ? Math.min(b, a + d) : Math.max(b, a - d));
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+// Decals are painted as flat quads draped over the model's upward-facing surfaces: the hull and turret triangles are
+// rasterised into a height grid, every grid cell inside the pattern becomes a quad, and each quad rides on whichever
+// of the two groups owns the surface under it. One geometry pair per mech and decal, shared by every view.
+const DECAL_CELL = 0.05;
+const DECAL_PAINT = { soc: [0.93, 0.93, 0.86], vuot: [0.03, 0.03, 0.04], sao: [1, 0.8, 0.14], caro: [0.95, 0.95, 0.95], caroDark: [0.04, 0.04, 0.05] };
+function decalPattern(kind, hl, hw) {
+  const R = Math.min(hl, hw * 1.15) * 0.95;
+  if (kind === 'soc') return (x, z) => (Math.abs(x) < hl * 0.92 && Math.abs(z) > 0.12 * hw && Math.abs(z) < 0.34 * hw ? DECAL_PAINT.soc : null);
+  if (kind === 'vuot') {
+    const th = 0.55, ct = Math.cos(th), st = Math.sin(th), L = Math.min(hl, hw * 1.7) * 0.82;
+    return (x, z) => {
+      const t = x * ct + z * st, d = -x * st + z * ct;
+      for (let k = -1; k <= 1; k++) { const lim = 0.075 * (1 - (t / L) * (t / L)) + 0.012; if (Math.abs(t) < L && Math.abs(d - k * hw * 0.42) < lim) return DECAL_PAINT.vuot; }
+      return null;
+    };
+  }
+  if (kind === 'sao') {
+    const pts = []; for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5, r = i % 2 ? R * 0.42 : R; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+    return (x, z) => {
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > z) !== (pts[j][1] > z) && x < (pts[j][0] - pts[i][0]) * (z - pts[i][1]) / (pts[j][1] - pts[i][1]) + pts[i][0]) inside = !inside;
+      return inside ? DECAL_PAINT.sao : null;
+    };
+  }
+  if (kind === 'caro') {
+    const c = 0.1;
+    return (x, z) => (Math.abs(x) < hl * 0.9 && Math.abs(z) < c * 2 ? ((Math.floor(x / c) + Math.floor(z / c)) & 1 ? DECAL_PAINT.caroDark : DECAL_PAINT.caro) : null);
+  }
+  return null;
+}
+
+const decalCache = new Map();
+function decalGeos(key, kind, geos) {
+  const id = key + '|' + kind;
+  if (decalCache.has(id)) return decalCache.get(id);
+  const srcs = [[geos.hull, 1], [geos.turret, 2]].filter((s) => s[0]);
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const [g] of srcs) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { x0 = Math.min(x0, p.getX(i)); x1 = Math.max(x1, p.getX(i)); z0 = Math.min(z0, p.getZ(i)); z1 = Math.max(z1, p.getZ(i)); } }
+  const cs = DECAL_CELL, nx = Math.ceil((x1 - x0) / cs) + 1, nz = Math.ceil((z1 - z0) / cs) + 1;
+  const H = new Float32Array(nx * nz).fill(-1), O = new Uint8Array(nx * nz);
+  for (const [g, own] of srcs) {
+    const p = g.attributes.position;
+    for (let i = 0; i + 2 < p.count; i += 3) {
+      const ax = p.getX(i), ay = p.getY(i), az = p.getZ(i), bx = p.getX(i + 1), by = p.getY(i + 1), bz = p.getZ(i + 1), cx = p.getX(i + 2), cy = p.getY(i + 2), cz = p.getZ(i + 2);
+      const area = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
+      if (area >= -1e-7) continue;
+      const gx0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / cs)), gx1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / cs));
+      const gz0 = Math.max(0, Math.floor((Math.min(az, bz, cz) - z0) / cs)), gz1 = Math.min(nz - 1, Math.ceil((Math.max(az, bz, cz) - z0) / cs));
+      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
+        const px = x0 + gx * cs, pz = z0 + gz * cs;
+        const w0 = ((bx - px) * (cz - pz) - (cx - px) * (bz - pz)) / area, w1 = ((cx - px) * (az - pz) - (ax - px) * (cz - pz)) / area, w2 = 1 - w0 - w1;
+        if (w0 < -0.001 || w1 < -0.001 || w2 < -0.001) continue;
+        const y = w0 * ay + w1 * by + w2 * cy, k = gz * nx + gx;
+        if (y > H[k]) { H[k] = y; O[k] = own; }
+      }
+    }
+  }
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, pat = decalPattern(kind, (x1 - x0) / 2, (z1 - z0) / 2);
+  const out = { 1: { p: [], c: [] }, 2: { p: [], c: [] } };
+  for (let gz = 0; gz < nz - 1; gz++) for (let gx = 0; gx < nx - 1; gx++) {
+    const col = pat(x0 + (gx + 0.5) * cs - cx, z0 + (gz + 0.5) * cs - cz);
+    if (!col) continue;
+    const k = gz * nx + gx, ks = [k, k + 1, k + nx, k + nx + 1];
+    if (ks.some((q) => H[q] < 0 || O[q] !== O[k])) continue;
+    const ys = ks.map((q) => H[q]);
+    if (Math.max(...ys) - Math.min(...ys) > 0.09) continue;
+    const X0 = x0 + gx * cs, Z0 = z0 + gz * cs, X1 = X0 + cs, Z1 = Z0 + cs, e = 0.012, o = out[O[k]];
+    const v = [[X0, ys[0] + e, Z0], [X0, ys[2] + e, Z1], [X1, ys[1] + e, Z0], [X1, ys[1] + e, Z0], [X0, ys[2] + e, Z1], [X1, ys[3] + e, Z1]];
+    for (const q of v) { o.p.push(q[0], q[1], q[2]); o.c.push(col[0], col[1], col[2]); }
+  }
+  const mk = (o) => {
+    if (!o.p.length) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(o.p, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(o.c, 3));
+    const n = new Float32Array(o.p.length); for (let i = 1; i < n.length; i += 3) n[i] = 1;
+    g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
+    g.computeBoundingSphere();
+    return g;
+  };
+  const res = { hull: mk(out[1]), turret: mk(out[2]) };
+  decalCache.set(id, res);
+  return res;
+}
 
 export function makeMechs(G, tex) {
   const group = new THREE.Group();
   const low = G.quality.name === 'low';
   const baseMat = tex.material('metal', { reflect: 1.1 });
+  const decalMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const ringGeo = new THREE.PlaneGeometry(2.3, 2.3).rotateX(-Math.PI / 2);
   const aimGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([1.15, 0, -0.09, 1.15, 0, 0.09, 4.2, 0, 0], 3));
   const bubbleGeo = new THREE.IcosahedronGeometry(1, 4);
-  const views = new Map();
+  const markMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 0.12, 0.08), toneMapped: false, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const markRing = new THREE.RingGeometry(0.84, 1, 40).rotateX(-Math.PI / 2), markTick = new THREE.BoxGeometry(0.36, 0.02, 0.08), markDot = new THREE.CircleGeometry(0.1, 10).rotateX(-Math.PI / 2);
+  const views = new Map(), zviews = new Map(), pool = [];
 
-  function build(key, team, paintKey) {
+  function makeMark() {
+    const g = new THREE.Group(), ring = new THREE.Mesh(markRing, markMat);
+    g.add(ring, new THREE.Mesh(markDot, markMat));
+    for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(markTick, markMat); t.rotation.y = i * Math.PI / 2; t.position.set(Math.cos(i * Math.PI / 2) * 0.66, 0, -Math.sin(i * Math.PI / 2) * 0.66); g.add(t); }
+    g.traverse((o) => { o.renderOrder = 9; });
+    return g;
+  }
+
+  function build(key, team, paintKey, glowKey, decalKey) {
     const def = MECHS[key] || BOSSES[key], b = new Builder(0.85);
     const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : def.tint;
     const tc = new THREE.Color(TEAMS[team].color);
+    const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : tc;
     const paint = tc.clone().multiplyScalar(0.8), deep = tc.clone().lerp(new THREE.Color(DARK), 0.62);
     b.use('hull').surface(1, 1);
-    const info = DESIGNS[key](b, paint, new THREE.Color(trimHex), deep);
+    const info = (DESIGNS[key] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
     const geos = b.build();
-    const glowBase = tc.clone().multiplyScalar(4.2).addScalar(0.55);
-    const mat = mechMaterial(baseMat, tc.clone().multiplyScalar(0.28), glowBase.clone(), low);
-    const flame = new THREE.MeshBasicMaterial({ color: tc.clone().multiplyScalar(2.2).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const glowBase = gc.clone().multiplyScalar(4.2).addScalar(0.55);
+    const rimBase = tc.clone().multiplyScalar(0.28), rim = rimBase.clone();
+    const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
+    const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(2.2).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();
     hull.rotation.order = 'YZX';
     const S = info.S || 1;
@@ -715,7 +1123,7 @@ export function makeMechs(G, tex) {
       parent.add(mesh); return mesh;
     };
     add(hull, geos.hull, mat, true); add(hull, geos.flame, flame, false);
-    add(turret, geos.turret, mat, true);
+    add(turret, geos.turret, mat, true); add(turret, geos.tflame, flame, false);
     const legs = [];
     for (const [i, L] of (info.legs || []).entries()) {
       const g = geos['leg' + i]; if (!g) continue;
@@ -727,56 +1135,110 @@ export function makeMechs(G, tex) {
     for (const P of info.parts || []) {
       const parent = P.on === 'turret' ? turret : hull, g = geos[P.name];
       if (!g) continue;
-      const part = { spec: P, angle: 0, spinV: 0 };
+      const pm = P.own ? mechMaterial(baseMat, rim, glowBase.clone(), low) : mat;
+      if (P.own) mats.push(pm);
+      const part = { spec: P, angle: 0, spinV: 0, mat: P.own ? pm : null };
       if (P.at) {
-        const im = new THREE.InstancedMesh(g, mat, P.at.length);
+        const im = new THREE.InstancedMesh(g, pm, P.at.length);
         im.castShadow = !low; im.frustumCulled = false;
         parent.add(im); part.inst = [im];
       } else {
         const pivot = new THREE.Group();
         if (P.p) { pivot.position.fromArray(P.p); if (P.model) g.translate(-P.p[0], -P.p[1], -P.p[2]); }
-        add(pivot, g, mat, !low && P.kind !== 'spin');
+        add(pivot, g, pm, !low && P.kind !== 'spin');
         parent.add(pivot); part.pivot = pivot; part.base = pivot.position.clone();
       }
       parts.push(part);
     }
+    const decals = [];
+    if (decalKey && DECALS[decalKey] && decalKey !== 'goc') {
+      const dg = decalGeos(key, decalKey, geos);
+      for (const [g, parent] of [[dg.hull, hull], [dg.turret, turret]]) if (g) { const m = new THREE.Mesh(g, decalMat); m.frustumCulled = false; parent.add(m); decals.push(m); }
+    }
     body.add(hull, turret); root.add(body);
-    return { root, body, hull, turret, legs, parts, mat, glow: mat.userData.glow.value, flame, glowBase, info, def, S };
+    return { root, body, hull, turret, legs, parts, mat, mats, rim, rimBase, glow: mat.userData.glow.value, flame, glowBase, gcol: gc.clone().multiplyScalar(1 / Math.max(gc.r, gc.g, gc.b, 1e-3)), info, def, S, geos, decals,
+      dStance: 0, dCharge: 0, dArmor: 0, dRage: 0 };
+  }
+
+  function disposeView(v) {
+    v.root.parent && v.root.parent.remove(v.root);
+    for (const g of Object.values(v.geos)) g.dispose();
+    for (const m of v.mats) m.dispose();
+    for (const p of v.parts) if (p.inst) for (const im of p.inst) im.dispose();
+    v.flame.dispose();
+    if (v.ring) v.ring.material.dispose();
+    if (v.bubble) v.bubble.material.dispose();
+    if (v.aim) v.aim.material.dispose();
+  }
+
+  // A mech view with its ground ring and shield bubble. `mine` gives the white own-mech ring and the aim line.
+  function makeView(key, team, paint, glow, decal, radius, mine) {
+    const v = build(key, team, paint, glow, decal);
+    v.mech = key; v.team = team; v.paint = paint; v.glowKey = glow; v.decalKey = decal;
+    v.ring = new THREE.Mesh(ringGeo, ringMaterial());
+    v.ring.material.uniforms.uColor.value.copy(mine ? new THREE.Color(1.5, 1.5, 1.5) : new THREE.Color(TEAMS[team].color).multiplyScalar(1.6));
+    v.ring.material.uniforms.uMine.value = mine ? 1 : 0;
+    v.ring.scale.setScalar(radius * 1.28); v.ring.position.y = 0.06; v.ring.renderOrder = 2;
+    v.root.add(v.ring);
+    if (mine) {
+      v.aim = new THREE.Mesh(aimGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false }));
+      v.aim.position.y = 0.07; v.aim.renderOrder = 2; v.aim.scale.setScalar(Math.max(1, radius * 1.1)); v.root.add(v.aim);
+    }
+    v.bubble = new THREE.Mesh(bubbleGeo, shieldMaterial());
+    v.bubble.scale.setScalar(radius * 1.62); v.bubble.position.y = radius * 0.95; v.bubble.visible = false; v.bubble.renderOrder = 5;
+    v.root.add(v.bubble);
+    v.kick = 0; v.flash = 0; v.walk = 0; v.spawn = 1; v.wasAlive = false;
+    v.move = 0; v.speedS = 0; v.accel = 0; v.bank = 0; v.die = 0; v.shown = false; v.ghostOn = false;
+    return v;
   }
 
   function view(u) {
     let v = views.get(u.id);
-    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint) return v;
-    if (v) group.remove(v.root);
-    v = build(u.mech, u.color, u.paint);
-    v.mech = u.mech; v.team = u.color; v.paint = u.paint;
-    const mine = u.id === G.me;
-    v.ring = new THREE.Mesh(ringGeo, ringMaterial());
-    v.ring.material.uniforms.uColor.value.copy(mine ? new THREE.Color(1.5, 1.5, 1.5) : new THREE.Color(TEAMS[u.color].color).multiplyScalar(1.6));
-    v.ring.material.uniforms.uMine.value = mine ? 1 : 0;
-    v.ring.scale.setScalar(u.radius * 1.28); v.ring.position.y = 0.06; v.ring.renderOrder = 2;
-    v.root.add(v.ring);
-    if (mine) {
-      v.aim = new THREE.Mesh(aimGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false }));
-      v.aim.position.y = 0.07; v.aim.renderOrder = 2; v.aim.scale.setScalar(Math.max(1, u.radius * 1.1)); v.root.add(v.aim);
-    }
-    v.bubble = new THREE.Mesh(bubbleGeo, shieldMaterial());
-    v.bubble.scale.setScalar(u.radius * 1.62); v.bubble.position.y = u.radius * 0.95; v.bubble.visible = false; v.bubble.renderOrder = 5;
-    v.root.add(v.bubble);
-    v.kick = 0; v.flash = 0; v.walk = 0; v.spawn = 1; v.headingV = u.heading; v.lastX = u.x; v.lastZ = u.z; v.wasAlive = false;
-    v.move = 0; v.speedS = 0; v.accel = 0; v.bank = 0; v.die = 0; v.shown = false;
+    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint && v.glowKey === u.glow && v.decalKey === u.decal) return v;
+    if (v) disposeView(v);
+    v = makeView(u.mech, u.color, u.paint, u.glow, u.decal, u.radius, u.id === G.me);
+    v.headingV = u.heading; v.lastX = u.x; v.lastZ = u.z;
     group.add(v.root); views.set(u.id, v);
     return v;
   }
 
   function resetLook(v) {
-    v.mat.color.setScalar(1); v.flame.visible = true;
+    for (const m of v.mats) m.color.setScalar(1);
+    v.flame.visible = true;
     v.body.position.set(0, 0, 0); v.body.rotation.set(0, 0, 0); v.turret.rotation.set(0, 0, 0);
+  }
+
+  function setEmissive(v, r, g, b) { for (const m of v.mats) m.emissive.setRGB(r, g, b); }
+
+  function setGhost(v, on, opacity) {
+    if (v.ghostOn === on && v.opacity === opacity) return;
+    v.ghostOn = on; v.opacity = opacity;
+    for (const m of v.mats) { m.opacity = opacity; m.transparent = opacity < 1; m.depthWrite = !on; m.needsUpdate = true; }
+    for (const d of v.decals) d.visible = !on && opacity === 1;
+  }
+
+  // Own-material parts (pulsing emitters) follow the model's glow, times a per-design factor.
+  function ownGlow(v, time) {
+    for (const p of v.parts) {
+      if (!p.mat) continue;
+      const g = p.mat.userData.glow.value;
+      g.copy(v.glow);
+      if (p.spec.kind === 'pulse') g.multiplyScalar((0.7 + 0.4 * Math.sin(time * 3.2)) * (1 + v.dArmor * 2.4));
+    }
+  }
+
+  function drives(v, u, dt) {
+    v.dStance = toward(v.dStance, u.stance ? 1 : 0, dt / 0.3);
+    v.dArmor = toward(v.dArmor, u.armorT > 0 ? 1 : 0, dt / 0.2);
+    v.dRage = toward(v.dRage, u.rageT > 0 ? 1 : 0, dt / 0.25);
+    const cm = u.def && u.def.weapon && u.def.weapon.charge ? u.def.weapon.charge.max : 0;
+    v.dCharge = cm ? clamp01(u.charge / cm) : 0;
   }
 
   function animate(v, u, dt, time, moved) {
     const info = v.info, speed = moved / Math.max(dt, 1e-3);
     const prev = v.speedS;
+    drives(v, u, dt);
     v.speedS += (speed - v.speedS) * Math.min(1, dt * 8);
     v.accel += ((v.speedS - prev) / Math.max(dt, 1e-3) - v.accel) * Math.min(1, dt * 6);
     v.move += (Math.min(1, speed / 2.5) - v.move) * Math.min(1, dt * 6);
@@ -808,17 +1270,28 @@ export function makeMechs(G, tex) {
       if (s.kind === 'spin' || s.kind === 'roll') {
         if (s.kind === 'roll') p.angle = -v.walk / s.r;
         else if (s.by === 'fire') { p.spinV = Math.max(0, p.spinV - dt * 30); p.angle += p.spinV * dt; }
-        else p.angle += s.rate * dt;
+        else p.angle += s.rate * (1 + ((s.rage || 1) - 1) * v.dRage) * dt;
       }
       if (p.inst) {
-        Q.setFromAxisAngle(AXIS[s.axis], p.angle);
-        for (const im of p.inst) { for (let i = 0; i < s.at.length; i++) im.setMatrixAt(i, M4.compose(V3.fromArray(s.at[i]), Q, ONE)); im.instanceMatrix.needsUpdate = true; }
+        Q.setFromAxisAngle(AXIS[s.axis || 'y'], p.angle);
+        for (const im of p.inst) {
+          for (let i = 0; i < s.at.length; i++) {
+            const sc = s.kind === 'pulse' ? 1 + 0.1 * Math.sin(time * 3.2 + i * 1.57) + v.dArmor * 0.32 : 1;
+            im.setMatrixAt(i, M4.compose(V3.fromArray(s.at[i]), Q, V3S.set(sc, sc, sc)));
+          }
+          im.instanceMatrix.needsUpdate = true;
+        }
         continue;
       }
       const pv = p.pivot;
       if (s.kind === 'spin' || s.kind === 'roll') { pv.rotation[s.axis] = p.angle; if (s.bob) pv.position.y = p.base.y + Math.sin(time * 2 + u.id) * s.bob; }
       else if (s.kind === 'recoil') { const d = s.dir || [-1, 0, 0], r = v.kick * v.kick * s.amt; pv.position.set(p.base.x + d[0] * r, p.base.y + d[1] * r, p.base.z + d[2] * r); }
       else if (s.kind === 'tread') pv.position.x = (v.walk % s.step);
+      else if (s.kind === 'deploy') {
+        const d = s.by === 'charge' ? v.dCharge : s.by === 'armor' ? v.dArmor : v.dStance, e = d * d * (3 - 2 * d);
+        pv.rotation[s.axis] = s.a0 + (s.a1 - s.a0) * e;
+        if (s.d0) pv.position.set(p.base.x + s.d0[0] + (s.d1[0] - s.d0[0]) * e, p.base.y + s.d0[1] + (s.d1[1] - s.d0[1]) * e, p.base.z + s.d0[2] + (s.d1[2] - s.d0[2]) * e);
+      } else if (s.kind === 'snap') pv.rotation[s.axis] = s.a0 + s.amt * clamp01(v.kick * 1.6) + Math.sin(time * 1.7 + u.id) * 0.05;
       else if (s.kind === 'sway') {
         const sw = Math.sin(time * 1.3 + u.id) * s.amp * (1 - v.move * 0.5) + Math.sin(v.walk * 3) * s.amp * 0.5 * v.move;
         if (s.axis === 'z') { pv.rotation.z = sw * 0.6 + v.accel * -0.02; pv.rotation.x = Math.sin(time * 1.1 + u.id) * s.amp * 0.5; }
@@ -842,8 +1315,10 @@ export function makeMechs(G, tex) {
         v.body.rotation.z = t * 0.22; v.body.rotation.x = t * 0.12 * (u.id % 2 ? 1 : -1);
         v.turret.position.y = Math.sin(Math.min(1, t * 1.6) * Math.PI) * 0.7;
         v.turret.rotation.z = t * 0.7;
-        v.mat.color.setScalar(1 - t * 0.8); v.mat.emissive.setRGB(1.2 * (1 - t), 0.35 * (1 - t), 0.05 * (1 - t));
-        v.glow.copy(v.glowBase).multiplyScalar(Math.max(0, 1 - t * 4)); v.flame.visible = false; v.bubble.visible = false;
+        for (const mt of v.mats) mt.color.setScalar(1 - t * 0.8);
+        setEmissive(v, 1.2 * (1 - t), 0.35 * (1 - t), 0.05 * (1 - t));
+        v.glow.copy(v.glowBase).multiplyScalar(Math.max(0, 1 - t * 4)); ownGlow(v, time); v.flame.visible = false; v.bubble.visible = false;
+        if (v.mark) v.mark.visible = false;
         v.ring.material.uniforms.uFade.value = 1 - t;
         if (!v.root.visible) v.shown = false;
         v.wasAlive = false;
@@ -862,15 +1337,15 @@ export function makeMechs(G, tex) {
       animate(v, u, dt, time, moved);
       v.flash = Math.max(0, v.flash - dt * 6);
       const stun = u.stunT > 0 ? 0.25 + 0.2 * Math.sin(time * 30) : 0;
-      const fl = v.flash * v.flash;
-      v.mat.emissive.setRGB(fl * 1.1 + stun, fl * 0.95 + stun, fl * 0.8 + stun * 0.4);
-      const boost = 1 + fl * 1.5 + (1 - v.spawn) * 2.5;
+      const fl = v.flash * v.flash, ch = v.dCharge, ar = v.dArmor;
+      const cp = ch > 0.98 ? 0.75 + 0.25 * Math.sin(time * 18) : 1;
+      setEmissive(v, fl * 1.1 + stun + v.gcol.r * 0.3 * ch * cp + ar * 0.04, fl * 0.95 + stun + v.gcol.g * 0.3 * ch * cp + ar * 0.07, fl * 0.8 + stun * 0.4 + v.gcol.b * 0.3 * ch * cp + ar * 0.12);
+      v.rim.copy(v.rimBase).lerp(ARMOR_RIM, ar);
+      const boost = 1 + fl * 1.5 + (1 - v.spawn) * 2.5 + ch * 2.2 * cp + v.dRage * 0.6 + ar * 0.5;
       v.glow.copy(v.glowBase).multiplyScalar(boost);
+      ownGlow(v, time);
       const ghost = hidden(u);
-      const op = ghost ? 0.45 : 1;
-      if (v.mat.opacity !== op) {
-        v.mat.opacity = op; v.mat.transparent = op < 1; v.mat.needsUpdate = true;
-      }
+      setGhost(v, ghost, ghost ? 0.45 : 1);
       const sh = u.shield > 0 || u.invulnT > 0;
       v.bubble.visible = sh;
       if (sh) {
@@ -878,11 +1353,78 @@ export function makeMechs(G, tex) {
         un.uTime.value = time; un.uHit.value = Math.max(0, un.uHit.value - dt * 5);
         if (u.invulnT > 0 && u.shield <= 0) un.uColor.value.setRGB(1, 1, 1); else un.uColor.value.set(TEAMS[u.color].color).lerp(new THREE.Color(1, 0.9, 0.4), 0.3);
       }
+      if (u.markT > 0) {
+        if (!v.mark) { v.mark = makeMark(); v.root.add(v.mark); }
+        const pulse = 1 + 0.08 * Math.sin(time * 9);
+        v.mark.visible = true; v.mark.rotation.y = time * 1.8;
+        v.mark.scale.setScalar(Math.max(0.9, u.radius * 1.15) * pulse);
+        v.mark.position.y = v.info.height * v.S + 0.35;
+      } else if (v.mark) v.mark.visible = false;
       if (v.aim) v.aim.rotation.y = -u.aim;
       const ru = v.ring.material.uniforms;
       ru.uTime.value = time; ru.uAim.value = u.aim;
     }
-    for (const [id, v] of views) if (!seen.has(id)) { group.remove(v.root); views.delete(id); }
+    for (const [id, v] of views) if (!seen.has(id)) { disposeView(v); views.delete(id); }
+    syncDecoys(m, dt, time, myTeam);
+  }
+
+  // A decoy is a copy of its owner's model. Its own team sees a hologram, the enemy sees a real-looking mech.
+  function decoyView(z, o) {
+    const sig = [o.mech, z.color, o.paint || '', o.glow || '', o.decal || ''].join('|');
+    let i = pool.findIndex((p) => p.sig === sig), v;
+    if (i >= 0) { v = pool.splice(i, 1)[0]; resetLook(v); } else {
+      v = makeView(o.mech, z.color, o.paint, o.glow, o.decal, o.radius, false);
+      v.sig = sig; v.proxy = { id: 100000 + z.id, heading: z.aim, aim: z.aim };
+      group.add(v.root);
+    }
+    v.proxy.id = 100000 + z.id;
+    v.headingV = z.aim; v.sx = z.x; v.sz = z.z; v.lastX = z.x; v.lastZ = z.z; v.walk = 0; v.spawn = 0; v.speedS = 0; v.move = 0; v.kick = 0; v.ghostOn = false; v.opacity = 1;
+    v.dStance = v.dCharge = v.dArmor = v.dRage = 0;
+    setGhost(v, false, 1);
+    v.root.visible = true;
+    return v;
+  }
+
+  function releaseDecoy(v) {
+    v.root.visible = false;
+    if (pool.length < 4) pool.push(v); else disposeView(v);
+  }
+
+  function syncDecoys(m, dt, time, myTeam) {
+    const seen = new Set();
+    for (const z of m.zones || []) {
+      if (z.kind !== 'decoy') continue;
+      const o = m.units[z.owner];
+      if (!o) continue;
+      seen.add(z.id);
+      let v = zviews.get(z.id);
+      if (!v) { v = decoyView(z, o); zviews.set(z.id, v); }
+      const ghost = z.team === myTeam, f = Math.min(1, dt * 22);
+      v.sx += (z.x - v.sx) * f; v.sz += (z.z - v.sz) * f;
+      const moved = Math.hypot(v.sx - v.lastX, v.sz - v.lastZ); v.lastX = v.sx; v.lastZ = v.sz;
+      v.walk += moved;
+      v.spawn = Math.min(1, v.spawn + dt * 2.5);
+      v.root.position.set(v.sx, 0, v.sz);
+      v.root.scale.setScalar(0.4 + 0.6 * (1 - (1 - v.spawn) * (1 - v.spawn)));
+      v.proxy.heading = v.proxy.aim = z.aim;
+      animate(v, v.proxy, dt, time, moved);
+      setGhost(v, ghost, ghost ? 0.4 : 1);
+      v.ring.visible = !ghost;
+      if (ghost) {
+        const hp = 0.85 + 0.15 * Math.sin(time * 6);
+        setEmissive(v, 0.02, 0.2 * hp, 0.3 * hp);
+        v.rim.copy(HOLO).multiplyScalar(0.9);
+        v.glow.copy(HOLO).multiplyScalar(2.2);
+      } else {
+        setEmissive(v, 0, 0, 0);
+        v.rim.copy(v.rimBase);
+        v.glow.copy(v.glowBase).multiplyScalar(1 + (1 - v.spawn) * 2.5);
+      }
+      ownGlow(v, time);
+      const ru = v.ring.material.uniforms;
+      ru.uTime.value = time; ru.uAim.value = z.aim;
+    }
+    for (const [id, v] of zviews) if (!seen.has(id)) { zviews.delete(id); releaseDecoy(v); }
   }
 
   function event(e) {
@@ -902,19 +1444,30 @@ export function makeMechs(G, tex) {
     return out.set(u.x + c * len - s * side, v ? (v.info.muzzleY + v.hull.position.y) * S : 1.55, u.z + s * len + c * side);
   }
 
-  function clear() { for (const v of views.values()) group.remove(v.root); views.clear(); }
+  function clear() {
+    for (const v of views.values()) disposeView(v);
+    for (const v of zviews.values()) disposeView(v);
+    for (const v of pool) disposeView(v);
+    views.clear(); zviews.clear(); pool.length = 0;
+  }
 
-  // Renders one mech alone into a square data URL, for menus and the HUD.
+  // Renders one mech alone into a square data URL, for menus and the HUD. Fourth argument: a size, or { glow, decal, size }.
   const shots = {};
-  function portrait(key, team, paintKey, size = 128) {
-    const id = key + team + (paintKey || '') + size;
+  function portrait(key, team, paintKey, opt) {
+    const o = typeof opt === 'number' ? { size: opt } : opt || {}, size = o.size || 128;
+    const id = [key, team, paintKey || '', o.glow || '', o.decal || '', size].join('|');
     if (shots[id]) return shots[id];
-    const r = G.renderer, v = build(key, team, paintKey), scene = new THREE.Scene();
+    const r = G.renderer, v = build(key, team, paintKey, o.glow, o.decal), scene = new THREE.Scene();
     scene.environment = G.scene.environment;
     scene.add(v.root, new THREE.HemisphereLight(0xffffff, 0x334455, 1.2));
     const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(-2, 5, 3); scene.add(sun);
     v.turret.rotation.y = -0.5; v.hull.rotation.y = -0.15;
-    for (const p of v.parts) if (p.inst) for (const im of p.inst) { for (let i = 0; i < p.spec.at.length; i++) im.setMatrixAt(i, M4.makeTranslation(p.spec.at[i][0], p.spec.at[i][1], p.spec.at[i][2])); }
+    for (const p of v.parts) {
+      const s = p.spec;
+      if (p.inst) for (const im of p.inst) { for (let i = 0; i < s.at.length; i++) im.setMatrixAt(i, M4.makeTranslation(s.at[i][0], s.at[i][1], s.at[i][2])); }
+      else if (s.kind === 'deploy') p.pivot.rotation[s.axis] = s.a0;
+      else if (s.kind === 'snap') p.pivot.rotation[s.axis] = s.a0;
+    }
     const box = new THREE.Box3().setFromObject(v.root), c = box.getCenter(new THREE.Vector3()), rad = box.getSize(new THREE.Vector3()).length() * 0.5;
     const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 80), dir = new THREE.Vector3(4.6, 5.0, 5.6).normalize();
     cam.position.copy(c).addScaledVector(dir, rad / Math.sin(15 * Math.PI / 180) * 0.8); cam.lookAt(c);
@@ -929,8 +1482,7 @@ export function makeMechs(G, tex) {
     const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
     for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
     ctx.putImageData(img, 0, 0);
-    rt.dispose(); v.mat.dispose(); v.flame.dispose();
-    v.root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+    rt.dispose(); disposeView(v);
     return (shots[id] = cv.toDataURL());
   }
 

@@ -10,10 +10,10 @@ import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { nearestRegion } from './net/region.js';
 import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS, F_GUESS } from './netstate.js';
 import { createPredictor, createGunner } from './predict.js';
-import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, DIFFICULTY, BOT_NAMES, TICK } from './data.js';
+import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, GLOWS, DECALS, DIFFICULTY, BOT_NAMES, TICK, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
-import { walk, gripAt } from './sim.js';
+import { walk, gripAt, turnRate } from './sim.js';
 
 const PROTOCOL = 1;
 const FRAME = 1100;          // Relay datagrams stay under the ~1400 B MTU; bigger messages are cut into frames
@@ -233,7 +233,7 @@ export function makeOnline(G) {
   // glide: per unit, how far its picture is held away from where the snapshots put it ([x, z], melting), the offset
   // now written into the mirror, and where the guess being replaced would have drawn it.
   let glide = [];
-  let predictor = null, gunner = null, hostShots = [], own = null, sample = null, pressed = 0, tickAcc = 0, recent = [];
+  let predictor = null, gunner = null, hostShots = [], own = null, sample = null, pressed = 0, tickAcc = 0, recent = [], ownAim = null;
   // What the readout shows. watch: counted as it happens. rate: per second, refreshed once a second by tick().
   const freshWatch = () => ({ gaps: lately(), lost: lately(), late: lately(), fixes: lately(), rtts: lately(), rtt: 0, arrived: 0, behind: 0, ahead: 0 });
   let watch = freshWatch(), rate = { at: 0, snaps: 0, down: 0, up: 0, snapsRecv: 0, bytesRecv: 0, bytesSent: 0 }, lastPing = 0, myNet = null;
@@ -368,7 +368,7 @@ export function makeOnline(G) {
 
   // ---- lobby model (host owns it, guests hold a copy) -------------------------------------------------------------
   const newLobby = (hostName) => ({
-    players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], paint: null, mods: { hp: 1, dmg: 1 }, team: 0, ready: true, host: true }],
+    players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], paint: null, glow: null, decal: null, mods: { lv: NO_LV }, team: 0, ready: true, host: true }],
     map: 'denrung', theme: null, mode: 'tdm', diff: 'normal',
   });
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
@@ -380,7 +380,9 @@ export function makeOnline(G) {
   function cleanMine(p, m) {
     if (MECHS[m.mech]) p.mech = m.mech;
     if (m.paint === null || PAINTS[m.paint]) p.paint = m.paint;
-    if (m.mods && typeof m.mods === 'object') p.mods = { hp: finite(m.mods.hp, 1, 1.2) || 1, dmg: finite(m.mods.dmg, 1, 1.2) || 1 };
+    if (m.glow === null || GLOWS[m.glow]) p.glow = m.glow || null;
+    if (m.decal === null || DECALS[m.decal]) p.decal = m.decal || null;
+    if (m.mods && typeof m.mods === 'object') p.mods = { lv: cleanLv(m.mods.lv) };
     if (!p.host && typeof m.ready === 'boolean') p.ready = m.ready;
   }
   function publishRoom() { conn && conn.publish && conn.publish({ mode: online.lobby.mode, map: online.lobby.map }); conn && conn.count && conn.count(online.lobby.players.length); }
@@ -411,7 +413,7 @@ export function makeOnline(G) {
       peer.pid = 'p' + (++pidN);
       peer.uid = m.uid || null;
       const used = new Set(online.lobby.players.map((p) => p.mech));
-      online.lobby.players.push({ id: peer.pid, name: cleanName(m.name), mech: MECH_ORDER.find((k) => !used.has(k)) || MECH_ORDER[0], paint: null, mods: { hp: 1, dmg: 1 }, team: pickTeam(), ready: false, host: false });
+      online.lobby.players.push({ id: peer.pid, name: cleanName(m.name), mech: MECH_ORDER.find((k) => !used.has(k)) || MECH_ORDER[0], paint: null, glow: null, decal: null, mods: { lv: NO_LV }, team: pickTeam(), ready: false, host: false });
       sendRel(peer, { t: 'welcome', pid: peer.pid, lobby: online.lobby });
       for (const p of joined()) if (p !== peer) sendRel(p, { t: 'lobby', lobby: online.lobby });
       publishRoom();
@@ -618,7 +620,7 @@ export function makeOnline(G) {
     if (!p) return false;
     cleanMine(p, mine);
     if (online.role === 'host') broadcastLobby();
-    else sendRel(peerOf(link.hostId), { t: 'mine', mech: p.mech, paint: p.paint, mods: p.mods, ready: p.ready });
+    else sendRel(peerOf(link.hostId), { t: 'mine', mech: p.mech, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, ready: p.ready });
     changed();
     return true;
   };
@@ -661,11 +663,15 @@ export function makeOnline(G) {
     const seed = (Math.random() * 0x7fffffff) >>> 0;
     const rng = mulberry(seed ^ 0x51ed);
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
+    // Upgrades. Everyone human on one side (co-op against bots): each player brings their own levels, bots get half the
+    // players' average. Humans facing humans: every mech plays at FAIR_LV, so nobody buys an edge over another player.
+    const versus = L.mode === 'tudo' ? L.players.length > 1 : new Set(L.players.map((p) => p.team)).size > 1;
+    const botLv = versus ? FAIR_LV : NO_LV.map((_, i) => Math.floor(L.players.reduce((a, p) => a + cleanLv(p.mods && p.mods.lv)[i], 0) / L.players.length / 2));
     const unit = (r) => {
-      const def = MECHS[r.mech] || BOSSES[r.mech];
-      const mods = r.mods || { hp: 1, dmg: 1 };
-      return { team: r.team, color: L.mode === 'tudo' ? 1 : r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: L.diff, paint: r.paint || null, mods,
-        radius: def.radius, maxHp: Math.round(def.hp * (mods.hp || 1)), pid: r.pid || null };
+      const lv = r.mech === 'titan' ? null : versus || r.bot ? botLv : cleanLv(r.mods && r.mods.lv);
+      const def = MECHS[r.mech] ? buildDef(r.mech, lv) : BOSSES[r.mech];
+      return { team: r.team, color: L.mode === 'tudo' ? 1 : r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: L.diff, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null,
+        mods: lv ? { lv } : {}, radius: def.radius, maxHp: def.hp, pid: r.pid || null };
     };
     const units = [], slots = {};
     const botMech = (taken) => {
@@ -677,12 +683,12 @@ export function makeOnline(G) {
     const add = (r) => { if (r.pid) slots[r.pid] = units.length; units.push(unit(r)); };
     if (L.mode === 'tudo') {
       const taken = L.players.map((p) => p.mech);
-      for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, paint: p.paint, mods: p.mods, pid: p.id });
+      for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
       while (units.length < MAX_PLAYERS) add({ team: units.length < 5 ? 0 : 1, mech: botMech(taken), name: names.pop(), bot: true });
     } else {
       for (const team of L.mode === 'trum' ? [0] : [0, 1]) {
         const mine = L.players.filter((p) => p.team === team), taken = mine.map((p) => p.mech);
-        for (const p of mine) add({ team, mech: p.mech, name: p.name, paint: p.paint, mods: p.mods, pid: p.id });
+        for (const p of mine) add({ team, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
         for (let i = mine.length; i < TEAM_SIZE; i++) add({ team, mech: botMech(taken), name: names.pop(), bot: true });
       }
       if (L.mode === 'trum') add({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true });
@@ -749,7 +755,7 @@ export function makeOnline(G) {
     let carry = 0;
     while (keys.length > 1) {
       const k = keys.shift(), inp = q.get(k);
-      walk(m, u, inp, gripAt(m.map, u.x, u.z));
+      walk(m, u, inp, gripAt(m.map, u.x, u.z, u));
       FLAGS.forEach((f, i) => { if (inp[f]) carry |= 1 << i; });
       q.delete(k); peer.applied = k;
     }
@@ -840,7 +846,7 @@ export function makeOnline(G) {
   function resetGuest(mirror, slot) {
     buf = []; held = null; drawAt = 0; arrivals = []; lastFrame = 0; snapQ = 0; newestK = -1;
     evAck = 0; evSeen = new Set(); late = [];
-    predictor = createPredictor(mirror, slot); gunner = createGunner(mirror, slot); hostShots = [];
+    predictor = createPredictor(mirror, slot); gunner = createGunner(mirror, slot); hostShots = []; ownAim = null;
     own = null; sample = null; pressed = 0; tickAcc = 0; recent = [];
     watch = freshWatch(); lastPing = 0; glide = mirror.units.map(() => ({ ox: 0, oz: 0, ax: 0, az: 0, x: NaN, z: NaN }));
   }
@@ -965,7 +971,8 @@ export function makeOnline(G) {
       }
       if (tickAcc > TICK) tickAcc = 0;
       if (ran) { sendBytes(link.hostId, encodeInputPacket(predictor.seq, snapQ, evAck, recent)); online.stats.inputsSent += ran; }
-      if (u.alive && !(u.stunT > 0) && !(u.cast && u.cast.lock)) u.aim = sample.aim;
+      // The own turret is drawn following the stick at the rate the host turns it, not waiting for the host's word.
+      if (u.alive && !(u.stunT > 0) && !(u.cast && u.cast.lock)) { ownAim = turnToward(ownAim ?? u.aim, sample.aim, turnRate(u) * dt); u.aim = ownAim; } else ownAim = u.aim;
       inp = inp || wireInput(sample);
     }
     if (own) {
@@ -1031,4 +1038,11 @@ export function makeOnline(G) {
   }
 
   return online;
+}
+
+function turnToward(a, b, max) {
+  let d = b - a;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return a + Math.max(-max, Math.min(max, d));
 }

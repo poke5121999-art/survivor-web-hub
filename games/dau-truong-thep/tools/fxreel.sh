@@ -17,6 +17,10 @@ run tower-fire "mode=nha&$F" 200 75 "const m = __G.match, t = m.towers.find(t =>
 run tower-fall "mode=nha&$F" 200 75 "const m = __G.match, t = m.towers.find(t => t.team === 0 && t.kind === 'sub'), f = m.units.find(u => u.team === 1); t.hp = 1; __film.at(t.x, t.z, 22); __filmUser = (i) => { if (i === 4) __film.shootAt(f.id, t.x, t.z, 50); };"
 run tower-main "mode=nha&$F" 200 30 "const m = __G.match, t = m.towers.find(t => t.team === 0 && t.kind === 'main'); __film.at(t.x + 5, t.z, 34);"
 run tower-damaged "mode=nha&$F" 200 30 "const m = __G.match; m.towers.forEach(t => { if (t.team === 0) t.hp = t.kind === 'main' ? t.maxHp * 0.2 : t.maxHp * 0.45; }); const t = m.towers.find(t => t.team === 0 && t.kind === 'main'); __film.at(t.x + 5, t.z, 34);"
-for M in trau soi ung hac loi bocap bang tho; do
-  run "ult-$M" "mech=$M&seed=3&bots=normal&q=$Q" 60 60 "__film.ult(28)"
+for M in trau soi ung hac loi bocap bang tho thancong mangxa kimquy hacho holy domdom tacke hoalong; do
+  case $M in
+    domdom|kimquy) OPT=", { allies: true }" ;;
+    *) OPT="" ;;
+  esac
+  run "ult-$M" "mech=$M&seed=3&bots=normal&q=$Q" 60 60 "__film.ult(28$OPT)"
 done
