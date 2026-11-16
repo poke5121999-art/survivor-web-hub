@@ -34,7 +34,7 @@ body[data-mode=space] #charPanel{display:none}body[data-mode=space] #spacePanel{
 #runtest h3{margin:10px 0 2px;font-size:15px}
 footer{font-size:12px;color:var(--mute);margin-top:16px}
 body.bare header,body.bare aside,body.bare #ref,body.bare .hint,body.bare #heroName{display:none!important}body.bare #stage{position:fixed;inset:0}
-@media (max-width:900px){#app{grid-template-columns:1fr;grid-template-rows:auto 55vh auto auto;height:auto}aside{border-right:0}#ref{border-left:0}body.noref #app{grid-template-columns:1fr}body[data-mode=space] #app{grid-template-columns:1fr}header{flex-wrap:wrap}.tabs{margin-left:0}body[data-mode=run] #runtest{grid-column:1}}
+@media (max-width:900px){#app{display:flex;flex-direction:column;height:auto}header{order:0}#stage{order:1;height:60vh;flex:none}aside{order:2;overflow:visible}#ref{order:3}#runtest{order:2}aside{border-right:0}#ref{border-left:0}body.noref #app{grid-template-columns:1fr}body[data-mode=space] #app{grid-template-columns:1fr}header{flex-wrap:wrap}.tabs{margin-left:0}body[data-mode=run] #runtest{grid-column:1}}
 </style>
 </head>
 <body data-mode="char">
