@@ -390,7 +390,7 @@ function drawLabels() {
   const src = mode === 'weapons' ? combat.list.map((A) => ({ p: A.p, e: { label: A.label } })) : mode === 'beasts' ? beasts.labels() : mode === 'crew' || mode === 'play' ? [] : actors;
   while (labelEls.length < actors.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
   while (labelEls.length < src.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
-  labelEls.forEach((d, i) => { const A = src[i]; if (!show || !A) { d.style.display = 'none'; return; } const p = new THREE.Vector3(A.p.mesh.position.x, -0.05, A.p.mesh.position.z).project(camera); d.style.display = ''; d.className = 'lb' + (A.e.kind ? ' z' : ''); d.textContent = A.e.label; d.style.left = ((p.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - p.y) / 2 * innerHeight + 4) + 'px'; });
+  labelEls.forEach((d, i) => { const A = src[i]; if (!show || !A) { d.style.display = 'none'; return; } const p = new THREE.Vector3(A.p.mesh.position.x, A.ly ?? -0.05, A.p.mesh.position.z).project(camera); d.style.display = ''; d.className = 'lb' + (A.e.kind ? ' z' : ''); d.textContent = A.e.label; d.style.left = ((p.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - p.y) / 2 * innerHeight + 4) + 'px'; });
 }
 
 // ---------------------------------------------------------------- loop

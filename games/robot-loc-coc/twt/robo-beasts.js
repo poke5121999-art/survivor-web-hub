@@ -162,20 +162,32 @@ function octoLook(seed) {
   return { key: 'octo:' + seed, seed, defs, parts, face: hd.face, pal, eye: sch.eye, scale: 1.1, d: { segL }, hidden: [I('jb0'), I('jb1'), I('jb2')] };
 }
 
-// crab. Bones: 0 root, 1 shell, 2 face, legs (3 per side: coxa, tibia), claws (arm, claw, jaw) x2, antennae x2
+// crab: no head, one wide flat carapace. Bones: 0 root, 1 carapace, 2 eyestalk pair (lens eyes, springy), legs (3 per
+// side: coxa, tibia), claws (arm, claw, jaw) x2, antennae x2
 function crabLook(seed) {
   const r = rng(seed * 2711 + 5), sch = pickScheme(r), pal = palette(sch, { A: [0xd9483b, 0xf28c38, 0x2c5cc5, 0x7d7a3a][seed % 4] });
-  const hk = ['bino', 'orb', 'bucket'][Math.floor(r() * 3)], hd = headPart(hk, 0.55);
-  const L = [['root', null, [0, 0.1, 0]], ['shell', 'root', [0, 0, 0]], ['head', 'shell', [0, 0.035, 0.08]]];
+  const ex = 0.042, ey = 0.06, er = 0.017; // eye lens centre (x, y above the stalk root) and radius
+  const L = [['root', null, [0, 0.1, 0]], ['shell', 'root', [0, 0, 0]], ['head', 'shell', [0, 0.038, 0.06]]];
   for (const [s, n] of [[1, 'L'], [-1, 'R']]) for (let k = 0; k < 3; k++) L.push(['c' + n + k, 'shell', [s * 0.1, -0.005, 0.04 - k * 0.05], 'YZX'], ['b' + n + k, 'c' + n + k, [s * 0.08, 0, 0], 'YZX']);
-  for (const [s, n] of [[1, 'L'], [-1, 'R']]) L.push(['arm' + n, 'shell', [s * 0.09, 0.0, 0.09], 'YXZ'], ['claw' + n, 'arm' + n, [0, 0, 0.09], 'YXZ'], ['jaw' + n, 'claw' + n, [0, 0.018, 0.03]]);
-  L.push(['aL', 'head', [0.03, hd.top, 0]], ['aR', 'head', [-0.03, hd.top, 0]]);
+  for (const [s, n] of [[1, 'L'], [-1, 'R']]) L.push(['arm' + n, 'shell', [s * 0.13, 0.0, 0.075], 'YXZ'], ['claw' + n, 'arm' + n, [0, 0, 0.09], 'YXZ'], ['jaw' + n, 'claw' + n, [0, 0.018, 0.03]]);
+  L.push(['aL', 'head', [0.012, 0.03, 0.012]], ['aR', 'head', [-0.012, 0.03, 0.012]]);
   const defs = skel(L), I = (n) => defs.findIndex((d) => d.n === n), parts = [];
-  parts.push([lathe(prof([[0, -0.04, 0, R.B], [0.1, -0.04, 0.03, R.B], [0.13, -0.01, 0, R.B], [0.13, -0.004, 0, R.A], [0.12, 0.03, 0.03, R.A], [0, 0.05, 0, R.A]]), 26, 1, 0.75), 1]);
-  for (let k = -2; k <= 2; k++) parts.push([at(cone(0.012, 0.03, R.A, 5), [k * 0.03, 0.0, 0.1 - Math.abs(k) * 0.008], [P / 2, 0, 0]), 1]);
-  for (const s of [-1, 1]) parts.push([screw([s * 0.07, 0.04, 0.0], 0.008, [s * 0.3, 1, 0]), 1], [screw([s * 0.05, 0.035, -0.05], 0.007, [s * 0.3, 1, -0.3]), 1]);
-  parts.push([at(rbox(0.06, 0.012, 0.03, 0.005, R.DARK), [0, -0.015, 0.095]), 1]);
-  parts.push([yc(0.012, 0.012, 0.035, R.CHROME, 8).translate(0, 0.0, 0), 2], [hd.geo, 2]);
+  // carapace: wide, flat, bevelled; rim band, side spikes, front teeth, mouth plate, screws, a hazard stripe
+  parts.push([lathe(prof([[0, -0.035, 0, R.B], [0.11, -0.035, 0.03, R.B], [0.14, -0.008, 0, R.B], [0.14, -0.002, 0, R.DARK], [0.138, 0.004, 0, R.A], [0.12, 0.03, 0.035, R.A], [0.05, 0.045, 0.03, R.A], [0, 0.046, 0, R.A]]), 30, 1.32, 0.8), 1]);
+  for (const s of [-1, 1]) for (let k = 0; k < 3; k++) parts.push([at(cone(0.011, 0.034, R.A, 5), [s * (0.18 - k * 0.012), 0.0, 0.03 - k * 0.035], [0, 0, -s * P / 2]), 1]);
+  for (let k = -2; k <= 2; k++) parts.push([at(cone(0.01, 0.026, R.A, 5), [k * 0.028, 0.004, 0.108 - Math.abs(k) * 0.006], [P / 2, 0, 0]), 1]);
+  parts.push([at(rbox(0.09, 0.03, 0.014, 0.006, R.DARK), [0, -0.012, 0.106]), 1], [at(rbox(0.07, 0.004, 0.004, 0.001, R.CHROME), [0, -0.006, 0.114]), 1], [at(rbox(0.07, 0.004, 0.004, 0.001, R.CHROME), [0, -0.016, 0.114]), 1]);
+  for (const s of [-1, 1]) parts.push([at(rbox(0.022, 0.026, 0.01, 0.004, R.B), [s * 0.028, -0.026, 0.11], [0.3, 0, s * 0.2]), 1]);
+  for (const s of [-1, 1]) parts.push([screw([s * 0.1, 0.03, 0.0], 0.008, [s * 0.4, 1, 0]), 1], [screw([s * 0.06, 0.04, -0.06], 0.007, [s * 0.3, 1, -0.3]), 1]);
+  parts.push([at(rbox(0.16, 0.006, 0.02, 0.003, RX.HAZ), [0, 0.045, -0.03]), 1], [at(bcyl(0.024, 0.006, 0.002, R.GLOW, 12), [0, 0.044, 0.01]), 1]);
+  // eyestalks on top of the shell: two coil stalks, eye housings with lens eyes facing forward (the face shader reads
+  // these lenses on bone 2 like a robot head)
+  for (const s of [-1, 1]) {
+    parts.push([at(ball(0.014, R.DARK), [s * ex * 0.6, 0, 0]), 2], [place(coil(0.008, 0.0028, 4, R.CHROME, ey - 0.015), [s * ex * 0.6, 0, 0], [0, 0, -s * 0.35]), 2]);
+    parts.push([at(sph(0.025, R.A, 14, 10), [s * ex, ey, -0.006]), 2], [place(bcyl(er + 0.005, 0.012, 0.003, R.CHROME, 18), [s * ex, ey, 0.004], [P / 2, 0, 0]), 2], [place(bcyl(er, 0.004, 0.0015, R.LENS, 22), [s * ex, ey, 0.016], [P / 2, 0, 0]), 2]);
+    parts.push([at(rbox(0.03, 0.008, 0.02, 0.004, R.B), [s * ex, ey + 0.024, 0.0], [0.2, 0, 0]), 2]);
+  }
+  const face = { mode: 2, led: 0, mouth: 0, lens0: [ex, ey, 0.02, er], lens1: [-ex, ey, 0.02, er] };
   for (const [s, n] of [[1, 'L'], [-1, 'R']]) for (let k = 0; k < 3; k++) {
     parts.push([ball(0.016), I('c' + n + k)], [xc(0.012, 0.01, 0.08, s, R.A, 8), I('c' + n + k)]);
     parts.push([ball(0.012), I('b' + n + k)], [xc(0.009, 0.003, 0.1, s, R.B, 8), I('b' + n + k)]);
@@ -186,7 +198,7 @@ function crabLook(seed) {
     parts.push([at(rbox(0.03, 0.016, 0.07, 0.007, R.B), [0, 0, 0.04]), I('jaw' + n)], [at(cone(0.01, 0.03, R.B, 5), [0, 0, 0.085], [P / 2, 0, 0]), I('jaw' + n)]);
   }
   for (const n of ['aL', 'aR']) parts.push([ycu(0.003, 0.002, 0.08, R.CHROME, 4), I(n)], [at(sph(0.008, R.GLOW, 6, 5), [0, 0.08, 0]), I(n)]);
-  return { key: 'crab:' + seed, seed, defs, parts, face: hd.face, pal, eye: sch.eye, scale: 1.3, d: {}, hidden: [] };
+  return { key: 'crab:' + seed, seed, defs, parts, face, pal, eye: sch.eye, scale: 1.3, d: {}, hidden: [] };
 }
 
 // snake. Bones placed absolutely along a trail: 0 anchor, 1 neck, 2 head, 3..18 body, 19 rattle, 20 tongue
@@ -521,7 +533,10 @@ POSE.crab = function (b, dt, S) {
   }
   for (const n of ['aL', 'aR']) { const i = I(n); S.r[i][0] = b.s(n + 'x').step(-0.3 - armUp * 0.1, 60, 3, dt); S.r[i][2] = b.s(n + 'z').step((n === 'aL' ? -0.25 : 0.25) - b.yawRate * 0.04 - b.speed * 0.4, 60, 3, dt); }
   if (fk) { S.r[0][2] += P * fk; rootY = lerp(rootY, 0.03, fk); b.emo = b.u < 0.7 ? 'dizzy' : 'neutral'; }
-  S.d[0][1] = rootY; S.r[1][2] = shellZ; S.r[2][1] = b.look2[0] * 0.3;
+  S.d[0][1] = rootY; S.r[1][2] = shellZ;
+  // eyestalks: springy wobble with walking / turning, pop up when scared, droop when sad
+  S.r[2][0] = b.s('eyx').step(-0.15 * Math.abs(b.speed) - 0.3 * scared + 0.35 * sad + 0.06 * Math.sin(t * 9) * walk, 120, 6, dt); S.r[2][2] = b.s('eyz').step(-b.yawRate * 0.05 + 0.08 * Math.sin(t * 7) * walk - b.speed * 0.2, 120, 6, dt);
+  S.r[2][1] = b.look2[0] * 0.25; S.d[2][1] = 0.02 * scared - 0.015 * sad; S.s[2][1] = 1 + 0.2 * scared;
 };
 POSE.snake = function (b, dt, S) {
   const I = (n) => b.look.defs.findIndex((d) => d.n === n), t = b.t, u = b.u, rad = b.look.d.rad;

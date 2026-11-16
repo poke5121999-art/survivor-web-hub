@@ -1103,7 +1103,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/robot-loc-coc.png",
     // Nguồn làm việc: D:/bot-crew trên HOB-THOR (tools/shots.js chụp ảnh kiểm).
     path: "games/robot-loc-coc/index.html",
-    rev: "20261116c",
+    rev: "20261116d",
     status: "available",
     tags: ["Thử nghiệm", "Robot", "Nhân vật 3D", "Không asset"]
   }

@@ -155,7 +155,8 @@ export class BeastModes {
   }
   counts() { const n = this.sys.list.length; return this.view === 'park' ? `${n} thú máy · 2 robot · chó: ${({ wait: 'chờ ném', chase: 'đuổi bóng', grab: 'ngậm bóng', back: 'mang về', chaseBird: 'đuổi chim' })[this.dog?.st] || ''}` : `${n} thú máy · ${new Set(this.sys.list.map((b) => b.look.key)).size} mẫu`; }
   hot() { if (this.view !== 'park') return null; let x = 0, z = 0; const w = [[this.dog, 3], [this.bird, 2], [this.walker, 1], [this.octo, 1]]; let s = 0; for (const [b, k] of w) { x += b.x * k; z += b.z * k; s += k; } return { x: x / s * 0.5, z: z / s * 0.5, r: 5 }; }
-  labels() { return this.view === 'park' ? [] : this.list.map((b) => ({ p: { mesh: { position: V(b.x, 0, b.z) } }, e: { label: b.label } })); }
+  // the label goes under the animal's body: flying ones (bees, a bird in the air) get it just below them, not on the ground
+  labels() { return this.view === 'park' ? [] : this.list.map((b) => { const fly = b.sp === 'bee' || b.y > 0.05 || b.is('takeoff'); const ly = fly ? b.bpoint(b.look.defs[0].n, 0, b.sp === 'bee' ? -0.12 : -0.08, 0).y : -0.05; return { p: { mesh: { position: V(b.x, ly, b.z) } }, e: { label: b.label }, ly }; }); }
 }
 const PUFF_G = new THREE.SphereGeometry(1, 10, 8);
 
