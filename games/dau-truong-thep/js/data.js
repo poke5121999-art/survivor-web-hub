@@ -754,9 +754,9 @@ export const MECHS = {
     blurb: 'Bốn nhát kiếm trúng liền thì nhát kế tiếp hóa kiếm khí dài và nặng hơn. Kiếm Trận lơ lửng chặn đạn, Vạn Kiếm Quy Tông dội kiếm xuống kẻ địch quanh con trỏ.',
     hp: 2800, speed: 6.3, radius: 0.86,
     armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.2,
-    passive: { do: 'meter', name: 'Kiếm Khí', desc: 'Mỗi nhát kiếm thường trúng nạp một nấc, đủ 4 nấc thì loạt kiếm kế tiếp thành kiếm khí xuyên thấu bay xa 15 m, rộng hơn và nặng thêm 60%.',
-      max: 4, gain: { weapon: 1 }, spend: { kind: 'shot', mul: 1.6, patch: { range: 15, speed: 34, r: 0.5, pierce: true, vis: 'lance' } } },
-    weapon: { name: 'Kiếm Phong', cd: 0.4, dmg: 70, n: 2, fan: 0.1, speed: 28, range: 7.5, r: 0.3, pierce: true, vis: 'wave' },
+    passive: { do: 'meter', name: 'Kiếm Khí', desc: 'Mỗi nhát kiếm thường trúng nạp một nấc, đủ 4 nấc thì loạt kiếm kế tiếp thành kiếm khí xuyên thấu bay xa 15 m, rộng hơn và nặng thêm 40%.',
+      max: 4, gain: { weapon: 1 }, spend: { kind: 'shot', mul: 1.4, patch: { range: 15, speed: 34, r: 0.5, pierce: true, vis: 'lance' } } },
+    weapon: { name: 'Kiếm Phong', cd: 0.4, dmg: 62, n: 2, fan: 0.1, speed: 28, range: 7.5, r: 0.3, pierce: true, vis: 'wave' },
     skills: [
       { id: 'kiemkhitram', name: 'Kiếm Khí Trảm', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 32, range: 15, r: 0.5, pierce: true, vis: 'wave', icon: 'pierce',
         desc: 'Chém một luồng kiếm khí xuyên thấu 240 sát thương, tầm 15 m.' },
@@ -800,9 +800,150 @@ export const MECHS = {
         desc: 'Trong 7 giây to hơn 25%, thêm 20% giáp, sát thương tăng 25%, hút máu 20% và đấm nhanh hơn (hồi 0,5 giây).' },
     ],
   },
+  retdo: {
+    name: 'Rết Đỏ', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1800, tint: 0xb0202a,
+    blurb: 'Phóng dao liên tục, càng thấp máu càng hút máu mạnh. Lộn Ngược né ra sau rồi trả đòn bằng hai lưỡi dao, Hỗn Loạn hút máu mọi kẻ áp sát.',
+    hp: 3100, speed: 6.4, radius: 0.86,
+    armor: 0.10, accel: 1.1, turn: 12, towerMul: 1.2,
+    passive: { do: 'lifesteal', name: 'Tái Sinh', desc: 'Hút 14% sát thương gây ra thành máu. Dưới 40% máu thì hút gấp đôi.',
+      frac: 0.14, mods: { lowHp: { below: 0.4, steal: 2 } } },
+    weapon: { name: 'Song Đao Ném', cd: 0.2, dmg: 74, speed: 32, range: 10, r: 0.2, alt: 0.35, vis: 'dart' },
+    skills: [
+      { id: 'phongdao', name: 'Phóng Dao', cd: 7, do: 'volley', n: 1, dmg: 75, speed: 36, range: 11, r: 0.2, vis: 'dart', burst: { n: 5, gap: 0.08 }, move: 0.6, icon: 'ricochet',
+        desc: 'Phóng liền năm con dao, mỗi con 75 sát thương, cách nhau 0,08 giây; vừa phóng vừa đi được.' },
+      { id: 'lonnguoc', name: 'Lộn Ngược', cd: 11, do: 'counter', window: 0.6, dr: 0.6, move: { back: 5, speed: 24 },
+        riposte: { volley: { n: 2, fan: 0.05, dmg: 160, speed: 34, range: 12, r: 0.22, vis: 'dart' } }, icon: 'recoil',
+        desc: 'Lộn ra sau 5 m rồi giữ thế 0,6 giây: đòn đầu tiên trúng bạn bị giảm 60% và bạn bắn trả hai con dao 160 vào kẻ đánh. Không ai đánh thì hồi lại 40% thời gian hồi.' },
+      { id: 'honloan', name: 'Hỗn Loạn', cd: 40, do: 'zone', at: 'self', follow: true, radius: 4.5, dur: 5, dps: 220, drain: 0.5, vis: 'blizzard', icon: 'rage',
+        desc: 'Cơn loạn đao bám theo bạn 5 giây: địch trong 4,5 m mất 220 máu mỗi giây, và bạn hồi bằng một nửa số máu đó.' },
+    ],
+  },
+  nhenthep: {
+    name: 'Nhện Thép', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x4a4f58,
+    blurb: 'Móc tơ kéo mình tới địch, vòng chém lướt vô địch và đánh dấu mục tiêu, rồi đu dây năm nhát liên hoàn. Hạ gục là móc tơ sẵn sàng ngay.',
+    hp: 2350, speed: 7.3, radius: 0.76,
+    armor: 0.02, accel: 1.4, turn: 16, towerMul: 1.4,
+    passive: { do: 'brittle', name: 'Thợ Săn', desc: 'Gây thêm 25% sát thương lên kẻ đang bị đánh dấu. Hạ gục một kẻ thì Móc Đu hồi xong ngay.',
+      mul: 1.25, when: 'marked', mods: { onKill: { reset: { slots: ['s1'], frac: 1 } } } },
+    weapon: { name: 'Song Lưỡi', cd: 0.3, dmg: 64, n: 2, fan: 0.12, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
+    skills: [
+      { id: 'mocdu', name: 'Móc Đu', cd: 7, do: 'hook', speed: 36, range: 13, r: 0.35, dmg: 140, self: true, vis: 'hook', icon: 'hook',
+        desc: 'Bắn móc tơ 140 sát thương; trúng tường hoặc một cỗ máy thì kéo bạn lao tới đó (không kéo mục tiêu).' },
+      { id: 'vongchem', name: 'Vòng Chém', cd: 9, do: 'dash', dist: 6, speed: 32, dmg: 165, invuln: true, fx: { amp: { amp: 0.2, dur: 4 } }, icon: 'dash',
+        desc: 'Lướt 6 m, vô địch suốt lúc lướt, chém 165; kẻ trúng nhận thêm 20% sát thương từ mọi người trong 4 giây.' },
+      { id: 'dudaylienhoan', name: 'Đu Dây Liên Hoàn', cd: 40, do: 'flurry', n: 5, range: 9, speed: 38, dmg: 240, invuln: true, icon: 'swords',
+        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 9 m) rồi đu qua đu lại năm lượt: mỗi lượt chém kẻ gần nhất chưa bị chém 240, vô địch suốt chuỗi. Không có ai thì không phóng.' },
+    ],
+  },
+  taothao: {
+    name: 'Tào Tháo', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1900, tint: 0x2a2a3a,
+    blurb: 'Kiếm khí xuyên thấu, hút máu và hạ gục thì hồi máu, chạy nhanh. Liên Trảm chém ba nhát vào một kẻ để hồi sức, Bá Vương khiến cả người cứng cáp hơn.',
+    hp: 3000, speed: 6.1, radius: 0.88,
+    armor: 0.10, accel: 1.0, turn: 11, towerMul: 1.2,
+    passive: { do: 'lifesteal', name: 'Gian Hùng', desc: 'Hút 10% sát thương gây ra thành máu. Hạ gục một kẻ thì hồi 12% máu tối đa và chạy nhanh thêm 30% trong 3 giây.',
+      frac: 0.1, mods: { onKill: { heal: 0.12, haste: 1.3, dur: 3 } } },
+    weapon: { name: 'Ỷ Thiên Kiếm', cd: 0.5, dmg: 130, speed: 28, range: 9, r: 0.34, pierce: true, vis: 'wave' },
+    skills: [
+      { id: 'kiemkhi', name: 'Kiếm Khí', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 30, range: 12, r: 0.5, pierce: true, vis: 'wave', icon: 'pierce',
+        desc: 'Chém một luồng kiếm khí xuyên thấu 240 sát thương, tầm 12 m.' },
+      { id: 'lientram', name: 'Liên Trảm', cd: 11, do: 'flurry', n: 3, same: true, range: 7, speed: 32, dmg: 160, heal: 0.4, icon: 'swords',
+        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 7 m) rồi lao xuyên qua nó ba lượt, mỗi lượt 160 sát thương và hồi 40% số sát thương đó.' },
+      { id: 'bavuong', name: 'Bá Vương', cd: 42, do: 'transform', dur: 6, rapid: 1.4, lifesteal: 0.3, ccResist: 0.5, icon: 'rage',
+        desc: 'Trong 6 giây bắn nhanh hơn 40%, hút máu 30% và thời gian bị choáng, làm chậm, giữ chân ngắn đi một nửa.' },
+    ],
+  },
+  bongua: {
+    name: 'Bọ Ngựa', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x1e2a22,
+    blurb: 'Mỗi nhát liềm trúng nạp một nấc, đủ sáu nấc thì chiêu kế tiếp nặng thêm một nửa. Chém Lướt được ba lần liên tiếp, Thế Đỡ gạt đòn rồi nổ một vòng, Song Liềm chém bảy nhát.',
+    hp: 2400, speed: 7.1, radius: 0.76,
+    armor: 0.03, accel: 1.4, turn: 16, towerMul: 1.4,
+    passive: { do: 'meter', name: 'Kiếm Kỹ', desc: 'Mỗi nhát liềm thường trúng nạp một nấc. Đủ 6 nấc thì chiêu gây sát thương kế tiếp nặng thêm 50%.',
+      max: 6, gain: { weapon: 1 }, spend: { kind: 'skill', mul: 1.5 } },
+    weapon: { name: 'Đao Liềm', cd: 0.28, dmg: 70, n: 2, fan: 0.1, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
+    skills: [
+      { id: 'chemluot', name: 'Chém Lướt', cd: 9, do: 'dash', dist: 6, speed: 34, dmg: 155, recast: { n: 3, window: 2.5 }, icon: 'dash',
+        desc: 'Lướt 6 m chém 155. Trong 2,5 giây sau bấm lại để lướt tiếp, tối đa ba lần; hồi chiêu tính từ lần cuối.' },
+      { id: 'thedo', name: 'Thế Đỡ', cd: 11, do: 'counter', window: 1.0, first: true, riposte: { nova: { radius: 3.5, dmg: 300, stun: 0.6 } }, icon: 'screen',
+        desc: 'Giữ thế 1 giây: đòn đầu tiên trúng bạn bị gạt hoàn toàn và bạn nổ vòng 3,5 m gây 300, choáng 0,6 giây. Không ai đánh thì hồi lại 40% thời gian hồi.' },
+      { id: 'songliem', name: 'Song Liềm', cd: 40, do: 'flurry', n: 7, same: true, range: 6, speed: 30, dmg: 140, icon: 'swords',
+        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 6 m) rồi lao xuyên qua nó bảy lượt, mỗi lượt 140 sát thương, vô địch suốt lúc lao.' },
+    ],
+  },
+  moclan: {
+    name: 'Hoa Mộc Lan', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1800, tint: 0xc23a4a,
+    blurb: 'Hai thế kiếm: Song Kiếm nhanh nhẹn, Trọng Kiếm nặng nề. Mỗi lần dùng Kiếm Pháp là đổi thế; Lướt Phản và Xuất Trận đổi cách đánh theo thế đang giữ.',
+    hp: 2800, speed: 6.4, radius: 0.82,
+    armor: 0.09, accel: 1.1, turn: 12, towerMul: 1.2,
+    passive: { do: 'form', name: 'Đổi Thế', desc: 'Mỗi lần dùng Kiếm Pháp thì đổi thế. Thế Song Kiếm chạy nhanh hơn 8%; thế Trọng Kiếm cứng thêm 10% giáp.', flip: 's1' },
+    forms: [{ speed: 1.08 }, { armor: 0.1, weapon: { name: 'Trọng Kiếm', cd: 0.8, dmg: 215, n: 1, fan: 0, speed: 24, range: 8, r: 0.5, pierce: true, knock: 2, vis: 'wave' },
+      skills: { 0: { n: 1, fan: 0, r: 0.8, dmg: 380, range: 8, knock: 3, pierce: false },
+        1: { riposte: { nova: { radius: 3, dmg: 260, knock: 3 } } },
+        2: { rapid: 0, haste: 0, armor: 0.25, dmg: 1.35 } } }],
+    weapon: { name: 'Song Kiếm', cd: 0.25, dmg: 66, n: 2, fan: 0.1, speed: 30, range: 7.5, r: 0.26, vis: 'pellet' },
+    skills: [
+      { id: 'kiemphap', name: 'Kiếm Pháp', cd: 5, do: 'volley', n: 3, fan: 0.18, dmg: 140, speed: 30, range: 7, r: 0.3, pierce: true, vis: 'wave', icon: 'pierce',
+        desc: 'Thế Song Kiếm: bắn ba luồng kiếm khí hình quạt xuyên thấu, mỗi luồng 140. Thế Trọng Kiếm: một nhát to 380 tầm 8 m, hất lùi. Dùng xong là đổi thế.' },
+      { id: 'luotphan', name: 'Lướt Phản', cd: 11, do: 'counter', window: 0.7, dr: 0.5, move: { side: 5, speed: 26 },
+        riposte: { volley: { n: 3, fan: 0.12, dmg: 120, speed: 32, range: 9, r: 0.22, vis: 'pellet' } }, icon: 'recoil',
+        desc: 'Né ngang 5 m rồi giữ thế 0,7 giây: đòn đầu tiên trúng bạn giảm 50%. Thế Song Kiếm trả ba viên 120, thế Trọng Kiếm nổ vòng 3 m gây 260 và hất văng.' },
+      { id: 'moclanxuattran', name: 'Mộc Lan Xuất Trận', cd: 44, do: 'transform', dur: 6, rapid: 1.5, haste: 1.2, icon: 'rage',
+        desc: 'Trong 6 giây: thế Song Kiếm bắn nhanh hơn 50% và chạy nhanh thêm 20%; thế Trọng Kiếm thêm 25% giáp và sát thương tăng 35%.' },
+    ],
+  },
+  anduong: {
+    name: 'An Dương Vương', role: 'Bắn tỉa', roleKey: 'sniper', price: 1800, tint: 0x8a6a2a,
+    blurb: 'Nỏ thần đổi giữa Nỏ Nhẹ bắn nhanh và Nỏ Nặng bắn xa xuyên thấu. Loạt Tên đổi theo nỏ đang cầm, Nỏ Linh Quang mạnh hơn khi cầm nỏ nặng.',
+    hp: 2100, speed: 6.0, radius: 0.80,
+    armor: 0.05, accel: 1.0, turn: 11, towerMul: 1.0,
+    passive: { do: 'form', name: 'Nỏ Thần', desc: 'Có hai thế nỏ, đổi bằng Đổi Nỏ. Nỏ Nặng bắn xa, xuyên thấu và rất đau nhưng chậm, và bạn đi chậm đi 15%.' },
+    forms: [{}, { speed: 0.85, weapon: { name: 'Nỏ Nặng', cd: 1.2, dmg: 360, speed: 56, range: 21, r: 0.22, pierce: true, vis: 'rail' },
+      skills: { 0: { n: 1, fan: 0, dmg: 520, speed: 56, range: 22, r: 0.22, pierce: true, vis: 'rail', haste: 0 }, 2: { dmg: 2040 } } }],
+    weapon: { name: 'Nỏ Nhẹ', cd: 0.3, dmg: 84, speed: 40, range: 15, r: 0.18, vis: 'dart' },
+    skills: [
+      { id: 'loatten', name: 'Loạt Tên', cd: 8, do: 'volley', n: 3, fan: 0.08, dmg: 110, speed: 40, range: 15, r: 0.18, vis: 'dart', haste: 1.2, hasteDur: 1.5, icon: 'ricochet',
+        desc: 'Nỏ Nhẹ: bắn ba mũi tên 110 và chạy nhanh thêm 20% trong 1,5 giây. Nỏ Nặng: một mũi tên xuyên thấu 520, tầm 22 m.' },
+      { id: 'doinno', name: 'Đổi Nỏ', cd: 2, do: 'form', setup: 0.3, move: 0.6, icon: 'swap',
+        desc: 'Mất 0,3 giây để đổi giữa Nỏ Nhẹ và Nỏ Nặng.' },
+      { id: 'nolinhquang', name: 'Nỏ Linh Quang', cd: 50, do: 'beam', windup: 1.0, range: 28, width: 1.0, dmg: 1700, icon: 'beam',
+        desc: 'Lấy đà 1 giây rồi bắn tia sáng xuyên thấu 1700 sát thương, tầm 28 m; cầm Nỏ Nặng thì mạnh thêm 20%.' },
+    ],
+  },
+  chuottui: {
+    name: 'Chuột Túi', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xc98a4a,
+    blurb: 'Túi thần thỉnh thoảng trả lại gần hết thời gian hồi chiêu. Mở cửa thần cho cả đội đi qua, thả robot quấy, rồi tung túi đồ nghề hồi máu, tăng tốc và che khiên.',
+    hp: 2200, speed: 6.8, radius: 0.80,
+    armor: 0.04, accel: 1.2, turn: 13, towerMul: 2.2,
+    passive: { do: 'thrifty', name: 'Túi Thần', desc: 'Mỗi lần dùng chiêu có 25% khả năng được hoàn lại 75% thời gian hồi.', chance: 0.25, refund: 0.75 },
+    weapon: { name: 'Súng Bóng', cd: 0.32, dmg: 118, speed: 28, range: 12.5, r: 0.26, vis: 'pulse' },
+    skills: [
+      { id: 'cuathan', name: 'Cửa Thần', cd: 16, do: 'portal', cast: 10, dur: 8, r: 1.3, icon: 'warp',
+        desc: 'Mở một đầu cửa ở chỗ bạn đứng, đầu kia ở con trỏ (xa nhất 10 m) và bạn sang đó ngay. 8 giây: đồng đội bước vào một đầu thì sang đầu kia (mỗi người 3 giây một lần). Địch không dùng được.' },
+      { id: 'robotquay', name: 'Robot Quấy', cd: 15, do: 'turret', cast: 5, hp: 600, dur: 10, range: 10, dmg: 55, rate: 0.35, icon: 'turret',
+        desc: 'Thả robot 600 máu ở con trỏ (xa nhất 5 m), bắn kẻ địch trong 10 m, mỗi phát 55, kéo dài 10 giây.' },
+      { id: 'tuidonghe', name: 'Túi Đồ Nghề', cd: 46, do: 'zone', at: 'self', follow: true, radius: 6.5, dur: 5, hps: 180, haste: 1.25, shield: 300, vis: 'heal', icon: 'dome',
+        desc: 'Túi đồ nghề bám theo bạn 5 giây: đồng đội trong 6,5 m hồi 180 máu mỗi giây, chạy nhanh thêm 25%, và có khiên 300 khi bước vào.' },
+    ],
+  },
+  vesau: {
+    name: 'Ve Sầu', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0x3a1a2a,
+    blurb: 'Gom thời gian từ máu đồng đội đã mất để lần hồi máu kế tiếp mạnh hơn. Đạn Ấn đánh dấu, Vùng Thời Gian hồi và tăng tốc, Quay Ngược trả lại máu cả đội vừa mất.',
+    hp: 1950, speed: 6.8, radius: 0.78,
+    armor: 0.04, accel: 1.2, turn: 13, towerMul: 1.8,
+    passive: { do: 'meter', name: 'Thời Khắc', desc: 'Mỗi điểm máu đồng đội trong 8 m mất đi nạp một điểm; đủ 1500 thì lần hồi máu kế tiếp của bạn cho người khác mạnh thêm 60%.',
+      max: 1500, gain: { allyHurt: 1, r: 8 }, spend: { kind: 'heal', mul: 1.6 } },
+    weapon: { name: 'Đạn Thời Gian', cd: 0.35, dmg: 128, speed: 32, range: 13, r: 0.22, alt: 0.3, vis: 'bullet' },
+    skills: [
+      { id: 'danan', name: 'Đạn Ấn', cd: 7, do: 'volley', n: 1, dmg: 250, speed: 34, range: 14, r: 0.26, vis: 'bullet', fx: { amp: { amp: 0.15, dur: 4 } }, icon: 'mark',
+        desc: 'Bắn viên đạn 250 sát thương; kẻ trúng nhận thêm 15% sát thương từ mọi người trong 4 giây.' },
+      { id: 'vungthoigian', name: 'Vùng Thời Gian', cd: 13, do: 'zone', at: 'target', cast: 10, radius: 4.5, dur: 4, hps: 180, haste: 1.25, vis: 'heal', icon: 'heal',
+        desc: 'Mở vùng thời gian ở con trỏ (xa nhất 10 m) 4 giây: đồng đội trong 4,5 m hồi 180 máu mỗi giây và chạy nhanh thêm 25%.' },
+      { id: 'quayguoc', name: 'Quay Ngược', cd: 50, do: 'rewind', radius: 8, back: 3, frac: 0.8, icon: 'refresh',
+        desc: 'Đồng đội trong 8 m (bạn chỉ nhận một phần) lấy lại 80% số máu đã mất so với 3 giây trước.' },
+    ],
+  },
 };
 
-export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'khiphao', 'quancong', 'natra', 'duongtien', 'athena', 'hades', 'lubo', 'mucma', 'kynhong', 'nguma', 'sontinh', 'enbac', 'boica', 'bohung', 'cakiem', 'gilgamesh', 'buomdem', 'laclong', 'baogam', 'luondien', 'tegiac', 'quaset', 'tumay', 'dieuthuyen', 'thuytinh', 'samthep', 'cuuvi', 'kiemthan', 'suatrang', 'khidot'];
+export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'khiphao', 'quancong', 'natra', 'duongtien', 'athena', 'hades', 'lubo', 'mucma', 'kynhong', 'nguma', 'sontinh', 'enbac', 'boica', 'bohung', 'cakiem', 'gilgamesh', 'buomdem', 'laclong', 'baogam', 'luondien', 'tegiac', 'quaset', 'tumay', 'dieuthuyen', 'thuytinh', 'samthep', 'cuuvi', 'kiemthan', 'suatrang', 'khidot', 'retdo', 'nhenthep', 'taothao', 'bongua', 'moclan', 'anduong', 'chuottui', 'vesau'];
 
 // Bot tuning. aimErr: radians of aim noise; react: seconds before a new target is engaged;
 // skill: chance per second to use a ready skill when it makes sense; lead: how well shots lead a moving target (0..1).
@@ -892,6 +1033,14 @@ export const PERKS = {
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
   suatrang: [perk('Bóng Bền', 'Bong Bóng Hồi hồi 200 mỗi giây trong 5 giây.', 0, { hot: { hps: 200, dur: 5 } }), perk('Khiên Dày', 'Bay Đỡ che khiên 600, rộng 5 m.', 1, { landShield: 600, radius: 5 }), perk('Cứu Thương Dài', 'Cấp Cứu hồi 280 mỗi giây, kéo dài 6 giây.', 2, { hps: 280, dur: 6 })],
   khidot: [perk('Đấm Rung', 'Đấm Đất rộng 6 m, gây 320.', 0, { radius: 6, dmg: 320 }), perk('Vồ Lớn', 'Nhảy Vồ rộng 4,2 m, gây 300.', 1, { radius: 4.2, dmg: 300 }), perk('Nộ Dài', 'Thịnh Nộ kéo dài 9 giây, hút máu 28%.', 2, { dur: 9, lifesteal: 0.28 })],
+  retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
+  nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],
+  taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 150.', 'weapon', { dmg: 150 }), perk('Bốn Nhát', 'Liên Trảm chém bốn nhát, mỗi nhát 170.', 1, { n: 4, dmg: 170 }), perk('Vương Bền', 'Bá Vương kéo dài 8 giây, hút máu 40%.', 2, { dur: 8, lifesteal: 0.4 })],
+  bongua: [perk('Liềm Nặng', 'Đao Liềm gây 88.', 'weapon', { dmg: 88 }), perk('Thế Rộng', 'Thế Đỡ giữ 1,3 giây, nổ rộng 4,2 m gây 340, choáng 0,8 giây.', 1, { window: 1.3, riposte: { nova: { radius: 4.2, dmg: 340, stun: 0.8 } } }), perk('Chín Liềm', 'Song Liềm chém chín nhát, mỗi nhát 150.', 2, { n: 9, dmg: 150 })],
+  moclan: [perk('Kiếm Sắc', 'Song Kiếm gây 80 mỗi viên.', 'weapon', { dmg: 80 }), perk('Phản Sâu', 'Lướt Phản giữ thế 0,9 giây, giảm 65% đòn đầu tiên.', 1, { window: 0.9, dr: 0.65 }), perk('Trận Dài', 'Mộc Lan Xuất Trận kéo dài 8 giây.', 2, { dur: 8 })],
+  anduong: [perk('Nỏ Nhanh', 'Nỏ Nhẹ bắn mỗi 0,26 giây.', 'weapon', { cd: 0.26 }), perk('Đổi Nhanh', 'Đổi Nỏ chỉ mất 0,15 giây.', 1, { setup: 0.15 }), perk('Tia Rộng', 'Nỏ Linh Quang rộng 1,4 m, tầm 30 m.', 2, { width: 1.4, range: 30 })],
+  chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 135.', 'weapon', { dmg: 135 }), perk('Robot Dày', 'Robot Quấy 900 máu, mỗi phát 75, kéo dài 12 giây.', 1, { hp: 900, dmg: 75, dur: 12 }), perk('Túi Lớn', 'Túi Đồ Nghề hồi 220 mỗi giây, khiên 450, kéo dài 6 giây.', 2, { hps: 220, shield: 450, dur: 6 })],
+  vesau: [perk('Ấn Sâu', 'Đạn Ấn gây 290, kẻ trúng nhận thêm 20%.', 0, { dmg: 290, fx: { amp: { amp: 0.2, dur: 4 } } }), perk('Vùng Rộng', 'Vùng Thời Gian rộng 5,5 m, kéo dài 5 giây.', 1, { radius: 5.5, dur: 5 }), perk('Ngược Xa', 'Quay Ngược rộng 10 m, trả lại toàn bộ máu mất.', 2, { radius: 10, frac: 1 })],
 };
 
 // The row a unit actually plays: the MECHS row with its upgrade levels and unlocked perks applied.
@@ -903,20 +1052,40 @@ export function buildDef(key, lv) {
   const id = key + ':' + lv.join('');
   if (DEF_CACHE.has(id)) return DEF_CACHE.get(id);
   const [g, d, h, n, c] = lv, [TG, TD, TH, TN, TC] = TRACKS;
-  const weapon = { ...base.weapon }, skills = base.skills.map((s) => ({ ...s }));
-  (PERKS[key] || []).slice(0, perkCount(lv)).forEach((p) => Object.assign(p.slot === 'weapon' ? weapon : skills[p.slot], p.patch));
-  weapon.cd /= 1 + TN.rate * n;
-  weapon.range *= 1 + TN.range * n;
-  if (weapon.charge) weapon.charge = { ...weapon.charge, range: weapon.charge.range.map((r) => r * (1 + TN.range * n)) };
+  const raw = { ...base.weapon }, skills = base.skills.map((s) => ({ ...s }));
+  (PERKS[key] || []).slice(0, perkCount(lv)).forEach((p) => Object.assign(p.slot === 'weapon' ? raw : skills[p.slot], p.patch));
+  // the garage's fire-rate and range levels act on the main weapon (and on every form's weapon)
+  const dress = (w) => {
+    const o = { ...w };
+    o.cd /= 1 + TN.rate * n;
+    o.range *= 1 + TN.range * n;
+    if (o.charge) o.charge = { ...o.charge, range: o.charge.range.map((r) => r * (1 + TN.range * n)) };
+    return o;
+  };
   for (const s of skills) s.cd *= 1 - TC.cd * c;
-  // transform.weapon: the weapon row a transform swaps in, built here so both ends of an online match agree
-  const tfWeapon = {};
-  skills.forEach((s, i) => { if (s.do === 'transform' && s.weapon) tfWeapon[i] = { ...weapon, ...s.weapon }; });
-  const def = { ...base, base, lv, weapon, skills, tfWeapon, hp: Math.round(base.hp * (1 + TG.hp * g)), armor: (base.armor || 0) + TG.armor * g,
-    speed: base.speed * (1 + TD.speed * d), accel: (base.accel || 1) * (1 + TD.accel * d), dmgUp: 1 + TH.dmg * h };
+  const hp = Math.round(base.hp * (1 + TG.hp * g)), armor = (base.armor || 0) + TG.armor * g;
+  const speed = base.speed * (1 + TD.speed * d), accel = (base.accel || 1) * (1 + TD.accel * d), dmgUp = 1 + TH.dmg * h;
+  // One def per form (row.forms: [patch0, patch1], each { weapon, skills: { slot: patch }, speed, armor }); a unit with forms plays
+  // def.formDefs[u.form] (the property is not enumerable, so a def can still be copied and printed). Both ends build them the same way.
+  const make = (f, i) => {
+    const wp = dress({ ...raw, ...(f && f.weapon) });
+    const sk = skills.map((s, k) => (f && f.skills && f.skills[k] ? { ...s, ...f.skills[k] } : s));
+    // transform.weapon: the weapon row a transform swaps in, built here so both ends of an online match agree
+    const tfWeapon = {};
+    sk.forEach((s, k) => { if (s.do === 'transform' && s.weapon) tfWeapon[k] = { ...wp, ...s.weapon }; });
+    return { ...base, base, lv, weapon: wp, skills: sk, tfWeapon, hp, armor: armor + ((f && f.armor) || 0), speed: speed * ((f && f.speed) || 1), accel, dmgUp, form: i };
+  };
+  let def;
+  if (base.forms) {
+    const defs = base.forms.map(make);
+    for (const x of defs) Object.defineProperty(x, 'formDefs', { value: defs, enumerable: false });
+    def = defs[0];
+  } else def = make(null, 0);
   DEF_CACHE.set(id, def);
   return def;
 }
+// The def a unit plays in form f (a mech without forms has only one).
+export const formDef = (def, f) => (def.formDefs ? def.formDefs[f] || def : def);
 export const upgradeCost = (lv) => lv.reduce((sum, l) => { for (let i = 0; i < l; i++) sum += UPGRADE.cost(i); return sum; }, 0);
 
 // Cosmetic trim paints. The armour stays in the team colour so teams always read; paint recolours the trim parts.

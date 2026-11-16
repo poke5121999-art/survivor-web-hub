@@ -986,6 +986,24 @@ export function makeFx(G, mechs) {
         if (t) { ring(t.x, t.z, 2, WHITE, 0.3); glow(t.x, 1.4, t.z, ARC, 0.25, 2.4, 0.9, K.STAR, 1.2); sparks(t.x, 1.4, t.z, N(10), ARC, 8, 0.4, 0.06, 0.8, 10); }
         break;
       }
+      case 'parry': {
+        // a counter catches a blow: a gold flash on the one who turned it away
+        ring(e.x, e.z, 2.4, GOLD, 0.35); ring(e.x, e.z, 1.2, WHITE, 0.2); glow(e.x, 1.4, e.z, GOLD, 0.2, 2.8, 1, K.STAR, 1.3);
+        sparks(e.x, 1.3, e.z, N(12), GOLD, 10, 0.35, 0.05, 0.6, 10); flash(e.x, 1.8, e.z, GOLD, 40, 0.15);
+        break;
+      }
+      case 'flurry': ring(e.x, e.z, 1.8, WHITE, 0.2); glow(e.x, 1.3, e.z, WHITE, 0.1, 2, 1, K.STAR, 1.4); sparks(e.x, 1.3, e.z, N(8), ARC, 9, 0.3, 0.05, 0.5, 10); break;
+      case 'form': {
+        ring(e.x, e.z, 3, e.on ? GOLD : ARC, 0.45); ring(e.x, e.z, 1.6, WHITE, 0.3);
+        column(e.x, e.z, (e.on ? GOLD : ARC).clone().multiplyScalar(0.4), 0.5, 6, 0.7); sparks(e.x, 1.2, e.z, N(10), e.on ? GOLD : ARC, 8, 0.4, 0.05, 0.7, 8);
+        break;
+      }
+      case 'thrift': if (u) { ring(u.x, u.z, 1.6, GOLD, 0.25); glow(u.x, 2.6, u.z, GOLD, 0.25, 1.8, 1, K.STAR, 1.3); } break;
+      case 'rewind': {
+        ring(e.x, e.z, e.r, VIOLET, 0.7); ring(e.x, e.z, e.r * 0.6, WHITE, 0.4, 0.6); ground(9, e.x, e.z, e.r * 0.8, VIOLET, { life: 1, sweep: true });
+        glow(e.x, 1.3, e.z, WHITE, 0.2, 3.5, 0.7, K.STAR, 1.3); flash(e.x, 2.5, e.z, VIOLET, 40, 0.3);
+        break;
+      }
       case 'meter': {
         // a meter fills (gold ring and glow) or is spent (a plain ring)
         if (!u) break;
@@ -1073,6 +1091,7 @@ export function makeFx(G, mechs) {
   const zoneInfo = new Map();
   function dropZone(v) {
     if (v.g) release(v.g);
+    if (v.g2) release(v.g2);
     if (v.dome) { group.remove(v.dome); v.dome.material.dispose(); }
     if (v.obj) group.remove(v.obj);
     if (v.link) endBeam(v.link);
@@ -1133,6 +1152,7 @@ export function makeFx(G, mechs) {
           group.add(v.obj); v.wire = beam(z.pts[0][0], z.pts[0][1], z.pts[1][0], z.pts[1][1], 1.5, tc, 1e9, 7, 1.0);
           v.armed = z.delay <= 0;
         }
+        else if (z.kind === 'portal') { v.g = ground(2, z.x, z.z, z.r, tc, { alpha: 0.9 }); v.g2 = ground(2, z.x2, z.z2, z.r, tc, { alpha: 0.9 }); }
         else if (z.kind === 'turret') { v.obj = turretModel(z.color); v.obj.position.set(z.x, 0, z.z); group.add(v.obj); v.g = ground(6, z.x, z.z, 1.6, tc); }
         else if (z.kind === 'dome') {
           v.dome = new THREE.Mesh(domeGeo, domeMaterial(tc.clone()));
@@ -1210,6 +1230,11 @@ export function makeFx(G, mechs) {
         v.wire.u.uA.value = fl * out;
         if (live && !v.armed) { v.armed = true; for (const [px, pz] of z.pts) { glow(px, 1.5, pz, WHITE, 0.15, 1.8, 1, K.STAR, 1.3); sparks(px, 1.5, pz, N(6), ARC, 5, 0.3, 0.05, 0.6, 8); } }
         if (live && Math.random() < dt * (low ? 6 : 14)) { const t = Math.random(); glow(z.pts[0][0] + (z.pts[1][0] - z.pts[0][0]) * t, 1.0 + rnd(-0.2, 0.3), z.pts[0][1] + (z.pts[1][1] - z.pts[0][1]) * t, ARC, 0.15, 0.3, 1, K.SPARK, 0.3, rnd(-1, 1), rnd(0.5, 2), rnd(-1, 1)); }
+      } else if (z.kind === 'portal') {
+        // two rings with a glow rising from each end
+        const out = Math.min(1, z.age * 4, (z.dur - z.age) * 3);
+        v.g.u.uA.value = out * 0.9; v.g2.u.uA.value = out * 0.9;
+        if (Math.random() < dt * 16) { const e2 = Math.random() < 0.5, px = e2 ? z.x2 : z.x, pz = e2 ? z.z2 : z.z, a = Math.random() * 6.283; glow(px + Math.cos(a) * z.r * 0.8, rnd(0.2, 1.6), pz + Math.sin(a) * z.r * 0.8, tc, 0.5, 0.3, 1, K.SPARK, 0.3, 0, rnd(1, 2.5), 0); }
       } else if (z.kind === 'orbit') {
         // orbs circle the owner: a small glow per live orb, bigger ones for a guard blade
         const o = m.units[z.owner];

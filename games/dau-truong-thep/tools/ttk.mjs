@@ -72,6 +72,14 @@ const SEQ = {
   kiemthan: { d: 6, seq: [['s2', 0], ['s1', 0.3], ['ult', 0.6]] },
   suatrang: { d: 8, seq: [['s1', 0]] },
   khidot: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },
+  retdo: { d: 6, seq: [['ult', 0], ['s1', 0.3]] },
+  nhenthep: { d: 6, seq: [['s2', 0], ['ult', 0.3], ['s1', 0.9]] },
+  taothao: { d: 5, seq: [['ult', 0], ['s1', 0.2], ['s2', 0.5]] },
+  bongua: { d: 5, seq: [['ult', 0], ['s1', 0.4]] },
+  moclan: { d: 5, seq: [['ult', 0], ['s1', 0.3]] },
+  anduong: { d: 15, seq: [['ult', 0], ['s1', 0.5]] },
+  chuottui: { d: 9, seq: [['s2', 0]] },
+  vesau: { d: 9, seq: [['s1', 0]] },
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {

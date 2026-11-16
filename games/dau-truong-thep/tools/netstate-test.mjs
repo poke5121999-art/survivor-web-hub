@@ -15,7 +15,7 @@ const check = (name, cond, detail = '') => {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
 const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter', 'stkN', 'stkT'];
+const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter', 'stkN', 'stkT', 'parryT'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
   strike: ['r', 'age', 'delay', 'total', 'lob', 'x0', 'z0'],
@@ -28,6 +28,7 @@ const ZONE_FIELDS = {
   drone: ['r', 'age', 'delay', 'dur'],
   wire: ['r', 'age', 'delay', 'dur', 'left'],
   orbit: ['r', 'age', 'delay', 'dur', 'mode', 'n', 'live', 'ring', 'spin'],
+  portal: ['r', 'age', 'delay', 'dur', 'x2', 'z2'],
 };
 
 // Every difference between the real match and the mirror, as strings.
@@ -57,7 +58,7 @@ function diff(real, mir) {
       eq(w + 'cast.skill', u.cast.skill.id, o.cast.skill.id); eq(w + 'cast.t', u.cast.t, o.cast.t); eq(w + 'cast.total', u.cast.total, o.cast.total);
       eq(w + 'cast.aim', turn(u.cast.aim, o.cast.aim), 0, 0.0006); eq(w + 'cast.move', u.cast.move, o.cast.move);
     }
-    eq(w + 'def', u.def, o.def); eq(w + 'team', u.team, o.team); eq(w + 'color', u.color, o.color);
+    eq(w + 'form', u.form, o.form, 0); eq(w + 'def', u.def, o.def); eq(w + 'team', u.team, o.team); eq(w + 'color', u.color, o.color);
     eq(w + 'unitSpeed', unitSpeed(u), unitSpeed(o), 0.2);
     if (u.slowT > 0) eq(w + 'slowF', u.slowF, o.slowF);
     if (u.hasteT > 0) eq(w + 'hasteF', u.hasteF, o.hasteF);
@@ -235,7 +236,19 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   check('meter value reaches the guest (800.25 / 100 / 3, to the hundredth)', near(g.meter, 800.25, 0.011) && near(t.meter, 100, 0.011) && near(l.meter, 3, 0.011), `${g.meter} ${t.meter} ${l.meter}`);
   check('an armed meter is armed on the mirror (tegiac 100 of 100), a half-full one is not (gilgamesh, luondien 3 of 5)', meterArmed(t) && !meterArmed(g) && !meterArmed(l));
 }
-check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire'].every((k) => seenKinds.has(k)));
+// a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'anduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });
+  const mir = createMirror(roster(m));
+  const none = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  step(m, [{ ...none, s2: true }, none, none]);
+  for (let i = 0; i < 12; i++) step(m, [none, none, none]);
+  const snap = snapshot(m);
+  applySnapshot(mir, decodeSnap(encodeSnap(snap)), TICK);
+  check('a form change reaches the guest: the mirror plays the heavy bow (same def object, form 1, Nỏ Nặng)', m.units[0].form === 1 && mir.units[0].form === 1 && mir.units[0].def === m.units[0].def && mir.units[0].def.weapon.name === 'Nỏ Nặng', `${mir.units[0].form}`);
+  check('the rewind history stays on the host (no hpHist in a snapshot, none on the mirror)', !JSON.stringify(snap).includes('hpHist') && mir.units.every((u) => !u.hpHist || u.hpHist.length === 0));
+}
+check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 
 console.log('\n# snapshot size');
 {

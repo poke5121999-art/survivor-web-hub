@@ -15,7 +15,8 @@ const NEW = MECH_ORDER.slice(8, 16);
 const BATCH1 = MECH_ORDER.slice(16, 22);   // khiphao, quancong, natra, duongtien, athena, hades
 const BATCH2 = MECH_ORDER.slice(22, 29);   // lubo, mucma, kynhong, nguma, sontinh, enbac, boica
 const BATCH3 = MECH_ORDER.slice(29, 39);   // bohung, cakiem, gilgamesh, buomdem, laclong, baogam, luondien, tegiac, quaset, tumay
-const BATCH4 = MECH_ORDER.slice(39);   // dieuthuyen, thuytinh, samthep, cuuvi, kiemthan, suatrang, khidot
+const BATCH4 = MECH_ORDER.slice(39, 46);   // dieuthuyen, thuytinh, samthep, cuuvi, kiemthan, suatrang, khidot
+const BATCH5 = MECH_ORDER.slice(46);   // retdo, nhenthep, taothao, bongua, moclan, anduong, chuottui, vesau
 const MODE_LIST = Object.keys(MODES);
 const put = (u, x, z) => { u.x = u.px = x; u.z = u.pz = z; };
 const rot = (list, k, n) => Array.from({ length: n }, (_, i) => list[(k + i) % list.length]);
@@ -214,12 +215,33 @@ section('1i batch 4 mechs in every mode: every skill cast at least once across t
   check('1j batch 4 matches in every mode: no exception, NaN or non-boolean input', faults.length === 0, faults[0]);
 }
 
+// ---- 1k. batch 5 (counter, flurry, form, portal, rewind, thrifty): every skill is cast by a bot somewhere -------------------------
+section('1k batch 5 mechs in every mode: every skill cast at least once across the modes, no exception or NaN');
+{
+  const RUNS5 = { tdm: 12, nha: 12, chiem: 10, tudo: 10, trum: 12 };
+  const casts = {};
+  const faults = [];
+  for (const mode of MODE_LIST) {
+    for (let s = 1; s <= RUNS5[mode]; s++) {
+      const mechs = mode === 'trum' ? [...rot(BATCH5, s * 3, 3), 'titan'] : rot(BATCH5, s * 2, 6);
+      const r = play(mode, 260 + s, mechs);
+      if (r.error || r.bad || r.nonFinite) faults.push(`${mode} ${r.error || r.bad || r.nonFinite}`);
+      for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
+    }
+  }
+  console.log('  casts ' + BATCH5.map((k) => `${k} ${[0, 1, 2].map((i) => casts[k + ':' + i] || 0).join('/')}`).join('  '));
+  const missing = [];
+  for (const k of BATCH5) for (let i = 0; i < 3; i++) if (!(casts[k + ':' + i] >= 1)) missing.push(MECHS[k].skills[i].id);
+  check('1k every skill of the eight batch 5 mechs is cast by a bot at least once over all modes', missing.length === 0, `never cast: ${missing.join(', ')}`);
+  check('1l batch 5 matches in every mode: no exception, NaN or non-boolean input', faults.length === 0, faults[0]);
+}
+
 // ---- 2. 16 mechs, every mode ---------------------------------------------------------------------------------------------------
 section('2 all 16 mechs in all five modes: no NaN, no exception');
 for (const mode of MODE_LIST) {
   const rs = [];
-  if (mode === 'trum') for (let k = 0; k < 16; k++) rs.push(play(mode, 40 + k, [...rot(MECH_ORDER, k * 3, 3), 'titan'], ['normal', 'hard']));
-  else for (let k = 0; k < 8; k++) rs.push(play(mode, 50 + k, rot(MECH_ORDER, k * 6, 6), ['normal', 'hard']));
+  if (mode === 'trum') for (let k = 0; k < 18; k++) rs.push(play(mode, 40 + k, [...rot(MECH_ORDER, k * 3, 3), 'titan'], ['normal', 'hard']));
+  else for (let k = 0; k < 9; k++) rs.push(play(mode, 50 + k, rot(MECH_ORDER, k * 6, 6), ['normal', 'hard']));
   const seen = new Set(rs.flatMap((r) => r.m.units.map((u) => u.mech)));
   check(`2a ${mode}: ${MECH_ORDER.length} mechs played, no exception or NaN, nothing in a wall`, MECH_ORDER.every((k) => seen.has(k)) && rs.every((r) => !r.error && !r.bad && r.nonFinite === 0 && r.ticks > 600),
     rs.map((r) => r.error || r.bad).filter(Boolean)[0] || `mechs ${seen.size}, ticks ${rs.map((r) => r.ticks)}`);

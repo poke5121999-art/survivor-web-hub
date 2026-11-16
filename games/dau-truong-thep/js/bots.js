@@ -1303,6 +1303,8 @@ const SKILL_AI = {
   zone(c, s) {
     const { u, tgt, td, m } = c;
     if (s.cage) return cageSkill(c, s);
+    // a healing field set down at the cursor (at target): on the hurt group, not on the enemy
+    if (s.hps && s.at === 'target') return healField(c, s);
     // a healing field (hps): worth it when the people inside it have lost blood, and it follows me so no aiming
     if (s.hps && s.follow) {
       let miss = 0;
@@ -1468,6 +1470,62 @@ const SKILL_AI = {
     if (s.mode === 'seek') return !!tgt && td <= s.range - 1 && (c.los || td < 7);
     if (!c.enemies.length) return false;
     return (c.underFire && (c.hpFrac < 0.9 || c.near >= 1)) || (!!tgt && td < s.ring + 3.5);
+  },
+  // counter: a window worth opening when somebody is on me or shooting me; facing the enemy so a back-step goes away from it
+  counter(c, s) {
+    const { u, tgt, td } = c;
+    if (!tgt || tgt.pseudo || !c.enemies.length) return false;
+    if (!((c.underFire && td < 12) || td < 4.5)) return false;
+    c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = 0.6;
+    return true;
+  },
+  // flurry: dash through the enemy in reach; not into a crowd, not when nearly dead
+  flurry(c, s) {
+    const { tgt, td, m } = c;
+    if (!tgt || tgt.pseudo || !c.los || td > s.range - 0.5 || c.hpFrac < 0.3) return false;
+    if (m.mode === 'trum' && !c.role.boss) return false;
+    if (m.mode === 'tudo' ? c.near > 2 : c.near - c.allyNear >= 3) return false;
+    c.b.sk.x = tgt.x; c.b.sk.z = tgt.z;
+    return true;
+  },
+  // form: the heavy stance when the enemy is far, the light one when it is close or I am hunted
+  form(c, s) {
+    const { u, tgt, td } = c;
+    if (u.form === 0) return !!tgt && c.los && td > 10.5 && c.near <= 1;
+    return !tgt || td < 7 || (c.underFire && c.near >= 1);
+  },
+  // portal: slip back toward my base when hurt and hunted, or open a way to the ally who is far away while nobody is in sight
+  portal(c, s) {
+    const { u, m } = c;
+    for (const z of m.zones) if (z.kind === 'portal' && z.owner === u.id) return false;
+    let to = null;
+    if (c.state === 'retreat' || (c.underFire && c.hpFrac < 0.45)) to = ownOf(m, u);
+    else if (!c.enemies.length) {
+      let bd = 256;
+      for (const a of m.units) if (a !== u && a.team === u.team && a.alive) { const d = d2(a.x, a.z, u.x, u.z); if (d > bd) { bd = d; to = [a.x, a.z]; } }
+    }
+    if (!to) return false;
+    const a = Math.atan2(to[1] - u.z, to[0] - u.x);
+    for (let k = Math.min(s.cast - 0.5, hyp(to[0] - u.x, to[1] - u.z)); k >= 4; k -= 1.5) {
+      const x = u.x + Math.cos(a) * k, z = u.z + Math.sin(a) * k;
+      if (solidAt(m.map, x, z, u.moveRadius * 1.3) || lavaNear(m.map, x, z, 1.5) || !losClear(m.map, u.x, u.z, x, z, u.moveRadius * 0.7)) continue;
+      c.b.sk.x = x; c.b.sk.z = z;
+      return true;
+    }
+    return false;
+  },
+  // rewind: the group has lost a lot in the last few seconds and the fight is still on
+  rewind(c, s) {
+    const { u, m } = c;
+    if (!c.enemies.length && !c.underFire) return false;
+    const back = Math.round(s.back * 2);
+    let sum = 0, who = 0;
+    for (const a of m.units) {
+      if (a.team !== u.team || !a.alive || !a.hpHist.length || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius) continue;
+      const lost = a.hpHist[Math.max(0, a.hpHist.length - 1 - back)] - a.hp;
+      if (lost > 0) { sum += lost * s.frac; if (lost > a.maxHp * 0.12) who++; }
+    }
+    return sum >= 900 || (who >= 2 && sum >= 600);
   },
   rally(c, s) {
     const { u, m } = c;
@@ -1851,6 +1909,22 @@ function sweepTrack(u, enemies, tgt) {
     if (sc < bs) { bs = sc; best = e; }
   }
   return best || tgt;
+}
+
+// A healing field at the cursor (vesau's Vung Thoi Gian): onto the spot where hurt allies stand, once the fight is on.
+function healField(c, s) {
+  const { u, m } = c;
+  if (!c.enemies.length && !c.underFire) return false;
+  let best = null, bv = 0.45;
+  for (const a of m.units) {
+    if (a.team !== u.team || !a.alive || hyp(a.x - u.x, a.z - u.z) > s.cast - 0.5) continue;
+    let v = 0;
+    for (const o of m.units) if (o.team === u.team && o.alive && hyp(o.x - a.x, o.z - a.z) < s.radius - 0.5) v += 1 - o.hp / o.maxHp;
+    if (v > bv) { bv = v; best = a; }
+  }
+  if (!best) return false;
+  c.b.sk.x = best.x; c.b.sk.z = best.z;
+  return true;
 }
 
 function cageSkill(c, s) {

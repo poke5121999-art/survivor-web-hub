@@ -5,7 +5,7 @@
 // The mirror has the same field names as a real match, so gfx, ui and audio read it unchanged.
 // Static facts (map, mechs, weapon stats) never travel: both ends rebuild them from data.js and maps.js.
 
-import { TICK, MECHS, BOSSES, PICKUPS } from './data.js';
+import { TICK, MECHS, BOSSES, PICKUPS, formDef } from './data.js';
 import { createMatch, unitRadius } from './sim.js';
 
 export const SNAP_TICKS = 1;
@@ -17,7 +17,7 @@ const tm = (v) => (v > 0 ? Math.max(0.01, rd(v)) : 0);
 const num = (v) => (Number.isFinite(v) ? v : 0);
 
 const PICKUP_KEYS = Object.keys(PICKUPS);
-const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit'];
+const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'];
 
 // Shots are sent as [id, owner, kind, x, z, angle]. Team and colour come from the owner; speed, radius and look from
 // a kind table both ends build from the same data rows (weapons, volley skills, the turret). A kind the table lacks
@@ -30,9 +30,19 @@ function addKind(vis, speed, r) {
   if (!SHOT_INDEX.has(k)) { SHOT_INDEX.set(k, SHOT_KINDS.length); SHOT_KINDS.push({ vis, speed, r }); }
 }
 for (const def of [...Object.values(MECHS), ...Object.values(BOSSES)]) {
-  for (const s of [def.weapon, ...def.skills]) if (s.vis && s.speed && s.r && !s.lob) addKind(s.vis, s.speed, s.r);
+  for (const s of [def.weapon, ...def.skills, ...extraRows(def)]) if (s.vis && s.speed && s.r && !s.lob) addKind(s.vis, s.speed, s.r);
 }
 addKind('rivet', 30, 0.18);
+// Shots that come from inside a skill (a counter's riposte) or from the other stance of a mech with forms.
+function extraRows(def) {
+  const out = [];
+  for (const s of def.skills) { if (s.riposte && s.riposte.volley) out.push(s.riposte.volley); if (s.onStart && s.onStart.volley) out.push(s.onStart.volley); }
+  for (const f of def.forms || []) {
+    if (f.weapon) out.push({ ...def.weapon, ...f.weapon });
+    for (const k in f.skills || {}) { const p = f.skills[k]; out.push({ ...def.skills[k], ...p }); if (p.riposte && p.riposte.volley) out.push(p.riposte.volley); }
+  }
+  return out;
+}
 
 // Per zone kind: the fields beyond [id, kind, owner, x, z, r, age, delay]. n number, b boolean, s string, p points.
 const ZONE_EXTRA = {
@@ -46,6 +56,7 @@ const ZONE_EXTRA = {
   drone: [['dur', 'n'], ['target', 'j']],
   wire: [['dur', 'n'], ['pts', 'p'], ['left', 'i']],
   orbit: [['dur', 'n'], ['mode', 's'], ['n', 'i'], ['live', 'i'], ['ring', 'n'], ['spin', 'n']],
+  portal: [['dur', 'n'], ['x2', 'n'], ['z2', 'n']],
 };
 
 function encZoneField(v, type) {
@@ -63,14 +74,14 @@ function decZoneField(v, type) {
 }
 
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
-const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16;
+const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 function unitRow(u) {
   const r = [rd(u.x), rd(u.z), ang(u.aim), rd(u.heading), Math.round(u.hp), u.maxHp,
-    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0) | (u.stance ? F_STANCE : 0), tm(u.respawnT)];
+    (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0) | (u.stance ? F_STANCE : 0) | (u.form ? F_FORM : 0), tm(u.respawnT)];
   for (const k of CD) r.push(tm(u.cd[k]));
   for (const k of STATUS) r.push(tm(u[k]));
   r.push(u.bush, u.cast ? [u.def.skills.indexOf(u.cast.skill), rd(u.cast.t), rd(u.cast.total), ang(u.cast.aim)] : 0,
@@ -163,6 +174,8 @@ export function applySnapshot(m, snap, dt) {
     u.x = r[0]; u.z = r[1]; u.aim = r[2]; u.heading = r[3]; u.hp = r[4];
     if (r[5] !== undefined) u.maxHp = r[5];
     u.alive = !!(r[6] & F_ALIVE); u.dash = r[6] & F_DASH ? { remote: true } : null; u.bot = !!(r[6] & F_BOT); u.stance = !!(r[6] & F_STANCE);
+    // the stance of a mech with forms: the mirror plays the same def
+    { const f = r[6] & F_FORM ? 1 : 0; if (f !== u.form) { u.form = f; u.def = formDef(u.def, f); } }
     u.respawnT = r[7];
     let at = 8;
     for (const k of CD) u.cd[k] = r[at++];
@@ -229,6 +242,7 @@ const EVENT_KEYS = {
   ray: ['id', 'x0', 'z0', 'x1', 'z1', 'on'], hook: ['id', 'target', 'x', 'z'], swap: ['id', 'other', 'x0', 'z0', 'x1', 'z1'], stance: ['id', 'on', 'x', 'z'],
   bless: ['id', 'to', 'skill', 'x', 'z'], rally: ['id', 'x', 'z', 'r'], leap: ['id', 'x0', 'z0', 'x', 'z', 'dur'], mark: ['id', 'target', 'x', 'z'],
   warp: ['id', 'x0', 'z0', 'x', 'z'], zap: ['zone', 'id', 'x', 'z'], execute: ['id', 'by', 'x', 'z'], stacks: ['id', 'by', 'x', 'z'],
+  parry: ['id', 'by', 'x', 'z'], flurry: ['id', 'step', 'x', 'z'], form: ['id', 'on', 'x', 'z'], thrift: ['id', 'slot'], rewind: ['id', 'x', 'z', 'r'],
 };
 const EVENT_TYPES = Object.keys(EVENT_KEYS);
 
