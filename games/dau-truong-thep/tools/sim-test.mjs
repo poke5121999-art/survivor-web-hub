@@ -3532,7 +3532,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     a.cd.s1 = 0; press(m, 0, 's1');
     check('44n back to the light bow: Loat Ten is three darts and a 1.2x run for 1.5 s', a.form === 0 && m.shots.filter((s) => s.owner === 0 && s.dmg === MECHS.anduong.skills[0].dmg).length === 3 && a.hasteF === 1.2 && near(a.hasteT, 1.5, 1e-9), `${a.form} ${a.hasteF} ${a.hasteT}`);
     const big = buildDef('anduong', [0, 0, 0, 3, 0]), w1 = formDef(big, 1).weapon, w0 = formDef(big, 0).weapon;
-    check('44o garage fire-rate levels act on the other stance too: cd 0.3 / 1.09 and 1.2 / 1.09, range x1.06', near(w0.cd, 0.3 / 1.09, 1e-9) && near(w1.cd, 1.2 / 1.09, 1e-9) && near(w1.range, 21 * 1.06, 1e-9), `${w0.cd} ${w1.cd} ${w1.range}`);
+    check('44o garage fire-rate levels act on the other stance too: cd 0.3 / 1.15 and 1.2 / 1.15, range x1.06', near(w0.cd, 0.3 / 1.15, 1e-9) && near(w1.cd, 1.2 / 1.15, 1e-9) && near(w1.range, 21 * 1.06, 1e-9), `${w0.cd} ${w1.cd} ${w1.range}`);
   }
   {
     const k = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 3, 0]]), [b, e] = k.units;
