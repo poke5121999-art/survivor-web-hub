@@ -55,6 +55,16 @@ const SEQ = {
   sontinh: { d: 9, seq: [['s2', 0], ['ult', 0.5]] },
   enbac: { d: 8, seq: [['s1', 0], ['ult', 0.3]] },
   boica: { d: 14, seq: [['s1', 0], ['ult', 0.2]], fireAt: 0.1 },
+  bohung: { d: 7, seq: [['ult', 0], ['s1', 0.3], ['s2', 0.6]] },
+  cakiem: { d: 5, seq: [['s2', 0], ['s1', 0.4], ['ult', 0.8]] },
+  gilgamesh: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
+  buomdem: { d: 11, seq: [['s2', 0], ['s1', 0.2], ['ult', 0.4]] },
+  laclong: { d: 6, seq: [['ult', 0], ['s1', 0.5], ['s2', 0.8]] },
+  baogam: { d: 5, seq: [['s1', 0], ['ult', 0.4]] },
+  luondien: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
+  tegiac: { d: 5, seq: [['s1', 0], ['s2', 0.5], ['ult', 0.9]] },
+  quaset: { d: 7, seq: [['ult', 0], ['s1', 0.3], ['s2', 0.8]] },
+  tumay: { d: 9, seq: [['ult', 0], ['s1', 0.3]] },
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {

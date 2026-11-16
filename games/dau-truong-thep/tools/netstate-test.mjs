@@ -1,7 +1,7 @@
 // Node test for js/netstate.js: `node tools/netstate-test.mjs`. Exits 1 on any failure.
 // Real bot matches in every mode, snapshotted every 2 ticks, sent as bytes into a mirror, compared field by field.
 // Then the guest's prediction of its own mech against the host, with and without delay.
-import { createMatch, step, visibleTo, hidden, unitSpeed } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODE_ORDER, TICK } from '../js/data.js';
 import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput } from '../js/netstate.js';
@@ -15,7 +15,7 @@ const check = (name, cond, detail = '') => {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
 const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge'];
+const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
   strike: ['r', 'age', 'delay', 'total', 'lob', 'x0', 'z0'],
@@ -222,6 +222,17 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
     if (t.bad.length || t.lost || !t.newShotOk || !t.pxOk || t.hidBad) { bad++; first.push(`${key}.${keyName}: ${t.bad[0] || 'order/px/shots'}`); }
   }
   check(`skills: ${MECH_ORDER.length * 3} casts mirrored over ${snaps} snapshots, ${evTotal} events`, bad === 0, first.slice(0, 3).join(' | '));
+}
+// a meter value shown on the HUD reaches the guest, and an armed one arms on the mirror too
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }, { team: 0, mech: 'luondien', name: 'C' }] });
+  const mir = createMirror(roster(m));
+  m.units[0].meter = 800.25; m.units[1].meter = 100; m.units[2].meter = 3;
+  step(m, [undefined, undefined, undefined]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const [g, t, l] = mir.units;
+  check('meter value reaches the guest (800.25 / 100 / 3, to the hundredth)', near(g.meter, 800.25, 0.011) && near(t.meter, 100, 0.011) && near(l.meter, 3, 0.011), `${g.meter} ${t.meter} ${l.meter}`);
+  check('an armed meter is armed on the mirror (tegiac 100 of 100), a half-full one is not (gilgamesh, luondien 3 of 5)', meterArmed(t) && !meterArmed(g) && !meterArmed(l));
 }
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire'].every((k) => seenKinds.has(k)));
 

@@ -14,7 +14,12 @@ import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from '.
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 // Everything a unit's own damage is multiplied by: the garage track, a power pick-up, a transform (skill.dmg).
-const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1);
+const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1) * u.skillAmp;
+// Where the damage being dealt right now comes from ('w' = the main weapon, else a skill id); meter reads it (weapon, distinct).
+let curSrc = null;
+// The unscaled amount of the last damage() call (0 when it hurt nobody): what hitfx chain passes on.
+let lastBase = 0;
+let chaining = false;
 
 export function createMatch(opts) {
   const mode = MODES[opts.mode] ? opts.mode : 'tdm', size = matchSize(mode, opts.roster), rule = ruleFor(mode, size), pool = mapsFor(mode);
@@ -92,6 +97,7 @@ function clearStatus(u) {
   u.burnT = 0; u.burnN = 0; u.burnDps = 0; u.burnBy = -1;
   u.tfT = 0; u.tfSlot = -1; u.tfDmg = 1; u.ccT = 0; u.radius = u.def.radius;
   u.rampN = 0; u.rampT = 0; u.rampTo = -1; u.rampAcc = 0; u.recast = null;
+  u.meter = 0; u.lastSrc = null; u.hurtAt = -99; u.skillAmp = 1; u.shieldBurst = null; u.blindT = 0; u.blindF = 1; u.blindSpread = 0; u.mmT = 0; u.mmBy = -1;
   u.cast = null; u.dash = null; u.bush = -1; u.kx = 0; u.kz = 0; u.vx = 0; u.vz = 0; u.hitBy = {};
 }
 
@@ -229,6 +235,75 @@ function rampGain(u, to) {
   u.rampTo = to; u.rampN = Math.min(P.max, u.rampN + 1); u.rampT = P.dur;
 }
 
+// meter (passive): u.meter climbs toward P.max from the sources in P.gain (hit, weapon, cast, hurt, absorbed, calm, distinct), times
+// mods.lowHp.gain. At max it is armed (meterArmed) and P.spend.kind decides what it buys: 'shot' (the next main shot, x mul, plus stun),
+// 'skill' (the next damaging skill x mul), 'chain' (the next hit jumps on), 'shield' and 'nova' (spent the moment it fills).
+// The event meter { id, kind, on } says when it filled (1) and when it was spent (0).
+export const meterArmed = (u) => u.passive === 'meter' && u.meter >= u.def.passive.max;
+function meterAdd(m, u, key, amount) {
+  const P = u.def.passive, g = P.gain[key];
+  if (!g || !(amount > 0) || u.meter >= P.max) return;
+  const low = lowHpMod(u);
+  u.meter = Math.min(P.max, u.meter + g * amount * (low && low.gain ? low.gain : 1));
+  if (u.meter > P.max - 1e-6) u.meter = P.max;
+  if (u.meter < P.max) return;
+  const S = P.spend;
+  m.events.push({ t: 'meter', id: u.id, kind: S.kind, on: 1 });
+  if (S.kind === 'shield') {
+    u.shield = Math.max(u.shield, Math.min(S.cap ?? 1e9, u.shield + S.amount)); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, S.dur);
+    meterSpent(m, u);
+  } else if (S.kind === 'nova') {
+    meterSpent(m, u);
+    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: S.radius });
+    areaDamage(m, u, u.x, u.z, S.radius, S.dmg, S, null);
+  }
+}
+function meterSpent(m, u) {
+  u.meter = 0;
+  m.events.push({ t: 'meter', id: u.id, kind: u.def.passive.spend.kind, on: 0 });
+}
+// The unit has just dealt damage to `o`: the chain spend rides this hit, then the hit itself feeds the meter.
+function meterHit(m, u, o) {
+  const P = u.def.passive;
+  if (curSrc === 'w' && P.gain.weapon) { o.mmT = 4; o.mmBy = u.id; }
+  if (P.spend.kind === 'chain' && u.meter >= P.max) { meterSpent(m, u); chainHit(m, u, o, P.spend, lastBase); }
+  meterAdd(m, u, 'hit', 1);
+  if (curSrc === 'w') meterAdd(m, u, 'weapon', 1);
+  if (curSrc && P.gain.distinct) { if (u.lastSrc && u.lastSrc !== curSrc) meterAdd(m, u, 'distinct', 1); u.lastSrc = curSrc; }
+}
+// The armed shot spend, taken by the next main-weapon shot: { mul, stun } or null.
+function meterShot(m, u) {
+  if (!meterArmed(u) || u.def.passive.spend.kind !== 'shot') return null;
+  const S = u.def.passive.spend;
+  meterSpent(m, u);
+  return { mul: S.mul || 1, stun: S.stun || 0 };
+}
+// hitfx chain: from the mech just hit, jump to the n nearest other enemies inside r (nearest first, lower id on a tie) for base x mul each. It never chains again.
+function chainHit(m, src, o, C, base) {
+  if (chaining || !(base > 0)) return;
+  const near = [];
+  for (const t of m.units) {
+    if (t === o || !t.alive || t.team === src.team) continue;
+    const d = dist2(t.x, t.z, o.x, o.z);
+    if (d <= C.r * C.r) near.push([d, t]);
+  }
+  near.sort((a, b) => a[0] - b[0] || a[1].id - b[1].id);
+  if (!near.length) return;
+  chaining = true;
+  const pts = [[o.x, o.z]];
+  for (const [, t] of near.slice(0, C.n)) { pts.push([t.x, t.z]); damage(m, t, base * C.mul, src); }
+  chaining = false;
+  m.events.push({ t: 'chain', id: src.id, pts });
+}
+// shield.burst: the shield is gone (broken or timed out): it goes off around its owner once.
+function popShield(m, u) {
+  const B = u.shieldBurst;
+  if (!B) return;
+  u.shieldBurst = null;
+  m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: B.radius });
+  areaDamage(m, u, u.x, u.z, B.radius, B.dmg, B, null);
+}
+
 export function unitSpeed(u) {
   if (u.stance || u.rootT > 0) return 0;
   let s = u.def.speed;
@@ -255,7 +330,7 @@ export function weaponOf(u) {
   const tw = u.tfT > 0 && u.def.tfWeapon;
   return tw ? tw[u.tfSlot >= 0 ? u.tfSlot : Object.keys(tw)[0]] || u.def.weapon : u.def.weapon;
 }
-export const weaponRange = (u) => weaponOf(u).range * (u.stance ? u.stanceDef.range : 1);
+export const weaponRange = (u) => weaponOf(u).range * (u.stance ? u.stanceDef.range : 1) * (u.blindT > 0 ? u.blindF : 1);
 
 // Fraction of incoming damage a unit shrugs off: its own plating, a fortify or bastion buff, a planted stance, an ally's ward.
 export function armorOf(m, u) {
@@ -298,8 +373,9 @@ function stepUnit(m, u, inp) {
   if (!u.alive) { u.respawnT -= dt; if (u.respawnT <= 0) spawn(m, u, false); return; }
 
   for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
-  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
-  if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; } }
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; popShield(m, u); } }
+  if (u.skillAmp !== 1 && !u.cast && !u.dash) u.skillAmp = 1;
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
@@ -378,7 +454,13 @@ function stepUnit(m, u, inp) {
     // A skill that needs a target and finds none (swap, mark) does not happen: a short lockout instead of the cooldown.
     const hide = u.revealT;
     u.revealT = RULES.revealOnFire;
-    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; continue; }
+    // meter 'skill': an armed meter powers up the next skill that deals damage (skillAmp lives until its cast or dash is over)
+    const P = u.passive === 'meter' ? u.def.passive : null, amped = !!P && P.spend.kind === 'skill' && u.meter >= P.max && !!(s.dmg || s.dps);
+    if (amped) u.skillAmp = P.spend.mul;
+    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; continue; }
+    if (amped) meterSpent(m, u);
+    if (P) meterAdd(m, u, 'cast', 1);
+    if (!u.cast && !u.dash) u.skillAmp = 1;
     if (s.recast) {
       // dash.recast: the skill stays ready for another press inside the window; the cooldown starts after the last one
       if (re) { rc.left--; if (rc.left <= 0) { u.recast = null; u.cd[key] = s.cd; } else { rc.t = s.recast.window; u.cd[key] = 0; } }
@@ -431,6 +513,11 @@ const PASSIVE_TICK = {
     }
     if (u.rampN > 0) { u.rampT -= TICK; if (u.rampT <= 0) { u.rampN--; u.rampT = 0.5; } }
   },
+  // meter: calm fills one per second while nobody has hurt this mech for two seconds
+  meter(m, u) {
+    const P = u.def.passive;
+    if (P.gain.calm && m.time - u.hurtAt > 2) meterAdd(m, u, 'calm', TICK);
+  },
   // brittle.reveal: enemies of this mech under the fraction, inside r, cannot hide (no bush, no stealth).
   brittle(m, u) {
     const R = u.def.passive.reveal;
@@ -467,7 +554,7 @@ function fireRay(m, u, w) {
 function fireWeapon(m, u, inp) {
   const w = weaponOf(u);
   u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
-  if (w.ray) { fireRay(m, u, w); return; }
+  if (w.ray) { curSrc = 'w'; fireRay(m, u, w); curSrc = null; return; }
   if (w.lob) {
     // A lobbed shell is a delayed strike at the aim point: it flies over walls and everyone sees where it lands.
     const [x, z] = aimPoint(u, inp, w.range);
@@ -480,21 +567,25 @@ function fireWeapon(m, u, inp) {
   if (w.alt) { u.barrel ^= 1; side = u.barrel ? w.alt : -w.alt; }
   const base = u.aim + (w.spread ? (m.rng() - 0.5) * 2 * w.spread : 0);
   const st = u.stance ? u.stanceDef : null;
-  for (let i = 0; i < n; i++) spawnShot(m, u, w, base + (i - (n - 1) / 2) * (w.fan || 0), side, st);
-  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a: base, side });
+  const boost = u.passive === 'meter' ? meterShot(m, u) : null;
+  for (let i = 0; i < n; i++) spawnShot(m, u, w, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
+  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
 }
 
 // st: the stance row when a planted mech fires its main weapon (longer reach, harder hit).
-function spawnShot(m, u, w, a, side, st) {
+// src: where the damage comes from ('w' or a skill id); boost: a meter 'shot' spend { mul, stun }.
+function spawnShot(m, u, w, a, side, st, src, boost) {
+  // zone.blind: a blinded mech shoots shorter and wide of the mark
+  if (u.blindT > 0 && u.blindSpread) a += (m.rng() - 0.5) * 2 * u.blindSpread;
   const dx = Math.cos(a), dz = Math.sin(a), off = u.radius + 0.25;
   let x = u.x + dx * off - dz * side, z = u.z + dz * off + dx * side;
   // A muzzle poking through a wall must not fire from the far side.
   if (castStatic(m.map, u.x, u.z, x, z, w.r) <= 1) { x = u.x; z = u.z; }
   m.shots.push({
-    id: m.nextId++, team: u.team, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: w.speed, left: w.range * (st ? st.range : 1),
-    color: u.color, dmg: w.dmg * dmgScale(u) * (1 + rampBonus(u, 'dmg')) * (st ? st.dmg : 1), splash: w.splash || 0, knock: w.knock || 0, slow: w.slow || 0, slowDur: w.slowDur || 0, r: w.r, vis: w.vis,
+    id: m.nextId++, team: u.team, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: w.speed, left: w.range * (st ? st.range : 1) * (u.blindT > 0 ? u.blindF : 1),
+    color: u.color, dmg: w.dmg * dmgScale(u) * (1 + rampBonus(u, 'dmg')) * (st ? st.dmg : 1) * (boost ? boost.mul : 1), splash: w.splash || 0, knock: w.knock || 0, slow: w.slow || 0, slowDur: w.slowDur || 0, r: w.r, vis: w.vis,
     pierce: !!w.pierce, bounce: w.bounce || 0, hook: w.do === 'hook' ? w : null, far: w.far || null, flown: 0, hit: w.pierce ? [] : null,
-    fx: w.fx || null, ret: !!w.ret, back: false,
+    fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null,
   });
 }
 
@@ -507,13 +598,13 @@ const aimPoint = (u, inp, range) => {
 
 // What a skill does the moment its key is pressed.
 const CAST = {
-  shield(m, u, s) { u.shield = Math.max(u.shield, s.amount); u.shieldMax = u.shield; u.shieldT = s.dur; },
+  shield(m, u, s) { u.shield = Math.max(u.shield, s.amount); u.shieldMax = u.shield; u.shieldT = s.dur; u.shieldBurst = s.burst || null; },
   dash(m, u, s) {
     // onStart: something left behind at the starting point: a mine, or a volley (back: true fires opposite to the aim).
     if (s.onStart && s.onStart.mine) placeMine(m, u, u.x, u.z, s.onStart.mine);
     if (s.onStart && s.onStart.volley) {
       const v = s.onStart.volley, a0 = u.aim + (v.back ? Math.PI : 0);
-      for (let i = 0; i < (v.n || 1); i++) spawnShot(m, u, v, a0 + (i - ((v.n || 1) - 1) / 2) * (v.fan || 0), 0);
+      for (let i = 0; i < (v.n || 1); i++) spawnShot(m, u, v, a0 + (i - ((v.n || 1) - 1) / 2) * (v.fan || 0), 0, null, s.id);
       m.events.push({ t: 'fire', id: u.id, vis: v.vis, x: u.x, z: u.z, a: a0, side: 0 });
     }
     u.dash = { dx: Math.cos(u.aim), dz: Math.sin(u.aim), left: s.dist, speed: s.speed, s, hit: [] };
@@ -525,14 +616,19 @@ const CAST = {
     u.dash = { dx, dz, left: s.dist, speed: s.speed, s, hit: [] };
     u.stealthT = s.stealth + s.dist / s.speed; u.revealT = 0;
   },
-  nova(m, u, s) { u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0.35, lock: false, aim: u.aim, left: s.repeat || 1 }; },
+  nova(m, u, s) {
+    // meterMul: the whole meter goes into this blow, damage x (1 + meter / max)
+    let mul = 1;
+    if (s.meterMul && u.passive === 'meter') { mul = 1 + u.meter / u.def.passive.max; if (u.meter > 0) meterSpent(m, u); }
+    u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0.35, lock: false, aim: u.aim, left: s.repeat || 1, mul };
+  },
   beam(m, u, s, inp) {
     // track: lock the enemy nearest the cursor now and keep the beam on it while it winds up; none there, it fires straight.
     const o = s.track ? pickUnit(m, u, inp, s.track, (o) => o.team !== u.team) : null;
     u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim, target: o ? o.id : -1 };
   },
   volley(m, u, s) {
-    for (let i = 0; i < s.n; i++) spawnShot(m, u, s, u.aim + (i - (s.n - 1) / 2) * (s.fan || 0), 0);
+    for (let i = 0; i < s.n; i++) spawnShot(m, u, s, u.aim + (i - (s.n - 1) / 2) * (s.fan || 0), 0, null, s.id);
     m.events.push({ t: 'fire', id: u.id, vis: s.vis, x: u.x, z: u.z, a: u.aim, side: 0 });
   },
   buff(m, u, s) {
@@ -559,7 +655,7 @@ const CAST = {
   },
   stance(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: 0, lock: false, aim: u.aim }; },
   hook(m, u, s) {
-    spawnShot(m, u, s, u.aim, 0);
+    spawnShot(m, u, s, u.aim, 0, null, s.id);
     m.events.push({ t: 'fire', id: u.id, vis: s.vis, x: u.x, z: u.z, a: u.aim, side: 0 });
   },
   swap(m, u, s, inp) {
@@ -615,9 +711,18 @@ const CAST = {
     if (s.haste) { u.hasteT = s.stealth; u.hasteF = s.haste; }
   },
   warp(m, u, s, inp) {
-    const [tx, tz] = aimPoint(u, inp, s.dist), [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
+    let [tx, tz] = aimPoint(u, inp, s.dist);
+    // behind: an enemy near the cursor (within pick) and in reach: come out 1.6 m behind its back
+    if (s.behind) {
+      const o = pickUnit(m, u, inp, { pick: s.behind.pick, cast: s.dist + s.behind.pick }, (o) => o.team !== u.team);
+      if (o) { tx = o.x - Math.cos(o.heading) * 1.6; tz = o.z - Math.sin(o.heading) * 1.6; }
+    }
+    const [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
+    // leave: a still copy stays where the mech stood and goes off when it is shot down or its time is up
+    if (s.leave) addZone(m, u, { kind: 'decoy', x: x0, z: z0, r: u.radius, hp: s.leave.hp, maxHp: s.leave.hp, dur: s.leave.dur, aim: u.aim, speed: 0, blast: s.leave.blast, dmg: s.leave.dmg, fx: null, seek: null });
     u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0;
     m.events.push({ t: 'warp', id: u.id, x0, z0, x, z });
+    if (s.land) { m.events.push({ t: 'nova', id: u.id, x, z, r: s.land.radius }); areaDamage(m, u, x, z, s.land.radius, s.land.dmg, s.land, null); }
   },
   drone(m, u, s) { addZone(m, u, { kind: 'drone', x: u.x, z: u.z, r: 0.5, dur: s.dur, range: s.range, hps: s.hps, acc: 0 }); },
   wire(m, u, s, inp) {
@@ -656,11 +761,15 @@ const CAST = {
     if (s.channel) { u.cast = { skill: s, t: s.channel.dur, total: s.channel.dur, move: s.channel.move, lock: false, aim: u.aim, acc: 0 }; return; }
     const [cx, cz] = aimPoint(u, inp, s.cast);
     const ux = Math.cos(u.aim), uz = Math.sin(u.aim);
+    // seek: the first strikes land on the enemies standing within seek.radius of the cursor (marked ones first when prefer is 'meterMark', then by id); the rest scatter
+    const hunt = s.seek ? seekTargets(m, u, s.seek, cx, cz) : [];
     for (let i = 0; i < s.n; i++) {
+      const delay = s.delay + (i / s.n) * s.span;
+      if (i < hunt.length) { addZone(m, u, { kind: 'strike', x: hunt[i].x, z: hunt[i].z, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s) }); continue; }
       // line: strikes march from the aim point along the aim direction; otherwise they scatter in a disc.
       const a = s.line ? 0 : m.rng() * 6.283, d = s.line ? 0 : (i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0);
       const lx = s.line ? ux * s.gap * (i - (s.n - 1) / 2) : 0, lz = s.line ? uz * s.gap * (i - (s.n - 1) / 2) : 0;
-      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay: s.delay + (i / s.n) * s.span, total: s.delay + (i / s.n) * s.span, dmg: s.dmg, fx: strikeFx(s) });
+      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s) });
     }
   },
   mine(m, u, s, inp) {
@@ -669,8 +778,8 @@ const CAST = {
   },
   zone(m, u, s, inp) {
     const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
-    addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: s.dps || 0, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
-      follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0 });
+    addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
+      haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0 });
   },
   dome(m, u, s) {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
@@ -682,6 +791,12 @@ const CAST = {
   },
 };
 
+function seekTargets(m, u, K, cx, cz) {
+  const list = [];
+  for (const o of m.units) if (o.team !== u.team && o.alive && visibleTo(m, o, u.team) && dist2(o.x, o.z, cx, cz) <= K.radius * K.radius) list.push(o);
+  const rank = (o) => (K.prefer === 'meterMark' && o.mmBy === u.id && o.mmT > 0 ? 0 : 1);
+  return list.sort((a, b) => rank(a) - rank(b) || a.id - b.id);
+}
 // A barrage's hit effects: fx.knock is not a status, it throws the target away from the blast (areaDamage reads it beside fx.fx).
 const strikeFx = (s) => (s.fx ? (s.fx.knock ? { fx: s.fx, knock: s.fx.knock } : { fx: s.fx }) : null);
 function channelStrike(m, u, s, inp) {
@@ -753,7 +868,7 @@ function fireBeam(m, u, s, aim) {
     const along = (o.x - u.x) * dx + (o.z - u.z) * dz;
     if (along < 0 || along > len + o.radius) continue;
     const side = Math.abs((o.x - u.x) * dz - (o.z - u.z) * dx);
-    if (side < s.width / 2 + o.radius) { damage(m, o, dmg, u); if (o.alive && s.fx) applyFx(m, u, o, s.fx); }
+    if (side < s.width / 2 + o.radius) { damage(m, o, dmg, u); if (o.alive && s.fx) applyFx(m, u, o, s.fx, { core: side / (s.width / 2 + o.radius) }); }
   }
   for (const p of m.props) {
     if (!p.alive) continue;
@@ -776,16 +891,16 @@ const FINISH = {
   sweep() {},
   nova(m, u, s, c) {
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius });
-    areaDamage(m, u, u.x, u.z, s.radius, s.dmg, s, null);
+    curSrc = s.id; areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1), s, null); curSrc = null;
     if (c.left > 1 && u.alive) u.cast = { ...c, t: s.gap, total: s.gap, left: c.left - 1 };
   },
-  beam(m, u, s, c) { fireBeam(m, u, s, c.aim); },
+  beam(m, u, s, c) { curSrc = s.id; fireBeam(m, u, s, c.aim); curSrc = null; },
   barrage() {},
   transform(m, u, s) {
     const N = s.nova;
     if (!N) return;
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: N.radius });
-    areaDamage(m, u, u.x, u.z, N.radius, N.dmg, N, null);
+    curSrc = s.id; areaDamage(m, u, u.x, u.z, N.radius, N.dmg, N, null); curSrc = null;
   },
 };
 
@@ -804,14 +919,16 @@ function stepDash(m, u) {
     const rr = u.radius + o.radius + 0.35;
     if (dist2(o.x, o.z, u.x, u.z) > rr * rr) continue;
     d.hit.push(o.id);
+    curSrc = s.id || null;
     damage(m, o, s.dmg * dmgScale(u), u);
+    curSrc = null;
     if (o.alive) { o.stunT = Math.max(o.stunT, s.stun || 0); o.kx += d.dx * (s.knock || 0) * 4; o.kz += d.dz * (s.knock || 0) * 4; if (s.fx) applyFx(m, u, o, s.fx); }
     m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
     if (s.stop) { d.left = 0; break; }   // dash.stop: the dash ends on the first mech it hits
   }
   if (d.left <= 0.01 || moved < stepLen * 0.4) {
     u.dash = null; u.vx = d.dx * 2; u.vz = d.dz * 2;
-    if (d.land) { [u.x, u.z] = landing(m, u, u.x, u.z); m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: d.land.radius }); areaDamage(m, u, u.x, u.z, d.land.radius, d.land.dmg, d.land, null); landShield(m, u, d.land); }
+    if (d.land) { [u.x, u.z] = landing(m, u, u.x, u.z); m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: d.land.radius }); curSrc = d.land.id || null; areaDamage(m, u, u.x, u.z, d.land.radius, d.land.dmg, d.land, null); curSrc = null; landShield(m, u, d.land); }
   }
 }
 
@@ -892,6 +1009,7 @@ function stepShots(m) {
   for (let i = m.shots.length - 1; i >= 0; i--) {
     const s = m.shots[i];
     const owner = s.owner >= 0 ? m.units[s.owner] : null;
+    curSrc = s.src || null;
     if (s.back) {
       // volley.ret on the way home: flies straight at its owner over everything and vanishes on touching it.
       if (!owner || !owner.alive) { m.shots.splice(i, 1); continue; }
@@ -976,6 +1094,7 @@ function stepShots(m) {
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
   }
+  curSrc = null;
 }
 
 // extra: metres this tick's hit lies beyond s.flown.
@@ -1028,7 +1147,9 @@ function stepZones(m) {
         if (u.team === z.team) {
           if (z.hps && pulse) heal(m, u, z.hps * 0.5 * (u === owner ? RULES.selfHealMul : 1), owner);
           if (z.armor) { u.armorF = Math.max(u.armorT > 0.3 ? u.armorF : 0, z.armor); u.armorT = Math.max(u.armorT, 0.3); }
+          if (z.haste) { u.hasteF = Math.max(u.hasteT > 0.3 ? u.hasteF : 1, z.haste); u.hasteT = Math.max(u.hasteT, 0.3); }
         } else {
+          if (z.blind) { u.blindT = Math.max(u.blindT, 0.3); u.blindF = z.blind.range; u.blindSpread = z.blind.spread; }
           // pull > 0 drags toward the centre, pull < 0 shoves out of the field.
           if (z.pull && !u.def.heavy && !u.stance && !(u.dash && u.dash.fly)) { const d = Math.sqrt(dist2(u.x, u.z, z.x, z.z)); if (d > (z.pull > 0 ? 0.6 : 0.05)) moveUnit(m, u, (z.x - u.x) / d * z.pull * dt, (z.z - u.z) / d * z.pull * dt); }
           if (z.slow) { u.slowT = Math.max(u.slowT, 0.3); u.slowF = Math.max(u.slowT > 0.3 ? u.slowF : 0, z.slow); }
@@ -1147,14 +1268,19 @@ function areaDamage(m, src, x, z, r, dmg, fx, skip) {
 // hitfx: the `fx` key any damaging row may carry. { chance, pick: [fx, ...] } rolls m.rng() (once for the chance, once for the pick);
 // otherwise every field present applies: slow/slowDur, weaken {mul, dur} (its hits do less), root (seconds it cannot walk),
 // stun, amp {amp, dur} (it takes more from everyone), reveal (seconds it cannot hide), execute (fraction of max hp: below it, it dies).
-export function applyFx(m, src, o, fx) {
+export function applyFx(m, src, o, fx, ctx) {
   if (!o.alive || !fx) return;
   if (fx.chance !== undefined && m.rng() >= fx.chance) return;
   if (fx.pick) fx = fx.pick[Math.floor(m.rng() * fx.pick.length)];
   if (fx.slow) { o.slowT = Math.max(o.slowT, fx.slowDur); o.slowF = Math.max(o.slowF, fx.slow); }
   if (fx.weaken) { o.weakenF = o.weakenT > 0 ? Math.min(o.weakenF, fx.weaken.mul) : fx.weaken.mul; o.weakenT = Math.max(o.weakenT, fx.weaken.dur); }
   if (fx.root) o.rootT = Math.max(o.rootT, fx.root);
-  if (fx.stun) o.stunT = Math.max(o.stunT, fx.stun);
+  if (fx.stun) {
+    // stun { dur, core }: only a mech inside the middle `core` fraction of a beam (ctx.core = how far off the axis it was) is stunned
+    const st = typeof fx.stun === 'number' ? fx.stun : !ctx || ctx.core === undefined || ctx.core <= fx.stun.core ? fx.stun.dur : 0;
+    o.stunT = Math.max(o.stunT, st);
+  }
+  if (fx.chain) chainHit(m, src, o, fx.chain, lastBase);
   if (fx.burn) { o.burnT = fx.burn.dur; o.burnN = Math.min(fx.burn.max, o.burnN + 1); o.burnDps = fx.burn.dps; o.burnBy = src.id; }
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
@@ -1183,7 +1309,9 @@ function damageProp(m, p, amount, src) {
 // raw: the environment (lava, vents, base fire) burns through armour and is nobody's hit.
 let reflecting = false;
 function damage(m, u, amount, src, raw) {
+  lastBase = 0;
   if (!u.alive || u.invulnT > 0 || amount <= 0) return;
+  lastBase = amount;
   const foe = src && src !== u && !raw ? src : null;
   if (foe) {
     if (u.markT > 0) amount *= 1 + u.markAmp;
@@ -1192,16 +1320,20 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'brittle') { const P = foe.def.passive; if (P.when === 'low' ? u.hp < u.maxHp * P.below : P.when === 'burn' ? u.burnT > 0 : P.when === 'marked' ? u.markT > 0 : u.slowT > 0) amount *= P.mul; }
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
   }
+  const preArmor = amount;
   if (!raw && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
-  let left = amount, absorbed = 0;
+  const blocked = preArmor - amount;
+  let left = amount, absorbed = 0, broke = false;
   if (u.shield > 0) {
     absorbed = Math.min(u.shield, left); u.shield -= absorbed; left -= absorbed;
-    if (u.shield <= 0) { u.shieldT = 0; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
+    if (u.shield <= 0) { u.shieldT = 0; broke = true; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
   }
   u.hp -= left; u.combatT = 0;
   if (left + absorbed > 0) {
     if (foe && foe.alive && foe.passive === 'ramp' && foe.def.passive.on === 'hit') rampGain(foe, u.id);
     if (!raw && u.passive === 'ramp' && u.def.passive.on === 'hurt') rampGain(u, foe ? foe.id : -1);
+    u.hurtAt = m.time;
+    if (u.passive === 'meter' && u.def.passive.resetOnHurt) u.meter = 0;
   }
   if (foe && left + absorbed >= RULES.wound.frac * u.maxHp) u.woundT = RULES.wound.dur;
   if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.hurtAllyAt = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
@@ -1212,11 +1344,17 @@ function damage(m, u, amount, src, raw) {
     if (u.armorT > 0 && u.reflectF > 0 && !reflecting) { reflecting = true; damage(m, foe, amount * u.reflectF, u); reflecting = false; }
   }
   if (foe && foe.alive && foe.passive === 'souls' && u.hp > 0) applyAmp(u, foe.def.passive.mark.amp, foe.def.passive.mark.dur);
+  if (foe && foe.alive && foe.passive === 'meter' && left + absorbed > 0 && !chaining) meterHit(m, foe, u);
   if (u.hp <= 0) kill(m, u, src);
   else if (u.markT > 0 && u.markEx && u.hp < u.maxHp * u.markEx) {
     const by = m.units[u.markBy];
     m.events.push({ t: 'execute', id: u.id, by: by.id, x: u.x, z: u.z });
     kill(m, u, by);
+  }
+  if (u.alive) {
+    // what a hit does to the meter and the shield of the mech that took it: filled by the blood lost and the blows its plating turned away
+    if (u.passive === 'meter' && !u.def.passive.resetOnHurt && left + absorbed > 0) { meterAdd(m, u, 'hurt', left); meterAdd(m, u, 'absorbed', blocked + absorbed); }
+    if (broke) popShield(m, u);
   }
 }
 

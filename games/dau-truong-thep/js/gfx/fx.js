@@ -971,6 +971,21 @@ export function makeFx(G, mechs) {
       case 'heal': for (let i = 0; i < 3; i++) glow(e.x + rnd(-0.8, 0.8), rnd(0.5, 1.6), e.z + rnd(-0.8, 0.8), HEAL, 0.8, 0.3, 1, K.SPARK, 0.6, 0, rnd(1.5, 3), 0); break;
       case 'item': ring(u.x, u.z, 2, HEAL, 0.5); break;
       case 'turretFire': glow(e.x + Math.cos(e.a) * 0.9, 1.1, e.z + Math.sin(e.a) * 0.9, WHITE, 0.06, 0.7, 1, K.STAR); for (let i = 0; i < 2; i++) str.emit(e.x + Math.cos(e.a), 1.1, e.z + Math.sin(e.a), Math.cos(e.a) * rnd(5, 10), rnd(0, 1), Math.sin(e.a) * rnd(5, 10), TEAM_HDR[u.color], 0.08, 0.05, 0.02, 0, 4, 1); break;
+      case 'chain': {
+        // hitfx chain: an arc from the mech just hit to each one it jumps to
+        for (let i = 0; i + 1 < e.pts.length; i++) {
+          const p = e.pts[i], q = e.pts[i + 1], b = beam(p[0], p[1], q[0], q[1], 0.5, ARC, 0.3, 3, 1.2); b.fade = true;
+          sparks(q[0], 1.3, q[1], N(10), ARC, 9, 0.35, 0.06, 0.7, 10); glow(q[0], 1.3, q[1], WHITE, 0.1, 2.2, 1, K.STAR, 1.4); ring(q[0], q[1], 1.6, ARC, 0.25);
+        }
+        break;
+      }
+      case 'meter': {
+        // a meter fills (gold ring and glow) or is spent (a plain ring)
+        if (!u) break;
+        if (e.on) { ring(u.x, u.z, 2.4, GOLD, 0.4); glow(u.x, 1.3, u.z, GOLD, 0.25, 2.8, 0.9, K.STAR, 1.2); }
+        else ring(u.x, u.z, 1.6, WHITE, 0.25);
+        break;
+      }
       case 'zoneEnd': {
         const info = zoneInfo.get(e.id); zoneInfo.delete(e.id);
         if (e.kind === 'wall' && info === 'screen') { sparks(e.x, 1.2, e.z, N(18), TEAM_HDR[0].clone().lerp(TEAM_HDR[1], 0.5), 6, 0.5, 0.05, 1.2, 4); glow(e.x, 1.2, e.z, WHITE, 0.2, 3, 0.8, K.STAR, 1.2); }

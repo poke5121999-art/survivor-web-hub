@@ -1,6 +1,6 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
 import { execFileSync } from 'node:child_process';
-import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
@@ -577,7 +577,7 @@ section('13 new mechs: bots, inputs, balance');
 }
 
 // Balance: mixed rosters, normal vs normal, rotating compositions
-const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130];
+const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142];
 const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixed(i)));
 {
   check('15a mixed 8-mech matches end, no NaN, nothing outside the map or inside a wall', bal.every((r) => r.m.over && !r.bad), bal.map((r) => r.bad).filter(Boolean)[0]);
@@ -2998,6 +2998,266 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.rampN, u.burnN, u.tfT])]);
     };
     check('41zs batch 2 fight is deterministic: same seed, same events and state', play() === play());
+  }
+}
+
+section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield.burst, warp land/behind/leave, zone haste/blind, barrage.seek, nova.meterMul, beam stun core, hitfx chain (literal expected values)');
+{
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units, walls = []) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    for (const w of walls) m.map.walls.push({ x0: w[0], x1: w[1], z0: w[2], z1: w[3] });
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor, TRAU_D = MECHS.trau.weapon.dmg;
+  const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
+
+  // meter, spend 'shot' + gain 'cast' (bohung): three casts arm it, the next shot is x2 and stuns, the meter is spent
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    for (let i = 0; i < 2; i++) { a.cd.s2 = 0; press(m, 0, 's2'); }
+    check('42a two casts: meter 2 of 3, not armed', a.meter === 2 && !meterArmed(a), `meter ${a.meter}`);
+    a.cd.s2 = 0; const ev = press(m, 0, 's2');
+    check('42b the third cast arms it (meter 3) and the event meter on:1 says so', a.meter === 3 && meterArmed(a) && only(ev, 'meter', (e) => e.on === 1 && e.kind === 'shot').length === 1, `meter ${a.meter}`);
+    const ev2 = go(m, 11, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    check('42c the armed shot hits for 150 x 2 = 300 (ung armor 0) and stuns 0.4 s, meter back to 0', near(UNG.hp - v.hp, 300 * UNG_F, 1e-6) && v.stunT > 0 && v.stunT <= 0.4 && a.meter === 0 && only(ev2, 'meter', (e) => e.on === 0).length === 1, `dmg ${UNG.hp - v.hp} stun ${v.stunT} meter ${a.meter}`);
+    go(m, 14); a.cd.fire = 0;
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    check('42d the shot after it is plain 150 again', near(UNG.hp - v.hp, 450 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
+  }
+  // cakiem: one cast arms it, three piercing blades each x1.8
+  {
+    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 5.5, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true } }));
+    check('42e cakiem: one cast arms the meter at once (max 1)', a.meter === 1 && meterArmed(a));
+    go(m, 14);
+    check('42f ... the nova (radius 3.8) does not reach a mech at 5.5 m', v.hp === v.maxHp, `${v.hp}`);
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 5.5, tz: 0 } }));
+    check('42g the three blades hit for 66 x 1.8 = 118.8 each: 356.4', near(UNG.hp - v.hp, 3 * 118.8 * UNG_F, 1e-6) && a.meter === 0, `${UNG.hp - v.hp}`);
+  }
+  // meter 'hurt' (gilgamesh shot, laclong shield, baogam nova)
+  {
+    const m = arena([[R('trau', 0), 0, 0], [R('gilgamesh', 1), 8, 0]]), [t, g] = m.units;
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    check('42h gilgamesh: lost blood feeds the meter 1:1 (hp lost = meter)', g.meter > 0 && near(g.meter, g.maxHp - g.hp, 1e-6), `meter ${g.meter} lost ${g.maxHp - g.hp}`);
+    g.meter = 1499.5;
+    check('42i 1499.5 of 1500 is not armed yet', !meterArmed(g));
+    g.meter = 1500;
+    const ev = go(m, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    check('42j the armed bao khi hits trau for 175 x 1.6 = 280 x (1 - armor), stun 0.6 s, meter spent', near(MECHS.trau.hp - t.hp, 280 * (1 - MECHS.trau.armor), 1e-6) && t.stunT > 0 && t.stunT <= 0.6 && g.meter < 1500, `${MECHS.trau.hp - t.hp} stun ${t.stunT} meter ${g.meter}`);
+  }
+  {
+    const m = arena([[R('trau', 0), 0, 0], [R('laclong', 1), 8, 0]]), [t, l] = m.units;
+    l.meter = 1190;
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    check('42k laclong: 1200 lost blood -> a 450 shield for 5 s at once, meter 0', l.shield === 450 && l.shieldT > 4.5 && l.shieldT <= 5 && l.meter === 0, `shield ${l.shield} meter ${l.meter}`);
+  }
+  // spend 'nova' + 'absorbed' (baogam)
+  {
+    const m = arena([[R('trau', 0), 0, 0], [R('baogam', 1), 3, 0], [R('ung', 0), 5, 0]]), [t, b, e] = m.units;
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
+    const lost = b.maxHp - b.hp;
+    check('42l baogam: blood lost + damage turned away by the armor = the whole shot (meter = TRAU_D)', near(b.meter, TRAU_D, 1e-6) && near(lost, TRAU_D * (1 - b.def.armor), 1e-6), `meter ${b.meter} lost ${lost}`);
+    b.meter = 1000 - 10; t.cd.fire = 0;
+    const ev = go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
+    check('42m a full meter detonates at once: nova event, the foe 3 m away takes 380 x (0.5 .. 0.625) x (1 - trau armor) (the falloff depends on how far the recoil of its own shot left it); the armor-turned part of that same hit (TRAU_D x 0.06) is what is left in the meter', only(ev, 'nova', (x) => x.id === b.id && x.r === 4).length === 1 && t.maxHp - t.hp >= 190 * (1 - MECHS.trau.armor) - 1e-6 && t.maxHp - t.hp <= 237.5 * (1 - MECHS.trau.armor) + 1e-6 && near(b.meter, TRAU_D * b.def.armor, 1e-6), `nova ${only(ev, 'nova').length} meter ${b.meter} lost ${t.maxHp - t.hp}`);
+  }
+  // nova.meterMul (baogam U): the whole meter goes in, dmg x (1 + meter / max)
+  {
+    const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    a.meter = 500;
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('42n meterMul takes the meter at once (500 -> 0)', a.meter === 0);
+    go(m, 14);
+    check('42o ... and the blow is 600 x 1.5 = 900, x 0.75 at 3 m of 6 -> 675', near(UNG.hp - v.hp, 675 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
+    const w = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 3, 0]]);
+    go(w, 1, () => ({ 0: { ult: true } })); go(w, 14);
+    check('42p an empty meter: 600 x 0.75 = 450', near(UNG.hp - w.units[1].hp, 450 * UNG_F, 1e-6), `${UNG.hp - w.units[1].hp}`);
+  }
+  // spend 'chain' + gain 'weapon' (luondien) and hitfx chain
+  {
+    const m = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5], [R('ung', 1), 6, 9]]), [a, v, b, c, far] = m.units;
+    go(m, 1, () => ({ 0: { fire: true, tx: 6, tz: 0 } }));
+    go(m, 10);
+    check('42q luondien: one shot that hit -> meter 1 (weapon gain), and v marked for the barrage', a.meter === 1 && v.mmBy === a.id && v.mmT > 3, `meter ${a.meter}`);
+    a.meter = 5; for (const u of [v, b, c, far]) u.hp = u.maxHp;
+    a.cd.fire = 0;
+    const ev = go(m, 12, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    const ch = only(ev, 'chain');
+    check('42r an armed meter: the hit chains to the 2 nearest within 6 m (b at 3, c at 3.5), 0.7 x 85 each, not the far one; the meter is spent, then the carrying hit feeds it 1', ch.length === 1 && ch[0].pts.length === 3 && near(UNG.hp - b.hp, 85 * 0.7, 1e-6) && near(UNG.hp - c.hp, 85 * 0.7, 1e-6) && far.hp === far.maxHp && a.meter === 1 && near(UNG.hp - v.hp, 85, 1e-6), `pts ${ch[0] && ch[0].pts.length} b ${UNG.hp - b.hp} far ${far.hp} meter ${a.meter}`);
+    const w = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5]]), x = w.units[0];
+    x.meter = 5;
+    const ev2 = go(w, 12, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('42s a chained hit never chains again and does not feed the meter (one chain event, meter 1 from the carrying hit only)', only(ev2, 'chain').length === 1 && x.meter === 1);
+  }
+  // barrage.seek + fx.chain (luondien U)
+  {
+    const m = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 8, 2], [R('ung', 1), 9, -2]]), [a, e1, e2] = m.units;
+    e2.mmBy = a.id; e2.mmT = 3;
+    const ev = go(m, 1, () => ({ 0: { ult: true, tx: 8, tz: 0 } }));
+    const st = only(ev, 'zone', (z) => z.kind === 'strike');
+    check('42t barrage.seek: 8 strikes, the first two sit on the enemies in reach of the cursor, the marked one first', st.length === 8 && st[0].x === e2.x && st[0].z === e2.z && st[1].x === e1.x && st[1].z === e1.z, JSON.stringify(st.slice(0, 2)));
+    const ev2 = go(m, 90);
+    check('42u ... the strikes hit (330 on the first two) and each chains on: a chain event is emitted', e1.hp < e1.maxHp - 300 && e2.hp < e2.maxHp - 300 && only(ev2, 'chain').length >= 1, `${e1.hp} ${e2.hp}`);
+  }
+  // spend 'skill' + gain 'hit' + mods.lowHp.gain (tegiac)
+  {
+    const m = arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    a.meter = 100;
+    go(m, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } }));
+    go(m, 12);
+    check('42v armed meter + a damaging skill: Dam Lien Hoan hits for 380 x 1.6 = 608, then the hit itself feeds the meter by 4', near(UNG.hp - v.hp, 608 * UNG_F, 1e-6) && a.meter === 4 && a.skillAmp === 1, `${UNG.hp - v.hp} meter ${a.meter} amp ${a.skillAmp}`);
+    const w = arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]]), b = w.units[0];
+    b.hp = 1000;
+    go(w, 12, (i) => ({ 0: { fire: i === 0, tx: 4, tz: 0 } }));
+    check('42w below 40% hp the gain doubles: a hit feeds 4 x 2 = 8', b.meter === 8, `meter ${b.meter}`);
+    const u = arena([[R('tegiac', 0), 0, 0], [R('trau', 1), 4, 0]]), c = u.units[0];
+    go(u, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } })); go(u, 12);
+    check('42x without an armed meter the skill is plain 380 x (1 - trau armor)', near(MECHS.trau.hp - u.units[1].hp, 380 * (1 - MECHS.trau.armor), 1e-6), `${MECHS.trau.hp - u.units[1].hp}`);
+  }
+  // spend 'skill' with calm + resetOnHurt (tumay)
+  {
+    const m = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 30, 0]]), [a] = m.units;
+    go(m, 60);
+    check('42y tumay calm: 60 ticks of peace -> meter 2 (1 per second)', near(a.meter, 2, 0.04), `meter ${a.meter}`);
+    go(m, 80);
+    check('42z ... capped at 4 and armed', a.meter === 4 && meterArmed(a));
+    go(m, 1, () => ({ 0: { s2: true, tx: 8, tz: 0 } }));
+    check('42za a skill without damage (the warp) leaves the armed meter alone', a.meter === 4);
+    const w = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 6, 0]]), b = w.units[0], v = w.units[1];
+    b.meter = 4;
+    go(w, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } })); go(w, 20);
+    check('42zb Am Cau armed: 300 x 1.5 = 450 direct; the meter was spent (calm refills a little after)', near(UNG.hp - v.hp, 450 * UNG_F, 1e-6) && b.meter < 1, `${UNG.hp - v.hp} meter ${b.meter}`);
+    const h = arena([[R('trau', 0), 0, 0], [R('tumay', 1), 8, 0]]), t = h.units[1];
+    t.meter = 3.5;
+    go(h, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    check('42zc a hit wipes the meter (resetOnHurt) and the calm waits 2 s: still 0 after 1.5 s', t.meter === 0, `meter ${t.meter}`);
+    go(h, 90);
+    check('42zd ... then 1 more per second after the 2 s of quiet: ~1.2 at 3.2 s after the hit', near(t.meter, 1.2, 0.1), `meter ${t.meter}`);
+  }
+  // spend 'distinct' (quaset): weapon then Loi Thiet then weapon -> armed, then the shot is x2.2 + stun
+  {
+    const m = arena([[R('quaset', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('42ze quaset: the first hit has nothing before it to differ from: meter 0, source remembered', a.meter === 0 && a.lastSrc === 'w', `meter ${a.meter} src ${a.lastSrc}`);
+    go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } })); go(m, 12);
+    check('42zf Loi Thiet hits (a different source): meter 1, dash stops on the first mech it hits', a.meter === 1 && a.lastSrc === 'loithiet', `meter ${a.meter} src ${a.lastSrc}`);
+    a.cd.fire = 0; go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('42zg the weapon again (differs from the skill): meter 2, armed', a.meter === 2 && meterArmed(a), `meter ${a.meter}`);
+    const before = v.hp; v.stunT = 0; a.cd.fire = 0;
+    go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('42zh the armed dart does 56 x 2.2 = 123.2 and stuns 0.5 s', near(before - v.hp, 56 * 2.2 * UNG_F, 1e-6) && v.stunT > 0, `${before - v.hp} stun ${v.stunT}`);
+  }
+  // shield.burst (bohung E): goes off at the end of the time, and at once when it breaks
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true } }));
+    check('42zi shield 650 for 4 s with a burst stored', a.shield === 650 && a.shieldT > 3.9 && a.shieldBurst && a.shieldBurst.dmg === 300);
+    const ev = go(m, 125);
+    check('42zj when the 4 s run out it goes off: 300 x 0.667 at 3 m of 4.5, nova event, burst spent', a.shield === 0 && a.shieldBurst === null && only(ev, 'nova', (e) => e.r === 4.5).length === 1 && near(UNG.hp - v.hp, 300 * (1 - 0.5 * 3 / 4.5) * UNG_F, 1e-6), `dmg ${UNG.hp - v.hp}`);
+    const w = arena([[R('bohung', 0), 0, 0], [R('trau', 1), 3, 0]]), b = w.units[0], t = w.units[1];
+    go(w, 1, () => ({ 0: { s2: true } }));
+    b.shield = 5;
+    go(w, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    check('42zk a shield that breaks goes off at once (the foe took the burst)', b.shieldBurst === null && t.hp < t.maxHp, `t.hp ${t.hp}`);
+  }
+  // warp.land (buomdem), warp.behind (quaset), warp.leave (tumay)
+  {
+    const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const ev = go(m, 1, () => ({ 0: { s2: true, tx: 6, tz: 0 } }));
+    check('42zl warp.land: the mech arrives on the cursor and the landing blast hits: 220 at the centre, slow 0.3', near(a.x, 6) && near(UNG.hp - v.hp, 220 * UNG_F, 1e-6) && near(v.slowF, 0.3) && only(ev, 'nova', (e) => e.r === 3).length === 1, `x ${a.x} dmg ${UNG.hp - v.hp}`);
+  }
+  {
+    const m = arena([[R('quaset', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true, tx: 6.5, tz: 0.5 } }));
+    check('42zm warp.behind: an enemy within 4 m of the cursor -> out 1.6 m behind its back (it faces -x, so at x 7.6)', near(a.x, 7.6, 1e-6) && near(a.z, 0, 1e-6), `${a.x},${a.z}`);
+    const w = arena([[R('quaset', 0), 0, 0], [R('ung', 1), 6, 8]]);
+    go(w, 1, () => ({ 0: { s2: true, tx: 5, tz: 0 } }));
+    check('42zn ... nobody near the cursor: the plain warp to the cursor', near(w.units[0].x, 5) && near(w.units[0].z, 0));
+  }
+  {
+    const m = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true, tx: -7, tz: 0 } }));
+    const dec = m.zones.find((z) => z.kind === 'decoy');
+    check('42zo warp.leave: the mech is 7 m away and a still copy (500 hp, speed 0) stands where it was', near(a.x, -7) && dec && dec.x === 0 && dec.z === 0 && dec.hp === 500 && dec.speed === 0, `x ${a.x}`);
+    go(m, 30);
+    check('42zp the copy does not walk', dec.x === 0 && dec.z === 0);
+    const ev = go(m, 140);
+    check('42zq after 5 s it goes off: 260 x (1 - 0.5 x 2/3) x (1 - ung armor) on the foe 2 m away', only(ev, 'explode', (e) => e.why === 'decoy').length === 1 && near(UNG.hp - v.hp, 260 * (1 - 0.5 * 2 / 3) * UNG_F, 1e-6), `dmg ${UNG.hp - v.hp}`);
+  }
+  // zone.haste (laclong E): allies in it speed up, foes slow down
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('trau', 0), 4, 0], [R('trau', 1), 4, 2]]), [a, ally, foe] = m.units;
+    go(m, 3, (i) => ({ 0: { s2: i === 0, tx: 4, tz: 1 } }));
+    check('42zr zone.haste: an ally inside has haste x1.25, the foe inside is slowed 40%', ally.hasteT > 0 && ally.hasteF === 1.25 && near(foe.slowF, 0.4), `haste ${ally.hasteT}/${ally.hasteF} slow ${foe.slowF}`);
+  }
+  // zone.blind (tumay U): a blinded mech's bullets go half as far and wide of the mark
+  {
+    const m = arena([[R('tumay', 0), 0, 0], [R('trau', 1), 6, 0]]), [a, t] = m.units;
+    go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
+    const base = MECHS.trau.weapon.range;
+    check('42zs a blinded mech: weaponRange halves', near(weaponRange(t), base * 0.5, 1e-9), `${weaponRange(t)}`);
+    t.cd.fire = 0;
+    go(m, 1, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
+    const sh = m.shots.find((s) => s.owner === t.id);
+    const wide = Math.abs(Math.atan2(Math.sin(Math.atan2(sh.dz, sh.dx) - Math.PI), Math.cos(Math.atan2(sh.dz, sh.dx) - Math.PI)));
+    check('42zt ... the bullet carries half the range (minus one tick of flight) and strays by at most 0.15 rad, not 0', sh && near(sh.left, base * 0.5 - sh.speed * TICK, 1e-6) && wide <= 0.15 && wide > 1e-9, `left ${sh && sh.left} wide ${wide}`);
+  }
+  // beam stun core (cakiem U): only the middle of the line stuns
+  {
+    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 9, 1.1]]), [a, mid, edge] = m.units;
+    go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
+    go(m, 18);
+    check('42zu Nhat Dao: both are cut for 1000, only the one on the axis is stunned 1 s', near(UNG.hp - mid.hp, 1000 * UNG_F, 1e-6) && near(UNG.hp - edge.hp, 1000 * UNG_F, 1e-6) && mid.stunT > 0.5 && edge.stunT === 0, `mid ${mid.stunT} edge ${edge.stunT}`);
+  }
+  // nova repeat (cakiem E): two spins 0.3 s apart
+  {
+    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 2, 0]]), v = m.units[1];
+    const ev = go(m, 40, (i) => ({ 0: { s2: i === 0 } }));
+    check('42zv Loc Kiem: two nova events, 170 each (x 0.78 at 2 m of 3.8)', only(ev, 'nova').length === 2 && v.hp < v.maxHp, `${only(ev, 'nova').length} hp ${v.hp}`);
+  }
+  // transform + shield (quaset U): 900 shield for 6 s, weapon swapped to the 3-lance row
+  {
+    const m = arena([[R('quaset', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('42zw Giap Ho Menh: shield 900, weapon is the lance row (n 3, range 15, dmg 220)', a.shield === 900 && weaponOf(a).n === 3 && weaponOf(a).range === 15 && weaponOf(a).dmg === 220, JSON.stringify(weaponOf(a)));
+  }
+  // transform size (bohung U) reads the existing transform: radius x1.2
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('42zx Thang Hoa: radius 0.92 x 1.2, 1.25x damage, armor 0.12 + 0.2', near(a.radius, 0.92 * 1.2) && a.tfDmg === 1.25 && near(armorOf(m, a), 0.32), `${a.radius}`);
+  }
+  // meter 'shield' (buomdem): each cast adds 180 (cap 540, 6 s)
+  {
+    const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    const got = [];
+    for (let i = 0; i < 4; i++) { a.cd.s1 = 0; go(m, 1, () => ({ 0: { s1: true, tx: 12, tz: 0 } })); got.push(a.shield); }
+    check('42zy Bua Ho Than: 180, 360, 540, then capped at 540', got.join() === '180,360,540,540' && a.meter === 0 && a.shieldT > 5.9, got.join());
+  }
+  // determinism: the same seed gives the same events and state for a scripted batch 3 fight
+  {
+    const play = () => {
+      const m = arena([[R('bohung', 0), 0, 0], [R('luondien', 1), 5, 0], [R('quaset', 0), 0, 4], [R('tumay', 1), 5, 4], [R('tegiac', 0), 0, -4], [R('baogam', 1), 5, -4]]);
+      const ev = go(m, 300, (i) => ({ 0: { fire: true, s2: i === 20, ult: i === 40 }, 1: { fire: true, s2: i === 30, ult: i === 60, aim: Math.PI }, 2: { fire: true, s2: i === 50, tx: 5, tz: 4 }, 3: { fire: true, s1: i === 70, ult: i === 90, aim: Math.PI }, 4: { fire: true, s1: i === 80, tx: 5, tz: -4 }, 5: { fire: true, ult: i === 100, aim: Math.PI } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.skillAmp])]);
+    };
+    check('42zz batch 3 fight is deterministic: same seed, same events and state', play() === play());
   }
 }
 

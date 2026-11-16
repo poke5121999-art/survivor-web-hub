@@ -1082,7 +1082,11 @@ function stuckLogic(m, u, b, now) {
 
 // Skill policy per `do` primitive. Each returns true when the skill makes sense now; it may fill c.b.sk with an aim point / aim angle / move override.
 const SKILL_AI = {
-  shield(c) { return c.u.shield <= 0 && c.underFire && c.enemies.length > 0; },
+  shield(c, s) {
+    // a shield that goes off when it ends (burst): raise it with an enemy inside the blast so it does its work
+    if (s.burst) return c.u.shield <= 0 && !!c.tgt && c.td < s.burst.radius + 3.5 && (c.underFire || c.near >= 1 || c.td < s.burst.radius);
+    return c.u.shield <= 0 && c.underFire && c.enemies.length > 0;
+  },
   dash(c, s) {
     const { u, tgt, td, los } = c;
     // a dash that hurts nobody but leaves a trap behind (onStart): use it to break contact, away from the nearest enemy
@@ -1117,6 +1121,8 @@ const SKILL_AI = {
     // an execute swing (fx.execute): worth it as soon as someone inside is under the threshold
     if (s.fx && s.fx.execute) for (const e of c.enemies) if (!e.def.boss && e.hp < e.maxHp * s.fx.execute && hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) return true;
     if (c.role.boss) return n >= 2 || (n >= 1 && c.D.skill >= 0.9);   // the ring is telegraphed: worth it on two, or on one for a hard boss
+    // meterMul: the blow is worth more the fuller the meter, so one enemy is enough once it is half full
+    if (s.meterMul && u.passive === 'meter' && n >= 1 && u.meter >= u.def.passive.max * 0.5) return true;
     if (n >= 2) return true;
     return n >= 1 && (c.hpFrac < 0.5 || (tgt && tgt.hp <= s.dmg * 0.9) || c.D.skill >= 0.9);
   },
@@ -1516,11 +1522,24 @@ const SKILL_AI = {
   },
   warp(c, s) {
     const { u, m, tgt, td } = c;
-    if (c.state === 'retreat' || (c.hpFrac < 0.45 && c.underFire)) {
+    if (c.state === 'retreat' || (c.hpFrac < 0.45 && c.underFire) || (s.leave && c.underFire && c.hpFrac < 0.7 && c.enemies.length > 0)) {
       if (!c.enemies.length) return false;
       const sp = escapeSpot(c, s.dist - 0.4, 4);
       if (!sp) return false;
       c.b.sk.x = sp[0]; c.b.sk.z = sp[1];
+      return true;
+    }
+    // behind: pointing the cursor at an enemy within reach puts the mech at its back (sim picks the 1.6 m behind spot)
+    if (s.behind && m.mode !== 'trum' && tgt && c.los && td > 3 && td < s.dist + s.behind.pick - 1 && c.hpFrac > 0.5 && c.near - c.allyNear < 2) {
+      c.b.sk.x = tgt.x; c.b.sk.z = tgt.z;
+      return true;
+    }
+    // land: the warp ends in a blast, so close in on a target a little out of reach and let the blast land on it
+    if (s.land && m.mode !== 'trum' && tgt && c.los && td > s.land.radius + 1.5 && td < s.dist + s.land.radius * 0.6 && c.hpFrac > 0.5 && c.near - c.allyNear < 2) {
+      // come out 2.2 m short of the target: inside the blast, not on top of it (a mech standing on its target cannot shoot it)
+      const k = Math.max(0, Math.min(s.dist, td - 2.2)) / td, lx = u.x + (tgt.x - u.x) * k, lz = u.z + (tgt.z - u.z) * k;
+      if (!safeLand(m, u, lx, lz) || hyp(lx - tgt.x, lz - tgt.z) > s.land.radius * 0.85) return false;
+      c.b.sk.x = lx; c.b.sk.z = lz;
       return true;
     }
     // a wall hides the target: warp to a spot on the other side that sees it

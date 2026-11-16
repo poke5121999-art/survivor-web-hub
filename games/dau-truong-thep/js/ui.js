@@ -277,6 +277,12 @@ export function makeUI(G) {
     c.hidden = true; H.buffs.appendChild(c);
     return { root: c, t: c.querySelector('b'), on: false };
   });
+  // meter (passive): the player's own readout among the buffs: n/max for a small meter, a percentage for a big one, "Đầy" when armed
+  const meterEl = (() => {
+    const c = el('span', 'chip good', `${icon('boost')}<em></em><b></b>`);
+    c.hidden = true; H.buffs.appendChild(c);
+    return { root: c, name: c.querySelector('em'), val: c.querySelector('b'), on: false };
+  })();
 
   /* ---- per-match state ---- */
   let curMatch = null, myTeam = 0, myColor = 0, S = null, MH = null, T = {};
@@ -1000,6 +1006,10 @@ export function makeUI(G) {
         if (on !== be.on) { be.on = on; be.root.hidden = !on; }
         if (on) setText(be.t, bf[0] === 'shieldT' && me.shieldT <= 0 ? '' : String(Math.ceil(t)));
       });
+
+      const MP = me.passive === 'meter' ? me.def.passive : null, mOn = !!MP && me.alive;
+      if (mOn !== meterEl.on) { meterEl.on = mOn; meterEl.root.hidden = !mOn; if (mOn) setText(meterEl.name, MP.name); }
+      if (mOn) setText(meterEl.val, me.meter >= MP.max ? 'Đầy' : MP.max <= 5 ? `${Math.floor(me.meter)}/${MP.max}` : `${Math.floor(me.meter / MP.max * 100)}%`);
 
       // respawn overlay
       const dead = !me.alive && !m.over;
