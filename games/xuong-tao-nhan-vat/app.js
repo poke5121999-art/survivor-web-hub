@@ -11,6 +11,10 @@ const CORE = ['skin', 'eyes', 'hair'];
 const CORE_VI = { skin: 'Da', eyes: 'Mống mắt', hair: 'Tóc' };
 const SWAP = ['hair', 'eyes', 'body', 'top', 'bottom', 'underwear', 'boots', 'gloves', 'legwear', 'hat', 'ears', 'back', 'glasses', 'hairpin', 'horns', 'ornament'];
 const MUST = new Set(['hair', 'eyes', 'body']);
+// reiko, umi and yuuka have their skin cut away under their own clothes: only full bodies are offered as donors, and a
+// cut-body base switches to a full body as soon as one of its own clothes is swapped or removed
+const CUT_BODY = new Set(['reiko', 'umi', 'yuuka']);
+const bodyOf = (l) => { if (l.wear.body) return l.wear.body; if (!CUT_BODY.has(l.base)) return l.base; return ['top', 'bottom', 'boots', 'underwear'].some((s) => l.wear[s] !== undefined) ? 'matsuko' : l.base; };
 const CLIP_VI = { idle: 'Đứng', idle2: 'Thủ thế', run: 'Chạy', attack: 'Đá', combo: 'Combo', hit: 'Trúng đòn', die: 'Ngã' };
 const SKIN = ['#fde3d3', '#f6cdb5', '#e8b38f', '#c98d68', '#9a6447', '#6b4330', '#d9e6f2', '#b7d6a8'];
 const PRESETS = {
@@ -73,13 +77,13 @@ const clock = new THREE.Clock();
 async function build() {
   const my = ++building; const t0 = performance.now();
   const B = await hero(look.base);
-  const srcs = new Set([look.base]); for (const s of SWAP) { const w = look.wear[s]; if (w) srcs.add(w); }
+  const srcs = new Set([look.base, bodyOf(look)]); for (const s of SWAP) { const w = look.wear[s]; if (w) srcs.add(w); }
   const H = {}; for (const h of srcs) H[h] = await hero(h);
   if (my !== building) return;
   const wear = [];
   for (const P of B.parts) if (P.def.slot === 'face') wear.push([B, P]);
   for (const s of SWAP) {
-    const w = look.wear[s] === undefined ? look.base : look.wear[s]; if (!w) continue;
+    const w = s === 'body' ? bodyOf(look) : look.wear[s] === undefined ? look.base : look.wear[s]; if (!w) continue;
     for (const P of H[w].parts) if (P.def.slot === s) wear.push([H[w], P]);
   }
   if (cur) { scene.remove(cur.group); cur.group.traverse((o) => { if (o.isSkinnedMesh) { o.geometry.dispose(); o.material.dispose(); } }); }
@@ -129,10 +133,10 @@ function renderPanels(B, H) {
   $('slots').innerHTML = '';
   for (const s of SWAP) {
     if (s === 'eyes' || s === 'hair' || s === 'body') { if (!kaoru) continue; }
-    const owners = (kaoru ? sameFamily(look.base) : [look.base]).filter((h) => MF[h].slots[s]);
+    const owners = (kaoru ? sameFamily(look.base) : [look.base]).filter((h) => MF[h].slots[s] && (s !== 'body' || !CUT_BODY.has(h) || h === look.base));
     if (!owners.length) continue;
     const r = document.createElement('div'); r.className = 'slot';
-    const cw0 = look.wear[s] === undefined ? look.base : look.wear[s], cw = owners.includes(cw0) ? cw0 : '';
+    const cw0 = s === 'body' ? bodyOf(look) : look.wear[s] === undefined ? look.base : look.wear[s], cw = owners.includes(cw0) ? cw0 : '';
     const opts = owners.map((h) => `<option value="${h}"${h === cw ? ' selected' : ''}>${h}${h === look.base ? ' (gốc)' : ''}</option>`).join('') + (MUST.has(s) ? '' : `<option value=""${!cw ? ' selected' : ''}>— không —</option>`);
     const recol = !CORE.includes(s) && s !== 'body';
     r.innerHTML = `<label>${SLOT_VI[s] || s}</label><select ${owners.length < 2 && MUST.has(s) ? 'disabled' : ''}>${opts}</select>` + (recol ? `<input type="color" value="${look.col[s] || domOf(src(s), s)}"><button class="reset" title="Màu gốc">↺</button>` : '<span></span><span></span>');
@@ -151,7 +155,7 @@ function randomize() {
   const kaoru = family(look.base) === 'kaoru'; const fam = sameFamily(look.base);
   look.wear = {}; look.col = {};
   if (kaoru) for (const s of SWAP) {
-    const owners = fam.filter((h) => MF[h].slots[s]); if (!owners.length) continue;
+    const owners = fam.filter((h) => MF[h].slots[s] && (s !== 'body' || !CUT_BODY.has(h))); if (!owners.length) continue;
     const pick = !MUST.has(s) && s !== 'top' && Math.random() < 0.45 ? '' : rnd(owners);
     if (pick !== look.base) look.wear[s] = pick;
   }
@@ -179,7 +183,7 @@ function renderLooks() {
 function loadLook(l) {
   if (!l || !MF[l.base]) { status('Mã không hợp lệ'); return; }
   look = { ...blank(l.base), ...l, wear: { ...(l.wear || {}) }, col: { ...(l.col || {}) } };
-  for (const [s, h] of Object.entries(look.wear)) if (h && (!MF[h] || family(h) !== family(look.base))) delete look.wear[s];
+  for (const [s, h] of Object.entries(look.wear)) if (h && (!MF[h] || family(h) !== family(look.base) || (s === 'body' && CUT_BODY.has(h) && h !== look.base))) delete look.wear[s];
   renderHeroes(); build();
 }
 
