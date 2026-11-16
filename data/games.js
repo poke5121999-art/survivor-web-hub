@@ -1108,6 +1108,21 @@ window.HUB_GAMES = [
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   },
   {
+    id: "xuong-tao-nhan-vat",
+    title: "Xưởng Tạo Nhân Vật",
+    tagline: "Ghép tóc, áo, váy, giày, tai, cánh giữa 11 hero anime của chủ dự án và đổi màu từng món mà vẫn giữ bóng đổ, hoạ tiết.",
+    desc: "Chọn một hero gốc rồi lấy từng món từ hero khác cùng bộ xương (nhóm Kaoru: Matsuko, Hitomi, Sumiko, Youta, Nishi, Reiko, Umi, Yuuka): tóc, mắt, thân, áo, váy, đồ lót, giày, găng, ống chân, mũ, tai, cánh/đồ sau lưng, kính, kẹp tóc, sừng. Mỗi món có ô màu riêng đổi màu chính mà giữ bóng và hoạ tiết; da, mống mắt, tóc có ô riêng và dải màu da nhanh. Hikari, Kaiyo, Kinu khác bộ xương nên chỉ đổi màu. Có 6 kiểu màu mẫu, nút ngẫu nhiên, 7 động tác gốc (đứng, thủ thế, chạy, đá, combo, trúng đòn, ngã), xoay và zoom, lưu kiểu vào máy và chép mã kiểu để gửi nhau. Model nén thành file JS, mỗi hero tải khi chọn.",
+    genre: "khac",
+    accent: "#c0607a",
+    en: { title: "Character Workshop", tagline: "Swap hair, tops, skirts, shoes, ears and wings between the owner's 11 anime heroes and recolour each piece while keeping its shading and patterns.", desc: "Pick a base hero and take any piece from another hero on the same skeleton (the Kaoru family: Matsuko, Hitomi, Sumiko, Youta, Nishi, Reiko, Umi, Yuuka): hair, eyes, body, top, skirt, underwear, shoes, gloves, leg guards, hat, ears, wings or back piece, glasses, hairpin, horns. Every piece has its own colour picker that shifts its main colour while keeping shading and patterns; skin, iris and hair have their own pickers plus quick skin swatches. Hikari, Kaiyo and Kinu use other skeletons, so they are recolour-only. Six colour presets, randomize, the heroes' seven clips (idle, guard, run, kick, combo, hit, fall), orbit and zoom, save looks on this device and copy a look code to share. The models are compressed into JS files and each hero loads when picked." },
+    thumbnail: "assets/thumbnails/xuong-tao-nhan-vat.png",
+    // Nguồn làm việc: D:/mesh-to-code/workshop trên HOB-THOR (tools/embed.mjs nén glb của Auto Arena thành heroes/<hero>.js; tools/tasks/ws-*.mjs kiểm).
+    path: "games/xuong-tao-nhan-vat/index.html",
+    rev: "20261116a",
+    status: "available",
+    tags: ["Thử nghiệm", "Nhân vật 3D"]
+  },
+  {
     id: "robot-loc-coc",
     title: "Xưởng Robot Lóc Cóc",
     tagline: "Robot ghép khối có khớp lò xo, zombie robot gỉ sét, võ đài và thú máy: chó, mèo, chim, bạch tuộc, cua, rắn, ếch, rùa, ong máy.",

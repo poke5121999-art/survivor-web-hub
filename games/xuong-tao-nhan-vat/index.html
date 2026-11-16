@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Xưởng Tạo Nhân Vật</title>
+<style>
+:root{--bg:#f1ece2;--panel:#fbf8f2;--ink:#2a2420;--mute:#7a6f63;--line:#ded4c3;--acc:#b5543c;--accbg:#f6e2d9}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:260px 1fr 340px;grid-template-rows:auto 1fr;height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0}header .tag{color:var(--mute);font-size:13px}
+button,select,input[type=text]{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--ink)}
+input[type=text]{cursor:text;width:100%}
+button.on{background:var(--accbg);border-color:var(--acc);color:var(--acc);font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+aside{overflow:auto;padding:12px 14px;background:var(--panel)}
+#left{border-right:1px solid var(--line)}#right{border-left:1px solid var(--line)}
+aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 0 6px}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+#heroes button{text-transform:capitalize;min-width:72px}
+#heroes button small{display:block;font-size:10px;color:var(--mute);font-weight:400}
+#stage{position:relative;min-width:0;min-height:0}#view{width:100%;height:100%;display:block;touch-action:none}
+#status{position:absolute;left:14px;top:10px;font-size:13px;color:var(--mute);pointer-events:none}
+#baseName{position:absolute;left:14px;top:28px;font-weight:700;font-size:20px;text-transform:capitalize;pointer-events:none}
+.hint{position:absolute;left:14px;bottom:10px;color:var(--mute);font-size:12px;pointer-events:none}
+.slot{display:grid;grid-template-columns:96px 1fr 34px 26px;gap:6px;align-items:center;margin:5px 0}
+.slot label{font-size:13px}.slot select{padding:4px 6px;min-width:0;text-transform:capitalize}
+input[type=color]{width:34px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+.reset{padding:2px 0;font-size:12px;width:26px}
+.swatches{display:flex;gap:5px;flex-wrap:wrap;margin:4px 0}
+.swatches button{width:26px;height:26px;padding:0;border-radius:50%}
+#looks .look{display:flex;gap:6px;align-items:center;margin:4px 0}#looks .look span{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note{font-size:12px;color:var(--mute);margin:4px 0}
+footer{font-size:12px;color:var(--mute);margin-top:16px}
+@media (max-width:900px){#app{display:flex;flex-direction:column;height:auto}#stage{order:1;height:62vh;flex:none}#right{order:2;border-left:0}#left{order:3;border-right:0}header{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div id="app">
+<header><h1>Xưởng Tạo Nhân Vật</h1><span class="tag">Ghép đồ, tóc, phụ kiện giữa các hero và đổi màu ngay trên model gốc</span></header>
+<aside id="left">
+<h2>Hero gốc</h2><div id="heroes" class="row"></div>
+<p class="note">Nhóm Kaoru chung một bộ xương nên ghép đồ qua lại được. Hikari, Kaiyo, Kinu chỉ đổi màu.</p>
+<h2>Động tác</h2><div id="clips" class="row"></div>
+<div class="row" style="margin-top:6px"><button id="pause">⏸ Dừng</button></div>
+<h2>Góc nhìn</h2><div class="row"><button data-cam="full">Toàn thân</button><button data-cam="face">Mặt</button><button data-cam="back">Sau lưng</button></div>
+<h2>Kiểu mẫu</h2><div id="presets" class="row"></div>
+<div class="row" style="margin-top:8px"><button id="random">🎲 Ngẫu nhiên</button><button id="resetAll">↺ Về gốc</button></div>
+<h2>Lưu</h2>
+<div class="row"><input type="text" id="lookName" placeholder="Tên kiểu (tuỳ chọn)"></div>
+<div class="row" style="margin-top:6px"><button id="save">💾 Lưu</button><button id="copy">📋 Chép mã</button><button id="paste">📥 Nạp mã</button></div>
+<div id="looks"></div>
+<footer>Model và texture là của chủ dự án (Auto Arena), nén lại thành file JS: hình học lượng tử 16 bit, texture WebP, động tác lượng tử. three.js r170 (MIT).</footer>
+</aside>
+<div id="stage"><canvas id="view"></canvas><div id="status"></div><div id="baseName"></div><div class="hint">Kéo để xoay · cuộn / chụm hai ngón để zoom</div></div>
+<aside id="right">
+<h2>Da, mắt, tóc</h2><div id="core"></div>
+<h2>Màu da nhanh</h2><div id="skinSw" class="swatches"></div>
+<h2>Đồ và phụ kiện</h2><div id="slots"></div>
+<p class="note">Ô chọn: lấy món đó từ hero khác (hoặc bỏ). Ô màu: đổi màu chính của món, giữ nguyên bóng đổ và hoạ tiết. ↺ trả màu gốc.</p>
+</aside>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
