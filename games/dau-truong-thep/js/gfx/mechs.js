@@ -8,7 +8,7 @@ import { Builder } from './builder.js';
 import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
-import { styleFor, adorn } from './styles.js';
+import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
 const X = -Math.PI / 2, TAU = Math.PI * 2;
@@ -1102,15 +1102,15 @@ export function makeMechs(G, tex) {
     return g;
   }
 
-  function build(key, team, paintKey, glowKey, decalKey) {
+  function build(key, team, paintKey, glowKey, decalKey, form = 2) {
     const def = MECHS[key] || BOSSES[key], b = new Builder(0.85);
     const st = styleFor(key, def.tint);
     const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : st.trim;
     const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : new THREE.Color(st.glow);
-    const paint = new THREE.Color(st.body), deep = new THREE.Color(st.deep);
+    const paint = formPaint(st.body, form), deep = new THREE.Color(st.deep);
     b.use('hull').surface(1, 1);
     const info = (DESIGNS[key] || DESIGNS[st.chassis] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
-    adorn(HELP, b, key, st);
+    adorn(HELP, b, key, st, form);
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     const rimBase = gc.clone().multiplyScalar(0.22), rim = rimBase.clone();
@@ -1118,7 +1118,7 @@ export function makeMechs(G, tex) {
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();
     hull.rotation.order = 'YZX';
-    const S = info.S || 1;
+    const S = (info.S || 1) * FORM_SCALE[Math.max(1, Math.min(3, form)) - 1];
     body.scale.setScalar(S);
     const add = (parent, g, m, cast) => {
       if (!g) return null;
@@ -1175,9 +1175,9 @@ export function makeMechs(G, tex) {
   }
 
   // A mech view with its ground ring and shield bubble. `mine` gives the white own-mech ring and the aim line.
-  function makeView(key, team, paint, glow, decal, radius, mine) {
-    const v = build(key, team, paint, glow, decal);
-    v.mech = key; v.team = team; v.paint = paint; v.glowKey = glow; v.decalKey = decal;
+  function makeView(key, team, paint, glow, decal, radius, mine, form) {
+    const v = build(key, team, paint, glow, decal, form);
+    v.mech = key; v.team = team; v.paint = paint; v.glowKey = glow; v.decalKey = decal; v.form = form;
     v.ring = new THREE.Mesh(ringGeo, ringMaterial());
     v.ring.material.uniforms.uColor.value.copy(mine ? new THREE.Color(1.5, 1.5, 1.5) : new THREE.Color(TEAMS[team].color).multiplyScalar(1.6));
     v.ring.material.uniforms.uMine.value = mine ? 1 : 0;
@@ -1197,9 +1197,10 @@ export function makeMechs(G, tex) {
 
   function view(u) {
     let v = views.get(u.id);
-    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint && v.glowKey === u.glow && v.decalKey === u.decal) return v;
+    const form = BOSSES[u.mech] ? 3 : formOf(u.lv);
+    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint && v.glowKey === u.glow && v.decalKey === u.decal && v.form === form) return v;
     if (v) disposeView(v);
-    v = makeView(u.mech, u.color, u.paint, u.glow, u.decal, u.radius, u.id === G.me);
+    v = makeView(u.mech, u.color, u.paint, u.glow, u.decal, u.radius, u.id === G.me, form);
     v.headingV = u.heading; v.lastX = u.x; v.lastZ = u.z;
     group.add(v.root); views.set(u.id, v);
     return v;
@@ -1458,9 +1459,9 @@ export function makeMechs(G, tex) {
   const shots = {};
   function portrait(key, team, paintKey, opt) {
     const o = typeof opt === 'number' ? { size: opt } : opt || {}, size = o.size || 128;
-    const id = [key, team, paintKey || '', o.glow || '', o.decal || '', size].join('|');
+    const form = o.form || 2, id = [key, team, paintKey || '', o.glow || '', o.decal || '', size, form].join('|');
     if (shots[id]) return shots[id];
-    const r = G.renderer, v = build(key, team, paintKey, o.glow, o.decal), scene = new THREE.Scene();
+    const r = G.renderer, v = build(key, team, paintKey, o.glow, o.decal, form), scene = new THREE.Scene();
     scene.environment = G.scene.environment;
     scene.add(v.root, new THREE.HemisphereLight(0xffffff, 0x334455, 1.2));
     const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(-2, 5, 3); scene.add(sun);

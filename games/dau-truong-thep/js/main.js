@@ -116,8 +116,8 @@ async function boot() {
   post.grade(world.theme);
   // Portraits are rendered at device pixels (128 px per DPR 1, up to 384): a 128 px image shown at 100 CSS px on a DPR 3 phone is blurry.
   const portraitSize = () => (params.legacyres ? 128 : Math.round(128 * Math.min(3, Math.max(1, window.devicePixelRatio || 1))));
-  G.portrait = (key, team, paint, a, b) => {
-    const opt = a && typeof a === 'object' ? { ...a } : typeof a === 'number' ? { size: a } : { glow: a || undefined, decal: b || undefined };
+  G.portrait = (key, team, paint, a, b, form) => {
+    const opt = a && typeof a === 'object' ? { ...a } : typeof a === 'number' ? { size: a } : { glow: a || undefined, decal: b || undefined, form: form || undefined };
     if (!opt.size) opt.size = portraitSize();
     return mechs.portrait(key, team, paint, opt);
   };

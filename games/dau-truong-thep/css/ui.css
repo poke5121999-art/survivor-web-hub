@@ -262,6 +262,14 @@
 #ui .md-head img { width: 7em; height: 7em; object-fit: cover; flex: none; background: #0a0d10; box-shadow: 0 0 0 1px var(--edge), 0 0 0 .2em #0a0d10, 0 0 0 calc(.2em + 1px) var(--brass); margin: .2em; }
 #ui .md-head h2 { margin: .1em 0; font-size: 1.9em; line-height: 1.1; text-transform: uppercase; letter-spacing: .05em; }
 #ui .md-head p { margin: 0; color: #b9c3cd; font-size: .95em; line-height: 1.3; }
+#ui .md-head .forms { display: flex; gap: .5em; margin-top: .55em; }
+#ui .md-head .forms .fm { margin: 0; text-align: center; opacity: .55; }
+#ui .md-head .forms .fm.on { opacity: 1; }
+#ui .md-head .forms .fm.lock img { filter: grayscale(.85) brightness(.7); }
+#ui .md-head .forms img { width: 3.6em; height: 3.6em; margin: 0 0 .2em; box-shadow: 0 0 0 1px var(--edge); }
+#ui .md-head .forms .fm.on img { box-shadow: 0 0 0 1px var(--brass), 0 0 .6em rgba(242, 200, 90, .45); }
+#ui .md-head .forms figcaption { font-size: .72em; line-height: 1.15; color: #dfe6ee; text-transform: uppercase; letter-spacing: .04em; }
+#ui .md-head .forms figcaption small { display: block; color: #8d98a6; text-transform: none; letter-spacing: 0; }
 #ui .role { display: inline-flex; align-items: center; gap: .35em; padding: .1em .6em .1em .4em; font-size: .75em; text-transform: uppercase; letter-spacing: .1em; background: var(--brass); color: #1a1204; clip-path: polygon(.3em 0, 100% 0, calc(100% - .3em) 100%, 0 100%); }
 #ui .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .35em 1.4em; }
 #ui .st { display: grid; grid-template-columns: 5.4em 1fr 3.6em; gap: .5em; align-items: center; font-size: .85em; }

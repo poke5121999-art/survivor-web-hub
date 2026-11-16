@@ -3,6 +3,26 @@
 // Ornaments are placed from the bounds of the hull and turret batches the design has already filled, so one motif row
 // fits any chassis without hand-measured anchors.
 import * as THREE from '../../vendor/three.module.min.js';
+import { UPGRADE } from '../data.js';
+
+// Three forms per mech, reached by total garage level at the second and third perk milestones (12 and 18 of 25):
+// I is the bare chassis with its first ornament and steel edges, II the full motif with gold edges,
+// III a bigger motif with an extra blade in every set and edges that glow in the mech's lamp colour.
+export const FORM_AT = [UPGRADE.perkAt[1], UPGRADE.perkAt[2]];
+// Whole-model scale per form; the sim radius does not change, only the look.
+export const FORM_SCALE = [0.88, 1, 1.14];
+// Body paint per form: I is a matte, greyed prototype coat, III a deeper, brighter one.
+export function formPaint(hex, form) {
+  const c = new THREE.Color(hex);
+  if (form === 1) return c.lerp(new THREE.Color(0x8a9099), 0.35);
+  if (form === 3) return c.offsetHSL(0, 0.08, 0.03);
+  return c;
+}
+export function formOf(lv) {
+  if (!Array.isArray(lv)) return 1;
+  const n = lv.reduce((a, b) => a + (Number(b) || 0), 0);
+  return n >= FORM_AT[1] ? 3 : n >= FORM_AT[0] ? 2 : 1;
+}
 
 // body: main paint, deep: shadow panels, trim: second paint, gold: blade edges and studs, glow: lamps, gems, flames.
 // motif: ornament name → options. Order matters only for overlap (later pieces draw on top).
@@ -154,27 +174,68 @@ function bladeOutline(p0, p1, p2, w, n = 9) {
 }
 const shrink = (p0, p1, p2) => [p0, [p1[0] * 0.97, p1[1] * 0.97], [p2[0] * 0.9, p2[1] * 0.9]];
 
-export function adorn(h, b, key, P) {
-  const { sk, lit, side } = h;
+export function adorn(h, b, key, P, form = 2) {
+  const { lit, side, flame } = h;
   const H = bounds(b, 'hull'), T = bounds(b, 'turret') || H;
   if (!H) return;
   const gold = new THREE.Color(P.gold), body = new THREE.Color(P.body), deep = new THREE.Color(P.deep), trim = new THREE.Color(P.trim);
   const gloss = (c) => { b.surface(0.35, 1.5); b.tint(c); };
-  const S = Math.max(0.7, Math.min(1.4, H.len / 2.4));
+  const F = Math.max(1, Math.min(3, form | 0 || 2));
+  const S = Math.max(0.7, Math.min(1.4, H.len / 2.4)) * [0.72, 1, 1.18][F - 1];
+  const steel = new THREE.Color(0xb8c2ce);
+  // Edges: steel at form I, gold at II; at III standing blades, spikes and the crown glow in the lamp colour (lying blades stay gold).
+  const edge = () => { if (F === 3) b.surface(-1, 0); else gloss(F === 1 ? steel : gold); };
 
   // Lying blade (XZ plane, seen from above): gold underlay, painted top inset from the edge.
   const flat = (p0, p1, p2, w, t, col) => {
-    gloss(gold); b.prism(bladeOutline(p0, p1, p2, w), 0, t, t * 0.3);
+    gloss(F === 1 ? steel : gold); b.prism(bladeOutline(p0, p1, p2, w), 0, t, t * 0.3);
     gloss(col); b.prism(bladeOutline(...shrink(p0, p1, p2), w * 0.62), t * 0.5, t * 1.7, t * 0.4);
   };
   // Standing blade (XY plane): gold core, painted cheeks on both faces leave a gold rim on the outline.
   const stand = (p0, p1, p2, w, t, col) => {
-    gloss(gold); side(b, bladeOutline(p0, p1, p2, w), -t / 2, t / 2, t * 0.2);
+    edge(); side(b, bladeOutline(p0, p1, p2, w), -t / 2, t / 2, t * 0.2);
     gloss(col); side(b, bladeOutline(...shrink(p0, p1, p2), w * 0.62), -t * 1.1, t * 1.1, t * 0.3);
   };
 
-  const M = P.motif || {};
+  const M = {};
+  const pieces = Object.keys(P.motif || {}).filter((k) => k !== 'gems');
+  for (const k of F === 1 ? pieces.slice(0, 1) : pieces) {
+    const o = { ...P.motif[k] };
+    if (F === 3 && o.n) o.n += k === 'shell' ? 2 : k === 'crystals' ? 3 : 1;
+    M[k] = o;
+  }
+  if (P.motif && P.motif.gems) M.gems = {};
   b.use('hull');
+
+  // Armour that comes with the forms, under the ornaments: II adds flank skirts, III adds a second deck plate,
+  // a nose ram, rear thruster pods with live flame and lit vents.
+  const plate = (w, hh, d, col) => { gloss(col); b.chamfer(w, hh, d, Math.min(w, hh, d) * 0.3); };
+  const Hh = H.y1 - H.y0, hy = (t) => H.y0 + Hh * t;
+  if (F >= 2) {
+    const n = F === 3 ? 3 : 2, pw = H.len * 0.8 / n;
+    for (const s of [-1, 1]) for (let i = 0; i < n; i++) {
+      b.push().move(H.x0 + H.len * 0.12 + pw * (i + 0.5), hy(0.5), s * (H.zh + 0.05)).rotX(s * 0.3);
+      plate(pw * 1.08, Hh * 0.46, 0.08, i % 2 ? trim : body);
+      edge(); b.push().move(0, Hh * 0.23, 0).box(pw * 1.1, 0.045, 0.1).pop();
+      b.pop();
+    }
+  }
+  if (F === 3) {
+    b.push().move(H.cx - H.len * 0.12, H.y1 + 0.03, 0);
+    plate(H.len * 0.44, 0.09, H.zh * 1.15, deep);
+    edge(); for (const s of [-1, 1]) b.push().move(0, 0.05, s * H.zh * 0.5).box(H.len * 0.4, 0.03, 0.05).pop();
+    b.pop();
+    b.push().move(H.x1 - 0.05 * S, hy(0.35), 0);
+    for (const s of [-1, 1]) flat([0, s * H.zh * 0.85], [0.3 * S, s * H.zh * 0.45], [0.62 * S, 0], 0.32 * S, 0.08, trim);
+    b.pop();
+    for (const s of [-1, 1]) {
+      b.push().move(H.x0 + 0.05 * S, hy(0.72), s * H.zh * 0.42).rotZ(Math.PI / 2);
+      gloss(steel); b.lathe([[0.15 * S, 0], [0.2 * S, 0.1 * S], [0.2 * S, 0.28 * S], [0.14 * S, 0.36 * S]], 10);
+      flame(b, () => b.push().move(0, 0.58 * S, 0).cyl(0.02, 0.13 * S, 0.44 * S, 8).pop());
+      b.pop();
+      lit(b, () => b.push().move(H.cx, H.y1 - 0.02, s * H.zh * 0.78).box(H.len * 0.5, 0.03, 0.04).pop());
+    }
+  }
   for (const wk of ['wings', 'wings2']) {
     const o = M[wk]; if (!o) continue;
     const at = wk === 'wings' ? 0.55 : 0.25;
@@ -182,7 +243,7 @@ export function adorn(h, b, key, P) {
       const k = 1 - i * 0.22, span = o.span * S * k, sw = o.sweep * S * (0.8 + i * 0.25);
       b.push().move(H.x0 + H.len * (at - i * 0.12), H.y0 + (H.y1 - H.y0) * 0.62 + i * 0.03, s * H.zh * 0.55).rotX(-s * o.lift);
       const col = o.glass ? trim : i % 2 ? trim : body;
-      if (o.glass) { gloss(gold); b.prism(bladeOutline([0, 0], [-sw * 0.2, s * span * 0.7], [-sw, s * span], 0.42 * S * k), 0, 0.03, 0.01); lit(b, () => b.prism(bladeOutline([0, 0], [-sw * 0.18, s * span * 0.64], [-sw * 0.85, s * span * 0.88], 0.24 * S * k), 0.02, 0.05, 0)); }
+      if (o.glass) { edge(); b.prism(bladeOutline([0, 0], [-sw * 0.2, s * span * 0.7], [-sw, s * span], 0.42 * S * k), 0, 0.03, 0.01); lit(b, () => b.prism(bladeOutline([0, 0], [-sw * 0.18, s * span * 0.64], [-sw * 0.85, s * span * 0.88], 0.24 * S * k), 0.02, 0.05, 0)); }
       else flat([0, 0], [-sw * 0.15, s * span * 0.8], [-sw, s * span], 0.95 * S * k, 0.07, col);
       b.pop();
     }
@@ -222,7 +283,7 @@ export function adorn(h, b, key, P) {
   }
   if (M.spikes) {
     const o = M.spikes;
-    gloss(gold);
+    edge();
     for (let i = 0; i < o.n; i++) {
       const x = H.x0 + H.len * (0.15 + 0.7 * i / Math.max(1, o.n - 1)), hh = o.h * S * (0.7 + 0.3 * Math.sin(i / Math.max(1, o.n - 1) * Math.PI));
       b.push().move(x, H.y1 + hh * 0.35, 0).rotZ(0.45).cyl(0, 0.09 * S, hh, 4).pop();
@@ -252,14 +313,14 @@ export function adorn(h, b, key, P) {
     for (const s of [-1, 1]) for (let i = 0; i < o.n; i++) {
       const L = o.len * S * (1 - i * 0.2);
       b.push().move(H.x0 + H.len * (0.7 - i * 0.22), H.y0 + (H.y1 - H.y0) * 0.6, s * H.zh * 0.8);
-      gloss(gold); b.prism([[0, 0], [-0.1 * S, s * L * 0.45], [0.08 * S, s * L * 0.42], [-0.12 * S, s * L], [0.14 * S, s * L * 0.38], [-0.03 * S, s * L * 0.42], [0.12, 0]].map((p) => [p[0], p[1]]), 0, 0.07, 0.015);
+      edge(); b.prism([[0, 0], [-0.1 * S, s * L * 0.45], [0.08 * S, s * L * 0.42], [-0.12 * S, s * L], [0.14 * S, s * L * 0.38], [-0.03 * S, s * L * 0.42], [0.12, 0]].map((p) => [p[0], p[1]]), 0, 0.07, 0.015);
       b.pop();
     }
   }
   if (M.cog) {
     const o = M.cog, r = o.r * S;
     b.push().move(H.x0 + H.len * 0.3, H.y1 + 0.02, 0);
-    gloss(gold); b.cyl(r, r, 0.06, 12);
+    edge(); b.cyl(r, r, 0.06, 12);
     for (let i = 0; i < 10; i++) b.push().rotY(i / 10 * Math.PI * 2).move(r, 0, 0).box(0.16 * S, 0.06, 0.12 * S).pop();
     gloss(deep); b.push().move(0, 0.04, 0).cyl(r * 0.55, r * 0.55, 0.04, 10).pop();
     b.pop();
@@ -267,6 +328,23 @@ export function adorn(h, b, key, P) {
 
   b.use('turret');
   const tTop = T.y1, tFront = T.x1;
+  if (F >= 2) {
+    for (const s of [-1, 1]) {
+      b.push().move(T.cx - T.len * 0.05, T.y0 + (T.y1 - T.y0) * 0.55, s * (T.zh + 0.06)).rotX(s * 0.35);
+      plate(T.len * (F === 3 ? 0.7 : 0.55), (T.y1 - T.y0) * 0.5, 0.09, trim);
+      edge(); b.push().move(0, (T.y1 - T.y0) * 0.25, 0).box(T.len * (F === 3 ? 0.72 : 0.57), 0.04, 0.11).pop();
+      if (F === 3) { edge(); b.push().move(0, (T.y1 - T.y0) * 0.3, s * 0.08).rotX(s * 0.9).cyl(0, 0.07 * S, 0.34 * S, 4).pop(); }
+      b.pop();
+    }
+  }
+  if (F === 3) {
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2, r = Math.min(T.zh, T.len / 2) * 0.55;
+      b.push().move(T.cx + Math.cos(a) * r, tTop, Math.sin(a) * r).rotX(Math.sin(a) * 0.5).rotZ(-Math.cos(a) * 0.5);
+      edge(); b.cyl(0, 0.05 * S, 0.26 * S, 4);
+      b.pop();
+    }
+  }
   if (M.horns) {
     const o = M.horns, L = o.len * S;
     for (const s of [-1, 1]) {
@@ -316,7 +394,7 @@ export function adorn(h, b, key, P) {
       for (const s of [-1, 1]) b.push().move(tFront - 0.12 * S, tTop - 0.06, s * Math.min(0.22, T.zh * 0.35)).ball(0.065 * S, 1).pop();
       b.push().move(T.cx - (T.x1 - T.x0) * 0.1, tTop + 0.02, 0).scale(1, 0.6, 1).ball(0.1 * S, 1).pop();
     });
-    gloss(gold);
+    gloss(F === 1 ? steel : gold);
     for (const s of [-1, 1]) b.push().move(tFront - 0.12 * S, tTop - 0.09, s * Math.min(0.22, T.zh * 0.35)).cyl(0.09 * S, 0.1 * S, 0.04, 8).pop();
     b.push().move(T.cx - (T.x1 - T.x0) * 0.1, tTop - 0.01, 0).cyl(0.14 * S, 0.15 * S, 0.04, 10).pop();
   }

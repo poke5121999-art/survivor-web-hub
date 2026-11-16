@@ -5,6 +5,7 @@ import * as MAPMOD from './maps.js';
 const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
 import { visibleTo, towerOpen } from './sim.js';
 import * as K from './keys.js';
+import { formOf, FORM_AT } from './gfx/styles.js';
 
 /* ---------- icons ---------- */
 const SOFT = 'fill="currentColor" fill-opacity=".26"';
@@ -167,9 +168,9 @@ export function makeUI(G) {
   const meta = () => G.meta && G.meta.get();
   const portraits = {};
   // glow and decal reach G.portrait as extra arguments; a renderer that ignores them just draws the paint.
-  const portrait = (mech, team, paint, glow, decal) => {
-    const k = mech + '|' + team + '|' + (paint || '') + '|' + (glow || '') + '|' + (decal || '');
-    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, paint, glow, decal) : ''; } catch (e) { portraits[k] = ''; } }
+  const portrait = (mech, team, paint, glow, decal, form) => {
+    const k = mech + '|' + team + '|' + (paint || '') + '|' + (glow || '') + '|' + (decal || '') + '|' + (form || '');
+    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, paint, glow, decal, form) : ''; } catch (e) { portraits[k] = ''; } }
     return portraits[k];
   };
   const equipOf = (field) => (mech) => { const d = meta(); return (d && d[field] && d[field][mech]) || 'goc'; };
@@ -177,7 +178,7 @@ export function makeUI(G) {
   const lvOf = (mech) => { const d = meta(); return cleanLv(d && d.lv && d.lv[mech]); };
   const levelOf = (mech) => lvOf(mech).reduce((a, b) => a + b, 0);
   const cosOf = (mech) => ({ paint: paintOf(mech), glow: glowOf(mech), decal: decalOf(mech) });
-  const mineImg = (mech, team, own) => (own ? portrait(mech, team, paintOf(mech), glowOf(mech), decalOf(mech)) : portrait(mech, team));
+  const mineImg = (mech, team, own) => (own ? portrait(mech, team, paintOf(mech), glowOf(mech), decalOf(mech), formOf(lvOf(mech))) : portrait(mech, team, null, null, null, 1));
   const rankNow = () => (G.meta && G.meta.rank ? G.meta.rank() : rankOf(0));
   // Accepts a unit (u.def covers bosses) or a mech key; a bare MECHS[key] lookup is undefined for 'titan'.
   const roleIcon = (x) => { const d = typeof x === 'string' ? MECHS[x] || BOSSES[x] : x && x.def; return icon(d ? d.roleKey : 'generic'); };
@@ -1397,7 +1398,17 @@ export function makeUI(G) {
     const g = GLOWS[c.glow];
     if (g && g.color != null && own) img.style.setProperty('--gl', hex(g.color)); else img.style.removeProperty('--gl');
   }
-  const mineImg2 = (mech, own, c) => (own ? portrait(mech, 0, c.paint, c.glow, c.decal) : portrait(mech, 0));
+  const mineImg2 = (mech, own, c) => (own ? portrait(mech, 0, c.paint, c.glow, c.decal, formOf(lvOf(mech))) : portrait(mech, 0, null, null, null, 1));
+
+  // The three forms side by side, the current one lit, each with the total garage level that reaches it.
+  const ROMAN = ['I', 'II', 'III'];
+  function formStrip(mech, own, total) {
+    const cur = own ? formOf(lvOf(mech)) : 1, c = own ? cosOf(mech) : {};
+    return `<div class="forms">${[1, 2, 3].map((f) => {
+      const at = f === 1 ? 0 : FORM_AT[f - 2];
+      return `<figure class="fm${f === cur ? ' on' : ''}${f > cur ? ' lock' : ''}"><img alt="" src="${portrait(mech, 0, c.paint, c.glow, c.decal, f)}"><figcaption>Hình thái ${ROMAN[f - 1]}<small>${f === 1 ? 'Gốc' : f <= cur ? 'Đã mở' : `Tổng cấp ${at}`}</small></figcaption></figure>`;
+    }).join('')}</div>`;
+  }
 
   function renderDetail() {
     const d = MECHS[sel], own = ownedMech(sel);
@@ -1407,7 +1418,7 @@ export function makeUI(G) {
     const body = tab === 'up' && own ? renderUpgrades(d) : tab === 'cos' && own ? renderCosmetics() : renderInfo(d, def, own, lv);
     const m = meta() || {}, gl = own && GLOWS[glowOf(sel)];
     M.detail.innerHTML = `
-      <div class="md-head"><img alt="" src="${mineImg(sel, 0, own)}"${gl && gl.color != null ? ` style="--gl:${hex(gl.color)}"` : ''}><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && total ? `<em class="md-lv">+${total}</em>` : ''}</h2><p>${d.blurb}</p></div></div>
+      <div class="md-head"><img alt="" src="${mineImg(sel, 0, own)}"${gl && gl.color != null ? ` style="--gl:${hex(gl.color)}"` : ''}><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && total ? `<em class="md-lv">+${total}</em>` : ''}</h2><p>${d.blurb}</p>${formStrip(sel, own, total)}</div></div>
       ${own ? `<div class="tabs"><button data-tab="info" class="${tab === 'info' ? 'on' : ''}">${icon('info')}Chi tiết</button><button data-tab="up" class="${tab === 'up' ? 'on' : ''}">${icon('wrench')}Nâng cấp</button><button data-tab="cos" class="${tab === 'cos' ? 'on' : ''}">${icon('dice')}Trang trí</button></div>`
         : `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button></div>`}
       ${body}`;
