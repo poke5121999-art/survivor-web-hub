@@ -15,6 +15,19 @@
  */
 window.HUB_DOWNLOADS = [
   {
+    game: "dau-truong-thep",
+    platform: "android",
+    version: "1.0.0",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/dautruongthep-android-1.0.0/DauTruongThep-Android-1.0.0.apk",
+    bytes: 324568,
+    sha256: "013799821d1942b8676ba031cddb2352f9cab2884e49deadc8da257d37d5bcb0",
+    date: "2026-11-16",
+    note: {
+      vi: "Đấu Trường Thép 1.0.0 cho Android: app nhỏ mở thẳng bản web đang chạy, nên game cập nhật là có ngay, không cần tải APK mới. Cần Internet, đăng nhập tài khoản hub như trên web, Android 7 trở lên. Cài đè lên bản cũ.",
+      en: "Dau Truong Thep 1.0.0 for Android: a small app that opens the live web build, so game updates arrive without a new APK. Needs Internet, sign in with your hub account as on the web, Android 7 or newer. Installs over the old version."
+    }
+  },
+  {
     game: "repo2d-unity",
     platform: "android",
     version: "0.2.562",
