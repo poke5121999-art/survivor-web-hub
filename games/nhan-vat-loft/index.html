@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhân Vật Loft</title>
+<style>
+:root{--bg:#f1ece2;--panel:#fbf8f2;--ink:#2a2420;--mute:#7a6f63;--line:#ded4c3;--acc:#b5543c;--accbg:#f6e2d9}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:270px 1fr 330px;grid-template-rows:auto 1fr;height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0}header .tag{color:var(--mute);font-size:13px}
+.tabs{margin-left:auto;display:flex;gap:6px}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--ink)}
+button.on{background:var(--accbg);border-color:var(--acc);color:var(--acc);font-weight:600}
+aside{overflow:auto;padding:12px 14px;background:var(--panel);border-right:1px solid var(--line)}
+aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 0 6px}
+#heroes,#clips,.cam{display:flex;flex-wrap:wrap;gap:6px}
+#stage{position:relative;min-width:0;min-height:0}#view{width:100%;height:100%;display:block;touch-action:none}
+#heroName{position:absolute;left:14px;top:10px;font-weight:700;font-size:20px;text-transform:capitalize;pointer-events:none}
+.hint{position:absolute;left:14px;bottom:10px;color:var(--mute);font-size:12px;pointer-events:none}
+#ref{overflow:auto;padding:12px;background:var(--panel);border-left:1px solid var(--line)}
+#ref img{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:8px}
+body.noref #app{grid-template-columns:270px 1fr 0}body.noref #ref{display:none}
+table.num{border-collapse:collapse;margin-top:8px;width:100%}table.num td,table.num th{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+.kv{margin:2px 0}.gates{margin-top:10px;font-size:12px;color:var(--mute)}
+#runtest,#spacePanel{display:none}
+body[data-mode=run] #stage,body[data-mode=run] #ref{display:none}body[data-mode=run] #runtest{display:block;grid-column:2/-1;overflow:auto;padding:14px}
+body[data-mode=space] #charPanel{display:none}body[data-mode=space] #spacePanel{display:block}body[data-mode=space] #ref{display:none}body[data-mode=space] #app{grid-template-columns:270px 1fr 0}
+#sliders label{display:block;margin:6px 0}#sliders input{width:100%}#sliders span{color:var(--mute);font-size:12px}
+#runtest img{max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;display:block;margin:6px 0 16px}
+#runtest h3{margin:10px 0 2px;font-size:15px}
+footer{font-size:12px;color:var(--mute);margin-top:16px}
+body.bare header,body.bare aside,body.bare #ref,body.bare .hint,body.bare #heroName{display:none!important}body.bare #stage{position:fixed;inset:0}
+@media (max-width:900px){#app{grid-template-columns:1fr;grid-template-rows:auto 55vh auto auto;height:auto}aside{border-right:0}#ref{border-left:0}body.noref #app{grid-template-columns:1fr}body[data-mode=space] #app{grid-template-columns:1fr}header{flex-wrap:wrap}.tabs{margin-left:0}body[data-mode=run] #runtest{grid-column:1}}
+</style>
+</head>
+<body data-mode="char">
+<div id="app">
+<header><h1>Nhân Vật Loft (thử nghiệm)</h1><span class="tag">Code-only anime characters rebuilt from the owner's hero meshes: loft rings, SH head and hair, strips</span>
+<div class="tabs"><button data-mode="char" class="on">Nhân vật</button><button data-mode="run">Chạy thử</button><button data-mode="space">Không gian thân</button></div></header>
+<aside>
+<div id="charPanel">
+<h2>Hero</h2><div id="heroes"></div>
+<h2>Clip (của chính hero)</h2><div id="clips"></div>
+<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><button id="pause">⏸ Dừng</button><label><input type="checkbox" id="refToggle" checked> Ảnh bản gốc</label></div>
+<h2>Góc nhìn</h2><div class="cam"><button data-cam="full">Toàn thân</button><button data-cam="front">Trước</button><button data-cam="side">Bên</button><button data-cam="face">Mặt</button><button data-cam="hands">Tay</button><button data-cam="skirt">Váy</button></div>
+<h2>Độ khớp với bản gốc</h2><div id="numbers"></div>
+</div>
+<div id="spacePanel"><h2>Không gian thân (PCA 11 hero)</h2><p style="color:var(--mute);font-size:13px">Mỗi thanh trượt là một thành phần chính, tính bằng σ. Thân sinh ra từ bảng vòng loft, dựng lại mỗi lần kéo.</p><div id="sliders"></div><p id="spaceInfo" style="font-size:12px;color:var(--mute)"></p></div>
+<footer>Mọi thứ trên khung 3D được dựng bằng code trong trình duyệt từ bảng số (lib/char.js). Bản gốc chỉ có ở dạng ảnh tham chiếu. three.js r170 (MIT).</footer>
+</aside>
+<div id="stage"><canvas id="view"></canvas><div id="heroName"></div><div class="hint">Kéo để xoay · cuộn để zoom · chuột phải / Shift để dời</div></div>
+<div id="ref"><h2 style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:2px 0 8px">Bản gốc (ảnh dựng sẵn, tư thế chữ T)</h2><img id="refImg1" alt="bản gốc, nhìn trước"><img id="refImg2" alt="bản gốc, góc 3/4"></div>
+<div id="runtest"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

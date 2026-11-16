@@ -1093,6 +1093,21 @@ window.HUB_GAMES = [
     tags: ["Thử nghiệm", "Voxel", "Nhân vật 3D", "Không asset"]
   },
   {
+    id: "nhan-vat-loft",
+    title: "Nhân Vật Loft (thử nghiệm)",
+    tagline: "8 hero anime dựng lại hoàn toàn bằng code từ mesh của chủ dự án: thân loft theo xương, mặt vẽ bằng code, tóc và váy có lò xo, chạy clip gốc.",
+    desc: "Thử nghiệm tìm cách dựng người bằng code: mỗi hero là một bảng số (vòng loft Fourier theo xương, 5 ngón tay, đầu và chỏm tóc bằng hàm cầu, lọn tóc và vạt váy/áo choàng là dải dày) được dựng thành một mesh skin ngay trong trình duyệt, mặt anime vẽ bằng code. Chạy các clip gốc của hero (đứng, chạy, đá, combo, trúng đòn, ngã), tóc và váy theo lò xo va chạm với chân và thân. Bật ảnh bản gốc để so, xem số độ khớp từng hero, tab Chạy thử có dải ảnh 25 khung/giây và bảng kiểm tra xuyên thấu, tab Không gian thân có thanh trượt PCA. Không tải tệp model nào.",
+    genre: "khac",
+    accent: "#d9785a",
+    en: { title: "Loft Characters (experiment)", tagline: "8 anime heroes rebuilt purely in code from the owner's meshes: bone lofts, code-drawn faces, spring hair and skirts, the heroes' own clips.", desc: "A research build for code-only humans: each hero is a number table (Fourier rings along the bones, five finger lofts, spherical-harmonic head and hair cap, thick strips for hair locks and skirt or cape panels) built into one skinned mesh in the browser, with an anime face drawn in code. It plays the heroes' own clips (idle, run, kick, combo, hit, fall) with spring hair and skirts colliding with legs and body. Toggle the original as a reference image, read the fidelity numbers, watch 25 fps run strips with interpenetration checks, and drag body-space PCA sliders. No model files." },
+    thumbnail: "assets/thumbnails/nhan-vat-loft.png",
+    // Nguồn làm việc: D:/mesh-to-code trên HOB-THOR (lib/char.js generator, tools/fit-char.mjs, tools/site-run.mjs + tasks/gates.mjs).
+    path: "games/nhan-vat-loft/index.html",
+    rev: "20261116a",
+    status: "available",
+    tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
+  },
+  {
     id: "robot-loc-coc",
     title: "Xưởng Robot Lóc Cóc",
     tagline: "Robot ghép khối có khớp lò xo, zombie robot gỉ sét, võ đài và thú máy: chó, mèo, chim, bạch tuộc, cua, rắn, ếch, rùa, ong máy.",
