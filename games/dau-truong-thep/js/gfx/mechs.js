@@ -8,6 +8,7 @@ import { Builder } from './builder.js';
 import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
+import { frameDesign } from './frames.js';
 import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
@@ -923,6 +924,19 @@ const DESIGNS = {
 // Four more designs live in mechs-b.js and draw with the same helpers.
 const HELP = { sk, lit, flame, tflame, side, limb, vent, bolts, hazard, line, DARK, GUN, STEEL, PALE, HAZ, BLACK, RUB, ICE, LINE, X, TAU };
 Object.assign(DESIGNS, designsB(HELP));
+// Keys with a hand-made design of their own.
+export const DESIGN_KEYS = Object.keys(DESIGNS);
+
+// The model of one mech as builder batches: its own design, else the frame spec of its style row (frames.js),
+// else the design of the chassis it borrows; then the role hardware of its form. Shared by the game and the tools.
+export function buildModel(key, st, paint, trim, deep, form = 2) {
+  const b = new Builder(0.85);
+  b.use('hull').surface(1, 1);
+  const design = DESIGNS[key] || (st.frame && frameDesign(HELP, st.frame)) || DESIGNS[st.chassis] || DESIGNS.soi;
+  const info = design(b, paint, trim, deep);
+  adorn(HELP, b, key, st, form, info);
+  return { b, info };
+}
 
 const SHIELD_VERT = 'varying vec3 vN; varying vec3 vV; varying vec3 vP; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vP = position; gl_Position = projectionMatrix * mv; }';
 
@@ -1103,14 +1117,12 @@ export function makeMechs(G, tex) {
   }
 
   function build(key, team, paintKey, glowKey, decalKey, form = 2) {
-    const def = MECHS[key] || BOSSES[key], b = new Builder(0.85);
+    const def = MECHS[key] || BOSSES[key];
     const st = styleFor(key, def.tint);
     const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : st.trim;
     const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : new THREE.Color(st.glow);
     const paint = formPaint(st.body, form), deep = new THREE.Color(st.deep);
-    b.use('hull').surface(1, 1);
-    const info = (DESIGNS[key] || DESIGNS[st.chassis] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
-    adorn(HELP, b, key, st, form, info);
+    const { b, info } = buildModel(key, st, paint, new THREE.Color(trimHex), deep, form);
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     // Rim light in the lamp colour, strong at form III so an upgraded mech reads from the match camera.

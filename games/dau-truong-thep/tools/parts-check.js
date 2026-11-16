@@ -1,15 +1,20 @@
 // Stray-part check: builds every mech at every form and fails when a mesh of its model sits below the ground or far
 // from the body (a piece drawn through a transform the design left on the builder's base matrix, for example).
-//   node tools/parts-check.js [mech,mech,...]
+//   node tools/parts-check.js [mech,mech,...]   (default: every mech with a style row, newer tanks without sim data included)
 'use strict';
 const path = require('path');
 const { session, open } = require('./lib.js');
+const { ROLE, fillPending, fillSrc } = require('./pending-mechs.js');
 session(async (br, base) => {
   const data = await import(path.join(__dirname, '../js/data.js'));
-  const want = process.argv[2] ? process.argv[2].split(',') : data.MECH_ORDER;
+  const STYLES = (await import(path.join(__dirname, '../js/gfx/styles.js'))).STYLES;
+  const pending = fillPending(data.MECHS, STYLES, data.BOSSES, ROLE);
+  const want = process.argv[2] ? process.argv[2].split(',') : data.MECH_ORDER.concat(pending);
   const defs = JSON.parse(JSON.stringify(data.MECHS));
   const g = await open(br, base, 'manual&noaudio&autostart&spectate&seed=5&q=high');
-  const bad = await g.page.evaluate(({ want, defs }) => {
+  const bad = await g.page.evaluate(async ({ want, defs, fillSrc, ROLE }) => {
+    const D = await import(new URL('js/data.js', location.href).href), St = await import(new URL('js/gfx/styles.js', location.href).href);
+    new Function('return ' + fillSrc)()(D.MECHS, St.STYLES, D.BOSSES, ROLE);
     const G = window.__G, T = G.THREE, m = G.match, u = m.units[0], out = [];
     m.over = true;
     for (const mech of want) for (const form of [1, 2, 3]) {
@@ -28,7 +33,7 @@ session(async (br, base) => {
       });
     }
     return out;
-  }, { want, defs });
+  }, { want, defs, fillSrc, ROLE });
   const errs = await g.page.evaluate(() => window.__errors || []);
   for (const e of errs) bad.push('page error: ' + String(e).split(String.fromCharCode(10))[0]);
   for (const line of bad) console.log('FAIL ' + line);

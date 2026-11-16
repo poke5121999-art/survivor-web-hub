@@ -2,13 +2,19 @@
 //   node tools/styleshot.js mech[@form],mech[@form],... out.png [unit overrides as JSON, e.g. '{"lv":[5,5,5,5,5]}']
 'use strict';
 const { session, open } = require('./lib.js');
+const { ROLE, fillPending, fillSrc } = require('./pending-mechs.js');
 // COMBAT=1: the match camera (1280x720, 57 degree pitch, 33.5 m across) on the real map instead of the close stage.
 const combat = !!process.env.COMBAT;
 const want = process.argv[2].split(','), out = process.argv[3], extra = JSON.parse(process.argv[4] || '{}'), pitch = 55;
 session(async (br, base) => {
   const g = await open(br, base, 'manual&noaudio&autostart&spectate&seed=5&q=high', { viewport: combat ? { width: 1280, height: 720 } : { width: 400 * want.length, height: 460 } });
-  const defs = JSON.parse(JSON.stringify((await import('../js/data.js')).MECHS));
-  await g.page.evaluate(({ want, defs, pitch, extra, combat }) => {
+  const data = await import('../js/data.js');
+  // Tanks with a style row but no sim entry yet get a stand-in (tools/pending-mechs.js), here and in the page.
+  fillPending(data.MECHS, (await import('../js/gfx/styles.js')).STYLES, data.BOSSES, ROLE);
+  const defs = JSON.parse(JSON.stringify(data.MECHS));
+  await g.page.evaluate(async ({ want, defs, pitch, extra, combat, fillSrc, ROLE }) => {
+    const D = await import(new URL('js/data.js', location.href).href), St = await import(new URL('js/gfx/styles.js', location.href).href);
+    new Function('return ' + fillSrc)()(D.MECHS, St.STYLES, D.BOSSES, ROLE);
     const G = window.__G, m = G.match;
     if (!combat) document.getElementById('ui').style.display = 'none';
     while (m.units.length < want.length) m.units.push(Object.assign({}, m.units[0], { id: m.units.length, cd: Object.assign({}, m.units[0].cd) }));
@@ -26,7 +32,7 @@ session(async (br, base) => {
     window.__setShot(combat ? { x: 0, z: 0.6, dist: 32.9, pitch: 57, yaw: 0 } : { x: 0, z: 0.6, dist: want.length > 3 ? 11.5 : 9, pitch: pitch, yaw: 0 });
     if (combat && G.ui.showHUD) G.ui.showHUD();
     for (let i = 0; i < 20; i++) window.__step(1, true);
-  }, { want, defs, pitch, extra, combat });
+  }, { want, defs, pitch, extra, combat, fillSrc, ROLE });
   await g.page.screenshot({ path: out });
   console.log(out, JSON.stringify(await g.page.evaluate(() => window.__errors)));
   await g.close();
