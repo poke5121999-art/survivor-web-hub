@@ -1,4 +1,4 @@
-self.__repoParts = {"repo2d-unity-b29fbdc554.data.unityweb":{"n":3,"size":107687383}}; importScripts("data-parts.js?v=b29fbdc554");
+self.__repoParts = {"repo2d-unity-00a2c75317.data.unityweb":{"n":3,"size":119060840}}; importScripts("data-parts.js?v=00a2c75317");
 // Giữ bản ĐÃ GIẢI NÉN của tệp .data/.wasm trong Cache Storage: lần mở sau loader nhận tệp thô (không có dấu
 // "UnityWeb Compressed Content") nên bỏ hẳn bước giải nén brotli bằng JS (~5,6 s trên Galaxy S20+, đo 2026-10-24).
 // Không bao giờ giải nén trên đường tải: chỉ làm khi trang báo đã vào game được một lúc (tin nhắn "warm").

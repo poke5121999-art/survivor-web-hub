@@ -2,10 +2,10 @@
 <html lang="vi">
   <head>
     <base href="../repo2d-unity/"><script>window.__repoSwUrl = "../boohaul/sw.js";</script>
-    <script>self.__repoParts = {"repo2d-unity-b29fbdc554.data.unityweb":{"n":3,"size":107687383}};</script><script src="data-parts.js?v=b29fbdc554"></script>
+    <script>self.__repoParts = {"repo2d-unity-00a2c75317.data.unityweb":{"n":3,"size":119060840}};</script><script src="data-parts.js?v=00a2c75317"></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Boo Haul: Co-op Horror</title>
+    <title>Boo Haul Co-op Horror</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <style>
       /*
@@ -52,6 +52,14 @@
       }
       #unity-loading-bar.done { display: none; }
       #unity-loading-title { font-size: 15px; letter-spacing: .12em; color: #8a949e; }
+      /* Chủ dự án 2026-11-10: chữ đang tải phải ĐỘNG để biết game vẫn đang tải — ba chấm sáng lần lượt (sóng), cùng nhịp 0,35 s/chấm
+         với chữ đang tải trong game (UiLoadingDots). Chấm tối vẫn chiếm chỗ nên chữ không xô; lề trái bằng bề ba chấm giữ chữ giữa. */
+      #unity-loading-title { padding-left: 1.6em; }
+      #unity-loading-dots { display: inline-block; width: 1.6em; text-align: left; letter-spacing: .1em; }
+      #unity-loading-dots span { opacity: .15; animation: unity-loading-dot 1.05s ease-in-out infinite; }
+      #unity-loading-dots span:nth-child(2) { animation-delay: .35s; }
+      #unity-loading-dots span:nth-child(3) { animation-delay: .7s; }
+      @keyframes unity-loading-dot { 0%, 100% { opacity: .15; } 33% { opacity: 1; } }
       #unity-loading-pct { font-size: 13px; color: #cfd6dc; font-variant-numeric: tabular-nums; }
       #unity-loading-hint { font-size: 12px; color: #8a949e; min-height: 1em; }
       #unity-progress-bar-empty {
@@ -76,7 +84,7 @@
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
       <div id="unity-loading-bar">
-        <div id="unity-loading-title">ĐANG TẢI</div>
+        <div id="unity-loading-title"><span id="unity-loading-word">ĐANG TẢI</span><span id="unity-loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
         <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
         <div id="unity-loading-pct">0%</div>
         <div id="unity-loading-hint"></div>
@@ -103,7 +111,7 @@
       })();
       function loaderText(vi, en) { return LOADER_EN ? en : vi; }
       document.documentElement.lang = LOADER_EN ? "en" : "vi";
-      document.querySelector("#unity-loading-title").textContent = loaderText("ĐANG TẢI", "LOADING");
+      document.querySelector("#unity-loading-word").textContent = loaderText("ĐANG TẢI", "LOADING");
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBarFull = document.querySelector("#unity-progress-bar-full");
@@ -120,11 +128,11 @@
       var buildUrl = "Build";
       // Phiên bản (1.0+<sha8>, WebGLBuild) trên URL: service worker và bộ nhớ đệm của Unity khoá theo URL, mà bản build thử luôn
       // tên test.*; thiếu nó thì build mới trên cùng cổng nhận lại tệp đã giải nén của build cũ.
-      var buildV = "?v=" + encodeURIComponent("0.2.12+b4764c4f");
+      var buildV = "?v=" + encodeURIComponent("0.2.585+b3348766.dev");
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-b29fbdc554.data.unityweb" + buildV,
-        frameworkUrl: buildUrl + "/repo2d-unity-b29fbdc554.framework.js.unityweb" + buildV,
-        codeUrl: buildUrl + "/repo2d-unity-b29fbdc554.wasm.unityweb" + buildV,
+        dataUrl: buildUrl + "/repo2d-unity-00a2c75317.data.unityweb" + buildV,
+        frameworkUrl: buildUrl + "/repo2d-unity-00a2c75317.framework.js.unityweb" + buildV,
+        codeUrl: buildUrl + "/repo2d-unity-00a2c75317.wasm.unityweb" + buildV,
         streamingAssetsUrl: "../repo2d-unity/StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -133,8 +141,8 @@
         // Để Unity tự khớp thì mỗi khung nó đặt lại canvas.width = cỡ CSS × devicePixelRatio và đè mất tỉ lệ ấy.
         matchWebGLToCanvasSize: false,
         companyName: "HLO",
-        productName: "Boo Haul: Co-op Horror",
-        productVersion: "0.2.12+b4764c4f",
+        productName: "Boo Haul Co-op Horror",
+        productVersion: "0.2.585+b3348766.dev",
         showBanner: unityShowBanner,
         // Có service worker giữ bản đã giải nén (sw.js) thì nó là bộ nhớ đệm của tệp build: tắt bộ nhớ đệm IndexedDB của Unity
         // cho Build/, kẻo Unity lưu thêm một bản 121 MB và mỗi lần kiểm lại lại ghi đè.
@@ -246,7 +254,7 @@
       // Tiến độ của Unity: 0..90% là tải tệp (chủ yếu .data và .wasm, tính theo byte đã nhận), 90..100% là giải nén +
       // khởi động engine. Kẹt một mức lâu thì hiện gợi ý thay vì để người chơi tưởng treo.
       var loadStart = Date.now(), lastPct = -1, lastChange = Date.now();
-      var loadingTitle = document.querySelector("#unity-loading-title");
+      var loadingTitle = document.querySelector("#unity-loading-word");   // chữ thôi — ba chấm chạy nằm cạnh (#unity-loading-dots)
       var loadingPct = document.querySelector("#unity-loading-pct");
       var loadingHint = document.querySelector("#unity-loading-hint");
       function showProgress(progress) {
@@ -265,7 +273,7 @@
       // Mốc khởi động của trang (performance.now), BootMark đọc qua PortBootMarks và gửi kèm RUN_FINISH ca đầu phiên.
       window.__repoBoot = {};
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-b29fbdc554.loader.js";
+      script.src = buildUrl + "/repo2d-unity-00a2c75317.loader.js";
       script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
       script.onload = function () {
         window.__repoBoot.ld = performance.now();
