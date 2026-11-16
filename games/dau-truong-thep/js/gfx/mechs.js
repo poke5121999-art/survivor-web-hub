@@ -1,4 +1,4 @@
-// Mech models built from primitives, one design per MECHS key, painted in the team colour.
+// Mech models built from primitives, one design per MECHS key, each in its own palette with ornaments from styles.js.
 // A mech is a root group holding a ground ring, a shield bubble and a body (scaled up from the sim radius) with a hull
 // (turns toward movement), a turret (turns toward aim), legs and animated parts (wheels, drums, rotors, recoiling barrels).
 // Models face +x, +z is the mech's right. Sim angle a maps to rotation.y = -a.
@@ -8,6 +8,7 @@ import { Builder } from './builder.js';
 import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
+import { styleFor, adorn } from './styles.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
 const X = -Math.PI / 2, TAU = Math.PI * 2;
@@ -920,7 +921,8 @@ const DESIGNS = {
 };
 
 // Four more designs live in mechs-b.js and draw with the same helpers.
-Object.assign(DESIGNS, designsB({ sk, lit, flame, tflame, side, limb, vent, bolts, hazard, line, DARK, GUN, STEEL, PALE, HAZ, BLACK, RUB, ICE, LINE, X, TAU }));
+const HELP = { sk, lit, flame, tflame, side, limb, vent, bolts, hazard, line, DARK, GUN, STEEL, PALE, HAZ, BLACK, RUB, ICE, LINE, X, TAU };
+Object.assign(DESIGNS, designsB(HELP));
 
 const SHIELD_VERT = 'varying vec3 vN; varying vec3 vV; varying vec3 vP; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vP = position; gl_Position = projectionMatrix * mv; }';
 
@@ -1102,15 +1104,16 @@ export function makeMechs(G, tex) {
 
   function build(key, team, paintKey, glowKey, decalKey) {
     const def = MECHS[key] || BOSSES[key], b = new Builder(0.85);
-    const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : def.tint;
-    const tc = new THREE.Color(TEAMS[team].color);
-    const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : tc;
-    const paint = tc.clone().multiplyScalar(0.8), deep = tc.clone().lerp(new THREE.Color(DARK), 0.62);
+    const st = styleFor(key, def.tint);
+    const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : st.trim;
+    const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : new THREE.Color(st.glow);
+    const paint = new THREE.Color(st.body), deep = new THREE.Color(st.deep);
     b.use('hull').surface(1, 1);
-    const info = (DESIGNS[key] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
+    const info = (DESIGNS[key] || DESIGNS[st.chassis] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
+    adorn(HELP, b, key, st);
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
-    const rimBase = tc.clone().multiplyScalar(0.28), rim = rimBase.clone();
+    const rimBase = gc.clone().multiplyScalar(0.22), rim = rimBase.clone();
     const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();

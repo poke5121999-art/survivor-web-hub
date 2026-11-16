@@ -393,10 +393,10 @@ export const PAINTS = {
   hong:  { name: 'Hồng Neon', price: 350, color: 0xff4fa3 },
 };
 
-// More cosmetics, shown on the model. Glow recolours the emissive team-light accents of your own mech (the team ring and
+// More cosmetics, shown on the model. Glow recolours the emissive lamps of your own mech (the team ring and
 // HP bar stay in team colours); a decal is a marking painted on the hull.
 export const GLOWS = {
-  goc:  { name: 'Theo đội', price: 0, color: null },
+  goc:  { name: 'Mặc định', price: 0, color: null },
   vang: { name: 'Hoàng Kim', price: 250, color: 0xffc83a },
   tim:  { name: 'Tử Quang', price: 250, color: 0xb070ff },
   luc:  { name: 'Lân Tinh', price: 250, color: 0x5cff9a },
