@@ -197,6 +197,9 @@
 #ui .np.ghost { opacity: .55; }
 #ui .np-n { display: inline-flex; align-items: center; gap: .3em; padding: .05em .5em; font-size: .82em; font-weight: 800; white-space: nowrap; color: var(--c); background: rgba(6, 8, 12, .74); text-shadow: 0 1px 0 #000; }
 #ui .np-n svg { width: 1em; height: 1em; }
+#ui .np-fm { padding: 0 .32em; font-size: .9em; line-height: 1.25; color: #0b0d10; font-family: Georgia, serif; border-radius: 2px; }
+#ui .np-fm.f2 { background: linear-gradient(#f4f7fb, #9aa6b4); }
+#ui .np-fm.f3 { background: linear-gradient(#ffe48a, #ff8a1a); box-shadow: 0 0 .5em rgba(255, 170, 40, .9); }
 #ui .np-hp { width: 4.6em; height: .46em; background: #05070a; box-shadow: 0 0 0 1px #000, 0 0 0 2px rgba(255, 255, 255, .2); overflow: hidden; }
 #ui .np-hp i { display: block; height: 100%; background: var(--c); transform-origin: left; }
 #ui .np-sh { width: 4.6em; height: .22em; background: #05070a; visibility: hidden; box-shadow: 0 0 0 1px #000; }

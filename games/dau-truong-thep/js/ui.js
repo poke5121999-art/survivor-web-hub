@@ -299,9 +299,11 @@ export function makeUI(G) {
   }
   function addPlate(u) {
     const np = el('div', `np t${u.color}${u.id === G.me ? ' self' : ''}${u.def.boss ? ' boss' : ''}`);
+    // Form badge (II silver, III gold) beside the name, so an upgraded mech reads at match distance.
+    const fm = u.def.boss ? 1 : formOf(u.lv), badge = fm > 1 ? `<b class="np-fm f${fm}">${ROMAN[fm - 1]}</b>` : '';
     np.innerHTML = u.id === G.me
-      ? `<span class="np-mark"></span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`
-      : `<span class="np-n">${roleIcon(u)}${esc(u.name)}</span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`;
+      ? `${badge ? `<span class="np-n">${badge}</span>` : ''}<span class="np-mark"></span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`
+      : `<span class="np-n">${badge}${roleIcon(u)}${esc(u.name)}</span><div class="np-hp"><i class="np-f"></i></div><div class="np-sh"><i></i></div><span class="np-mk">${icon('mark')}Dấu tử</span>`;
     np.classList.add('off');
     fx.appendChild(np);
     nps[u.id] = { root: np, f: np.querySelector('.np-f'), sh: np.querySelector('.np-sh i'), shBox: np.querySelector('.np-sh') };

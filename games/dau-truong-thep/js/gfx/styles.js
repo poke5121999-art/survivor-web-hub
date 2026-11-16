@@ -9,7 +9,7 @@ import { UPGRADE, MECHS, BOSSES } from '../data.js';
 // Three forms per mech, reached by total garage level at the second and third perk milestones (12 and 18 of 25).
 export const FORM_AT = [UPGRADE.perkAt[1], UPGRADE.perkAt[2]];
 // Whole-model scale per form; the sim radius does not change, only the look.
-export const FORM_SCALE = [0.88, 1, 1.14];
+export const FORM_SCALE = [0.85, 1, 1.22];
 // Body paint per form: I is a matte, greyed prototype coat, III a deeper, brighter one.
 export function formPaint(hex, form) {
   const c = new THREE.Color(hex);

@@ -405,9 +405,10 @@ export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 
 // Bot tuning. aimErr: radians of aim noise; react: seconds before a new target is engaged;
 // skill: chance per second to use a ready skill when it makes sense; lead: how well shots lead a moving target (0..1).
 export const DIFFICULTY = {
-  easy:   { name: 'Dễ',   aimErr: 0.30, react: 0.75, skill: 0.25, lead: 0.2, focus: 0.3, retreat: 0.18, dodge: 0.0, fireDuty: 0.55 },
-  normal: { name: 'Vừa',  aimErr: 0.14, react: 0.40, skill: 0.6,  lead: 0.6, focus: 0.6, retreat: 0.28, dodge: 0.35, fireDuty: 0.8 },
-  hard:   { name: 'Khó',  aimErr: 0.05, react: 0.18, skill: 1.0,  lead: 0.95, focus: 1.0, retreat: 0.35, dodge: 0.8, fireDuty: 1 },
+  // foeDmg: damage multiplier of enemy bots in a solo match; foeLv: the share of the player's garage levels they get.
+  easy:   { name: 'Dễ',   foeDmg: 0.65, foeLv: 0,   aimErr: 0.30, react: 0.75, skill: 0.25, lead: 0.2, focus: 0.3, retreat: 0.18, dodge: 0.0, fireDuty: 0.55 },
+  normal: { name: 'Vừa',  foeDmg: 0.85, foeLv: 0.5, aimErr: 0.14, react: 0.40, skill: 0.6,  lead: 0.6, focus: 0.6, retreat: 0.28, dodge: 0.35, fireDuty: 0.8 },
+  hard:   { name: 'Khó',  foeDmg: 1,    foeLv: 1,   aimErr: 0.05, react: 0.18, skill: 1.0,  lead: 0.95, focus: 1.0, retreat: 0.35, dodge: 0.8, fireDuty: 1 },
 };
 
 export const BOT_NAMES = ['Tí Sắt', 'Mèo Mun', 'Cò Lả', 'Bão Số 9', 'Ông Kẹ', 'Chuồn Kim', 'Gió Chướng', 'Nắp Chai', 'Bánh Tét', 'Sấm Rền',
@@ -427,11 +428,11 @@ export const PROPS = {
 // cost(level) is the price in coins of going from level to level + 1 on one track.
 export const UPGRADE = { max: 5, cost: (level) => 120 + level * 90, perkAt: [6, 12, 18] };
 export const TRACKS = [
-  { key: 'giap',   name: 'Vỏ giáp',   desc: 'Máu +4%, giáp +1,2% mỗi cấp',        hp: 0.04, armor: 0.012 },
-  { key: 'dongco', name: 'Động cơ',   desc: 'Tốc độ +2%, gia tốc +5% mỗi cấp',    speed: 0.02, accel: 0.05 },
-  { key: 'hoaluc', name: 'Hỏa lực',   desc: 'Sát thương +4% mỗi cấp',             dmg: 0.04 },
-  { key: 'napdan', name: 'Nạp đạn',   desc: 'Bắn nhanh +3%, tầm bắn +2% mỗi cấp', rate: 0.03, range: 0.02 },
-  { key: 'chieu',  name: 'Lõi chiêu', desc: 'Hồi chiêu nhanh hơn 3% mỗi cấp',     cd: 0.03 },
+  { key: 'giap',   name: 'Vỏ giáp',   desc: 'Máu +12%, giáp +2,4% mỗi cấp',       hp: 0.12, armor: 0.024 },
+  { key: 'dongco', name: 'Động cơ',   desc: 'Tốc độ +3%, gia tốc +6% mỗi cấp',    speed: 0.03, accel: 0.06 },
+  { key: 'hoaluc', name: 'Hỏa lực',   desc: 'Sát thương +15% mỗi cấp',            dmg: 0.15 },
+  { key: 'napdan', name: 'Nạp đạn',   desc: 'Bắn nhanh +5%, tầm bắn +2% mỗi cấp', rate: 0.05, range: 0.02 },
+  { key: 'chieu',  name: 'Lõi chiêu', desc: 'Hồi chiêu nhanh hơn 5% mỗi cấp',     cd: 0.05 },
 ];
 export const NO_LV = [0, 0, 0, 0, 0];
 // What a room with humans on both teams plays at, whatever each player owns.
@@ -475,15 +476,15 @@ export function buildDef(key, lv) {
   lv = cleanLv(lv);
   const id = key + ':' + lv.join('');
   if (DEF_CACHE.has(id)) return DEF_CACHE.get(id);
-  const [g, d, h, n, c] = lv;
+  const [g, d, h, n, c] = lv, [TG, TD, TH, TN, TC] = TRACKS;
   const weapon = { ...base.weapon }, skills = base.skills.map((s) => ({ ...s }));
   (PERKS[key] || []).slice(0, perkCount(lv)).forEach((p) => Object.assign(p.slot === 'weapon' ? weapon : skills[p.slot], p.patch));
-  weapon.cd /= 1 + 0.03 * n;
-  weapon.range *= 1 + 0.02 * n;
-  if (weapon.charge) weapon.charge = { ...weapon.charge, range: weapon.charge.range.map((r) => r * (1 + 0.02 * n)) };
-  for (const s of skills) s.cd *= 1 - 0.03 * c;
-  const def = { ...base, base, lv, weapon, skills, hp: Math.round(base.hp * (1 + 0.04 * g)), armor: (base.armor || 0) + 0.012 * g,
-    speed: base.speed * (1 + 0.02 * d), accel: (base.accel || 1) * (1 + 0.05 * d), dmgUp: 1 + 0.04 * h };
+  weapon.cd /= 1 + TN.rate * n;
+  weapon.range *= 1 + TN.range * n;
+  if (weapon.charge) weapon.charge = { ...weapon.charge, range: weapon.charge.range.map((r) => r * (1 + TN.range * n)) };
+  for (const s of skills) s.cd *= 1 - TC.cd * c;
+  const def = { ...base, base, lv, weapon, skills, hp: Math.round(base.hp * (1 + TG.hp * g)), armor: (base.armor || 0) + TG.armor * g,
+    speed: base.speed * (1 + TD.speed * d), accel: (base.accel || 1) * (1 + TD.accel * d), dmgUp: 1 + TH.dmg * h };
   DEF_CACHE.set(id, def);
   return def;
 }

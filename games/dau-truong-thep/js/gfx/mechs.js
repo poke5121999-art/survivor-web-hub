@@ -1113,7 +1113,8 @@ export function makeMechs(G, tex) {
     adorn(HELP, b, key, st, form, info);
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
-    const rimBase = gc.clone().multiplyScalar(0.22), rim = rimBase.clone();
+    // Rim light in the lamp colour, strong at form III so an upgraded mech reads from the match camera.
+    const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1]), rim = rimBase.clone();
     const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();
@@ -1170,6 +1171,7 @@ export function makeMechs(G, tex) {
     for (const p of v.parts) if (p.inst) for (const im of p.inst) im.dispose();
     v.flame.dispose();
     if (v.ring) v.ring.material.dispose();
+    if (v.aura) { v.auraMat.dispose(); for (const g of v.auraGeos) g.dispose(); }
     if (v.bubble) v.bubble.material.dispose();
     if (v.aim) v.aim.material.dispose();
   }
@@ -1183,6 +1185,21 @@ export function makeMechs(G, tex) {
     v.ring.material.uniforms.uMine.value = mine ? 1 : 0;
     v.ring.scale.setScalar(radius * 1.28); v.ring.position.y = 0.06; v.ring.renderOrder = 2;
     v.root.add(v.ring);
+    // Form aura on the ground in the lamp colour: one thin ring at II, a thicker ring with six turning ticks at III.
+    if (form >= 2) {
+      const col = v.gcol.clone().multiplyScalar(form === 3 ? 2.2 : 1.4);
+      const am = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: form === 3 ? 0.85 : 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+      v.aura = new THREE.Group(); v.auraMat = am; v.auraGeos = [];
+      const addA = (g) => { v.auraGeos.push(g); const me = new THREE.Mesh(g, am); me.renderOrder = 2; v.aura.add(me); };
+      addA(new THREE.RingGeometry(1.0, form === 3 ? 1.09 : 1.04, 56).rotateX(-Math.PI / 2));
+      if (form === 3) {
+        addA(new THREE.RingGeometry(1.16, 1.19, 56).rotateX(-Math.PI / 2));
+        for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; addA(new THREE.PlaneGeometry(0.22, 0.07).rotateX(-Math.PI / 2).rotateY(-a).translate(Math.cos(a) * 1.13, 0, Math.sin(a) * 1.13)); }
+      }
+      // Wider than the hull (about 1.5 model units from the centre to the nose), so it shows round the body from above.
+      v.aura.scale.setScalar(Math.max(radius * 1.5, 1.6 * v.S)); v.aura.position.y = 0.065;
+      v.root.add(v.aura);
+    }
     if (mine) {
       v.aim = new THREE.Mesh(aimGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false }));
       v.aim.position.y = 0.07; v.aim.renderOrder = 2; v.aim.scale.setScalar(Math.max(1, radius * 1.1)); v.root.add(v.aim);
@@ -1324,6 +1341,7 @@ export function makeMechs(G, tex) {
         v.glow.copy(v.glowBase).multiplyScalar(Math.max(0, 1 - t * 4)); ownGlow(v, time); v.flame.visible = false; v.bubble.visible = false;
         if (v.mark) v.mark.visible = false;
         v.ring.material.uniforms.uFade.value = 1 - t;
+        if (v.aura) v.aura.visible = false;
         if (!v.root.visible) v.shown = false;
         v.wasAlive = false;
         continue;
@@ -1331,7 +1349,7 @@ export function makeMechs(G, tex) {
       const show = u.alive && visibleTo(m, u, myTeam);
       v.root.visible = show; v.shown = show;
       if (!show) { v.wasAlive = u.alive; continue; }
-      if (!v.wasAlive) { v.spawn = 0; v.wasAlive = true; v.lastX = u.x; v.lastZ = u.z; v.die = 0; resetLook(v); v.ring.material.uniforms.uFade.value = 1; }
+      if (!v.wasAlive) { v.spawn = 0; v.wasAlive = true; v.lastX = u.x; v.lastZ = u.z; v.die = 0; resetLook(v); v.ring.material.uniforms.uFade.value = 1; if (v.aura) v.aura.visible = true; }
       const x = u.px + (u.x - u.px) * alpha, z = u.pz + (u.z - u.pz) * alpha;
       const moved = Math.hypot(x - v.lastX, z - v.lastZ); v.lastX = x; v.lastZ = z;
       v.walk += moved;
@@ -1367,6 +1385,7 @@ export function makeMechs(G, tex) {
       if (v.aim) v.aim.rotation.y = -u.aim;
       const ru = v.ring.material.uniforms;
       ru.uTime.value = time; ru.uAim.value = u.aim;
+      if (v.aura) v.aura.rotation.y = time * (v.form === 3 ? 0.9 : 0.4);
     }
     for (const [id, v] of views) if (!seen.has(id)) { disposeView(v); views.delete(id); }
     syncDecoys(m, dt, time, myTeam);
@@ -1414,6 +1433,7 @@ export function makeMechs(G, tex) {
       animate(v, v.proxy, dt, time, moved);
       setGhost(v, ghost, ghost ? 0.4 : 1);
       v.ring.visible = !ghost;
+      if (v.aura) v.aura.visible = !ghost;
       if (ghost) {
         const hp = 0.85 + 0.15 * Math.sin(time * 6);
         setEmissive(v, 0.02, 0.2 * hp, 0.3 * hp);

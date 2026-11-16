@@ -243,15 +243,18 @@ async function boot() {
     // ?side=1 (test hook) puts the player's team on the other end of the map.
     const mine = mode === 'trum' ? 0 : params.side, theirs = 1 - mine;
     const roster = [{ team: mine, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint, glow: attract ? null : choice.glow, decal: attract ? null : choice.decal }];
-    // Bots grow with the player at half pace, so upgrades are felt and a maxed mech still meets a fight.
-    const botMods = { lv: cleanLv(!attract && choice.mods && choice.mods.lv).map((l) => Math.floor(l / 2)) };
+    // Allied bots grow with the player at half pace. Enemy bots take a share of the player's levels and a damage
+    // multiplier from the difficulty (easy: none and 0.65), so a maxed mech is felt against easy bots.
+    const myLv = cleanLv(!attract && choice.mods && choice.mods.lv), D = DIFFICULTY[diff];
+    const botMods = { lv: myLv.map((l) => Math.floor(l / 2)) };
+    const foeMods = attract ? botMods : { lv: myLv.map((l) => Math.floor(l * D.foeLv)), dmg: D.foeDmg };
     const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
     const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
     // Săn trùm always sends TEAM_SIZE hunters at the boss; the other modes follow the chosen size (free-for-all: 2 * size mechs in all).
     const size = mode === 'trum' ? TEAM_SIZE : cleanSize(choice.size);
     for (let i = 0; i < size - 1; i++) roster.push({ team: mine, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
-    else for (let i = 0; i < size; i++) roster.push({ team: theirs, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
+    else for (let i = 0; i < size; i++) roster.push({ team: theirs, mech: foes[i], name: names.pop(), bot: true, diff, mods: foeMods });
     mechs.clear(); fx.clear();
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;
