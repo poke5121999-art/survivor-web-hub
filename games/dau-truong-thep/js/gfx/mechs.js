@@ -1110,7 +1110,7 @@ export function makeMechs(G, tex) {
     const paint = formPaint(st.body, form), deep = new THREE.Color(st.deep);
     b.use('hull').surface(1, 1);
     const info = (DESIGNS[key] || DESIGNS[st.chassis] || DESIGNS.soi)(b, paint, new THREE.Color(trimHex), deep);
-    adorn(HELP, b, key, st, form);
+    adorn(HELP, b, key, st, form, info);
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     const rimBase = gc.clone().multiplyScalar(0.22), rim = rimBase.clone();
