@@ -22,7 +22,7 @@
   // Khớp KEY trong js/session.js. Đổi ở đó thì đổi cả đây.
   var SESSION_KEY = "hub.session.v1";
   // Role được phép chơi (khớp profiles.role trong db/roles.sql). pending/blocked không.
-  var ALLOW = { member: 1, admin: 1 };
+  var ALLOW = { member: 1, artist: 1, admin: 1 };
 
   try {
     var path = location.pathname;

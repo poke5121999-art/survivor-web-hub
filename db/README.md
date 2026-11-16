@@ -115,3 +115,12 @@ chạy Claude. Claude dùng `node tools/feedback.js` (xem `.claude/skills/feedba
 4. Đổi khoá: sinh khoá mới vào tệp trên, rồi `insert into hub_feedback_keys values ('<sha256 hex>')` và xoá dòng hash cũ.
 
 Kiểm SQL không cần Supabase: `node test/feedback-db.js` (PGlite, role anon/authenticated giả lập).
+
+## Bộ art họa sĩ (`art-sets.sql`)
+
+Bảng `art_sets`, bucket công khai `artsets`, role mới `artist` (vào game như member, được gửi art) cho trang `art-sets.html`.
+Hợp đồng dữ liệu: `docs/art-sets-contract.md` trong repo Meta. Cần `roles.sql` chạy trước.
+
+1. Supabase Dashboard → **SQL Editor**, dán toàn bộ **`art-sets.sql`**, Run. Chạy lại vô hại.
+2. Cấp quyền gửi art: trang `roles.html`, đặt role `artist` cho tài khoản họa sĩ.
+3. Kiểm SQL không cần Supabase: `node test/art-sets-db.js` (PGlite; đặt `PGLITE_PATH` nếu module không ở `~/.cache/pglite-node`).

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Bộ art họa sĩ</title>
+  <meta name="description" content="Xem, thử trong game, duyệt hoặc từ chối các bộ art họa sĩ gửi từ bản web DEV." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <link rel="stylesheet" href="css/art-sets.css" />
+
+  <!-- Cùng cổng với game-config.html: phải là member. Ai được DUYỆT do RLS (is_admin()) quyết định. -->
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") location.replace("login.html");
+    })();
+  </script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner dz-header__inner">
+      <div>
+        <h1 class="hub-title">Bộ art họa sĩ</h1>
+        <p class="hub-subtitle">Họa sĩ gửi từ game DEV. Xem, thử trong game, rồi duyệt hoặc từ chối.</p>
+      </div>
+      <a class="btn btn--ghost" href="admin.html">← Admin</a>
+    </div>
+  </header>
+
+  <main class="hub-main dz-main">
+    <div id="as-banner" class="dz-banner" role="alert" hidden></div>
+    <section id="as-pane" aria-live="polite"><p class="dz-loading">Đang tải…</p></section>
+  </main>
+
+  <div id="dz-toasts" class="dz-toasts" role="status"></div>
+
+  <script src="js/supabase-auth.js"></script>
+  <script src="js/art-sets.js"></script>
+</body>
+</html>

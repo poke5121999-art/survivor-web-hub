@@ -61,7 +61,7 @@
     });
   }
 
-  var ROLES = ["pending", "member", "admin", "blocked"];
+  var ROLES = ["pending", "member", "artist", "admin", "blocked"];
 
   window.HubRoles = {
     ROLES: ROLES,
