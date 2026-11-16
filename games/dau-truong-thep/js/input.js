@@ -20,7 +20,9 @@ export function makeInput(G) {
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const keys = new Set();
   const mouse = { x: 0, y: 0, seen: false };
-  let scripted = null, aimInit = false, lastAim = 0, chatting = false, device = 'kb';
+  let scripted = null, aimInit = false, lastAim = 0, chatting = false, device = 'kb', handFire = false;
+  // Devices report screen directions. A view turned half round (camera.js, flipFor) turns them with it.
+  const sgn = () => (G.cam ? G.cam.sign : 1);
   let padFn = () => (typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []);
   const pad = { present: false, mx: 0, mz: 0, ax: 0, az: 0, ad: 0, fire: false, s1: false, s2: false, ult: false, heal: false };
   const edge = { start: false, back: false, dpad: [false, false, false, false] };
@@ -155,6 +157,7 @@ export function makeInput(G) {
     if (pad.mx || pad.mz) { mx = pad.mx; mz = pad.mz; }
     const t = tc.read(u);
     if (t && t.move) { mx = t.move[0]; mz = t.move[1]; }
+    if (sgn() < 0) { mx = -mx; mz = -mz; }
     if (t && t.mx !== null) { mx = t.mx; mz = t.mz; }
     const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
@@ -162,19 +165,20 @@ export function makeInput(G) {
     let aim = lastAim, fire = kd('fire') || pad.fire, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
     if (t && t.fire) fire = true;
     const padAuto = !(t && t.aim !== null) && padAssist(u);
+    let hand = false;
     if (pad.ad > 0) {
-      aim = Math.atan2(pad.az, pad.ax);
+      aim = Math.atan2(pad.az * sgn(), pad.ax * sgn()); hand = pad.fire;
       tx = u.x + Math.cos(aim) * pad.ad * AIM_REACH; tz = u.z + Math.sin(aim) * pad.ad * AIM_REACH;
     } else if (t && t.aim !== null) {
-      aim = t.aim;
+      aim = t.aim; hand = t.hand;
       tx = t.tx !== null ? t.tx : u.x + Math.cos(aim) * TOUCH_REACH; tz = t.tz !== null ? t.tz : u.z + Math.sin(aim) * TOUCH_REACH;
     } else if (padAuto) {
       aim = padAuto.aim; tx = padAuto.tx; tz = padAuto.tz; fire = padAuto.fire;
     } else if (mouse.seen && device !== 'pad') {
       const g = G.groundAt(mouse.x, mouse.y);
-      if (g) { tx = g[0]; tz = g[1]; aim = Math.atan2(tz - u.z, tx - u.x); }
+      if (g) { tx = g[0]; tz = g[1]; aim = Math.atan2(tz - u.z, tx - u.x); hand = fire; }
     }
-    lastAim = aim;
+    lastAim = aim; handFire = hand;
     return {
       mx, mz, aim, fire, tx, tz,
       s1: kd('s1') || !!(t && t.s1) || pad.s1, s2: kd('s2') || !!(t && t.s2) || pad.s2,
@@ -184,7 +188,7 @@ export function makeInput(G) {
 
   return {
     touch, sample, setTouchVisible: tc.setVisible, updateTouch: () => {}, pressed: keys,
-    layout: tc.layout, get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
+    layout: tc.layout, aimState: () => ({ hint: tc.hint, fire: handFire && !scripted, aim: lastAim }), get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
     setPadSource: (fn) => { padFn = typeof fn === 'function' ? fn : () => []; },
     device: () => device, cursor: () => (mouse.seen && device !== 'pad' && !touch ? mouse : { seen: false }), rumble, haptic, hapticTest: () => { lastHaptic = -1e9; return haptic('hit'); }, setChatting, padState: () => ({ ...pad }),
     script: (s) => { scripted = s || null; },

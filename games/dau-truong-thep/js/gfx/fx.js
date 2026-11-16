@@ -1381,7 +1381,7 @@ export function makeFx(G, mechs) {
       const th = G.gfx.world && G.gfx.world.theme;
       dust = (th && GROUND_DUST[th.base]) || DUST;
       syncShots(m, alpha, dt); sweepHooks(); syncZones(m, dt, alpha); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m); towers.sync(m, dt, time);
-      if (th && th.fireflies && Math.random() < dt * 14) { const f = G.camera.position; add.emit(f.x + rnd(-22, 22), rnd(0.6, 2.6), f.z - 22 + rnd(-16, 14), rnd(-0.6, 0.6), rnd(-0.1, 0.3), rnd(-0.6, 0.6), FIREFLY, rnd(1.5, 3), 0.16, 1, 0, 0, 0.9, K.SPARK); }
+      if (th && th.fireflies && Math.random() < dt * 14) { const f = G.camera.position; add.emit(f.x + rnd(-22, 22), rnd(0.6, 2.6), f.z + (G.cam ? G.cam.sign : 1) * (-22 + rnd(-16, 14)), rnd(-0.6, 0.6), rnd(-0.1, 0.3), rnd(-0.6, 0.6), FIREFLY, rnd(1.5, 3), 0.16, 1, 0, 0, 0.9, K.SPARK); }
       for (const h of m.map.hazards) if (h.kind === 'lava' && Math.random() < dt * 3) { const a = Math.random() * 6.283, d = Math.random() * h.r; glow(h.x + Math.cos(a) * d, 0.2, h.z + Math.sin(a) * d, EMBER, 1.2, 0.2, 1, K.SPARK, 0.3, rnd(-0.3, 0.3), rnd(1, 3), rnd(-0.3, 0.3)); }
     }
     shotMesh.count = shadowMesh.count = nShots; nLast = Math.min(nShots, m ? m.shots.length : 0);

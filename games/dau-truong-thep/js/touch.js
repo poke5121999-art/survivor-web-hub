@@ -60,6 +60,8 @@ const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls)
 
 export function makeTouch(G, opts) {
   const touchDevice = !!opts.touch;
+  // A drag on the screen as a world angle; the view may be turned half round (camera.js, flipFor).
+  const ang = (dy, dx) => { const k = G.cam ? G.cam.sign : 1; return Math.atan2(dy * k, dx * k); };
   const P = new Map();            // pointer id -> { id, state, ctl, ox, oy, x, y, t0, blocked }
   const latch = { heal: false };
   let pending = null;             // a released skill waiting for a sim tick to take it: { slot, aim, tx, tz, t0, sent }
@@ -135,7 +137,7 @@ export function makeTouch(G, opts) {
     const u = lastU, s = skillRow(p);
     const shape = shapeOf(s), c = rects[p.ctl.id];
     const tap = p.state === 'skill-press';
-    const a = tap ? null : Math.atan2(p.y - c.cy, p.x - c.cx);
+    const a = tap ? null : ang(p.y - c.cy, p.x - c.cx);
     const frac = a === null ? GROUND_DEF : clamp01((distOf(p, c.cx, c.cy) - tapOf(p)) / (reachOf(p) - tapOf(p)));
     pending = { slot: p.ctl.slot, aim: a, frac, shape, t0: performance.now(), sent: false, u };
     if (tap && autoOn()) assist(pending, u, s);
@@ -374,7 +376,7 @@ export function makeTouch(G, opts) {
     for (const p of P.values()) if (p.state === 'skill-aim' || p.state === 'skill-cancel') ap = p;
     if (!ap || !u || !u.alive) { api.hint = null; return; }
     const s = u.def.skills[ap.ctl.slot], sh = shapeOf(s), c = rects[ap.ctl.id];
-    const a = Math.atan2(ap.y - c.cy, ap.x - c.cx), frac = clamp01((distOf(ap, c.cx, c.cy) - tapOf(ap)) / (reachOf(ap) - tapOf(ap)));
+    const a = ang(ap.y - c.cy, ap.x - c.cx), frac = clamp01((distOf(ap, c.cx, c.cy) - tapOf(ap)) / (reachOf(ap) - tapOf(ap)));
     const d = sh.mode === 'ground' ? sh.range * frac : sh.mode === 'dir' ? sh.range : 0;
     hint.slot = ap.ctl.slot; hint.kind = sh.kind; hint.x = u.x; hint.z = u.z;
     hint.tx = u.x + Math.cos(a) * d; hint.tz = u.z + Math.sin(a) * d;
@@ -396,11 +398,11 @@ export function makeTouch(G, opts) {
   }
 
   /* ---- what the sim tick reads ---- */
-  const out = { move: null, fire: false, aim: null, tx: null, tz: null, s1: false, s2: false, ult: false, heal: false, mx: null, mz: null };
+  const out = { move: null, fire: false, hand: false, aim: null, tx: null, tz: null, s1: false, s2: false, ult: false, heal: false, mx: null, mz: null };
   function read(u) {
     if (!layer || !touchOn || editing) return null;
     lastU = u;
-    out.move = null; out.fire = false; out.aim = null; out.tx = out.tz = null; out.mx = out.mz = null; out.s1 = out.s2 = out.ult = out.heal = false;
+    out.move = null; out.fire = out.hand = false; out.aim = null; out.tx = out.tz = null; out.mx = out.mz = null; out.s1 = out.s2 = out.ult = out.heal = false;
     const now = performance.now();
     let any = false, held = false, dragging = false, heldAt = 0;
     for (const p of P.values()) {
@@ -411,11 +413,11 @@ export function makeTouch(G, opts) {
       } else if (p.state === 'fire' || p.state === 'fire-drag') {
         out.fire = true;
         if (p.state === 'fire') { held = true; heldAt = p.t0; } else dragging = true;
-        if (p.state === 'fire-drag' && out.aim === null) { out.aim = Math.atan2(p.y - p.oy, p.x - p.ox); }
+        if (p.state === 'fire-drag' && out.aim === null) { out.aim = ang(p.y - p.oy, p.x - p.ox); out.hand = true; }
       } else if (p.state === 'press' && p.ctl.kind === 'heal') out.heal = true;
       else if (p.state === 'skill-aim' || p.state === 'skill-cancel') {
         const s = u.def.skills[p.ctl.slot], sh = shapeOf(s), c = rects[p.ctl.id];
-        const a = Math.atan2(p.y - c.cy, p.x - c.cx);
+        const a = ang(p.y - c.cy, p.x - c.cx);
         out.aim = a;
         const frac = clamp01((distOf(p, c.cx, c.cy) - tapOf(p)) / (reachOf(p) - tapOf(p)));
         const d = sh.mode === 'ground' ? sh.range * frac : sh.mode === 'dir' ? sh.range : AIM_REACH / 2;

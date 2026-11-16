@@ -18,6 +18,7 @@ import { makeFullscreen } from './fullscreen.js';
 import { makeMeta } from './meta.js';
 import { makeOnline } from './online.js';
 import { matchOptions } from './netstate.js';
+import { createRig, HEIGHTS, zoomOf, longAim } from './camera.js';
 
 const QUALITY = {
   low:    { name: 'low',    shadow: 1024, tex: 512,  foliage: 0.3,  particles: 350,  lights: 0, ao: false, bloom: true, bloomLevels: 3, bloomGain: 0.3, fxaa: false },
@@ -52,7 +53,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), sharp: qs.get('sharp'), bright: qs.has('bright') ? Number(qs.get('bright')) : null, calm: qs.has('calm') ? qs.get('calm') !== '0' : null, sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), sharp: qs.get('sharp'), bright: qs.has('bright') ? Number(qs.get('bright')) : null, calm: qs.has('calm') ? qs.get('calm') !== '0' : null, sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, camh: qs.get('camh'), aimpan: qs.has('aimpan') ? qs.get('aimpan') !== '0' : null, side: qs.get('side') === '1' ? 1 : 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -138,6 +139,25 @@ async function boot() {
   };
   applyLook(false);
 
+  // "Camera" settings: height (null = by screen: tablets far, everything else mid) and the long-aim pan. The rig itself lives in camera.js.
+  const rig = createRig();
+  const hasHeight = (k) => HEIGHTS.some((h) => h.key === k);
+  const camSet = { height: hasHeight(params.camh) ? params.camh : hasHeight(st.camHeight) ? st.camHeight : null, aimPan: params.aimpan !== null ? params.aimpan : st.aimPan !== false };
+  const heightNow = () => camSet.height || (touchDefault && !phone ? 'far' : 'mid');
+  G.cam = {
+    heights: HEIGHTS,
+    get sign() { return G.mode === 'match' ? rig.s.sign : 1; },
+    get: () => ({ height: heightNow(), aimPan: camSet.aimPan, ...rig.state() }),
+    set(o) {
+      if (o && hasHeight(o.height)) camSet.height = st.camHeight = o.height;
+      if (o && typeof o.aimPan === 'boolean') camSet.aimPan = st.aimPan = o.aimPan;
+      meta.save();
+    },
+    panTo(x, z) { if (G.mode === 'match') rig.pan({ x, z }); },
+    panEnd() { rig.pan(null); },
+    get panning() { return !!rig.s.free; },
+  };
+
   let sharpMode = SHARP_MODES.some((m) => m.key === params.sharp) ? params.sharp : null;
   if (!sharpMode) { const v = lsGet('dtt.sharp.v1'); sharpMode = SHARP_MODES.some((m) => m.key === v) ? v : (SHARP_MODES.some((m) => m.key === st.sharpness) ? st.sharpness : 'auto'); }
   let resG = 1, governor = 1, cssW = 1, cssH = 1;
@@ -190,7 +210,7 @@ async function boot() {
   G.ui = makeUI(G);
 
   const focus = new THREE.Vector3(), camOff = new THREE.Vector3();
-  let shot = null, time = 0, acc = 0, intensity = 0, overAt = 0;
+  let shot = null, time = 0, acc = 0, intensity = 0, overAt = 0, lastInp = null, wasMoving = false;
   // net: null for a local match, 'host' when this machine runs the simulation for a room, 'guest' when it only renders the host's snapshots.
   let net = null, netAlpha = 1;
 
@@ -205,16 +225,18 @@ async function boot() {
     const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
     const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
     const bot = attract || params.spectate;
-    const roster = [{ team: 0, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint, glow: attract ? null : choice.glow, decal: attract ? null : choice.decal }];
+    // ?side=1 (test hook) puts the player's team on the other end of the map.
+    const mine = mode === 'trum' ? 0 : params.side, theirs = 1 - mine;
+    const roster = [{ team: mine, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint, glow: attract ? null : choice.glow, decal: attract ? null : choice.decal }];
     // Bots grow with the player at half pace, so upgrades are felt and a maxed mech still meets a fight.
     const botMods = { lv: cleanLv(!attract && choice.mods && choice.mods.lv).map((l) => Math.floor(l / 2)) };
     const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
     const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
     // Săn trùm always sends TEAM_SIZE hunters at the boss; the other modes follow the chosen size (free-for-all: 2 * size mechs in all).
     const size = mode === 'trum' ? TEAM_SIZE : cleanSize(choice.size);
-    for (let i = 0; i < size - 1; i++) roster.push({ team: 0, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
+    for (let i = 0; i < size - 1; i++) roster.push({ team: mine, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
     if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
-    else for (let i = 0; i < size; i++) roster.push({ team: 1, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
+    else for (let i = 0; i < size; i++) roster.push({ team: theirs, mech: foes[i], name: names.pop(), bot: true, diff, mods: botMods });
     mechs.clear(); fx.clear();
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
     net = null; G.choice = choice;
@@ -227,6 +249,7 @@ async function boot() {
     G.me = me; G.mode = attract ? 'attract' : 'match'; acc = 0; overAt = 0;
     if (G.match.mode === 'tudo') G.match.units[me].color = 0;
     const u = G.match.units[me]; focus.set(u.x, 0, u.z);
+    rig.reset(G.match, me); lastInp = null; wasMoving = false;
     document.body.classList.toggle('in-match', !attract);
   }
 
@@ -243,7 +266,7 @@ async function boot() {
   function tick() {
     const m = G.match, me = m.units[G.me];
     const human = {};
-    if (!me.bot) human[me.id] = G.input.sample(me);
+    if (!me.bot) human[me.id] = lastInp = G.input.sample(me);
     if (net === 'host') Object.assign(human, G.online.remoteInputs());
     const inputs = allInputs(m, human);
     if (window.__botHook) window.__botHook(m, inputs);
@@ -255,7 +278,7 @@ async function boot() {
   // Guests do not simulate: they send their input and replay what the host's snapshots and events say.
   function guestFrame() {
     const me = G.online.mirror.units[G.me];
-    G.online.sendInput(G.input.sample(me));
+    G.online.sendInput(lastInp = G.input.sample(me));
     netAlpha = G.online.frame(performance.now()).alpha;
     G.match = G.online.mirror;
     dispatch(G.match);
@@ -264,6 +287,7 @@ async function boot() {
   function dispatch(m) {
     const live = G.mode === 'match';
     for (const e of m.events) {
+      rig.event(e, G.me);
       try { mechs.event(e); fx.event(e, m); if (live) { G.audio.event(e, m, G.me); G.ui.event(e); } } catch (err) { fail('event ' + e.t, err); }
       if (e.t === 'hit' || e.t === 'explode') intensity = Math.min(1, intensity + 0.04);
       G.bus.emit('sim', e);
@@ -295,19 +319,25 @@ async function boot() {
   }
 
   function placeCamera(dt) {
-    const m = G.match;
-    let pitch = CAM.pitch, yaw = 0, dist = Math.max(CAM.width / (2 * Math.tan(CAM.fov * Math.PI / 360) * camera.aspect), CAM.minDepth / (2 * Math.tan(CAM.fov * Math.PI / 360)));
+    const m = G.match, half = Math.tan(CAM.fov * Math.PI / 360);
+    let pitch = CAM.pitch, yaw = 0, sign = 1, dist = Math.max(CAM.width / (2 * half * camera.aspect), CAM.minDepth / (2 * half));
     if (shot) { focus.set(shot.x || 0, shot.y || 0, shot.z || 0); pitch = (shot.pitch ?? 57) * Math.PI / 180; yaw = (shot.yaw || 0) * Math.PI / 180; dist = shot.dist || dist; }
-    else if (m) {
-      let tx, tz;
-      if (G.mode === 'attract') {
-        let sx = 0, sz = 0, n = 0;
-        for (const u of m.units) if (u.alive) { sx += u.x; sz += u.z; n++; }
-        tx = n ? sx / n : 0; tz = n ? sz / n : 0; dist *= 1.15;
-      } else { const u = m.units[G.me]; tx = u.x + Math.cos(u.aim) * 2.4; tz = u.z + Math.sin(u.aim) * 2.4 + 1.2; }
-      const k = Math.min(1, dt * (G.mode === 'attract' ? 0.8 : 5.5));
-      focus.x += (tx - focus.x) * k; focus.z += (tz - focus.z) * k;
+    else if (m && G.mode === 'attract') {
+      let sx = 0, sz = 0, n = 0;
+      for (const u of m.units) if (u.alive) { sx += u.x; sz += u.z; n++; }
+      dist *= 1.15;
+      const k = 1 - Math.exp(-dt * 0.8);
+      focus.x += ((n ? sx / n : 0) - focus.x) * k; focus.z += ((n ? sz / n : 0) - focus.z) * k;
       focus.x = Math.max(-m.map.hw + 9, Math.min(m.map.hw - 9, focus.x)); focus.z = Math.max(-m.map.hd + 5, Math.min(m.map.hd - 2, focus.z));
+    } else if (m) {
+      dist *= zoomOf(heightNow());
+      const me = m.units[G.me], h = dist * half, depth = h / Math.sin(pitch);
+      // The minimap drag ends when the player starts to drive.
+      const moving = !!lastInp && Math.hypot(lastInp.mx, lastInp.mz) > 0.2;
+      if (moving && !wasMoving) rig.pan(null);
+      wasMoving = moving;
+      rig.update(dt, m, G.me, { hw: h * camera.aspect, far: depth, near: depth }, camSet.aimPan ? longAim(me, G.input.aimState()) : null, G.input.lock);
+      focus.x = rig.s.x; focus.z = rig.s.z; yaw = rig.s.yaw; sign = rig.s.sign;
     }
     camOff.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist);
     const sk = meta.get().settings.shake, s = fx.shake * fx.shake * 0.5 * (sk === 'off' ? 0 : sk === 'strong' ? 1 : 0.5);
@@ -315,7 +345,7 @@ async function boot() {
     stats.shake = s;
     if (s > 0) { camera.position.x += (Math.sin(time * 71) + Math.sin(time * 113)) * s; camera.position.y += Math.sin(time * 97) * s; }
     camera.lookAt(focus.x, focus.y, focus.z);
-    world.focus(focus.x, focus.z + 2);
+    world.focus(focus.x, focus.z + 2 * sign);
   }
 
   // Governor: when frames are slow, cost is shed down this list in order, and given back in reverse order.

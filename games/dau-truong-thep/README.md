@@ -11,6 +11,7 @@ Real-time top-down mech arena shooter, 1v1 to 3v3 (3v3 by default). three.js r16
 | `js/sim.js` | The match simulation. Pure, deterministic, 30 Hz. `createMatch`, `step`, `visibleTo`, `hidden`, `unitSpeed`, `summary` |
 | `js/bots.js` | `botInput(m, u)`: one input per bot per tick. Pure, uses only `m.rng` for randomness |
 | `js/main.js` | Boot, shared state `G`, main loop, URL params, test hooks |
+| `js/camera.js` | The camera rig: follow, aim pan, the half-turned view for team 1, death and spectate, minimap look. Pure, runs in Node |
 | `js/gfx/*.js` | Renderer: textures, world, mechs, effects, post chain |
 | `js/audio.js` | Synthesised sound and music |
 | `js/ui.js`, `js/input.js`, `js/keys.js`, `js/meta.js`, `css/ui.css` | HUD, menus, garage, lobby, input devices (keyboard, mouse, touch, gamepad), key bindings, save data |
@@ -23,7 +24,7 @@ Real-time top-down mech arena shooter, 1v1 to 3v3 (3v3 by default). three.js r16
 - Every playable mech moves as the same circle (`RULES.moveRadius`, `u.moveRadius`), so an opening lets all of them through or none; `u.radius` is the size shots and rams hit. A layout edit must leave `tools/gaps.mjs` with no tight or false opening.
 - All randomness in a match comes from `m.rng`. Same seed and same inputs give the same match.
 - The renderer, audio and HUD only read match state and `m.events`. They never write to it.
-- Angles are radians in the XZ plane, direction = `(cos a, sin a)`. +x is right on screen, +z is toward the camera (down on screen).
+- Angles are radians in the XZ plane, direction = `(cos a, sin a)`. +x is right on screen, +z is toward the camera (down on screen), unless the view is turned half round (see "Camera"): then both are mirrored, and only `input.js`, `touch.js` and the minimap know.
 
 ## Simulation contract
 
@@ -100,7 +101,7 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 
 ## URL params and test hooks
 
-`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high` (disables the governor), `?sharp=auto|sharp|max`, `?sharpen=0` (no contrast-adaptive sharpening), `?bright=0.8..1.2`, `?calm=1|0` (override the saved eye-comfort settings), `?legacyres=1` (test hook: the resolution rule and governor from before Addendum 9, for before/after numbers), `?govms=N` (test hook: the governor is fed frame times of at least N ms), `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key|random`, `?theme=key|random`, `?mode=key`, `?size=1|2|3`, `?fakenet=1`, `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
+`?autostart` (skip menus, start a match), `?noaudio`, `?q=low|medium|high` (disables the governor), `?sharp=auto|sharp|max`, `?sharpen=0` (no contrast-adaptive sharpening), `?bright=0.8..1.2`, `?calm=1|0` (override the saved eye-comfort settings), `?legacyres=1` (test hook: the resolution rule and governor from before Addendum 9, for before/after numbers), `?govms=N` (test hook: the governor is fed frame times of at least N ms), `?seed=N`, `?bots=easy|normal|hard`, `?mech=key`, `?map=key|random`, `?theme=key|random`, `?mode=key`, `?size=1|2|3`, `?fakenet=1`, `?camh=near|mid|far`, `?aimpan=1|0` (override the saved camera settings), `?side=1` (test hook: the player's team is team 1, so the view is turned half round), `?spectate` (the player slot is a bot too), `?manual` (the loop does not advance by itself; use `__step`).
 
 `window.__G`, `__ready`, `__errors[]`, `__stats {fps, ms, calls, tris, quality, scale (render scale: buffer px per CSS px per axis), dpr, buffer [w, h], governor (steps shed), governorStep, sharpness}`, `__step(n, draw)` (advance n sim ticks, draw one frame if `draw`), `__setShot({x, z, dist, pitch, yaw} | null)` (pose the camera), `__input(fn | object | null)` (scripted player input: `fn(m, u) → input`), `__botHook = fn(m, inputs) | null` (edit the bots' inputs before each tick; tools/eyes.js forces simultaneous ultimates with it), `__start(choice, attract)` (start a match).
 
@@ -121,6 +122,8 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/stuck.mjs` | Bot matches on every layout: share of ticks a mech wants to move and cannot, split into "against an obstacle" and open ground. `STUCK_TAG`, and an env var to point it at another `js/` tree for a before number |
 | `node tools/gaps.mjs` | Every opening of every layout against the movement radius: routes connected, tight openings (under body + 0.5 m) and false ones (look passable, are not), each with the layout rows that form it. Both lists must be empty |
 | `node tools/bench.js [tiers] [phone] [cpu4]` | Frame cost per quality tier in a busy fight (phone = 844x390 at DPR 3; cpu4 = 4x CPU throttle) |
+| `node tools/camera-test.mjs` | The camera rig in Node: follow speed limit, no drift when the tank twitches, same result at 30 and 120 Hz, which aims pan and how far, the pan cap, lock framing, which teams and modes are turned, the death sequence, the minimap look |
+| `node tools/camera-test.js` | The same on the real page at the Xiaomi 17T size with touch and mouse input: aim pan and its setting, both teams of Thủ nhà (own base on the same side, stick and fire drag follow the screen, minimap turned), minimap drag, death camera and its label, height setting and its persistence. Screenshots `.chk/mobile-ui/xiaomi-*.png` |
 | `node tools/sharp.js` | Phone sharpness, before (`?legacyres=1`) and after, at the owner's phone shapes and others: buffer vs CSS box vs device pixels, what the governor settles at (native, CPU throttle, `?govms`), a Laplacian sharpness number, 1:1 crops and `.chk/sharp/sheet.png`; fails when the render scale drops under 1.0 CSS px, the picture is not sharper, or the buffer stops matching the visual viewport after load, first tap, rotation or browser bar changes |
 | `tools/shot.js`, `sheet.js`, `lineup.js`, `thumb.js` | Screenshots for review sheets (`.chk/`) and the hub card |
 
@@ -133,3 +136,13 @@ The 3D buffer is `renderScale(mode, tier, dpr, g)` buffer pixels per CSS pixel p
 ## Eye comfort (Addendum 12)
 
 The picture is tuned to stay bright, saturated and soft without glare on a bright OLED phone. Per-theme `exposure` and `grade` (world.js) put floors in the mid-tones (calm frame mean at most 0.54, floor cells 0.3 to 0.55); the composite shader (post.js) rolls highlights off after ACES (`uKnee`/`uPeak`, hue kept) and softens saturated highlights (`hiDesat`); bloom has a higher threshold and a lower gain per tier (main.js). Flash lights, glow quads, ground discs and beam cores are scaled by the `FLASH` table in fx.js, with a per-frame budget on the summed flash-light intensity; its second column is "Giảm chớp sáng". `node tools/eyes.js` measures it at the Xiaomi 17T size (calm frame, gentle fight, heavy 3v3, forced overlapping ultimates, tower fight in `?mode=nha`); `--check` enforces the limits in `LIMITS` on every theme with the setting off and on, and fails on a build without the tuning.
+
+## Camera (Addendum 14)
+
+`js/camera.js` owns where the view looks; `placeCamera` in `main.js` only turns the rig's `x, z, yaw` and the height zoom into the three.js camera. Tunables are in `CAM_RULES`.
+
+- **Modes** (`want()` picks one per frame, a change glides over `EASE[mode]` seconds): `follow` (own tank), `killer` (for `CAM_RULES.killer` seconds after a `death` event, if the killer is alive and visible to my team), `ally` (nearest living teammate, kept until it dies), `wreck` (nobody to watch), `free` (the minimap look, `rig.pan({x, z})` until `rig.pan(null)`).
+- **Follow**: a dead zone around an anchor, a lead toward the aim and the velocity with its own smoothing, exponential smoothing `1 - exp(-dt / tau)` and a speed cap `vmax`. A 1.2 m bias keeps the tank above the skill buttons.
+- **Aim pan**: `longAim(u, G.input.aimState())` returns `{ a, reach }` when a skill with range over `longAim` (16 m) is being dragged, when a cast with such a range is winding up, or when a main weapon with that range that is slow (`cd >= slowFire`) or charged is aimed by hand and held (touch fire drag, mouse button, pad stick). The rule reads the rows, there is no list of mechs. The view slides `(reach - panFrom) * panGain` metres that way, then the offset is clamped so the tank stays inside `inner`. Touch auto-aim never pans; instead a locked target outside `inner` pulls the view until both fit.
+- **Half-turned view**: `flipFor(m, u)` is true for team 1 in `tdm`, `chiem` and `nha` (layouts are point-symmetric, bases at the left and right ends). The rig then reports `yaw = π`, `sign = -1`. Everything that turns a screen direction into a world direction multiplies by `G.cam.sign`: stick and keys in `input.js`, drag angles in `touch.js` (`ang`), the minimap (`viewSign` in `ui.js`). Sim inputs stay in world space, so bots, the host and other clients are untouched.
+- `G.cam = { heights, sign, panning, get() → { height, aimPan, mode, target, x, z, off [x, z], speed, gliding, flip, yaw }, set({ height, aimPan }), panTo(x, z), panEnd() }`. Saved as `settings.camHeight` (`null` = by screen: tablets `far`, everything else `mid`) and `settings.aimPan`.

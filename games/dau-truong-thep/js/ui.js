@@ -198,7 +198,7 @@ export function makeUI(G) {
     <button class="setbtn" data-block data-r="setBtn" aria-label="Cài đặt">${icon('gear')}</button>
     <div class="feed" data-r="feed"></div>
     <div class="netro" data-r="netro" hidden></div>
-    <div class="mm" data-r="mm"><canvas data-r="mmc"></canvas><span class="mm-name" data-r="mmn"></span></div>
+    <div class="mm" data-block data-r="mm"><canvas data-r="mmc"></canvas><span class="mm-name" data-r="mmn"></span></div>
     <div class="perf" data-r="perf"></div>
     <div class="dock">
       <div class="buffs" data-r="buffs"></div>
@@ -618,12 +618,13 @@ export function makeUI(G) {
     root.style.setProperty('--mmr', (Hh / W).toFixed(3));
   }
   function drawMini(m, me) {
-    const g = mmCtx, mp = m.map;
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    const g = mmCtx, mp = m.map, fs = viewSign();
+    // A view turned half round (team 1 in sided modes) turns the map with it: the static layer is drawn rotated, the markers through mirrored X and Z.
+    if (fs < 0) g.setTransform(-1, 0, 0, -1, H.mmc.width, H.mmc.height); else g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(mmStatic, 0, 0);
     g.setTransform(mmK, 0, 0, mmK, 0, 0);
     const dot = mmK > 1 ? 1.5 : 1;
-    const X = (x) => (x + mp.hw) * mmScale, Z = (z) => (z + mp.hd) * mmScale;
+    const X = (x) => (fs * x + mp.hw) * mmScale, Z = (z) => (fs * z + mp.hd) * mmScale;
     for (const c of m.crates) {
       const col = '#' + PICKUPS[c.type].color.toString(16).padStart(6, '0');
       const x = X(c.x), z = Z(c.z), r = c.fall > 0 ? 3 + 1.5 * Math.sin(uiT * 8) : 4;
@@ -643,13 +644,51 @@ export function makeUI(G) {
       g.beginPath(); g.arc(X(z.x), Z(z.z), 3.4 * dot, 0, 7); g.fill(); g.stroke();
     }
     if (me && me.alive) {
-      const x = X(me.x), z = Z(me.z), a = me.aim;
+      const x = X(me.x), z = Z(me.z), a = me.aim + (fs < 0 ? Math.PI : 0);
       g.save(); g.translate(x, z); g.rotate(a); g.scale(dot, dot);
       g.fillStyle = '#fff'; g.strokeStyle = '#05080b'; g.lineWidth = 1.5;
       g.beginPath(); g.moveTo(8, 0); g.lineTo(-4.5, 5); g.lineTo(-2, 0); g.lineTo(-4.5, -5); g.closePath(); g.stroke(); g.fill();
       g.restore();
     }
+    const cs = G.cam && G.cam.get();
+    if (cs && cs.mode !== 'follow') {
+      g.strokeStyle = '#fff'; g.lineWidth = 1.5 * dot;
+      g.strokeRect(X(cs.x) - 9 * dot, Z(cs.z) - 5.5 * dot, 18 * dot, 11 * dot);
+    }
   }
+  const viewSign = () => (G.cam ? G.cam.sign : 1);
+
+  // Hold or drag on the map (finger or mouse): the camera looks at that point until the pointer lifts or the player drives off.
+  const MM_HOLD = 220, MM_SLOP = 6;
+  let mmDrag = null, mmDragEnd = -1e9;
+  function mmLook(d) {
+    if (!curMatch || !G.cam) return;
+    const r = H.mmc.getBoundingClientRect(), mp = curMatch.map, fs = viewSign();
+    G.cam.panTo(fs * ((d.x - r.left) / r.width * mp.w - mp.hw), fs * ((d.y - r.top) / r.height * mp.d - mp.hd));
+    d.on = true;
+  }
+  H.mm.addEventListener('pointerdown', (e) => {
+    if (!G.cam || !curMatch) return;
+    const d = mmDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, on: false };
+    try { H.mm.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+    setTimeout(() => { if (mmDrag === d && !d.on) mmLook(d); }, MM_HOLD);
+  });
+  H.mm.addEventListener('pointermove', (e) => {
+    const d = mmDrag;
+    if (!d || d.id !== e.pointerId) return;
+    d.x = e.clientX; d.y = e.clientY;
+    if (!d.on && Math.hypot(d.x - d.x0, d.y - d.y0) < MM_SLOP) return;
+    // Driving off ended the look (main.js): this drag stays ended.
+    if (d.on && !G.cam.panning) return;
+    mmLook(d);
+  });
+  const mmUp = (e) => {
+    const d = mmDrag;
+    if (!d || d.id !== e.pointerId) return;
+    mmDrag = null;
+    if (d.on) { G.cam.panEnd(); mmDragEnd = performance.now(); }
+  };
+  H.mm.addEventListener('pointerup', mmUp); H.mm.addEventListener('pointercancel', mmUp);
 
   // Touch: tap the corner map to enlarge it, tap again or anywhere else to shrink it.
   function setMapBig(on) {
@@ -657,7 +696,7 @@ export function makeUI(G) {
     if (on === mmBig) return;
     mmBig = on; H.mm.classList.toggle('big', on); if (S) S.miniAcc = 1;
   }
-  H.mm.addEventListener('click', () => { if (isTouch()) setMapBig(!mmBig); });
+  H.mm.addEventListener('click', () => { if (isTouch() && performance.now() - mmDragEnd > 350) setMapBig(!mmBig); });
   addEventListener('pointerdown', (e) => { if (mmBig && !H.mm.contains(e.target)) setMapBig(false); }, true);
 
   // Ping and FPS in the corner, refreshed twice a second.
@@ -920,7 +959,9 @@ export function makeUI(G) {
       if (dead) {
         const n = Math.max(1, Math.ceil(me.respawnT));
         setText(H.rspN, String(n)); setText(H.rspS, String(n));
-        setText(H.rspBy, S.killedBy ? 'Bị hạ gục bởi ' + S.killedBy : 'Bạn đã bị hạ gục');
+        // The camera first stays on whoever took the player down, then rides with an ally (camera.js).
+        const cs = G.cam && G.cam.get(), seen = cs && cs.mode === 'ally' ? m.units[cs.target] : null;
+        setText(H.rspBy, seen ? 'Đang xem ' + seen.name : S.killedBy ? 'Bị hạ bởi ' + S.killedBy : 'Bạn đã bị hạ gục');
       }
     }
 
@@ -1599,6 +1640,11 @@ export function makeUI(G) {
         <div class="fld" data-r="briFld"><span>Độ sáng <b data-r="brTxt"></b></span><input type="range" min="80" max="120" step="5" data-r="bri" aria-label="Độ sáng"></div>
         <button class="tog" data-r="calm" aria-pressed="false"><i></i><span>Giảm chớp sáng<small>Vụ nổ và tuyệt chiêu chỉ ánh lên nhẹ, ít chói hơn, dịu mắt hơn trên màn hình sáng</small></span></button>
       </div>
+      <div class="tgrp" data-r="camGrp">
+        <h3>Camera</h3>
+        <div class="fld"><span>Độ cao camera</span><div class="seg" data-r="camH"></div></div>
+        <button class="tog" data-r="aimPan" aria-pressed="true"><i></i><span>Camera theo hướng ngắm<small>Khi ngắm chiêu hoặc phát bắn tầm xa, khung hình trượt về phía điểm ngắm rồi trở lại</small></span></button>
+      </div>
       <div class="fld"><span>Âm lượng chung <b data-r="vTxt"></b></span><input type="range" min="0" max="100" data-r="vol"></div>
       <div class="fld"><span>Nhạc nền <b data-r="mTxt"></b></span><input type="range" min="0" max="100" data-r="mus"></div>
       <button class="tog" data-r="rumble" aria-pressed="true"><i></i><span>Rung tay cầm<small>Rung khi trúng đòn mạnh hoặc bị hạ gục</small></span></button>
@@ -1644,6 +1690,18 @@ export function makeUI(G) {
     const lk = G.look && G.look.get();
     ST.briFld.hidden = ST.calm.hidden = !lk;
     if (lk) { ST.bri.value = Math.round(lk.brightness * 100); ST.brTxt.textContent = ST.bri.value + '%'; ST.calm.setAttribute('aria-pressed', String(lk.calm)); }
+    const cs = G.cam && G.cam.get();
+    ST.camGrp.hidden = !cs;
+    ST.camH.innerHTML = '';
+    if (cs) {
+      for (const h of G.cam.heights) {
+        const b = el('button', cs.height === h.key ? 'on' : '', h.name);
+        b.dataset.k = h.key;
+        b.onclick = () => { G.cam.set({ height: h.key }); renderSettings(); };
+        ST.camH.appendChild(b);
+      }
+      ST.aimPan.setAttribute('aria-pressed', String(cs.aimPan));
+    }
     ST.vol.value = Math.round(d.settings.volume * 100); ST.mus.value = Math.round(d.settings.music * 100);
     ST.vTxt.textContent = ST.vol.value + '%'; ST.mTxt.textContent = ST.mus.value + '%';
     for (const [seg, field] of [[ST.shakeSeg, 'shake'], [ST.vibeSeg, 'vibe']]) {
@@ -1712,6 +1770,7 @@ export function makeUI(G) {
   ST.vol.onchange = ST.mus.onchange = () => G.meta.save();
   ST.bri.oninput = () => { if (!G.look) return; G.look.set({ brightness: ST.bri.value / 100 }); ST.brTxt.textContent = ST.bri.value + '%'; };
   ST.calm.onclick = () => { if (!G.look) return; G.look.set({ calm: !G.look.get().calm }); renderSettings(); };
+  ST.aimPan.onclick = () => { if (!G.cam) return; G.cam.set({ aimPan: !G.cam.get().aimPan }); renderSettings(); };
   ST.close.onclick = () => settings.classList.remove('on');
   function openSettings() { renderSettings(); settings.querySelector('[data-st="keys"]').hidden = isTouch(); setSettingsTab('gen'); settings.classList.add('on'); }
   M.bSet.onclick = openSettings;

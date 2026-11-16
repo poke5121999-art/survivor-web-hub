@@ -183,10 +183,11 @@
 #ui .ann.foe b { color: #ff7a5c; } #ui .ann.warn b { color: #ff9f3d; } #ui .ann.supply b { color: var(--good); }
 #ui .ann small { display: block; font-size: 1.1em; color: var(--ink); text-shadow: 0 1px 3px #000; }
 
-#ui .rsp { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(5, 7, 10, .38); gap: .1em; }
+/* The view keeps moving while the player is down (killer, then an ally), so the countdown sits small above the health bar and nothing dims the field. */
+#ui .rsp { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 13vh; background: linear-gradient(0deg, rgba(5, 7, 10, .5), rgba(5, 7, 10, 0) 46%); gap: .1em; pointer-events: none; }
 #ui .rsp.on { display: flex; }
-#ui .rsp-n { font-size: 6em; font-weight: 900; line-height: 1; text-shadow: 0 .05em 0 #000, 0 0 .4em rgba(0, 0, 0, .8); }
-#ui .rsp-t { font-size: 1.6em; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; padding: .1em 1em; background: rgba(6, 8, 12, .8); border-top: .15em solid var(--brass); }
+#ui .rsp-n { font-size: 3.2em; font-weight: 900; line-height: 1; text-shadow: 0 .05em 0 #000, 0 0 .4em rgba(0, 0, 0, .8); }
+#ui .rsp-t { font-size: 1.2em; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; padding: .1em 1em; background: rgba(6, 8, 12, .8); border-top: .15em solid var(--brass); }
 #ui .rsp-t b { color: var(--brass2); }
 #ui .rsp small { font-size: 1.1em; color: var(--dim); padding: .15em .8em; background: rgba(6, 8, 12, .7); margin-top: .4em; }
 
@@ -452,7 +453,7 @@
   #ui .feed { right: 7.4em; top: .4em; width: 18em; }
   #ui .dock { bottom: .3em; } #ui .hpb { width: 18em; } #ui .hpb-main { height: 1.4em; }
   #ui .ann { top: 20%; } #ui .ann b { font-size: 2.2em; }
-  #ui .rsp-n { font-size: 4em; } #ui .rsp-t { font-size: 1.3em; }
+  #ui .rsp-n { font-size: 3em; } #ui .rsp-t { font-size: 1.1em; }
   #ui .menu { padding: .5em .9em .6em; gap: .5em; }
   #ui .logo h1 { font-size: 1.9em; } #ui .logo span { font-size: .75em; letter-spacing: .12em; } #ui .logo::after { margin-top: .2em; }
   #ui .player { padding: .3em .7em; gap: .5em; } #ui .rank { gap: .4em; } #ui .rk-tx small { display: none; } #ui .rk-badge { width: 2.3em; height: 2.3em; } #ui .rk-tx { min-width: 5.6em; } #ui .lvl { width: 2.4em; height: 2.7em; } #ui .pl-main { width: 7.5em; gap: .15em; }
@@ -1118,7 +1119,7 @@
 #ui.is-touch .twb-hp { height: max(5px, .55em); } #ui.is-touch .twb.main .twb-hp { height: max(7px, .7em); }
 #ui.is-touch .fn.other { font-size: max(11px, .92em); }
 #ui.is-touch .pl small { font-size: max(11px, .78em); }
-#ui.is-touch .rsp-t { font-size: 1.2em; } #ui.is-touch .rsp-n { font-size: 3.4em; } #ui.is-touch .rsp small { font-size: max(11px, 1em); }
+#ui.is-touch .rsp-t { font-size: 1.1em; } #ui.is-touch .rsp-n { font-size: 2.8em; } #ui.is-touch .rsp small { font-size: max(11px, 1em); }
 
 /* portrait phone: one prompt on every screen */
 #ui .rotate { display: none; }
@@ -1183,3 +1184,6 @@ html.dtt-portrait #touch { display: none !important; }
 .tc-lockarrow[data-team="1"] { border-left-color: #ff5a36; }
 
 .fld-hint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: #9fb0bd; }
+
+/* Hold or drag on the minimap to look there (ui.js, mmLook). */
+#ui .mm { pointer-events: auto; touch-action: none; }

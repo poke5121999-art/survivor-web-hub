@@ -25,7 +25,7 @@ function defaults() {
   return {
     v: VERSION, name: 'Phi công', coins: 0, gems: 0, xp: 0, level: 1,
     owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0], size: TEAM_SIZE,
-    settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light', brightness: 1, calm: null },
+    settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light', brightness: 1, calm: null, camHeight: null, aimPan: true },
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
     lv: {}, paints: {}, glows: {}, decals: {}, ownedPaints: ['goc'], ownedGlows: ['goc'], ownedDecals: ['goc'], trophies: 0,
     shop: { starter: false, passUntil: 0, lastDaily: '', bought: {}, log: [] },
@@ -114,6 +114,9 @@ function clean(raw) {
       // brightness: display exposure multiplier 0.8 to 1.2; calm ("Giảm chớp sáng"): null until the player picks, then the device default no longer applies
       brightness: isNum(s.brightness) ? Math.round(Math.min(1.2, Math.max(0.8, s.brightness)) * 100) / 100 : 1,
       calm: typeof s.calm === 'boolean' ? s.calm : null,
+      // camHeight: null until the player picks (then main.js stops choosing by screen); aimPan: "Camera theo hướng ngắm"
+      camHeight: ['near', 'mid', 'far'].includes(s.camHeight) ? s.camHeight : null,
+      aimPan: typeof s.aimPan === 'boolean' ? s.aimPan : true,
     },
     stats: { matches: int(st.matches, 0), wins: int(st.wins, 0), kills: int(st.kills, 0), lastWinDay: typeof st.lastWinDay === 'string' ? st.lastWinDay.slice(0, 10) : '' },
     lv: {}, paints: {}, glows: {}, decals: {}, trophies: int(raw.trophies, 0), controls: cleanControls(raw.controls),
