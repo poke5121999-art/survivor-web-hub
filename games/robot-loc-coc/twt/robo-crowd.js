@@ -15,21 +15,22 @@ function keepAlpha(m, additive) {
 export class Crowd {
   constructor(scene, o = {}) {
     this.scene = scene; this.cap = 0; this.data = null; this.tex = null; this.nSlots = 0; this.free = [];
-    this.shared = { uBones: { value: null }, uTime: { value: 0 }, timed: [] };
+    this.TW = o.texW || TEX_W; // texels per slot row (robots 80; animals pass a wider row and its layout)
+    this.shared = { uBones: { value: null }, uTime: { value: 0 }, timed: [], layout: o.layout || null };
     this.protos = new Map(); this.depth = crowdDepthMat(this.shared); this.shadows = o.shadows !== false;
     this.grow(o.cap || 128);
     this.fx = new Sparks(scene);
   }
   grow(n) {
-    const old = this.data; this.cap = n; this.data = new Float32Array(TEX_W * n * 4); if (old) this.data.set(old);
+    const old = this.data; this.cap = n; this.data = new Float32Array(this.TW * n * 4); if (old) this.data.set(old);
     if (this.tex) this.tex.dispose();
-    this.tex = new THREE.DataTexture(this.data, TEX_W, n, THREE.RGBAFormat, THREE.FloatType); this.tex.magFilter = this.tex.minFilter = THREE.NearestFilter; this.tex.needsUpdate = true;
+    this.tex = new THREE.DataTexture(this.data, this.TW, n, THREE.RGBAFormat, THREE.FloatType); this.tex.magFilter = this.tex.minFilter = THREE.NearestFilter; this.tex.needsUpdate = true;
     this.shared.uBones.value = this.tex;
     for (const pr of this.protos.values()) this.sizeSlots(pr);
   }
   alloc() { const s = this.free.length ? this.free.pop() : this.nSlots++; if (s >= this.cap) this.grow(this.cap * 2); return s; }
-  release(s) { this.data.fill(0, s * TEX_W * 4, (s + 1) * TEX_W * 4); this.free.push(s); }
-  row(s) { return s * TEX_W * 4; }
+  release(s) { this.data.fill(0, s * this.TW * 4, (s + 1) * this.TW * 4); this.free.push(s); }
+  row(s) { return s * this.TW * 4; }
   sizeSlots(pr) {
     const n = Math.max(16, this.cap); if (pr.slotAttr && pr.slotAttr.count >= n) return;
     const a = new THREE.InstancedBufferAttribute(new Float32Array(n), 1); a.setUsage(THREE.DynamicDrawUsage);
@@ -37,15 +38,20 @@ export class Crowd {
   }
   // look def (robo-cast robotDef / zombieRobotDef) -> proto record (built once per key)
   proto(def) {
-    let pr = this.protos.get(def.key); if (pr) return pr;
-    const P = buildProto(def.spec), g = new THREE.InstancedBufferGeometry();
+    const pr = this.protos.get(def.key); if (pr) return pr;
+    return this.protoRaw(def.key, buildProto(def.spec), def);
+  }
+  // a look whose proto data (geom with aBone / aReg, pal, face, ...) was built elsewhere (the animal kit)
+  protoRaw(key, P, def = null) {
+    let pr = this.protos.get(key); if (pr) return pr;
+    const g = new THREE.InstancedBufferGeometry();
     g.index = P.geom.index; for (const k of ['position', 'normal', 'aReg', 'aBone']) g.setAttribute(k, P.geom.attributes[k]);
     g.instanceCount = 0; g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
     const mat = crowdMat(P, this.shared), mesh = new THREE.Mesh(g, mat);
-    mesh.frustumCulled = false; mesh.castShadow = this.shadows; mesh.receiveShadow = true; mesh.customDepthMaterial = this.depth; mesh.visible = false; mesh.name = 'robots:' + def.key;
+    mesh.frustumCulled = false; mesh.castShadow = this.shadows; mesh.receiveShadow = true; mesh.customDepthMaterial = this.depth; mesh.visible = false; mesh.name = 'robots:' + key;
     mesh.matrixAutoUpdate = false; mesh.updateMatrix();
-    pr = { key: def.key, def, P, geom: g, mat, mesh, list: [], n: 0, dims: P.dims, tris: P.tris };
-    this.sizeSlots(pr); this.scene.add(mesh); this.protos.set(def.key, pr);
+    pr = { key, def, P, geom: g, mat, mesh, list: [], n: 0, dims: P.dims, tris: P.tris };
+    this.sizeSlots(pr); this.scene.add(mesh); this.protos.set(key, pr);
     return pr;
   }
   // one robot visible this frame

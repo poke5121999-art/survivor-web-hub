@@ -5,6 +5,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { createPeople } from './people-robots.js';
 import { CrewModes, ANIMS as CREW_ANIMS, CREW_ANIM_VI } from './crew-modes.js';
+import { BeastModes, BEAST_VIEWS, BEAST_VIEW_VI } from './beast-modes.js';
 import { CombatModes, W_ACTS, W_ACT_VI, Z_MOVES, Z_MOVE_VI, W_PICK, W_PICK_VI } from './combat-modes.js';
 
 const Q = new URLSearchParams(location.search);
@@ -65,6 +66,7 @@ const set = new THREE.Group(); scene.add(set);
 const people = createPeople({ scene, camera, renderer, quality: { name: 'high' } });
 const crew = new CrewModes(scene);
 const combat = new CombatModes({ people, fx: people.crowd.fx, scene });
+const beasts = new BeastModes({ scene, people, camera });
 const arenaRing = new THREE.Group(); scene.add(arenaRing);
 { const m = new THREE.Mesh(new THREE.RingGeometry(11.6, 12, 64), new THREE.MeshStandardMaterial({ color: 0xe8b923, roughness: 0.6 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.005; arenaRing.add(m);
   const pm = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6, metalness: 0.5 });
@@ -293,32 +295,35 @@ function select(A) {
 
 // ---------------------------------------------------------------- UI
 const $ = (s) => document.querySelector(s);
-const MODES = { crew: 'Hàng ngũ', play: 'Sân chơi', roles: 'Robot thợ', zombies: 'Zombie', weapons: 'Vũ khí & đánh', arena: 'Võ đài', raid: 'Đợt tấn công', crowd: 'Đám đông 40+30' };
+const MODES = { crew: 'Hàng ngũ', play: 'Sân chơi', roles: 'Robot thợ', zombies: 'Zombie', weapons: 'Vũ khí & đánh', arena: 'Võ đài', beasts: 'Thú máy', raid: 'Đợt tấn công', crowd: 'Đám đông 40+30' };
 function chips(el, items, labels, onPick, cur, cls = '') {
   el.innerHTML = ''; for (const k of items) { const b = document.createElement('button'); b.className = 'chip ' + cls + (k === cur ? ' on' : ''); b.textContent = labels[k]; b.dataset.k = k; b.onclick = () => { onPick(k); for (const x of el.children) x.classList.toggle('on', x === b); }; el.appendChild(b); }
 }
 function buildUI() {
   const m = $('#modes'); m.innerHTML = '';
   for (const k in MODES) { const b = document.createElement('button'); b.textContent = MODES[k]; b.className = k === mode ? 'on' : ''; b.onclick = () => setMode(k); m.appendChild(b); }
-  const z = mode === 'zombies', cm = mode === 'crew' || mode === 'play', wm = mode === 'weapons';
+  const z = mode === 'zombies', cm = mode === 'crew' || mode === 'play', wm = mode === 'weapons', bm = mode === 'beasts';
   const ZL = Object.assign({}, ANIM_VI, Z_MOVE_VI);
-  if (cm) chips($('#anims'), CREW_ANIMS, CREW_ANIM_VI, (a) => crew.setAnim(a), crew.anim);
+  if (bm) chips($('#anims'), beasts.acts(), beasts.actsVi(), (a) => beasts.setAct(a), beasts.act);
+  else if (cm) chips($('#anims'), CREW_ANIMS, CREW_ANIM_VI, (a) => crew.setAnim(a), crew.anim);
   else if (wm) chips($('#anims'), W_ACTS, W_ACT_VI, (a) => combat.setAct(a), combat.act);
   else chips($('#anims'), mode === 'crowd' || mode === 'raid' || mode === 'arena' ? [] : z ? Z_ANIMS.concat(Z_MOVES) : H_ANIMS, z ? ZL : ANIM_VI, setAnim, anim, z ? 'z' : '');
-  if (wm) chips($('#emotes'), W_PICK, W_PICK_VI, (w) => { const r = combat.setPick(w); frameCombat(r); }, combat.pick);
+  if (bm) chips($('#emotes'), BEAST_VIEWS, BEAST_VIEW_VI, (v) => { if (!beasts.acts().includes(beasts.act)) beasts.act = 'idle'; showBeasts(v); buildUI(); }, beasts.view);
+  else if (wm) chips($('#emotes'), W_PICK, W_PICK_VI, (w) => { const r = combat.setPick(w); frameCombat(r); }, combat.pick);
   else chips($('#emotes'), Object.keys(EMO_VI), EMO_VI, (e) => { if (cm) crew.setEmote(e); else setEmote(e); }, emote);
-  $('#anims').parentElement.style.display = mode === 'crowd' || mode === 'raid' || mode === 'arena' ? 'none' : '';
+  $('#anims').parentElement.style.display = mode === 'crowd' || mode === 'raid' || mode === 'arena' || (bm && beasts.view === 'park') ? 'none' : '';
   $('#emotes').parentElement.style.display = mode === 'arena' ? 'none' : '';
-  $('#emoLabel').textContent = wm ? 'Vũ khí' : 'Biểu cảm';
+  $('#emoLabel').textContent = wm ? 'Vũ khí' : bm ? 'Xem' : 'Biểu cảm';
 }
 function setMode(m) {
   mode = m; anim = 'idle'; sel = null; $('#tag').classList.remove('show'); ctl.follow = true; ctl.fp = false;
   raidLight.intensity = 0; scene.fog.color.set(0x12151c); scene.background.set(0x12151c); set.visible = m === 'crowd' || m === 'raid'; hemi.intensity = 0.55; key.intensity = 2.6;
-  crew.clear(); combat.clear(); clear(); arenaRing.visible = m === 'arena';
+  crew.clear(); combat.clear(); beasts.clear(); clear(); arenaRing.visible = m === 'arena';
   const portrait = innerWidth / innerHeight < 0.85;
   if (m === 'crew') { const L = crew.lineup(); ctl.follow = false; ctl.target.set(0, 0.3, 0.1); ctl.dist = portrait ? 11.5 : 7.4; ctl.yaw = 0; ctl.pitch = portrait ? 0.66 : 0.5; shadowBox(0, 0, Math.max(L.w, L.d) * 0.62 + 0.6); }
   else if (m === 'play') { crew.play(); ctl.follow = false; ctl.target.set(0.35, 0, 0.75); ctl.dist = portrait ? 12.5 : 9.2; ctl.yaw = 0.5; ctl.pitch = 0.8; shadowBox(0, 0, 3.8); }
   else if (m === 'weapons') { frameCombat(combat.showcase()); }
+  else if (m === 'beasts') { showBeasts(beasts.view); }
   else if (m === 'arena') { combat.arena(); ctl.follow = false; ctl.userT = 0; ctl.target.set(0, 0.6, 0); ctl.dist = portrait ? 16 : 12; ctl.yaw = 0.4; ctl.pitch = portrait ? 0.9 : 0.68; shadowBox(0, 0, 13); }
   else if (m === 'crowd') { crowdSet(); ctl.target.set(0, 0.5, -8); ctl.dist = 30; ctl.yaw = 0.35; ctl.pitch = 0.62; ctl.follow = false; shadowBox(0, -8, 22); }
   else if (m === 'raid') { raidSet(); ctl.fp = true; raidLight.intensity = 60; scene.fog.color.set(0x1a1013); scene.background.set(0x1a1013); hemi.intensity = 0.35; key.intensity = 1.6; shadowBox(0, -12, 26); }
@@ -336,6 +341,19 @@ function setEmote(e) { emote = e; for (const A of actors) A.p.setEmote(e); }
 // its weapon and the label under its feet) would leave the free part of the screen
 // arena camera: glides to the busiest cluster, slowly orbits and zooms with the spread of the fight; a drag, pinch or
 // wheel hands yaw / pitch / zoom to the user for 6 s (the target keeps following the fight)
+function showBeasts(v) {
+  const r = beasts.show(v), portrait = innerWidth / innerHeight < 0.85;
+  if (r.park) { ctl.follow = false; ctl.userT = 0; ctl.target.set(0, 0.3, 0.4); ctl.dist = portrait ? 15.5 : 12.5; ctl.yaw = 0.3; ctl.pitch = portrait ? 0.95 : 0.8; shadowBox(0, 0, 8); }
+  else frameCombat(r);
+}
+// park camera: drifts toward the dog / bird / robot action and orbits slowly; a drag hands it to the user for 6 s
+function beastCam(dt) {
+  const h = beasts.hot(); if (!h) return;
+  const portrait = innerWidth / innerHeight < 0.85, k = 1 - Math.exp(-dt * 0.8);
+  ctl.target.x += (h.x - ctl.target.x) * k; ctl.target.z += (h.z - ctl.target.z) * k;
+  if (performance.now() - (ctl.userT || 0) < 6000) return;
+  ctl.yaw += dt * 0.05;
+}
 function arenaCam(dt) {
   const h = combat.hot(); if (!h) return;
   const portrait = innerWidth / innerHeight < 0.85, k = 1 - Math.exp(-dt * 1.6);
@@ -351,9 +369,10 @@ function frameCombat(r) {
   const hb = (document.querySelector('header') || { getBoundingClientRect: () => ({ bottom: 60 }) }).getBoundingClientRect().bottom + (innerWidth > 640 ? 34 : 40);
   const db = innerHeight - ($('#dock') ? $('#dock').getBoundingClientRect().height : 100) - 22;
   const top = 1 - 2 * hb / innerHeight, bot = 1 - 2 * db / innerHeight, side = 1 - 2 * 14 / innerWidth;
-  ctl.follow = false; ctl.yaw = 0; ctl.pitch = r.rows > 2 ? 1.05 : r.rows > 1 ? 0.74 : 0.16;
+  ctl.follow = false; ctl.yaw = 0; ctl.pitch = r.pitch ?? (r.rows > 2 ? 1.05 : r.rows > 1 ? 0.74 : 0.16);
   const cam = camera.clone(), v = new THREE.Vector3(), probe = [];
-  for (const [x, z] of pts) for (const dx of [-0.95, 0.95]) for (const y of [-0.12, 1.75]) probe.push([x + dx, y, z + (y < 0 ? 0.25 : -0.1)]);
+  const bw = r.h ? 0.42 : 0.95, bh = r.h || 1.75;
+  for (const [x, z] of pts) for (const dx of [-bw, bw]) for (const y of [-0.12, bh]) probe.push([x + dx, y, z + (y < 0 ? 0.25 : -0.1)]);
   let lo = 2, hi = 80, ty = 0.8;
   const fits = (d) => { for (let it = 0; it < 2; it++) { const cp = Math.cos(ctl.pitch); cam.position.set(cx, ty + Math.sin(ctl.pitch) * d, cz + cp * d); cam.lookAt(cx, ty, cz); cam.updateMatrixWorld(); }
     let ymin = 9, ymax = -9; for (const p of probe) { v.set(...p).project(cam); if (Math.abs(v.x) > side) return null; ymin = Math.min(ymin, v.y); ymax = Math.max(ymax, v.y); } return [ymin, ymax]; };
@@ -367,8 +386,8 @@ function frameCombat(r) {
 // screen labels under the line-up
 const labelsEl = $('#labels'); let labelEls = [];
 function drawLabels() {
-  const show = (mode !== 'crowd' && mode !== 'raid' && mode !== 'arena') && !sel && (innerWidth > 700 || mode === 'weapons');
-  const src = mode === 'weapons' ? combat.list.map((A) => ({ p: A.p, e: { label: A.label } })) : mode === 'crew' || mode === 'play' ? [] : actors;
+  const show = (mode !== 'crowd' && mode !== 'raid' && mode !== 'arena') && !sel && (innerWidth > 700 || mode === 'weapons' || mode === 'beasts');
+  const src = mode === 'weapons' ? combat.list.map((A) => ({ p: A.p, e: { label: A.label } })) : mode === 'beasts' ? beasts.labels() : mode === 'crew' || mode === 'play' ? [] : actors;
   while (labelEls.length < actors.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
   while (labelEls.length < src.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
   labelEls.forEach((d, i) => { const A = src[i]; if (!show || !A) { d.style.display = 'none'; return; } const p = new THREE.Vector3(A.p.mesh.position.x, -0.05, A.p.mesh.position.z).project(camera); d.style.display = ''; d.className = 'lb' + (A.e.kind ? ' z' : ''); d.textContent = A.e.label; d.style.left = ((p.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - p.y) / 2 * innerHeight + 4) + 'px'; });
@@ -376,13 +395,14 @@ function drawLabels() {
 
 // ---------------------------------------------------------------- loop
 function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.85 ? 52 : 38; camera.updateProjectionMatrix(); }
-addEventListener('resize', () => { resize(); if (['roles', 'zombies', 'looks', 'staff'].includes(mode)) frameLineup(true); if (mode === 'weapons') frameCombat(combat.showcase()); });
+addEventListener('resize', () => { resize(); if (['roles', 'zombies', 'looks', 'staff'].includes(mode)) frameLineup(true); if (mode === 'weapons') frameCombat(combat.showcase()); if (mode === 'beasts' && beasts.view !== 'park') showBeasts(beasts.view); });
 let last = performance.now(), frames = 0, fpsT = 0, fpsE = 0, updMs = 0;
 function stepSim(dt) {
   T += dt;
   if (mode === 'crew' || mode === 'play') crew.update(dt, camera);
   else if (mode === 'weapons') combat.stepShowcase(dt);
   else if (mode === 'arena') { combat.stepArena(dt); arenaCam(dt); }
+  else if (mode === 'beasts') { beasts.step(dt); beastCam(dt); }
   else if (mode === 'crowd') for (const A of actors) { A.p.update(crowdDesc(A, dt)); A.p.evq.length = 0; }
   else if (mode === 'raid') { raidStep(dt); for (const A of actors) if (A.p) A.p.evq.length = 0; }
   else {
@@ -408,14 +428,14 @@ function frame(now) {
   if (fpsT >= 0.5) {
     fpsE = frames / fpsT; frames = 0; fpsT = 0; const i = renderer.info.render, st = people.stats();
     const nz = actors.filter((A) => A.e.kind && !A.dying).length, nh = actors.length - nz;
-    const line2 = mode === 'crew' || mode === 'play' ? `${crew.bots.length} robot chi tiết (mỗi bộ phận một lệnh vẽ)` : mode === 'arena' ? combat.counts() : mode === 'weapons' ? `${combat.list.length} robot cầm vũ khí` : `${nh} robot người · ${nz} robot zombie`;
+    const line2 = mode === 'crew' || mode === 'play' ? `${crew.bots.length} robot chi tiết (mỗi bộ phận một lệnh vẽ)` : mode === 'arena' ? combat.counts() : mode === 'beasts' ? beasts.counts() : mode === 'weapons' ? `${combat.list.length} robot cầm vũ khí` : `${nh} robot người · ${nz} robot zombie`;
     $('#stats').innerHTML = `<b>${fpsE.toFixed(0)}</b> fps · <b>${i.calls}</b> lệnh vẽ (chưa tính bóng) · ${(i.triangles / 1000).toFixed(0)}k tam giác<br>${line2} · cập nhật ${updMs.toFixed(2)} ms`;
     Object.assign(window.TW, { fps: fpsE, calls: i.calls, tris: i.triangles, robotCalls: st.calls, updMs, protos: st.protos });
   }
 }
 window.TW = {
   ready: false, people, actors: () => actors, camera, ctl, setMode, setAnim: (a) => { setAnim(a); buildUI(); }, setEmote, select: (i) => select(i === null ? null : actors[i]),
-  combat, crew,
+  combat, crew, beasts,
   view: (t, dist, yaw, pitch) => { ctl.follow = false; ctl.fp = false; ctl.target.set(...t); ctl.dist = dist; ctl.yaw = yaw; ctl.pitch = pitch; },
   fp: (on) => { ctl.fp = on; }, raidCam: RAID.cam, stats: () => people.stats(), mode: () => mode,
 };

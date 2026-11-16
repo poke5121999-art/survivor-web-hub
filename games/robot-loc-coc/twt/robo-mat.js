@@ -10,7 +10,9 @@ import { NPAL } from './robo-cast.js';
 export const TEX_W = 80; // texels per slot: 24 bones x 3 + root x 3 + 2 params
 const ROOT_T = 72, PAR_T = 75;
 
-const SKIN_PARS = `
+// texel layout of a slot row: bones from 0, root matrix at `root`, 2 param texels at `par` (robots: 72 / 75; the
+// animal kit uses wider rows, see robo-beasts.js)
+const SKIN_PARS = (ROOT_T) => `
 uniform highp sampler2D uBones;
 attribute float aBone; attribute float aReg; attribute float aSlot;
 varying float vReg; varying float vBone; varying vec3 vOP;
@@ -22,7 +24,7 @@ mat4 rbRow(int x, int y) {
 mat4 rbSkin() { int y = int(aSlot + .5); return rbRow(${ROOT_T}, y) * rbRow(int(aBone + .5) * 3, y); }
 mat4 gSk;
 `;
-const DEPTH_PARS = `
+const DEPTH_PARS = (ROOT_T) => `
 uniform highp sampler2D uBones;
 attribute float aBone; attribute float aSlot;
 mat4 rbRow(int x, int y) {
@@ -31,7 +33,7 @@ mat4 rbRow(int x, int y) {
 }
 mat4 rbSkin() { int y = int(aSlot + .5); return rbRow(${ROOT_T}, y) * rbRow(int(aBone + .5) * 3, y); }
 `;
-const SKIN_N = `
+const SKIN_N = (PAR_T) => `
 gSk = rbSkin(); objectNormal = mat3(gSk) * objectNormal;
 vReg = aReg; vBone = aBone; vOP = position;
 { int y = int(aSlot + .5); vP0 = texelFetch(uBones, ivec2(${PAR_T}, y), 0); vP1 = texelFetch(uBones, ivec2(${PAR_T + 1}, y), 0); }
@@ -193,6 +195,7 @@ let _empty = null;
 function emptyTex() { if (!_empty) { _empty = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1); _empty.needsUpdate = true; } return _empty; }
 // proto: built proto (robo-cast buildProto); shared: { uBones, uTime }
 export function crowdMat(proto, shared) {
+  const L = shared.layout || { root: ROOT_T, par: PAR_T };
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.1, envMapIntensity: 1.0, side: THREE.DoubleSide });
   let decal = null; if (proto.decal) { decal = new THREE.CanvasTexture(proto.decal); decal.colorSpace = THREE.SRGBColorSpace; decal.anisotropy = 4; }
   const f = proto.face;
@@ -210,22 +213,23 @@ export function crowdMat(proto, shared) {
   m.userData.u = u; m.userData.decal = decal;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + SKIN_PARS)
-      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + SKIN_N)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + SKIN_PARS(L.root))
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + SKIN_N(L.par))
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + SKIN_P);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + FPARS)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + FMAIN)
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  gl_FragColor.a = 0.0;');
   };
-  m.customProgramCacheKey = () => 'robocrowd1';
+  m.customProgramCacheKey = () => 'robocrowd1:' + L.root;
   return m;
 }
 export function crowdDepthMat(shared) {
+  const L = shared.layout || { root: ROOT_T, par: PAR_T };
   const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uBones = shared.uBones;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + DEPTH_PARS).replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed = (rbSkin() * vec4(position, 1.)).xyz;');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + DEPTH_PARS(L.root)).replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed = (rbSkin() * vec4(position, 1.)).xyz;');
   };
-  m.customProgramCacheKey = () => 'robocrowddepth1';
+  m.customProgramCacheKey = () => 'robocrowddepth1:' + L.root;
   return m;
 }
