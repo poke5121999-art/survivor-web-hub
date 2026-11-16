@@ -80,7 +80,7 @@ export class RoboBody {
   // ctx: { ax, az } root-frame acceleration (bot units / s^2), look: root-space point or null
   update(dt, ctx = {}) {
     if (this.frozen) return;
-    dt = Math.min(dt, 1 / 15); this.t += dt; this.ev.length = 0; this.dtNow = dt;
+    dt = Math.min(dt, 1 / 15); this.t += dt; this.ev.length = 0; if (this.evPend && this.evPend.length) { this.ev.push(...this.evPend); this.evPend.length = 0; } this.dtNow = dt;
     const p = this.pose; this.basePose(p);
     const I = this.I, sh = this.shot;
     if (sh) { sh.t += dt; if (sh.t >= sh.tHit + sh.tRec) this.shot = null; }
@@ -363,15 +363,18 @@ export class RoboBody {
     if (D.dangle) { for (let i = 0; i < sub; i++) { this.dangS[0].step(gz * 2, 30, 1.6, h, -hz * 1.5 - ay * 0.05); this.dangS[1].step(gx * 2, 30, 1.6, h, hx * 1.5); } const MD = M[B.DANGLE]; MD.copy(MT); mulT(MD, ...D.dangle.pos); mulE(MD, clamp(this.dangS[0].x, -1.3, 1.3), 0, clamp(this.dangS[1].x, -1.3, 1.3) + 0.15 * D.dangle.side); }
     // arms
     const [sx, sy, sz] = T.sh;
+    const gunFirst = armed && !!this.wdef.muzzle; // guns: place the gun from the stance, then put both hands on it
+    if (gunFirst) { this.solveWeapon(p, MT, qTorso, null, null); p.handK = Math.max(p.handK, 9); }
     for (let i = 0; i < 2; i++) {
       const s = i ? -1 : 1, bU = i ? B.RUP : B.LUP, bF = i ? B.RFORE : B.LFORE, bH = i ? B.RHAND : B.LHAND;
       const shp = _v4.set(s * sx, sy, sz).applyMatrix4(MT).clone();
       let tgt = p.hspace === 'torso' ? _v.copy(p.hands[i]).applyMatrix4(MT) : _v.copy(p.hands[i]);
       if (i === 0 && armed && p.w.oh !== 'free' && this.g2) tgt = _v.copy(this.g2);
+      if (i === 1 && gunFirst && this.g1) tgt = _v.copy(this.g1);
       if (!this.handInit) this.hands[i].x.copy(tgt);
       const hk = 160 * p.handK; this.handV0[i].copy(this.hands[i].v);
       for (let j = 0; j < sub; j++) this.hands[i].step(tgt, hk, 2 * Math.sqrt(hk) * 0.55, h);
-      const pole = _v2.set(s * 0.6, -0.3, -1).applyQuaternion(qTorso);
+      const pole = (gunFirst ? _v2.set(s * 0.55, -1, -0.25) : _v2.set(s * 0.6, -0.3, -1)).applyQuaternion(qTorso);
       ik(shp, this.hands[i].x, D.a1, D.a2, pole);
       const el = _ikB.clone(), wr = _ikC.clone();
       segTo(M[bU], shp, el); segTo(M[bF], el, wr);
@@ -380,7 +383,7 @@ export class RoboBody {
       if (i === 0) this.lw = wr; else { this.rw = wr; this._elR = el; }
     }
     this.handInit = true;
-    if (this.wdef) { if (armed) this.solveWeapon(p, MT, qTorso, this._elR, this.rw); else this.wShown = false; }
+    if (this.wdef) { if (armed) { if (!gunFirst) this.solveWeapon(p, MT, qTorso, this._elR, this.rw); } else this.wShown = false; }
     // legs
     const MP = M[B.PELVIS];
     for (let i = 0; i < 2; i++) {

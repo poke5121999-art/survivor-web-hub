@@ -3,13 +3,20 @@
 // (claw combo, lunge, grab, bite / headbutt, spit). Poses follow anticipation -> impact -> follow-through; impacts push
 // the body springs so the robot wobbles. Events (impact, fire, release, eject, magout, spit) go to body.ev for the page.
 import * as THREE from '../vendor/three.module.min.js';
-import { WEAPONS } from './robo-weapons.js';
+import { WEAPONS, WSCALE } from './robo-weapons.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const bump = (u, a, b, c, d) => sstep(a, b, u) * (1 - sstep(c, d, u));
 const lerp = (a, b, t) => a + (b - a) * t;
 const Yv = V(0, 1, 0), Zv = V(0, 0, 1);
+// gun orientation: barrel (+Z) along dir, rolled so the gun's top stays as close to `up` as it can
+function uprightQ(dir, up, out = new THREE.Quaternion()) {
+  out.setFromUnitVectors(Zv, dir);
+  const a = V(0, 1, 0).applyQuaternion(out); a.addScaledVector(dir, -a.dot(dir)); const b = up.clone().addScaledVector(dir, -up.dot(dir));
+  if (a.lengthSq() > 1e-4 && b.lengthSq() > 1e-4) { a.normalize(); b.normalize(); let ang = Math.acos(Math.max(-1, Math.min(1, a.dot(b)))); if (V().crossVectors(a, b).dot(dir) < 0) ang = -ang; out.premultiply(new THREE.Quaternion().setFromAxisAngle(dir, ang)); }
+  return out;
+}
 
 // clip table: duration (s) and event times (fraction)
 export const ACTS = {
@@ -19,7 +26,7 @@ export const ACTS = {
   shove: { dur: 0.65, ev: [[0.32, 'impact', 2]], vi: 'Xô ngã' },
   dodgeL: { dur: 0.5, ev: [], vi: 'Né' }, dodgeR: { dur: 0.5, ev: [] },
   reload: { dur: 1.4, ev: [], vi: 'Nạp đạn' },
-  pump: { dur: 0.42, ev: [[0.45, 'eject']], vi: 'Lên đạn' },
+  pump: { dur: 0.55, ev: [[0.42, 'eject']], vi: 'Lên đạn' },
   throw: { dur: 0.95, ev: [[0.55, 'release']], vi: 'Ném' },
   hitF: { dur: 0.5, ev: [] }, hitB: { dur: 0.5, ev: [] },
   knock: { dur: 1.7, ev: [] },
@@ -36,7 +43,7 @@ export function installCombat(RB) {
   pr.setWeapon = function (id) {
     const d = WEAPONS[id] || null; this.weap = d && d.kind !== 'fist' ? id : null; this.wdef = d; this.ammo = d && d.mag ? d.mag : 0;
     this.wM = this.wM || new THREE.Matrix4(); this.g2 = null; this.aim = 0; this.guard = 0; this.pumpZ = 0; this.holdPart = null; this.held = true;
-    this.recoil = this.recoil || { x: 0, v: 0 };
+    this.recoil = this.recoil || { x: 0, v: 0 }; this.slideZ = 0; this.slideKick = 0;
     if (this.hide) this.hide[21] = this.weap || (d && d.kind === 'fist') ? 1 : this.hide[21]; // twt prop weapon bone off
   };
   pr.act = function (name, o = {}) {
@@ -46,18 +53,21 @@ export function installCombat(RB) {
     this.actS = { name, t: 0, dur: dur * (o.speed ? 1 / o.speed : 1), ev: a.ev, done: 0, o };
     if (name === 'hitF' || name === 'hitB') { const k = o.k || 1, s = name === 'hitF' ? -1 : 1; this.tTilt[0].v += 9 * k * s; this.hRot[0].v += 11 * k * s; this.hRot[2].v += (this.rand() - 0.5) * 14 * k; this.squash.v += 2.5 * k; this.flash = 1; this.eyeFlick = 0.1; }
     if (name === 'knock') { this.tTilt[0].v -= 12; this.squash.v += 3; this.flash = 1; }
-    if (name === 'pump') this.ev.push({ e: 'pumpStart' });
+    if (name === 'pump') this.pend({ e: 'pumpStart' });
     return true;
   };
   pr.fire = function () {
     const d = this.wdef; if (!d || !d.muzzle || this.actS) return false;
     if (this.ammo <= 0) return false; this.ammo--;
-    const kick = { pistol: 7, smg: 3.5, rifle: 12, shotgun: 16 }[d.kind] || 6;
-    this.recoil.v += kick; this.tTilt[0].v -= kick * 0.25; this.hRot[0].v -= kick * 0.35; this.squash.v -= kick * 0.08;
-    this.ev.push({ e: 'fire' });
-    if (d.kind !== 'shotgun') this.ev.push({ e: 'eject' });
+    const kick = { pistol: 9, smg: 4.5, rifle: 14, shotgun: 19 }[d.kind] || 6;
+    this.recoil.v += kick; this.tTilt[0].v -= kick * 0.4; this.hRot[0].v -= kick * 0.45; this.squash.v -= kick * 0.1;
+    if (d.slide) this.slideKick = 1;
+    this.pend({ e: 'fire' });
+    if (d.kind !== 'shotgun') this.pend({ e: 'eject' });
     return true;
   };
+  // events raised between updates (fire, act) are handed to body.ev at the start of the next update
+  pr.pend = function (e) { (this.evPend || (this.evPend = [])).push(e); };
   pr.stepAct = function (dt) {
     const a = this.actS; if (!a) return null;
     const u0 = a.t / a.dur; a.t += dt; const u = Math.min(1, a.t / a.dur);
@@ -78,22 +88,47 @@ export function installCombat(RB) {
     w.roll = 0; w.oh = 'free'; w.ohPos.set(sx + 0.035, sy - A * 0.9, 0.02); w.show = true;
     if (!d) return;
     const k = d.kind;
+    if (d.muzzle) { this.gunStance(p, w, d); return; }
     if (k === 'm1') { if (d.two) { w.pos.set(-sx * 0.45, sy - A * 0.45, Td + 0.1); w.dir.set(0.35, 0.85, 0.2); w.oh = 'grip'; } else { w.pos.set(-sx - 0.03, sy - A * 0.62, 0.08); w.dir.set(0, -0.55, 1); } }
     else if (k === 'm2') { w.pos.set(-sx * 0.4, sy - A * 0.55, Td + 0.1); w.dir.set(0.5, 0.75, 0.3); w.oh = 'grip'; }
-    else if (k === 'pistol') { w.pos.set(-sx * 0.35, sy - A * 0.45, Td + A * 0.35); w.dir.set(0, -0.5, 0.85); if (d.two) w.oh = 'grip'; }
-    else if (k === 'smg') { w.pos.set(-sx * 0.25, sy - 0.08, Td + A * 0.35); w.dir.set(0, -0.25, 1); w.oh = 'grip'; }
-    else if (k === 'rifle' || k === 'shotgun') { w.pos.set(-sx * 0.5, sy - 0.06, Td + 0.12); w.dir.set(0.1, -0.35, 0.95); w.oh = 'grip'; }
     else if (k === 'throw') { w.pos.set(-sx - 0.03, sy - A * 0.6, 0.1); w.dir.set(0, 1, 0); w.show = this.held; }
-    if (this.aim && d.muzzle) {
-      if (k === 'pistol') { if (d.two) { w.pos.set(-sx * 0.05, sy + 0.03, Td + A * 0.72); } else w.pos.set(-sx * 0.4, sy + 0.05, Td + A * 0.8); w.dir.set(0, 0, 1); p.trot.y -= d.two ? 0 : 0.15; }
-      else if (k === 'smg') { w.pos.set(-sx * 0.3, sy + 0.0, Td + A * 0.45); w.dir.set(0, 0, 1); }
-      else if (k === 'rifle') { w.pos.set(-sx * 0.42, T.neck - 0.03, Td + 0.16); w.dir.set(0, 0, 1); p.hrot.z += 0.18; p.hrot.x += 0.06; p.hrot.y -= 0.1; }
-      else if (k === 'shotgun') { w.pos.set(-sx * 0.48, sy + 0.05, Td + 0.14); w.dir.set(0, 0, 1); p.hrot.z += 0.1; }
-      p.emote = this.zombie ? 'angry' : 'angry';
-    }
     if (this.guard && (k === 'm1' || k === 'm2')) { w.pos.set(-sx * 0.5, sy + 0.12, Td + 0.16); w.dir.set(1, 0.2, 0.05); w.oh = d.two ? 'grip' : 'free'; w.ohPos.set(sx * 0.35, sy + 0.08, Td + 0.12); p.hip.y -= 0.06 * D.L; p.trot.x += 0.1; p.emote = 'strain'; }
-    // recoil spring: muzzle climbs and the gun pushes back into the hand
-    const r = this.recoil; if (r) { r.v += (-260 * r.x - 18 * r.v) * Math.min(this.dtNow || 0.016, 0.05); r.x += r.v * Math.min(this.dtNow || 0.016, 0.05); w.pos.z -= r.x * 0.045; w.pos.y += r.x * 0.02; w.dir.y += r.x * 0.32; p.trot.x -= r.x * 0.08; p.hrot.x -= r.x * 0.1; }
+  };
+  // guns: long guns blade the body (support shoulder forward), butt in the trigger-side shoulder pocket, cheek on
+  // the stock; pistols at the end of a straight arm (one hand) or centred with both arms (isosceles). Writes w.pos =
+  // gun origin (the grip) and w.dir = barrel, both in torso space; hands are then put on the grips (solveWeapon).
+  pr.gunStance = function (p, w, d) {
+    const D = this.D, T = D.T, [sx, sy] = T.sh, A = D.a1 + D.a2, Td = T.d, k = d.kind, aim = this.aim, S = WSCALE;
+    const dt = Math.min(this.dtNow || 0.016, 0.05), r = this.recoil;
+    if (r) { r.v += (-230 * r.x - 17 * r.v) * dt; r.x += r.v * dt; }
+    const rx = r ? r.x : 0;
+    this.slideKick = Math.max(0, this.slideKick - dt * 9); this.slideZ = -0.045 * Math.sin(Math.min(1, this.slideKick) * Math.PI) * (this.slideKick > 0 ? 1 : 0);
+    w.oh = d.two ? 'grip' : 'free'; w.gun = true;
+    const long = k === 'rifle' || k === 'shotgun' || k === 'smg';
+    const dirR = V(0, 0, 1); let pocket = null, org = null;
+    if (long) {
+      const blade = aim ? 0.5 : 0.36; p.trot.y -= blade; p.prot.y -= blade * 0.3; p.hrot.y += blade * 0.85;
+      if (aim) { pocket = V(-sx * 0.6, sy + 0.005, Td * 0.5); p.hrot.x += 0.2; p.hrot.z -= 0.14; p.trot.x += 0.07; p.hip.y -= 0.03 * D.L; }
+      else { pocket = V(-sx * 0.5, sy - 0.06, Td * 0.55); dirR.set(-0.12, -0.42, 0.9); }
+      // kick: butt shoves back into the shoulder, muzzle climbs, torso rocks back
+      pocket.z -= rx * 0.05; pocket.y += rx * 0.012; dirR.y += rx * 0.22; p.trot.x -= rx * 0.11; p.trot.y += rx * 0.05; p.hrot.x -= rx * 0.12;
+    } else { // pistol
+      if (aim) {
+        if (d.two) { org = V(0.0, sy + 0.035, A * 0.8); p.trot.x += 0.05; }
+        else { const b = 0.32; p.trot.y += b; p.hrot.y -= b * 0.9; org = null; }
+      } else if (d.two) { org = V(-sx * 0.1, sy - A * 0.38, Td + 0.17); dirR.set(0, -0.6, 0.8); }
+      else { org = V(-sx * 0.95, sy - A * 0.55, Td + 0.09); dirR.set(0, -0.75, 0.66); }
+      dirR.y += rx * 0.5; p.trot.x -= rx * 0.07; p.hrot.x -= rx * 0.1;
+    }
+    // desired root-space barrel -> torso space (undo torso yaw and pitch)
+    const yaw = p.prot.y + p.trot.y, pit = p.trot.x + p.prot.x;
+    w.dir.copy(dirR.normalize()).applyEuler(new THREE.Euler(-pit, -yaw, 0, 'XYZ'));
+    const q = uprightQ(w.dir, Yv);
+    if (long) org = pocket.clone().sub(V(...d.stock).multiplyScalar(S).applyQuaternion(q));
+    else if (!org) org = V(-sx, sy + 0.03, 0).addScaledVector(w.dir, A * 0.86).add(V(0, -0.02 * S, 0));
+    if (aim && !long) org.z -= rx * 0.05;
+    w.pos.copy(org); w.roll = 0;
+    if (aim) p.emote = 'angry';
   };
 
   // combat clip u 0..1 (writes p.w for weapons, hands for unarmed / zombie)
@@ -141,7 +176,7 @@ export function installCombat(RB) {
         p.hrot.z -= s * 0.2 * k; break;
       }
       case 'reload': this.reloadPose(p, u); break;
-      case 'pump': { const k = bump(u, 0.05, 0.45, 0.5, 0.9); this.pumpZ = -0.08 * k; w.oh = 'pump'; p.hrot.x += 0.04 * k; break; }
+      case 'pump': { const k = bump(u, 0.04, 0.38, 0.46, 0.86); this.pumpZ = -0.11 * k; w.oh = 'pump'; w.pos.y -= 0.025 * k; w.pos.z -= 0.02 * k; p.trot.x += 0.05 * k; p.hrot.x += 0.06 * k; this.tTilt[0].v += 0.3 * k; break; }
       case 'throw': {
         const wind = bump(u, 0, 0.42, 0.45, 0.6), thr = bump(u, 0.45, 0.58, 0.7, 1);
         w.pos.set(-sx - 0.03, sy - A * 0.6, 0.1).lerp(V(-sx * 0.6, sy + A * 0.7, -0.14), wind).lerp(V(-sx * 0.1, sy + 0.12, Td + A * 0.78), thr); w.dir.set(0, 1, 0);
@@ -188,21 +223,22 @@ export function installCombat(RB) {
     const go = (pt, k) => { w.ohPt.lerp(V(...pt), k); };
     const tilt = bump(u, 0, 0.12, 0.88, 1);
     if (d.kind === 'pistol') {
-      w.pos.lerp(V(-sx * 0.2, sy - 0.02, Td + A * 0.45), tilt); w.dir.lerp(V(0.25, 0.45, 0.85), tilt);
-      w.ohPt.set(0, -0.08, 0); const out = bump(u, 0.18, 0.3, 0.36, 0.5);
-      if (out > 0.01) { w.oh = 'free'; w.ohPos.copy(belt); this.holdPart = u > 0.3 && u < 0.5 ? 'mag' : null; }
-      if (u > 0.5 && u < 0.62) this.holdPart = 'mag';
-      if (u > 0.62) go([0, 0.07, -0.04 - 0.06 * bump(u, 0.7, 0.8, 0.82, 0.88)], 1);
-      if (u > 0.9) w.oh = d.two ? 'grip' : 'free';
+      w.pos.lerp(V(-sx * 0.1, sy - 0.03, Td + A * 0.4), tilt); w.dir.lerp(V(0.12, 0.22, 0.97), tilt); w.roll = 0.55 * tilt;
+      w.ohPt.set(0, -0.1, 0); const out = bump(u, 0.18, 0.3, 0.36, 0.5);
+      if (out > 0.01) { w.oh = 'free'; w.ohPos.copy(belt).lerp(V(sx * 0.1, sy - 0.12, Td + A * 0.38), sstep(0.36, 0.5, u)); this.holdPart = u > 0.3 && u < 0.5 ? 'mag' : null; }
+      if (u > 0.5 && u < 0.62) { go([0, -0.12 + 0.07 * sstep(0.5, 0.6, u), 0], 1); this.holdPart = 'mag'; }
+      if (u > 0.64 && u < 0.92) { const pull = bump(u, 0.7, 0.78, 0.8, 0.88); go([0.0, 0.1, -0.03 - 0.05 * pull], 1); this.slideZ = -0.05 * pull; }
+      if (u > 0.6 && u < 0.62) this.squash.v -= 0.8;
+      if (u > 0.92) w.oh = d.two ? 'grip' : 'free';
     } else if (d.kind === 'shotgun') {
-      w.pos.lerp(V(-sx * 0.35, sy - 0.03, Td + 0.18), tilt); w.dir.lerp(V(0.2, 0.3, 0.95), tilt);
+      w.pos.lerp(V(-sx * 0.3, sy - 0.03, Td + 0.3), tilt); w.dir.lerp(V(0.35, 0.3, 0.9), tilt); w.roll = -0.9 * tilt;
       const n = 4, seg = Math.min(n - 1, Math.floor((u - 0.08) / 0.18)), f = ((u - 0.08) / 0.18) - seg;
       if (u < 0.08) go([0, 0.0, 0.2], 1); else if (u < 0.8) { if (f < 0.5) { w.oh = 'free'; w.ohPos.copy(belt).lerp(V(sx * 0.2, sy - 0.08, Td + 0.18), sstep(0.25, 0.5, f)); this.holdPart = 'shell'; } else { w.ohPt.set(0, -0.0, 0.05); this.holdPart = f < 0.7 ? 'shell' : null; } }
-      else { w.oh = 'pump'; this.pumpZ = -0.08 * bump(u, 0.82, 0.88, 0.92, 0.98); if (u > 0.86 && !this._ej) { this._ej = 1; this.ev.push({ e: 'pumpStart' }); } }
+      else { w.oh = 'pump'; const pk = bump(u, 0.82, 0.88, 0.92, 0.98); this.pumpZ = -0.11 * pk; w.pos.y -= 0.02 * pk; if (u > 0.86 && !this._ej) { this._ej = 1; this.ev.push({ e: 'pumpStart' }); } }
       if (u < 0.5) this._ej = 0;
     } else { // smg / rifle: mag out, belt, mag in, charge
       const magZ = d.kind === 'rifle' ? 0.1 : 0.1;
-      w.pos.lerp(V(-sx * 0.35, sy - 0.04, Td + 0.18), tilt); w.dir.lerp(V(0.15, 0.15, 1), tilt); w.roll = 0.45 * tilt;
+      w.pos.lerp(V(-sx * 0.3, sy - 0.05, Td + 0.3), tilt); w.dir.lerp(V(0.3, 0.32, 0.9), tilt); w.roll = 0.75 * tilt;
       go([0, -0.07, magZ], 1);
       if (u > 0.18 && u < 0.25) { go([0, -0.15, magZ], sstep(0.18, 0.25, u)); }
       const out = bump(u, 0.24, 0.32, 0.38, 0.47);
@@ -218,6 +254,16 @@ export function installCombat(RB) {
   pr.solveWeapon = function (p, MT, qTorso, el, wr) {
     const d = this.wdef, w = p.w; if (!d || !d.geo || !w || !w.show) { this.wShown = false; return; }
     const gun = !!d.muzzle;
+    if (gun) {
+      const dir = V().copy(w.dir).normalize().applyQuaternion(qTorso), q = uprightQ(dir, Yv);
+      if (w.roll) q.premultiply(new THREE.Quaternion().setFromAxisAngle(dir, w.roll));
+      this.wM.compose(V().copy(w.pos).applyMatrix4(MT), q, V(WSCALE, WSCALE, WSCALE)); this.wShown = true; this.wQ = q;
+      const [sx, sy, sz] = this.D.T.sh, wrist = (pt, side) => { const g = V(...pt).applyMatrix4(this.wM), sh = V(side * sx, sy, sz).applyMatrix4(MT); return g.sub(sh.sub(g).multiplyScalar(-1).normalize().multiplyScalar(0.03)); };
+      this.g1 = wrist([0, -0.012, -0.004], -1);
+      const pt = w.oh === 'grip' && d.grip2 ? [d.grip2[0], d.grip2[1] - 0.012, d.grip2[2]] : w.oh === 'pump' && d.pump ? [d.pump[0], d.pump[1] - 0.025, d.pump[2] + this.pumpZ] : w.oh === 'pt' ? w.ohPt.toArray() : null;
+      this.g2 = pt ? wrist(pt, 1) : null;
+      return;
+    }
     const dir = V().copy(w.dir).normalize().applyQuaternion(qTorso);
     const q = new THREE.Quaternion().setFromUnitVectors(gun ? Zv : Yv, dir);
     // keep guns upright (roll so weapon up is close to world up), melee keep the edge facing forward
@@ -228,7 +274,7 @@ export function installCombat(RB) {
     if (w.roll) q.premultiply(new THREE.Quaternion().setFromAxisAngle(dir, w.roll));
     const fist = V().subVectors(wr, el).normalize().multiplyScalar(0.035).add(wr);
     const o = gun ? fist.clone().sub(V(0, -0.04, 0).applyQuaternion(q)) : fist;
-    this.wM.compose(o, q, V(1, 1, 1)); this.wShown = true; this.wQ = q;
+    this.wM.compose(o, q, V(WSCALE, WSCALE, WSCALE)); this.wShown = true; this.wQ = q;
     const pt = w.oh === 'grip' && d.grip2 ? d.grip2 : w.oh === 'pump' && d.pump ? [d.pump[0], d.pump[1] - 0.03, d.pump[2] + this.pumpZ] : w.oh === 'pt' ? w.ohPt.toArray() : null;
     this.g2 = pt ? V(...pt).add(V(0, -0.03, 0)).applyMatrix4(this.wM) : null;
   };
@@ -238,7 +284,8 @@ export function installCombat(RB) {
     const M = new THREE.Matrix4().multiplyMatrices(rm, this.wM); out.push([this.weap, M]);
     const d = this.wdef;
     if (d.pump) out.push(['part:pump', M.clone().multiply(new THREE.Matrix4().makeTranslation(d.pump[0], d.pump[1], d.pump[2] + this.pumpZ))]);
-    if (this.holdPart && this.lw) out.push(['part:' + this.holdPart, new THREE.Matrix4().multiplyMatrices(rm, new THREE.Matrix4().compose(this.lw, this.wQ || new THREE.Quaternion(), V(1, 1, 1)))]);
+    if (d.slide) out.push(['part:slide', M.clone().multiply(new THREE.Matrix4().makeTranslation(d.slide[0], d.slide[1], d.slide[2] + (this.slideZ || 0)))]);
+    if (this.holdPart && this.lw) out.push(['part:' + this.holdPart, new THREE.Matrix4().multiplyMatrices(rm, new THREE.Matrix4().compose(this.lw, this.wQ || new THREE.Quaternion(), V(1, 1, 1).multiplyScalar(WSCALE * (this.holdPart === 'shell' ? 1.8 : 1.15))))]);
   };
   pr.weaponPoint = function (rm, local) { return V(...local).applyMatrix4(this.wM).applyMatrix4(rm); };
 }

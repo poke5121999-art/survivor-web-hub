@@ -7,6 +7,8 @@ import * as THREE from '../vendor/three.module.min.js';
 import { R, place, merge, rbox, fillet, lathe, cyl, sph, tor, cone, bcyl, screw } from './robo-geo.js';
 
 const P = Math.PI;
+// held weapons are drawn this much bigger than modelled (toy proportions, readable at line-up distance)
+export const WSCALE = 1.3;
 const prof = (pts, seg = 3) => fillet(pts, seg);
 // weapon palette slots (separate from the robots): 0 paint A, 1 paint B, 2 dark metal, 3 chrome, 4 wood, 5 rubber, 6 glow, 7 brass, 8 hazard, 9 olive
 export const W = { A: 0, B: 1, DARK: 2, CHROME: 3, WOOD: 4, RUBBER: 5, GLOW: 6, BRASS: 7, HAZ: 8, OLIVE: 9 };
@@ -38,29 +40,31 @@ function sledge() {
     place(rb(0.2, 0.1, 0.1, 0.025, W.DARK), [0, 0.48, 0]), place(rb(0.204, 0.03, 0.104, 0.01, W.HAZ), [0, 0.48, 0]), place(bc(0.045, 0.012, 0.004, W.CHROME), [0.1, 0.48, 0], [0, 0, -P / 2]), place(bc(0.045, 0.012, 0.004, W.CHROME), [-0.1, 0.48, 0], [0, 0, P / 2])]);
 }
 function pistol() {
-  return merge([place(rb(0.036, 0.05, 0.15, 0.012, W.DARK), [0, 0.045, 0.04]), place(rb(0.038, 0.016, 0.15, 0.006, W.A), [0, 0.075, 0.04]), place(bc(0.009, 0.03, 0.002, W.CHROME), [0, 0.055, 0.12], [P / 2, 0, 0]),
-    place(rb(0.032, 0.08, 0.04, 0.012, W.RUBBER), [0, -0.01, -0.005], [-0.2, 0, 0]), place(T(tor(0.016, 0.004, 0, 5, 12, P), W.DARK), [0, 0.02, 0.03], [0, P / 2, P]), place(rb(0.01, 0.012, 0.012, 0.003, W.GLOW), [0, 0.088, -0.02])]);
+  return merge([place(rb(0.036, 0.05, 0.15, 0.012, W.DARK), [0, 0.045, 0.04]), place(bc(0.009, 0.03, 0.002, W.CHROME), [0, 0.055, 0.12], [P / 2, 0, 0]),
+    place(rb(0.032, 0.08, 0.04, 0.012, W.RUBBER), [0, -0.01, -0.005], [-0.2, 0, 0]), place(T(tor(0.016, 0.004, 0, 5, 12, P), W.DARK), [0, 0.02, 0.03], [0, P / 2, P])]);
 }
+function slide() { return merge([place(rb(0.04, 0.02, 0.15, 0.006, W.A), [0, 0, 0]), ...[0, 1, 2, 3].map((i) => place(rb(0.042, 0.016, 0.004, 0.001, W.DARK), [0, 0, -0.06 + i * 0.008])), place(rb(0.01, 0.012, 0.012, 0.003, W.GLOW), [0, 0.014, -0.06])]); }
 function smg() {
   return merge([place(rb(0.044, 0.07, 0.22, 0.014, W.DARK), [0, 0.04, 0.06]), place(rb(0.03, 0.11, 0.04, 0.01, W.DARK), [0, -0.04, 0.1]), place(rb(0.032, 0.075, 0.036, 0.012, W.RUBBER), [0, -0.01, -0.01], [-0.2, 0, 0]),
     place(bc(0.012, 0.06, 0.003, W.CHROME), [0, 0.05, 0.19], [P / 2, 0, 0]), place(rb(0.03, 0.03, 0.12, 0.008, W.OLIVE), [0, 0.05, -0.08]), place(rb(0.046, 0.016, 0.06, 0.005, W.HAZ), [0, 0.08, 0.04]), screw([0.023, 0.04, 0.0], 0.006, [1, 0, 0])]);
 }
 function rifle() {
-  return merge([place(rb(0.046, 0.075, 0.3, 0.014, W.OLIVE), [0, 0.04, 0.06]), place(rb(0.04, 0.09, 0.2, 0.02, W.WOOD), [0, 0.02, -0.16]), place(rb(0.05, 0.05, 0.16, 0.012, W.WOOD), [0, 0.03, 0.26]),
+  return merge([place(rb(0.046, 0.075, 0.3, 0.014, W.OLIVE), [0, 0.04, 0.06]), place(rb(0.042, 0.09, 0.15, 0.02, W.WOOD), [0, 0.02, -0.135]), place(rb(0.026, 0.1, 0.02, 0.008, W.RUBBER), [0, 0.02, -0.215]), place(rb(0.052, 0.052, 0.16, 0.012, W.WOOD), [0, 0.03, 0.23]),
     place(bc(0.011, 0.14, 0.003, W.DARK), [0, 0.05, 0.34], [P / 2, 0, 0]), place(bc(0.016, 0.03, 0.004, W.DARK), [0, 0.05, 0.48], [P / 2, 0, 0]),
     place(rb(0.026, 0.11, 0.045, 0.01, W.DARK), [0, -0.04, 0.1], [0.25, 0, 0]), place(rb(0.032, 0.075, 0.036, 0.012, W.RUBBER), [0, -0.01, -0.01], [-0.2, 0, 0]),
     place(bc(0.022, 0.13, 0.004, W.DARK), [0, 0.105, 0.0], [P / 2, 0, 0]), place(T(bcyl(0.019, 0.004, 0.002, 0, 14), W.GLOW), [0, 0.105, 0.135], [P / 2, 0, 0]), place(rb(0.02, 0.03, 0.02, 0.006, W.DARK), [0, 0.085, 0.06]), screw([0.024, 0.04, 0.12], 0.006, [1, 0, 0])]);
 }
 function shotgun() {
-  return merge([place(rb(0.05, 0.075, 0.18, 0.016, W.DARK), [0, 0.04, 0.04]), place(rb(0.044, 0.085, 0.22, 0.02, W.WOOD), [0, 0.02, -0.15]),
+  return merge([place(rb(0.05, 0.075, 0.18, 0.016, W.DARK), [0, 0.04, 0.04]), place(rb(0.046, 0.085, 0.16, 0.02, W.WOOD), [0, 0.02, -0.12]), place(rb(0.03, 0.095, 0.02, 0.008, W.RUBBER), [0, 0.02, -0.205]),
     place(bc(0.015, 0.36, 0.004, W.CHROME), [0, 0.06, 0.13], [P / 2, 0, 0]), place(bc(0.012, 0.28, 0.003, W.DARK), [0, 0.035, 0.13], [P / 2, 0, 0]),
     place(rb(0.032, 0.075, 0.036, 0.012, W.RUBBER), [0, -0.01, -0.01], [-0.2, 0, 0]), place(rb(0.04, 0.01, 0.06, 0.004, W.A), [0, 0.08, 0.04]), screw([0.026, 0.04, 0.05], 0.006, [1, 0, 0])]);
 }
-function pump() { return merge([place(rb(0.044, 0.04, 0.1, 0.014, W.WOOD), [0, 0, 0]), ...[0, 1, 2].map((i) => place(rb(0.046, 0.006, 0.006, 0.002, W.DARK), [0, -0.012 + i * 0.012, 0.0]))]); }
+function pump() { return merge([place(rb(0.05, 0.046, 0.11, 0.016, W.WOOD), [0, 0, 0]), ...[0, 1, 2, 3].map((i) => place(rb(0.052, 0.042, 0.006, 0.002, W.DARK), [0, 0, -0.036 + i * 0.024]))]); }
 function grenade() { return merge([T(sph(0.035, 0, 12, 9), W.OLIVE), place(rb(0.074, 0.012, 0.074, 0.005, W.HAZ), [0, 0, 0]), place(bc(0.012, 0.025, 0.004, W.DARK), [0, 0.03, 0]), place(T(tor(0.011, 0.0025, 0, 4, 10), W.CHROME), [0.014, 0.05, 0], [0, 0, 0.4])]); }
 function can() { return merge([lathe(prof([[0, 0, 0, W.CHROME], [0.028, 0, 0.004, W.CHROME], [0.028, 0.012, 0, W.CHROME], [0.028, 0.013, 0, W.A], [0.028, 0.067, 0, W.A], [0.028, 0.068, 0, W.CHROME], [0.028, 0.08, 0.004, W.CHROME], [0, 0.08, 0, W.CHROME]]), 14).translate(0, -0.04, 0), place(rb(0.058, 0.02, 0.058, 0.002, W.HAZ), [0, 0, 0])]); }
 function mag() { return merge([place(rb(0.024, 0.09, 0.04, 0.008, W.DARK), [0, 0, 0]), place(rb(0.026, 0.012, 0.042, 0.004, W.BRASS), [0, 0.045, 0])]); }
 function shell() { return merge([place(bc(0.009, 0.04, 0.002, W.A), [0, 0, 0]), place(bc(0.0095, 0.012, 0.002, W.BRASS), [0, 0, 0])]); }
+function brass() { return merge([place(bc(0.006, 0.024, 0.0015, W.BRASS), [0, 0, 0], [P / 2, 0, 0])]); }
 function glob() { return T(sph(0.03, 0, 10, 8), W.GLOW); }
 
 // fx: 'swing' melee kind; grip2 other hand; muzzle/eject for guns; mag/ammo for reloads
@@ -72,16 +76,16 @@ export const WEAPONS = {
   machete: { vi: 'Mã tấu', kind: 'm1', geo: machete, dmg: 26, reach: 1.25 },
   axe: { vi: 'Rìu', kind: 'm2', two: true, geo: axe, grip2: [0, 0.16, 0], dmg: 40, reach: 1.4 },
   sledge: { vi: 'Búa tạ', kind: 'm2', two: true, geo: sledge, grip2: [0, 0.2, 0], dmg: 55, reach: 1.5 },
-  pistol: { vi: 'Súng lục', kind: 'pistol', geo: pistol, grip2: [0, -0.03, 0.0], muzzle: [0, 0.055, 0.14], eject: [0.02, 0.07, 0.04], mag: 8, rate: 0.42, dmg: 25, reload: 1.1 },
-  pistol2: { vi: 'Súng lục 2 tay', kind: 'pistol', two: true, geo: pistol, grip2: [0, -0.03, 0.0], muzzle: [0, 0.055, 0.14], eject: [0.02, 0.07, 0.04], mag: 8, rate: 0.36, dmg: 25, reload: 1.1 },
-  smg: { vi: 'Tiểu liên', kind: 'smg', two: true, geo: smg, grip2: [0, -0.05, 0.1], muzzle: [0, 0.05, 0.23], eject: [0.025, 0.06, 0.06], mag: 24, rate: 0.09, dmg: 9, reload: 1.4 },
-  rifle: { vi: 'Súng trường', kind: 'rifle', two: true, geo: rifle, grip2: [0, 0.0, 0.24], muzzle: [0, 0.05, 0.5], eject: [0.03, 0.06, 0.08], stock: [0, 0.03, -0.25], mag: 6, rate: 0.62, dmg: 45, reload: 1.8 },
-  shotgun: { vi: 'Súng săn', kind: 'shotgun', two: true, geo: shotgun, grip2: [0, 0.01, 0.2], pump: [0, 0.03, 0.2], muzzle: [0, 0.06, 0.32], eject: [0.03, 0.06, 0.05], stock: [0, 0.03, -0.24], mag: 5, rate: 0.95, dmg: 12, pellets: 6, reload: 2.2 },
+  pistol: { vi: 'Súng lục', kind: 'pistol', geo: pistol, slide: [0, 0.078, 0.04], grip2: [0.024, -0.03, 0.006], muzzle: [0, 0.055, 0.14], eject: [-0.02, 0.08, 0.04], mag: 8, rate: 0.42, dmg: 25, reload: 1.1 },
+  pistol2: { vi: 'Súng lục 2 tay', kind: 'pistol', two: true, geo: pistol, slide: [0, 0.078, 0.04], grip2: [0.024, -0.03, 0.006], muzzle: [0, 0.055, 0.14], eject: [-0.02, 0.08, 0.04], mag: 8, rate: 0.36, dmg: 25, reload: 1.1 },
+  smg: { vi: 'Tiểu liên', kind: 'smg', two: true, geo: smg, grip2: [0, -0.05, 0.1], stock: [0, 0.05, -0.14], muzzle: [0, 0.05, 0.23], eject: [-0.025, 0.06, 0.06], mag: 24, rate: 0.09, dmg: 9, reload: 1.4 },
+  rifle: { vi: 'Súng trường', kind: 'rifle', two: true, geo: rifle, grip2: [0, 0.0, 0.2], muzzle: [0, 0.05, 0.5], eject: [-0.03, 0.06, 0.08], stock: [0, 0.02, -0.225], mag: 6, rate: 0.62, dmg: 45, reload: 1.8 },
+  shotgun: { vi: 'Súng săn', kind: 'shotgun', two: true, geo: shotgun, grip2: [0, 0.01, 0.17], pump: [0, 0.03, 0.17], muzzle: [0, 0.06, 0.32], eject: [-0.03, 0.06, 0.05], stock: [0, 0.02, -0.215], mag: 5, rate: 0.95, dmg: 12, pellets: 6, reload: 2.2 },
   grenade: { vi: 'Lựu đạn', kind: 'throw', geo: grenade, proj: 'grenade' },
   can: { vi: 'Lon đồ hộp', kind: 'throw', geo: can, proj: 'can' },
 };
 export const WEAPON_IDS = Object.keys(WEAPONS);
-const PARTS = { pump, grenade, can, mag, shell, glob };
+const PARTS = { pump, slide, grenade, can, mag, shell, glob, brass };
 
 /* ------------------------------------------------------------------ material: palette regions + chipped paint */
 function weaponMat() {
@@ -135,26 +139,30 @@ export class WeaponLayer {
   }
 }
 
-// tracers: short additive lines from muzzle to hit, fading in ~70 ms
+// tracers: a bright slug (camera-facing ribbon, tapered tail) flying muzzle -> hit in ~life seconds, then gone
 class Tracers {
   constructor(scene, N = 96) {
     this.N = N; this.list = [];
-    const g = new THREE.BufferGeometry(); this.pos = new Float32Array(N * 6); this.col = new Float32Array(N * 6);
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
-    const m = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    m.blendEquationAlpha = THREE.AddEquation; m.blendSrcAlpha = THREE.ZeroFactor; m.blendDstAlpha = THREE.OneFactor; m.blending = THREE.CustomBlending; m.blendSrc = THREE.OneFactor; m.blendDst = THREE.OneFactor;
-    this.lines = new THREE.LineSegments(g, m); this.lines.frustumCulled = false; this.lines.renderOrder = 6; scene.add(this.lines);
+    const base = new THREE.PlaneGeometry(1, 1, 1, 1); base.translate(0.5, 0, 0);
+    const g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
+    this.iA = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage); this.iB = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage); this.iK = new THREE.InstancedBufferAttribute(new Float32Array(N * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('iA', this.iA); g.setAttribute('iB', this.iB); g.setAttribute('iK', this.iK); g.instanceCount = 0;
+    const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute vec3 iA; attribute vec3 iB; attribute vec2 iK; varying vec2 vUv; varying float vK;
+        void main(){ vUv = uv; vK = iK.x; vec3 P = mix(iA, iB, position.x); vec3 d = iB - iA; vec3 s = normalize(cross(d, cameraPosition - P)); P += s * position.y * iK.y; gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.); }`,
+      fragmentShader: `varying vec2 vUv; varying float vK; void main(){ float a = smoothstep(0., .5, 1. - abs(vUv.y - .5) * 2.) * pow(vUv.x, 1.5); gl_FragColor = vec4(vec3(1., .82, .45) * 2.6 * a * vK, 1.); }` });
+    this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 6; scene.add(this.mesh);
   }
-  add(a, b, life = 0.07) { if (this.list.length >= this.N) this.list.shift(); this.list.push({ a: a.clone(), b: b.clone(), life, l0: life }); }
+  add(a, b, life = 0.07, w = 0.035) { if (this.list.length >= this.N) this.list.shift(); this.list.push({ a: a.clone(), b: b.clone(), life, l0: life, w }); }
   update(dt) {
-    let j = 0;
-    this.list = this.list.filter((t) => (t.life -= dt) > 0);
+    let j = 0; const h = new THREE.Vector3(), tl = new THREE.Vector3();
+    this.list = this.list.filter((t) => (t.life -= dt) > -0.03);
     for (const t of this.list) {
-      const k = t.life / t.l0, head = new THREE.Vector3().lerpVectors(t.a, t.b, 1 - k * 0.6);
-      this.pos.set([t.a.x + (head.x - t.a.x) * 0.4, t.a.y + (head.y - t.a.y) * 0.4, t.a.z + (head.z - t.a.z) * 0.4, head.x, head.y, head.z], j * 6);
-      this.col.set([0.5 * k, 0.35 * k, 0.1 * k, 3 * k, 2.4 * k, 1.2 * k], j * 6); j++;
+      const u = Math.min(1, 1 - t.life / t.l0), L = t.a.distanceTo(t.b) || 1, seg = Math.min(1, 1.6 / L);
+      h.lerpVectors(t.a, t.b, Math.min(1, u * (1 + seg))); tl.lerpVectors(t.a, t.b, Math.max(0, u * (1 + seg) - seg));
+      this.iA.setXYZ(j, tl.x, tl.y, tl.z); this.iB.setXYZ(j, h.x, h.y, h.z); this.iK.setXY(j, t.life > 0 ? 1 : Math.max(0, 1 + t.life / 0.03), t.w); j++;
     }
-    this.lines.geometry.setDrawRange(0, j * 2); this.lines.geometry.attributes.position.needsUpdate = true; this.lines.geometry.attributes.color.needsUpdate = true; this.lines.visible = j > 0;
+    this.mesh.geometry.instanceCount = j; this.iA.needsUpdate = this.iB.needsUpdate = this.iK.needsUpdate = true; this.mesh.visible = j > 0;
   }
 }
 // muzzle flashes / explosions: camera-facing star quads (additive) with a point light for the biggest
@@ -166,14 +174,27 @@ class Flashes {
     g.globalCompositeOperation = 'lighter'; g.fillStyle = 'rgba(255,230,160,.8)'; for (let i = 0; i < 6; i++) { g.save(); g.translate(32, 32); g.rotate(i / 6 * P * 2); g.beginPath(); g.moveTo(0, -3); g.lineTo(30, 0); g.lineTo(0, 3); g.fill(); g.restore(); }
     this.tex = new THREE.CanvasTexture(c);
     this.sprites = Array.from({ length: N }, () => { const m = new THREE.SpriteMaterial({ map: this.tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); const s = new THREE.Sprite(m); s.visible = false; s.renderOrder = 7; scene.add(s); return s; });
-    this.light = new THREE.PointLight(0xffb060, 0, 7, 2); scene.add(this.light); this.li = 0;
+    this.light = new THREE.PointLight(0xffb060, 0, 9, 2); scene.add(this.light); this.li = 0;
+    // flame tongue texture: hot core along x, jagged tapering edges
+    const c2 = document.createElement('canvas'); c2.width = 128; c2.height = 64; const g2 = c2.getContext('2d');
+    const lg = g2.createLinearGradient(0, 0, 128, 0); lg.addColorStop(0, 'rgba(255,255,235,1)'); lg.addColorStop(0.35, 'rgba(255,215,110,.95)'); lg.addColorStop(1, 'rgba(255,110,20,0)');
+    g2.fillStyle = lg; g2.beginPath(); g2.moveTo(0, 32 - 14); for (let i = 1; i <= 8; i++) { const x = i * 16, w = 14 * (1 - i / 8.5); g2.lineTo(x - 8, 32 - w - (i % 2 ? 6 : 0)); g2.lineTo(x, 32 - w * 0.6); } g2.lineTo(128, 32);
+    for (let i = 8; i >= 1; i--) { const x = i * 16, w = 14 * (1 - i / 8.5); g2.lineTo(x, 32 + w * 0.6); g2.lineTo(x - 8, 32 + w + (i % 2 ? 6 : 0)); } g2.lineTo(0, 32 + 14); g2.closePath(); g2.fill();
+    this.tex2 = new THREE.CanvasTexture(c2);
+    const pg = new THREE.PlaneGeometry(1, 1); pg.translate(0.5, 0, 0);
+    this.tongues = Array.from({ length: 16 }, () => { const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: this.tex2, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      m.matrixAutoUpdate = false; m.visible = false; m.renderOrder = 7; m.frustumCulled = false; m.userData = { p: new THREE.Vector3(), d: new THREE.Vector3(), len: 0.3 };
+      const X = new THREE.Vector3(), Yv = new THREE.Vector3(), Zv = new THREE.Vector3();
+      m.onBeforeRender = (r, sc, cam) => { const u = m.userData; X.copy(u.d); Zv.subVectors(cam.position, u.p); Yv.crossVectors(Zv, X).normalize(); Zv.crossVectors(X, Yv); m.matrixWorld.makeBasis(X, Yv, Zv).scale(new THREE.Vector3(u.len * u.k, u.len * 0.42 * u.k, 1)).setPosition(u.p); };
+      scene.add(m); return m; });
   }
-  add(p, size = 0.25, life = 0.06, light = 3) {
+  add(p, size = 0.25, life = 0.06, light = 3, dir = null, len = 0) {
     const used = new Set(this.list.map((x) => x.s)); const s = this.sprites.find((x) => !used.has(x)) || this.sprites[0]; life = Math.max(life, 0.09); const o = { s, life, l0: life, size, fresh: true }; s.position.copy(p); s.visible = true; s.material.rotation = Math.random() * 6; this.list.push(o);
+    if (dir && len) { const busy = new Set(this.list.map((x) => x.tg)); const tg = this.tongues.find((x) => !busy.has(x)) || this.tongues[0]; o.tg = tg; tg.userData.p.copy(p); tg.userData.d.copy(dir).normalize(); tg.userData.len = len * (0.8 + Math.random() * 0.4); tg.userData.k = 1; tg.visible = true; }
     if (light > this.li) { this.li = light; this.light.position.copy(p); }
   }
   update(dt) {
-    this.list = this.list.filter((o) => { if (o.fresh) o.fresh = false; else o.life -= dt; if (o.life <= 0) { o.s.visible = false; return false; } const k = o.life / o.l0; o.s.scale.setScalar(o.size * (0.6 + 0.6 * k)); o.s.material.opacity = k; return true; });
-    this.light.intensity = this.li * 1.2; this.li *= Math.exp(-dt * 30); if (this.li < 0.05) this.li = 0;
+    this.list = this.list.filter((o) => { if (o.fresh) o.fresh = false; else o.life -= dt; if (o.life <= 0) { o.s.visible = false; if (o.tg) o.tg.visible = false; return false; } const k = o.life / o.l0; o.s.scale.setScalar(o.size * (0.6 + 0.6 * k)); o.s.material.opacity = k; if (o.tg) { o.tg.userData.k = 0.5 + 0.5 * k; o.tg.material.opacity = Math.min(1, k * 1.5); } return true; });
+    this.light.intensity = this.li * 1.6; this.li *= Math.exp(-dt * 24); if (this.li < 0.05) this.li = 0;
   }
 }

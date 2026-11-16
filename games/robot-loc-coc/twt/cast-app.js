@@ -265,15 +265,15 @@ function camUpdate() {
   const cp = Math.cos(ctl.pitch); camera.position.set(ctl.target.x + Math.sin(ctl.yaw) * cp * ctl.dist, ctl.target.y + Math.sin(ctl.pitch) * ctl.dist, ctl.target.z + Math.cos(ctl.yaw) * cp * ctl.dist); camera.lookAt(ctl.target);
 }
 const ptrs = new Map(); let downAt = null, moved = 0, pinch0 = 0;
-cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); downAt = [e.clientX, e.clientY]; moved = 0; if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+cv.addEventListener('pointerdown', (e) => { ctl.userT = performance.now(); cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); downAt = [e.clientX, e.clientY]; moved = 0; if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
 cv.addEventListener('pointermove', (e) => {
-  if (!ptrs.has(e.pointerId)) return; const pr = ptrs.get(e.pointerId), dx = e.clientX - pr[0], dy = e.clientY - pr[1]; ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved += Math.abs(dx) + Math.abs(dy);
+  if (!ptrs.has(e.pointerId)) return; ctl.userT = performance.now(); const pr = ptrs.get(e.pointerId), dx = e.clientX - pr[0], dy = e.clientY - pr[1]; ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved += Math.abs(dx) + Math.abs(dy);
   if (ptrs.size === 1) { ctl.fp = false; ctl.yaw -= dx * 0.006; ctl.pitch = Math.max(0.02, Math.min(1.3, ctl.pitch + dy * 0.004)); }
   else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0) ctl.dist = Math.max(1, Math.min(60, ctl.dist * pinch0 / d)); pinch0 = d; }
 });
 const up = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = 0; if (downAt && moved < 8 && e.type === 'pointerup') pickAt(e.clientX, e.clientY); downAt = null; };
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-cv.addEventListener('wheel', (e) => { e.preventDefault(); ctl.fp = false; ctl.dist = Math.max(1, Math.min(60, ctl.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); ctl.userT = performance.now(); ctl.fp = false; ctl.dist = Math.max(1, Math.min(60, ctl.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
 // pick: nearest robot chest on screen
 let sel = null;
 function pickAt(x, y) {
@@ -319,7 +319,7 @@ function setMode(m) {
   if (m === 'crew') { const L = crew.lineup(); ctl.follow = false; ctl.target.set(0, 0.3, 0.1); ctl.dist = portrait ? 11.5 : 7.4; ctl.yaw = 0; ctl.pitch = portrait ? 0.66 : 0.5; shadowBox(0, 0, Math.max(L.w, L.d) * 0.62 + 0.6); }
   else if (m === 'play') { crew.play(); ctl.follow = false; ctl.target.set(0.35, 0, 0.75); ctl.dist = portrait ? 12.5 : 9.2; ctl.yaw = 0.5; ctl.pitch = 0.8; shadowBox(0, 0, 3.8); }
   else if (m === 'weapons') { frameCombat(combat.showcase()); }
-  else if (m === 'arena') { combat.arena(); ctl.follow = false; ctl.target.set(0, 0.6, 0); ctl.dist = portrait ? 19 : 16; ctl.yaw = 0.4; ctl.pitch = portrait ? 0.9 : 0.62; shadowBox(0, 0, 13); }
+  else if (m === 'arena') { combat.arena(); ctl.follow = false; ctl.userT = 0; ctl.target.set(0, 0.6, 0); ctl.dist = portrait ? 16 : 12; ctl.yaw = 0.4; ctl.pitch = portrait ? 0.9 : 0.68; shadowBox(0, 0, 13); }
   else if (m === 'crowd') { crowdSet(); ctl.target.set(0, 0.5, -8); ctl.dist = 30; ctl.yaw = 0.35; ctl.pitch = 0.62; ctl.follow = false; shadowBox(0, -8, 22); }
   else if (m === 'raid') { raidSet(); ctl.fp = true; raidLight.intensity = 60; scene.fog.color.set(0x1a1013); scene.background.set(0x1a1013); hemi.intensity = 0.35; key.intensity = 1.6; shadowBox(0, -12, 26); }
   else lineup();
@@ -332,15 +332,42 @@ function setAnim(a) {
   if (a === 'death') for (const A of actors) A.reset = true;
 }
 function setEmote(e) { emote = e; for (const A of actors) A.p.setEmote(e); }
+// fit the whole weapon line-up between the header and the chip dock: walk the camera in until a robot box (with
+// its weapon and the label under its feet) would leave the free part of the screen
+// arena camera: glides to the busiest cluster, slowly orbits and zooms with the spread of the fight; a drag, pinch or
+// wheel hands yaw / pitch / zoom to the user for 6 s (the target keeps following the fight)
+function arenaCam(dt) {
+  const h = combat.hot(); if (!h) return;
+  const portrait = innerWidth / innerHeight < 0.85, k = 1 - Math.exp(-dt * 1.6);
+  ctl.target.x += (h.x - ctl.target.x) * k; ctl.target.z += (h.z - ctl.target.z) * k; ctl.target.y += (0.6 - ctl.target.y) * k;
+  if (performance.now() - (ctl.userT || 0) < 6000) return;
+  ctl.yaw += dt * 0.07;
+  const want = Math.max(portrait ? 11 : 8, Math.min(portrait ? 21 : 17, h.r * (portrait ? 2.6 : 2.0) + (portrait ? 6 : 4)));
+  ctl.dist += (want - ctl.dist) * (1 - Math.exp(-dt * 0.8)); ctl.pitch += ((portrait ? 0.9 : 0.68) - ctl.pitch) * (1 - Math.exp(-dt * 0.8));
+}
 function frameCombat(r) {
-  const tanV = Math.tan(camera.fov * Math.PI / 360), tanH = tanV * camera.aspect;
-  ctl.follow = false; ctl.target.set(0, 1.0, -(r.rows - 1) * 1.1); ctl.dist = 0.88 * Math.max(5, (r.span / 2 + 0.6) / tanH, r.rows * 1.5 / tanV); ctl.yaw = 0; ctl.pitch = r.rows > 1 ? 0.3 : 0.14; shadowBox(0, -(r.rows - 1) * 1.1, r.span * 0.6 + 2);
+  const pts = r.pts || [[0, 0]], xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const hb = (document.querySelector('header') || { getBoundingClientRect: () => ({ bottom: 60 }) }).getBoundingClientRect().bottom + (innerWidth > 640 ? 34 : 40);
+  const db = innerHeight - ($('#dock') ? $('#dock').getBoundingClientRect().height : 100) - 22;
+  const top = 1 - 2 * hb / innerHeight, bot = 1 - 2 * db / innerHeight, side = 1 - 2 * 14 / innerWidth;
+  ctl.follow = false; ctl.yaw = 0; ctl.pitch = r.rows > 2 ? 1.05 : r.rows > 1 ? 0.74 : 0.16;
+  const cam = camera.clone(), v = new THREE.Vector3(), probe = [];
+  for (const [x, z] of pts) for (const dx of [-0.95, 0.95]) for (const y of [-0.12, 1.75]) probe.push([x + dx, y, z + (y < 0 ? 0.25 : -0.1)]);
+  let lo = 2, hi = 80, ty = 0.8;
+  const fits = (d) => { for (let it = 0; it < 2; it++) { const cp = Math.cos(ctl.pitch); cam.position.set(cx, ty + Math.sin(ctl.pitch) * d, cz + cp * d); cam.lookAt(cx, ty, cz); cam.updateMatrixWorld(); }
+    let ymin = 9, ymax = -9; for (const p of probe) { v.set(...p).project(cam); if (Math.abs(v.x) > side) return null; ymin = Math.min(ymin, v.y); ymax = Math.max(ymax, v.y); } return [ymin, ymax]; };
+  for (let k = 0; k < 3; k++) { // binary search on distance, then re-centre vertically in the free band
+    lo = 2; hi = 80; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2, f = fits(m); if (f && f[1] - f[0] < (top - bot)) hi = m; else lo = m; }
+    const f = fits(hi); if (!f) break; const mid = (f[0] + f[1]) / 2, want = (top + bot) / 2; ty += (mid - want) * hi * Math.tan(camera.fov * Math.PI / 360) * 0.9;
+  }
+  ctl.target.set(cx, ty, cz); ctl.dist = hi * 1.02; shadowBox(cx, cz, Math.max(r.span * 0.6, (Math.max(...zs) - Math.min(...zs)) * 0.7) + 2);
 }
 
 // screen labels under the line-up
 const labelsEl = $('#labels'); let labelEls = [];
 function drawLabels() {
-  const show = (mode !== 'crowd' && mode !== 'raid' && mode !== 'arena') && !sel && innerWidth > 700;
+  const show = (mode !== 'crowd' && mode !== 'raid' && mode !== 'arena') && !sel && (innerWidth > 700 || mode === 'weapons');
   const src = mode === 'weapons' ? combat.list.map((A) => ({ p: A.p, e: { label: A.label } })) : mode === 'crew' || mode === 'play' ? [] : actors;
   while (labelEls.length < actors.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
   while (labelEls.length < src.length) { const d = document.createElement('div'); d.className = 'lb'; labelsEl.appendChild(d); labelEls.push(d); }
@@ -349,13 +376,13 @@ function drawLabels() {
 
 // ---------------------------------------------------------------- loop
 function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.85 ? 52 : 38; camera.updateProjectionMatrix(); }
-addEventListener('resize', () => { resize(); if (['roles', 'zombies', 'looks', 'staff'].includes(mode)) frameLineup(true); });
+addEventListener('resize', () => { resize(); if (['roles', 'zombies', 'looks', 'staff'].includes(mode)) frameLineup(true); if (mode === 'weapons') frameCombat(combat.showcase()); });
 let last = performance.now(), frames = 0, fpsT = 0, fpsE = 0, updMs = 0;
 function stepSim(dt) {
   T += dt;
   if (mode === 'crew' || mode === 'play') crew.update(dt, camera);
   else if (mode === 'weapons') combat.stepShowcase(dt);
-  else if (mode === 'arena') combat.stepArena(dt);
+  else if (mode === 'arena') { combat.stepArena(dt); arenaCam(dt); }
   else if (mode === 'crowd') for (const A of actors) { A.p.update(crowdDesc(A, dt)); A.p.evq.length = 0; }
   else if (mode === 'raid') { raidStep(dt); for (const A of actors) if (A.p) A.p.evq.length = 0; }
   else {

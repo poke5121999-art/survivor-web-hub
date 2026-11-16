@@ -174,9 +174,19 @@ class Person {
   combatFx(e) {
     const W = this.sys.weapons, fx = this.sys.crowd.fx, d = this.body.wdef, rm = this.rootM(), k = this.mpu;
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(_q.setFromEuler(_e.set(0, this.mesh.rotation.y, 0)));
-    if (e.e === 'fire' && d && d.muzzle) { const m = this.wpoint(d.muzzle); if (m) { W.flashes.add(m, 0.2 + (d.kind === 'shotgun' ? 0.25 : d.kind === 'rifle' ? 0.15 : 0), 0.05, d.kind === 'shotgun' ? 5 : 3); for (let i = 0; i < 3; i++) fx.emit(m, { x: fwd.x * 0.6 + (Math.random() - 0.5) * 0.3, y: 0.3 + Math.random() * 0.3, z: fwd.z * 0.6 + (Math.random() - 0.5) * 0.3 }, 1, 0.5, 0.06); } }
-    if ((e.e === 'eject' || e.e === 'pumpStart') && d && d.eject) { const p = this.wpoint(d.eject); if (p) { const side = new THREE.Vector3(-fwd.z, 0, fwd.x).multiplyScalar(-1); W.throwObj({ id: 'part:shell', p, v: side.multiplyScalar(1.6 + Math.random()).add(new THREE.Vector3(0, 1.8, 0)), life: 2.5, s: k * 1.0 }); } }
-    if (e.e === 'magout' && d && d.mag) { const p = this.wpoint([0, -0.08, d.kind === 'pistol' ? 0 : 0.1]); if (p) W.throwObj({ id: d.kind === 'shotgun' ? 'part:shell' : 'part:mag', p, v: new THREE.Vector3(0, -0.5, 0), life: 4, s: k }); }
+    if (e.e === 'fire' && d && d.muzzle) {
+      const m = this.wpoint(d.muzzle), m0 = this.wpoint([d.muzzle[0], d.muzzle[1], d.muzzle[2] - 0.1]);
+      if (m) { // star + flame tongue along the barrel + light pop, then a puff of smoke
+        const F = { pistol: [0.42, 0.42, 6], smg: [0.36, 0.38, 5], rifle: [0.6, 0.7, 9], shotgun: [0.75, 0.8, 11] }[d.kind] || [0.4, 0.4, 6];
+        const dir = m0 ? m.clone().sub(m0).normalize() : fwd.clone();
+        W.flashes.add(m.clone().addScaledVector(dir, 0.04), F[0] * k, 0.07, F[2], dir, F[1] * k);
+        for (let i = 0; i < 4; i++) fx.emit(m, { x: dir.x * 0.8 + (Math.random() - 0.5) * 0.3, y: 0.25 + Math.random() * 0.35, z: dir.z * 0.8 + (Math.random() - 0.5) * 0.3 }, 1, 0.55, 0.07);
+      }
+    }
+    if ((e.e === 'eject' || e.e === 'pumpStart') && d && d.eject) { // spent case flips out to the right in an arc
+      const p = this.wpoint(d.eject); if (p) { const right = new THREE.Vector3(-fwd.z, 0, fwd.x); const sh = d.kind === 'shotgun';
+        W.throwObj({ id: sh ? 'part:shell' : 'part:brass', p, v: right.multiplyScalar(1.4 + Math.random() * 0.8).addScaledVector(fwd, -0.3 - Math.random() * 0.3).add(new THREE.Vector3(0, 2.2 + Math.random() * 0.6, 0)), w: new THREE.Vector3(18, 4, 10), life: 3, s: k * (sh ? 1.5 : 1.8) }); } }
+    if (e.e === 'magout' && d && d.mag && d.kind !== 'shotgun') { const p = this.wpoint([0, -0.08, d.kind === 'pistol' ? 0 : 0.1]); if (p) W.throwObj({ id: d.kind === 'shotgun' ? 'part:shell' : 'part:mag', p, v: new THREE.Vector3(0, -0.5, 0), life: 4, s: k }); }
     if (e.e === 'release' && d && d.proj) { const p = this.wpoint([0, 0, 0]) || this.bpoint(B.RHAND); const v = fwd.clone().multiplyScalar(7).add(new THREE.Vector3(0, 3.2, 0)); const self = this;
       W.throwObj({ id: 'part:' + d.proj, p, v, life: d.proj === 'grenade' ? 3 : 4, s: k, fuse: 1.4, onLand(o) { if (d.proj !== 'grenade') return true; setTimeout(() => {}, 0); o.boom = true; self.evq.push({ e: 'land', p: o.p.clone(), proj: d.proj }); return true; } }); }
     if (e.e === 'spit') { const p = this.bpoint(B.HEAD, 0, 0.08, 0.12); const v = fwd.clone().multiplyScalar(8).add(new THREE.Vector3(0, 2.5, 0)); const self = this; W.throwObj({ id: 'part:glob', p, v, life: 2, s: k * 1.2, g: 0.8, onLand(o) { self.evq.push({ e: 'splat', p: o.p.clone() }); for (let i = 0; i < 8; i++) fx.emit(o.p, { x: (Math.random() - 0.5) * 2, y: Math.random() * 1.5, z: (Math.random() - 0.5) * 2 }, 1, 0.6, 0.08); return false; } }); }

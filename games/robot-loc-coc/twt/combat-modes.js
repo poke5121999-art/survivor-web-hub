@@ -28,16 +28,20 @@ export class CombatModes {
   spawnZ(seed, kind, x, z, yaw) {
     const p = this.people.spawn(seed, kind, D(x, 0, z), { manual: true });
     const big = /Hulk|Brute|Sweaty/.test(kind);
-    return { p, seed, kind, x, z, yaw, vx: 0, vz: 0, t: 0, cd: 1 + Math.random(), hp: big ? 220 : kind === 'Baby' ? 30 : 60, phase: Math.random() * 6, big };
+    return { p, seed, kind, x, z, yaw, vx: 0, vz: 0, t: 0, cd: 1 + Math.random(), hp: big ? 320 : kind === 'Baby' ? 45 : 115, phase: Math.random() * 6, big };
   }
   // ---------------- showcase ----------------
   showcase() {
     this.clear(); this.mode = 'weapons'; const portrait = innerWidth / innerHeight < 0.85;
-    const ids = this.pick === 'mix' ? MIX : Array(portrait ? 6 : 8).fill(this.pick);
-    const per = portrait ? 4 : 7, rows = Math.ceil(ids.length / per);
-    ids.forEach((w, i) => { const r = Math.floor(i / per), c = i % per; const [s, role] = LOOKS[i % LOOKS.length]; const x = (c - (Math.min(per, ids.length - r * per) - 1) / 2) * 1.35, z = -r * 2.2; this.list.push(Object.assign(this.spawnBot(s, role, w, x, z, Math.PI), { row: r, label: WEAPONS[w].vi })); });
+    // rows are staggered (back row sits in the gaps of the front row) so every robot and its label under the feet show
+    const ids = this.pick === 'mix' ? MIX : Array(portrait ? 6 : 7).fill(this.pick);
+    const per = portrait ? 3 : 7, rows = Math.ceil(ids.length / per), sp = portrait ? 1.45 : 1.5, gap = portrait ? 2.6 : 3.0;
+    const pts = [];
+    ids.forEach((w, i) => { const r = Math.floor(i / per), c = i % per, n = Math.min(per, ids.length - r * per); const [s, role] = LOOKS[i % LOOKS.length];
+      const x = (c - (n - 1) / 2) * sp + (r % 2 ? sp * 0.5 : 0) * (n === per ? 1 : 0), z = -r * gap; pts.push([x, z]);
+      this.list.push(Object.assign(this.spawnBot(s, role, w, x, z, Math.PI), { row: r, label: WEAPONS[w].vi })); });
     this.setAct(this.act);
-    return { rows, span: per * 1.35 };
+    return { rows, span: per * sp, pts };
   }
   setAct(a) { this.act = a; for (const A of this.list) { const b = A.p.body; b.guard = 0; b.aim = 0; b.actS = null; b.release(); A.t = 0; A.cd = 0.2 + Math.random() * 0.3; if (A.dead) this.respawn(A); } }
   setPick(w) { this.pick = w; return this.showcase(); }
@@ -81,9 +85,9 @@ export class CombatModes {
         for (let i = 0; i < n; i++) {
           let end, hitA = null;
           const T = A.tgt && !A.tgt.dead && A.tgt.p ? A.tgt : null;
-          if (T && Math.random() < (n > 1 ? 0.55 : 0.82)) { hitA = T; end = T.p.bpoint(B.TORSO, (Math.random() - 0.5) * 0.15, T.p.body.D.T.h * (0.3 + Math.random() * 0.5), 0); }
+          if (T && Math.random() < (n > 1 ? 0.5 : 0.65)) { hitA = T; end = T.p.bpoint(B.TORSO, (Math.random() - 0.5) * 0.15, T.p.body.D.T.h * (0.3 + Math.random() * 0.5), 0); }
           else { const sp = n > 1 ? 0.12 : 0.04; end = m.clone().addScaledVector(fwd.clone().add(V3((Math.random() - 0.5) * sp * 2, (Math.random() - 0.5) * sp, (Math.random() - 0.5) * sp * 2)).normalize(), T ? m.distanceTo(T.p.mesh.position) + 3 : 14); if (end.y < 0.02) end.y = 0.02; }
-          Wl.tr.add(m, end, 0.12); fx.burst(end, hitA ? 6 : 3, 1.2, 1.8, 0.03);
+          Wl.tr.add(m, end, Math.max(0.06, m.distanceTo(end) / 50), n > 1 ? 0.025 : 0.035); fx.burst(end, hitA ? 10 : 5, 1.5, 2.2, 0.035);
           if (hitA) this.damage(hitA, d.dmg, A, n > 1 ? 0.3 : d.kind === 'rifle' ? 1 : 0.4);
         }
       }
@@ -116,13 +120,16 @@ export class CombatModes {
   // ---------------- arena ----------------
   arena() {
     this.clear(); this.mode = 'arena'; this.T = 0; this.zs = []; this.bots = []; this.kills = 0; this.spawnT = 0;
-    const kit = [['sledge', 0, 'crew'], ['bat', 7, 'staff'], ['machete', 0x51a7c0de, 'survivor'], ['rifle', 2, 'staff'], ['shotgun', 3, 'crew'], ['pistol2', 11, 'staff'], ['smg', 0x0bad5eed, 'scavenger'], ['grenade', 1, 'crew']];
-    kit.forEach(([w, s, r], i) => { const a = i / kit.length * Math.PI * 2; const B2 = this.spawnBot(s, r, w, Math.cos(a) * 2.2, Math.sin(a) * 2.2, a); B2.home = [Math.cos(a) * 2.2, Math.sin(a) * 2.2]; this.bots.push(B2); });
+    // melee in an outer ring (they meet the waves), shooters inside covering them
+    const kit = [['sledge', 0, 'crew'], ['bat', 7, 'staff'], ['machete', 0x51a7c0de, 'survivor'], ['axe', 5, 'crew'], ['pipe', 9, 'customer'], ['wrench', 13, 'staff'], ['fists', 4, 'customer'],
+      ['rifle', 2, 'staff'], ['shotgun', 3, 'crew'], ['pistol2', 11, 'staff'], ['smg', 0x0bad5eed, 'scavenger'], ['pistol', 6, 'customer'], ['grenade', 1, 'crew']];
+    kit.forEach(([w, s, r], i) => { const gun = !!WEAPONS[w].muzzle || w === 'grenade', n = gun ? 6 : 7, j = gun ? i - 7 : i, rad = gun ? 1.4 : 3.0, a = (j + (gun ? 0.5 : 0)) / n * Math.PI * 2;
+      const B2 = this.spawnBot(s, r, w, Math.cos(a) * rad, Math.sin(a) * rad, a); B2.home = [Math.cos(a) * rad, Math.sin(a) * rad]; B2.gunner = gun; this.bots.push(B2); });
     this.list = this.bots.concat(this.zs);
   }
   waveZ() {
     const kinds = ['Base', 'Base', 'Base', 'Tumour', 'Base', 'Baby', 'Base', 'Hulk', 'Base', 'TwinBuff', 'Base', 'Baby', 'Base', 'TwinHeal'];
-    const k = kinds[(this.kills + this.zs.length) % kinds.length], a = Math.random() * Math.PI * 2, r = 11;
+    const k = kinds[(this.kills + this.zs.length) % kinds.length], a = (this.waveA = (this.waveA || 0) + 2.4 + Math.random() * 0.8), r = 8.5 + Math.random() * 1.5;
     const Z = this.spawnZ(4000 + Math.floor(Math.random() * 90000), k, Math.cos(a) * r, Math.sin(a) * r, 0); this.zs.push(Z); this.list = this.bots.concat(this.zs);
   }
   nearest(A, list) { let best = null, bd = 1e9; for (const F of list) { if (F.dead || F.gone) continue; const d = Math.hypot(F.x - A.x, F.z - A.z); if (d < bd) { bd = d; best = F; } } return [best, bd]; }
@@ -131,19 +138,19 @@ export class CombatModes {
   stepArena(dt) {
     this.T += dt; this.spawnT -= dt;
     const alive = this.zs.filter((z) => !z.dead).length;
-    if (alive < 11 && this.spawnT <= 0) { this.waveZ(); this.spawnT = 0.9; }
+    if (alive < 24 && this.spawnT <= 0) { this.waveZ(); if (alive < 16) this.waveZ(); this.spawnT = alive < 16 ? 0.3 : 0.6; }
     const bots = this.bots.filter((x) => !x.dead), zs = this.zs;
     for (const A of this.bots) {
       const b = A.p.body, d = WEAPONS[A.wid], gun = !!d.muzzle; A.cd -= dt; let moving = 0;
-      if (A.dead) { A.dt += dt; b.force('die', Math.min(1, A.dt / 0.55)); if (A.dt > 5) { A.p.despawn(); const N = this.spawnBot(A.seed, A.role, A.wid, A.home[0], A.home[1], 0); Object.assign(A, N, { home: A.home }); } A.p.update({ pos: D(A.x, 0, A.z), yaw: A.yaw, moving: false, phase: A.phase }); this.handleEvents(A, zs); continue; }
+      if (A.dead) { A.dt += dt; b.force('die', Math.min(1, A.dt / 0.55)); if (A.dt > 5) { A.p.despawn(); const N = this.spawnBot(A.seed, A.role, A.wid, A.home[0], A.home[1], 0); Object.assign(A, N, { home: A.home, gunner: A.gunner }); } A.p.update({ pos: D(A.x, 0, A.z), yaw: A.yaw, moving: false, phase: A.phase }); this.handleEvents(A, zs); continue; }
       if (A.hp < 100) A.hp += dt * 3;
       const [F, dist] = this.nearest(A, zs);
       const busy = b.actS && !['pump', 'reload'].includes(b.actS.name);
       if (F) {
         if (gun) {
           b.aim = dist < 14 ? 1 : 0; this.face(A, F, dt, 6);
-          if (dist < 3.2 && !busy) moving = this.move(A, A.x - (F.x - A.x), A.z - (F.z - A.z), 1.6, dt); // back off
-          else if (dist > 9 && !busy) moving = this.move(A, F.x, F.z, 1.4, dt);
+          if (dist < 2.2 && !busy) moving = this.move(A, A.x - (F.x - A.x), A.z - (F.z - A.z), 1.6, dt); // back off
+          else if (dist > 7 && !busy) moving = this.move(A, F.x, F.z, 1.4, dt);
           if (dist < 12) this.gunLoop(A, dt, F);
         } else if (d.kind === 'throw') {
           this.face(A, F, dt, 6); if (dist < 3 && !busy) moving = this.move(A, A.x - (F.x - A.x), A.z - (F.z - A.z), 1.6, dt);
@@ -157,7 +164,7 @@ export class CombatModes {
         }
       }
       A.x += A.vx * dt; A.z += A.vz * dt; A.vx *= Math.exp(-dt * 5); A.vz *= Math.exp(-dt * 5);
-      const rr = Math.hypot(A.x, A.z), lim = 6.5; if (rr > lim) { A.x *= lim / rr; A.z *= lim / rr; }
+      const rr = Math.hypot(A.x, A.z), lim = A.gunner ? 3.0 : 4.6; if (rr > lim) { A.x *= lim / rr; A.z *= lim / rr; }
       if (moving) A.phase += dt * 7.5;
       A.p.update({ pos: D(A.x, 0, A.z), yaw: A.yaw, moving: moving > 0.05, phase: A.phase });
       this.handleEvents(A, zs);
@@ -188,6 +195,14 @@ export class CombatModes {
     // keep bodies apart
     const all = this.list.filter((x) => !x.dead && !x.gone);
     for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) { const a = all[i], c = all[j], dx = c.x - a.x, dz = c.z - a.z, l = Math.hypot(dx, dz), rr = 0.55 * ((a.big ? 1.8 : 1) + (c.big ? 1.8 : 1)) * 0.5; if (l < rr && l > 1e-4) { const k = (rr - l) / l * 0.5; a.x -= dx * k; a.z -= dz * k; c.x += dx * k; c.z += dz * k; } }
+  }
+  hot() {
+    const live = this.list.filter((x) => !x.dead && !x.gone); if (!live.length) return null;
+    let sx = 0, sz = 0, w = 0;
+    for (const A of live) { let n = 0; for (const B of live) if ((A.human ? !B.human : B.human) && Math.hypot(A.x - B.x, A.z - B.z) < 2.6) n++; const k = 0.15 + n; sx += A.x * k; sz += A.z * k; w += k; }
+    const cx = sx / w, cz = sz / w; let r = 0, rw = 0;
+    for (const A of live) { const d = Math.hypot(A.x - cx, A.z - cz); r += d; rw++; }
+    return { x: cx, z: cz, r: rw ? r / rw : 4 };
   }
   counts() { if (this.mode !== 'arena') return ''; return `${this.bots.filter((b) => !b.dead).length} robot cầm vũ khí · ${this.zs.filter((z) => !z.dead).length} zombie · đã hạ ${this.kills}`; }
 }
