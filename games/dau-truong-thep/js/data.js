@@ -541,9 +541,9 @@ export const PROPS = {
 // cost(level) is the price in coins of going from level to level + 1 on one track.
 export const UPGRADE = { max: 5, cost: (level) => 120 + level * 90, perkAt: [6, 12, 18] };
 export const TRACKS = [
-  { key: 'giap',   name: 'Vỏ giáp',   desc: 'Máu +12%, giáp +2,4% mỗi cấp',       hp: 0.12, armor: 0.024 },
+  { key: 'giap',   name: 'Vỏ giáp',   desc: 'Máu +13%, giáp +2,4% mỗi cấp',       hp: 0.13, armor: 0.024 },
   { key: 'dongco', name: 'Động cơ',   desc: 'Tốc độ +3%, gia tốc +6% mỗi cấp',    speed: 0.03, accel: 0.06 },
-  { key: 'hoaluc', name: 'Hỏa lực',   desc: 'Sát thương +15% mỗi cấp',            dmg: 0.15 },
+  { key: 'hoaluc', name: 'Hỏa lực',   desc: 'Sát thương +14% mỗi cấp',            dmg: 0.14 },
   { key: 'napdan', name: 'Nạp đạn',   desc: 'Bắn nhanh +5%, tầm bắn +2% mỗi cấp', rate: 0.05, range: 0.02 },
   { key: 'chieu',  name: 'Lõi chiêu', desc: 'Hồi chiêu nhanh hơn 5% mỗi cấp',     cd: 0.05 },
 ];

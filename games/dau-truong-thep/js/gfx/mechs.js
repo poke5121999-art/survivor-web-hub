@@ -1356,6 +1356,10 @@ export function makeMechs(G, tex) {
       v.spawn = Math.min(1, v.spawn + dt * 2.5);
       v.root.position.set(x, 0, z);
       v.root.scale.setScalar(0.4 + 0.6 * (1 - (1 - v.spawn) * (1 - v.spawn)));
+      // A transform that grows the hitbox (transform.size) grows the model with it, eased over a few frames.
+      const grow = u.def && u.def.radius ? u.radius / u.def.radius : 1;
+      v.grow = (v.grow || 1) + (grow - (v.grow || 1)) * Math.min(1, dt * 6);
+      v.body.scale.setScalar(v.S * v.grow);
       animate(v, u, dt, time, moved);
       v.flash = Math.max(0, v.flash - dt * 6);
       const stun = u.stunT > 0 ? 0.25 + 0.2 * Math.sin(time * 30) : 0;

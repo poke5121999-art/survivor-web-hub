@@ -2019,13 +2019,13 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   {
     const lvMatch = (mech, lv, target = 'ung') => arena([[R(mech, 0, lv), 0, 0], [R(target, 1), 8, 0]]);
     const mA = lvMatch('trau', [5, 0, 0, 0, 0]), a = mA.units[0];
-    check(`upgrade giap 5: trau hp ${TRAU.hp} x 1.6 and armour ${TRAU.armor} + 0.12`, a.maxHp === Math.round(TRAU.hp * 1.6) && a.hp === a.maxHp && near(armorOf(mA, a), TRAU.armor + 0.12, 1e-9), `hp ${a.maxHp} armour ${armorOf(mA, a)}`);
+    check(`upgrade giap 5: trau hp ${TRAU.hp} x 1.65 and armour ${TRAU.armor} + 0.12`, a.maxHp === Math.round(TRAU.hp * 1.65) && a.hp === a.maxHp && near(armorOf(mA, a), TRAU.armor + 0.12, 1e-9), `hp ${a.maxHp} armour ${armorOf(mA, a)}`);
     const sh = arena([[R('tho', 0), 0, 0], [R('trau', 1, [5, 0, 0, 0, 0]), 8, 0]]);
     go(sh, 12, FIRE0);
-    check('upgrade giap 5: a tho shot on the raised armour leaves maxHp - shot x (1 - armour)', near(sh.units[1].hp, Math.round(TRAU.hp * 1.6) - THO_D * (1 - TRAU.armor - 0.12), 1e-9), `hp ${sh.units[1].hp}`);
+    check('upgrade giap 5: a tho shot on the raised armour leaves maxHp - shot x (1 - armour)', near(sh.units[1].hp, Math.round(TRAU.hp * 1.65) - THO_D * (1 - TRAU.armor - 0.12), 1e-9), `hp ${sh.units[1].hp}`);
     const dm = arena([[R('tho', 0, [0, 0, 5, 0, 0]), 0, 0], [R('ung', 1), 8, 0]]);
     go(dm, 12, FIRE0);
-    check('upgrade hoaluc 5: tho shot x 1.75 on ung leaves 1700 - that', near(dm.units[1].hp, 1700 - THO_D * 1.75, 1e-9), `hp ${dm.units[1].hp}`);
+    check('upgrade hoaluc 5: tho shot x 1.7 on ung leaves 1700 - that', near(dm.units[1].hp, 1700 - THO_D * 1.7, 1e-9), `hp ${dm.units[1].hp}`);
     const shots = (lv) => { const m = arena([[R('tho', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); return only(go(m, 90, () => ({ 0: { fire: true } })), 'fire').length; };
     const fast = arena([[R('tho', 0, [0, 0, 0, 5, 0]), 0, 0], [R('ung', 1), 30, 20]]).units[0];
     check('upgrade napdan 5: tho cd 0.45 / 1.25 = 0.36 and range 12.5 x 1.10 = 13.75', near(fast.def.weapon.cd, 0.45 / 1.25, 1e-12) && near(weaponRange(fast), 13.75, 1e-9), `cd ${fast.def.weapon.cd} range ${weaponRange(fast)}`);
@@ -2043,7 +2043,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     const junk = JSON.stringify([cleanLv(null), cleanLv('abc'), cleanLv(7), cleanLv([1, 2]), cleanLv([Infinity, -Infinity])]);
     check('cleanLv clamps junk: non-arrays and short arrays -> zeros, Infinity -> 5', junk === '[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[1,2,0,0,0],[5,0,0,0,0]]', junk);
     const cm = arena([[R('trau', 0, [9, 9, 9, 9, 9]), 0, 0], [R('ung', 1), 30, 20]]);
-    check('a roster row with levels past the maximum plays at level 5 on every track (hp x 1.6)', cm.units[0].def.lv.join() === '5,5,5,5,5' && cm.units[0].maxHp === Math.round(TRAU.hp * 1.6), `lv ${cm.units[0].def.lv} hp ${cm.units[0].maxHp}`);
+    check('a roster row with levels past the maximum plays at level 5 on every track (hp x 1.65)', cm.units[0].def.lv.join() === '5,5,5,5,5' && cm.units[0].maxHp === Math.round(TRAU.hp * 1.65), `lv ${cm.units[0].def.lv} hp ${cm.units[0].maxHp}`);
     check('buildDef at level 0 keeps the base row (hp and armour of MECHS.trau, base is MECHS.trau)', buildDef('trau', null).base === MECHS.trau && buildDef('trau').hp === TRAU.hp && buildDef('trau').armor === TRAU.armor);
   }
 

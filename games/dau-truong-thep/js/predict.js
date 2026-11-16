@@ -3,7 +3,7 @@
 // keeps the inputs it sent after N and walks them again from that spot with the host's own walk(), so the mech answers
 // the stick at once and still ends up where the host says. What the walk cannot know in advance (a knock-back, a dash,
 // a respawn) arrives as a correction, and the picture glides over it instead of jumping.
-import { walk, gripAt, turnRate, weaponRange, bounceDir } from './sim.js';
+import { walk, gripAt, turnRate, weaponRange, bounceDir, weaponOf } from './sim.js';
 import { castStatic } from './maps.js';
 import { TICK } from './data.js';
 
@@ -113,7 +113,7 @@ function segCircle(x, z, ex, ez, cx, cz, r) {
 // Lobbed shells are not predicted: only their muzzle flash is. A ray (the medic's link) is predicted as a line to the
 // first mech or wall; a charge weapon is not predicted at all, its beam comes from the host.
 export function createGunner(m, id) {
-  const unit = m.units[id], w = unit.def.weapon;
+  const unit = m.units[id], w = weaponOf(unit);
   const rapid = (unit.def.skills.find((s) => s.rapid) || { rapid: 1 }).rapid;
   let cd = 0, barrel = 0, nextId = -1, flying = [], aim = unit.aim;
   const owed = { shot: [], fire: [], impact: [], ray: [] };      // predictions the host has not echoed yet
