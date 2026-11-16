@@ -5,7 +5,7 @@
 // towerGuard() keeps it out of an enemy tower's range unless the group is already there. Mechs do not collide, so every bot keeps its own spacing.
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
-import { visibleTo, towerOpen, weaponRange, turnRate } from './sim.js';
+import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -81,7 +81,7 @@ export function botInput(m, u) {
   const b = u.brain || (u.brain = newBrain(m, u));
   const D = DIFFICULTY[u.diff] || DIFFICULTY.normal;
   const role = (m.mode === 'chiem' && m.size > 3 && ROLE_CHIEM[u.def.roleKey]) || ROLE[u.def.roleKey] || ROLE.assault;
-  const map = m.map, now = m.time, w = u.stance ? plantedWeapon(b, u) : u.def.weapon;
+  const map = m.map, now = m.time, w = u.stance ? plantedWeapon(b, u) : weaponOf(u);
   const out = b.out;
   out.fire = out.s1 = out.s2 = out.ult = out.heal = false;
   const mode = m.mode, isBoss = !!role.boss;
@@ -1150,9 +1150,25 @@ const SKILL_AI = {
     if (c.state === 'retreat') return c.enemies.length > 0;
     return !!tgt && td < w.range + 4 && c.state !== 'grab';
   },
+  transform(c, s) {
+    const { u, tgt, td, w } = c;
+    if (u.tfT > 0 || !tgt) return false;
+    const reach = (s.weapon && s.weapon.range ? s.weapon.range : w.range) + 2;
+    if (td > reach) return false;
+    if (s.nova) return td < s.nova.radius * 0.9 && (c.near >= 2 || c.hpFrac < 0.75 || tgt.hp < s.nova.dmg * 1.2 || c.D.skill >= 0.9);
+    if (s.cleanse && (u.slowT > 0.4 || u.rootT > 0.4 || u.burnT > 0.4)) return true;
+    if (c.near >= 2 || c.underFire || c.hpFrac < 0.85) return c.state !== 'retreat' || c.hpFrac < 0.5;
+    return tgt.hp < tgt.maxHp * 0.6 && c.D.skill >= 0.6;
+  },
   barrage(c, s) {
     const { u, tgt, td } = c;
     if (s.line) return lineBarrage(c, s);
+    if (s.channel) {
+      // the cast follows the cursor (the bot's aim point is its target), so only start it with an enemy inside the strike disc and in reach
+      if (!tgt || td > s.cast - 1 || td < 3.5 || !c.los) return false;
+      c.b.sk.x = tgt.x; c.b.sk.z = tgt.z;
+      return c.enemies.length >= 2 || c.hpFrac < 0.7 || tgt.hp < tgt.maxHp * 0.7 || c.D.skill >= 0.9;
+    }
     if (c.role.boss) {
       // the densest group within reach
       const g = cluster(c.enemies.filter((e) => hyp(e.x - u.x, e.z - u.z) <= s.cast + 3), s.radius);
@@ -1318,7 +1334,7 @@ const SKILL_AI = {
   // ---- the eight newer mechs ----
   stance(c, s) {
     const { u, m, b, state, enemies } = c;
-    const pr = u.def.weapon.range * s.range;
+    const pr = weaponOf(u).range * s.range;
     let nearest = 1e9;
     for (const e of enemies) nearest = Math.min(nearest, hyp(e.x - u.x, e.z - u.z));
     const closeR = m.mode === 'trum' ? 11 : 6.5;
@@ -1671,7 +1687,7 @@ function chooseSkill(c) {
 // A planted siege mech shoots further: the weapon row with the planted reach (cached in the brain).
 function plantedWeapon(b, u) {
   const r = weaponRange(u);
-  if (!b.pw || b.pw.range !== r || b.pw.name !== u.def.weapon.name) b.pw = { ...u.def.weapon, range: r };
+  if (!b.pw || b.pw.range !== r || b.pw.name !== weaponOf(u).name) b.pw = { ...weaponOf(u), range: r };
   return b.pw;
 }
 

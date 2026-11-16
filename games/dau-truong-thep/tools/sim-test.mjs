@@ -1,6 +1,6 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
 import { execFileSync } from 'node:child_process';
-import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
@@ -108,6 +108,7 @@ section('4 cooldowns (every mech, every slot)');
 for (const key of MECH_ORDER) {
   for (let i = 0; i < 3; i++) {
     const s = MECHS[key].skills[i], slot = SLOTS[i];
+    if (s.recast) continue;   // dash.recast keeps the key ready after the first press: section 41 checks its cooldown
     const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : 9, -1]);
     const a = m.units[0];
     let first = -1, second = -1, castTicks = 0;
@@ -576,7 +577,7 @@ section('13 new mechs: bots, inputs, balance');
 }
 
 // Balance: mixed rosters, normal vs normal, rotating compositions
-const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122];
+const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130];
 const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixed(i)));
 {
   check('15a mixed 8-mech matches end, no NaN, nothing outside the map or inside a wall', bal.every((r) => r.m.over && !r.bad), bal.map((r) => r.bad).filter(Boolean)[0]);
@@ -2805,6 +2806,198 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     check(`40z beam.track + thru: the beam follows a strafing target through a wall: ${BD} x 0.87 = ${BD * 0.87}`, near(full, BD * (1 - MECHS.trau.armor), 1e-6), `${full}`);
     check('40za without track the beam misses the strafing target', run({ track: null }) === 0);
     check('40zb without thru a wall stops the tracked beam', run({ thru: false }) === 0);
+  }
+}
+
+section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, barrage.channel, onKill heal (literal expected values)');
+{
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units, walls = []) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    for (const w of walls) m.map.walls.push({ x0: w[0], x1: w[1], z0: w[2], z1: w[3] });
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
+
+  // transform (lubo): buff fields, damage x1.3, cleanse, heal 30% of the lost hp, cc immunity 2 s
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    a.hp = 1000; a.slowT = 3; a.slowF = 0.5; a.burnT = 2; a.burnN = 2; a.rootT = 2; a.markT = 2;
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('41a transform: tfT ~6 s, dmg x1.2, rapid x1.2, cc immunity ~2 s, slot 2', a.tfT > 5.9 && a.tfT <= 6 && a.tfDmg === 1.2 && a.rapidF === 1.2 && a.ccT > 1.9 && a.ccT <= 2 && a.tfSlot === 2, `tfT ${a.tfT} ccT ${a.ccT}`);
+    check('41b transform cleanse: slow, stun, root, burn, mark all gone', a.slowT === 0 && a.stunT === 0 && a.rootT === 0 && a.burnT === 0 && a.burnN === 0 && a.markT === 0);
+    check('41c transform heal 30% of the lost hp: 1000 + 0.3 x 1700 = 1510', near(a.hp, 1510), `hp ${a.hp}`);
+    applyFx(m, v, a, { stun: 1, slow: 0.5, slowDur: 2, root: 2 });
+    go(m, 1);
+    check('41d cc immunity: a stun, slow and root applied during it are wiped next tick', a.stunT === 0 && a.slowT === 0 && a.rootT === 0);
+    go(m, 70);
+    check('41e after 2 s the cc immunity is over: a stun sticks', (applyFx(m, v, a, { stun: 1 }), a.stunT > 0 && a.ccT === 0));
+    a.stunT = 0;
+    const tev = go(m, 130);
+    check('41f the transform ends after 6 s: tfT 0, tfDmg 1, tfSlot -1, one event transform on:0', a.tfT === 0 && a.tfDmg === 1 && a.tfSlot === -1 && only(tev, 'transform', (e) => e.on === 0).length === 1);
+    const w = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    w.units[0].tfT = 6; w.units[0].tfDmg = 1.2; w.units[0].tfSlot = 2;
+    go(w, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('41g a transformed lubo hits for 1.2x: two pierce shots 75 x 1.2 x 2 = 180 x (1 - ung armor)', near(UNG.hp - w.units[1].hp, 180 * UNG_F), `${UNG.hp - w.units[1].hp}`);
+  }
+  // transform (nguma): size 1.35 hitbox, armor +0.2, nova after the windup, radius back at the end
+  {
+    const m = arena([[R('nguma', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('41h transform size: radius 1.0 -> 1.35 at once, unitRadius agrees', near(a.radius, 1.35) && near(unitRadius(a), 1.35), `${a.radius}`);
+    check('41i transform armor: 0.14 + 0.2 = 0.34', near(armorOf(m, a), 0.34), `${armorOf(m, a)}`);
+    go(m, 14);
+    // nova: 400 at distance 3 of radius 6 -> x0.75 = 300, and trau armor
+    check('41j transform nova after a 0.3 s windup: 320 x 0.75 x (1 - trau armor), stun 1.1 s', near(MECHS.trau.hp - v.hp, 240 * (1 - MECHS.trau.armor), 1e-6) && v.stunT > 0.9 && v.stunT <= 1.1, `${MECHS.trau.hp - v.hp} stun ${v.stunT}`);
+    go(m, 190);
+    check('41k size and armor go back after 6 s', near(a.radius, 1.0) && a.tfT === 0 && near(armorOf(m, a), 0.14), `${a.radius}`);
+  }
+  // transform.weapon (kynhong): the weapon row is swapped in for the duration
+  {
+    const m = arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]]), a = m.units[0];
+    check('41l before: Hoa Quyen reach 6.5, dmg 25', weaponOf(a).range === 6.5 && weaponOf(a).dmg === 25);
+    go(m, 1, () => ({ 0: { ult: true } }));
+    check('41m during Long Hoa: reach 11, dmg 36, r 0.5, still pierces; weaponRange follows', weaponOf(a).range === 11 && weaponOf(a).dmg === 36 && weaponOf(a).r === 0.5 && weaponOf(a).pierce && weaponRange(a) === 11, JSON.stringify(weaponOf(a)));
+    go(m, 160);
+    check('41n after the 5 s the weapon is back', weaponOf(a).range === 6.5);
+  }
+  // ramp 'hit' (lubo): +1 per hit, fire rate, fades 1 per 0.5 s after dur 3
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]), a = m.units[0];
+    go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('41o ramp hit: two pierce shots hit -> rampN 2, rapid bonus 0.12', a.rampN === 2 && near(rampBonus(a, 'rapid'), 0.12), `rampN ${a.rampN}`);
+    go(m, 88);
+    check('41p ramp fades: 3 s after the hits one stack is gone (1 left)', a.rampN === 1, `rampN ${a.rampN}`);
+    go(m, 25);
+    check('41q ... and the last one 0.5 s later', a.rampN === 0, `rampN ${a.rampN}`);
+    const w = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 20, 0]]), b = w.units[0];
+    b.rampN = 5; b.rampT = 3; b.cd.fire = 0.5;
+    go(w, 10);
+    check('41r ramp rapid: 5 stacks cool the gun 1.3x: 0.5 - 10/30 x 1.3 = 0.0667', near(b.cd.fire, 0.5 - 10 / 30 * 1.3, 1e-9), `${b.cd.fire}`);
+  }
+  // ramp 'hurt' (nguma armor)
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('nguma', 1), 5, 0]]), v = m.units[1];
+    go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('41s ramp hurt: one hit -> rampN 1, armor 0.14 + 0.02 = 0.16', v.rampN === 1 && near(armorOf(m, v), 0.16), `rampN ${v.rampN} armor ${armorOf(m, v)}`);
+    v.rampN = 9;
+    check('41t ramp armor stacks are capped by rampN max only through damage(); armorOf never exceeds RULES.armorCap', armorOf(m, v) <= RULES.armorCap);
+  }
+  // ramp 'still' (sontinh armor, boica dmg): +1 per every s, back to 0 on moving
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('ung', 1), 14, 0]]), a = m.units[0];
+    go(m, 50);
+    check('41u ramp still: 50 ticks standing -> 3 stacks, armor 0.15 + 0.12', a.rampN === 3 && near(armorOf(m, a), 0.27), `rampN ${a.rampN}`);
+    go(m, 4, () => ({ 0: { mx: 1 } }));
+    check('41v moving resets it to 0 (reset: move)', a.rampN === 0 && near(armorOf(m, a), 0.15), `rampN ${a.rampN}`);
+    const w = arena([[R('boica', 0), 0, 0], [R('ung', 1), 8, 0]]), b = w.units[0], v = w.units[1];
+    go(w, 80);
+    check('41w boica standing 80 ticks: capped at 5 stacks, +0.4 dmg', b.rampN === 5 && near(rampBonus(b, 'dmg'), 0.4), `rampN ${b.rampN}`);
+    go(w, 1, () => ({ 0: { fire: true, tx: 8, tz: 0 } }));
+    go(w, 20);
+    check('41x the rail shot does 330 x 1.4 = 462 x (1 - ung armor)', near(UNG.hp - v.hp, 462 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
+  }
+  // ramp 'switch' (enbac): changing target restarts the count at 1
+  {
+    const m = arena([[R('enbac', 0), 0, 0], [R('trau', 1), 7, 0], [R('trau', 1), 0, 7]]), a = m.units[0];
+    go(m, 30, () => ({ 0: { fire: true, aim: 0 } }));
+    check('41y ramp switch: shooting one target builds stacks on it', a.rampN >= 3 && a.rampTo === 1, `rampN ${a.rampN} to ${a.rampTo}`);
+    let at = -1;
+    for (let i = 0; i < 40 && a.rampTo !== 2; i++) { step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...(k === 0 ? { fire: true, aim: Math.PI / 2 } : {}) }))); at = i; }
+    check('41z the first hit on the other target drops the count to 1', a.rampTo === 2 && a.rampN === 1, `rampN ${a.rampN} to ${a.rampTo} after ${at}`);
+  }
+  // burn (hitfx) + brittle.when burn (kynhong)
+  {
+    const m = arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]]), [a, v] = m.units;
+    for (let i = 0; i < 5; i++) applyFx(m, a, v, { burn: { dps: 25, dur: 3, max: 4 } });
+    check('41za burn stacks to max 4, 3 s, owner remembered, dps 25', v.burnN === 4 && v.burnT === 3 && v.burnBy === a.id && v.burnDps === 25);
+    go(m, 30);
+    check('41zb a second of 4 stacks = 100 dps x 1.2 (Lua Rong: brittle burn) x (1 - ung armor) = 120 x 0.x', near(UNG.hp - v.hp, 100 * 1.2 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
+    go(m, 61);
+    check('41zc after 3 s the burn is spent: burnN 0, burnT 0', v.burnT === 0 && v.burnN === 0);
+  }
+  // dash.recast (lubo Q): two dashes inside the window, the cooldown only after the last
+  {
+    const m = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), a = m.units[0];
+    const ev = go(m, 40, (i) => ({ 0: { s1: i === 0 || i === 12, aim: 0 } }));
+    check('41ze dash.recast: the skill event fires twice (slot 0), distance about 14 m', only(ev, 'skill', (e) => e.slot === 0).length === 2 && a.x > 12.5 && a.x < 14.2, `x ${a.x}`);
+    check('41zf ... cooldown starts after the second: cd.s1 ~10 and the recast window is closed', a.recast === null && a.cd.s1 > 9 && a.cd.s1 <= 10, `cd ${a.cd.s1}`);
+    const w = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), b = w.units[0];
+    go(w, 12, (i) => ({ 0: { s1: i === 0 } }));
+    check('41zg after one dash the key is still ready (cd 0) with a recast pending', b.cd.s1 === 0 && b.recast && b.recast.left === 1);
+    go(w, 100);
+    check('41zh the window lapses after 3 s: cd.s1 back to 10 from the first dash only', b.recast === null && b.cd.s1 > 9 && b.cd.s1 <= 10, `cd ${b.cd.s1}`);
+    const x = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), c = x.units[0];
+    const ev3 = go(x, 80, (i) => ({ 0: { s1: i % 12 === 0, aim: 0 } }));
+    check('41zi only n = 2 dashes per cast: a third press does nothing while it cools', only(ev3, 'skill', (e) => e.slot === 0).length === 2);
+  }
+  // dash.stop (kynhong E): ends on the first mech it hits
+  {
+    const run = (patch) => {
+      const m = arena([[R('kynhong', 0), 0, 0], [R('trau', 1), 3, 0]]);
+      if (patch) m.units[0].def = { ...m.units[0].def, skills: m.units[0].def.skills.map((x, i) => (i === 1 ? { ...x, ...patch } : x)) };
+      go(m, 20, (i) => ({ 0: { s2: i === 0 } }));
+      return [m.units[0].x, m.units[1]];
+    };
+    const [x1, t1] = run(null), [x2] = run({ stop: false });
+    check('41zj dash.stop: stops against the first mech (x < 3), without it the dash carries on past', x1 < 3 && x2 > 5.5, `${x1} ${x2}`);
+    check('41zk the Hoa Quyen Dot hit: 360 x (1 - trau armor), stun 0.3, burn lit', t1.hp < t1.maxHp - 300 && t1.burnN === 1, `hp ${t1.hp} burn ${t1.burnN}`);
+  }
+  // barrage.channel (enbac U): a strike every 0.2 s around the cursor for 3 s, walking allowed
+  {
+    const m = arena([[R('enbac', 0), 0, 0], [R('trau', 1), 8, 0]]), [a, v] = m.units;
+    const ev = go(m, 140, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0, mz: i > 5 && i < 20 ? 1 : 0 } }));
+    const strikes = only(ev, 'explode', (e) => e.why === 'strike');
+    check('41zl barrage.channel: 15 strikes in 3 s, every one within 4 m of the cursor (8, 0)', strikes.length === 15 && strikes.every((e) => Math.hypot(e.x - 8, e.z) <= 4), `${strikes.length}`);
+    check('41zm ... and the mech walked while channelling (move 0.8)', a.z > 1, `z ${a.z}`);
+    check('41zn ... the target took the strikes', v.hp < v.maxHp - 500, `hp ${v.hp}`);
+  }
+  // barrage.fx knock + stun (sontinh U)
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('ung', 1), 8.7, 1.0]]), v = m.units[1];
+    go(m, 30, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 } }));
+    check('41zo barrage line fx: stunned 0.7 s and thrown away from the blast (z > 1.1)', v.stunT > 0 && v.z > 1.1, `stun ${v.stunT} z ${v.z}`);
+  }
+  // mine fx (boica E): slow, reveal
+  {
+    const m = arena([[R('boica', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    go(m, 50, (i) => ({ 0: { s2: i === 0, tx: 6, tz: 0 } }));
+    check('41zp mine fx: slow 0.5 and reveal ~5 s on the mech that stepped on it', v.slowF === 0.5 && v.revealT > 4 && v.hp < v.maxHp, `slowF ${v.slowF} reveal ${v.revealT}`);
+  }
+  // mods.onKill heal (mucma): kill heals 15% of max hp, an assist 7%
+  {
+    const m = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    a.hp = 1000; v.hp = 1;
+    go(m, 10, (i) => ({ 0: { fire: i === 0 } }));
+    check('41zq kill heal: 1000 + 10% of 2300 = 230 (+ the lifesteal of the shot, at most 3 x 45 x 0.1)', !v.alive && a.hp >= 1230 && a.hp <= 1230 + 3 * 45 * 0.1 + 1e-6, `hp ${a.hp}`);
+    const w = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 6], [R('tho', 0), 0, 6, 0]]), [b, o, k] = w.units;
+    b.hp = 1000; o.hp = 1; o.hitBy[b.id] = w.time;
+    go(w, 12, (i) => ({ 2: { fire: i === 0, aim: Math.atan2(o.z - k.z, o.x - k.x), tx: o.x, tz: o.z } }));
+    check('41zr assist heal: 1000 + 5% of 2300 = 115', !o.alive && near(b.hp, 1115, 1e-6), `hp ${b.hp} alive ${o.alive}`);
+  }
+  // determinism: the same seed gives the same events and hp for a scripted fight
+  {
+    const play = () => {
+      const m = arena([[R('lubo', 0), 0, 0], [R('kynhong', 1), 3, 0], [R('enbac', 0), 0, 4], [R('mucma', 1), 4, 4]]);
+      const ev = go(m, 240, (i) => ({ 0: { fire: true, ult: i === 20, s1: i === 40 }, 1: { fire: true, ult: i === 30, s2: i === 60, aim: Math.PI }, 2: { fire: true, ult: i === 50, tx: 4, tz: 4 }, 3: { fire: true, s1: i === 70, aim: Math.PI } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.rampN, u.burnN, u.tfT])]);
+    };
+    check('41zs batch 2 fight is deterministic: same seed, same events and state', play() === play());
   }
 }
 

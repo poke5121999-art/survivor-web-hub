@@ -922,6 +922,14 @@ export function makeFx(G, mechs) {
         column(e.x, e.z, RALLY.clone().multiplyScalar(0.5), 0.8, 8, 1.2); glow(e.x, 1.2, e.z, WHITE, 0.2, 3.5, 0.6, K.STAR, 1.3); flash(e.x, 3, e.z, RALLY, 30, 0.4);
         break;
       }
+      case 'transform': {
+        // a transform starts or ends: a gold ring and a pillar going on (scaled by the skill's size), a plain ring going off
+        if (!e.on) { ring(e.x, e.z, 2.2, WHITE, 0.3, 0.6); break; }
+        const sz = e.size || 1;
+        ring(e.x, e.z, 3.4 * sz, GOLD, 0.6); ring(e.x, e.z, 1.9 * sz, WHITE, 0.4, 0.6);
+        column(e.x, e.z, GOLD.clone().multiplyScalar(0.5), 0.7, 7, 1.0); glow(e.x, 1.2, e.z, WHITE, 0.2, 3, 0.6, K.STAR, 1.3); flash(e.x, 3, e.z, GOLD, 26, 0.35);
+        break;
+      }
       case 'leap': {
         puffs(e.x0, 0.3, e.z0, N(9), dust, 1, 5, 0.8, 1.1, 2.4, 0.6, 0.55, K.DUST, 3); ring(e.x0, e.z0, 2.6, WHITE, 0.3);
         chips(e.x0, 0.3, e.z0, N(6), dust, 5, 0.7, 0.14); sparks(e.x0, 0.4, e.z0, N(8), EMBER, 6, 0.35, 0.05, 1, 12); kick(e.x0, e.z0, 0.3);

@@ -48,6 +48,13 @@ const SEQ = {
   duongtien: { d: 10, seq: [['ult', 0], ['s1', 0.9]], fireAt: 0.9 },
   athena: { d: 8, seq: [['s1', 0]] },
   hades: { d: 9, seq: [['s2', 0], ['s1', 0.7], ['ult', 0.2]] },
+  lubo: { d: 5, seq: [['ult', 0], ['s1', 0.4], ['s1', 1.0], ['s2', 1.4]] },
+  mucma: { d: 5, seq: [['ult', 0], ['s2', 0.3], ['s1', 0.6]] },
+  kynhong: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },
+  nguma: { d: 5, seq: [['ult', 0], ['s2', 0.8], ['s1', 1.2]] },
+  sontinh: { d: 9, seq: [['s2', 0], ['ult', 0.5]] },
+  enbac: { d: 8, seq: [['s1', 0], ['ult', 0.3]] },
+  boica: { d: 14, seq: [['s1', 0], ['ult', 0.2]], fireAt: 0.1 },
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {

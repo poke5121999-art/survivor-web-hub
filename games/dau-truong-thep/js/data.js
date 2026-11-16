@@ -398,9 +398,122 @@ export const MECHS = {
         desc: 'Mở cửa âm phủ ở con trỏ trong 4 giây: kéo địch vào tâm và thiêu 220 sát thương mỗi giây.' },
     ],
   },
+  lubo: {
+    name: 'Lữ Bố', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0xb3262b,
+    blurb: 'Kích dài quét hai đường, bắn càng lâu càng nhanh. Xung phong hai lần liền, hóa Chiến Thần hồi máu và bất chấp khống chế.',
+    hp: 2700, speed: 6.3, radius: 0.88,
+    armor: 0.1, accel: 1.1, turn: 11, towerMul: 1.3,
+    passive: { do: 'ramp', name: 'Chiến Ý', desc: 'Mỗi lần trúng đòn bắn nhanh thêm 6%, cộng dồn tối đa 5 lần, mất dần sau 3 giây không trúng.', on: 'hit', stat: 'rapid', step: 0.06, max: 5, dur: 3 },
+    weapon: { name: 'Phương Thiên Kích', cd: 0.5, dmg: 75, n: 2, fan: 0.12, speed: 26, range: 7.5, r: 0.36, pierce: true, vis: 'wave' },
+    skills: [
+      { id: 'dotkich', name: 'Đột Kích', cd: 10, do: 'dash', dist: 7, speed: 30, dmg: 150, stun: 0.2, knock: 1, recast: { n: 2, window: 3 }, icon: 'dash',
+        desc: 'Lao tới theo hướng ngắm, húc sát thương và choáng nhẹ. Trong 3 giây sau bấm lại để lao thêm một lần nữa.' },
+      { id: 'kichchan', name: 'Kích Chấn', cd: 9, do: 'volley', n: 1, dmg: 260, speed: 22, range: 7, r: 1.3, pierce: true, knock: 3, vis: 'wave', icon: 'quake',
+        desc: 'Vung kích tạo sóng rộng xuyên qua mọi kẻ địch phía trước, hất văng chúng.' },
+      { id: 'chienthan', name: 'Chiến Thần', cd: 45, do: 'transform', dur: 6, cleanse: true, ccImmune: 2, heal: 0.3, dmg: 1.2, rapid: 1.2, icon: 'rage',
+        desc: 'Hóa Chiến Thần 6 giây: xóa mọi hiệu ứng xấu, miễn choáng và làm chậm trong 2 giây đầu, hồi 30% máu đã mất, gây thêm 30% sát thương và bắn nhanh hơn 20%.' },
+    ],
+  },
+  mucma: {
+    name: 'Mực Ma', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x1d1d24,
+    blurb: 'Xúc tu đỏ quất ba đường, xuyên thân đánh dấu mục tiêu. Hạ gục hồi máu, Hóa Ma hút máu và chạy nhanh.',
+    hp: 2300, speed: 7.0, radius: 0.76,
+    armor: 0.03, accel: 1.5, turn: 16, towerMul: 1.0,
+    passive: { do: 'lifesteal', name: 'Đói Khát', desc: 'Hồi máu bằng 10% sát thương gây ra. Hạ gục hồi thêm 10% máu tối đa, trợ công hồi 5%.', frac: 0.1,
+      mods: { onKill: { heal: 0.1, assist: { heal: 0.05 } } } },
+    weapon: { name: 'Xúc Tu', cd: 0.35, dmg: 45, n: 3, fan: 0.14, speed: 28, range: 8, r: 0.24, vis: 'pellet' },
+    skills: [
+      { id: 'quatxuctu', name: 'Quất Xúc Tu', cd: 7, do: 'volley', n: 5, fan: 0.22, dmg: 120, speed: 26, range: 7, r: 0.4, pierce: true, vis: 'wave', icon: 'spin',
+        desc: 'Quất năm xúc tu hình quạt, xuyên qua mọi kẻ địch.' },
+      { id: 'xuyenthan', name: 'Xuyên Thân', cd: 10, do: 'dash', dist: 8, speed: 34, dmg: 200, fx: { amp: { amp: 0.2, dur: 4 } }, icon: 'dash',
+        desc: 'Lao xuyên qua kẻ địch, gây sát thương và khiến chúng nhận thêm 20% sát thương từ mọi người trong 4 giây.' },
+      { id: 'hoama', name: 'Hóa Ma', cd: 40, do: 'transform', dur: 6, haste: 1.3, rapid: 1.4, lifesteal: 0.35, icon: 'rage',
+        desc: 'Hóa Ma 6 giây: chạy nhanh hơn 30%, bắn nhanh hơn 40% và hút máu 35%.' },
+    ],
+  },
+  kynhong: {
+    name: 'Kỳ Nhông', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0xe2401c,
+    blurb: 'Quyền lửa liên hồi đốt cháy cộng dồn, kẻ đang cháy chịu thêm sát thương. Long Hóa phun lửa dài, cứng và nhanh hơn.',
+    hp: 2800, speed: 6.1, radius: 0.86,
+    armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.8,
+    passive: { do: 'brittle', name: 'Lửa Rồng', desc: 'Gây thêm 20% sát thương lên kẻ đang cháy.', mul: 1.2, when: 'burn' },
+    weapon: { name: 'Hỏa Quyền', cd: 0.12, dmg: 25, speed: 22, range: 6.5, spread: 0.14, r: 0.34, pierce: true, vis: 'flame', fx: { burn: { dps: 20, dur: 3, max: 4 } } },
+    skills: [
+      { id: 'hoalongkhieu', name: 'Hỏa Long Khiếu', cd: 8, do: 'volley', n: 5, fan: 0.16, dmg: 100, speed: 24, range: 8, r: 0.4, pierce: true, vis: 'flame', fx: { burn: { dps: 20, dur: 3, max: 4 } }, icon: 'rocket',
+        desc: 'Phun năm luồng lửa hình quạt, xuyên qua địch và thiêu đốt.' },
+      { id: 'hoaquyendot', name: 'Hỏa Quyền Đột', cd: 10, do: 'dash', dist: 7, speed: 32, dmg: 360, stun: 0.3, knock: 3, stop: true, fx: { burn: { dps: 20, dur: 3, max: 4 } }, icon: 'dash',
+        desc: 'Lao tới và dừng ngay ở kẻ địch đầu tiên, giáng cú đấm lửa 360 sát thương, choáng và thiêu đốt.' },
+      { id: 'longhoa', name: 'Long Hóa', cd: 44, do: 'transform', dur: 5, armor: 0.15, haste: 1.15, weapon: { range: 11, dmg: 36, r: 0.5 }, icon: 'boost',
+        desc: 'Long Hóa 5 giây: thêm 15% giáp, chạy nhanh hơn 15%, hơi thở lửa phun xa 11 m và mạnh hơn.' },
+    ],
+  },
+  nguma: {
+    name: 'Ngưu Ma Vương', role: 'Trụ', roleKey: 'tank', price: 1800, tint: 0x5a1e1e,
+    blurb: 'Rìu chấn nặng nề, càng bị đánh dồn càng cứng. Pháp Tướng hóa khổng lồ, hồi máu và giáng một đòn chấn động.',
+    hp: 3100, speed: 5.0, radius: 1.0,
+    armor: 0.14, accel: 0.8, turn: 9, towerMul: 1.5,
+    passive: { do: 'ramp', name: 'Da Trâu', desc: 'Mỗi lần bị trúng đòn thêm 2% giáp, cộng dồn tối đa 6 lần, mất dần sau 3 giây không bị đánh.', on: 'hurt', stat: 'armor', step: 0.02, max: 6, dur: 3 },
+    weapon: { name: 'Rìu Chấn', cd: 0.9, dmg: 200, speed: 24, range: 8, r: 0.6, pierce: true, knock: 1.5, vis: 'wave' },
+    skills: [
+      { id: 'songriu', name: 'Sóng Rìu', cd: 8, do: 'volley', n: 3, fan: 0.08, dmg: 220, speed: 24, range: 8, r: 0.45, pierce: true, vis: 'wave', icon: 'spin',
+        desc: 'Tung ba sóng rìu liền nhau, xuyên qua mọi kẻ địch.' },
+      { id: 'humma', name: 'Húc Ma', cd: 12, do: 'dash', dist: 9, speed: 26, dmg: 200, stun: 0.4, knock: 4.5, icon: 'dash',
+        desc: 'Cúi sừng húc tới, gây sát thương, choáng và hất văng kẻ chắn đường.' },
+      { id: 'phaptuong', name: 'Pháp Tướng', cd: 46, do: 'transform', dur: 6, size: 1.35, armor: 0.2, heal: 0.25, nova: { windup: 0.3, radius: 6, dmg: 320, stun: 1.1 }, icon: 'quake',
+        desc: 'Hóa Pháp Tướng 6 giây: to hơn 35%, thêm 20% giáp, hồi 25% máu đã mất và giáng một đòn chấn động 320 sát thương, choáng 1,1 giây.' },
+    ],
+  },
+  sontinh: {
+    name: 'Sơn Tinh', role: 'Trụ', roleKey: 'tank', price: 1800, tint: 0x6b7a3a,
+    blurb: 'Đứng vững như núi: đứng yên càng lâu giáp càng dày. Dựng vách đá, chấn địa, dời non đè cả vùng.',
+    hp: 3300, speed: 4.9, radius: 0.96,
+    armor: 0.15, accel: 0.8, turn: 9, towerMul: 1.4,
+    passive: { do: 'ramp', name: 'Núi Vững', desc: 'Đứng yên mỗi nửa giây thêm 4% giáp, tối đa 5 lần. Di chuyển là mất hết.', on: 'still', stat: 'armor', step: 0.04, max: 5, every: 0.5, reset: 'move' },
+    weapon: { name: 'Đá Lăn', cd: 1.0, dmg: 285, speed: 22, range: 13, splash: 2, knock: 2, r: 0.4, vis: 'shell' },
+    skills: [
+      { id: 'vachda', name: 'Vách Đá', cd: 14, do: 'wall', cast: 5, n: 5, r: 0.8, gap: 1.35, dur: 5, icon: 'wall',
+        desc: 'Dựng một vách đá năm khối trước mặt trong 5 giây, chặn đường và đạn.' },
+      { id: 'chandia', name: 'Chấn Địa', cd: 10, do: 'nova', windup: 0.35, radius: 5.5, dmg: 260, slow: 0.45, slowDur: 2, icon: 'quake',
+        desc: 'Giậm đất quanh mình, gây 260 sát thương và làm chậm 45% trong 2 giây.' },
+      { id: 'doinon', name: 'Dời Non', cd: 46, do: 'barrage', line: true, n: 6, gap: 2.6, radius: 7, blast: 2.8, dmg: 480, delay: 0.7, span: 1.2, cast: 16, fx: { stun: 0.7, knock: 3 }, icon: 'barrage',
+        desc: 'Sáu tảng đá rơi thành một hàng dọc theo hướng ngắm, mỗi tảng 480 sát thương, choáng 0,7 giây và hất văng.' },
+    ],
+  },
+  enbac: {
+    name: 'Én Bạc', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x8a96a8,
+    blurb: 'Song thương nhanh, ghim một mục tiêu thì sát thương tăng dần. Phản lực bắn trả khi lùi, mưa đạn trời dội vừa đi vừa bắn.',
+    hp: 2450, speed: 6.8, radius: 0.8,
+    armor: 0.04, accel: 1.3, turn: 14, towerMul: 1.0,
+    passive: { do: 'ramp', name: 'Chốt Mục Tiêu', desc: 'Mỗi phát trúng cùng một mục tiêu tăng 4% sát thương đạn, tối đa 8 lần. Đổi mục tiêu là về lại từ đầu.', on: 'hit', stat: 'dmg', step: 0.04, max: 8, dur: 2, reset: 'switch' },
+    weapon: { name: 'Song Thương', cd: 0.18, dmg: 76, speed: 34, range: 13, spread: 0.04, r: 0.2, alt: 0.4, vis: 'bullet' },
+    skills: [
+      { id: 'loatkep', name: 'Loạt Kép', cd: 6, do: 'volley', n: 2, fan: 0.05, dmg: 210, speed: 34, range: 15, r: 0.24, splash: 1.6, vis: 'rocket', icon: 'rocket',
+        desc: 'Bắn hai quả tên lửa nhỏ nổ lan 1,6 m.' },
+      { id: 'phanluc', name: 'Phản Lực', cd: 10, do: 'dash', dist: 8, speed: 34, dmg: 0, onStart: { volley: { n: 3, fan: 0.25, dmg: 110, speed: 30, range: 10, r: 0.2, vis: 'bullet', back: true } }, icon: 'boost',
+        desc: 'Lao nhanh theo hướng ngắm; lúc bật đi, ba phát đạn bắn ngược về phía sau tỏa hình quạt.' },
+      { id: 'muadan', name: 'Mưa Đạn Trời', cd: 42, do: 'barrage', radius: 4, blast: 2.2, dmg: 180, delay: 0.5, cast: 14, channel: { dur: 3, every: 0.2, move: 0.8 }, icon: 'storm',
+        desc: 'Trong 3 giây vừa đi vừa dội đạn liên tục quanh con trỏ, mỗi 0,2 giây một quả nổ 180 sát thương.' },
+    ],
+  },
+  boica: {
+    name: 'Bói Cá', role: 'Bắn tỉa', roleKey: 'sniper', price: 1800, tint: 0x2f7fa6,
+    blurb: 'Nín thở đứng yên để mỗi phát bắn thêm mạnh. Đạn xuyên dài, bẫy cảnh giới lộ diện, khóa mục tiêu rồi bắn tia chí mạng.',
+    hp: 1700, speed: 5.9, radius: 0.76,
+    armor: 0, accel: 1.0, turn: 10, towerMul: 0.4,
+    passive: { do: 'ramp', name: 'Nín Thở', desc: 'Đứng yên mỗi 0,4 giây thêm 8% sát thương đạn, tối đa 5 lần. Di chuyển là mất hết.', on: 'still', stat: 'dmg', step: 0.08, max: 5, every: 0.4, reset: 'move' },
+    weapon: { name: 'Súng Lặn', cd: 1.4, dmg: 330, speed: 62, range: 22, r: 0.2, vis: 'rail' },
+    skills: [
+      { id: 'danxuyen', name: 'Đạn Xuyên Dài', cd: 10, do: 'volley', n: 1, dmg: 560, speed: 60, range: 27, r: 0.22, pierce: true, vis: 'sabot', icon: 'pierce',
+        desc: 'Bắn một viên đạn xuyên giáp tầm 27 m, xuyên qua mọi kẻ địch trên đường.' },
+      { id: 'bancanhgioi', name: 'Bẫy Cảnh Giới', cd: 12, do: 'mine', cast: 9, trigger: 2.4, blast: 3, dmg: 120, stun: 0, arm: 0.6, life: 30, fx: { slow: 0.5, slowDur: 2, reveal: 5 }, icon: 'mine',
+        desc: 'Đặt một quả mìn cảnh giới: kẻ giẫm phải bị chậm 50% trong 2 giây và bị lộ diện 5 giây.' },
+      { id: 'khoamuctieu', name: 'Khóa Mục Tiêu', cd: 55, do: 'beam', windup: 1.1, range: 34, width: 0.6, dmg: 1800, track: { cast: 32, pick: 6 }, icon: 'beam',
+        desc: 'Khóa kẻ địch ở con trỏ, lấy đà 1,1 giây rồi bắn tia 1800 sát thương bám theo mục tiêu.' },
+    ],
+  },
 };
 
-export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'khiphao', 'quancong', 'natra', 'duongtien', 'athena', 'hades'];
+export const MECH_ORDER = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong', 'khiphao', 'quancong', 'natra', 'duongtien', 'athena', 'hades', 'lubo', 'mucma', 'kynhong', 'nguma', 'sontinh', 'enbac', 'boica'];
 
 // Bot tuning. aimErr: radians of aim noise; react: seconds before a new target is engaged;
 // skill: chance per second to use a ready skill when it makes sense; lead: how well shots lead a moving target (0..1).
@@ -466,6 +579,13 @@ export const PERKS = {
   duongtien: [perk('Tiêm Sâu', 'Tam Tiêm Đao làm lộ điểm yếu 22% trong 5 giây.', 0, { fx: { amp: { amp: 0.22, dur: 5 } } }), perk('Khuyển Nhanh', 'Hao Thiên Khuyển chạy nhanh hơn, nổ 320.', 1, { seek: { speed: 10.5, range: 16 }, dmg: 320 }), perk('Mắt Tinh', 'Thần Nhãn Truy Kích gây 1500, lấy đà 0,65 giây.', 2, { dmg: 1500, windup: 0.65 })],
   athena: [perk('Khiên Nặng', 'Khiên Bay gây 300.', 0, { dmg: 300 }), perk('Khiên Dày', 'Khiên Thần hấp thụ 750.', 1, { shield: 750 }), perk('Kết Giới Bền', 'Kết Giới kéo dài 6,5 giây, hồi 350.', 2, { dur: 6.5, heal: 350 })],
   hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
+  lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Tam Đột', 'Đột Kích lao được ba lần liền, trong 3,5 giây.', 0, { recast: { n: 3, window: 3.5 } }), perk('Thần Uy', 'Chiến Thần kéo dài 8 giây, hồi 40% máu đã mất.', 2, { dur: 8, heal: 0.4 })],
+  mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Xuyên Sâu', 'Xuyên Thân lao xa 9,5 m, gây 260.', 1, { dist: 9.5, dmg: 260 }), perk('Ma Dài', 'Hóa Ma kéo dài 8 giây, hút máu 45%.', 2, { dur: 8, lifesteal: 0.45 })],
+  kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
+  nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],
+  sontinh: [perk('Đá Nặng', 'Đá Lăn gây 300, nổ lan 2,6 m.', 'weapon', { dmg: 300, splash: 2.6 }), perk('Bảy Khối Đá', 'Vách Đá dựng bảy khối.', 0, { n: 7 }), perk('Tám Tảng Non', 'Dời Non rơi tám tảng, mỗi tảng 560.', 2, { n: 8, dmg: 560 })],
+  enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Ba Tên Lửa', 'Loạt Kép bắn ba quả.', 0, { n: 3 }), perk('Mưa Dài', 'Mưa Đạn Trời kéo dài 4 giây.', 2, { channel: { dur: 4, every: 0.2, move: 0.8 } })],
+  boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
 };
 
 // The row a unit actually plays: the MECHS row with its upgrade levels and unlocked perks applied.
@@ -483,7 +603,10 @@ export function buildDef(key, lv) {
   weapon.range *= 1 + TN.range * n;
   if (weapon.charge) weapon.charge = { ...weapon.charge, range: weapon.charge.range.map((r) => r * (1 + TN.range * n)) };
   for (const s of skills) s.cd *= 1 - TC.cd * c;
-  const def = { ...base, base, lv, weapon, skills, hp: Math.round(base.hp * (1 + TG.hp * g)), armor: (base.armor || 0) + TG.armor * g,
+  // transform.weapon: the weapon row a transform swaps in, built here so both ends of an online match agree
+  const tfWeapon = {};
+  skills.forEach((s, i) => { if (s.do === 'transform' && s.weapon) tfWeapon[i] = { ...weapon, ...s.weapon }; });
+  const def = { ...base, base, lv, weapon, skills, tfWeapon, hp: Math.round(base.hp * (1 + TG.hp * g)), armor: (base.armor || 0) + TG.armor * g,
     speed: base.speed * (1 + TD.speed * d), accel: (base.accel || 1) * (1 + TD.accel * d), dmgUp: 1 + TH.dmg * h };
   DEF_CACHE.set(id, def);
   return def;

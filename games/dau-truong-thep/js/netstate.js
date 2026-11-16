@@ -6,7 +6,7 @@
 // Static facts (map, mechs, weapon stats) never travel: both ends rebuild them from data.js and maps.js.
 
 import { TICK, MECHS, BOSSES, PICKUPS } from './data.js';
-import { createMatch } from './sim.js';
+import { createMatch, unitRadius } from './sim.js';
 
 export const SNAP_TICKS = 1;
 
@@ -64,7 +64,7 @@ function decZoneField(v, type) {
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 function unitRow(u) {
@@ -166,11 +166,12 @@ export function applySnapshot(m, snap, dt) {
     let at = 8;
     for (const k of CD) u.cd[k] = r[at++];
     for (const k of STATUS) u[k] = r[at++];
+    u.radius = unitRadius(u);
     u.bush = r[at++];
     const c = r[at++];
     if (c) {
       const skill = u.def.skills[c[0]];
-      u.cast = { skill, t: c[1], total: c[2], aim: c[3], move: skill.move ?? (skill.do === 'beam' ? 0.12 : skill.do === 'stance' ? 0 : 0.35), lock: skill.do === 'beam' };
+      u.cast = { skill, t: c[1], total: c[2], aim: c[3], move: skill.move ?? (skill.channel ? skill.channel.move : skill.do === 'beam' ? 0.12 : skill.do === 'stance' ? 0 : 0.35), lock: skill.do === 'beam' };
     } else u.cast = null;
     u.slowF = r[at++]; u.hasteF = r[at++];
     if (r[at] !== undefined) { u.kills = r[at++]; u.deaths = r[at++]; u.assists = r[at++]; u.dmg = r[at++]; u.healed = r[at++]; }
