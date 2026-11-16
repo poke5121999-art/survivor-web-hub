@@ -37,8 +37,18 @@ function stripPts(p, S) { // p = [cu, cv, ang, hw, th, bend] -> S points (x alon
 // sparse weight maps: [[bone, w], ...]
 function lerpW(a, b, t) { const m = new Map(); for (const [k, w] of a) m.set(k, (m.get(k) || 0) + w * (1 - t)); for (const [k, w] of b) m.set(k, (m.get(k) || 0) + w * t); return [...m].sort((x, y) => y[1] - x[1]).slice(0, 4); }
 
+// value noise for code shading detail (fur trim)
+function hash3(x, y, z) { let h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h); }
+function vnoise(q, sc) { const x = q[0] * sc, y = q[1] * sc, z = q[2] * sc, xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), fx = x - xi, fy = y - yi, fz = z - zi;
+  const L = (a, b, t) => a + (b - a) * t * t * (3 - 2 * t); let v = 0;
+  const c = (dx, dy, dz) => hash3(xi + dx, yi + dy, zi + dz);
+  v = L(L(L(c(0, 0, 0), c(1, 0, 0), fx), L(c(0, 1, 0), c(1, 1, 0), fx), fy), L(L(c(0, 0, 1), c(1, 0, 1), fx), L(c(0, 1, 1), c(1, 1, 1), fx), fy), fz); return v; }
+
 export function buildCharacter(table, opts = {}) {
   const W = restWorld(table.skel), J = jointPos(table, W), pal = table.palette;
+  const fur = new Set(table.furPal || []);
+  const shade = (ix, q) => { const c = pal[ix] || pal[0]; if (!fur.has(ix) || !q) return c; const k = 0.82 + 0.3 * vnoise(q, 160) + 0.08 * vnoise(q, 420); return c.map((x) => Math.min(1, x * k)); };
+  const hairBand = (c, k) => c.map((x) => Math.min(1, x * (1 + 0.18 * k) + 0.06 * k)); // anime highlight band
   const pos = [], col = [], idx = [], si = [], sw = [], part = [], tf = [], partNames = [];
   const push = (q, c, w, pn, t) => {
     pos.push(q[0], q[1], q[2]); col.push(c[0], c[1], c[2]);
@@ -47,6 +57,47 @@ export function buildCharacter(table, opts = {}) {
     part.push(pn); tf.push(t);
     return pos.length / 3 - 1;
   };
+
+  // a hair lock strip becomes N thinner ribbons across its width: flat rounded section with thickness, staggered
+  // lengths, tapered tips, alternate layers, a highlight band near the root
+  function ribbons(ch, rows, pn) {
+    if (rows.length < 2) return;
+    const hwMax = Math.max(...rows.map((r) => r.p[3])), N = Math.max(2, Math.min(9, Math.round((2 * hwMax) / 0.017)));
+    const SEC = 8;
+    for (let k = 0; k < N; k++) {
+      const s0 = -1 + (2 * k + 1) / N, jit = hash3(k, ch.name.length, rows.length) - 0.5;
+      const sk = Math.max(-0.95, Math.min(0.95, s0 + jit * 0.25 / N)), Lr = 0.93 + 0.07 * hash3(k * 3.1, 7, ch.name.length), layer = (k % 2 ? 1 : -1) * 0.45;
+      const rowsK = []; for (const r of rows) { if (r.tt > Lr) break; rowsK.push(r); }
+      if (rowsK.length < 2) continue;
+      const base = pos.length / 3; let nr = 0;
+      for (const r of rowsK) {
+        const [cu, cv, ang, hw, th, bend] = r.p, e = Math.min(1, r.tt / Lr);
+        const taper = e < 0.68 ? 1 : Math.max(0.08, Math.cos(((e - 0.68) / 0.32) * Math.PI / 2));
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const x = sk * hw * 0.92, y = (hw > 1e-5 ? bend * sk * sk : 0) + layer * th;
+        const rw = Math.max(0.0012, (hw / N) * 2.3 * taper), rt = Math.max(0.0012, Math.min(th, 0.006) * 0.55 * (0.5 + 0.5 * taper));
+        const hb = Math.max(0, 1 - Math.abs(r.tt - 0.17 - 0.03 * Math.sin(k * 2.3)) / 0.05);
+        const c = hairBand(r.col, hb);
+        for (let a = 0; a < SEC; a++) {
+          const tt2 = (a / SEC) * Math.PI * 2, cc = Math.cos(tt2), ss = Math.sin(tt2);
+          const rr = Math.pow(Math.pow(Math.abs(cc), 3) + Math.pow(Math.abs(ss), 3), -1 / 3);
+          const lx = x + cc * rr * rw, ly = y + ss * rr * rt;
+          const qx = cu + lx * ca - ly * sa, qy = cv + lx * sa + ly * ca;
+          push(v3.add(r.O, v3.add(v3.scl(r.u, qx), v3.scl(r.v, qy))), c, r.w, pn, r.tt);
+        }
+        nr++;
+      }
+      for (let i = 0; i < nr - 1; i++) for (let a = 0; a < SEC; a++) {
+        const i0 = base + i * SEC + a, i1 = base + i * SEC + (a + 1) % SEC, j0 = base + (i + 1) * SEC + a, j1 = base + (i + 1) * SEC + (a + 1) % SEC;
+        idx.push(i0, i1, j0, i1, j1, j0);
+      }
+      for (const [r, first] of [[0, true], [nr - 1, false]]) {
+        let cc = [0, 0, 0]; for (let a = 0; a < SEC; a++) cc = v3.add(cc, pos.slice((base + r * SEC + a) * 3, (base + r * SEC + a) * 3 + 3));
+        const k0 = base + r * SEC; const ci = push(v3.scl(cc, 1 / SEC), col.slice(k0 * 3, k0 * 3 + 3), [[si[k0 * 4], sw[k0 * 4]], [si[k0 * 4 + 1], sw[k0 * 4 + 1]], [si[k0 * 4 + 2], sw[k0 * 4 + 2]]], pn, first ? 0 : 1);
+        for (let a = 0; a < SEC; a++) { const i0 = base + r * SEC + a, i1 = base + r * SEC + (a + 1) % SEC; if (first) idx.push(ci, i1, i0); else idx.push(ci, i0, i1); }
+      }
+    }
+  }
   const chainInfo = [];
   for (const ch of table.chains) {
     if (opts.only && !opts.only.includes(ch.group)) continue;
@@ -59,7 +110,7 @@ export function buildCharacter(table, opts = {}) {
       if (k === 0) { ringRows.push({ i, f: 0 }); continue; } ringRows.push({ i, f: k / (sub + 1) });
     }
     ringRows.push({ i: n - 1, f: 0 });
-    const starts = [], ringT = [];
+    const starts = [], ringT = [], rows = [];
     const panel = ch.name === 'trunk' && table.skirt ? table.skirt.bones.map((n) => table.skel.names.indexOf(n)) : null;
     const L1 = pl.S[2] - pl.S[0]; // ext start + first segment
     for (const { i, f } of ringRows) {
@@ -68,31 +119,33 @@ export function buildCharacter(table, opts = {}) {
       const t = f === 0 ? ts[i] : ts[i] + (ts[Math.min(n - 1, i + 1)] - ts[i]) * f;
       const w = f === 0 ? ch.w[i] : lerpW(ch.w[i], ch.w[Math.min(n - 1, i + 1)], f);
       const O = plPoint(pl, t), T = plTangent(pl, t), { u, v } = frame(T, ref);
-      const colAt = (bin) => { // per-angle palette bins (body) or one colour per ring (strips)
-        const cr = ch.col[i], cn = ch.col[Math.min(n - 1, i + 1)];
-        const pick = (row) => (Array.isArray(row) ? row[((bin % row.length) + row.length) % row.length] : row);
-        const c0 = pal[pick(cr)], c1 = pal[pick(cn)]; return [0, 1, 2].map((q) => c0[q] + (c1[q] - c0[q]) * f);
+      const colIdx = (bin) => { // palette index of the nearest table ring and nearest angle bin (regions never blend)
+        const row = ch.col[f < 0.5 ? i : Math.min(n - 1, i + 1)];
+        return Array.isArray(row) ? row[((Math.round(bin) % row.length) + row.length) % row.length] : row;
       };
+      const colAt = (bin, q) => shade(colIdx(bin), q);
       starts.push(pos.length / 3); ringT.push(t);
       const tt = t / pl.L;
+      if (strip && ch.group === 'hair') { rows.push({ O, u, v, p, w, tt, col: colAt(0, null) }); continue; }
       if (strip) {
         const pts = stripPts(p, S);
-        pts.forEach(([x, y], a) => push(v3.add(O, v3.add(v3.scl(u, x), v3.scl(v, y))), colAt(0), w, pn, tt));
+        pts.forEach(([x, y], a) => { const q = v3.add(O, v3.add(v3.scl(u, x), v3.scl(v, y))); push(q, colAt(0, q), w, pn, tt); });
       } else {
         const C = v3.add(O, v3.add(v3.scl(u, p[0]), v3.scl(v, p[1])));
         const bins = Array.isArray(ch.col[i]) ? ch.col[i].length : 1;
         for (let a = 0; a < S; a++) {
           const th = (a / S) * Math.PI * 2, r = profR(ch.kind, p, th) + (ch.name === 'trunk' && ch.ext[0] > 0.095 && t < pl.S[1] - 0.06 ? 0.008 * Math.min(1, (pl.S[1] - 0.06 - t) / 0.05) : 0);
           const q = v3.add(C, v3.add(v3.scl(u, r * Math.cos(th)), v3.scl(v, r * Math.sin(th))));
-          const fb = (a / S) * bins, b0 = Math.floor(fb), fr = fb - b0, c0 = colAt(b0), c1 = colAt(b0 + 1);
+          const cq = colAt((a / S) * bins, q);
           let wv = w;
           if (panel && t < table.skirt.tTop) { const K = table.skirt.K, f = Math.min(1, (table.skirt.tTop - t) / Math.max(1e-6, table.skirt.tTop - ts[1] * 0.5)), fw = f * f * (3 - 2 * f) * 0.95;
             const pos2 = (th / (Math.PI * 2)) * K, k0 = Math.floor(pos2) % K, k1 = (k0 + 1) % K, a2 = pos2 - Math.floor(pos2);
             wv = w.map(([b, x]) => [b, x * (1 - fw)]).concat([[panel[k0], fw * (1 - a2)], [panel[k1], fw * a2]]).sort((x, y) => y[1] - x[1]); }
-          push(q, [0, 1, 2].map((k) => c0[k] + (c1[k] - c0[k]) * fr), wv, pn, ch.weld ? Math.min(1, t / Math.max(L1, 1e-6)) : tt);
+          push(q, cq, wv, pn, ch.weld ? Math.min(1, t / Math.max(L1, 1e-6)) : tt);
         }
       }
     }
+    if (strip && ch.group === 'hair') { const v0r = pos.length / 3; ribbons(ch, rows, pn); chainInfo.push({ name: ch.name, group: ch.group, v0: v0r, v1: pos.length / 3 }); continue; }
     const nr = starts.length;
     for (let r = 0; r < nr - 1; r++) for (let a = 0; a < S; a++) {
       const i0 = starts[r] + a, i1 = starts[r] + (a + 1) % S, j0 = starts[r + 1] + a, j1 = starts[r + 1] + (a + 1) % S;
@@ -148,7 +201,10 @@ export function buildCharacter(table, opts = {}) {
     const capBone = table.skel.names.indexOf(cap.bone);
     // outer shell + slightly inset inner shell (reversed) so the cut edge never shows a hole
     const V2 = icosphere(2).V, dcol = V.map((d) => { if (!cap.dirCol) return hairC; let b = 0, bd = -2; V2.forEach((e, k) => { const x = d[0] * e[0] + d[1] * e[1] + d[2] * e[2]; if (x > bd) { bd = x; b = k; } }); return pal[cap.dirCol[b]] || hairC; });
-    V.forEach((d, i) => push(v3.add(cap.center, v3.scl(d, rr[i])), dcol[i], [[capBone, 1]], pn, 0));
+    const didx = V.map((d) => { if (!cap.dirCol) return cap.col; let b = 0, bd = -2; V2.forEach((e, k) => { const x = d[0] * e[0] + d[1] * e[1] + d[2] * e[2]; if (x > bd) { bd = x; b = k; } }); return cap.dirCol[b]; });
+    const band = (d) => { const az = Math.atan2(d[0], d[2]); const e = d[1] - (0.56 + 0.015 * Math.sin(az * 7)); return Math.max(0, 1 - Math.abs(e) / 0.08); };
+    const isHair = (c) => Math.hypot(c[0] - hairC[0], c[1] - hairC[1], c[2] - hairC[2]) < 0.12;
+    V.forEach((d, i) => push(v3.add(cap.center, v3.scl(d, rr[i])), isHair(dcol[i]) ? hairBand(dcol[i], band(d)) : shade(didx[i], v3.add(cap.center, v3.scl(d, rr[i]))), [[capBone, 1]], pn, 0));
     V.forEach((d, i) => push(v3.add(cap.center, v3.scl(d, rr[i] - 0.003)), dcol[i], [[capBone, 1]], pn, 0));
     for (const f of F) {
       const k = (keep[f[0]] ? 1 : 0) + (keep[f[1]] ? 1 : 0) + (keep[f[2]] ? 1 : 0);
@@ -156,6 +212,23 @@ export function buildCharacter(table, opts = {}) {
       idx.push(v0 + f[0], v0 + f[1], v0 + f[2]); const o = V.length; idx.push(v0 + o + f[0], v0 + o + f[2], v0 + o + f[1]);
     }
     chainInfo.push({ name: 'cap', group: 'hair', v0, v1: pos.length / 3 });
+    // fringe: ribbons lying on the forehead from the crown front down to the measured fringe bottom of each column
+    if (cap.fringe && cap.fringe.length) {
+      const pf = partNames.length; partNames.push('fringe'); const fv0 = pos.length / 3, SEC = 6, STEP = 9;
+      cap.fringe.forEach((fr, k) => {
+        const [phi, e0, e1, wid] = fr; const base = pos.length / 3;
+        for (let j = 0; j <= STEP; j++) {
+          const tj = j / STEP, e = e0 + (e1 - e0) * tj, taper = Math.max(0.06, 1 - 0.92 * Math.pow(tj, 1.3)); // wide root, pointed tip
+          const cosE = Math.sqrt(Math.max(0, 1 - e * e)); const d = [Math.sin(phi) * cosE, e, Math.cos(phi) * cosE];
+          const r0 = Math.max(sh(cap, d), sh(table.head, d) + 0.004) * (1 - 0.25 * tj) + (sh(table.head, d) + 0.004) * 0.25 * tj + 0.004 + 0.004 * Math.sin(tj * Math.PI);
+          const C = v3.add(cap.center, v3.scl(d, r0)), side = v3.norm([Math.cos(phi), 0, -Math.sin(phi)]), nrm = d;
+          const hb = 0.5 * Math.max(0, 1 - Math.abs(j / STEP - 0.25) / 0.1), cc = hairBand(hairC, hb);
+          for (let a = 0; a < SEC; a++) { const t2 = (a / SEC) * Math.PI * 2; const q = v3.add(C, v3.add(v3.scl(side, Math.cos(t2) * wid * 0.5 * taper), v3.scl(nrm, Math.sin(t2) * 0.0022))); push(q, cc, [[capBone, 1]], pf, j / STEP); }
+        }
+        for (let i = 0; i < STEP; i++) for (let a = 0; a < SEC; a++) { const i0 = base + i * SEC + a, i1 = base + i * SEC + (a + 1) % SEC, j0 = base + (i + 1) * SEC + a, j1 = base + (i + 1) * SEC + (a + 1) % SEC; idx.push(i0, i1, j0, i1, j1, j0); }
+      });
+      chainInfo.push({ name: 'fringe', group: 'hair', v0: fv0, v1: pos.length / 3 });
+    }
   }
   // ---------- face decal patch: the front of the head SH, planar UVs ----------
   let face = null;
@@ -175,7 +248,7 @@ export function buildCharacter(table, opts = {}) {
     face = { position: new Float32Array(fpos), uv: new Float32Array(fuv), index: new Uint32Array(fidx), bone: headBone };
   }
   return { position: new Float32Array(pos), color: new Float32Array(col), index: new Uint32Array(idx), skinIndex: new Uint16Array(si), skinWeight: new Float32Array(sw),
-    part: new Uint8Array(part), tfrac: new Float32Array(tf), partNames, chains: chainInfo, face, restWorld: W, joints: J };
+    part: new Uint8Array(part), tfrac: new Float32Array(tf), outlineW: Float32Array.from(part, (k) => (/^(hair|fringe)/.test(partNames[k]) ? 0.22 : /^(thumb|index|middle|ring|pinky|palm)/.test(partNames[k]) ? 0.6 : 1)), partNames, chains: chainInfo, face, restWorld: W, joints: J, headCenter: table.head.center };
 }
 
 
@@ -266,6 +339,11 @@ export function normals(arr) {
     for (const k of [a, b, c]) { n[k] += fx; n[k + 1] += fy; n[k + 2] += fz; }
   }
   for (let i = 0; i < n.length; i += 3) { const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1; n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; }
+  if (arr.headCenter) for (const ch of arr.chains) {
+    if (ch.name !== 'head' && ch.name !== 'cap' && ch.name !== 'fringe') continue; const k = ch.name === 'head' ? 0.75 : 0.45;
+    for (let v = ch.v0; v < ch.v1; v++) { const d = [p[v * 3] - arr.headCenter[0], p[v * 3 + 1] - arr.headCenter[1], p[v * 3 + 2] - arr.headCenter[2]]; const l = Math.hypot(...d) || 1;
+      for (let c = 0; c < 3; c++) n[v * 3 + c] = n[v * 3 + c] * (1 - k) + (d[c] / l) * k; const m = Math.hypot(n[v * 3], n[v * 3 + 1], n[v * 3 + 2]) || 1; for (let c = 0; c < 3; c++) n[v * 3 + c] /= m; }
+  }
   const trunk = arr.chains.find((c) => c.name === 'trunk');
   if (trunk) {
     for (const ch of arr.chains) {

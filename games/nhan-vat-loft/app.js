@@ -68,6 +68,9 @@ function tick(dt) {
   if (S.mode === 'char' && S.char && S.mixer) {
     if (S.clip !== 'bind') S.mixer.update(dt); else restPose();
     if (S.char.springs) S.char.springs.step(dt);
+    // blink every 2.5-4.5 s for 0.12 s
+    S.blinkT = (S.blinkT || 0) + dt; if (!S.nextBlink) S.nextBlink = 2.5 + Math.random() * 2;
+    const fm = S.char.faceMesh; if (fm && fm.userData.setBlink) { if (S.blinkT > S.nextBlink) { fm.userData.setBlink(true); if (S.blinkT > S.nextBlink + 0.12) { fm.userData.setBlink(false); S.blinkT = 0; S.nextBlink = 2.5 + Math.random() * 2; } } }
   }
 }
 function loop() { const dt = Math.min(0.05, clock.getDelta()); if (!S.paused) tick(dt); renderer.render(scene, camera); requestAnimationFrame(loop); }
@@ -141,7 +144,7 @@ async function showSpace() {
 function rebuildSpace() {
   const w = [...document.querySelectorAll('#sliders input')].map((i) => +i.value);
   const t0 = performance.now(); const a = buildFromSpace(S.space, { w }); const ms = performance.now() - t0;
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(a.position, 3)); g.setAttribute('color', new THREE.BufferAttribute(a.color.map((c) => Math.pow(c, 2.2)), 3)); g.setIndex(new THREE.BufferAttribute(a.index, 1)); g.computeVertexNormals();
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(a.position, 3)); g.setAttribute('color', new THREE.BufferAttribute(a.color.map((c) => Math.pow(c, 2.2)), 3)); g.setIndex(new THREE.BufferAttribute(a.index, 1)); g.computeVertexNormals(); g.setAttribute('olw', new THREE.BufferAttribute(new Float32Array(a.position.length / 3).fill(1), 1));
   if (S.spaceMesh) { scene.remove(S.spaceMesh); S.spaceMesh.traverse((o) => o.geometry && o.geometry.dispose()); }
   const grp = new THREE.Group(); grp.add(new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }))); grp.add(new THREE.Mesh(g, outlineMaterial(0.004)));
   S.spaceMesh = grp; scene.add(grp); $('#spaceInfo').textContent = `${(a.position.length / 3).toLocaleString()} đỉnh · dựng ${ms.toFixed(0)} ms · w = [${w.map((x) => x.toFixed(1)).join(', ')}]`;

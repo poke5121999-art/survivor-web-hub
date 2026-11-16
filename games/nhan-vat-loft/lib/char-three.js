@@ -14,7 +14,7 @@ export function toonGradient() {
 }
 export function outlineMaterial(w = 0.0035, color = 0x2a1a1e) {
   const m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide });
-  m.onBeforeCompile = (s) => { s.vertexShader = s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n transformed += normalize(normal) * ${w.toFixed(5)};`); };
+  m.onBeforeCompile = (s) => { s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute float olw;').replace('#include <begin_vertex>', `#include <begin_vertex>\n transformed += normalize(normal) * ${w.toFixed(5)} * olw;`); };
   return m;
 }
 
@@ -40,7 +40,12 @@ export function makeCharacter(table, opts = {}) {
   g.setAttribute('skinIndex', new THREE.BufferAttribute(arr.skinIndex, 4));
   g.setAttribute('skinWeight', new THREE.BufferAttribute(arr.skinWeight, 4));
   g.setIndex(new THREE.BufferAttribute(arr.index, 1));
+  g.setAttribute('olw', new THREE.BufferAttribute(arr.outlineW || new Float32Array(arr.position.length / 3).fill(1), 1));
   const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
+  // soft rim light on top of the 3-step toon ramp (anime look)
+  mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+ float rimF = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
+ gl_FragColor.rgb += vec3(0.16) * smoothstep(0.62, 0.95, rimF);`); };
   const mesh = new THREE.SkinnedMesh(g, mat); mesh.frustumCulled = false;
   const group = new THREE.Group(); group.add(root); group.add(mesh);
   mesh.bind(skeleton, new THREE.Matrix4());
@@ -48,7 +53,7 @@ export function makeCharacter(table, opts = {}) {
   // face decal
   let faceMesh = null;
   if (arr.face && arr.face.index.length) {
-    const size = 512, cv = (typeof document !== 'undefined') ? document.createElement('canvas') : null;
+    const size = 1024, cv = (typeof document !== 'undefined') ? document.createElement('canvas') : null;
     if (cv) {
       cv.width = cv.height = size; drawFace(cv.getContext('2d'), size, table.face);
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
@@ -56,10 +61,12 @@ export function makeCharacter(table, opts = {}) {
       fg.setAttribute('position', new THREE.BufferAttribute(arr.face.position, 3)); fg.setAttribute('uv', new THREE.BufferAttribute(arr.face.uv, 2));
       fg.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(nv * 4).map((_, k) => (k % 4 === 0 ? arr.face.bone : 0)), 4));
       fg.setAttribute('skinWeight', new THREE.BufferAttribute(new Float32Array(nv * 4).map((_, k) => (k % 4 === 0 ? 1 : 0)), 4));
-      fg.setIndex(new THREE.BufferAttribute(arr.face.index, 1)); fg.computeVertexNormals();
+      fg.setIndex(new THREE.BufferAttribute(arr.face.index, 1));
+      { const hc = table.head.center, pp = arr.face.position, nn = new Float32Array(pp.length); for (let i = 0; i < pp.length; i += 3) { const d = [pp[i] - hc[0], pp[i + 1] - hc[1], pp[i + 2] - hc[2]]; const l = Math.hypot(...d) || 1; nn[i] = d[0] / l; nn[i + 1] = d[1] / l; nn[i + 2] = d[2] / l; } fg.setAttribute('normal', new THREE.BufferAttribute(nn, 3)); }
       const fm = new THREE.MeshToonMaterial({ map: tex, transparent: true, gradientMap: toonGradient(), polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false });
       faceMesh = new THREE.SkinnedMesh(fg, fm); faceMesh.frustumCulled = false; faceMesh.bind(skeleton, new THREE.Matrix4()); faceMesh.renderOrder = 2; group.add(faceMesh);
       faceMesh.userData.canvas = cv;
+      let closed = false; faceMesh.userData.setBlink = (c) => { if (c === closed) return; closed = c; drawFace(cv.getContext('2d'), size, table.face, { closed: c }); tex.needsUpdate = true; };
     }
   }
   const springs = opts.springs === false ? null : new Springs(root, byName, table, opts.springOpts);
