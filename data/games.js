@@ -1095,15 +1095,15 @@ window.HUB_GAMES = [
   {
     id: "robot-loc-coc",
     title: "Xưởng Robot Lóc Cóc",
-    tagline: "32 robot ghép từ khối cứng có khớp lò xo: 10 biểu cảm, 10 hoạt cảnh, sân chơi khiêng thùng và va nhau ngã.",
-    desc: "Thử phong cách nhân vật ghép từ nhiều bộ phận cứng vát cạnh: thân, đầu màn hình hoặc ống kính, tai, ăng-ten lò xo, tay kẹp, chân, khớp pít-tông, 28 phụ kiện và 16 phối màu, sơn tróc, ốc vít, số áo. Đổi biểu cảm (vui, sợ, giận, choáng, yêu, chết X...) và hoạt cảnh (đi, chạy, nhảy, bê đồ nặng, ngã rồi dậy, vẫy tay, nhảy nhót, run sợ, ngủ gật); bấm một robot để xem gần và bảng bộ phận. Sân chơi: hai robot khiêng thùng chung, cả bọn đi lang thang, va nhau rồi ngã. Không tải tệp model hay texture nào.",
+    tagline: "Robot ghép khối có khớp lò xo, thêm zombie robot hỏng gỉ sét và võ đài: đánh gậy, búa tạ, bắn súng, ném lựu đạn, rã xác.",
+    desc: "Thử phong cách nhân vật ghép từ bộ phận cứng vát cạnh: đầu màn hình hoặc ống kính, ăng-ten lò xo, sơn tróc, ốc vít, số áo. 8 chế độ: hàng ngũ 32 robot với 10 biểu cảm và 10 hoạt cảnh; sân chơi khiêng thùng và va nhau ngã; robot thợ (khách, nhân viên, bảo vệ, thợ xây...); zombie robot đủ loại (thường, u bướu, Hulk, Brute, Birther, zombie con, Sweaty, hai chị em song sinh, Stompy) với cào liên hoàn, vồ, túm, húc, phun; vũ khí & đánh: 13 món đồ chơi (gậy bóng chày, ống nước, cờ lê, mã tấu, rìu, búa tạ hai tay, súng lục, tiểu liên, súng trường ngắm, súng săn bơm, lựu đạn, lon) với đánh liên hoàn, đỡ, né, bắn có giật nòng, chớp lửa, vỏ đạn bay, nạp đạn từng loại, ném, trúng đòn, văng ra, chết rã xác; võ đài robot cầm vũ khí tự đánh từng đợt zombie; đợt tấn công và đám đông 70 robot. Không tải tệp model hay texture nào.",
     genre: "khac",
     accent: "#f2c230",
     en: { title: "Clatter Robot Workshop", tagline: "32 robots built from rigid parts with springy joints: 10 emotes, 10 animations, a playground with crate carrying and knock-overs.", desc: "A style test for characters assembled from bevelled rigid parts: torsos, screen or lens heads, ears, springy antennae, claw hands, feet, piston joints, 28 accessories and 16 colour schemes, with chipped paint, screws and numbers. Switch emotes and animations, click a robot for a close-up and its parts list, or watch the playground where two robots carry a crate and the rest wander and knock each other over. No model or texture files." },
     thumbnail: "assets/thumbnails/robot-loc-coc.png",
     // Nguồn làm việc: D:/bot-crew trên HOB-THOR (tools/shots.js chụp ảnh kiểm).
     path: "games/robot-loc-coc/index.html",
-    rev: "20261115a",
+    rev: "20261116a",
     status: "available",
     tags: ["Thử nghiệm", "Robot", "Nhân vật 3D", "Không asset"]
   }
