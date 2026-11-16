@@ -123,6 +123,9 @@ const torus = (r, t) => new THREE.TorusGeometry(r, t, 5, 20);
 export function adorn(h, b, key, P, form = 2, info = {}) {
   const H = bounds(b, 'hull'), T = bounds(b, 'turret') || H;
   if (!H) return;
+  // Some designs (tho, mangxa, tacke) turn the builder's base matrix for a spinning part and leave it turned;
+  // hardware is placed in model space, so start from a clean stack.
+  b.stack.length = 1; b.stack[0].identity();
   const F = Math.max(1, Math.min(3, form | 0 || 2));
   const c = { body: formPaint(P.body, F), deep: new THREE.Color(P.deep), trim: new THREE.Color(P.trim) };
   const k = Math.max(0.7, Math.min(1.4, H.len / 2.4));
@@ -211,7 +214,8 @@ const KITS = {
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; b.rod([T.cx + T.len * 0.05, gy + Math.cos(a) * 0.05 * k, gz + Math.sin(a) * 0.05 * k], [T.x1 + 0.5 * k, gy + Math.cos(a) * 0.05 * k, gz + Math.sin(a) * 0.05 * k], 0.018 * k, 6); }
       metal(STEELC); for (const x of [T.x1 + 0.1 * k, T.x1 + 0.45 * k]) b.push().move(x, gy, gz).rotZ(Math.PI / 2).cyl(0.085 * k, 0.085 * k, 0.04, 10).pop();
       for (const s of [-1, 1]) {
-        const pz = s * (T.zh + (s < 0 ? 0.36 : 0.17) * k), py = T.y1 - T.h * 0.15, px = T.cx, pl = T.len * 0.4;
+        const pz = s * (T.zh + 0.16 * k), py = T.y1 - T.h * 0.1 + (s < 0 ? 0.1 * k : 0), px = T.cx, pl = T.len * 0.4;
+        metal(DARKM); blk(px, py, s * (T.zh + 0.03), pl * 0.6, 0.12 * k, 0.1 * k, 0.01);
         metal(GUNMETAL); blk(px, py, pz, pl, 0.2 * k, 0.22 * k, 0.025);
         paint(c.body); blk(px, py + 0.105 * k, pz, pl * 0.9, 0.022, 0.18 * k, 0.008);
         metal(DARKM); for (let r = 0; r < 2; r++) for (let j = 0; j < 3; j++) b.push().move(px + pl / 2 + 0.005, py + (r - 0.5) * 0.09 * k, pz + (j - 1) * 0.065 * k).rotZ(-Math.PI / 2).cyl(0.026 * k, 0.026 * k, 0.03, 8).pop();
