@@ -279,7 +279,7 @@
         bomb: "Lựu đạn", stun: "Lựu đạn choáng", mine: "Mìn đặt", xung: "Lựu đạn xung kích", gun: "Súng lục", tranq: "Súng gây mê",
         laser: "Súng laser sạc", shotgun: "Súng nòng ngắn", chum: "Lựu đạn chùm", inflatable: "Búa hơi", pan: "Chảo gang",
         bat: "Gậy bóng chày", machete: "Mã tấu", prodzap: "Dùi cui điện", sledge: "Búa tạ", ringcarry: "Nhẫn nhẹ tay",
-        ringspeed: "Nhẫn tốc", ringpower: "Nhẫn sức", ringguard: "Nhẫn chống vỡ"
+        ringspeed: "Nhẫn tốc", ringpower: "Nhẫn sức", ringguard: "Nhẫn chống vỡ", battery: "Pin sạc (luôn bày, mua xong bày lại, cộng năng lượng trạm sạc trên xe)"
       },
       fields: {
         "_id": ID,
@@ -753,7 +753,14 @@
         "slots.upgrade": { label: "Ô nâng cấp", min: 0, max: 3, int: true },
         "slots.gear": { label: "Ô đồ nghề", min: 0, max: 5, int: true },
         "slots.vehicle": { label: "Ô xe", min: 0, max: 2, int: true },
-        "payCountdown": { label: "Thời gian tính tiền", unit: "giây", min: 0, help: "Đặt đồ lên quầy rồi chờ bấy nhiêu giây; trong lúc đó còn lấy đồ ra được." }
+        "payCountdown": { label: "Thời gian tính tiền", unit: "giây", min: 0, help: "Đặt đồ lên quầy rồi chờ bấy nhiêu giây; trong lúc đó còn lấy đồ ra được." },
+        "bikeFuelWall": { label: "Xăng mất mỗi lần xe máy va tường", min: 0 },
+        "bikeFuelFoe": { label: "Xăng mất mỗi lần xe máy húc quái", min: 0 },
+        "charger": { label: "Trạm sạc trên xe tải", help: "Sạc súng, xà beng, vũ khí cận chiến, nhẫn thả lên bệ hoặc cầm trên tay khi đứng trên bệ, và xe máy đỗ trên bệ. Bệ to bằng nửa bệ giao hàng. 1 vạch = sạc đầy một món hoặc một bình xăng." },
+        "charger.start": { label: "Vạch lúc đầu ca", unit: "vạch", min: 0 },
+        "charger.perBattery": { label: "Vạch mỗi pin", unit: "vạch", min: 0, help: "Mua một pin ở trạm cộng bấy nhiêu vạch. Không có trần: mua bao nhiêu tích bấy nhiêu, pin bày lại ngay sau khi mua." },
+        "charger.rate": { label: "Tốc độ sạc", unit: "lần đầy/giây", min: 0.01, help: "0,5 = một món sạc đầy trong 2 giây." },
+        "charger.bikeCost": { label: "Vạch cho một bình xăng xe máy", unit: "vạch", min: 0 }
       }
     },
 
