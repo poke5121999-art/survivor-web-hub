@@ -1,6 +1,6 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
 import { execFileSync } from 'node:child_process';
-import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
@@ -576,7 +576,7 @@ section('13 new mechs: bots, inputs, balance');
 }
 
 // Balance: mixed rosters, normal vs normal, rotating compositions
-const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116];
+const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122];
 const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixed(i)));
 {
   check('15a mixed 8-mech matches end, no NaN, nothing outside the map or inside a wall', bal.every((r) => r.m.over && !r.bad), bal.map((r) => r.bad).filter(Boolean)[0]);
@@ -2616,6 +2616,195 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     let out = '', code = 0;
     try { out = execFileSync(process.execPath, [new URL('./ttk.mjs', import.meta.url).pathname, '--check', '--quick'], { encoding: 'utf8', timeout: 120000 }); } catch (e) { code = e.status || 1; out = String(e.stdout); }
     check('39h tools/ttk.mjs --check passes: no cell where one attacker cannot kill a lone healer (6 s burst kits, 10 s the rest), burst combos reach 85% of a healer, nobody deletes Trau or Kim Quy in 3 s', code === 0, out.split('\n').filter((l) => l.startsWith('lv')).join(' | '));
+  }
+}
+
+section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when, onStart, ret, leap.to, seek, track (literal expected values)');
+{
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units, walls = []) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    for (const w of walls) m.map.walls.push({ x0: w[0], x1: w[1], z0: w[2], z1: w[3] });
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const UNG = MECHS.ung.hp, TRAU_HP = MECHS.trau.hp;
+
+  // hitfx: Hoi Phao Hoa strikes carry slow + weaken; a weakened shooter does 80%
+  {
+    const m = arena([[R('khiphao', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
+    go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0 } }));
+    check('40a hitfx on a barrage: slow 0.4 and weaken x0.8 land on the target', v.hp < v.maxHp && v.slowF === 0.4 && v.slowT > 0 && v.weakenF === 0.8 && v.weakenT > 0, `hp ${v.hp} slowF ${v.slowF} weakenF ${v.weakenF}`);
+    const w = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    w.units[0].weakenT = 2; w.units[0].weakenF = 0.8;
+    go(w, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('40b a weakened shooter deals 80%: 390 x 0.8 = 312', near(w.units[1].hp, UNG - 312), `hp ${w.units[1].hp}`);
+  }
+  // hitfx chance + pick: 200 rolls at 0.3, same seed twice gives the same count
+  {
+    const FX = { chance: 0.3, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] };
+    const roll = () => {
+      const m = arena([[R('khiphao', 0), 0, 0], [R('trau', 1), 8, 0]]), [a, o] = m.units;
+      let procs = 0, slows = 0, weak = 0;
+      for (let i = 0; i < 200; i++) {
+        o.slowT = 0; o.slowF = 0; o.weakenT = 0; o.weakenF = 1;
+        applyFx(m, a, o, FX);
+        if (o.slowT > 0) { procs++; slows++; } else if (o.weakenT > 0) { procs++; weak++; }
+      }
+      return [procs, slows, weak];
+    };
+    const r1 = roll(), r2 = roll();
+    check('40c hitfx chance 0.3 over 200 rolls: 40..80 procs, both picks used', r1[0] >= 40 && r1[0] <= 80 && r1[1] > 0 && r1[2] > 0, JSON.stringify(r1));
+    check('40d hitfx rolls come from m.rng: same seed, same procs', JSON.stringify(r1) === JSON.stringify(r2), JSON.stringify([r1, r2]));
+  }
+  // root: cannot walk, can still shoot, cannot dash
+  {
+    const m = arena([[R('hades', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
+    go(m, 25, (i) => ({ 0: { s2: i === 0, tx: 8, tz: 0 }, 1: i >= 20 ? { mx: 1 } : {} }));
+    check('40e Ban Tay Am Gioi roots the target (rootT 1.4 minus the ticks since the hit), speed 0, x unchanged', v.rootT > 0 && v.rootT <= 1.4 && unitSpeed(v) === 0 && near(v.x, 8, 0.2), `rootT ${v.rootT} x ${v.x}`);
+    const r = arena([[R('trau', 0), 0, 0], [R('ung', 1), 8, 0]]);
+    r.units[0].rootT = 2;
+    go(r, 6, () => ({ 0: { s2: true, mx: 1 } }));
+    check('40f a rooted mech does not dash (no cooldown spent) and does not move', !r.units[0].dash && r.units[0].cd.s2 === 0 && near(r.units[0].x, 0, 1e-9), `x ${r.units[0].x} cd ${r.units[0].cd.s2}`);
+    const s = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    s.units[0].rootT = 2;
+    go(s, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('40g a rooted mech still shoots', s.units[1].hp === UNG - MECHS.ung.weapon.dmg);
+  }
+  // amp: Tam Tiem Dao makes the target take 15% more from everyone
+  {
+    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0], [R('tho', 0), 6, -6, Math.PI / 2]]), v = m.units[1];
+    go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
+    check('40h amp lands: ampF 0.15, ampT counting down from 4 s', v.ampF === 0.15 && v.ampT > 3 && v.ampT <= 4, `ampF ${v.ampF} ampT ${v.ampT}`);
+    const before = v.hp;
+    go(m, 20, (i) => ({ 2: { fire: i === 0 } }));
+    check('40i an ally of the amp owner then deals 115%: THO_D x 1.15', near(before - v.hp, THO_D * 1.15, 1e-6), `${before - v.hp}`);
+  }
+  // execute: Tram Tuong nova (fx.execute 0.25): leaves 22% -> dies, leaves 32% -> lives
+  {
+    const run = (frac) => {
+      const m = arena([[R('quancong', 0), 0, 0], [R('trau', 1), 1.2, 0]]), v = m.units[1];
+      v.hp = v.maxHp * frac;
+      const ev = go(m, 20, (i) => ({ 0: { ult: i === 0 } }));
+      return { v, ev, m };
+    };
+    const lo = run(0.35), hi = run(0.5);
+    check('40j execute: a mech left under 25% by the swing dies at once (execute event, kill credited)', !lo.v.alive && only(lo.ev, 'execute').length === 1 && lo.m.units[0].kills === 1, `alive ${lo.v.alive}`);
+    check('40k execute: a mech left at 32% lives', hi.v.alive && only(hi.ev, 'execute').length === 0 && hi.v.hp > hi.v.maxHp * 0.25, `hp ${hi.v.hp}`);
+  }
+  // mods.onKill: kill resets all three cooldowns, an assist halves what is left
+  {
+    const m = arena([[R('quancong', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    v.hp = 1; a.cd.s1 = 5; a.cd.s2 = 5; a.cd.ult = 5;
+    const ev = go(m, 30, (i) => ({ 0: { fire: i === 0 } }));
+    check('40l onKill reset: a kill sets s1, s2 and ult cooldowns to 0', only(ev, 'death').length === 1 && a.cd.s1 === 0 && a.cd.s2 === 0 && a.cd.ult === 0, JSON.stringify(a.cd));
+    const w = arena([[R('quancong', 0), 0, 0], [R('tho', 0), 6, -6, Math.PI / 2], [R('ung', 1), 6, 0]]), [q, , t] = w.units;
+    t.hp = 1; t.hitBy[0] = w.time; q.cd.s1 = 10; q.cd.s2 = 4; q.cd.ult = 8;
+    let n = 0, seen = false;
+    for (let i = 0; i < 40 && !seen; i++) { step(w, w.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, fire: k === 1 && i === 0 }))); n++; seen = w.events.some((e) => e.t === 'death'); }
+    const half = (c) => (c - n * TICK) * 0.5;
+    check('40m onKill assist: the remaining cooldowns are halved', seen && q.assists === 1 && near(q.cd.s1, half(10), 1e-9) && near(q.cd.s2, half(4), 1e-9) && near(q.cd.ult, half(8), 1e-9), `n ${n} ${JSON.stringify(q.cd)}`);
+  }
+  // mods.lowHp: Na Tra under 35% hp
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 20, 0]]), u = m.units[0];
+    const base = [unitSpeed(u), armorOf(m, u)];
+    u.hp = u.maxHp * 0.35;
+    const edge = [unitSpeed(u), armorOf(m, u)];
+    u.hp = u.maxHp * 0.3;
+    const low = [unitSpeed(u), armorOf(m, u)];
+    check('40n lowHp: speed 7.1 and armour 0.03 above 35%, x1.25 and +0.2 below', near(base[0], 7.1) && near(base[1], 0.03) && near(edge[0], 7.1) && near(low[0], 7.1 * 1.25) && near(low[1], 0.23), JSON.stringify([base, edge, low]));
+  }
+  // souls: marks (+10% for 4 s), a kill leaves a field at the death spot
+  {
+    const m = arena([[R('hades', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 1.6]]), [h, v, b] = m.units;
+    go(m, 14, (i) => ({ 0: { fire: i === 0 } }));
+    check('40o souls: a hit marks the target (ampF 0.1, ampT up to 4 s)', v.ampF === 0.1 && v.ampT > 3 && v.ampT <= 4 && v.hp === UNG - MECHS.hades.weapon.dmg, `ampF ${v.ampF} hp ${v.hp}`);
+    v.hp = 1; v.ampT = 0;
+    const ev = go(m, 14, (i) => ({ 0: { fire: i === 0 } }));
+    const z = m.zones.find((q) => q.kind === 'field' && q.dps === 180);
+    check('40p souls: a kill opens a field (r 3, dur 3, dps 180) where the victim fell', only(ev, 'death').length === 1 && !!z && z.r === 3 && z.dur === 3 && near(z.x, 6, 0.3) && z.owner === h.id, JSON.stringify(z));
+    const hp0 = b.hp;
+    while (z.age < 1.2) go(m, 1);
+    check('40q souls field: two 90 pulses on a bystander, the second marked by Hades (x1.1): 90 + 99', near(hp0 - b.hp, 189, 1e-6), `${hp0 - b.hp}`);
+  }
+  // brittle.when 'low' and reveal
+  {
+    const hit = (frac) => {
+      const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0]]);
+      m.units[1].hp = m.units[1].maxHp * frac;
+      return only(go(m, 12, (i) => ({ 0: { fire: i === 0 } })), 'hit')[0].amt;
+    };
+    const DT = MECHS.duongtien.weapon.dmg;
+    check(`40r brittle.when low: ${DT} at full hp, ${DT} x 1.25 = ${DT * 1.25} under 40%`, near(hit(1), DT) && near(hit(0.3), DT * 1.25), `${hit(1)} ${hit(0.3)}`);
+    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 8, 0], [R('ung', 1), 0, 13], [R('ung', 1), 0, -8]]);
+    for (const u of m.units) if (u.id) u.stealthT = 3;
+    m.units[1].hp = m.units[1].maxHp * 0.3; m.units[2].hp = m.units[2].maxHp * 0.3;
+    go(m, 1);
+    check('40s brittle.reveal: a stealthed mech under 40% within 12 m is exposed; out of range or healthy stays hidden', m.units[1].stealthT === 0 && m.units[1].revealT > 0 && m.units[2].stealthT > 0 && m.units[3].stealthT > 0,
+      `${m.units[1].stealthT} ${m.units[2].stealthT} ${m.units[3].stealthT}`);
+  }
+  // dash.onStart mine
+  {
+    const m = arena([[R('khiphao', 0), 0, 0], [R('ung', 1), 0, -9]]), v = m.units[1];
+    const ev = go(m, 20, (i) => ({ 0: { s2: i === 0 } }));
+    const z = only(ev, 'zone', (e) => e.kind === 'mine')[0];
+    check('40t dash.onStart: a mine appears at the starting point', !!z && near(z.x, 0, 1e-9) && near(z.z, 0, 1e-9), JSON.stringify(z));
+    put(v, 0, 0);
+    go(m, 3);
+    check('40u the mine (arm 0.4, blast 3, 260, fx slow 0.4) hurts the one who steps on it', near(v.hp, UNG - 260, 1e-6) && v.slowF === 0.4 && v.slowT > 0, `hp ${v.hp} slowF ${v.slowF}`);
+  }
+  // volley.ret: out, back, two hits, gone afterwards
+  for (const [key, dmg, slow] of [['natra', 210, 0.35], ['athena', 250, 0]]) {
+    const m = arena([[R(key, 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    const ev = go(m, 120, (i) => ({ 0: { s1: i === 0 } }));
+    const hits = only(ev, 'hit', (e) => e.id === v.id && e.by === 0);
+    check(`40v ${key} volley.ret: the disc hits on the way out and again on the way back (2 x ${dmg}) and is gone`, hits.length === 2 && near(UNG - v.hp, 2 * dmg, 1e-6) && m.shots.length === 0 && (!slow || v.slowF === slow), `hits ${hits.length} hp ${v.hp} shots ${m.shots.length}`);
+  }
+  // leap.to
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]]), [n, v] = m.units;
+    go(m, 30, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 } }));
+    check('40w leap.to foe: Na Tra lands on the locked target for 620 and stuns it', Math.hypot(n.x - 10, n.z) < 1.5 && near(v.hp, UNG - 620, 1e-6) && v.stunT > 0, `x ${n.x} hp ${v.hp} stun ${v.stunT}`);
+    const k = arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]]);
+    const ev = go(k, 6, (i) => ({ 0: { ult: i === 0, tx: 0, tz: 12 } }));
+    check('40x leap.to with no foe under the cursor does not happen (no leap event, short lockout 0.4 s)', only(ev, 'leap').length === 0 && !k.units[0].dash && k.units[0].cd.ult < 0.4 && k.units[0].cd.ult > 0, `cd ${k.units[0].cd.ult}`);
+  }
+  // decoy.seek
+  {
+    const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 6, 6]]), v = m.units[1];
+    const ev = go(m, 40, (i) => ({ 0: { s2: i === 0 } }));
+    const lost = TRAU_HP - v.hp;
+    check('40y decoy.seek: the hound runs to the target and bursts on it (104..209 after armour and falloff), reveal 4 s, gone', only(ev, 'explode', (e) => e.why === 'decoy').length === 1 && lost >= 104 && lost <= 209 && v.revealT > 2 && !m.zones.some((z) => z.kind === 'decoy'), `lost ${lost} reveal ${v.revealT}`);
+  }
+  // beam.track and thru
+  {
+    const run = (patch) => {
+      const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 10, 0]], [[4.5, 5.5, -4, 4]]);
+      const a = m.units[0];
+      if (patch) a.def = { ...a.def, skills: a.def.skills.map((x, i) => (i === 2 ? { ...x, ...patch } : x)) };
+      go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 }, 1: { mz: 1 } }));
+      return TRAU_HP - m.units[1].hp;
+    };
+    const full = run(null);
+    const BD = MECHS.duongtien.skills[2].dmg;
+    check(`40z beam.track + thru: the beam follows a strafing target through a wall: ${BD} x 0.87 = ${BD * 0.87}`, near(full, BD * (1 - MECHS.trau.armor), 1e-6), `${full}`);
+    check('40za without track the beam misses the strafing target', run({ track: null }) === 0);
+    check('40zb without thru a wall stops the tracked beam', run({ thru: false }) === 0);
   }
 }
 

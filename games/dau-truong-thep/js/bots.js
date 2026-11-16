@@ -1085,6 +1085,21 @@ const SKILL_AI = {
   shield(c) { return c.u.shield <= 0 && c.underFire && c.enemies.length > 0; },
   dash(c, s) {
     const { u, tgt, td, los } = c;
+    // a dash that hurts nobody but leaves a trap behind (onStart): use it to break contact, away from the nearest enemy
+    if (s.onStart && !s.dmg) {
+      if (!c.enemies.length || !(c.state === 'retreat' || (c.underFire && c.hpFrac < 0.6) || (tgt && td < 5 && c.role.kite))) return false;
+      let near = c.enemies[0], nd = 1e9;
+      for (const e of c.enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; near = e; } }
+      const base = Math.atan2(u.z - near.z, u.x - near.x);
+      for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
+        const a = base + da, ex = u.x + Math.cos(a) * s.dist, ez = u.z + Math.sin(a) * s.dist;
+        if (solidAt(c.m.map, ex, ez, u.moveRadius * 0.8) || inFoe(c.m, u, ex, ez) || lavaSeg(c.m.map, u.x, u.z, ex, ez, 0.5)) continue;
+        if (!losClear(c.m.map, u.x, u.z, ex, ez, u.moveRadius * 0.7)) continue;
+        c.b.sk.aim = a; c.b.sk.tol = 0.2;
+        return true;
+      }
+      return false;
+    }
     if (!tgt || !los || (c.hpFrac < 0.3 && !c.role.boss)) return false;
     if (c.m.mode === 'trum' && !c.role.boss) return false;   // charging a boss only lands us in its nova ring
     const reach = s.dist + tgt.radius * 0.6;
@@ -1099,6 +1114,8 @@ const SKILL_AI = {
     const { u, tgt } = c;
     let n = 0;
     for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
+    // an execute swing (fx.execute): worth it as soon as someone inside is under the threshold
+    if (s.fx && s.fx.execute) for (const e of c.enemies) if (!e.def.boss && e.hp < e.maxHp * s.fx.execute && hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) return true;
     if (c.role.boss) return n >= 2 || (n >= 1 && c.D.skill >= 0.9);   // the ring is telegraphed: worth it on two, or on one for a hard boss
     if (n >= 2) return true;
     return n >= 1 && (c.hpFrac < 0.5 || (tgt && tgt.hp <= s.dmg * 0.9) || c.D.skill >= 0.9);
@@ -1239,6 +1256,19 @@ const SKILL_AI = {
   },
   beam(c, s) {
     const { u, tgt, td } = c;
+    if (s.track) {
+      // a tracking beam follows its target: no lead and no clear line needed (thru ignores walls); lock the weakest enemy in reach
+      let best = null, bs = -1;
+      for (const e of c.enemies) {
+        const d = hyp(e.x - u.x, e.z - u.z);
+        if (d > s.track.cast - 1 || d < 3 || e.invulnT > 0) continue;
+        const sc = 2 - e.hp / e.maxHp + (e === tgt ? 0.5 : 0) + (s.thru || castStatic(c.m.map, u.x, u.z, e.x, e.z, 0.2) > 1 ? 0 : -3);
+        if (sc > bs) { bs = sc; best = e; }
+      }
+      if (!best || (bs < 1 && c.enemies.length < 2 && c.hpFrac > 0.5 && best.hp > s.dmg * 0.6)) return false;
+      c.b.sk.x = best.x; c.b.sk.z = best.z;
+      return true;
+    }
     if (!tgt || td > s.range - 2 || td < 4) return false;
     const p = leadPoint(u, tgt, td / s.windup, c.D.lead);
     const dx = p[0] - u.x, dz = p[1] - u.z, dd = hyp(dx, dz);
@@ -1399,6 +1429,18 @@ const SKILL_AI = {
   },
   leap(c, s) {
     const { u, m, tgt, td } = c;
+    if (s.to) {
+      // fly to a chosen unit (leap.to): a foe to jump on, an ally to land beside; the cursor sits on it so pickUnit finds it
+      if (c.state === 'retreat' || c.hpFrac < 0.45 || m.mode === 'trum' || c.state === 'grab') return false;
+      if (s.to === 'foe') {
+        if (!tgt || td < 3.5 || td > s.cast - 1 || (m.mode === 'tudo' ? c.near > 2 : c.near - c.allyNear >= 2)) return false;
+        if (!(tgt.hp < tgt.maxHp * 0.75 || td > 6 || c.near >= 2)) return false;
+        if (!safeLand(m, u, tgt.x, tgt.z)) return false;
+        c.b.sk.x = tgt.x; c.b.sk.z = tgt.z;
+        return true;
+      }
+      return false;
+    }
     if (c.state === 'retreat' || (c.hpFrac < 0.4 && c.underFire)) {
       if (!c.enemies.length) return false;
       const sp = escapeSpot(c, s.cast, 4);
@@ -1439,6 +1481,13 @@ const SKILL_AI = {
   },
   decoy(c, s) {
     const { u, tgt } = c;
+    if (s.seek) {
+      // a hound: send it after a target inside its range; one at a time
+      for (const z of c.m.zones) if (z.kind === 'decoy' && z.owner === u.id && z.seek) return false;
+      if (!tgt || c.td > s.seek.range - 3 || c.td < 2.5) return false;
+      c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = 0.4;
+      return true;
+    }
     if (!c.enemies.length || u.stealthT > 0) return false;
     const retreating = c.state === 'retreat' || (c.hpFrac < 0.45 && c.underFire);
     const engaged = !!tgt && c.td < 13 && (c.underFire || c.td < 9);

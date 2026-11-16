@@ -42,6 +42,12 @@ const SEQ = {
   domdom: { d: 8, seq: [] },
   tacke: { d: 12, seq: [['s2', 0], ['ult', 0.3]] },
   hoalong: { d: 14, seq: [['s1', 0, true], ['ult', 0.4]], fireAt: 0.1 },
+  khiphao: { d: 9, seq: [['s1', 0], ['ult', 0.2]] },
+  quancong: { d: 5, seq: [['s1', 0], ['s2', 0.3], ['ult', 0.5]] },
+  natra: { d: 7, seq: [['ult', 0, true], ['s1', 0.7], ['s2', 1.2]], fireAt: 0.7 },
+  duongtien: { d: 10, seq: [['ult', 0], ['s1', 0.9]], fireAt: 0.9 },
+  athena: { d: 8, seq: [['s1', 0]] },
+  hades: { d: 9, seq: [['s2', 0], ['s1', 0.7], ['ult', 0.2]] },
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {
