@@ -17,7 +17,7 @@ const tm = (v) => (v > 0 ? Math.max(0.01, rd(v)) : 0);
 const num = (v) => (Number.isFinite(v) ? v : 0);
 
 const PICKUP_KEYS = Object.keys(PICKUPS);
-const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire'];
+const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit'];
 
 // Shots are sent as [id, owner, kind, x, z, angle]. Team and colour come from the owner; speed, radius and look from
 // a kind table both ends build from the same data rows (weapons, volley skills, the turret). A kind the table lacks
@@ -45,6 +45,7 @@ const ZONE_EXTRA = {
   decoy: [['dur', 'n'], ['hp', 'i'], ['maxHp', 'i'], ['aim', 'a']],
   drone: [['dur', 'n'], ['target', 'j']],
   wire: [['dur', 'n'], ['pts', 'p'], ['left', 'i']],
+  orbit: [['dur', 'n'], ['mode', 's'], ['n', 'i'], ['live', 'i'], ['ring', 'n'], ['spin', 'n']],
 };
 
 function encZoneField(v, type) {
@@ -64,7 +65,7 @@ function decZoneField(v, type) {
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 function unitRow(u) {
@@ -227,7 +228,7 @@ const EVENT_KEYS = {
   ventWarn: ['id', 'x', 'z', 'r'], towerHit: ['tower', 'by', 'x', 'z', 'amt'], towerFire: ['tower', 'x', 'z', 'a'], capture: ['point', 'team', 'x', 'z'],
   ray: ['id', 'x0', 'z0', 'x1', 'z1', 'on'], hook: ['id', 'target', 'x', 'z'], swap: ['id', 'other', 'x0', 'z0', 'x1', 'z1'], stance: ['id', 'on', 'x', 'z'],
   bless: ['id', 'to', 'skill', 'x', 'z'], rally: ['id', 'x', 'z', 'r'], leap: ['id', 'x0', 'z0', 'x', 'z', 'dur'], mark: ['id', 'target', 'x', 'z'],
-  warp: ['id', 'x0', 'z0', 'x', 'z'], zap: ['zone', 'id', 'x', 'z'], execute: ['id', 'by', 'x', 'z'],
+  warp: ['id', 'x0', 'z0', 'x', 'z'], zap: ['zone', 'id', 'x', 'z'], execute: ['id', 'by', 'x', 'z'], stacks: ['id', 'by', 'x', 'z'],
 };
 const EVENT_TYPES = Object.keys(EVENT_KEYS);
 

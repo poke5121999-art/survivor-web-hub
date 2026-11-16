@@ -4,7 +4,7 @@
 import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
 import { TEAMS, PICKUPS, RULES } from '../data.js';
-import { visibleTo } from '../sim.js';
+import { visibleTo, orbPos } from '../sim.js';
 import { makePoints, makeStreaks, makeDebris, premul, additive, K } from './fxkit.js';
 import { makeTowers } from './towers.js';
 
@@ -753,6 +753,7 @@ export function makeFx(G, mechs) {
       glow(x, 1.2, z, tc, 0.18, 1.8, 0.9); glow(x, 1.3, z, WHITE, 0.07, 1.1, 1, K.STAR, 1.4);
       sparks(x, 1.2, z, N(6), tc, 8, 0.3, 0.05, 0.5, 8, bx, bz, 0.9); return;
     }
+    if (e.on === 'orbit') { glow(x, y, z, WHITE, 0.07, 1.0, 1, K.STAR, 1.4); sparks(x, y, z, N(5), tc, 7, 0.25, 0.05, 0.5, 8, bx, bz, 0.9); return; }
     if (e.on === 'decoy') { glow(x, y, z, HOLO, 0.15, 1.6, 0.9); glow(x, y, z, WHITE, 0.07, 1.0, 1, K.STAR, 1.4); sparks(x, y, z, N(7), HOLO, 8, 0.3, 0.05, 0.5, 8, bx, bz, 0.9); return; }
     if (e.on === 'end') { glow(x, y, z, tc, 0.14, 0.5, 0.8); sparks(x, y, z, 2, tc, 3, 0.25, 0.04, 0.3, 6, -bx, -bz, 0.4); return; }
     glow(x, y, z, WHITE, 0.08, heavy ? 2.4 : 1.1, 1, K.STAR, 1.5);
@@ -979,6 +980,12 @@ export function makeFx(G, mechs) {
         }
         break;
       }
+      case 'stacks': {
+        // the last mark goes off: a frost-white burst on the marked mech
+        const t = m.units[e.id];
+        if (t) { ring(t.x, t.z, 2, WHITE, 0.3); glow(t.x, 1.4, t.z, ARC, 0.25, 2.4, 0.9, K.STAR, 1.2); sparks(t.x, 1.4, t.z, N(10), ARC, 8, 0.4, 0.06, 0.8, 10); }
+        break;
+      }
       case 'meter': {
         // a meter fills (gold ring and glow) or is spent (a plain ring)
         if (!u) break;
@@ -1203,6 +1210,18 @@ export function makeFx(G, mechs) {
         v.wire.u.uA.value = fl * out;
         if (live && !v.armed) { v.armed = true; for (const [px, pz] of z.pts) { glow(px, 1.5, pz, WHITE, 0.15, 1.8, 1, K.STAR, 1.3); sparks(px, 1.5, pz, N(6), ARC, 5, 0.3, 0.05, 0.6, 8); } }
         if (live && Math.random() < dt * (low ? 6 : 14)) { const t = Math.random(); glow(z.pts[0][0] + (z.pts[1][0] - z.pts[0][0]) * t, 1.0 + rnd(-0.2, 0.3), z.pts[0][1] + (z.pts[1][1] - z.pts[0][1]) * t, ARC, 0.15, 0.3, 1, K.SPARK, 0.3, rnd(-1, 1), rnd(0.5, 2), rnd(-1, 1)); }
+      } else if (z.kind === 'orbit') {
+        // orbs circle the owner: a small glow per live orb, bigger ones for a guard blade
+        const o = m.units[z.owner];
+        if (o) {
+          const oo = { x: o.px + (o.x - o.px) * alpha, z: o.pz + (o.z - o.pz) * alpha }, zz = { age: z.age - (1 - alpha) / 30, spin: z.spin, n: z.n, ring: z.ring };
+          for (let i = 0; i < z.n; i++) {
+            if (!((z.live >> i) & 1)) continue;
+            const [px, pz] = orbPos(zz, oo, i);
+            glow(px, 1.3, pz, tc, 0.06, z.mode === 'guard' ? 1.1 : 0.8, 1, K.GLOW, 1);
+            glow(px, 1.3, pz, WHITE, 0.05, z.mode === 'guard' ? 0.55 : 0.4, 1, K.STAR, 1);
+          }
+        }
       } else if (z.kind === 'turret') {
         v.obj.children[1].rotation.y = -z.aim;
         v.obj.scale.setScalar(Math.min(1, 0.2 + z.age * 4));
@@ -1318,6 +1337,7 @@ export function makeFx(G, mechs) {
       }
       if (u.armorT > 0 && Math.random() < dt * 14) { const a = time * 5 + Math.random(); glow(u.x + Math.cos(a) * 1.1, rnd(0.4, 1.8), u.z + Math.sin(a) * 1.1, GOLD, 0.45, 0.24, 1, K.SPARK, 0.3, 0, 0.4, 0); }
       if (u.rageT > 0 && Math.random() < dt * 22) glow(u.x + rnd(-0.7, 0.7), rnd(0.5, 1.8), u.z + rnd(-0.7, 0.7), DANGER, 0.5, 0.34, 1, K.FLAME, 0.3, 0, 2.2, 0);
+      if (u.stkN > 0) for (let i = 0; i < u.stkN; i++) glow(u.x + (i - (u.stkN - 1) / 2) * 0.5, 3.6, u.z, ARC, 0.06, 0.55, 1, K.STAR, 1);
       if (u.markT > 0) glow(u.x, 3.2, u.z, RED, 0.06, 0.9 + 0.25 * Math.sin(time * 14), 1, K.STAR, 1);
       if (u.stance && Math.random() < dt * 2) ovr.emit(u.x + rnd(-1, 1), 0.2, u.z + rnd(-1, 1), 0, 0.2, 0, dust, 0.9, 0.7, 2.2, 1, 0, 0.18, K.DUST);
       if (u.hasteT > 0 && Math.random() < dt * 20) glow(u.x + rnd(-0.6, 0.6), 0.4, u.z + rnd(-0.6, 0.6), ARC, 0.4, 0.28, 1, K.SPARK, 0.3, 0, 1, 0);

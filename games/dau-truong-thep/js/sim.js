@@ -97,6 +97,7 @@ function clearStatus(u) {
   u.burnT = 0; u.burnN = 0; u.burnDps = 0; u.burnBy = -1;
   u.tfT = 0; u.tfSlot = -1; u.tfDmg = 1; u.ccT = 0; u.radius = u.def.radius;
   u.rampN = 0; u.rampT = 0; u.rampTo = -1; u.rampAcc = 0; u.recast = null;
+  u.stkN = 0; u.stkT = 0; u.stkBy = -1;
   u.meter = 0; u.lastSrc = null; u.hurtAt = -99; u.skillAmp = 1; u.shieldBurst = null; u.blindT = 0; u.blindF = 1; u.blindSpread = 0; u.mmT = 0; u.mmBy = -1;
   u.cast = null; u.dash = null; u.bush = -1; u.kx = 0; u.kz = 0; u.vx = 0; u.vz = 0; u.hitBy = {};
 }
@@ -276,7 +277,7 @@ function meterShot(m, u) {
   if (!meterArmed(u) || u.def.passive.spend.kind !== 'shot') return null;
   const S = u.def.passive.spend;
   meterSpent(m, u);
-  return { mul: S.mul || 1, stun: S.stun || 0 };
+  return { mul: S.mul || 1, stun: S.stun || 0, patch: S.patch || null };
 }
 // hitfx chain: from the mech just hit, jump to the n nearest other enemies inside r (nearest first, lower id on a tie) for base x mul each. It never chains again.
 function chainHit(m, src, o, C, base) {
@@ -373,7 +374,8 @@ function stepUnit(m, u, inp) {
   if (!u.alive) { u.respawnT -= dt; if (u.respawnT <= 0) spawn(m, u, false); return; }
 
   for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
-  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; popShield(m, u); } }
   if (u.skillAmp !== 1 && !u.cast && !u.dash) u.skillAmp = 1;
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
@@ -406,7 +408,7 @@ function stepUnit(m, u, inp) {
   }
   if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
   if (u.woundT > 0) u.woundT -= dt;
-  if (u.healT > 0) { u.healT -= dt; heal(m, u, u.healRate * dt, u, true); }
+  if (u.healT > 0) { u.healT = Math.max(0, u.healT - dt); heal(m, u, u.healRate * dt, u, true); }
 
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
@@ -518,6 +520,20 @@ const PASSIVE_TICK = {
     const P = u.def.passive;
     if (P.gain.calm && m.time - u.hurtAt > 2) meterAdd(m, u, 'calm', TICK);
   },
+  // regen: every half second heal hps of max hp plus `missing` of the lost hp (x mods.lowHp.regen when low), ignoring combat; near: allies inside r
+  // get the same hps, times mul when they are under `below` of their hp
+  regen(m, u) {
+    if ((m.tick + u.id) % 15) return;
+    const P = u.def.passive, low = lowHpMod(u), k = low && low.regen ? low.regen : 1;
+    const amt = ((P.hps || 0) * u.maxHp + (P.missing || 0) * (u.maxHp - u.hp)) * k * 0.5;
+    if (amt > 0) heal(m, u, amt, u, true);
+    const N = P.near;
+    if (!N || !P.hps) return;
+    for (const o of m.units) {
+      if (o === u || o.team !== u.team || !o.alive || o.hp >= o.maxHp || dist2(o.x, o.z, u.x, u.z) > N.r * N.r) continue;
+      heal(m, o, P.hps * o.maxHp * 0.5 * (o.hp < o.maxHp * N.below ? N.mul : 1), u, true);
+    }
+  },
   // brittle.reveal: enemies of this mech under the fraction, inside r, cannot hide (no bush, no stealth).
   brittle(m, u) {
     const R = u.def.passive.reveal;
@@ -568,8 +584,10 @@ function fireWeapon(m, u, inp) {
   const base = u.aim + (w.spread ? (m.rng() - 0.5) * 2 * w.spread : 0);
   const st = u.stance ? u.stanceDef : null;
   const boost = u.passive === 'meter' ? meterShot(m, u) : null;
-  for (let i = 0; i < n; i++) spawnShot(m, u, w, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
-  m.events.push({ t: 'fire', id: u.id, vis: w.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
+  // meter 'shot' patch: the armed shot flies as a different projectile (longer, faster, wider)
+  const sw = boost && boost.patch ? { ...w, ...boost.patch } : w;
+  for (let i = 0; i < n; i++) spawnShot(m, u, sw, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
+  m.events.push({ t: 'fire', id: u.id, vis: sw.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
 }
 
 // st: the stance row when a planted mech fires its main weapon (longer reach, harder hit).
@@ -672,6 +690,8 @@ const CAST = {
     if (s.shield) { o.shield = Math.max(o.shield, s.shield); o.shieldMax = o.shield; o.shieldT = s.dur; }
     if (s.haste) { o.hasteT = s.dur; o.hasteF = s.haste; }
     if (s.rapid) { o.rapidT = s.dur; o.rapidF = s.rapid; }
+    // hot: heal over time on whoever it lands on (the same fields the heal item uses)
+    if (s.hot) { o.healRate = Math.max(o.healT > 0 ? o.healRate : 0, s.hot.hps); o.healT = Math.max(o.healT, s.hot.dur); }
     m.events.push({ t: 'bless', id: u.id, to: o.id, skill: s.id, x: o.x, z: o.z });
   },
   rally(m, u, s) {
@@ -719,10 +739,16 @@ const CAST = {
     }
     const [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
     // leave: a still copy stays where the mech stood and goes off when it is shot down or its time is up
-    if (s.leave) addZone(m, u, { kind: 'decoy', x: x0, z: z0, r: u.radius, hp: s.leave.hp, maxHp: s.leave.hp, dur: s.leave.dur, aim: u.aim, speed: 0, blast: s.leave.blast, dmg: s.leave.dmg, fx: null, seek: null });
+    if (s.leave) addZone(m, u, { kind: 'decoy', x: x0, z: z0, r: u.radius, hp: s.leave.hp, maxHp: s.leave.hp, dur: s.leave.dur, aim: u.aim, speed: 0, blast: s.leave.blast, dmg: s.leave.dmg, fx: s.leave.fx || null, seek: null });
     u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0;
     m.events.push({ t: 'warp', id: u.id, x0, z0, x, z });
     if (s.land) { m.events.push({ t: 'nova', id: u.id, x, z, r: s.land.radius }); areaDamage(m, u, x, z, s.land.radius, s.land.dmg, s.land, null); }
+  },
+  // orbit: n orbs circle the caster. 'seek': each `rate` seconds the next orb flies off at the nearest enemy in range and is spent;
+  // 'guard': the orbs shoot down enemy shots and the ring cuts enemies close to the caster.
+  orbit(m, u, s) {
+    addZone(m, u, { kind: 'orbit', mode: s.mode, x: u.x, z: u.z, r: s.ring, ring: s.ring, n: s.n, live: (1 << s.n) - 1, dur: s.dur, rate: s.rate || 0.35, acc: 0,
+      dmg: s.dmg || 0, range: s.range || 11, dps: s.dps || 0, spin: s.spin || 2.4, speed: s.speed || 30, pr: s.pr || 0.24, vis: s.vis || 'dart', src: s.id });
   },
   drone(m, u, s) { addZone(m, u, { kind: 'drone', x: u.x, z: u.z, r: 0.5, dur: s.dur, range: s.range, hps: s.hps, acc: 0 }); },
   wire(m, u, s, inp) {
@@ -765,11 +791,11 @@ const CAST = {
     const hunt = s.seek ? seekTargets(m, u, s.seek, cx, cz) : [];
     for (let i = 0; i < s.n; i++) {
       const delay = s.delay + (i / s.n) * s.span;
-      if (i < hunt.length) { addZone(m, u, { kind: 'strike', x: hunt[i].x, z: hunt[i].z, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s) }); continue; }
+      if (i < hunt.length) { addZone(m, u, { kind: 'strike', x: hunt[i].x, z: hunt[i].z, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id }); continue; }
       // line: strikes march from the aim point along the aim direction; otherwise they scatter in a disc.
       const a = s.line ? 0 : m.rng() * 6.283, d = s.line ? 0 : (i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0);
       const lx = s.line ? ux * s.gap * (i - (s.n - 1) / 2) : 0, lz = s.line ? uz * s.gap * (i - (s.n - 1) / 2) : 0;
-      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s) });
+      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id });
     }
   },
   mine(m, u, s, inp) {
@@ -790,6 +816,12 @@ const CAST = {
     }
   },
 };
+
+// Where orb i of an orbit zone is: round its owner, one full turn each 2 pi / spin seconds.
+export function orbPos(z, owner, i) {
+  const a = z.age * z.spin + i * 2 * Math.PI / z.n;
+  return [owner.x + Math.cos(a) * z.ring, owner.z + Math.sin(a) * z.ring];
+}
 
 function seekTargets(m, u, K, cx, cz) {
   const list = [];
@@ -1040,6 +1072,12 @@ function stepShots(m) {
       } else if ((z.kind === 'turret' || z.kind === 'decoy') && z.team !== s.team) {
         const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r + s.r);
         if (t < best) { best = t; what = z.kind; hitProp = null; hitZone = z; hitTower = null; }
+      } else if (z.kind === 'orbit' && z.mode === 'guard' && z.team !== s.team) {
+        const ow = m.units[z.owner];
+        for (let i = 0; i < z.n; i++) {
+          const [ox, oz] = orbPos(z, ow, i), t = segCircle(s.x, s.z, ex, ez, ox, oz, 0.5 + s.r);
+          if (t < best) { best = t; what = 'orbit'; hitProp = null; hitZone = null; hitTower = null; }
+        }
       } else if (z.kind === 'dome' && z.team !== s.team && dist2(s.x, s.z, z.x, z.z) >= z.r * z.r) {
         const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r);
         if (t < best) { best = t; what = 'dome'; hitProp = null; hitZone = null; hitTower = null; }
@@ -1126,7 +1164,7 @@ function stepZones(m) {
     let done = false;
     if (z.kind === 'strike') {
       z.delay -= dt;
-      if (z.delay <= 0) { explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike'); done = true; }
+      if (z.delay <= 0) { curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike'); curSrc = null; done = true; }
     } else if (z.kind === 'mine') {
       if (z.delay > 0) z.delay -= dt;
       else {
@@ -1209,6 +1247,35 @@ function stepZones(m) {
         if (worst) heal(m, worst, z.hps * 0.5 * (worst === owner ? RULES.selfHealMul : 1), owner);
       }
       if (!owner.alive || z.age > z.dur) done = true;
+    } else if (z.kind === 'orbit') {
+      if (!owner.alive || z.age > z.dur) done = true;
+      else {
+        z.x = owner.x; z.z = owner.z;
+        z.acc += dt;
+        if (z.mode === 'seek') {
+          if (z.acc >= z.rate) {
+            let i = 0;
+            while (i < z.n && !((z.live >> i) & 1)) i++;
+            const [ox, oz] = orbPos(z, owner, i);
+            let near = null, nd = z.range * z.range;
+            for (const u of m.units) {
+              if (u.team === z.team || !u.alive || !visibleTo(m, u, z.team)) continue;
+              const d = dist2(u.x, u.z, ox, oz);
+              if (d < nd && castStatic(m.map, ox, oz, u.x, u.z, 0.15) > 1) { nd = d; near = u; }
+            }
+            if (near) {
+              z.acc -= z.rate; z.live &= ~(1 << i);
+              const a = Math.atan2(near.z - oz, near.x - ox), dx = Math.cos(a), dz = Math.sin(a);
+              m.shots.push({ id: m.nextId++, team: z.team, color: z.color, owner: z.owner, x: ox, z: oz, px: ox, pz: oz, dx, dz, speed: z.speed, left: z.range + 1, dmg: z.dmg * dmgScale(owner), splash: 0, knock: 0, slow: 0, slowDur: 0, r: z.pr, vis: z.vis,
+                pierce: false, bounce: 0, hook: null, far: null, flown: 0, hit: null, fx: null, ret: false, back: false, src: z.src });
+            } else z.acc = Math.min(z.acc, z.rate);
+          }
+          if (!z.live) done = true;
+        } else if (z.acc >= 0.5) {
+          z.acc -= 0.5;
+          if (z.dps) for (const u of m.units) if (u.team !== z.team && u.alive && dist2(u.x, u.z, owner.x, owner.z) < (z.ring + 0.6 + u.radius * 0.5) ** 2) damage(m, u, z.dps * 0.5 * dmgScale(owner), owner);
+        }
+      }
     } else if (z.kind === 'wire') {
       if (z.delay > 0) z.delay -= dt;
       else for (const u of m.units) {
@@ -1345,6 +1412,7 @@ function damage(m, u, amount, src, raw) {
   }
   if (foe && foe.alive && foe.passive === 'souls' && u.hp > 0) applyAmp(u, foe.def.passive.mark.amp, foe.def.passive.mark.dur);
   if (foe && foe.alive && foe.passive === 'meter' && left + absorbed > 0 && !chaining) meterHit(m, foe, u);
+  if (foe && foe.alive && foe.passive === 'stacks' && left + absorbed > 0 && !chaining && u.hp > 0) stackHit(m, foe, u);
   if (u.hp <= 0) kill(m, u, src);
   else if (u.markT > 0 && u.markEx && u.hp < u.maxHp * u.markEx) {
     const by = m.units[u.markBy];
@@ -1356,6 +1424,19 @@ function damage(m, u, amount, src, raw) {
     if (u.passive === 'meter' && !u.def.passive.resetOnHurt && left + absorbed > 0) { meterAdd(m, u, 'hurt', left); meterAdd(m, u, 'absorbed', blocked + absorbed); }
     if (broke) popShield(m, u);
   }
+}
+
+// stacks (passive): a hit with a source tag adds a mark to the mech it lands on ('skill': only skill hits count, 'any': weapon and skill hits;
+// ticks of fields and burns carry no tag and never count). Marks belong to one attacker; the n-th one goes off as P.fx and is cleared.
+function stackHit(m, foe, u) {
+  const P = foe.def.passive;
+  if (!curSrc || (P.on === 'skill' && curSrc === 'w')) return;
+  if (u.stkN > 0 && u.stkT > 0 && u.stkBy === foe.id) u.stkN++; else u.stkN = 1;
+  u.stkBy = foe.id; u.stkT = P.dur;
+  if (u.stkN < P.n) return;
+  u.stkN = 0; u.stkT = 0;
+  m.events.push({ t: 'stacks', id: u.id, by: foe.id, x: u.x, z: u.z });
+  applyFx(m, foe, u, P.fx);
 }
 
 function burn(m, u, amount) {

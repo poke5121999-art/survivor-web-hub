@@ -15,7 +15,7 @@ const check = (name, cond, detail = '') => {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
 const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter'];
+const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter', 'stkN', 'stkT'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
   strike: ['r', 'age', 'delay', 'total', 'lob', 'x0', 'z0'],
@@ -27,6 +27,7 @@ const ZONE_FIELDS = {
   decoy: ['r', 'age', 'delay', 'dur', 'hp', 'maxHp', 'aim'],
   drone: ['r', 'age', 'delay', 'dur'],
   wire: ['r', 'age', 'delay', 'dur', 'left'],
+  orbit: ['r', 'age', 'delay', 'dur', 'mode', 'n', 'live', 'ring', 'spin'],
 };
 
 // Every difference between the real match and the mirror, as strings.

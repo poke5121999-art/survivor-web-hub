@@ -109,12 +109,15 @@ for (const key of MECH_ORDER) {
   for (let i = 0; i < 3; i++) {
     const s = MECHS[key].skills[i], slot = SLOTS[i];
     if (s.recast) continue;   // dash.recast keeps the key ready after the first press: section 41 checks its cooldown
+    // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
+    const ally = s.to === 'ally';
     const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : 9, -1]);
+    if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'trau', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
     const a = m.units[0];
     let first = -1, second = -1, castTicks = 0;
     for (let t = 0; t < Math.ceil((s.cd + 1.5) / TICK); t++) {
-      const o = inp({ [slot]: true, aim: 0, tx: m.units[1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' ? 0 : 1 });
-      step(m, [o, inp()]);
+      const o = inp({ [slot]: true, aim: 0, tx: m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' ? 0 : 1 });
+      step(m, ally ? [o, inp(), inp()] : [o, inp()]);
       for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === i) { if (first < 0) { first = t; castTicks = a.cd[slot]; } else if (second < 0) second = t; }
       a.hp = a.maxHp;
     }
@@ -577,7 +580,7 @@ section('13 new mechs: bots, inputs, balance');
 }
 
 // Balance: mixed rosters, normal vs normal, rotating compositions
-const BAL_SEEDS = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142];
+const BAL_SEEDS = [143, 144, 145, 146, 147, 148, 149, 150, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142];
 const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixed(i)));
 {
   check('15a mixed 8-mech matches end, no NaN, nothing outside the map or inside a wall', bal.every((r) => r.m.over && !r.bad), bal.map((r) => r.bad).filter(Boolean)[0]);
@@ -3258,6 +3261,194 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.skillAmp])]);
     };
     check('42zz batch 3 fight is deterministic: same seed, same events and state', play() === play());
+  }
+}
+
+section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, leap.to ally + landShield, warp.leave fx, meter shot patch, barrage src (literal expected values)');
+{
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units, walls = []) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    for (const w of walls) m.map.walls.push({ x0: w[0], x1: w[1], z0: w[2], z1: w[3] });
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
+  const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
+  const bits = (n) => { let c = 0; for (; n; n >>= 1) c += n & 1; return c; };
+
+  // stacks 'skill' (dieuthuyen): the weapon adds no mark, three skill hits freeze (stun 1 s) and clear the marks
+  {
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 40, (i) => ({ 0: { fire: i < 25, tx: 6, tz: 0 } }));
+    check('43a weapon hits add no mark when the stacks are on skill', v.stkN === 0 && v.hp < v.maxHp, `stk ${v.stkN}`);
+    let ev = [];
+    for (let k = 1; k <= 3; k++) {
+      a.cd.s1 = 0; press(m, 0, 's1', { tx: 6, tz: 0 }); const e = go(m, 10); ev = ev.concat(e);
+      if (k < 3) check(`43b skill hit ${k}: stkN ${k}, owned by the caster, no stun yet`, v.stkN === k && v.stkBy === a.id && v.stunT === 0, `stk ${v.stkN} stun ${v.stunT}`);
+    }
+    check('43c the third skill hit stuns 1 s (a little gone), clears the marks and emits stacks', v.stkN === 0 && v.stunT > 0.6 && v.stunT <= 1.0 && only(ev, 'stacks', (e) => e.id === 1 && e.by === 0).length === 1, `stk ${v.stkN} stun ${v.stunT}`);
+  }
+  // stacks expire after dur 4 s; a mark held by another attacker restarts from 1
+  {
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 10);
+    check('43d one skill hit leaves one mark', v.stkN === 1, `stk ${v.stkN}`);
+    go(m, 125);
+    check('43e the mark is gone after 4 s', v.stkN === 0 && v.stkT === 0, `stk ${v.stkN} ${v.stkT}`);
+    v.stkN = 2; v.stkBy = 7; v.stkT = 3; a.cd.s1 = 0; press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 10);
+    check('43f marks of another attacker restart at 1 under the new owner', v.stkN === 1 && v.stkBy === a.id && v.stunT === 0, `stk ${v.stkN} by ${v.stkBy}`);
+  }
+  // stacks 'any' (thuytinh, samthep)
+  {
+    const m = arena([[R('thuytinh', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    go(m, 40, (i) => ({ 0: { fire: i < 25, tx: 6, tz: 0 } }));
+    check('43g thuytinh: three weapon hits slow the foe 50% (2 s), marks cleared', v.stkN === 0 && v.slowT > 0.5 && v.slowF === 0.5, `stk ${v.stkN} slow ${v.slowT}/${v.slowF}`);
+  }
+  {
+    const m = arena([[R('samthep', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    go(m, 45, (i) => ({ 0: { fire: i < 30, tx: 6, tz: 0 } }));
+    check('43h samthep: three hits leave 3 marks, no root', v.stkN === 3 && v.rootT === 0, `stk ${v.stkN} root ${v.rootT}`);
+    go(m, 16, () => ({ 0: { fire: false } })); m.units[0].cd.fire = 0;
+    go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('43i samthep: the fourth hit roots 1 s (a little gone)', v.stkN === 0 && v.rootT > 0.5 && v.rootT <= 1.0, `stk ${v.stkN} root ${v.rootT}`);
+  }
+  // cuuvi weaken on the third skill mark
+  {
+    const m = arena([[R('cuuvi', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    v.stkN = 2; v.stkBy = 0; v.stkT = 3;
+    press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 14);
+    check('43j cuuvi: the third mark weakens the foe to x0.7 for 3 s', v.weakenF === 0.7 && v.weakenT > 2 && v.stkN <= 3, `weaken ${v.weakenF} ${v.weakenT} stk ${v.stkN}`);
+  }
+  // barrage strikes carry the skill tag: dieuthuyen E marks and stuns
+  {
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
+    press(m, 0, 's2', { tx: 8, tz: 0 }); go(m, 30);
+    check('43k Bang Lien: the strike hits 200, stuns, and leaves one mark', near(UNG.hp - v.hp, 200 * UNG_F, 1e-6) && v.stunT > 0 && v.stkN === 1, `dmg ${UNG.hp - v.hp} stun ${v.stunT} stk ${v.stkN}`);
+  }
+  // orbit seek (cuuvi U): nine orbs, one flies off each 0.35 s at the nearest enemy, 140 each; the zone ends when they are all spent
+  {
+    const m = arena([[R('cuuvi', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    press(m, 0, 'ult', { tx: 8, tz: 0 });
+    const z = m.zones.find((q) => q.kind === 'orbit');
+    check('43l Cuu Vi Hoa: an orbit zone with nine live orbs', !!z && z.n === 9 && bits(z.live) === 9 && z.ring === 1.8 && z.mode === 'seek', JSON.stringify(z));
+    const ev = go(m, 70, () => ({ 0: { tx: 8, tz: 0 } }));
+    const hits = only(ev, 'hit', (e) => e.by === 0 && e.id === 1), flying = m.shots.filter((s) => s.owner === 0).length;
+    check('43m after 2.3 s each spent orb is a 140 hit or a shot in flight; at least four landed', hits.length >= 4 && hits.every((e) => e.amt === 140) && bits(z.live) + hits.length + flying === 9, `hits ${hits.length} fly ${flying} live ${bits(z.live)}`);
+    go(m, 100);
+    check('43n all nine landed (1260), the zone is over', near(UNG.hp - v.hp, 9 * 140 * UNG_F, 1e-6) && !m.zones.some((q) => q.kind === 'orbit'), `dmg ${UNG.hp - v.hp}`);
+  }
+  // orbit seek holds its fire with nobody in range
+  {
+    const m = arena([[R('cuuvi', 0), 0, 0], [R('ung', 1), 20, 0]]);
+    press(m, 0, 'ult', { tx: 20, tz: 0 }); go(m, 60);
+    const z = m.zones.find((q) => q.kind === 'orbit');
+    check('43o nobody within 11 m: no orb leaves', z && bits(z.live) === 9 && m.shots.length === 0);
+  }
+  // orbit guard (kiemthan E): enemy shots that touch a blade are shot down; an enemy inside the ring is cut 160 / s
+  {
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 7, 0]]), [a, v] = m.units;
+    press(m, 0, 's2');
+    const ev = go(m, 120, (i) => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 }, 0: { aim: 0 } }));
+    const blocked = only(ev, 'impact', (e) => e.on === 'orbit').length, landed = only(ev, 'hit', (e) => e.id === 0).length;
+    check('43p Kiem Tran: shots that touch a blade are shot down (impact on orbit); every shot is a block or a hit', blocked >= 1 && blocked + landed === only(ev, 'fire', (e) => e.id === 1).length - m.shots.filter((s) => s.owner === 1).length, `blocked ${blocked} landed ${landed}`);
+  }
+  {
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 2, 0]]), v = m.units[1];
+    press(m, 0, 's2'); go(m, 35);
+    check('43q an enemy 2 m away (inside ring + 0.6) is cut 80 per half second: 160 after 35 ticks', near(UNG.hp - v.hp, 160, 1e-6), `dmg ${UNG.hp - v.hp}`);
+  }
+  // regen (suatrang): 0.8 % of max hp each second to itself, allies near it too (x2.5 under 60 %), far allies nothing
+  {
+    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 12, 0], [R('ung', 1), 25, 0]]), [a, al, far] = m.units;
+    a.hp = a.maxHp * 0.5; al.hp = al.maxHp * 0.5; far.hp = far.maxHp * 0.5;
+    const h = [a.hp, al.hp, far.hp];
+    go(m, 30);
+    check('43r Cham Soc: itself +1 % of max hp over 1 s, the hurt ally near +2.5 x that, the far ally nothing', near(a.hp - h[0], 0.01 * a.maxHp, 1e-6) && near(al.hp - h[1], 0.025 * al.maxHp, 1e-6) && far.hp === h[2], `${a.hp - h[0]} ${al.hp - h[1]} ${far.hp - h[2]}`);
+  }
+  // regen (khidot): missing 2 %/s of the lost hp; under 35 % twice that and +0.10 armor
+  {
+    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 25, 0]]), a = m.units[0];
+    a.hp = a.maxHp * 0.5; const h = a.hp;
+    go(m, 30);
+    check('43s Da Li: two pulses, each 2 % x 0.5 s of the lost hp', near(a.hp, h + 0.01 * (a.maxHp - h) + 0.01 * (a.maxHp - h - 0.01 * (a.maxHp - h)), 1e-6), `${a.hp - h}`);
+    a.hp = a.maxHp * 0.2; const h2 = a.hp;
+    check('43t under 35 %: armor 0.12 + 0.10', near(armorOf(m, a), MECHS.khidot.armor + 0.1, 1e-9), `${armorOf(m, a)}`);
+    go(m, 15);
+    check('43u under 35 %: the pulse is twice as big', near(a.hp - h2, 0.02 * (a.maxHp - h2), 1e-6), `${a.hp - h2}`);
+  }
+  // bless.hot (suatrang Q): 160 hp/s for 4 s on the ally at the cursor; on itself when nobody is there
+  {
+    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('ung', 1), 25, 0]]), [a, al] = m.units;
+    al.hp = al.maxHp * 0.3; a.hp = a.maxHp * 0.5; const h = al.hp, ha = a.hp;
+    press(m, 0, 's1', { tx: 9, tz: 0 });
+    check('43v Bong Bong Hoi: ally healT 4 s and rate 160, the caster untouched', al.healT > 3.9 && al.healRate === 160 && a.healT === 0, `${al.healT} ${al.healRate}`);
+    go(m, 130, () => ({ 0: { tx: 9, tz: 0 } }));
+    check('43w ... it adds 640 hp over 4 s', Math.abs((al.hp - h) - 640) < 12 && a.hp - ha < 100, `${al.hp - h}`);
+    a.cd.s1 = 0; press(m, 0, 's1', { tx: -8, tz: 0 });
+    check('43x with nobody at the cursor it lands on the caster', a.healT > 3.9 && a.healRate === 160, `${a.healT}`);
+  }
+  // leap.to 'ally' + landShield (suatrang E)
+  {
+    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('trau', 0), 11, 0], [R('trau', 0), 20, 0], [R('ung', 1), 30, 0]]), [a, b, c, d] = m.units;
+    press(m, 0, 's2', { tx: -5, tz: 0 });
+    check('43y no ally at the cursor: the leap does not happen (lockout 0.4 s, no dash)', !a.dash && a.cd.s2 === 0.4 && a.x === 0, `${a.cd.s2}`);
+    a.cd.s2 = 0; press(m, 0, 's2', { tx: 9, tz: 0 }); go(m, 20, () => ({ 0: { tx: 9, tz: 0 } }));
+    check('43z Bay Do: the caster lands on the ally, and the ones inside 4 m (itself, both near allies) have a 400 shield for 3 s; the far one none', Math.abs(a.x - 9) < 0.7 && a.shield === 400 && b.shield === 400 && c.shield === 400 && d.shield === 0 && b.shieldT > 2.3 && b.shieldT <= 3, `x ${a.x} shields ${a.shield} ${b.shield} ${c.shield} ${d.shield}`);
+  }
+  // warp.leave fx (cuuvi E): the left-behind image bursts with a slow
+  {
+    const m = arena([[R('cuuvi', 0), 0, 0], [R('ung', 1), 2, 1.5]]), v = m.units[1];
+    press(m, 0, 's2', { tx: -7, tz: 0 });
+    const z = m.zones.find((q) => q.kind === 'decoy');
+    check('43za Ao Anh: a still image with 400 hp stays behind', !!z && z.hp === 400 && z.speed === 0 && Math.abs(m.units[0].x + 7) < 0.5, `${z && z.hp} x ${m.units[0].x}`);
+    go(m, 100);
+    const d = Math.hypot(2, 1.5);
+    check('43zb ... it bursts when its 3 s are up: 100 with falloff, slow 40 %', near(UNG.hp - v.hp, 100 * (1 - 0.5 * d / 3.5), 1e-6) && v.slowT > 0 && v.slowF === 0.4, `${UNG.hp - v.hp} slow ${v.slowF}`);
+  }
+  // meter shot patch (kiemthan P): four sword hits arm it, the next volley is two lances: range 15, wide, piercing, x1.6
+  {
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
+    go(m, 8, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
+    check('43zc the sword wave hits once per blade; meter counts the hits (2 per volley, max 4)', a.meter >= 2, `meter ${a.meter}`);
+    a.meter = 4; a.cd.fire = 0;
+    go(m, 1, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
+    const sh = m.shots.filter((s) => s.owner === 0);
+    check('43zd armed: two lances (vis lance, r 0.5, pierce, x1.6 = 176 each), meter spent', sh.length === 2 && sh.every((s) => s.vis === 'lance' && s.r === 0.5 && s.pierce && near(s.dmg, MECHS.kiemthan.weapon.dmg * 1.6, 1e-9) && s.left > 13.5) && a.meter === 0, `${sh.length} ${sh[0] && sh[0].vis} ${a.meter}`);
+    a.cd.fire = 0; go(m, 1, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
+    const sw = m.shots.filter((s) => s.owner === 0 && s.vis === 'wave');
+    check('43ze the volley after it is the plain sword wave again (range 7.5)', sw.length === 2 && sw.every((s) => s.r === 0.3 && s.left < 7.5), `${sw.length}`);
+  }
+  // khidot U: transform row
+  {
+    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    press(m, 0, 'ult');
+    check('43zf Thinh No: radius x1.25, damage x1.25, lifesteal 0.2, fist cooldown 0.5, armor 0.12 + 0.2', near(a.radius, MECHS.khidot.radius * 1.25) && a.tfDmg === 1.25 && a.rageF === 0.2 && weaponOf(a).cd === 0.5 && near(armorOf(m, a), MECHS.khidot.armor + 0.2), `${a.radius} ${weaponOf(a).cd}`);
+  }
+  // determinism over a scripted batch 4 fight
+  {
+    const play = () => {
+      const m = arena([[R('dieuthuyen', 0), 0, 0], [R('thuytinh', 1), 6, 0], [R('samthep', 0), 0, 4], [R('cuuvi', 1), 6, 4], [R('kiemthan', 0), 0, -4], [R('suatrang', 1), 6, -4], [R('khidot', 0), 2, 2]]);
+      const ev = go(m, 300, (i) => ({
+        0: { fire: true, s1: i === 20, s2: i === 40, ult: i === 100, tx: 6, tz: 0 }, 1: { fire: true, s1: i === 30, s2: i === 50, aim: Math.PI, tx: 0, tz: 0 }, 2: { fire: true, s1: i === 60, s2: i === 90, tx: 6, tz: 4 },
+        3: { fire: true, s2: i === 70, ult: i === 80, aim: Math.PI }, 4: { fire: true, s2: i === 25, ult: i === 110, tx: 6, tz: -4 }, 5: { fire: true, s1: i === 45, s2: i === 55, aim: Math.PI }, 6: { fire: true, s1: i === 35, s2: i === 120, ult: i === 140, tx: 6, tz: 0 } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.stkN, u.stkT])]);
+    };
+    check('43zg batch 4 fight is deterministic: same seed, same events and state', play() === play());
   }
 }
 

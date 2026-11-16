@@ -1303,6 +1303,15 @@ const SKILL_AI = {
   zone(c, s) {
     const { u, tgt, td, m } = c;
     if (s.cage) return cageSkill(c, s);
+    // a healing field (hps): worth it when the people inside it have lost blood, and it follows me so no aiming
+    if (s.hps && s.follow) {
+      let miss = 0;
+      for (const a of c.m.units) {
+        if (a.team !== u.team || !a.alive || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius) continue;
+        miss += 1 - a.hp / a.maxHp;
+      }
+      return miss >= 0.6 && (c.enemies.length > 0 || c.underFire);
+    }
     if (s.follow || s.pull < 0) return bastionSkill(c, s);
     if (s.hide) return smokeSkill(c, s);
     if (s.pull) return pullSkill(c, s);
@@ -1423,6 +1432,20 @@ const SKILL_AI = {
       }
       return false;
     }
+    // hot: heal over time on the hurt ally under the cursor, or on me when nobody else is there
+    if (s.hot) {
+      let best = null, bf = 0.72;
+      for (const a of m.units) {
+        if (a === u || a.team !== u.team || !a.alive || a.healT > 0.5 || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+        const f = a.hp / a.maxHp;
+        if (f < bf) { bf = f; best = a; }
+      }
+      if (best && !(c.hpFrac < bf - 0.15 && c.underFire)) { c.b.sk.x = best.x; c.b.sk.z = best.z; return true; }
+      if (u.healT > 0.5 || c.hpFrac > 0.65 || !(c.underFire || c.enemies.length)) return false;
+      for (const a of m.units) if (a !== u && a.team === u.team && a.alive && hyp(a.x - u.x, a.z - u.z) < s.pick + 0.5) return false;
+      c.b.sk.x = u.x; c.b.sk.z = u.z;
+      return true;
+    }
     // haste, rapid fire: an ally who is fighting right now
     let best = null, bd = 1e9;
     for (const a of m.units) {
@@ -1439,6 +1462,13 @@ const SKILL_AI = {
     if (c.state === 'retreat' || (c.tgt && c.td < c.w.range)) { c.b.sk.x = u.x; c.b.sk.z = u.z; return true; }
     return false;
   },
+  // orbit: 'seek' orbs need someone to hit within their range; 'guard' blades go up when I am being shot at or someone is on top of me
+  orbit(c, s) {
+    const { tgt, td } = c;
+    if (s.mode === 'seek') return !!tgt && td <= s.range - 1 && (c.los || td < 7);
+    if (!c.enemies.length) return false;
+    return (c.underFire && (c.hpFrac < 0.9 || c.near >= 1)) || (!!tgt && td < s.ring + 3.5);
+  },
   rally(c, s) {
     const { u, m } = c;
     let value = 0, others = 0;
@@ -1451,6 +1481,22 @@ const SKILL_AI = {
   },
   leap(c, s) {
     const { u, m, tgt, td } = c;
+    if (s.to === 'ally') {
+      // fly to a hurt ally who is in the fight and cover the group with the landing shield
+      if (m.mode === 'trum' || c.state === 'grab') return false;
+      let best = null, bf = 0.6;
+      for (const a of m.units) {
+        if (a === u || a.team !== u.team || !a.alive || hyp(a.x - u.x, a.z - u.z) > s.cast - 1 || hyp(a.x - u.x, a.z - u.z) < 3) continue;
+        const f = a.hp / a.maxHp;
+        if (f >= bf || a.combatT > 3) continue;
+        let foe = false;
+        for (const e of c.enemies) if (d2(e.x, e.z, a.x, a.z) < 144) { foe = true; break; }
+        if (foe && safeLand(m, u, a.x, a.z)) { bf = f; best = a; }
+      }
+      if (!best) return false;
+      c.b.sk.x = best.x; c.b.sk.z = best.z;
+      return true;
+    }
     if (s.to) {
       // fly to a chosen unit (leap.to): a foe to jump on, an ally to land beside; the cursor sits on it so pickUnit finds it
       if (c.state === 'retreat' || c.hpFrac < 0.45 || m.mode === 'trum' || c.state === 'grab') return false;
