@@ -29,6 +29,8 @@ session(async (br, base) => {
     }
     return out;
   }, { want, defs });
+  const errs = await g.page.evaluate(() => window.__errors || []);
+  for (const e of errs) bad.push('page error: ' + String(e).split(String.fromCharCode(10))[0]);
   for (const line of bad) console.log('FAIL ' + line);
   console.log(bad.length ? `${bad.length} stray parts` : `ok: no stray parts in ${want.length} mechs x 3 forms`);
   await g.close();
