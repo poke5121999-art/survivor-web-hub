@@ -1457,6 +1457,16 @@ export function makeMechs(G, tex) {
 
   // Renders one mech alone into a square data URL, for menus and the HUD. Fourth argument: a size, or { glow, decal, size }.
   const shots = {};
+  // A still pose for menus: turret a little off the hull, deployable parts folded, instanced parts at their rest spots.
+  function pose(v) {
+    v.turret.rotation.y = -0.5; v.hull.rotation.y = -0.15;
+    for (const p of v.parts) {
+      const s = p.spec;
+      if (p.inst) for (const im of p.inst) { for (let i = 0; i < s.at.length; i++) im.setMatrixAt(i, M4.makeTranslation(s.at[i][0], s.at[i][1], s.at[i][2])); }
+      else if (s.kind === 'deploy') p.pivot.rotation[s.axis] = s.a0;
+      else if (s.kind === 'snap') p.pivot.rotation[s.axis] = s.a0;
+    }
+  }
   function portrait(key, team, paintKey, opt) {
     const o = typeof opt === 'number' ? { size: opt } : opt || {}, size = o.size || 128;
     const form = o.form || 2, id = [key, team, paintKey || '', o.glow || '', o.decal || '', size, form].join('|');
@@ -1465,13 +1475,7 @@ export function makeMechs(G, tex) {
     scene.environment = G.scene.environment;
     scene.add(v.root, new THREE.HemisphereLight(0xffffff, 0x334455, 1.2));
     const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(-2, 5, 3); scene.add(sun);
-    v.turret.rotation.y = -0.5; v.hull.rotation.y = -0.15;
-    for (const p of v.parts) {
-      const s = p.spec;
-      if (p.inst) for (const im of p.inst) { for (let i = 0; i < s.at.length; i++) im.setMatrixAt(i, M4.makeTranslation(s.at[i][0], s.at[i][1], s.at[i][2])); }
-      else if (s.kind === 'deploy') p.pivot.rotation[s.axis] = s.a0;
-      else if (s.kind === 'snap') p.pivot.rotation[s.axis] = s.a0;
-    }
+    pose(v);
     const box = new THREE.Box3().setFromObject(v.root), c = box.getCenter(new THREE.Vector3()), rad = box.getSize(new THREE.Vector3()).length() * 0.5;
     const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 80), dir = new THREE.Vector3(4.6, 5.0, 5.6).normalize();
     cam.position.copy(c).addScaledVector(dir, rad / Math.sin(15 * Math.PI / 180) * 0.8); cam.lookAt(c);
@@ -1490,5 +1494,98 @@ export function makeMechs(G, tex) {
     return (shots[id] = cv.toDataURL());
   }
 
-  return { group, sync, event, muzzle, clear, portrait, views };
+  // The tank select screen's turning model on its lit pedestal. It is drawn by the main renderer into the rectangle of the canvas under
+  // the stage element (no second GL context: the baked textures and the environment live in the main one). One mech, a handful of draws.
+  function showcase() {
+    const scene = new THREE.Scene();
+    scene.environment = G.scene.environment;
+    scene.add(new THREE.HemisphereLight(0xdceaff, 0x1a2a55, 1.15));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.6); sun.position.set(-3, 6, 5); scene.add(sun);
+    const back = new THREE.DirectionalLight(0x6fc8ff, 1.6); back.position.set(3, 3, -5); scene.add(back);
+    const glowTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d'), grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grd.addColorStop(0, 'rgba(120,210,255,1)'); grd.addColorStop(0.45, 'rgba(60,150,255,.45)'); grd.addColorStop(1, 'rgba(30,90,255,0)');
+      g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    // The menu's CSS background (css/ui.css, #ui .menu), painted on the whole canvas while the menu itself is transparent.
+    const bg = new THREE.Scene();
+    bg.background = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d');
+      g.setTransform(0.75 * 256, 0, 0, 0.85 * 256, 128, 0.38 * 256);
+      const grd = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+      grd.addColorStop(0, '#17428c'); grd.addColorStop(0.58, '#0b2353'); grd.addColorStop(1, '#061430');
+      g.fillStyle = grd; g.fillRect(-2, -2, 4, 4);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const own = [bg.background];
+    const keep = (x) => { own.push(x); return x; };
+    const ped = new THREE.Group();
+    const steel = keep(new THREE.MeshStandardMaterial({ color: 0x1b2d52, metalness: 0.7, roughness: 0.38 }));
+    const top = keep(new THREE.MeshStandardMaterial({ color: 0x24406f, metalness: 0.55, roughness: 0.5 }));
+    const lit = keep(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.85, 1.25), toneMapped: false }));
+    const halo = keep(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0.55 }));
+    const add = (g, m, y) => { const mesh = new THREE.Mesh(keep(g), m); mesh.position.y = y; ped.add(mesh); return mesh; };
+    add(new THREE.CylinderGeometry(1.08, 1.18, 0.22, 48), steel, -0.13);
+    add(new THREE.CylinderGeometry(1.0, 1.04, 0.06, 48), top, -0.0);
+    add(new THREE.TorusGeometry(1.07, 0.022, 6, 64).rotateX(Math.PI / 2), lit, 0.0);
+    add(new THREE.TorusGeometry(1.15, 0.016, 6, 64).rotateX(Math.PI / 2), lit, -0.2);
+    add(new THREE.PlaneGeometry(3.6, 3.6).rotateX(-Math.PI / 2), halo, -0.235);
+    const wall = new THREE.Mesh(keep(new THREE.PlaneGeometry(4.4, 3.2)), keep(halo.clone()));
+    wall.material.opacity = 0.22; wall.position.set(0, 1.0, -1.6); ped.add(wall);
+    scene.add(ped);
+    const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 200);
+    let v = null, id = '', ang = 0.55, hold = 0, acc = 0, fit = { r: 1, y: 0.8 };
+    function set(key, paint, glow, decal, form) {
+      const nid = [key, paint || '', glow || '', decal || '', form].join('|');
+      if (nid === id || !(MECHS[key] || BOSSES[key])) return;
+      if (v) disposeView(v);
+      id = nid; v = build(key, 0, paint, glow, decal, form);
+      pose(v);
+      // Fit to the model's form II size, so form III reads bigger on the pedestal and form I smaller.
+      const box = new THREE.Box3().setFromObject(v.root), sz = box.getSize(new THREE.Vector3()), k = FORM_SCALE[1] / FORM_SCALE[Math.max(1, Math.min(3, form)) - 1];
+      const foot = Math.max(sz.x, sz.z) * 0.5 * k;
+      fit = { r: Math.max(foot * 1.12, sz.y * 0.62 * k, 1.1), y: Math.max(0.6, sz.y * 0.42 * k), foot };
+      ped.scale.setScalar(Math.max(1.05, foot * 1.18));
+      scene.add(v.root);
+      acc = 1;
+    }
+    function turn(dx) { ang += dx; hold = 2; acc = 1; }
+    // rect: the stage in CSS pixels relative to the canvas; w, h: the canvas in CSS pixels.
+    function draw(r, rect, w, h, dt, fps) {
+      ang += hold > 0 ? 0 : dt * 0.45; hold -= dt; acc += dt;
+      if (acc < 1 / (hold > 0 ? 60 : fps || 30)) return false;
+      acc = 0;
+      const col = new THREE.Color(), a = r.getClearAlpha();
+      r.getClearColor(col);
+      r.setRenderTarget(null); r.setScissorTest(false); r.setViewport(0, 0, w, h);
+      r.setClearColor(0x0b2353, 1); r.clear(); r.render(bg, cam);
+      const rw = Math.max(1, Math.round(rect.width)), rh = Math.max(1, Math.round(rect.height)), x = Math.round(rect.left), y = Math.round(h - rect.bottom);
+      if (v && rw > 8 && rh > 8) {
+        v.root.rotation.y = ang;
+        cam.aspect = rw / rh;
+        const half = THREE.MathUtils.degToRad(cam.fov / 2), dist = fit.r / Math.min(Math.tan(half), Math.tan(half) * cam.aspect) * 1.5;
+        cam.position.set(0, fit.y + dist * 0.36, dist); cam.lookAt(0, fit.y * 0.72, 0); cam.updateProjectionMatrix();
+        r.setViewport(x, y, rw, rh); r.setScissor(x, y, rw, rh); r.setScissorTest(true);
+        // keep the gradient under the stage: no clear of the viewport, only of depth
+        const ac = r.autoClear; r.autoClear = false; r.clearDepth();
+        r.render(scene, cam);
+        r.autoClear = ac;
+        r.setScissorTest(false); r.setViewport(0, 0, w, h);
+      }
+      r.setClearColor(col, a);
+      return true;
+    }
+    function dispose() {
+      if (v) disposeView(v);
+      v = null; id = '';
+      for (const x of own) x.dispose();
+      glowTex.dispose();
+    }
+    return { set, turn, draw, dispose };
+  }
+
+  return { group, sync, event, muzzle, clear, portrait, showcase, views };
 }

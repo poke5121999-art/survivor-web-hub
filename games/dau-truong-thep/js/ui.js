@@ -154,6 +154,51 @@ const CHAT_PHRASES = ['Đẩy trụ!', 'Về thủ!', 'Cần hồi máu', 'Hay l
 // d-pad up, left, right, down: the order input.js emits input:phrase indices in.
 const PHRASE_GLYPH = ['▲', '◀', '▶', '▼'];
 
+/* ---------- tank select: role tabs, difficulty, radar ---------- */
+// Role tabs of the select screen: roleKey → tab. A roleKey missing here is DPS.
+const ROLE_GROUP = { tank: 'tank', guardian: 'tank', bruiser: 'tank', hooker: 'tank', support: 'sup', medic: 'sup', control: 'sup', engineer: 'sup' };
+const ROLE_TABS = [['all', 'Tất cả'], ['dps', 'DPS'], ['tank', 'Tank'], ['sup', 'Hỗ trợ']];
+const ROLE_TAB_NAME = Object.fromEntries(ROLE_TABS);
+const groupOf = (k) => ROLE_GROUP[MECHS[k].roleKey] || 'dps';
+// "Độ khó" stars (1 to 3): by roleKey, a mech listed in MECH_DIFF overrides it. New mechs need no entry.
+const DIFF_BY_ROLE = { tank: 1, assault: 1, support: 1, sniper: 2, artillery: 2, guardian: 2, bruiser: 2, siege: 2, control: 2, medic: 2, lancer: 2, flanker: 3, engineer: 3, hooker: 3, trickster: 3, trickshot: 3 };
+const MECH_DIFF = { natra: 3, duongtien: 3, hades: 3 };
+const diffOf = (k) => MECH_DIFF[k] || DIFF_BY_ROLE[MECHS[k].roleKey] || 2;
+// Six radar axes read from buildDef(key, lv) and scaled by the best base value among MECH_ORDER.
+const RADAR = [['dps', 'Sát thương'], ['tough', 'Bền bỉ'], ['speed', 'Tốc độ'], ['range', 'Tầm bắn'], ['ctrl', 'Khống chế'], ['sup', 'Hỗ trợ']];
+const CTRL_DO = { hook: 1.6, swap: 0.8, wall: 0.5 };
+const SUP_DO = { dome: 0.9, bless: 0.9, rally: 0.8, drone: 0.5 };
+// Control: stun, root, slow, pull, cage, knock-back, hook and swap in the kit. Support: heals, shields and buffs that reach allies.
+// A skill counts more the shorter its cooldown; fractional heals (lifesteal, heal on takedown) are the mech's own and do not count.
+function kitWalk(o, w, acc, depth = 0) {
+  if (!o || typeof o !== 'object' || depth > 4) return;
+  if (Array.isArray(o)) { for (const x of o) kitWalk(x, w, acc, depth + 1); return; }
+  const n = (x) => (typeof x === 'number' ? x : 0);
+  acc.c += (n(o.stun) * 1.4 + (o.root === true ? 1 : n(o.root)) * 1.1 + n(o.slow) * (n(o.slowDur) || n(o.dur) || 1.5) + (n(o.pull) > 0 ? 1.2 : 0) + (o.cage ? 1.6 : 0) + Math.min(n(o.knock), 5) * 0.08 + (CTRL_DO[o.do] || 0)) * w;
+  acc.s += ((n(o.hps) * (n(o.dur) || 4)) / 400 + (n(o.heal) > 1 ? n(o.heal) / 400 : 0) + n(o.shield) / 400 + (o.do === 'shield' ? n(o.amount) / 1400 : 0) + (SUP_DO[o.do] || 0)) * w;
+  for (const k of Object.keys(o)) if (k !== 'base' && o[k] && typeof o[k] === 'object') kitWalk(o[k], w, acc, depth + 1);
+}
+function radarRaw(def) {
+  const w = def.weapon, dmg = w.dmg != null ? w.dmg : w.charge ? w.charge.dmg[1] : 0;
+  const rate = 1 / (w.cd + (w.charge ? w.charge.max : 0));
+  const acc = { c: 0, s: 0 };
+  if (w.ray && w.heal) acc.s += (w.heal / w.cd) / 160;
+  kitWalk({ ...w, heal: 0 }, 1.2, acc);
+  for (const s of def.skills) kitWalk(s, Math.max(0.35, Math.min(1.4, 14 / s.cd)), acc);
+  if (def.passive) kitWalk(def.passive, 1, acc);
+  return { dps: dmg * (w.n || 1) * rate * (def.dmgUp || 1), tough: def.hp / (1 - Math.min(0.6, def.armor || 0)), speed: def.speed, range: w.charge ? w.charge.range[1] : w.range, ctrl: acc.c, sup: acc.s };
+}
+let radarMax = null;
+function radarOf(key, lv) {
+  if (!radarMax) {
+    radarMax = {};
+    const rows = MECH_ORDER.map((k) => radarRaw(buildDef(k, NO_LV)));
+    for (const [a] of RADAR) radarMax[a] = Math.max(1e-6, ...rows.map((r) => r[a]));
+  }
+  const r = radarRaw(buildDef(key, lv));
+  return RADAR.map(([a]) => Math.max(0.06, Math.min(1, r[a] / radarMax[a])));
+}
+
 export function makeUI(G) {
   const root = el('div'); root.id = 'ui';
   root.style.setProperty('--t0', TEAMS[0].css);
@@ -1216,9 +1261,25 @@ export function makeUI(G) {
       </div>
     </header>
     <div class="mn-body">
-      <section class="panel roster"><h3>Chọn cơ giáp</h3><div class="cards" data-r="cards"></div></section>
+      <section class="panel roster" aria-label="Chọn tank">
+        <div class="rl-tabs" data-r="roles">${ROLE_TABS.map(([k, n]) => `<button data-role="${k}"${k === 'all' ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
+        <div class="cards" data-r="cards"></div>
+        <div class="pager"><button class="pg-b" data-r="pgPrev" aria-label="Trang trước">${icon('up')}</button><span class="pg-dots" data-r="pgDots"></span><button class="pg-b dn" data-r="pgNext" aria-label="Trang sau">${icon('up')}</button></div>
+      </section>
+      <section class="stage" data-r="stage">
+        <div class="sg-ban"><b class="sg-lv" data-r="sgLv"></b><h2 data-r="sgName"></h2></div>
+        <img class="sg-img" data-r="sgImg" alt="">
+        <span class="sg-pv" data-r="sgPv" hidden></span>
+        <div class="sg-low">
+          <div class="sg-tip" data-r="sgTip" hidden></div>
+          <div class="sg-sk" data-r="sgSk"></div>
+          <div class="sg-foot" data-r="sgFoot"></div>
+        </div>
+      </section>
+      <div class="side">
+      <div class="side-main">
       <section class="panel detail" data-r="detail"></section>
-      <section class="panel setup">
+      <section class="panel setup" data-r="setup" aria-label="Thiết lập trận">
         ${setupTabs('data-su="{k}"', 'mode')}
         <div class="opts" data-r="opts" data-tab="mode">
           <div class="grp g-mode"><h3>Chế độ</h3><div class="modes" data-r="modes"></div><p class="mode-bl" data-r="modeBl"></p>
@@ -1227,11 +1288,14 @@ export function makeUI(G) {
           <div class="grp g-map"><h3>Đấu trường</h3><div class="maps" data-r="maps"></div></div>
           <div class="grp g-theme"><h3>Môi trường</h3><div class="themes" data-r="themes"></div><p class="mode-bl th-bl" data-r="themeBl"></p></div>
         </div>
+      </section>
+      </div>
         <div class="acts">
+          <button class="matchbtn" data-r="matchBtn" aria-expanded="false">${icon('flag')}<span class="mb-t"><small>Thiết lập trận</small><b data-r="matchTxt"></b></span><i class="mb-chev">${icon('up')}</i></button>
           <div class="prow"><button class="play" data-r="play"><span>Vào trận</span></button><button class="netbtn" data-r="net" hidden>${icon('globe')}<span>Chơi mạng</span></button></div>
           <div class="row2"><button class="btn" data-r="bSet">${icon('gear')}Cài đặt</button><button class="btn" data-r="bHelp">${icon('help')}Cách chơi</button></div>
         </div>
-      </section>
+      </div>
     </div>`;
   const M = refs(menu);
   root.appendChild(menu);
@@ -1246,7 +1310,7 @@ export function makeUI(G) {
   }
   menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
   let shopOn = false;
-  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'info';
+  let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'desc';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
 
@@ -1268,19 +1332,168 @@ export function makeUI(G) {
     M.rkFill.style.transform = `scaleX(${rk.next ? clamp01((rk.trophies - cur.min) / (rk.next.min - cur.min)) : 1})`;
     M.rkNext.textContent = rk.next ? `${rk.next.min - rk.trophies} cúp nữa lên ${rk.next.name}` : 'Hạng cao nhất';
   }
+  /* ---- tank select: honeycomb roster in pages, turning model on the stage ---- */
+  // The roster is a vertical scroll-snap list of pages; each page is a honeycomb of 3 staggered columns sized from the panel,
+  // so the page count follows the screen and MECH_ORDER can grow without a layout change.
+  let roleTab = 'all', page = 0, perPage = 9, pvForm = 0, tipOn = -1;
+  const shown = () => MECH_ORDER.filter((k) => roleTab === 'all' || groupOf(k) === roleTab);
+  function hexLayout() {
+    const cw = M.cards.clientWidth || 200, ch = M.cards.clientHeight || 260, gap = Math.max(3, Math.round(cw * 0.02));
+    let w = (cw - 2 * gap) / 2.5, h = w * 0.866;
+    // at least two rows: page height = rows * (h + gap) + h / 2
+    if (2.5 * h + 2 * gap > ch) { h = Math.max(30, (ch - 2 * gap) / 2.5); w = h / 0.866; }
+    const rows = Math.max(1, Math.floor((ch - h / 2) / (h + gap)));
+    return { w, h, gap, rows, cw, ch };
+  }
   function renderCards() {
+    const L = hexLayout(), list = shown();
+    perPage = L.rows * 3;
+    const pages = Math.max(1, Math.ceil(list.length / perPage));
+    M.cards.style.setProperty('--hw', L.w.toFixed(1) + 'px'); M.cards.style.setProperty('--hh', L.h.toFixed(1) + 'px'); M.cards.style.setProperty('--hg', L.gap + 'px');
+    M.cards.style.setProperty('--pgh', L.ch + 'px');
     M.cards.innerHTML = '';
-    for (const k of MECH_ORDER) {
-      const d = MECHS[k], own = ownedMech(k);
-      const c = el('button', 'mc' + (k === sel ? ' sel' : '') + (own ? '' : ' locked'));
-      c.dataset.mech = k;
-      const lv = levelOf(k);
-      c.innerHTML = `<img alt="" src="${mineImg(k, 0, own)}"><div class="mc-t"><span class="mc-role">${roleIcon(k)}${d.role}</span><div class="mc-nm"><b>${d.name}</b>${own ? (lv ? `<span class="mc-lv">+${lv}</span>` : '') : `<span class="mc-lock">${icon('lock')}<b>${fmtN(d.price)}</b></span>`}</div></div>`;
-      c.onclick = () => { sel = k; if (!ownedMech(k)) tab = 'info'; renderCards(); renderDetail(); renderPlay(); };
-      M.cards.appendChild(c);
+    for (let p = 0; p < pages; p++) {
+      const pg = el('div', 'pg');
+      list.slice(p * perPage, (p + 1) * perPage).forEach((k, i) => {
+        const d = MECHS[k], own = ownedMech(k), lv = levelOf(k), f3 = own && formOf(lvOf(k)) === 3;
+        const c = el('button', 'mc' + (k === sel ? ' sel' : '') + (own ? '' : ' locked') + (f3 ? ' f3' : ''));
+        c.dataset.mech = k;
+        c.setAttribute('aria-label', `${d.name}, ${d.role}`); c.title = d.name;
+        c.innerHTML = `<i class="hx"><img alt="" src="${mineImg(k, 0, own)}"></i><span class="mc-role">${roleIcon(k)}</span>${own ? `<span class="mc-lv">LV.${lv}</span>` : `<span class="mc-lock">${icon('lock')}<b>${fmtN(d.price)}</b></span>`}${k === sel ? '<em class="mc-on">Đang chọn</em>' : ''}`;
+        c.onclick = () => { if (sel !== k) pvForm = 0; sel = k; tipOn = -1; if (!ownedMech(k)) tab = tab === 'info' ? 'info' : 'desc'; setSheet(false); renderCards(); renderDetail(); renderPlay(); };
+        // row order in the DOM (tab order, screen readers); the grid staggers the middle column by half a hex
+        c.style.gridColumn = String(i % 3 + 1); c.style.gridRow = `${2 * Math.floor(i / 3) + 1 + (i % 3 === 1 ? 1 : 0)} / span 2`;
+        pg.appendChild(c);
+      });
+      M.cards.appendChild(pg);
     }
-    const cur = M.cards.querySelector('.sel');
-    if (cur && cur.scrollIntoView && !M.cards._seen) { M.cards._seen = true; cur.scrollIntoView({ block: 'nearest' }); }
+    const at = list.indexOf(sel);
+    if (!M.cards._seen && at >= 0) { M.cards._seen = true; page = Math.floor(at / perPage); }
+    page = Math.min(page, pages - 1);
+    M.cards.scrollTop = page * L.ch;
+    renderPager(pages);
+  }
+  function renderPager(pages) {
+    M.pgDots.innerHTML = pages > 6 ? `<span class="pg-n"><b>${page + 1}</b> / ${pages}</span>` : Array.from({ length: pages }, (_, i) => `<span class="pg-d${i === page ? ' on' : ''}" data-pg="${i}">${i + 1}</span>`).join('');
+    M.pgPrev.disabled = page <= 0; M.pgNext.disabled = page >= pages - 1;
+    M.roster.dataset.pages = pages;
+  }
+  const pageCount = () => +M.roster.dataset.pages || 1;
+  function goPage(p, smooth) {
+    page = Math.max(0, Math.min(pageCount() - 1, p));
+    const top = page * M.cards.clientHeight;
+    if (smooth && M.cards.scrollTo) M.cards.scrollTo({ top, behavior: 'smooth' }); else M.cards.scrollTop = top;
+    renderPager(pageCount());
+  }
+  M.roster = menu.querySelector('.roster');
+  M.pgPrev.onclick = () => goPage(page - 1, true);
+  M.pgNext.onclick = () => goPage(page + 1, true);
+  M.pgDots.onclick = (e) => { const d = e.target.closest('[data-pg]'); if (d) goPage(+d.dataset.pg, true); };
+  M.cards.addEventListener('scroll', () => { const p = Math.round(M.cards.scrollTop / Math.max(1, M.cards.clientHeight)); if (p !== page) { page = p; renderPager(pageCount()); } }, { passive: true });
+  M.roles.querySelectorAll('[data-role]').forEach((b) => {
+    b.onclick = () => {
+      roleTab = has.call(ROLE_TAB_NAME, b.dataset.role) ? b.dataset.role : 'all';
+      M.roles.querySelectorAll('[data-role]').forEach((x) => x.classList.toggle('on', x === b));
+      const at = shown().indexOf(sel);
+      page = at >= 0 ? Math.floor(at / perPage) : 0;
+      renderCards();
+    };
+  });
+  let relayT = 0;
+  window.addEventListener('resize', () => { cancelAnimationFrame(relayT); relayT = requestAnimationFrame(() => { if (menu.classList.contains('on')) renderCards(); }); });
+
+  // The setup sheet (mode, arena, theme) slides over the info column; the chip under it names the current choice.
+  function setSheet(on) {
+    menu.classList.toggle('su-open', !!on);
+    M.matchBtn.classList.toggle('on', !!on); M.matchBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  M.matchBtn.onclick = () => setSheet(!menu.classList.contains('su-open'));
+  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && menu.classList.contains('su-open') && !confirmEl.classList.contains('on') && !shopOn) setSheet(false); });
+  const matchText = () => `${MODES[modeKey].name} · ${mapKey === 'random' ? 'Ngẫu nhiên' : MAPS[mapKey].name}`;
+
+  // Stage: the 3D view when the game has one (G.showcase), else the big portrait. pv: cosmetics being previewed; pvForm: form being previewed.
+  const stageOn = () => !!(G.showcase && menu.classList.contains('gl'));
+  function paintStage(pv) {
+    const own = ownedMech(sel), cur = own ? formOf(lvOf(sel)) : 1, form = pvForm || cur;
+    const c = own ? { ...cosOf(sel), ...pv } : { paint: null, glow: null, decal: null, ...pv };
+    M.sgImg.src = portrait(sel, 0, c.paint, c.glow, c.decal, form);
+    const g = GLOWS[c.glow];
+    if (g && g.color != null && (own || pv)) M.sgImg.style.setProperty('--gl', hex(g.color)); else M.sgImg.style.removeProperty('--gl');
+    M.stage.classList.toggle('f3', form === 3);
+    M.sgPv.hidden = form === cur;
+    M.sgPv.textContent = `Xem trước hình thái ${ROMAN[form - 1]}`;
+    if (stageOn()) G.showcase.set(sel, c.paint, c.glow, c.decal, form);
+  }
+  function stageOpen() {
+    if (!G.showcase || shopOn || !menu.classList.contains('on')) return;
+    try { G.showcase.open(M.stage); menu.classList.add('gl'); paintStage(); } catch (e) { menu.classList.remove('gl'); }
+  }
+  function stageClose() { menu.classList.remove('gl'); if (G.showcase) G.showcase.close(); }
+  // drag the model round
+  {
+    let px = null;
+    M.stage.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; px = e.clientX; });
+    window.addEventListener('pointermove', (e) => { if (px === null) return; if (stageOn()) G.showcase.turn((e.clientX - px) * 0.012); px = e.clientX; });
+    window.addEventListener('pointerup', () => { px = null; });
+  }
+  function renderStage(d, own, def, total) {
+    M.sgLv.textContent = `LV.${own ? total : 0}`;
+    M.sgName.textContent = d.name;
+    M.sgSk.innerHTML = def.skills.map((s, i) => `<button class="sgk${i === 2 ? ' ult' : ''}${tipOn === i ? ' on' : ''}" data-sk="${i}" aria-label="${esc(s.name)}">${icon(s.icon)}<kbd>${esc(hintLabel(['s1', 's2', 'ult'][i]))}</kbd></button>`).join('');
+    const showTip = (i) => {
+      tipOn = i;
+      M.sgSk.querySelectorAll('.sgk').forEach((b) => b.classList.toggle('on', +b.dataset.sk === i));
+      const s = def.skills[i];
+      M.sgTip.hidden = !s;
+      if (s) M.sgTip.innerHTML = `<b>${esc(s.name)}<small>${i === 2 ? 'Tuyệt chiêu · ' : ''}Hồi ${vn(s.cd, 1)} giây</small></b><p>${esc(s.desc)}</p>`;
+    };
+    M.sgSk.querySelectorAll('.sgk').forEach((b) => {
+      const i = +b.dataset.sk;
+      b.onpointerenter = (e) => { if (e.pointerType === 'mouse') showTip(i); };
+      b.onpointerleave = (e) => { if (e.pointerType === 'mouse') showTip(-1); };
+      // a mouse already opened the tip on hover, so its click keeps it; a tap toggles it
+      b.onpointerdown = (e) => { b._mouse = e.pointerType === 'mouse'; };
+      b.onclick = () => showTip(b._mouse ? i : tipOn === i ? -1 : i);
+    });
+    showTip(tipOn);
+    if (own) {
+      const maxed = total >= UPGRADE.max * TRACKS.length;
+      M.sgFoot.innerHTML = `<span class="sg-have">Lv Tank đã có: <b>LV.${total}</b></span><button class="btn sg-up" data-r="upBtn">${icon('up')}${maxed ? 'Đã tối đa' : 'Tăng LV Tank'}</button>`;
+      M.sgFoot.querySelector('.sg-up').onclick = () => { tab = 'up'; setSheet(false); renderDetail(); };
+    } else {
+      M.sgFoot.innerHTML = `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button></div>`;
+      M.sgFoot.querySelector('[data-r="buy"]').onclick = () => buyMech(sel, 'coins');
+      M.sgFoot.querySelector('[data-r="buyg"]').onclick = () => buyMech(sel, 'gems');
+    }
+    paintStage();
+  }
+
+  // "Mô tả": role, difficulty stars, six-axis radar, the three forms (tap one to see it on the stage).
+  function radarHtml(vals) {
+    const pt = (i, r) => { const a = -Math.PI / 2 + i * Math.PI / 3; return [50 + Math.cos(a) * 40 * r, 50 + Math.sin(a) * 40 * r]; };
+    const ring = (r) => RADAR.map((_, i) => pt(i, r).map((x) => x.toFixed(1)).join(',')).join(' ');
+    const poly = vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
+    const labs = RADAR.map(([k, n], i) => { const [x, y] = pt(i, 1.24); return `<span class="rd-l" style="left:${x}%;top:${y}%">${n}</span>`; }).join('');
+    return `<div class="radar" role="img" aria-label="${RADAR.map(([, n], i) => `${n} ${Math.round(vals[i] * 100)}`).join(', ')}"><div class="rd-in"><svg viewBox="0 0 100 100" aria-hidden="true">
+      ${[1, 0.66, 0.33].map((r) => `<polygon class="rd-g" points="${ring(r)}"/>`).join('')}
+      ${RADAR.map((_, i) => { const [x, y] = pt(i, 1); return `<line class="rd-a" x1="50" y1="50" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`; }).join('')}
+      <polygon class="rd-v" points="${poly}"/>${vals.map((v, i) => { const [x, y] = pt(i, v); return `<circle class="rd-p" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.8"/>`; }).join('')}
+    </svg>${labs}</div></div>`;
+  }
+  function renderDesc(d, own, lv) {
+    const cur = own ? formOf(lv) : 1, form = pvForm || cur, c = own ? cosOf(sel) : {}, n = diffOf(sel);
+    const forms = [1, 2, 3].map((f) => {
+      const at = f === 1 ? 0 : FORM_AT[f - 2], lock = f > cur;
+      return `<button class="fmb${f === form ? ' on' : ''}${f === cur ? ' cur' : ''}${lock ? ' lock' : ''}${f === 3 ? ' f3' : ''}" data-form="${f}"><b>${ROMAN[f - 1]}</b><small>${f === 1 ? 'Gốc' : lock ? `${icon('lock')}Tổng cấp ${at}` : 'Đã mở'}</small></button>`;
+    }).join('');
+    return `<div class="desc">
+      <div class="ds-r"><span>Vị trí</span><b>${roleIcon(sel)}${esc(d.role)} · ${ROLE_TAB_NAME[groupOf(sel)]}</b></div>
+      <div class="ds-r"><span>Độ khó</span><b class="stars" aria-label="${n} trên 3">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}">★</i>`).join('')}</b></div>
+      ${radarHtml(radarOf(sel, lv))}
+      <p class="ds-bl">${esc(d.blurb)}</p>
+      <div class="ds-fm"><h4>Hình thái</h4><div class="fm-row"><img class="fm-img${form === 3 ? ' f3' : ''}" alt="" src="${portrait(sel, 0, c.paint, c.glow, c.decal, form)}"><div class="fm-btns">${forms}</div></div>
+      <small class="fm-note">${cur === 3 ? 'Hình thái III: khung vàng cam trên ô tank.' : `Nâng tổng cấp lên ${FORM_AT[cur - 1]} để mở hình thái ${ROMAN[cur]}.`}</small></div>
+    </div>`;
   }
 
   const shake = (n) => { if (n && n.animate) n.animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], { duration: 300 }); };
@@ -1295,7 +1508,7 @@ export function makeUI(G) {
     const d = MECHS[k];
     if (!G.meta) return;
     how = how || payFor(d.price);
-    if (!how || (how === 'gems' && meta().gems < gemCost(d.price)) || (how === 'coins' && meta().coins < d.price)) { noCoins(M.detail.querySelector('[data-r="buy"]') || M.play, how === 'gems'); return; }
+    if (!how || (how === 'gems' && meta().gems < gemCost(d.price)) || (how === 'coins' && meta().coins < d.price)) { noCoins(menu.querySelector('[data-r="buy"]') || M.play, how === 'gems'); return; }
     ask(`Mở khóa ${d.name}?`, `Trả ${priceHtml(d.price, how)} để mang ${d.name} vào trận.`, 'Mở khóa', () => {
       if (G.meta.buy(k, how)) { sel = k; refreshAll(); toast('Đã mở khóa ' + d.name); } else noCoins(null, how === 'gems');
     });
@@ -1390,42 +1603,22 @@ export function makeUI(G) {
       return `<button class="pt${have ? ' own' : ''}${on ? ' eq' : ''}" data-cos="${c.kind}" data-k="${k}">${mark}<b>${r.name}</b><small>${on ? 'Đang dùng' : have ? 'Trang bị' : `${fmtN(r.price)} xu · ${gemCost(r.price)} TT`}</small></button>`;
     }).join('')}</div></div>`).join('')}</div>`;
   }
-  function paintHead(pv) {
-    const own = ownedMech(sel), img = M.detail.querySelector('.md-head img');
-    if (!img) return;
-    const c = { ...cosOf(sel), ...pv };
-    img.src = mineImg2(sel, own, c);
-    const g = GLOWS[c.glow];
-    if (g && g.color != null && own) img.style.setProperty('--gl', hex(g.color)); else img.style.removeProperty('--gl');
-  }
-  const mineImg2 = (mech, own, c) => (own ? portrait(mech, 0, c.paint, c.glow, c.decal, formOf(lvOf(mech))) : portrait(mech, 0, null, null, null, 1));
-
-  // The three forms side by side, the current one lit, each with the total garage level that reaches it.
+  const paintHead = (pv) => paintStage(pv);
   const ROMAN = ['I', 'II', 'III'];
-  function formStrip(mech, own, total) {
-    const cur = own ? formOf(lvOf(mech)) : 1, c = own ? cosOf(mech) : {};
-    return `<div class="forms">${[1, 2, 3].map((f) => {
-      const at = f === 1 ? 0 : FORM_AT[f - 2];
-      return `<figure class="fm${f === cur ? ' on' : ''}${f > cur ? ' lock' : ''}"><img alt="" src="${portrait(mech, 0, c.paint, c.glow, c.decal, f)}"><figcaption>Hình thái ${ROMAN[f - 1]}<small>${f === 1 ? 'Gốc' : f <= cur ? 'Đã mở' : `Tổng cấp ${at}`}</small></figcaption></figure>`;
-    }).join('')}</div>`;
-  }
+  const TABS_ALL = [['desc', 'Mô tả', 'info'], ['info', 'Chi tiết', 'tank'], ['up', 'Nâng cấp', 'wrench'], ['cos', 'Trang trí', 'dice']];
 
   function renderDetail() {
     const d = MECHS[sel], own = ownedMech(sel);
-    if (!own) tab = 'info';
-    if (!['info', 'up', 'cos'].includes(tab)) tab = 'info';
+    const tabs = own ? TABS_ALL : TABS_ALL.slice(0, 2);
+    if (!tabs.some((t) => t[0] === tab)) tab = 'desc';
     const lv = own ? lvOf(sel) : NO_LV, def = buildDef(sel, lv), total = lv.reduce((a, b) => a + b, 0);
-    const body = tab === 'up' && own ? renderUpgrades(d) : tab === 'cos' && own ? renderCosmetics() : renderInfo(d, def, own, lv);
-    const m = meta() || {}, gl = own && GLOWS[glowOf(sel)];
-    M.detail.innerHTML = `
-      <div class="md-head"><img alt="" src="${mineImg(sel, 0, own)}"${gl && gl.color != null ? ` style="--gl:${hex(gl.color)}"` : ''}><div><span class="role">${roleIcon(sel)}${d.role}</span><h2>${d.name}${own && total ? `<em class="md-lv">+${total}</em>` : ''}</h2><p>${d.blurb}</p>${formStrip(sel, own, total)}</div></div>
-      ${own ? `<div class="tabs"><button data-tab="info" class="${tab === 'info' ? 'on' : ''}">${icon('info')}Chi tiết</button><button data-tab="up" class="${tab === 'up' ? 'on' : ''}">${icon('wrench')}Nâng cấp</button><button data-tab="cos" class="${tab === 'cos' ? 'on' : ''}">${icon('dice')}Trang trí</button></div>`
-        : `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button></div>`}
-      ${body}`;
-    M.detail.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; renderDetail(); }; });
-    const buy = M.detail.querySelector('[data-r="buy"]'), buyg = M.detail.querySelector('[data-r="buyg"]');
-    if (buy) buy.onclick = () => buyMech(sel, 'coins');
-    if (buyg) buyg.onclick = () => buyMech(sel, 'gems');
+    const body = tab === 'up' ? renderUpgrades(d) : tab === 'cos' ? renderCosmetics() : tab === 'info' ? renderInfo(d, def, own, lv) : renderDesc(d, own, lv);
+    M.detail.innerHTML = `<div class="tabs">${tabs.map(([k, n, ic]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${icon(ic)}${n}</button>`).join('')}</div>
+      <div class="md-body">${body}</div>`;
+    M.detail.dataset.tab = tab;
+    renderStage(d, own, def, total);
+    M.detail.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; renderDetail(); M.detail.scrollTop = 0; }; });
+    M.detail.querySelectorAll('[data-form]').forEach((b) => { b.onclick = () => { const f = +b.dataset.form, cur = own ? formOf(lv) : 1; pvForm = f === cur ? 0 : f; renderDetail(); }; });
     M.detail.querySelectorAll('[data-up]').forEach((b) => {
       b.onclick = () => {
         const i = +b.dataset.up, how = b.dataset.pay;
@@ -1520,8 +1713,8 @@ export function makeUI(G) {
     const claim = SH.body.querySelector('[data-r="claim"]');
     if (claim) claim.onclick = () => { const n = G.meta.claimDaily(); if (n) { refreshAll(); toast(`Đã nhận ${n} Tinh Thể hôm nay`); } };
   }
-  function showShop() { if (!G.meta) return; shopOn = true; renderShop(); shopEl.classList.add('on'); }
-  function hideShop() { shopOn = false; shopEl.classList.remove('on'); }
+  function showShop() { if (!G.meta) return; shopOn = true; stageClose(); renderShop(); shopEl.classList.add('on'); }
+  function hideShop() { const was = shopOn; shopOn = false; shopEl.classList.remove('on'); if (was) stageOpen(); }
   SH.back.onclick = () => { hideShop(); renderPlayer(); };
   M.shopBtn.onclick = showShop;
   window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && shopOn && !confirmEl.classList.contains('on')) hideShop(); });
@@ -1580,6 +1773,7 @@ export function makeUI(G) {
     M.themes.innerHTML = themeTiles(themeKey, 'data-th');
     M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
     M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
+    M.matchTxt.textContent = matchText();
   }
   const makeChoice = (mech, df, map, mode, theme, size) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, size: cleanSize(size === undefined ? sizeKey : size), mods: { lv: lvOf(mech) }, ...cosOf(mech) });
   M.play.onclick = () => {
@@ -1612,11 +1806,12 @@ export function makeUI(G) {
     const d = meta();
     if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); }
     if (!menuInit) { menuInit = true; applySettings(); }
+    menu.classList.add('on'); setSheet(false);
     renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
-    menu.classList.add('on');
+    stageOpen();
   }
-  function hideMenu() { menu.classList.remove('on'); hideShop(); closeModals(); hideEntry(); hideLobby(); }
+  function hideMenu() { menu.classList.remove('on'); stageClose(); hideShop(); closeModals(); hideEntry(); hideLobby(); }
 
   /* ---- settings + help modals ---- */
   const toastEl = el('div', 'toast'); root.appendChild(toastEl);
@@ -2254,7 +2449,7 @@ export function makeUI(G) {
     if (!o) return;
     if (o.state === 'lobby') { openLobby(false); return; }
     hideHUD(); hideResult(); hidePause(); closeModals(); hideLobby();
-    menu.classList.remove('on');
+    menu.classList.remove('on'); stageClose();
     entryOn = true; roomsShown = false;
     OE.name.value = myName(); OE.room.placeholder = 'Phòng của ' + myName(); OE.code.value = '';
     setEntryErr('');
@@ -2393,7 +2588,7 @@ export function makeUI(G) {
 
   function openLobby(fresh) {
     hideHUD(); hideResult(); hidePause(); closeModals(); hideEntry();
-    menu.classList.remove('on');
+    menu.classList.remove('on'); stageClose();
     lobbyOn = true; lobbyMsg = '';
     lobbyEl.classList.add('on');
     pushMine(fresh);

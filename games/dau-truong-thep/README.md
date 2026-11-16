@@ -89,6 +89,10 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 - `G.input.lock` is `null` or `{ kind, id, x, z, r }` (the ring and edge arrow in `js/gfx/fx.js`). Settings live in `controls.aim = { v, auto, priority, pad }` in the save; `G.input.layout.get()` reports `autoAim`, `aimPriority`, `padAim` and `layout.set({ autoAim, aimPriority, padAim })` writes them. `padAim` (default off) gives a gamepad trigger the same auto-aim when the right stick is idle.
 - `node tools/aim-compare.mjs` plays a scripted touch auto-aim player against a scripted good mouse player in bot matches and fails when touch wins by more than about 5%; lower `LEAD` if it does.
 
+## Tank select (menu)
+
+The menu is the "chọn tank" screen of Bang Bang Origin, on a blue panel: left, role tabs (`ROLE_TABS`; `ROLE_GROUP` maps `roleKey` to DPS / Tank / Hỗ trợ, unknown roles are DPS) over a honeycomb of hex portraits in pages (3 staggered columns; hex size and rows per page come from the panel size, so the page count follows the screen and `MECH_ORDER` can grow; the list is a vertical scroll-snap, arrows and dots page it); each hex carries `LV.<total garage level>` or lock and price, the selected one glows with "Đang chọn", a mech in form III gets the gold frame. Centre, the stage: banner `LV.n` + name, the turning model (`G.showcase`, drag turns it), the three skill icons (hover or tap: name, cooldown, text), "Lv Tank đã có" and "Tăng LV Tank" (opens Nâng cấp), or the buy buttons for a locked mech. Right: tabs Mô tả (Vị trí, Độ khó stars from `DIFF_BY_ROLE` / `MECH_DIFF` in ui.js, a six-axis radar from `buildDef` scaled by the best base value in `MECH_ORDER`: damage per second, HP / (1 − armour), speed, range, control and support counted from the kit by `kitWalk`; forms I / II / III, a tap previews that form on the stage), Chi tiết, Nâng cấp, Trang trí; under them the setup chip (mode · arena, opens the mode / arena / theme sheet over the column) and Vào trận.
+
 ## Shared state `G` (browser)
 
 `G = { THREE, params, quality, bus, renderer, scene, camera, match, me, meta, audio, ui, input, gfx }`
@@ -97,6 +101,7 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 - `G.match` is the current match or null. `G.me` is the id of the player's unit.
 - `G.project(x, y, z)` → `{ x, y, visible }` in CSS pixels. `G.groundAt(clientX, clientY)` → `[x, z]` on the ground plane.
 - `G.portrait(mechKey, team, paint, glow, decal)` → data URL of a rendered mech portrait: 128 px per device pixel ratio, up to 384 px.
+- `G.showcase = { open(el), close(), set(key, paint, glow, decal, form), turn(dx), on }`: the tank select stage. While open, `draw()` in main.js renders only the turning model on its pedestal (`mechs.showcase()`, gfx/mechs.js) into the rectangle of `el`, over the menu's own gradient, with the main renderer (30 fps on phones and on low); the attract match is not drawn. `ui.js` opens it with the menu and closes it for the shop, the online screens and a match. Without `G.showcase` (the UI harness) the stage shows the big portrait instead.
 - `G.look = { get() → { brightness, calm }, set({ brightness, calm }), range }`: the "Hình ảnh" settings "Độ sáng" (display exposure multiplier 0.8 to 1.2, live in the composite pass) and "Giảm chớp sáng" (`calm`: second column of `FLASH` in `gfx/fx.js`). Saved in `settings.brightness` / `settings.calm` (`calm: null` = never chosen, then touch devices start with it on). URL: `?bright=1.1`, `?calm=1|0`.
 - `G.sharpness = { get() → 'auto' | 'sharp' | 'max', set(mode), modes: [{ key, name, hint }] }`: the "Độ nét" setting, applied live. Stored under `localStorage` key `dtt.sharp.v1` (meta.js drops settings keys it does not know when it loads, so `settings.sharpness` alone would not survive a reload); the player's quality pick is likewise kept in `dtt.quality.v1`.
 
@@ -113,6 +118,7 @@ Map (`m.map`): `key, name, w, d, hw, hd, walls[{x0, x1, z0, z1, h, kind}], round
 | `node tools/sim-test.mjs` | Rules of the simulation and the bots, in Node: hits, walls, bushes, every skill, airdrops, respawn, match end, determinism, hard beats easy |
 | `node tools/play.js` | The real page in headless Chrome: full bot matches at every quality tier, scripted player input, HUD, result screen, saved rewards, menu, keyboard and mouse, phone layout |
 | `node tools/audio.js` | Every synthesised sound and music stem: no NaN, no clipping, levels, event coverage |
+| `node tools/select-shots.js` | The tank select screen on the real page at 1280x720 and the owner's phone (1002x461, DPR 2.75, touch): the stage is drawn by the game, form III, form preview, skill tip, Chi tiết, setup sheet, locked mech, page 2; play frees the stage. Screenshots `.chk/select/` |
 | `node tools/ui-shots.js` | HUD, menu, garage, lobby, key binding, gamepad and chat screens in a harness at desktop and phone sizes (about 5 minutes) |
 | `node tools/netstate-test.mjs` | Snapshot → bytes → mirror equals the real match in every mode; events replay in order; packet size; the guest's predicted mech lands where the host puts it, with and without delay |
 | `node tools/online-test.js` | Host and two guests in a harness over `?fakenet=1`: lobby, start, inputs, leave, chat |

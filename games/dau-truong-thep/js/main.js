@@ -121,6 +121,21 @@ async function boot() {
     if (!opt.size) opt.size = portraitSize();
     return mechs.portrait(key, team, paint, opt);
   };
+  // Tank select stage (ui.js): while it is open the loop draws only the turning model into the stage's rectangle, not the attract match
+  // behind the menu. open() builds it, close() frees it; set() picks mech, cosmetics and form; turn(dx) is a drag.
+  let show = null, showEl = null;
+  G.showcase = {
+    open(el) { showEl = el; if (!show) show = mechs.showcase(); },
+    close() { showEl = null; if (show) { show.dispose(); show = null; } },
+    set(key, paint, glow, decal, form) { if (show) show.set(key, paint, glow, decal, form); },
+    turn(dx) { if (show) show.turn(dx); },
+    get on() { return !!(show && showEl); },
+  };
+  const drawShowcase = (dt) => {
+    const cr = canvas.getBoundingClientRect(), er = showEl.getBoundingClientRect();
+    const rect = { left: er.left - cr.left, bottom: er.bottom - cr.top, width: er.width, height: er.height };
+    show.draw(renderer, rect, cssW, cssH, dt, Q.name === 'low' || phone ? 30 : 60);
+  };
 
   // "Hình ảnh" settings. Brightness is a display exposure multiplier; calm ("Giảm chớp sáng") switches the flash table to its second column. Both apply live.
   const touchDefault = phone || matchMedia('(pointer: coarse)').matches;
@@ -407,6 +422,7 @@ async function boot() {
   function draw(dt) {
     const m = G.match, alpha = net === 'guest' ? netAlpha : params.manual ? 1 : Math.min(1, acc / TICK);
     G.alpha = alpha;
+    if (show && showEl && G.mode !== 'match') { guard('showcase', () => drawShowcase(dt)); return; }
     guard('world', () => world.update(time, m));
     guard('mechs', () => { if (m) mechs.sync(m, alpha, dt, time); });
     guard('fx', () => fx.update(m, alpha, dt, time));

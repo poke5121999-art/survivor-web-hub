@@ -3,7 +3,7 @@
 // Run: timeout 300 node tools/ui-shots.js
 const fs = require('fs');
 const path = require('path');
-const ROOT = '/home/bui-thanh-thuong/dau-truong-thep';
+const ROOT = path.resolve(__dirname, '..', '..', '..');
 const { serve } = require(ROOT + '/tools/thumb-lib.js');
 const PW = process.env.PLAYWRIGHT_PATH || path.join(process.env.HOME, '.cache/pw-node/node_modules/playwright-core');
 const { chromium } = require(PW);
@@ -96,13 +96,17 @@ async function open(browser, name, vp, touch, query) {
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
   page.on('pageerror', (e) => errs.push(e.message));
   page.on('response', (r) => { if (r.status() >= 400) errs.push('http ' + r.status() + ' ' + r.url()); });
-  // Phones show one setup group at a time: a click on a picker in a hidden group first opens its tab.
+  // The menu's setup (mode, arena, theme) is a sheet over the info column: a click on anything in it first opens the sheet,
+  // a click in the info column closes it. Phones show one setup group at a time: a click on a picker in a hidden group first opens its tab.
   // Pulsing buttons never count as stable under the GPU renderer, so they are clicked with force.
   const click = page.click.bind(page);
   page.click = async (sel, o) => {
     if (typeof sel === 'string') {
       await page.evaluate((q) => {
-        const n = document.querySelector(q), g = n && n.closest && n.closest('.grp');
+        const n = document.querySelector(q), open = !!document.querySelector('#ui .menu.su-open'), chip = document.querySelector('#ui .menu [data-r="matchBtn"]');
+        if (n && chip && n.closest('.menu .setup') && !open) chip.click();
+        if (n && chip && n.closest('.menu .detail') && open) chip.click();
+        const g = n && n.closest && n.closest('.grp');
         if (!g || g.offsetParent) return;
         const k = g.classList.contains('g-map') ? 'map' : g.classList.contains('g-theme') ? 'theme' : 'mode';
         const b = n.closest('.lobby') ? document.querySelector(`#ui .lobby .su-tabs [data-k="${k}"]`) : document.querySelector(`#ui .menu .su-tabs [data-su="${k}"]`);
@@ -306,12 +310,21 @@ async function phoneSuite(browser) {
     let { ctx, page, errs } = await open(browser, T('menu'), { width: w, height: h }, true, 'screen=menu&fresh=1&own=all&coins=900&trophies=300');
     await shot(page, errs, T('menu'), async () => {
       await phoneAudit(page, T('menu'));
-      const r = await page.evaluate(() => { const o = (q) => { const n = document.querySelector(q); return n && n.scrollHeight > n.clientHeight + 1 ? getComputedStyle(n).overscrollBehaviorY : 'fits'; }; return { roster: o('#ui .roster'), detail: o('#ui .detail'), play: document.querySelector('#ui .play').getBoundingClientRect(), w: innerWidth, h: innerHeight }; });
-      check(T('menu') + ': scroll areas contain overscroll, play button in the lower right', r.roster !== 'auto' && r.detail !== 'auto' && r.play.right > r.w * 0.6 && r.play.bottom > r.h * 0.5 && r.play.bottom <= r.h, JSON.stringify(r));
+      const r = await page.evaluate(() => { const o = (q) => { const n = document.querySelector(q); return n && n.scrollHeight > n.clientHeight + 1 ? getComputedStyle(n).overscrollBehaviorY : 'fits'; }; return { roster: o('#ui .roster'), cards: o('#ui .cards'), detail: o('#ui .detail'), play: document.querySelector('#ui .play').getBoundingClientRect(), w: innerWidth, h: innerHeight }; });
+      check(T('menu') + ': scroll areas contain overscroll, play button in the lower right', r.roster !== 'auto' && r.cards !== 'auto' && r.detail !== 'auto' && r.play.right > r.w * 0.6 && r.play.bottom > r.h * 0.5 && r.play.bottom <= r.h, JSON.stringify(r));
     }, 300);
-    for (const tab of ['stats', 'up', 'cos']) {
-      await page.click(`#ui .tabs [data-tab="${tab}"]`).catch(() => {});
-      await shot(page, errs, T('garage-' + tab), () => phoneAudit(page, T('garage-' + tab)), 250);
+    // the stage's skill tip and a previewed form, then every info tab
+    // the form first: moving the (emulated) mouse off a skill icon closes its tip, as hover does
+    await page.click('#ui .fmb[data-form="3"]');
+    await page.click('#ui .sgk[data-sk="2"]');
+    await shot(page, errs, T('select-tip'), async () => {
+      await phoneAudit(page, T('select-tip'));
+      const r = await page.evaluate(() => ({ tip: !document.querySelector('#ui [data-r="sgTip"]').hidden, pv: document.querySelector('#ui [data-r="sgPv"]').textContent }));
+      check(T('select') + ': a tapped skill shows its tip, a tapped form is previewed', r.tip && r.pv === 'Xem trước hình thái III', JSON.stringify(r));
+    }, 250);
+    for (const [tag, tab] of [['stats', 'info'], ['up', 'up'], ['cos', 'cos']]) {
+      await page.click(`#ui .tabs [data-tab="${tab}"]`);
+      await shot(page, errs, T('garage-' + tag), () => phoneAudit(page, T('garage-' + tag)), 250);
     }
     for (const k of ['map', 'theme']) {
       await page.click(`#ui .menu .su-tabs [data-su="${k}"]`);
@@ -354,9 +367,11 @@ async function phoneSuite(browser) {
   }
 }
 const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
+let MECH_ORDER = [], MECHS = {};
 
 (async () => {
   const { MODE_ORDER, MODES } = await import('../js/data.js');
+  ({ MECH_ORDER, MECHS } = await import('../js/data.js'));
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
   base = srv.base;
@@ -367,43 +382,82 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
     const sizes = [['desktop', { width: 1280, height: 720 }, false], ['phone', { width: 780, height: 360 }, true]];
     for (const [ctxName, vp, touch] of sizes) {
       const T = (s) => `${ctxName}-${s}`;
-      // ----- menu: 8 mechs, locked mech, buy flow
+      // ----- menu (tank select): every mech of MECH_ORDER as a hex, locked mech, buy flow
+      const NM = MECH_ORDER.length;
       let { ctx, page, errs } = await open(browser, T('menu'), vp, touch, 'screen=menu&fresh=1&trophies=300');
       await shot(page, errs, T('menu'), async () => {
         const r = await page.evaluate(() => {
-          const panel = document.querySelector('#ui .roster'), pb = panel.getBoundingClientRect();
-          const cs = [...document.querySelectorAll('#ui .mc')];
+          const panel = document.querySelector('#ui .cards'), pb = panel.getBoundingClientRect();
+          const cs = [...document.querySelectorAll('#ui .mc')], first = [...document.querySelectorAll('#ui .pg')][0];
           return {
             title: document.querySelector('#ui .menu h1').textContent,
             cards: cs.map((c) => (c.querySelector('img').src || '').slice(0, 10)),
-            inside: cs.every((c) => { const b = c.getBoundingClientRect(); return b.top >= pb.top - 1 && b.bottom <= pb.bottom + 1; }),
+            page1: [...first.querySelectorAll('.mc')].every((c) => { const b = c.getBoundingClientRect(); return b.top >= pb.top - 1 && b.bottom <= pb.bottom + 1 && b.left >= pb.left - 1 && b.right <= pb.right + 1; }),
+            pages: document.querySelectorAll('#ui .pg').length, perPage: first.querySelectorAll('.mc').length, dots: document.querySelectorAll('#ui .pg-d').length + document.querySelectorAll('#ui .pg-n').length,
             scrolls: panel.scrollHeight > panel.clientHeight + 1,
-            skills: document.querySelectorAll('#ui .detail .sk').length, bars: document.querySelectorAll('#ui .detail .st .bar i').length,
             diff: document.querySelectorAll('#ui .seg[data-r="diff"] button').length, size: document.querySelectorAll('#ui .seg[data-r="size"] button').length, map: document.querySelectorAll('#ui .map').length,
             name: document.querySelector('#ui .pl-name').value, play: document.querySelector('#ui .play').textContent.trim(),
-            lock: document.querySelectorAll('#ui .mc.locked').length, desc: document.querySelector('#ui .sk-tx p').textContent.length,
-            roleSvg: document.querySelectorAll('#ui .mc-role svg').length,
+            lock: document.querySelectorAll('#ui .mc.locked').length, lockPrice: [...document.querySelectorAll('#ui .mc.locked .mc-lock b')].every((b) => /^[0-9]/.test(b.textContent)),
+            roleSvg: document.querySelectorAll('#ui .mc-role svg').length, selTag: [...document.querySelectorAll('#ui .mc .mc-on')].map((n) => n.closest('.mc').dataset.mech + ':' + n.textContent).join(),
+            tab: document.querySelector('#ui .tabs .on').textContent, tabs: [...document.querySelectorAll('#ui .tabs button')].map((b) => b.textContent).join(),
+            ban: document.querySelector('#ui [data-r="sgName"]').textContent, lv: document.querySelector('#ui [data-r="sgLv"]').textContent, sk: document.querySelectorAll('#ui .sgk').length,
+            foot: document.querySelector('#ui .sg-have') && document.querySelector('#ui .sg-have').textContent, up: (document.querySelector('#ui .sg-up') || {}).textContent,
+            radar: document.querySelectorAll('#ui .radar .rd-l').length, poly: (document.querySelector('#ui .rd-v') || { getAttribute: () => '' }).getAttribute('points').split(' ').length,
+            rows: [...document.querySelectorAll('#ui .ds-r > span')].map((n) => n.textContent).join(), stars: document.querySelectorAll('#ui .stars i').length, starOn: document.querySelectorAll('#ui .stars i.on').length,
+            forms: [...document.querySelectorAll('#ui .fmb')].map((b) => b.textContent.trim()), chip: document.querySelector('#ui [data-r="matchTxt"]').textContent,
+            setupShown: getComputedStyle(document.querySelector('#ui .menu .setup')).display,
           };
         });
-        check(T('menu') + ': title, 16 cards with portraits, 4 skill rows, 8 stat bars', r.title === 'Đấu Trường Thép' && r.cards.length === 16 && r.cards.every((x) => x === 'data:image') && r.skills === 4 && r.bars === 8 && r.roleSvg === 16, JSON.stringify(r));
-        check(T('menu') + ': difficulty (3), team size (3 buttons), map, player name, play button filled', r.diff === 3 && r.size === 3 && r.map === 5 && r.name && r.play === 'Vào trận' && r.desc > 10, JSON.stringify(r));
-        check(T('menu') + ': 12 locked mechs show lock and price', r.lock === 12);
-        check(T('menu') + ': 16 cards overflow the roster panel, which scrolls (reachability checked below)', r.scrolls, JSON.stringify(r));
+        check(T('menu') + ': title, one hex with a portrait and a role icon per mech of MECH_ORDER, "Đang chọn" on the selected one', r.title === 'Đấu Trường Thép' && r.cards.length === NM && r.cards.every((x) => x === 'data:image') && r.roleSvg === NM && r.selTag === 'trau:Đang chọn', JSON.stringify(r));
+        check(T('menu') + ': difficulty (3), team size (3 buttons), map, player name, play button filled', r.diff === 3 && r.size === 3 && r.map === 5 && r.name && r.play === 'Vào trận', JSON.stringify(r));
+        check(T('menu') + ': every mech not owned on a fresh save (all but the 4 free ones) shows lock and price', r.lock === NM - 4 && r.lockPrice, JSON.stringify(r));
+        check(T('menu') + ': the roster is paged: whole first page inside the list, pages = ceil(mechs / per page) with one dot each, the list scrolls (last page checked below)', r.page1 && r.perPage >= 6 && r.perPage % 3 === 0 && r.pages === Math.ceil(NM / r.perPage) && r.pages > 1 && r.dots === (r.pages > 6 ? 1 : r.pages) && r.scrolls, JSON.stringify(r));
+        check(T('menu') + ': stage banner LV.0 + name, 3 skill icons, "Lv Tank đã có: LV.0" and "Tăng LV Tank"', r.ban === 'Trâu Sắt' && r.lv === 'LV.0' && r.sk === 3 && r.foot === 'Lv Tank đã có: LV.0' && r.up === 'Tăng LV Tank', JSON.stringify(r));
+        check(T('menu') + ': info column opens on Mô tả (tabs Mô tả / Chi tiết / Nâng cấp / Trang trí): Vị trí, Độ khó (3 stars, Trâu Sắt 1), six-axis radar, forms I / II / III with Tổng cấp 12 and 18', r.tab === 'Mô tả' && r.tabs === 'Mô tả,Chi tiết,Nâng cấp,Trang trí' && r.rows === 'Vị trí,Độ khó' && r.stars === 3 && r.starOn === 1 && r.radar === 6 && r.poly === 6 && r.forms.join('|') === 'IGốc|IITổng cấp 12|IIITổng cấp 18', JSON.stringify(r));
+        check(T('menu') + ': the setup chip names mode and arena, the setup sheet starts closed', r.chip === 'Đấu đội · Đền Rừng' && r.setupShown === 'none', JSON.stringify(r));
         const rk = await page.evaluate(() => ({ name: document.querySelector('#ui [data-r="rkName"]').textContent, tr: document.querySelector('#ui [data-r="rkTr"]').textContent, next: document.querySelector('#ui [data-r="rkNext"]').textContent, fill: document.querySelector('#ui [data-r="rkFill"]').style.transform }));
         check(T('menu') + ': rank badge shows Bạc, 300 cúp, 150 to Vàng, bar 25%', rk.name === 'Bạc' && rk.tr === '300' && /150 cúp nữa lên Vàng/.test(rk.next) && rk.fill === 'scaleX(0.25)', JSON.stringify(rk));
       });
       {
-        await page.evaluate(() => { const p = document.querySelector('#ui .roster'); p.scrollTop = p.scrollHeight; });
-        const last = await page.evaluate(() => { const p = document.querySelector('#ui .roster').getBoundingClientRect(), b = [...document.querySelectorAll('#ui .mc')].pop().getBoundingClientRect(); return b.bottom <= p.bottom + 1 && b.top >= p.top; });
-        check(T('menu') + ': last card reachable by scrolling', last);
+        // the down arrow pages to the end; the last hex is then inside the list, the dot of the last page lit
+        for (let i = 0; i < 12; i++) { if (await page.evaluate(() => document.querySelector('#ui [data-r="pgNext"]').disabled)) break; await page.click('#ui [data-r="pgNext"]'); await page.waitForTimeout(450); }
+        const last = await page.evaluate(() => { const p = document.querySelector('#ui .cards').getBoundingClientRect(), b = [...document.querySelectorAll('#ui .mc')].pop().getBoundingClientRect(), d = [...document.querySelectorAll('#ui .pg-d')]; return { ok: b.bottom <= p.bottom + 1 && b.top >= p.top - 1, dot: d.length ? d.findIndex((x) => x.classList.contains('on')) === d.length - 1 : true, prev: !document.querySelector('#ui [data-r="pgPrev"]').disabled }; });
+        check(T('menu') + ': last hex reachable with the page arrow, last dot lit, the up arrow enabled', last.ok && last.dot && last.prev, JSON.stringify(last));
         await page.screenshot({ path: `${OUT}/ui-${T('menu-scrolled')}.png` });
-        await page.evaluate(() => { document.querySelector('#ui .roster').scrollTop = 0; });
+        await page.evaluate(() => { document.querySelector('#ui .cards').scrollTop = 0; });
+        // role tabs: Tank keeps only the tank group, Tất cả brings every mech back
+        await page.click('#ui .rl-tabs [data-role="tank"]');
+        const tk = await page.evaluate(() => [...document.querySelectorAll('#ui .mc')].map((c) => c.dataset.mech));
+        const wantTank = MECH_ORDER.filter((k) => ['tank', 'guardian', 'bruiser', 'hooker'].includes(MECHS[k].roleKey));
+        check(T('menu') + ': role tab Tank lists only Trụ, Hộ vệ, Đấu sĩ and Bắt giữ mechs, in MECH_ORDER', tk.join() === wantTank.join(), tk.join());
+        await page.click('#ui .rl-tabs [data-role="sup"]');
+        const sp = await page.evaluate(() => [...document.querySelectorAll('#ui .mc')].map((c) => c.dataset.mech));
+        check(T('menu') + ': role tab Hỗ trợ lists Bạch Hạc and the other support mechs', sp.includes('hac') && sp.includes('domdom') && !sp.includes('trau'), sp.join());
+        await page.click('#ui .rl-tabs [data-role="all"]');
+        check(T('menu') + ': Tất cả lists every mech again', (await page.evaluate(() => document.querySelectorAll('#ui .mc').length)) === NM);
+        // skills: hover shows the tip; the setup chip opens and closes the sheet over the info column
+        if (!touch) {
+          await page.hover('#ui .sgk[data-sk="1"]');
+          const tip = await page.evaluate(() => ({ on: !document.querySelector('#ui [data-r="sgTip"]').hidden, t: document.querySelector('#ui [data-r="sgTip"] b').textContent }));
+          check(T('menu') + ': hovering a skill icon shows its name and cooldown', tip.on && /^Húc Thép/.test(tip.t) && /Hồi 12,0 giây/.test(tip.t), JSON.stringify(tip));
+          await page.mouse.move(5, 5);
+        }
+        await page.click('#ui [data-r="matchBtn"]');
+        const sh = await page.evaluate(() => ({ s: getComputedStyle(document.querySelector('#ui .menu .setup')).display, d: getComputedStyle(document.querySelector('#ui .menu .detail')).visibility, ex: document.querySelector('#ui [data-r="matchBtn"]').getAttribute('aria-expanded') }));
+        check(T('menu') + ': the setup chip opens the sheet over the info column', sh.s === 'flex' && sh.d === 'hidden' && sh.ex === 'true', JSON.stringify(sh));
+        await shot(page, errs, T('menu-setup'), null, 250);
+        await page.click('#ui [data-r="matchBtn"]');
+        check(T('menu') + ': a second tap closes it', (await page.evaluate(() => getComputedStyle(document.querySelector('#ui .menu .setup')).display)) === 'none');
+        await page.click('#ui .tabs [data-tab="info"]');
+        const inf = await page.evaluate(() => ({ skills: document.querySelectorAll('#ui .detail .sk').length, bars: document.querySelectorAll('#ui .detail .st .bar i').length, desc: document.querySelector('#ui .sk-tx p').textContent.length }));
+        check(T('menu') + ': Chi tiết: 4 skill rows with text, 8 stat bars', inf.skills === 4 && inf.bars === 8 && inf.desc > 10, JSON.stringify(inf));
+        await page.click('#ui .tabs [data-tab="desc"]');
       }
       // locked mech: play button becomes a buy button, never starts a match
       await page.click('#ui .mc[data-mech="loi"]');
       await page.waitForTimeout(150);
-      let st = await page.evaluate(() => ({ play: document.querySelector('#ui .play').textContent.trim(), buy: !!document.querySelector('#ui .buy'), tabs: document.querySelectorAll('#ui .tabs').length }));
-      check(T('menu') + ': locked mech: play says "Mua Lôi Công", buy offered, no garage tab', st.play === 'Mua Lôi Công' && st.buy && st.tabs === 0, JSON.stringify(st));
+      let st = await page.evaluate(() => ({ play: document.querySelector('#ui .play').textContent.trim(), buy: !!document.querySelector('#ui .stage .buy'), tabs: [...document.querySelectorAll('#ui .tabs button')].map((b) => b.dataset.tab).join(), lv: document.querySelector('#ui [data-r="sgLv"]').textContent, up: document.querySelectorAll('#ui .sg-up').length }));
+      check(T('menu') + ': locked mech: play says "Mua Lôi Công", buy offered on the stage, only Mô tả and Chi tiết, no Tăng LV Tank', st.play === 'Mua Lôi Công' && st.buy && st.tabs === 'desc,info' && st.lv === 'LV.0' && st.up === 0, JSON.stringify(st));
       await page.click('#ui .play');
       st = await page.evaluate(() => ({ plays: (window.__log || []).filter((l) => l[0] === 'ui:play').length, toast: document.querySelector('#ui .toast').textContent, coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on') }));
       check(T('menu') + ': locked play with 0 coins: no match, "Chưa đủ xu"', st.plays === 0 && st.toast === 'Chưa đủ xu' && st.coins === 0 && !st.modal, JSON.stringify(st));
@@ -427,13 +481,16 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       check(T('menu') + ': confirmed buy charges 900, selects the mech, play enabled', st.owned && st.coins === 1100 && st.play === 'Vào trận' && st.sel === 'loi' && st.coinTxt === '1.100', JSON.stringify(st));
 
       // ----- garage: stat bars, five upgrade tracks, cosmetics
+      await page.click('#ui .tabs [data-tab="info"]');
       await shot(page, errs, T('garage-stats'), async () => {
         const g = await page.evaluate(() => ({ bars: document.querySelectorAll('#ui .detail .st .bar i').length, labels: [...document.querySelectorAll('#ui .detail .st > span')].map((n) => n.textContent).join(), ticks: document.querySelectorAll('#ui .detail .bar u').length,
           passive: (document.querySelector('#ui .detail .passive h4') || {}).textContent, kit: document.querySelectorAll('#ui .detail .sk').length, perks: document.querySelectorAll('#ui .detail .pk').length, perkOn: document.querySelectorAll('#ui .detail .pk.on').length,
           perkNeed: [...document.querySelectorAll('#ui .detail .pk small')].map((n) => n.textContent).join(' | '), tabs: document.querySelectorAll('#ui .tabs button').length }));
-        check(T('garage') + ': 8 stat bars with the right labels, no base ticks at level 0, passive, 4 kit rows, 3 locked perks asking 6 / 12 / 18', g.bars === 8 && g.labels === 'Máu,Giáp,Tốc độ,Gia tốc,Xoay tháp,Tốc bắn,Tầm bắn,Phá trụ' && g.ticks === 0 && /Nội tại/.test(g.passive) && g.kit === 4 && g.perks === 3 && g.perkOn === 0 && /6/.test(g.perkNeed.split('|')[0]) && /12/.test(g.perkNeed.split('|')[1]) && /18/.test(g.perkNeed.split('|')[2]) && g.tabs === 3, JSON.stringify(g));
+        check(T('garage') + ': 8 stat bars with the right labels, no base ticks at level 0, passive, 4 kit rows, 3 locked perks asking 6 / 12 / 18', g.bars === 8 && g.labels === 'Máu,Giáp,Tốc độ,Gia tốc,Xoay tháp,Tốc bắn,Tầm bắn,Phá trụ' && g.ticks === 0 && /Nội tại/.test(g.passive) && g.kit === 4 && g.perks === 3 && g.perkOn === 0 && /6/.test(g.perkNeed.split('|')[0]) && /12/.test(g.perkNeed.split('|')[1]) && /18/.test(g.perkNeed.split('|')[2]) && g.tabs === 4, JSON.stringify(g));
       }, 300);
-      await page.click('#ui .tabs [data-tab="up"]');
+      await page.click('#ui .tabs [data-tab="desc"]');
+      await page.click('#ui .sg-up');
+      check(T('garage') + ': "Tăng LV Tank" on the stage opens Nâng cấp', (await page.evaluate(() => document.querySelector('#ui .tabs .on').dataset.tab)) === 'up');
       await shot(page, errs, T('garage-up'), async () => {
         const g = await page.evaluate(() => ({ rows: document.querySelectorAll('#ui .tr').length, pips: document.querySelectorAll('#ui .pip').length, on: document.querySelectorAll('#ui .pip.on').length, coin: [...document.querySelectorAll('#ui [data-up][data-pay="coins"]')].map((b) => b.textContent.trim()), gem: [...document.querySelectorAll('#ui [data-up][data-pay="gems"]')].length,
           diff: [...document.querySelectorAll('#ui .tr-d')].map((n) => n.textContent) }));
@@ -442,8 +499,8 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       }, 300);
       await page.evaluate(() => { __G.meta.get().gems = 50; });
       await page.click('#ui [data-up="0"][data-pay="coins"]');
-      st = await page.evaluate(() => ({ lv: __G.meta.lvOf('loi'), coins: __G.meta.get().coins, on: document.querySelectorAll('#ui .pip.on').length, badge: document.querySelector('#ui .mc[data-mech="loi"] .mc-lv').textContent, next: document.querySelector('#ui [data-up="0"][data-pay="coins"]').textContent.trim() }));
-      check(T('garage') + ': a coin upgrade charges 120, lights one pip, card badge +1, next level costs 210', st.lv.join() === '1,0,0,0,0' && st.coins === 980 && st.on === 1 && st.badge === '+1' && /210/.test(st.next), JSON.stringify(st));
+      st = await page.evaluate(() => ({ lv: __G.meta.lvOf('loi'), coins: __G.meta.get().coins, on: document.querySelectorAll('#ui .pip.on').length, badge: document.querySelector('#ui .mc[data-mech="loi"] .mc-lv').textContent, ban: document.querySelector('#ui [data-r="sgLv"]').textContent, next: document.querySelector('#ui [data-up="0"][data-pay="coins"]').textContent.trim() }));
+      check(T('garage') + ': a coin upgrade charges 120, lights one pip, hex badge and stage banner LV.1, next level costs 210', st.lv.join() === '1,0,0,0,0' && st.coins === 980 && st.on === 1 && st.badge === 'LV.1' && st.ban === 'LV.1' && /210/.test(st.next), JSON.stringify(st));
       await page.click('#ui [data-up="1"][data-pay="gems"]');
       st = await page.evaluate(() => ({ lv: __G.meta.lvOf('loi'), coins: __G.meta.get().coins, gems: __G.meta.get().gems }));
       check(T('garage') + ': a gem upgrade charges ceil(120 / 10) = 12 gems and no coins', st.lv.join() === '1,1,0,0,0' && st.coins === 980 && st.gems === 38, JSON.stringify(st));
@@ -459,6 +516,15 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await page.click('#ui .mc[data-mech="loi"]'); await page.click('#ui .tabs [data-tab="up"]');
       st = await page.evaluate(() => ({ dis: [...document.querySelectorAll('#ui [data-up]')].every((b) => b.disabled), txt: [...document.querySelectorAll('#ui [data-up]')].map((b) => b.textContent.trim()), on: document.querySelectorAll('#ui .pip.on').length, again: __G.meta.upgrade('loi', 0), gemAgain: __G.meta.upgrade('loi', 3, 'gems') }));
       check(T('garage') + ': at 5 / 5 everywhere the buttons say "Đã tối đa", 25 pips lit, upgrade() refuses with either currency', st.dis && st.txt.every((t) => t === 'Đã tối đa') && st.on === 25 && st.again === false && st.gemAgain === false, JSON.stringify(st));
+      st = await page.evaluate(() => ({ f3: document.querySelector('#ui .mc[data-mech="loi"]').classList.contains('f3'), others: document.querySelectorAll('#ui .mc.f3').length, stage: document.querySelector('#ui .stage').classList.contains('f3') }));
+      check(T('garage') + ': total 25 reaches form III: the hex gets the orange frame (only that one), the stage shows form III', st.f3 && st.others === 1 && st.stage, JSON.stringify(st));
+      await page.click('#ui .tabs [data-tab="desc"]');
+      await page.click('#ui .fmb[data-form="1"]');
+      st = await page.evaluate(() => ({ pv: document.querySelector('#ui [data-r="sgPv"]').textContent, shown: !document.querySelector('#ui [data-r="sgPv"]').hidden, on: document.querySelector('#ui .fmb.on').dataset.form, cur: document.querySelector('#ui .fmb.cur').dataset.form, f3: document.querySelector('#ui .stage').classList.contains('f3') }));
+      check(T('garage') + ': tapping form I previews it on the stage, the owned form III stays marked as current', st.shown && st.pv === 'Xem trước hình thái I' && st.on === '1' && st.cur === '3' && !st.f3, JSON.stringify(st));
+      await page.click('#ui .fmb[data-form="3"]');
+      check(T('garage') + ': tapping the current form ends the preview', (await page.evaluate(() => document.querySelector('#ui [data-r="sgPv"]').hidden)) === true);
+      await page.click('#ui .tabs [data-tab="info"]');
       await shot(page, errs, T('garage-max'), null, 300);
       await page.click('#ui .tabs [data-tab="info"]');
       st = await page.evaluate(() => ({ perkOn: document.querySelectorAll('#ui .detail .pk.on').length, ticks: document.querySelectorAll('#ui .detail .bar u').length, up: document.querySelectorAll('#ui .detail .st b.up').length }));
@@ -481,7 +547,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await page.click('#ui [data-cos="glow"][data-k="tim"]'); await page.click('#ui .modal.on [data-r="yes"]');
       await page.click('#ui [data-cos="decal"][data-k="soc"]'); await page.click('#ui .modal.on [data-r="yes"]');
       await page.waitForTimeout(100);
-      st = await page.evaluate(() => ({ coins: __G.meta.get().coins, glow: __G.meta.get().glows.loi, decal: __G.meta.get().decals.loi, called: window.__portraitCalls.some((c) => c[0] === 'loi' && c[2] === 'vang' && c[3] === 'tim' && c[4] === 'soc'), css: document.querySelector('#ui .md-head img').style.getPropertyValue('--gl') }));
+      st = await page.evaluate(() => ({ coins: __G.meta.get().coins, glow: __G.meta.get().glows.loi, decal: __G.meta.get().decals.loi, called: window.__portraitCalls.some((c) => c[0] === 'loi' && c[2] === 'vang' && c[3] === 'tim' && c[4] === 'soc'), css: document.querySelector('#ui .sg-img').style.getPropertyValue('--gl') }));
       check(T('garage') + ': glow Tử Quang (250) and decal Sọc Đua (150) are bought and equipped, portrait asked with paint, glow and decal', st.coins === 4400 && st.glow === 'tim' && st.decal === 'soc' && st.called && st.css === '#b070ff', JSON.stringify(st));
       await page.click('#ui [data-cos="paint"][data-k="goc"]');
       st = await page.evaluate(() => ({ eq: __G.meta.get().paints.loi || null, coins: __G.meta.get().coins }));
@@ -974,6 +1040,7 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await page.click('#ui [data-r="kcancel"]');
       // help and the garage kit show the bound keys at once
       await page.click('#ui .modal.on [data-r="close"]');
+      await page.click('#ui .tabs [data-tab="info"]');
       const kit = await page.evaluate(() => [...document.querySelectorAll('#ui .detail .sk-ic kbd')].map((k) => k.textContent).join());
       check(T('keys') + ': the garage skill rows show bound keys (fire R, Chiêu 1 Chuột trái, Chiêu 2 E, ult Cách)', kit === 'R,Chuột trái,E,Cách', kit);
       await page.click('#ui [data-r="bHelp"]');
@@ -1187,7 +1254,8 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await ctx.close();
 
       ({ ctx, page, errs } = await open(browser, T('online-states'), vp, touch, 'screen=online&norooms=1'));
-      await page.waitForSelector('#ui .rm-empty b');
+      // the loading row is an .rm-empty too: wait for the list to settle
+      await page.waitForFunction(() => { const b = document.querySelector('#ui .rm-empty b'); return b && !/Đang tìm/.test(b.textContent); });
       check(T('online') + ': empty list message', /Chưa có phòng nào đang mở/.test(await page.textContent('#ui .rm-list')) && /Hãy tạo phòng mới/.test(await page.textContent('#ui .rm-list')));
       await page.fill('#ui .online [data-r="code"]', '');
       await page.click('#ui .online [data-r="joinCode"]');
@@ -1202,7 +1270,8 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
       await ctx.close();
 
       ({ ctx, page, errs } = await open(browser, T('online-fail'), vp, touch, 'screen=online&listfail=1'));
-      await page.waitForSelector('#ui .rm-empty b');
+      // the loading row is an .rm-empty too: wait for the list to settle
+      await page.waitForFunction(() => { const b = document.querySelector('#ui .rm-empty b'); return b && !/Đang tìm/.test(b.textContent); });
       check(T('online') + ': list failure message and a working refresh', /Không tải được danh sách phòng/.test(await page.textContent('#ui .rm-list')));
       await page.click('#ui .online [data-r="refresh"]');
       await page.waitForFunction(() => __G.online.calls.filter((c) => c[0] === 'list').length >= 2);
@@ -1682,9 +1751,14 @@ const MODE_ORDER_LOCAL = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
 
     // ----- phone polish: setup tabs, unclipped names, 11 px body text
     {
-      const NAMES = '.map b, .th-n, .mc-nm > b, .mode span, .su-tabs button, .seg button';
-      const TEXT = '.mode-bl, .th-bl, .sk-tx p, .md-head p, .mc-role, .map b, .map .hz, .th-n, .mode span, .seg button, .su-tabs button, .sk-tx b';
+      const NAMES = '.map b, .th-n, .mode span, .su-tabs button, .seg button, .rl-tabs button, .tabs button, .sg-ban h2, .mb-t small';
+      const TEXT = '.mode-bl, .th-bl, .sk-tx p, .ds-bl, .rd-l, .fmb small, .mc-lv, .mc-lock, .mc-on, .sg-have, .map b, .map .hz, .th-n, .mode span, .seg button, .su-tabs button, .sk-tx b';
       let { ctx, page, errs } = await open(browser, 'phone-setup', { width: 780, height: 360 }, true, 'screen=menu&fresh=1&map=xuongcat');
+      {
+        const r = await page.evaluate((a) => { const out = { clipped: [], small: [] }; for (const n of document.querySelectorAll('#ui .menu ' + a[0])) if (n.offsetParent && n.scrollWidth > n.clientWidth) out.clipped.push(n.textContent.trim()); for (const n of document.querySelectorAll('#ui .menu ' + a[1])) if (n.offsetParent && n.textContent.trim() && parseFloat(getComputedStyle(n).fontSize) < 11) out.small.push(n.className + ':' + getComputedStyle(n).fontSize); return out; }, [NAMES, TEXT]);
+        check('phone: tank select: no tab, banner or chip label is clipped, labels at least 11 px', r.clipped.length === 0 && r.small.length === 0, JSON.stringify(r));
+      }
+      await page.click('#ui [data-r="matchBtn"]');
       const tabs = await page.evaluate(() => [...document.querySelectorAll('#ui .menu .su-tabs button')].map((b) => b.textContent + ':' + (b.offsetParent ? 'shown' : 'hidden')).join());
       check('phone: the setup column has three tabs, Chế độ / Đấu trường / Môi trường', tabs === 'Chế độ:shown,Đấu trường:shown,Môi trường:shown', tabs);
       for (const [k, label] of [['mode', 'Chế độ'], ['map', 'Đấu trường'], ['theme', 'Môi trường']]) {
