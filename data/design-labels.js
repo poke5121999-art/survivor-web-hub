@@ -574,7 +574,8 @@
         "vent.count": { label: "Số nắp tối đa mỗi nhà", unit: "nắp", min: 0, max: 12, help: "Mặc định 4. Nhà xếp được dưới 2 nắp thì không có ống; đặt 0 hoặc 1 là tắt ống." },
         "vent.openSec": { label: "Thời gian đẩy nắp", unit: "giây", min: 0.05, max: 2, help: "Mặc định 0,35. Dùng cho cả nắp vào lẫn nắp ra. Lúc đẩy nắp người chơi vẫn hiện, quái vẫn đánh được." },
         "vent.enterSec": { label: "Thời gian chui vào / trồi ra", unit: "giây", min: 0.05, max: 2, help: "Mặc định 0,35." },
-        "vent.crawlSec": { label: "Thời gian bò trong ống", unit: "giây", min: 0.3, max: 5, help: "Mặc định 1. Như nhau với mọi cặp nắp, gần hay xa. Cả lượt chui = 2 × đẩy nắp + 2 × chui + bò (mặc định 2,4 giây)." }
+        "vent.crawlSec": { label: "Thời gian bò trong ống", unit: "giây", min: 0.3, max: 5, help: "Mặc định 1. Như nhau với mọi cặp nắp, gần hay xa. Cả lượt chui = 2 × đẩy nắp + 2 × chui + bò (mặc định 2,4 giây)." },
+        "foe.friendlyFireMul": { label: "Đòn của quái lên quái khác", unit: "×", min: 0, max: 5, help: "Mặc định 1. Nhân với sát thương đạn quái (Kẻ bắn, kim y tá, mực Alien), cú vung tay và món Nít ranh ném khi trúng quái khác — người chơi dụ quái đánh lẫn nhau. 0 = tắt. Nổ, khí bí ngô, mìn và cú húc có số riêng, không theo hệ số này." }
       }
     },
 
