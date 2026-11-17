@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Xưởng VFX</title>
+  <meta name="description" content="Gõ yêu cầu, máy gen ra hiệu ứng pixel art bằng code; chơi thử, chỉnh màu, tải sprite sheet." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <link rel="stylesheet" href="css/vfx-studio.css?v=20261117a" />
+
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      if (/[?&]mock=1\b/.test(location.search)) return;
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") location.replace("login.html");
+    })();
+  </script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner dz-header__inner">
+      <div>
+        <h1 class="hub-title">Xưởng VFX</h1>
+        <p class="hub-subtitle">Gõ điều bạn muốn, máy gen ra hiệu ứng pixel art. Chơi thử ngay, chỉnh màu, tải sprite sheet.</p>
+      </div>
+      <a class="btn btn--ghost" href="index.html">← Hub</a>
+    </div>
+  </header>
+
+  <main class="hub-main vx-main">
+    <div id="vx-banner" class="dz-banner vx-banner" role="alert" hidden></div>
+    <nav id="vx-tabs" class="vx-tabs" aria-label="Mục"></nav>
+    <div id="vx-root"></div>
+  </main>
+
+  <div id="vx-toasts" class="dz-toasts" role="status"></div>
+
+  <script src="js/supabase-auth.js"></script>
+  <script type="module" src="js/vfx-studio.js?v=20261117a"></script>
+</body>
+</html>
