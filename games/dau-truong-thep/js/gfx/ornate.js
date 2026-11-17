@@ -17,6 +17,7 @@ import { B1 } from './ornate-b1.js';
 import { B2 } from './ornate-b2.js';
 import { B3 } from './ornate-b3.js';
 import { B4 } from './ornate-b4.js';
+import { B5 } from './ornate-b5.js';
 
 const PI = Math.PI, TAU = PI * 2;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -631,6 +632,7 @@ const TANKS = {
   ...B2,
   ...B3,
   ...B4,
+  ...B5,
 };
 
 // The tanks that opt in: key → builder (hb, b, st, paint, trim, deep, form) → info.
