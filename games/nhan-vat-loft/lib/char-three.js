@@ -20,7 +20,7 @@ export function outlineMaterial(w = 0.0035, color = 0x2a1a1e) {
 
 export function makeCharacter(table, opts = {}) {
   const t0 = performance.now();
-  const arr = buildCharacter(table, opts);
+  const arr = opts.arr || buildCharacter(table, opts);
   const nrm = normals(arr);
   const msGen = performance.now() - t0;
   // skeleton

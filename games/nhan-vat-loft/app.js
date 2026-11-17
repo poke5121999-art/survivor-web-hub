@@ -3,6 +3,11 @@
 // pre-rendered reference images.
 import * as THREE from './vendor/three.module.min.js';
 import { makeCharacter, makeClips, toonGradient, outlineMaterial } from './lib/char-three.js';
+import { buildFromParts } from './lib/parts.js';
+const REP_NAMES = ['bodyLoft', 'shell', 'strips', 'shCap', 'hairLocks', 'axisLoft'];
+let REPS = null;
+async function loadReps() { if (!REPS) { REPS = {}; await Promise.all(REP_NAMES.map(async (n) => { REPS[n] = await import(`./lib/rep/${n}.js`); })); } return REPS; }
+const SLOT_LABEL = { body: 'Thân', top: 'Áo', bottom: 'Váy', under: 'Đồ lót', limbs: 'Bao tay/chân', feet: 'Giày', hair: 'Tóc', hat: 'Mũ', ears: 'Tai/sừng', back: 'Sau lưng', accessory: 'Phụ kiện' };
 import { buildFromSpace } from './lib/space.js';
 import { shBasis } from './lib/sph.js';
 import { makePolyline, plPoint, plTangent, frame, ringTs, profR } from './lib/loft-core.js';
@@ -38,14 +43,22 @@ window.addEventListener('resize', resize);
 
 // ---------- state ----------
 const S = { hero: null, char: null, clips: {}, mixer: null, action: null, clip: 'idle', paused: false, ref: !TEST, mode: 'char', metrics: null, space: null, spaceMesh: null };
-const tableCache = {}, clipCache = {};
+const tableCache = {}, clipCache = {}, partsCache = {};
+S.build = params.get('build') === 'old' ? 'old' : 'parts'; S.hidden = new Set();
+async function loadParts(h) { if (!partsCache[h]) partsCache[h] = (await import(`./data/parts/${h}.js`)).default; return partsCache[h]; }
 async function loadTable(h) { if (!tableCache[h]) tableCache[h] = (await import(`./data/char/${h}.js`)).default; return tableCache[h]; }
 async function loadClips(h) { if (!clipCache[h]) clipCache[h] = await (await fetch(`./data/clips/${h}.json`)).json(); return clipCache[h]; }
 
 async function loadHero(h) {
   if (S.char) { scene.remove(S.char.group); S.char.mesh.geometry.dispose(); }
   const [t, cj] = await Promise.all([loadTable(h), loadClips(h)]);
-  const c = makeCharacter(t, { springs: params.has('nospring') ? false : undefined, springOpts: { noCollide: params.has('nocol') } });
+  let arr = null;
+  if (S.build === 'parts') {
+    if (h !== S.hero) S.hidden = new Set();
+    const [pf, reps] = await Promise.all([loadParts(h), loadReps()]); S.partsFile = pf;
+    arr = buildFromParts(t, { ...pf, parts: pf.parts.filter((p) => !S.hidden.has(p.id)) }, reps);
+  }
+  const c = makeCharacter(t, { arr, springs: params.has('nospring') ? false : undefined, springOpts: { noCollide: params.has('nocol') } });
   scene.add(c.group); S.char = c; S.hero = h; S.table = t;
   S.clips = makeClips(cj, c.bones); S.mixer = new THREE.AnimationMixer(c.root);
   setClip(S.clip);
@@ -89,7 +102,12 @@ function updatePanels() {
     <tr><td>tóc + đầu</td><td>${m.hair.iou.toFixed(3)}</td><td>${(m.hair.dist * 1000).toFixed(1)} mm</td></tr>
     <tr><td>số trong bảng</td><td colspan="2">${m.params.toLocaleString()}</td></tr></table>`;
   if (m && m.gates) html += `<div class="gates"><b>Kiểm tra xuyên thấu</b> (30 khung/clip, số đỉnh lớn nhất trong một khung):<br>${Object.entries(m.gates).map(([c, g]) => `${c}: ${Object.entries(g).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('<br>')}</div>`;
+  if (S.build === 'parts' && S.partsFile) {
+    html += `<h2>Các part (mỗi mesh con của bản gốc là một part code)</h2><table class="num parts"><tr><th></th><th>part</th><th>cách dựng</th><th>sai lệch</th></tr>` +
+      S.partsFile.parts.map((p) => `<tr><td><input type="checkbox" data-part="${p.id}" ${S.hidden.has(p.id) ? '' : 'checked'}></td><td>${SLOT_LABEL[p.slot] || p.slot}<br><small>${p.id.split('.').slice(1, 2).join('')}</small></td><td>${p.rep}</td><td>${p.score != null && isFinite(p.score) ? p.score.toFixed(1) + ' mm' : '–'}</td></tr>`).join('') + '</table>';
+  }
   $('#numbers').innerHTML = html;
+  document.querySelectorAll('#numbers input[data-part]').forEach((cb) => (cb.onchange = () => { cb.checked ? S.hidden.delete(cb.dataset.part) : S.hidden.add(cb.dataset.part); loadHero(S.hero); }));
   $('#refImg1').src = `./ref/${h}-front.png`; $('#refImg2').src = `./ref/${h}-q34.png`;
   document.querySelectorAll('#heroes button').forEach((b) => b.classList.toggle('on', b.dataset.hero === h));
 }
@@ -99,10 +117,14 @@ function buildUI() {
   $('#clips').innerHTML = Object.entries(CLIP_LABEL).map(([k, v]) => `<button data-clip="${k}">${v}</button>`).join('');
   $('#clips').onclick = (e) => { const c = e.target.dataset.clip; if (c) setClip(c); };
   $('#refToggle').onchange = (e) => { S.ref = e.target.checked; document.body.classList.toggle('noref', !S.ref); document.body.classList.toggle('bare', params.has('bare')); resize(); };
+  $('#build').innerHTML = `<button data-build="parts">Theo part</button><button data-build="old">Gộp (bản cũ)</button>`;
+  $('#build').onclick = (e) => { const b = e.target.dataset.build; if (b && b !== S.build) { S.build = b; markBuild(); loadHero(S.hero); } };
+  markBuild();
   $('#pause').onclick = () => { S.paused = !S.paused; $('#pause').textContent = S.paused ? '▶ Chạy tiếp' : '⏸ Dừng'; };
   document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
   document.querySelectorAll('.cam button').forEach((b) => (b.onclick = () => camPreset(b.dataset.cam)));
 }
+function markBuild() { document.querySelectorAll('#build button').forEach((b) => b.classList.toggle('on', b.dataset.build === S.build)); }
 function camPreset(k) {
   const P = { full: [0.45, 0.08, 3.6, 0.8], front: [0, 0.02, 3.6, 0.8], side: [Math.PI / 2, 0.02, 3.6, 0.8], face: [0.25, 0.05, 0.75, 1.42], hands: [1.2, 0.1, 1.0, 0.85], skirt: [0.3, 0.05, 1.6, 0.7] }[k];
   if (!P) return; orbit.yaw = P[0]; orbit.pitch = P[1]; orbit.dist = P[2]; orbit.target.set(k === 'hands' ? 0.55 : 0, P[3], 0); applyOrbit();
