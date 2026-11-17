@@ -427,7 +427,7 @@ let MECH_ORDER = [], MECHS = {};
       });
       {
         // the down arrow pages to the end; the last hex is then inside the list, the dot of the last page lit
-        for (let i = 0; i < 12; i++) { if (await page.evaluate(() => document.querySelector('#ui [data-r="pgNext"]').disabled)) break; await page.click('#ui [data-r="pgNext"]'); await page.waitForTimeout(450); }
+        for (let i = 0; i < 24; i++) { if (await page.evaluate(() => { const b = document.querySelector('#ui [data-r="pgNext"]'); if (b.disabled) return true; b.click(); return false; })) break; await page.waitForTimeout(450); }
         const last = await page.evaluate(() => { const p = document.querySelector('#ui .cards').getBoundingClientRect(), b = [...document.querySelectorAll('#ui .mc')].pop().getBoundingClientRect(), d = [...document.querySelectorAll('#ui .pg-d')]; return { ok: b.bottom <= p.bottom + 1 && b.top >= p.top - 1, dot: d.length ? d.findIndex((x) => x.classList.contains('on')) === d.length - 1 : true, prev: !document.querySelector('#ui [data-r="pgPrev"]').disabled }; });
         check(T('menu') + ': last hex reachable with the page arrow, last dot lit, the up arrow enabled', last.ok && last.dot && last.prev, JSON.stringify(last));
         await page.screenshot({ path: `${OUT}/ui-${T('menu-scrolled')}.png` });
