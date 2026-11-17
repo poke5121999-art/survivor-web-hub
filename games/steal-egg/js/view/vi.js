@@ -46,7 +46,7 @@ const VI = {
   'The AI gate is open. You can steal a Brainrot.': 'Cổng của đối thủ đang mở. Bạn có thể trộm một Brainrot.',
   // shop, pedestals, ads break (rules/upgrades-shop.md, ads-iap.md)
   'MAX': 'TỐI ĐA',
-  '{0}/{1} ads': '{0}/{1} quảng cáo',
+  '{0}/{1} ads': 'Xem {0}/{1}',              // "0/2 quảng cáo" only fit the 85-unit AdsBtn label in 3 tiny lines
   'Ad loading : ': 'Đang tải quảng cáo:',
   'Ad loading: {0}': 'Đang tải quảng cáo: {0}',
   'Ad loaded ': 'Quảng cáo đã sẵn sàng',

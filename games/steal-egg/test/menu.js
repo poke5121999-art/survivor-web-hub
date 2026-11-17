@@ -160,12 +160,13 @@ const REF_KEYS = {
   exit: [['MainMenu/EXIT'], []],
   settings: [['MainMenu/Setting (1)'], ['Panel/Panel/Sound/sound/Image (1)', 'Panel/Panel/Music/sound/Image (1)', 'Panel/Panel/Sensitvity/Slider/Handle Slide Area'].map(s => `${M}Setting (1)/${s}`)],
   loading: [['MainMenu/Loading/LoadingPanel'], []],
+  splash: [[], [], 'level0'],                 // Splash scene (level0 Canvas, art/ui/level0/level0.json)
 };
 async function renderRefs(browser, base, check) {
-  for (const [key, [show, hide]] of Object.entries(REF_KEYS)) {
+  for (const [key, [show, hide, scene = 'level1']] of Object.entries(REF_KEYS)) {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${base}/art/ui/preview.html?s=level1${show.length ? `&show=${encodeURIComponent(show.join(','))}` : ''}`);
+    await page.goto(`${base}/art/ui/preview.html?s=${scene}${show.length ? `&show=${encodeURIComponent(show.join(','))}` : ''}`);
     await page.waitForFunction(() => window.__ready);
     await page.evaluate(h => {
       for (const p of h) { const e = document.querySelector(`[data-path="${CSS.escape(p)}"]`); if (e) e.classList.add('hid'); }

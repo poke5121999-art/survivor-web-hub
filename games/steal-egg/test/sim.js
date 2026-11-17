@@ -362,6 +362,23 @@ function check(name, fn) {
     return 'coins ' + coins + ', 1 placed + 1 stowed brainrot kept';
   });
 
+  check('equips are session-only (rules/upgrades-shop.md 3a-3d): a new launch has the bat, all pedestals, no cosmetic; a scene reload keeps playerWeapon', () => {
+    const sim = make(17);
+    const u = sim.state.upgrades;
+    u.weapons.unlocked.unlockItem3 = 1; u.weapons.equipped = 2; u.weapons.changed = true;
+    u.cosmetics.unlocked.Item1 = 1; u.cosmetics.picked.Item1 = true;
+    const s2 = make(18);
+    s2.load(sim.save());
+    s2.startSession();
+    const w = s2.state.upgrades.weapons, c = s2.state.upgrades.cosmetics;
+    assert.deepStrictEqual([w.equipped, w.changed, Object.keys(c.picked).length, w.unlocked.unlockItem3, c.unlocked.Item1], [0, false, 0, 1, 1]);
+    const s3 = make(19);
+    s3.load(sim.save());
+    s3.startSession({ weapon: 2 });                       // Pause > Restart / Home: static weaponManager.playerWeapon survives
+    assert.deepStrictEqual([s3.state.upgrades.weapons.equipped, s3.state.upgrades.weapons.changed], [2, false]);
+    return 'launch: bat, scene reload: spear in hand, pedestals all back';
+  });
+
   check('ads break (AdsBraker 60 s, rules/ads-iap.md 2): coin panel pays 25/50/75/100 then 25; hurt + flag -> health panel', () => {
     const sim = make(16);
     freezeRivals(sim);

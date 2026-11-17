@@ -3,8 +3,8 @@
 // state.upgrades = { speedPlans: {planId: true}, savedSpeed (PlayerPrefs player_current_speed),
 //   weapons: { unlocked: {unlockItemK: 1}, ads: {AdsWatchedCountK: n}, equipped: WeponType, changed: bool },
 //   cosmetics: { unlocked: {itemK: 1}, picked: {itemK: true} } }
-// The original keeps equip choices only for the session (static playerWeapon, active objects); the remake saves them
-// (owner rule for Drop 2: equipped items survive a reload). changed = ChangeWapon ran at least once (its pedestal hides).
+// The original keeps equip choices only for the session (static playerWeapon, active objects); so does the remake
+// (Drop 3: save.js startSession resets them). changed = ChangeWapon ran at least once (its pedestal hides).
 
 export function newUpgrades() {
   return { speedPlans: {}, savedSpeed: 0, weapons: { unlocked: {}, ads: {}, equipped: 0, changed: false }, cosmetics: { unlocked: {}, picked: {} } };

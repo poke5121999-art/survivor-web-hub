@@ -17,7 +17,8 @@
 <script>
 "use strict";
 const q = new URLSearchParams(location.search);
-const scene = q.get("s") || "level2";
+const scene = { level0: "level0/level0" }[q.get("s")] || q.get("s") || "level2";   // level0 (Splash) lives in level0/
+const spriteDir = scene.replace(/[^/]+$/, "") + "sprites/";
 const showAll = q.has("all");                 // draw inactive nodes too
 const hideBg = q.get("hide");                 // comma list of substrings of node paths to force-hide
 const showOnly = q.get("show");               // comma list of substrings of node paths to force-show
@@ -88,7 +89,7 @@ async function main() {
       layer.style.cssText = "position:absolute;inset:0;pointer-events:none";
       if (a < 1) layer.style.opacity = a;
       if (sp && sp.kb !== undefined || sp && !sp.skipped) {
-        const url = "sprites/" + encodeURIComponent(im.sprite) + ".webp";
+        const url = spriteDir + encodeURIComponent(im.sprite) + ".webp";
         const col = im.color;
         const sh = sp.shrunk || 1, b = sp.border.map(v => v * sh);
         const apply = u => {

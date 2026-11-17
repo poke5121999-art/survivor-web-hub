@@ -9,9 +9,11 @@
 //                 WeponUnlockPanel (Back closes it, leaving the trigger does not); CoinButton 500 coins, AdsBtn one ad.
 //                 The pedestal turns to the player every frame (Update LookAt). weaponManager.ChangeWapon: weapon in hand,
 //                 its pedestal hidden.
-//   cosmetics     UnlockItems.PickObject: ActiveObjects on the player rig (Player1 objects of the 6 per item).
+//   cosmetics     UnlockItems.PickObject: ActiveObjects on the player rig (the chosen PlayerN's objects of the 6 per item).
 //   Inventory     InventoryManager strip of SeedBtn buttons (art/ui/seedbtn.json), one per held or stowed brainrot.
 //   Pause/Setting TopPanel/Pause and TopPanel/Setting pause the game (Time.timeScale 0); Settings: sound, music, sensitivity.
+//                 Pause > Home / Restart: ResumeGame, then StartLoading("MainMenu" / "GamePlay") (PauseGame.c:207-263),
+//                 handed to main.js (onNavigate: 3 s Loading bar, then the scene change).
 //   ads break     "Add in" chip mm:ss, ads panel (coins 25/50/75/100) and ads panel (1) (full health), GetCoins (+100).
 import * as THREE from 'three';
 import { t, tf } from './vi.js';
@@ -22,7 +24,7 @@ const two = n => String(n).padStart(2, '0');
 const C = p => (p.startsWith('Canvas/') ? p.slice(7) : p);
 
 export class Panels {
-  constructor({ sim, hud, view, sound, tweens = {}, seedbtn = null, spriteBase, version = '', onPurchase = () => {}, onPause = () => {} }) {
+  constructor({ sim, hud, view, sound, tweens = {}, seedbtn = null, spriteBase, version = '', onPurchase = () => {}, onPause = () => {}, onNavigate = () => {} }) {
     this.sim = sim;
     this.hud = hud;
     this.view = view;
@@ -34,6 +36,7 @@ export class Panels {
     this.q = version ? `?v=${version}` : '';
     this.onPurchase = onPurchase;
     this.onPause = onPause;
+    this.onNavigate = onNavigate;
     this.D = sim.D;
     this.shown = {};
     this.shopOpen = false;                       // ShopPanle (cosmetics / weapons grid)
@@ -45,13 +48,14 @@ export class Panels {
     this.lastPedestal = null;
     this.paused = null;                           // 'pause' | 'setting' | null
     this.invKey = '';
-    this.camNode = this.world.node('Player1/Camera');
-    this.playerObj = this.world.node('Player1');
-    this.envWeapons = this.world.envWeapons('Player1');
+    this.playerName = view.playerName || 'Player1';
+    this.camNode = this.world.node(`${this.playerName}/Camera`);
+    this.playerObj = this.world.node(this.playerName);
+    this.envWeapons = this.world.envWeapons(this.playerName);
     this.pedestalObjs = this.D.weapons.pedestals.map(p => this.world.objects[p.node]);
-    // Player1's object of every cosmetic (UnlockItems.ActiveObjects, one per player model)
+    // the player's object of every cosmetic (UnlockItems.ActiveObjects, one per player model)
     this.cosmetics = this.D.weapons.shopItems.filter(d => !d.weapon).map(d => ({
-      key: d.key, objs: d.active.filter(p => p.startsWith('Player1/')).map(p => this.world.node(p)).filter(Boolean) }));
+      key: d.key, objs: d.active.filter(p => p.startsWith(`${this.playerName}/`)).map(p => this.world.node(p)).filter(Boolean) }));
     this.allCosmeticObjs = [...new Set(this.cosmetics.flatMap(c => c.objs))];
     this.equipKey = null;
     this.bind();
@@ -124,8 +128,8 @@ export class Panels {
     // pause / settings
     this.click('InGame/TopPanel/Pause', () => this.pause('pause'));
     this.click('PauseGame/Panel/Resume', () => this.pause(null));
-    this.click('PauseGame/Panel/Restart', () => { this.onPurchase(); location.reload(); });
-    this.click('PauseGame/Panel/Home', () => { this.onPurchase(); location.href = '../../index.html'; });
+    this.click('PauseGame/Panel/Restart', () => { this.pause(null); this.onPurchase(); this.onNavigate('GamePlay'); });
+    this.click('PauseGame/Panel/Home', () => { this.pause(null); this.onPurchase(); this.onNavigate('MainMenu'); });
     this.click('InGame/TopPanel/Setting', () => this.pause('setting'));
     this.click('Setting/Panel/Panel/Sound/sound', () => { this.act('settings', { sound: !this.sim.state.settings.sound }); this.applySettings(); });
     this.click('Setting/Panel/Panel/Music/sound', () => { this.act('settings', { music: !this.sim.state.settings.music }); this.applySettings(); });
@@ -252,7 +256,7 @@ export class Panels {
     const u = this.sim.state.upgrades, key = JSON.stringify([u.weapons.equipped, u.weapons.changed, u.cosmetics.picked]);
     if (!force && key === this.equipKey) return;
     this.equipKey = key;
-    this.world.setHandWeapon(u.weapons.equipped, 'Player1');
+    this.world.setHandWeapon(u.weapons.equipped, this.playerName);
     this.envWeapons.forEach((o, i) => { if (o) o.visible = !(u.weapons.changed && i === u.weapons.equipped); });
     for (const o of this.allCosmeticObjs) o.visible = false;
     for (const c of this.cosmetics) if (u.cosmetics.picked[c.key]) for (const o of c.objs) o.visible = true;

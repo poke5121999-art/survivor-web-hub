@@ -1,6 +1,8 @@
 Fonts used by the HUD, extracted from the original game's Unity assets (Font objects) so they match exactly.
 
 Bangers.ttf       Bangers by Vernon Adams (Google Fonts). SIL Open Font License 1.1, https://openfontlicense.org
+BangersVN.ttf     Bangers-Regular.ttf from github.com/google/fonts (ofl/bangers), the release with Vietnamese glyphs;
+                  used for text runs with Vietnamese letters the original fonts lack. SIL Open Font License 1.1.
 Roboto-Bold.ttf   Roboto by Christian Robertson (Google Fonts). Apache License 2.0, https://www.apache.org/licenses/LICENSE-2.0
 Insanibu.ttf      "Insaniburger" and
 Insanibc.ttf      "Insaniburger with Cheese" (Insanibu / Insanibc): taken from the game's own assets. Licence terms were not

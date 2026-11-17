@@ -14,6 +14,9 @@
 //   missing), coins (number shown in the coin buttons; default: the save's coins, else data/game.json start.coins) }.
 // sound: a js/view/sound.js Sound (optional): click on ButtonClickSound buttons, popup sounds, music on/off.
 // Other options: ready (promise the splash waits for after its bar), splashSeconds (test override of the 10 s bar),
+//   splash (false: straight to MainMenu, as Pause > Home loads it without the Splash scene), onChoice (called with the
+//   run choice when the Loading bar is full), hold (promise: the menu keeps its full Loading bar up until it resolves,
+//   i.e. while the GamePlay scene loads behind it),
 //   wallet ({ get(), add(n) } for coins when the sim already exists), onQuit (EXIT > YES), debug (object filled with
 //   live state for tests).
 import { Hud } from './hud.js';
@@ -329,7 +332,7 @@ export async function runFrontEnd(root, opts = {}) {
   debug.canvas = cv;
   const splashBar = 'Canvas/Loading/LoadingPanel/Panel/w';
   const splashTime = opts.splashSeconds != null ? opts.splashSeconds : T.splash;
-  {
+  if (opts.splash !== false) {
     const t0 = performance.now();
     await new Promise(res => {
       const step = () => {
@@ -605,7 +608,11 @@ export async function runFrontEnd(root, opts = {}) {
     UnlockPlayerWithAd: c => unlockSlot(CLS_PANEL[c.cls]),
     PlayGame: async () => {                // MainMenu.PlayGame -> StartLoading("GamePlay"): Loading 1 s linear
       await bar(LOADING, `${LOADING}/Panel/w`, T.gamePlay, 'linear', T.gamePlay);
-      finish(P.choice(profile));
+      const choice = P.choice(profile);
+      // LoadSceneAsync: the full bar stays until the GamePlay scene is there (opts.hold), nothing of it shows before
+      if (opts.onChoice) opts.onChoice(choice);
+      if (opts.hold) { busy = true; debug.screen = 'holding'; await opts.hold; }
+      finish(choice);
     },
     QuitGame: () => { if (opts.onQuit) opts.onQuit(); else setActive(EXIT, false); },  // Application.Quit: web decision
     Rateus: () => {}, MoreGames: () => {}, privacy: () => {},                // OpenURL to Google Play / Sites: OUT

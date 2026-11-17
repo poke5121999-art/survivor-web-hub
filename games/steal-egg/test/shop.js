@@ -2,7 +2,8 @@
 // the world shop areas.   node test/shop.js     (screenshots -> $SHOTS or ~/stealegg-ref/shots/shop-*.png)
 // Covered: shop from the HUD button and from the world area, bat bought with coins, pedestal weapon unlocked with ads,
 // cosmetic bought (ad) + equipped and shown on the rig, inventory pick, settings toggles persist over a reload, pause
-// stops time, the ads-break panel pays 25 then 50 (and the health panel heals), everything survives a reload, and a
+// stops time, the ads-break panel pays 25 then 50 (and the health panel heals), purchases survive a reload while equips
+// reset like the original's, and a
 // save written by the Drop 1 build (test/fixtures/drop1-save.json) boots with the original defaults.
 // Setup writes outside the input path: the player is placed 3 m from a target before walking in, rivals are frozen
 // for the ads-break minutes, a brainrot is put in hand for the inventory, health is lowered for the health panel.
@@ -253,9 +254,13 @@ run('shop', async ({ browser, base, shot, check }) => {
   await S(page, () => window.__step(2, true));
   const r = await S(page, () => { const g = window.__game, s = g.sim.state; return { u: s.upgrades, set: s.settings, speed: s.actors[0].moveSpeed,
     hand: g.view.world.handWeapons('Player1').map(o => !!o && o.visible), snd: g.gv.sound.settings, rot: g.view.follow.rotationSpeed, ads: s.adsBreak.left }; });
-  check('reload: weapon (Spear) equipped and in hand, spear pedestal unlocked, ad counters kept', r.u.weapons.equipped === 2 && r.hand.indexOf(true) === 2
+  // equips are session-only in the original (no PlayerPrefs write in weaponManager / PickObject, rules/upgrades-shop.md 3a-3d):
+  // a new launch has the bat in hand (static playerWeapon 0), every pedestal back and no cosmetic worn; unlocks stay
+  check('reload: Spear still unlocked with its ad counter, but the bat is back in hand (equip not saved, like the original)',
+    r.u.weapons.equipped === 0 && r.u.weapons.changed === false && r.hand.indexOf(true) === 0
     && r.u.weapons.unlocked.unlockItem3 === 1 && r.u.weapons.ads.AdsWatchedCount3 === 2);
-  check('reload: cosmetic still unlocked, worn and shown', r.u.cosmetics.unlocked.Item1 === 1 && r.u.cosmetics.picked.Item1 === true && (await objShown(page, headset)) === true);
+  check('reload: cosmetic still unlocked, not worn (PickObject not saved, like the original)', r.u.cosmetics.unlocked.Item1 === 1
+    && !r.u.cosmetics.picked.Item1 && (await objShown(page, headset)) === false);
   check('reload: speed plan kept', r.u.speedPlans[1] === true && r.speed === 10);
   check('reload: settings kept (sound off, music off, sensitivity 3) and applied', r.set.sound === false && r.set.music === false && r.set.sensitivity === 3
     && r.snd.sound === false && r.snd.music === false && r.rot === 3);

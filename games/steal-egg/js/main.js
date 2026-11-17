@@ -1,6 +1,13 @@
-// Boot: loading blur, art, sim + view, fixed-step loop, save.
+// Boot: front end (splash -> main menu -> selections, js/view/menu.js) over the loading blur, art, sim + view,
+// fixed-step loop, save.
+// Scene flow (rules/menus-flow.md 1): every launch shows Splash (10 s bar) then MainMenu; MainMenu's PlayGame starts
+// GamePlay with the picked character (GoToGamePlay.Player[playerIndex]); Pause > Home goes back to MainMenu (no splash),
+// Pause > Restart reloads GamePlay with the same character. Both are scene loads in the original, here a page reload
+// with a one-shot hand-over in sessionStorage (NAV_KEY) carrying the statics that survive a scene load
+// (GoToGamePlay.playerIndex, weaponManager.playerWeapon).
 // Query flags: ?fresh (drop the save and start new), ?seed=N (fixed random seed, tests), ?bot (the player is driven by js/sim/bot.js through the same
-// sim.input / sim.action calls a human makes), ?mute (no sound).
+// sim.input / sim.action calls a human makes), ?mute (no sound), ?play[=k] (straight into GamePlay with Player(k+1), default
+// Player1). ?fresh, ?seed, ?bot and ?play skip the front end (tests and the bot).
 // Test hooks: window.__game (sim, view, game view), window.__step(n, draw) runs n fixed steps of 1/30 s; effects,
 // tweens and animations age in every step, drawn or not.
 import * as THREE from 'three';
@@ -15,6 +22,9 @@ import { GameView } from './view/game.js';
 import { NavMesh } from './sim/nav.js';
 import { Sim, STEP } from './sim/sim.js';
 import { Bot } from './sim/bot.js';
+import { runFrontEnd, storeProfile } from './view/menu.js';
+import * as Profile from './sim/profile.js';
+import { Sound } from './view/sound.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -22,7 +32,7 @@ const ART = new URL('../art', import.meta.url).href;
 const DATA = new URL('../data', import.meta.url).href;
 const SAVE_KEY = 'steal-egg-v1';
 const SAVE_EVERY = 10;
-const PLAYER = 'Player1';
+const NAV_KEY = 'steal-egg-nav';
 const PLAYERS = ['Player1', 'Player2', 'Player3', 'Player4', 'Player5', 'Player6'];
 
 // Gamma colour space: colours are used as stored and written out without conversion.
@@ -76,9 +86,71 @@ function readSave() {
   try { return localStorage.getItem(SAVE_KEY); } catch (e) { return null; }
 }
 
+// Save of an older build or one holding only the menu's {profile}: null unless it is a sim state.
+function parseSave(raw) {
+  try { const s = raw ? JSON.parse(raw) : null; return s && typeof s === 'object' ? s : null; } catch (e) { return null; }
+}
+
+// One-shot scene hand-over written by Pause > Home / Restart just before the reload.
+function takeNav() {
+  try {
+    const v = sessionStorage.getItem(NAV_KEY);
+    sessionStorage.removeItem(NAV_KEY);
+    return v ? JSON.parse(v) : null;
+  } catch (e) { return null; }
+}
+
+// --- front end -------------------------------------------------------------------------------------------------------
+// The profile (MainMenu PlayerPrefs: UnlockedPlayers, SoundEnabled, MusicEnabled, sensitivity) lives in the save as
+// `profile`. A save from before Drop 3 has no profile: its in-game settings are the same PlayerPrefs, so they seed it.
+const nav = takeNav();
+const bootSave = parseSave(readSave());
+const profile = Profile.load(bootSave);
+if (bootSave && !bootSave.profile && bootSave.settings) {
+  const st = bootSave.settings;
+  if (st.sound != null) profile.prefs.SoundEnabled = st.sound ? 1 : 0;
+  if (st.music != null) profile.prefs.MusicEnabled = st.music ? 1 : 0;
+  if (st.sensitivity != null) Profile.setSetting(profile, 'sensitivity', st.sensitivity);
+}
+const testFlags = ['fresh', 'seed', 'bot', 'play'].some(k => params.has(k));
+const menuMode = nav && nav.to === 'MainMenu' ? 'menu' : nav && nav.to === 'GamePlay' ? 'skip' : testFlags ? 'skip' : 'splash';
+const slot = v => (Number.isInteger(+v) && v !== '' && +v >= 0 && +v < PLAYERS.length ? +v : 0);
+// statics that survive a scene load in the same run (rules/menus-flow.md 3, 4; rules/upgrades-shop.md 3d)
+const statics = { playerIndex: nav ? slot(nav.playerIndex) : slot(params.get('play')), playerWeapon: nav ? nav.playerWeapon | 0 : 0 };
+let menuSound = null, menuDone = null, shown = () => {};
+// resolves once GamePlay draws its first ready frame: the menu's Loading bar covers everything until then
+const gameShown = new Promise(res => { shown = res; });
+if (menuMode !== 'skip') {
+  menuSound = json(`${ART}/sfx/sfx.json`).then(sfxJson => new Sound({ sfxJson, base: ART, version: V, muted: params.has('mute') }));
+  game.menu = {};
+  let picked;
+  menuDone = new Promise(res => { picked = res; });
+  menuSound.then(sound => runFrontEnd(stageEl, {
+    profile, sound, debug: game.menu, assets: { art: `${ART}/`, version: V },
+    splash: menuMode !== 'menu',                      // Pause > Home loads MainMenu directly, no Splash
+    save: p => storeProfile(p),
+    onChoice: picked, hold: gameShown,
+  })).catch(e => { console.error(e); game.error = String((e && e.stack) || e); });
+  menuDone = menuDone.then(choice => {
+    statics.playerIndex = slot(choice.character);    // PurchaseAbleCharacterSelection.SelectPlayer -> GoToGamePlay.playerIndex
+    game.choice = choice;
+    return choice;
+  });
+} else {
+  menuDone = Promise.resolve(null);
+}
+game.menuMode = menuMode;
+game.profile = profile;
+
 function writeSave() {
   if (!game.sim || !game.ready) return;
   try {
+    // the in-game Settings panel writes the same PlayerPrefs the menu reads
+    const st = game.sim.state.settings;
+    profile.prefs.SoundEnabled = st.sound ? 1 : 0;
+    profile.prefs.MusicEnabled = st.music ? 1 : 0;
+    profile.prefs.sensitivity = st.sensitivity;
+    game.sim.state.profile = profile;
     localStorage.setItem(SAVE_KEY, game.sim.save());
     game.saves++;
   } catch (e) { /* storage unavailable or full */ }
@@ -90,7 +162,36 @@ function writeSave() {
 let clockSkew = 0;
 const now = params.has('seed') ? () => 1.8e9 + (game.sim ? game.sim.state.t : 0) : () => Date.now() / 1000 + clockSkew;
 
+// PauseGame.OnHomeClicked / OnRestartClicked -> StartLoading(name): GamePlay's Loading bar (level2 Loading id 12750:
+// loadingTime 3, Ease Linear, from 0.01; rules/menus-flow.md 1), then the scene load. The interstitial is dropped.
+const LOADING_TIME = 3;
+function navigate(to) {
+  if (game.navigating) return;
+  game.navigating = to;
+  const hud = game.hud, bar = 'Loading/LoadingPanel/Panel/w';
+  hud.show('Loading', true);
+  hud.show('Loading/LoadingPanel', true);
+  const t0 = performance.now();
+  const tick = () => {
+    const k = Math.min(1, (performance.now() - t0) / 1000 / LOADING_TIME);
+    hud.setSlider(bar, 0.01 + 0.99 * k);
+    game.navBar = k;
+    if (k < 1) { requestAnimationFrame(tick); return; }
+    writeSave();
+    try {
+      sessionStorage.setItem(NAV_KEY, JSON.stringify({ to, playerIndex: statics.playerIndex,
+        playerWeapon: game.sim.state.upgrades.weapons.equipped }));
+    } catch (e) { /* storage unavailable: the reload starts like a new launch */ }
+    location.reload();
+  };
+  tick();
+}
+
 async function load() {
+  // the HUD fonts (and Bangers VN for Vietnamese runs) before the game view exists, so world labels drawn into canvases
+  // and TMP auto-size use the real glyphs
+  const fontsP = document.fonts ? Promise.all(['900 32px "Insanibu"', '900 32px "Insanibc"', '900 32px "Bangers"', '900 32px "Bangers VN"',
+    '900 32px "Roboto Bold"'].map(f => document.fonts.load(f).catch(() => null))) : Promise.resolve();
   const restP = Promise.all([json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/world/navmesh.json`),
     json(`${ART}/ui/level2.json`), json(`${DATA}/game.json`), json(`${ART}/world/colliders.json`), json(`${ART}/fx/fx.json`),
     json(`${ART}/sfx/sfx.json`), json(`${ART}/world/rects.json`), json(`${ART}/ui/tweens.json`), json(`${ART}/ui/seedbtn.json`)]);
@@ -106,7 +207,11 @@ async function load() {
   const world = buildWorld(sceneJson, gltf, { ...opts, file: 'level2' });
   scene3.add(world.root, makeSky(opts.texBase, V));
   const lights = addUnityLights(scene3, sceneJson, world.node('Directional Light (1)'));
-  for (const name of PLAYERS) world.show(name, name === PLAYER);
+  // GoToGamePlay.Start: Player[playerIndex].SetActive(true); the five others stay inactive. The menu runs meanwhile.
+  for (const name of PLAYERS) world.show(name, false);
+  await menuDone;
+  const PLAYER = PLAYERS[statics.playerIndex];
+  world.show(PLAYER, true);
   const follow = new FollowCamera(camera, world.node('MainCamera'));
   setBlur(8, 'geometry');
 
@@ -124,9 +229,16 @@ async function load() {
   const nav = new NavMesh(navJson);
   nav.setColliders(colliders);
   const sim = new Sim(data, nav, { seed: params.has('seed') ? +params.get('seed') : (Date.now() >>> 0) || 1, now });
-  const saved = readSave();
-  if (saved && !sim.load(saved)) console.warn('save not loaded: unknown version');
-  sim.startSession();
+  const saved = parseSave(readSave());
+  // a save holding only the menu's {profile} (first visit) is a fresh game
+  if (saved && saved.v != null && !sim.load(saved)) console.warn('save not loaded: unknown version');
+  sim.startSession({ weapon: statics.playerWeapon });
+  // MainMenu PlayerPrefs into the game: coins earned by menu ads (coins.RewardCoind), SoundEnabled / MusicEnabled /
+  // sensitivity (Settings.Start reads the same keys in GamePlay).
+  sim.state.profile = profile;
+  const adCoins = Profile.takePendingCoins(profile);
+  if (adCoins) sim.addCoins(adCoins, 'menuAd', true);
+  sim.action('settings', { sound: !!profile.prefs.SoundEnabled, music: !!profile.prefs.MusicEnabled, sensitivity: profile.prefs.sensitivity });
 
   const playerObj = world.node(PLAYER);
   const hud = new Hud({ layout, parent: hudEl, spriteBase: `${ART}/ui/sprites`, version: V, tweens });
@@ -142,6 +254,7 @@ async function load() {
   input.onDrag = (dx, dy) => follow.drag(dx, dy);
 
   const view = {
+    playerName: PLAYER, playerIndex: statics.playerIndex,
     world, rigs, prefabs, anim, lights, camera, follow, hud, input, scene: scene3, renderer,
     player: playerObj, playerRig: playerObj.userData.rig || null,
     // Instance of a prefab (brainrot or egg) with its Animator rigs; the caller adds it to the scene and calls
@@ -165,8 +278,10 @@ async function load() {
   Object.assign(game, { sim, view, nav, data });
   game.hud = hud;
   layoutStage();
+  await fontsP;
   game.gv = new GameView({ sim, view, data, layout, fxJson, fxGlb, sfxJson, rects, tweens, seedbtn, artBase: ART, version: V, mute: params.has('mute'),
-    onPurchase: writeSave });
+    onPurchase: writeSave, onNavigate: navigate, sound: menuSound ? await menuSound : null });
+  game.saveAtStart = !!adCoins;
 
   // The game starts sharp-enough on the 16 px textures; the full ones stream in afterwards and swap in place
   // (world.js loadTexture). game.texturesFull resolves when every full texture has arrived.
@@ -236,12 +351,15 @@ load().then(() => {
   window.addEventListener('pagehide', writeSave);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') writeSave(); });
   game.writeSave = writeSave;
+  if (game.saveAtStart) writeSave();
   // ?seed (tests): the test owns the clock from the start, so nothing steps in real time between boot and the first
   // __step and a seeded run replays exactly
   if (params.has('seed')) game.manual = true;
   game.ready = true;
+  requestAnimationFrame(() => requestAnimationFrame(shown));
 }).catch(e => {
   console.error(e);
   game.error = String((e && e.stack) || e);
+  shown();
 });
 frame();

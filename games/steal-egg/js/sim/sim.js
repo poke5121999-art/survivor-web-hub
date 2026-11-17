@@ -105,7 +105,7 @@ export class Sim {
     this.refreshUi();
     return true;
   }
-  startSession() { startSession(this); this.syncBlockers(); this.refreshUi(); }
+  startSession(opts) { startSession(this, opts); this.syncBlockers(); this.refreshUi(); }
 
   // --- step ---------------------------------------------------------------------------------------------------------
   step(dt = STEP) {

@@ -3,6 +3,7 @@
 // Lines: [{ text, color: [r,g,b], size }] with size relative to the first line. Height is in metres for one line of
 // size 1; the canvas is redrawn only when the text changes.
 import * as THREE from 'three';
+import { runFont } from './hud.js';
 
 const PX = 64;                        // canvas pixels per line of size 1
 
@@ -42,13 +43,14 @@ export class Text3D {
     this.key = key;
     const cv = this.canvas, x = cv.getContext('2d');
     const rows = lines.map(l => ({ ...l, px: Math.round(PX * (l.size || 1)) }));
-    const measure = r => { x.font = `900 ${r.px}px ${this.font}`; return x.measureText(r.text).width + r.px * this.outline * 2; };
+    const font = runFont(this.font, rows.map(r => r.text).join(''));   // Vietnamese run: Bangers VN (hud.js)
+    const measure = r => { x.font = `900 ${r.px}px ${font}`; return x.measureText(r.text).width + r.px * this.outline * 2; };
     const w = Math.max(8, Math.ceil(Math.max(...rows.map(measure)))) + 8;
     const h = rows.reduce((s, r) => s + Math.round(r.px * 1.15), 0) + 8;
     cv.width = w; cv.height = h;
     let y = 4;
     for (const r of rows) {
-      x.font = `900 ${r.px}px ${this.font}`;
+      x.font = `900 ${r.px}px ${font}`;
       x.textAlign = 'center';
       x.textBaseline = 'middle';
       const cy = y + r.px * 0.6;

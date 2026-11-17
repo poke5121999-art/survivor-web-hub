@@ -198,7 +198,7 @@ run('play', async ({ browser, base, shot, check }) => {
   // ---- B: seeded save (coins 5000, the brainrot on the farm): upgrade, lock gate, reload, bat hit, death, revive ----
   const seeded = JSON.parse(save1);
   seeded.coins = 5000;
-  const B = await openPage(browser, `${base}/index.html?mute`, { init: { fn: s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('steal-egg-v1', s); sessionStorage.setItem('seeded', '1'); } }, arg: JSON.stringify(seeded) } });
+  const B = await openPage(browser, `${base}/index.html?mute&play`, { init: { fn: s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('steal-egg-v1', s); sessionStorage.setItem('seeded', '1'); } }, arg: JSON.stringify(seeded) } });
   page = B.page; cdp = await B.ctx.newCDPSession(page);
   check('seeded save loads (coins 5000, 1 brainrot)', await S(page, () => { const s = window.__game.sim.state; return s.coins === 5000 && Object.values(s.items).filter(i => i.kind === 'brainrot' && i.at.farm === 0).length === 1; }));
   const pad = await S(page, () => window.__game.sim.D.farm.upgradeZone.c);

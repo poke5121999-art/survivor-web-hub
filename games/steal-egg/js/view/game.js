@@ -1,4 +1,4 @@
-// Draws the sim each frame on the GamePlay scene: the player (Player1 rig), the three rivals (their scene "enemy"
+// Draws the sim each frame on the GamePlay scene: the player (the PlayerN rig picked in the menu, GoToGamePlay.Player[playerIndex]), the three rivals (their scene "enemy"
 // rigs), the seven nest animals, every egg and brainrot as an instance of its original prefab at its one location,
 // gates, world labels, hit effects, HUD and sound. Reads sim.state and the events of each step; writes only through
 // sim.action (HUD buttons, ui.js).
@@ -30,20 +30,21 @@ const LABEL_FONT = '"Insanibu", "Baloo 2", "Arial Black", sans-serif';
 
 export class GameView {
   constructor({ sim, view, data, fxJson, fxGlb, sfxJson, rects = {}, tweens = {}, seedbtn = null, artBase, version, mute = false,
-    onPurchase = () => {}, onPause = () => {} }) {
+    onPurchase = () => {}, onPause = () => {}, onNavigate = () => {}, sound = null }) {
     this.sim = sim;
     this.view = view;
     this.D = sim.D;
     this.world = view.world;
     this.scene = view.scene;
     const world = this.world;
-    this.sound = new Sound({ sfxJson, base: artBase, version, muted: mute });
+    // one SoundManager for the whole run (DontDestroyOnLoad): the menu's Sound is reused so its music keeps playing
+    this.sound = sound || new Sound({ sfxJson, base: artBase, version, muted: mute });
     this.fx = new Fx({ fxJson, fxGlb, world, base: artBase, version });
     this.scene.add(this.fx.group);
     const pauseGame = on => { window.__game.paused = on; onPause(on); };
     this.ui = new Ui({ sim, hud: view.hud, sound: this.sound, onPurchase, onPause: pauseGame });
     this.panels = new Panels({ sim, hud: view.hud, view, sound: this.sound, tweens, seedbtn, spriteBase: `${artBase}/ui/sprites`, version,
-      onPurchase, onPause: pauseGame });
+      onPurchase, onPause: pauseGame, onNavigate });
     for (const root of ['PanelsAndButtons', 'TextDisplayer', 'CoinPanel']) view.hud.show(root, true);
     this.itemsRoot = new THREE.Group();
     this.itemsRoot.name = 'items';
@@ -59,10 +60,12 @@ export class GameView {
     world.objects.forEach(o => { const k = o.userData.node.k; if (k && k.EggItem) o.visible = false; });
     world.show('pointer', false);
 
-    // Player
+    // Player: PlayerN (n = playerIndex + 1); its effects are the scene's per-player copies "Poof (k)" etc. (art/fx/fx.json)
+    const P = view.playerName || 'Player1', k = view.playerIndex || 0, sfx = k ? ` (${k})` : '';
+    this.pfx = { poof: `${P}/Poof${sfx}`, slash: `${P}/SwordSlashThickBlue${sfx}`, blood: `${P}/Blood` };
     const p = sim.state.actors[0];
     this.player = { obj: view.player, rig: view.playerRig, prev: new THREE.Vector3().fromArray(p.pos), cur: new THREE.Vector3().fromArray(p.pos),
-      anchor: world.node('Player1/MemeRotPos'), draw: new THREE.Vector3(), tilt: 0, stepAcc: 0, wasGrounded: true, attackT: -1 };
+      anchor: world.node(`${P}/MemeRotPos`), draw: new THREE.Vector3(), tilt: 0, stepAcc: 0, wasGrounded: true, attackT: -1 };
     // Rivals: actors 1..3 drawn by their scene rigs.
     this.rivals = this.D.rivals.map((r, i) => {
       const obj = world.objects[r.node], n = obj.userData.node, ai = n.k.EnemyAI;
@@ -143,9 +146,9 @@ export class GameView {
     this.player.attackT = this.player.attackT >= 0 ? this.player.attackT + dt : -1;
     for (const r of this.rivals) r.attackT = r.attackT >= 0 ? r.attackT + dt : -1;
     if (!quiet) this.footsteps(dt);
-    // ParticleOnMove on Player1/Poof: play while the player moves more than 0.01 per frame.
+    // ParticleOnMove on PlayerN/Poof: play while the player moves more than 0.01 per frame.
     const moved = this.player.prev.distanceTo(this.player.cur) > 0.01;
-    if (moved && !this.fx.isPlaying('Player1/Poof/Dust')) this.fx.play('Player1/Poof');
+    if (moved && !this.fx.isPlaying(`${this.pfx.poof}/Dust`)) this.fx.play(this.pfx.poof);
   }
 
   onEvent(e, quiet) {
@@ -156,7 +159,7 @@ export class GameView {
         if (e.actor === 0) {
           this.player.attackT = 0;
           if (this.player.rig) this.player.rig.overlay('AttackState').play('mixamo_com', 0.25, true);
-          this.fx.play('Player1/SwordSlashThickBlue');
+          this.fx.play(this.pfx.slash);
           snd('sfx_attack_mp3cut_net');
         }
         break;
@@ -166,7 +169,7 @@ export class GameView {
         break;
       }
       case 'hit':
-        if (e.target === 0) { this.fx.play('Player1/Blood'); snd('hard_slap_46388'); }
+        if (e.target === 0) { this.fx.play(this.pfx.blood); snd('hard_slap_46388'); }
         else {
           const r = this.rivals[e.target - 1];
           if (r && r.blood) this.fx.play(r.blood);

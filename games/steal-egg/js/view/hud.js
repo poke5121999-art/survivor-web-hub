@@ -60,9 +60,22 @@ export const viText = raw => {
   for (const [re, out] of VI_RE) if (re.test(k)) return k.replace(re, out);
   return raw;
 };
-// TMP font assets -> the TTFs extracted from the APK (css/game.css). Insaniburger has Latin glyphs only: Vietnamese
-// marks fall through to the next family of the stack.
+// TMP font assets -> the TTFs extracted from the APK (css/game.css). Neither Insaniburger nor the APK's Bangers has the
+// Vietnamese letters (no U+1EA0-1EF9, no Ơ/Ư, Insaniburger no Ũ, the APK's Bangers no Ă/Đ/Ĩ either; glyph tables
+// checked with a cmap dump). A text run that needs one of them is set entirely in "Bangers VN" (fonts/BangersVN.ttf,
+// the current Google Fonts Bangers: same comic caps as the HUD, full Vietnamese) instead of mixing two fonts per word.
 const FALLBACK = '"Baloo 2", "Arial Rounded MT Bold", "Arial Black", "Trebuchet MS", sans-serif';
+const MISSING = {
+  Insanib: /[\u0148-\u014B\u014D-\u014F\u0151\u0154-\u0158\u015B\u015D-\u015F\u0162-\u0177\u0179-\u017C\u018F\u019D\u01A0\u01A1\u01AF\u01B0\u01C4-\u01CC\u1EA0-\u1EF9]/,
+  Bangers: /[\u0100-\u0130\u0132-\u0140\u0143-\u0151\u0154-\u015F\u0162-\u0177\u0179-\u017C\u018F\u019D\u01A0\u01A1\u01AF\u01B0\u01C4-\u01CC\u1EA0-\u1EF9]/,
+};
+export const VN_FONT = `"Bangers VN", ${FALLBACK}`;
+// Font stack for one text run: the original font, or Bangers VN when the original lacks a letter of the run.
+export function runFont(stack, text) {
+  const first = String(stack).split(',')[0];
+  for (const [k, re] of Object.entries(MISSING)) if (first.includes(k) && re.test(String(text))) return VN_FONT;
+  return stack;
+}
 const FONTS = {
   'Insanibc SDF': `"Insanibc", ${FALLBACK}`,
   'Insanibu SDF': `"Insanibu", ${FALLBACK}`,
@@ -132,6 +145,8 @@ export class Hud {
     this.scrolls = new Map();               // content index -> { view, axis, off }
     layout.nodes.forEach((n, i) => { if (n.scrollrect) this.initScroll(i); });
     this.initTweens(tweens);
+    // TMP auto-size measured on a fallback font is wrong once the real font arrives: fit again then
+    if (document.fonts) document.fonts.addEventListener('loadingdone', () => this.fitTexts(this.root));
     this.scale = 1;
     this.size = null;
   }
@@ -272,9 +287,10 @@ export class Hud {
     if (t) {
       const d = document.createElement('div');
       d.className = 'ugui-txt';
-      d.style.fontFamily = FONTS[t.font] || FONTS.default;
-      // Insaniburger has capitals only: Vietnamese letters it lacks come from the fallback font, upper-cased to match
-      if (/Insanib/.test(d.style.fontFamily.split(',')[0])) d.style.textTransform = 'uppercase';
+      d.dataset.font = FONTS[t.font] || FONTS.default;
+      d.style.fontFamily = d.dataset.font;
+      // Insaniburger has capitals only: a Vietnamese run in Bangers VN is upper-cased too, to match
+      if (/Insanib/.test(d.dataset.font.split(',')[0])) d.style.textTransform = 'uppercase';
       d.style.color = rgba(t.color);
       const [ha, va] = t.alignment;
       d.style.justifyContent = ha === 'center' ? 'center' : ha === 'right' ? 'flex-end' : 'flex-start';
@@ -433,7 +449,12 @@ export class Hud {
 
   // TMP auto size: largest size in [min, max] that fits the rect.
   fit(d) {
+    if (d.dataset.font) {
+      const f = runFont(d.dataset.font, d.textContent);
+      if (d.style.fontFamily !== f) d.style.fontFamily = f;
+    }
     if (!d.dataset.max || !d.offsetParent) return;
+    this.iconMargin(d);
     let lo = +d.dataset.min, hi = +d.dataset.max;
     // centre / bottom aligned overflow spills to the negative side, which scrollWidth/scrollHeight do not count:
     // measure top-left aligned
@@ -450,6 +471,26 @@ export class Hud {
       d.style.fontSize = `${lo}px`;
     }
     d.style.alignItems = ai; d.style.justifyContent = jc;
+  }
+
+  // A centred auto-size label of a button whose rect runs over the button's icon (Bat / shoes shop video buttons:
+  // text rect x 41..268 of 268, clapperboard 18..75; pedestal AdsBtn): the label gets equal left/right margins (TMP
+  // margins) so its longest fit stays clear of the icon. The English labels ("Free", "200") never reached the icon;
+  // the longer Vietnamese ones ("MIỄN PHÍ", "0/2 QUẢNG CÁO") would cover it.
+  iconMargin(d) {
+    const el = d.parentElement, i = this.byPath ? this.byPath.get(el.dataset.path) : -1, n = this.L.nodes[i];
+    if (!n || !n.text || n.text.alignment[0] !== 'center' || n.parent < 0 || !this.L.nodes[n.parent].button) return;
+    const icons = this.kids[n.parent].filter(k => k !== i && this.L.nodes[k].image && !this.L.nodes[k].text && !this.kids[k].length
+      && this.els[k].offsetParent);
+    let m = 0;
+    const l = el.offsetLeft, r = l + el.offsetWidth;
+    for (const k of icons) {
+      const e = this.els[k], il = e.offsetLeft, ir = il + e.offsetWidth;
+      if (ir <= l || il >= r || (il <= l && ir >= r)) continue;      // apart, or the label sits on the icon (a badge)
+      m = Math.max(m, il < l ? ir - l : r - il);
+    }
+    const px = m > 0 && m < el.offsetWidth / 3 ? `${m}px` : '';
+    if (d.style.left !== px) { d.style.left = px; d.style.right = px; }
   }
 
   fitTexts(scope) {

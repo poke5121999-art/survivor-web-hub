@@ -5,7 +5,10 @@
 //         rival farms (EnemyFarmSystem_AI_0n), held + stowed brainrots as stowed inventory (InventoryData), speed plans
 //         and saved speed, weapon/cosmetic unlocks and ad counters, settings, tutorial.
 //   reset: player health, position and carried egg; rivals (home, idle, carried item lost); animals and their nests
-//         (fresh batches); gates (1 s / 30 / 50 / 40 s closed again); hatch transitions; brainrot income restarts.
+//         (fresh batches); gates (1 s / 30 / 50 / 40 s closed again); hatch transitions; brainrot income restarts;
+//         equips (rules/upgrades-shop.md 3a-3d: no PlayerPrefs write for the weapon or the worn cosmetics): worn
+//         cosmetics off, every pedestal back, weapon in hand = static weaponManager.playerWeapon, which is 0 after an
+//         app start and survives a scene reload in the same run (Pause > Home / Restart: opts.weapon).
 import { initAnimals, clearNests } from './animals.js';
 import { initGates } from './gates.js';
 import { newRivalBrain } from './rivals.js';
@@ -42,8 +45,12 @@ export function migrate(s, D) {
   return s;
 }
 
-export function startSession(sim) {
+export function startSession(sim, opts = {}) {
   const s = sim.state, D = sim.D;
+  const w = s.upgrades.weapons, keep = Number.isInteger(opts.weapon) ? opts.weapon : 0;
+  w.equipped = keep >= 0 && keep < 8 ? keep : 0;
+  w.changed = false;
+  s.upgrades.cosmetics.picked = {};
   // Items: keep farms and the player's brainrots; everything in the world or in a rival's hands goes.
   for (const id of Object.keys(s.items)) {
     const it = s.items[id];
