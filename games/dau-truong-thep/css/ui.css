@@ -1380,6 +1380,8 @@ html.dtt-portrait #touch { display: none !important; }
 #ui .pk-pve.on { background: linear-gradient(180deg, #ffc2a8, #ff7a5a 45%, #d23a1e); box-shadow: 0 0 .6em rgba(255, 110, 70, .6); } #ui .pk-pve.on small { color: #4a0e00; }
 #ui .pk.soon { filter: saturate(.55) brightness(.85); } #ui .pk.soon small { color: #ffb38f; }
 #ui .matchbtn.fixed .mb-chev { display: none; }
+/* feat/dtt-modes: the hub fixed Hub link (index.html, top-left) no longer covers the title: the logo starts right of it */
+#ui .menu .logo { padding-left: 64px; }
 #ui .menu[data-play="rank"] .matchbtn > svg { color: var(--gold); }
 @media (max-height: 480px) {
   #ui .plays { gap: .25em; }
