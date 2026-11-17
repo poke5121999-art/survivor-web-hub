@@ -734,7 +734,9 @@
         gun: "Súng lục", tranq: "Súng gây mê", bomb: "Lựu đạn", stun: "Lựu đạn choáng", xung: "Lựu đạn xung kích", chum: "Lựu đạn chùm",
         mine: "Mìn đặt", pry: "Xà beng", shotgun: "Súng nòng ngắn", laser: "Súng laser sạc", bat: "Gậy bóng chày", pan: "Chảo gang",
         sledge: "Búa tạ", machete: "Mã tấu", prodzap: "Dùi cui điện", inflatable: "Búa hơi", ringcarry: "Nhẫn nhẹ tay",
-        ringspeed: "Nhẫn tốc", ringpower: "Nhẫn sức", ringguard: "Nhẫn chống vỡ"
+        ringspeed: "Nhẫn tốc", ringpower: "Nhẫn sức", ringguard: "Nhẫn chống vỡ",
+        battery: "Pin sạc (luôn bày, mua xong bày lại)", telesend: "Bệ phóng (nâng cấp xe tải, mua một lần)",
+        telecall: "Bệ gọi về (nâng cấp xe tải, mua một lần)"
       },
       fields: {
         "_id": ID,
@@ -787,7 +789,13 @@
         "charger.start": { label: "Vạch lúc đầu ca", unit: "vạch", min: 0 },
         "charger.perBattery": { label: "Vạch mỗi pin", unit: "vạch", min: 0, help: "Mua một pin ở trạm cộng bấy nhiêu vạch. Không có trần: mua bao nhiêu tích bấy nhiêu, pin bày lại ngay sau khi mua." },
         "charger.rate": { label: "Tốc độ sạc", unit: "lần đầy/giây", min: 0.01, help: "0,5 = một món sạc đầy trong 2 giây." },
-        "charger.bikeCost": { label: "Vạch cho một bình xăng xe máy", unit: "vạch", min: 0 }
+        "charger.bikeCost": { label: "Vạch cho một bình xăng xe máy", unit: "vạch", min: 0 },
+        "teleport": { label: "Bệ phóng và Bệ gọi về", help: "Hai nâng cấp xe tải bán ngẫu nhiên ở ô đồ nghề của trạm (giá ở Đồ nghề ở trạm, dòng telesend và telecall). Một người đứng giữ cột nút cạnh bệ đủ số giây thì bệ dùng: Bệ phóng đưa người đứng trên bệ tới một chỗ xa trong nhà, Bệ gọi về kéo đồng đội được chọn về bệ. Người bị dịch chuyển rơi lại xe đẩy và đồ đang vác." },
+        "teleport.cooldown": { label: "Thời gian hồi sau mỗi lần dùng", unit: "giây", min: 0, help: "Mỗi bệ hồi riêng. Sang nhà mới thì hồi về 0." },
+        "teleport.holdSec": { label: "Thời gian giữ nút", unit: "giây", min: 0.1, help: "Đứng trên cột nút liên tục bấy nhiêu giây; bước ra là đếm lại từ đầu." },
+        "teleport.offerChance": { label: "Tỉ lệ bày một bệ ở trạm", min: 0, max: 1, help: "0,35 = 35% mỗi lần trạm bày hàng có một bệ chưa mua. Bệ đã mua không bày lại." },
+        "teleport.minDistTiles": { label: "Bệ phóng: khoảng cách tối thiểu", unit: "ô", min: 0, help: "Chỗ đáp cách xe tải và bệ ít nhất bấy nhiêu ô; game bốc trong một phần ba số ô xa nhất thoả điều kiện." },
+        "teleport.foeClearTiles": { label: "Bệ phóng: khoảng trống quanh quái", unit: "ô", min: 0, help: "Không đáp trong bán kính bấy nhiêu ô quanh quái còn sống." }
       }
     },
 
