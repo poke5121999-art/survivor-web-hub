@@ -216,12 +216,63 @@ export const MAPS = {
     plaza: [0, 0, 6],
     hazards: [[-8.5, -14.5, 2.3], [-8, 12.5, 2.2], [-18, -24, 2.3]],
   },
+  // feat/dtt-modes: Phó bản boss layouts (PVE_MAPS). bentau keeps a clear water lane along the top edge (z < -19) for the warship;
+  // ganhray keeps an elliptical rail (rx 30, rz 16) clear of every wall and rock for the train, cover inside and outside the loop.
+  bentau: {
+    name: 'Bến Tàu Băng', theme: 'ice', size: [74, 54], pve: true,
+    blurb: 'Bến cảng đóng băng, một luồng nước sâu chạy dọc mép bắc cho chiến hạm.',
+    base: [-31, 0],
+    spawns: [[-32, 0], [-31, -3], [-31, 3], [-33.5, -1.8], [-33.5, 1.8]],
+    walls: [
+      [-24.5, -6, 1.8, 5, 2.6, 'ruin'], [-24.5, 8, 1.8, 5, 2.6, 'ruin'],
+      [-14, -10, 6, 1.8, 2.4, 'container'], [-12, 4, 3, 3, 3.4, 'block'],
+      [-4, -4, 2.4, 4, 2.6, 'container'], [-17, 14, 6, 1.8, 2.4, 'ruin'],
+    ],
+    rounds: [
+      [-7, -12, 1.0, 'pillar'], [-20, 2, 1.1, 'rock'], [-30, 14, 1.4, 'rock'],
+      [-9, 16, 0.55, 'pine'], [-28, -14, 0.55, 'pine'], [-2, 10, 0.5, 'pine'],
+    ],
+    bushes: [[-20, -13, 2.2], [-9, 9, 2.0], [-27, 3, 1.8]],
+    props: [[-16, 0.5, 'crate'], [-8, -7, 'barrel'], [-20, 10.5, 'pot']],
+    cratePoints: [[0, 0], [-15, -5], [0, -14], [-20, 12], [-8, 13]],
+    paths: [
+      [[-36, 0], [-27, 0], [-18, 1], [-8, 0], [0, 0]],
+      [[-27, 0], [-22, -12], [-10, -15], [0, -16]],
+    ],
+    plaza: [0, 0, 5],
+    hazards: [[-10, -1, 3.2]],
+  },
+  ganhray: {
+    name: 'Ga Ray', theme: 'desert', size: [84, 48], pve: true,
+    blurb: 'Sân ga giữa sa mạc, đường ray vòng quanh sân. Đứng trên ray là bị điện giật.',
+    base: [-36, 0],
+    spawns: [[-37, 0], [-36, -3], [-36, 3], [-38.5, -1.8], [-38.5, 1.8]],
+    walls: [
+      [-8, -5, 2.4, 5, 2.6, 'container'], [-16, 3, 5, 2.2, 2.6, 'container'],
+      [-34, -18, 3, 3, 2.6, 'block'], [-14, -20.5, 6, 1.8, 2.4, 'ruin'],
+    ],
+    rounds: [
+      [-3, -8, 0.9, 'pillar'], [-24, 19, 1.4, 'rock'], [-20, -5, 1.0, 'rock'],
+      [-38, -12, 0.5, 'cactus'], [-6, 20, 0.5, 'cactus'], [-36, 12, 0.5, 'cactus'],
+    ],
+    bushes: [[-12, -10, 2.2], [-20, 18, 2.0], [-24, 6, 1.8]],
+    props: [[-10, 8, 'crate'], [-6, 2, 'barrel'], [-25, -18, 'pot']],
+    cratePoints: [[0, 0], [-14, -6], [0, -20], [-22, 10], [-10, 20]],
+    paths: [
+      [[-41, 0], [-31, 0], [-20, 0], [-10, 0], [0, 0]],
+      [[-31, 0], [-26, -12], [-12, -19], [0, -20]],
+    ],
+    plaza: [0, 0, 6],
+    hazards: [[-4, 11, 2.2]],
+  },
 };
 
 // A layout belongs to one pool: the base-assault layouts are built around their towers, the arenas serve every other mode.
 export const MAP_ORDER = ['denrung', 'xuongcat', 'cangbang', 'mienglua'];
+// feat/dtt-modes: layouts only Phó bản boss stages use (never in the menus or a random pick).
+export const PVE_MAPS = ['bentau', 'ganhray'];
 export const NHA_ORDER = ['luythep', 'hemcheo'];
-export const mapsFor = (mode) => (mode === 'nha' ? NHA_ORDER : MAP_ORDER);
+export const mapsFor = (mode) => (mode === 'nha' ? NHA_ORDER : mode === 'pve' ? MAP_ORDER.concat(PVE_MAPS) : MAP_ORDER);
 // The map choice a mode can keep: 'random' or a layout of its pool, otherwise the pool's first layout.
 export const fitMap = (map, mode) => (map === 'random' || mapsFor(mode).includes(map) ? map : mapsFor(mode)[0]);
 

@@ -1,9 +1,9 @@
 // Play kinds (Đấu thường, Đấu rank, Phó bản): sim-test.mjs section 50 runs these. Standalone: `node tools/modes-cases.mjs` (fast).
-import { createMatch, step } from '../js/sim.js';
-import { MODES, MODE_ORDER, PLAYS, PLAY_ORDER, RANK_MODES, RANK_TIERS, RANKS, DIFFICULTY, rankTier, rankPlan, cleanPlay, TEAM_SIZE, BOSSES, PVE_ORDER, PVE_FOES, pveStage, pveStars } from '../js/data.js';
+import { createMatch, step, armorOf } from '../js/sim.js';
+import { MODES, MODE_ORDER, PLAYS, PLAY_ORDER, RANK_MODES, RANK_TIERS, RANKS, DIFFICULTY, rankTier, rankPlan, cleanPlay, TEAM_SIZE, BOSSES, PVE_ORDER, PVE_FOES, pveStage, pveStars, railAt, TICK } from '../js/data.js';
 import { allInputs } from '../js/bots.js';
 import { roster as netRoster, createMirror } from '../js/netstate.js';
-import { mapsFor, pickArena } from '../js/maps.js';
+import { mapsFor, pickArena, compileMap, solidAt } from '../js/maps.js';
 import { soloLineup, pveLineup } from '../js/roster.js';
 import { makeMeta, pveOpen } from '../js/meta.js';
 import { mulberry } from '../js/rng.js';
@@ -179,11 +179,124 @@ export function runPveCases(check, section) {
   }
 }
 
+const bossMatch = (id, seed = 5) => {
+  const m = pveMatch(id, seed, 3);
+  // jump straight to the boss wave: the earlier waves fall without a fight
+  for (const u of m.units) if (u.team === 1 && u.wave < m.waves - 1) { u.alive = false; u.hp = 0; u.deaths = 1; u.respawnT = 1e9; }
+  for (let i = 0; i < 90 && m.wave < m.waves - 1; i++) step(m, {});
+  return m;
+};
+const unitOf = (m, k) => m.units.find((u) => u.mech === k);
+
+export function runBossCases(check, section) {
+  section('52 Phó bản bosses: giant tank, warship, train, alien; every attack telegraphed');
+  {
+    const want = { '1-6': ['cuthan', 'denrung'], '2-6': ['chienham', 'bentau'], '3-6': ['dautau', 'ganhray'], '4-6': ['ngoaitinh', 'mienglua'] };
+    const got = Object.keys(want).map((id) => { const S = pveStage(id), w = S.waves[S.waves.length - 1]; return [id, w[0], S.map]; });
+    check('52a each chapter ends on its own boss: Cự Thần (tank), Chiến Hạm (warship, Bến Tàu Băng), Đầu Tàu (train, Ga Ray), Ngoại Tinh (alien)',
+      got.every(([id, b, map]) => want[id][0] === b && want[id][1] === map && BOSSES[b].boss && BOSSES[b].script), JSON.stringify(got));
+    const tele = [];
+    for (const k of ['cuthan', 'chienham', 'chphao', 'dautau', 'toaxe', 'ngoaitinh']) {
+      const d = BOSSES[k];
+      if (!d.weapon.lob) tele.push(k + ' weapon');
+      for (const s of d.skills) if ((s.do === 'nova' && !(s.windup >= 1)) || (s.do === 'barrage' && !(s.delay >= 1.2)) || (s.do === 'sweep' && !(s.windup >= 1)) || ['dash', 'volley', 'beam', 'leap'].includes(s.do)) tele.push(k + ':' + s.id);
+    }
+    check('52b every boss attack is telegraphed: weapons lob (marked landing), novas wind up >= 1 s, barrages land >= 1.2 s after their marks, sweeps wind up >= 1 s, no untelegraphed dash or volley', !tele.length, tele.join(' '));
+  }
+  {
+    const map = compileMap('ganhray'), R = BOSSES.dautau.rail;
+    let bad = 0;
+    for (let i = 0; i < 200; i++) { const p = railAt(R, i / 200 * railAt(R, 0).len); if (solidAt(map, p.x, p.z, BOSSES.toaxe.radius + 0.2)) bad++; }
+    const lane = compileMap('bentau'), L = BOSSES.chienham.lane;
+    let wet = 0;
+    for (let x = -L.x - 4.2; x <= L.x + 4.2; x += 0.5) if (solidAt(lane, x, L.z, 1.2)) wet++;
+    const far = Math.min(...map.spawns[0].map((p) => Math.abs(Math.hypot(p[0] / R.rx, p[1] / R.rz) - 1) * R.rz));
+    check('52c the rail of Ga Ray and the lane of Bến Tàu Băng are clear of every wall and rock, and no spawn pad sits on the rail', bad === 0 && wet === 0 && far > R.width + 1, `rail ${bad} lane ${wet} pad ${far.toFixed(1)}`);
+  }
+  {
+    const m = bossMatch('1-6'), b = unitOf(m, 'cuthan');
+    for (let i = 0; i < 5; i++) step(m, {});
+    b.hp = b.maxHp * 0.49;
+    let ev = [];
+    const z0 = m.zones.length;
+    step(m, {}); ev = ev.concat(m.events);
+    check('52d giant tank: under half hp it raises its phase once, rings itself with 10 marked shells and fires a third faster',
+      ev.some((e) => e.t === 'bossPhase' && e.id === b.id) && m.zones.filter((z) => z.kind === 'strike' && z.owner === b.id && z.delay > 1).length >= 10 && b.rapidF === 1.35 && b.rapidT > 1000, `${m.zones.length - z0}`);
+  }
+  {
+    const m = bossMatch('2-6'), b = unitOf(m, 'chienham'), guns = m.units.filter((u) => u.mech === 'chphao');
+    const L = b.def.lane, xs = [];
+    for (let i = 0; i < 30 * 10; i++) { step(m, {}); if (i % 30 === 0) xs.push(b.x); }
+    const moved = Math.max(...xs) - Math.min(...xs), at = b.def.parts[0].at;
+    check('52e warship cruises its lane (x moves, z stays on the lane), its three deck guns ride at -4.2, 0, 4.2 m',
+      moved > 8 && Math.abs(b.z - L.z) < 1e-9 && guns.length === 3 && guns.every((g, i) => Math.abs(g.x - b.x - at[i]) < 1e-6 && g.z === L.z), `${moved.toFixed(1)} ${guns.map((g) => (g.x - b.x).toFixed(1))}`);
+    const armed = armorOf(m, b);
+    for (const g of guns) { g.hp = 0.5; g.invulnT = 0; g.shield = 0; }
+    // the hunters stand on the quay next to the guns and shoot them down
+    const hunters = m.units.filter((u) => u.team === 0);
+    for (let i = 0; i < 300 && guns.some((g) => g.alive); i++) { hunters.forEach((h, k) => { const g = guns.find((q) => q.alive) || b; h.x = h.px = g.x + (k - 1) * 1.5; h.z = h.pz = L.z + 5; h.invulnT = 1; }); step(m, allInputs(m, {})); }
+    for (let i = 0; i < 10; i++) step(m, {});
+    check('52f warship hull shrugs off 60% while a deck gun stands, back to its own armour once they are sunk', near(armed, 0.6, 1e-9) && guns.every((g) => !g.alive) && near(armorOf(m, b), b.def.armor, 1e-9), `${armed} -> ${armorOf(m, b)}`);
+  }
+  {
+    const m = bossMatch('3-6'), e = unitOf(m, 'dautau'), cars = m.units.filter((u) => u.mech === 'toaxe'), R = e.def.rail;
+    const d0 = e.bs ? e.bs.d : 0;
+    for (let i = 0; i < 30; i++) step(m, {});
+    const on = cars.every((c, i) => { const p = railAt(R, e.bs.d - (i + 1) * R.gap); return Math.hypot(c.x - p.x, c.z - p.z) < 1e-6; });
+    const p0 = railAt(R, e.bs.d);
+    check('52g train: the engine runs the rail at its speed, three carriages follow gap apart on the rail, the engine takes x1.5 (weak point)',
+      on && Math.hypot(e.x - p0.x, e.z - p0.z) < 1e-6 && near(e.bs.d - d0, R.speed * TICK * 30, 1e-6) && e.ampF === 0.5 && e.def.armor === 0 && cars.every((c) => c.def.armor > 0.3), `${e.bs.d}`);
+    // a hunter standing on the far side of the loop: the rail burns it every half second, the train rams it when it comes by
+    const h = m.units.find((u) => u.team === 0 && u.alive), far = railAt(R, e.bs.d + railAt(R, 0).len / 2);
+    let burns = 0, rams = 0, hp = 0;
+    for (let i = 0; i < 30 * 14; i++) {
+      h.x = h.px = far.x; h.z = h.pz = far.z; h.invulnT = 0; h.hp = h.maxHp; h.shield = 0; h.kx = h.kz = 0; h.alive = true;
+      step(m, {});
+      for (const ev of m.events) { if (ev.t === 'hit' && ev.id === h.id && ev.by === e.id) { burns++; hp += ev.amt; } if (ev.t === 'ram' && ev.id === e.id) rams++; }
+    }
+    check('52h standing on the rail burns twice a second; the passing train rams (at most once a second per victim)', burns >= 20 && rams >= 1 && rams <= 6, `burns ${burns} rams ${rams}`);
+    e.hp = 1; e.invulnT = 0; e.shield = 0;
+    // the hunters ride beside the engine and shoot it
+    const hs = m.units.filter((u) => u.team === 0);
+    for (let i = 0; i < 300 && e.alive; i++) { hs.forEach((q, k) => { q.x = q.px = e.x * 0.8; q.z = q.pz = e.z * 0.8 + k; q.invulnT = 1; q.alive = true; q.hp = q.maxHp; }); step(m, allInputs(m, {})); }
+    for (let i = 0; i < 3; i++) step(m, {});
+    check('52i the engine down derails the carriages: they fall with it and the stage is cleared', !e.alive && cars.every((c) => !c.alive) && m.over && m.winner === 0, `${e.alive} ${cars.map((c) => c.alive)} ${m.over}`);
+  }
+  {
+    const m = bossMatch('4-6'), a = unitOf(m, 'ngoaitinh'), drones = m.units.filter((u) => u.summon);
+    check('52j alien: its drones wait dead in its wave until called', drones.length === a.def.summons.n && drones.every((d) => !d.alive));
+    let warp = null, mark = null, summons = 0;
+    for (let i = 0; i < 30 * 12; i++) {
+      step(m, {});
+      for (const e of m.events) { if (e.t === 'zone' && e.kind === 'strike' && !mark && a.bs && a.bs.to) mark = { x: a.bs.to.x, z: a.bs.to.z, tick: m.tick }; if (e.t === 'warp' && e.id === a.id && !warp) warp = { x: e.x, z: e.z, tick: m.tick }; if (e.t === 'summon') summons += e.n; }
+    }
+    check('52k alien blink: the landing spot is marked first, it arrives there blink.delay later', mark && warp && warp.x === mark.x && warp.z === mark.z && Math.abs((warp.tick - mark.tick) * TICK - a.def.blink.delay) < 0.1, JSON.stringify([mark, warp]));
+    check('52l alien calls up to summons.per drones at a time around itself', summons >= 1 && summons <= a.def.summons.per * 2 && drones.filter((d) => d.alive).length <= a.def.summons.per * 2, `${summons}`);
+    a.hp = 1; a.invulnT = 0; a.shield = 0;
+    for (let i = 0; i < 300 && a.alive; i++) step(m, allInputs(m, {}));
+    for (let i = 0; i < 3; i++) step(m, {});
+    check('52m the alien down takes its drones with it and ends the stage', !a.alive && drones.every((d) => !d.alive) && m.over && m.winner === 0);
+  }
+  {
+    const run = (id) => { const m = bossMatch(id, 11); for (let i = 0; i < 30 * 25 && !m.over; i++) step(m, allInputs(m, {})); return JSON.stringify(m.units.map((u) => [u.alive, Math.round(u.hp), Math.round(u.x * 100), Math.round(u.z * 100)])); };
+    check('52n boss fights are deterministic (25 s of each, same seed twice)', ['1-6', '2-6', '3-6', '4-6'].every((id) => run(id) === run(id)));
+  }
+  {
+    const out = [];
+    for (const id of ['1-6', '2-6', '3-6', '4-6']) {
+      let w = 0;
+      for (const seed of [21, 22, 23]) { const m = pveMatch(id, seed, Math.round(pveStage(id).recLv / 5)); while (!m.over) step(m, allInputs(m, {})); if (m.winner === 0) w++; }
+      out.push(`${id}:${w}/3`);
+    }
+    check('52o three bots at the recommended level beat every chapter boss in at least 2 of 3 runs (a human dodges the marks better)', out.every((s) => +s.split(':')[1][0] >= 2), out.join(' '));
+  }
+}
+
 // Standalone run.
 if (process.argv[1] && process.argv[1].endsWith('modes-cases.mjs')) {
   let failed = 0, passed = 0;
   const ck = (name, cond, detail = '') => { if (cond) { passed++; console.log(`PASS ${name}`); } else { failed++; console.log(`FAIL ${name} ${detail}`); } }, sec = (s) => console.log(`\n# ${s}`);
-  runModeCases(ck, sec); runPveCases(ck, sec);
+  runModeCases(ck, sec); runPveCases(ck, sec); runBossCases(ck, sec);
   console.log(failed ? `\n${failed} FAILED (${passed} passed)` : `\nALL PASS (${passed})`);
   process.exit(failed ? 1 : 0);
 }

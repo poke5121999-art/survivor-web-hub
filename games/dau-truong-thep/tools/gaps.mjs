@@ -4,11 +4,11 @@
 // Clearance of a cell = how far a mech centre may be from walls, rounds, towers and the map edge (the same test as solidAt).
 // Connectivity at radius R = cells with clearance >= R. Cells are added from the widest clearance down (union-find), so the
 // moment a key point joins the base-0 region is the widest circle that can travel there ("bottleneck radius").
-import { compileMap, MAP_ORDER, NHA_ORDER } from '../js/maps.js';
+import { compileMap, MAP_ORDER, NHA_ORDER, PVE_MAPS } from '../js/maps.js';
 import { audit, pinches, floorStep, GRID, MOVE_R, TIGHT, FALSE, SPARE, R_MAX } from './gaps-lib.mjs';
 
 console.log(`movement radius ${MOVE_R} (diameter ${2 * MOVE_R}); grid ${GRID} m; route spare required ${SPARE} m; lists show half-plane x <= 0 (mirrored pieces move together)`);
-for (const key of [...MAP_ORDER, ...NHA_ORDER]) {
+for (const key of [...MAP_ORDER, ...NHA_ORDER, ...PVE_MAPS]) {   // PVE_MAPS: the Phó bản boss layouts
   for (const props of [false, true]) {
     const a = audit(key, props);
     const r = floorStep(a.narrow.r), width = 2 * r, spare = width - 2 * R_MAX;

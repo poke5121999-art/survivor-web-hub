@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
-import { runModeCases, runPveCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
+import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3788,6 +3788,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);
 runPveCases(check, section);
+runBossCases(check, section);
 
 // think time over all the new modes
 {

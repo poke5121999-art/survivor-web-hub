@@ -127,7 +127,7 @@ export function snapshot(m) {
 export function roster(m) {
   return {
     map: m.map.key, theme: m.map.theme, mode: m.mode, seed: m.seed, target: m.target, duration: m.duration, stage: m.stage || undefined,
-    units: m.units.map((u) => ({ wave: u.wave || undefined, team: m.mode === 'tudo' ? 0 : u.team, color: u.color, mech: u.mech, name: u.name, bot: u.bot, diff: u.diff,
+    units: m.units.map((u) => ({ wave: u.wave || undefined, summon: u.summon || undefined, team: m.mode === 'tudo' ? 0 : u.team, color: u.color, mech: u.mech, name: u.name, bot: u.bot, diff: u.diff,
       skin: u.skin, radius: u.radius, maxHp: u.maxHp,
       mods: { lv: u.lv, hp: u.maxHp / u.def.hp, dmg: u.dmgMod / (u.def.dmgUp || 1) } })),
   };
@@ -138,7 +138,7 @@ export function roster(m) {
 export function matchOptions(rosterData) {
   return {
     map: rosterData.map, theme: rosterData.theme, mode: rosterData.mode, seed: rosterData.seed, target: rosterData.target, duration: rosterData.duration, stage: rosterData.stage,
-    roster: rosterData.units.map((r) => ({ wave: r.wave, team: r.team, mech: r.mech, name: r.name, bot: r.bot, diff: r.diff, skin: r.skin, mods: r.mods })),
+    roster: rosterData.units.map((r) => ({ wave: r.wave, summon: r.summon, team: r.team, mech: r.mech, name: r.name, bot: r.bot, diff: r.diff, skin: r.skin, mods: r.mods })),
   };
 }
 

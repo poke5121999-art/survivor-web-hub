@@ -594,6 +594,13 @@ export function makeUI(G) {
     for (let w = 0; w < m.waves; w++) if (m.units.every((u) => u.team !== 1 || u.wave !== w || u.deaths > 0)) gone = w + 1;
     return Math.min(m.waves - 1, gone);
   };
+  // What to do against each chapter boss, said once when it appears.
+  const BOSS_TIPS = {
+    cuthan: 'Né vòng đỏ của pháo. Dưới nửa máu nó bắn nhanh hơn',
+    chienham: 'Phá ba khẩu pháo trên boong để làm thủng giáp tàu',
+    dautau: 'Đầu tàu là điểm yếu. Đừng đứng trên đường ray',
+    ngoaitinh: 'Vòng đỏ là chỗ nó sắp hiện ra. Diệt bầy ong nó gọi tới',
+  };
   MODE_HUD.pve = {
     solo: true,
     minuteSub: 'Hết giờ là thất bại',
@@ -617,7 +624,7 @@ export function makeUI(G) {
       setText(T.num, boss ? `${esc(boss.name)} ${fmtN(Math.ceil(Math.max(0, boss.hp)))} / ${fmtN(boss.maxHp)}` : `Còn ${left} quái`);
       flag(T.bbar, 'boss', !!boss);
       setText(T.wave, `Đợt ${w + 1}/${m.waves}`);
-      if (w !== S.wave) { S.wave = w; S.trail = 1; pop(T.wave, 1.6, 420); announce(boss ? 'Trùm xuất hiện!' : `Đợt ${w + 1}/${m.waves}`, boss ? boss.name : 'Quái mới tràn vào', boss ? 'warn' : 'mine'); }
+      if (w !== S.wave) { S.wave = w; S.trail = 1; pop(T.wave, 1.6, 420); announce(boss ? boss.name + ' xuất hiện!' : `Đợt ${w + 1}/${m.waves}`, boss ? BOSS_TIPS[boss.mech] || 'Hạ trùm để qua màn' : 'Quái mới tràn vào', boss ? 'warn' : 'mine'); }
       T.lp.forEach((pip, i) => flag(pip, 'on', i < m.lives));
       setText(T.lvn, String(Math.max(0, m.lives)));
       flag(T.lvp, 'low', m.lives <= 2);

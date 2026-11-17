@@ -49,7 +49,7 @@ export function createMatch(opts) {
       x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
       kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, pickups: 0, hitBy: {}, brain: null,
-      wave: r.wave | 0,
+      wave: r.wave | 0, summon: !!r.summon,
     };
     m.units.push(u);
     spawn(m, u, true);
@@ -1864,17 +1864,118 @@ function pveInit(m) {
   let n = 0;
   for (const u of m.units) if (u.team === 1) n = Math.max(n, u.wave + 1);
   m.waves = n; m.target = n; m.wave = 0; m.waveT = 0;
-  for (const u of m.units) if (u.team === 1 && u.wave > 0) { u.alive = false; u.hp = 0; u.respawnT = 1e9; }
+  // later waves, and the summons a boss calls in, wait dead
+  for (const u of m.units) if (u.team === 1 && (u.wave > 0 || u.summon)) { u.alive = false; u.hp = 0; u.respawnT = 1e9; }
 }
 // true when the last wave is cleared
 function pveStep(m) {
+  pveBosses(m);
   for (const u of m.units) if (u.team === 1 && u.wave === m.wave && u.alive) { m.waveT = 0; return false; }
   if (m.wave >= m.waves - 1) return true;
   m.waveT += TICK;
   if (m.waveT < PVE_GAP) return false;
   m.wave++; m.waveT = 0;
-  for (const u of m.units) if (u.team === 1 && u.wave === m.wave) spawn(m, u, false);
+  for (const u of m.units) if (u.team === 1 && u.wave === m.wave && !u.summon) spawn(m, u, false);
   m.events.push({ t: 'wave', n: m.wave, of: m.waves });
   return false;
 }
+// Boss scripts (def.script), run every tick for each living boss of a Phó bản after everything else moved. Their state lives on u.bs.
+// Every attack they add is a strike zone (a marked circle that lands after its delay) or the always-drawn rail.
+const bossParts = (m, u) => m.units.filter((o) => o.team === u.team && o.def.part && o.wave === u.wave);
+const PVE_SCRIPTS = {
+  // Giant tank: at half hp it rings itself with marked shells and fires a third faster for the rest of the fight.
+  tank(m, u) {
+    const s = u.bs || (u.bs = { rage: false });
+    if (s.rage || u.hp > u.maxHp * 0.5) return;
+    s.rage = true;
+    m.events.push({ t: 'bossPhase', id: u.id, x: u.x, z: u.z });
+    for (let i = 0; i < 10; i++) { const a = i / 10 * 2 * Math.PI; addZone(m, u, { kind: 'strike', x: u.x + Math.cos(a) * 6, z: u.z + Math.sin(a) * 6, r: 2.4, delay: 1.5, total: 1.5, dmg: 700, src: 'ct_vong' }); }
+    u.rapidF = 1.35; u.rapidT = 1e6;
+  },
+  // Warship: cruises its lane (x = lane.x * sin of the clock), the deck guns ride along; while one stands the hull takes 60% less damage.
+  ship(m, u) {
+    const L = u.def.lane, s = u.bs || (u.bs = { t0: m.time });
+    const ph = (m.time - s.t0) * 2 * Math.PI / L.period, x = L.x * Math.sin(ph);
+    // the bow keeps facing +x: on the way back the ship goes astern, so the guns never swap places
+    u.x = x; u.z = L.z; u.vx = 0; u.vz = 0; u.heading = 0;
+    const parts = bossParts(m, u), at = u.def.parts[0].at;
+    let up = 0;
+    parts.forEach((p, i) => { if (!p.alive) return; up++; p.x = x + at[i % at.length]; p.z = L.z; p.vx = 0; p.vz = 0; p.heading = u.heading; });
+    if (up) { u.armorT = Math.max(u.armorT, 0.2); u.armorF = Math.max(u.armorF, 0.6); }
+  },
+  // Train: the engine leads round the rail at rail.speed, carriages follow rail.gap apart. Standing on the rail burns every half second;
+  // the engine and the carriages ram whoever is in their way (once a second per victim).
+  train(m, u) {
+    const R = u.def.rail, s = u.bs || (u.bs = { d: 0, ram: {} });
+    s.d += R.speed * TICK;
+    const set = (o, d) => { const p = railAt(R, d); o.x = p.x; o.z = p.z; o.heading = p.h; o.vx = Math.cos(p.h) * R.speed; o.vz = Math.sin(p.h) * R.speed; };
+    set(u, s.d);
+    // the engine is the weak point: it has no armour and takes half again the damage
+    u.ampT = Math.max(u.ampT, 0.2); u.ampF = Math.max(u.ampF, 0.5);
+    const cars = [u];
+    bossParts(m, u).forEach((p, i) => { if (p.alive) { set(p, s.d - (i + 1) * R.gap); cars.push(p); } });
+    const scale = dmgScale(u);
+    for (const o of m.units) {
+      if (o.team === u.team || !o.alive) continue;
+      for (const c of cars) {
+        const rr = c.radius + o.radius;
+        if (dist2(o.x, o.z, c.x, c.z) > rr * rr || (s.ram[o.id] || 0) > m.time) continue;
+        s.ram[o.id] = m.time + 1;
+        const d = Math.hypot(o.x - c.x, o.z - c.z) || 1;
+        damage(m, o, R.ram * scale, u);
+        if (o.alive && !o.def.heavy) { o.kx += (o.x - c.x) / d * 16; o.kz += (o.z - c.z) / d * 16; }
+        m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
+        break;
+      }
+      if (m.tick % 15 === 0 && o.alive) {
+        const a = Math.atan2(o.z / R.rz, o.x / R.rx), px = Math.cos(a) * R.rx, pz = Math.sin(a) * R.rz;
+        if (dist2(o.x, o.z, px, pz) < R.width * R.width) { curSrc = 'rail'; damage(m, o, R.dps * 0.5 * scale, u); curSrc = null; }
+      }
+    }
+  },
+  // Alien: every blink.every seconds it marks a far spot, which blasts when it lands there; every summons.every seconds up to summons.per
+  // of its held drones come back around it.
+  alien(m, u) {
+    const B = u.def.blink, S = u.def.summons, s = u.bs || (u.bs = { blinkT: B.every * 0.6, sumT: S.every * 0.5, to: null });
+    if (s.to) {
+      s.to.t -= TICK;
+      if (s.to.t <= 0) {
+        const x0 = u.x, z0 = u.z;
+        u.x = u.px = s.to.x; u.z = u.pz = s.to.z; u.vx = u.vz = 0; u.cast = null;
+        m.events.push({ t: 'warp', id: u.id, x0, z0, x: u.x, z: u.z });
+        s.to = null;
+      }
+    } else if ((s.blinkT -= TICK) <= 0) {
+      s.blinkT = B.every;
+      const spots = m.pveSpots.concat(m.map.cratePoints).filter((p) => !solidAt(m.map, p[0], p[1], u.radius + 0.3));
+      let best = null, bs = -1;
+      for (const p of spots) { const d = dist2(p[0], p[1], u.x, u.z) * (0.6 + 0.4 * m.rng()); if (d > bs) { bs = d; best = p; } }
+      if (best) {
+        s.to = { x: best[0], z: best[1], t: B.delay };
+        addZone(m, u, { kind: 'strike', x: best[0], z: best[1], r: B.r, delay: B.delay, total: B.delay, dmg: B.dmg, src: 'nt_dich' });
+      }
+    }
+    if ((s.sumT -= TICK) <= 0) {
+      s.sumT = S.every;
+      let n = 0;
+      for (const o of m.units) {
+        if (n >= S.per || o.alive || !o.summon || o.wave !== u.wave) continue;
+        spawn(m, o, false);
+        const a = m.rng() * 2 * Math.PI, x = u.x + Math.cos(a) * 3.5, z = u.z + Math.sin(a) * 3.5;
+        if (!solidAt(m.map, x, z, o.moveRadius)) { o.x = o.px = x; o.z = o.pz = z; }
+        n++;
+      }
+      if (n) m.events.push({ t: 'summon', id: u.id, n, x: u.x, z: u.z });
+    }
+  },
+};
+function pveBosses(m) {
+  for (const u of m.units) {
+    if (u.team !== 1) continue;
+    if (u.alive && u.def.script) PVE_SCRIPTS[u.def.script](m, u);
+    // a boss's parts and summons fall with it
+    if (u.alive && (u.def.part || u.summon)) { const lead = m.units.find((o) => o.team === u.team && o.def.boss && o.wave === u.wave); if (lead && !lead.alive && lead.deaths > 0) kill(m, u, null); }
+  }
+}
+import { railAt } from './data.js';
 /* ===== end feat/dtt-modes Phó bản waves ===== */

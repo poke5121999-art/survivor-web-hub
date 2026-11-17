@@ -11,6 +11,7 @@ import { makeTextures } from './gfx/tex.js';
 import { makeWorld, makeEnvironment } from './gfx/world.js';
 import { makeMechs } from './gfx/mechs.js';
 import { makeFx } from './gfx/fx.js';
+import { makePveDress } from './gfx/pvedress.js';
 import { makePost, renderScale, sharpenFor } from './gfx/post.js';
 import { makeAudio } from './audio.js';
 import { makeUI } from './ui.js';
@@ -113,6 +114,8 @@ async function boot() {
   const mechs = (G.gfx.mechs = makeMechs(G, tex));
   const fx = (G.gfx.fx = makeFx(G, mechs));
   scene.add(mechs.group, fx.group);
+  // Phó bản boss stages: the train's rail and the warship's water lane
+  const dress = (G.gfx.dress = makePveDress(G));
   const post = (G.gfx.post = makePost(renderer, Q));
   post.grade(world.theme);
   // Portraits are rendered at device pixels (128 px per DPR 1, up to 384): a 128 px image shown at 100 CSS px on a DPR 3 phone is blurry.
@@ -420,6 +423,7 @@ async function boot() {
     G.alpha = alpha;
     if (show && showEl && G.mode !== 'match') { guard('showcase', () => drawShowcase(dt)); return; }
     guard('world', () => world.update(time, m));
+    guard('dress', () => dress.update(m, time));
     guard('mechs', () => { if (m) mechs.sync(m, alpha, dt, time); });
     guard('fx', () => fx.update(m, alpha, dt, time));
     guard('camera', () => placeCamera(dt));

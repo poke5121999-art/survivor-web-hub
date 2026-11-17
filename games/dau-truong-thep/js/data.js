@@ -1268,9 +1268,9 @@ MODES.pve = { name: 'Phó bản', blurb: 'Dọn sạch từng đợt quái, cả
 
 // Four chapters of six stages; stage 6 is the chapter boss. hp, dmg: monster multipliers of the chapter; foes: the kinds its waves draw.
 export const PVE_CHAPTERS = [
-  { key: 'c1', name: 'Rừng Sắt', map: 'denrung', theme: 'jungle', foes: ['ong', 'xebb', 'uphao'], boss: 'titan', hp: 1, dmg: 1, diff: 'easy' },
-  { key: 'c2', name: 'Cảng Băng', map: 'cangbang', theme: 'ice', foes: ['ong', 'xebb', 'phaocoi', 'uphao'], boss: 'chienham', hp: 1.7, dmg: 1.3, diff: 'normal' },
-  { key: 'c3', name: 'Xưởng Cát', map: 'xuongcat', theme: 'desert', foes: ['xebb', 'phaocoi', 'khienve', 'uphao', 'ong'], boss: 'tauhoa', hp: 2.0, dmg: 1.35, diff: 'normal' },
+  { key: 'c1', name: 'Rừng Sắt', map: 'denrung', theme: 'jungle', foes: ['ong', 'xebb', 'uphao'], boss: 'cuthan', hp: 1, dmg: 1, diff: 'easy' },
+  { key: 'c2', name: 'Cảng Băng', map: 'cangbang', theme: 'ice', foes: ['ong', 'xebb', 'phaocoi', 'uphao'], boss: 'chienham', bossMap: 'bentau', hp: 1.7, dmg: 1.3, diff: 'normal' },
+  { key: 'c3', name: 'Xưởng Cát', map: 'xuongcat', theme: 'desert', foes: ['xebb', 'phaocoi', 'khienve', 'uphao', 'ong'], boss: 'dautau', bossMap: 'ganhray', hp: 2.0, dmg: 1.35, diff: 'normal' },
   { key: 'c4', name: 'Miệng Lửa', map: 'mienglua', theme: 'lava', foes: ['khienve', 'phaocoi', 'ong', 'xebb', 'uphao'], boss: 'ngoaitinh', hp: 2.5, dmg: 1.6, diff: 'hard' },
 ];
 export const PVE_STAGES = 6;
@@ -1296,23 +1296,25 @@ export function pveStage(id) {
   const waves = [];
   for (let w = 0; w < nWaves; w++) {
     const last = w === nWaves - 1;
-    const n = boss && last ? 2 : Math.min(7, 3 + Math.floor(st / 2) + Math.floor(ch / 2) + (last ? 1 : 0));
+    const bossKey = BOSSES[C.boss] ? C.boss : 'titan', B = BOSSES[bossKey];
+    // the boss wave: the boss, its parts, and two escorts unless it brings parts or summons of its own
+    const n = boss && last ? (B.parts || B.summons ? 0 : 2) : Math.min(7, 3 + Math.floor(st / 2) + Math.floor(ch / 2) + (last ? 1 : 0));
     // early stages of a chapter draw from its first kinds only; each wave opens with a different lead kind
     const pool = C.foes.slice(0, Math.min(C.foes.length, 2 + Math.floor(st / 2)));
-    const list = [pool[w % pool.length]], cnt = { [list[0]]: 1 };
+    const list = n ? [pool[w % pool.length]] : [], cnt = { [list[0]]: 1 };
     for (let guard = 0; list.length < n && guard < 50; guard++) {
       const k = pool[Math.floor(rnd() * pool.length)];
       if (PVE_HEAVY[k] && (cnt[k] || 0) >= PVE_HEAVY[k]) continue;
       cnt[k] = (cnt[k] || 0) + 1; list.push(k);
     }
-    if (boss && last) list.unshift(BOSSES[C.boss] ? C.boss : 'titan');
+    if (boss && last) { const parts = (B.parts || []).flatMap((q) => Array.from({ length: q.n || q.at.length }, () => q.mech)); list.unshift(bossKey, ...parts); }
     waves.push(list);
   }
   const hp = C.hp * (1 + 0.1 * st), dmg = C.dmg * (1 + 0.05 * st);
   const par = Math.round(22 * waves.reduce((a, w) => a + w.length, 0) / 3 + (boss ? 80 : 0));
   const first = Math.round((220 + 70 * st + 260 * ch) * (boss ? 1.8 : 1) / 10) * 10;
   return {
-    id, ch, st, boss, chapter: C, name: boss ? `${C.name}: Trùm` : `${C.name} ${st + 1}`, map: C.map, theme: C.theme, diff: C.diff, waves,
+    id, ch, st, boss, chapter: C, name: boss ? `${C.name}: Trùm` : `${C.name} ${st + 1}`, map: boss && C.bossMap ? C.bossMap : C.map, theme: C.theme, diff: C.diff, waves,
     hp, dmg, bossHp: hp * 0.2, bossDmg: dmg * 0.85, par, limit: Math.max(300, par * 3),
     reward: { first, repeat: Math.round(first * 0.42 / 10) * 10, fail: Math.round(first * 0.1 / 10) * 10 },
     recLv: Math.min(25, Math.round(ch * 6.5 + st * 1.1)), allyLv: Math.min(5, ch + (st >= 3 ? 1 : 0)),
@@ -1321,3 +1323,88 @@ export function pveStage(id) {
 // Stars for a clear in `time` seconds: 3 at or under par, 2 under 1.6 x par, else 1.
 export const pveStars = (stage, time) => (time <= stage.par ? 3 : time <= stage.par * 1.6 ? 2 : 1);
 /* ===== end feat/dtt-modes Phó bản ===== */
+
+/* ===== feat/dtt-modes: Phó bản chapter bosses ===== */
+// One boss per chapter end, each with a sim script (sim.js, PVE_SCRIPTS) on top of its skills. Every attack is telegraphed on the ground:
+// lobbed shells and barrages mark their strike circles, novas draw their ring while winding up, sweeps draw their line, the rail is always drawn.
+// parts: units that make up the boss (turrets on the warship, carriages of the train), summons: units it calls in later (held dead until then).
+export const PVE_BOSSES = {
+  // Giant tank (the reworked Cự Thần): twin cannon lobs, a line of shells along its aim, a stomp ring; below half hp it fires faster and rings itself with shells.
+  cuthan: {
+    name: 'Cự Thần', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, script: 'tank', tint: 0x9a1a10,
+    hp: 140000, speed: 3.1, radius: 2.6, armor: 0.12, accel: 0.5, turn: 2.2,
+    weapon: { name: 'Pháo Đôi', cd: 1.5, dmg: 360, n: 2, lob: true, flight: 1.0, range: 20, splash: 2.4, vis: 'mortar' },
+    skills: [
+      foeSkill('ct_dam', 'Đè Xích', { cd: 8, do: 'nova', windup: 1.2, radius: 7, dmg: 900, slow: 0.5, slowDur: 2, knock: 4 }),
+      foeSkill('ct_tuyen', 'Pháo Tuyến', { cd: 10, do: 'barrage', line: true, n: 8, gap: 2.4, radius: 0, blast: 2.2, dmg: 620, delay: 1.2, span: 1.2, cast: 14 }),
+      foeSkill('ct_mua', 'Hỏa Vũ', { cd: 14, do: 'barrage', n: 14, radius: 9, blast: 2.6, dmg: 520, delay: 1.3, span: 2.4, cast: 20 }),
+    ],
+  },
+  // Warship: cruises a water lane along the top edge and shells marked zones. While a deck gun stands, its hull shrugs off 60% of all damage.
+  chienham: {
+    name: 'Chiến Hạm', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, script: 'ship', tint: 0x2a4a6a,
+    hp: 80000, speed: 0, radius: 2.8, armor: 0.1, turn: 1.6, lane: { z: -23.5, x: 24, period: 70 }, parts: [{ mech: 'chphao', at: [-4.2, 0, 4.2] }],
+    weapon: { name: 'Hải Pháo', cd: 2.2, dmg: 420, lob: true, flight: 1.4, range: 34, splash: 3, vis: 'mortar' },
+    skills: [
+      foeSkill('chm_kich', 'Pháo Kích', { cd: 6, do: 'barrage', n: 6, radius: 7, blast: 2.6, dmg: 480, delay: 1.6, span: 1.6, cast: 34 }),
+      foeSkill('chm_man', 'Màn Pháo', { cd: 12, do: 'barrage', line: true, n: 9, gap: 2.6, radius: 0, blast: 2.4, dmg: 520, delay: 1.5, span: 1.8, cast: 30 }),
+      foeSkill('chm_khien', 'Khói Che', { cd: 18, do: 'shield', amount: 4000, dur: 4 }),
+    ],
+  },
+  chphao: {
+    name: 'Pháo Hạm', role: 'Pháo tàu', roleKey: 'boss', monster: true, heavy: true, part: true, tint: 0x2a4a6a,
+    hp: 9000, speed: 0, radius: 1.1, armor: 0.1, turn: 2.6,
+    weapon: { name: 'Pháo Boong', cd: 1.9, dmg: 260, lob: true, flight: 1.0, range: 24, splash: 2.2, vis: 'mortar' },
+    skills: [
+      foeSkill('chp_kich', 'Bắn Chụm', { cd: 9, do: 'barrage', n: 3, radius: 2.5, blast: 2.2, dmg: 300, delay: 1.3, span: 0.8, cast: 24 }),
+      foeSkill('chp_khien', 'Lá Chắn', { cd: 16, do: 'shield', amount: 1200, dur: 3 }),
+      foeSkill('chp_kich2', 'Bắn Rải', { cd: 14, do: 'barrage', n: 5, radius: 4, blast: 2.2, dmg: 300, delay: 1.4, span: 1.4, cast: 24 }),
+    ],
+  },
+  // Train: an engine and three armoured carriages loop a rail across the arena. Each carriage carries a gun; the engine has no armour and its fall
+  // derails the rest. Standing on the rail burns; the train itself rams whoever is in its way.
+  dautau: {
+    name: 'Đầu Tàu', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, script: 'train', tint: 0x8a3a12,
+    hp: 30000, speed: 0, radius: 1.7, armor: 0, turn: 3, rail: { rx: 30, rz: 16, speed: 6.5, gap: 4.6, width: 1.7, dps: 140, ram: 420 }, parts: [{ mech: 'toaxe', n: 3 }],
+    weapon: { name: 'Súng Đầu Máy', cd: 1.6, dmg: 240, lob: true, flight: 0.9, range: 18, splash: 2.2, vis: 'mortar' },
+    skills: [
+      foeSkill('dt_coi', 'Còi Hơi', { cd: 9, do: 'nova', windup: 1.0, radius: 5, dmg: 600, knock: 4 }),
+      foeSkill('dt_than', 'Than Hồng', { cd: 11, do: 'barrage', n: 6, radius: 5, blast: 2.2, dmg: 420, delay: 1.3, span: 1.5, cast: 18 }),
+      foeSkill('dt_khien', 'Hơi Nước', { cd: 16, do: 'shield', amount: 2500, dur: 3 }),
+    ],
+  },
+  toaxe: {
+    name: 'Toa Pháo', role: 'Toa tàu', roleKey: 'boss', monster: true, heavy: true, part: true, tint: 0x8a3a12,
+    hp: 6500, speed: 0, radius: 1.6, armor: 0.35, turn: 3,
+    weapon: { name: 'Pháo Toa', cd: 1.8, dmg: 210, lob: true, flight: 1.0, range: 17, splash: 2.2, vis: 'mortar' },
+    skills: [
+      foeSkill('tx_kich', 'Bắn Chụm', { cd: 9, do: 'barrage', n: 3, radius: 2.5, blast: 2.2, dmg: 280, delay: 1.3, span: 0.8, cast: 17 }),
+      foeSkill('tx_khien', 'Thép Dày', { cd: 15, do: 'shield', amount: 1500, dur: 3 }),
+      foeSkill('tx_kich2', 'Bắn Rải', { cd: 13, do: 'barrage', n: 5, radius: 4, blast: 2.2, dmg: 280, delay: 1.4, span: 1.4, cast: 17 }),
+    ],
+  },
+  // Alien: blinks across the arena (its landing spot is marked first and blasts when it arrives), calls drone swarms, sweeps a beam round it.
+  ngoaitinh: {
+    name: 'Ngoại Tinh', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, hover: true, script: 'alien', tint: 0x18a080,
+    hp: 70000, speed: 4.0, radius: 2.2, armor: 0.1, accel: 1, turn: 3, summons: { mech: 'ong', n: 6, every: 15, per: 3 }, blink: { every: 10, delay: 1.3, r: 4, dmg: 700 },
+    weapon: { name: 'Cầu Plasma', cd: 1.2, dmg: 300, lob: true, flight: 0.8, range: 18, splash: 2.2, vis: 'mortar' },
+    skills: [
+      foeSkill('nt_quet', 'Tia Quét', { cd: 11, do: 'sweep', windup: 1.1, dur: 2.4, range: 16, width: 1.4, dps: 700, turn: 1.3, move: 0 }),
+      foeSkill('nt_xung', 'Xung Trọng Lực', { cd: 9, do: 'nova', windup: 1.1, radius: 6, dmg: 750, slow: 0.5, slowDur: 2 }),
+      foeSkill('nt_mua', 'Mưa Sao', { cd: 15, do: 'barrage', n: 12, radius: 8, blast: 2.4, dmg: 480, delay: 1.4, span: 2.2, cast: 18 }),
+    ],
+  },
+};
+Object.assign(BOSSES, PVE_BOSSES);
+// Boss stages of chapters 2 and 3 are fought on their own layouts (PVE_CHAPTERS bossMap, maps.js PVE_MAPS): the warship needs its water lane, the train its loop.
+// Where the train is at rail distance s (metres from the start, any value): the point and the heading along the loop.
+export function railAt(rail, s) {
+  // the ellipse is walked at constant speed through a table of its arc length
+  const T = rail.tbl || (rail.tbl = (() => { const n = 256, t = [0]; let L = 0, px = rail.rx, pz = 0; for (let i = 1; i <= n; i++) { const a = i / n * 2 * Math.PI, x = Math.cos(a) * rail.rx, z = Math.sin(a) * rail.rz; L += Math.hypot(x - px, z - pz); t.push(L); px = x; pz = z; } return t; })());
+  const L = T[T.length - 1], d = ((s % L) + L) % L;
+  let lo = 0, hi = T.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (T[mid] <= d) lo = mid; else hi = mid; }
+  const a = (lo + (d - T[lo]) / ((T[hi] - T[lo]) || 1)) / (T.length - 1) * 2 * Math.PI;
+  return { x: Math.cos(a) * rail.rx, z: Math.sin(a) * rail.rz, h: Math.atan2(Math.cos(a) * rail.rz, -Math.sin(a) * rail.rx), len: L };
+}
+/* ===== end feat/dtt-modes chapter bosses ===== */

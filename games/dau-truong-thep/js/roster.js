@@ -47,7 +47,11 @@ export function pveLineup(stageId, humans, o) {
   while (roster.length < TEAM_SIZE) roster.push({ team: 0, mech: allies.pop(), name: names.pop(), bot: true, diff: 'normal', mods: { lv: flatLv(S.allyLv) } });
   S.waves.forEach((list, wave) => list.forEach((k) => {
     const boss = !!BOSSES[k].boss;
-    roster.push({ team: 1, mech: k, name: BOSSES[k].name, bot: true, diff: boss ? 'hard' : S.diff, wave, mods: { hp: boss ? S.bossHp : S.hp, dmg: boss ? S.bossDmg : S.dmg } });
+    const big = boss || BOSSES[k].part;
+    roster.push({ team: 1, mech: k, name: BOSSES[k].name, bot: true, diff: big ? 'hard' : S.diff, wave, mods: { hp: big ? S.bossHp : S.hp, dmg: big ? S.bossDmg : S.dmg } });
+    // a boss's summons: held dead in its wave until it calls them (sim.js PVE_SCRIPTS)
+    const Z = boss && BOSSES[k].summons;
+    if (Z) for (let i = 0; i < Z.n; i++) roster.push({ team: 1, mech: Z.mech, name: BOSSES[Z.mech].name, bot: true, diff: S.diff, wave, summon: true, mods: { hp: S.hp, dmg: S.dmg } });
   }));
   return { play: 'pve', mode: 'pve', stage: S, roster, map: S.map, theme: S.theme, duration: S.limit };
 }
