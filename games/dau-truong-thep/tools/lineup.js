@@ -1,7 +1,7 @@
 // Review sheet: mechs of both teams lined up on the plaza, close camera, HUD hidden.
 //   node tools/lineup.js [quality] [mech,mech,...|set] [unit overrides as JSON] [out file]
 // A set name picks a roster: c (the eight newest, 16 units), all (all sixteen). Overrides are merged into every unit,
-// for example '{"stance":true}', '{"charge":1.2}', '{"markT":5}', '{"armorT":5}', '{"glow":"tim","decal":"sao"}'.
+// for example '{"stance":true}', '{"charge":1.2}', '{"markT":5}', '{"armorT":5}', '{"skin":"ss"}'.
 // Writes .chk/lineup-<q>-<first mech>.png unless an output file is given.
 'use strict';
 const { session, open, CHK, path } = require('./lib.js');

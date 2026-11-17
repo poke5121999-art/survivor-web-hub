@@ -116,18 +116,15 @@ async function boot() {
   post.grade(world.theme);
   // Portraits are rendered at device pixels (128 px per DPR 1, up to 384): a 128 px image shown at 100 CSS px on a DPR 3 phone is blurry.
   const portraitSize = () => (params.legacyres ? 128 : Math.round(128 * Math.min(3, Math.max(1, window.devicePixelRatio || 1))));
-  G.portrait = (key, team, paint, a, b, form) => {
-    const opt = a && typeof a === 'object' ? { ...a } : typeof a === 'number' ? { size: a } : { glow: a || undefined, decal: b || undefined, form: form || undefined };
-    if (!opt.size) opt.size = portraitSize();
-    return mechs.portrait(key, team, paint, opt);
-  };
+  // skin: a js/skins.js id of that tank (null or unknown: its own look); form: 1..3 (default II).
+  G.portrait = (key, team, skin, form, size) => mechs.portrait(key, team, skin || null, { form: form || undefined, size: size || portraitSize() });
   // Tank select stage (ui.js): while it is open the loop draws only the turning model into the stage's rectangle, not the attract match
   // behind the menu. open() builds it, close() frees it; set() picks mech, cosmetics and form; turn(dx) is a drag.
   let show = null, showEl = null;
   G.showcase = {
     open(el) { showEl = el; if (!show) show = mechs.showcase(); },
     close() { showEl = null; if (show) { show.dispose(); show = null; } },
-    set(key, paint, glow, decal, form) { if (show) show.set(key, paint, glow, decal, form); },
+    set(key, skin, form) { if (show) show.set(key, skin, form); },
     turn(dx) { if (show) show.turn(dx); },
     get on() { return !!(show && showEl); },
   };
@@ -242,7 +239,7 @@ async function boot() {
     const bot = attract || params.spectate;
     // ?side=1 (test hook) puts the player's team on the other end of the map.
     const mine = mode === 'trum' ? 0 : params.side, theirs = 1 - mine;
-    const roster = [{ team: mine, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, paint: attract ? null : choice.paint, glow: attract ? null : choice.glow, decal: attract ? null : choice.decal }];
+    const roster = [{ team: mine, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, skin: attract ? null : choice.skin }];
     // Allied bots grow with the player at half pace. Enemy bots take a share of the player's levels and a damage
     // multiplier from the difficulty (easy: none and 0.65), so a maxed mech is felt against easy bots.
     const myLv = cleanLv(!attract && choice.mods && choice.mods.lv), D = DIFFICULTY[diff];

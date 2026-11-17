@@ -8,7 +8,7 @@
 // Models face +x, +z is the right side, the ground is y = 0.
 import * as THREE from '../../vendor/three.module.min.js';
 import { LAMP } from './steel.js';
-import { OKit, start, finish, fin, put, mix, C3, cannon, fireAura, tubeGeo, bladeGeo, wingPanel, WF, GOLD, GOLD_DEEP, CHROME, PEARL, DARKM } from './ornate.js';
+import { OKit, start, finish, fin, put, mix, C3, cannon, fireAura, tubeGeo, bladeGeo, wingPanel, WF, GOLD, GOLD_DEEP, CHROME, PEARL, DARKM, skinAuraRamp } from './ornate.js';
 
 const PI = Math.PI, TAU = PI * 2;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -37,6 +37,7 @@ const flameShape = (() => {
   return s;
 })();
 function flames(b, pal, cards) {
+  pal = skinAuraRamp() || pal;
   const m = b.mat; b.use('ember'); b.tint(WHITE);
   const g = new THREE.ShapeGeometry(flameShape, 4), p = g.attributes.position, c = [];
   for (let i = 0; i < p.count; i++) {

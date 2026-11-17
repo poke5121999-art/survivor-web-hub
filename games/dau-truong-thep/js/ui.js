@@ -1,5 +1,6 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
-import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, PAINTS, GLOWS, DECALS, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize } from './data.js';
+import { SKINS, GRADES, GRADE_ORDER, BASE_SKIN, skinOf, skinKey } from './skins.js';
 import { rankOf, placeOf, podiumOf } from './meta.js';
 import * as MAPMOD from './maps.js';
 const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
@@ -212,18 +213,18 @@ export function makeUI(G) {
 
   const meta = () => G.meta && G.meta.get();
   const portraits = {};
-  // glow and decal reach G.portrait as extra arguments; a renderer that ignores them just draws the paint.
-  const portrait = (mech, team, paint, glow, decal, form) => {
-    const k = mech + '|' + team + '|' + (paint || '') + '|' + (glow || '') + '|' + (decal || '') + '|' + (form || '');
-    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, paint, glow, decal, form) : ''; } catch (e) { portraits[k] = ''; } }
+  // skin: a js/skins.js id of that tank (null: its own look); size: image px (default: the game's portrait size).
+  const portrait = (mech, team, skin, form, size) => {
+    const k = mech + '|' + team + '|' + (skin || '') + '|' + (form || '') + '|' + (size || '');
+    if (!(k in portraits)) { try { portraits[k] = G.portrait ? G.portrait(mech, team, skin || null, form, size) : ''; } catch (e) { portraits[k] = ''; } }
     return portraits[k];
   };
-  const equipOf = (field) => (mech) => { const d = meta(); return (d && d[field] && d[field][mech]) || 'goc'; };
-  const paintOf = equipOf('paints'), glowOf = equipOf('glows'), decalOf = equipOf('decals');
+  // The skin a tank wears from the save ('goc' when none).
+  const skinFor = (mech) => { const d = meta(); return (d && d.skins && d.skins[mech]) || BASE_SKIN; };
   const lvOf = (mech) => { const d = meta(); return cleanLv(d && d.lv && d.lv[mech]); };
   const levelOf = (mech) => lvOf(mech).reduce((a, b) => a + b, 0);
-  const cosOf = (mech) => ({ paint: paintOf(mech), glow: glowOf(mech), decal: decalOf(mech) });
-  const mineImg = (mech, team, own) => (own ? portrait(mech, team, paintOf(mech), glowOf(mech), decalOf(mech), formOf(lvOf(mech))) : portrait(mech, team, null, null, null, 1));
+  const cosOf = (mech) => ({ skin: skinFor(mech) });
+  const mineImg = (mech, team, own) => (own ? portrait(mech, team, skinFor(mech), formOf(lvOf(mech))) : portrait(mech, team, null, 1));
   const rankNow = () => (G.meta && G.meta.rank ? G.meta.rank() : rankOf(0));
   // Accepts a unit (u.def covers bosses) or a mech key; a bare MECHS[key] lookup is undefined for 'titan'.
   const roleIcon = (x) => { const d = typeof x === 'string' ? MECHS[x] || BOSSES[x] : x && x.def; return icon(d ? d.roleKey : 'generic'); };
@@ -298,7 +299,7 @@ export function makeUI(G) {
 
   function addCard(col, u) {
     const c = el('div', `pc t${u.color}${u.id === G.me ? ' me' : ''}`);
-    c.innerHTML = `<div class="pc-img"><img alt="" src="${u.id === G.me ? mineImg(u.mech, u.color, true) : portrait(u.mech, u.color, u.paint, u.glow, u.decal)}"><span class="pc-role">${roleIcon(u)}</span><span class="pc-mk">${icon('mark')}</span><div class="pc-dead"><b></b></div></div>
+    c.innerHTML = `<div class="pc-img"><img alt="" src="${u.id === G.me ? mineImg(u.mech, u.color, true) : portrait(u.mech, u.color, u.skin)}"><span class="pc-role">${roleIcon(u)}</span><span class="pc-mk">${icon('mark')}</span><div class="pc-dead"><b></b></div></div>
       <div class="pc-info"><span class="pc-name">${esc(u.name)}</span><div class="pc-hp"><i></i></div><span class="pc-kd">0 / 0</span></div>`;
     col.appendChild(c);
     cards[u.id] = { root: c, hp: c.querySelector('.pc-hp i'), dead: c.querySelector('.pc-dead b'), kd: c.querySelector('.pc-kd') };
@@ -1321,7 +1322,7 @@ export function makeUI(G) {
     menu.querySelectorAll('[data-su]').forEach((b) => b.classList.toggle('on', b.dataset.su === suTab));
   }
   menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
-  let shopOn = false;
+  let shopOn = false, skinOn = false;
   let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'desc';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
@@ -1423,21 +1424,20 @@ export function makeUI(G) {
   window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && menu.classList.contains('su-open') && !confirmEl.classList.contains('on') && !shopOn) setSheet(false); });
   const matchText = () => `${MODES[modeKey].name} · ${mapKey === 'random' ? 'Ngẫu nhiên' : MAPS[mapKey].name}`;
 
-  // Stage: the 3D view when the game has one (G.showcase), else the big portrait. pv: cosmetics being previewed; pvForm: form being previewed.
+  // Stage: the 3D view when the game has one (G.showcase), else the big portrait. pvForm: form being previewed.
   const stageOn = () => !!(G.showcase && menu.classList.contains('gl'));
-  function paintStage(pv) {
+  function paintStage() {
     const own = ownedMech(sel), cur = own ? formOf(lvOf(sel)) : 1, form = pvForm || cur;
-    const c = own ? { ...cosOf(sel), ...pv } : { paint: null, glow: null, decal: null, ...pv };
-    M.sgImg.src = portrait(sel, 0, c.paint, c.glow, c.decal, form);
-    const g = GLOWS[c.glow];
-    if (g && g.color != null && (own || pv)) M.sgImg.style.setProperty('--gl', hex(g.color)); else M.sgImg.style.removeProperty('--gl');
+    const skin = own ? skinFor(sel) : null, row = skinOf(sel, skin);
+    M.sgImg.src = portrait(sel, 0, skin, form);
+    if (row && row.pal) M.sgImg.style.setProperty('--gl', hex(row.pal.glow)); else M.sgImg.style.removeProperty('--gl');
     M.stage.classList.toggle('f3', form === 3);
     M.sgPv.hidden = form === cur;
     M.sgPv.textContent = `Xem trước hình thái ${ROMAN[form - 1]}`;
-    if (stageOn()) G.showcase.set(sel, c.paint, c.glow, c.decal, form);
+    if (stageOn()) G.showcase.set(sel, skin, form);
   }
   function stageOpen() {
-    if (!G.showcase || shopOn || !menu.classList.contains('on')) return;
+    if (!G.showcase || shopOn || skinOn || !menu.classList.contains('on')) return;
     try { G.showcase.open(M.stage); menu.classList.add('gl'); paintStage(); } catch (e) { menu.classList.remove('gl'); }
   }
   function stageClose() { menu.classList.remove('gl'); if (G.showcase) G.showcase.close(); }
@@ -1468,15 +1468,17 @@ export function makeUI(G) {
       b.onclick = () => showTip(b._mouse ? i : tipOn === i ? -1 : i);
     });
     showTip(tipOn);
+    const skinBtn = `<button class="btn sg-skin" data-r="skinBtn">${icon('dice')}Skin</button>`;
     if (own) {
       const maxed = total >= UPGRADE.max * TRACKS.length;
-      M.sgFoot.innerHTML = `<span class="sg-have">Lv Tank đã có: <b>LV.${total}</b></span><button class="btn sg-up" data-r="upBtn">${icon('up')}${maxed ? 'Đã tối đa' : 'Tăng LV Tank'}</button>`;
+      M.sgFoot.innerHTML = `<span class="sg-have">Lv Tank đã có: <b>LV.${total}</b></span><button class="btn sg-up" data-r="upBtn">${icon('up')}${maxed ? 'Đã tối đa' : 'Tăng LV Tank'}</button>${skinBtn}`;
       M.sgFoot.querySelector('.sg-up').onclick = () => { tab = 'up'; setSheet(false); renderDetail(); };
     } else {
-      M.sgFoot.innerHTML = `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button></div>`;
+      M.sgFoot.innerHTML = `<div class="buyrow"><button class="btn buy" data-r="buy">${icon('lock')}Mở khóa · <b>${fmtN(d.price)}</b> xu</button><button class="btn buy gem" data-r="buyg">${icon('gem')}<b>${fmtN(gemCost(d.price))}</b> Tinh Thể</button>${skinBtn}</div>`;
       M.sgFoot.querySelector('[data-r="buy"]').onclick = () => buyMech(sel, 'coins');
       M.sgFoot.querySelector('[data-r="buyg"]').onclick = () => buyMech(sel, 'gems');
     }
+    M.sgFoot.querySelector('.sg-skin').onclick = () => showSkins();
     paintStage();
   }
 
@@ -1493,7 +1495,7 @@ export function makeUI(G) {
     </svg>${labs}</div></div>`;
   }
   function renderDesc(d, own, lv) {
-    const cur = own ? formOf(lv) : 1, form = pvForm || cur, c = own ? cosOf(sel) : {}, n = diffOf(sel);
+    const cur = own ? formOf(lv) : 1, form = pvForm || cur, skin = own ? skinFor(sel) : null, n = diffOf(sel);
     const forms = [1, 2, 3].map((f) => {
       const at = f === 1 ? 0 : FORM_AT[f - 2], lock = f > cur;
       return `<button class="fmb${f === form ? ' on' : ''}${f === cur ? ' cur' : ''}${lock ? ' lock' : ''}${f === 3 ? ' f3' : ''}" data-form="${f}"><b>${ROMAN[f - 1]}</b><small>${f === 1 ? 'Gốc' : lock ? `${icon('lock')}Tổng cấp ${at}` : 'Đã mở'}</small></button>`;
@@ -1503,7 +1505,7 @@ export function makeUI(G) {
       <div class="ds-r"><span>Độ khó</span><b class="stars" aria-label="${n} trên 3">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}">★</i>`).join('')}</b></div>
       ${radarHtml(radarOf(sel, lv))}
       <p class="ds-bl">${esc(d.blurb)}</p>
-      <div class="ds-fm"><h4>Hình thái</h4><div class="fm-row"><img class="fm-img${form === 3 ? ' f3' : ''}" alt="" src="${portrait(sel, 0, c.paint, c.glow, c.decal, form)}"><div class="fm-btns">${forms}</div></div>
+      <div class="ds-fm"><h4>Hình thái</h4><div class="fm-row"><img class="fm-img${form === 3 ? ' f3' : ''}" alt="" src="${portrait(sel, 0, skin, form)}"><div class="fm-btns">${forms}</div></div>
       <small class="fm-note">${cur === 3 ? 'Hình thái III: khung vàng cam trên ô tank.' : `Nâng tổng cấp lên ${FORM_AT[cur - 1]} để mở hình thái ${ROMAN[cur]}.`}</small></div>
     </div>`;
   }
@@ -1600,31 +1602,16 @@ export function makeUI(G) {
     return `<div class="garage"><div class="up-sum"><b>Tổng cấp ${total} / ${UPGRADE.max * TRACKS.length}</b><span>${perkCount(lv)} / ${UPGRADE.perkAt.length} mốc chiêu thức · 1 Tinh Thể = ${GEM_RATE} xu</span></div>${rows}</div>`;
   }
 
-  const COS = [
-    { kind: 'paint', title: 'Sơn viền', table: PAINTS, owned: 'ownedPaints', of: paintOf, buy: 'buyPaint', set: 'setPaint', sw: (r) => r.color },
-    { kind: 'glow', title: 'Màu phát sáng', table: GLOWS, owned: 'ownedGlows', of: glowOf, buy: 'buyGlow', set: 'setGlow', sw: (r) => r.color },
-    { kind: 'decal', title: 'Decal', table: DECALS, owned: 'ownedDecals', of: decalOf, buy: 'buyDecal', set: 'setDecal', sw: () => null },
-  ];
   const hex = (c) => '#' + c.toString(16).padStart(6, '0');
-  let preview = null;
-  function renderCosmetics() {
-    const m = meta();
-    return `<div class="garage">${COS.map((c) => `<div class="paints"><h4>${c.title}</h4><div class="pgrid">${Object.keys(c.table).map((k) => {
-      const r = c.table[k], have = (m[c.owned] || ['goc']).includes(k), on = c.of(sel) === k, col = c.sw(r);
-      const mark = c.kind === 'decal' ? `<i class="dc ${k}">${k === 'goc' ? '' : '<s></s>'}</i>` : `<i class="${col == null ? 'orig' : ''}"${col == null ? '' : ` style="background:${hex(col)}"`}></i>`;
-      return `<button class="pt${have ? ' own' : ''}${on ? ' eq' : ''}" data-cos="${c.kind}" data-k="${k}">${mark}<b>${r.name}</b><small>${on ? 'Đang dùng' : have ? 'Trang bị' : `${fmtN(r.price)} xu · ${gemCost(r.price)} TT`}</small></button>`;
-    }).join('')}</div></div>`).join('')}</div>`;
-  }
-  const paintHead = (pv) => paintStage(pv);
   const ROMAN = ['I', 'II', 'III'];
-  const TABS_ALL = [['desc', 'Mô tả', 'info'], ['info', 'Chi tiết', 'tank'], ['up', 'Nâng cấp', 'wrench'], ['cos', 'Trang trí', 'dice']];
+  const TABS_ALL = [['desc', 'Mô tả', 'info'], ['info', 'Chi tiết', 'tank'], ['up', 'Nâng cấp', 'wrench']];
 
   function renderDetail() {
     const d = MECHS[sel], own = ownedMech(sel);
     const tabs = own ? TABS_ALL : TABS_ALL.slice(0, 2);
     if (!tabs.some((t) => t[0] === tab)) tab = 'desc';
     const lv = own ? lvOf(sel) : NO_LV, def = buildDef(sel, lv), total = lv.reduce((a, b) => a + b, 0);
-    const body = tab === 'up' ? renderUpgrades(d) : tab === 'cos' ? renderCosmetics() : tab === 'info' ? renderInfo(d, def, own, lv) : renderDesc(d, own, lv);
+    const body = tab === 'up' ? renderUpgrades(d) : tab === 'info' ? renderInfo(d, def, own, lv) : renderDesc(d, own, lv);
     M.detail.innerHTML = `<div class="tabs">${tabs.map(([k, n, ic]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${icon(ic)}${n}</button>`).join('')}</div>
       <div class="md-body">${body}</div>`;
     M.detail.dataset.tab = tab;
@@ -1636,21 +1623,6 @@ export function makeUI(G) {
         const i = +b.dataset.up, how = b.dataset.pay;
         if (G.meta && G.meta.upgrade(sel, i, how)) { refreshAll(); toast(`${d.name}: ${TRACKS[i].name} lên cấp ${lvOf(sel)[i]}`); const row = M.detail.querySelector(`[data-track="${TRACKS[i].key}"] .tr-lv`); if (row) pop(row, 1.5, 400); }
         else noCoins(b, how === 'gems');
-      };
-    });
-    M.detail.querySelectorAll('[data-cos]').forEach((b) => {
-      const c = COS.find((x) => x.kind === b.dataset.cos), k = b.dataset.k, r = c.table[k];
-      b.onmouseenter = b.onfocus = () => paintHead({ [c.kind]: k });
-      b.onmouseleave = b.onblur = () => paintHead({});
-      b.onclick = () => {
-        if (!G.meta) return;
-        if (meta()[c.owned].includes(k)) { G.meta[c.set](sel, k); refreshAll(); return; }
-        paintHead({ [c.kind]: k });
-        const how = payFor(r.price);
-        if (!how) { noCoins(b); return; }
-        ask(`Mua ${c.title.toLowerCase()} ${r.name}?`, `Trả ${priceHtml(r.price, how)}, món này sẽ được trang bị cho ${d.name}.`, 'Mua', () => {
-          if (G.meta[c.buy](k, how) && G.meta[c.set](sel, k)) { refreshAll(); toast('Đã trang bị ' + r.name); } else noCoins(null, how === 'gems');
-        });
       };
     });
   }
@@ -1680,9 +1652,7 @@ export function makeUI(G) {
     if (g.gems) out.push(['gem', `${fmtN(g.gems)} Tinh Thể`]);
     if (g.coins) out.push(['coin', `${fmtN(g.coins)} xu`]);
     if (g.mech && MECHS[g.mech]) out.push(['tank', MECHS[g.mech].name]);
-    if (g.paint && PAINTS[g.paint]) out.push(['dice', `Sơn ${PAINTS[g.paint].name}`]);
-    if (g.glow && GLOWS[g.glow]) out.push(['flame', `Phát sáng ${GLOWS[g.glow].name}`]);
-    if (g.decal && DECALS[g.decal]) out.push(['flag', `Decal ${DECALS[g.decal].name}`]);
+    if (typeof g.skin === 'string') { const [sm, sid] = g.skin.split(':'), r = SKINS[sm] && skinOf(sm, sid); if (r && r.id === sid) out.push(['dice', `Skin ${r.name} (${r.grade})`]); }
     if (g.pass) out.push(['trophy', `Thẻ tháng ${g.pass} ngày`]);
     return out;
   };
@@ -1725,6 +1695,67 @@ export function makeUI(G) {
     const claim = SH.body.querySelector('[data-r="claim"]');
     if (claim) claim.onclick = () => { const n = G.meta.claimDaily(); if (n) { refreshAll(); toast(`Đã nhận ${n} Tinh Thể hôm nay`); } };
   }
+  /* ---- skins: whole looks per tank (js/skins.js), after the old game's "坦克皮肤" panel ---- */
+  const skinEl = el('div', 'screen skins');
+  skinEl.dataset.block = '';
+  skinEl.innerHTML = `
+    <header class="sh-head sk-head">
+      <button class="btn" data-r="back">${icon('back')}Quay lại</button>
+      <h2>Skin tank<small data-r="name"></small></h2>
+      <div class="sh-bal"><span class="coins">${icon('gem')}<b data-r="gems">0</b><small>Tinh Thể</small></span><span class="coins">${icon('coin')}<b data-r="coins">0</b><small>xu</small></span></div>
+    </header>
+    <div class="sk-wrap">
+      <aside class="sk-side" data-r="side"></aside>
+      <div class="sk-main">
+        <div class="sk-tabs" data-r="tabs">${['all'].concat(GRADE_ORDER).map((k) => `<button data-g="${k}"${k === 'all' ? ' class="on"' : ''}>${k === 'all' ? 'Tất cả' : 'Cấp ' + k}</button>`).join('')}</div>
+        <div class="sk-cards" data-r="cards"></div>
+        <p class="sk-note">Ảnh ở hình thái III. Skin đổi cả bộ: màu, độ bóng, hào quang; dùng ở mọi hình thái và cả khi chơi mạng.</p>
+      </div>
+    </div>`;
+  const SK = refs(skinEl);
+  root.appendChild(skinEl);
+  let skinGrade = 'all';
+  const skinPx = () => Math.round(240 * Math.min(2, Math.max(1, window.devicePixelRatio || 1)));
+  function renderSkins() {
+    const d = meta();
+    if (!d || !skinOn) return;
+    const own = ownedMech(sel), list = SKINS[sel] || [], on = skinFor(sel), md = MECHS[sel];
+    SK.coins.textContent = fmtN(d.coins); SK.gems.textContent = fmtN(d.gems || 0);
+    SK.name.textContent = md.name;
+    // Collection count per grade over every tank (the reference's bonus column; no bonus is given yet).
+    const all = Object.keys(SKINS), have = (g) => all.reduce((n, k) => n + SKINS[k].filter((r) => r.grade === g && (r.id === BASE_SKIN ? d.owned.includes(k) : d.ownedSkins.includes(skinKey(k, r.id)))).length, 0);
+    const total = (g) => all.reduce((n, k) => n + SKINS[k].filter((r) => r.grade === g).length, 0);
+    SK.side.innerHTML = `<h3>Bộ sưu tập</h3>${GRADE_ORDER.map((g) => `<div class="sk-col"><i class="sk-g g-${g}">${g}</i><span>Skin cấp ${g}</span><b>${have(g)} / ${total(g)}</b></div>`).join('')}
+      <div class="sk-tank"><h4>${esc(md.name)}</h4><span>${list.filter((r) => r.id === BASE_SKIN || d.ownedSkins.includes(skinKey(sel, r.id))).length} / ${list.length} skin</span></div>`;
+    SK.tabs.querySelectorAll('[data-g]').forEach((b) => b.classList.toggle('on', b.dataset.g === skinGrade));
+    SK.cards.innerHTML = list.filter((r) => skinGrade === 'all' || r.grade === skinGrade).map((r) => {
+      const has = r.id === BASE_SKIN || d.ownedSkins.includes(skinKey(sel, r.id)), eq = own && on === r.id;
+      const act = eq ? `<span class="skc-on">${icon('check')}Đang dùng</span>`
+        : has ? `<button class="btn skc-use" data-use="${r.id}"${own ? '' : ' disabled title="Mở khóa tank trước"'}>Dùng</button>`
+        : `<button class="btn skc-buy" data-buy="${r.id}"${own ? '' : ' disabled title="Mở khóa tank trước"'}>${icon('coin')}<b>${fmtN(r.price)}</b><small>${fmtN(gemCost(r.price))} TT</small></button>`;
+      return `<div class="skc g-${r.grade}${eq ? ' eq' : ''}${has ? ' own' : ''}" data-skin="${r.id}">
+        <b class="skc-n">${esc(r.name)}</b>
+        <div class="skc-img"><i class="skc-ped"></i><img alt="" src="${portrait(sel, 0, r.id, 3, skinPx())}"></div>
+        <span class="skc-g">Cấp: <i class="sk-g g-${r.grade}">${r.grade}</i></span>
+        <div class="skc-act">${act}</div></div>`;
+    }).join('') || '<p class="sk-none">Không có skin cấp này.</p>';
+    SK.cards.querySelectorAll('[data-use]').forEach((b) => { b.onclick = () => { if (G.meta.setSkin(sel, b.dataset.use)) { refreshAll(); renderSkins(); toast('Đã dùng skin ' + skinOf(sel, b.dataset.use).name); } }; });
+    SK.cards.querySelectorAll('[data-buy]').forEach((b) => {
+      b.onclick = () => {
+        const r = skinOf(sel, b.dataset.buy), how = payFor(r.price);
+        if (!how) { noCoins(b); return; }
+        ask(`Mua skin ${r.name}?`, `Trả ${priceHtml(r.price, how)} cho skin cấp ${r.grade} của ${md.name}. Skin sẽ được dùng ngay.`, 'Mua', () => {
+          if (G.meta.buySkin(sel, r.id, how) && G.meta.setSkin(sel, r.id)) { refreshAll(); renderSkins(); toast('Đã mua và dùng skin ' + r.name); } else noCoins(null, how === 'gems');
+        });
+      };
+    });
+  }
+  SK.tabs.querySelectorAll('[data-g]').forEach((b) => { b.onclick = () => { skinGrade = b.dataset.g; renderSkins(); }; });
+  function showSkins() { if (!G.meta) return; skinOn = true; skinGrade = 'all'; stageClose(); skinEl.classList.add('on'); renderSkins(); }
+  function hideSkins() { const was = skinOn; skinOn = false; skinEl.classList.remove('on'); if (was) { refreshAll(); stageOpen(); } }
+  SK.back.onclick = hideSkins;
+  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && skinOn && !confirmEl.classList.contains('on')) hideSkins(); });
+
   function showShop() { if (!G.meta) return; shopOn = true; stageClose(); renderShop(); shopEl.classList.add('on'); }
   function hideShop() { const was = shopOn; shopOn = false; shopEl.classList.remove('on'); if (was) stageOpen(); }
   SH.back.onclick = () => { hideShop(); renderPlayer(); };
@@ -1823,7 +1854,7 @@ export function makeUI(G) {
     M.net.hidden = !G.online;
     stageOpen();
   }
-  function hideMenu() { menu.classList.remove('on'); stageClose(); hideShop(); closeModals(); hideEntry(); hideLobby(); }
+  function hideMenu() { menu.classList.remove('on'); stageClose(); hideShop(); hideSkins(); closeModals(); hideEntry(); hideLobby(); }
 
   /* ---- settings + help modals ---- */
   const toastEl = el('div', 'toast'); root.appendChild(toastEl);
@@ -2505,7 +2536,7 @@ export function makeUI(G) {
   const lobbyMe = () => { const o = G.online; return o && o.lobby && o.lobby.players.find((p) => p.id === o.me); };
   const mechDef = (k) => MECHS[k] || BOSSES[k] || { name: k, role: '' };
 
-  // Paint and upgrade mods always come from the save; the mech is the saved favourite on first entry and the lobby's own afterwards.
+  // Skin and upgrade mods always come from the save; the mech is the saved favourite on first entry and the lobby's own afterwards.
   function pushMine(first) {
     const o = G.online, me = lobbyMe(), d = meta();
     if (!me || !d) return;
@@ -2518,7 +2549,7 @@ export function makeUI(G) {
     const o = G.online, me = p.id === o.me, d = mechDef(p.mech);
     const swap = o.role === 'host' && !ffa && o.lobby.mode !== 'trum' ? `<button class="btn mini" data-a="swap" data-pid="${esc(p.id)}" title="Chuyển ${esc(p.name)} sang đội kia">${icon('swap')}Đổi đội</button>` : '';
     return `<div class="seat t${ffa ? 2 : p.team}${me ? ' me' : ''}${p.ready ? ' rdy' : ''}" data-pid="${esc(p.id)}">
-      <img alt="" src="${portrait(p.mech, p.team, p.paint, p.glow, p.decal)}">
+      <img alt="" src="${portrait(p.mech, p.team, p.skin)}">
       <div class="st-t"><b class="st-n"><span>${esc(p.name)}</span>${p.host ? '<em class="badge">Chủ phòng</em>' : ''}${me ? '<em class="you">Bạn</em>' : ''}</b><span class="st-m">${roleIcon(p.mech)}${d.name}</span></div>
       <div class="st-r"><span class="rdy-p">${icon(p.ready ? 'check' : 'pause')}${p.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}</span>${swap}</div>
     </div>`;
@@ -2561,7 +2592,7 @@ export function makeUI(G) {
     const host = o.role === 'host', me = lobbyMe() || {}, ffaOrBoss = L.mode === 'tudo' || L.mode === 'trum';
     const waiting = L.players.filter((p) => !p.ready).length;
     const owned = MECH_ORDER.filter(ownedMech);
-    const lv = levelOf(me.mech), paint = PAINTS[me.paint] || PAINTS.goc;
+    const lv = levelOf(me.mech), skinRow = skinOf(me.mech, me.skin);
     const keep = lobbyEl.querySelector('.lb-teams'), top = keep ? keep.scrollTop : 0;
     // The redraw below detaches the chat box, so the typing state has to be read first.
     const cin = lobbyChat.R.input, typing = document.activeElement === cin, at = [cin.selectionStart, cin.selectionEnd];
@@ -2575,7 +2606,7 @@ export function makeUI(G) {
         <div class="lb-main">
           <div class="lb-teams m-${L.mode}">${teamsHtml(L)}</div>
           <div data-slot="chat"></div>
-          <section class="panel lb-mine"><div class="lb-mh"><h3>Cơ giáp của bạn</h3><small>Sơn ${esc(paint.name)}${lv ? ` · Nâng cấp +${lv}` : ''}, lấy từ kho của bạn</small></div>
+          <section class="panel lb-mine"><div class="lb-mh"><h3>Cơ giáp của bạn</h3><small>Skin ${esc(skinRow ? skinRow.name : 'Nguyên Bản')}${lv ? ` · Nâng cấp +${lv}` : ''}, lấy từ kho của bạn</small></div>
             <div class="lm-grid">${owned.map((k) => `<button class="lm${k === me.mech ? ' sel' : ''}" data-a="mech" data-k="${k}"><img alt="" src="${mineImg(k, me.team || 0, true)}"><span><b>${MECHS[k].name}</b><em>${roleIcon(k)}${MECHS[k].role}</em></span></button>`).join('')}</div></section>
         </div>
         <div class="lb-side">

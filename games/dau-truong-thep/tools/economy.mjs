@@ -3,7 +3,8 @@
 // ECON_MATCHES (default 30) real matches, ECON_PLAYERS (default 300) simulated players, ECON_DAY matches per calendar day (default 5).
 import { createMatch, step, summary } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
-import { MECHS, MECH_ORDER, MODE_ORDER, BOT_NAMES, TICK, UPGRADE, TRACKS, PERKS, PAINTS, GLOWS, DECALS, GEM_RATE, TEAM_SIZE } from '../js/data.js';
+import { SKINS } from '../js/skins.js';
+import { MECHS, MECH_ORDER, MODE_ORDER, BOT_NAMES, TICK, UPGRADE, TRACKS, PERKS, GEM_RATE, TEAM_SIZE } from '../js/data.js';
 import { makeMeta } from '../js/meta.js';
 import { mapsFor } from '../js/maps.js';
 
@@ -58,7 +59,7 @@ const maxOne = levelsCost(TRACKS.length * UPGRADE.max);
 const firstPerk = levelsCost(UPGRADE.perkAt[0]);
 const priced = MECH_ORDER.filter((k) => MECHS[k].price > 0);
 const sumPrices = priced.reduce((a, k) => a + MECHS[k].price, 0);
-const cosmetics = [PAINTS, GLOWS, DECALS].reduce((a, t) => a + Object.values(t).reduce((b, r) => b + r.price, 0), 0);
+const cosmetics = Object.values(SKINS).reduce((a, list) => a + list.reduce((b, r) => b + r.price, 0), 0);
 const everything = sumPrices + MECH_ORDER.length * maxOne + cosmetics;
 
 const rows = [];

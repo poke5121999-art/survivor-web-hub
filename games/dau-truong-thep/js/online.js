@@ -10,7 +10,8 @@ import { hostRoom, joinRoom, listRooms as listRelayRooms } from './net/room.js';
 import { nearestRegion } from './net/region.js';
 import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS, F_GUESS } from './netstate.js';
 import { createPredictor, createGunner } from './predict.js';
-import { MECHS, BOSSES, MECH_ORDER, MODES, PAINTS, GLOWS, DECALS, DIFFICULTY, BOT_NAMES, TICK, TEAM_SIZE, cleanSize, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
+import { cleanSkin } from './skins.js';
+import { MECHS, BOSSES, MECH_ORDER, MODES, DIFFICULTY, BOT_NAMES, TICK, TEAM_SIZE, cleanSize, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
 import { walk, gripAt, turnRate } from './sim.js';
@@ -369,7 +370,7 @@ export function makeOnline(G) {
 
   // ---- lobby model (host owns it, guests hold a copy) -------------------------------------------------------------
   const newLobby = (hostName) => ({
-    players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], paint: null, glow: null, decal: null, mods: { lv: NO_LV }, team: 0, ready: true, host: true }],
+    players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], skin: null, mods: { lv: NO_LV }, team: 0, ready: true, host: true }],
     map: 'denrung', theme: null, mode: 'tdm', diff: 'normal', size: TEAM_SIZE,
   });
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
@@ -383,13 +384,14 @@ export function makeOnline(G) {
     if (mode === 'tudo') return L.players.length > 2 * size ? T.sizeBlockedFfa(size) : '';
     return [0, 1].some((t) => L.players.filter((p) => p.team === t).length > size) ? T.sizeBlocked(size) : '';
   };
+  // A guest keeps the host's lobby but never a skin its tank does not have: both ends then draw the same look.
+  const cleanLobby = (L) => { if (L && Array.isArray(L.players)) for (const p of L.players) if (p && typeof p === 'object') p.skin = cleanSkin(p.mech, p.skin); return L; };
   const lobbyPlayer = (pid) => online.lobby && online.lobby.players.find((p) => p.id === pid);
   const cleanName = (n) => String(n || '').trim().slice(0, 24) || T.guestName;
   function cleanMine(p, m) {
     if (MECHS[m.mech]) p.mech = m.mech;
-    if (m.paint === null || PAINTS[m.paint]) p.paint = m.paint;
-    if (m.glow === null || GLOWS[m.glow]) p.glow = m.glow || null;
-    if (m.decal === null || DECALS[m.decal]) p.decal = m.decal || null;
+    // The skin must be one of that tank's skins (js/skins.js); anything else, or a skin left over from another tank, is its own look.
+    p.skin = cleanSkin(p.mech, m.skin);
     if (m.mods && typeof m.mods === 'object') p.mods = { lv: cleanLv(m.mods.lv) };
     if (!p.host && typeof m.ready === 'boolean') p.ready = m.ready;
   }
@@ -421,7 +423,7 @@ export function makeOnline(G) {
       peer.pid = 'p' + (++pidN);
       peer.uid = m.uid || null;
       const used = new Set(online.lobby.players.map((p) => p.mech));
-      online.lobby.players.push({ id: peer.pid, name: cleanName(m.name), mech: MECH_ORDER.find((k) => !used.has(k)) || MECH_ORDER[0], paint: null, glow: null, decal: null, mods: { lv: NO_LV }, team: pickTeam(), ready: false, host: false });
+      online.lobby.players.push({ id: peer.pid, name: cleanName(m.name), mech: MECH_ORDER.find((k) => !used.has(k)) || MECH_ORDER[0], skin: null, mods: { lv: NO_LV }, team: pickTeam(), ready: false, host: false });
       sendRel(peer, { t: 'welcome', pid: peer.pid, lobby: online.lobby });
       for (const p of joined()) if (p !== peer) sendRel(p, { t: 'lobby', lobby: online.lobby });
       publishRoom();
@@ -445,13 +447,13 @@ export function makeOnline(G) {
   const GUEST_MSG = {
     welcome(peer, m) {
       if (online.state !== 'connecting') return;
-      online.me = m.pid; online.lobby = m.lobby;
+      online.me = m.pid; online.lobby = cleanLobby(m.lobby);
       fire('ready');
     },
     reject(peer, m) { if (online.state === 'connecting') fail(m.why || T.generic); },
     lobby(peer, m) {
       if (online.state === 'connecting') return;
-      online.lobby = m.lobby;
+      online.lobby = cleanLobby(m.lobby);
       changed();
     },
     start(peer, m) {
@@ -628,7 +630,7 @@ export function makeOnline(G) {
     if (!p) return false;
     cleanMine(p, mine);
     if (online.role === 'host') broadcastLobby();
-    else sendRel(peerOf(link.hostId), { t: 'mine', mech: p.mech, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, ready: p.ready });
+    else sendRel(peerOf(link.hostId), { t: 'mine', mech: p.mech, skin: p.skin, mods: p.mods, ready: p.ready });
     changed();
     return true;
   };
@@ -682,7 +684,7 @@ export function makeOnline(G) {
     const unit = (r) => {
       const lv = r.mech === 'titan' ? null : versus || r.bot ? botLv : cleanLv(r.mods && r.mods.lv);
       const def = MECHS[r.mech] ? buildDef(r.mech, lv) : BOSSES[r.mech];
-      return { team: r.team, color: L.mode === 'tudo' ? 1 : r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: L.diff, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null,
+      return { team: r.team, color: L.mode === 'tudo' ? 1 : r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: L.diff, skin: cleanSkin(r.mech, r.skin),
         mods: lv ? { lv } : {}, radius: def.radius, maxHp: def.hp, pid: r.pid || null };
     };
     const size = sizeOf(L), units = [], slots = {};
@@ -695,12 +697,12 @@ export function makeOnline(G) {
     const add = (r) => { if (r.pid) slots[r.pid] = units.length; units.push(unit(r)); };
     if (L.mode === 'tudo') {
       const taken = L.players.map((p) => p.mech);
-      for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
+      for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, skin: p.skin, mods: p.mods, pid: p.id });
       while (units.length < 2 * size) add({ team: units.length < size ? 0 : 1, mech: botMech(taken), name: names.pop(), bot: true });
     } else {
       for (const team of L.mode === 'trum' ? [0] : [0, 1]) {
         const mine = L.players.filter((p) => p.team === team), taken = mine.map((p) => p.mech);
-        for (const p of mine) add({ team, mech: p.mech, name: p.name, paint: p.paint, glow: p.glow, decal: p.decal, mods: p.mods, pid: p.id });
+        for (const p of mine) add({ team, mech: p.mech, name: p.name, skin: p.skin, mods: p.mods, pid: p.id });
         for (let i = mine.length; i < (L.mode === 'trum' ? TEAM_SIZE : size); i++) add({ team, mech: botMech(taken), name: names.pop(), bot: true });
       }
       if (L.mode === 'trum') add({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true });

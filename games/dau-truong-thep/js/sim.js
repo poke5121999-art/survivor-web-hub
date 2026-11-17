@@ -7,6 +7,7 @@
 //
 // Angles are radians in the XZ plane: direction = (cos a, sin a).
 
+import { cleanSkin } from './skins.js';
 import { TICK, RULES, PICKUPS, MECHS, PROPS, MODES, BOSSES, buildDef, formDef, matchSize, ruleFor } from './data.js';
 import { mulberry } from './rng.js';
 import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from './maps.js';
@@ -41,7 +42,7 @@ export function createMatch(opts) {
     const team = mode === 'tudo' ? m.units.length : r.team;
     const u = {
       id: m.units.length, team, color: mode === 'tudo' ? 1 : r.team, mech: r.mech, def, name: r.name, bot: !!r.bot, diff: r.diff || 'normal',
-      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, paint: r.paint || null, glow: r.glow || null, decal: r.decal || null, radius: def.radius, moveRadius: def.boss ? def.radius : RULES.moveRadius, maxHp: Math.round(def.hp * (mods.hp || 1) * (def.boss ? rule.bossHp || 1 : 1)), dmgMod: (mods.dmg || 1) * (def.dmgUp || 1),
+      slot: mode === 'tudo' ? m.units.length : slot[r.team]++, skin: cleanSkin(r.mech, r.skin), radius: def.radius, moveRadius: def.boss ? def.radius : RULES.moveRadius, maxHp: Math.round(def.hp * (mods.hp || 1) * (def.boss ? rule.bossHp || 1 : 1)), dmgMod: (mods.dmg || 1) * (def.dmgUp || 1),
       lv: def.lv || null, passive: def.passive ? def.passive.do : null, stanceDef: def.skills.find((s) => s.do === 'stance') || null,
       x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,

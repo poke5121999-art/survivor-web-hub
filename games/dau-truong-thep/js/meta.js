@@ -1,11 +1,12 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 // No DOM: storage and the clock are injected (makeMeta({ storage, now })) so Node can run it.
-import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, PAINTS, GLOWS, DECALS, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS } from './data.js';
 import { MAP_ORDER, MAPS, THEMES } from './maps.js';
+import { SKINS, BASE_SKIN, skinOf, cleanSkin, skinKey } from './skins.js';
 
 // The key keeps its v1 name so a player's progress is found; the version lives in `v` and clean() migrates older shapes.
 const KEY = 'dtt.save.v1';
-const VERSION = 2;
+const VERSION = 3;
 const QUALITIES = ['low', 'medium', 'high'];
 // Phone vibration and camera shake: off, light (default), strong.
 export const FEEL_LEVELS = ['off', 'light', 'strong'];
@@ -27,7 +28,7 @@ function defaults() {
     owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0], size: TEAM_SIZE,
     settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light', brightness: 1, calm: null, camHeight: null, aimPan: true },
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
-    lv: {}, paints: {}, glows: {}, decals: {}, ownedPaints: ['goc'], ownedGlows: ['goc'], ownedDecals: ['goc'], trophies: 0,
+    lv: {}, skins: {}, ownedSkins: [], trophies: 0,
     shop: { starter: false, passUntil: 0, lastDaily: '', bought: {}, log: [] },
     controls: { v: CONTROLS_V, fixedStick: false, o: {}, aim: cleanAim(null) },
   };
@@ -88,6 +89,22 @@ export const podiumOf = (n) => (n >= 6 ? 3 : 1);
 
 // xp is the xp earned inside the current level; a level needs levelXp(level).
 // Migration: v1 stored one level per mech (`upgrades`); it becomes that level on every track, so nothing paid for is lost.
+// v2 sold trim paints, glow colours and decals; v3 sells whole skins instead (js/skins.js). A v2 save gets what it paid
+// for them back once, in coins (their only price list is LEGACY_COSMETICS), and the old fields are dropped.
+const LEGACY_COSMETICS = {
+  ownedPaints: { vang: 200, trang: 200, den: 250, tim: 300, luc: 300, hong: 350 },
+  ownedGlows: { vang: 250, tim: 250, luc: 250, hong: 300 },
+  ownedDecals: { soc: 150, vuot: 200, sao: 200, caro: 250 },
+};
+export function legacyRefund(raw) {
+  if (!raw || typeof raw !== 'object' || (isNum(raw.v) && raw.v >= 3)) return 0;
+  let n = 0;
+  for (const [field, prices] of Object.entries(LEGACY_COSMETICS)) {
+    if (!Array.isArray(raw[field])) continue;
+    for (const k of new Set(raw[field])) if (typeof k === 'string' && has(prices, k)) n += prices[k];
+  }
+  return n;
+}
 function clean(raw) {
   const d = defaults();
   if (!raw || typeof raw !== 'object') return d;
@@ -97,7 +114,7 @@ function clean(raw) {
   const out = {
     v: VERSION,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 16) : d.name,
-    coins: int(raw.coins, d.coins), gems: int(raw.gems, 0), level: int(raw.level, 1, 1, 999), xp: int(raw.xp, 0),
+    coins: int(raw.coins, d.coins) + legacyRefund(raw), gems: int(raw.gems, 0), level: int(raw.level, 1, 1, 999), xp: int(raw.xp, 0),
     owned: MECH_ORDER.filter((k) => owned.has(k)),
     mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAPS[raw.map] || raw.map === 'random' ? raw.map : d.map,
     // null = the layout's own theme
@@ -119,24 +136,20 @@ function clean(raw) {
       aimPan: typeof s.aimPan === 'boolean' ? s.aimPan : true,
     },
     stats: { matches: int(st.matches, 0), wins: int(st.wins, 0), kills: int(st.kills, 0), lastWinDay: typeof st.lastWinDay === 'string' ? st.lastWinDay.slice(0, 10) : '' },
-    lv: {}, paints: {}, glows: {}, decals: {}, trophies: int(raw.trophies, 0), controls: cleanControls(raw.controls),
+    lv: {}, skins: {}, ownedSkins: [], trophies: int(raw.trophies, 0), controls: cleanControls(raw.controls),
     shop: { starter: sh.starter === true, passUntil: int(sh.passUntil, 0, 0, 8.64e15), lastDaily: typeof sh.lastDaily === 'string' ? sh.lastDaily.slice(0, 10) : '', bought: {}, log: [] },
   };
   for (const e of SHOP) if (int(obj(sh.bought)[e.id], 0) > 0) out.shop.bought[e.id] = int(obj(sh.bought)[e.id], 0, 0, 1e6);
   if (Array.isArray(sh.log)) out.shop.log = sh.log.filter((r) => r && typeof r.id === 'string' && isNum(r.t)).slice(-40).map((r) => ({ id: r.id.slice(0, 24), t: r.t, vnd: int(r.vnd, 0) }));
-  const owns = (table, list) => { const set = new Set(['goc']); if (Array.isArray(list)) for (const k of list) if (typeof k === 'string' && has(table, k)) set.add(k); return set; };
-  const op = owns(PAINTS, raw.ownedPaints), og = owns(GLOWS, raw.ownedGlows), od = owns(DECALS, raw.ownedDecals);
-  out.ownedPaints = Object.keys(PAINTS).filter((k) => op.has(k));
-  out.ownedGlows = Object.keys(GLOWS).filter((k) => og.has(k));
-  out.ownedDecals = Object.keys(DECALS).filter((k) => od.has(k));
+  // Owned skins as 'mech:id' (the free base skin of every tank is never stored), in SKINS order.
+  const os = new Set(Array.isArray(raw.ownedSkins) ? raw.ownedSkins.filter((k) => typeof k === 'string') : []);
+  for (const k of Object.keys(SKINS)) for (const s of SKINS[k]) if (s.id !== BASE_SKIN && os.has(skinKey(k, s.id))) out.ownedSkins.push(skinKey(k, s.id));
   const lvs = obj(raw.lv), old = obj(raw.upgrades);
   for (const k of MECH_ORDER) {
     const lv = Array.isArray(lvs[k]) ? cleanLv(lvs[k]) : isNum(old[k]) ? cleanLv(NO_LV.map(() => int(old[k], 0, 0, UPGRADE.max))) : NO_LV;
     if (lv.some((n) => n > 0)) out.lv[k] = lv;
-    for (const [field, key, set] of [['paints', 'paints', op], ['glows', 'glows', og], ['decals', 'decals', od]]) {
-      const v = obj(raw[key])[k];
-      if (typeof v === 'string' && set.has(v) && v !== 'goc') out[field][k] = v;
-    }
+    const sk = cleanSkin(k, obj(raw.skins)[k]);
+    if (sk && out.ownedSkins.includes(skinKey(k, sk))) out.skins[k] = sk;
   }
   out.mech = out.owned.includes(raw.mech) ? raw.mech : out.owned[0];
   out.xp = Math.min(out.xp, levelXp(out.level) - 1);
@@ -151,11 +164,16 @@ export function makeMeta(opts = {}) {
   const store = opts.storage || browserStorage() || memStorage();
   const now = opts.now || (() => Date.now());
   let data;
-  try { data = clean(JSON.parse(store.getItem(KEY))); } catch (e) { data = clean(null); }
+  let raw = null;
+  try { raw = JSON.parse(store.getItem(KEY)); } catch (e) { raw = null; }
+  data = clean(raw);
 
   const save = () => {
     try { store.setItem(KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
   };
+  // The v2 -> v3 refund lands in the store at once, so it is paid exactly once.
+  const refunded = legacyRefund(raw);
+  if (refunded) save();
   const passActive = () => data.shop.passUntil > now();
   const passDaysLeft = () => (passActive() ? Math.ceil((data.shop.passUntil - now()) / DAY) : 0);
   const lvOf = (mech) => (data.lv[mech] ? data.lv[mech].slice() : NO_LV.slice());
@@ -194,27 +212,33 @@ export function makeMeta(opts = {}) {
     return true;
   }
 
-  // Paints, glows and decals share one shape: a table, an owned list, and one equipped key per mech.
-  const cosmetic = (table, ownedKey, equipKey) => ({
-    buy(key, payWith = 'coins') {
-      const row = has(table, key) && table[key];
-      if (!row) return false;
-      if (data[ownedKey].includes(key)) return true;
-      if (!pay(row.price, payWith)) return false;
-      data[ownedKey] = Object.keys(table).filter((k) => k === key || data[ownedKey].includes(k));
-      save();
-      return true;
-    },
-    set(mechKey, key) {
-      if (!MECHS[mechKey] || !data.owned.includes(mechKey) || !data[ownedKey].includes(key)) return false;
-      if (key === 'goc') delete data[equipKey][mechKey]; else data[equipKey][mechKey] = key;
-      save();
-      return true;
-    },
-  });
-  const paint = cosmetic(PAINTS, 'ownedPaints', 'paints'), glow = cosmetic(GLOWS, 'ownedGlows', 'glows'), decal = cosmetic(DECALS, 'ownedDecals', 'decals');
+  // Skins: one owned list for every tank, one equipped id per tank. A tank's base skin is always owned and free.
+  const ownsSkin = (mech, id) => id === BASE_SKIN || data.ownedSkins.includes(skinKey(mech, id));
+  const grantSkin = (mech, id) => {
+    const keys = new Set(data.ownedSkins.concat(skinKey(mech, id)));
+    data.ownedSkins = [];
+    for (const k of Object.keys(SKINS)) for (const s of SKINS[k]) if (keys.has(skinKey(k, s.id))) data.ownedSkins.push(skinKey(k, s.id));
+  };
+  // A known skin of a known tank; the tank itself need not be owned yet.
+  const skinRow = (mech, id) => { const r = SKINS[mech] && skinOf(mech, id); return r && r.id === id ? r : null; };
+  function buySkin(mech, id, payWith = 'coins') {
+    const row = skinRow(mech, id);
+    if (!row) return false;
+    if (ownsSkin(mech, id)) return true;
+    if (!pay(row.price, payWith)) return false;
+    grantSkin(mech, id);
+    save();
+    return true;
+  }
+  function setSkin(mech, id) {
+    if (!MECHS[mech] || !data.owned.includes(mech) || !skinRow(mech, id) || !ownsSkin(mech, id)) return false;
+    if (id === BASE_SKIN) delete data.skins[mech]; else data.skins[mech] = id;
+    save();
+    return true;
+  }
+  const skinFor = (mech) => (data.skins[mech] && ownsSkin(mech, data.skins[mech]) ? data.skins[mech] : BASE_SKIN);
 
-  // The pretend shop. Nothing is charged: the row is granted at once. A mech, paint, glow or decal the player already owns comes back as its price in coins.
+  // The pretend shop. Nothing is charged: the row is granted at once. A mech or skin the player already owns comes back as its price in coins.
   function shopBuy(id) {
     const row = SHOP.find((e) => e.id === id);
     if (!row) return { ok: false, reason: 'Không có gói này' };
@@ -227,11 +251,10 @@ export function makeMeta(opts = {}) {
       if (data.owned.includes(g.mech)) refund += MECHS[g.mech].price;
       else { data.owned = MECH_ORDER.filter((k) => k === g.mech || data.owned.includes(k)); got.mech = g.mech; }
     }
-    for (const [field, table, ownedKey] of [['paint', PAINTS, 'ownedPaints'], ['glow', GLOWS, 'ownedGlows'], ['decal', DECALS, 'ownedDecals']]) {
-      const key = g[field];
-      if (!key || !has(table, key)) continue;
-      if (data[ownedKey].includes(key)) refund += table[key].price;
-      else { data[ownedKey] = Object.keys(table).filter((k) => k === key || data[ownedKey].includes(k)); got[field] = key; }
+    if (typeof g.skin === 'string') {
+      const [sm, sid] = g.skin.split(':'), row = skinRow(sm, sid);
+      if (row && ownsSkin(sm, sid)) refund += row.price;
+      else if (row) { grantSkin(sm, sid); got.skin = g.skin; }
     }
     if (refund) { data.coins += refund; got.refund = refund; }
     if (g.pass) { data.shop.passUntil = Math.max(now(), data.shop.passUntil) + g.pass * DAY; got.pass = g.pass; }
@@ -293,6 +316,6 @@ export function makeMeta(opts = {}) {
       mode, place, trophy, trophiesBefore, trophiesAfter: data.trophies, rankBefore, rankAfter };
   }
 
-  return { get: () => data, save, buy, upgrade, buyPaint: paint.buy, setPaint: paint.set, buyGlow: glow.buy, setGlow: glow.set, buyDecal: decal.buy, setDecal: decal.set,
+  return { get: () => data, save, buy, upgrade, buySkin, setSkin, ownsSkin, skinFor, refunded,
     shopBuy, claimDaily, dailyReady, passActive, passDaysLeft, lvOf, rank: () => rankOf(data.trophies), applyResult };
 }

@@ -29,7 +29,7 @@ Real-time top-down mech arena shooter, 1v1 to 3v3 (3v3 by default). three.js r16
 ## Simulation contract
 
 ```js
-const m = createMatch({ map: 'denrung', seed, roster });   // roster: [{ team: 0|1, mech, name, bot, diff, mods: { hp, dmg }, paint }]
+const m = createMatch({ map: 'denrung', seed, roster });   // roster: [{ team: 0|1, mech, name, bot, diff, mods: { hp, dmg }, skin }]
 step(m, inputs);                                           // inputs[unit.id] = input
 // input = { mx, mz, aim, fire, s1, s2, ult, heal, tx, tz }
 //   mx, mz: move vector (-1..1)     aim: radians     tx, tz: world point under the cursor (ground-targeted skills)
@@ -104,8 +104,9 @@ The menu is the "chọn tank" screen of Bang Bang Origin, on a blue panel: left,
 - `G.bus.on(topic, fn)`, `G.bus.emit(topic, data)`. Topics: `sim` (each sim event, payload = event), `match:start`, `match:over`, `ui:play {mech, diff, map, mode, theme, size}`, `ui:menu`, `quality:set`.
 - `G.match` is the current match or null. `G.me` is the id of the player's unit.
 - `G.project(x, y, z)` → `{ x, y, visible }` in CSS pixels. `G.groundAt(clientX, clientY)` → `[x, z]` on the ground plane.
-- `G.portrait(mechKey, team, paint, glow, decal)` → data URL of a rendered mech portrait: 128 px per device pixel ratio, up to 384 px.
-- `G.showcase = { open(el), close(), set(key, paint, glow, decal, form), turn(dx), on }`: the tank select stage. While open, `draw()` in main.js renders only the turning model on its pedestal (`mechs.showcase()`, gfx/mechs.js) into the rectangle of `el`, over the menu's own gradient, with the main renderer (30 fps on phones and on low); the attract match is not drawn. `ui.js` opens it with the menu and closes it for the shop, the online screens and a match. Without `G.showcase` (the UI harness) the stage shows the big portrait instead.
+- `G.portrait(mechKey, team, skin, form, size)` → data URL of a rendered mech portrait in that skin (`js/skins.js` id, null = its own look): 128 px per device pixel ratio, up to 384 px.
+- Skins (`js/skins.js`): whole looks per tank graded A / S / SS. `gfx/mechs.js` `build()` is the one place a skin reaches the model (palette over the `STYLES` row, finish, aura ramp, SS sigil disc and lamp pulse). The save holds `ownedSkins` ('mech:id') and `skins[mech]`; the lobby and the roster carry `skin`, cleaned by `cleanSkin()` on every input. The Skin panel opens from the stage's Skin button.
+- `G.showcase = { open(el), close(), set(key, skin, form), turn(dx), on }`: the tank select stage. While open, `draw()` in main.js renders only the turning model on its pedestal (`mechs.showcase()`, gfx/mechs.js) into the rectangle of `el`, over the menu's own gradient, with the main renderer (30 fps on phones and on low); the attract match is not drawn. `ui.js` opens it with the menu and closes it for the shop, the online screens and a match. Without `G.showcase` (the UI harness) the stage shows the big portrait instead.
 - `G.look = { get() → { brightness, calm }, set({ brightness, calm }), range }`: the "Hình ảnh" settings "Độ sáng" (display exposure multiplier 0.8 to 1.2, live in the composite pass) and "Giảm chớp sáng" (`calm`: second column of `FLASH` in `gfx/fx.js`). Saved in `settings.brightness` / `settings.calm` (`calm: null` = never chosen, then touch devices start with it on). URL: `?bright=1.1`, `?calm=1|0`.
 - `G.sharpness = { get() → 'auto' | 'sharp' | 'max', set(mode), modes: [{ key, name, hint }] }`: the "Độ nét" setting, applied live. Stored under `localStorage` key `dtt.sharp.v1` (meta.js drops settings keys it does not know when it loads, so `settings.sharpness` alone would not survive a reload); the player's quality pick is likewise kept in `dtt.quality.v1`.
 

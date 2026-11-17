@@ -286,7 +286,12 @@ function fireCard(FIRE) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
   return g;
 }
+// A skin's aura ramp (js/skins.js AURAS, set by gfx/mechs.js build() around one model build) replaces every design's own.
+let skinAura = null;
+export function setSkinAura(a) { skinAura = a ? ramp(a[0], a[1], a[2]) : null; }
+export const skinAuraRamp = () => skinAura;
 export function fireAura(b, cx, rx, rz, n, hgt, pal = AURA.fire) {
+  if (skinAura) pal = skinAura;
   const m = b.mat; b.use('ember'); b.tint(WHITE);
   const card = fireCard(pal);
   const put1 = (x, z, a, hh, tilt) => { for (const rot of [0, PI / 2]) { b.push().move(x, 0.04, z).rotY(PI / 2 - a + rot).rotX(tilt).scale(hh * 0.6, hh * 0.75, 1); b.geo(card); b.pop(); } };

@@ -1088,44 +1088,18 @@ export function buildDef(key, lv) {
 export const formDef = (def, f) => (def.formDefs ? def.formDefs[f] || def : def);
 export const upgradeCost = (lv) => lv.reduce((sum, l) => { for (let i = 0; i < l; i++) sum += UPGRADE.cost(i); return sum; }, 0);
 
-// Cosmetic trim paints. The armour stays in the team colour so teams always read; paint recolours the trim parts.
-export const PAINTS = {
-  goc:   { name: 'Nguyên bản', price: 0, color: null },
-  vang:  { name: 'Vàng Hổ Phách', price: 200, color: 0xf2b632 },
-  trang: { name: 'Trắng Sứ', price: 200, color: 0xf1f4f7 },
-  den:   { name: 'Đen Nhám', price: 250, color: 0x22252b },
-  tim:   { name: 'Tím Điện', price: 300, color: 0x9b5cff },
-  luc:   { name: 'Lục Bảo', price: 300, color: 0x2fd27a },
-  hong:  { name: 'Hồng Neon', price: 350, color: 0xff4fa3 },
-};
-
-// More cosmetics, shown on the model. Glow recolours the emissive lamps of your own mech (the team ring and
-// HP bar stay in team colours); a decal is a marking painted on the hull.
-export const GLOWS = {
-  goc:  { name: 'Mặc định', price: 0, color: null },
-  vang: { name: 'Hoàng Kim', price: 250, color: 0xffc83a },
-  tim:  { name: 'Tử Quang', price: 250, color: 0xb070ff },
-  luc:  { name: 'Lân Tinh', price: 250, color: 0x5cff9a },
-  hong: { name: 'Anh Đào', price: 300, color: 0xff6fb0 },
-};
-export const DECALS = {
-  goc:   { name: 'Không', price: 0 },
-  soc:   { name: 'Sọc Đua', price: 150 },
-  vuot:  { name: 'Vuốt Hổ', price: 200 },
-  sao:   { name: 'Ngôi Sao', price: 200 },
-  caro:  { name: 'Ca-rô', price: 250 },
-};
+// Cosmetics are whole skins per tank: js/skins.js.
 
 // Premium currency. Earned by playing (GEMS) or handed out by the pretend shop (SHOP). One gem pays for GEM_RATE coins of any price.
 export const GEM_RATE = 10;
 export const GEMS = { levelUp: 20, mvp: 2, firstWin: 10 };
-// The pretend shop: no payment of any kind happens. `vnd` is only a label. grants: gems, coins, mech, paint, glow, decal, pass (days).
+// The pretend shop: no payment of any kind happens. `vnd` is only a label. grants: gems, coins, mech, skin ('mech:id', js/skins.js), pass (days).
 export const SHOP = [
-  { id: 'khoidau', kind: 'starter', name: 'Gói Khởi Đầu', vnd: 29000, once: true, grants: { gems: 300, coins: 1000, mech: 'thancong', paint: 'vang' }, note: 'Mua một lần' },
+  { id: 'khoidau', kind: 'starter', name: 'Gói Khởi Đầu', vnd: 29000, once: true, grants: { gems: 300, coins: 1000, mech: 'thancong', skin: 'thancong:s' }, note: 'Mua một lần' },
   { id: 'thethang', kind: 'pass', name: 'Thẻ Tháng', vnd: 99000, grants: { gems: 200, pass: 30 }, note: '30 ngày: xu sau trận +50%, mỗi ngày nhận 30 Tinh Thể' },
-  { id: 'goi_hacho', kind: 'bundle', name: 'Gói Hắc Hổ', vnd: 79000, grants: { mech: 'hacho', paint: 'den', glow: 'hong', gems: 150 } },
-  { id: 'goi_hoalong', kind: 'bundle', name: 'Gói Hỏa Long', vnd: 79000, grants: { mech: 'hoalong', paint: 'vang', decal: 'vuot', gems: 150 } },
-  { id: 'goi_holy', kind: 'bundle', name: 'Gói Hồ Ly', vnd: 79000, grants: { mech: 'holy', paint: 'hong', glow: 'tim', gems: 150 } },
+  { id: 'goi_hacho', kind: 'bundle', name: 'Gói Hắc Hổ', vnd: 79000, grants: { mech: 'hacho', skin: 'hacho:s', gems: 150 } },
+  { id: 'goi_hoalong', kind: 'bundle', name: 'Gói Hỏa Long', vnd: 79000, grants: { mech: 'hoalong', skin: 'hoalong:s', gems: 150 } },
+  { id: 'goi_holy', kind: 'bundle', name: 'Gói Hồ Ly', vnd: 79000, grants: { mech: 'holy', skin: 'holy:s', gems: 150 } },
   { id: 'tt1', kind: 'gems', name: 'Túi Tinh Thể', vnd: 20000, grants: { gems: 100 } },
   { id: 'tt2', kind: 'gems', name: 'Hộp Tinh Thể', vnd: 50000, grants: { gems: 280 }, note: '+12%' },
   { id: 'tt3', kind: 'gems', name: 'Rương Tinh Thể', vnd: 100000, grants: { gems: 600 }, note: '+20%' },

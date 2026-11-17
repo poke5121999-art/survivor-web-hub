@@ -5,11 +5,12 @@
 
 import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
-import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
+import { TEAMS, MECHS, BOSSES } from '../data.js';
+import { skinOf, AURAS } from '../skins.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
 import { frameDesign } from './frames.js';
-import { ORNATE, ornateModel } from './ornate.js';
+import { ORNATE, ornateModel, setSkinAura, fireAura } from './ornate.js';
 import { STEEL_DESIGNS } from './steel-tanks.js';
 import { slashTrail, slashPose, slashStart, slashHit } from './slash.js';
 import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
@@ -1018,96 +1019,56 @@ const ARMOR_RIM = new THREE.Color(0.5, 0.7, 1.0), HOLO = new THREE.Color(0.35, 0
 const toward = (a, b, d) => (a < b ? Math.min(b, a + d) : Math.max(b, a - d));
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-// Decals are painted as flat quads draped over the model's upward-facing surfaces: the hull and turret triangles are
-// rasterised into a height grid, every grid cell inside the pattern becomes a quad, and each quad rides on whichever
-// of the two groups owns the surface under it. One geometry pair per mech and decal, shared by every view.
-const DECAL_CELL = 0.05;
-const DECAL_PAINT = { soc: [0.93, 0.93, 0.86], vuot: [0.03, 0.03, 0.04], sao: [1, 0.8, 0.14], caro: [0.95, 0.95, 0.95], caroDark: [0.04, 0.04, 0.05] };
-function decalPattern(kind, hl, hw) {
-  const R = Math.min(hl, hw * 1.15) * 0.95;
-  if (kind === 'soc') return (x, z) => (Math.abs(x) < hl * 0.92 && Math.abs(z) > 0.12 * hw && Math.abs(z) < 0.34 * hw ? DECAL_PAINT.soc : null);
-  if (kind === 'vuot') {
-    const th = 0.55, ct = Math.cos(th), st = Math.sin(th), L = Math.min(hl, hw * 1.7) * 0.82;
-    return (x, z) => {
-      const t = x * ct + z * st, d = -x * st + z * ct;
-      for (let k = -1; k <= 1; k++) { const lim = 0.075 * (1 - (t / L) * (t / L)) + 0.012; if (Math.abs(t) < L && Math.abs(d - k * hw * 0.42) < lim) return DECAL_PAINT.vuot; }
-      return null;
-    };
-  }
-  if (kind === 'sao') {
-    const pts = []; for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5, r = i % 2 ? R * 0.42 : R; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
-    return (x, z) => {
-      let inside = false;
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > z) !== (pts[j][1] > z) && x < (pts[j][0] - pts[i][0]) * (z - pts[i][1]) / (pts[j][1] - pts[i][1]) + pts[i][0]) inside = !inside;
-      return inside ? DECAL_PAINT.sao : null;
-    };
-  }
-  if (kind === 'caro') {
-    const c = 0.1;
-    return (x, z) => (Math.abs(x) < hl * 0.9 && Math.abs(z) < c * 2 ? ((Math.floor(x / c) + Math.floor(z / c)) & 1 ? DECAL_PAINT.caroDark : DECAL_PAINT.caro) : null);
-  }
-  return null;
-}
+// Skin finishes (js/skins.js): factors on the baked metal set's roughness, metalness and reflections, so a premium
+// skin reads polished on every design without touching the designs.
+const FINISHES = { gloss: { r: 0.72, m: 1.1, rf: 1.2 }, chrome: { r: 0.55, m: 1.25, rf: 1.45 }, satin: { r: 0.9, m: 1.0, rf: 1.05 }, pearl: { r: 0.62, m: 0.85, rf: 1.25 } };
 
-const decalCache = new Map();
-function decalGeos(key, kind, geos) {
-  const id = key + '|' + kind;
-  if (decalCache.has(id)) return decalCache.get(id);
-  const srcs = [[geos.hull, 1], [geos.turret, 2]].filter((s) => s[0]);
-  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-  for (const [g] of srcs) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { x0 = Math.min(x0, p.getX(i)); x1 = Math.max(x1, p.getX(i)); z0 = Math.min(z0, p.getZ(i)); z1 = Math.max(z1, p.getZ(i)); } }
-  const cs = DECAL_CELL, nx = Math.ceil((x1 - x0) / cs) + 1, nz = Math.ceil((z1 - z0) / cs) + 1;
-  const H = new Float32Array(nx * nz).fill(-1), O = new Uint8Array(nx * nz);
-  for (const [g, own] of srcs) {
-    const p = g.attributes.position;
-    for (let i = 0; i + 2 < p.count; i += 3) {
-      const ax = p.getX(i), ay = p.getY(i), az = p.getZ(i), bx = p.getX(i + 1), by = p.getY(i + 1), bz = p.getZ(i + 1), cx = p.getX(i + 2), cy = p.getY(i + 2), cz = p.getZ(i + 2);
-      const area = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
-      if (area >= -1e-7) continue;
-      const gx0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - x0) / cs)), gx1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx, cx) - x0) / cs));
-      const gz0 = Math.max(0, Math.floor((Math.min(az, bz, cz) - z0) / cs)), gz1 = Math.min(nz - 1, Math.ceil((Math.max(az, bz, cz) - z0) / cs));
-      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
-        const px = x0 + gx * cs, pz = z0 + gz * cs;
-        const w0 = ((bx - px) * (cz - pz) - (cx - px) * (bz - pz)) / area, w1 = ((cx - px) * (az - pz) - (ax - px) * (cz - pz)) / area, w2 = 1 - w0 - w1;
-        if (w0 < -0.001 || w1 < -0.001 || w2 < -0.001) continue;
-        const y = w0 * ay + w1 * by + w2 * cy, k = gz * nx + gx;
-        if (y > H[k]) { H[k] = y; O[k] = own; }
-      }
-    }
+// SS skins stand on a glowing sigil disc (the reference panel's SS pedestal): one canvas texture per pattern and colour
+// pair, drawn additive on the ground under the tank and turning slowly. Not part of the model, so the silhouette is the same.
+const sigilTex = new Map();
+function sigilTexture(kind, c1, c2) {
+  const id = kind + '|' + c1 + '|' + c2;
+  if (sigilTex.has(id)) return sigilTex.get(id);
+  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const g = cv.getContext('2d'), R = N / 2, css = (c) => '#' + c.toString(16).padStart(6, '0');
+  g.translate(R, R);
+  const halo = g.createRadialGradient(0, 0, R * 0.2, 0, 0, R);
+  halo.addColorStop(0, 'rgba(0,0,0,0)'); halo.addColorStop(0.75, css(c1) + '30'); halo.addColorStop(0.92, css(c1) + '70'); halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = halo; g.fillRect(-R, -R, N, N);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const ring = (r, w, c) => { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); };
+  ring(R * 0.94, 5, css(c1)); ring(R * 0.84, 2.5, css(c2)); ring(R * 0.5, 2, css(c1));
+  g.strokeStyle = css(c2); g.fillStyle = css(c2) + '55'; g.lineWidth = 3;
+  const n = kind === 'lotus' ? 8 : kind === 'star' ? 6 : kind === 'wave' ? 10 : kind === 'rune' ? 12 : 16;
+  for (let i = 0; i < n; i++) {
+    g.save(); g.rotate(i / n * Math.PI * 2); g.beginPath();
+    if (kind === 'sun') { g.moveTo(R * 0.52, -R * 0.05); g.lineTo(R * 0.8, 0); g.lineTo(R * 0.52, R * 0.05); }
+    else if (kind === 'lotus') { g.moveTo(R * 0.5, 0); g.quadraticCurveTo(R * 0.66, -R * 0.17, R * 0.82, 0); g.quadraticCurveTo(R * 0.66, R * 0.17, R * 0.5, 0); }
+    else if (kind === 'star') { g.moveTo(R * 0.5, -R * 0.13); g.lineTo(R * 0.82, 0); g.lineTo(R * 0.5, R * 0.13); }
+    else if (kind === 'wave') { g.moveTo(R * 0.55, 0); g.bezierCurveTo(R * 0.62, -R * 0.14, R * 0.74, R * 0.14, R * 0.8, 0); }
+    else { g.rect(R * 0.6, -R * 0.03, R * 0.16, R * 0.06); g.moveTo(R * 0.86, -R * 0.04); g.lineTo(R * 0.9, 0); g.lineTo(R * 0.86, R * 0.04); }
+    if (kind !== 'wave') { g.closePath(); g.fill(); }
+    g.stroke(); g.restore();
   }
-  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, pat = decalPattern(kind, (x1 - x0) / 2, (z1 - z0) / 2);
-  const out = { 1: { p: [], c: [] }, 2: { p: [], c: [] } };
-  for (let gz = 0; gz < nz - 1; gz++) for (let gx = 0; gx < nx - 1; gx++) {
-    const col = pat(x0 + (gx + 0.5) * cs - cx, z0 + (gz + 0.5) * cs - cz);
-    if (!col) continue;
-    const k = gz * nx + gx, ks = [k, k + 1, k + nx, k + nx + 1];
-    if (ks.some((q) => H[q] < 0 || O[q] !== O[k])) continue;
-    const ys = ks.map((q) => H[q]);
-    if (Math.max(...ys) - Math.min(...ys) > 0.09) continue;
-    const X0 = x0 + gx * cs, Z0 = z0 + gz * cs, X1 = X0 + cs, Z1 = Z0 + cs, e = 0.012, o = out[O[k]];
-    const v = [[X0, ys[0] + e, Z0], [X0, ys[2] + e, Z1], [X1, ys[1] + e, Z0], [X1, ys[1] + e, Z0], [X0, ys[2] + e, Z1], [X1, ys[3] + e, Z1]];
-    for (const q of v) { o.p.push(q[0], q[1], q[2]); o.c.push(col[0], col[1], col[2]); }
-  }
-  const mk = (o) => {
-    if (!o.p.length) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(o.p, 3));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(o.c, 3));
-    const n = new Float32Array(o.p.length); for (let i = 1; i < n.length; i += 3) n[i] = 1;
-    g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
-    g.computeBoundingSphere();
-    return g;
-  };
-  const res = { hull: mk(out[1]), turret: mk(out[2]) };
-  decalCache.set(id, res);
-  return res;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  sigilTex.set(id, t);
+  return t;
+}
+const sigilGeo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+
+// Hull extent in model units (x0, x1, z half-width) from a builder batch, for the aura of a design that has none.
+function hullExtent(b) {
+  const p = b.batches.hull && b.batches.hull.p;
+  if (!p || !p.length) return null;
+  let x0 = Infinity, x1 = -Infinity, zh = 0;
+  for (let i = 0; i < p.length; i += 3) { x0 = Math.min(x0, p[i]); x1 = Math.max(x1, p[i]); zh = Math.max(zh, Math.abs(p[i + 2])); }
+  return { x0, x1, zh };
 }
 
 export function makeMechs(G, tex) {
   const group = new THREE.Group();
   const low = G.quality.name === 'low';
   const baseMat = tex.material('metal', { reflect: 1.1 });
-  const decalMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const ringGeo = new THREE.PlaneGeometry(2.3, 2.3).rotateX(-Math.PI / 2);
   const aimGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([1.15, 0, -0.09, 1.15, 0, 0.09, 4.2, 0, 0], 3));
   const bubbleGeo = new THREE.IcosahedronGeometry(1, 4);
@@ -1123,19 +1084,32 @@ export function makeMechs(G, tex) {
     return g;
   }
 
-  function build(key, team, paintKey, glowKey, decalKey, form = 2) {
+  // The one place a skin reaches the model: its palette replaces the STYLES colours every design reads, its aura ramp
+  // replaces the design's form III aura, its finish polishes the material, its flair adds the sigil and the lamp pulse.
+  function build(key, team, skinId, form = 2) {
     const def = MECHS[key] || BOSSES[key];
-    const st = styleFor(key, def.tint);
-    const trimHex = PAINTS[paintKey] && PAINTS[paintKey].color !== null ? PAINTS[paintKey].color : st.trim;
-    const gc = GLOWS[glowKey] && GLOWS[glowKey].color != null ? new THREE.Color(GLOWS[glowKey].color) : new THREE.Color(st.glow);
+    const sk = MECHS[key] ? skinOf(key, skinId) : null;
+    const st0 = styleFor(key, def.tint), st = sk && sk.pal ? { ...st0, ...sk.pal } : st0;
+    const gc = new THREE.Color(st.glow);
     const paint = formPaint(st.body, form), deep = new THREE.Color(st.deep);
-    const { b, info } = buildModel(key, st, paint, new THREE.Color(trimHex), deep, form);
+    const aura = sk && sk.aura && AURAS[sk.aura];
+    setSkinAura(aura || null);
+    let built;
+    try {
+      built = buildModel(key, st, paint, new THREE.Color(st.trim), deep, form);
+      // An SS aura on a design that draws none of its own (steel and frame tanks): the same flame ring round the hull.
+      const ext = aura && form === 3 && !built.b.batches.ember && hullExtent(built.b);
+      if (ext) fireAura(built.b, (ext.x0 + ext.x1) / 2, (ext.x1 - ext.x0) * 0.55, ext.zh * 1.15, 16, 0.9);
+    } finally { setSkinAura(null); }
+    const { b, info } = built;
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     // Rim light in the lamp colour, strong at form III so an upgraded mech reads from the match camera.
     // Steel-style tanks keep it low: their matte two-tone paint is what reads, a strong rim turns them back into toys.
     const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1] * (STEEL_DESIGNS[key] ? 0.4 : 1)), rim = rimBase.clone();
-    const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
+    const fin = sk && FINISHES[sk.finish];
+    const polish = (m) => { if (fin) { m.roughness = baseMat.roughness * fin.r; m.metalness = baseMat.metalness * fin.m; m.envMapIntensity = (baseMat.envMapIntensity ?? 1) * fin.rf; } return m; };
+    const mat = polish(mechMaterial(baseMat, rim, glowBase.clone(), low)), mats = [mat];
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     // Flames that carry their own colour ramp in vertex colours (ornate.js aura); flickers with the flame batch.
     const ember = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -1161,7 +1135,7 @@ export function makeMechs(G, tex) {
     for (const P of info.parts || []) {
       const parent = P.on === 'turret' ? turret : hull, g = geos[P.name];
       if (!g) continue;
-      const pm = P.own ? mechMaterial(baseMat, rim, glowBase.clone(), low) : mat;
+      const pm = P.own ? polish(mechMaterial(baseMat, rim, glowBase.clone(), low)) : mat;
       if (P.own) mats.push(pm);
       const part = { spec: P, angle: 0, spinV: 0, mat: P.own ? pm : null };
       if (P.at) {
@@ -1177,14 +1151,17 @@ export function makeMechs(G, tex) {
       }
       parts.push(part);
     }
-    const decals = [];
-    if (decalKey && DECALS[decalKey] && decalKey !== 'goc') {
-      const dg = decalGeos(key, decalKey, geos);
-      for (const [g, parent] of [[dg.hull, hull], [dg.turret, turret]]) if (g) { const m = new THREE.Mesh(g, decalMat); m.frustumCulled = false; parent.add(m); decals.push(m); }
-    }
     body.add(hull, turret); root.add(body);
-    return { root, body, hull, turret, legs, parts, mat, mats, rim, rimBase, glow: mat.userData.glow.value, flame, ember, glowBase, gcol: gc.clone().multiplyScalar(1 / Math.max(gc.r, gc.g, gc.b, 1e-3)), info, def, S, geos, decals,
-      dStance: 0, dCharge: 0, dArmor: 0, dRage: 0 };
+    let sigil = null, pulseBase = null;
+    if (sk && sk.flair) {
+      const fl = sk.flair;
+      sigil = new THREE.Mesh(sigilGeo, new THREE.MeshBasicMaterial({ map: sigilTexture(fl.sigil, st.glow, fl.pulse), color: new THREE.Color(1.6, 1.6, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+      sigil.scale.setScalar(1.45 * S); sigil.position.y = 0.035; sigil.renderOrder = 1;
+      root.add(sigil);
+      if (fl.pulse != null) pulseBase = new THREE.Color(fl.pulse).multiplyScalar(3.3).addScalar(0.55);
+    }
+    return { root, body, hull, turret, legs, parts, mat, mats, rim, rimBase, glow: mat.userData.glow.value, flame, ember, glowBase, gcol: gc.clone().multiplyScalar(1 / Math.max(gc.r, gc.g, gc.b, 1e-3)), info, def, S, geos,
+      skin: sk ? sk.id : null, sigil, pulseBase, dStance: 0, dCharge: 0, dArmor: 0, dRage: 0 };
   }
 
   function disposeView(v) {
@@ -1197,12 +1174,13 @@ export function makeMechs(G, tex) {
     if (v.aura) { v.auraMat.dispose(); for (const g of v.auraGeos) g.dispose(); }
     if (v.bubble) v.bubble.material.dispose();
     if (v.aim) v.aim.material.dispose();
+    if (v.sigil) v.sigil.material.dispose();
   }
 
   // A mech view with its ground ring and shield bubble. `mine` gives the white own-mech ring and the aim line.
-  function makeView(key, team, paint, glow, decal, radius, mine, form) {
-    const v = build(key, team, paint, glow, decal, form);
-    v.mech = key; v.team = team; v.paint = paint; v.glowKey = glow; v.decalKey = decal; v.form = form;
+  function makeView(key, team, skin, radius, mine, form) {
+    const v = build(key, team, skin, form);
+    v.mech = key; v.team = team; v.skinKey = skin || null; v.form = form;
     v.ring = new THREE.Mesh(ringGeo, ringMaterial());
     v.ring.material.uniforms.uColor.value.copy(mine ? new THREE.Color(1.5, 1.5, 1.5) : new THREE.Color(TEAMS[team].color).multiplyScalar(1.6));
     v.ring.material.uniforms.uMine.value = mine ? 1 : 0;
@@ -1238,9 +1216,9 @@ export function makeMechs(G, tex) {
   function view(u) {
     let v = views.get(u.id);
     const form = BOSSES[u.mech] ? 3 : formOf(u.lv);
-    if (v && v.mech === u.mech && v.team === u.color && v.paint === u.paint && v.glowKey === u.glow && v.decalKey === u.decal && v.form === form) return v;
+    if (v && v.mech === u.mech && v.team === u.color && v.skinKey === (u.skin || null) && v.form === form) return v;
     if (v) disposeView(v);
-    v = makeView(u.mech, u.color, u.paint, u.glow, u.decal, u.radius, u.id === G.me, form);
+    v = makeView(u.mech, u.color, u.skin, u.radius, u.id === G.me, form);
     v.headingV = u.heading; v.lastX = u.x; v.lastZ = u.z;
     group.add(v.root); views.set(u.id, v);
     return v;
@@ -1258,7 +1236,14 @@ export function makeMechs(G, tex) {
     if (v.ghostOn === on && v.opacity === opacity) return;
     v.ghostOn = on; v.opacity = opacity;
     for (const m of v.mats) { m.opacity = opacity; m.transparent = opacity < 1; m.depthWrite = !on; m.needsUpdate = true; }
-    for (const d of v.decals) d.visible = !on && opacity === 1;
+    if (v.sigil) v.sigil.visible = !on && opacity === 1;
+  }
+
+  // SS skins: the lamps breathe between the skin's glow and its pulse colour.
+  const PULSE = new THREE.Color();
+  function skinPulse(v, time, k) {
+    if (!v.pulseBase) return;
+    v.glow.lerp(PULSE.copy(v.pulseBase).multiplyScalar(k), 0.5 + 0.5 * Math.sin(time * 2.4));
   }
 
   // Own-material parts (pulsing emitters) follow the model's glow, times a per-design factor.
@@ -1366,6 +1351,7 @@ export function makeMechs(G, tex) {
         if (v.mark) v.mark.visible = false;
         v.ring.material.uniforms.uFade.value = 1 - t;
         if (v.aura) v.aura.visible = false;
+        if (v.sigil) v.sigil.visible = false;
         if (!v.root.visible) v.shown = false;
         v.wasAlive = false;
         continue;
@@ -1373,7 +1359,7 @@ export function makeMechs(G, tex) {
       const show = u.alive && visibleTo(m, u, myTeam);
       v.root.visible = show; v.shown = show;
       if (!show) { v.wasAlive = u.alive; continue; }
-      if (!v.wasAlive) { v.spawn = 0; v.wasAlive = true; v.lastX = u.x; v.lastZ = u.z; v.die = 0; resetLook(v); v.ring.material.uniforms.uFade.value = 1; if (v.aura) v.aura.visible = true; }
+      if (!v.wasAlive) { v.spawn = 0; v.wasAlive = true; v.lastX = u.x; v.lastZ = u.z; v.die = 0; resetLook(v); v.ring.material.uniforms.uFade.value = 1; if (v.aura) v.aura.visible = true; if (v.sigil) v.sigil.visible = !v.ghostOn; }
       const x = u.px + (u.x - u.px) * alpha, z = u.pz + (u.z - u.pz) * alpha;
       const moved = Math.hypot(x - v.lastX, z - v.lastZ); v.lastX = x; v.lastZ = z;
       v.walk += moved;
@@ -1393,6 +1379,7 @@ export function makeMechs(G, tex) {
       v.rim.copy(v.rimBase).lerp(ARMOR_RIM, ar);
       const boost = 1 + fl * 1.5 + (1 - v.spawn) * 2.5 + ch * 2.2 * cp + v.dRage * 0.6 + ar * 0.5;
       v.glow.copy(v.glowBase).multiplyScalar(boost);
+      skinPulse(v, time, boost);
       ownGlow(v, time);
       const ghost = hidden(u);
       setGhost(v, ghost, ghost ? 0.45 : 1);
@@ -1414,6 +1401,7 @@ export function makeMechs(G, tex) {
       const ru = v.ring.material.uniforms;
       ru.uTime.value = time; ru.uAim.value = u.aim;
       if (v.aura) v.aura.rotation.y = time * (v.form === 3 ? 0.9 : 0.4);
+      if (v.sigil) v.sigil.rotation.y = -time * 0.35;
     }
     for (const [id, v] of views) if (!seen.has(id)) { disposeView(v); views.delete(id); }
     syncDecoys(m, dt, time, myTeam);
@@ -1421,10 +1409,10 @@ export function makeMechs(G, tex) {
 
   // A decoy is a copy of its owner's model. Its own team sees a hologram, the enemy sees a real-looking mech.
   function decoyView(z, o) {
-    const sig = [o.mech, z.color, o.paint || '', o.glow || '', o.decal || ''].join('|');
+    const sig = [o.mech, z.color, o.skin || ''].join('|');
     let i = pool.findIndex((p) => p.sig === sig), v;
     if (i >= 0) { v = pool.splice(i, 1)[0]; resetLook(v); } else {
-      v = makeView(o.mech, z.color, o.paint, o.glow, o.decal, o.radius, false);
+      v = makeView(o.mech, z.color, o.skin, o.radius, false);
       v.sig = sig; v.proxy = { id: 100000 + z.id, heading: z.aim, aim: z.aim };
       group.add(v.root);
     }
@@ -1471,6 +1459,7 @@ export function makeMechs(G, tex) {
         setEmissive(v, 0, 0, 0);
         v.rim.copy(v.rimBase);
         v.glow.copy(v.glowBase).multiplyScalar(1 + (1 - v.spawn) * 2.5);
+        skinPulse(v, time, 1 + (1 - v.spawn) * 2.5);
       }
       ownGlow(v, time);
       const ru = v.ring.material.uniforms;
@@ -1505,7 +1494,7 @@ export function makeMechs(G, tex) {
     views.clear(); zviews.clear(); pool.length = 0;
   }
 
-  // Renders one mech alone into a square data URL, for menus and the HUD. Fourth argument: a size, or { glow, decal, size }.
+  // Renders one mech alone into a square data URL, for menus and the HUD. Fourth argument: a size, or { size, form }.
   const shots = {};
   // A still pose for menus: turret a little off the hull, deployable parts folded, instanced parts at their rest spots.
   function pose(v) {
@@ -1517,16 +1506,17 @@ export function makeMechs(G, tex) {
       else if (s.kind === 'snap') p.pivot.rotation[s.axis] = s.a0;
     }
   }
-  function portrait(key, team, paintKey, opt) {
+  function portrait(key, team, skin, opt) {
     const o = typeof opt === 'number' ? { size: opt } : opt || {}, size = o.size || 128;
-    const form = o.form || 2, id = [key, team, paintKey || '', o.glow || '', o.decal || '', size, form].join('|');
+    const form = o.form || 2, id = [key, team, skin || '', size, form].join('|');
     if (shots[id]) return shots[id];
-    const r = G.renderer, v = build(key, team, paintKey, o.glow, o.decal, form), scene = new THREE.Scene();
+    const r = G.renderer, v = build(key, team, skin, form), scene = new THREE.Scene();
     scene.environment = G.scene.environment;
     scene.add(v.root, new THREE.HemisphereLight(0xffffff, 0x334455, 1.2));
     const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(-2, 5, 3); scene.add(sun);
     pose(v);
-    const box = new THREE.Box3().setFromObject(v.root), c = box.getCenter(new THREE.Vector3()), rad = box.getSize(new THREE.Vector3()).length() * 0.5;
+    // Framed on the model alone: an SS sigil disc on the ground may run past the edges.
+    const box = new THREE.Box3().setFromObject(v.body), c = box.getCenter(new THREE.Vector3()), rad = box.getSize(new THREE.Vector3()).length() * 0.5;
     const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 80), dir = new THREE.Vector3(4.6, 5.0, 5.6).normalize();
     cam.position.copy(c).addScaledVector(dir, rad / Math.sin(15 * Math.PI / 180) * 0.8); cam.lookAt(c);
     const rt = new THREE.WebGLRenderTarget(size, size, { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace });
@@ -1588,14 +1578,14 @@ export function makeMechs(G, tex) {
     scene.add(ped);
     const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 200);
     let v = null, id = '', ang = 0.55, hold = 0, acc = 0, fit = { r: 1, y: 0.8 };
-    function set(key, paint, glow, decal, form) {
-      const nid = [key, paint || '', glow || '', decal || '', form].join('|');
+    function set(key, skin, form) {
+      const nid = [key, skin || '', form].join('|');
       if (nid === id || !(MECHS[key] || BOSSES[key])) return;
       if (v) disposeView(v);
-      id = nid; v = build(key, 0, paint, glow, decal, form);
+      id = nid; v = build(key, 0, skin, form);
       pose(v);
       // Fit to the model's form II size, so form III reads bigger on the pedestal and form I smaller.
-      const box = new THREE.Box3().setFromObject(v.root), sz = box.getSize(new THREE.Vector3()), k = FORM_SCALE[1] / FORM_SCALE[Math.max(1, Math.min(3, form)) - 1];
+      const box = new THREE.Box3().setFromObject(v.body), sz = box.getSize(new THREE.Vector3()), k = FORM_SCALE[1] / FORM_SCALE[Math.max(1, Math.min(3, form)) - 1];
       const foot = Math.max(sz.x, sz.z) * 0.5 * k;
       fit = { r: Math.max(foot * 1.12, sz.y * 0.62 * k, 1.1), y: Math.max(0.6, sz.y * 0.42 * k), foot };
       ped.scale.setScalar(Math.max(1.05, foot * 1.18));

@@ -102,7 +102,7 @@ const wireEvents = (events) => JSON.parse(JSON.stringify(events, (k, v) => (type
 function makeRoster(mode, diff) {
   const mech = (i) => MECH_ORDER[i % MECH_ORDER.length];
   const out = [];
-  for (let i = 0; i < 5; i++) out.push({ team: 0, mech: mech(i), name: 'A' + i, bot: true, diff, mods: i === 0 ? { hp: 1.2, dmg: 1.2 } : i === 2 ? { lv: [5, 4, 3, 2, 5] } : undefined, paint: i === 1 ? 'vang' : null, glow: i === 1 ? 'tim' : null, decal: i === 3 ? 'sao' : null });
+  for (let i = 0; i < 5; i++) out.push({ team: 0, mech: mech(i), name: 'A' + i, bot: true, diff, mods: i === 0 ? { hp: 1.2, dmg: 1.2 } : i === 2 ? { lv: [5, 4, 3, 2, 5] } : undefined, skin: i === 1 ? 's' : i === 3 ? 'ss' : null });
   if (mode === 'trum') out.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
   else for (let i = 0; i < 5; i++) out.push({ team: 1, mech: mech(i + 3), name: 'B' + i, bot: true, diff });
   return out;

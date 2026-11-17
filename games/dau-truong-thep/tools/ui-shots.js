@@ -322,10 +322,17 @@ async function phoneSuite(browser) {
       const r = await page.evaluate(() => ({ tip: !document.querySelector('#ui [data-r="sgTip"]').hidden, pv: document.querySelector('#ui [data-r="sgPv"]').textContent }));
       check(T('select') + ': a tapped skill shows its tip, a tapped form is previewed', r.tip && r.pv === 'Xem trước hình thái III', JSON.stringify(r));
     }, 250);
-    for (const [tag, tab] of [['stats', 'info'], ['up', 'up'], ['cos', 'cos']]) {
+    for (const [tag, tab] of [['stats', 'info'], ['up', 'up']]) {
       await page.click(`#ui .tabs [data-tab="${tab}"]`);
       await shot(page, errs, T('garage-' + tag), () => phoneAudit(page, T('garage-' + tag)), 250);
     }
+    await page.click('#ui .sg-skin');
+    await shot(page, errs, T('skins'), async () => {
+      await phoneAudit(page, T('skins'));
+      const r = await page.evaluate(() => { const c = [...document.querySelectorAll('#ui .skc')].map((n) => n.getBoundingClientRect()); return { n: c.length, inView: c.every((b) => b.top >= 0 && b.bottom <= innerHeight + 1), h: Math.round(Math.min(...c.map((b) => b.height))) }; });
+      check(T('skins') + ': the Skin panel shows the 3 skin cards inside the screen, each card at least 120 px tall', r.n === 3 && r.inView && r.h >= 120, JSON.stringify(r));
+    }, 300);
+    await page.click('#ui .skins [data-r="back"]');
     for (const k of ['map', 'theme']) {
       await page.click(`#ui .menu .su-tabs [data-su="${k}"]`);
       await shot(page, errs, T('menu-' + k), () => phoneAudit(page, T('menu-' + k)), 200);
@@ -413,7 +420,7 @@ let MECH_ORDER = [], MECHS = {};
         check(T('menu') + ': every mech not owned on a fresh save (all but the 4 free ones) shows lock and price', r.lock === NM - 4 && r.lockPrice, JSON.stringify(r));
         check(T('menu') + ': the roster is paged: whole first page inside the list, pages = ceil(mechs / per page) with one dot each, the list scrolls (last page checked below)', r.page1 && r.perPage >= 6 && r.perPage % 3 === 0 && r.pages === Math.ceil(NM / r.perPage) && r.pages > 1 && r.dots === (r.pages > 6 ? 1 : r.pages) && r.scrolls, JSON.stringify(r));
         check(T('menu') + ': stage banner LV.0 + name, 3 skill icons, "Lv Tank đã có: LV.0" and "Tăng LV Tank"', r.ban === 'Trâu Sắt' && r.lv === 'LV.0' && r.sk === 3 && r.foot === 'Lv Tank đã có: LV.0' && r.up === 'Tăng LV Tank', JSON.stringify(r));
-        check(T('menu') + ': info column opens on Mô tả (tabs Mô tả / Chi tiết / Nâng cấp / Trang trí): Vị trí, Độ khó (3 stars, Trâu Sắt 1), six-axis radar, forms I / II / III with Tổng cấp 12 and 18', r.tab === 'Mô tả' && r.tabs === 'Mô tả,Chi tiết,Nâng cấp,Trang trí' && r.rows === 'Vị trí,Độ khó' && r.stars === 3 && r.starOn === 1 && r.radar === 6 && r.poly === 6 && r.forms.join('|') === 'IGốc|IITổng cấp 12|IIITổng cấp 18', JSON.stringify(r));
+        check(T('menu') + ': info column opens on Mô tả (tabs Mô tả / Chi tiết / Nâng cấp): Vị trí, Độ khó (3 stars, Trâu Sắt 1), six-axis radar, forms I / II / III with Tổng cấp 12 and 18', r.tab === 'Mô tả' && r.tabs === 'Mô tả,Chi tiết,Nâng cấp' && r.rows === 'Vị trí,Độ khó' && r.stars === 3 && r.starOn === 1 && r.radar === 6 && r.poly === 6 && r.forms.join('|') === 'IGốc|IITổng cấp 12|IIITổng cấp 18', JSON.stringify(r));
         check(T('menu') + ': the setup chip names mode and arena, the setup sheet starts closed', r.chip === 'Đấu đội · Đền Rừng' && r.setupShown === 'none', JSON.stringify(r));
         const rk = await page.evaluate(() => ({ name: document.querySelector('#ui [data-r="rkName"]').textContent, tr: document.querySelector('#ui [data-r="rkTr"]').textContent, next: document.querySelector('#ui [data-r="rkNext"]').textContent, fill: document.querySelector('#ui [data-r="rkFill"]').style.transform }));
         check(T('menu') + ': rank badge shows Bạc, 300 cúp, 150 to Vàng, bar 25%', rk.name === 'Bạc' && rk.tr === '300' && /150 cúp nữa lên Vàng/.test(rk.next) && rk.fill === 'scaleX(0.25)', JSON.stringify(rk));
@@ -486,7 +493,7 @@ let MECH_ORDER = [], MECHS = {};
         const g = await page.evaluate(() => ({ bars: document.querySelectorAll('#ui .detail .st .bar i').length, labels: [...document.querySelectorAll('#ui .detail .st > span')].map((n) => n.textContent).join(), ticks: document.querySelectorAll('#ui .detail .bar u').length,
           passive: (document.querySelector('#ui .detail .passive h4') || {}).textContent, kit: document.querySelectorAll('#ui .detail .sk').length, perks: document.querySelectorAll('#ui .detail .pk').length, perkOn: document.querySelectorAll('#ui .detail .pk.on').length,
           perkNeed: [...document.querySelectorAll('#ui .detail .pk small')].map((n) => n.textContent).join(' | '), tabs: document.querySelectorAll('#ui .tabs button').length }));
-        check(T('garage') + ': 8 stat bars with the right labels, no base ticks at level 0, passive, 4 kit rows, 3 locked perks asking 6 / 12 / 18', g.bars === 8 && g.labels === 'Máu,Giáp,Tốc độ,Gia tốc,Xoay tháp,Tốc bắn,Tầm bắn,Phá trụ' && g.ticks === 0 && /Nội tại/.test(g.passive) && g.kit === 4 && g.perks === 3 && g.perkOn === 0 && /6/.test(g.perkNeed.split('|')[0]) && /12/.test(g.perkNeed.split('|')[1]) && /18/.test(g.perkNeed.split('|')[2]) && g.tabs === 4, JSON.stringify(g));
+        check(T('garage') + ': 8 stat bars with the right labels, no base ticks at level 0, passive, 4 kit rows, 3 locked perks asking 6 / 12 / 18', g.bars === 8 && g.labels === 'Máu,Giáp,Tốc độ,Gia tốc,Xoay tháp,Tốc bắn,Tầm bắn,Phá trụ' && g.ticks === 0 && /Nội tại/.test(g.passive) && g.kit === 4 && g.perks === 3 && g.perkOn === 0 && /6/.test(g.perkNeed.split('|')[0]) && /12/.test(g.perkNeed.split('|')[1]) && /18/.test(g.perkNeed.split('|')[2]) && g.tabs === 3, JSON.stringify(g));
       }, 300);
       await page.click('#ui .tabs [data-tab="desc"]');
       await page.click('#ui .sg-up');
@@ -529,45 +536,49 @@ let MECH_ORDER = [], MECHS = {};
       await page.click('#ui .tabs [data-tab="info"]');
       st = await page.evaluate(() => ({ perkOn: document.querySelectorAll('#ui .detail .pk.on').length, ticks: document.querySelectorAll('#ui .detail .bar u').length, up: document.querySelectorAll('#ui .detail .st b.up').length }));
       check(T('garage') + ': at 25 levels all 3 perks read unlocked and the bars mark the base value', st.perkOn === 3 && st.ticks >= 4 && st.up >= 4, JSON.stringify(st));
-      // cosmetics: paint, glow, decal; buy with confirm, equip, preview, portrait follows
+      // skins: the Skin panel (big model cards graded A / S / SS), buy with confirm, use, the portrait follows
       await page.evaluate(() => { const d = __G.meta.get(); d.coins = 5000; d.gems = 0; d.lv.loi = [1, 0, 2, 0, 0]; __G.ui.showMenu(); });
-      await page.click('#ui .mc[data-mech="loi"]'); await page.click('#ui .tabs [data-tab="cos"]');
-      await shot(page, errs, T('garage-cos'), async () => {
-        const g = await page.evaluate(() => ({ paints: document.querySelectorAll('#ui [data-cos="paint"]').length, glows: document.querySelectorAll('#ui [data-cos="glow"]').length, decals: document.querySelectorAll('#ui [data-cos="decal"]').length, eq: [...document.querySelectorAll('#ui .pt.eq')].map((b) => b.dataset.cos + ':' + b.dataset.k).join() }));
-        check(T('garage') + ': cosmetics tab lists 7 paints, 5 glows, 5 decals, originals equipped', g.paints === 7 && g.glows === 5 && g.decals === 5 && g.eq === 'paint:goc,glow:goc,decal:goc', JSON.stringify(g));
+      await page.click('#ui .mc[data-mech="loi"]'); await page.click('#ui .sg-skin');
+      await shot(page, errs, T('skins'), async () => {
+        const g = await page.evaluate(() => ({ on: document.querySelector('#ui .skins').classList.contains('on'), cards: [...document.querySelectorAll('#ui .skc')].map((c) => c.dataset.skin + ':' + c.querySelector('.skc-g .sk-g').textContent).join(),
+          eq: [...document.querySelectorAll('#ui .skc.eq')].map((c) => c.dataset.skin).join(), names: [...document.querySelectorAll('#ui .skc-n')].map((n) => n.textContent).join('|'), tabs: [...document.querySelectorAll('#ui .sk-tabs button')].map((b) => b.textContent).join(),
+          big: window.__portraitCalls.some((c) => c[0] === 'loi' && c[2] === 'ss' && c[3] === 3 && c[4] >= 240), title: document.querySelector('#ui .sk-head h2').textContent, side: document.querySelectorAll('#ui .sk-col').length, oldTab: !!document.querySelector('#ui .tabs [data-tab="cos"]') }));
+        check(T('skins') + ': the Skin panel opens from the stage with 3 cards goc:A, s:S, ss:SS (Nguyên Bản in use), grade tabs, big form III portraits, a collection column, no Trang trí tab', g.on && g.cards === 'goc:A,s:S,ss:SS' && g.eq === 'goc' && g.names === 'Nguyên Bản|Lôi Công Hắc Kim|Lôi Thần Tử Điện' && g.tabs === 'Tất cả,Cấp A,Cấp S,Cấp SS' && g.big && /Lôi Công/.test(g.title) && g.side === 3 && !g.oldTab, JSON.stringify(g));
       }, 300);
-      await page.hover('#ui [data-cos="paint"][data-k="hong"]');
-      st = await page.evaluate(() => ({ prev: window.__portraitCalls.some((c) => c[0] === 'loi' && c[2] === 'hong'), owned: __G.meta.get().ownedPaints.includes('hong') }));
-      check(T('garage') + ': hovering an unowned paint previews it on the portrait without buying', st.prev && !st.owned, JSON.stringify(st));
-      await page.click('#ui [data-cos="paint"][data-k="vang"]');
+      await page.click('#ui .skc[data-skin="s"] [data-buy]');
+      st = await page.evaluate(() => ({ lead: document.querySelector('#ui .modal.on .lead').textContent, coins: __G.meta.get().coins }));
+      check(T('skins') + ': buying an S skin asks first (800 xu), nothing charged yet', /800 xu/.test(st.lead) && st.coins === 5000, JSON.stringify(st));
       await page.click('#ui .modal.on [data-r="yes"]');
       await page.waitForTimeout(100);
-      st = await page.evaluate(() => ({ coins: __G.meta.get().coins, owned: __G.meta.get().ownedPaints, eq: __G.meta.get().paints.loi, called: window.__portraitCalls.some((c) => c[0] === 'loi' && c[1] === 0 && c[2] === 'vang'), eqEl: document.querySelector('#ui .pt.eq[data-cos="paint"]').dataset.k }));
-      check(T('garage') + ': buying Vàng costs 200, equips it, portrait asked with paint "vang"', st.coins === 4800 && st.owned.join() === 'goc,vang' && st.eq === 'vang' && st.called && st.eqEl === 'vang', JSON.stringify(st));
-      await page.click('#ui [data-cos="glow"][data-k="tim"]'); await page.click('#ui .modal.on [data-r="yes"]');
-      await page.click('#ui [data-cos="decal"][data-k="soc"]'); await page.click('#ui .modal.on [data-r="yes"]');
-      await page.waitForTimeout(100);
-      st = await page.evaluate(() => ({ coins: __G.meta.get().coins, glow: __G.meta.get().glows.loi, decal: __G.meta.get().decals.loi, called: window.__portraitCalls.some((c) => c[0] === 'loi' && c[2] === 'vang' && c[3] === 'tim' && c[4] === 'soc'), css: document.querySelector('#ui .sg-img').style.getPropertyValue('--gl') }));
-      check(T('garage') + ': glow Tử Quang (250) and decal Sọc Đua (150) are bought and equipped, portrait asked with paint, glow and decal', st.coins === 4400 && st.glow === 'tim' && st.decal === 'soc' && st.called && st.css === '#b070ff', JSON.stringify(st));
-      await page.click('#ui [data-cos="paint"][data-k="goc"]');
-      st = await page.evaluate(() => ({ eq: __G.meta.get().paints.loi || null, coins: __G.meta.get().coins }));
-      check(T('garage') + ': equipping original is free and clears the paint', st.eq === null && st.coins === 4400, JSON.stringify(st));
-      await page.click('#ui [data-cos="paint"][data-k="vang"]');
-      st = await page.evaluate(() => ({ eq: __G.meta.get().paints.loi, coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on') }));
-      check(T('garage') + ': re-equipping an owned paint is free, no confirm', st.eq === 'vang' && st.coins === 4400 && !st.modal, JSON.stringify(st));
+      st = await page.evaluate(() => ({ coins: __G.meta.get().coins, owned: __G.meta.get().ownedSkins.join(), eq: __G.meta.get().skins.loi, eqEl: document.querySelector('#ui .skc.eq').dataset.skin, using: document.querySelector('#ui .skc.eq .skc-on').textContent, called: window.__portraitCalls.some((c) => c[0] === 'loi' && c[1] === 0 && c[2] === 's' && c[3] === 1) }));
+      check(T('skins') + ': the S skin costs 800, is owned, used at once (card reads "Đang dùng"), the stage portrait is asked with skin "s"', st.coins === 4200 && st.owned === 'loi:s' && st.eq === 's' && st.eqEl === 's' && /Đang dùng/.test(st.using) && st.called, JSON.stringify(st));
+      await page.click('#ui .sk-tabs [data-g="SS"]');
+      st = await page.evaluate(() => [...document.querySelectorAll('#ui .skc')].map((c) => c.dataset.skin).join());
+      check(T('skins') + ': the SS tab shows only the SS card', st === 'ss', st);
+      await page.click('#ui .sk-tabs [data-g="all"]');
+      await page.click('#ui .skc[data-skin="goc"] [data-use]');
+      st = await page.evaluate(() => ({ eq: __G.meta.get().skins.loi || null, coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on'), eqEl: document.querySelector('#ui .skc.eq').dataset.skin }));
+      check(T('skins') + ': "Dùng" on the base skin is free, no confirm, clears the choice', st.eq === null && st.coins === 4200 && !st.modal && st.eqEl === 'goc', JSON.stringify(st));
+      await page.click('#ui .skc[data-skin="s"] [data-use]');
+      st = await page.evaluate(() => ({ eq: __G.meta.get().skins.loi, coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on') }));
+      check(T('skins') + ': "Dùng" on an owned S skin is free, no confirm', st.eq === 's' && st.coins === 4200 && !st.modal, JSON.stringify(st));
+      await page.click('#ui .skins [data-r="back"]');
       await page.evaluate(() => { const d = __G.meta.get(); d.coins = 100; d.gems = 0; __G.ui.showMenu(); });
-      await page.click('#ui .mc[data-mech="loi"]'); await page.click('#ui .tabs [data-tab="cos"]');
-      await page.click('#ui [data-cos="paint"][data-k="den"]');
-      st = await page.evaluate(() => ({ toast: document.querySelector('#ui .toast').textContent, den: __G.meta.get().ownedPaints.includes('den'), coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on') }));
-      check(T('garage') + ': 100 coins and no gems cannot buy a 250 paint ("Chưa đủ xu")', st.toast === 'Chưa đủ xu' && !st.den && st.coins === 100 && !st.modal, JSON.stringify(st));
-      await page.evaluate(() => { __G.meta.get().gems = 30; });
-      await page.click('#ui [data-cos="paint"][data-k="den"]');
+      await page.click('#ui .mc[data-mech="loi"]'); await page.click('#ui .sg-skin');
+      await page.click('#ui .skc[data-skin="ss"] [data-buy]');
+      st = await page.evaluate(() => ({ toast: document.querySelector('#ui .toast').textContent, ss: __G.meta.get().ownedSkins.includes('loi:ss'), coins: __G.meta.get().coins, modal: !!document.querySelector('#ui .modal.on') }));
+      check(T('skins') + ': 100 coins and no gems cannot buy a 2000 SS skin ("Chưa đủ xu")', st.toast === 'Chưa đủ xu' && !st.ss && st.coins === 100 && !st.modal, JSON.stringify(st));
+      await page.evaluate(() => { __G.meta.get().gems = 300; });
+      await page.click('#ui .skc[data-skin="ss"] [data-buy]');
       st = await page.evaluate(() => ({ modal: document.querySelector('#ui .modal.on .lead').textContent }));
-      check(T('garage') + ': with enough gems the confirm offers the gem price (25 Tinh Thể)', /25 Tinh Thể/.test(st.modal), JSON.stringify(st));
+      check(T('skins') + ': with enough gems the confirm offers the gem price (200 Tinh Thể)', /200 Tinh Thể/.test(st.modal), JSON.stringify(st));
       await page.click('#ui .modal.on [data-r="yes"]');
-      st = await page.evaluate(() => ({ gems: __G.meta.get().gems, coins: __G.meta.get().coins, den: __G.meta.get().paints.loi }));
-      check(T('garage') + ': paying in gems takes 25 gems and no coins', st.gems === 5 && st.coins === 100 && st.den === 'den', JSON.stringify(st));
-      await page.evaluate(() => { const d = __G.meta.get(); d.coins = 700; d.gems = 0; d.lv.loi = [1, 0, 2, 0, 0]; d.paints.loi = 'vang'; __G.ui.showMenu(); });
+      st = await page.evaluate(() => ({ gems: __G.meta.get().gems, coins: __G.meta.get().coins, eq: __G.meta.get().skins.loi }));
+      check(T('skins') + ': paying in gems takes 200 gems and no coins, the SS skin is used', st.gems === 100 && st.coins === 100 && st.eq === 'ss', JSON.stringify(st));
+      await page.click('#ui .skins [data-r="back"]');
+      st = await page.evaluate(() => ({ skins: document.querySelector('#ui .skins').classList.contains('on'), menu: document.querySelector('#ui .menu').classList.contains('on') }));
+      check(T('skins') + ': Quay lại closes the panel back to the tank select', !st.skins && st.menu, JSON.stringify(st));
+      await page.evaluate(() => { const d = __G.meta.get(); d.coins = 700; d.gems = 0; d.lv.loi = [1, 0, 2, 0, 0]; d.skins.loi = 's'; __G.ui.showMenu(); });
       await page.click('#ui .mc[data-mech="loi"]');
       // settings
       await page.click('#ui [data-r="bSet"]');
@@ -587,11 +598,11 @@ let MECH_ORDER = [], MECHS = {};
       await page.click('#ui .seg button:nth-child(3)');
       await page.click('#ui .play');
       const play = await page.evaluate(() => window.__log.filter((l) => l[0] === 'ui:play').map((l) => l[1]));
-      check(T('menu') + ': play emits { mech, diff, map, mods: { lv }, paint, glow, decal } from the garage', play.length === 1 && play[0].mech === 'loi' && play[0].diff === 'hard' && play[0].map === 'denrung' && play[0].mods.lv.join() === '1,0,2,0,0' && play[0].paint === 'vang' && play[0].glow === 'tim' && play[0].decal === 'soc', JSON.stringify(play));
+      check(T('menu') + ': play emits { mech, diff, map, mods: { lv }, skin } from the garage', play.length === 1 && play[0].mech === 'loi' && play[0].diff === 'hard' && play[0].map === 'denrung' && play[0].mods.lv.join() === '1,0,2,0,0' && play[0].skin === 's' && !('paint' in play[0]), JSON.stringify(play));
       await page.waitForTimeout(600);
       await shot(page, errs, T('hud-live'), async () => {
-        const live = await page.evaluate(() => ({ hud: document.querySelector('#ui .hud').classList.contains('on'), menu: document.querySelector('#ui .menu').classList.contains('on'), mine: window.__portraitCalls.filter((c) => c[0] === 'loi' && c[2] === 'vang').length > 0 }));
-        check(T('live') + ': play switches menu to HUD, own HUD portrait uses the paint', live.hud && !live.menu && live.mine, JSON.stringify(live));
+        const live = await page.evaluate(() => ({ hud: document.querySelector('#ui .hud').classList.contains('on'), menu: document.querySelector('#ui .menu').classList.contains('on'), mine: window.__portraitCalls.filter((c) => c[0] === 'loi' && c[2] === 's').length > 0 }));
+        check(T('live') + ': play switches menu to HUD, own HUD portrait uses the skin', live.hud && !live.menu && live.mine, JSON.stringify(live));
       }, 1500);
       await ctx.close();
 
@@ -600,7 +611,7 @@ let MECH_ORDER = [], MECHS = {};
       await page.click('#ui .mc[data-mech="soi"]');
       await page.click('#ui .play');
       const dp = await page.evaluate(() => window.__log.filter((l) => l[0] === 'ui:play').map((l) => l[1]));
-      check(T('menu') + ': default play carries level 0 on every track and cosmetics "goc"', dp.length === 1 && dp[0].mech === 'soi' && dp[0].mods.lv.join() === '0,0,0,0,0' && dp[0].paint === 'goc' && dp[0].glow === 'goc' && dp[0].decal === 'goc', JSON.stringify(dp));
+      check(T('menu') + ': default play carries level 0 on every track and the base skin "goc"', dp.length === 1 && dp[0].mech === 'soi' && dp[0].mods.lv.join() === '0,0,0,0,0' && dp[0].skin === 'goc', JSON.stringify(dp));
       await ctx.close();
 
       // ----- shop: sections, confirm, instant grant, once-only, pass and daily claim, no personal data fields
@@ -611,7 +622,7 @@ let MECH_ORDER = [], MECHS = {};
           demo: document.querySelector('#ui .sh-demo').textContent, fields: document.querySelectorAll('#ui .shop input, #ui .shop textarea, #ui .shop form, #ui .shop a, #ui .shop iframe').length, bal: document.querySelector('#ui .shop [data-r="gems"]').textContent + '/' + document.querySelector('#ui .shop [data-r="coins"]').textContent,
           starter: [...document.querySelectorAll('#ui .sh-card[data-id="khoidau"] li')].map((n) => n.textContent).join('|') }));
         check(T('shop') + ': four sections in order, 10 cards, VND labels like "29.000 ₫", pretend note, no input or link', r.secs === 'Gói khởi đầu,Thẻ tháng,Gói xe,Tinh Thể' && r.cards === 10 && r.prices[0] === '29.000 ₫' && r.prices.includes('500.000 ₫') && r.prices.every((t) => /^\d{1,3}(\.\d{3})* ₫$/.test(t)) && /Bản thử, không thu tiền thật/.test(r.demo) && r.fields === 0, JSON.stringify(r));
-        check(T('shop') + ': cards list what is inside, balances shown (gems / coins)', /300 Tinh Thể\|1\.000 xu\|Thần Công\|Sơn Vàng Hổ Phách/.test(r.starter) && r.bal === '40/300', JSON.stringify(r));
+        check(T('shop') + ': cards list what is inside, balances shown (gems / coins)', /300 Tinh Thể\|1\.000 xu\|Thần Công\|Skin Thần Công Ngự Lâm \(S\)/.test(r.starter) && r.bal === '40/300', JSON.stringify(r));
       }, 300);
       await page.click('#ui [data-buy="khoidau"]');
       await shot(page, errs, T('shop-confirm'), async () => {
@@ -622,8 +633,8 @@ let MECH_ORDER = [], MECHS = {};
       let ss = await page.evaluate(() => ({ gems: __G.meta.get().gems, bought: __G.meta.get().shop.bought.khoidau || 0 }));
       check(T('shop') + ': cancel grants nothing', ss.gems === 40 && ss.bought === 0, JSON.stringify(ss));
       await page.click('#ui [data-buy="khoidau"]'); await page.click('#ui .modal.on [data-r="yes"]');
-      ss = await page.evaluate(() => { const d = __G.meta.get(); return { gems: d.gems, coins: d.coins, own: d.owned.includes('thancong'), paint: d.ownedPaints.includes('vang'), toast: document.querySelector('#ui .toast').textContent, on: document.querySelector('#ui .toast').classList.contains('on'), btn: document.querySelector('#ui [data-buy="khoidau"]').textContent.trim(), dis: document.querySelector('#ui [data-buy="khoidau"]').disabled, bal: document.querySelector('#ui .shop [data-r="gems"]').textContent }; });
-      check(T('shop') + ': confirmed starter pack lands at once (340 gems, 1300 coins, Thần Công, Vàng), toast lists it, card reads "Đã mua" and is disabled', ss.gems === 340 && ss.coins === 1300 && ss.own && ss.paint && /Đã nhận/.test(ss.toast) && /300 Tinh Thể/.test(ss.toast) && /Thần Công/.test(ss.toast) && ss.on && ss.btn === 'Đã mua' && ss.dis && ss.bal === '340', JSON.stringify(ss));
+      ss = await page.evaluate(() => { const d = __G.meta.get(); return { gems: d.gems, coins: d.coins, own: d.owned.includes('thancong'), skin: d.ownedSkins.includes('thancong:s'), toast: document.querySelector('#ui .toast').textContent, on: document.querySelector('#ui .toast').classList.contains('on'), btn: document.querySelector('#ui [data-buy="khoidau"]').textContent.trim(), dis: document.querySelector('#ui [data-buy="khoidau"]').disabled, bal: document.querySelector('#ui .shop [data-r="gems"]').textContent }; });
+      check(T('shop') + ': confirmed starter pack lands at once (340 gems, 1300 coins, Thần Công, its S skin), toast lists it, card reads "Đã mua" and is disabled', ss.gems === 340 && ss.coins === 1300 && ss.own && ss.skin && /Đã nhận/.test(ss.toast) && /300 Tinh Thể/.test(ss.toast) && /Thần Công/.test(ss.toast) && ss.on && ss.btn === 'Đã mua' && ss.dis && ss.bal === '340', JSON.stringify(ss));
       await page.click('#ui [data-buy="thethang"]'); await page.click('#ui .modal.on [data-r="yes"]');
       await shot(page, errs, T('shop-pass'), async () => {
         const r = await page.evaluate(() => ({ left: document.querySelector('#ui .pass-st b').textContent, claim: document.querySelector('#ui [data-r="claim"]').textContent.trim(), dis: document.querySelector('#ui [data-r="claim"]').disabled, gems: __G.meta.get().gems }));
@@ -762,7 +773,7 @@ let MECH_ORDER = [], MECHS = {};
       }, 2600);
       await page.click('#ui .rs-btns .primary');
       const again = await page.evaluate(() => window.__log.filter((l) => l[0] === 'ui:play').map((l) => l[1]));
-      check(T('result') + ': Đấu tiếp emits ui:play with mods and paint', again.length >= 1 && again[0].mods.lv.join() === '0,0,0,0,0' && again[0].paint === 'goc', JSON.stringify(again));
+      check(T('result') + ': Đấu tiếp emits ui:play with mods and skin', again.length >= 1 && again[0].mods.lv.join() === '0,0,0,0,0' && again[0].skin === 'goc', JSON.stringify(again));
       await ctx.close();
 
       // ----- result: loss never takes trophies below 0
@@ -1305,7 +1316,7 @@ let MECH_ORDER = [], MECHS = {};
         check(T('lobby-host') + ': code K7QX2, two team columns with 3 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 6 && r.bots === 2 && r.botText === 'Bot', JSON.stringify(r));
         check(T('lobby-host') + ': one own row, one host badge, 4 portraits, 4 owned mechs with one selected, "Đổi đội" on every player', r.me === 1 && r.host === 1 && r.imgs === 'data:image,data:image,data:image,data:image' && r.mine === 4 && r.sel === 1 && r.swaps === 4, JSON.stringify(r));
         check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 5 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
-        check(T('lobby-host') + ': entering pushes my mech, paint and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","paint":"goc","glow":"goc","decal":"goc","mods":{"lv":[0,0,0,0,0]}}', r.calls.join());
+        check(T('lobby-host') + ': entering pushes my mech, skin and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","skin":"goc","mods":{"lv":[0,0,0,0,0]}}', r.calls.join());
       });
       await page.click('#ui .lobby [data-a="start"]');
       check(T('lobby-host') + ': Bắt đầu with an unready player shows online.error inline', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Còn người chơi chưa sẵn sàng.');
@@ -1836,19 +1847,19 @@ let MECH_ORDER = [], MECHS = {};
       const r = await page.evaluate(async () => {
         const { makeMeta } = await import('/games/dau-truong-thep/js/meta.js');
         const out = {};
-        const weird = JSON.stringify({ coins: 'x', level: -4, xp: 1e12, owned: [1, 'zzz', 'trau'], mech: 'ghost', diff: 'x', settings: { quality: 'ultra', volume: 9 }, stats: 5, upgrades: { trau: 99, soi: -3, ghost: 2, hac: 'x' }, paints: { trau: 'vang', soi: 'nope', hac: 5 }, ownedPaints: ['vang', 7, 'zzz', 'constructor'], trophies: -50 });
-        for (const [k, raw] of Object.entries({ junk: '{{{nope', arr: '[1,2]', nulls: 'null', weird, badMaps: JSON.stringify({ upgrades: [1], paints: 'x', ownedPaints: 'y', trophies: 'z' }) })) {
+        const weird = JSON.stringify({ coins: 'x', level: -4, xp: 1e12, owned: [1, 'zzz', 'trau'], mech: 'ghost', diff: 'x', settings: { quality: 'ultra', volume: 9 }, stats: 5, upgrades: { trau: 99, soi: -3, ghost: 2, hac: 'x' }, skins: { trau: 's', soi: 'nope', hac: 5, ghost: 's' }, ownedSkins: ['trau:s', 7, 'zzz', 'constructor', 'soi:zz', 'ghost:s'], trophies: -50 });
+        for (const [k, raw] of Object.entries({ junk: '{{{nope', arr: '[1,2]', nulls: 'null', weird, badMaps: JSON.stringify({ upgrades: [1], skins: 'x', ownedSkins: 'y', trophies: 'z' }) })) {
           localStorage.setItem('dtt.save.v1', raw);
           const d = makeMeta().get();
           out[k] = d.coins === 0 && d.level >= 1 && d.xp >= 0 && d.owned.length >= 4 && ['low', 'medium', 'high'].includes(d.settings.quality) && d.settings.volume <= 1 && d.stats.matches === 0
-            && d.trophies === 0 && d.gems === 0 && d.ownedPaints.includes('goc') && d.ownedGlows.includes('goc') && d.ownedDecals.includes('goc') && typeof d.lv === 'object' && typeof d.paints === 'object' && d.shop.starter === false && d.shop.passUntil === 0;
+            && d.trophies === 0 && d.gems === 0 && Array.isArray(d.ownedSkins) && typeof d.lv === 'object' && typeof d.skins === 'object' && d.shop.starter === false && d.shop.passUntil === 0;
         }
         localStorage.setItem('dtt.save.v1', weird);
         const w = makeMeta().get();
-        const weirdOk = w.lv.trau.join() === '5,5,5,5,5' && w.lv.soi === undefined && w.lv.ghost === undefined && w.ownedPaints.join() === 'goc,vang' && w.paints.trau === 'vang' && w.paints.soi === undefined;
+        const weirdOk = w.lv.trau.join() === '5,5,5,5,5' && w.lv.soi === undefined && w.lv.ghost === undefined && w.ownedSkins.join() === 'trau:s' && w.skins.trau === 's' && w.skins.soi === undefined && w.skins.ghost === undefined;
         localStorage.setItem('dtt.save.v1', JSON.stringify({ v: 1, name: 'Cũ', coins: 77, level: 3, xp: 5, owned: ['trau', 'soi', 'ung', 'hac'] }));
         const old = makeMeta().get();
-        const oldOk = old.coins === 77 && old.level === 3 && old.trophies === 0 && Object.keys(old.lv).length === 0 && old.ownedPaints.join() === 'goc' && old.gems === 0 && old.v === 2;
+        const oldOk = old.coins === 77 && old.level === 3 && old.trophies === 0 && Object.keys(old.lv).length === 0 && old.ownedSkins.length === 0 && old.gems === 0 && old.v === 3 && !('ownedPaints' in old);
         localStorage.removeItem('dtt.save.v1');
         const m = makeMeta();
         const rows = [{ id: 0, team: 0, kills: 5, assists: 2, deaths: 1 }, { id: 1, team: 1, kills: 1, assists: 0, deaths: 5 }];
@@ -1871,24 +1882,27 @@ let MECH_ORDER = [], MECHS = {};
         log.gem = g.upgrade('trau', 1, 'gems'); log.g1 = d.gems; log.gemCoins = d.coins; log.gemLv = d.lv.trau.join();
         d.gems = 5; log.gemPoor = g.upgrade('trau', 2, 'gems'); log.gP = d.gems;
         d.coins = 100;
-        log.paintPoor = g.buyPaint('den'); log.cp = d.coins;
-        d.coins = 600;
-        log.paintBuy = g.buyPaint('tim'); log.cBuy = d.coins; log.paintAgain = g.buyPaint('tim'); log.cAgain = d.coins;
-        log.badPaint = g.buyPaint('zzz');
-        log.glowBuy = g.buyGlow('vang'); log.cGlow = d.coins; d.gems = 100; log.decalGem = g.buyDecal('caro', 'gems'); log.gDecal = d.gems; log.cDecal = d.coins;
-        log.equipUnowned = g.setPaint('trau', 'hong'); log.equipGlowUnowned = g.setGlow('trau', 'tim'); log.equipDecalUnowned = g.setDecal('trau', 'soc');
-        log.equip = g.setPaint('trau', 'tim'); log.eq = d.paints.trau;
-        log.equipG = g.setGlow('trau', 'vang'); log.equipD = g.setDecal('trau', 'caro');
-        log.equipLockedMech = g.setPaint('loi', 'tim');
-        log.reset = g.setPaint('trau', 'goc'); log.eq2 = d.paints.trau;
-        g.setPaint('trau', 'tim');
+        log.skinPoor = g.buySkin('trau', 's'); log.cp = d.coins;
+        d.coins = 3000;
+        log.skinBuy = g.buySkin('trau', 's'); log.cBuy = d.coins; log.skinAgain = g.buySkin('trau', 's'); log.cAgain = d.coins;
+        log.badSkin = g.buySkin('trau', 'zzz'); log.badMech = g.buySkin('ghost', 's'); log.baseFree = g.buySkin('trau', 'goc'); log.cBase = d.coins;
+        d.gems = 300; log.ssGem = g.buySkin('soi', 'ss', 'gems'); log.gSS = d.gems; log.cSS = d.coins;
+        log.equipUnowned = g.setSkin('trau', 'ss');
+        log.equip = g.setSkin('trau', 's'); log.eq = d.skins.trau;
+        log.equipLockedMech = g.setSkin('loi', 's'); log.equipBad = g.setSkin('trau', 'zzz');
+        log.reset = g.setSkin('trau', 'goc'); log.eq2 = d.skins.trau;
+        g.setSkin('trau', 's');
         const reload = makeMeta().get();
-        log.persist = reload.lv.trau.join() === '5,1,0,0,0' && reload.paints.trau === 'tim' && reload.glows.trau === 'vang' && reload.decals.trau === 'caro' && reload.ownedPaints.join() === 'goc,tim' && reload.ownedGlows.join() === 'goc,vang' && reload.ownedDecals.join() === 'goc,caro' && reload.gems === 75;
+        log.persist = reload.lv.trau.join() === '5,1,0,0,0' && reload.skins.trau === 's' && reload.ownedSkins.join() === 'trau:s,soi:ss' && reload.gems === 100;
 
-        // v1 -> v2 migration: one level L per mech becomes L on every track, paid-for paints stay
+        // v1 -> v3 migration: one level L per mech becomes L on every track; the old paints come back once as coins
         localStorage.setItem('dtt.save.v1', JSON.stringify({ v: 1, coins: 321, owned: ['trau', 'soi', 'ung', 'hac', 'loi'], upgrades: { trau: 3, loi: 5, soi: 0 }, ownedPaints: ['goc', 'vang'], paints: { trau: 'vang' } }));
-        const mg = makeMeta().get();
-        log.mig = [mg.v, mg.coins, mg.lv.trau.join(), mg.lv.loi.join(), mg.lv.soi === undefined, mg.paints.trau, mg.ownedPaints.join(), mg.gems].join('|');
+        const mg = makeMeta().get(), mg2 = makeMeta().get();
+        log.mig = [mg.v, mg.coins, mg.lv.trau.join(), mg.lv.loi.join(), mg.lv.soi === undefined, 'paints' in mg, 'ownedPaints' in mg, mg.ownedSkins.length, mg.gems, mg2.coins].join('|');
+        // v2 -> v3: every paid paint, glow and decal is refunded at its old price, once (saved at load), the old fields dropped
+        localStorage.setItem('dtt.save.v1', JSON.stringify({ v: 2, coins: 50, owned: ['trau', 'soi', 'ung', 'hac'], ownedPaints: ['goc', 'vang', 'tim', 'vang', 'zzz'], ownedGlows: ['goc', 'hong'], ownedDecals: ['goc', 'caro'], paints: { trau: 'vang' }, glows: { trau: 'hong' }, decals: { soi: 'caro' } }));
+        const v2 = makeMeta(), v2d = v2.get(), stored = JSON.parse(localStorage.getItem('dtt.save.v1')), v2again = makeMeta().get();
+        log.mig2 = [v2d.v, v2d.coins, v2.refunded, stored.v, stored.coins, 'ownedPaints' in stored || 'ownedGlows' in stored || 'ownedDecals' in stored || 'paints' in stored || 'glows' in stored || 'decals' in stored, v2again.coins, Object.keys(v2d.skins).length].join('|');
 
         // shop, daily claim, match rewards with an injected clock
         localStorage.removeItem('dtt.save.v1');
@@ -1896,7 +1910,7 @@ let MECH_ORDER = [], MECHS = {};
         const sm = makeMeta({ now: () => clock }), sd = sm.get();
         log.shopBad = sm.shopBuy('nope').ok;
         const st1 = sm.shopBuy('khoidau'), st2 = sm.shopBuy('khoidau');
-        log.starter = [st1.ok, st1.got.gems, st1.got.coins, st1.got.mech, st1.got.paint, st2.ok, st2.reason, sd.gems, sd.coins, sd.owned.includes('thancong'), sd.ownedPaints.includes('vang'), sd.shop.starter].join('|');
+        log.starter = [st1.ok, st1.got.gems, st1.got.coins, st1.got.mech, st1.got.skin, st2.ok, st2.reason, sd.gems, sd.coins, sd.owned.includes('thancong'), sd.ownedSkins.includes('thancong:s'), sd.shop.starter].join('|');
         log.dailyNoPass = sm.claimDaily();
         const p1 = sm.shopBuy('thethang');
         log.pass = [p1.got.pass, sd.gems, sm.passActive(), sm.passDaysLeft(), sm.dailyReady()].join('|');
@@ -1916,6 +1930,10 @@ let MECH_ORDER = [], MECHS = {};
         log.rw3 = [w3.gemParts.firstWin, w3.gemParts.mvp];
         clock += 70 * 86400e3;
         log.expired = [sm.passActive(), sm.passDaysLeft(), sm.claimDaily(), sm.applyResult({ ...win, mvp: 1 }, 0).coinMul];
+        // a bundle bought twice: the second time the tank and its skin come back as coins (1600 + 800)
+        localStorage.removeItem('dtt.save.v1');
+        const bm = makeMeta(), bd = bm.get(), b1 = bm.shopBuy('goi_hacho'), b2 = bm.shopBuy('goi_hacho');
+        log.bundle = [b1.got.mech, b1.got.skin, b2.got.mech === undefined, b2.got.skin === undefined, b2.got.refund, bd.ownedSkins.join(), bd.coins].join('|');
         log.badStore = (() => { const bad = { getItem() { throw new Error('x'); }, setItem() { throw new Error('y'); } }; const b = makeMeta({ storage: bad }); b.get().coins = 5; return b.save() === false && b.get().coins === 5; })();
 
         // ranks and trophies, boundaries from RANKS
@@ -1938,17 +1956,19 @@ let MECH_ORDER = [], MECHS = {};
         return { out, weirdOk, oldOk, base, log, rk };
       });
       check('meta: junk, array, null, out-of-range and wrong-typed saves load as valid data', Object.values(r.out).every(Boolean), JSON.stringify(r.out));
-      check('meta: garbage upgrades/paints are clamped or dropped (level 99 -> 5, unknown keys gone, trophies >= 0)', r.weirdOk);
+      check('meta: garbage upgrades/skins are clamped or dropped (level 99 -> 5, unknown tanks, skins and ids gone, trophies >= 0)', r.weirdOk);
       check('meta: an old save without the new fields loads with defaults and keeps coins and level', r.oldOk);
-      check('meta: applyResult pays win + kills + assists + mvp, +22 trophies, persists, versioned', r.base.res.coins === 145 + 50 + 10 + 48 && r.base.res.xp === 125 && r.base.res.win && r.base.res.mvp && r.base.saved && r.base.ver === 2 && r.base.res.gems === 12 && r.base.res.trophiesBefore === 0 && r.base.res.trophiesAfter === 22 && r.base.res.rankAfter.name === 'Sắt', JSON.stringify(r.base));
+      check('meta: applyResult pays win + kills + assists + mvp, +22 trophies, persists, versioned', r.base.res.coins === 145 + 50 + 10 + 48 && r.base.res.xp === 125 && r.base.res.win && r.base.res.mvp && r.base.saved && r.base.ver === 3 && r.base.res.gems === 12 && r.base.res.trophiesBefore === 0 && r.base.res.trophiesAfter === 22 && r.base.res.rankAfter.name === 'Sắt', JSON.stringify(r.base));
       const L = r.log;
       check('meta: upgrade(mech, track) refuses an unowned mech, a bad or missing track, charges 120 then 210 on one track, refuses when poor', L.notOwned === false && L.badTrack === false && L.noTrack === false && L.up1 === true && L.c1 === 880 && L.l1 === '1,0,0,0,0' && L.up2 === true && L.c2 === 670 && L.l2 === '2,0,0,0,0' && L.poor === false && L.cPoor === 100 && L.lPoor === '2,0,0,0,0', JSON.stringify(L));
       check('meta: levels 3..5 on a track cost 300 + 390 + 480, level 6 refused without charging', L.c5 === 99999 - 1170 && L.l5 === 5 && L.max === false && L.cMax === L.c5, JSON.stringify(L));
       check('meta: upgrading with gems takes ceil(price / 10) gems and no coins, refuses when short', L.gem === true && L.g1 === 28 && L.gemCoins === 777 && L.gemLv === '5,1,0,0,0' && L.gemPoor === false && L.gP === 5, JSON.stringify(L));
-      check('meta: buyPaint charges once (tim 300), refuses when poor or unknown; glow in coins, decal in gems (caro 250 -> 25)', L.paintPoor === false && L.cp === 100 && L.paintBuy === true && L.cBuy === 300 && L.paintAgain === true && L.cAgain === 300 && L.badPaint === false && L.glowBuy === true && L.cGlow === 50 && L.decalGem === true && L.gDecal === 75 && L.cDecal === 50, JSON.stringify(L));
-      check('meta: setPaint/setGlow/setDecal need an owned item and mech, goc clears, everything persists', L.equipUnowned === false && L.equipGlowUnowned === false && L.equipDecalUnowned === false && L.equip === true && L.eq === 'tim' && L.equipG && L.equipD && L.equipLockedMech === false && L.reset === true && L.eq2 === undefined && L.persist, JSON.stringify(L));
-      check('meta: a v1 save migrates (one level L becomes L on every track, capped at 5, coins, paints and paint choice kept)', L.mig === '2|321|3,3,3,3,3|5,5,5,5,5|true|vang|goc,vang|0', L.mig);
-      check('meta: starter pack grants gems, coins, mech and paint at once and only once; unknown id refused', L.shopBad === false && L.starter === 'true|300|1000|thancong|vang|false|Đã mua|300|1000|true|true|true', L.starter);
+      check('meta: buySkin charges once (S 800), refuses when poor, an unknown id or tank; the base skin is free; SS in gems (2000 -> 200)', L.skinPoor === false && L.cp === 100 && L.skinBuy === true && L.cBuy === 2200 && L.skinAgain === true && L.cAgain === 2200 && L.badSkin === false && L.badMech === false && L.baseFree === true && L.cBase === 2200 && L.ssGem === true && L.gSS === 100 && L.cSS === 2200, JSON.stringify(L));
+      check('meta: setSkin needs an owned skin of an owned tank, goc clears, everything persists', L.equipUnowned === false && L.equip === true && L.eq === 's' && L.equipLockedMech === false && L.equipBad === false && L.reset === true && L.eq2 === undefined && L.persist, JSON.stringify(L));
+      check('meta: a v1 save migrates (one level L becomes L on every track, capped at 5) and its Vàng paint comes back once as 200 coins', L.mig === '3|521|3,3,3,3,3|5,5,5,5,5|true|false|false|0|0|521', L.mig);
+      check('meta: a v2 save gets its paints, glow and decal back once as coins (vang 200 + tim 300 + hong 300 + caro 250 = 1050, duplicates and unknown ids ignored), saved at load, old fields dropped', L.mig2 === '3|1100|1050|3|1100|false|1100|0', L.mig2);
+      check('meta: starter pack grants gems, coins, mech and its S skin at once and only once; unknown id refused', L.shopBad === false && L.starter === 'true|300|1000|thancong|thancong:s|false|Đã mua|300|1000|true|true|true', L.starter);
+      check('meta: a bundle grants the tank and its S skin; bought again both come back as 2400 coins', L.bundle === 'hacho|hacho:s|true|true|2400|hacho:s|2400', L.bundle);
       check('meta: pass needs a purchase for the daily claim, extends by 30 days, daily gems once per calendar day, again the next day', L.dailyNoPass === 0 && L.pass === '30|500|true|30|true' && L.daily1 === 30 && L.daily2 === 0 && L.gDaily === 530 && L.dailyNextDay === 30 && L.passStack[0] === 60 && L.passStack[1] === 2 && L.passStack[2] === 3, JSON.stringify([L.dailyNoPass, L.pass, L.daily1, L.daily2, L.gDaily, L.dailyNextDay, L.passStack]));
       check('meta: with the pass match coins x1.5 (253 -> 380), gems: level-up +20, MVP +2, first win of the day +10 once per day; expired pass stops all of it', L.rw1 === '380|127|1.5|32|20|2|10|2' && L.rw2[0] === 0 && L.rw3[0] === 10 && L.rw3[1] === 0 && L.expired[0] === false && L.expired[1] === 0 && L.expired[2] === 0 && L.expired[3] === 1, JSON.stringify([L.rw1, L.rw2, L.rw3, L.expired]));
       check('meta: a throwing or full store never breaks the game (save() returns false, data stays in memory)', L.badStore);
