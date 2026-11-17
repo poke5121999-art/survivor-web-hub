@@ -10,6 +10,7 @@ import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
 import { frameDesign } from './frames.js';
 import { STEEL_DESIGNS } from './steel-tanks.js';
+import { slashTrail, slashPose, slashStart, slashHit } from './slash.js';
 import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
@@ -1167,6 +1168,7 @@ export function makeMechs(G, tex) {
         if (P.p) { pivot.position.fromArray(P.p); if (P.model) g.translate(-P.p[0], -P.p[1], -P.p[2]); }
         add(pivot, g, pm, !low && P.kind !== 'spin');
         parent.add(pivot); part.pivot = pivot; part.base = pivot.position.clone();
+        if (P.kind === 'slash') { part.trail = slashTrail(P, gc); parent.add(part.trail); }
       }
       parts.push(part);
     }
@@ -1184,7 +1186,7 @@ export function makeMechs(G, tex) {
     v.root.parent && v.root.parent.remove(v.root);
     for (const g of Object.values(v.geos)) g.dispose();
     for (const m of v.mats) m.dispose();
-    for (const p of v.parts) if (p.inst) for (const im of p.inst) im.dispose();
+    for (const p of v.parts) { if (p.inst) for (const im of p.inst) im.dispose(); if (p.trail) { p.trail.geometry.dispose(); p.trail.material.dispose(); } }
     v.flame.dispose();
     if (v.ring) v.ring.material.dispose();
     if (v.aura) { v.auraMat.dispose(); for (const g of v.auraGeos) g.dispose(); }
@@ -1324,6 +1326,7 @@ export function makeMechs(G, tex) {
       if (s.kind === 'spin' || s.kind === 'roll') { pv.rotation[s.axis] = p.angle; if (s.bob) pv.position.y = p.base.y + Math.sin(time * 2 + u.id) * s.bob; }
       else if (s.kind === 'recoil') { const d = s.dir || [-1, 0, 0], r = v.kick * v.kick * s.amt; pv.position.set(p.base.x + d[0] * r, p.base.y + d[1] * r, p.base.z + d[2] * r); }
       else if (s.kind === 'tread') pv.position.x = (v.walk % s.step);
+      else if (s.kind === 'slash') slashPose(p, pv, dt);
       else if (s.kind === 'deploy') {
         const d = s.by === 'charge' ? v.dCharge : s.by === 'armor' ? v.dArmor : v.dStance, e = d * d * (3 - 2 * d);
         pv.rotation[s.axis] = s.a0 + (s.a1 - s.a0) * e;
@@ -1472,8 +1475,10 @@ export function makeMechs(G, tex) {
   }
 
   function event(e) {
+    if (e.t === 'hit') { const a = views.get(e.by); if (a) slashHit(a, e, G.gfx && G.gfx.fx, a.gcol); }
     const v = views.get(e.id);
     if (!v) return;
+    if (e.t === 'fire' || e.t === 'skill') slashStart(v, e);
     if (e.t === 'fire') {
       v.kick = 1;
       for (const p of v.parts) if (p.spec.by === 'fire') p.spinV = Math.min(40, p.spinV + (p.spec.kick || 22));

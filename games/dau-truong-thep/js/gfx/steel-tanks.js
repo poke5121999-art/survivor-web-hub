@@ -66,10 +66,12 @@ export const STEEL_DESIGNS = {
     return done(k, { muzzle: tip, muzzleY: 1.04, S: 1, height: 2.0, parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.32 }] });
   },
 
-  // Quan Công, bruiser: a mech torso on a tracked base, standing well above the hull. Waist, chest with panel breast
-  // plates, sloped shoulder pads, a head block with a lit visor and a red crest, two arms: the right fist is a rotary
-  // cannon, the left holds a long guandao whose broad crescent blade sticks out ahead and to the side so it reads from
-  // above. Form II adds skirts, hip plates and a shoulder missile box; III a bigger box, a sensor pod and lit strips.
+  // Quan Công, bruiser: a heavy mech torso on a tracked base. A wide hip block anchors it on the hull, a narrow waist
+  // joint opens into a broad V chest leaning a little forward, the head sits in a collar between layered pauldrons
+  // (three stacked plates, wider than the tracks), and two thick banded arms end in big gauntlets: the right one a
+  // rotary cannon, the left one gripping a long guandao with a heavy crescent head and a lit edge. The left arm is the
+  // 'slash' part (slash.js): it swings on every shot and skill. Form II adds skirts, hip plates and a shoulder missile
+  // box; III a bigger box, a sensor pod and lit strips.
   quancong(b, st, trim, form) {
     // Hue nudged from green toward teal (the owner asked for teal over mint).
     const k = new Kit(b, st, trim, form, { hue: 0.04 }), F = k.F;
@@ -83,70 +85,86 @@ export const STEEL_DESIGNS = {
     k.plate(-0.75, 0.66, 0, 0.5, 0.08, 0.76, { insert: 'panelDeep' });
     k.blk(-1.1, 0.5, 0, 0.1, 0.16, 0.56, 'dark', 0.02);
     for (const s of [-1, 1]) k.light(0.99, 0.42, s * 0.16, 0.05, LAMP.amber, '+x');
-    k.oct(-0.2, 0.68, 0, 0.4, 0.1, 'dark');
+    k.oct(-0.2, 0.68, 0, 0.44, 0.1, 'dark');
 
     b.use('turret');
-    const tx = -0.2;
-    // Waist and hips.
-    k.oct(tx, 0.8, 0, 0.3, 0.14, 'under', 0.03);
-    k.blk(tx, 0.98, 0, 0.42, 0.24, 0.56, 'under', 0.06);
-    if (F >= 2) for (const s of [-1, 1]) k.plate(tx + 0.04, 0.96, s * 0.34, 0.36, 0.26, 0.08, { col: 'panel', insert: null, rx: s * 0.25 });
-    k.blk(tx, 1.22, 0, 0.36, 0.26, 0.44, 'gun', 0.05);
-    // Chest: deep gunmetal block, two big sloped breast plates in the panel colour, a lit strip between them.
-    k.blk(tx, 1.58, 0, 0.56, 0.5, 0.84, 'gun', 0.1);
-    for (const s of [-1, 1]) k.plate(tx + 0.26, 1.6, s * 0.2, 0.1, 0.4, 0.34, { col: 'panel', insert: null, rz: -0.25 });
-    k.strip(tx + 0.3, 1.6, 0, 0.36, 'y');
-    k.plate(tx - 0.03, 1.85, 0, 0.5, 0.06, 0.76);
-    for (const s of [-1, 1]) k.light(tx + 0.29, 1.32, s * 0.12, 0.04, LAMP.green, '+x');
-    // Head: neck, block, panel helmet top, lit visor, red crest rising to the back.
+    const tx = -0.2, lean = -0.1, ly = 1.05;
+    // Hip block sitting on the ring, then the narrow waist joint.
+    k.blk(tx, 0.84, 0, 0.6, 0.28, 0.8, 'under', 0.07);
+    k.plate(tx + 0.31, 0.84, 0, 0.06, 0.2, 0.6, { col: 'gun', insert: null });
+    if (F >= 2) for (const s of [-1, 1]) k.plate(tx + 0.02, 0.82, s * 0.43, 0.46, 0.28, 0.08, { col: 'panel', insert: null, rx: s * 0.2 });
+    k.oct(tx, 1.04, 0, 0.24, 0.2, 'dark', 0.03);
+    // Upper body, leaning forward round the waist.
+    b.push().move(tx, ly, 0).rotZ(lean).move(-tx, -ly, 0);
+    k.blk(tx, 1.2, 0, 0.36, 0.18, 0.44, 'gun', 0.05);
+    k.blk(tx + 0.17, 1.2, 0, 0.04, 0.05, 0.4, 'dark', 0.01);
+    // V chest: a trapezoid in the side view, narrow at the waist and broad at the shoulders.
+    b.push().move(tx, 0, 0).rotY(PI / 2);
+    k.profile([[-0.3, 1.28], [0.3, 1.28], [0.6, 1.68], [0.54, 1.9], [-0.54, 1.9], [-0.6, 1.68]], -0.28, 0.28, 'gun', 0.06);
+    b.pop();
+    for (const s of [-1, 1]) k.plate(tx + 0.3, 1.66, s * 0.24, 0.08, 0.36, 0.42, { col: 'panel', insert: null, rz: -0.3, ry: -s * 0.3 });
+    k.strip(tx + 0.31, 1.6, 0, 0.34, 'y');
+    for (const s of [-1, 1]) k.light(tx + 0.27, 1.38, s * 0.1, 0.04, LAMP.green, '+x');
+    k.plate(tx - 0.03, 1.92, 0, 0.44, 0.1, 0.66);
+    // Head set into the collar: block, panel top, lit visor, red crest rising to the back.
     const hx = tx + 0.04;
-    k.blk(hx, 1.93, 0, 0.16, 0.1, 0.18, 'dark', 0.02);
-    k.blk(hx, 2.07, 0, 0.3, 0.24, 0.3, 'gun', 0.05);
-    k.plate(hx - 0.01, 2.2, 0, 0.32, 0.05, 0.32, { col: 'panel', insert: null });
-    k.blk(hx + 0.15, 2.07, 0, 0.04, 0.08, 0.26, 'dark', 0.01);
-    k.strip(hx + 0.175, 2.07, 0, 0.24, 'z');
-    k.blk(hx - 0.04, 2.27, 0, 0.3, 0.09, 0.08, 'trim', 0.02);
-    k.blk(hx - 0.2, 2.24, 0, 0.14, 0.18, 0.08, 'trim', 0.02);
-    // Shoulders: joint block under a big pad sloping down and out.
+    k.blk(hx, 2.06, 0, 0.3, 0.22, 0.28, 'gun', 0.05);
+    k.plate(hx - 0.01, 2.18, 0, 0.32, 0.05, 0.3, { col: 'panel', insert: null });
+    k.blk(hx + 0.15, 2.05, 0, 0.04, 0.08, 0.24, 'dark', 0.01);
+    k.strip(hx + 0.175, 2.05, 0, 0.22, 'z');
+    k.blk(hx - 0.04, 2.25, 0, 0.3, 0.09, 0.08, 'trim', 0.02);
+    k.blk(hx - 0.2, 2.22, 0, 0.14, 0.18, 0.08, 'trim', 0.02);
+    // Pauldrons: three stacked plates per side stepping down and out past the tracks.
     for (const s of [-1, 1]) {
-      k.blk(tx, 1.7, s * 0.54, 0.3, 0.3, 0.3, 'under', 0.05);
-      k.plate(tx, 1.86, s * 0.7, 0.54, 0.14, 0.44, { col: 'panel', insert: null, rx: s * 0.35 });
-      k.plate(tx, 1.77, s * 0.9, 0.5, 0.2, 0.06, { col: 'gun', insert: null, rx: s * 0.35 });
-      if (F >= 2) k.decal('x', tx, 1.75, s * 0.94, 0.15, s > 0 ? '+z' : '-z');
-      if (F === 3) k.strip(tx, 1.9, s * 0.72, 0.46, 'x');
-      // Upper arm hanging out past the tracks to the elbow, forearm in the panel colour reaching forward to the fist.
-      k.beam([tx, 1.66, s * 0.72], [tx + 0.04, 1.24, s * 0.82], 0.26, 0.26, 'gun', 0.05);
-      k.blk(tx + 0.02, 1.48, s * 0.77, 0.3, 0.07, 0.3, 'gunLite', 0.02);
-      k.blk(tx + 0.03, 1.24, s * 0.82, 0.3, 0.26, 0.3, 'under', 0.06);
-      k.beam([tx + 0.02, 1.22, s * 0.82], [tx + 0.48, 1.16, s * 0.84], 0.3, 0.3, 'panel', 0.06);
-      for (const t of [0.35, 0.7]) k.blk(tx + 0.02 + 0.46 * t, 1.22 - 0.06 * t, s * (0.82 + 0.02 * t), 0.06, 0.34, 0.34, 'gun', 0.015);
-      k.blk(tx + 0.26, 1.04, s * 0.84, 0.36, 0.06, 0.24, 'gun', 0.02);
+      k.blk(tx, 1.76, s * 0.56, 0.34, 0.34, 0.32, 'under', 0.06);
+      k.plate(tx - 0.02, 1.98, s * 0.62, 0.64, 0.16, 0.5, { col: 'gun', insert: null, rx: s * 0.28 });
+      k.plate(tx - 0.02, 1.9, s * 0.8, 0.6, 0.14, 0.4, { col: 'panel', insert: null, rx: s * 0.45 });
+      k.plate(tx - 0.02, 1.76, s * 0.95, 0.56, 0.18, 0.12, { col: 'gunLite', insert: null, rx: s * 0.62 });
+      if (F >= 2) k.decal('x', tx - 0.02, 1.74, s * 1.005, 0.13, s > 0 ? '+z' : '-z');
+      if (F === 3) k.strip(tx - 0.02, 1.97, s * 0.8, 0.5, 'x');
     }
-    // Left fist round a long guandao: pole from behind the shoulder to well ahead, broad crescent blade lying flat
-    // and opening outward, lit cutting edge, red tassel ring, butt spike.
-    const bz = -0.84, fx = tx + 0.48, by = 1.16, bl = [1.05, 1.15, 1.25][F - 1];
-    k.blk(fx, by, bz, 0.2, 0.24, 0.26, 'under', 0.05);
-    k.use('steel'); b.rod([tx - 0.55, by - 0.08, bz], [fx + bl, by + 0.04, bz], 0.035, 6);
-    k.use('steel'); b.push().move(tx - 0.62, by - 0.09, bz).rotZ(PI / 2).cyl(0, 0.05, 0.16, 5).pop();
-    const bx = fx + bl, yb = by + 0.04;
-    k.blk(bx - 0.06, yb, bz, 0.12, 0.12, 0.14, 'trim', 0.02);
-    const Bk = 1.4, bp = (x, z) => [bx + x * Bk, bz + z * Bk];
-    k.prism([bp(0, 0.06), bp(0.62, 0.03), bp(0.5, -0.24), bp(0.24, -0.36), bp(0.02, -0.2)], yb - 0.04, yb + 0.04, 'steel', 0.016);
-    k.prism([bp(0.06, 0.02), bp(0.3, 0.01), bp(0.2, -0.16), bp(0.06, -0.12)], yb + 0.035, yb + 0.06, 'trim', 0.01);
-    k.lamp('glow', () => { const a = bp(0.62, 0.04), c = bp(0.5, -0.25), e = bp(0.24, -0.37); b.rod([a[0], yb, a[1]], [c[0], yb, c[1]], 0.022, 4); b.rod([c[0], yb, c[1]], [e[0], yb, e[1]], 0.022, 4); });
-    if (F >= 2) k.missileBox(tx - 0.3, 2.06, 0.5, 2, F === 3 ? 3 : 2, 0.11, { elev: 0.4, depth: 0.32 });
-    if (F === 3) k.sensor(tx - 0.24, 2.0, -0.48, 0.2);
-    k.antenna(tx - 0.26, 1.88, 0.18, 0.7);
-    if (F >= 2) k.antenna(tx - 0.3, 1.88, -0.16, 0.6);
-    if (F === 3) k.antenna(hx - 0.25, 2.3, 0, 0.5);
+    if (F >= 2) k.missileBox(tx - 0.32, 2.1, 0.42, 2, F === 3 ? 3 : 2, 0.11, { elev: 0.4, depth: 0.32 });
+    if (F === 3) k.sensor(tx - 0.26, 2.06, -0.4, 0.2);
+    k.antenna(tx - 0.3, 1.97, 0.16, 0.7);
+    if (F >= 2) k.antenna(tx - 0.34, 1.97, -0.14, 0.6);
+    if (F === 3) k.antenna(hx - 0.25, 2.28, 0, 0.5);
+    b.pop();
 
-    // Right fist: rotary cannon (spins while firing).
+    // Arms from the leaned shoulders: thick upper arm, elbow block, forearm in the panel colour with two armour bands,
+    // a big gauntlet at the wrist.
+    const sx = tx + 0.07, sy = 1.72, wy = 1.2;
+    const arm = (s) => {
+      const ex = sx + 0.04, ez = s * 0.84, wx = sx + 0.58;
+      k.beam([sx, sy, s * 0.66], [ex, 1.3, ez], 0.3, 0.3, 'gun', 0.05);
+      k.blk(ex, 1.3, ez, 0.34, 0.3, 0.34, 'under', 0.07);
+      k.beam([ex, 1.28, ez], [wx, wy, ez], 0.36, 0.36, 'panel', 0.07);
+      for (const t of [0.35, 0.72]) k.blk(ex + (wx - ex) * t, 1.28 + (wy - 1.28) * t, ez, 0.07, 0.42, 0.42, 'gun', 0.015);
+      k.blk(wx + 0.06, wy, ez, 0.3, 0.32, 0.34, 'gun', 0.06);
+      k.plate(wx + 0.06, wy + 0.17, ez, 0.24, 0.04, 0.26, { col: 'panel', insert: null });
+      return [wx + 0.06, ez];
+    };
+    const [gx, gz] = arm(1);
+    // Left arm and the guandao: its own part, pivoting at the shoulder.
+    b.use('blade');
+    const [fx, bz] = arm(-1), bl = [1.05, 1.15, 1.25][F - 1];
+    k.use('steel'); b.rod([sx - 0.55, wy - 0.1, bz], [fx + bl, wy + 0.06, bz], 0.045, 6);
+    k.use('steel'); b.push().move(sx - 0.62, wy - 0.11, bz).rotZ(PI / 2).cyl(0, 0.06, 0.18, 5).pop();
+    const bx = fx + bl, yb = wy + 0.06, Bk = 1.8, bp = (x, z) => [bx + x * Bk, bz + z * Bk];
+    k.blk(bx - 0.06, yb, bz, 0.14, 0.14, 0.16, 'trim', 0.02);
+    k.prism([bp(0, 0.06), bp(0.62, 0.03), bp(0.5, -0.24), bp(0.24, -0.36), bp(0.02, -0.2)], yb - 0.05, yb + 0.05, 'steel', 0.02);
+    k.prism([bp(0.06, 0.02), bp(0.3, 0.01), bp(0.2, -0.16), bp(0.06, -0.12)], yb + 0.045, yb + 0.075, 'trim', 0.01);
+    const tA = bp(0.62, 0.04), tB = bp(0.5, -0.25), tC = bp(0.24, -0.37);
+    k.lamp('glow', () => { b.rod([tA[0], yb, tA[1]], [tB[0], yb, tB[1]], 0.026, 4); b.rod([tB[0], yb, tB[1]], [tC[0], yb, tC[1]], 0.026, 4); });
+    const pivot = [sx, sy, -0.66], tipP = bp(0.56, -0.1);
+
+    // Right gauntlet: rotary cannon (spins while firing).
     b.use('drum');
-    const gz = 0.84, gl = [0.5, 0.6, 0.7][F - 1];
-    const tip = k.gatling(fx + 0.06, by, gz, gl, F === 3 ? 0.085 : 0.075, 6);
+    const gl = [0.5, 0.6, 0.7][F - 1];
+    k.gatling(gx + 0.12, wy, gz, gl, F === 3 ? 0.09 : 0.08, 6);
     b.use('hull');
-    return done(k, { muzzle: tip, muzzleY: by, S: 1, height: 2.5,
-      parts: [{ name: 'drum', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', p: [fx + 0.06, by, gz], model: true }] });
+    return done(k, { muzzle: 1.2, muzzleY: wy, S: 1, height: 2.5,
+      parts: [{ name: 'drum', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', p: [gx + 0.12, wy, gz], model: true },
+        { name: 'blade', on: 'turret', kind: 'slash', p: pivot, model: true, tip: [tipP[0] - pivot[0], yb - pivot[1], tipP[1] - pivot[2]], r0: 0.9 }] });
   },
 
   // Lôi Công, artillery: wide tracked launcher. Long tracks with separate nose pods jutting forward, under-hull blue

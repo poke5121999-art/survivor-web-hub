@@ -1518,5 +1518,5 @@ export function makeFx(G, mechs) {
     const p = G.gfx.post; if (p) { p.setBloomScale(FLASH.bloom[fcol]); p.setPeak(FLASH.peak[fcol]); }
   }
   setCalm(false);
-  return { group, event, update, clear, setPointScale, setCalm, get shake() { return shake; }, ring, explosion };
+  return { group, event, update, clear, setPointScale, setCalm, get shake() { return shake; }, ring, explosion, sparks, flash };
 }
