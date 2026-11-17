@@ -1187,10 +1187,11 @@ export function makeFx(G, mechs) {
         v = { seen: 0, z };
         const zl = zoneLook(m, z);
         if (zl) {
-          // a strike keeps its warning disc unless the look draws its own (ownDisc)
+          // a strike keeps its warning disc unless the look draws its own (ownDisc); an `overlay` look draws on top of the generic view
           v.look = zl.L; v.row = zl.row; v.lv = zl.L.zoneMake(kit, z, zl.row, foe);
           if (z.kind === 'strike' && !zl.L.ownDisc) v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
         }
+        if (zl && !zl.L.overlay) { /* drawn by the look */ }
         else if (z.kind === 'strike') v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
         else if (z.kind === 'mine') v.g = ground(4, z.x, z.z, z.r, foe ? C(2.2, 0.4, 0.2) : ARC, { alpha: foe ? 0.55 : 1 });
         else if (z.kind === 'field' && z.vis === 'cage') {
@@ -1249,7 +1250,7 @@ export function makeFx(G, mechs) {
         zoneViews.set(z.id, v);
       }
       v.seen = frame;
-      if (v.look) { if (v.g && z.kind === 'strike') v.g.u.uT.value = 1 - z.delay / z.total; if (v.look.zone) v.look.zone(kit, v.lv, z, dt, v.row); continue; }
+      if (v.look) { if (v.g && z.kind === 'strike') v.g.u.uT.value = 1 - z.delay / z.total; if (v.look.zone) v.look.zone(kit, v.lv, z, dt, v.row); if (!v.look.overlay) continue; }
       if (z.kind === 'strike') {
         const k = 1 - z.delay / z.total;
         v.g.u.uT.value = k;

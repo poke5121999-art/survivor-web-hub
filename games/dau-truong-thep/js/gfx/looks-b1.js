@@ -75,6 +75,8 @@ const lubo = {
     skill(kit, e, u, row) {
       spikes(kit, u.x, u.z, 16, 3, 4.5, LB_RED, 1.3, { core: 0x3a0804 });
       sigil(kit, u.x, u.z, 5.6, LB_RED, { c2: LB_GOLD, n: 6, m: 2, life: 1.4, rev: 0.2, spin: 1, fill: 0.45, alpha: 0.8 });
+      // the god of war's halberd, huge, planted upright behind him for the six seconds
+      { const hb = weapon('halberd', 0xd8d0c0, LB_RED); hb.scale.setScalar(4); hb.rotation.z = Math.PI / 2; own(kit, [hb], row.dur || 6, (t) => { if (!u.alive || (t > 0.5 && !(u.tfT > 0))) return false; const b = u.aim + Math.PI; hb.position.set(u.x + Math.cos(b) * 1.4, 4.5, u.z + Math.sin(b) * 1.4); hb.rotation.y = -b; }); }
       sigil(kit, u.x, u.z, 3.4, LB_BLUE, { c2: LB_GOLD, n: 6, m: 2, life: 1.3, rev: 0.25, spin: 0.8, fill: 0.08 });
       kit.glow(u.x, 1.5, u.z, LB_GOLD, 0.25, 4, 1, kit.K.STAR, 1.4); kit.flash(u.x, 2, u.z, LB_RED, 60, 0.35); kit.kick(u.x, u.z, 0.5);
       shell(kit, u.x, 1.1, u.z, 2.8, LB_RED, { c2: LB_GOLD, p: 1.0, core: 0.4, bands: 2.2, follow: u, life: row.dur || 6, grow: 0.25, pulse: 1.2 });
@@ -229,14 +231,14 @@ const tumay = {
       const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat); dome.renderOrder = 7;
       dome.position.set(z.x, 0, z.z); dome.scale.set(z.r, z.r * 0.45, z.r);
       const rim = shell(kit, z.x, 0, z.z, z.r, SM_IND, { c2: C(0.05, 0, 0.12), p: 3.2, core: 0, dome: true, squash: 0.45, life: 1e9, alpha: 0.7 });
-      const sg = sigil(kit, z.x, z.z, z.r, SM_IND, { c2: SM_ARC, n: 7, m: 3, ticks: 28, life: 1e9, rev: 0.4, spin: 0.25, fill: 0.1 });
+      const sg = sigil(kit, z.x, z.z, z.r * 0.35, SM_IND, { c2: SM_ARC, n: 7, m: 3, ticks: 0, life: 1e9, rev: 0.4, spin: 0.6, fill: 0.2 });
       const orbs = [voidOrb(0.3), voidOrb(0.3), voidOrb(0.3), voidOrb(0.3)];
       const h = held(kit, [dome, ...orbs]);
       return { dome, mat, rim, sg, orbs, h, t: 0 };
     },
     zone(kit, v, z, dt) {
       v.t += dt; const k = Math.min(1, v.t / 0.4, (z.dur - z.age) * 2);
-      v.mat.opacity = 0.42 * k;
+      v.mat.opacity = 0.62 * k;
       v.orbs.forEach((o, i) => { const a = v.t * 0.8 + i * 1.571, rr = z.r * 0.55; o.position.set(z.x + Math.cos(a) * rr, 1.6 + 0.3 * Math.sin(v.t * 2 + i), z.z + Math.sin(a) * rr); });
       if (Math.random() < dt * 4) { const i = Math.floor(Math.random() * 4), j = (i + 1) % 4, p = v.orbs[i].position, q = v.orbs[j].position; const b = kit.beam(p.x, p.z, q.x, q.z, 0.35, SM_ARC, 0.15, 3, 1.6); b.fade = true; }
       for (const o of v.orbs) if (Math.random() < 0.3) kit.glow(o.position.x, o.position.y, o.position.z, SM_IND, 0.3, 0.8, 0.8, kit.K.GLOW, 1.2);

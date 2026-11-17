@@ -24,6 +24,7 @@ function momentFor(r) {
     case 'volley': return 0.15 + (r.burst ? r.burst.gap : 0);
     case 'dash': case 'blink': case 'hook': case 'swap': case 'warp': case 'flurry': return 0.25;
     case 'leap': return 0.3;
+    case 'stance': case 'form': return (r.setup || 0.3) + 0.25;
     case 'nova': return (r.windup || 0) + 0.08;
     case 'beam': return r.charge ? 0.1 : (r.windup || 0) + 0.1;
     case 'sweep': return (r.windup || 0) + 0.6;
@@ -33,13 +34,15 @@ function momentFor(r) {
   }
 }
 const startOf = (r, slot) => (r && r.charge ? 47 : slot.endsWith('b') ? 18 : 1);
-const COLW = 0.2, SIM = Number(process.env.LOOKS_SIM || 0.43);
+// calibrated on 3c4cbf8c: Lữ Bố s2 ~ Tào Tháo s1 scores 0.46 and Athena s1 ~ Hades s1 0.53, both too similar
+const COLW = 0.1, SIM = Number(process.env.LOOKS_SIM || 0.535);
 // visual weight floor: share of the frame a look changes and the mean contrast of those pixels (0-255 per channel), ults
 // need more (calibrated so the thin first cut of Athena s1, Lữ Bố s2 and Tào Tháo s1 fail and Hades ult passes)
 const FLOOR = { area: 0.025, ultArea: 0.06, contrast: 40 };
-const W = 160, H = 90, GX = 16, GY = 9, LX = 32, LY = 18;
+const W = 160, H = 90, GX = 16, GY = 9, LX = Number(process.env.LOOKS_LX || 16), LY = Number(process.env.LOOKS_LY || 9), OB = 8;
 
-// Shape first: `lum` is a 32x18 map of the cast's grayscale edges (where the cast changed the frame, colour ignored), each map
+// Shape first: `lum` is a histogram of the cast's grayscale edge orientations (8 bins) in 16x9 cells, taken where the cast
+// changed the frame (colour ignored), each
 // normalised to sum 1; shape distance = 1 - histogram intersection (0 same mass in the same cells, 1 nothing shared).
 // Colour (mean RGB of the changed pixels over the cube diagonal) is a minor term, so a new hue cannot rescue two looks of the
 // same shape: a pair is too similar when ds + COLW * dc < SIM.
@@ -73,6 +76,8 @@ session(async (br, base) => {
 
     // A fresh match with mech k, three foes gathered 6 m ahead (standing, unkillable), one hurt ally beside, everyone else parked.
     window.__scene = (k, slotKey, cast, ticks) => {
+      // the renderer's own randomness (particles, sparks) restarts from one seed each scene, so a signature is the same run to run
+      let seed = 0x9e3779b9; Math.random = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
       window.__start({ mech: k, map: 'denrung', mode: 'tdm', size: 3, diff: 'normal', theme: null });
       window.__botHook = null;
       window.__step(100, false);
@@ -103,6 +108,12 @@ session(async (br, base) => {
       window.__sceneTicks = ticks;
       return { name: u.def.name, skill: row ? row.name : '', look: row ? (next ? row.next.row.look : row.look) || '' : '' };
     };
+    // where every living mech is on screen (W x H pixels) and how big a 1.3 m radius is there: the bodies of mechs that a cast
+    // shoves, pulls or carries (they stand somewhere else than in the baseline) are not part of the look, and the foes' own
+    // spots carry every damaging skill's hit flash: the shape signature leaves both out
+    window.__bodies = () => { const V = new G.THREE.Vector3(), out = [];
+      for (const o of G.match.units) { if (!o.alive) continue; V.set(o.x, 0.8, o.z).project(G.camera); const x = (V.x + 1) / 2 * 160, y = (1 - V.y) / 2 * 90;
+        V.set(o.x + 1.3, 0.8, o.z).project(G.camera); out.push([x, y, Math.abs((V.x + 1) / 2 * 160 - x), o.id, o.team !== G.match.units[G.me].team]); } return out; };
     // step to the i-th moment and draw it
     window.__sceneStep = (i) => { const tick = window.__sceneTicks[i], at = window.__sceneAt; if (tick - at > 1) window.__step(tick - at - 1, false); window.__step(1, true); window.__sceneAt = tick; if (i === window.__sceneTicks.length - 1) window.__botHook = null; };
   });
@@ -117,26 +128,32 @@ session(async (br, base) => {
     for (const slot of slots) { const s0 = r.skills[{ s1: 0, s2: 1, ult: 2 }[slot.replace('b', '')]]; tickOf[slot] = startOf(s0, slot) + Math.round(momentFor(rowOf(slot)) * 30); }
     const ticks = [...new Set(Object.values(tickOf))].sort((x, y) => x - y);
     await g.page.evaluate(({ k, T }) => window.__scene(k, 's1', false, T), { k, T: ticks });
-    const baseAt = {};
-    for (let i = 0; i < ticks.length; i++) { await g.page.evaluate((i) => window.__sceneStep(i), i); baseAt[ticks[i]] = (await frame(g.page)).px; }
+    const baseAt = {}, bodyAt = {};
+    for (let i = 0; i < ticks.length; i++) { await g.page.evaluate((i) => window.__sceneStep(i), i); baseAt[ticks[i]] = (await frame(g.page)).px; bodyAt[ticks[i]] = await g.page.evaluate(() => window.__bodies()); }
     sigs[k] = {};
     const row = { k, name: r.name, tiles: [] };
     for (const slot of slots) {
       const T = tickOf[slot], res = await g.page.evaluate(({ k, slot, T }) => window.__scene(k, slot, true, [T]), { k, slot, T });
       await g.page.evaluate(() => window.__sceneStep(0));
       const f = await frame(g.page), base = baseAt[T], bestMask = new Uint8Array(W * H); let best = 0;
-      let con = 0; const lum = new Array(LX * LY).fill(0);
+      const now = await g.page.evaluate(() => window.__bodies()), was = bodyAt[T], off = new Uint8Array(W * H), bodies = [];
+      for (const b of now) { const a0 = was.find((w) => w[3] === b[3]); if (b[4] || !a0 || Math.hypot(a0[0] - b[0], a0[1] - b[1]) > 0.6) { bodies.push(b); if (a0) bodies.push(a0); } }
+      for (const [bx, by, br] of bodies) for (let y = Math.max(0, Math.floor(by - br)); y <= Math.min(H - 1, by + br); y++) for (let x = Math.max(0, Math.floor(bx - br)); x <= Math.min(W - 1, bx + br); x++) if ((x - bx) ** 2 + (y - by) ** 2 <= br * br) off[y * W + x] = 1;
+      let con = 0; const lum = new Array(LX * LY * OB).fill(0);
+      // weight (area, contrast) counts every changed pixel; the shape signature leaves mech bodies out
       for (let p = 0; p < W * H; p++) { const q = p * 4, dd = Math.abs(f.px[q] - base[q]) + Math.abs(f.px[q + 1] - base[q + 1]) + Math.abs(f.px[q + 2] - base[q + 2]); if (dd > 90) { bestMask[p] = 1; best++; con += dd / 3; }
         const dl = Math.abs(0.3 * (f.px[q] - base[q]) + 0.59 * (f.px[q + 1] - base[q + 1]) + 0.11 * (f.px[q + 2] - base[q + 2]));
         // edges of the cast's own picture: grayscale gradient of the frame where the cast changed it (outlines, lines, rims),
         // so two filled shapes of the same size read alike and a ring reads unlike a disc
         const px0 = p % W, py0 = p / W | 0;
-        if (dl > 12 && px0 > 0 && px0 < W - 1 && py0 > 0 && py0 < H - 1) {
+        if (!off[p] && dl > 12 && px0 > 0 && px0 < W - 1 && py0 > 0 && py0 < H - 1) {
           const L = (i) => 0.3 * f.px[i] + 0.59 * f.px[i + 1] + 0.11 * f.px[i + 2];
           const gx = L(q + 4) - L(q - 4), gy = L(q + W * 4) - L(q - W * 4);
-          lum[Math.floor(py0 * LY / H) * LX + Math.floor(px0 * LX / W)] += Math.hypot(gx, gy) + dl * 0.25;
+          // orientation of the edge (0..pi, 8 bins) in a 16x9 cell: what kind of lines the shape is made of and roughly where
+          const mag = Math.hypot(gx, gy), ob = Math.min(OB - 1, Math.floor(((Math.atan2(gy, gx) + Math.PI) % Math.PI) / Math.PI * OB));
+          lum[(Math.floor(py0 * LY / H) * LX + Math.floor(px0 * LX / W)) * OB + ob] += mag;
         } }
-      for (let i = 0; i < lum.length; i++) lum[i] = Math.round(lum[i] / ((W / LX) * (H / LY)));
+      for (let i = 0; i < lum.length; i++) lum[i] = Math.round(lum[i] / 10);
       con = Math.round(con / Math.max(1, best));
       const at = +((T - startOf(r.skills[{ s1: 0, s2: 1, ult: 2 }[slot.replace('b', '')]], slot)) / 30).toFixed(2), mean = [0, 0, 0];
       for (let p = 0; p < W * H; p++) if (bestMask[p]) { mean[0] += f.px[p * 4]; mean[1] += f.px[p * 4 + 1]; mean[2] += f.px[p * 4 + 2]; }

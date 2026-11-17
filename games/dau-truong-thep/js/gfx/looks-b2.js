@@ -16,8 +16,9 @@ const R = (a, b) => a + Math.random() * (b - a);
 function held(kit, objs) { const h = { on: true }; own(kit, objs, 1e9, () => h.on); return h; }
 const basic = (c, add, op = 1) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false, transparent: true, opacity: op, depthWrite: !add, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
 
-// ---- Sam Thép (Magneto): steel girders, magenta-red field loops, a blue core ---------------------------------------------
-const MG_RED = C(2.4, 0.12, 0.25), MG_PINK = C(2.4, 0.4, 0.9), MG_BLUE = C(0.4, 0.95, 2.3);
+// ---- Sam Thép (Magneto, recoloured steel and electric): steel girders, blue-white field loops and arcs, an indigo core ---------------------------------------------
+// steel horseshoe crab: electric blue arcs (MG_RED), blue-white sparks (MG_PINK), a deep indigo core (MG_BLUE)
+const MG_RED = C(0.3, 0.8, 2.6), MG_PINK = C(1.9, 2.3, 2.6), MG_BLUE = C(0.25, 0.3, 2.2);
 const girderGeo = new THREE.BoxGeometry(1.7, 0.22, 0.3), glowGeo = new THREE.BoxGeometry(1.85, 0.34, 0.42), postGeo2 = new THREE.BoxGeometry(0.26, 3.2, 0.26).translate(0, 1.6, 0), postGlow = new THREE.BoxGeometry(0.4, 3.3, 0.4).translate(0, 1.6, 0);
 for (const g of [girderGeo, glowGeo, postGeo2, postGlow]) g.userData.keep = true;
 function girder() { const g = new THREE.Group(); g.add(new THREE.Mesh(girderGeo, basic(0x8f98a3, false)), new THREE.Mesh(glowGeo, basic(MG_RED, true, 0.55))); return g; }
@@ -33,7 +34,7 @@ const samthep = {
   mgShards: {
     pal: [MG_RED, MG_PINK], hitR: 1.8,
     skill(kit, e, u) { kit.ring(u.x, u.z, 1.6, MG_PINK, 0.25); muz(kit, u, e.a, 3.4, C(0.15, 0.16, 0.2), MG_RED); return true; },
-    shotMake(kit, s) { const g = girder(); g.scale.setScalar(3.4); const v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), spin: Math.random() * 6, x: s.x, z: s.z, live: true };
+    shotMake(kit, s) { const g = girder(); g.scale.setScalar(4.2); const v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), spin: Math.random() * 6, x: s.x, z: s.z, live: true };
       trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 2.2, MG_RED, 0.5, { c2: MG_PINK, len: 10 }); return v; },
     shot(kit, v, s, x, y, z, dt) {
       v.spin += dt * 14; v.x = x; v.z = z; v.g.position.set(x, 1.3, z); v.g.rotation.set(v.spin, -v.a, 0, 'YXZ');
@@ -48,7 +49,7 @@ const samthep = {
     zoneMake(kit, z) {
       const g = loops(6, z.r * 0.85, z.r * 0.45, MG_RED); g.position.set(z.x, 0, z.z);
       const h = held(kit, [g]);
-      const core = shell(kit, z.x, 1.2, z.z, 2.2, MG_BLUE, { c2: C(1.2, 1.6, 2.4), p: 1.4, core: 0.15, life: 1e9, grow: 0.2, pulse: 2 });
+      const core = shell(kit, z.x, 1.2, z.z, 3, MG_BLUE, { c2: C(1.2, 1.6, 2.4), p: 1.4, core: 0.15, life: 1e9, grow: 0.2, pulse: 2 });
       const ring = sigil(kit, z.x, z.z, z.r, MG_RED, { n: 0, ticks: 0, inner: 0, fill: 0.35, w: 0.04, alpha: 0.8, life: 1e9, rev: 0.2 });
       return { g, h, core, ring };
     },
@@ -106,7 +107,7 @@ const bohung = {
     beam(kit, e, u) {
       const b1 = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 5, SY_BLUE, 0.55, 0, 1.4); b1.fade = true;
       const b2 = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 1.3, SY_WHITE, 0.5, 0, 1.45); b2.fade = true;
-      shell(kit, e.x1, 1.3, e.z1, 3.6, SY_BLUE, { c2: SY_WHITE, p: 1.2, core: 0.3, life: 0.45, grow: 0.06 });
+      shell(kit, e.x1, 1.3, e.z1, 4.6, SY_BLUE, { c2: SY_WHITE, p: 1.2, core: 0.3, life: 0.45, grow: 0.06 });
       shell(kit, e.x0 + (e.x1 - e.x0) * 0.08, 1.4, e.z0 + (e.z1 - e.z0) * 0.08, 1.2, SY_WHITE, { c2: SY_BLUE, p: 1, core: 0.5, life: 0.3 });
       kit.sparks(e.x1, 1.3, e.z1, kit.N(16), SY_BLUE, 12, 0.4, 0.06, 0.7, 10); kit.flash(e.x1, 1.6, e.z1, SY_BLUE, 60, 0.3); kit.flash(e.x0, 1.6, e.z0, SY_WHITE, 30, 0.2); kit.kick(e.x0, e.z0, 0.7);
       return true;
@@ -141,6 +142,7 @@ const bohung = {
       kit.ring(u.x, u.z, 4, SY_GOLD, 0.5); kit.puffs(u.x, 0.3, u.z, kit.N(10), C(0.55, 0.5, 0.4), 1.2, 6, 0.8, 1.2, 2.4, 0.4, 0.5, kit.K.DUST, 3);
       pillar(kit, u.x, u.z, 1.6, SY_GOLD, { c2: SY_WHITE, h: 9, life: 0.6, grow: 0.15 }); kit.flash(u.x, 2, u.z, SY_GOLD, 70, 0.4);
       spikes(kit, u.x, u.z, 12, 1.8, 3, SY_GOLD, d, { follow: u, core: 0x5a3a00, up: 0.2 });
+      pillar(kit, u.x, u.z, 2.2, SY_GOLD, { c2: SY_WHITE, h: 14, life: d, grow: 0.2, rings: 3, follow: u, alpha: 0.85 });
       shell(kit, u.x, 1.3, u.z, 3, SY_GOLD, { c2: C(2.6, 1.2, 0.1), p: 1.1, core: 0.3, squash: 1.5, follow: u, life: d, grow: 0.2, pulse: 3, step: (t) => t < 0.5 || u.tfT > 0 });
       kit.follow(u, d, (t) => {
         if (t > 0.5 && !(u.tfT > 0)) return;
@@ -167,14 +169,14 @@ const kynhong = {
   kyBreath: {
     pal: [KY_DARK, KY_GOLD], hitR: 1.8,
     skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.2, 1.3, u.z + Math.sin(e.a) * 1.2, KY_GOLD, 0.15, 2.4, 1, kit.K.STAR, 1.3); kit.flash(u.x, 1.6, u.z, KY_FIRE, 40, 0.2); muz(kit, u, e.a, 2.0, KY_DARK, KY_GOLD); crescent(kit, u.x, u.z, e.a, 7, 1.0, 1, KY_FIRE, 0.5, 5.2, 0.55, 0, 0.1, { edge: KY_GOLD, spark: KY_GOLD }); return true; },
-    shotMake(kit, s) { const v = { x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 2.4, KY_FIRE, 0.6, { c2: KY_DARK, len: 12 }); return v; },
+    shotMake(kit, s) { const v = { x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 3.4, KY_FIRE, 0.7, { c2: KY_DARK, len: 14 }); v.head = shell(kit, s.x, 1.2, s.z, 1.1, KY_FIRE, { c2: KY_GOLD, inv: 1.2, core: 1, life: 1e9 }); return v; },
     shot(kit, v, s, x, y, z) {
-      v.x = x; v.z = z;
+      v.x = x; v.z = z; v.head.position.set(x, 1.2, z);
       kit.glow(x, 1.2, z, KY_FIRE, 0.18, R(0.6, 0.9), 0.5, kit.K.FLAME, 1.4, R(-0.6, 0.6), R(0.3, 1.2), R(-0.6, 0.6));
       if (Math.random() < 0.4) kit.ovr.emit(x, 1.4, z, R(-0.4, 0.4), 0.8, R(-0.4, 0.4), C(0.18, 0.08, 0.05), 0.7, 0.6, 2.6, 1, -0.6, 0.3, kit.K.SMOKE);
       return true;
     },
-    shotEnd(kit, v, s, x, z) { v.live = false; kit.glow(x, 1.1, z, KY_GOLD, 0.25, 1.4, 0.9, kit.K.FLAME, 1.6); },
+    shotEnd(kit, v, s, x, z) { v.live = false; stop(v.head); kit.glow(x, 1.1, z, KY_GOLD, 0.25, 1.4, 0.9, kit.K.FLAME, 1.6); },
   },
   // Hỏa Quyền Đột: a fist of fire ahead of him as he charges; where it stops, a fire burst and three claw marks burnt in the floor
   kyPunch: {
@@ -191,7 +193,7 @@ const kynhong = {
         kit.glow(u.x + Math.cos(a) * 1.3, 1.2, u.z + Math.sin(a) * 1.3, KY_FIRE, 0.2, 2.2, 0.8, kit.K.FLAME, 1.4);
         if (t > 0.08 && !u.dash) {
           done = true; const x = u.x + Math.cos(a) * 1.6, z = u.z + Math.sin(a) * 1.6;
-          burst(kit, x, z, 3.6, KY_DARK, KY_GOLD, { life: 0.6 }); pillar(kit, x, z, 1.4, KY_FIRE, { c2: KY_GOLD, h: 7, life: 0.6, grow: 0.08, narrow: true });
+          burst(kit, x, z, 3.6, KY_DARK, KY_GOLD, { life: 0.6 });
           for (const o of [-0.6, 0, 0.6]) kit.scorch(x + Math.cos(a + 1.57) * o, z + Math.sin(a + 1.57) * o, 0.9, 3, 1.6, KY_FIRE);
           kit.sparks(x, 1.2, z, kit.N(16), KY_GOLD, 12, 0.4, 0.07, 0.6, 10, Math.cos(a), Math.sin(a), 0.7); kit.flash(x, 1.6, z, KY_FIRE, 60, 0.25); kit.kick(x, z, 0.6);
         }
@@ -204,9 +206,12 @@ const kynhong = {
     pal: [KY_FIRE, KY_GOLD], hitR: 1.8,
     skill(kit, e, u, row) {
       const d = row.dur || 5;
-      fireRing(kit, (t) => (u.alive && (t < 0.5 || u.tfT > 0) ? [u.x, 0, u.z] : null), 3.4, d, 8);
-      for (let i = 0; i < 3; i++) crescent(kit, u.x, u.z, e.a + i * 2.094, 4.6, 0.9, 1, KY_FIRE, 1.1, 1.6, 0.9, 0, 0.3, { edge: KY_GOLD, spark: KY_GOLD });
-      sigil(kit, u.x, u.z, 6, KY_FIRE, { c2: KY_GOLD, n: 0, ticks: 16, inner: 0.7, life: d, rev: 0.3, spin: 2, follow: u, fill: 0.4, alpha: 0.85 });
+      // a fire dragon coils up round him: a thick flame ribbon spiralling from the floor to above his head, and a second one
+      // chasing it; fire ring at the floor
+      const live = (t) => u.alive && (t < 0.5 || u.tfT > 0);
+      for (const ph of [0, Math.PI]) trail(kit, (t) => { if (!live(t)) return null; const a = t * 7 + ph, h = 0.4 + ((t * 1.6) % 3.2); return [u.x + Math.cos(a) * 3, h, u.z + Math.sin(a) * 3]; }, 2.6, KY_FIRE, d, { c2: KY_GOLD, len: 22 });
+      // two great wings of fire spread from his back and beat for the five seconds
+      for (const sd of [1, -1]) { const at = () => u.aim + Math.PI + sd * 1.3; kit.follow(u, d, (t) => { if (!live(t)) return; if (Math.random() < 0.5) { const a = at() + Math.sin(t * 6) * 0.25; for (let k = 1; k <= 4; k++) kit.glow(u.x + Math.cos(a) * k * 1.1, 1.4 + k * 0.35, u.z + Math.sin(a) * k * 1.1, k % 2 ? KY_FIRE : KY_GOLD, 0.25, 1.1 - k * 0.12, 0.9, kit.K.FLAME, 1.3); } }); crescent(kit, u.x, u.z, u.aim + Math.PI + sd * 1.2, 5, 1.6, sd, KY_FIRE, 1.2, 2.8, 0.6, 0, 0.25, { edge: KY_GOLD, tilt: sd * 0.5 }); }
       kit.ring(u.x, u.z, 3.4, KY_GOLD, 0.45); kit.flash(u.x, 2, u.z, KY_FIRE, 60, 0.35); kit.scorch(u.x, u.z, 2.6, 3, 1.6, KY_FIRE);
       return true;
     },
@@ -255,15 +260,19 @@ const buomdem = {
   dsRealm: {
     pal: [DS_PINK, DS_ORANGE], hitR: 1.8,
     zoneMake(kit, z) {
-      const d = shell(kit, z.x, 0, z.z, z.r, DS_BLUE, { c2: DS_BLUE, p: 1.5, core: 0.04, dome: true, squash: 0.8, life: 1e9, grow: 0.3 });
-      const s1 = sigil(kit, z.x, z.z, z.r * 0.92, DS_ORANGE, { c2: DS_ORANGE, n: 10, m: 3, ticks: 40, life: 1e9, rev: 0.4, spin: 0.8, fill: 0.35 });
-      const s2 = sigil(kit, z.x, z.z, z.r * 0.45, DS_PINK, { c2: DS_ORANGE, n: 5, m: 2, ticks: 10, life: 1e9, rev: 0.3, spin: -1.6, y: 0.2 });
+      const d = sigil(kit, z.x, z.z, z.r * 0.5, DS_PINK, { c2: DS_BLUE, n: 0, ticks: 0, inner: 0, fill: 1.0, life: 1e9, rev: 0.3, alpha: 0.75, y: 0.1 });
+      const s1 = sigil(kit, z.x, z.z, z.r * 0.6, DS_ORANGE, { c2: DS_ORANGE, n: 0, ticks: 40, inner: 0, life: 1e9, rev: 0.4, spin: 0.8, fill: 0.15, w: 0.03, alpha: 0.6 });
+      const s2 = sigil(kit, z.x, z.z, z.r * 0.45, DS_PINK, { c2: DS_ORANGE, n: 0, ticks: 30, inner: 0.7, life: 1e9, rev: 0.3, spin: -1.6, y: 0.2, w: 0.08 });
       // two mandalas standing in the air at the sides of the realm, facing the camera
-      const st = [-1, 1].map((sd) => { const m = sigil(kit, z.x + sd * z.r * 0.55, z.z, 2.2, DS_ORANGE, { c2: DS_PINK, n: 8, m: 3, ticks: 16, life: 1e9, rev: 0.3, spin: 2 * sd, y: 2.6, fill: 0.2, w: 0.07 }); m.rotation.x = 1.15; return m; });
-      return { d, s1, s2, st };
+      // diamond shards of a broken dimension drift round inside the bubble
+      const st = [0, 1, 2, 3, 4, 5].map((i) => { const m = sigil(kit, z.x, z.z, 2.4, DS_ORANGE, { c2: DS_PINK, n: 4, m: 1, ticks: 0, inner: 0, life: 1e9, rev: 0.1, spin: 3, y: 1.8 + (i % 3) * 0.7, fill: 0.4, w: 0.08 }); m.userData.i = i; return m; });
+      // the mirror dimension cracks: bright fault lines run out from the centre to the rim
+      const cracks = []; for (let i = 0; i < 9; i++) { const a = i * 0.698 + 0.2 * Math.sin(i * 7), r1 = z.r * (0.75 + 0.2 * ((i * 5) % 3) / 2); const b = kit.beam(z.x, z.z, z.x + Math.cos(a) * r1, z.z + Math.sin(a) * r1, 0.5, i % 2 ? DS_ORANGE : C(2.6, 2.2, 2.4), 1e9, 2, 0.15); cracks.push(b); }
+      return { d, s1, s2, st, cracks };
     },
-    zone(kit, v, z, dt) { if (Math.random() < dt * 12) { const a = Math.random() * 6.283, r = Math.random() * z.r * 0.8; kit.glow(z.x + Math.cos(a) * r, R(0.5, 3), z.z + Math.sin(a) * r, Math.random() < 0.5 ? DS_PINK : DS_ORANGE, 0.8, 0.35, 0.9, kit.K.SPARK, 1, 0, 0.6, 0); } },
-    zoneDrop(kit, v) { stop(v.d); stop(v.s1); stop(v.s2); v.st.forEach(stop); },
+    zone(kit, v, z, dt) { v.t = (v.t || 0) + dt; v.st.forEach((m) => { const i = m.userData.i, a = v.t * 0.9 + i * 1.047, r = z.r * (0.35 + 0.15 * (i % 2)); m.position.x = z.x + Math.cos(a) * r; m.position.z = z.z + Math.sin(a) * r; m.position.y = 0.3; });
+      if (Math.random() < dt * 12) { const a = Math.random() * 6.283, r = Math.random() * z.r * 0.8; kit.glow(z.x + Math.cos(a) * r, R(0.5, 3), z.z + Math.sin(a) * r, Math.random() < 0.5 ? DS_PINK : DS_ORANGE, 0.8, 0.35, 0.9, kit.K.SPARK, 1, 0, 0.6, 0); } },
+    zoneDrop(kit, v) { stop(v.d); stop(v.s1); stop(v.s2); v.st.forEach(stop); v.cracks.forEach((b) => kit.endBeam(b)); },
   },
 };
 
@@ -276,13 +285,14 @@ const mucma = {
     skill(kit, e, u) { kit.puffs(u.x, 1, u.z, kit.N(4), MM_INK, 0.6, 1.5, 0.6, 0.9, 2, 0.4, 0.8, kit.K.SMOKE); muz(kit, u, e.a, 3.0, MM_INK, MM_TEAL); return true; },
     shotMake(kit, s) {
       const v = { x: s.x, z: s.z, live: true };
+      sigil(kit, s.x, s.z, R(1.2, 1.8), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 1.6, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 });
       trail(kit, () => (v.live ? [v.x, 1.1, v.z] : null), 2.6, MM_INK, 0.45, { c2: MM_INK, len: 12, every: 0.0 });
       trail(kit, () => (v.live ? [v.x, 1.15, v.z] : null), 4.2, MM_TEAL, 0.45, { c2: MM_VIO, len: 12 });
       return v;
     },
     // tentacles writhe: the tip swings side to side as it flies
     shot(kit, v, s, x, y, z, dt) { v.t = (v.t || 0) + dt; const w = Math.sin(v.t * 26 + s.id) * 1.1; v.x = x - s.dz * w; v.z = z + s.dx * w; if (Math.random() < 0.5) kit.glow(v.x, 1.15, v.z, MM_TEAL, 0.2, 0.4, 0.9, kit.K.SPARK, 1); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; kit.puffs(x, 1, z, 1, MM_INK, 0.3, 1, 0.5, 0.6, 2, 0.3, 0.7, kit.K.SMOKE); },
+    shotEnd(kit, v, s, x, z) { v.live = false; sigil(kit, x, z, R(1.4, 2.2), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 1.6, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 }); kit.puffs(x, 1, z, 1, MM_INK, 0.3, 1, 0.5, 0.6, 2, 0.3, 0.7, kit.K.SMOKE); },
   },
   // Xuyên Thân: he dissolves into a cloud of ink and passes through; an ink splash stains the floor where he comes out
   mmPhase: {
@@ -328,8 +338,8 @@ const hacho = {
     skill() { return true; },
     leap(kit, e, u) {
       const a = Math.atan2(e.z - e.z0, e.x - e.x0), dur = e.dur || 0.4;
-      claws(kit, (e.x0 + e.x) / 2, (e.z0 + e.z) / 2, a + 1.2, 5, HH_RED, 0.7, 1.6);
-      crescent(kit, e.x0, e.z0, a, 4, 1.4, 1, HH_DARK, 0.6, 1.8, 1.0, (Math.hypot(e.x - e.x0, e.z - e.z0) || 4) / dur * 0.8, 0.15, { edge: HH_RED, spark: HH_AMB });
+      claws(kit, (e.x0 + e.x) / 2, (e.z0 + e.z) / 2, a + 1.2, 6.5, HH_RED, 0.8, 1.6);
+      crescent(kit, e.x0, e.z0, a, 5.5, 1.4, 1, HH_DARK, 0.7, 2.6, 1.1, (Math.hypot(e.x - e.x0, e.z - e.z0) || 4) / dur * 0.8, 0.15, { edge: HH_RED, spark: HH_AMB });
       burst(kit, e.x0, e.z0, 3, HH_DARK, HH_RED, { life: 0.5 });
       trail(kit, (t) => (t < dur && u.alive ? [u.x, 1.6, u.z] : null), 3.2, HH_RED, dur + 0.4, { c2: HH_AMB, len: 14 });
       sigil(kit, e.x, e.z, 3.2, HH_AMB, { c2: HH_RED, n: 3, m: 1, ticks: 9, inner: 0, life: dur + 0.3, rev: dur, fill: 0.12, w: 0.05 });
@@ -346,9 +356,10 @@ const hacho = {
     pal: [HH_RED, HH_AMB], hitR: 1.8,
     skill(kit, e, u, row) {
       const d = row.dur || 4;
-      shell(kit, u.x, 1.1, u.z, 2.4, HH_RED, { c2: HH_AMB, p: 1.2, core: 0.25, bands: 2.5, follow: u, life: d, grow: 0.15, pulse: 2.5 });
+      shell(kit, u.x, 1.1, u.z, 3, HH_RED, { c2: HH_AMB, p: 1.0, core: 0.4, bands: 2.5, follow: u, life: d, grow: 0.15, pulse: 2.5 });
+
       kit.ring(u.x, u.z, 2.6, HH_RED, 0.4); kit.flash(u.x, 2, u.z, HH_RED, 40, 0.3);
-      burst(kit, u.x, u.z, 3.2, HH_RED, HH_AMB, { life: 0.7 }); sigil(kit, u.x, u.z, 2.8, HH_RED, { c2: HH_AMB, n: 0, ticks: 10, inner: 0.6, life: d, rev: 0.2, follow: u, spin: 1, fill: 0.35, alpha: 0.8 });
+      sigil(kit, u.x, u.z, 3.4, HH_RED, { c2: HH_AMB, n: 3, m: 1, ticks: 6, inner: 0, life: d, rev: 0.2, follow: u, spin: 1, fill: 0.35, alpha: 0.8 });
       kit.follow(u, d, () => {
         if (Math.random() < 0.6) { const a = Math.random() * 6.283, r = R(2, 3); kit.str.emit(u.x + Math.cos(a) * r, R(0.4, 1.8), u.z + Math.sin(a) * r, -Math.cos(a) * r * 3, 0, -Math.sin(a) * r * 3, HH_RED, 0.3, 0.07, 0.05, 0, 0, 1); }
         const ax = Math.cos(u.aim), az = Math.sin(u.aim);
