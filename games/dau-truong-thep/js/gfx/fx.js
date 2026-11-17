@@ -779,7 +779,46 @@ export function makeFx(G, mechs) {
 
   // What a skill's own look (looks.js) draws with: the same pools and helpers as everything here.
   const anims = [];
-  const kit = { group, glow, sparks, puffs, chips, ring, ground, release, beam, aimBeam, endBeam, flash, kick, scorch, str, add, ovr, rnd, N, K, anims };
+  // follow(u, dur, fn(t, dt, u), drop): a per-frame step tied to a unit for dur seconds of drawn time (it stops when u dies).
+  const follow = (u, dur, fn, drop) => anims.push({ t: 0, step(dt) { this.t += dt; if (!u.alive) return false; fn(this.t, dt, u); return this.t < dur; }, drop() { if (drop) drop(); } });
+  const kit = { group, glow, sparks, puffs, chips, ring, ground, release, beam, aimBeam, endBeam, flash, kick, scorch, str, add, ovr, rnd, N, K, anims, follow, column: (...a) => column(...a),
+    team: (u) => TEAM_HDR[u.color], foe: (team) => !!G.match && team !== G.match.units[G.me].team, get time() { return time; }, get match() { return G.match; }, muzzle: (u, side, out) => mechs.muzzle(u, side, out) };
+  // The last skill row each unit pressed: events the sim does not tag with a skill (leap, hook, mark, ...) and zones, shots of a
+  // kind that two rows of one mech share are put down to the row pressed last.
+  const pressed = new Map();
+  const UNIT_ROW = { hook: ['hook'], swap: ['swap'], stance: ['stance'], bless: ['bless'], rally: ['rally'], leap: ['leap'], mark: ['mark'], parry: ['counter'],
+    flurry: ['flurry'], form: ['form'], rewind: ['rewind'], transform: ['transform'], warp: ['warp', 'portal'] };
+  const ZONE_ROW = { strike: ['barrage'], mine: ['mine', 'minefield'], field: ['zone'], dome: ['dome'], wall: ['wall'], turret: ['turret'], decoy: ['decoy', 'warp'], drone: ['drone'], wire: ['wire'], orbit: ['orbit'], portal: ['portal'] };
+  function rowFor(u, kinds) {
+    if (!u || !u.def) return null;
+    let one = null, n = 0;
+    for (const s of u.def.skills) for (const r of s.next ? [s, s.next.row] : [s]) if (kinds.includes(r.do)) { if (!one) one = r; n++; }
+    if (n > 1) { const p = pressed.get(u.id); if (p && kinds.includes(p.row.do)) return p.row; }
+    return one;
+  }
+  // The look that draws zone z, and its row: a field whose vis names a look, or the owner's row that made a zone of this kind
+  // when that look lists the kind in `zones` (default: fields whose vis is the row's).
+  function zoneLook(m, z) {
+    if (z.kind === 'field' && LOOKS[z.vis] && LOOKS[z.vis].zoneMake) return { L: LOOKS[z.vis], row: null };
+    const o = m.units[z.owner], row = o && ZONE_ROW[z.kind] ? rowFor(o, ZONE_ROW[z.kind]) : null, L = lookOf(row);
+    if (!L || !L.zoneMake) return null;
+    const kinds = L.zones || ['field'];
+    if (!kinds.includes(z.kind) || (z.kind === 'field' && row.vis && z.vis !== row.vis)) return null;
+    return { L, row };
+  }
+  // The look that draws shot s: a volley row (or the weapon) of its owner with a look, the same vis and, when the mech has two
+  // rows of that vis, the one pressed last (the weapon unless a volley was pressed in the last burst time + 0.3 s).
+  function shotLook(m, s) {
+    const u = m.units[s.owner];
+    if (!u || !u.def) return null;
+    const rows = u.def.skills.filter((r) => r.do === 'volley' && r.vis === s.vis && (s.speed === undefined || r.speed === undefined || r.speed === s.speed));
+    const w = u.def.weapon, wSame = w && w.vis === s.vis;
+    const p = pressed.get(u.id), recent = p && rows.includes(p.row) && time - p.t < (p.row.burst ? p.row.burst.gap * p.row.burst.n : 0) + 0.3 + (p.row.windup || 0);
+    let row = null;
+    if (recent) row = p.row; else if (rows.length && !wSame) row = rows[0]; else if (wSame && w.look) row = w;
+    const L = lookOf(row);
+    return L && (L.shot || L.shotEnd) ? { L, row } : null;
+  }
   const GUARD_C = C(2.2, 0.9, 1.6), HUSH_C = C(1.3, 1.25, 1.6);
 
   const SKILL_FX = {
@@ -805,11 +844,19 @@ export function makeFx(G, mechs) {
     const u = e.id !== undefined ? m.units[e.id] : null;
     // a skill row with a look draws its own press, nova, beam and warp; a strike zone whose vis is a look draws what falls;
     // a passive with a look draws its stacks burst. A hook that returns true replaces the generic picture.
+    if (u && e.t === 'skill') { const r = u.def.skills[e.slot]; if (r) pressed.set(u.id, { row: lookRow(u, e.skill) || r, t: time }); }
     if (u && e.skill && (e.t === 'skill' || e.t === 'nova' || e.t === 'beam' || e.t === 'warp')) {
       const row = lookRow(u, e.skill), L = lookOf(row);
       if (L && L[e.t]) { if (e.t === 'skill' && !visibleTo(m, u, m.units[G.me].team)) return; if (L[e.t](kit, e, u, row)) return; }
+    } else if (u && UNIT_ROW[e.t]) {
+      const row = rowFor(u, UNIT_ROW[e.t]), L = lookOf(row);
+      if (L && L[e.t] && L[e.t](kit, e, u, row)) return;
     }
     if (e.t === 'explode' && e.vis && LOOKS[e.vis] && LOOKS[e.vis].strike) return;   // the look's falling piece draws its own landing
+    if (e.t === 'explode' && (e.why === 'strike' || e.why === 'decoy' || e.why === 'mine')) {   // a zone drawn by a look goes off as that look says
+      for (const [, v] of zoneViews) if (v.look && v.z && Math.abs(v.z.x - e.x) < 0.6 && Math.abs(v.z.z - e.z) < 0.6) { v.landed = true; if (v.look.land && v.look.land(kit, e, v.lv, v.z, v.row)) return; break; }
+    }
+    if (e.t === 'impact' && e.vis) { for (const [, v] of shotViews) if (v.sl && frame - v.seen <= 1 && Math.abs(v.x - e.x) < 2.5 && Math.abs(v.z - e.z) < 2.5 && v.sl.L.impact) { if (v.sl.L.impact(kit, e, v.lv, v.sl.row)) return; break; } }
     if (e.t === 'zone' && e.kind === 'strike' && LOOKS[e.vis] && LOOKS[e.vis].strike && LOOKS[e.vis].strike(kit, e)) return;
     if (e.t === 'stacks') { const by = m.units[e.by], L = by && lookOf(by.def.passive); if (L && L.stacks && L.stacks(kit, e, by)) return; }
     switch (e.t) {
@@ -1060,11 +1107,17 @@ export function makeFx(G, mechs) {
     }
   }
 
+  // shot id -> { sl: {L, row} | null, lv, seen, x, z }: a shot a look draws (looks.js shot/shotEnd/impact hooks)
+  const shotViews = new Map();
   function syncShots(m, alpha, dt) {
     for (const s of m.shots) {
       const look = SHOT_LOOK[s.vis] || SHOT_LOOK.bullet, x = s.px + (s.x - s.px) * alpha, z = s.pz + (s.z - s.pz) * alpha;
       let y = 1.5, tc = TEAM_HDR[s.color];
       if (s.vis === 'tower') { const t = m.towers[s.tower]; y = t ? Math.max(2, towers.crystalY(t) - Math.hypot(x - t.x, z - t.z) * 0.45) : 2.4; }
+      let sv = shotViews.get(s.id);
+      if (!sv) { const sl = s.vis === 'tower' ? null : shotLook(m, s); sv = { sl, lv: sl && sl.L.shotMake ? sl.L.shotMake(kit, s, sl.row) : {}, seen: 0, x, z }; shotViews.set(s.id, sv); }
+      sv.seen = frame; sv.x = x; sv.z = z; sv.s = s;
+      if (sv.sl && sv.sl.L.shot && sv.sl.L.shot(kit, sv.lv, s, x, y, z, dt, sv.sl.row)) continue;
       if (look.skip) { // flamethrower: no quad, additive fire blobs that swell and cool over the 7 m
         const k = Math.min(1, s.flown / 7), f = Math.min(1, dt * 60);
         col.set(1.2, 0.42, 0.05).lerp(C(0.9, 0.1, 0.02), k);
@@ -1099,13 +1152,14 @@ export function makeFx(G, mechs) {
           break;
       }
     }
+    for (const [id, sv] of shotViews) if (sv.seen !== frame) { if (sv.sl && sv.sl.L.shotEnd) sv.sl.L.shotEnd(kit, sv.lv, sv.s, sv.x, sv.z, sv.sl.row); shotViews.delete(id); }
   }
 
   function sweepHooks() { for (const [id, b] of hookBeams) if (b.seenF !== frame) { endBeam(b); hookBeams.delete(id); } }
 
   const zoneInfo = new Map();
-  function dropZone(v) {
-    if (v.look && v.look.zoneDrop) v.look.zoneDrop(kit, v.lv);
+  function dropZone(v, ended) {
+    if (v.look && v.look.zoneDrop) v.look.zoneDrop(kit, v.lv, v.z, !!ended, v.row);
     if (v.g) release(v.g);
     if (v.g2) release(v.g2);
     if (v.dome) { group.remove(v.dome); v.dome.material.dispose(); }
@@ -1120,8 +1174,14 @@ export function makeFx(G, mechs) {
       let v = zoneViews.get(z.id);
       const foe = z.team !== myTeam, tc = TEAM_HDR[z.color];
       if (!v) {
-        v = { seen: 0 };
-        if (z.kind === 'strike') v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
+        v = { seen: 0, z };
+        const zl = zoneLook(m, z);
+        if (zl) {
+          // a strike keeps its warning disc unless the look draws its own (ownDisc)
+          v.look = zl.L; v.row = zl.row; v.lv = zl.L.zoneMake(kit, z, zl.row, foe);
+          if (z.kind === 'strike' && !zl.L.ownDisc) v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
+        }
+        else if (z.kind === 'strike') v.g = ground(1, z.x, z.z, z.r, foe ? C(2.2, 0.25, 0.12) : C(0.3, 1.0, 1.8), { alpha: foe ? 1 : 0.5 });
         else if (z.kind === 'mine') v.g = ground(4, z.x, z.z, z.r, foe ? C(2.2, 0.4, 0.2) : ARC, { alpha: foe ? 0.55 : 1 });
         else if (z.kind === 'field' && z.vis === 'cage') {
           zoneInfo.set(z.id, 'cage'); v.mats = []; v.obj = new THREE.Group(); v.obj.position.set(z.x, 0, z.z);
@@ -1179,7 +1239,7 @@ export function makeFx(G, mechs) {
         zoneViews.set(z.id, v);
       }
       v.seen = frame;
-      if (v.look) { if (v.look.zone) v.look.zone(kit, v.lv, z, dt); continue; }
+      if (v.look) { if (v.g && z.kind === 'strike') v.g.u.uT.value = 1 - z.delay / z.total; if (v.look.zone) v.look.zone(kit, v.lv, z, dt, v.row); continue; }
       if (z.kind === 'strike') {
         const k = 1 - z.delay / z.total;
         v.g.u.uT.value = k;
@@ -1270,7 +1330,7 @@ export function makeFx(G, mechs) {
         v.obj.scale.setScalar(Math.min(1, 0.2 + z.age * 4));
       }
     }
-    for (const [id, v] of zoneViews) if (v.seen !== frame) { dropZone(v); zoneViews.delete(id); }
+    for (const [id, v] of zoneViews) if (v.seen !== frame) { dropZone(v, true); zoneViews.delete(id); }
   }
 
   function syncCrates(m, dt) {
@@ -1522,7 +1582,7 @@ export function makeFx(G, mechs) {
 
   function clear() {
     for (const [, v] of zoneViews) dropZone(v);
-    zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear();
+    zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear(); shotViews.clear(); pressed.clear();
     for (const [, v] of crateViews) { group.remove(v.root); release(v.mark); }
     crateViews.clear();
     for (const [, v] of casts) { if (v.look && v.look.castDrop) v.look.castDrop(kit, v.lv); if (v.g) release(v.g); if (v.b) endBeam(v.b); }
