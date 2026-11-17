@@ -1383,7 +1383,7 @@ html.dtt-portrait #touch { display: none !important; }
 /* feat/dtt-modes: the hub's fixed "‹ Hub" link (index.html, top-left) no longer covers the title: the logo starts right of it */
 #ui .menu .logo { padding-left: 64px; }
 /* narrow phones (740 px): the title stays on one line next to the Hub link */
-@media (max-width: 860px) { #ui .menu .logo { padding-left: 58px; min-width: 0; } #ui .menu .logo h1 { font-size: 1.35em; white-space: nowrap; } #ui .menu .logo span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+@media (max-width: 860px) { #ui .menu .logo { padding-left: 58px; min-width: 0; } #ui .menu .logo h1 { font-size: 1.35em; white-space: nowrap; } }
 #ui .menu[data-play="rank"] .matchbtn > svg { color: var(--gold); }
 @media (max-height: 480px) {
   #ui .plays { gap: .25em; }
