@@ -44,9 +44,12 @@ const VI = {
   'Take your Brainrot back to your farm and place it.': 'Mang Brainrot về lại trang trại và đặt xuống.',
   'Close your gate to protect the Brainrot.': 'Đóng cổng để bảo vệ Brainrot.',
   'The AI gate is open. You can steal a Brainrot.': 'Cổng của đối thủ đang mở. Bạn có thể trộm một Brainrot.',
-  // remake placeholders
-  'Shop opens in the next version': 'Cửa hàng mở ở bản sau',
-  'Settings open in the next version': 'Cài đặt mở ở bản sau',
+  // shop, pedestals, ads break (rules/upgrades-shop.md, ads-iap.md)
+  'MAX': 'TỐI ĐA',
+  '{0}/{1} ads': '{0}/{1} quảng cáo',
+  'Ad loading : ': 'Đang tải quảng cáo:',
+  'Ad loading: {0}': 'Đang tải quảng cáo: {0}',
+  'Ad loaded ': 'Quảng cáo đã sẵn sàng',
 };
 
 export const t = s => VI[s] ?? VI[String(s).trim()] ?? s;

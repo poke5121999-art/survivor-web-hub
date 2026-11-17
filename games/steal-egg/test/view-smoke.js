@@ -113,14 +113,19 @@ async function runSize(base, size) {
   await page.goto(`${base}/index.html?fresh`);
   await page.waitForFunction(() => (window.__game && window.__game.ready && window.__game.blur === 0) || (window.__game && window.__game.error),
     null, { timeout: 180000 });
+  const atBlur0 = await page.evaluate(() => window.__game.textures || null);
+  // full textures stream in after blur 0 (the game starts on the 16 px ones): wait for them before judging sharpness
+  await page.waitForFunction(() => window.__game.error || (window.__game.texturesFull && window.__game.textures.sharp === window.__game.textures.total
+    && window.__game.stages.some(s => s[0] === 'full textures')), null, { timeout: 180000 }).catch(() => {});
   const g = await page.evaluate(() => ({ error: window.__game.error, stages: window.__game.stages, tex: window.__game.textures,
     rotated: window.__game.stage.rotated }));
   check(S, 'boot without error', !g.error, g.error || `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   if (g.error) { await ctx.close(); return; }
-  const blurs = g.stages.map(s => s[1]);
+  const blurs = g.stages.filter(s => s[0] !== 'full textures').map(s => s[1]);
   check(S, 'blur 14 -> 8 -> 5 -> 0', JSON.stringify(blurs.filter((b, i) => i === 0 || b !== blurs[i - 1])) === '[14,8,5,0]',
     g.stages.map(s => `${s[0]}:${s[1]}@${s[2]}ms`).join(' '));
-  check(S, 'textures sharp', g.tex.sharp === g.tex.total, `${g.tex.sharp}/${g.tex.total}`);
+  check(S, 'textures sharp eventually (full ones streamed after blur 0)', g.tex.sharp === g.tex.total && g.tex.total > 50,
+    `${g.tex.sharp}/${g.tex.total}, at blur 0: ${atBlur0 ? `${atBlur0.sharp}/${atBlur0.total}` : '?'}`);
   const noV = modules.filter(u => !/[?&]v=\d{8}[a-z]/.test(u));
   check(S, 'every module URL has ?v=', modules.length > 5 && !noV.length, `${modules.length} modules${noV.length ? `, missing: ${noV.join(', ')}` : ''}`);
   if (size.viewport.height > size.viewport.width) check(S, 'portrait stage rotated', g.rotated);
@@ -176,6 +181,16 @@ async function runSize(base, size) {
   const handle = await page.evaluate(() => window.__game.view.input.joy);
   check(S, 'touch joystick moves the player', dist(q0, q1) > 2, `${dist(q0, q1).toFixed(2)} m, joystick released to ${handle}`);
 
+  // The joystick walk can end inside a shop area (EnableShop opens its panel over the screen centre): close it with
+  // its cross like a player would.
+  for (const panel of ['shoes shop', 'Bat shop']) {
+    const cross = await page.evaluate(p => { const h = window.__game.view.hud, el = h.node(p);
+      if (!el || !el.checkVisibility()) return null; const r = h.node(`${p}/Button`).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, panel);
+    if (!cross) continue;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cross[0], y: cross[1], id: 9 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(100);
+  }
   // Touch: drag on the free screen turns the camera (CameraDragArea).
   const yaw0 = await page.evaluate(() => window.__game.view.follow.x);
   const st = await page.evaluate(() => ({ w: window.__game.stage.w, h: window.__game.stage.h }));

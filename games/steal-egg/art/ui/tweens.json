@@ -1,0 +1,1408 @@
+{
+"Canvas/PanelsAndButtons/HeliPanle": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/ads panel/Panel/bottem/Ads/Image": {
+"animationType": 13,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel (1)/Panel/Image (1)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/PanelsAndButtons/HeliPanle/Panel/Image": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel/Panel/bottem/Buy": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 5.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (2)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/axesShop/Panel/Scroll View/Viewport/Content/Panel/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/shoes shop": {
+"animationType": 1,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 960.0,
+"y": 418.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 0,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel (1)/Panel/bottem/Buy": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 5.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/ads panel (1)/Panel/bottem/Ads/Image (1)": {
+"animationType": 13,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/InGame/Fadepanel/Panel": {
+"animationType": 5,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 1,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PauseGame/Panel": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 18,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/Setting/Panel/Save": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 0.8,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/axesShop/Panel/Scroll View/Viewport/Content/Panel (2)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/shoes shop/Panel/Scroll View/Viewport/Content/Panel (2)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel/Panel/bottem/Ads": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 5.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/axesShop/Panel/Scroll View/Viewport/Content/Panel (1)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/InGame/TopPanel/GetCoins": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 10.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/axesShop/Panel/Scroll View/Viewport/Content/Panel (4)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/Setting/Panel": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 18,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop": {
+"animationType": 1,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 960.0,
+"y": 418.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 0,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/PauseGame/Panel/Resume": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 0.8,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (7)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/shoes shop/Panel/Scroll View/Viewport/Content/Panel/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (6)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/InGame/Fadepanel/Panel/Panel/Button (1)": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (5)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/LoadingPanel (1)/Panel": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/shoes shop/Panel/Scroll View/Viewport/Content/Panel (1)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/InGame/TopPanel/Image": {
+"animationType": 7,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 1,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 0.1,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/axesShop/Panel/Scroll View/Viewport/Content/Panel (3)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/axesShop": {
+"animationType": 1,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 960.0,
+"y": 418.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 0,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/Loading/LoadingPanel/Panel": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/InGame/ShopButton": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 10.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/PanelsAndButtons/lockUnlockPlayerHouse/lockfor3minuts": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (4)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel (1)/Panel/bottem/Ads": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 5.0,
+"z": 0.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (1)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/Bat shop/Panel/Scroll View/Viewport/Content/Panel (3)/Button (1)": {
+"animationType": 5,
+"duration": 0.3,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.1,
+"autoPlay": 1,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/ads panel (1)/Panel/Image": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 0
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7 (1)/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels6/WeponUnlockPanel1/Image (5)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels4/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels3/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels4/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7 (1)/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels4/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels6/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels4/WeponUnlockPanel1/Image (3)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/InGame/Inventory/Image": {
+"animationType": 5,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 24,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 0
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7 (1)/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels1/WeponUnlockPanel1/Image": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels5/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels3/WeponUnlockPanel3/Image (2)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels1/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels1/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels1/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7 (1)/WeponUnlockPanel1/Image (6)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels2/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels6/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels7/WeponUnlockPanel1/Image (6)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels5/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels2/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels6/WeponUnlockPanel1": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels3/WeponUnlockPanel3": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels5/Unlockbtn2": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels2/WeponUnlockPanel2/Image (1)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels2/WeponUnlockPanel2": {
+"animationType": 5,
+"duration": 0.5,
+"delay": 0.0,
+"easeType": 6,
+"loops": 1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 0.0,
+"y": 0.0,
+"z": 0.0
+},
+"endValueFloat": 1.0,
+"autoPlay": 0,
+"optionalBool0": 1,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels3/PickButton1": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 0,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 5.0,
+"y": 5.0,
+"z": 5.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+},
+"Canvas/PanelsAndButtons/unlockWaponPanels5/WeponUnlockPanel1/Image (4)": {
+"animationType": 12,
+"duration": 1.0,
+"delay": 0.0,
+"easeType": 6,
+"loops": -1,
+"loopType": 1,
+"isRelative": 0,
+"isFrom": 0,
+"endValueV3": {
+"x": 10.0,
+"y": 10.0,
+"z": 10.0
+},
+"endValueFloat": 0.0,
+"autoPlay": 1,
+"optionalBool0": 0,
+"isIndependentUpdate": 1
+}
+}

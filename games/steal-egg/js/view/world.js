@@ -252,6 +252,8 @@ export function buildWorld(sceneJson, gltf, opts) {
   for (const h of axeHolders) for (const r of h.userData.node.k.AxeHolder.HandWeapons) if (list[r.n]) list[r.n].visible = false;
   return {
     set, root, objects: list, byName, byPath, setHandWeapon,
+    // envWeapons(player): weaponManager.envWeapons[8] = the 8 weapon pedestal objects in the world
+    envWeapons: player => { const root = typeof player === 'string' ? byName.get(player) : player; const h = holders.find(x => { let y = x; while (y && y !== root) y = y.parent; return !!y; }); return h ? h.userData.node.k.weaponManager.envWeapons.map(r => list[r.n]) : []; },
     // handWeapons(player): the HandWeapons[8] objects of one player (a name like 'Player1' or its object)
     handWeapons: player => { const root = typeof player === 'string' ? byName.get(player) : player; const h = holders.find(x => { let y = x; while (y && y !== root) y = y.parent; return !!y; }); return h ? handOf(h) : []; },
     node: key => byPath.get(key) || byName.get(key) || null,

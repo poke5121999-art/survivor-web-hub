@@ -362,6 +362,56 @@ function check(name, fn) {
     return 'coins ' + coins + ', 1 placed + 1 stowed brainrot kept';
   });
 
+  check('ads break (AdsBraker 60 s, rules/ads-iap.md 2): coin panel pays 25/50/75/100 then 25; hurt + flag -> health panel', () => {
+    const sim = make(16);
+    freezeRivals(sim);
+    const b = () => sim.state.adsBreak;
+    assert.strictEqual(b().left, 60);
+    run(sim, 59.9);
+    assert.strictEqual(b().panel, null); assert.strictEqual(b().left, 1);
+    run(sim, 0.2);
+    assert.strictEqual(b().panel, 'coin'); assert.strictEqual(b().left, 60);
+    assert.strictEqual(b().loading, 3);
+    run(sim, 1.6);
+    assert.strictEqual(b().loading, 0);                         // three 0.5 s ticks: "Ad loaded "
+    const paid = [];
+    for (let k = 0; k < 5; k++) {
+      if (k) { run(sim, 60); assert.strictEqual(b().panel, 'coin'); }
+      const c = sim.state.coins;
+      assert.ok(sim.action('adsBreakCoins'));
+      paid.push(sim.state.coins - c);
+      assert.ok(!sim.action('adsBreakCoins'), 'a closed panel pays nothing');
+    }
+    assert.deepStrictEqual(paid, [25, 50, 75, 100, 25]);
+    // 5 panels shown: the flag is now false -> next break with the player hurt is the health panel
+    sim.state.actors[0].hp = 2;
+    run(sim, 60);
+    assert.strictEqual(b().panel, 'health');
+    assert.ok(sim.action('adsBreakHealth'));
+    assert.strictEqual(sim.state.actors[0].hp, data.player.hp);
+    // the countdown is scaled time: frozen while the player is dead
+    const left = b().left;
+    sim.state.actors[0].combat = { state: 'dead', t: 0, dir: [0, 0] };
+    run(sim, 5);
+    assert.strictEqual(b().left, left);
+    return `paid ${paid.join('/')}, health panel heals to ${data.player.hp}`;
+  });
+
+  check('Drop 1 save (test/fixtures/drop1-save.json) loads with the original defaults for the new fields', () => {
+    const fx = fs.readFileSync(path.join(G, 'test', 'fixtures', 'drop1-save.json'), 'utf8');
+    const sim = make(17);
+    assert.ok(sim.load(fx));
+    sim.startSession();
+    const s = sim.state;
+    assert.deepStrictEqual(s.settings, { sound: true, music: true, sensitivity: 10 });
+    assert.strictEqual(s.upgrades.weapons.changed, false);
+    assert.strictEqual(s.upgrades.weapons.unlocked.unlockItem3, 1);
+    assert.strictEqual(s.adsBreak.left, 60);
+    assert.strictEqual(s.coins, JSON.parse(fx).coins);
+    run(sim, 2);
+    return 'settings ' + JSON.stringify(s.settings);
+  });
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

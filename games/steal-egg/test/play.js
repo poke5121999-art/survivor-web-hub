@@ -63,7 +63,23 @@ async function walkTo(page, target, { reach = 0.6, maxSec = 60, until = null, st
   }
 }
 
+async function touchAt(cdp, page, [x, y]) {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 7, radiusX: 3, radiusY: 3, force: 1 }] });
+  await page.waitForTimeout(40);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(60);
+}
+
+// The ads break (every 60 s of play) puts its modal panel up: take the reward first, like a player would.
+async function dismissAdsBreak(cdp, page) {
+  for (const p of ['ads panel', 'ads panel (1)']) {
+    const up = await page.evaluate(p => { const el = window.__game.view.hud.node(p); return !!el && el.checkVisibility(); }, p);
+    if (up) { await touchAt(cdp, page, await hudCenter(page, `${p}/Panel/bottem/Ads`)); await page.evaluate(() => window.__step(1, true)); }
+  }
+}
+
 async function tap(cdp, page, hudPath) {
+  await dismissAdsBreak(cdp, page);
   const [x, y] = await hudCenter(page, hudPath);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 7, radiusX: 3, radiusY: 3, force: 1 }] });
   await page.waitForTimeout(40);

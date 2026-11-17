@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Trộm Trứng - thử menu</title>
+<link rel="stylesheet" href="./css/game.css">
+<style>
+  /* Same stage as index.html (css/game.css): landscape only, a portrait window turns the stage 90 degrees. */
+  #stage { position: fixed; left: 0; top: 0; overflow: hidden; background: #b6f6fb; }
+  #stage.rotated { transform: translateX(100vw) rotate(90deg); transform-origin: 0 0; }
+  #result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 700 28px/1.4 system-ui, sans-serif;
+    color: #123; text-align: center; white-space: pre; }
+</style>
+</head>
+<body>
+<!-- Standalone front end over a blank stage. Query: ?fresh (forget the save), ?mute, ?splash=<seconds> (test override
+     of the 10 s splash bar). window.__menu holds the live state, window.__menuResult the resolved choice. -->
+<div id="stage"><div id="result"></div></div>
+<script type="module">
+import { runFrontEnd, storedProfile, storeProfile } from './js/view/menu.js';
+import { Sound } from './js/view/sound.js';
+
+const params = new URLSearchParams(location.search);
+const stage = document.getElementById('stage');
+function layoutStage() {
+  const vw = window.innerWidth, vh = window.innerHeight, rotated = vh > vw;
+  stage.classList.toggle('rotated', rotated);
+  Object.assign(stage.style, { width: `${rotated ? vh : vw}px`, height: `${rotated ? vw : vh}px` });
+}
+window.addEventListener('resize', layoutStage);
+layoutStage();
+
+if (params.has('fresh')) { try { localStorage.removeItem('steal-egg-v1'); } catch (e) { /* no storage */ } }
+const debug = window.__menu = {};
+const sfxJson = await fetch('./art/sfx/sfx.json').then(r => r.json());
+const sound = new Sound({ sfxJson, base: new URL('./art', location.href).href, muted: params.has('mute') });
+const profile = storedProfile();
+const opts = { profile, sound, debug, save: storeProfile };
+if (params.has('splash')) opts.splashSeconds = +params.get('splash');
+try {
+  const choice = await runFrontEnd(stage, opts);
+  window.__menuResult = choice;
+  document.getElementById('result').textContent = `Vào trận\n${JSON.stringify(choice)}`;
+} catch (e) {
+  console.error(e);
+  debug.error = String(e && e.stack || e);
+}
+</script>
+</body>
+</html>

@@ -8,10 +8,12 @@ const PX = 64;                        // canvas pixels per line of size 1
 
 export class Text3D {
   // rect: [w, h] = a TextMeshPro 3D text box in its node's units (default box 20 x 5): the text is auto-sized into it
-  // (enableAutoSizing) and drawn on a plane child of the node instead of a sprite.
+  // (enableAutoSizing) and drawn on a plane child of the node instead of a sprite. maxSize: m_fontSizeMax of the TMP text;
+  // a 3D TextMeshPro em is fontSize * 0.1 node units (TMP_Text scale for non-orthographic text).
   constructor({ font = '"Insanibu", "Baloo 2", "Arial Black", sans-serif', height = 0.3, billboard = true, outline = 0.14,
-    outlineColor = '#000', depthTest = true, rect = null } = {}) {
+    outlineColor = '#000', depthTest = true, rect = null, maxSize = Infinity } = {}) {
     this.rect = rect;
+    this.maxSize = maxSize;
     if (rect) billboard = false;
     this.font = font;
     this.height = height;
@@ -66,7 +68,7 @@ export class Text3D {
     this.aspect = w / h;
     if (this.rect) {
       // fit inside the box keeping the text's aspect
-      const [bw, bh] = this.rect, sc = Math.min(bw / w, bh / h);
+      const [bw, bh] = this.rect, sc = Math.min(bw / w, bh / h, this.maxSize * 0.1 / PX);
       this.object.scale.set(w * sc, h * sc, 1);
       return;
     }

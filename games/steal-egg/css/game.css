@@ -21,3 +21,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #18bff0; tou
 .ugui-pressed > .ugui-img { filter: brightness(0.784); }
 .ugui-txt { position: absolute; inset: 0; display: flex; font-weight: 900; line-height: 1.05; white-space: pre-wrap;
   overflow: visible; pointer-events: none; paint-order: stroke fill; letter-spacing: 0.01em; }
+
+/* Drop 2: inventory SeedBtn (selected = DOFade 0.35, 0.5 s InOutSine yoyo) and the ads-break reward card's UIEffect
+   Shiny (TransitionFilter Shiny, rate 0.5, width 0.151, softness 0.085, rotation 135, colour (0.955, 0.859, 0),
+   MultiplyAdditive) drawn as a static gold band masked by the card. */
+@keyframes seed-pulse { from { opacity: 1; } to { opacity: 0.35; } }
+.seed-btn.seed-selected > .seed-bg { animation: seed-pulse 0.5s ease-in-out infinite alternate; }
+.reward-shine > .ugui-img::after { content: ""; position: absolute; inset: 0; mix-blend-mode: plus-lighter; pointer-events: none;
+  background: linear-gradient(135deg, transparent 33.95%, rgba(243, 219, 0, 0.55) 42.45%, rgba(243, 219, 0, 0.55) 57.55%, transparent 66.05%);
+  -webkit-mask: var(--shine-mask) center / 100% 100% no-repeat; mask: var(--shine-mask) center / 100% 100% no-repeat; }

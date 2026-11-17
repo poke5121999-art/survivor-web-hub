@@ -84,12 +84,7 @@ export class Ui {
     click('reviveBtn', () => sim.action('revive'));                                                  // ad: granted at once
     click('noThanks', () => sim.action('noThanks'));
     click('coins', () => { if (sim.action('adCoins')) this.onPurchase(); });                        // coins.WatchAds: +100
-    click('shop', () => this.show(t('Shop opens in the next version')));                             // PLACEHOLDER (Drop 2)
-    click('setting', () => this.show(t('Settings open in the next version')));                       // PLACEHOLDER (Drop 2)
-    click('pause', () => { this.set('pausePanel', true); this.onPause(true); });
-    click('resume', () => { this.set('pausePanel', false); this.onPause(false); });
-    click('restart', () => location.reload());
-    click('home', () => { location.href = '../../index.html'; });
+    // ShopButton, Setting, Pause and their panels: panels.js (Drop 2)
   }
 
   // TextDisplayer.ShowText; a new message restarts the sequence like a new DOTween sequence on the same panel.

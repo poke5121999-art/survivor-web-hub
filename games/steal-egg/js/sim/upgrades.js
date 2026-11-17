@@ -1,11 +1,13 @@
 // Speed plans, weapons and the cosmetic shop, rules/upgrades-shop.md. Every ad button grants its reward at once and
 // never also charges coins (owner rule, PROGRESS.md 18:15).
 // state.upgrades = { speedPlans: {planId: true}, savedSpeed (PlayerPrefs player_current_speed),
-//   weapons: { unlocked: {unlockItemK: 1}, ads: {AdsWatchedCountK: n}, equipped: WeponType },
-//   cosmetics: { unlocked: {itemK: 1}, picked: {itemK: true} } }   (equip choices are not persisted by the original)
+//   weapons: { unlocked: {unlockItemK: 1}, ads: {AdsWatchedCountK: n}, equipped: WeponType, changed: bool },
+//   cosmetics: { unlocked: {itemK: 1}, picked: {itemK: true} } }
+// The original keeps equip choices only for the session (static playerWeapon, active objects); the remake saves them
+// (owner rule for Drop 2: equipped items survive a reload). changed = ChangeWapon ran at least once (its pedestal hides).
 
 export function newUpgrades() {
-  return { speedPlans: {}, savedSpeed: 0, weapons: { unlocked: {}, ads: {}, equipped: 0 }, cosmetics: { unlocked: {}, picked: {} } };
+  return { speedPlans: {}, savedSpeed: 0, weapons: { unlocked: {}, ads: {}, equipped: 0, changed: false }, cosmetics: { unlocked: {}, picked: {} } };
 }
 
 const planDef = (sim, plan) => sim.D.speedPlans.find(p => p.plan === plan);
@@ -62,6 +64,7 @@ const pedestal = sim => sim.state.ui.pedestal != null ? sim.D.weapons.pedestals[
 
 function equip(sim, type) {
   sim.state.upgrades.weapons.equipped = type;
+  sim.state.upgrades.weapons.changed = true;
   sim.emit('weapon', { type });
 }
 
@@ -122,8 +125,15 @@ export function shopPick(sim, key) {
     if (!sim.state.upgrades.weapons.unlocked[key]) return false;
     equip(sim, d.type);
   } else {
-    if (!sim.state.upgrades.cosmetics.unlocked[key]) return false;
-    sim.state.upgrades.cosmetics.picked[key] = true;
+    const c = sim.state.upgrades.cosmetics;
+    if (!c.unlocked[key]) return false;
+    // PickObject: InActiveObjects off, ActiveObjects on. A picked item whose objects this one hides is no longer worn.
+    const off = new Set(d.inactive || []);
+    for (const k of Object.keys(c.picked)) {
+      const o = sim.D.weapons.shopItems.find(x => x.key === k && !x.weapon);
+      if (o && k !== key && (o.active || []).some(p => off.has(p))) delete c.picked[k];
+    }
+    c.picked[key] = true;
     sim.emit('cosmetic', { key });
   }
   return true;

@@ -35,6 +35,17 @@ export class Sound {
     if (this.settings.music && !this.loops.has(MUSIC)) this.loop(MUSIC, true);
   }
 
+  // Settings panel: SoundEnabled (every one-shot and loop effect) and MusicEnabled (SoundManager.PlayMusic / PauseMusic).
+  setSettings({ sound = this.settings.sound, music = this.settings.music } = {}) {
+    this.settings.sound = !!sound;
+    const was = this.settings.music;
+    this.settings.music = !!music;
+    if (was && !music) this.loop(MUSIC, false);
+    if (!was && music && this.ctx) this.loop(MUSIC, true);
+    // effect loops (snores, runs) follow SoundEnabled; they restart by themselves from the next frame's loop() call
+    if (!this.settings.sound) for (const key of [...this.loops.keys()]) if (key !== MUSIC) this.loop(null, false, key);
+  }
+
   load(name) {
     const c = this.clips[name];
     if (!c || !this.ctx) return Promise.resolve(null);
@@ -72,6 +83,7 @@ export class Sound {
   // Looping source on/off (SetActive of an AudioSource object). key lets one clip loop on several objects.
   loop(name, on, key = name, vol = 1) {
     const cur = this.loops.get(key);
+    if (on && name !== MUSIC && !this.settings.sound) on = false;
     if (!on) {
       if (cur) { try { cur.src && cur.src.stop(); } catch (e) { /* not started */ } this.loops.delete(key); }
       return;

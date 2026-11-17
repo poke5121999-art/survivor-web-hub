@@ -10,7 +10,10 @@ match 0.5 (scale = sqrt((w/1920)*(h/1080)) in log space, i.e. 2^((log2(w/1920)+l
   `{type, ...}`), the view reads and clears them. Same rules for the player and the AI rivals (bots).
 - `js/view/` three.js scene, rigs, camera, DOM HUD, sound. Reads sim state, never writes it except through
   `sim.input(...)` / `sim.action(...)`.
-- `js/main.js` boot: loading blur, loads art, creates sim + view, drives the loop, save/load.
+- `js/main.js` boot: loading blur, loads art, creates sim + view, drives the loop, save/load. The game starts on the
+  16 px textures and the HUD sprites of everything that can appear without a tap; full textures and menu sprites stream
+  in afterwards.
+- `js/view/panels.js` the Drop 2 panels (shop, bat/shoes shops, pedestals, inventory, settings, pause, ads break).
 
 ## Sim state (plain JSON, saved to localStorage key `steal-egg-v1`)
 ```
@@ -28,8 +31,9 @@ match 0.5 (scale = sqrt((w/1920)*(h/1080)) in log space, i.e. 2^((log2(w/1920)+l
   //     | {farm: farmIdx, pos:[x,y,z]}            farmIdx 0 = player farm, 1..3 = rival farms
   animals: [ { state: 'sleep'|'chase'|'return'|..., pos, target, respawnAt } ],
   farms: [ { level, gate: { closedUntil } } ],
-  upgrades: { speedPlan, weapons:{...}, cosmetics:{...}, character },
-  tutorial: { ... }, settings: { music, sound, vibration }
+  upgrades: { speedPlans, savedSpeed, weapons:{unlocked, ads, equipped, changed}, cosmetics:{unlocked, picked} },
+  tutorial: { ... }, settings: { sound, music, sensitivity },   // no vibration setting in the original
+  adsBreak: { left, acc, interstitialNext, reward, panel, loading, loadAcc }   // session only, reset by startSession
 }
 ```
 Numbers come from `data/*.json` written by `tools/export_data.py` from the APK dumps, never typed in by hand.

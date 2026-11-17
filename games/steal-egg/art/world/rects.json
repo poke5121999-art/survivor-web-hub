@@ -1,0 +1,2686 @@
+{
+"enemy form (1)/AIGATE/prison_gate/Text (TMP)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+-0.2267,
+-0.0245
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"player form/Cube (2)/Text (TMP) (1)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+0.094,
+0.81
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"player form/player gate/prison_gate/Text (TMP)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+-0.2267,
+-0.0245
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"enemy form (3)/AIGATE/prison_gate/Text (TMP)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+-0.2267,
+-0.0245
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"enemy form/AIGATE/prison_gate/Text (TMP)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+-0.2267,
+-0.0245
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"player form/Cube (2)/Text (TMP) (2)": {
+"anchorMin": [
+0.5,
+0.5
+],
+"anchorMax": [
+0.5,
+0.5
+],
+"anchoredPosition": [
+-0.317,
+0.87
+],
+"sizeDelta": [
+20.0,
+5.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (12)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1189
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (12)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1189
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (12)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (12)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (7)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (7)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (6)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (6)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Fill Area": {
+"anchorMin": [
+0.0,
+0.25
+],
+"anchorMax": [
+1.0,
+0.75
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Fill Area": {
+"anchorMin": [
+0.0,
+0.25
+],
+"anchorMax": [
+1.0,
+0.75
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+-3.59
+],
+"sizeDelta": [
+0.0,
+6.7039
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+-3.59
+],
+"sizeDelta": [
+0.0,
+6.7039
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (1)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (1)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+17.8013,
+-4.8965
+],
+"sizeDelta": [
+33.345,
+9.793
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+17.8013,
+-4.8965
+],
+"sizeDelta": [
+33.345,
+9.793
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (6)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (6)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (2)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (2)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (3)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-1.8177
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (3)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-1.8177
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (4)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (4)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (2)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (2)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (9)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (9)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (5)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-3.352
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (5)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-3.352
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Fill Area/Fill/Name": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Fill Area/Fill/Name": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (7)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (7)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Fill Area/Fill": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.1,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Fill Area/Fill": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.1,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (1)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (1)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Background": {
+"anchorMin": [
+0.0,
+0.25
+],
+"anchorMax": [
+1.0,
+0.75
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Background": {
+"anchorMin": [
+0.0,
+0.25
+],
+"anchorMax": [
+1.0,
+0.75
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (5)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (5)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (2)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (2)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Handle Slide Area/Handle": {
+"anchorMin": [
+1.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+20.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Handle Slide Area/Handle": {
+"anchorMin": [
+1.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+20.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+-0.16,
+0.3423
+],
+"sizeDelta": [
+2.5447,
+3.5511
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+-0.16,
+0.3423
+],
+"sizeDelta": [
+2.5447,
+3.5511
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (4)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-2.5849
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (4)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-2.5849
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (7)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (7)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (9)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (9)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (5)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (5)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (3)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (3)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (2)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (2)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (12)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (12)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Handle Slide Area": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-20.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Handle Slide Area": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-20.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (7)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (7)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (6)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (6)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+-0.09,
+2.36
+],
+"sizeDelta": [
+35.6025,
+9.4761
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+-0.09,
+2.36
+],
+"sizeDelta": [
+35.6025,
+9.4761
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (9)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (9)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (5)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (5)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (9)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1189
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (9)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1189
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (7)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-4.8861
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (7)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-4.8861
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (3)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (3)/Image/Image": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+-0.06,
+-0.06
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (5)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (5)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (1)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (1)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (12)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (12)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (3)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (3)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (12)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-6.4203
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (12)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-6.4203
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (3)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (3)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (1)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (1)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (4)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (4)/Image": {
+"anchorMin": [
+1.0,
+0.5
+],
+"anchorMax": [
+1.0,
+0.5
+],
+"anchoredPosition": [
+-0.2654,
+0.0
+],
+"sizeDelta": [
+0.5309,
+0.5309
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (6)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-4.1191
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (6)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-4.1191
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/ww (1)/Panel/Slider (1)/Fill Area/Fill/Text (TMP)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/ww (1)/Panel/Slider (1)/Fill Area/Fill/Text (TMP)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (2)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-1.0507
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (2)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-1.0507
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (1)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-0.2835
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (1)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-0.2835
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (9)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-5.6532
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (9)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+1.2723,
+-5.6532
+],
+"sizeDelta": [
+2.2134,
+0.5671
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (4)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (4)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (4)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (4)/Text (TMP) (1)": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+0.0,
+0.0
+],
+"anchoredPosition": [
+0.5,
+0.1188
+],
+"sizeDelta": [
+1.0,
+0.2377
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display/Panel/Image (6)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display/Panel/Image (6)/Text (TMP)": {
+"anchorMin": [
+0.0,
+1.0
+],
+"anchorMax": [
+0.0,
+1.0
+],
+"anchoredPosition": [
+0.6871,
+-0.1647
+],
+"sizeDelta": [
+1.3742,
+0.3294
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd (1)/Canvas/display": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+},
+"Env/Lcd/Canvas/display": {
+"anchorMin": [
+0.0,
+0.0
+],
+"anchorMax": [
+1.0,
+1.0
+],
+"anchoredPosition": [
+0.0,
+0.0
+],
+"sizeDelta": [
+0.0,
+0.0
+],
+"pivot": [
+0.5,
+0.5
+]
+}
+}

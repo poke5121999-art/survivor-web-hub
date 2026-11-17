@@ -1,0 +1,295 @@
+{
+ "source": "sharedassets2 GO 1732 SeedBtn (InventoryItemButton id 4021)",
+ "root": {
+  "rect": {
+   "anchorMin": [
+    0.0,
+    1.0
+   ],
+   "anchorMax": [
+    0.0,
+    1.0
+   ],
+   "anchoredPosition": [
+    77.0,
+    -50.0234
+   ],
+   "sizeDelta": [
+    128.0,
+    128.0
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ]
+  },
+  "sprite": {
+   "file": "seedbtn-bg",
+   "name": "Cyan",
+   "size": [
+    79,
+    79
+   ]
+  }
+ },
+ "icon": {
+  "rect": {
+   "anchorMin": [
+    0.0,
+    0.0
+   ],
+   "anchorMax": [
+    1.0,
+    1.0
+   ],
+   "anchoredPosition": [
+    0.0,
+    0.0
+   ],
+   "sizeDelta": [
+    -20.0,
+    -20.0
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ]
+  },
+  "go": 1917
+ },
+ "mark": {
+  "rect": {
+   "anchorMin": [
+    0.5,
+    0.5
+   ],
+   "anchorMax": [
+    0.5,
+    0.5
+   ],
+   "anchoredPosition": [
+    40.0,
+    -7.8
+   ],
+   "sizeDelta": [
+    120.0583,
+    120.0598
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ]
+  },
+  "go": 1798,
+  "sprite": {
+   "file": "seedbtn-mark",
+   "name": "decree",
+   "size": [
+    512,
+    268
+   ]
+  },
+  "tween": {
+   "animationType": 5,
+   "duration": 0.5,
+   "easeType": 1,
+   "loops": -1,
+   "loopType": 1,
+   "endValueFloat": 1.4
+  }
+ },
+ "seeds": {
+  "0": {
+   "file": "seed-0",
+   "name": "1",
+   "size": [
+    30,
+    73
+   ]
+  },
+  "1": {
+   "file": "seed-1",
+   "name": "2",
+   "size": [
+    47,
+    72
+   ]
+  },
+  "2": {
+   "file": "seed-2",
+   "name": "3",
+   "size": [
+    48,
+    65
+   ]
+  },
+  "3": {
+   "file": "seed-3",
+   "name": "4",
+   "size": [
+    52,
+    78
+   ]
+  },
+  "4": {
+   "file": "seed-4",
+   "name": "5",
+   "size": [
+    67,
+    73
+   ]
+  },
+  "5": {
+   "file": "seed-5",
+   "name": "6",
+   "size": [
+    53,
+    75
+   ]
+  },
+  "6": {
+   "file": "seed-6",
+   "name": "7",
+   "size": [
+    72,
+    73
+   ]
+  },
+  "7": {
+   "file": "seed-7",
+   "name": "8",
+   "size": [
+    64,
+    62
+   ]
+  },
+  "8": {
+   "file": "seed-8",
+   "name": "9",
+   "size": [
+    57,
+    67
+   ]
+  },
+  "9": {
+   "file": "seed-9",
+   "name": "10",
+   "size": [
+    68,
+    66
+   ]
+  },
+  "10": {
+   "file": "seed-10",
+   "name": "11",
+   "size": [
+    35,
+    69
+   ]
+  },
+  "11": {
+   "file": "seed-11",
+   "name": "12",
+   "size": [
+    52,
+    73
+   ]
+  },
+  "12": {
+   "file": "seed-12",
+   "name": "13",
+   "size": [
+    81,
+    82
+   ]
+  },
+  "13": {
+   "file": "seed-13",
+   "name": "14",
+   "size": [
+    64,
+    74
+   ]
+  },
+  "14": {
+   "file": "seed-14",
+   "name": "n2",
+   "size": [
+    186,
+    164
+   ]
+  },
+  "15": {
+   "file": "seed-15",
+   "name": "n8",
+   "size": [
+    190,
+    205
+   ]
+  },
+  "16": {
+   "file": "seed-16",
+   "name": "n4",
+   "size": [
+    231,
+    274
+   ]
+  },
+  "17": {
+   "file": "seed-17",
+   "name": "n3",
+   "size": [
+    235,
+    229
+   ]
+  },
+  "18": {
+   "file": "seed-18",
+   "name": "n1",
+   "size": [
+    182,
+    223
+   ]
+  },
+  "19": {
+   "file": "seed-19",
+   "name": "n6",
+   "size": [
+    216,
+    284
+   ]
+  },
+  "20": {
+   "file": "seed-20",
+   "name": "n5",
+   "size": [
+    227,
+    265
+   ]
+  },
+  "21": {
+   "file": "seed-21",
+   "name": "n7",
+   "size": [
+    284,
+    253
+   ]
+  },
+  "22": {
+   "file": "seed-22",
+   "name": "n9",
+   "size": [
+    159,
+    341
+   ]
+  },
+  "23": {
+   "file": "seed-23",
+   "name": "n10",
+   "size": [
+    241,
+    197
+   ]
+  }
+ }
+}

@@ -14,7 +14,7 @@
 //   hatchCancel, hatch, income, sell, farmUpgrade, gate, attack, hit, stun, recover, death, deathPanel, revive, health,
 //   rivalChase, rivalAttack, rivalObjective, rivalSteal, rivalStole, rivalBlocked, rivalCarry, rivalTookCarried,
 //   rivalRecovered, rivalRevenge, rivalRevengeEnd, playerStole, speed, speedPlan, weapon, weaponUnlock, shopUnlock,
-//   cosmetic.
+//   cosmetic, adsBreak.
 import { newMover, stepMover, THIRD_PERSON } from './move.js';
 import { navKit } from './navkit.js';
 import { initAnimals, stepAnimals } from './animals.js';
@@ -24,7 +24,8 @@ import { stepFarms, placeCarried, placeAt, pickPlacedBrainrot, sellPlaced, upgra
 import { newCombat, stepCombat, playerAttack, revive, refillHealth, COMBAT } from './combat.js';
 import { newUpgrades, buySpeedPlan, pedestalBuy, pedestalAd, pedestalPick, batShopBuy, shopUnlock, shopPick } from './upgrades.js';
 import { canBeginSteal, beginSteal, cancelSteal, pickEgg, secureCarriedEgg, carriedBy, stowBrainrot, equipBrainrot, where, LOC, itemPos } from './items.js';
-import { serialize, deserialize, startSession, SAVE_VERSION } from './save.js';
+import { serialize, deserialize, migrate, startSession, SAVE_VERSION } from './save.js';
+import { newAdsBreak, stepAdsBreak, claimAdsBreakCoins, claimAdsBreakHealth } from './adsbreak.js';
 import { rand, inBoxXZ, dxz, copy } from './util.js';
 
 export const STEP = 1 / 30;
@@ -46,7 +47,7 @@ export class Sim {
     this.state = {
       v: SAVE_VERSION, t: 0, coins: D.start.coins, rng: seed >>> 0, nextId: 1,
       actors: [player], items: {}, animals: [], farms: [],
-      upgrades: newUpgrades(), tutorial: { tasks: {} }, settings: { music: true, sound: true, vibration: true },
+      upgrades: newUpgrades(), tutorial: { tasks: {} }, settings: { ...D.settings }, adsBreak: newAdsBreak(D),
       ui: emptyUi(),
     };
     D.rivals.forEach((r, k) => {
@@ -98,6 +99,7 @@ export class Sim {
   load(json) {
     const s = deserialize(json);
     if (!s) return false;
+    migrate(s, this.D);
     this.state = s;
     this.syncBlockers();
     this.refreshUi();
@@ -121,6 +123,7 @@ export class Sim {
     stepAnimals(this, dt);
     stepFarms(this, dt);
     stepGates(this, dt);
+    stepAdsBreak(this, dt);
     this.syncBlockers();
     this.refreshUi();
   }
@@ -215,7 +218,9 @@ export class Sim {
     ui.upgradePanel = inBoxXZ(D.farm.upgradeZone, p.pos, R);
     ui.capacity = { placed: placedBrainrots(this, 0).length, max: capacity(this), cost: upgradeCost(this) };
     for (const [name, box] of Object.entries(D.zones.shops)) if (inBoxXZ(box, p.pos, R)) ui.shop = name;
-    D.weapons.pedestals.forEach((w, i) => { if (inBoxXZ(w.trigger, p.pos, R)) ui.pedestal = i; });
+    // weaponManager.ChangeWapon hides the equipped weapon's pedestal (envWeapons[type]) and with it its UnlockManager trigger
+    const wp = s.upgrades.weapons, hidden = wp.changed ? wp.equipped : -1;
+    D.weapons.pedestals.forEach((w, i) => { if (w.weapon !== hidden && inBoxXZ(w.trigger, p.pos, R)) ui.pedestal = i; });
     ui.gateLock = s.farms[0].gate.open && insideGateTrigger(this, 0, p.pos);
     for (let f = 1; f < s.farms.length; f++) if (!s.farms[f].gate.open && insideGateTrigger(this, f, p.pos)) ui.aiGateUnlock = f;
     if (p.steal) ui.stealFill = { item: p.steal.item, progress: Math.min(1, (s.t - p.steal.t0) / p.steal.dur) };
@@ -262,5 +267,14 @@ export const ACTIONS = {
   noThanks: sim => revive(sim, true),
   health: sim => refillHealth(sim),                                  // health ad panel
   adCoins: sim => { sim.addCoins(sim.D.code.adCoins, 'ad'); return true; },
-  settings: (sim, a) => { Object.assign(sim.state.settings, a); return true; },
+  adsBreakCoins: sim => claimAdsBreakCoins(sim),                     // ads panel "Get it" (ad): +25/50/75/100
+  adsBreakHealth: sim => claimAdsBreakHealth(sim),                   // ads panel (1) "Get it" (ad): full health
+  // Settings panel: SoundEnabled / MusicEnabled toggles, sensitivity slider (int, rules/menus-flow.md 6)
+  settings: (sim, a) => {
+    const st = sim.state.settings;
+    if (a.sound != null) st.sound = !!a.sound;
+    if (a.music != null) st.music = !!a.music;
+    if (a.sensitivity != null) st.sensitivity = Math.max(0, Math.min(10, Math.trunc(+a.sensitivity) || 0));
+    return true;
+  },
 };

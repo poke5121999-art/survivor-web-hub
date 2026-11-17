@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
 import MeshoptDecoder from '../vendor/meshopt_decoder.js';
-import { buildWorld, buildPrefabSet, addUnityLights, makeSky, loadFullTextures, lowResSettled, textureStats } from './view/world.js';
+import { buildWorld, buildPrefabSet, addUnityLights, makeSky, loadTexture, loadFullTextures, lowResSettled, textureStats } from './view/world.js';
 import { AnimLibrary, attachRigs } from './view/rig.js';
 import { FollowCamera } from './view/camera.js';
 import { Hud } from './view/hud.js';
@@ -93,11 +93,16 @@ const now = params.has('seed') ? () => 1.8e9 + (game.sim ? game.sim.state.t : 0)
 async function load() {
   const restP = Promise.all([json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/world/navmesh.json`),
     json(`${ART}/ui/level2.json`), json(`${DATA}/game.json`), json(`${ART}/world/colliders.json`), json(`${ART}/fx/fx.json`),
-    json(`${ART}/sfx/sfx.json`)]);
-  const setsP = Promise.all(['brainrots', 'eggs'].map(s => Promise.all([json(`${ART}/${s}/scene.json`), glb(`${ART}/${s}/geo.glb`)])));
-  const fxGlbP = glb(`${ART}/fx/fx.glb`).catch(() => null);
-  const [sceneJson, gltf] = await Promise.all([json(`${ART}/world/scene.json`), glb(`${ART}/world/geo.glb`)]);
+    json(`${ART}/sfx/sfx.json`), json(`${ART}/world/rects.json`), json(`${ART}/ui/tweens.json`), json(`${ART}/ui/seedbtn.json`)]);
   const opts = { texBase: `${ART}/tex`, version: V };
+  // The 16 px textures are requested as soon as a scene.json names them, while the geometry still downloads.
+  const sceneP = name => json(`${ART}/${name}/scene.json`).then(sj => {
+    for (const t of sj.textures || []) loadTexture(opts.texBase, t.name, V);
+    return sj;
+  });
+  const setsP = Promise.all(['brainrots', 'eggs'].map(s => Promise.all([sceneP(s), glb(`${ART}/${s}/geo.glb`)])));
+  const fxGlbP = glb(`${ART}/fx/fx.glb`).catch(() => null);
+  const [sceneJson, gltf] = await Promise.all([sceneP('world'), glb(`${ART}/world/geo.glb`)]);
   const world = buildWorld(sceneJson, gltf, { ...opts, file: 'level2' });
   scene3.add(world.root, makeSky(opts.texBase, V));
   const lights = addUnityLights(scene3, sceneJson, world.node('Directional Light (1)'));
@@ -105,7 +110,7 @@ async function load() {
   const follow = new FollowCamera(camera, world.node('MainCamera'));
   setBlur(8, 'geometry');
 
-  const [clips, controllers, navJson, layout, data, colliders, fxJson, sfxJson] = await restP;
+  const [clips, controllers, navJson, layout, data, colliders, fxJson, sfxJson, rects, tweens, seedbtn] = await restP;
   const [[brJson, brGltf], [eggJson, eggGltf]] = await setsP;
   const fxGlb = await fxGlbP;
   const anim = new AnimLibrary(clips, controllers);
@@ -124,7 +129,13 @@ async function load() {
   sim.startSession();
 
   const playerObj = world.node(PLAYER);
-  const hud = new Hud({ layout, parent: hudEl, spriteBase: `${ART}/ui/sprites`, version: V });
+  const hud = new Hud({ layout, parent: hudEl, spriteBase: `${ART}/ui/sprites`, version: V, tweens });
+  // Sprites of everything that can appear without a tap (HUD, world buttons, toast, tutorial panel) are loaded before
+  // the game starts; the menus' sprites follow in the background once it runs.
+  const firstRoots = ['Canvas/InGame', 'Canvas/PanelsAndButtons', 'Canvas/TextDisplayer', 'Canvas/instruction panel', 'Canvas/CoinPanel'];
+  const underFirst = p => firstRoots.some(r => p === r || p.startsWith(`${r}/`));
+  // tinted sprites (panel backdrops) are computed once at boot too, so a panel opened in the first second has its backdrop
+  const hudSpritesP = hud.preloadSprites(underFirst, { allTints: true });
   const joystick = layout.nodes[layout.nodes.findIndex(n => n.path === 'Canvas/InGame/JoyStick')];
   const joyMb = sceneJson.nodes.find(n => n.k && n.k.UIVirtualJoystick);
   const input = new Input({ hud, stage: game.stage, joystick: { joystickRange: joyMb ? joyMb.k.UIVirtualJoystick.joystickRange : 100, rect: joystick.rect } });
@@ -154,14 +165,22 @@ async function load() {
   Object.assign(game, { sim, view, nav, data });
   game.hud = hud;
   layoutStage();
-  game.gv = new GameView({ sim, view, data, layout, fxJson, fxGlb, sfxJson, artBase: ART, version: V, mute: params.has('mute'),
+  game.gv = new GameView({ sim, view, data, layout, fxJson, fxGlb, sfxJson, rects, tweens, seedbtn, artBase: ART, version: V, mute: params.has('mute'),
     onPurchase: writeSave });
 
-  await lowResSettled();
+  // The game starts sharp-enough on the 16 px textures; the full ones stream in afterwards and swap in place
+  // (world.js loadTexture). game.texturesFull resolves when every full texture has arrived.
+  const [, hudSprites] = await Promise.all([lowResSettled(), hudSpritesP]);
   game.stages.push(['lowres', game.blur, Math.round(performance.now())]);
-  await loadFullTextures();
+  game.hudSprites = hudSprites;
   setBlur(0, 'textures');
   game.textures = textureStats();
+  game.texturesFull = loadFullTextures().then(() => {
+    game.textures = textureStats();
+    game.stages.push(['full textures', 0, Math.round(performance.now())]);
+    return game.textures;
+  });
+  hud.preloadSprites(p => !underFirst(p)).then(r => { game.hudSpritesAll = r; });
   return game;
 }
 
@@ -188,7 +207,8 @@ function stepSim(quiet) {
 window.__step = (n = 1, draw = true) => {
   if (!game.ready) return false;
   if (n > 0) game.manual = true;
-  for (let i = 0; i < n; i++) { clockSkew += STEP; stepSim(n > 5); }
+  // a paused game (Pause / Settings panel: Time.timeScale = 0) does not advance, also under test stepping
+  if (!game.paused) for (let i = 0; i < n; i++) { clockSkew += STEP; stepSim(n > 5); }
   game.gv.draw(n * STEP, 1);
   saveClock += n * STEP;
   if (draw) renderer.render(scene3, camera);

@@ -11,6 +11,7 @@ import { faceYaw } from './rig.js';
 import { Fx } from './fx.js';
 import { Sound } from './sound.js';
 import { Ui } from './ui.js';
+import { Panels } from './panels.js';
 import { Text3D } from './text3d.js';
 import { t, tf } from './vi.js';
 import { Tutorial } from '../sim/tutorial.js';
@@ -28,7 +29,8 @@ const FALL_TIME = 0.3;                                  // ragdoll collapse
 const LABEL_FONT = '"Insanibu", "Baloo 2", "Arial Black", sans-serif';
 
 export class GameView {
-  constructor({ sim, view, data, fxJson, fxGlb, sfxJson, artBase, version, mute = false, onPurchase = () => {}, onPause = () => {} }) {
+  constructor({ sim, view, data, fxJson, fxGlb, sfxJson, rects = {}, tweens = {}, seedbtn = null, artBase, version, mute = false,
+    onPurchase = () => {}, onPause = () => {} }) {
     this.sim = sim;
     this.view = view;
     this.D = sim.D;
@@ -38,7 +40,10 @@ export class GameView {
     this.sound = new Sound({ sfxJson, base: artBase, version, muted: mute });
     this.fx = new Fx({ fxJson, fxGlb, world, base: artBase, version });
     this.scene.add(this.fx.group);
-    this.ui = new Ui({ sim, hud: view.hud, sound: this.sound, onPurchase, onPause: on => { window.__game.paused = on; onPause(on); } });
+    const pauseGame = on => { window.__game.paused = on; onPause(on); };
+    this.ui = new Ui({ sim, hud: view.hud, sound: this.sound, onPurchase, onPause: pauseGame });
+    this.panels = new Panels({ sim, hud: view.hud, view, sound: this.sound, tweens, seedbtn, spriteBase: `${artBase}/ui/sprites`, version,
+      onPurchase, onPause: pauseGame });
     for (const root of ['PanelsAndButtons', 'TextDisplayer', 'CoinPanel']) view.hud.show(root, true);
     this.itemsRoot = new THREE.Group();
     this.itemsRoot.name = 'items';
@@ -91,18 +96,19 @@ export class GameView {
       const c = node.userData.node.k.PlayerGateController || node.userData.node.k.AIGateController;
       const slide = world.objects[c.slidingGate.n];
       const timerNode = world.objects[c.timerText.n];
-      const label = tmpText(timerNode);
+      const label = tmpText(timerNode, { rects, path: world.path(timerNode) });
       const op = c.openLocalPosition, cl = c.closedLocalPosition;
       return { slide, timerNode, label, open: new THREE.Vector3(op.x, op.y, -op.z), closed: new THREE.Vector3(cl.x, cl.y, -cl.z) };
     });
-    // Upgrade pad world texts (FarmUpgradeZone.upgradePriceText / capacityText).
+    // Upgrade pad world texts (FarmUpgradeZone.upgradePriceText / capacityText): two TextMeshPro 3D texts on the slanted
+    // board "player form/Cube (2)", each at its RectTransform anchoredPosition (art/world/rects.json; the scene export
+    // kept only the zero m_LocalPosition), 20 x 5 box, auto size up to m_fontSizeMax, m_fontColor; material "Insanibu Atlas
+    // Material" _OutlineWidth 0.248 black (about a quarter of it per side of the em in canvas strokes).
     const fu = world.objects.find(o => o.userData.node.k && o.userData.node.k.FarmUpgradeZone).userData.node.k.FarmUpgradeZone;
-    const tmpColor = n => { const c = world.objects[n].userData.node.k['TMPro.TextMeshPro'].m_fontColor; return [c.r, c.g, c.b]; };
-    // The two TextMeshPro texts hang on the slanted board above the pad; their RectTransform was not exported and the
-    // node pose turns the text edge-on, so they are drawn as one camera-facing two-line label on the board instead.
-    this.pad = { board: world.objects[fu.upgradePriceText.n].parent, colors: [tmpColor(fu.upgradePriceText.n), tmpColor(fu.capacityText.n)],
-      label: new Text3D({ font: LABEL_FONT, height: 0.17, outlineColor: '#fff', outline: 0.12 }) };
-    this.labelsRoot.add(this.pad.label.object);
+    this.pad = [fu.upgradePriceText.n, fu.capacityText.n].map(n => {
+      const node = world.objects[n], tmp = node.userData.node.k['TMPro.TextMeshPro'], c = tmp.m_fontColor;
+      return { label: tmpText(node, { rects, path: world.path(node), maxSize: tmp.m_fontSizeMax, outline: 0.248 / 4, outlineColor: '#000' }), color: [c.r, c.g, c.b] };
+    });
     // TutorialManager: instruction panel + bobbing 3D arrow (scene object "pointer"); flags live in the sim save.
     sim.state.tutorial.flags = sim.state.tutorial.flags || {};
     this.tutorial = new Tutorial(sim.state, this.D, sim.state.tutorial.flags, { seed: sim.state.rng });
@@ -215,11 +221,17 @@ export class GameView {
     this.animalsSync(false, alpha);
     for (const r of v.rigs) r.update(dt);
     v.follow.update(dt, this.player.draw);
+    // GoToGamePlay.ShowShop -> PlayerManager.ShowPlayerCamera(true): MainCamera off, the player's "Camera" child on
+    if (this.panels.shopOpen && this.panels.camNode) {
+      this.panels.camNode.updateWorldMatrix(true, false);
+      this.panels.camNode.matrixWorld.decompose(v.camera.position, v.camera.quaternion, new THREE.Vector3());
+    }
     this.drawGates();
     this.drawItems();
     this.drawPad();
     this.fx.draw(v.camera);
     this.ui.draw();
+    this.panels.draw(dt);
     this.drawTutorial(dt);
     this.sounds();
     this.lastDraw = s.t;
@@ -335,10 +347,7 @@ export class GameView {
     const ui = this.sim.state.ui, cap = ui.capacity;
     if (!cap) return;
     const texts = [cap.cost > 0 ? tf('Upgrade Price: ${0}', cap.cost) : t('Upgrade Price: MAX'), tf('Brainrot Capacity: {0}/{1}', cap.placed, cap.max)];
-    const P = this.pad;
-    P.label.set(texts.map((text, k) => ({ text, color: P.colors[k] })));
-    P.board.getWorldPosition(P.label.object.position);
-    P.label.object.position.y += 0.45;
+    this.pad.forEach((p, k) => p.label.set([{ text: texts[k], color: p.color }]));
   }
 
   // --- items --------------------------------------------------------------------------------------------------------
@@ -487,9 +496,12 @@ function visibleBox(obj) {
   return box;
 }
 
-// A world TextMeshPro (3D) drawn on a plane in its node: default text box 20 x 5 units, auto-sized text.
-function tmpText(node, opts = {}) {
-  const label = new Text3D({ font: LABEL_FONT, rect: [20, 5], outline: 0.12, ...opts });
+// A world TextMeshPro (3D) drawn on a plane in its node: text box = RectTransform sizeDelta (default 20 x 5 units),
+// auto-sized text. The node is moved to its RectTransform anchoredPosition (rects.json), which the scene export dropped.
+function tmpText(node, { rects = {}, path = null, ...opts } = {}) {
+  const rt = path && rects[path];
+  if (rt) node.position.set(rt.anchoredPosition[0], rt.anchoredPosition[1], node.position.z);
+  const label = new Text3D({ font: LABEL_FONT, rect: rt ? rt.sizeDelta : [20, 5], outline: 0.12, ...opts });
   // TMP draws in its local XY plane reading along +x, seen from local -z; with the exporter's z mirror that is three's
   // +z side, which is where PlaneGeometry faces: no extra turn.
   node.add(label.object);

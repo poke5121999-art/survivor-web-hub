@@ -10,7 +10,8 @@ import { initAnimals, clearNests } from './animals.js';
 import { initGates } from './gates.js';
 import { newRivalBrain } from './rivals.js';
 import { newCombat } from './combat.js';
-import { applySavedSpeed } from './upgrades.js';
+import { applySavedSpeed, newUpgrades } from './upgrades.js';
+import { newAdsBreak } from './adsbreak.js';
 import { removeItem } from './items.js';
 import { copy } from './util.js';
 
@@ -22,6 +23,22 @@ export const serialize = state => JSON.stringify(state);
 export function deserialize(json) {
   const s = typeof json === 'string' ? JSON.parse(json) : JSON.parse(JSON.stringify(json));
   if (!s || s.v !== SAVE_VERSION || !s.items || !s.actors) return null;
+  return s;
+}
+
+// Saves written before Drop 2 (same version 1) lack the shop/settings fields: fill them with the original's defaults
+// (nothing bought, bat in hand, SoundEnabled 1, MusicEnabled 1, sensitivity 10). There is no vibration setting in the
+// original (rules/menus-flow.md 6): the Drop 1 placeholder key is dropped.
+export function migrate(s, D) {
+  const fresh = newUpgrades();
+  s.upgrades = s.upgrades || fresh;
+  const u = s.upgrades;
+  for (const k of Object.keys(fresh)) if (u[k] == null) u[k] = fresh[k];
+  for (const k of Object.keys(fresh.weapons)) if (u.weapons[k] == null) u.weapons[k] = fresh.weapons[k];
+  for (const k of Object.keys(fresh.cosmetics)) if (u.cosmetics[k] == null) u.cosmetics[k] = fresh.cosmetics[k];
+  s.settings = { ...D.settings, ...(s.settings || {}) };
+  delete s.settings.vibration;
+  if (!s.adsBreak) s.adsBreak = newAdsBreak(D);
   return s;
 }
 
@@ -55,5 +72,6 @@ export function startSession(sim) {
   const levels = s.farms.map(f => f.level);
   initGates(sim);
   s.farms[0].level = levels[0] || 0;
+  s.adsBreak = newAdsBreak(D);           // AdsBraker restarts its countdown with the scene; Rewardpanel's counter is static
   applySavedSpeed(sim);
 }
