@@ -110,6 +110,8 @@
 }
 #ui .netro > div { font: 600 .68em/1.35 ui-monospace, 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace; letter-spacing: 0; font-stretch: normal; font-variant-numeric: tabular-nums; }
 #ui .netro[hidden] { display: none; }
+#ui .afb { position: absolute; left: 50%; bottom: 6.2em; transform: translateX(-50%); padding: .2em .8em; pointer-events: none; font-size: .78em; letter-spacing: .08em; text-transform: uppercase; background: rgba(6, 8, 12, .7); border-left: .3em solid var(--brass2); color: var(--brass2); }
+#ui .afb[hidden] { display: none; }
 #ui .netro div:first-child { color: var(--brass2); }
 #ui .netro .warn { color: #ffb52e; } #ui .netro .bad { color: var(--bad); }
 #ui .netline { margin: 0; font-size: .85em; color: var(--dim); } #ui .netline[hidden], #ui .box .btn[hidden] { display: none; }

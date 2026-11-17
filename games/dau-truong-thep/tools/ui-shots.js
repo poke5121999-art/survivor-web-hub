@@ -944,14 +944,14 @@ let MECH_ORDER = [], MECHS = {};
 
       // ----- keys: bindings API, Phím tab, HUD hints, scoreboard (a desktop-input context at both sizes: touch hides every key hint)
       const KEYS = '/games/dau-truong-thep/js/keys.js';
-      const DEF = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], fire: ['Mouse0'], s1: ['KeyQ'], s2: ['KeyE'], ult: ['Space'], heal: ['KeyF'], score: ['Tab'], pause: ['Escape'], netstat: ['F8'] };
+      const DEF = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], fire: ['Mouse0'], s1: ['KeyQ'], s2: ['KeyE'], ult: ['Space'], heal: ['KeyF'], score: ['Tab'], pause: ['Escape'], netstat: ['F8'], autofire: ['Mouse2'] };
       const getB = (pg) => pg.evaluate(async (u) => (await import(u)).getBindings(), KEYS);
       const sampleOf = (pg) => pg.evaluate(() => { const i = __G.input.sample(__G.match.units[0]); return { s1: i.s1, s2: i.s2, fire: i.fire, ult: i.ult, heal: i.heal, mx: i.mx, mz: i.mz }; });
       const ACTION_IDS = Object.keys(DEF);
       if (ctxName === 'desktop') {
         ({ ctx, page, errs } = await open(browser, T('keys-api'), vp, false, 'screen=hud&manual=1&auto=0&mech=soi&freeze=1&warp=5'));
-        let r = await page.evaluate(async (u) => { const K = await import(u); return { b: K.getBindings(), l: ['up', 's1', 'fire', 'ult', 'heal', 'score', 'pause', 'netstat'].map(K.labelFor), n: K.ACTIONS.length }; }, KEYS);
-        check('keys: defaults are WASD+arrows, Mouse0 fire, Q/E/Space/F, Tab scoreboard, Esc pause, F8 network readout; labels in Vietnamese', JSON.stringify(r.b) === JSON.stringify(DEF) && r.l.join() === 'W,Q,Chuột trái,Cách,F,Tab,Esc,F8' && r.n === 12, JSON.stringify(r));
+        let r = await page.evaluate(async (u) => { const K = await import(u); return { b: K.getBindings(), l: ['up', 's1', 'fire', 'ult', 'heal', 'score', 'pause', 'netstat', 'autofire'].map(K.labelFor), n: K.ACTIONS.length }; }, KEYS);
+        check('keys: defaults are WASD+arrows, Mouse0 fire, Q/E/Space/F, Tab scoreboard, Esc pause, F8 network readout; labels in Vietnamese', JSON.stringify(r.b) === JSON.stringify(DEF) && r.l.join() === 'W,Q,Chuột trái,Cách,F,Tab,Esc,F8,Chuột phải' && r.n === 13, JSON.stringify(r));
         r = await page.evaluate(async (u) => (await import(u)).bind('s1', 'KeyR'), KEYS);
         check('keys: bind(s1, KeyR) -> { ok: true, conflict: null }', r.ok === true && r.conflict === null, JSON.stringify(r));
         await page.keyboard.down('KeyR');
@@ -972,6 +972,11 @@ let MECH_ORDER = [], MECHS = {};
         check('keys: after the swap the mouse button casts skill 1 and KeyR fires', m1.s1 === true && m1.fire === false && m2.fire === true && m2.s1 === false, JSON.stringify([m1, m2]));
         r = await page.evaluate(async (u) => { const K = await import(u); K.resetBindings(); return K.getBindings(); }, KEYS);
         check('keys: resetBindings restores every default', JSON.stringify(r) === JSON.stringify(DEF), JSON.stringify(r));
+        await page.mouse.click(600, 300, { button: 'right' });
+        const a1 = await sampleOf(page), badge1 = await page.evaluate(() => !document.querySelector('#ui .afb').hidden);
+        await page.mouse.click(600, 300, { button: 'right' });
+        const a2 = await sampleOf(page), badge2 = await page.evaluate(() => !document.querySelector('#ui .afb').hidden);
+        check('keys: right click toggles auto fire: fire stays on with no button held and the HUD badge shows, a second right click stops it', a1.fire === true && badge1 && a2.fire === false && !badge2, JSON.stringify([a1.fire, badge1, a2.fire, badge2]));
         r = await page.evaluate(async (u) => { const K = await import(u); return { a: K.bind('s2', 'Mouse1'), b: K.bind('up', 'Mouse1'), c: K.bind('pause', 'Mouse2'), s2: K.getBindings().s2, up: K.getBindings().up }; }, KEYS);
         check('keys: a mouse button binds to skills but never to movement or pause', r.a.ok && !r.b.ok && !r.c.ok && r.s2.join() === 'Mouse1' && r.up.join() === 'KeyW,ArrowUp', JSON.stringify(r));
         await page.evaluate(async (u) => { const K = await import(u); K.resetBindings(); K.bind('s2', 'KeyT'); K.bind('up', 'KeyI', 0); }, KEYS);

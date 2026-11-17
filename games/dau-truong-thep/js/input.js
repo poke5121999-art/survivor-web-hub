@@ -21,6 +21,10 @@ export function makeInput(G) {
   const keys = new Set();
   const mouse = { x: 0, y: 0, seen: false };
   let scripted = null, aimInit = false, lastAim = 0, chatting = false, device = 'kb', handFire = false;
+  // Auto fire: the autofire key (right mouse button by default) toggles it, so holding or spamming fire is not needed. Off again on every new match.
+  let autoFire = false, autoMatch = null;
+  const setAuto = (on) => { if (autoFire === on) return; autoFire = on; G.bus.emit('input:autofire', { on }); };
+  const toggleAuto = (code) => { if (running() && !chatting && K.has('autofire', code)) setAuto(!autoFire); };
   // Devices report screen directions. A view turned half round (camera.js, flipFor) turns them with it.
   const sgn = () => (G.cam ? G.cam.sign : 1);
   let padFn = () => (typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []);
@@ -35,6 +39,7 @@ export function makeInput(G) {
     // Space scrolls and Tab moves focus: both would fight the match while it runs.
     if (running() && (e.code === 'Space' || e.code === 'Tab' || K.actionOf(e.code))) e.preventDefault();
     device = 'kb';
+    if (!e.repeat && !keys.has(e.code)) toggleAuto(e.code);
     keys.add(e.code);
   });
   addEventListener('keyup', (e) => keys.delete(e.code));
@@ -49,7 +54,7 @@ export function makeInput(G) {
   addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse') return;
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
-    if (e.button <= 2 && !(e.target.closest && e.target.closest(BLOCK))) { keys.add('Mouse' + e.button); if (e.button === 1 && running()) e.preventDefault(); }
+    if (e.button <= 2 && !(e.target.closest && e.target.closest(BLOCK))) { toggleAuto('Mouse' + e.button); keys.add('Mouse' + e.button); if (e.button === 1 && running()) e.preventDefault(); }
   });
   addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') keys.delete('Mouse' + e.button); });
 
@@ -148,6 +153,7 @@ export function makeInput(G) {
     poll();
     if (!aimInit) { aimInit = true; lastAim = u.aim; }
     if (scripted) return typeof scripted === 'function' ? scripted(G.match, u) : scripted;
+    if (autoMatch !== G.match) { autoMatch = G.match; setAuto(false); }
     const kd = (id) => !chatting && K.isDown(id, keys);
     let mx = 0, mz = 0;
     if (kd('up')) mz -= 1;
@@ -162,7 +168,7 @@ export function makeInput(G) {
     const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
 
-    let aim = lastAim, fire = kd('fire') || pad.fire, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
+    let aim = lastAim, fire = kd('fire') || autoFire || pad.fire, tx = u.x + Math.cos(lastAim) * 8, tz = u.z + Math.sin(lastAim) * 8;
     if (t && t.fire) fire = true;
     const padAuto = !(t && t.aim !== null) && padAssist(u);
     let hand = false;
@@ -188,7 +194,7 @@ export function makeInput(G) {
 
   return {
     touch, sample, setTouchVisible: tc.setVisible, updateTouch: () => {}, pressed: keys,
-    layout: tc.layout, aimState: () => ({ hint: tc.hint, fire: handFire && !scripted, aim: lastAim }), get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
+    layout: tc.layout, aimState: () => ({ hint: tc.hint, fire: handFire && !scripted, aim: lastAim, auto: autoFire }), autoFire: () => autoFire, setAutoFire: (on) => setAuto(!!on), get aimHint() { return tc.hint; }, get lock() { return device === 'pad' ? padLock.target : tc.lock; },
     setPadSource: (fn) => { padFn = typeof fn === 'function' ? fn : () => []; },
     device: () => device, cursor: () => (mouse.seen && device !== 'pad' && !touch ? mouse : { seen: false }), rumble, haptic, hapticTest: () => { lastHaptic = -1e9; return haptic('hit'); }, setChatting, padState: () => ({ ...pad }),
     script: (s) => { scripted = s || null; },

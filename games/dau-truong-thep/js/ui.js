@@ -245,6 +245,7 @@ export function makeUI(G) {
     <button class="setbtn" data-block data-r="setBtn" aria-label="Cài đặt">${icon('gear')}</button>
     <div class="feed" data-r="feed"></div>
     <div class="netro" data-r="netro" hidden></div>
+    <div class="afb" data-r="afb" hidden></div>
     <div class="mm" data-block data-r="mm"><canvas data-r="mmc"></canvas><span class="mm-name" data-r="mmn"></span></div>
     <div class="perf" data-r="perf"></div>
     <div class="dock">
@@ -1130,6 +1131,11 @@ export function makeUI(G) {
   PA.quit.onclick = () => { hidePause(); G.bus.emit('ui:menu'); };
   H.pauseBtn.onclick = showPause;
   H.setBtn.onclick = () => { showPause(); if (paused) openSettings(); };
+  G.bus.on('input:autofire', (e) => {
+    const on = !!(e && e.on), key = K.labelFor('autofire');
+    H.afb.hidden = !on; H.afb.textContent = `Tự bắn · ${key} để tắt`;
+    if (hudOn) toast(on ? `Tự bắn: BẬT (${key} để tắt)` : 'Tự bắn: TẮT');
+  });
   G.bus.on('input:pause', () => { if (hudOn && G.match && !G.match.over && !chatOpen) togglePause(); });
   // Esc always resumes so a bad rebind can never trap the player in the pause menu.
   window.addEventListener('keydown', (e) => {
@@ -2109,6 +2115,7 @@ export function makeUI(G) {
         <li><span>${['up', 'left', 'down', 'right'].map((a) => kc(L(a))).join('')}</span>Di chuyển</li>
         <li><span>${kc('Chuột')}</span>Ngắm theo con trỏ</li>
         <li><span>${kc(L('fire'))}</span>Bắn</li>
+        <li><span>${kc(L('autofire'))}</span>Bật/tắt tự bắn liên tục</li>
         <li><span>${kc(L('s1'))}${kc(L('s2'))}${kc(L('ult'))}</span>Chiêu 1, chiêu 2, tuyệt kỹ</li>
         <li><span>${kc(L('heal'))}</span>Dùng bình máu</li>
         <li><span>${kc(L('score'))}</span>Giữ để xem bảng điểm</li>
