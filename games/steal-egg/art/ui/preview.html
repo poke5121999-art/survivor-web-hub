@@ -1,0 +1,140 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>UI layout preview</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2b3a2b; }
+  #stage { position: fixed; inset: 0; background: linear-gradient(#7fb7e6, #9ccf7a 62%, #6aa04f); overflow: hidden; }
+  #root { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .n { position: absolute; box-sizing: border-box; }
+  .n.hid { display: none; }
+  .txt { display: flex; font-family: "Fredoka One", "Baloo 2", "Trebuchet MS", "DejaVu Sans", sans-serif; font-weight: 800; line-height: 1.1;
+         white-space: pre-wrap; overflow: visible; pointer-events: none; }
+  #info { position: fixed; left: 4px; bottom: 4px; font: 11px monospace; color: #fff; background: #0008; padding: 2px 6px; z-index: 9; }
+</style>
+<div id="stage"><div id="root"></div></div>
+<div id="info"></div>
+<script>
+"use strict";
+const q = new URLSearchParams(location.search);
+const scene = q.get("s") || "level2";
+const showAll = q.has("all");                 // draw inactive nodes too
+const hideBg = q.get("hide");                 // comma list of substrings of node paths to force-hide
+const showOnly = q.get("show");               // comma list of substrings of node paths to force-show
+const tintCache = new Map();
+
+function tinted(url, c) {                     // multiply sprite by colour, keep alpha: canvas -> data URL
+  const key = url + c.join(",");
+  if (tintCache.has(key)) return tintCache.get(key);
+  const p = new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+      const x = cv.getContext("2d"); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, cv.width, cv.height), a = d.data;
+      for (let i = 0; i < a.length; i += 4) { a[i] *= c[0]; a[i + 1] *= c[1]; a[i + 2] *= c[2]; }
+      x.putImageData(d, 0, 0); res(cv.toDataURL());
+    };
+    im.onerror = () => res(url);
+    im.src = url;
+  });
+  tintCache.set(key, p);
+  return p;
+}
+const rgba = c => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${c[3]})`;
+const isWhite = c => c[0] > 0.99 && c[1] > 0.99 && c[2] > 0.99;
+
+async function main() {
+  const L = await (await fetch(scene + ".json")).json();
+  const nodes = L.nodes, kids = nodes.map(() => []);
+  nodes.forEach((n, i) => { if (n.parent >= 0) kids[n.parent].push(i); });
+  const [RW, RH] = L.scaler.referenceResolution;
+  const W = innerWidth, H = innerHeight;
+  const s = Math.min(W / RW, H / RH);               // ScaleWithScreenSize + Expand
+  const cw = W / s, ch = H / s;
+  const root = document.getElementById("root");
+  root.style.width = cw + "px"; root.style.height = ch + "px"; root.style.transform = `scale(${s})`;
+  document.getElementById("info").textContent = `${scene} ${W}x${H} scale ${s.toFixed(3)} canvas ${cw.toFixed(0)}x${ch.toFixed(0)} nodes ${nodes.length}`;
+  const pending = [];
+
+  function build(i, parentEl, pw, ph, parentActive) {
+    const n = nodes[i], r = n.rect;
+    const el = document.createElement("div"); el.className = "n"; el.dataset.path = n.path; el.title = n.path;
+    let w = pw, h = ph, x = 0, y = 0;
+    if (i > 0 && r) {
+      const [ax0, ay0] = r.anchorMin, [ax1, ay1] = r.anchorMax;
+      w = (ax1 - ax0) * pw + r.sizeDelta[0]; h = (ay1 - ay0) * ph + r.sizeDelta[1];
+      const px = (ax0 + (ax1 - ax0) * r.pivot[0]) * pw + r.anchoredPosition[0];
+      const py = (ay0 + (ay1 - ay0) * r.pivot[1]) * ph + r.anchoredPosition[1];
+      x = px - r.pivot[0] * w; y = ph - (py - r.pivot[1] * h) - h;
+      el.style.transformOrigin = `${r.pivot[0] * 100}% ${(1 - r.pivot[1]) * 100}%`;
+      const t = [];
+      if (r.scale[0] !== 1 || r.scale[1] !== 1) t.push(`scale(${r.scale[0]},${r.scale[1]})`);
+      if (r.rotZ) t.push(`rotate(${-r.rotZ}deg)`);
+      if (t.length) el.style.transform = t.join(" ");
+    }
+    el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = w + "px"; el.style.height = h + "px";
+    let active = n.active;
+    if (showOnly && showOnly.split(",").some(k => n.path.includes(k))) active = true;
+    if (hideBg && hideBg.split(",").some(k => n.path.includes(k))) active = false;
+    if (!active && !showAll) el.classList.add("hid");
+    if (n.canvasGroup && n.canvasGroup.alpha < 1) el.style.opacity = n.canvasGroup.alpha;
+    if (n.mask) el.style.overflow = "hidden";
+    const im = n.image;
+    if (im && im.enabled !== false) {
+      const sp = im.sprite && L.sprites[im.sprite];
+      const a = im.color[3];
+      const layer = document.createElement("div");
+      layer.style.cssText = "position:absolute;inset:0;pointer-events:none";
+      if (a < 1) layer.style.opacity = a;
+      if (sp && sp.kb !== undefined || sp && !sp.skipped) {
+        const url = "sprites/" + encodeURIComponent(im.sprite) + ".webp";
+        const col = im.color;
+        const sh = sp.shrunk || 1, b = sp.border.map(v => v * sh);
+        const apply = u => {
+          if (im.type === "sliced" && sp.border.some(v => v > 0)) {
+            // border widths are in sprite pixels; one sprite pixel = ppu-scaled canvas units
+            const k = (im.ppuMultiplier ? 1 / im.ppuMultiplier : 1) * 100 / sp.ppu;
+            layer.style.borderStyle = "solid"; layer.style.borderColor = "transparent";
+            layer.style.borderWidth = `${sp.border[3] * k}px ${sp.border[2] * k}px ${sp.border[1] * k}px ${sp.border[0] * k}px`;
+            layer.style.borderImage = `url(${u}) ${b[3]} ${b[2]} ${b[1]} ${b[0]} fill / ${sp.border[3] * k}px ${sp.border[2] * k}px ${sp.border[1] * k}px ${sp.border[0] * k}px stretch`;
+          } else {
+            layer.style.backgroundImage = `url(${u})`; layer.style.backgroundRepeat = "no-repeat";
+            layer.style.backgroundPosition = "center";
+            layer.style.backgroundSize = im.preserveAspect ? "contain" : "100% 100%";
+          }
+        };
+        if (isWhite(col)) apply(url); else pending.push(tinted(url, col).then(apply));
+      } else if (!sp) {
+        layer.style.background = rgba([im.color[0], im.color[1], im.color[2], 1]);
+      }
+      if (im.type === "filled" && im.fillMethod === "horizontal") layer.style.clipPath = `inset(0 ${(1 - im.fillAmount) * 100}% 0 0)`;
+      el.appendChild(layer);
+    }
+    const t = n.text;
+    if (t) {
+      const d = document.createElement("div"); d.className = "txt";
+      d.style.cssText += `position:absolute;inset:0;font-size:${t.fontSize}px;color:${rgba(t.color)}`;
+      const [ha, va] = t.alignment;
+      d.style.justifyContent = ha === "center" ? "center" : ha === "right" ? "flex-end" : "flex-start";
+      d.style.alignItems = va === "middle" || va === undefined ? "center" : va === "bottom" ? "flex-end" : "flex-start";
+      d.style.textAlign = ha === "right" ? "right" : ha === "center" ? "center" : "left";
+      if (t.text && /\n/.test(t.text) === false && t.wrap === 0) d.style.whiteSpace = "nowrap";
+      d.textContent = String(t.text || "").replace(/<[^>]+>/g, "");
+      const fx = t.fx;
+      if (fx && fx._OutlineWidth) {
+        const c = fx._OutlineColor ? rgba(fx._OutlineColor) : "#000", o = Math.max(1, t.fontSize * fx._OutlineWidth * 0.5);
+        d.style.webkitTextStroke = `${o}px ${c}`; d.style.paintOrder = "stroke fill";
+      }
+      el.appendChild(d);
+    }
+    parentEl.appendChild(el);
+    for (const c of kids[i]) build(c, el, w, h, active);
+  }
+  build(0, root, cw, ch, true);
+  await Promise.all(pending);
+  document.title = "ready " + scene;
+  window.__ready = true;
+}
+main();
+</script>

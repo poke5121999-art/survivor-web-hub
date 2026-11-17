@@ -1,0 +1,2896 @@
+{
+ "version": 1,
+ "code": {
+  "startCoins": 1000,
+  "incomeInterval": 1.0,
+  "sellTriggerRadius": 1.1,
+  "enemyStealTriggerRadius": 1.1,
+  "readyEggTriggerRadius": 1.15,
+  "rivalKnockoutCoins": 100,
+  "rivalStunLead": 0.3,
+  "rivalAttackWindup": 0.4,
+  "rivalAttackWindow": 0.1,
+  "aiDropHeight": 0.2,
+  "objectiveFirstCheckMin": 1.0,
+  "patrolStuckCheck": 0.5,
+  "patrolStuckMove": 0.05,
+  "patrolStuckTime": 1.0,
+  "playerAttackDelay": 0.3,
+  "playerDamage": 1,
+  "knockbackDistance": 50.0,
+  "knockbackTime": 1.0,
+  "knockbackUp": 30.0,
+  "hitmeWait": 2.0,
+  "gateLockShort": 60.0,
+  "gateLockLong": 180.0,
+  "adCoins": 100,
+  "hatchMinSeconds": 1,
+  "eggSpawnInnerRadius": 0.4,
+  "carrySlowInRedZone": 0.7
+ },
+ "codeSources": {
+  "startCoins": "coins.c:13 PlayerPrefs.GetInt(\"Coin\", 1000)",
+  "incomeInterval": "FarmBrainrot+_GenerateCoins_d__29.c:21 WaitForSeconds(1.0)",
+  "sellTriggerRadius": "FarmBrainrot.c:2211 SphereCollider radius 0x3f8ccccd",
+  "enemyStealTriggerRadius": "FarmBrainrot.c:1048 EnemyFarmStealTrigger radius 0x3f8ccccd",
+  "readyEggTriggerRadius": "ReadyEggAutoPlaceTrigger.c:22 ctor triggerRadius",
+  "rivalKnockoutCoins": "EnemyAI.c:5609 DoFireAddcoin(100)",
+  "rivalStunLead": "EnemyAI+GotHitRagdoll_d__136 wait 0.3 before stunDuration",
+  "rivalAttackWindup": "EnemyAI AttackRoutine_d__127 wait 0.4",
+  "rivalAttackWindow": "EnemyAI AttackRoutine_d__127 wait 0.1",
+  "aiDropHeight": "EnemyAI.c:4353 DropAtByAI(pos + up*0.2)",
+  "objectiveFirstCheckMin": "EnemyAI.c:7405 Random.Range(1.0, max(1.1, objectiveCheckInterval))",
+  "patrolStuckCheck": "EnemyAI .ctor checkInterval 0.5",
+  "patrolStuckMove": "EnemyAI.c:5696 moved < 0.05",
+  "patrolStuckTime": "EnemyAI.c:5696 temptime > 1.0",
+  "playerAttackDelay": "PlayerManager.c:446 DOVirtual.DelayedCall(0.3)",
+  "playerDamage": "PlayerManager.c:4380 playerCurrentHealth -= 1",
+  "knockbackDistance": "PlayerManager+_KnockbackRoutine_d__51 distance 50",
+  "knockbackTime": "PlayerManager+_KnockbackRoutine_d__51 time 1.0",
+  "knockbackUp": "PlayerManager+_KnockbackRoutine_d__51 up*30",
+  "hitmeWait": "PlayerManager+_Hitme_d__55 two waits of 1.0 s",
+  "gateLockShort": "PlayerGateController.c:293 CloseForSeconds(60)",
+  "gateLockLong": "PlayerGateController.c:253 CloseForSeconds(180)",
+  "adCoins": "coins.c:483 RewardCoind +100",
+  "hatchMinSeconds": "FarmPlacedEgg.c:679 max(1,(int)hatchDuration)",
+  "eggSpawnInnerRadius": "AnimalEggController.c:9188 |v|^2 < 0.16 -> 0.4",
+  "carrySlowInRedZone": "PlayerManager.c:2360 MoveSpeed *= 0.7 (red zone only)"
+ },
+ "placeholders": [
+  {
+   "key": "player.attackReach",
+   "value": 1.5,
+   "why": "player weapon BoxCollider sits on the hand bone; reach not measured"
+  },
+  {
+   "key": "player.brainrotStealDuration",
+   "value": 2.0,
+   "why": "PlayerManager.SetCurrentMemeRot tween duration lost in decompile; reuses eggStealDuration 2.0"
+  },
+  {
+   "key": "physics.gravity",
+   "value": -9.81,
+   "why": "Unity default; physics settings not exported (combat.md 11)"
+  }
+ ],
+ "start": {
+  "coins": 1000
+ },
+ "player": {
+  "node": 993,
+  "start": [
+   -70.93,
+   8.55,
+   -16.57
+  ],
+  "startYaw": 0.0,
+  "hp": 5,
+  "stun": 3.0,
+  "radius": 0.224,
+  "moveSpeed": 5.5,
+  "sprintSpeed": 7.0,
+  "eggStealDuration": 2.0,
+  "dropHeight": 2.0,
+  "attackEnd": 1.5
+ },
+ "brainrots": [
+  {
+   "seed": 5400,
+   "type": 0,
+   "name": "Bananini Character",
+   "seedName": "Bananini Character",
+   "price": 10000,
+   "rate": 4,
+   "seedPrice": 500,
+   "prefab": 2042,
+   "root": 0
+  },
+  {
+   "seed": 5401,
+   "type": 1,
+   "name": "Bananitta_Dolfinitta",
+   "seedName": "Bananitta_Dolfinitta",
+   "price": 25000,
+   "rate": 5,
+   "seedPrice": 800,
+   "prefab": 1408,
+   "root": 27
+  },
+  {
+   "seed": 5402,
+   "type": 2,
+   "name": "Burbaloni Character",
+   "seedName": "Burbaloni Character",
+   "price": 8000,
+   "rate": 8,
+   "seedPrice": 1200,
+   "prefab": 1948,
+   "root": 66
+  },
+  {
+   "seed": 5403,
+   "type": 3,
+   "name": "DinDinDinDun Character",
+   "seedName": "DinDinDinDun Character",
+   "price": 6,
+   "rate": 17,
+   "seedPrice": 1700,
+   "prefab": 1903,
+   "root": 86
+  },
+  {
+   "seed": 5406,
+   "type": 4,
+   "name": "MemRot6 (2)",
+   "seedName": "MemRot6 (2)",
+   "price": 18000,
+   "rate": 7,
+   "seedPrice": 1600,
+   "prefab": 1819,
+   "root": 190
+  },
+  {
+   "seed": 5407,
+   "type": 5,
+   "name": "MemRot6 (3) 1",
+   "seedName": "MemRot6 (3) 1",
+   "price": 30000,
+   "rate": 8,
+   "seedPrice": 2100,
+   "prefab": 1324,
+   "root": 219
+  },
+  {
+   "seed": 5408,
+   "type": 6,
+   "name": "MemRot6 (3)",
+   "seedName": "MemRot6 (3)",
+   "price": 28000,
+   "rate": 11,
+   "seedPrice": 3600,
+   "prefab": 2036,
+   "root": 253
+  },
+  {
+   "seed": 5404,
+   "type": 7,
+   "name": "MemRot6 (12) 1",
+   "seedName": "MemRot6 (12) 1",
+   "price": 8000,
+   "rate": 5,
+   "seedPrice": 2800,
+   "prefab": 1335,
+   "root": 115
+  },
+  {
+   "seed": 5405,
+   "type": 8,
+   "name": "MemRot6 (12)",
+   "seedName": "MemRot6 (12)",
+   "price": 5000,
+   "rate": 7,
+   "seedPrice": 4100,
+   "prefab": 1323,
+   "root": 148
+  },
+  {
+   "seed": 5409,
+   "type": 9,
+   "name": "Patapim cHARACTER",
+   "seedName": "Patapim cHARACTER",
+   "price": 20000,
+   "rate": 4,
+   "seedPrice": 5000,
+   "prefab": 2075,
+   "root": 289
+  },
+  {
+   "seed": 5410,
+   "type": 10,
+   "name": "Pipi Kiwi_Character",
+   "seedName": "Pipi Kiwi_Character",
+   "price": 16000,
+   "rate": 11,
+   "seedPrice": 5200,
+   "prefab": 1933,
+   "root": 313
+  },
+  {
+   "seed": 5411,
+   "type": 11,
+   "name": "Saturno_Saturnita_Character",
+   "seedName": "Saturno_Saturnita_Character",
+   "price": 38000,
+   "rate": 12,
+   "seedPrice": 55,
+   "prefab": 1426,
+   "root": 340
+  },
+  {
+   "seed": 5412,
+   "type": 12,
+   "name": "TaTaTaSahur Character",
+   "seedName": "TaTaTaSahur Character",
+   "price": 28000,
+   "rate": 7,
+   "seedPrice": 5800,
+   "prefab": 1936,
+   "root": 362
+  },
+  {
+   "seed": 5413,
+   "type": 13,
+   "name": "Trippi Troppi Character",
+   "seedName": "Trippi Troppi Character",
+   "price": 999,
+   "rate": 8,
+   "seedPrice": 6000,
+   "prefab": 1765,
+   "root": 393
+  },
+  {
+   "seed": 5414,
+   "type": 18,
+   "name": "BallerinaCappuccina",
+   "seedName": "new balerena",
+   "price": 10000,
+   "rate": 2,
+   "seedPrice": 1500,
+   "prefab": 963,
+   "root": 420
+  },
+  {
+   "seed": 5415,
+   "type": 14,
+   "name": "bambini",
+   "seedName": "new bambini",
+   "price": 10000,
+   "rate": 3,
+   "seedPrice": 2000,
+   "prefab": 966,
+   "root": 451
+  },
+  {
+   "seed": 5416,
+   "type": 17,
+   "name": "BurbaloniLoliloli",
+   "seedName": "new burbalin",
+   "price": 10000,
+   "rate": 5,
+   "seedPrice": 2500,
+   "prefab": 970,
+   "root": 472
+  },
+  {
+   "seed": 5417,
+   "type": 16,
+   "name": "CactoHipoptamo",
+   "seedName": "new cactohipo",
+   "price": 10000,
+   "rate": 4,
+   "seedPrice": 3000,
+   "prefab": 964,
+   "root": 488
+  },
+  {
+   "seed": 5418,
+   "type": 20,
+   "name": "ChefCrabracada",
+   "seedName": "new chefcrab",
+   "price": 10000,
+   "rate": 7,
+   "seedPrice": 3500,
+   "prefab": 965,
+   "root": 498
+  },
+  {
+   "seed": 5419,
+   "type": 19,
+   "name": "FrigoCameri",
+   "seedName": "new frigocameri",
+   "price": 10000,
+   "rate": 3,
+   "seedPrice": 3700,
+   "prefab": 967,
+   "root": 526
+  },
+  {
+   "seed": 5420,
+   "type": 21,
+   "name": "Gorillo Watermerlondrillo",
+   "seedName": "new gorilo",
+   "price": 10000,
+   "rate": 8,
+   "seedPrice": 4000,
+   "prefab": 1487,
+   "root": 544
+  },
+  {
+   "seed": 5421,
+   "type": 15,
+   "name": "linonelcactuseli",
+   "seedName": "new linol",
+   "price": 10000,
+   "rate": 9,
+   "seedPrice": 4500,
+   "prefab": 969,
+   "root": 565
+  },
+  {
+   "seed": 5422,
+   "type": 22,
+   "name": "Timcheese",
+   "seedName": "new timcheese",
+   "price": 10000,
+   "rate": 10,
+   "seedPrice": 4500,
+   "prefab": 962,
+   "root": 590
+  },
+  {
+   "seed": 5423,
+   "type": 23,
+   "name": "TralaleroTralala",
+   "seedName": "new trararalira",
+   "price": 10000,
+   "rate": 6,
+   "seedPrice": 4200,
+   "prefab": 968,
+   "root": 603
+  }
+ ],
+ "eggs": [
+  {
+   "id": 4003,
+   "name": "egg 9 Variant",
+   "options": [
+    5423,
+    5409,
+    5410
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 0,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4005,
+   "name": "egg 1 Variant",
+   "options": [
+    5406,
+    5407,
+    5408,
+    5404
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 107,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4006,
+   "name": "egg 10 Variant",
+   "options": [
+    5407,
+    5408,
+    5404,
+    5405,
+    5414,
+    5415,
+    5416
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 209,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4008,
+   "name": "egg 4 Variant",
+   "options": [
+    5411,
+    5412,
+    5413,
+    5402,
+    5403,
+    5406
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 316,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4009,
+   "name": "egg 8 Variant",
+   "options": [
+    5420,
+    5421,
+    5422
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 418,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4010,
+   "name": "egg 6 Variant",
+   "options": [
+    5414,
+    5415,
+    5416
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 525,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4011,
+   "name": "egg 2 Variant",
+   "options": [
+    5405,
+    5409,
+    5410
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 632,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4012,
+   "name": "egg 3 Variant",
+   "options": [
+    5411,
+    5412,
+    5413
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 734,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4014,
+   "name": "egg 5 Variant",
+   "options": [
+    5405,
+    5406,
+    5402,
+    5410,
+    5413
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 836,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4015,
+   "name": "egg",
+   "options": [
+    5400,
+    5401,
+    5402,
+    5403
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 938,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": 4018,
+   "name": "egg 7  Variant",
+   "options": [
+    5417,
+    5418,
+    5419
+   ],
+   "hatch": 30.0,
+   "transition": 0.5,
+   "requireExit": true,
+   "root": 1040,
+   "trigger": [
+    0.5,
+    0.5
+   ]
+  }
+ ],
+ "animals": [
+  {
+   "name": "White Duck",
+   "node": 1087,
+   "pos": [
+    -40.49,
+    8.169,
+    -23.2871
+   ],
+   "yaw": 3.14159,
+   "home": [
+    -39.7873,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    -30.35,
+    8.35,
+    -24.86
+   ],
+   "chaseSpeed": 5.0,
+   "returnSpeed": 3.5,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4005,
+    4011,
+    4012,
+    4008,
+    4014,
+    4010
+   ],
+   "startingEgg": {
+    "egg": 4015,
+    "node": 2098,
+    "pos": [
+     -30.35,
+     8.05,
+     -24.86
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     -40.5295,
+     8.6992,
+     -23.2163
+    ],
+    "ax": [
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      1
+     ]
+    ],
+    "h": [
+     1.2193,
+     0.2931,
+     1.3493
+    ]
+   },
+   "territory": {
+    "c": [
+     -39.7873,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     14.4718,
+     18.2678,
+     2.8083
+    ]
+   }
+  },
+  {
+   "name": "dragon",
+   "node": 1110,
+   "pos": [
+    -6.12,
+    8.169,
+    -2.3
+   ],
+   "yaw": 3.14159,
+   "home": [
+    -10.8437,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    -0.32,
+    8.35,
+    -3.79
+   ],
+   "chaseSpeed": 8.0,
+   "returnSpeed": 7.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4005,
+    4011,
+    4012,
+    4008,
+    4014,
+    4010
+   ],
+   "startingEgg": {
+    "egg": 4005,
+    "node": 2200,
+    "pos": [
+     -0.32,
+     8.35,
+     -3.79
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     -6.1282,
+     8.6992,
+     -2.7643
+    ],
+    "ax": [
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      1
+     ]
+    ],
+    "h": [
+     1.798,
+     0.2931,
+     2.7143
+    ]
+   },
+   "territory": {
+    "c": [
+     -10.8437,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     14.4718,
+     18.2678,
+     2.4606
+    ]
+   }
+  },
+  {
+   "name": "blood fab",
+   "node": 1361,
+   "pos": [
+    19.83,
+    8.169,
+    -25.1
+   ],
+   "yaw": -0.0409,
+   "home": [
+    18.1,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    29.222,
+    8.35,
+    -22.32
+   ],
+   "chaseSpeed": 12.0,
+   "returnSpeed": 11.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4005,
+    4011,
+    4012,
+    4008,
+    4014,
+    4010
+   ],
+   "startingEgg": {
+    "egg": 4011,
+    "node": 2302,
+    "pos": [
+     29.222,
+     8.35,
+     -22.32
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     19.8192,
+     9.3594,
+     -24.6357
+    ],
+    "ax": [
+     [
+      -0.9992,
+      0.0,
+      -0.0409
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0409,
+      0.0,
+      -0.9992
+     ]
+    ],
+    "h": [
+     1.798,
+     0.9542,
+     2.7143
+    ]
+   },
+   "territory": {
+    "c": [
+     18.1,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     14.4718,
+     18.2678,
+     1.9435
+    ]
+   }
+  },
+  {
+   "name": "ahuizotle",
+   "node": 1471,
+   "pos": [
+    50.14,
+    8.169,
+    -3.29
+   ],
+   "yaw": 2.99054,
+   "home": [
+    47.0436,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    56.582,
+    8.35,
+    -1.08
+   ],
+   "chaseSpeed": 15.0,
+   "returnSpeed": 14.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4005,
+    4011,
+    4012,
+    4008,
+    4014,
+    4010
+   ],
+   "startingEgg": {
+    "egg": 4012,
+    "node": 2404,
+    "pos": [
+     56.582,
+     8.35,
+     -1.08
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     50.1256,
+     9.3594,
+     -2.7359
+    ],
+    "ax": [
+     [
+      0.9886,
+      0.0,
+      0.1505
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.1505,
+      0.0,
+      0.9886
+     ]
+    ],
+    "h": [
+     1.8754,
+     0.9542,
+     3.7294
+    ]
+   },
+   "territory": {
+    "c": [
+     47.0436,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     14.4718,
+     18.2678,
+     2.4606
+    ]
+   }
+  },
+  {
+   "name": "tarara",
+   "node": 1834,
+   "pos": [
+    157.7,
+    8.169,
+    -2.0
+   ],
+   "yaw": -2.94704,
+   "home": [
+    151.4798,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    176.522,
+    8.35,
+    -1.84
+   ],
+   "chaseSpeed": 18.0,
+   "returnSpeed": 17.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4018,
+    4009,
+    4003,
+    4006,
+    4015
+   ],
+   "startingEgg": {
+    "egg": 4008,
+    "node": 2506,
+    "pos": [
+     176.522,
+     8.35,
+     -1.84
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     157.8742,
+     9.3594,
+     -1.4738
+    ],
+    "ax": [
+     [
+      0.9811,
+      0.0,
+      -0.1933
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.1933,
+      0.0,
+      0.9811
+     ]
+    ],
+    "h": [
+     1.8754,
+     0.9542,
+     3.7294
+    ]
+   },
+   "territory": {
+    "c": [
+     151.4798,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     29.9888,
+     18.2678,
+     2.4606
+    ]
+   }
+  },
+  {
+   "name": "mout",
+   "node": 1870,
+   "pos": [
+    253.02,
+    8.169,
+    -25.48
+   ],
+   "yaw": 0.01402,
+   "home": [
+    222.9203,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    257.132,
+    8.35,
+    -25.24
+   ],
+   "chaseSpeed": 20.0,
+   "returnSpeed": 19.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4018,
+    4009,
+    4003,
+    4006,
+    4015
+   ],
+   "startingEgg": {
+    "egg": 4009,
+    "node": 2608,
+    "pos": [
+     257.132,
+     8.35,
+     -25.24
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     252.9431,
+     9.3594,
+     -26.0289
+    ],
+    "ax": [
+     [
+      -0.9999,
+      0.0,
+      0.014
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.014,
+      0.0,
+      -0.9999
+     ]
+    ],
+    "h": [
+     1.8754,
+     0.9542,
+     3.7294
+    ]
+   },
+   "territory": {
+    "c": [
+     222.9203,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     41.4516,
+     18.2678,
+     2.4606
+    ]
+   }
+  },
+  {
+   "name": "voxel",
+   "node": 1987,
+   "pos": [
+    325.8,
+    8.169,
+    -3.5
+   ],
+   "yaw": 2.83293,
+   "home": [
+    305.8236,
+    7.237,
+    -13.7508
+   ],
+   "homeYaw": 0.0,
+   "eggCenter": [
+    331.142,
+    8.35,
+    -4.4
+   ],
+   "chaseSpeed": 21.0,
+   "returnSpeed": 20.0,
+   "stoppingDistance": 1.1,
+   "batch": [
+    2,
+    3
+   ],
+   "spawnRadius": 1.75,
+   "spacing": 0.65,
+   "groundOffset": 0.05,
+   "attempts": 15,
+   "respawn": 30.0,
+   "pool": [
+    4018,
+    4009,
+    4003,
+    4006,
+    4015
+   ],
+   "startingEgg": {
+    "egg": 4003,
+    "node": 2715,
+    "pos": [
+     331.142,
+     8.35,
+     -4.4
+    ]
+   },
+   "hitCooldown": 1.0,
+   "hitBox": {
+    "c": [
+     325.9559,
+     9.3594,
+     -3.7614
+    ],
+    "ax": [
+     [
+      0.9527,
+      0.0,
+      0.3038
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.3038,
+      0.0,
+      0.9527
+     ]
+    ],
+    "h": [
+     1.8754,
+     0.9542,
+     2.8831
+    ]
+   },
+   "territory": {
+    "c": [
+     305.8236,
+     7.237,
+     -13.7508
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     41.4516,
+     18.2678,
+     2.4606
+    ]
+   }
+  }
+ ],
+ "farm": {
+  "root": [
+   -73.0195,
+   8.0524,
+   -24.6
+  ],
+  "capacities": [
+   3,
+   5,
+   8,
+   12,
+   16,
+   20
+  ],
+  "upgradePrices": [
+   4000,
+   10000,
+   15000,
+   60000,
+   150000
+  ],
+  "level": 0,
+  "spacing": 0.8,
+  "yOffset": 0.05,
+  "area": {
+   "c": [
+    -73.0674,
+    8.1118,
+    -24.5371
+   ],
+   "ax": [
+    [
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     1,
+     0
+    ],
+    [
+     0,
+     0,
+     1
+    ]
+   ],
+   "h": [
+    5.9209,
+    0.0184,
+    8.4415
+   ]
+  },
+  "zone": {
+   "c": [
+    -73.0195,
+    8.6758,
+    -24.6
+   ],
+   "ax": [
+    [
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     1,
+     0
+    ],
+    [
+     0,
+     0,
+     1
+    ]
+   ],
+   "h": [
+    6.4081,
+    0.751,
+    8.7309
+   ]
+  },
+  "edgePadding": 0.35,
+  "attempts": 25,
+  "groundOffset": 0.03,
+  "autoHatchTimeout": 4.0,
+  "upgradeZone": {
+   "c": [
+    -66.1595,
+    8.2181,
+    -19.48
+   ],
+   "ax": [
+    [
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     1,
+     0
+    ],
+    [
+     0,
+     0,
+     1
+    ]
+   ],
+   "h": [
+    0.5,
+    0.0583,
+    0.5
+   ]
+  },
+  "placeEggText": "PLACE EGG",
+  "placeBrainrotText": "PLACE BRAINROT"
+ },
+ "rivals": [
+  {
+   "chaseRange": 2.5,
+   "attackRange": 1.0,
+   "patrolWaitTime": 0.1,
+   "chaseDuration": 4.0,
+   "detectionCooldown": 5.0,
+   "attackCooldown": 2.0,
+   "walkSpeed": 2.5,
+   "runSpeed": 3.5,
+   "brainrotStealChance": 0.45,
+   "objectiveCheckInterval": 4.0,
+   "stealDuration": 1.5,
+   "interactionDistance": 1.5,
+   "objectiveRetryDelay": 2.0,
+   "blockedObjectiveTimeout": 4.0,
+   "objectiveProgressDistance": 0.15,
+   "revengeRunSpeed": 7.0,
+   "revengeGiveUpTime": 20.0,
+   "stunDuration": 10.0,
+   "name": "enemy",
+   "node": 281,
+   "home": [
+    -70.0793,
+    8.3564,
+    -1.92
+   ],
+   "homeYaw": 3.1404,
+   "farm": 0,
+   "hasPlayer": false,
+   "stealEggs": true,
+   "stealPlayerBrainrots": true,
+   "farmGameplay": true,
+   "revenge": true,
+   "patrol": [
+    [
+     -77.4492,
+     8.392,
+     -13.69
+    ],
+    [
+     -63.9294,
+     8.2,
+     -24.49
+    ],
+    [
+     -77.8932,
+     8.612,
+     -6.77
+    ],
+    [
+     -67.2773,
+     8.612,
+     -6.77
+    ],
+    [
+     -54.4894,
+     9.0,
+     -22.05
+    ],
+    [
+     -52.4895,
+     8.24,
+     -13.93
+    ],
+    [
+     -63.6094,
+     8.22,
+     -11.198
+    ],
+    [
+     -57.7694,
+     8.28,
+     -0.45
+    ],
+    [
+     -58.1814,
+     7.92,
+     -40.738
+    ],
+    [
+     -58.2894,
+     7.92,
+     7.79
+    ],
+    [
+     -21.1298,
+     7.92,
+     -9.77
+    ],
+    [
+     10.1099,
+     7.92,
+     -12.81
+    ],
+    [
+     46.5495,
+     7.92,
+     -4.77
+    ],
+    [
+     46.6695,
+     7.92,
+     -15.17
+    ],
+    [
+     93.2691,
+     7.92,
+     -4.29
+    ],
+    [
+     133.6687,
+     7.92,
+     -6.13
+    ],
+    [
+     152.0685,
+     7.92,
+     -13.33
+    ],
+    [
+     15.2699,
+     7.92,
+     -20.53
+    ],
+    [
+     138.8686,
+     7.92,
+     -16.13
+    ],
+    [
+     80.0692,
+     7.92,
+     -12.93
+    ]
+   ],
+   "agentRadius": 0.5,
+   "radius": 0.2022079779
+  },
+  {
+   "chaseRange": 2.5,
+   "attackRange": 1.0,
+   "patrolWaitTime": 0.1,
+   "chaseDuration": 4.0,
+   "detectionCooldown": 5.0,
+   "attackCooldown": 2.0,
+   "walkSpeed": 2.5,
+   "runSpeed": 5.0,
+   "brainrotStealChance": 0.45,
+   "objectiveCheckInterval": 4.0,
+   "stealDuration": 1.5,
+   "interactionDistance": 1.5,
+   "objectiveRetryDelay": 2.0,
+   "blockedObjectiveTimeout": 4.0,
+   "objectiveProgressDistance": 0.15,
+   "revengeRunSpeed": 7.0,
+   "revengeGiveUpTime": 20.0,
+   "stunDuration": 10.0,
+   "name": "enemy (1)",
+   "node": 324,
+   "home": [
+    -63.8894,
+    8.254,
+    12.3
+   ],
+   "homeYaw": 0.22183,
+   "farm": 1,
+   "hasPlayer": true,
+   "stealEggs": true,
+   "stealPlayerBrainrots": true,
+   "farmGameplay": true,
+   "revenge": true,
+   "patrol": [
+    [
+     -77.4492,
+     8.392,
+     -13.69
+    ],
+    [
+     -63.9294,
+     8.2,
+     -24.49
+    ],
+    [
+     -77.8932,
+     8.612,
+     -6.77
+    ],
+    [
+     -67.2773,
+     8.612,
+     -6.77
+    ],
+    [
+     -54.4894,
+     9.0,
+     -22.05
+    ],
+    [
+     -52.4895,
+     8.24,
+     -13.93
+    ],
+    [
+     -63.6094,
+     8.22,
+     -11.198
+    ],
+    [
+     -57.7694,
+     8.28,
+     -0.45
+    ],
+    [
+     -58.1814,
+     7.92,
+     -40.738
+    ],
+    [
+     -58.2894,
+     7.92,
+     7.79
+    ],
+    [
+     -21.1298,
+     7.92,
+     -9.77
+    ],
+    [
+     10.1099,
+     7.92,
+     -12.81
+    ],
+    [
+     46.5495,
+     7.92,
+     -4.77
+    ],
+    [
+     46.6695,
+     7.92,
+     -15.17
+    ],
+    [
+     93.2691,
+     7.92,
+     -4.29
+    ],
+    [
+     133.6687,
+     7.92,
+     -6.13
+    ],
+    [
+     152.0685,
+     7.92,
+     -13.33
+    ],
+    [
+     15.2699,
+     7.92,
+     -20.53
+    ],
+    [
+     138.8686,
+     7.92,
+     -16.13
+    ],
+    [
+     80.0692,
+     7.92,
+     -12.93
+    ]
+   ],
+   "agentRadius": 0.5,
+   "radius": 0.199998
+  },
+  {
+   "chaseRange": 2.5,
+   "attackRange": 1.0,
+   "patrolWaitTime": 0.1,
+   "chaseDuration": 4.0,
+   "detectionCooldown": 5.0,
+   "attackCooldown": 2.0,
+   "walkSpeed": 2.5,
+   "runSpeed": 5.0,
+   "brainrotStealChance": 0.45,
+   "objectiveCheckInterval": 4.0,
+   "stealDuration": 1.5,
+   "interactionDistance": 1.5,
+   "objectiveRetryDelay": 2.0,
+   "blockedObjectiveTimeout": 4.0,
+   "objectiveProgressDistance": 0.15,
+   "revengeRunSpeed": 7.0,
+   "revengeGiveUpTime": 20.0,
+   "stunDuration": 10.0,
+   "name": "enemy (3)",
+   "node": 367,
+   "home": [
+    -65.4293,
+    8.28,
+    -38.82
+   ],
+   "homeYaw": 0.22183,
+   "farm": 2,
+   "hasPlayer": true,
+   "stealEggs": true,
+   "stealPlayerBrainrots": true,
+   "farmGameplay": true,
+   "revenge": true,
+   "patrol": [
+    [
+     -77.4492,
+     8.392,
+     -13.69
+    ],
+    [
+     -63.9294,
+     8.2,
+     -24.49
+    ],
+    [
+     -77.8932,
+     8.612,
+     -6.77
+    ],
+    [
+     -67.2773,
+     8.612,
+     -6.77
+    ],
+    [
+     -54.4894,
+     9.0,
+     -22.05
+    ],
+    [
+     -52.4895,
+     8.24,
+     -13.93
+    ],
+    [
+     -63.6094,
+     8.22,
+     -11.198
+    ],
+    [
+     -57.7694,
+     8.28,
+     -0.45
+    ],
+    [
+     -58.1814,
+     7.92,
+     -40.738
+    ],
+    [
+     -58.2894,
+     7.92,
+     7.79
+    ],
+    [
+     -21.1298,
+     7.92,
+     -9.77
+    ],
+    [
+     10.1099,
+     7.92,
+     -12.81
+    ],
+    [
+     46.5495,
+     7.92,
+     -4.77
+    ],
+    [
+     46.6695,
+     7.92,
+     -15.17
+    ],
+    [
+     93.2691,
+     7.92,
+     -4.29
+    ],
+    [
+     133.6687,
+     7.92,
+     -6.13
+    ],
+    [
+     152.0685,
+     7.92,
+     -13.33
+    ],
+    [
+     15.2699,
+     7.92,
+     -20.53
+    ],
+    [
+     138.8686,
+     7.92,
+     -16.13
+    ],
+    [
+     80.0692,
+     7.92,
+     -12.93
+    ]
+   ],
+   "agentRadius": 0.5,
+   "radius": 0.199998
+  }
+ ],
+ "rivalFarms": [
+  {
+   "saveID": "AI_01",
+   "root": [
+    -73.0195,
+    8.0524,
+    -3.2
+   ],
+   "returnPoint": [
+    -73.0195,
+    8.0524,
+    -3.2
+   ],
+   "area": {
+    "c": [
+     -73.0195,
+     8.0524,
+     -3.2
+    ],
+    "ax": [
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      1
+     ]
+    ],
+    "h": [
+     6.4081,
+     0.1275,
+     8.7309
+    ]
+   },
+   "spacing": 0.8,
+   "maxBrainrots": 20,
+   "attempts": 30,
+   "yOffset": 0.05
+  },
+  {
+   "saveID": "AI_02",
+   "root": [
+    -65.1,
+    8.0524,
+    19.0
+   ],
+   "returnPoint": [
+    -65.1,
+    8.0524,
+    19.0
+   ],
+   "area": {
+    "c": [
+     -65.1,
+     8.0524,
+     19.0
+    ],
+    "ax": [
+     [
+      -0.0,
+      0.0,
+      -1.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      1.0,
+      0.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     6.4081,
+     0.1275,
+     8.7309
+    ]
+   },
+   "spacing": 0.8,
+   "maxBrainrots": 20,
+   "attempts": 30,
+   "yOffset": 0.05
+  },
+  {
+   "saveID": "AI_03",
+   "root": [
+    -65.1,
+    8.0524,
+    -45.0
+   ],
+   "returnPoint": [
+    -65.1,
+    8.0524,
+    -45.0
+   ],
+   "area": {
+    "c": [
+     -65.1,
+     8.0524,
+     -45.0
+    ],
+    "ax": [
+     [
+      -0.0,
+      0.0,
+      1.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -1.0,
+      0.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     6.4081,
+     0.1275,
+     8.7309
+    ]
+   },
+   "spacing": 0.8,
+   "maxBrainrots": 20,
+   "attempts": 30,
+   "yOffset": 0.05
+  }
+ ],
+ "gates": {
+  "player": {
+   "node": 906,
+   "pos": [
+    -66.7525,
+    7.93,
+    -24.53
+   ],
+   "trigger": {
+    "c": [
+     -66.7525,
+     7.93,
+     -24.53
+    ],
+    "ax": [
+     [
+      -0.0,
+      0.0,
+      1.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -1.0,
+      0.0,
+      -0.0
+     ]
+    ],
+    "h": [
+     1.095,
+     1.905,
+     0.5
+    ]
+   },
+   "openOffset": 2.42,
+   "slideSpeed": 4.0,
+   "initialClosed": 1.0,
+   "lockShort": 60.0,
+   "lockLong": 180.0
+  },
+  "ai": [
+   {
+    "node": 955,
+    "farm": 0,
+    "owner": 1,
+    "pos": [
+     -66.7525,
+     7.93,
+     -3.08
+    ],
+    "trigger": {
+     "c": [
+      -66.7525,
+      7.93,
+      -3.08
+     ],
+     "ax": [
+      [
+       -0.0,
+       0.0,
+       1.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       -1.0,
+       0.0,
+       -0.0
+      ]
+     ],
+     "h": [
+      1.095,
+      1.905,
+      0.5
+     ]
+    },
+    "openOffset": 2.294,
+    "slideSpeed": 4.0,
+    "initialClosed": 30.0,
+    "closeButton": [
+     -67.7025,
+     8.121,
+     -0.905
+    ],
+    "pressDistance": 1.2,
+    "returnDistance": 3.0,
+    "closeAfterTheft": 60.0
+   },
+   {
+    "node": 917,
+    "farm": 1,
+    "owner": 1,
+    "pos": [
+     -64.98,
+     7.93,
+     12.733
+    ],
+    "trigger": {
+     "c": [
+      -64.98,
+      7.93,
+      12.733
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      1.095,
+      1.905,
+      0.5
+     ]
+    },
+    "openOffset": 2.294,
+    "slideSpeed": 4.0,
+    "initialClosed": 50.0,
+    "closeButton": [
+     -62.805,
+     8.121,
+     13.683
+    ],
+    "pressDistance": 1.2,
+    "returnDistance": 3.0,
+    "closeAfterTheft": 60.0
+   },
+   {
+    "node": 525,
+    "farm": 2,
+    "owner": 2,
+    "pos": [
+     -65.22,
+     7.93,
+     -38.733
+    ],
+    "trigger": {
+     "c": [
+      -65.22,
+      7.93,
+      -38.733
+     ],
+     "ax": [
+      [
+       -1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     ],
+     "h": [
+      1.095,
+      1.905,
+      0.5
+     ]
+    },
+    "openOffset": 2.294,
+    "slideSpeed": 4.0,
+    "initialClosed": 40.0,
+    "closeButton": [
+     -67.395,
+     8.121,
+     -39.683
+    ],
+    "pressDistance": 1.2,
+    "returnDistance": 3.0,
+    "closeAfterTheft": 60.0
+   }
+  ]
+ },
+ "zones": {
+  "safe": {
+   "c": [
+    -55.15,
+    8.14,
+    -13.9863
+   ],
+   "ax": [
+    [
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     1,
+     0
+    ],
+    [
+     0,
+     0,
+     1
+    ]
+   ],
+   "h": [
+    0.5,
+    2.3588,
+    17.7149
+   ]
+  },
+  "shops": {
+   "shoes": {
+    "c": [
+     -58.3558,
+     7.9928,
+     -17.7529
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "h": [
+     0.9027,
+     0.9027,
+     0.9027
+    ]
+   },
+   "bat": {
+    "c": [
+     -58.3558,
+     7.9928,
+     -12.3729
+    ],
+    "ax": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "h": [
+     0.9027,
+     0.9027,
+     0.9027
+    ]
+   }
+  }
+ },
+ "speedPlans": [
+  {
+   "plan": 1,
+   "cost": 3000,
+   "speed": 10.0
+  },
+  {
+   "plan": 2,
+   "cost": 60000,
+   "speed": 15.0
+  },
+  {
+   "plan": 3,
+   "cost": 90000,
+   "speed": 20.0
+  }
+ ],
+ "weapons": {
+  "pedestals": [
+   {
+    "name": "Bat",
+    "key": "unlockItem1",
+    "adsKey": "AdsWatchedCount1",
+    "weapon": 0,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -48.5996,
+     8.144,
+     -2.216
+    ],
+    "trigger": {
+     "c": [
+      -48.5996,
+      8.7986,
+      -2.216
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "Axe",
+    "key": "unlockItem2",
+    "adsKey": "AdsWatchedCount2",
+    "weapon": 1,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -63.7995,
+     8.304,
+     1.784
+    ],
+    "trigger": {
+     "c": [
+      -63.7995,
+      8.9586,
+      1.784
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "Spear",
+    "key": "unlockItem3",
+    "adsKey": "AdsWatchedCount3",
+    "weapon": 2,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -32.3277,
+     8.032,
+     -1.912
+    ],
+    "trigger": {
+     "c": [
+      -32.3277,
+      8.6866,
+      -1.912
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "soward",
+    "key": "unlockItem4",
+    "adsKey": "AdsWatchedCount4",
+    "weapon": 3,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -57.0475,
+     8.096,
+     -21.16
+    ],
+    "trigger": {
+     "c": [
+      -57.0475,
+      8.9171,
+      -21.16
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.576,
+      1.624,
+      0.576
+     ]
+    }
+   },
+   {
+    "name": "Hammer",
+    "key": "unlockItem5",
+    "adsKey": "AdsWatchedCount5",
+    "weapon": 4,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -59.4155,
+     8.16,
+     -32.152
+    ],
+    "trigger": {
+     "c": [
+      -59.4155,
+      8.8146,
+      -32.152
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "FoldingChair",
+    "key": "unlockItem6",
+    "adsKey": "AdsWatchedCount6",
+    "weapon": 5,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -49.0156,
+     8.0,
+     -25.448
+    ],
+    "trigger": {
+     "c": [
+      -49.0156,
+      8.6546,
+      -25.448
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "Chainsaw",
+    "key": "unlockItem7",
+    "adsKey": "AdsWatchedCount7",
+    "weapon": 6,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -60.9355,
+     8.0,
+     -25.56
+    ],
+    "trigger": {
+     "c": [
+      -60.9355,
+      8.6546,
+      -25.56
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   },
+   {
+    "name": "Hand",
+    "key": "unlockItem8",
+    "adsKey": "AdsWatchedCount8",
+    "weapon": 7,
+    "price": 500,
+    "ads": 2,
+    "pos": [
+     -57.0795,
+     8.16,
+     3.928
+    ],
+    "trigger": {
+     "c": [
+      -57.0795,
+      8.8146,
+      3.928
+     ],
+     "ax": [
+      [
+       1.0,
+       0.0,
+       0.0
+      ],
+      [
+       0.0,
+       1.0,
+       0.0
+      ],
+      [
+       0.0,
+       0.0,
+       1.0
+      ]
+     ],
+     "h": [
+      0.96,
+      1.2946,
+      0.96
+     ]
+    }
+   }
+  ],
+  "batShop": [
+   {
+    "weapon": 5,
+    "cost": 5000,
+    "panel": "Panel (2)"
+   },
+   {
+    "weapon": 6,
+    "cost": 7000,
+    "panel": "Panel (3)"
+   },
+   {
+    "weapon": 1,
+    "cost": 1000,
+    "panel": "Panel (1)"
+   },
+   {
+    "weapon": 0,
+    "cost": 500,
+    "panel": "Panel"
+   },
+   {
+    "weapon": 7,
+    "cost": 10000,
+    "panel": "Panel (5)"
+   },
+   {
+    "weapon": 3,
+    "cost": 3000,
+    "panel": "Panel (6)"
+   },
+   {
+    "weapon": 3,
+    "cost": 30000,
+    "panel": "Panel (7)"
+   },
+   {
+    "weapon": 4,
+    "cost": 7000,
+    "panel": "Panel (4)"
+   }
+  ],
+  "shopItems": [
+   {
+    "key": "item7",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (13)"
+   },
+   {
+    "key": "item17",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (23)"
+   },
+   {
+    "key": "item15",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (21)"
+   },
+   {
+    "key": "item10",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (16)"
+   },
+   {
+    "key": "item16",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (22)"
+   },
+   {
+    "key": "item19",
+    "weapon": false,
+    "type": 6,
+    "button": "wing3"
+   },
+   {
+    "key": "item11",
+    "weapon": false,
+    "type": 6,
+    "button": "HenHead"
+   },
+   {
+    "key": "unlockItem4",
+    "weapon": true,
+    "type": 5,
+    "button": "Button (8)"
+   },
+   {
+    "key": "item18",
+    "weapon": false,
+    "type": 6,
+    "button": "SoWards"
+   },
+   {
+    "key": "item15",
+    "weapon": false,
+    "type": 6,
+    "button": "wing2"
+   },
+   {
+    "key": "item19",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (25)"
+   },
+   {
+    "key": "item13",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (19)"
+   },
+   {
+    "key": "item3",
+    "weapon": false,
+    "type": 0,
+    "button": "Button (2)"
+   },
+   {
+    "key": "item11",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (17)"
+   },
+   {
+    "key": "unlockItem5",
+    "weapon": true,
+    "type": 4,
+    "button": "Button (9)"
+   },
+   {
+    "key": "item17",
+    "weapon": false,
+    "type": 6,
+    "button": "wings"
+   },
+   {
+    "key": "item14",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (20)"
+   },
+   {
+    "key": "item5",
+    "weapon": false,
+    "type": 0,
+    "button": "Button (4)"
+   },
+   {
+    "key": "item2",
+    "weapon": false,
+    "type": 0,
+    "button": "Button (1)"
+   },
+   {
+    "key": "item16",
+    "weapon": false,
+    "type": 6,
+    "button": "bag"
+   },
+   {
+    "key": "unlockItem2",
+    "weapon": true,
+    "type": 1,
+    "button": "Button (6)"
+   },
+   {
+    "key": "item8",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (14)"
+   },
+   {
+    "key": "item4",
+    "weapon": false,
+    "type": 0,
+    "button": "Button (3)"
+   },
+   {
+    "key": "item9",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (15)"
+   },
+   {
+    "key": "item12",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (18)"
+   },
+   {
+    "key": "Item1",
+    "weapon": false,
+    "type": 0,
+    "button": "Button"
+   },
+   {
+    "key": "item2",
+    "weapon": false,
+    "type": 0,
+    "button": "headsetAndCap"
+   },
+   {
+    "key": "unlockItem1",
+    "weapon": true,
+    "type": 0,
+    "button": "Button (5)"
+   },
+   {
+    "key": "item18",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (24)"
+   },
+   {
+    "key": "item6",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (12)"
+   },
+   {
+    "key": "unlockItem7",
+    "weapon": true,
+    "type": 6,
+    "button": "Button (11)"
+   },
+   {
+    "key": "unlockItem6",
+    "weapon": true,
+    "type": 3,
+    "button": "Button (10)"
+   },
+   {
+    "key": "item20",
+    "weapon": false,
+    "type": 6,
+    "button": "Button (26)"
+   },
+   {
+    "key": "item12",
+    "weapon": false,
+    "type": 6,
+    "button": "Hat"
+   },
+   {
+    "key": "unlockItem3",
+    "weapon": true,
+    "type": 2,
+    "button": "Button (7)"
+   }
+  ]
+ }
+}

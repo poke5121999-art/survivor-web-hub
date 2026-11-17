@@ -1,0 +1,174 @@
+files: globalgamemanagers, globalgamemanagers.assets, level0, level1, level2, resources.assets, sharedassets0.assets, sharedassets1.assets, sharedassets2.assets, unity_builtin_extra
+hash table: 84 Animators, 6744 Transforms, 15557 distinct paths
+ok     Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle 1@resources:329  dur=1.625 loop=True tracks=9 muscles=0 const=7 unresolved=0 otherBindings=0 keys=57
+ok     Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle@resources:330  dur=1.625 loop=True tracks=57 muscles=0 const=49 unresolved=12 otherBindings=0 keys=242
+ok     Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Move@resources:331  dur=1.625 loop=True tracks=57 muscles=0 const=48 unresolved=12 otherBindings=0 keys=353
+ok     Burbaloni_Lililoli_Rig_Burbaloni_Lililoli_Idle@resources:332  dur=1.625 loop=True tracks=30 muscles=0 const=26 unresolved=0 otherBindings=0 keys=123
+ok     Burbaloni_Lililoli_Rig_Burbaloni_Lililoli_Move@resources:333  dur=1.625 loop=True tracks=30 muscles=0 const=22 unresolved=0 otherBindings=0 keys=288
+ok     Chimpanzini_Bananini_Rig_Chimpanzini_Bananini_Idle@resources:334  dur=1.625 loop=True tracks=69 muscles=0 const=47 unresolved=3 otherBindings=0 keys=681
+ok     Chimpanzini_Bananini_Rig_Chimpanzini_Bananini_Move@resources:335  dur=1.2083 loop=True tracks=69 muscles=0 const=47 unresolved=3 otherBindings=0 keys=640
+ok     DinDinDinDun_Rig_DinDinDinDun_Idle 1@resources:336  dur=1.625 loop=True tracks=12 muscles=0 const=11 unresolved=6 otherBindings=0 keys=25
+ok     TaTaTaSahur_Rig_TaTaTaSahur_Idle 1@resources:337  dur=1.625 loop=True tracks=30 muscles=0 const=25 unresolved=0 otherBindings=0 keys=133
+ok     Trippi_Troppi_Rig_Trippi_Troppi_Idle@resources:338  dur=2.0417 loop=True tracks=57 muscles=0 const=52 unresolved=0 otherBindings=0 keys=173
+ok     Trippi_Troppi_Rig_Trippi_Troppi_Move@resources:339  dur=2.4583 loop=True tracks=57 muscles=0 const=54 unresolved=0 otherBindings=0 keys=185
+ok     Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle@resources:340  dur=1.2083 loop=True tracks=0 muscles=0 const=0 unresolved=51 otherBindings=0 keys=0
+ok     Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move@resources:341  dur=1.2083 loop=True tracks=0 muscles=0 const=0 unresolved=51 otherBindings=0 keys=0
+ok     CarAnimation@resources:342  dur=3.0 loop=True tracks=4 muscles=0 const=0 unresolved=0 otherBindings=0 keys=268
+ok     carIdle@resources:343  dur=0.5 loop=True tracks=2 muscles=0 const=0 unresolved=0 otherBindings=0 keys=42
+ok     Armature_Ballerina Cappuccina_idle@resources:344  dur=2.0 loop=True tracks=78 muscles=0 const=70 unresolved=0 otherBindings=0 keys=179
+ok     Armature_Ballerina Cappuccina_move@resources:345  dur=0.9667 loop=True tracks=78 muscles=0 const=57 unresolved=0 otherBindings=0 keys=668
+ok     Armature_Bambini Crostini_idle@resources:346  dur=1.6667 loop=True tracks=48 muscles=0 const=41 unresolved=0 otherBindings=0 keys=72
+ok     Armature_Bambini Crostini_move@resources:347  dur=0.8333 loop=True tracks=48 muscles=0 const=33 unresolved=0 otherBindings=0 keys=290
+ok     Armature_Burbaloni Loliloli_idle@resources:348  dur=2.5 loop=True tracks=33 muscles=0 const=27 unresolved=0 otherBindings=0 keys=68
+ok     Armature_Burbaloni Loliloli_move@resources:349  dur=1.6667 loop=True tracks=33 muscles=0 const=26 unresolved=0 otherBindings=0 keys=238
+ok     Armature_Cacto Hipoptamo_idle@resources:350  dur=1.6667 loop=True tracks=15 muscles=0 const=10 unresolved=0 otherBindings=0 keys=65
+ok     Armature_Cacto Hipoptamo_move@resources:351  dur=0.8333 loop=True tracks=15 muscles=0 const=9 unresolved=0 otherBindings=0 keys=64
+ok     Armature_Chef Crabracada_idle@resources:352  dur=2.5 loop=True tracks=75 muscles=0 const=57 unresolved=0 otherBindings=0 keys=256
+ok     Armature_Chef Crabracada_run@resources:353  dur=0.8333 loop=True tracks=75 muscles=0 const=65 unresolved=0 otherBindings=0 keys=218
+ok     Armature_Gorillo Watermerlondrillo_idle@resources:354  dur=2.4 loop=True tracks=48 muscles=0 const=40 unresolved=0 otherBindings=0 keys=146
+ok     Armature_Gorillo Watermerlondrillo_move@resources:355  dur=0.8 loop=True tracks=48 muscles=0 const=34 unresolved=0 otherBindings=0 keys=282
+ok     Armature_Lionel Cactuseli_idle@resources:356  dur=1.6667 loop=True tracks=60 muscles=0 const=54 unresolved=0 otherBindings=0 keys=78
+ok     Armature_Lionel Cactuseli_move@resources:357  dur=0.8333 loop=True tracks=60 muscles=0 const=41 unresolved=0 otherBindings=0 keys=375
+ok     Armature_Tim cheese_idle@resources:358  dur=1.6667 loop=True tracks=30 muscles=0 const=22 unresolved=0 otherBindings=0 keys=169
+ok     Armature_Tim cheese_move@resources:359  dur=0.8333 loop=True tracks=30 muscles=0 const=22 unresolved=0 otherBindings=0 keys=130
+ok     Armature_Tralalero Tralala_idle@resources:360  dur=2.4 loop=True tracks=39 muscles=0 const=32 unresolved=0 otherBindings=0 keys=69
+ok     Armature_Tralalero Tralala_move@resources:361  dur=0.8 loop=True tracks=39 muscles=0 const=29 unresolved=0 otherBindings=0 keys=153
+ok     BurburSleep@resources:362  dur=1.0167 loop=False tracks=8 muscles=0 const=0 unresolved=0 otherBindings=0 keys=156
+ok     PepiKivi sleep@resources:363  dur=1.0 loop=False tracks=9 muscles=0 const=0 unresolved=0 otherBindings=0 keys=250
+ok     din din sleep@resources:364  dur=2.0 loop=False tracks=10 muscles=0 const=0 unresolved=0 otherBindings=0 keys=540
+ok     Bananitta_Dolfinitta_Rig_Chimpanzini_Bananini_Idle@resources:365  dur=1.625 loop=True tracks=81 muscles=0 const=59 unresolved=0 otherBindings=0 keys=715
+ok     Bananitta_Dolfinitta_Rig_Chimpanzini_Bananini_Move@resources:366  dur=1.2083 loop=True tracks=81 muscles=0 const=57 unresolved=0 otherBindings=0 keys=695
+ok     DinDinDinDun_Rig_DinDinDinDun_Idle@resources:367  dur=1.625 loop=True tracks=60 muscles=0 const=53 unresolved=6 otherBindings=0 keys=213
+ok     DinDinDinDun_Rig_DinDinDinDun_Move@resources:368  dur=1.2083 loop=True tracks=60 muscles=0 const=49 unresolved=6 otherBindings=0 keys=318
+ok     La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Idle@resources:369  dur=2.0417 loop=True tracks=39 muscles=0 const=32 unresolved=6 otherBindings=0 keys=202
+ok     La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Move@resources:370  dur=1.2083 loop=True tracks=39 muscles=0 const=28 unresolved=6 otherBindings=0 keys=292
+ok     Pipi_Kiwi_Rig_Pipi_Kiwi_Idle@resources:371  dur=1.625 loop=True tracks=57 muscles=0 const=47 unresolved=0 otherBindings=0 keys=384
+ok     Pipi_Kiwi_Rig_Pipi_Kiwi_Move@resources:372  dur=1.2083 loop=True tracks=57 muscles=0 const=41 unresolved=0 otherBindings=0 keys=497
+ok     TaTaTaSahur_Rig_TaTaTaSahur_Idle@resources:373  dur=1.625 loop=True tracks=54 muscles=0 const=45 unresolved=6 otherBindings=0 keys=279
+ok     TaTaTaSahur_Rig_TaTaTaSahur_Move@resources:374  dur=1.2083 loop=True tracks=54 muscles=0 const=41 unresolved=6 otherBindings=0 keys=355
+ok     Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle@resources:375  dur=1.2083 loop=True tracks=0 muscles=0 const=0 unresolved=51 otherBindings=0 keys=0
+ok     Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move@resources:376  dur=1.2083 loop=True tracks=0 muscles=0 const=0 unresolved=51 otherBindings=0 keys=0
+ok     loadingAnimation@sharedassets0:21  dur=6.0333 loop=True tracks=0 muscles=0 const=0 unresolved=0 otherBindings=8 keys=0
+ok     PanelAnimation@sharedassets1:97  dur=10.4667 loop=True tracks=1 muscles=0 const=0 unresolved=0 otherBindings=0 keys=72
+ok     JumpLand@sharedassets2:1124  dur=0.6333 loop=False tracks=0 muscles=144 const=0 unresolved=0 otherBindings=0 keys=0
+ok     death@sharedassets2:1125  dur=1.7083 loop=False tracks=40 muscles=0 const=0 unresolved=0 otherBindings=0 keys=1260
+ok     death@sharedassets2:1126  dur=1.25 loop=False tracks=8 muscles=0 const=0 unresolved=0 otherBindings=0 keys=110
+ok     death@sharedassets2:1127  dur=1.5 loop=False tracks=26 muscles=0 const=0 unresolved=0 otherBindings=0 keys=425
+ok     idle@sharedassets2:1128  dur=3.0 loop=False tracks=80 muscles=0 const=3 unresolved=0 otherBindings=0 keys=1334
+ok     Idle@sharedassets2:1129  dur=4.9333 loop=True tracks=0 muscles=141 const=0 unresolved=0 otherBindings=0 keys=0
+ok     Run_N_Land@sharedassets2:1130  dur=0.6667 loop=False tracks=0 muscles=146 const=0 unresolved=0 otherBindings=0 keys=0
+ok     InAir@sharedassets2:1131  dur=2.6667 loop=True tracks=0 muscles=143 const=0 unresolved=0 otherBindings=0 keys=0
+ok     idle_fly@sharedassets2:1132  dur=4.0 loop=False tracks=23 muscles=0 const=0 unresolved=0 otherBindings=0 keys=1085
+ok     Idle@sharedassets2:1133  dur=1.3333 loop=False tracks=0 muscles=130 const=0 unresolved=6 otherBindings=0 keys=0
+ok     mixamo.com@sharedassets2:1134  dur=6.3 loop=False tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     switchmemerot@sharedassets2:1135  dur=0.6833 loop=False tracks=0 muscles=0 const=0 unresolved=0 otherBindings=4 keys=0
+ok     wing@sharedassets2:1136  dur=1.0 loop=True tracks=2 muscles=0 const=0 unresolved=0 otherBindings=0 keys=100
+ok     Running@sharedassets2:1137  dur=0.6333 loop=True tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     Walking@sharedassets2:1138  dur=1.0333 loop=True tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     idle@sharedassets2:1139  dur=3.0 loop=True tracks=80 muscles=0 const=3 unresolved=0 otherBindings=0 keys=1334
+ok     walk@sharedassets2:1140  dur=2.5 loop=True tracks=77 muscles=0 const=3 unresolved=0 otherBindings=0 keys=2834
+ok     idle@sharedassets2:1141  dur=1.0 loop=True tracks=6 muscles=0 const=0 unresolved=0 otherBindings=0 keys=36
+ok     walk@sharedassets2:1142  dur=1.5 loop=True tracks=14 muscles=0 const=0 unresolved=0 otherBindings=0 keys=384
+ok     fly@sharedassets2:1143  dur=1.0417 loop=True tracks=38 muscles=0 const=6 unresolved=0 otherBindings=0 keys=675
+ok     idle@sharedassets2:1144  dur=3.0 loop=True tracks=42 muscles=0 const=0 unresolved=0 otherBindings=0 keys=434
+ok     idle@sharedassets2:1145  dur=5.0 loop=True tracks=6 muscles=0 const=0 unresolved=0 otherBindings=0 keys=125
+ok     walk@sharedassets2:1146  dur=0.9 loop=True tracks=7 muscles=0 const=0 unresolved=0 otherBindings=0 keys=114
+ok     idle@sharedassets2:1147  dur=4.0 loop=True tracks=26 muscles=0 const=0 unresolved=0 otherBindings=0 keys=509
+ok     walk@sharedassets2:1148  dur=1.0 loop=True tracks=26 muscles=0 const=0 unresolved=0 otherBindings=0 keys=628
+ok     idle_animation@sharedassets2:1149  dur=1.0 loop=True tracks=16 muscles=0 const=2 unresolved=0 otherBindings=0 keys=83
+ok     swimming_animation@sharedassets2:1150  dur=2.0 loop=True tracks=12 muscles=0 const=4 unresolved=0 otherBindings=0 keys=82
+ok     walking_animation@sharedassets2:1151  dur=1.0 loop=True tracks=13 muscles=0 const=4 unresolved=0 otherBindings=0 keys=77
+ok     idle@sharedassets2:1152  dur=1.5 loop=True tracks=25 muscles=0 const=1 unresolved=0 otherBindings=0 keys=338
+ok     running@sharedassets2:1153  dur=1.0 loop=True tracks=28 muscles=0 const=0 unresolved=0 otherBindings=0 keys=362
+ok     enymyattack@sharedassets2:1154  dur=2.2667 loop=False tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     Run@sharedassets2:1155  dur=0.6667 loop=True tracks=0 muscles=130 const=0 unresolved=15 otherBindings=0 keys=0
+ok     Standing 2H Cast Spell 01@sharedassets2:1156  dur=1.4 loop=False tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     break@sharedassets2:1157  dur=1.5 loop=True tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     jumpAttak@sharedassets2:1158  dur=2.3333 loop=False tracks=0 muscles=130 const=0 unresolved=0 otherBindings=0 keys=0
+ok     SeedData@sharedassets2:1159  dur=15.1 loop=True tracks=0 muscles=0 const=0 unresolved=0 otherBindings=1 keys=0
+ok     Walk_N_Land@sharedassets2:1160  dur=0.5333 loop=False tracks=0 muscles=143 const=0 unresolved=0 otherBindings=0 keys=0
+ok     JumpStart@sharedassets2:1161  dur=0.4 loop=False tracks=0 muscles=144 const=0 unresolved=0 otherBindings=0 keys=0
+controller ok  BrainrotAnimator (resources:377) layers=1 states=1 params=1
+controller ok  BrainrotAnimator 1 (resources:378) layers=1 states=1 params=1
+controller ok  BrainrotAnimator 1@resources:379 (resources:379) layers=1 states=1 params=1
+controller ok  BrainrotAnimator 1@resources:380 (resources:380) layers=1 states=1 params=1
+controller ok  MemRot6 (3) (resources:381) layers=1 states=1 params=1
+controller ok  BrainrotMonster (resources:382) layers=1 states=1 params=1
+controller ok  BrainrotAnimator@resources:383 (resources:383) layers=1 states=2 params=2
+controller ok  LoadingPanel (sharedassets0:34) layers=1 states=1 params=0
+controller ok  InAppPanel (sharedassets1:103) layers=1 states=1 params=0
+controller ok  lucky block wings (1) (sharedassets2:1203) layers=1 states=1 params=0
+controller ok  yelllow block (sharedassets2:1204) layers=1 states=1 params=0
+controller ok  StarterAssetsThirdPerson (sharedassets2:1205) layers=5 states=12 params=10
+controller ok  ahuizotl (sharedassets2:1206) layers=1 states=2 params=2
+controller ok  bloodfab (sharedassets2:1207) layers=1 states=2 params=2
+controller ok  dragon (sharedassets2:1208) layers=1 states=2 params=2
+controller ok  duckAnimtor (sharedassets2:1209) layers=1 states=2 params=2
+controller ok  mout (sharedassets2:1210) layers=1 states=2 params=2
+controller ok  traralila (sharedassets2:1211) layers=1 states=2 params=2
+controller ok  voxel (sharedassets2:1212) layers=1 states=2 params=2
+controller ok  EnemyWithBrainRot (sharedassets2:1213) layers=2 states=6 params=6
+controller ok  display (sharedassets2:1214) layers=1 states=1 params=0
+override ok    Bananini (resources:423) base=BrainrotAnimator remapped=2
+override ok    Burbaloni (resources:424) base=BrainrotAnimator remapped=2
+override ok    Patapim (resources:425) base=BrainrotAnimator remapped=3
+override ok    Trippi Troppi (resources:426) base=BrainrotAnimator remapped=2
+override ok    101_Lionel Cactuseli (resources:427) base=BrainrotMonster remapped=2
+override ok    13_TimCheese (resources:428) base=BrainrotMonster remapped=2
+override ok    145_Gorillo Watermerlondrillo (resources:429) base=BrainrotMonster remapped=2
+override ok    149_Frigo Cameri (resources:430) base=BrainrotMonster remapped=2
+override ok    153_Tralalero Tralala (resources:431) base=BrainrotMonster remapped=2
+override ok    49_BallerinaCappuccina (resources:432) base=BrainrotMonster remapped=2
+override ok    53_BurbaloniLoliloli (resources:433) base=BrainrotMonster remapped=2
+override ok    57_ChefCrabracada (resources:434) base=BrainrotMonster remapped=2
+override ok    85_Cacto Hipoptamo (resources:435) base=BrainrotMonster remapped=2
+override ok    97_Bambini Crostini (resources:436) base=BrainrotMonster remapped=2
+override ok    DinDinDinDun (resources:437) base=BrainrotAnimator@resources:383 remapped=3
+override ok    Dolfinita (resources:438) base=BrainrotAnimator@resources:383 remapped=2
+override ok    Pipi Kiwi (resources:439) base=BrainrotAnimator@resources:383 remapped=2
+override ok    SaturnoSaturnita (resources:440) base=BrainrotAnimator@resources:383 remapped=2
+override ok    TaTaTaSahur (resources:441) base=BrainrotAnimator@resources:383 remapped=2
+clips: 88 ok, 0 failed, 88 total
+unresolved path hashes: 42
+  unresolved 36275382: Run
+  unresolved 162517017: Idle, Run
+  unresolved 175262038: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 321471345: Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle, Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Move
+  unresolved 423237624: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 672073064: Run
+  unresolved 763527625: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 782976246: La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Idle, La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Move
+  unresolved 831342455: La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Idle, La_Vacca_Saturno_Saturnita_Rig_La_Vacca_Saturno_Saturnita_Move
+  unresolved 849642056: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 922041721: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 1144598092: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 1207907943: Idle, Run
+  unresolved 1456327561: DinDinDinDun_Rig_DinDinDinDun_Idle, DinDinDinDun_Rig_DinDinDinDun_Idle 1, DinDinDinDun_Rig_DinDinDinDun_Move
+  unresolved 1505807311: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 1530671740: Run
+  unresolved 1573440930: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 1581982456: Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle, Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Move
+  unresolved 1747505490: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 1774315627: TaTaTaSahur_Rig_TaTaTaSahur_Idle, TaTaTaSahur_Rig_TaTaTaSahur_Move
+  unresolved 1881342504: DinDinDinDun_Rig_DinDinDinDun_Idle, DinDinDinDun_Rig_DinDinDinDun_Idle 1, DinDinDinDun_Rig_DinDinDinDun_Move
+  unresolved 1925642801: Idle, Run
+  unresolved 1956256749: Run
+  unresolved 1994910698: TaTaTaSahur_Rig_TaTaTaSahur_Idle, TaTaTaSahur_Rig_TaTaTaSahur_Move
+  unresolved 2153014669: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 2191065071: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 2249253420: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 2467825471: Run
+  unresolved 2675074572: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 2755927963: Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle, Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Move
+  unresolved 2814898369: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 3086547121: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 3164917456: Idle
+  unresolved 3167446994: Idle
+  unresolved 3216601016: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move
+  unresolved 3369790582: Run
+  unresolved 3445531147: Run
+  unresolved 3484887151: Idle, Run
+  unresolved 3523229707: Run
+  unresolved 3851121236: Chimpanzini_Bananini_Rig_Chimpanzini_Bananini_Idle, Chimpanzini_Bananini_Rig_Chimpanzini_Bananini_Move
+  unresolved 3911613970: Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Idle, Brr_Brr_Patapim_Rig_Brr_Brr_Patapim_Move
+  unresolved 4034753589: Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Idle, Tungtungtung_Sahur_Rig_Tungtungtung_Sahur_Move

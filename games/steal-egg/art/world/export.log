@@ -1,0 +1,58 @@
+drop root UI_EventSystem
+drop root Canvas
+  tex f8d34668ddc54fff8ce68b738b70bc7b_RGB_Obby_Char_MegaP_BaseMap_1-000b2f00 512x512 RGB
+  tex robot 6 texture-f339c06f 512x512 RGB
+  tex DARK BROWN-80a48e5f 512x512 RGB
+  tex T_Color_0-ca116e43 512x512 RGB
+  tex 1f374659c3104d60a1e9cc2dda2610db_RGB_Obby_Char_MegaP_BaseMap_105-dfb5d8ac 1024x1024 RGB
+  tex 1c9f332591f14f7fbf6e7bc37e1fcd12_RGB_Obby_Char_MegaP_BaseMap_49-c59a1a55 1024x1024 RGB
+  tex 065ca4cc3b5b485a9305cc817c77f1b6_RGB_Obby_Char_MegaP_BaseMap_35-efeebdda 2048x2048 RGB
+  tex 1-c05b9509 1024x1024 RGB
+  tex 3-838b5970 1024x1024 RGB
+  tex 1a20186d049d41d08c9a5d8edb683391_RGB_Obby_Char_MegaP_BaseMap_69-44b8d2af 2048x2048 RGB
+  tex 99a939a4d1ff47c1b5183bc6818bfcfe_RGB_Obby_Char_MegaP_BaseMap_110-59118b3a 1024x1024 RGB
+  tex 1-abccb57d 2048x2048 RGB
+  tex 1a20186d049d41d08c9a5d8edb683391_RGB_Obby_Char_MegaP_BaseMap_69-44b8d2af 2048x2048 RGB
+  tex Untitled-10-6c105267 1024x1024 RGB
+  tex 2-5591952a 1024x1024 RGB
+  tex 3de05044111f408b98b3420453396846_RGB_Obby_Char_MegaP_BaseMap_70-3e52eb94 2048x2048 RGB
+  tex env white-53fd85df 1024x1024 RGB
+  tex multi texture Green 01 smooth-1c578b33 1024x1024 RGB
+  tex White-0f89614a 512x512 RGB
+  tex start-3f3b0f4e 1024x1024 RGB
+  tex b8f031fcdf574f0bb8d034abdba5d42a_RGB_Obby_Char_MegaP_BaseMap_39-d1dd210d 1024x1024 RGB
+  tex 1f374659c3104d60a1e9cc2dda2610db_RGB_Obby_Char_MegaP_BaseMap_105-dfb5d8ac 1024x1024 RGB
+  tex 26492b6dc17346c5bab548015f9a2d30_RGB_Obby_Char_MegaP_BaseMap_45-042933c7 1024x1024 RGBA
+  tex 1a20186d049d41d08c9a5d8edb683391_RGB_Obby_Char_MegaP_BaseMap_69-44b8d2af 2048x2048 RGB
+  tex 2-4bf88095 1024x1024 RGB
+  tex 1-855f9a84 1024x1024 RGB
+  tex efac2fc2cd3d49e29be2c0aee8da73a4_RGB_Obby_Char_MegaP_BaseMap_89-7e2a234e 2048x2048 RGB
+  tex 99a939a4d1ff47c1b5183bc6818bfcfe_RGB_Obby_Char_MegaP_BaseMap_110-923b93c0 1024x1024 RGB
+  tex 2-fb9f4e3a 1024x1024 RGB
+  tex 1-2f32634e 1024x1024 RGBA
+  tex 3de05044111f408b98b3420453396846_RGB_Obby_Char_MegaP_BaseMap_70-3ed5a186 1024x1024 RGB
+  tex a3c07e726eab437a8d9829c83d0c63fc_RGB_Obby_Char_MegaP_BaseMap_1-940c0153 2048x2048 RGB
+  tex a54ee3f9c76b4c4296eb42bd9591ca0a_RGB_Obby_Char_MegaP_BaseMap_68-b9e52c22 1024x1024 RGBA
+  tex 1a20186d049d41d08c9a5d8edb683391_RGB_Obby_Char_MegaP_BaseMap_69-44b8d2af 2048x2048 RGB
+  tex 6fb27b9256524ed4af8407bd020ed35d_RGB_Obby_Char_MegaP_BaseMap_48-835b2a81 1024x1024 RGB
+  tex efac2fc2cd3d49e29be2c0aee8da73a4_RGB_Obby_Char_MegaP_BaseMap_89-7e2a234e 2048x2048 RGB
+  tex 1f374659c3104d60a1e9cc2dda2610db_RGB_Obby_Char_MegaP_BaseMap_105-dfb5d8ac 1024x1024 RGB
+  tex 8d93244f1d9a4565b398e223217c721d_RGB_untitled_DefaultMaterial_BaseColor-new-04899c55 2048x2048 RGB
+  tex 1-46fca7cd 1024x1024 RGB
+  tex 2-e183af3e 1024x1024 RGB
+  tex 27cce3d8851142e29938bb8fa50ef9bd_RGB_Obby_Char_MegaP_BaseMap_75-522e3163 1024x1024 RGB
+  tex 1-44b8d2af 2048x2048 RGB
+  tex e7d683fd6e3d48be95a0f32062b3bcf2_RGB_Obby_Char_MegaP_BaseMap_83-9c9da5bb 1024x1024 RGB
+  tex gltf_embedded_0 8-f08804fd 512x512 RGBA
+  tex gltf_embedded_0 4-db024341 512x512 RGBA
+  tex gltf_embedded_1-7a2040bc 128x128 RGBA
+  tex gltf_embedded_0 3-f1906003 256x256 RGBA
+  tex gltf_embedded_0 7-2cb61bed 64x64 RGBA
+  tex gltf_embedded_0 2-be56f3f6 256x256 RGBA
+  tex gltf_embedded_0 1-f5486416 512x512 RGBA
+  tex egg-texture-84553efe 1024x1024 RGB
+  tex egg6-texture-4919c956 1024x1024 RGB
+  tex egg2-texture-1b9ae929 1024x1024 RGB
+  tex egg3-texture-96bdf9da 1024x1024 RGB
+  tex egg5-texture-75aecbe9 1024x1024 RGB
+  tex egg4-texture-9ef511ad 1024x1024 RGB

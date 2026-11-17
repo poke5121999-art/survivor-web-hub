@@ -1,0 +1,69 @@
+prefab 2042 -> Bananini Character root node 0
+prefab 1408 -> Bananitta_Dolfinitta root node 27
+prefab 1948 -> Burbaloni Character root node 66
+prefab 1903 -> DinDinDinDun Character root node 86
+prefab 1335 -> MemRot6 (12) 1 root node 115
+prefab 1323 -> MemRot6 (12) root node 148
+prefab 1819 -> MemRot6 (2) root node 190
+prefab 1324 -> MemRot6 (3) 1 root node 219
+prefab 2036 -> MemRot6 (3) root node 253
+prefab 2075 -> Patapim cHARACTER root node 289
+prefab 1933 -> Pipi Kiwi_Character root node 313
+prefab 1426 -> Saturno_Saturnita_Character root node 340
+prefab 1936 -> TaTaTaSahur Character root node 362
+prefab 1765 -> Trippi Troppi Character root node 393
+prefab 963 -> BallerinaCappuccina root node 420
+prefab 966 -> bambini root node 451
+prefab 970 -> BurbaloniLoliloli root node 472
+prefab 964 -> CactoHipoptamo root node 488
+prefab 965 -> ChefCrabracada root node 498
+prefab 967 -> FrigoCameri root node 526
+prefab 1487 -> Gorillo Watermerlondrillo root node 544
+prefab 969 -> linonelcactuseli root node 565
+prefab 962 -> Timcheese root node 590
+prefab 968 -> TralaleroTralala root node 603
+  tex T_Brown_0-5f46da36 64x64 RGB
+  tex Cayan-96737db3 128x128 RGB
+  tex T_Pre_Red-e8eaa6bc 128x128 RGB
+  tex T_White-cc5898b2 128x128 RGB
+  tex Pallete-0bb1ff9b 256x256 RGB
+  tex daa7305b926e4877aa41f61ac73d3773_RGB_Color.tga-a7d093fa 1024x1024 RGB
+  tex a246264953994aff94c14d30edef19bc_RGB_Albedo-a1d4d8ca 2048x2048 RGB
+  tex 7dcf830defdf4591829d13405c8f5924_RGB_Eyes-efeebdda 2048x2048 RGB
+  tex T_Blue-50a3b367 128x128 RGB
+  tex T_Purple-65c2ed45 128x128 RGB
+  tex T_Purple light-36d4e18e 128x128 RGB
+  tex grey-b5ae1437 128x128 RGB
+  tex T_Orange-e41aeda7 128x128 RGB
+  tex T_Black-353b5176 128x128 RGB
+  tex 201d5f2f6e0445a2b6af2c49ea11cc14_RGB_t_Lp_Hats_TextureAtlas01.tga-34180df3 32x32 RGB
+  tex e07cf65b9c4245deb06ad89cd9e6b2b8_RGB_UFO_Screen_1_body_BaseColor-c207973c 1024x1024 RGB
+  tex 00b35ebd0c1147e5bcd74f9c338fe2fb_RGB_UFO_Screen_1_glass_BaseColor-d1dd210d 1024x1024 RGB
+  tex a0386ac42710415997c14727e87daf36_RGB_UFO_Screen_1_handle_BaseColor-e4587cf0 1024x1024 RGB
+  tex ae7b437e635b47be81e260e3a78a373c_RGB_UFO_Screen_1_knobs_BaseColor-d8be35c4 512x512 RGB
+  tex bdf4d8b08bc54e4baf1bb7e742a96d5a_RGB_UFO_Screen_1_Mic_BaseColor-5a21be0b 1024x1024 RGB
+  tex bike-2c2563b5 1024x1024 RGB
+  tex bike tire -d93b9eef 512x512 RGB
+  tex T_LightPink-e79d7829 128x128 RGB
+  tex T_Gray_0-317b80be 128x128 RGB
+  tex 106f202fb7a648f8844b42a35e28c89f_RGB_band_FRONT_4143_Base_Color-02064533 2048x2048 RGB
+  tex Image_0-f9f23f3e 1024x1024 RGB
+  tex T_Pre_Yellow-b1515bcd 128x128 RGB
+  tex T_Green-f5375d2b 128x128 RGB
+  tex car08_A-f5bce3fe 1024x1024 RGB
+  tex Addons-a4671675 2048x2048 RGB
+  tex T_Pre_Yellow_Light-dd22989c 128x128 RGB
+  tex Image_0-6f31159d 512x256 RGB
+  tex car1_A-17a53555 2048x2048 RGB
+  tex car08_B-417e06a5 1024x1024 RGB
+  tex a9a05027c9d1411f9e28f5588f814d37_RGB_gltf_embedded_0-1104fd33 64x64 RGB
+  tex Ballerina Cappuccina_Normal_Base_color 1-85fa3718 512x512 RGB
+  tex Bambini Crostini_normal_Base_color 1-3c15da66 512x512 RGB
+  tex Burbaloni Loliloli_Normal_Base_color 1-3ffebe42 512x512 RGB
+  tex Cacto Hipoptamo_normal_Base_color 1-650239f0 512x512 RGB
+  tex Chef Crabracada_Normal_Base_color 1-8f24d579 512x512 RGB
+  tex Frigo Cameri_normal_Base_color 1-09ceb651 512x512 RGB
+  tex Gorillo Watermerlondrillo_normal_Base_color-c138c0e5 512x512 RGB
+  tex 2f6a2188-a5b7-4eaa-86d3-66f8e4bf7f24-222ca5af 1024x1024 RGB
+  tex Tim cheese_Normal_Base_color-6c95106d 512x512 RGB
+  tex Tralalero Tralala_normal_Base_color 1-c92e896e 512x512 RGB

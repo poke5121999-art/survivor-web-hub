@@ -1,0 +1,3421 @@
+{
+ "clips": {
+  "sell": {
+   "name": "sell",
+   "file": "sharedassets0.assets",
+   "id": 22,
+   "length": 2.142,
+   "mp3": "sell.mp3",
+   "kb": 17.2,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "SellItem",
+     "path": "SoundManager/SellItem",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 21,
+     "sourceId": 62
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "SellItem",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "dropseed": {
+   "name": "dropSeed",
+   "file": "sharedassets0.assets",
+   "id": 23,
+   "length": 0.684,
+   "mp3": "dropseed.mp3",
+   "kb": 5.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "plantDig",
+     "path": "SoundManager/plantDig",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 24,
+     "sourceId": 63
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "PlantDig",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "new_notification_09_352705": {
+   "name": "new-notification-09-352705",
+   "file": "sharedassets0.assets",
+   "id": 24,
+   "length": 1.152,
+   "mp3": "new_notification_09_352705.mp3",
+   "kb": 9.4,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "Notification",
+     "path": "SoundManager/Notification",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 22,
+     "sourceId": 66
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "notificationSource",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "typing_sound": {
+   "name": "typing-sound",
+   "file": "sharedassets0.assets",
+   "id": 25,
+   "length": 2.064,
+   "mp3": "typing_sound.mp3",
+   "kb": 16.6,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "tex",
+     "path": "InterNetCheck/Canvas/Panel/Panel/tex",
+     "volume": 0.466,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 36,
+     "sourceId": 71
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "TypewriterWith_SoundsScripts",
+     "go": "tex",
+     "path": "InterNetCheck/Canvas/Panel/Panel/tex",
+     "field": "audioSource",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level0",
+     "cls": "TypewriterWith_SoundsScripts",
+     "go": "tex",
+     "path": "InterNetCheck/Canvas/Panel/Panel/tex",
+     "field": "typingLoopSound"
+    }
+   ]
+  },
+  "pick_fruit": {
+   "name": "pick fruit",
+   "file": "sharedassets0.assets",
+   "id": 26,
+   "length": 0.936,
+   "mp3": "pick_fruit.mp3",
+   "kb": 7.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "PickFruit",
+     "path": "SoundManager/PickFruit",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 39,
+     "sourceId": 65
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "PickFruit",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "click": {
+   "name": "click",
+   "file": "sharedassets0.assets",
+   "id": 27,
+   "length": 0.392,
+   "mp3": "click.mp3",
+   "kb": 3.7,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "ButtonClick",
+     "path": "SoundManager/ButtonClick",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 37,
+     "sourceId": 70
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "buttonClick",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "drop_in_baskit": {
+   "name": "drop in baskit",
+   "file": "sharedassets0.assets",
+   "id": 28,
+   "length": 1.224,
+   "mp3": "drop_in_baskit.mp3",
+   "kb": 10.2,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "ReachDestination",
+     "path": "SoundManager/ReachDestination",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 18,
+     "sourceId": 61
+    },
+    {
+     "file": "level0",
+     "go": "dropinBaskit",
+     "path": "SoundManager/dropinBaskit",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 32,
+     "sourceId": 64
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "dropInbaskit",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "reachDestination",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "welldone": {
+   "name": "WellDone",
+   "file": "sharedassets0.assets",
+   "id": 29,
+   "length": 1.646,
+   "mp3": "welldone.mp3",
+   "kb": 13.5,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "good[0]"
+    }
+   ]
+  },
+  "coin_collision_sound_342335": {
+   "name": "coin-collision-sound-342335",
+   "file": "sharedassets0.assets",
+   "id": 30,
+   "length": 2.592,
+   "mp3": "coin_collision_sound_342335.mp3",
+   "kb": 20.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "coinSound",
+     "path": "SoundManager/coinSound",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 23,
+     "sourceId": 67
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "coinSource",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "purchase": {
+   "name": "purchase",
+   "file": "sharedassets0.assets",
+   "id": 31,
+   "length": 2.544,
+   "mp3": "purchase.mp3",
+   "kb": 20.5,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "purchaseSeed",
+     "path": "SoundManager/purchaseSeed",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 29,
+     "sourceId": 72
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "purchaseSeed",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "greatjobs": {
+   "name": "GreatJobs",
+   "file": "sharedassets0.assets",
+   "id": 32,
+   "length": 1.08,
+   "mp3": "greatjobs.mp3",
+   "kb": 9.0,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "GoodJob",
+     "path": "SoundManager/GoodJob",
+     "volume": 0.5,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 40,
+     "sourceId": 69
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "GoodJob",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "good[1]"
+    }
+   ]
+  },
+  "sonami_music": {
+   "name": "sonami music",
+   "file": "sharedassets0.assets",
+   "id": 33,
+   "length": 81.763,
+   "mp3": "sonami_music.mp3",
+   "kb": 958.8,
+   "kind": "music",
+   "sources": [
+    {
+     "file": "level0",
+     "go": "BackGroundSound",
+     "path": "SoundManager/BackGroundSound",
+     "volume": 0.5,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 17,
+     "sourceId": 68
+    }
+   ],
+   "refs": [
+    {
+     "file": "level0",
+     "cls": "SoundManager",
+     "go": "SoundManager",
+     "path": "SoundManager",
+     "field": "bgSound",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "pop_2": {
+   "name": "pop (2)",
+   "file": "sharedassets1.assets",
+   "id": 98,
+   "length": 0.47,
+   "mp3": "pop_2.mp3",
+   "kb": 4.1,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "BrainRotSelection",
+     "path": "MainMenu/BrainRotSelection",
+     "field": "loopSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "charSelection",
+     "path": "MainMenu/charSelection",
+     "field": "loopSound"
+    }
+   ]
+  },
+  "popup_5": {
+   "name": "POPUP (5)",
+   "file": "sharedassets1.assets",
+   "id": 99,
+   "length": 1.019,
+   "mp3": "popup_5.mp3",
+   "kb": 8.4,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "weapon",
+     "path": "MainMenu/weapon",
+     "field": "loopSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "dayN9ight",
+     "path": "MainMenu/dayN9ight",
+     "field": "loopSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "ModeSelection",
+     "path": "MainMenu/ModeSelection",
+     "field": "loopSound"
+    }
+   ]
+  },
+  "pop_1": {
+   "name": "pop (1)",
+   "file": "sharedassets1.assets",
+   "id": 100,
+   "length": 0.575,
+   "mp3": "pop_1.mp3",
+   "kb": 4.9,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "BrainRotSelection",
+     "path": "MainMenu/BrainRotSelection",
+     "field": "popupSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "charSelection",
+     "path": "MainMenu/charSelection",
+     "field": "popupSound"
+    }
+   ]
+  },
+  "panel_up": {
+   "name": "panel up",
+   "file": "sharedassets1.assets",
+   "id": 101,
+   "length": 3.527,
+   "mp3": "panel_up.mp3",
+   "kb": 28.0,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level1",
+     "go": "BrainRotSelection",
+     "path": "MainMenu/BrainRotSelection",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 10,
+     "sourceId": 221
+    },
+    {
+     "file": "level1",
+     "go": "weapon",
+     "path": "MainMenu/weapon",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 214,
+     "sourceId": 222
+    },
+    {
+     "file": "level1",
+     "go": "dayN9ight",
+     "path": "MainMenu/dayN9ight",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 72,
+     "sourceId": 223
+    },
+    {
+     "file": "level1",
+     "go": "ModeSelection",
+     "path": "MainMenu/ModeSelection",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 153,
+     "sourceId": 224
+    },
+    {
+     "file": "level1",
+     "go": "charSelection",
+     "path": "MainMenu/charSelection",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 128,
+     "sourceId": 225
+    },
+    {
+     "file": "level1",
+     "go": "Setting (1)",
+     "path": "MainMenu/Setting (1)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 89,
+     "sourceId": 226
+    },
+    {
+     "file": "level1",
+     "go": "royal pass",
+     "path": "MainMenu/royal pass",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 195,
+     "sourceId": 227
+    }
+   ],
+   "refs": [
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "BrainRotSelection",
+     "path": "MainMenu/BrainRotSelection",
+     "field": "audioSource",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "weapon",
+     "path": "MainMenu/weapon",
+     "field": "audioSource",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "dayN9ight",
+     "path": "MainMenu/dayN9ight",
+     "field": "audioSource",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "ModeSelection",
+     "path": "MainMenu/ModeSelection",
+     "field": "audioSource",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "charSelection",
+     "path": "MainMenu/charSelection",
+     "field": "audioSource",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "popup_3": {
+   "name": "POPUP (3)",
+   "file": "sharedassets1.assets",
+   "id": 102,
+   "length": 0.72,
+   "mp3": "popup_3.mp3",
+   "kb": 6.0,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "weapon",
+     "path": "MainMenu/weapon",
+     "field": "popupSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "dayN9ight",
+     "path": "MainMenu/dayN9ight",
+     "field": "popupSound"
+    },
+    {
+     "file": "level1",
+     "cls": "CharacterPopupTween",
+     "go": "ModeSelection",
+     "path": "MainMenu/ModeSelection",
+     "field": "popupSound"
+    }
+   ]
+  },
+  "sleep": {
+   "name": "sleep",
+   "file": "sharedassets2.assets",
+   "id": 1162,
+   "length": 59.16,
+   "mp3": "sleep.mp3",
+   "kb": 462.8,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "sleep (2)",
+     "path": "Animal and eggs/dragon/sleep (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2249,
+     "sourceId": 9796
+    },
+    {
+     "file": "level2",
+     "go": "sleep",
+     "path": "Animal and eggs/White Duck/sleep",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2075,
+     "sourceId": 9805
+    }
+   ],
+   "refs": []
+  },
+  "hen": {
+   "name": "hen",
+   "file": "sharedassets2.assets",
+   "id": 1163,
+   "length": 0.601,
+   "mp3": "hen.mp3",
+   "kb": 5.1,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "White Duck",
+     "path": "Animal and eggs/White Duck",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1578,
+     "sourceId": 9794,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "player_footstep_05": {
+   "name": "Player_Footstep_05",
+   "file": "sharedassets2.assets",
+   "id": 1164,
+   "length": 0.333,
+   "mp3": "player_footstep_05.mp3",
+   "kb": 3.0,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[4]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[4]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[4]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[4]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[4]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[4]"
+    }
+   ]
+  },
+  "player_footstep_03": {
+   "name": "Player_Footstep_03",
+   "file": "sharedassets2.assets",
+   "id": 1165,
+   "length": 0.302,
+   "mp3": "player_footstep_03.mp3",
+   "kb": 2.9,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[2]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[2]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[2]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[2]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[2]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[2]"
+    }
+   ]
+  },
+  "player_footstep_04": {
+   "name": "Player_Footstep_04",
+   "file": "sharedassets2.assets",
+   "id": 1166,
+   "length": 0.33,
+   "mp3": "player_footstep_04.mp3",
+   "kb": 3.0,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[3]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[3]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[3]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[3]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[3]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[3]"
+    }
+   ]
+  },
+  "3": {
+   "name": "3",
+   "file": "sharedassets2.assets",
+   "id": 1167,
+   "length": 2.088,
+   "mp3": "3.mp3",
+   "kb": 16.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "ahuizotle",
+     "path": "Animal and eggs/ahuizotle",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3419,
+     "sourceId": 9799,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "foot2": {
+   "name": "foot2",
+   "file": "sharedassets2.assets",
+   "id": 1168,
+   "length": 0.24,
+   "mp3": "foot2.mp3",
+   "kb": 2.3,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "Audio Source (9)",
+     "path": "Player5/Audio Source (9)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 177,
+     "sourceId": 9732
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (11)",
+     "path": "Player6/Audio Source (11)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 224,
+     "sourceId": 9735
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (7)",
+     "path": "Player4/Audio Source (7)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 249,
+     "sourceId": 9736
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (5)",
+     "path": "Player3/Audio Source (5)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 389,
+     "sourceId": 9741
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (1)",
+     "path": "Player1/Audio Source (1)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 699,
+     "sourceId": 9753
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (3)",
+     "path": "Player2/Audio Source (3)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 883,
+     "sourceId": 9762
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "audio[1]",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "player_footstep_09": {
+   "name": "Player_Footstep_09",
+   "file": "sharedassets2.assets",
+   "id": 1169,
+   "length": 0.346,
+   "mp3": "player_footstep_09.mp3",
+   "kb": 3.2,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[8]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[8]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[8]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[8]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[8]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[8]"
+    }
+   ]
+  },
+  "player_footstep_06": {
+   "name": "Player_Footstep_06",
+   "file": "sharedassets2.assets",
+   "id": 1170,
+   "length": 0.311,
+   "mp3": "player_footstep_06.mp3",
+   "kb": 2.9,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[5]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[5]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[5]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[5]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[5]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[5]"
+    }
+   ]
+  },
+  "scriming_3": {
+   "name": "scriming 3",
+   "file": "sharedassets2.assets",
+   "id": 1171,
+   "length": 1.584,
+   "mp3": "scriming_3.mp3",
+   "kb": 12.8,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player3/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 827,
+     "sourceId": 9758
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "die",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "sleep_1": {
+   "name": "sleep 1",
+   "file": "sharedassets2.assets",
+   "id": 1172,
+   "length": 25.496,
+   "mp3": "sleep_1.mp3",
+   "kb": 199.6,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "sleep (4)",
+     "path": "Animal and eggs/tarara/sleep (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2228,
+     "sourceId": 9773
+    },
+    {
+     "file": "level2",
+     "go": "sleep (4)",
+     "path": "Animal and eggs/blood fab/sleep (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2287,
+     "sourceId": 9781
+    },
+    {
+     "file": "level2",
+     "go": "sleep (4)",
+     "path": "Animal and eggs/mout/sleep (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2883,
+     "sourceId": 9788
+    },
+    {
+     "file": "level2",
+     "go": "sleep (4)",
+     "path": "Animal and eggs/ahuizotle/sleep (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2691,
+     "sourceId": 9800
+    },
+    {
+     "file": "level2",
+     "go": "sleep (4)",
+     "path": "Animal and eggs/voxel/sleep (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1140,
+     "sourceId": 9804
+    }
+   ],
+   "refs": []
+  },
+  "warning_alarm_loop_1_279206": {
+   "name": "warning-alarm-loop-1-279206",
+   "file": "sharedassets2.assets",
+   "id": 1173,
+   "length": 3.892,
+   "mp3": "warning_alarm_loop_1_279206.mp3",
+   "kb": 30.9,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "Ellipse 2 (5)",
+     "path": "Player6/Ellipse 2 (5)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 13,
+     "sourceId": 9726
+    },
+    {
+     "file": "level2",
+     "go": "Ellipse 2 (4)",
+     "path": "Player5/Ellipse 2 (4)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 88,
+     "sourceId": 9729
+    },
+    {
+     "file": "level2",
+     "go": "Ellipse 2 (2)",
+     "path": "Player3/Ellipse 2 (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 125,
+     "sourceId": 9731
+    },
+    {
+     "file": "level2",
+     "go": "Ellipse 2 (3)",
+     "path": "Player4/Ellipse 2 (3)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 330,
+     "sourceId": 9739
+    },
+    {
+     "file": "level2",
+     "go": "Ellipse 2",
+     "path": "Player1/Ellipse 2",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 762,
+     "sourceId": 9755
+    },
+    {
+     "file": "level2",
+     "go": "Ellipse 2 (1)",
+     "path": "Player2/Ellipse 2 (1)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 978,
+     "sourceId": 9768
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2 (5)",
+     "path": "Player6/Ellipse 2 (5)",
+     "field": "sound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2 (4)",
+     "path": "Player5/Ellipse 2 (4)",
+     "field": "sound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2 (2)",
+     "path": "Player3/Ellipse 2 (2)",
+     "field": "sound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2 (3)",
+     "path": "Player4/Ellipse 2 (3)",
+     "field": "sound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2",
+     "path": "Player1/Ellipse 2",
+     "field": "sound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyDetection",
+     "go": "Ellipse 2 (1)",
+     "path": "Player2/Ellipse 2 (1)",
+     "field": "sound",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "scriming_2": {
+   "name": "scriming 2",
+   "file": "sharedassets2.assets",
+   "id": 1174,
+   "length": 2.568,
+   "mp3": "scriming_2.mp3",
+   "kb": 20.7,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player6/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 341,
+     "sourceId": 9740
+    },
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player2/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 965,
+     "sourceId": 9766
+    },
+    {
+     "file": "level2",
+     "go": "die (2)",
+     "path": "Env/Enemies/enemy (1)/die (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2344,
+     "sourceId": 9790
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (1)",
+     "path": "Env/Enemies/enemy (1)",
+     "field": "Die",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "very_loud_man_screaming_sound_effect_online_audio_converter_com": {
+   "name": "Very Loud Man Screaming Sound Effect (online-audio-converter.com)",
+   "file": "sharedassets2.assets",
+   "id": 1175,
+   "length": 1.728,
+   "mp3": "very_loud_man_screaming_sound_effect_online_audio_converter_com.mp3",
+   "kb": 14.1,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player4/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 113,
+     "sourceId": 9730
+    },
+    {
+     "file": "level2",
+     "go": "die (4)",
+     "path": "Env/Enemies/enemy (3)/die (4)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2733,
+     "sourceId": 9795
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (4)",
+     "path": "Env/Enemies/enemy (4)",
+     "field": "Die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (3)",
+     "path": "Env/Enemies/enemy (3)",
+     "field": "Die",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "player_footstep_08": {
+   "name": "Player_Footstep_08",
+   "file": "sharedassets2.assets",
+   "id": 1176,
+   "length": 0.32,
+   "mp3": "player_footstep_08.mp3",
+   "kb": 3.0,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[7]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[7]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[7]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[7]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[7]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[7]"
+    }
+   ]
+  },
+  "foot_step": {
+   "name": "foot step",
+   "file": "sharedassets2.assets",
+   "id": 1177,
+   "length": 5.59,
+   "mp3": "foot_step.mp3",
+   "kb": 44.1,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "run (2)",
+     "path": "Animal and eggs/blood fab/run (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3635,
+     "sourceId": 9775
+    },
+    {
+     "file": "level2",
+     "go": "run (2)",
+     "path": "Animal and eggs/ahuizotle/run (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2761,
+     "sourceId": 9779
+    },
+    {
+     "file": "level2",
+     "go": "run (2)",
+     "path": "Animal and eggs/mout/run (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2293,
+     "sourceId": 9787
+    },
+    {
+     "file": "level2",
+     "go": "run (2)",
+     "path": "Animal and eggs/tarara/run (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3216,
+     "sourceId": 9791
+    },
+    {
+     "file": "level2",
+     "go": "run (2)",
+     "path": "Animal and eggs/voxel/run (2)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1434,
+     "sourceId": 9797
+    }
+   ],
+   "refs": []
+  },
+  "sfx_attack_mp3cut_net": {
+   "name": "SFX_Attack (mp3cut.net)",
+   "file": "sharedassets2.assets",
+   "id": 1178,
+   "length": 0.364,
+   "mp3": "sfx_attack_mp3cut_net.mp3",
+   "kb": 3.3,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player6/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 53,
+     "sourceId": 9727
+    },
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player2/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 296,
+     "sourceId": 9737
+    },
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player3/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 783,
+     "sourceId": 9756
+    },
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player4/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 850,
+     "sourceId": 9760
+    },
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player5/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 972,
+     "sourceId": 9767
+    },
+    {
+     "file": "level2",
+     "go": "attack",
+     "path": "Player1/attack",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1004,
+     "sourceId": 9769
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "attackSound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "attackSound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "attackSound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "attackSound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "attackSound",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "attackSound",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "player_footstep_01": {
+   "name": "Player_Footstep_01",
+   "file": "sharedassets2.assets",
+   "id": 1179,
+   "length": 0.264,
+   "mp3": "player_footstep_01.mp3",
+   "kb": 2.7,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[0]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[0]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[0]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[0]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[0]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[0]"
+    }
+   ]
+  },
+  "foot1": {
+   "name": "foot1",
+   "file": "sharedassets2.assets",
+   "id": 1180,
+   "length": 0.36,
+   "mp3": "foot1.mp3",
+   "kb": 3.2,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "Audio Source (4)",
+     "path": "Player3/Audio Source (4)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 184,
+     "sourceId": 9733
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (2)",
+     "path": "Player2/Audio Source (2)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 412,
+     "sourceId": 9742
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source",
+     "path": "Player1/Audio Source",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 486,
+     "sourceId": 9745
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (10)",
+     "path": "Player6/Audio Source (10)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 520,
+     "sourceId": 9746
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (6)",
+     "path": "Player4/Audio Source (6)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 583,
+     "sourceId": 9747
+    },
+    {
+     "file": "level2",
+     "go": "Audio Source (8)",
+     "path": "Player5/Audio Source (8)",
+     "volume": 0.15,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 927,
+     "sourceId": 9765
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "audio[0]",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "1": {
+   "name": "1",
+   "file": "sharedassets2.assets",
+   "id": 1181,
+   "length": 1.515,
+   "mp3": "1.mp3",
+   "kb": 12.3,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "dragon",
+     "path": "Animal and eggs/dragon",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1430,
+     "sourceId": 9802,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "player_footstep_02": {
+   "name": "Player_Footstep_02",
+   "file": "sharedassets2.assets",
+   "id": 1182,
+   "length": 0.274,
+   "mp3": "player_footstep_02.mp3",
+   "kb": 2.7,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[1]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[1]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[1]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[1]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[1]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[1]"
+    }
+   ]
+  },
+  "player_footstep_10": {
+   "name": "Player_Footstep_10",
+   "file": "sharedassets2.assets",
+   "id": 1183,
+   "length": 0.322,
+   "mp3": "player_footstep_10.mp3",
+   "kb": 3.0,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[9]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[9]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[9]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[9]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[9]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[9]"
+    }
+   ]
+  },
+  "alarme_342932_2": {
+   "name": "alarme-342932 (2)",
+   "file": "sharedassets2.assets",
+   "id": 1184,
+   "length": 2.952,
+   "mp3": "alarme_342932_2.mp3",
+   "kb": 23.5,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "Image",
+     "path": "Canvas/InGame/TopPanel/Image",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 814,
+     "sourceId": 9757
+    }
+   ],
+   "refs": []
+  },
+  "scriming_1": {
+   "name": "scriming 1",
+   "file": "sharedassets2.assets",
+   "id": 1185,
+   "length": 2.743,
+   "mp3": "scriming_1.mp3",
+   "kb": 21.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player5/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 451,
+     "sourceId": 9744
+    },
+    {
+     "file": "level2",
+     "go": "die",
+     "path": "Player1/die",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 680,
+     "sourceId": 9751
+    },
+    {
+     "file": "level2",
+     "go": "die (1)",
+     "path": "Env/Enemies/enemy/die (1)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2259,
+     "sourceId": 9770
+    },
+    {
+     "file": "level2",
+     "go": "die (5)",
+     "path": "Env/Enemies/enemy (4)/die (5)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1694,
+     "sourceId": 9780
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy",
+     "path": "Env/Enemies/enemy",
+     "field": "Die",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "die",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "sweet_game_over_sound_effect_230470": {
+   "name": "sweet-game-over-sound-effect-230470",
+   "file": "sharedassets2.assets",
+   "id": 1186,
+   "length": 2.142,
+   "mp3": "sweet_game_over_sound_effect_230470.mp3",
+   "kb": 17.2,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 1 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2360,
+     "sourceId": 3913
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 9 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2461,
+     "sourceId": 3914
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 10 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2018,
+     "sourceId": 3915
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 6 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2044,
+     "sourceId": 3916
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 4 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2127,
+     "sourceId": 3917
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 8 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2133,
+     "sourceId": 3918
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 5 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1622,
+     "sourceId": 3919
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1657,
+     "sourceId": 3920
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 3 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1693,
+     "sourceId": 3921
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 2 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1764,
+     "sourceId": 3922
+    },
+    {
+     "file": "sharedassets2.assets",
+     "go": "memerot (2)",
+     "path": "egg 7  Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1781,
+     "sourceId": 3923
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 1 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3427,
+     "sourceId": 9776
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 9 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3634,
+     "sourceId": 9777
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 4 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2939,
+     "sourceId": 9783
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 8 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2959,
+     "sourceId": 9784
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3010,
+     "sourceId": 9786
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 3 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1983,
+     "sourceId": 9789
+    },
+    {
+     "file": "level2",
+     "go": "memerot (2)",
+     "path": "Animal and eggs/egg 2 Variant/memerot (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2130,
+     "sourceId": 9792
+    }
+   ],
+   "refs": []
+  },
+  "hard_slap_46388": {
+   "name": "hard-slap-46388",
+   "file": "sharedassets2.assets",
+   "id": 1187,
+   "length": 0.48,
+   "mp3": "hard_slap_46388.mp3",
+   "kb": 4.4,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player4/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 10,
+     "sourceId": 9725
+    },
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player2/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 418,
+     "sourceId": 9743
+    },
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player5/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 621,
+     "sourceId": 9749
+    },
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player1/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 698,
+     "sourceId": 9752
+    },
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player6/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 716,
+     "sourceId": 9754
+    },
+    {
+     "file": "level2",
+     "go": "slap",
+     "path": "Player3/slap",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 829,
+     "sourceId": 9759
+    },
+    {
+     "file": "level2",
+     "go": "slap (4)",
+     "path": "Env/Enemies/enemy (3)/slap (4)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1505,
+     "sourceId": 9771
+    },
+    {
+     "file": "level2",
+     "go": "slap (1)",
+     "path": "Env/Enemies/enemy/slap (1)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1826,
+     "sourceId": 9778
+    },
+    {
+     "file": "level2",
+     "go": "slap (5)",
+     "path": "Env/Enemies/enemy (4)/slap (5)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2631,
+     "sourceId": 9793
+    },
+    {
+     "file": "level2",
+     "go": "slap (2)",
+     "path": "Env/Enemies/enemy (1)/slap (2)",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1657,
+     "sourceId": 9803
+    }
+   ],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (4)",
+     "path": "Env/Enemies/enemy (4)",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (1)",
+     "path": "Env/Enemies/enemy (1)",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy (3)",
+     "path": "Env/Enemies/enemy (3)",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "EnemyAI",
+     "go": "enemy",
+     "path": "Env/Enemies/enemy",
+     "field": "slap",
+     "via": "AudioSource"
+    },
+    {
+     "file": "level2",
+     "cls": "PlayerManager",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "slap",
+     "via": "AudioSource"
+    }
+   ]
+  },
+  "player_footstep_07": {
+   "name": "Player_Footstep_07",
+   "file": "sharedassets2.assets",
+   "id": 1188,
+   "length": 0.295,
+   "mp3": "player_footstep_07.mp3",
+   "kb": 2.9,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "FootstepAudioClips[6]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "FootstepAudioClips[6]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "FootstepAudioClips[6]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "FootstepAudioClips[6]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "FootstepAudioClips[6]"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "FootstepAudioClips[6]"
+    }
+   ]
+  },
+  "cartoon_step": {
+   "name": "cartoon step",
+   "file": "sharedassets2.assets",
+   "id": 1189,
+   "length": 5.538,
+   "mp3": "cartoon_step.mp3",
+   "kb": 43.7,
+   "kind": "loop",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "run",
+     "path": "Animal and eggs/White Duck/run",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 3566,
+     "sourceId": 9772
+    },
+    {
+     "file": "level2",
+     "go": "run (1)",
+     "path": "Animal and eggs/dragon/run (1)",
+     "volume": 1.0,
+     "loop": true,
+     "playOnAwake": true,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 1550,
+     "sourceId": 9785
+    }
+   ],
+   "refs": []
+  },
+  "4": {
+   "name": "4",
+   "file": "sharedassets2.assets",
+   "id": 1190,
+   "length": 2.64,
+   "mp3": "4.mp3",
+   "kb": 21.2,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "tarara",
+     "path": "Animal and eggs/tarara",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2842,
+     "sourceId": 9774,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "2": {
+   "name": "2",
+   "file": "sharedassets2.assets",
+   "id": 1191,
+   "length": 1.593,
+   "mp3": "2.mp3",
+   "kb": 12.9,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "blood fab",
+     "path": "Animal and eggs/blood fab",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2636,
+     "sourceId": 9782,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "6": {
+   "name": "6",
+   "file": "sharedassets2.assets",
+   "id": 1192,
+   "length": 5.12,
+   "mp3": "6.mp3",
+   "kb": 40.4,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "voxel",
+     "path": "Animal and eggs/voxel",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2872,
+     "sourceId": 9801,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "5": {
+   "name": "5",
+   "file": "sharedassets2.assets",
+   "id": 1193,
+   "length": 1.032,
+   "mp3": "5.mp3",
+   "kb": 8.5,
+   "kind": "oneshot",
+   "sources": [
+    {
+     "file": "level2",
+     "go": "mout",
+     "path": "Animal and eggs/mout",
+     "volume": 1.0,
+     "loop": false,
+     "playOnAwake": false,
+     "mute": false,
+     "pitch": 1.0,
+     "enabled": true,
+     "goId": 2463,
+     "sourceId": 9798,
+     "component": "PlayAudio"
+    }
+   ],
+   "refs": []
+  },
+  "player_land": {
+   "name": "Player_Land",
+   "file": "sharedassets2.assets",
+   "id": 1194,
+   "length": 0.255,
+   "mp3": "player_land.mp3",
+   "kb": 2.5,
+   "kind": "oneshot",
+   "sources": [],
+   "refs": [
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player4",
+     "path": "Player4",
+     "field": "LandingAudioClip"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player5",
+     "path": "Player5",
+     "field": "LandingAudioClip"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player6",
+     "path": "Player6",
+     "field": "LandingAudioClip"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player3",
+     "path": "Player3",
+     "field": "LandingAudioClip"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player2",
+     "path": "Player2",
+     "field": "LandingAudioClip"
+    },
+    {
+     "file": "level2",
+     "cls": "ThirdPersonController",
+     "go": "Player1",
+     "path": "Player1",
+     "field": "LandingAudioClip"
+    }
+   ]
+  }
+ },
+ "byGameObject": {
+  "level0:SoundManager/SellItem": [
+   "sell"
+  ],
+  "level0:SoundManager/plantDig": [
+   "dropseed"
+  ],
+  "level0:SoundManager/Notification": [
+   "new_notification_09_352705"
+  ],
+  "level0:InterNetCheck/Canvas/Panel/Panel/tex": [
+   "typing_sound"
+  ],
+  "level0:SoundManager/PickFruit": [
+   "pick_fruit"
+  ],
+  "level0:SoundManager/ButtonClick": [
+   "click"
+  ],
+  "level0:SoundManager/ReachDestination": [
+   "drop_in_baskit"
+  ],
+  "level0:SoundManager/dropinBaskit": [
+   "drop_in_baskit"
+  ],
+  "level0:SoundManager/coinSound": [
+   "coin_collision_sound_342335"
+  ],
+  "level0:SoundManager/purchaseSeed": [
+   "purchase"
+  ],
+  "level0:SoundManager/GoodJob": [
+   "greatjobs"
+  ],
+  "level0:SoundManager/BackGroundSound": [
+   "sonami_music"
+  ],
+  "level1:MainMenu/BrainRotSelection": [
+   "panel_up"
+  ],
+  "level1:MainMenu/weapon": [
+   "panel_up"
+  ],
+  "level1:MainMenu/dayN9ight": [
+   "panel_up"
+  ],
+  "level1:MainMenu/ModeSelection": [
+   "panel_up"
+  ],
+  "level1:MainMenu/charSelection": [
+   "panel_up"
+  ],
+  "level1:MainMenu/Setting (1)": [
+   "panel_up"
+  ],
+  "level1:MainMenu/royal pass": [
+   "panel_up"
+  ],
+  "level2:Animal and eggs/dragon/sleep (2)": [
+   "sleep"
+  ],
+  "level2:Animal and eggs/White Duck/sleep": [
+   "sleep"
+  ],
+  "level2:Animal and eggs/White Duck": [
+   "hen"
+  ],
+  "level2:Animal and eggs/ahuizotle": [
+   "3"
+  ],
+  "level2:Player5/Audio Source (9)": [
+   "foot2"
+  ],
+  "level2:Player6/Audio Source (11)": [
+   "foot2"
+  ],
+  "level2:Player4/Audio Source (7)": [
+   "foot2"
+  ],
+  "level2:Player3/Audio Source (5)": [
+   "foot2"
+  ],
+  "level2:Player1/Audio Source (1)": [
+   "foot2"
+  ],
+  "level2:Player2/Audio Source (3)": [
+   "foot2"
+  ],
+  "level2:Player3/die": [
+   "scriming_3"
+  ],
+  "level2:Animal and eggs/tarara/sleep (4)": [
+   "sleep_1"
+  ],
+  "level2:Animal and eggs/blood fab/sleep (4)": [
+   "sleep_1"
+  ],
+  "level2:Animal and eggs/mout/sleep (4)": [
+   "sleep_1"
+  ],
+  "level2:Animal and eggs/ahuizotle/sleep (4)": [
+   "sleep_1"
+  ],
+  "level2:Animal and eggs/voxel/sleep (4)": [
+   "sleep_1"
+  ],
+  "level2:Player6/Ellipse 2 (5)": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player5/Ellipse 2 (4)": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player3/Ellipse 2 (2)": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player4/Ellipse 2 (3)": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player1/Ellipse 2": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player2/Ellipse 2 (1)": [
+   "warning_alarm_loop_1_279206"
+  ],
+  "level2:Player6/die": [
+   "scriming_2"
+  ],
+  "level2:Player2/die": [
+   "scriming_2"
+  ],
+  "level2:Env/Enemies/enemy (1)/die (2)": [
+   "scriming_2"
+  ],
+  "level2:Player4/die": [
+   "very_loud_man_screaming_sound_effect_online_audio_converter_com"
+  ],
+  "level2:Env/Enemies/enemy (3)/die (4)": [
+   "very_loud_man_screaming_sound_effect_online_audio_converter_com"
+  ],
+  "level2:Animal and eggs/blood fab/run (2)": [
+   "foot_step"
+  ],
+  "level2:Animal and eggs/ahuizotle/run (2)": [
+   "foot_step"
+  ],
+  "level2:Animal and eggs/mout/run (2)": [
+   "foot_step"
+  ],
+  "level2:Animal and eggs/tarara/run (2)": [
+   "foot_step"
+  ],
+  "level2:Animal and eggs/voxel/run (2)": [
+   "foot_step"
+  ],
+  "level2:Player6/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player2/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player3/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player4/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player5/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player1/attack": [
+   "sfx_attack_mp3cut_net"
+  ],
+  "level2:Player3/Audio Source (4)": [
+   "foot1"
+  ],
+  "level2:Player2/Audio Source (2)": [
+   "foot1"
+  ],
+  "level2:Player1/Audio Source": [
+   "foot1"
+  ],
+  "level2:Player6/Audio Source (10)": [
+   "foot1"
+  ],
+  "level2:Player4/Audio Source (6)": [
+   "foot1"
+  ],
+  "level2:Player5/Audio Source (8)": [
+   "foot1"
+  ],
+  "level2:Animal and eggs/dragon": [
+   "1"
+  ],
+  "level2:Canvas/InGame/TopPanel/Image": [
+   "alarme_342932_2"
+  ],
+  "level2:Player5/die": [
+   "scriming_1"
+  ],
+  "level2:Player1/die": [
+   "scriming_1"
+  ],
+  "level2:Env/Enemies/enemy/die (1)": [
+   "scriming_1"
+  ],
+  "level2:Env/Enemies/enemy (4)/die (5)": [
+   "scriming_1"
+  ],
+  "sharedassets2.assets:egg 1 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 9 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 10 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 6 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 4 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 8 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 5 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 3 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 2 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "sharedassets2.assets:egg 7  Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 1 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 9 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 4 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 8 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 3 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Animal and eggs/egg 2 Variant/memerot (2)": [
+   "sweet_game_over_sound_effect_230470"
+  ],
+  "level2:Player4/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Player2/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Player5/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Player1/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Player6/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Player3/slap": [
+   "hard_slap_46388"
+  ],
+  "level2:Env/Enemies/enemy (3)/slap (4)": [
+   "hard_slap_46388"
+  ],
+  "level2:Env/Enemies/enemy/slap (1)": [
+   "hard_slap_46388"
+  ],
+  "level2:Env/Enemies/enemy (4)/slap (5)": [
+   "hard_slap_46388"
+  ],
+  "level2:Env/Enemies/enemy (1)/slap (2)": [
+   "hard_slap_46388"
+  ],
+  "level2:Animal and eggs/White Duck/run": [
+   "cartoon_step"
+  ],
+  "level2:Animal and eggs/dragon/run (1)": [
+   "cartoon_step"
+  ],
+  "level2:Animal and eggs/tarara": [
+   "4"
+  ],
+  "level2:Animal and eggs/blood fab": [
+   "2"
+  ],
+  "level2:Animal and eggs/voxel": [
+   "6"
+  ],
+  "level2:Animal and eggs/mout": [
+   "5"
+  ]
+ },
+ "audioSourcesWithoutClip": [
+  {
+   "file": "level2",
+   "path": "Player1/Rain",
+   "goId": 8,
+   "sourceId": 9724,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "Player6/Rain",
+   "goId": 64,
+   "sourceId": 9728,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "enemy form/GameObject",
+   "goId": 185,
+   "sourceId": 9734,
+   "volume": 1.0,
+   "loop": false,
+   "playOnAwake": false,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "enemy form (3)/GameObject",
+   "goId": 329,
+   "sourceId": 9738,
+   "volume": 1.0,
+   "loop": false,
+   "playOnAwake": false,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "Player3/Rain",
+   "goId": 610,
+   "sourceId": 9748,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "Player4/Rain",
+   "goId": 665,
+   "sourceId": 9750,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "enemy form (1)/GameObject",
+   "goId": 876,
+   "sourceId": 9761,
+   "volume": 1.0,
+   "loop": false,
+   "playOnAwake": false,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "Player5/Rain",
+   "goId": 893,
+   "sourceId": 9763,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  },
+  {
+   "file": "level2",
+   "path": "Player2/Rain",
+   "goId": 898,
+   "sourceId": 9764,
+   "volume": 0.12,
+   "loop": true,
+   "playOnAwake": true,
+   "scripts": []
+  }
+ ],
+ "notes": [
+  "Unity 6 AudioSource keeps its clip in m_Resource; SoundManager fields (level0) point at AudioSources, so refs with via=AudioSource go through the source.",
+  "kind: music = long background loop clips (sonami music, sleep); loop = clip on a looping AudioSource; oneshot otherwise.",
+  "sources: AudioSource components (file = scene or asset file; prefab objects inside sharedassets*). refs: MonoBehaviour PPtr fields.",
+  "mp3: mono 64 kbit/s, music stereo 96 kbit/s."
+ ]
+}

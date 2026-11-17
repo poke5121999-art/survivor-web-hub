@@ -1,0 +1,8 @@
+Fonts used by the HUD, extracted from the original game's Unity assets (Font objects) so they match exactly.
+
+Bangers.ttf       Bangers by Vernon Adams (Google Fonts). SIL Open Font License 1.1, https://openfontlicense.org
+Roboto-Bold.ttf   Roboto by Christian Robertson (Google Fonts). Apache License 2.0, https://www.apache.org/licenses/LICENSE-2.0
+Insanibu.ttf      "Insaniburger" and
+Insanibc.ttf      "Insaniburger with Cheese" (Insanibu / Insanibc): taken from the game's own assets. Licence terms were not
+                  found in the file (no copyright field); they are the original game's fonts, used here for the remake of
+                  that game. Replace with a licensed font before any public release if the author's terms do not allow it.

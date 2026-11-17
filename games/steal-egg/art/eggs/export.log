@@ -1,0 +1,18 @@
+prefab 4003 -> egg 9 Variant root node 0
+prefab 4005 -> egg 1 Variant root node 107
+prefab 4006 -> egg 10 Variant root node 209
+prefab 4008 -> egg 4 Variant root node 316
+prefab 4009 -> egg 8 Variant root node 418
+prefab 4010 -> egg 6 Variant root node 525
+prefab 4011 -> egg 2 Variant root node 632
+prefab 4012 -> egg 3 Variant root node 734
+prefab 4014 -> egg 5 Variant root node 836
+prefab 4015 -> egg root node 938
+prefab 4018 -> egg 7  Variant root node 1040
+  tex egg4-texture-9ef511ad 1024x1024 RGB
+  tex White-0f89614a 512x512 RGB
+  tex egg6-texture-4919c956 1024x1024 RGB
+  tex egg5-texture-75aecbe9 1024x1024 RGB
+  tex egg2-texture-1b9ae929 1024x1024 RGB
+  tex egg3-texture-96bdf9da 1024x1024 RGB
+  tex egg-texture-84553efe 1024x1024 RGB

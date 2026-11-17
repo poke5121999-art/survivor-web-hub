@@ -1,0 +1,244 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Steal An Egg export check</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#7aa7d8;overflow:hidden}canvas{display:block}
+#info{position:fixed;left:6px;top:6px;font:12px monospace;color:#fff;background:#0008;padding:4px 6px;white-space:pre}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+</head><body><div id="info">loading</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+import MeshoptDecoder from './vendor/meshopt_decoder.js';
+
+const Q = new URLSearchParams(location.search);
+const SET = Q.get('s') || 'world';
+const info = document.getElementById('info');
+const say = t => { info.textContent = t; };
+const loadJson = u => fetch(u).then(r => r.json());
+const srgb = c => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+// Gamma colour space project: textures and colours are used as stored, output without conversion.
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene3 = new THREE.Scene();
+scene3.background = new THREE.Color(0x7aa7d8);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 2000);
+const amb = new THREE.HemisphereLight(0xffffff, 0xcccccc, 1.4);
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+scene3.add(amb, sun, sun.target);
+
+const texLoader = new THREE.TextureLoader();
+const texCache = new Map();
+function tex(sc, i) {
+  if (!texCache.has(i)) {
+    const t = texLoader.load(`./art/tex/${sc.textures[i].name}.webp`);
+    t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.flipY = false;
+    texCache.set(i, t);
+  }
+  return texCache.get(i);
+}
+const shadersSeen = new Set();
+function makeMat(sc, e) {
+  shadersSeen.add(e.shader);
+  const c = e.color || [1, 1, 1, 1];
+  const p = { color: new THREE.Color(c[0], c[1], c[2]), side: e.cull === 'none' ? THREE.DoubleSide : THREE.FrontSide };
+  if (e.tex != null) {
+    p.map = tex(sc, e.tex);
+    if (e.st) { p.map = p.map.clone(); p.map.repeat.set(e.st[0], e.st[1]); p.map.offset.set(e.st[2], e.st[3]); p.map.needsUpdate = true; }
+  }
+  if (e.alpha === 'MASK') { p.alphaTest = e.cutoff ?? 0.5; }
+  if (e.alpha === 'BLEND') { p.transparent = true; p.opacity = c[3]; }
+  if (/Unlit/.test(e.shader)) return new THREE.MeshBasicMaterial(p);
+  return new THREE.MeshLambertMaterial(p);
+}
+
+async function main() {
+  const base = `./art/${SET}/`;
+  const [sc, clipsJ, ctrls] = await Promise.all([loadJson(base + 'scene.json'), loadJson('./art/anim/clips.json').catch(() => ({ clips: {} })), loadJson('./art/anim/controllers.json').catch(() => ({}))]);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(base + 'geo.glb');
+  const geo = [];
+  gltf.scene.children.forEach(o => { geo[+o.name.slice(1)] = o; });
+  const mats = sc.materials.map(e => makeMat(sc, e));
+  const objs = sc.nodes.map(n => {
+    const o = new THREE.Group(); o.name = n.n;
+    if (n.t) o.position.fromArray(n.t);
+    if (n.r) o.quaternion.fromArray(n.r);
+    if (n.s) o.scale.fromArray(n.s);
+    o.visible = n.a !== 0; o.userData.node = n; return o;
+  });
+  const root = new THREE.Group(); scene3.add(root);
+  // prefab sets hold many roots: lay them out on a grid so one screenshot shows all
+  const rootsIdx = [];
+  sc.nodes.forEach((n, i) => { if (n.p >= 0) objs[n.p].add(objs[i]); else { rootsIdx.push(i); root.add(objs[i]); } });
+  const isSet = SET !== 'world';
+  if (isSet) {
+    const cols = Math.ceil(Math.sqrt(rootsIdx.length));
+    rootsIdx.forEach((ri, k) => { objs[ri].position.set((k % cols) * 7, 0, Math.floor(k / cols) * 7); objs[ri].visible = true; });
+  }
+  root.updateMatrixWorld(true);
+  let nMesh = 0, nSkin = 0;
+  const dq = src => { src.updateMatrix(); return src.matrix.clone(); };
+  sc.nodes.forEach((n, i) => {
+    if (n.m != null && geo[n.m]) {
+      const src = geo[n.m]; const all = src.isMesh ? [src] : src.children;
+      const prims = n.sb ? all.slice(n.sb[0], n.sb[0] + n.sb[1]) : all;
+      const unb = n.sb ? objs[i].matrixWorld.clone().invert() : null;
+      prims.forEach((prim, k) => {
+        const mi = n.mt[Math.min(k, n.mt.length - 1)]; if (mi == null) return;
+        const m = new THREE.Mesh(prim.geometry, mats[mi]);
+        m.applyMatrix4(dq(src)); if (unb) m.applyMatrix4(unb);
+        m.visible = n.ren !== 0; objs[i].add(m); nMesh++;
+      });
+    }
+    if (n.sk && geo[n.sk.m]) {
+      const src = geo[n.sk.m]; const all = src.isMesh ? [src] : src.children; const q = dq(src);
+      const skel = new THREE.Skeleton(n.sk.bones.map(b => objs[b]), sc.meshes[n.sk.m].bind.map(a => new THREE.Matrix4().fromArray(a).multiply(q)));
+      all.forEach((prim, k) => {
+        const mi = n.sk.mt[Math.min(k, n.sk.mt.length - 1)]; if (mi == null) return;
+        const sm = new THREE.SkinnedMesh(prim.geometry, mats[mi]);
+        sm.bind(skel, new THREE.Matrix4()); sm.frustumCulled = false; sm.visible = n.sk.ren !== 0;
+        objs[i].add(sm); nSkin++;
+      });
+    }
+  });
+
+  // light from the scene's directional light
+  const li = sc.nodes.findIndex(n => n.k && n.k.Light);
+  if (li >= 0) {
+    objs[li].updateWorldMatrix(true, false);
+    const d = new THREE.Vector3(0, 0, -1).transformDirection(objs[li].matrixWorld);
+    sun.position.copy(d).multiplyScalar(-50);
+    const L = sc.nodes[li].k.Light; sun.intensity = L.m_Intensity ?? 1;
+    const col = L.m_Color; if (col) sun.color.setRGB(col.r, col.g, col.b);
+  }
+  const r = sc.render || {};
+  if (r.m_AmbientSkyColor) { const a = r.m_AmbientSkyColor;  }
+
+  const mixers = []; let played = 0;
+  // baked humanoid clip on one rig: ?s=world&clip=<alias or clip key>&rig=Player1[&t=<seconds>][&view=front|side|three]
+  // Shows only that Player / enemy object, plays clips["<clip key>|<Rig>"] (art/anim/clips.json "humanoid" index).
+  const wantClip = Q.get('clip'), wantRig = Q.get('rig');
+  let rigInfo = null;
+  if (wantClip && wantRig && !isSet) {
+    const H = clipsJ.humanoid || { owners: {}, aliases: {} };
+    const ri = sc.nodes.findIndex(n => n.n === wantRig);
+    if (ri < 0) throw new Error('no rig object ' + wantRig);
+    const bakedRig = H.owners[wantRig] || wantRig;
+    const ckey = (H.aliases[wantClip] || wantClip) + '|' + bakedRig;
+    const clip = clipsJ.clips[ckey];
+    if (!clip) throw new Error('no baked clip ' + ckey);
+    root.children.forEach(c => { c.visible = false; });
+    let top = objs[ri]; while (top.parent && top.parent !== root) top = top.parent;
+    top.visible = true;
+    for (let o = objs[ri]; o && o !== root; o = o.parent) o.visible = true;
+    const R = objs[ri];
+    R.children.forEach(c => { if (!c.children.some(g => g.name === 'mixamorig:Hips')) c.visible = false; });
+    const rigNode = R.children.find(c => c.children.some(g => g.name === 'mixamorig:Hips')) || R;
+    rigNode.visible = true;
+    R.position.set(0, 0, 0); R.quaternion.identity();
+    const find = path => { let o = rigNode; for (const p of path.split('/')) { o = o.children.find(c => c.name === p); if (!o) return null; } return o; };
+    const tracks = []; let missing = 0;
+    clip.tracks.forEach(t => {
+      const o = find(t.path); if (!o) { missing++; return; }
+      const Kt = t.prop === 'quaternion' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack;
+      tracks.push(new Kt(`${o.uuid}.${t.prop}`, t.times, t.values));
+    });
+    const mxr = new THREE.AnimationMixer(root);
+    const act = mxr.clipAction(new THREE.AnimationClip(clip.name, clip.duration, tracks)); act.play();
+    const tq = Q.get('t');
+    if (tq != null) { act.paused = true; act.time = +tq % clip.duration; }
+    mxr.update(0); mixers.push(mxr);
+    const bone = n => { let f = null; rigNode.traverse(o => { if (o.name === n) f = o; }); return f; };
+    const sample = t => { act.paused = true; act.time = t; mxr.update(0); root.updateMatrixWorld(true);
+      const P = o => o.getWorldPosition(new THREE.Vector3()).toArray();
+      return { hips: P(bone('mixamorig:Hips')), lf: P(bone('mixamorig:LeftFoot')), rf: P(bone('mixamorig:RightFoot')),
+               ltoe: P(bone('mixamorig:LeftToeBase')), rtoe: P(bone('mixamorig:RightToeBase')) }; };
+    rigInfo = { clip: ckey, duration: clip.duration, loop: clip.loop, travel: clip.travel, tracks: tracks.length, missing };
+    window.__rig = { info: rigInfo, sample, setTime: t => { act.paused = true; act.time = t; mxr.update(0); },
+      scale: rigNode.getWorldScale(new THREE.Vector3()).x };
+    played = 99;
+    root.updateMatrixWorld(true);
+    say(`rig ${wantRig} clip ${ckey} tracks ${tracks.length}/${clip.tracks.length} missing ${missing}`);
+  }
+  // animation: first Animator whose controller default state has a clip
+  const ckeyByRef = {}; Object.entries(ctrls).forEach(([k, v]) => { ckeyByRef[v.ref] = k; });
+  const clipsAll = clipsJ.clips;
+  const fileOf = SET === 'world' ? 'level2' : (SET === 'brainrots' ? 'resources.assets' : 'sharedassets2.assets');
+  const tried = new Set();
+  sc.nodes.forEach((n, i) => {
+    const A = n.k && n.k.Animator; if (!A || played >= 8) return;
+    const sub = []; objs[i].traverse(o => sub.push(o));
+    if (!sub.some(o => o.isBone === undefined && o.userData.node && o.userData.node.sk) && !sub.some(o => o.isSkinnedMesh)) return;
+    let clip = null;
+    const cp = A.m_Controller;
+    let ck = cp && (cp.f ? ckeyByRef[`${cp.f}:${cp.id}`] : ckeyByRef[`${fileOf}:${cp.id}`]);
+    if (ck) {
+      const ly = ctrls[ck].layers[0]; const st = ly && ly.states[ly.default];
+      if (st && st.clip) clip = clipsAll[st.clip];
+      if (!clip && ly) for (const s of Object.values(ly.states)) if (s.clip && clipsAll[s.clip] && clipsAll[s.clip].tracks.length) { clip = clipsAll[s.clip]; break; }
+    }
+    if (!clip || !clip.tracks.length) return;
+    const find = path => { let o = objs[i]; if (!path) return o; for (const p of path.split('/')) { o = o.children.find(c => c.name === p); if (!o) return null; } return o; };
+    const tracks = [];
+    clip.tracks.forEach(t => {
+      const o = find(t.path); if (!o) return;
+      const Kt = t.prop === 'quaternion' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack;
+      tracks.push(new Kt(`${o.uuid}.${t.prop === 'quaternion' ? 'quaternion' : t.prop}`, t.times, t.values));
+    });
+    if (!tracks.length) return;
+    const mx = new THREE.AnimationMixer(objs[i]);
+    // PropertyBinding resolves by uuid via root.getObjectByProperty; fall back to scene root
+    const ac = new THREE.AnimationClip(clip.name, clip.duration, tracks);
+    const mxr = new THREE.AnimationMixer(root); mxr.clipAction(ac).play();
+    mixers.push(mxr); played++;
+    say(`playing ${clip.name} (${tracks.length}/${clip.tracks.length} tracks resolved)`);
+  });
+
+  if (rigInfo) {
+    scene3.background = new THREE.Color(0x9fb8d8);
+    const R = objs[sc.nodes.findIndex(n => n.n === wantRig)];
+    const box = new THREE.Box3().setFromObject(R); const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+    const grid = new THREE.GridHelper(Math.max(sz.y * 3, 1), 12, 0x333333, 0x667788); grid.position.set(c.x, box.min.y + 0.0, c.z); scene3.add(grid);
+    const view = Q.get('view') || 'three', d = Math.max(sz.y, 0.5) * 2.3;
+    const dir = { front: [0, 0.15, 1], side: [1, 0.15, 0], three: [0.7, 0.3, 0.9], back: [0, 0.15, -1] }[view];
+    camera.fov = 35; camera.near = d / 50; camera.far = d * 50;
+    camera.position.set(c.x + dir[0] * d, c.y + dir[1] * d, c.z + dir[2] * d); camera.lookAt(c); camera.updateProjectionMatrix();
+    window.__stats = { rig: rigInfo }; say(info.textContent + ' ' + JSON.stringify(rigInfo.travel)); window.__ready = true;
+    const clock0 = new THREE.Clock(); const hold = Q.get('t') != null;
+    renderer.setAnimationLoop(() => { const dt = clock0.getDelta(); if (!hold) mixers.forEach(m => m.update(dt)); renderer.render(scene3, camera); });
+    return;
+  }
+  // camera: scene MainCamera, else frame the bounds
+  const ci = sc.nodes.findIndex(n => n.n === 'MainCamera' && n.k && n.k.Camera);
+  const box = new THREE.Box3().setFromObject(root);
+  if (ci >= 0 && !isSet) {
+    objs[ci].updateWorldMatrix(true, false);
+    const C = sc.nodes[ci].k.Camera;
+    camera.fov = C.field_of_view ?? C['field of view'] ?? 60; camera.near = C.near_clip_plane ?? 0.3; camera.far = C.far_clip_plane ?? 1000;
+    camera.matrixAutoUpdate = true;
+    objs[ci].matrixWorld.decompose(camera.position, camera.quaternion, new THREE.Vector3());
+    // z was mirrored on export, so Unity's +z look direction is three's default -z: no extra turn
+    if (Q.get('top')) { const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()); camera.position.set(c.x, box.max.y + Math.max(s.x, s.z) * 0.9, c.z); camera.lookAt(c); }
+  } else {
+    let c, s;
+    if (isSet) { const cols = Math.ceil(Math.sqrt(rootsIdx.length)), rows = Math.ceil(rootsIdx.length / cols); c = new THREE.Vector3((cols - 1) * 3.5, 2.5, (rows - 1) * 3.5); s = new THREE.Vector3(cols * 7, 5, rows * 7); }
+    else { c = box.getCenter(new THREE.Vector3()); s = box.getSize(new THREE.Vector3()); }
+    const dz = isSet ? -1 : 1; camera.position.set(c.x, c.y + s.y * 0.5 + 2, c.z + dz * (Math.max(s.x, s.z) * 0.75 + 3)); camera.lookAt(c);
+    camera.far = 5000;
+  }
+  camera.updateProjectionMatrix();
+  const meshMats = sc.materials.length;
+  if (Q.get('top')) { const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()); camera.fov = 50; camera.position.set(c.x, box.max.y + Math.max(s.x, s.z) * 0.8, c.z + 1); camera.lookAt(c); camera.updateProjectionMatrix(); }
+  if (Q.get('cam')) { camera.fov = +(Q.get('fov') || 55); camera.position.fromArray(Q.get('cam').split(',').map(Number)); camera.lookAt(new THREE.Vector3().fromArray(Q.get('look').split(',').map(Number))); camera.updateProjectionMatrix(); }
+  const stats = `${SET}: nodes ${sc.nodes.length} meshes ${nMesh} skinned ${nSkin} mats ${meshMats} tex ${sc.textures.length} anim ${played}`;
+  window.__stats = { nodes: sc.nodes.length, meshes: nMesh, skinned: nSkin, anim: played, shaders: [...shadersSeen] };
+  say(stats);
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => { const dt = clock.getDelta(); mixers.forEach(m => m.update(dt)); renderer.render(scene3, camera); window.__frames = (window.__frames || 0) + 1; });
+  window.__ready = true;
+}
+main().catch(e => { say('ERROR ' + e.message); console.error(e); window.__err = e.message; });
+</script></body></html>

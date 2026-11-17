@@ -1121,5 +1121,20 @@ window.HUB_GAMES = [
     rev: "20261116d",
     status: "available",
     tags: ["Thử nghiệm", "Robot", "Nhân vật 3D", "Không asset"]
+  },
+  {
+    id: "steal-egg",
+    title: "Trộm Trứng",
+    tagline: "Lẻn tới tổ con vật đang ngủ, ôm trứng chạy về farm cho nở thành brainrot đẻ ra xu, đấu 3 đối thủ cũng đi trộm.",
+    desc: "Làm lại Steal An Egg! (Game studio 220) từ bản Android 0.6, chạy thẳng trên web với map, nhân vật, con vật, trứng, brainrot, giao diện và tiếng lấy từ APK gốc. Lẻn tới 7 con vật đang ngủ, đứng cạnh trứng 2 giây để trộm rồi ôm chạy về farm trước khi bị đuổi kịp; trứng nở sau 30 giây thành brainrot trả xu mỗi giây. Bán brainrot, nâng farm từ 3 lên 20 ô, nâng tốc độ chạy. 3 đối thủ AI cũng trộm trứng và lẻn vào farm của bạn khi cổng mở; đóng cổng, phang gậy cho chúng choáng. Hồi sinh và thưởng quảng cáo bấm là nhận. Đang làm tiếp: cửa hàng gậy, đồ trang trí, cài đặt, menu chính. Màn ngang, joystick trên điện thoại, WASD trên máy tính, lưu trong trình duyệt.",
+    genre: "hanh-dong",
+    accent: "#18bff0",
+    en: { title: "Steal An Egg", tagline: "Sneak up on sleeping animals, carry their eggs home to hatch brainrots that pay coins, against 3 rivals who steal too.", desc: "Steal An Egg! (Game studio 220) remade from the Android 0.6 release to run in the browser, with the map, characters, animals, eggs, brainrots, UI and sounds taken from the original APK. Sneak up on 7 sleeping animals, stand by an egg for 2 seconds to steal it and run home before you are caught; eggs hatch in 30 seconds into brainrots that pay coins every second. Sell brainrots, grow the farm from 3 to 20 slots, buy speed. 3 AI rivals steal eggs too and raid your farm when the gate is open; lock it and bat them to stun them. Revive and ad rewards are free. Coming next: bat shop, cosmetics, settings, main menu. Landscape, touch joystick or WASD, saved in the browser." },
+    thumbnail: "assets/thumbnails/steal-egg.png",
+    // Dựng bên linux (~/stealegg-work, ref ~/stealegg-ref): three.js thuần, art/luật bóc từ XAPK com.mega.steal.egg v0.6. Test: games/steal-egg/test.
+    path: "games/steal-egg/index.html",
+    rev: "20261117a",
+    status: "available",
+    tags: ["Hành động", "Trộm đồ", "Màn ngang"]
   }
 ];
