@@ -14,9 +14,9 @@ run() { # name frames every js [gather distance]
   GD=${5:-6}
   timeout 1500 node tools/film.js "ml-$1" "$Q" 60 "$2" "$(echo "$SETUP" | sed "s/GDIST/$GD/") $HOLD $4 __film.at(u.x + (cx - u.x) * 0.7, u.z + (cz - u.z) * 0.7, 15);" "" "$3" mulan 12 2>&1 | tail -3
 }
-run s1 36 1 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: t < 3, s2: false, ult: false, heal: false, tx: cx, tz: cz }; });"
-run s1b 36 1 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: t < 3 || (t > 16 && t < 19), s2: false, ult: false, heal: false, tx: cx, tz: cz }; });"
-run s2 54 1 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: false, s2: t < 3, ult: false, heal: false, tx: cx, tz: cz }; });" 3.2
-run ult 60 1 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: false, s2: false, ult: t < 3 || (t > 40 && t < 43), heal: false, tx: cx, tz: cz }; });"
+run s1 40 2 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: t < 3, s2: false, ult: false, heal: false, tx: cx, tz: cz }; });"
+run s1b 26 2 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: t < 3 || (t > 16 && t < 19), s2: false, ult: false, heal: false, tx: cx, tz: cz }; });"
+run s2 30 2 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: false, s2: t < 3, ult: false, heal: false, tx: cx, tz: cz }; });" 3.2
+run ult 36 2 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: false, s2: false, ult: t < 3 || (t > 40 && t < 43), heal: false, tx: cx, tz: cz }; });"
 run ultfull 54 2 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: false, s1: false, s2: false, ult: t < 3, heal: false, tx: cx, tz: cz }; });"
 run basic 60 1 "__input(() => { t++; return { mx: 0, mz: 0, aim: Math.atan2(cz - u.z, cx - u.x), fire: true, s1: false, s2: false, ult: false, heal: false, tx: cx, tz: cz }; });" 4.5

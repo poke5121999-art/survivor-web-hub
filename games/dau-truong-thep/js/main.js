@@ -447,7 +447,8 @@ async function boot() {
     const dt = Math.min(0.1, raw / 1000);
     ema += (raw - ema) * 0.05; stats.ms = ema; stats.fps = 1000 / ema;
     if (!params.manual) { time += dt; advance(dt); govern(raw); }
-    draw(dt);
+    // manual (film, shots): game time only moves in __step, so a redraw between steps must not age the effects by wall time
+    draw(params.manual ? 0 : dt);
   }
 
   const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm', size: cleanSize(params.size !== null ? Number(params.size) : s.size) }; };

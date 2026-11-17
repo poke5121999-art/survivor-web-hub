@@ -58,8 +58,9 @@ const CRES_FRAG = `uniform vec3 uColor; uniform float uHead, uFade; varying vec2
     float shown = 1.0 - smoothstep(uHead - 0.02, uHead + 0.02, f);
     float lead = smoothstep(uHead - 0.25, uHead, f) * shown;
     float a = body * shown * uFade;
-    vec3 c = uColor * (0.9 + 0.6 * e) + vec3(2.6, 2.4, 2.6) * (core + lead * 0.4 * body);
-    gl_FragColor = vec4(c * a, a);
+    // drawn over (not added to) the ground, so the magenta stays magenta on light stone; the outer edge burns white
+    vec3 c = mix(uColor * (0.75 + 0.35 * e), vec3(1.0, 0.95, 1.0), clamp(core * 0.9 + lead * 0.35 * body, 0.0, 1.0));
+    gl_FragColor = vec4(c, a * 0.92);
   }`;
 function crescent(kit, x, z, a, r, y, dir, color, life, band = r * 0.42, span = 1.25, travel = 0, SW = 0.22) {
   const n = 40, r0 = r - band, pos = [], fe = [], idx = [];
@@ -72,8 +73,8 @@ function crescent(kit, x, z, a, r, y, dir, color, life, band = r * 0.42, span = 
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('aFE', new THREE.Float32BufferAttribute(fe, 2));
   g.setIndex(idx);
-  const mat = new THREE.ShaderMaterial({ vertexShader: CRES_VERT, fragmentShader: CRES_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide, toneMapped: false, uniforms: { uColor: { value: color.clone() }, uHead: { value: 0 }, uFade: { value: 1 } } });
+  const mat = new THREE.ShaderMaterial({ vertexShader: CRES_VERT, fragmentShader: CRES_FRAG, transparent: true, depthWrite: false,
+    side: THREE.DoubleSide, toneMapped: false, uniforms: { uColor: { value: color.clone().multiplyScalar(1 / Math.max(color.r, color.g, color.b)) }, uHead: { value: 0 }, uFade: { value: 1 } } });
   const mesh = new THREE.Mesh(g, mat);
   mesh.position.set(x, 0, z); mesh.rotation.y = -a; mesh.scale.z = dir; mesh.frustumCulled = false; mesh.renderOrder = 6;
   kit.group.add(mesh);
@@ -164,7 +165,7 @@ export const LOOKS = {
   // Kinh Hồng Tam Thức: three magenta crescents in front, each sweeping back the other way; the third is bigger and lands
   // with the white-gold flash (its raw max-hp cut).
   mlSweep: {
-    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, PINK, 0.2, 2.2, 0.8, kit.K.GLOW, 1.3); return true; },
+    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, PINK, 0.2, 1.6, 0.5, kit.K.GLOW, 1.3); return true; },
     nova(kit, e, u, s) {
       const k = e.k || 0, big = k === (s.repeat || 1) - 1, r = e.r * (big ? 1.15 : 1);
       crescent(kit, e.x, e.z, e.a, r, 1.1, k % 2 ? -1 : 1, big ? HOT : PINK, big ? 0.6 : 0.5);
@@ -176,7 +177,7 @@ export const LOOKS = {
       return true;
     },
     castMake() { return {}; },
-    cast(kit, v, u) { if (Math.random() < 0.5) kit.glow(u.x, 1.2, u.z, PINK, 0.12, 2.0, 0.6, kit.K.GLOW, 1.1); },
+    cast(kit, v, u) { if (Math.random() < 0.3) kit.glow(u.x, 1.2, u.z, PINK, 0.12, 1.2, 0.35, kit.K.GLOW, 1.1); },
   },
   // Không Bạo Liên Thành Trảm: while held a magenta orb swirls round her and two pink guide lines mark the blade's reach and
   // width, both growing with the charge; let go, a giant crescent and a long sword-light wave run down the lane.
@@ -196,11 +197,11 @@ export const LOOKS = {
       }
       v.spin += dt * (5 + 8 * f);
       const R = 1.6 + 0.4 * Math.sin(v.spin * 0.7);
-      kit.glow(u.x, 1.2, u.z, PINK, 0.08, 3.0 + 2.2 * f, 0.6 + 0.35 * f, kit.K.GLOW, 1);
-      kit.glow(u.x, 1.2, u.z, HOT, 0.06, 1.4 + 1.2 * f, 0.6, kit.K.STAR, 1);
+      kit.glow(u.x, 1.2, u.z, DEEP, 0.08, 1.8 + 1.2 * f, 0.3 + 0.25 * f, kit.K.GLOW, 1);
+      kit.glow(u.x, 1.2, u.z, PINK, 0.06, 0.8 + 0.6 * f, 0.4, kit.K.STAR, 1);
       for (let i = 0; i < 2; i++) {
         const b = v.spin + i * Math.PI;
-        kit.str.emit(u.x + Math.cos(b) * R, 1.2 + 0.4 * Math.sin(b * 1.7), u.z + Math.sin(b) * R, -Math.sin(b) * 9, 0, Math.cos(b) * 9, i ? PINK : HOT, 0.16, 0.07, 0.05, 0, 0, 1);
+        kit.str.emit(u.x + Math.cos(b) * R, 1.2 + 0.4 * Math.sin(b * 1.7), u.z + Math.sin(b) * R, -Math.sin(b) * 9, 0, Math.cos(b) * 9, i ? PINK : DEEP, 0.16, 0.1, 0.05, 0, 0, 1);
       }
       if (Math.random() < dt * 10) petals(kit, u.x + ca * len * Math.random(), 0.5, u.z + sa * len * Math.random(), 1, w * 0.4, 0.6);
     },
