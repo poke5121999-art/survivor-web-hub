@@ -142,8 +142,8 @@ export const LOOKS = {
       const end = Math.min(1, (z.dur - z.age) * 2.5), pulse = 0.75 + 0.25 * Math.sin(z.age * 9);
       v.g.userData.mats[0].opacity = 0.8 * pulse * end;
       v.g.scale.setScalar(1.7 * (0.85 + 0.15 * end));
-      kit.glow(z.x, 3.2, z.z, PINK, 0.08, 3.4, 0.35 * pulse * end, kit.K.GLOW, 1);
-      kit.glow(z.x, 1.0, z.z, CYAN, 0.08, 2.0, 0.25 * end, kit.K.GLOW, 1);
+      kit.glow(z.x, 3.2, z.z, DEEP, 0.08, 2.6, 0.22 * pulse * end, kit.K.GLOW, 1);
+      kit.glow(z.x, 1.0, z.z, CYAN, 0.08, 1.6, 0.15 * end, kit.K.GLOW, 1);
       if (Math.random() < dt * 40) { const a = Math.random() * 6.283, d = Math.random() * z.r; kit.glow(z.x + Math.cos(a) * d, 0.3, z.z + Math.sin(a) * d, PINK, 0.5, 0.28, 1, kit.K.SPARK, 0.3, 0, kit.rnd(1, 3), 0); }
       if (Math.random() < dt * 4) petals(kit, z.x, 2.5, z.z, 1, 0.6, 1);
       if (Math.random() < dt * 3) kit.glow(z.x, 2.2, z.z, PINK, 0.4, 2.6, 0.6, kit.K.GLOW, 1.2);

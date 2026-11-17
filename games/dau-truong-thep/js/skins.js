@@ -4,14 +4,16 @@
 // between two colours and its own aura ramp at form III). Pure data, no THREE, so the save, the lobby and Node tests
 // can read it.
 //
-// A row: { id, name, grade, price, pal, finish?, aura?, flair? }
+// A row: { id, name, grade, price, pal, finish?, aura?, flair?, variant? }
 //   pal: { body, deep, trim, glow } replaces the tank's STYLES colours (gfx/styles.js), null for the tank's own look.
 //   finish: 'gloss' | 'chrome' | 'satin' | 'pearl', how polished the whole model reads (gfx/mechs.js FINISHES).
 //   aura: a key of AURAS, the colour ramp of the form III flame aura.
 //   flair: { sigil: 'sun' | 'lotus' | 'rune' | 'star' | 'wave', pulse: hex } (SS only).
+//   variant: a design variant name the tank's model builder reads as st.variant (gfx/mechs.js build), for an SS skin that
+//     is a different model, not only a recolour (moclan 'phoenix'); a design that knows no variant ignores it.
 // A later per-skin stat bonus (the reference panel's collection bonuses) would be one more field here, read nowhere yet.
 //
-// To give a tank its own skins (moclan, for example), replace its row in SKINS below; ids only have to be unique
+// To give a tank its own skins, set SKINS[key] after the generated rows (as moclan does); ids only have to be unique
 // within the tank and 'goc' stays the free one.
 
 export const GRADES = {
@@ -93,8 +95,6 @@ const T = {
   nhenthep: ['Nhện Thép Góa Phụ', [0x14141a, 0x040406, 0xd8202a, 0xff3040], 'gloss', 'Nhện Tơ Bạc', [0xe8eef4, 0x5a6a7a, 0x8ad8ff, 0xb0f0ff, 0xffffff], 'star', 'frost'],
   taothao: ['Tào Tháo Ngụy Vương', [0x1a2a6a, 0x060c26, 0xd9b23a, 0xffd060], 'gloss', 'Tào Tháo Bá Đồ', [0x3a0a0a, 0x100202, 0xf2c040, 0xff4a2a, 0xffe080], 'sun', 'blood'],
   bongua: ['Bọ Ngựa Hoa Lan', [0xf0c8e0, 0x8a4a7a, 0x9aff6a, 0xff9ad8], 'pearl', 'Bọ Ngựa Phỉ Thúy', [0x0e4a2a, 0x021a0e, 0xf2d070, 0x60ffa0, 0xe0ff80], 'lotus', 'jade'],
-  // Placeholders in the spirit of the reference (A pink 花木兰II, S gold 花木兰III, SS phoenix 凰兮凤舞); the moclan agent replaces this row.
-  moclan: ['Mộc Lan Hoàng Kim', [0xd8a830, 0x3a2008, 0xc8302a, 0xffd060], 'gloss', 'Phượng Hoàng Vũ', [0xc81a1a, 0x3a0404, 0xffc030, 0xff7020, 0xffe080], 'sun', 'phoenix'],
   anduong: ['An Dương Thần Nỏ', [0x1a5a4a, 0x062018, 0xd8b040, 0x80ffd0], 'gloss', 'Kim Quy Thần Nỏ', [0xe8c040, 0x6a4a10, 0x2aa080, 0x60ffd0, 0xfff0a0], 'rune', 'gold'],
   chuottui: ['Chuột Túi Sa Mạc Đỏ', [0xb84a2a, 0x4a1a0a, 0xf2e0c0, 0xffa060], 'satin', 'Chuột Túi Tinh Không', [0x1a1a4a, 0x060614, 0xd8e0ff, 0x80c0ff, 0xffe0ff], 'star', 'storm'],
   vesau: ['Ve Sầu Hổ Phách', [0xd89a2a, 0x5a3808, 0x3a1a10, 0xffc040], 'gloss', 'Ve Sầu Kim Thiền', [0x0e3a2a, 0x02140e, 0xf2d070, 0x80ffc0, 0xfff0a0], 'lotus', 'jade'],
@@ -109,6 +109,14 @@ for (const [k, [sn, sp, sf, xn, xp, sig, aura]] of Object.entries(T)) {
     { id: 'ss', name: xn, grade: 'SS', price: SKIN_PRICE.SS, pal: pal4(xp), finish: 'chrome', aura, flair: { sigil: sig, pulse: xp[4] } },
   ];
 }
+
+// Hoa Mộc Lan: the three skins of the owner's old game (坦克皮肤 panel): A 花木兰II pink (the tank's own look), S 花木兰III
+// gold and black with red accents, SS 凰兮凤舞 a different model: the phoenix variant of the design (gfx/ornate-b5.js).
+SKINS.moclan = [
+  { id: BASE_SKIN, name: 'Hoa Mộc Lan II', grade: 'A', price: SKIN_PRICE.A, pal: null },
+  { id: 's', name: 'Hoa Mộc Lan III', grade: 'S', price: SKIN_PRICE.S, pal: pal4([0xe0b038, 0x18181c, 0xd02830, 0xffd060]), finish: 'gloss' },
+  { id: 'ss', name: 'Hoàng Hề Phượng Vũ', grade: 'SS', price: SKIN_PRICE.SS, pal: pal4([0xc81a1a, 0x3a0404, 0xffc030, 0xff7020]), finish: 'chrome', aura: 'phoenix', flair: { sigil: 'sun', pulse: 0xffe080 }, variant: 'phoenix' },
+];
 
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // The row a tank wears for `id`; an unknown id (or a tank with no skins) is its own look. null for bosses and unknown keys.

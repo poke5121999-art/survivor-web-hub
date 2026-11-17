@@ -114,7 +114,7 @@ export const STYLES = {
   bongua: { chassis: 'bocap', frame: { hull: 'tri', hullL: 1.8, hullW: 1.0, hullH: 0.36, move: 'legs4', reach: 0.95, spread: 0.6, legT: 0.75, turret: 'wedge', turretS: 0.7, gun: 'twin', gunL: 0.5, sig: ['scythes'] },
     body: 0x1e2a22, deep: 0x0b120d, trim: 0x7ad94a, glow: 0xc8ff7a },
   moclan: { chassis: 'soi', frame: { hull: 'hex', hullL: 2.0, hullW: 1.05, hullH: 0.45, move: 'wheels4', wheelR: 0.36, turret: 'dome', turretS: 0.85, gun: 'long', gunL: 1.2, sig: ['scales', 'flower', 'saber', 'ribbons'] },
-    body: 0xc23a4a, deep: 0x4a1018, trim: 0xf2d06a, glow: 0xff9ad0 },
+    body: 0xe86aa6, deep: 0x24485a, trim: 0xf2d06a, glow: 0xff6ad8 },   // 花木兰II: pink lacquer, teal under-plates, gold
   anduong: { chassis: 'ung', frame: { hull: 'disc', hullL: 1.9, hullW: 1.9, hullH: 0.42, move: 'tracks', trackL: 1.4, trackW: 0.26, turret: 'tower', turretS: 0.85, gun: 'bow', gunL: 0.9, sig: ['drum', 'talon'] },
     body: 0x8a6a2a, deep: 0x3a2a10, trim: 0x3a8a5a, glow: 0xffd84a },
   chuottui: { chassis: 'hac', frame: { hull: 'block', hullL: 1.9, hullW: 1.15, hullH: 0.55, move: 'wheels4', wheelR: 0.38, wheelSpan: 1.15, turret: 'dome', turretS: 0.8, turretX: -0.15, gun: 'short', gunL: 0.5, sig: ['pouch', 'bigears', 'roo'] },

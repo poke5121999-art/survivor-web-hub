@@ -1084,12 +1084,13 @@ export function makeMechs(G, tex) {
     return g;
   }
 
-  // The one place a skin reaches the model: its palette replaces the STYLES colours every design reads, its aura ramp
+  // The one place a skin reaches the model: its palette replaces the STYLES colours every design reads (and its variant
+  // rides along as st.variant for a design that has one), its aura ramp
   // replaces the design's form III aura, its finish polishes the material, its flair adds the sigil and the lamp pulse.
   function build(key, team, skinId, form = 2) {
     const def = MECHS[key] || BOSSES[key];
     const sk = MECHS[key] ? skinOf(key, skinId) : null;
-    const st0 = styleFor(key, def.tint), st = sk && sk.pal ? { ...st0, ...sk.pal } : st0;
+    const st0 = styleFor(key, def.tint), st1 = sk && sk.pal ? { ...st0, ...sk.pal } : st0, st = sk && sk.variant ? { ...st1, variant: sk.variant } : st1;
     const gc = new THREE.Color(st.glow);
     const paint = formPaint(st.body, form), deep = new THREE.Color(st.deep);
     const aura = sk && sk.aura && AURAS[sk.aura];

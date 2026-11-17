@@ -92,81 +92,108 @@ function saber(b, len, o = {}) {
 }
 
 export const B5 = {
-  // Hoa Mộc Lan, bruiser: a crimson war chariot on four wheels. A hex hull of lacquered plates with a gold deck, fish-
-  // scale skirts (rows of overlapping round scales, gold rows over crimson) on both flanks, a plum blossom on the
-  // glacis, a stepped helmet turret with a gold visor and a crest plate, two long hair ribbons streaming back from the
-  // helmet, and her two sabers crossed on the rear deck. I: plain plates, short ribbons. II: scales, blossom, crest,
-  // sabers. III: a third scale row, blossoms on the helmet and rear corners, long ribbons, the plum aura.
+  // Hoa Mộc Lan, bruiser, after the owner's old game (花木兰, clip BV1Kp4y1b7i6 p82): a dart-shaped lacquered hull carrying a
+  // huge broad sword as its turret (blade forward, gold guard, two flanking prongs from II), a round engine pod on each
+  // rear flank with a chrome nozzle, a swept wing of layered petal blades on each side, a red plume behind the turret.
+  // I: short sword, two petals a side, small pods. II: prongs, three petals, gold-banded pods, plume. III: long sword,
+  // four petals, lit pods, crest, the plum aura. The SS skin's variant 'phoenix' (凰兮凤舞) swaps the sword for a phoenix
+  // head with twin gold barrels and turns the petals into flame wings with a tail of plumes (skins.js `variant`).
   moclan(h, b, st, paint, trim, deep, form) {
-    const K = start(h, b, st, paint, trim, deep, form, { paint, trim, F: { fenders: false } }), { f, orn } = K, red = C3(paint), gold = f === 1 ? mix(trim, 0x8a8a90, 0.4) : C3(trim), dred = C3(deep), pink = C3(st.glow);
-    const k = new OKit(b, st, trim, form, { red: [red, 'enamel'], redL: [mix(red, 0xff8a8a, 0.25), 'enamel'], redD: [mix(red, dred, 0.5), 'enamel'], gold: [gold, 'gold'], gun: [red, 'enamel'], gunLite: [gold, 'gold'], panel: [gold, 'gold'], under: [mix(dred, 0x0a0406, 0.4), 'dark'], steel: [CHROME, 'chrome'], chrome: [CHROME, 'chrome'], dark: [0x140608, 'dark'] });
-    const y0 = K.g.y0, y1 = K.g.y1, petal = mix(PEARL, pink, 0.55);
+    const K = start(h, b, st, paint, trim, deep, form, { paint, trim, F: { fenders: false } }), { f, orn } = K, phx = st.variant === 'phoenix';
+    const body = C3(paint), dk = C3(deep), acc = C3(trim), glow = C3(st.glow);
+    const k = new OKit(b, st, trim, form, { body: [body, 'enamel'], bodyL: [mix(body, 0xffffff, 0.3), 'pearl'], bodyD: [mix(body, dk, 0.45), 'enamel'], deep: [dk, 'enamel'], gold: [GOLD, 'gold'], acc: [acc, 'gold'], gun: [CHROME, 'chrome'], gunLite: [GOLD, 'gold'], panel: [GOLD, 'gold'], under: [mix(dk, 0x06080a, 0.5), 'dark'], steel: [CHROME, 'chrome'], chrome: [CHROME, 'chrome'], dark: [0x101418, 'dark'] });
+    const y0 = K.g.y0, y1 = K.g.y1;
+    const petal = phx ? 0xff7a1a : body, petal2 = phx ? 0xffc030 : mix(body, dk, 0.3), petalBack = phx ? 0x8a0a0a : dk;
     b.use('hull');
-    k.prism(hexP(0.96, 0.44), y0, y0 + 0.2, 'under', 0.04);
-    k.prism(hexP(1.0, 0.5), y0 + 0.16, y1, 'red', 0.06);
-    k.prism(scl(hexP(1.0, 0.5), 0.76, [-0.05, 0]), y1 - 0.01, y1 + 0.05, f === 1 ? 'redD' : 'gold', 0.015);
-    k.plate(0.8, y1 - 0.06, 0, 0.34, 0.08, 0.5, { col: 'redL', insert: null, rz: -0.5 });
+    // Dart hull: a pointed lacquered fuselage over a dark keel, a stepped deck (deep colour, gold from II).
+    const dart = [[1.02, 0], [0.55, 0.34], [-0.55, 0.44], [-0.95, 0.3], [-0.95, -0.3], [-0.55, -0.44], [0.55, -0.34]];
+    k.prism(scl(dart, 0.92), y0, y0 + 0.2, 'under', 0.04);
+    k.prism(dart, y0 + 0.16, y1, 'body', 0.06);
+    k.prism(scl(dart, 0.72, [-0.1, 0]), y1 - 0.01, y1 + 0.05, f === 1 ? 'bodyD' : 'deep', 0.015);
+    if (f >= 2) k.prism([[0.86, 0], [0.5, 0.1], [0.2, 0.1], [0.2, -0.1], [0.5, -0.1]], y1 + 0.04, y1 + 0.07, 'gold', 0.01);
+    for (const s of [-1, 1]) k.light(0.95, y0 + 0.26, s * 0.1, 0.035, 'glow', '+x');
+    // Side rails over the wheels: one deep-colour step under the petal wing (the frame's own fenders are off).
+    for (const s of [-1, 1]) k.blk(0, y1 - 0.12, s * 0.5, 1.3, 0.1, 0.12, 'deep', 0.03);
+    // Engine pods on the rear flanks: a round lacquered bulb, a chrome nozzle aft, a gold band and a lit ring from II.
+    const pr = [0.22, 0.27, 0.31][f - 1];
     for (const s of [-1, 1]) {
-      k.light(1.0, y0 + 0.24, s * 0.12, 0.04, LAMP.amber, '+x');
-      k.blk(-0.98, y0 + 0.32, s * 0.2, 0.12, 0.14, 0.16, 'gold', 0.03);
-      h.flame(b, () => b.push().move(-1.12, y0 + 0.32, s * 0.2).rotZ(PI / 2).cyl(0.06, 0.015, 0.22, 8).pop());
+      const px = -0.62, py = y1 - 0.02, pz = s * (0.52 + pr * 0.55);
+      fin(b, 'enamel', body); b.push().move(px, py, pz).scale(1.15, 1, 1).ball(pr, 2).pop();
+      fin(b, 'chrome', CHROME); b.push().move(px - pr * 1.05, py, pz).rotZ(PI / 2).cyl(pr * 0.5, pr * 0.7, pr * 0.5, 10).pop();
+      fin(b, 'dark', 0x101418); b.push().move(px - pr * 1.32, py, pz).rotZ(PI / 2).cyl(pr * 0.36, pr * 0.36, 0.04, 10).pop();
+      if (f >= 2) { fin(b, 'gold', GOLD); b.push().move(px + pr * 0.25, py, pz).rotZ(PI / 2).cyl(pr * 1.02, pr * 1.02, 0.05, 14).pop(); }
+      if (f >= 2) h.flame(b, () => b.push().move(px - pr * 1.45, py, pz).rotZ(PI / 2).cyl(pr * 0.3, pr * 0.05, 0.3, 8).pop());
+      if (f === 3) k.lamp('glow', () => b.push().move(px - pr * 1.34, py, pz).rotZ(PI / 2).cyl(pr * 0.3, pr * 0.3, 0.02, 10).pop());
     }
-    // Wheel arches: a lacquered plate over each wheel with a gold lip (the frame's own fenders are off).
-    for (const s of [-1, 1]) for (const x of [-0.66, 0.66]) {
-      k.plate(x, 0.8, s * 0.69, 0.84, 0.08, 0.38, { col: 'red', insert: null, rx: s * 0.12 });
-      k.blk(x, 0.75, s * 0.89, 0.8, 0.05, 0.05, 'gold', 0.015);
-    }
-    if (orn && f >= 2) {
-      // Fish-scale skirts hung outside the wheels: rows of round scales, each row stepped out over the one above,
-      // gold rows over crimson.
-      const rows = f === 2 ? 2 : 3;
-      for (const s of [-1, 1]) for (let r = 0; r < rows; r++) {
-        k.use(r % 2 ? 'redL' : 'gold');
-        for (let i = 0; i < 7; i++) {
-          const x = 0.78 - i * 0.26 + (r % 2) * 0.13;
-          b.push().move(x, 0.68 - r * 0.15, s * (0.9 + r * 0.025)).rotX(PI / 2 + s * 0.12).cyl(0.15, 0.15, 0.035, 8).pop();
+    // Swept wing on each flank: a gold root joint behind the nose, petal blades fanning back and out over the wheels,
+    // each one longer and lower than the one before (pink face, white inner face, deep back; flame colours for phoenix).
+    if (orn) {
+      const n = [2, 3, 4][f - 1] + (phx ? 1 : 0);
+      for (const s of [-1, 1]) {
+        const jx = 0.2, jy = y1 + 0.02, jz = s * 0.42;
+        fin(b, 'gold', GOLD); b.push().move(jx, jy, jz).ball(0.08, 1).pop();
+        for (let i = 0; i < n; i++) {
+          // a: angle of the petal from the aim, from forward-out (first) to back-out (last), the longest at the back
+          const t = n === 1 ? 0 : i / (n - 1), a = 0.75 + 1.45 * t, len = (phx ? 0.85 : 0.66) + 0.3 * t + (f === 3 ? 0.15 : 0);
+          const geo = bladeGeo({ len, w: phx ? 0.44 : 0.38, th: 0.06, wf: WF.petal, ridge: -0.1, sweep: 0.18, lift: phx ? 0.16 : 0.04, seg: 6, edge: phx ? GOLD : mix(body, dk, 0.55), face: petal, face2: petal2, back: petalBack, mz: s < 0,
+            band: phx ? (u) => mix(0xffd040, 0xd0200a, Math.min(1, u * 1.3)) : null });
+          b.push().move(jx - 0.12 * i, jy - 0.035 * i, jz).rotY(-s * a).rotX(-s * (0.18 + 0.05 * i)); put(fin(b, phx ? 'pearl' : 'enamel'), geo); b.pop();
         }
       }
-      b.push().move(0.8, y1 - 0.0, 0).rotZ(-0.5); blossom(b, f === 3 ? 0.22 : 0.18, petal); b.pop();
     }
+    // Red plume (II+): a curved crest of lacquer from behind the turret, sweeping back and up.
     if (orn && f >= 2) {
-      // Her two sabers crossed on the rear deck, hilts aft.
-      const L = f === 2 ? 1.1 : 1.3;
-      for (const s of [-1, 1]) { b.push().move(-0.66, y1 + 0.09 + (s > 0 ? 0.035 : 0), 0).rotY(s * 0.55).move(-L * 0.45, 0, 0); saber(b, L, { gold: GOLD, w: f === 3 ? 0.14 : 0.12 }); b.pop(); }
+      const pl = f === 2 ? 0.75 : 1.0, red = phx ? 0xffa020 : 0xd02838;
+      const P = [V(-0.25, y1 + 0.42, 0), V(-0.45, y1 + 0.52, 0), V(-0.45 - 0.4 * pl, y1 + 0.5 + 0.15 * pl, 0), V(-0.45 - 0.75 * pl, y1 + 0.42 + 0.3 * pl, 0)];
+      put(fin(b, 'enamel'), tubeGeo(new THREE.CatmullRomCurve3(P).getPoints(12), (t) => 0.11 * (1 - 0.7 * t) + 0.02, { sides: 6, flat: 0.45, caps: true, tone: (t) => mix(red, phx ? 0xffe060 : 0xff8090, t * t) }));
     }
-    if (orn && f === 3) {
-      for (const s of [-1, 1]) { b.push().move(-0.86, y1 + 0.07, s * 0.36); blossom(b, 0.16, petal); b.pop(); }
-      fireAura(b, -0.1, 1.55, 1.2, 16, 0.95, AURA.plum);
-    }
-    // Helmet turret: stepped octagons, a gold visor, a crest plate, eyes; ribbons from the back of the helmet.
-    b.use('turret');
-    const tx = -0.05, ty = y1 + 0.06;
-    k.oct(tx, ty, 0, 0.42, 0.08, 'under');
-    k.oct(tx, ty + 0.15, 0, 0.38, 0.22, 'red', 0.05, 1.1);
-    k.oct(tx, ty + 0.3, 0, 0.28, 0.1, f === 1 ? 'redD' : 'gold', 0.03, 1.1);
-    k.oct(tx - 0.02, ty + 0.39, 0, 0.16, 0.08, 'red', 0.02);
-    k.prism([[tx + 0.52, 0.16], [tx + 0.52, -0.16], [tx + 0.26, -0.34], [tx + 0.26, 0.34]], ty + 0.07, ty + 0.13, 'gold', 0.015);
-    for (const s of [-1, 1]) k.light(tx + 0.38, ty + 0.2, s * 0.14, 0.035, 'glow', '+x');
-    if (orn && f >= 2) {
-      const ch = f === 2 ? 0.26 : 0.38;
-      k.profile([[tx + 0.3, ty + 0.32], [tx + 0.06, ty + 0.32], [tx - 0.04, ty + 0.32 + ch], [tx + 0.18, ty + 0.32 + ch * 0.82], [tx + 0.36, ty + 0.32 + ch * 0.45]], -0.025, 0.025, 'gold', 0.012);
-      if (f === 3) for (const s of [-1, 1]) { b.push().move(tx + 0.05, ty + 0.2, s * 0.4).rotX(s * 1.2); blossom(b, 0.13, petal); b.pop(); }
-    }
-    if (orn) {
-      const rl = [0.45, 0.85, 1.2][f - 1];
-      for (const s of [-1, 1]) {
-        const P = [V(tx - 0.3, ty + 0.36, s * 0.08), V(tx - 0.5, ty + 0.3, s * 0.14), V(tx - 0.5 - 0.35 * rl, ty + 0.16, s * (0.17 + 0.12 * rl)), V(tx - 0.5 - 0.7 * rl, ty + 0.08, s * (0.12 + 0.3 * rl)), V(tx - 0.5 - rl, ty + 0.02, s * (0.24 + 0.36 * rl))];
-        put(fin(b, 'enamel'), tubeGeo(new THREE.CatmullRomCurve3(P).getPoints(14), (t) => 0.1 * (1 - 0.25 * t) + 0.015, { sides: 4, flatN: 0.22, caps: true, tone: (t) => (t > 0.86 ? C3(gold) : t > 0.5 ? mix(red, pink, 0.35) : red) }));
+    if (phx && orn) {
+      // Phoenix tail: three long plumes trailing behind the hull, curling up at the tips.
+      for (const z of [-0.18, 0, 0.18]) {
+        const geo = bladeGeo({ len: 1.1 + (z === 0 ? 0.3 : 0), w: 0.24, th: 0.05, wf: WF.plume, ridge: 0, lift: 0.35, seg: 7, edge: GOLD, face: 0xd8200a, face2: 0xff9020, back: 0x6a0606, band: (u) => mix(0xffd040, 0xc0100a, u) });
+        b.push().move(-0.9, y1 - 0.05, z).rotY(PI + z * 1.2); put(fin(b, 'pearl'), geo); b.pop();
       }
-      k.oct(tx - 0.3, ty + 0.36, 0, 0.1, 0.08, 'gold', 0.02);
+    }
+    if (orn && f === 3) fireAura(b, -0.1, 1.55, 1.25, 16, 0.95, AURA.plum);
+
+    // Turret: a stepped helm (deep, body, gold rim) with two lamps, carrying the sword (or the phoenix head).
+    b.use('turret');
+    const tx = -0.08, ty = y1 + 0.06;
+    k.oct(tx, ty, 0, 0.4, 0.08, 'under');
+    k.oct(tx, ty + 0.14, 0, 0.34, 0.2, 'body', 0.05, 1.15);
+    k.oct(tx, ty + 0.28, 0, 0.24, 0.08, f === 1 ? 'bodyD' : 'gold', 0.03, 1.15);
+    for (const s of [-1, 1]) k.light(tx + 0.36, ty + 0.18, s * 0.13, 0.035, 'glow', '+x');
+    K.my = ty + 0.16;
+    if (!phx) {
+      // The great sword lying along the aim: gold guard with pink gems, a broad double-edged blade (chrome edges, dark
+      // fuller) reaching past the hull nose, and from II two short prongs from the guard ends, angled out.
+      const sx = tx + 0.12, sy = ty + 0.34, L = [1.25, 1.45, 1.75][f - 1];
+      fin(b, 'gold', GOLD); b.push().move(sx, sy, 0).box(0.16, 0.1, f === 1 ? 0.7 : 0.9).pop();
+      fin(b, 'enamel', glow); for (const s of [-1, 1]) b.push().move(sx + 0.02, sy + 0.06, s * 0.28).ball(0.06, 1).pop();
+      fin(b, 'enamel', dk); b.push().move(sx - 0.2, sy, 0).rotZ(PI / 2).cyl(0.06, 0.06, 0.32, 6).pop();
+      fin(b, 'gold', GOLD); b.push().move(sx - 0.38, sy, 0).ball(0.08, 1).pop();
+      put(fin(b, 'chrome'), bladeGeo({ len: L, w: 0.66, th: 0.08, wf: (t) => (t < 0.72 ? 1 - 0.12 * t : (1 - t) / 0.28 * 0.91), tf: () => 1, ridge: 0, seg: 8, edge: CHROME, face: 0x9aa2b4, face2: 0x4a5264, back: 0x8a92a4 }).translate(sx + 0.06, sy, 0));
+      if (f >= 2) {
+        k.prism([[sx + 0.1, 0.035], [sx + 0.1 + L * 0.68, 0.016], [sx + 0.1 + L * 0.68, -0.016], [sx + 0.1, -0.035]], sy + 0.06, sy + 0.08, 'gold', 0.005);
+        for (const s of [-1, 1]) { b.push().move(sx + 0.04, sy - 0.03, s * 0.4).rotY(-s * 0.3); put(fin(b, 'chrome'), bladeGeo({ len: L * 0.45, w: 0.24, th: 0.05, wf: WF.spear, ridge: 0, seg: 5, edge: CHROME, face: petal, face2: petal2, back: dk })); b.pop(); }
+      }
+      if (f === 3) { fin(b, 'gold', GOLD); b.push().move(tx - 0.05, ty + 0.32, 0).rotZ(0.5); put(b, bladeGeo({ len: 0.45, w: 0.14, th: 0.04, wf: WF.plume, ridge: 0, lift: 0.4, seg: 5, edge: GOLD, face: GOLD, back: GOLD_DEEP })); b.pop(); }
+    } else {
+      // Phoenix: a curved gold neck rising forward, a crested head with a hooked beak and lit eyes; crest plumes swept back.
+      const N = [V(tx + 0.05, ty + 0.3, 0), V(tx + 0.3, ty + 0.55, 0), V(tx + 0.6, ty + 0.68, 0), V(tx + 0.85, ty + 0.62, 0)];
+      put(fin(b, 'gold'), tubeGeo(new THREE.CatmullRomCurve3(N).getPoints(10), (t) => 0.16 - 0.05 * t, { sides: 8, caps: true, tone: (t) => mix(0xd8200a, GOLD, t) }));
+      const hx = tx + 0.92, hy = ty + 0.62;
+      fin(b, 'gold', GOLD); b.push().move(hx, hy, 0).scale(1.3, 0.9, 0.85).ball(0.16, 2).pop();
+      fin(b, 'gold', 0xffe080); b.push().move(hx + 0.22, hy - 0.04, 0).rotZ(-PI / 2 - 0.25).cyl(0.01, 0.08, 0.26, 6).pop();
+      for (const s of [-1, 1]) k.lamp('glow', () => b.push().move(hx + 0.08, hy + 0.05, s * 0.11).ball(0.035, 1).pop());
+      for (let i = 0; i < 3; i++) { b.push().move(hx - 0.05, hy + 0.1, (i - 1) * 0.06).rotY(PI + (i - 1) * 0.25).rotZ(-0.35); put(fin(b, 'gold'), bladeGeo({ len: 0.45 + 0.1 * (i === 1), w: 0.1, th: 0.03, wf: WF.plume, lift: 0.5, seg: 5, edge: GOLD, face: 0xff8a20, back: 0xa01008 })); b.pop(); }
     }
     b.use('barrel');
-    K.my = ty + 0.17;
-    k.blk(tx + 0.44, K.my, 0, 0.16, 0.16, 0.22, 'gold', 0.03);
-    cannon(b, tx + 0.48, K.my, 0, K.stock.muzzle - tx - 0.48, 0.06, CHROME, f === 1 ? GOLD_DEEP : GOLD);
+    if (!phx) cannon(b, tx + 0.3, K.my, 0, K.stock.muzzle - tx - 0.3, 0.05, CHROME, GOLD);
+    else for (const s of [-1, 1]) cannon(b, tx + 0.3, K.my, s * 0.13, K.stock.muzzle - tx - 0.3, 0.06, GOLD, 0xd8200a);
     b.use('hull');
-    K.parts.push(...k.parts); K.top = ty + (f === 3 ? 1.0 : 0.8);
-    return finish(K, { recoil: 0.22 });
+    K.parts.push(...k.parts); K.top = ty + (phx ? 1.0 : f === 3 ? 0.9 : 0.75);
+    return finish(K, { recoil: 0.18 });
   },
 
   // An Dương Vương, sniper: a round Đông Sơn bronze drum on two track pods carrying a great crossbow. The drum face is
