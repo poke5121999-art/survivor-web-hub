@@ -15,6 +15,8 @@ import * as THREE from '../../vendor/three.module.min.js';
 
 export const PI = Math.PI, X = -PI / 2, TAU = PI * 2;
 // Lamps that keep their own colour (the light squares of the sheet), not the mech's glow.
+// Light squares are drawn this many times the size a design asks for, so they read from the match camera (~100 px a tank).
+const LIGHT_K = 1.9, EDGE = 1.6;
 export const LAMP = { green: 0x38ff6a, red: 0xff2a1e, blue: 0x3a8cff, amber: 0xffb22a, white: 0xdff0ff };
 // Roughness and metalness multipliers on the baked metal set (rough 0.4..0.8, metal 0.25..0.6): matte paint,
 // oiled gunmetal, dull undercarriage. The other designs use paint [0.75, 1.4], which reads as glossy plastic.
@@ -25,11 +27,13 @@ const KIND = { panel: 'panel', panelDeep: 'panel', trim: 'panel', decal: 'panel'
 // mid lightness so it reads on gunmetal; form I is greyer, form III a little richer.
 export function steelPalette(st, trim, form) {
   const f = Math.max(1, Math.min(3, form | 0 || 2));
-  const tone = (hex, sat, l0, l1) => { const h = {}; new THREE.Color(hex).getHSL(h); return new THREE.Color().setHSL(h.h, h.s * sat, Math.max(l0, Math.min(l1, h.l))); };
-  const panel = tone(st.body, [0.3, 0.38, 0.46][f - 1], 0.34, 0.47);
+  const tone = (hex, s0, s1, sat, l0, l1) => { const h = {}; new THREE.Color(hex).getHSL(h); return new THREE.Color().setHSL(h.h, Math.max(s0, Math.min(s1, h.s)) * sat, Math.max(l0, Math.min(l1, h.l))); };
+  // Keeps the hue of the STYLES body colour; saturation is pulled into 0.55..0.8 and lightness into 0.45..0.54 so a
+  // dark brown body comes out a clear orange panel and a pale one still reads against the gunmetal.
+  const panel = tone(st.body, 0.55, 0.8, [0.75, 0.9, 1][f - 1], 0.45, 0.54);
   return {
-    f, panel, panelDeep: panel.clone().multiplyScalar(0.68), trim: tone(trim, 0.75, 0.3, 0.6),
-    gun: new THREE.Color(0x4c535b), gunLite: new THREE.Color(0x6a727c), under: new THREE.Color(0x2b2f35), dark: new THREE.Color(0x1a1d21),
+    f, panel, panelDeep: panel.clone().multiplyScalar(0.68), trim: tone(trim, 0, 1, 0.8, 0.3, 0.6),
+    gun: new THREE.Color(0x3a3f47), gunLite: new THREE.Color(0x5a616b), under: new THREE.Color(0x24272c), dark: new THREE.Color(0x17191d),
     steel: new THREE.Color(0x9aa2ab), rubber: new THREE.Color(0x1b1c1f), decal: new THREE.Color(0xc9cdc4), glow: new THREE.Color(st.glow),
   };
 }
@@ -40,7 +44,25 @@ const ORIENT = {
 };
 
 export class Kit {
-  constructor(b, st, trim, form) { this.b = b; this.c = steelPalette(st, trim, form); this.F = this.c.f; this.parts = []; }
+  constructor(b, st, trim, form) {
+    this.b = b; this.c = steelPalette(st, trim, form); this.F = this.c.f; this.parts = [];
+    // Chamfers facing up catch the light: this builder's chamfered boxes and prisms brighten their upward bevels, the
+    // edge highlight of the sheet's hard-surface plates. Only this Builder instance is patched.
+    const shade = (p, n) => (n.y > 0.25 && n.y < 0.95 ? EDGE : 1);
+    b.chamfer = (w, h, d, c = 0.05) => {
+      c = Math.min(c, w * 0.45, h * 0.45, d * 0.45);
+      const sh = new THREE.Shape([new THREE.Vector2(-w / 2 + c, -h / 2 + c), new THREE.Vector2(w / 2 - c, -h / 2 + c), new THREE.Vector2(w / 2 - c, h / 2 - c), new THREE.Vector2(-w / 2 + c, h / 2 - c)]);
+      const g = new THREE.ExtrudeGeometry(sh, { depth: d - 2 * c, bevelEnabled: true, bevelThickness: c, bevelSize: c, bevelSegments: 1 });
+      g.translate(0, 0, -(d - 2 * c) / 2); b.geo(g, shade); g.dispose(); return b;
+    };
+    b.prism = (pts, y0, y1, bevel = 0) => {
+      const sh = new THREE.Shape(pts.map((q) => new THREE.Vector2(q[0], -q[1]))), c = Math.min(bevel, (y1 - y0) * 0.45);
+      const g = new THREE.ExtrudeGeometry(sh, c > 0
+        ? { depth: y1 - y0 - 2 * c, bevelEnabled: true, bevelThickness: c, bevelSize: c, bevelOffset: -c, bevelSegments: 1 }
+        : { depth: y1 - y0, bevelEnabled: false });
+      g.rotateX(-PI / 2); g.translate(0, y0 + c, 0); b.geo(g, shade); g.dispose(); return b;
+    };
+  }
   col(name) { return typeof name === 'string' ? this.c[name] : name; }
   // Paint by colour name: the surface follows the colour (panel paint is matte, gunmetal a little sheen).
   use(name) { const s = SURF[KIND[name] || 'gun']; this.b.surface(s[0], s[1]); this.b.tint(this.c[name]); return this; }
@@ -55,7 +77,7 @@ export class Kit {
   }
   // Armour plate: a chamfered block with an optional inset panel of another colour on its top face.
   plate(x, y, z, w, h, d, o = {}) {
-    const b = this.b, ins = o.insert === undefined ? 'panel' : o.insert, ch = o.ch ?? 0.035, inset = o.inset ?? Math.min(0.13, w * 0.2, d * 0.2);
+    const b = this.b, ins = o.insert === undefined ? 'panel' : o.insert, ch = o.ch ?? 0.035, inset = o.inset ?? Math.min(0.06, w * 0.12, d * 0.12);
     b.push().move(x, y, z); if (o.ry) b.rotY(o.ry); if (o.rz) b.rotZ(o.rz); if (o.rx) b.rotX(o.rx);
     this.use(o.col || 'gun'); b.chamfer(w, h, d, Math.min(ch, w * 0.4, h * 0.4, d * 0.4));
     if (ins) { this.use(ins); b.push().move(o.ix || 0, h / 2 + 0.008, o.iz || 0).chamfer(w - 2 * inset, 0.03, d - 2 * inset, 0.012).pop(); }
@@ -78,8 +100,8 @@ export class Kit {
     return this;
   }
   // Light square in a dark bezel on the face whose normal is `face` ('+x', '-z', ...), centred at x, y, z on that face.
-  light(x, y, z, s, col, face = '+x') {
-    const b = this.b; b.push().move(x, y, z); ORIENT[face](b);
+  light(x, y, z, s, col, face = '+x', k = LIGHT_K) {
+    const b = this.b; s *= k; b.push().move(x, y, z); ORIENT[face](b);
     this.use('dark'); b.push().move(0, 0.008, 0).box(s * 1.45, 0.018, s * 1.45).pop();
     this.lamp(col, () => b.push().move(0, 0.02, 0).box(s, 0.014, s).pop());
     b.pop(); return this;
@@ -181,7 +203,7 @@ export class Kit {
   sensor(x, y, z, s, col = LAMP.green, n = 4) {
     this.plate(x, y, z, s * 0.9, s, s * (n === 4 ? 1.1 : 1.5), { insert: 'panel', inset: s * 0.15 });
     const pts = n === 4 ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : [[0, -1], [0, 1]];
-    for (const [a, c] of pts) this.light(x + s * 0.45 + 0.005, y + a * s * 0.22, z + c * s * 0.26, s * 0.24, col, '+x');
+    for (const [a, c] of pts) this.light(x + s * 0.45 + 0.005, y + a * s * 0.22, z + c * s * 0.26, s * 0.3, col, '+x', 1);
     return this;
   }
 }

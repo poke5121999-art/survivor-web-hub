@@ -1,7 +1,7 @@
 // Tanks drawn in the steel style (steel.js). A key listed here opts in: buildModel (mechs.js) uses this design for
 // every form instead of the hand design / frame / chassis plus role kit. Each design builds all three forms itself:
 //   I  plain: hull, running gear, main weapon, a few lights, one antenna;
-//   II added armour: skirts with decals, stacked cheek plates, a second antenna, more lights;
+//   II added armour and a second weapon module: skirts with decals, stacked plates, a gatling or missile box;
 //   III heavy sci-fi refit: extra weapon modules, lit strips, three or four antennas.
 // Same contract as DESIGNS in mechs.js (batches hull, turret, barrel, tread and named parts; returns the info).
 import { Kit, LAMP, PI } from './steel.js';
@@ -9,125 +9,138 @@ import { Kit, LAMP, PI } from './steel.js';
 const done = (k, info) => Object.assign(info, { parts: k.parts.concat(info.parts || []) });
 
 export const STEEL_DESIGNS = {
-  // Trâu Sắt, tank: heavy double-track hull (two tracks a side, the outer pair jutting forward), wide fenders over both,
-  // low sloped hull, octagonal turret ring under a big faceted turret. One heavy ribbed gun, two at form III.
+  // Trâu Sắt, tank: heavy double-track hull. The outer track pair juts forward past the short hull (the sheet's fork
+  // shape from above), a fender with a panel top covers the inner pair, and a stepped octagonal turret carries one heavy
+  // ribbed gun (two at form III). Form II adds skirts, side plates, cheek armour and a roof gatling.
   trau(b, st, trim, form) {
     const k = new Kit(b, st, trim, form), F = k.F;
     b.use('hull');
     for (const s of [-1, 1]) {
-      k.trackPod(-0.1, s * 0.6, 2.5, 0.34, 0.6, { cover: false });
-      k.trackPod(0.34, s * 0.97, 2.16, 0.32, 0.56, { cover: false, skirt: F >= 2, decal: F >= 2 ? 'x' : null, light: LAMP.green });
-      // Fender spanning both tracks, panel insert on top; sloped nose plate over the outer pod.
-      // Fender over the inner track only; the outer track shows its tread from above.
-      k.plate(-0.02, 0.66, s * 0.6, 2.3, 0.08, 0.46, { inset: 0.1 });
-      k.plate(1.38, 0.55, s * 0.97, 0.36, 0.08, 0.36, { insert: null, rz: -0.6 });
-      if (F >= 2) k.decal('chev', 0.95, 0.71, s * 0.6, 0.22, '+y');
-      if (F === 3) { k.plate(-0.55, 0.62, s * 0.97, 0.9, 0.08, 0.36, { col: 'panelDeep', insert: null }); k.strip(-0.35, 0.36, s * 1.2, 1.1, 'x'); }
+      k.trackPod(-0.22, s * 0.6, 2.3, 0.34, 0.6, { cover: false });
+      k.trackPod(0.5, s * 0.97, 2.1, 0.32, 0.56, { cover: false, skirt: F >= 2, decal: F >= 2 ? 'x' : null, light: LAMP.green });
+      k.plate(-0.22, 0.66, s * 0.6, 2.2, 0.08, 0.46);
+      k.plate(1.48, 0.55, s * 0.97, 0.34, 0.08, 0.36, { insert: null, rz: -0.6 });
+      k.strip(-0.3, 0.6, s * 0.84, 1.7, 'x');
+      if (F >= 2) {
+        k.plate(-0.25, 0.62, s * 0.97, 1.0, 0.08, 0.38, { col: 'panel', insert: null });
+        k.decal('chev', 0.75, 0.71, s * 0.6, 0.22, '+y');
+      }
+      if (F === 3) { k.plate(-0.3, 0.7, s * 0.97, 0.7, 0.07, 0.3, { col: 'gunLite', insert: 'panel' }); k.strip(-0.1, 0.34, s * 1.2, 1.2, 'x'); }
     }
-    // Hull between the inner tracks: low gunmetal body, sloped glacis with a panel insert, rear grille.
-    k.prism([[1.36, 0.3], [1.46, 0.12], [1.46, -0.12], [1.36, -0.3], [-1.24, -0.42], [-1.36, -0.3], [-1.36, 0.3], [-1.24, 0.42]], 0.2, 0.68, 'under', 0.05);
-    k.plate(1.18, 0.62, 0, 0.6, 0.08, 0.8, { rz: -0.42 });
-    k.plate(-0.25, 0.72, 0, 1.6, 0.08, 0.82, { insert: 'panelDeep', inset: 0.1 });
+    // Short hull between the inner tracks: sloped glacis, panel deck, rear grille.
+    k.prism([[0.92, 0.3], [1.02, 0.12], [1.02, -0.12], [0.92, -0.3], [-1.24, -0.42], [-1.36, -0.3], [-1.36, 0.3], [-1.24, 0.42]], 0.2, 0.68, 'under', 0.05);
+    k.plate(0.8, 0.62, 0, 0.5, 0.08, 0.8, { rz: -0.42 });
+    k.plate(-0.35, 0.72, 0, 1.6, 0.08, 0.82);
     k.blk(-1.3, 0.6, 0, 0.12, 0.16, 0.6, 'dark', 0.02);
-    for (const s of [-1, 1]) k.light(1.47, 0.42, s * 0.2, 0.08, F >= 2 ? LAMP.amber : LAMP.green, '+x');
-    if (F >= 2) for (const s of [-1, 1]) k.light(1.47, 0.42, s * 0.06, 0.06, LAMP.red, '+x');
-    if (F === 3) { k.strip(-1.37, 0.5, 0, 0.5, 'z', LAMP.red); k.plate(1.55, 0.36, 0, 0.12, 0.3, 1.0, { insert: null, rz: -0.25 }); }
+    for (const s of [-1, 1]) k.light(1.03, 0.42, s * 0.2, 0.06, F >= 2 ? LAMP.amber : LAMP.green, '+x');
+    if (F === 3) { k.strip(-1.37, 0.5, 0, 0.5, 'z', LAMP.red); k.plate(1.12, 0.36, 0, 0.12, 0.3, 0.8, { insert: null, rz: -0.25 }); }
 
+    // Stepped octagonal turret: ring, gunmetal body, panel step, gunmetal cap with a cupola.
     b.use('turret');
-    k.oct(-0.12, 0.8, 0, 0.66, 0.1, 'dark');
-    const T = [[0.62, 0.3], [0.8, 0.16], [0.8, -0.16], [0.62, -0.3], [-0.5, -0.58], [-0.86, -0.44], [-0.86, 0.44], [-0.5, 0.58]];
-    k.prism(T, 0.85, 1.2, 'gun', 0.07);
-    k.prism(T.map(([x, z]) => [x * 0.55 - 0.12, z * 0.6]), 1.18, 1.25, 'panel', 0.02);
-    k.plate(-0.98, 1.0, 0, 0.26, 0.26, 0.8, { insert: 'panelDeep' });
-    for (const s of [-1, 1]) k.light(0.72, 1.06, s * 0.28, 0.06, LAMP.green, '+x');
+    k.oct(-0.12, 0.8, 0, 0.68, 0.1, 'dark');
+    k.oct(-0.16, 0.96, 0, 0.6, 0.22, 'gun', 0.05, 1.28);
+    k.oct(-0.22, 1.12, 0, 0.47, 0.12, 'panel', 0.04, 1.28);
+    k.oct(-0.3, 1.22, 0, 0.3, 0.08, 'gun', 0.03, 1.2);
+    k.plate(-1.02, 1.0, 0, 0.24, 0.24, 0.74);
+    for (const s of [-1, 1]) k.light(0.33, 1.12, s * 0.1, 0.045, LAMP.green, '+x');
+    k.strip(-0.2, 1.06, 0.0, 1.1, 'x', 'glow', 0.02);
     if (F >= 2) for (const s of [-1, 1]) {
-      k.plate(-0.06, 1.0, s * 0.62, 0.86, 0.24, 0.12, { col: 'panel', insert: null, ry: s * 0.2 });
-      if (F === 3) k.plate(-0.1, 1.06, s * 0.72, 0.66, 0.2, 0.08, { col: 'gunLite', insert: null, ry: s * 0.2 });
+      k.plate(-0.1, 1.0, s * 0.6, 0.9, 0.24, 0.12, { col: 'panel', insert: null, ry: s * 0.18 });
+      if (F === 3) k.plate(-0.14, 1.06, s * 0.7, 0.66, 0.2, 0.08, { col: 'gunLite', insert: null, ry: s * 0.18 });
     }
-    k.oct(-0.4, 1.3, 0.26, 0.16, 0.1, 'gun'); k.light(-0.27, 1.3, 0.26, 0.05, LAMP.blue, '+x');
-    k.antenna(-0.78, 1.2, -0.38, 0.9);
-    if (F >= 2) k.antenna(-0.78, 1.2, 0.38, 0.75);
-    if (F === 3) {
-      k.antenna(-0.9, 1.15, 0, 1.0);
-      k.missileBox(-0.45, 1.42, -0.28, 2, 3, 0.11, { elev: 0.15 });
-      k.strip(-0.05, 1.27, 0, 0.9, 'x');
+    k.light(-0.1, 1.27, 0.0, 0.04, LAMP.blue, '+x');
+    k.antenna(-0.8, 1.1, -0.38, 0.9);
+    if (F >= 2) {
+      k.antenna(-0.8, 1.1, 0.38, 0.75);
+      k.gatling(-0.4, 1.36, 0.3, 0.42, 0.045, 6);
     }
+    if (F === 3) { k.antenna(-0.92, 1.1, 0, 1.0); k.missileBox(-0.5, 1.42, -0.28, 2, 3, 0.11, { elev: 0.15 }); }
 
     b.use('barrel');
-    k.blk(0.8, 1.03, 0, 0.3, 0.32, F === 3 ? 0.62 : 0.46, 'gun', 0.05);
-    const len = [1.0, 1.15, 1.25][F - 1];
+    k.blk(0.7, 1.03, 0, 0.32, 0.32, F === 3 ? 0.62 : 0.46, 'gun', 0.05);
+    const len = [1.1, 1.2, 1.3][F - 1];
     let tip = 0;
-    if (F === 3) for (const z of [-0.14, 0.14]) tip = k.cannon(0.9, 1.04, z, len, 0.085, { ribs: 6, stripe: 'glow' });
-    else tip = k.cannon(0.9, 1.04, 0, len, F === 1 ? 0.1 : 0.11, { ribs: F === 1 ? 3 : 5, stripe: F >= 2 ? 'glow' : null });
+    if (F === 3) for (const z of [-0.14, 0.14]) tip = k.cannon(0.82, 1.04, z, len, 0.085, { ribs: 6, stripe: 'glow' });
+    else tip = k.cannon(0.82, 1.04, 0, len, F === 1 ? 0.1 : 0.11, { ribs: F === 1 ? 3 : 5, stripe: 'glow' });
     b.use('hull');
     return done(k, { muzzle: tip, muzzleY: 1.04, S: 1, height: 2.0, parts: [{ name: 'barrel', on: 'turret', kind: 'recoil', amt: 0.32 }] });
   },
 
-  // Quan Công, bruiser: an armoured torso on a tracked base. The torso is the turret: chest, shoulder blocks, a helmet
-  // with a lit visor and a chunky red crest, a rotary cannon on the right forearm and a guandao blade on the left.
+  // Quan Công, bruiser: a mech torso on a tracked base, standing well above the hull. Waist, chest with panel breast
+  // plates, sloped shoulder pads, a head block with a lit visor and a red crest, two arms: the right fist is a rotary
+  // cannon, the left holds a long guandao whose broad crescent blade sticks out ahead and to the side so it reads from
+  // above. Form II adds skirts, hip plates and a shoulder missile box; III a bigger box, a sensor pod and lit strips.
   quancong(b, st, trim, form) {
     const k = new Kit(b, st, trim, form), F = k.F;
     b.use('hull');
     for (const s of [-1, 1]) {
-      k.trackPod(-0.1, s * 0.56, 2.6, 0.32, 0.6, { insert: 'panel', skirt: F >= 2, decal: F >= 2 ? 'chev' : null, light: LAMP.green });
-      if (F === 3) k.strip(-0.3, 0.6, s * 0.79, 1.2, 'x');
+      k.trackPod(0.1, s * 0.56, 2.5, 0.32, 0.55, { insert: null, skirt: F >= 2, decal: F >= 2 ? 'chev' : null, light: LAMP.green });
+      k.strip(-0.2, 0.5, s * 0.73, 1.3, 'x');
     }
-    k.prism([[1.0, 0.3], [1.1, 0.15], [1.1, -0.15], [1.0, -0.3], [-1.0, -0.44], [-1.12, -0.3], [-1.12, 0.3], [-1.0, 0.44]], 0.2, 0.66, 'under', 0.05);
-    k.plate(0.85, 0.6, 0, 0.5, 0.08, 0.84, { rz: -0.45 });
-    k.plate(-0.7, 0.7, 0, 0.6, 0.08, 0.8, { insert: 'panelDeep' });
-    k.blk(-1.12, 0.52, 0, 0.1, 0.16, 0.6, 'dark', 0.02);
-    for (const s of [-1, 1]) k.light(1.1, 0.42, s * 0.18, 0.07, LAMP.amber, '+x');
-    k.oct(-0.15, 0.72, 0, 0.44, 0.1, 'dark');
+    k.prism([[0.88, 0.28], [0.98, 0.14], [0.98, -0.14], [0.88, -0.28], [-1.0, -0.42], [-1.1, -0.3], [-1.1, 0.3], [-1.0, 0.42]], 0.2, 0.62, 'under', 0.05);
+    k.plate(0.75, 0.58, 0, 0.42, 0.08, 0.76, { rz: -0.45 });
+    k.plate(-0.75, 0.66, 0, 0.5, 0.08, 0.76, { insert: 'panelDeep' });
+    k.blk(-1.1, 0.5, 0, 0.1, 0.16, 0.56, 'dark', 0.02);
+    for (const s of [-1, 1]) k.light(0.99, 0.42, s * 0.16, 0.05, LAMP.amber, '+x');
+    k.oct(-0.2, 0.68, 0, 0.4, 0.1, 'dark');
 
     b.use('turret');
-    const tx = -0.15;
-    k.blk(tx, 0.92, 0, 0.5, 0.3, 0.62, 'under', 0.06);
-    // Chest: gunmetal block, two sloped panel-coloured breast plates, a dark grille below.
-    k.blk(tx, 1.36, 0, 0.66, 0.6, 0.86, 'gun', 0.08);
-    for (const s of [-1, 1]) k.plate(tx + 0.3, 1.44, s * 0.2, 0.14, 0.4, 0.34, { col: 'panel', insert: null, rz: -0.3 });
-    k.blk(tx + 0.3, 1.13, 0, 0.1, 0.16, 0.42, 'dark', 0.02);
-    for (const s of [-1, 1]) k.light(tx + 0.36, 1.13, s * 0.11, 0.055, LAMP.green, '+x');
-    k.plate(tx - 0.05, 1.68, 0, 0.5, 0.06, 0.7, { col: 'gun', insert: 'panel' });
-    // Helmet: block, panel top, wide visor strip with two light squares, a chunky red crest running back.
-    const hx = tx + 0.08;
-    k.blk(hx, 1.84, 0, 0.34, 0.24, 0.34, 'gun', 0.05);
-    k.plate(hx - 0.02, 1.97, 0, 0.36, 0.05, 0.36, { col: 'panel', insert: null });
-    k.blk(hx + 0.17, 1.84, 0, 0.04, 0.07, 0.3, 'dark', 0.01);
-    k.strip(hx + 0.195, 1.84, 0, 0.26, 'z');
-    k.blk(hx - 0.06, 2.04, 0, 0.36, 0.1, 0.09, 'trim', 0.02);
-    k.blk(hx - 0.24, 2.0, 0, 0.14, 0.18, 0.08, 'trim', 0.02);
-    // Shoulders and arms.
+    const tx = -0.2;
+    // Waist and hips.
+    k.oct(tx, 0.8, 0, 0.3, 0.14, 'under', 0.03);
+    k.blk(tx, 0.98, 0, 0.42, 0.24, 0.56, 'under', 0.06);
+    if (F >= 2) for (const s of [-1, 1]) k.plate(tx + 0.04, 0.96, s * 0.34, 0.36, 0.26, 0.08, { col: 'panel', insert: null, rx: s * 0.25 });
+    k.blk(tx, 1.22, 0, 0.36, 0.26, 0.44, 'gun', 0.05);
+    // Chest: deep gunmetal block, two big sloped breast plates in the panel colour, a lit strip between them.
+    k.blk(tx, 1.58, 0, 0.56, 0.5, 0.84, 'gun', 0.1);
+    for (const s of [-1, 1]) k.plate(tx + 0.26, 1.6, s * 0.2, 0.1, 0.4, 0.34, { col: 'panel', insert: null, rz: -0.25 });
+    k.strip(tx + 0.3, 1.6, 0, 0.36, 'y');
+    k.plate(tx - 0.03, 1.85, 0, 0.5, 0.06, 0.76);
+    for (const s of [-1, 1]) k.light(tx + 0.29, 1.32, s * 0.12, 0.04, LAMP.green, '+x');
+    // Head: neck, block, panel helmet top, lit visor, red crest rising to the back.
+    const hx = tx + 0.04;
+    k.blk(hx, 1.93, 0, 0.16, 0.1, 0.18, 'dark', 0.02);
+    k.blk(hx, 2.07, 0, 0.3, 0.24, 0.3, 'gun', 0.05);
+    k.plate(hx - 0.01, 2.2, 0, 0.32, 0.05, 0.32, { col: 'panel', insert: null });
+    k.blk(hx + 0.15, 2.07, 0, 0.04, 0.08, 0.26, 'dark', 0.01);
+    k.strip(hx + 0.175, 2.07, 0, 0.24, 'z');
+    k.blk(hx - 0.04, 2.27, 0, 0.3, 0.09, 0.08, 'trim', 0.02);
+    k.blk(hx - 0.2, 2.24, 0, 0.14, 0.18, 0.08, 'trim', 0.02);
+    // Shoulders: joint block under a big pad sloping down and out.
     for (const s of [-1, 1]) {
-      const sz = s * 0.64;
-      k.plate(tx - 0.04, 1.62, sz, 0.56, 0.32, 0.42, { col: 'gun', insert: 'panel' });
-      k.blk(tx - 0.04, 1.3, sz, 0.22, 0.4, 0.22, 'under', 0.04);
-      k.blk(tx + 0.22, 1.1, sz, 0.6, 0.26, 0.28, 'gun', 0.05);
-      k.plate(tx + 0.22, 1.24, sz, 0.48, 0.04, 0.24, { col: 'panel', insert: null });
-      if (F >= 2) {
-        k.plate(tx - 0.04, 1.54, s * 0.9, 0.5, 0.36, 0.1, { col: 'panel', insert: null, rx: s * -0.15 });
-        k.decal('x', tx - 0.02, 1.52, s * 0.955, 0.18, s > 0 ? '+z' : '-z');
-      }
-      if (F === 3) { k.plate(tx - 0.04, 1.82, sz, 0.42, 0.08, 0.34, { col: 'gunLite', insert: null }); k.strip(tx - 0.04, 1.71, s * 0.86, 0.5, 'x'); }
+      k.blk(tx, 1.7, s * 0.54, 0.3, 0.3, 0.3, 'under', 0.05);
+      k.plate(tx, 1.86, s * 0.7, 0.54, 0.14, 0.44, { col: 'panel', insert: null, rx: s * 0.35 });
+      k.plate(tx, 1.77, s * 0.9, 0.5, 0.2, 0.06, { col: 'gun', insert: null, rx: s * 0.35 });
+      if (F >= 2) k.decal('x', tx, 1.75, s * 0.94, 0.15, s > 0 ? '+z' : '-z');
+      if (F === 3) k.strip(tx, 1.9, s * 0.72, 0.46, 'x');
+      // Upper arm hanging out past the tracks to the elbow, forearm in the panel colour reaching forward to the fist.
+      k.beam([tx, 1.66, s * 0.72], [tx + 0.04, 1.24, s * 0.82], 0.18, 0.18, 'gun', 0.04);
+      k.beam([tx + 0.02, 1.22, s * 0.82], [tx + 0.48, 1.16, s * 0.84], 0.22, 0.22, 'panel', 0.05);
+      k.blk(tx + 0.26, 1.08, s * 0.84, 0.36, 0.06, 0.18, 'gun', 0.02);
     }
-    // Left forearm: guandao pole and a flat crescent blade pointing forward, lit along its edge.
-    const bz = -0.7, by = 1.1, bl = [0.9, 1.05, 1.15][F - 1];
-    k.use('steel'); b.rod([tx + 0.5, by, bz], [tx + 0.5 + bl, by, bz], 0.04, 6);
-    const bx = tx + 0.45 + bl;
-    k.prism([[bx - 0.05, bz + 0.04], [bx + 0.5, bz + 0.02], [bx + 0.36, bz - 0.2], [bx + 0.04, bz - 0.2]], by - 0.035, by + 0.035, 'steel', 0.015);
-    k.blk(bx - 0.06, by, bz, 0.1, 0.12, 0.14, 'trim', 0.02);
-    k.lamp('glow', () => b.rod([bx + 0.02, by, bz + 0.05], [bx + 0.5, by, bz + 0.03], 0.016, 4));
-    if (F === 3) { k.missileBox(tx - 0.42, 1.92, -0.38, 2, 3, 0.11, { elev: 0.4 }); k.sensor(tx - 0.3, 1.86, 0.4, 0.2); }
-    k.antenna(tx - 0.3, 1.75, 0.22, 0.8);
-    if (F >= 2) k.antenna(tx - 0.34, 1.75, -0.12, 0.65);
-    if (F === 3) k.antenna(hx - 0.3, 2.06, 0, 0.55);
+    // Left fist round a long guandao: pole from behind the shoulder to well ahead, broad crescent blade lying flat
+    // and opening outward, lit cutting edge, red tassel ring, butt spike.
+    const bz = -0.84, fx = tx + 0.48, by = 1.16, bl = [1.05, 1.15, 1.25][F - 1];
+    k.blk(fx, by, bz, 0.16, 0.18, 0.2, 'under', 0.04);
+    k.use('steel'); b.rod([tx - 0.55, by - 0.08, bz], [fx + bl, by + 0.04, bz], 0.035, 6);
+    k.use('steel'); b.push().move(tx - 0.62, by - 0.09, bz).rotZ(PI / 2).cyl(0, 0.05, 0.16, 5).pop();
+    const bx = fx + bl, yb = by + 0.04;
+    k.blk(bx - 0.06, yb, bz, 0.12, 0.12, 0.14, 'trim', 0.02);
+    k.prism([[bx, bz + 0.06], [bx + 0.62, bz + 0.03], [bx + 0.5, bz - 0.24], [bx + 0.24, bz - 0.36], [bx + 0.02, bz - 0.2]], yb - 0.035, yb + 0.035, 'steel', 0.015);
+    k.lamp('glow', () => { b.rod([bx + 0.62, yb, bz + 0.04], [bx + 0.5, yb, bz - 0.25], 0.018, 4); b.rod([bx + 0.5, yb, bz - 0.25], [bx + 0.24, yb, bz - 0.37], 0.018, 4); });
+    if (F >= 2) k.missileBox(tx - 0.3, 2.06, 0.5, 2, F === 3 ? 3 : 2, 0.11, { elev: 0.4, depth: 0.32 });
+    if (F === 3) k.sensor(tx - 0.24, 2.0, -0.48, 0.2);
+    k.antenna(tx - 0.26, 1.88, 0.18, 0.7);
+    if (F >= 2) k.antenna(tx - 0.3, 1.88, -0.16, 0.6);
+    if (F === 3) k.antenna(hx - 0.25, 2.3, 0, 0.5);
 
-    // Right forearm: rotary cannon (spins while firing).
+    // Right fist: rotary cannon (spins while firing).
     b.use('drum');
-    const gz = 0.7, gl = [0.45, 0.6, 0.7][F - 1];
-    const tip = k.gatling(tx + 0.55, by, gz, gl, F === 3 ? 0.085 : 0.07, 6);
+    const gz = 0.84, gl = [0.5, 0.6, 0.7][F - 1];
+    const tip = k.gatling(fx + 0.06, by, gz, gl, F === 3 ? 0.085 : 0.075, 6);
     b.use('hull');
-    return done(k, { muzzle: tip, muzzleY: by, S: 1, height: 2.3,
-      parts: [{ name: 'drum', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', p: [tx + 0.55, by, gz], model: true }] });
+    return done(k, { muzzle: tip, muzzleY: by, S: 1, height: 2.5,
+      parts: [{ name: 'drum', on: 'turret', kind: 'spin', axis: 'x', by: 'fire', p: [fx + 0.06, by, gz], model: true }] });
   },
 
   // Lôi Công, artillery: wide tracked launcher. Long tracks with separate nose pods jutting forward, under-hull blue
@@ -146,7 +159,7 @@ export const STEEL_DESIGNS = {
     k.plate(-0.75, 0.7, 0, 0.6, 0.08, 1.0, { insert: 'panelDeep' });
     k.blk(-1.12, 0.5, 0, 0.1, 0.16, 0.7, 'dark', 0.02);
     for (const s of [-1, 1]) k.light(0.97, 0.44, s * 0.14, 0.07, LAMP.green, '+x');
-    if (F >= 2) { k.strip(0.97, 0.24, 0, 0.5, 'z', LAMP.blue); for (const s of [-1, 1]) k.strip(-0.1, 0.22, s * 0.52, 1.6, 'x', LAMP.blue); }
+    k.strip(0.97, 0.24, 0, 0.5, 'z', LAMP.blue); for (const s of [-1, 1]) k.strip(-0.1, 0.22, s * 0.52, 1.6, 'x', LAMP.blue);
     if (F === 3) for (const s of [-1, 1]) k.plate(-0.2, 0.68, s * 0.5, 1.2, 0.1, 0.18, { col: 'panelDeep', insert: null });
 
     b.use('turret');
@@ -159,7 +172,7 @@ export const STEEL_DESIGNS = {
       k.strip(tx + 0.02, 0.96, s * 0.51, 0.4, 'x');
     }
     k.antenna(tx - 0.42, 0.95, -0.3, 0.8);
-    if (F >= 2) { k.antenna(tx - 0.42, 0.95, 0.3, 0.8); k.sensor(tx - 0.3, 1.02, 0, 0.2, LAMP.green, 2); }
+    if (F >= 2) { k.antenna(tx - 0.42, 0.95, 0.3, 0.8); k.sensor(tx - 0.3, 1.02, 0, 0.2, LAMP.green, 2); k.gatling(tx + 0.12, 0.98, 0.6, 0.42, 0.045, 6); }
     if (F === 3) { k.antenna(tx - 0.46, 0.95, -0.12, 0.95); k.antenna(tx - 0.46, 0.95, 0.12, 0.95); }
 
     b.use('barrel');
@@ -200,7 +213,7 @@ export const STEEL_DESIGNS = {
     k.plate(-0.25, 0.8, 0, 0.7, 0.06, 0.62, { insert: 'panel' });
     k.plate(0.72, 0.72, 0, 0.32, 0.07, 0.4, { rz: -0.5 });
     for (const s of [-1, 1]) k.light(0.91, 0.56, s * 0.08, 0.05, LAMP.red, '+x');
-    if (F === 3) for (const s of [-1, 1]) { k.strip(0.0, 0.6, s * 0.38, 1.0, 'x'); k.missileBox(-0.35, 0.92, s * 0.34, 2, 2, 0.1, { elev: 0.25, depth: 0.3 }); }
+    for (const s of [-1, 1]) { k.strip(0.0, 0.6, s * 0.38, 1.0, 'x'); if (F >= 2) k.missileBox(-0.35, 0.92, s * 0.34, 2, F === 3 ? 3 : 2, 0.1, { elev: 0.25, depth: 0.3 }); }
     k.antenna(-0.55, 0.8, 0.18, 0.75);
     if (F >= 2) k.antenna(-0.55, 0.8, -0.18, 0.6);
 
