@@ -16,25 +16,25 @@ import * as THREE from '../../vendor/three.module.min.js';
 export const PI = Math.PI, X = -PI / 2, TAU = PI * 2;
 // Lamps that keep their own colour (the light squares of the sheet), not the mech's glow.
 // Light squares are drawn this many times the size a design asks for, so they read from the match camera (~100 px a tank).
-const LIGHT_K = 1.9, EDGE = 1.6;
+const LIGHT_K = 1.9, EDGE = 2.1;
 export const LAMP = { green: 0x38ff6a, red: 0xff2a1e, blue: 0x3a8cff, amber: 0xffb22a, white: 0xdff0ff };
 // Roughness and metalness multipliers on the baked metal set (rough 0.4..0.8, metal 0.25..0.6): matte paint,
 // oiled gunmetal, dull undercarriage. The other designs use paint [0.75, 1.4], which reads as glossy plastic.
 const SURF = { panel: [1.55, 0.4], gun: [1.3, 0.85], under: [1.7, 0.6], steel: [1.0, 1.35], rubber: [1.9, 0] };
-const KIND = { panel: 'panel', panelDeep: 'panel', trim: 'panel', decal: 'panel', gun: 'gun', gunLite: 'gun', under: 'under', dark: 'under', steel: 'steel', rubber: 'rubber' };
+const KIND = { haz: 'panel', panel: 'panel', panelDeep: 'panel', trim: 'panel', decal: 'panel', gun: 'gun', gunLite: 'gun', under: 'under', dark: 'under', steel: 'steel', rubber: 'rubber' };
 
 // Colours of one tank at one form. The STYLES body colour becomes the panel colour, desaturated and pulled into a
 // mid lightness so it reads on gunmetal; form I is greyer, form III a little richer.
-export function steelPalette(st, trim, form) {
+export function steelPalette(st, trim, form, o = {}) {
   const f = Math.max(1, Math.min(3, form | 0 || 2));
-  const tone = (hex, s0, s1, sat, l0, l1) => { const h = {}; new THREE.Color(hex).getHSL(h); return new THREE.Color().setHSL(h.h, Math.max(s0, Math.min(s1, h.s)) * sat, Math.max(l0, Math.min(l1, h.l))); };
-  // Keeps the hue of the STYLES body colour; saturation is pulled into 0.55..0.8 and lightness into 0.45..0.54 so a
+  const tone = (hex, s0, s1, sat, l0, l1, dh = 0) => { const h = {}; new THREE.Color(hex).getHSL(h); return new THREE.Color().setHSL((h.h + dh + 1) % 1, Math.max(s0, Math.min(s1, h.s)) * sat, Math.max(l0, Math.min(l1, h.l))); };
+  // Keeps the hue of the STYLES body colour; saturation is pulled into 0.45..0.66 and lightness into 0.42..0.52 (o.hue nudges the hue) so a
   // dark brown body comes out a clear orange panel and a pale one still reads against the gunmetal.
-  const panel = tone(st.body, 0.55, 0.8, [0.75, 0.9, 1][f - 1], 0.45, 0.54);
+  const panel = tone(st.body, 0.45, 0.66, [0.78, 0.9, 1][f - 1], 0.42, 0.52, o.hue || 0);
   return {
     f, panel, panelDeep: panel.clone().multiplyScalar(0.68), trim: tone(trim, 0, 1, 0.8, 0.3, 0.6),
     gun: new THREE.Color(0x3a3f47), gunLite: new THREE.Color(0x5a616b), under: new THREE.Color(0x24272c), dark: new THREE.Color(0x17191d),
-    steel: new THREE.Color(0x9aa2ab), rubber: new THREE.Color(0x1b1c1f), decal: new THREE.Color(0xc9cdc4), glow: new THREE.Color(st.glow),
+    steel: new THREE.Color(0x9aa2ab), haz: new THREE.Color(0xc39a2e), rubber: new THREE.Color(0x1b1c1f), decal: new THREE.Color(0xc9cdc4), glow: new THREE.Color(st.glow),
   };
 }
 
@@ -44,11 +44,18 @@ const ORIENT = {
 };
 
 export class Kit {
-  constructor(b, st, trim, form) {
-    this.b = b; this.c = steelPalette(st, trim, form); this.F = this.c.f; this.parts = [];
+  constructor(b, st, trim, form, o = {}) {
+    this.b = b; this.c = steelPalette(st, trim, form, o); this.F = this.c.f; this.parts = []; this.gi = 0;
     // Chamfers facing up catch the light: this builder's chamfered boxes and prisms brighten their upward bevels, the
     // edge highlight of the sheet's hard-surface plates. Only this Builder instance is patched.
-    const shade = (p, n) => (n.y > 0.25 && n.y < 0.95 ? EDGE : 1);
+    // Also grime: darker toward the ground; and scuffs: a few bevel vertices lighter still.
+    const P = new THREE.Vector3();
+    const shade = (p, n) => {
+      P.copy(p).applyMatrix4(b.m);
+      const grime = 0.7 + 0.3 * Math.min(1, Math.max(0, P.y / 0.9));
+      if (!(n.y > 0.25 && n.y < 0.98)) return grime;
+      return grime * (Math.abs(Math.sin(P.x * 41.3 + P.z * 27.1 + P.y * 13.7)) > 0.92 ? EDGE * 1.4 : EDGE);
+    };
     b.chamfer = (w, h, d, c = 0.05) => {
       c = Math.min(c, w * 0.45, h * 0.45, d * 0.45);
       const sh = new THREE.Shape([new THREE.Vector2(-w / 2 + c, -h / 2 + c), new THREE.Vector2(w / 2 - c, -h / 2 + c), new THREE.Vector2(w / 2 - c, h / 2 - c), new THREE.Vector2(-w / 2 + c, h / 2 - c)]);
@@ -80,7 +87,37 @@ export class Kit {
     const b = this.b, ins = o.insert === undefined ? 'panel' : o.insert, ch = o.ch ?? 0.035, inset = o.inset ?? Math.min(0.06, w * 0.12, d * 0.12);
     b.push().move(x, y, z); if (o.ry) b.rotY(o.ry); if (o.rz) b.rotZ(o.rz); if (o.rx) b.rotX(o.rx);
     this.use(o.col || 'gun'); b.chamfer(w, h, d, Math.min(ch, w * 0.4, h * 0.4, d * 0.4));
-    if (ins) { this.use(ins); b.push().move(o.ix || 0, h / 2 + 0.008, o.iz || 0).chamfer(w - 2 * inset, 0.03, d - 2 * inset, 0.012).pop(); }
+    if (ins) {
+      // The inset panel is cut into 2-4 pieces along its long side with grooves between them; a big flat one also
+      // gets a greeble (hatch, grille, bolt row or hazard stripe).
+      this.use(ins);
+      const iw = w - 2 * inset, id = d - 2 * inset, along = iw >= id, L = along ? iw : id, gr = 0.035;
+      const n = o.split ?? Math.max(1, Math.min(4, Math.round(L / 0.42))), seg = (L - gr * (n - 1)) / n;
+      for (let i = 0; i < n; i++) {
+        const off = -L / 2 + seg / 2 + i * (seg + gr);
+        b.push().move((o.ix || 0) + (along ? off : 0), h / 2 + 0.008, (o.iz || 0) + (along ? 0 : off)).chamfer(along ? seg : iw, 0.03, along ? id : seg, 0.012).pop();
+      }
+      if (o.greeble !== false && iw * id > 0.22 && !o.rz && !o.rx) { b.push().move(o.ix || 0, h / 2 + 0.024, o.iz || 0); this.greeble(along ? iw : id, along ? id : iw, along); b.pop(); }
+    }
+    b.pop(); return this;
+  }
+  // Small surface detail lying on a top face (current origin), on an area L long and D wide; `along` true when L runs
+  // along x. Cycles hatch, vent grille, bolt row, hazard stripe so neighbouring plates differ.
+  greeble(L, D, along) {
+    const b = this.b, kind = this.gi++ % 4;
+    b.push(); if (!along) b.rotY(PI / 2);
+    if (kind === 0) {
+      const r = Math.min(D * 0.28, 0.13);
+      this.oct(-L * 0.28, 0.012, 0, r, 0.025, 'gunLite', 0.008);
+      this.use('dark'); b.push().move(-L * 0.28, 0.03, 0).box(r * 1.1, 0.015, 0.025).pop();
+    } else if (kind === 1) {
+      this.use('dark'); b.push().move(L * 0.22, 0.006, 0).box(L * 0.3, 0.012, D * 0.55).pop();
+      this.use('gunLite'); for (let i = 0; i < 4; i++) b.push().move(L * 0.22 - L * 0.11 + i * L * 0.075, 0.016, 0).box(L * 0.025, 0.012, D * 0.5).pop();
+    } else if (kind === 2) {
+      this.use('steel'); for (let i = 0; i < 5; i++) for (const s of [-1, 1]) b.push().move(-L * 0.36 + i * L * 0.18, 0.008, s * D * 0.38).cyl(0.018, 0.018, 0.016, 6).pop();
+    } else {
+      for (let i = 0; i < 5; i++) { this.use(i % 2 ? 'dark' : 'haz'); b.push().move(-L * 0.3 + i * 0.055, 0.008, 0).rotY(0.6).box(0.045, 0.014, D * 0.5).pop(); }
+    }
     b.pop(); return this;
   }
   // Polygon in the XZ plane ([x, z] points) extruded from y0 to y1 with chamfered edges.

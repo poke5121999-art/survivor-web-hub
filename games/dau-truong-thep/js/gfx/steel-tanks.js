@@ -71,7 +71,8 @@ export const STEEL_DESIGNS = {
   // cannon, the left holds a long guandao whose broad crescent blade sticks out ahead and to the side so it reads from
   // above. Form II adds skirts, hip plates and a shoulder missile box; III a bigger box, a sensor pod and lit strips.
   quancong(b, st, trim, form) {
-    const k = new Kit(b, st, trim, form), F = k.F;
+    // Hue nudged from green toward teal (the owner asked for teal over mint).
+    const k = new Kit(b, st, trim, form, { hue: 0.04 }), F = k.F;
     b.use('hull');
     for (const s of [-1, 1]) {
       k.trackPod(0.1, s * 0.56, 2.5, 0.32, 0.55, { insert: null, skirt: F >= 2, decal: F >= 2 ? 'chev' : null, light: LAMP.green });
@@ -114,20 +115,25 @@ export const STEEL_DESIGNS = {
       if (F >= 2) k.decal('x', tx, 1.75, s * 0.94, 0.15, s > 0 ? '+z' : '-z');
       if (F === 3) k.strip(tx, 1.9, s * 0.72, 0.46, 'x');
       // Upper arm hanging out past the tracks to the elbow, forearm in the panel colour reaching forward to the fist.
-      k.beam([tx, 1.66, s * 0.72], [tx + 0.04, 1.24, s * 0.82], 0.18, 0.18, 'gun', 0.04);
-      k.beam([tx + 0.02, 1.22, s * 0.82], [tx + 0.48, 1.16, s * 0.84], 0.22, 0.22, 'panel', 0.05);
-      k.blk(tx + 0.26, 1.08, s * 0.84, 0.36, 0.06, 0.18, 'gun', 0.02);
+      k.beam([tx, 1.66, s * 0.72], [tx + 0.04, 1.24, s * 0.82], 0.26, 0.26, 'gun', 0.05);
+      k.blk(tx + 0.02, 1.48, s * 0.77, 0.3, 0.07, 0.3, 'gunLite', 0.02);
+      k.blk(tx + 0.03, 1.24, s * 0.82, 0.3, 0.26, 0.3, 'under', 0.06);
+      k.beam([tx + 0.02, 1.22, s * 0.82], [tx + 0.48, 1.16, s * 0.84], 0.3, 0.3, 'panel', 0.06);
+      for (const t of [0.35, 0.7]) k.blk(tx + 0.02 + 0.46 * t, 1.22 - 0.06 * t, s * (0.82 + 0.02 * t), 0.06, 0.34, 0.34, 'gun', 0.015);
+      k.blk(tx + 0.26, 1.04, s * 0.84, 0.36, 0.06, 0.24, 'gun', 0.02);
     }
     // Left fist round a long guandao: pole from behind the shoulder to well ahead, broad crescent blade lying flat
     // and opening outward, lit cutting edge, red tassel ring, butt spike.
     const bz = -0.84, fx = tx + 0.48, by = 1.16, bl = [1.05, 1.15, 1.25][F - 1];
-    k.blk(fx, by, bz, 0.16, 0.18, 0.2, 'under', 0.04);
+    k.blk(fx, by, bz, 0.2, 0.24, 0.26, 'under', 0.05);
     k.use('steel'); b.rod([tx - 0.55, by - 0.08, bz], [fx + bl, by + 0.04, bz], 0.035, 6);
     k.use('steel'); b.push().move(tx - 0.62, by - 0.09, bz).rotZ(PI / 2).cyl(0, 0.05, 0.16, 5).pop();
     const bx = fx + bl, yb = by + 0.04;
     k.blk(bx - 0.06, yb, bz, 0.12, 0.12, 0.14, 'trim', 0.02);
-    k.prism([[bx, bz + 0.06], [bx + 0.62, bz + 0.03], [bx + 0.5, bz - 0.24], [bx + 0.24, bz - 0.36], [bx + 0.02, bz - 0.2]], yb - 0.035, yb + 0.035, 'steel', 0.015);
-    k.lamp('glow', () => { b.rod([bx + 0.62, yb, bz + 0.04], [bx + 0.5, yb, bz - 0.25], 0.018, 4); b.rod([bx + 0.5, yb, bz - 0.25], [bx + 0.24, yb, bz - 0.37], 0.018, 4); });
+    const Bk = 1.4, bp = (x, z) => [bx + x * Bk, bz + z * Bk];
+    k.prism([bp(0, 0.06), bp(0.62, 0.03), bp(0.5, -0.24), bp(0.24, -0.36), bp(0.02, -0.2)], yb - 0.04, yb + 0.04, 'steel', 0.016);
+    k.prism([bp(0.06, 0.02), bp(0.3, 0.01), bp(0.2, -0.16), bp(0.06, -0.12)], yb + 0.035, yb + 0.06, 'trim', 0.01);
+    k.lamp('glow', () => { const a = bp(0.62, 0.04), c = bp(0.5, -0.25), e = bp(0.24, -0.37); b.rod([a[0], yb, a[1]], [c[0], yb, c[1]], 0.022, 4); b.rod([c[0], yb, c[1]], [e[0], yb, e[1]], 0.022, 4); });
     if (F >= 2) k.missileBox(tx - 0.3, 2.06, 0.5, 2, F === 3 ? 3 : 2, 0.11, { elev: 0.4, depth: 0.32 });
     if (F === 3) k.sensor(tx - 0.24, 2.0, -0.48, 0.2);
     k.antenna(tx - 0.26, 1.88, 0.18, 0.7);
