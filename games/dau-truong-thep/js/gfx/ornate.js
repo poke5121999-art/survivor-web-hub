@@ -13,18 +13,19 @@ import * as THREE from '../../vendor/three.module.min.js';
 import { Builder } from './builder.js';
 import { frameDesign, frameGear } from './frames.js';
 import { Kit, LAMP } from './steel.js';
+import { B1 } from './ornate-b1.js';
 
 const PI = Math.PI, TAU = PI * 2;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const lerp = (a, b, t) => a + (b - a) * t;
-const C3 = (c) => (c && c.isColor ? c.clone() : new THREE.Color(c));
-const mix = (a, b, t) => C3(a).lerp(C3(b), t);
+export const C3 = (c) => (c && c.isColor ? c.clone() : new THREE.Color(c));
+export const mix = (a, b, t) => C3(a).lerp(C3(b), t);
 const WHITE = new THREE.Color(1, 1, 1);
 
 // ---------- premium finishes (builder surf multipliers: roughness, metalness) ----------
 export const FINISH = { gold: [0.2, 2.2], chrome: [0.12, 2.2], pearl: [0.32, 0.3], enamel: [0.38, 0.9], dark: [0.6, 1.5], glass: [0.1, 0.6] };
 export const GOLD = 0xf2b43a, GOLD_DEEP = 0x8a5a14, CHROME = 0xdfe6ee, PEARL = 0xf4f0e6, DARKM = 0x1d2127;
-const fin = (b, kind, c) => { b.surface(FINISH[kind][0], FINISH[kind][1]); if (c !== undefined) b.tint(c); return b; };
+export const fin = (b, kind, c) => { b.surface(FINISH[kind][0], FINISH[kind][1]); if (c !== undefined) b.tint(c); return b; };
 
 // ---------- surface kit ----------
 // Skin over rings of points (arrays of Vector3 of one length). tone(i, j) colours the strip from point j of ring i
@@ -85,7 +86,7 @@ export function skin(rings, o = {}) {
   return g;
 }
 // Append a kit geometry: toned ones carry their own colours, plain ones take the current tint.
-const put = (b, g) => { if (!g.userData.plain) b.tint(WHITE); b.geo(g); g.dispose(); return b; };
+export const put = (b, g) => { if (!g.userData.plain) b.tint(WHITE); b.geo(g); g.dispose(); return b; };
 
 // Frames along a path (parallel transport from an up hint): tangent T, normal N, binormal B per point.
 function along(P, up = V(0, 1, 0)) {
@@ -149,7 +150,7 @@ export function bladeGeo(o) {
 
 // Place a right-side piece (s = 1) or its mirror (s = -1): position and rotations are mirrored across z here; the
 // piece's own geometry must be mirrored by its maker (mz) when it is not symmetric.
-function at(b, s, p, r, f) {
+export function at(b, s, p, r, f) {
   b.push().move(p[0], p[1], s * p[2]).rotY(s * (r[1] || 0)).rotZ(r[2] || 0).rotX(s * (r[0] || 0)); f(); b.pop();
 }
 
@@ -201,7 +202,7 @@ export function swirlPanel(b, s, p, r, w, h, plate, gold, mz) {
 }
 
 // Kudu-style horn: a ringed corkscrew rising up and out from the root along axis, tapering to a point.
-function kuduHorn(root, axis, o) {
+export function kuduHorn(root, axis, o) {
   const { H, turns, rho, r0, rings = 12, a = GOLD, c = 0x4a2410 } = o, n = 48, P = [];
   const ax = axis.clone().normalize(), e1 = V(0, 0, 1).cross(ax).normalize(), e2 = ax.clone().cross(e1).normalize();
   for (let i = 0; i <= n; i++) {
@@ -217,7 +218,7 @@ function sePoint(p, a, s, n) {
   return V(p.x, p.y + (sn > 0 ? p.ht : p.hb) * s * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n), (p.z || 0) + p.hw * s * Math.sign(c) * Math.pow(Math.abs(c), 2 / n));
 }
 // Curved pauldron: 2-3 half-shell caps stacked down and out over the shoulder, each with a raised gold rim.
-function pauldron(b, s, p, r, layers, cols) {
+export function pauldron(b, s, p, r, layers, cols) {
   for (let l = layers - 1; l >= 0; l--) {
     const rr = r * (1 - 0.14 * l), cap = new THREE.SphereGeometry(rr, 14, 5, 0, TAU, 0, PI * 0.42);
     cap.scale(1.15, 0.75, 1);
@@ -233,7 +234,7 @@ function pauldron(b, s, p, r, layers, cols) {
 // plates along its trailing edge, each overlapping the next and laid a little over the one inside it, so the wing is
 // one closed swept shape with no gaps. Plan for the right side (s = 1): root front at (x0, z0), the tip len behind and
 // reach out. part: 'frame' (panel and band: the airframe), 'feathers', or both.
-function wingPanel(b, s, o, part = 'all') {
+export function wingPanel(b, s, o, part = 'all') {
   const { x0, z0, len, reach, y, n, fl0, fl1, col } = o;
   const R0 = [x0, z0], T = [x0 - len, z0 + reach], R1 = [x0 - len * 0.5, z0 - 0.02];
   const P = (p) => [p[0], s * p[1]], L = (a, c, t) => [lerp(a[0], c[0], t), lerp(a[1], c[1], t)];
@@ -265,7 +266,7 @@ const flameShape = (() => {
 })();
 const ramp = (a, b, c) => [[0, new THREE.Color(...a)], [0.4, new THREE.Color(...b)], [1, new THREE.Color(...c)]];
 // Each tank's aura has its own colour ramp (root, middle, tip) so form III does not look the same on every ornate tank.
-const AURA = {
+export const AURA = {
   fire: ramp([0.85, 0.72, 0.38], [0.8, 0.3, 0.04], [0.3, 0.02, 0.0]),
   wind: ramp([0.75, 0.85, 0.9], [0.2, 0.5, 0.85], [0.02, 0.08, 0.3]),
   blood: ramp([0.85, 0.5, 0.5], [0.75, 0.06, 0.1], [0.25, 0.0, 0.04]),
@@ -281,7 +282,7 @@ function fireCard(FIRE) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
   return g;
 }
-function fireAura(b, cx, rx, rz, n, hgt, pal = AURA.fire) {
+export function fireAura(b, cx, rx, rz, n, hgt, pal = AURA.fire) {
   const m = b.mat; b.use('ember'); b.tint(WHITE);
   const card = fireCard(pal);
   const put1 = (x, z, a, hh, tilt) => { for (const rot of [0, PI / 2]) { b.push().move(x, 0.04, z).rotY(PI / 2 - a + rot).rotX(tilt).scale(hh * 0.8, hh, 1); b.geo(card); b.pop(); } };
@@ -298,7 +299,7 @@ function fireAura(b, cx, rx, rz, n, hgt, pal = AURA.fire) {
 }
 
 // Ornate cannon along +x into the barrel batch: polished barrel, gold bands, flared crown.
-function cannon(b, x, y, z, len, r, barrel, band) {
+export function cannon(b, x, y, z, len, r, barrel, band) {
   b.push().move(x, y, z).rotZ(-PI / 2);
   fin(b, 'chrome', barrel).lathe([[r * 1.35, 0], [r * 1.35, 0.1], [r * 1.05, 0.16], [r, len * 0.5], [r * 0.92, len * 0.82], [r * 1.1, len * 0.86], [r * 1.45, len * 0.98], [r * 1.25, len], [r * 0.7, len]], 12);
   fin(b, 'gold', band);
@@ -308,7 +309,7 @@ function cannon(b, x, y, z, len, r, barrel, band) {
 
 // ---------- tanks ----------
 // Shared start: the stock frame (for its muzzle and height), the running gear and the form flags.
-function start(h, b, st, paint, trim, deep, form, gear) {
+export function start(h, b, st, paint, trim, deep, form, gear) {
   const F = st.frame, orn = [].concat(F.sig || []).length > 0, f = Math.max(1, Math.min(3, form | 0 || 2));
   const ob = new Builder(0.85); ob.use('hull').surface(1, 1);
   const stock = frameDesign(h, F)(ob, paint, trim, deep);
@@ -318,7 +319,7 @@ function start(h, b, st, paint, trim, deep, form, gear) {
   const g = gear === false ? { y0: 0.3, y1: 0.8, legs: [], parts: [] } : frameGear(h, b, gear && gear.F ? { ...F, ...gear.F } : F, gear ? gear.paint : paint, gear ? gear.trim : trim, deep);
   return { F, orn, f, stock, g, parts: g.parts.slice(), top: g.y1 };
 }
-function finish(K, extra = {}) {
+export function finish(K, extra = {}) {
   return { muzzle: K.stock.muzzle, muzzleY: K.my ?? K.stock.muzzleY, S: K.F.S || 1, height: Math.max(K.stock.height, K.top + 0.3), legs: K.g.legs.length ? K.g.legs : undefined,
     stride: K.stock.stride, hover: K.stock.hover, parts: K.parts.concat([{ name: 'barrel', on: 'turret', kind: 'recoil', amt: extra.recoil ?? 0.25 }]), ornate: true };
 }
@@ -326,7 +327,7 @@ function finish(K, extra = {}) {
 // The steel construction (steel.js Kit: chamfered plates with inset panels, octagonal rings, track pods, ribbed
 // cannons, light squares) in ornate finishes: every colour name a Kit method paints with can be given here as
 // [colour, FINISH key], so the same plates come out polished gold, pearl or chrome instead of matte gunmetal.
-class OKit extends Kit {
+export class OKit extends Kit {
   constructor(b, st, trim, form, cols) {
     super(b, st, trim, form);
     this.fin = {};
@@ -623,6 +624,7 @@ const TANKS = {
     K.parts.push(...k.parts); K.top = 1.6 + (f === 3 ? 0.2 : 0);
     return finish(K, { recoil: 0.2 });
   },
+  ...B1,
 };
 
 // The tanks that opt in: key → builder (hb, b, st, paint, trim, deep, form) → info.
