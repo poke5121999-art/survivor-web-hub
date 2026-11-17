@@ -34,8 +34,8 @@ function momentFor(r) {
   }
 }
 const startOf = (r, slot) => (r && r.charge ? 47 : slot.endsWith('b') ? 18 : 1);
-// calibrated on 3c4cbf8c: Lữ Bố s2 ~ Tào Tháo s1 scores 0.46 and Athena s1 ~ Hades s1 0.53, both too similar
-const COLW = 0.1, SIM = Number(process.env.LOOKS_SIM || 0.535);
+// calibrated on 3c4cbf8c: Lữ Bố s2 ~ Tào Tháo s1 scores 0.43 and Athena s1 ~ Hades s1 0.52, both too similar
+const COLW = 0.1, SIM = Number(process.env.LOOKS_SIM || 0.525);
 // visual weight floor: share of the frame a look changes and the mean contrast of those pixels (0-255 per channel), ults
 // need more (calibrated so the thin first cut of Athena s1, Lữ Bố s2 and Tào Tháo s1 fail and Hades ult passes)
 const FLOOR = { area: 0.025, ultArea: 0.06, contrast: 40 };
@@ -78,6 +78,8 @@ session(async (br, base) => {
     window.__scene = (k, slotKey, cast, ticks) => {
       // the renderer's own randomness (particles, sparks) restarts from one seed each scene, so a signature is the same run to run
       let seed = 0x9e3779b9; Math.random = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      // camera shake outlives a match (an ult's kick in the scene before would move this scene's camera off its baseline)
+      try { G.meta.get().settings.shake = 'off'; } catch (e) { /* no settings: shake stays as the game has it */ }
       window.__start({ mech: k, map: 'denrung', mode: 'tdm', size: 3, diff: 'normal', theme: null });
       window.__botHook = null;
       window.__step(100, false);

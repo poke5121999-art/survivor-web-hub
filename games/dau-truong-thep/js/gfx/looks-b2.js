@@ -260,12 +260,12 @@ const buomdem = {
   dsRealm: {
     pal: [DS_PINK, DS_ORANGE], hitR: 1.8,
     zoneMake(kit, z) {
-      const d = sigil(kit, z.x, z.z, z.r * 0.5, DS_PINK, { c2: DS_BLUE, n: 0, ticks: 0, inner: 0, fill: 1.0, life: 1e9, rev: 0.3, alpha: 0.75, y: 0.1 });
+      const d = sigil(kit, z.x, z.z, z.r * 0.8, DS_PINK, { c2: DS_BLUE, n: 0, ticks: 0, inner: 0, fill: 1.0, life: 1e9, rev: 0.3, alpha: 0.6, y: 0.1 });
       const s1 = sigil(kit, z.x, z.z, z.r * 0.6, DS_ORANGE, { c2: DS_ORANGE, n: 0, ticks: 40, inner: 0, life: 1e9, rev: 0.4, spin: 0.8, fill: 0.15, w: 0.03, alpha: 0.6 });
       const s2 = sigil(kit, z.x, z.z, z.r * 0.45, DS_PINK, { c2: DS_ORANGE, n: 0, ticks: 30, inner: 0.7, life: 1e9, rev: 0.3, spin: -1.6, y: 0.2, w: 0.08 });
       // two mandalas standing in the air at the sides of the realm, facing the camera
       // diamond shards of a broken dimension drift round inside the bubble
-      const st = [0, 1, 2, 3, 4, 5].map((i) => { const m = sigil(kit, z.x, z.z, 2.4, DS_ORANGE, { c2: DS_PINK, n: 4, m: 1, ticks: 0, inner: 0, life: 1e9, rev: 0.1, spin: 3, y: 1.8 + (i % 3) * 0.7, fill: 0.4, w: 0.08 }); m.userData.i = i; return m; });
+      const st = [0, 1, 2, 3, 4, 5].map((i) => { const m = sigil(kit, z.x, z.z, 1.3, DS_ORANGE, { c2: DS_PINK, n: 4, m: 1, ticks: 0, inner: 0, life: 1e9, rev: 0.1, spin: 3, y: 1.8 + (i % 3) * 0.7, fill: 0.4, w: 0.08 }); m.userData.i = i; return m; });
       // the mirror dimension cracks: bright fault lines run out from the centre to the rim
       const cracks = []; for (let i = 0; i < 9; i++) { const a = i * 0.698 + 0.2 * Math.sin(i * 7), r1 = z.r * (0.75 + 0.2 * ((i * 5) % 3) / 2); const b = kit.beam(z.x, z.z, z.x + Math.cos(a) * r1, z.z + Math.sin(a) * r1, 0.5, i % 2 ? DS_ORANGE : C(2.6, 2.2, 2.4), 1e9, 2, 0.15); cracks.push(b); }
       return { d, s1, s2, st, cracks };

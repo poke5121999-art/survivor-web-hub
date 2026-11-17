@@ -58,7 +58,7 @@ const soi = {
     // the warning is a burning wolf-paw ring where each bolt will land
     zoneMake(kit, z) {
       const v = { y: 18, live: true };
-      trail(kit, () => (v.live ? [z.x + v.y * 0.25, v.y, z.z - v.y * 0.3] : null), 1.8, WF_FIRE, 4, { c2: WF_GOLD, len: 10, up: true });
+      trail(kit, () => (v.live ? [z.x + v.y * 0.25, v.y, z.z - v.y * 0.3] : null), 2.8, WF_FIRE, 4, { c2: WF_GOLD, len: 10, up: true });
       // three burning claw scratches across the landing spot
       const a = Math.random() * 3.14, L = Math.max(2.4, z.r) * 2; v.s = null;
       for (const o of [-0.7, 0, 0.7]) { const b = kit.beam(z.x + Math.cos(a + 1.57) * o - Math.cos(a) * L / 2, z.z + Math.sin(a + 1.57) * o - Math.sin(a) * L / 2, z.x + Math.cos(a + 1.57) * o + Math.cos(a) * L / 2, z.z + Math.sin(a + 1.57) * o + Math.sin(a) * L / 2, 1.3, WF_FIRE, (z.delay || 0.9) + 0.1, 2, 0.2); b.fade = true; }
@@ -66,7 +66,7 @@ const soi = {
     },
     zone(kit, v, z) { v.y = Math.max(0.3, 18 * (z.delay / (z.total || 1))); },
     zoneDrop(kit, v) { v.live = false; },
-    land(kit, e) { jaws(kit, e.x, e.z, Math.random() * 6.283, 3.8); spikes(kit, e.x, e.z, 8, 1.7, 3, WF_FIRE, 0.9, { core: 0x2a0a02 }); pillar(kit, e.x, e.z, 1.8, WF_FIRE, { c2: WF_GOLD, h: 6, life: 0.5, grow: 0.06, narrow: true }); burst(kit, e.x, e.z, 2.6, WF_CHAR, WF_FIRE); kit.scorch(e.x, e.z, 2, 3, 1.6, WF_FIRE); kit.kick(e.x, e.z, 0.3); return true; },
+    land(kit, e) { pillar(kit, e.x, e.z, 1.4, WF_GOLD, { c2: WF_FIRE, h: 9, life: 0.6, grow: 0.05, narrow: true }); { const a = Math.random() * 3.14; for (const o of [-0.8, 0, 0.8]) { const b = kit.beam(e.x + Math.cos(a + 1.57) * o - Math.cos(a) * 2.6, e.z + Math.sin(a + 1.57) * o - Math.sin(a) * 2.6, e.x + Math.cos(a + 1.57) * o + Math.cos(a) * 2.6, e.z + Math.sin(a + 1.57) * o + Math.sin(a) * 2.6, 1.5, WF_GOLD, 0.9, 2, 0.2); b.fade = true; } } pillar(kit, e.x, e.z, 1.8, WF_FIRE, { c2: WF_GOLD, h: 6, life: 0.5, grow: 0.06, narrow: true }); burst(kit, e.x, e.z, 2.6, WF_CHAR, WF_FIRE); kit.scorch(e.x, e.z, 2, 3, 1.6, WF_FIRE); kit.kick(e.x, e.z, 0.3); return true; },
   },
 };
 
@@ -251,7 +251,7 @@ const cakiem = {
     castDrop(kit, v) { v.h.on = false; },
     beam(kit, e) {
       const a = Math.atan2(e.z1 - e.z0, e.x1 - e.x0), L = Math.hypot(e.x1 - e.x0, e.z1 - e.z0);
-      crescent(kit, e.x0, e.z0, a, L * 0.62, 1.2, 1, CK_LIME, 0.7, 7.5, 0.42, 0, 0.08, { edge: CK_WHITE, spark: CK_WHITE });
+      crescent(kit, e.x0, e.z0, a, L * 0.62, 1.2, 1, CK_LIME, 0.7, 8, 0.45, 0, 0.08, { edge: CK_WHITE, spark: CK_WHITE });
       const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 3, CK_LIME, 0.5, 2, 1.3); b.fade = true;
       xflash(kit, e.x1, e.z1, 4.4, 0.55);
       for (const sd of [-1, 1]) crescent(kit, e.x1, e.z1, a + Math.PI / 2 * sd, 3.6, 1.3, sd, CK_LIME, 0.5, 1.6, 1.0, 0, 0.1, { edge: CK_WHITE, sparks: false }); kit.flash(e.x1, 1.6, e.z1, CK_LIME, 60, 0.3); kit.kick(e.x0, e.z0, 0.6);

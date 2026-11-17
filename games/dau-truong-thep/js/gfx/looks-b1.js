@@ -231,7 +231,7 @@ const tumay = {
       const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat); dome.renderOrder = 7;
       dome.position.set(z.x, 0, z.z); dome.scale.set(z.r, z.r * 0.45, z.r);
       const rim = shell(kit, z.x, 0, z.z, z.r, SM_IND, { c2: C(0.05, 0, 0.12), p: 3.2, core: 0, dome: true, squash: 0.45, life: 1e9, alpha: 0.7 });
-      const sg = sigil(kit, z.x, z.z, z.r * 0.35, SM_IND, { c2: SM_ARC, n: 7, m: 3, ticks: 0, life: 1e9, rev: 0.4, spin: 0.6, fill: 0.2 });
+      const sg = sigil(kit, z.x, z.z, z.r * 0.5, SM_IND, { c2: SM_ARC, n: 7, m: 3, ticks: 14, life: 1e9, rev: 0.4, spin: 0.6, fill: 0.2 });
       const orbs = [voidOrb(0.3), voidOrb(0.3), voidOrb(0.3), voidOrb(0.3)];
       const h = held(kit, [dome, ...orbs]);
       return { dome, mat, rim, sg, orbs, h, t: 0 };
