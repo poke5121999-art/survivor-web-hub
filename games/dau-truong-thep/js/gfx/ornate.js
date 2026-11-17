@@ -278,7 +278,7 @@ function fireCard(FIRE) {
   const g = new THREE.ShapeGeometry(flameShape, 5), p = g.attributes.position, c = [];
   for (let i = 0; i < p.count; i++) {
     const t = Math.min(1, Math.max(0, p.getY(i))), k = t < FIRE[1][0] ? 0 : 1, u = (t - FIRE[k][0]) / (FIRE[k + 1][0] - FIRE[k][0]);
-    const col = FIRE[k][1].clone().lerp(FIRE[k + 1][1], u); c.push(col.r, col.g, col.b);
+    const col = FIRE[k][1].clone().lerp(FIRE[k + 1][1], u).multiplyScalar(0.6 * (1 - 0.6 * t)); c.push(col.r, col.g, col.b);
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
   return g;
@@ -286,7 +286,7 @@ function fireCard(FIRE) {
 export function fireAura(b, cx, rx, rz, n, hgt, pal = AURA.fire) {
   const m = b.mat; b.use('ember'); b.tint(WHITE);
   const card = fireCard(pal);
-  const put1 = (x, z, a, hh, tilt) => { for (const rot of [0, PI / 2]) { b.push().move(x, 0.04, z).rotY(PI / 2 - a + rot).rotX(tilt).scale(hh * 0.8, hh, 1); b.geo(card); b.pop(); } };
+  const put1 = (x, z, a, hh, tilt) => { for (const rot of [0, PI / 2]) { b.push().move(x, 0.04, z).rotY(PI / 2 - a + rot).rotX(tilt).scale(hh * 0.6, hh * 0.75, 1); b.geo(card); b.pop(); } };
   for (let i = 0; i < n; i++) {
     const a = i / n * TAU, back = Math.max(0, -Math.cos(a));
     put1(cx + Math.cos(a) * rx, Math.sin(a) * rz, a, hgt * (0.65 + 0.3 * Math.abs(Math.sin(i * 1.7)) + 0.5 * back), -0.2 - 0.3 * back);
