@@ -300,12 +300,26 @@ export function strands(kit, at, r, n, len, c, life, opts = {}) {
 export function burst(kit, x, z, r, c, c2 = c, opts = {}) {
   // r is about the width across of the blow (2-3 tank widths for a real one): a white-hot centre fading out through c2 to a
   // soft c edge, near-opaque for the first 0.12 s, a wider soft halo, a dark soft rim on the floor for contrast on light stone
-  const life = opts.life ?? 0.5, y = opts.y ?? 1.1, rc = r * 0.6, rh = r * 0.95;
+  // secondary to a look's own shape: a brief flash where a blow lands, not the look itself
+  const life = Math.min(opts.life ?? 0.3, 0.35), y = opts.y ?? 1.1, rc = r * 0.32, rh = r * 0.5;
   shell(kit, x, y, z, rc, c, { c2, inv: 1.2, core: 1, life, fade: life - 0.12, step: (t, m) => { m.scale.setScalar(rc * (0.55 + 0.6 * Math.min(1, t / 0.12))); } });
   shell(kit, x, y, z, rh, c, { c2: c, inv: 2.2, core: 0.55, life: life * 1.2, alpha: 0.8, step: (t, m) => { m.scale.setScalar(rc + (rh - rc) * Math.min(1, t / 0.2)); } });
   sigil(kit, x, z, rh * 1.15, c.clone().multiplyScalar(0.18 / Math.max(c.r, c.g, c.b)), { n: 0, ticks: 0, inner: 0, fill: 0.7, life: life * 1.3, rev: 0.04, alpha: 0.85, fade: life, y: 0.12, w: 0.0 });
   kit.sparks(x, y, z, kit.N(14), c2, 6 + r * 2.5, 0.4, 0.07, 0.7, 8);
   kit.flash(x, y + 0.6, z, c, 30 + r * 12, 0.25);
+}
+
+// ---- standing ring -------------------------------------------------------------------------------------------
+// A ring standing upright (a gate, a portal) facing the camera, its lower edge on the floor: glowing rim, dark or tinted pane.
+const torGeo = keep(new THREE.TorusGeometry(1, 0.14, 8, 48)), paneGeo = keep(new THREE.CircleGeometry(0.95, 40));
+export function gate(kit, x, z, r, c, opts = {}) {
+  const g = new THREE.Group(); g.position.set(x, r, z);
+  const rim = new THREE.Mesh(torGeo, new THREE.MeshBasicMaterial({ color: c.clone().multiplyScalar(1 / Math.max(c.r, c.g, c.b, 1)), toneMapped: false, transparent: true, opacity: 0.95 }));
+  const pane = new THREE.Mesh(paneGeo, new THREE.MeshBasicMaterial({ color: opts.pane ?? 0x02060f, toneMapped: false, transparent: true, opacity: opts.paneA ?? 0.75, depthWrite: false, side: THREE.DoubleSide }));
+  g.add(pane, rim); g.scale.setScalar(0.01); g.rotation.x = -0.35;
+  const life = opts.life ?? 1;
+  own(kit, [g], life, (t) => { const k = Math.min(1, t / (opts.grow ?? 0.2), (life - t) / 0.25); g.scale.setScalar(r * Math.max(0.01, k)); g.rotation.z += opts.spin ?? 0; if (opts.step) opts.step(t, g); });
+  return g;
 }
 
 // A unit's skill press was seen by this client: run fn per frame for dur seconds while it is alive (render-only aura).

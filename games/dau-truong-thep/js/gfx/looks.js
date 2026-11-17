@@ -120,7 +120,7 @@ export const LOOKS = {
     skill(kit, e, u) { kit.glow(u.x, 1.6, u.z, PINK, 0.25, 2.4, 0.8, kit.K.GLOW, 1.3); return true; },
     strike(kit, e, u) {
       const g = makeSword(), delay = e.delay ?? 0.35;
-      g.position.set(e.x, 9, e.z); g.rotation.y = Math.random() * 6.283; g.scale.setScalar(1.7); kit.group.add(g);
+      g.position.set(e.x, 9, e.z); g.rotation.y = Math.random() * 6.283; g.scale.setScalar(2.3); kit.group.add(g);
       kit.ring(e.x, e.z, 2.6, CYAN, delay + 0.05, 0.7);
       kit.anims.push({ t: 0, step(dt) {
         this.t += dt;
@@ -137,14 +137,14 @@ export const LOOKS = {
     },
     zoneMake(kit, z) {
       const g = makeSword();
-      g.position.set(z.x, -0.6, z.z); g.rotation.y = (z.id * 2.399) % 6.283; g.scale.setScalar(1.7); kit.group.add(g);
+      g.position.set(z.x, -0.6, z.z); g.rotation.y = (z.id * 2.399) % 6.283; g.scale.setScalar(2.3); kit.group.add(g);
       const edge = kit.ground(0, z.x, z.z, z.r, CYAN, { alpha: 1 }); edge.u.uT.value = 1;   // a ring held at the end of its sweep
       return { g, rim: kit.ground(2, z.x, z.z, z.r, CYAN, { alpha: 1 }), edge };
     },
     zone(kit, v, z, dt) {
       const end = Math.min(1, (z.dur - z.age) * 2.5), pulse = 0.75 + 0.25 * Math.sin(z.age * 9);
       v.g.userData.mats[0].opacity = 0.8 * pulse * end;
-      v.g.scale.setScalar(1.7 * (0.85 + 0.15 * end));
+      v.g.scale.setScalar(2.3 * (0.85 + 0.15 * end));
       kit.glow(z.x, 3.2, z.z, DEEP, 0.08, 2.6, 0.22 * pulse * end, kit.K.GLOW, 1);
       kit.glow(z.x, 1.0, z.z, CYAN, 0.08, 1.6, 0.15 * end, kit.K.GLOW, 1);
       if (Math.random() < dt * 40) { const a = Math.random() * 6.283, d = Math.random() * z.r; kit.glow(z.x + Math.cos(a) * d, 0.3, z.z + Math.sin(a) * d, PINK, 0.5, 0.28, 1, kit.K.SPARK, 0.3, 0, kit.rnd(1, 3), 0); }
@@ -172,8 +172,8 @@ export const LOOKS = {
     skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, PINK, 0.2, 1.6, 0.5, kit.K.GLOW, 1.3); return true; },
     nova(kit, e, u, s) {
       const k = e.k || 0, big = k === (s.repeat || 1) - 1, r = e.r * (big ? 1.15 : 1);
-      crescent(kit, e.x, e.z, e.a, r, 1.1, k % 2 ? -1 : 1, big ? HOT : PINK, big ? 0.6 : 0.5);
-      crescent(kit, e.x, e.z, e.a, r * 0.8, 1.0, k % 2 ? -1 : 1, DEEP, big ? 0.55 : 0.45);
+      crescent(kit, e.x, e.z, e.a, r * 1.3, 1.1, k % 2 ? -1 : 1, big ? HOT : PINK, big ? 0.7 : 0.6, r * 0.65);
+      crescent(kit, e.x, e.z, e.a, r * 1.0, 1.0, k % 2 ? -1 : 1, DEEP, big ? 0.55 : 0.45);
       const fx = e.x + Math.cos(e.a) * r * 0.6, fz = e.z + Math.sin(e.a) * r * 0.6;
       kit.sparks(fx, 1.1, fz, kit.N(10), PINK, 9, 0.35, 0.05, 0.4, 12, Math.cos(e.a), Math.sin(e.a), 0.7);
       burst(kit, fx, fz, big ? 4 : 3.4, big ? HOT : PINK, DEEP, { life: 0.6 }); burst(kit, e.x, e.z, 2.4, DEEP, PINK, { life: 0.4 });
