@@ -1103,7 +1103,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/nhan-vat-loft.png",
     // Nguồn làm việc: D:/mesh-to-code trên HOB-THOR (lib/char.js generator, tools/fit-char.mjs, tools/site-run.mjs + tasks/gates.mjs).
     path: "games/nhan-vat-loft/index.html",
-    rev: "20261117a",
+    rev: "20261117b",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   },

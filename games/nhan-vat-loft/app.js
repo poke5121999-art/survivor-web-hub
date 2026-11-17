@@ -95,13 +95,13 @@ function updatePanels() {
   $('#heroName').textContent = h;
   const st = S.char.stats;
   let html = `<div class="kv"><b>${st.verts.toLocaleString()}</b> đỉnh · <b>${st.tris.toLocaleString()}</b> tam giác</div><div class="kv">dựng trong trình duyệt: <b>${st.msTotal.toFixed(0)} ms</b></div>`;
-  if (m) html += `<table class="num"><tr><th></th><th>IoU</th><th>sai lệch</th></tr>
+  if (m && S.build === 'old') html += `<table class="num"><tr><th></th><th>IoU</th><th>sai lệch</th></tr>
     <tr><td>cả nhân vật</td><td>${m.full.iou.toFixed(3)}</td><td>${(m.full.dist * 1000).toFixed(1)} mm</td></tr>
     <tr><td>trước / bên / 3-4</td><td colspan="2">${m.full.views.map((x) => x.toFixed(3)).join(' / ')}</td></tr>
     <tr><td>thân + áo</td><td>${m.body.iou.toFixed(3)}</td><td>${(m.body.dist * 1000).toFixed(1)} mm</td></tr>
     <tr><td>tóc + đầu</td><td>${m.hair.iou.toFixed(3)}</td><td>${(m.hair.dist * 1000).toFixed(1)} mm</td></tr>
     <tr><td>số trong bảng</td><td colspan="2">${m.params.toLocaleString()}</td></tr></table>`;
-  if (m && m.gates) html += `<div class="gates"><b>Kiểm tra xuyên thấu</b> (30 khung/clip, số đỉnh lớn nhất trong một khung):<br>${Object.entries(m.gates).map(([c, g]) => `${c}: ${Object.entries(g).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('<br>')}</div>`;
+  if (m && m.gates && S.build === 'old') html += `<div class="gates"><b>Kiểm tra xuyên thấu</b> (30 khung/clip, số đỉnh lớn nhất trong một khung):<br>${Object.entries(m.gates).map(([c, g]) => `${c}: ${Object.entries(g).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('<br>')}</div>`;
   if (S.build === 'parts' && S.partsFile) {
     html += `<h2>Các part (mỗi mesh con của bản gốc là một part code)</h2><table class="num parts"><tr><th></th><th>part</th><th>cách dựng</th><th>sai lệch</th></tr>` +
       S.partsFile.parts.map((p) => `<tr><td><input type="checkbox" data-part="${p.id}" ${S.hidden.has(p.id) ? '' : 'checked'}></td><td>${SLOT_LABEL[p.slot] || p.slot}<br><small>${p.id.split('.').slice(1, 2).join('')}</small></td><td>${p.rep}</td><td>${p.score != null && isFinite(p.score) ? p.score.toFixed(1) + ' mm' : '–'}</td></tr>`).join('') + '</table>';
