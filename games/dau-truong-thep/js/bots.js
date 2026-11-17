@@ -1291,6 +1291,12 @@ const SKILL_AI = {
       c.b.sk.x = best.x; c.b.sk.z = best.z;
       return true;
     }
+    // charge: start holding with a target inside the full reach and a clear line (chooseSkill lets it go)
+    if (s.charge) {
+      if (!tgt || !c.los || td > s.charge.range[1] - 2 || td < 2.5) return false;
+      c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = Math.max(0.04, Math.atan2(s.charge.width[0] * 0.5, td) * 0.7);
+      return true;
+    }
     if (!tgt || td > s.range - 2 || td < 4) return false;
     const p = leadPoint(u, tgt, td / s.windup, c.D.lead);
     const dx = p[0] - u.x, dz = p[1] - u.z, dd = hyp(dx, dz);
@@ -1781,10 +1787,26 @@ function pullSkill(c, s) {
 const TOWER_SKILLS = { volley: 1, barrage: 1, beam: 1, sweep: 1 };
 function chooseSkill(c) {
   const { u, b, D, m, role } = c;
-  if (u.cast || u.dash || u.stunT > 0) return null;
+  // a charging beam (charge): let it go once the key has been up and the target stands inside the reach it has now
+  if (u.cast && u.cast.charge && u.cast.up) {
+    const C = u.cast.skill.charge, f = Math.min(1, (u.cast.total - u.cast.t) / u.cast.total), reach = C.range[0] + (C.range[1] - C.range[0]) * f;
+    const t = c.tgt;
+    if (t && f >= 0.6 && c.td < reach - 1 && Math.abs(angDiff(u.cast.aim, Math.atan2(t.z - u.z, t.x - u.x))) < Math.atan2(C.width[1] * 0.5, c.td)) {
+      b.sk.x = t.x; b.sk.z = t.z; b.sk.aim = null; b.sk.mx = null; b.sk.mz = null; b.sk.slot = u.cast.slot;
+      return b.sk;
+    }
+  }
+  if (u.cast || u.dash || u.stunT > 0 || u.silenceT > 0) return null;
   const sk = b.sk;
   const p = 1 - Math.pow(1 - Math.min(0.999, D.skill), 1.5 * TICK);
   for (let i = 0; i < 3; i++) {
+    // next: an armed second stage is used at once while its target is still in reach (the sim checks the rest)
+    const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.def.skills[i].next.row : null;
+    if (nx) {
+      const o = m.units[u.next.target];
+      if (o && o.alive && hyp(o.x - u.x, o.z - u.z) < nx.dist && c.hpFrac > 0.35) { sk.x = o.x; sk.z = o.z; sk.aim = null; sk.mx = null; sk.mz = null; sk.slot = i; return sk; }
+      continue;
+    }
     if (u.cd[SLOTS[i]] > 0) continue;
     const s = u.def.skills[i], fn = SKILL_AI[s.do];
     if (!fn) continue;

@@ -3504,16 +3504,65 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     const nova = only(ev, 'nova', (e) => e.id === 0);
     check('44f The Do (first): the opening blow is turned away whole (hp full), a 3.5 m nova answers: 300 x falloff 0.714 x armor, stun 0.6 s', a.hp === a.maxHp && only(ev, 'parry').length === 1 && nova.length === 1 && nova[0].r === 3.5 && near(UNG.hp - v.hp, 300 * (1 - 0.5 * 2 / 3.5) * UNG_F, 1e-6) && v.stunT > 0.4 && v.stunT <= 0.6, `${a.hp} ${UNG.hp - v.hp} ${v.stunT}`);
   }
-  // moclan: the riposte follows the stance
+  // moclan (Hoa Moc Lan, ported from the owner's clip): two-stage sword drop (barrage.linger + next), three sweeps (nova arc/grow/last
+  // + guard), charged blade (beam.charge + knock), five-hit stacks with maxHp, silence and self guard
   {
-    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
-    press(m, 0, 's1', { tx: 2, tz: 0 });
-    check('44g Kiem Phap (stance 0): three fan darts of 140 fly, the stance flips to Trong Kiem (def, weapon, armor + 0.1)', m.shots.filter((s) => s.owner === 0).length === 3 && a.form === 1 && weaponOf(a).name === 'Trọng Kiếm' && near(armorOf(m, a), MECHS.moclan.armor + 0.1, 1e-9) && near(unitSpeed(a), MECHS.moclan.speed, 1e-9), `${a.form} ${weaponOf(a).name}`);
-    a.cd.s2 = 0; v.x = 40; v.px = 40;
-    press(m, 0, 's2', { tx: 2, tz: 0 }); v.x = v.px = 2;
-    const ev = go(m, 8, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
-    const nova = only(ev, 'nova', (e) => e.id === 0);
-    check('44h Luot Phan in stance 1: the riposte is a 3 m nova (not a volley), the blow is cut by dr 0.5', nova.length === 1 && nova[0].r === 3 && near(only(ev, 'hit', (e) => e.id === 0)[0].amt, UNGW * 0.5, 1e-6), JSON.stringify(only(ev, 'hit', (e) => e.id === 0).map((e) => e.amt)));
+    const MO = MECHS.moclan, MOF = 1 - MO.armor;
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    press(m, 0, 's1', { tx: 6, tz: 0 });
+    check('44g Liet Khong Tram: one strike at the cursor, cooldown 8 started, the second stage waits for a hit (not armed)', m.zones.filter((z) => z.kind === 'strike' && z.src === 'liekhong').length === 1 && !!a.next && !a.next.armed && near(a.cd.s1, 8, 1e-9), JSON.stringify(a.next));
+    const ev = go(m, 14);
+    const field = m.zones.find((z) => z.kind === 'field' && z.vis === 'mlSword'), h = only(ev, 'hit', (e) => e.id === 1);
+    check('44h the sword lands: 200 x armor at the centre, slow 0.5 for 2 s, a 3.5 s sword field stays, the second stage is armed on the victim', !!field && field.dur === 3.5 && field.dps === 100 && h.length === 1 && near(h[0].amt, 200 * UNG_F, 1e-6) && v.slowT > 1.4 && !!a.next && a.next.armed && a.next.target === 1, `${h.map((e) => e.amt)} ${JSON.stringify(a.next)}`);
+    const hp0 = v.hp, ev1 = go(m, 32);
+    check('44i the sword field cuts 100/s in half-second pulses (two pulses in 32 ticks) and keeps the slow on', near(hp0 - v.hp, 2 * 50 * UNG_F, 1e-6) && only(ev1, 'hit', (e) => e.id === 1).length === 2 && v.slowT > 0, `${hp0 - v.hp}`);
+    v.x = v.px = 6; v.z = v.pz = 0; a.x = a.px = 0; a.z = a.pz = 0; a.next.t = 1;
+    const cd = a.cd.s1, ev2 = press(m, 0, 's1', { tx: 6, tz: 0 }), fly = !!a.dash && a.dash.fly;
+    go(m, 12, () => ({ 0: { aim: Math.PI, tx: 6, tz: 0 } }));
+    check('44j Pha Khong Tram: a fresh press glides (30 m/s, over the victim) to its far side; the cooldown runs on untouched', only(ev2, 'warp', (e) => e.id === 0).length === 1 && fly && a.x > v.x + 1 && !a.dash && a.next === null && near(a.cd.s1, cd - 13 * TICK, 1e-9), `${a.x} ${a.cd.s1} ${fly}`);
+  }
+  {
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 6, 0]]), a = m.units[0];
+    press(m, 0, 's1', { tx: 0, tz: 8 }); go(m, 14);
+    check('44k a sword that lands on nobody arms no second stage', !a.next || !a.next.armed, JSON.stringify(a.next));
+    go(m, 20);
+    const ev = press(m, 0, 's1', { tx: 6, tz: 0 });
+    check('44l ... and the window is gone: a press during the cooldown does nothing', a.next === null && only(ev, 'warp').length === 0 && only(ev, 'skill', (e) => e.id === 0).length === 0);
+  }
+  {
+    const MO = MECHS.moclan;
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    let ev = [], k = 0;
+    while (!only(ev, 'stacks').length && k++ < 150) ev = ev.concat(go(m, 1, () => ({ 0: { fire: true } })));
+    const extra = only(ev, 'hit', (e) => e.id === 1 && near(e.amt, UNG.hp * 0.08 * UNG_F, 1e-6));
+    check('44m Can Quoc Anh Hung: the 5th Kiem Khi hit in a row goes off: +8% max hp, silence 1 s, slow 0.6, moclan guarded 0.75 and cc-immune for 1 s', only(ev, 'fire', (e) => e.id === 0).length === 5 && extra.length === 1 && near(v.silenceT, 1, 0.05) && v.slowF === 0.6 && near(a.guardT, 1, 0.05) && a.guardF === 0.75 && a.ccT > 0.9, `${only(ev, 'fire', (e) => e.id === 0).length} ${extra.length} ${v.silenceT} ${a.guardT}`);
+    const ev2 = press(m, 1, 's1', { tx: 0, tz: 0 });
+    check('44n a silenced mech casts nothing (its cooldown stays ready)', only(ev2, 'skill', (e) => e.id === 1).length === 0 && v.cd.s1 === 0);
+    const ev3 = go(m, 12, () => ({ 1: { fire: true, aim: Math.PI } }));
+    const h = only(ev3, 'hit', (e) => e.id === 0);
+    check('44o under guard a blow is cut by 75% (on top of armour; the rail shot of Ung pierces armour, so 390 x 0.25)', h.length > 0 && near(h[0].amt, UNGW * 0.25, 1e-6) && MECHS.ung.passive.do === 'pierce', JSON.stringify(h.map((e) => e.amt)));
+  }
+  {
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 2, 0], [R('ung', 1), -2.5, 0]]), [a, f, b] = m.units;
+    press(m, 0, 's2');
+    const ev0 = go(m, 9);
+    check('44p Kinh Hong Tam Thuc: guarded and cc-immune while it sweeps', !!a.cast && a.cast.skill.id === 'kinhhong' && a.guardT > 0 && a.ccT > 0);
+    const ev = ev0.concat(go(m, 40)), nv = only(ev, 'nova', (e) => e.id === 0), hf = only(ev, 'hit', (e) => e.id === 1).map((e) => e.amt);
+    check('44q three sweeps (k 0, 1, 2 with the look), the first is 190 x falloff (2 m of 4) x armor, the last adds a raw 3% of max hp', nv.length === 3 && nv.map((e) => e.k).join() === '0,1,2' && nv[0].skill === 'kinhhong' && near(hf[0], 190 * (1 - 0.5 * 2 / 4) * UNG_F, 1e-6) && hf.filter((x) => near(x, UNG.hp * 0.03, 1e-6)).length === 1, JSON.stringify(hf));
+    check('44r the sweeps hit only in front (the mech behind is untouched) and throw the victim forward', b.hp === b.maxHp && f.x > 2.4, `${b.hp} ${f.x}`);
+  }
+  {
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 10, 0]]), [a, v] = m.units;
+    go(m, 30, () => ({ 0: { ult: true } }));
+    check('44s Lien Thanh: held, the charge goes on (locked aim, no step, guarded); nothing fired yet', !!a.cast && a.cast.charge && a.cast.lock && a.guardT > 0 && v.hp === v.maxHp && Math.abs(a.x) < 1e-9);
+    go(m, 1);
+    const ev = press(m, 0, 'ult'), f = (31 / 30) / 3, bm = only(ev, 'beam', (e) => e.id === 0), h = only(ev, 'hit', (e) => e.id === 1);
+    check('44t let go then pressed again after 1.03 s: the blade is 670 + 670 f long 8 + 8 f (f = held / 3), it hits at 10 m and throws the victim', bm.length === 1 && bm[0].skill === 'lienthanh' && near(Math.hypot(bm[0].x1 - bm[0].x0, bm[0].z1 - bm[0].z0), 8 + 8 * f, 1e-6) && h.length === 1 && near(h[0].amt, (670 + 670 * f) * UNG_F, 1e-6) && v.kx > 0 && a.cast === null, `${bm.length} ${h.map((e) => e.amt)} ${v.kx}`);
+  }
+  {
+    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 15, 0]]), [a, v] = m.units;
+    const ev = go(m, 95, () => ({ 0: { ult: true } })), bm = only(ev, 'beam', (e) => e.id === 0), h = only(ev, 'hit', (e) => e.id === 1);
+    check('44u held to the end it goes off by itself full: 1340 dmg, 16 m, 3.6 wide', bm.length === 1 && near(bm[0].w, 3.6, 1e-9) && h.length === 1 && near(h[0].amt, 1340 * UNG_F, 1e-6), `${bm.length} ${bm[0] && bm[0].w} ${h.map((e) => e.amt)}`);
   }
 
   // ---- form ----
@@ -3535,10 +3584,11 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44o garage fire-rate levels act on the other stance too: cd 0.3 / 1.15 and 1.2 / 1.15, range x1.06', near(w0.cd, 0.3 / 1.15, 1e-9) && near(w1.cd, 1.2 / 1.15, 1e-9) && near(w1.range, 21 * 1.06, 1e-9), `${w0.cd} ${w1.cd} ${w1.range}`);
   }
   {
-    const k = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 3, 0]]), [b, e] = k.units;
-    press(k, 0, 's1'); b.hp = 1; b.invulnT = 0;
+    const k = arena([[R('anduong', 0), 0, 0], [R('ung', 1), 3, 0]]), [b, e] = k.units;
+    press(k, 0, 's2'); go(k, 12);
+    const was = b.form; b.hp = 1; b.invulnT = 0;
     go(k, 10, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('44q after the death moclan is in stance 0 with the stance-0 def', b.deaths === 1 && b.form === 0 && b.def === buildDef('moclan') && b.def.weapon.name === 'Song Kiếm', `${b.deaths} ${b.form}`);
+    check('44q2 after the death An Duong Vuong is back on the light bow with the stance-0 def', was === 1 && b.deaths === 1 && b.form === 0 && b.def === buildDef('anduong') && b.def.weapon.name === 'Nỏ Nhẹ', `${was} ${b.deaths} ${b.form}`);
   }
 
   // ---- flurry ----

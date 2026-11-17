@@ -99,6 +99,7 @@ function clearStatus(u) {
   u.tfT = 0; u.tfSlot = -1; u.tfDmg = 1; u.ccT = 0; u.radius = u.def.radius;
   u.rampN = 0; u.rampT = 0; u.rampTo = -1; u.rampAcc = 0; u.recast = null;
   u.stkN = 0; u.stkT = 0; u.stkBy = -1;
+  u.guardT = 0; u.guardF = 0; u.silenceT = 0; u.next = null;
   u.parryT = 0; u.parrySlot = -1; u.flurry = null; u.tfCc = 1; u.ccPrev = null; u.hpHist = [];
   u.form = 0; u.def = formDef(u.def, 0);
   u.meter = 0; u.lastSrc = null; u.hurtAt = -99; u.skillAmp = 1; u.shieldBurst = null; u.blindT = 0; u.blindF = 1; u.blindSpread = 0; u.mmT = 0; u.mmBy = -1;
@@ -379,7 +380,7 @@ function stepUnit(m, u, inp) {
   // transform.ccResist: a stun, slow or root that landed since last tick lasts only tfCc of what it was given
   if (u.ccPrev) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - u.ccPrev[i]; if (d > 1e-9) u[k] = u.ccPrev[i] + d * u.tfCc; }
   for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
-  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
@@ -400,6 +401,12 @@ function stepUnit(m, u, inp) {
   if (u.recast && !u.dash && !u.cast) {
     u.recast.t -= dt;
     if (u.recast.t <= 0) { u.cd['s1 s2 ult'.split(' ')[u.recast.slot]] = u.def.skills[u.recast.slot].cd; u.recast = null; }
+  }
+  // next (two-stage skill): the follow-up waits for its window; it takes a fresh press, so the key must have been let go
+  if (u.next) {
+    if (!inp[SLOTS[u.next.slot]]) u.next.up = true;
+    u.next.t -= dt;
+    if (u.next.t <= 0) u.next = null;
   }
   u.combatT += dt;
   // rewind reads the hit points of the last three seconds, one sample each half second (host side only: only what it heals travels)
@@ -423,6 +430,8 @@ function stepUnit(m, u, inp) {
   if (u.woundT > 0) u.woundT -= dt;
   if (u.healT > 0) { u.healT = Math.max(0, u.healT - dt); heal(m, u, u.healRate * dt, u, true); }
 
+  // guard (skill row): while that skill's cast runs the mech takes `guard` less of every blow and shrugs off crowd control
+  if (u.cast && u.cast.skill.guard) { u.guardT = Math.max(u.guardT, 2 * dt); u.guardF = u.cast.skill.guard; u.ccT = Math.max(u.ccT, 2 * dt); }
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
   if (u.stance) { u.kx = 0; u.kz = 0; }
@@ -463,11 +472,20 @@ function stepUnit(m, u, inp) {
     u.cd.heal = RULES.healItem.cd; u.healT = RULES.healItem.dur; u.healRate = u.maxHp * RULES.healItem.frac / RULES.healItem.dur;
     m.events.push({ t: 'item', id: u.id });
   }
+  // charge (skill row): a held cast goes off when its key is pressed again after being let go, or by itself when full
+  if (u.cast && u.cast.charge) {
+    const c = u.cast;
+    if (!inp[SLOTS[c.slot]]) c.up = true;
+    else if (c.up && c.total - c.t >= c.skill.charge.min) { u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
+  }
   if (u.cast || u.dash) { u.charge = 0; return; }
-  for (let i = 0; i < 3; i++) {
+  // silence (hitfx): no skills, the weapon still works
+  for (let i = 0; i < 3 && !(u.silenceT > 0); i++) {
     const key = SLOTS[i], rc = u.recast, re = !!rc && rc.slot === i && rc.t > 0;
-    if (!inp[key] || (u.cd[key] > 0 && !re)) continue;
-    const s = u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;
+    // next: the second stage of a two-stage skill is ready (armed, key pressed afresh): this press casts it, whatever the cooldown says
+    const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
+    if (!inp[key] || (u.cd[key] > 0 && !re && !nx)) continue;
+    const s = nx ? u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;
     if (u.rootT > 0 && ROOT_BLOCKS[s.do]) continue;
     m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
     u.stealthT = 0;
@@ -477,7 +495,10 @@ function stepUnit(m, u, inp) {
     // meter 'skill': an armed meter powers up the next skill that deals damage (skillAmp lives until its cast or dash is over)
     const P = u.passive === 'meter' ? u.def.passive : null, amped = !!P && P.spend.kind === 'skill' && u.meter >= P.max && !!(s.dmg || s.dps);
     if (amped) u.skillAmp = P.spend.mul;
-    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; continue; }
+    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; if (!nx) u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; continue; }
+    if (nx) { u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
+    // next.onHit: the second stage is armed only once this cast has hit an enemy (see damage); otherwise at once
+    if (s.next) u.next = { slot: i, src: s.id, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
     if (!u.cast && !u.dash) u.skillAmp = 1;
@@ -665,6 +686,8 @@ const CAST = {
     u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0.35, lock: false, aim: u.aim, left: s.repeat || 1, mul };
   },
   beam(m, u, s, inp) {
+    // charge {min, max, dmg[2], range[2], width[2]}: hold up to max seconds (aim locked, s.move of the speed), a fresh press after min lets it go
+    if (s.charge) { u.cast = { skill: s, t: s.charge.max, total: s.charge.max, move: s.move ?? 0, lock: true, aim: u.aim, target: -1, charge: true, up: false, slot: u.def.skills.indexOf(s) }; return; }
     // track: lock the enemy nearest the cursor now and keep the beam on it while it winds up; none there, it fires straight.
     const o = s.track ? pickUnit(m, u, inp, s.track, (o) => o.team !== u.team) : null;
     u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim, target: o ? o.id : -1 };
@@ -797,15 +820,29 @@ const CAST = {
   warp(m, u, s, inp) {
     let [tx, tz] = aimPoint(u, inp, s.dist);
     // behind: an enemy near the cursor (within pick) and in reach: come out 1.6 m behind its back
+    // behind.next: the enemy the first stage of this two-stage skill hit, if alive and in reach (nobody: the press does nothing);
+    // behind.far: come out on the far side of it from here (facing it), not behind its own back
     if (s.behind) {
-      const o = pickUnit(m, u, inp, { pick: s.behind.pick, cast: s.dist + s.behind.pick }, (o) => o.team !== u.team);
-      if (o) { tx = o.x - Math.cos(o.heading) * 1.6; tz = o.z - Math.sin(o.heading) * 1.6; }
+      let o;
+      if (s.behind.next) {
+        o = u.next && u.next.target >= 0 ? m.units[u.next.target] : null;
+        if (!o || !o.alive || dist2(o.x, o.z, u.x, u.z) > (s.dist + 1) ** 2) return false;
+      } else o = pickUnit(m, u, inp, { pick: s.behind.pick, cast: s.dist + s.behind.pick }, (o) => o.team !== u.team);
+      if (o && s.behind.far) {
+        const dx = o.x - u.x, dz = o.z - u.z, d = Math.hypot(dx, dz) || 1, back = o.radius + u.radius + 0.4;
+        tx = o.x + dx / d * back; tz = o.z + dz / d * back;
+        u.aim = u.heading = Math.atan2(-dz, -dx);
+      } else if (o) { tx = o.x - Math.cos(o.heading) * 1.6; tz = o.z - Math.sin(o.heading) * 1.6; }
     }
     const [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
     // leave: a still copy stays where the mech stood and goes off when it is shot down or its time is up
     if (s.leave) addZone(m, u, { kind: 'decoy', x: x0, z: z0, r: u.radius, hp: s.leave.hp, maxHp: s.leave.hp, dur: s.leave.dur, aim: u.aim, speed: 0, blast: s.leave.blast, dmg: s.leave.dmg, fx: s.leave.fx || null, seek: null });
-    u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0;
-    m.events.push({ t: 'warp', id: u.id, x0, z0, x, z });
+    // glide (m/s): fly there over everything in a short dash instead of appearing there at once
+    if (s.glide) {
+      const d = Math.hypot(x - x0, z - z0) || 0.01;
+      u.dash = { dx: (x - x0) / d, dz: (z - z0) / d, left: d, speed: s.glide, s: { dmg: 0 }, hit: [], fly: true };
+    } else { u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0; }
+    m.events.push({ t: 'warp', id: u.id, x0, z0, x, z, ...(s.look ? { skill: s.id } : {}) });
     if (s.land) { m.events.push({ t: 'nova', id: u.id, x, z, r: s.land.radius }); areaDamage(m, u, x, z, s.land.radius, s.land.dmg, s.land, null); }
   },
   // orbit: n orbs circle the caster. 'seek': each `rate` seconds the next orb flies off at the nearest enemy in range and is spent;
@@ -859,7 +896,7 @@ const CAST = {
       // line: strikes march from the aim point along the aim direction; otherwise they scatter in a disc.
       const a = s.line ? 0 : m.rng() * 6.283, d = s.line ? 0 : (i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0);
       const lx = s.line ? ux * s.gap * (i - (s.n - 1) / 2) : 0, lz = s.line ? uz * s.gap * (i - (s.n - 1) / 2) : 0;
-      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id });
+      addZone(m, u, { kind: 'strike', x: cx + lx + Math.cos(a) * d, z: cz + lz + Math.sin(a) * d, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id, ...(s.linger ? { linger: s.linger, vis: s.linger.vis } : {}) });
     }
   },
   mine(m, u, s, inp) {
@@ -1049,7 +1086,12 @@ function fireBeam(m, u, s, aim) {
     const along = (o.x - u.x) * dx + (o.z - u.z) * dz;
     if (along < 0 || along > len + o.radius) continue;
     const side = Math.abs((o.x - u.x) * dz - (o.z - u.z) * dx);
-    if (side < s.width / 2 + o.radius) { damage(m, o, dmg, u); if (o.alive && s.fx) applyFx(m, u, o, s.fx, { core: side / (s.width / 2 + o.radius) }); }
+    if (side < s.width / 2 + o.radius) {
+      damage(m, o, dmg, u);
+      if (o.alive && s.fx) applyFx(m, u, o, s.fx, { core: side / (s.width / 2 + o.radius) });
+      // knock: thrown along the beam
+      if (o.alive && s.knock && !o.def.heavy) { o.kx += dx * s.knock * 3; o.kz += dz * s.knock * 3; }
+    }
   }
   for (const p of m.props) {
     if (!p.alive) continue;
@@ -1063,19 +1105,38 @@ function fireBeam(m, u, s, aim) {
     if (along > 0 && along < len + t.r && Math.abs((t.x - u.x) * dz - (t.z - u.z) * dx) < s.width / 2 + t.r) hurtTower(m, t, dmg, u);
   }
   u.revealT = RULES.revealOnFire;
-  m.events.push({ t: 'beam', id: u.id, x0: u.x, z0: u.z, x1, z1, w: s.width });
+  m.events.push({ t: 'beam', id: u.id, x0: u.x, z0: u.z, x1, z1, w: s.width, ...(s.look ? { skill: s.id } : {}) });
 }
 
 // What a wind-up skill does when the wind-up completes.
 const FINISH = {
   stance(m, u) { u.stance = !u.stance; u.vx = u.vz = 0; m.events.push({ t: 'stance', id: u.id, on: u.stance ? 1 : 0, x: u.x, z: u.z }); },
   sweep() {},
+  // nova extensions: arc (half-angle of a sector in front of the turret instead of the full ring), grow (each repeat hits
+  // grow times harder than the one before), last.maxHp (the final repeat adds that share of each victim's max hp, armour ignored).
   nova(m, u, s, c) {
-    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius });
-    curSrc = s.id; areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1), s, null); curSrc = null;
+    const k = (s.repeat || 1) - (c.left || 1), arc = s.arc ? { a: u.aim, half: s.arc } : null;
+    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius, ...(s.look ? { skill: s.id, k, a: u.aim } : {}) });
+    curSrc = s.id; areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
+    if (s.last && (c.left || 1) <= 1) {
+      for (const o of m.units) {
+        if (o.team === u.team || !o.alive || o.def.boss) continue;
+        const d2 = dist2(o.x, o.z, u.x, u.z), reach = s.radius + o.radius * 0.6;
+        if (d2 <= reach * reach && inArc(o, u.x, u.z, Math.sqrt(d2), arc)) damage(m, o, o.maxHp * s.last.maxHp, u, true);
+      }
+    }
+    curSrc = null;
     if (c.left > 1 && u.alive) u.cast = { ...c, t: s.gap, total: s.gap, left: c.left - 1 };
   },
-  beam(m, u, s, c) { curSrc = s.id; fireBeam(m, u, s, c.aim); curSrc = null; },
+  // charge: the beam grows with the time held, from [0] at no charge to [1] when full (dmg, range, width)
+  beam(m, u, s, c) {
+    let row = s;
+    if (s.charge) {
+      const C = s.charge, f = Math.min(1, Math.max(0, (c.total - Math.max(0, c.t)) / c.total)), L = (p) => p[0] + (p[1] - p[0]) * f;
+      row = { ...s, dmg: L(C.dmg), range: L(C.range), width: L(C.width) };
+    }
+    curSrc = s.id; fireBeam(m, u, row, c.aim); curSrc = null;
+  },
   barrage() {},
   volley(m, u, s, c) { while (c.left > 0) { c.left--; fireVolley(m, u, s); } },
   form(m, u) { flipForm(m, u); },
@@ -1319,7 +1380,13 @@ function stepZones(m) {
     let done = false;
     if (z.kind === 'strike') {
       z.delay -= dt;
-      if (z.delay <= 0) { curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike'); curSrc = null; done = true; }
+      if (z.delay <= 0) {
+        curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); curSrc = null; done = true;
+        // linger {radius, dur, dps, slow, vis}: what fell stays as a field that keeps cutting and slowing enemies around it
+        const L = z.linger;
+        if (L) addZone(m, owner, { kind: 'field', vis: L.vis, x: z.x, z: z.z, r: L.radius, dur: L.dur, hps: 0, dps: L.dps || 0, slow: L.slow || 0, hide: false, pull: 0, acc: 0,
+          haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+      }
     } else if (z.kind === 'mine') {
       if (z.delay > 0) z.delay -= dt;
       else {
@@ -1477,19 +1544,27 @@ function crosses(ax, az, bx, bz, p, q) {
   return along >= 0 && along <= 1;
 }
 
-function explode(m, src, x, z, r, dmg, fx, why) {
-  m.events.push({ t: 'explode', x, z, r, why });
+// vis: a strike whose zone names a look (looks.js) says so, so the renderer can draw that look's landing instead of a fireball
+function explode(m, src, x, z, r, dmg, fx, why, vis) {
+  m.events.push({ t: 'explode', x, z, r, why, ...(vis ? { vis } : {}) });
   areaDamage(m, src, x, z, r, dmg, fx, null);
 }
 
 // Damage with falloff (100% at the centre, 50% at the rim) to enemies of src and to props. fx may carry slow, slowDur, stun, knock.
-function areaDamage(m, src, x, z, r, dmg, fx, skip) {
+// arc {a, half}: only the sector within half radians of direction a (a mech overlapping the centre always counts).
+function inArc(u, x, z, d, arc) {
+  if (!arc || d < u.radius + 0.3) return true;
+  const da = Math.atan2(u.z - z, u.x - x) - arc.a;
+  return Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) <= arc.half + Math.atan2(u.radius, d);
+}
+function areaDamage(m, src, x, z, r, dmg, fx, skip, arc) {
   const scale = dmgScale(src);
   for (const u of m.units) {
     if (u.team === src.team || !u.alive || u === skip) continue;
     const reach = r + u.radius * 0.6, d2 = dist2(u.x, u.z, x, z);
     if (d2 > reach * reach) continue;
     const d = Math.sqrt(d2);
+    if (!inArc(u, x, z, d, arc)) continue;
     damage(m, u, dmg * scale * (1 - 0.5 * Math.min(1, d / r)), src);
     if (!u.alive || !fx) continue;
     if (fx.fx) applyFx(m, src, u, fx.fx);
@@ -1525,6 +1600,9 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.burn) { o.burnT = fx.burn.dur; o.burnN = Math.min(fx.burn.max, o.burnN + 1); o.burnDps = fx.burn.dps; o.burnBy = src.id; }
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
+  if (fx.silence) o.silenceT = Math.max(o.silenceT, fx.silence);
+  // maxHp: an extra blow worth that share of the victim's max hp (armour applies; bosses are spared); it carries no source tag so it never feeds stacks
+  if (fx.maxHp && !o.def.boss) { const keep = curSrc; curSrc = null; damage(m, o, o.maxHp * fx.maxHp, src); curSrc = keep; if (!o.alive) return; }
   if (fx.execute && !o.def.boss && o.hp < o.maxHp * fx.execute) {
     m.events.push({ t: 'execute', id: o.id, by: src.id, x: o.x, z: o.z });
     kill(m, o, src);
@@ -1564,6 +1642,8 @@ function damage(m, u, amount, src, raw) {
   }
   const preArmor = amount;
   if (!raw && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
+  // guard (skill row or stacks self): a cut on top of armour, outside its cap
+  if (u.guardT > 0) amount *= 1 - u.guardF;
   const blocked = preArmor - amount;
   let left = amount, absorbed = 0, broke = false;
   if (u.shield > 0) {
@@ -1581,6 +1661,11 @@ function damage(m, u, amount, src, raw) {
   if (foe && left + absorbed >= RULES.wound.frac * u.maxHp) u.woundT = RULES.wound.dur;
   if (src && src !== u) { src.dmg += left; u.hitBy[src.id] = m.time; src.hurtAllyAt = m.time; src.combatT = Math.min(src.combatT, RULES.regenDelay - 3); }
   m.events.push({ t: 'hit', id: u.id, by: src ? src.id : -1, x: u.x, z: u.z, amt: left, absorbed });
+  // next.onHit: the first enemy the first stage lands on arms the second stage and becomes its target
+  if (foe && foe.next && !foe.next.armed && curSrc === foe.next.src) {
+    const N = foe.def.skills[foe.next.slot].next;
+    foe.next.armed = true; foe.next.t = N.window; foe.next.target = u.id;
+  }
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0);
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -1612,6 +1697,8 @@ function stackHit(m, foe, u) {
   if (u.stkN < P.n) return;
   u.stkN = 0; u.stkT = 0;
   m.events.push({ t: 'stacks', id: u.id, by: foe.id, x: u.x, z: u.z });
+  // self.guard: the mark going off also covers its owner: guard less of every blow and no crowd control for self.dur seconds
+  if (P.self && P.self.guard) { foe.guardT = Math.max(foe.guardT, P.self.dur); foe.guardF = P.self.guard; foe.ccT = Math.max(foe.ccT, P.self.dur); }
   applyFx(m, foe, u, P.fx);
 }
 

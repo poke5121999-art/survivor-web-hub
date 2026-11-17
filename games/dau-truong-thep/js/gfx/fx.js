@@ -7,6 +7,7 @@ import { TEAMS, PICKUPS, RULES } from '../data.js';
 import { visibleTo, orbPos } from '../sim.js';
 import { makePoints, makeStreaks, makeDebris, premul, additive, K } from './fxkit.js';
 import { makeTowers } from './towers.js';
+import { LOOKS, lookRow, lookOf } from './looks.js';
 
 const TEAM_HDR = [new THREE.Color(0.3, 0.88, 1.85), new THREE.Color(1.95, 0.6, 0.2)];
 const C = (r, g, b) => new THREE.Color(r, g, b);
@@ -776,6 +777,11 @@ export function makeFx(G, mechs) {
     else if (e.vis === 'tower') { ring(x, z, 2.4, tc, 0.3); sparks(x, y, z, N(10), tc, 10, 0.4, 0.08, 0.7, 10); flash(x, y, z, tc, 30, 0.2); kick(x, z, 0.25); }
   }
 
+  // What a skill's own look (looks.js) draws with: the same pools and helpers as everything here.
+  const anims = [];
+  const kit = { group, glow, sparks, puffs, chips, ring, ground, release, beam, aimBeam, endBeam, flash, kick, scorch, str, add, ovr, rnd, N, K, anims };
+  const GUARD_C = C(2.2, 0.9, 1.6), HUSH_C = C(1.3, 1.25, 1.6);
+
   const SKILL_FX = {
     shield: (u) => { ring(u.x, u.z, 2.4, TEAM_HDR[u.color], 0.4); sparks(u.x, 1, u.z, N(8), TEAM_HDR[u.color], 4, 0.4, 0.05, 1, 2); },
     dash: (u) => puffs(u.x, 0.3, u.z, N(6), dust, 0.6, 3, 0.7, 0.9, 2.2, 0.6, 0.5, K.DUST, 3),
@@ -797,6 +803,15 @@ export function makeFx(G, mechs) {
 
   function event(e, m) {
     const u = e.id !== undefined ? m.units[e.id] : null;
+    // a skill row with a look draws its own press, nova, beam and warp; a strike zone whose vis is a look draws what falls;
+    // a passive with a look draws its stacks burst. A hook that returns true replaces the generic picture.
+    if (u && e.skill && (e.t === 'skill' || e.t === 'nova' || e.t === 'beam' || e.t === 'warp')) {
+      const row = lookRow(u, e.skill), L = lookOf(row);
+      if (L && L[e.t]) { if (e.t === 'skill' && !visibleTo(m, u, m.units[G.me].team)) return; if (L[e.t](kit, e, u, row)) return; }
+    }
+    if (e.t === 'explode' && e.vis && LOOKS[e.vis] && LOOKS[e.vis].strike) return;   // the look's falling piece draws its own landing
+    if (e.t === 'zone' && e.kind === 'strike' && LOOKS[e.vis] && LOOKS[e.vis].strike && LOOKS[e.vis].strike(kit, e)) return;
+    if (e.t === 'stacks') { const by = m.units[e.by], L = by && lookOf(by.def.passive); if (L && L.stacks && L.stacks(kit, e, by)) return; }
     switch (e.t) {
       case 'fire': {
         mechs.muzzle(u, e.side || 0, V);
@@ -1090,6 +1105,7 @@ export function makeFx(G, mechs) {
 
   const zoneInfo = new Map();
   function dropZone(v) {
+    if (v.look && v.look.zoneDrop) v.look.zoneDrop(kit, v.lv);
     if (v.g) release(v.g);
     if (v.g2) release(v.g2);
     if (v.dome) { group.remove(v.dome); v.dome.material.dispose(); }
@@ -1123,7 +1139,8 @@ export function makeFx(G, mechs) {
           const mat = bandMat(tc.clone().lerp(GOLD, 0.55).multiplyScalar(1.3), 1); v.mats.push(mat);
           const shell = new THREE.Mesh(bandGeo, mat); shell.scale.set(z.r, 1.8, z.r); shell.renderOrder = 7; v.obj.add(shell); v.bars = mat;
           group.add(v.obj); v.g = ground(2, z.x, z.z, z.r, tc.clone().lerp(GOLD, 0.45), { alpha: 0.8 });
-        } else if (z.kind === 'field') v.g = ground(2, z.x, z.z, z.r, FIELD_COLOR[z.vis] || VIOLET, { alpha: z.vis === 'smoke' ? 0.35 : 1 });
+        } else if (z.kind === 'field' && LOOKS[z.vis] && LOOKS[z.vis].zoneMake) { v.look = LOOKS[z.vis]; v.lv = v.look.zoneMake(kit, z); }
+        else if (z.kind === 'field') v.g = ground(2, z.x, z.z, z.r, FIELD_COLOR[z.vis] || VIOLET, { alpha: z.vis === 'smoke' ? 0.35 : 1 });
         else if (z.kind === 'wall' && z.screen) {
           zoneInfo.set(z.id, 'screen'); v.screen = true; v.mats = []; v.obj = new THREE.Group();
           const p0 = z.pts[0], p1 = z.pts[z.pts.length - 1], L0 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
@@ -1162,6 +1179,7 @@ export function makeFx(G, mechs) {
         zoneViews.set(z.id, v);
       }
       v.seen = frame;
+      if (v.look) { if (v.look.zone) v.look.zone(kit, v.lv, z, dt); continue; }
       if (z.kind === 'strike') {
         const k = 1 - z.delay / z.total;
         v.g.u.uT.value = k;
@@ -1317,7 +1335,7 @@ export function makeFx(G, mechs) {
     for (let i = 0, n = low ? 1 : 3; i < n; i++) { const t = Math.random(); sparks(mx + dx * len * t, 1.5, mz + dz * len * t, 1, i % 2 ? EMBER : tc, 5, 0.3, 0.05, 0.6, 6, -dz * (i % 2 ? 1 : -1), dx * (i % 2 ? 1 : -1), 0.4); }
     if (Math.random() < 0.4) puffs(ex, 0.6, ez, 1, SMOKE, 0.4, 1.5, 0.8, 0.7, 2.6, 0.8, 0.3, K.SMOKE, 1.6, -0.5);
   }
-  function syncCasts(m) {
+  function syncCasts(m, dt) {
     const myTeam = m.units[G.me].team;
     for (const u of m.units) {
       if (!u.alive || !u.cast || !visibleTo(m, u, myTeam)) continue;
@@ -1325,12 +1343,15 @@ export function makeFx(G, mechs) {
       let v = casts.get(u.id);
       if (!v) {
         v = { seen: 0 };
-        if (s.do === 'nova') v.g = ground(1, u.x, u.z, s.radius, foe ? C(2.2, 0.3, 0.1) : C(1.8, 1.1, 0.3));
+        const L = lookOf(s);
+        if (L && L.castMake) { v.look = L; v.lv = L.castMake(kit, u, s); }
+        else if (s.do === 'nova') v.g = ground(1, u.x, u.z, s.radius, foe ? C(2.2, 0.3, 0.1) : C(1.8, 1.1, 0.3));
         else if (s.do === 'stance') v.g = ground(1, u.x, u.z, 2.4, C(1.8, 1.4, 0.7));
         else v.b = beam(u.x, u.z, u.x + Math.cos(u.cast.aim) * s.range, u.z + Math.sin(u.cast.aim) * s.range, 0.6, foe ? C(2.2, 0.3, 0.2) : TEAM_HDR[u.color], 99, 1);
         casts.set(u.id, v);
       }
       v.seen = frame;
+      if (v.look) { if (v.look.cast) v.look.cast(kit, v.lv, u, s, k, dt); continue; }
       if (s.do === 'sweep' && u.cast.t <= s.dur) { sweepBeam(u, v, s); continue; }
       if (v.g) { v.g.mesh.position.x = u.x; v.g.mesh.position.z = u.z; v.g.u.uT.value = k; }
       if (v.b) {
@@ -1340,7 +1361,7 @@ export function makeFx(G, mechs) {
         if (Math.random() < 0.5) glow(u.x + Math.cos(u.cast.aim) * 1.5, 1.5, u.z + Math.sin(u.cast.aim) * 1.5, TEAM_HDR[u.color], 0.1, 0.6 + k * 1.6, 0.8, K.GLOW);
       }
     }
-    for (const [id, v] of casts) if (v.seen !== frame) { if (v.g) release(v.g); if (v.b) endBeam(v.b); casts.delete(id); sweepLen.delete(id); }
+    for (const [id, v] of casts) if (v.seen !== frame) { if (v.look && v.look.castDrop) v.look.castDrop(kit, v.lv); if (v.g) release(v.g); if (v.b) endBeam(v.b); casts.delete(id); sweepLen.delete(id); }
   }
 
   function unitTrails(m, dt) {
@@ -1351,6 +1372,9 @@ export function makeFx(G, mechs) {
       if (!u.def.hover && sp > 2 && Math.random() < dt * sp * 1.6) ovr.emit(u.x + rnd(-0.5, 0.5), 0.2, u.z + rnd(-0.5, 0.5), rnd(-0.5, 0.5), 0.7, rnd(-0.5, 0.5), dust, 0.8, 0.7, 2.2, 0, 0, 0.3, K.DUST);
       if (u.dash) glow(u.x, 1.0, u.z, TEAM_HDR[u.color], 0.25, 1.6, 0.5, K.GLOW, 0.2);
       if (u.dash && u.dash.fly && Math.random() < dt * 30) ovr.emit(u.x, 0.9, u.z, rnd(-0.5, 0.5), 0.3, rnd(-0.5, 0.5), dust, 0.6, 0.9, 2.2, 1, 0, 0.35, K.DUST);
+      // guard (a skill's or a passive's): a pink-gold shimmer; silence: a pale glint over the turret
+      if (u.guardT > 0 && Math.random() < dt * 24) glow(u.x + rnd(-0.6, 0.6), rnd(0.6, 1.8), u.z + rnd(-0.6, 0.6), GUARD_C, 0.35, 0.5, 0.8, K.SPARK, 0.4, 0, rnd(0.5, 1.5), 0);
+      if (u.silenceT > 0 && Math.random() < dt * 8) glow(u.x, 2.7, u.z, HUSH_C, 0.25, 0.7, 0.9, K.STAR, 1);
       const ch = u.def.weapon.charge;
       if (ch && (u.charge > 0 || u.primeT > 0)) { // charge lance: the muzzle swells as it fills, white-hot while primed
         const k = Math.min(1, u.charge / ch.max), pr = u.primeT > 0 ? 1 : 0, tc = TEAM_HDR[u.color];
@@ -1448,10 +1472,11 @@ export function makeFx(G, mechs) {
     if (m) {
       const th = G.gfx.world && G.gfx.world.theme;
       dust = (th && GROUND_DUST[th.base]) || DUST;
-      syncShots(m, alpha, dt); sweepHooks(); syncZones(m, dt, alpha); syncCrates(m, dt); syncCasts(m); unitTrails(m, dt); syncPoints(m); towers.sync(m, dt, time);
+      syncShots(m, alpha, dt); sweepHooks(); syncZones(m, dt, alpha); syncCrates(m, dt); syncCasts(m, dt); unitTrails(m, dt); syncPoints(m); towers.sync(m, dt, time);
       if (th && th.fireflies && Math.random() < dt * 14) { const f = G.camera.position; add.emit(f.x + rnd(-22, 22), rnd(0.6, 2.6), f.z + (G.cam ? G.cam.sign : 1) * (-22 + rnd(-16, 14)), rnd(-0.6, 0.6), rnd(-0.1, 0.3), rnd(-0.6, 0.6), FIREFLY, rnd(1.5, 3), 0.16, 1, 0, 0, 0.9, K.SPARK); }
       for (const h of m.map.hazards) if (h.kind === 'lava' && Math.random() < dt * 3) { const a = Math.random() * 6.283, d = Math.random() * h.r; glow(h.x + Math.cos(a) * d, 0.2, h.z + Math.sin(a) * d, EMBER, 1.2, 0.2, 1, K.SPARK, 0.3, rnd(-0.3, 0.3), rnd(1, 3), rnd(-0.3, 0.3)); }
     }
+    for (let i = anims.length - 1; i >= 0; i--) if (!anims[i].step(dt)) { anims[i].drop(); anims.splice(i, 1); }
     shotMesh.count = shadowMesh.count = nShots; nLast = Math.min(nShots, m ? m.shots.length : 0);
     shotMesh.instanceMatrix.needsUpdate = true; shadowMesh.instanceMatrix.needsUpdate = true; shotInfo.needsUpdate = true;
     if (shotMesh.instanceColor) shotMesh.instanceColor.needsUpdate = true;
@@ -1500,8 +1525,9 @@ export function makeFx(G, mechs) {
     zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear();
     for (const [, v] of crateViews) { group.remove(v.root); release(v.mark); }
     crateViews.clear();
-    for (const [, v] of casts) { if (v.g) release(v.g); if (v.b) endBeam(v.b); }
+    for (const [, v] of casts) { if (v.look && v.look.castDrop) v.look.castDrop(kit, v.lv); if (v.g) release(v.g); if (v.b) endBeam(v.b); }
     casts.clear();
+    for (const a of anims) a.drop(); anims.length = 0;
     clearPoints(); towers.clear();
     while (groundLive.length) release(groundLive[0]);
     while (beams.length) endBeam(beams[0]);
