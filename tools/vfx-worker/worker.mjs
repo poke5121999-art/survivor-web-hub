@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const WIN = process.platform === "win32";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIXELFX_REPO = "https://github.com/patch-gg/pixelfx", PIXELFX_COMMIT = "5294518";
+const CODEX_REPO = "https://github.com/888wing/pixel-vfx-codex", CODEX_COMMIT = "7636ee6";
 
 const argv = process.argv.slice(2), A = {};
 for (let i = 0; i < argv.length; i++) {
@@ -46,6 +47,7 @@ const CLAUDE_BIN = (() => {
   return b;
 })();
 const CHECKOUT = join(WORK_DIR, `pixelfx-${ACCOUNT}`);
+const CODEX = join(WORK_DIR, `pixel-vfx-codex-${ACCOUNT}`);
 const LOG_FILE = join(WORK_DIR, `worker-${ACCOUNT}.log`);
 const FN = `${SUPABASE_URL}/functions/v1/vfx-studio`;
 
@@ -134,14 +136,17 @@ async function heartbeat(jobId) {
 }
 
 // ---- pixelfx checkout -------------------------------------------------------------------------
+async function cloneAt(repo, commit, dir) {
+  if (existsSync(join(dir, ".git"))) return;
+  log(`clone ${repo} -> ${dir}`);
+  let r = await run("git", ["clone", repo, dir], { timeout: 300000 });
+  if (r.code) throw new Error(`git clone lỗi: ${r.err.slice(-300)}`);
+  r = await run("git", ["checkout", commit], { cwd: dir, timeout: 60000 });
+  if (r.code) throw new Error(`git checkout lỗi: ${r.err.slice(-300)}`);
+}
 async function setupCheckout() {
-  if (!existsSync(join(CHECKOUT, ".git"))) {
-    log(`clone pixelfx -> ${CHECKOUT}`);
-    let r = await run("git", ["clone", PIXELFX_REPO, CHECKOUT], { timeout: 300000 });
-    if (r.code) throw new Error(`git clone lỗi: ${r.err.slice(-300)}`);
-    r = await run("git", ["checkout", PIXELFX_COMMIT], { cwd: CHECKOUT, timeout: 60000 });
-    if (r.code) throw new Error(`git checkout lỗi: ${r.err.slice(-300)}`);
-  }
+  await cloneAt(PIXELFX_REPO, PIXELFX_COMMIT, CHECKOUT);
+  await cloneAt(CODEX_REPO, CODEX_COMMIT, CODEX);
   if (!existsSync(join(CHECKOUT, "node_modules", "esbuild"))) {
     log("npm ci");
     const r = await sh("npm", ["ci"], { cwd: CHECKOUT, timeout: 600000 });
@@ -304,6 +309,10 @@ async function runJob(job) {
     if (parentSrc) {
       await download(pub(parentSrc), fxFile);
       parent = `This is a REVISION. The artist's previous version is already at src/fx/studio/${slug}.js (id ${effectId}). Read it, then change it according to the feedback in the request. Keep everything the artist did not complain about. Do not start over.`;
+    } else if (job.base_effect?.startsWith("codex/") && ID_RE.test(job.base_effect)) {
+      const cid = job.base_effect.slice(6), src = join(CODEX, "fx", `${cid}.js`);
+      if (existsSync(src)) base = `Start from the Pixel VFX Codex effect "${cid}": ${src}. It is written for a different engine (a 3D diorama renderer), so do not copy its code. Read its timeline, layers, beats and palette, which describe the effect stage by stage, and rebuild that effect as a 2D pixelfx effect in src/fx/studio/${slug}.js, front-on like the codex 2D camera (flat colour bands, 1 px outlines, readable at 1x). Keep its timing and its palette unless the artist's request says otherwise.`;
+      else log(`codex ${cid} không tồn tại, bỏ qua`);
     } else if (job.base_effect && ID_RE.test(job.base_effect)) {
       const src = join(CHECKOUT, "src", "fx", `${job.base_effect}.js`), cat = job.base_effect.split("/")[0];
       if (existsSync(src)) {
@@ -316,7 +325,7 @@ async function runJob(job) {
     const brief = fill(readFileSync(join(HERE, "brief.md"), "utf8"), {
       slug, effect_id: effectId, title: job.title ?? "", request: job.prompt ?? "", direction: direction(job),
       refs: refLines.length ? "Reference images (open each with the Read tool and study it before drafting):\n" + refLines.join("\n") : "No reference images.",
-      base, parent,
+      base, parent, codex: CODEX,
     });
     writeFileSync(join(jobDir, "brief.txt"), brief);
 

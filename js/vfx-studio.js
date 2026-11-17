@@ -4,6 +4,9 @@
  */
 const MOCK = /[?&]mock=1\b/.test(location.search);
 const CFG = window.SUPABASE_CONFIG || {};
+const CODEX_URL = "vfx/codex-catalog.json?v=20261117c";
+const CODEX_SITE = "https://888wing.github.io/pixel-vfx-codex/";
+const CODEX_REPO = "https://github.com/888wing/pixel-vfx-codex";
 const LIB_URL = "../vfx/pixelfx-lib.js?v=20261117a";
 
 const STAGES = [["setup", "Chuẩn bị"], ["drafting", "Phác thảo"], ["refining", "Tinh chỉnh"], ["checking", "Kiểm tra"], ["rendering", "Render"], ["uploading", "Tải lên"]];
@@ -137,7 +140,8 @@ const S = {
   lib: null,
   jobs: [], jobsLoaded: false, jobsFilter: "all",
   workers: [], workersLoaded: false,
-  libView: { cat: "all", q: "" },
+  libView: { cat: "all", q: "", src: "pixelfx", ccat: "all" },
+  codex: null,
   form: { prompt: "", files: [], kind: "auto", size: "auto", duration: "", palette: null, actor: "auto", category: "", base: null, busy: false, moreOpen: false },
   detail: null,
 };
@@ -532,8 +536,11 @@ function buildNew() {
     submit.disabled = F.busy || !F.prompt.trim();
     submit.textContent = F.busy ? "Đang gửi…" : "Gửi cho máy gen";
     baseChip.hidden = !F.base;
-    baseChip.replaceChildren(...(F.base ? [h("span", { class: "vx-label", text: "Dựa trên" }), h("b", { text: F.base }),
-      h("button", { class: "vx-thumb__x vx-base__x", type: "button", "aria-label": "Bỏ", text: "×", onclick: () => { F.base = null; sync(); } })] : []));
+    const cx = F.base && F.base.startsWith("codex/") ? F.base.slice(6) : null;
+    const cxName = cx && S.codex ? (S.codex.find((c) => c.id === cx) || {}).name : null;
+    baseChip.replaceChildren(...(F.base ? [h("span", { class: "vx-label", text: "Dựa trên" }), h("b", { text: cx ? "Codex · " + (cxName || cx) : F.base }),
+      h("button", { class: "vx-thumb__x vx-base__x", type: "button", "aria-label": "Bỏ", text: "×", onclick: () => { F.base = null; sync(); } }),
+      cx ? h("p", { class: "vx-base__note vx-dim", text: "Máy sẽ dựng lại effect này thành hiệu ứng pixel 2D cho bạn chỉnh và tải về." }) : null] : []));
   }
 
   pane.replaceChildren(h("div", { class: "vx-new" },
@@ -831,18 +838,98 @@ addEventListener("resize", () => { if (S.detail && S.detail.fit) S.detail.fit();
 function buildLib() {
   const pane = $("pane-lib");
   P.libBody = h("div", { class: "vx-libbody" }, h("p", { class: "vx-empty", text: "Đang nạp thư viện…" }));
-  P.libSearch = h("input", { type: "search", class: "vx-search", placeholder: "Tìm effect: lửa, nổ, heal, thunder…", "aria-label": "Tìm effect", oninput: (e) => { S.libView.q = e.target.value; filterLib(); } });
+  P.libSearch = h("input", { type: "search", class: "vx-search", placeholder: "Tìm effect: lửa, nổ, heal, thunder…", "aria-label": "Tìm effect", oninput: (e) => { S.libView.q = e.target.value; filterLib(); filterCodex(); } });
   P.libCats = h("div", { class: "vx-chips vx-chips--scroll" });
-  pane.replaceChildren(h("div", { class: "vx-bar" }, P.libSearch, h("span", { class: "vx-dim", id: "vx-libcount" })), P.libCats, P.libBody);
+  P.srcBtns = {
+    pixelfx: h("button", { class: "btn btn--sm", type: "button", text: "pixelfx · 244", onclick: () => { location.hash = "#lib"; } }),
+    codex: h("button", { class: "btn btn--sm", type: "button", text: "Pixel VFX Codex · 138", onclick: () => { location.hash = "#lib=codex"; } }),
+  };
+  const src = h("div", { class: "vx-src", role: "group", "aria-label": "Nguồn thư viện" }, P.srcBtns.pixelfx, P.srcBtns.codex);
+  P.codexCats = h("div", { class: "vx-chips vx-chips--scroll" });
+  P.codexBody = h("div", { class: "vx-libbody" });
+  P.codexBox = h("div", { hidden: true }, P.codexCats, P.codexBody);
+  P.pfxBox = h("div", {}, P.libCats, P.libBody);
+  pane.replaceChildren(src, h("div", { class: "vx-bar" }, P.libSearch, h("span", { class: "vx-dim", id: "vx-libcount" })), P.pfxBox, P.codexBox);
+}
+function applyLibSrc() {
+  const cx = S.libView.src === "codex";
+  P.srcBtns.pixelfx.setAttribute("aria-pressed", String(!cx));
+  P.srcBtns.codex.setAttribute("aria-pressed", String(cx));
+  P.pfxBox.hidden = cx; P.codexBox.hidden = !cx;
+  P.libSearch.placeholder = cx ? "Tìm trong Codex: fireball, shield, slash…" : "Tìm effect: lửa, nổ, heal, thunder…";
+  if (cx) enterCodex();
+  else { filterLib(); if (P.libReady) $("vx-libcount").textContent = tiles.length + " effect"; }
+}
+async function enterCodex() {
+  if (!S.codex && !P.codexLoading) {
+    P.codexLoading = true;
+    P.codexBody.replaceChildren(h("p", { class: "vx-empty", text: "Đang nạp Codex…" }));
+    try {
+      const r = await fetch(CODEX_URL);
+      if (!r.ok) throw new Error("Không tải được danh mục Codex (lỗi " + r.status + ").");
+      S.codex = await r.json();
+      buildCodex();
+      P.sync();
+    } catch (e) { banner(new ApiError("api", e.message)); P.codexBody.replaceChildren(h("p", { class: "vx-empty", text: "Không tải được danh mục Codex." })); }
+    P.codexLoading = false;
+  }
+  filterCodex();
+}
+function buildCodex() {
+  const list = S.codex, cats = [...new Set(list.map((c) => c.category))];
+  const mkChip = (id) => h("button", { class: "vx-chip", type: "button", "data-cat": id, "aria-pressed": String(id === S.libView.ccat), text: id === "all" ? "Tất cả" : id, onclick: () => { S.libView.ccat = id; filterCodex(); } });
+  P.codexCats.replaceChildren(mkChip("all"), ...cats.map(mkChip));
+  P.codexSecs = [];
+  P.codexBody.replaceChildren();
+  for (const c of cats) {
+    const grid = h("div", { class: "vx-cards" });
+    const sec = h("section", { class: "vx-lsec" }, h("h3", { text: c }), grid);
+    const items = list.filter((x) => x.category === c).map((x) => {
+      const card = h("article", { class: "vx-ccard", "data-id": x.id, style: "--c:" + x.color },
+        h("div", { class: "vx-ccard__head" }, h("i", { class: "vx-dot", "aria-hidden": "true" }), h("div", {}, h("b", { text: x.name }), h("small", { class: "vx-dim", text: x.nameZh }))),
+        h("p", { class: "vx-ccard__desc", text: x.desc }),
+        h("div", { class: "vx-ccard__meta vx-dim", text: x.duration + " s" + (x.schools.length ? " · " + x.schools.join(", ") : "") }),
+        h("div", { class: "vx-ccard__btns" },
+          h("a", { class: "btn btn--sm", href: CODEX_SITE + "#" + x.id, target: "_blank", rel: "noopener", text: "Xem động tác" }),
+          h("button", { class: "btn btn--primary btn--sm", type: "button", text: "Dựa trên cái này", onclick: () => { S.form.base = "codex/" + x.id; P.sync(); location.hash = "#new"; setTimeout(() => $("vx-prompt").focus(), 50); } })));
+      grid.append(card);
+      return { x, card };
+    });
+    P.codexSecs.push({ c, sec, items });
+    P.codexBody.append(sec);
+  }
+  P.codexBody.append(
+    h("p", { class: "vx-empty", id: "vx-codexnone", hidden: true, text: "Không có effect nào khớp." }),
+    h("p", { class: "vx-credit vx-dim" }, "Pixel VFX Codex (MIT) — dùng làm tham khảo; kết quả gen ra là effect pixelfx. ",
+      h("a", { href: CODEX_REPO, target: "_blank", rel: "noopener", text: "Mã nguồn" }), " · ",
+      h("a", { href: CODEX_SITE, target: "_blank", rel: "noopener", text: "Bản demo" })));
+}
+function filterCodex() {
+  if (S.libView.src !== "codex" || !P.codexSecs) return;
+  const q = S.libView.q.trim().toLowerCase();
+  let n = 0;
+  P.codexCats.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cat === S.libView.ccat)));
+  for (const s of P.codexSecs) {
+    let any = false;
+    for (const t of s.items) {
+      const x = t.x, hit = (S.libView.ccat === "all" || S.libView.ccat === s.c) && (!q || [x.id, x.name, x.nameZh, x.desc, x.category, ...x.schools].join(" ").toLowerCase().includes(q));
+      t.card.hidden = !hit;
+      any ||= hit; n += hit;
+    }
+    s.sec.hidden = !any;
+  }
+  $("vx-codexnone").hidden = n > 0;
+  $("vx-libcount").textContent = n + " effect";
 }
 const tiles = [];
 async function enterLib() {
+  applyLibSrc();
   if (P.libReady) return;
   try {
     const lib = await guard(ensureLib());
     P.libReady = true;
     const FX = Object.entries(lib.effects).map(([id, mod]) => makeEntry(id, mod, lib));
-    $("vx-libcount").textContent = FX.length + " effect";
+    if (S.libView.src !== "codex") $("vx-libcount").textContent = FX.length + " effect";
     const io = new IntersectionObserver((es) => {
       for (const en of es) {
         const t = en.target._tile;
@@ -959,7 +1046,9 @@ function route() {
   else if ((m = hs.match(/^fx=(.+)$/))) { S.tab = "lib"; openDetail("fx", m[1]); }
   else {
     closeDetail();
-    if (TABS.some(([t]) => t === hs)) S.tab = hs;
+    const hsTab = hs === "lib=codex" ? "lib" : hs;
+    if (hsTab === "lib") S.libView.src = hs === "lib=codex" ? "codex" : "pixelfx";
+    if (TABS.some(([t]) => t === hsTab)) S.tab = hsTab;
     if (S.tab === "jobs") refreshJobs();
     if (S.tab === "lib") enterLib();
     if (S.tab === "workers") refreshWorkers(true);

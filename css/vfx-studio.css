@@ -40,7 +40,9 @@
 .vx-base { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid var(--accent); border-radius: 10px; }
 .vx-base[hidden] { display: none; }
 .vx-base .vx-label { margin: 0; }
+.vx-base { flex-wrap: wrap; }
 .vx-base__x { position: static; margin-left: auto; }
+.vx-base__note { flex-basis: 100%; margin: 0; font-size: 13px; }
 .vx-drop { display: grid; gap: 4px; padding: 22px 16px; text-align: center; border: 2px dashed var(--border); border-radius: 12px; cursor: pointer; color: var(--text-dim); font-size: 13px; }
 .vx-drop b { color: var(--text); font-size: 14px; }
 .vx-drop:hover, .vx-drop.is-over, .vx-drop:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); outline: none; }
@@ -166,6 +168,20 @@
 .vx-tile__cap { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; }
 .vx-tile__cap small { color: var(--text-dim); }
 
+.vx-src { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.vx-src .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; opacity: 1; }
+.vx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.vx-ccard { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 12px 18px; background: var(--bg-card); border: 1px solid var(--border); border-left: 4px solid var(--c, var(--accent)); border-radius: 12px; }
+.vx-ccard[hidden] { display: none; }
+.vx-ccard__head { display: flex; align-items: center; gap: 10px; }
+.vx-ccard__head b { display: block; font-size: 15px; }
+.vx-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.vx-ccard__desc { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-dim); flex: 1; }
+.vx-ccard__meta { font-size: 12px; }
+.vx-ccard__btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.vx-credit { margin: 8px 0 0; font-size: 13px; }
+.vx-credit a { color: var(--accent); }
+
 /* máy gen */
 .vx-wnote { margin: 0 0 14px; font-size: 14px; }
 .vx-workers { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
@@ -190,6 +206,7 @@
   .vx-tabs button { padding: 8px 11px; font-size: 13px; }
   .vx-grid, .vx-workers { grid-template-columns: minmax(0, 1fr); }
   .vx-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .vx-cards { grid-template-columns: minmax(0, 1fr); }
   .vx-opt { grid-template-columns: 90px minmax(0, 1fr) 70px; }
   .vx-h2 { font-size: 19px; }
   .vx-submit { width: 100%; }

@@ -7,6 +7,11 @@ Người gen là **Claude Code chạy headless** trên các máy của đội, d
 [pixelfx](https://github.com/patch-gg/pixelfx) (MIT, Patch + Hugo Duprez): mỗi effect là một file
 `src/fx/studio/<slug>.js` có `meta` + `draw(p, t, o)` (hoặc `create(o)`), vẽ vào hai buffer color và light.
 
+Thư viện tham khảo thứ hai là [Pixel VFX Codex](https://github.com/888wing/pixel-vfx-codex) (MIT, 138 effect, engine diorama 3D khác hẳn).
+Worker clone nó cạnh pixelfx (commit `7636ee6`) và brief cho Claude đọc `timeline`/`layers` của từng effect làm ý tưởng. Job có
+`base_effect: "codex/<id>"` thì Claude dựng lại effect đó thành effect pixelfx 2D. Danh mục cho tab Thư viện:
+`node tools/vfx-worker/build-codex-catalog.mjs <clone>` ra `vfx/codex-catalog.json`.
+
 ## Ba mảnh
 
 | Mảnh | Ở đâu | Việc |
@@ -107,7 +112,7 @@ job = {
     category: null | string,                     // gợi ý nhóm pixelfx: fire, ice, ui, ...
     only_worker: null | string,                  // "id1,id2": chỉ các máy này được nhận, và chỉ nhường nhau (dùng cho test)
   },
-  base_effect: null | "fire/campfire",           // dựa trên effect có sẵn trong thư viện
+  base_effect: null | "fire/campfire" | "codex/fireball",  // dựa trên effect pixelfx, hoặc effect Codex (dựng lại thành pixelfx)
   parent_id: null | uuid,                        // sửa tiếp từ job này
   status, stage, worker, attempts, claimed_at, heartbeat_at, finished_at,
   log: [{ t, stage, msg }],                      // 200 dòng cuối
