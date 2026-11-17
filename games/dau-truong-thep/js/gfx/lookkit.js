@@ -16,7 +16,7 @@ const ADD = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlen
 // light would wash every hue to white. opts.add switches a piece to additive light (sparks, cores, dark maps).
 const OVER = { transparent: true, depthWrite: false, blending: THREE.NormalBlending, premultipliedAlpha: true, toneMapped: false };
 const blend = (opts) => (opts.add ? ADD : OVER);
-const col = (c, opts) => (opts.add ? c.clone() : norm(c));
+const col = (c, opts) => (opts.add || Math.max(c.r, c.g, c.b) <= 1 ? c.clone() : norm(c));   // a dark colour stays dark
 
 // one anim that owns meshes: step(t, dt) returns false to end early; everything in `own` is removed and disposed at the end
 export function own(kit, objs, life, step) {
@@ -98,7 +98,7 @@ const flatGeo = keep(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2));
 export function sigil(kit, x, z, R, c, opts = {}) {
   const mat = new THREE.ShaderMaterial({ vertexShader: FLAT_VERT, fragmentShader: SIGIL_FRAG, ...blend(opts), side: THREE.DoubleSide,
     uniforms: { uC: { value: col(c, opts) }, uC2: { value: col(opts.c2 || c, opts) }, uA: { value: 0 }, uRot: { value: opts.rot || 0 }, uRev: { value: 0 }, uN: { value: opts.n ?? 6 }, uM: { value: opts.m ?? 2 },
-      uTicks: { value: opts.ticks ?? 24 }, uInner: { value: opts.inner ?? 0.45 }, uFill: { value: opts.fill ?? 0.06 }, uW: { value: opts.w ?? 0.03 } } });
+      uTicks: { value: opts.ticks ?? 24 }, uInner: { value: opts.inner ?? 0.45 }, uFill: { value: opts.fill ?? 0.06 }, uW: { value: opts.w ?? 0.06 } } });
   const mesh = new THREE.Mesh(flatGeo, mat), life = opts.life ?? 1, rev = opts.rev ?? 0.25, fade = opts.fade ?? Math.min(0.4, life * 0.4), al = opts.alpha ?? 1;
   mesh.position.set(x, opts.y ?? 0.15, z); mesh.scale.setScalar(R); mesh.renderOrder = 4;
   own(kit, [mesh], life, (t) => {
@@ -112,10 +112,11 @@ export function sigil(kit, x, z, R, c, opts = {}) {
 
 // ---- shell -----------------------------------------------------------------------------------------------------
 const FRES_VERT = 'varying vec3 vN, vV; varying float vY; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vY = position.y; gl_Position = projectionMatrix * mv; }';
-const FRES_FRAG = `uniform vec3 uC, uC2; uniform float uA, uP, uCore, uBands, uT; varying vec3 vN, vV; varying float vY;
+const FRES_FRAG = `uniform vec3 uC, uC2; uniform float uA, uP, uCore, uBands, uT, uInv; varying vec3 vN, vV; varying float vY;
   void main() {
     float f = 1.0 - abs(dot(normalize(vN), normalize(vV)));
     float b = uBands > 0.0 ? 0.6 + 0.4 * sin(vY * uBands * 6.28 - uT * 4.0) : 1.0;
+    if (uInv > 0.0) { float d = pow(1.0 - f, uInv); float a2 = clamp(d * uCore * 1.6, 0.0, 1.0) * uA; vec3 cc = mix(uC * 0.72, mix(uC2, vec3(1.0), 0.12), smoothstep(0.45, 0.95, d)); gl_FragColor = vec4(cc * a2, a2); return; }
     float a = (pow(f, uP) + uCore) * uA * b;
     gl_FragColor = vec4(mix(uC2, uC, pow(f, 1.5)) * a, a);
   }`;
@@ -124,7 +125,7 @@ const sphGeo = keep(new THREE.SphereGeometry(1, 28, 18)), domeGeo = keep(new THR
 // reach full size), dome (a half sphere sitting on the ground), squash (y scale), pulse (Hz), alpha, fade
 export function shell(kit, x, y, z, r, c, opts = {}) {
   const mat = new THREE.ShaderMaterial({ vertexShader: FRES_VERT, fragmentShader: FRES_FRAG, ...blend(opts), side: THREE.FrontSide,
-    uniforms: { uC: { value: col(c, opts) }, uC2: { value: col(opts.c2 || c, opts) }, uA: { value: 1 }, uP: { value: opts.p ?? 2.2 }, uCore: { value: opts.core ?? 0.05 }, uBands: { value: opts.bands ?? 0 }, uT: { value: 0 } } });
+    uniforms: { uC: { value: col(c, opts) }, uC2: { value: col(opts.c2 || c, opts) }, uA: { value: 1 }, uP: { value: opts.p ?? 2.2 }, uCore: { value: opts.core ?? 0.05 }, uBands: { value: opts.bands ?? 0 }, uT: { value: 0 }, uInv: { value: opts.inv ?? 0 } } });
   const mesh = new THREE.Mesh(opts.dome ? domeGeo : sphGeo, mat), life = opts.life ?? 1, fade = opts.fade ?? Math.min(0.35, life * 0.4), al = opts.alpha ?? 1;
   mesh.position.set(x, y, z); mesh.renderOrder = 7;
   const sq = opts.squash ?? 1;
@@ -167,7 +168,7 @@ export function pillar(kit, x, z, r, c, opts = {}) {
 // ---- trail -----------------------------------------------------------------------------------------------------
 const TRAIL_VERT = 'attribute float aK; attribute float aS; varying float vK, vS; void main() { vK = aK; vS = aS; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const TRAIL_FRAG = `uniform vec3 uC, uC2; uniform float uA; varying float vK, vS;
-  void main() { float edge = 1.0 - abs(vS); float a = pow(vK, 1.3) * smoothstep(0.0, 0.5, edge) * uA; vec3 c = mix(uC2, uC, smoothstep(0.2, 0.9, edge)) ; gl_FragColor = vec4(c * a, a); }`;
+  void main() { float edge = 1.0 - abs(vS); float a = pow(vK, 0.8) * smoothstep(0.0, 0.3, edge) * uA; vec3 c = mix(uC2, uC, smoothstep(0.1, 0.7, edge)); c = mix(c, vec3(1.0), smoothstep(0.75, 1.0, edge) * 0.35 * vK); gl_FragColor = vec4(c * a, a); }`;
 // A ribbon behind pos(t) -> [x, y, z] (or null when the point is gone): the last `len` samples, width w (tapering to the tail),
 // lying flat (the ribbon spans across the motion in the ground plane) or standing (opts.up). Lives `life` s, fading at the end.
 export function trail(kit, pos, w, c, life, opts = {}) {
@@ -188,7 +189,7 @@ export function trail(kit, pos, w, c, life, opts = {}) {
     for (let i = 0; i <= n; i++) {
       const h = hist[Math.min(i, hist.length - 1)] || [0, -50, 0], q = hist[Math.min(i + 1, hist.length - 1)] || h, o = i ? hist[i - 1] || h : h;
       let dx = (i ? o[0] - h[0] : h[0] - q[0]), dz = (i ? o[2] - h[2] : h[2] - q[2]); const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
-      const ww = w * (opts.taper === false ? 1 : 0.25 + 0.75 * (1 - i / n));
+      const ww = w * 1.6 * (opts.taper === false ? 1 : 0.35 + 0.65 * (1 - i / n));
       if (opts.up) { P.set([h[0], h[1] - ww, h[2], h[0], h[1] + ww, h[2]], i * 6); }
       else P.set([h[0] - dz * ww, h[1], h[2] + dx * ww, h[0] + dz * ww, h[1], h[2] - dx * ww], i * 6);
     }
@@ -275,7 +276,7 @@ export function strands(kit, at, r, n, len, c, life, opts = {}) {
   const mat = new THREE.ShaderMaterial({ vertexShader: TRAIL_VERT, fragmentShader: TRAIL_FRAG, ...blend(opts), side: THREE.DoubleSide,
     uniforms: { uC: { value: col(c, opts) }, uC2: { value: col(opts.c2 || c, opts) }, uA: { value: 1 } } });
   const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 6;
-  const w = opts.w ?? 0.08, sway = opts.sway ?? 0.35;
+  const w = (opts.w ?? 0.08) * 2, sway = opts.sway ?? 0.35;
   own(kit, [mesh], life, (t) => {
     const p = at(t); if (!p) return false;
     for (let j = 0; j < n; j++) {
@@ -291,6 +292,20 @@ export function strands(kit, at, r, n, len, c, life, opts = {}) {
     mat.uniforms.uA.value = (opts.alpha ?? 1) * Math.min(1, (life - t) / 0.3);
   });
   return mesh;
+}
+
+// ---- burst --------------------------------------------------------------------------------------------------------
+// A filled hit: a near-opaque core (c2 in the middle, c at the rim) swelling for the first 0.12 s, a soft halo twice as wide,
+// a filled ground disc, sparks and a light. r is the halo radius: 2-3 tank widths for a real blow.
+export function burst(kit, x, z, r, c, c2 = c, opts = {}) {
+  // r is about the width across of the blow (2-3 tank widths for a real one): a white-hot centre fading out through c2 to a
+  // soft c edge, near-opaque for the first 0.12 s, a wider soft halo, a dark soft rim on the floor for contrast on light stone
+  const life = opts.life ?? 0.5, y = opts.y ?? 1.1, rc = r * 0.6, rh = r * 0.95;
+  shell(kit, x, y, z, rc, c, { c2, inv: 1.2, core: 1, life, fade: life - 0.12, step: (t, m) => { m.scale.setScalar(rc * (0.55 + 0.6 * Math.min(1, t / 0.12))); } });
+  shell(kit, x, y, z, rh, c, { c2: c, inv: 2.2, core: 0.55, life: life * 1.2, alpha: 0.8, step: (t, m) => { m.scale.setScalar(rc + (rh - rc) * Math.min(1, t / 0.2)); } });
+  sigil(kit, x, z, rh * 1.15, c.clone().multiplyScalar(0.18 / Math.max(c.r, c.g, c.b)), { n: 0, ticks: 0, inner: 0, fill: 0.7, life: life * 1.3, rev: 0.04, alpha: 0.85, fade: life, y: 0.12, w: 0.0 });
+  kit.sparks(x, y, z, kit.N(14), c2, 6 + r * 2.5, 0.4, 0.07, 0.7, 8);
+  kit.flash(x, y + 0.6, z, c, 30 + r * 12, 0.25);
 }
 
 // A unit's skill press was seen by this client: run fn per frame for dur seconds while it is alive (render-only aura).

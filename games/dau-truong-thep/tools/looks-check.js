@@ -7,8 +7,7 @@
 // Writes .chk/looks/<tag>.png (contact sheet: one row per tank, one tile per skill, labelled), .chk/looks/tiles/<mech>-<slot>.jpg
 // and .chk/looks/sig.json (signatures, merged by mech across runs).
 // --gate re-renders every mech with a look and fails a pair of skills of two different tanks that both carry a look when
-// colour and shape are both close (colour distance < COL and shape distance < SHAPE, see `similar`), and a look that changes
-// less than MIN_AREA of the frame. Without --gate it prints the closest pairs among the mechs it rendered, looked or not.
+// colour and shape are both close (colour distance < COL and shape distance < SHAPE, see `similar`), and a look under the visual weight FLOOR (changed area and contrast). Without --gate it prints the closest pairs among the mechs it rendered, looked or not.
 'use strict';
 const { session, open, CHK, fs, path, checker } = require('./lib.js');
 const { execFileSync } = require('child_process');
@@ -34,7 +33,10 @@ function momentFor(r) {
   }
 }
 const startOf = (r, slot) => (r && r.charge ? 47 : slot.endsWith('b') ? 18 : 1);
-const COL = 0.09, SHAPE = 0.42, MIN_AREA = 0.004;
+const COL = 0.09, SHAPE = 0.42;
+// visual weight floor: share of the frame a look changes and the mean contrast of those pixels (0-255 per channel), ults
+// need more (calibrated so the thin first cut of Athena s1, Lữ Bố s2 and Tào Tháo s1 fail and Hades ult passes)
+const FLOOR = { area: 0.025, ultArea: 0.06, contrast: 40 };
 const W = 160, H = 90, GX = 16, GY = 9;
 
 // colour distance: mean RGB apart over the RGB cube diagonal; shape distance: Jaccard distance of the on cells
@@ -119,7 +121,9 @@ session(async (br, base) => {
       const T = tickOf[slot], res = await g.page.evaluate(({ k, slot, T }) => window.__scene(k, slot, true, [T]), { k, slot, T });
       await g.page.evaluate(() => window.__sceneStep(0));
       const f = await frame(g.page), base = baseAt[T], bestMask = new Uint8Array(W * H); let best = 0;
-      for (let p = 0; p < W * H; p++) { const q = p * 4, dd = Math.abs(f.px[q] - base[q]) + Math.abs(f.px[q + 1] - base[q + 1]) + Math.abs(f.px[q + 2] - base[q + 2]); if (dd > 90) { bestMask[p] = 1; best++; } }
+      let con = 0;
+      for (let p = 0; p < W * H; p++) { const q = p * 4, dd = Math.abs(f.px[q] - base[q]) + Math.abs(f.px[q + 1] - base[q + 1]) + Math.abs(f.px[q + 2] - base[q + 2]); if (dd > 90) { bestMask[p] = 1; best++; con += dd / 3; } }
+      con = Math.round(con / Math.max(1, best));
       const at = +((T - startOf(r.skills[{ s1: 0, s2: 1, ult: 2 }[slot.replace('b', '')]], slot)) / 30).toFixed(2), mean = [0, 0, 0];
       for (let p = 0; p < W * H; p++) if (bestMask[p]) { mean[0] += f.px[p * 4]; mean[1] += f.px[p * 4 + 1]; mean[2] += f.px[p * 4 + 2]; }
       for (let c = 0; c < 3; c++) mean[c] = Math.round(mean[c] / Math.max(1, best));
@@ -131,9 +135,9 @@ session(async (br, base) => {
       }
       const file = path.join(TILES, `${k}-${slot}.jpg`);
       fs.writeFileSync(file, f.jpg);
-      sigs[k][slot] = { skill: res.skill, look: res.look, area: +(best / (W * H)).toFixed(4), moment: at, mean, hash };
+      sigs[k][slot] = { skill: res.skill, look: res.look, area: +(best / (W * H)).toFixed(4), contrast: con, moment: at, mean, hash };
       row.tiles.push({ slot, label: `${slot} ${res.skill}${res.look ? ' [' + res.look + ']' : ''} @${at}s`, jpg: 'data:image/jpeg;base64,' + f.jpg.toString('base64') });
-      console.log(`${k} ${slot} ${res.skill} look=${res.look || '-'} area=${(best / (W * H) * 100).toFixed(1)}% t=${at} rgb=${mean.join(',')}`);
+      console.log(`${k} ${slot} ${res.skill} look=${res.look || '-'} area=${(best / (W * H) * 100).toFixed(1)}% con=${con} t=${at} rgb=${mean.join(',')}`);
     }
     sheetRows.push(row);
   }
@@ -175,13 +179,14 @@ session(async (br, base) => {
   const check = checker();
   check(!errs.length, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
   if (GATE) {
-    for (const a of pool) check(a.area >= MIN_AREA, `${a.k} ${a.s} ${a.skill} [${a.look}] shows (${(a.area * 100).toFixed(1)}% of the frame)`);
+    for (const a of pool) { const fa = a.s === 'ult' ? FLOOR.ultArea : FLOOR.area; check(a.area >= fa && a.contrast >= FLOOR.contrast, `${a.k} ${a.s} ${a.skill} [${a.look}] has weight: ${(a.area * 100).toFixed(1)}% of the frame (floor ${fa * 100}%), contrast ${a.contrast} (floor ${FLOOR.contrast})`); }
     const bad = pairs.filter(similar);
     check(!bad.length, `${pool.length} looks, ${pairs.length} pairs of two tanks: none too similar (colour < ${COL} and shape < ${SHAPE})` + (bad.length ? ': ' + bad.slice(0, 12).map((p) => `${p.a.k}.${p.a.s}~${p.b.k}.${p.b.s} (c ${p.dc.toFixed(3)} s ${p.ds.toFixed(2)})`).join(', ') : ''));
     for (const p of pairs.slice(0, 5)) console.log(`  closest: ${p.a.k}.${p.a.s} [${p.a.look}] ~ ${p.b.k}.${p.b.s} [${p.b.look}]  colour ${p.dc.toFixed(3)} shape ${p.ds.toFixed(2)}`);
     check.done();
   } else {
     const bad = pairs.filter(similar);
+    for (const a of pool) if (a.look) { const fa = a.s === 'ult' ? FLOOR.ultArea : FLOOR.area; if (a.area < fa || a.contrast < FLOOR.contrast) console.log(`  LIGHT ${a.k}.${a.s} [${a.look}] ${(a.area * 100).toFixed(1)}% con ${a.contrast}`); }
     console.log(`${bad.length} of ${pairs.length} pairs too similar`);
     // per tank: how many of its skills look like another tank's (the most generic first)
     const per = {};

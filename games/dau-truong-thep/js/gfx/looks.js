@@ -12,6 +12,7 @@
 // magenta sword light, a cyan ring round the planted sword, pink petals, white-gold flashes where the big blows land.
 import * as THREE from '../../vendor/three.module.min.js';
 import { B1 } from './looks-b1.js';
+import { burst } from './lookkit.js';
 
 const C = (r, g, b) => new THREE.Color(r, g, b);
 const PINK = C(2.4, 0.45, 1.7), HOT = C(2.6, 1.3, 2.2), DEEP = C(1.3, 0.15, 1.1), PETAL = C(1.0, 0.42, 0.62), CYAN = C(0.35, 1.0, 2.0), GOLDW = C(2.6, 2.1, 1.2), SOOT = C(0.08, 0.05, 0.07);
@@ -115,6 +116,7 @@ export const LOOKS = {
   // Liệt Không Trảm: the sword falls point first at the cursor, lands in a white-gold flash with a dark burst, then stands
   // planted (the field) in a cyan ring, shedding magenta sparks and petals until the field ends.
   mlSword: {
+    pal: [PINK, HOT], hitR: 2.4,
     skill(kit, e, u) { kit.glow(u.x, 1.6, u.z, PINK, 0.25, 2.4, 0.8, kit.K.GLOW, 1.3); return true; },
     strike(kit, e, u) {
       const g = makeSword(), delay = e.delay ?? 0.35;
@@ -126,7 +128,7 @@ export const LOOKS = {
         g.position.y = 9 * (1 - f * f) - 0.6 * f;
         if (Math.random() < 0.8) kit.str.emit(e.x, g.position.y + 2.5, e.z, 0, 6, 0, PINK, 0.18, 0.18, 0.05, 0, 0, 0.8);
         if (f < 1) return true;
-        bigHit(kit, e.x, e.z, 1.3); kit.ring(e.x, e.z, 3.2, PINK, 0.4); kit.ring(e.x, e.z, 1.6, GOLDW, 0.25, 0.8);
+        bigHit(kit, e.x, e.z, 1.3); burst(kit, e.x, e.z, 3.4, PINK, GOLDW, { life: 0.7 }); kit.ring(e.x, e.z, 3.2, PINK, 0.4); kit.ring(e.x, e.z, 1.6, GOLDW, 0.25, 0.8);
         kit.chips(e.x, 0.3, e.z, kit.N(8), C(0.35, 0.3, 0.3), 6, 0.8, 0.16); kit.kick(e.x, e.z, 0.6);
         petals(kit, e.x, 0.6, e.z, 10, 1.5, 3);
         return false;
@@ -158,7 +160,7 @@ export const LOOKS = {
       const dx = e.x - e.x0, dz = e.z - e.z0, L = Math.hypot(dx, dz) || 1;
       const b = kit.beam(e.x0, e.z0, e.x, e.z, 1.4, PINK, 0.3, 2, 1.1); b.fade = true;
       for (let i = 0, n = kit.N(18); i < n; i++) { const t = Math.random(); kit.str.emit(e.x0 + dx * t, kit.rnd(0.5, 1.6), e.z0 + dz * t, dx / L * 18, 0, dz / L * 18, i % 3 ? PINK : HOT, 0.22, 0.09, 0.06, 0, 1, 1); }
-      kit.ring(e.x, e.z, 2.2, PINK, 0.3); kit.glow(e.x, 1.2, e.z, HOT, 0.15, 2.6, 1, kit.K.STAR, 1.3);
+      kit.ring(e.x, e.z, 2.2, PINK, 0.3); kit.glow(e.x, 1.2, e.z, HOT, 0.15, 2.6, 1, kit.K.STAR, 1.3); burst(kit, e.x, e.z, 3, PINK, HOT, { life: 0.6 }); burst(kit, e.x0, e.z0, 2.2, DEEP, PINK, { life: 0.45 });
       petals(kit, e.x0, 0.8, e.z0, 6, 0.8, 2); kit.flash(e.x, 1.6, e.z, PINK, 30, 0.2);
       return true;
     },
@@ -166,6 +168,7 @@ export const LOOKS = {
   // Kinh Hồng Tam Thức: three magenta crescents in front, each sweeping back the other way; the third is bigger and lands
   // with the white-gold flash (its raw max-hp cut).
   mlSweep: {
+    pal: [PINK, HOT], hitR: 2.2,
     skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, PINK, 0.2, 1.6, 0.5, kit.K.GLOW, 1.3); return true; },
     nova(kit, e, u, s) {
       const k = e.k || 0, big = k === (s.repeat || 1) - 1, r = e.r * (big ? 1.15 : 1);
@@ -173,6 +176,7 @@ export const LOOKS = {
       crescent(kit, e.x, e.z, e.a, r * 0.8, 1.0, k % 2 ? -1 : 1, DEEP, big ? 0.55 : 0.45);
       const fx = e.x + Math.cos(e.a) * r * 0.6, fz = e.z + Math.sin(e.a) * r * 0.6;
       kit.sparks(fx, 1.1, fz, kit.N(10), PINK, 9, 0.35, 0.05, 0.4, 12, Math.cos(e.a), Math.sin(e.a), 0.7);
+      burst(kit, fx, fz, big ? 4 : 3.4, big ? HOT : PINK, DEEP, { life: 0.6 }); burst(kit, e.x, e.z, 2.4, DEEP, PINK, { life: 0.4 });
       if (big) { bigHit(kit, fx, fz, 1.1); kit.kick(e.x, e.z, 0.5); } else kit.kick(e.x, e.z, 0.2);
       petals(kit, fx, 1, fz, 3, 1, 2);
       return true;
@@ -183,6 +187,7 @@ export const LOOKS = {
   // Không Bạo Liên Thành Trảm: while held a magenta orb swirls round her and two pink guide lines mark the blade's reach and
   // width, both growing with the charge; let go, a giant crescent and a long sword-light wave run down the lane.
   mlBlade: {
+    pal: [PINK, HOT], hitR: 2.6,
     skill(kit, e, u) { kit.ring(u.x, u.z, 2.2, PINK, 0.4); return true; },
     castMake(kit, u, s) {
       const L0 = kit.beam(u.x, u.z, u.x + 1, u.z, 0.4, PINK, 99, 2, 0.15), L1 = kit.beam(u.x, u.z, u.x + 1, u.z, 0.4, PINK, 99, 2, 0.15);

@@ -8,6 +8,7 @@ import { visibleTo, orbPos } from '../sim.js';
 import { makePoints, makeStreaks, makeDebris, premul, additive, K } from './fxkit.js';
 import { makeTowers } from './towers.js';
 import { LOOKS, lookRow, lookOf } from './looks.js';
+import { burst } from './lookkit.js';
 
 const TEAM_HDR = [new THREE.Color(0.3, 0.88, 1.85), new THREE.Color(1.95, 0.6, 0.2)];
 const C = (r, g, b) => new THREE.Color(r, g, b);
@@ -785,7 +786,7 @@ export function makeFx(G, mechs) {
     team: (u) => TEAM_HDR[u.color], foe: (team) => !!G.match && team !== G.match.units[G.me].team, get time() { return time; }, get match() { return G.match; }, muzzle: (u, side, out) => mechs.muzzle(u, side, out) };
   // The last skill row each unit pressed: events the sim does not tag with a skill (leap, hook, mark, ...) and zones, shots of a
   // kind that two rows of one mech share are put down to the row pressed last.
-  const pressed = new Map();
+  const pressed = new Map(), hitAt = new Map();
   const UNIT_ROW = { hook: ['hook'], swap: ['swap'], stance: ['stance'], bless: ['bless'], rally: ['rally'], leap: ['leap'], mark: ['mark'], parry: ['counter'],
     flurry: ['flurry'], form: ['form'], rewind: ['rewind'], transform: ['transform'], warp: ['warp', 'portal'] };
   const ZONE_ROW = { strike: ['barrage'], mine: ['mine', 'minefield'], field: ['zone'], dome: ['dome'], wall: ['wall'], turret: ['turret'], decoy: ['decoy', 'warp'], drone: ['drone'], wire: ['wire'], orbit: ['orbit'], portal: ['portal'] };
@@ -855,6 +856,15 @@ export function makeFx(G, mechs) {
     if (e.t === 'explode' && e.vis && LOOKS[e.vis] && LOOKS[e.vis].strike) return;   // the look's falling piece draws its own landing
     if (e.t === 'explode' && (e.why === 'strike' || e.why === 'decoy' || e.why === 'mine')) {   // a zone drawn by a look goes off as that look says
       for (const [, v] of zoneViews) if (v.look && v.z && Math.abs(v.z.x - e.x) < 0.6 && Math.abs(v.z.z - e.z) < 0.6) { v.landed = true; if (v.look.land && v.look.land(kit, e, v.lv, v.z, v.row)) return; break; }
+    }
+    // a blow from a look's skill lands: that look's burst on the victim (its `hit` hook, or `pal` [rim, core] through burst),
+    // at most one per victim per 0.35 s so a field ticking does not pile them up
+    if (e.t === 'hit' && e.by !== undefined && e.amt > 0) {
+      const by = m.units[e.by], p = by && pressed.get(by.id), L = p && lookOf(p.row);
+      if (L && (L.hit || L.pal) && time - p.t < 1.2 + (p.row.dur || 0) && time - (hitAt.get(e.id) || -9) > 0.35) {
+        hitAt.set(e.id, time);
+        if (L.hit) L.hit(kit, e, by, p.row); else burst(kit, e.x, e.z, L.hitR || 2.2, L.pal[0], L.pal[1], { life: 0.4 });
+      }
     }
     if (e.t === 'impact' && e.vis) { for (const [, v] of shotViews) if (v.sl && frame - v.seen <= 1 && Math.abs(v.x - e.x) < 2.5 && Math.abs(v.z - e.z) < 2.5 && v.sl.L.impact) { if (v.sl.L.impact(kit, e, v.lv, v.sl.row)) return; break; } }
     if (e.t === 'zone' && e.kind === 'strike' && LOOKS[e.vis] && LOOKS[e.vis].strike && LOOKS[e.vis].strike(kit, e)) return;
@@ -1582,7 +1592,7 @@ export function makeFx(G, mechs) {
 
   function clear() {
     for (const [, v] of zoneViews) dropZone(v);
-    zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear(); shotViews.clear(); pressed.clear();
+    zoneViews.clear(); zoneInfo.clear(); rayBeams.clear(); hookBeams.clear(); sweepLen.clear(); shotViews.clear(); pressed.clear(); hitAt.clear();
     for (const [, v] of crateViews) { group.remove(v.root); release(v.mark); }
     crateViews.clear();
     for (const [, v] of casts) { if (v.look && v.look.castDrop) v.look.castDrop(kit, v.lv); if (v.g) release(v.g); if (v.b) endBeam(v.b); }
