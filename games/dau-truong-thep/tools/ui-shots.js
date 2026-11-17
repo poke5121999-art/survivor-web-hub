@@ -1009,8 +1009,8 @@ let MECH_ORDER = [], MECHS = {};
           names: [...document.querySelectorAll('#ui .kr-n')].map((n) => n.textContent), reset: !!document.querySelector('#ui [data-r="kreset"]'),
           on: document.querySelector('#ui .modal.on h2').textContent,
         }));
-        check(T('keys-idle') + ': Phím tab lists 12 actions with their keys in Vietnamese and a "Về mặc định" button',
-          r.on === 'Cài đặt' && r.rows === 12 && r.caps.join() === 'W,↑,S,↓,A,←,D,→,Chuột trái,Q,E,Cách,F,Tab,Esc,F8' && r.names.includes('Thông số mạng') && r.names[0] === 'Đi lên' && r.names.includes('Bảng điểm (giữ)') && r.reset, JSON.stringify(r));
+        check(T('keys-idle') + ': Phím tab lists 13 actions with their keys in Vietnamese and a "Về mặc định" button',
+          r.on === 'Cài đặt' && r.rows === 13 && r.caps.join() === 'W,↑,S,↓,A,←,D,→,Chuột trái,Q,E,Cách,F,Tab,Esc,F8,Chuột phải' && r.names.includes('Thông số mạng') && r.names[0] === 'Đi lên' && r.names.includes('Bảng điểm (giữ)') && r.reset, JSON.stringify(r));
       }, 300);
       await page.click('#ui .kcap[data-act="s1"][data-slot="0"]');
       await shot(page, errs, T('keys-capture'), async () => {
@@ -1061,7 +1061,7 @@ let MECH_ORDER = [], MECHS = {};
       check(T('keys') + ': the garage skill rows show bound keys (fire R, Chiêu 1 Chuột trái, Chiêu 2 E, ult Cách)', kit === 'R,Chuột trái,E,Cách', kit);
       await page.click('#ui [data-r="bHelp"]');
       const help = await page.evaluate(() => [...document.querySelectorAll('#ui .help-cols kbd')].map((k) => k.textContent).join());
-      check(T('keys') + ': "Cách chơi" lists the bound keys', help === 'W,A,S,D,Chuột,R,Chuột trái,E,Cách,Y,Tab,Esc,Enter,Cần trái,Cần phải,RT,LB,RB,LT,X,Start,Back,▲,◀,▶,▼', help);
+      check(T('keys') + ': "Cách chơi" lists the bound keys', help === 'W,A,S,D,Chuột,R,Chuột phải,Chuột trái,E,Cách,Y,Tab,Esc,Enter,Cần trái,Cần phải,RT,LB,RB,LT,X,Start,Back,▲,◀,▶,▼', help);
       await page.click('#ui .modal.on [data-r="close"]');
       await page.click('#ui [data-r="bSet"]'); await page.click('#ui [data-st="keys"]');
       await page.click('#ui [data-r="kreset"]');
@@ -1071,7 +1071,7 @@ let MECH_ORDER = [], MECHS = {};
 
       // HUD after a rebind: slot labels equal labelFor, pause hint and the pause key follow
       ({ ctx, page, errs } = await open(browser, T('hud-rebound'), vp, false, 'screen=hud&fresh=1&freeze=1&warp=60&mech=soi'));
-      await page.evaluate(async (u) => { const K = await import(u); K.bind('s1', 'KeyR'); K.bind('ult', 'KeyV'); K.bind('fire', 'Mouse2'); K.bind('pause', 'KeyP'); }, KEYS);
+      await page.evaluate(async (u) => { const K = await import(u); K.bind('s1', 'KeyR'); K.bind('ult', 'KeyV'); K.bind('fire', 'Mouse2', 0, { swap: true }); K.bind('pause', 'KeyP'); }, KEYS);
       await shot(page, errs, T('hud-rebound'), async () => {
         const r = await page.evaluate(async (u) => { const K = await import(u); return { dom: [...document.querySelectorAll('#ui .slot kbd')].map((k) => k.textContent), lab: ['fire', 's1', 's2', 'ult', 'heal'].map(K.labelFor) }; }, KEYS);
         check(T('hud-rebound') + ': slot labels equal labelFor and show the new keys (Chuột phải, R, E, V, F)', r.dom.join() === r.lab.join() && r.dom.join() === 'Chuột phải,R,E,V,F', JSON.stringify(r));
