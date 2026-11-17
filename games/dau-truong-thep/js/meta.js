@@ -1,6 +1,6 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 // No DOM: storage and the clock are injected (makeMeta({ storage, now })) so Node can run it.
-import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS, cleanPlay } from './data.js';
 import { MAP_ORDER, MAPS, THEMES } from './maps.js';
 import { SKINS, BASE_SKIN, skinOf, cleanSkin, skinKey } from './skins.js';
 
@@ -25,7 +25,7 @@ const FREE_MECHS = () => MECH_ORDER.filter((k) => MECHS[k].price === 0);
 function defaults() {
   return {
     v: VERSION, name: 'Phi công', coins: 0, gems: 0, xp: 0, level: 1,
-    owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0], size: TEAM_SIZE,
+    owned: FREE_MECHS(), mech: MECH_ORDER[0], diff: 'normal', map: MAP_ORDER[0], theme: null, mode: MODE_ORDER[0], size: TEAM_SIZE, play: 'casual',
     settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light', brightness: 1, calm: null, camHeight: null, aimPan: true },
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
     lv: {}, skins: {}, ownedSkins: [], trophies: 0,
@@ -119,7 +119,9 @@ function clean(raw) {
     mech: d.mech, diff: DIFFICULTY[raw.diff] ? raw.diff : d.diff, map: MAPS[raw.map] || raw.map === 'random' ? raw.map : d.map,
     // null = the layout's own theme
     theme: raw.theme === 'random' || has(THEMES, raw.theme) ? raw.theme : null,
+    // A save from before the play kinds may hold 'trum' (now a Phó bản boss, not a menu mode): it falls back to the first PvP mode.
     mode: MODE_ORDER.includes(raw.mode) ? raw.mode : d.mode,
+    play: cleanPlay(raw.play),
     size: cleanSize(raw.size),
     settings: {
       quality: QUALITIES.includes(s.quality) ? s.quality : d.settings.quality,
@@ -276,7 +278,8 @@ export function makeMeta(opts = {}) {
   }
   const dailyReady = () => passActive() && data.shop.lastDaily !== dayKey(now());
 
-  function applyResult(summary, meId) {
+  // opts.play: 'rank' moves trophies; 'casual' (default, also every online match) pays coins and XP only.
+  function applyResult(summary, meId, opts = {}) {
     const me = summary && summary.rows && summary.rows.find((r) => r.id === meId);
     if (!me) return null;
     const mode = modeOf(summary);
@@ -296,7 +299,7 @@ export function makeMeta(opts = {}) {
     const xp = (win ? REWARDS.xpWin : draw ? Math.round((REWARDS.xpWin + REWARDS.xpLose) / 2) : REWARDS.xpLose) + me.kills * REWARDS.xpPerKill;
     const levelBefore = data.level, xpBefore = data.xp;
     const rankBefore = rankOf(data.trophies), trophiesBefore = data.trophies;
-    const trophy = mode === 'tdm' || mode === 'chiem' || mode === 'nha';
+    const play = cleanPlay(opts.play), trophy = play === 'rank' && mode !== 'trum';
     if (trophy) data.trophies = Math.max(0, data.trophies + (win ? TROPHIES.win : draw ? TROPHIES.draw : -TROPHIES.lose));
     const rankAfter = rankOf(data.trophies);
     data.coins += coins;
@@ -313,7 +316,7 @@ export function makeMeta(opts = {}) {
     data.stats.kills += me.kills;
     save();
     return { coins, gems, gemParts, coinMul, xp, levelBefore, levelAfter: data.level, win, draw, mvp, xpBefore, xpAfter: data.xp, parts, kills: me.kills, assists: me.assists,
-      mode, place, trophy, trophiesBefore, trophiesAfter: data.trophies, rankBefore, rankAfter };
+      mode, play, place, trophy, trophiesBefore, trophiesAfter: data.trophies, rankBefore, rankAfter };
   }
 
   return { get: () => data, save, buy, upgrade, buySkin, setSkin, ownsSkin, skinFor, refunded,

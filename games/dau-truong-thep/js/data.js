@@ -1156,7 +1156,8 @@ export function ruleFor(mode, size) {
   out.crate = { ...RULES.crate, ...(RULES.crateBySize[size] || {}), ...(over.crate || {}) };
   return out;
 }
-export const MODE_ORDER = ['tdm', 'nha', 'chiem', 'tudo', 'trum'];
+// The PvP modes a player picks in Đấu thường and online rooms. `trum` stays in MODES as the boss engine of Phó bản (PVE_* below), not a menu pick.
+export const MODE_ORDER = ['tdm', 'nha', 'chiem', 'tudo'];
 
 // Bosses use the same row shape as MECHS and the same skill primitives. heavy: shrugs off most stuns, knockback and pulls.
 export const BOSSES = {
@@ -1171,3 +1172,33 @@ export const BOSSES = {
     ],
   },
 };
+
+/* ===== feat/dtt-modes: play kinds (Đấu thường, Đấu rank, Phó bản) ===== */
+// casual: the player picks mode, arena, size; coins and XP, no trophies. rank: random PvP mode and arena, trophies move, bots climb with the tier.
+// pve: waves of monsters and chapter bosses, coins only.
+export const PLAYS = {
+  casual: { name: 'Đấu thường', icon: 'swords', blurb: 'Tự chọn chế độ, đấu trường, cỡ đội. Nhận xu và XP, không tính cúp.' },
+  rank:   { name: 'Đấu rank', icon: 'trophy', blurb: 'Chế độ và đấu trường bốc ngẫu nhiên, 3 đấu 3. Thắng thua đổi cúp; bot mạnh dần theo hạng.' },
+  pve:    { name: 'Phó bản', icon: 'boss', blurb: 'Đánh quái qua từng màn, cuối chương gặp trùm. Cày xu nâng cấp.' },
+};
+export const PLAY_ORDER = ['casual', 'rank', 'pve'];
+// The pool a ranked match draws its mode from.
+export const RANK_MODES = ['tdm', 'chiem', 'nha', 'tudo'];
+// Ranked bots per RANKS tier (same index). diff: DIFFICULTY row of every bot; botLv / allyLv: level on every upgrade track of the enemy / allied bots;
+// foeDmg, foeHp: multipliers on the enemy bots. The player keeps their own garage levels.
+export const RANK_TIERS = [
+  { diff: 'easy',   botLv: 0, allyLv: 0, foeDmg: 0.75, foeHp: 1 },     // Sắt
+  { diff: 'normal', botLv: 1, allyLv: 1, foeDmg: 0.85, foeHp: 1 },     // Đồng
+  { diff: 'normal', botLv: 2, allyLv: 2, foeDmg: 0.95, foeHp: 1 },     // Bạc
+  { diff: 'hard',   botLv: 3, allyLv: 2, foeDmg: 1,    foeHp: 1 },     // Vàng
+  { diff: 'hard',   botLv: 4, allyLv: 3, foeDmg: 1,    foeHp: 1.08 },  // Bạch Kim
+  { diff: 'hard',   botLv: 5, allyLv: 4, foeDmg: 1.08, foeHp: 1.15 },  // Kim Cương
+];
+export const rankTier = (index) => RANK_TIERS[Math.max(0, Math.min(RANK_TIERS.length - 1, Math.floor(Number(index) || 0)))];
+// The random part of a ranked match, from its seed: the mode (the arena and theme are picked by maps.pickArena with 'random').
+export function rankPlan(tierIndex, seed) {
+  const h = Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
+  return { mode: RANK_MODES[(h >>> 7) % RANK_MODES.length], tier: rankTier(tierIndex) };
+}
+export const cleanPlay = (p) => (PLAY_ORDER.includes(p) ? p : 'casual');
+/* ===== end feat/dtt-modes play kinds ===== */

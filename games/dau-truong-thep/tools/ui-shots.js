@@ -797,10 +797,12 @@ let MECH_ORDER = [], MECHS = {};
             blurbs: [...document.querySelectorAll('#ui .map small')].map((n) => n.textContent.length > 20),
             mapOn: document.querySelector('#ui .map.on').dataset.map, swIcons: document.querySelectorAll('#ui .sw svg').length,
             playIn: play.bottom <= vh + 1 && play.top >= 0, segs: document.querySelectorAll('#ui .seg[data-r="diff"] button').length,
+            plays: [...document.querySelectorAll('#ui .pk')].map((b) => b.dataset.play + ':' + b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(),
           };
         });
         check(T('menu-modes') + ': mode picker lists every mode of MODE_ORDER with its Vietnamese name', r.modes.join() === MODE_ORDER.map((k) => k + ':' + MODES[k].name).join(), r.modes.join());
-        check(T('menu-modes') + ': saved mode (trum) is preselected and its blurb is shown', r.on === 'trum' && r.blurb === MODES.trum.blurb, JSON.stringify(r));
+        check(T('menu-modes') + ': an old saved mode (trum, now a Phó bản boss) falls back to Đấu đội with its blurb', r.on === 'tdm' && r.blurb === MODES.tdm.blurb, JSON.stringify(r));
+        check(T('menu-modes') + ': three play tiles Đấu thường (on), Đấu rank, Phó bản', r.plays === 'casual:Đấu thường*,rank:Đấu rank,pve:Phó bản', r.plays);
         check(T('menu-modes') + ': map picker shows 4 layouts + Ngẫu nhiên with swatch, name and hazard in words', r.maps.join('\n') === 'denrung|jungle|Đền Rừng|Không có bẫy\nxuongcat|desert|Xưởng Cát|Họng lửa phụt\ncangbang|ice|Cảng Băng|Băng trơn trượt\nmienglua|lava|Miệng Lửa|Hồ dung nham\nrandom|rnd|Ngẫu nhiên|Bố cục bốc thăm mỗi trận' && r.swIcons === 15 && r.blurbs.length === 5, r.maps.join(' ; '));
         check(T('menu-modes') + ': saved map (mienglua) preselected, play button inside the viewport, difficulty still 3 buttons', r.mapOn === 'mienglua' && r.playIn && r.segs === 3, JSON.stringify(r));
       });
@@ -925,7 +927,7 @@ let MECH_ORDER = [], MECHS = {};
       }
 
       // ----- modes: result screens
-      for (const [mode, query, tag] of [['chiem', 'trophies=300', 'chiem'], ['tudo', 'place=3&trophies=300', 'tudo'], ['trum', 'trophies=300', 'trum'], ['trum', 'lose=1&trophies=300', 'trum-lose']]) {
+      for (const [mode, query, tag] of [['chiem', 'trophies=300', 'chiem'], ['chiem', 'play=casual&trophies=300', 'chiem-casual'], ['tudo', 'place=3&trophies=300', 'tudo'], ['trum', 'trophies=300', 'trum'], ['trum', 'lose=1&trophies=300', 'trum-lose']]) {
         ({ ctx, page, errs } = await open(browser, T('result-' + tag), vp, touch, `screen=result&fresh=1&mode=${mode}&mech=soi&${query}`));
         await shot(page, errs, T('result-' + tag), async () => {
           const r = await page.evaluate(() => ({
@@ -935,7 +937,8 @@ let MECH_ORDER = [], MECHS = {};
             places: [...document.querySelectorAll('#ui .tb-ic .plc')].map((n) => n.textContent).join(),
           }));
           if (tag === 'chiem') check(T('result-chiem') + ': two team tables of 3, banner Thắng, trophy block shown and +22 cúp saved', r.tables === 2 && r.rows === 6 && r.banner === 'Thắng' && r.mine === 1 && r.trophyBlock && r.trophies === 322, JSON.stringify(r));
-          if (tag === 'tudo') check(T('result-tudo') + ': one ranking of 6, banner "Hạng 3/6", my row 3rd and highlighted, drawn colour, no trophy block, cúp unchanged 300', r.tables === 1 && r.rows === 6 && r.banner === 'Hạng 3/6' && r.meIdx === 2 && r.mine === 1 && /draw/.test(r.cls) && !r.trophyBlock && r.trophies === 300 && r.places === '1,2,3,4,5,6', JSON.stringify(r));
+          if (tag === 'chiem-casual') check(T('result-chiem-casual') + ': Đấu thường: team tables, banner Thắng, no trophy block, cúp unchanged 300', r.tables === 2 && r.banner === 'Thắng' && !r.trophyBlock && r.trophies === 300, JSON.stringify(r));
+          if (tag === 'tudo') check(T('result-tudo') + ': one ranking of 6, banner "Hạng 3/6", my row 3rd and highlighted, drawn colour; a ranked Hỗn chiến shows the trophy block, 3rd = draw +4 (304)', r.tables === 1 && r.rows === 6 && r.banner === 'Hạng 3/6' && r.meIdx === 2 && r.mine === 1 && /draw/.test(r.cls) && r.trophyBlock && r.trophies === 304 && r.places === '1,2,3,4,5,6', JSON.stringify(r));
           if (tag === 'trum') check(T('result-trum') + ': "Đã hạ Cự Thần", 3 rows sorted by damage on the boss, no trophy block, cúp unchanged', r.banner === 'Đã hạ Cự Thần' && /win/.test(r.cls) && r.rows === 3 && r.dmg === '8.000,7.000,5.500' && !r.trophyBlock && r.trophies === 300, JSON.stringify(r));
           if (tag === 'trum-lose') check(T('result-trum-lose') + ': "Cự Thần thắng" with the lose banner', r.banner === 'Cự Thần thắng' && /lose/.test(r.cls) && r.trophies === 300, JSON.stringify(r));
         }, 2200);
@@ -1341,8 +1344,7 @@ let MECH_ORDER = [], MECHS = {};
       const hc = await page.evaluate(() => ({ calls: __G.online.calls.slice(-7).map((c) => c[0] + ':' + JSON.stringify(c[1])), L: __G.online.lobby.mode + ',' + __G.online.lobby.map + ',' + __G.online.lobby.diff, mech: __G.online.lobby.players[0].mech, sel: document.querySelector('#ui .lm.sel b').textContent, teams: __G.online.lobby.players.map((p) => p.team).join('') }));
       check(T('lobby-host') + ': mode, map, difficulty, mech and both swap buttons reach online.*', hc.L === 'chiem,cangbang,hard' && hc.mech === 'soi' && hc.sel === 'Sói Lửa' && hc.teams === '1101', JSON.stringify(hc));
       check(T('lobby-host') + ': a swap into a full team (3 a side) is refused inline', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Mỗi đội tối đa 3 người chơi.');
-      await page.click('#ui .lobby .mode[data-k="trum"]');
-      check(T('lobby-host') + ': Săn trùm with 4 players is refused ("tối đa 3"), the lobby stays as it was', (await page.textContent('#ui .lobby .lb-act .ol-err')) === 'Chế độ Săn trùm tối đa 3 người chơi.' && await page.evaluate(() => !document.querySelector('#ui .bossbox') && __G.online.lobby.mode === 'chiem'));
+      check(T('lobby-host') + ': Săn trùm is no longer a room mode (it is a Phó bản boss)', await page.evaluate(() => !document.querySelector('#ui .lobby .mode[data-k="trum"]') && __G.online.lobby.mode === 'chiem'));
       await page.click('#ui .lobby [data-a="leave"]');
       check(T('lobby-host') + ': Rời phòng calls leave() and shows the menu', (await calls(page)).includes('leave') && await page.evaluate(() => !!document.querySelector('#ui .menu.on') && !document.querySelector('#ui .lobby.on')));
       await ctx.close();
@@ -1868,7 +1870,7 @@ let MECH_ORDER = [], MECHS = {};
         localStorage.removeItem('dtt.save.v1');
         const m = makeMeta();
         const rows = [{ id: 0, team: 0, kills: 5, assists: 2, deaths: 1 }, { id: 1, team: 1, kills: 1, assists: 0, deaths: 5 }];
-        const res = m.applyResult({ rows, mvp: 0, winner: 0 }, 0);
+        const res = m.applyResult({ rows, mvp: 0, winner: 0 }, 0, { play: 'rank' });
         const again = makeMeta().get();
         const base = { res, saved: again.coins === res.coins && again.stats.wins === 1 && again.stats.kills === 5 && again.trophies === 22, ver: JSON.parse(localStorage.getItem('dtt.save.v1')).v };
 
@@ -1945,14 +1947,14 @@ let MECH_ORDER = [], MECHS = {};
         const T = (t) => { d.trophies = t; return g.rank(); };
         const rk = [T(0), T(99), T(100), T(249), T(250), T(1000), T(5000)].map((x) => `${x.index}:${x.name}:${x.next ? x.next.name + '@' + x.next.min : '-'}`);
         d.trophies = 10;
-        const lose = g.applyResult({ rows, mvp: 1, winner: 1 }, 0);
-        const draw = g.applyResult({ rows, mvp: 1, winner: -1 }, 0);
+        const lose = g.applyResult({ rows, mvp: 1, winner: 1 }, 0, { play: 'rank' });
+        const draw = g.applyResult({ rows, mvp: 1, winner: -1 }, 0, { play: 'rank' });
         d.trophies = 99;
-        const promo = g.applyResult({ rows, mvp: 0, winner: 0 }, 0);
+        const promo = g.applyResult({ rows, mvp: 0, winner: 0 }, 0, { play: 'rank' });
         d.trophies = 100;
-        const demo = g.applyResult({ rows, mvp: 1, winner: 1 }, 0);
+        const demo = g.applyResult({ rows, mvp: 1, winner: 1 }, 0, { play: 'rank' });
         d.trophies = 3;
-        const floor = g.applyResult({ rows, mvp: 1, winner: 1 }, 0);
+        const floor = g.applyResult({ rows, mvp: 1, winner: 1 }, 0, { play: 'rank' });
         log.lose = [lose.trophiesBefore, lose.trophiesAfter]; log.draw = [draw.trophiesBefore, draw.trophiesAfter];
         log.promo = [promo.trophiesAfter, promo.rankBefore.name, promo.rankAfter.name, promo.rankAfter.color];
         log.demo = [demo.trophiesAfter, demo.rankBefore.name, demo.rankAfter.name];
@@ -1985,7 +1987,7 @@ let MECH_ORDER = [], MECHS = {};
         const row = (id, team, o) => ({ id, team, name: 'n' + id, mech: 'trau', kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, rating: 0, ...o });
         const ffa = (myScore, others, winner) => ({ rows: Array.from({ length: 10 }, (_, i) => row(i, i, { kills: i === 0 ? myScore : others[i - 1] })), mvp: 5, winner, score: Array.from({ length: 10 }, (_, i) => (i === 0 ? myScore : others[i - 1])), time: 100 });
         const fresh = (tr) => { localStorage.removeItem(KEY); const g = makeMeta(); g.get().trophies = tr; return g; };
-        const pay = (sm, tr = 100, mode) => { const g = fresh(tr); const r = g.applyResult(sm, 0); return [r.coins, r.xp, r.win, r.draw, g.get().trophies, r.trophy, r.place, g.get().stats.wins]; };
+        const pay = (sm, tr = 100, mode, play) => { const g = fresh(tr); const r = g.applyResult(sm, 0, { play }); return [r.coins, r.xp, r.win, r.draw, g.get().trophies, r.trophy, r.place, g.get().stats.wins]; };
         const o8 = [12, 9, 8, 7, 6, 5, 4, 3, 2], o5 = [12, 9, 8, 7, 6, 5, 4, 3, 2];
         out.first = pay(ffa(12, [9, 8, 7, 6, 5, 4, 3, 2, 1], 0));
         out.third = pay(ffa(8, o8.map((v, i) => (i < 2 ? v : v - 3)), 1));
@@ -1998,8 +2000,9 @@ let MECH_ORDER = [], MECHS = {};
         out.ffa6 = [1, 2, 3, 4, 6].map((p) => pay(ffaN(6, p))[3] + ':' + pay(ffaN(6, p))[2]);
         out.ffa2 = [1, 2].map((p) => pay(ffaN(2, p))[3] + ':' + pay(ffaN(2, p))[2]);
         out.sizes = [5, 4, 0, 1, 2, 3, 'x', null].map((v) => { localStorage.setItem(KEY, JSON.stringify({ size: v })); return makeMeta().get().size; }); localStorage.removeItem(KEY); out.sizeDef = makeMeta().get().size;
-        out.tdm = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 0, score: [25, 3], time: 90 });
-        out.chiem = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 1, score: [20, 150], time: 90, mode: 'chiem' });
+        out.tdm = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 0, score: [25, 3], time: 90 }, 100, undefined, 'rank');
+        out.chiem = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 1, score: [20, 150], time: 90, mode: 'chiem' }, 100, undefined, 'rank');
+        out.tdmCasual = pay({ rows: [row(0, 0), row(1, 1)], mvp: 1, winner: 0, score: [25, 3], time: 90 });
         out.modes = [modeOf(ffa(1, [1, 1, 1, 1, 1, 1, 1, 1, 1], 0)), modeOf(boss(true, 1)), modeOf({ rows: [row(0, 0), row(1, 1)] }), modeOf({ mode: 'chiem', rows: [] })];
         localStorage.setItem(KEY, JSON.stringify({ mode: 'trum' })); out.savedMode = makeMeta().get().mode;
         localStorage.setItem(KEY, JSON.stringify({ mode: 'zzz' })); out.badMode = makeMeta().get().mode;
@@ -2009,10 +2012,10 @@ let MECH_ORDER = [], MECHS = {};
       check('meta: tudo pays by place: 1st = win 145+12*10 and +100 xp, 2nd/3rd = draw 96, 6th = lose 72; cúp untouched (100)', m2.first.slice(0, 3).join() === '265,160,true' && m2.first[4] === 100 && m2.first[5] === false && m2.first[6] === 1 && m2.first[7] === 1
         && m2.third[0] === 96 + 8 * 10 && m2.third[3] === true && m2.third[2] === false && m2.third[4] === 100 && m2.third[6] === 3 && m2.second[0] === 96 + 10 * 10 && m2.second[6] === 2 && m2.sixth[0] === 72 + 5 * 10 && m2.sixth[2] === false && m2.sixth[3] === false && m2.sixth[4] === 100 && m2.sixth[6] === 5 + 1, JSON.stringify(m2));
       check('meta: trum win = 1.5x win base (218) + damage part round(10*8000/4000)=20 ; loss = 72 + 20; cúp untouched', m2.bossWin[0] === 218 + 20 && m2.bossWin[2] === true && m2.bossWin[4] === 100 && m2.bossWin[5] === false && m2.bossLose[0] === 72 + 20 && m2.bossLose[2] === false, JSON.stringify([m2.bossWin, m2.bossLose]));
-      check('meta: trophies still change in tdm (+22) and chiem (loss -12), mode is inferred from the summary shape', m2.tdm[4] === 122 && m2.tdm[5] === true && m2.chiem[4] === 88 && m2.chiem[5] === true && m2.modes.join() === 'tudo,trum,tdm,chiem', JSON.stringify([m2.tdm, m2.chiem, m2.modes]));
+      check('meta: Đấu rank moves trophies in tdm (+22) and chiem (loss -12), Đấu thường does not, mode is inferred from the summary shape', m2.tdmCasual[4] === 100 && m2.tdmCasual[5] === false && m2.tdm[4] === 122 && m2.tdm[5] === true && m2.chiem[4] === 88 && m2.chiem[5] === true && m2.modes.join() === 'tudo,trum,tdm,chiem', JSON.stringify([m2.tdm, m2.chiem, m2.tdmCasual, m2.modes]));
       check('meta: free-for-all of 6 (3v3): 1st wins, 2nd and 3rd draw, 4th and 6th lose; of 2 (1v1): the loser loses, no draw', m2.ffa6.join() === 'false:true,true:false,true:false,false:false,false:false' && m2.ffa2.join() === 'false:true,false:false', JSON.stringify([m2.ffa6, m2.ffa2]));
       check('meta: saved team size is 1, 2 or 3; 4, 5, 0, text, null and a missing key fall back to 3', m2.sizes.join() === '3,3,3,1,2,3,3,3' && m2.sizeDef === 3, JSON.stringify([m2.sizes, m2.sizeDef]));
-      check('meta: last mode is saved, garbage falls back to tdm, default is tdm', m2.savedMode === 'trum' && m2.badMode === 'tdm' && m2.defMode === 'tdm', JSON.stringify([m2.savedMode, m2.badMode, m2.defMode]));
+      check('meta: last mode is saved, garbage and the retired trum fall back to tdm, default is tdm', m2.savedMode === 'tdm' && m2.badMode === 'tdm' && m2.defMode === 'tdm', JSON.stringify([m2.savedMode, m2.badMode, m2.defMode]));
       await ctx.close();
     }
     await phoneSuite(browser);

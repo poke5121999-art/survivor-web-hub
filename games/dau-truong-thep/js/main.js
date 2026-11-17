@@ -5,6 +5,7 @@ import { TICK, MECH_ORDER, MECHS, DIFFICULTY, BOT_NAMES, MODES, cleanLv, TEAM_SI
 import { MAPS, THEMES, pickArena, compileMap, mapsFor } from './maps.js';
 import { createMatch, step, summary } from './sim.js';
 import { allInputs } from './bots.js';
+import { soloLineup } from './roster.js';
 import { mulberry } from './rng.js';
 import { makeTextures } from './gfx/tex.js';
 import { makeWorld, makeEnvironment } from './gfx/world.js';
@@ -53,7 +54,7 @@ function makeBus() {
 const qs = new URLSearchParams(location.search);
 const params = {
   autostart: qs.has('autostart'), noaudio: qs.has('noaudio'), manual: qs.has('manual'), spectate: qs.has('spectate'),
-  q: qs.get('q'), sharp: qs.get('sharp'), bright: qs.has('bright') ? Number(qs.get('bright')) : null, calm: qs.has('calm') ? qs.get('calm') !== '0' : null, sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, camh: qs.get('camh'), aimpan: qs.has('aimpan') ? qs.get('aimpan') !== '0' : null, side: qs.get('side') === '1' ? 1 : 0, mode: qs.get('mode'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
+  q: qs.get('q'), sharp: qs.get('sharp'), bright: qs.has('bright') ? Number(qs.get('bright')) : null, calm: qs.has('calm') ? qs.get('calm') !== '0' : null, sharpen: qs.get('sharpen') === '0' ? 0 : 1, legacyres: qs.has('legacyres'), govms: Number(qs.get('govms')) || 0, camh: qs.get('camh'), aimpan: qs.has('aimpan') ? qs.get('aimpan') !== '0' : null, side: qs.get('side') === '1' ? 1 : 0, mode: qs.get('mode'), play: qs.get('play'), size: qs.get('size'), theme: qs.get('theme'), seed: qs.has('seed') ? Number(qs.get('seed')) : null, bots: qs.get('bots'), mech: qs.get('mech'), map: qs.get('map'),
 };
 
 const bootBar = document.querySelector('#boot .bar i'), bootMsg = document.getElementById('boot-msg');
@@ -229,32 +230,16 @@ async function boot() {
   function startMatch(choice, attract) {
     const seed = params.seed !== null ? params.seed : (Date.now() & 0x7fffffff);
     const rng = mulberry(seed ^ 0x51ed);
-    const diff = DIFFICULTY[choice.diff] ? choice.diff : 'normal';
+    // Đấu rank draws its mode from the seed and its bots from the player's tier (js/roster.js); the arena and theme are drawn too.
+    const L = soloLineup(choice, { rng, seed, tier: meta.rank().index, attract, spectate: params.spectate, side: params.side, playerName: meta.get().name || 'Bạn' });
+    const mode = L.mode;
     // The menu's background match keeps the arena already built; a real match builds what was chosen ('random' resolves from the seed).
-    const mode = !attract && MODES[choice.mode] ? choice.mode : 'tdm';
-    if (!attract) { const a = pickArena(choice.map, choice.theme, seed, mode); useMap(a.map, a.theme); }
+    if (!attract) { const a = L.tier ? pickArena('random', 'random', seed, mode) : pickArena(choice.map, choice.theme, seed, mode); useMap(a.map, a.theme); }
     else if (!mapsFor(mode).includes(arena.map)) useMap(mapsFor(mode)[0], arena.theme);
-    const names = BOT_NAMES.slice().sort(() => rng() - 0.5);
-    const pick = MECHS[choice.mech] ? choice.mech : MECH_ORDER[0];
-    const bot = attract || params.spectate;
-    // ?side=1 (test hook) puts the player's team on the other end of the map.
-    const mine = mode === 'trum' ? 0 : params.side, theirs = 1 - mine;
-    const roster = [{ team: mine, mech: pick, name: bot ? names.pop() : (meta.get().name || 'Bạn'), bot, diff, mods: attract ? null : choice.mods, skin: attract ? null : choice.skin }];
-    // Allied bots grow with the player at half pace. Enemy bots take a share of the player's levels and a damage
-    // multiplier from the difficulty (easy: none and 0.65), so a maxed mech is felt against easy bots.
-    const myLv = cleanLv(!attract && choice.mods && choice.mods.lv), D = DIFFICULTY[diff];
-    const botMods = { lv: myLv.map((l) => Math.floor(l / 2)) };
-    const foeMods = attract ? botMods : { lv: myLv.map((l) => Math.floor(l * D.foeLv)), dmg: D.foeDmg };
-    const shuffled = (list) => list.slice().sort(() => rng() - 0.5);
-    const allies = shuffled(MECH_ORDER.filter((k) => k !== pick)), foes = shuffled(MECH_ORDER);
-    // Săn trùm always sends TEAM_SIZE hunters at the boss; the other modes follow the chosen size (free-for-all: 2 * size mechs in all).
-    const size = mode === 'trum' ? TEAM_SIZE : cleanSize(choice.size);
-    for (let i = 0; i < size - 1; i++) roster.push({ team: mine, mech: allies[i], name: names.pop(), bot: true, diff, mods: botMods });
-    if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
-    else for (let i = 0; i < size; i++) roster.push({ team: theirs, mech: foes[i], name: names.pop(), bot: true, diff, mods: foeMods });
+    const roster = L.roster;
     mechs.clear(); fx.clear();
     G.match = createMatch({ map: arena.map, theme: arena.theme, seed, roster, mode });
-    net = null; G.choice = choice;
+    net = null; G.choice = choice; G.play = attract ? null : L.play;
     enterMatch(0, attract);
     warmUntil = performance.now() + 3000;
     if (!attract) { G.audio.setScene && G.audio.setScene('match'); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start'); }
@@ -272,7 +257,7 @@ async function boot() {
     useMap(rosterData.map, rosterData.theme);
     mechs.clear(); fx.clear();
     G.match = role === 'host' ? createMatch(matchOptions(rosterData)) : mirror;
-    net = role; G.paused = false; G.choice = null;
+    net = role; G.paused = false; G.choice = null; G.play = 'casual';
     enterMatch(mySlot, false);
     G.audio.setScene && G.audio.setScene('match'); G.ui.hideMenu(); G.ui.showHUD(); G.bus.emit('match:start', G.match); G.audio.ui('start');
   });
@@ -313,7 +298,7 @@ async function boot() {
   function endMatch() {
     const m = G.match, sum = summary(m);
     G.mode = 'result';
-    const rewards = meta.applyResult(sum, G.me);
+    const rewards = meta.applyResult(sum, G.me, { play: net ? 'casual' : G.play || 'casual' });
     G.bus.emit('match:over', sum);
     G.audio.ui(sum.winner === m.units[G.me].team ? 'win' : 'lose');
     G.ui.hideHUD(); G.ui.showResult(sum, rewards);
@@ -451,7 +436,7 @@ async function boot() {
     draw(params.manual ? 0 : dt);
   }
 
-  const defaultChoice = () => { const s = meta.get(); return { mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm', size: cleanSize(params.size !== null ? Number(params.size) : s.size) }; };
+  const defaultChoice = () => { const s = meta.get(); return { play: params.play === 'rank' ? 'rank' : 'casual', mech: params.mech || s.mech || 'trau', diff: params.bots || s.diff || 'normal', map: params.map || s.map || 'denrung', theme: params.theme || s.theme || null, mode: params.mode || s.mode || 'tdm', size: cleanSize(params.size !== null ? Number(params.size) : s.size) }; };
   G.bus.on('ui:play', (choice) => { G.paused = false; startMatch(choice, false); });
   G.bus.on('ui:menu', () => { G.paused = false;
     // Leaving an online match or its result screen goes back to the room, not to the solo menu.

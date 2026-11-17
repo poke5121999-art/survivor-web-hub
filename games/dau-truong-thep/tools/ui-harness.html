@@ -365,7 +365,7 @@ function boot() {
         if (!m.over) { m.score[0] = m.target; m.score[1] = Math.round(m.target * 0.68); m.over = true; m.winner = 0; }
       }
       const sm = summary(m);
-      G.ui.showResult(sm, meta.applyResult(sm, G.me));
+      G.ui.showResult(sm, meta.applyResult(sm, G.me, { play: q.get('play') || (q.get('onl') ? 'casual' : 'rank') }));
     } else {
       demoTweaks();
       if (screen === 'pause') G.ui.showPause();

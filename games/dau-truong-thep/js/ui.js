@@ -1,5 +1,5 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
-import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize, PLAYS, PLAY_ORDER, rankTier, cleanPlay } from './data.js';
 import { SKINS, GRADES, GRADE_ORDER, BASE_SKIN, skinOf, skinKey } from './skins.js';
 import { rankOf, placeOf, podiumOf } from './meta.js';
 import * as MAPMOD from './maps.js';
@@ -1310,7 +1310,8 @@ export function makeUI(G) {
       </section>
       </div>
         <div class="acts">
-          <button class="matchbtn" data-r="matchBtn" aria-expanded="false">${icon('flag')}<span class="mb-t"><small>Thiết lập trận</small><b data-r="matchTxt"></b></span><i class="mb-chev">${icon('up')}</i></button>
+          <div class="plays" data-r="plays" role="tablist" aria-label="Kiểu chơi"></div>
+          <button class="matchbtn" data-r="matchBtn" aria-expanded="false">${icon('flag')}<span class="mb-t"><small data-r="matchCap">Thiết lập trận</small><b data-r="matchTxt"></b></span><i class="mb-chev">${icon('up')}</i></button>
           <div class="prow"><button class="play" data-r="play"><span>Vào trận</span></button><button class="netbtn" data-r="net" hidden>${icon('globe')}<span>Chơi mạng</span></button></div>
           <div class="row2"><button class="btn" data-r="bSet">${icon('gear')}Cài đặt</button><button class="btn" data-r="bHelp">${icon('help')}Cách chơi</button></div>
         </div>
@@ -1330,6 +1331,8 @@ export function makeUI(G) {
   menu.querySelectorAll('[data-su]').forEach((b) => { b.onclick = () => { suTab = SU_TAB_NAMES.includes(b.dataset.su) ? b.dataset.su : 'mode'; applySuTab(); }; });
   let shopOn = false, skinOn = false;
   let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'desc';
+  // Play kind of the home menu (PLAY_ORDER): casual = the setup sheet below, rank = random mode against tiered bots, pve = Phó bản.
+  let playKey = 'casual';
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
 
@@ -1426,7 +1429,35 @@ export function makeUI(G) {
     menu.classList.toggle('su-open', !!on);
     M.matchBtn.classList.toggle('on', !!on); M.matchBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
   }
-  M.matchBtn.onclick = () => setSheet(!menu.classList.contains('su-open'));
+  M.matchBtn.onclick = () => { if (playKey !== 'casual') { toast(PLAYS[playKey].blurb, 3200); return; } setSheet(!menu.classList.contains('su-open')); };
+  /* ---- feat/dtt-modes: the three play kinds ---- */
+  // Phó bản is built in a later step of this branch; until then its tile only says so.
+  const PVE_READY = false;
+  function playSub(k) {
+    if (k === 'casual') return 'Không tính cúp';
+    if (k === 'rank') { const rk = rankNow(); return `${rk.name} · ${rk.trophies} cúp`; }
+    return PVE_READY ? 'Cày xu nâng cấp' : 'Sắp mở';
+  }
+  function renderPlays() {
+    M.plays.innerHTML = PLAY_ORDER.map((k) => `<button class="pk pk-${k}${k === playKey ? ' on' : ''}${k === 'pve' && !PVE_READY ? ' soon' : ''}" data-play="${k}" role="tab" aria-selected="${k === playKey}" title="${esc(PLAYS[k].blurb)}">${icon(PLAYS[k].icon)}<span class="pk-t"><b>${PLAYS[k].name}</b><small>${esc(playSub(k))}</small></span></button>`).join('');
+    if (playKey === 'rank') M.plays.querySelector('.pk-rank').style.setProperty('--rc', rankNow().color);
+    M.plays.querySelectorAll('[data-play]').forEach((b) => { b.onclick = () => {
+      const k = b.dataset.play;
+      if (k === 'pve' && !PVE_READY) { toast('Phó bản sắp mở: đánh quái qua từng màn, cuối chương gặp trùm', 2600); return; }
+      playKey = k; setSheet(false); const d = meta(); if (d) { d.play = k; G.meta.save(); }
+      renderPlays(); renderSetup();
+    }; });
+  }
+  // The chip under the play tiles: the setup sheet in Đấu thường, the tier's bots in Đấu rank.
+  function matchChip() {
+    menu.dataset.play = playKey;
+    M.matchBtn.classList.toggle('fixed', playKey !== 'casual');
+    if (playKey === 'rank') {
+      const rk = rankNow(), t = rankTier(rk.index);
+      M.matchCap.textContent = 'Đấu rank · chế độ ngẫu nhiên';
+      M.matchTxt.textContent = `${rk.name} · bot ${DIFFICULTY[t.diff].name} · Lv.${t.botLv * 5}`;
+    } else { M.matchCap.textContent = 'Thiết lập trận'; M.matchTxt.textContent = matchText(); }
+  }
   window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && menu.classList.contains('su-open') && !confirmEl.classList.contains('on') && !shopOn) setSheet(false); });
   const matchText = () => `${MODES[modeKey].name} · ${mapKey === 'random' ? 'Ngẫu nhiên' : MAPS[mapKey].name}`;
 
@@ -1822,14 +1853,14 @@ export function makeUI(G) {
     M.themes.innerHTML = themeTiles(themeKey, 'data-th');
     M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
     M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
-    M.matchTxt.textContent = matchText();
+    matchChip();
   }
   const makeChoice = (mech, df, map, mode, theme, size) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, size: cleanSize(size === undefined ? sizeKey : size), mods: { lv: lvOf(mech) }, ...cosOf(mech) });
   M.play.onclick = () => {
     if (!ownedMech(sel)) { buyMech(sel); return; }
-    choice = makeChoice(sel, diff, mapKey, modeKey, themeKey);
+    choice = { ...makeChoice(sel, diff, mapKey, modeKey, themeKey), play: playKey === 'rank' ? 'rank' : 'casual' };
     const d = meta();
-    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; d.size = sizeKey; G.meta.save(); }
+    if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; d.size = sizeKey; d.play = playKey; G.meta.save(); }
     G.bus.emit('ui:play', choice);
   };
   M.name.addEventListener('change', () => {
@@ -1853,10 +1884,10 @@ export function makeUI(G) {
   function showMenu() {
     hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
-    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); }
+    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); playKey = cleanPlay(d.play); if (playKey === 'pve' && !PVE_READY) playKey = 'casual'; }
     if (!menuInit) { menuInit = true; applySettings(); }
     menu.classList.add('on'); setSheet(false);
-    renderPlayer(); renderCards(); renderDetail(); renderSetup(); renderPlay();
+    renderPlayer(); renderCards(); renderDetail(); renderPlays(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
     stageOpen();
   }
@@ -2301,7 +2332,7 @@ export function makeUI(G) {
         <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : '<button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
       </div>`;
     const R = refs(result);
-    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme), choice ? choice.size : d.size); G.bus.emit('ui:play', choice); };
+    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme), choice ? choice.size : d.size); choice.play = G.play === 'rank' ? 'rank' : 'casual'; G.bus.emit('ui:play', choice); };
     R.lobby.onclick = () => G.bus.emit('ui:menu');
     if (rw) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };

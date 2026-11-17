@@ -3,7 +3,8 @@
 // Then the guest's prediction of its own mech against the host, with and without delay.
 import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
-import { MECHS, MECH_ORDER, MODE_ORDER, TICK } from '../js/data.js';
+import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
+const MODE_ORDER = Object.keys(MODES);   // every sim mode, trum (the Phó bản boss engine) included
 import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput } from '../js/netstate.js';
 import { createPredictor, createGunner } from '../js/predict.js';
 
