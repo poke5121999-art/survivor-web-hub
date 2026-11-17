@@ -55,7 +55,7 @@ async function botToken() {
 
   const W2 = 'test:apitest-slow';
   await asWorker({ action: 'hello', worker: { id: W2, label: 'test chậm', host: 'test', account: 'test', defaults: { priority: 51, claim_delay_s: 600 } } });
-  const yieldJob = await asArt({ action: 'submit', prompt: 'test api: nhường', params: { only_worker: W2 } });
+  const yieldJob = await asArt({ action: 'submit', prompt: 'test api: nhường', params: { only_worker: W + ',' + W2 } });
   const slow = await asWorker({ action: 'claim', worker_id: W2 });
   ok(slow.body.job === null, 'máy ưu tiên thấp nhường job khi máy ưu tiên cao đang rảnh');
   await asWorker({ action: 'heartbeat', worker_id: W, status: 'busy' });

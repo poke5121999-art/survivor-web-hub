@@ -105,7 +105,7 @@ job = {
     palette: null | ["#rrggbb", ...],            // tối → sáng
     actor: "auto" | "yes" | "no",                // có nhân vật diễn (wind-up, freeze, recovery) hay không
     category: null | string,                     // gợi ý nhóm pixelfx: fire, ice, ui, ...
-    only_worker: null | string,                  // chỉ máy này được nhận (dùng cho test)
+    only_worker: null | string,                  // "id1,id2": chỉ các máy này được nhận, và chỉ nhường nhau (dùng cho test)
   },
   base_effect: null | "fire/campfire",           // dựa trên effect có sẵn trong thư viện
   parent_id: null | uuid,                        // sửa tiếp từ job này

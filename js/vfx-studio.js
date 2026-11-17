@@ -111,7 +111,8 @@ async function api(action, body = {}) {
   try { d = JSON.parse(text); } catch { d = null; }
   if (d && d.ok) return d;
   if (res.status === 404 && !(d && d.error && d.error.code)) throw new ApiError("closed", "Xưởng chưa mở: máy chủ chưa cài chức năng vfx-studio. Báo admin triển khai rồi thử lại.");
-  if (res.status === 401 || res.status === 403) throw new ApiError("auth", "Bạn chưa đăng nhập, phiên đã hết hạn hoặc tài khoản chưa được duyệt.");
+  if (res.status === 401) throw new ApiError("auth", "Bạn chưa đăng nhập hoặc phiên đã hết hạn. Đăng nhập lại rồi thử lại.");
+  if (res.status === 403) throw new ApiError("auth", (d && d.error && d.error.message) || "Tài khoản chưa có quyền dùng Xưởng VFX.");
   throw new ApiError("api", (d && d.error && d.error.message) || "Máy chủ trả lỗi " + res.status + ".");
 }
 async function putFile(uploadUrl, blob, type) {

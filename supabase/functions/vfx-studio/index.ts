@@ -9,6 +9,7 @@ const ONLINE_S = 45;
 const STALE_S = 180;
 const MAX_ATTEMPTS = 3;
 const LOG_KEEP = 200;
+const ART_ROLES = ["member", "artist", "admin"];
 
 const ALLOWED_ORIGIN = "https://poke5121999-art.github.io";
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
@@ -114,7 +115,7 @@ async function artUser(req: Request): Promise<User> {
   const u = await r.json();
   const [p] = await sql`select role from public.profiles where id = ${u.id}`;
   const role = p?.role ?? "pending";
-  if (role !== "member" && role !== "admin") fail(403, "FORBIDDEN", `tài khoản đang ở role ${role}`);
+  if (!ART_ROLES.includes(role)) fail(403, "FORBIDDEN", `Tài khoản đang ở role "${role}", chưa được dùng Xưởng VFX. Nhờ admin duyệt thành member hoặc artist ở trang Duyệt tài khoản.`);
   return { id: u.id, email: u.email ?? "", role, isAdmin: role === "admin" };
 }
 
@@ -158,7 +159,7 @@ function parseParams(p: any) {
     palette: palette && palette.length >= 2 ? palette : null,
     actor: pick(p.actor, ACTORS, "auto"),
     category: str(p.category, 30) || null,
-    only_worker: str(p.only_worker, 60) || null,
+    only_worker: str(p.only_worker, 200) || null,
   };
 }
 
@@ -362,12 +363,13 @@ const worker: Record<string, (b: any) => Promise<unknown>> = {
       pick as (
         select j.id from public.vfx_jobs j, me
         where j.status = 'queued'
-          and coalesce(j.params->>'only_worker', me.id) = me.id
+          and (j.params->>'only_worker' is null or me.id = any(string_to_array(j.params->>'only_worker', ',')))
           and (
           j.created_at <= now() - make_interval(secs => me.claim_delay_s)
           or not exists (
             select 1 from public.vfx_workers o
             where o.enabled and o.priority < me.priority and o.status = 'idle'
+              and (j.params->>'only_worker' is null or o.id = any(string_to_array(j.params->>'only_worker', ',')))
               and o.last_seen > now() - make_interval(secs => ${ONLINE_S})))
         order by j.created_at
         for update of j skip locked
