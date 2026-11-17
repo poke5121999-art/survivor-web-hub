@@ -920,7 +920,7 @@ window.HUB_GAMES = [
     // trên ssh linux2), xem README.md và FEATURES.md ở đó. Kiểm trên Pages:
     // TWT_URL=https://poke5121999-art.github.io/twt-proc-web/ node tools/play.cjs tools/flow.cjs
     path: "https://poke5121999-art.github.io/twt-proc-web/",
-    rev: "20261117b",
+    rev: "20261117c",
     status: "available",
     tags: ["Kinh doanh", "Sinh tồn", "Góc nhìn thứ nhất", "Máy tính"]
   },
@@ -1103,7 +1103,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/nhan-vat-loft.png",
     // Nguồn làm việc: D:/mesh-to-code trên HOB-THOR (lib/char.js generator, tools/fit-char.mjs, tools/site-run.mjs + tasks/gates.mjs).
     path: "games/nhan-vat-loft/index.html",
-    rev: "20261117b",
+    rev: "20261117c",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   },
