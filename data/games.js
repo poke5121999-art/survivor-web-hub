@@ -1096,14 +1096,14 @@ window.HUB_GAMES = [
     id: "nhan-vat-loft",
     title: "Nhân Vật Loft (thử nghiệm)",
     tagline: "8 hero anime dựng lại bằng code theo từng part như bản gốc: thân, áo, váy, giày, tóc, mũ, tai đều là part code riêng fit từ mesh của chủ dự án, chạy clip gốc.",
-    desc: "Thử nghiệm dựng người bằng code. Mặc định mỗi hero ghép từ các part như mesh gốc: thân là vòng loft theo xương, áo, váy, đồ lót, bao tay, giày là lớp offset phủ lên thân (mặc được sang thân khác), vạt áo và cánh là dải dày, tóc là chỏm hàm cầu cộng lọn tóc, mũ, tai, sừng, kẹp tóc, kính là loft theo trục riêng; đầu và mặt anime vẽ bằng code. Mỗi part chỉ là bảng số, sai lệch so với mesh gốc 1-4 mm ở 5 hero đời mới. Bảng bên trái cho bật tắt từng part; nút Cách dựng đổi về bản gộp cũ để so. Chạy các clip gốc (đứng, chạy, đá, combo, trúng đòn, ngã), tab Chạy thử và Không gian thân giữ như cũ. Không tải tệp model nào.",
+    desc: "Thử nghiệm dựng người bằng code. Mặc định mỗi hero ghép từ các part như mesh gốc: thân là vòng loft theo xương, áo, váy, đồ lót, bao tay, giày là lớp offset phủ lên thân (mặc được sang thân khác), vạt áo và cánh là dải dày, tóc là chỏm hàm cầu cộng lọn tóc, mũ, tai, sừng, kẹp tóc, kính là loft theo trục riêng; đầu và mặt anime vẽ bằng code. Mỗi part chỉ là bảng số, sai lệch so với mesh gốc 1-4 mm ở 5 hero đời mới. Bảng bên trái cho bật tắt từng part; nút Cách dựng đổi về bản gộp cũ để so. Chạy các clip gốc (đứng, chạy, đá, combo, trúng đòn, ngã), tab Chạy thử và Không gian thân giữ như cũ. Trang phụ Stickman Mini Mart: nhân vật kiểu My Mini Mart dựng bằng code, 10 màu thân, 11 bộ đồ, 39 mũ thay được, đi và chạy bằng xương. Không tải tệp model nào.",
     genre: "khac",
     accent: "#d9785a",
     en: { title: "Loft Characters (experiment)", tagline: "8 anime heroes rebuilt in code part by part like the originals: body, top, skirt, shoes, hair, hat and ears are separate code parts fitted to the owner's meshes.", desc: "A research build for code-only humans: each hero is a number table (Fourier rings along the bones, five finger lofts, spherical-harmonic head and hair cap, thick strips for hair locks and skirt or cape panels) built into one skinned mesh in the browser, with an anime face drawn in code. It plays the heroes' own clips (idle, run, kick, combo, hit, fall) with spring hair and skirts colliding with legs and body. Toggle the original as a reference image, read the fidelity numbers, watch 25 fps run strips with interpenetration checks, and drag body-space PCA sliders. No model files." },
     thumbnail: "assets/thumbnails/nhan-vat-loft.png",
     // Nguồn làm việc: D:/mesh-to-code trên HOB-THOR (lib/char.js generator, tools/fit-char.mjs, tools/site-run.mjs + tasks/gates.mjs).
     path: "games/nhan-vat-loft/index.html",
-    rev: "20261117d",
+    rev: "20261117e",
     status: "available",
     tags: ["Thử nghiệm", "Nhân vật 3D", "Không asset"]
   },

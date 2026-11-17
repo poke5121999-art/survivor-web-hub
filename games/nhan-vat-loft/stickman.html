@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script src="../../js/game-gate.js?v=20261103"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Stickman Bằng Code</title>
+<style>
+:root{--bg:#f1ece2;--panel:#fbf8f2;--ink:#2a2420;--mute:#7a6f63;--line:#ded4c3;--acc:#b5543c;--accbg:#f6e2d9}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto 1fr;height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0}header .tag{color:var(--mute);font-size:13px}header a{margin-left:auto;color:var(--acc)}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--ink)}
+button.on{background:var(--accbg);border-color:var(--acc);color:var(--acc);font-weight:600}
+aside{overflow:auto;padding:12px 14px;background:var(--panel);border-right:1px solid var(--line)}
+aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 0 6px}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.sw{width:30px;height:30px;border-radius:50%;padding:0;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.sw.on{box-shadow:0 0 0 2px var(--acc)}
+#stage{position:relative;min-height:0}canvas{display:block;width:100%;height:100%;touch-action:none}
+#info{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--mute);background:#fbf8f2cc;padding:4px 8px;border-radius:6px}
+@media (max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto 52vh 1fr}#stage{grid-row:2}aside{grid-row:3;border-right:0;border-top:1px solid var(--line)}header .tag{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+<header><h1>Stickman bằng code</h1><span class="tag">Nhân vật kiểu My Mini Mart: thân, đồ và mũ là từng part dựng bằng vòng loft, không nạp model gốc</span><a href="index.html">← Nhân Vật Loft</a></header>
+<aside>
+<h2>Màu thân</h2><div class="row" id="skins"></div>
+<h2>Bộ đồ</h2><div class="row" id="outfits"></div>
+<h2>Mũ</h2><div class="row" id="hats"></div>
+<h2>Dáng</h2><div class="row" id="poses"></div>
+<h2>Đối chiếu</h2><div class="row" id="views"></div>
+</aside>
+<div id="stage"><canvas id="c"></canvas><div id="info"></div></div>
+</div>
+<script type="module" src="stickman.js?v=20261117e"></script>
+</body>
+</html>
