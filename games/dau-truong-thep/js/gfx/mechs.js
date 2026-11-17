@@ -9,6 +9,7 @@ import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
 import { frameDesign } from './frames.js';
+import { STEEL_DESIGNS } from './steel-tanks.js';
 import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
 
 const DARK = 0x2a2f37, GUN = 0x434b56, STEEL = 0xa3adba, PALE = 0xdfe6ee, HAZ = 0xe8b021, BLACK = 0x15181c, RUB = 0x1d1f23, ICE = 0xbfe6ff, LINE = 0x0e1114;
@@ -932,6 +933,8 @@ export const DESIGN_KEYS = Object.keys(DESIGNS);
 export function buildModel(key, st, paint, trim, deep, form = 2) {
   const b = new Builder(0.85);
   b.use('hull').surface(1, 1);
+  // Steel-style tanks (steel.js) build all three forms themselves, role hardware included.
+  if (STEEL_DESIGNS[key]) return { b, info: STEEL_DESIGNS[key](b, st, trim, form) };
   const design = DESIGNS[key] || (st.frame && frameDesign(HELP, st.frame)) || DESIGNS[st.chassis] || DESIGNS.soi;
   const info = design(b, paint, trim, deep);
   adorn(HELP, b, key, st, form, info);
@@ -999,7 +1002,7 @@ function mechMaterial(base, rim, glow, low) {
       .replace('#include <map_fragment>', '#include <map_fragment>\nfloat lamp = step(vSurf.x, -0.5);\ndiffuseColor.rgb *= mix(0.5, 1.0, smoothstep(0.0, 1.1, vWY)) * (1.0 - lamp);')
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor * abs(vSurf.x), 0.06, 1.0);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = clamp(metalnessFactor * vSurf.y, 0.0, 1.0);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += uGlow * lamp + uRim * (1.0 - lamp) * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += mix(uGlow, vColor * 3.2 * min(max(uGlow.r, max(uGlow.g, uGlow.b)) / 3.0, 1.4), step(0.5, vSurf.y)) * lamp + uRim * (1.0 - lamp) * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);');
   };
   m.customProgramCacheKey = () => 'mech' + (low ? 'L' : '');
   return m;
@@ -1126,7 +1129,8 @@ export function makeMechs(G, tex) {
     const geos = b.build();
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     // Rim light in the lamp colour, strong at form III so an upgraded mech reads from the match camera.
-    const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1]), rim = rimBase.clone();
+    // Steel-style tanks keep it low: their matte two-tone paint is what reads, a strong rim turns them back into toys.
+    const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1] * (STEEL_DESIGNS[key] ? 0.4 : 1)), rim = rimBase.clone();
     const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();

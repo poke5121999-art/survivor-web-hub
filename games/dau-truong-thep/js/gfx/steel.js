@@ -1,0 +1,187 @@
+// Steel style: the shared vocabulary of the refitted tanks, after the owner's "Sci-Fi Tanks Bundle" sheet
+// (~/handoff/dtt-ref/8.webp). What it is made of:
+//   - two-tone matte paint: gunmetal steel carries the hull, the tank's own colour sits only on top panels and
+//     panel inserts, the undercarriage and track pods are darker (steelPalette, Kit.plate with an insert);
+//   - chunky chamfered plates, octagonal turret rings, sloped glacis, stacked armour (Kit.plate, Kit.oct, Kit.prism);
+//   - separate track pods with heavy skirts and simple decals (Kit.trackPod, Kit.decal);
+//   - small emissive light squares in their own colour, lit strips, thin whip antennas (Kit.light, Kit.strip, Kit.antenna);
+//   - readable weapon modules: ribbed heat-sink barrels, missile boxes with red tips, gatlings, sensor pods
+//     (Kit.cannon, Kit.missileBox, Kit.gatling, Kit.sensor).
+// A tank opts in by having a design in STEEL_DESIGNS (steel-tanks.js); buildModel then uses that design for every
+// form and skips the role kit of styles.js (the design grows its own form II and III hardware). Its STYLES row still
+// gives the colours: body becomes the panel colour, trim the accent, glow the lit strips.
+// Same contract as the designs in mechs.js: models face +x, +z is the right side, the ground is y = 0.
+import * as THREE from '../../vendor/three.module.min.js';
+
+export const PI = Math.PI, X = -PI / 2, TAU = PI * 2;
+// Lamps that keep their own colour (the light squares of the sheet), not the mech's glow.
+export const LAMP = { green: 0x38ff6a, red: 0xff2a1e, blue: 0x3a8cff, amber: 0xffb22a, white: 0xdff0ff };
+// Roughness and metalness multipliers on the baked metal set (rough 0.4..0.8, metal 0.25..0.6): matte paint,
+// oiled gunmetal, dull undercarriage. The other designs use paint [0.75, 1.4], which reads as glossy plastic.
+const SURF = { panel: [1.55, 0.4], gun: [1.3, 0.85], under: [1.7, 0.6], steel: [1.0, 1.35], rubber: [1.9, 0] };
+const KIND = { panel: 'panel', panelDeep: 'panel', trim: 'panel', decal: 'panel', gun: 'gun', gunLite: 'gun', under: 'under', dark: 'under', steel: 'steel', rubber: 'rubber' };
+
+// Colours of one tank at one form. The STYLES body colour becomes the panel colour, desaturated and pulled into a
+// mid lightness so it reads on gunmetal; form I is greyer, form III a little richer.
+export function steelPalette(st, trim, form) {
+  const f = Math.max(1, Math.min(3, form | 0 || 2));
+  const tone = (hex, sat, l0, l1) => { const h = {}; new THREE.Color(hex).getHSL(h); return new THREE.Color().setHSL(h.h, h.s * sat, Math.max(l0, Math.min(l1, h.l))); };
+  const panel = tone(st.body, [0.3, 0.38, 0.46][f - 1], 0.34, 0.47);
+  return {
+    f, panel, panelDeep: panel.clone().multiplyScalar(0.68), trim: tone(trim, 0.75, 0.3, 0.6),
+    gun: new THREE.Color(0x4c535b), gunLite: new THREE.Color(0x6a727c), under: new THREE.Color(0x2b2f35), dark: new THREE.Color(0x1a1d21),
+    steel: new THREE.Color(0x9aa2ab), rubber: new THREE.Color(0x1b1c1f), decal: new THREE.Color(0xc9cdc4), glow: new THREE.Color(st.glow),
+  };
+}
+
+const ORIENT = {
+  '+y': (b) => b, '-y': (b) => b.rotX(PI), '+x': (b) => b.rotZ(-PI / 2), '-x': (b) => b.rotZ(PI / 2),
+  '+z': (b) => b.rotX(PI / 2), '-z': (b) => b.rotX(-PI / 2),
+};
+
+export class Kit {
+  constructor(b, st, trim, form) { this.b = b; this.c = steelPalette(st, trim, form); this.F = this.c.f; this.parts = []; }
+  col(name) { return typeof name === 'string' ? this.c[name] : name; }
+  // Paint by colour name: the surface follows the colour (panel paint is matte, gunmetal a little sheen).
+  use(name) { const s = SURF[KIND[name] || 'gun']; this.b.surface(s[0], s[1]); this.b.tint(this.c[name]); return this; }
+  // A lamp in its own colour (surf.y = 1 tells the mech shader to emit the vertex colour), or the mech's glow ('glow').
+  lamp(col, f) {
+    const b = this.b, s = b.surf, c = b.color.clone();
+    if (col === 'glow') b.surface(-1, 0); else { b.surface(-1, 1); b.tint(this.col(col)); }
+    f(); b.surf = s; b.color.copy(c); return this;
+  }
+  blk(x, y, z, w, h, d, col = 'gun', ch = 0.04) {
+    this.use(col); this.b.push().move(x, y, z).chamfer(w, h, d, Math.min(ch, w * 0.4, h * 0.4, d * 0.4)).pop(); return this;
+  }
+  // Armour plate: a chamfered block with an optional inset panel of another colour on its top face.
+  plate(x, y, z, w, h, d, o = {}) {
+    const b = this.b, ins = o.insert === undefined ? 'panel' : o.insert, ch = o.ch ?? 0.035, inset = o.inset ?? Math.min(0.13, w * 0.2, d * 0.2);
+    b.push().move(x, y, z); if (o.ry) b.rotY(o.ry); if (o.rz) b.rotZ(o.rz); if (o.rx) b.rotX(o.rx);
+    this.use(o.col || 'gun'); b.chamfer(w, h, d, Math.min(ch, w * 0.4, h * 0.4, d * 0.4));
+    if (ins) { this.use(ins); b.push().move(o.ix || 0, h / 2 + 0.008, o.iz || 0).chamfer(w - 2 * inset, 0.03, d - 2 * inset, 0.012).pop(); }
+    b.pop(); return this;
+  }
+  // Polygon in the XZ plane ([x, z] points) extruded from y0 to y1 with chamfered edges.
+  prism(pts, y0, y1, col = 'gun', bevel = 0.04) { this.use(col); this.b.prism(pts, y0, y1, bevel); return this; }
+  // Polygon in the XY plane ([x, y] points) extruded along z from z0 to z1 (side profiles).
+  profile(pts, z0, z1, col = 'gun', bevel = 0.03) { this.use(col); this.b.push().rotX(PI / 2).prism(pts.map((p) => [p[0], -p[1]]), Math.min(z0, z1), Math.max(z0, z1), bevel).pop(); return this; }
+  // Octagonal slab (turret rings, cupolas); sx stretches it along x.
+  oct(x, y, z, r, h, col = 'gun', bevel = 0.03, sx = 1) {
+    const pts = []; for (let i = 0; i < 8; i++) { const a = (i + 0.5) * PI / 4; pts.push([x + Math.cos(a) * r * sx, z + Math.sin(a) * r]); }
+    return this.prism(pts, y - h / 2, y + h / 2, col, bevel);
+  }
+  // Chamfered beam between two points (struts, arms, tail segments).
+  beam(a, c, w, h, col = 'gun', ch = 0.03) {
+    const dx = c[0] - a[0], dy = c[1] - a[1], dz = c[2] - a[2], hz = Math.hypot(dx, dz), len = Math.hypot(hz, dy);
+    this.use(col);
+    this.b.push().move((a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2).rotY(Math.atan2(-dz, dx)).rotZ(Math.atan2(dy, hz)).chamfer(len, h, w, Math.min(ch, h * 0.4, w * 0.4)).pop();
+    return this;
+  }
+  // Light square in a dark bezel on the face whose normal is `face` ('+x', '-z', ...), centred at x, y, z on that face.
+  light(x, y, z, s, col, face = '+x') {
+    const b = this.b; b.push().move(x, y, z); ORIENT[face](b);
+    this.use('dark'); b.push().move(0, 0.008, 0).box(s * 1.45, 0.018, s * 1.45).pop();
+    this.lamp(col, () => b.push().move(0, 0.02, 0).box(s, 0.014, s).pop());
+    b.pop(); return this;
+  }
+  // Lit strip along an axis.
+  strip(x, y, z, len, axis = 'x', col = 'glow', t = 0.024) {
+    const d = { x: [len, t, t], y: [t, len, t], z: [t, t, len] }[axis];
+    return this.lamp(col, () => this.b.push().move(x, y, z).box(d[0], d[1], d[2]).pop());
+  }
+  // Thin whip antenna with a red tip.
+  antenna(x, y, z, h, lean = 0.06) {
+    this.use('dark'); this.b.push().move(x, y + 0.03, z).cyl(0.035, 0.045, 0.06, 6).pop();
+    this.use('steel'); this.b.rod([x, y + 0.05, z], [x - lean, y + h, z], 0.011, 4);
+    return this.lamp(LAMP.red, () => this.b.push().move(x - lean, y + h, z).box(0.03, 0.03, 0.03).pop());
+  }
+  // Decal on a face: a light square with a dark X ('x'), a chevron pointing +x ('chev') or diagonal hazard stripes ('stripe').
+  decal(kind, x, y, z, s, face = '+z') {
+    const b = this.b; b.push().move(x, y, z); ORIENT[face](b);
+    if (kind === 'x') {
+      this.use('decal'); b.push().move(0, 0.006, 0).box(s, 0.012, s).pop();
+      this.use('dark'); for (const a of [PI / 4, -PI / 4]) b.push().move(0, 0.014, 0).rotY(a).box(s * 1.1, 0.008, s * 0.13).pop();
+    } else if (kind === 'chev') {
+      this.use('decal'); for (const sg of [-1, 1]) b.push().move(-s * 0.15, 0.008, sg * s * 0.22).rotY(-sg * 0.75).box(s * 0.62, 0.012, s * 0.16).pop();
+    } else {
+      for (let i = 0; i < 3; i++) { this.use(i % 2 ? 'dark' : 'decal'); b.push().move((i - 1) * s * 0.3, 0.008, 0).rotY(0.6).box(s * 0.18, 0.012, s * 0.9).pop(); }
+    }
+    b.pop(); return this;
+  }
+  // Track pod: rubber belt with road wheels on its outer face, a top cover plate (optional panel insert), a sloped
+  // front guard, tread lugs (part 'tread', step 0.2) visible past the ends of the cover, an optional armour skirt with
+  // a decal on its outer face and a light square on its nose. o.out: the outer side (+1 / -1), default the sign of z.
+  trackPod(x, z, len, w, h, o = {}) {
+    const b = this.b, s = o.out || Math.sign(z) || 1, l = len / 2, r = Math.min(h * 0.42, 0.2), zo = z + s * w / 2;
+    this.profile([[x - l, h * 0.42], [x - l + r, 0.02], [x + l - r, 0.02], [x + l, h * 0.42], [x + l - r * 0.6, h * 0.9], [x - l + r * 0.6, h * 0.9]], z - w / 2, z + w / 2, 'rubber', 0.025);
+    const n = Math.max(2, Math.round((len - 2 * r) / 0.34) + 1), wr = h * 0.25;
+    for (let i = 0; i < n; i++) {
+      const wx = x - l + r + i * (len - 2 * r) / (n - 1);
+      this.use('steel'); b.push().move(wx, wr + 0.04, zo + s * 0.012).rotX(X).cyl(wr, wr, 0.03, 8).pop();
+      this.use('dark'); b.push().move(wx, wr + 0.04, zo + s * 0.03).rotX(X).cyl(wr * 0.4, wr * 0.4, 0.02, 6).pop();
+    }
+    if (o.cover !== false) {
+      this.plate(x - 0.02, h * 0.9 + 0.04, z, len * 0.8, 0.08, w + 0.08, { col: o.coverCol || 'gun', insert: o.insert === undefined ? null : o.insert });
+      this.plate(x + l * 0.86, h * 0.72, z, 0.26, 0.07, w + 0.06, { col: o.coverCol || 'gun', insert: null, rz: -0.75 });
+    }
+    b.use('tread'); this.use('dark');
+    for (let tx = x - l + 0.1; tx <= x + l - 0.1 + 1e-6; tx += 0.2) b.push().move(tx, h * 0.9 + 0.012, z).box(0.07, 0.025, w * 0.86).pop();
+    b.use(o.batch || 'hull');
+    if (!this.parts.some((p) => p.name === 'tread')) this.parts.push({ name: 'tread', on: 'hull', kind: 'tread', step: 0.2 });
+    if (o.skirt) {
+      const sh = o.skirtH ?? h * 0.46, sy = h * 0.92 - sh / 2;
+      this.plate(x, sy, zo + s * 0.05, len * 0.84, sh, 0.07, { insert: null, rx: s * 0.1 });
+      this.use('panel'); b.push().move(x, sy + sh / 2 - 0.02, zo + s * 0.09).box(len * 0.8, 0.04, 0.02).pop();
+      if (o.decal) this.decal(o.decal, x + len * 0.22, sy - 0.02, zo + s * 0.092, sh * 0.5, s > 0 ? '+z' : '-z');
+    }
+    if (o.light) this.light(x + l + 0.01, h * 0.5, z, 0.075, o.light, '+x');
+    return this;
+  }
+  // Barrel along +x from x: steel tube, ribbed heat-sink section (every other rib lit in `stripe`), muzzle brake.
+  // Returns the x of the tip.
+  cannon(x, y, z, len, r, o = {}) {
+    const b = this.b, ribs = o.ribs ?? 4;
+    b.push().move(x, y, z).rotZ(X);
+    this.use(o.col || 'steel'); b.lathe([[r * 1.4, 0], [r * 1.4, 0.14], [r, 0.2], [r, len], [r * 0.85, len]], 10);
+    b.pop();
+    for (let i = 0; i < ribs; i++) {
+      const rx = x + len * 0.24 + i * 0.075;
+      if (o.stripe && i % 2) this.lamp(o.stripe, () => b.push().move(rx, y, z).rotZ(X).cyl(r * 1.42, r * 1.42, 0.03, 10).pop());
+      else { this.use('gun'); b.push().move(rx, y, z).rotZ(X).cyl(r * 1.5, r * 1.5, 0.04, 10).pop(); }
+    }
+    if (o.brake !== false) { this.blk(x + len - 0.05, y, z, 0.17, r * 2.1, r * 2.7, 'dark', 0.025); this.use('dark'); b.push().move(x + len + 0.04, y, z).rotZ(X).cyl(r * 0.75, r * 0.75, 0.02, 8).pop(); }
+    return x + len + 0.04;
+  }
+  // Box of rows x cols missile tubes facing +x, tilted up by elev, with panel cheeks and red tips. Returns the tip point.
+  missileBox(x, y, z, rows, cols, cell, o = {}) {
+    const b = this.b, dep = o.depth ?? cell * 2.2, hh = rows * cell + 0.07, ww = cols * cell + 0.07;
+    b.push().move(x, y, z).rotZ(o.elev || 0);
+    this.use(o.col || 'gun'); b.chamfer(dep, hh, ww, 0.03);
+    if (o.cheeks !== false) { this.use(o.cheek || 'panel'); for (const s of [-1, 1]) b.push().move(-dep * 0.05, 0, s * (ww / 2 + 0.012)).chamfer(dep * 0.8, hh * 0.8, 0.03, 0.01).pop(); }
+    this.use(o.cheek || 'panel'); b.push().move(-dep * 0.05, hh / 2 + 0.01, 0).chamfer(dep * 0.8, 0.025, ww * 0.82, 0.01).pop();
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const ty = (i - (rows - 1) / 2) * cell, tz = (j - (cols - 1) / 2) * cell;
+      this.use('dark'); b.push().move(dep / 2, ty, tz).rotZ(X).cyl(cell * 0.38, cell * 0.38, 0.03, 8).pop();
+      this.lamp(o.tip || LAMP.red, () => b.push().move(dep / 2 + 0.02, ty, tz).rotZ(X).cyl(cell * 0.24, cell * 0.3, 0.05, 6).pop());
+    }
+    b.pop();
+    const e = o.elev || 0;
+    return [x + Math.cos(e) * dep / 2, y + Math.sin(e) * dep / 2, z];
+  }
+  // Rotary cannon along +x: n barrels round a spindle, two housing rings (the front one lit) and a drive block.
+  gatling(x, y, z, len, r, n = 6, o = {}) {
+    const b = this.b;
+    this.blk(x - 0.08, y, z, 0.22, r * 2.6, r * 2.6, 'gun', 0.03);
+    this.use('steel'); for (let i = 0; i < n; i++) { const a = i / n * TAU; b.rod([x, y + Math.cos(a) * r, z + Math.sin(a) * r], [x + len, y + Math.cos(a) * r, z + Math.sin(a) * r], r * 0.28, 5); }
+    this.use('gun'); b.push().move(x + len * 0.3, y, z).rotZ(X).cyl(r * 1.45, r * 1.45, 0.06, 10).pop();
+    this.lamp(o.stripe || 'glow', () => b.push().move(x + len * 0.85, y, z).rotZ(X).cyl(r * 1.35, r * 1.35, 0.035, 10).pop());
+    return x + len;
+  }
+  // Sensor pod: a gunmetal block with n light squares (2 or 4) on its front face.
+  sensor(x, y, z, s, col = LAMP.green, n = 4) {
+    this.plate(x, y, z, s * 0.9, s, s * (n === 4 ? 1.1 : 1.5), { insert: 'panel', inset: s * 0.15 });
+    const pts = n === 4 ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : [[0, -1], [0, 1]];
+    for (const [a, c] of pts) this.light(x + s * 0.45 + 0.005, y + a * s * 0.22, z + c * s * 0.26, s * 0.24, col, '+x');
+    return this;
+  }
+}
