@@ -1343,7 +1343,7 @@ export const PVE_BOSSES = {
   // Warship: cruises a water lane along the top edge and shells marked zones. While a deck gun stands, its hull shrugs off 60% of all damage.
   chienham: {
     name: 'Chiến Hạm', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, script: 'ship', tint: 0x2a4a6a,
-    hp: 80000, speed: 0, radius: 2.8, armor: 0.1, turn: 1.6, lane: { z: -23.5, x: 24, period: 70 }, parts: [{ mech: 'chphao', at: [-4.2, 0, 4.2] }],
+    hp: 80000, speed: 0, radius: 2.8, armor: 0.1, turn: 1.6, lane: { z: -16.5, x: 24, period: 70 }, parts: [{ mech: 'chphao', at: [-4.2, 0, 4.2] }],
     weapon: { name: 'Hải Pháo', cd: 2.2, dmg: 420, lob: true, flight: 1.4, range: 34, splash: 3, vis: 'mortar' },
     skills: [
       foeSkill('chm_kich', 'Pháo Kích', { cd: 6, do: 'barrage', n: 6, radius: 7, blast: 2.6, dmg: 480, delay: 1.6, span: 1.6, cast: 34 }),
@@ -1365,7 +1365,7 @@ export const PVE_BOSSES = {
   // derails the rest. Standing on the rail burns; the train itself rams whoever is in its way.
   dautau: {
     name: 'Đầu Tàu', role: 'Trùm', roleKey: 'boss', boss: true, heavy: true, monster: true, script: 'train', tint: 0x8a3a12,
-    hp: 30000, speed: 0, radius: 1.7, armor: 0, turn: 3, rail: { rx: 30, rz: 16, speed: 6.5, gap: 4.6, width: 1.7, dps: 140, ram: 420 }, parts: [{ mech: 'toaxe', n: 3 }],
+    hp: 30000, speed: 0, radius: 2.6, armor: 0, turn: 3, rail: { rx: 30, rz: 16, speed: 6.5, gap: 7.2, width: 2.2, dps: 140, ram: 420 }, parts: [{ mech: 'toaxe', n: 3 }],
     weapon: { name: 'Súng Đầu Máy', cd: 1.6, dmg: 240, lob: true, flight: 0.9, range: 18, splash: 2.2, vis: 'mortar' },
     skills: [
       foeSkill('dt_coi', 'Còi Hơi', { cd: 9, do: 'nova', windup: 1.0, radius: 5, dmg: 600, knock: 4 }),
@@ -1375,7 +1375,7 @@ export const PVE_BOSSES = {
   },
   toaxe: {
     name: 'Toa Pháo', role: 'Toa tàu', roleKey: 'boss', monster: true, heavy: true, part: true, tint: 0x8a3a12,
-    hp: 6500, speed: 0, radius: 1.6, armor: 0.35, turn: 3,
+    hp: 6500, speed: 0, radius: 2.4, armor: 0.35, turn: 3,
     weapon: { name: 'Pháo Toa', cd: 1.8, dmg: 210, lob: true, flight: 1.0, range: 17, splash: 2.2, vis: 'mortar' },
     skills: [
       foeSkill('tx_kich', 'Bắn Chụm', { cd: 9, do: 'barrage', n: 3, radius: 2.5, blast: 2.2, dmg: 280, delay: 1.3, span: 0.8, cast: 17 }),

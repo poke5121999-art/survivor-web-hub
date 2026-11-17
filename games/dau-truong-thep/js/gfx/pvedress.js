@@ -17,7 +17,7 @@ export function makePveDress(G) {
   // Two steel rails, a sleeper every 1.1 m, and an orange live strip between the rails: standing on it burns (the telegraph).
   function rail(R) {
     const L = railAt(R, 0).len, n = Math.round(L / 1.1);
-    const sleeper = new THREE.BoxGeometry(0.34, 0.1, 2.3), steel = new THREE.BoxGeometry(1.15, 0.12, 0.1);
+    const sleeper = new THREE.BoxGeometry(0.5, 0.12, 3.4), steel = new THREE.BoxGeometry(1.15, 0.14, 0.12);
     const sleepers = new THREE.InstancedMesh(sleeper, new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.9 }), n);
     const rails = new THREE.InstancedMesh(steel, new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.8, roughness: 0.35 }), n * 2);
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1);
@@ -27,13 +27,13 @@ export function makePveDress(G) {
       Q.setFromAxisAngle(Y, -p.h);
       sleepers.setMatrixAt(i, M.compose(P.set(p.x, 0.05, p.z), Q, S1));
       for (const side of [-1, 1]) {
-        const ox = -Math.sin(p.h) * 0.72 * side, oz = Math.cos(p.h) * 0.72 * side;
+        const ox = -Math.sin(p.h) * 1.15 * side, oz = Math.cos(p.h) * 1.15 * side;
         rails.setMatrixAt(i * 2 + (side > 0 ? 1 : 0), M.compose(P.set(p.x + ox, 0.14, p.z + oz), Q, S1));
       }
       live.push(new THREE.Vector3(p.x, 0.04, p.z));
     }
     live.push(live[0].clone());
-    const strip = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(live, true), n * 2, 0.28, 4, true);
+    const strip = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(live, true), n * 2, 0.42, 4, true);
     strip.scale(1, 0.15, 1);
     glow = new THREE.Mesh(strip, new THREE.MeshBasicMaterial({ color: 0xff6a1a, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }));
     glow.renderOrder = 1;

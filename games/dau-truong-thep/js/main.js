@@ -352,6 +352,10 @@ async function boot() {
       wasMoving = moving;
       rig.update(dt, m, G.me, { hw: h * camera.aspect, far: depth, near: depth }, camSet.aimPan ? longAim(me, G.input.aimState()) : null, G.input.lock);
       focus.x = rig.s.x; focus.z = rig.s.z; yaw = rig.s.yaw; sign = rig.s.sign;
+      // feat/dtt-modes: on a Phó bản warship stage the view leans toward the lane so the hull and its deck guns sit under the boss bar
+      // (lane at most 30% of the half-view above the centre), by at most half the half-view so the tank stays inside the bottom
+      const ship = m.mode === 'pve' && m.units.find((u) => u.alive && u.def.lane);
+      if (ship) { const d = focus.z - ship.def.lane.z; if (d > 0 && d < depth * 1.8) focus.z -= Math.min(depth * 0.55, Math.max(0, d - depth * 0.3)); }
     }
     camOff.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist);
     const sk = meta.get().settings.shake, s = fx.shake * fx.shake * 0.5 * (sk === 'off' ? 0 : sk === 'strong' ? 1 : 0.5);

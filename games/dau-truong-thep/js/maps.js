@@ -219,25 +219,25 @@ export const MAPS = {
   // feat/dtt-modes: Phó bản boss layouts (PVE_MAPS). bentau keeps a clear water lane along the top edge (z < -19) for the warship;
   // ganhray keeps an elliptical rail (rx 30, rz 16) clear of every wall and rock for the train, cover inside and outside the loop.
   bentau: {
-    name: 'Bến Tàu Băng', theme: 'ice', size: [74, 54], pve: true,
+    name: 'Bến Tàu Băng', theme: 'ice', size: [74, 40], pve: true,
     blurb: 'Bến cảng đóng băng, một luồng nước sâu chạy dọc mép bắc cho chiến hạm.',
     base: [-31, 0],
     spawns: [[-32, 0], [-31, -3], [-31, 3], [-33.5, -1.8], [-33.5, 1.8]],
     walls: [
       [-24.5, -6, 1.8, 5, 2.6, 'ruin'], [-24.5, 8, 1.8, 5, 2.6, 'ruin'],
       [-14, -10, 6, 1.8, 2.4, 'container'], [-12, 4, 3, 3, 3.4, 'block'],
-      [-4, -4, 2.4, 4, 2.6, 'container'], [-17, 14, 6, 1.8, 2.4, 'ruin'],
+      [-4, -4, 2.4, 4, 2.6, 'container'], [-17, 11, 6, 1.8, 2.4, 'ruin'],
     ],
     rounds: [
-      [-7, -12, 1.0, 'pillar'], [-20, 2, 1.1, 'rock'], [-30, 14, 1.4, 'rock'],
-      [-9, 16, 0.55, 'pine'], [-28, -14, 0.55, 'pine'], [-2, 10, 0.5, 'pine'],
+      [-7, -11.5, 1.0, 'pillar'], [-20, 2, 1.1, 'rock'], [-30, 11, 1.4, 'rock'],
+      [-9, 12, 0.55, 'pine'], [-28, -11, 0.55, 'pine'], [-2, 10, 0.5, 'pine'],
     ],
-    bushes: [[-20, -13, 2.2], [-9, 9, 2.0], [-27, 3, 1.8]],
+    bushes: [[-20, -10, 2.2], [-9, 8, 2.0], [-27, 3, 1.8]],
     props: [[-16, 0.5, 'crate'], [-8, -7, 'barrel'], [-20, 10.5, 'pot']],
-    cratePoints: [[0, 0], [-15, -5], [0, -14], [-20, 12], [-8, 13]],
+    cratePoints: [[0, 0], [-15, -5], [0, -11], [-20, 9], [-8, 11]],
     paths: [
       [[-36, 0], [-27, 0], [-18, 1], [-8, 0], [0, 0]],
-      [[-27, 0], [-22, -12], [-10, -15], [0, -16]],
+      [[-27, 0], [-22, -9], [-10, -11], [0, -12]],
     ],
     plaza: [0, 0, 5],
     hazards: [[-10, -1, 3.2]],

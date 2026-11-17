@@ -9,8 +9,7 @@ import { TEAMS, MECHS, BOSSES } from '../data.js';
 import { skinOf, AURAS } from '../skins.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
-import { foeDesigns } from './foes.js';   // feat/dtt-modes: Phó bản monsters
-import { BOSS_STEEL } from './boss-steel.js';   // feat/dtt-modes: Phó bản chapter bosses
+import { PVE_STEEL } from './boss-steel.js';   // feat/dtt-modes: Phó bản monsters and chapter bosses
 import { frameDesign } from './frames.js';
 import { ORNATE, ornateModel, setSkinAura, fireAura } from './ornate.js';
 import { STEEL_DESIGNS } from './steel-tanks.js';
@@ -930,8 +929,6 @@ const DESIGNS = {
 // Four more designs live in mechs-b.js and draw with the same helpers.
 const HELP = { sk, lit, flame, tflame, side, limb, vent, bolts, hazard, line, DARK, GUN, STEEL, PALE, HAZ, BLACK, RUB, ICE, LINE, X, TAU };
 Object.assign(DESIGNS, designsB(HELP));
-// Phó bản monsters (gfx/foes.js): their own models at their own size, no role hardware.
-const FOE_DESIGNS = foeDesigns(HELP);
 // Keys with a hand-made design of their own.
 export const DESIGN_KEYS = Object.keys(DESIGNS);
 
@@ -940,8 +937,7 @@ export const DESIGN_KEYS = Object.keys(DESIGNS);
 export function buildModel(key, st, paint, trim, deep, form = 2) {
   const b = new Builder(0.85);
   b.use('hull').surface(1, 1);
-  if (BOSS_STEEL[key]) return { b, info: BOSS_STEEL[key](b, st, trim, form) };
-  if (FOE_DESIGNS[key]) return { b, info: FOE_DESIGNS[key](b, paint, trim, deep) };
+  if (PVE_STEEL[key]) return { b, info: PVE_STEEL[key](b, st, trim, form) };
   // Ornate tanks (ornate.js) build all three forms themselves, no role hardware.
   if (ORNATE[key]) return { b, info: ornateModel(HELP, b, key, st, paint, trim, deep, form) };
   // Steel-style tanks (steel.js) build all three forms themselves, role hardware included.
@@ -1113,7 +1109,7 @@ export function makeMechs(G, tex) {
     const glowBase = gc.clone().multiplyScalar(3.3).addScalar(0.55);
     // Rim light in the lamp colour, strong at form III so an upgraded mech reads from the match camera.
     // Steel-style tanks keep it low: their matte two-tone paint is what reads, a strong rim turns them back into toys.
-    const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1] * (STEEL_DESIGNS[key] || BOSS_STEEL[key] ? 0.4 : 1)), rim = rimBase.clone();
+    const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1] * (STEEL_DESIGNS[key] || PVE_STEEL[key] ? 0.4 : 1)), rim = rimBase.clone();
     const fin = sk && FINISHES[sk.finish];
     const polish = (m) => { if (fin) { m.roughness = baseMat.roughness * fin.r; m.metalness = baseMat.metalness * fin.m; m.envMapIntensity = (baseMat.envMapIntensity ?? 1) * fin.rf; } return m; };
     const mat = polish(mechMaterial(baseMat, rim, glowBase.clone(), low)), mats = [mat];
