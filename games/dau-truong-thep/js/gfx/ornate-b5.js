@@ -92,7 +92,8 @@ function saber(b, len, o = {}) {
 }
 
 export const B5 = {
-  // Hoa Mộc Lan, bruiser, after the owner's old game (花木兰, clip BV1Kp4y1b7i6 p82): a forward-pointing arrowhead ship.
+  // Hoa Mộc Lan, bruiser, after the owner's old game (花木兰, clip BV1Kp4y1b7i6 p82): a forward-pointing arrowhead ship
+  // on hover pads (no wheels; the design draws its own low skirt).
   // A long blade-prow (the great sword, carried by the turret so it aims) reaches far ahead of the dart hull, flanked by
   // two shorter forward prongs on the hull nose; a round thruster pod at each rear corner; behind them pairs of blade
   // wings swept back about 35 degrees, trailing past the stern; a red core in the middle. Forms grow the same design:
@@ -101,7 +102,7 @@ export const B5 = {
   // (凰兮凤舞) is another creature: a big crested phoenix head forward with twin gold barrels under it, flame wings swept
   // back and tail plumes trailing.
   moclan(h, b, st, paint, trim, deep, form) {
-    const K = start(h, b, st, paint, trim, deep, form, { paint, trim, F: { fenders: false } }), { f, orn } = K, phx = st.variant === 'phoenix', gld = st.variant === 'gold';
+    const K = start(h, b, st, paint, trim, deep, form, false), { f, orn } = K, phx = st.variant === 'phoenix', gld = st.variant === 'gold';
     const body = gld ? C3(st.body) : C3(paint), dk = C3(deep), acc = C3(trim), glow = C3(st.glow), bodyFin = 'enamel';
     const k = new OKit(b, st, trim, form, { body: [body, bodyFin], bodyD: [mix(body, dk, 0.45), bodyFin], deep: [dk, 'enamel'], gold: [GOLD, 'gold'], acc: [acc, 'enamel'], red: [0xd0202a, 'enamel'], gun: [CHROME, 'chrome'], gunLite: [GOLD, 'gold'], panel: [GOLD, 'gold'], under: [mix(dk, 0x06080a, 0.5), 'dark'], steel: [CHROME, 'chrome'], chrome: [CHROME, 'chrome'], dark: [0x101418, 'dark'] });
     const y0 = K.g.y0, y1 = K.g.y1;
@@ -109,6 +110,9 @@ export const B5 = {
     b.use('hull');
     // Dart hull: pointed fuselage over a dark keel, a stepped deck, a gold spine from II.
     const dart = [[1.0, 0], [0.5, 0.34], [-0.6, 0.42], [-0.92, 0.28], [-0.92, -0.28], [-0.6, -0.42], [0.5, -0.34]];
+    // No wheels (the clip's ship has none): a low dark skirt and three small hover pads that barely show from above.
+    k.prism(scl(dart, 0.8, [-0.1, 0]), y0 - 0.16, y0 + 0.02, 'under', 0.04);
+    for (const [x, z] of [[0.35, 0.18], [0.35, -0.18], [-0.45, 0]]) hoverPod(h, k, b, x, y0 - 0.12, z, 0.12, 'deep');
     k.prism(scl(dart, 0.92), y0, y0 + 0.2, 'under', 0.04);
     k.prism(dart, y0 + 0.16, y1, 'body', 0.06);
     k.prism(scl(dart, 0.72, [-0.1, 0]), y1 - 0.01, y1 + 0.05, f === 1 ? 'bodyD' : 'deep', 0.015);
@@ -134,18 +138,19 @@ export const B5 = {
     // Blade wings swept back ~35 degrees from the stern line, pairs stacked from the mid flank back, each one longer;
     // they trail behind the hull. rotY(-s * a): a = PI points straight aft.
     if (orn) {
-      const n = f + (phx ? 1 : 0);
+      // Broad flat blades (2, 2, 3 a side), not spikes: wide at the root, a long straight run, a short point.
+      const n = [2, 2, 3][f - 1];
       for (const s of [-1, 1]) for (let i = 0; i < n; i++) {
-        const a = PI - (0.62 - 0.08 * i), len = (phx ? 1.05 : 0.95) + 0.22 * i, x = 0.12 - 0.26 * i;
-        const geo = bladeGeo({ len, w: phx ? 0.38 : 0.34, th: 0.06, wf: WF.spear, ridge: -0.15, sweep: -0.08, lift: phx ? 0.14 : 0.05, seg: 6, edge: wingEdge, face: wingFace, face2: wingFace2, back: wingBack, mz: s < 0,
+        const a = PI - (0.56 - 0.1 * i), len = (phx ? 1.08 : 0.98) + 0.2 * i + 0.06 * f, x = 0.12 - 0.3 * i;
+        const geo = bladeGeo({ len, w: phx ? 0.62 : 0.5, th: 0.06, wf: (t) => (t < 0.7 ? 1 - 0.3 * t : (1 - t) / 0.3 * 0.79), ridge: -0.15, sweep: -0.06, lift: phx ? 0.1 : 0.03, seg: 6, edge: wingEdge, face: wingFace, face2: wingFace2, back: wingBack, mz: s < 0,
           band: phx ? (u) => mix(0xffd040, 0xd0200a, Math.min(1, u * 1.3)) : null });
-        b.push().move(x, y1 + 0.14 - 0.04 * i, s * 0.4).rotY(-s * a).rotX(-s * 0.1); put(fin(b, phx ? 'pearl' : bodyFin), geo); b.pop();
+        b.push().move(x, y1 + 0.12 - 0.05 * i, s * 0.38).rotY(-s * a).rotX(-s * 0.06); put(fin(b, phx ? 'pearl' : bodyFin), geo); b.pop();
       }
     }
     if (phx && orn) {
       // Tail plumes trailing behind the hull, curling up at the tips.
       for (const z of [-0.16, 0, 0.16]) {
-        const geo = bladeGeo({ len: 0.75 + (z === 0 ? 0.25 : 0) + 0.1 * f, w: 0.22, th: 0.05, wf: WF.plume, ridge: 0, lift: 0.35, seg: 7, edge: GOLD, face: 0xd8200a, face2: 0xff9020, back: 0x6a0606, band: (u) => mix(0xffd040, 0xc0100a, u) });
+        const geo = bladeGeo({ len: 0.7 + (z === 0 ? 0.25 : 0) + 0.08 * f, w: 0.32, th: 0.05, wf: WF.plume, ridge: 0, lift: 0.35, seg: 7, edge: GOLD, face: 0xd8200a, face2: 0xff9020, back: 0x6a0606, band: (u) => mix(0xffd040, 0xc0100a, u) });
         b.push().move(-0.9, y1 - 0.05, z).rotY(PI + z * 1.4); put(fin(b, 'pearl'), geo); b.pop();
       }
     }
@@ -172,16 +177,16 @@ export const B5 = {
       // Phoenix head (about a third of the length): a curved neck forward, a big head, hooked beak forward, crest swept back.
       const N = [V(tx - 0.05, ty + 0.25, 0), V(tx + 0.2, ty + 0.5, 0), V(tx + 0.45, ty + 0.6, 0)];
       put(fin(b, 'gold'), tubeGeo(new THREE.CatmullRomCurve3(N).getPoints(10), (t) => 0.2 - 0.04 * t, { sides: 8, caps: true, tone: (t) => mix(0xd8200a, GOLD, t) }));
-      const hx = tx + 0.62, hy = ty + 0.58, hs = [0.22, 0.26, 0.3][f - 1];
+      const hx = tx + 0.72, hy = ty + 0.56, hs = [0.3, 0.34, 0.38][f - 1];
       fin(b, 'gold', GOLD); b.push().move(hx, hy, 0).scale(1.35, 0.85, 0.9).ball(hs, 2).pop();
       fin(b, 'enamel', 0xd8200a); b.push().move(hx - hs * 0.2, hy - hs * 0.35, 0).scale(1.2, 0.6, 1).ball(hs * 0.8, 2).pop();
-      fin(b, 'gold', 0xffe080); b.push().move(hx + hs * 1.45, hy - hs * 0.15, 0).rotZ(-PI / 2 - 0.25).cyl(0.012, hs * 0.38, hs * 1.2, 6).pop();
+      fin(b, 'gold', 0xffe080); b.push().move(hx + hs * 1.45, hy - hs * 0.15, 0).rotZ(-PI / 2 - 0.25).cyl(0.015, hs * 0.45, hs * 1.4, 6).pop();
       for (const s of [-1, 1]) k.lamp('glow', () => b.push().move(hx + hs * 0.6, hy + hs * 0.3, s * hs * 0.55).ball(0.04, 1).pop());
-      for (let i = 0; i < 3; i++) { b.push().move(hx - hs * 0.4, hy + hs * 0.55, (i - 1) * 0.08).rotY(PI + (i - 1) * 0.3).rotZ(-0.35); put(fin(b, 'gold'), bladeGeo({ len: 0.5 + 0.12 * (i === 1) + 0.08 * f, w: 0.12, th: 0.03, wf: WF.plume, lift: 0.5, seg: 5, edge: GOLD, face: 0xff8a20, back: 0xa01008 })); b.pop(); }
+      for (let i = 0; i < 3; i++) { b.push().move(hx - hs * 0.4, hy + hs * 0.55, (i - 1) * 0.08).rotY(PI + (i - 1) * 0.3).rotZ(-0.35); put(fin(b, 'gold'), bladeGeo({ len: 0.6 + 0.15 * (i === 1) + 0.08 * f, w: 0.2, th: 0.04, wf: WF.plume, lift: 0.5, seg: 5, edge: GOLD, face: 0xff8a20, back: 0xa01008 })); b.pop(); }
     }
     b.use('barrel');
     if (!phx) cannon(b, tx + 0.28, K.my, 0, K.stock.muzzle - tx - 0.28, 0.05, CHROME, GOLD);
-    else for (const s of [-1, 1]) cannon(b, tx + 0.28, K.my, s * 0.14, K.stock.muzzle - tx - 0.1, 0.075, GOLD, 0xd8200a);
+    else for (const s of [-1, 1]) cannon(b, tx + 0.28, K.my - 0.06, s * 0.15, (K.stock.muzzle - tx - 0.28) * 0.6, 0.075, GOLD, 0xd8200a);   // short: the head leads
     b.use('hull');
     K.parts.push(...k.parts); K.top = ty + (phx ? 1.0 : 0.75);
     return finish(K, { recoil: 0.18 });
