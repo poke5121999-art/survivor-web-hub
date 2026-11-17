@@ -26,6 +26,7 @@ run('bot-browser', async ({ browser, base, shot, check }) => {
       const g = window.__game, B = window.__bb;
       window.__step(14, false);
       B.prev = g.sim.state.actors.map(a => a.pos.slice());
+      B.prevNav = g.sim.state.actors.map(a => (a.nav ? { nav: a.nav, n: a.nav.pts ? a.nav.pts.length : 0 } : null));
       window.__step(1, false);
       const s = g.sim.state, st = g.gv.stats();
       const bad = m => { if (B.bad.length < 40) B.bad.push(`t=${s.t.toFixed(1)} ${m}`); };
@@ -58,14 +59,22 @@ run('bot-browser', async ({ browser, base, shot, check }) => {
         B.facing++;
         const dot = (a.facing[0] * dx + a.facing[1] * dz) / d;
         if (i === 0) {
-          // the player turns with ThirdPersonController's 0.12 s rotation smoothing: the drawn rig must show the sim's
-          // yaw exactly, and agree with the walk direction except during a turn
+          // ThirdPersonController.Move (rules/menus-flow.md 154): the displacement follows targetRotation at once while the
+          // body yaw SmoothDampAngle's after it (RotationSmoothTime 0.12), so in a sharp reversal the player moves
+          // against its facing for a few frames, as in the original. Checked: the rig shows the sim yaw exactly, the
+          // step follows targetYaw (unless a wall slide), and a step against the facing only happens mid-turn.
           const ydot = a.facing[0] * Math.sin(actor.yaw) + a.facing[1] * Math.cos(actor.yaw);
           if (ydot < 0.99) bad(`player drawn facing off its yaw (dot ${ydot.toFixed(2)})`);
-          if (dot >= 0) B.playerAgree = (B.playerAgree || 0) + 1; else B.playerTurning = (B.playerTurning || 0) + 1;
+          const ty = actor.targetYaw ?? actor.yaw, tdot = (Math.sin(ty) * dx + Math.cos(ty) * dz) / d;
+          const turn = Math.abs(Math.atan2(Math.sin(ty - actor.yaw), Math.cos(ty - actor.yaw)));
+          if (dot >= 0) B.playerAgree = (B.playerAgree || 0) + 1;
+          else if (tdot > 0.7 && turn > Math.PI / 3) B.playerTurning = (B.playerTurning || 0) + 1;
+          else if (tdot > 0.7) bad(`player walks against its facing without a turn (dot ${dot.toFixed(2)}, turn ${(turn * 57.3).toFixed(0)} deg)`);
+          else B.playerSlide = (B.playerSlide || 0) + 1;
         } else if (a.facing[0] * Math.sin(actor.yaw) + a.facing[1] * Math.cos(actor.yaw) < 0.99) bad(`rival ${i} drawn facing off its yaw`);
-        // a NavMeshAgent step can round a path corner, so the step direction may differ from the last segment's yaw
-        else if (dot < 0.3) bad(`actor ${i} faces ${a.facing.map(v => v.toFixed(2))} walking ${(dx / d).toFixed(2)},${(dz / d).toFixed(2)} (dot ${dot.toFixed(2)})`);
+        // A step that passes a path corner (or starts a new path) moves along two segments while the agent's yaw is the
+        // last segment's (agent.js), so the step direction can differ from the facing; every other step must match.
+        else if (dot < 0.3 && (B.prevNav[i] && actor.nav === B.prevNav[i].nav && (actor.nav.pts || []).length === B.prevNav[i].n)) bad(`actor ${i} faces ${a.facing.map(v => v.toFixed(2))} walking ${(dx / d).toFixed(2)},${(dz / d).toFixed(2)} (dot ${dot.toFixed(2)}) state ${actor.brain.state} obj ${actor.brain.objective} rev ${actor.brain.revenge.active} atk ${!!actor.brain.atk} nav ${actor.nav && actor.nav.pts ? actor.nav.pts.length : '-'}`);
       });
     });
   }
@@ -80,8 +89,8 @@ run('bot-browser', async ({ browser, base, shot, check }) => {
   console.log(`stalls (no progress 120 s): ${r.stalls.length ? JSON.stringify(r.stalls) : 'none'}`);
   check('scene matches the sim every 0.5 s (meshes, locations, carried above carrier, facing)', !r.B.bad.length, r.B.bad.slice(0, 6).join(' | '));
   check('the bot made progress (sells or farm upgrades)', (r.B.n.sell || 0) + (r.B.n.farmUpgrade || 0) > 0, JSON.stringify(r.B.n));
-  const agree = (r.B.playerAgree || 0) / Math.max(1, (r.B.playerAgree || 0) + (r.B.playerTurning || 0));
-  check('the walking player never walks backwards (turns use the 0.12 s smoothing)', agree > 0.95, `${(agree * 100).toFixed(1)}% of ${(r.B.playerAgree || 0) + (r.B.playerTurning || 0)} steps`);
+  check('the player faces its walk direction except mid-turn (ThirdPersonController smoothing)', (r.B.playerAgree || 0) > 300,
+    `${r.B.playerAgree || 0} steps along the facing, ${r.B.playerTurning || 0} mid-turn reversals, ${r.B.playerSlide || 0} wall slides`);
   check('carried items and walking actors were checked', r.B.carried > 20 && r.B.facing > 100, `carried ${r.B.carried}, facing ${r.B.facing}`);
   check('no rig leak (rigs == world rigs + item rigs)', r.rigs < 400, `${r.rigs}`);
   check('no console errors', !errors.length, errors.slice(0, 3).join(' | '));

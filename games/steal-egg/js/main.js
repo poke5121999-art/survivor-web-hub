@@ -216,6 +216,9 @@ load().then(() => {
   window.addEventListener('pagehide', writeSave);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') writeSave(); });
   game.writeSave = writeSave;
+  // ?seed (tests): the test owns the clock from the start, so nothing steps in real time between boot and the first
+  // __step and a seeded run replays exactly
+  if (params.has('seed')) game.manual = true;
   game.ready = true;
 }).catch(e => {
   console.error(e);

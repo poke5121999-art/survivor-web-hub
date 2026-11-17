@@ -1133,7 +1133,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/steal-egg.png",
     // Dựng bên linux (~/stealegg-work, ref ~/stealegg-ref): three.js thuần, art/luật bóc từ XAPK com.mega.steal.egg v0.6. Test: games/steal-egg/test.
     path: "games/steal-egg/index.html",
-    rev: "20261117a",
+    rev: "20261117b",
     status: "available",
     tags: ["Hành động", "Trộm đồ", "Màn ngang"]
   }
