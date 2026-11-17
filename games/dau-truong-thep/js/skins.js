@@ -8,9 +8,10 @@
 //   pal: { body, deep, trim, glow } replaces the tank's STYLES colours (gfx/styles.js), null for the tank's own look.
 //   finish: 'gloss' | 'chrome' | 'satin' | 'pearl', how polished the whole model reads (gfx/mechs.js FINISHES).
 //   aura: a key of AURAS, the colour ramp of the form III flame aura.
-//   flair: { sigil: 'sun' | 'lotus' | 'rune' | 'star' | 'wave', pulse: hex } (SS only).
+//   flair: { sigil: 'sun' | 'lotus' | 'rune' | 'star' | 'wave', pulse: hex, disc?: hex (the sigil's main colour, else glow) } (SS only).
 //   variant: a design variant name the tank's model builder reads as st.variant (gfx/mechs.js build), for an SS skin that
-//     is a different model, not only a recolour (moclan 'phoenix'); a design that knows no variant ignores it.
+//     is a different model, not only a recolour (moclan 'phoenix'), or a finish rule of the design (moclan 'gold': the gold body keeps its full colour at every form, no form I greying); a
+//     design that knows no variant ignores it.
 // A later per-skin stat bonus (the reference panel's collection bonuses) would be one more field here, read nowhere yet.
 //
 // To give a tank its own skins, set SKINS[key] after the generated rows (as moclan does); ids only have to be unique
@@ -114,8 +115,8 @@ for (const [k, [sn, sp, sf, xn, xp, sig, aura]] of Object.entries(T)) {
 // gold and black with red accents, SS 凰兮凤舞 a different model: the phoenix variant of the design (gfx/ornate-b5.js).
 SKINS.moclan = [
   { id: BASE_SKIN, name: 'Hoa Mộc Lan II', grade: 'A', price: SKIN_PRICE.A, pal: null },
-  { id: 's', name: 'Hoa Mộc Lan III', grade: 'S', price: SKIN_PRICE.S, pal: pal4([0xe0b038, 0x18181c, 0xd02830, 0xffd060]), finish: 'gloss' },
-  { id: 'ss', name: 'Hoàng Hề Phượng Vũ', grade: 'SS', price: SKIN_PRICE.SS, pal: pal4([0xc81a1a, 0x3a0404, 0xffc030, 0xff7020]), finish: 'chrome', aura: 'phoenix', flair: { sigil: 'sun', pulse: 0xffe080 }, variant: 'phoenix' },
+  { id: 's', name: 'Hoa Mộc Lan III', grade: 'S', price: SKIN_PRICE.S, pal: pal4([0xf0a828, 0x16161a, 0xd02830, 0xffd060]), finish: 'gloss', variant: 'gold' },
+  { id: 'ss', name: 'Hoàng Hề Phượng Vũ', grade: 'SS', price: SKIN_PRICE.SS, pal: pal4([0xc81a1a, 0x3a0404, 0xffc030, 0xff7020]), finish: 'chrome', aura: 'phoenix', flair: { sigil: 'sun', pulse: 0xffe080, disc: 0x30a8ff }, variant: 'phoenix' },
 ];
 
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

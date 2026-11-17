@@ -1156,7 +1156,7 @@ export function makeMechs(G, tex) {
     let sigil = null, pulseBase = null;
     if (sk && sk.flair) {
       const fl = sk.flair;
-      sigil = new THREE.Mesh(sigilGeo, new THREE.MeshBasicMaterial({ map: sigilTexture(fl.sigil, st.glow, fl.pulse), color: new THREE.Color(1.6, 1.6, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+      sigil = new THREE.Mesh(sigilGeo, new THREE.MeshBasicMaterial({ map: sigilTexture(fl.sigil, fl.disc ?? st.glow, fl.pulse), color: new THREE.Color(1.6, 1.6, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
       sigil.scale.setScalar(1.45 * S); sigil.position.y = 0.035; sigil.renderOrder = 1;
       root.add(sigil);
       if (fl.pulse != null) pulseBase = new THREE.Color(fl.pulse).multiplyScalar(3.3).addScalar(0.55);
