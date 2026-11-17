@@ -32,6 +32,8 @@ export function createMatch(opts) {
     units: [], shots: [], zones: [], crates: [], events: [],
     props: map.props.map((p) => ({ id: p.id, x: p.x, z: p.z, kind: p.kind, r: PROPS[p.kind].r, hp: PROPS[p.kind].hp, alive: true })),
     score: [0, 0], over: false, winner: -1, nextId: 1, crateT: rule.crate.first,
+    // feat/dtt-modes: Phó bản spawn spots for the monsters, the stage id, the wave in play
+    pveSpots: mode === 'pve' ? pveSpots(map) : null, stage: mode === 'pve' ? opts.stage || null : null, wave: 0, waves: 0, waveT: 0,
     vents: map.hazards.filter((h) => h.kind === 'vent').map((h, i) => ({ id: h.id, x: h.x, z: h.z, r: h.r, t: RULES.vent.period * (0.5 + 0.5 * (i % 2)), warn: false })),
   };
   const slot = [0, 0];
@@ -47,11 +49,13 @@ export function createMatch(opts) {
       x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, kx: 0, kz: 0, aim: r.team ? Math.PI : 0, heading: r.team ? Math.PI : 0, score: 0,
       hp: 0, alive: false, respawnT: 0, cd: { fire: 0, s1: 0, s2: 0, ult: 0, heal: 0 }, barrel: 0,
       kills: 0, deaths: 0, assists: 0, dmg: 0, healed: 0, pickups: 0, hitBy: {}, brain: null,
+      wave: r.wave | 0,
     };
     m.units.push(u);
     spawn(m, u, true);
   }
   if (mode === 'tudo') m.score = m.units.map(() => 0);
+  if (mode === 'pve') pveInit(m);
   if (mode === 'nha') {
     const T = rule.tower;
     for (const p of map.towers) {
@@ -76,6 +80,7 @@ function freeSpot(map, x, z) {
 
 // Where a unit appears: its team's base pad, or in free-for-all the open spot farthest from everyone alive.
 function spawnPoint(m, u) {
+  if (m.pveSpots && u.team === 1 && !u.def.boss) return m.pveSpots[u.slot % m.pveSpots.length];
   if (m.mode !== 'tudo') return m.map.spawns[u.team][u.slot % 5];
   const spots = m.map.spawns[0].concat(m.map.spawns[1], m.map.cratePoints);
   let best = spots[u.id % spots.length], bd = -1;
@@ -130,6 +135,8 @@ export function step(m, inputs) {
   if (m.mode === 'trum') {
     const boss = m.units.find((u) => u.def.boss);
     if (!boss.alive) finish(m, 0); else if (m.lives <= 0 || timeUp) finish(m, 1);
+  } else if (m.mode === 'pve') {
+    if (pveStep(m)) finish(m, 0); else if (m.lives <= 0 || timeUp) finish(m, 1);
   } else if (m.mode === 'nha') {
     const hp = [0, 0];
     for (const t of m.towers) if (t.alive) hp[t.team] += t.hp;
@@ -415,10 +422,11 @@ function stepUnit(m, u, inp) {
   if (u.passive) PASSIVE_TICK[u.passive]?.(m, u);
   if (u.bush < 0) for (const z of m.zones) if (z.hide && dist2(u.x, u.z, z.x, z.z) < z.r * z.r) { u.bush = 1000 + z.id; break; }
 
-  if (m.mode !== 'tudo' && !u.def.boss) {
+  // Phó bản monsters (def.monster) neither heal at a base nor regenerate out of combat.
+  if (m.mode !== 'tudo' && !u.def.boss && !u.def.monster) {
     const own = m.map.bases[u.team], foe = m.map.bases[1 - u.team], br = RULES.baseRadius;
     if (dist2(u.x, u.z, own[0], own[1]) < br * br) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.baseRegen * dt); }
-    else if (m.mode !== 'trum' && m.mode !== 'nha' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
+    else if (m.mode !== 'trum' && m.mode !== 'nha' && m.mode !== 'pve' && dist2(u.x, u.z, foe[0], foe[1]) < br * br) { burn(m, u, RULES.baseBurn * dt); if (!u.alive) return; }
   }
   const grip = gripAt(m.map, u.x, u.z, u);
   for (const h of m.map.hazards) {
@@ -426,7 +434,7 @@ function stepUnit(m, u, inp) {
     if (h.kind === 'mud') { if (!u.def.hover && !u.def.heavy) { u.slowT = Math.max(u.slowT, 0.2); u.slowF = Math.max(u.slowT > 0.2 ? u.slowF : 0, RULES.mud.slow); } }
     else { burn(m, u, RULES.lava.dps * dt); if (!u.alive) return; }
   }
-  if (!u.def.boss && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
+  if (!u.def.boss && !u.def.monster && u.combatT > RULES.regenDelay && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * RULES.regen * dt);
   if (u.woundT > 0) u.woundT -= dt;
   if (u.healT > 0) { u.healT = Math.max(0, u.healT - dt); heal(m, u, u.healRate * dt, u, true); }
 
@@ -1740,6 +1748,7 @@ function kill(m, u, src) {
     takedown(m, src, true, u);
   } else if (m.mode === 'tdm') m.score[1 - u.team]++;
   if (m.mode === 'trum') { if (u.def.boss) u.respawnT = 1e9; else m.lives--; }
+  if (m.mode === 'pve') { if (u.team === 1) u.respawnT = 1e9; else m.lives--; }
   m.events.push({ t: 'death', id: u.id, by, assists, x: u.x, z: u.z });
   clearStatus(u);
 }
@@ -1828,7 +1837,7 @@ export function summary(m) {
     rating: u.kills * 3 + u.assists * 1.5 + u.dmg / 600 + u.healed / 450 - u.deaths,
   }));
   const mvp = rows.reduce((a, b) => (b.rating > a.rating ? b : a)).id;
-  return { rows, mvp, mode: m.mode, score: m.score.slice(), winner: m.winner, time: m.time, lives: m.lives };
+  return { rows, mvp, mode: m.mode, score: m.score.slice(), winner: m.winner, time: m.time, lives: m.lives, stage: m.stage, wave: m.wave, waves: m.waves };
 }
 
 const dist2 = (ax, az, bx, bz) => (ax - bx) * (ax - bx) + (az - bz) * (az - bz);
@@ -1839,3 +1848,33 @@ function turnTo(a, b, max) {
   while (d < -Math.PI) d += 2 * Math.PI;
   return a + Math.max(-max, Math.min(max, d));
 }
+
+/* ===== feat/dtt-modes: Phó bản waves ===== */
+// Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits
+// dead (respawnT 1e9) until the one before it is cleared, then appears after PVE_GAP seconds behind its spawn guard.
+const PVE_GAP = 2.5;
+// Where monsters appear: the far team's pads, then the open airdrop points on its half, then the rest.
+function pveSpots(map) {
+  const far = map.bases[1], side = Math.sign(far[0]) || 1;
+  const pts = map.spawns[1].concat(map.cratePoints.filter((p) => Math.sign(p[0]) === side), map.cratePoints.filter((p) => Math.sign(p[0]) !== side && Math.abs(p[0]) > map.hw * 0.15));
+  const ok = pts.filter((p) => !solidAt(map, p[0], p[1], 1.3));
+  return ok.length ? ok : map.spawns[1].slice();
+}
+function pveInit(m) {
+  let n = 0;
+  for (const u of m.units) if (u.team === 1) n = Math.max(n, u.wave + 1);
+  m.waves = n; m.target = n; m.wave = 0; m.waveT = 0;
+  for (const u of m.units) if (u.team === 1 && u.wave > 0) { u.alive = false; u.hp = 0; u.respawnT = 1e9; }
+}
+// true when the last wave is cleared
+function pveStep(m) {
+  for (const u of m.units) if (u.team === 1 && u.wave === m.wave && u.alive) { m.waveT = 0; return false; }
+  if (m.wave >= m.waves - 1) return true;
+  m.waveT += TICK;
+  if (m.waveT < PVE_GAP) return false;
+  m.wave++; m.waveT = 0;
+  for (const u of m.units) if (u.team === 1 && u.wave === m.wave) spawn(m, u, false);
+  m.events.push({ t: 'wave', n: m.wave, of: m.waves });
+  return false;
+}
+/* ===== end feat/dtt-modes Phó bản waves ===== */

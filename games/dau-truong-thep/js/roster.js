@@ -1,6 +1,6 @@
 // Solo line-ups: the player plus bots, for each play kind (Đấu thường, Đấu rank). Pure, runs in Node (tools/sim-test.mjs section 50).
 // main.js turns the result into a match; online rooms build their own roster in online.js.
-import { MECHS, MECH_ORDER, DIFFICULTY, BOT_NAMES, MODES, cleanLv, TEAM_SIZE, cleanSize, rankPlan, NO_LV } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, BOT_NAMES, MODES, BOSSES, cleanLv, TEAM_SIZE, cleanSize, rankPlan, NO_LV, pveStage } from './data.js';
 
 const flatLv = (n) => cleanLv(NO_LV.map(() => n));
 
@@ -32,4 +32,22 @@ export function soloLineup(choice, o) {
   if (mode === 'trum') roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff });
   else for (let i = 0; i < size; i++) roster.push({ team: theirs, mech: foes[i], name: names.pop(), bot: true, diff, mods: foeMods });
   return { play: tier ? 'rank' : 'casual', mode, diff, size, roster, tier };
+}
+
+// Phó bản: the humans (1 to 3, each with their own garage levels) on team 0, allied bots up to TEAM_SIZE at the stage's ally level,
+// then every monster of every wave on team 1 (wave = its index; sim.js holds the later waves back). humans: [{ mech, name, mods, skin, bot }].
+// Returns null for an unknown stage id.
+export function pveLineup(stageId, humans, o) {
+  const S = pveStage(stageId);
+  if (!S) return null;
+  const rng = o.rng, names = BOT_NAMES.slice().sort(() => rng() - 0.5);
+  const roster = humans.slice(0, TEAM_SIZE).map((h) => ({ team: 0, mech: MECHS[h.mech] ? h.mech : MECH_ORDER[0], name: h.name, bot: !!h.bot, diff: 'normal', mods: h.mods || null, skin: h.skin || null, pid: h.pid || null }));
+  const taken = new Set(roster.map((r) => r.mech));
+  const allies = MECH_ORDER.filter((k) => !taken.has(k)).sort(() => rng() - 0.5);
+  while (roster.length < TEAM_SIZE) roster.push({ team: 0, mech: allies.pop(), name: names.pop(), bot: true, diff: 'normal', mods: { lv: flatLv(S.allyLv) } });
+  S.waves.forEach((list, wave) => list.forEach((k) => {
+    const boss = !!BOSSES[k].boss;
+    roster.push({ team: 1, mech: k, name: BOSSES[k].name, bot: true, diff: boss ? 'hard' : S.diff, wave, mods: { hp: boss ? S.bossHp : S.hp, dmg: boss ? S.bossDmg : S.dmg } });
+  }));
+  return { play: 'pve', mode: 'pve', stage: S, roster, map: S.map, theme: S.theme, duration: S.limit };
 }

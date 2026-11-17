@@ -290,7 +290,7 @@ function baseOf(m, team) {
 }
 // My own base (regen, retreat) and the enemy base I must not enter (it burns in tdm and chiem only; in nha the towers guard it instead). null when the mode has none.
 function ownOf(m, u) { return u.def.boss ? null : baseOf(m, u.team); }
-function foeOf(m, u) { return u.def.boss || m.mode === 'trum' || m.mode === 'nha' ? null : baseOf(m, 1 - u.team); }
+function foeOf(m, u) { return u.def.boss || m.mode === 'trum' || m.mode === 'nha' || m.mode === 'pve' ? null : baseOf(m, 1 - u.team); }
 const bossOf = (m) => { for (const x of m.units) if (x.def.boss) return x; return null; };
 
 function lavaNear(map, x, z, pad) {

@@ -17,7 +17,8 @@ const BATCH2 = MECH_ORDER.slice(22, 29);   // lubo, mucma, kynhong, nguma, sonti
 const BATCH3 = MECH_ORDER.slice(29, 39);   // bohung, cakiem, gilgamesh, buomdem, laclong, baogam, luondien, tegiac, quaset, tumay
 const BATCH4 = MECH_ORDER.slice(39, 46);   // dieuthuyen, thuytinh, samthep, cuuvi, kiemthan, suatrang, khidot
 const BATCH5 = MECH_ORDER.slice(46);   // retdo, nhenthep, taothao, bongua, moclan, anduong, chuottui, vesau
-const MODE_LIST = Object.keys(MODES);
+// Phó bản (pve) plays waves of monsters, not PvP rosters: its bot runs are in sim-test section 51-52.
+const MODE_LIST = Object.keys(MODES).filter((k) => k !== 'pve');
 const put = (u, x, z) => { u.x = u.px = x; u.z = u.pz = z; };
 const rot = (list, k, n) => Array.from({ length: n }, (_, i) => list[(k + i) % list.length]);
 const ACT = new Set(['fire', 'beam', 'ray', 'skill', 'turretFire']);

@@ -1,0 +1,44 @@
+// feat/dtt-modes: styleshot.js for Phó bản monsters and bosses (BOSSES rows), its own Chrome (no shared lock), GAP=metres apart.
+// Style review: one row of mechs on an empty stage (map meshes hidden, plain floor), all on team 0, close camera from the usual top-down angle.
+//   node tools/styleshot.js mech[@form],mech[@form],... out.png [unit overrides as JSON, e.g. '{"lv":[5,5,5,5,5]}']
+'use strict';
+const { open, path } = require('./lib.js');
+const { serve } = require('../../../tools/thumb-lib.js');
+const PW = process.env.PLAYWRIGHT_PATH || path.join(process.env.HOME, '.cache/pw-node/node_modules/playwright-core');
+const session = async (fn) => { const srv = await serve(); const br = await require(PW).chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }); try { return await fn(br, srv.base); } finally { await br.close(); srv.close(); } };
+const GAP = +(process.env.GAP || 4.3), DIST = +(process.env.DIST || 0);
+const { ROLE, fillPending, fillSrc } = require('./pending-mechs.js');
+// COMBAT=1: the match camera (1280x720, 57 degree pitch, 33.5 m across) on the real map instead of the close stage.
+const combat = !!process.env.COMBAT;
+const want = process.argv[2].split(','), out = process.argv[3], extra = JSON.parse(process.argv[4] || '{}'), pitch = 55;
+session(async (br, base) => {
+  const g = await open(br, base, 'manual&noaudio&autostart&spectate&seed=5&q=high', { viewport: combat ? { width: 1280, height: 720 } : { width: Math.round(400 * want.length * GAP / 4.3), height: 460 } });
+  const data = await import('../js/data.js');
+  // Tanks with a style row but no sim entry yet get a stand-in (tools/pending-mechs.js), here and in the page.
+  fillPending(data.MECHS, (await import('../js/gfx/styles.js')).STYLES, data.BOSSES, ROLE);
+  const defs = JSON.parse(JSON.stringify({ ...data.BOSSES, ...data.MECHS }));
+  await g.page.evaluate(async ({ want, defs, pitch, extra, combat, fillSrc, ROLE, GAP, DIST }) => {
+    const D = await import(new URL('js/data.js', location.href).href), St = await import(new URL('js/gfx/styles.js', location.href).href);
+    new Function('return ' + fillSrc)()(D.MECHS, St.STYLES, D.BOSSES, ROLE);
+    const G = window.__G, m = G.match;
+    if (!combat) document.getElementById('ui').style.display = 'none';
+    while (m.units.length < want.length) m.units.push(Object.assign({}, m.units[0], { id: m.units.length, cd: Object.assign({}, m.units[0].cd) }));
+    m.units.forEach((u, k) => {
+      if (k >= want.length) { u.x = u.px = 60; u.z = u.pz = 40; return; }
+      const [mk, fm] = want[k].split('@'); u.mech = mk; u.def = defs[mk]; if (fm) u.lv = [[0, 0, 0, 0, 0], [3, 3, 3, 3, 0], [5, 5, 5, 5, 5]][fm - 1]; u.radius = u.def.radius; u.color = 0; u.team = 0; Object.assign(u, extra);
+      u.x = u.px = (k - (want.length - 1) / 2) * GAP; u.z = u.pz = 0.4; u.aim = 0.35; u.heading = 0.35;
+    });
+    m.over = true;
+    // Empty stage: hide every mesh of the map (its lights stay) and lay a plain floor for shadows.
+    const T3 = G.THREE;
+    if (!combat) G.gfx.world.group.traverse((o) => { if (o.isMesh || o.isInstancedMesh || o.isPoints || o.isSprite) o.visible = false; });
+    const floor = new T3.Mesh(new T3.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), new T3.MeshStandardMaterial({ color: 0x55606c, roughness: 0.95 }));
+    floor.receiveShadow = true; floor.position.y = 0.0; if (!combat) G.scene.add(floor);
+    window.__setShot(combat ? { x: 0, z: 0.6, dist: 32.9, pitch: 57, yaw: 0 } : { x: 0, z: 0.6, dist: DIST || (want.length > 3 ? 11.5 : 9) * GAP / 4.3, pitch: pitch, yaw: 0 });
+    if (combat && G.ui.showHUD) G.ui.showHUD();
+    for (let i = 0; i < 20; i++) window.__step(1, true);
+  }, { want, defs, pitch, extra, combat, fillSrc, ROLE, GAP, DIST });
+  await g.page.screenshot({ path: out });
+  console.log(out, JSON.stringify(await g.page.evaluate(() => window.__errors)));
+  await g.close();
+});

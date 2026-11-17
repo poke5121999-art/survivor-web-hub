@@ -11,7 +11,8 @@ import { nearestRegion } from './net/region.js';
 import { snapshot, applySnapshot, createMirror, packEvents, unpackEvents, encodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, PKT_SNAP, PKT_INPUT, SNAP_TICKS, F_GUESS } from './netstate.js';
 import { createPredictor, createGunner } from './predict.js';
 import { cleanSkin } from './skins.js';
-import { MECHS, BOSSES, MECH_ORDER, MODES, DIFFICULTY, BOT_NAMES, TICK, TEAM_SIZE, cleanSize, buildDef, cleanLv, NO_LV, FAIR_LV } from './data.js';
+import { MECHS, BOSSES, MECH_ORDER, MODES, DIFFICULTY, BOT_NAMES, TICK, TEAM_SIZE, cleanSize, buildDef, cleanLv, NO_LV, FAIR_LV, pveParse, pveStage, PVE_ORDER } from './data.js';
+import { pveLineup } from './roster.js';
 import { MAPS, THEMES, pickArena, fitMap } from './maps.js';
 import { mulberry } from './rng.js';
 import { walk, gripAt, turnRate } from './sim.js';
@@ -59,6 +60,7 @@ const T = {
   list: 'Không tải được danh sách phòng.',
   notReady: 'Còn người chơi chưa sẵn sàng.',
   bossFull: `Chế độ Săn trùm tối đa ${TEAM_SIZE} người chơi.`,
+  pveFull: `Phó bản tối đa ${TEAM_SIZE} người chơi.`,
   teamFull: (n) => `Mỗi đội tối đa ${n} người chơi.`,
   sizeBlocked: (n) => `Chưa thể chọn ${n} đấu ${n}: có đội đang đông hơn ${n} người. Hãy chuyển bớt người sang đội kia.`,
   sizeBlockedFfa: (n) => `Chưa thể chọn ${n} đấu ${n}: phòng đang có nhiều hơn ${2 * n} người.`,
@@ -371,16 +373,18 @@ export function makeOnline(G) {
   // ---- lobby model (host owns it, guests hold a copy) -------------------------------------------------------------
   const newLobby = (hostName) => ({
     players: [{ id: 'p0', name: hostName, mech: MECH_ORDER[0], skin: null, mods: { lv: NO_LV }, team: 0, ready: true, host: true }],
-    map: 'denrung', theme: null, mode: 'tdm', diff: 'normal', size: TEAM_SIZE,
+    map: 'denrung', theme: null, mode: 'tdm', diff: 'normal', size: TEAM_SIZE, stage: PVE_ORDER[0],
   });
+  // Săn trùm and Phó bản: every human on team 0 against bots, at most TEAM_SIZE of them.
+  const coop = (mode) => mode === 'trum' || mode === 'pve';
   const teamSize = (t) => online.lobby.players.filter((p) => p.team === t).length;
   // Co-op by default: joiners side with the host against bots until that team is full. Players switch sides for PvP.
   const sizeOf = (L = online.lobby) => cleanSize(L && L.size);
-  const pickTeam = () => (online.lobby.mode === 'trum' || teamSize(0) < sizeOf() ? 0 : 1);
-  const humansCap = () => (online.lobby.mode === 'trum' ? TEAM_SIZE : 2 * sizeOf());
+  const pickTeam = () => (coop(online.lobby.mode) || teamSize(0) < sizeOf() ? 0 : 1);
+  const humansCap = () => (coop(online.lobby.mode) ? TEAM_SIZE : 2 * sizeOf());
   // Why a lobby cannot be played at `size` in `mode`, or '' when it can.
   const sizeProblem = (L, mode, size) => {
-    if (mode === 'trum') return L.players.length > TEAM_SIZE ? T.bossFull : '';
+    if (coop(mode)) return L.players.length > TEAM_SIZE ? (mode === 'pve' ? T.pveFull : T.bossFull) : '';
     if (mode === 'tudo') return L.players.length > 2 * size ? T.sizeBlockedFfa(size) : '';
     return [0, 1].some((t) => L.players.filter((p) => p.team === t).length > size) ? T.sizeBlocked(size) : '';
   };
@@ -419,7 +423,7 @@ export function makeOnline(G) {
       const reject = (why) => sendRel(peer, { t: 'reject', why });
       if (m.v !== PROTOCOL) return reject(T.version);
       if (online.state !== 'lobby') return reject(T.started);
-      if (online.lobby.players.length >= humansCap()) return reject(online.lobby.mode === 'trum' ? T.bossFull : T.full);
+      if (online.lobby.players.length >= humansCap()) return reject(coop(online.lobby.mode) ? (online.lobby.mode === 'pve' ? T.pveFull : T.bossFull) : T.full);
       peer.pid = 'p' + (++pidN);
       peer.uid = m.uid || null;
       const used = new Set(online.lobby.players.map((p) => p.mech));
@@ -635,24 +639,27 @@ export function makeOnline(G) {
     return true;
   };
 
-  online.setRoom = function setRoom({ map, theme, mode, diff, size } = {}) {
+  online.setRoom = function setRoom({ map, theme, mode, diff, size, stage } = {}) {
     if (online.role !== 'host' || online.state !== 'lobby') return false;
     const L = online.lobby;
     online.error = '';
     const nextMode = mode && MODES[mode] ? mode : L.mode, nextSize = size === undefined ? sizeOf() : cleanSize(size);
     if (nextMode !== L.mode || nextSize !== sizeOf()) {
       // Leaving Săn trùm puts everyone on team 0, so the side-by-side check runs on that layout.
-      const view = L.mode === 'trum' && nextMode !== 'trum' ? { players: L.players.map((p) => ({ ...p, team: 0 })) } : L;
+      const view = coop(L.mode) && !coop(nextMode) ? { players: L.players.map((p) => ({ ...p, team: 0 })) } : L;
       const why = sizeProblem(view, nextMode, nextSize);
       if (why) { online.error = why; return false; }
       L.mode = nextMode; L.size = nextSize;
-      if (nextMode === 'trum') L.players.forEach((p) => { p.team = 0; });
+      if (coop(nextMode)) L.players.forEach((p) => { p.team = 0; });
     }
     if (map && (MAPS[map] || map === 'random')) L.map = map;
     L.map = fitMap(L.map, L.mode);
     // theme: a THEMES key, 'random', or null for the layout's own theme
     if (theme !== undefined && (theme === null || theme === 'random' || THEMES[theme])) L.theme = theme;
     if (diff && DIFFICULTY[diff]) L.diff = diff;
+    if (stage && pveParse(stage)) L.stage = stage;
+    if (!pveParse(L.stage)) L.stage = PVE_ORDER[0];
+    if (L.mode === 'pve') L.map = pveStage(L.stage).map;
     publishRoom(); broadcastLobby(); changed();
     return true;
   };
@@ -663,7 +670,7 @@ export function makeOnline(G) {
       if (pid === online.me && online.state === 'lobby') sendRel(peerOf(link.hostId), { t: 'swap' });
       return false;
     }
-    if (!p || online.state !== 'lobby' || L.mode === 'trum' || L.mode === 'tudo') return false;
+    if (!p || online.state !== 'lobby' || coop(L.mode) || L.mode === 'tudo') return false;
     const to = 1 - p.team;
     if (teamSize(to) >= sizeOf()) { online.error = T.teamFull(sizeOf()); return false; }
     p.team = to;
@@ -695,6 +702,16 @@ export function makeOnline(G) {
       return k;
     };
     const add = (r) => { if (r.pid) slots[r.pid] = units.length; units.push(unit(r)); };
+    // Phó bản: js/roster.js lays out the humans (own levels), allied bots and every wave; the units keep its mods and wave index.
+    if (L.mode === 'pve') {
+      const P = pveLineup(pveParse(L.stage) ? L.stage : PVE_ORDER[0], L.players.map((p) => ({ mech: p.mech, name: p.name, skin: p.skin, mods: { lv: cleanLv(p.mods && p.mods.lv) }, pid: p.id })), { rng });
+      for (const r of P.roster) {
+        if (r.pid) slots[r.pid] = units.length;
+        const def = MECHS[r.mech] ? buildDef(r.mech, r.mods && r.mods.lv) : BOSSES[r.mech];
+        units.push({ team: r.team, color: r.team, mech: r.mech, name: r.name, bot: !!r.bot, diff: r.diff, skin: cleanSkin(r.mech, r.skin), mods: r.mods || {}, radius: def.radius, maxHp: def.hp, pid: r.pid || null, wave: r.wave || 0 });
+      }
+      return { rosterData: { map: P.map, theme: P.theme, mode: 'pve', seed, units, stage: P.stage.id, duration: P.duration }, slots };
+    }
     if (L.mode === 'tudo') {
       const taken = L.players.map((p) => p.mech);
       for (const p of L.players) add({ team: 0, mech: p.mech, name: p.name, skin: p.skin, mods: p.mods, pid: p.id });

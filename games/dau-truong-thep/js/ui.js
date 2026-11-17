@@ -1,7 +1,7 @@
 // HUD, menus, result screen. Builds its own DOM under #ui; reads G.match / G.me, never writes to the match.
-import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize, PLAYS, PLAY_ORDER, rankTier, cleanPlay } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, TEAMS, PICKUPS, RULES, levelXp, UPGRADE, TRACKS, PERKS, NO_LV, perkCount, buildDef, GEM_RATE, SHOP, PASS, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, TEAM_SIZE, TEAM_SIZES, cleanSize, PLAYS, PLAY_ORDER, rankTier, cleanPlay, PVE_CHAPTERS, PVE_STAGES, PVE_ORDER, pveId, pveStage, pveParse } from './data.js';
 import { SKINS, GRADES, GRADE_ORDER, BASE_SKIN, skinOf, skinKey } from './skins.js';
-import { rankOf, placeOf, podiumOf } from './meta.js';
+import { rankOf, placeOf, podiumOf, pveOpen } from './meta.js';
 import * as MAPMOD from './maps.js';
 const { MAPS, MAP_ORDER, THEMES, THEME_ORDER, mapsFor, fitMap } = MAPMOD;
 import { visibleTo, towerOpen } from './sim.js';
@@ -582,6 +582,61 @@ export function makeUI(G) {
       event(e, m) {
         if (e.t === 'death' && m.units[e.id] && m.units[e.id].def.boss) announce('Đã hạ Cự Thần', 'Chiến thắng thuộc về cả đội', 'mine');
       },
+    },
+  };
+
+  /* feat/dtt-modes: Phó bản HUD: stage and wave, monsters left, shared lives, and the boss bar once a boss is up. */
+  // A guest's mirror carries no wave counter: the wave in play is the highest one with a monster alive, else the count fully cleared.
+  const pveWave = (m) => {
+    let live = -1, gone = 0;
+    for (const u of m.units) if (u.team === 1) { if (u.alive) live = Math.max(live, u.wave); }
+    if (live >= 0) return live;
+    for (let w = 0; w < m.waves; w++) if (m.units.every((u) => u.team !== 1 || u.wave !== w || u.deaths > 0)) gone = w + 1;
+    return Math.min(m.waves - 1, gone);
+  };
+  MODE_HUD.pve = {
+    solo: true,
+    minuteSub: 'Hết giờ là thất bại',
+    top(m) {
+      const n = m.rule.lives || m.lives, S = pveStage(m.stage);
+      return `<div class="boss-top pve-top">
+        <div class="bt-h"><span class="bt-ic">${icon('boss')}</span><b data-r="bname" title="${esc(S ? S.name : '')}">${esc(S ? 'Màn ' + S.id : 'Phó bản')}</b><small data-r="wave">Đợt 1/${m.waves}</small><span class="sc-clock bt-clock" data-r="clock">6:00</span></div>
+        <div class="bh pv-bh" data-r="bbar"><i class="bh-trail" data-r="trail"></i><i class="bh-fill" data-r="fill"></i><span class="bh-num" data-r="num"></span></div>
+        <div class="lv"><small>Mạng còn lại</small><div class="lv-pips" data-r="lvp">${'<i class="lp on"></i>'.repeat(n)}</div><b data-r="lvn">${m.lives}</b></div>
+      </div>`;
+    },
+    cols(m) { for (const u of m.units) if (u.team === myTeam) addCard(H.colA, u); },
+    build(m) { T.lp = [...T.lvp.children]; S.trail = 1; S.lives = m.lives; S.wave = 0; },
+    tick(m, me, dt) {
+      const w = pveWave(m), boss = m.units.find((u) => u.team === 1 && u.def.boss && u.wave === w && (u.alive || u.deaths));
+      let hp = 0, max = 0, left = 0;
+      for (const u of m.units) if (u.team === 1 && u.wave === w) { max += u.maxHp; if (u.alive) { hp += Math.max(0, u.hp); left++; } }
+      const f = boss ? Math.max(0, boss.hp) / boss.maxHp : max ? hp / max : 0;
+      S.trail = Math.max(f, S.trail - dt * 0.18); if (S.trail < f) S.trail = f;
+      setW(T.fill, f); setW(T.trail, S.trail);
+      setText(T.num, boss ? `${esc(boss.name)} ${fmtN(Math.ceil(Math.max(0, boss.hp)))} / ${fmtN(boss.maxHp)}` : `Còn ${left} quái`);
+      flag(T.bbar, 'boss', !!boss);
+      setText(T.wave, `Đợt ${w + 1}/${m.waves}`);
+      if (w !== S.wave) { S.wave = w; S.trail = 1; pop(T.wave, 1.6, 420); announce(boss ? 'Trùm xuất hiện!' : `Đợt ${w + 1}/${m.waves}`, boss ? boss.name : 'Quái mới tràn vào', boss ? 'warn' : 'mine'); }
+      T.lp.forEach((pip, i) => flag(pip, 'on', i < m.lives));
+      setText(T.lvn, String(Math.max(0, m.lives)));
+      flag(T.lvp, 'low', m.lives <= 2);
+      if (m.lives < S.lives) pop(T.lvn, 1.8, 420);
+      S.lives = m.lives;
+      if (boss && boss.alive && boss.cast && boss.cast !== S.cast && boss.cast.skill.do === 'nova') warn(boss.name + ' sắp dậm đất!');
+      S.cast = boss ? boss.cast : null;
+    },
+    mini(g, m, X, Z) {
+      for (const u of m.units) {
+        if (u.team !== 1 || !u.alive || !u.def.boss) continue;
+        const x = X(u.x), z = Z(u.z), k = 0.5 + 0.5 * Math.sin(uiT * 5);
+        g.strokeStyle = `rgba(255,90,54,${(0.35 + 0.5 * k).toFixed(2)})`; g.lineWidth = 2;
+        g.beginPath(); g.arc(x, z, 8 + 3 * k, 0, 7); g.stroke();
+      }
+    },
+    event(e, m) {
+      const u = e.t === 'death' && m.units[e.id];
+      if (u && u.team === 1 && u.def.boss) announce('Đã hạ ' + u.name, 'Màn sắp hoàn thành', 'mine');
     },
   };
 
@@ -1298,6 +1353,7 @@ export function makeUI(G) {
       <div class="side">
       <div class="side-main">
       <section class="panel detail" data-r="detail"></section>
+      <section class="panel pvepick" data-r="pvePick" aria-label="Chọn màn Phó bản"></section>
       <section class="panel setup" data-r="setup" aria-label="Thiết lập trận">
         ${setupTabs('data-su="{k}"', 'mode')}
         <div class="opts" data-r="opts" data-tab="mode">
@@ -1332,7 +1388,7 @@ export function makeUI(G) {
   let shopOn = false, skinOn = false;
   let sel = MECH_ORDER[0], diff = 'normal', mapKey = MAP_ORDER[0], themeKey = null, modeKey = MODE_ORDER[0], sizeKey = TEAM_SIZE, menuInit = false, tab = 'desc';
   // Play kind of the home menu (PLAY_ORDER): casual = the setup sheet below, rank = random mode against tiered bots, pve = Phó bản.
-  let playKey = 'casual';
+  let playKey = 'casual', pveSel = PVE_ORDER[0], pveCh = 0;
 
   function ownedMech(k) { const d = meta(); return !d || d.owned.includes(k); }
 
@@ -1429,14 +1485,16 @@ export function makeUI(G) {
     menu.classList.toggle('su-open', !!on);
     M.matchBtn.classList.toggle('on', !!on); M.matchBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
   }
-  M.matchBtn.onclick = () => { if (playKey !== 'casual') { toast(PLAYS[playKey].blurb, 3200); return; } setSheet(!menu.classList.contains('su-open')); };
+  M.matchBtn.onclick = () => { if (playKey === 'rank') { toast(PLAYS[playKey].blurb, 3200); return; } setSheet(!menu.classList.contains('su-open')); };
   /* ---- feat/dtt-modes: the three play kinds ---- */
   // Phó bản is built in a later step of this branch; until then its tile only says so.
-  const PVE_READY = false;
+  const PVE_READY = true;
   function playSub(k) {
     if (k === 'casual') return 'Không tính cúp';
     if (k === 'rank') { const rk = rankNow(); return `${rk.name} · ${rk.trophies} cúp`; }
-    return PVE_READY ? 'Cày xu nâng cấp' : 'Sắp mở';
+    if (!PVE_READY) return 'Sắp mở';
+    const d = meta(), n = d && d.pve ? Object.values(d.pve.best).reduce((a, b) => a + b, 0) : 0;
+    return `${n}/${PVE_ORDER.length * 3} sao`;
   }
   function renderPlays() {
     M.plays.innerHTML = PLAY_ORDER.map((k) => `<button class="pk pk-${k}${k === playKey ? ' on' : ''}${k === 'pve' && !PVE_READY ? ' soon' : ''}" data-play="${k}" role="tab" aria-selected="${k === playKey}" title="${esc(PLAYS[k].blurb)}">${icon(PLAYS[k].icon)}<span class="pk-t"><b>${PLAYS[k].name}</b><small>${esc(playSub(k))}</small></span></button>`).join('');
@@ -1444,14 +1502,54 @@ export function makeUI(G) {
     M.plays.querySelectorAll('[data-play]').forEach((b) => { b.onclick = () => {
       const k = b.dataset.play;
       if (k === 'pve' && !PVE_READY) { toast('Phó bản sắp mở: đánh quái qua từng màn, cuối chương gặp trùm', 2600); return; }
-      playKey = k; setSheet(false); const d = meta(); if (d) { d.play = k; G.meta.save(); }
-      renderPlays(); renderSetup();
+      playKey = k; const d = meta(); if (d) { d.play = k; G.meta.save(); }
+      renderPlays(); renderSetup(); setSheet(k === 'pve');
     }; });
   }
+  // Phó bản stage picker: chapter tabs, six stage cards (stars, payout, recommended level, lock), the picked stage's monsters and rewards.
+  const FOE_NAMES = (S) => [...new Set(S.waves.flat())].map((k) => BOSSES[k].name);
+  function stageCards(ch, sel, open, attr) {
+    const d = meta();
+    return Array.from({ length: PVE_STAGES }, (_, st) => {
+      const id = pveId(ch, st), S = pveStage(id), ok = open(id), best = d && d.pve ? d.pve.best[id] || 0 : 0, clr = d && d.pve && d.pve.clears[id];
+      return `<button class="stg${id === sel ? ' on' : ''}${ok ? '' : ' lock'}${S.boss ? ' boss' : ''}" ${attr}="${id}"${ok ? '' : ' aria-disabled="true"'}>
+        <b class="stg-id">${S.boss ? icon('boss') : ''}${id}</b><span class="stg-st">${ok ? '★'.repeat(best) + '☆'.repeat(3 - best) : icon('lock')}</span>
+        <span class="stg-c">${icon('coin')}${fmtN(clr ? S.reward.repeat : S.reward.first)}</span><small>LV.${S.recLv}</small></button>`;
+    }).join('');
+  }
+  function stageInfo(S) {
+    const lv = levelOf(sel), low = lv < S.recLv;
+    return `<div class="stg-info"><h3>${esc(S.name)}${S.boss ? ' <em class="badge">Trùm</em>' : ''}</h3>
+      <p>${S.waves.length} đợt · ${S.waves.reduce((a, w) => a + w.length, 0)} quái · chuẩn ${mmss(S.par)} cho 3 sao</p>
+      <p class="stg-foes">${FOE_NAMES(S).map((n) => `<span>${esc(n)}</span>`).join('')}</p>
+      <p class="stg-rw">${icon('coin')}Lần đầu <b>+${fmtN(S.reward.first)}</b> · lặp lại <b>+${fmtN(S.reward.repeat)}</b> xu</p>
+      <p class="stg-rec${low ? ' low' : ''}">Đề xuất LV.${S.recLv} · ${esc(MECHS[sel].name)} của bạn LV.${lv}${low ? ': nên nâng cấp thêm' : ''}</p></div>`;
+  }
+  function renderPve() {
+    const d = meta(), open = (id) => (d ? pveOpen(d, id) : id === PVE_ORDER[0]);
+    const stars = (ch) => { let n = 0; for (let st = 0; st < PVE_STAGES; st++) n += d && d.pve ? d.pve.best[pveId(ch, st)] || 0 : 0; return n; };
+    M.pvePick.innerHTML = `<div class="pv-ch">${PVE_CHAPTERS.map((c, i) => `<button class="${i === pveCh ? 'on' : ''}${open(pveId(i, 0)) ? '' : ' lock'}" data-pch="${i}"><b>Chương ${i + 1}</b><small>${esc(c.name)} · ${stars(i)}/${PVE_STAGES * 3}★</small></button>`).join('')}</div>
+      <div class="stgs">${stageCards(pveCh, pveSel, open, 'data-stg')}</div>${stageInfo(pveStage(pveSel))}`;
+    M.pvePick.querySelectorAll('[data-pch]').forEach((b) => { b.onclick = () => { pveCh = +b.dataset.pch; renderPve(); }; });
+    M.pvePick.querySelectorAll('[data-stg]').forEach((b) => { b.onclick = () => {
+      const id = b.dataset.stg;
+      if (!open(id)) { toast('Qua màn trước để mở màn ' + id); shake(b); return; }
+      pveSel = id; const dd = meta(); if (dd && dd.pve) { dd.pve.sel = id; G.meta.save(); }
+      renderPve(); matchChip();
+    }; });
+  }
+
   // The chip under the play tiles: the setup sheet in Đấu thường, the tier's bots in Đấu rank.
   function matchChip() {
     menu.dataset.play = playKey;
     M.matchBtn.classList.toggle('fixed', playKey !== 'casual');
+    if (playKey === 'pve') {
+      const S = pveStage(pveSel), d = meta(), st = d && d.pve ? d.pve.best[pveSel] || 0 : 0;
+      M.matchCap.textContent = 'Phó bản · màn ' + pveSel;
+      M.matchTxt.textContent = `${S.name} · ${'★'.repeat(st)}${'☆'.repeat(3 - st)}`;
+      M.matchBtn.classList.remove('fixed');
+      return;
+    }
     if (playKey === 'rank') {
       const rk = rankNow(), t = rankTier(rk.index);
       M.matchCap.textContent = 'Đấu rank · chế độ ngẫu nhiên';
@@ -1799,7 +1897,7 @@ export function makeUI(G) {
   M.shopBtn.onclick = showShop;
   window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && shopOn && !confirmEl.classList.contains('on')) hideShop(); });
 
-  const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss', nha: 'tower' };
+  const MODE_ICON = { tdm: 'swords', chiem: 'flag', tudo: 'sniper', trum: 'boss', nha: 'tower', pve: 'boss' };
   const THEME_ICON = { jungle: 'leaf', desert: 'dune', ice: 'flake', lava: 'flame', city: 'city', swamp: 'swamp', autumn: 'leaf', canyon: 'canyon', random: 'dice', layout: 'layout' };
   const HAZARD_TEXT = { vent: 'Họng lửa phụt', ice: 'Băng trơn trượt', lava: 'Hồ dung nham', mud: 'Bùn lầy chậm bước' };
   const validTheme = (t) => t === 'random' || (typeof t === 'string' && has.call(THEMES, t));
@@ -1854,11 +1952,12 @@ export function makeUI(G) {
     M.themes.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { themeKey = b.dataset.th === 'layout' ? null : b.dataset.th; renderSetup(); }; });
     M.themeBl.innerHTML = `<b>${esc(themeName(themeKey))}</b>: ${esc(themeBlurb(themeKey))}`;
     matchChip();
+    if (playKey === 'pve') renderPve();
   }
   const makeChoice = (mech, df, map, mode, theme, size) => ({ mech, diff: df, map, mode, theme: theme === undefined ? null : theme, size: cleanSize(size === undefined ? sizeKey : size), mods: { lv: lvOf(mech) }, ...cosOf(mech) });
   M.play.onclick = () => {
     if (!ownedMech(sel)) { buyMech(sel); return; }
-    choice = { ...makeChoice(sel, diff, mapKey, modeKey, themeKey), play: playKey === 'rank' ? 'rank' : 'casual' };
+    choice = { ...makeChoice(sel, diff, mapKey, modeKey, themeKey), play: playKey === 'rank' || playKey === 'pve' ? playKey : 'casual', stage: pveSel };
     const d = meta();
     if (d) { d.mech = sel; d.diff = diff; d.map = mapKey; d.theme = themeKey; d.mode = modeKey; d.size = sizeKey; d.play = playKey; G.meta.save(); }
     G.bus.emit('ui:play', choice);
@@ -1884,9 +1983,9 @@ export function makeUI(G) {
   function showMenu() {
     hideHUD(); hideResult(); hidePause(); hideEntry(); hideLobby();
     const d = meta();
-    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); playKey = cleanPlay(d.play); if (playKey === 'pve' && !PVE_READY) playKey = 'casual'; }
+    if (d) { sel = ownedMech(d.mech) ? d.mech : sel; diff = DIFFICULTY[d.diff] ? d.diff : diff; mapKey = MAPS[d.map] || d.map === 'random' ? d.map : mapKey; themeKey = validTheme(d.theme) ? d.theme : null; modeKey = MODE_ORDER.includes(d.mode) ? d.mode : modeKey; sizeKey = cleanSize(d.size); mapKey = fitMap(mapKey, modeKey); playKey = cleanPlay(d.play); if (playKey === 'pve' && !PVE_READY) playKey = 'casual'; if (d.pve && pveParse(d.pve.sel) && pveOpen(d, d.pve.sel)) { pveSel = d.pve.sel; pveCh = pveParse(pveSel).ch; } }
     if (!menuInit) { menuInit = true; applySettings(); }
-    menu.classList.add('on'); setSheet(false);
+    menu.classList.add('on'); setSheet(playKey === 'pve');
     renderPlayer(); renderCards(); renderDetail(); renderPlays(); renderSetup(); renderPlay();
     M.net.hidden = !G.online;
     stageOpen();
@@ -2304,13 +2403,28 @@ export function makeUI(G) {
       };
     },
   };
-  const RESULT_OF = { tdm: 'teams', chiem: 'teams', tudo: 'tudo', trum: 'trum', nha: 'nha' };
+  // feat/dtt-modes: Phó bản result: stars against par, the waves reached, the team's damage table.
+  RESULT.pve = (summary, x) => {
+    const S = pveStage(summary.stage), win = summary.winner === x.mt, rw = lastRw, stars = rw && rw.stars ? rw.stars : 0;
+    const team = summary.rows.filter((r) => r.team === x.mt).sort((a, b) => b.dmg - a.dmg);
+    return {
+      outcome: win ? 'win' : 'lose', title: win ? `Qua màn ${S ? S.id : ''}` : 'Thất bại',
+      sub: win ? `${S ? S.name : ''} · ${mmss(summary.time)}${S ? ' (chuẩn ' + mmss(S.par) + ')' : ''}` : `Dừng ở đợt ${(summary.wave || 0) + 1}/${summary.waves || 1}`,
+      score: win ? `<b class="t0 pv-stars">${'★'.repeat(stars)}<i>${'☆'.repeat(3 - stars)}</i></b>${rw && rw.first ? '<small>Lần đầu qua màn</small>' : ''}` : `<b class="t1">${(summary.wave || 0) + 1}/${summary.waves || 1}</b><small>đợt</small>`,
+      body: `<div class="rs-tables one"><div class="tb t0"><div class="tb-h"><span></span><span>Đội Lam</span><span>K / D</span><span>Sát thương</span><span>Hồi máu</span></div>
+        ${team.map((r) => teamRow(r, summary, `<span class="kda"><b>${r.kills}</b> / ${r.deaths}</span><span>${fmtN(r.dmg)}</span><span>${fmtN(r.healed)}</span>`)).join('')}</div></div>`,
+      base: win ? (rw && rw.first ? 'Qua màn lần đầu' : 'Qua màn') : 'An ủi',
+    };
+  };
+  let lastRw = null;
+  const RESULT_OF = { tdm: 'teams', chiem: 'teams', tudo: 'tudo', trum: 'trum', nha: 'nha', pve: 'pve' };
 
   function showResult(summary, rewards) {
     hideHUD(); hideMenu(); hidePause();
     const mode = MODES[summary.mode] ? summary.mode : (G.match && MODES[G.match.mode] ? G.match.mode : 'tdm');
     const meRow = summary.rows.find((r) => r.id === G.me);
     const mt = meRow ? meRow.team : myTeam;
+    lastRw = rewards;
     const view = RESULT[RESULT_OF[mode]](summary, { me: meRow, mt });
     const outcome = view.outcome;
     const rw = rewards, live = onlinePlaying();
@@ -2326,13 +2440,15 @@ export function makeUI(G) {
         ${rw ? `<div class="rw">
           <div class="rw-coin">${icon('coin')}<b data-r="rc">+0</b><small>xu</small></div>
           <div class="rw-coin rw-gem">${icon('gem')}<b data-r="rg">+0</b><small>TT</small></div>
-          <div class="rw-xp"><div class="rw-top"><span>Cấp <b data-r="rl">${rw.levelBefore}</b></span><span data-r="rx">+0 XP</span></div><div class="xpbar"><i data-r="rf"></i></div><em class="lvup" data-r="up">Lên cấp!</em></div>
+          <div class="rw-xp${rw.play === 'pve' ? ' pv-noxp' : ''}"><div class="rw-top"><span>Cấp <b data-r="rl">${rw.levelBefore}</b></span><span data-r="rx">+0 XP</span></div><div class="xpbar"><i data-r="rf"></i></div><em class="lvup" data-r="up">Lên cấp!</em></div>
           ${rw.trophy ? trophyHtml(rw) : ''}
           <div class="rw-parts">${parts.map((p) => `<span>${p[0]} <b>+${p[1]}</b></span>`).join('')}</div></div>` : '<div></div>'}
-        <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : '<button class="btn big primary" data-r="again">Đấu tiếp</button><button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
+        <div class="rs-btns">${live ? '<button class="btn big primary" data-r="lobby">Về phòng</button>' : (rw && rw.next ? '<button class="btn big primary" data-r="next">Màn tiếp</button><button class="btn big" data-r="again">Chơi lại</button>' : `<button class="btn big primary" data-r="again">${mode === 'pve' ? 'Chơi lại' : 'Đấu tiếp'}</button>`) + '<button class="btn big" data-r="lobby">Về sảnh</button>'}</div>
       </div>`;
     const R = refs(result);
-    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme), choice ? choice.size : d.size); choice.play = G.play === 'rank' ? 'rank' : 'casual'; G.bus.emit('ui:play', choice); };
+    if (R.again) R.again.onclick = () => { const d = meta() || {}; const mech = choice ? choice.mech : (d.mech || sel); choice = makeChoice(mech, choice ? choice.diff : (d.diff || diff), choice ? choice.map : (d.map || mapKey), choice ? choice.mode : (d.mode || modeKey), choice ? choice.theme : (d.theme === undefined ? themeKey : d.theme), choice ? choice.size : d.size); choice.play = G.play === 'rank' || G.play === 'pve' ? G.play : 'casual'; if (choice.play === 'pve') { choice.stage = goNext || summary.stage; goNext = null; } G.bus.emit('ui:play', choice); };
+    let goNext = null;
+    if (R.next) R.next.onclick = () => { const d = meta(); if (d && d.pve) { d.pve.sel = rw.next; G.meta.save(); } pveSel = rw.next; goNext = rw.next; R.again.onclick(); };
     R.lobby.onclick = () => G.bus.emit('ui:menu');
     if (rw) {
       const fill = (f, anim) => { R.rf.style.transition = anim ? 'transform .9s cubic-bezier(.3,.7,.2,1)' : 'none'; R.rf.style.transform = `scaleX(${clamp01(f)})`; };
@@ -2453,7 +2569,7 @@ export function makeUI(G) {
 
   /* ================= online: entry screen and lobby ================= */
   const TEAM_NAME = ['Đội Lam', 'Đội Hỏa'];
-  const seatsOf = (L) => (L.mode === 'tudo' ? 2 * cleanSize(L.size) : L.mode === 'trum' ? TEAM_SIZE : cleanSize(L.size));
+  const seatsOf = (L) => (L.mode === 'tudo' ? 2 * cleanSize(L.size) : L.mode === 'trum' || L.mode === 'pve' ? TEAM_SIZE : cleanSize(L.size));
   const entry = el('div', 'screen online');
   entry.dataset.block = '';
   entry.innerHTML = `
@@ -2573,6 +2689,7 @@ export function makeUI(G) {
   /* ---- lobby ---- */
   const lobbyMe = () => { const o = G.online; return o && o.lobby && o.lobby.players.find((p) => p.id === o.me); };
   const mechDef = (k) => MECHS[k] || BOSSES[k] || { name: k, role: '' };
+  const lobbyModes = () => MODE_ORDER.concat('pve');
 
   // Skin and upgrade mods always come from the save; the mech is the saved favourite on first entry and the lobby's own afterwards.
   function pushMine(first) {
@@ -2585,7 +2702,7 @@ export function makeUI(G) {
 
   function seatHtml(p, ffa) {
     const o = G.online, me = p.id === o.me, d = mechDef(p.mech);
-    const swap = o.role === 'host' && !ffa && o.lobby.mode !== 'trum' ? `<button class="btn mini" data-a="swap" data-pid="${esc(p.id)}" title="Chuyển ${esc(p.name)} sang đội kia">${icon('swap')}Đổi đội</button>` : '';
+    const swap = o.role === 'host' && !ffa && o.lobby.mode !== 'trum' && o.lobby.mode !== 'pve' ? `<button class="btn mini" data-a="swap" data-pid="${esc(p.id)}" title="Chuyển ${esc(p.name)} sang đội kia">${icon('swap')}Đổi đội</button>` : '';
     return `<div class="seat t${ffa ? 2 : p.team}${me ? ' me' : ''}${p.ready ? ' rdy' : ''}" data-pid="${esc(p.id)}">
       <img alt="" src="${portrait(p.mech, p.team, p.skin)}">
       <div class="st-t"><b class="st-n"><span>${esc(p.name)}</span>${p.host ? '<em class="badge">Chủ phòng</em>' : ''}${me ? '<em class="you">Bạn</em>' : ''}</b><span class="st-m">${roleIcon(p.mech)}${d.name}</span></div>
@@ -2602,6 +2719,10 @@ export function makeUI(G) {
       const n = seatsOf(L);
       return `<div class="lb-team ffa"><div class="lb-th"><b>Hỗn chiến</b><small>${L.players.length} / ${n}</small></div><div class="seats">${L.players.map((p) => seatHtml(p, true)).join('')}${botSeat(2).repeat(Math.max(0, n - L.players.length))}</div></div>`;
     }
+    if (L.mode === 'pve') {
+      const S = pveStage(L.stage) || pveStage(PVE_ORDER[0]);
+      return teamHtml(L, 0, TEAM_NAME[0]) + `<div class="lb-team t1 boss"><div class="lb-th"><b>Phó bản ${S.id}</b><small>Quái</small></div><div class="bossbox"><div class="bot-ph">${icon('boss')}</div><b>${esc(S.name)}</b><span>${S.waves.length} đợt: ${esc(FOE_NAMES(S).join(', '))}</span></div></div>`;
+    }
     if (L.mode === 'trum') {
       const boss = BOSSES.titan;
       return teamHtml(L, 0, TEAM_NAME[0]) + `<div class="lb-team t1 boss"><div class="lb-th"><b>Trùm</b><small>Bot</small></div><div class="bossbox"><div class="bot-ph">${icon('boss')}</div><b>${boss.name}</b><span>Hạ trùm trước khi cả đội hết mạng</span></div></div>`;
@@ -2613,10 +2734,18 @@ export function makeUI(G) {
     if (!host) {
       const mp = MAPS[L.map];
       return `<div class="kv"><span>Chế độ</span><b>${esc(modeName(L.mode))}</b></div><p class="mode-bl">${esc((MODES[L.mode] || {}).blurb || '')}</p>
-        <div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>${L.mode === 'trum' ? '' : `<div class="kv"><span>Cỡ đội</span><b>${cleanSize(L.size)} đấu ${cleanSize(L.size)}</b></div>`}
+        ${L.mode === 'pve' ? `<div class="kv"><span>Màn</span><b>${esc((pveStage(L.stage) || {}).name || '')}</b></div>` : ''}<div class="kv"><span>Đấu trường</span><b>${esc(mapName(L.map))}</b></div><div class="kv"><span>Môi trường</span><b>${esc(themeName(validTheme(L.theme) ? L.theme : null))}</b></div><div class="kv"><span>Độ khó bot</span><b>${esc((DIFFICULTY[L.diff] || {}).name || '')}</b></div>${L.mode === 'trum' ? '' : `<div class="kv"><span>Cỡ đội</span><b>${cleanSize(L.size)} đấu ${cleanSize(L.size)}</b></div>`}
         <p class="hint">Chỉ chủ phòng đổi được thiết lập.</p>`;
     }
-    return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${MODE_ORDER.map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
+    if (L.mode === 'pve') {
+      // the host picks among the stages open in the host's own save; the arena is the chapter's
+      const d = meta(), S = pveStage(L.stage) || pveStage(PVE_ORDER[0]), ch = S.ch, open = (id) => (d ? pveOpen(d, id) : id === PVE_ORDER[0]);
+      return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${lobbyModes().map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
+        <h3>Chương</h3><div class="seg pv-lch">${PVE_CHAPTERS.map((c, i) => `<button class="${i === ch ? 'on' : ''}" data-a="stage" data-k="${pveId(i, 0)}"${open(pveId(i, 0)) ? '' : ' disabled'}>${i + 1}. ${esc(c.name)}</button>`).join('')}</div>
+        <div class="stgs lb-stgs">${stageCards(ch, S.id, open, 'data-a="stage" data-k')}</div></div>
+        <div class="grp g-map"><p class="mode-bl">Phó bản đánh trên đấu trường của chương: ${esc(mapName(S.map))}.</p></div><div class="grp g-theme"><p class="mode-bl">Môi trường theo chương.</p></div>`;
+    }
+    return `<div class="grp g-mode"><h3>Chế độ</h3><div class="modes">${lobbyModes().map((k) => `<button class="mode${k === L.mode ? ' on' : ''}" data-a="mode" data-k="${k}">${icon(MODE_ICON[k])}<span>${MODES[k].name}</span></button>`).join('')}</div>
       <p class="mode-bl">${esc(MODES[L.mode].blurb)}</p>
       <h3>Độ khó bot</h3><div class="seg">${Object.keys(DIFFICULTY).map((k) => `<button class="${k === L.diff ? 'on' : ''}" data-a="diff" data-k="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
       ${L.mode === 'trum' ? '' : `<h3>Cỡ đội</h3><div class="seg" data-r="lobbySize">${TEAM_SIZES.map((n) => `<button class="${n === cleanSize(L.size) ? 'on' : ''}" data-a="size" data-k="${n}">${n} đấu ${n}</button>`).join('')}</div>`}
@@ -2627,7 +2756,7 @@ export function makeUI(G) {
   function renderLobby() {
     const o = G.online, L = o && o.lobby;
     if (!L || !lobbyOn) return;
-    const host = o.role === 'host', me = lobbyMe() || {}, ffaOrBoss = L.mode === 'tudo' || L.mode === 'trum';
+    const host = o.role === 'host', me = lobbyMe() || {}, ffaOrBoss = L.mode === 'tudo' || L.mode === 'trum' || L.mode === 'pve';
     const waiting = L.players.filter((p) => !p.ready).length;
     const owned = MECH_ORDER.filter(ownedMech);
     const lv = levelOf(me.mech), skinRow = skinOf(me.mech, me.skin);
@@ -2706,6 +2835,7 @@ export function makeUI(G) {
       case 'swapme': if (o.swapTeam(o.me) === false && o.role === 'host') lobbyMsg = o.error; break;
       case 'swap': if (o.swapTeam(b.dataset.pid) === false) lobbyMsg = o.error; break;
       case 'mode': if (o.setRoom({ mode: k }) === false) lobbyMsg = o.error; break;
+      case 'stage': { const d = meta(); if (d && !pveOpen(d, k)) { lobbyMsg = 'Qua màn trước để mở màn ' + k; break; } o.setRoom({ stage: k }); break; }
       case 'map': o.setRoom({ map: k }); break;
       case 'theme': o.setRoom({ theme: k === 'layout' ? null : k }); break;
       case 'diff': o.setRoom({ diff: k }); break;

@@ -1323,7 +1323,7 @@ let MECH_ORDER = [], MECHS = {};
         }));
         check(T('lobby-host') + ': code K7QX2, two team columns with 3 seats each, empty seats read "Bot"', r.code === 'K7QX2' && r.cols === 2 && r.seats === 6 && r.bots === 2 && r.botText === 'Bot', JSON.stringify(r));
         check(T('lobby-host') + ': one own row, one host badge, 4 portraits, 4 owned mechs with one selected, "Đổi đội" on every player', r.me === 1 && r.host === 1 && r.imgs === 'data:image,data:image,data:image,data:image' && r.mine === 4 && r.sel === 1 && r.swaps === 4, JSON.stringify(r));
-        check(T('lobby-host') + ': host controls (every mode, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length && r.maps === 5 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
+        check(T('lobby-host') + ': host controls (every mode + Phó bản, 4 maps, 3 difficulties, Bắt đầu), no Sẵn sàng toggle', r.modes === MODE_ORDER.length + 1 && r.maps === 5 && r.diffs === 3 && r.start && !r.ready && r.swapMe, JSON.stringify(r));
         check(T('lobby-host') + ': entering pushes my mech, skin and mods from meta', r.calls.length === 1 && r.calls[0] === '{"mech":"trau","skin":"goc","mods":{"lv":[0,0,0,0,0]}}', r.calls.join());
       });
       await page.click('#ui .lobby [data-a="start"]');

@@ -1,6 +1,6 @@
 // Save data in localStorage. Every read tolerates garbage; every write tolerates a blocked or full store.
 // No DOM: storage and the clock are injected (makeMeta({ storage, now })) so Node can run it.
-import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS, cleanPlay } from './data.js';
+import { MECHS, MECH_ORDER, DIFFICULTY, REWARDS, levelXp, UPGRADE, TROPHIES, RANKS, BOSSES, MODES, MODE_ORDER, cleanLv, cleanSize, TEAM_SIZE, NO_LV, GEM_RATE, GEMS, SHOP, PASS, cleanPlay, PVE_ORDER, pveParse, pveStage, pveStars } from './data.js';
 import { MAP_ORDER, MAPS, THEMES } from './maps.js';
 import { SKINS, BASE_SKIN, skinOf, cleanSkin, skinKey } from './skins.js';
 
@@ -29,6 +29,8 @@ function defaults() {
     settings: { quality: 'medium', volume: 0.8, music: 0.5, rumble: true, netReadout: false, vibe: 'light', shake: 'light', brightness: 1, calm: null, camHeight: null, aimPan: true },
     stats: { matches: 0, wins: 0, kills: 0, lastWinDay: '' },
     lv: {}, skins: {}, ownedSkins: [], trophies: 0,
+    // Phó bản: best stars per stage id ('1-1'..'4-6'), clears per stage, the stage last picked
+    pve: { best: {}, clears: {}, sel: PVE_ORDER[0] },
     shop: { starter: false, passUntil: 0, lastDaily: '', bought: {}, log: [] },
     controls: { v: CONTROLS_V, fixedStick: false, o: {}, aim: cleanAim(null) },
   };
@@ -139,6 +141,7 @@ function clean(raw) {
     },
     stats: { matches: int(st.matches, 0), wins: int(st.wins, 0), kills: int(st.kills, 0), lastWinDay: typeof st.lastWinDay === 'string' ? st.lastWinDay.slice(0, 10) : '' },
     lv: {}, skins: {}, ownedSkins: [], trophies: int(raw.trophies, 0), controls: cleanControls(raw.controls),
+    pve: cleanPve(raw.pve),
     shop: { starter: sh.starter === true, passUntil: int(sh.passUntil, 0, 0, 8.64e15), lastDaily: typeof sh.lastDaily === 'string' ? sh.lastDaily.slice(0, 10) : '', bought: {}, log: [] },
   };
   for (const e of SHOP) if (int(obj(sh.bought)[e.id], 0) > 0) out.shop.bought[e.id] = int(obj(sh.bought)[e.id], 0, 0, 1e6);
@@ -156,6 +159,22 @@ function clean(raw) {
   out.mech = out.owned.includes(raw.mech) ? raw.mech : out.owned[0];
   out.xp = Math.min(out.xp, levelXp(out.level) - 1);
   return out;
+}
+
+// feat/dtt-modes: Phó bản progress. Unknown stage ids and garbage drop out; stars are 0..3.
+function cleanPve(raw) {
+  const r = obj(raw), best = {}, clears = {};
+  for (const id of PVE_ORDER) {
+    const b = int(obj(r.best)[id], 0, 0, 3), c = int(obj(r.clears)[id], 0, 0, 1e6);
+    if (b) best[id] = b;
+    if (c) clears[id] = c;
+  }
+  return { best, clears, sel: pveParse(r.sel) ? r.sel : PVE_ORDER[0] };
+}
+// A stage is open when it is the first one or the stage before it has been cleared.
+export function pveOpen(save, id) {
+  const i = PVE_ORDER.indexOf(id);
+  return i === 0 || (i > 0 && !!(save.pve && save.pve.best[PVE_ORDER[i - 1]]));
 }
 
 const memStorage = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); } }; };
@@ -282,6 +301,7 @@ export function makeMeta(opts = {}) {
   function applyResult(summary, meId, opts = {}) {
     const me = summary && summary.rows && summary.rows.find((r) => r.id === meId);
     if (!me) return null;
+    if (summary.mode === 'pve') return applyPve(summary, me);
     const mode = modeOf(summary);
     const place = mode === 'tudo' ? placeOf(summary, meId) : 0;
     // tudo pays by place (1st wins, the next few draw); every other mode asks whether the player's team won.
@@ -317,6 +337,30 @@ export function makeMeta(opts = {}) {
     save();
     return { coins, gems, gemParts, coinMul, xp, levelBefore, levelAfter: data.level, win, draw, mvp, xpBefore, xpAfter: data.xp, parts, kills: me.kills, assists: me.assists,
       mode, play, place, trophy, trophiesBefore, trophiesAfter: data.trophies, rankBefore, rankAfter };
+  }
+
+  // Phó bản pays coins only: the first clear of a stage pays reward.first, a repeat reward.repeat, a loss reward.fail.
+  // No XP, gems or trophies. Stars keep the best; the month pass multiplies the coins like any match.
+  function applyPve(summary, me) {
+    const S = pveStage(summary.stage);
+    if (!S) return null;
+    const win = summary.winner === me.team, P = data.pve;
+    const first = win && !P.clears[S.id];
+    const stars = win ? pveStars(S, summary.time) : 0, starsBefore = P.best[S.id] || 0;
+    const base = win ? (first ? S.reward.first : S.reward.repeat) : S.reward.fail;
+    const coinMul = passActive() ? PASS.coinMul : 1;
+    const parts = { base, kills: 0, assists: 0, mvp: 0, boss: 0, pass: Math.round(base * coinMul) - base };
+    const coins = base + parts.pass;
+    data.coins += coins;
+    if (win) { P.clears[S.id] = (P.clears[S.id] || 0) + 1; P.best[S.id] = Math.max(starsBefore, stars); }
+    data.stats.matches++;
+    if (win) data.stats.wins++;
+    data.stats.kills += me.kills;
+    save();
+    const lvl = data.level, rk = rankOf(data.trophies);
+    return { coins, gems: 0, gemParts: { levelUp: 0, mvp: 0, firstWin: 0 }, coinMul, xp: 0, levelBefore: lvl, levelAfter: lvl, win, draw: false, mvp: summary.mvp === me.id, xpBefore: data.xp, xpAfter: data.xp,
+      parts, kills: me.kills, assists: me.assists, mode: 'pve', play: 'pve', place: 0, trophy: false, trophiesBefore: data.trophies, trophiesAfter: data.trophies, rankBefore: rk, rankAfter: rk,
+      stage: S.id, stars, starsBefore, first, next: win ? PVE_ORDER[PVE_ORDER.indexOf(S.id) + 1] || null : null };
   }
 
   return { get: () => data, save, buy, upgrade, buySkin, setSkin, ownsSkin, skinFor, refunded,

@@ -10,7 +10,7 @@ session(async (br, base) => {
   const STYLES = (await import(path.join(__dirname, '../js/gfx/styles.js'))).STYLES;
   const pending = fillPending(data.MECHS, STYLES, data.BOSSES, ROLE);
   const want = process.argv[2] ? process.argv[2].split(',') : data.MECH_ORDER.concat(pending);
-  const defs = JSON.parse(JSON.stringify(data.MECHS));
+  const defs = JSON.parse(JSON.stringify({ ...data.BOSSES, ...data.MECHS }));   // BOSSES: Phó bản monsters and bosses by name
   const g = await open(br, base, 'manual&noaudio&autostart&spectate&seed=5&q=high');
   const bad = await g.page.evaluate(async ({ want, defs, fillSrc, ROLE }) => {
     const D = await import(new URL('js/data.js', location.href).href), St = await import(new URL('js/gfx/styles.js', location.href).href);

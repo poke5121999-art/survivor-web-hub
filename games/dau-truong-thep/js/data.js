@@ -1202,3 +1202,122 @@ export function rankPlan(tierIndex, seed) {
 }
 export const cleanPlay = (p) => (PLAY_ORDER.includes(p) ? p : 'casual');
 /* ===== end feat/dtt-modes play kinds ===== */
+
+/* ===== feat/dtt-modes: Phó bản (PvE): monsters, chapters, stages ===== */
+// Monsters use the BOSSES row shape (merged into BOSSES below, so sim, netstate and the renderer find them) without `boss`:
+// they never respawn in a Phó bản, their wave does. roleKey 'boss' gives them the boss brain in bots.js (never retreats,
+// walks at the biggest group); Pháo Cối plays artillery. Each one's attack has a telegraph: a nova ring, barrage or lob marks.
+const foeSkill = (id, name, row) => ({ id, name, icon: row.do === 'nova' ? 'quake' : row.do === 'barrage' ? 'barrage' : row.do === 'shield' ? 'shield' : row.do === 'dash' ? 'dash' : 'boost', desc: '', ...row });
+export const PVE_FOES = {
+  ong: {
+    name: 'Ong Sắt', role: 'Bầy máy bay', roleKey: 'boss', monster: true, hover: true, tint: 0xe0b030,
+    hp: 380, speed: 7.2, radius: 0.55, accel: 1.6, turn: 14,
+    weapon: { name: 'Kim Chích', cd: 0.5, dmg: 34, speed: 28, range: 6.5, spread: 0.08, r: 0.16, vis: 'bullet' },
+    skills: [
+      foeSkill('ong_no', 'Chích Nổ', { cd: 6, do: 'nova', windup: 0.8, radius: 2.4, dmg: 230 }),
+      foeSkill('ong_bay', 'Vọt Lên', { cd: 9, do: 'buff', haste: 1.4, dur: 2 }),
+      foeSkill('ong_no2', 'Chích Nổ', { cd: 14, do: 'nova', windup: 0.8, radius: 2.4, dmg: 230 }),
+    ],
+  },
+  uphao: {
+    name: 'Ụ Pháo', role: 'Ụ súng', roleKey: 'boss', monster: true, heavy: true, tint: 0x7d8a5a,
+    hp: 2500, speed: 0, radius: 1.15, armor: 0.15, turn: 2.4,
+    weapon: { name: 'Pháo Ụ', cd: 1.3, dmg: 160, speed: 22, range: 15, splash: 1.6, r: 0.3, vis: 'shell' },
+    skills: [
+      foeSkill('up_mua', 'Pháo Kích', { cd: 9, do: 'barrage', n: 5, radius: 3.8, blast: 2.2, dmg: 200, delay: 1.2, span: 1.4, cast: 15 }),
+      foeSkill('up_khien', 'Lá Chắn', { cd: 16, do: 'shield', amount: 600, dur: 3 }),
+      foeSkill('up_mua2', 'Mưa Pháo', { cd: 20, do: 'barrage', n: 8, radius: 5, blast: 2.2, dmg: 200, delay: 1.3, span: 2, cast: 15 }),
+    ],
+  },
+  xebb: {
+    name: 'Xe Bộ Binh', role: 'Xe tăng nhỏ', roleKey: 'boss', monster: true, tint: 0xa0603a,
+    hp: 1500, speed: 4.6, radius: 0.9, armor: 0.08, accel: 0.9, turn: 6,
+    weapon: { name: 'Pháo Ngắn', cd: 0.85, dmg: 100, speed: 26, range: 10.5, r: 0.26, vis: 'shell' },
+    skills: [
+      foeSkill('xb_dam', 'Dậm Xích', { cd: 8, do: 'nova', windup: 0.9, radius: 3.2, dmg: 290, knock: 3 }),
+      foeSkill('xb_khien', 'Giáp Dày', { cd: 14, do: 'shield', amount: 450, dur: 3 }),
+      foeSkill('xb_huc', 'Húc', { cd: 12, do: 'dash', dist: 7, speed: 20, dmg: 190, stun: 0.6, knock: 3 }),
+    ],
+  },
+  phaocoi: {
+    name: 'Pháo Cối', role: 'Pháo xa', roleKey: 'artillery', monster: true, tint: 0x6a7c9a,
+    hp: 1050, speed: 3.6, radius: 0.85, armor: 0.04, accel: 0.8, turn: 5,
+    weapon: { name: 'Cối Nặng', cd: 2.4, dmg: 260, lob: true, flight: 1.1, range: 19, splash: 2.4, vis: 'mortar' },
+    skills: [
+      foeSkill('pc_mua', 'Bắn Chùm', { cd: 10, do: 'barrage', n: 4, radius: 3, blast: 2.4, dmg: 230, delay: 1.3, span: 1, cast: 19 }),
+      foeSkill('pc_lui', 'Lùi Nhanh', { cd: 10, do: 'buff', haste: 1.5, dur: 2 }),
+      foeSkill('pc_mua2', 'Dội Cối', { cd: 18, do: 'barrage', n: 7, radius: 4.5, blast: 2.4, dmg: 230, delay: 1.4, span: 1.8, cast: 19 }),
+    ],
+  },
+  khienve: {
+    name: 'Khiên Vệ', role: 'Tinh nhuệ', roleKey: 'boss', monster: true, heavy: true, tint: 0x5a6ac8,
+    hp: 4200, speed: 3.8, radius: 1.2, armor: 0.25, accel: 0.7, turn: 4,
+    weapon: { name: 'Pháo Ba Nòng', cd: 1.1, dmg: 115, n: 3, fan: 0.18, speed: 24, range: 9, r: 0.26, vis: 'shell' },
+    skills: [
+      foeSkill('kv_khien', 'Khiên Tháp', { cd: 12, do: 'shield', amount: 1500, dur: 4 }),
+      foeSkill('kv_dam', 'Nện Khiên', { cd: 9, do: 'nova', windup: 1.1, radius: 4.2, dmg: 500, stun: 0.8 }),
+      foeSkill('kv_dam2', 'Sóng Chấn', { cd: 20, do: 'nova', windup: 1.4, radius: 6, dmg: 650, slow: 0.5, slowDur: 2 }),
+    ],
+  },
+};
+Object.assign(BOSSES, PVE_FOES);
+export const PVE_FOE_ORDER = Object.keys(PVE_FOES);
+
+MODES.pve = { name: 'Phó bản', blurb: 'Dọn sạch từng đợt quái, cả đội dùng chung số mạng.', target: 3, duration: 480, mission: 'Dọn sạch {target} đợt quái, cả đội có {lives} mạng', lives: 6,
+  sizes: { 1: { lives: 4 }, 2: { lives: 5 }, 3: { lives: 6 } } };
+
+// Four chapters of six stages; stage 6 is the chapter boss. hp, dmg: monster multipliers of the chapter; foes: the kinds its waves draw.
+export const PVE_CHAPTERS = [
+  { key: 'c1', name: 'Rừng Sắt', map: 'denrung', theme: 'jungle', foes: ['ong', 'xebb', 'uphao'], boss: 'titan', hp: 1, dmg: 1, diff: 'easy' },
+  { key: 'c2', name: 'Cảng Băng', map: 'cangbang', theme: 'ice', foes: ['ong', 'xebb', 'phaocoi', 'uphao'], boss: 'chienham', hp: 1.7, dmg: 1.3, diff: 'normal' },
+  { key: 'c3', name: 'Xưởng Cát', map: 'xuongcat', theme: 'desert', foes: ['xebb', 'phaocoi', 'khienve', 'uphao', 'ong'], boss: 'tauhoa', hp: 2.0, dmg: 1.35, diff: 'normal' },
+  { key: 'c4', name: 'Miệng Lửa', map: 'mienglua', theme: 'lava', foes: ['khienve', 'phaocoi', 'ong', 'xebb', 'uphao'], boss: 'ngoaitinh', hp: 2.5, dmg: 1.6, diff: 'hard' },
+];
+export const PVE_STAGES = 6;
+// Heavy kinds: at most this many per wave.
+const PVE_HEAVY = { khienve: 1, uphao: 2, phaocoi: 3 };
+const hash32 = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+export const pveId = (ch, st) => `${ch + 1}-${st + 1}`;
+export function pveParse(id) {
+  const m = /^([1-9])-([1-9])$/.exec(String(id || ''));
+  const ch = m ? +m[1] - 1 : -1, st = m ? +m[2] - 1 : -1;
+  return ch >= 0 && ch < PVE_CHAPTERS.length && st >= 0 && st < PVE_STAGES ? { ch, st } : null;
+}
+export const PVE_ORDER = PVE_CHAPTERS.flatMap((c, ch) => Array.from({ length: PVE_STAGES }, (_, st) => pveId(ch, st)));
+// One stage, all derived from its id: waves (lists of monster keys; the boss stage ends with the chapter boss), the hp and damage
+// multipliers, the bot brain, par time for the stars, the coin payout (first clear, repeat, fail) and the recommended garage level (sum of five tracks).
+export function pveStage(id) {
+  const p = pveParse(id);
+  if (!p) return null;
+  const { ch, st } = p, C = PVE_CHAPTERS[ch], boss = st === PVE_STAGES - 1;
+  let h = hash32('pve' + id);
+  const rnd = () => { h = (Math.imul(h ^ (h >>> 15), 2246822519) + 0x6d2b79f5) >>> 0; return h / 4294967296; };
+  const nWaves = boss ? 2 : 2 + (st >= 2 ? 1 : 0) + (st >= 4 ? 1 : 0);
+  const waves = [];
+  for (let w = 0; w < nWaves; w++) {
+    const last = w === nWaves - 1;
+    const n = boss && last ? 2 : Math.min(7, 3 + Math.floor(st / 2) + Math.floor(ch / 2) + (last ? 1 : 0));
+    // early stages of a chapter draw from its first kinds only; each wave opens with a different lead kind
+    const pool = C.foes.slice(0, Math.min(C.foes.length, 2 + Math.floor(st / 2)));
+    const list = [pool[w % pool.length]], cnt = { [list[0]]: 1 };
+    for (let guard = 0; list.length < n && guard < 50; guard++) {
+      const k = pool[Math.floor(rnd() * pool.length)];
+      if (PVE_HEAVY[k] && (cnt[k] || 0) >= PVE_HEAVY[k]) continue;
+      cnt[k] = (cnt[k] || 0) + 1; list.push(k);
+    }
+    if (boss && last) list.unshift(BOSSES[C.boss] ? C.boss : 'titan');
+    waves.push(list);
+  }
+  const hp = C.hp * (1 + 0.1 * st), dmg = C.dmg * (1 + 0.05 * st);
+  const par = Math.round(22 * waves.reduce((a, w) => a + w.length, 0) / 3 + (boss ? 80 : 0));
+  const first = Math.round((220 + 70 * st + 260 * ch) * (boss ? 1.8 : 1) / 10) * 10;
+  return {
+    id, ch, st, boss, chapter: C, name: boss ? `${C.name}: Trùm` : `${C.name} ${st + 1}`, map: C.map, theme: C.theme, diff: C.diff, waves,
+    hp, dmg, bossHp: hp * 0.2, bossDmg: dmg * 0.85, par, limit: Math.max(300, par * 3),
+    reward: { first, repeat: Math.round(first * 0.42 / 10) * 10, fail: Math.round(first * 0.1 / 10) * 10 },
+    recLv: Math.min(25, Math.round(ch * 6.5 + st * 1.1)), allyLv: Math.min(5, ch + (st >= 3 ? 1 : 0)),
+  };
+}
+// Stars for a clear in `time` seconds: 3 at or under par, 2 under 1.6 x par, else 1.
+export const pveStars = (stage, time) => (time <= stage.par ? 3 : time <= stage.par * 1.6 ? 2 : 1);
+/* ===== end feat/dtt-modes Phó bản ===== */

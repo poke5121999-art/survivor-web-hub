@@ -1,9 +1,11 @@
 // Play kinds (Đấu thường, Đấu rank, Phó bản): sim-test.mjs section 50 runs these. Standalone: `node tools/modes-cases.mjs` (fast).
 import { createMatch, step } from '../js/sim.js';
-import { MODES, MODE_ORDER, PLAYS, PLAY_ORDER, RANK_MODES, RANK_TIERS, RANKS, DIFFICULTY, rankTier, rankPlan, cleanPlay, TEAM_SIZE } from '../js/data.js';
+import { MODES, MODE_ORDER, PLAYS, PLAY_ORDER, RANK_MODES, RANK_TIERS, RANKS, DIFFICULTY, rankTier, rankPlan, cleanPlay, TEAM_SIZE, BOSSES, PVE_ORDER, PVE_FOES, pveStage, pveStars } from '../js/data.js';
+import { allInputs } from '../js/bots.js';
+import { roster as netRoster, createMirror } from '../js/netstate.js';
 import { mapsFor, pickArena } from '../js/maps.js';
-import { soloLineup } from '../js/roster.js';
-import { makeMeta } from '../js/meta.js';
+import { soloLineup, pveLineup } from '../js/roster.js';
+import { makeMeta, pveOpen } from '../js/meta.js';
 import { mulberry } from '../js/rng.js';
 
 const KEY = 'dtt.save.v1';
@@ -73,10 +75,115 @@ export function runModeCases(check, section) {
 }
 const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
 
+const pveMatch = (id, seed = 5, lv = 1) => {
+  const L = pveLineup(id, [{ mech: 'trau', name: 'P', mods: { lv: [lv, lv, lv, lv, lv] } }], { rng: mulberry(seed) });
+  return createMatch({ map: L.map, theme: L.theme, seed, roster: L.roster, mode: 'pve', stage: id, duration: L.duration });
+};
+// Bring every monster of a wave to half a hit point and let one tick pass with the player's bots shooting: they fall to real damage.
+const wipe = (m, w) => {
+  for (let i = 0; i < 600 && m.units.some((u) => u.team === 1 && u.wave === w && u.alive); i++) {
+    for (const u of m.units) if (u.team === 1 && u.wave === w && u.alive) { u.hp = Math.min(u.hp, 1); u.invulnT = 0; u.shield = 0; u.maxHp = Math.max(1, u.maxHp); }
+    for (const u of m.units) if (u.team === 0) { u.invulnT = 5; u.hp = u.maxHp; }
+    step(m, allInputs(m, {}));
+  }
+};
+
+export function runPveCases(check, section) {
+  section('51 Phó bản: stages, line-up, waves, lives, rewards, unlocks, mirror');
+  {
+    let bad = '';
+    let prevRec = -1;
+    for (const id of PVE_ORDER) {
+      const S = pveStage(id);
+      const keys = S.waves.flat();
+      if (!keys.every((k) => BOSSES[k])) bad += id + ' unknown monster; ';
+      if (S.boss !== (S.st === 5) || (S.boss && !BOSSES[S.waves[S.waves.length - 1][0]].boss)) bad += id + ' boss; ';
+      if (!(S.reward.first > S.reward.repeat && S.reward.repeat > S.reward.fail && S.reward.fail > 0)) bad += id + ' reward; ';
+      if (S.recLv < prevRec || S.par <= 0 || S.waves.length < 2) bad += id + ' rec/par/waves; ';
+      for (const w of S.waves) if (w.filter((k) => k === 'khienve').length > 1 || w.filter((k) => k === 'uphao').length > 2) bad += id + ' heavy; ';
+      prevRec = S.recLv;
+    }
+    check('51a 24 stages (4 chapters x 6): known monsters, stage 6 ends on a boss, first > repeat > fail > 0 coins, recommended level climbs, heavy caps', PVE_ORDER.length === 24 && !bad, bad);
+    check('51b five monster kinds, none a boss, each with a weapon and three skills; each has a telegraphed attack (nova windup, barrage delay or lob)',
+      Object.keys(PVE_FOES).length >= 5 && Object.values(PVE_FOES).every((d) => !d.boss && d.monster && d.weapon && d.skills.length === 3 && (d.weapon.lob || d.skills.some((s) => (s.do === 'nova' && s.windup >= 0.7) || (s.do === 'barrage' && s.delay >= 1)))));
+  }
+  {
+    const S = pveStage('1-3'), L = pveLineup('1-3', [{ mech: 'soi', name: 'P', mods: { lv: [2, 2, 2, 2, 2] } }], { rng: mulberry(3) });
+    const team0 = L.roster.filter((r) => r.team === 0), foes = L.roster.filter((r) => r.team === 1);
+    check('51c line-up: the human plus 2 allied bots at the stage ally level, every wave of monsters on team 1 with its wave index and the stage multipliers',
+      team0.length === TEAM_SIZE && !team0[0].bot && team0[0].mods.lv.join() === '2,2,2,2,2' && team0.slice(1).every((r) => r.bot && r.mods.lv.every((l) => l === S.allyLv)) &&
+      foes.length === S.waves.flat().length && foes.every((r) => r.wave >= 0 && r.wave < S.waves.length && r.mods.hp === S.hp && r.mods.dmg === S.dmg), JSON.stringify(foes.map((r) => [r.mech, r.wave])));
+    const L3 = pveLineup('1-3', [{ mech: 'soi', name: 'A', pid: 'p0' }, { mech: 'soi', name: 'B', pid: 'p1' }, { mech: 'hac', name: 'C', pid: 'p2' }], { rng: mulberry(3) });
+    check('51d co-op line-up: three humans fill team 0 (no bot ally), each keeps its pid', L3.roster.filter((r) => r.team === 0).map((r) => r.pid + (r.bot ? 'b' : '')).join() === 'p0,p1,p2');
+  }
+  {
+    const m = pveMatch('1-3');
+    const w0 = m.units.filter((u) => u.team === 1 && u.wave === 0), later = m.units.filter((u) => u.team === 1 && u.wave > 0);
+    check('51e match start: waves counted, target = waves, only wave 0 alive, later waves wait dead, lives from the rule (3 hunters: 6)',
+      m.waves === 3 && m.target === 3 && m.wave === 0 && w0.every((u) => u.alive) && later.every((u) => !u.alive && u.respawnT >= 1e8) && m.lives === 6, `${m.waves} ${m.lives}`);
+    wipe(m, 0);
+    const deadOk = w0.every((u) => !u.alive && u.respawnT >= 1e8);
+    let ev = [];
+    for (let i = 0; i < 80 && m.wave === 0; i++) { step(m, {}); ev = ev.concat(m.events); }
+    const w1 = m.units.filter((u) => u.team === 1 && u.wave === 1);
+    check('51f wave 0 down: its monsters never respawn; 2.5 s later wave 1 appears (respawn events, wave event 1/3, spawn guard on)',
+      deadOk && m.wave === 1 && w1.every((u) => u.alive && u.invulnT > 0) && ev.filter((e) => e.t === 'respawn').length === w1.length && ev.some((e) => e.t === 'wave' && e.n === 1 && e.of === 3) && !m.over, `wave ${m.wave}`);
+    wipe(m, 1);
+    for (let i = 0; i < 80 && m.wave === 1; i++) step(m, {});
+    wipe(m, 2);
+    for (let i = 0; i < 3 && !m.over; i++) step(m, {});
+    check('51g the last wave cleared ends the stage: winner 0', m.over && m.winner === 0, `over ${m.over} winner ${m.winner} wave ${m.wave}`);
+  }
+  {
+    const m = pveMatch('1-1');
+    m.lives = 2;
+    let guard = 0, deaths = 0;
+    while (!m.over && guard++ < 30 * 120) { for (const u of m.units) if (u.team === 0 && u.alive) { u.hp = Math.min(u.hp, 1); u.invulnT = 0; u.shield = 0; } step(m, allInputs(m, {})); deaths += m.events.filter((e) => e.t === 'death' && m.units[e.id].team === 0).length; }
+    check('51h each death of the team costs a shared life; none left ends the stage: winner 1', m.over && m.winner === 1 && m.lives <= 0 && deaths >= 2, `over ${m.over} winner ${m.winner} lives ${m.lives} deaths ${deaths}`);
+  }
+  {
+    const m = pveMatch('1-5', 7), t = m.units.find((u) => u.team === 1 && u.alive && u.mech === 'uphao') || m.units.find((u) => u.team === 1 && u.alive);
+    t.hp = t.maxHp * 0.4; t.combatT = 99;
+    for (let i = 0; i < 300; i++) step(m, {});
+    check('51i monsters neither regenerate out of combat nor heal at their base pad', t.hp <= t.maxHp * 0.4 + 1e-6, `${t.hp} / ${t.maxHp}`);
+  }
+  {
+    const play = () => { const m = pveMatch('2-3', 9); for (let i = 0; i < 900 && !m.over; i++) step(m, allInputs(m, {})); return JSON.stringify([m.tick, m.wave, m.lives, m.units.map((u) => [u.alive, Math.round(u.hp), Math.round(u.x * 100)])]); };
+    check('51j a Phó bản bot run is deterministic: same seed, same state after 30 s', play() === play());
+  }
+  {
+    const m = pveMatch('1-6', 4), R = netRoster(m), mir = createMirror(R);
+    check('51k netstate roster keeps stage and wave: the mirror has the same waves, boss and dead later waves',
+      R.stage === '1-6' && mir.stage === '1-6' && mir.waves === m.waves && mir.units.every((u, i) => u.wave === m.units[i].wave && u.alive === m.units[i].alive && u.maxHp === m.units[i].maxHp), JSON.stringify([R.stage, mir.waves, m.waves]));
+  }
+  {
+    const ok = [];
+    for (const [id, seed] of [['1-1', 1], ['1-2', 2], ['2-1', 3]]) {
+      const m = pveMatch(id, seed, 2);
+      while (!m.over) step(m, allInputs(m, {}));
+      ok.push(`${id}:${m.winner === 0 ? 'win' : 'lose'}@${Math.round(m.time)}`);
+    }
+    check('51l three bots at the recommended level clear 1-1, 1-2 and 2-1 before the clock', ok.every((s) => s.includes('win')), ok.join(' '));
+  }
+  {
+    const meta = makeMeta({ storage: store({ coins: 0 }), now: () => 1e12 });
+    const S = pveStage('1-1'), sum = (won, time) => ({ rows: [{ id: 0, team: 0, mech: 'trau', kills: 3, assists: 0, deaths: 0, dmg: 5000, healed: 0 }], mvp: 0, mode: 'pve', stage: '1-1', winner: won ? 0 : 1, time, wave: 1, waves: 2 });
+    check('51m 1-1 open, 1-2 locked on a fresh save', pveOpen(meta.get(), '1-1') && !pveOpen(meta.get(), '1-2'));
+    const a = meta.applyResult(sum(true, S.par * 2), 0), b = meta.applyResult(sum(true, S.par - 1), 0), c = meta.applyResult(sum(false, 30), 0);
+    const d = meta.get();
+    check('51n first clear pays reward.first, a repeat reward.repeat, a loss reward.fail; coins only (no xp, gems, trophies)',
+      a.coins === S.reward.first && a.first && b.coins === S.reward.repeat && !b.first && c.coins === S.reward.fail && d.coins === S.reward.first + S.reward.repeat + S.reward.fail && d.xp === 0 && d.gems === 0 && d.trophies === 0, JSON.stringify([a.coins, b.coins, c.coins, d.coins]));
+    check('51o stars: 1 for a slow clear, 3 at par, the best is kept; clears counted; 1-2 opens', a.stars === 1 && b.stars === 3 && d.pve.best['1-1'] === 3 && d.pve.clears['1-1'] === 2 && pveOpen(d, '1-2') && a.next === '1-2' && pveStars(S, S.par) === 3, JSON.stringify(d.pve));
+    const g = makeMeta({ storage: store({ pve: { best: { '1-1': 9, '9-9': 3, '1-2': 'x' }, clears: { '1-1': -4 }, sel: 'zz' } }) }).get();
+    check('51p garbage Phó bản save cleans up: stars capped at 3, unknown ids and bad numbers dropped, bad pick -> 1-1', g.pve.best['1-1'] === 3 && !g.pve.best['9-9'] && !g.pve.best['1-2'] && !g.pve.clears['1-1'] && g.pve.sel === '1-1', JSON.stringify(g.pve));
+  }
+}
+
 // Standalone run.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && process.argv[1].endsWith('modes-cases.mjs')) {
   let failed = 0, passed = 0;
-  runModeCases((name, cond, detail = '') => { if (cond) { passed++; console.log(`PASS ${name}`); } else { failed++; console.log(`FAIL ${name} ${detail}`); } }, (s) => console.log(`\n# ${s}`));
+  const ck = (name, cond, detail = '') => { if (cond) { passed++; console.log(`PASS ${name}`); } else { failed++; console.log(`FAIL ${name} ${detail}`); } }, sec = (s) => console.log(`\n# ${s}`);
+  runModeCases(ck, sec); runPveCases(ck, sec);
   console.log(failed ? `\n${failed} FAILED (${passed} passed)` : `\nALL PASS (${passed})`);
   process.exit(failed ? 1 : 0);
 }

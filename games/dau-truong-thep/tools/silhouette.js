@@ -3,6 +3,7 @@
 // and compares every pair by intersection over union. Fails when a newer tank is too close to any other mech, or when
 // its signature pieces spread its top view past --spread (1.3) times the frame without them (match camera framing).
 //   node tools/silhouette.js [--max 0.8] [--top 10] [--png dir]
+//   --foes: the Phó bản monsters and bosses (BOSSES) against each other instead, every pair gated
 // Runs in Node (no browser): the same buildModel() the game uses, rasterised in software. Also prints triangles per mech.
 'use strict';
 const path = require('path');
@@ -20,8 +21,10 @@ const PX = 40, W = 360; // 40 px per model unit, 9 x 9 units
   const st = await import(path.join(root, 'js/gfx/styles.js'));
   const mechs = await import(path.join(root, 'js/gfx/mechs.js'));
   fillPending(data.MECHS, st.STYLES, data.BOSSES, ROLE);
-  const orig = mechs.DESIGN_KEYS.filter((k) => st.STYLES[k] && data.MECH_ORDER.includes(k));
-  const fresh = Object.keys(st.STYLES).filter((k) => !mechs.DESIGN_KEYS.includes(k));
+  const FOES = process.argv.includes('--foes');
+  const styleOf = (k) => st.STYLES[k] || st.styleFor(k, (data.BOSSES[k] || data.MECHS[k]).tint);
+  const orig = FOES ? [] : mechs.DESIGN_KEYS.filter((k) => st.STYLES[k] && data.MECH_ORDER.includes(k));
+  const fresh = FOES ? Object.keys(data.BOSSES) : Object.keys(st.STYLES).filter((k) => !mechs.DESIGN_KEYS.includes(k));
   const keys = orig.concat(fresh);
   const V = new THREE.Vector3();
   const masks = {}, tris = {}, spread = {};
@@ -50,11 +53,11 @@ const PX = 40, W = 360; // 40 px per model unit, 9 x 9 units
     return { m, nt: Math.round(nt) };
   };
   for (const key of keys) {
-    const r = render(key, st.STYLES[key]);
+    const r = render(key, styleOf(key));
     masks[key] = centre(r.m); tris[key] = r.nt;
     // Spread: the full model's top-view extent over the same frame without its signature pieces (hull, gear, turret, gun).
-    if (st.STYLES[key].frame) {
-      const bare = render(key, { ...st.STYLES[key], frame: { ...st.STYLES[key].frame, sig: [] } });
+    if (styleOf(key).frame) {
+      const bare = render(key, { ...styleOf(key), frame: { ...styleOf(key).frame, sig: [] } });
       const f = box(r.m), o = box(bare.m);
       spread[key] = Math.max(f.l / o.l, f.w / o.w);
     }
@@ -80,7 +83,7 @@ const PX = 40, W = 360; // 40 px per model unit, 9 x 9 units
   console.log('closest neighbour of each newer tank:');
   console.log('  ' + fresh.map((k) => `${k}~${near[k].k} ${near[k].iou.toFixed(2)}`).join(', '));
   const ot = orig.map((k) => tris[k]), nt = fresh.map((k) => tris[k]);
-  const st2 = (a) => `min ${Math.min(...a)}, median ${a.slice().sort((x, y) => x - y)[a.length >> 1]}, max ${Math.max(...a)}`;
+  const st2 = (a) => !a.length ? 'none' : `min ${Math.min(...a)}, median ${a.slice().sort((x, y) => x - y)[a.length >> 1]}, max ${Math.max(...a)}`;
   console.log(`triangles at form II: hand-made ${st2(ot)}; newer ${st2(nt)}`);
   console.log('  ' + keys.map((k) => `${k} ${tris[k]}`).join(', '));
   if (PNG) {
