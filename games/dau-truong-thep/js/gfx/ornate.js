@@ -14,6 +14,7 @@ import { Builder } from './builder.js';
 import { frameDesign, frameGear } from './frames.js';
 import { Kit, LAMP } from './steel.js';
 import { B1 } from './ornate-b1.js';
+import { B2 } from './ornate-b2.js';
 
 const PI = Math.PI, TAU = PI * 2;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -625,6 +626,7 @@ const TANKS = {
     return finish(K, { recoil: 0.2 });
   },
   ...B1,
+  ...B2,
 };
 
 // The tanks that opt in: key → builder (hb, b, st, paint, trim, deep, form) → info.
