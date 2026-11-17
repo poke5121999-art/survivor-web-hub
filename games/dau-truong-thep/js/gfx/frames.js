@@ -20,6 +20,14 @@ export function frameDesign(h, spec) {
     return build(b, spec, paint, trim, deep);
   };
 }
+// Running gear of a frame spec alone (tracks, wheels, legs or hover pads), for models drawn elsewhere (ornate.js):
+// the same footprint and leg contract as the full frame. Returns the ride heights and the legs and parts it added.
+export function frameGear(h, b, F, paint, trim, deep) {
+  ({ sk, lit, flame, tflame, side, limb, vent, bolts, line, DARK, GUN, STEEL, BLACK, RUB, X, TAU } = h);
+  const C = frameCtx(b, F, paint, trim, deep);
+  b.use('hull'); moveGear(C); b.use('hull');
+  return { y0: C.y0, y1: C.y1, legs: C.legs, parts: C.parts };
+}
 
 // ---------- outlines (top view, points [x, z]) ----------
 function mirror(half) {
@@ -163,6 +171,7 @@ function wheels(C, n, r, span, ring) {
   C.parts.push({ name: 'wheel', on: 'hull', kind: 'roll', axis: 'z', r, at: xs.flatMap((x) => [[x, r, z], [x, r, -z]]) });
   for (const x of xs) for (const s of [-1, 1]) {
     sk(b, 'dark', GUN).rod([x, r, s * (C.W / 2 - 0.1)], [x, r, s * (z - ww / 2)], 0.05, 6);
+    if (C.F.fenders === false) continue; // a model that covers its wheels with its own armour (ornate.js)
     b.push().move(x, r * 2 + 0.06, s * z).rotX(s * 0.1);
     sk(b, 'paint', C.paint).chamfer(r * 2.1, 0.07, ww + 0.1, 0.02);
     sk(b, 'paint', C.trim).push().move(0, 0.04, s * (ww / 2 + 0.03)).box(r * 1.8, 0.03, 0.02).pop();
@@ -1094,12 +1103,15 @@ const SIGS = {
 const PRE = new Set(['bell']);
 
 // ---------- the frame ----------
-function build(b, F, paint, trim, deep) {
+function frameCtx(b, F, paint, trim, deep) {
   const move = F.move || 'tracks';
   const L = F.hullL || 2.4, W = F.hullW || 1.2, Hh = F.hullH || 0.5;
   const ride = move === 'tracks' ? 0.3 : move.startsWith('wheels') ? (F.wheelR || 0.32) * 0.95 + 0.06 : move === 'legs2' ? 1.0 : move === 'hover' ? 0.55 : 0.68;
   const y0 = F.ride ?? ride;
-  const C = { b, F, paint, trim, deep, move, L, W, Hh, y0, y1: y0 + Hh, hx: 0, legs: [], parts: [], batch: 'hull' };
+  return { b, F, paint, trim, deep, move, L, W, Hh, y0, y1: y0 + Hh, hx: 0, legs: [], parts: [], batch: 'hull' };
+}
+function build(b, F, paint, trim, deep) {
+  const C = frameCtx(b, F, paint, trim, deep), { move, L, W, Hh, y0 } = C;
   b.use('hull');
   if (F.hull === 'segmented') {
     // Head segment carries the turret; the rest trail on one sway pivot so the body snakes as it runs.

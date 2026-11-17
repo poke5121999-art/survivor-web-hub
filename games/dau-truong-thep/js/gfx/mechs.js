@@ -9,6 +9,7 @@ import { TEAMS, MECHS, PAINTS, BOSSES, GLOWS, DECALS } from '../data.js';
 import { visibleTo, hidden } from '../sim.js';
 import { designsB } from './mechs-b.js';
 import { frameDesign } from './frames.js';
+import { ORNATE, ornateModel } from './ornate.js';
 import { STEEL_DESIGNS } from './steel-tanks.js';
 import { slashTrail, slashPose, slashStart, slashHit } from './slash.js';
 import { styleFor, adorn, formOf, formPaint, FORM_SCALE } from './styles.js';
@@ -934,6 +935,8 @@ export const DESIGN_KEYS = Object.keys(DESIGNS);
 export function buildModel(key, st, paint, trim, deep, form = 2) {
   const b = new Builder(0.85);
   b.use('hull').surface(1, 1);
+  // Ornate tanks (ornate.js) build all three forms themselves, no role hardware.
+  if (ORNATE[key]) return { b, info: ornateModel(HELP, b, key, st, paint, trim, deep, form) };
   // Steel-style tanks (steel.js) build all three forms themselves, role hardware included.
   if (STEEL_DESIGNS[key]) return { b, info: STEEL_DESIGNS[key](b, st, trim, form) };
   const design = DESIGNS[key] || (st.frame && frameDesign(HELP, st.frame)) || DESIGNS[st.chassis] || DESIGNS.soi;
@@ -1134,6 +1137,8 @@ export function makeMechs(G, tex) {
     const rimBase = gc.clone().multiplyScalar([0.12, 0.22, 0.6][Math.max(1, Math.min(3, form)) - 1] * (STEEL_DESIGNS[key] ? 0.4 : 1)), rim = rimBase.clone();
     const mat = mechMaterial(baseMat, rim, glowBase.clone(), low), mats = [mat];
     const flame = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.9).addScalar(0.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    // Flames that carry their own colour ramp in vertex colours (ornate.js aura); flickers with the flame batch.
+    const ember = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     const root = new THREE.Group(), body = new THREE.Group(), hull = new THREE.Group(), turret = new THREE.Group();
     hull.rotation.order = 'YZX';
     const S = (info.S || 1) * FORM_SCALE[Math.max(1, Math.min(3, form)) - 1];
@@ -1143,7 +1148,7 @@ export function makeMechs(G, tex) {
       const mesh = new THREE.Mesh(g, m); mesh.castShadow = cast; mesh.receiveShadow = cast && !low;
       parent.add(mesh); return mesh;
     };
-    add(hull, geos.hull, mat, true); add(hull, geos.flame, flame, false);
+    add(hull, geos.hull, mat, true); add(hull, geos.flame, flame, false); add(hull, geos.ember, ember, false);
     add(turret, geos.turret, mat, true); add(turret, geos.tflame, flame, false);
     const legs = [];
     for (const [i, L] of (info.legs || []).entries()) {
@@ -1178,7 +1183,7 @@ export function makeMechs(G, tex) {
       for (const [g, parent] of [[dg.hull, hull], [dg.turret, turret]]) if (g) { const m = new THREE.Mesh(g, decalMat); m.frustumCulled = false; parent.add(m); decals.push(m); }
     }
     body.add(hull, turret); root.add(body);
-    return { root, body, hull, turret, legs, parts, mat, mats, rim, rimBase, glow: mat.userData.glow.value, flame, glowBase, gcol: gc.clone().multiplyScalar(1 / Math.max(gc.r, gc.g, gc.b, 1e-3)), info, def, S, geos, decals,
+    return { root, body, hull, turret, legs, parts, mat, mats, rim, rimBase, glow: mat.userData.glow.value, flame, ember, glowBase, gcol: gc.clone().multiplyScalar(1 / Math.max(gc.r, gc.g, gc.b, 1e-3)), info, def, S, geos, decals,
       dStance: 0, dCharge: 0, dArmor: 0, dRage: 0 };
   }
 
@@ -1187,7 +1192,7 @@ export function makeMechs(G, tex) {
     for (const g of Object.values(v.geos)) g.dispose();
     for (const m of v.mats) m.dispose();
     for (const p of v.parts) { if (p.inst) for (const im of p.inst) im.dispose(); if (p.trail) { p.trail.geometry.dispose(); p.trail.material.dispose(); } }
-    v.flame.dispose();
+    v.flame.dispose(); v.ember.dispose();
     if (v.ring) v.ring.material.dispose();
     if (v.aura) { v.auraMat.dispose(); for (const g of v.auraGeos) g.dispose(); }
     if (v.bubble) v.bubble.material.dispose();
@@ -1243,7 +1248,7 @@ export function makeMechs(G, tex) {
 
   function resetLook(v) {
     for (const m of v.mats) m.color.setScalar(1);
-    v.flame.visible = true;
+    v.flame.visible = true; v.ember.visible = true;
     v.body.position.set(0, 0, 0); v.body.rotation.set(0, 0, 0); v.turret.rotation.set(0, 0, 0);
   }
 
@@ -1339,7 +1344,7 @@ export function makeMechs(G, tex) {
       }
     }
     const fl = 0.75 + Math.random() * 0.35 + v.move * 0.4;
-    v.flame.color.copy(v.glowBase).multiplyScalar(0.55 * fl);
+    v.flame.color.copy(v.glowBase).multiplyScalar(0.55 * fl); v.ember.color.setScalar(0.7 + fl * 0.4);
   }
 
   function sync(m, alpha, dt, time) {
@@ -1357,7 +1362,7 @@ export function makeMechs(G, tex) {
         v.turret.rotation.z = t * 0.7;
         for (const mt of v.mats) mt.color.setScalar(1 - t * 0.8);
         setEmissive(v, 1.2 * (1 - t), 0.35 * (1 - t), 0.05 * (1 - t));
-        v.glow.copy(v.glowBase).multiplyScalar(Math.max(0, 1 - t * 4)); ownGlow(v, time); v.flame.visible = false; v.bubble.visible = false;
+        v.glow.copy(v.glowBase).multiplyScalar(Math.max(0, 1 - t * 4)); ownGlow(v, time); v.flame.visible = false; v.ember.visible = false; v.bubble.visible = false;
         if (v.mark) v.mark.visible = false;
         v.ring.material.uniforms.uFade.value = 1 - t;
         if (v.aura) v.aura.visible = false;
