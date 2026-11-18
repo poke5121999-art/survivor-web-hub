@@ -76,6 +76,8 @@ No change to `index.html`, `hub.js`, or `style.css` is needed.
   ngay sau `<meta charset>`: `<script src="../../js/feedback-capture.js?v=20261118a"></script>`.
   - Nạp sớm trong `<head>`, trước script của game: nó bọc `console.*`, `requestAnimationFrame` và nghe phím ở pha capture
     của `window` trước game. Nạp muộn thì vẫn chụp được nhưng mất log đầu và có thể lọt phím.
+  - Game ở repo Pages khác (cùng origin) nhúng `/survivor-web-hub/js/feedback-capture.js?v=...`. Kiểm mọi thẻ có F9:
+    `node test/feedback-coverage.js`; hai thẻ Walking Trade (twt-bevy-web, twt-proc-web) chưa có.
 - Log có: thời điểm, game + rev, URL, người chơi (tên/role, không email), trình duyệt, màn hình/DPR, FPS, heap JS,
   300 dòng console gần nhất, lỗi + stack, thông tin canvas.
 - **Móc cho tác giả game** — muốn log kèm trạng thái game thì khai báo:
