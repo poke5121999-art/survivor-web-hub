@@ -3118,9 +3118,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42d the shot after it is plain 150 again', near(UNG.hp - v.hp, 450 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
   }
-  // cakiem: one cast arms it, three piercing blades each x1.8
+  // cakiem (old kit fixture OLD_K12 in k12-cases.mjs): one cast arms it, three piercing blades each x1.8
   {
-    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 5.5, 0]]), [a, v] = m.units;
+    const m = oldKit12(arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 5.5, 0]]), 'cakiem'), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true } }));
     check('42e cakiem: one cast arms the meter at once (max 1)', a.meter === 1 && meterArmed(a));
     go(m, 14);
@@ -3305,16 +3305,16 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     const wide = Math.abs(Math.atan2(Math.sin(Math.atan2(sh.dz, sh.dx) - Math.PI), Math.cos(Math.atan2(sh.dz, sh.dx) - Math.PI)));
     check('42zt ... the bullet carries half the range (minus one tick of flight) and strays by at most 0.15 rad, not 0', sh && near(sh.left, base * 0.5 - sh.speed * TICK, 1e-6) && wide <= 0.15 && wide > 1e-9, `left ${sh && sh.left} wide ${wide}`);
   }
-  // beam stun core (cakiem U): only the middle of the line stuns
+  // beam stun core (cakiem U, old kit fixture): only the middle of the line stuns
   {
-    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 9, 1.1]]), [a, mid, edge] = m.units;
+    const m = oldKit12(arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 9, 1.1]]), 'cakiem'), [a, mid, edge] = m.units;
     go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
     go(m, 18);
     check('42zu Nhat Dao: both are cut for 1000, only the one on the axis is stunned 1 s', near(UNG.hp - mid.hp, 1000 * UNG_F, 1e-6) && near(UNG.hp - edge.hp, 1000 * UNG_F, 1e-6) && mid.stunT > 0.5 && edge.stunT === 0, `mid ${mid.stunT} edge ${edge.stunT}`);
   }
-  // nova repeat (cakiem E): two spins 0.3 s apart
+  // nova repeat (cakiem E, old kit fixture): two spins 0.3 s apart
   {
-    const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 2, 0]]), v = m.units[1];
+    const m = oldKit12(arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 2, 0]]), 'cakiem'), v = m.units[1];
     const ev = go(m, 40, (i) => ({ 0: { s2: i === 0 } }));
     check('42zv Loc Kiem: two nova events, 170 each (x 0.78 at 2 m of 3.8)', only(ev, 'nova').length === 2 && v.hp < v.maxHp, `${only(ev, 'nova').length} hp ${v.hp}`);
   }

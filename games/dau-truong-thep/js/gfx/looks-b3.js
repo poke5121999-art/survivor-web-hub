@@ -160,54 +160,6 @@ const thancong = {
   },
 };
 
-// ---- Cá Kiếm (Zoro): three lime-green blades ---------------------------------------------------------------------------
-const CK_LIME = C(1.2, 2.5, 0.3), CK_WHITE = C(2.3, 2.5, 2.0), CK_DEEP = C(0.2, 0.9, 0.1);
-const cakiem = {
-  // Lướt Trảm: three thin green blade streaks run side by side along his dash and cross in an X cut where he stops
-  ckDash: {
-    pal: [CK_DEEP, CK_LIME], hitR: 1.8,
-    skill(kit, e, u) {
-      const a = e.a;
-      // two blades cross along the dash in an X, the third straight down the middle
-      for (const o of [-1, 0, 1]) trail(kit, (t) => (t < 0.35 && u.alive ? [u.x - Math.sin(a) * o * Math.cos(t * 9) * 1.6, 1.1 + 0.2 * Math.abs(o), u.z + Math.cos(a) * o * Math.cos(t * 9) * 1.6] : null), 0.7, CK_LIME, 0.5, { c2: CK_DEEP, len: 14 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.32 && u.dash) return true; cut(kit, u.x + Math.cos(a) * 1.6, u.z + Math.sin(a) * 1.6, a, 4, CK_LIME, { edge: CK_WHITE, life: 0.16, sparks: 5 }); return false; }, drop() {} });
-      // three upright sword cuts stand along the path, one per blade
-      for (let i = 0; i < 3; i++) { const d = 2 + i * 2.5; slash(kit, u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, a + 1.57, 5.8, CK_LIME, { y: 1.4, dir: i % 2 ? 1 : -1, life: 0.45, w: 1.0, span: 1.2, sweep: 0.06 + i * 0.04, edge: CK_WHITE, tilt: 0.9, sparks: false, arcs: 0 }); }
-      return true;
-    },
-  },
-  // Lốc Kiếm: each turn is a green whirlwind: two thin blade strokes chasing round him, tilted one way then the other
-  ckSpin: {
-    pal: [CK_DEEP, CK_LIME], hitR: 1.8,
-    skill() { return true; },
-    nova(kit, e, u, s) {
-      const k = e.k || 0, r = (e.r || 3.8) * 1.05;
-      for (const ph of [0, Math.PI]) slash(kit, e.x, e.z, (e.a || 0) + ph + k, r * 1.75, CK_LIME, { y: 1 + k * 0.3, dir: k % 2 ? -1 : 1, life: 0.45, span: 1.6, w: r * 0.29, sweep: 0.09, erode: 0.22, edge: CK_WHITE, tilt: (k % 2 ? -1 : 1) * 0.25 });
-      for (let i = 0; i < kit.N(6); i++) { const a = Math.random() * 6.283; kit.str.emit(e.x + Math.cos(a) * r, R(0.4, 2.4), e.z + Math.sin(a) * r, -Math.sin(a) * 12, R(1, 3), Math.cos(a) * 12, CK_LIME, 0.25, 0.08, 0.05, 0, 0, 1); }
-      return true;
-    },
-  },
-  // Nhất Đao: three ghost swords fan out while he takes his stance; the single cut is one huge thin green stroke along the
-  // line and a white-green X cut where it ends
-  ckOne: {
-    pal: [CK_DEEP, CK_LIME], hitR: 2,
-    skill() { return true; },
-    castMake(kit, u) {
-      const blade = (sd) => { const g = new THREE.Group(), m = basic(CK_LIME, true, 0.9); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.02, 3, 4).rotateZ(-Math.PI / 2).translate(1.6, 0, 0).scale(1, 1, 0.35), m); g.add(b); g.userData.sd = sd; return g; };
-      const bl = [-0.5, 0, 0.5].map(blade);
-      return { bl, h: held(kit, bl) };
-    },
-    cast(kit, v, u, s, k) { const a = u.cast.aim; v.bl.forEach((g) => { g.position.set(u.x, 1.4 + 0.3 * Math.abs(g.userData.sd), u.z); g.rotation.set(0, -(a + g.userData.sd * (0.3 + 0.7 * k)), 0); g.scale.setScalar(1.2 + k * 0.8); }); },
-    castDrop(kit, v) { v.h.on = false; },
-    beam(kit, e) {
-      const a = Math.atan2(e.z1 - e.z0, e.x1 - e.x0), L = Math.hypot(e.x1 - e.x0, e.z1 - e.z0);
-      slash(kit, e.x0, e.z0, a, L * 0.8, CK_LIME, { y: 1.2, life: 0.75, w: L * 0.22, span: 0.65, sweep: 0.08, erode: 0.3, edge: CK_WHITE });
-      const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 3.4, CK_LIME, 0.45, 2, 1.3); b.fade = true;
-      cut(kit, e.x1, e.z1, a, 6, CK_LIME, { edge: CK_WHITE, life: 0.2, sparks: 5 });
-      for (const sd of [-1, 1]) slash(kit, e.x1, e.z1, a + Math.PI / 2 * sd, 5.5, CK_LIME, { y: 1.3, dir: sd, life: 0.5, span: 1.1, sweep: 0.1, edge: CK_WHITE, sparks: false, arcs: 0 }); kit.flash(e.x1, 1.6, e.z1, CK_LIME, 60, 0.3); kit.kick(e.x0, e.z0, 0.6);
-      return true;
-    },
-  },
-};
+// Cá Kiếm (Zoro): his looks moved to looks-k12.js with the kit ported from the clip (lane k12).
 
-export const B3 = { ...soi, ...bachhac, ...thancong, ...cakiem };
+export const B3 = { ...soi, ...bachhac, ...thancong };

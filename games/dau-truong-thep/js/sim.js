@@ -137,6 +137,7 @@ function clearStatus(u) {
   k16Clear(u);   // kit lane k16
   opClear(u);   // kit-remake G5 trau
   bdClear(u);   // kit-remake G5 buomdem
+  ckClear(u);   // kit-remake G5 cakiem
 }
 
 function spawn(m, u, first) {
@@ -441,6 +442,7 @@ function stepUnit(m, u, inp) {
   k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
   opTick(m, u);   // kit-remake G5 trau: the rage meter cools
   bdTick(m, u);   // kit-remake G5 buomdem: the ward's end, the warp's pulses, stepping into the domain
+  ckTick(u);   // kit-remake G5 cakiem: the parry window
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
   hlTick(m, u);   // kit-remake G5 hoalong: lava trail, buff per burning foe
@@ -602,6 +604,7 @@ function stepUnit(m, u, inp) {
     k13Cast(m, u, s);   // kit lane K13
     if (s.imShield) imRefill(m, u);   // kit-remake G5 tho: the press brings the passive shield back at once
     bdCast(m, u, s);   // kit-remake G5 buomdem: reveal on every press, the warp's pulses
+    ckCast(u, s);   // kit-remake G5 cakiem: the parry window opens
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
@@ -2398,6 +2401,7 @@ function damage(m, u, amount, src, raw) {
   const foe = src && src !== u && !raw ? src : null;
   if (foe && u.blockN > 0 && amount >= 10) { blockHit(m, u); lastBase = 0; return; }
   if (foe && u.parryT > 0 && amount >= 10) { amount = parryHit(m, u, foe, amount); lastBase = amount; if (amount <= 0) return; }
+  if (foe && u.ckPT > 0 && ckParry(m, u, foe)) { lastBase = 0; return; }   // kit-remake G5 cakiem: the parry turns a projectile away
   if (foe) {
     if (u.markT > 0) amount *= 1 + u.markAmp;
     if (u.ampT > 0) amount *= 1 + u.ampF;
@@ -2409,6 +2413,7 @@ function damage(m, u, amount, src, raw) {
     amount *= k18Mul(m, foe, u);   // kit lane K18: whirl stacks, armour sense, spin stacks, muted attacker
     if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
     amount *= bdMul(m, u, foe);   // kit-remake G5 buomdem: his domain doubles one row
+    amount *= ckDr(u, foe);   // kit-remake G5 cakiem: a foe carrying his mark hits him for less
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
   const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
@@ -2547,6 +2552,7 @@ function kill(m, u, src) {
   if (m.mode === 'pve') { if (u.team === 1) u.respawnT = 1e9; else m.lives--; }
   m.events.push({ t: 'death', id: u.id, by, assists, x: u.x, z: u.z });
   if (u.burnT > 0 && u.burnBy >= 0) hlDeath(m, u);   // kit-remake G5 hoalong: a burning mech bursts
+  ckKill(m, u);   // kit-remake G5 cakiem: a marked foe died
   clearStatus(u);
 }
 
@@ -4709,3 +4715,47 @@ function bdCcFx(C, fx) {
   return f;
 }
 /* ===== end kit-remake G5 buomdem ===== */
+
+/* ===== kit-remake G5 cakiem (lane k12; ~/handoff/dtt-ref/kits/AUDIT-a.md "cakiem", clip p63 "60.海贼猎人" Zoro).
+   Hooks elsewhere are one line each, marked "kit-remake G5 cakiem", and call into this block.
+   buff row ckParry {dmg, speed, range, r, pierce, vis, icd, fx}: for the row's dur s every enemy projectile that reaches him
+     (a shot or its splash, while stepShots handles it) is turned away whole; each one fires a shot of that row toward his aim
+     (at most one per icd s), tagged with the row id (event nova {skill, parry: 1, by}, r 0). A stun or a loss of control ends it.
+   passive ckKey, ckDr: an enemy carrying his tag ckKey (hitfx tag) does (1 - ckDr) of its damage to him.
+   passive ckReset: when an enemy carrying his tag dies (anyone's kill), that slot's cooldown is cleared.
+   New names (prefix ck): unit ckPT (parry time left), ckRow, ckWT (time to the next wave). Host side only: the parry shows
+   through its events and the waves are plain shots. ===== */
+function ckClear(u) { u.ckPT = 0; u.ckRow = null; u.ckWT = 0; }
+function ckTick(u) {
+  if (!(u.ckPT > 0)) return;
+  u.ckPT -= TICK; u.ckWT -= TICK;
+  if (u.stunT > 0 || u.locT > 0) u.ckPT = 0;
+}
+function ckCast(u, s) { if (s.ckParry) { u.ckPT = s.dur; u.ckRow = s; u.ckWT = 0; } }
+// damage(): an enemy projectile reached him inside the parry window. True: the blow is turned away.
+function ckParry(m, u, foe) {
+  if (!curShot || curShot.owner !== foe.id || !u.ckRow) return false;
+  const P = u.ckRow.ckParry;
+  m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: 0, skill: u.ckRow.id, parry: 1, by: foe.id });
+  if (u.ckWT <= 1e-9) {
+    u.ckWT = P.icd || 0;
+    const keep = curSrc;
+    spawnShot(m, u, P, u.aim, 0, null, u.ckRow.id);
+    curSrc = keep;
+  }
+  return true;
+}
+// damage(): a foe carrying his mark hits him for less
+function ckDr(u, foe) {
+  const P = u.def.passive;
+  return P && P.ckDr && foe.tags && foe.tags[P.ckKey + '@' + u.id] > 0 ? 1 - P.ckDr : 1;
+}
+// kill(): every mech whose mark the dead one carried gets its ckReset slot back
+function ckKill(m, u) {
+  if (!u.tags) return;
+  for (const o of m.units) {
+    const P = o.alive && o.def.passive;
+    if (P && P.ckReset && u.tags[P.ckKey + '@' + o.id] > 0) { o.cd[P.ckReset] = 0; m.events.push({ t: 'tagPay', id: u.id, by: o.id, key: P.ckKey, x: u.x, z: u.z }); }
+  }
+}
+/* ===== end kit-remake G5 cakiem ===== */

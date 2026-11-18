@@ -737,21 +737,30 @@ export const MECHS = {
         desc: 'Phóng tên lửa bay xuyên tường và vật cản, nổ ở kẻ địch đầu tiên: 305 sát thương vòng 2,5 m và choáng 0,5 giây. Càng bay xa càng đau, tới 777 khi bay hết 20 m.' },
     ],
   },
+  // Zoro: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p63 "60.海贼猎人" (tooltips f005-f055, AUDIT-a.md). Attack = one Tam
+  // Đao wave (150, was three of 66; every 0.5 s): the parry wave 150% -> 225, Cư Hợp Trảm 207% -> 311, Tam Thiên Thế Giới 322% -> 483 + 5%
+  // of the lost hp, the marked-hit heal 50% -> 75 (2.83% of max hp). Cooldowns 10 / 10 / 10 s in the clip -> 12 / 12 / 18 (the ult keeps
+  // its 3 charges, 1.5 s apart). No MP. Not ported: Tam Thiên Thế Giới blocked during the parry. G5 (sim.js "kit-remake G5 cakiem"):
+  // the parry window, the marked foe's damage cut, the Cư Hợp Trảm reset when a marked foe dies.
   cakiem: {
     name: 'Zoro', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0x2e6b4f,
-    blurb: 'Ba đường đao liền tay, mỗi chiêu dùng ra mài sắc nhát chém kế tiếp. Lướt xuyên đối thủ, lốc kiếm hai vòng, Nhất Đao chỉ choáng kẻ trúng giữa tia.',
+    blurb: 'Chiêu nào trúng cũng khắc dấu Quỷ Trảm: kẻ mang dấu đánh bạn yếu đi, chém thường vào nó là hồi máu và giảm hồi chiêu. Tay không đỡ đạn bắn trả sóng kiếm, cư hợp trảm xuyên qua địch, ba lần Tam Thiên Thế Giới.',
     hp: 2650, speed: 6.4, radius: 0.86,
     armor: 0.08, accel: 1.2, turn: 13, towerMul: 1.3,
-    passive: { do: 'meter', name: 'Kiếm Ý', desc: 'Mỗi chiêu dùng ra làm loạt đao thường kế tiếp mạnh thêm 80%.',
-      max: 1, gain: { cast: 1 }, spend: { kind: 'shot', mul: 1.8 } },
-    weapon: { name: 'Tam Đao', cd: 0.45, dmg: 66, n: 3, fan: 0.15, speed: 26, range: 7, r: 0.3, pierce: true, vis: 'wave' },
+    passive: { do: 'trait', name: 'Quỷ Trảm', ckKey: 'oni', ckDr: 0.25, ckReset: 's2',
+      desc: 'Chiêu trúng địch khắc dấu Quỷ Trảm 5 giây. Kẻ mang dấu gây ít hơn 25% sát thương lên bạn; nó chết thì Cư Hợp Trảm hồi chiêu ngay. Chém thường trúng kẻ mang dấu thì làm mới dấu, hồi 75 máu và mọi hồi chiêu giảm 0,5 giây.' },
+    weapon: { name: 'Tam Đao', cd: 0.5, dmg: 150, speed: 28, range: 7.5, r: 0.4, pierce: true, vis: 'wave', look: 'ckBlade',
+      vsTag: { key: 'oni', healMax: 0.0283, cdCut: { slot: 'all', cut: 0.5 }, fx: { tag: { key: 'oni', dur: 5 } } } },
     skills: [
-      { id: 'luottram', look: 'ckDash', name: 'Lướt Trảm', cd: 8, do: 'dash', dist: 8, speed: 34, dmg: 220, knock: 0.5, icon: 'dash',
-        desc: 'Lướt tới theo hướng ngắm, chém xuyên mọi kẻ địch trên đường, gây 220 sát thương.' },
-      { id: 'lockiem', look: 'ckSpin', name: 'Lốc Kiếm', cd: 11, do: 'nova', windup: 0.15, repeat: 2, gap: 0.3, move: 1, radius: 3.8, dmg: 170, knock: 2, icon: 'spin',
-        desc: 'Xoay kiếm hai vòng liền quanh mình, mỗi vòng 170 sát thương và hất văng, vừa xoay vừa chạy được.' },
-      { id: 'nhatdao', look: 'ckOne', name: 'Nhất Đao', cd: 40, do: 'beam', windup: 0.5, range: 14, width: 1.6, dmg: 1000, fx: { stun: { dur: 1.0, core: 0.35 } }, icon: 'pierce',
-        desc: 'Lấy đà 0,5 giây rồi chém một đường rộng 1,6 m dài 14 m, 1000 sát thương. Kẻ trúng giữa tia bị choáng 1 giây.' },
+      { id: 'khongthu', look: 'ckParry', name: 'Không Thủ Bạch Nhận', cd: 12, do: 'buff', dur: 2, towerMul: 0,
+        ckParry: { dmg: 225, speed: 32, range: 11, r: 0.55, pierce: true, vis: 'wave', icd: 0.15, fx: { tag: { key: 'oni', dur: 5 } } }, icon: 'shield',
+        desc: 'Trong 2 giây đỡ mọi viên đạn bắn tới (không mất máu); mỗi viên đỡ được bắn trả một sóng kiếm theo hướng ngắm, xuyên qua địch, 225 sát thương. Bị khống chế thì ngừng đỡ. Sóng kiếm không phá công trình.' },
+      { id: 'cuhop', look: 'ckIai', name: 'Cư Hợp Trảm', cd: 12, do: 'dash', dist: 8, speed: 60, dmg: 311, fx: { tag: { key: 'oni', dur: 5 } },
+        self: { on: 'cast', dur: 2, haste: 1.5, rapid: 1.5, shots: 3, shotsFor: 4, patch: { n: 3, fan: 0.22 } }, icon: 'dash',
+        desc: 'Lướt tức thì 8 m theo hướng ngắm, chém mọi kẻ địch trên đường 311 sát thương. Ba lần chém thường kế tiếp tỏa ba sóng, và 2 giây chạy, chém nhanh hơn 50%.' },
+      { id: 'tamthien', look: 'ckWorld', name: 'Tam Thiên Thế Giới', cd: 18, uses: { n: 3, gap: 1.5 }, do: 'volley', n: 1, dmg: 483, speed: 30, range: 14, r: 0.6, pierce: true, vis: 'wave', towerMul: 0.5,
+        fx: { lostHp: 0.05, slow: 0.5, slowDur: 2, slowDecay: true, tag: { key: 'oni', dur: 5 } }, icon: 'pierce',
+        desc: 'Chém một sóng kiếm theo hướng ngắm, xuyên qua mọi kẻ địch: 483 sát thương cộng 5% máu đã mất (sát thương chuẩn), chậm 50% nhạt dần trong 2 giây. Giữ được 3 lần dùng, cách nhau 1,5 giây. Công trình chịu một nửa.' },
     ],
   },
   // Gilgamesh: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p74 "71.英雄王", tooltips at 0-5.5 s, audit AUDIT-b.md).
@@ -1387,9 +1396,9 @@ export const PERKS = {
   enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
   bohung: [perk('Pháo Nặng', 'Pháo Thiên Khải gây 260.', 'weapon', { dmg: 260 }), perk('Chấn Đãng Dài', 'Chấn Đãng Oanh Kích nện dải 8 m, gây 270.', 1, { range: 8, dmg: 270 }), perk('Phi Đạn Lớn', 'Phi Đạn Bạo Phá nổ rộng 3,5 m.', 2, { splash: 3.5 })],
-  cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
   gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 170.', 'weapon', { dmg: 170 }), perk('Quai Ly Rộng', 'Thiên Địa Quai Ly xé vùng 4,2 m.', 1, { blast: 4.2, radius: 2.1 }), perk('Kho Báu Vô Tận', 'Vương Chi Tài Bảo xả 48 binh khí trong 4,8 giây.', 2, { burst: { n: 24, gap: 0.2 }, hasteDur: 4.8 })],
   laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Long Xung Mạnh', 'Cuồng Long Xung Phong gây 260.', 1, { dmg: 260 }), perk('Thủy Long Lâu', 'Giao Long Xuất Hải kéo dài 10 giây.', 2, { dur: 10 })],
+  cakiem: [perk('Đao Dài', 'Tam Đao chém xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Đỡ Lâu', 'Không Thủ Bạch Nhận đỡ đạn 2,6 giây.', 0, { dur: 2.6 }), perk('Sóng Lớn', 'Tam Thiên Thế Giới gây 560.', 2, { dmg: 560 })],
   buomdem: [perk('Đày Lâu', 'Thời Không Phóng Trục đày kẻ trúng 1,4 giây.', 0, { fx: { banish: 1.4, slow: 0.5, slowDur: 3.4, tag: { key: 'bdq', dur: 5 } } }), perk('Cổng Xa', 'Thời Không Nữu Khúc xa 11 m, tới nơi nổ 300.', 1, { dist: 11, land: { radius: 3, dmg: 300 } }), perk('Lĩnh Vực Rộng', 'Ma Pháp Lĩnh Vực rộng 5,5 m.', 2, { blast: 5.5, linger: { radius: 5.5, dur: 4, vis: 'bdRealm' } })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],

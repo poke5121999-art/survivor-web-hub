@@ -1157,6 +1157,7 @@ const SKILL_AI = {
     return !!s.thruWalls || losClear(c.m.map, u.x, u.z, p[0], p[1], 0.3);
   },
   buff(c, s) {
+    if (s.ckParry) return ckBotParry(c, s);   // kit-remake G5 cakiem
     const { u, tgt, td, w } = c;
     if (s.prime) return u.primeT <= 0 && !!tgt && c.los && td >= 6 && td <= 21 && u.cd.fire <= 0.6 && tgt.hp > 450;
     if (s.armor) return u.armorT <= 0 && c.underFire && c.near >= 1 && c.hpFrac < 0.95;
@@ -2671,3 +2672,14 @@ function k11BotCharge(c, s) {
   return true;
 }
 /* ===== end kit-remake K11 ===== */
+
+/* ===== kit-remake G5 cakiem (lane k12): bot policy for the parry (sim.js "kit-remake G5 cakiem") ===== */
+// Không Thủ Bạch Nhận: open it when shot at by a foe within reach of the answering waves, or with a foe right on me; face it
+function ckBotParry(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || tgt.pseudo || !c.enemies.length || u.ckPT > 0) return false;
+  if (!((c.underFire && td < s.ckParry.range) || td < 4.5)) return false;
+  c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = 0.5;
+  return true;
+}
+/* ===== end kit-remake G5 cakiem ===== */

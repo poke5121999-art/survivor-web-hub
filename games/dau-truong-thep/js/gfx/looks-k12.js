@@ -1,9 +1,11 @@
-// Looks, kit lane k12: Doctor Strange, remade with the kit ported from the owner's clip. Render only (see looks.js).
+// Looks, kit lane k12: Doctor Strange and Zoro, remade with the kit ported from the owner's clip. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   至尊法师 p66 (Doctor Strange): magenta dimension bubbles, orange sling-ring rune circles; a pink energy orb; the banished
 //     foe sealed in a pink bubble ringed by orange runes; portals of orange sparks at both ends of the warp; the domain a pink
 //     dome on an orange mandala, a pink blast when he draws on it.
-import { C, own, stop, sigil, shell, trail, burst, gate } from './lookkit.js';
+//   海贼猎人 p63 (Zoro): lime-green blades: a whirl round him while he parries, an X where a bullet meets them, crescent waves
+//     flying back; three streaks and a big X for the iai dash; three blades stabbing at once and a great crescent for the ult.
+import { C, own, stop, slash, cut, sigil, shell, trail, burst, gate, weapon, fadeWeapon } from './lookkit.js';
 import * as THREE from '../../vendor/three.module.min.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
@@ -149,4 +151,102 @@ const buomdem = {
   },
 };
 
-export const K12 = { ...buomdem };
+// ---- Zoro: lime-green blades, a pale jade edge ------------------------------------------------------------------------
+const CK_LIME = C(0.95, 2.6, 0.3), CK_PALE = C(2.0, 2.6, 1.7), CK_DEEP = C(0.05, 0.55, 0.12);
+// a crescent riding a shot: the arc passes through the shot's point, its belly toward the way it flies
+function crescent(kit, s, r, w, y, o = {}) {
+  const a = Math.atan2(s.dz, s.dx), p = slash(kit, s.x - Math.cos(a) * r, s.z - Math.sin(a) * r, a, r, CK_LIME, { c2: CK_DEEP, edge: CK_PALE, y, w, span: o.span ?? 0.9, life: 1e9, sweep: 0.06, arcs: o.arcs ?? 1, sparks: false });
+  return { p, a, r, y };
+}
+function ride(v, x, z) { v.p.position.set(x - Math.cos(v.a) * v.r, v.y, z - Math.sin(v.a) * v.r); }
+// sword pressure: a long thin wedge of light lying on the ground from the caster along the aim, 1 m long before scaling
+const wedgeGeo = (() => { const w = new THREE.Shape(); w.moveTo(0, 0); w.lineTo(1, -0.13); w.quadraticCurveTo(1.08, 0, 1, 0.13); w.lineTo(0, 0); const g = new THREE.ShapeGeometry(w, 6).rotateX(-Math.PI / 2); g.userData.keep = true; return g; })();
+function wedge(kit, x, z, a, len, life) {
+  const g = new THREE.Group(), m1 = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.85, 0.2), toneMapped: false, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
+  const m2 = new THREE.MeshBasicMaterial({ color: CK_LIME, toneMapped: false, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const a1 = new THREE.Mesh(wedgeGeo, m1), a2 = new THREE.Mesh(wedgeGeo, m2); a2.scale.set(1, 1, 0.45); a2.position.y = 0.02; g.add(a1, a2);
+  g.traverse((o) => { o.frustumCulled = false; o.renderOrder = 5; });
+  g.position.set(x, 0.15, z); g.rotation.y = -a;
+  own(kit, [g], life, (t) => { const k = Math.min(1, t / 0.07); g.scale.set(len * k, 1, len * 0.9); const f = Math.min(1, (life - t) / (life * 0.6)); m1.opacity = 0.7 * f; m2.opacity = 0.6 * f; });
+}
+
+const cakiem = {
+  // Tam Đao (weapon): small lime crescents; the waves the parry sends back are bigger, with a pale ribbon behind
+  ckBlade: {
+    shotMake(kit, s) {
+      const big = s.src && s.src !== 'w', v = crescent(kit, s, big ? 2.2 : 1.3, big ? 0.55 : 0.32, 1.1, { arcs: big ? 2 : 0 });
+      v.live = true; v.x = s.x; v.z = s.z;
+      if (big) trail(kit, () => (v.live ? [v.x, 1.1, v.z] : null), 1.2, CK_LIME, 1e9, { c2: CK_DEEP, len: 12 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; ride(v, x, z); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; stop(v.p); cut(kit, x, z, v.a, v.r > 2 ? 2.6 : 1.6, CK_LIME, { edge: CK_PALE, life: 0.12, sparks: 3 }); },
+  },
+  // Không Thủ Bạch Nhận: a lime whirl closes round him (two blade strokes chasing round, a thin jade shell) and keeps turning
+  // while he parries; every bullet turned away flashes a pale X where it met the blades
+  ckParry: {
+    pal: [CK_LIME, CK_PALE], hitR: 1.6,
+    skill(kit, e, u, row) {
+      const dur = row.dur || 2;
+      for (const ph of [0, 1.57, 3.14, 4.71]) slash(kit, u.x, u.z, e.a + ph, 3.0, CK_LIME, { c2: CK_DEEP, edge: CK_PALE, y: 1.1, life: 0.75, span: 1.2, w: 1.1, sweep: 0.12, erode: 0.25, arcs: 2, tilt: ph % 3.14 ? 0.3 : -0.3 });
+      sigil(kit, u.x, u.z, 3.4, CK_DEEP, { c2: CK_LIME, n: 0, ticks: 0, inner: 0, fill: 1.1, life: dur, rev: 0.15, alpha: 0.75, y: 0.1, follow: u });
+      shell(kit, u.x, 1.0, u.z, 2.4, CK_LIME, { c2: CK_PALE, p: 2.0, core: 0.08, life: dur, bands: 3, alpha: 0.8, follow: u, squash: 0.8 });
+      sigil(kit, u.x, u.z, 3.2, CK_LIME, { c2: CK_PALE, n: 3, m: 1, ticks: 9, inner: 0.7, fill: 0.22, w: 0.07, life: dur, rev: 0.12, spin: 6, follow: u });
+      kit.follow(u, dur, (t) => { if (Math.random() < 0.6) { const b = t * 9 + Math.random() * 0.4; kit.str.emit(u.x + Math.cos(b) * 2, R(0.7, 1.6), u.z + Math.sin(b) * 2, -Math.sin(b) * 10, 0, Math.cos(b) * 10, CK_LIME, 0.22, 0.08, 0.05, 0, 0, 1); } });
+      return true;
+    },
+    nova(kit, e, u) {
+      if (!e.parry) return false;
+      const o = kit.match.units[e.by], a = o ? Math.atan2(o.z - u.z, o.x - u.x) : 0, x = u.x + Math.cos(a) * 1.5, z = u.z + Math.sin(a) * 1.5;
+      cut(kit, x, z, a + 1.57, 2.4, CK_PALE, { edge: CK_LIME, life: 0.14, sparks: 5 });
+      kit.flash(x, 1.4, z, CK_LIME, 25, 0.12);
+      return true;
+    },
+  },
+  // Cư Hợp Trảm: he is simply gone: three thin lime streaks lie along the path, upright after-cuts stand on it, and a big
+  // pale-green X opens where he comes out
+  ckIai: {
+    pal: [CK_LIME, CK_PALE], hitR: 1.8,
+    skill(kit, e, u, row) {
+      const a = e.a, d = row.dist || 8, ca = Math.cos(a), sa = Math.sin(a);
+      for (const o of [-0.8, 0, 0.8]) { const b = kit.beam(u.x - sa * o, u.z + ca * o, u.x + ca * d - sa * o, u.z + sa * d + ca * o, o ? 0.7 : 1.1, o ? CK_LIME : CK_PALE, 0.4, 2, 1.1); b.fade = true; }
+      const fl = kit.beam(u.x, u.z, u.x + ca * d, u.z + sa * d, 2.6, CK_LIME, 0.4, 2, 0.15); fl.fade = true;
+      for (let i = 0; i < 3; i++) { const k = 1.8 + i * 2.6; slash(kit, u.x + ca * k, u.z + sa * k, a + 1.57, 4.2, CK_LIME, { c2: CK_DEEP, y: 1.3, dir: i % 2 ? 1 : -1, life: 0.45, w: 1.0, span: 1.1, sweep: 0.05 + i * 0.03, edge: CK_PALE, tilt: 1.0, sparks: false, arcs: 2 }); }
+      const ex = u.x + ca * d, ez = u.z + sa * d;
+      cut(kit, ex, ez, a, 7, CK_LIME, { edge: CK_PALE, life: 0.35, sparks: 6 });
+      burst(kit, ex, ez, 3.2, CK_LIME, CK_PALE, { life: 0.35 });
+      kit.flash(ex, 1.5, ez, CK_LIME, 35, 0.18);
+      return true;
+    },
+  },
+  // Tam Thiên Thế Giới: three blades stab out at once from his front, then one great lime crescent runs down the line with a
+  // pale ribbon; it ends in a wide X
+  ckWorld: {
+    pal: [CK_LIME, CK_PALE], hitR: 2.2,
+    skill(kit, e, u) {
+      const a = e.a;
+      for (const sd of [-0.32, 0, 0.32]) {
+        const g = weapon('sword', 0xdfeee0, CK_LIME), h = { on: true }, b = a + sd;
+        own(kit, [g], 0.45, (t) => { const k = Math.min(1, t / 0.08); g.position.set(u.x + Math.cos(b) * (1.2 + 2.4 * k), 1.3, u.z + Math.sin(b) * (1.2 + 2.4 * k)); g.rotation.set(0, -b, 0); g.scale.setScalar(2.6); fadeWeapon(g, Math.min(1, (0.45 - t) / 0.15)); return h.on; });
+      }
+      slash(kit, u.x, u.z, a, 4.2, CK_LIME, { c2: CK_DEEP, edge: CK_PALE, y: 1.2, life: 0.45, span: 1.0, w: 1.6, sweep: 0.06, arcs: 3 });
+      wedge(kit, u.x, u.z, a, 14, 0.45);
+      sigil(kit, u.x, u.z, 5.2, CK_LIME, { c2: CK_PALE, n: 3, m: 1, ticks: 3, inner: 0.55, fill: 0.5, w: 0.08, life: 0.45, rev: 0.05, spin: 5 });
+      shell(kit, u.x + Math.cos(a) * 1.6, 1.1, u.z + Math.sin(a) * 1.6, 3.6, CK_LIME, { c2: CK_PALE, p: 1.6, core: 0.12, squash: 0.5, life: 0.35, grow: 0.05 });
+      cut(kit, u.x + Math.cos(a) * 2.2, u.z + Math.sin(a) * 2.2, a, 6, CK_LIME, { edge: CK_PALE, life: 0.3, sparks: 6 });
+      const ln = kit.beam(u.x, u.z, u.x + Math.cos(a) * 14, u.z + Math.sin(a) * 14, 1.6, CK_LIME, 0.4, 2, 1.1); ln.fade = true;
+      kit.flash(u.x + Math.cos(a) * 2, 1.5, u.z + Math.sin(a) * 2, CK_LIME, 40, 0.2);
+      return true;
+    },
+    shotMake(kit, s) {
+      const v = crescent(kit, s, 4.0, 1.6, 1.15, { arcs: 3, span: 1.0 });
+      v.live = true; v.x = s.x; v.z = s.z;
+      trail(kit, () => (v.live ? [v.x, 1.1, v.z] : null), 4.0, CK_LIME, 1e9, { c2: CK_DEEP, len: 18 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; ride(v, x, z); if (Math.random() < 0.6) kit.str.emit(x + R(-1, 1), R(0.6, 1.6), z + R(-1, 1), s.dx * 20, 0, s.dz * 20, CK_PALE, 0.2, 0.08, 0.05, 0, 0, 1); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; stop(v.p); cut(kit, x, z, v.a, 4.5, CK_LIME, { edge: CK_PALE, life: 0.22, sparks: 6 }); },
+  },
+};
+
+export const K12 = { ...buomdem, ...cakiem };
