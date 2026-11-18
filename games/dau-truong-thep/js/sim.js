@@ -2625,7 +2625,8 @@ function k1Hurt(m, u, foe) {
 // +haste speed and wdr less damage from weapon blows (inT/inS/inW).
 // The armour and weapon-damage factors are read from the one aura passive in MECHS (k1Cap), not stored per unit.
 let k1CapRow;
-const k1Cap = () => (k1CapRow !== undefined ? k1CapRow : (k1CapRow = Object.values(MECHS).map((r) => r.passive).find((P) => P && P.aura && P.inspire) || null));
+const K1_NO_CAP = { aura: { speed: 0, armor: 0 }, inspire: { haste: 0, wdr: 0 } };
+const k1Cap = () => (k1CapRow !== undefined ? k1CapRow : (k1CapRow = { ...K1_NO_CAP, ...(Object.values(MECHS).map((r) => r.passive).find((P) => P && (P.aura || P.inspire)) || {}) }));
 // Speed goes through the synced haste (hasteT/hasteF, the strongest haste running wins), so a guest's mirror moves the same; the
 // timers capT/inT/bubT and the factors stay host side (the netstate status mask has no room for them).
 function k1Haste(o, dur, f) { o.hasteF = Math.max(o.hasteT > 0 ? o.hasteF : 1, f); o.hasteT = Math.max(o.hasteT, dur); }

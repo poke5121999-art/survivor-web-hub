@@ -2482,9 +2482,9 @@ section('37 determinism with all 16 mechs');
 {
   const fingerprint = (m) => m.units.map((u) => [u.x, u.z, u.hp, u.aim, u.shield, u.stunT, u.slowT, u.cd.s1, u.cd.s2, u.cd.ult, u.stance ? 1 : 0, u.charge].join(',')).join('|') + '#' + m.shots.length + ',' + m.zones.length + ',' + m.score.join(',');
   for (const mode of ['tdm', 'nha']) {
-    // all 54 mechs in one bot brawl: it ends when a team reaches the kill limit, and every kit change moves that (809 ticks on 9bf02512,
-    // 550 with the K1 kits, a captain aura over half the brawl); the comparison only needs a few hundred ticks, so the floor is 450
-    const make = () => createMatch({ seed: 77, mode, roster: MECH_ORDER.map((mech, i) => ({ team: i % 2, mech, name: mech, bot: true, diff: 'normal' })) });
+    // the kill target is lifted so a tdm brawl of all 54 mechs runs the full 1200 ticks: when it ended on the score, its length was luck
+    // (seeds 77-81 on 9bf02512 end at 809, 525, 627, 774, 493 ticks) and any kit change could drop it under the 600-tick floor
+    const make = () => { const m = createMatch({ seed: 77, mode, roster: MECH_ORDER.map((mech, i) => ({ team: i % 2, mech, name: mech, bot: true, diff: 'normal' })) }); if (mode === 'tdm') m.target = 1e9; return m; };
     const a = make(), b = make();
     let diverged = -1, nan = false;
     for (let t = 0; t < 1200 && diverged < 0 && !a.over; t++) {
@@ -2492,7 +2492,7 @@ section('37 determinism with all 16 mechs');
       if (fingerprint(a) !== fingerprint(b)) diverged = t;
       if (a.units.some((u) => !Number.isFinite(u.x + u.z + u.hp + u.aim))) nan = true;
     }
-    check(`determinism: two ${mode} matches with all 16 mechs (8 v 8, bots, same seed) are identical tick by tick (1200 ticks or until the end)`, diverged < 0 && a.tick === b.tick && a.tick > 450, `diverged at tick ${diverged}, ticks ${a.tick}`);
+    check(`determinism: two ${mode} matches with all 16 mechs (8 v 8, bots, same seed) are identical tick by tick (1200 ticks or until the end)`, diverged < 0 && a.tick === b.tick && a.tick > 600, `diverged at tick ${diverged}, ticks ${a.tick}`);
     check(`determinism: ${mode} with all 16 mechs: no NaN in any unit`, !nan);
   }
 }
