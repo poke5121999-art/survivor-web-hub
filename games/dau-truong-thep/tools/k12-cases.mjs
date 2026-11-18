@@ -88,7 +88,7 @@ export function runK12Cases(check, section) {
     check('62d the next main shot on it: 150 x 2 x armor, he heals 235 (10% of max), the mark spent', near(h2 - v.hp, 300 * UF, 1e-6) && near(a.hp, 1235, 1e-6) && !(v.tags['bdq@0'] > 0), `${h2 - v.hp} hp ${a.hp}`);
   }
   {
-    // Thời Không Nữu Khúc on a foe standing at the landing point: 245, then four pulses of 75 every 0.75 s; each pulse renews
+    // Thời Không Nữu Khúc on a foe standing at the landing point: 245, then four pulses of 100 every 0.75 s; each pulse renews
     // the ward, so the running one bursts (38 true, slow stack +25%); the last ward bursts 2 s after the last pulse
     const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
     a.hp = 1700;
@@ -97,9 +97,9 @@ export function runK12Cases(check, section) {
     check('62e the warp lands on the cursor, leaves a copy with his current hp (1700) where he stood: 245 x armor', near(a.x, 3) && dec && dec.x === 0 && dec.hp === 1700 && dec.maxHp === 1700 && near(UNG.hp - v.hp, 245 * UF, 1e-6) && only(ev, 'nova', (e) => e.skill === 'thoikhong').length === 1, `x ${a.x} dec ${dec && dec.hp} ${UNG.hp - v.hp}`);
     const ev2 = go(m, 70);
     const pulses = only(ev2, 'nova', (e) => e.skill === 'thoikhong' && e.k), bursts = only(ev2, 'nova', (e) => e.ward);
-    check('62f after 2.33 s: three pulses (75 x armor each) and three ward bursts (38 true each), slow stacked to 75%', pulses.length === 3 && bursts.length === 3 && near(UNG.hp - v.hp, (245 + 3 * 75) * UF + 3 * 38, 1e-6) && v.ssN === 3 && near(v.slowG, 0.75, 1e-9), `${pulses.length} ${bursts.length} ${UNG.hp - v.hp} ssN ${v.ssN} slowG ${v.slowG}`);
+    check('62f after 2.33 s: three pulses (100 x armor each) and three ward bursts (38 true each), slow stacked to 75%', pulses.length === 3 && bursts.length === 3 && near(UNG.hp - v.hp, (245 + 3 * 100) * UF + 3 * 38, 1e-6) && v.ssN === 3 && near(v.slowG, 0.75, 1e-9), `${pulses.length} ${bursts.length} ${UNG.hp - v.hp} ssN ${v.ssN} slowG ${v.slowG}`);
     const ev3 = go(m, 90);
-    check('62g the fourth pulse at 3 s, its ward bursts 2 s later (5 x 38 true in all)', only(ev3, 'nova', (e) => e.skill === 'thoikhong' && e.k).length === 1 && only(ev3, 'nova', (e) => e.ward).length === 2 && near(UNG.hp - v.hp, (245 + 4 * 75) * UF + 5 * 38, 1e-6), `${UNG.hp - v.hp}`);
+    check('62g the fourth pulse at 3 s, its ward bursts 2 s later (5 x 38 true in all)', only(ev3, 'nova', (e) => e.skill === 'thoikhong' && e.k).length === 1 && only(ev3, 'nova', (e) => e.ward).length === 2 && near(UNG.hp - v.hp, (245 + 4 * 100) * UF + 5 * 38, 1e-6), `${UNG.hp - v.hp}`);
   }
   {
     // Thời Không Truyền Tống: a fresh press inside 5 s goes back to the copy (and takes it); past 5 s nothing
