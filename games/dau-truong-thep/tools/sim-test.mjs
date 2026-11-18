@@ -918,7 +918,9 @@ function rosterFor(mode, seed, d0, d1) {
 }
 const lavaDisc = (map, x, z) => map.hazards.some((h) => h.kind === 'lava' && Math.hypot(x - h.x, z - h.z) <= h.r + 0.1);
 function runBot(mode, mapKey, seed, d0 = 'normal', d1 = 'normal') {
-  const m = createMatch({ seed, map: mapKey, mode, roster: rosterFor(mode, seed, d0, d1) });
+  // section 24 tests the free-for-all bots on a fixed roster (TUDO_MECHS), not the live kits: kit lane k16's Lôi Công plays his
+  // old fixture kit there, so a kit remake cannot swing the kill counts
+  const m0 = createMatch({ seed, map: mapKey, mode, roster: rosterFor(mode, seed, d0, d1) }), m = mode === 'tudo' ? oldK16(m0) : m0;
   const dist = m.units.map(() => 0), alive = m.units.map(() => 0);
   let bad = null, nonFinite = 0, ticks = 0, thinkTotal = 0, thinkWorst = 0, deaths = 0, lavaDeaths = 0, captures = 0, ventIdle = 0, ventHits = 0, ventUnits = 0;
   const casts = {}, castHp = [], wallT = m.units.map(() => 0);

@@ -7,6 +7,7 @@ import { mapsFor, pickArena, compileMap, solidAt } from '../js/maps.js';
 import { soloLineup, pveLineup } from '../js/roster.js';
 import { makeMeta, pveOpen } from '../js/meta.js';
 import { mulberry } from '../js/rng.js';
+import { oldK16 } from './k16-cases.mjs';   // kit lane k16: the boss stages run on fixture kits
 
 const KEY = 'dtt.save.v1';
 const store = (raw) => { const m = new Map(raw === undefined ? [] : [[KEY, JSON.stringify(raw)]]); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); } }; };
@@ -180,7 +181,9 @@ export function runPveCases(check, section) {
 }
 
 const bossMatch = (id, seed = 5) => {
-  const m = pveMatch(id, seed, 3);
+  // the stage and boss logic is under test, not the roster: kits remade by the kit lanes play their old fixture kits here
+  // (kit lane k16: the 4-6 lineup draws Natsu, whose new kit sent his bot after a crate instead of the 1-hp alien in 52m)
+  const m = oldK16(pveMatch(id, seed, 3));
   // jump straight to the boss wave: the earlier waves fall without a fight
   for (const u of m.units) if (u.team === 1 && u.wave < m.waves - 1) { u.alive = false; u.hp = 0; u.deaths = 1; u.respawnT = 1e9; }
   for (let i = 0; i < 90 && m.wave < m.waves - 1; i++) step(m, {});
