@@ -9,7 +9,7 @@
 //     descriptions: a fire wolf's jaws and fangs, a white crane's feathers and wings, a siege cannon's struts and shells, a
 //     kangaroo's magic doors, wind-up robot and pouch of stars.
 import * as THREE from '../../vendor/three.module.min.js';
-import { C, own, stop, crescent, sigil, shell, pillar, trail, strands, spikes, burst, gate } from './lookkit.js';
+import { C, own, stop, slash, cut, sigil, shell, pillar, trail, strands, spikes, burst, gate } from './lookkit.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
 function held(kit, objs) { const h = { on: true }; own(kit, objs, 1e9, () => h.on); return h; }
@@ -23,10 +23,10 @@ function wing(n, spread, c, op = 0.92) { const g = new THREE.Group(), m = basic(
 
 // ---- Sói Lửa: fire wolf, orange flame and charcoal, jaws and fangs --------------------------------------------------
 const WF_FIRE = C(2.6, 0.7, 0.05), WF_GOLD = C(2.6, 1.6, 0.3), WF_CHAR = C(0.18, 0.08, 0.04);
-// jaws: two crescents facing each other snapping shut on (x, z) along a
+// jaws: two fang strokes facing each other snapping shut on (x, z) along a
 function jaws(kit, x, z, a, r, life = 0.4) {
-  crescent(kit, x - Math.cos(a) * r * 0.6, z - Math.sin(a) * r * 0.6, a, r, 1.2, 1, WF_FIRE, life, r * 0.45, 0.8, 0, 0.1, { edge: WF_GOLD, spark: WF_GOLD });
-  crescent(kit, x + Math.cos(a) * r * 0.6, z + Math.sin(a) * r * 0.6, a + Math.PI, r, 1.2, -1, WF_FIRE, life, r * 0.45, 0.8, 0, 0.1, { edge: WF_GOLD, spark: WF_GOLD });
+  slash(kit, x - Math.cos(a) * r * 0.6, z - Math.sin(a) * r * 0.6, a, r, WF_FIRE, { y: 1.2, life, w: r * 0.2, span: 0.8, wake: 1.8, arcs: 0, edge: WF_GOLD });
+  slash(kit, x + Math.cos(a) * r * 0.6, z + Math.sin(a) * r * 0.6, a + Math.PI, r, WF_FIRE, { y: 1.2, dir: -1, life, w: r * 0.2, span: 0.8, wake: 1.8, arcs: 0, edge: WF_GOLD });
 }
 const soi = {
   // Rocket Chùm: three wolf-head comets with long flame manes; each bites shut in a pair of fiery jaws where it bursts
@@ -181,7 +181,7 @@ const thancong = {
   tcSabot: {
     pal: [TC_SMOKE, TC_FIRE], hitR: 1.8,
     skill(kit, e, u) {
-      crescent(kit, u.x, u.z, e.a, 6, 1.3, 1, TC_FIRE, 0.5, 4.4, 0.4, 0, 0.06, { edge: TC_BRASS, spark: TC_BRASS });
+      slash(kit, u.x, u.z, e.a, 7, TC_FIRE, { y: 1.3, life: 0.4, w: 1.9, span: 0.45, sweep: 0.06, wake: 3.2, edge: TC_BRASS });
       kit.puffs(u.x + Math.cos(e.a) * 2.5, 1.2, u.z + Math.sin(e.a) * 2.5, kit.N(10), TC_SMOKE, 1.4, 3, 1.2, 1.4, 2.6, 0.6, 0.85, kit.K.SMOKE); kit.kick(u.x, u.z, 0.5);
       return true;
     },
@@ -211,34 +211,33 @@ const thancong = {
 
 // ---- Cá Kiếm (Zoro): three lime-green blades ---------------------------------------------------------------------------
 const CK_LIME = C(1.2, 2.5, 0.3), CK_WHITE = C(2.3, 2.5, 2.0), CK_DEEP = C(0.2, 0.9, 0.1);
-function xflash(kit, x, z, r, life = 0.35) { for (const d of [0.785, -0.785]) { const b = kit.beam(x - Math.cos(d) * r, z - Math.sin(d) * r, x + Math.cos(d) * r, z + Math.sin(d) * r, 2, CK_LIME, life, 2, 1.4); b.fade = true; } kit.glow(x, 1.4, z, CK_WHITE, 0.15, 2, 1, kit.K.STAR, 1.4); }
 const cakiem = {
-  // Lướt Trảm: three green blade streaks run side by side along his dash and cross in an X where he stops
+  // Lướt Trảm: three thin green blade streaks run side by side along his dash and cross in an X cut where he stops
   ckDash: {
     pal: [CK_DEEP, CK_LIME], hitR: 1.8,
     skill(kit, e, u) {
       const a = e.a;
       // two blades cross along the dash in an X, the third straight down the middle
-      for (const o of [-1, 0, 1]) trail(kit, (t) => (t < 0.35 && u.alive ? [u.x - Math.sin(a) * o * Math.cos(t * 9) * 1.6, 1.1 + 0.2 * Math.abs(o), u.z + Math.cos(a) * o * Math.cos(t * 9) * 1.6] : null), 1.9, CK_LIME, 0.8, { c2: CK_DEEP, len: 14 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.32 && u.dash) return true; xflash(kit, u.x + Math.cos(a) * 1.2, u.z + Math.sin(a) * 1.2, 3.6, 0.5); return false; }, drop() {} });
+      for (const o of [-1, 0, 1]) trail(kit, (t) => (t < 0.35 && u.alive ? [u.x - Math.sin(a) * o * Math.cos(t * 9) * 1.6, 1.1 + 0.2 * Math.abs(o), u.z + Math.cos(a) * o * Math.cos(t * 9) * 1.6] : null), 0.7, CK_LIME, 0.5, { c2: CK_DEEP, len: 14 });
+      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.32 && u.dash) return true; cut(kit, u.x + Math.cos(a) * 1.6, u.z + Math.sin(a) * 1.6, a, 4, CK_LIME, { edge: CK_WHITE, life: 0.16, sparks: 5 }); return false; }, drop() {} });
       // three upright sword cuts stand along the path, one per blade
-      for (let i = 0; i < 3; i++) { const d = 2 + i * 2.5; crescent(kit, u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, a + 1.57, 2.2, 1.4, i % 2 ? 1 : -1, CK_LIME, 0.5, 0.9, 1.0, 0, 0.1, { edge: CK_WHITE, tilt: 1.3, sparks: false }); }
+      for (let i = 0; i < 3; i++) { const d = 2 + i * 2.5; slash(kit, u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, a + 1.57, 5.8, CK_LIME, { y: 1.4, dir: i % 2 ? 1 : -1, life: 0.45, w: 1.0, span: 1.2, sweep: 0.06 + i * 0.04, edge: CK_WHITE, tilt: 0.9, sparks: false, arcs: 0 }); }
       return true;
     },
   },
-  // Lốc Kiếm: each turn is a green whirlwind: two crescents chasing round him, tilted one way then the other
+  // Lốc Kiếm: each turn is a green whirlwind: two thin blade strokes chasing round him, tilted one way then the other
   ckSpin: {
     pal: [CK_DEEP, CK_LIME], hitR: 1.8,
     skill() { return true; },
     nova(kit, e, u, s) {
       const k = e.k || 0, r = (e.r || 3.8) * 1.05;
-      for (const ph of [0, Math.PI]) crescent(kit, e.x, e.z, (e.a || 0) + ph + k, r * 1.3, 1 + k * 0.3, k % 2 ? -1 : 1, CK_LIME, 0.5, r * 0.7, 1.5, 0, 0.2, { edge: CK_WHITE, spark: CK_WHITE, tilt: (k % 2 ? -1 : 1) * 0.25 });
-      for (let i = 0; i < kit.N(10); i++) { const a = Math.random() * 6.283; kit.str.emit(e.x + Math.cos(a) * r, R(0.4, 2.4), e.z + Math.sin(a) * r, -Math.sin(a) * 12, R(1, 3), Math.cos(a) * 12, CK_LIME, 0.25, 0.08, 0.05, 0, 0, 1); }
+      for (const ph of [0, Math.PI]) slash(kit, e.x, e.z, (e.a || 0) + ph + k, r * 1.75, CK_LIME, { y: 1 + k * 0.3, dir: k % 2 ? -1 : 1, life: 0.45, span: 1.6, w: r * 0.29, sweep: 0.09, erode: 0.22, edge: CK_WHITE, tilt: (k % 2 ? -1 : 1) * 0.25 });
+      for (let i = 0; i < kit.N(6); i++) { const a = Math.random() * 6.283; kit.str.emit(e.x + Math.cos(a) * r, R(0.4, 2.4), e.z + Math.sin(a) * r, -Math.sin(a) * 12, R(1, 3), Math.cos(a) * 12, CK_LIME, 0.25, 0.08, 0.05, 0, 0, 1); }
       return true;
     },
   },
-  // Nhất Đao: three ghost swords fan out while he takes his stance; the single cut is one huge green crescent along the line
-  // and a white-green X where it ends
+  // Nhất Đao: three ghost swords fan out while he takes his stance; the single cut is one huge thin green stroke along the
+  // line and a white-green X cut where it ends
   ckOne: {
     pal: [CK_DEEP, CK_LIME], hitR: 2,
     skill() { return true; },
@@ -251,10 +250,10 @@ const cakiem = {
     castDrop(kit, v) { v.h.on = false; },
     beam(kit, e) {
       const a = Math.atan2(e.z1 - e.z0, e.x1 - e.x0), L = Math.hypot(e.x1 - e.x0, e.z1 - e.z0);
-      crescent(kit, e.x0, e.z0, a, L * 0.62, 1.2, 1, CK_LIME, 0.7, 8, 0.45, 0, 0.08, { edge: CK_WHITE, spark: CK_WHITE });
-      const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 3, CK_LIME, 0.5, 2, 1.3); b.fade = true;
-      xflash(kit, e.x1, e.z1, 4.4, 0.55);
-      for (const sd of [-1, 1]) crescent(kit, e.x1, e.z1, a + Math.PI / 2 * sd, 3.6, 1.3, sd, CK_LIME, 0.5, 1.6, 1.0, 0, 0.1, { edge: CK_WHITE, sparks: false }); kit.flash(e.x1, 1.6, e.z1, CK_LIME, 60, 0.3); kit.kick(e.x0, e.z0, 0.6);
+      slash(kit, e.x0, e.z0, a, L * 0.8, CK_LIME, { y: 1.2, life: 0.75, w: L * 0.22, span: 0.65, sweep: 0.08, erode: 0.3, edge: CK_WHITE });
+      const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 3.4, CK_LIME, 0.45, 2, 1.3); b.fade = true;
+      cut(kit, e.x1, e.z1, a, 6, CK_LIME, { edge: CK_WHITE, life: 0.2, sparks: 5 });
+      for (const sd of [-1, 1]) slash(kit, e.x1, e.z1, a + Math.PI / 2 * sd, 5.5, CK_LIME, { y: 1.3, dir: sd, life: 0.5, span: 1.1, sweep: 0.1, edge: CK_WHITE, sparks: false, arcs: 0 }); kit.flash(e.x1, 1.6, e.z1, CK_LIME, 60, 0.3); kit.kick(e.x0, e.z0, 0.6);
       return true;
     },
   },

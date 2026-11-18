@@ -12,7 +12,7 @@
 // magenta sword light, a cyan ring round the planted sword, pink petals, white-gold flashes where the big blows land.
 import * as THREE from '../../vendor/three.module.min.js';
 import { B1 } from './looks-b1.js';
-import { burst } from './lookkit.js';
+import { burst, slash, cut } from './lookkit.js';
 import { B2 } from './looks-b2.js';
 import { B3 } from './looks-b3.js';
 import { B4 } from './looks-b4.js';
@@ -51,53 +51,6 @@ function makeSword() {
   return g;
 }
 function dropSword(g) { g.parent && g.parent.remove(g); for (const m of g.userData.mats) m.dispose(); }
-
-// A crescent sweep laid flat round the mech: a moon-shaped band (thick in the middle of the arc, pointed at both ends)
-// with a white-hot outer edge, revealed from one end to the other as the blade goes round, then fading. r is the outer
-// radius, band its thickest width, span the half-angle; dir -1 sweeps the other way (the next sweep goes back).
-const CRES_VERT = 'attribute vec2 aFE; varying vec2 vFE; void main() { vFE = aFE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const CRES_FRAG = `uniform vec3 uColor; uniform float uHead, uFade; varying vec2 vFE;
-  void main() {
-    float f = vFE.x, e = vFE.y;
-    float th = 0.08 + 0.92 * pow(sin(3.14159 * f), 0.8);
-    float inner = 1.0 - th;
-    float body = smoothstep(inner, inner + 0.05, e) * (1.0 - smoothstep(0.97, 1.0, e));
-    float core = smoothstep(0.78, 0.9, e) * (1.0 - smoothstep(0.95, 1.0, e)) * smoothstep(0.0, 0.25, th);
-    float shown = 1.0 - smoothstep(uHead - 0.02, uHead + 0.02, f);
-    float lead = smoothstep(uHead - 0.25, uHead, f) * shown;
-    float a = body * shown * uFade;
-    // drawn over (not added to) the ground, so the magenta stays magenta on light stone; the outer edge burns white
-    vec3 c = mix(uColor * (0.75 + 0.35 * e), vec3(1.0, 0.95, 1.0), clamp(core * 0.9 + lead * 0.35 * body, 0.0, 1.0));
-    gl_FragColor = vec4(c, a * 0.92);
-  }`;
-function crescent(kit, x, z, a, r, y, dir, color, life, band = r * 0.42, span = 1.25, travel = 0, SW = 0.22) {
-  const n = 40, r0 = r - band, pos = [], fe = [], idx = [];
-  for (let i = 0; i <= n; i++) {
-    const f = i / n, la = span - 2 * span * f;
-    for (const [rr, e] of [[r0, 0], [r, 1]]) { pos.push(Math.cos(la) * rr, y, -Math.sin(la) * rr); fe.push(f, e); }
-    if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('aFE', new THREE.Float32BufferAttribute(fe, 2));
-  g.setIndex(idx);
-  const mat = new THREE.ShaderMaterial({ vertexShader: CRES_VERT, fragmentShader: CRES_FRAG, transparent: true, depthWrite: false,
-    side: THREE.DoubleSide, toneMapped: false, uniforms: { uColor: { value: color.clone().multiplyScalar(1 / Math.max(color.r, color.g, color.b)) }, uHead: { value: 0 }, uFade: { value: 1 } } });
-  const mesh = new THREE.Mesh(g, mat);
-  mesh.position.set(x, 0, z); mesh.rotation.y = -a; mesh.scale.z = dir; mesh.frustumCulled = false; mesh.renderOrder = 6;
-  kit.group.add(mesh);
-  kit.anims.push({ t: 0, step(dt) {
-    this.t += dt;
-    // travel (m/s): the crescent flies out along the aim (a thrown sword wave)
-    if (travel) { x += Math.cos(a) * travel * dt; z += Math.sin(a) * travel * dt; mesh.position.set(x, 0, z); }
-    const u = mat.uniforms, sw = Math.min(1, this.t / SW);
-    u.uHead.value = 1.02 * (1 - (1 - sw) ** 2);
-    u.uFade.value = this.t < SW + 0.08 ? 1 : Math.max(0, 1 - (this.t - SW - 0.08) / (life - SW - 0.08));
-    // sparks thrown off the leading tip while it goes round (world angle = aim - dir * local angle)
-    if (sw < 1) { const la = span - 2 * span * u.uHead.value, wa = a - dir * la; kit.sparks(x + Math.cos(wa) * r, y, z + Math.sin(wa) * r, 2, color, 9, 0.25, 0.05, 0.3, 6, -Math.sin(wa) * dir, Math.cos(wa) * dir, 0.4); }
-    return this.t < life;
-  }, drop() { kit.group.remove(mesh); g.dispose(); mat.dispose(); } });
-}
 
 // Pink petals drifting up and out of a point.
 function petals(kit, x, y, z, n, spread, speed) {
@@ -164,34 +117,29 @@ export const LOOKS = {
     skill() { return true; },
     warp(kit, e) {
       const dx = e.x - e.x0, dz = e.z - e.z0, L = Math.hypot(dx, dz) || 1;
-      const b = kit.beam(e.x0, e.z0, e.x, e.z, 1.4, PINK, 0.3, 2, 1.1); b.fade = true;
+      const b = kit.beam(e.x0, e.z0, e.x, e.z, 0.8, PINK, 0.25, 2, 1.1); b.fade = true;
       for (let i = 0, n = kit.N(18); i < n; i++) { const t = Math.random(); kit.str.emit(e.x0 + dx * t, kit.rnd(0.5, 1.6), e.z0 + dz * t, dx / L * 18, 0, dz / L * 18, i % 3 ? PINK : HOT, 0.22, 0.09, 0.06, 0, 1, 1); }
-      kit.ring(e.x, e.z, 2.2, PINK, 0.3); kit.glow(e.x, 1.2, e.z, HOT, 0.15, 2.6, 1, kit.K.STAR, 1.3); burst(kit, e.x, e.z, 3, PINK, HOT, { life: 0.6 }); burst(kit, e.x0, e.z0, 2.2, DEEP, PINK, { life: 0.45 });
-      petals(kit, e.x0, 0.8, e.z0, 6, 0.8, 2); kit.flash(e.x, 1.6, e.z, PINK, 30, 0.2);
+      cut(kit, e.x, e.z, Math.atan2(dz, dx), 3, PINK, { edge: GOLDW, sparks: 5 });
+      petals(kit, e.x0, 0.8, e.z0, 5, 0.8, 2); kit.flash(e.x, 1.6, e.z, PINK, 30, 0.2);
       return true;
     },
   },
-  // Kinh Hồng Tam Thức: three magenta crescents in front, each sweeping back the other way; the third is bigger and lands
-  // with the white-gold flash (its raw max-hp cut).
+  // Kinh Hồng Tam Thức: three thin magenta strokes in front, each sweeping back the other way; the third is bigger and lands
+  // in a white-gold X cut (its raw max-hp cut).
   mlSweep: {
     pal: [PINK, HOT], hitR: 2.2,
-    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, PINK, 0.2, 1.6, 0.5, kit.K.GLOW, 1.3); return true; },
+    skill() { return true; },
     nova(kit, e, u, s) {
-      const k = e.k || 0, big = k === (s.repeat || 1) - 1, r = e.r * (big ? 1.15 : 1);
-      crescent(kit, e.x, e.z, e.a, r * 1.3, 1.1, k % 2 ? -1 : 1, big ? HOT : PINK, big ? 0.7 : 0.6, r * 0.65);
-      crescent(kit, e.x, e.z, e.a, r * 1.0, 1.0, k % 2 ? -1 : 1, DEEP, big ? 0.55 : 0.45);
-      const fx = e.x + Math.cos(e.a) * r * 0.6, fz = e.z + Math.sin(e.a) * r * 0.6;
-      kit.sparks(fx, 1.1, fz, kit.N(10), PINK, 9, 0.35, 0.05, 0.4, 12, Math.cos(e.a), Math.sin(e.a), 0.7);
-      burst(kit, fx, fz, big ? 4 : 3.4, big ? HOT : PINK, DEEP, { life: 0.6 }); burst(kit, e.x, e.z, 2.4, DEEP, PINK, { life: 0.4 });
-      if (big) { bigHit(kit, fx, fz, 1.1); kit.kick(e.x, e.z, 0.5); } else kit.kick(e.x, e.z, 0.2);
-      petals(kit, fx, 1, fz, 3, 1, 2);
+      const k = e.k || 0, big = k === (s.repeat || 1) - 1, r = e.r * (big ? 1.2 : 1.05);
+      slash(kit, e.x, e.z, e.a, r * 1.75, big ? HOT : PINK, { dir: k % 2 ? -1 : 1, life: big ? 0.5 : 0.45, span: 1.65, w: r * 1.75 * 0.18, arcs: 3, edge: GOLDW, sweep: 0.08 });
+      const fx = e.x + Math.cos(e.a) * r * 0.8, fz = e.z + Math.sin(e.a) * r * 0.8;
+      if (big) { cut(kit, fx, fz, e.a, 3.8, PINK, { edge: GOLDW, sparks: 5 }); petals(kit, fx, 1, fz, 4, 1, 2); kit.flash(fx, 1.6, fz, PINK, 30, 0.15); kit.kick(e.x, e.z, 0.5); }
+      else { cut(kit, fx, fz, e.a + (k % 2 ? 0.4 : -0.4), 3.4, PINK, { sparks: 3, life: 0.16 }); kit.kick(e.x, e.z, 0.2); }
       return true;
     },
-    castMake() { return {}; },
-    cast(kit, v, u) { if (Math.random() < 0.3) kit.glow(u.x, 1.2, u.z, PINK, 0.12, 1.2, 0.35, kit.K.GLOW, 1.1); },
   },
   // Không Bạo Liên Thành Trảm: while held a magenta orb swirls round her and two pink guide lines mark the blade's reach and
-  // width, both growing with the charge; let go, a giant crescent and a long sword-light wave run down the lane.
+  // width, both growing with the charge; let go, one giant blade stroke and a long sword-light wave run down the lane.
   mlBlade: {
     pal: [PINK, HOT], hitR: 2.6,
     skill(kit, e, u) { kit.ring(u.x, u.z, 2.2, PINK, 0.4); return true; },
@@ -220,13 +168,11 @@ export const LOOKS = {
     castDrop(kit, v) { kit.endBeam(v.L0); kit.endBeam(v.L1); },
     beam(kit, e, u) {
       const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1, a = Math.atan2(dz, dx), ux = dx / L, uz = dz / L;
-      crescent(kit, e.x0 + ux * 1.2, e.z0 + uz * 1.2, a, 6, 1.3, 1, HOT, 0.7, 2.6, 1.35);
-      crescent(kit, e.x0, e.z0, a, 3.2, 1.4, 1, PINK, 0.5, 1.6, 1.0, Math.max(10, L - 3) / 0.45, 0.08);
-      crescent(kit, e.x0 + ux * 1.2, e.z0 + uz * 1.2, a, 5, 1.2, 1, DEEP, 0.6, 2.2, 1.35);
+      slash(kit, e.x0 + ux * 1.2, e.z0 + uz * 1.2, a, 8, HOT, { life: 0.55, span: 1.45, w: 1.2, arcs: 2, edge: GOLDW, sweep: 0.1, erode: 0.25 });
       const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 1.6, PINK, 0.45, 0, 1.2); b.fade = true;
       for (let i = 0, n = kit.N(26); i < n; i++) { const t = Math.random(); kit.str.emit(e.x0 + dx * t - uz * kit.rnd(-1, 1) * e.w * 0.5, kit.rnd(0.6, 1.8), e.z0 + dz * t + ux * kit.rnd(-1, 1) * e.w * 0.5, ux * 26, 0, uz * 26, i % 3 ? PINK : GOLDW, 0.25, 0.1, 0.07, 0, 1, 1); }
       for (let t = 0.25; t <= 1.001; t += 0.25) kit.scorch(e.x0 + dx * t, e.z0 + dz * t, e.w * 0.45, 3, 1.1, PINK);
-      bigHit(kit, e.x1, e.z1, 1.4); kit.ring(e.x1, e.z1, e.w, PINK, 0.4);
+      cut(kit, e.x1, e.z1, a, 4.4, PINK, { edge: GOLDW, sparks: 5, life: 0.16 }); petals(kit, e.x1, 1, e.z1, 6, 1.2, 2.5);
       kit.flash(e.x0, 1.6, e.z0, HOT, 40, 0.25); kit.kick(e.x0, e.z0, 0.9);
       return true;
     },

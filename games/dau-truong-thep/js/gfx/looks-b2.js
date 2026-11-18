@@ -8,7 +8,7 @@
 //   Mực Ma, Hắc Hổ: no part (梦魇 p83 is shadow clones and a clock, 钢爪 p29 a blue claw streak); built from the descriptions:
 //     a ghost squid of ink and teal light; a black tiger of amber flame, claw marks and blood red.
 import * as THREE from '../../vendor/three.module.min.js';
-import { C, own, stop, crescent, sigil, shell, pillar, trail, strands, spikes, burst, gate } from './lookkit.js';
+import { C, own, stop, slash, sigil, shell, pillar, trail, strands, spikes, burst, gate } from './lookkit.js';
 // a muzzle flash only: the caster gets no blob, the look's own shape carries it
 const muz = (kit, u, a, r, c, c2) => { const x = u.x + Math.cos(a) * 1.4, z = u.z + Math.sin(a) * 1.4; kit.glow(x, 1.3, z, c2, 0.12, 1.6, 1, kit.K.STAR, 1.3); kit.flash(x, 1.5, z, c, 25, 0.15); };
 
@@ -168,7 +168,7 @@ const kynhong = {
   // Hỏa Long Khiếu: five jets of fire fan out, each a roaring flame ribbon
   kyBreath: {
     pal: [KY_DARK, KY_GOLD], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.2, 1.3, u.z + Math.sin(e.a) * 1.2, KY_GOLD, 0.15, 2.4, 1, kit.K.STAR, 1.3); kit.flash(u.x, 1.6, u.z, KY_FIRE, 40, 0.2); muz(kit, u, e.a, 2.0, KY_DARK, KY_GOLD); crescent(kit, u.x, u.z, e.a, 7, 1.0, 1, KY_FIRE, 0.5, 5.2, 0.55, 0, 0.1, { edge: KY_GOLD, spark: KY_GOLD }); return true; },
+    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.2, 1.3, u.z + Math.sin(e.a) * 1.2, KY_GOLD, 0.15, 2.4, 1, kit.K.STAR, 1.3); kit.flash(u.x, 1.6, u.z, KY_FIRE, 40, 0.2); muz(kit, u, e.a, 2.0, KY_DARK, KY_GOLD); slash(kit, u.x, u.z, e.a, 7, KY_FIRE, { y: 1.0, life: 0.4, w: 1.6, span: 0.6, wake: 2.4, arcs: 1, edge: KY_GOLD }); return true; },
     shotMake(kit, s) { const v = { x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 3.4, KY_FIRE, 0.7, { c2: KY_DARK, len: 14 }); v.head = shell(kit, s.x, 1.2, s.z, 1.1, KY_FIRE, { c2: KY_GOLD, inv: 1.2, core: 1, life: 1e9 }); return v; },
     shot(kit, v, s, x, y, z) {
       v.x = x; v.z = z; v.head.position.set(x, 1.2, z);
@@ -211,7 +211,7 @@ const kynhong = {
       const live = (t) => u.alive && (t < 0.5 || u.tfT > 0);
       for (const ph of [0, Math.PI]) trail(kit, (t) => { if (!live(t)) return null; const a = t * 7 + ph, h = 0.4 + ((t * 1.6) % 3.2); return [u.x + Math.cos(a) * 3, h, u.z + Math.sin(a) * 3]; }, 2.6, KY_FIRE, d, { c2: KY_GOLD, len: 22 });
       // two great wings of fire spread from his back and beat for the five seconds
-      for (const sd of [1, -1]) { const at = () => u.aim + Math.PI + sd * 1.3; kit.follow(u, d, (t) => { if (!live(t)) return; if (Math.random() < 0.5) { const a = at() + Math.sin(t * 6) * 0.25; for (let k = 1; k <= 4; k++) kit.glow(u.x + Math.cos(a) * k * 1.1, 1.4 + k * 0.35, u.z + Math.sin(a) * k * 1.1, k % 2 ? KY_FIRE : KY_GOLD, 0.25, 1.1 - k * 0.12, 0.9, kit.K.FLAME, 1.3); } }); crescent(kit, u.x, u.z, u.aim + Math.PI + sd * 1.2, 5, 1.6, sd, KY_FIRE, 1.2, 2.8, 0.6, 0, 0.25, { edge: KY_GOLD, tilt: sd * 0.5 }); }
+      for (const sd of [1, -1]) { const at = () => u.aim + Math.PI + sd * 1.3; kit.follow(u, d, (t) => { if (!live(t)) return; if (Math.random() < 0.5) { const a = at() + Math.sin(t * 6) * 0.25; for (let k = 1; k <= 4; k++) kit.glow(u.x + Math.cos(a) * k * 1.1, 1.4 + k * 0.35, u.z + Math.sin(a) * k * 1.1, k % 2 ? KY_FIRE : KY_GOLD, 0.25, 1.1 - k * 0.12, 0.9, kit.K.FLAME, 1.3); } }); slash(kit, u.x, u.z, u.aim + Math.PI + sd * 1.2, 7.5, KY_FIRE, { y: 1.6, dir: sd, life: 0.9, w: 1.5, span: 0.9, sweep: 0.25, erode: 0.35, wake: 2, edge: KY_GOLD, tilt: sd * 0.5 }); }
       kit.ring(u.x, u.z, 3.4, KY_GOLD, 0.45); kit.flash(u.x, 2, u.z, KY_FIRE, 60, 0.35); kit.scorch(u.x, u.z, 2.6, 3, 1.6, KY_FIRE);
       return true;
     },
@@ -339,8 +339,7 @@ const hacho = {
     leap(kit, e, u) {
       const a = Math.atan2(e.z - e.z0, e.x - e.x0), dur = e.dur || 0.4;
       claws(kit, (e.x0 + e.x) / 2, (e.z0 + e.z) / 2, a + 1.2, 6.5, HH_RED, 0.8, 1.6);
-      crescent(kit, e.x0, e.z0, a, 5.5, 1.4, 1, HH_DARK, 0.7, 2.6, 1.1, (Math.hypot(e.x - e.x0, e.z - e.z0) || 4) / dur * 0.8, 0.15, { edge: HH_RED, spark: HH_AMB });
-      burst(kit, e.x0, e.z0, 3, HH_DARK, HH_RED, { life: 0.5 });
+      slash(kit, e.x0, e.z0, a, 6.5, HH_AMB, { y: 1.4, life: 0.6, w: 1.0, span: 1.1, travel: (Math.hypot(e.x - e.x0, e.z - e.z0) || 4) / dur * 0.8, sweep: 0.15, edge: HH_RED });
       trail(kit, (t) => (t < dur && u.alive ? [u.x, 1.6, u.z] : null), 3.2, HH_RED, dur + 0.4, { c2: HH_AMB, len: 14 });
       sigil(kit, e.x, e.z, 3.2, HH_AMB, { c2: HH_RED, n: 3, m: 1, ticks: 9, inner: 0, life: dur + 0.3, rev: dur, fill: 0.12, w: 0.05 });
       kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;

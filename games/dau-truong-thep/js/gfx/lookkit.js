@@ -1,6 +1,6 @@
 // Shared pieces for per-skill looks (looks*.js), render only: shaped meshes and shaders that a look composes with its own
 // colours and timing. Every piece adds itself to kit.group, runs as a kit anim and disposes what it made when it ends.
-//   crescent  a moon-shaped band revealed along its arc (a blade sweep)
+//   slash     a thin blade stroke along an arc: needle ends, a crisp white-hot rim line, erodes from the tail (cut: an X flash)
 //   sigil     a ground magic circle: rings, an {n/m} star polygon, rune ticks, turning and revealed by a sweep
 //   shell     a fresnel bubble or sphere of light, optionally riding a unit
 //   pillar    a column of light with rings climbing it
@@ -28,47 +28,122 @@ const keep = (g) => { g.userData.keep = true; return g; };
 // ends a piece made with life 1e9 (a shot's or a zone's lifetime is the sim's): it is removed on the next frame
 export const stop = (m) => { if (m) m.userData.end = true; };
 
-// ---- crescent --------------------------------------------------------------------------------------------------
-const CRES_VERT = 'attribute vec2 aFE; varying vec2 vFE; void main() { vFE = aFE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const CRES_FRAG = `uniform vec3 uColor, uEdge; uniform float uHead, uFade; varying vec2 vFE;
+// ---- slash -----------------------------------------------------------------------------------------------------
+// A blade stroke, after the anime action-game slash: a thin ribbon along an arc, needle-pointed at both ends, a crisp
+// white-hot line on its outer rim (about 1-2 px wide at any distance, anti-aliased by screen derivatives) and the colour
+// fading inward to nothing. It sweeps from its tail end to its head end in `sweep` s, holds, then erodes from the tail toward
+// the head over the last `erode` s of its life instead of fading as a whole. Light is added to the ground, with a little cover
+// under the colour (`cover`) so a hue still reads on light stone without painting an opaque layer.
+// vS: x along the arc (0 tail, 1 head), y metres in from the outer rim (negative in the pad just outside it, which carries
+// the rim's anti-aliasing), z the stroke's local width there.
+const SLASH_VERT = 'attribute vec3 aS; varying vec3 vS; void main() { vS = aS; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+const SLASH_FRAG = `uniform vec3 uColor, uEdge, uInner; uniform float uHead, uTail, uA, uHot, uCover, uWake, uLine, uWmax, uBody;
+  varying vec3 vS;
   void main() {
-    float f = vFE.x, e = vFE.y;
-    float th = 0.08 + 0.92 * pow(sin(3.14159 * f), 0.8);
-    float inner = 1.0 - th;
-    float body = smoothstep(inner, inner + 0.05, e) * (1.0 - smoothstep(0.97, 1.0, e));
-    float core = smoothstep(0.78, 0.9, e) * (1.0 - smoothstep(0.95, 1.0, e)) * smoothstep(0.0, 0.25, th);
-    float shown = 1.0 - smoothstep(uHead - 0.02, uHead + 0.02, f);
-    float lead = smoothstep(uHead - 0.25, uHead, f) * shown;
-    float a = body * shown * uFade;
-    vec3 c = mix(uColor * (0.75 + 0.35 * e), uEdge, clamp(core * 0.9 + lead * 0.35 * body, 0.0, 1.0));
-    gl_FragColor = vec4(c, a * 0.92);
+    float f = vS.x, d = vS.y, w = max(vS.z, 1e-4);
+    float px = max(fwidth(d), 1e-5);
+    float rim = clamp(d / px + 0.5, 0.0, 1.0);
+    float k = clamp(d / w, 0.0, 1.0);
+    float body = pow(1.0 - k, 0.8) * rim * uBody;
+    float wake = uWake > 0.0 ? pow(1.0 - clamp(d / (w * uWake), 0.0, 1.0), 1.25) * 0.85 * rim : 0.0;
+    float lw = px * uLine * (0.35 + 0.65 * sqrt(clamp(w / uWmax, 0.0, 1.0)));
+    float line = rim * clamp((lw - d) / px + 0.5, 0.0, 1.0);
+    float shown = smoothstep(uHead + 0.004, uHead - 0.03, f) * smoothstep(uTail, uTail + 0.12, f);
+    float hot = smoothstep(uHead - 0.35, uHead, f) * uHot;
+    // bright just inside the rim line, deepening inward (a darker hue still reads on light stone), then gone
+    vec3 hue = mix(uColor * (1.0 + 0.25 * hot), uInner, smoothstep(0.1, 0.8, k));
+    vec3 c = hue * body + uInner * wake + uEdge * line * (1.0 + 0.6 * hot);
+    float m = shown * uA;
+    gl_FragColor = vec4(c * m, clamp(((body + wake) * uCover + line * 0.6) * m, 0.0, 1.0));
   }`;
-// x, z centre; a aim; r outer radius; y height; dir +1/-1 sweep sense; band thickest width; span half-angle; travel m/s along a;
-// SW sweep time. opts.edge the colour of the outer edge (white by default), opts.tilt rolls the band about the aim (a vertical slash)
-export function crescent(kit, x, z, a, r, y, dir, color, life, band = r * 0.42, span = 1.25, travel = 0, SW = 0.22, opts = {}) {
-  const n = 40, r0 = r - band, pos = [], fe = [], idx = [];
+// the stroke style every slash starts from (a look may override any of it per call)
+const SLASH = { cover: 0.9, wake: 2.6, arcs: 2, line: 2, gain: 0.78, deep: 0.45 };
+// a ribbon along radius r from local angle +span (f 0) to -span (f 1), w wide at its belly, needle points at both ends;
+// wake > 1 extends the geometry inward for the faint wake behind the stroke
+function slashGeo(r, w, span, wake) {
+  const n = 72, pad = 0.05, pos = [], s = [], idx = [], deep = Math.max(1, wake);
   for (let i = 0; i <= n; i++) {
-    const f = i / n, la = span - 2 * span * f;
-    for (const [rr, e] of [[r0, 0], [r, 1]]) { pos.push(Math.cos(la) * rr, 0, -Math.sin(la) * rr); fe.push(f, e); }
+    const f = i / n, la = span - 2 * span * f, ww = w * Math.pow(Math.sin(Math.PI * Math.pow(f, 0.85)), 0.9);
+    for (const d of [-pad, ww * deep]) { const rr = r - d; pos.push(Math.cos(la) * rr, 0, -Math.sin(la) * rr); s.push(f, d, ww); }
     if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('aFE', new THREE.Float32BufferAttribute(fe, 2));
+  g.setAttribute('aS', new THREE.Float32BufferAttribute(s, 3));
   g.setIndex(idx);
-  const mat = new THREE.ShaderMaterial({ vertexShader: CRES_VERT, fragmentShader: CRES_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
-    blending: opts.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-    uniforms: { uColor: { value: norm(color) }, uEdge: { value: opts.edge ? norm(opts.edge) : new THREE.Color(1, 0.96, 1) }, uHead: { value: 0 }, uFade: { value: 1 } } });
-  const mesh = new THREE.Mesh(g, mat), pivot = new THREE.Group();
-  pivot.position.set(x, y, z); pivot.rotation.y = -a; mesh.rotation.x = opts.tilt || 0; mesh.scale.z = dir; mesh.renderOrder = 6; pivot.add(mesh);
+  return g;
+}
+const SLASH_BLEND = { transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, blending: THREE.CustomBlending,
+  blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor };
+const WHITE_HOT = new THREE.Color(1, 0.97, 0.92);
+// x, z centre of the arc; a aim (the arc's middle points along a); r radius; c the skill colour. o (all optional):
+//   y height (1.1); dir +1/-1 sweep sense; life (0.35 s); w belly width (r * 0.15); span half-angle (1.2); travel m/s along a
+//   (a thrown wave); sweep s to draw the arc (0.1); erode s at the end of life (0.2); tilt rolls the arc about the aim (an
+//   upright cut); edge the accent mixed into the white-hot rim line; sparks false for none off the leading tip, spark their
+//   colour; c2 the colour the stroke turns to inward and in its wake (c deepened by default: orange rim to gold inside is
+//   c orange, c2 gold); arcs thin speed-arcs inside the stroke; cover, wake, line (rim line width, px), gain, deep override SLASH
+export function slash(kit, x, z, a, r, c, o = {}) {
+  const y = o.y ?? 1.1, dir = o.dir ?? 1, life = o.life ?? 0.35, w = o.w ?? r * 0.15, span = o.span ?? 1.2, travel = o.travel || 0;
+  const SW = o.sweep ?? 0.1, ER = Math.min(o.erode ?? 0.2, life - SW), st = { ...SLASH, ...o };
+  const edge = WHITE_HOT.clone().lerp(o.edge ? norm(o.edge) : norm(c), o.edge ? 0.3 : 0.12).multiplyScalar(1.5);
+  const pivot = new THREE.Group(), mats = [], lags = [];
+  pivot.position.set(x, y, z); pivot.rotation.y = -a;
+  const add = (rr, ww, sp, gain, line, wake, lag) => {
+    const mat = new THREE.ShaderMaterial({ vertexShader: SLASH_VERT, fragmentShader: SLASH_FRAG, ...SLASH_BLEND,
+      uniforms: { uColor: { value: norm(c).multiplyScalar(gain) }, uEdge: { value: lag ? norm(c).multiplyScalar(0.9) : edge.clone() }, uHead: { value: 0 }, uTail: { value: 0 }, uA: { value: 1 }, uHot: { value: 1 },
+        uCover: { value: st.cover }, uWake: { value: wake }, uLine: { value: line }, uWmax: { value: ww }, uBody: { value: 1 }, uInner: { value: (o.c2 ? norm(o.c2) : norm(c).multiplyScalar(st.deep)).multiplyScalar(gain) } } });
+    const m = new THREE.Mesh(slashGeo(rr, ww, sp, wake), mat);
+    m.rotation.x = o.tilt || 0; m.scale.z = dir; m.renderOrder = 6; pivot.add(m); mats.push(mat); lags.push(lag);
+  };
+  add(r, w, span, st.gain, st.line, st.wake, 0);
+  // speed-arcs: thinner, shorter, a step inside the stroke and a beat behind it
+  for (let i = 1; i <= st.arcs; i++) add(r - w * (1.3 + 1.0 * i), w * (0.5 - 0.1 * i), span * (0.85 - 0.18 * i), st.gain, st.line * 0.6, 0, 0.06 + 0.07 * i);
+  const tip = new THREE.Vector3(), m0 = pivot.children[0];
   own(kit, [pivot], life, (t, dt) => {
     if (travel) { x += Math.cos(a) * travel * dt; z += Math.sin(a) * travel * dt; pivot.position.set(x, y, z); }
-    const u = mat.uniforms, sw = Math.min(1, t / SW);
-    u.uHead.value = 1.02 * (1 - (1 - sw) ** 2);
-    u.uFade.value = t < SW + 0.08 ? 1 : Math.max(0, 1 - (t - SW - 0.08) / (life - SW - 0.08));
-    if (sw < 1 && opts.sparks !== false) { const la = span - 2 * span * u.uHead.value, wa = a - dir * la; kit.sparks(x + Math.cos(wa) * r, y, z + Math.sin(wa) * r, 2, opts.spark || color, 9, 0.25, 0.05, 0.3, 6, -Math.sin(wa) * dir, Math.cos(wa) * dir, 0.4); }
+    const sw = Math.min(1, t / SW), head = 1.04 * (1 - (1 - sw) ** 3), e0 = life - ER;
+    const ek = t < e0 ? 0 : Math.min(1, (t - e0) / ER), tail = 1.1 * ek * ek * (3 - 2 * ek), hot = Math.max(0, 1 - Math.max(0, t - SW) / 0.12);
+    mats.forEach((mat, i) => { const u = mat.uniforms; u.uHead.value = head - lags[i] * (1 - sw * 0.6); u.uTail.value = tail; u.uHot.value = hot; u.uA.value = 1 - 0.3 * ek; });
+    // a few sparks thrown off the leading tip while the arc is drawn
+    if (sw < 1 && o.sparks !== false && Math.random() < 0.55) {
+      const la = span - 2 * span * Math.min(1, head); tip.set(Math.cos(la) * r, 0, -Math.sin(la) * r); pivot.updateMatrixWorld(true); m0.localToWorld(tip);
+      const wa = a - dir * la; kit.sparks(tip.x, tip.y, tip.z, 1, o.spark || o.edge || c, 9, 0.22, 0.04, 0.3, 6, -Math.sin(wa) * dir, Math.cos(wa) * dir, 0.35);
+    }
   });
   return pivot;
+}
+
+// ---- cut -------------------------------------------------------------------------------------------------------
+// The flash where a blade lands: two thin needle strokes crossing in an X with a white-hot core, flaring out in 0.04 s and
+// thinning to nothing by `life` (0.12 s), the second a beat after the first; 3-5 sparks fly off along the cuts.
+const CUT_FRAG = `uniform vec3 uColor, uEdge; uniform float uA, uK;
+  varying vec2 vUv;
+  void main() {
+    float u = vUv.x * 2.0 - 1.0, v = abs(vUv.y * 2.0 - 1.0);
+    float wv = (1.0 - abs(u)) * uK, px = max(fwidth(vUv.y) * 2.0, 1e-5);
+    float body = clamp((wv - v) / px + 0.5, 0.0, 1.0) * (1.0 - 0.7 * clamp(v / max(wv, px), 0.0, 1.0));
+    float core = clamp((wv * 0.3 + 0.5 * px - v) / px + 0.5, 0.0, 1.0);
+    gl_FragColor = vec4((uColor * body + uEdge * core) * uA, 0.0);
+  }`;
+const cutGeo = keep(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
+// x, z where the blade lands; a the blade's direction; size the length of each cut (m); c the skill colour, o.edge the accent,
+// o.y height, o.life, o.sparks count (4)
+export function cut(kit, x, z, a, size, c, o = {}) {
+  const y = o.y ?? 1.2, life = o.life ?? 0.12, edge = WHITE_HOT.clone().lerp(o.edge ? norm(o.edge) : norm(c), 0.25).multiplyScalar(1.6);
+  [0.75, -0.75].forEach((da, i) => {
+    const mat = new THREE.ShaderMaterial({ vertexShader: FLAT_VERT, fragmentShader: CUT_FRAG, ...SLASH_BLEND,
+      uniforms: { uColor: { value: norm(c).multiplyScalar(1.2) }, uEdge: { value: edge }, uA: { value: 0 }, uK: { value: 0 } } });
+    const m = new THREE.Mesh(cutGeo, mat), d0 = i * 0.03;
+    m.position.set(x, y, z); m.rotation.y = -(a + da); m.renderOrder = 7;
+    own(kit, [m], life + d0, (t) => {
+      const k = t - d0; if (k < 0) return;
+      const up = Math.min(1, k / 0.04), down = Math.max(0, 1 - Math.max(0, k - 0.04) / (life - 0.04));
+      m.scale.set(size * (0.55 + 0.45 * up), 1, 0.16 * size * (0.3 + 0.7 * down));
+      mat.uniforms.uK.value = 0.9 * down; mat.uniforms.uA.value = up;
+    });
+  });
+  const n = o.sparks ?? 4;
+  for (let i = 0; i < n; i++) { const s = i % 2 ? 1 : -1, ca = a + s * 0.75; kit.sparks(x, y, z, 1, o.spark || o.edge || c, 8, 0.25, 0.04, 0.3, 8, Math.cos(ca) * s, Math.sin(ca) * s, 0.25); }
 }
 
 // ---- sigil -----------------------------------------------------------------------------------------------------

@@ -10,7 +10,7 @@
 //   冥王 p72: an ice-blue scythe sweep, a blue column of light with rings, a big blue energy sphere on the targets.
 //   Sứa Trắng: no part; a pale jellyfish healer (pearl-white bell, glowing tentacles, bubbles, pink stings).
 import * as THREE from '../../vendor/three.module.min.js';
-import { C, own, stop, crescent, sigil, shell, pillar, trail, strands, weapon, fadeWeapon, spikes, burst, gate } from './lookkit.js';
+import { C, own, stop, slash, cut, sigil, shell, pillar, trail, strands, weapon, fadeWeapon, spikes, burst, gate } from './lookkit.js';
 // a muzzle flash only: the caster gets no blob, the look's own shape carries it
 const muz = (kit, u, a, r, c, c2) => { const x = u.x + Math.cos(a) * 1.4, z = u.z + Math.sin(a) * 1.4; kit.glow(x, 1.3, z, c2, 0.12, 1.6, 1, kit.K.STAR, 1.3); kit.flash(x, 1.5, z, c, 25, 0.15); };
 
@@ -40,7 +40,7 @@ const lubo = {
       muz(kit, u, e.a, 3.0, LB_CRIM, LB_RED);
       kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.3 && u.dash) return true;
         const fx = u.x + Math.cos(a) * 1.6, fz = u.z + Math.sin(a) * 1.6;
-        crescent(kit, u.x, u.z, a, 3.8, 1.2, 1, LB_RED, 0.55, 1.8, 1.15, 0, 0.12, { edge: LB_GOLD, spark: LB_GOLD });
+        slash(kit, u.x, u.z, a, 3.8, LB_RED, { y: 1.2, life: 0.55, span: 1.15, sweep: 0.12, edge: LB_GOLD, spark: LB_GOLD });
         const th = kit.beam(u.x, u.z, u.x + Math.cos(a) * 6, u.z + Math.sin(a) * 6, 0.9, LB_RED, 0.3, 2, 1.3); th.fade = true;
         sigil(kit, fx, fz, 2.6, LB_BLUE, { c2: LB_RED, n: 6, m: 2, life: 0.7, rev: 0.12, spin: 1.5, fill: 0.12 });
         burst(kit, fx, fz, 3, LB_CRIM, LB_RED, { life: 0.55 });
@@ -55,8 +55,7 @@ const lubo = {
     skill(kit, e, u) { kit.flash(u.x, 1.6, u.z, LB_RED, 30, 0.2); muz(kit, u, e.a, 3.0, LB_CRIM, LB_RED); return true; },
     shotMake(kit, s, row) {
       const a = Math.atan2(s.dz, s.dx), life = (row.range || 7) / (row.speed || 22) + 0.15;
-      crescent(kit, s.x, s.z, a, 5.4, 1.0, 1, LB_RED, life, 2.8, 1.5, row.speed || 22, 0.06, { edge: LB_GOLD, spark: LB_GOLD });
-      crescent(kit, s.x, s.z, a, 1.7, 1.1, -1, LB_GOLD, life * 0.9, 0.45, 0.8, row.speed || 22, 0.06, { additive: true, sparks: false });
+      slash(kit, s.x, s.z, a, 5.4, LB_RED, { y: 1.0, life, span: 1.5, travel: row.speed || 22, sweep: 0.06, edge: LB_GOLD, spark: LB_GOLD });
       const g = weapon('halberd', 0xd8d0c0, LB_RED); g.scale.setScalar(3);
       return { g, h: held(kit, [g]), a };
     },
@@ -95,13 +94,13 @@ const lubo = {
 // ---- Tào Tháo: violet smoke and magenta, a gold-hilted sword ---------------------------------------------------------
 const TT_VIO = C(1.25, 0.2, 2.1), TT_MAG = C(2.2, 0.3, 1.5), TT_SMOKE = C(0.16, 0.04, 0.22), TT_GOLD = C(2.2, 1.6, 0.6);
 const taothao = {
-  // Kiếm Khí: a violet sword-qi crescent with the Ỷ Thiên sword at its heart, trailing dark smoke
+  // Kiếm Khí: a thin violet sword-qi stroke with the Ỷ Thiên sword at its heart, trailing dark smoke
   ttQi: {
     pal: [TT_VIO, TT_MAG], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, TT_VIO, 0.2, 2, 0.8, kit.K.GLOW, 1.3); muz(kit, u, e.a, 3.0, TT_VIO, TT_MAG); return true; },
+    skill(kit, e, u) { muz(kit, u, e.a, 3.0, TT_VIO, TT_MAG); return true; },
     shotMake(kit, s, row) {
       const a = Math.atan2(s.dz, s.dx), life = (row.range || 12) / (row.speed || 30) + 0.1;
-      crescent(kit, s.x, s.z, a, 4.2, 1.3, 1, TT_VIO, life, 1.8, 1.35, row.speed || 30, 0.05, { edge: TT_MAG, spark: TT_MAG });
+      slash(kit, s.x, s.z, a, 5.2, TT_VIO, { y: 1.3, life, w: 0.75, span: 1.35, travel: row.speed || 30, sweep: 0.05, erode: 0.15, edge: TT_MAG });
       const g = weapon('sword', 0xe8d27a, TT_MAG); g.scale.setScalar(3.4);
       return { g, h: held(kit, [g]), a };
     },
@@ -112,20 +111,19 @@ const taothao = {
     },
     shotEnd(kit, v, s, x, z) { v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), TT_MAG, 7, 0.3, 0.05, 0.5, 8); },
   },
-  // Liên Trảm: each pass leaves a violet X of claw-slashes on the victim and a smoke puff; his path is a dark violet streak
+  // Liên Trảm: each pass leaves a violet X of two thin blade strokes on the victim and a smoke puff; his path is a violet streak
   ttFlurry: {
     pal: [TT_VIO, TT_MAG], hit() {},
     skill(kit, e, u) {
       kit.puffs(u.x, 0.8, u.z, kit.N(6), TT_SMOKE, 0.8, 2, 0.8, 1.2, 2.2, 0.6, 0.7, kit.K.SMOKE);
-      trail(kit, (t) => (t < 1.2 && u.alive ? [u.x, 1.0, u.z] : null), 2.6, TT_VIO, 1.6, { c2: TT_MAG, len: 20 });
+      trail(kit, (t) => (t < 1.2 && u.alive ? [u.x, 1.0, u.z] : null), 1.1, TT_VIO, 1.0, { c2: TT_MAG, len: 20 });
       return true;
     },
     flurry(kit, e) {
       const a = Math.random() * 3.14;
-      for (const d of [0.7, -0.7]) { const b = kit.beam(e.x - Math.cos(a + d) * 3.2, e.z - Math.sin(a + d) * 3.2, e.x + Math.cos(a + d) * 3.2, e.z + Math.sin(a + d) * 4, 2.4, d > 0 ? TT_VIO : TT_MAG, 0.3, 2, 1.3); b.fade = true; }
-      kit.glow(e.x, 1.3, e.z, TT_MAG, 0.15, 2.2, 1, kit.K.STAR, 1.4); kit.puffs(e.x, 1, e.z, kit.N(3), TT_SMOKE, 0.5, 1.5, 0.6, 1, 2, 0.5, 0.6, kit.K.SMOKE);
-      burst(kit, e.x, e.z, 2.8, TT_MAG, C(2.5, 1.6, 2.2), { life: 0.45 });
-      kit.sparks(e.x, 1.3, e.z, kit.N(8), TT_VIO, 9, 0.3, 0.05, 0.5, 10);
+      // each stroke a shallow arc of radius 7 whose middle crosses the victim
+      [0.7, -0.7].forEach((d, i) => { const n = a + d - Math.PI / 2; slash(kit, e.x - Math.cos(n) * 10, e.z - Math.sin(n) * 10, n, 10, i ? TT_MAG : TT_VIO, { y: 1.3, dir: i ? -1 : 1, life: 0.45, span: 0.62, w: 1.65, sweep: 0.07 + i * 0.05, edge: TT_MAG }); });
+      cut(kit, e.x, e.z, a, 2.2, TT_VIO, { edge: TT_MAG, sparks: 4 }); kit.puffs(e.x, 1, e.z, kit.N(3), TT_SMOKE, 0.5, 1.5, 0.6, 1, 2, 0.5, 0.6, kit.K.SMOKE);
       return true;
     },
   },
@@ -309,8 +307,7 @@ const hades = {
   hdSouls: {
     pal: [HD_ICE, HD_SOUL], hitR: 1.8,
     skill(kit, e, u) {
-      crescent(kit, u.x, u.z, e.a, 3.4, 1.0, -1, HD_DEEP.clone().multiplyScalar(2), 0.55, 1.4, 1.1, 0, 0.16, { edge: HD_ICE, sparks: false });
-      crescent(kit, u.x, u.z, e.a, 4.8, 1.4, 1, HD_ICE, 0.5, 2.2, 1.25, 0, 0.12, { edge: HD_SOUL, spark: HD_SOUL });
+      slash(kit, u.x, u.z, e.a, 8.5, HD_ICE, { y: 1.4, life: 0.45, span: 1.45, w: 1.4, sweep: 0.1, edge: HD_SOUL });
       muz(kit, u, e.a, 3.0, HD_ICE, HD_SOUL);
       const g = weapon('scythe', HD_BONE, HD_ICE, { opacity: 0.9 }); g.scale.setScalar(3);
       own(kit, [g], 0.35, (t) => { const a = e.a + 1.2 - t * 6; g.position.set(u.x, 1.6, u.z); g.rotation.set(0, -a, 0); fadeWeapon(g, Math.min(1, (0.35 - t) / 0.15)); });
