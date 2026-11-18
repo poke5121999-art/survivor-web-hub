@@ -121,6 +121,7 @@ function clearStatus(u) {
   if (u.tfBase) u.def = formDef(u.tfBase, 0);
   u.tfBase = null;
   k2Clear(u);   // kit-remake G5 Athena
+  k4Clear(u);   // kit-remake K4
 }
 
 function spawn(m, u, first) {
@@ -417,6 +418,7 @@ function stepUnit(m, u, inp) {
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   g4Tick(m, u);
   g3Tick(m, u);
+  k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
@@ -1206,6 +1208,7 @@ function fireWeapon(m, u, inp) {
   // reach: the armed shot flies that many times the weapon's range (garage range levels included)
   const sw = boost && (boost.patch || boost.reach) ? { ...w, ...boost.patch, ...(boost.reach ? { range: w.range * boost.reach } : {}) } : w;
   for (let i = 0; i < n; i++) spawnShot(m, u, sw, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
+  if (u.def.passive && u.def.passive.missile) k4Missile(m, u, base);   // kit-remake K4: enbac's homing missile chance
   m.events.push({ t: 'fire', id: u.id, vis: sw.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
 }
 
@@ -1247,6 +1250,7 @@ const CAST = {
       for (let i = 0; i < (v.n || 1); i++) spawnShot(m, u, v, a0 + (i - ((v.n || 1) - 1) / 2) * (v.fan || 0), 0, null, s.id);
       m.events.push({ t: 'fire', id: u.id, vis: v.vis, x: u.x, z: u.z, a: a0, side: 0 });
     }
+    if (s.back) return k4BackDash(u, s);   // kit-remake K4: enbac's dash away from the aim
     if (s.invuln) u.invulnT = Math.max(u.invulnT, s.dist / s.speed + 0.1);
     u.dash = { dx: Math.cos(u.aim), dz: Math.sin(u.aim), left: s.dist, speed: s.speed, s, hit: [] };
   },
@@ -1270,7 +1274,8 @@ const CAST = {
     const o = s.track ? pickUnit(m, u, inp, s.track, (o) => o.team !== u.team) : null;
     u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim, target: o ? o.id : -1 };
   },
-  volley(m, u, s) {
+  volley(m, u, s, inp) {
+    if (s.home) return k4Homing(m, u, s, inp);   // kit-remake K4: enbac's homing volley
     if (s.perTarget || s.sameDecay) u.volTag = { cap: s.perTarget || 0, decay: s.sameDecay || 0, hits: {} };
     fireVolley(m, u, s);
     // haste: a short run after the volley; burst: the volley goes off again burst.n - 1 times, burst.gap apart, while the mech keeps walking
@@ -1438,7 +1443,8 @@ const CAST = {
   },
   // orbit: n orbs circle the caster. 'seek': each `rate` seconds the next orb flies off at the nearest enemy in range and is spent;
   // 'guard': the orbs shoot down enemy shots and the ring cuts enemies close to the caster.
-  orbit(m, u, s) {
+  orbit(m, u, s, inp) {
+    if (s.mode === 'devour') return k4Devour(m, u, s, inp);   // kit-remake K4: tumay's ult
     addZone(m, u, { kind: 'orbit', mode: s.mode, x: u.x, z: u.z, r: s.ring, ring: s.ring, n: s.n, live: (1 << s.n) - 1, dur: s.dur, rate: s.rate || 0.35, acc: 0,
       dmg: s.dmg || 0, range: s.range || 11, dps: s.dps || 0, spin: s.spin || 2.4, speed: s.speed || 30, pr: s.pr || 0.24, vis: s.vis || 'dart', src: s.id });
   },
@@ -1721,6 +1727,7 @@ const FINISH = {
     curSrc = s.id;
     // healLost (each enemy the blow lands on heals the caster that share of its lost hp) is read in rowHit, like on every skill row
     areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
+    if (s.orbKnock) k4Knock(m, u, s);   // kit-remake K4: tumay's Q knocks its own orbs
     if (s.last && (c.left || 1) <= 1) {
       for (const o of m.units) {
         if (o.team === u.team || !o.alive || o.def.boss) continue;
@@ -1870,6 +1877,7 @@ function stepShots(m) {
       if (bd < owner.radius + s.r + 0.1) { m.shots.splice(i, 1); continue; }
       s.dx = bx / bd; s.dz = bz / bd; s.left = Math.max(s.left, 1);
     }
+    if (s.k4Home !== undefined) k4Steer(m, s);   // kit-remake K4: homing shots
     const len = Math.min(s.left, s.speed * TICK);
     const ex = s.dx * len, ez = s.dz * len;
     s.px = s.x; s.pz = s.z;
@@ -1951,6 +1959,7 @@ function stepShots(m) {
       if (s.slow && hitUnit.alive) { hitUnit.slowT = Math.max(hitUnit.slowT, s.slowDur); hitUnit.slowF = Math.max(hitUnit.slowF, s.slow); }
       if (s.fx && owner && hitUnit.alive) applyFx(m, owner, hitUnit, s.fx);
       if (s.hook && !s.hook.self && hitUnit.alive && owner && owner.alive) reel(m, owner, hitUnit, s.hook);
+      if (owner) k4ShotHit(m, s, hitUnit, owner);   // kit-remake K4: orb shots, enbac's nth hit
     } else if (what === 'prop') damageProp(m, hitProp, dmg, owner);
     else if (hitZone) hitZone.hp -= dmg;
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
@@ -2007,6 +2016,7 @@ function stepZones(m) {
         const L = z.linger;
         if (L) addZone(m, owner, { kind: 'field', vis: L.vis, x: z.x, z: z.z, r: L.radius, dur: L.dur, hps: 0, dps: L.dps || 0, slow: L.slow || 0, hide: false, pull: 0, acc: 0,
           haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+        k4Strike(m, z, owner);   // kit-remake K4: a strike that leaves a chaos orb
       }
     } else if (z.kind === 'mine') {
       if (z.delay > 0) z.delay -= dt;
@@ -2097,6 +2107,7 @@ function stepZones(m) {
         if (worst) heal(m, worst, z.hps * 0.5 * (worst === owner ? RULES.selfHealMul : 1), owner);
       }
       if (!owner.alive || z.age > z.dur) done = true;
+    } else if (z.kind === 'orbit' && z.mode === 'chaosG') { done = k4Ground(m, z, owner);   // kit-remake K4: a ground chaos orb
     } else if (z.kind === 'orbit') {
       if (!owner.alive || z.age > z.dur) done = true;
       else {
@@ -2423,6 +2434,7 @@ function takedown(m, o, kill, victim) {
     if (r) for (const slot of r.slots) o.cd[slot] *= 1 - r.frac;
     if (kill && K.haste) { o.hasteF = Math.max(o.hasteT > 0 ? o.hasteF : 1, K.haste); o.hasteT = Math.max(o.hasteT, K.dur || 3); }
   }
+  if (kill && o.def.passive && o.def.passive.do === 'chaos') k4Kill(m, o);   // kit-remake K4: tumay's orbs per kill
   if (o.passive === 'souls') {
     const Z = P.zone;
     addZone(m, o, { kind: 'field', vis: 'magnet', x: victim.x, z: victim.z, r: Z.radius, dur: Z.dur, hps: 0, dps: Z.dps, slow: 0, hide: false, pull: 0, acc: 0, follow: false, armor: 0, cage: false, held: 0 });
@@ -2707,6 +2719,178 @@ function totemStep(m, z, owner) {
   return z.hp <= 0 || z.age > z.dur;
 }
 /* ===== end kit-remake G4 ===== */
+
+/* ===== kit-remake K4 (lane K4, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": tumay, enbac).
+   Hooks elsewhere are one line each, marked "kit-remake K4", and call into this block.
+   tumay (Tư Mã Ý, clip p12): the Chaos Orb economy.
+     passive {do: 'chaos', every, max, kill, ring, spin}: one orbit zone per mech (mode 'chaos', synced as an orbit zone: n bits
+       in `live`) holds the orbs circling it; one more every `every` s up to `max`; a kill gives `kill` more (up to max + kill).
+     ground orbs: orbit zones of mode 'chaosG' (ring 0, one orb, fixed x/z): `dur` s, then a blast of `bdmg` in `blast` m
+       (event nova, skill = the row that planted it). Spent by a skill, it vanishes without the blast.
+     barrage row `leaveOrb {dur, blast, dmg}`: each strike plants a ground orb where it fell.
+     nova row `orbKnock {dmg, stun, speed, range, cut}`: every own orb (circling or ground) inside the blow's reach and arc flies
+       off away from the caster as a shot (dmg, stun s); a shot that hits a mech plants a ground orb there (the leaveOrb row's
+       numbers) and cuts every cooldown of the caster by `cut` of its full length.
+     orbit row `mode: 'devour' {cast, pick, dmg, grow, heal, speed, max}`: picks the enemy nearest the cursor (within pick of
+       it, cast of the caster); every own orb (up to max, nearest the target first) flies at it, homing, over walls but
+       stopped by any enemy in the way: the k-th does dmg + k x grow and heals the caster `heal` on a hit. No target or no
+       orb: the press does not happen.
+   enbac (Star Lord, clip p18 飞翼):
+     passive {nth, bonus}: every nth weapon hit in a row on the same mech adds `bonus` (event stacks {id, by, x, z}).
+     passive {chance, missile {dmg, speed, range, r, vis, turn, src}}: each weapon shot has that chance to also launch one
+       homing missile at the enemy nearest the aim (within the weapon's reach, 0.7 rad of the aim).
+     dash row `back: true`: the dash runs away from the aim (onStart.volley without `back` fires along the aim).
+     volley row `home {cast, pick, turn}`: the volley locks the enemy nearest the cursor and its shots turn toward it at
+       `turn` rad/s; nobody there, they fly straight.
+   New names carry a prefix (tm = tumay, sl = enbac, k4 = shared by the lane): unit tmAcc (orb timer), slTo/slN (hit count);
+   zone tmGone/tmBlast/tmDmg (ground orbs); shot k4Home (unit id), k4Turn (rad/s), k4Kind ('knock' | 'devour'), tmHeal, tmCut. Shots travel in netstate by
+   position and direction, so a homing shot needs no new field. TODO (G3 STATUS mask): nothing of K4 is a unit status;
+   u.slTo/u.slN and u.tmAcc are host-only and need no sync (the orbs are zones). ===== */
+const k4P = (u) => u.def.passive || null;
+function k4Clear(u) { u.slTo = -1; u.slN = 0; u.tmAcc = 0; }
+function k4Pool(m, u) { for (const z of m.zones) if (z.kind === 'orbit' && z.owner === u.id && z.mode === 'chaos') return z; return null; }
+const k4Bits = (v) => { let n = 0; for (; v; v &= v - 1) n++; return n; };
+function k4AddOrbs(z, k, cap) {
+  for (let i = 0; i < z.n && k > 0 && k4Bits(z.live) < cap; i++) if (!((z.live >> i) & 1)) { z.live |= 1 << i; k--; }
+}
+// Every tick of a living mech: the chaos pool exists, and grows one orb every P.every s up to P.max.
+function k4Tick(m, u) {
+  const P = k4P(u);
+  if (!P || P.do !== 'chaos') return;
+  let z = k4Pool(m, u);
+  if (!z) {
+    const ring = P.ring || 1.7;
+    z = { kind: 'orbit', mode: 'chaos', x: u.x, z: u.z, r: ring, ring, n: P.max + (P.kill || 0), live: 0, dur: 1e6, rate: 0, acc: 0, dmg: 0, range: 0, dps: 0, spin: P.spin || 2.2, speed: 0, pr: 0, vis: 'dart', src: null };
+    addZone(m, u, z);
+  }
+  if (k4Bits(z.live) >= P.max) { u.tmAcc = 0; return; }
+  u.tmAcc += TICK;
+  if (u.tmAcc >= P.every - 1e-9) { u.tmAcc -= P.every; k4AddOrbs(z, 1, P.max); }
+}
+// takedown: a kill of the chaos mech gives P.kill orbs at once (the ult reset is passive mods.onKill)
+function k4Kill(m, o) {
+  const P = k4P(o), z = k4Pool(m, o);
+  if (z) k4AddOrbs(z, P.kill || 0, z.n);
+}
+// Every own orb: circling ones (pool, bit i) and ground ones, with where they are now.
+export function chaosOrbs(m, u) {
+  const out = [];
+  for (const z of m.zones) {
+    if (z.kind !== 'orbit' || z.owner !== u.id) continue;
+    if (z.mode === 'chaos') { for (let i = 0; i < z.n; i++) if ((z.live >> i) & 1) { const [x, zz] = orbPos(z, u, i); out.push({ z, i, x, zz }); } }
+    else if (z.mode === 'chaosG' && !z.tmGone) out.push({ z, i: -1, x: z.x, zz: z.z });
+  }
+  return out;
+}
+function k4Spend(o) { if (o.i >= 0) o.z.live &= ~(1 << o.i); else o.z.tmGone = true; }
+function k4Plant(m, u, x, z, L, src) {
+  addZone(m, u, { kind: 'orbit', mode: 'chaosG', x, z, r: 0.6, ring: 0, n: 1, live: 1, dur: L.dur, rate: 0, acc: 0, dmg: 0, range: 0, dps: 0, spin: 0, speed: 0, pr: 0, vis: 'dart', src, tmBlast: L.blast, tmDmg: L.dmg });
+}
+// A ground orb's tick: spent (gone) it just ends; at the end of its time it bursts round itself.
+function k4Ground(m, z, owner) {
+  if (z.tmGone || !owner || !owner.alive) return true;
+  if (z.age < z.dur) return false;
+  m.events.push({ t: 'nova', id: owner.id, x: z.x, z: z.z, r: z.tmBlast, skill: z.src, orb: 1 });
+  curSrc = z.src; areaDamage(m, owner, z.x, z.z, z.tmBlast, z.tmDmg, null, null); curSrc = null;
+  return true;
+}
+// A strike of a barrage row with leaveOrb plants a ground orb where it fell.
+function k4Strike(m, z, owner) {
+  if (!owner || !owner.alive || !z.src) return;
+  const s = owner.def.skills.find((r) => r.id === z.src);
+  if (s && s.leaveOrb) k4Plant(m, owner, z.x, z.z, s.leaveOrb, s.id);
+}
+// An orb shot leaving (x, z) at angle a.
+function k4Shot(m, u, x, z, a, o) {
+  const dx = Math.cos(a), dz = Math.sin(a);
+  const s = { id: m.nextId++, team: u.team, color: u.color, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: o.speed, left: o.range, dmg: o.dmg * dmgScale(u), splash: 0, knock: 0, slow: 0, slowDur: 0, r: o.r, vis: o.vis,
+    pierce: false, bounce: 0, hook: null, far: null, flown: 0, hit: null, fx: o.fx || null, ret: false, back: false, src: o.src, over: !!o.over, k4Kind: o.k4 };
+  if (o.home !== undefined) { s.k4Home = o.home; s.k4Turn = o.turn; }
+  if (o.heal) s.tmHeal = o.heal;
+  if (o.cut) s.tmCut = o.cut;
+  m.shots.push(s);
+  return s;
+}
+const k4Ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+// FINISH.nova of a row with orbKnock: own orbs inside the blow fly off away from the caster.
+function k4Knock(m, u, s) {
+  const K = s.orbKnock, reach = s.radius + 0.3, vis = u.def.weapon.vis;
+  for (const o of chaosOrbs(m, u)) {
+    const dx = o.x - u.x, dz = o.zz - u.z, d = Math.hypot(dx, dz);
+    if (d > reach || (s.arc && d > 0.2 && Math.abs(k4Ang(Math.atan2(dz, dx) - u.aim)) > s.arc)) continue;
+    k4Spend(o);
+    const a = d > 0.2 ? Math.atan2(dz, dx) : u.aim;
+    k4Shot(m, u, o.x, o.zz, a, { dmg: K.dmg, speed: K.speed, range: K.range, r: 0.45, vis, fx: K.stun ? { stun: K.stun } : null, src: s.id, k4: 'knock', cut: K.cut });
+    m.events.push({ t: 'orbKnock', id: u.id, x: o.x, z: o.zz, a });
+  }
+}
+// CAST.orbit, mode 'devour': every orb at the picked enemy.
+function k4Devour(m, u, s, inp) {
+  const tgt = pickUnit(m, u, inp, s, (o) => o.team !== u.team);
+  if (!tgt) return false;
+  const orbs = chaosOrbs(m, u).sort((p, q) => dist2(p.x, p.zz, tgt.x, tgt.z) - dist2(q.x, q.zz, tgt.x, tgt.z) || p.z.id - q.z.id || p.i - q.i).slice(0, s.max || 99);
+  if (!orbs.length) return false;
+  const vis = u.def.weapon.vis;
+  orbs.forEach((o, k) => {
+    k4Spend(o);
+    k4Shot(m, u, o.x, o.zz, Math.atan2(tgt.z - o.zz, tgt.x - o.x), { dmg: s.dmg + k * (s.grow || 0), speed: s.speed || 26, range: 40, r: 0.45, vis, src: s.id, k4: 'devour', over: true, home: tgt.id, turn: 99, heal: s.heal });
+  });
+  m.events.push({ t: 'devour', id: u.id, target: tgt.id, n: orbs.length, x: tgt.x, z: tgt.z });
+}
+// stepShots: a homing shot turns toward its target at s.turn rad/s; the target gone, it flies on straight.
+function k4Steer(m, s) {
+  const o = m.units[s.k4Home];
+  if (!o || !o.alive) { s.k4Home = undefined; return; }
+  const want = Math.atan2(o.z - s.z, o.x - s.x), cur = Math.atan2(s.dz, s.dx), d = k4Ang(want - cur), lim = s.k4Turn * TICK;
+  const a = cur + (Math.abs(d) <= lim ? d : Math.sign(d) * lim);
+  s.dx = Math.cos(a); s.dz = Math.sin(a);
+}
+// stepShots: a shot hurt a mech (after its own damage and fx).
+function k4ShotHit(m, s, o, u) {
+  if (s.k4Kind === 'knock' && u.alive) {
+    const L = u.def.skills.find((r) => r.leaveOrb);
+    if (L) k4Plant(m, u, o.x, o.z, L.leaveOrb, L.id);
+    if (s.tmCut) for (let j = 0; j < 3; j++) if (u.def.skills[j]) applyCut(u, j, { frac: s.tmCut });
+  }
+  if (s.tmHeal && u.alive) heal(m, u, s.tmHeal, u);
+  const P = k4P(u);
+  if (P && P.nth && s.src === 'w' && o.alive) {
+    if (u.slTo === o.id) u.slN++; else { u.slTo = o.id; u.slN = 1; }
+    if (u.slN >= P.nth) {
+      u.slN = 0;
+      curSrc = 'w'; damage(m, o, P.bonus * dmgScale(u), u); curSrc = s.src;
+      m.events.push({ t: 'stacks', id: o.id, by: u.id, x: o.x, z: o.z });
+    }
+  }
+}
+// fireWeapon: the passive's chance of a homing missile beside the shot.
+function k4Missile(m, u, a) {
+  const P = k4P(u), M = P.missile;
+  if (!(m.rng() < P.chance)) return;
+  let best = null, bd = 1e9;
+  const reach = weaponRange(u) + 2;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive || !visibleTo(m, o, u.team)) continue;
+    const d = dist2(o.x, o.z, u.x, u.z);
+    if (d > reach * reach || Math.abs(k4Ang(Math.atan2(o.z - u.z, o.x - u.x) - a)) > 0.7) continue;
+    if (d < bd) { bd = d; best = o; }
+  }
+  const side = m.rng() < 0.5 ? -1 : 1, at = m.shots.length;
+  spawnShot(m, u, M, a + side * 0.6, side * 0.3, null, M.src);
+  const s = m.shots[at];
+  if (s && best) { s.k4Home = best.id; s.k4Turn = M.turn; }
+  m.events.push({ t: 'fire', id: u.id, vis: M.vis, x: u.x, z: u.z, a: a + side * 0.6, side: 0 });
+}
+// CAST.dash with back: true (after its onStart): the dash runs opposite to the aim.
+function k4BackDash(u, s) { u.dash = { dx: -Math.cos(u.aim), dz: -Math.sin(u.aim), left: s.dist, speed: s.speed, s, hit: [] }; }
+// CAST.volley with home: the volley, its shots locked on the enemy nearest the cursor.
+function k4Homing(m, u, s, inp) {
+  const tgt = inp ? pickUnit(m, u, inp, s.home, (o) => o.team !== u.team) : null, at = m.shots.length;
+  fireVolley(m, u, s);
+  if (tgt) for (let i = at; i < m.shots.length; i++) { m.shots[i].k4Home = tgt.id; m.shots[i].k4Turn = s.home.turn; }
+  if (tgt) m.events.push({ t: 'lock', id: u.id, target: tgt.id, x: tgt.x, z: tgt.z, skill: s.id });
+}
+/* ===== end kit-remake K4 ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

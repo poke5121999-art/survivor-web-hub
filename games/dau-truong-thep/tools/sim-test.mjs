@@ -5,6 +5,7 @@ import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
 import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
+import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -120,6 +121,8 @@ for (const key of MECH_ORDER) {
     if (m.units[0].passive === 'thrifty') m.rng = Object.assign(() => 0.99, m.rng);
     if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'trau', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
     const a = m.units[0];
+    // orbit devour (tumay ult) needs a chaos orb to send: the pool timer is primed so the first tick grows one before the press
+    if (s.mode === 'devour') a.tmAcc = MECHS[key].passive.every;
     let first = -1, second = -1, castTicks = 0;
     for (let t = 0; t < Math.ceil((s.cd + 1.5) / TICK); t++) {
       const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' ? 0 : 1 });
@@ -2940,9 +2943,9 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
     go(w, 20);
     check('41x the rail shot does 330 x 1.4 = 462 x (1 - ung armor)', near(UNG.hp - v.hp, 462 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
   }
-  // ramp 'switch' (enbac): changing target restarts the count at 1
+  // ramp 'switch' (enbac, old kit fixture OLD_ENBAC in k4-cases.mjs): changing target restarts the count at 1
   {
-    const m = arena([[R('enbac', 0), 0, 0], [R('trau', 1), 7, 0], [R('trau', 1), 0, 7]]), a = m.units[0];
+    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('trau', 1), 7, 0], [R('trau', 1), 0, 7]]), 'enbac'), a = m.units[0];
     go(m, 30, () => ({ 0: { fire: true, aim: 0 } }));
     check('41y ramp switch: shooting one target builds stacks on it', a.rampN >= 3 && a.rampTo === 1, `rampN ${a.rampN} to ${a.rampTo}`);
     let at = -1;
@@ -2986,9 +2989,9 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
     check('41zj dash.stop: stops against the first mech (x < 3), without it the dash carries on past', x1 < 3 && x2 > 5.5, `${x1} ${x2}`);
     check('41zk the Hoa Quyen Dot hit: 360 x (1 - trau armor), stun 0.3, burn lit', t1.hp < t1.maxHp - 300 && t1.burnN === 1, `hp ${t1.hp} burn ${t1.burnN}`);
   }
-  // barrage.channel (enbac U): a strike every 0.2 s around the cursor for 3 s, walking allowed
+  // barrage.channel (enbac U, old kit fixture): a strike every 0.2 s around the cursor for 3 s, walking allowed
   {
-    const m = arena([[R('enbac', 0), 0, 0], [R('trau', 1), 8, 0]]), [a, v] = m.units;
+    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('trau', 1), 8, 0]]), 'enbac'), [a, v] = m.units;
     const ev = go(m, 140, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0, mz: i > 5 && i < 20 ? 1 : 0 } }));
     const strikes = only(ev, 'explode', (e) => e.why === 'strike');
     check('41zl barrage.channel: 15 strikes in 3 s, every one within 4 m of the cursor (8, 0)', strikes.length === 15 && strikes.every((e) => Math.hypot(e.x - 8, e.z) <= 4), `${strikes.length}`);
@@ -3158,20 +3161,20 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(u, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } })); go(u, 12);
     check('42x without an armed meter the skill is plain 380 x (1 - trau armor)', near(MECHS.trau.hp - u.units[1].hp, 380 * (1 - MECHS.trau.armor), 1e-6), `${MECHS.trau.hp - u.units[1].hp}`);
   }
-  // spend 'skill' with calm + resetOnHurt (tumay)
+  // spend 'skill' with calm + resetOnHurt (tumay, old kit fixture OLD_TUMAY in k4-cases.mjs)
   {
-    const m = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 30, 0]]), [a] = m.units;
+    const m = oldKit(arena([[R('tumay', 0), 0, 0], [R('ung', 1), 30, 0]]), 'tumay'), [a] = m.units;
     go(m, 60);
     check('42y tumay calm: 60 ticks of peace -> meter 2 (1 per second)', near(a.meter, 2, 0.04), `meter ${a.meter}`);
     go(m, 80);
     check('42z ... capped at 4 and armed', a.meter === 4 && meterArmed(a));
     go(m, 1, () => ({ 0: { s2: true, tx: 8, tz: 0 } }));
     check('42za a skill without damage (the warp) leaves the armed meter alone', a.meter === 4);
-    const w = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 6, 0]]), b = w.units[0], v = w.units[1];
+    const w = oldKit(arena([[R('tumay', 0), 0, 0], [R('ung', 1), 6, 0]]), 'tumay'), b = w.units[0], v = w.units[1];
     b.meter = 4;
     go(w, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } })); go(w, 20);
     check('42zb Am Cau armed: 300 x 1.5 = 450 direct; the meter was spent (calm refills a little after)', near(UNG.hp - v.hp, 450 * UNG_F, 1e-6) && b.meter < 1, `${UNG.hp - v.hp} meter ${b.meter}`);
-    const h = arena([[R('trau', 0), 0, 0], [R('tumay', 1), 8, 0]]), t = h.units[1];
+    const h = oldKit(arena([[R('trau', 0), 0, 0], [R('tumay', 1), 8, 0]]), 'tumay'), t = h.units[1];
     t.meter = 3.5;
     go(h, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42zc a hit wipes the meter (resetOnHurt) and the calm waits 2 s: still 0 after 1.5 s', t.meter === 0, `meter ${t.meter}`);
@@ -3219,7 +3222,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     check('42zn ... nobody near the cursor: the plain warp to the cursor', near(w.units[0].x, 5) && near(w.units[0].z, 0));
   }
   {
-    const m = arena([[R('tumay', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    const m = oldKit(arena([[R('tumay', 0), 0, 0], [R('ung', 1), 2, 0]]), 'tumay'), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true, tx: -7, tz: 0 } }));
     const dec = m.zones.find((z) => z.kind === 'decoy');
     check('42zo warp.leave: the mech is 7 m away and a still copy (500 hp, speed 0) stands where it was', near(a.x, -7) && dec && dec.x === 0 && dec.z === 0 && dec.hp === 500 && dec.speed === 0, `x ${a.x}`);
@@ -3234,9 +3237,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(m, 3, (i) => ({ 0: { s2: i === 0, tx: 4, tz: 1 } }));
     check('42zr zone.haste: an ally inside has haste x1.25, the foe inside is slowed 40%', ally.hasteT > 0 && ally.hasteF === 1.25 && near(foe.slowF, 0.4), `haste ${ally.hasteT}/${ally.hasteF} slow ${foe.slowF}`);
   }
-  // zone.blind (tumay U): a blinded mech's bullets go half as far and wide of the mark
+  // zone.blind (tumay U, old kit fixture): a blinded mech's bullets go half as far and wide of the mark
   {
-    const m = arena([[R('tumay', 0), 0, 0], [R('trau', 1), 6, 0]]), [a, t] = m.units;
+    const m = oldKit(arena([[R('tumay', 0), 0, 0], [R('trau', 1), 6, 0]]), 'tumay'), [a, t] = m.units;
     go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
     const base = MECHS.trau.weapon.range;
     check('42zs a blinded mech: weaponRange halves', near(weaponRange(t), base * 0.5, 1e-9), `${weaponRange(t)}`);
@@ -5028,6 +5031,8 @@ section('48 Athena ported from the owner\'s clip (p69), kit-remake G5: passive c
     check('48o ... when the blessing ends the ally heals 750 (1 -> 751)', near(al.hp, 751, 1e-9) && al.udHeal === 0, `${al.hp}`);
   }
 }
+// kit lane K4: tumay and enbac ported from the owner's clips (tools/k4-cases.mjs)
+runK4Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);

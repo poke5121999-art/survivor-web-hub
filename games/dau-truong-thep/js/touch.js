@@ -30,7 +30,7 @@ const spot = (range, radius) => ({ kind: 'area', mode: 'ground', range, radius, 
 const pick = (s) => ({ kind: 'point', mode: 'ground', range: s.cast, radius: s.pick, width: 0 });
 const NONE = () => ({ kind: 'point', mode: 'self', range: 0, radius: 0.9, width: 0 });
 export const SHAPES = {
-  dash: (s) => line(s.dist, 2.4),
+  dash: (s) => (s.back && s.onStart && s.onStart.volley ? line(s.onStart.volley.range, 1.2) : line(s.dist, 2.4)),   // kit-remake K4: a back dash aims its forward shot
   blink: (s) => line(s.dist, 1.8),
   beam: (s) => line(s.range, s.width * 2.4),
   sweep: (s) => line(s.range, s.width * 2.4),
@@ -50,6 +50,7 @@ export const SHAPES = {
   leap: (s) => spot(s.cast, s.radius),
   warp: (s) => ({ kind: 'point', mode: 'ground', range: s.dist, radius: 1.2, width: 0 }),
   swap: pick, bless: pick, mark: pick,
+  orbit: (s) => (s.mode === 'devour' ? pick(s) : NONE()),   // kit-remake K4: tumay's ult picks its target
   nova: (s) => around(s.radius), dome: (s) => around(s.radius), rally: (s) => around(s.radius), recoil: (s) => around(s.radius),
   shield: NONE, buff: NONE, decoy: NONE, drone: NONE, stance: NONE,
 };

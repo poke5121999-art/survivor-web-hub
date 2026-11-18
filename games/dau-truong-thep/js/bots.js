@@ -6,6 +6,8 @@
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
 import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject, locked } from './sim.js';
+
+import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject, chaosOrbs } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -1091,6 +1093,7 @@ const SKILL_AI = {
     return c.u.shield <= 0 && c.underFire && c.enemies.length > 0;
   },
   dash(c, s) {
+    if (s.back) return k4BotBack(c, s);   // kit-remake K4: enbac fires forward while backing off
     const { u, tgt, td, los } = c;
     // a dash that hurts nobody but leaves a trap behind (onStart): use it to break contact, away from the nearest enemy
     if (s.onStart && !s.dmg) {
@@ -1118,6 +1121,7 @@ const SKILL_AI = {
     return true;
   },
   nova(c, s) {
+    if (s.orbKnock) return k4BotKnock(c, s);   // kit-remake K4: tumay's cone also throws its orbs
     const { u, tgt } = c;
     let n = 0;
     for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
@@ -1499,6 +1503,7 @@ const SKILL_AI = {
   },
   // orbit: 'seek' orbs need someone to hit within their range; 'guard' blades go up when I am being shot at or someone is on top of me
   orbit(c, s) {
+    if (s.mode === 'devour') return k4BotDevour(c, s);   // kit-remake K4: tumay's ult
     const { tgt, td } = c;
     if (s.mode === 'seek') return !!tgt && td <= s.range - 1 && (c.los || td < 7);
     if (!c.enemies.length) return false;
@@ -2347,3 +2352,44 @@ function k1BotRally(c, s) {
   return hot >= 2 || (hot >= 1 && hurt >= 1);
 }
 /* ===== end kit lane K1 ===== */
+
+/* ===== kit-remake K4 (tumay, enbac): bot policy for the G5 rows (sim.js "kit-remake K4") ===== */
+// dash back: the bolt goes along the aim, the mech backs off: aim at a foe in the bolt's reach when the spot behind is free
+function k4BotBack(c, s) {
+  const { u, tgt, td, los } = c, v = s.onStart && s.onStart.volley;
+  if (!tgt || !los || !v || td > v.range - 1 || td < 2) return false;
+  if (!(td < 7 || c.underFire || c.hpFrac < 0.6)) return false;
+  const a = Math.atan2(tgt.z - u.z, tgt.x - u.x), ex = u.x - Math.cos(a) * s.dist, ez = u.z - Math.sin(a) * s.dist;
+  if (solidAt(c.m.map, ex, ez, u.moveRadius * 0.8) || inFoe(c.m, u, ex, ez) || lavaSeg(c.m.map, u.x, u.z, ex, ez, 0.5)) return false;
+  const p = leadPoint(u, tgt, v.speed, c.D.lead);
+  c.b.sk.aim = Math.atan2(p[1] - u.z, p[0] - u.x); c.b.sk.tol = Math.max(0.05, Math.atan2(tgt.radius, td) * 0.8);
+  return true;
+}
+// U Minh Khu Hổ: a foe inside the cone, or an own orb in front with a foe within the orb's flight beyond it
+function k4BotKnock(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt) return false;
+  const a = Math.atan2(tgt.z - u.z, tgt.x - u.x);
+  let ok = td < s.radius * 0.85;
+  if (!ok && td < s.radius + s.orbKnock.range * 0.8) {
+    for (const o of chaosOrbs(c.m, u)) {
+      const dx = o.x - u.x, dz = o.zz - u.z, d = hyp(dx, dz);
+      if (d <= s.radius && d > 0.3 && Math.abs(angDiff(Math.atan2(dz, dx), a)) < 0.35) { ok = true; break; }
+    }
+  }
+  if (!ok) return false;
+  c.b.sk.aim = a; c.b.sk.tol = Math.min(0.3, s.arc * 0.5);
+  return true;
+}
+// Hỗn Độn Chi Phệ: with three orbs or more (or enough to finish the foe), a visible foe within reach
+function k4BotDevour(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || td > s.cast - 0.5) return false;
+  const n = Math.min(chaosOrbs(c.m, u).length, s.max || 99);
+  if (!n) return false;
+  const sum = n * s.dmg + (s.grow || 0) * n * (n - 1) / 2;
+  if (n < 3 && tgt.hp > sum * 0.9) return false;
+  c.b.sk.x = tgt.x; c.b.sk.z = tgt.z;
+  return true;
+}
+/* ===== end kit-remake K4 ===== */

@@ -4,8 +4,7 @@
 //     where he blinks in, a thin fiery orange-gold sweep, a red hexagram in a thin blue ring with a gold star at the ult's landing.
 //   曹操 p11: dark violet smoke wings, a thin magenta ring round him, a violet vortex at his feet, a violet claw-slash and violet
 //     crescent sword-qi.
-//   司马懿 p12: small black orbs with violet rims circling him, black void orbs with lightning inside on his targets, a violet
-//     comet, a straight violet beam.
+//   司马懿 p12: Tư Mã Ý's looks moved to looks-k4.js with his ported kit (kit lane K4).
 //   冥王 p72: an ice-blue scythe sweep, a blue column of light with rings, a big blue energy sphere on the targets.
 //   Sứa Trắng: no part; a pale jellyfish healer (pearl-white bell, glowing tentacles, bubbles, pink stings).
 import * as THREE from '../../vendor/three.module.min.js';
@@ -220,101 +219,6 @@ const taothao = {
   },
 };
 
-// ---- Tư Mã Ý: black void orbs with indigo rims and white-violet lightning ---------------------------------------------
-const SM_IND = C(0.6, 0.15, 2.4), SM_ARC = C(1.6, 1.3, 2.6), SM_AMBER = C(2.4, 1.4, 0.35), SM_VOID = 0x07020d;
-function voidOrb(r) {
-  const g = new THREE.Group();
-  const m = new THREE.MeshBasicMaterial({ color: SM_VOID, toneMapped: false });
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), m));
-  g.userData.mats = [m];
-  return g;
-}
-function crackle(kit, x, y, z, r, c, n = 2) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, b = R(-1, 1); kit.str.emit(x + Math.cos(a) * r, y + b * r * 0.6, z + Math.sin(a) * r, -Math.sin(a) * 3, R(-1, 1), Math.cos(a) * 3, c, 0.08, 0.05, 0.08, 0, 0, 1); } }
-const tumay = {
-  // Ám Cầu: a black orb in an indigo halo crackling with lightning; it caves in on itself where it lands
-  smOrb: {
-    pal: [SM_IND, SM_ARC], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, SM_IND, 0.2, 1.6, 0.7, kit.K.GLOW, 1.2); muz(kit, u, e.a, 3.0, SM_IND, SM_ARC); return true; },
-    shotMake(kit, s) {
-      const g = voidOrb(1.5), halo = shell(kit, s.x, 1.4, s.z, 2.8, SM_IND, { c2: SM_ARC, p: 1.2, core: 0.1, life: 1e9 });
-      const h = held(kit, [g]);
-      const runes = [0, 1, 2, 3].map(() => sigil(kit, s.x, s.z, 0.85, SM_ARC, { c2: SM_IND, n: 5, m: 2, ticks: 0, inner: 0, fill: 0.25, life: 1e9, rev: 0.05, spin: 4, y: 1.4, w: 0.09 }));
-      return { g, halo, h, runes, t: 0 };
-    },
-    shot(kit, v, s, x, y, z) {
-      v.g.position.set(x, 1.4, z); v.halo.position.set(x, 1.4, z); v.t += 1 / 30;
-      v.runes.forEach((m, i) => { const b = v.t * 9 + i * 1.571; m.position.set(x + Math.cos(b) * 2.2, 1.4 + 0.25 * Math.sin(b * 2), z + Math.sin(b) * 2.2); });
-      crackle(kit, x, 1.4, z, 0.55, SM_ARC, 2);
-      if (Math.random() < 0.6) kit.str.emit(x, 1.4, z, -s.dx * 6, 0, -s.dz * 6, SM_IND, 0.25, 0.25, 0.1, 0, 0, 0.8);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) {
-      v.h.on = false; stop(v.halo); v.runes.forEach(stop);
-      shell(kit, x, 1.2, z, 2, SM_IND, { c2: SM_ARC, p: 1.2, life: 0.35, step: (t, m) => m.scale.setScalar(2 * (1 - t / 0.35) + 0.05) });
-      sigil(kit, x, z, 1.8, SM_IND, { c2: SM_ARC, n: 7, m: 3, life: 0.6, rev: 0.12, spin: -2 });
-      crackle(kit, x, 1.2, z, 1.2, SM_ARC, 8); kit.flash(x, 1.5, z, SM_IND, 30, 0.2);
-      burst(kit, x, z, 3, SM_IND, SM_ARC, { life: 0.5 });
-    },
-  },
-  // Kim Thiền Thoát Xác: the amber husk he sheds stays behind (a cicada's shell) wrapped in two circling void orbs; he steps out
-  // of an indigo rift at the far end. The husk caves in with amber shards when it goes off.
-  smWarp: {
-    pal: [SM_IND, SM_AMBER],
-    zones: ['decoy'],
-    skill() { return true; },
-    warp(kit, e) {
-      shell(kit, e.x0, 1.1, e.z0, 2.2, SM_AMBER, { c2: C(0.6, 0.25, 0.05), p: 2.4, life: 0.5, grow: 0.08 });
-      kit.puffs(e.x0, 0.9, e.z0, kit.N(8), C(0.12, 0.05, 0.18), 0.9, 2, 0.8, 1.1, 2.2, 0.6, 0.7, kit.K.SMOKE);
-      sigil(kit, e.x, e.z, 3.2, SM_IND, { c2: SM_ARC, n: 7, m: 3, life: 0.8, rev: 0.1, spin: 3, fill: 0.4 });
-      shell(kit, e.x, 1.2, e.z, 1.4, SM_IND, { c2: SM_ARC, p: 1.4, life: 0.4, step: (t, m) => m.scale.setScalar(1.4 * (1 - t / 0.4) + 0.05) });
-      crackle(kit, e.x, 1.2, e.z, 1, SM_ARC, 6); kit.flash(e.x, 1.6, e.z, SM_IND, 30, 0.2);
-      burst(kit, e.x0, e.z0, 2.6, SM_AMBER, C(2.4, 2, 1.2), { life: 0.55 }); burst(kit, e.x, e.z, 2.8, SM_IND, SM_ARC, { life: 0.55 });
-      return true;
-    },
-    zoneMake(kit, z) {
-      const husk = shell(kit, z.x, 1.1, z.z, 1.15, SM_AMBER, { c2: C(0.5, 0.2, 0.04), p: 2.6, core: 0.02, life: 1e9, alpha: 0.6, bands: 3 });
-      const o1 = voidOrb(0.22), o2 = voidOrb(0.22), h = held(kit, [o1, o2]);
-      return { husk, o1, o2, h, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; v.husk.position.set(z.x, 1.1, z.z);
-      for (const [o, ph] of [[v.o1, 0], [v.o2, Math.PI]]) { const a = v.t * 3 + ph; o.position.set(z.x + Math.cos(a) * 1.3, 1.5 + 0.3 * Math.sin(a * 2), z.z + Math.sin(a) * 1.3); if (Math.random() < 0.3) kit.glow(o.position.x, o.position.y, o.position.z, SM_IND, 0.25, 0.6, 0.8, kit.K.GLOW, 1.2); }
-      if (Math.random() < dt * 6) crackle(kit, z.x, 1.1, z.z, 1.1, SM_AMBER, 1);
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.husk); },
-    land(kit, e) {
-      shell(kit, e.x, 1.1, e.z, 2.6, SM_IND, { c2: SM_ARC, p: 1.3, life: 0.35, step: (t, m) => m.scale.setScalar(2.6 * (1 - t / 0.35) + 0.05) });
-      kit.chips(e.x, 1, e.z, kit.N(12), SM_AMBER, 7, 0.8, 0.16); crackle(kit, e.x, 1.2, e.z, 1.5, SM_ARC, 10);
-      kit.flash(e.x, 1.8, e.z, SM_AMBER, 40, 0.25); kit.kick(e.x, e.z, 0.3);
-      return true;
-    },
-  },
-  // Màn Đêm: a dark dome of night over the area, a slow indigo seven-point sigil on the floor, four void orbs circling inside
-  // and lightning snapping between them
-  smNight: {
-    pal: [SM_IND, SM_ARC], hitR: 1.8,
-    zoneMake(kit, z) {
-      const mat = new THREE.MeshBasicMaterial({ color: 0x0a0418, transparent: true, opacity: 0.0, depthWrite: false, toneMapped: false });
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat); dome.renderOrder = 7;
-      dome.position.set(z.x, 0, z.z); dome.scale.set(z.r, z.r * 0.45, z.r);
-      const rim = shell(kit, z.x, 0, z.z, z.r, SM_IND, { c2: C(0.05, 0, 0.12), p: 3.2, core: 0, dome: true, squash: 0.45, life: 1e9, alpha: 0.7 });
-      const sg = sigil(kit, z.x, z.z, z.r * 0.5, SM_IND, { c2: SM_ARC, n: 7, m: 3, ticks: 14, life: 1e9, rev: 0.4, spin: 0.6, fill: 0.2 });
-      const orbs = [voidOrb(0.3), voidOrb(0.3), voidOrb(0.3), voidOrb(0.3)];
-      const h = held(kit, [dome, ...orbs]);
-      return { dome, mat, rim, sg, orbs, h, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const k = Math.min(1, v.t / 0.4, (z.dur - z.age) * 2);
-      v.mat.opacity = 0.62 * k;
-      v.orbs.forEach((o, i) => { const a = v.t * 0.8 + i * 1.571, rr = z.r * 0.55; o.position.set(z.x + Math.cos(a) * rr, 1.6 + 0.3 * Math.sin(v.t * 2 + i), z.z + Math.sin(a) * rr); });
-      if (Math.random() < dt * 4) { const i = Math.floor(Math.random() * 4), j = (i + 1) % 4, p = v.orbs[i].position, q = v.orbs[j].position; const b = kit.beam(p.x, p.z, q.x, q.z, 0.35, SM_ARC, 0.15, 3, 1.6); b.fade = true; }
-      for (const o of v.orbs) if (Math.random() < 0.3) kit.glow(o.position.x, o.position.y, o.position.z, SM_IND, 0.3, 0.8, 0.8, kit.K.GLOW, 1.2);
-      if (Math.random() < dt * 10) { const a = Math.random() * 6.283, d = Math.random() * z.r; kit.ovr.emit(z.x + Math.cos(a) * d, 0.4, z.z + Math.sin(a) * d, 0, 0.3, 0, C(0.05, 0.02, 0.1), 1.4, 1.4, 2, 0.8, 0, 0.5, kit.K.SMOKE); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.rim); stop(v.sg); },
-  },
-};
-
 // ---- Hades: ice-blue soul fire, a scythe, a rune circle, a column of rings ------------------------------------------
 const HD_ICE = C(0.45, 1.25, 2.6), HD_SOUL = C(0.6, 2.2, 2.3), HD_DEEP = C(0.08, 0.25, 1.1), HD_BONE = 0xcfe2ff;
 const hades = {
@@ -455,4 +359,4 @@ const suatrang = {
   },
 };
 
-export const B1 = { ...lubo, ...taothao, ...tumay, ...hades, ...suatrang };
+export const B1 = { ...lubo, ...taothao, ...hades, ...suatrang };

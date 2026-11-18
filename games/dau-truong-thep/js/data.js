@@ -686,21 +686,28 @@ export const MECHS = {
         desc: 'Trong 6 giây khoác khiên 900 và phi tiêu hóa ba mũi lao xa 15 m, mỗi mũi 220 sát thương.' },
     ],
   },
+  // Tư Mã Ý: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p12 "9.司马懿" (tooltips at 2-6 s, AUDIT-c.md). Attack = one Hắc
+  // Cầu bolt (150): U Minh Khu Hổ 183% -> 275, a knocked orb 204% -> 306, Hỗn Độn Pháp Cầu 183% -> 275 (the strike and the orb's end
+  // blast), Hỗn Độn Chi Phệ 100% -> 150 and +50% (75) per further orb, heal 50% -> 75 per orb hit. Cooldowns 8 / 6 / 20 s in the clip ->
+  // 10 / 8 / 40; charges 2 / 3 as in the clip. Circling orbs capped at 4 (a kill may push it to 7). No MP. G5 (sim.js "kit-remake K4"):
+  // the orb pool, ground orbs, knocked orbs, the devour ult.
   tumay: {
     name: 'Tư Mã Ý', role: 'Khống chế', roleKey: 'control', price: 1800, tint: 0x3a3550,
-    blurb: 'Nhẫn nhịn: mỗi giây không bị đánh là thêm một nấc, đủ bốn nấc chiêu sát thương kế tiếp nặng thêm một nửa. Kim thiền thoát xác, màn đêm làm địch mù đường.',
+    blurb: 'Cầu hỗn độn bay quanh mình, cứ 3 giây thêm một quả. Khu hổ hất văng địch và cả cầu, gieo cầu nổ xuống đất, rồi phóng mọi quả cầu vào một mục tiêu.',
     hp: 2550, speed: 5.9, radius: 0.82,
     armor: 0.06, accel: 1.0, turn: 11, towerMul: 1.0,
-    passive: { do: 'meter', name: 'Ẩn Nhẫn', desc: 'Mỗi giây sau 2 giây không bị đánh nạp một nấc, đủ 4 nấc thì chiêu gây sát thương kế tiếp mạnh thêm 50%. Bị đánh là mất hết.',
-      max: 4, gain: { calm: 1 }, spend: { kind: 'skill', mul: 1.5 }, resetOnHurt: true },
-    weapon: { name: 'Hắc Cầu', cd: 0.45, dmg: 115, speed: 28, range: 13.5, r: 0.26, vis: 'pulse' },
+    passive: { do: 'chaos', name: 'Hỗn Độn', every: 3, max: 4, kill: 3, ring: 1.7, spin: 2.2, mods: { onKill: { reset: { slots: ['ult'], frac: 1 } } },
+      desc: 'Cứ 3 giây có thêm một quả cầu hỗn độn bay quanh bạn (tối đa 4). Hạ gục một kẻ địch được thêm 3 quả và Hỗn Độn Chi Phệ hồi chiêu ngay.' },
+    weapon: { name: 'Hắc Cầu', cd: 0.58, dmg: 150, speed: 28, range: 13.5, r: 0.26, vis: 'pulse', look: 'tmBolt' },
     skills: [
-      { id: 'amcau', look: 'smOrb', name: 'Ám Cầu', cd: 7, do: 'volley', n: 1, dmg: 300, speed: 26, range: 14, r: 0.4, splash: 1.5, vis: 'pulse', fx: { reveal: 4 }, icon: 'magnet',
-        desc: 'Ném quả cầu bóng tối nổ lan 1,5 m, 300 sát thương, kẻ trúng lộ diện 4 giây.' },
-      { id: 'kimthien', look: 'smWarp', name: 'Kim Thiền Thoát Xác', cd: 12, do: 'warp', dist: 7, leave: { hp: 500, dur: 5, blast: 3, dmg: 260 }, icon: 'mirage',
-        desc: 'Dịch chuyển tức thì tới con trỏ, xa nhất 7 m, để lại một bản sao đứng yên 5 giây; bản sao vỡ hoặc hết giờ thì nổ 260 sát thương.' },
-      { id: 'mandem', look: 'smNight', name: 'Màn Đêm', cd: 44, do: 'zone', at: 'target', cast: 14, radius: 6.5, dur: 5, dps: 190, blind: { range: 0.5, spread: 0.15 }, vis: 'smoke', icon: 'smoke',
-        desc: 'Phủ màn đêm ở con trỏ trong 5 giây: địch trong đó mất 190 máu mỗi giây, đạn bắn ngắn đi một nửa và lệch hướng.' },
+      { id: 'khuho', look: 'tmTiger', name: 'U Minh Khu Hổ', cd: 10, uses: { n: 2, gap: 0.5 }, do: 'nova', windup: 0.15, move: 0.35, radius: 5, arc: 0.7, dmg: 275, knock: 3, fx: { slow: 0.5, slowDur: 2 },
+        orbKnock: { dmg: 306, stun: 1, speed: 22, range: 9, cut: 0.1 }, icon: 'spin',
+        desc: 'Vung hổ u minh hình quạt trước mặt (5 m): kẻ địch chịu 275 sát thương, bị hất lùi và chậm 50% trong 2 giây. Mọi quả cầu hỗn độn trong vùng bị hất bay đi: trúng kẻ địch gây 306 sát thương, choáng 1 giây, gieo một quả cầu mới tại đó và mọi chiêu của bạn hồi nhanh 10%. Giữ được 2 lần dùng.' },
+      { id: 'phapcau', look: 'tmOrb', name: 'Hỗn Độn Pháp Cầu', cd: 8, uses: { n: 3, gap: 0.5 }, do: 'barrage', n: 1, radius: 0, blast: 2.8, dmg: 275, delay: 0.5, span: 0, cast: 13,
+        leaveOrb: { dur: 8, blast: 2.5, dmg: 275 }, icon: 'magnet',
+        desc: 'Sau 0,5 giây giáng 275 sát thương vùng 2,8 m ở con trỏ và để lại một quả cầu hỗn độn ở đó 8 giây; hết giờ quả cầu nổ 275 sát thương quanh nó. Giữ được 3 lần dùng.' },
+      { id: 'hondon', look: 'tmDevour', name: 'Hỗn Độn Chi Phệ', cd: 40, do: 'orbit', mode: 'devour', cast: 14, pick: 4, dmg: 150, grow: 75, heal: 75, speed: 26, max: 8, icon: 'storm',
+        desc: 'Chọn kẻ địch gần con trỏ: mọi quả cầu hỗn độn (bay quanh bạn và nằm trên đất) lao vào nó. Quả đầu 150 sát thương, mỗi quả sau thêm 75; kẻ địch khác chắn đường thì đỡ thay. Mỗi quả trúng hồi cho bạn 75 máu.' },
     ],
   },
   dieuthuyen: {
@@ -1056,7 +1063,7 @@ export const PERKS = {
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 190.', 'weapon', { dmg: 190 }), perk('Dậm Mạnh', 'Nhảy Dậm rộng 4,2 m, gây 340, choáng 0,7 giây.', 1, { radius: 4.2, dmg: 340, stun: 0.7 }), perk('Chấn Động Rộng', 'Cú Đấm Nghiêm Túc rộng 2,6 m, gây 2000.', 2, { width: 2.6, dmg: 2000 })],
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],
-  tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 135.', 'weapon', { dmg: 135 }), perk('Xác Bền', 'Bản sao của Kim Thiền Thoát Xác 700 máu, nổ 360 rộng 3,6 m, ở lại 6 giây.', 1, { leave: { hp: 700, dur: 6, blast: 3.6, dmg: 360 } }), perk('Đêm Dài', 'Màn Đêm rộng 7,5 m, kéo dài 7 giây, đạn lệch nhiều hơn.', 2, { radius: 7.5, dur: 7, blind: { range: 0.4, spread: 0.2 } })],
+  tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],
   dieuthuyen: [perk('Băng Sâu', 'Băng Lưu gây 280 và làm chậm 2,2 giây.', 0, { dmg: 280, slowDur: 2.2 }), perk('Liên Băng Dài', 'Băng Liên rộng 3,6 m, choáng 1,4 giây.', 1, { blast: 3.6, fx: { stun: 1.4 } }), perk('Bão Dày', 'Phong Tuyết kéo dài 6,5 giây, thiêu 190 mỗi giây.', 2, { dur: 6.5, dps: 190 })],
   thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Xoáy Rộng', 'Xoáy Ngầm rộng 5,5 m, kéo dài 3,6 giây.', 1, { radius: 5.5, dur: 3.6 }), perk('Sóng Lớn', 'Hồng Thủy gây 640, bức sóng rộng 7 m.', 2, { dmg: 640, r: 3.5 })],
   samthep: [perk('Bốn Mảnh', 'Mưa Mảnh bắn bốn mảnh thép.', 0, { n: 4 }), perk('Hút Mạnh', 'Từ Trường rộng 6 m, kéo mạnh hơn.', 1, { radius: 6, pull: 7 }), perk('Lồng Dày', 'Lồng Từ kéo dài 5 giây, thiêu 280 mỗi giây.', 2, { dur: 5, dps: 280 })],
