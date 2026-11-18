@@ -219,6 +219,20 @@ export async function runFrontEnd(root, opts = {}) {
   const el = document.createElement('div');
   el.className = 'menu-root';
   root.appendChild(el);
+  let toastEl = null, toastTimer = 0;
+  function storeToast() {                // small centred DOM toast, 2 s
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'menu-toast';
+      toastEl.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50;padding:0.6em 1.2em;' +
+        'background:rgba(0,0,0,0.78);color:#fff;border-radius:0.5em;font:600 clamp(14px,2.4vmin,26px) sans-serif;pointer-events:none;white-space:nowrap';
+      el.appendChild(toastEl);
+    }
+    toastEl.textContent = 'Chỉ có trên bản điện thoại';
+    toastEl.style.display = '';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.style.display = 'none'; }, 2000);
+  }
   const size = () => [root.clientWidth || window.innerWidth, root.clientHeight || window.innerHeight];
 
   // --- animation clock ----------------------------------------------------------------------------------------------
@@ -614,8 +628,12 @@ export async function runFrontEnd(root, opts = {}) {
       if (opts.hold) { busy = true; debug.screen = 'holding'; await opts.hold; }
       finish(choice);
     },
-    QuitGame: () => { if (opts.onQuit) opts.onQuit(); else setActive(EXIT, false); },  // Application.Quit: web decision
-    Rateus: () => {}, MoreGames: () => {}, privacy: () => {},                // OpenURL to Google Play / Sites: OUT
+    QuitGame: () => {                      // Application.Quit: on the web YES goes back to the hub (same target as "Hub")
+      persist();
+      if (opts.onQuit) { opts.onQuit(); return; }
+      location.href = new URL('../../index.html', location.href).href;
+    },
+    Rateus: () => storeToast(), MoreGames: () => storeToast(), privacy: () => storeToast(),  // OpenURL to Play Store / Sites: phone only
     ToggleSound: () => {
       P.setSetting(profile, 'SoundEnabled', !profile.prefs.SoundEnabled);
       if (sound) sound.settings.sound = !!profile.prefs.SoundEnabled;

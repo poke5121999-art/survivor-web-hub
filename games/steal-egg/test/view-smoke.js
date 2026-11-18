@@ -181,20 +181,33 @@ async function runSize(base, size) {
   const handle = await page.evaluate(() => window.__game.view.input.joy);
   check(S, 'touch joystick moves the player', dist(q0, q1) > 2, `${dist(q0, q1).toFixed(2)} m, joystick released to ${handle}`);
 
-  // The joystick walk can end inside a shop area (EnableShop opens its panel over the screen centre): close it with
-  // its cross like a player would.
-  for (const panel of ['shoes shop', 'Bat shop']) {
-    const cross = await page.evaluate(p => { const h = window.__game.view.hud, el = h.node(p);
-      if (!el || !el.checkVisibility()) return null; const r = h.node(`${p}/Button`).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, panel);
-    if (!cross) continue;
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cross[0], y: cross[1], id: 9 }] });
+  // A modal panel can be up over the free screen when the drag starts (the joystick walk can end inside a shop area, which
+  // opens its panel; the ads break panel opens 60 s of game time into the run, which a slow machine reaches mid-test).
+  // Like a player: look at what is under the drag start point and tap that panel's own button until the drag area is
+  // what is hit. The loop ends on the game's own state (elementFromPoint), not on a delay.
+  const CLOSE = { 'shoes shop': 'Button', 'Bat shop': 'Button', 'ads panel': 'Panel/bottem/Ads', 'ads panel (1)': 'Panel/bottem/Ads' };
+  const dragStage = await page.evaluate(() => [window.__game.stage.w * 0.45, window.__game.stage.h * 0.5]);
+  const dragPt = await toClient(page, dragStage);
+  let covered = null;
+  for (let tries = 0; tries < 20; tries++) {
+    covered = await page.evaluate(([x, y, close]) => {
+      const el = document.elementFromPoint(x, y), own = el && el.closest('[data-path]');
+      const top = own && own.dataset.path.replace('Canvas/', '').split('/')[0];
+      if (own && own.dataset.path === 'Canvas/InGame/Drag') return { free: true };
+      if (!top || !close[top]) return { free: false, what: own ? own.dataset.path : String(el && el.tagName) };
+      const r = window.__game.view.hud.node(`${top}/${close[top]}`).getBoundingClientRect();
+      return { free: false, what: top, tap: [r.x + r.width / 2, r.y + r.height / 2] };
+    }, [dragPt[0], dragPt[1], CLOSE]);
+    if (covered.free || !covered.tap) break;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: covered.tap[0], y: covered.tap[1], id: 9 }] });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForTimeout(100);
   }
+  check(S, 'free screen is hit by the drag area before the drag', covered.free, covered.free ? '' : `covered by ${covered.what}`);
   // Touch: drag on the free screen turns the camera (CameraDragArea).
   const yaw0 = await page.evaluate(() => window.__game.view.follow.x);
   const st = await page.evaluate(() => ({ w: window.__game.stage.w, h: window.__game.stage.h }));
-  const a = await toClient(page, [st.w * 0.45, st.h * 0.5]), b = await toClient(page, [st.w * 0.45 + 60, st.h * 0.5]);
+  const a = dragPt, b = await toClient(page, [st.w * 0.45 + 60, st.h * 0.5]);
   await touchDrag(cdp, a, b, 0);
   const yaw1 = await page.evaluate(() => window.__game.view.follow.x);
   check(S, 'touch drag turns the camera', Math.abs(yaw1 - yaw0) > 5, `yaw ${yaw0.toFixed(1)} -> ${yaw1.toFixed(1)} deg`);

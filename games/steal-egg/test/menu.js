@@ -110,6 +110,18 @@ const stored = page => page.evaluate(() => {
   try { return JSON.parse(localStorage.getItem('steal-egg-v1')).profile; } catch (e) { return null; }
 });
 
+// Taps, and only if the grant has not shown up in the stored profile within 3 s taps again (a touch that the page never
+// turned into a click on a loaded machine); the predicate keeps the retry from granting twice.
+async function tapUntilProfile(page, p, pred) {
+  for (let n = 0; n < 4; n++) {
+    await tap(page, p);
+    const ok = await page.waitForFunction(src => {
+      try { return new Function('p', `return (${src})(p)`)(JSON.parse(localStorage.getItem('steal-egg-v1')).profile); } catch (e) { return false; }
+    }, pred.toString(), { timeout: 3000 }).then(() => true, () => false);
+    if (ok) return;
+  }
+}
+
 // Overlap: every visible button of the screen's panel is hit at its centre and lies inside the stage.
 const overlap = (page, scope) => page.evaluate(scope => {
   const root = document.querySelector(`[data-path="${CSS.escape(scope)}"]`);
@@ -199,19 +211,36 @@ async function flow(browser, base, shot, check) {
   await page.waitForTimeout(600);       // Panel (1) scale-in, 0.5 s
   await tap(page, `${EXIT}No`);
   check('EXIT > NO closes it', await waitScreen(page, 'home') && !(await visible(page, `${M}EXIT`)));
+  for (const b of ['Below panel/Rateus', 'Below panel (1)/More Games', 'Below panel (1)/Privacy']) {
+    const navs = [];
+    const onNav = f => { if (f === page.mainFrame()) navs.push(f.url()); };
+    page.on('framenavigated', onNav);
+    await tap(page, HOME + b);
+    await page.waitForTimeout(300);
+    const toast = await page.evaluate(() => { const t = document.querySelector('.menu-toast'); return t && t.style.display !== 'none' ? t.textContent : null; });
+    page.off('framenavigated', onNav);
+    check(`${b.split('/')[1]} shows the phone-only toast, no navigation`, await screen(page) === 'home' && toast === 'Chỉ có trên bản điện thoại' && !navs.length, `${toast} ${navs}`);
+    await page.waitForTimeout(2000);
+    check(`${b.split('/')[1]} toast goes away after 2 s`, await page.evaluate(() => document.querySelector('.menu-toast').style.display === 'none'));
+  }
+  // EXIT > YES leaves to the hub (../../index.html relative to the page); the navigation is caught, the hub need not exist
+  const hubReqs = [];
+  await page.route('**/index.html', route => { hubReqs.push(route.request().url()); route.fulfill({ status: 200, contentType: 'text/html', body: 'hub' }); });
   await tap(page, `${HOME}Below panel/ExitBtn`);
   await page.waitForTimeout(600);
   await tap(page, `${EXIT}YES`);
-  check('EXIT > YES (Application.Quit, no-op on web) closes the panel', await waitScreen(page, 'home'));
-  for (const b of ['Below panel/Rateus', 'Below panel (1)/More Games', 'Below panel (1)/Privacy']) {
-    await tap(page, HOME + b);
-    check(`${b.split('/')[1]} (OpenURL, out) stays on home`, await screen(page) === 'home');
-  }
+  await page.waitForTimeout(800);
+  check('EXIT > YES navigates to the hub index.html', hubReqs.length >= 1 && /\/index\.html$/.test(hubReqs[0]) && page.url().endsWith('/index.html'), `${hubReqs} ${page.url()}`);
+  await page.unroute('**/index.html');
+  await page.goto(`${page.url().replace(/index\.html$/, '')}menu-test.html?mute&splash=0.4`);
+  await page.waitForFunction(() => window.__menu && window.__menu.screen === 'home', null, { timeout: 15000 });
   const coinText = () => page.evaluate(p => document.querySelector(`[data-path="${CSS.escape(p)}"] .ugui-txt`).textContent, `${HOME}TopPanel/Coin/Text (TMP)`);
   check('coins start at 1000 ("1K")', /^1k$/i.test(await coinText()), await coinText());
-  await tap(page, `${HOME}TopPanel/Coin`);
-  await page.waitForTimeout(800);
-  check('coin ad grants +100 at once (1.1K)', /^1\.1k$/i.test(await coinText()) && (await stored(page)).pendingCoins === 100, await coinText());
+  // state first (the grant is synchronous), then the label that counts up over 0.6 s of frame time
+  await tapUntilProfile(page, `${HOME}TopPanel/Coin`, p => p.pendingCoins >= 100);
+  await page.waitForFunction(([p, re]) => new RegExp(re, 'i').test(document.querySelector(`[data-path="${CSS.escape(p)}"] .ugui-txt`).textContent),
+    [`${HOME}TopPanel/Coin/Text (TMP)`, '^1\\.1k$'], { timeout: 15000 }).catch(() => {});
+  check('coin ad grants +100 at once (1.1K)', /^1\.1k$/i.test(await coinText()) && (await stored(page)).pendingCoins === 100, `${await coinText()} ${JSON.stringify(await stored(page))}`);
   const setW = await page.evaluate(p => document.querySelector(`[data-path="${CSS.escape(p)}"]`).getBoundingClientRect().width, `${HOME}TopPanel/Setting`);
   check('home settings button is scale 0 in the original (not visible)', setW === 0, setW);
 
@@ -309,8 +338,7 @@ async function flow(browser, base, shot, check) {
   check('environment back -> brainrot', await waitScreen(page, 'brainrot'));
   await tap(page, `${BRAIN}PlayGame`);
   await waitScreen(page, 'environment');
-  await tap(page, `${ENV}TopPanel (1)/Coins`);
-  await page.waitForTimeout(700);
+  await tapUntilProfile(page, `${ENV}TopPanel (1)/Coins`, p => p.pendingCoins >= 200);
   check('environment coin ad +100 (pending 200)', (await stored(page)).pendingCoins === 200);
   await tap(page, `${ENV}Panel/StealMode`);
   check('Day tile -> weapon panel', await waitScreen(page, 'weapon'));

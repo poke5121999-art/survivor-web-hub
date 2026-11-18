@@ -15,6 +15,7 @@ import { Panels } from './panels.js';
 import { Text3D } from './text3d.js';
 import { t, tf } from './vi.js';
 import { Tutorial } from '../sim/tutorial.js';
+import { PathLines } from './pathline.js';
 
 const Y = new THREE.Vector3(0, 1, 0);
 const G = 9.81;
@@ -29,7 +30,7 @@ const FALL_TIME = 0.3;                                  // ragdoll collapse
 const LABEL_FONT = '"Insanibu", "Baloo 2", "Arial Black", sans-serif';
 
 export class GameView {
-  constructor({ sim, view, data, fxJson, fxGlb, sfxJson, rects = {}, tweens = {}, seedbtn = null, artBase, version, mute = false,
+  constructor({ sim, view, data, linesJson, fxJson, fxGlb, sfxJson, rects = {}, tweens = {}, seedbtn = null, artBase, version, mute = false,
     onPurchase = () => {}, onPause = () => {}, onNavigate = () => {}, sound = null }) {
     this.sim = sim;
     this.view = view;
@@ -117,6 +118,10 @@ export class GameView {
     this.tutorial = new Tutorial(sim.state, this.D, sim.state.tutorial.flags, { seed: sim.state.rng });
     this.pointer = world.node('pointer');
     if (this.pointer) this.pointer.userData.s0 = this.pointer.scale.clone();
+
+    // NavmeshPathDraw guide lines (SpeedUpgradePathGuide to the shoe shop, the tutorial's path): view/pathline.js
+    this.pathline = linesJson ? new PathLines({ sim, world, scene: this.scene, camera: view.camera, linesJson, artBase, version }) : null;
+    if (this.pathline) { const pp = new THREE.Vector3(); this.pathline.setPlayer(() => this.player.obj.getWorldPosition(pp).toArray()); }
 
     this.fx.playAwake(k => !/\/sleep/.test(k));
     this.animalsSync(true);
@@ -236,6 +241,7 @@ export class GameView {
     this.ui.draw();
     this.panels.draw(dt);
     this.drawTutorial(dt);
+    if (this.pathline) { this.pathline.update(this.time, this.tutorial.view.pointer); this.pathline.draw(); }
     this.sounds();
     this.lastDraw = s.t;
   }

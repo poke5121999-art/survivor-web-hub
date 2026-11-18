@@ -194,7 +194,7 @@ async function load() {
     '900 32px "Roboto Bold"'].map(f => document.fonts.load(f).catch(() => null))) : Promise.resolve();
   const restP = Promise.all([json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/world/navmesh.json`),
     json(`${ART}/ui/level2.json`), json(`${DATA}/game.json`), json(`${ART}/world/colliders.json`), json(`${ART}/fx/fx.json`),
-    json(`${ART}/sfx/sfx.json`), json(`${ART}/world/rects.json`), json(`${ART}/ui/tweens.json`), json(`${ART}/ui/seedbtn.json`)]);
+    json(`${ART}/sfx/sfx.json`), json(`${ART}/world/rects.json`), json(`${ART}/ui/tweens.json`), json(`${ART}/ui/seedbtn.json`), json(`${ART}/world/lines.json`)]);
   const opts = { texBase: `${ART}/tex`, version: V };
   // The 16 px textures are requested as soon as a scene.json names them, while the geometry still downloads.
   const sceneP = name => json(`${ART}/${name}/scene.json`).then(sj => {
@@ -215,7 +215,7 @@ async function load() {
   const follow = new FollowCamera(camera, world.node('MainCamera'));
   setBlur(8, 'geometry');
 
-  const [clips, controllers, navJson, layout, data, colliders, fxJson, sfxJson, rects, tweens, seedbtn] = await restP;
+  const [clips, controllers, navJson, layout, data, colliders, fxJson, sfxJson, rects, tweens, seedbtn, linesJson] = await restP;
   const [[brJson, brGltf], [eggJson, eggGltf]] = await setsP;
   const fxGlb = await fxGlbP;
   const anim = new AnimLibrary(clips, controllers);
@@ -279,7 +279,7 @@ async function load() {
   game.hud = hud;
   layoutStage();
   await fontsP;
-  game.gv = new GameView({ sim, view, data, layout, fxJson, fxGlb, sfxJson, rects, tweens, seedbtn, artBase: ART, version: V, mute: params.has('mute'),
+  game.gv = new GameView({ sim, view, data, linesJson, layout, fxJson, fxGlb, sfxJson, rects, tweens, seedbtn, artBase: ART, version: V, mute: params.has('mute'),
     onPurchase: writeSave, onNavigate: navigate, sound: menuSound ? await menuSound : null });
   game.saveAtStart = !!adCoins;
 
