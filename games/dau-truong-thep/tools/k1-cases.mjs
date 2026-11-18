@@ -105,7 +105,7 @@ export function runK1Cases(check, section) {
     check('K1-o inspire: the cast gives the ally 2 s of x1.25 speed (the strongest haste wins over the aura x1.1)', near(al.inT, 2 - TICK, 1e-6) && near(unitSpeed(al), TR.speed * 1.25, 1e-9), `${al.inT} ${unitSpeed(al)}`);
     const hp = al.hp, ev = go(m, 20, () => ({ 2: { fire: true, aim: -Math.PI / 2, tx: 4, tz: 0 } }));
     const hits = only(ev, 'hit', (h) => h.id === 1 && h.by === 2);
-    check('K1-p ... a weapon blow on the inspired ally lands x0.75 (Ung shots pierce armour)', hits.length >= 1 && near(hits[0].amt, UNG.weapon.dmg * 0.75, 1e-6), `${hits.length && hits[0].amt}`);
+    check('K1-p ... a weapon blow on the inspired ally lands x0.75 (and x its armour unless the shooter pierces it)', hits.length >= 1 && near(hits[0].amt, UNG.weapon.dmg * 0.75 * (UNG.passive.do === 'pierce' ? 1 : 1 - armorOf(m, al)), 1e-6), `${hits.length && hits[0].amt}`);
   }
   // Vinh Diệu Chi Thuẫn: ally at the cursor and the captain get a 1.25 s bubble that eats every enemy shot
   {

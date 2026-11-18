@@ -5,6 +5,9 @@
 // Thủy Tinh, clip p70 "67.海妖" (gameplay 24-60 s): small blue water drops; a frozen foe turns to blue ice; the water wall is a
 //   row of white spray columns; the ult is a many-armed blue whirlpool spiralling into a dark centre with a pale rim. One main
 //   colour (sea blue), one accent (white foam / pale ice).
+// Ưng Nhãn, clip p92 "89.鹰痕" (gameplay 15-44 s): a pink hawk spirit dives; a blue sky beam wrapped in rings over the scouted
+//   ground; the marked foe bursts as a violet vortex inside a blue ring; pink-violet arrow trails. One main colour (hawk pink),
+//   one accent (sky blue).
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, sigil, burst, shell, trail, slash, spikes, pillar } from './lookkit.js';
 
@@ -152,6 +155,29 @@ function splash(kit, x, z, r) {
   for (let i = 0; i < kit.N(16); i++) { const a = Math.random() * 6.283, q = r * R(0.2, 0.9); kit.glow(x + Math.cos(a) * q, R(0.2, 0.8), z + Math.sin(a) * q, i % 3 ? FOAM : SEA, R(0.5, 0.8), R(0.35, 0.7), 0.9, kit.K.GLOW, 1.4, Math.cos(a) * 2, R(3, 6), Math.sin(a) * 2); }
 }
 
+// ==== Ưng Nhãn ==============================================================================================================
+const HAWK = C(2.6, 0.45, 1.6), VIO = C(1.3, 0.3, 2.6), SKY = C(0.45, 1.4, 2.7), PALE = C(2.5, 2.2, 2.6);
+
+// a hawk of light: a bright head and two swept wings of glow along heading a, at (x, y, z)
+function hawk(kit, x, y, z, a, s, life = 0.08) {
+  const ca = Math.cos(a), sa = Math.sin(a);
+  kit.glow(x, y, z, PALE, life, 0.6 * s, 1, kit.K.STAR, 1);
+  for (const sd of [-1, 1]) for (let k = 1; k <= 3; k++) {
+    const bx = x - ca * 0.35 * k * s - sa * sd * 0.45 * k * s, bz = z - sa * 0.35 * k * s + ca * sd * 0.45 * k * s;
+    kit.glow(bx, y, bz, k === 1 ? HAWK : VIO, life, (0.75 - 0.15 * k) * s, 0.9, kit.K.GLOW, 1);
+  }
+}
+
+// two swept wings of light (blade strokes) spread from a point, the hawk's silhouette at heading a
+function wings(kit, x, z, a, r, life = 0.4) {
+  for (const sd of [1, -1]) {
+    const wa = a + sd * (Math.PI / 2 + 0.45);
+    sector(kit, x, z, wa, 0.42, r, VIO, HAWK, life, { grow: 0.06, alpha: 1, y: 1.0, body: 1.6 });
+    slash(kit, x, z, wa, r, HAWK, { c2: PALE, span: 0.42, life, w: r * 0.18, y: 1.05, sweep: 0.05, dir: sd, sparks: false });
+  }
+  kit.glow(x, 1.2, z, PALE, 0.15, r * 0.5, 1, kit.K.STAR, 1.3);
+}
+
 export const K7 = {
   // Hải Yêu Chi Nộ: the fifth mark seals the foe in blue ice for its 2 s; Băng Phong Chi Tâm seals her for 3 s and cracks open
   sirMark: {
@@ -223,6 +249,71 @@ export const K7 = {
       kit.flash(e.x, 1.8, e.z, SEA, 30, 0.22);
       return true;
     },
+  },
+  // Cuồng Lan Thúc Phược: a water orb splashes down and opens a whirlpool: blue arms spiralling into a dark centre, a pale rim,
+  // foam racing round it; it slows and drowns
+  // Miểu Chuẩn (passive): Aim is a pink reticle turning round her for 2 s; a reload by the dash flashes a sky-blue ring; each falcon
+  // burst is a violet vortex inside a blue ring on the marked foe
+  hwAim: {
+    k7(kit, e, u) {
+      if (e.kind === 'aim') {
+        sigil(kit, u.x, u.z, 1.5, HAWK, { c2: PALE, n: 4, m: 1, ticks: 4, inner: 0.55, fill: 0.03, w: 0.05, life: 2, rev: 0.12, follow: u, spin: 2.2 });
+        kit.glow(u.x, 1.4, u.z, HAWK, 0.2, 1.8, 0.8, kit.K.GLOW, 1.3);
+      } else if (e.kind === 'reload') {
+        kit.ring(u.x, u.z, 1.8, SKY, 0.35); kit.sparks(u.x, 1.2, u.z, kit.N(8), SKY, 5, 0.3, 0.05, 0.6, 4);
+      } else if (e.kind === 'falcon') {
+        const r = e.r || 2.5, n = e.n || 1;
+        sigil(kit, e.x, e.z, r, SKY, { c2: SKY, n: 0, ticks: 16, inner: 0.9, fill: 0.04, w: 0.06, life: 0.6, rev: 0.06, spin: 1 });
+        sigil(kit, e.x, e.z, r * 0.8, VIO, { c2: HAWK, n: 6, m: 2, ticks: 0, inner: 0.25, fill: 0.3, w: 0.07, life: 0.55, rev: 0.08, spin: -5 - n });
+        shell(kit, e.x, 1.0, e.z, 1.2 + 0.15 * n, VIO, { c2: HAWK, p: 1.3, core: 0.3, life: 0.4, grow: 0.06 });
+        kit.sparks(e.x, 1.1, e.z, kit.N(8 + 2 * n), HAWK, 8, 0.35, 0.05, 0.6, 8);
+        kit.flash(e.x, 1.8, e.z, VIO, 22 + 6 * n, 0.2);
+      }
+    },
+  },
+  // Hàn Ngưng Thị: a pink hawk spirit dives onto the cursor, then a sky-blue column of light wrapped in rings stands over an eye
+  // drawn on the ground for 3 s
+  hwEye: {
+    pal: [SKY, PALE],
+    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, HAWK, 0.2, 1.8, 0.9, kit.K.GLOW, 1.3); return true; },
+    zoneMake(kit, z) {
+      const T = 0.3;
+      kit.anims.push({ t: 0, step(dt) { this.t += dt; const k = Math.min(1, this.t / T); hawk(kit, z.x - 6 * (1 - k), 1 + 9 * (1 - k), z.z + 3 * (1 - k), Math.atan2(-3, 6), 2.2); if (k < 1) return true; kit.glow(z.x, 1, z.z, PALE, 0.2, 3, 1, kit.K.STAR, 1.4); kit.flash(z.x, 2, z.z, HAWK, 30, 0.2); return false; }, drop() {} });
+      const col = pillar(kit, z.x, z.z, 1.1, SKY, { c2: PALE, h: 12, rings: 1.4, life: 1e9, grow: 0.25, alpha: 0.75 });
+      const eye = sigil(kit, z.x, z.z, z.r, SKY, { c2: HAWK, n: 0, ticks: 24, inner: 0.35, fill: 0.08, w: 0.06, life: 1e9, rev: 0.3, spin: 0.4 });
+      const iris = sigil(kit, z.x, z.z, z.r * 0.32, HAWK, { c2: PALE, n: 4, m: 1, ticks: 0, inner: 0.5, fill: 0.25, w: 0.08, life: 1e9, rev: 0.3, spin: -1.2 });
+      return { all: [col, eye, iris] };
+    },
+    zone(kit, v, z, dt) { if (Math.random() < dt * 12) { const a = Math.random() * 6.283, q = z.r * R(0.3, 1); kit.glow(z.x + Math.cos(a) * q, 0.3, z.z + Math.sin(a) * q, SKY, 0.6, 0.3, 0.9, kit.K.STAR, 1, 0, R(1, 3), 0); } },
+    zoneDrop(kit, v) { for (const m of v.all) stop(m); },
+  },
+  // Thuấn Tập Ưng Ảnh: she flits off as a pink hawk shadow, a pink-violet streak behind her, the magazine snapping full
+  hwDash: {
+    pal: [HAWK, PALE],
+    skill(kit, e, u, row) {
+      const T = (row.dist || 4) / (row.speed || 30) + 0.15;
+      trail(kit, (t) => (t < T && u.alive ? [u.x, 1.0, u.z] : null), 1.5, HAWK, T + 0.45, { c2: VIO, len: 14 });
+      trail(kit, (t) => (t < T && u.alive ? [u.x, 1.2, u.z] : null), 0.9, VIO, T + 0.45, { c2: SKY, len: 14, up: true });
+      wings(kit, u.x, u.z, u.heading, 4.2, 0.55);
+      sigil(kit, u.x, u.z, 2.4, HAWK, { c2: SKY, n: 0, ticks: 12, inner: 0.7, fill: 0.2, w: 0.07, life: 0.6, rev: 0.06, spin: 2 });
+      kit.ring(u.x, u.z, 2.6, SKY, 0.4);
+      kit.follow(u, T, (t) => hawk(kit, u.x, 1.6, u.z, u.heading, 1.8, 0.12), () => { if (u.alive) wings(kit, u.x, u.z, u.heading, 3.0, 0.4); });
+      kit.ring(u.x, u.z, 1.6, HAWK, 0.3);
+      return true;
+    },
+  },
+  // Liệt Phong Chuẩn: a pink falcon of light flies out, wings swept, a violet streak trailing it; where it strikes, a pink burst
+  hwFalcon: {
+    pal: [HAWK, VIO], hitR: 2,
+    skill(kit, e, u) { const x = u.x + Math.cos(e.a) * 1.3, z = u.z + Math.sin(e.a) * 1.3; wings(kit, x, z, e.a, 6.5, 0.6); sigil(kit, u.x, u.z, 4.2, HAWK, { c2: SKY, n: 0, ticks: 16, inner: 0.72, fill: 0.35, w: 0.07, life: 0.7, rev: 0.06, spin: 1.5 }); kit.glow(x, 1.3, z, HAWK, 0.2, 2.2, 0.9, kit.K.GLOW, 1.3); kit.flash(x, 1.6, z, HAWK, 30, 0.2); return true; },
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, a: Math.atan2(s.dz, s.dx), on: true };
+      trail(kit, () => (v.on ? [v.x, 1.3, v.z] : null), 2.0, HAWK, 1.2, { c2: VIO, len: 20 });
+      trail(kit, () => (v.on ? [v.x, 1.3, v.z] : null), 1.2, VIO, 1.2, { c2: SKY, len: 20, up: true });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; hawk(kit, x, 1.3, z, v.a, 2.8); if (!v.w) { v.w = 1; wings(kit, x, z, v.a, 3.2, 0.9); } kit.glow(x, 0.2, z, HAWK, 0.25, 1.6, 0.4, kit.K.GLOW, 1.2); return true; },
+    shotEnd(kit, v, s, x, z) { v.on = false; burst(kit, x, z, 2.2, HAWK, PALE, { life: 0.3 }); kit.sparks(x, 1.2, z, kit.N(10), VIO, 9, 0.35, 0.05, 0.5, 8, s.dx, s.dz, 0.7); },
   },
   sirTide: {
     pal: [SEA, FOAM],

@@ -181,6 +181,80 @@ export function runK7Cases(check, section) {
     const ev3 = press(m, 0, 's1');
     check('K7-zc ... a cast breaks it at once (untargetable no more)', a.sirT === 0 && a.invulnT === 0 && only(ev3, 'k7', (e) => e.kind === 'ice' && e.on === 0).length === 1, `${a.sirT} ${a.invulnT}`);
   }
+
+  // ---- Ưng Nhãn (ung), clip p92 ----
+  const UN = MECHS.ung, UP = UN.passive, UW = UN.weapon, [UQ, UE, UU] = UN.skills;
+  const shots = (m, k, n, extra) => go(m, n, (i) => ({ [k]: { fire: true, ...extra } }));
+  // Súng Ưng: 150 a shot, six to a magazine, then 1.2 s to reload
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 6, 0]]), [a, v] = m.units;
+    go(m, 6, (i) => ({ 0: { fire: i === 0 } }));
+    check('K7-ua Sung Ung: a shot hits for 150 x armour', near(DH.hp - v.hp, UW.dmg * DF, 1e-6), `${DH.hp - v.hp}`);
+    v.hp = v.maxHp = 1e6;
+    const at = [];
+    let rlAt = -1;
+    for (let t = 0; t < 150; t++) { const ev = shots(m, 0, 1); if (only(ev, 'fire', (e) => e.id === 0).length) at.push(t); if (rlAt < 0 && only(ev, 'reload', (e) => e.id === 0).length) rlAt = t; }
+    const quiet = at.filter((t) => t > rlAt && t < rlAt + Math.round(UW.mag.reload / TICK) - 1);
+    check('K7-ub ... the magazine empties after 6 shots and the gun waits 1.2 s', rlAt >= 0 && at.filter((t) => t <= rlAt).length === UW.mag.n - 1 && !quiet.length && at.some((t) => t > rlAt), `shots ${at} reload ${rlAt}`);
+  }
+  // Miểu Chuẩn: 4 hits within 2 s give a 2 s Aim state: x1.5 on a mech whose shield is half its max hp or more
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 6, 0]]), [a, v] = m.units;
+    v.hp = v.maxHp = 1e6;
+    const ev = go(m, 70, (i) => ({ 0: { fire: i < 55 } }));
+    check('K7-uc Mieu Chuan: four hits in a row start Aim for 2 s', only(ev, 'k7', (e) => e.kind === 'aim').length >= 1 && a.hwkAimT > 0, `${a.hwkAimT}`);
+    a.hwkAimT = 2; a.magN = 0; a.magT = 0; a.cd.fire = 0; v.shield = v.shieldMax = 6e5; v.shieldT = 99;
+    const ev2 = go(m, 6, (i) => ({ 0: { fire: i === 0 } }));
+    const h = only(ev2, 'hit', (e) => e.id === v.id);
+    check('K7-ud ... in Aim a shot on a mech with a shield over half its hp is x1.5', h.length === 1 && near(h[0].absorbed, UW.dmg * 1.5 * DF, 1e-6), JSON.stringify(h));
+  }
+  // low hp: half her hp lost -> shots x1.25 and 25% lifesteal
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 6, 0]]), [a, v] = m.units;
+    a.hp = a.maxHp / 2;
+    go(m, 6, (i) => ({ 0: { fire: i === 0 } }));
+    const took = DH.hp - v.hp;
+    check('K7-ue ... at half hp a shot is x1.25 and heals 25% of what it takes', near(took, UW.dmg * 1.25 * DF, 1e-6) && near(a.hp, a.maxHp / 2 + took * UP.lowSteal * 0.5, 1e-6), `${took} hp ${a.hp}`);
+  }
+  // Hàn Ngưng Thị: the eye reveals a hidden foe inside and her shots do x1.25 on it
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 8, 0]]), [a, v] = m.units;
+    v.stealthT = 5;
+    press(m, 0, 's1', { tx: 8, tz: 0 });
+    check('K7-uf Han Ngung Thi: the foe in the eye is revealed and tagged for 3 s', v.stealthT === 0 && v.revealT > 2.9 && v.tags['eye@' + a.id] > 2.9, `${v.stealthT} ${v.tags['eye@' + a.id]}`);
+    go(m, 8, (i) => ({ 0: { fire: i === 0 } }));
+    check('K7-ug ... her shot on it is x1.25', near(DH.hp - v.hp, UW.dmg * UW.vsTag.mul * DF, 1e-6), `${DH.hp - v.hp}`);
+  }
+  // Thuấn Tập Ưng Ảnh: a 4 m dash, the magazine full at once, the next 5 shots x2 fire rate with 50% lifesteal
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 9, 0]]), [a, v] = m.units;
+    v.hp = v.maxHp = 1e6;
+    shots(m, 0, 30);
+    const before = a.magN || a.magT;
+    a.hp = 1000;
+    const ev = press(m, 0, 's2', { mx: 0, mz: 1 });
+    check('K7-uh Thuan Tap Ung Anh: the press refills the magazine and arms 5 shots at x2 fire rate', before > 0 && a.magN === 0 && a.magT === 0 && a.shotN === 5 && a.rapidF === 2 && only(ev, 'k7', (e) => e.kind === 'reload').length === 1, `${before} ${a.magN} ${a.shotN} ${a.rapidF}`);
+    go(m, 20, () => ({ 0: { aim: Math.atan2(v.z - a.z, v.x - a.x) } }));
+    check('K7-ui ... it dashes 4 m', near(a.z, UE.dist, 0.3), `${a.z}`);
+    const hp0 = a.hp, hits = [];
+    for (let t = 0; t < 90 && hits.length < 5; t++) hits.push(...only(go(m, 1, () => ({ 0: { fire: true, aim: Math.atan2(v.z - a.z, v.x - a.x) } })), 'hit', (e) => e.id === v.id && e.by === 0));
+    const heals = hits.length;
+    check('K7-uj ... the 5 shots heal half of what they take', a.shotN === 0 && hits.length === 5 && near(a.hp - hp0, 0.5 * hits.reduce((q, e) => q + e.amt, 0), 1e-6), `${a.shotN} healed ${a.hp - hp0} want ${0.5 * hits.reduce((q, e) => q + e.amt, 0)} hits ${heals}`);
+  }
+  // Liệt Phong Chuẩn: 236, slow 60% decaying over 4 s, a 4 s mark; each of her shots on it bursts 113 (+38 a burst), 4 bursts
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R(DUMMY, 1), 8, 0], [R(DUMMY, 1), 8, 1.5]]), [a, v, w] = m.units;
+    v.hp = v.maxHp = 1e5; w.hp = w.maxHp = 1e5;
+    press(m, 0, 'ult');
+    go(m, 10);
+    check('K7-uk Liet Phong Chuan: 236 x armour, the slow decaying from 60% over 4 s, the falcon mark', near(1e5 - v.hp, UU.dmg * DF, 1e-6) && v.dsF === 0.6 && v.dsD === 4 && v.tags['falcon@' + a.id] > 3.5, `${1e5 - v.hp} ${v.dsF}`);
+    const hv = v.hp, hw = w.hp, ev = go(m, 6, (i) => ({ 0: { fire: i === 0 } }));
+    const b = only(ev, 'k7', (e) => e.kind === 'falcon');
+    check('K7-ul ... a shot on it bursts: 150 + 113 on it, 113 x falloff on the foe 1.5 m away', b.length === 1 && near(hv - v.hp, (UW.dmg + UU.falcon.dmg) * DF, 1e-6) && near(hw - w.hp, UU.falcon.dmg * (1 - 0.5 * 1.5 / UU.falcon.radius) * DF, 1e-6), `${hv - v.hp} ${hw - w.hp}`);
+    const ev2 = go(m, 120, (i) => ({ 0: { fire: true } }));
+    const b2 = only(ev2, 'k7', (e) => e.kind === 'falcon');
+    check('K7-um ... three more bursts, each 38 stronger, then the mark is gone', b2.length === 3 && b2[2].n === 4 && !(v.tags['falcon@' + a.id] > 0), `${b2.length}`);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

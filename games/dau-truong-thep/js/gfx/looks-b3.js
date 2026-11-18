@@ -1,8 +1,7 @@
-// Looks, batch 3: Sói Lửa, Bạch Hạc, Ưng Nhãn, Thần Công, Cá Kiếm, Chuột Túi. Render only (see looks.js for the hooks).
+// Looks, batch 3: Sói Lửa, Bạch Hạc, Thần Công, Cá Kiếm, Chuột Túi. Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
-//   鹰痕 p92 (Ưng Nhãn): a pink hawk spirit diving, a blue sky beam wound with rings, a violet vortex in a blue circle, magenta
-//     arrow streaks.
+//   鹰痕 p92 (Ưng Nhãn): its looks moved to looks-k7.js with the kit ported from the clip (kit lane K7).
 //   海贼猎人 p63 (Cá Kiếm): lime-green blades: three blades thrust at once, a green whirlwind round him, a green X flash where
 //     the big cut lands, green crescent waves.
 //   Sói Lửa, Bạch Hạc, Thần Công, Chuột Túi: no part (蓝胖子 p58 is blue lightning, not a door or a robot); built from their
@@ -110,53 +109,6 @@ const bachhac = {
     },
     zone(kit, v, z, dt) { v.t += dt; const k = Math.min(1, v.t / 0.35); v.wings.forEach((w, i) => { w.rotation.x = (i ? -1 : 1) * (1 - k) * 1.2; w.position.set(z.x, 0.4 + k * 0.6, z.z); }); },
     zoneDrop(kit, v) { v.h.on = false; stop(v.d); stop(v.crown); },
-  },
-};
-
-// ---- Ưng Nhãn: the hawk, pink-magenta feathers and sky-blue light ------------------------------------------------------
-const UG_PINK = C(2.4, 0.35, 1.2), UG_SKY = C(0.35, 1.2, 2.6), UG_VIO = C(1.2, 0.3, 2.4);
-// a reticle: a ring and four ticks pointing in
-function reticle(kit, x, z, r, c, life) { sigil(kit, x, z, r, c, { n: 0, ticks: 4, inner: 0.35, life, rev: 0.08, spin: 1.5, fill: 0.08, w: 0.08 }); for (let i = 0; i < 4; i++) { const a = i * 1.571 + 0.785, b = kit.beam(x + Math.cos(a) * r * 1.3, z + Math.sin(a) * r * 1.3, x + Math.cos(a) * r * 0.55, z + Math.sin(a) * r * 0.55, 0.45, c, life, 2, 0.4); b.fade = true; } }
-const ung = {
-  // Mìn Xung Điện: a hawk's-eye reticle lies on the floor; it goes off as a blue sphere of lightning
-  ugMine: {
-    zones: ['mine'],
-    skill() { return true; },
-    zoneMake(kit, z, row, foe) { return { s: sigil(kit, z.x, z.z, 4.2, UG_PINK, { c2: UG_SKY, n: 4, m: 1, ticks: 8, inner: 0.4, life: 1e9, rev: 0.3, spin: 1, fill: 0.35, w: 0.1, alpha: foe ? 0.5 : 1 }) }; },
-    zoneDrop(kit, v) { stop(v.s); },
-    land(kit, e) { shell(kit, e.x, 1.2, e.z, 2.8, UG_SKY, { c2: C(2, 2.3, 2.6), p: 1.2, core: 0.25, bands: 3, life: 0.6, grow: 0.08 }); for (let i = 0; i < 6; i++) { const a = Math.random() * 6.283; const b = kit.beam(e.x, e.z, e.x + Math.cos(a) * 3, e.z + Math.sin(a) * 3, 0.4, UG_SKY, 0.25, 3, R(0.5, 2)); b.fade = true; } kit.flash(e.x, 1.6, e.z, UG_SKY, 50, 0.25); return true; },
-  },
-  // Lướt Bóng: the hawk spirit dives: a fan of pink feathers spreads where he was and fades, a magenta streak runs to where
-  // he lands and he melts from sight in falling feathers
-  ugBlink: {
-    skill(kit, e, u) {
-      const x0 = u.x, z0 = u.z, w = wing(17, 3.2, 0xff5fb0, 0.95); w.position.set(x0, 1.3, z0); w.rotation.y = -(e.a + Math.PI); w.scale.setScalar(5);
-      own(kit, [w], 0.7, (t) => { w.userData.mat.opacity = 0.95 * (1 - t / 0.7); w.scale.setScalar(2.6 + t * 1.5); });
-      trail(kit, (t) => (t < 0.3 && u.alive ? [u.x, 1.2, u.z] : null), 2.6, UG_PINK, 0.8, { c2: UG_VIO, len: 14 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.28) return true; for (let i = 0; i < 8; i++) { const f = wing(1, 0, 0xff8fc8, 0.9), x = u.x + R(-1.5, 1.5), z = u.z + R(-1.5, 1.5), r0 = Math.random() * 6; f.scale.setScalar(0.9); own(kit, [f], 1.2, (t) => { f.position.set(x, 2.6 - t * 2, z); f.rotation.set(Math.sin(t * 5) * 0.6, r0 + t * 2, 0); }); } return false; }, drop() {} });
-      return true;
-    },
-  },
-  // Tia Xuyên Phá: a reticle locks on at the far end while the shot gathers; it fires as a sky-blue beam wound with rings, a
-  // magenta arrow streak running its core
-  ugBeam: {
-    pal: [UG_SKY, UG_PINK], hitR: 1.8,
-    skill() { return true; },
-    castMake(kit, u, s) { return { t: 0 }; },
-    cast(kit, v, u, s, k, dt) {
-      v.t += dt; const a = u.cast.aim, L = Math.min(s.range, 14), x = u.x + Math.cos(a) * L, z = u.z + Math.sin(a) * L;
-      if (v.t > 0.05 && !v.ret) { v.ret = true; reticle(kit, x, z, 2.2, UG_PINK, (s.windup || 0.9) + 0.2); }
-      kit.glow(u.x + Math.cos(a) * 1.4, 1.4, u.z + Math.sin(a) * 1.4, UG_SKY, 0.1, 1 + 2 * k, 1, kit.K.STAR, 1.2);
-    },
-    beam(kit, e) {
-      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1;
-      const b1 = kit.beam(e.x0, e.z0, e.x1, e.z1, 4.4, UG_SKY, 0.6, 0, 1.4); b1.fade = true;
-      const b2 = kit.beam(e.x0, e.z0, e.x1, e.z1, 0.9, UG_PINK, 0.5, 2, 1.45); b2.fade = true;
-      for (let d = 3; d < L; d += 3.5) { const m = sigil(kit, e.x0 + dx / L * d, e.z0 + dz / L * d, 1.4, UG_SKY, { n: 0, ticks: 0, inner: 0.8, life: 0.6, rev: 0.05, fill: 0, y: 1.4, w: 0.12 }); m.rotation.z = Math.PI / 2; m.rotation.y = -Math.atan2(dz, dx); }
-      pillar(kit, e.x1, e.z1, 1.6, UG_SKY, { c2: UG_PINK, h: 16, life: 0.7, grow: 0.08, drop: true, rings: 5 });
-      kit.flash(e.x1, 1.6, e.z1, UG_SKY, 60, 0.3); kit.kick(e.x0, e.z0, 0.5);
-      return true;
-    },
   },
 };
 
@@ -307,4 +259,4 @@ const chuottui = {
   },
 };
 
-export const B3 = { ...soi, ...bachhac, ...ung, ...thancong, ...cakiem, ...chuottui };
+export const B3 = { ...soi, ...bachhac, ...thancong, ...cakiem, ...chuottui };

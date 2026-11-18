@@ -14,7 +14,19 @@ import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formD
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 const TRAU = MECHS.trau, TRAU_HIT = (dmg) => dmg * (1 - TRAU.armor);
 // shot damage of the rows the literal-number tests below fire (a balance pass moves these, the arithmetic stays)
-const THO_D = MECHS.tho.weapon.dmg, BOC_D = MECHS.bocap.weapon.dmg, UNG_TOWER = MECHS.ung.weapon.dmg * MECHS.ung.towerMul;
+// The batch-0 Ưng Nhãn kit (a slow pierce rail, mine, stealth blink, beam ult) is a fixture now: ung plays Hawk Mark ported from
+// clip p92 (section K7). The sections below that use ung as their reference shooter or test those rows play this fixture.
+const OLD_UNG = {
+  passive: { do: 'pierce' },
+  weapon: { name: 'Súng Ray', cd: 1.5, dmg: 390, speed: 62, range: 23, r: 0.2, far: { after: 14, mul: 1.2 }, vis: 'rail' },
+  skills: [
+    { id: 'min', cd: 11, do: 'mine', trigger: 2.1, blast: 3, dmg: 260, stun: 1.2, arm: 0.8, life: 35, cast: 9 },
+    { id: 'luot', cd: 11, do: 'blink', dist: 7, speed: 30, stealth: 2.2 },
+    { id: 'tia', cd: 60, do: 'beam', windup: 0.9, range: 30, width: 1.1, dmg: 1850 },
+  ],
+};
+const oldUng = (m) => { for (const u of m.units) if (u.mech === 'ung') { u.def = { ...u.def, ...OLD_UNG }; u.passive = 'pierce'; } return m; };
+const THO_D = MECHS.tho.weapon.dmg, BOC_D = MECHS.bocap.weapon.dmg, UNG_TOWER = OLD_UNG.weapon.dmg * MECHS.ung.towerMul;
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -42,10 +54,10 @@ const toward = (a, b) => Math.atan2(b.z - a.z, b.x - a.x);
 
 section('1-2 shots');
 {
-  const m = duel('ung', 'trau', [-5, -1], [3, -1]);
+  const m = oldUng(duel('ung', 'trau', [-5, -1], [3, -1]));
   const [a, b] = m.units;
   const ev = run(m, 12, (i) => [inp({ aim: 0, fire: i === 0 }), inp()]);
-  check('shot in the open reduces hp by weapon damage', b.hp === b.maxHp - MECHS.ung.weapon.dmg, `hp ${b.hp}/${b.maxHp}`);
+  check('shot in the open reduces hp by weapon damage', b.hp === b.maxHp - OLD_UNG.weapon.dmg, `hp ${b.hp}/${b.maxHp}`);
   check('shot in the open emits an impact on the unit', ev.some((e) => e.t === 'impact' && e.on === 'unit'));
 }
 {
@@ -80,7 +92,7 @@ section('3 bushes and stealth');
     { team: 0, mech: 'ung', name: 'S', bot: true, diff: 'hard' }, { team: 0, mech: 'soi', name: 'T', bot: true, diff: 'hard' },
     { team: 1, mech: 'trau', name: 'H' },
   ];
-  const m = createMatch({ seed: 3, roster });
+  const m = oldUng(createMatch({ seed: 3, roster }));
   const h = m.units[2];
   put(h, -20.5, 9.5);
   put(m.units[0], -20.5, 28.5); put(m.units[1], -26, 27);
@@ -143,11 +155,11 @@ for (const key of MECH_ORDER) {
 
 section('5 skill effects');
 {
-  const m = duel('trau', 'ung', [-5, -1], [3, -1]);
+  const m = oldUng(duel('trau', 'ung', [-5, -1], [3, -1]));
   const [a, b] = m.units;
   const ev = run(m, 15, (i) => [inp({ s1: i === 0 }), inp({ aim: Math.PI, fire: i === 2 })]);
   check('shield: set to its amount on cast', ev.some((e) => e.t === 'skill' && e.skill === 'giap'));
-  check('shield absorbs a rail shot (hp unchanged, shield reduced)', a.hp === a.maxHp && a.shield === MECHS.trau.skills[0].amount - MECHS.ung.weapon.dmg, `hp ${a.hp} shield ${a.shield}`);
+  check('shield absorbs a rail shot (hp unchanged, shield reduced)', a.hp === a.maxHp && a.shield === MECHS.trau.skills[0].amount - OLD_UNG.weapon.dmg, `hp ${a.hp} shield ${a.shield}`);
 }
 {
   const m = duel('trau', 'ung', [-5, -1], [2, -1]);
@@ -178,33 +190,33 @@ section('5 skill effects');
   check('barrage: damages the enemy under the target point', b.hp <= b.maxHp - MECHS.soi.skills[2].dmg, `hp ${b.hp}`);
 }
 {
-  const m = duel('ung', 'trau', [-5, -1], [2, -1]);
+  const m = oldUng(duel('ung', 'trau', [-5, -1], [2, -1]));
   const [a, b] = m.units;
   let maxStun = 0;
   const ev = run(m, 60, (i) => { maxStun = Math.max(maxStun, b.stunT); return [inp({ s1: i === 0, tx: 2, tz: -1 }), inp()]; });
   check('mine: triggers when an enemy stands on it', ev.some((e) => e.t === 'explode' && e.why === 'mine'));
-  check('mine: damages and stuns', b.hp < b.maxHp && maxStun >= MECHS.ung.skills[0].stun - 0.1, `hp ${b.hp} stun ${maxStun}`);
+  check('mine: damages and stuns', b.hp < b.maxHp && maxStun >= OLD_UNG.skills[0].stun - 0.1, `hp ${b.hp} stun ${maxStun}`);
   check('mine: consumed after triggering', m.zones.every((z) => z.kind !== 'mine'));
 }
 {
-  const m = duel('ung', 'trau', [-5, -1], [9, -1]);
+  const m = oldUng(duel('ung', 'trau', [-5, -1], [9, -1]));
   const [a] = m.units;
   const x0 = a.x;
   run(m, 1, () => [inp({ s2: true, mx: 1 }), inp()]);
   check('blink: caster is hidden right after the cast', hidden(a));
   run(m, 10, () => [inp({ mx: 0 }), inp()]);
-  check('blink: moved about its distance', a.x - x0 > MECHS.ung.skills[1].dist - 1.5, `dx ${a.x - x0}`);
+  check('blink: moved about its distance', a.x - x0 > OLD_UNG.skills[1].dist - 1.5, `dx ${a.x - x0}`);
   check('blink: stealth makes it unseen at range', !visibleTo(m, a, 1));
 }
 {
-  const s = MECHS.ung.skills[2];
-  const m = duel('ung', 'trau', [-5, -1], [5, -1]);
+  const s = OLD_UNG.skills[2];
+  const m = oldUng(duel('ung', 'trau', [-5, -1], [5, -1]));
   const [a, b] = m.units;
-  const c = createMatch({ seed: 2, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 1, mech: 'trau', name: 'C' }] });
+  const c = oldUng(createMatch({ seed: 2, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 1, mech: 'trau', name: 'C' }] }));
   put(c.units[0], -5, -1); put(c.units[1], 2, -1); put(c.units[2], 8, -1);
   run(c, Math.ceil((s.windup + 0.3) / TICK), (i) => [inp({ ult: i === 0, aim: 0 }), inp(), inp()]);
   check('beam: damages every enemy in the line', c.units[1].hp === c.units[1].maxHp - s.dmg && c.units[2].hp === c.units[2].maxHp - s.dmg, `hp ${c.units[1].hp} ${c.units[2].hp}`);
-  const w = duel('ung', 'trau', [-14, 0], [-5, 0]);
+  const w = oldUng(duel('ung', 'trau', [-14, 0], [-5, 0]));
   run(w, Math.ceil((s.windup + 0.3) / TICK), (i) => [inp({ ult: i === 0, aim: 0 }), inp()]);
   check('beam: does not pass through a wall', w.units[1].hp === w.units[1].maxHp);
 }
@@ -1374,7 +1386,7 @@ for (const key of NHA_ORDER) {
   check('29h aggro: the enemy that just hurt my unit becomes the tower target', hit && after === Bm.id, `target ${after}, B ${Bm.id}`);
 }
 {
-  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
   const T = m.towers[1], S = m.units[1], p = ringSpot(m, T, 9, 0.5, true);
   spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
   const ev = run(m, 20, (i) => [IN, inp({ fire: i === 0, aim: toward(S, T) })]);
@@ -1382,7 +1394,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // main tower: no damage and a towerBlock event while a sub stands; hurt after both subs fall
-  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
   const main = m.towers[0], S = m.units[1];
   spend(S);
   const shoot = (tw, ticks) => {
@@ -1402,7 +1414,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // the end: main falls -> match over, shooter's team wins
-  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
   const main = m.towers[0], S = m.units[1];
   spend(S);
   m.towers[1].alive = false; m.towers[2].alive = false; main.hp = 200;
@@ -1410,7 +1422,7 @@ for (const key of NHA_ORDER) {
   put(S, p[0], p[1]); S.aim = toward(S, main);
   const ev = run(m, 25, (i) => [IN, inp({ fire: i === 0, aim: toward(S, main) })]);
   check('29n destroying the main tower ends the match at once, the destroying team wins', m.over && m.winner === 1 && !main.alive && ev.some((e) => e.t === 'towerDown' && e.kind === 'main') && ev.some((e) => e.t === 'over' && e.winner === 1) && m.time < 3, `over ${m.over} winner ${m.winner}`);
-  const m3 = nhaM([solo('ung', 0), solo('trau', 1)]);
+  const m3 = oldUng(nhaM([solo('ung', 0), solo('trau', 1)]));
   m3.towers[4].alive = false; m3.towers[5].alive = false; m3.towers[3].hp = 200; spend(m3.units[0]);
   const p3 = ringSpot(m3, m3.towers[3], 9, 0.5, true);
   put(m3.units[0], p3[0], p3[1]); dead(m3.units[1]); m3.units[0].aim = toward(m3.units[0], m3.towers[3]);
@@ -1994,10 +2006,10 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('armour: the same shot on ung (armour 0) leaves 1700 - the shot', hit('ung') === 1700 - THO_D, `hp ${hit('ung')}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 8, 0]]);
+    const m = oldUng(arena([[R('ung', 0), 0, 0], [R('trau', 1), 8, 0]]));
     go(m, 12, FIRE0);
     check(`pierce: ung 390 ignores trau armour ${TRAU.armor}: ${TRAU.hp} - 390`, near(m.units[1].hp, TRAU.hp - 390, 1e-9), `hp ${m.units[1].hp}`);
-    const f = arena([[R('ung', 0), 0, 0], [R('trau', 1), 18, 0]]);
+    const f = oldUng(arena([[R('ung', 0), 0, 0], [R('trau', 1), 18, 0]]));
     go(f, 24, FIRE0);
     check(`pierce + far: a rail shot past 14 m hits for 390 x 1.2 = 468 through armour: ${TRAU.hp} - 468`, near(f.units[1].hp, TRAU.hp - 468, 1e-9), `hp ${f.units[1].hp}`);
   }
@@ -2281,7 +2293,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('fortify: armour 0.2 + 0.5 = 0.7 is capped at RULES.armorCap (0.6)', near(armorOf(m, m.units[0]), RULES.armorCap, 1e-9) && RULES.armorCap === 0.6, `armour ${armorOf(m, m.units[0])}`);
     go(m, 12, (i) => ({ 1: { fire: i === 0 } }));
     check('fortify: a tho shot x 0.3 gets through kimquy and the attacker takes 30% of that x (1 - tho armour)', near(m.units[0].hp, MECHS.kimquy.hp - THO_D * (1 - RULES.armorCap), 1e-9) && near(m.units[1].hp, MECHS.tho.hp - THO_D * (1 - RULES.armorCap) * 0.3 * (1 - MECHS.tho.armor), 1e-9), `${m.units[0].hp} / ${m.units[1].hp}`);
-    const p = arena([[R('kimquy', 0), 0, 0], [R('ung', 1), 15, 0]]);
+    const p = oldUng(arena([[R('kimquy', 0), 0, 0], [R('ung', 1), 15, 0]]));
     go(p, 1, () => ({ 0: { s2: true } }));
     go(p, 20, (i) => ({ 1: { fire: i === 0 } }));
     check('fortify: a pierce rail 390 hurts through the plating and returns 30%: ung takes 117', near(p.units[0].hp, MECHS.kimquy.hp - 390, 1e-9) && near(p.units[1].hp, 1700 - 117, 1e-9), `${p.units[0].hp} / ${p.units[1].hp}`);
@@ -2340,7 +2352,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('mark: a boss takes the +25% but is never executed, even under 22% of its hp', bo.units[1].markEx === 0 && bo.units[1].markAmp === 0.25 && bo.units[1].alive && only(eb, 'execute').length === 0 && bo.units[1].hp < 20000, `hp ${bo.units[1].hp} markEx ${bo.units[1].markEx}`);
   }
   {
-    const m = arena([[R('holy', 0), -10, 0, 0], [R('ung', 1), 6, 0]]);
+    const m = oldUng(arena([[R('holy', 0), -10, 0, 0], [R('ung', 1), 6, 0]]));
     const a = m.units[0];
     go(m, 1, () => ({ 0: { s1: true } }));
     const d = m.zones.find((z) => z.kind === 'decoy');
@@ -2594,14 +2606,14 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     return m;
   };
   const fire = (m, ticks, f) => { const ev = []; for (let i = 0; i < ticks; i++) { step(m, [inp({ aim: 0, tx: m.units[1].x, tz: m.units[1].z, ...f(i) }), IN]); for (const e of m.events) ev.push(e); } return ev; };
-  // Ung's beam ultimate (1850, pierces armour) one-shots a full-hp Bach Hac (1750) and Dom Dom (1700)
+  // Ung's old beam ultimate (the OLD_UNG fixture: 1850, pierces armour) one-shots a full-hp Bach Hac (1750) and Dom Dom (1700)
   for (const h of ['hac', 'domdom']) {
-    const m = duel2('ung', h, 14);
+    const m = oldUng(duel2('ung', h, 14));
     const hits = fire(m, 45, (i) => ({ ult: i === 0 })).filter((e) => e.t === 'hit' && e.by === 0);
-    check(`39a Ung's beam kills a full-hp ${MECHS[h].name} (${MECHS[h].hp} hp) in one hit, within 1.5 s`, !m.units[1].alive && hits.length === 1 && near(hits[0].amt, MECHS.ung.skills[2].dmg, 1e-9), `alive ${m.units[1].alive} hits ${hits.map((e) => e.amt)}`);
+    check(`39a Ung's beam kills a full-hp ${MECHS[h].name} (${MECHS[h].hp} hp) in one hit, within 1.5 s`, !m.units[1].alive && hits.length === 1 && near(hits[0].amt, OLD_UNG.skills[2].dmg, 1e-9), `alive ${m.units[1].alive} hits ${hits.map((e) => e.amt)}`);
   }
   {
-    const m = duel2('ung', 'trau', 14);
+    const m = oldUng(duel2('ung', 'trau', 14));
     fire(m, 45, (i) => ({ ult: i === 0 }));
     check('39b the same beam does not delete a full-hp Trau Sat (2850 hp, he lives with 1000 hp)', m.units[1].alive && m.units[1].hp > 900 && m.units[1].hp < 1100, `hp ${m.units[1].hp}`);
   }
@@ -2619,7 +2631,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
   }
   // wounded: a hit of at least 12% of max hp halves healing for 3 s
   {
-    const m = duel2('ung', 'trau', 14);
+    const m = oldUng(duel2('ung', 'trau', 14));
     const d = m.units[1]; d.hp = d.maxHp * 0.5;
     fire(m, 1, () => ({}));
     const u = m.units[1]; u.woundT = 0; const before = u.hp; u.healT = 1; u.healRate = 300;
@@ -2630,7 +2642,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     check('39e a wounded unit receives half the healing (RULES.wound.mul 0.5)', near((u.hp - b2) / plain, 0.5, 0.02), `${plain} ${u.hp - b2}`);
   }
   {
-    const m = duel2('ung', 'trau', 14), t = m.units[1];
+    const m = oldUng(duel2('ung', 'trau', 14)), t = m.units[1];
     fire(m, 45, (i) => ({ ult: i === 0 }));
     check('39f a hit of 12% of max hp or more wounds the target (the beam does; woundT up to 3 s)', t.woundT > 0 && t.woundT <= 3, `woundT ${t.woundT}`);
   }
@@ -2678,7 +2690,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     const m = arena([[R('khiphao', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
     go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0 } }));
     check('40a hitfx on a barrage: slow 0.4 and weaken x0.8 land on the target', v.hp < v.maxHp && v.slowF === 0.4 && v.slowT > 0 && v.weakenF === 0.8 && v.weakenT > 0, `hp ${v.hp} slowF ${v.slowF} weakenF ${v.weakenF}`);
-    const w = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    const w = oldUng(arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0]]));
     w.units[0].weakenT = 2; w.units[0].weakenF = 0.8;
     go(w, 12, (i) => ({ 0: { fire: i === 0 } }));
     check('40b a weakened shooter deals 80%: 390 x 0.8 = 312', near(w.units[1].hp, UNG - 312), `hp ${w.units[1].hp}`);
@@ -3531,12 +3543,12 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
   const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
-  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor, UNGW = UNG.weapon.dmg;
+  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor, UNGW = OLD_UNG.weapon.dmg;   // the ung shooters here play the OLD_UNG fixture (a pierce rail)
   const sum = (ev, f) => ev.reduce((a, e) => a + f(e), 0);
 
   // ---- counter ----
   {
-    const m = arena([[R('retdo', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units, S = MECHS.retdo.skills[1];
+    const m = oldUng(arena([[R('retdo', 0), 0, 0], [R('ung', 1), 5, 0]])), [a, v] = m.units, S = MECHS.retdo.skills[1];
     press(m, 0, 's2', { tx: 5, tz: 0 });
     check('44a Lon Nguoc: a window of 0.6 s opens, the mech steps back 5 m at 24 m/s and the key goes on cooldown', a.parryT === 0.6 && a.parrySlot === 1 && !!a.dash && a.cd.s2 === S.cd, `${a.parryT} ${a.parrySlot} ${a.cd.s2}`);
     const ev = go(m, 80, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
@@ -3584,7 +3596,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   {
     const MO = MECHS.moclan;
-    const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    const m = oldUng(arena([[R('moclan', 0), 0, 0], [R('ung', 1), 4, 0]])), [a, v] = m.units;
     let ev = [], k = 0;
     while (!only(ev, 'stacks').length && k++ < 150) ev = ev.concat(go(m, 1, () => ({ 0: { fire: true } })));
     const extra = only(ev, 'hit', (e) => e.id === 1 && near(e.amt, UNG.hp * 0.08 * UNG_F, 1e-6));
@@ -3593,7 +3605,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44n a silenced mech casts nothing (its cooldown stays ready)', only(ev2, 'skill', (e) => e.id === 1).length === 0 && v.cd.s1 === 0);
     const ev3 = go(m, 12, () => ({ 1: { fire: true, aim: Math.PI } }));
     const h = only(ev3, 'hit', (e) => e.id === 0);
-    check('44o under guard a blow is cut by 75% (on top of armour; the rail shot of Ung pierces armour, so 390 x 0.25)', h.length > 0 && near(h[0].amt, UNGW * 0.25, 1e-6) && MECHS.ung.passive.do === 'pierce', JSON.stringify(h.map((e) => e.amt)));
+    check('44o under guard a blow is cut by 75% (on top of armour; the rail shot of Ung pierces armour, so 390 x 0.25)', h.length > 0 && near(h[0].amt, UNGW * 0.25, 1e-6) && v.passive === 'pierce', JSON.stringify(h.map((e) => e.amt)));
   }
   {
     const m = arena([[R('moclan', 0), 0, 0], [R('ung', 1), 2, 0], [R('ung', 1), -2.5, 0]]), [a, f, b] = m.units;
@@ -4955,7 +4967,7 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
   {
     let landed = false;
     for (let k = 0; k < 4 && !landed; k++) {
-      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const m = oldUng(createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] }));
       const a = m.units[0];
       a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, fx: { ...(s.fx || {}), fear: 1 } } : s)) };
       for (let i = 0; i < 3600 && !m.over && !landed; i++) { step(m, allInputs(m)); if (m.events.some((e) => e.t === 'loc' && e.by === 0 && e.kind === 'fear')) landed = true; }

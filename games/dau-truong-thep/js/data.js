@@ -73,20 +73,32 @@ export const MECHS = {
         desc: 'Gọi chín quả hỏa tiễn dội xuống vùng con trỏ. Vòng đỏ báo trước chỗ rơi.' },
     ],
   },
+  // Ưng Nhãn (鹰痕 "Hawk Mark"): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p92 "89.鹰痕", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
+  // The original is a fast magazine gun, not a slow rail: attack = one shot of 150 (was 390 every 1.5 s), 0.45 s apart, 6 to a
+  // magazine, 1.2 s to reload (about the old 260 dps over a magazine). Cooldowns 8 / 6 / 25 s in the clip -> 11 / 8 / 45. MP dropped.
+  // Passive: 4 hits inside 2 s give a 2 s Aim state (shots do up to +50% to a mech carrying a shield, by its share of max hp);
+  // the lower her hp, the more damage and lifesteal on shots, up to +50% (G4 lowHpScale; lowSteal). Q ?寒凝视: an eye over the
+  // cursor 3 s, reveals inside, and her shots do +25% to what it saw (a tag the weapon's vsTag reads). E 瞬袭鹰影: a short dash,
+  // the magazine full at once, the next 5 shots +100% fire rate, 50% lifesteal, 30% chance to stun 0.5 s. Ult 裂风隼 157% -> 236,
+  // slow 60% decaying over 4 s, a 4 s mark: each of her shots on it bursts round it for 75% -> 113, +25% -> 38 per burst, 4 bursts.
+  // Kit-remake G5 fields (sim.js block "kit-remake G5 Ưng Nhãn"): passive do 'hawk' {aim, lowSteal}, zone eye, blink reload, volley falcon.
   ung: {
     name: 'Ưng Nhãn', role: 'Bắn tỉa', roleKey: 'sniper', price: 0, tint: 0x7c6bd6,
-    blurb: 'Súng ray tầm xa, máu mỏng. Giữ khoảng cách, bẫy kẻ lao vào.',
+    blurb: 'Súng băng đạn bắn nhanh, máu mỏng. Mắt ưng soi chỗ địch nấp, lướt đi nạp đầy đạn, rồi phóng chim ưng đánh dấu để mỗi phát bắn nổ lan.',
     hp: 1700, speed: 6.0, radius: 0.76,
     armor: 0, accel: 1.0, turn: 9, towerMul: 0.7,
-    passive: { do: 'pierce', name: 'Xuyên Giáp', desc: 'Sát thương bỏ qua giáp. Đạn ray bay quá 14 m mạnh thêm 20%.' },
-    weapon: { name: 'Súng Ray', cd: 1.5, dmg: 390, speed: 62, range: 23, r: 0.2, far: { after: 14, mul: 1.2 }, vis: 'rail' },
+    passive: { do: 'hawk', name: 'Miểu Chuẩn', look: 'hwAim', desc: 'Bắn trúng 4 lần trong 2 giây thì vào thế Ngắm 2 giây: đạn gây thêm tới 50% lên kẻ đang có khiên (theo độ dày khiên). Càng ít máu, sát thương và hút máu của đạn càng cao, tối đa thêm 50%.',
+      aim: { hits: 4, win: 2, dur: 2, vsShield: 1 }, lowSteal: 0.5, mods: { lowHpScale: 0.5 } },
+    weapon: { name: 'Súng Ưng', cd: 0.45, dmg: 150, speed: 60, range: 18, r: 0.2, mag: { n: 6, reload: 1.2 }, vsTag: { key: 'eye', mul: 1.25 }, vis: 'rail' },
     skills: [
-      { id: 'min', look: 'ugMine', name: 'Mìn Xung Điện', cd: 11, do: 'mine', trigger: 2.1, blast: 3, dmg: 260, stun: 1.2, arm: 0.8, life: 35, cast: 9, icon: 'mine',
-        desc: 'Ném một quả mìn tới con trỏ. Địch chạm vào bị giật choáng.' },
-      { id: 'luot', look: 'ugBlink', name: 'Lướt Bóng', cd: 11, do: 'blink', dist: 7, speed: 30, stealth: 2.2, icon: 'blink',
-        desc: 'Lướt nhanh theo hướng đang đi (hoặc lùi lại) rồi tàng hình 2,2 giây.' },
-      { id: 'tia', look: 'ugBeam', name: 'Tia Xuyên Phá', cd: 60, do: 'beam', windup: 0.9, range: 30, width: 1.1, dmg: 1850, icon: 'beam',
-        desc: 'Nạp năng lượng rồi bắn một tia xuyên qua mọi kẻ địch trên đường thẳng. Tường vẫn chặn được.' },
+      { id: 'hanngung', look: 'hwEye', name: 'Hàn Ngưng Thị', cd: 11, do: 'zone', at: 'target', cast: 18, radius: 5, dur: 3, eye: { key: 'eye', dur: 3 }, vis: 'hwEye', icon: 'mark',
+        desc: 'Thả mắt ưng soi vùng 5 m ở con trỏ (xa nhất 18 m) trong 3 giây: kẻ địch trong đó bị lộ diện (cả trong bụi), và trong 3 giây đạn của bạn gây thêm 25% lên chúng.' },
+      { id: 'thuantap', look: 'hwDash', name: 'Thuấn Tập Ưng Ảnh', cd: 8, do: 'blink', dist: 4, speed: 30, stealth: 0, reload: true,
+        self: { on: 'cast', dur: 3, rapid: 2, shots: 5, shotsFor: 3, patch: { steal: 0.5, fx: { chance: 0.3, stun: 0.5 } } }, icon: 'blink',
+        desc: 'Lướt nhanh 4 m theo hướng đang đi (hoặc lùi lại) và nạp đầy băng đạn ngay. 5 phát kế tiếp (trong 3 giây) bắn nhanh gấp đôi, hút 50% máu, mỗi phát 30% làm choáng 0,5 giây.' },
+      { id: 'liepphong', look: 'hwFalcon', name: 'Liệt Phong Chuẩn', cd: 45, do: 'volley', n: 1, dmg: 236, speed: 40, range: 22, r: 0.4, vis: 'hwFalcon',
+        fx: { slow: 0.6, slowDur: 4, slowDecay: true, tag: { key: 'falcon', dur: 4 } }, falcon: { key: 'falcon', radius: 2.5, dmg: 113, grow: 38, n: 4 }, icon: 'pierce',
+        desc: 'Phóng chim ưng: kẻ đầu tiên trúng chịu 236 sát thương, chậm 60% giảm dần trong 4 giây và bị đánh dấu 4 giây. Mỗi phát đạn của bạn trúng nó nổ lan 2,5 m quanh nó 113 sát thương, mỗi lần nổ mạnh thêm 38, tối đa 4 lần.' },
     ],
   },
   hac: {
@@ -1094,7 +1106,7 @@ const perk = (name, desc, slot, patch) => ({ name, desc, slot, patch });
 export const PERKS = {
   trau: [perk('Đà Húc', 'Húc Thép lao xa 10,5 m và choáng 1,2 giây.', 1, { dist: 10.5, stun: 1.2 }), perk('Giáp Dày', 'Giáp Phản Lực hấp thụ 1200.', 0, { amount: 1200 }), perk('Dư Chấn', 'Địa Chấn rộng 7,5 m, làm chậm 4 giây.', 2, { radius: 7.5, slowDur: 4 })],
   soi: [perk('Rocket Thứ Tư', 'Rocket Chùm bắn bốn quả.', 0, { n: 4 }), perk('Bền Hơi', 'Tăng Áp kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Mưa Dày', 'Mưa Hỏa Tiễn dội 12 quả.', 2, { n: 12 })],
-  ung: [perk('Xung Mạnh', 'Mìn Xung Điện choáng 1,8 giây.', 0, { stun: 1.8 }), perk('Bóng Dài', 'Lướt Bóng tàng hình 3,2 giây.', 1, { stealth: 3.2 }), perk('Tia Lớn', 'Tia Xuyên Phá rộng 1,6 m, gây 2100.', 2, { width: 1.6, dmg: 2100 })],
+  ung: [perk('Băng Đạn Lớn', 'Súng Ưng chứa 8 viên.', 'weapon', { mag: { n: 8, reload: 1.2 } }), perk('Mắt Rộng', 'Hàn Ngưng Thị soi rộng 6,5 m.', 0, { radius: 6.5 }), perk('Chim Ưng Dữ', 'Liệt Phong Chuẩn gây 300.', 2, { dmg: 300 })],
   hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 310 mỗi giây.', 0, { hps: 310 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
   loi: [perk('Khói Đặc', 'Màn Khói kéo dài 7,5 giây.', 0, { dur: 7.5 }), perk('Thuốc Nổ', 'Giật Lùi gây 260.', 1, { dmg: 260 }), perk('Bảy Tiếng Sấm', 'Thiên Lôi rơi bảy quả.', 2, { n: 7 })],
   bocap: [perk('Vồ Liên Hồi', 'Vồ Mồi hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Ẩn Sâu', 'Ngụy Trang kéo dài 5,5 giây.', 1, { stealth: 5.5, dur: 5.5 }), perk('Sáu Nhát', 'Lốc Thép chém sáu nhát.', 2, { repeat: 6 })],

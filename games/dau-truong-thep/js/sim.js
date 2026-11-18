@@ -1520,7 +1520,7 @@ const CAST = {
     const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
     addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
       haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0, drain: s.drain || 0, shield: s.shield || 0, sh: {} });
-    if (s.grow || s.ownerHps || s.marks) k7Zone(m.zones[m.zones.length - 1], s);   // kit-remake G5 lane K7: Thủy Tinh's vortex
+    if (s.grow || s.ownerHps || s.marks || s.eye) k7Zone(m.zones[m.zones.length - 1], s);   // kit-remake G5 lane K7: Thủy Tinh's vortex, Ưng Nhãn's eye
   },
   dome(m, u, s) {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
@@ -2053,7 +2053,7 @@ function stepZones(m) {
       z.acc += dt;
       const pulse = z.acc >= 0.5;
       if (pulse) z.acc -= 0.5;
-      if (z.k7) k7ZoneTick(m, z, owner, pulse);   // kit-remake G5 lane K7: growing slow, owner heal (Thủy Tinh)
+      if (z.k7) k7ZoneTick(m, z, owner, pulse);   // kit-remake G5 lane K7: growing slow, owner heal (Thủy Tinh), the eye (Ưng Nhãn)
       for (const u of m.units) {
         if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
         if (u.team === z.team) {
@@ -2312,6 +2312,7 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'brittle') { const P = foe.def.passive; if (P.when === 'low' ? u.hp < u.maxHp * P.below : P.when === 'burn' ? u.burnT > 0 : P.when === 'marked' ? u.markT > 0 || u.ampT > 0 : u.slowT > 0) amount *= P.mul; }
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
     amount *= lowHpScaleMul(foe);
+    amount *= k7AimMul(foe, u);   // kit-remake G5 Ưng Nhãn: Aim vs a shielded mech
     if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
@@ -2353,7 +2354,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && foe.alive && left > 0) {
-    const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0);
+    const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
     if (steal) heal(m, foe, left * steal, foe, true);
     if (u.armorT > 0 && u.reflectF > 0 && !reflecting) { reflecting = true; damage(m, foe, amount * u.reflectF, u); reflecting = false; }
   }
@@ -2362,6 +2363,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && foe.passive === 'stacks' && left + absorbed > 0 && !chaining && u.hp > 0) stackHit(m, foe, u);
   if (u.hp <= 0) g2Fatal(m, u);   // kit-remake G2: undying, or a fatal save, keeps it at 1 hp
   if (foe && left + absorbed > 0 && !chaining && !reflecting) g3Hit(m, foe, u, left + absorbed);
+  if (foe && left + absorbed > 0 && !chaining && !reflecting && curSrc) k7Hit(m, foe, u);   // kit-remake G5 Ưng Nhãn: Aim count, falcon bursts
   if (u.hp <= 0) kill(m, u, src);
   else if (u.markT > 0 && u.markEx && u.hp < u.maxHp * u.markEx) {
     const by = m.units[u.markBy];
@@ -3281,12 +3283,12 @@ function bgLast(u, s) {
 /* ===== end kit-remake G5 Black Panther ===== */
 
 /* ===== kit lane K7 (feat/dtt-k7): one-line hooks in shared paths call these; each tank's G5 work is its own block below ===== */
-function k7Clear(u) { smClear(u); sirClear(u); }
-function k7Tick(m, u) { smTick(m, u); sirTick(m, u); }
+function k7Clear(u) { smClear(u); sirClear(u); hwkClear(u); }
+function k7Tick(m, u) { smTick(m, u); sirTick(m, u); hwkTick(m, u); }
 // every successful press (a second stage too), after its cast
-function k7Cast(m, u, s) { if (u.sirT > 0) sirBreak(m, u); }
-function k7Zone(z, s) { sirZone(z, s); }
-function k7ZoneTick(m, z, owner, pulse) { sirZoneTick(m, z, owner, pulse); }
+function k7Cast(m, u, s) { if (u.sirT > 0) sirBreak(m, u); if (s.reload) hwkReload(m, u); }
+function k7Zone(z, s) { if (s.eye) hwkZone(z, s); else sirZone(z, s); }
+function k7ZoneTick(m, z, owner, pulse) { if (z.hwkEye) hwkEye(m, z, owner); else sirZoneTick(m, z, owner, pulse); }
 /* ===== end kit lane K7 hooks ===== */
 
 /* ===== kit-remake G5 Saitama (kit lane K7; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-c.md tegiac) =====
@@ -3407,3 +3409,65 @@ function sirZoneTick(m, z, owner, pulse) {
   if (pulse && z.sirH && owner.alive && dist2(owner.x, owner.z, z.x, z.z) <= z.r * z.r) heal(m, owner, z.sirH * 0.5, owner);
 }
 /* ===== end kit-remake G5 Thủy Tinh ===== */
+
+/* ===== kit-remake G5 Ưng Nhãn (kit lane K7; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-c.md ung) =====
+   passive do 'hawk' {aim {hits, win, dur, vsShield}, lowSteal, mods}: `hits` weapon hits on enemies with no gap longer than `win`
+     s start the Aim state for dur s (hwkAimT, in netstate STATUS; event {t: 'k7', kind: 'aim', id}): her shots then do
+     x (1 + vsShield x min(0.5, the target's shield / its max hp)). lowSteal: her shots heal lowSteal x her own lost share of max hp
+     of what they take (rides the lifesteal max in damage). The damage side is G4 `mods.lowHpScale`.
+   zone `eye {key, dur}`: every tick an enemy stands inside, it is revealed (stealth gone, revealT dur) and carries the owner's tag
+     `key` for dur s (G2 tags, so the weapon's vsTag reads it: x1.25 for her shots only).
+   blink `reload: true`: the press refills the G4 magazine at once (magN 0, magT 0).
+   volley `falcon {key, radius, dmg, grow, n}`: the row's own hit (its fx carries the G2 tag) resets the victim's count; each later
+     weapon hit of the owner on a victim carrying the tag bursts round the victim for dmg + grow x bursts so far (area falloff,
+     untagged, scaled like her damage), at most n bursts, then the tag is gone (hwkN on the victim; event {t: 'k7', kind: 'falcon'}). */
+function hwkClear(u) { u.hwkAimT = 0; u.hwkC = 0; u.hwkW = 0; u.hwkN = 0; }
+function hwkTick(m, u) {
+  if (u.hwkAimT > 0) u.hwkAimT = Math.max(0, u.hwkAimT - TICK);
+  if (u.hwkW > 0) { u.hwkW = Math.max(0, u.hwkW - TICK); if (u.hwkW <= 0) u.hwkC = 0; }
+}
+function k7AimMul(foe, u) {
+  if (!(foe.hwkAimT > 0) || curSrc !== 'w') return 1;
+  const A = foe.def.passive.aim;
+  return 1 + A.vsShield * Math.min(0.5, (u.shield || 0) / u.maxHp);
+}
+function k7Steal(foe) {
+  const P = foe.passive === 'hawk' && curSrc === 'w' ? foe.def.passive : null;
+  return P && P.lowSteal ? P.lowSteal * Math.max(0, 1 - foe.hp / foe.maxHp) : 0;
+}
+function hwkReload(m, u) {
+  if (!(u.magN > 0) && !(u.magT > 0)) return;
+  u.magN = 0; u.magT = 0;
+  m.events.push({ t: 'k7', kind: 'reload', id: u.id, x: u.x, z: u.z });
+}
+function hwkZone(z, s) { z.k7 = 1; z.hwkEye = s.eye; }
+function hwkEye(m, z, owner) {
+  const E = z.hwkEye;
+  for (const o of m.units) {
+    if (o.team === z.team || !o.alive || dist2(o.x, o.z, z.x, z.z) > z.r * z.r) continue;
+    o.stealthT = 0; o.revealT = Math.max(o.revealT, E.dur);
+    const k = E.key + '@' + owner.id;
+    o.tags[k] = Math.max(o.tags[k] || 0, E.dur); o.tgT = Math.max(o.tgT, o.tags[k]);
+  }
+}
+// After a hit of foe on u that landed (a tagged source): the Aim count (weapon hits), the falcon mark reset (its own row) and bursts (weapon hits).
+function k7Hit(m, foe, u) {
+  if (!foe.alive || !foe.def.skills) return;
+  const P = foe.passive === 'hawk' ? foe.def.passive : null;
+  if (P && P.aim && curSrc === 'w') {
+    foe.hwkC++; foe.hwkW = P.aim.win;
+    if (foe.hwkC >= P.aim.hits) { foe.hwkC = 0; foe.hwkAimT = P.aim.dur; m.events.push({ t: 'k7', kind: 'aim', id: foe.id, x: foe.x, z: foe.z }); }
+  }
+  const row = foe.def.skills.find((r) => r.falcon), F = row && row.falcon;
+  if (!F || !u.tags) return;
+  if (curSrc === row.id) { u.hwkN = 0; return; }
+  const k = F.key + '@' + foe.id;
+  if (curSrc !== 'w' || !(u.tags[k] > 0) || !u.alive) return;
+  const n = u.hwkN || 0;
+  u.hwkN = n + 1;
+  if (u.hwkN >= F.n) delete u.tags[k];
+  m.events.push({ t: 'k7', kind: 'falcon', id: foe.id, on: u.id, n: u.hwkN, x: u.x, z: u.z, r: F.radius });
+  const keep = curSrc;
+  curSrc = null; areaDamage(m, foe, u.x, u.z, F.radius, F.dmg + F.grow * n, null, null); curSrc = keep;
+}
+/* ===== end kit-remake G5 Ưng Nhãn ===== */

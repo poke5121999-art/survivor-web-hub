@@ -28,7 +28,7 @@ const REACT = 0.35, LIMIT = 30, MAXLV = [5, 5, 5, 5, 5];
 const SEQ = {
   trau: { d: 8, seq: [['s2', 0], ['ult', 0.6]] },
   soi: { d: 9, seq: [['s2', 0], ['s1', 0.1], ['ult', 0.2]] },
-  ung: { d: 14, seq: [['ult', 0]] },
+  ung: { d: 13, seq: [['s1', 0], ['ult', 0.2], ['s2', 1.4]] },
   hac: { d: 9, seq: [] },
   loi: { d: 12, seq: [['ult', 0]] },
   bocap: { d: 6, seq: [['s2', 0], ['s1', 0.5], ['ult', 1.0]], fireAt: 0.4 },
@@ -190,7 +190,8 @@ if (!QUICK) {
 
 // Design intent (Addendum 13): burst kits delete a squishy healer caught out; nobody is out-healed by a lone healer; the tanks are hard to burst.
 // Lôi Công (a line of shells) and Hắc Hổ (mark, then execute under 22%) burst through many hits, so only their 3 s combo is held to a target.
-const MULTI = ['loi', 'hacho'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac', 'domdom'], TANKS = ['trau', 'kimquy'];
+// Ưng Nhãn too since kit lane K7 (clip p92): a fast magazine gun whose falcon mark bursts on every shot, no single big blow.
+const MULTI = ['loi', 'hacho', 'ung'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac', 'domdom'], TANKS = ['trau', 'kimquy'];
 const HIT = 40, bad = [];
 for (const [ln] of levels) {
   for (const h of HEALERS) {
