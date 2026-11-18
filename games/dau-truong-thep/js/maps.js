@@ -330,14 +330,25 @@ export function compileMap(key, themeKey) {
   return map;
 }
 
-function buildNav(map) {
+function buildNav(map, r = NAV_RADIUS) {
   const cols = Math.ceil(map.w / CELL), rows = Math.ceil(map.d / CELL);
   const blocked = new Uint8Array(cols * rows);
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = -map.hw + (i + 0.5) * CELL, z = -map.hd + (j + 0.5) * CELL;
-    blocked[j * cols + i] = solidAt(map, x, z, NAV_RADIUS) || map.hazards.some((h) => h.kind === 'lava' && Math.hypot(h.x - x, h.z - z) < h.r + 0.9) ? 1 : 0;
+    blocked[j * cols + i] = solidAt(map, x, z, r) || map.hazards.some((h) => h.kind === 'lava' && Math.hypot(h.x - x, h.z - z) < h.r + 0.9) ? 1 : 0;
   }
-  return { cols, rows, blocked, cell: CELL };
+  return { cols, rows, blocked, cell: CELL, r };
+}
+
+// The nav grid for a body of radius r. map.nav is sized for every mech (NAV_RADIUS); a wider body (the raid boss) gets its own
+// grid, built on first use and kept in step with navBlock, so its paths skip gaps it cannot fit through.
+export function navFor(map, r) {
+  if (!(r > NAV_RADIUS)) return map.nav;
+  const k = Math.ceil((r + 0.1) * 4) / 4, navs = map.navs || (map.navs = {});
+  if (navs[k]) return navs[k];
+  const nav = navs[k] = buildNav(map, k);
+  for (const b of map.navMarks || []) markNav(map, nav, b[0], b[1], b[2], true);
+  return nav;
 }
 
 // True when a circle of radius r at (x, z) overlaps static geometry (walls, rounds, the map edge). Props are not included: they can be shot away.
@@ -399,10 +410,17 @@ export function segCircle(x0, z0, dx, dz, cx, cz, r) {
 
 // Marks (or clears) the nav cells a round obstacle covers, for things that appear after the map is compiled, such as towers.
 export function navBlock(map, x, z, r, on) {
-  const nav = map.nav, reach = r + NAV_RADIUS;
+  const marks = map.navMarks || (map.navMarks = []);
+  if (on) marks.push([x, z, r]);
+  else { const i = marks.findIndex((b) => b[0] === x && b[1] === z); if (i >= 0) marks.splice(i, 1); }
+  markNav(map, map.nav, x, z, r, on);
+  for (const k in map.navs || {}) markNav(map, map.navs[k], x, z, r, on);
+}
+function markNav(map, nav, x, z, r, on) {
+  const R = nav.r, reach = r + R;
   for (let j = 0; j < nav.rows; j++) for (let i = 0; i < nav.cols; i++) {
     const cx = -map.hw + (i + 0.5) * nav.cell, cz = -map.hd + (j + 0.5) * nav.cell;
-    if (Math.hypot(cx - x, cz - z) < reach) nav.blocked[j * nav.cols + i] = on ? 1 : (solidAt(map, cx, cz, NAV_RADIUS) ? 1 : 0);
+    if (Math.hypot(cx - x, cz - z) < reach) nav.blocked[j * nav.cols + i] = on ? 1 : (solidAt(map, cx, cz, R) ? 1 : 0);
   }
 }
 
@@ -429,8 +447,9 @@ function nearestOpen(nav, idx) {
 }
 
 // A* on the 1 m grid. Returns world waypoints [[x, z], ...] from just after the start to the goal, already string-pulled with losClear.
-export function findPath(map, x0, z0, x1, z1) {
-  const nav = map.nav, cols = nav.cols, n = cols * nav.rows;
+// r: the mover's body radius; omitted or <= NAV_RADIUS means the shared grid (see navFor).
+export function findPath(map, x0, z0, x1, z1, r) {
+  const nav = navFor(map, r), R = nav.r, cols = nav.cols, n = cols * nav.rows;
   const start = nearestOpen(nav, cellOf(nav, map, x0, z0)), goal = nearestOpen(nav, cellOf(nav, map, x1, z1));
   if (start === goal) return [[x1, z1]];
   const g = new Float32Array(n).fill(Infinity), from = new Int32Array(n).fill(-1), closed = new Uint8Array(n);
@@ -467,12 +486,12 @@ export function findPath(map, x0, z0, x1, z1) {
   for (let c = goal; c !== start && c !== -1; c = from[c]) cells.push(c);
   cells.reverse();
   const pts = cells.map((c) => [-map.hw + ((c % cols) + 0.5) * nav.cell, -map.hd + (((c / cols) | 0) + 0.5) * nav.cell]);
-  pts[pts.length - 1] = solidAt(map, x1, z1, NAV_RADIUS) ? pts[pts.length - 1] : [x1, z1];
+  pts[pts.length - 1] = solidAt(map, x1, z1, R) ? pts[pts.length - 1] : [x1, z1];
   const out = [];
   let ax = x0, az = z0, k = 0;
   while (k < pts.length) {
     let far = k;
-    for (let q = Math.min(pts.length - 1, k + 14); q > k; q--) if (losClear(map, ax, az, pts[q][0], pts[q][1], NAV_RADIUS - 0.1)) { far = q; break; }
+    for (let q = Math.min(pts.length - 1, k + 14); q > k; q--) if (losClear(map, ax, az, pts[q][0], pts[q][1], R - 0.1)) { far = q; break; }
     out.push(pts[far]); ax = pts[far][0]; az = pts[far][1]; k = far + 1;
   }
   return out;

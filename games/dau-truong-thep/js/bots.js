@@ -6,7 +6,7 @@
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
 import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject, locked, chaosOrbs } from './sim.js';
-import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
+import { findPath, navFor, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
 // peek: duck behind cover while the weapon recharges. eager: multiplier on the skill roll for slots s1, s2, ult.
@@ -336,11 +336,11 @@ function pathLen(x, z, p) { let L = 0; for (const q of p) { L += hyp(q[0] - x, q
 function pathMud(map, x, z, p) { for (const q of p) { if (mudSeg(map, x, z, q[0], q[1])) return true; x = q[0]; z = q[1]; } return false; }
 // A* that goes around mud when a path of similar length exists (the mud cells are blocked for one search, then released).
 function findPathMud(m, u, x0, z0, x1, z1) {
-  const map = m.map, p0 = findPath(map, x0, z0, x1, z1);
+  const map = m.map, r = u.moveRadius, p0 = findPath(map, x0, z0, x1, z1, r);
   if (mudProof(u) || !map.hazards.some((h) => h.kind === 'mud') || !pathMud(map, x0, z0, p0)) return p0;
-  const nav = map.nav, set = [];
+  const nav = navFor(map, r), set = [];
   for (const i of mudCells(map)) if (!nav.blocked[i]) { nav.blocked[i] = 1; set.push(i); }
-  const p1 = findPath(map, x0, z0, x1, z1);
+  const p1 = findPath(map, x0, z0, x1, z1, r);
   for (const i of set) nav.blocked[i] = 0;
   return pathLen(x0, z0, p1) <= pathLen(x0, z0, p0) * 1.35 + 4 && !pathMud(map, x0, z0, p1) ? p1 : p0;
 }
@@ -421,7 +421,9 @@ function bossGoal(m, u, b, enemies) {
   }
   if (!best) return [0, 0];
   const dx = best[0] - u.x, dz = best[1] - u.z, d = hyp(dx, dz);
-  if (d < 6.5) return null;
+  // close but behind a wall: holding here only shoves the wall (nothing to shoot, nothing to step around); walk to the
+  // group itself, goTo paths around the wall on the boss-sized grid
+  if (d < 6.5) return losClear(m.map, u.x, u.z, best[0], best[1]) ? null : best;
   const k = (d - 5.5) / d;
   return [u.x + dx * k, u.z + dz * k];
 }
@@ -961,7 +963,8 @@ function goTo(m, u, b, gx, gz, now) {
   const map = m.map;
   const dg = hyp(gx - u.x, gz - u.z);
   if (dg < 0.7) return null;
-  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, u.moveRadius * 0.9 + 0.1) && (mudProof(u) || !mudSeg(map, u.x, u.z, gx, gz))) {
+  // the straight line must clear the whole body: for a mech the margin is moot (0.9 r + 0.1 > r), for the boss it is not
+  if (dg < 7 && losClear(map, u.x, u.z, gx, gz, Math.max(u.moveRadius * 0.9 + 0.1, u.moveRadius)) && (mudProof(u) || !mudSeg(map, u.x, u.z, gx, gz))) {
     b.path = null;
     const dv = lavaDetour(map, u.x, u.z, gx, gz);
     return dv ? [dv[0] - u.x, dv[1] - u.z] : [gx - u.x, gz - u.z];
