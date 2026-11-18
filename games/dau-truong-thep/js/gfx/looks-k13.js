@@ -1,4 +1,4 @@
-// Looks, kit lane K13: Đom Đóm and Dương Tiễn, remade with the kits ported from the owner's clips. Render only (see looks.js).
+// Looks, kit lane K13: Đom Đóm, Dương Tiễn and Kaneki, remade with the kits ported from the owner's clips. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   绮翠之心 p91 (Đom Đóm): jade-green wind. Translucent jade bubbles swirl round her and her allies whenever she casts (the
 //     bullet-eating Phong Vãn Chi Ca); a jade wind eye opens on the ground with a pale blue rim and keeps a small swirl over
@@ -7,6 +7,8 @@
 //   二郎神 p68 (Dương Tiễn): ice blue and white. A blue crescent sweeps round him and a violet-blue diamond eye hangs over each
 //     foe he marked; the hound is a blue comet dropping rings behind it, his blink a blue streak ending in a ring; the two halberd
 //     sweeps are wide blue crescents (the second white-edged, the other way); the heavenly eyes are violet diamonds.
+//   金木 p62 (Kaneki, skin 末日使者): cyan kagune. Jagged cyan tendrils lash out in a fan; the hunt is a cyan comet streak; the
+//     Kagune Evolution grows four cyan tendrils swaying behind him for its 5 s.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, sigil, shell, trail, burst, slash, cut } from './lookkit.js';
 
@@ -220,5 +222,62 @@ function sweep(kit, e, u, s, dir) {
   kit.flash(e.x + Math.cos(a) * 2, 1.4, e.z + Math.sin(a) * 2, DT_ICE, 35, 0.2); kit.kick(e.x, e.z, 0.3);
 }
 
-export const K13 = { ...domdom, ...duongtien };
+// ---- Kaneki: cyan kagune, white edge -----------------------------------------------------------------------------------
+const KN_CYAN = C(0.3, 1.9, 2.6), KN_WHITE = C(2.2, 2.6, 2.7), KN_DEEP = C(0.02, 0.35, 0.6), KN_BLOOD = C(1.6, 0.1, 0.18);
+// one kagune tendril lashing out from (x, z) along a to length L over `out` s, jagged, then pulling back
+function tendril(kit, x, z, a, L, out, life, w) {
+  const ph = R(0, 6.283);
+  trail(kit, (t) => {
+    if (t > life) return null;
+    const f = Math.min(1, t / out) * (1 - 0.6 * Math.max(0, (t - out) / (life - out))), d = L * f, wig = Math.sin(t * 30 + ph) * 0.35 * f;
+    return [x + Math.cos(a) * d - Math.sin(a) * wig, 1.0 + 0.4 * f, z + Math.sin(a) * d + Math.cos(a) * wig];
+  }, w, KN_CYAN, life, { c2: KN_DEEP, len: 14, add: true });
+}
+// the hp a press costs: a small dark-red puff at the caster
+function cost(kit, u) { kit.puffs(u.x, 1.0, u.z, kit.N(5), KN_BLOOD, 0.8, 1.2, 0.5, 0.8, 1.6, 0.3, 0.6, kit.K.SMOKE, 2); }
+const mucma = {
+  // Sát Lục Thịnh Yến: seven jagged cyan tendrils lash out across the fan, a white-edged stroke over them
+  knFeast: {
+    pal: [KN_CYAN, KN_WHITE], hitR: 2.2,
+    skill(kit, e, u) { cost(kit, u); return true; },
+    nova(kit, e, u, s) {
+      const a = e.a ?? u.aim, r = s.radius, span = s.arc || 0.7;
+      for (let i = 0; i < 7; i++) tendril(kit, e.x, e.z, a + (i / 6 - 0.5) * 2 * span, r * R(0.85, 1.05), 0.1, 0.45, 0.5);
+      slash(kit, e.x, e.z, a, r * 0.9, KN_CYAN, { c2: KN_DEEP, edge: KN_WHITE, span, life: 0.4, w: r * 0.18, sweep: 0.06, arcs: 2 });
+      kit.flash(e.x + Math.cos(a) * 2, 1.4, e.z + Math.sin(a) * 2, KN_CYAN, 35, 0.2); kit.kick(e.x, e.z, 0.25);
+      return true;
+    },
+  },
+  // Cơ Ngạ Bộ Liệp: a cyan comet streak behind him while he hunts
+  knHunt: {
+    pal: [KN_CYAN, KN_WHITE], hitR: 2,
+    skill(kit, e, u, s) {
+      cost(kit, u);
+      const life = s.dist / s.speed + 0.15;
+      trail(kit, (t) => (t < life && u.alive ? [u.x, 1.1, u.z] : null), 1.6, KN_CYAN, life + 0.3, { c2: KN_DEEP, len: 16, add: true });
+      kit.follow(u, life, () => { kit.glow(u.x, 1.2, u.z, KN_WHITE, 0.05, 1.3, 0.9, kit.K.STAR, 1); });
+      return true;
+    },
+  },
+  // Hách Tử Tiến Hóa: four cyan tendrils grow from his back and sway for the whole form; a pale shimmer on him
+  knKagune: {
+    pal: [KN_CYAN, KN_WHITE], hitR: 1.6,
+    skill(kit, e, u, s) {
+      const dur = s.dur || 5;
+      for (let j = 0; j < 4; j++) {
+        const side = j < 2 ? -1 : 1, up = j % 2;
+        trail(kit, (t) => {
+          if (t > dur || !u.alive) return null;
+          const back = u.aim + Math.PI + side * (0.5 + 0.25 * up), sw = Math.sin(t * 3 + j) * 0.5, L = 2.2 + 0.4 * up;
+          return [u.x + Math.cos(back + sw * 0.3) * L, 1.6 + up * 0.7 + 0.3 * Math.sin(t * 4 + j), u.z + Math.sin(back + sw * 0.3) * L];
+        }, 0.55, KN_CYAN, dur, { c2: KN_DEEP, len: 18, add: true, up: true });
+      }
+      shell(kit, u.x, 1.1, u.z, 1.9, KN_CYAN, { c2: KN_WHITE, p: 2.2, core: 0.04, follow: u, life: dur, grow: 0.15, fade: 0.4, alpha: 0.5 });
+      kit.flash(u.x, 1.6, u.z, KN_CYAN, 40, 0.3);
+      return true;
+    },
+  },
+};
+
+export const K13 = { ...domdom, ...duongtien, ...mucma };
 

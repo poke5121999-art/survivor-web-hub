@@ -3756,6 +3756,7 @@ function tthHurt(m, u, amt) {
 function k13Clear(u) {
   u.ddEN = 0; u.ddET = 0; u.ddEBy = -1; u.ddHsT = 0; u.ddHsF = 0;
   u.ddYN = 0; u.ddYT = 0; u.ddYBy = -1; u.ddYF = null; u.ddTpN = 0; u.ddTpT = 0; u.ddTpS = null;
+  u.knN = 0; u.knT = 0;
 }
 // Returns true when the mech died this tick (a wind-eye tick), so stepUnit stops there like it does after a burn.
 function k13Tick(m, u, dt) {
@@ -3774,6 +3775,10 @@ function k13Tick(m, u, dt) {
     curSrc = null; applyFx(m, by, u, { lostHp: F.lostHp, slow: F.slow, slowDur: F.slowDur }); curSrc = keep;
     if (!u.alive) return true;
   }
+  if (u.knT > 0 && (u.knT -= dt) <= 1e-9) { u.knT = 0; u.knN = 0; }
+  // transform knRegen: that share of the lost hp healed per second while it runs (heals received count, antiheal cuts it)
+  const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (tf && tf.knRegen && u.hp < u.maxHp) heal(m, u, (u.maxHp - u.hp) * tf.knRegen * dt, u, true);
   return false;
 }
 // Every press that went through (second stages too).
@@ -3781,6 +3786,8 @@ function k13Cast(m, u, s) {
   const P = u.def.passive;
   if (P && P.do === 'ddWind') ddSong(m, u, P.song);
   if (s.ddTemple) { u.ddTpS = s.ddTemple; u.ddTpN = s.ddTemple.n; u.ddTpT = s.ddTemple.delay; }
+  // knCost: the press costs that share of the CURRENT hp (a buff's cost is of max hp); it never kills
+  if (s.knCost) { const c = Math.min(u.hp - 1, u.hp * s.knCost); if (c > 0) { u.hp -= c; m.events.push({ t: 'k13', kind: 'cost', id: u.id, amt: c, x: u.x, z: u.z }); } }
 }
 // u (the victim) has just been hurt by foe through a hit with a source tag curSrc ('w' the weapon).
 function k13Hit(m, foe, u) {
@@ -3788,6 +3795,7 @@ function k13Hit(m, foe, u) {
   if (!P || !u.alive || reflecting || !curSrc) return;
   if (P.do === 'ddWind' && curSrc !== 'w') ddErode(m, foe, u);
   if (P.do === 'dtHunt') dtHunt(m, foe, u, P);
+  if (P.do === 'knThirst' && curSrc !== 'w') knThirst(foe, P);
 }
 // The row of a `next` chain (second stage, third, ...) whose id is src; null when none (a stage may carry its own `next`).
 function k13Chain(r, src) {
@@ -3848,4 +3856,13 @@ function dtHunt(m, foe, u, P) {
   selfBuff(foe, P.self);
 }
 
+// ---- Kaneki (mucma), passive knThirst {max, dur, haste, heal}: each skill hit adds a stack (max), all gone dur s after the
+// last; n stacks = haste x (1 + haste x n) through the synced hasteT/hasteF and heals received x (1 + heal x n) through the G4
+// healIn buff (hiT/hiF). A stronger haste or heal buff that still runs is kept.
+function knThirst(u, P) {
+  u.knN = u.knT > 0 ? Math.min(P.max, u.knN + 1) : 1; u.knT = P.dur;
+  const h = 1 + P.haste * u.knN, g = 1 + P.heal * u.knN;
+  u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, h); u.hasteT = Math.max(u.hasteT, P.dur);
+  u.hiF = Math.max(u.hiT > 0 ? u.hiF : 1, g); u.hiT = Math.max(u.hiT, P.dur);
+}
 /* ===== end kit lane K13 ===== */

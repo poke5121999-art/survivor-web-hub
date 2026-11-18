@@ -1,4 +1,4 @@
-// Looks, batch 2: Sam Thép, Bọ Hung, Kỳ Nhông, Bướm Đêm, Mực Ma, Hắc Hổ. Render only (see looks.js for the hooks).
+// Looks, batch 2: Sam Thép, Bọ Hung, Kỳ Nhông, Bướm Đêm, Hắc Hổ (Kaneki: looks-k13.js). Render only (see looks.js for the hooks).
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   万磁之王 p86 (Sam Thép): magenta-red magnetic loops round the targets with a blue sphere inside, a pink orb round himself, a
 //     thin red range ring, steel girders crashing in with a red-white flash.
@@ -153,55 +153,6 @@ const buomdem = {
   },
 };
 
-// ---- Mực Ma (ghost squid): black ink and teal ghost light --------------------------------------------------------------
-const MM_TEAL = C(0.45, 2.3, 0.55), MM_INK = C(0.03, 0.05, 0.03), MM_VIO = C(1.6, 2.3, 0.3);
-const mucma = {
-  // Quất Xúc Tu: five tentacles of ink lash out from him, each a dark ribbon edged in teal ghost light
-  mmLash: {
-    pal: [MM_TEAL, MM_VIO], hitR: 1.8,
-    skill(kit, e, u) { kit.puffs(u.x, 1, u.z, kit.N(4), MM_INK, 0.6, 1.5, 0.6, 0.9, 2, 0.4, 0.8, kit.K.SMOKE); muz(kit, u, e.a, 3.0, MM_INK, MM_TEAL); return true; },
-    shotMake(kit, s) {
-      const v = { x: s.x, z: s.z, live: true };
-      sigil(kit, s.x, s.z, R(1.2, 1.8), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 1.6, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 });
-      trail(kit, () => (v.live ? [v.x, 1.1, v.z] : null), 2.6, MM_INK, 0.45, { c2: MM_INK, len: 12, every: 0.0 });
-      trail(kit, () => (v.live ? [v.x, 1.15, v.z] : null), 4.2, MM_TEAL, 0.45, { c2: MM_VIO, len: 12 });
-      return v;
-    },
-    // tentacles writhe: the tip swings side to side as it flies
-    shot(kit, v, s, x, y, z, dt) { v.t = (v.t || 0) + dt; const w = Math.sin(v.t * 26 + s.id) * 1.1; v.x = x - s.dz * w; v.z = z + s.dx * w; if (Math.random() < 0.5) kit.glow(v.x, 1.15, v.z, MM_TEAL, 0.2, 0.4, 0.9, kit.K.SPARK, 1); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; sigil(kit, x, z, R(1.4, 2.2), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 1.6, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 }); kit.puffs(x, 1, z, 1, MM_INK, 0.3, 1, 0.5, 0.6, 2, 0.3, 0.7, kit.K.SMOKE); },
-  },
-  // Xuyên Thân: he dissolves into a cloud of ink and passes through; an ink splash stains the floor where he comes out
-  mmPhase: {
-    pal: [MM_TEAL, MM_VIO], hitR: 1.8,
-    skill(kit, e, u) {
-      trail(kit, (t) => (t < 0.4 && u.alive ? [u.x, 1.0, u.z] : null), 3.2, MM_TEAL, 0.9, { c2: MM_VIO, len: 16 });
-      burst(kit, u.x, u.z, 3.2, MM_INK, MM_TEAL, { life: 0.6 });
-      for (let i = 0; i < 3; i++) { const b = e.a + 2.4 + i * 0.7; sigil(kit, u.x + Math.cos(b) * 1.6, u.z + Math.sin(b) * 1.6, R(1, 1.6), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 2, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 }); }
-      kit.follow(u, 0.5, (t) => { if (t < 0.35) kit.ovr.emit(u.x + R(-0.5, 0.5), R(0.5, 1.6), u.z + R(-0.5, 0.5), R(-0.5, 0.5), 0.3, R(-0.5, 0.5), MM_INK, R(0.6, 1), R(0.7, 1.1), 2.2, 1.2, -0.3, 0.85, kit.K.SMOKE); });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.4) return true; kit.scorch(u.x, u.z, 1.6, 3, 0, MM_INK); kit.ring(u.x, u.z, 2, MM_TEAL, 0.3); kit.sparks(u.x, 1, u.z, kit.N(8), MM_TEAL, 6, 0.35, 0.05, 0.5, 6); return false; }, drop() {} });
-      return true;
-    },
-  },
-  // Hóa Ma: a ghost squid wraps him for six seconds: a teal mantle of light, eight tentacles of light swaying down to the floor,
-  // ink dripping
-  mmGhost: {
-    pal: [MM_TEAL, MM_VIO], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const d = row.dur || 6, live = (t) => u.alive && (t < 0.5 || u.tfT > 0);
-      burst(kit, u.x, u.z, 5.2, MM_INK, MM_TEAL, { life: 0.9 }); sigil(kit, u.x, u.z, 6, MM_INK.clone().multiplyScalar(6), { c2: MM_TEAL, n: 8, m: 3, life: d, rev: 0.3, spin: 0.6, follow: u, fill: 0.5, alpha: 0.75 });
-      shell(kit, u.x, 1.6, u.z, 3.5, MM_TEAL, { c2: MM_VIO, p: 1.1, core: 0.3, squash: 1.4, follow: u, life: d, grow: 0.2, pulse: 1, step: (t, m) => { m.position.y = 1.9; return live(t); } });
-      strands(kit, (t) => (live(t) ? [u.x, 2.6, u.z] : null), 1.6, 10, 2.5, MM_TEAL, d, { c2: MM_VIO, w: 0.13, sway: 0.5 });
-      kit.puffs(u.x, 1, u.z, kit.N(10), MM_INK, 1.2, 3, 0.9, 1.3, 2.2, 0.8, 0.8, kit.K.SMOKE); kit.flash(u.x, 2, u.z, MM_TEAL, 40, 0.3);
-      // an ink splash spreads round him: irregular dark blots
-      for (let i = 0; i < 9; i++) { const b = i * 0.7 + Math.random(), r = R(1.8, 3.6); sigil(kit, u.x + Math.cos(b) * r, u.z + Math.sin(b) * r, R(1.2, 2.2), MM_INK, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: d, rev: 0.05, alpha: 0.85, w: 0, y: 0.11 }); }
-      kit.follow(u, d, (t) => { if (live(t) && Math.random() < 0.15) kit.ovr.emit(u.x + R(-0.7, 0.7), 1.8, u.z + R(-0.7, 0.7), 0, -2, 0, MM_INK, 0.6, 0.25, 1, 0.2, 6, 0.9, kit.K.CHIP); });
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.puffs(e.x, 1, e.z, kit.N(6), MM_INK, 1, 2, 0.8, 1.1, 2, 0.6, 0.7, kit.K.SMOKE); return true; },
-  },
-};
-
 // ---- Hắc Hổ (black tiger): amber flame, claw marks, blood red ---------------------------------------------------------------
 const HH_AMB = C(2.6, 1.05, 0.12), HH_RED = C(2.3, 0.12, 0.08), HH_SOOT = C(0.06, 0.03, 0.02), HH_DARK = C(0.3, 0.1, 0.02);
 // three parallel claw slashes across (x, z) along angle a
@@ -261,4 +212,4 @@ const hacho = {
   },
 };
 
-export const B2 = { ...samthep, ...kynhong, ...buomdem, ...mucma, ...hacho };
+export const B2 = { ...samthep, ...kynhong, ...buomdem, ...hacho };   // Mực Ma (Kaneki) moved to looks-k13.js (kit lane K13)

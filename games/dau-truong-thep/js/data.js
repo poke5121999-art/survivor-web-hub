@@ -506,21 +506,31 @@ export const MECHS = {
         desc: 'Tụ lực 1 giây rồi nhảy tới chỗ con trỏ (xa nhất 10 m), giáng 582 sát thương vòng 4 m, đánh tung kẻ trúng 1 giây rồi làm chậm 50% trong 2 giây. Từ lúc bấm tới lúc đáp không bị nhắm trúng, không bị khống chế.' },
     ],
   },
+  // Kaneki: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p62 "59.金木" Kim Mộc, skin 末日使者, tooltips read at 0-4 s;
+  // AUDIT-a.md). Attack = 150 (lubo, moclan): Xúc Tu went from 3 x 45 per 0.35 s to 3 x 50 per 0.39 s (same dps). 164% -> 246,
+  // 147% -> 220. "+10% of his own lost hp" is the G4 lowHpScale (x (1 + f x lost share)): f = 0.1 x 2300 / 246 = 0.93 on the
+  // fan, 0.1 x 2300 / 220 = 1.05 on the hunt, so the bonus at a given hp equals the clip's. Cooldowns 10 (2 uses 5 s apart) / 6 /
+  // 20 s in the clip -> 12 / 8 / 40. The hunt's slow is the G2 slowStack (+15% per hit, at most 60%; the clip starts at 30%).
+  // Kit-remake G5 fields (sim.js block "kit lane K13"): passive knThirst {max, dur, haste, heal} (each skill hit adds a stack, at
+  // most max, all gone dur s after the last: speed x (1 + haste x n) and heals received x (1 + heal x n)), row knCost (the press
+  // costs that share of his CURRENT hp, never below 1), transform knRegen (heals that share of his lost hp per second).
   mucma: {
     name: 'Kaneki', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x1d1d24,
-    blurb: 'Xúc tu đỏ quất ba đường, xuyên thân đánh dấu mục tiêu. Hạ gục hồi máu, Hóa Ma hút máu và chạy nhanh.',
+    blurb: 'Đổi máu lấy đòn: mỗi chiêu tốn máu, máu càng thấp đánh càng đau, trúng ai hồi lại 10% máu. Hách Tử Tiến Hóa: bá thể, không đòn nào lấy quá 5% máu.',
     hp: 2300, speed: 7.0, radius: 0.76,
     armor: 0.03, accel: 1.5, turn: 16, towerMul: 1.0,
-    passive: { do: 'lifesteal', name: 'Đói Khát', desc: 'Hồi máu bằng 10% sát thương gây ra. Hạ gục hồi thêm 10% máu tối đa, trợ công hồi 5%.', frac: 0.1,
-      mods: { onKill: { heal: 0.1, assist: { heal: 0.05 } } } },
-    weapon: { name: 'Xúc Tu', cd: 0.35, dmg: 45, n: 3, fan: 0.14, speed: 28, range: 8, r: 0.24, vis: 'pellet' },
+    passive: { do: 'knThirst', name: 'Khát Máu', max: 5, dur: 5, haste: 0.1, heal: 0.1,
+      desc: 'Mỗi lần chiêu trúng địch, bạn chạy nhanh hơn 10% và được hồi máu nhiều hơn 10% trong 5 giây, cộng dồn 5 lần.' },
+    weapon: { name: 'Xúc Tu', cd: 0.39, dmg: 50, n: 3, fan: 0.14, speed: 28, range: 8, r: 0.24, vis: 'pellet' },
     skills: [
-      { id: 'quatxuctu', look: 'mmLash', name: 'Quất Xúc Tu', cd: 7, do: 'volley', n: 5, fan: 0.22, dmg: 120, speed: 26, range: 7, r: 0.4, pierce: true, vis: 'wave', icon: 'spin',
-        desc: 'Quất năm xúc tu hình quạt, xuyên qua mọi kẻ địch.' },
-      { id: 'xuyenthan', look: 'mmPhase', name: 'Xuyên Thân', cd: 10, do: 'dash', dist: 8, speed: 34, dmg: 200, fx: { amp: { amp: 0.2, dur: 4 } }, icon: 'dash',
-        desc: 'Lao xuyên qua kẻ địch, gây sát thương và khiến chúng nhận thêm 20% sát thương từ mọi người trong 4 giây.' },
-      { id: 'hoama', look: 'mmGhost', name: 'Hóa Ma', cd: 40, do: 'transform', dur: 6, haste: 1.3, rapid: 1.4, lifesteal: 0.35, icon: 'rage',
-        desc: 'Hóa Ma 6 giây: chạy nhanh hơn 30%, bắn nhanh hơn 40% và hút máu 35%.' },
+      { id: 'satluc', look: 'knFeast', name: 'Sát Lục Thịnh Yến', cd: 12, uses: { n: 2, gap: 5 }, do: 'nova', windup: 0.1, move: 0.35, radius: 5, arc: 0.7, dmg: 246, slow: 0.3, slowDur: 2,
+        knCost: 0.2, lowHpScale: 0.93, healMax: 0.1, icon: 'spin',
+        desc: 'Tốn 20% máu hiện có, quất xúc tu hình quạt 5 m: 246 sát thương cộng 10% máu bạn đã mất, chậm 30% trong 2 giây. Mỗi kẻ trúng hồi cho bạn 10% máu tối đa. Hai lần dùng, cách nhau 5 giây.' },
+      { id: 'conga', look: 'knHunt', name: 'Cơ Ngạ Bộ Liệp', cd: 8, do: 'dash', dist: 8, speed: 34, stop: true, dmg: 220, fx: { slowStack: { step: 0.15, max: 0.6 }, slowDur: 2.5 },
+        knCost: 0.15, lowHpScale: 1.05, healMax: 0.1, cdCut: { slot: 'self', set: 1.5, on: 'hit', max: 1 }, icon: 'dash',
+        desc: 'Tốn 15% máu hiện có, lao đi săn theo hướng ngắm: kẻ đầu tiên trúng chịu 220 sát thương cộng 10% máu bạn đã mất và chậm thêm 15% (tối đa 60%) trong 2,5 giây. Trúng thì hồi 10% máu tối đa và chiêu này hồi lại sau 1,5 giây.' },
+      { id: 'hachtu', look: 'knKagune', name: 'Hách Tử Tiến Hóa', cd: 40, do: 'transform', dur: 5, ccImmune: 5, hitCap: 0.05, knRegen: 0.1, icon: 'rage',
+        desc: '5 giây hóa hách tử: bá thể (không bị khống chế), không đòn nào lấy quá 5% máu tối đa của bạn, và mỗi giây hồi 10% máu đã mất.' },
     ],
   },
   kynhong: {
@@ -1228,7 +1238,7 @@ export const PERKS = {
   athena: [perk('Thánh Quang Nặng', 'Chiến Tranh Nghệ Thuật gây 300.', 0, { dmg: 300 }), perk('Thuẫn Dày', 'Thánh Thuẫn Tí Hựu hấp thụ 900 trong 2,5 giây.', 1, { shield: 900, dur: 2.5 }), perk('Bất Hủ Lâu', 'Anh Hùng Bất Hủ kéo dài 4 giây.', 2, { dur: 4, undying: 4 })],
   hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
-  mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Xuyên Sâu', 'Xuyên Thân lao xa 9,5 m, gây 260.', 1, { dist: 9.5, dmg: 260 }), perk('Ma Dài', 'Hóa Ma kéo dài 8 giây, hút máu 45%.', 2, { dur: 8, lifesteal: 0.45 })],
+  mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Săn Xa', 'Cơ Ngạ Bộ Liệp lao xa 9,5 m.', 1, { dist: 9.5 }), perk('Hách Tử Lâu', 'Hách Tử Tiến Hóa kéo dài 6,5 giây.', 2, { dur: 6.5, ccImmune: 6.5 })],
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],
   sontinh: [perk('Đá Nặng', 'Đá Lăn gây 250.', 'weapon', { dmg: 250 }), perk('Trớ Chú Rộng', 'Đại Địa Trớ Chú rộng 6 m.', 0, { radius: 6 }), perk('Thần Lâu', 'Sơn Thần đứng 15 giây.', 2, { dur: 16 })],

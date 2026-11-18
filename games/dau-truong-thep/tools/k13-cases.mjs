@@ -16,7 +16,8 @@ export const OLD_DOMDOM = {
     { id: 'vongsang', cd: 44, do: 'rally', radius: 8, heal: 1100, haste: 1.25, dur: 3 },
   ],
 };
-// The batch-4 Dương Tiễn (brittle Thiên Nhãn, Tam Tiêm Đao amp, seeking hound, tracking beam).
+// The batch-4 Dương Tiễn (brittle Thiên Nhãn, Tam Tiêm Đao amp, seeking hound, tracking beam) and the batch-2 Kaneki (lifesteal with
+// onKill heals, five-lash volley, marking dash, Hóa Ma).
 export const OLD_DUONGTIEN = {
   passive: { do: 'brittle', name: 'Thiên Nhãn', mul: 1.25, when: 'low', below: 0.4, reveal: { r: 12, below: 0.4 } },
   weapon: { name: 'Tam Tiêm', cd: 0.45, dmg: 110, speed: 32, range: 12.5, r: 0.22, vis: 'slug' },
@@ -26,7 +27,16 @@ export const OLD_DUONGTIEN = {
     { id: 'thannhan', cd: 45, do: 'beam', windup: 0.8, range: 24, width: 0.9, dmg: 1200, thru: true, track: { cast: 22, pick: 5 } },
   ],
 };
-const OLD = { domdom: OLD_DOMDOM, duongtien: OLD_DUONGTIEN };
+export const OLD_MUCMA = {
+  passive: { do: 'lifesteal', name: 'Đói Khát', frac: 0.1, mods: { onKill: { heal: 0.1, assist: { heal: 0.05 } } } },
+  weapon: { name: 'Xúc Tu', cd: 0.35, dmg: 45, n: 3, fan: 0.14, speed: 28, range: 8, r: 0.24, vis: 'pellet' },
+  skills: [
+    { id: 'quatxuctu', cd: 7, do: 'volley', n: 5, fan: 0.22, dmg: 120, speed: 26, range: 7, r: 0.4, pierce: true, vis: 'wave' },
+    { id: 'xuyenthan', cd: 10, do: 'dash', dist: 8, speed: 34, dmg: 200, fx: { amp: { amp: 0.2, dur: 4 } } },
+    { id: 'hoama', cd: 40, do: 'transform', dur: 6, haste: 1.3, rapid: 1.4, lifesteal: 0.35 },
+  ],
+};
+const OLD = { domdom: OLD_DOMDOM, duongtien: OLD_DUONGTIEN, mucma: OLD_MUCMA };
 // Swap the old kit onto every unit of that mech (before the first step).
 export function oldK13(m, mech) {
   const K = OLD[mech];
@@ -58,7 +68,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 const k13 = (ev, kind) => only(ev, 'k13', (e) => e.kind === kind);
 
 export function runK13Cases(check, section) {
-  section('K13 kit lane K13: Đom Đóm (p91 绮翠之心), Dương Tiễn (p68 二郎神) ported from the owner clips (literal expected values)');
+  section('K13 kit lane K13: Đom Đóm (p91 绮翠之心), Dương Tiễn (p68 二郎神), Kaneki (p62 金木) ported from the owner clips (literal expected values)');
   const DD = MECHS.domdom, UNG = MECHS.ung, TRAU = MECHS.trau;
   // ---- Đom Đóm ----
   {
@@ -173,6 +183,43 @@ export function runK13Cases(check, section) {
     check('k13zd the second press: Tuyệt Sát Chi Kích hits and arms Thông Thiên Pháp Nhãn (the cooldown untouched)', only(e2, 'nova', (e) => e.skill === 'tuyetsat').length === 1 && a.next && a.next.armed && a.next.row.id === 'thongthien' && a.cd.ult > 39, `${a.next && a.next.row.id} ${a.cd.ult}`);
     const hp0 = v.hp, e3 = go(m, 20, (i) => ({ 0: { ult: i === 1, aim: 0 } })), h3 = only(e3, 'hit', (e) => e.id === 1 && e.by === 0);
     check('k13ze the third press: three eyes; on one foe 225, then x0.5 each (sameDecay): 225 + 112.5 + 56.25 less armour, plus the passive amp', h3.length >= 3 && !a.next && hp0 - v.hp > 300, `${h3.map((e) => e.amt.toFixed(1))} ${hp0 - v.hp}`);
+  }
+  // ---- Kaneki ----
+  const KN = MECHS.mucma;
+  {
+    // Sát Lục Thịnh Yến: costs 20% of the current hp, 246 x (1 + 0.93 x lost share) in the fan, heals 10% of max hp per foe
+    const m = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 2.5, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s1: true, aim: 0 } }));
+    check('k13zf the press costs 20% of 2300 = 460 (and spends one of two uses)', near(a.hp, 1840, 1e-6) && a.use0 === 1, `${a.hp} ${a.use0}`);
+    go(m, 5);
+    const want = 246 * (1 + 0.93 * 460 / 2300) * (1 - 0.5 * 2.5 / 5);
+    check('k13zg the fan: 246 x 1.186 (own lost hp) x 0.75 (falloff), slow 30%; healed 230', near(UNG.hp - v.hp, want, 1e-6) && near(v.slowF, 0.3) && near(a.hp, 1840 + 230, 1e-6), `${UNG.hp - v.hp} vs ${want} hp ${a.hp}`);
+    check('k13zh passive Khát Máu: one stack, haste x1.1 and heals x1.1 for 5 s', a.knN === 1 && near(a.hasteF, 1.1) && near(a.hiF, 1.1) && a.knT > 4.8, `${a.knN} ${a.hasteF} ${a.hiF}`);
+  }
+  {
+    // Cơ Ngạ Bộ Liệp: costs 15% of the current hp, stops on the first foe, 220 x (1 + 1.05 x lost share), slow +15%, heal 10%,
+    // the cooldown set to 1.5 s by the hit
+    const m = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 7, 0]]), [a, v, w] = m.units;
+    a.hp = 2000;
+    go(m, 1, () => ({ 0: { s2: true, aim: 0 } }));
+    check('k13zi the press costs 15% of 2000 = 300', near(a.hp, 1700, 1e-6), `${a.hp}`);
+    go(m, 12);
+    const want = 220 * (1 + 1.05 * 600 / 2300);
+    check('k13zj the hunt hits the first foe only: 220 x (1 + 1.05 x 600/2300), slowed 15% (stacking), healed 230', near(UNG.hp - v.hp, want, 1e-6) && w.hp === UNG.hp && near(v.slowG, 0.15) && near(a.hp, 1930, 1e-6), `${UNG.hp - v.hp} vs ${want} ${w.hp} ${v.slowG} ${a.hp}`);
+    check('k13zk ... and the cooldown drops to 1.5 s', a.cd.s2 <= 1.5 && a.cd.s2 > 1.0, `${a.cd.s2}`);
+  }
+  {
+    // Hách Tử Tiến Hóa: 5 s, cc immune, no blow above 5% of max hp (115), heals 10% of the lost hp per second
+    const m = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 10, 0, Math.PI]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { ult: true } }));
+    a.hp = 1300;
+    const hp0 = a.hp; go(m, 30);
+    check('k13zl the form heals about 10% of the lost hp per second (1000 lost: about 95 in 1 s)', a.hp - hp0 > 85 && a.hp - hp0 < 105 && a.tfT > 3.5, `${a.hp - hp0}`);
+    a.stunT = 1; go(m, 1);
+    const hp1 = a.hp;
+    m.units[1].x = 3; m.units[1].px = 3;
+    const ev2 = go(m, 30, (i) => ({ 1: { ult: i === 0, aim: Math.PI, tx: 0, tz: 0 } })), big = only(ev2, 'hit', (e) => e.id === 0);
+    check('k13zm cc immune (a stun is wiped) and the 1850 beam takes only 115 (5% of 2300)', a.stunT === 0 && big.length >= 1 && big.every((e) => e.amt <= 115 + 1e-6), `${a.stunT} ${big.map((e) => e.amt)}`);
   }
 }
 

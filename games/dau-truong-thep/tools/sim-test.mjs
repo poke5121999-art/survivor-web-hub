@@ -3044,11 +3044,11 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // mods.onKill heal (mucma): kill heals 15% of max hp, an assist 7%
   {
-    const m = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    const m = oldK13(arena([[R('mucma', 0), 0, 0], [R('ung', 1), 4, 0]]), 'mucma'), [a, v] = m.units;
     a.hp = 1000; v.hp = 1;
     go(m, 10, (i) => ({ 0: { fire: i === 0 } }));
     check('41zq kill heal: 1000 + 10% of 2300 = 230 (+ the lifesteal of the shot, at most 3 x 45 x 0.1)', !v.alive && a.hp >= 1230 && a.hp <= 1230 + 3 * 45 * 0.1 + 1e-6, `hp ${a.hp}`);
-    const w = arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 6], [R('tho', 0), 0, 6, 0]]), [b, o, k] = w.units;
+    const w = oldK13(arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 6], [R('tho', 0), 0, 6, 0]]), 'mucma'), [b, o, k] = w.units;
     b.hp = 1000; o.hp = 1; o.hitBy[b.id] = w.time;
     go(w, 12, (i) => ({ 2: { fire: i === 0, aim: Math.atan2(o.z - k.z, o.x - k.x), tx: o.x, tz: o.z } }));
     check('41zr assist heal: 1000 + 5% of 2300 = 115', !o.alive && near(b.hp, 1115, 1e-6), `hp ${b.hp} alive ${o.alive}`);
