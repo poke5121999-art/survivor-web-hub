@@ -17,7 +17,7 @@ import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: sect
 import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { runK18Cases, OLD_NHENTHEP, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, old nguma/nhenthep kits kept as fixtures
 import { runK16Cases, oldK16, OLD_LOI } from './k16-cases.mjs';   // kit lane k16: section K16, old kits kept as fixtures
-import { runK12Cases, oldKit as oldKit12 } from './k12-cases.mjs';   // kit lane k12: section 62, old buomdem/cakiem/dieuthuyen kits as fixtures
+import { runK12Cases, oldKit as oldKit12 } from './k12-cases.mjs';   // kit lane k12: section K12, old buomdem/cakiem/dieuthuyen kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;

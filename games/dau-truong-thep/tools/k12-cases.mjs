@@ -1,4 +1,4 @@
-// Kit lane k12 (buomdem, cakiem, dieuthuyen) ported from the owner's clips: sim-test.mjs section 62 runs these. Standalone (fast):
+// Kit lane k12 (buomdem, cakiem, dieuthuyen) ported from the owner's clips: sim-test.mjs section K12 runs these. Standalone (fast):
 //   node tools/k12-cases.mjs
 // Also the old kits of the three tanks as fixtures (OLD_K12), so the primitives they exercised stay covered.
 import { createMatch, step, applyFx, LOC_KINDS } from '../js/sim.js';
@@ -67,7 +67,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 const sum = (ev, id) => only(ev, 'hit', (e) => e.id === id).reduce((a, e) => a + e.amt + e.absorbed, 0);
 
 export function runK12Cases(check, section) {
-  section('62 kit lane k12: Doctor Strange (p66), Zoro (p63), Điêu Thuyền (p60) ported from the owner\'s clips (literal expected values)');
+  section('K12 kit lane k12: Doctor Strange (p66), Zoro (p63), Điêu Thuyền (p60) ported from the owner\'s clips (literal expected values)');
   const UNG = MECHS.ung, UF = 1 - UNG.armor;
   // ---- Doctor Strange ----
   const BD = MECHS.buomdem;
@@ -75,17 +75,17 @@ export function runK12Cases(check, section) {
     // Thời Không Phóng Trục: 216, banished 1 s (untouchable), then slowed 50%; the ward 235 (10% of 2350) for 2 s
     const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
     const ev = go(m, 12, (i) => ({ 0: { s1: i === 0, aim: 0 } }));
-    check('62a Thoi Khong Phong Truc: 216 x armor, the foe banished (untargetable), tagged; the ward 235 on him', near(UNG.hp - v.hp, 216 * UF, 1e-6) && v.locT > 0.6 && v.invulnT > 0.6 && v.tags['bdq@0'] > 4 && near(a.shield, 235, 1e-9) && only(ev, 'nova', (e) => e.wardUp).length === 1, `${UNG.hp - v.hp} loc ${v.locT} sh ${a.shield}`);
+    check('K12a Thoi Khong Phong Truc: 216 x armor, the foe banished (untargetable), tagged; the ward 235 on him', near(UNG.hp - v.hp, 216 * UF, 1e-6) && v.locT > 0.6 && v.invulnT > 0.6 && v.tags['bdq@0'] > 4 && near(a.shield, 235, 1e-9) && only(ev, 'nova', (e) => e.wardUp).length === 1, `${UNG.hp - v.hp} loc ${v.locT} sh ${a.shield}`);
     const hp = v.hp;
     a.cd.fire = 0;
     go(m, 3, (i) => ({ 0: { fire: i === 0, aim: 0 } })); go(m, 8);
-    check('62b ... a shot at the banished foe does nothing (and keeps the mark)', v.hp === hp && v.tags['bdq@0'] > 0, `${v.hp}`);
+    check('K12b ... a shot at the banished foe does nothing (and keeps the mark)', v.hp === hp && v.tags['bdq@0'] > 0, `${v.hp}`);
     go(m, 20);
-    check('62c back from the banish it is slowed 50% (2 s left, a little gone)', v.locT === 0 && near(v.slowF, 0.5) && v.slowT > 1.5 && v.slowT <= 2, `${v.slowT}`);
+    check('K12c back from the banish it is slowed 50% (2 s left, a little gone)', v.locT === 0 && near(v.slowF, 0.5) && v.slowT > 1.5 && v.slowT <= 2, `${v.slowT}`);
     a.hp = 1000; a.cd.fire = 0;
     const h2 = v.hp;
     go(m, 12, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
-    check('62d the next main shot on it: 150 x 2 x armor, he heals 235 (10% of max), the mark spent', near(h2 - v.hp, 300 * UF, 1e-6) && near(a.hp, 1235, 1e-6) && !(v.tags['bdq@0'] > 0), `${h2 - v.hp} hp ${a.hp}`);
+    check('K12d the next main shot on it: 150 x 2 x armor, he heals 235 (10% of max), the mark spent', near(h2 - v.hp, 300 * UF, 1e-6) && near(a.hp, 1235, 1e-6) && !(v.tags['bdq@0'] > 0), `${h2 - v.hp} hp ${a.hp}`);
   }
   {
     // Thời Không Nữu Khúc on a foe standing at the landing point: 245, then four pulses of 100 every 0.75 s; each pulse renews
@@ -94,12 +94,12 @@ export function runK12Cases(check, section) {
     a.hp = 1700;
     const ev = go(m, 1, () => ({ 0: { s2: true, tx: 3, tz: 0 } }));
     const dec = m.zones.find((z) => z.kind === 'decoy');
-    check('62e the warp lands on the cursor, leaves a copy with his current hp (1700) where he stood: 245 x armor', near(a.x, 3) && dec && dec.x === 0 && dec.hp === 1700 && dec.maxHp === 1700 && near(UNG.hp - v.hp, 245 * UF, 1e-6) && only(ev, 'nova', (e) => e.skill === 'thoikhong').length === 1, `x ${a.x} dec ${dec && dec.hp} ${UNG.hp - v.hp}`);
+    check('K12e the warp lands on the cursor, leaves a copy with his current hp (1700) where he stood: 245 x armor', near(a.x, 3) && dec && dec.x === 0 && dec.hp === 1700 && dec.maxHp === 1700 && near(UNG.hp - v.hp, 245 * UF, 1e-6) && only(ev, 'nova', (e) => e.skill === 'thoikhong').length === 1, `x ${a.x} dec ${dec && dec.hp} ${UNG.hp - v.hp}`);
     const ev2 = go(m, 70);
     const pulses = only(ev2, 'nova', (e) => e.skill === 'thoikhong' && e.k), bursts = only(ev2, 'nova', (e) => e.ward);
-    check('62f after 2.33 s: three pulses (100 x armor each) and three ward bursts (38 true each), slow stacked to 75%', pulses.length === 3 && bursts.length === 3 && near(UNG.hp - v.hp, (245 + 3 * 100) * UF + 3 * 38, 1e-6) && v.ssN === 3 && near(v.slowG, 0.75, 1e-9), `${pulses.length} ${bursts.length} ${UNG.hp - v.hp} ssN ${v.ssN} slowG ${v.slowG}`);
+    check('K12f after 2.33 s: three pulses (100 x armor each) and three ward bursts (38 true each), slow stacked to 75%', pulses.length === 3 && bursts.length === 3 && near(UNG.hp - v.hp, (245 + 3 * 100) * UF + 3 * 38, 1e-6) && v.ssN === 3 && near(v.slowG, 0.75, 1e-9), `${pulses.length} ${bursts.length} ${UNG.hp - v.hp} ssN ${v.ssN} slowG ${v.slowG}`);
     const ev3 = go(m, 90);
-    check('62g the fourth pulse at 3 s, its ward bursts 2 s later (5 x 38 true in all)', only(ev3, 'nova', (e) => e.skill === 'thoikhong' && e.k).length === 1 && only(ev3, 'nova', (e) => e.ward).length === 2 && near(UNG.hp - v.hp, (245 + 4 * 100) * UF + 5 * 38, 1e-6), `${UNG.hp - v.hp}`);
+    check('K12g the fourth pulse at 3 s, its ward bursts 2 s later (5 x 38 true in all)', only(ev3, 'nova', (e) => e.skill === 'thoikhong' && e.k).length === 1 && only(ev3, 'nova', (e) => e.ward).length === 2 && near(UNG.hp - v.hp, (245 + 4 * 100) * UF + 5 * 38, 1e-6), `${UNG.hp - v.hp}`);
   }
   {
     // Thời Không Truyền Tống: a fresh press inside 5 s goes back to the copy (and takes it); past 5 s nothing
@@ -107,12 +107,12 @@ export function runK12Cases(check, section) {
     go(m, 1, () => ({ 0: { s2: true, tx: -7, tz: 0 } }));
     go(m, 10);
     go(m, 2, (i) => ({ 0: { s2: i === 0 } }));
-    check('62h recast inside the window: back on the copy at (0, 0), the copy gone', near(a.x, 0) && near(a.z, 0) && !m.zones.some((z) => z.kind === 'decoy'), `${a.x}`);
+    check('K12h recast inside the window: back on the copy at (0, 0), the copy gone', near(a.x, 0) && near(a.z, 0) && !m.zones.some((z) => z.kind === 'decoy'), `${a.x}`);
     const w = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 30, 0]]), b = w.units[0];
     go(w, 1, () => ({ 0: { s2: true, tx: -7, tz: 0 } }));
     go(w, 160);
     go(w, 2, (i) => ({ 0: { s2: i === 0 } }));
-    check('62i ... after 5 s the press does not bring him back', near(b.x, -7), `${b.x}`);
+    check('K12i ... after 5 s the press does not bring him back', near(b.x, -7), `${b.x}`);
   }
   {
     // Ma Pháp Lĩnh Vực: 305 after 1 s with a 50% slow; the domain stays 4 s; stepping in: 250 round him + silence 2 s, once;
@@ -121,25 +121,25 @@ export function runK12Cases(check, section) {
     go(m, 1, () => ({ 0: { ult: true, tx: 8, tz: 0 } }));
     go(m, 31);
     const dom = m.zones.find((z) => z.kind === 'field' && z.bdDom);
-    check('62j the strike: 305 x armor, slowed 50%, and the domain field (4.5 m) is there', near(UNG.hp - v.hp, 305 * UF, 1e-6) && near(v.slowF, 0.5) && !!dom && dom.r === 4.5, `${UNG.hp - v.hp}`);
+    check('K12j the strike: 305 x armor, slowed 50%, and the domain field (4.5 m) is there', near(UNG.hp - v.hp, 305 * UF, 1e-6) && near(v.slowF, 0.5) && !!dom && dom.r === 4.5, `${UNG.hp - v.hp}`);
     const hp = v.hp;
     a.x = a.px = 8; a.z = a.pz = 0;
     const ev = go(m, 2);
-    check('62k he steps in: 250 x armor round him (and the ward from the strike bursts, 38 true), the foe silenced 2 s; one nova step event', near(hp - v.hp, 250 * UF + 38, 1e-6) && v.silenceT > 1.9 && only(ev, 'nova', (e) => e.step).length === 1, `${hp - v.hp} sil ${v.silenceT}`);
+    check('K12k he steps in: 250 x armor round him (and the ward from the strike bursts, 38 true), the foe silenced 2 s; one nova step event', near(hp - v.hp, 250 * UF + 38, 1e-6) && v.silenceT > 1.9 && only(ev, 'nova', (e) => e.step).length === 1, `${hp - v.hp} sil ${v.silenceT}`);
     a.x = a.px = 0; go(m, 1); a.x = a.px = 8; const ev2 = go(m, 2);
-    check('62l ... only once per domain', only(ev2, 'nova', (e) => e.step).length === 0);
+    check('K12l ... only once per domain', only(ev2, 'nova', (e) => e.step).length === 0);
     const h2 = v.hp;
     a.x = a.px = 7; a.z = a.pz = 0; a.cd.s2 = 0;
     go(m, 1, () => ({ 0: { s2: true, tx: 9, tz: 0 } }));
-    check('62m Thoi Khong Nuu Khuc on the foe inside the domain: 245 x (1 - 0.5 x 1/3) x 2 x armor (+ 38 true from the ward it renews)', near(h2 - v.hp, 245 * (1 - 0.5 / 3) * 2 * UF + 38, 1e-6), `${h2 - v.hp}`);
+    check('K12m Thoi Khong Nuu Khuc on the foe inside the domain: 245 x (1 - 0.5 x 1/3) x 2 x armor (+ 38 true from the ward it renews)', near(h2 - v.hp, 245 * (1 - 0.5 / 3) * 2 * UF + 38, 1e-6), `${h2 - v.hp}`);
   }
   {
     const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
     v.stealthT = 9;
     go(m, 1, () => ({ 0: { ult: true, tx: -8, tz: 0 } }));
-    check('62n every press reveals the foes within 7 m for 2 s (stealth broken)', v.stealthT === 0 && v.revealT > 1.9, `${v.stealthT} ${v.revealT}`);
+    check('K12n every press reveals the foes within 7 m for 2 s (stealth broken)', v.stealthT === 0 && v.revealT > 1.9, `${v.stealthT} ${v.revealT}`);
     applyFx(m, v, a, { stun: 1, root: 1, silence: 2 });
-    check('62o cc on him lasts 25% longer, silence never lands', near(a.stunT, 1.25) && near(a.rootT, 1.25) && a.silenceT === 0, `${a.stunT} ${a.rootT} ${a.silenceT}`);
+    check('K12o cc on him lasts 25% longer, silence never lands', near(a.stunT, 1.25) && near(a.rootT, 1.25) && a.silenceT === 0, `${a.stunT} ${a.rootT} ${a.silenceT}`);
   }
   // ---- Zoro ----
   const CK = MECHS.cakiem;
@@ -149,12 +149,12 @@ export function runK12Cases(check, section) {
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s1: true, aim: 0 } }));
     const ev = go(m, 20, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('62p the rail shot during the parry: no hp lost, a parry event, a wave flew back', a.hp === CK.hp && only(ev, 'nova', (e) => e.parry && e.by === 1).length === 1, `${a.hp}`);
-    check('62q ... the wave hits the shooter 8 m away: 225 x armor, marked (oni)', near(UNG.hp - v.hp, 225 * UF, 1e-6) && v.tags['oni@0'] > 4, `${UNG.hp - v.hp}`);
+    check('K12p the rail shot during the parry: no hp lost, a parry event, a wave flew back', a.hp === CK.hp && only(ev, 'nova', (e) => e.parry && e.by === 1).length === 1, `${a.hp}`);
+    check('K12q ... the wave hits the shooter 8 m away: 225 x armor, marked (oni)', near(UNG.hp - v.hp, 225 * UF, 1e-6) && v.tags['oni@0'] > 4, `${UNG.hp - v.hp}`);
     go(m, 40); v.cd.fire = 0;
     const ev2 = go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
     hurtMarked = CK.hp - a.hp;
-    check('62r after 2 s the parry is over: the next shot from the marked foe hurts', hurtMarked > 0 && only(ev2, 'nova', (e) => e.parry).length === 0, `${hurtMarked}`);
+    check('K12r after 2 s the parry is over: the next shot from the marked foe hurts', hurtMarked > 0 && only(ev2, 'nova', (e) => e.parry).length === 0, `${hurtMarked}`);
   }
   {
     // the window ends under a stun
@@ -162,7 +162,7 @@ export function runK12Cases(check, section) {
     go(m, 1, () => ({ 0: { s1: true, aim: 0 } }));
     a.stunT = 0.2; go(m, 1);
     go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('62s a stun ends the parry: the shot lands', CK.hp - a.hp > 0 && a.ckPT === 0, `${CK.hp - a.hp}`);
+    check('K12s a stun ends the parry: the shot lands', CK.hp - a.hp > 0 && a.ckPT === 0, `${CK.hp - a.hp}`);
   }
   {
     // Quỷ Trảm: the same rail shot from a foe carrying his mark does 0.75 of it
@@ -173,38 +173,38 @@ export function runK12Cases(check, section) {
       return CK.hp - a.hp;
     };
     const hm = hurt(true), hu = hurt(false);
-    check('62s2 a foe carrying his mark does 0.75 of its damage to him', hu > 0 && near(hm, 0.75 * hu, 1e-6), `${hm} vs ${hu}`);
+    check('K12s2 a foe carrying his mark does 0.75 of its damage to him', hu > 0 && near(hm, 0.75 * hu, 1e-6), `${hm} vs ${hu}`);
   }
   {
     // Cư Hợp Trảm: 260 to the foe on the way, marked; 2 s of +30% speed and fire rate; the next 3 main attacks fan three waves of 100
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true, aim: 0 } }));
     go(m, 8);
-    check('62t Cu Hop Tram: through the foe (x > 6), 260 x armor, marked; haste and fire rate x1.3, three fanned shots armed', a.x > 6 && near(UNG.hp - v.hp, 260 * UF, 1e-6) && v.tags['oni@0'] > 4 && a.hasteF === 1.3 && a.rapidF === 1.3 && a.shotN === 3, `x ${a.x} ${UNG.hp - v.hp} shotN ${a.shotN}`);
+    check('K12t Cu Hop Tram: through the foe (x > 6), 260 x armor, marked; haste and fire rate x1.3, three fanned shots armed', a.x > 6 && near(UNG.hp - v.hp, 260 * UF, 1e-6) && v.tags['oni@0'] > 4 && a.hasteF === 1.3 && a.rapidF === 1.3 && a.shotN === 3, `x ${a.x} ${UNG.hp - v.hp} shotN ${a.shotN}`);
     const n0 = m.shots.length;
     go(m, 1, () => ({ 0: { fire: true, aim: Math.PI } }));
-    check('62u ... the next main attack fans three waves of 100', m.shots.filter((s) => s.owner === 0).length - n0 === 3 && m.shots.filter((s) => s.owner === 0).every((s) => near(s.dmg, 100)) && a.shotN === 2, `${m.shots.length - n0}`);
+    check('K12u ... the next main attack fans three waves of 100', m.shots.filter((s) => s.owner === 0).length - n0 === 3 && m.shots.filter((s) => s.owner === 0).every((s) => near(s.dmg, 100)) && a.shotN === 2, `${m.shots.length - n0}`);
   }
   {
     // the main attack on a marked foe: heals 75, every cooldown -0.25 s, the mark renewed; a marked foe dying gives Cu Hop Tram back
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
     v.tags['oni@0'] = 1; a.hp = 1000; a.cd.s1 = 5; a.cd.s2 = 5; a.cd.ult = 5;
     go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
-    check('62v the wave on the marked foe: 150 x armor, heal 75, cooldowns 5 -> 4.75 (less the time gone), mark renewed', near(UNG.hp - v.hp, 150 * UF, 1e-6) && near(a.hp, 1075, 0.01) && a.cd.s1 < 4.75 - 4 * TICK && a.cd.s1 > 4.75 - 10 * TICK && v.tags['oni@0'] > 4.5, `hp ${a.hp} cd ${a.cd.s1} tag ${v.tags['oni@0']}`);
+    check('K12v the wave on the marked foe: 150 x armor, heal 75, cooldowns 5 -> 4.75 (less the time gone), mark renewed', near(UNG.hp - v.hp, 150 * UF, 1e-6) && near(a.hp, 1075, 0.01) && a.cd.s1 < 4.75 - 4 * TICK && a.cd.s1 > 4.75 - 10 * TICK && v.tags['oni@0'] > 4.5, `hp ${a.hp} cd ${a.cd.s1} tag ${v.tags['oni@0']}`);
     v.hp = 40; a.cd.s2 = 9; a.cd.fire = 0;
     go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
-    check('62w the marked foe dies: Cu Hop Tram is ready at once', !v.alive && a.cd.s2 === 0 && a.cd.ult > 0, `${v.alive} ${a.cd.s2}`);
+    check('K12w the marked foe dies: Cu Hop Tram is ready at once', !v.alive && a.cd.s2 === 0 && a.cd.ult > 0, `${v.alive} ${a.cd.s2}`);
   }
   {
     // Tam Thiên Thế Giới: 420 + 5% of the lost hp (true), slowed 50% fading; three uses 1.5 s apart
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { ult: true, aim: 0 } }));
     go(m, 12);
-    check('62x Tam Thien The Gioi: 420 x armor x 1.05 (5% of what it took, true), a fading slow, one use of three spent', near(UNG.hp - v.hp, 420 * UF * 1.05, 1e-6) && v.slowG > 0.3 && v.slowG < 0.5 && a.use2 === 1, `${UNG.hp - v.hp} slowG ${v.slowG} use ${a.use2}`);
+    check('K12x Tam Thien The Gioi: 420 x armor x 1.05 (5% of what it took, true), a fading slow, one use of three spent', near(UNG.hp - v.hp, 420 * UF * 1.05, 1e-6) && v.slowG > 0.3 && v.slowG < 0.5 && a.use2 === 1, `${UNG.hp - v.hp} slowG ${v.slowG} use ${a.use2}`);
     go(m, 2, (i) => ({ 0: { ult: i === 1, aim: 0 } }));
-    check('62y ... the second use waits for the 1.5 s gap', a.use2 === 1);
+    check('K12y ... the second use waits for the 1.5 s gap', a.use2 === 1);
     go(m, 35); go(m, 2, (i) => ({ 0: { ult: i === 1, aim: 0 } }));
-    check('62z ... and goes after it', a.use2 === 2, `${a.use2}`);
+    check('K12z ... and goes after it', a.use2 === 2, `${a.use2}`);
   }
   // ---- Điêu Thuyền ----
   {
@@ -213,18 +213,18 @@ export function runK12Cases(check, section) {
     m.map.walls.push({ x0: 2.5, x1: 3.5, z0: -3, z1: 3 });
     a.hp = 1000;
     go(m, 1, () => ({ 0: { s1: true, aim: 0 } })); go(m, 12);
-    check('62za the heart flies through the wall: 228 x armor, charmed 1 s, she heals 25% of it', near(UNG.hp - v.hp, 228 * UF, 1e-6) && v.locT > 0.5 && v.locK === LOC_KINDS.indexOf('charm') && near(a.hp, 1000 + 228 * UF * 0.25, 1e-6), `${UNG.hp - v.hp} loc ${v.locT}/${v.locK} hp ${a.hp}`);
+    check('K12za the heart flies through the wall: 228 x armor, charmed 1 s, she heals 25% of it', near(UNG.hp - v.hp, 228 * UF, 1e-6) && v.locT > 0.5 && v.locK === LOC_KINDS.indexOf('charm') && near(a.hp, 1000 + 228 * UF * 0.25, 1e-6), `${UNG.hp - v.hp} loc ${v.locT}/${v.locK} hp ${a.hp}`);
   }
   {
     // Long Viêm Cuồng Vũ: a short untouchable glide to the cursor, then four flowers that fly at the nearest foe, 75 each
     const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 12, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true, tx: 7, tz: 0 } }));
-    check('62zb the glide starts untouchable', a.invulnT > 0.2 && !!a.dash, `${a.invulnT}`);
+    check('K12zb the glide starts untouchable', a.invulnT > 0.2 && !!a.dash, `${a.invulnT}`);
     go(m, 10);
     const z = m.zones.find((q) => q.kind === 'orbit' && q.owner === 0);
-    check('62zc ... she is at the cursor and four flowers circle her', near(a.x, 7, 0.1) && !!z && z.src === 'phihoa' && z.n === 4, `${a.x} ${z && z.src}`);
+    check('K12zc ... she is at the cursor and four flowers circle her', near(a.x, 7, 0.1) && !!z && z.src === 'phihoa' && z.n === 4, `${a.x} ${z && z.src}`);
     const ev = go(m, 80), hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
-    check('62zd ... the flowers fly at the foe 5 m away: four hits of 75 x armor', hits.length === 4 && hits.every((e) => near(e.amt, 75 * UF, 1e-6)), `${hits.map((e) => e.amt)}`);
+    check('K12zd ... the flowers fly at the foe 5 m away: four hits of 75 x armor', hits.length === 4 && hits.every((e) => near(e.amt, 75 * UF, 1e-6)), `${hits.map((e) => e.amt)}`);
   }
   {
     // Hoa Điệp Phi Phiến: three fans out (90) and back (270), each hit cuts Long Viêm Cuồng Vũ by 20% (1.6 s); the fifth mark roots
@@ -233,10 +233,10 @@ export function runK12Cases(check, section) {
     a.hp = 1000; a.cd.s2 = 8;
     go(m, 1, () => ({ 0: { ult: true, aim: 0 } }));
     const ev = go(m, 45), hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
-    check('62ze the fans: 3 x 90 out and 3 x 270 back (x armor) plus 150 true from the fifth mark, rooted', near(UNG.hp - v.hp, (270 + 810) * UF + 150, 1e-6) && hits.length === 7 && v.stkN === 1, `${UNG.hp - v.hp} hits ${hits.length} stk ${v.stkN}`);
-    check('62zf ... six fan hits cut Long Vien Cuong Vu by 6 x 1.6 s: ready', a.cd.s2 === 0, `${a.cd.s2}`);
-    check('62zg ... she healed a quarter of the 1080 x armor the fans did', near(a.hp, 1000 + 1080 * UF * 0.25, 1e-6), `${a.hp}`);
-    check('62zh one of two uses spent; the second waits 3 s', a.use2 === 1 && !(a.gap2 <= 0), `${a.use2} ${a.gap2}`);
+    check('K12ze the fans: 3 x 90 out and 3 x 270 back (x armor) plus 150 true from the fifth mark, rooted', near(UNG.hp - v.hp, (270 + 810) * UF + 150, 1e-6) && hits.length === 7 && v.stkN === 1, `${UNG.hp - v.hp} hits ${hits.length} stk ${v.stkN}`);
+    check('K12zf ... six fan hits cut Long Vien Cuong Vu by 6 x 1.6 s: ready', a.cd.s2 === 0, `${a.cd.s2}`);
+    check('K12zg ... she healed a quarter of the 1080 x armor the fans did', near(a.hp, 1000 + 1080 * UF * 0.25, 1e-6), `${a.hp}`);
+    check('K12zh one of two uses spent; the second waits 3 s', a.use2 === 1 && !(a.gap2 <= 0), `${a.use2} ${a.gap2}`);
   }
   // ---- bots ----
   {
@@ -250,7 +250,7 @@ export function runK12Cases(check, section) {
         for (const e of m.events) if (e.t === 'skill' && seen[m.units[e.id].mech]) { seen[m.units[e.id].mech].add(e.slot); if (e.skill === 'truyentong') back++; }
       }
     }
-    check('62zz bots cast every skill of buomdem, cakiem and dieuthuyen in 2 x 90 s', seen.buomdem.size === 3 && seen.cakiem.size === 3 && seen.dieuthuyen.size === 3, `buomdem ${[...seen.buomdem]} back ${back} cakiem ${[...seen.cakiem]} dieuthuyen ${[...seen.dieuthuyen]}`);
+    check('K12zz bots cast every skill of buomdem, cakiem and dieuthuyen in 2 x 90 s', seen.buomdem.size === 3 && seen.cakiem.size === 3 && seen.dieuthuyen.size === 3, `buomdem ${[...seen.buomdem]} back ${back} cakiem ${[...seen.cakiem]} dieuthuyen ${[...seen.dieuthuyen]}`);
   }
 }
 
