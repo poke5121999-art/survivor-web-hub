@@ -46,7 +46,7 @@ const SEQ = {
   khiphao: { d: 9, seq: [['s1', 0], ['ult', 0.2]] },
   quancong: { d: 5, seq: [['s1', 0], ['s2', 0.3], ['ult', 0.5]] },
   natra: { d: 7, seq: [['ult', 0, true], ['s1', 0.7], ['s2', 1.2]], fireAt: 0.7 },
-  duongtien: { d: 10, seq: [['ult', 0], ['s1', 0.9]], fireAt: 0.9 },
+  duongtien: { d: 3, seq: [['s1', 0], ['ult', 0.4], ['s2', 1.0]] },   // kit lane K13: Trảm Tiên marks, then every hit pays +150 (recasts left out)
   athena: { d: 8, seq: [['s1', 0]] },
   hades: { d: 9, seq: [['s2', 0], ['s1', 0.7], ['ult', 0.2]] },
   lubo: { d: 5, seq: [['s1', 0], ['s2', 0.3, true], ['ult', 0.8]] },
