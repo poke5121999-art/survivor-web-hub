@@ -1744,7 +1744,7 @@ const SKILL_AI = {
     const { u, tgt, td } = c;
     if (!tgt || td < 3 || td > s.range - 1.5 || !(c.los || tgt.tower)) return false;
     const a = Math.atan2(tgt.z - u.z, tgt.x - u.x), dx = Math.cos(a), dz = Math.sin(a);
-    if (tgt.tower) { c.b.sk.aim = a; return true; }
+    if (tgt.tower) { if (s.towerMul === 0) return false; c.b.sk.aim = a; return true; }   // kit-remake K11: a ray that does nothing to towers (Iron Man) is not spent on one
     let n = 0;
     for (const e of c.enemies) {
       const along = (e.x - u.x) * dx + (e.z - u.z) * dz, lat = Math.abs((e.x - u.x) * dz - (e.z - u.z) * dx);

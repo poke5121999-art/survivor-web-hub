@@ -199,20 +199,31 @@ export const MECHS = {
         desc: 'Đứng gọi bão tuyết xuống vùng con trỏ (xa nhất 14 m) trong 3 giây: năm đợt băng giáng xuống, mỗi đợt 266 sát thương vòng 3,5 m. Trong lúc gọi bão chịu ít hơn 25% sát thương; bấm lại để dừng. Sát thương lên công trình giảm 75%.' },
     ],
   },
+  // Iron Man: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p73 "70.钢铁", tooltips read at 1.5-6 s; AUDIT-c.md). The owner
+  // turned Thợ Rèn into Iron Man (2026-11-18); the old engineer kit is the test fixture 'oldtho' (tools/k11-cases.mjs). Attack = one
+  // Xung Lực Pháo blast (150), as lubo and moclan: shield burst 236% -> 354, Lạp Tử Năng Lượng 267% -> 400, Phi Đạn Không Tập 75% -> 113
+  // a wave, Ngõa Giải Xạ Tuyến 125% -> 188 a 0.2 s pulse (940/s). Cooldowns 6 / 8 / 20 s in the clip -> 8 / 10 / 40. The R / E combo
+  // stun is two G2 tags: each row tags its victims for 1 s and the other row's vsTag stuns a tagged one 1 s. "50% less energy damage"
+  // while channelling is a 25% cut of every blow (cast guard; our game has no energy / physical split). Red lines: R and the ult do
+  // nothing to towers, E half. G5 (sim.js "kit-remake G5 tho"): imTag, imCancel, imShield.
   tho: {
-    name: 'Thợ Rèn', role: 'Công binh', roleKey: 'engineer', price: 1200, tint: 0xc9762b,
-    blurb: 'Đặt ụ súng tự bắn, hút địch vào hố từ rồi rải mìn giữ đất.',
+    name: 'Iron Man', role: 'Xung kích', roleKey: 'assault', price: 1200, tint: 0xb8322a,
+    blurb: 'Khiên năng lượng tự hồi, vỡ thì nổ. Bắn đạn hạt nổ làm chậm, gọi tên lửa dội xuống một vùng, rồi đứng phóng tia phân rã hút máu.',
     hp: 2300, speed: 5.6, radius: 0.88,
-    armor: 0.10, accel: 0.9, turn: 12, towerMul: 1.5,
-    passive: { do: 'mechanic', name: 'Tay Nghề', desc: 'Ụ súng và mìn bền thêm 30% máu và thời gian.', mul: 1.3 },
-    weapon: { name: 'Súng Đinh', cd: 0.45, dmg: 98, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' },
+    armor: 0.10, accel: 0.9, turn: 12, towerMul: 1.0,
+    passive: { do: 'trait', name: 'Lạp Tử Hộ Thuẫn', mods: { reShield: { frac: 0.3, regrow: 15, burst: { radius: 4, dmg: 354 } } },
+      desc: 'Luôn có một lớp khiên năng lượng bằng 30% máu tối đa. Khiên vỡ thì nổ, kẻ địch trong 4 m chịu 354 sát thương; 15 giây sau khiên tự hồi.' },
+    weapon: { name: 'Xung Lực Pháo', cd: 0.65, dmg: 150, speed: 34, range: 12.5, r: 0.24, vis: 'pulse' },
     skills: [
-      { id: 'usung', look: 'thTurret', name: 'Ụ Súng', cd: 15, do: 'turret', cast: 5, hp: 800, dur: 18, range: 11, dmg: 44, rate: 0.3, icon: 'turret',
-        desc: 'Đặt một ụ súng tự ngắm bắn kẻ địch trong tầm suốt 18 giây. Địch bắn vỡ được.' },
-      { id: 'hotu', look: 'thMagnet', name: 'Hố Từ', cd: 13, do: 'zone', at: 'target', cast: 12, radius: 4.5, dur: 3, pull: 5, dps: 40, vis: 'magnet', icon: 'magnet',
-        desc: 'Mở một hố từ trường ở con trỏ, kéo mọi kẻ địch trong vùng về tâm trong 3 giây.' },
-      { id: 'baimin', look: 'thMines', name: 'Bãi Mìn', cd: 42, do: 'minefield', n: 5, radius: 4.5, cast: 13, trigger: 2.0, blast: 3, dmg: 300, stun: 1.0, arm: 0.7, life: 30, icon: 'mines',
-        desc: 'Rải năm quả mìn quanh con trỏ. Địch chạm vào bị nổ và choáng 1 giây.' },
+      { id: 'laptu', look: 'imParticle', name: 'Lạp Tử Năng Lượng', cd: 8, do: 'volley', n: 1, dmg: 400, speed: 30, range: 14, r: 0.4, splash: 2.5, splashHit: true, towerMul: 0,
+        fx: { slow: 0.75, slowDur: 2.5, slowDecay: true, tag: { key: 'imR', dur: 1 } }, vsTag: { key: 'imE', fx: { stun: 1 } }, vis: 'pulse', icon: 'shell',
+        desc: 'Bắn một viên đạn hạt theo hướng ngắm (xa 14 m), nổ ở kẻ địch đầu tiên trúng: 400 sát thương, kẻ đứng quanh 2,5 m chịu 240; tất cả bị chậm 75%, nhạt dần trong 2,5 giây. Kẻ đang dính Phi Đạn Không Tập còn bị choáng 1 giây. Không gây sát thương lên trụ.' },
+      { id: 'phidan', look: 'imMissiles', name: 'Phi Đạn Không Tập', cd: 10, do: 'barrage', n: 6, cast: 12, radius: 1.75, blast: 3.5, delay: 0.25, span: 3, dmg: 113, towerMul: 0.5,
+        fx: { slow: 0.5, slowDur: 1, tag: { key: 'imE', dur: 1 } }, vsTag: { key: 'imR', fx: { stun: 1 }, consume: true }, icon: 'barrage',
+        desc: 'Gọi tên lửa dội xuống vùng con trỏ (xa nhất 12 m) trong 3 giây: cứ 0,5 giây kẻ địch trong 3,5 m chịu 113 sát thương và bị chậm 50%. Kẻ vừa trúng Lạp Tử Năng Lượng trong 1 giây trước thì bị choáng 1 giây. Trụ chỉ chịu một nửa.' },
+      { id: 'ngoagiai', look: 'imRay', name: 'Ngõa Giải Xạ Tuyến', cd: 40, do: 'sweep', windup: 0.2, dur: 4, range: 16, width: 1.1, dps: 940, turn: 1.4, move: 0, guard: 0.25, steal: 0.25, towerMul: 0,
+        imTag: true, imCancel: 1, imShield: true, icon: 'beam',
+        desc: 'Đứng yên phóng tia phân rã dài 16 m trong 4 giây, xoay chậm theo hướng ngắm: cứ 0,2 giây kẻ địch trên tia chịu 188 sát thương, bạn hồi 25% lượng gây ra. Lúc bắt đầu khiên Lạp Tử hồi đầy ngay; trong lúc phóng bạn miễn khống chế và chịu ít hơn 25% sát thương. Phóng được 1 giây thì bấm lại để dừng sớm. Không gây sát thương lên trụ.' },
     ],
   },
   thancong: {
@@ -1329,7 +1340,7 @@ export const PERKS = {
   loi: [perk('Sét Nặng', 'Lôi Tiễn gây 170.', 'weapon', { dmg: 170 }), perk('Sáu Lần Nảy', 'Thiểm Điện Đạn Xạ nảy sáu lần.', 1, { fx: { maxHp: 0.03, chain: { n: 6, r: 6, mul: 0.75, seq: { falloff: 0.75 } } } }), perk('Vùng Sét Rộng', 'Lôi Thần Chi Chùy để lại vùng lôi điện 4 m.', 2, { torZone: { radius: 4, dur: 4, dps: 128, slow: 0.5, vis: 'torHammer' } })],
   bocap: [perk('Phun Dài', 'Tử Vong Thôn Phệ phun sáu đợt.', 0, { repeat: 6 }), perk('Ô Nhiễm Lâu', 'Trí Mạng Ô Nhiễm kéo dài 4 giây.', 1, { dur: 4 }), perk('Bạo Phát Rộng', 'Độc Tố Bạo Phát rộng 8,5 m.', 2, { radius: 8.5 })],
   bang: [perk('Gai Buốt', 'Gai Băng gây 165.', 'weapon', { dmg: 165 }), perk('Vòng Rộng', 'Băng Sương Chi Hoàn rộng 3,8 m.', 0, { blast: 3.8 }), perk('Bão Dai', 'Băng Thiên Tuyết Địa giáng sáu đợt.', 2, { channel: { dur: 3.65, every: 0.6, move: 0 }, self: { on: 'cast', dur: 3.65, guard: 0.25 } })],
-  tho: [perk('Nòng Lớn', 'Ụ Súng bắn 66 mỗi phát.', 0, { dmg: 66 }), perk('Hố Rộng', 'Hố Từ rộng 5,5 m.', 1, { radius: 5.5 }), perk('Bảy Quả Mìn', 'Bãi Mìn rải bảy quả.', 2, { n: 7 })],
+  tho: [perk('Hạt Nặng', 'Lạp Tử Năng Lượng gây 480 sát thương.', 0, { dmg: 480 }), perk('Mưa Dày', 'Phi Đạn Không Tập phủ rộng 4,5 m.', 1, { blast: 4.5, radius: 2.25 }), perk('Lò Phản Ứng', 'Ngõa Giải Xạ Tuyến dài 20 m.', 2, { range: 20 })],
   thancong: [perk('Lõi Vonfram', 'Đạn Xuyên gây 1000.', 1, { dmg: 1000 }), perk('Chốt Nhanh', 'Cắm Chốt chỉ mất 0,35 giây.', 0, { setup: 0.35 }), perk('Mười Một Quả', 'Oanh Tạc dội 11 quả.', 2, { n: 11 })],
   mangxa: [perk('Xích Dài', 'Móc Xích vươn tới 16 m.', 0, { range: 16 }), perk('Choáng Váng', 'Hoán Vị với xa 15 m, địch chậm 2,5 giây.', 1, { cast: 15, slowDur: 2.5 }), perk('Lồng Chắc', 'Lồng Xích giữ 4,5 giây.', 2, { dur: 4.5 })],
   kimquy: [perk('Khiên Dày', 'Khiên Tặng hấp thụ 1000.', 0, { amount: 1000, shield: 1000 }), perk('Gai Mai', 'Mai Rùa phản 50%.', 1, { reflect: 0.5 }), perk('Thành Vững', 'Thành Đồng kéo dài 6,5 giây.', 2, { dur: 6.5 })],

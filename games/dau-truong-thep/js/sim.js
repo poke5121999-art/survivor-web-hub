@@ -532,7 +532,7 @@ function stepUnit(m, u, inp) {
     }
     if (c.skill.do === 'sweep' && c.t <= c.skill.dur) {
       c.acc += dt;
-      while (c.acc >= SWEEP_PULSE) { c.acc -= SWEEP_PULSE; fireBeam(m, u, { range: c.skill.range, width: c.skill.width, dmg: c.skill.dps * SWEEP_PULSE }, u.aim); }
+      while (c.acc >= SWEEP_PULSE) { c.acc -= SWEEP_PULSE; curSrc = imPulseSrc(c.skill); fireBeam(m, u, { range: c.skill.range, width: c.skill.width, dmg: c.skill.dps * SWEEP_PULSE }, u.aim); curSrc = null; }   // kit-remake G5 tho: imTag
     }
     if (c.t <= 0) { u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
   }
@@ -556,6 +556,7 @@ function stepUnit(m, u, inp) {
     else if (c.up && c.total - c.t >= c.skill.charge.min) { u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
   }
   if (u.cast && u.cast.skill.bnStop) bnStop(m, u, inp);   // kit-remake G5 Băng Nha: press again to stop the channel
+  if (u.cast && u.cast.skill.imCancel) imCancel(m, u, inp);   // kit-remake G5 tho: a fresh press ends the channel
   if (u.cast || (u.dash && !nhFree(u))) { u.charge = 0; return; }   // kit lane K18: Mikasa may spin while she reels
   // silence (hitfx): no skills, the weapon still works
   for (let i = 0; i < 3 && !(u.silenceT > 0); i++) {
@@ -594,6 +595,7 @@ function stepUnit(m, u, inp) {
     k18Cast(m, u, s);   // kit lane K18: Chiến Tiêu at each press, nmToHp, Mikasa's refill and combo crit
     k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
     k13Cast(m, u, s);   // kit lane K13
+    if (s.imShield) imRefill(m, u);   // kit-remake G5 tho: the press brings the passive shield back at once
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
@@ -4498,3 +4500,26 @@ function k16Zone(m, u, s, o) {
     haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
 }
 /* ===== end kit lane k16 ===== */
+
+/* ===== kit-remake G5 tho (Iron Man, kit lane K11; clip p73 "70.钢铁", AUDIT-c.md). Hooks elsewhere, one line each, marked
+   "kit-remake G5 tho": the sweep pulse (imTag), the cast loop before a running cast returns (imCancel), the press after g4Cast (imShield).
+     sweep `imTag: true`: every 0.2 s pulse carries the row's source tag, so the row's steal, towerMul and vsTag read it.
+     sweep `imCancel: s`: once the key has been let go, a fresh press s or more after the press ends the channel at once.
+     row `imShield: true`: the press brings the passive mods.reShield back at once (raised again if broken, topped up if not).
+   New names carry the prefix im: cast field imUp. Nothing new needs STATUS (the shield and the cast are synced already). ===== */
+function imPulseSrc(s) { return s.imTag ? s.id : null; }
+function imCancel(m, u, inp) {
+  const c = u.cast, i = srcSlot(u, c.skill.id);
+  if (i < 0) return;
+  if (!inp[SLOTS[i]]) c.imUp = true;
+  else if (c.imUp && c.total - c.t >= c.skill.imCancel - 1e-9) u.cast = null;
+}
+function imRefill(m, u) {
+  const RS = g4Mods(u) && g4Mods(u).reShield;
+  if (!RS) return;
+  const live = u.shieldT > 0 ? u.shieldMax : 0;
+  u.shield = Math.max(u.shield, RS.frac * u.maxHp); u.shieldMax = Math.max(live, u.shield); u.shieldT = Math.max(u.shieldT, 0.5);
+  if (RS.burst) u.shieldBurst = RS.burst;
+  if (!u.rsUp) { u.rsUp = true; u.rsT = 0; m.events.push({ t: 'reShield', id: u.id, x: u.x, z: u.z }); }
+}
+/* ===== end kit-remake G5 tho ===== */

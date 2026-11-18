@@ -1,9 +1,7 @@
-// Looks, batch 8: Trâu Sắt, Thợ Rèn, Hỏa Long, Khỉ Pháo, Khỉ Đột, Đom Đóm. Render only (see looks.js for the hooks).
+// Looks, batch 8: Trâu Sắt, Hỏa Long, Khỉ Pháo, Khỉ Đột, Đom Đóm. Render only (see looks.js for the hooks).
 // One main colour and one accent per tank, one strong shape per skill; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP-b8.md):
 //   擎天 p45 (Trâu Sắt): a wide steel-blue ring round the tank, a blue crescent sweep, an orange blast on the floor.
-//   钢铁 p73 (Thợ Rèn): thin orange beams, steel-blue rings on the targets, white-blue flashes; ours is a forge: an orange-hot
-//     gear under the turret, a horseshoe magnet, iron mines with a hazard triangle.
 //   燎 p4 (Hỏa Long): a red dragon; clusters of dark molten rock with glowing seams, a red flame swirl. Ours: lava rocks, a wall
 //     of dragon scales, one thick lava stream (not the flame jets, rings, fox fire or fire wheel of the other fire tanks).
 //   悟空 p25 (Khỉ Pháo): gold and orange, a spinning gold band, a staff from the sky. Ours keeps gold with the tank's violet:
@@ -169,89 +167,8 @@ const trau = {
   },
 };
 
-// ---- Thợ Rèn: forge orange, steel-blue accent --------------------------------------------------------------------------
-const TH_ORG = C(2.6, 0.95, 0.15), TH_HOT = C(2.6, 1.9, 0.8), TH_STEEL = C(0.45, 0.95, 1.7), TH_IRON = 0x241a14;
-const gearGeo = (() => {
-  const s = new THREE.Shape(), n = 12, Ro = 1, Ri = 0.8;
-  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, w = Math.PI / n; const pts = [[Ri, a - w * 0.55], [Ro, a - w * 0.32], [Ro, a + w * 0.32], [Ri, a + w * 0.55]]; pts.forEach(([r, b], j) => { const x = Math.cos(b) * r, y = Math.sin(b) * r; if (i === 0 && j === 0) s.moveTo(x, y); else s.lineTo(x, y); }); }
-  const hole = new THREE.Path(); hole.absarc(0, 0, 0.5, 0, Math.PI * 2, true); s.holes.push(hole);
-  return keep(new THREE.ShapeGeometry(s, 16).rotateX(-Math.PI / 2));
-})();
-const mineDome = keep(new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2)), studGeo = keep(new THREE.ConeGeometry(0.1, 0.32, 5)), lampGeo = keep(new THREE.SphereGeometry(0.14, 8, 6));
-// the horseshoe magnet hanging over the hole: an arc and two legs, orange-hot pole tips (local XY, open downward)
-const hsArc = keep(new THREE.TorusGeometry(1, 0.3, 10, 24, Math.PI)), hsLeg = keep(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 10).translate(0, -0.45, 0)), hsTip = keep(new THREE.CylinderGeometry(0.31, 0.31, 0.4, 10).translate(0, -1.1, 0));
-function magnet() {
-  const g = new THREE.Group(), steel = basic(0x3a5878, false, 1), glow = basic(TH_STEEL, true, 0.5), hot = basic(TH_HOT, true, 1);
-  const halo = new THREE.Mesh(hsArc, glow); halo.scale.setScalar(1.12); g.add(halo, new THREE.Mesh(hsArc, steel));
-  for (const sd of [-1, 1]) { const l = new THREE.Mesh(hsLeg, steel), t = new THREE.Mesh(hsTip, hot); l.position.x = t.position.x = sd; g.add(l, t); }
-  g.traverse((m) => { m.renderOrder = 8; }); return g;
-}
-function spiralPts(x, z, a0, r0, r1, turn, y, n = 16) { const p = []; for (let i = 0; i < n; i++) { const f = i / (n - 1), r = r0 + (r1 - r0) * f, b = a0 + turn * f; p.push([x + Math.cos(b) * r, y, z + Math.sin(b) * r]); } return p; }
-const tho = {
-  // Ụ Súng: the turret stands on a forged gear, its teeth glowing orange-hot, turning; forge sparks fountain as it is set down
-  thTurret: {
-    zones: ['turret'], overlay: true,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const g = new THREE.Group(), hot = new THREE.Mesh(gearGeo, basic(TH_ORG, true, 0.9)), iron = new THREE.Mesh(gearGeo, basic(TH_IRON, false, 0.9)), cool = new THREE.Mesh(gearGeo, basic(TH_STEEL, true, 0.35));
-      hot.scale.setScalar(1.08); iron.position.y = 0.01; cool.scale.setScalar(0.62); cool.position.y = 0.02;
-      g.add(hot, iron, cool); g.position.set(z.x, 0.13, z.z); g.traverse((m) => { m.renderOrder = 4; });
-      for (let i = 0; i < kit.N(18); i++) { const a = Math.random() * 6.283, s = R(2, 5); kit.ovr.emit(z.x, 1.2, z.z, Math.cos(a) * s, R(4, 8), Math.sin(a) * s, i % 3 ? TH_HOT : TH_ORG, R(0.6, 1), R(0.08, 0.14), 1, 0.4, 14, 1, kit.K.SPARK); }
-      kit.flash(z.x, 1.5, z.z, TH_ORG, 35, 0.25);
-      return { g, h: held(kit, [g]), t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const k = Math.min(1, v.t / 0.25), out = Math.min(1, (z.dur - z.age) * 3);
-      v.g.scale.setScalar(3.3 * (0.5 + 0.5 * k)); v.g.rotation.y = v.t * 0.5; fadeAll(v.g, out);
-      if (Math.random() < dt * 5) { const a = Math.random() * 6.283; kit.ovr.emit(z.x + Math.cos(a) * 3.1, 0.3, z.z + Math.sin(a) * 3.1, Math.cos(a) * 2, R(2, 4), Math.sin(a) * 2, TH_HOT, 0.5, 0.08, 1, 0.4, 12, 1, kit.K.SPARK); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; },
-  },
-  // Hố Từ: a horseshoe magnet hangs over the cursor, its poles orange-hot; steel-blue field lines spiral in over a dark hole
-  // and iron filings stream to the centre
-  thMagnet: {
-    pal: [TH_STEEL, TH_HOT], hitR: 1.6,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const m = magnet(); m.position.set(z.x, 4.2, z.z); m.rotation.x = -0.35;
-      const hole = softRing(kit, z.x, z.z, z.r, C(0.03, 0.05, 0.09), { c2: TH_STEEL, w: 0.06, fill: 0.85, life: 1e9, r0: 0.3, grow: 0.25, alpha: 0.85 });
-      const lines = []; for (let i = 0; i < 6; i++) { const l = ribbonMesh(16, TH_STEEL, true, 0.85); l.renderOrder = 6; lines.push(l); }
-      return { m, hole, lines, h: held(kit, [m, ...lines]), t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const out = Math.min(1, (z.dur - z.age) * 3), k = Math.min(1, v.t / 0.25);
-      v.m.scale.setScalar(1.5 * k); v.m.position.y = 4.2 + 0.15 * Math.sin(v.t * 6); fadeAll(v.m, out);
-      v.lines.forEach((l, i) => { fillRibbon(l, spiralPts(z.x, z.z, i * 1.047 - v.t * 2.5, z.r * 0.95 * k, 0.4, 2.2, 0.2), (q) => 0.05 + 0.16 * Math.sin(q * Math.PI)); l.material.opacity = 0.85 * out; });
-      if (Math.random() < dt * 30) { const b = Math.random() * 6.283, d = z.r * R(0.6, 1), s = R(4, 7); kit.ovr.emit(z.x + Math.cos(b) * d, 0.3, z.z + Math.sin(b) * d, -Math.cos(b) * s, 0.2, -Math.sin(b) * s, C(0.12, 0.12, 0.14), d / s, R(0.1, 0.18), 1, 0, 0, 1, kit.K.CHIP); }
-      if (Math.random() < dt * 6) zap(kit, [z.x - 1.5 * 1.5, 2.6, z.z], [z.x + 1.5 * 1.5, 2.6, z.z], 0.12, TH_STEEL, 0.1, { segs: 6, jit: 0.3 });
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.hole); },
-  },
-  // Bãi Mìn: iron mines with studs and a blinking orange lamp, each in an orange hazard triangle; one goes off in a white-blue
-  // flash with orange rivets flying out
-  thMines: {
-    zones: ['mine'], pal: [TH_ORG, TH_HOT], hitR: 1.6,
-    skill() { return true; },
-    zoneMake(kit, z, row, foe) {
-      const g = new THREE.Group(), iron = basic(TH_IRON, false, 1), lamp = new THREE.Mesh(lampGeo, basic(TH_HOT, true, 1)), dome = new THREE.Mesh(mineDome, iron);
-      for (let i = 0; i < 6; i++) { const a = i * 1.047, s = new THREE.Mesh(studGeo, iron); s.position.set(Math.cos(a) * 0.42, 0.3, Math.sin(a) * 0.42); s.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9); g.add(s); }
-      lamp.position.y = 0.55; g.add(dome, lamp); g.position.set(z.x, 0, z.z); g.scale.setScalar(1.9);
-      const tri = sigil(kit, z.x, z.z, 3.2, TH_ORG, { c2: TH_ORG, n: 3, m: 1, ticks: 0, inner: 0, fill: 0.28, w: 0.1, life: 1e9, rev: 0.15, spin: 0, alpha: foe ? 0.45 : 0.95 });
-      kit.sparks(z.x, 0.6, z.z, kit.N(5), TH_HOT, 5, 0.3, 0.05, 0.6, 10);
-      return { g, lamp, tri, h: held(kit, [g]), t: 0 };
-    },
-    zone(kit, v, z, dt) { v.t += dt; const on = z.delay <= 0; v.lamp.material.opacity = on ? (Math.sin(v.t * 9) > 0 ? 1 : 0.25) : 0.4; v.g.scale.setScalar(1.9 * Math.min(1, v.t / 0.12)); },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.tri); },
-    land(kit, e) {
-      shell(kit, e.x, 1, e.z, 1.7, TH_STEEL, { c2: WHITE, p: 1.8, core: 0.05, life: 0.25, grow: 0.06, alpha: 0.6 });
-      for (let i = 0, n = kit.N(12); i < n; i++) { const a = (i / n) * 6.283 + R(-0.2, 0.2), s = R(14, 22); kit.str.emit(e.x, 0.8, e.z, Math.cos(a) * s, R(1, 4), Math.sin(a) * s, i % 2 ? TH_ORG : TH_HOT, 0.3, 0.1, 0.06, 6, 1, 1); }
-      kit.puffs(e.x, 0.8, e.z, kit.N(5), C(0.12, 0.1, 0.09), 0.8, 2.5, 0.8, 1.3, 2.4, 0.5, 0.7, kit.K.SMOKE, 2);
-      softRing(kit, e.x, e.z, 4.2, C(0.2, 0.6, 1), { c2: C(0.6, 0.85, 1), w: 0.09, fill: 0, life: 0.6, r0: 0.3, grow: 0.25 });
-      kit.scorch(e.x, e.z, 2, 3, 1.2, TH_ORG); kit.flash(e.x, 1.6, e.z, TH_STEEL, 50, 0.25); kit.kick(e.x, e.z, 0.4);
-      return true;
-    },
-  },
-};
+// a small round lamp (Khỉ Pháo's bomb eyes)
+const lampGeo = keep(new THREE.SphereGeometry(0.14, 8, 6));
 
 // ---- flame tongue (shared by Hỏa Long and Khỉ Đột's rage mane) ----------------------------------------------------------
 // An upright plane drawn as one flame: round foot, pointed licking tip, a soft edge colour going to a bright core near the
@@ -369,4 +286,4 @@ const khiphao = {
   },
 };
 
-export const B8 = { ...trau, ...tho, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13), Hỏa Long to looks-k15.js (kit lane k15)
+export const B8 = { ...trau, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13), Hỏa Long to looks-k15.js (kit lane k15), Thợ Rèn is Iron Man in looks-k11.js (kit lane K11)

@@ -34,7 +34,7 @@ const SEQ = {
   loi: { d: 9, seq: [['s2', 0], ['s1', 0.1], ['ult', 0.2], ['s2', 3.1]] },   // kit lane k16: ball, bolt, hammer, then the second ball; the third skill hit stuns
   bocap: { d: 5, seq: [['s1', 0], ['ult', 1.6], ['s2', 1.7]] },
   bang: { d: 4.5, seq: [['s1', 0], ['s2', 0.1], ['ult', 0.5], ['s1', 4.2]] },
-  tho: { d: 8, seq: [['s1', 0], ['ult', 0.3]] },
+  tho: { d: 9, seq: [['s2', 0], ['s1', 0.6], ['ult', 1.2]] },   // Iron Man (K11): missiles, the particle shell into them (stun), then the ray
   thancong: { d: 10, seq: [['s1', 0, true], ['s2', 0.9], ['ult', 0.9]], fireAt: 0.9 },
   mangxa: { d: 6, seq: [['s1', 0], ['ult', 0.5]] },
   kimquy: { d: 6, seq: [] },

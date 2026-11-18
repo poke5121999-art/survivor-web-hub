@@ -1,5 +1,5 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
-import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
+import { runK11Cases } from './k11-cases.mjs';   // kit lane K11: section 62; registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { execFileSync } from 'node:child_process';
 import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed, skillReady, LOC_KINDS, locked } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
@@ -644,6 +644,8 @@ const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixe
   check('15e no mech is useless or runaway: K/D 0.25 .. 4 for every non-medic; each medic heals over 800 per match and wins 20 .. 80% of its matches', MECH_ORDER.every((k) => MECHS[k].roleKey === 'medic' ? by[k].h / by[k].n > 800 && winOf(k) >= 0.2 && winOf(k) <= 0.8 : kdOf(k) > 0.25 && kdOf(k) < 4), MECH_ORDER.map((k) => MECHS[k].roleKey === 'medic' ? `${k} heal ${(by[k].h / by[k].n).toFixed(0)} win ${(100 * winOf(k)).toFixed(0)}%` : `${k} ${kdOf(k).toFixed(2)}`).join(' '));
   const casts = {};
   for (const r of bal) for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
+  // kit lane K11: the turret, minefield and pull zone (usung, baimin, hotu) live on in the fixture 'oldtho' (tho is Iron Man now): two more mixed matches with it
+  for (const seed of [161, 162]) { const r = runMatch(seed, ['normal', 'normal'], { comps: [['oldtho', 'dummy', 'soi', 'hac', 'bang'], ['oldtho', 'ung', 'loi', 'bocap', 'dummy']] }); for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k]; }
   const need = { turret: 'usung', wall: 'thuymac', recoil: 'nhaolon', minefield: 'baimin', 'nova repeat': 'thonphe', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'huc', transform: 'onhiem' };   // kit lane K10: Bọ Cạp's stealth buff and dash left with her old kit; kit lane K6: Sơn Tinh's Vách Đá left with his, Thủy Tinh's Thủy Mạc is the wall now; kit lane k16: Lôi Công's recoil, line barrage and smoke left with his old kit (OLD_LOI covers them in section 5b), Kirito's back-flip is the recoil now
   console.log('bot skill casts over the balance matches: ' + Object.values(need).map((id) => `${id} ${casts[id] || 0}`).join('  '));
   for (const name in need) check(`16 bots use ${name} (${need[name]})`, (casts[need[name]] || 0) >= 1, `casts ${casts[need[name]] || 0}`);
@@ -5132,6 +5134,7 @@ runK13Cases(check, section);
 runK14Cases(check, section);
 // kit lane k15: hades, hoalong, kiemthan ported from the owner's clips (tools/k15-cases.mjs)
 runK15Cases(check, section);
+runK11Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);
