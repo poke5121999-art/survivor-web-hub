@@ -23,8 +23,21 @@ function fingers(cdp) {
 const G = (p, fn, arg) => p.evaluate(fn, arg);
 const rectOf = (p, id) => p.evaluate((id) => { const r = document.querySelector(`#touch [data-id="${id}"]`).getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }, id);
 
-async function begin(br, base, vp, extra = '', mech = 'tho') {
-  const g = await open(br, base, `autostart&noaudio&seed=3&mech=${mech}&q=low${extra}`, { viewport: vp, touch: true });
+// The stick, fire-drag, Q-tap and E-drag sections were written for the old Thợ Rèn: a 0.45 s rivet gun, Q a turret (a zone),
+// E a magnet field at the cursor (12 m). Kit lane K11 (08e7ba08) made tho Iron Man (0.65 s gun, Q a volley, E a missile barrage),
+// so those sections play the test fixture 'oldtho' (tools/k11-cases.mjs). The page gets it the way the node tests do: the fixture
+// rows are appended to js/data.js as the page loads it, so they are in MECHS before netstate.js reads the shot kinds.
+let FIXTURES = null;
+async function fixtureRoute() {
+  if (!FIXTURES) {
+    const k = await import('./k11-cases.mjs');
+    FIXTURES = `\n;MECHS.oldtho = ${JSON.stringify(k.OLD_THO)}; PERKS.oldtho = ${JSON.stringify(k.OLD_THO_PERKS)};\n`;
+  }
+  return { url: /\/js\/data\.js(\?|$)/, fn: async (r) => { const res = await r.fetch(); await r.fulfill({ response: res, body: (await res.text()) + FIXTURES }); } };
+}
+async function begin(br, base, vp, extra = '', mech = 'oldtho') {
+  const route = mech === 'oldtho' ? await fixtureRoute() : null;
+  const g = await open(br, base, `autostart&noaudio&seed=3&mech=${mech}&q=low${extra}`, { viewport: vp, touch: true, route });
   await wait(g.page, 500);
   g.f = fingers(await g.ctx.newCDPSession(g.page));
   return g;
@@ -43,6 +56,8 @@ session(async (br, base) => {
   const vp = { width: 844, height: 390 };
   let g = await begin(br, base, vp);
   let p = g.page;
+  const fx0 = await G(p, () => { const u = __G.match.units[0]; return { mech: u.mech, s1: u.def.skills[0].do, s2: u.def.skills[1].do }; });
+  check(fx0.mech === 'oldtho' && fx0.s1 === 'turret' && fx0.s2 === 'zone', `the touch sections play the fixture oldtho, the old Thợ Rèn (${fx0.mech}: ${fx0.s1}, ${fx0.s2})`);
   await calm(p);
   const me = () => p.evaluate(() => { const u = __G.match.units[0]; return { x: u.x, z: u.z, aim: u.aim, cd: { ...u.cd }, alive: u.alive }; });
   // Shots live well under a second: record every one of mine the moment it appears.

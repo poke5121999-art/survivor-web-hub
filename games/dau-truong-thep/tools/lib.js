@@ -40,6 +40,7 @@ async function open(br, base, query, opts = {}) {
   const ctx = opts.ctx || await br.newContext({ viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: !!opts.touch, isMobile: !!opts.touch });
   if (!opts.ctx) await ctx.addInitScript(() => { try { localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', role: 'member', email: 'smoke@test' })); } catch (e) {} });
   if (opts.init && !opts.ctx) await ctx.addInitScript(opts.init.fn, opts.init.arg);
+  if (opts.route && !opts.ctx) await ctx.route(opts.route.url, opts.route.fn);   // { url, fn }: rewrite a file the page loads (touch-test: the test fixtures in data.js)
   const page = await ctx.newPage();
   const problems = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
