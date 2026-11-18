@@ -163,31 +163,31 @@ export function runK12Cases(check, section) {
     check('62s a stun ends the parry: the shot lands (390, unmarked shooter)', near(CK.hp - a.hp, 390, 1e-6) && a.ckPT === 0, `${CK.hp - a.hp}`);
   }
   {
-    // Cư Hợp Trảm: 311 to the foe on the way, marked; 2 s of +50% speed and fire rate; the next 3 main attacks fan three waves
+    // Cư Hợp Trảm: 260 to the foe on the way, marked; 2 s of +30% speed and fire rate; the next 3 main attacks fan three waves of 100
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true, aim: 0 } }));
     go(m, 8);
-    check('62t Cu Hop Tram: through the foe (x > 6), 311 x armor, marked; haste and fire rate x1.5, three fanned shots armed', a.x > 6 && near(UNG.hp - v.hp, 311 * UF, 1e-6) && v.tags['oni@0'] > 4 && a.hasteF === 1.5 && a.rapidF === 1.5 && a.shotN === 3, `x ${a.x} ${UNG.hp - v.hp} shotN ${a.shotN}`);
+    check('62t Cu Hop Tram: through the foe (x > 6), 260 x armor, marked; haste and fire rate x1.3, three fanned shots armed', a.x > 6 && near(UNG.hp - v.hp, 260 * UF, 1e-6) && v.tags['oni@0'] > 4 && a.hasteF === 1.3 && a.rapidF === 1.3 && a.shotN === 3, `x ${a.x} ${UNG.hp - v.hp} shotN ${a.shotN}`);
     const n0 = m.shots.length;
     go(m, 1, () => ({ 0: { fire: true, aim: Math.PI } }));
-    check('62u ... the next main attack fans three waves', m.shots.filter((s) => s.owner === 0).length - n0 === 3 && a.shotN === 2, `${m.shots.length - n0}`);
+    check('62u ... the next main attack fans three waves of 100', m.shots.filter((s) => s.owner === 0).length - n0 === 3 && m.shots.filter((s) => s.owner === 0).every((s) => near(s.dmg, 100)) && a.shotN === 2, `${m.shots.length - n0}`);
   }
   {
-    // the main attack on a marked foe: heals 75, every cooldown -0.5 s, the mark renewed; a marked foe dying gives Cu Hop Tram back
+    // the main attack on a marked foe: heals 75, every cooldown -0.25 s, the mark renewed; a marked foe dying gives Cu Hop Tram back
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
     v.tags['oni@0'] = 1; a.hp = 1000; a.cd.s1 = 5; a.cd.s2 = 5; a.cd.ult = 5;
     go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
-    check('62v the wave on the marked foe: 150 x armor, heal 75, cooldowns 5 -> 4.5 (less the time gone), mark renewed', near(UNG.hp - v.hp, 150 * UF, 1e-6) && near(a.hp, 1075, 0.01) && a.cd.s1 < 4.5 - 4 * TICK && a.cd.s1 > 4.5 - 10 * TICK && v.tags['oni@0'] > 4.5, `hp ${a.hp} cd ${a.cd.s1} tag ${v.tags['oni@0']}`);
+    check('62v the wave on the marked foe: 150 x armor, heal 75, cooldowns 5 -> 4.75 (less the time gone), mark renewed', near(UNG.hp - v.hp, 150 * UF, 1e-6) && near(a.hp, 1075, 0.01) && a.cd.s1 < 4.75 - 4 * TICK && a.cd.s1 > 4.75 - 10 * TICK && v.tags['oni@0'] > 4.5, `hp ${a.hp} cd ${a.cd.s1} tag ${v.tags['oni@0']}`);
     v.hp = 40; a.cd.s2 = 9; a.cd.fire = 0;
     go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
     check('62w the marked foe dies: Cu Hop Tram is ready at once', !v.alive && a.cd.s2 === 0 && a.cd.ult > 0, `${v.alive} ${a.cd.s2}`);
   }
   {
-    // Tam Thiên Thế Giới: 483 + 5% of the lost hp (true), slowed 50% fading; three uses 1.5 s apart
+    // Tam Thiên Thế Giới: 420 + 5% of the lost hp (true), slowed 50% fading; three uses 1.5 s apart
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
     go(m, 1, () => ({ 0: { ult: true, aim: 0 } }));
     go(m, 12);
-    check('62x Tam Thien The Gioi: 483 x armor x 1.05 (5% of what it took, true), a fading slow, one use of three spent', near(UNG.hp - v.hp, 483 * UF * 1.05, 1e-6) && v.slowG > 0.3 && v.slowG < 0.5 && a.use2 === 1, `${UNG.hp - v.hp} slowG ${v.slowG} use ${a.use2}`);
+    check('62x Tam Thien The Gioi: 420 x armor x 1.05 (5% of what it took, true), a fading slow, one use of three spent', near(UNG.hp - v.hp, 420 * UF * 1.05, 1e-6) && v.slowG > 0.3 && v.slowG < 0.5 && a.use2 === 1, `${UNG.hp - v.hp} slowG ${v.slowG} use ${a.use2}`);
     go(m, 2, (i) => ({ 0: { ult: i === 1, aim: 0 } }));
     check('62y ... the second use waits for the 1.5 s gap', a.use2 === 1);
     go(m, 35); go(m, 2, (i) => ({ 0: { ult: i === 1, aim: 0 } }));

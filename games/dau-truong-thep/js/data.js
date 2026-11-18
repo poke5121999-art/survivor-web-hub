@@ -741,26 +741,28 @@ export const MECHS = {
   // Đao wave (150, was three of 66; every 0.5 s): the parry wave 150% -> 225, Cư Hợp Trảm 207% -> 311, Tam Thiên Thế Giới 322% -> 483 + 5%
   // of the lost hp, the marked-hit heal 50% -> 75 (2.83% of max hp). Cooldowns 10 / 10 / 10 s in the clip -> 12 / 12 / 18 (the ult keeps
   // its 3 charges, 1.5 s apart). No MP. Not ported: Tam Thiên Thế Giới blocked during the parry. G5 (sim.js "kit-remake G5 cakiem"):
-  // the parry window, the marked foe's damage cut, the Cư Hợp Trảm reset when a marked foe dies.
+  // the parry window, the marked foe's damage cut, the Cư Hợp Trảm reset when a marked foe dies. Balance (sim-test 15e: the clip's numbers
+  // made him K/D 6): one wave per attack, not piercing; the marked-hit cut 0.25 s (clip 0.5); Cư Hợp Trảm 260 (clip 311), 14 s, +30% speed
+  // and fire rate, the scattered waves 100 each; parry waves at most one per 0.3 s; Tam Thiên Thế Giới 420 (clip 483), recharging in 28 s.
   cakiem: {
     name: 'Zoro', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0x2e6b4f,
     blurb: 'Chiêu nào trúng cũng khắc dấu Quỷ Trảm: kẻ mang dấu đánh bạn yếu đi, chém thường vào nó là hồi máu và giảm hồi chiêu. Tay không đỡ đạn bắn trả sóng kiếm, cư hợp trảm xuyên qua địch, ba lần Tam Thiên Thế Giới.',
     hp: 2650, speed: 6.4, radius: 0.86,
     armor: 0.08, accel: 1.2, turn: 13, towerMul: 1.3,
     passive: { do: 'trait', name: 'Quỷ Trảm', ckKey: 'oni', ckDr: 0.25, ckReset: 's2',
-      desc: 'Chiêu trúng địch khắc dấu Quỷ Trảm 5 giây. Kẻ mang dấu gây ít hơn 25% sát thương lên bạn; nó chết thì Cư Hợp Trảm hồi chiêu ngay. Chém thường trúng kẻ mang dấu thì làm mới dấu, hồi 75 máu và mọi hồi chiêu giảm 0,5 giây.' },
-    weapon: { name: 'Tam Đao', cd: 0.5, dmg: 150, speed: 28, range: 7.5, r: 0.4, pierce: true, vis: 'wave', look: 'ckBlade',
-      vsTag: { key: 'oni', healMax: 0.0283, cdCut: { slot: 'all', cut: 0.5 }, fx: { tag: { key: 'oni', dur: 5 } } } },
+      desc: 'Chiêu trúng địch khắc dấu Quỷ Trảm 5 giây. Kẻ mang dấu gây ít hơn 25% sát thương lên bạn; nó chết thì Cư Hợp Trảm hồi chiêu ngay. Chém thường trúng kẻ mang dấu thì làm mới dấu, hồi 75 máu và mọi hồi chiêu giảm 0,25 giây.' },
+    weapon: { name: 'Tam Đao', cd: 0.5, dmg: 150, speed: 28, range: 7.5, r: 0.4, vis: 'wave', look: 'ckBlade',
+      vsTag: { key: 'oni', healMax: 0.0283, cdCut: { slot: 'all', cut: 0.25 }, fx: { tag: { key: 'oni', dur: 5 } } } },
     skills: [
       { id: 'khongthu', look: 'ckParry', name: 'Không Thủ Bạch Nhận', cd: 12, do: 'buff', dur: 2, towerMul: 0,
-        ckParry: { dmg: 225, speed: 32, range: 11, r: 0.55, pierce: true, vis: 'wave', icd: 0.15, fx: { tag: { key: 'oni', dur: 5 } } }, icon: 'shield',
-        desc: 'Trong 2 giây đỡ mọi viên đạn bắn tới (không mất máu); mỗi viên đỡ được bắn trả một sóng kiếm theo hướng ngắm, xuyên qua địch, 225 sát thương. Bị khống chế thì ngừng đỡ. Sóng kiếm không phá công trình.' },
-      { id: 'cuhop', look: 'ckIai', name: 'Cư Hợp Trảm', cd: 12, do: 'dash', dist: 8, speed: 60, dmg: 311, fx: { tag: { key: 'oni', dur: 5 } },
-        self: { on: 'cast', dur: 2, haste: 1.5, rapid: 1.5, shots: 3, shotsFor: 4, patch: { n: 3, fan: 0.22 } }, icon: 'dash',
-        desc: 'Lướt tức thì 8 m theo hướng ngắm, chém mọi kẻ địch trên đường 311 sát thương. Ba lần chém thường kế tiếp tỏa ba sóng, và 2 giây chạy, chém nhanh hơn 50%.' },
-      { id: 'tamthien', look: 'ckWorld', name: 'Tam Thiên Thế Giới', cd: 18, uses: { n: 3, gap: 1.5 }, do: 'volley', n: 1, dmg: 483, speed: 30, range: 14, r: 0.6, pierce: true, vis: 'wave', towerMul: 0.5,
+        ckParry: { dmg: 225, speed: 32, range: 11, r: 0.55, pierce: true, vis: 'wave', icd: 0.3, fx: { tag: { key: 'oni', dur: 5 } } }, icon: 'shield',
+        desc: 'Trong 2 giây đỡ mọi viên đạn bắn tới (không mất máu); mỗi viên đỡ được bắn trả một sóng kiếm theo hướng ngắm (nhiều nhất một sóng mỗi 0,3 giây), xuyên qua địch, 225 sát thương. Bị khống chế thì ngừng đỡ. Sóng kiếm không phá công trình.' },
+      { id: 'cuhop', look: 'ckIai', name: 'Cư Hợp Trảm', cd: 14, do: 'dash', dist: 8, speed: 60, dmg: 260, fx: { tag: { key: 'oni', dur: 5 } },
+        self: { on: 'cast', dur: 2, haste: 1.3, rapid: 1.3, shots: 3, shotsFor: 4, patch: { n: 3, fan: 0.22, dmg: 100 } }, icon: 'dash',
+        desc: 'Lướt tức thì 8 m theo hướng ngắm, chém mọi kẻ địch trên đường 260 sát thương. Ba lần chém thường kế tiếp tỏa ba sóng, mỗi sóng 100, và 2 giây chạy, chém nhanh hơn 30%.' },
+      { id: 'tamthien', look: 'ckWorld', name: 'Tam Thiên Thế Giới', cd: 28, uses: { n: 3, gap: 1.5 }, do: 'volley', n: 1, dmg: 420, speed: 30, range: 14, r: 0.6, pierce: true, vis: 'wave', towerMul: 0.5,
         fx: { lostHp: 0.05, slow: 0.5, slowDur: 2, slowDecay: true, tag: { key: 'oni', dur: 5 } }, icon: 'pierce',
-        desc: 'Chém một sóng kiếm theo hướng ngắm, xuyên qua mọi kẻ địch: 483 sát thương cộng 5% máu đã mất (sát thương chuẩn), chậm 50% nhạt dần trong 2 giây. Giữ được 3 lần dùng, cách nhau 1,5 giây. Công trình chịu một nửa.' },
+        desc: 'Chém một sóng kiếm theo hướng ngắm, xuyên qua mọi kẻ địch: 420 sát thương cộng 5% máu đã mất (sát thương chuẩn), chậm 50% nhạt dần trong 2 giây. Giữ được 3 lần dùng, cách nhau 1,5 giây. Công trình chịu một nửa.' },
     ],
   },
   // Gilgamesh: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p74 "71.英雄王", tooltips at 0-5.5 s, audit AUDIT-b.md).
