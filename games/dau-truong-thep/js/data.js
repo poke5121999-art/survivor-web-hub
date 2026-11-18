@@ -681,21 +681,31 @@ export const MECHS = {
         desc: 'Tám tia sét giáng xuống kẻ địch quanh con trỏ (ưu tiên kẻ vừa dính roi điện, dư thì rải ngẫu nhiên), mỗi tia 330 sát thương và nhảy sang 2 địch gần đó.' },
     ],
   },
+  // Saitama: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p77 "74.琦玉", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
+  // Attack = one Đấm Thẳng blow (150, unchanged). Cooldowns 8 / 6 / 15 s in the clip -> 10 / 8 / 30. MP dropped.
+  // Passive Nhận Chân (认真): a meter of 10 stacks, +1 per enemy hit and +1 per 5% of max hp lost, each +5% damage; full = Serious
+  // Mode for 3 s (heals 10% of the lost hp per s, guard 0.5, cc immune, ignores 50% armour), then the stacks clear.
+  // Q 认真掀桌 175% -> 263 in a fan, yank to the cursor point, slow 75% decaying over 2 s. E 认真头槌 225% -> 338 + stun 1 (the ground
+  // dash is a low wound-up leap). Ult 认真殴打 316% -> 474, x2 at a full 3 s charge (moclan's charge pattern), a fan that knocks back;
+  // a mech slammed into a wall loses 50% of its lost hp more (true) and is stunned 1 s; guard 0.5 + cc immune while charging; no
+  // tower damage. Kit-remake G5 fields (sim.js block "kit-remake G5 Saitama"): meter hurtPer / perStack / spend 'mode', beam fan, slam lostHp.
   tegiac: {
     name: 'Saitama', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0xe8e2d0,
-    blurb: 'Càng đánh càng bị đánh càng nóng; đầy thì chiêu kế tiếp nặng thêm 60%, máu thấp nóng nhanh gấp đôi. Đấm liên hoàn, nhảy dậm, rồi một cú đấm nghiêm túc.',
+    blurb: 'Đánh trúng hay bị đánh đều thêm một nấc Nghiêm Túc; đủ mười nấc là vào Chế Độ Nghiêm Túc 3 giây. Lật bàn kéo địch về một chỗ, húc đầu làm choáng, rồi một cú đấm nghiêm túc tích lực.',
     hp: 3000, speed: 6.0, radius: 0.92,
     armor: 0.1, accel: 1.1, turn: 12, towerMul: 1.5,
-    passive: { do: 'meter', name: 'Nổi Nóng', desc: 'Mỗi đòn trúng nạp 4 điểm, mỗi 1 máu mất nạp 0,03 điểm; đủ 100 thì chiêu gây sát thương kế tiếp mạnh thêm 60%. Dưới 40% máu nạp nhanh gấp đôi.',
-      max: 100, gain: { hit: 4, hurt: 0.03 }, spend: { kind: 'skill', mul: 1.6 }, mods: { lowHp: { below: 0.4, gain: 2 } } },
+    passive: { do: 'meter', name: 'Nhận Chân', look: 'smMode', desc: 'Mỗi đòn trúng địch, và mỗi 5% máu tối đa bị mất, thêm một nấc Nghiêm Túc (tối đa 10), mỗi nấc tăng 5% sát thương. Đủ 10 nấc thì vào Chế Độ Nghiêm Túc 3 giây: mỗi giây hồi 10% máu đã mất, giảm 50% sát thương nhận, miễn khống chế, bỏ qua 50% giáp địch; hết chế độ thì mất hết nấc.',
+      max: 10, gain: { hit: 1, hurt: 1 }, hurtPer: 0.05, perStack: 0.05, spend: { kind: 'mode', dur: 3, regenLost: 0.1, guard: 0.5, pen: 0.5 } },
     weapon: { name: 'Đấm Thẳng', cd: 0.6, dmg: 150, speed: 28, range: 6, r: 0.45, knock: 1, vis: 'slug' },
     skills: [
-      { id: 'damlienhoan', look: 'tgCombo', name: 'Đấm Liên Hoàn', cd: 7, do: 'dash', dist: 5, speed: 34, dmg: 380, knock: 3, stop: true, icon: 'dash',
-        desc: 'Lao tới và dừng ngay ở kẻ địch đầu tiên, giáng 380 sát thương và hất văng.' },
-      { id: 'nhaydam', look: 'tgStomp', name: 'Nhảy Dậm', cd: 11, do: 'leap', cast: 9, flight: 0.5, radius: 3.5, dmg: 280, knock: 3, stun: 0.4, icon: 'leap',
-        desc: 'Nhảy tới con trỏ (xa nhất 9 m), đáp xuống gây 280 sát thương, choáng 0,4 giây và hất văng.' },
-      { id: 'cudamnghiemtuc', look: 'tgSerious', name: 'Cú Đấm Nghiêm Túc', cd: 50, do: 'beam', windup: 0.6, range: 18, width: 2.0, dmg: 1600, icon: 'beam',
-        desc: 'Lấy đà 0,6 giây rồi tung cú đấm tạo luồng chấn động rộng 2 m dài 18 m, 1600 sát thương.' },
+      { id: 'hientrac', look: 'smFlip', name: 'Nhận Chân Hiên Trác', cd: 10, do: 'nova', windup: 0.35, move: 0.2, radius: 6.5, arc: 0.6, dmg: 263,
+        fx: { yank: { dist: 4, to: 'point' }, slow: 0.75, slowDur: 2, slowDecay: true }, icon: 'quake',
+        desc: 'Lấy đà 0,35 giây rồi lật nứt mặt đất hình quạt trước mặt (6,5 m): 263 sát thương, kéo kẻ trúng về phía con trỏ (tối đa 4 m) và làm chậm 75%, giảm dần về 0 trong 2 giây.' },
+      { id: 'dauchuy', look: 'smHead', name: 'Nhận Chân Đầu Chùy', cd: 8, do: 'leap', windup: 0.3, move: 0, cast: 8, flight: 0.3, radius: 2.8, dmg: 338, stun: 1, icon: 'leap',
+        desc: 'Gồng 0,3 giây rồi húc thẳng tới con trỏ (xa nhất 8 m): địch quanh chỗ tới (2,8 m) chịu 338 sát thương và choáng 1 giây.' },
+      { id: 'auda', look: 'smPunch', name: 'Nhận Chân Ẩu Đả', cd: 30, do: 'beam', move: 0, guard: 0.5, fan: [0.45, 0.6], knock: 3, fx: { slam: { dmg: 0, stun: 1, lostHp: 0.5 } }, towerMul: 0,
+        charge: { min: 0.3, max: 3, dmg: [474, 948], range: [7, 12], width: [6, 12] }, icon: 'beam',
+        desc: 'Đứng tích lực tối đa 3 giây (giảm 50% sát thương nhận, miễn khống chế; bấm lần nữa để tung sớm) rồi đấm ra luồng chấn động hình quạt: 474 tới 948 sát thương và dài 7 tới 12 m theo thời gian tích, hất văng kẻ trúng; kẻ bị hất đập vào tường mất thêm 50% máu đã mất và choáng 1 giây. Không gây sát thương công trình.' },
     ],
   },
   quaset: {
@@ -1106,7 +1116,7 @@ export const PERKS = {
   laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Xoáy Mạnh', 'Xoáy Nước rộng 6 m, làm chậm 50%, đồng đội nhanh thêm 40%.', 1, { radius: 6, slow: 0.5, haste: 1.4 }), perk('Giá Lâm Xa', 'Long Quân Giá Lâm lao xa 18 m, gây 480.', 2, { dist: 18, dmg: 480 })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
-  tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 190.', 'weapon', { dmg: 190 }), perk('Dậm Mạnh', 'Nhảy Dậm rộng 4,2 m, gây 340, choáng 0,7 giây.', 1, { radius: 4.2, dmg: 340, stun: 0.7 }), perk('Chấn Động Rộng', 'Cú Đấm Nghiêm Túc rộng 2,6 m, gây 2000.', 2, { width: 2.6, dmg: 2000 })],
+  tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 175.', 'weapon', { dmg: 175 }), perk('Húc Mạnh', 'Nhận Chân Đầu Chùy rộng 3,4 m, gây 400.', 1, { radius: 3.4, dmg: 400 }), perk('Quạt Rộng', 'Nhận Chân Ẩu Đả mở quạt rộng hơn, dài tới 14 m.', 2, { fan: [0.55, 0.7], charge: { min: 0.3, max: 3, dmg: [474, 948], range: [8, 14], width: [7, 14] } })],
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],
   tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],
   dieuthuyen: [perk('Băng Sâu', 'Băng Lưu gây 280 và làm chậm 2,2 giây.', 0, { dmg: 280, slowDur: 2.2 }), perk('Liên Băng Dài', 'Băng Liên rộng 3,6 m, choáng 1,4 giây.', 1, { blast: 3.6, fx: { stun: 1.4 } }), perk('Bão Dày', 'Phong Tuyết kéo dài 6,5 giây, thiêu 190 mỗi giây.', 2, { dur: 6.5, dps: 190 })],

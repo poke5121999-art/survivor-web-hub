@@ -15,7 +15,7 @@ import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from '.
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 // Everything a unit's own damage is multiplied by: the garage track, a power pick-up, a transform (skill.dmg).
-const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1) * u.skillAmp * (u.hkF > 0 ? 1 + u.hkF : 1);
+const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1) * u.skillAmp * (u.hkF > 0 ? 1 + u.hkF : 1) * k7Dmg(u);
 // Where the damage being dealt right now comes from ('w' = the main weapon, else a skill id); meter reads it (weapon, distinct).
 let curSrc = null;
 // The unscaled amount of the last damage() call (0 when it hurt nobody): what hitfx chain passes on.
@@ -124,6 +124,7 @@ function clearStatus(u) {
   k4Clear(u);   // kit-remake K4
   krClear(u);   // kit-remake G5 Kurumi
   adClear(u);   // kit-remake G5 An Dương Vương
+  k7Clear(u);   // kit-remake G5 lane K7 (Saitama, Thủy Tinh, Ưng Nhãn)
 }
 
 function spawn(m, u, first) {
@@ -270,6 +271,7 @@ export const meterArmed = (u) => u.passive === 'meter' && u.meter >= u.def.passi
 function meterAdd(m, u, key, amount) {
   const P = u.def.passive, g = P.gain[key];
   if (!g || !(amount > 0) || u.meter >= P.max) return;
+  if (key === 'hurt' && P.hurtPer) amount /= P.hurtPer * u.maxHp;   // kit-remake G5 Saitama: one stack per hurtPer of max hp lost
   const low = lowHpMod(u);
   u.meter = Math.min(P.max, u.meter + g * amount * (low && low.gain ? low.gain : 1));
   if (u.meter > P.max - 1e-6) u.meter = P.max;
@@ -283,7 +285,7 @@ function meterAdd(m, u, key, amount) {
     meterSpent(m, u);
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: S.radius });
     areaDamage(m, u, u.x, u.z, S.radius, S.dmg, S, null);
-  }
+  } else if (S.kind === 'mode') k7Mode(m, u, S);   // kit-remake G5 Saitama: Serious Mode
 }
 function meterSpent(m, u) {
   u.meter = 0;
@@ -479,6 +481,7 @@ function stepUnit(m, u, inp) {
   g2Tick(m, u);   // kit-remake G2: tags, saves, onHurt cc, energy, slowG, slowFire timers
   k2Tick(m, u);   // kit-remake G5 Athena: the heal when a bless.undying ends
   krTick(m, u);   // kit-remake G5 Kurumi: a rewind mark snaps hp back when it ends
+  k7Tick(m, u);   // kit-remake G5 lane K7: Serious Mode
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -1750,6 +1753,7 @@ const FINISH = {
   },
   // charge: the beam grows with the time held, from [0] at no charge to [1] when full (dmg, range, width)
   beam(m, u, s, c) {
+    if (s.fan) return k7Fan(m, u, s, c);   // kit-remake G5 Saitama: a charged fan instead of a line
     let row = s;
     if (s.charge) {
       const C = s.charge, f = Math.min(1, Math.max(0, (c.total - Math.max(0, c.t)) / c.total)), L = (p) => p[0] + (p[1] - p[0]) * f;
@@ -2310,7 +2314,7 @@ function damage(m, u, amount, src, raw) {
   if (vt && vt.mul) amount *= vt.mul;
   const preArmor = amount;
   // trueHit (hitfx lostHp, curHp, trueDmg): neither armour nor guard cuts it
-  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u) * (1 - penOf(foe));
+  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u) * (1 - Math.min(1, penOf(foe) + k7Pen(foe)));
   // guard (skill row or stacks self): a cut on top of armour, outside its cap
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   // kit-remake G2 guard vs: a cut of one kind of enemy damage only
@@ -2619,7 +2623,7 @@ function magShot(m, u, w) {
 const farRamp = (R, d) => Math.min(R.max ?? Infinity, 1 + (R.per || 0) * d);
 // hitfx yank, slam and antiheal.shield
 function g4Fx(m, src, o, fx, ctx) {
-  if (fx.slam && !o.def.heavy) { o.slamT = fx.slam.win ?? 0.6; o.slamBy = src.id; o.slamDmg = fx.slam.dmg || 0; o.slamStun = fx.slam.stun || 0; }
+  if (fx.slam && !o.def.heavy) { o.slamT = fx.slam.win ?? 0.6; o.slamBy = src.id; o.slamDmg = fx.slam.dmg || 0; o.slamStun = fx.slam.stun || 0; o.stmLost = fx.slam.lostHp || 0; }   // stmLost: kit-remake G5 Saitama
   if (fx.antiheal && fx.antiheal.shield) o.ahSh = o.ahSh < 1 ? Math.min(o.ahSh, fx.antiheal.mul) : fx.antiheal.mul;
   if (fx.yank) yank(m, src, o, fx.yank, ctx);
 }
@@ -2664,6 +2668,7 @@ function slamCheck(m, u) {
     damage(m, o, dmg, by);
     if (o.alive && stun && !(o.ccT > 0) && !o.def.heavy) o.stunT = Math.max(o.stunT, stun);
   }
+  if (u.stmLost) k7SlamLost(m, u, by);   // kit-remake G5 Saitama: + a share of the lost hp
   curSrc = keep;
 }
 // hitfx chain.seq {falloff}: the chain runs one after another, each jump from the last mech hit to the nearest one not yet hit
@@ -3268,3 +3273,58 @@ function bgLast(u, s) {
   d.s = { ...d.s, dmg: L.dmg ?? d.s.dmg, knock: L.knock || 0, fx: L.fx || d.s.fx };
 }
 /* ===== end kit-remake G5 Black Panther ===== */
+
+/* ===== kit lane K7 (feat/dtt-k7): one-line hooks in shared paths call these; each tank's G5 work is its own block below ===== */
+function k7Clear(u) { smClear(u); }
+function k7Tick(m, u) { smTick(m, u); }
+/* ===== end kit lane K7 hooks ===== */
+
+/* ===== kit-remake G5 Saitama (kit lane K7; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-c.md tegiac) =====
+   meter `hurtPer: f`: the meter's 'hurt' gain counts one per f of max hp lost (instead of per hp point; hook in meterAdd).
+   meter `perStack: f`: each point of the meter adds f to the mech's damage factor (dmgScale; the meter is synced, so the guest agrees).
+   meter spend `{kind: 'mode', dur, regenLost, guard, pen}`: a full meter starts Serious Mode for dur s (stmT, in netstate STATUS):
+     every second heals regenLost of the lost hp, takes guard less of every blow, is cc immune (ccT) and ignores pen of the target's
+     armour; the meter stays full while it runs and is spent (0) when it ends. Events {t: 'k7', kind: 'serious', id, on: 1|0}.
+   beam `fan: [half0, half1]` with `charge`: the release is a sector of the circle round the caster, half-angle and radius (charge.range)
+     growing with the time held, like the charged line; the row's knock and fx ride areaDamage (nova event with skill, a, arc, f).
+   hitfx `slam.lostHp: f`: a slammed mech also takes f of its lost hp as true damage from the thrower (stmLost, set with the slam). */
+function smClear(u) { u.stmT = 0; u.stmLost = 0; }
+const smSpend = (u) => (u.passive === 'meter' && u.def.passive.spend.kind === 'mode' ? u.def.passive.spend : null);
+function k7Dmg(u) {
+  const P = u.passive === 'meter' ? u.def.passive : null;
+  return P && P.perStack ? 1 + P.perStack * u.meter : 1;
+}
+function k7Pen(foe) { const S = foe && foe.stmT > 0 ? smSpend(foe) : null; return S ? S.pen || 0 : 0; }
+function k7Mode(m, u, S) {
+  u.stmT = S.dur;
+  if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, S.dur); }
+  u.ccT = Math.max(u.ccT, S.dur);
+  m.events.push({ t: 'k7', kind: 'serious', id: u.id, on: 1, dur: S.dur, x: u.x, z: u.z });
+}
+function smTick(m, u) {
+  if (!(u.stmT > 0)) return;
+  const S = smSpend(u);
+  if (S && S.regenLost) heal(m, u, (u.maxHp - u.hp) * S.regenLost * TICK, u, true);
+  u.stmT = Math.max(0, u.stmT - TICK);
+  if (u.stmT > 0) return;
+  if (S) meterSpent(m, u);
+  m.events.push({ t: 'k7', kind: 'serious', id: u.id, on: 0, x: u.x, z: u.z });
+}
+function k7Fan(m, u, s, c) {
+  const C = s.charge, f = Math.min(1, Math.max(0, (c.total - Math.max(0, c.t)) / c.total)), L = (p) => p[0] + (p[1] - p[0]) * f;
+  const r = L(C.range), half = L(s.fan), a = c.aim;
+  m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r, skill: s.id, a, arc: half, f });
+  curSrc = s.id;
+  areaDamage(m, u, u.x, u.z, r, L(C.dmg) * (c.mul || 1), s, null, { a, half });
+  curSrc = null;
+}
+function k7SlamLost(m, u, by) {
+  const f = u.stmLost;
+  u.stmLost = 0;
+  if (!u.alive || !by || u.def.boss) return;
+  const amt = (u.maxHp - u.hp) * f;
+  if (amt <= 0) return;
+  const keep = curSrc;
+  curSrc = null; trueHit = true; damage(m, u, amt, by); curSrc = keep;
+}
+/* ===== end kit-remake G5 Saitama ===== */

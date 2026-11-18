@@ -8,6 +8,7 @@ import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
 import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-cases.mjs';   // kit lane k9: section K9
+import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3157,18 +3158,24 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     const ev2 = go(m, 90);
     check('42u ... the strikes hit (330 on the first two) and each chains on: a chain event is emitted', e1.hp < e1.maxHp - 300 && e2.hp < e2.maxHp - 300 && only(ev2, 'chain').length >= 1, `${e1.hp} ${e2.hp}`);
   }
-  // spend 'skill' + gain 'hit' + mods.lowHp.gain (tegiac)
+  // spend 'skill' + gain 'hit' + mods.lowHp.gain: the batch-3 Tê Giác passive and dash are a fixture now (tegiac plays Saitama,
+  // ported from clip p77, section K7); these rows keep the primitives covered
+  const OLD_TEGIAC = {
+    passive: { do: 'meter', max: 100, gain: { hit: 4, hurt: 0.03 }, spend: { kind: 'skill', mul: 1.6 }, mods: { lowHp: { below: 0.4, gain: 2 } } },
+    s1: { id: 'damlienhoan', cd: 7, do: 'dash', dist: 5, speed: 34, dmg: 380, knock: 3, stop: true },
+  };
+  const oldTegiac = (m) => { for (const u of m.units) if (u.mech === 'tegiac') u.def = { ...u.def, passive: OLD_TEGIAC.passive, skills: [OLD_TEGIAC.s1, ...u.def.skills.slice(1)] }; return m; };
   {
-    const m = arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    const m = oldTegiac(arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]])), [a, v] = m.units;
     a.meter = 100;
     go(m, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } }));
     go(m, 12);
     check('42v armed meter + a damaging skill: Dam Lien Hoan hits for 380 x 1.6 = 608, then the hit itself feeds the meter by 4', near(UNG.hp - v.hp, 608 * UNG_F, 1e-6) && a.meter === 4 && a.skillAmp === 1, `${UNG.hp - v.hp} meter ${a.meter} amp ${a.skillAmp}`);
-    const w = arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]]), b = w.units[0];
+    const w = oldTegiac(arena([[R('tegiac', 0), 0, 0], [R('ung', 1), 4, 0]])), b = w.units[0];
     b.hp = 1000;
     go(w, 12, (i) => ({ 0: { fire: i === 0, tx: 4, tz: 0 } }));
     check('42w below 40% hp the gain doubles: a hit feeds 4 x 2 = 8', b.meter === 8, `meter ${b.meter}`);
-    const u = arena([[R('tegiac', 0), 0, 0], [R('trau', 1), 4, 0]]), c = u.units[0];
+    const u = oldTegiac(arena([[R('tegiac', 0), 0, 0], [R('trau', 1), 4, 0]])), c = u.units[0];
     go(u, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } })); go(u, 12);
     check('42x without an armed meter the skill is plain 380 x (1 - trau armor)', near(MECHS.trau.hp - u.units[1].hp, 380 * (1 - MECHS.trau.armor), 1e-6), `${MECHS.trau.hp - u.units[1].hp}`);
   }
@@ -4427,6 +4434,7 @@ section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.sav
 runK1Cases(check, section);
 runK8Cases(check, section);   // kit lane k8
 runK9Cases(check, section);
+runK7Cases(check, section);
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

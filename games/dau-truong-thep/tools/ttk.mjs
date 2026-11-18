@@ -62,7 +62,7 @@ const SEQ = {
   laclong: { d: 6, seq: [['ult', 0], ['s1', 0.5], ['s2', 0.8]] },
   baogam: { d: 5, seq: [['s2', 0], ['s1', 0.5], ['ult', 1.2]] },
   luondien: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
-  tegiac: { d: 5, seq: [['s1', 0], ['s2', 0.5], ['ult', 0.9]] },
+  tegiac: { d: 5, seq: [['s2', 0], ['s1', 0.7], ['ult', 1.3]] },   // the ult is held: it goes off by itself at a full 3 s charge
   quaset: { d: 7, seq: [['ult', 0], ['s1', 0.3], ['s2', 0.8]] },
   tumay: { d: 6, seq: [['s2', 0], ['s1', 0.7], ['ult', 1.2]] },
   dieuthuyen: { d: 8, seq: [['s2', 0], ['s1', 0.6], ['ult', 1.0]] },

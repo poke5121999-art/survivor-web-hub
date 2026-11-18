@@ -1,9 +1,8 @@
-// Looks, batch 5: Quạ Sét, Tê Giác, Ngưu Ma Vương, Báo Gấm, Lôi Công, Mãng Xà. Render only (see looks.js for the hooks).
+// Looks, batch 5: Quạ Sét, Ngưu Ma Vương, Báo Gấm, Lôi Công, Mãng Xà. Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   佐助 p75 (Quạ Sét): a cyan-white Chidori streak, a violet flame Susanoo round the mech, cyan lances.
-//   琦玉 p77 (Tê Giác): orange fire punches, a blue shock sphere throwing orange rock shards, an orange landing ring with
-//     crosshairs, a long orange punch beam.
+//   琦玉 p77 (Saitama, tegiac): its looks moved to looks-k7.js with the kit ported from the clip (kit lane K7).
 //   牛魔王 p85 (Ngưu Ma Vương): lime-green swirling arcs and rings round the bull; ours keeps the bull's dark red hide.
 //   黑豹 p89 (Báo Gấm): three white claw slashes, a dark ink swirl of kinetic rings.
 //   雷神 p28 (Lôi Công): the golden hammer wrapped in lightning, an orange blast disc with cracks and a blue rim.
@@ -157,101 +156,8 @@ const quaset = {
   },
 };
 
-// ---- Tê Giác: fists, orange fire, a blue shock sphere and rock shards ----------------------------------------------------
-const TG_ORG = C(2.6, 1.1, 0.15), TG_YEL = C(2.6, 2.1, 0.5), TG_BLUE = C(0.4, 1.2, 2.6);
-const fistGeos = [new THREE.BoxGeometry(0.75, 0.7, 0.8), new THREE.CylinderGeometry(0.4, 0.44, 0.45, 8).rotateZ(Math.PI / 2).translate(-0.55, 0, 0), new THREE.BoxGeometry(0.42, 0.24, 0.2).translate(0.15, -0.36, 0.34)];
-for (let i = 0; i < 4; i++) fistGeos.push(new THREE.BoxGeometry(0.32, 0.5, 0.18).translate(0.48, 0.04, -0.28 + i * 0.19));
-fistGeos.forEach(keep);
-const fistHalo = keep(new THREE.SphereGeometry(0.8, 14, 10).scale(1.25, 0.9, 1));
-function fist(c, glow) { const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, metalness: 0.1, emissive: 0x401008, transparent: true, opacity: 1 }), h = basic(glow.clone().multiplyScalar(0.35), true, 0.5); const s = new THREE.Mesh(fistHalo, h); s.position.x = 0.1; s.scale.setScalar(0.8); g.add(s); for (const p of fistGeos) g.add(new THREE.Mesh(p, m)); g.children.forEach((q, i) => { q.renderOrder = i ? 9 : 6; }); return g; }
+// fade every material in a group to k of its own opacity (used by the looks below)
 function fadeAll(g, k) { g.traverse((m) => { if (m.material) { if (m.userData.op === undefined) m.userData.op = m.material.opacity; m.material.opacity = m.userData.op * k; } }); }
-const shardGeo = keep(new THREE.TetrahedronGeometry(0.5));
-function shards(kit, x, z, n, r, c, life) {
-  for (let i = 0; i < n; i++) {
-    const m = new THREE.Mesh(shardGeo, basic(c, false, 1)), b = Math.random() * 6.283, sp = R(5, 10), vy = R(4, 9), s = R(0.6, 1.4), d0 = r * 0.3, rx = R(-9, 9), rz = R(-9, 9);
-    m.scale.setScalar(s);
-    own(kit, [m], life, (t) => { const d = d0 + sp * t; m.position.set(x + Math.cos(b) * d, Math.max(0.2, 0.5 + vy * t - 12 * t * t), z + Math.sin(b) * d); m.rotation.set(rx * t, 0, rz * t); m.material.opacity = Math.min(1, (life - t) / 0.2); });
-  }
-}
-const tegiac = {
-  // Đấm Liên Hoàn: a storm of fists punches out ahead of him while he runs, the last one huge where he stops
-  tgCombo: {
-    pal: [TG_ORG, TG_YEL], hitR: 2,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a);
-      let acc = 0, done = false;
-      kit.anims.push({ t: 0, step(dt) {
-        this.t += dt; acc += dt;
-        if (acc > 0.035 && u.alive) {
-          acc = 0; const f = fist(0xd02010, TG_ORG), off = R(-1.6, 1.6), y = R(0.7, 1.9), x0 = u.x + ca * 1.4 - sa * off, z0 = u.z + sa * 1.4 + ca * off;
-          f.rotation.y = -a;
-          own(kit, [f], 0.2, (t) => { f.position.set(x0 + ca * 14 * t, y, z0 + sa * 14 * t); f.scale.setScalar(1.7 + 2.5 * t); fadeAll(f, Math.min(1, (0.2 - t) / 0.1)); });
-          kit.str.emit(x0, y, z0, ca * 22, 0, sa * 22, TG_YEL, 0.15, 0.08, 0.05, 0, 1, 1);
-        }
-        if ((this.t > 0.06 && !u.dash) || this.t > 0.5 || !u.alive) {
-          if (!done && u.alive) {
-            done = true; const f = fist(0xd02010, TG_YEL), x1 = u.x + ca * 1.6, z1 = u.z + sa * 1.6; f.rotation.y = -a;
-            own(kit, [f], 0.45, (t) => { f.position.set(x1 + ca * 4 * Math.min(t, 0.08), 1.3, z1 + sa * 4 * Math.min(t, 0.08)); f.scale.setScalar(3.6); fadeAll(f, Math.min(1, (0.45 - t) / 0.2)); });
-            const hx = x1 + ca * 1.6, hz = z1 + sa * 1.6;
-            burst(kit, hx, hz, 2.2, TG_ORG, TG_YEL); kit.kick(hx, hz, 0.5);
-          }
-          return false;
-        }
-        return true;
-      }, drop() {} });
-      return true;
-    },
-  },
-  // Nhảy Dậm: an orange ring with crosshairs marks the landing; he lands in a blue shock sphere that throws up orange rock shards
-  tgStomp: {
-    pal: [TG_BLUE, TG_ORG], hitR: 2.2,
-    skill() { return true; },
-    leap(kit, e, u, row) {
-      const dur = e.dur || 0.5, r = row.radius || 3.5;
-      sigil(kit, e.x, e.z, r, TG_ORG, { c2: TG_YEL, n: 0, ticks: 4, inner: 0.2, life: dur + 0.15, rev: 0.08, spin: 0, fill: 0.45, w: 0.16 });
-      trail(kit, (t) => (t < dur && u.alive ? [u.x, 1 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3, u.z] : null), 1.8, TG_ORG, dur + 0.3, { c2: C(0.6, 0.1, 0.02), len: 14 });
-      { const f = fist(0xd02010, TG_YEL); own(kit, [f], dur + 0.05, (t) => { if (!u.alive) return false; f.position.set(u.x, 1.4 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3, u.z); f.rotation.set(0, -e.a || 0, -Math.PI / 2); f.scale.setScalar(2.6); }); }
-      for (const sd of [-1, 1]) sigil(kit, e.x + sd * r * 0.35, e.z + r * 0.2, r * 0.3, TG_ORG, { n: 0, ticks: 4, inner: 0.4, life: dur + 0.15, rev: 0.1, spin: 1, fill: 0.05, w: 0.12 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;
-        const x = u.alive ? u.x : e.x, z = u.alive ? u.z : e.z;
-        shell(kit, x, 0, z, r * 1.05, TG_BLUE, { c2: WHITE, dome: true, p: 1.4, core: 0.18, life: 0.55, grow: 0.08 });
-        sigil(kit, x, z, r * 0.9, C(0.06, 0.04, 0.03), { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 1.1, rev: 0.03, alpha: 0.85, w: 0, y: 0.11 });
-        shards(kit, x, z, 16, r, 0xd07a30, 0.9);
-        kit.chips(x, 0.4, z, kit.N(12), C(0.5, 0.3, 0.15), 8, 0.8, 0.2);
-        burst(kit, x, z, 2.4, TG_ORG, TG_YEL); kit.flash(x, 2, z, TG_BLUE, 60, 0.3); kit.kick(x, z, 0.8);
-        return false; }, drop() {} });
-      return true;
-    },
-  },
-  // Cú Đấm Nghiêm Túc: the fist gathers fire, then one giant fist flies down the lane at the tip of an orange cone of force
-  // that splits the air (white clouds thrown to both sides)
-  tgSerious: {
-    pal: [TG_ORG, TG_YEL], hitR: 2.4,
-    skill() { return true; },
-    castMake() { return { t: 0 }; },
-    cast(kit, v, u, s, k) {
-      const a = u.cast.aim, x = u.x + Math.cos(a) * 1.4, z = u.z + Math.sin(a) * 1.4;
-      kit.glow(x, 1.3, z, TG_ORG, 0.1, 1.2 + 2.4 * k, 1, kit.K.GLOW, 1.2); kit.glow(x, 1.3, z, TG_YEL, 0.08, 0.8 + k, 1, kit.K.STAR, 1.2);
-      if (Math.random() < 0.6) { const b = Math.random() * 6.283, d = R(2, 3.5); kit.str.emit(x + Math.cos(b) * d, 1.3, z + Math.sin(b) * d, -Math.cos(b) * 10, 0, -Math.sin(b) * 10, TG_YEL, 0.2, 0.08, 0.05, 0, 1, 1); }
-    },
-    beam(kit, e) {
-      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1, a = Math.atan2(dz, dx), ux = dx / L, uz = dz / L, w = (e.w || 2) * 1.6;
-      const cone = new THREE.Group();
-      const o = new THREE.Mesh(new THREE.ConeGeometry(w, L, 28, 1, true).rotateZ(Math.PI / 2).translate(L / 2, 0, 0), basic(TG_ORG, true, 0.55));
-      const i2 = new THREE.Mesh(new THREE.ConeGeometry(w * 0.5, L, 20, 1, true).rotateZ(Math.PI / 2).translate(L / 2, 0, 0), basic(TG_YEL, true, 0.5));
-      cone.add(o, i2); cone.position.set(e.x0, 1.3, e.z0); cone.rotation.y = -a;
-      own(kit, [cone], 0.7, (t) => { const k = Math.min(1, t / 0.12); cone.scale.set(k, 0.4 + 0.6 * k, 0.4 + 0.6 * k); o.material.opacity = 0.55 * Math.min(1, (0.7 - t) / 0.35); i2.material.opacity = 0.5 * Math.min(1, (0.7 - t) / 0.3); });
-      const f = fist(0xd02010, TG_YEL); f.rotation.y = -a;
-      own(kit, [f], 0.6, (t) => { const d = Math.min(1, t / 0.18) * (L - 2); f.position.set(e.x0 + ux * (1.5 + d), 1.4, e.z0 + uz * (1.5 + d)); f.scale.setScalar(3.4); fadeAll(f, Math.min(1, (0.6 - t) / 0.2)); });
-      for (let d = 2; d < L; d += 2.2) for (const sd of [-1, 1]) kit.puffs(e.x0 + ux * d - uz * sd * w * 0.8, 1.2, e.z0 + uz * d + ux * sd * w * 0.8, 1, C(1.6, 1.5, 1.4), 0.6, 4, 0.9, 1.6, 2.8, 0.7, 0.6, kit.K.SMOKE, 2);
-      for (let t = 0.2; t <= 1.001; t += 0.2) kit.scorch(e.x0 + dx * t, e.z0 + dz * t, w * 0.4, 3, 1.1, TG_ORG);
-      shell(kit, e.x1, 1.4, e.z1, 3.2, TG_YEL, { c2: WHITE, p: 1.2, core: 0.25, life: 0.75, grow: 0.08 });
-      forks(kit, e.x1, 1.4, e.z1, 8, 4.5, 0.3, TG_YEL, 0.55, { y1: 0.4 });
-      kit.flash(e.x0, 1.6, e.z0, TG_YEL, 60, 0.3); kit.kick(e.x0, e.z0, 1);
-      return true;
-    },
-  },
-};
 
 // ---- Ngưu Ma Vương: dark red bull, iron axe, lime demon fire ---------------------------------------------------------
 const NM_LIME = C(1.1, 2.6, 0.25), NM_RED = C(2.2, 0.25, 0.12), NM_DARK = C(0.12, 0.3, 0.02);
@@ -466,5 +372,5 @@ const mangxa = {
   },
 };
 
-export const B5 = { ...quaset, ...tegiac, ...nguma, ...loi, ...mangxa };
+export const B5 = { ...quaset, ...nguma, ...loi, ...mangxa };
 export { zap, forks, ribbonMesh, fillRibbon };

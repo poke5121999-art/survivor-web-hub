@@ -869,6 +869,7 @@ export function makeFx(G, mechs) {
     if (e.t === 'impact' && e.vis) { for (const [, v] of shotViews) if (v.sl && frame - v.seen <= 1 && Math.abs(v.x - e.x) < 2.5 && Math.abs(v.z - e.z) < 2.5 && v.sl.L.impact) { if (v.sl.L.impact(kit, e, v.lv, v.sl.row)) return; break; } }
     if (e.t === 'zone' && e.kind === 'strike' && LOOKS[e.vis] && LOOKS[e.vis].strike && LOOKS[e.vis].strike(kit, e)) return;
     if (e.t === 'stacks') { const by = m.units[e.by], L = by && lookOf(by.def.passive); if (L && L.stacks && L.stacks(kit, e, by)) return; }
+    if (e.t === 'k7' && u) { const L = lookOf(u.def.passive); if (L && L.k7) L.k7(kit, e, u); return; }   // kit lane K7: passive states (Serious Mode, ice block, aim)
     switch (e.t) {
       case 'fire': {
         mechs.muzzle(u, e.side || 0, V);
