@@ -1,7 +1,7 @@
-// Kit lane K10 (feat/dtt-k10): the kit of Bọ Cạp (bocap, clip p52) ported from
+// Kit lane K10 (feat/dtt-k10): the kits of Bọ Cạp (bocap, clip p52) and Apocalypse (bohung, p55) ported from
 // the owner's clips, and their G5 mechanics (sim.js block "kit lane K10"). Section K10 of tools/sim-test.mjs; runs alone too:
 // `node tools/k10-cases.mjs`. Expected values follow the data rows, so a balance pass keeps the arithmetic.
-// The kit she had before (ambush pellets, stealth, spin) is a fixture now: OLD_* with oldK10(m) keep the generic primitives of the older sections covered.
+// The kits these tanks had before (ambush pellets, stealth, spin; meter shot, shield burst, transform) are fixtures now: OLD_* with oldK10(m) keep the generic primitives of the older sections covered.
 import { createMatch, step, weaponOf, unitSpeed, LOC_KINDS } from '../js/sim.js';
 import { MECHS, TICK } from '../js/data.js';
 
@@ -14,8 +14,17 @@ export const OLD_BOCAP = {
     { id: 'locthep', cd: 40, do: 'nova', windup: 0.25, repeat: 4, gap: 0.3, move: 1, radius: 3.6, dmg: 230 },
   ],
 };
-const OLD = { bocap: OLD_BOCAP };
-// Every bocap of the match plays its old kit (the match must be fresh: nothing pressed yet).
+export const OLD_BOHUNG = {
+  passive: { do: 'meter', name: 'Tích Lực', max: 3, gain: { cast: 1 }, spend: { kind: 'shot', mul: 2.0, stun: 0.4 } },
+  weapon: { name: 'Pháo Lõi', cd: 0.7, dmg: 150, speed: 28, range: 11, splash: 1.2, r: 0.28, vis: 'slug' },
+  skills: [
+    { id: 'luonghuydiet', cd: 9, do: 'beam', windup: 0.35, range: 16, width: 0.8, dmg: 400 },
+    { id: 'lachanno', cd: 13, do: 'shield', amount: 650, dur: 4, burst: { radius: 4.5, dmg: 300, knock: 2 } },
+    { id: 'thangoa', cd: 42, do: 'transform', dur: 7, size: 1.2, armor: 0.2, dmg: 1.25 },
+  ],
+};
+const OLD = { bocap: OLD_BOCAP, bohung: OLD_BOHUNG };
+// Every bocap / bohung of the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK10(m) {
   for (const u of m.units) {
     const K = OLD[u.mech];
@@ -55,7 +64,7 @@ const UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
 const blows = (ev, id, by, min = 20) => only(ev, 'hit', (e) => e.id === id && e.by === by && e.amt + e.absorbed >= min);
 
 export function runK10Cases(check, section) {
-  section('K10 kit lane K10: Bọ Cạp ported from the owner\'s clip (p52) and their G5 mechanics (literal expected values)');
+  section('K10 kit lane K10: Bọ Cạp, Apocalypse ported from the owner\'s clips (p52, p55) and their G5 mechanics (literal expected values)');
 
   // ---- Bọ Cạp (bocap), clip p52 ----
   const BC = MECHS.bocap, [BQ, BE, BU] = BC.skills, POI = BC.weapon.fx.burn;
@@ -114,6 +123,65 @@ export function runK10Cases(check, section) {
     v.burnN = 9; v.burnT = 4; v.burnDps = POI.dps; v.burnBy = 2;
     const ev = press(m, 0, 'ult').concat(go(m, 1));
     check('K10-L ... poison another mech lit does not go off', only(ev, 'k10', (e) => e.kind === 'pop').length === 0 && blows(ev, 1, 0, 100).length === 1 && v.burnBy === 0 && v.burnN === 10, `${v.burnN}`);
+  }
+
+  // ---- Apocalypse (bohung), clip p55 ----
+  const BH = MECHS.bohung, [HQ, HE, HU] = BH.skills, BHF = 1 - BH.armor;
+  // passive Tốc Xạ: after a cast the next two shots are a two-shell burst and fire 50% faster for 3 s
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 20, 0]]), a = m.units[0];
+    press(m, 0, 's2', { tx: 20, tz: 0 });
+    check('K10-m Toc Xa: a cast arms two burst shots and fire rate x1.5 for 3 s', a.shotN === 2 && a.rapidF === 1.5 && a.rapidT > 2.9, `${a.shotN} ${a.rapidF}`);
+    go(m, 6); a.cd.fire = 0;
+    go(m, 1, () => ({ 0: { fire: true, tx: 20, tz: 0 } }));
+    check('K10-n ... the next pull fires two 225 shells, one burst shot left', m.shots.filter((s) => s.owner === 0 && s.src === 'w').length === 2 && m.shots.every((s) => s.owner !== 0 || near(s.dmg, 225, 1e-9)) && a.shotN === 1, `${m.shots.length} ${a.shotN}`);
+  }
+  // ... and while no burst waits, one comes by itself every 3 s
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 20, 0]]), a = m.units[0];
+    go(m, Math.round(3 / TICK) - 2);
+    const early = a.shotN;
+    go(m, 3);
+    check('K10-o ... a free burst shot is armed every 3 s while none waits (none before)', early === 0 && a.shotN === 1, `${early} ${a.shotN}`);
+    go(m, 120);
+    check('K10-p ... it waits unfired (still one, never more)', a.shotN === 1, `${a.shotN}`);
+  }
+  // passive save: a hit that drops her under 50% cleanses, heals 10% of max hp at once and 4% a second for 5 s; once per 15 s
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    a.hp = a.maxHp * 0.52; a.stunT = 1; a.slowT = 2; a.slowF = 0.3;
+    go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    check('K10-q save: under 50% she is cleansed (stun, slow gone), the 15 s lockout runs, the heal over time is 4% of max hp a second for 5 s', a.svT > 14 && a.stunT === 0 && a.slowT === 0 && a.healT > 4.5 && near(a.healRate, 0.04 * a.maxHp, 1e-9), `sv ${a.svT} stun ${a.stunT} healT ${a.healT} rate ${a.healRate}`);
+  }
+  // Đạn Vô Hư Phát (Q): five shells of 240, slow 50% 2 s; one foe takes at most 375 (240 + 240 x 0.5625); the cast knocks back the cone in front
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 3.2, 0]]), [a, v] = m.units;
+    const ev = go(m, 15, (i) => ({ 0: { s1: i === 0, tx: 3.2, tz: 0 } }));
+    const b = blows(ev, 1, 0);
+    check('K10-r Dan Vo Hu Phat: two shells land on the close foe for 240 then 135 (375 in all) x armour, slowed 50%', b.length === 2 && near(b[0].amt, 240 * UNG_F, 1e-6) && near(b[1].amt, 135 * UNG_F, 1e-6) && v.slowF === 0.5 && v.slowT > 1.4, `${b.map((e) => e.amt)} ${v.slowF}`);
+    check('K10-s ... and the knock cone (nova 4 m) pushes it back', only(ev, 'nova', (e) => e.id === 0 && e.r === 4).length === 1 && v.x > 3.6, `x ${v.x}`);
+  }
+  // Chấn Đãng Oanh Kích (E): 225 in a 6 x 3 m strip in front, speed x1.5 for 2 s
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 4, 1], [R('ung', 1), 9, 0]]), [a, v, far] = m.units;
+    const ev = go(m, 10, (i) => ({ 0: { s2: i === 0, tx: 6, tz: 0 } }));
+    check('K10-t Chan Dang Oanh Kich: 225 x armour on the foe 1 m off the axis at 4 m, nothing at 9 m; speed x1.5', blows(ev, 1, 0).length === 1 && near(blows(ev, 1, 0)[0].amt, 225 * UNG_F, 1e-6) && far.hp === UNG.hp && a.hasteF === 1.5 && a.hasteT > 1.5, `${blows(ev, 1, 0).map((e) => e.amt)} ${far.hp}`);
+  }
+  // Phi Đạn Bạo Phá (R): over a wall, explodes on the first foe: 305 x (1 + 0.0775 per m flown, at most x2.55) in 2.5 m, stun 0.5
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 25, 0], [R('ung', 1), 26, 1.5]]), [a, v, w2] = m.units;
+    m.map.walls.push(wall(8, 9, -4, 4));
+    let st = 0;
+    const ev = go(m, 45, (i) => { st = Math.max(st, v.stunT); return { 0: { ult: i === 0, tx: 25, tz: 0 } }; });
+    const b = blows(ev, 1, 0), b2 = blows(ev, 2, 0);
+    check('K10-u Phi Dan Bao Pha: flies over the wall, hits the foe 25 m away for 305 x 2.55 (cap) x armour, stuns 0.5 s', b.length === 1 && near(b[0].amt, 305 * 2.55 * UNG_F, 1e-6) && st > 0.4 && only(ev, 'impact', (e) => e.on === 'wall').length === 0, `${b.map((e) => e.amt)} stun ${st}`);
+    check('K10-v ... the 2.5 m blast round it catches the foe beside it too', b2.length === 1, `${b2.map((e) => e.amt)}`);
+  }
+  {
+    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const ev = go(m, 15, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
+    const b = blows(ev, 1, 0), lo = 305 * (1 + 0.0775 * 3.5) * UNG_F, hi = 305 * (1 + 0.0775 * 5.5) * UNG_F;
+    check('K10-w ... close by it hits for far less (about 4-5 m flown: x1.3-1.4)', b.length === 1 && b[0].amt > lo && b[0].amt < hi, `${b.map((e) => e.amt)} want ${lo}-${hi}`);
   }
 }
 

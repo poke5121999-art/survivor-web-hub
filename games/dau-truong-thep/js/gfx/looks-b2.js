@@ -87,74 +87,6 @@ const samthep = {
   },
 };
 
-// ---- Bọ Hung (Saiyan): gold flame aura, blue-white ki ---------------------------------------------------------------------
-const SY_GOLD = C(2.6, 1.9, 0.25), SY_WHITE = C(2.4, 2.4, 2.1), SY_BLUE = C(0.5, 1.25, 2.7);
-const bohung = {
-  // Luồng Hủy Diệt: a blue-white ki ball swells in front of him while he takes aim, then a thick ki beam with a white core
-  syBeam: {
-    pal: [SY_BLUE, SY_WHITE], hitR: 1.8,
-    skill() { return true; },
-    castMake(kit, u) {
-      const ball = shell(kit, u.x, 1.4, u.z, 0.2, SY_BLUE, { c2: SY_WHITE, p: 1.2, core: 0.9, life: 1e9 });
-      return { ball };
-    },
-    cast(kit, v, u, s, k) {
-      const a = u.cast.aim, x = u.x + Math.cos(a) * 1.5, z = u.z + Math.sin(a) * 1.5;
-      v.ball.position.set(x, 1.4, z); v.ball.scale.setScalar(0.5 + 1.6 * k);
-      for (let i = 0; i < 2; i++) { const b = Math.random() * 6.283, d = R(1.5, 2.5); kit.str.emit(x + Math.cos(b) * d, 1.4 + R(-0.6, 0.6), z + Math.sin(b) * d, -Math.cos(b) * d * 6, 0, -Math.sin(b) * d * 6, i ? SY_BLUE : SY_WHITE, 0.16, 0.05, 0.05, 0, 0, 1); }
-    },
-    castDrop(kit, v) { stop(v.ball); },
-    beam(kit, e, u) {
-      const b1 = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 5, SY_BLUE, 0.55, 0, 1.4); b1.fade = true;
-      const b2 = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 1.3, SY_WHITE, 0.5, 0, 1.45); b2.fade = true;
-      shell(kit, e.x1, 1.3, e.z1, 4.6, SY_BLUE, { c2: SY_WHITE, p: 1.2, core: 0.3, life: 0.45, grow: 0.06 });
-      shell(kit, e.x0 + (e.x1 - e.x0) * 0.08, 1.4, e.z0 + (e.z1 - e.z0) * 0.08, 1.2, SY_WHITE, { c2: SY_BLUE, p: 1, core: 0.5, life: 0.3 });
-      kit.sparks(e.x1, 1.3, e.z1, kit.N(16), SY_BLUE, 12, 0.4, 0.06, 0.7, 10); kit.flash(e.x1, 1.6, e.z1, SY_BLUE, 60, 0.3); kit.flash(e.x0, 1.6, e.z0, SY_WHITE, 30, 0.2); kit.kick(e.x0, e.z0, 0.7);
-      return true;
-    },
-  },
-  // Lá Chắn Nổ: a gold ki barrier sphere holds round him while the shield lasts, then bursts in a gold ring
-  syBarrier: {
-    pal: [SY_GOLD, SY_WHITE],
-    skill(kit, e, u, row) {
-      const sh = shell(kit, u.x, 1.1, u.z, 2.6, C(2.6, 1.3, 0.0), { c2: C(2.6, 0.6, 0.0), p: 0.9, core: 0.75, bands: 3, follow: u, life: (row.dur || 4) + 0.2, grow: 0.15, pulse: 2 });
-      burst(kit, u.x, u.z, 3, SY_GOLD, SY_WHITE, { life: 0.7 });
-      let popped = false;
-      kit.follow(u, (row.dur || 4) + 0.2, (t) => {
-        if (popped) return;
-        if (Math.random() < 0.4) { const a = Math.random() * 6.283; kit.glow(u.x + Math.cos(a) * 1.9, R(0.4, 2.2), u.z + Math.sin(a) * 1.9, SY_GOLD, 0.3, 0.4, 0.8, kit.K.SPARK, 1.2, 0, 1.5, 0); }
-        if ((t > 0.3 && !(u.shield > 0)) || t > (row.dur || 4)) {
-          popped = true; stop(sh); const r = (row.burst && row.burst.radius) || 4.5;
-          shell(kit, u.x, 1, u.z, r, SY_GOLD, { c2: SY_WHITE, p: 1.6, core: 0.1, life: 0.35, grow: 0.08 });
-          kit.ring(u.x, u.z, r, SY_GOLD, 0.4); kit.sparks(u.x, 1.2, u.z, kit.N(20), SY_GOLD, 14, 0.4, 0.07, 0.6, 10); kit.flash(u.x, 2, u.z, SY_GOLD, 60, 0.3); kit.kick(u.x, u.z, 0.6);
-        }
-      });
-      return true;
-    },
-  },
-  // Thăng Hóa: a gold burst lifts the dust, then a gold flame aura licks up round him for the seven seconds, blue sparks of ki
-  // snapping through it
-  syAscend: {
-    pal: [SY_GOLD, SY_WHITE], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const d = row.dur || 7;
-      burst(kit, u.x, u.z, 7.5, SY_GOLD, SY_WHITE, { life: 1.1 }); sigil(kit, u.x, u.z, 5.6, SY_GOLD, { c2: C(2.6, 1.2, 0.1), n: 0, ticks: 24, inner: 0.6, life: d, rev: 0.1, fill: 0.5, alpha: 0.75, follow: u });
-      kit.ring(u.x, u.z, 4, SY_GOLD, 0.5); kit.puffs(u.x, 0.3, u.z, kit.N(10), C(0.55, 0.5, 0.4), 1.2, 6, 0.8, 1.2, 2.4, 0.4, 0.5, kit.K.DUST, 3);
-      pillar(kit, u.x, u.z, 1.6, SY_GOLD, { c2: SY_WHITE, h: 9, life: 0.6, grow: 0.15 }); kit.flash(u.x, 2, u.z, SY_GOLD, 70, 0.4);
-      spikes(kit, u.x, u.z, 12, 1.8, 3, SY_GOLD, d, { follow: u, core: 0x5a3a00, up: 0.2 });
-      pillar(kit, u.x, u.z, 2.2, SY_GOLD, { c2: SY_WHITE, h: 14, life: d, grow: 0.2, rings: 3, follow: u, alpha: 0.85 });
-      shell(kit, u.x, 1.3, u.z, 3, SY_GOLD, { c2: C(2.6, 1.2, 0.1), p: 1.1, core: 0.3, squash: 1.5, follow: u, life: d, grow: 0.2, pulse: 3, step: (t) => t < 0.5 || u.tfT > 0 });
-      kit.follow(u, d, (t) => {
-        if (t > 0.5 && !(u.tfT > 0)) return;
-        for (let i = 0; i < 2; i++) { const a = Math.random() * 6.283, rr = R(0.6, 1.4); kit.glow(u.x + Math.cos(a) * rr, R(0.2, 0.8), u.z + Math.sin(a) * rr, SY_GOLD, R(0.35, 0.55), R(0.5, 0.9), 0.9, kit.K.FLAME, 1.3, 0, R(4, 7), 0); }
-        if (Math.random() < 0.15) { const a = Math.random() * 6.283; kit.str.emit(u.x + Math.cos(a) * 1.2, R(0.5, 2.5), u.z + Math.sin(a) * 1.2, R(-4, 4), R(-4, 4), R(-4, 4), SY_BLUE, 0.1, 0.05, 0.08, 0, 0, 1); }
-      });
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.ring(e.x, e.z, 2.4, SY_GOLD, 0.3, 0.6); return true; },
-  },
-};
-
 // ---- Kỳ Nhông (fire dragon king): a whirling ring of fire, jets of flame, a fist of fire -----------------------------------
 const KY_FIRE = C(2.7, 0.75, 0.08), KY_GOLD = C(2.7, 1.8, 0.35), KY_DARK = C(0.5, 0.24, 0.0);
 // a flat ring of flame round (x, z) turning: flame glows along an arc that sweeps round, thicker on one side (a spiral)
@@ -384,4 +316,4 @@ const hacho = {
   },
 };
 
-export const B2 = { ...samthep, ...bohung, ...kynhong, ...buomdem, ...mucma, ...hacho };
+export const B2 = { ...samthep, ...kynhong, ...buomdem, ...mucma, ...hacho };

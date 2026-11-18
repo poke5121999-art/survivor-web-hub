@@ -149,7 +149,7 @@ for (const key of MECH_ORDER) {
       if (s.do === 'flurry') m.units[1].hp = m.units[1].maxHp;   // a flurry that kills its lone foe would find nobody to recast on
     }
     check(`${key}.${slot} (${s.do}) goes on cooldown = ${s.cd}s`, first === 0 && Math.abs(castTicks - s.cd) < 1e-9, `first ${first} cd ${castTicks}`);
-    // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown
+    // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown; a follow-up (then, its event says so) is no recast
     check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd) - 2 * TICK && (second - first) * TICK <= (s.uses ? s.uses.gap : s.cd) + 0.5, `gap ${(second - first) * TICK}`);
   }
 }
@@ -3082,7 +3082,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
 
   // meter, spend 'shot' + gain 'cast' (bohung): three casts arm it, the next shot is x2 and stuns, the meter is spent
   {
-    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    const m = oldK10(arena([[R('bohung', 0), 0, 0], [R('ung', 1), 8, 0]])), [a, v] = m.units;
     for (let i = 0; i < 2; i++) { a.cd.s2 = 0; press(m, 0, 's2'); }
     check('42a two casts: meter 2 of 3, not armed', a.meter === 2 && !meterArmed(a), `meter ${a.meter}`);
     a.cd.s2 = 0; const ev = press(m, 0, 's2');
@@ -3227,12 +3227,12 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // shield.burst (bohung E): goes off at the end of the time, and at once when it breaks
   {
-    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    const m = oldK10(arena([[R('bohung', 0), 0, 0], [R('ung', 1), 3, 0]])), [a, v] = m.units;
     go(m, 1, () => ({ 0: { s2: true } }));
     check('42zi shield 650 for 4 s with a burst stored', a.shield === 650 && a.shieldT > 3.9 && a.shieldBurst && a.shieldBurst.dmg === 300);
     const ev = go(m, 125);
     check('42zj when the 4 s run out it goes off: 300 x 0.667 at 3 m of 4.5, nova event, burst spent', a.shield === 0 && a.shieldBurst === null && only(ev, 'nova', (e) => e.r === 4.5).length === 1 && near(UNG.hp - v.hp, 300 * (1 - 0.5 * 3 / 4.5) * UNG_F, 1e-6), `dmg ${UNG.hp - v.hp}`);
-    const w = arena([[R('bohung', 0), 0, 0], [R('trau', 1), 3, 0]]), b = w.units[0], t = w.units[1];
+    const w = oldK10(arena([[R('bohung', 0), 0, 0], [R('trau', 1), 3, 0]])), b = w.units[0], t = w.units[1];
     go(w, 1, () => ({ 0: { s2: true } }));
     b.shield = 5;
     go(w, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
@@ -3301,7 +3301,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // transform size (bohung U) reads the existing transform: radius x1.2
   {
-    const m = arena([[R('bohung', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    const m = oldK10(arena([[R('bohung', 0), 0, 0], [R('ung', 1), 12, 0]])), a = m.units[0];
     go(m, 1, () => ({ 0: { ult: true } }));
     check('42zx Thang Hoa: radius 0.92 x 1.2, 1.25x damage, armor 0.12 + 0.2', near(a.radius, 0.92 * 1.2) && a.tfDmg === 1.25 && near(armorOf(m, a), 0.32), `${a.radius}`);
   }

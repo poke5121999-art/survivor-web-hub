@@ -125,6 +125,7 @@ function clearStatus(u) {
   krClear(u);   // kit-remake G5 Kurumi
   adClear(u);   // kit-remake G5 An Dương Vương
   k7Clear(u);   // kit-remake G5 lane K7 (Saitama, Thủy Tinh, Ưng Nhãn)
+  k10Clear(u);   // kit lane K10
 }
 
 function spawn(m, u, first) {
@@ -482,6 +483,7 @@ function stepUnit(m, u, inp) {
   k2Tick(m, u);   // kit-remake G5 Athena: the heal when a bless.undying ends
   krTick(m, u);   // kit-remake G5 Kurumi: a rewind mark snaps hp back when it ends
   k7Tick(m, u);   // kit-remake G5 lane K7: Serious Mode
+  k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -870,6 +872,7 @@ function runSave(m, o, u) {
   if (S.haste || S.guard || S.armor || S.cc) selfBuff(u, { dur: d, haste: S.haste, guard: S.guard, armor: S.armor, cc: S.cc, vs: S.vs });
   if (S.resetSlots && o === u) for (const k of S.resetSlots) u.cd[k] = 0;
   if (S.ice) sirIce(m, u, S.ice);   // kit-remake G5 Thủy Tinh: sealed in ice
+  if (S.bhHot) k10Hot(u, S.bhHot);   // kit lane K10: Apocalypse's heal over time after the save
   m.events.push({ t: 'save', id: u.id, by: o.id, x: u.x, z: u.z });
 }
 // A hit took the last hp: undying holds it at 1, or a fatal save fires.
@@ -3474,6 +3477,10 @@ function k7Hit(m, foe, u) {
 /* ===== end kit-remake G5 Ưng Nhãn ===== */
 /* ===== kit lane K10 (feat/dtt-k10; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md bocap, bohung, bongua) =====
    Host-side bookkeeping only: what changes play (shotN, the burn, root, disarm) is already in netstate STATUS. */
+function k10Clear(u) { u.bhT = 0; }
+function k10Tick(m, u) {
+  bhTick(u);
+}
 // -- kit-remake G5 Bọ Cạp: passive `bcSteal: f` (each burn tick she lit heals her f of the hp it took), hitfx `bcPop {dmg, per3,
 //    full, disarm, root}` (her poison already on the target goes off before the hit's own poison lands: dmg x (1 + per3 x
 //    floor(stacks / 3)), scaled like the row, no source tag; at `full` stacks also disarm + root; the stacks are spent; event
@@ -3495,4 +3502,14 @@ function k10Pop(m, src, o, P) {
   if (P.disarm) applyLoc(m, src, o, { disarm: P.disarm });
   if (P.root && !(o.ccT > 0)) o.rootT = Math.max(o.rootT, P.root);
 }
+// -- kit-remake G5 Apocalypse: passive `bhEvery: s` + `bhPatch` (while no empowered shot waits, every s one main shot is armed
+//    with bhPatch: G3 shotN, `u.bhT` counts), save `bhHot {frac, dur}` (after the G2 save, frac of max hp a second for dur:
+//    healT / healRate).
+function bhTick(u) {
+  const P = u.def.passive;
+  if (!P || !P.bhEvery || !u.alive) return;
+  if (u.shotN > 0) { u.bhT = 0; return; }
+  if ((u.bhT += TICK) >= P.bhEvery - 1e-9) { u.bhT = 0; shotsArm(u, { shots: 1, patch: P.bhPatch, shotsFor: 1e9 }); }
+}
+function k10Hot(u, H) { u.healRate = Math.max(u.healT > 0 ? u.healRate : 0, H.frac * u.maxHp); u.healT = Math.max(u.healT, H.dur); }
 /* ===== end kit lane K10 ===== */

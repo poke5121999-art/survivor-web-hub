@@ -575,21 +575,34 @@ export const MECHS = {
         desc: 'Khóa kẻ địch ở con trỏ, lấy đà 1,1 giây rồi bắn tia 1800 sát thương bám theo mục tiêu.' },
     ],
   },
+  // Apocalypse: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p55 "52.天启骑士" Thiên Khải Kỵ Sĩ, tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-a.md). Attack = 150 (lubo, moclan); the passive's +50% shell damage and speed is folded into the
+  // weapon (225, speed 42). Đạn Vô Hư Phát 160% -> 240 a shell, at most 250% -> 375 on one foe (perTarget 2, sameDecay 0.5625);
+  // Chấn Đãng Oanh Kích 150% -> 225; Phi Đạn Bạo Phá 203% -> 305, growing with the distance flown to 518% -> 777 (x2.55 after 20 m).
+  // Cooldowns 8 / 6 / 25 s in the clip -> 10 / 8 / 45. Rapid fire after a cast = mods.onCast self.shots (G3); the low-hp cleanse and
+  // heal = mods.save (G2). Kit-remake G5 fields (sim.js block "kit-remake G5 Apocalypse"): passive bhEvery (one free burst every
+  // 3 s) and save bhHot (4% of max hp a second for 5 s after the save).
   bohung: {
     name: 'Apocalypse', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0x3c3f8f,
-    blurb: 'Mỗi chiêu dùng ra là nạp một nấc lõi; đủ ba nấc, phát pháo kế tiếp nặng gấp đôi và choáng. Khiên tự nổ, Thăng Hóa phình to cứng cáp.',
+    blurb: 'Kỵ sĩ Thiên Khải: pháo nặng bay nhanh, sau mỗi chiêu hai phát kế tiếp bắn liên thanh. Rải năm quả pháo hình quạt, nện sóng chấn động trước mặt, phóng tên lửa xuyên tường càng bay xa càng đau.',
     hp: 2750, speed: 5.6, radius: 0.92,
     armor: 0.12, accel: 1.0, turn: 10, towerMul: 1.3,
-    passive: { do: 'meter', name: 'Tích Lực', desc: 'Mỗi chiêu dùng ra nạp một nấc, đủ 3 nấc thì phát pháo thường kế tiếp gây gấp đôi sát thương và choáng 0,4 giây.',
-      max: 3, gain: { cast: 1 }, spend: { kind: 'shot', mul: 2.0, stun: 0.4 } },
-    weapon: { name: 'Pháo Lõi', cd: 0.7, dmg: 150, speed: 28, range: 11, splash: 1.2, r: 0.28, vis: 'slug' },
+    passive: { do: 'trait', name: 'Tốc Xạ', bhEvery: 3, bhPatch: { n: 2, fan: 0.07 },
+      mods: { onCast: { dur: 3, rapid: 1.5, shots: 2, patch: { n: 2, fan: 0.07 }, shotsFor: 4 },
+        save: { below: 0.5, icd: 15, cleanse: true, heal: 0.1, bhHot: { frac: 0.04, dur: 5 } } },
+      desc: 'Sau mỗi chiêu, hai phát pháo kế tiếp bắn liên thanh hai quả và tốc bắn tăng 50%; ngoài ra cứ 3 giây có một phát liên thanh. Máu tụt dưới 50%: giải mọi hiệu ứng xấu, hồi ngay 10% máu tối đa rồi 4% mỗi giây trong 5 giây (15 giây một lần).' },
+    weapon: { name: 'Pháo Thiên Khải', cd: 0.75, dmg: 225, speed: 42, range: 11, r: 0.28, vis: 'slug' },
     skills: [
-      { id: 'luonghuydiet', look: 'syBeam', name: 'Luồng Hủy Diệt', cd: 9, do: 'beam', windup: 0.35, range: 16, width: 0.8, dmg: 400, icon: 'beam',
-        desc: 'Lấy đà 0,35 giây rồi bắn tia năng lượng dài 16 m, xuyên mọi kẻ địch trên đường, gây 400 sát thương.' },
-      { id: 'lachanno', look: 'syBarrier', name: 'Lá Chắn Nổ', cd: 13, do: 'shield', amount: 650, dur: 4, burst: { radius: 4.5, dmg: 300, knock: 2 }, icon: 'shield',
-        desc: 'Dựng khiên hấp thụ 650 sát thương trong 4 giây. Khiên vỡ hoặc hết giờ thì nổ ra quanh bạn, gây 300 sát thương và hất văng.' },
-      { id: 'thangoa', look: 'syAscend', name: 'Thăng Hóa', cd: 42, do: 'transform', dur: 7, size: 1.2, armor: 0.2, dmg: 1.25, icon: 'rage',
-        desc: 'Thăng Hóa 7 giây: to hơn 20%, thêm 20% giáp và gây thêm 25% sát thương.' },
+      { id: 'danvohu', look: 'bhSpread', name: 'Đạn Vô Hư Phát', cd: 10, do: 'volley', n: 5, fan: 0.12, dmg: 240, speed: 34, range: 13, r: 0.3, vis: 'shell',
+        fx: { slow: 0.5, slowDur: 2 }, perTarget: 2, sameDecay: 0.5625,
+        then: { id: 'danvohuK', look: 'bhSpread', do: 'nova', windup: 0, radius: 4, arc: 0.6, dmg: 0, knock: 2 }, icon: 'shell',
+        desc: 'Hất lùi kẻ địch trong hình quạt 4 m trước mặt và bắn năm quả pháo tỏa hình quạt (xa 13 m): mỗi quả 240 sát thương, chậm 50% trong 2 giây. Một kẻ địch chịu tối đa 375.' },
+      { id: 'chandang', look: 'bhQuake', name: 'Chấn Đãng Oanh Kích', cd: 8, do: 'beam', windup: 0.15, range: 6, width: 3, dmg: 225,
+        self: { on: 'cast', haste: 1.5, dur: 2 }, icon: 'quake',
+        desc: 'Nện sóng chấn động vào dải 6 x 3 m trước mặt, gây 225 sát thương; bạn chạy nhanh hơn 50% trong 2 giây.' },
+      { id: 'phidan', look: 'bhMissile', name: 'Phi Đạn Bạo Phá', cd: 45, do: 'volley', n: 1, dmg: 305, speed: 24, range: 28, r: 0.45, vis: 'rocket',
+        thruWalls: true, splash: 2.5, splashHit: true, fx: { stun: 0.5 }, far: { ramp: { per: 0.0775, max: 2.55 } }, icon: 'rocket',
+        desc: 'Phóng tên lửa bay xuyên tường và vật cản, nổ ở kẻ địch đầu tiên: 305 sát thương vòng 2,5 m và choáng 0,5 giây. Càng bay xa càng đau, tới 777 khi bay hết 20 m.' },
     ],
   },
   cakiem: {
@@ -1143,7 +1156,7 @@ export const PERKS = {
   sontinh: [perk('Đá Nặng', 'Đá Lăn gây 300, nổ lan 2,6 m.', 'weapon', { dmg: 300, splash: 2.6 }), perk('Bảy Khối Đá', 'Vách Đá dựng bảy khối.', 0, { n: 7 }), perk('Tám Tảng Non', 'Dời Non rơi tám tảng, mỗi tảng 560.', 2, { n: 8, dmg: 560 })],
   enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
-  bohung: [perk('Lõi Nặng', 'Pháo Lõi gây 180.', 'weapon', { dmg: 180 }), perk('Khiên Dội', 'Lá Chắn Nổ nổ rộng 5,5 m, gây 420.', 1, { burst: { radius: 5.5, dmg: 420, knock: 2 } }), perk('Hóa Thân Lớn', 'Thăng Hóa kéo dài 9 giây, to hơn 30%.', 2, { dur: 9, size: 1.3 })],
+  bohung: [perk('Pháo Nặng', 'Pháo Thiên Khải gây 260.', 'weapon', { dmg: 260 }), perk('Chấn Đãng Dài', 'Chấn Đãng Oanh Kích nện dải 8 m, gây 270.', 1, { range: 8, dmg: 270 }), perk('Phi Đạn Lớn', 'Phi Đạn Bạo Phá nổ rộng 3,5 m.', 2, { splash: 3.5 })],
   cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
   gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 210.', 'weapon', { dmg: 210 }), perk('Lồng Vững', 'Phong Tỏa rộng 5,2 m, kéo dài 4 giây, mất 90 máu mỗi giây.', 1, { radius: 5.2, dur: 4, dps: 90 }), perk('Mười Bốn Cổng', 'Cổng Kho Báu dội 14 quả, mỗi quả 400.', 2, { n: 14, dmg: 400 })],
   buomdem: [perk('Tia Dài', 'Tia Bùa gây 420, bay xa 19 m.', 0, { dmg: 420, range: 19 }), perk('Cổng Nổ', 'Cổng Ảo xa 10 m, nổ rộng 3,6 m gây 300.', 1, { dist: 10, land: { radius: 3.6, dmg: 300, slow: 0.3, slowDur: 1.5 } }), perk('Kết Giới Rộng', 'Kết Giới Đa Chiều rộng 7 m, kéo dài 7 giây.', 2, { radius: 7, dur: 7 })],

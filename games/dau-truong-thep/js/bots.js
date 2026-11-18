@@ -1307,6 +1307,7 @@ const SKILL_AI = {
       c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = Math.max(0.04, Math.atan2(s.charge.width[0] * 0.5, td) * 0.7);
       return true;
     }
+    if (s.range <= 8 && s.width >= 2) return k10Strip(c, s);   // kit lane K10: a short wide shock strip (Apocalypse E)
     if (!tgt || td > s.range - 2 || td < 4) return false;
     const p = leadPoint(u, tgt, td / s.windup, c.D.lead);
     const dx = p[0] - u.x, dz = p[1] - u.z, dd = hyp(dx, dz);
@@ -2328,6 +2329,13 @@ function k10PopReady(c, s) {
   const u = c.u;
   for (const e of c.enemies) if (e.burnBy === u.id && e.burnT > 0.3 && e.burnN >= 3 && hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) return true;
   return false;
+}
+// a short wide strip (range <= 8, width >= 2): the foe inside its reach is enough, no lead, a loose aim
+function k10Strip(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || !c.los || td > s.range + tgt.radius * 0.5) return false;
+  c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.x = tgt.x; c.b.sk.z = tgt.z; c.b.sk.tol = Math.max(0.1, Math.atan2(s.width * 0.4, td));
+  return true;
 }
 /* ===== end kit lane K10 bots ===== */
 
