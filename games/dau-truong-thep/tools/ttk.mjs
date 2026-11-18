@@ -60,7 +60,7 @@ const SEQ = {
   gilgamesh: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
   buomdem: { d: 11, seq: [['s2', 0], ['s1', 0.2], ['ult', 0.4]] },
   laclong: { d: 6, seq: [['ult', 0], ['s1', 0.5], ['s2', 0.8]] },
-  baogam: { d: 5, seq: [['s1', 0], ['ult', 0.4]] },
+  baogam: { d: 5, seq: [['s2', 0], ['s1', 0.5], ['ult', 1.2]] },
   luondien: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
   tegiac: { d: 5, seq: [['s1', 0], ['s2', 0.5], ['ult', 0.9]] },
   quaset: { d: 7, seq: [['ult', 0], ['s1', 0.3], ['s2', 0.8]] },

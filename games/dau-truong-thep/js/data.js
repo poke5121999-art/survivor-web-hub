@@ -638,21 +638,30 @@ export const MECHS = {
         desc: 'Hóa rồng lao thẳng 15 m, mọi kẻ địch trên đường chịu 380 sát thương, choáng 0,8 giây và bị hất văng.' },
     ],
   },
+  // Black Panther = 黑豹 Hắc Báo: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p89 "86.黑豹", tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
+  // Attack = one pull of Vuốt Rung (2 x 75 = 150; was 2 x 58 at 0.25 s, about the same dps): Nguyên Thủy 145% -> 218 and five bombs
+  // 194% -> 291 each, Dã Tính 125% -> 188 then 165% -> 248, Vương Chi Thú Liệp 222% -> 333 x 6 and 350% -> 525 + 15% of the lost hp.
+  // Cooldowns 6 / 8 / 25 s in the clip -> 8 / 10 / 45. The passive's +30% speed is in `speed`; units never collide in our sim.
+  // Kit-remake G5 fields (sim.js block "kit-remake G5 Black Panther"): dash bgRe (a second charge at the unit the first one stopped on),
+  // flurry bgLast (the last cut's own dmg, knock and fx). The back-flip and the bombs are G3 `then` rows.
   baogam: {
     name: 'Black Panther', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x23262e,
-    blurb: 'Hứng đòn nào cũng tích rung động, đầy là tự nổ hất văng. Giáp Rung chặn đòn mà vẫn nạp, Bung Năng Lượng dồn hết rung động vào một cú nổ.',
+    blurb: 'Vua Wakanda: chạy nhanh, đi xuyên qua mọi mech. Vồ tới giữ chân rồi lộn ngược ném bom rung, lao hai lần liền kéo cả đám theo, rồi biến mất đi săn: bảy nhát vuốt lên kẻ địch quanh đó, nhát cuối đau nhất.',
     hp: 2350, speed: 7.1, radius: 0.78,
     armor: 0.06, accel: 1.5, turn: 16, towerMul: 1.0,
-    passive: { do: 'meter', name: 'Rung Động', desc: 'Máu mất và sát thương bị giáp chặn đều nạp rung động; đủ 1000 thì tự nổ quanh mình gây 380 sát thương và hất văng.',
-      max: 1000, gain: { hurt: 1, absorbed: 1 }, spend: { kind: 'nova', radius: 4, dmg: 380, knock: 2.5 } },
-    weapon: { name: 'Vuốt Rung', cd: 0.25, dmg: 58, n: 2, fan: 0.1, speed: 30, range: 7, r: 0.26, vis: 'pellet' },
+    passive: { do: 'trait', name: 'Vô Thị Va Chạm', desc: 'Chạy nhanh hơn 30% so với mech cùng vai trò và đi xuyên qua mọi mech.' },
+    weapon: { name: 'Vuốt Rung', cd: 0.32, dmg: 75, n: 2, fan: 0.1, speed: 30, range: 7, r: 0.26, vis: 'pellet' },
     skills: [
-      { id: 'vocao', look: 'bgClaw', name: 'Vồ Cào', cd: 7, do: 'dash', dist: 7, speed: 34, dmg: 200, stun: 0.2, icon: 'dash',
-        desc: 'Vồ tới theo hướng ngắm, cào 200 sát thương và choáng nhẹ kẻ đầu tiên chạm phải.' },
-      { id: 'giaprung', look: 'bgSuit', name: 'Giáp Rung', cd: 12, do: 'buff', armor: 0.4, dur: 3, icon: 'shell',
-        desc: 'Thêm 40% giáp trong 3 giây. Sát thương giáp chặn được vẫn nạp rung động.' },
-      { id: 'bungnangluong', look: 'bgBurst', name: 'Bung Năng Lượng', cd: 40, do: 'nova', windup: 0.4, radius: 6, dmg: 600, knock: 4, meterMul: true, icon: 'quake',
-        desc: 'Lấy đà 0,4 giây rồi bung năng lượng quanh mình 600 sát thương và hất văng. Dồn hết rung động đang có: mỗi đầy thêm một lần sát thương.' },
+      { id: 'nguyenthuy', look: 'bgPounce', name: 'Nguyên Thủy Cuồng Nộ', cd: 8, do: 'dash', dist: 7, speed: 34, dmg: 218, stop: true, fx: { root: 0.5 }, icon: 'dash',
+        then: { id: 'nhaolon', look: 'bgFlip', name: 'Nhào Lộn', do: 'recoil', radius: 0, dmg: 0, dist: 4, speed: 22,
+          then: { id: 'bomrung', look: 'bgBombs', name: 'Bom Rung', do: 'volley', n: 5, fan: 0.16, dmg: 291, speed: 24, range: 9, r: 0.32, fx: { slow: 0.5, slowDur: 2 }, vis: 'shell' } },
+        desc: 'Vồ tới theo hướng ngắm (xa nhất 7 m): kẻ đầu tiên chạm phải chịu 218 sát thương và bị giữ chân 0,5 giây; rồi lộn ngược ra sau 4 m, vừa lộn vừa ném năm quả bom về phía con trỏ, mỗi quả 291 sát thương và làm chậm 50% trong 2 giây.' },
+      { id: 'datinh', look: 'bgLunge', name: 'Dã Tính Huyết Tập', cd: 10, do: 'dash', dist: 7, speed: 34, dmg: 188, stop: true, icon: 'dash',
+        bgRe: { id: 'huyettap', look: 'bgDrag', name: 'Huyết Tập', do: 'dash', dist: 6, speed: 34, dmg: 248, drag: true, r: 8 },
+        desc: 'Lao theo hướng ngắm (xa nhất 7 m): kẻ đầu tiên chạm phải chịu 188 sát thương, rồi lao vào nó lần nữa 6 m, kéo theo mọi kẻ chạm phải, mỗi kẻ 248 sát thương. Kẻ đầu tiên đã gục thì lần lao thứ hai nhắm kẻ địch gần nhất (trong 8 m).' },
+      { id: 'vuongchi', look: 'bgHunt', name: 'Vương Chi Thú Liệp', cd: 45, do: 'flurry', n: 7, range: 7, speed: 40, dmg: 333, invuln: true, icon: 'rage',
+        fx: { antiheal: { mul: 0.5, dur: 3, shield: true } }, bgLast: { dmg: 525, knock: 3, fx: { lostHp: 0.15, antiheal: { mul: 0.5, dur: 3, shield: true } } },
+        desc: 'Biến mất rồi vồ kẻ địch ở con trỏ (xa nhất 7 m) và những kẻ quanh đó, bảy nhát liền (không bị nhắm trúng): sáu nhát đầu 333, nhát cuối 525 cộng 15% máu đã mất của nó và hất văng. Kẻ trúng chỉ nhận một nửa máu hồi và khiên trong 3 giây.' },
     ],
   },
   luondien: {
@@ -1095,7 +1104,7 @@ export const PERKS = {
   gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 210.', 'weapon', { dmg: 210 }), perk('Lồng Vững', 'Phong Tỏa rộng 5,2 m, kéo dài 4 giây, mất 90 máu mỗi giây.', 1, { radius: 5.2, dur: 4, dps: 90 }), perk('Mười Bốn Cổng', 'Cổng Kho Báu dội 14 quả, mỗi quả 400.', 2, { n: 14, dmg: 400 })],
   buomdem: [perk('Tia Dài', 'Tia Bùa gây 420, bay xa 19 m.', 0, { dmg: 420, range: 19 }), perk('Cổng Nổ', 'Cổng Ảo xa 10 m, nổ rộng 3,6 m gây 300.', 1, { dist: 10, land: { radius: 3.6, dmg: 300, slow: 0.3, slowDur: 1.5 } }), perk('Kết Giới Rộng', 'Kết Giới Đa Chiều rộng 7 m, kéo dài 7 giây.', 2, { radius: 7, dur: 7 })],
   laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Xoáy Mạnh', 'Xoáy Nước rộng 6 m, làm chậm 50%, đồng đội nhanh thêm 40%.', 1, { radius: 6, slow: 0.5, haste: 1.4 }), perk('Giá Lâm Xa', 'Long Quân Giá Lâm lao xa 18 m, gây 480.', 2, { dist: 18, dmg: 480 })],
-  baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Giáp Dày', 'Giáp Rung thêm 50% giáp, kéo dài 4 giây.', 1, { armor: 0.5, dur: 4 }), perk('Bung Rộng', 'Bung Năng Lượng rộng 7 m, gây 720.', 2, { radius: 7, dmg: 720 })],
+  baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 190.', 'weapon', { dmg: 190 }), perk('Dậm Mạnh', 'Nhảy Dậm rộng 4,2 m, gây 340, choáng 0,7 giây.', 1, { radius: 4.2, dmg: 340, stun: 0.7 }), perk('Chấn Động Rộng', 'Cú Đấm Nghiêm Túc rộng 2,6 m, gây 2000.', 2, { width: 2.6, dmg: 2000 })],
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],

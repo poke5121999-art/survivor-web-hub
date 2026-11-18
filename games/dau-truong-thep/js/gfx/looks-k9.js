@@ -6,6 +6,8 @@
 // Băng Nha, clip gameplay 11-60 s: a pale ring of frost opening on the floor, then ice crystals bursting up round its rim; a white
 //   frost breath fanning out in front of her; the blizzard a big ice-blue dome of whirling snow where ice falls; frozen foes stand
 //   in a block of ice. One main colour (ice blue) and one accent (frost white).
+// Black Panther, clip gameplay 12-60 s: three white claw slashes where he strikes, dark ink swirls and violet kinetic rings; the
+//   hunt is a run of claw flashes from one foe to the next. One main colour (vibranium violet) and one accent (white); ink is dark.
 import { C, stop, sigil, pillar, trail, burst, slash, shell, spikes } from './lookkit.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
@@ -52,6 +54,35 @@ function frostHit(kit, e) {
   burst(kit, e.x, e.z, 1.8, BN_ICE, BN_WHITE, { life: 0.35 });
   const o = kit.match.units[e.id];
   if (o) kit.follow(o, 0.15, () => {}, () => { if (o.stunT > 0.3) iceBlock(kit, o); });
+}
+
+const BG_VIO = C(1.3, 0.35, 2.6), BG_WHITE = C(2.5, 2.4, 2.7), BG_INK = C(0.12, 0.05, 0.22), BG_GOLD = C(2.5, 1.85, 0.45);
+// three white claw slashes side by side across direction a, violet inside
+function claws(kit, x, z, a, size, life = 0.35) {
+  const px = -Math.sin(a), pz = Math.cos(a);
+  for (let k = -1; k <= 1; k++) {
+    const o = k * size * 0.22, cx = x + px * o - Math.cos(a) * size * 0.9, cz = z + pz * o - Math.sin(a) * size * 0.9;
+    slash(kit, cx, cz, a, size, BG_WHITE, { c2: BG_VIO, edge: BG_WHITE, span: 0.42, w: size * 0.16, life, sweep: 0.05 + 0.02 * (k + 1), y: 1.0, sparks: k === 0, spark: BG_VIO });
+  }
+}
+// a kinetic ring: a violet ring and a dark ink swirl on the floor, sparks out
+function kinetic(kit, x, z, r) {
+  sigil(kit, x, z, r, BG_VIO, { c2: BG_WHITE, n: 0, ticks: 12, inner: 0.7, fill: 0.2, w: 0.08, life: 0.5, rev: 0.04, spin: 3 });
+  sigil(kit, x, z, r * 0.8, BG_INK, { c2: BG_INK, n: 5, m: 2, ticks: 0, inner: 0, fill: 0.6, w: 0.1, life: 0.55, rev: 0.05, spin: -4, alpha: 0.8 });
+  kit.ring(x, z, r * 1.1, BG_VIO, 0.35, 0.9);
+  kit.sparks(x, 1.0, z, kit.N(10), BG_VIO, 8, 0.3, 0.05, 0.5, 8);
+}
+// where a pounce leaves the ground: a violet kinetic seal with a dark ink swirl and a fan of claw marks behind the launch
+function launch(kit, x, z, a, r) {
+  sigil(kit, x, z, r, BG_VIO, { c2: BG_WHITE, n: 0, ticks: 12, inner: 0.62, fill: 0.45, w: 0.09, life: 0.7, rev: 0.04, spin: 2.5 });
+  sigil(kit, x, z, r * 0.75, BG_INK, { c2: BG_INK, n: 5, m: 2, ticks: 0, inner: 0, fill: 0.7, w: 0.1, life: 0.7, rev: 0.05, spin: -3, alpha: 0.85 });
+  slash(kit, x, z, a + Math.PI, r * 1.1, BG_VIO, { c2: BG_INK, edge: BG_WHITE, sparks: false, span: 0.9, w: r * 0.5, life: 0.5, sweep: 0.05, y: 0.4 });
+  kit.flash(x, 1.4, z, BG_VIO, 30, 0.2);
+}
+// the dark violet streak of a pounce: a flat ribbon and an upright one behind him while the dash runs
+function streak(kit, u, T, w = 1.2) {
+  trail(kit, (t) => (t < T && u.alive ? [u.x, 0.6, u.z] : null), w, BG_VIO, 0.7, { c2: BG_INK, len: 16 });
+  trail(kit, (t) => (t < T && u.alive ? [u.x, 1.0, u.z] : null), w * 0.85, BG_VIO, 0.7, { c2: BG_INK, len: 12, up: true });
 }
 
 export const K9 = {
@@ -187,5 +218,87 @@ export const K9 = {
       return true;
     },
     hit(kit, e) { frostHit(kit, e); },
+  },
+
+  // Nguyên Thủy Cuồng Nộ: a violet streak along the pounce, three claw slashes and a kinetic ring on the foe it stops on
+  bgPounce: {
+    pal: [BG_VIO, BG_WHITE], hitR: 1.8,
+    skill(kit, e, u, row) {
+      const T = (row.dist || 7) / (row.speed || 34) + 0.05;
+      streak(kit, u, T, 1.7);
+      launch(kit, e.x, e.z, e.a, 2.8);
+      kit.follow(u, T + 0.1, () => {}, () => { if (u.alive) { const a = u.heading; claws(kit, u.x + Math.cos(a) * 1.4, u.z + Math.sin(a) * 1.4, a, 3.2); kinetic(kit, u.x + Math.cos(a) * 1.4, u.z + Math.sin(a) * 1.4, 2.2); } });
+      kit.flash(u.x, 1.4, u.z, BG_VIO, 25, 0.2);
+      return true;
+    },
+  },
+  // the back-flip: a violet arc over the floor where he flips back, ink puffs where he lands
+  bgFlip: {
+    skill(kit, e, u, row) {
+      const T = (row.dist || 4) / (row.speed || 22) + 0.05;
+      trail(kit, (t) => (t < T && u.alive ? [u.x, 1.2 + Math.sin(Math.min(1, t / T) * Math.PI) * 1.4, u.z] : null), 0.9, BG_VIO, 0.6, { c2: BG_WHITE, len: 12, up: true });
+      slash(kit, u.x, u.z, e.a + Math.PI, 2.4, BG_VIO, { c2: BG_INK, edge: BG_WHITE, sparks: false, span: 1.3, w: 0.6, life: 0.4, sweep: 0.12, tilt: 1.571, y: 1.2 });
+      return true;
+    },
+    nova() { return true; },
+  },
+  // the bombs (gold in the clip, 25 s and 40 s): a gold throw flash; each bomb bursts in a gold ring round a white core
+  bgBombs: {
+    pal: [BG_VIO, BG_WHITE], hitR: 1.8,
+    skill(kit, e, u) {
+      const x = u.x + Math.cos(e.a) * 1.3, z = u.z + Math.sin(e.a) * 1.3;
+      kit.glow(x, 1.4, z, BG_WHITE, 0.12, 1.6, 1, kit.K.STAR, 1.2); kit.glow(x, 1.4, z, BG_GOLD, 0.2, 2.6, 0.9, kit.K.GLOW, 1.2);
+      slash(kit, u.x, u.z, e.a, 3.0, BG_GOLD, { c2: BG_VIO, edge: BG_WHITE, sparks: false, span: 0.5, w: 1.6, life: 0.35, sweep: 0.05, y: 0.6 });
+      return true;
+    },
+    hit(kit, e) {
+      sigil(kit, e.x, e.z, 1.7, BG_GOLD, { c2: BG_WHITE, n: 0, ticks: 0, inner: 0.72, fill: 0.15, w: 0.1, life: 0.45, rev: 0.03 });
+      kit.ring(e.x, e.z, 2.0, BG_GOLD, 0.35, 0.9); burst(kit, e.x, e.z, 1.4, BG_GOLD, BG_WHITE, { life: 0.3 });
+    },
+  },
+  // Dã Tính Huyết Tập: the first lunge: a violet streak, claws where it lands
+  bgLunge: {
+    pal: [BG_VIO, BG_WHITE], hitR: 1.8,
+    skill(kit, e, u, row) {
+      const T = (row.dist || 7) / (row.speed || 34) + 0.05;
+      streak(kit, u, T, 1.5);
+      launch(kit, e.x, e.z, e.a, 2.4);
+      kit.follow(u, T + 0.1, () => {}, () => { if (u.alive) { const a = u.heading; claws(kit, u.x + Math.cos(a) * 1.3, u.z + Math.sin(a) * 1.3, a, 2.6); } });
+      return true;
+    },
+  },
+  // the second charge: a wide ink-and-violet streak with kinetic rings pulsing off him while he carries them
+  bgDrag: {
+    pal: [BG_VIO, BG_WHITE], hitR: 2,
+    skill(kit, e, u, row) {
+      const T = (row.dist || 6) / (row.speed || 34) + 0.05;
+      streak(kit, u, T, 1.6);
+      let acc = 0;
+      kit.follow(u, T, (t, dt) => { acc += dt; if (acc > 0.06) { acc = 0; kit.ring(u.x + Math.cos(u.heading) * 1.2, u.z + Math.sin(u.heading) * 1.2, 1.8, BG_VIO, 0.3, 0.9); } },
+        () => { if (u.alive) { claws(kit, u.x + Math.cos(u.heading) * 1.4, u.z + Math.sin(u.heading) * 1.4, u.heading, 3.4); kinetic(kit, u.x, u.z, 2.6); } });
+      kit.flash(u.x, 1.4, u.z, BG_VIO, 30, 0.2);
+      return true;
+    },
+  },
+  // Vương Chi Thú Liệp: he vanishes into ink; every cut is three claw slashes across the foe and a kinetic ring, the last one
+  // huge with a white flash and an ink burst
+  bgHunt: {
+    pal: [BG_VIO, BG_WHITE], hitR: 2,
+    skill(kit, e, u) {
+      sigil(kit, u.x, u.z, 4.6, BG_INK, { c2: BG_VIO, n: 5, m: 2, ticks: 10, inner: 0.5, fill: 0.75, w: 0.12, life: 1.0, rev: 0.06, spin: -2.5, alpha: 0.95 });
+      sigil(kit, u.x, u.z, 5.0, BG_VIO, { c2: BG_WHITE, n: 0, ticks: 20, inner: 0.88, fill: 0.15, w: 0.09, life: 0.9, rev: 0.05, spin: 1.5 });
+      for (let i = 0; i < 4; i++) { const b = e.a + i * 1.571 + 0.785; claws(kit, u.x + Math.cos(b) * 3.2, u.z + Math.sin(b) * 3.2, b, 2.6, 0.6); }   // he is gone: claw marks rake out all round
+      kit.puffs(u.x, 0.8, u.z, kit.N(8), BG_INK, 1.2, 2.5, 0.9, 1.5, 2.4, 0.5, 0.6, kit.K.SMOKE, 1);
+      kit.flash(u.x, 2, u.z, BG_VIO, 40, 0.25);
+      return true;
+    },
+    flurry(kit, e, u, row) {
+      const last = e.step >= (row.n || 7), a = Math.atan2(e.z - u.z, e.x - u.x);
+      claws(kit, e.x, e.z, a, last ? 4.6 : 3.2, last ? 0.5 : 0.35);
+      kinetic(kit, e.x, e.z, last ? 3.4 : 2.0);
+      if (last) { burst(kit, e.x, e.z, 3.2, BG_VIO, BG_WHITE, { life: 0.5 }); kit.flash(e.x, 2, e.z, BG_WHITE, 50, 0.3); kit.kick(e.x, e.z, 0.6); }
+      trail(kit, (t) => (t < 0.12 && u.alive ? [u.x, 0.8, u.z] : null), 1.0, BG_VIO, 0.45, { c2: BG_INK, len: 10 });
+      return true;
+    },
   },
 };

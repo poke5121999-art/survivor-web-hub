@@ -314,68 +314,7 @@ const nguma = {
   },
 };
 
-// ---- Báo Gấm: vibranium black, violet kinetic light, white claws ----------------------------------------------------
-const BG_VIO = C(1.6, 0.45, 2.6), BG_INK = 0x08050e;
-const clawGeo = (() => { const s = new THREE.Shape(); s.moveTo(-1, 0); s.quadraticCurveTo(0, 0.3, 1, 0); s.quadraticCurveTo(0, 0.04, -1, 0); return keep(new THREE.ShapeGeometry(s, 14).rotateX(-Math.PI / 2)); })();
-function claws(kit, x, z, a, len, life) {
-  const g = new THREE.Group(); g.position.set(x, 1.1, z); g.rotation.y = -a + 0.7;
-  const list = [];
-  for (let i = 0; i < 3; i++) { const gl = new THREE.Mesh(clawGeo, basic(0x4a1080, false, 0.9)), co = new THREE.Mesh(clawGeo, basic(WHITE, true, 1)); gl.position.z = co.position.z = (i - 1) * 1.3; gl.position.x = co.position.x = (1 - Math.abs(i - 1)) * 0.4; gl.scale.set(1, 1, 7); co.scale.set(1, 1, 2.6); g.add(gl, co); list.push([gl, co, i]); }
-  own(kit, [g], life, (t) => { for (const [gl, co, i] of list) { const k = Math.min(1, Math.max(0, (t - i * 0.015) / 0.04)), f = Math.min(1, (life - t) / 0.25); gl.scale.x = co.scale.x = len * k; gl.material.opacity = 0.9 * f; co.material.opacity = f; } });
-}
-// a log spiral arm from r0 to r1 over `turn` rad, as points on the floor
-function spiralPts(x, z, a0, r0, r1, turn, y, n = 18) { const p = []; for (let i = 0; i < n; i++) { const f = i / (n - 1), r = r0 * Math.pow(r1 / r0, f), b = a0 + turn * f; p.push([x + Math.cos(b) * r, y, z + Math.sin(b) * r]); } return p; }
-const hexGeo = keep(new THREE.CircleGeometry(1.15, 6)), icoV = (() => { const g = new THREE.IcosahedronGeometry(1, 0), p = g.attributes.position, s = new Map(); for (let i = 0; i < p.count; i++) s.set(p.getX(i).toFixed(3) + p.getY(i).toFixed(3) + p.getZ(i).toFixed(3), new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); g.dispose(); return [...s.values()]; })();
-const baogam = {
-  // Vồ Cào: a dark violet streak along the pounce, three white claw slashes rake across where it ends
-  bgClaw: {
-    pal: [BG_VIO, WHITE], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const reach = (row.dist || 7) / (row.speed || 34);
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a); let done = false;
-      trail(kit, (t) => (t < 0.4 && u.alive && !done ? [u.x, 0.9, u.z] : null), 2, BG_VIO, 0.6, { c2: C(0.15, 0.02, 0.3), len: 16 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt;
-        if ((this.t > 0.05 && !u.dash) || this.t >= reach * 0.6 || !u.alive) { done = true; if (u.alive) { claws(kit, u.x + ca * 1.8, u.z + sa * 1.8, a, 5.5, 0.6); kit.sparks(u.x + ca * 2, 1.1, u.z + sa * 2, kit.N(10), BG_VIO, 8, 0.3, 0.05, 0.5, 10, ca, sa, 0.6); kit.flash(u.x, 1.5, u.z, BG_VIO, 35, 0.2); } return false; }
-        return true; }, drop() {} });
-      return true;
-    },
-  },
-  // Giáp Rung: vibranium plates (black hexagons with violet rims) close round him into a shell; violet rings sink into it
-  bgSuit: {
-    pal: [BG_VIO, WHITE], hitR: 1.6,
-    skill(kit, e, u, row) {
-      const dur = row.dur || 3, g = new THREE.Group();
-      for (const v of icoV) { const p = new THREE.Group(), rim = new THREE.Mesh(hexGeo, basic(BG_VIO, true, 0.95)), core = new THREE.Mesh(hexGeo, basic(BG_INK, false, 0.9)); core.scale.setScalar(0.72); core.position.z = 0.02; p.add(rim, core); p.position.copy(v).multiplyScalar(2.3); p.lookAt(v.clone().multiplyScalar(4)); p.userData.v = v; g.add(p); }
-      own(kit, [g], dur, (t) => { if (!u.alive) return false; const k = Math.min(1, t / 0.2); g.position.set(u.x, 1.3, u.z); g.rotation.y = t * 0.8; g.scale.set(1.1 * (2 - k), 0.9 * (2 - k), 1.1 * (2 - k)); fadeAll(g, Math.min(1, (dur - t) / 0.3)); });
-      sigil(kit, u.x, u.z, 3, C(0.08, 0.03, 0.14), { c2: C(0.02, 0.01, 0.04), n: 6, m: 1, ticks: 0, inner: 0, fill: 1, w: 0.12, life: dur, rev: 0.1, alpha: 0.75, follow: u, y: 0.11 });
-      kit.flash(u.x, 1.6, u.z, BG_VIO, 40, 0.25);
-      return true;
-    },
-  },
-  // Bung Năng Lượng: violet light gathers in; then a black ink whirl of kinetic force spins out with violet edges and sparks
-  bgBurst: {
-    pal: [BG_VIO, WHITE], hitR: 2.4,
-    skill(kit, e, u, row) {
-      const w = row.windup || 0.4;
-      kit.follow(u, w, () => { const b = Math.random() * 6.283, d = R(2.5, 4); kit.str.emit(u.x + Math.cos(b) * d, 1.2, u.z + Math.sin(b) * d, -Math.cos(b) * 12, 0, -Math.sin(b) * 12, BG_VIO, 0.22, 0.1, 0.06, 0, 1, 1); kit.glow(u.x, 1.2, u.z, BG_VIO, 0.08, 2.2, 0.8, kit.K.GLOW, 1.2); });
-      return true;
-    },
-    nova(kit, e) {
-      const r = e.r || 6, x = e.x, z = e.z, arms = [];
-      for (let i = 0; i < 5; i++) { const ink = ribbonMesh(18, BG_INK, false, 0.92), edge = ribbonMesh(18, BG_VIO, true, 0.9); arms.push([ink, edge, i * 1.2566]); }
-      own(kit, arms.flatMap((q) => [q[0], q[1]]), 0.9, (t) => {
-        const k = Math.min(1, t / 0.08), f = Math.min(1, (0.9 - t) / 0.35), sp = t * 4;
-        for (const [ink, edge, a0] of arms) {
-          fillRibbon(ink, spiralPts(x, z, a0 + sp, 0.6, r * (0.4 + 0.75 * k), 2.6, 0.5), (q) => 0.2 + 1.3 * Math.sin(q * Math.PI) * (0.4 + 0.6 * k));
-          fillRibbon(edge, spiralPts(x, z, a0 + sp + 0.12, 0.6, r * (0.42 + 0.78 * k), 2.6, 0.55), (q) => 0.08 + 0.35 * Math.sin(q * Math.PI));
-          ink.material.opacity = 0.92 * f; edge.material.opacity = 0.9 * f;
-        }
-      });
-      kit.ring(x, z, r, BG_VIO, 0.45); burst(kit, x, z, 2.2, BG_VIO, WHITE); kit.flash(x, 2, z, BG_VIO, 60, 0.3); kit.kick(x, z, 0.8);
-      return true;
-    },
-  },
-};
+// ---- Black Panther (Báo Gấm) moved to looks-k9.js with the kit ported from clip p89 ----------------------------------
 
 // ---- Lôi Công: the golden hammer, gold lightning, an orange blast disc with a blue rim, storm cloud ---------------------
 const LC_GOLD = C(2.6, 1.9, 0.45), LC_ORG = C(2.6, 0.8, 0.12), LC_BLUE = C(0.35, 1.1, 2.5);
@@ -527,5 +466,5 @@ const mangxa = {
   },
 };
 
-export const B5 = { ...quaset, ...tegiac, ...nguma, ...baogam, ...loi, ...mangxa };
+export const B5 = { ...quaset, ...tegiac, ...nguma, ...loi, ...mangxa };
 export { zap, forks, ribbonMesh, fillRibbon };

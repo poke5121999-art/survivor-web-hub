@@ -7,7 +7,7 @@ import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   /
 import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
-import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang } from './k9-cases.mjs';   // kit lane k9: section K9
+import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-cases.mjs';   // kit lane k9: section K9
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -129,8 +129,10 @@ for (const key of MECH_ORDER) {
     for (let t = 0; t < Math.ceil((s.cd + 1.5) / TICK); t++) {
       const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' ? 0 : 1 });
       step(m, ally ? [o, inp(), inp()] : [o, inp()]);
-      for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === i) { if (first < 0) { first = t; castTicks = a.cd[slot]; } else if (second < 0) second = t; }
+      // a follow-up (G3 then, Black Panther's second charge) carries `then` on its skill event: it is not a press
+      for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === i && !e.then) { if (first < 0) { first = t; castTicks = a.cd[slot]; } else if (second < 0) second = t; }
       a.hp = a.maxHp;
+      if (s.do === 'flurry') m.units[1].hp = m.units[1].maxHp;   // a flurry that kills its lone foe would find nobody to recast on
     }
     check(`${key}.${slot} (${s.do}) goes on cooldown = ${s.cd}s`, first === 0 && Math.abs(castTicks - s.cd) < 1e-9, `first ${first} cd ${castTicks}`);
     // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown
@@ -3107,6 +3109,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   // spend 'nova' + 'absorbed' (baogam)
   {
     const m = arena([[R('trau', 0), 0, 0], [R('baogam', 1), 3, 0], [R('ung', 0), 5, 0]]), [t, b, e] = m.units;
+    oldBaogam(b);   // the old Black Panther kit (tools/k9-cases.mjs): vibranium meter
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
     const lost = b.maxHp - b.hp;
     check('42l baogam: blood lost + damage turned away by the armor = the whole shot (meter = TRAU_D)', near(b.meter, TRAU_D, 1e-6) && near(lost, TRAU_D * (1 - b.def.armor), 1e-6), `meter ${b.meter} lost ${lost}`);
@@ -3117,12 +3120,14 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   // nova.meterMul (baogam U): the whole meter goes in, dmg x (1 + meter / max)
   {
     const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    oldBaogam(a);   // the old Black Panther kit keeps nova.meterMul covered
     a.meter = 500;
     go(m, 1, () => ({ 0: { ult: true } }));
     check('42n meterMul takes the meter at once (500 -> 0)', a.meter === 0);
     go(m, 14);
     check('42o ... and the blow is 600 x 1.5 = 900, x 0.75 at 3 m of 6 -> 675', near(UNG.hp - v.hp, 675 * UNG_F, 1e-6), `${UNG.hp - v.hp}`);
     const w = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 3, 0]]);
+    oldBaogam(w.units[0]);
     go(w, 1, () => ({ 0: { ult: true } })); go(w, 14);
     check('42p an empty meter: 600 x 0.75 = 450', near(UNG.hp - w.units[1].hp, 450 * UNG_F, 1e-6), `${UNG.hp - w.units[1].hp}`);
   }

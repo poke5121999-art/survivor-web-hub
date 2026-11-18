@@ -981,6 +981,7 @@ function thenStep(m, u, inp, blocked) {
     if (q.t > 1e-9) { q.t -= TICK; if (q.t > 1e-9) continue; }
     if (u.cast || u.dash || u.flurry) continue;
     u.thenQ.splice(k--, 1);
+    if (q.bgAt !== undefined && !bgAim(m, u, q)) continue;   // kit-remake G5 Black Panther: the second charge turns to its unit
     const at = m.events.length;
     m.events.push({ t: 'skill', id: u.id, slot: q.slot, skill: q.row.id, x: u.x, z: u.z, a: u.aim, then: 1 });
     if (CAST[q.row.do](m, u, q.row, inp) === false) { m.events.length = at; continue; }
@@ -1565,6 +1566,7 @@ function flurryStep(m, u, o) {
   F.left--; F.step++; F.target = o.id; F.hits.push(o.id);
   u.dash = { dx, dz, left, speed: s.speed, s: { id: s.id, dmg: s.dmg, stun: s.stun || 0, fx: s.fx || null, heal: s.heal || 0 }, hit: [] };
   if (s.invuln) u.invulnT = Math.max(u.invulnT, left / s.speed + 0.15);
+  if (F.left <= 0 && s.bgLast) bgLast(u, s);   // kit-remake G5 Black Panther: the last cut
   m.events.push({ t: 'flurry', id: u.id, step: F.step, x: o.x, z: o.z });
 }
 // The step is over: go through the same enemy again (same) or the nearest one not yet cut, in reach; nobody, the chain ends.
@@ -1789,7 +1791,7 @@ function stepDash(m, u) {
     if (s.heal) heal(m, u, Math.min(s.dmg * dmgScale(u), before - (o.alive ? o.hp + o.shield : 0)) * s.heal, u, true);
     if (o.alive) { o.stunT = Math.max(o.stunT, s.stun || 0); o.kx += d.dx * (s.knock || 0) * 4; o.kz += d.dz * (s.knock || 0) * 4; if (s.fx) applyFx(m, u, o, s.fx); }
     m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
-    if (s.stop) { d.left = 0; break; }   // dash.stop: the dash ends on the first mech it hits
+    if (s.stop) { if (s.bgRe) bgQueue(u, s, o); d.left = 0; break; }   // dash.stop: the dash ends on the first mech it hits (kit-remake G5 Black Panther: bgRe)
   }
   if (s.drag && d.hit.length) dragHit(m, u, d);
   if (d.left <= 0.01 || moved < stepLen * 0.4) {
@@ -3236,3 +3238,33 @@ function bnStop(m, u, inp) {
   m.events.push({ t: 'k9', kind: 'bnStop', id: u.id, x: u.x, z: u.z });
 }
 /* ===== end kit-remake G5 Băng Nha ===== */
+
+/* ===== kit-remake G5 Black Panther (kit lane k9; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md baogam) ===== */
+// dash `bgRe: row` (with `stop: true`): the mech the dash stops on is charged again at once: the row (a dash, usually `drag`) is queued
+//   like a G3 `then` and, when it goes, turns to that mech; if it has died, to the nearest visible enemy within `row.r` of the caster;
+//   nobody, the second charge is dropped. Hooks: stepDash (the stop) and thenStep (the aim).
+// flurry `bgLast {dmg, knock, fx}`: the last cut of the flurry (its n-th step) hits with these instead of the row's dmg / fx and
+//   throws the victim back by knock. Hook: flurryStep.
+// Nothing here is in netstate STATUS (the dash and the flurry travel as they do for every row).
+function bgQueue(u, s, o) {
+  u.thenQ.push({ row: s.bgRe, slot: u.def.skills.indexOf(s), t: 0, bgAt: o.id });
+}
+function bgAim(m, u, q) {
+  let o = m.units[q.bgAt];
+  if (!o || !o.alive) {
+    o = null; let bd = (q.row.r || 8) ** 2;
+    for (const e of m.units) {
+      if (e.team === u.team || !e.alive || e.invulnT > 0 || !visibleTo(m, e, u.team)) continue;
+      const d = dist2(e.x, e.z, u.x, u.z);
+      if (d < bd) { bd = d; o = e; }
+    }
+    if (!o) return false;
+  }
+  u.aim = u.heading = Math.atan2(o.z - u.z, o.x - u.x);
+  return true;
+}
+function bgLast(u, s) {
+  const L = s.bgLast, d = u.dash;
+  d.s = { ...d.s, dmg: L.dmg ?? d.s.dmg, knock: L.knock || 0, fx: L.fx || d.s.fx };
+}
+/* ===== end kit-remake G5 Black Panther ===== */

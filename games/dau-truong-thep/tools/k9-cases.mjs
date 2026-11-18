@@ -56,6 +56,18 @@ export const OLD_BANG = {
   ],
 };
 export const oldBang = (u) => { u.def = { ...u.def, ...OLD_BANG }; u.passive = 'brittle'; return u; };
+// The batch-3 Black Panther kit (vibranium meter fed by blood lost and blows turned away, bursting as a nova; the ult spends it) as a
+// fixture: oldBaogam(u) puts it on a baogam unit for the generic meter cases (sim-test 42l-42p).
+export const OLD_BAOGAM = {
+  passive: { do: 'meter', name: 'Rung Động', desc: '', max: 1000, gain: { hurt: 1, absorbed: 1 }, spend: { kind: 'nova', radius: 4, dmg: 380, knock: 2.5 } },
+  weapon: { name: 'Vuốt Rung', cd: 0.25, dmg: 58, n: 2, fan: 0.1, speed: 30, range: 7, r: 0.26, vis: 'pellet' },
+  skills: [
+    { id: 'vocao', name: 'Vồ Cào', cd: 7, do: 'dash', dist: 7, speed: 34, dmg: 200, stun: 0.2, desc: '' },
+    { id: 'giaprung', name: 'Giáp Rung', cd: 12, do: 'buff', armor: 0.4, dur: 3, desc: '' },
+    { id: 'bungnangluong', name: 'Bung Năng Lượng', cd: 40, do: 'nova', windup: 0.4, radius: 6, dmg: 600, knock: 4, meterMul: true, desc: '' },
+  ],
+};
+export const oldBaogam = (u) => { u.def = { ...u.def, ...OLD_BAOGAM }; u.passive = 'meter'; u.meter = 0; return u; };
 // a copy of u's def whose crit roll always (1) or never (0) succeeds, so the arithmetic is exact
 const critAt = (u, chance) => { u.def = { ...u.def, passive: { ...u.def.passive, crit: { ...u.def.passive.crit, chance } } }; };
 
@@ -172,6 +184,44 @@ export function runK9Cases(check, section) {
     const ev = go(m, Math.round(1.7 / TICK), (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
     const h = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
     check('K9-u Han Bang An Ky: Lu Bo\'s 582 leap lands for at most 15% of her max hp; she gets x1.5 speed and he the Frost Mark', h.length >= 1 && near(h[0].amt + h[0].absorbed, BN.hp * 0.15, 1e-6) && a.hasteF === 1.5 && l.tags['frost@1'] > 0, `${h.map((e) => e.amt)} ${a.hasteF} ${JSON.stringify(l.tags)}`);
+  }
+
+  // ---- Black Panther (baogam), clip p89 ----
+  const BG = MECHS.baogam, [GQ, GE, GU] = BG.skills, FL = GQ.then, BOMB = FL.then;
+  // Nguyên Thủy Cuồng Nộ: pounce 218 + root 0.5 s, then a 4 m back-flip and five bombs of 291 that slow 50% 2 s
+  {
+    const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
+    const ev = go(m, 45, (i) => ({ 0: { s1: i === 0, tx: 12, tz: 0 } }));
+    const hv = only(ev, 'hit', (h) => h.id === 1 && h.by === 0), sk = only(ev, 'skill', (e) => e.id === 0);
+    check('K9-v Nguyen Thuy Cuong No: the pounce hits for 218 x armour and roots 0.5 s', hv.length >= 2 && near(hv[0].amt, GQ.dmg * UNG_F) && only(ev, 'ram', (e) => e.id === 0).length === 1, `${hv.map((h) => h.amt)}`);
+    check('K9-w ... then by itself the back-flip and the bombs (skill events nhaolon, bomrung); he ends 4 m back from where he stopped', sk.map((e) => e.skill).join() === 'nguyenthuy,nhaolon,bomrung' && a.x < 1.5, `${sk.map((e) => e.skill)} x ${a.x}`);
+    check('K9-x ... bombs of 291 x armour land on the foe and slow it 50%', hv.slice(1).length >= 1 && hv.slice(1).every((h) => near(h.amt, BOMB.dmg * UNG_F)) && v.slowF === 0.5, `${hv.slice(1).map((h) => h.amt)} ${v.slowF}`);
+  }
+  // Dã Tính Huyết Tập: lunge 188 on the first mech, then at once a second charge into it, 248, carrying it along
+  {
+    const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    const ev = go(m, 30, (i) => ({ 0: { s2: i === 0, tx: 12, tz: 0 } }));
+    const hv = only(ev, 'hit', (h) => h.id === 1 && h.by === 0);
+    check('K9-y Da Tinh Huyet Tap: 188 then 248 (x armour) on the same foe, carried well past where it stood', hv.length === 2 && near(hv[0].amt, GE.dmg * UNG_F) && near(hv[1].amt, GE.bgRe.dmg * UNG_F) && v.x > 7, `${hv.map((h) => h.amt)} x ${v.x}`);
+  }
+  {
+    const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 1), 3, 4]]), [a, v, w] = m.units;
+    v.hp = 1;
+    const ev = go(m, 30, (i) => ({ 0: { s2: i === 0, tx: 12, tz: 0 } }));
+    const hw = only(ev, 'hit', (h) => h.id === 2 && h.by === 0);
+    check('K9-z ... the first one dies: the second charge turns to the nearest foe and hits it for 248', !v.alive && hw.length === 1 && near(hw[0].amt, GE.bgRe.dmg * UNG_F), `${v.alive} ${hw.map((h) => h.amt)}`);
+  }
+  // Vương Chi Thú Liệp: seven cuts, untargetable; 333 x 6 then 525 + 15% of the lost hp (true), knocked back; heals and shields x0.5
+  {
+    const m = arena([[R('baogam', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    v.maxHp = v.hp = 20000;
+    const ev = go(m, 60, (i) => ({ 0: { ult: i === 0, tx: 4, tz: 0 } }));
+    const hv = only(ev, 'hit', (h) => h.id === 1 && h.by === 0), cuts = hv.filter((h) => near(h.amt, GU.dmg * UNG_F));
+    const last = hv.findIndex((h) => near(h.amt, GU.bgLast.dmg * UNG_F));
+    check('K9-A Vuong Chi Thu Liep: six cuts of 333 and a last of 525 (x armour) on a lone foe', cuts.length === 6 && last === 6 && only(ev, 'flurry', (e) => e.id === 0).length === 7, `${hv.map((h) => h.amt.toFixed(1))}`);
+    const lost = 20000 - (20000 - hv.slice(0, 7).reduce((s, h) => s + h.amt, 0));
+    check('K9-B ... the last cut adds 15% of the lost hp as true damage and knocks it back', hv.length === 8 && near(hv[7].amt, 0.15 * lost, 1e-6), `${hv.length} ${hv[7] && hv[7].amt} want ${0.15 * lost}`);
+    check('K9-C ... it heals and gets shields at half for 3 s (antiheal 0.5, also on shields)', v.ahF === 0.5 && v.ahT > 1, `${v.ahF} ${v.ahT}`);
   }
 }
 
