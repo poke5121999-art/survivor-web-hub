@@ -68,12 +68,12 @@ const put = (u, x, z) => { u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0; };
 
 export function runK14Cases(check, section) {
   section('62 kit lane k14: Gilgamesh (p74), Baymax (p59) and Doraemon (p58) ported from the owner\'s clips (literal expected values)');
-  const TR = MECHS.trau, TF = 1 - TR.armor, GG = MECHS.gilgamesh, BM = MECHS.suatrang, DR = MECHS.chuottui;
+  const TR = MECHS.dummy, TF = 1 - TR.armor, GG = MECHS.gilgamesh, BM = MECHS.suatrang, DR = MECHS.chuottui;
   // ---- Gilgamesh ----
   {
     // Thiên Địa Quai Ly: ten strikes 0.3 s apart on the cursor, 90 each (full at the centre), slowed 30%; the fifth skill hit in 2 s
     // binds (Phược Thần Chi Tỏa: 15% of the lost hp as true damage, a 100% slow that fades), then 3 s before that foe binds again
-    const m = arena([[R('gilgamesh', 0), 0, 0], [R('trau', 1), 8, 0]]), [a, v] = m.units;
+    const m = arena([[R('gilgamesh', 0), 0, 0], [R('dummy', 1), 8, 0]]), [a, v] = m.units;
     v.speed = 0;
     const ev = go(m, 1, () => ({ 0: { s2: true, tx: 8, tz: 0 } })).concat(go(m, 95));
     const hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0), binds = only(ev, 'stacks', (e) => e.id === 1);
@@ -84,13 +84,13 @@ export function runK14Cases(check, section) {
   }
   {
     // Thiên Chi Tỏa: shield 20% of max hp for 4 s, damage x1.15, haste 1.4
-    const m = arena([[R('gilgamesh', 0), 0, 0], [R('trau', 1), 30, 0]]), a = m.units[0];
+    const m = arena([[R('gilgamesh', 0), 0, 0], [R('dummy', 1), 30, 0]]), a = m.units[0];
     go(m, 1, () => ({ 0: { s1: true } }));
     check('62e Thien Chi Toa: shield 580 (20% of 2900) for 4 s, x1.15 damage, x1.4 run', near(a.shield, 0.2 * a.maxHp, 1e-6) && a.tfT > 3.9 && a.tfDmg === 1.15 && a.hasteF === 1.4, `${a.shield} ${a.tfT} ${a.tfDmg} ${a.hasteF}`);
   }
   {
     // Vương Chi Tài Bảo: 0.3 s wind-up that a stun cannot stop, then 20 volleys of 2 weapons 0.2 s apart (40 x 108), walking at x1.4
-    const m = arena([[R('gilgamesh', 0), 0, 0], [R('trau', 1), 30, 0]]), [a, foe] = m.units;
+    const m = arena([[R('gilgamesh', 0), 0, 0], [R('dummy', 1), 30, 0]]), [a, foe] = m.units;
     let ev = go(m, 1, () => ({ 0: { ult: true, aim: 0 } }));
     check('62f the press: a 0.3 s wind-up cast, no weapon out yet, unstoppable for it', !!a.cast && a.cast.ggW === 1 && a.ccT > 0.25 && m.shots.length === 0, `${a.cast && a.cast.t} ${a.ccT}`);
     applyFx(m, foe, a, { stun: 1 });
@@ -99,7 +99,7 @@ export function runK14Cases(check, section) {
     ev = ev.concat(go(m, 140, () => ({ 0: { aim: 0, fire: true } })));
     const shots = only(ev, 'fire', (e) => e.id === 0);
     check('62h after the wind-up: 20 volleys (the weapon is held off while it runs), 2 weapons each, 108 apiece', shots.length >= 20 && shots.length <= 22 && only(ev, 'fire', (e) => e.id === 0 && e.vis === 'sabot').length >= 20, `${shots.length}`);
-    const m2 = arena([[R('gilgamesh', 0), 0, 0], [R('trau', 1), 30, 0]]), b = m2.units[0];
+    const m2 = arena([[R('gilgamesh', 0), 0, 0], [R('dummy', 1), 30, 0]]), b = m2.units[0];
     go(m2, 12, () => ({ 0: { ult: true, aim: 0 } }));
     const sh = m2.shots.filter((s) => s.owner === 0);
     check('62i ... each weapon 108, the mech walks at x1.4 (haste) while it pours out', sh.length === 2 && sh.every((s) => near(s.dmg, 108, 1e-6)) && b.hasteF === 1.4 && b.cast && b.cast.move === 1, `${sh.map((s) => s.dmg)} ${b.hasteF}`);
@@ -107,7 +107,7 @@ export function runK14Cases(check, section) {
   // ---- Baymax ----
   {
     // Siêu Năng Trị Dũ: a chain to the ally at the cursor: both heal 150 a second (Baymax x selfHealMul), 10 energy to start and 10 a second
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 6, 0], [R('trau', 1), 30, 0]]), [a, al] = m.units;
+    const m = arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 6, 0], [R('dummy', 1), 30, 0]]), [a, al] = m.units;
     a.hp = 1000; al.hp = 1000;
     const ev = go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } }));
     check('62j the chain holds the ally (stTie = id + 1), 10 energy spent at the press, a bless event to it', a.stTie === al.id + 1 && only(ev, 'bless', (e) => e.to === al.id).length === 1 && a.en < 91 && a.en > 89, `${a.stTie} ${a.en}`);
@@ -125,13 +125,13 @@ export function runK14Cases(check, section) {
     check('62n under 10 energy the chain cannot start', a.stTie === 0);
     a.en = 12; a.cd.s1 = 0; go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } })); go(m, 15);
     check('62o the energy runs out: the chain breaks', a.stTie === 0 && a.en < 1, `${a.stTie} ${a.en}`);
-    const k = arena([[R('suatrang', 0), 0, 0], [R('trau', 1), 30, 0]]);
+    const k = arena([[R('suatrang', 0), 0, 0], [R('dummy', 1), 30, 0]]);
     go(k, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } }));
     check('62p nobody at the cursor: no chain, 0.4 s lockout', k.units[0].stTie === 0 && near(k.units[0].cd.s1, 0.4 - TICK, 1e-9) || near(k.units[0].cd.s1, 0.4, 1e-9), `${k.units[0].cd.s1}`);
   }
   {
     // Siêu Năng Tạc Đạn: three uses, 300 at the centre, a fading 50% slow, knocked back, 25 energy per foe hit
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 1), 8.6, 0]]), [a, v] = m.units;
+    const m = arena([[R('suatrang', 0), 0, 0], [R('dummy', 1), 8.6, 0]]), [a, v] = m.units;
     a.en = 50;
     go(m, 1, () => ({ 0: { s2: true, tx: 8, tz: 0 } }));
     const ev = go(m, 24);
@@ -142,7 +142,7 @@ export function runK14Cases(check, section) {
   {
     // Siêu Năng Chiến Sĩ: guard 50% on the ally from the press, 0.4 s wind-up, a flight that hits whoever it passes (400, knock-up 1 s),
     // 1000 shield on both, then the warrior: x2 run, no main weapon, a field that cuts and shoves
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 10, 0], [R('trau', 1), 5, 0.5]]), [a, al, v] = m.units;
+    const m = arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 10, 0], [R('dummy', 1), 5, 0.5]]), [a, al, v] = m.units;
     v.speed = 0;
     go(m, 1, () => ({ 0: { ult: true, tx: 10, tz: 0 } }));
     check('62s the press: the ally guards 50% until he lands, Baymax winds up 0.4 s', al.guardF === 0.5 && al.guardT > 0.9 && a.cast && a.cast.skill.id === 'chiensi', `${al.guardF} ${al.guardT}`);
@@ -156,7 +156,7 @@ export function runK14Cases(check, section) {
   }
   {
     // the save: an ally within 7 m drops under 30%: +30% of its max hp, guard 50% for 2 s; once per 30 s
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 5, 0], [R('ung', 1), 9, 0]]), [a, al, e] = m.units;
+    const m = arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 5, 0], [R('ung', 1), 9, 0]]), [a, al, e] = m.units;
     al.hp = al.maxHp * 0.32;
     const h = al.hp;
     go(m, 14, (i) => ({ 2: { fire: i === 0, aim: Math.PI, tx: 5, tz: 0 } }));
@@ -165,7 +165,7 @@ export function runK14Cases(check, section) {
   // ---- Doraemon ----
   {
     // Nhậm Ý Môn: one door at the cursor, 4 s; an ally stepping in comes out beside Doraemon, heals 320, vanishes 1 s; one use
-    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 0), 6, 0], [R('trau', 1), 30, 8]]), [a, al] = m.units;
+    const m = arena([[R('chuottui', 0), 0, 0], [R('dummy', 0), 6, 0], [R('dummy', 1), 30, 8]]), [a, al] = m.units;
     al.hp = 1000;
     go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } }));
     const z = m.zones.find((q) => q.kind === 'portal');
@@ -179,7 +179,7 @@ export function runK14Cases(check, section) {
   {
     // Ác Tác Kịch Hãm Tỉnh: 0.5 s to set, then 3 s: foes inside silenced and slowed 30% (1 s more after leaving), 75 a pulse,
     // tagged ctT 3 s; an ally passing heals 314 and is cleansed (once)
-    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 1), 6, 0], [R('trau', 0), 6, 2]]), [a, v, al] = m.units;
+    const m = arena([[R('chuottui', 0), 0, 0], [R('dummy', 1), 6, 0], [R('dummy', 0), 6, 2]]), [a, v, al] = m.units;
     v.speed = 0; al.hp = 1000; al.slowT = 3; al.slowF = 0.5;
     go(m, 1, () => ({ 0: { s2: true, tx: 6, tz: 0 } }));
     go(m, 13);
@@ -193,7 +193,7 @@ export function runK14Cases(check, section) {
   {
     // Toàn Qua Chế Tạo Cơ: 0.6 s after the throw, 503 in 4.5 m, everyone hit pulled to the centre and tagged ctV; on a ctT-tagged foe
     // also 10% of its max hp (armour cuts it, as moclan's maxHp) and a 2 s root (the tag is used up)
-    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 1), 8, 3], [R('trau', 1), 8, -2]]), [a, v, w] = m.units;
+    const m = arena([[R('chuottui', 0), 0, 0], [R('dummy', 1), 8, 3], [R('dummy', 1), 8, -2]]), [a, v, w] = m.units;
     v.speed = 0; w.speed = 0;
     w.tags['ctT@0'] = 2;
     go(m, 1, () => ({ 0: { ult: true, tx: 8, tz: 0 } }));

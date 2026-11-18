@@ -1,4 +1,5 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
+import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { execFileSync } from 'node:child_process';
 import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed, skillReady, LOC_KINDS, locked } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
@@ -19,7 +20,7 @@ import { runK16Cases, oldK16, OLD_LOI } from './k16-cases.mjs';   // kit lane k1
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
-const TRAU = MECHS.trau, TRAU_HIT = (dmg) => dmg * (1 - TRAU.armor);
+const TRAU = MECHS.dummy, TRAU_HIT = (dmg) => dmg * (1 - TRAU.armor);
 // shot damage of the rows the literal-number tests below fire (a balance pass moves these, the arithmetic stays)
 // The batch-0 Ưng Nhãn kit (a slow pierce rail, mine, stealth blink, beam ult) is a fixture now: ung plays Hawk Mark ported from
 // clip p92 (section K7). The sections below that use ung as their reference shooter or test those rows play this fixture.
@@ -33,7 +34,7 @@ const OLD_UNG = {
   ],
 };
 const oldUng = (m) => { for (const u of m.units) if (u.mech === 'ung') { u.def = { ...u.def, ...OLD_UNG }; u.passive = 'pierce'; } return m; };
-const THO_D = MECHS.tho.weapon.dmg, BOC_D = OLD_BOCAP.weapon.dmg, UNG_TOWER = OLD_UNG.weapon.dmg * MECHS.ung.towerMul;
+const THO_D = MECHS.oldtho.weapon.dmg, BOC_D = OLD_BOCAP.weapon.dmg, UNG_TOWER = OLD_UNG.weapon.dmg * MECHS.ung.towerMul;
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -61,14 +62,14 @@ const toward = (a, b) => Math.atan2(b.z - a.z, b.x - a.x);
 
 section('1-2 shots');
 {
-  const m = oldUng(duel('ung', 'trau', [-5, -1], [3, -1]));
+  const m = oldUng(duel('ung', 'dummy', [-5, -1], [3, -1]));
   const [a, b] = m.units;
   const ev = run(m, 12, (i) => [inp({ aim: 0, fire: i === 0 }), inp()]);
   check('shot in the open reduces hp by weapon damage', b.hp === b.maxHp - OLD_UNG.weapon.dmg, `hp ${b.hp}/${b.maxHp}`);
   check('shot in the open emits an impact on the unit', ev.some((e) => e.t === 'impact' && e.on === 'unit'));
 }
 {
-  const m = duel('ung', 'trau', [-14, 0], [-5, 0]);
+  const m = duel('ung', 'dummy', [-14, 0], [-5, 0]);
   const b = m.units[1];
   const ev = run(m, 12, (i) => [inp({ aim: 0, fire: i === 0 }), inp()]);
   check('wall blocks the shot (hp unchanged)', b.hp === b.maxHp);
@@ -77,7 +78,7 @@ section('1-2 shots');
 
 section('3 bushes and stealth');
 {
-  const m = createMatch({ seed: 1, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }] });
+  const m = createMatch({ seed: 1, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'dummy', name: 'B' }] });
   const [a, b] = m.units;
   put(b, -20.5, 9.5); put(a, -20.5, 25.5);
   run(m, 2);
@@ -97,7 +98,7 @@ section('3 bushes and stealth');
   // a hidden idle enemy; bots of the other team start 19 m away (bots turn the turret before firing and close in sooner than they once did) and play normally
   const roster = [
     { team: 0, mech: 'ung', name: 'S', bot: true, diff: 'hard' }, { team: 0, mech: 'soi', name: 'T', bot: true, diff: 'hard' },
-    { team: 1, mech: 'trau', name: 'H' },
+    { team: 1, mech: 'dummy', name: 'H' },
   ];
   const m = oldUng(createMatch({ seed: 3, roster }));
   const h = m.units[2];
@@ -122,7 +123,7 @@ section('3 bushes and stealth');
   check('hidden enemy untouched while never seen', visibleOnce || h.hp === h.maxHp, `hp ${h.hp}`);
 }
 {
-  const m = createMatch({ seed: 4, roster: [{ team: 0, mech: 'ung', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'V' }] });
+  const m = createMatch({ seed: 4, roster: [{ team: 0, mech: 'ung', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'V' }] });
   const [a, v] = m.units;
   put(a, -6, -1); put(v, 4, -1);
   run(m, 120, () => allInputs(m));
@@ -142,7 +143,7 @@ for (const key of MECH_ORDER) {
     const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : s.do === 'flurry' || (s.do === 'leap' && s.to === 'foe') || s.ktLock ? -1 : 9, -1]);
     // thrifty (chuottui) rolls m.rng: no refund here, the cooldown is what is being measured
     if (m.units[0].passive === 'thrifty') m.rng = Object.assign(() => 0.99, m.rng);
-    if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'trau', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
+    if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'dummy', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
     const a = m.units[0];
     // orbit devour (tumay ult) needs a chaos orb to send: the pool timer is primed so the first tick grows one before the press
     if (s.mode === 'devour') a.tmAcc = MECHS[key].passive.every;
@@ -167,26 +168,26 @@ for (const key of MECH_ORDER) {
 
 section('5 skill effects');
 {
-  const m = oldUng(duel('trau', 'ung', [-5, -1], [3, -1]));
+  const m = oldUng(duel('dummy', 'ung', [-5, -1], [3, -1]));
   const [a, b] = m.units;
   const ev = run(m, 15, (i) => [inp({ s1: i === 0 }), inp({ aim: Math.PI, fire: i === 2 })]);
   check('shield: set to its amount on cast', ev.some((e) => e.t === 'skill' && e.skill === 'giap'));
-  check('shield absorbs a rail shot (hp unchanged, shield reduced)', a.hp === a.maxHp && a.shield === MECHS.trau.skills[0].amount - OLD_UNG.weapon.dmg, `hp ${a.hp} shield ${a.shield}`);
+  check('shield absorbs a rail shot (hp unchanged, shield reduced)', a.hp === a.maxHp && a.shield === MECHS.dummy.skills[0].amount - OLD_UNG.weapon.dmg, `hp ${a.hp} shield ${a.shield}`);
 }
 {
-  const m = duel('trau', 'ung', [-5, -1], [2, -1]);
+  const m = duel('dummy', 'ung', [-5, -1], [2, -1]);
   const [a, b] = m.units;
   let maxStun = 0;
-  const s = MECHS.trau.skills[1];
+  const s = MECHS.dummy.skills[1];
   run(m, 25, (i) => { maxStun = Math.max(maxStun, b.stunT); return [inp({ s2: i === 0, aim: 0 }), inp()]; });
   check('dash moves the caster forward', a.x > -5 + 3, `x ${a.x}`);
   check('dash damages the unit it hits', b.hp === b.maxHp - s.dmg, `hp ${b.hp}`);
   check('dash stuns the unit it hits', maxStun > s.stun - 0.1, `stun ${maxStun}`);
 }
 {
-  const m = duel('trau', 'ung', [-5, -1], [-1, -1]);
+  const m = duel('dummy', 'ung', [-5, -1], [-1, -1]);
   const [a, b] = m.units;
-  const s = MECHS.trau.skills[2];
+  const s = MECHS.dummy.skills[2];
   run(m, 10, (i) => [inp({ ult: i === 0 }), inp()]);
   check('nova: no damage during the windup', b.hp === b.maxHp);
   const ev = run(m, Math.ceil(s.windup / TICK), () => [inp(), inp()]);
@@ -194,7 +195,7 @@ section('5 skill effects');
   check('nova: slows them', b.slowT > 0 && unitSpeed(b) < b.def.speed * 0.6);
 }
 {
-  const m = duel('soi', 'trau', [-5, -1], [3, -1]);
+  const m = duel('soi', 'dummy', [-5, -1], [3, -1]);
   const [a, b] = m.units;
   const ev = run(m, 120, (i) => [inp({ ult: i === 0, aim: 0, tx: 3, tz: -1 }), inp()]);
   const strikes = ev.filter((e) => e.t === 'explode' && e.why === 'strike').length;
@@ -202,7 +203,7 @@ section('5 skill effects');
   check('barrage: damages the enemy under the target point', b.hp <= b.maxHp - MECHS.soi.skills[2].dmg, `hp ${b.hp}`);
 }
 {
-  const m = oldUng(duel('ung', 'trau', [-5, -1], [2, -1]));
+  const m = oldUng(duel('ung', 'dummy', [-5, -1], [2, -1]));
   const [a, b] = m.units;
   let maxStun = 0;
   const ev = run(m, 60, (i) => { maxStun = Math.max(maxStun, b.stunT); return [inp({ s1: i === 0, tx: 2, tz: -1 }), inp()]; });
@@ -211,7 +212,7 @@ section('5 skill effects');
   check('mine: consumed after triggering', m.zones.every((z) => z.kind !== 'mine'));
 }
 {
-  const m = oldUng(duel('ung', 'trau', [-5, -1], [9, -1]));
+  const m = oldUng(duel('ung', 'dummy', [-5, -1], [9, -1]));
   const [a] = m.units;
   const x0 = a.x;
   run(m, 1, () => [inp({ s2: true, mx: 1 }), inp()]);
@@ -222,20 +223,20 @@ section('5 skill effects');
 }
 {
   const s = OLD_UNG.skills[2];
-  const m = oldUng(duel('ung', 'trau', [-5, -1], [5, -1]));
+  const m = oldUng(duel('ung', 'dummy', [-5, -1], [5, -1]));
   const [a, b] = m.units;
-  const c = oldUng(createMatch({ seed: 2, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 1, mech: 'trau', name: 'C' }] }));
+  const c = oldUng(createMatch({ seed: 2, roster: [{ team: 0, mech: 'ung', name: 'A' }, { team: 1, mech: 'dummy', name: 'B' }, { team: 1, mech: 'dummy', name: 'C' }] }));
   put(c.units[0], -5, -1); put(c.units[1], 2, -1); put(c.units[2], 8, -1);
   run(c, Math.ceil((s.windup + 0.3) / TICK), (i) => [inp({ ult: i === 0, aim: 0 }), inp(), inp()]);
   check('beam: damages every enemy in the line', c.units[1].hp === c.units[1].maxHp - s.dmg && c.units[2].hp === c.units[2].maxHp - s.dmg, `hp ${c.units[1].hp} ${c.units[2].hp}`);
-  const w = oldUng(duel('ung', 'trau', [-14, 0], [-5, 0]));
+  const w = oldUng(duel('ung', 'dummy', [-14, 0], [-5, 0]));
   run(w, Math.ceil((s.windup + 0.3) / TICK), (i) => [inp({ ult: i === 0, aim: 0 }), inp()]);
   check('beam: does not pass through a wall', w.units[1].hp === w.units[1].maxHp);
 }
 {
   const m = duel('hac', 'ung', [-5, -1], [9, -1]);
   const ally = m.units[1];
-  const m2 = createMatch({ seed: 2, roster: [{ team: 0, mech: 'hac', name: 'A' }, { team: 0, mech: 'trau', name: 'T' }, { team: 1, mech: 'ung', name: 'E' }] });
+  const m2 = createMatch({ seed: 2, roster: [{ team: 0, mech: 'hac', name: 'A' }, { team: 0, mech: 'dummy', name: 'T' }, { team: 1, mech: 'ung', name: 'E' }] });
   const [h, t, e] = m2.units;
   put(h, -5, -1); put(t, -2, -1); put(e, 20, -1);
   t.hp = 1000; e.hp = 500; t.combatT = 0; e.combatT = 0;
@@ -244,7 +245,7 @@ section('5 skill effects');
   check('heal zone: does not heal enemies', e.hp === 500, `hp ${e.hp}`);
 }
 {
-  const m = duel('hac', 'trau', [-5, -1], [1, -1]);
+  const m = duel('hac', 'dummy', [-5, -1], [1, -1]);
   const [a, b] = m.units;
   run(m, 15, (i) => [inp({ s2: i === 0, tx: 1, tz: -1 }), inp()]);
   check('slow field: slows enemies inside (trau steady: 5.1 x (1 - 0.45 x 0.5) = 3.9525)', b.slowT > 0 && Math.abs(unitSpeed(b) - 3.9525) < 1e-9, `speed ${unitSpeed(b)}`);
@@ -265,7 +266,7 @@ const hp0 = (u) => u.maxHp - u.hp;
 {
   // lobbed weapon: lands at the aim point after `flight`, no projectile
   const w = OLD_LOI.weapon;
-  const m = oldK16(duel('loi', 'trau', [-5, -1], [3, -1]));
+  const m = oldK16(duel('loi', 'dummy', [-5, -1], [3, -1]));
   const [a, b] = m.units;
   run(m, 1, () => [inp({ fire: true, aim: 0, tx: 3, tz: -1 }), inp()]);
   check('lob: fires no projectile, adds a strike zone with lob flag', m.shots.length === 0 && m.zones.some((z) => z.kind === 'strike' && z.lob && z.x === 3 && z.z === -1));
@@ -273,17 +274,17 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('lob: no damage while the shell is in flight', b.hp === b.maxHp);
   const ev = run(m, 8, () => [inp(), inp()]);
   check(`lob: damages the unit at the aim point after flight (${w.dmg} x (1 - ${TRAU.armor} armour))`, Math.abs(b.hp - (b.maxHp - TRAU_HIT(w.dmg))) < 1e-9 && ev.some((e) => e.t === 'explode' && e.why === 'strike'), `hp ${b.hp}`);
-  const c = oldK16(duel('loi', 'trau', [-14, 0], [-5, 0]));
+  const c = oldK16(duel('loi', 'dummy', [-14, 0], [-5, 0]));
   const evc = run(c, Math.ceil((w.flight + 0.3) / TICK), (i) => [inp({ fire: i === 0, aim: 0, tx: -5, tz: 0 }), inp()]);
   check('lob: flies over a wall (the lob dmg on trau; target behind it is hit, no wall impact)', Math.abs(c.units[1].hp - (c.units[1].maxHp - TRAU_HIT(w.dmg))) < 1e-9 && !evc.some((e) => e.t === 'impact'), `hp ${c.units[1].hp}`);
-  const f = oldK16(duel('loi', 'trau', [-5, -1], [9, -1]));
+  const f = oldK16(duel('loi', 'dummy', [-5, -1], [9, -1]));
   run(f, 1, () => [inp({ fire: true, aim: 0, tx: 99, tz: -1 }), inp()]);
   const z = f.zones.find((q) => q.lob);
   check('lob: aim point is clamped to the weapon range', !!z && Math.abs(z.x - (-5 + w.range)) < 1e-6, z ? `x ${z.x}` : 'no zone');
 }
 {
   const w = OLD_BOCAP.weapon;
-  const m = oldK10(duel('bocap', 'trau', [-5, -1], [0, -1]));
+  const m = oldK10(duel('bocap', 'dummy', [-5, -1], [0, -1]));
   const b = m.units[1];
   run(m, 1, () => [inp({ fire: true, aim: 0 }), inp()]);
   check('pellets: one trigger pull spawns n shots', m.shots.length === w.n, `shots ${m.shots.length}`);
@@ -301,12 +302,12 @@ const hp0 = (u) => u.maxHp - u.hp;
 }
 {
   const s = OLD_LOI.skills[1];
-  const m = oldK16(duel('loi', 'trau', [6, -1], [8, -1]));
+  const m = oldK16(duel('loi', 'dummy', [6, -1], [8, -1]));
   const [a, b] = m.units;
   const ev = run(m, 20, (i) => [inp({ s2: i === 0, aim: 0 }), inp()]);
   check('recoil: damages an enemy in its radius', b.hp < b.maxHp && b.hp >= b.maxHp - s.dmg && ev.some((e) => e.t === 'nova'), `hp ${b.hp}`);
   check('recoil: moves the caster backward (opposite its aim)', a.x < 6 - s.dist + 1.5 && a.x > 6 - s.dist - 1, `x ${a.x}`);
-  const far = oldK16(duel('loi', 'trau', [-5, -1], [4, -1]));
+  const far = oldK16(duel('loi', 'dummy', [-5, -1], [4, -1]));
   run(far, 5, (i) => [inp({ s2: i === 0, aim: 0 }), inp()]);
   check('recoil: an enemy outside the radius is untouched', far.units[1].hp === far.units[1].maxHp);
 }
@@ -327,8 +328,8 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('wall: enemy walks through once it expired', b.x < wall.x - 0.5, `x ${b.x}`);
 }
 {
-  const s = MECHS.tho.skills[0];
-  const m = duel('tho', 'ung', [-5, -1], [4, -1]);
+  const s = MECHS.oldtho.skills[0];
+  const m = duel('oldtho', 'ung', [-5, -1], [4, -1]);
   const [a, b] = m.units;
   run(m, 1, () => [inp({ s1: true, aim: 0, tx: -2, tz: -1 }), inp()]);
   const t = m.zones.find((z) => z.kind === 'turret');
@@ -338,7 +339,7 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('turret: its shots are credited to the owner', a.dmg > 0);
   run(m, 240, () => [inp(), inp({ fire: true, aim: Math.PI })]);
   check('turret: enemy shots can destroy it before it expires', !m.zones.some((z) => z.kind === 'turret') && m.time < s.dur, `time ${m.time.toFixed(1)}`);
-  const e = duel('tho', 'ung', [-5, -1], [7, -1]);
+  const e = duel('oldtho', 'ung', [-5, -1], [7, -1]);
   run(e, 1, () => [inp({ s1: true, aim: 0, tx: -5, tz: -1 }), inp()]);
   const ev2 = run(e, Math.floor((s.dur * 1.3 - 0.5) / TICK), () => [inp(), inp()]);
   check('turret: out of range it never fires and is still there before dur', !ev2.some((x) => x.t === 'turretFire') && e.zones.some((z) => z.kind === 'turret'));
@@ -346,18 +347,18 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('turret: expires after dur', !e.zones.some((z) => z.kind === 'turret'));
 }
 {
-  const s = MECHS.tho.skills[2];
-  const m = duel('tho', 'ung', [-5, -1], [9, -1]);
+  const s = MECHS.oldtho.skills[2];
+  const m = duel('oldtho', 'ung', [-5, -1], [9, -1]);
   run(m, 1, () => [inp({ ult: true, aim: 0, tx: 2, tz: -1 }), inp()]);
   const mines = m.zones.filter((z) => z.kind === 'mine');
   check('minefield: places n mines near the aim point', mines.length === s.n && mines.every((z) => Math.hypot(z.x - 2, z.z + 1) <= s.radius * 0.7 + 1e-6), `mines ${mines.length}`);
-  const e = duel('tho', 'trau', [-5, -1], [2, -1]);
+  const e = duel('oldtho', 'dummy', [-5, -1], [2, -1]);
   const ev = run(e, 40, (i) => [inp({ ult: i === 0, aim: 0, tx: 2, tz: -1 }), inp()]);
   check('minefield: a mine under the enemy blows and stuns', ev.some((x) => x.t === 'explode' && x.why === 'mine') && e.units[1].hp < e.units[1].maxHp);
 }
 {
   const s = OLD_LOI.skills[0];
-  const m = oldK16(duel('loi', 'trau', [-5, -1], [9, -1]));
+  const m = oldK16(duel('loi', 'dummy', [-5, -1], [9, -1]));
   const a = m.units[0], b = m.units[1];
   run(m, Math.ceil((RULES.revealOnFire + 0.2) / TICK), (i) => [inp({ s1: i === 0, tx: -5, tz: -1 }), inp()]);
   check('smoke: hides a unit standing inside it', hidden(a) && !!m.zones.find((z) => z.hide));
@@ -369,8 +370,8 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('smoke: the unit shows again after the smoke ended', !hidden(a) && visibleTo(m, a, 1));
 }
 {
-  const s = MECHS.tho.skills[1];
-  const m = duel('tho', 'trau', [-5, -1], [3, -1]);
+  const s = MECHS.oldtho.skills[1];
+  const m = duel('oldtho', 'dummy', [-5, -1], [3, -1]);
   const b = m.units[1];
   run(m, 15, (i) => [inp({ s2: i === 0, aim: 0, tx: 0, tz: -1 }), inp()]);
   check('pull field: moves enemies toward its centre', b.x < 3 - 1.5 && b.x > -0.5, `x ${b.x}`);
@@ -380,7 +381,7 @@ const hp0 = (u) => u.maxHp - u.hp;
 }
 {
   const s = OLD_BOCAP.skills[1];
-  const m = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
+  const m = oldK10(duel('bocap', 'dummy', [-5, -1], [9, -1]));
   const a = m.units[0];
   run(m, 1, () => [inp({ s2: true }), inp()]);
   check('stealth buff: caster hidden and hasted', hidden(a) && a.hasteT > 0 && !visibleTo(m, a, 1));
@@ -388,27 +389,27 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('stealth buff: still hidden while idle', hidden(a));
   run(m, 1, () => [inp({ fire: true, aim: 0 }), inp()]);
   check('stealth buff: firing reveals the caster', !hidden(a) && visibleTo(m, a, 1));
-  const m2 = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
+  const m2 = oldK10(duel('bocap', 'dummy', [-5, -1], [9, -1]));
   run(m2, 1, () => [inp({ s2: true }), inp()]);
   run(m2, Math.ceil((s.stealth + 0.2) / TICK), () => [inp(), inp()]);
   check('stealth buff: ends by itself after its time', !hidden(m2.units[0]));
 }
 {
   const s = OLD_BOCAP.skills[2];
-  const m = oldK10(duel('bocap', 'trau', [-5, -1], [-4, -1]));
+  const m = oldK10(duel('bocap', 'dummy', [-5, -1], [-4, -1]));
   const b = m.units[1];
   const ev = run(m, Math.ceil((s.windup + s.gap * s.repeat + 0.3) / TICK), (i) => [inp({ ult: i === 0 }), inp()]);
   const novas = ev.filter((e) => e.t === 'nova').length, hits = ev.filter((e) => e.t === 'hit' && e.id === 1 && e.by === 0).length;
   check('nova repeat: hits `repeat` times', novas === s.repeat && hits === s.repeat, `novas ${novas} hits ${hits}`);
   check('nova repeat: total damage is repeat x per-hit (with falloff)', hp0(b) > s.repeat * s.dmg * 0.5 && hp0(b) <= s.repeat * s.dmg, `dmg ${hp0(b)}`);
-  const mv = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
+  const mv = oldK10(duel('bocap', 'dummy', [-5, -1], [9, -1]));
   const x0 = mv.units[0].x;
   run(mv, 15, (i) => [inp({ ult: i === 0, mx: 1 }), inp()]);
   check('nova repeat: caster keeps moving while spinning (move: 1)', mv.units[0].x - x0 > 3, `dx ${mv.units[0].x - x0}`);
 }
 {
   const s = OLD_LOI.skills[2];
-  const m = oldK16(duel('loi', 'trau', [-5, -1], [9, -1]));
+  const m = oldK16(duel('loi', 'dummy', [-5, -1], [9, -1]));
   m.units[0].aim = Math.PI / 2;
   run(m, 1, () => [inp({ ult: true, aim: Math.PI / 2, tx: 3, tz: 0 }), inp()]);
   const st = m.zones.filter((z) => z.kind === 'strike');
@@ -416,7 +417,7 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('line barrage: n strikes along the aim line, spaced by gap', st.length === s.n && st.every((z) => Math.abs(z.x - 3) < 1e-9) && zs.every((v, i) => i === 0 || Math.abs(v - zs[i - 1] - s.gap) < 1e-9) && Math.abs((zs[0] + zs[s.n - 1]) / 2) < 1e-9, JSON.stringify(zs));
   const ev = run(m, Math.ceil((s.delay + s.span + 0.3) / TICK), () => [inp(), inp()]);
   check('line barrage: all strikes land', ev.filter((e) => e.t === 'explode' && e.why === 'strike').length === s.n);
-  const h = oldK16(duel('loi', 'trau', [-5, -1], [3, -1 + 3.2]));
+  const h = oldK16(duel('loi', 'dummy', [-5, -1], [3, -1 + 3.2]));
   h.units[0].aim = Math.PI / 2;
   run(h, Math.ceil((s.delay + s.span + 0.3) / TICK), (i) => [inp({ ult: i === 0, aim: Math.PI / 2, tx: 3, tz: -1 }), inp()]);
   check('line barrage: an enemy standing on the line is hit', h.units[1].hp < h.units[1].maxHp, `hp ${h.units[1].hp}`);
@@ -424,7 +425,7 @@ const hp0 = (u) => u.maxHp - u.hp;
 
 section('6 airdrops');
 {
-  const m = createMatch({ seed: 9, roster: [{ team: 0, mech: 'trau', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }] });
+  const m = createMatch({ seed: 9, roster: [{ team: 0, mech: 'dummy', name: 'A' }, { team: 1, mech: 'dummy', name: 'B' }] });
   const [a] = m.units;
   let drop = null, landed = false;
   for (let i = 0; i < 40 * 30 && !landed; i++) {
@@ -452,7 +453,7 @@ section('6 airdrops');
 
 section('7 death and respawn');
 {
-  const m = duel('ung', 'trau', [-5, -1], [3, -1]);
+  const m = duel('ung', 'dummy', [-5, -1], [3, -1]);
   const [a, b] = m.units;
   b.hp = 100;
   const ev = run(m, 12, (i) => [inp({ fire: i === 0 }), inp()]);
@@ -468,7 +469,7 @@ section('7 death and respawn');
 
 section('8-12 bot matches');
 const CALLS = [];
-const COMP = ['trau', 'soi', 'ung', 'hac', 'soi'];
+const COMP = ['dummy', 'soi', 'ung', 'hac', 'soi'];
 function runMatch(seed, diffs, opts = {}) {
   const roster = [];
   for (let t = 0; t < 2; t++) for (const mech of (opts.comps ? opts.comps[t] : (opts.comp || COMP))) roster.push({ team: t, mech, name: mech + t, bot: true, diff: diffs[t] });
@@ -574,7 +575,7 @@ section('13 new mechs: bots, inputs, balance');
   check('14a every one of the 8 mechs played as a bot', seen.size === MECH_ORDER.length);
   check('14b no bot ever emitted a non-finite or non-boolean input', bad === 0, `${bad} bad inputs in ${total}`);
   // direct probe of the guard: a unit with garbage state still yields finite output
-  const m = oldK16(createMatch({ seed: 5, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] }));
+  const m = oldK16(createMatch({ seed: 5, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] }));
   const [l, t] = m.units;
   put(l, -5, -1); put(t, 3, -1); t.vx = NaN;
   let finite = true;
@@ -583,15 +584,15 @@ section('13 new mechs: bots, inputs, balance');
 }
 {
   // loi as a bot: shells a visible enemy, also one behind a wall; keeps behind its allies
-  const m = oldK16(createMatch({ seed: 6, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] }));
+  const m = oldK16(createMatch({ seed: 6, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] }));
   put(m.units[0], -6, -1); put(m.units[1], 6, -1);
   run(m, 240, () => allInputs(m));
   check('loi bot damages a visible enemy', m.units[1].hp < m.units[1].maxHp - OLD_LOI.weapon.dmg * 0.5 || !m.units[1].alive, `hp ${m.units[1].hp}`);
-  const w = oldK16(createMatch({ seed: 6, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] }));
+  const w = oldK16(createMatch({ seed: 6, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] }));
   put(w.units[0], -14, 0); put(w.units[1], -5, 0);
   run(w, 300, () => allInputs(w));
   check('loi bot damages an enemy behind a wall (no line of sight needed)', w.units[1].hp < w.units[1].maxHp || !w.units[1].alive, `hp ${w.units[1].hp}`);
-  const k = oldK16(createMatch({ seed: 7, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 0, mech: 'trau', name: 'A' }, { team: 1, mech: 'trau', name: 'T' }] }));
+  const k = oldK16(createMatch({ seed: 7, roster: [{ team: 0, mech: 'loi', name: 'L', bot: true, diff: 'hard' }, { team: 0, mech: 'dummy', name: 'A' }, { team: 1, mech: 'dummy', name: 'T' }] }));
   put(k.units[0], -4, -1); put(k.units[1], 0, -1); put(k.units[2], 7, -1);
   k.units[2].maxHp = k.units[2].hp = 99999;
   let ahead = 0, n = 0;
@@ -600,17 +601,17 @@ section('13 new mechs: bots, inputs, balance');
 }
 {
   // an enemy turret with no mech in sight is shot at
-  const m = createMatch({ seed: 8, roster: [{ team: 0, mech: 'soi', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'tho', name: 'T' }] });
+  const m = createMatch({ seed: 8, roster: [{ team: 0, mech: 'soi', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'oldtho', name: 'T' }] });
   put(m.units[0], -6, -1); put(m.units[1], 4, -1);
   run(m, 1, () => [IN, inp({ s1: true, aim: Math.PI, tx: 1, tz: -1 })]);
   m.units[1].alive = false; m.units[1].respawnT = 100;
   let gone = -1;
   const ev = run(m, 240, (i) => { if (gone < 0 && !m.zones.some((z) => z.kind === 'turret')) gone = i; return allInputs(m); });
-  check('bot shoots an enemy turret when no mech is around (destroyed before it expires)', ev.some((e) => e.t === 'impact' && e.on === 'turret') && !m.zones.some((z) => z.kind === 'turret') && m.time < MECHS.tho.skills[0].dur);
+  check('bot shoots an enemy turret when no mech is around (destroyed before it expires)', ev.some((e) => e.t === 'impact' && e.on === 'turret') && !m.zones.some((z) => z.kind === 'turret') && m.time < MECHS.oldtho.skills[0].dur);
 }
 {
   // enemy fields with dps: a normal bot with a goal behind it does not sit in one
-  const m = createMatch({ seed: 9, roster: [{ team: 0, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'bang', name: 'B' }] });
+  const m = createMatch({ seed: 9, roster: [{ team: 0, mech: 'dummy', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'bang', name: 'B' }] });
   put(m.units[0], -5, -1); put(m.units[1], 12, 20);
   oldBang(m.units[1]);   // the old Băng Nha kit (tools/k9-cases.mjs): its ult is a damaging blizzard field
   run(m, 1, () => [IN, inp({ ult: true, aim: Math.PI, tx: -5, tz: -1 })]);
@@ -668,7 +669,7 @@ const solo = (mech, team = 0) => ({ team, mech, name: mech + team });
 section('18 chiem rules (control points)');
 {
   const R = MODES.chiem;
-  const m = mk({ seed: 1, mode: 'chiem', roster: [solo('trau', 0), solo('trau', 1)] });
+  const m = mk({ seed: 1, mode: 'chiem', roster: [solo('dummy', 0), solo('dummy', 1)] });
   const [a, b] = m.units, P = m.points[0];
   check('18a three points with owner -1 and the rule radius', m.points.length === 3 && m.points.every((p) => p.owner === -1 && p.prog === 0 && p.r === R.radius));
   put(a, P.x, P.z); put(b, 33, 0);
@@ -689,7 +690,7 @@ section('18 chiem rules (control points)');
 {
   // contested point does not flip, and an empty one keeps its owner
   const R = MODES.chiem;
-  const m = mk({ seed: 2, mode: 'chiem', roster: [solo('trau', 0), solo('trau', 1)] });
+  const m = mk({ seed: 2, mode: 'chiem', roster: [solo('dummy', 0), solo('dummy', 1)] });
   const [a, b] = m.units, P = m.points[1];
   put(a, P.x - 1, P.z); put(b, P.x + 1, P.z);
   a.maxHp = a.hp = b.maxHp = b.hp = 1e9;
@@ -704,7 +705,7 @@ section('18 chiem rules (control points)');
 }
 {
   // kills give no score in chiem
-  const m = mk({ seed: 3, mode: 'chiem', roster: [solo('ung', 0), solo('trau', 1)] });
+  const m = mk({ seed: 3, mode: 'chiem', roster: [solo('ung', 0), solo('dummy', 1)] });
   for (const p of m.points) { p.x = 500; p.z = 500; }
   const [a, b] = m.units;
   put(a, -5, -1); put(b, 3, -1); b.hp = 100;
@@ -712,11 +713,11 @@ section('18 chiem rules (control points)');
   check('18h a kill in chiem gives no score', !b.alive && a.kills === 1 && ev.some((e) => e.t === 'death' && e.by === 0) && m.score[0] === 0 && m.score[1] === 0, `score ${m.score}`);
 }
 {
-  const m = mk({ seed: 4, mode: 'chiem', roster: [solo('trau', 0), solo('trau', 1)] });
+  const m = mk({ seed: 4, mode: 'chiem', roster: [solo('dummy', 0), solo('dummy', 1)] });
   m.time = m.duration - 2 * TICK; m.score = [5, 9];
   run(m, 4);
   check('18i at the clock the higher score wins (team 1 here)', m.over && m.winner === 1);
-  const t = mk({ seed: 4, mode: 'chiem', roster: [solo('trau', 0), solo('trau', 1)] });
+  const t = mk({ seed: 4, mode: 'chiem', roster: [solo('dummy', 0), solo('dummy', 1)] });
   t.time = t.duration - 2 * TICK; t.score = [5, 5];
   run(t, 4);
   check('18j a tie at the clock is a draw (winner -1)', t.over && t.winner === -1);
@@ -724,7 +725,7 @@ section('18 chiem rules (control points)');
 
 section('19 tudo rules (free-for-all)');
 {
-  const mechs = ['ung', 'trau', 'soi', 'hac', 'loi', 'bocap', 'bang', 'tho', 'ung', 'soi'];
+  const mechs = ['ung', 'dummy', 'soi', 'hac', 'loi', 'bocap', 'bang', 'oldtho', 'ung', 'soi'];
   const m = mk({ seed: 5, mode: 'tudo', roster: mechs.map((k, i) => ({ team: i % 2, mech: k, name: 'F' + i })) });
   check('19a every unit is its own team (0..9) and score has one entry per unit', m.units.every((u, i) => u.team === i && u.id === i) && m.score.length === 10);
   check('19b every unit spawned alive with finite coordinates', m.units.every((u) => u.alive && Number.isFinite(u.x) && Number.isFinite(u.z)));
@@ -775,7 +776,7 @@ section('19 tudo rules (free-for-all)');
 }
 
 section('20 trum rules (boss raid)');
-const RAID = ['trau', 'soi', 'ung', 'hac', 'bocap'];
+const RAID = ['dummy', 'soi', 'ung', 'hac', 'bocap'];
 const raid = (seed, mapKey) => mk({ seed, map: mapKey, mode: 'trum', roster: [...RAID.map((k, i) => ({ team: 0, mech: k, name: k + i })), { team: 1, mech: 'titan', name: 'Boss' }] });
 {
   const m = raid(9);
@@ -830,13 +831,13 @@ const raid = (seed, mapKey) => mk({ seed, map: mapKey, mode: 'trum', roster: [..
 }
 {
   // heavy: stun <= 0.25 s; ordinary mechs keep the full stun
-  const m = mk({ seed: 13, mode: 'trum', roster: [solo('trau', 0), { team: 1, mech: 'titan', name: 'B' }] });
+  const m = mk({ seed: 13, mode: 'trum', roster: [solo('dummy', 0), { team: 1, mech: 'titan', name: 'B' }] });
   const [a, boss] = m.units;
   put(a, -5, -1); put(boss, 6, -1);
   let maxStun = 0, hit = false;
   run(m, 40, (i) => { maxStun = Math.max(maxStun, boss.stunT); return [inp({ aim: 0, s2: i === 0 }), inp()]; });
   check('20i heavy: a stunning charge (0.9 s) leaves the boss stunned <= 0.25 s', maxStun <= 0.25 + 1e-9 && boss.hp < boss.maxHp, `max stun ${maxStun.toFixed(2)} hp ${boss.hp}`);
-  const n = duel('trau', 'ung', [-5, -1], [5, -1]);
+  const n = duel('dummy', 'ung', [-5, -1], [5, -1]);
   let ms = 0;
   run(n, 40, (i) => { ms = Math.max(ms, n.units[1].stunT); return [inp({ aim: 0, s2: i === 0 }), inp()]; });
   check('20j control: the same charge stuns an ordinary mech for ~0.9 s', ms > 0.7, `max stun ${ms.toFixed(2)}`);
@@ -847,7 +848,7 @@ const raid = (seed, mapKey) => mk({ seed, map: mapKey, mode: 'trum', roster: [..
 
 section('21 hazards: lava, vent, ice');
 {
-  const m = mk({ seed: 14, map: 'mienglua', roster: [solo('trau', 0), solo('ung', 1)] });
+  const m = mk({ seed: 14, map: 'mienglua', roster: [solo('dummy', 0), solo('ung', 1)] });
   const [a, b] = m.units, h = m.map.hazards.find((q) => q.kind === 'lava');
   put(a, h.x, h.z); put(b, 33, 0);
   const hp0 = a.hp;
@@ -859,7 +860,7 @@ section('21 hazards: lava, vent, ice');
   check('21b just outside the lava disc nothing burns', a.hp >= hp1, `hp ${a.hp}/${hp1}`);
 }
 {
-  const m = mk({ seed: 15, map: 'xuongcat', roster: [solo('trau', 0), solo('trau', 1)] });
+  const m = mk({ seed: 15, map: 'xuongcat', roster: [solo('dummy', 0), solo('dummy', 1)] });
   const [a, b] = m.units, v = m.vents[0], V = RULES.vent;
   check('21c xuongcat has vents with a countdown', m.vents.length >= 2 && v.t > 0 && v.warn === false);
   put(a, v.x, v.z); put(b, v.x + v.r + 4, v.z);
@@ -902,7 +903,7 @@ section('21 hazards: lava, vent, ice');
 section('22 bot matches: every mode x every map x 2 seeds');
 const MODE_LIST = ['tdm', 'chiem', 'tudo', 'trum'];
 const DIFFS3 = ['easy', 'normal', 'hard'];
-const TUDO_MECHS = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'soi', 'ung'];
+const TUDO_MECHS = ['dummy', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'oldtho', 'soi', 'ung'];
 function rosterFor(mode, seed, d0, d1) {
   const r = [];
   if (mode === 'trum') {
@@ -1014,8 +1015,8 @@ section('23 chiem bots');
 }
 {
   // scenario: five bots, one parked enemy far away: they split across the three points, capture them all, stay inside while capturing
-  const mkc = (mech, key = 'denrung') => createMatch({ seed: 30, map: key, mode: 'chiem', roster: [...mech.map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'trau', name: 'dummy' }] });
-  const m = mkc(['trau', 'soi', 'ung', 'hac', 'bocap']);
+  const mkc = (mech, key = 'denrung') => createMatch({ seed: 30, map: key, mode: 'chiem', roster: [...mech.map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'dummy', name: 'dummy' }] });
+  const m = mkc(['dummy', 'soi', 'ung', 'hac', 'bocap']);
   const dummy = m.units[5];
   put(dummy, 33, 0); dummy.maxHp = dummy.hp = 1e9;
   const seen = new Set();
@@ -1038,7 +1039,7 @@ section('23 chiem bots');
 {
   // an enemy standing on a point gets shot; an enemy far from every point does not drag the bots away
   const mkc = (dummyAt) => {
-    const m = createMatch({ seed: 31, map: 'denrung', mode: 'chiem', roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' })), { team: 1, mech: 'trau', name: 'dummy' }] });
+    const m = createMatch({ seed: 31, map: 'denrung', mode: 'chiem', roster: [...['dummy', 'soi', 'hac', 'bocap', 'oldtho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' })), { team: 1, mech: 'dummy', name: 'dummy' }] });
     const d = m.units[5];
     d.maxHp = d.hp = 1e9; put(d, dummyAt(m)[0], dummyAt(m)[1]);
     return m;
@@ -1077,7 +1078,7 @@ section('24 tudo bots');
 {
   // third-party: two equal targets, one already being shot by somebody else -> take that one; two targets, one weak -> take the weak one
   const mkt = () => {
-    const m = createMatch({ seed: 32, mode: 'tudo', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'hard' }, ...['trau', 'trau', 'ung'].map((k, i) => ({ team: 0, mech: k, name: k + i })) ] });
+    const m = createMatch({ seed: 32, mode: 'tudo', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'hard' }, ...['dummy', 'dummy', 'ung'].map((k, i) => ({ team: 0, mech: k, name: k + i })) ] });
     const [a, b, c, d] = m.units;
     put(a, -6, -1); put(b, 4, -3.5); put(c, 4, 1.5); put(d, 30, 20);
     for (const u of [b, c, d]) u.maxHp = u.hp = 3400;
@@ -1092,7 +1093,7 @@ section('24 tudo bots');
   for (let i = 0; i < 12; i++) { allInputs(w); step(w); }
   check('24g a bot picks the weak enemy over a healthy one at equal range', w.units[0].brain.tgt === 1, `tgt ${w.units[0].brain.tgt}`);
   // 1vN: three bots hunting one -> it runs (retreat state) within 3 s
-  const f = createMatch({ seed: 33, mode: 'tudo', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'normal' }, ...['trau', 'trau', 'trau'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' }))] });
+  const f = createMatch({ seed: 33, mode: 'tudo', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'normal' }, ...['dummy', 'dummy', 'dummy'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' }))] });
   put(f.units[0], -6, -1); put(f.units[1], 3, -1); put(f.units[2], -6, 8); put(f.units[3], -6, -10);
   for (const u of f.units.slice(1)) { u.maxHp = u.hp = 1e9; u.brain = null; }
   let fled = false;
@@ -1211,7 +1212,7 @@ check('25-0 a bare disc of radius >= 6 exists on some map for the boss scenarios
 {
   // the boss never retreats, with 3% hp it still walks at the players; nova on two, none on one (normal), nova on one (hard); dash and barrage get used
   const mkb = (diff, others, hp) => {
-    const m = createMatch({ seed: 38, map: OPEN.key, mode: 'trum', roster: [...others.map((p, i) => ({ team: 0, mech: 'trau', name: 'D' + i })), { team: 1, mech: 'titan', name: 'B', bot: true, diff }] });
+    const m = createMatch({ seed: 38, map: OPEN.key, mode: 'trum', roster: [...others.map((p, i) => ({ team: 0, mech: 'dummy', name: 'D' + i })), { team: 1, mech: 'titan', name: 'B', bot: true, diff }] });
     const boss = m.units[others.length];
     put(boss, OPEN.x - 4, OPEN.z); boss.hp = hp || boss.maxHp;
     others.forEach((p, i) => { put(m.units[i], OPEN.x - 4 + p[0], OPEN.z + p[1]); m.units[i].maxHp = m.units[i].hp = 1e7; });
@@ -1253,15 +1254,15 @@ section('26 hazards: bots and lava, vents, ice');
   };
   const lv = m0 => m0;
   const h = compileMap('mienglua').hazards.find((q) => q.kind === 'lava');
-  const walk = scene('trau', 'trau', 'normal', [h.x, h.z + 6.5], [h.x, h.z - 7], 20);
+  const walk = scene('dummy', 'dummy', 'normal', [h.x, h.z + 6.5], [h.x, h.z - 7], 20);
   check('26a walking at an enemy across a lava disc: zero ticks in lava', walk === 0, `${walk} ticks`);
-  const strafe = scene('soi', 'trau', 'hard', [h.x, h.z + h.r + 1.2], [h.x, h.z - 8], 20);
+  const strafe = scene('soi', 'dummy', 'hard', [h.x, h.z + h.r + 1.2], [h.x, h.z - 8], 20);
   check('26b a fight next to the lava rim (strafing): zero ticks in lava', strafe === 0, `${strafe} ticks`);
-  const kite = scene('ung', 'trau', 'hard', [h.x, h.z + h.r + 1.2], [h.x, h.z + h.r + 4.2], 20);
+  const kite = scene('ung', 'dummy', 'hard', [h.x, h.z + h.r + 1.2], [h.x, h.z + h.r + 4.2], 20);
   check('26c a sniper kiting backwards toward the lava: zero ticks in lava', kite === 0, `${kite} ticks`);
   let dash = 0;
   { // a dash aimed through lava is not used
-    const m = oldK10(createMatch({ seed: 41, map: 'mienglua', roster: [{ team: 0, mech: 'bocap', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B' }] }));
+    const m = oldK10(createMatch({ seed: 41, map: 'mienglua', roster: [{ team: 0, mech: 'bocap', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B' }] }));
     put(m.units[0], h.x, h.z + h.r + 2.5); put(m.units[1], h.x, h.z - h.r - 2.5); m.units[1].maxHp = m.units[1].hp = 1e9;
     for (let t = 0; t < 300; t++) { step(m, allInputs(m)); const u = m.units[0]; if (Math.hypot(u.x - h.x, u.z - h.z) < h.r) dash++; }
   }
@@ -1270,7 +1271,7 @@ section('26 hazards: bots and lava, vents, ice');
 {
   // vents: a bot standing on a vent walks off before the blast; an idle unit does not
   const mkv = (bot) => {
-    const m = createMatch({ seed: 42, map: 'xuongcat', roster: [{ team: 0, mech: 'trau', name: 'A', bot }, { team: 1, mech: 'trau', name: 'B' }] });
+    const m = createMatch({ seed: 42, map: 'xuongcat', roster: [{ team: 0, mech: 'dummy', name: 'A', bot }, { team: 1, mech: 'dummy', name: 'B' }] });
     const v = m.vents[0];
     put(m.units[0], v.x, v.z); put(m.units[1], 33, 0);
     return [m, v];
@@ -1289,7 +1290,7 @@ section('26 hazards: bots and lava, vents, ice');
   // ice: a fighting bot does not strafe on the slippery disc and ends up off it
   const ice = compileMap('cangbang').hazards.find((q) => q.kind === 'ice');
   const sc = (at) => {
-    const m = createMatch({ seed: 43, map: 'cangbang', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B' }] });
+    const m = createMatch({ seed: 43, map: 'cangbang', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B' }] });
     put(m.units[0], at[0], at[1]); put(m.units[1], at[0] + 9, at[1]); m.units[1].maxHp = m.units[1].hp = 1e9;
     let onIce = 0;
     for (let t = 0; t < Math.ceil(8 / TICK); t++) { step(m, allInputs(m)); const u = m.units[0]; if (Math.hypot(u.x - ice.x, u.z - ice.z) < ice.r) onIce++; }
@@ -1355,7 +1356,7 @@ const navCell = (map, x, z) => map.nav.blocked[Math.floor((z + map.hd) / map.nav
 
 section('29 nha rules (towers, aggro, win conditions)');
 for (const key of NHA_ORDER) {
-  const m = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
+  const m = nhaM([solo('dummy', 0), solo('dummy', 1)], { map: key });
   const t0 = m.towers.filter((t) => t.team === 0), t1 = m.towers.filter((t) => t.team === 1);
   check(`29a ${key}: 3 towers per team (2 sub + 1 main) with the rule hp`, t0.length === 3 && t1.length === 3 && [t0, t1].every((ts) => ts.filter((t) => t.kind === 'sub').length === 2 && ts.filter((t) => t.kind === 'main').length === 1 && ts.every((t) => t.hp === TW[t.kind] && t.alive && t.r === TW.radius)));
   const mir = t0.map((t, i) => Math.hypot(t.x + t1[i].x, t.z + t1[i].z));
@@ -1365,13 +1366,13 @@ for (const key of NHA_ORDER) {
   check(`29d ${key}: no spawn pad is inside a tower (each team)`, m.towers.every((t) => [0, 1].every((tm) => m.map.spawns[tm].every((p) => Math.hypot(p[0] - t.x, p[1] - t.z) > t.r + 1.3))));
 }
 {
-  const m = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const m = nhaM([solo('dummy', 0), solo('dummy', 1)]);
   const T = m.towers[1], p = ringSpot(m, T, 8, 0.5);
   put(m.units[1], p[0], p[1]);
   const ev = run(m, 90);
   const lost = m.units[1].maxHp - m.units[1].hp;
   check('29e a tower damages an enemy standing in its range, in whole shots of 270 x (1 - trau armour)', lost >= TRAU_HIT(270) && Math.abs(lost / TRAU_HIT(270) - Math.round(lost / TRAU_HIT(270))) < 1e-9 && TW.dmg === 270 && ev.some((e) => e.t === 'towerFire' && e.tower === 1), `lost ${lost}`);
-  const o = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const o = nhaM([solo('dummy', 0), solo('dummy', 1)]);
   const q = [0, 1, 2].map((k) => ringSpot(o, o.towers[k], TR + 2, 0.5)).find((s, k) => s && o.towers.every((w) => w.team === 1 || Math.hypot(w.x - s[0], w.z - s[1]) > TR + 0.8));
   put(o.units[1], q[0], q[1]);
   const ev2 = run(o, 90);
@@ -1379,7 +1380,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // aggro: A (nearest) and B (farther) are both in range; B hits my unit U: the tower turns to B
-  const m = nhaM([solo('trau', 0), solo('trau', 1), solo('ung', 1)]);
+  const m = nhaM([solo('dummy', 0), solo('dummy', 1), solo('ung', 1)]);
   const [U, A, Bm] = m.units;
   let found = false, T = m.towers[1];
   for (const tw of [m.towers[1], m.towers[2], m.towers[0]]) for (let k = 0; k < 72 && !found; k++) for (const [d1, d2] of [[0.8, 1.7], [-0.8, -1.7], [0.5, 1.4], [-0.5, -1.4], [1.2, 2.4], [-1.2, -2.4]]) {
@@ -1400,7 +1401,7 @@ for (const key of NHA_ORDER) {
   check('29h aggro: the enemy that just hurt my unit becomes the tower target', hit && after === Bm.id, `target ${after}, B ${Bm.id}`);
 }
 {
-  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
+  const m = oldUng(nhaM([solo('dummy', 0), solo('ung', 1)]));
   const T = m.towers[1], S = m.units[1], p = ringSpot(m, T, 9, 0.5, true);
   spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
   const ev = run(m, 20, (i) => [IN, inp({ fire: i === 0, aim: toward(S, T) })]);
@@ -1408,7 +1409,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // main tower: no damage and a towerBlock event while a sub stands; hurt after both subs fall
-  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
+  const m = oldUng(nhaM([solo('dummy', 0), solo('ung', 1)]));
   const main = m.towers[0], S = m.units[1];
   spend(S);
   const shoot = (tw, ticks) => {
@@ -1428,7 +1429,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // the end: main falls -> match over, shooter's team wins
-  const m = oldUng(nhaM([solo('trau', 0), solo('ung', 1)]));
+  const m = oldUng(nhaM([solo('dummy', 0), solo('ung', 1)]));
   const main = m.towers[0], S = m.units[1];
   spend(S);
   m.towers[1].alive = false; m.towers[2].alive = false; main.hp = 200;
@@ -1436,7 +1437,7 @@ for (const key of NHA_ORDER) {
   put(S, p[0], p[1]); S.aim = toward(S, main);
   const ev = run(m, 25, (i) => [IN, inp({ fire: i === 0, aim: toward(S, main) })]);
   check('29n destroying the main tower ends the match at once, the destroying team wins', m.over && m.winner === 1 && !main.alive && ev.some((e) => e.t === 'towerDown' && e.kind === 'main') && ev.some((e) => e.t === 'over' && e.winner === 1) && m.time < 3, `over ${m.over} winner ${m.winner}`);
-  const m3 = oldUng(nhaM([solo('ung', 0), solo('trau', 1)]));
+  const m3 = oldUng(nhaM([solo('ung', 0), solo('dummy', 1)]));
   m3.towers[4].alive = false; m3.towers[5].alive = false; m3.towers[3].hp = 200; spend(m3.units[0]);
   const p3 = ringSpot(m3, m3.towers[3], 9, 0.5, true);
   put(m3.units[0], p3[0], p3[1]); dead(m3.units[1]); m3.units[0].aim = toward(m3.units[0], m3.towers[3]);
@@ -1445,7 +1446,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // the clock: more total tower hp wins; equal is a draw
-  const clock = (edit) => { const m = nhaM([solo('trau', 0), solo('trau', 1)]); edit(m); m.time = m.duration - 2 * TICK; run(m, 5); return m; };
+  const clock = (edit) => { const m = nhaM([solo('dummy', 0), solo('dummy', 1)]); edit(m); m.time = m.duration - 2 * TICK; run(m, 5); return m; };
   const a = clock((m) => { m.towers[3].hp = TW.main / 2; }), b = clock((m) => { m.towers[0].hp = TW.main / 2; }), c = clock(() => {});
   const d = clock((m) => { m.towers[1].alive = false; m.towers[1].hp = 0; });
   check('29p at the clock the team with more total tower hp wins (team 0 / team 1 / draw when equal)', a.over && a.winner === 0 && b.over && b.winner === 1 && c.over && c.winner === -1, `${a.winner} ${b.winner} ${c.winner}`);
@@ -1453,7 +1454,7 @@ for (const key of NHA_ORDER) {
 }
 {
   // towers are solid
-  const m = nhaM([solo('trau', 0), solo('ung', 1)]);
+  const m = nhaM([solo('dummy', 0), solo('ung', 1)]);
   const T = m.towers[1], U = m.units[0], p = ringSpot(m, T, 6, 0.5, true);
   put(U, p[0], p[1]); dead(m.units[1]);
   let minD = 1e9;
@@ -1464,7 +1465,7 @@ for (const key of NHA_ORDER) {
   // tower shots fly over walls: a spot in range with no clear line to the tower still gets hit
   let m = null, spot = null, T = null;
   for (const key of NHA_ORDER) {
-    const probe = nhaM([solo('trau', 0), solo('trau', 1)], { map: key });
+    const probe = nhaM([solo('dummy', 0), solo('dummy', 1)], { map: key });
     for (const t of probe.towers.filter((q) => q.team === 0)) for (let k = 0; k < 72 && !spot; k++) for (const d of [6, 8, 10]) {
       const x = t.x + Math.cos(k * 0.0873) * d, z = t.z + Math.sin(k * 0.0873) * d;
       if (!solidAt(probe.map, x, z, 1.5) && !inBush(probe, x, z) && !losClear(probe.map, x, z, t.x, t.z, 0.3) && probe.towers.every((o) => o.team === 1 || Math.hypot(o.x - x, o.z - z) > TR + 1 || o === t || Math.hypot(o.x - x, o.z - z) > o.r + 2)) { spot = [x, z]; m = probe; T = t; break; }
@@ -1478,17 +1479,17 @@ for (const key of NHA_ORDER) {
 }
 {
   // no burn at the enemy base, own base still heals, respawn grows with the clock
-  const m = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const m = nhaM([solo('dummy', 0), solo('dummy', 1)]);
   for (const t of m.towers) if (t.team === 0) t.alive = false;
   const e = m.units[1], base0 = m.map.bases[0];
   put(e, base0[0], base0[1]); put(m.units[0], 0, 20);
   run(m, 60);
   check('29u in nha an enemy standing in the base does not burn (hp unchanged after 2 s)', e.hp === e.maxHp, `hp ${e.hp}/${e.maxHp}`);
-  const c = mk({ seed: 7, mode: 'tdm', roster: [solo('trau', 0), solo('trau', 1)] });
+  const c = mk({ seed: 7, mode: 'tdm', roster: [solo('dummy', 0), solo('dummy', 1)] });
   put(c.units[1], c.map.bases[0][0], c.map.bases[0][1]); put(c.units[0], 0, 20);
   run(c, 60);
   check('29u2 control: in tdm the same unit burns', c.units[1].hp < c.units[1].maxHp - RULES.baseBurn, `hp ${c.units[1].hp}`);
-  const h = nhaM([solo('trau', 0), solo('trau', 1)]);
+  const h = nhaM([solo('dummy', 0), solo('dummy', 1)]);
   const u0 = h.units[0], b1 = h.map.bases[0];
   put(u0, b1[0] - 3, b1[1]); u0.hp = u0.maxHp * 0.5; dead(h.units[1]);
   run(h, 30);
@@ -1497,7 +1498,7 @@ for (const key of NHA_ORDER) {
 {
   const R = NH.respawn;
   const deathAt = (tt) => {
-    const m = nhaM([solo('ung', 0), solo('trau', 1)]);
+    const m = nhaM([solo('ung', 0), solo('dummy', 1)]);
     const [a, b] = m.units;
     put(a, -5, -1); put(b, 3, -1); b.hp = 100; m.time = tt;
     for (let i = 0; i < 20; i++) { step(m, [inp({ fire: i === 0, aim: 0 }), IN]); if (m.events.some((e) => e.t === 'death' && e.id === 1)) return b.respawnT; }
@@ -1510,7 +1511,7 @@ for (const key of NHA_ORDER) {
 section('30 rule change: mechs do not collide');
 {
   const meet = (ta, tb, mechB) => {
-    const m = mk({ seed: 1, roster: [solo('trau', ta), solo(mechB, tb)] });
+    const m = mk({ seed: 1, roster: [solo('dummy', ta), solo(mechB, tb)] });
     const [a, b] = m.units;
     put(a, -4, -1); put(b, 2, -1); b.vx = b.vz = 0;
     let minD = 1e9;
@@ -1520,7 +1521,7 @@ section('30 rule change: mechs do not collide');
   const en = meet(0, 1, 'soi'), al = meet(0, 0, 'soi');
   check('30a two enemy units driving into each other end at overlapping positions (centres closer than the radii sum)', en.d < en.rs * 0.5 && en.minD < en.rs * 0.5, `end ${en.d.toFixed(2)} min ${en.minD.toFixed(2)} sum ${en.rs}`);
   check('30b same for two allies', al.d < al.rs * 0.5 && al.minD < al.rs * 0.5, `end ${al.d.toFixed(2)} min ${al.minD.toFixed(2)} sum ${al.rs}`);
-  const m = mk({ seed: 1, roster: [solo('trau', 0), solo('soi', 1)] });
+  const m = mk({ seed: 1, roster: [solo('dummy', 0), solo('soi', 1)] });
   const [a, b] = m.units;
   put(a, -14, 0); put(b, 30, 20);
   run(m, 120, () => [inp({ mx: 1 }), IN]);
@@ -1584,7 +1585,7 @@ section('30s sliding: a mech driven into scenery keeps moving along it');
   // one movement radius: every playable mech fits the same openings and is stopped by the same ones
   const door = (mech, g) => slide(mech, (m) => { m.map.walls.push(wall(-1, 1, g / 2, 20), wall(-1, 1, -20, -g / 2)); }, [-6, 0], 0, 150).u.x;
   const W = RULES.moveRadius * 2;
-  for (const mech of ['trau', 'bocap']) {
+  for (const mech of ['dummy', 'bocap']) {
     check(`30s ${mech}: a door ${(W + 0.1).toFixed(2)} m wide lets it through`, door(mech, W + 0.1) > 3, `x ${door(mech, W + 0.1).toFixed(2)}`);
     check(`30s ${mech}: a door ${(W - 0.4).toFixed(2)} m wide stops it`, door(mech, W - 0.4) < -1, `x ${door(mech, W - 0.4).toFixed(2)}`);
   }
@@ -1593,7 +1594,7 @@ section('30s sliding: a mech driven into scenery keeps moving along it');
 section('31 mud');
 {
   const speed = (theme, edit) => {
-    const m = createMatch({ seed: 3, map: 'cangbang', theme, roster: [solo('soi', 0), solo('trau', 1)] });
+    const m = createMatch({ seed: 3, map: 'cangbang', theme, roster: [solo('soi', 0), solo('dummy', 1)] });
     const u = m.units[0], h = m.map.hazards[0];
     if (edit) u.def = edit(u.def);
     put(m.units[1], 33, 20); put(u, -6, 0);
@@ -1700,7 +1701,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
   const nm = (roster, opts = {}) => nhaM(roster, { map: 'denrung', seed: 5, ...opts });
   // lone bot at the staging spot of the enemy sub tower: it never steps into range (easy bots do)
   const lone = (diff, mech = 'soi') => {
-    const m = nm([BT(mech, 0, diff), BT('trau', 0, diff), BT('trau', 0, diff), BT('trau', 1, diff), BT('trau', 1, diff), BT('trau', 1, diff)]);
+    const m = nm([BT(mech, 0, diff), BT('dummy', 0, diff), BT('dummy', 0, diff), BT('dummy', 1, diff), BT('dummy', 1, diff), BT('dummy', 1, diff)]);
     for (const u of m.units.slice(1)) dead(u);
     const T = m.towers[4], p = facing(m, T, TR + 5, 0);
     put(m.units[0], p[0], p[1]);
@@ -1716,7 +1717,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
 
   // a tank standing in range: the bot goes in to hit the tower
   const withTank = (diff) => {
-    const m = nm([BT('soi', 0, diff), solo('trau', 0), BT('trau', 1, diff)]);
+    const m = nm([BT('soi', 0, diff), solo('dummy', 0), BT('dummy', 1, diff)]);
     dead(m.units[2]); spend(m.units[1]);
     const T = m.towers[4], p = facing(m, T, TR + 5, 0), q = facing(m, T, 9, 0, true);
     put(m.units[0], p[0], p[1]); put(m.units[1], q[0], q[1]);
@@ -1729,7 +1730,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
 
   // a hunted, hurt (40%) bot steps out of range; an easy one stays
   const hurt = (diff) => {
-    const m = nm([BT('soi', 0, diff), solo('trau', 0), BT('trau', 1, diff)]);
+    const m = nm([BT('soi', 0, diff), solo('dummy', 0), BT('dummy', 1, diff)]);
     dead(m.units[2]); spend(m.units[1]);
     const T = m.towers[4], p = facing(m, T, 8, 0, true), q = facing(m, T, 10.5, 0, true);
     put(m.units[0], p[0], p[1]); put(m.units[1], q[0], q[1]);
@@ -1747,7 +1748,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
   for (const mech of ['loi', 'ung']) {
     let best = null;
     for (const T of [{ id: 4 }, { id: 5 }]) {
-      const mm = oldK16(nm([BT(mech, 0), BT('trau', 1)])); dead(mm.units[1]);
+      const mm = oldK16(nm([BT(mech, 0), BT('dummy', 1)])); dead(mm.units[1]);
       const t = mm.towers[T.id], p = facing(mm, t, TR + 5, 0);
       put(mm.units[0], p[0], p[1]);
       let minD = 1e9;
@@ -1759,7 +1760,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
 
   // nothing is wasted on a main tower that is not open
   {
-    const m = nm([BT('trau', 0), BT('trau', 1)]);
+    const m = nm([BT('dummy', 0), BT('dummy', 1)]);
     dead(m.units[1]);
     const main = m.towers[3], p = facing(m, main, 8, 0, true);
     put(m.units[0], p[0], p[1]);
@@ -1770,8 +1771,8 @@ section('33 nha bots: tower aggro, siege, defence, waves');
 
   // defence: a hit own sub tower pulls the nearest 2-3 bots (hard), easy bots mostly stay on the attack
   const defend = (diff) => {
-    const mechs = ['trau', 'soi', 'hac', 'bocap', 'tho'];
-    const m = nm([...mechs.map((k, i) => BT(k, 0, diff)), BT('trau', 1, diff)]);
+    const mechs = ['dummy', 'soi', 'hac', 'bocap', 'oldtho'];
+    const m = nm([...mechs.map((k, i) => BT(k, 0, diff)), BT('dummy', 1, diff)]);
     dead(m.units[5]);
     const T = m.towers[1];
     mechs.forEach((k, i) => put(m.units[i], T.x + [13.5, 17.5, 21.5, 31.5, 41.5][i], [4, -4, 4, -4, 4][i]));
@@ -1785,8 +1786,8 @@ section('33 nha bots: tower aggro, siege, defence, waves');
   check('33i hard: a hit own tower pulls the nearest 2-3 bots back under it', dh >= 2 && dh <= 4, `${dh}`);
   check('33j normal also defends (2-3), easy rarely does (fewer than hard)', dn >= 2 && de < dh && de <= 1, `normal ${dn} easy ${de}`);
   const allDef = (diff) => {
-    const mechs = ['trau', 'soi', 'hac', 'bocap', 'tho'];
-    const m = nm([...mechs.map((k) => BT(k, 0, diff)), solo('trau', 1)]);
+    const mechs = ['dummy', 'soi', 'hac', 'bocap', 'oldtho'];
+    const m = nm([...mechs.map((k) => BT(k, 0, diff)), solo('dummy', 1)]);
     const main = m.towers[0];
     m.towers[1].alive = false; m.towers[1].hp = 0; m.towers[2].alive = false; m.towers[2].hp = 0;
     const e = m.units[5]; spend(e); put(e, main.x + 8, main.z + 1);
@@ -1803,7 +1804,7 @@ section('33 nha bots: tower aggro, siege, defence, waves');
 
   // a respawn wave pushes together: two fresh bots wait for the other three
   {
-    const m = nm([...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k) => BT(k, 0)), BT('trau', 1)]);
+    const m = nm([...['dummy', 'soi', 'hac', 'bocap', 'oldtho'].map((k) => BT(k, 0)), BT('dummy', 1)]);
     dead(m.units[5]);
     for (const i of [2, 3, 4]) { m.units[i].alive = false; m.units[i].respawnT = 4; }
     const base = m.map.bases[0];
@@ -1822,7 +1823,7 @@ section('34 bots: spacing and mud');
 {
   const pairMin = (units) => { let q = 1e9; for (let i = 0; i < units.length; i++) for (let j = i + 1; j < units.length; j++) q = Math.min(q, Math.hypot(units[i].x - units[j].x, units[i].z - units[j].z)); return q; };
   for (const mode of ['tdm', 'chiem', 'nha']) {
-    const m = createMatch({ seed: 9, mode, roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'trau', name: 'x' }] });
+    const m = createMatch({ seed: 9, mode, roster: [...['dummy', 'soi', 'hac', 'bocap', 'oldtho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'dummy', name: 'x' }] });
     dead(m.units[5]);
     // open ground: the nha layouts have a gate where the arenas have a field
     for (let i = 0; i < 5; i++) put(m.units[i], mode === 'nha' ? 0 : -20, 0);
@@ -1832,7 +1833,7 @@ section('34 bots: spacing and mud');
   }
   {
     // chiem: five bots holding one point do not stack
-    const m = createMatch({ seed: 9, map: 'denrung', mode: 'chiem', roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' })), solo('trau', 1)] });
+    const m = createMatch({ seed: 9, map: 'denrung', mode: 'chiem', roster: [...['dummy', 'soi', 'hac', 'bocap', 'oldtho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'hard' })), solo('dummy', 1)] });
     dead(m.units[5]);
     const P = m.points[0];
     for (let i = 0; i < 5; i++) put(m.units[i], P.x, P.z);
@@ -1843,7 +1844,7 @@ section('34 bots: spacing and mud');
   }
   {
     // trum: the squad around the boss does not stack
-    const m = createMatch({ seed: 9, map: 'denrung', mode: 'trum', roster: [...['trau', 'soi', 'hac', 'bocap', 'tho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'titan', name: 'B' }] });
+    const m = createMatch({ seed: 9, map: 'denrung', mode: 'trum', roster: [...['dummy', 'soi', 'hac', 'bocap', 'oldtho'].map((k, i) => ({ team: 0, mech: k, name: k + i, bot: true, diff: 'normal' })), { team: 1, mech: 'titan', name: 'B' }] });
     const boss = m.units[5]; boss.maxHp = boss.hp = 1e9; boss.def = { ...boss.def, skills: boss.def.skills.map((s) => ({ ...s, cd: 1e9 })) }; for (const k in boss.cd) boss.cd[k] = 1e9;
     let sum = 0, n = 0;
     run(m, Math.ceil(30 / TICK), () => { for (const u of m.units.slice(0, 5)) { u.maxHp = u.hp = 1e9; } if (m.time > 20) { sum += pairMin(m.units.slice(0, 5)); n++; } return allInputs(m); });
@@ -1852,7 +1853,7 @@ section('34 bots: spacing and mud');
   {
     // mud (injected into open ground on denrung): a hurt bot retreating past a mud disc goes around it; a hover bot (immune) drives through
     const mudMatch = (edit, diff = 'hard') => {
-      const m = createMatch({ seed: 3, map: 'denrung', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff }, solo('trau', 1)] });
+      const m = createMatch({ seed: 3, map: 'denrung', roster: [{ team: 0, mech: 'soi', name: 'A', bot: true, diff }, solo('dummy', 1)] });
       m.map.hazards.push({ id: 99, kind: 'mud', x: 1.8, z: 2.8, r: 2.5 });
       if (edit) m.units[0].def = edit(m.units[0].def);
       dead(m.units[1]);
@@ -2015,15 +2016,15 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
 
   // ---- stats ----
   {
-    const hit = (target) => { const m = arena([[R('tho', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 12, FIRE0); return m.units[1].hp; };
-    check(`armour: tho ${THO_D} on trau (armour ${TRAU.armor}) leaves ${TRAU.hp} - ${THO_D} x ${1 - TRAU.armor}`, near(hit('trau'), TRAU.hp - TRAU_HIT(THO_D), 1e-9), `hp ${hit('trau')}`);
+    const hit = (target) => { const m = arena([[R('oldtho', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 12, FIRE0); return m.units[1].hp; };
+    check(`armour: tho ${THO_D} on trau (armour ${TRAU.armor}) leaves ${TRAU.hp} - ${THO_D} x ${1 - TRAU.armor}`, near(hit('dummy'), TRAU.hp - TRAU_HIT(THO_D), 1e-9), `hp ${hit('dummy')}`);
     check('armour: the same shot on ung (armour 0) leaves 1700 - the shot', hit('ung') === 1700 - THO_D, `hp ${hit('ung')}`);
   }
   {
-    const m = oldUng(arena([[R('ung', 0), 0, 0], [R('trau', 1), 8, 0]]));
+    const m = oldUng(arena([[R('ung', 0), 0, 0], [R('dummy', 1), 8, 0]]));
     go(m, 12, FIRE0);
     check(`pierce: ung 390 ignores trau armour ${TRAU.armor}: ${TRAU.hp} - 390`, near(m.units[1].hp, TRAU.hp - 390, 1e-9), `hp ${m.units[1].hp}`);
-    const f = oldUng(arena([[R('ung', 0), 0, 0], [R('trau', 1), 18, 0]]));
+    const f = oldUng(arena([[R('ung', 0), 0, 0], [R('dummy', 1), 18, 0]]));
     go(f, 24, FIRE0);
     check(`pierce + far: a rail shot past 14 m hits for 390 x 1.2 = 468 through armour: ${TRAU.hp} - 468`, near(f.units[1].hp, TRAU.hp - 468, 1e-9), `hp ${f.units[1].hp}`);
   }
@@ -2033,9 +2034,9 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
       for (let n = 1; n < 200; n++) { step(m, [inp({ aim: Math.PI }), inp({ aim: Math.PI })]); if (Math.abs(m.units[0].aim - Math.PI) < 1e-9) return n; }
       return -1;
     };
-    check('turn: a 180 degree flick of trau (turn 7 rad/s) takes ceil(pi / (7/30)) = 14 ticks', ticksTo('trau') === 14, `ticks ${ticksTo('trau')}`);
+    check('turn: a 180 degree flick of trau (turn 7 rad/s) takes ceil(pi / (7/30)) = 14 ticks', ticksTo('dummy') === 14, `ticks ${ticksTo('dummy')}`);
     check('turn: a 180 degree flick of bocap (turn 16 rad/s) takes ceil(pi / (16/30)) = 6 ticks', ticksTo('bocap') === 6, `ticks ${ticksTo('bocap')}`);
-    const m = arena([[R('trau', 0), -5, 0], [R('ung', 1), 30, 20]]);
+    const m = arena([[R('dummy', 0), -5, 0], [R('ung', 1), 30, 20]]);
     const ev = go(m, 1, () => ({ 0: { fire: true, aim: Math.PI } }));
     check('turn: a shot fired on the tick of the flick leaves along the turret (7/30 rad), not along the input', near(only(ev, 'fire')[0].a, 7 / 30, 1e-9), `a ${only(ev, 'fire')[0].a}`);
   }
@@ -2045,12 +2046,12 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
       for (let n = 1; n < 200; n++) { step(m, [inp({ mx: 1 }), inp({ aim: Math.PI })]); if (Math.hypot(u.vx, u.vz) >= 0.9 * u.def.speed) return n; }
       return -1;
     };
-    check('accel: trau (0.7, grip 14 x 0.7 / 30 = 0.327 per tick) reaches 90% of its speed in 6 ticks', ticks90('trau') === 6, `ticks ${ticks90('trau')}`);
+    check('accel: trau (0.7, grip 14 x 0.7 / 30 = 0.327 per tick) reaches 90% of its speed in 6 ticks', ticks90('dummy') === 6, `ticks ${ticks90('dummy')}`);
     check('accel: bocap (1.5, 0.7 per tick) reaches 90% of its speed in 2 ticks', ticks90('bocap') === 2, `ticks ${ticks90('bocap')}`);
   }
   {
     const onTower = (mech, script) => {
-      const m = nhaM([solo('trau', 0), solo(mech, 1)]);
+      const m = nhaM([solo('dummy', 0), solo(mech, 1)]);
       if (mech === 'hoalong') oldKit15(m, 'hoalong');   // the charge beam lives on as the fixture OLD_HOALONG (k15-cases.mjs)
       const T = m.towers[1], S = m.units[1], p = ringSpot(m, T, 9, 0.5, true);
       spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
@@ -2066,21 +2067,21 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   }
   {
     const lvMatch = (mech, lv, target = 'ung') => arena([[R(mech, 0, lv), 0, 0], [R(target, 1), 8, 0]]);
-    const mA = lvMatch('trau', [5, 0, 0, 0, 0]), a = mA.units[0];
+    const mA = lvMatch('dummy', [5, 0, 0, 0, 0]), a = mA.units[0];
     check(`upgrade giap 5: trau hp ${TRAU.hp} x 1.65 and armour ${TRAU.armor} + 0.12`, a.maxHp === Math.round(TRAU.hp * 1.65) && a.hp === a.maxHp && near(armorOf(mA, a), TRAU.armor + 0.12, 1e-9), `hp ${a.maxHp} armour ${armorOf(mA, a)}`);
-    const sh = arena([[R('tho', 0), 0, 0], [R('trau', 1, [5, 0, 0, 0, 0]), 8, 0]]);
+    const sh = arena([[R('oldtho', 0), 0, 0], [R('dummy', 1, [5, 0, 0, 0, 0]), 8, 0]]);
     go(sh, 12, FIRE0);
     check('upgrade giap 5: a tho shot on the raised armour leaves maxHp - shot x (1 - armour)', near(sh.units[1].hp, Math.round(TRAU.hp * 1.65) - THO_D * (1 - TRAU.armor - 0.12), 1e-9), `hp ${sh.units[1].hp}`);
-    const dm = arena([[R('tho', 0, [0, 0, 5, 0, 0]), 0, 0], [R('ung', 1), 8, 0]]);
+    const dm = arena([[R('oldtho', 0, [0, 0, 5, 0, 0]), 0, 0], [R('ung', 1), 8, 0]]);
     go(dm, 12, FIRE0);
     check('upgrade hoaluc 5: tho shot x 1.7 on ung leaves 1700 - that', near(dm.units[1].hp, 1700 - THO_D * 1.7, 1e-9), `hp ${dm.units[1].hp}`);
-    const shots = (lv) => { const m = arena([[R('tho', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); return only(go(m, 90, () => ({ 0: { fire: true } })), 'fire').length; };
-    const fast = arena([[R('tho', 0, [0, 0, 0, 5, 0]), 0, 0], [R('ung', 1), 30, 20]]).units[0];
+    const shots = (lv) => { const m = arena([[R('oldtho', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); return only(go(m, 90, () => ({ 0: { fire: true } })), 'fire').length; };
+    const fast = arena([[R('oldtho', 0, [0, 0, 0, 5, 0]), 0, 0], [R('ung', 1), 30, 20]]).units[0];
     check('upgrade napdan 5: tho cd 0.45 / 1.25 = 0.36 and range 12.5 x 1.10 = 13.75', near(fast.def.weapon.cd, 0.45 / 1.25, 1e-12) && near(weaponRange(fast), 13.75, 1e-9), `cd ${fast.def.weapon.cd} range ${weaponRange(fast)}`);
     check('upgrade napdan 5: fires every 11 ticks (9 shots in 90 ticks) instead of every 14 (7 shots)', shots([0, 0, 0, 5, 0]) === 9 && shots([0, 0, 0, 0, 0]) === 7, `${shots([0, 0, 0, 5, 0])} vs ${shots([0, 0, 0, 0, 0])}`);
-    const cs = arena([[R('trau', 0, [0, 0, 0, 0, 5]), 0, 0], [R('ung', 1), 30, 20]]);
+    const cs = arena([[R('dummy', 0, [0, 0, 0, 0, 5]), 0, 0], [R('ung', 1), 30, 20]]);
     go(cs, 1, () => ({ 0: { s1: true } }));
-    check(`upgrade chieu 5: trau Giap Phan Luc goes on cooldown ${MECHS.trau.skills[0].cd} x 0.75 s`, near(cs.units[0].cd.s1, MECHS.trau.skills[0].cd * 0.75, 1e-9), `cd ${cs.units[0].cd.s1}`);
+    check(`upgrade chieu 5: trau Giap Phan Luc goes on cooldown ${MECHS.dummy.skills[0].cd} x 0.75 s`, near(cs.units[0].cd.s1, MECHS.dummy.skills[0].cd * 0.75, 1e-9), `cd ${cs.units[0].cd.s1}`);
     const rockets = (lv) => { const m = arena([[R('soi', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); go(m, 1, () => ({ 0: { s1: true } })); return m.shots.length; };
     check('perk at total 6: soi rocket n 3 -> 4 (total 5 keeps 3)', rockets([2, 2, 2, 0, 0]) === 4 && rockets([2, 1, 2, 0, 0]) === 3, `${rockets([2, 2, 2, 0, 0])} / ${rockets([2, 1, 2, 0, 0])}`);
     const boost = (lv) => { const m = arena([[R('soi', 0, lv), 0, 0], [R('ung', 1), 30, 20]]); go(m, 1, () => ({ 0: { s2: true } })); return m.units[0].hasteT; };
@@ -2090,17 +2091,17 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('cleanLv clamps junk: [9, -3, 2.7, NaN, "x"] -> [5, 0, 2, 0, 0]', JSON.stringify(cleanLv([9, -3, 2.7, NaN, 'x'])) === '[5,0,2,0,0]', JSON.stringify(cleanLv([9, -3, 2.7, NaN, 'x'])));
     const junk = JSON.stringify([cleanLv(null), cleanLv('abc'), cleanLv(7), cleanLv([1, 2]), cleanLv([Infinity, -Infinity])]);
     check('cleanLv clamps junk: non-arrays and short arrays -> zeros, Infinity -> 5', junk === '[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[1,2,0,0,0],[5,0,0,0,0]]', junk);
-    const cm = arena([[R('trau', 0, [9, 9, 9, 9, 9]), 0, 0], [R('ung', 1), 30, 20]]);
+    const cm = arena([[R('dummy', 0, [9, 9, 9, 9, 9]), 0, 0], [R('ung', 1), 30, 20]]);
     check('a roster row with levels past the maximum plays at level 5 on every track (hp x 1.65)', cm.units[0].def.lv.join() === '5,5,5,5,5' && cm.units[0].maxHp === Math.round(TRAU.hp * 1.65), `lv ${cm.units[0].def.lv} hp ${cm.units[0].maxHp}`);
-    check('buildDef at level 0 keeps the base row (hp and armour of MECHS.trau, base is MECHS.trau)', buildDef('trau', null).base === MECHS.trau && buildDef('trau').hp === TRAU.hp && buildDef('trau').armor === TRAU.armor);
+    check('buildDef at level 0 keeps the base row (hp and armour of MECHS.dummy, base is MECHS.dummy)', buildDef('dummy', null).base === MECHS.dummy && buildDef('dummy').hp === TRAU.hp && buildDef('dummy').armor === TRAU.armor);
   }
 
   // ---- passives, one test each ----
   {
-    const move = (target) => { const m = arena([[R('trau', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 45, FIRE0); return m.units[1].x - 8; };
-    check('steady: a trau hit by a 2.5 knock-back shell slides 7.5 / (1 - 0.6) / 30 = 0.625 m, a kimquy 7.5 / (1 - 0.8) / 30 = 1.25 m', near(move('trau'), 0.625, 0.01) && near(move('kimquy'), 1.25, 0.01), `${move('trau')} / ${move('kimquy')}`);
+    const move = (target) => { const m = arena([[R('dummy', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 45, FIRE0); return m.units[1].x - 8; };
+    check('steady: a trau hit by a 2.5 knock-back shell slides 7.5 / (1 - 0.6) / 30 = 0.625 m, a kimquy 7.5 / (1 - 0.8) / 30 = 1.25 m', near(move('dummy'), 0.625, 0.01) && near(move('kimquy'), 1.25, 0.01), `${move('dummy')} / ${move('kimquy')}`);
     const slowed = (target) => { const m = arena([[R('bang', 0), 0, 0], [R(target, 1), 8, 0]]); oldBang(m.units[0]); go(m, 12, FIRE0); return unitSpeed(m.units[1]); };
-    check('steady: the 0.2 frost slow on trau is halved (5.1 x 0.9 = 4.59), on kimquy it is whole (5.0 x 0.8 = 4.0)', near(slowed('trau'), 4.59, 1e-9) && near(slowed('kimquy'), 4, 1e-9), `${slowed('trau')} / ${slowed('kimquy')}`);
+    check('steady: the 0.2 frost slow on trau is halved (5.1 x 0.9 = 4.59), on kimquy it is whole (5.0 x 0.8 = 4.0)', near(slowed('dummy'), 4.59, 1e-9) && near(slowed('kimquy'), 4, 1e-9), `${slowed('dummy')} / ${slowed('kimquy')}`);
   }
   {
     const m = arena([[R('soi', 0), 0, 0], [R('ung', 1), 6, 0]]);
@@ -2110,7 +2111,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('frenzy: a takedown gives soi haste 1.25 for 3 s (speed 6.5 x 1.25 = 8.125)', k >= 0 && near(m.units[0].hasteT, 3, 1e-9) && near(unitSpeed(m.units[0]), 8.125, 1e-9), `k ${k} t ${m.units[0].hasteT} speed ${unitSpeed(m.units[0])}`);
   }
   {
-    const m = arena([[R('hac', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 8, 0], [R('ung', 1), 20, 15]]);
+    const m = arena([[R('hac', 0), 0, 0], [R('dummy', 0), 3, 0], [R('dummy', 0), 8, 0], [R('ung', 1), 20, 15]]);
     m.units[1].hp = m.units[2].hp = 1000; m.units[3].hp = 1000;
     go(m, 30);
     check('aura: allies within 6 m get hps x 0.5 every 15 ticks (+hps in 30 ticks); the one at 8 m, the enemy and the owner get none', m.units[1].hp === 1000 + MECHS.hac.passive.hps && m.units[2].hp === 1000 && m.units[3].hp === 1000 && m.units[0].hp === m.units[0].maxHp, `${m.units.map((u) => u.hp)}`);
@@ -2142,10 +2143,10 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check(`brittle: bang ${OLD_BANG.weapon.dmg} on a clean target, then x 1.2 on the slowed one`, near(m.units[1].hp, 1700 - OLD_BANG.weapon.dmg * 2.2, 1e-9), `hp ${m.units[1].hp}`);
   }
   {
-    const m = arena([[R('tho', 0), 0, 0], [R('ung', 1), 25, 15]]);
+    const m = arena([[R('oldtho', 0), 0, 0], [R('ung', 1), 25, 15]]);
     go(m, 1, () => ({ 0: { s1: true, tx: 3, tz: 0 } }));
     const t = m.zones.find((z) => z.kind === 'turret');
-    const m2 = arena([[R('tho', 0), 0, 0], [R('ung', 1), 25, 15]]);
+    const m2 = arena([[R('oldtho', 0), 0, 0], [R('ung', 1), 25, 15]]);
     go(m2, 1, () => ({ 0: { ult: true, tx: 3, tz: 0 } }));
     const mines = m2.zones.filter((z) => z.kind === 'mine');
     check('mechanic: turret hp 800 x 1.3 = 1040 for 18 x 1.3 = 23.4 s; mines last 30 x 1.3 = 39 s', !!t && near(t.maxHp, 1040, 1e-9) && near(t.dur, 23.4, 1e-9) && mines.length === 5 && mines.every((z) => near(z.dur, 39, 1e-9)), `hp ${t && t.maxHp} dur ${t && t.dur} mines ${mines.map((z) => z.dur)}`);
@@ -2158,7 +2159,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   }
   {
     const hit = (ally) => {
-      const m = arena([[R('kimquy', 0), 0, 0], [R('ung', 0), ally, 0], [R('tho', 1), ally + 6, 0]]);
+      const m = arena([[R('kimquy', 0), 0, 0], [R('ung', 0), ally, 0], [R('oldtho', 1), ally + 6, 0]]);
       go(m, 14, (i) => ({ 2: { fire: i === 0 } }));
       return m.units[1].hp;
     };
@@ -2174,10 +2175,10 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('lifesteal: hacho heals 18% of each flame hit', hits >= 3 && near(m.units[0].hp, 1000 + 0.18 * FL * hits, 1e-9) && near(m.units[1].hp, 1700 - FL * hits, 1e-9), `hits ${hits} hp ${m.units[0].hp}`);
   }
   {
-    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 5, 0]]), 'domdom');
     go(m, 49, () => ({ 0: { fire: true } }));
     check('overheal: 7 ray pulses on a full-hp ally become a shield capped at 300', m.units[1].hp === TRAU.hp && near(m.units[1].shield, 300, 1e-9), `hp ${m.units[1].hp} shield ${m.units[1].shield}`);
-    const h = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
+    const h = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 5, 0]]), 'domdom');
     h.units[1].hp = TRAU.hp - 20;
     go(h, 1, () => ({ 0: { fire: true } }));
     check('overheal: a ray heal on an ally missing 20 fills the hp and puts the rest into a shield', h.units[1].hp === TRAU.hp && near(h.units[1].shield, OLD_DOMDOM.weapon.heal - 20, 1e-9), `hp ${h.units[1].hp} shield ${h.units[1].shield}`);
@@ -2207,10 +2208,10 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
       const m = createMatch({ seed: 16, map: 'cangbang', theme, roster: [solo(mech, 0), solo('ung', 1)] });
       return { m, h: m.map.hazards[0], u: m.units[0] };
     };
-    const ice = on('holy'), iceT = on('trau');
+    const ice = on('holy'), iceT = on('dummy');
     check('hover: on the ice disc holy keeps grip 14, trau drops to the ice grip 2.2', ice.h.kind === 'ice' && gripAt(ice.m.map, ice.h.x, ice.h.z, ice.u) === 14 && gripAt(iceT.m.map, iceT.h.x, iceT.h.z, iceT.u) === 2.2, `${gripAt(ice.m.map, ice.h.x, ice.h.z, ice.u)} / ${gripAt(iceT.m.map, iceT.h.x, iceT.h.z, iceT.u)}`);
     const ticks90 = (g) => { put(g.m.units[1], 33, 0); for (let n = 1; n < 200; n++) { put(g.u, g.h.x, g.h.z); step(g.m, [inp({ mx: 1 }), IN]); if (Math.hypot(g.u.vx, g.u.vz) >= 0.9 * g.u.def.speed) return n; } return -1; };
-    const th = ticks90(on('holy')), tt = ticks90(on('trau'));
+    const th = ticks90(on('holy')), tt = ticks90(on('dummy'));
     check('hover: on the ice holy (accel 1.4) reaches 90% speed in 3 ticks, trau (accel 0.7, ice grip 2.2) in 44', th === 3 && tt === 44, `${th} / ${tt}`);
     const mud = on('holy', 'swamp'), mudB = on('bang', 'swamp');
     for (const g of [mud, mudB]) { put(g.m.units[1], 33, 20); put(g.u, g.h.x, g.h.z); step(g.m, [inp({ mx: 1 }), IN]); }
@@ -2219,7 +2220,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
 
   // ---- primitives ----
   {
-    const m = arena([[R('thancong', 0), 0, 0], [R('ung', 1), 20, 0], [R('trau', 1), 0, 10]]);
+    const m = arena([[R('thancong', 0), 0, 0], [R('ung', 1), 20, 0], [R('dummy', 1), 0, 10]]);
     const a = m.units[0];
     const ev = go(m, 24, (i) => ({ 0: { s1: i === 0, mx: i > 0 ? 1 : 0 } }));
     check('stance: thancong plants in 0.7 s and cannot drive while doing it (stance event on 1, x still 0)', only(ev, 'stance')[0].on === 1 && a.stance && near(a.x, 0, 1e-9), `x ${a.x} stance ${a.stance}`);
@@ -2233,11 +2234,11 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     a.cd.s1 = 0;
     const ev2 = go(m, 30, (i) => ({ 0: { s1: i === 0 } }));
     check('stance: the key toggles it off again (stance event on 0, speed back to 4.6)', only(ev2, 'stance').map((e) => e.on).join() === '0' && !a.stance && near(unitSpeed(a), 4.6, 1e-9), `${only(ev2, 'stance').map((e) => e.on)} ${a.stance}`);
-    const k = arena([[R('thancong', 0), 0, 0], [R('trau', 1), 7, 0]]);
+    const k = arena([[R('thancong', 0), 0, 0], [R('dummy', 1), 7, 0]]);
     go(k, 30, (i) => ({ 0: { s1: i === 0 } }));
     go(k, 30, (i) => ({ 1: { fire: i === 0 } }));
     check('stance: a planted mech is not knocked back by a 2.5 shell (x stays 0) and takes 250 x (1 - 0.35) = 162.5 off its max hp', near(k.units[0].x, 0, 1e-9) && near(k.units[0].hp, MECHS.thancong.hp - 162.5, 1e-9), `x ${k.units[0].x} hp ${k.units[0].hp}`);
-    const f = arena([[R('thancong', 0), 0, 0], [R('trau', 1), 7, 0]]);
+    const f = arena([[R('thancong', 0), 0, 0], [R('dummy', 1), 7, 0]]);
     go(f, 30, (i) => ({ 1: { fire: i === 0 } }));
     check('stance: the same mech unplanted slides back (7.5 / 0.2 / 30 = 1.25 m)', near(f.units[0].x, -1.25, 0.02), `x ${f.units[0].x}`);
   }
@@ -2262,10 +2263,10 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('hook: the heavy boss is hit (100000 - 120) but not pulled (x stays 9) and not stunned', h.units[1].hp === 99880 && near(h.units[1].x, 9, 1e-9) && h.units[1].stunT === 0, `hp ${h.units[1].hp} x ${h.units[1].x}`);
   }
   {
-    const m = arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0], [R('trau', 0), 20, 15]]);
+    const m = arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0], [R('dummy', 0), 20, 15]]);
     const ev = go(m, 1, () => ({ 0: { s2: true, tx: 4, tz: 0 } }));
     check('swap: positions are exchanged (caster at 4, enemy at -5) and the enemy is slowed 40% for 1.5 s (6.0 x 0.6 = 3.6)', near(m.units[0].x, 4, 1e-9) && near(m.units[1].x, -5, 1e-9) && only(ev, 'swap').length === 1 && near(unitSpeed(m.units[1]), 3.6, 1e-9) && near(m.units[1].slowT, 1.5, 0.04), `x ${m.units[0].x} ${m.units[1].x} speed ${unitSpeed(m.units[1])}`);
-    const al = arena([[R('mangxa', 0), -5, 0], [R('trau', 0), 4, 0], [R('ung', 1), 20, 15]]);
+    const al = arena([[R('mangxa', 0), -5, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 20, 15]]);
     go(al, 1, () => ({ 0: { s2: true, tx: 4, tz: 0 } }));
     check('swap: an ally can be swapped too and is not slowed', near(al.units[0].x, 4, 1e-9) && near(al.units[1].x, -5, 1e-9) && al.units[1].slowT === 0, `slowT ${al.units[1].slowT}`);
     const n = arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0]]);
@@ -2295,19 +2296,19 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('cage: the one held took dps 110 as 55-damage pulses (330 to 385 over 3.5 s)', hp1 - inside.hp >= 330 && hp1 - inside.hp <= 385 && (hp1 - inside.hp) % 55 === 0, `lost ${hp1 - inside.hp}`);
   }
   {
-    const m = arena([[R('kimquy', 0), 0, 0], [R('trau', 0), 3, 0], [R('ung', 1), 20, 15]]);
+    const m = arena([[R('kimquy', 0), 0, 0], [R('dummy', 0), 3, 0], [R('ung', 1), 20, 15]]);
     const ev = go(m, 1, () => ({ 0: { s1: true, tx: 3, tz: 0 } }));
     check('bless: the shield 700 lands on the ally at the cursor, not on the caster', m.units[1].shield === 700 && m.units[0].shield === 0 && only(ev, 'bless')[0].to === 1 && m.units[1].shieldT > 3.9, `${m.units.map((u) => u.shield)}`);
-    const s = arena([[R('kimquy', 0), 0, 0], [R('trau', 0), 3, 0], [R('ung', 1), 20, 15]]);
+    const s = arena([[R('kimquy', 0), 0, 0], [R('dummy', 0), 3, 0], [R('ung', 1), 20, 15]]);
     go(s, 1, () => ({ 0: { s1: true, tx: -8, tz: 0 } }));
     check('bless: with nobody at the cursor the shield goes on the caster', s.units[0].shield === 700 && s.units[1].shield === 0, `${s.units.map((u) => u.shield)}`);
   }
   {
-    const m = arena([[R('kimquy', 0), 0, 0], [R('tho', 1), 8, 0], [R('ung', 1), 20, 0]]);
+    const m = arena([[R('kimquy', 0), 0, 0], [R('oldtho', 1), 8, 0], [R('ung', 1), 20, 0]]);
     go(m, 1, () => ({ 0: { s2: true } }));
     check('fortify: armour 0.2 + 0.5 = 0.7 is capped at RULES.armorCap (0.6)', near(armorOf(m, m.units[0]), RULES.armorCap, 1e-9) && RULES.armorCap === 0.6, `armour ${armorOf(m, m.units[0])}`);
     go(m, 12, (i) => ({ 1: { fire: i === 0 } }));
-    check('fortify: a tho shot x 0.3 gets through kimquy and the attacker takes 30% of that x (1 - tho armour)', near(m.units[0].hp, MECHS.kimquy.hp - THO_D * (1 - RULES.armorCap), 1e-9) && near(m.units[1].hp, MECHS.tho.hp - THO_D * (1 - RULES.armorCap) * 0.3 * (1 - MECHS.tho.armor), 1e-9), `${m.units[0].hp} / ${m.units[1].hp}`);
+    check('fortify: a tho shot x 0.3 gets through kimquy and the attacker takes 30% of that x (1 - tho armour)', near(m.units[0].hp, MECHS.kimquy.hp - THO_D * (1 - RULES.armorCap), 1e-9) && near(m.units[1].hp, MECHS.oldtho.hp - THO_D * (1 - RULES.armorCap) * 0.3 * (1 - MECHS.oldtho.armor), 1e-9), `${m.units[0].hp} / ${m.units[1].hp}`);
     const p = oldUng(arena([[R('kimquy', 0), 0, 0], [R('ung', 1), 15, 0]]));
     go(p, 1, () => ({ 0: { s2: true } }));
     go(p, 20, (i) => ({ 1: { fire: i === 0 } }));
@@ -2351,7 +2352,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('rage: each flame hit heals 45% of it (not the passive 18%)', hits >= 2 && near(f.units[0].hp, hp1 + 0.45 * MECHS.hacho.weapon.dmg * hits, 1e-9), `hits ${hits} hp ${f.units[0].hp} from ${hp1}`);
   }
   {
-    const m = arena([[R('hacho', 0), 0, 0], [R('tho', 0), -3, 3], [R('ung', 1), 6, 0]]);
+    const m = arena([[R('hacho', 0), 0, 0], [R('oldtho', 0), -3, 3], [R('ung', 1), 6, 0]]);
     const [a, ally, b] = m.units;
     go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
     check('mark: marks the enemy at the cursor for 5 s with +25% and execute 22%, and hastes the marker 1.3', b.markT > 4.9 && b.markAmp === 0.25 && b.markBy === 0 && near(b.markEx, 0.22, 1e-9) && near(a.hasteF, 1.3, 1e-9), `markT ${b.markT} haste ${a.hasteF}`);
@@ -2399,27 +2400,27 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('warp: aimed off the map edge it stays on the map and out of solid ground', Math.abs(e.units[0].x) <= e.map.hw - 0.72 && !solidAt(e.map, e.units[0].x, e.units[0].z, 0.72), `x ${e.units[0].x}`);
   }
   {
-    const ally = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
+    const ally = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 5, 0]]), 'domdom');
     ally.units[1].hp = 1000;
     const e1 = go(ally, 1, () => ({ 0: { fire: true } }));
     check('ray: heals a hurt ally on the line by the weapon heal', ally.units[1].hp === 1000 + OLD_DOMDOM.weapon.heal && only(e1, 'ray')[0].on === 'ally', `hp ${ally.units[1].hp}`);
-    const foe = oldK13(arena([[R('domdom', 0), 0, 0], [R('ung', 1), 5, 0], [R('trau', 1), 8, 0]]), 'domdom');
+    const foe = oldK13(arena([[R('domdom', 0), 0, 0], [R('ung', 1), 5, 0], [R('dummy', 1), 8, 0]]), 'domdom');
     const e2 = go(foe, 1, () => ({ 0: { fire: true } }));
     check('ray: hurts the first enemy on the line for the weapon dmg and stops there (the trau behind is untouched)', foe.units[1].hp === 1700 - OLD_DOMDOM.weapon.dmg && foe.units[2].hp === TRAU.hp && only(e2, 'ray')[0].on === 'foe', `${foe.units.map((u) => u.hp)}`);
-    const tr = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 1), 5, 0]]), 'domdom');
+    const tr = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 1), 5, 0]]), 'domdom');
     go(tr, 1, () => ({ 0: { fire: true } }));
     check('ray: armour applies to it (trau hp - dmg x (1 - armour))', near(tr.units[1].hp, TRAU.hp - TRAU_HIT(OLD_DOMDOM.weapon.dmg), 1e-9), `hp ${tr.units[1].hp}`);
     const wall = oldK13(arena([[R('domdom', 0), -4, 0], [R('ung', 1), 4, 0]], [[-1, 1, -8, 8]]), 'domdom');
     const e3 = go(wall, 1, () => ({ 0: { fire: true } }));
     check('ray: a wall stops it (the enemy behind is untouched, the ray ends on nothing short of the wall)', wall.units[1].hp === 1700 && only(e3, 'ray')[0].on === 'none' && only(e3, 'ray')[0].x1 < -0.9, `${JSON.stringify(only(e3, 'ray')[0])}`);
-    const nh = oldK13(nhaM([solo('trau', 0), solo('domdom', 1)]), 'domdom');
+    const nh = oldK13(nhaM([solo('dummy', 0), solo('domdom', 1)]), 'domdom');
     const T = nh.towers[1], S = nh.units[1], p = ringSpot(nh, T, 9, 0.5, true);
     spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
     run(nh, 2, () => [IN, inp({ fire: true, aim: toward(S, T) })]);
     check('ray: on a tower it deals dmg x towerMul (3600 - that)', near(T.hp, TW.sub - OLD_DOMDOM.weapon.dmg * MECHS.domdom.towerMul, 1e-9), `hp ${T.hp}`);
   }
   {
-    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 5, 0], [R('ung', 1), 25, 15]]), 'domdom');
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 3, 0], [R('dummy', 0), 5, 0], [R('ung', 1), 25, 15]]), 'domdom');
     m.units[1].hp = 1700; m.units[2].hp = 2720;
     go(m, 1, () => ({ 0: { s1: true } }));
     const ev = go(m, 30);
@@ -2433,7 +2434,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('drone: it is gone the tick its owner dies', had && !d.units[0].alive && !d.zones.some((z) => z.kind === 'drone'), `alive ${d.units[0].alive} zones ${d.zones.map((z) => z.kind)}`);
   }
   {
-    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 20, 15], [R('ung', 1), 25, -10]]), 'domdom');
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 3, 0], [R('dummy', 0), 20, 15], [R('ung', 1), 25, -10]]), 'domdom');
     const [, near1, far1] = m.units;
     near1.hp = 1000; near1.slowT = 3; near1.slowF = 0.5; near1.stunT = 2; near1.markT = 4; near1.markBy = 3; near1.markAmp = 0.25;
     far1.hp = 1000; far1.slowT = 3; far1.slowF = 0.5;
@@ -2444,7 +2445,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   {
     // the wire row is a fixture now (tacke plays Captain America, section 47): the batch-0 Tắc Kè Dây Điện on slot 1
     const WIRE = { id: 'daydien', cd: 12, do: 'wire', cast: 10, width: 6, dur: 14, dmg: 200, slow: 0.5, slowDur: 2, charges: 3, arm: 0.5 };
-    const mk = () => { const m = arena([[R('tacke', 0), -10, 0], [R('ung', 1), 0.03, -2.5], [R('ung', 1), 0.03, -1], [R('ung', 1), 0.03, 1], [R('ung', 1), 0.03, 2.5], [R('trau', 0), 2, 0]]); const u = m.units[0]; u.def = { ...u.def, passive: null, skills: [WIRE, u.def.skills[1], u.def.skills[2]] }; u.passive = null; return m; };
+    const mk = () => { const m = arena([[R('tacke', 0), -10, 0], [R('ung', 1), 0.03, -2.5], [R('ung', 1), 0.03, -1], [R('ung', 1), 0.03, 1], [R('ung', 1), 0.03, 2.5], [R('dummy', 0), 2, 0]]); const u = m.units[0]; u.def = { ...u.def, passive: null, skills: [WIRE, u.def.skills[1], u.def.skills[2]] }; u.passive = null; return m; };
     const walkers = { 1: { mx: -1, aim: Math.PI }, 2: { mx: -1, aim: Math.PI }, 3: { mx: -1, aim: Math.PI }, 4: { mx: -1, aim: Math.PI } };
     const m = mk();
     go(m, 1, () => ({ 0: { s1: true, tx: 0, tz: 0 } }));
@@ -2490,7 +2491,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('charge: Qua Tai makes the next press a full beam at once (the tick after the cast) and is used up', near(pr.units[1].hp, 1700 - CH.dmg[1], 1e-9) && only(evp, 'beam').length === 1 && pr.units[0].primeT === 0, `hp ${pr.units[1].hp} prime ${pr.units[0].primeT}`);
   }
   {
-    const cast = () => oldKit15(arena([[R('hoalong', 0), -4, 0], [R('ung', 1), 4, 0], [R('tho', 0), -7, 0.2]]), 'hoalong');
+    const cast = () => oldKit15(arena([[R('hoalong', 0), -4, 0], [R('ung', 1), 4, 0], [R('oldtho', 0), -7, 0.2]]), 'hoalong');
     const m = cast();
     go(m, 1, () => ({ 0: { s2: true } }));
     const ev = go(m, 8, (i) => ({ 1: { fire: i === 0 } }));
@@ -2542,7 +2543,7 @@ section('38 team sizes: 1v1, 2v2, 3v3 (rules come out of the MODES size rows)');
 {
   const bots = (n, mode) => {
     const roster = [];
-    const mechs = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap'];
+    const mechs = ['dummy', 'soi', 'ung', 'hac', 'loi', 'bocap'];
     if (mode === 'trum') { for (let i = 0; i < n; i++) roster.push({ team: 0, mech: mechs[i], name: 'h' + i, bot: true }); roster.push({ team: 1, mech: 'titan', name: 'boss', bot: true }); return roster; }
     for (let i = 0; i < 2 * n; i++) roster.push({ team: mode === 'tudo' ? i % 2 : i < n ? 0 : 1, mech: mechs[i], name: 'b' + i, bot: true, diff: 'normal' });
     return roster;
@@ -2559,7 +2560,7 @@ section('38 team sizes: 1v1, 2v2, 3v3 (rules come out of the MODES size rows)');
     } catch (e) { ok = false; why += ` ${mode}${n}:${e.message}`; }
   }
   check('38b createMatch plays 90 ticks at 1v1, 2v2 and 3v3 in every mode (size = mechs a side; trum: hunters, boss not counted; tudo: half the mechs)', ok, why);
-  check('38c matchSize: 3v3 tdm 3, 6 mechs in tudo 3, 3 hunters + boss 3, 2v3 uses the larger side, 5v5 5', matchSize('tdm', bots(3, 'tdm')) === 3 && matchSize('tudo', bots(3, 'tudo')) === 3 && matchSize('trum', bots(3, 'trum')) === 3 && matchSize('tdm', bots(3, 'tdm').slice(1)) === 3 && matchSize('tdm', [0, 0, 0, 0, 0, 1, 1, 1, 1, 1].map((team) => ({ team, mech: 'trau' }))) === 5);
+  check('38c matchSize: 3v3 tdm 3, 6 mechs in tudo 3, 3 hunters + boss 3, 2v3 uses the larger side, 5v5 5', matchSize('tdm', bots(3, 'tdm')) === 3 && matchSize('tudo', bots(3, 'tudo')) === 3 && matchSize('trum', bots(3, 'trum')) === 3 && matchSize('tdm', bots(3, 'tdm').slice(1)) === 3 && matchSize('tdm', [0, 0, 0, 0, 0, 1, 1, 1, 1, 1].map((team) => ({ team, mech: 'dummy' }))) === 5);
   const T3 = ruleFor('nha', 3).tower, T2 = ruleFor('nha', 2).tower, T1 = ruleFor('nha', 1).tower;
   check('38d nha towers per size (sub/main hp): 1v1 3600/5800, 2v2 5000/8000, 3v3 5600/9000, 5v5 7000/11000; damage and range unchanged', [T1, T2, T3, ruleFor('nha', 5).tower].map((t) => t.sub + '/' + t.main).join() === '3600/5800,5000/8000,5600/9000,7000/11000' && [T1, T2, T3].every((t) => t.dmg === 270 && t.range === 13), JSON.stringify([T1, T2, T3]));
   const R = (mode, n) => ruleFor(mode, n);
@@ -2577,7 +2578,7 @@ section('38 team sizes: 1v1, 2v2, 3v3 (rules come out of the MODES size rows)');
   check('38k 3v3 units spawn on open ground on every arena layout', spawnOk);
   // bots at 3v3 in nha: the base falls to a tower kill in most seeds, in a sane time (measured over 60 matches: 302 s mean, 93% by tower)
   let towerEnd = 0, total = 0, noEmpty = true;
-  const MIX = ['trau', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'tho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong'];
+  const MIX = ['dummy', 'soi', 'ung', 'hac', 'loi', 'bocap', 'bang', 'oldtho', 'thancong', 'mangxa', 'kimquy', 'hacho', 'holy', 'domdom', 'tacke', 'hoalong'];
   const N38 = 10;
   for (let s = 0; s < N38; s++) {
     const roster = Array.from({ length: 6 }, (_, i) => ({ team: i < 3 ? 0 : 1, mech: MIX[(i * 3 + s * 5) % 16], name: 'n' + i, bot: true, diff: 'normal' }));
@@ -2629,7 +2630,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     check(`39a Ung's beam kills a full-hp ${MECHS[h].name} (${MECHS[h].hp} hp) in one hit, within 1.5 s`, !m.units[1].alive && hits.length === 1 && near(hits[0].amt, OLD_UNG.skills[2].dmg, 1e-9), `alive ${m.units[1].alive} hits ${hits.map((e) => e.amt)}`);
   }
   {
-    const m = oldUng(duel2('ung', 'trau', 14));
+    const m = oldUng(duel2('ung', 'dummy', 14));
     fire(m, 45, (i) => ({ ult: i === 0 }));
     check('39b the same beam does not delete a full-hp Trau Sat (2850 hp, he lives with 1000 hp)', m.units[1].alive && m.units[1].hp > 900 && m.units[1].hp < 1100, `hp ${m.units[1].hp}`);
   }
@@ -2647,7 +2648,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
   }
   // wounded: a hit of at least 12% of max hp halves healing for 3 s
   {
-    const m = oldUng(duel2('ung', 'trau', 14));
+    const m = oldUng(duel2('ung', 'dummy', 14));
     const d = m.units[1]; d.hp = d.maxHp * 0.5;
     fire(m, 1, () => ({}));
     const u = m.units[1]; u.woundT = 0; const before = u.hp; u.healT = 1; u.healRate = 300;
@@ -2658,7 +2659,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     check('39e a wounded unit receives half the healing (RULES.wound.mul 0.5)', near((u.hp - b2) / plain, 0.5, 0.02), `${plain} ${u.hp - b2}`);
   }
   {
-    const m = oldUng(duel2('ung', 'trau', 14)), t = m.units[1];
+    const m = oldUng(duel2('ung', 'dummy', 14)), t = m.units[1];
     fire(m, 45, (i) => ({ ult: i === 0 }));
     check('39f a hit of 12% of max hp or more wounds the target (the beam does; woundT up to 3 s)', t.woundT > 0 && t.woundT <= 3, `woundT ${t.woundT}`);
   }
@@ -2699,7 +2700,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     return ev;
   }
   const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
-  const UNG = MECHS.ung.hp, TRAU_HP = MECHS.trau.hp;
+  const UNG = MECHS.ung.hp, TRAU_HP = MECHS.dummy.hp;
 
   // hitfx: Hoi Phao Hoa strikes carry slow + weaken; a weakened shooter does 80%
   {
@@ -2715,7 +2716,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   {
     const FX = { chance: 0.3, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] };
     const roll = () => {
-      const m = arena([[R('khiphao', 0), 0, 0], [R('trau', 1), 8, 0]]), [a, o] = m.units;
+      const m = arena([[R('khiphao', 0), 0, 0], [R('dummy', 1), 8, 0]]), [a, o] = m.units;
       let procs = 0, slows = 0, weak = 0;
       for (let i = 0; i < 200; i++) {
         o.slowT = 0; o.slowF = 0; o.weakenT = 0; o.weakenF = 1;
@@ -2733,7 +2734,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     const m = oldKit15(arena([[R('hades', 0), 0, 0], [R('ung', 1), 8, 0]]), 'hades'), v = m.units[1];   // old kit fixture OLD_HADES (k15-cases.mjs)
     go(m, 25, (i) => ({ 0: { s2: i === 0, tx: 8, tz: 0 }, 1: i >= 20 ? { mx: 1 } : {} }));
     check('40e Ban Tay Am Gioi roots the target (rootT 1.4 minus the ticks since the hit), speed 0, x unchanged', v.rootT > 0 && v.rootT <= 1.4 && unitSpeed(v) === 0 && near(v.x, 8, 0.2), `rootT ${v.rootT} x ${v.x}`);
-    const r = arena([[R('trau', 0), 0, 0], [R('ung', 1), 8, 0]]);
+    const r = arena([[R('dummy', 0), 0, 0], [R('ung', 1), 8, 0]]);
     r.units[0].rootT = 2;
     go(r, 6, () => ({ 0: { s2: true, mx: 1 } }));
     check('40f a rooted mech does not dash (no cooldown spent) and does not move', !r.units[0].dash && r.units[0].cd.s2 === 0 && near(r.units[0].x, 0, 1e-9), `x ${r.units[0].x} cd ${r.units[0].cd.s2}`);
@@ -2744,7 +2745,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // amp: Tam Tiem Dao makes the target take 15% more from everyone
   {
-    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0], [R('tho', 0), 6, -6, Math.PI / 2]]), 'duongtien'), v = m.units[1];
+    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0], [R('oldtho', 0), 6, -6, Math.PI / 2]]), 'duongtien'), v = m.units[1];
     go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
     check('40h amp lands: ampF 0.15, ampT counting down from 4 s', v.ampF === 0.15 && v.ampT > 3 && v.ampT <= 4, `ampF ${v.ampF} ampT ${v.ampT}`);
     const before = v.hp;
@@ -2754,7 +2755,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   // execute: Tram Tuong nova (fx.execute 0.25): leaves 22% -> dies, leaves 32% -> lives
   {
     const run = (frac) => {
-      const m = arena([[R('quancong', 0), 0, 0], [R('trau', 1), 1.2, 0]]), v = m.units[1];
+      const m = arena([[R('quancong', 0), 0, 0], [R('dummy', 1), 1.2, 0]]), v = m.units[1];
       v.hp = v.maxHp * frac;
       const ev = go(m, 20, (i) => ({ 0: { ult: i === 0 } }));
       return { v, ev, m };
@@ -2769,7 +2770,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     v.hp = 1; a.cd.s1 = 5; a.cd.s2 = 5; a.cd.ult = 5;
     const ev = go(m, 30, (i) => ({ 0: { fire: i === 0 } }));
     check('40l onKill reset: a kill sets s1, s2 and ult cooldowns to 0', only(ev, 'death').length === 1 && a.cd.s1 === 0 && a.cd.s2 === 0 && a.cd.ult === 0, JSON.stringify(a.cd));
-    const w = arena([[R('quancong', 0), 0, 0], [R('tho', 0), 6, -6, Math.PI / 2], [R('ung', 1), 6, 0]]), [q, , t] = w.units;
+    const w = arena([[R('quancong', 0), 0, 0], [R('oldtho', 0), 6, -6, Math.PI / 2], [R('ung', 1), 6, 0]]), [q, , t] = w.units;
     t.hp = 1; t.hitBy[0] = w.time; q.cd.s1 = 10; q.cd.s2 = 4; q.cd.ult = 8;
     let n = 0, seen = false;
     for (let i = 0; i < 40 && !seen; i++) { step(w, w.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, fire: k === 1 && i === 0 }))); n++; seen = w.events.some((e) => e.t === 'death'); }
@@ -2843,7 +2844,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // decoy.seek
   {
-    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 6, 6]]), 'duongtien'), v = m.units[1];
+    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('dummy', 1), 6, 6]]), 'duongtien'), v = m.units[1];
     const ev = go(m, 40, (i) => ({ 0: { s2: i === 0 } }));
     const lost = TRAU_HP - v.hp;
     check('40y decoy.seek: the hound runs to the target and bursts on it (104..209 after armour and falloff), reveal 4 s, gone', only(ev, 'explode', (e) => e.why === 'decoy').length === 1 && lost >= 104 && lost <= 209 && v.revealT > 2 && !m.zones.some((z) => z.kind === 'decoy'), `lost ${lost} reveal ${v.revealT}`);
@@ -2851,7 +2852,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   // beam.track and thru
   {
     const run = (patch) => {
-      const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 10, 0]], [[4.5, 5.5, -4, 4]]), 'duongtien');
+      const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('dummy', 1), 10, 0]], [[4.5, 5.5, -4, 4]]), 'duongtien');
       const a = m.units[0];
       if (patch) a.def = { ...a.def, skills: a.def.skills.map((x, i) => (i === 2 ? { ...x, ...patch } : x)) };
       go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 }, 1: { mz: 1 } }));
@@ -2859,7 +2860,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     };
     const full = run(null);
     const BD = OLD_DUONGTIEN.skills[2].dmg;
-    check(`40z beam.track + thru: the beam follows a strafing target through a wall: ${BD} x 0.87 = ${BD * 0.87}`, near(full, BD * (1 - MECHS.trau.armor), 1e-6), `${full}`);
+    check(`40z beam.track + thru: the beam follows a strafing target through a wall: ${BD} x 0.87 = ${BD * 0.87}`, near(full, BD * (1 - MECHS.dummy.armor), 1e-6), `${full}`);
     check('40za without track the beam misses the strafing target', run({ track: null }) === 0);
     check('40zb without thru a wall stops the tracked beam', run({ thru: false }) === 0);
   }
@@ -2925,13 +2926,13 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // transform (nguma): size 1.35 hitbox, armor +0.2, nova after the windup, radius back at the end
   {
-    const m = oldK18(arena([[R('nguma', 0), 0, 0], [R('trau', 1), 3, 0]])), [a, v] = m.units;
+    const m = oldK18(arena([[R('nguma', 0), 0, 0], [R('dummy', 1), 3, 0]])), [a, v] = m.units;
     go(m, 1, () => ({ 0: { ult: true } }));
     check('41h transform size: radius 1.0 -> 1.35 at once, unitRadius agrees', near(a.radius, 1.35) && near(unitRadius(a), 1.35), `${a.radius}`);
     check('41i transform armor: 0.14 + 0.2 = 0.34', near(armorOf(m, a), 0.34), `${armorOf(m, a)}`);
     go(m, 14);
     // nova: 400 at distance 3 of radius 6 -> x0.75 = 300, and trau armor
-    check('41j transform nova after a 0.3 s windup: 320 x 0.75 x (1 - trau armor), stun 1.1 s', near(MECHS.trau.hp - v.hp, 240 * (1 - MECHS.trau.armor), 1e-6) && v.stunT > 0.9 && v.stunT <= 1.1, `${MECHS.trau.hp - v.hp} stun ${v.stunT}`);
+    check('41j transform nova after a 0.3 s windup: 320 x 0.75 x (1 - trau armor), stun 1.1 s', near(MECHS.dummy.hp - v.hp, 240 * (1 - MECHS.dummy.armor), 1e-6) && v.stunT > 0.9 && v.stunT <= 1.1, `${MECHS.dummy.hp - v.hp} stun ${v.stunT}`);
     go(m, 190);
     check('41k size and armor go back after 6 s', near(a.radius, 1.0) && a.tfT === 0 && near(armorOf(m, a), 0.14), `${a.radius}`);
   }
@@ -2986,7 +2987,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // ramp 'switch' (enbac, old kit fixture OLD_ENBAC in k4-cases.mjs): changing target restarts the count at 1
   {
-    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('trau', 1), 7, 0], [R('trau', 1), 0, 7]]), 'enbac'), a = m.units[0];
+    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('dummy', 1), 7, 0], [R('dummy', 1), 0, 7]]), 'enbac'), a = m.units[0];
     go(m, 30, () => ({ 0: { fire: true, aim: 0 } }));
     check('41y ramp switch: shooting one target builds stacks on it', a.rampN >= 3 && a.rampTo === 1, `rampN ${a.rampN} to ${a.rampTo}`);
     let at = -1;
@@ -3021,7 +3022,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   // dash.stop (kynhong E): ends on the first mech it hits
   {
     const run = (patch) => {
-      const m = oldK16(arena([[R('kynhong', 0), 0, 0], [R('trau', 1), 3, 0]]));
+      const m = oldK16(arena([[R('kynhong', 0), 0, 0], [R('dummy', 1), 3, 0]]));
       if (patch) m.units[0].def = { ...m.units[0].def, skills: m.units[0].def.skills.map((x, i) => (i === 1 ? { ...x, ...patch } : x)) };
       go(m, 20, (i) => ({ 0: { s2: i === 0 } }));
       return [m.units[0].x, m.units[1]];
@@ -3032,7 +3033,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // barrage.channel (enbac U, old kit fixture): a strike every 0.2 s around the cursor for 3 s, walking allowed
   {
-    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('trau', 1), 8, 0]]), 'enbac'), [a, v] = m.units;
+    const m = oldKit(arena([[R('enbac', 0), 0, 0], [R('dummy', 1), 8, 0]]), 'enbac'), [a, v] = m.units;
     const ev = go(m, 140, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0, mz: i > 5 && i < 20 ? 1 : 0 } }));
     const strikes = only(ev, 'explode', (e) => e.why === 'strike');
     check('41zl barrage.channel: 15 strikes in 3 s, every one within 4 m of the cursor (8, 0)', strikes.length === 15 && strikes.every((e) => Math.hypot(e.x - 8, e.z) <= 4), `${strikes.length}`);
@@ -3058,7 +3059,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
     a.hp = 1000; v.hp = 1;
     go(m, 10, (i) => ({ 0: { fire: i === 0 } }));
     check('41zq kill heal: 1000 + 10% of 2300 = 230 (+ the lifesteal of the shot, at most 3 x 45 x 0.1)', !v.alive && a.hp >= 1230 && a.hp <= 1230 + 3 * 45 * 0.1 + 1e-6, `hp ${a.hp}`);
-    const w = oldK13(arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 6], [R('tho', 0), 0, 6, 0]]), 'mucma'), [b, o, k] = w.units;
+    const w = oldK13(arena([[R('mucma', 0), 0, 0], [R('ung', 1), 5, 6], [R('oldtho', 0), 0, 6, 0]]), 'mucma'), [b, o, k] = w.units;
     b.hp = 1000; o.hp = 1; o.hitBy[b.id] = w.time;
     go(w, 12, (i) => ({ 2: { fire: i === 0, aim: Math.atan2(o.z - k.z, o.x - k.x), tx: o.x, tz: o.z } }));
     check('41zr assist heal: 1000 + 5% of 2300 = 115', !o.alive && near(b.hp, 1115, 1e-6), `hp ${b.hp} alive ${o.alive}`);
@@ -3097,7 +3098,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     return ev;
   }
   const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
-  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor, TRAU_D = MECHS.trau.weapon.dmg;
+  const UNG = MECHS.ung, UNG_F = 1 - UNG.armor, TRAU_D = MECHS.dummy.weapon.dmg;
   const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
 
   // meter, spend 'shot' + gain 'cast' (bohung): three casts arm it, the next shot is x2 and stuns, the meter is spent
@@ -3125,31 +3126,31 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // meter 'hurt' (gilgamesh shot (old kit fixture OLD_GILGAMESH in k14-cases.mjs), laclong shield, baogam nova)
   {
-    const m = oldKit14(arena([[R('trau', 0), 0, 0], [R('gilgamesh', 1), 8, 0]]), 'gilgamesh'), [t, g] = m.units;
+    const m = oldKit14(arena([[R('dummy', 0), 0, 0], [R('gilgamesh', 1), 8, 0]]), 'gilgamesh'), [t, g] = m.units;
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42h gilgamesh: lost blood feeds the meter 1:1 (hp lost = meter)', g.meter > 0 && near(g.meter, g.maxHp - g.hp, 1e-6), `meter ${g.meter} lost ${g.maxHp - g.hp}`);
     g.meter = 1499.5;
     check('42i 1499.5 of 1500 is not armed yet', !meterArmed(g));
     g.meter = 1500;
     const ev = go(m, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('42j the armed bao khi hits trau for 175 x 1.6 = 280 x (1 - armor), stun 0.6 s, meter spent', near(MECHS.trau.hp - t.hp, 280 * (1 - MECHS.trau.armor), 1e-6) && t.stunT > 0 && t.stunT <= 0.6 && g.meter < 1500, `${MECHS.trau.hp - t.hp} stun ${t.stunT} meter ${g.meter}`);
+    check('42j the armed bao khi hits trau for 175 x 1.6 = 280 x (1 - armor), stun 0.6 s, meter spent', near(MECHS.dummy.hp - t.hp, 280 * (1 - MECHS.dummy.armor), 1e-6) && t.stunT > 0 && t.stunT <= 0.6 && g.meter < 1500, `${MECHS.dummy.hp - t.hp} stun ${t.stunT} meter ${g.meter}`);
   }
   {
-    const m = oldK16(arena([[R('trau', 0), 0, 0], [R('laclong', 1), 8, 0]])), [t, l] = m.units;
+    const m = oldK16(arena([[R('dummy', 0), 0, 0], [R('laclong', 1), 8, 0]])), [t, l] = m.units;
     l.meter = 1190;
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42k laclong: 1200 lost blood -> a 450 shield for 5 s at once, meter 0', l.shield === 450 && l.shieldT > 4.5 && l.shieldT <= 5 && l.meter === 0, `shield ${l.shield} meter ${l.meter}`);
   }
   // spend 'nova' + 'absorbed' (baogam)
   {
-    const m = arena([[R('trau', 0), 0, 0], [R('baogam', 1), 3, 0], [R('ung', 0), 5, 0]]), [t, b, e] = m.units;
+    const m = arena([[R('dummy', 0), 0, 0], [R('baogam', 1), 3, 0], [R('ung', 0), 5, 0]]), [t, b, e] = m.units;
     oldBaogam(b);   // the old Black Panther kit (tools/k9-cases.mjs): vibranium meter
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
     const lost = b.maxHp - b.hp;
     check('42l baogam: blood lost + damage turned away by the armor = the whole shot (meter = TRAU_D)', near(b.meter, TRAU_D, 1e-6) && near(lost, TRAU_D * (1 - b.def.armor), 1e-6), `meter ${b.meter} lost ${lost}`);
     b.meter = 1000 - 10; t.cd.fire = 0;
     const ev = go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
-    check('42m a full meter detonates at once: nova event, the foe 3 m away takes 380 x (0.5 .. 0.625) x (1 - trau armor) (the falloff depends on how far the recoil of its own shot left it); the armor-turned part of that same hit (TRAU_D x 0.06) is what is left in the meter', only(ev, 'nova', (x) => x.id === b.id && x.r === 4).length === 1 && t.maxHp - t.hp >= 190 * (1 - MECHS.trau.armor) - 1e-6 && t.maxHp - t.hp <= 237.5 * (1 - MECHS.trau.armor) + 1e-6 && near(b.meter, TRAU_D * b.def.armor, 1e-6), `nova ${only(ev, 'nova').length} meter ${b.meter} lost ${t.maxHp - t.hp}`);
+    check('42m a full meter detonates at once: nova event, the foe 3 m away takes 380 x (0.5 .. 0.625) x (1 - trau armor) (the falloff depends on how far the recoil of its own shot left it); the armor-turned part of that same hit (TRAU_D x 0.06) is what is left in the meter', only(ev, 'nova', (x) => x.id === b.id && x.r === 4).length === 1 && t.maxHp - t.hp >= 190 * (1 - MECHS.dummy.armor) - 1e-6 && t.maxHp - t.hp <= 237.5 * (1 - MECHS.dummy.armor) + 1e-6 && near(b.meter, TRAU_D * b.def.armor, 1e-6), `nova ${only(ev, 'nova').length} meter ${b.meter} lost ${t.maxHp - t.hp}`);
   }
   // nova.meterMul (baogam U): the whole meter goes in, dmg x (1 + meter / max)
   {
@@ -3208,9 +3209,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     b.hp = 1000;
     go(w, 12, (i) => ({ 0: { fire: i === 0, tx: 4, tz: 0 } }));
     check('42w below 40% hp the gain doubles: a hit feeds 4 x 2 = 8', b.meter === 8, `meter ${b.meter}`);
-    const u = oldTegiac(arena([[R('tegiac', 0), 0, 0], [R('trau', 1), 4, 0]])), c = u.units[0];
+    const u = oldTegiac(arena([[R('tegiac', 0), 0, 0], [R('dummy', 1), 4, 0]])), c = u.units[0];
     go(u, 1, () => ({ 0: { s1: true, tx: 4, tz: 0 } })); go(u, 12);
-    check('42x without an armed meter the skill is plain 380 x (1 - trau armor)', near(MECHS.trau.hp - u.units[1].hp, 380 * (1 - MECHS.trau.armor), 1e-6), `${MECHS.trau.hp - u.units[1].hp}`);
+    check('42x without an armed meter the skill is plain 380 x (1 - trau armor)', near(MECHS.dummy.hp - u.units[1].hp, 380 * (1 - MECHS.dummy.armor), 1e-6), `${MECHS.dummy.hp - u.units[1].hp}`);
   }
   // spend 'skill' with calm + resetOnHurt (tumay, old kit fixture OLD_TUMAY in k4-cases.mjs)
   {
@@ -3225,7 +3226,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     b.meter = 4;
     go(w, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } })); go(w, 20);
     check('42zb Am Cau armed: 300 x 1.5 = 450 direct; the meter was spent (calm refills a little after)', near(UNG.hp - v.hp, 450 * UNG_F, 1e-6) && b.meter < 1, `${UNG.hp - v.hp} meter ${b.meter}`);
-    const h = oldKit(arena([[R('trau', 0), 0, 0], [R('tumay', 1), 8, 0]]), 'tumay'), t = h.units[1];
+    const h = oldKit(arena([[R('dummy', 0), 0, 0], [R('tumay', 1), 8, 0]]), 'tumay'), t = h.units[1];
     t.meter = 3.5;
     go(h, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42zc a hit wipes the meter (resetOnHurt) and the calm waits 2 s: still 0 after 1.5 s', t.meter === 0, `meter ${t.meter}`);
@@ -3252,7 +3253,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     check('42zi shield 650 for 4 s with a burst stored', a.shield === 650 && a.shieldT > 3.9 && a.shieldBurst && a.shieldBurst.dmg === 300);
     const ev = go(m, 125);
     check('42zj when the 4 s run out it goes off: 300 x 0.667 at 3 m of 4.5, nova event, burst spent', a.shield === 0 && a.shieldBurst === null && only(ev, 'nova', (e) => e.r === 4.5).length === 1 && near(UNG.hp - v.hp, 300 * (1 - 0.5 * 3 / 4.5) * UNG_F, 1e-6), `dmg ${UNG.hp - v.hp}`);
-    const w = oldK10(arena([[R('bohung', 0), 0, 0], [R('trau', 1), 3, 0]])), b = w.units[0], t = w.units[1];
+    const w = oldK10(arena([[R('bohung', 0), 0, 0], [R('dummy', 1), 3, 0]])), b = w.units[0], t = w.units[1];
     go(w, 1, () => ({ 0: { s2: true } }));
     b.shield = 5;
     go(w, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
@@ -3284,15 +3285,15 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // zone.haste (laclong E): allies in it speed up, foes slow down
   {
-    const m = oldK16(arena([[R('laclong', 0), 0, 0], [R('trau', 0), 4, 0], [R('trau', 1), 4, 2]])), [a, ally, foe] = m.units;
+    const m = oldK16(arena([[R('laclong', 0), 0, 0], [R('dummy', 0), 4, 0], [R('dummy', 1), 4, 2]])), [a, ally, foe] = m.units;
     go(m, 3, (i) => ({ 0: { s2: i === 0, tx: 4, tz: 1 } }));
     check('42zr zone.haste: an ally inside has haste x1.25, the foe inside is slowed 40%', ally.hasteT > 0 && ally.hasteF === 1.25 && near(foe.slowF, 0.4), `haste ${ally.hasteT}/${ally.hasteF} slow ${foe.slowF}`);
   }
   // zone.blind (tumay U, old kit fixture): a blinded mech's bullets go half as far and wide of the mark
   {
-    const m = oldKit(arena([[R('tumay', 0), 0, 0], [R('trau', 1), 6, 0]]), 'tumay'), [a, t] = m.units;
+    const m = oldKit(arena([[R('tumay', 0), 0, 0], [R('dummy', 1), 6, 0]]), 'tumay'), [a, t] = m.units;
     go(m, 1, () => ({ 0: { ult: true, tx: 6, tz: 0 } }));
-    const base = MECHS.trau.weapon.range;
+    const base = MECHS.dummy.weapon.range;
     check('42zs a blinded mech: weaponRange halves', near(weaponRange(t), base * 0.5, 1e-9), `${weaponRange(t)}`);
     t.cd.fire = 0;
     go(m, 1, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
@@ -3460,7 +3461,7 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   }
   // regen (suatrang, old kit fixture OLD_SUATRANG in k14-cases.mjs): 0.8 % of max hp each second to itself, allies near it too (x2.5 under 60 %), far allies nothing
   {
-    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 12, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al, far] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 3, 0], [R('dummy', 0), 12, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al, far] = m.units;
     a.hp = a.maxHp * 0.5; al.hp = al.maxHp * 0.5; far.hp = far.maxHp * 0.5;
     const h = [a.hp, al.hp, far.hp];
     go(m, 30);
@@ -3486,7 +3487,7 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   }
   // bless.hot (suatrang Q, old kit fixture): 160 hp/s for 4 s on the ally at the cursor; on itself when nobody is there
   {
-    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 9, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al] = m.units;
     al.hp = al.maxHp * 0.3; a.hp = a.maxHp * 0.5; const h = al.hp, ha = a.hp;
     press(m, 0, 's1', { tx: 9, tz: 0 });
     check('43v Bong Bong Hoi: ally healT 4 s and rate 160, the caster untouched', al.healT > 3.9 && al.healRate === 160 && a.healT === 0, `${al.healT} ${al.healRate}`);
@@ -3497,7 +3498,7 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   }
   // leap.to 'ally' + landShield (suatrang E, old kit fixture)
   {
-    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('trau', 0), 11, 0], [R('trau', 0), 20, 0], [R('ung', 1), 30, 0]]), 'suatrang'), [a, b, c, d] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('dummy', 0), 9, 0], [R('dummy', 0), 11, 0], [R('dummy', 0), 20, 0], [R('ung', 1), 30, 0]]), 'suatrang'), [a, b, c, d] = m.units;
     press(m, 0, 's2', { tx: -5, tz: 0 });
     check('43y no ally at the cursor: the leap does not happen (lockout 0.4 s, no dash)', !a.dash && a.cd.s2 === 0.4 && a.x === 0, `${a.cd.s2}`);
     a.cd.s2 = 0; press(m, 0, 's2', { tx: 9, tz: 0 }); go(m, 20, () => ({ 0: { tx: 9, tz: 0 } }));
@@ -3704,7 +3705,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44s heal 0.4 of the damage dealt plus lifesteal 0.1 of what got through: +76 a hit', near(a.hp - (a.maxHp - 1000), 3 * (0.4 + 0.1) * 160 * UNG_F, 0.01), `${a.hp - (a.maxHp - 1000)}`);
   }
   {
-    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 4, 0], [R('trau', 1), 4, 6]])), a = m.units[0];
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 4, 0], [R('dummy', 1), 4, 6]])), a = m.units[0];
     const ev = press(m, 0, 'ult', { tx: 4, tz: 0 }).concat(go(m, 90));
     const fl = only(ev, 'flurry');
     check('44t Du Day (n 5, not same): the first step goes to the enemy under the cursor, the second to the other one (nearest not yet cut), then the list wraps: 5 steps in all', fl.length === 5 && fl[0].x === 4 && Math.abs(fl[1].z - 6) < 1.5, JSON.stringify(fl.map((e) => [e.step, Math.round(e.x), Math.round(e.z)])));
@@ -3731,7 +3732,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
 
   // ---- portal ----
   {
-    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 8], [R('trau', 0), 0.5, 0.5]]), 'chuottui'), [a, e, t] = m.units;
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 8], [R('dummy', 0), 0.5, 0.5]]), 'chuottui'), [a, e, t] = m.units;
     const ev = press(m, 0, 's1', { tx: 8, tz: 0 });
     const z = m.zones.find((q) => q.kind === 'portal');
     check('44z Cua Than: a portal zone with the end A at the caster, B at the cursor (8 m), r 1.3, dur 8, and the caster already stands at B', !!z && z.x === 0 && z.z === 0 && near(z.x2, 8, 1e-9) && near(z.z2, 0, 1e-9) && z.r === 1.3 && z.dur === 8 && near(a.x, 8, 1e-9) && a.cd.s1 === 16, JSON.stringify(z));
@@ -3765,7 +3766,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   const oldVesau = (m) => { for (const u of m.units) if (u.mech === 'vesau') { u.def = { ...u.def, ...OLD_VESAU }; u.passive = 'meter'; } return m; };
   // ---- rewind ----
   {
-    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('hac', 0), 14, 0], [R('ung', 1), 25, 0]])), [a, t, far] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 3, 0], [R('hac', 0), 14, 0], [R('ung', 1), 25, 0]])), [a, t, far] = m.units;
     a.hpHist = Array(7).fill(a.maxHp); a.hp = a.maxHp - 500;
     t.hpHist = Array(7).fill(t.maxHp); t.hp = t.maxHp - 1000;
     far.hpHist = Array(7).fill(far.maxHp); far.hp = far.maxHp - 1000;
@@ -3774,7 +3775,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   {
     // the history is sampled each 0.5 s, kept 7 deep, and read from 3 s back
-    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 3, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
     go(m, 120, (i) => { if (i === 60) t.hp = t.maxHp - 600; return null; });
     check('44zh hpHist holds 7 samples of the last 3 s; the ones before the drop read full, the newest read the drop', t.hpHist.length === 7 && t.hpHist[0] === t.maxHp && t.hpHist[6] === t.maxHp - 600, JSON.stringify(t.hpHist));
     const was = t.hp;
@@ -3833,7 +3834,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44zs Hon Loan: each 0.5 s pulse of 110 heals the owner drain 0.5 of it plus lifesteal (x(0.5 + frac) of the damage that got through)', hits.length === 2 && near(got, sum(hits, (e) => e.amt) * (0.5 + MECHS.retdo.passive.frac), 0.01), `${hits.length} ${got} ${sum(hits, (e) => e.amt)}`);
   }
   {
-    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0], [R('trau', 0), 3, 0]]), 'chuottui'), [a, e, t] = m.units;
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0], [R('dummy', 0), 3, 0]]), 'chuottui'), [a, e, t] = m.units;
     t.hp = t.maxHp - 500;
     press(m, 0, 'ult');
     check('44zt Tui Do Nghe: allies in 6.5 m get a 300 shield on stepping in (once), x1.25 run; the owner too', t.shield === 300 && a.shield === 300 && t.hasteF === 1.25 && t.hasteT > 0.2, `${t.shield} ${a.shield} ${t.hasteF}`);
@@ -3873,13 +3874,13 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   // ---- meter allyHurt, meter heal ----
   {
-    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 10, 0]])), [a, t, v] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 10, 0]])), [a, t, v] = m.units;
     const ev = go(m, 30, () => ({ 2: { fire: true, aim: Math.PI, tx: 4, tz: 0 } }));
     const hurt = only(ev, 'hit', (e) => e.id === 1), self = only(ev, 'hit', (e) => e.id === 0);
     check('44zy Thoi Khac: the blood a friend within 8 m loses fills the meter point for point (and only that: the owner\'s own does not)', hurt.length >= 1 && near(a.meter, sum(hurt, (e) => e.amt), 1e-6) && self.length === 0, `${a.meter} ${sum(hurt, (e) => e.amt)} ${self.length}`);
   }
   {
-    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
     a.meter = 1500; t.hp = t.maxHp - 1000;
     press(m, 0, 's2', { tx: 4, tz: 0 }); go(m, 20);
     check('44zz a full meter: the first heal vesau gives another (the zone pulse of 90) is x1.6 = 144, then the meter is empty', near(t.hp, t.maxHp - 1000 + 144, 1e-6) && a.meter === 0, `${t.hp - (t.maxHp - 1000)} ${a.meter}`);
@@ -4008,7 +4009,7 @@ section('45 Lữ Bố ported from the owner\'s clip (p9): meter castShield/reach
   {
     const seen = new Set();
     for (let k = 0; k < 6 && seen.size < 4; k++) {
-      const m = createMatch({ seed: 40 + k, mode: 'tdm', roster: [{ team: 0, mech: 'lubo', name: 'L', bot: true, diff: 'hard' }, { team: 0, mech: 'trau', name: 'T', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'U', bot: true, diff: 'hard' }, { team: 1, mech: 'hac', name: 'H', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 40 + k, mode: 'tdm', roster: [{ team: 0, mech: 'lubo', name: 'L', bot: true, diff: 'hard' }, { team: 0, mech: 'dummy', name: 'T', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'U', bot: true, diff: 'hard' }, { team: 1, mech: 'hac', name: 'H', bot: true, diff: 'hard' }] });
       for (let i = 0; i < 2400 && !m.over && seen.size < 4; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0) seen.add(e.skill); }
     }
     check('45w bots cast Tuy Vien, Bao No, Hoanh Tao and Quy Than', ['tuyvien', 'baono', 'hoanhtao', 'quythan'].every((k) => seen.has(k)), [...seen].join());
@@ -4052,11 +4053,11 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   const shot = (id, extra) => ({ id, do: 'volley', cd: 8, n: 1, dmg: 100, speed: 40, range: 14, r: 0.3, vis: 'rail', ...extra });
   const nova = (id, extra) => ({ id, do: 'nova', cd: 8, windup: 0.1, radius: 4, dmg: 100, ...extra });
   const buff = (id, extra) => ({ id, do: 'buff', cd: 12, dur: 2, haste: 1.2, ...extra });
-  const TR = MECHS.trau, TR_F = 1 - TR.armor;
+  const TR = MECHS.dummy, TR_F = 1 - TR.armor;
 
   // ---- charges ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [shot('q', { cd: 6, uses: { n: 2, gap: 1 } }), buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [shot('q', { cd: 6, uses: { n: 2, gap: 1 } }), buff('b'), buff('c')]);
     const ev1 = press(m, 0, 's1');
     check('46a charges 2: the first press fires, one use spent, the recharge (6 s) starts, the 1 s gap runs, so it is not ready inside it', only(ev1, 'skill', (e) => e.skill === 'q').length === 1 && a.use0 === 1 && near(a.cd.s1, 6, 1e-9) && near(a.gap0, 1, 1e-9) && !skillReady(a, 0), `${a.use0} ${a.cd.s1} ${a.gap0}`);
     const ev2 = go(m, 10, () => ({ 0: { s1: true } }));
@@ -4072,13 +4073,13 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // a targeted charge row that finds nobody costs a 0.4 s gap, not a use and not a recharge
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sw', do: 'swap', cd: 9, pick: 3, cast: 10, slow: 0, slowDur: 0, uses: { n: 2, gap: 0 } }, buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sw', do: 'swap', cd: 9, pick: 3, cast: 10, slow: 0, slowDur: 0, uses: { n: 2, gap: 0 } }, buff('b'), buff('c')]);
     press(m, 0, 's1', { tx: 5, tz: 0 });
     check('46g a charge swap with no target: no use spent, no recharge, a 0.4 s gap', a.use0 === 0 && a.cd.s1 === 0 && near(a.gap0, 0.4, 1e-9), `${a.use0} ${a.cd.s1} ${a.gap0}`);
   }
   // ---- cdCut ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), a = kit(m.units[0], [shot('q', { cdCut: { slot: 'self', cut: 2 } }), shot('q2', { cd: 10, cdCut: { slot: 'other', frac: 0.5 } }), buff('c', { cd: 30 })]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0]]), a = kit(m.units[0], [shot('q', { cdCut: { slot: 'self', cut: 2 } }), shot('q2', { cd: 10, cdCut: { slot: 'other', frac: 0.5 } }), buff('c', { cd: 30 })]);
     press(m, 0, 's1'); go(m, 6);
     check('46h cdCut self 2: the shot hits, its own cooldown is 8 - 6 ticks - 2', near(a.cd.s1, 8 - 6 * TICK - 2, 1e-6), `${a.cd.s1}`);
     a.cd.ult = 20; a.cd.s1 = 5;
@@ -4086,12 +4087,12 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
     check('46i cdCut other frac 0.5: s1 (8 s) loses 4 s, ult (30 s) loses 15 s, s2 itself untouched', near(a.cd.s1, 5 - 7 * TICK - 4, 1e-6) && near(a.cd.ult, 20 - 7 * TICK - 15, 1e-6) && near(a.cd.s2, 10 - 6 * TICK, 1e-6), `${a.cd.s1} ${a.cd.ult} ${a.cd.s2}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 7, 0]]), a = kit(m.units[0], [buff('b'), { id: 'tw', do: 'warp', cd: 10, dist: 8, land: { radius: 3, dmg: 100 }, cdCut: { slot: 'self', cut: 3 } }, buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 7, 0]]), a = kit(m.units[0], [buff('b'), { id: 'tw', do: 'warp', cd: 10, dist: 8, land: { radius: 3, dmg: 100 }, cdCut: { slot: 'self', cut: 3 } }, buff('c')]);
     const ev = press(m, 0, 's2', { tx: 6, tz: 0 });
     check('46j a hit inside the press tick (warp land) cuts the cooldown the press sets: 10 - 3 = 7 at once', only(ev, 'hit', (e) => e.id === 1).length === 1 && near(a.cd.s2, 7, 1e-9), `${a.cd.s2}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 2, 0], [R('trau', 1), -2, 0], [R('trau', 1), 0, 2]]), a = kit(m.units[0], [nova('n', { cdCut: { slot: 'self', cut: 1, max: 2 } }), buff('b', { cdCut: { slot: 's1', set: 1, on: 'cast' } }), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 2, 0], [R('dummy', 1), -2, 0], [R('dummy', 1), 0, 2]]), a = kit(m.units[0], [nova('n', { cdCut: { slot: 'self', cut: 1, max: 2 } }), buff('b', { cdCut: { slot: 's1', set: 1, on: 'cast' } }), buff('c')]);
     press(m, 0, 's1'); const ev = go(m, 4);
     check('46k cdCut max 2: the nova hits three, only two cut 1 s each (8 - 4 ticks - 2)', only(ev, 'hit', (e) => e.id > 0).length === 3 && near(a.cd.s1, 8 - 4 * TICK - 2, 1e-6), `${a.cd.s1}`);
     press(m, 0, 's2');
@@ -4099,7 +4100,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // ---- self ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0], [R('trau', 1), 4.5, 0]]), a = kit(m.units[0], [shot('q', { pierce: true, self: { on: 'cast', haste: 1.5, dur: 2 } }), shot('q2', { pierce: true, self: { on: 'hit', armor: 0.2, guard: 0.3, cc: true, dur: 1 } }), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0], [R('dummy', 1), 4.5, 0]]), a = kit(m.units[0], [shot('q', { pierce: true, self: { on: 'cast', haste: 1.5, dur: 2 } }), shot('q2', { pierce: true, self: { on: 'hit', armor: 0.2, guard: 0.3, cc: true, dur: 1 } }), buff('c')]);
     press(m, 0, 's1');
     check('46m self on cast: haste 1.5 for 2 s from the press', near(a.hasteF, 1.5, 1e-9) && near(a.hasteT, 2, 1e-9), `${a.hasteF} ${a.hasteT}`);
     go(m, 6); a.armorT = 0;
@@ -4110,7 +4111,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // ---- hitfx lostHp / curHp / trueDmg ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), [a, v] = m.units;
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0]]), [a, v] = m.units;
     kit(a, [shot('q', { fx: { lostHp: 0.1 } }), shot('q2', { fx: { curHp: 0.05 } }), shot('e', { fx: { trueDmg: 50 } })]);
     v.hp = 2000;
     press(m, 0, 's1'); const ev = go(m, 6), h = only(ev, 'hit', (e) => e.id === 1);
@@ -4125,7 +4126,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // ---- steal / healLost / healMax ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0], [R('trau', 1), 4.5, 0]]), [a] = m.units;
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0], [R('dummy', 1), 4.5, 0]]), [a] = m.units;
     kit(a, [shot('q', { dmg: 200, steal: 0.5 }), shot('q2', { pierce: true, healMax: 0.02 }), nova('n', { radius: 6, healLost: 0.1 })]);
     a.hp = 1000;
     press(m, 0, 's1'); go(m, 6);
@@ -4154,7 +4155,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // ---- towerMul ----
   {
-    const m = createMatch({ seed: 5, mode: 'nha', roster: [R('ung', 0), R('trau', 1)] }), [a, v] = m.units;
+    const m = createMatch({ seed: 5, mode: 'nha', roster: [R('ung', 0), R('dummy', 1)] }), [a, v] = m.units;
     m.map.walls.length = 0; m.map.rounds.length = 0; m.map.hazards.length = 0; for (const p of m.props) p.alive = false; m.crateT = 1e9;
     const t = m.towers.find((x) => x.team === 1 && x.kind === 'sub');
     put(a, t.x - 5, t.z); a.aim = 0; put(v, -30, -30);
@@ -4185,7 +4186,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
   // ---- cdAfter ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sh', do: 'shield', cd: 8, amount: 500, dur: 4, cdAfter: true }, buff('b', { cd: 10, dur: 2, cdAfter: true }), { id: 'tt', do: 'transform', cd: 20, dur: 3, cdAfter: true }]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sh', do: 'shield', cd: 8, amount: 500, dur: 4, cdAfter: true }, buff('b', { cd: 10, dur: 2, cdAfter: true }), { id: 'tt', do: 'transform', cd: 20, dur: 3, cdAfter: true }]);
     press(m, 0, 'ult'); press(m, 0, 's2'); go(m, 30);
     check('46G cdAfter: one second into a 3 s transform and a 2 s buff both cooldowns are still full', a.cd.ult === 20 && a.cd.s2 === 10, `${a.cd.ult} ${a.cd.s2}`);
     go(m, 60);
@@ -4199,7 +4200,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   {
     let twice = false;
     for (let k = 0; k < 4 && !twice; k++) {
-      const m = createMatch({ seed: 60 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 60 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] });
       const a = m.units[0];
       a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, cd: 30, uses: { n: 3, gap: 0.5 } } : s)) };
       let n = 0;
@@ -4210,7 +4211,7 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   // determinism
   {
     const play = () => {
-      const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0], [R('trau', 1), 6, 1]]);
+      const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 5, 0], [R('dummy', 1), 6, 1]]);
       kit(m.units[0], [shot('q', { cd: 3, uses: { n: 2, gap: 0.3 }, steal: 0.3, fx: { lostHp: 0.05, antiheal: { mul: 0.5, dur: 2 } }, cdCut: { slot: 'other', cut: 0.5 }, self: { on: 'hit', haste: 1.3, dur: 1 } }), nova('n', { invuln: true, healMax: 0.01, cdAfter: true }), { id: 'tt', do: 'transform', cd: 20, dur: 3, cdAfter: true, towerMul: 0 }]);
       const ev = go(m, 240, (i) => ({ 0: { fire: true, s1: i % 7 === 0, s2: i === 30 || i === 130, ult: i === 60, aim: 0.1 }, 1: { fire: true, aim: Math.PI }, 2: { fire: true, aim: Math.PI } }));
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.cd, u.use0, u.gap0, u.ahT, u.hasteT, u.hold])]);
@@ -4402,7 +4403,7 @@ section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.sav
   {
     let ok = false, never = true;
     for (let k = 0; k < 4 && !ok; k++) {
-      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] });
       const a = m.units[0];
       a.def = { ...a.def, energy: { max: 100, regen: 0, start: 0 }, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, en: { cost: 60 } } : s)) }; a.en = 0;
       let n = 0;
@@ -4516,11 +4517,11 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   const nova = (id, extra) => ({ id, do: 'nova', cd: 8, windup: 0.1, radius: 4, dmg: 100, ...extra });
   const buff = (id, extra) => ({ id, do: 'buff', cd: 12, dur: 2, haste: 1.2, ...extra });
   const pas = (mods) => ({ do: 'g4test', name: 'test', mods });
-  const TR = MECHS.trau, TR_F = 1 - TR.armor, UN_F = 1 - MECHS.ung.armor;
+  const TR = MECHS.dummy, TR_F = 1 - TR.armor, UN_F = 1 - MECHS.ung.armor;
 
   // ---- far.ramp ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 8, 0]]), a = kit(m.units[0], [shot('q', { far: { ramp: { per: 0.1, max: 1.8 } } }), buff('b'), buff('c')]), v = m.units[1];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 8, 0]]), a = kit(m.units[0], [shot('q', { far: { ramp: { per: 0.1, max: 1.8 } } }), buff('b'), buff('c')]), v = m.units[1];
     const ev = go(m, 20, (i) => ({ 0: { s1: i === 0 } }));
     const h = only(ev, 'hit', (e) => e.id === 1), flown = 8 - (v.radius + 0.3) - (a.radius + 0.25);
     check('60a far.ramp per 0.1: a shot that flew ' + flown.toFixed(2) + ' m hits x (1 + 0.1 x that)', h.length === 1 && near(h[0].amt, 100 * (1 + 0.1 * flown) * TR_F, 1e-6), `${h.map((e) => e.amt)} want ${100 * (1 + 0.1 * flown) * TR_F}`);
@@ -4530,17 +4531,17 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- yank ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4.5, 0]]), v = m.units[1];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4.5, 0]]), v = m.units[1];
     kit(m.units[0], [nova('n', { radius: 5, fx: { yank: 3 } }), buff('b'), buff('c')]);
     const ev = go(m, 6, (i) => ({ 0: { s1: i === 0 } }));
     check('60c yank 3 on a nova: the enemy 4.5 m out is pulled 3 m toward the centre (x 1.5)', only(ev, 'yank', (e) => e.id === 1).length === 1 && near(v.x, 1.5, 1e-6) && near(v.z, 0, 1e-6), `${v.x} ${v.z}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0]]), v = m.units[1];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0]]), v = m.units[1];
     kit(m.units[0], [shot('q', { fx: { yank: { dist: 10, to: 'point' } } }), buff('b'), buff('c')]);
     go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 2, tz: 3 } }));
     check('60d yank to the point: the shot hits and the enemy lands on the cursor of the press (2, 3)', near(v.x, 2, 1e-6) && near(v.z, 3, 1e-6), `${v.x} ${v.z}`);
-    const m2 = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0]]), v2 = m2.units[1];
+    const m2 = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0]]), v2 = m2.units[1];
     kit(m2.units[0], [shot('q', { fx: { yank: { dist: 10, to: 'caster' } } }), buff('b'), buff('c')]);
     v2.ccT = 5;
     go(m2, 12, (i) => ({ 0: { s1: i === 0 } }));
@@ -4548,7 +4549,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- slam ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0]]), v = m.units[1];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 5, 0]]), v = m.units[1];
     m.map.walls.push({ x0: 6.5, x1: 7.5, z0: -5, z1: 5 });
     kit(m.units[0], [nova('n', { radius: 6, knock: 4, fx: { slam: { dmg: 200, stun: 1 } } }), buff('b'), buff('c')]);
     const ev = go(m, 15, (i) => ({ 0: { s1: i === 0 } }));
@@ -4556,7 +4557,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
     check('60f slam: knocked into a wall, the enemy takes 200 x armor and a 1 s stun, once', sl.length === 1 && sl[0].on === 'wall' && after.length === 1 && near(after[0].amt, 200 * TR_F, 1e-6) && v.stunT > 0.6, `${sl.length} ${after.map((e) => e.amt)} ${v.stunT}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0], [R('trau', 1), 5, 0]]), [, v1, v2] = m.units;
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 5, 0], [R('dummy', 1), 5, 0]]), [, v1, v2] = m.units;
     put(v2, 5 + v1.radius + v2.radius + 0.5, 0);
     kit(m.units[0], [shot('q', { knock: 3, fx: { slam: { dmg: 200, stun: 1 } } }), buff('b'), buff('c')]);
     const ev = go(m, 15, (i) => ({ 0: { s1: i === 0 } }));
@@ -4565,7 +4566,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- chain.seq ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0], [R('trau', 1), 10, 0], [R('trau', 1), 14, 0], [R('trau', 1), 6, 4.5]]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0], [R('dummy', 1), 10, 0], [R('dummy', 1), 14, 0], [R('dummy', 1), 6, 4.5]]);
     kit(m.units[0], [shot('q', { fx: { chain: { n: 3, r: 5, mul: 1, seq: { falloff: 0.5 } } } }), buff('b'), buff('c')]);
     const ev = go(m, 10, (i) => ({ 0: { s1: i === 0 } }));
     const amt = (id) => only(ev, 'hit', (e) => e.id === id).map((e) => e.amt);
@@ -4574,7 +4575,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- shield variants ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [buff('sh', { selfShield: { frac: 0.2, dur: 3 } }), buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [buff('sh', { selfShield: { frac: 0.2, dur: 3 } }), buff('b'), buff('c')]);
     go(m, 1, () => ({ 0: { s1: true } }));
     check('60i selfShield frac 0.2: a shield of 20% max hp for 3 s', near(a.shield, 0.2 * a.maxHp) && near(a.shieldT, 3, 1e-9) && near(a.shieldMax, a.shield), `${a.shield} ${a.shieldT}`);
   }
@@ -4609,7 +4610,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- mag ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = m.units[0];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = m.units[0];
     a.def = { ...a.def, weapon: { ...a.def.weapon, cd: 0.1, mag: { n: 3, reload: 1 } } };
     const ev1 = go(m, 30, () => ({ 0: { fire: true } }));
     check('60n mag 3 / reload 1: three shots, then the weapon reloads for 1 s', only(ev1, 'fire', (e) => e.id === 0).length === 3 && only(ev1, 'reload').length === 1 && a.magT > 0 && a.magN === 0, `${only(ev1, 'fire').length} ${a.magT}`);
@@ -4618,14 +4619,14 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   }
   // ---- lowHpScale ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0]]), a = kit(m.units[0], [shot('q', { lowHpScale: 0.5 }), buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0]]), a = kit(m.units[0], [shot('q', { lowHpScale: 0.5 }), buff('b'), buff('c')]);
     a.hp = a.maxHp * 0.5;
     const h = only(go(m, 10, (i) => ({ 0: { s1: i === 0 } })), 'hit', (e) => e.id === 1);
     check('60p lowHpScale 0.5 on a row, caster at half hp: the shot hits x 1.25', h.length === 1 && near(h[0].amt, 125 * TR_F, 1e-6), `${h.map((e) => e.amt)}`);
   }
   // ---- dash.windup ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'd', do: 'dash', cd: 8, dist: 6, speed: 20, dmg: 0, windup: 0.5 }, buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'd', do: 'dash', cd: 8, dist: 6, speed: 20, dmg: 0, windup: 0.5 }, buff('b'), buff('c')]);
     go(m, 1, () => ({ 0: { s1: true } }));
     const x1 = a.x;
     go(m, 10, () => ({ 0: { mx: 1 } }));
@@ -4641,18 +4642,18 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
     check('60r hitCap 0.1: a 5000 blow takes 10% of max hp', h.length === 1 && near(h[0].amt, 0.1 * a.maxHp, 1e-6), `${h.map((e) => e.amt)}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0]]), a = kit(m.units[0], [shot('q', { healMax: 0.1, healIn: { mul: 2, dur: 3 } }), buff('b'), buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0]]), a = kit(m.units[0], [shot('q', { healMax: 0.1, healIn: { mul: 2, dur: 3 } }), buff('b'), buff('c')]);
     a.hp = a.maxHp * 0.5;
     go(m, 10, (i) => ({ 0: { s1: i === 0 } }));
     check('60s healIn mul 2 (row, from the press): a 10% max hp heal on hit heals 20%', near(a.hp, a.maxHp * 0.7, 1e-6) && a.hiT > 0, `${a.hp / a.maxHp}`);
-    const m2 = arena([[R('ung', 0), 0, 0], [R('trau', 1), 6, 0]]), b = kit(m2.units[0], [shot('q', { healMax: 0.1 }), buff('b'), buff('c')], pas({ healIn: { lost: 1 } }));
+    const m2 = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 6, 0]]), b = kit(m2.units[0], [shot('q', { healMax: 0.1 }), buff('b'), buff('c')], pas({ healIn: { lost: 1 } }));
     b.hp = b.maxHp * 0.5;
     go(m2, 10, (i) => ({ 0: { s1: i === 0 } }));
     check('60t passive healIn lost 1, at half hp: the same heal gives x 1.5 (15%)', near(b.hp, b.maxHp * 0.65, 1e-6), `${b.hp / b.maxHp}`);
   }
   // ---- own objects ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'w1', do: 'warp', cd: 8, dist: 8, leave: { hp: 100, dur: 5, blast: 2, dmg: 0 } }, { id: 'w2', do: 'warp', cd: 4, dist: 20, to: 'decoy', take: true }, buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'w1', do: 'warp', cd: 8, dist: 8, leave: { hp: 100, dur: 5, blast: 2, dmg: 0 } }, { id: 'w2', do: 'warp', cd: 4, dist: 20, to: 'decoy', take: true }, buff('c')]);
     const ev0 = go(m, 1, () => ({ 0: { s2: true } }));
     check('60u warp.to decoy with no decoy: nothing happens (a 0.4 s lockout)', near(a.x, 0) && only(ev0, 'warp').length === 0 && near(a.cd.s2, 0.4, 1e-9), `${a.x} ${a.cd.s2}`);
     a.cd.s2 = 0;
@@ -4662,14 +4663,14 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
     check('60v warp.to decoy, take: from 6 m back onto the copy left at the start, which is gone without its blast', near(mid, 6) && near(a.x, 0, 1e-6) && !m.zones.some((z) => z.kind === 'decoy') && only(ev, 'explode').length === 0, `${mid} ${a.x} ${m.zones.length}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [shot('q', { speed: 6, range: 20 }), { id: 'w2', do: 'warp', cd: 4, dist: 30, to: 'shot', of: 'q' }, buff('c')]);
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30]]), a = kit(m.units[0], [shot('q', { speed: 6, range: 20 }), { id: 'w2', do: 'warp', cd: 4, dist: 30, to: 'shot', of: 'q' }, buff('c')]);
     go(m, 30, (i) => ({ 0: { s1: i === 0 } }));
     const q = m.shots.find((s) => s.src === 'q'), qx = q.x;
     go(m, 1, () => ({ 0: { s2: true } }));
     check('60w warp.to shot of q: the mech comes out where its own slow projectile is (' + qx.toFixed(2) + ')', near(a.x, qx, 1e-6) && near(a.z, 0, 1e-6), `${a.x} ${qx}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30], [R('ung', 0), 6, 1]]), a = m.units[0], al = m.units[2];
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 30, 30], [R('ung', 0), 6, 1]]), a = m.units[0], al = m.units[2];
     kit(a, [{ id: 't', do: 'totem', cd: 20, cast: 8, radius: 4, hp: 300, decay: 50, dur: 10, hps: 100 }, buff('b'), buff('c')]);
     al.hp = 500;
     go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } }));
@@ -4692,7 +4693,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   {
     let planted = false;
     for (let k = 0; k < 4 && !planted; k++) {
-      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] });
       const a = m.units[0];
       a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 0 ? { id: 't', name: 'Cột', do: 'totem', cd: 15, cast: 8, radius: 4, hp: 300, decay: 20, dur: 10, hps: 120 } : s)) };
       for (let i = 0; i < 3600 && !m.over && !planted; i++) { step(m, allInputs(m)); if (m.zones.some((z) => z.kind === 'totem' && z.owner === 0)) planted = true; }
@@ -4700,7 +4701,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
     check('60A bots plant a totem when hurt in a fight', planted);
     let back = false;
     for (let k = 0; k < 4 && !back; k++) {
-      const m = createMatch({ seed: 80 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 80 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] });
       const a = m.units[0];
       a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 1 ? { ...s, id: 'w1', do: 'warp', cd: 10, dist: 8, leave: { hp: 100, dur: 6, blast: 2, dmg: 50 }, next: { window: 4, row: { id: 'w2', do: 'warp', dist: 30, to: 'decoy', take: true } } } : s)) };
       for (let i = 0; i < 3600 && !m.over && !back; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.skill === 'w2') back = true; }
@@ -4710,7 +4711,7 @@ section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yan
   // determinism
   {
     const play = () => {
-      const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0], [R('trau', 1), 7, 1], [R('ung', 0), -2, 2]]);
+      const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 5, 0], [R('dummy', 1), 7, 1], [R('ung', 0), -2, 2]]);
       m.map.walls.push({ x0: 9, x1: 10, z0: -6, z1: 6 });
       kit(m.units[0], [shot('q', { cd: 2, far: { ramp: { per: 0.05, max: 1.4 } }, lowHpScale: 0.3, fx: { yank: 1, chain: { n: 2, r: 5, mul: 0.5, seq: { falloff: 0.8 } }, antiheal: { mul: 0.5, dur: 2, shield: true } } }),
         nova('n', { radius: 6, knock: 3, fx: { slam: { dmg: 80, stun: 0.5 } }, selfShield: { frac: 0.1, hits: 1, dur: 2 }, healIn: { mul: 1.5, dur: 2 } }),
@@ -4752,7 +4753,7 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
   const shot = (id, extra) => ({ id, do: 'volley', cd: 8, n: 1, dmg: 100, speed: 40, range: 14, r: 0.3, vis: 'rail', ...extra });
   const nova = (id, extra) => ({ id, do: 'nova', cd: 8, windup: 0.1, radius: 4, dmg: 100, ...extra });
   const buff = (id, extra) => ({ id, do: 'buff', cd: 12, dur: 2, haste: 1.2, ...extra });
-  const W = MECHS.ung.weapon.dmg, TR = MECHS.trau;
+  const W = MECHS.ung.weapon.dmg, TR = MECHS.dummy;
   const K = (k) => LOC_KINDS.indexOf(k);
 
   // ---- loss of control ----
@@ -4838,7 +4839,7 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
     check('48q ... after it a hit marks again (1)', v.stkN === 1, `${v.stkN}`);
   }
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), [a, v] = m.units, dm = a.dmgMod;
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0]]), [a, v] = m.units, dm = a.dmgMod;
     kit(a, [buff('b'), buff('c'), buff('d')], { do: 'stacks', n: 9, dur: 4, on: 'any', fx: {}, per: { slow: 0.1, armor: 0.03, amp: 0.04 } });
     spend(v);
     fire(m); fire(m); fire(m);
@@ -4966,7 +4967,7 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
   }
   // ---- pen ----
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), [a, v] = m.units, dm = a.dmgMod;
+    const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 4, 0]]), [a, v] = m.units, dm = a.dmgMod;
     kit(a, [shot('q', { pen: 0.5 }), buff('c'), buff('d')]);
     spend(v);
     let hp = v.hp; press(m, 0, 's1'); go(m, 4);
@@ -5006,13 +5007,13 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
   {
     let landed = false;
     for (let k = 0; k < 4 && !landed; k++) {
-      const m = oldUng(createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] }));
+      const m = oldUng(createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] }));
       const a = m.units[0];
       a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, fx: { ...(s.fx || {}), fear: 1 } } : s)) };
       for (let i = 0; i < 3600 && !m.over && !landed; i++) { step(m, allInputs(m)); if (m.events.some((e) => e.t === 'loc' && e.by === 0 && e.kind === 'fear')) landed = true; }
     }
     check('48c2 bots: a bot casts a row carrying fear and lands it', landed);
-    const m = createMatch({ seed: 71, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+    const m = createMatch({ seed: 71, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'B', bot: true, diff: 'hard' }] });
     const [a, b] = m.units;
     put(a, 0, 0); put(b, 6, 0);
     a.locT = 2; a.locK = K('fear'); a.locBy = 1;
@@ -5023,7 +5024,7 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
   // determinism
   {
     const play = () => {
-      const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0], [R('trau', 1), 6, 1]]);
+      const m = arena([[R('ung', 0), 0, 0], [R('dummy', 1), 5, 0], [R('dummy', 1), 6, 1]]);
       kit(m.units[0], [shot('q', { cd: 3, fx: { confuse: 1 }, pen: 0.3, then: nova('qn', { detonate: { per: 20 } }) }), buff('b', { cd: 4, self: { on: 'cast', shots: 2, patch: { steal: 0.2, pen: 0.5 } } }), { id: 'tt', do: 'transform', cd: 20, dur: 3, regen: 0.01, stack: { every: 0.5, max: 4, dmg: 0.05 }, patch: { s1: { n: 3, fan: 0.2, sameDecay: 0.7 } } }],
         { do: 'stacks', n: 4, dur: 4, on: 'any', fx: { fear: 0.5 }, icd: 2, per: { slow: 0.05 } });
       const ev = go(m, 240, (i) => ({ 0: { fire: true, s1: i % 7 === 0, s2: i === 30 || i === 130, ult: i === 60, aim: 0.1 }, 1: { fire: true, aim: Math.PI }, 2: { fire: true, aim: Math.PI } }));

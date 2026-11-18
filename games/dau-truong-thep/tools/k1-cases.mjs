@@ -1,6 +1,7 @@
 // Kit lane K1 (feat/dtt-k1): the kits of Hulk (khidot), Captain America (tacke), Tư Mã Ý (tumay) and Star Lord (enbac) ported
 // from the owner's clips, and their G5 mechanics (sim.js block "kit lane K1"). Section K1 of tools/sim-test.mjs; runs alone too:
 // `node tools/k1-cases.mjs`. Expected values follow the data rows, so a balance pass keeps the arithmetic.
+import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { createMatch, step, armorOf, weaponOf, unitSpeed } from '../js/sim.js';
 import { MECHS, TICK } from '../js/data.js';
 
@@ -90,16 +91,16 @@ export function runK1Cases(check, section) {
   }
 
   // ---- Captain America (tacke), clip p21 ----
-  const CA = MECHS.tacke, [CQ, CE, CU] = CA.skills, TR = MECHS.trau;
+  const CA = MECHS.tacke, [CQ, CE, CU] = CA.skills, TR = MECHS.dummy;
   // passive Chỉ Huy: allies within 8 m (itself too) +10% speed and +0.05 armour
   {
-    const m = arena([[R('tacke', 0), 0, 0], [R('trau', 0), 5, 0], [R('trau', 0), 14, 0], [R('ung', 1), 30, 30]]), [a, al, far] = m.units;
+    const m = arena([[R('tacke', 0), 0, 0], [R('dummy', 0), 5, 0], [R('dummy', 0), 14, 0], [R('ung', 1), 30, 30]]), [a, al, far] = m.units;
     go(m, 7);
     check('K1-n Chi Huy aura: an ally 5 m away moves x1.1 and has +0.05 armour; the captain too; an ally 14 m away nothing', near(unitSpeed(al), TR.speed * 1.1, 1e-9) && near(armorOf(m, al), TR.armor + 0.05, 1e-9) && near(unitSpeed(a), CA.speed * 1.1, 1e-9) && near(unitSpeed(far), TR.speed, 1e-9), `${unitSpeed(al)} ${armorOf(m, al)} ${unitSpeed(far)}`);
   }
   // inspire: a cast gives allies within 8 m 2 s of +25% speed and -25% weapon damage taken
   {
-    const m = arena([[R('tacke', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 4, 9, -Math.PI / 2]]), [a, al, e] = m.units;
+    const m = arena([[R('tacke', 0), 0, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 4, 9, -Math.PI / 2]]), [a, al, e] = m.units;
     go(m, 7);
     press(m, 0, 's2', { aim: Math.PI, tx: -10, tz: 0 });
     check('K1-o inspire: the cast gives the ally 2 s of x1.25 speed (the strongest haste wins over the aura x1.1)', near(al.inT, 2 - TICK, 1e-6) && near(unitSpeed(al), TR.speed * 1.25, 1e-9), `${al.inT} ${unitSpeed(al)}`);
@@ -109,7 +110,7 @@ export function runK1Cases(check, section) {
   }
   // Vinh Diệu Chi Thuẫn: ally at the cursor and the captain get a 1.25 s bubble that eats every enemy shot
   {
-    const m = arena([[R('tacke', 0), 0, 0], [R('trau', 0), 5, 0], [R('ung', 1), 5, 9, -Math.PI / 2]]), [a, al, e] = m.units;
+    const m = arena([[R('tacke', 0), 0, 0], [R('dummy', 0), 5, 0], [R('ung', 1), 5, 9, -Math.PI / 2]]), [a, al, e] = m.units;
     press(m, 0, 's1', { tx: 5, tz: 0 });
     check('K1-q Vinh Dieu Chi Thuan: the ally and the captain are bubbled 1.25 s, the ally with cc x0.5', al.bubT > 1.2 && a.bubT > 1.2 && al.bubCc === 0.5 && a.bubCc === 1, `${al.bubT} ${a.bubT}`);
     const hp = al.hp, ev = go(m, 20, () => ({ 2: { fire: true, aim: -Math.PI / 2, tx: 5, tz: 0 } }));
@@ -133,7 +134,7 @@ export function runK1Cases(check, section) {
   }
   // Dũng Khí Chi Thuẫn: allies in 7 m get a 1080 shield and x1.5 speed, both fading over 5 s, and 5 s cc immunity
   {
-    const m = arena([[R('tacke', 0), 0, 0], [R('trau', 0), 5, 0], [R('trau', 0), 10, 0], [R('ung', 1), 30, 30]]), [a, al, far] = m.units;
+    const m = arena([[R('tacke', 0), 0, 0], [R('dummy', 0), 5, 0], [R('dummy', 0), 10, 0], [R('ung', 1), 30, 30]]), [a, al, far] = m.units;
     press(m, 0, 'ult');
     check('K1-w Dung Khi Chi Thuan: shield 1080 and cc immunity 5 s on the captain and the ally in 7 m, nothing on the one at 10 m', near(al.shield, CU.shield, 10) && near(a.shield, CU.shield, 10) && al.ccT > 4.9 && far.shield === 0, `${al.shield} ${a.shield} ${far.shield}`);
     go(m, 75);

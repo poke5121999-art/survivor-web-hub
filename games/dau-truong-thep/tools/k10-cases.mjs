@@ -210,7 +210,7 @@ export function runK10Cases(check, section) {
   }
   // penetration stacks: 10% of the target's armour ignored per stack
   {
-    const m = arena([[R('bongua', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units, TA = MECHS.trau.armor;
+    const m = arena([[R('bongua', 0), 0, 0], [R('dummy', 1), 3, 0]]), [a, v] = m.units, TA = MECHS.dummy.armor;
     a.bnN = 5; a.bnT = 5;
     const ev = go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
     const b = blows(ev, 1, 0, 1);

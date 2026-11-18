@@ -1,6 +1,7 @@
 // Kit lane K4 (tumay, enbac) ported from the owner's clips: sim-test.mjs section 61 runs these. Standalone (fast):
 //   node tools/k4-cases.mjs
 // Also the old kits of the two tanks as fixtures (OLD_TUMAY, OLD_ENBAC), so the primitives they exercised stay covered.
+import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { createMatch, step, skillReady, chaosOrbs } from '../js/sim.js';
 import { MECHS, TICK } from '../js/data.js';
 import { allInputs } from '../js/bots.js';
@@ -192,7 +193,7 @@ export function runK4Cases(check, section) {
   {
     const seen = { tumay: new Set(), enbac: new Set() };
     for (let k = 0; k < 2; k++) {
-      const m = createMatch({ seed: 61 + k, mode: 'tdm', roster: [{ team: 0, mech: 'tumay', name: 'T', bot: true, diff: 'hard' }, { team: 0, mech: 'enbac', name: 'E', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 61 + k, mode: 'tdm', roster: [{ team: 0, mech: 'tumay', name: 'T', bot: true, diff: 'hard' }, { team: 0, mech: 'enbac', name: 'E', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }] });
       for (let i = 0; i < 2700 && !m.over; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && seen[m.units[e.id].mech]) seen[m.units[e.id].mech].add(e.slot); }
     }
     check('61zc bots cast every skill of tumay and enbac in 2 x 90 s', seen.tumay.size === 3 && seen.enbac.size === 3, `tumay ${[...seen.tumay]} enbac ${[...seen.enbac]}`);

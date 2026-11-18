@@ -69,7 +69,7 @@ const k13 = (ev, kind) => only(ev, 'k13', (e) => e.kind === kind);
 
 export function runK13Cases(check, section) {
   section('K13 kit lane K13: Đom Đóm (p91 绮翠之心), Dương Tiễn (p68 二郎神), Kaneki (p62 金木) ported from the owner clips (literal expected values)');
-  const DD = MECHS.domdom, UNG = MECHS.ung, TRAU = MECHS.trau;
+  const DD = MECHS.domdom, UNG = MECHS.ung, TRAU = MECHS.dummy;
   // ---- Đom Đóm ----
   {
     // the wind dart: 150 a shot, no heal on an ally any more
@@ -114,20 +114,20 @@ export function runK13Cases(check, section) {
   }
   {
     // Phong Vãn Chi Ca: a press wraps her and the allies within 6 m in the bullet-eating bubble for 0.5 s; her haste fades
-    const m = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 0, 4], [R('trau', 0), 0, -9], [R('ung', 1), 0, 12, -Math.PI / 2]]), [a, near1, far1, f] = m.units;
+    const m = arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 0, 4], [R('dummy', 0), 0, -9], [R('ung', 1), 0, 12, -Math.PI / 2]]), [a, near1, far1, f] = m.units;
     go(m, 1, () => ({ 0: { s2: true, aim: 0 } }));
     check('k13l the press: bubble 0.5 s on her and the ally at 4 m, not the one at 9 m; haste x1.5', near(a.bubT, 0.5, 1e-9) && near(near1.bubT, 0.5 - TICK, 1e-9) && !(far1.bubT > 0) && near(a.hasteF, 1.5), `${a.bubT} ${near1.bubT} ${far1.bubT} ${a.hasteF}`);
     go(m, 30);
     check('k13m ... 1 s later the haste has faded to about x1.25', a.hasteF > 1.23 && a.hasteF < 1.27, `${a.hasteF}`);
     // a shot at the wrapped ally is eaten
-    const w = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 0, 3], [R('ung', 1), 0, 9, -Math.PI / 2]]), [b, al] = w.units;
+    const w = arena([[R('domdom', 0), 0, 0], [R('dummy', 0), 0, 3], [R('ung', 1), 0, 9, -Math.PI / 2]]), [b, al] = w.units;
     go(w, 1, () => ({ 0: { s2: true, aim: Math.PI } }));
     go(w, 12, (i) => ({ 2: { fire: i === 0, aim: -Math.PI / 2 } }));
     check('k13n a shot reaching the wrapped ally inside 0.5 s does no damage', al.hp === TRAU.hp && b.alive, `${al.hp}`);
   }
   {
     // Phong Nha Thần Điện: silence 1 s at the press; pulses at 1, 2.5 and 4 s; the cooldown waits until the temple is gone
-    const m = arena([[R('domdom', 0), 0, 0], [R('trau', 0), -3, 0], [R('ung', 1), 4, 0]]), [a, al, v] = m.units;
+    const m = arena([[R('domdom', 0), 0, 0], [R('dummy', 0), -3, 0], [R('ung', 1), 4, 0]]), [a, al, v] = m.units;
     al.hp = 1000; al.slowT = 3; al.slowF = 0.5;
     go(m, 2, (i) => ({ 0: { ult: i === 0 } }));
     check('k13o the press silences the foe within 6 m for 1 s; cooldown held at 55', v.silenceT > 0.9 && a.cd.ult === 55, `${v.silenceT} ${a.cd.ult}`);
@@ -174,7 +174,7 @@ export function runK13Cases(check, section) {
   }
   {
     // the ult: three stages, each armed by a hit of the one before; 15% of the lost hp back per foe hit
-    const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units;
+    const m = arena([[R('duongtien', 0), 0, 0], [R('dummy', 1), 3, 0]]), [a, v] = m.units;
     a.hp = 1700;
     const e1 = go(m, 8, (i) => ({ 0: { ult: i === 0 } }));
     const s1 = only(e1, 'nova', (e) => e.skill === 'phadiet');

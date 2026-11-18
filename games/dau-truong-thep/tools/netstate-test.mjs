@@ -1,6 +1,7 @@
 // Node test for js/netstate.js: `node tools/netstate-test.mjs`. Exits 1 on any failure.
 // Real bot matches in every mode, snapshotted every 2 ticks, sent as bytes into a mirror, compared field by field.
 // Then the guest's prediction of its own mech against the host, with and without delay.
+import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed, LOC_KINDS, locked } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { OLD_DOMDOM } from './k13-cases.mjs';   // kit lane K13: the old drone row (fixture)
@@ -216,7 +217,7 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   let bad = 0, snaps = 0, evTotal = 0;
   const first = [];
   for (const key of MECH_ORDER) for (let slot = 0; slot < 3; slot++) {
-    const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: key, name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'hac', name: 'C' }] });
+    const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: key, name: 'A' }, { team: 1, mech: 'dummy', name: 'B' }, { team: 0, mech: 'hac', name: 'C' }] });
     const [a, b, c] = m.units;
     a.x = a.px = -4; a.z = a.pz = -1; b.x = b.px = 3; b.z = b.pz = -1; c.x = c.px = -6; c.z = c.pz = -2;
     const keyName = ['s1', 's2', 'ult'][slot];
@@ -306,7 +307,7 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {
   MECHS.oldanduong = OLD_ANDUONG;   // the old two-stance kit (tools/k9-cases.mjs): anduong plays its clip kit now
-  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'oldanduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'oldanduong', name: 'A' }, { team: 1, mech: 'dummy', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });
   const mir = createMirror(roster(m));
   const none = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
   step(m, [{ ...none, s2: true }, none, none]);
@@ -403,7 +404,7 @@ console.log('\n# prediction: the guest drives its own mech, the host confirms');
 // `lag` ticks before the host runs it and hears the result `lag` ticks after. worst: the largest gap between where the
 // guest drew its mech when it made input q and where the host put the mech after running q.
 function predictRun(map, theme, lag, kick) {
-  const m = createMatch({ map, theme, seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'trau', name: 'Bot', bot: true, diff: 'easy' }] });
+  const m = createMatch({ map, theme, seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'dummy', name: 'Bot', bot: true, diff: 'easy' }] });
   const mir = createMirror(JSON.parse(JSON.stringify(roster(m))));
   const pred = createPredictor(mir, 0);
   const drawn = new Map(), toHost = [], toGuest = [];
@@ -453,7 +454,7 @@ function predictRun(map, theme, lag, kick) {
 
 console.log('\n# the guest sees its own stick and its own gun at once');
 {
-  const m = createMatch({ map: 'denrung', seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'trau', name: 'Bot', bot: true, diff: 'easy' }] });
+  const m = createMatch({ map: 'denrung', seed: 9, roster: [{ team: 0, mech: 'soi', name: 'Khách' }, { team: 1, mech: 'dummy', name: 'Bot', bot: true, diff: 'easy' }] });
   const mir = createMirror(JSON.parse(JSON.stringify(roster(m))));
   Object.assign(m.units[1], { alive: false, hp: 0, respawnT: 1e6 });
   applySnapshot(mir, snapshot(m));

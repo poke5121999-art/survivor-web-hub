@@ -1,5 +1,6 @@
 // Behaviour tests for the bots with the eight newer mechs (and the old eight under the new stat axes), in Node: `node tools/bots-test.mjs`.
 // Seeded bot matches in every mode; every number below is a literal expectation. Exits 1 on any failure.
+import './k11-cases.mjs';   // kit lane K11: registers the fixtures 'dummy' (old Trâu Sắt) and 'oldtho' (old Thợ Rèn) before netstate.js loads
 import { createMatch, step, visibleTo, weaponRange } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { losClear, solidAt, MAP_ORDER, NHA_ORDER } from '../js/maps.js';
@@ -268,7 +269,7 @@ section('3 medic');
   console.log(`nha: medic distance to its nearest ally: median ${med.toFixed(1)} m, 90th percentile ${p90.toFixed(1)} m`);
   check('3c nha: the medic stays with the group (median 8 m or less from the nearest ally, 90% within 22 m; measured 20.4 at 3v3 after the healers got faster)', gaps.length > 100 && med <= 8 && p90 <= 22, `${med.toFixed(1)} / ${p90.toFixed(1)}`);
   // scenario: a hurt ally and no enemy: the ray heals it
-  const m = medic(createMatch({ seed: 3, roster: [{ team: 0, mech: 'domdom', name: 'M', bot: true, diff: 'normal' }, { team: 0, mech: 'trau', name: 'A' }, { team: 1, mech: 'trau', name: 'E' }] }));
+  const m = medic(createMatch({ seed: 3, roster: [{ team: 0, mech: 'domdom', name: 'M', bot: true, diff: 'normal' }, { team: 0, mech: 'dummy', name: 'A' }, { team: 1, mech: 'dummy', name: 'E' }] }));
   put(m.units[0], -5, -1); put(m.units[1], 2, -1); put(m.units[2], 40, 20);
   m.units[1].hp = m.units[1].maxHp * 0.3; m.units[2].alive = false; m.units[2].respawnT = 999;
   const hp0 = m.units[1].hp;
@@ -291,7 +292,7 @@ section('4 siege');
   check('4d nha: no leap, warp or swap lands inside an enemy tower\'s range (13 m) from outside it', cand.length === 0, cand.slice(0, 3).join('; '));
   // scenario: plants against a far target, unplants when the target is gone
   const mk = () => {
-    const m = createMatch({ seed: 5, roster: [{ team: 0, mech: 'thancong', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] });
+    const m = createMatch({ seed: 5, roster: [{ team: 0, mech: 'thancong', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] });
     put(m.units[0], -7, -1); put(m.units[1], 7, -1);
     return m;
   };
@@ -324,7 +325,7 @@ section('5 charge weapon');
   check('5c both quick shots and full charges happen', rel.quick >= 10 && rel.full >= 10, `${rel.quick} / ${rel.full}`);
   // scenario: far target at full health is shot at a full charge, a nearly dead one with a quick shot
   const run = (hpFrac, x) => {
-    const m = oldKit15(createMatch({ seed: 6, roster: [{ team: 0, mech: 'hoalong', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] }), 'hoalong');
+    const m = oldKit15(createMatch({ seed: 6, roster: [{ team: 0, mech: 'hoalong', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] }), 'hoalong');
     put(m.units[0], -7, -1); put(m.units[1], x, -1); m.units[1].hp = m.units[1].maxHp * hpFrac; m.units[0].cd.s1 = 99;
     let charge = 0, peak = 0, first = null;
     for (let i = 0; i < 150 && !first; i++) {
@@ -344,7 +345,7 @@ section('5 charge weapon');
 
 section('6 hook, decoys, idle');
 {
-  const m = createMatch({ seed: 7, roster: [{ team: 0, mech: 'mangxa', name: 'H', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] });
+  const m = createMatch({ seed: 7, roster: [{ team: 0, mech: 'mangxa', name: 'H', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] });
   put(m.units[0], -6, -1); put(m.units[1], 5, -1);
   let hooks = 0, minD = 99;
   for (let i = 0; i < 120; i++) { step(m, allInputs(m, { 1: IN })); hooks += m.events.filter((e) => e.t === 'hook').length; minD = Math.min(minD, Math.hypot(m.units[0].x - m.units[1].x, m.units[0].z - m.units[1].z)); }
