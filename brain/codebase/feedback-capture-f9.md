@@ -11,6 +11,9 @@
   - [BẪY ĐÃ SẬP 2026-11-18] Chủ dự án: "F9 xong về hub mở game khác thì F9 không chạy". Thẻ trỏ sang Pages khác không qua
     game-gate.js nên không có kit. Thêm thẻ mới mà không nạp game-gate → `node test/feedback-coverage.js` đỏ.
     Đường đi thật hub → A → F9 → hub → B: `test/feedback-roundtrip.js` (linux2, slot C).
+  - Esc đóng ngăn dù focus ở đâu khi ngăn mở (farmland giành focus về canvas nên Esc từng rơi vào game).
+  - Slot C trên linux2 bị agent twt dùng chung (job tới 3000 s): xếp hàng bằng `timeout 3400 flock` bọc ngoài,
+    `timeout 580` cho node ở trong, đừng để timeout ngắn ăn cả thời gian chờ khoá.
   - Đổi `game-gate.js` mà không tăng `?v=` ở thẻ script của game thì 10 phút đầu sau deploy game có thể chạy cổng cũ (không kit).
 - Ảnh WebGL: không ép `preserveDrawingBuffer`. Kit chép canvas ngay sau mỗi callback rAF của game (bộ đệm còn nguyên),
   `setTimeout(0)` chạy sau khi khung vẽ xong thì lấy bản chép cuối. Game không chạy rAF thì chép ngay, có thể đen.
