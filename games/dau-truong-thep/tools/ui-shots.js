@@ -419,8 +419,8 @@ let MECH_ORDER = [], MECHS = {};
         check(T('menu') + ': difficulty (3), team size (3 buttons), map, player name, play button filled', r.diff === 3 && r.size === 3 && r.map === 5 && r.name && r.play === 'Vào trận', JSON.stringify(r));
         check(T('menu') + ': every mech not owned on a fresh save (all but the 4 free ones) shows lock and price', r.lock === NM - 4 && r.lockPrice, JSON.stringify(r));
         check(T('menu') + ': the roster is paged: whole first page inside the list, pages = ceil(mechs / per page) with one dot each, the list scrolls (last page checked below)', r.page1 && r.perPage >= 6 && r.perPage % 3 === 0 && r.pages === Math.ceil(NM / r.perPage) && r.pages > 1 && r.dots === (r.pages > 6 ? 1 : r.pages) && r.scrolls, JSON.stringify(r));
-        check(T('menu') + ': stage banner LV.0 + name, 3 skill icons, "Lv Tank đã có: LV.0" and "Tăng LV Tank"', r.ban === 'Trâu Sắt' && r.lv === 'LV.0' && r.sk === 3 && r.foot === 'Lv Tank đã có: LV.0' && r.up === 'Tăng LV Tank', JSON.stringify(r));
-        check(T('menu') + ': info column opens on Mô tả (tabs Mô tả / Chi tiết / Nâng cấp): Vị trí, Độ khó (3 stars, Trâu Sắt 1), six-axis radar, forms I / II / III with Tổng cấp 12 and 18', r.tab === 'Mô tả' && r.tabs === 'Mô tả,Chi tiết,Nâng cấp' && r.rows === 'Vị trí,Độ khó' && r.stars === 3 && r.starOn === 1 && r.radar === 6 && r.poly === 6 && r.forms.join('|') === 'IGốc|IITổng cấp 12|IIITổng cấp 18', JSON.stringify(r));
+        check(T('menu') + ': stage banner LV.0 + name, 3 skill icons, "Lv Tank đã có: LV.0" and "Tăng LV Tank"', r.ban === 'Optimus Prime' && r.lv === 'LV.0' && r.sk === 3 && r.foot === 'Lv Tank đã có: LV.0' && r.up === 'Tăng LV Tank', JSON.stringify(r));
+        check(T('menu') + ': info column opens on Mô tả (tabs Mô tả / Chi tiết / Nâng cấp): Vị trí, Độ khó (3 stars, Optimus Prime 1), six-axis radar, forms I / II / III with Tổng cấp 12 and 18', r.tab === 'Mô tả' && r.tabs === 'Mô tả,Chi tiết,Nâng cấp' && r.rows === 'Vị trí,Độ khó' && r.stars === 3 && r.starOn === 1 && r.radar === 6 && r.poly === 6 && r.forms.join('|') === 'IGốc|IITổng cấp 12|IIITổng cấp 18', JSON.stringify(r));
         check(T('menu') + ': the setup chip names mode and arena, the setup sheet starts closed', r.chip === 'Đấu đội · Đền Rừng' && r.setupShown === 'none', JSON.stringify(r));
         const rk = await page.evaluate(() => ({ name: document.querySelector('#ui [data-r="rkName"]').textContent, tr: document.querySelector('#ui [data-r="rkTr"]').textContent, next: document.querySelector('#ui [data-r="rkNext"]').textContent, fill: document.querySelector('#ui [data-r="rkFill"]').style.transform }));
         check(T('menu') + ': rank badge shows Bạc, 300 cúp, 150 to Vàng, bar 25%', rk.name === 'Bạc' && rk.tr === '300' && /150 cúp nữa lên Vàng/.test(rk.next) && rk.fill === 'scaleX(0.25)', JSON.stringify(rk));
@@ -446,7 +446,7 @@ let MECH_ORDER = [], MECHS = {};
         if (!touch) {
           await page.hover('#ui .sgk[data-sk="1"]');
           const tip = await page.evaluate(() => ({ on: !document.querySelector('#ui [data-r="sgTip"]').hidden, t: document.querySelector('#ui [data-r="sgTip"] b').textContent }));
-          check(T('menu') + ': hovering a skill icon shows its name and cooldown', tip.on && /^Húc Thép/.test(tip.t) && /Hồi 12,0 giây/.test(tip.t), JSON.stringify(tip));
+          check(T('menu') + ': hovering a skill icon shows its name and cooldown', tip.on && /^Hãn Vệ Tự Do/.test(tip.t) && /Hồi 8,0 giây/.test(tip.t), JSON.stringify(tip));
           await page.mouse.move(5, 5);
         }
         await page.click('#ui [data-r="matchBtn"]');

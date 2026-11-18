@@ -45,20 +45,33 @@ const TT_R = { id: 'duchuyet', look: 'ccAura', name: 'Dục Huyết Kiêu Hùng'
   self: { on: 'cast', haste: 1.5, dur: 5 }, icon: 'rage',
   desc: 'Vòng huyết khí 4,5 m bám quanh bạn 5 giây: mỗi 0,5 giây chém mọi kẻ địch trong vòng 75 sát thương, mỗi kẻ trúng hồi cho bạn 2% máu tối đa. Bạn chạy nhanh hơn 50% trong 5 giây.' };
 export const MECHS = {
+  // Optimus Prime: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p45 "42.擎天", tooltips read at 0.5-4 s; AUDIT-c.md). The owner
+  // turned Trâu Sắt into Optimus Prime (2026-11-18); the old starter kit is the test fixture 'dummy' (tools/k11-cases.mjs), the plain
+  // target of the generic tests. Attack = one Ly Tử Pháo shot (150), as lubo and moclan: Thẩm Phán Chi Kiếm 188% -> 282, Hãn Vệ Tự Do
+  // 146% -> 219 and the charge 196% -> 294, the Knight's arrival 337% -> 506, its sword 100% -> 150 true (pen 1: armour ignored).
+  // Cooldowns 8 / 6 / 25 s in the clip -> 10 / 8 / 45, the ult's starting when the Knight ends (cdAfter). Rage numbers the tooltip
+  // does not give: full rage = fire rate +30%, speed +15%, 20% less damage; it cools 10 a second 2 s after the last gain.
+  // "Energy attack -50%" of the arrival is weaken 0.5 (our game has one kind of damage). G5 (sim.js "kit-remake G5 trau"): the
+  // rage passive with its current-hp blow, the sword field's guards (linger opGuard), the charge to the sword (beam opCharge).
   trau: {
-    name: 'Trâu Sắt', role: 'Trụ', roleKey: 'tank', price: 0, tint: 0x8fa3b5,
-    blurb: 'Giáp dày, pháo nặng. Đi đầu, húc choáng và che đạn cho đồng đội.',
+    name: 'Optimus Prime', role: 'Trụ', roleKey: 'tank', price: 0, tint: 0x3c64c0,
+    blurb: 'Càng đánh càng nộ: bắn nhanh, chạy nhanh, chịu đòn giỏi hơn. Ném Kiếm Thẩm Phán cắm xuống che chở đồng đội, chém một nhát rồi lao tới thanh kiếm, hoá Thẩm Phán Kỵ Sĩ vung kiếm chém xuyên giáp.',
     hp: 2850, speed: 5.1, radius: 0.96,
     armor: 0.13, accel: 0.7, turn: 7, towerMul: 0.5,
-    passive: { do: 'steady', name: 'Lì Đòn', desc: 'Đẩy lùi và làm chậm lên Trâu Sắt chỉ còn một nửa.' },
-    weapon: { name: 'Pháo Búa', cd: 0.95, dmg: 250, speed: 27, range: 15, splash: 2.2, knock: 2.5, r: 0.34, vis: 'shell' },
+    passive: { do: 'rage', name: 'Nộ Khí', max: 200, decay: 10, idle: 2, gain: { weapon: 5, hurt: 5, skill: 25 }, full: { rapid: 0.3, haste: 0.15, guard: 0.2 }, curHp: 0.1, icd: 6,
+      desc: 'Nộ khí tối đa 200: đòn thường trúng địch hay bị địch đánh trúng +5, mỗi kẻ địch một chiêu đánh trúng +25; 2 giây không thêm thì nguội 10 mỗi giây. Đầy nộ khí thì bắn nhanh hơn 30%, chạy nhanh hơn 15%, chịu ít hơn 20% sát thương (ít nộ khí thì ít hơn). Đòn thường trúng còn gây thêm sát thương chuẩn bằng 10% máu hiện có của mục tiêu, mỗi mục tiêu một lần mỗi 6 giây.' },
+    weapon: { name: 'Ly Tử Pháo', cd: 0.55, dmg: 150, speed: 30, range: 12, r: 0.3, vis: 'slug' },
     skills: [
-      { id: 'giap', look: 'trGuard', name: 'Giáp Phản Lực', cd: 14, do: 'shield', amount: 700, dur: 4.5, icon: 'shield',
-        desc: 'Bật khiên năng lượng hấp thụ 700 sát thương trong 4,5 giây.' },
-      { id: 'huc', look: 'trRam', name: 'Húc Thép', cd: 12, do: 'dash', dist: 8.5, speed: 27, dmg: 240, stun: 0.9, knock: 4, icon: 'dash',
-        desc: 'Lao thẳng theo hướng ngắm, húc trúng ai thì gây sát thương và làm choáng.' },
-      { id: 'diachan', look: 'trQuake', name: 'Địa Chấn', cd: 38, do: 'nova', windup: 0.75, radius: 6.5, dmg: 520, slow: 0.5, slowDur: 3, knock: 3, icon: 'quake',
-        desc: 'Dậm nát mặt đất: sau một nhịp lấy đà, mọi kẻ địch quanh bạn chịu sát thương lớn và bị làm chậm.' },
+      { id: 'thamphan', look: 'opSword', name: 'Thẩm Phán Chi Kiếm', cd: 10, do: 'barrage', n: 1, cast: 12, radius: 0, blast: 3, delay: 0.3, span: 0, dmg: 282,
+        linger: { radius: 3, dur: 3, slow: 0.5, vis: 'opSword', opGuard: { own: 0.5, ally: 0.25 } }, icon: 'swords',
+        desc: 'Ném Kiếm Thẩm Phán cắm xuống chỗ con trỏ (xa nhất 12 m): kẻ địch trong 3 m chịu 282 sát thương. Kiếm đứng đó 3 giây: trong vòng kiếm bạn chịu ít hơn 50% sát thương, đồng đội ít hơn 25%, kẻ địch bị chậm 50%.' },
+      { id: 'hanve', look: 'opCharge', name: 'Hãn Vệ Tự Do', cd: 8, do: 'beam', windup: 0, range: 7, width: 3, dmg: 219, fx: { slow: 0.5, slowDur: 2 },
+        opCharge: { speed: 30, dmg: 294, fx: { air: 1 } }, icon: 'dash',
+        desc: 'Chém một nhát hình chữ nhật trước mặt (dài 7 m, rộng 3 m): 219 sát thương, làm chậm 50% trong 2 giây. Nhát chém chạm Kiếm Thẩm Phán thì bạn lao thẳng tới thanh kiếm, xuyên qua cả vật cản và không bị khống chế: kẻ địch trên đường chịu 294 sát thương và bị đánh tung 1 giây.' },
+      { id: 'kysi', look: 'opKnight', name: 'Thẩm Phán Kỵ Sĩ', cd: 45, do: 'transform', dur: 8, haste: 1.25, rapid: 1.25, cdAfter: true,
+        nova: { windup: 0.2, radius: 5, dmg: 506, fx: { slow: 0.5, slowDur: 3, weaken: { mul: 0.5, dur: 3 } } },
+        weapon: { name: 'Kiếm Thẩm Phán', cd: 0.5, dmg: 150, speed: 26, range: 5, r: 1.0, pierce: true, pen: 1, vis: 'wave' }, icon: 'rage',
+        desc: 'Hoá Thẩm Phán Kỵ Sĩ 8 giây: lúc biến hình kẻ địch trong 5 m chịu tới 506 sát thương (càng gần càng đau), bị chậm 50% và giảm 50% sát thương trong 3 giây. Kỵ Sĩ vung Kiếm Thẩm Phán thay pháo: mỗi nhát chém quạt trước mặt 150 sát thương xuyên giáp; bắn và chạy nhanh hơn 25%. Hồi chiêu chỉ bắt đầu khi hết biến hình.' },
     ],
   },
   soi: {
@@ -1333,7 +1346,7 @@ export const perkCount = (lv) => { const n = lv.reduce((a, b) => a + b, 0); retu
 // slot: 'weapon' or the skill index; patch: fields written over that row.
 const perk = (name, desc, slot, patch) => ({ name, desc, slot, patch });
 export const PERKS = {
-  trau: [perk('Đà Húc', 'Húc Thép lao xa 10,5 m và choáng 1,2 giây.', 1, { dist: 10.5, stun: 1.2 }), perk('Giáp Dày', 'Giáp Phản Lực hấp thụ 1200.', 0, { amount: 1200 }), perk('Dư Chấn', 'Địa Chấn rộng 7,5 m, làm chậm 4 giây.', 2, { radius: 7.5, slowDur: 4 })],
+  trau: [perk('Lưỡi Nặng', 'Thẩm Phán Chi Kiếm gây 340 sát thương.', 0, { dmg: 340 }), perk('Xung Phong', 'Hãn Vệ Tự Do dài 8,5 m, rộng 3,6 m.', 1, { range: 8.5, width: 3.6 }), perk('Kỵ Sĩ Bền', 'Thẩm Phán Kỵ Sĩ kéo dài 10 giây.', 2, { dur: 10 })],
   soi: [perk('Rocket Thứ Tư', 'Rocket Chùm bắn bốn quả.', 0, { n: 4 }), perk('Bền Hơi', 'Tăng Áp kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Mưa Dày', 'Mưa Hỏa Tiễn dội 12 quả.', 2, { n: 12 })],
   ung: [perk('Băng Đạn Lớn', 'Súng Ưng chứa 8 viên.', 'weapon', { mag: { n: 8, reload: 1.2 } }), perk('Mắt Rộng', 'Hàn Ngưng Thị soi rộng 6,5 m.', 0, { radius: 6.5 }), perk('Chim Ưng Dữ', 'Liệt Phong Chuẩn gây 300.', 2, { dmg: 300 })],
   hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 310 mỗi giây.', 0, { hps: 310 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],

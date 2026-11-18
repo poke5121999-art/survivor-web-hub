@@ -1296,6 +1296,7 @@ const SKILL_AI = {
     return false;
   },
   beam(c, s) {
+    if (s.opCharge) return k11BotCharge(c, s);   // kit-remake K11: Optimus slashes at his own sword to charge to it
     const { u, tgt, td } = c;
     if (s.track) {
       // a tracking beam follows its target: no lead and no clear line needed (thru ignores walls); lock the weakest enemy in reach
@@ -2653,3 +2654,20 @@ function k16BotStrike(c, nx, left) {
   return true;
 }
 /* ===== end kit lane k16 bots ===== */
+
+/* ===== kit-remake K11 (tho, trau): bot policy for the G5 rows (sim.js "kit-remake G5 tho" / "kit-remake G5 trau") ===== */
+// Optimus's Hãn Vệ Tự Do: with his sword standing in reach and an enemy near it, slash toward the sword (the slash also cuts
+// whoever stands on the line, then he charges through them to it); otherwise a plain slash at a target inside the rectangle.
+function k11BotCharge(c, s) {
+  const { u, tgt, td } = c;
+  let sw = null;
+  for (const z of c.m.zones) if (z.kind === 'field' && z.opGuard && z.owner === u.id && (!sw || z.id > sw.id)) sw = z;
+  if (sw) {
+    const d = hyp(sw.x - u.x, sw.z - u.z);
+    if (d > 1.5 && d < s.range && c.enemies.some((e) => hyp(e.x - sw.x, e.z - sw.z) < 4)) { c.b.sk.aim = Math.atan2(sw.z - u.z, sw.x - u.x); c.b.sk.tol = 0.15; return true; }
+  }
+  if (!tgt || td > s.range - 0.5 || td < 1 || castStatic(c.m.map, u.x, u.z, tgt.x, tgt.z, 0.2) <= 1) return false;
+  c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = Math.max(0.05, Math.atan2(s.width * 0.5, td) * 0.8);
+  return true;
+}
+/* ===== end kit-remake K11 ===== */

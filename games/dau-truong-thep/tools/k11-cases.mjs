@@ -8,7 +8,7 @@
 // of every MECHS row when it loads, so the fixtures must be there before it.
 // The cases (sim-test section 62) run the remade kits on their real rows. Standalone (fast): node tools/k11-cases.mjs
 import { MECHS, PERKS, TICK } from '../js/data.js';
-import { createMatch, step } from '../js/sim.js';
+import { createMatch, step, unitSpeed, weaponOf } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 
 export const OLD_TRAU = {
@@ -144,14 +144,86 @@ export function runK11Cases(check, section) {
     check('62o a fresh press after 1 s ends the channel; the cooldown keeps running', !a.cast && a.cd.ult > 38, `cast ${!!a.cast} cd ${a.cd.ult}`);
   }
   check('62p tower damage: R 0, the ult 0, E half (the clip\'s red lines)', IM.skills[0].towerMul === 0 && IM.skills[2].towerMul === 0 && IM.skills[1].towerMul === 0.5);
+  // ---- Optimus Prime ----
+  const OP = MECHS.trau;
+  {
+    // Nộ Khí: a weapon hit is 150 x armour plus 10% of what is left as true damage (once per target per 6 s), +5 rage each
+    const m = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 18, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    const first = D.hp - v.hp, want = 150 * DF + 0.1 * (D.hp - 150 * DF);
+    check('62r Optimus weapon hit: 150 x armour + 10% of the hp left as true damage; rage 5', near(first, want, 1e-6) && near(a.opRage, 5), `${first} vs ${want}, rage ${a.opRage}`);
+    go(m, 30, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    check('62s ... a second hit inside 6 s is the plain 150 x armour; rage 10', near(D.hp - v.hp - first, 150 * DF, 1e-6) && near(a.opRage, 10), `${D.hp - v.hp - first} rage ${a.opRage}`);
+    a.opRage = 50; a.opIdle = 2;
+    go(m, 58);
+    const held = a.opRage;
+    go(m, 32);
+    check('62t rage holds 2 s after the last gain, then cools 10 a second', held === 50 && near(a.opRage, 40, 0.4), `${held} -> ${a.opRage}`);
+    a.opLock = {};
+    v.hp = 1000; go(m, 12, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    check('62u the current-hp blow reads what the target has left (1000 -> 150 x armour, then 10% of the rest)', near(1000 - v.hp, 150 * DF + 0.1 * (1000 - 150 * DF), 1e-6), `${1000 - v.hp}`);
+  }
+  {
+    // full rage: runs x 1.15, the gun cools x 1.3, every blow taken x 0.8; a blow taken gives +5
+    const m = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 1);
+    a.opRage = 200; a.opIdle = 99;
+    check('62v full rage: speed 5.1 x 1.15', near(unitSpeed(a), OP.speed * 1.15, 1e-9), `${unitSpeed(a)}`);
+    go(m, 1, () => ({ 0: { fire: true, aim: 0 } })); go(m, 6);
+    check('62w full rage: the gun cools 1.3 x faster (0.55 - 6 ticks x 1.3)', near(a.cd.fire, 0.55 - 6 * TICK * 1.3, 1e-6), `${a.cd.fire}`);
+    a.opRage = 200;
+    const hp0 = a.hp; go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI } }));
+    check('62x full rage: a 250 shell on him does 250 x (1 - 0.13) x 0.8', near(hp0 - a.hp, D.weapon.dmg * (1 - OP.armor) * 0.8, 1e-6), `${hp0 - a.hp}`);
+    go(m, 30); a.opRage = 0; a.opIdle = 0; go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI } }));
+    check('62y being hit gives +5 rage', near(a.opRage, 5), `${a.opRage}`);
+  }
+  {
+    // Thẩm Phán Chi Kiếm: 282 x armour where it lands, a 3 s field: the foe slowed, Optimus guarded 50%, an ally 25%; +25 rage
+    const m = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 6, 0], [R('dummy', 0), 6, 2]]), [a, v, al] = m.units;
+    go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
+    const f = m.zones.find((z) => z.kind === 'field' && z.owner === 0 && z.opGuard);
+    check('62z the sword lands for 282 x armour, leaves a 3 m field; the foe in it is slowed 50%; rage +25', near(D.hp - v.hp, 282 * DF, 1e-6) && !!f && f.r === 3 && v.slowT > 0 && near(v.slowF, 0.5) && near(a.opRage, 25), `${D.hp - v.hp} rage ${a.opRage}`);
+    check('62za ... an ally standing in it is guarded 25%, Optimus outside is not', al.guardT > 0 && near(al.guardF, 0.25) && !(a.guardT > 0), `${al.guardF} ${a.guardT}`);
+    a.x = a.px = 5; go(m, 2);
+    check('62zb ... Optimus inside it is guarded 50%', a.guardT > 0 && near(a.guardF, 0.5), `${a.guardF}`);
+    go(m, 90);
+    check('62zc ... the field is gone after 3 s', !m.zones.some((z) => z.kind === 'field' && z.owner === 0));
+  }
+  {
+    // Hãn Vệ Tự Do: 219 x armour in the 7 x 3 rectangle, slow; with the sword in it he flies to the sword: 294 x armour and a
+    // 1 s knock-up on the foe he passes, cc immune on the way
+    const m = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 3, 0]]), [a, v] = m.units;
+    go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 7.2, tz: 0 } }));
+    const before = v.hp;
+    const ev = go(m, 12, (i) => ({ 0: { s2: i === 0, aim: 0 } }));
+    check('62zd the slash touches the sword: a warp to it, 219 + 294 x armour on the foe on the way, knocked up 1 s', only(ev, 'warp', (e) => e.id === 0 && e.skill === 'hanve').length === 1 && near(before - v.hp, (219 + 294) * DF, 1e-6) && v.airT > 0.6 && near(a.x, 7.2, 0.6), `${before - v.hp} air ${v.airT} x ${a.x}`);
+    const w = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 3, 0]]), [b, o] = w.units;
+    const ev2 = go(w, 12, (i) => ({ 0: { s2: i === 0, aim: 0 } }));
+    check('62ze without the sword in the rectangle it is the slash alone: 219 x armour, slow 50%, no charge', only(ev2, 'warp').length === 0 && near(D.hp - o.hp, 219 * DF, 1e-6) && o.slowT > 0 && near(b.x, 0, 0.5), `${D.hp - o.hp}`);
+  }
+  {
+    // Thẩm Phán Kỵ Sĩ: 506 with falloff after 0.2 s (slow 50% and weaken 0.5 for 3 s), then 8 s of sword swings that ignore armour,
+    // fire and speed x 1.25; the cooldown starts when it ends
+    const m = arena([[R('trau', 0), 0, 0], [R('dummy', 1), 3, 0]]), [a, v] = m.units;
+    go(m, 10, (i) => ({ 0: { ult: i === 0 } }));
+    const nova = D.hp - v.hp;
+    check('62zf the Knight forms: 506 x (1 - 0.5 x 3/5) x armour on the foe 3 m away, slowed 50% and weakened to 0.5', near(nova, 506 * 0.7 * DF, 1e-6) && v.weakenT > 2 && near(v.weakenF, 0.5) && v.slowT > 2, `${nova}`);
+    check('62zg ... the sword replaces the gun (pen 1, reach 5), fire and speed x 1.25, the cooldown held', weaponOf(a).name === 'Kiếm Thẩm Phán' && weaponOf(a).pen === 1 && near(a.hasteF, 1.25) && near(a.rapidF, 1.25) && near(a.cd.ult, OP.skills[2].cd), `${weaponOf(a).name} ${a.cd.ult}`);
+    a.opLock[v.id] = 1e9;
+    const h0 = v.hp; go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    check('62zh a Knight swing ignores armour: 150 on the foe', near(h0 - v.hp, 150, 1e-6), `${h0 - v.hp}`);
+    go(m, Math.round(8 / TICK));
+    check('62zi after 8 s the Knight ends and only then the cooldown runs', a.tfT <= 0 && a.cd.ult < OP.skills[2].cd && a.cd.ult > OP.skills[2].cd - 1, `${a.tfT} ${a.cd.ult}`);
+  }
   // ---- bots ----
   {
-    const seen = { tho: new Set() };
+    const seen = { tho: new Set(), trau: new Set() };
     for (let k = 0; k < 2; k++) {
-      const m = createMatch({ seed: 62 + k, mode: 'tdm', roster: [{ team: 0, mech: 'tho', name: 'T', bot: true, diff: 'hard' }, { team: 0, mech: 'soi', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 62 + k, mode: 'tdm', roster: [{ team: 0, mech: 'tho', name: 'T', bot: true, diff: 'hard' }, { team: 0, mech: 'trau', name: 'S', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }] });
       for (let i = 0; i < 2700 && !m.over; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && seen[m.units[e.id].mech]) seen[m.units[e.id].mech].add(e.slot); }
     }
     check('62q bots cast every skill of Iron Man in 2 x 90 s', seen.tho.size === 3, `tho ${[...seen.tho]}`);
+    check('62zj bots cast every skill of Optimus Prime in 2 x 90 s', seen.trau.size === 3, `trau ${[...seen.trau]}`);
   }
 }
 

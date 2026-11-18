@@ -92,7 +92,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'tthHT',   // kit-remake G5 Tào Tháo: the hold left
   'stTie', 'stWarT', 'ctFlyT',   // kit-remake K14: Baymax's chain (ally id + 1), his warrior, Doraemon's flight
   'nmS', 'nmN', 'nmMT', 'nhCT', 'nhN', 'nhQT',   // kit lane K18: Ngưu Ma's whirl stacks and mute, Mikasa's combo window, spin stacks, shield
-  'ntsN', 'ntsT'];   // kit lane k16: Natsu's mana stacks and burst (speed and armour, predicted on the guest)
+  'ntsN', 'ntsT',   // kit lane k16: Natsu's mana stacks and burst (speed and armour, predicted on the guest)
+  'opRage'];   // kit-remake G5 trau: Optimus's rage meter (fire rate, speed and guard follow it)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 

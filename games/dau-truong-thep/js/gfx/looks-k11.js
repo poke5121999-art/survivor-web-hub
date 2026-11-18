@@ -1,10 +1,13 @@
-// Looks, kit lane K11: Iron Man, remade with the kits ported from the owner's clips. Render only (see looks.js).
+// Looks, kit lane K11: Iron Man and Optimus Prime, remade with the kits ported from the owner's clips. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   钢铁 p73 (Iron Man): a white-cyan particle shell that bursts into a crackling blue sphere; a cyan circle with a red cross-hair,
 //     missiles dropping into it on smoke trails and going off in orange blasts; a thick orange-gold disintegration ray from the chest,
 //     gold shock hoops running out along it, a reactor ring under him and a gold dome where it bites.
+//   擎天 p45 (Optimus Prime): a red-hilted silver sword thrown down point first, standing in a wide steel-blue ring over an orange
+//     floor; a blue slash band and a blue comet streak to the sword; an orange light pillar crashing down when the Knight forms,
+//     then a blue glow on him while it lasts (his sword swings are the blue crescents of the 'wave' shot).
 import * as THREE from '../../vendor/three.module.min.js';
-import { C, own, stop, sigil, shell, trail, burst } from './lookkit.js';
+import { C, own, stop, sigil, shell, trail, burst, pillar, slash } from './lookkit.js';
 import { castStatic } from '../maps.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
@@ -163,4 +166,119 @@ const tho = {
   },
 };
 
-export const K11 = { ...tho };
+// ---- Optimus Prime: steel-blue light, warm orange accent ---------------------------------------------------------------------
+const OP_BLUE = C(0.4, 1.15, 2.6), OP_ICE = C(1.7, 2.2, 2.6), OP_ORG = C(2.6, 1.05, 0.25), OP_DEEP = C(0.05, 0.18, 0.55);
+// the Sword of Judgment, point down, about 1 m long before scaling: a diamond silver blade with a blue fuller glow, a red
+// swept crossguard, a dark grip and a red pommel
+const opSwordGeo = (() => {
+  const blade = keep(new THREE.CylinderGeometry(0.17, 0.0, 1.5, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 0.28).translate(0, 0.75, 0));
+  const glow = keep(new THREE.CylinderGeometry(0.26, 0.02, 1.62, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 0.14).translate(0, 0.78, 0));
+  const s = new THREE.Shape();
+  s.moveTo(-0.55, 0.06); s.quadraticCurveTo(-0.3, -0.02, 0, 0.02); s.quadraticCurveTo(0.3, -0.02, 0.55, 0.06); s.lineTo(0.42, 0.16);
+  s.quadraticCurveTo(0.2, 0.1, 0, 0.13); s.quadraticCurveTo(-0.2, 0.1, -0.42, 0.16); s.lineTo(-0.55, 0.06);
+  const guard = keep(new THREE.ExtrudeGeometry(s, { depth: 0.1, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }).translate(0, 1.47, -0.05));
+  const grip = keep(new THREE.CylinderGeometry(0.045, 0.05, 0.32, 8).translate(0, 1.78, 0));
+  const pommel = keep(new THREE.OctahedronGeometry(0.075).translate(0, 1.97, 0));
+  return { blade, glow, guard, grip, pommel };
+})();
+function opSwordMesh() {
+  const g = new THREE.Group(), P = opSwordGeo;
+  const steel = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.85, roughness: 0.22, emissive: 0x24406a, emissiveIntensity: 0.6 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xc0281e, metalness: 0.6, roughness: 0.35, emissive: 0x500806, emissiveIntensity: 0.6 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x23262c, metalness: 0.5, roughness: 0.5 });
+  const glow = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.75, 1.6), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  for (const [geo, mat] of [[P.blade, steel], [P.glow, glow], [P.guard, red], [P.grip, dark], [P.pommel, red]]) { const me = new THREE.Mesh(geo, mat); me.frustumCulled = false; g.add(me); }
+  g.userData.glow = glow;
+  return g;
+}
+const trau = {
+  // Thẩm Phán Chi Kiếm: the sword drops point first at the cursor and lands in a blue-white blow; planted, it stands in a wide
+  // steel-blue ring with an orange floor (the clip's picture) while the field lasts
+  opSword: {
+    pal: [OP_BLUE, OP_ICE], hitR: 2.4,
+    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.2, 1.6, u.z + Math.sin(e.a) * 1.2, OP_BLUE, 0.2, 2, 0.8, kit.K.GLOW, 1.3); return true; },
+    strike(kit, e) {
+      const g = opSwordMesh(), delay = Math.max(0.1, e.delay ?? 0.3), h = held(kit, [g]);
+      g.position.set(e.x, 9, e.z); g.rotation.y = 0.6; g.scale.setScalar(2.6);
+      trail(kit, () => (h.on && g.position.y > 0 ? [e.x, g.position.y + 3.5, e.z] : null), 0.5, OP_BLUE, 1.2, { c2: OP_DEEP, len: 10, up: true });
+      kit.anims.push({ t: 0, step(dt) {
+        this.t += dt;
+        const f = Math.min(1, this.t / delay);
+        g.position.y = 9 * (1 - f * f) - 0.9 * f;
+        if (f < 1) return true;
+        h.on = false;
+        burst(kit, e.x, e.z, 3.4, OP_BLUE, OP_ICE, { life: 0.4 });
+        sigil(kit, e.x, e.z, 3.2, OP_BLUE, { c2: OP_ICE, n: 0, ticks: 0, inner: 0.84, fill: 0.2, w: 0.08, life: 0.5, rev: 0.04, grow: 10 });
+        kit.chips(e.x, 0.3, e.z, kit.N(8), C(0.32, 0.3, 0.3), 6, 0.8, 0.15); kit.kick(e.x, e.z, 0.5);
+        return false;
+      }, drop() {} });
+      return true;
+    },
+    zoneMake(kit, z) {
+      const g = opSwordMesh(), h = held(kit, [g]);
+      g.position.set(z.x, -0.9, z.z); g.rotation.y = 0.6; g.scale.setScalar(2.6);
+      const rim = sigil(kit, z.x, z.z, z.r, OP_BLUE, { c2: OP_ICE, n: 0, ticks: 0, inner: 0.9, fill: 0.04, w: 0.09, life: 1e9, rev: 0.12, spin: 0 });
+      const floor = sigil(kit, z.x, z.z, z.r * 0.92, OP_ORG, { c2: OP_ORG, n: 0, ticks: 0, inner: 0, fill: 0.34, w: 0, life: 1e9, rev: 0.2, alpha: 0.75 });
+      return { g, h, rim, floor };
+    },
+    zone(kit, v, z, dt) {
+      const end = Math.min(1, Math.max(0, (z.dur - z.age) * 3)), pulse = 0.75 + 0.25 * Math.sin(z.age * 7);
+      v.g.userData.glow.opacity = 0.55 * pulse * end;
+      kit.glow(z.x, 2.6, z.z, OP_BLUE, 0.08, 2.0, 0.2 * pulse * end, kit.K.GLOW, 1);
+      if (Math.random() < dt * 25) { const a = Math.random() * 6.283; kit.glow(z.x + Math.cos(a) * z.r, 0.3, z.z + Math.sin(a) * z.r, OP_BLUE, 0.5, 0.3, 1, kit.K.SPARK, 0.3, 0, kit.rnd(1, 2.5), 0); }
+      if (Math.random() < dt * 10) { const a = Math.random() * 6.283, d = Math.random() * z.r * 0.8; kit.glow(z.x + Math.cos(a) * d, 0.25, z.z + Math.sin(a) * d, OP_ORG, 0.6, 0.35, 0.8, kit.K.SPARK, 0.3, 0, kit.rnd(0.8, 1.8), 0); }
+    },
+    zoneDrop(kit, v) { v.h.on = false; stop(v.rim); stop(v.floor); },
+  },
+  // Hãn Vệ Tự Do: a wide blue slash band across the rectangle; the charge to the sword is a blue comet streak with an ice core
+  opCharge: {
+    pal: [OP_BLUE, OP_ICE], hitR: 2.2,
+    skill() { return true; },
+    beam(kit, e) {
+      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1, a = Math.atan2(dz, dx);
+      const b = kit.beam(e.x0, e.z0, e.x1, e.z1, e.w * 1.6, OP_BLUE, 0.4, 0, 1.0); b.fade = true;
+      shell(kit, e.x0 + dx * 0.25, 0.9, e.z0 + dz * 0.25, e.w * 0.9, OP_BLUE, { c2: OP_ICE, p: 1.5, core: 0.18, squash: 0.4, life: 0.4, grow: 0.06 });
+      sigil(kit, e.x0, e.z0, 2.4, OP_BLUE, { c2: OP_ICE, n: 0, ticks: 0, inner: 0.8, fill: 0.25, w: 0.08, life: 0.4, rev: 0.04, grow: 10 });
+      slash(kit, e.x0 + dx * 0.15, e.z0 + dz * 0.15, a, L * 0.7, OP_BLUE, { c2: OP_DEEP, edge: OP_ICE, span: 0.55, life: 0.4, w: e.w * 0.55, sweep: 0.08 });
+      for (let i = 0, n = kit.N(14); i < n; i++) { const t = Math.random(), s = (Math.random() - 0.5) * e.w; kit.str.emit(e.x0 + dx * t - dz / L * s, R(0.6, 1.4), e.z0 + dz * t + dx / L * s, dx / L * 18, 0, dz / L * 18, i % 3 ? OP_BLUE : OP_ICE, 0.25, 0.1, 0.06, 0, 0, 1); }
+      kit.flash(e.x0 + dx * 0.5, 1.4, e.z0 + dz * 0.5, OP_BLUE, 30, 0.2);
+      return true;
+    },
+    warp(kit, e, u) {
+      const d = Math.hypot(e.x - e.x0, e.z - e.z0), dur = d / 30 + 0.05;
+      trail(kit, (t) => (t < dur && u.alive ? [u.x, 1.1, u.z] : null), 2.2, OP_BLUE, dur + 0.5, { c2: OP_DEEP, len: 18 });
+      trail(kit, (t) => (t < dur && u.alive ? [u.x, 1.2, u.z] : null), 0.7, OP_ICE, dur + 0.4, { c2: OP_BLUE, len: 14, add: true });
+      kit.follow(u, dur, () => { kit.glow(u.x, 1.2, u.z, OP_ICE, 0.08, 2.4, 0.9, kit.K.STAR, 1.1); }, () => { burst(kit, u.x, u.z, 3, OP_BLUE, OP_ICE, { life: 0.35 }); });
+      return true;
+    },
+  },
+  // Thẩm Phán Kỵ Sĩ: an orange pillar of light crashes down on him, an orange shock ring rolls out to the nova's edge; then a
+  // blue aura rides him while the Knight lasts
+  opKnight: {
+    pal: [OP_ORG, OP_ICE], hitR: 2.4,
+    skill() { return true; },
+    transform(kit, e, u, s) {
+      if (!e.on) return true;
+      const r = (s.nova && s.nova.radius) || 5, dur = s.dur || 8;
+      pillar(kit, e.x, e.z, 2.8, OP_ORG, { c2: C(2.6, 2.2, 1.4), h: 14, rings: 1.2, life: 0.95, grow: 0.15, drop: true });
+      sigil(kit, u.x, u.z, 2.6, OP_BLUE, { c2: OP_ICE, n: 0, ticks: 12, inner: 0.78, fill: 0.2, w: 0.08, life: dur, rev: 0.2, spin: 1.5, follow: u, alpha: 0.85 });
+      kit.anims.push({ t: 0, done: false, step(dt) {
+        this.t += dt;
+        if (this.t < 0.2) return true;
+        burst(kit, u.x, u.z, 4, OP_ORG, C(2.6, 2.2, 1.4), { life: 0.35 });
+        sigil(kit, u.x, u.z, r, OP_ORG, { c2: C(2.6, 2.2, 1.4), n: 0, ticks: 0, inner: 0.84, fill: 0.34, w: 0.1, life: 0.9, rev: 0.04, grow: 8 });
+        shell(kit, u.x, 0.2, u.z, r * 0.9, OP_ORG, { c2: C(2.6, 2.2, 1.4), p: 1.6, core: 0.16, dome: true, life: 0.7, grow: 0.1, squash: 0.45 });
+        kit.puffs(u.x, 0.6, u.z, kit.N(10), C(0.3, 0.22, 0.18), r * 0.6, 3, 0.9, 1.5, 2.4, 0.5, 0.55, kit.K.SMOKE, 2);
+        kit.flash(u.x, 2, u.z, OP_ORG, 55, 0.3); kit.kick(u.x, u.z, 0.9);
+        return false;
+      }, drop() {} });
+      kit.follow(u, dur, (t) => {
+        kit.glow(u.x, 1.3, u.z, OP_BLUE, 0.12, 3.2, 0.35 + 0.1 * Math.sin(t * 8), kit.K.GLOW, 1);
+        if (Math.random() < 0.5) { const a = Math.random() * 6.283; kit.glow(u.x + Math.cos(a) * 1.1, R(0.4, 1.8), u.z + Math.sin(a) * 1.1, OP_ICE, 0.45, 0.3, 1, kit.K.SPARK, 0.3, 0, R(1.5, 3), 0); }
+      });
+      return true;
+    },
+  },
+};
+
+export const K11 = { ...tho, ...trau };

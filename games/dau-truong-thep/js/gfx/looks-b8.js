@@ -1,7 +1,6 @@
-// Looks, batch 8: Trâu Sắt, Hỏa Long, Khỉ Pháo, Khỉ Đột, Đom Đóm. Render only (see looks.js for the hooks).
+// Looks, batch 8: Hỏa Long, Khỉ Pháo, Khỉ Đột, Đom Đóm. Render only (see looks.js for the hooks).
 // One main colour and one accent per tank, one strong shape per skill; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP-b8.md):
-//   擎天 p45 (Trâu Sắt): a wide steel-blue ring round the tank, a blue crescent sweep, an orange blast on the floor.
 //   燎 p4 (Hỏa Long): a red dragon; clusters of dark molten rock with glowing seams, a red flame swirl. Ours: lava rocks, a wall
 //     of dragon scales, one thick lava stream (not the flame jets, rings, fox fire or fire wheel of the other fire tanks).
 //   悟空 p25 (Khỉ Pháo): gold and orange, a spinning gold band, a staff from the sky. Ours keeps gold with the tank's violet:
@@ -77,95 +76,6 @@ function zap(kit, A, B, w, c, life, o = {}) {
     const k = Math.min(1, (life - t) / Math.min(0.12, life * 0.5)); glow.material.opacity = 0.7 * k; core.material.opacity = k;
   });
 }
-
-// ---- Trâu Sắt: steel blue, warm orange accent ------------------------------------------------------------------------
-const TR_BLUE = C(0.45, 1.3, 2.6), TR_ORG = C(2.6, 1.15, 0.3), TR_STEEL = 0x1c3048;
-// a heater shield standing upright: flat top, curved sides to a point at the bottom (local XY, facing +z)
-const heaterGeo = (() => { const s = new THREE.Shape(); s.moveTo(-0.7, 0.9); s.lineTo(0.7, 0.9); s.quadraticCurveTo(0.72, -0.1, 0, -0.95); s.quadraticCurveTo(-0.72, -0.1, -0.7, 0.9); return keep(new THREE.ShapeGeometry(s, 10)); })();
-function heater() {
-  const g = new THREE.Group(), rim = new THREE.Mesh(heaterGeo, basic(0x3aa8ff, false, 0.95)), plate = new THREE.Mesh(heaterGeo, basic(TR_STEEL, false, 0.92)), core = new THREE.Mesh(heaterGeo, basic(0x2c5f96, false, 0.85)), boss = new THREE.Mesh(heaterGeo, basic(0xff8a2a, false, 1));
-  rim.scale.setScalar(1.16); rim.position.z = -0.02; core.scale.setScalar(0.66); core.position.set(0, 0.06, 0.02); boss.scale.setScalar(0.17); boss.position.set(0, 0.25, 0.03);
-  g.add(rim, plate, core, boss); [rim, plate, core, boss].forEach((m, i) => { m.renderOrder = 7 + i; }); return g;
-}
-// a chevron (the ram's bow wave) lying flat, point at +x
-const chevGeo = (() => { const s = new THREE.Shape(); s.moveTo(1.25, 0); s.quadraticCurveTo(0.2, 0.9, -1.0, 1.75); s.lineTo(-1.55, 1.6); s.quadraticCurveTo(-0.3, 0.7, 0.45, 0); s.quadraticCurveTo(-0.3, -0.7, -1.55, -1.6); s.lineTo(-1.0, -1.75); s.quadraticCurveTo(0.2, -0.9, 1.25, 0); return keep(new THREE.ShapeGeometry(s, 12).rotateX(-Math.PI / 2)); })();
-const ringGeo = keep(new THREE.RingGeometry(0.9, 1, 64).rotateX(-Math.PI / 2));
-const trau = {
-  // Giáp Phản Lực: six steel shields with blue rims stand round him and turn slowly while the shield holds; when it breaks
-  // they fly off outward
-  trGuard: {
-    pal: [TR_BLUE, WHITE],
-    skill(kit, e, u, row) {
-      const dur = (row.dur || 4.5) + 0.2, g = new THREE.Group(), list = [];
-      for (let i = 0; i < 6; i++) { const h = heater(), a = i * Math.PI / 3; h.userData.a = a; g.add(h); list.push(h); }
-      let off = -1;
-      own(kit, [g], dur + 0.5, (t, dt) => {
-        if (!u.alive) return false;
-        if (off < 0 && ((t > 0.3 && !(u.shield > 0)) || t > dur)) { off = t; kit.sparks(u.x, 1.2, u.z, kit.N(14), TR_ORG, 10, 0.4, 0.06, 0.5, 10); kit.flash(u.x, 1.6, u.z, TR_BLUE, 35, 0.25); }
-        const k = Math.min(1, t / 0.18), o = off < 0 ? 0 : (t - off) / 0.4;
-        if (o >= 1) return false;
-        g.position.set(u.x, 0, u.z);
-        for (const h of list) { const a = h.userData.a + t * 0.6, r = 2.7 + o * 3; h.position.set(Math.cos(a) * r, 1.5 + 0.1 * Math.sin(t * 3 + a), Math.sin(a) * r); h.rotation.set(0, -a + Math.PI / 2, 0, 'YXZ'); h.rotation.x = -0.55; h.scale.set(1.75, 1.75 * k, 1.75); }
-        fadeAll(g, 1 - o);
-      });
-      softRing(kit, u.x, u.z, 3.8, TR_BLUE, { c2: C(0.8, 1.8, 2.6), w: 0.06, fill: 0.18, life: dur, r0: 0.4, grow: 0.2, follow: u, alpha: 0.9 });
-      kit.flash(u.x, 1.6, u.z, TR_BLUE, 35, 0.25);
-      return true;
-    },
-  },
-  // Húc Thép: a steel-blue bow wave (a chevron) rides in front of him with two wakes behind; where he stops an orange blow
-  trRam: {
-    pal: [TR_ORG, WHITE], hitR: 2,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a);
-      const g = new THREE.Group(), glow = new THREE.Mesh(chevGeo, basic(TR_BLUE, true, 0.8)), body = new THREE.Mesh(chevGeo, basic(0x4f9be8, false, 0.9)), edge = new THREE.Mesh(chevGeo, basic(WHITE, true, 0.8));
-      glow.scale.set(1.25, 1, 1.3); edge.scale.set(0.8, 1, 0.75); edge.position.x = 0.35; body.position.y = 0.02; edge.position.y = 0.04;
-      g.add(glow, body, edge); g.traverse((m) => { m.renderOrder = 7; });
-      let done = -1;
-      const going = (t) => t < 0.5 && u.alive && done < 0 && (t < 0.06 || u.dash);
-      own(kit, [g], 0.9, (t) => {
-        if (!u.alive) return false;
-        if (done < 0 && !going(t)) { done = t; const hx = u.x + ca * 2.2, hz = u.z + sa * 2.2; burst(kit, hx, hz, 2.2, TR_ORG, WHITE); kit.ring(hx, hz, 2.6, TR_ORG, 0.35); kit.kick(hx, hz, 0.5); }
-        const f = done < 0 ? 1 : Math.max(0, 1 - (t - done) / 0.3), k = Math.min(1, t / 0.08);
-        g.position.set(u.x + ca * 1.5, 0.7, u.z + sa * 1.5); g.rotation.y = -a; g.scale.set(1.5 * k, 1, 1.5 * (0.6 + 0.4 * k)); fadeAll(g, f);
-      });
-      for (const sd of [-1, 1]) trail(kit, (t) => (going(t) ? [u.x - ca * 0.5 - sa * sd * 2.3, 0.6, u.z - sa * 0.5 + ca * sd * 2.3] : null), 0.7, TR_BLUE, 0.7, { c2: C(0.1, 0.25, 0.6), len: 14 });
-      return true;
-    },
-  },
-  // Địa Chấn: an orange disc gathers under him; he stamps and the floor splits in a star of glowing orange fissures while a
-  // steel-blue shock ring runs out to the edge and dust boils up round it
-  trQuake: {
-    pal: [TR_ORG, TR_BLUE], hitR: 2.2,
-    skill() { return true; },
-    castMake(kit, u, s) { return { s: softRing(kit, u.x, u.z, s.radius, TR_ORG, { c2: C(2.6, 1.8, 0.8), w: 0.05, fill: 0.25, life: 1e9, r0: 0.92, grow: 0, alpha: 0.9 }) }; },
-    cast(kit, v, u, s, k) { v.s.position.set(u.x, 0.14, u.z); v.s.material.uniforms.uFill.value = 0.1 + 0.35 * k; if (Math.random() < 0.4) { const b = Math.random() * 6.283, d = s.radius * R(0.4, 1); kit.str.emit(u.x + Math.cos(b) * d, 0.2, u.z + Math.sin(b) * d, -Math.cos(b) * 9, 0, -Math.sin(b) * 9, TR_ORG, 0.25, 0.08, 0.05, 0, 1, 1); } },
-    castDrop(kit, v) { stop(v.s); },
-    nova(kit, e) {
-      const r = e.r || 6.5, x = e.x, z = e.z, cracks = [];
-      for (let i = 0; i < 11; i++) {
-        const b = i * 0.571 + R(-0.2, 0.2), L = r * R(0.75, 1), pts = boltPts([x, 0.12, z], [x + Math.cos(b) * L, 0.12, z + Math.sin(b) * L], 9, 0.5);
-        const dark = ribbonMesh(10, 0x140804, false, 0.92), hot = ribbonMesh(10, 0xff7a1c, false, 1); dark.renderOrder = 4; hot.renderOrder = 5;
-        cracks.push([dark, hot, pts]);
-      }
-      own(kit, cracks.flatMap((c) => [c[0], c[1]]), 1.4, (t) => {
-        const k = Math.min(1, t / 0.15), f = Math.min(1, (1.4 - t) / 0.6);
-        for (const [dark, hot, pts] of cracks) {
-          const n = Math.max(2, Math.round(pts.length * k)), p = pts.slice(0, n); while (p.length < pts.length) p.push(p[p.length - 1]);
-          fillRibbon(dark, p, (q) => 0.62 * (1 - q * 0.7)); fillRibbon(hot, p.map((q) => [q[0], 0.14, q[2]]), (q) => 0.22 * (1 - q * 0.75));
-          dark.material.opacity = 0.92 * f; hot.material.opacity = f;
-        }
-      });
-      softRing(kit, x, z, r * 0.9, C(0.16, 0.08, 0.04), { w: 0.2, fill: 0.9, life: 1.3, r0: 0.5, grow: 0.06, alpha: 0.45 });
-      softRing(kit, x, z, r * 1.05, TR_BLUE, { c2: C(0.6, 1.6, 2.6), w: 0.08, life: 0.6, r0: 0.35, grow: 0.3 });
-      softRing(kit, x, z, r * 0.75, TR_BLUE, { w: 0.05, life: 0.5, r0: 0.25, grow: 0.25, alpha: 0.7 });
-      for (let i = 0, n = kit.N(16); i < n; i++) { const b = (i / n) * 6.283; kit.puffs(x + Math.cos(b) * r * 0.8, 0.4, z + Math.sin(b) * r * 0.8, 1, C(0.42, 0.36, 0.3), 0.6, 3, 0.9, 1.4, 2.4, 0.7, 0.6, kit.K.DUST, 3); }
-      kit.chips(x, 0.4, z, kit.N(14), C(0.35, 0.3, 0.27), 8, 0.9, 0.2);
-      kit.glow(x, 0.6, z, TR_ORG, 0.25, 4, 0.8, kit.K.GLOW, 1.3); kit.flash(x, 2, z, TR_ORG, 60, 0.3); kit.kick(x, z, 0.9);
-      return true;
-    },
-  },
-};
 
 // a small round lamp (Khỉ Pháo's bomb eyes)
 const lampGeo = keep(new THREE.SphereGeometry(0.14, 8, 6));
@@ -286,4 +196,4 @@ const khiphao = {
   },
 };
 
-export const B8 = { ...trau, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13), Hỏa Long to looks-k15.js (kit lane k15), Thợ Rèn is Iron Man in looks-k11.js (kit lane K11)
+export const B8 = { ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13), Hỏa Long to looks-k15.js (kit lane k15), Thợ Rèn and Trâu Sắt are Iron Man and Optimus Prime in looks-k11.js (kit lane K11)

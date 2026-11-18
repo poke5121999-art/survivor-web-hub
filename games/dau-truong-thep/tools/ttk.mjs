@@ -27,7 +27,7 @@ const REACT = 0.35, LIMIT = 30, MAXLV = [5, 5, 5, 5, 5];
 
 // Attacker kits: d = distance to the defender, seq = [slot, start second, once?], fireAt = second the trigger is first held.
 const SEQ = {
-  trau: { d: 8, seq: [['s2', 0], ['ult', 0.6]] },
+  trau: { d: 4.5, seq: [['s1', 0], ['s2', 0.5], ['ult', 1.0]] },   // Optimus Prime (K11): sword at the foe, slash + charge to it, the Knight (sword reach 5)
   soi: { d: 9, seq: [['s2', 0], ['s1', 0.1], ['ult', 0.2]] },
   ung: { d: 13, seq: [['s1', 0], ['ult', 0.2], ['s2', 1.4]] },
   hac: { d: 9, seq: [] },
@@ -84,7 +84,7 @@ const SEQ = {
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {
-  trau: [['s1', 0.97]],
+  trau: [['s1', 0.97]],   // Optimus Prime (K11): the sword planted at its own feet (it takes 50% less inside)
   hac: [['s1', 0.95]],
   kimquy: [['s1', 0.95, false, 'self'], ['s2', 0.9], ['ult', 0.7]],
   domdom: [['s2', 0.97], ['s1', 0.95], ['ult', 0.8]],   // kit lane K13: every press wraps her in the bullet-eating wind
@@ -194,6 +194,8 @@ if (!QUICK) {
 // Lôi Công (since kit lane k16: lightning, a stun on the third skill hit) and Hắc Hổ (mark, then execute under 22%) burst through many hits, so only their 3 s combo is held to a target.
 // Ưng Nhãn too since kit lane K7 (clip p92): a fast magazine gun whose falcon mark bursts on every shot, no single big blow.
 // Đom Đóm left HEALERS with kit lane K13: she plays the clip's wind controller now (no heals; bubbles that eat bullets, debuffs), not a healer.
+// TANKS: 'trau' is Optimus Prime since kit lane K11 (the roster's front-line tank is what must stay hard to burst; the old Trâu Sắt
+// profile lives on only as the test fixture 'dummy').
 const MULTI = ['loi', 'hacho', 'ung'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac'], TANKS = ['trau', 'kimquy'];
 const HIT = 40, bad = [];
 for (const [ln] of levels) {

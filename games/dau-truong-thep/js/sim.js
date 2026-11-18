@@ -135,6 +135,7 @@ function clearStatus(u) {
   ktClear(u);   // kit-remake G5 kiemthan
   k18Clear(u);   // kit lane K18
   k16Clear(u);   // kit lane k16
+  opClear(u);   // kit-remake G5 trau
 }
 
 function spawn(m, u, first) {
@@ -349,6 +350,7 @@ export function unitSpeed(u) {
   let s = u.def.speed;
   if (u.hasteT > 0) s *= u.hasteF;
   s *= k16Speed(u);   // kit lane k16: Natsu's mana stacks and burst
+  s *= opHaste(u);   // kit-remake G5 trau: rage
   const low = lowHpMod(u);
   if (low && low.haste) s *= low.haste;
   // kit-remake G2: slowG (a decaying, growing or stacking slow) counts when it slows harder than the plain one
@@ -422,7 +424,7 @@ function stepUnit(m, u, inp) {
   if (u.ccPrev) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - u.ccPrev[i]; if (d > 1e-9) u[k] = u.ccPrev[i] + d * u.tfCc; }
   // cdAfter: a held slot's cooldown waits until the row's state is over
   if (u.hold) for (let i = 0; i < 3; i++) if (u.hold & (1 << i) && !stateOn(u, i)) u.hold &= ~(1 << i);
-  for (const k in u.cd) if (u.cd[k] > 0 && !(u.hold & (HOLD_BIT[k] || 0))) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) * (u.sfT > 0 ? u.sfF : 1) : 1));
+  for (const k in u.cd) if (u.cd[k] > 0 && !(u.hold & (HOLD_BIT[k] || 0))) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) * (u.sfT > 0 ? u.sfF : 1) * opRapid(u) : 1));   // opRapid: kit-remake G5 trau
   for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT', 'airT', 'gap0', 'gap1', 'gap2', 'ahT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
   // uses (skill charges): the cooldown is the recharge of one spent use; it starts again while uses are still spent
   for (let i = 0; i < 3; i++) {
@@ -436,6 +438,7 @@ function stepUnit(m, u, inp) {
   g3Tick(m, u);
   k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
   k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
+  opTick(m, u);   // kit-remake G5 trau: the rage meter cools
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
   hlTick(m, u);   // kit-remake G5 hoalong: lava trail, buff per burning foe
@@ -1825,6 +1828,7 @@ const FINISH = {
       row = { ...s, dmg: L(C.dmg), range: L(C.range), width: L(C.width) };
     }
     curSrc = s.id; fireBeam(m, u, row, c.aim); curSrc = null;
+    if (s.opCharge) opCharge(m, u, s, c.aim);   // kit-remake G5 trau: the beam touched the own sword: charge to it
   },
   barrage() {},
   leap(m, u, s, c) { jump(m, u, s, c.tx ?? u.x, c.tz ?? u.z); },
@@ -2104,6 +2108,7 @@ function stepZones(m) {
         const L = z.linger;
         if (L) addZone(m, owner, { kind: 'field', vis: L.vis, x: z.x, z: z.z, r: L.radius, dur: L.dur, hps: 0, dps: L.dps || 0, slow: L.slow || 0, hide: false, pull: 0, acc: 0,
           haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+        if (L && L.opGuard) opSword(m, owner, L);   // kit-remake G5 trau: the sword field guards its owner and allies
         k4Strike(m, z, owner);   // kit-remake K4: a strike that leaves a chaos orb
       }
     } else if (z.kind === 'mine') {
@@ -2130,6 +2135,7 @@ function stepZones(m) {
         if (u.team === z.team) {
           if (z.hps && pulse) heal(m, u, z.hps * 0.5 * (u === owner ? RULES.selfHealMul : 1), owner);
           if (z.armor) { u.armorF = Math.max(u.armorT > 0.3 ? u.armorF : 0, z.armor); u.armorT = Math.max(u.armorT, 0.3); }
+          if (z.opGuard) opZoneGuard(u, z, owner);   // kit-remake G5 trau
           if (z.haste) { u.hasteF = Math.max(u.hasteT > 0.3 ? u.hasteF : 1, z.haste); u.hasteT = Math.max(u.hasteT, 0.3); }
           // shield: once per ally, on stepping in
           if (z.shield && !z.sh[u.id]) { z.sh[u.id] = 1; u.shield = Math.max(u.shield, z.shield); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, 0.5, z.dur - z.age); }
@@ -2407,6 +2413,7 @@ function damage(m, u, amount, src, raw) {
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   // kit-remake G2 guard vs: a cut of one kind of enemy damage only
   if (u.gvT > 0 && !isTrue && foe && u.gvK === kind) amount *= 1 - u.gvF;
+  if (u.opRage > 0 && !isTrue) amount *= 1 - opGuard(u);   // kit-remake G5 trau: rage
   if (!raw) amount = hitCapped(u, amount);
   const blocked = preArmor - amount;
   let left = amount, absorbed = 0, broke = false;
@@ -2464,6 +2471,7 @@ function damage(m, u, amount, src, raw) {
   }
   // kit-remake G2: after the hit is fully done (it may hurt again): energy, vsTag payoff, onHurt, a below-hp save
   if (left + absorbed > 0) g2After(m, u, foe, left, kind, vt);
+  if (left + absorbed > 0 && !chaining && !reflecting) opHit(m, u, foe);   // kit-remake G5 trau: rage gains, the current-hp blow
 }
 
 // stacks (passive): a hit with a source tag adds a mark to the mech it lands on ('skill': only skill hits count, 'any': weapon and skill hits;
@@ -4523,3 +4531,70 @@ function imRefill(m, u) {
   if (!u.rsUp) { u.rsUp = true; u.rsT = 0; m.events.push({ t: 'reShield', id: u.id, x: u.x, z: u.z }); }
 }
 /* ===== end kit-remake G5 tho ===== */
+
+/* ===== kit-remake G5 trau (Optimus Prime, kit lane K11; clip p45 "42.擎天", AUDIT-c.md). Hooks elsewhere, one line each, marked
+   "kit-remake G5 trau": clearStatus (opClear), stepUnit after k4Tick (opTick), the fire cooldown (opRapid), unitSpeed (opHaste),
+   damage after the guards (opGuard) and at its very end (opHit), the strike's linger field (opSword), the field's ally pass
+   (opZoneGuard), FINISH.beam (opCharge).
+     passive `do: 'rage' {max, decay, idle, gain {weapon, hurt, skill}, full {rapid, haste, guard}, curHp, icd}`: the rage meter
+       u.opRage. A weapon hit on a mech or a tagged enemy hit taken gives gain.weapon / gain.hurt, each enemy a skill row hurts
+       gives gain.skill; idle s after the last gain it cools by decay a second. At rage r the gun cools x (1 + full.rapid x r/max),
+       the mech runs x (1 + full.haste x r/max) and takes (1 - full.guard x r/max) of every blow (true damage aside). A weapon hit
+       also deals curHp of the target's current hp as true damage (G1 curHp, bosses spared), once per target every icd s (u.opLock).
+     linger `opGuard {own, ally}`: while the field stands, its owner inside it gets a guard of own, allies inside one of ally.
+     beam `opCharge {speed, dmg, fx}`: when the beam's rectangle (range x width) holds the owner's newest opGuard field, the mech
+       flies to it at speed over everything (cc immune on the way): dmg and fx to each enemy it passes; event warp with skill.
+   New names carry the prefix op: unit opRage (in netstate STATUS), opIdle, opLock; zone opGuard. ===== */
+const opP = (u) => (u.passive === 'rage' ? u.def.passive : null);
+function opClear(u) { u.opRage = 0; u.opIdle = 0; u.opLock = {}; }
+function opTick(m, u) {
+  const P = opP(u);
+  if (!P) return;
+  if (u.opIdle > 0) u.opIdle = Math.max(0, u.opIdle - TICK);
+  else if (u.opRage > 0) u.opRage = Math.max(0, u.opRage - P.decay * TICK);
+}
+const opK = (u) => { const P = opP(u); return P && u.opRage > 0 ? Math.min(1, u.opRage / P.max) : 0; };
+function opRapid(u) { const k = opK(u); return k ? 1 + u.def.passive.full.rapid * k : 1; }
+function opHaste(u) { const k = opK(u); return k ? 1 + u.def.passive.full.haste * k : 1; }
+function opGuard(u) { return opK(u) * ((opP(u) && opP(u).full.guard) || 0); }
+function opAdd(u, n) { const P = opP(u); if (!P || !n || !u.alive) return; u.opRage = Math.min(P.max, u.opRage + n); u.opIdle = P.idle || 0; }
+// After a hit that landed (end of damage): rage for the one hit (a tagged hit) and the one hitting; the weapon's current-hp blow.
+function opHit(m, u, foe) {
+  if (foe && curSrc && opP(u)) opAdd(u, opP(u).gain.hurt);
+  const P = foe && opP(foe);
+  if (!P || !foe.alive) return;
+  if (curSrc === 'w') {
+    opAdd(foe, P.gain.weapon);
+    if (P.curHp && u.alive && !(foe.opLock[u.id] > m.time + 1e-9)) {
+      foe.opLock[u.id] = m.time + P.icd;
+      const keep = curSrc; curSrc = null; applyFx(m, foe, u, { curHp: P.curHp }); curSrc = keep;
+    }
+  } else if (curSrc && srcSlot(foe, curSrc) >= 0) opAdd(foe, P.gain.skill);
+}
+// the linger field a strike just left (the newest zone) takes the row's opGuard
+function opSword(m, owner, L) {
+  const q = m.zones[m.zones.length - 1];
+  if (q && q.kind === 'field' && q.owner === owner.id) q.opGuard = L.opGuard;
+}
+function opZoneGuard(u, z, owner) {
+  const f = u === owner ? z.opGuard.own : z.opGuard.ally;
+  if (!(f > 0)) return;
+  u.guardF = Math.max(u.guardT > 0.3 ? u.guardF : 0, f); u.guardT = Math.max(u.guardT, 0.3);
+}
+function opCharge(m, u, s, aim) {
+  const C = s.opCharge, dx = Math.cos(aim), dz = Math.sin(aim);
+  let best = null;
+  for (const z of m.zones) {
+    if (z.kind !== 'field' || !z.opGuard || z.owner !== u.id) continue;
+    const along = (z.x - u.x) * dx + (z.z - u.z) * dz, side = Math.abs((z.x - u.x) * dz - (z.z - u.z) * dx);
+    if (along < 0 || along > s.range + 0.6 || side > s.width / 2 + 0.6) continue;
+    if (!best || z.id > best.id) best = z;
+  }
+  if (!best || !u.alive) return;
+  const [x, z] = landing(m, u, best.x, best.z), x0 = u.x, z0 = u.z, d = Math.hypot(x - x0, z - z0);
+  if (d < 0.3) return;
+  u.dash = { dx: (x - x0) / d, dz: (z - z0) / d, left: d, speed: C.speed, s: { id: s.id, dmg: C.dmg, fx: C.fx || null }, hit: [], fly: true };
+  u.ccT = Math.max(u.ccT, d / C.speed + 0.1);
+  m.events.push({ t: 'warp', id: u.id, x0, z0, x, z, ...(s.look ? { skill: s.id } : {}) });
+}
+/* ===== end kit-remake G5 trau ===== */
