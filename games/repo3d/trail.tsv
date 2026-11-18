@@ -23,3 +23,4 @@ time	unit	decision	evidence
 2026-11-18 23:30	fix	xe tải dựng sau nav nên tool/quái đi xuyên xe; xe giờ đánh dấu layout.block, run.js dựng xe trước navFor	house3d.js 5 -> 4 FAIL
 2026-11-18 23:40	tools	4 FAIL còn lại do quái đang ngủ đứng trên lộ trình (angel, gacha, mummy); house3d.js kiểm hình nhà nên tải foes=none	house3d.js 10/10, slice/foes/run xanh
 2026-11-18 23:45	scope	chủ dự án đổi hướng robot: bỏ đợt quái rùng rợn, chuyển sang style Xưởng Robot Lóc Cóc (games/robot-loc-coc)	tin nhắn chủ dự án
+2026-11-19 01:30	robots	đổi sang style Xưởng Robot Lóc Cóc: port twt/robo-* vào js/loc (thêm torso rương, xe một bánh, chồng mìn), js/robots.js thành adapter Crowd giữ API buildRobot/animate; 14 thợ + 16 quái + 5 boss, 6,9k-15,1k tam giác, 1 draw call mỗi kiểu; bỏ bộ js/robots/ cũ	robots.js 0 lỗi; foes/run/slice/house3d xanh

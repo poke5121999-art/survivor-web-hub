@@ -20,7 +20,10 @@
 <div id="cap"></div>
 <script type="module">
 import * as THREE from './vendor/three.module.min.js';
-import { buildRobot, ROBOT_IDS, robotStats } from './js/robots.js';
+import { buildRobot as build0, ROBOT_IDS, robotStats, robotsFrame } from './js/robots.js';
+// every robot built here is disposed by clear(); robotsFrame uploads the crowd before each render
+const built = [];
+const buildRobot = (spec) => { const r = build0(spec); built.push(r); return r; };
 
 const errors = [];
 window.__errors = errors;
@@ -97,7 +100,7 @@ window.__dark = (id, state = {}, dist = 3.3) => {
 };
 
 const kindOf = (id) => (ROBOT_IDS.crew.includes(id) ? 'crew' : ROBOT_IDS.foe.includes(id) ? 'foe' : 'boss');
-function clear() { setDark(false); stage.clear(); labels.innerHTML = ''; cap.textContent = ''; renderer.setSize(innerWidth, innerHeight, false); }
+function clear() { setDark(false); stage.clear(); for (const r of built.splice(0)) r.dispose(); labels.innerHTML = ''; cap.textContent = ''; renderer.setSize(innerWidth, innerHeight, false); }
 function settle(r, state, frames = 90, dt = 1 / 60) { for (let i = 0; i < frames; i++) r.animate(dt, state); }
 function frameCam(cx, cy, cz, h, w, yawDeg = 25, pitch = 0.18, aspect = innerWidth / innerHeight) {
   const fov = THREE.MathUtils.degToRad(camera.fov);
@@ -114,7 +117,7 @@ function label(text, sub, p) {
   d.innerHTML = text + (sub ? '<small>' + sub + '</small>' : '');
   labels.appendChild(d);
 }
-function draw() { renderer.setViewport(0, 0, innerWidth, innerHeight); renderer.setScissorTest(false); renderer.render(scene, camera); }
+function draw() { renderer.setViewport(0, 0, innerWidth, innerHeight); renderer.setScissorTest(false); (robotsFrame(scene, camera, 0), renderer.render(scene, camera)); }
 
 window.__show = (id, state = {}, yaw = 0.5) => {
   clear();
@@ -163,7 +166,7 @@ window.__sheet = (id, state = {}) => {
     r.root.rotation.y = y; r.root.updateMatrixWorld(true);
     window.__pad = 1.14; frameCam(0, r.height * 0.5, 0, r.height, Math.max(r.height * 0.7, horiz), 0, 0.1, w / H); window.__pad = 0;
     renderer.setViewport(i * w, 0, w, H); renderer.setScissor(i * w, 0, w, H);
-    renderer.render(scene, camera);
+    (robotsFrame(scene, camera, 0), renderer.render(scene, camera));
   });
   renderer.setScissorTest(false);
   const s = robotStats[r.kind + ':' + id];
@@ -193,7 +196,7 @@ window.__strip = (id, frames, yaw = Math.PI / 2 - 0.25) => {
     stage.clear(); stage.add(r.root); r.root.updateMatrixWorld(true);
     window.__pad = 1.12; frameCam(0, h * 0.5, 0, h, horiz, 0, 0.12, w / Hh); window.__pad = 0;
     renderer.setViewport(i * w, 0, w, Hh); renderer.setScissor(i * w, 0, w, Hh);
-    renderer.render(scene, camera);
+    (robotsFrame(scene, camera, 0), renderer.render(scene, camera));
     const d = document.createElement('div'); d.className = 'lb'; d.style.left = (i * w + w / 2) + 'px'; d.style.top = (Hh - 26) + 'px'; d.textContent = frames[i].label || ''; labels.appendChild(d);
   });
   renderer.setScissorTest(false);

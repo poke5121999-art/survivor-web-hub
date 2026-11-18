@@ -39,7 +39,7 @@ Trên `https://poke5121999-art.github.io/survivor-web-hub/games/repo3d/index.htm
 Mỗi hệ có `step(dt, ...)` gọi trong `stepSim` theo thứ tự: player, grab, (bots), (foes), snapshot vận tốc, `world.step()`, loot, extract.
 Body đã `world.removeRigidBody` thì không được đọc lại (wasm `unreachable`): đánh dấu `rec.dead` trước, mọi hệ kiểm `dead`.
 
-Robot (`js/robots.js`): `buildRobot(spec) -> { root: THREE.Group, height, animate(dt, state) }`,
+Robot (`js/robots.js`, style Xưởng Robot Lóc Cóc: module `js/loc/` port từ `games/robot-loc-coc/twt`, vẽ instanced bằng `Crowd`, gọi `robotsFrame(scene, camera, dt)` mỗi khung trước `render`): `buildRobot(spec) -> { root: THREE.Group, height, animate(dt, state), dispose }`,
 `spec = { kind: 'crew' | 'foe' | 'boss', id }`, `state = { speed, carrying, attack, hurt, down, look }`.
 
 Layout nhà (`js/housegen.js`, tọa độ ô, y = trục z của 3D): xem `data/README` do đợt 1b viết.

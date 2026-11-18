@@ -8,6 +8,7 @@ import { Loot } from './loot.js';
 import { Extraction } from './extract.js';
 import { buildTestRoom } from './testroom.js';
 import { Noise } from './noise.js';
+import { robotsFrame } from './robots.js';
 
 const params = Object.fromEntries(new URLSearchParams(location.search));
 const errors = [];
@@ -140,7 +141,7 @@ function render() {
   G.house?.update(G.camera.position);
   const now = performance.now(), rdt = Math.min(0.1, (now - (G.lastRender || now)) / 1000); G.lastRender = now;
   G.foes?.render(rdt, G.camera.position);
-  if (G.viewOn !== false) G.renderer.render(G.scene, G.camera);
+  if (G.viewOn !== false) { robotsFrame(G.scene, G.camera, rdt); G.renderer.render(G.scene, G.camera); }
   G.runner?.frame(rdt * 1000);
 }
 
