@@ -638,7 +638,7 @@ const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixe
   check('15e no mech is useless or runaway: K/D 0.25 .. 4 for every non-medic; each medic heals over 800 per match and wins 20 .. 80% of its matches', MECH_ORDER.every((k) => MECHS[k].roleKey === 'medic' ? by[k].h / by[k].n > 800 && winOf(k) >= 0.2 && winOf(k) <= 0.8 : kdOf(k) > 0.25 && kdOf(k) < 4), MECH_ORDER.map((k) => MECHS[k].roleKey === 'medic' ? `${k} heal ${(by[k].h / by[k].n).toFixed(0)} win ${(100 * winOf(k)).toFixed(0)}%` : `${k} ${kdOf(k).toFixed(2)}`).join(' '));
   const casts = {};
   for (const r of bal) for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
-  const need = { turret: 'usung', wall: 'vachda', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'nova repeat': 'thonphe', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'huc', transform: 'onhiem' };   // kit lane K10: Bọ Cạp's stealth buff and dash left with her old kit
+  const need = { turret: 'usung', wall: 'thuymac', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'nova repeat': 'thonphe', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'huc', transform: 'onhiem' };   // kit lane K10: Bọ Cạp's stealth buff and dash left with her old kit; kit lane K6: Sơn Tinh's Vách Đá left with his, Thủy Tinh's Thủy Mạc is the wall now
   console.log('bot skill casts over the balance matches: ' + Object.values(need).map((id) => `${id} ${casts[id] || 0}`).join('  '));
   for (const name in need) check(`16 bots use ${name} (${need[name]})`, (casts[need[name]] || 0) >= 1, `casts ${casts[need[name]] || 0}`);
   const th = bal.reduce((a, r) => a + r.turretHits, 0);
