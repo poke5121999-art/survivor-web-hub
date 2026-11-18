@@ -255,6 +255,23 @@ const tho = {
   },
 };
 
+// ---- flame tongue (shared by Hỏa Long and Khỉ Đột's rage mane) ----------------------------------------------------------
+// An upright plane drawn as one flame: round foot, pointed licking tip, a soft edge colour going to a bright core near the
+// foot, its outline wavering. Leans back toward the match camera. Scale x = width, y = height.
+const FLAME_FRAG = `uniform vec3 uC, uC2; uniform float uA, uT, uSeed; varying vec2 vUv;
+  void main() { float y = vUv.y; float wob = 0.1 * sin(y * 6.0 - uT * 9.0 + uSeed) * y;
+    float x = (vUv.x - 0.5 - wob) * 2.0; float wd = sqrt(clamp(y * 5.0, 0.0, 1.0)) * pow(max(1.0 - y, 0.0), 0.75) + 0.001;
+    float d = abs(x) / wd; float body = 1.0 - smoothstep(0.5, 1.0, d);
+    float core = (1.0 - smoothstep(0.0, 0.7, d)) * (1.0 - smoothstep(0.15, 0.7, y));
+    vec3 c = mix(uC, uC2, core); float a = body * uA * (1.0 - smoothstep(0.8, 1.0, y)) * 0.95; gl_FragColor = vec4(c * a, a); }`;
+const flameGeo = keep(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateX(-0.45));
+function flame(c, c2, seed = 0) {
+  const m = new THREE.Mesh(flameGeo, new THREE.ShaderMaterial({ vertexShader: FLAT_VERT, fragmentShader: FLAME_FRAG, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, premultipliedAlpha: true,
+    uniforms: { uC: { value: c.clone() }, uC2: { value: c2.clone() }, uA: { value: 0 }, uT: { value: 0 }, uSeed: { value: seed } } }));
+  m.renderOrder = 7; return m;
+}
+const HF_EDGE = C(0.9, 0.12, 0.03), HF_MID = C(1, 0.45, 0.06), HF_CORE = C(1, 0.93, 0.6);
+
 // ---- Hỏa Long: molten lava red, charcoal crust ----------------------------------------------------------------------------
 const HL_RED = C(2.6, 0.5, 0.1), HL_GOLD = C(2.6, 1.6, 0.45), HL_CRUST = 0x1a0805;
 // a molten rock: a dark faceted crust with the glowing core poking through its seams (two jittered icosahedra)
@@ -279,43 +296,39 @@ function lavaMat(c, c2) { return new THREE.ShaderMaterial({ vertexShader: LAVA_V
 const MV = new THREE.Vector3();
 const hlLen = new Map();
 const hoalong = {
-  // Quá Tải: five molten rocks rise and circle him, crust cracking with light, until the primed shot goes
+  // Quá Tải: five dragon-fire flames rise round him and circle, white-gold cores in red tongues, until the primed shot goes
   hlPrime: {
     skill(kit, e, u, row) {
-      const dur = row.prime || 4, rocks = [0, 1, 2, 3, 4].map((i) => rock(i));
-      own(kit, rocks, dur + 0.4, (t) => {
+      const dur = row.prime || 4, fl = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => flame(HF_EDGE, HF_CORE, i * 1.7));
+      own(kit, fl, dur + 0.4, (t) => {
         if (!u.alive) return false;
-        const end = t > 0.3 && !(u.primeT > 0), k = Math.min(1, t / 0.25);
-        if (end) { for (const r of rocks) { kit.sparks(r.position.x, r.position.y, r.position.z, kit.N(5), HL_GOLD, 8, 0.35, 0.06, 0.5, 10); kit.puffs(r.position.x, r.position.y, r.position.z, 1, C(0.1, 0.05, 0.04), 0.3, 1.5, 0.6, 0.8, 2, 0.6, 0.6, kit.K.SMOKE, 2); } return false; }
-        rocks.forEach((r, i) => { const a = t * 2.2 + i * 1.2566; r.position.set(u.x + Math.cos(a) * 3, 1.5 + 0.35 * Math.sin(t * 4 + i), u.z + Math.sin(a) * 3); r.rotation.set(t * 1.3 + i, t * 2 + i, 0); r.scale.setScalar(1.05 * k); });
-        if (Math.random() < 0.5) kit.glow(u.x, 0.4, u.z, HL_RED, 0.2, 2.6, 0.5, kit.K.GLOW, 1.2);
+        if (t > 0.3 && !(u.primeT > 0)) { for (const f of fl) kit.sparks(f.position.x, 1.2, f.position.z, kit.N(5), HL_GOLD, 8, 0.35, 0.06, 0.8, 6); return false; }
+        const k = Math.min(1, t / 0.25);
+        fl.forEach((f, i) => { const a = t * 2.2 + i * 0.7854; f.position.set(u.x + Math.cos(a) * 3.4, 0.2, u.z + Math.sin(a) * 3.4); f.scale.set(3 * k, 5 * k * (0.9 + 0.1 * Math.sin(t * 13 + i)), 1); f.material.uniforms.uT.value = t; f.material.uniforms.uA.value = 1; });
+        if (Math.random() < 0.5) { const a = Math.random() * 6.283; kit.glow(u.x + Math.cos(a) * 2.6, R(1.5, 3), u.z + Math.sin(a) * 2.6, HL_GOLD, 0.5, 0.2, 1, kit.K.SPARK, 0.5, 0, 2, 0); }
       });
-      softRing(kit, u.x, u.z, 3.0, HL_RED, { c2: HL_GOLD, w: 0.05, life: 0.6, r0: 0.3, grow: 0.25 });
       kit.flash(u.x, 1.6, u.z, HL_RED, 35, 0.25);
       return true;
     },
   },
-  // Màn Sáng: a wall of dragon scales rises along the line, dark crust edged with molten red, in three overlapping rows
+  // Màn Sáng: a curtain of dragon fire stands along the line, tall red tongues behind and gold ones in front, flickering
   hlScreen: {
     zones: ['wall'],
     skill() { return true; },
     zoneMake(kit, z) {
-      const p0 = z.pts[0], p1 = z.pts[z.pts.length - 1], L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + z.r * 1.4, a = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
-      const g = new THREE.Group(), tilt = new THREE.Group(); g.position.set((p0[0] + p1[0]) / 2, 0, (p0[1] + p1[1]) / 2); g.rotation.y = -a; tilt.rotation.x = -0.95; tilt.scale.setScalar(1.35); g.add(tilt);
-      const rim = basic(0xff4a12, false, 0.95), crust = basic(0x2a0b06, false, 0.92), sheen = basic(0xffa040, false, 0.55);
-      for (let row = 0; row < 3; row++) {
-        const n0 = Math.max(2, Math.ceil(L / 1.25)), sp = L / n0, n = n0 - (row % 2), y = 0.5 + row * 0.7;
-        for (let i = 0; i < n; i++) {
-          const x = -L / 2 + sp * (i + 0.5) + (row % 2 ? sp * 0.5 : 0), s = new THREE.Group();
-          const r1 = new THREE.Mesh(scaleGeo, rim), c1 = new THREE.Mesh(scaleGeo, crust), h1 = new THREE.Mesh(scaleGeo, sheen); r1.scale.setScalar(1.18); c1.position.z = 0.01; h1.scale.setScalar(0.45); h1.position.set(0, 0.15, 0.02);
-          s.add(r1, c1, h1); s.position.set(x, y, row * 0.04); s.scale.setScalar(1.05 - row * 0.08); tilt.add(s);
-        }
+      const p0 = z.pts[0], p1 = z.pts[z.pts.length - 1], L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + z.r * 1.2, dx = (p1[0] - p0[0]) / (L - z.r * 1.2 || 1), dz = (p1[1] - p0[1]) / (L - z.r * 1.2 || 1);
+      const cx = (p0[0] + p1[0]) / 2, cz = (p0[1] + p1[1]) / 2, fl = [];
+      for (const [row, n, h, w, c, c2] of [[0, Math.ceil(L / 0.9), 4.8, 2.6, HF_EDGE, HF_MID], [1, Math.ceil(L / 1.2), 3.2, 2.3, HF_MID, HF_CORE]]) {
+        for (let i = 0; i < n; i++) { const f = flame(c, c2, i * 2.3 + row * 5), d = -L / 2 + (i + 0.5) * (L / n) + R(-0.15, 0.15); const off = (row ? 1 : -1) * (i % 2 ? 1.2 : 0.5); f.position.set(cx + dx * d - dz * off, 0.1, cz + dz * d + dx * off); f.userData.s = [w * R(0.85, 1.15), h * R(0.75, 1.15)]; f.rotation.z = (i % 2 ? 1 : -1) * R(0.2, 0.4); f.renderOrder = 7 + row; fl.push(f); }
       }
-      g.traverse((m) => { m.renderOrder = 7; });
       for (let i = 0; i < kit.N(10); i++) { const t = Math.random(); kit.sparks(p0[0] + (p1[0] - p0[0]) * t, 0.3, p0[1] + (p1[1] - p0[1]) * t, 1, HL_GOLD, 5, 0.4, 0.05, 1, 6); }
-      return { g, h: held(kit, [g]), t: 0 };
+      return { fl, h: held(kit, fl), t: 0 };
     },
-    zone(kit, v, z, dt) { v.t += dt; const k = Math.min(1, v.t / 0.2), out = Math.min(1, (z.dur - z.age) * 4); v.g.scale.set(1, Math.max(0.01, k * (2 - k)), 1); fadeAll(v.g, out * (0.9 + 0.1 * Math.sin(v.t * 8))); },
+    zone(kit, v, z, dt) {
+      v.t += dt; const k = Math.min(1, v.t / 0.2), out = Math.min(1, (z.dur - z.age) * 4);
+      v.fl.forEach((f, i) => { const [w, h] = f.userData.s; f.scale.set(w, h * k * (0.85 + 0.15 * Math.sin(v.t * 11 + i * 1.3)), 1); f.material.uniforms.uT.value = v.t; f.material.uniforms.uA.value = out; });
+      if (Math.random() < dt * 8) { const f = v.fl[Math.floor(Math.random() * v.fl.length)]; kit.glow(f.position.x, R(2, 3.5), f.position.z, HL_GOLD, 0.6, 0.2, 1, kit.K.SPARK, 0.5, 0, 2.5, 0); }
+    },
     zoneDrop(kit, v) { v.h.on = false; },
   },
   // Thiên Hỏa Tuyến: molten light gathers in the maw, then one thick lava stream pours down the lane, bands flowing out,
@@ -337,7 +350,7 @@ const hoalong = {
         if (Math.random() < 0.6) { const b = Math.random() * 6.283, d = R(2, 3); kit.str.emit(MV.x + Math.cos(b) * d, MV.y, MV.z + Math.sin(b) * d, -Math.cos(b) * 10, 0, -Math.sin(b) * 10, HL_GOLD, 0.2, 0.08, 0.05, 0, 1, 1); }
         return;
       }
-      const L = hlLen.get(u.id) ?? s.range, w = (s.width || 1.2) * 1.3;
+      const L = hlLen.get(u.id) ?? s.range, w = (s.width || 1.2) * 1.5;
       v.g.visible = true; v.g.position.set(MV.x, 1.4, MV.z); v.g.rotation.y = -a;
       const wob = 1 + 0.06 * Math.sin(v.t * 37);
       v.outer.scale.set(L, w * 1.15 * wob, w * 1.15 * wob); v.inner.scale.set(L, w * 0.5, w * 0.5);
@@ -458,135 +471,153 @@ const khiphao = {
 
 // ---- Khỉ Đột: jade green, lime lightning ---------------------------------------------------------------------------------
 const KD_GREEN = C(0.25, 1.6, 0.35), KD_LIME = C(2.0, 2.6, 0.35), KD_DARK = C(0.03, 0.18, 0.05), KD_DEEP = C(0.08, 0.55, 0.14);
+const KG_EDGE = C(0.12, 0.72, 0.18), KG_CORE = C(0.92, 1, 0.6);
+// a giant clenched fist, knuckles along +x, smooth rounded parts (palm, four knuckles, curled fingers, thumb, wrist)
+const FIST = (() => {
+  const s = (x, y, z, sx, sy, sz) => keep(new THREE.SphereGeometry(1, 16, 12).scale(sx, sy, sz).translate(x, y, z));
+  const parts = [s(0, 0, 0, 0.85, 0.72, 1.0), s(-0.85, -0.05, 0, 0.55, 0.5, 0.62)];
+  for (let i = 0; i < 4; i++) { const zz = -0.6 + i * 0.4; parts.push(s(0.72, 0.18, zz, 0.3, 0.3, 0.21), s(0.6, -0.3, zz, 0.36, 0.28, 0.2)); }
+  parts.push(s(0.35, -0.25, 0.78, 0.48, 0.24, 0.24));
+  return parts;
+})();
+function fist() {
+  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: 0x2e6a28, roughness: 0.6, metalness: 0.05, emissive: 0x05200a, transparent: true, opacity: 1 }), h = basic(KD_GREEN, true, 0.35);
+  for (const p of FIST) g.add(new THREE.Mesh(p, m));
+  const halo = new THREE.Mesh(sphGeo, h); halo.scale.set(1.3, 1.05, 1.3); h.opacity = 0.18; g.add(halo);
+  g.traverse((q) => { q.renderOrder = 8; }); return g;
+}
+// a crater: a dark scorched hollow with a broken earth rim and green light seeping from it
+function crater(kit, x, z, r, life) {
+  softRing(kit, x, z, r, C(0.1, 0.07, 0.04), { c2: C(0.32, 0.24, 0.15), w: 0.12, fill: 0.9, life, r0: 0.75, grow: 0.06, alpha: 0.85 });
+  softRing(kit, x, z, r * 0.55, KD_DEEP, { w: 0.2, life: life * 0.6, r0: 0.6, grow: 0.06, alpha: 0.6 });
+  kit.chips(x, 0.4, z, kit.N(14), C(0.32, 0.25, 0.16), 8, 0.9, 0.24);
+  kit.puffs(x, 0.4, z, kit.N(6), C(0.32, 0.28, 0.2), r * 0.3, 3, 0.8, 1.3, 2.4, 0.5, 0.55, kit.K.DUST, 3);
+}
 const khidot = {
-  // Đấm Đất: green power gathers in his fists; he pounds the ground and three green ripples run out, lime lightning jumping
-  // between them over a dark crater
+  // Đấm Đất: a giant green fist rises over him while he winds up, then slams down knuckles first into a crater
   kdPound: {
     pal: [KD_GREEN, KD_LIME], hitR: 2,
     skill() { return true; },
-    castMake(kit, u, s) { return { s: softRing(kit, u.x, u.z, s.radius, KD_GREEN, { w: 0.04, fill: 0.15, life: 1e9, r0: 0.92, grow: 0, alpha: 0.7 }) }; },
-    cast(kit, v, u, s, k) { v.s.position.set(u.x, 0.14, u.z); for (const sd of [-1, 1]) { const a = u.aim + sd * 1.2; kit.glow(u.x + Math.cos(a) * 1.2, 1.4 + k, u.z + Math.sin(a) * 1.2, KD_GREEN, 0.08, 1 + k * 1.4, 0.9, kit.K.GLOW, 1.1); } },
-    castDrop(kit, v) { stop(v.s); },
-    nova(kit, e) {
-      const r = e.r || 5, x = e.x, z = e.z;
-      for (const [d, a] of [[0, 1], [0.09, 0.8], [0.18, 0.6]]) kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < d) return true; softRing(kit, x, z, r * 1.2, KD_DEEP, { c2: KD_GREEN, w: 0.1, fill: 0.08, life: 0.65, r0: 0.6, grow: 0.3, alpha: a }); return false; }, drop() {} });
-      softRing(kit, x, z, r * 0.45, KD_DARK, { w: 0.25, fill: 1, life: 1.1, r0: 0.6, grow: 0.08, alpha: 0.8 });
-      // lime lightning running round the outer ripple
-      for (let i = 0; i < 6; i++) { const b = i * 1.047 + R(0, 0.4), b2 = b + 0.8, rr = r * 1.05; zap(kit, [x + Math.cos(b) * rr, 0.5, z + Math.sin(b) * rr], [x + Math.cos(b2) * rr, 0.5, z + Math.sin(b2) * rr], 0.16, KD_LIME, 0.35, { segs: 7, jit: 0.45 }); }
-      kit.chips(x, 0.4, z, kit.N(12), C(0.3, 0.24, 0.16), 8, 0.8, 0.22);
-      kit.puffs(x, 0.4, z, kit.N(6), C(0.3, 0.27, 0.2), 1.2, 3, 0.8, 1.2, 2.4, 0.5, 0.55, kit.K.DUST, 3);
+    castMake(kit, u) { const f = fist(); return { f, h: held(kit, [f]) }; },
+    cast(kit, v, u, s, k) { const a = u.aim; v.f.position.set(u.x + Math.cos(a) * 1.6, 2.4 + 3 * k, u.z + Math.sin(a) * 1.6); v.f.rotation.set(0, -a, 0.6 + 0.6 * k); v.f.scale.setScalar(2.2); },
+    castDrop(kit, v) { v.h.on = false; },
+    nova(kit, e, u) {
+      const r = e.r || 5, a = u ? u.aim : 0, x = e.x + Math.cos(a) * 1.6, z = e.z + Math.sin(a) * 1.6, f = fist();
+      own(kit, [f], 0.6, (t) => { const k = Math.min(1, t / 0.06); f.position.set(x, 5.4 - 4.2 * k, z); f.rotation.set(0, -a, -1.1); f.scale.setScalar(2.4); fadeAll(f, Math.min(1, (0.6 - t) / 0.25)); });
+      crater(kit, x, z, 2.6, 1.1);
+      softRing(kit, e.x, e.z, r * 1.05, KD_DEEP, { c2: KD_GREEN, w: 0.05, life: 0.5, r0: 0.3, grow: 0.3, alpha: 0.8 });
       kit.flash(x, 2, z, KD_GREEN, 55, 0.3); kit.kick(x, z, 0.8);
       return true;
     },
   },
-  // Nhảy Vồ: a green streak arcs over to the cursor, a green target ring waiting; he lands inside a green sphere wrapped in
-  // lime lightning
+  // Nhảy Vồ: a green arc is drawn over to the cursor where a crater mark waits; he lands fists first and the earth caves in
   kdLeap: {
     pal: [KD_GREEN, KD_LIME], hitR: 2,
     skill() { return true; },
     leap(kit, e, u, row) {
-      const dur = e.dur || 0.55, r = row.radius || 3.5, ht = (t) => 1.2 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3.5;
-      softRing(kit, e.x, e.z, r, KD_DEEP, { c2: KD_GREEN, w: 0.12, fill: 0.45, life: dur + 0.1, r0: 0.92, grow: 0, alpha: 1 });
-      sigil(kit, e.x, e.z, r * 0.6, KD_LIME, { n: 0, ticks: 4, inner: 0, fill: 0, w: 0.1, life: dur + 0.1, rev: 0.06, spin: 3 });
-      trail(kit, (t) => (t < dur && u.alive ? [u.x, ht(t), u.z] : null), 3.6, KD_GREEN, dur + 0.35, { c2: KD_DARK, len: 16, up: true });
-      softRing(kit, u.x, u.z, 3, KD_DARK, { w: 0.3, fill: 1, life: dur, r0: 0.5, grow: 0, alpha: 0.55, follow: u });
-      kit.follow(u, dur, (t) => { kit.glow(u.x, ht(t), u.z, KD_GREEN, 0.1, 3.6, 0.8, kit.K.GLOW, 1.1); });
+      const dur = e.dur || 0.55, r = row.radius || 3.5, x0 = e.x0, z0 = e.z0, n = 24;
+      const arc = ribbonMesh(n, KD_DEEP, false, 0.85), glow = ribbonMesh(n, KD_LIME, true, 0.9);
+      const pts = (f) => { const p = []; for (let i = 0; i < n; i++) { const q = (i / (n - 1)) * f; p.push([x0 + (e.x - x0) * q, 0.8 + Math.sin(q * Math.PI) * 5, z0 + (e.z - z0) * q]); } return p; };
+      own(kit, [arc, glow], dur + 0.5, (t) => { const f = Math.min(1, t / 0.12), p = pts(f); fillRibbon(arc, p, (q) => 0.35 * Math.sin(q * Math.PI) + 0.08); fillRibbon(glow, p, 0.06); const o = Math.min(1, (dur + 0.5 - t) / 0.3); arc.material.opacity = 0.85 * o; glow.material.opacity = 0.9 * o; });
+      softRing(kit, e.x, e.z, r, C(0.1, 0.07, 0.04), { c2: KD_DEEP, w: 0.08, fill: 0.35, life: dur + 0.1, r0: 0.92, grow: 0, alpha: 0.85 });
+      for (const sd of [-1, 1]) { const f = fist(); own(kit, [f], dur, (t) => { if (!u.alive) return false; const a = e.a ?? Math.atan2(e.z - z0, e.x - x0), h = 1.2 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3.5; f.position.set(u.x - Math.sin(a) * sd * 1.6, h, u.z + Math.cos(a) * sd * 1.6); f.rotation.set(0, -a, -0.9); f.scale.setScalar(1.3); }); }
       kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;
         const x = u.alive ? u.x : e.x, z = u.alive ? u.z : e.z;
-        shell(kit, x, 1.3, z, r * 0.85, KD_GREEN, { c2: KD_LIME, p: 1.3, core: 0.12, life: 0.6, grow: 0.08, squash: 0.85 });
-        for (let i = 0; i < 6; i++) { const a = Math.random() * 6.283, b = a + R(1, 2.2), rr = r * 0.85; zap(kit, [x + Math.cos(a) * rr, R(0.5, 2.3), z + Math.sin(a) * rr], [x + Math.cos(b) * rr, R(0.5, 2.3), z + Math.sin(b) * rr], 0.22, KD_LIME, 0.4, { segs: 7, jit: 0.5 }); }
-        softRing(kit, x, z, r * 0.6, KD_DARK, { w: 0.25, fill: 1, life: 1, r0: 0.6, grow: 0.06, alpha: 0.75 });
-        kit.chips(x, 0.4, z, kit.N(10), C(0.3, 0.24, 0.16), 7, 0.8, 0.2); kit.flash(x, 2, z, KD_GREEN, 50, 0.3); kit.kick(x, z, 0.7);
+        crater(kit, x, z, r * 0.9, 1.1); kit.flash(x, 2, z, KD_GREEN, 50, 0.3); kit.kick(x, z, 0.7);
         return false; }, drop() {} });
       return true;
     },
   },
-  // Thịnh Nộ: a green column bursts up round him; for the whole rage green flame tongues lick up his body and lime lightning
-  // crackles over it
+  // Thịnh Nộ: he swells into the rage form: a crest of green flame stands up behind him like a mane and two giant fists hang
+  // at his sides, pumping, for the whole rage
   kdRage: {
     pal: [KD_GREEN, KD_LIME], hitR: 1.8,
     skill(kit, e, u, row) {
       const dur = row.dur || 7, t0 = kit.time, live = () => u.alive && (kit.time - t0 < 0.5 || u.tfT > 0);
-      pillar(kit, u.x, u.z, 3.3, KD_DEEP, { c2: KD_GREEN, h: 9, life: 1.2, grow: 0.15, rings: 2, fade: 0.5 });
-      softRing(kit, u.x, u.z, 6.2, KD_DEEP, { c2: KD_GREEN, w: 0.13, fill: 0.1, life: 1, r0: 0.3, grow: 0.3 });
-      shell(kit, u.x, 1.4, u.z, 3.4, KD_GREEN, { c2: KD_DEEP, p: 1.4, core: 0.1, alpha: 0.85, squash: 1.2, follow: u, life: dur, grow: 0.3, pulse: 1.2, step: () => live() });
-      let acc = 0;
-      kit.follow(u, dur, (t, dt) => {
-        if (!live()) return;
-        for (let i = 0; i < 2; i++) { const b = Math.random() * 6.283, d = R(0.9, 1.7); kit.glow(u.x + Math.cos(b) * d, R(0.3, 1.6), u.z + Math.sin(b) * d, KD_GREEN, 0.5, R(0.7, 1.1), 1, kit.K.FLAME, 1.2, 0, R(3, 5), 0); }
-        acc += dt; if (acc > 0.18) { acc = 0; const a = Math.random() * 6.283, b = a + R(0.8, 1.6); zap(kit, [u.x + Math.cos(a) * 1.6, R(0.6, 2.4), u.z + Math.sin(a) * 1.6], [u.x + Math.cos(b) * 1.6, R(0.6, 2.4), u.z + Math.sin(b) * 1.6], 0.16, KD_LIME, 0.12, { segs: 5, jit: 0.35 }); }
+      const mane = []; for (let i = 0; i < 9; i++) { const f = flame(KG_EDGE, KG_CORE, i * 1.9); f.userData.b = (i - 4) * 0.3; f.userData.h = 5.2 - Math.abs(i - 4) * 0.4; mane.push(f); }
+      const fists = [fist(), fist()];
+      own(kit, [...mane, ...fists], dur + 0.3, (t) => {
+        if (!live()) return false;
+        const k = Math.min(1, t / 0.3), a = u.aim, back = a + Math.PI;
+        mane.forEach((f, i) => { const b = back + f.userData.b; f.position.set(u.x + Math.cos(b) * 2.0, 0.5, u.z + Math.sin(b) * 2.0); f.scale.set(2.3 * k, f.userData.h * k * (0.85 + 0.15 * Math.sin(t * 10 + i)), 1); f.material.uniforms.uT.value = t; f.material.uniforms.uA.value = 1; });
+        fists.forEach((f, i) => { const sd = i ? 1 : -1, pump = Math.max(0, Math.sin(t * 6 + i * Math.PI)) * 0.6; f.position.set(u.x + Math.cos(a) * pump - Math.sin(a) * sd * 3.1, 1.6, u.z + Math.sin(a) * pump + Math.cos(a) * sd * 3.1); f.rotation.set(0, -a, 0); f.scale.setScalar(2.1 * k); });
       });
-      kit.flash(u.x, 2, u.z, KD_GREEN, 60, 0.35); kit.kick(u.x, u.z, 0.4);
+      crater(kit, u.x, u.z, 3, 1.2); kit.flash(u.x, 2, u.z, KD_GREEN, 60, 0.35); kit.kick(u.x, u.z, 0.4);
       return true;
     },
-    transform(kit, e) { if (!e.on) softRing(kit, e.x, e.z, 3, KD_GREEN, { w: 0.06, life: 0.4, r0: 0.4, grow: 0.2 }); return true; },
+    transform(kit, e) { if (!e.on) kit.puffs(e.x, 1, e.z, kit.N(5), C(0.2, 0.4, 0.2), 0.8, 2, 0.8, 1.1, 2, 0.6, 0.5, kit.K.SMOKE, 2); return true; },
   },
 };
 
 // ---- Đom Đóm: warm firefly light, mint accent ----------------------------------------------------------------------------
-const DD_AMBER = C(2.6, 2.05, 0.5), DD_MINT = C(0.5, 2.4, 1.5);
-const wingGeo = keep(new THREE.CircleGeometry(1, 20).scale(0.95, 0.38, 1).translate(0.85, 0, 0).rotateX(-Math.PI / 2));
+const DD_AMBER = C(2.6, 2.05, 0.5), DD_MINT = C(0.5, 2.4, 1.5), DD_LIT = C(2.2, 2.6, 0.6);
+// a leaf-shaped wing lying flat along +x from the root
+const leafGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, 0); s.quadraticCurveTo(0.45, 0.32, 1, 0.06); s.quadraticCurveTo(1.05, 0, 1, -0.04); s.quadraticCurveTo(0.45, -0.2, 0, 0); return keep(new THREE.ShapeGeometry(s, 12).rotateX(-Math.PI / 2)); })();
+const antGeo = keep(new THREE.CylinderGeometry(0.015, 0.02, 0.6, 4).rotateX(Math.PI / 2).translate(0, 0, -0.3));
+// a firefly seen from above, head at -z: dark head and wing covers, a red-orange shield behind the head, pale beating hind
+// wings and a glowing yellow-green tail lantern with a soft halo
 function firefly() {
-  const g = new THREE.Group(), bulb = new THREE.Mesh(sphGeo, basic(0xffc22a, false, 1)), halo = new THREE.Mesh(sphGeo, basic(C(0.9, 0.6, 0.1), true, 0.3)), body = new THREE.Mesh(sphGeo, basic(0x1c1a10, false, 1)), head = new THREE.Mesh(sphGeo, basic(0x2a2614, false, 1));
-  bulb.scale.set(0.24, 0.22, 0.34); bulb.position.z = 0.3; halo.scale.setScalar(0.6); halo.position.z = 0.3; body.scale.set(0.22, 0.2, 0.3); body.position.z = -0.12; head.scale.setScalar(0.15); head.position.z = -0.42;
-  const wings = [-1, 1].map((sd) => { const w = new THREE.Mesh(wingGeo, basic(0xb8f5e2, false, 0.75)); w.scale.set(sd * 0.7, 1, 0.7); w.position.set(0, 0.1, -0.1); g.add(w); return w; });
-  g.add(halo, bulb, body, head); g.userData.wings = wings; g.traverse((m) => { m.renderOrder = 8; }); return g;
+  const g = new THREE.Group(), dark = basic(0x221c14, false, 1), sh = (sx, sy, sz, x, y, z, m) => { const q = new THREE.Mesh(sphGeo, m); q.scale.set(sx, sy, sz); q.position.set(x, y, z); g.add(q); return q; };
+  sh(0.3, 0.3, 0.36, 0, 0.05, 0.55, basic(C(0.6, 0.8, 0.1), true, 0.22));                      // lantern halo
+  sh(0.2, 0.17, 0.3, 0, 0.06, 0.5, basic(0xf4ff86, false, 1));                                  // lantern
+  sh(0.12, 0.1, 0.12, 0, 0.08, -0.42, dark);                                                     // head
+  sh(0.17, 0.08, 0.13, 0, 0.1, -0.27, basic(0xd8542a, false, 1));                              // shield
+  const hind = [-1, 1].map((sd) => { const w = new THREE.Mesh(leafGeo, basic(0xcff3ea, false, 0.5)); w.position.set(sd * 0.05, 0.12, -0.15); w.scale.set(sd * 0.95, 1, 0.9); g.add(w); return w; });
+  for (const sd of [-1, 1]) { const e = new THREE.Mesh(leafGeo, dark); e.position.set(sd * 0.04, 0.16, -0.18); e.rotation.y = -sd * 1.15; e.scale.set(sd * 0.72, 1, 0.9); g.add(e); }
+  for (const sd of [-1, 1]) { const a = new THREE.Mesh(antGeo, dark); a.position.set(sd * 0.05, 0.1, -0.5); a.rotation.y = sd * 0.35; g.add(a); }
+  g.userData.wings = hind; g.traverse((m) => { m.renderOrder = 8; }); return g;
 }
+// a point light carried by a firefly: a bright star in a soft glow
+const mote = (kit, x, y, z, c, s = 1, halo = 0.4) => { kit.glow(x, y, z, c, 0.05, 0.42 * s, 1, kit.K.STAR, 1); if (halo) kit.glow(x, y, z, DD_AMBER, 0.05, 1.0 * s, halo, kit.K.GLOW, 1); };
 const domdom = {
-  // Ong Thợ: a big firefly drone circles over her, its lantern glowing, a soft cone of light under it and a mint thread to
-  // the ally it heals
+  // Ong Thợ: a firefly drone circles over her, hind wings beating, its tail lantern glowing, a mint thread to the ally it heals
   ddDrone: {
     zones: ['drone'],
     skill() { return true; },
-    zoneMake(kit, z) {
-      const f = firefly(), spot = softRing(kit, z.x, z.z, 3, C(0.85, 0.7, 0.15), { c2: DD_MINT, w: 0.12, fill: 0.3, life: 1e9, r0: 0.6, grow: 0.2, alpha: 0.8 });
-      return { f, spot, h: held(kit, [f]), link: null, t: 0 };
-    },
+    zoneMake(kit) { const f = firefly(); return { f, h: held(kit, [f]), link: null, t: 0 }; },
     zone(kit, v, z, dt) {
       v.t += dt; const o = kit.match && kit.match.units[z.owner], ang = z.age * 2.2, k = Math.min(1, z.age * 4) * Math.min(1, (z.dur - z.age) * 3);
       const px = (o ? o.x : z.x) + Math.cos(ang) * 1.5, pz = (o ? o.z : z.z) + Math.sin(ang) * 1.5, py = 2.8 + Math.sin(v.t * 3) * 0.15;
-      v.f.position.set(px, py, pz); v.f.rotation.y = -ang - Math.PI; v.f.scale.setScalar(4.2 * k);
-      v.f.userData.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (0.3 + 0.5 * Math.sin(v.t * 40)); });
-      v.spot.position.set(px, 0.14, pz);
-      if (Math.random() < dt * 10) kit.glow(px + R(-0.3, 0.3), py - 0.2, pz + R(-0.3, 0.3), DD_AMBER, 0.9, 0.22, 1, kit.K.STAR, 0.5, 0, -0.8, 0);
+      v.f.position.set(px, py, pz); v.f.rotation.y = -ang - Math.PI; v.f.scale.setScalar(5.2 * k);
+      v.f.userData.wings.forEach((w, i) => { const sd = i ? 1 : -1; w.rotation.y = -sd * (0.45 + 0.4 * Math.sin(v.t * 38)); });
+      if (Math.random() < dt * 12) kit.glow(px + R(-0.4, 0.4), py - 0.2, pz + R(-0.4, 0.4), DD_LIT, 0.9, 0.2, 1, kit.K.STAR, 0.5, 0, -0.8, 0);
       const tg = z.target >= 0 && kit.match ? kit.match.units[z.target] : null;
-      if (tg && tg.alive) { if (!v.link) v.link = kit.beam(px, pz, tg.x, tg.z, 0.9, DD_MINT, 1e9, 2, 1.8); kit.aimBeam(v.link, px, pz, tg.x, tg.z, 1.8); }
+      if (tg && tg.alive) { if (!v.link) v.link = kit.beam(px, pz, tg.x, tg.z, 0.7, DD_MINT, 1e9, 2, 1.8); kit.aimBeam(v.link, px, pz, tg.x, tg.z, 1.8); }
       else if (v.link) { kit.endBeam(v.link); v.link = null; }
     },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.spot); if (v.link) kit.endBeam(v.link); },
+    zoneDrop(kit, v) { v.h.on = false; if (v.link) kit.endBeam(v.link); },
   },
-  // Tiếp Sức: a swarm of fireflies streams from her to the ally and circles it for the boost, a mint bubble round it
+  // Tiếp Sức: three ribbons of fireflies stream from her to the ally, winding, and wind into a ring of lights round it
   ddBless: {
     skill() { return true; },
     bless(kit, e, u, row) {
       const o = kit.match && kit.match.units[e.to]; if (!o) return true;
-      const dur = row.dur || 4, n = 16, x0 = u.x, z0 = u.z, ph = Array.from({ length: n }, () => [R(-2.5, 2.5), R(0, 6.283), R(1.1, 1.8), R(0.6, 2.2)]);
-      kit.follow(o, dur, (t) => {
-        for (let i = 0; i < n; i++) {
-          const [bend, a0, rr, hy] = ph[i], f = Math.min(1, Math.max(0, (t - i * 0.015) / 0.35)), a = a0 + t * 2.5, ox = o.x + Math.cos(a) * rr, oz = o.z + Math.sin(a) * rr;
-          const mx = (x0 + ox) / 2 + (oz - z0) * 0.15 * bend, mz = (z0 + oz) / 2 - (ox - x0) * 0.15 * bend, q = 1 - f;
-          const px = q * q * x0 + 2 * q * f * mx + f * f * ox, pz = q * q * z0 + 2 * q * f * mz + f * f * oz, py = 1 + hy * Math.sin(f * Math.PI * 0.5) + 0.3 * Math.sin(t * 5 + i);
-          kit.glow(px, py, pz, i % 3 ? DD_AMBER : DD_MINT, 0.05, 0.8, 1, kit.K.STAR, 1);
-          kit.glow(px, py, pz, DD_AMBER, 0.05, 2.2, 0.5, kit.K.GLOW, 1);
-        }
-      });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < 0.3) return true;
-        shell(kit, o.x, 1.1, o.z, 3, DD_MINT, { c2: C(0.2, 1.6, 0.9), p: 1.4, core: 0.15, follow: o, life: dur - 0.3, grow: 0.15, alpha: 1 });
-        softRing(kit, o.x, o.z, 3.2, DD_MINT, { c2: DD_AMBER, w: 0.06, life: 0.7, r0: 0.3, grow: 0.25 });
-        kit.flash(o.x, 2, o.z, DD_AMBER, 30, 0.25); return false; }, drop() {} });
+      const dur = row.dur || 4, x0 = u.x, z0 = u.z, fly = 0.4;
+      const head = (j) => (t) => {
+        if (!o.alive || t > dur) return null;
+        const f = Math.min(1, t / fly), a = j * 2.094 + t * 3, rr = 2.3, ox = o.x + Math.cos(a) * rr, oz = o.z + Math.sin(a) * rr;
+        const sw = Math.sin(f * Math.PI) * 1.6 * (j - 1), q = 1 - f, dx = ox - x0, dz = oz - z0, L = Math.hypot(dx, dz) || 1;
+        return [x0 + dx * f - dz / L * sw, 1.3 + 0.4 * Math.sin(t * 4 + j) + Math.sin(f * Math.PI) * 1.2 * q, z0 + dz * f + dx / L * sw];
+      };
+      for (let j = 0; j < 3; j++) { const h = head(j); trail(kit, h, 0.8, DD_AMBER, dur, { c2: DD_MINT, len: 22, fade: 0.4, add: true }); kit.follow(o, dur, (t) => { const p = h(t); if (p) mote(kit, p[0], p[1], p[2], DD_LIT, 1.8); }); }
+      kit.follow(o, dur, (t) => { if (t < fly) return; for (let i = 0; i < 12; i++) { const a = i * 0.5236 - t * 1.5; mote(kit, o.x + Math.cos(a) * 2.3, 0.5 + 0.15 * Math.sin(t * 5 + i), o.z + Math.sin(a) * 2.3, i % 3 ? DD_LIT : DD_MINT, 2); } });
+      kit.flash(o.x, 2, o.z, DD_AMBER, 30, 0.25);
       return true;
     },
   },
-  // Vòng Sáng: a ring of warm light runs out to the edge, every ally inside gets a mint bubble, and fireflies rise out of the
-  // ground all over the circle
+  // Vòng Sáng: fireflies pour out in a great ring of lights to the edge, a second ring of mint lights turns inside it, and
+  // bright streaks of fireflies race round between them
   ddRally: {
     skill() { return true; },
     rally(kit, e, u) {
-      const r = e.r || 8, x = e.x, z = e.z;
-      softRing(kit, x, z, r, DD_AMBER, { c2: C(2.6, 2.4, 1.4), w: 0.07, fill: 0.2, life: 1.4, r0: 0.2, grow: 0.3 });
-      softRing(kit, x, z, r * 0.6, DD_MINT, { w: 0.05, life: 1.1, r0: 0.1, grow: 0.25, alpha: 0.8 });
-      if (kit.match) for (const o of kit.match.units) if (o.alive && o.team === u.team && Math.hypot(o.x - x, o.z - z) <= r) shell(kit, o.x, 1.1, o.z, 1.9, DD_MINT, { c2: C(0.2, 1.6, 0.9), p: 2, core: 0.08, follow: o, life: 1.3, grow: 0.15, alpha: 0.9 });
-      for (let i = 0, n = kit.N(46); i < n; i++) { const a = Math.random() * 6.283, d = r * Math.sqrt(Math.random()); kit.glow(x + Math.cos(a) * d, R(0.2, 0.8), z + Math.sin(a) * d, i % 4 ? DD_AMBER : DD_MINT, R(1, 1.6), R(0.35, 0.55), 1, kit.K.STAR, 1, R(-0.5, 0.5), R(1.5, 3), R(-0.5, 0.5)); }
+      const r = e.r || 8, x = e.x, z = e.z, life = 1.5;
+      kit.follow(u, life, (t) => {
+        const k = 1 - (1 - Math.min(1, t / 0.35)) ** 2, f = Math.min(1, (life - t) / 0.5);
+        for (let i = 0; i < 44; i++) { const a = i * 0.1428 + t * 0.4, rw = r * k * (0.86 + 0.14 * Math.sin(a * 6 - t * 3)); mote(kit, x + Math.cos(a) * rw, 0.4 + 0.2 * Math.sin(t * 6 + i), z + Math.sin(a) * rw, DD_LIT, 1.5 * f, 0.3); if (i % 2 === 0) kit.str.emit(x + Math.cos(a) * rw, 0.4, z + Math.sin(a) * rw, 0, R(5, 8), 0, DD_LIT, 0.3, 0.1, 0.06, 0, 1, 1); }
+        for (let i = 0; i < 24; i++) { const a = i * 0.2618 - t * 0.9; mote(kit, x + Math.cos(a) * r * 0.58 * k, 0.6, z + Math.sin(a) * r * 0.58 * k, DD_MINT, 1.2 * f, 0.3); }
+      });
+      for (let j = 0; j < 6; j++) trail(kit, (t) => { if (t > life - 0.3) return null; const a = j * 1.0472 + t * 3.5, rr = r * 0.95 * Math.min(1, t / 0.7); return [x + Math.cos(a) * rr, 0.8, z + Math.sin(a) * rr]; }, 0.6, C(1, 0.72, 0.12), life, { c2: C(0.2, 0.75, 0.5), len: 20 });
+      if (kit.match) for (const o of kit.match.units) if (o.alive && o.team === u.team && Math.hypot(o.x - x, o.z - z) <= r) for (let i = 0; i < kit.N(8); i++) kit.glow(o.x + R(-0.8, 0.8), R(0.3, 1), o.z + R(-0.8, 0.8), DD_LIT, R(0.8, 1.2), 0.35, 1, kit.K.STAR, 1, 0, R(1.5, 3), 0);
       kit.flash(x, 3, z, DD_AMBER, 40, 0.4);
       return true;
     },
