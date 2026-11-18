@@ -136,7 +136,9 @@ export class Runner {
       }
       if (!layout) throw err;
       const house = buildHouse(G, layout, theme);
-      G.house = house; G.nav = navFor(layout);
+      G.house = house;
+      G.truck = buildTruck(G, house);   // before nav: the truck blocks its cells in layout.block
+      G.nav = navFor(layout);
       this.placePlayer(house.spawn);
       G.foes = new Foes(G, house);   // always there (tests spawn into it); foes=none only skips the roster
       if (this.opts.foes !== 'none') {
@@ -152,7 +154,6 @@ export class Runner {
       const per = Math.round(total / padCount / 10) * 10;
       for (const p of house.pads) p.quota = per;
       G.extract.setPads(house.pads);
-      G.truck = buildTruck(G, house);
       this.padRings = house.pads.map((p) => ({ a: new Ring(G.scene, p.x, p.z, p.half * 1.25, p.half * 1.36, 0x43d0ff), b: new Ring(G.scene, p.x, p.z, p.half * 1.08, p.half * 1.2, 0xffe45e) }));
       Object.assign(R, { phase: 'loot', house: n, level, quotaTotal: total, padQuota: per, padCount, lootSum0: lootSum, houseHaul: 0, restocked: 0, restockT: 0, unreachableT: 0, downT: 0, escape: null, seen: new Set([0]), houseSeedUsed: seed, theme });
       this.log('house', { n, theme, seed, loot: items.length, lootSum, quotaTotal: total, padCount, per });

@@ -19,3 +19,7 @@ time	unit	decision	evidence
 2026-11-18 22:45	bug	run.js với foes=none bỏ luôn G.foes -> tools/foes.js hỏng; giờ luôn tạo Foes, chỉ bỏ roster	foes.js ALL PASS
 2026-11-18 22:50	tools	foes.js chụp thêm dark-<loài>.png: nhà tắt đèn (setDim 0.02), chỉ đèn pin, quái cách 3 m; robots.js --dark vẫn giữ	ảnh trước/sau 14 loài
 2026-11-18 22:55	known	house3d.js: 8/10 bài 'walk through doors' FAIL cả trên e798cf83 gốc (kẹt ở hành lang sau 1 cửa) -> lỗi có trước, chưa sửa	tools/house3d.js
+2026-11-18 23:20	fix	kẹt cửa: house3d step() gán lại tham số pos = quái gần nhất, mọi cửa sau đo tới quái; giờ biến cục bộ who cho từng cửa	house3d.js 8 -> 5 FAIL
+2026-11-18 23:30	fix	xe tải dựng sau nav nên tool/quái đi xuyên xe; xe giờ đánh dấu layout.block, run.js dựng xe trước navFor	house3d.js 5 -> 4 FAIL
+2026-11-18 23:40	tools	4 FAIL còn lại do quái đang ngủ đứng trên lộ trình (angel, gacha, mummy); house3d.js kiểm hình nhà nên tải foes=none	house3d.js 10/10, slice/foes/run xanh
+2026-11-18 23:45	scope	chủ dự án đổi hướng robot: bỏ đợt quái rùng rợn, chuyển sang style Xưởng Robot Lóc Cóc (games/robot-loc-coc)	tin nhắn chủ dự án

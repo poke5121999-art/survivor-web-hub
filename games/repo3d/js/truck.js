@@ -82,6 +82,11 @@ export function buildTruck(G, house) {
   let rx = 0, rz = 0;
   if (spot.alongX) rx = Math.sign(dxr) || 1; else rz = Math.sign(dzr) || 1;
   const yaw = Math.atan2(rz, -rx);
+  // the truck body is solid: mark its cells blocked so navigation (foes, bots, tools) routes around it; run.js builds nav after this
+  {
+    const ax = spot.alongX ? LEN / 2 : WID / 2, az = spot.alongX ? WID / 2 : LEN / 2, W = layout.w;
+    for (let y = Math.floor(spot.cz - az); y < Math.ceil(spot.cz + az); y++) for (let x = Math.floor(spot.cx - ax); x < Math.ceil(spot.cx + ax); x++) if (x >= 0 && y >= 0 && x < W && y < layout.h) layout.block[y * W + x] = 1;
+  }
   const root = new THREE.Group(); root.name = 'truck';
   root.position.set(spot.cx, 0, spot.cz); root.rotation.y = yaw;
   const disposables = [];

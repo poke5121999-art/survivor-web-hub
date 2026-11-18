@@ -950,16 +950,17 @@ export function buildHouse(G, layout, theme) {
   function step(dt, pos, others = []) {
     for (const d of doorList) {
       if (d.jammed) continue;
-      let dist = Math.hypot(pos.x - d.cx, pos.z - d.cz);
+      // nearest opener of THIS door; a local, so the next door measures from the player again
+      let who = pos, dist = Math.hypot(pos.x - d.cx, pos.z - d.cz);
       for (const o of others) {
         const od = Math.hypot(o.x - d.cx, o.z - d.cz);
-        if (od < dist) { dist = od; pos = o; }
+        if (od < dist) { dist = od; who = o; }
       }
       if (dist < 2.6 && d.target === 0) {
         d.target = 1;
         if (d.open === 0) {
         // swing away from the player: side of the door plane by the walk axis
-        const along = d.door.dir === 0 ? pos.x - d.cx : pos.z - d.cz;
+        const along = d.door.dir === 0 ? who.x - d.cx : who.z - d.cz;
         d.side = along >= 0 ? -1 : 1;
         }
       } else if (dist > 3.4 && d.target === 1) d.target = 0;

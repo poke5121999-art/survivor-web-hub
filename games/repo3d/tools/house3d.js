@@ -17,6 +17,8 @@ fs.mkdirSync(OUT, { recursive: true });
 const failures = [];
 const check = (ok, name, detail) => { if (!ok) failures.push(name); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`); };
 
+// The house loads with foes=none: this walk checks walls, doors and the truck; a sleeping foe on the route would block it
+// (foes passing doors is covered by tools/foes.js (h)).
 // runs inside the page: BFS route from spawn to a room 3 doors away, follow it, report how far it got
 const WALK = `(() => {
   const G = __G, h = G.house, L = h.layout, W = L.w, H = L.h, P = G.player;
@@ -59,7 +61,7 @@ const WALK = `(() => {
   };
   for (let s = 0; s < 14 && !stuck && !(idx >= route.length - 1); s++) __sim(5, cmd);
   const e = P.body.translation();
-  return { goalRoom, depth: depth.get(goalRoom), routeLen: route.length, idx, moved: Math.hypot(e.x - s0.x, e.z - s0.z), doorsPassed: doorHit.size, stuck, simSeconds: ticks / 60, end: { x: e.x, z: e.z }, roomKind: room.kind };
+  return { goalRoom, depth: depth.get(goalRoom), routeLen: route.length, idx, moved: Math.hypot(e.x - s0.x, e.z - s0.z), doorsPassed: doorHit.size, stuck, simSeconds: ticks / 60, end: { x: e.x, z: e.z }, roomKind: room.kind, truck: G.truck && { x: +G.truck.x.toFixed(1), z: +G.truck.z.toFixed(1), yaw: +G.truck.yaw.toFixed(2) }, spawn: { x: h.spawn.x, z: h.spawn.z }, path3: route.slice(0, 6), near: { foes: (G.foes ? G.foes.list : []).filter((f) => !f.dead && Math.hypot(f.x - e.x, f.z - e.z) < 3).map((f) => [f.kind, f.state, +Math.hypot(f.x - e.x, f.z - e.z).toFixed(2)]), doors: h.doors.map((d, k) => [k, +Math.hypot(d.x - e.x, d.z - e.z).toFixed(2), d.jammed ? "J" : "", +(d.open ?? -1).toFixed(2), d.target]).filter((r) => r[1] < 3), next: route.slice(idx, idx + 3) } };
 })()`;
 
 (async () => {
@@ -78,7 +80,7 @@ const WALK = `(() => {
       page.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
       try {
         const t0 = Date.now();
-        await page.goto(`${srv.base}/games/repo3d/index.html?house=${hi}&theme=${theme}&seed=${SEED}`);
+        await page.goto(`${srv.base}/games/repo3d/index.html?house=${hi}&theme=${theme}&seed=${SEED}&foes=none`);
         await page.waitForFunction('window.__ready === true || window.__fatal', null, { timeout: 60000 });
         const fatal = await page.evaluate('window.__fatal || null');
         check(!fatal, `${tag} boot`, fatal || `${((Date.now() - t0) / 1000).toFixed(1)}s wall`);
