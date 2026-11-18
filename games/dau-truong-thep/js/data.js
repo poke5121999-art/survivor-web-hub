@@ -959,21 +959,30 @@ export const MECHS = {
         desc: 'Chín quả cầu lửa xoay quanh bạn 6 giây; mỗi 0,35 giây một quả bay vào kẻ địch gần nhất trong 11 m, 140 sát thương.' },
     ],
   },
+  // Kiếm Thần = Lý Bạch: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p65 "62.李白", tooltips read at 0-4 s; AUDIT-b.md).
+  // Attack = one Kiếm Phong blow (2 x 62 = 124): Vạn Cổ Tiêu Sầu 100% -> 124, Long Tuyền 100% -> 124 rising to 200% -> 248 with the
+  // distance flown, Cửu Thiên 100% -> 124 + 15% of the lost hp, +200% -> 248 on a mech Long Tuyền marked. Cooldowns 10 / 6 / 25 s in
+  // the clip -> 12 / 8 / 45. Range 360 -> 9.7 m for the calm buff (1 m ~ 37 units). The 0-100 energy is the G2 energy, filled by
+  // walking (3 a metre) and emptied after 2 s standing still; "ignores damage reduction at max" is dropped.
   kiemthan: {
     name: 'Kiếm Thần', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1800, tint: 0xcfd6e0,
-    blurb: 'Bốn nhát kiếm trúng liền thì nhát kế tiếp hóa kiếm khí dài và nặng hơn. Kiếm Trận lơ lửng chặn đạn, Vạn Kiếm Quy Tông dội kiếm xuống kẻ địch quanh con trỏ.',
-    hp: 2800, speed: 6.3, radius: 0.86,
+    blurb: 'Lý Bạch: đi tới đâu tích kiếm ý tới đó, không ai quanh mình thì chạy nhanh và đánh mạnh hơn. Uống rượu giải mọi khống chế, ngự kiếm bay xa càng đau, gọi chín tầng phi kiếm chém xuống mọi kẻ địch quanh mình.',
+    hp: 2700, speed: 6.3, radius: 0.86,
     armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.2,
-    passive: { do: 'meter', name: 'Kiếm Khí', desc: 'Mỗi nhát kiếm thường trúng nạp một nấc, đủ 4 nấc thì loạt kiếm kế tiếp thành kiếm khí xuyên thấu bay xa 15 m, rộng hơn và nặng thêm 40%.',
-      max: 4, gain: { weapon: 1 }, spend: { kind: 'shot', mul: 1.4, patch: { range: 15, speed: 34, r: 0.5, pierce: true, vis: 'lance' } } },
+    energy: { max: 100, regen: 0, start: 0 },
+    passive: { do: 'moon', name: 'Nguyệt Hạ Độc Chước', ktEn: { per: 3, idle: 2 }, ktCalm: { r: 9.7, haste: 1.25, dmg: 1.25 },
+      desc: 'Không có kẻ địch nào trong 9,7 m quanh bạn thì bạn chạy nhanh hơn và gây thêm 25% sát thương. Thanh kiếm ý 0-100 đầy dần khi bạn di chuyển (3 mỗi mét) và mất sạch khi đứng yên quá 2 giây; kiếm ý làm Long Tuyền Xuất Hạp và Cửu Thiên Thần Kiếm mạnh thêm tới 50%.' },
     weapon: { name: 'Kiếm Phong', cd: 0.4, dmg: 62, n: 2, fan: 0.1, speed: 28, range: 7.5, r: 0.3, pierce: true, vis: 'wave' },
     skills: [
-      { id: 'kiemkhitram', look: 'ktSword', name: 'Kiếm Khí Trảm', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 32, range: 15, r: 0.5, pierce: true, vis: 'wave', icon: 'pierce',
-        desc: 'Chém một luồng kiếm khí xuyên thấu 240 sát thương, tầm 15 m.' },
-      { id: 'kiemtran', look: 'ktArray', name: 'Kiếm Trận', cd: 14, do: 'orbit', mode: 'guard', n: 6, dur: 4, ring: 2, dps: 160, block: true, icon: 'screen',
-        desc: 'Sáu thanh kiếm xoay quanh bạn 4 giây: chặn mọi đạn địch chạm vào kiếm và chém kẻ áp sát trong 2,6 m, 160 máu mỗi giây.' },
-      { id: 'vankiem', look: 'ktRain', name: 'Vạn Kiếm Quy Tông', cd: 44, do: 'barrage', n: 9, radius: 5, blast: 1.8, dmg: 230, delay: 0.5, span: 1.6, cast: 14, seek: { radius: 8 }, icon: 'barrage',
-        desc: 'Chín thanh kiếm giáng xuống kẻ địch quanh con trỏ (trong 8 m), dư thì rải ngẫu nhiên, mỗi thanh 230 sát thương.' },
+      { id: 'tieusau', look: 'ktDrink', name: 'Vạn Cổ Tiêu Sầu', cd: 12, do: 'nova', windup: 0.05, move: 0.6, radius: 3.5, dmg: 124, knock: 3, fx: { weaken: { mul: 0.75, dur: 3 } },
+        self: { on: 'cast', dur: 3, haste: 2, hasteDecay: true }, ktFree: true, ktGain: 50, icon: 'boost',
+        desc: 'Uống rượu: ngay lập tức được 50 kiếm ý, giải mọi hiệu ứng xấu, 3 giây chạy nhanh gấp đôi (nhạt dần); kẻ địch trong 3,5 m bị đẩy lùi, chịu 124 sát thương và gây ít hơn 25% sát thương trong 3 giây. Dùng được cả khi đang bị choáng, hất tung, hóa đá hay hỗn loạn.' },
+      { id: 'longtuyen', look: 'ktFly', name: 'Long Tuyền Xuất Hạp', cd: 8, uses: { n: 3, gap: 2 }, do: 'volley', n: 1, dmg: 124, speed: 30, range: 14, r: 0.35, thruWalls: true,
+        far: { ramp: { per: 0.0715, max: 2 } }, towerMul: 0, fx: { tag: { key: 'ktSword', dur: 4 } }, en: { refund: 25 }, ktSpend: 0.5, vis: 'dart', icon: 'pierce',
+        desc: 'Ngự kiếm bay theo hướng ngắm (14 m), xuyên qua địa hình, đâm kẻ địch đầu tiên: 124 sát thương, bay càng xa càng đau, tới gấp đôi ở cuối tầm. Tiêu hết kiếm ý: mỗi 100 kiếm ý làm kiếm bay nhanh và đau thêm 50%; trúng thì được lại 25. Tích 3 lần, cách nhau 2 giây. Không gây sát thương lên công trình.' },
+      { id: 'cuuthien', look: 'ktHeaven', name: 'Cửu Thiên Thần Kiếm', cd: 45, do: 'barrage', n: 1, radius: 0, blast: 1.6, dmg: 124, delay: 1.5, span: 0, cast: 0, fx: { lostHp: 0.15 },
+        vsTag: { key: 'ktSword', fx: { trueDmg: 248 } }, ktLock: 8, ktScale: 0.5, icon: 'barrage',
+        desc: 'Khóa mọi kẻ địch trong 8 m quanh bạn, mỗi kẻ một thanh phi kiếm; 1,5 giây sau kiếm chém xuống: 124 sát thương cộng 15% máu đã mất của mục tiêu (sát thương chuẩn), mạnh thêm tới 50% theo kiếm ý; kẻ đang mang dấu Long Tuyền Xuất Hạp chịu thêm 248. Không có ai trong 8 m thì không dùng được.' },
     ],
   },
   // Baymax: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p59 "56.小白", panel 小白III, audit AUDIT-a.md). Attack = one
@@ -1300,7 +1309,7 @@ export const PERKS = {
   thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Màn Nước Dài', 'Thủy Mạc Bình Chướng dài bảy khối, đứng 5 giây.', 1, { n: 7, dur: 5 }), perk('Xoáy Lớn', 'Cuồng Lan Thúc Phược rộng 6 m.', 2, { radius: 6 })],
   samthep: [perk('Dầm Nặng', 'Thanh dầm thứ hai gây 330.', 0, { mgtSeq: [{ delay: 0.45, dmg: 186 }, { delay: 0.85, dmg: 330 }] }), perk('Nện Mạnh', 'Trọng Lực Phản Xung nện 340, rộng 4 m.', 1, { mgtSeq: [{ delay: 0.3, dmg: 0, fx: { lift: 1.5 } }, { delay: 1.8, dmg: 340, blast: 4, fx: { stun: 1 }, fxNew: true }] }), perk('Bão Dài', 'Từ Năng Phong Bạo kéo dài 7,5 giây, đánh 10 lần.', 2, { dur: 7.5, mgtStorm: { n: 10, dmg: 38, near: { r: 6, dmg: 150 } } })],
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
-  kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
+  kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Kiếm Bay Xa', 'Long Tuyền Xuất Hạp bay xa 16 m.', 1, { range: 16 }), perk('Cửu Thiên Rộng', 'Cửu Thiên Thần Kiếm khóa mọi kẻ địch trong 10 m.', 2, { ktLock: 10 })],
   suatrang: [perk('Xích Ấm', 'Xích hồi máu hồi 190 mỗi giây cho cả hai.', 0, { tie: { hps: 190, drain: 10, range: 9 } }), perk('Bom Nặng', 'Siêu Năng Tạc Đạn gây 360.', 1, { dmg: 360 }), perk('Khiên Chiến Sĩ', 'Siêu Năng Chiến Sĩ che khiên 1300.', 2, { landShield: 1300 })],
   khidot: [perk('Gầm Vang', 'Chấn Không Nộ Hống rộng 6 m, gây 300.', 0, { radius: 6, dmg: 300 }), perk('Giẫm Lớn', 'Tử Vong Tiễn Đạp rộng 4,2 m, gây 280.', 1, { radius: 4.2, dmg: 280 }), perk('Nộ Dài', 'Dã Man Chi Nộ kéo dài 10 giây.', 2, { dur: 10 })],
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],

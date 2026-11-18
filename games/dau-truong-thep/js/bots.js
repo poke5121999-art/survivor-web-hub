@@ -1126,6 +1126,7 @@ const SKILL_AI = {
   nova(c, s) {
     if (s.orbKnock) return k4BotKnock(c, s);   // kit-remake K4: tumay's cone also throws its orbs
     if (c.u.def.passive && c.u.def.passive.hdSplit) return hdBotNova(c, s);   // kit-remake G5 hades: Lợi Nhận on one foe in reach
+    if (s.ktFree) return ktBotDrink(c, s);   // kit-remake G5 kiemthan: the wine (cleanse, haste, push)
     const { u, tgt } = c;
     let n = 0;
     for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
@@ -1179,6 +1180,7 @@ const SKILL_AI = {
     return tgt.hp < tgt.maxHp * 0.6 && c.D.skill >= 0.6;
   },
   barrage(c, s) {
+    if (s.ktLock) return ktBotRain(c, s);   // kit-remake G5 kiemthan: a strike on every foe in reach
     const { u, tgt, td } = c;
     // lock (Athena): the sim picks the nearest enemy in reach itself, so any enemy inside reach is enough
     if (s.lock) { for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.lock - 0.5) return true; return false; }
@@ -1843,6 +1845,7 @@ function chooseSkill(c) {
       return b.sk;
     }
   }
+  if ((u.stunT > 0.25 || u.silenceT > 0.25 || locked(u)) && ktBotFree(c, b.sk)) return b.sk;   // kit-remake G5 kiemthan: the wine breaks a stun
   if (u.cast || u.dash || u.stunT > 0 || u.silenceT > 0 || locked(u)) return null;
   if (u.sirT > 0 && u.hp < u.maxHp * 0.6) return null;   // kit lane K7 (Thủy Tinh): a cast breaks the ice block, so stay sealed while hurt
   const sk = b.sk;
@@ -2546,3 +2549,33 @@ function hlBotArmor(c, s) {
   return c.underFire || c.hpFrac < 0.9 || c.near >= 2 || c.D.skill >= 0.6;
 }
 /* ===== end kit-remake G5 hoalong ===== */
+
+/* ===== kit-remake G5 kiemthan: bot policy for the ported kit (sim.js "kit-remake G5 kiemthan") ===== */
+// stunned, silenced or under loss of control with a ready ktFree row: press it (the sim cleanses first)
+function ktBotFree(c, sk) {
+  const { u } = c;
+  for (let i = 0; i < 3; i++) {
+    const s = u.def.skills[i];
+    if (!s || !s.ktFree || !skillReady(u, i)) continue;
+    sk.slot = i; sk.aim = null; sk.mx = null; sk.mz = null; sk.x = u.x; sk.z = u.z;
+    return true;
+  }
+  return false;
+}
+// Vạn Cổ Tiêu Sầu: rooted or slowed hard, foes on top of me, or chasing one that got away
+function ktBotDrink(c, s) {
+  const { u, tgt, td } = c;
+  if (u.rootT > 0.3 || u.slowT > 0.5 || u.slowG > 0.25 || u.burnT > 0.5) return true;
+  let n = 0;
+  for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * 0.9) n++;
+  if (n >= 2 || (n >= 1 && (c.hpFrac < 0.6 || c.underFire))) return true;
+  return !!tgt && td > 8 && td < 14 && tgt.hp < tgt.maxHp * 0.5;
+}
+// Cửu Thiên Thần Kiếm: one strike per foe within reach: worth it on two, or on one hurt or worth finishing
+function ktBotRain(c, s) {
+  const { u } = c;
+  let n = 0, low = false;
+  for (const e of c.enemies) if (!e.def.boss && hyp(e.x - u.x, e.z - u.z) < s.ktLock - 0.8) { n++; if (e.hp < e.maxHp * 0.7) low = true; }
+  return n >= 2 || (n >= 1 && (low || c.D.skill >= 0.9));
+}
+/* ===== end kit-remake G5 kiemthan ===== */

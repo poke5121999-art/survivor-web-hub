@@ -13,7 +13,7 @@ import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
-import { runK15Cases, oldKit as oldKit15, OLD_HOALONG } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
+import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -135,8 +135,8 @@ for (const key of MECH_ORDER) {
     if (s.uses) continue;   // uses (skill charges): the next use waits for its gap, not the cooldown; sections 46 and 48 check them
     // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
     const ally = s.to === 'ally';
-    // a flurry (and a leap onto a foe) needs somebody in reach: the foe stands 4 m away
-    const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : s.do === 'flurry' || (s.do === 'leap' && s.to === 'foe') ? -1 : 9, -1]);
+    // a flurry (and a leap onto a foe) needs somebody in reach: the foe stands 4 m away; so does a barrage ktLock (kiemthan ult), whose strikes need a foe within its reach
+    const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : s.do === 'flurry' || (s.do === 'leap' && s.to === 'foe') || s.ktLock ? -1 : 9, -1]);
     // thrifty (chuottui) rolls m.rng: no refund here, the cooldown is what is being measured
     if (m.units[0].passive === 'thrifty') m.rng = Object.assign(() => 0.99, m.rng);
     if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'trau', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
@@ -148,7 +148,7 @@ for (const key of MECH_ORDER) {
     // nova ult with its dur), so the recast comes that much later
     const held = s.cdAfter ? s.dur || 0 : 0;
     for (let t = 0; t < Math.ceil((s.cd + held + 1.5) / TICK); t++) {
-      const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' ? 0 : 1 });
+      const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' || s.ktLock ? 0 : 1 });
       step(m, ally ? [o, inp(), inp()] : [o, inp()]);
       // a follow-up (G3 then, Black Panther's second charge) carries `then` on its skill event: it is not a press
       for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === i && !e.then) { if (first < 0) { first = t; castTicks = a.cd[slot]; } else if (second < 0) second = t; }
@@ -3439,16 +3439,16 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     const z = m.zones.find((q) => q.kind === 'orbit');
     check('43o nobody within 11 m: no orb leaves', z && bits(z.live) === 9 && m.shots.length === 0);
   }
-  // orbit guard (kiemthan E): enemy shots that touch a blade are shot down; an enemy inside the ring is cut 160 / s
+  // orbit guard (kiemthan E, old kit fixture OLD_KIEMTHAN in k15-cases.mjs): enemy shots that touch a blade are shot down; an enemy inside the ring is cut 160 / s
   {
-    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 7, 0]]), [a, v] = m.units;
+    const m = oldKit15(arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 7, 0]]), 'kiemthan'), [a, v] = m.units;
     press(m, 0, 's2');
     const ev = go(m, 120, (i) => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 }, 0: { aim: 0 } }));
     const blocked = only(ev, 'impact', (e) => e.on === 'orbit').length, landed = only(ev, 'hit', (e) => e.id === 0).length;
     check('43p Kiem Tran: shots that touch a blade are shot down (impact on orbit); every shot is a block or a hit', blocked >= 1 && blocked + landed === only(ev, 'fire', (e) => e.id === 1).length - m.shots.filter((s) => s.owner === 1).length, `blocked ${blocked} landed ${landed}`);
   }
   {
-    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 2, 0]]), v = m.units[1];
+    const m = oldKit15(arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 2, 0]]), 'kiemthan'), v = m.units[1];
     press(m, 0, 's2'); go(m, 35);
     check('43q an enemy 2 m away (inside ring + 0.6) is cut 80 per half second: 160 after 35 ticks', near(UNG.hp - v.hp, 160, 1e-6), `dmg ${UNG.hp - v.hp}`);
   }
@@ -3507,15 +3507,15 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     const d = Math.hypot(2, 1.5);
     check('43zb ... it bursts when its 3 s are up: 100 with falloff, slow 40 %', near(UNG.hp - v.hp, 100 * (1 - 0.5 * d / 3.5), 1e-6) && v.slowT > 0 && v.slowF === 0.4, `${UNG.hp - v.hp} slow ${v.slowF}`);
   }
-  // meter shot patch (kiemthan P): four sword hits arm it, the next volley is two lances: range 15, wide, piercing, x1.6
+  // meter shot patch (kiemthan P, old kit fixture OLD_KIEMTHAN): four sword hits arm it, the next volley is two lances: range 15, wide, piercing, x1.6
   {
-    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
+    const m = oldKit15(arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 5, 0]]), 'kiemthan'), [a, v] = m.units;
     go(m, 8, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
     check('43zc the sword wave hits once per blade; meter counts the hits (2 per volley, max 4)', a.meter >= 2, `meter ${a.meter}`);
     a.meter = 4; a.cd.fire = 0;
     go(m, 1, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
     const sh = m.shots.filter((s) => s.owner === 0);
-    check('43zd armed: two lances (vis lance, r 0.5, pierce, x passive mul each), meter spent', sh.length === 2 && sh.every((s) => s.vis === 'lance' && s.r === 0.5 && s.pierce && near(s.dmg, MECHS.kiemthan.weapon.dmg * MECHS.kiemthan.passive.spend.mul, 1e-9) && s.left > 13.5) && a.meter === 0, `${sh.length} ${sh[0] && sh[0].vis} ${a.meter}`);
+    check('43zd armed: two lances (vis lance, r 0.5, pierce, x passive mul each), meter spent', sh.length === 2 && sh.every((s) => s.vis === 'lance' && s.r === 0.5 && s.pierce && near(s.dmg, MECHS.kiemthan.weapon.dmg * OLD_KIEMTHAN.passive.spend.mul, 1e-9) && s.left > 13.5) && a.meter === 0, `${sh.length} ${sh[0] && sh[0].vis} ${a.meter}`);
     a.cd.fire = 0; go(m, 1, () => ({ 0: { fire: true, tx: 5, tz: 0 } }));
     const sw = m.shots.filter((s) => s.owner === 0 && s.vis === 'wave');
     check('43ze the volley after it is the plain sword wave again (range 7.5)', sw.length === 2 && sw.every((s) => s.r === 0.3 && s.left < 7.5), `${sw.length}`);

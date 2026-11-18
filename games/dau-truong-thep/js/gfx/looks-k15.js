@@ -161,4 +161,76 @@ const hoalong = {
   },
 };
 
-export const K15 = { ...hades, ...hoalong };
+// ---- Kiếm Thần = Lý Bạch (李白 p65): moon-white swords with a crimson fire accent ------------------------------------
+//   李白 p65: a gold-white flash of the wine (23 s), white swords round him, a red flying sword, red fire swords dropping inside
+//   columns of fire on the foes (MAP).
+const KT_WHITE = C(2.2, 2.3, 2.6), KT_MOON = C(0.9, 1.3, 2.4), KT_RED = C(2.5, 0.3, 0.12), KT_GOLD = C(2.6, 2.0, 0.8), KT_STEEL = 0xe8eef8;
+function swordAt(kit, life, place) {
+  const g = weapon('sword', KT_STEEL, KT_RED, { opacity: 0.95 }); g.scale.setScalar(2.2);
+  own(kit, [g], life, (t) => place(g, t));
+  return g;
+}
+const kiemthan = {
+  // Vạn Cổ Tiêu Sầu: a gold-white splash of wine, a white ring of six swords flashing out round him as the push goes off
+  ktDrink: {
+    pal: [KT_WHITE, KT_GOLD], hitR: 2,
+    skill(kit, e, u) { shell(kit, u.x, 1.4, u.z, 1.3, KT_GOLD, { c2: KT_WHITE, inv: 1.2, core: 1, life: 0.3 }); shell(kit, u.x, 1.2, u.z, 3, KT_GOLD, { c2: KT_WHITE, p: 1.5, core: 0.15, life: 0.5, grow: 0.1, alpha: 0.8 }); kit.flash(u.x, 1.6, u.z, KT_GOLD, 40, 0.25); return true; },
+    nova(kit, e) {
+      for (let i = 0; i < 6; i++) {
+        const a = i * 1.047;
+        swordAt(kit, 0.45, (g, t) => { const d = 1 + e.r * Math.min(1, t / 0.18); g.position.set(e.x + Math.cos(a) * d, 1.3, e.z + Math.sin(a) * d); g.rotation.set(0, -a, 0); fadeWeapon(g, Math.min(1, (0.45 - t) / 0.15)); });
+      }
+      slash(kit, e.x, e.z, 0, e.r * 1.15, KT_MOON, { y: 1, life: 0.5, span: 3.1, w: e.r * 0.4, sweep: 0.12, edge: KT_WHITE, c2: KT_GOLD, arcs: 2 });
+      kit.sparks(e.x, 1.2, e.z, kit.N(14), KT_GOLD, 8, 0.4, 0.05, 0.6, 3);
+      return true;
+    },
+  },
+  // Long Tuyền Xuất Hạp: the sword itself flies point first in a red-edged white streak; it ends in a crimson X cut
+  ktFly: {
+    skill(kit, e, u) {
+      kit.glow(u.x + Math.cos(e.a) * 1.3, 1.3, u.z + Math.sin(e.a) * 1.3, KT_WHITE, 0.12, 1.6, 1, kit.K.STAR, 1.3);
+      slash(kit, u.x, u.z, e.a, 5.2, KT_RED, { y: 1.3, life: 0.4, span: 1.4, w: 2.3, sweep: 0.06, edge: KT_WHITE, c2: KT_RED, arcs: 3 });
+      sigil(kit, u.x, u.z, 2.8, KT_MOON, { c2: KT_RED, n: 0, ticks: 10, inner: 0.7, life: 0.5, rev: 0.06, spin: 3, fill: 0.15, w: 0.08 });
+      return true;
+    },
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, live: true, a: Math.atan2(s.dz, s.dx) };
+      swordAt(kit, 1e9, (g) => { if (!v.live) return false; g.position.set(v.x, 1.3, v.z); g.rotation.set(0, -v.a, 0); });
+      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 1.1, KT_WHITE, 2, { c2: KT_RED, len: 18 });
+      trail(kit, () => (v.live ? [v.x, 1.35, v.z] : null), 1.4, KT_RED, 2, { c2: KT_MOON, len: 14, up: true });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.a = Math.atan2(s.dz, s.dx); kit.glow(x, 1.3, z, KT_WHITE, 0.06, 0.9, 1, kit.K.STAR, 1); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; cut(kit, x, z, v.a, 3, KT_RED, { edge: KT_WHITE, sparks: 5 }); kit.flash(x, 1.5, z, KT_RED, 25, 0.15); },
+  },
+  // Cửu Thiên Thần Kiếm: white swords ring him at the press; over each locked foe a red fire sword hangs point down in a lock
+  // ring, and after 1.5 s it drops inside a column of fire
+  ktHeaven: {
+    pal: [KT_RED, KT_GOLD], hitR: 2.2,
+    zones: ['strike'],
+    skill(kit, e, u) {
+      for (let i = 0; i < 8; i++) { const a = i * 0.785; swordAt(kit, 0.8, (g, t) => { const b = a + t * 3; g.position.set(u.x + Math.cos(b) * 2.2, 1.6, u.z + Math.sin(b) * 2.2); g.rotation.set(0, -b - 1.57, 0); fadeWeapon(g, Math.min(1, (0.8 - t) / 0.2)); }); }
+      return true;
+    },
+    zoneMake(kit, z) {
+      const v = { on: true };
+      v.s = sigil(kit, z.x, z.z, Math.max(1.8, z.r), KT_RED, { c2: KT_GOLD, n: 0, ticks: 12, inner: 0.6, life: 1e9, rev: 0.3, spin: 2.5, fill: 0.08 });
+      v.zz = z;
+      swordAt(kit, 1e9, (g) => { if (!v.on) return false; g.position.set(v.zz.x, 5.5, v.zz.z); g.rotation.set(0, 0, -Math.PI / 2); g.scale.setScalar(2.4); });
+      return v;
+    },
+    zone(kit, v, z) { v.zz = z; v.s.position.x = z.x; v.s.position.z = z.z; },
+    zoneDrop(kit, v) { v.on = false; stop(v.s); },
+    land(kit, e) {
+      swordAt(kit, 0.5, (g, t) => { g.scale.setScalar(2.4); g.rotation.set(0, 0, -Math.PI / 2); g.position.set(e.x, Math.max(0.6, 5.5 - t * 40), e.z); fadeWeapon(g, Math.min(1, (0.5 - t) / 0.2)); });
+      pillar(kit, e.x, e.z, 2.2, KT_RED, { c2: KT_GOLD, h: 9, life: 0.7, rings: 4, alpha: 0.95 });
+      burst(kit, e.x, e.z, 3.6, KT_RED, KT_GOLD, { life: 0.35 });
+      cut(kit, e.x, e.z, 0.6, 4.4, KT_RED, { edge: KT_WHITE, sparks: 6, life: 0.2 });
+      sigil(kit, e.x, e.z, 3.2, KT_RED, { c2: KT_GOLD, n: 8, m: 3, life: 0.7, rev: 0.06, spin: 2, fill: 0.2 });
+      kit.flash(e.x, 2, e.z, KT_RED, 45, 0.25); kit.kick(e.x, e.z, 0.4);
+      return true;
+    },
+  },
+};
+
+export const K15 = { ...hades, ...hoalong, ...kiemthan };

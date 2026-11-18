@@ -132,6 +132,7 @@ function clearStatus(u) {
   k14Clear(u);   // kit-remake K14
   hdClear(u);   // kit-remake G5 hades
   hlClear(u);   // kit-remake G5 hoalong
+  ktClear(u);   // kit-remake G5 kiemthan
 }
 
 function spawn(m, u, first) {
@@ -434,6 +435,7 @@ function stepUnit(m, u, inp) {
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
   hlTick(m, u);   // kit-remake G5 hoalong: lava trail, buff per burning foe
+  ktTick(m, u);   // kit-remake G5 kiemthan: energy by distance, the calm buff
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
     u.parryT -= dt;
@@ -499,6 +501,7 @@ function stepUnit(m, u, inp) {
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
+  if (ktP(u)) ktFree(m, u, inp);   // kit-remake G5 kiemthan: a ready ktFree row cleanses before the stun test
   if (u.locT > 0) inp = locInput(m, u, inp);
   if (u.tthHT > 0) inp = tthHeld(u);   // kit-remake G5 Tào Tháo: a hold
   const stunned = u.stunT > 0;
@@ -666,6 +669,7 @@ function castHooks(u, s, i) {
   if (s.unstoppable) u.ccT = Math.max(u.ccT, s.unstoppable === true ? actTime(u, s) : s.unstoppable);
   if (s.self && s.self.on !== 'hit') selfBuff(u, s.self);
   if (u.passive === 'lava') hlCast(u);   // kit-remake G5 hoalong: the press starts the lava trail
+  if (s.ktGain) enAdd(u, s.ktGain);   // kit-remake G5 kiemthan
   const P = u.pendCut;
   u.pressing = -1; u.pendCut = null;
   if (P) for (let k = 0; k < P.length; k += 2) applyCut(u, P[k + 1], P[k]);
@@ -1315,6 +1319,7 @@ const CAST = {
   volley(m, u, s, inp) {
     if (s.home) return k4Homing(m, u, s, inp);   // kit-remake K4: enbac's homing volley
     if (s.ggWind && !ggGo) return k14Wind(u, s);   // kit-remake K14: Gilgamesh's wind-up
+    if (s.ktSpend) return ktSword(m, u, s);   // kit-remake G5 kiemthan: the energy goes into the sword
     if (s.perTarget || s.sameDecay) u.volTag = { cap: s.perTarget || 0, decay: s.sameDecay || 0, hits: {} };
     fireVolley(m, u, s);
     // haste: a short run after the volley; burst: the volley goes off again burst.n - 1 times, burst.gap apart, while the mech keeps walking
@@ -1531,6 +1536,7 @@ const CAST = {
   },
   barrage(m, u, s, inp) {
     if (s.mgtSeq) return mgtSeq(m, u, s, inp);   // kit-remake G5 Magneto
+    if (s.ktLock) return ktRain(m, u, s);   // kit-remake G5 kiemthan: one strike riding each enemy in reach
     // channel: one cast like a sweep: a strike every channel.every seconds around wherever the cursor is, the mech still walks (channel.move)
     if (s.channel) { u.cast = { skill: s, t: s.channel.dur, total: s.channel.dur, move: s.channel.move, lock: false, aim: u.aim, acc: 0 }; return; }
     const [cx, cz] = aimPoint(u, inp, s.cast);
@@ -3285,6 +3291,64 @@ function hlDeath(m, u) {
   curSrc = null; areaDamage(m, o, u.x, u.z, D.radius, 0, { fx: { trueDmg: D.dmg + D.per * u.burnN } }, u); curSrc = was;
 }
 /* ===== end kit-remake G5 hoalong ===== */
+
+/* ===== kit-remake G5 kiemthan (kit lane k15; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": kiemthan, clip p65 "62.李白").
+   Hooks elsewhere are one line each, marked "kit-remake G5 kiemthan", and call into this block.
+     passive `ktEn {per, idle}` (with def.energy): walking fills the G2 energy, per a metre moved; standing still idle s empties it.
+     passive `ktCalm {r, haste, dmg}`: while no visible enemy stands within r the mech runs x haste and hits x dmg.
+     row `ktFree: true`: pressing it while it is ready clears every bad status first (stun, knock-up, loss of control, root,
+       slow, silence, burn, weaken, antiheal, G2 slows), so it can be cast while stunned, lifted, petrified, confused...
+     row `ktGain: n`: the press gives n energy.
+     volley `ktSpend: f`: the shot flies and hits x (1 + f x energy / max), then the energy is spent (a hit refunds en.refund).
+     barrage `ktLock: r` with `ktScale: f`: one strike rides each visible enemy within r of the caster (no boss), dmg and the
+       row's fx.lostHp x (1 + f x energy / max); nobody in reach = no cast (a 0.4 s lockout). Event `lock` per target.
+   New names: unit ktX, ktZ, ktStill. Sync: en, hasteF, dmgT and the strike zones travel already; ktStill is host-only. ===== */
+const ktP = (u) => (u.def.passive && u.def.passive.ktEn ? u.def.passive : null);
+function ktClear(u) { u.ktX = u.x; u.ktZ = u.z; u.ktStill = 0; }
+const ktF = (u, f) => 1 + (f || 0) * (u.def.energy ? u.en / u.def.energy.max : 0);
+// stepUnit: energy by distance walked, the calm buff
+function ktTick(m, u) {
+  const P = ktP(u);
+  if (!P) return;
+  const E = P.ktEn, d = Math.hypot(u.x - u.ktX, u.z - u.ktZ);
+  u.ktX = u.x; u.ktZ = u.z;
+  if (d > 2) { /* a respawn or a warp: not walked */ } else if (d > 0.02) { u.ktStill = 0; enAdd(u, E.per * d); }   // 0.6 m/s or more counts as walking (not the glide to a stop)
+  else if ((u.ktStill += TICK) >= E.idle - 1e-9) u.en = 0;
+  const C = P.ktCalm;
+  if (!C) return;
+  for (const o of m.units) if (o.alive && o.team !== u.team && visibleTo(m, o, u.team) && dist2(o.x, o.z, u.x, u.z) <= C.r * C.r) return;
+  if (!(u.hasteT > 2 * TICK) || u.hasteF <= C.haste) { u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, C.haste); u.hasteT = Math.max(u.hasteT, 2 * TICK); }
+  if (!(u.dmgT > 2 * TICK) || u.dmgF <= C.dmg) { u.dmgF = C.dmg; u.dmgT = Math.max(u.dmgT, 2 * TICK); }
+}
+// stepUnit, before the stun test: a ready ktFree row being pressed cleanses first
+function ktFree(m, u, inp) {
+  for (let i = 0; i < 3; i++) {
+    const s = u.def.skills[i];
+    if (!s || !s.ktFree || !inp[SLOTS[i]] || !skillReady(u, i)) continue;
+    u.stunT = 0; u.airT = 0; u.locT = 0; u.locK = 0; u.rootT = 0; u.slowT = 0; u.silenceT = 0; u.burnT = 0; u.burnN = 0; u.weakenT = 0; u.ahT = 0; u.markT = 0;
+    u.dsT = 0; u.ssT = 0; u.ssN = 0; u.slowG = 0; u.sfT = 0; u.blindT = 0;
+    return;
+  }
+}
+// CAST.volley with ktSpend: the energy goes into the sword
+function ktSword(m, u, s) {
+  const f = ktF(u, s.ktSpend);
+  fireVolley(m, u, { ...s, dmg: s.dmg * f, speed: s.speed * f });
+  u.en = 0;
+}
+// CAST.barrage with ktLock: one strike on each enemy in reach, riding it
+function ktRain(m, u, s) {
+  const f = ktF(u, s.ktScale), fx = s.fx ? { ...s.fx, ...(s.fx.lostHp ? { lostHp: s.fx.lostHp * f } : {}) } : null;
+  let n = 0;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive || o.def.boss || !visibleTo(m, o, u.team) || dist2(o.x, o.z, u.x, u.z) > s.ktLock * s.ktLock) continue;
+    addZone(m, u, { kind: 'strike', x: o.x, z: o.z, r: s.blast, delay: s.delay, total: s.delay, dmg: s.dmg * f * u.skillAmp, fx: fx ? { fx } : null, src: s.id, on: o.id });
+    m.events.push({ t: 'lock', id: u.id, target: o.id, x: o.x, z: o.z, skill: s.id });
+    n++;
+  }
+  if (!n) return false;
+}
+/* ===== end kit-remake G5 kiemthan ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

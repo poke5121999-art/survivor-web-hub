@@ -27,7 +27,19 @@ export const OLD_HOALONG = {
     { id: 'thienhoa', cd: 46, do: 'sweep', windup: 0.5, dur: 2.6, range: 20, width: 1.2, dps: 520, turn: 1.4, move: 0.3 },
   ],
 };
-const OLD = { hades: OLD_HADES, hoalong: OLD_HOALONG };
+// The batch-4 Kiếm Thần kit (meter of sword hits arming a lance volley, Kiếm Khí Trảm, Kiếm Trận guard orbit, Vạn Kiếm Quy Tông seek
+// barrage): kiemthan plays the p65 Lý Bạch kit now.
+export const OLD_KIEMTHAN = {
+  energy: null,
+  passive: { do: 'meter', max: 4, gain: { weapon: 1 }, spend: { kind: 'shot', mul: 1.4, patch: { range: 15, speed: 34, r: 0.5, pierce: true, vis: 'lance' } } },
+  weapon: { name: 'Kiếm Phong', cd: 0.4, dmg: 62, n: 2, fan: 0.1, speed: 28, range: 7.5, r: 0.3, pierce: true, vis: 'wave' },
+  skills: [
+    { id: 'kiemkhitram', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 32, range: 15, r: 0.5, pierce: true, vis: 'wave' },
+    { id: 'kiemtran', cd: 14, do: 'orbit', mode: 'guard', n: 6, dur: 4, ring: 2, dps: 160, block: true },
+    { id: 'vankiem', cd: 44, do: 'barrage', n: 9, radius: 5, blast: 1.8, dmg: 230, delay: 0.5, span: 1.6, cast: 14, seek: { radius: 8 } },
+  ],
+};
+const OLD = { hades: OLD_HADES, hoalong: OLD_HOALONG, kiemthan: OLD_KIEMTHAN };
 // Swap the old kit onto every unit of that mech (before the first step); the old hp comes with it.
 export function oldKit(m, mech) {
   const K = OLD[mech];
@@ -177,6 +189,57 @@ export function runK15Cases(check, section) {
     check('k15zc the blast: 1088 x 0.8 x armor at 2 m (stunned 1.5 s), 1088 x 0.6 x armor at 4 m (not stunned)', near(UNG.hp - v.hp, 1088 * 0.8 * UF, 1) && near(UNG.hp - b.hp, 1088 * 0.6 * UF, 1) && v.stunT > 1.3 && !(b.stunT > 0), `${UNG.hp - v.hp} ${UNG.hp - b.hp} stun ${v.stunT} ${b.stunT}`);
   }
   botsCast(check, 'k15zd bots cast every skill of hoalong in 2 x 90 s', ['hoalong'], ['trau', 'ung']);
+  // ---- Kiếm Thần ----
+  section('k15 kit lane k15: Kiếm Thần = Lý Bạch (p65 李白) ported from the owner clip (literal expected values)');
+  {
+    // energy by distance: 3 a metre walked, all gone after 2 s still; the calm buff (no foe within 9.7 m): haste and damage x1.25
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 30, 15]]), a = m.units[0];
+    const x0 = a.x; go(m, 30, () => ({ 0: { mx: 1, aim: 0 } }));
+    check('k15ze walking fills the energy, 3 a metre', a.en <= 3 * (a.x - x0) + 1e-6 && a.en >= 3 * (a.x - x0 - 0.6), `en ${a.en} walked ${a.x - x0}`);
+    check('k15zf alone: haste x1.25 and damage x1.25', near(a.hasteF, 1.25, 1e-9) && near(a.dmgF, 1.25, 1e-9), `${a.hasteF} ${a.dmgF}`);
+    go(m, 59);
+    check('k15zg ... standing still: kept for under 2 s', a.en > 0);
+    go(m, 8);   // the glide to a stop takes a few ticks
+    check('k15zh ... gone after 2 s still', a.en === 0, `${a.en}`);
+    const w = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 6, 0]]); go(w, 2);
+    check('k15zi a foe within 9.7 m: no calm buff', !(w.units[0].dmgT > 0), `${w.units[0].dmgT}`);
+  }
+  {
+    // Vạn Cổ Tiêu Sầu works while stunned: cleansed, +50 energy, haste x2 fading, the foe beside pushed and hit for 124
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    a.stunT = 2; a.slowT = 2; a.slowF = 0.5; a.locT = 0;
+    go(m, 1, () => ({ 0: { s1: true } }));
+    check('k15zj pressed while stunned: the stun and slow are gone, energy 50, haste x2, cooldown 12', a.stunT === 0 && a.slowT === 0 && near(a.en, 50, 1e-6) && a.hasteF === 2 && near(a.cd.s1, 12, 1e-9), `${a.stunT} ${a.en} ${a.hasteF}`);
+    go(m, 6);
+    check('k15zk the push: 124 x falloff x armor, weakened 25%, thrown back', UNG.hp - v.hp > 124 * 0.6 * UF && UNG.hp - v.hp <= 124 * UF + 1e-6 && v.weakenF === 0.75 && v.x > 2.3, `${UNG.hp - v.hp} ${v.x}`);
+    const p = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 20, 0]]), b = p.units[0];
+    b.locT = 2; b.locK = 4;
+    go(p, 1, () => ({ 0: { s1: true } }));
+    check('k15zl ... and while petrified', b.locT === 0 && near(b.cd.s1, 12, 1e-9), `${b.locT}`);
+  }
+  {
+    // Long Tuyền Xuất Hạp: full energy -> x1.5 speed and damage, the damage x (1 + 0.0715 a metre flown) up to x2, energy spent, 25 back on a hit
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 12, 0]]), [a, v] = m.units;
+    a.en = 100; a.ktStill = -99;
+    go(m, 1, () => ({ 0: { s2: true, aim: 0 } }));
+    const sh = m.shots.find((q) => q.owner === 0);
+    check('k15zm the press: one sword at 45 m/s, 186 x 1.25 (alone: the calm buff) before the ramp, over walls; energy spent; one use of three gone', !!sh && near(sh.speed, 45, 1e-9) && near(sh.dmg, 186 * 1.25, 1e-9) && sh.over && a.en === 0 && a.use1 === 1, `${sh && sh.speed} ${sh && sh.dmg} ${a.en}`);
+    const ev = go(m, 12), hit = only(ev, 'hit', (e) => e.id === 1);
+    check('k15zn it hits at about 11 m flown: 232.5 x ~1.7 x armor, 25 energy back, the ktSword mark on it', hit.length === 1 && hit[0].amt > 232.5 * 1.6 * UF && hit[0].amt < 232.5 * 1.85 * UF && near(a.en, 25, 1e-6) && v.tags['ktSword@0'] > 3, `${hit.map((e) => e.amt)} en ${a.en}`);
+  }
+  {
+    // Cửu Thiên Thần Kiếm: a strike rides every foe within 8 m; 1.5 s later 124 + 15% of the lost hp, +248 on a marked one
+    const m = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 1), 0, 5], [R('ung', 1), 13, 0]]), [a, v, b, far] = m.units;
+    a.ktStill = -99; v.hp = b.hp = 1000; v.tags['ktSword@0'] = 9;
+    const ev = go(m, 1, () => ({ 0: { ult: true } }));
+    check('k15zo the press: two locks (the foe at 13 m is out of reach), cooldown 45', only(ev, 'lock').length === 2 && m.zones.filter((z) => z.kind === 'strike' && z.on >= 0).length === 2 && near(a.cd.ult, 45, 1e-9), `${only(ev, 'lock').length}`);
+    go(m, 46);
+    check('k15zp the strikes: 124 x armor, + 248 true on the marked one, then 15% of the hp lost by then (700 + those) as true damage', near(1000 - b.hp, 124 * UF * 1.15 + 105, 1) && near(1000 - v.hp, (124 * UF + 248) * 1.15 + 105, 1) && far.hp === UNG.hp, `${1000 - v.hp} ${1000 - b.hp}`);
+    const w = arena([[R('kiemthan', 0), 0, 0], [R('ung', 1), 12, 0]]);
+    go(w, 1, () => ({ 0: { ult: true } }));
+    check('k15zq nobody within 8 m: no cast, a 0.4 s lockout', near(w.units[0].cd.ult, 0.4, 1e-9) && !w.zones.some((z) => z.kind === 'strike'), `${w.units[0].cd.ult}`);
+  }
+  botsCast(check, 'k15zr bots cast every skill of kiemthan in 2 x 90 s', ['kiemthan'], ['trau', 'ung']);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

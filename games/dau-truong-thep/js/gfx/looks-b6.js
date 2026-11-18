@@ -1,4 +1,4 @@
-// Looks, batch 6: Bọ Cạp, Lươn Điện, Nhện Thép, Băng Nha, Kiếm Thần (Ve Sầu moved to looks-k8.js). Render only (see looks.js for the hooks).
+// Looks, batch 6: Bọ Cạp, Lươn Điện, Nhện Thép, Băng Nha (Ve Sầu moved to looks-k8.js, Kiếm Thần to looks-k15.js with his ported kit). Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   毒蝎女王 p52 (Bọ Cạp): magenta-violet sting streaks, a violet swirl round her when she spins, magenta poison bubbles on
@@ -217,76 +217,4 @@ const nhenthep = {
 // ---- Băng Nha moved to looks-k9.js with the kit ported from clip p81; Kiếm Thần still borrows BN_WHITE -------------------------
 const BN_WHITE = C(2.3, 2.5, 2.6);
 
-// ---- Kiếm Thần: steel swords, red fire ---------------------------------------------------------------------------------
-const KT_RED = C(2.6, 0.35, 0.15), KT_ORG = C(2.6, 1.2, 0.25), KT_STEEL = C(1.2, 1.7, 2.6);
-const bladeGeo = keep(new THREE.CylinderGeometry(0.3, 0.02, 2.6, 4).rotateY(Math.PI / 4).scale(1, 1, 0.3).rotateZ(-Math.PI / 2).translate(1.35, 0, 0));
-const guardGeo = keep(new THREE.SphereGeometry(0.4, 12, 8).scale(0.22, 0.25, 1.05)), gripGeo = keep(new THREE.CylinderGeometry(0.055, 0.07, 0.55, 8).rotateZ(Math.PI / 2).translate(-0.3, 0, 0));
-// a sword along +x (the point), grip at the origin: a solid blade on a wider glowing halo, a guard and a grip
-function sword(blade, glow, guard) {
-  // the blade's broad face turned up, so it reads from the match camera above
-  const g = new THREE.Group(), f = new THREE.Group(), h = new THREE.Mesh(bladeGeo, basic(glow, true, 0.75)), b = new THREE.Mesh(bladeGeo, basic(blade, false, 1));
-  h.scale.set(1.12, 2.0, 2.0); f.add(h, b, new THREE.Mesh(guardGeo, basic(guard, false, 1)), new THREE.Mesh(gripGeo, basic(0x2a1a14, false, 1))); f.rotation.x = Math.PI / 2; g.add(f);
-  return order(g, 7);
-}
-const kiemthan = {
-  // Kiếm Khí Trảm: the sword itself flies, red-hot with a white edge, dragging a red flame wake
-  ktSword: {
-    pal: [KT_RED, KT_ORG], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.4, 1.3, u.z + Math.sin(e.a) * 1.4, KT_ORG, 0.12, 2, 1, kit.K.STAR, 1.3); return true; },
-    shotMake(kit, s) {
-      const w = sword(0xfff0e0, KT_RED, 0xc08030); w.scale.setScalar(2.8);
-      const v = { w, hold: held(kit, [w]), x: s.x, z: s.z, live: true };
-      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 1.2, KT_ORG, 0.5, { c2: C(0.6, 0.05, 0.02), len: 12 });
-      return v;
-    },
-    shot(kit, v, s, x, y, z) {
-      v.x = x; v.z = z; v.w.position.set(x - s.dx * 1.6, 1.25, z - s.dz * 1.6); v.w.rotation.y = -Math.atan2(s.dz, s.dx);
-      if (Math.random() < 0.6) kit.glow(x - s.dx * 1.5, 1.2, z - s.dz * 1.5, KT_RED, 0.3, 1.0, 0.9, kit.K.FLAME, 1.5);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.hold.on = false; kit.sparks(x, 1.2, z, kit.N(10), KT_ORG, 9, 0.3, 0.05, 0.5, 10); },
-  },
-  // Kiếm Trận: six white swords ring him point outward, each leaving a pale steel wake, over a turning six-point seal
-  ktArray: {
-    zones: ['orbit'], pal: [KT_STEEL, BN_WHITE], hitR: 1.4,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const v = { z, live: true, sw: [] };
-      for (let i = 0; i < (z.n || 6); i++) {
-        const w = sword(0xf4f8ff, KT_STEEL, 0x9aa8c0); w.scale.setScalar(1.6); v.sw.push(w);
-        trail(kit, () => (v.live && ((v.z.live >> i) & 1) ? [w.position.x + Math.cos(w.userData.b || 0) * 2.6, 1.3, w.position.z + Math.sin(w.userData.b || 0) * 2.6] : null), 0.9, KT_STEEL, 1e9, { c2: C(0.1, 0.2, 0.5), len: 10 });
-      }
-      v.h = held(kit, v.sw);
-      v.s = sigil(kit, z.x, z.z, (z.ring || 2) + 1.4, KT_STEEL, { n: 0, ticks: 0, inner: 0, fill: 0.18, life: 1e9, rev: 0.25, alpha: 0.7, w: 0.05 });
-      return v;
-    },
-    zone(kit, v, z) {
-      v.z = z; const o = kit.match.units[z.owner]; if (!o) return;
-      v.s.position.x = o.x; v.s.position.z = o.z;
-      v.sw.forEach((w, i) => { const on = (z.live >> i) & 1; w.visible = !!on; if (!on) return; const [px, pz] = orbPos(z, o, i), b = Math.atan2(pz - o.z, px - o.x) + 0.35; w.userData.b = b; w.position.set(px, 1.3, pz); w.rotation.y = -b; });
-    },
-    zoneDrop(kit, v) { v.live = false; v.h.on = false; stop(v.s); },
-  },
-  // Vạn Kiếm Quy Tông: a red-hot sword hangs point down over each spot and plunges; it stands in a column of fire
-  ktRain: {
-    zones: ['strike'], ownDisc: true, pal: [KT_RED, KT_ORG], hitR: 1.8,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const w = sword(0xffe0c8, KT_RED, 0xd09030); w.scale.setScalar(2.4); w.rotation.z = -Math.PI / 2 + 0.45;
-      const s = sigil(kit, z.x, z.z, Math.max(1.6, z.r), KT_RED, { n: 0, ticks: 0, inner: 0, fill: 0.25, life: 1e9, rev: 0.1, w: 0.07, alpha: 0.8 });
-      return { w, h: held(kit, [w]), s };
-    },
-    zone(kit, v, z) { const k = z.delay / (z.total || 1); v.w.position.set(z.x, 1.2 + 9 * k, z.z); v.w.rotation.y = z.age * 2; if (Math.random() < 0.5) kit.glow(z.x, v.w.position.y + 5.4, z.z, KT_ORG, 0.3, 0.9, 0.9, kit.K.FLAME, 1.5); },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.s); },
-    land(kit, e) {
-      const w = sword(0xffe0c8, KT_RED, 0xd09030); w.scale.setScalar(2.4); w.rotation.set(0, Math.random() * 6, -Math.PI / 2 + 0.3);
-      own(kit, [w], 0.8, (t) => { w.position.set(e.x, 4.4, e.z); fadeAll(w, Math.min(1, (0.8 - t) / 0.3)); });
-      pillar(kit, e.x, e.z, 1.0, KT_ORG, { c2: KT_RED, h: 7, life: 0.6, grow: 0.05, narrow: true });
-      for (let i = 0; i < kit.N(6); i++) kit.glow(e.x + R(-0.8, 0.8), R(0.3, 1.5), e.z + R(-0.8, 0.8), KT_ORG, R(0.4, 0.7), R(0.9, 1.5), 1, kit.K.FLAME, 1.4, 0, R(2, 4), 0);
-      kit.scorch(e.x, e.z, 1.4, 3, 1.2, KT_ORG); kit.kick(e.x, e.z, 0.3);
-      return true;
-    },
-  },
-};
-
-export const B6 = { ...luondien, ...nhenthep, ...kiemthan };   // vesau, bang and bocap moved to looks-k8.js / looks-k9.js / looks-k10.js with their ported kits
+export const B6 = { ...luondien, ...nhenthep };   // vesau, bang and bocap moved to looks-k8.js / looks-k9.js / looks-k10.js with their ported kits

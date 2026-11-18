@@ -812,7 +812,7 @@ export function makeFx(G, mechs) {
   function shotLook(m, s) {
     const u = m.units[s.owner];
     if (!u || !u.def) return null;
-    const rows = u.def.skills.filter((r) => r.do === 'volley' && r.vis === s.vis && (s.speed === undefined || r.speed === undefined || r.speed === s.speed));
+    const rows = u.def.skills.filter((r) => r.do === 'volley' && r.vis === s.vis && (s.speed === undefined || r.speed === undefined || r.speed === s.speed || r.ktSpend));   // ktSpend (kiemthan): the energy speeds the sword up
     const w = u.def.weapon, wSame = w && w.vis === s.vis;
     const p = pressed.get(u.id), recent = p && rows.includes(p.row) && time - p.t < (p.row.burst ? p.row.burst.gap * p.row.burst.n : 0) + 0.3 + (p.row.windup || 0);
     let row = null;
