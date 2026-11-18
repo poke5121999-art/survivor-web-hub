@@ -4,10 +4,10 @@
 const fs = require('fs');
 const path = require('path');
 const { serve } = require('../../../tools/thumb-lib.js');
-const PW = process.env.PLAYWRIGHT_PATH || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright-core';
+const { PW } = require('./pw.js');
 const { chromium } = require(PW);
 
-const OUT = process.argv[2] || 'C:/Users/tamph/AppData/Local/Temp/claude/a7152a95eaa758f0/2613c385-53ad-43a0-b0d1-220c4a45bc0d/scratchpad/ui';
+const OUT = process.argv[2] || require('./pw.js').scratch('ui');
 const SCREENS = ['home', 'modes', 'squad', 'gacha', 'shop', 'quest', 'settings', 'confirm', 'toast',
   'hud', 'hud-touch', 'hud-pad', 'runend-win', 'runend-lose'];
 const SIZES = [[832, 384], [1280, 720]];

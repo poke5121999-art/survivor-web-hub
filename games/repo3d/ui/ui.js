@@ -345,7 +345,7 @@ const hud = {
     R.hpImg.src = u(hp < 0.3 ? 'art/hud/bar_hp_red.png' : 'art/hud/bar_hp.png');
     R.st.style.width = clamp01(s.stamina) * 100 + '%';
     R.haul.textContent = money(s.haul || 0);
-    R.quota.textContent = '/ ' + money(s.quota || 0);
+    R.quota.textContent = s.quota ? '/ ' + money(s.quota) : '';
     R.hint.textContent = s.hint || '';
     const nz = clamp01(s.noise), on = Math.round(nz * 10);
     R.noiseSeg.forEach((n, i) => { n.className = i < on ? (i >= 8 ? 'on hotter' : i >= 6 ? 'on hot' : 'on') : ''; });

@@ -7,8 +7,8 @@
 const fs = require('fs');
 const path = require('path');
 const { serve } = require('../../../tools/thumb-lib.js');
-const PW = process.env.PLAYWRIGHT_PATH || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright-core';
-const OUT = process.argv[2] || 'C:/Users/tamph/AppData/Local/Temp/claude/a7152a95eaa758f0/2613c385-53ad-43a0-b0d1-220c4a45bc0d/scratchpad/run';
+const { launch: pwLaunch } = require('./pw.js');
+const OUT = process.argv[2] || require('./pw.js').scratch('run');
 fs.mkdirSync(OUT, { recursive: true });
 const failures = [];
 const check = (ok, name, detail) => { if (!ok) failures.push(name); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail !== undefined && detail !== '' ? ' :: ' + detail : ''}`); };
@@ -96,7 +96,7 @@ const DRV = `window.__drv = (() => {
 
 (async () => {
   const srv = await serve();
-  const br = await require(PW).chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+  const br = await pwLaunch();
   const kill = setTimeout(() => { console.log('FAIL hard timeout 600 s'); process.exit(2); }, 600000);
   const logs = [];
   try {
@@ -113,6 +113,14 @@ const DRV = `window.__drv = (() => {
       await page.locator('.ui-layer.lobby .playbtn').click();
       await sleep(400);
       await page.locator('.ui-layer.lobby button', { hasText: 'CHƠI' }).first().click();
+    };
+    // HUD rule (owner): gauges are bars, rings, icons; money is the only number. hudCheck counts the text left and asserts graphics.
+    const vis = (sel) => `(() => { const e = document.querySelector('${sel}'); if (!e) return false; const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && !e.closest('[hidden], .hidden'); })()`;
+    const hudCheck = async (label, gfx, sim = '__sim(0.05)') => {
+      await ev(sim);
+      const t = await hudText();
+      check(t.n <= 20, `${label}: HUD text <= 20 chars (excluding $ amounts)`, `${t.n} chars: "${t.rest}" raw="${t.raw}"`);
+      for (const [name, sel] of gfx) check(await ev(vis(sel)), `${label}: ${name} drawn as a graphic`, sel);
     };
     const hudText = () => ev(`(() => { const t = [...document.querySelectorAll('.ui-root .hud, .hx')].map((e) => e.innerText || '').join(' ');
       const rest = t.replace(/\\$\\s?[\\d,]+/g, '').replace(/\\s+/g, ''); return { raw: t.replace(/\\s+/g, ' ').trim(), n: rest.length, rest }; })()`);
@@ -143,8 +151,7 @@ const DRV = `window.__drv = (() => {
     await shot('02-hud-house1-1280x720');
     await page.setViewportSize({ width: 832, height: 384 }); await sleep(500);
     await shot('02-hud-house1-832x384');
-    const ht = await hudText();
-    check(ht.n <= 20, 'in-run HUD text budget <= 20 chars (excluding $ amounts)', `${ht.n} chars: "${ht.rest}" raw="${ht.raw}"`);
+    await hudCheck('house 1 at 832x384', [['hp bar', '.ui-root .hud .hp .fl'], ['stamina bar', '.ui-root .hud .st .fl'], ['noise segments', '.ui-root .hud .noise .seg'], ['detection eye', '.hx .eye svg'], ['house pips', '.hx .pips i'], ['pad icons', '.hx .pads b']]);
     await page.setViewportSize({ width: 1280, height: 720 }); await sleep(300);
 
     // ---------------------------------------------------------------- house 1: carry to the pad (the only pad, in the truck room)
@@ -155,6 +162,8 @@ const DRV = `window.__drv = (() => {
     const w0 = await ev('__G.run.wallet');
     const rep1 = await ev('__drv.firePad()');
     console.log('  house 1 trips:', JSON.stringify(rep1.trips));
+    // carrying can outlast the normal 45 s respawn: a foe already back on its feet is taken down again now, in the escape
+    if (killed) console.log('  foe at escape start:', await ev(`(() => { const F = __G.foes, f = F.list.find((x) => x.id === ${killed.id}); const was = f.dead ? 'down' : 'respawned, down again'; if (!f.dead) F.hurtFoe(f, 1e6); return was; })()`));
     check(rep1.fired, 'house 1 pad fired by carrying loot', JSON.stringify(rep1));
     const st1 = await ev(`({ phase: __G.run.phase, wallet: __G.run.wallet, haul: __G.run.haul, houseHaul: __G.run.houseHaul, hp: __G.player.hp })`);
     check(st1.phase === 'escape', 'last pad cashed -> phase escape', st1.phase);
@@ -172,6 +181,7 @@ const DRV = `window.__drv = (() => {
     check(esc.pings >= 1, 'escape: horn pings', String(esc.pings));
     await ev('window.__paused = false'); await sleep(250); await ev('window.__paused = true');
     await shot('03-escape');
+    await hudCheck('escape', [['truck + arrow to the button', '.hx .esc svg.tr'], ['arrow', '.hx .esc svg.ar']]);
     const hpBefore = await ev('(() => { __G.player.hurt(30); return __G.player.hp; })()');
     // walk to the truck button
     await ev(`(() => { const T = __G.truck.button; const P = __G.player; P.body.setTranslation({ x: T.x + 2.5, y: 0.85, z: T.z }, true); __sim(0.05); __drv.follow([{ x: T.x, z: T.z }], { tol: 0.3, maxS: 6 }); __sim(2.2, () => __IDLE); })()`);
@@ -183,6 +193,9 @@ const DRV = `window.__drv = (() => {
     // ---------------------------------------------------------------- station: buy a health pack on the pay pad
     await ev('__sim(0.5); window.__paused = false'); await sleep(400); await ev('window.__paused = true');
     await shot('04-station');
+    await hudCheck('station', [['hp bar', '.ui-root .hud .hp .fl']]);
+    check(!(await ev(vis('.hx .esc'))), 'station: escape truck/arrow hidden');
+    check(!(await ev(`document.querySelector('.ui-root .hud .quota').textContent`)), 'station: no "/ $0" quota next to the wallet');
     const sw = await ev('({ wallet: __G.run.wallet, haul: __G.run.haul, spent: __G.run.spent })');
     check(sw.wallet === 5000 + sw.haul - sw.spent, 'wallet math before shopping', JSON.stringify(sw));
     const buy = await ev(`(() => { const G = __G, S = G.station, P = G.player;
@@ -202,14 +215,35 @@ const DRV = `window.__drv = (() => {
     check(buy.packs[0] === 1 && buy.wallet === sw.wallet - 1800, 'pay pad hold buys the 25 hp pack (-$1800)', JSON.stringify(buy));
     const useR = await ev(`(() => { const P = __G.player; P.hurt(40); const h0 = P.hp; __G.input.pressed.add('Digit1'); __sim(0.05); __G.input.pressed.clear(); return { h0, h1: P.hp, packs: __G.run.packs.slice() }; })()`);
     check(useR.h1 === Math.min(100, useR.h0 + 25) && useR.packs[0] === 0, 'key 1 uses the pack: +25 hp', JSON.stringify(useR));
+    // not enough money: the pay pad turns red, no purchase, no text (wallet lowered only for this check, then restored)
+    const short = await ev(`(() => { const G = __G, S = G.station, R = G.run, w = R.wallet; R.wallet = 100;
+      const it = S.items.find((i) => i.offer.id === 'pack25'); const t0 = it.body.translation();
+      __drv.tp(t0.x, t0.z + 1.5, 0); __drv.aimAt(it); const grabbed = G.grab.tryGrab() && G.grab.held === it;
+      __drv.follow([{ x: S.pad.x, z: S.pad.z }], { hold: it, pad: S.pad, maxS: 40 }); if (G.grab.held) G.grab.release(false);
+      __sim(0.5, () => __IDLE); __drv.follow([{ x: S.pad.x, z: S.pad.z }], { tol: 0.3, maxS: 8 }); __sim(4, () => __IDLE);
+      const r = { grabbed, onPad: S.itemsOnPad().length, short: S.short, packs: R.packs[0], wallet: R.wallet };
+      r.w = w; return r; })()`);
+    check(short.grabbed && short.onPad >= 1 && short.short && short.packs === 0 && short.wallet === 100, 'station: pad item over budget -> pad turns red, nothing bought', JSON.stringify(short));
+    await ev('window.__paused = false'); await sleep(250); await ev('window.__paused = true');
+    await shot('04b-station-short');
+    await hudCheck('station short of money', []);
+    await ev(`__G.run.wallet = ${short.w}`);
     await ev('__G.runner.opts.foes = "none"');
-    await ev(`(() => { const B = { x: 3.0, z: 9.0 }; __drv.tp(B.x + 3, B.z - 1.5, 0); __drv.follow([{ x: B.x, z: B.z }], { tol: 0.3, maxS: 8 }); __sim(2, () => __IDLE); })()`);
+    const dep = await ev(`(() => { const B = __G.station.button; __drv.tp(B.x + 3, B.z - 1.5, 0); const r = __drv.follow([{ x: B.x, z: B.z }], { tol: 0.3, maxS: 8 });
+      const p = __drv.pos(), hold0 = B.hold; __sim(2, () => __IDLE);
+      return { r, btn: { x: B.x, z: B.z, half: B.half }, at: { x: +p.x.toFixed(2), z: +p.z.toFixed(2) }, hold0, phase: __G.run.phase }; })()`);
+    check(dep.phase !== 'station', 'standing on the depart button leaves the station', JSON.stringify(dep));
     await settle('loot');
     check((await ev('__G.run.house')) === 2, 'depart button -> house 2');
 
     // ---------------------------------------------------------------- house 2: two pads, one by one
     const h2 = await ev(`({ pads: __G.extract.pads.length, quota: __G.run.quotaTotal, lootSum: __G.run.lootSum0, per: __G.run.padQuota, level: __G.run.level })`);
     check(h2.pads === 2 && h2.level === 3 && h2.quota === Math.round(h2.lootSum * 0.7 * (0.4 + 0.3 * 2 / 9) * 0.55), 'house 2: 2 pads, level 3 quota', JSON.stringify(h2));
+    const carried = await ev(`(() => { const G = __G, pad = G.extract.pads[0]; const it = G.loot.items.filter((i) => !i.dead && i.size !== 'small').sort((a, b) => b.value - a.value)[0];
+      const ok = __drv.grabItem(it, pad); return { ok, size: it.size }; })()`);
+    check(carried.ok, 'house 2: beam holds an item for the carry HUD', JSON.stringify(carried));
+    await hudCheck('carrying', [['carried value tag with loss bar', '.hx .tag .bar'], ['carry weight gauge', '.hx .wt']], '__sim(0.05, () => ({ ...__IDLE, grab: true }))');
+    await ev('__G.grab.release(false); __sim(0.5, () => __IDLE)');
     const wh2 = await ev('__G.run.wallet');
     const repA = await ev('__drv.firePad()');
     console.log('  house 2 pad 1 trips:', JSON.stringify(repA.trips));
@@ -253,11 +287,13 @@ const DRV = `window.__drv = (() => {
     await ev('window.__paused = true');
     const rev = await ev(`(() => { const G = __G, P = G.player, R = G.run; R.crew = 2;   // a mate exists, so a downed player is not the end
       P.hurt(999); __sim(0.3);
+      window.__downHud = { head: !!document.querySelector('.hx svg.head') };
       const down = P.down, head = P.head; const pad = G.extract.pads[0];
       head.body.setTranslation({ x: pad.x, y: 0.5, z: pad.z }, true);   // stand-in for a mate carrying the head to the pad
       __sim(0.4);
       return { down, hp: P.hp, up: !P.down, headGone: !P.head, phase: R.phase }; })()`);
     check(rev.down && rev.up && rev.hp === 1 && rev.headGone, 'head on the active pad revives the player with 1 hp', JSON.stringify(rev));
+    check(await ev('window.__downHud.head'), 'down: head icon drawn instead of text');
     await ev('__G.run.crew = 1');
     const lose = await ev(`(() => { const G = __G; for (const it of [...G.loot.items]) G.loot.destroy(it, true); __sim(0.1);
       let t = 0, rest = 0; const seen = [];
@@ -279,6 +315,8 @@ const DRV = `window.__drv = (() => {
     check(errs.length === 0 && logs.length === 0, '0 console or page errors', JSON.stringify(errs.concat(logs)).slice(0, 500));
   } catch (e) {
     check(false, 'harness', (e && e.stack || String(e)).slice(0, 1200));
+    try { console.log('  page state:', JSON.stringify(await br.contexts()[0].pages()[0].evaluate('({ phase: __G.run.phase, house: __G.run.house, busy: __G.runner.busy, errors: __errors.slice(0, 5), log: __G.run.log.slice(-4) })')).slice(0, 1500)); } catch (e2) {}
+    if (logs.length) console.log('  console errors:', JSON.stringify(logs.slice(0, 5)).slice(0, 1500));
   } finally {
     clearTimeout(kill);
     await br.close();

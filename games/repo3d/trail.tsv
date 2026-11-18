@@ -11,3 +11,7 @@ time	unit	decision	evidence
 2026-11-18 16:10	house3d	nhà 3D 5 theme, nhà 5 158-257 draw calls, đi qua 3 cửa 22-75 m	tools/house3d.js
 2026-11-18 17:20	foes	quái 16 loài (5 đủ hành vi), nhìn 1 s/2,5 s, ném đồ hạ quái, gục rơi đầu; foes.js 14/14	tools/foes.js
 2026-11-18 17:40	fix	quái đi xuyên cửa: nhánh quái tưởng Rapier bỏ predicate, thử node thấy predicate chạy; quái giờ va lá cửa, cửa mở cho quái; thêm (h) quái qua 2-5 phòng	/tmp/kcc-test.mjs, foes.js (h)
+2026-11-18 21:00	tools	tools/pw.js: chọn playwright-core + cờ GPU theo hệ (Linux gl-egl, Windows d3d11), thư mục tạm theo os.tmpdir	slice.js ALL PASS trên linux, 60 fps
+2026-11-18 21:20	bug	rời trạm treo ở 'loading': disposeWorld dispose nhà của trạm hai lần, Rapier panic bị try/catch nuốt, world kẹt borrow ("recursive use of an object"); sửa thứ tự + house.dispose chạy một lần	tools/run.js qua nhà 2
+2026-11-18 21:30	test	harness: quái hạ trước khi chở đồ đã hồi sinh bình thường (chở 56 s > 45 s) -> hạ lại khi vào pha thoát; TEST HOOK testCompletePads chuyển escape ngay khi trang đang dừng	tools/run.js ALL PASS
+2026-11-18 21:50	hud	luật HUD ít chữ: trạm bỏ '/ $0', thiếu tiền = bệ + vòng đỏ (bỏ chuỗi 'Không đủ tiền'), icon xe/mũi tên thoát bị CSS display:flex đè [hidden] nên hiện cả ở trạm -> sửa; run.js đếm chữ HUD ở 5 trạng thái (≤ 6 ký tự) và kiểm từng chỉ báo là đồ hoạ	tools/run.js 66/66 PASS, 04b-station-short.png

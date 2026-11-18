@@ -9,7 +9,7 @@ const { pathToFileURL } = require('url');
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf('--' + n); return i >= 0 ? argv[i + 1] : d; };
 const SEEDS = +arg('seeds', 20);
-const MAPS = arg('maps', 'C:/Users/tamph/AppData/Local/Temp/claude/a7152a95eaa758f0/2613c385-53ad-43a0-b0d1-220c4a45bc0d/scratchpad/houses');
+const MAPS = arg('maps', require('./pw.js').scratch('houses'));
 const THEMES = ['vampire', 'pyramid', 'vietnam', 'spacestation', 'asylum'];
 
 (async () => {

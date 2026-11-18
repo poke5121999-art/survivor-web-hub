@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { serve } = require('../../../tools/thumb-lib.js');
-const PW = process.env.PLAYWRIGHT_PATH || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright-core';
+const { launch: pwLaunch } = require('./pw.js');
 const args = process.argv.slice(2);
 const OUT = args.find((a) => !a.startsWith('--')) || 'robots-out';
 const onlyArg = args.indexOf('--only');
@@ -22,7 +22,7 @@ const kill = setTimeout(async () => { console.log('FAIL timeout 180 s'); try { i
   let code = 0;
   try {
     srv = await serve();
-    br = await require(PW).chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+    br = await pwLaunch();
     const ctx = await br.newContext({ viewport: { width: 1600, height: 900 } });
     const page = await ctx.newPage();
     const logs = [];

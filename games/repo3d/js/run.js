@@ -107,8 +107,10 @@ export class Runner {
     G.foes?.dispose(); G.foes = null;
     G.truck?.dispose(); G.truck = null;
     for (const r of this.padRings) { r.a.dispose(); r.b.dispose(); } this.padRings = [];
-    G.station?.dispose(); G.station = null;
-    if (G.house && !G.station) { /* house or station shell */ }
+    if (G.station) {   // the station owns its house shell (G.house points at it) and disposes it itself
+      if (G.house === G.station.house) G.house = null;
+      G.station.dispose(); G.station = null;
+    }
     G.house?.dispose(); G.house = null;
     for (const it of [...G.loot.items]) if (!it.dead) G.loot.destroy(it, false);
     G.loot.items = G.loot.items.filter((i) => !i.dead);
@@ -526,6 +528,7 @@ export class Runner {
   testCompletePads() {
     const X = this.G.extract;
     while (X.active < X.pads.length) { const p = X.pads[X.active]; p.value = p.quota; p.items = []; X.fire(p); }
+    if (X.finished && this.R.phase === 'loot') this.startEscape();   // what the next stepLoot would do; the page may be paused
   }
   /** TEST HOOK: put the player on the truck button until boarding completes. */
   testBoard() {

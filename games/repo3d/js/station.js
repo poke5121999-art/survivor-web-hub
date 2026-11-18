@@ -146,7 +146,7 @@ export function buildStation(G, run) {
   const button = makeButton(G, 3.0, 9.0, 'XUẤT PHÁT');
 
   const S = {
-    house, pad, button, items, offers: OFFERS, payHold: 0, total: 0, status: '', bought: [], payHoldSec: PAY_HOLD,
+    house, pad, button, items, offers: OFFERS, payHold: 0, total: 0, short: false, bought: [], payHoldSec: PAY_HOLD,
     spawn: house.spawn,
   };
 
@@ -159,7 +159,7 @@ export function buildStation(G, run) {
     S.total = on.reduce((s, r) => s + r.price, 0);
     const standing = onPad(playerPos);
     if (standing && S.total > 0 && S.total <= wallet) {
-      S.payHold += dt; S.status = '';
+      S.payHold += dt; S.short = false;
       if (S.payHold >= PAY_HOLD) {
         S.payHold = 0;
         for (const r of on) { buy(r.offer); S.destroyItem(r); S.bought.push(r.offer.id); }
@@ -167,7 +167,7 @@ export function buildStation(G, run) {
       }
     } else {
       S.payHold = 0;
-      S.status = standing && S.total > wallet ? 'Không đủ tiền' : '';
+      S.short = standing && S.total > wallet;   // not enough money: the pad and its ring turn red (no text, owner rule)
     }
     return { depart: S.button.step(dt, playerPos, true) };
   };
@@ -181,8 +181,10 @@ export function buildStation(G, run) {
   S.update = (dtMs) => {
     button.update(dtMs);
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
-    payRing.set(S.payHold / PAY_HOLD);
-    padMat.emissiveIntensity = S.total > 0 ? 0.6 + 0.5 * pulse : 0.35;
+    payRing.set(S.short ? 1 : S.payHold / PAY_HOLD);
+    payRing.setColor(S.short ? 0xff3a2e : 0x9fe8ff);
+    padMat.emissive.setHex(S.short ? 0xff3a2e : 0x40d0e8);
+    padMat.emissiveIntensity = S.short ? 0.5 + 0.7 * pulse : S.total > 0 ? 0.6 + 0.5 * pulse : 0.35;
   };
   S.dispose = () => {
     for (const r of [...items]) { r.dead = true; scene.remove(r.mesh); try { phys.remove(r); } catch (e) { /* gone */ } }

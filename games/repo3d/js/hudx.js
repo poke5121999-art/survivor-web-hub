@@ -8,6 +8,7 @@ import * as THREE from '../vendor/three.module.min.js';
 const CSS = `
 .hx{position:fixed;left:0;top:0;transform-origin:0 0;z-index:11;pointer-events:none;font-family:system-ui,sans-serif}
 .hx.hidden{display:none}
+.hx [hidden]{display:none!important}
 .hx>*{position:absolute}
 .ui-root .hud .noise u,.ui-root .hud .hint,.ui-root .hud .carry{display:none!important}
 .hx .pips{left:50%;top:5px;transform:translateX(-50%);display:flex;gap:4px}

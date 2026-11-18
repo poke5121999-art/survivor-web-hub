@@ -5,10 +5,10 @@
 const fs = require('fs');
 const path = require('path');
 const { serve } = require('../../../tools/thumb-lib.js');
-const PW = process.env.PLAYWRIGHT_PATH || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright-core';
+const { launch: pwLaunch } = require('./pw.js');
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf('--' + n); return i >= 0 ? argv[i + 1] : d; };
-const OUT = arg('out', 'C:/Users/tamph/AppData/Local/Temp/claude/a7152a95eaa758f0/2613c385-53ad-43a0-b0d1-220c4a45bc0d/scratchpad/foes');
+const OUT = arg('out', require('./pw.js').scratch('foes'));
 const SEED = Number(arg('seed', 7));
 const SOAK = Number(arg('soak', 60));
 fs.mkdirSync(OUT, { recursive: true });
@@ -69,7 +69,7 @@ async function openPage(br, srv, query) {
 
 (async () => {
   const srv = await serve();
-  const br = await require(PW).chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+  const br = await pwLaunch();
   const kill = setTimeout(() => { console.log('FAIL timeout 180 s'); process.exit(2); }, 180000);
   try {
     // ---------------------------------------------------------------- house 1, no roster: scripted scenarios

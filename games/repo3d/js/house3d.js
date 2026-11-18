@@ -1008,9 +1008,15 @@ export function buildHouse(G, layout, theme) {
   stats.loot = lootItems.length; stats.lootValue = lootSum; stats.quota = quota; stats.lamps = lamps.length;
   try { stats.worldColliders = phys.world.colliders.len(); } catch (e) { /* older api */ }
 
+  // Removing a Rapier body twice panics inside wasm and leaves the world borrowed: every later call then throws
+  // "recursive use of an object". dispose() must therefore run its removals once only.
+  let disposed = false;
   function dispose() {
+    if (disposed) return;
+    disposed = true;
     scene.remove(root);
-    for (const b of bodies) { try { phys.world.removeRigidBody(b); } catch (e) { /* gone */ } }
+    for (const b of bodies) phys.world.removeRigidBody(b);
+    bodies.length = 0;
     for (const d of disposables) d.dispose?.();
     for (const it of lootItems) if (!it.dead) G.loot.destroy(it, false);
   }
