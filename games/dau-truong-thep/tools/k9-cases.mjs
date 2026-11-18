@@ -44,6 +44,18 @@ export const OLD_ANDUONG = {
     { id: 'nolinhquang', name: 'Nỏ Linh Quang', cd: 50, do: 'beam', windup: 1.0, range: 28, width: 1.0, dmg: 1700, desc: '' },
   ],
 };
+// The batch-1 Băng Nha kit (brittle passive, slowing frost shot, ice wall, frost nova, blizzard field) as a fixture: oldBang(u) puts it on
+// a bang unit for the generic cases that cover those rows (sim-test: frost shot, wall, steady, brittle).
+export const OLD_BANG = {
+  passive: { do: 'brittle', name: 'Tê Cóng', desc: '', mul: 1.2 },
+  weapon: { name: 'Gai Băng', cd: 0.36, dmg: 78, speed: 28, range: 13, r: 0.24, slow: 0.2, slowDur: 1.2, vis: 'frost' },
+  skills: [
+    { id: 'tuongbang', name: 'Tường Băng', cd: 14, do: 'wall', cast: 4, n: 5, r: 0.75, gap: 1.35, dur: 4.5, desc: '' },
+    { id: 'xungbang', name: 'Xung Băng', cd: 10, do: 'nova', windup: 0.3, radius: 5, dmg: 140, slow: 0.6, slowDur: 2.5, desc: '' },
+    { id: 'baotuyet', name: 'Bão Tuyết', cd: 46, do: 'zone', at: 'target', cast: 14, radius: 6.5, dur: 5, dps: 150, slow: 0.5, vis: 'blizzard', desc: '' },
+  ],
+};
+export const oldBang = (u) => { u.def = { ...u.def, ...OLD_BANG }; u.passive = 'brittle'; return u; };
 // a copy of u's def whose crit roll always (1) or never (0) succeeds, so the arithmetic is exact
 const critAt = (u, chance) => { u.def = { ...u.def, passive: { ...u.def.passive, crit: { ...u.def.passive.crit, chance } } }; };
 
@@ -117,6 +129,49 @@ export function runK9Cases(check, section) {
     check('K9-k ... its crits now do x1.75 (150 x 1.25 x 1.75) and the arrows carry 25% lifesteal', !!sh && sh.crit === 1 && near(sh.dmg, AW.dmg * 1.25 * 1.75) && sh.steal === 0.25, `${sh && sh.dmg} ${sh && sh.steal}`);
     const hp = a.hp, ev2 = go(m, 12), hw = only(ev2, 'hit', (h) => h.id === 2 && h.by === 0);
     check('K9-L ... the hit heals a quarter of what it took', hw.length === 1 && near(a.hp - hp, hw[0].amt * 0.25, 1e-6), `${a.hp - hp} ${hw.map((h) => h.amt)}`);
+  }
+
+  // ---- Băng Nha (bang), clip p81 ----
+  const BN = MECHS.bang, [BQ, BE, BU] = BN.skills;
+  // Băng Sương Chi Hoàn: 356 at the cursor after 0.5 s, the Frost Mark (tag, slow 25%, fire x0.75); the outer band is frozen 1.5 s
+  {
+    const m = arena([[R('bang', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 8.5, 0]]), [a, v, w] = m.units;
+    const ev = go(m, 1 + Math.round(BQ.delay / TICK) + 1, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
+    const hv = only(ev, 'hit', (h) => h.id === 1 && h.by === 0), rg = only(ev, 'k9', (e) => e.kind === 'bnRing');
+    check('K9-m Bang Suong Chi Hoan: 356 x armour at the centre, the Frost Mark on (tag, slow 25%, fire rate x0.75)', hv.length === 1 && near(hv[0].amt, BQ.dmg * UNG_F) && v.tags['frost@0'] > 1.9 && v.slowF === 0.25 && v.sfF === 0.75, `${hv.map((h) => h.amt)} ${JSON.stringify(v.tags)}`);
+    check('K9-n ... the foe 2.5 m out (outer band) is frozen 1.5 s and takes +10%; the one in the middle is not frozen', rg.length === 1 && rg[0].id === 2 && w.stunT > 1.4 && w.ampF === 0.1 && !(v.stunT > 0), `${rg.map((e) => e.id)} ${w.stunT} ${v.stunT}`);
+    check('K9-o ... two uses: one spent, 4 s between them', a.use0 === 1 && a.gap0 > 3.3, `${a.use0} ${a.gap0}`);
+    a.gap0 = 0; v.stunT = 0;
+    const ev2 = go(m, 1 + Math.round(BQ.delay / TICK) + 1, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
+    const h2 = only(ev2, 'hit', (h) => h.id === 1 && h.by === 0);
+    check('K9-p ... a second ring on the marked foe hits x1.5 (tagPay)', h2.length >= 1 && near(h2[0].amt, BQ.dmg * 1.5 * UNG_F) && only(ev2, 'tagPay', (e) => e.id === 1).length === 1, `${h2.map((h) => h.amt)}`);
+  }
+  // Băng Đống Chi Tức: a 0.3 s breath, a cone in front only: 282 with falloff, knocked back, a fading 50% slow, weakened x0.75
+  {
+    const m = arena([[R('bang', 0), 0, 0], [R('ung', 1), 3, 0], [R('ung', 1), -3, 0]]), [a, v, b] = m.units;
+    const ev = go(m, 1 + Math.round(BE.windup / TICK) + 1, (i) => ({ 0: { s2: i === 0, tx: 3, tz: 0 } }));
+    const hv = only(ev, 'hit', (h) => h.id === 1 && h.by === 0);
+    check('K9-q Bang Dong Chi Tuc: the foe in front takes 282 x (1 - 0.5 x 3 / 5.5) x armour, the one behind nothing', hv.length === 1 && near(hv[0].amt, BE.dmg * (1 - 0.5 * 3 / BE.radius) * UNG_F, 1e-6) && b.hp === UNG.hp, `${hv.map((h) => h.amt)} ${b.hp}`);
+    check('K9-r ... weakened x0.75 2 s, a fading 50% slow (slowG), the Frost Mark, pushed back', v.weakenF === 0.75 && v.dsF === 0.5 && v.dsT > 1.8 && v.tags['frost@0'] > 1.8 && v.kx > 0, `${v.weakenF} ${v.dsF} ${v.kx}`);
+  }
+  // Băng Thiên Tuyết Địa: a 3 s channel standing still, five strikes of 266, guard 0.25; pressed again it stops
+  {
+    const m = arena([[R('bang', 0), 0, 0], [R('ung', 1), 9, 0]]), [a, v] = m.units;
+    const ev = go(m, Math.round(3.4 / TICK), (i) => ({ 0: { ult: i === 0, tx: 9, tz: 0 }, 1: { mx: 0 } }));
+    const ex = only(ev, 'explode', (e) => e.why === 'strike');
+    check('K9-s Bang Thien Tuyet Dia: five strikes in 3 s round the cursor, she stands still, guard 0.25 while it runs', ex.length === 5 && near(a.x, 0, 1e-6), `${ex.length} x ${a.x}`);
+    const m2 = arena([[R('bang', 0), 0, 0], [R('ung', 1), 9, 0]]), b = m2.units[0];
+    go(m2, 10, (i) => ({ 0: { ult: i === 0, tx: 9, tz: 0 } }));
+    const g = b.guardF;
+    const ev2 = go(m2, 2, (i) => ({ 0: { ult: i === 0, tx: 9, tz: 0 } }));
+    check('K9-t ... pressing it again stops the channel at once and drops the guard', g === 0.25 && !b.cast && b.guardT === 0 && only(ev2, 'k9', (e) => e.kind === 'bnStop').length === 1, `${g} ${!!b.cast} ${b.guardT}`);
+  }
+  // passive Hàn Băng Ấn Ký: no single blow takes more than 15% of her max hp; a skill hit marks the attacker and speeds her up
+  {
+    const m = arena([[R('lubo', 1), 0, 0], [R('bang', 0), 6, 0]]), [l, a] = m.units;
+    const ev = go(m, Math.round(1.7 / TICK), (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
+    const h = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('K9-u Han Bang An Ky: Lu Bo\'s 582 leap lands for at most 15% of her max hp; she gets x1.5 speed and he the Frost Mark', h.length >= 1 && near(h[0].amt + h[0].absorbed, BN.hp * 0.15, 1e-6) && a.hasteF === 1.5 && l.tags['frost@1'] > 0, `${h.map((e) => e.amt)} ${a.hasteF} ${JSON.stringify(l.tags)}`);
   }
 }
 

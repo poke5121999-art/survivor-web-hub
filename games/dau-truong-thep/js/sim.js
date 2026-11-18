@@ -528,6 +528,7 @@ function stepUnit(m, u, inp) {
     if (!inp[SLOTS[c.slot]]) c.up = true;
     else if (c.up && c.total - c.t >= c.skill.charge.min) { u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
   }
+  if (u.cast && u.cast.skill.bnStop) bnStop(m, u, inp);   // kit-remake G5 Băng Nha: press again to stop the channel
   if (u.cast || u.dash) { u.charge = 0; return; }
   // silence (hitfx): no skills, the weapon still works
   for (let i = 0; i < 3 && !(u.silenceT > 0); i++) {
@@ -1539,7 +1540,7 @@ function seekTargets(m, u, K, cx, cz) {
 const strikeFx = (s) => (s.fx ? (s.fx.knock ? { fx: s.fx, knock: s.fx.knock } : { fx: s.fx }) : null);
 function channelStrike(m, u, s, inp) {
   const [cx, cz] = aimPoint(u, inp, s.cast), a = m.rng() * 6.283, d = Math.sqrt(m.rng()) * Math.max(0, s.radius - s.blast * 0.5);
-  addZone(m, u, { kind: 'strike', x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: s.blast, delay: s.delay, total: s.delay, dmg: s.dmg, fx: strikeFx(s) });
+  addZone(m, u, { kind: 'strike', x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: s.blast, delay: s.delay, total: s.delay, dmg: s.dmg, fx: strikeFx(s), src: s.id });   // src: kit-remake G5 Băng Nha (vsTag, towerMul)
 }
 
 function fireVolley(m, u, s) {
@@ -2020,7 +2021,7 @@ function stepZones(m) {
       if (z.on >= 0) k2Follow(m, z);   // kit-remake G5 Athena: a locked strike rides its target
       z.delay -= dt;
       if (z.delay <= 0) {
-        curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); curSrc = null; done = true;
+        curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); if (z.src) bnRing(m, owner, z); curSrc = null; done = true;   // kit-remake G5 Băng Nha: bnRing
         // linger {radius, dur, dps, slow, vis}: what fell stays as a field that keeps cutting and slowing enemies around it
         const L = z.linger;
         if (L) addZone(m, owner, { kind: 'field', vis: L.vis, x: z.x, z: z.z, r: L.radius, dur: L.dur, hps: 0, dps: L.dps || 0, slow: L.slow || 0, hide: false, pull: 0, acc: 0,
@@ -3207,3 +3208,31 @@ function adKill(m, o) {
   m.events.push({ t: 'k9', kind: 'adKill', id: o.id, x: o.x, z: o.z });
 }
 /* ===== end kit-remake G5 An Dương Vương ===== */
+
+/* ===== kit-remake G5 Băng Nha (kit lane k9; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md bang) ===== */
+// barrage `bnRing {inner, fx}`: when one of the row's strikes goes off, every enemy standing in its outer band (from inner x the
+//   blast radius out to the rim the blast reaches) also gets fx (Băng Sương Chi Hoàn: frozen on the outer ring). Hook in stepZones.
+// row `bnStop: true` on a channelled barrage: once the key has been let go, pressing it again ends the channel at once (strikes
+//   already falling still land) and drops the guard it gave (event k9 bnStop). Hook in stepUnit before the cast-in-progress return.
+// Channel strikes now carry their row's source tag (channelStrike), so vsTag, towerMul and the on-hit row fields work for them.
+// Nothing here is in netstate STATUS (the cast that ends is synced as the cast).
+function bnRing(m, owner, z) {
+  const i = srcSlot(owner, z.src), s = i >= 0 ? slotRow(owner, i, z.src) : null, B = s && s.bnRing;
+  if (!B) return;
+  for (const o of m.units) {
+    if (o.team === owner.team || !o.alive) continue;
+    const d = Math.sqrt(dist2(o.x, o.z, z.x, z.z)), reach = z.r + o.radius * 0.6;
+    if (d > reach || d < B.inner * z.r) continue;
+    applyFx(m, owner, o, B.fx);
+    m.events.push({ t: 'k9', kind: 'bnRing', id: o.id, by: owner.id, x: o.x, z: o.z });
+  }
+}
+function bnStop(m, u, inp) {
+  const c = u.cast, i = u.def.skills.indexOf(c.skill);
+  if (i < 0) return;
+  if (!inp[SLOTS[i]]) { c.bnUp = true; return; }
+  if (!c.bnUp) return;
+  u.cast = null; u.guardT = 0; u.guardF = 0;
+  m.events.push({ t: 'k9', kind: 'bnStop', id: u.id, x: u.x, z: u.z });
+}
+/* ===== end kit-remake G5 Băng Nha ===== */

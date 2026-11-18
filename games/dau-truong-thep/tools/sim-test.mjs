@@ -7,7 +7,7 @@ import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   /
 import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
-import { runK9Cases, OLD_ANDUONG } from './k9-cases.mjs';   // kit lane k9: section K9
+import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang } from './k9-cases.mjs';   // kit lane k9: section K9
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -266,9 +266,10 @@ const hp0 = (u) => u.maxHp - u.hp;
 }
 {
   const m = duel('bang', 'ung', [-5, -1], [3, -1]);
+  oldBang(m.units[0]);   // the old Băng Nha kit (tools/k9-cases.mjs): its frost shot slows
   const b = m.units[1];
   run(m, 14, (i) => [inp({ fire: i === 0, aim: 0 }), inp()]);
-  const w = MECHS.bang.weapon;
+  const w = OLD_BANG.weapon;
   check('frost shot: applies slow to the unit it hits', b.hp < b.maxHp && b.slowT > 0 && Math.abs(b.slowF - w.slow) < 1e-9 && unitSpeed(b) < b.def.speed * (1 - w.slow) + 1e-6, `slowT ${b.slowT} f ${b.slowF}`);
 }
 {
@@ -283,8 +284,9 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('recoil: an enemy outside the radius is untouched', far.units[1].hp === far.units[1].maxHp);
 }
 {
-  const s = MECHS.bang.skills[0];
+  const s = OLD_BANG.skills[0];
   const m = duel('bang', 'ung', [-5, -1], [3, -1]);
+  oldBang(m.units[0]);   // the old Băng Nha kit keeps the wall row covered
   const [a, b] = m.units;
   run(m, 1, () => [inp({ s1: true, aim: 0 }), inp()]);
   const wall = m.zones.find((z) => z.kind === 'wall');
@@ -583,6 +585,7 @@ section('13 new mechs: bots, inputs, balance');
   // enemy fields with dps: a normal bot with a goal behind it does not sit in one
   const m = createMatch({ seed: 9, roster: [{ team: 0, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'bang', name: 'B' }] });
   put(m.units[0], -5, -1); put(m.units[1], 12, 20);
+  oldBang(m.units[1]);   // the old Băng Nha kit (tools/k9-cases.mjs): its ult is a damaging blizzard field
   run(m, 1, () => [IN, inp({ ult: true, aim: Math.PI, tx: -5, tz: -1 })]);
   m.units[1].alive = false; m.units[1].respawnT = 100;
   const z = m.zones.find((q) => q.kind === 'field' && q.dps > 0);
@@ -613,7 +616,7 @@ const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixe
   check('15e no mech is useless or runaway: K/D 0.25 .. 4 for every non-medic; each medic heals over 800 per match and wins 20 .. 80% of its matches', MECH_ORDER.every((k) => MECHS[k].roleKey === 'medic' ? by[k].h / by[k].n > 800 && winOf(k) >= 0.2 && winOf(k) <= 0.8 : kdOf(k) > 0.25 && kdOf(k) < 4), MECH_ORDER.map((k) => MECHS[k].roleKey === 'medic' ? `${k} heal ${(by[k].h / by[k].n).toFixed(0)} win ${(100 * winOf(k)).toFixed(0)}%` : `${k} ${kdOf(k).toFixed(2)}`).join(' '));
   const casts = {};
   for (const r of bal) for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
-  const need = { turret: 'usung', wall: 'tuongbang', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'buff stealth': 'nguytrang', 'nova repeat': 'locthep', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'xungbang', blizzard: 'baotuyet', dash: 'vomoi' };
+  const need = { turret: 'usung', wall: 'vachda', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'buff stealth': 'nguytrang', 'nova repeat': 'locthep', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'vomoi' };
   console.log('bot skill casts over the balance matches: ' + Object.values(need).map((id) => `${id} ${casts[id] || 0}`).join('  '));
   for (const name in need) check(`16 bots use ${name} (${need[name]})`, (casts[need[name]] || 0) >= 1, `casts ${casts[need[name]] || 0}`);
   const th = bal.reduce((a, r) => a + r.turretHits, 0);
@@ -2066,7 +2069,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   {
     const move = (target) => { const m = arena([[R('trau', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 45, FIRE0); return m.units[1].x - 8; };
     check('steady: a trau hit by a 2.5 knock-back shell slides 7.5 / (1 - 0.6) / 30 = 0.625 m, a kimquy 7.5 / (1 - 0.8) / 30 = 1.25 m', near(move('trau'), 0.625, 0.01) && near(move('kimquy'), 1.25, 0.01), `${move('trau')} / ${move('kimquy')}`);
-    const slowed = (target) => { const m = arena([[R('bang', 0), 0, 0], [R(target, 1), 8, 0]]); go(m, 12, FIRE0); return unitSpeed(m.units[1]); };
+    const slowed = (target) => { const m = arena([[R('bang', 0), 0, 0], [R(target, 1), 8, 0]]); oldBang(m.units[0]); go(m, 12, FIRE0); return unitSpeed(m.units[1]); };
     check('steady: the 0.2 frost slow on trau is halved (5.1 x 0.9 = 4.59), on kimquy it is whole (5.0 x 0.8 = 4.0)', near(slowed('trau'), 4.59, 1e-9) && near(slowed('kimquy'), 4, 1e-9), `${slowed('trau')} / ${slowed('kimquy')}`);
   }
   {
@@ -2104,8 +2107,9 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   }
   {
     const m = arena([[R('bang', 0), 0, 0], [R('ung', 1), 8, 0]]);
+    oldBang(m.units[0]);   // the old Băng Nha kit: brittle passive, slowing frost shot
     go(m, 25, (i) => ({ 0: { fire: i === 0 || i === 11 } }));
-    check(`brittle: bang ${MECHS.bang.weapon.dmg} on a clean target, then x 1.2 on the slowed one`, near(m.units[1].hp, 1700 - MECHS.bang.weapon.dmg * 2.2, 1e-9), `hp ${m.units[1].hp}`);
+    check(`brittle: bang ${OLD_BANG.weapon.dmg} on a clean target, then x 1.2 on the slowed one`, near(m.units[1].hp, 1700 - OLD_BANG.weapon.dmg * 2.2, 1e-9), `hp ${m.units[1].hp}`);
   }
   {
     const m = arena([[R('tho', 0), 0, 0], [R('ung', 1), 25, 15]]);

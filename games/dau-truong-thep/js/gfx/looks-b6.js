@@ -318,65 +318,8 @@ const nhenthep = {
   },
 };
 
-// ---- Băng Nha: ice crystals and frost, deep blue and white -----------------------------------------------------------
-const BN_ICE = C(0.55, 1.6, 2.6), BN_DEEP = C(0.1, 0.35, 1.3), BN_WHITE = C(2.3, 2.5, 2.6);
-const prismGeo = keep(new THREE.CylinderGeometry(0.34, 0.46, 1, 6).translate(0, 0.5, 0)), tipGeo = keep(new THREE.ConeGeometry(0.34, 0.55, 6).translate(0, 1.27, 0));
-function crystal(h) {
-  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: 0xa8e2ff, emissive: 0x2a6aa0, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.9, flatShading: true }), gl = basic(BN_ICE, true, 0.35);
-  for (const [mm, s] of [[gl, 1.35], [m, 1]]) { const a = new THREE.Mesh(prismGeo, mm), b = new THREE.Mesh(tipGeo, mm); a.scale.set(s, 1, s); b.scale.set(s, 1, s); const sub = new THREE.Group(); sub.add(a, b); sub.scale.y = h; g.add(sub); }
-  return order(g, 7);
-}
-const fangGeo = flatShape([[0, -0.42], [0.9, -0.2], [2.0, 0], [0.9, 0.2], [0, 0.42], [0.25, 0]]);
-const bang = {
-  // Tường Băng: each block of the wall is a cluster of tall faceted ice crystals bursting out of a frost patch
-  bnWall: {
-    zones: ['wall'],
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const all = [], pts = z.pts || [[z.x, z.z]];
-      pts.forEach(([x, zz], i) => {
-        for (let j = 0; j < 4; j++) { const c = crystal(R(2.2, 3.6) * (j ? 0.75 : 1)), b = j * 1.7 + i; c.position.set(x + (j ? Math.cos(b) * 0.45 : 0), 0, zz + (j ? Math.sin(b) * 0.45 : 0)); c.rotation.set(j ? Math.cos(b) * 0.3 : 0, b, j ? Math.sin(b) * 0.3 : 0); c.userData.s = (z.r || 0.75) * 1.85; all.push(c); }
-        sigil(kit, x, zz, 1.4, BN_WHITE, { n: 0, ticks: 0, inner: 0, fill: 0.6, life: z.dur || 4.5, rev: 0.1, alpha: 0.45, w: 0, y: 0.12 });
-      });
-      return { all, hold: held(kit, all), t: 0, pts };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const up = Math.min(1, v.t / 0.15), end = Math.min(1, Math.max(0, (z.dur - z.age) / 0.25)), k = up * end;
-      v.all.forEach((c) => { const s = c.userData.s; c.scale.set(s * (0.6 + 0.4 * k), s * k, s * (0.6 + 0.4 * k)); });
-    },
-    zoneDrop(kit, v) { v.hold.on = false; for (const [x, z] of v.pts) kit.chips(x, 1.2, z, kit.N(6), C(0.75, 0.9, 1), 6, 0.7, 0.16); },
-  },
-  // Xung Băng: a star of ice fangs bursts flat across the floor from him, white frost waves running out after them
-  bnNova: {
-    pal: [BN_ICE, BN_WHITE], hitR: 1.8,
-    skill() { return true; },
-    nova(kit, e) {
-      const r = e.r || 5, g = new THREE.Group(), fm = basic(0xa8e0ff, false, 0.95), fg = basic(0x1a4a9a, false, 0.9);
-      for (let i = 0; i < 8; i++) { const b = (i / 8) * 6.283 + 0.2, L = i % 2 ? 0.75 : 1; for (const [m, s] of [[fg, 1.25], [fm, 1]]) { const f = new THREE.Mesh(fangGeo, m); f.rotation.y = -b; f.userData.b = b; f.userData.L = L * s; g.add(f); } }
-      order(g, 7); g.position.set(e.x, 0.25, e.z);
-      own(kit, [g], 0.75, (t) => { const k = 1 - (1 - Math.min(1, t / 0.18)) ** 2; g.children.forEach((f) => { const d = r * (0.25 + 0.45 * k); f.position.set(Math.cos(f.userData.b) * d, 0, Math.sin(f.userData.b) * d); f.scale.set(f.userData.L * r * 0.5 * (0.4 + 0.6 * k), 1, f.userData.L * 2.4); }); fadeAll(g, Math.min(1, (0.75 - t) / 0.3)); });
-      sigil(kit, e.x, e.z, r, BN_DEEP, { n: 0, ticks: 0, inner: 0, fill: 0.5, life: 0.7, rev: 0.12, alpha: 0.6, w: 0, y: 0.11, grow: 12 });
-      return true;
-    },
-  },
-  // Bão Tuyết: an ice-blue frost dome closes over the spot, snow whirling round inside
-  bnStorm: {
-    pal: [BN_ICE, BN_WHITE], hitR: 1.5,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const dome = shell(kit, z.x, 0, z.z, z.r, BN_ICE, { c2: BN_DEEP, dome: true, p: 2.2, core: 0.02, alpha: 0.35, life: 1e9, grow: 0.3, squash: 0.45 });
-      const crown = []; for (let i = 0; i < 10; i++) { const b = (i / 10) * 6.283, c = crystal(i % 2 ? 2.2 : 3.2); c.position.set(z.x + Math.cos(b) * z.r * 0.95, 0, z.z + Math.sin(b) * z.r * 0.95); c.rotation.set(Math.sin(b) * 0.35, 0, -Math.cos(b) * 0.35); c.userData.s = 1.2; crown.push(c); }
-      const s = sigil(kit, z.x, z.z, z.r, BN_DEEP, { c2: BN_WHITE, n: 0, ticks: 0, inner: 0, fill: 0.45, life: 1e9, rev: 0.3, alpha: 0.7, w: 0.06 });
-      return { dome, s, crown, ch: held(kit, crown), acc: 0, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; v.acc += dt; const k = Math.min(1, v.t / 0.2) * Math.min(1, Math.max(0, (z.dur - z.age) / 0.3));
-      v.crown.forEach((c) => c.scale.set(1.2, 1.2 * k, 1.2));
-      for (let i = 0; i < 6; i++) { const b = Math.random() * 6.283, d = z.r * R(0.25, 0.9), sp = R(7, 11); kit.str.emit(z.x + Math.cos(b) * d, R(0.4, 3.2), z.z + Math.sin(b) * d, -Math.sin(b) * sp, R(-0.5, 0.3), Math.cos(b) * sp, BN_WHITE, 0.3, 0.12, 0.05, 0, 0, 1); }
-    },
-    zoneDrop(kit, v) { stop(v.dome); stop(v.s); v.ch.on = false; },
-  },
-};
+// ---- Băng Nha moved to looks-k9.js with the kit ported from clip p81; Kiếm Thần still borrows BN_WHITE -------------------------
+const BN_WHITE = C(2.3, 2.5, 2.6);
 
 // ---- Kiếm Thần: steel swords, red fire ---------------------------------------------------------------------------------
 const KT_RED = C(2.6, 0.35, 0.15), KT_ORG = C(2.6, 1.2, 0.25), KT_STEEL = C(1.2, 1.7, 2.6);
@@ -450,4 +393,4 @@ const kiemthan = {
   },
 };
 
-export const B6 = { ...bocap,...luondien, ...nhenthep, ...bang, ...kiemthan };   // vesau's looks moved to looks-k8.js with its ported kit
+export const B6 = { ...bocap,...luondien, ...nhenthep, ...kiemthan };   // vesau and bang moved to looks-k8.js / looks-k9.js with their ported kits

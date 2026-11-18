@@ -137,20 +137,32 @@ export const MECHS = {
         desc: 'Xoay tròn chém bốn nhát liên tiếp vào mọi kẻ địch quanh mình, vẫn di chuyển được.' },
     ],
   },
+  // Băng Nha = 冰雪女王 Băng Tuyết Nữ Vương: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p81 "78.冰雪女王", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-a.md). Attack = one Gai Băng shot (150; was 78 at 0.36 s with a slow): Băng Sương 237% -> 356,
+  // Băng Đống 188% -> 282, Băng Thiên 177% -> 266 a strike (5 strikes). Cooldowns 8 / 6 / 25 s in the clip -> 10 / 8 / 45.
+  // The Frost Mark is a G2 tag (key 'frost') that every skill row puts on with a 25% slow and a 0.75 fire-rate slow for 2 s; every skill
+  // row's vsTag pays it (x1.5, 25%: frozen 0.5 s, +10% damage taken). Ice armour = passive mods hitCap 0.15 + onHurt by skill (mark the
+  // attacker, +50% speed, more armour 1.5 s). Kit-remake G5 fields (sim.js block "kit-remake G5 Băng Nha"): barrage bnRing, bnStop.
   bang: {
     name: 'Băng Nha', role: 'Khống chế', roleKey: 'control', price: 1200, tint: 0x9fd8ff,
-    blurb: 'Mỗi phát bắn làm chậm. Dựng tường băng chia cắt đội hình, gọi bão tuyết giữ chân cả nhóm.',
+    blurb: 'Nữ hoàng băng tuyết: chiêu nào trúng cũng in dấu băng, chiêu sau đánh vào dấu đau gấp rưỡi và có thể đóng băng. Vòng băng đóng băng mép ngoài, hơi thở băng đẩy lùi cả nhóm, bão tuyết giáng năm lần.',
     hp: 2750, speed: 5.8, radius: 0.84,
     armor: 0.15, accel: 0.9, turn: 11, towerMul: 2.2,
-    passive: { do: 'brittle', name: 'Tê Cóng', desc: 'Gây thêm 20% sát thương lên kẻ đang bị làm chậm.', mul: 1.2 },
-    weapon: { name: 'Gai Băng', cd: 0.36, dmg: 78, speed: 28, range: 13, r: 0.24, slow: 0.2, slowDur: 1.2, vis: 'frost' },
+    passive: { do: 'trait', name: 'Hàn Băng Ấn Ký', mods: { hitCap: 0.15, onHurt: { by: 'skill', icd: 0.3, self: { dur: 1.5, haste: 1.5, armor: 0.08 }, mark: { key: 'frost', dur: 2 } } },
+      desc: 'Chiêu trúng in Dấu Băng 2 giây: chậm 25%, bắn chậm 25%. Chiêu của bạn đánh vào kẻ mang dấu mạnh gấp rưỡi và 25% đóng băng nó 0,5 giây (chịu thêm 10% sát thương). Giáp băng: không đòn nào lấy quá 15% máu tối đa của bạn; trúng chiêu thì kẻ đánh bị in dấu, còn bạn chạy nhanh 50% và cứng hơn trong 1,5 giây.' },
+    weapon: { name: 'Gai Băng', cd: 0.6, dmg: 150, speed: 28, range: 13, r: 0.26, vis: 'frost' },
     skills: [
-      { id: 'tuongbang', look: 'bnWall', name: 'Tường Băng', cd: 14, do: 'wall', cast: 4, n: 5, r: 0.75, gap: 1.35, dur: 4.5, icon: 'wall',
-        desc: 'Dựng bức tường băng chắn ngang trước mặt trong 4,5 giây. Tường chặn cả đường đi lẫn đạn của hai phe.' },
-      { id: 'xungbang', look: 'bnNova', name: 'Xung Băng', cd: 10, do: 'nova', windup: 0.3, radius: 5, dmg: 140, slow: 0.6, slowDur: 2.5, icon: 'frost',
-        desc: 'Tỏa một vòng băng quanh mình: địch dính phải bị chậm 60% trong 2,5 giây.' },
-      { id: 'baotuyet', look: 'bnStorm', name: 'Bão Tuyết', cd: 46, do: 'zone', at: 'target', cast: 14, radius: 6.5, dur: 5, dps: 150, slow: 0.5, vis: 'blizzard', icon: 'blizzard',
-        desc: 'Gọi bão tuyết xuống vùng con trỏ trong 5 giây: địch bên trong mất máu liên tục và bị chậm một nửa.' },
+      { id: 'bangsuong', look: 'bnRing', name: 'Băng Sương Chi Hoàn', cd: 10, do: 'barrage', n: 1, cast: 10, radius: 0, blast: 3.2, delay: 0.5, span: 0, dmg: 356,
+        fx: { slow: 0.25, slowDur: 2, tag: { key: 'frost', dur: 2 }, slowFire: { mul: 0.75, dur: 2 } }, vsTag: { key: 'frost', mul: 1.5, fx: { chance: 0.25, stun: 0.5, amp: { amp: 0.1, dur: 0.5 } } },
+        bnRing: { inner: 0.55, fx: { stun: 1.5, amp: { amp: 0.1, dur: 1.5 } } }, uses: { n: 2, gap: 4 }, icon: 'frost',
+        desc: 'Sau 0,5 giây một vòng băng hiện ra ở con trỏ (xa nhất 10 m): 356 sát thương vòng 3,2 m; kẻ đứng ở mép ngoài bị đóng băng 1,5 giây (chịu thêm 10% sát thương). Tích 2 lượt, mỗi lượt cách nhau 4 giây.' },
+      { id: 'bangdong', look: 'bnBreath', name: 'Băng Đống Chi Tức', cd: 8, do: 'nova', windup: 0.3, move: 0, arc: 0.6, radius: 5.5, dmg: 282, knock: 2,
+        fx: { slow: 0.5, slowDur: 2, slowDecay: true, weaken: { mul: 0.75, dur: 2 }, tag: { key: 'frost', dur: 2 }, slowFire: { mul: 0.75, dur: 2 } }, vsTag: { key: 'frost', mul: 1.5, fx: { chance: 0.25, stun: 0.5, amp: { amp: 0.1, dur: 0.5 } } }, icon: 'frost',
+        desc: 'Lấy hơi 0,3 giây rồi thổi hơi băng hình quạt trước mặt (5,5 m): 282 sát thương, đẩy lùi, chậm 50% nhạt dần trong 2 giây, và kẻ trúng gây ít hơn 25% sát thương trong 2 giây.' },
+      { id: 'bangthien', look: 'bnBlizzard', name: 'Băng Thiên Tuyết Địa', cd: 45, do: 'barrage', radius: 3.5, blast: 3.5, dmg: 266, delay: 0.3, cast: 14,
+        channel: { dur: 3.05, every: 0.6, move: 0 }, bnStop: true, self: { on: 'cast', dur: 3.05, guard: 0.25 }, towerMul: 0.25,
+        fx: { slow: 0.25, slowDur: 2, tag: { key: 'frost', dur: 2 }, slowFire: { mul: 0.75, dur: 2 } }, vsTag: { key: 'frost', mul: 1.5, fx: { chance: 0.25, stun: 0.5, amp: { amp: 0.1, dur: 0.5 } } }, icon: 'blizzard',
+        desc: 'Đứng gọi bão tuyết xuống vùng con trỏ (xa nhất 14 m) trong 3 giây: năm đợt băng giáng xuống, mỗi đợt 266 sát thương vòng 3,5 m. Trong lúc gọi bão chịu ít hơn 25% sát thương; bấm lại để dừng. Sát thương lên công trình giảm 75%.' },
     ],
   },
   tho: {
@@ -1055,7 +1067,7 @@ export const PERKS = {
   hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 310 mỗi giây.', 0, { hps: 310 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
   loi: [perk('Khói Đặc', 'Màn Khói kéo dài 7,5 giây.', 0, { dur: 7.5 }), perk('Thuốc Nổ', 'Giật Lùi gây 260.', 1, { dmg: 260 }), perk('Bảy Tiếng Sấm', 'Thiên Lôi rơi bảy quả.', 2, { n: 7 })],
   bocap: [perk('Vồ Liên Hồi', 'Vồ Mồi hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Ẩn Sâu', 'Ngụy Trang kéo dài 5,5 giây.', 1, { stealth: 5.5, dur: 5.5 }), perk('Sáu Nhát', 'Lốc Thép chém sáu nhát.', 2, { repeat: 6 })],
-  bang: [perk('Gai Buốt', 'Gai Băng làm chậm 30%.', 'weapon', { slow: 0.3 }), perk('Tường Dài', 'Tường Băng dài bảy khối.', 0, { n: 7 }), perk('Bão Dai', 'Bão Tuyết kéo dài 6,5 giây.', 2, { dur: 6.5 })],
+  bang: [perk('Gai Buốt', 'Gai Băng gây 165.', 'weapon', { dmg: 165 }), perk('Vòng Rộng', 'Băng Sương Chi Hoàn rộng 3,8 m.', 0, { blast: 3.8 }), perk('Bão Dai', 'Băng Thiên Tuyết Địa giáng sáu đợt.', 2, { channel: { dur: 3.65, every: 0.6, move: 0 }, self: { on: 'cast', dur: 3.65, guard: 0.25 } })],
   tho: [perk('Nòng Lớn', 'Ụ Súng bắn 66 mỗi phát.', 0, { dmg: 66 }), perk('Hố Rộng', 'Hố Từ rộng 5,5 m.', 1, { radius: 5.5 }), perk('Bảy Quả Mìn', 'Bãi Mìn rải bảy quả.', 2, { n: 7 })],
   thancong: [perk('Lõi Vonfram', 'Đạn Xuyên gây 1000.', 1, { dmg: 1000 }), perk('Chốt Nhanh', 'Cắm Chốt chỉ mất 0,35 giây.', 0, { setup: 0.35 }), perk('Mười Một Quả', 'Oanh Tạc dội 11 quả.', 2, { n: 11 })],
   mangxa: [perk('Xích Dài', 'Móc Xích vươn tới 16 m.', 0, { range: 16 }), perk('Choáng Váng', 'Hoán Vị với xa 15 m, địch chậm 2,5 giây.', 1, { cast: 15, slowDur: 2.5 }), perk('Lồng Chắc', 'Lồng Xích giữ 4,5 giây.', 2, { dur: 4.5 })],
