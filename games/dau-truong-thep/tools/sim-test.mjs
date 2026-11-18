@@ -141,7 +141,9 @@ for (const key of MECH_ORDER) {
     // orbit devour (tumay ult) needs a chaos orb to send: the pool timer is primed so the first tick grows one before the press
     if (s.mode === 'devour') a.tmAcc = MECHS[key].passive.every;
     let first = -1, second = -1, castTicks = 0;
-    for (let t = 0; t < Math.ceil((s.cd + 1.5) / TICK); t++) {
+    // cdAfter (G1): the cooldown waits for the row's state (a buff's or a transform's dur) before it runs
+    const held = s.cdAfter && (s.do === 'buff' || s.do === 'transform') ? s.dur : 0;
+    for (let t = 0; t < Math.ceil((s.cd + held + 1.5) / TICK); t++) {
       const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' ? 0 : 1 });
       step(m, ally ? [o, inp(), inp()] : [o, inp()]);
       // a follow-up (G3 then, Black Panther's second charge) carries `then` on its skill event: it is not a press
@@ -151,7 +153,7 @@ for (const key of MECH_ORDER) {
     }
     check(`${key}.${slot} (${s.do}) goes on cooldown = ${s.cd}s`, first === 0 && Math.abs(castTicks - s.cd) < 1e-9, `first ${first} cd ${castTicks}`);
     // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown; a follow-up (then, its event says so) is no recast
-    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd) - 2 * TICK && (second - first) * TICK <= (s.uses ? s.uses.gap : s.cd) + 0.5, `gap ${(second - first) * TICK}`);
+    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd + held) - 2 * TICK && (second - first) * TICK <= (s.uses ? s.uses.gap : s.cd + held) + 0.5, `gap ${(second - first) * TICK}`);
   }
 }
 
@@ -2952,9 +2954,13 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
     v.rampN = 9;
     check('41t ramp armor stacks are capped by rampN max only through damage(); armorOf never exceeds RULES.armorCap', armorOf(m, v) <= RULES.armorCap);
   }
+  // The batch-3 Sơn Tinh passive (Núi Vững) and ult (Dời Non) are a fixture now: sontinh plays the kit ported from clip p14 (section K6).
+  const OLD_SONTINH = { passive: { do: 'ramp', name: 'Núi Vững', on: 'still', stat: 'armor', step: 0.04, max: 5, every: 0.5, reset: 'move' },
+    ult: { id: 'doinon', name: 'Dời Non', cd: 46, do: 'barrage', line: true, n: 6, gap: 2.6, radius: 7, blast: 2.8, dmg: 480, delay: 0.7, span: 1.2, cast: 16, fx: { stun: 0.7, knock: 3 } } };
+  const oldSontinh = (u) => { u.def = { ...u.def, passive: OLD_SONTINH.passive, skills: [u.def.skills[0], u.def.skills[1], OLD_SONTINH.ult], tfWeapon: {} }; u.passive = 'ramp'; return u; };
   // ramp 'still' (sontinh armor, boica dmg): +1 per every s, back to 0 on moving
   {
-    const m = arena([[R('sontinh', 0), 0, 0], [R('ung', 1), 14, 0]]), a = m.units[0];
+    const m = arena([[R('sontinh', 0), 0, 0], [R('ung', 1), 14, 0]]), a = oldSontinh(m.units[0]);
     go(m, 50);
     check('41u ramp still: 50 ticks standing -> 3 stacks, armor 0.15 + 0.12', a.rampN === 3 && near(armorOf(m, a), 0.27), `rampN ${a.rampN}`);
     go(m, 4, () => ({ 0: { mx: 1 } }));
@@ -3024,6 +3030,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   // barrage.fx knock + stun (sontinh U)
   {
     const m = arena([[R('sontinh', 0), 0, 0], [R('ung', 1), 8.7, 1.0]]), v = m.units[1];
+    oldSontinh(m.units[0]);
     go(m, 30, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 } }));
     check('41zo barrage line fx: stunned 0.7 s and thrown away from the blast (z > 1.1)', v.stunT > 0 && v.z > 1.1, `stun ${v.stunT} z ${v.z}`);
   }

@@ -52,7 +52,7 @@ const SEQ = {
   mucma: { d: 5, seq: [['ult', 0], ['s2', 0.3], ['s1', 0.6]] },
   kynhong: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },
   nguma: { d: 5, seq: [['ult', 0], ['s2', 0.8], ['s1', 1.2]] },
-  sontinh: { d: 9, seq: [['s2', 0], ['ult', 0.5]] },
+  sontinh: { d: 9, seq: [['s2', 0], ['ult', 4.2]] },   // the rage first (three rocks a throw), then the god once it is over
   enbac: { d: 8, seq: [['s2', 0], ['ult', 0.3], ['s1', 1.2]] },
   boica: { d: 14, seq: [['s1', 0], ['ult', 0.2]], fireAt: 0.1 },
   bohung: { d: 5, seq: [['s2', 0], ['s1', 0.3], ['ult', 0.6]] },

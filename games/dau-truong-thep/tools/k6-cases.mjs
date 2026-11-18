@@ -70,6 +70,54 @@ export function runK6Cases(check, section) {
     check('K6-h ... the near one 8 x 38 and 8 x 150 (the only enemy in 6 m)', hn.length === 16 && near(sum(hn, (e) => e.amt), 8 * (38 + 150) * DF, 1e-6), `${hn.length} ${sum(hn, (e) => e.amt)}`);
     check('K6-i ... 16 bolt events and 8 near events, the field is gone after 6 s', only(ev, 'kit', (e) => e.k === 'bolt').length === 16 && only(ev, 'kit', (e) => e.k === 'near').length === 8 && !m.zones.some((z) => z.mgtStorm), `${only(ev, 'kit').length}`);
   }
+
+  // ---- Sơn Tinh (sontinh), clip p14 ----
+  const ST = MECHS.sontinh, [SQ, SE, SU] = ST.skills;
+  // passive: Đá Lăn 225 every 0.75 s + 3% of the lost hp as true damage; 25% lifesteal
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('thancong', 1), 6, 0]]), [a, v] = m.units;
+    a.hp = a.maxHp - 1000; const h0 = a.hp;
+    const ev = go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    const hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0).map((e) => e.amt);
+    check('K6-j Dai Dia Chi Luc: a rock hits 225 x armour, then 3% of the hp it has lost as true damage', hits.length === 2 && near(hits[0], 225 * DF) && near(hits[1], 0.03 * 225 * DF), JSON.stringify(hits));
+    check('K6-k ... and heals him 25% of all of it', near(a.hp - h0, 0.25 * (hits[0] + hits[1]), 1e-6), `${a.hp - h0}`);
+  }
+  // Đại Địa Trớ Chú: 0.4 s wind-up, then foes in 5 m slow down to a stop over 3 s, are petrified 1 s and take 335
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('thancong', 1), 3, 0], [R('thancong', 1), 9, 0]]), [a, v, f] = m.units;
+    press(m, 0, 's1'); go(m, Math.round(0.4 / TICK) + 1);
+    check('K6-l Dai Dia Tro Chu: the foe in 5 m is cursed 3 s, the one at 9 m not', v.sntCT > 2.8 && !(f.sntCT > 0) && v.hp === DUM.hp, `${v.sntCT} ${f.sntCT}`);
+    go(m, Math.round(2.7 / TICK));
+    check('K6-m ... the slow grows: near a full stop just before the end', v.slowG > 0.85, `${v.slowG}`);
+    const ev = go(m, 12);
+    const hit = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('K6-n ... then 335 x armour and petrified 1 s', hit.length === 1 && near(hit[0].amt, 335 * DF) && LOC_KINDS[v.locK] === 'petrify' && v.locT > 0.5, `${hit.map((e) => e.amt)} ${LOC_KINDS[v.locK]} ${v.locT}`);
+  }
+  // Đại Địa Chi Nộ: 4 s of x1.25 speed and fire rate, 50% lifesteal, three rocks a throw; the cooldown waits for the end
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('thancong', 1), 8, 0]]), [a, v] = m.units;
+    press(m, 0, 's2');
+    check('K6-o Dai Dia Chi No: haste 1.25, rapid 1.25, lifesteal 0.5, 8 scatter throws armed', a.hasteF === 1.25 && a.rapidF === 1.25 && a.rageF === 0.5 && a.shotN === 8, `${a.hasteF} ${a.rapidF} ${a.rageF} ${a.shotN}`);
+    go(m, 1, () => ({ 0: { fire: true, tx: 8, tz: 0 } }));
+    check('K6-p ... a throw is three rocks in a fan', m.shots.filter((s) => s.owner === 0).length === 3, `${m.shots.filter((s) => s.owner === 0).length}`);
+    go(m, Math.round(2 / TICK));
+    check('K6-q ... its cooldown stands full while the 4 s run (cdAfter)', near(a.cd.s2, SE.cd), `${a.cd.s2}`);
+  }
+  // Sơn Thần Giáng Lâm: 1 s in the air (untargetable), lands for 527 + stun 1 in 4 m, 13 s god; petrified 1 s with armour at the end
+  {
+    const m = arena([[R('sontinh', 0), 0, 0], [R('thancong', 1), 9, 0]]), [a, v] = m.units;
+    press(m, 0, 'ult', { tx: 8, tz: 0 });
+    check('K6-r Son Than Giang Lam: flies (untargetable ~1 s), the god runs 13 s at x1.4, cc x0.25', !!a.dash && a.dash.fly && a.invulnT > 0.9 && near(a.tfT, 13 - 0) && near(a.radius, ST.radius * 1.4) && a.tfCc === 0.25, `${a.invulnT} ${a.tfT} ${a.radius} ${a.tfCc}`);
+    const ev = go(m, Math.round(1.05 / TICK) + 2);
+    const hit = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('K6-s ... lands 2.5 m short of the cursor (x 5.5): 527 with falloff on the foe 3.5 m off, stun 1 s', hit.length === 1 && near(hit[0].amt, 527 * fall(3.5, 4) * DF, 1e-3) && v.stunT > 0.8 && Math.abs(a.x - 5.5) < 0.3, `${hit.map((e) => e.amt)} ${v.stunT} x ${a.x}`);
+    const w = weaponOf(a);
+    check('K6-t ... the god throws boulders: 225, splash 2.6, armour ignored, slow 50% decaying', w.dmg === 225 && w.splash === 2.6 && w.pen === 1 && w.fx.slowDecay === true, JSON.stringify(w));
+    go(m, Math.round(10 / TICK));
+    check('K6-u ... the ult cooldown waits while the god stands (cdAfter)', near(a.cd.ult, SU.cd), `${a.cd.ult}`);
+    go(m, Math.round(2 / TICK) + 3);
+    check('K6-v ... at the end: petrified 1 s and +0.25 armour', a.tfT <= 0 && LOC_KINDS[a.locK] === 'petrify' && a.locT > 0.5 && a.armorF === 0.25 && a.armorT > 0.5, `${a.tfT} ${LOC_KINDS[a.locK]} ${a.locT} ${a.armorF}`);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

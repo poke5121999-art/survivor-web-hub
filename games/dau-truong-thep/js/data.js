@@ -519,20 +519,34 @@ export const MECHS = {
         desc: 'Hóa Pháp Tướng 6 giây: to hơn 35%, thêm 20% giáp, hồi 25% máu đã mất và giáng một đòn chấn động 320 sát thương, choáng 1,1 giây.' },
     ],
   },
+  // Sơn Tinh: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p14 "11.山精", tooltips read at 1.5-4.5 s; AUDIT-c.md). Attack = 150
+  // (lubo, moclan); the passive's +50% damage and +50% shot speed are baked into the weapon: Đá Lăn 150 x 1.5 = 225 every 0.75 s (300 dps
+  // before the passive, as the others), speed 33, each hit + 3% of the target's lost hp as true damage, lifesteal 25% (E adds 25%: 50%).
+  // Đại Địa Trớ Chú 223% -> 335; Sơn Thần Giáng Lâm 351% -> 527, its boulders 100% x 1.5 -> 225 (armour ignored: pen 1). Cooldowns
+  // 10 / 8 / 30 s in the clip -> 13 / 10 / 50; E and the ult start their cooldown once their state is over (cdAfter, the tooltip's red
+  // line). E's scatter is G3 self.shots (three rocks in a fan for its 4 s). The god lasts 13 s from the press (1 s vanished in the air,
+  // 12 s on the ground), takes 75% less crowd control (ccResist 0.25) and does 75% less to buildings (towerMul 0.25); at the end it is
+  // petrified 1 s with +0.25 armour (+150% of its 0.15). The "+150% energy shield" has no counterpart here and is dropped.
+  // Kit lane K6 fields (sim.js block "kit lane K6"): hitfx sntCurse, transform sntLand, buff sntStone.
   sontinh: {
     name: 'Sơn Tinh', role: 'Trụ', roleKey: 'tank', price: 1800, tint: 0x6b7a3a,
-    blurb: 'Đứng vững như núi: đứng yên càng lâu giáp càng dày. Dựng vách đá, chấn địa, dời non đè cả vùng.',
+    blurb: 'Thần núi ném đá hút máu, mỗi viên ăn thêm máu đã mất của kẻ trúng. Nguyền rủa kẻ địch chậm dần tới hóa đá, nổi giận ném đá tỏa, rồi biến thành Sơn Thần khổng lồ giáng từ trời xuống.',
     hp: 3300, speed: 4.9, radius: 0.96,
     armor: 0.15, accel: 0.8, turn: 9, towerMul: 1.4,
-    passive: { do: 'ramp', name: 'Núi Vững', desc: 'Đứng yên mỗi nửa giây thêm 4% giáp, tối đa 5 lần. Di chuyển là mất hết.', on: 'still', stat: 'armor', step: 0.04, max: 5, every: 0.5, reset: 'move' },
-    weapon: { name: 'Đá Lăn', cd: 1.0, dmg: 285, speed: 22, range: 13, splash: 2, knock: 2, r: 0.4, vis: 'shell' },
+    passive: { do: 'lifesteal', name: 'Đại Địa Chi Lực', frac: 0.25,
+      desc: 'Đá ném ra bay nhanh hơn 50% và nặng hơn 50%. Mỗi viên trúng thêm sát thương chuẩn bằng 3% máu đã mất của kẻ trúng, và 25% sát thương gây ra hóa thành máu cho bạn.' },
+    weapon: { name: 'Đá Lăn', cd: 0.75, dmg: 225, speed: 33, range: 13, r: 0.4, fx: { lostHp: 0.03 }, vis: 'shell' },
     skills: [
-      { id: 'vachda', look: 'stWall', name: 'Vách Đá', cd: 14, do: 'wall', cast: 5, n: 5, r: 0.8, gap: 1.35, dur: 5, icon: 'wall',
-        desc: 'Dựng một vách đá năm khối trước mặt trong 5 giây, chặn đường và đạn.' },
-      { id: 'chandia', look: 'stQuake', name: 'Chấn Địa', cd: 10, do: 'nova', windup: 0.35, radius: 5.5, dmg: 260, slow: 0.45, slowDur: 2, icon: 'quake',
-        desc: 'Giậm đất quanh mình, gây 260 sát thương và làm chậm 45% trong 2 giây.' },
-      { id: 'doinon', look: 'stMount', name: 'Dời Non', cd: 46, do: 'barrage', line: true, n: 6, gap: 2.6, radius: 7, blast: 2.8, dmg: 480, delay: 0.7, span: 1.2, cast: 16, fx: { stun: 0.7, knock: 3 }, icon: 'barrage',
-        desc: 'Sáu tảng đá rơi thành một hàng dọc theo hướng ngắm, mỗi tảng 480 sát thương, choáng 0,7 giây và hất văng.' },
+      { id: 'trochu', look: 'stCurse', name: 'Đại Địa Trớ Chú', cd: 13, do: 'nova', windup: 0.4, radius: 5, dmg: 0, fx: { slow: 1, slowDur: 3, slowGrow: true, sntCurse: { dur: 3, dmg: 335, petrify: 1 } }, icon: 'quake',
+        desc: 'Lấy đà 0,4 giây rồi nguyền rủa kẻ địch trong 5 m quanh bạn: trong 3 giây chúng chậm dần tới khi đứng sững, rồi hóa đá 1 giây và chịu 335 sát thương.' },
+      { id: 'daino', look: 'stWrath', name: 'Đại Địa Chi Nộ', cd: 10, do: 'buff', dur: 4, haste: 1.25, rapid: 1.25, lifesteal: 0.5, cdAfter: true,
+        self: { on: 'cast', dur: 4, shots: 8, shotsFor: 4, patch: { n: 3, fan: 0.18 } }, icon: 'rage',
+        desc: 'Nổi giận 4 giây: chạy nhanh hơn 25%, ném nhanh hơn 25%, mỗi lượt ném ba tảng đá tỏa hình quạt và hút máu lên 50%. Hồi chiêu chỉ bắt đầu khi hết cơn giận.' },
+      { id: 'sonthan', look: 'stGod', name: 'Sơn Thần Giáng Lâm', cd: 50, do: 'transform', dur: 13, size: 1.4, ccResist: 0.25, towerMul: 0.25, invuln: true, cdAfter: true,
+        sntLand: { cast: 14, short: 2.5, flight: 1, radius: 4, dmg: 527, fx: { stun: 1 } },
+        weapon: { name: 'Đá Thần', cd: 0.9, dmg: 225, speed: 20, range: 15, r: 0.6, splash: 2.6, splashHit: true, pen: 1, fx: { lostHp: 0.03, slow: 0.5, slowDur: 1, slowDecay: true }, vis: 'shell' },
+        onEnd: { id: 'giapnui', name: 'Giáp Núi', do: 'buff', dur: 1, armor: 0.25, sntStone: 1 }, icon: 'leap',
+        desc: 'Biến mất 1 giây rồi giáng xuống trước chỗ con trỏ 2,5 m (xa nhất 14 m) thành Sơn Thần: 527 sát thương vòng 4 m, choáng 1 giây. Sơn Thần to lớn đứng 12 giây, chỉ chịu 1/4 thời gian khống chế, ném đá thần nổ vòng 2,6 m (225, xuyên giáp, làm chậm 50% nhạt dần) nhưng đánh công trình yếu đi 75%. Hết giờ thì hóa đá 1 giây, giáp dày thêm. Hồi chiêu chỉ bắt đầu khi hết Sơn Thần.' },
     ],
   },
   // Star Lord: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p18 "15.飞翼" (tooltips at 0.5-5.5 s, AUDIT-a.md). Attack = one
@@ -1175,7 +1189,7 @@ export const PERKS = {
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Xuyên Sâu', 'Xuyên Thân lao xa 9,5 m, gây 260.', 1, { dist: 9.5, dmg: 260 }), perk('Ma Dài', 'Hóa Ma kéo dài 8 giây, hút máu 45%.', 2, { dur: 8, lifesteal: 0.45 })],
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],
-  sontinh: [perk('Đá Nặng', 'Đá Lăn gây 300, nổ lan 2,6 m.', 'weapon', { dmg: 300, splash: 2.6 }), perk('Bảy Khối Đá', 'Vách Đá dựng bảy khối.', 0, { n: 7 }), perk('Tám Tảng Non', 'Dời Non rơi tám tảng, mỗi tảng 560.', 2, { n: 8, dmg: 560 })],
+  sontinh: [perk('Đá Nặng', 'Đá Lăn gây 250.', 'weapon', { dmg: 250 }), perk('Trớ Chú Rộng', 'Đại Địa Trớ Chú rộng 6 m.', 0, { radius: 6 }), perk('Thần Lâu', 'Sơn Thần đứng 15 giây.', 2, { dur: 16 })],
   enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
   bohung: [perk('Pháo Nặng', 'Pháo Thiên Khải gây 260.', 'weapon', { dmg: 260 }), perk('Chấn Đãng Dài', 'Chấn Đãng Oanh Kích nện dải 8 m, gây 270.', 1, { range: 8, dmg: 270 }), perk('Phi Đạn Lớn', 'Phi Đạn Bạo Phá nổ rộng 3,5 m.', 2, { splash: 3.5 })],

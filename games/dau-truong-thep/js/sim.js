@@ -126,6 +126,7 @@ function clearStatus(u) {
   adClear(u);   // kit-remake G5 An Dương Vương
   k7Clear(u);   // kit-remake G5 lane K7 (Saitama, Thủy Tinh, Ưng Nhãn)
   k10Clear(u);   // kit lane K10
+  sntClear(u);   // kit-remake G5 Sơn Tinh
 }
 
 function spawn(m, u, first) {
@@ -435,6 +436,7 @@ function stepUnit(m, u, inp) {
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
   k1Tick(m, u, dt);
   adTick(u);   // kit-remake G5 An Dương Vương: crit stacks, kill reward
+  sntTick(m, u, dt); if (!u.alive) return;   // kit-remake G5 Sơn Tinh
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
     u.burnT -= dt;
@@ -1346,10 +1348,11 @@ const CAST = {
     if (s.lifesteal) { u.rageT = s.dur; u.rageF = s.lifesteal; }
     if (s.cost) u.hp = Math.max(1, u.hp - u.maxHp * s.cost);
     if (s.prime) u.primeT = s.prime;
+    if (s.sntStone) sntStone(m, u, s);   // kit-remake G5 Sơn Tinh
   },
   // transform: a bigger buff. Everything buff does, plus a damage factor, cleanse, crowd-control immunity, a heal of the lost hp,
   // a shield, a size, a weapon swap (def.tfWeapon, read by weaponOf) and a nova after a windup (the cast is this skill; FINISH.transform fires it).
-  transform(m, u, s) {
+  transform(m, u, s, inp) {
     CAST.buff(m, u, s);
     u.tfT = s.dur; u.tfSlot = u.def.skills.indexOf(s); u.tfDmg = s.dmg || 1;
     if (s.cleanse) { u.slowT = 0; u.stunT = 0; u.rootT = 0; u.burnT = 0; u.burnN = 0; u.markT = 0; }
@@ -1361,6 +1364,7 @@ const CAST = {
     if (s.nova) u.cast = { skill: s, t: s.nova.windup, total: s.nova.windup, move: 0.35, lock: false, aim: u.aim };
     m.events.push({ t: 'transform', id: u.id, on: 1, x: u.x, z: u.z, size: s.size || 1 });
     tfStart(m, u, s);
+    if (s.sntLand) sntLand(m, u, s, inp);   // kit-remake G5 Sơn Tinh
   },
   stance(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: 0, lock: false, aim: u.aim }; },
   hook(m, u, s) {
@@ -2269,6 +2273,7 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
   if (fx.silence) o.silenceT = Math.max(o.silenceT, fx.silence);
   applyLoc(m, src, o, fx);
+  if (fx.sntCurse) sntCurse(m, src, o, fx.sntCurse);   // kit-remake G5 Sơn Tinh
   // air (s): knocked up: a stun that also lifts the mech (airT, drawn as a hop); heavy mechs and cc immunity shrug it off like a stun
   if (fx.air && !o.def.heavy) { o.stunT = Math.max(o.stunT, fx.air); o.airT = Math.max(o.airT || 0, fx.air); }
   // maxHp: an extra blow worth that share of the victim's max hp (armour applies; bosses are spared); it carries no source tag so it never feeds stacks
@@ -3625,3 +3630,36 @@ function mgtStorm(m, z, owner) {
   }
 }
 /* ===== end kit-remake G5 Magneto ===== */
+
+/* ===== kit-remake G5 Sơn Tinh (kit lane K6, feat/dtt-k6; AUDIT-c.md sontinh) ===== */
+// Hooks, one line each, marked "kit-remake G5 Sơn Tinh": clearStatus -> sntClear, stepUnit -> sntTick (after k1Tick), applyFx ->
+// sntCurse, CAST.transform -> sntLand, CAST.buff -> sntStone. sntCT is in netstate STATUS (the looks draw the curse).
+// hitfx `sntCurse {dur, dmg, petrify}` (beside slow / slowDur / slowGrow, which do the slowing to a stop): dur s after it lands the
+// victim takes dmg (x the caster's damage scale at the press, the row's source tag) and is petrified `petrify` s (G3 lock; cc
+// immunity refuses it as usual). A curse that runs is not restarted.
+function sntClear(u) { u.sntCT = 0; u.sntCB = -1; u.sntCD = 0; u.sntCP = 0; u.sntCS = null; }
+function sntCurse(m, src, o, K) {
+  if (!src || !src.def || o.sntCT > 0 || !o.alive) return;
+  o.sntCT = K.dur; o.sntCB = src.id; o.sntCD = K.dmg * dmgScale(src); o.sntCP = K.petrify || 0; o.sntCS = curSrc;
+}
+function sntTick(m, u, dt) {
+  if (!(u.sntCT > 0) || (u.sntCT -= dt) > 1e-9) return;
+  u.sntCT = 0;
+  const by = m.units[u.sntCB];
+  m.events.push({ t: 'kit', look: 'stCurse', k: 'burst', id: by.id, o: u.id, x: u.x, z: u.z });
+  curSrc = u.sntCS; damage(m, u, u.sntCD, by); curSrc = null;
+  if (u.alive && u.sntCP) applyLoc(m, by, u, { petrify: u.sntCP });
+}
+// transform `sntLand {cast, short, flight, radius, dmg, fx}`: the transform starts with a leap toward the cursor (at most cast m),
+// landing `short` m before it (in front of what it aims at, not on top of it, so its shots can still hit it): flight s in the air,
+// then the landing hits like a leap's (falloff, fx, the row's source tag; the nova event names the row for its look).
+// Pair it with the row's G1 `invuln: true` (untargetable for the flight) and `cdAfter`. The press event carries the landing tx, tz.
+function sntLand(m, u, s, inp) {
+  const L = s.sntLand, [cx, cz] = aimPoint(u, inp, L.cast), d = Math.hypot(cx - u.x, cz - u.z) || 1, k = Math.max(0, d - (L.short || 0)) / d;
+  const tx = u.x + (cx - u.x) * k, tz = u.z + (cz - u.z) * k;
+  for (let i = m.events.length - 1; i >= 0; i--) { const e = m.events[i]; if (e.t === 'skill' && e.id === u.id) { e.tx = tx; e.tz = tz; break; } }
+  jump(m, u, { ...L, id: s.id, look: s.look }, tx, tz);
+}
+// buff `sntStone: s` (the god's onEnd row): the caster petrifies itself for s (a G3 lock: it holds still and cannot act).
+const sntStone = (m, u, s) => applyLoc(m, u, u, { petrify: s.sntStone });
+/* ===== end kit-remake G5 Sơn Tinh ===== */

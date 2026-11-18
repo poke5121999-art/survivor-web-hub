@@ -86,7 +86,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'adN', 'adKT',   // kit-remake G5 An Dương Vương: crit stacks, kill reward
   'stmT',   // kit-remake G5 lane K7: Serious Mode (Saitama)
   'sirT',   // kit-remake G5 lane K7: the ice block (Thủy Tinh)
-  'hwkAimT'];   // kit-remake G5 lane K7: Aim (Ưng Nhãn)
+  'hwkAimT',   // kit-remake G5 lane K7: Aim (Ưng Nhãn)
+  'sntCT'];   // kit-remake G5 Sơn Tinh: the curse left
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 
