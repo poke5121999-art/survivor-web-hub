@@ -15,6 +15,19 @@
  */
 window.HUB_DOWNLOADS = [
   {
+    game: "repo2d-unity",
+    platform: "android",
+    version: "0.2.588",
+    url: "https://github.com/poke5121999-art/hub-downloads/releases/download/boohaul-android-0.2.588/BooHaul-Android-0.2.588-1417b75f.apk",
+    bytes: 150414442,
+    sha256: "f3e8d3d0ed136481d53bf86d99392c2e2104183e72c1420f59a60377354dec5c",
+    date: "2026-11-18",
+    note: {
+      vi: "Boo Haul 0.2.588 cho Android (commit 1417b75f), chơi trên server LIVE. Bản sửa lỗi trên 0.2.562: đòn vung trúng quái đúng lúc, iPhone không bị hạ tiếng game trong co-op, nối lại co-op nhanh hơn, bỏ vài tiếng kêu sai của quái và bẫy. Cài đè lên bản cũ.",
+      en: "Boo Haul 0.2.588 for Android (commit 1417b75f), plays on the LIVE server. Bug-fix update over 0.2.562: melee swings land on the right frame, iPhone keeps game audio in co-op, faster co-op reconnect, a few wrong monster and trap sounds removed. Installs over the old version."
+    }
+  },
+  {
     game: "dau-truong-thep",
     platform: "android",
     version: "1.0.0",
