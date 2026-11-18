@@ -94,6 +94,117 @@
     }, function () { throw { kind: "offline" }; });
   }
 
+  // ---- Data log đính kèm (phím F9 trong game, js/feedback-capture.js) ----------------------
+  // Bucket hub-feedback chỉ nhận ảnh (db/feedback.sql), nên log JSON đi trong một ảnh PNG thật:
+  // một tấm thẻ nhỏ ghi "Data log", JSON nén zlib nằm trong chunk iTXt từ khoá LOG_KEYWORD.
+  // Không cần đổi schema; exiftool / tools/feedback.js đọc ra được. Đường dẫn tấm này nằm ở env.log.
+  var LOG_KEYWORD = "hub-feedback-log";
+  var crcTable = null;
+
+  function crc32(bytes) {
+    if (!crcTable) {
+      crcTable = new Uint32Array(256);
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        crcTable[n] = c >>> 0;
+      }
+    }
+    var crc = 0xffffffff;
+    for (var i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function concat(parts) {
+    var len = parts.reduce(function (s, p) { return s + p.length; }, 0);
+    var out = new Uint8Array(len), at = 0;
+    parts.forEach(function (p) { out.set(p, at); at += p.length; });
+    return out;
+  }
+
+  function u32(n) { return new Uint8Array([n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]); }
+
+  function pngChunk(type, data) {
+    var td = concat([new TextEncoder().encode(type), data]);
+    return concat([u32(data.length), td, u32(crc32(td))]);
+  }
+
+  function streamBytes(bytes, stream) {
+    return new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()
+      .then(function (b) { return new Uint8Array(b); });
+  }
+
+  // Trả { iend: vị trí chunk IEND, log: dữ liệu iTXt của log hoặc null }.
+  function walkPng(bytes) {
+    var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    var at = 8, found = { iend: -1, log: null };
+    while (at + 12 <= bytes.length) {
+      var len = view.getUint32(at);
+      var type = String.fromCharCode(bytes[at + 4], bytes[at + 5], bytes[at + 6], bytes[at + 7]);
+      if (type === "IEND") { found.iend = at; break; }
+      if (type === "iTXt") {
+        var data = bytes.subarray(at + 8, at + 8 + len);
+        var zero = data.indexOf(0);
+        if (zero > 0 && new TextDecoder().decode(data.subarray(0, zero)) === LOG_KEYWORD) found.log = data.subarray(zero + 1);
+      }
+      at += 12 + len;
+    }
+    return found;
+  }
+
+  function logCard(summary) {
+    var c = document.createElement("canvas");
+    c.width = 480;
+    c.height = 120;
+    var g = c.getContext("2d");
+    g.fillStyle = "#14181f";
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#6ea8fe";
+    g.fillRect(0, 0, 8, c.height);
+    g.fillStyle = "#e8ecf2";
+    g.font = "bold 26px system-ui, sans-serif";
+    g.fillText("Data log", 28, 46);
+    g.fillStyle = "#9aa1ad";
+    g.font = "18px system-ui, sans-serif";
+    g.fillText(String(summary || "").slice(0, 48), 28, 86);
+    return new Promise(function (resolve) { c.toBlob(resolve, "image/png"); })
+      .then(function (b) { return b.arrayBuffer(); })
+      .then(function (b) { return new Uint8Array(b); });
+  }
+
+  // obj → Blob image/png chứa JSON. summary là dòng chữ hiện trên thẻ.
+  function logPng(obj, summary) {
+    var text = new TextEncoder().encode(JSON.stringify(obj));
+    var zipped = window.CompressionStream ? streamBytes(text, new CompressionStream("deflate")) : Promise.resolve(null);
+    return Promise.all([zipped, logCard(summary)]).then(function (r) {
+      var z = r[0], png = r[1];
+      var head = concat([new TextEncoder().encode(LOG_KEYWORD), new Uint8Array([0, z ? 1 : 0, 0, 0, 0])]);
+      var chunk = pngChunk("iTXt", concat([head, z || text]));
+      var iend = walkPng(png).iend;
+      return new Blob([png.subarray(0, iend), chunk, png.subarray(iend)], { type: "image/png" });
+    });
+  }
+
+  // URL hoặc Blob của tấm PNG log → object JSON. Hỏng thì reject Error có message rõ.
+  function readLog(src) {
+    var bytes = typeof src === "string"
+      ? fetch(src).then(function (r) {
+        if (!r.ok) throw new Error("log file not found: HTTP " + r.status);
+        return r.arrayBuffer();
+      })
+      : src.arrayBuffer();
+    return bytes.then(function (b) {
+      var data = walkPng(new Uint8Array(b)).log;
+      if (!data) throw new Error("log chunk missing from image");
+      // data: cờ nén, phương thức, ngôn ngữ\0, từ khoá dịch\0, nội dung
+      var flag = data[0];
+      var at = data.indexOf(0, 2);
+      at = data.indexOf(0, at + 1) + 1;
+      var body = data.subarray(at);
+      return flag ? streamBytes(body, new DecompressionStream("deflate")) : body;
+    }).then(function (body) { return JSON.parse(new TextDecoder().decode(body)); });
+  }
+
   window.FB = {
     STATUSES: ["open", "doing", "closed", "wontfix"],
     GROUP: { open: "active", doing: "active", closed: "done", wontfix: "done" },
@@ -170,6 +281,19 @@
     },
 
     shotUrl: function (path) { return base() + "/storage/v1/object/public/" + BUCKET + "/" + path; },
+
+    logPng: logPng,
+    readLog: readLog,
+    // Đường dẫn tấm PNG log của phiếu (gửi bằng phím F9 trong game), hoặc null.
+    logPath: function (x) {
+      var p = x && x.env && x.env.log;
+      return p && (x.shots || []).indexOf(p) >= 0 ? p : null;
+    },
+    // Ảnh chụp thật của phiếu, bỏ tấm log ra.
+    photos: function (x) {
+      var log = window.FB.logPath(x);
+      return (x.shots || []).filter(function (p) { return p !== log; });
+    },
 
     shotLinks: function (paths) {
       var row = el("div", "fb-item__shots");

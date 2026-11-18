@@ -1,6 +1,7 @@
 # Brain
 
 ## Codebase
+- [[codebase/feedback-capture-f9]]
 - [[codebase/ghe-nong-do-bang-may]]
 - [[codebase/ghe-nong-map]]
 - [[codebase/ghe-nong-sim-gotchas]]
@@ -14,6 +15,7 @@
 ## Plans
 - [[plans/bazaar-web]]
 - [[plans/biet-doi-lan]]
+- [[plans/cats-soup]]
 - [[plans/diablo2-chuan-goc/audit-avfx]]
 - [[plans/diablo2-chuan-goc/audit-maps]]
 - [[plans/diablo2-chuan-goc/audit-ui]]
@@ -21,17 +23,22 @@
 - [[plans/dredge-chuan-goc-2]]
 - [[plans/dredge-clips]]
 - [[plans/dredge-web]]
+- [[plans/fish-bowl]]
+- [[plans/food-gang]]
 - [[plans/ghe-nong-tfm2-full]]
+- [[plans/lumber-inc]]
 - [[plans/my-mini-mart-web]]
 - [[plans/pokeone-2d-pro]]
 - [[plans/restaurant-city]]
 - [[plans/soulknight-full]]
 - [[plans/soulknight-normal-mode]]
 - [[plans/soulknight-walkthrough]]
+- [[plans/stickman-hook-full]]
 - [[plans/toc-do]]
 - [[plans/toc-do-con-lai]]
 - [[plans/toc-do-full]]
 - [[plans/vuc-san]]
+- [[plans/world-of-slime]]
 
 ## Other
 - [[todos]]

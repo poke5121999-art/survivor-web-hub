@@ -5,8 +5,10 @@
  *   node tools/feedback.js list [--game <id>] [--status open,doing|all] [--json]
  *   node tools/feedback.js show <id> [--json] [--shots <thư mục tải ảnh về>]
  *   node tools/feedback.js set <id> <open|doing|closed|wontfix> ["kết quả: commit, vì sao"]
+ *   node tools/feedback.js log <id> [--out <tệp .json>]     data log của phiếu gửi bằng F9 trong game
+ *   node tools/feedback.js delete <id>                      xoá phiếu (phiếu thử, rác)
  *
- * `set` cần khoá triage: biến HUB_FEEDBACK_KEY hoặc tệp ~/.config/survivor-hub/feedback.key.
+ * `set`, `delete` cần khoá triage: biến HUB_FEEDBACK_KEY hoặc tệp ~/.config/survivor-hub/feedback.key.
  */
 'use strict';
 const fs = require('fs');
@@ -64,6 +66,33 @@ async function saveShots(f, dir) {
   return out;
 }
 
+// Phiếu gửi bằng F9 trong game có env.log = đường dẫn một tấm PNG trong bucket; JSON nén nằm trong chunk
+// iTXt "hub-feedback-log" (ghi bởi FB.logPng ở js/feedback-core.js).
+async function readLog(f) {
+  const p = f.env && f.env.log;
+  if (!p) throw new Error('feedback #' + f.id + ' has no data log');
+  const res = await fetch(shotUrl(p));
+  if (!res.ok) throw new Error('GET ' + p + ' -> ' + res.status);
+  const buf = Buffer.from(await res.arrayBuffer());
+  for (let at = 8; at + 12 <= buf.length;) {
+    const len = buf.readUInt32BE(at);
+    const type = buf.toString('latin1', at + 4, at + 8);
+    if (type === 'iTXt') {
+      const data = buf.subarray(at + 8, at + 8 + len);
+      const z = data.indexOf(0);
+      if (data.toString('utf8', 0, z) === 'hub-feedback-log') {
+        const flag = data[z + 1];
+        let i = data.indexOf(0, z + 3);
+        i = data.indexOf(0, i + 1) + 1;
+        const body = data.subarray(i);
+        return JSON.parse((flag ? require('zlib').inflateSync(body) : body).toString('utf8'));
+      }
+    }
+    at += 12 + len;
+  }
+  throw new Error('log chunk missing from ' + p);
+}
+
 function flags(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -113,6 +142,26 @@ async function main() {
     if (a.shots) (await saveShots(rows[0], String(a.shots))).forEach((f) => console.log('đã tải: ' + f));
     return;
   }
+  if (cmd === 'log' && id) {
+    const rows = await rest('GET', 'hub_feedback?select=' + COLUMNS + '&id=eq.' + Number(id));
+    if (!rows.length) throw new Error('feedback #' + id + ' not found');
+    const log = await readLog(rows[0]);
+    if (a.out) {
+      fs.writeFileSync(String(a.out), JSON.stringify(log, null, 2));
+      console.log('đã lưu: ' + a.out);
+      return;
+    }
+    console.log(`${log.at}  ${log.game.id} rev ${log.game.rev || '-'}  ${log.env.viewport}@${log.env.dpr}  fps ${log.perf.fps}`);
+    log.errors.forEach((e) => console.log('LỖI  ' + e.m + (e.src ? ' @ ' + e.src : '')));
+    log.console.slice(-40).forEach((c) => console.log(`${(c.t / 1000).toFixed(1)}s ${c.l}  ${c.m}${c.n ? '  x' + c.n : ''}`));
+    if (log.state !== undefined) console.log('state: ' + JSON.stringify(log.state).slice(0, 2000));
+    return;
+  }
+  if (cmd === 'delete' && id) {
+    await rest('POST', 'rpc/fb_delete', { p_id: Number(id), p_key: triageKey() });
+    console.log('đã xoá #' + id);
+    return;
+  }
   if (cmd === 'set' && id && STATUSES.includes(status)) {
     const row = await rest('POST', 'rpc/fb_set_status', {
       p_id: Number(id), p_status: status, p_resolution: note.length ? note.join(' ') : null, p_key: triageKey()
@@ -120,7 +169,7 @@ async function main() {
     console.log(line(row) + (row.resolution ? '\n  kết quả: ' + row.resolution : ''));
     return;
   }
-  console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(3, 7).map((s) => s.replace(/^ \* ?/, '')).join('\n'));
+  console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(3, 9).map((s) => s.replace(/^ \* ?/, '')).join('\n'));
   process.exit(2);
 }
 

@@ -43,7 +43,17 @@
       saved: "Saved.",
       del: "Delete",
       confirmDelete: "Delete report #{0}? This cannot be undone.",
-      updated: "updated {0}"
+      updated: "updated {0}",
+      logTitle: "Data log (F9 in game)",
+      logView: "View log",
+      logHide: "Hide log",
+      logDownload: "Download .json",
+      logLoading: "Reading log…",
+      logFailed: "Could not read the log: {0}",
+      logErrors: "Errors ({0})",
+      logConsole: "Console ({0} lines)",
+      logState: "Game state (hubFeedbackState)",
+      logCanvases: "Canvases"
     },
     vi: {
       docTitle: "Quản lý phiếu · Game Hub",
@@ -79,7 +89,17 @@
       saved: "Đã lưu.",
       del: "Xoá",
       confirmDelete: "Xoá phiếu #{0}? Không hoàn tác được.",
-      updated: "cập nhật {0}"
+      updated: "cập nhật {0}",
+      logTitle: "Data log (F9 trong game)",
+      logView: "Xem log",
+      logHide: "Ẩn log",
+      logDownload: "Tải .json",
+      logLoading: "Đang đọc log…",
+      logFailed: "Không đọc được log: {0}",
+      logErrors: "Lỗi ({0})",
+      logConsole: "Console ({0} dòng)",
+      logState: "Trạng thái game (hubFeedbackState)",
+      logCanvases: "Canvas"
     }
   });
 
@@ -93,6 +113,7 @@
     tickets: [],
     filter: { status: "active", game: "", kind: "", q: "" },
     expanded: {},
+    logs: {},
     drafts: {},
     notes: {},
     error: null
@@ -197,7 +218,116 @@
 
   function envLine(env) {
     env = env || {};
-    return [env.screen, env.rev && "rev " + env.rev, env.lang, env.ua].filter(Boolean).join(" · ") || "-";
+    return [env.screen, env.rev && "rev " + env.rev, env.fps != null && env.fps + " FPS", env.heapMB != null && env.heapMB + " MB heap",
+      env.lang, env.ua].filter(Boolean).join(" · ") || "-";
+  }
+
+  // ---- Data log của phiếu gửi bằng F9 trong game (tấm PNG log, xem FB.logPng) ----------------
+  function logState(x) { return state.logs[x.id] || (state.logs[x.id] = { open: false, data: null, error: null, busy: false }); }
+
+  function fetchLog(x) {
+    var st = logState(x);
+    if (st.data || st.busy) return Promise.resolve(st.data);
+    st.busy = true;
+    st.error = null;
+    return FB.readLog(FB.shotUrl(FB.logPath(x))).then(function (data) {
+      st.data = data;
+      return data;
+    }, function (e) {
+      st.error = e && e.message || String(e);
+      return null;
+    }).then(function (data) { st.busy = false; return data; });
+  }
+
+  function kv(rows) {
+    var dl = el("dl", "fa-log__kv");
+    rows.forEach(function (r) {
+      if (r[1] == null || r[1] === "") return;
+      dl.appendChild(el("dt", null, r[0]));
+      dl.appendChild(el("dd", null, String(r[1])));
+    });
+    return dl;
+  }
+
+  function logView(L) {
+    var box = el("div", "fa-log__view");
+    var g = L.game || {}, e = L.env || {}, p = L.perf || {}, u = L.user || {};
+    box.appendChild(kv([
+      ["at", L.at + " (+" + L.uptimeSec + "s)"],
+      ["game", g.id + (g.rev ? " · rev " + g.rev : "") + (g.title ? " · " + g.title : "")],
+      ["url", g.url],
+      ["user", u.kind ? (u.name || "?") + " · " + u.kind + (u.role ? " · " + u.role : "") : null],
+      ["screen", e.viewport + " @" + e.dpr + " · " + e.screen + (e.orientation ? " · " + e.orientation : "") + (e.fullscreen ? " · fullscreen" : "")],
+      ["perf", ["fps " + p.fps, p.frameMsAvg != null && "avg " + p.frameMsAvg + " ms", p.frameMsMax != null && "max " + p.frameMsMax + " ms",
+        p.heapUsedMB != null && "heap " + p.heapUsedMB + "/" + p.heapLimitMB + " MB"].filter(Boolean).join(" · ")],
+      ["device", [e.platform, e.cores && e.cores + " cores", e.deviceMemoryGB && e.deviceMemoryGB + " GB", e.net,
+        e.touchPoints && "touch " + e.touchPoints].filter(Boolean).join(" · ")],
+      ["capture", L.capture ? L.capture.how + " · " + L.capture.size + " · " + L.capture.ms + " ms" + (L.captureNote ? " · " + L.captureNote : "") : L.captureNote],
+      [t("logCanvases"), (L.canvases || []).map(function (c) {
+        return (c.id ? "#" + c.id + " " : "") + c.ctx + " " + c.w + "x" + c.h + (c.blank ? " (blank)" : "");
+      }).join(" · ")],
+      ["ua", e.ua]
+    ]));
+    var errs = L.errors || [];
+    if (errs.length) {
+      box.appendChild(el("h4", "fa-log__h", t("logErrors", errs.length)));
+      var eo = el("ol", "fa-log__lines");
+      errs.forEach(function (x) {
+        var li = el("li", "fa-log__line fa-log__line--error", (x.t / 1000).toFixed(1) + "s " + x.type + " " + x.m + (x.src ? " @ " + x.src : ""));
+        if (x.stack) li.appendChild(el("pre", "fa-log__stack", x.stack));
+        eo.appendChild(li);
+      });
+      box.appendChild(eo);
+    }
+    var cons = L.console || [];
+    box.appendChild(el("h4", "fa-log__h", t("logConsole", cons.length)));
+    var co = el("ol", "fa-log__lines");
+    cons.forEach(function (c) {
+      co.appendChild(el("li", "fa-log__line fa-log__line--" + c.l,
+        (c.t / 1000).toFixed(1) + "s " + c.l.toUpperCase() + " " + c.m + (c.n ? "  ×" + c.n : "")));
+    });
+    box.appendChild(co);
+    if (L.state !== undefined || L.stateError) {
+      box.appendChild(el("h4", "fa-log__h", t("logState")));
+      box.appendChild(el("pre", "fa-log__state", L.stateError || JSON.stringify(L.state, null, 2)));
+    }
+    return box;
+  }
+
+  function logBlock(x) {
+    var st = logState(x);
+    var box = el("div", "fa-log");
+    var bar = el("div", "fa-log__bar");
+    bar.appendChild(el("span", "fa-log__title", "📄 " + t("logTitle")));
+    var view = el("button", "hub-refresh fa-log__toggle", t(st.open ? "logHide" : "logView"));
+    view.type = "button";
+    view.addEventListener("click", function () {
+      st.open = !st.open;
+      render();
+      if (st.open && !st.data) fetchLog(x).then(render);
+    });
+    var dl = el("button", "hub-refresh fa-log__dl", t("logDownload"));
+    dl.type = "button";
+    dl.addEventListener("click", function () {
+      fetchLog(x).then(function (data) {
+        if (!data) { st.open = true; render(); return; }
+        var a = el("a");
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        a.download = "fb" + x.id + "-log.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      });
+    });
+    bar.appendChild(view);
+    bar.appendChild(dl);
+    box.appendChild(bar);
+    if (st.open) {
+      if (st.data) box.appendChild(logView(st.data));
+      else box.appendChild(el("p", "fa-env", st.error ? t("logFailed", st.error) : t("logLoading")));
+    }
+    return box;
   }
 
   function editor(x) {
@@ -271,9 +401,10 @@
     det.addEventListener("toggle", function () { state.expanded[x.id] = det.open; });
     var sum = el("summary");
     var meta = el("div", "fb-item__meta");
-    var shots = x.shots || [];
+    var shots = FB.photos(x);
     meta.appendChild(el("span", "fb-chip fb-chip--" + x.status, t(x.status)));
-    meta.appendChild(el("span", "fb-item__id", FB.KIND_ICON[x.kind] + " #" + x.id + (shots.length ? "  🖼 " + shots.length : "")));
+    meta.appendChild(el("span", "fb-item__id", FB.KIND_ICON[x.kind] + " #" + x.id + (shots.length ? "  🖼 " + shots.length : "") +
+      (FB.logPath(x) ? "  📄" : "")));
     meta.appendChild(el("span", "fb-item__game", FB.gameTitle(x.game_id)));
     meta.appendChild(el("span", "fb-item__when", (x.reporter_name || t("guest")) + " · " + FB.fmtDate(x.created_at)));
     sum.appendChild(meta);
@@ -281,6 +412,7 @@
     det.appendChild(sum);
     det.appendChild(el("p", "fb-item__body", x.body || t("noBody")));
     if (shots.length) det.appendChild(FB.shotLinks(shots));
+    if (FB.logPath(x)) det.appendChild(logBlock(x));
     det.appendChild(el("p", "fa-env", t("env") + ": " + envLine(x.env) + " · " + t("updated", FB.fmtDate(x.updated_at))));
     det.appendChild(editor(x));
     li.appendChild(det);

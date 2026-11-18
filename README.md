@@ -66,6 +66,27 @@ Any static server works (`npx serve`, VS Code Live Server, etc.).
 
 No change to `index.html`, `hub.js`, or `style.css` is needed.
 
+## Phím báo lỗi F9 (mọi game)
+
+- Trong mọi game: bấm **F9**, hoặc chạm nút máy ảnh mờ ở mép trái (kéo được sang mép khác, nhớ theo từng game).
+  - Chụp màn hình (cả canvas WebGL lẫn HUD bằng DOM) + data log đúng lúc đó, rồi mở ngăn báo lỗi bên phải
+    (màn dọc: tấm trượt từ dưới lên). Game vẫn chạy; phím gõ trong ngăn không lọt vào game; Esc đóng.
+  - Phiếu vào bảng `hub_feedback` như `feedback.html`; xem ảnh + log ở `feedback-admin.html` hoặc `node tools/feedback.js log <id>`.
+- Mã ở `js/feedback-capture.js`. Game có `js/game-gate.js` được nạp tự động; game không có cổng thì nhúng một dòng
+  ngay sau `<meta charset>`: `<script src="../../js/feedback-capture.js?v=20261118a"></script>`.
+  - Nạp sớm trong `<head>`, trước script của game: nó bọc `console.*`, `requestAnimationFrame` và nghe phím ở pha capture
+    của `window` trước game. Nạp muộn thì vẫn chụp được nhưng mất log đầu và có thể lọt phím.
+- Log có: thời điểm, game + rev, URL, người chơi (tên/role, không email), trình duyệt, màn hình/DPR, FPS, heap JS,
+  300 dòng console gần nhất, lỗi + stack, thông tin canvas.
+- **Móc cho tác giả game** — muốn log kèm trạng thái game thì khai báo:
+  ```js
+  window.hubFeedbackState = function () {
+    return { scene: "level-3", hp: player.hp, pos: [player.x, player.y], seed: run.seed };
+  };
+  ```
+  Hàm chạy lúc bấm F9; giá trị phải JSON được (vòng lặp thành `"[cycle]"`, quá ~200 KB thì bị cắt). Ném lỗi thì log ghi `stateError`.
+- Game không dùng `requestAnimationFrame` hoặc chỉ vẽ WebGL khi có thay đổi: canvas WebGL có thể chụp ra đen, log ghi `blank: true`.
+
 **Status values**
 - `available` — clickable, launches the build.
 - `build-pending` — hidden on the hub, listed on admin.html (use while the build folder is not populated yet).

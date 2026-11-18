@@ -271,3 +271,20 @@ textarea.fb-input { resize: vertical; min-height: 120px; line-height: 1.45; }
   .fa-filters .fb-input { flex: 1 1 100%; }
   .fb-item__when { margin-left: 0; }
 }
+
+/* Data log của phiếu gửi bằng F9 trong game (js/feedback-capture.js). */
+.fa-log { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); }
+.fa-log__bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fa-log__title { font-weight: 700; font-size: 14px; flex: 1 1 auto; }
+.fa-log__view { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.fa-log__kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 0; }
+.fa-log__kv dt { color: var(--text-dim); }
+.fa-log__kv dd { margin: 0; overflow-wrap: anywhere; }
+.fa-log__h { margin: 8px 0 2px; font-size: 13px; }
+.fa-log__lines { list-style: none; margin: 0; padding: 6px 8px; max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 6px;
+  font: 11px/1.4 ui-monospace, Consolas, monospace; }
+.fa-log__line { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-dim); }
+.fa-log__line--warn { color: var(--fb-open); }
+.fa-log__line--error, .fa-log__line--uncaught { color: var(--fb-err); }
+.fa-log__stack, .fa-log__state { margin: 2px 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.4 ui-monospace, Consolas, monospace; }
+.fa-log__state { max-height: 300px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }

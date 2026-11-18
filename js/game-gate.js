@@ -24,6 +24,18 @@
   // Role được phép chơi (khớp profiles.role trong db/roles.sql). pending/blocked không.
   var ALLOW = { member: 1, artist: 1, admin: 1 };
 
+  // Phím báo lỗi F9 + nút chụp màn hình cho mọi game (js/feedback-capture.js). Nạp đồng bộ bằng
+  // document.write khi trang còn đang parse, để nó bọc console / requestAnimationFrame TRƯỚC script của game.
+  function loadCaptureKit() {
+    try {
+      var me = document.currentScript;
+      if (!me || !me.src || window.__hubCapture) return;
+      var src = me.src.replace(/game-gate\.js(\?.*)?$/, "feedback-capture.js?v=20261118a");
+      if (document.readyState === "loading") document.write('<script src="' + src + '"><\/script>');
+      else { var s = document.createElement("script"); s.src = src; document.head.appendChild(s); }
+    } catch (e) { /* không có phím báo lỗi thì game vẫn chạy */ }
+  }
+
   try {
     var path = location.pathname;
     var marker = "/games/";
@@ -45,7 +57,7 @@
     if (!session) ok = false;
     else if (role) ok = !!ALLOW[role];
     else ok = session.kind === "member";
-    if (ok) return;
+    if (ok) { loadCaptureKit(); return; }
 
     var root = path.slice(0, at + 1); // ".../" tới ngay trước "games/"
     // Game nặng nằm ở repo Pages riêng hub-games (cùng origin, /hub-games/games/<id>/): login.html và
@@ -69,5 +81,6 @@
     location.replace(root + "login.html?next=" + encodeURIComponent(next));
   } catch (e) {
     /* fail-open: để game chạy tiếp */
+    loadCaptureKit();
   }
 })();

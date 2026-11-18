@@ -238,7 +238,7 @@
     var det = el("details");
     var sum = el("summary");
     var meta = el("div", "fb-item__meta");
-    var shots = x.shots || [];
+    var shots = FB.photos(x);
     meta.appendChild(el("span", "fb-chip fb-chip--" + x.status, t(x.status)));
     meta.appendChild(el("span", "fb-item__id", FB.KIND_ICON[x.kind] + " #" + x.id + (shots.length ? "  🖼 " + shots.length : "")));
     if (state.allGames) meta.appendChild(el("span", "fb-item__game", FB.gameTitle(x.game_id)));
