@@ -244,7 +244,7 @@ export function runK12Cases(check, section) {
     let back = 0;
     for (let k = 0; k < 2; k++) {
       const m = createMatch({ seed: 62 + k, mode: 'tdm', roster: [{ team: 0, mech: 'buomdem', name: 'D', bot: true, diff: 'hard' }, { team: 0, mech: 'cakiem', name: 'Z', bot: true, diff: 'hard' }, { team: 0, mech: 'dieuthuyen', name: 'T', bot: true, diff: 'hard' },
-        { team: 1, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }, { team: 1, mech: 'tumay', name: 'C', bot: true, diff: 'hard' }] });
+        { team: 1, mech: 'dummy', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }, { team: 1, mech: 'tumay', name: 'C', bot: true, diff: 'hard' }] });
       for (let i = 0; i < 2700 && !m.over; i++) {
         step(m, allInputs(m));
         for (const e of m.events) if (e.t === 'skill' && seen[m.units[e.id].mech]) { seen[m.units[e.id].mech].add(e.slot); if (e.skill === 'truyentong') back++; }
