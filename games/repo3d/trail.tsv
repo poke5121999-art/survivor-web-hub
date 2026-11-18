@@ -1,0 +1,13 @@
+time	unit	decision	evidence
+2026-11-18 13:00	frame	Game mới games/repo3d trên worktree thưa D:/hub-repo3d (origin/main 6ca9935e), không đè repo2d/repo-squad/repo2d-unity	PLAN.md
+2026-11-18 13:05	frame	1 ô = 1 m; mọi số gốc px/s chia 24	design-inventory.md §9
+2026-11-18 13:10	physics	Rapier 0.14 compat (wasm nhúng, Apache-2.0) thay vì tự viết vật lý	vendor/rapier.es.js 2,06 MB
+2026-11-18 13:40	slice	Tia kéo + damageLoot delta-v + bệ giữ 3 s chạy được	node tools/slice.js -> 9/9 PASS, 75 fps
+2026-11-18 13:41	bug	anchorWorld ghi đè vector đích (biến tạm chung) -> tia không kéo theo; sửa bằng biến tạm riêng	slice trace trước/sau
+2026-11-18 13:50	ui	UI lấy từ WebPages (HTML/CSS+PNG); bảng kết ca art Soul Knight không lên hub, dựng lại DOM	ui-inventory.md
+2026-11-18 13:55	scope	Solo + bot trước, co-op mạng để đợt 7	design-inventory.md §2
+2026-11-18 15:30	robots	35 robot code-only, <25k tris, 0 lỗi	robots/lineup-*.png
+2026-11-18 15:40	housegen	port HouseGen, PASS 500/500	tools/house-check.js
+2026-11-18 16:10	house3d	nhà 3D 5 theme, nhà 5 158-257 draw calls, đi qua 3 cửa 22-75 m	tools/house3d.js
+2026-11-18 17:20	foes	quái 16 loài (5 đủ hành vi), nhìn 1 s/2,5 s, ném đồ hạ quái, gục rơi đầu; foes.js 14/14	tools/foes.js
+2026-11-18 17:40	fix	quái đi xuyên cửa: nhánh quái tưởng Rapier bỏ predicate, thử node thấy predicate chạy; quái giờ va lá cửa, cửa mở cho quái; thêm (h) quái qua 2-5 phòng	/tmp/kcc-test.mjs, foes.js (h)
