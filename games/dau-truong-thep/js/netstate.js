@@ -18,6 +18,7 @@ const num = (v) => (Number.isFinite(v) ? v : 0);
 
 const PICKUP_KEYS = Object.keys(PICKUPS);
 const ZONE_KINDS = ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'];
+ZONE_KINDS.push('totem');   // kit-remake G4
 
 // Shots are sent as [id, owner, kind, x, z, angle]. Team and colour come from the owner; speed, radius and look from
 // a kind table both ends build from the same data rows (weapons, volley skills, the turret). A kind the table lacks
@@ -58,6 +59,7 @@ const ZONE_EXTRA = {
   orbit: [['dur', 'n'], ['mode', 's'], ['n', 'i'], ['live', 'i'], ['ring', 'n'], ['spin', 'n']],
   portal: [['dur', 'n'], ['x2', 'n'], ['z2', 'n']],
 };
+ZONE_EXTRA.totem = [['dur', 'n'], ['hp', 'i'], ['maxHp', 'i'], ['area', 'n']];   // kit-remake G4
 
 function encZoneField(v, type) {
   if (type === 'b') return v ? 1 : 0;
@@ -78,6 +80,8 @@ const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
 const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT',
   'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT'];   // kit-remake G2 (the row mask has room for 3 more names: TIMER_AT + 4 flag bits must stay under 2^53)
+// TODO kit-remake G4 (wire in once G3 extends the STATUS mask to a second word; main says when): sync u.magN (shots fired),
+// u.magT (reload left) and u.blockN (hits the selfShield still turns away). Host-only until then: the guest HUD does not see them.
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 // A cast is sent as the index of its row: 0..2 the skills, 3..5 the second stage (next.row) of skill 0..2.

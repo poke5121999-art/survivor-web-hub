@@ -289,6 +289,17 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   const c = m.units[0].cast, mc = mir.units[0].cast;
   check('a second-stage wind-up is mirrored as that row (hoanhtao, the same row object)', !!c && c.skill.id === 'hoanhtao' && !!mc && mc.skill === c.skill && near(mc.t, c.t, 0.011), `${c && c.skill.id} ${mc && mc.skill && mc.skill.id}`);
 }
+// kit-remake G4: a totem zone is mirrored with its hp and area
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  m.zones.push({ id: m.nextId++, kind: 'totem', team: 0, color: 0, owner: 0, x: 3, z: 4, r: 0.8, area: 4, age: 0.5, delay: 0, hp: 250, maxHp: 300, dur: 10, decay: 0, hps: 0, dps: 0, acc: 0 });
+  step(m, [undefined, undefined]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const gz = mir.zones.find((z) => z.kind === 'totem');
+  // TODO kit-remake G4: check magN / magT / blockN on the mirror once they are in STATUS (see netstate.js)
+  check('G4: a totem zone is mirrored (hp 250 of 300, area 4)', !!gz && gz.hp === 250 && gz.maxHp === 300 && near(gz.area, 4, 0.011), `${gz && gz.hp} ${gz && gz.area}`);
+}
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 
 console.log('\n# snapshot size');

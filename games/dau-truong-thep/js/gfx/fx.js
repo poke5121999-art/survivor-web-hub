@@ -789,7 +789,7 @@ export function makeFx(G, mechs) {
   const pressed = new Map(), hitAt = new Map();
   const UNIT_ROW = { hook: ['hook'], swap: ['swap'], stance: ['stance'], bless: ['bless'], rally: ['rally'], leap: ['leap'], mark: ['mark'], parry: ['counter'],
     flurry: ['flurry'], form: ['form'], rewind: ['rewind'], transform: ['transform'], warp: ['warp', 'portal'] };
-  const ZONE_ROW = { strike: ['barrage'], mine: ['mine', 'minefield'], field: ['zone'], dome: ['dome'], wall: ['wall'], turret: ['turret'], decoy: ['decoy', 'warp'], drone: ['drone'], wire: ['wire'], orbit: ['orbit'], portal: ['portal'] };
+  const ZONE_ROW = { strike: ['barrage'], mine: ['mine', 'minefield'], field: ['zone'], dome: ['dome'], wall: ['wall'], turret: ['turret'], decoy: ['decoy', 'warp'], drone: ['drone'], wire: ['wire'], orbit: ['orbit'], portal: ['portal'], totem: ['totem'] };
   function rowFor(u, kinds) {
     if (!u || !u.def) return null;
     let one = null, n = 0;

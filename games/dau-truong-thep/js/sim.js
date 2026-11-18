@@ -113,6 +113,7 @@ function clearStatus(u) {
   u.use0 = 0; u.use1 = 0; u.use2 = 0; u.gap0 = 0; u.gap1 = 0; u.gap2 = 0; u.ahT = 0; u.ahF = 1;
   u.hold = 0; u.holdT = [0, 0, 0]; u.hitN = {}; u.pressing = -1; u.pendCut = null;
   g2Clear(u);   // kit-remake G2
+  g4Clear(u);
 }
 
 function spawn(m, u, first) {
@@ -297,6 +298,7 @@ function meterShot(m, u) {
 // hitfx chain: from the mech just hit, jump to the n nearest other enemies inside r (nearest first, lower id on a tie) for base x mul each. It never chains again.
 function chainHit(m, src, o, C, base) {
   if (chaining || !(base > 0)) return;
+  if (C.seq) return chainSeq(m, src, o, C, base);
   const near = [];
   for (const t of m.units) {
     if (t === o || !t.alive || t.team === src.team) continue;
@@ -404,6 +406,7 @@ function stepUnit(m, u, inp) {
     if (u[k] > 0) u.cd[SLOTS[i]] = s.cd;
   }
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
+  g4Tick(m, u);
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
@@ -490,6 +493,7 @@ function stepUnit(m, u, inp) {
 
   if (u.dash) stepDash(m, u);
   else walk(m, u, inp, grip);
+  if (u.slamT > 0) slamCheck(m, u);
   const drag = u.passive === 'steady' ? 0.6 : 0.8;
   u.kx *= drag; u.kz *= drag;
   if (stunned || !u.alive) return;
@@ -528,6 +532,7 @@ function stepUnit(m, u, inp) {
     // cdCut / self count this press's hits from zero; a cut of this slot by a hit inside the cast waits for its cooldown (pressing)
     if (s.cdCut || s.self) u.hitN[s.id] = 0;
     u.pressing = nx ? -1 : i;
+    u.yankX = inp.tx; u.yankZ = inp.tz;
     if (CAST[s.do](m, u, s, inp) === false) {
       m.events.length = at; u.pressing = -1; u.pendCut = null;
       if (!nx) { if (u.def.skills[i].uses) u[GAP[i]] = Math.max(u[GAP[i]], 0.4); else u.cd[key] = 0.4; }
@@ -535,6 +540,7 @@ function stepUnit(m, u, inp) {
     }
     // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
+    g4Cast(m, u, s);
     if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
@@ -559,7 +565,7 @@ function stepUnit(m, u, inp) {
     return;
   }
   if (weaponOf(u).charge) stepCharge(m, u, inp);
-  else if (inp.fire && u.cd.fire <= 0) fireWeapon(m, u, inp);
+  else if (inp.fire && u.cd.fire <= 0 && !(u.magT > 0)) fireWeapon(m, u, inp);
 }
 
 // A charge weapon fills while fire is held and shoots when it is let go (or when it has been held full for `hold` seconds).
@@ -922,6 +928,7 @@ function fireRay(m, u, w) {
 function fireWeapon(m, u, inp) {
   const w = weaponOf(u);
   u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
+  if (w.mag) magShot(m, u, w);
   if (w.ray) { curSrc = 'w'; fireRay(m, u, w); curSrc = null; return; }
   if (w.lob) {
     // A lobbed shell is a delayed strike at the aim point: it flies over walls and everyone sees where it lands.
@@ -972,6 +979,7 @@ const aimPoint = (u, inp, range) => {
 const CAST = {
   shield(m, u, s) { u.shield = Math.max(u.shield, s.amount); u.shieldMax = u.shield; u.shieldT = s.dur; u.shieldBurst = s.burst || null; },
   dash(m, u, s) {
+    if (s.windup && !dashGo) return dashWindup(u, s);
     // onStart: something left behind at the starting point: a mine, or a volley (back: true fires opposite to the aim).
     if (s.onStart && s.onStart.mine) placeMine(m, u, u.x, u.z, s.onStart.mine);
     if (s.onStart && s.onStart.volley) {
@@ -1136,6 +1144,7 @@ const CAST = {
   },
   warp(m, u, s, inp) {
     let [tx, tz] = aimPoint(u, inp, s.dist);
+    if (s.to) { const p = ownObject(m, u, s, true); if (!p) return false; tx = p.x; tz = p.z; }
     // behind: an enemy near the cursor (within pick) and in reach: come out 1.6 m behind its back
     // behind.next: the enemy the first stage of this two-stage skill hit, if alive and in reach (nobody: the press does nothing);
     // behind.far: come out on the far side of it from here (facing it), not behind its own back
@@ -1612,7 +1621,7 @@ function stepShots(m) {
         // A screen is a wall only to the other team's shots.
         if (z.screen && z.team === s.team) continue;
         for (const q of z.pts) { const t = segCircle(s.x, s.z, ex, ez, q[0], q[1], z.r + s.r); if (t < best) { best = t; what = z.screen ? 'screen' : 'wall'; hitProp = null; hitZone = null; hitTower = null; } }
-      } else if ((z.kind === 'turret' || z.kind === 'decoy') && z.team !== s.team) {
+      } else if ((z.kind === 'turret' || z.kind === 'decoy' || z.kind === 'totem') && z.team !== s.team) {
         const t = segCircle(s.x, s.z, ex, ez, z.x, z.z, z.r + s.r);
         if (t < best) { best = t; what = z.kind; hitProp = null; hitZone = z; hitTower = null; }
       } else if (z.kind === 'orbit' && z.mode === 'guard' && z.team !== s.team) {
@@ -1689,7 +1698,7 @@ function cutCooldowns(u, s) {
 }
 
 // extra: metres this tick's hit lies beyond s.flown.
-const shotDamage = (s, extra) => s.dmg * (s.far && s.flown + extra > s.far.after ? s.far.mul : 1);
+const shotDamage = (s, extra) => s.dmg * (s.far && s.flown + extra > s.far.after ? s.far.mul : 1) * (s.far && s.far.ramp ? farRamp(s.far.ramp, s.flown + extra) : 1);
 
 // The hook caught `o`: it is dragged to just in front of the hooker and cannot act on the way.
 function reel(m, u, o, s) {
@@ -1715,7 +1724,8 @@ function stepZones(m) {
     const z = m.zones[i], owner = m.units[z.owner];
     z.age += dt;
     let done = false;
-    if (z.kind === 'strike') {
+    if (z.kind === 'totem') done = totemStep(m, z, owner);
+    else if (z.kind === 'strike') {
       z.delay -= dt;
       if (z.delay <= 0) {
         curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); curSrc = null; done = true;
@@ -1906,7 +1916,7 @@ function areaDamage(m, src, x, z, r, dmg, fx, skip, arc) {
     damage(m, u, dmg * scale * (1 - 0.5 * Math.min(1, d / r)), src);
     n++;
     if (!u.alive || !fx) continue;
-    if (fx.fx) applyFx(m, src, u, fx.fx);
+    if (fx.fx) applyFx(m, src, u, fx.fx, { cx: x, cz: z });
     if (!u.alive) continue;
     if (fx.slow) { u.slowT = Math.max(u.slowT, fx.slowDur); u.slowF = fx.slow; }
     if (fx.stun) u.stunT = Math.max(u.stunT, fx.stun);
@@ -1954,6 +1964,7 @@ export function applyFx(m, src, o, fx, ctx) {
   }
   // antiheal {mul, dur}: heals it receives are x mul (the strongest cut that still runs wins)
   if (fx.antiheal) { o.ahF = o.ahT > 0 ? Math.min(o.ahF, fx.antiheal.mul) : fx.antiheal.mul; o.ahT = Math.max(o.ahT, fx.antiheal.dur); }
+  if (fx.yank || fx.slam || (fx.antiheal && fx.antiheal.shield)) g4Fx(m, src, o, fx, ctx);
   if (fx.execute && !o.def.boss && o.hp < o.maxHp * fx.execute) {
     m.events.push({ t: 'execute', id: o.id, by: src.id, x: o.x, z: o.z });
     kill(m, o, src);
@@ -1985,6 +1996,7 @@ function damage(m, u, amount, src, raw) {
   if (!u.alive || u.invulnT > 0 || amount <= 0) return;
   lastBase = amount;
   const foe = src && src !== u && !raw ? src : null;
+  if (foe && u.blockN > 0 && amount >= 10) { blockHit(m, u); lastBase = 0; return; }
   if (foe && u.parryT > 0 && amount >= 10) { amount = parryHit(m, u, foe, amount); lastBase = amount; if (amount <= 0) return; }
   if (foe) {
     if (u.markT > 0) amount *= 1 + u.markAmp;
@@ -1992,6 +2004,7 @@ function damage(m, u, amount, src, raw) {
     if (foe.weakenT > 0) amount *= foe.weakenF;
     if (foe.passive === 'brittle') { const P = foe.def.passive; if (P.when === 'low' ? u.hp < u.maxHp * P.below : P.when === 'burn' ? u.burnT > 0 : P.when === 'marked' ? u.markT > 0 || u.ampT > 0 : u.slowT > 0) amount *= P.mul; }
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
+    amount *= lowHpScaleMul(foe);
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
   const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
@@ -2003,6 +2016,7 @@ function damage(m, u, amount, src, raw) {
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   // kit-remake G2 guard vs: a cut of one kind of enemy damage only
   if (u.gvT > 0 && !isTrue && foe && u.gvK === kind) amount *= 1 - u.gvF;
+  if (!raw) amount = hitCapped(u, amount);
   const blocked = preArmor - amount;
   let left = amount, absorbed = 0, broke = false;
   if (u.shield > 0) {
@@ -2078,6 +2092,7 @@ function heal(m, u, amount, src, quiet) {
   if (u.woundT > 0) amount *= RULES.wound.mul;
   // hitfx antiheal: what this mech is healed by anyone (itself too) is cut
   if (u.ahT > 0) amount *= u.ahF;
+  amount *= healInMul(u);
   // meter spend 'heal': the next heal this mech gives somebody else is stronger
   if (src && src.alive && src.passive === 'meter' && src.def.passive.spend.kind === 'heal' && !(quiet && src === u) && u.hp < u.maxHp && amount > 0 && meterArmed(src)) { amount *= src.def.passive.spend.mul; meterSpent(m, src); }
   const got = Math.min(u.maxHp - u.hp, amount);
@@ -2206,6 +2221,207 @@ function turnTo(a, b, max) {
   while (d < -Math.PI) d += 2 * Math.PI;
   return a + Math.max(-max, Math.min(max, d));
 }
+
+/* ===== kit-remake G4 (~/handoff/dtt-ref/kits/MECHANICS.md "Group 4"): far.ramp, yank, slam, chain.seq, shield variants
+   (selfShield frac/hits/burst, passive reShield, antiheal on shields), weapon mag, lowHpScale, dash.windup, heal received
+   (healIn), hitCap, own objects (warp.to, totem). Hooks elsewhere are one line each and call into this block. ===== */
+let dashGo = false;
+const g4Mods = (u) => (u.def.passive && u.def.passive.mods) || null;
+function g4Clear(u) {
+  u.magN = 0; u.magT = 0; u.blockN = 0; u.blockT = 0; u.rsT = 0; u.rsUp = false;
+  u.slamT = 0; u.slamBy = -1; u.slamDmg = 0; u.slamStun = 0; u.hiT = 0; u.hiF = 1; u.ahSh = 1; u.shPrev = 0; u.yankX = 0; u.yankZ = 0;
+}
+// Once a tick, after the shared timers: magazine reload, hit-block and slam windows, heal-in buff, the recurring passive shield,
+// and the antiheal cut on shields gained since last tick (measured once a tick, so a shield lost and regained inside one tick is not cut).
+function g4Tick(m, u) {
+  const dt = TICK;
+  if (u.magT > 0) u.magT = Math.max(0, u.magT - dt);
+  if (u.blockT > 0) { u.blockT = Math.max(0, u.blockT - dt); if (u.blockT <= 0) u.blockN = 0; }
+  if (u.slamT > 0) u.slamT = Math.max(0, u.slamT - dt);
+  if (u.hiT > 0) u.hiT = Math.max(0, u.hiT - dt);
+  // passive mods.reShield {frac, regrow, burst}: a shield of frac x max hp that holds until broken, then grows back regrow s later
+  const RS = g4Mods(u) && g4Mods(u).reShield;
+  if (RS) {
+    if (u.rsUp) { if (u.shield <= 0) { u.rsUp = false; u.rsT = RS.regrow; } else u.shieldT = Math.max(u.shieldT, 0.5); }
+    else if (u.rsT > 0) u.rsT = Math.max(0, u.rsT - dt);
+    else {
+      const live = u.shieldT > 0 ? u.shieldMax : 0;
+      u.shield = Math.max(u.shield, RS.frac * u.maxHp); u.shieldMax = Math.max(live, u.shield); u.shieldT = Math.max(u.shieldT, 0.5);
+      if (RS.burst) u.shieldBurst = RS.burst;
+      u.rsUp = true;
+      m.events.push({ t: 'reShield', id: u.id, x: u.x, z: u.z });
+    }
+  }
+  if (!(u.ahT > 0)) u.ahSh = 1;
+  if (u.ahSh < 1 && u.shield > u.shPrev) u.shield = u.shPrev + (u.shield - u.shPrev) * u.ahSh;
+  u.shPrev = u.shield;
+}
+// Every successful press (a second stage too), after its cast: row selfShield {frac, amount, dur, hits, burst} and healIn {mul, dur}.
+function g4Cast(m, u, s) {
+  const S = s.selfShield;
+  if (S) {
+    const amt = (S.frac || 0) * u.maxHp + (S.amount || 0), d = S.dur ?? 3;
+    if (amt > 0) {
+      const live = u.shieldT > 0 ? u.shieldMax : 0;
+      u.shield = Math.max(u.shield, amt); u.shieldMax = Math.max(live, u.shield); u.shieldT = Math.max(u.shieldT, d);
+      if (S.burst) u.shieldBurst = S.burst;
+    }
+    if (S.hits) { u.blockN = Math.max(u.blockN, S.hits); u.blockT = Math.max(u.blockT, d); }
+  }
+  if (s.healIn) { u.hiF = Math.max(u.hiT > 0 ? u.hiF : 1, s.healIn.mul); u.hiT = Math.max(u.hiT, s.healIn.dur); }
+}
+// selfShield.hits: a blow of 10 or more from an enemy is turned away whole and spends one count (ticks under 10 pass).
+function blockHit(m, u) {
+  u.blockN--;
+  if (u.blockN <= 0) { u.blockN = 0; u.blockT = 0; }
+  m.events.push({ t: 'block', id: u.id, left: u.blockN, x: u.x, z: u.z });
+}
+// heal received: the healIn buff, and passive mods.healIn {mul, lost} (x mul, and + lost x the share of max hp missing)
+function healInMul(u) {
+  let k = u.hiT > 0 ? u.hiF : 1;
+  const H = g4Mods(u) && g4Mods(u).healIn;
+  if (H) k *= (H.mul || 1) * (1 + (H.lost || 0) * Math.max(0, 1 - u.hp / u.maxHp));
+  return k;
+}
+// hitCap: no single blow takes more than that share of max hp (passive mods.hitCap; a transform row's hitCap while it runs)
+function hitCapped(u, amount) {
+  const P = g4Mods(u), t = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  const cap = Math.min(P && P.hitCap ? P.hitCap : 1e9, t && t.hitCap ? t.hitCap : 1e9);
+  return cap < 1e9 ? Math.min(amount, cap * u.maxHp) : amount;
+}
+// lowHpScale f: the attacker's damage x (1 + f x its own share of max hp lost); passive mods.lowHpScale (every hit), plus the
+// row that is hitting (a skill row through its source tag, the weapon row for 'w')
+function lowHpScaleMul(foe) {
+  const P = g4Mods(foe), i = curSrc ? srcSlot(foe, curSrc) : -1;
+  let f = (P && P.lowHpScale) || 0;
+  if (i >= 0) f += slotRow(foe, i, curSrc).lowHpScale || 0;
+  else if (curSrc === 'w') f += weaponOf(foe).lowHpScale || 0;
+  return f ? 1 + f * Math.max(0, 1 - foe.hp / foe.maxHp) : 1;
+}
+// weapon mag {n, reload}: after n shots the weapon cannot fire for reload s (magN shots fired, magT reload left)
+function magShot(m, u, w) {
+  u.magN++;
+  if (u.magN < w.mag.n) return;
+  u.magN = 0; u.magT = w.mag.reload;
+  m.events.push({ t: 'reload', id: u.id, dur: w.mag.reload });
+}
+// far.ramp {per, max}: a shot hits x (1 + per x metres flown), at most x max
+const farRamp = (R, d) => Math.min(R.max ?? Infinity, 1 + (R.per || 0) * d);
+// hitfx yank, slam and antiheal.shield
+function g4Fx(m, src, o, fx, ctx) {
+  if (fx.slam && !o.def.heavy) { o.slamT = fx.slam.win ?? 0.6; o.slamBy = src.id; o.slamDmg = fx.slam.dmg || 0; o.slamStun = fx.slam.stun || 0; }
+  if (fx.antiheal && fx.antiheal.shield) o.ahSh = o.ahSh < 1 ? Math.min(o.ahSh, fx.antiheal.mul) : fx.antiheal.mul;
+  if (fx.yank) yank(m, src, o, fx.yank, ctx);
+}
+// hitfx yank: m | {dist, to: 'centre'|'point'|'caster'}: the victim is pulled at once up to dist m toward the centre of the
+// area that hit it (a single-target hit: the caster), the cursor point of the caster's last press, or the caster (stops at touch).
+// Walls stop it; heavy, planted, cc-immune, untargetable and flying mechs are not moved.
+function yank(m, src, o, Y, ctx) {
+  if (!o.alive || o.def.heavy || o.stance || o.ccT > 0 || o.invulnT > 0 || (o.dash && o.dash.fly)) return;
+  const to = typeof Y === 'number' ? 'centre' : Y.to || 'centre', dist = typeof Y === 'number' ? Y : Y.dist ?? 1e9;
+  let tx, tz, stop = 0;
+  if (to === 'point') { tx = src.yankX; tz = src.yankZ; }
+  else if (to === 'caster' || !ctx || ctx.cx === undefined) { tx = src.x; tz = src.z; stop = src.radius + o.radius + 0.4; }
+  else { tx = ctx.cx; tz = ctx.cz; }
+  const dx = tx - o.x, dz = tz - o.z, d = Math.hypot(dx, dz), go = Math.min(dist, d - stop);
+  if (go <= 0.05) return;
+  const x0 = o.x, z0 = o.z;
+  o.dash = null;
+  moveUnit(m, o, dx / d * go, dz / d * go);
+  o.vx = o.vz = 0;
+  m.events.push({ t: 'yank', id: o.id, by: src.id, x0, z0, x: o.x, z: o.z });
+}
+// hitfx slam {dmg, stun, win}: for win s after the hit, a mech still thrown (knock speed 1.5 m/s or more) that is stopped by a wall
+// (it moved less than half of what it was thrown) or runs into another mech of its own team takes dmg (x the attacker's damage
+// scale) and a stun; the mech it ran into takes the same. Once per hit.
+function slamCheck(m, u) {
+  const ks = Math.hypot(u.kx, u.kz);
+  if (ks < 1.5) return;
+  const want = Math.hypot(u.vx + u.kx, u.vz + u.kz) * TICK, moved = Math.hypot(u.x - u.px, u.z - u.pz);
+  let other = null;
+  for (const o of m.units) {
+    if (o === u || !o.alive || o.team !== u.team) continue;
+    const rr = u.radius + o.radius + 0.1, dx = o.x - u.x, dz = o.z - u.z;
+    if (dx * dx + dz * dz < rr * rr && dx * u.kx + dz * u.kz > 0) { other = o; break; }
+  }
+  if (!other && moved >= want * 0.5) return;
+  const by = m.units[u.slamBy], dmg = u.slamDmg * dmgScale(by), stun = u.slamStun;
+  u.slamT = 0; u.kx = u.kz = 0; u.vx = u.vz = 0;
+  m.events.push({ t: 'slam', id: u.id, by: by.id, on: other ? 'unit' : 'wall', other: other ? other.id : -1, x: u.x, z: u.z });
+  const keep = curSrc;
+  curSrc = null;
+  for (const o of other ? [u, other] : [u]) {
+    damage(m, o, dmg, by);
+    if (o.alive && stun && !(o.ccT > 0) && !o.def.heavy) o.stunT = Math.max(o.stunT, stun);
+  }
+  curSrc = keep;
+}
+// hitfx chain.seq {falloff}: the chain runs one after another, each jump from the last mech hit to the nearest one not yet hit
+// within r of it (lower id on a tie), n jumps; the first jump hits base x mul, each next one x falloff.
+function chainSeq(m, src, o, C, base) {
+  chaining = true;
+  const pts = [[o.x, o.z]], done = [o.id];
+  let ax = o.x, az = o.z, dmg = base * (C.mul ?? 1);
+  for (let k = 0; k < C.n; k++) {
+    let best = null, bd = C.r * C.r + 1e-9;
+    for (const t of m.units) {
+      if (!t.alive || t.team === src.team || done.includes(t.id)) continue;
+      const d = dist2(t.x, t.z, ax, az);
+      if (d < bd) { bd = d; best = t; }
+    }
+    if (!best) break;
+    done.push(best.id); pts.push([best.x, best.z]); ax = best.x; az = best.z;
+    damage(m, best, dmg, src);
+    if (best.alive && C.fx) applyFx(m, src, best, C.fx);
+    dmg *= C.seq.falloff ?? 1;
+  }
+  chaining = false;
+  if (pts.length > 1) m.events.push({ t: 'chain', id: src.id, pts });
+}
+// dash.windup s: stand that long (aim locked, move of the speed, default 0), then the dash goes (FINISH.dash)
+function dashWindup(u, s) {
+  u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0, lock: true, aim: u.aim };
+}
+FINISH.dash = function (m, u, s, c) { dashGo = true; u.aim = c.aim; CAST.dash(m, u, s); dashGo = false; };
+// Own objects. warp.to: 'decoy'|'totem'|'field'|... (a zone kind of this mech) or 'shot' (one of its skill projectiles): the warp goes
+// to the newest such object (of: only a shot or zone with that source row id) within reach (default dist); none, the press does
+// nothing. take: true removes the object (no blast). Exported for the bots (take false).
+export function ownObject(m, u, s, take) {
+  const shot = s.to === 'shot', reach = s.reach ?? s.dist ?? 1e9;
+  let best = null;
+  for (const q of shot ? m.shots : m.zones) {
+    if (q.owner !== u.id || (shot ? !q.src || q.src === 'w' : q.kind !== s.to) || (s.of && q.src !== s.of)) continue;
+    if (!best || q.id > best.id) best = q;
+  }
+  if (!best || dist2(best.x, best.z, u.x, u.z) > reach * reach) return null;
+  if (take && s.take) {
+    const L = shot ? m.shots : m.zones;
+    L.splice(L.indexOf(best), 1);
+    if (!shot) m.events.push({ t: 'zoneEnd', id: best.id, kind: best.kind, x: best.x, z: best.z });
+  }
+  return best;
+}
+// do: 'totem' {cast, at, radius, hp, decay, dur, hps, dps}: a placed post with hp that loses decay hp a second; every half second it
+// heals allies inside radius (zone `area`; the owner x selfHealMul) and hurts enemies there. Its body (r 0.8) takes enemy shots like a turret.
+CAST.totem = function (m, u, s, inp) {
+  let [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
+  if (solidAt(m.map, x, z, 0.8)) { x = u.x; z = u.z; }
+  addZone(m, u, { kind: 'totem', x, z, r: 0.8, area: s.radius, hp: s.hp, maxHp: s.hp, dur: s.dur, decay: s.decay || 0, hps: s.hps || 0, dps: s.dps || 0, acc: 0, src: s.id });
+};
+function totemStep(m, z, owner) {
+  z.hp -= z.decay * TICK;
+  z.acc += TICK;
+  if (z.acc >= 0.5 - 1e-9) {
+    z.acc -= 0.5;
+    for (const u of m.units) {
+      if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.area * z.area) continue;
+      if (u.team === z.team) { if (z.hps) heal(m, u, z.hps * 0.5 * (u === owner ? RULES.selfHealMul : 1), owner); }
+      else if (z.dps) damage(m, u, z.dps * 0.5, owner);
+    }
+  }
+  return z.hp <= 0 || z.age > z.dur;
+}
+/* ===== end kit-remake G4 ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

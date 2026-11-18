@@ -45,6 +45,7 @@ export const SHAPES = {
   mine: (s) => spot(s.cast, s.blast),
   minefield: (s) => spot(s.cast, s.radius),
   turret: (s) => spot(s.cast, 1),
+  totem: (s) => (s.at === 'self' ? around(s.radius) : spot(s.cast, s.radius)),   // kit-remake G4
   wire: (s) => spot(s.cast, s.width / 2),
   leap: (s) => spot(s.cast, s.radius),
   warp: (s) => ({ kind: 'point', mode: 'ground', range: s.dist, radius: 1.2, width: 0 }),

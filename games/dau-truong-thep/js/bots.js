@@ -5,7 +5,7 @@
 // towerGuard() keeps it out of an enemy tower's range unless the group is already there. Mechs do not collide, so every bot keeps its own spacing.
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
-import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady } from './sim.js';
+import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -1635,6 +1635,7 @@ const SKILL_AI = {
   },
   warp(c, s) {
     const { u, m, tgt, td } = c;
+    if (s.to) return g4WarpTo(c, s, 99);   // kit-remake G4
     if (c.state === 'retreat' || (c.hpFrac < 0.45 && c.underFire) || (s.leave && c.underFire && c.hpFrac < 0.7 && c.enemies.length > 0)) {
       if (!c.enemies.length) return false;
       const sp = escapeSpot(c, s.dist - 0.4, 4);
@@ -1806,6 +1807,7 @@ function chooseSkill(c) {
     // next: an armed second stage is used at once while its target is still in reach (the sim checks the rest)
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.def.skills[i].next.row : null;
     if (nx) {
+      if (nx.to) { if (g4WarpTo(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit-remake G4: recast to an own object
       const o = m.units[u.next.target];
       // a warp second stage must reach its target; a sweep second stage (nova) must have it inside the blade (any hp: it heals)
       const reach = nx.dist ?? nx.radius * 0.9, keen = nx.do === 'nova' || c.hpFrac > 0.35;
@@ -2263,3 +2265,28 @@ function towerGuard(m, u, D, np, mx, mz) {
   }
   return hit ? [ox, oz] : null;
 }
+
+/* ===== kit-remake G4 bots: warp.to an own object, totem ===== */
+// warp.to: go back to the own object when hurt and under fire, or before the recast window (left s) runs out; the sim picks the spot
+function g4WarpTo(c, s, left) {
+  const p = ownObject(c.m, c.u, s, false);
+  if (!p) return false;
+  if (!((c.hpFrac < 0.5 && c.underFire) || left < 0.4)) return false;
+  c.b.sk.x = p.x; c.b.sk.z = p.z; c.b.sk.aim = null; c.b.sk.mx = null; c.b.sk.mz = null;
+  return true;
+}
+// totem: plant it on the most hurt ally in reach (itself included) while enemies are about
+SKILL_AI.totem = function (c, s) {
+  const { u, m } = c;
+  if (!c.enemies.length) return false;
+  let best = null, bf = 0.75;
+  for (const a of m.units) {
+    if (a.team !== u.team || !a.alive || Math.hypot(a.x - u.x, a.z - u.z) > (s.at === 'self' ? 0.01 : s.cast)) continue;
+    const f = a.hp / a.maxHp;
+    if (f < bf) { bf = f; best = a; }
+  }
+  if (!best) return false;
+  c.b.sk.x = best.x; c.b.sk.z = best.z;
+  return true;
+};
+/* ===== end kit-remake G4 bots ===== */
