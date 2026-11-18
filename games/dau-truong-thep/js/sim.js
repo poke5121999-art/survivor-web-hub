@@ -128,6 +128,7 @@ function clearStatus(u) {
   k10Clear(u);   // kit lane K10
   tthClear(u);   // kit-remake G5 Tào Tháo
   sntClear(u);   // kit-remake G5 Sơn Tinh
+  k13Clear(u);   // kit lane K13
 }
 
 function spawn(m, u, first) {
@@ -439,6 +440,7 @@ function stepUnit(m, u, inp) {
   adTick(u);   // kit-remake G5 An Dương Vương: crit stacks, kill reward
   tthTick(m, u, dt);   // kit-remake G5 Tào Tháo
   sntTick(m, u, dt); if (!u.alive) return;   // kit-remake G5 Sơn Tinh
+  if (k13Tick(m, u, dt)) return;   // kit lane K13: wind-eye ticks, temple pulses, fading haste
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
     u.burnT -= dt;
@@ -573,6 +575,7 @@ function stepUnit(m, u, inp) {
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
     g4Cast(m, u, s);
     k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
+    k13Cast(m, u, s);   // kit lane K13
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
@@ -2278,6 +2281,7 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
   if (fx.silence) o.silenceT = Math.max(o.silenceT, fx.silence);
+  if (fx.ddEye) k13Eye(src, o, fx.ddEye);   // kit lane K13: Đom Đóm's wind eye
   applyLoc(m, src, o, fx);
   if (fx.sntCurse) sntCurse(m, src, o, fx.sntCurse);   // kit-remake G5 Sơn Tinh
   // air (s): knocked up: a stun that also lifts the mech (airT, drawn as a hop); heavy mechs and cc immunity shrug it off like a stun
@@ -2378,6 +2382,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && left + absorbed > 0) k10Hit(foe);   // kit lane K10: a sword wave adds a Kirito penetration stack
   if (foe && left + absorbed > 0) tthHurt(m, u, left + absorbed);   // kit-remake G5 Tào Tháo
   if (foe && left + absorbed > 0) mgtHurt(foe);   // kit-remake G5 Magneto
+  if (foe && foe.alive && left + absorbed > 0) k13Hit(m, foe, u);   // kit lane K13: passives that ride every hit
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -3743,3 +3748,90 @@ function tthHurt(m, u, amt) {
   m.events.push({ t: 'kit', look: P.look, k: 'blood', id: u.id, x: u.x, z: u.z });
 }
 /* ===== end kit-remake G5 Tào Tháo ===== */
+
+/* ===== kit lane K13 (G5 one-tank mechanics: Đom Đóm, Dương Tiễn, Kaneki; ~/handoff/dtt-ref/kits/AUDIT-a.md, MECHANICS.md
+   "Group 5"). Hooks elsewhere are one line each, marked "kit lane K13", and call into this block: clearStatus -> k13Clear,
+   stepUnit -> k13Tick (after k1Tick) and k13Cast (every press that went through, second stages too), damage -> k13Hit (after
+   k1Hurt), applyFx -> k13Eye. New unit state carries a prefix per tank: dd (domdom), dt (duongtien), kn (mucma). ===== */
+function k13Clear(u) {
+  u.ddEN = 0; u.ddET = 0; u.ddEBy = -1; u.ddHsT = 0; u.ddHsF = 0;
+  u.ddYN = 0; u.ddYT = 0; u.ddYBy = -1; u.ddYF = null; u.ddTpN = 0; u.ddTpT = 0; u.ddTpS = null;
+}
+// Returns true when the mech died this tick (a wind-eye tick), so stepUnit stops there like it does after a burn.
+function k13Tick(m, u, dt) {
+  if (u.ddET > 0 && (u.ddET -= dt) <= 1e-9) { u.ddET = 0; u.ddEN = 0; }
+  // song haste: +haste fading to nothing over fade s, as long as the haste running is still this one
+  if (u.ddHsT > 0) {
+    u.ddHsT = Math.max(0, u.ddHsT - dt);
+    const S = u.def.passive.song;
+    if (u.hasteT > 0 && u.hasteF === u.ddHsF) u.hasteF = u.ddHsF = 1 + S.haste * u.ddHsT / S.fade;
+  }
+  if (u.ddTpN > 0 && (u.ddTpT -= dt) <= 1e-9) ddPulse(m, u);
+  if (u.ddYN > 0 && (u.ddYT -= dt) <= 1e-9) {
+    const F = u.ddYF, by = m.units[u.ddYBy], keep = curSrc;
+    u.ddYN--; u.ddYT = F.every;
+    m.events.push({ t: 'k13', kind: 'eye', id: u.id, by: by.id, x: u.x, z: u.z });
+    curSrc = null; applyFx(m, by, u, { lostHp: F.lostHp, slow: F.slow, slowDur: F.slowDur }); curSrc = keep;
+    if (!u.alive) return true;
+  }
+  return false;
+}
+// Every press that went through (second stages too).
+function k13Cast(m, u, s) {
+  const P = u.def.passive;
+  if (P && P.do === 'ddWind') ddSong(m, u, P.song);
+  if (s.ddTemple) { u.ddTpS = s.ddTemple; u.ddTpN = s.ddTemple.n; u.ddTpT = s.ddTemple.delay; }
+}
+// u (the victim) has just been hurt by foe through a hit with a source tag curSrc ('w' the weapon).
+function k13Hit(m, foe, u) {
+  const P = foe.def.passive;
+  if (!P || !u.alive || reflecting || !curSrc) return;
+  if (P.do === 'ddWind' && curSrc !== 'w') ddErode(m, foe, u);
+}
+// hitfx ddEye {every, n, lostHp, slow, slowDur}: the victim takes the tick every `every` s, n times (a new eye restarts it)
+function k13Eye(src, o, F) {
+  o.ddYF = F; o.ddYN = F.n; o.ddYT = F.every; o.ddYBy = src.id;
+}
+
+// ---- Đom Đóm (domdom), passive ddWind {erode {per, max, dur}, song {r, block, haste, fade}} ----
+// Phong Thực: one stack per skill hit (max), each per x slow, weaken and antiheal for dur s; stacks are per victim, the last
+// Đom Đóm to hit owns them (another one starts at 1).
+function ddErode(m, foe, u) {
+  const E = foe.def.passive.erode;
+  u.ddEN = u.ddET > 0 && u.ddEBy === foe.id ? Math.min(E.max, u.ddEN + 1) : 1;
+  u.ddEBy = foe.id; u.ddET = E.dur;
+  const f = E.per * u.ddEN, keep = curSrc;
+  curSrc = null;
+  applyFx(m, foe, u, { slow: f, slowDur: E.dur, weaken: { mul: 1 - f, dur: E.dur }, antiheal: { mul: 1 - f, dur: E.dur } });
+  curSrc = keep;
+}
+// The K1 bubble (bubT: every enemy shot that reaches it ends without damage) for t s; a running bubble keeps its own cc factor.
+function ddWrap(o, t) {
+  if (!(o.bubT > 0)) { o.bubCc = 1; o.bubPrev = [o.stunT, o.slowT, o.rootT]; }
+  o.bubT = Math.max(o.bubT, t);
+}
+// Phong Vãn Chi Ca: every press wraps her and the allies within r, and gives her the fading haste
+function ddSong(m, u, S) {
+  for (const o of m.units) if (o.alive && o.team === u.team && dist2(o.x, o.z, u.x, u.z) <= S.r * S.r) ddWrap(o, S.block);
+  const f = 1 + S.haste;
+  if (!(u.hasteT > 0) || u.hasteF <= f) { u.hasteF = u.ddHsF = f; u.hasteT = Math.max(u.hasteT, S.fade); u.ddHsT = S.fade; }
+  m.events.push({ t: 'k13', kind: 'song', id: u.id, x: u.x, z: u.z, r: S.r });
+}
+// Phong Nha Thần Điện: one pulse round the caster. k = 0 for the first (x first).
+function ddPulse(m, u) {
+  const T = u.ddTpS, k = T.n - u.ddTpN, mul = k === 0 ? T.first : 1, keep = curSrc;
+  u.ddTpN--; u.ddTpT = T.every;
+  m.events.push({ t: 'k13', kind: 'temple', id: u.id, k, x: u.x, z: u.z, r: T.r });
+  const fire = 1 - Math.min(T.max, T.step * (k + 1));
+  for (const o of m.units) {
+    if (!o.alive || dist2(o.x, o.z, u.x, u.z) > T.r * T.r) continue;
+    if (o.team === u.team) { cleanse(o); ddWrap(o, T.block); heal(m, o, u.maxHp * T.heal * mul, u); continue; }
+    if (o.invulnT > 0) continue;
+    curSrc = null;
+    applyFx(m, u, o, { yank: { dist: T.pull, to: 'caster' }, slowStack: { step: T.step, max: T.max }, slowDur: T.dur, slowFire: { mul: fire, dur: T.dur }, lostHp: T.lostHp * mul });
+    if (o.alive) ddErode(m, u, o);
+  }
+  curSrc = keep;
+}
+
+/* ===== end kit lane K13 ===== */

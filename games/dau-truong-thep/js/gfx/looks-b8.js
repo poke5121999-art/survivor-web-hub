@@ -8,7 +8,6 @@
 //     of dragon scales, one thick lava stream (not the flame jets, rings, fox fire or fire wheel of the other fire tanks).
 //   悟空 p25 (Khỉ Pháo): gold and orange, a spinning gold band, a staff from the sky. Ours keeps gold with the tank's violet:
 //     a grinning bomb, a golden somersault cloud, firework blooms.
-//   绮翠之心 p91 (Đom Đóm, partial): emerald healing bubbles on allies, green orbs. Ours: warm firefly light with mint bubbles.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, sigil, shell, pillar, trail, burst } from './lookkit.js';
 
@@ -468,79 +467,4 @@ const khiphao = {
   },
 };
 
-// ---- Đom Đóm: warm firefly light, mint accent ----------------------------------------------------------------------------
-const DD_AMBER = C(2.6, 2.05, 0.5), DD_MINT = C(0.5, 2.4, 1.5), DD_LIT = C(2.2, 2.6, 0.6);
-// a leaf-shaped wing lying flat along +x from the root
-const leafGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, 0); s.quadraticCurveTo(0.45, 0.32, 1, 0.06); s.quadraticCurveTo(1.05, 0, 1, -0.04); s.quadraticCurveTo(0.45, -0.2, 0, 0); return keep(new THREE.ShapeGeometry(s, 12).rotateX(-Math.PI / 2)); })();
-const antGeo = keep(new THREE.CylinderGeometry(0.015, 0.02, 0.6, 4).rotateX(Math.PI / 2).translate(0, 0, -0.3));
-// a firefly seen from above, head at -z: dark head and wing covers, a red-orange shield behind the head, pale beating hind
-// wings and a glowing yellow-green tail lantern with a soft halo
-function firefly() {
-  const g = new THREE.Group(), dark = basic(0x221c14, false, 1), sh = (sx, sy, sz, x, y, z, m) => { const q = new THREE.Mesh(sphGeo, m); q.scale.set(sx, sy, sz); q.position.set(x, y, z); g.add(q); return q; };
-  sh(0.3, 0.3, 0.36, 0, 0.05, 0.55, basic(C(0.6, 0.8, 0.1), true, 0.22));                      // lantern halo
-  sh(0.2, 0.17, 0.3, 0, 0.06, 0.5, basic(0xf4ff86, false, 1));                                  // lantern
-  sh(0.12, 0.1, 0.12, 0, 0.08, -0.42, dark);                                                     // head
-  sh(0.17, 0.08, 0.13, 0, 0.1, -0.27, basic(0xd8542a, false, 1));                              // shield
-  const hind = [-1, 1].map((sd) => { const w = new THREE.Mesh(leafGeo, basic(0xcff3ea, false, 0.5)); w.position.set(sd * 0.05, 0.12, -0.15); w.scale.set(sd * 0.95, 1, 0.9); g.add(w); return w; });
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(leafGeo, dark); e.position.set(sd * 0.04, 0.16, -0.18); e.rotation.y = -sd * 1.15; e.scale.set(sd * 0.72, 1, 0.9); g.add(e); }
-  for (const sd of [-1, 1]) { const a = new THREE.Mesh(antGeo, dark); a.position.set(sd * 0.05, 0.1, -0.5); a.rotation.y = sd * 0.35; g.add(a); }
-  g.userData.wings = hind; g.traverse((m) => { m.renderOrder = 8; }); return g;
-}
-// a point light carried by a firefly: a bright star in a soft glow
-const mote = (kit, x, y, z, c, s = 1, halo = 0.4) => { kit.glow(x, y, z, c, 0.05, 0.42 * s, 1, kit.K.STAR, 1); if (halo) kit.glow(x, y, z, DD_AMBER, 0.05, 1.0 * s, halo, kit.K.GLOW, 1); };
-const domdom = {
-  // Ong Thợ: a firefly drone circles over her, hind wings beating, its tail lantern glowing, a mint thread to the ally it heals
-  ddDrone: {
-    zones: ['drone'],
-    skill() { return true; },
-    zoneMake(kit) { const f = firefly(); return { f, h: held(kit, [f]), link: null, t: 0 }; },
-    zone(kit, v, z, dt) {
-      v.t += dt; const o = kit.match && kit.match.units[z.owner], ang = z.age * 2.2, k = Math.min(1, z.age * 4) * Math.min(1, (z.dur - z.age) * 3);
-      const px = (o ? o.x : z.x) + Math.cos(ang) * 1.5, pz = (o ? o.z : z.z) + Math.sin(ang) * 1.5, py = 2.8 + Math.sin(v.t * 3) * 0.15;
-      v.f.position.set(px, py, pz); v.f.rotation.y = -ang - Math.PI; v.f.scale.setScalar(5.2 * k);
-      v.f.userData.wings.forEach((w, i) => { const sd = i ? 1 : -1; w.rotation.y = -sd * (0.45 + 0.4 * Math.sin(v.t * 38)); });
-      if (Math.random() < dt * 12) kit.glow(px + R(-0.4, 0.4), py - 0.2, pz + R(-0.4, 0.4), DD_LIT, 0.9, 0.2, 1, kit.K.STAR, 0.5, 0, -0.8, 0);
-      const tg = z.target >= 0 && kit.match ? kit.match.units[z.target] : null;
-      if (tg && tg.alive) { if (!v.link) v.link = kit.beam(px, pz, tg.x, tg.z, 0.7, DD_MINT, 1e9, 2, 1.8); kit.aimBeam(v.link, px, pz, tg.x, tg.z, 1.8); }
-      else if (v.link) { kit.endBeam(v.link); v.link = null; }
-    },
-    zoneDrop(kit, v) { v.h.on = false; if (v.link) kit.endBeam(v.link); },
-  },
-  // Tiếp Sức: three ribbons of fireflies stream from her to the ally, winding, and wind into a ring of lights round it
-  ddBless: {
-    skill() { return true; },
-    bless(kit, e, u, row) {
-      const o = kit.match && kit.match.units[e.to]; if (!o) return true;
-      const dur = row.dur || 4, x0 = u.x, z0 = u.z, fly = 0.4;
-      const head = (j) => (t) => {
-        if (!o.alive || t > dur) return null;
-        const f = Math.min(1, t / fly), a = j * 2.094 + t * 3, rr = 2.3, ox = o.x + Math.cos(a) * rr, oz = o.z + Math.sin(a) * rr;
-        const sw = Math.sin(f * Math.PI) * 1.6 * (j - 1), q = 1 - f, dx = ox - x0, dz = oz - z0, L = Math.hypot(dx, dz) || 1;
-        return [x0 + dx * f - dz / L * sw, 1.3 + 0.4 * Math.sin(t * 4 + j) + Math.sin(f * Math.PI) * 1.2 * q, z0 + dz * f + dx / L * sw];
-      };
-      for (let j = 0; j < 3; j++) { const h = head(j); trail(kit, h, 0.8, DD_AMBER, dur, { c2: DD_MINT, len: 22, fade: 0.4, add: true }); kit.follow(o, dur, (t) => { const p = h(t); if (p) mote(kit, p[0], p[1], p[2], DD_LIT, 1.8); }); }
-      kit.follow(o, dur, (t) => { if (t < fly) return; for (let i = 0; i < 12; i++) { const a = i * 0.5236 - t * 1.5; mote(kit, o.x + Math.cos(a) * 2.3, 0.5 + 0.15 * Math.sin(t * 5 + i), o.z + Math.sin(a) * 2.3, i % 3 ? DD_LIT : DD_MINT, 2); } });
-      kit.flash(o.x, 2, o.z, DD_AMBER, 30, 0.25);
-      return true;
-    },
-  },
-  // Vòng Sáng: fireflies pour out in a great ring of lights to the edge, a second ring of mint lights turns inside it, and
-  // bright streaks of fireflies race round between them
-  ddRally: {
-    skill() { return true; },
-    rally(kit, e, u) {
-      const r = e.r || 8, x = e.x, z = e.z, life = 1.5;
-      kit.follow(u, life, (t) => {
-        const k = 1 - (1 - Math.min(1, t / 0.35)) ** 2, f = Math.min(1, (life - t) / 0.5);
-        for (let i = 0; i < 44; i++) { const a = i * 0.1428 + t * 0.4, rw = r * k * (0.86 + 0.14 * Math.sin(a * 6 - t * 3)); mote(kit, x + Math.cos(a) * rw, 0.4 + 0.2 * Math.sin(t * 6 + i), z + Math.sin(a) * rw, DD_LIT, 1.5 * f, 0.3); if (i % 2 === 0) kit.str.emit(x + Math.cos(a) * rw, 0.4, z + Math.sin(a) * rw, 0, R(5, 8), 0, DD_LIT, 0.3, 0.1, 0.06, 0, 1, 1); }
-        for (let i = 0; i < 24; i++) { const a = i * 0.2618 - t * 0.9; mote(kit, x + Math.cos(a) * r * 0.58 * k, 0.6, z + Math.sin(a) * r * 0.58 * k, DD_MINT, 1.2 * f, 0.3); }
-      });
-      for (let j = 0; j < 6; j++) trail(kit, (t) => { if (t > life - 0.3) return null; const a = j * 1.0472 + t * 3.5, rr = r * 0.95 * Math.min(1, t / 0.7); return [x + Math.cos(a) * rr, 0.8, z + Math.sin(a) * rr]; }, 0.6, C(1, 0.72, 0.12), life, { c2: C(0.2, 0.75, 0.5), len: 20 });
-      if (kit.match) for (const o of kit.match.units) if (o.alive && o.team === u.team && Math.hypot(o.x - x, o.z - z) <= r) for (let i = 0; i < kit.N(8); i++) kit.glow(o.x + R(-0.8, 0.8), R(0.3, 1), o.z + R(-0.8, 0.8), DD_LIT, R(0.8, 1.2), 0.35, 1, kit.K.STAR, 1, 0, R(1.5, 3), 0);
-      kit.flash(x, 3, z, DD_AMBER, 40, 0.4);
-      return true;
-    },
-  },
-};
-
-export const B8 = { ...trau, ...tho, ...hoalong, ...khiphao, ...domdom };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake)
+export const B8 = { ...trau, ...tho, ...hoalong, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13)

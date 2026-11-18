@@ -287,20 +287,34 @@ export const MECHS = {
         desc: 'Ba bản sao tỏa ra hình quạt, bạn tàng hình 3 giây và chạy nhanh hơn 35%.' },
     ],
   },
+  // Đom Đóm: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p91 "88.绮翠之心" Khỉ Thúy Chi Tâm, tooltips read at 0-19 s;
+  // AUDIT-a.md). The original is a wind controller, not a healer: the owner accepted the role change (Quân y -> Khống chế). Attack =
+  // 150 (lubo, moclan): the old heal ray (80 per 0.25 s) became a jade wind dart of 150 per 0.5 s (same dps). 100% -> 150. Cooldowns
+  // 8 / 6 (2 uses 3 s apart) / 30 s in the clip -> 10 / 8 / 55. Kit-remake G5 fields (sim.js block "kit lane K13"): passive ddWind
+  // (erode: every skill hit adds a Phong Thực stack, x3: slow, weaken and antiheal of per each; song: every press wraps her and the
+  // allies within r in the K1 bullet-eating bubble for block s, and gives her +haste speed fading to nothing over fade s), hitfx
+  // ddEye (the victim takes lostHp true damage and a short slow every `every` s, n times), nova ddTemple (pulses round her after
+  // delay, every `every` s, n times: allies are cleansed, wrapped and healed heal x her max hp; enemies are pulled pull m, take
+  // lostHp of their lost hp as true damage, a stacking slow and a stacking fire slow; the first pulse is x first). The ult's -20%
+  // bullet speed is not ported (no such stat). Wind spear splash victims take the splash's 60%, as every splash does.
   domdom: {
-    name: 'Đom Đóm', role: 'Quân y', roleKey: 'medic', price: 1600, tint: 0xd8e05a, hover: true,
-    blurb: 'Ngắm tia vào đồng đội để hồi máu, vào địch để gây sát thương. Drone hồi máu bay theo.',
+    name: 'Đom Đóm', role: 'Khống chế', roleKey: 'control', price: 1600, tint: 0xd8e05a, hover: true,
+    blurb: 'Gió ngọc bích: chiêu trúng ai cũng bào mòn kẻ đó, mỗi lần ra chiêu gió bọc mình và đồng đội chặn đạn. Mắt gió, giáo gió, thần điện gió kéo địch vào.',
     hp: 1700, speed: 7.4, radius: 0.76,
     armor: 0, accel: 1.2, turn: 14, towerMul: 2.2,
-    passive: { do: 'overheal', name: 'Tràn Máu', desc: 'Hồi máu cho đồng đội đã đầy máu thì thành khiên, tối đa 300.', cap: 300, dur: 3 },
-    weapon: { name: 'Tia Nối', cd: 0.25, ray: true, range: 11, width: 0.7, dmg: 80, heal: 90, vis: 'link' },
+    passive: { do: 'ddWind', name: 'Phong Thực Chi Ủng', erode: { per: 0.1, max: 3, dur: 2 }, song: { r: 6, block: 0.5, haste: 0.5, fade: 2 },
+      desc: 'Chiêu trúng địch gây Phong Thực 2 giây: chậm 10%, sát thương giảm 10%, máu được hồi giảm 10%, cộng dồn 3 lần. Mỗi lần ra chiêu, Phong Vãn Chi Ca bọc bạn và đồng đội trong 6 m, chặn mọi đạn địch 0,5 giây; bạn chạy nhanh hơn 50%, giảm dần trong 2 giây.' },
+    weapon: { name: 'Phong Tiễn', cd: 0.5, dmg: 150, speed: 30, range: 12, r: 0.24, vis: 'dart', look: 'ddDart' },
     skills: [
-      { id: 'ongtho', look: 'ddDrone', name: 'Ong Thợ', cd: 16, do: 'drone', dur: 12, range: 7, hps: 120, icon: 'drone',
-        desc: 'Thả drone bay theo bạn 12 giây, hồi 120 máu mỗi giây cho đồng đội yếu nhất trong 7 m.' },
-      { id: 'tiepsuc', look: 'ddBless', name: 'Tiếp Sức', cd: 11, do: 'bless', cast: 12, pick: 3.5, haste: 1.3, rapid: 1.25, dur: 4, icon: 'boost',
-        desc: 'Đồng đội ở con trỏ chạy nhanh hơn 30% và bắn nhanh hơn 25% trong 4 giây.' },
-      { id: 'vongsang', look: 'ddRally', name: 'Vòng Sáng', cd: 44, do: 'rally', radius: 8, heal: 1100, haste: 1.25, dur: 3, icon: 'rally',
-        desc: 'Mọi đồng đội trong 8 m hồi 1100 máu, hết bị chậm, choáng và dấu tử, rồi chạy nhanh hơn 3 giây.' },
+      { id: 'phongnhan', look: 'ddEye', name: 'Ai Nga La Tư Chi Nhãn', cd: 10, do: 'barrage', n: 1, cast: 12, radius: 0, blast: 3, delay: 0.5, span: 0, dmg: 150, icon: 'storm',
+        fx: { ddEye: { every: 1.5, n: 3, lostHp: 0.05, slow: 0.75, slowDur: 0.25 } },
+        desc: 'Mắt gió mở ở con trỏ (xa nhất 12 m): sau 0,5 giây gây 150 sát thương vòng 3 m. Trong 4,5 giây sau, cứ 1,5 giây kẻ trúng mất thêm 5% máu đã mất (sát thương chuẩn) và bị chậm 75% trong 0,25 giây.' },
+      { id: 'phongthuong', look: 'ddSpear', name: 'Phong Chi Đầu Thương', cd: 8, uses: { n: 2, gap: 3 }, do: 'volley', n: 1, dmg: 150, speed: 30, range: 13, r: 0.4, splash: 2.2, splashHit: true, vis: 'sabot', icon: 'pierce',
+        fx: { lostHp: 0.05, antiheal: { mul: 0, dur: 1.5, shield: true }, slow: 0.25, slowDur: 1.5 },
+        desc: 'Phóng giáo gió: kẻ đầu tiên trúng chịu 150 sát thương cộng 5% máu đã mất (sát thương chuẩn), nổ lan kẻ quanh nó; trong 1,5 giây không được hồi máu, không nhận khiên và chậm 25%. Hai lần dùng, cách nhau 3 giây.' },
+      { id: 'phongnha', look: 'ddTemple', name: 'Phong Nha Thần Điện', cd: 55, do: 'nova', windup: 0, move: 1, radius: 6, dmg: 0, fx: { silence: 1 }, cdAfter: true, dur: 4, icon: 'blizzard',
+        ddTemple: { delay: 1, every: 1.5, n: 3, r: 6, block: 0.5, heal: 0.05, lostHp: 0.05, first: 2, pull: 1.5, step: 0.2, max: 0.5, dur: 1.75 },
+        desc: 'Câm lặng kẻ địch trong 6 m 1 giây và tụ gió; 1 giây sau Thần Điện Phong Nha nổi quanh bạn, cứ 1,5 giây một nhịp, ba nhịp. Đồng đội trong vùng hết mọi hiệu ứng xấu, được bọc gió chặn đạn và hồi 5% máu tối đa của bạn; kẻ địch bị kéo về phía bạn, mất 5% máu đã mất (sát thương chuẩn), chậm và bắn chậm thêm 20% mỗi nhịp (tối đa 50%) trong 1,75 giây. Nhịp đầu gấp đôi. Hồi chiêu tính từ lúc thần điện tan.' },
     ],
   },
   // Captain America: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p21 "18.上尉", tooltips read at 2-8 s; AUDIT-c.md). Attack =
@@ -1186,7 +1200,7 @@ export const PERKS = {
   kimquy: [perk('Khiên Dày', 'Khiên Tặng hấp thụ 1000.', 0, { amount: 1000, shield: 1000 }), perk('Gai Mai', 'Mai Rùa phản 50%.', 1, { reflect: 0.5 }), perk('Thành Vững', 'Thành Đồng kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   hacho: [perk('Móng Sắc', 'Vồ gây 300.', 0, { dmg: 300 }), perk('Nộ Dai', 'Cuồng Nộ kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Án Tử', 'Dấu Tử kết liễu dưới 28% máu.', 2, { execute: 0.28 })],
   holy: [perk('Bom Ảnh', 'Bản sao nổ 260.', 0, { dmg: 260 }), perk('Bước Xa', 'Xuyên Tường xa 9,5 m.', 1, { dist: 9.5 }), perk('Bốn Bóng', 'Vũ Điệu Ảo Ảnh thả bốn bản sao.', 2, { n: 4 })],
-  domdom: [perk('Ong Bền', 'Ong Thợ bay 16 giây.', 0, { dur: 16 }), perk('Tiếp Khiên', 'Tiếp Sức kèm khiên 300.', 1, { shield: 300 }), perk('Sáng Rực', 'Vòng Sáng hồi 1500.', 2, { heal: 1500 })],
+  domdom: [perk('Mắt Gió Rộng', 'Ai Nga La Tư Chi Nhãn mở rộng 3,6 m.', 0, { blast: 3.6 }), perk('Giáo Nặng', 'Phong Chi Đầu Thương gây 190.', 1, { dmg: 190 }), perk('Thần Điện Rộng', 'Phong Nha Thần Điện rộng 7 m.', 2, { radius: 7, ddTemple: { delay: 1, every: 1.5, n: 3, r: 7, block: 0.5, heal: 0.05, lostHp: 0.05, first: 2, pull: 1.5, step: 0.2, max: 0.5, dur: 1.75 } })],
   tacke: [perk('Vinh Quang Dài', 'Khiên vinh quang kéo dài 1,75 giây.', 0, { bubble: 1.75 }), perk('Khiên Nặng', 'Khiên bay về gây 280, choáng 1,2 giây.', 1, { back: { dmg: 280, fx: { stun: 1.2 }, cut: 0.15 } }), perk('Nảy Ba', 'Khiên Nảy nảy tường ba lần.', 'weapon', { bounce: 3 })],
   hoalong: [perk('Tụ Nhanh', 'Quá Tải hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Màn Rộng', 'Màn Sáng dài bảy tấm.', 1, { n: 7 }), perk('Tuyến Dài', 'Thiên Hỏa Tuyến kéo dài 3,4 giây.', 2, { dur: 3.4 })],
   khiphao: [perk('Pháo Đằm', 'Pháo Tép làm chậm hoặc làm yếu với 45% quả.', 'weapon', { fx: { chance: 0.45, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] } }), perk('Bẫy Dày', 'Mìn của Chuồn Lẹ nổ 360.', 1, { onStart: { mine: { trigger: 2, blast: 3, dmg: 360, arm: 0.4, life: 8, fx: { slow: 0.4, slowDur: 1.5 } } } }), perk('Mười Sáu Quả', 'Hội Pháo Hoa dội 16 quả.', 2, { n: 16 })],

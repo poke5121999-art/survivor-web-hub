@@ -16,6 +16,7 @@ const JS = process.env.TTK_JS ? path.resolve(process.env.TTK_JS, 'js') : path.re
 const load = (f) => import(path.join(JS, f));
 const { createMatch, step } = await load('sim.js');
 const { MECH_ORDER, MECHS, TICK, RULES } = await load('data.js');
+const { OLD_DOMDOM } = await import('./k13-cases.mjs');   // kit lane K13: the old heal-ray Đom Đóm (fixture)
 // TTK_PATCH='MECHS.hac.hp = 1800' evaluates a what-if on the loaded tables before the matrix (nothing is written to js/).
 if (process.env.TTK_PATCH) new Function('RULES', 'MECHS', process.env.TTK_PATCH)(RULES, MECHS);
 
@@ -39,7 +40,7 @@ const SEQ = {
   kimquy: { d: 6, seq: [] },
   hacho: { d: 5, seq: [['ult', 0], ['s2', 0], ['s1', 0.3]], fireAt: 0.3 },
   holy: { d: 9, seq: [] },
-  domdom: { d: 8, seq: [] },
+  domdom: { d: 5, seq: [['s1', 0], ['s2', 0.6], ['ult', 0.7]] },   // kit lane K13: eye, spear, temple
   tacke: { d: 12, seq: [['s2', 0], ['ult', 0.3]] },
   hoalong: { d: 14, seq: [['s1', 0, true], ['ult', 0.4]], fireAt: 0.1 },
   khiphao: { d: 9, seq: [['s1', 0], ['ult', 0.2]] },
@@ -86,7 +87,7 @@ const SELF = {
   trau: [['s1', 0.97]],
   hac: [['s1', 0.95]],
   kimquy: [['s1', 0.95, false, 'self'], ['s2', 0.9], ['ult', 0.7]],
-  domdom: [['s1', 2, true], ['s2', 0.9, false, 'self'], ['ult', 0.6]],
+  domdom: [['s2', 0.97], ['s1', 0.95], ['ult', 0.8]],   // kit lane K13: every press wraps her in the bullet-eating wind
   hacho: [['s2', 0.8]],
   thancong: [['s1', 2, true]],
 };
@@ -105,6 +106,7 @@ function cell(att, def, lv, cond) {
   for (const p of m.props) p.alive = false;
   m.crateT = 1e9;
   const kit = SEQ[att], [A, D, S] = m.units, d = kit.d;
+  if (cond === 'bd') { S.def = { ...S.def, ...OLD_DOMDOM }; S.passive = OLD_DOMDOM.passive.do; }   // kit lane K13: the healer condition keeps the heal-ray Đom Đóm
   const put = (u, x, z, aim) => { u.x = u.px = x; u.z = u.pz = z; u.aim = u.heading = aim; u.combatT = 0; };
   put(A, -d, 0, 0); put(D, 0, 0, Math.PI);
   if (S) put(S, cond === 'c' ? 0.5 : 2.2, cond === 'c' ? 2.4 : 0, Math.PI);
@@ -191,7 +193,8 @@ if (!QUICK) {
 // Design intent (Addendum 13): burst kits delete a squishy healer caught out; nobody is out-healed by a lone healer; the tanks are hard to burst.
 // Lôi Công (a line of shells) and Hắc Hổ (mark, then execute under 22%) burst through many hits, so only their 3 s combo is held to a target.
 // Ưng Nhãn too since kit lane K7 (clip p92): a fast magazine gun whose falcon mark bursts on every shot, no single big blow.
-const MULTI = ['loi', 'hacho', 'ung'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac', 'domdom'], TANKS = ['trau', 'kimquy'];
+// Đom Đóm left HEALERS with kit lane K13: she plays the clip's wind controller now (no heals; bubbles that eat bullets, debuffs), not a healer.
+const MULTI = ['loi', 'hacho', 'ung'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac'], TANKS = ['trau', 'kimquy'];
 const HIT = 40, bad = [];
 for (const [ln] of levels) {
   for (const h of HEALERS) {

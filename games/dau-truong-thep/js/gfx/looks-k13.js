@@ -1,0 +1,126 @@
+// Looks, kit lane K13: Đom Đóm, remade with the kit ported from the owner's clip. Render only (see looks.js).
+// One main colour and one accent per tank, one strong shape per skill, soft halos.
+//   绮翠之心 p91 (Đom Đóm): jade-green wind. Translucent jade bubbles swirl round her and her allies whenever she casts (the
+//     bullet-eating Phong Vãn Chi Ca); a jade wind eye opens on the ground with a pale blue rim and keeps a small swirl over
+//     the foes it caught; a thin jade spear on a pale wind ribbon; the temple is a jade dome round her that beats three times,
+//     wind streaks pouring inward with each beat.
+import * as THREE from '../../vendor/three.module.min.js';
+import { C, stop, sigil, shell, trail, burst } from './lookkit.js';
+
+const R = (a, b) => a + Math.random() * (b - a);
+
+// ---- Đom Đóm: jade wind, pale-cyan accent --------------------------------------------------------------------------------
+const DD_JADE = C(0.3, 2.1, 1.05), DD_WIND = C(1.2, 2.5, 2.3), DD_DEEP = C(0.04, 0.55, 0.32), DD_RIM = C(0.45, 1.3, 2.4);
+// Phong Vãn Chi Ca: every press wraps her and the allies within the song's reach in a swirling jade bubble for its block time
+function song(kit, u) {
+  const P = u.def.passive, S = P && P.song;
+  if (!S || !kit.match) return;
+  for (const o of kit.match.units) {
+    if (!o.alive || o.team !== u.team || Math.hypot(o.x - u.x, o.z - u.z) > S.r) continue;
+    shell(kit, o.x, 1.1, o.z, 1.9, DD_JADE, { c2: DD_WIND, p: 1.5, core: 0.08, bands: 1.6, follow: o, life: S.block + 0.25, grow: 0.08, fade: 0.2 });
+    swirl(kit, o, S.block + 0.2, 1.7, 3);
+  }
+}
+// wind streaks circling a unit (or a fixed point) at radius r
+function swirl(kit, o, life, r, n) {
+  for (let j = 0; j < n; j++) {
+    const ph = j * 6.283 / n, h = 0.6 + j * 0.35;
+    trail(kit, (t) => (t > life || (o.alive === false) ? null : [o.x + Math.cos(ph + t * 7) * r, h + 0.25 * Math.sin(t * 5 + j), o.z + Math.sin(ph + t * 7) * r]), 0.32, DD_WIND, life, { c2: DD_JADE, len: 10, add: true, up: true });
+  }
+}
+const domdom = {
+  // Phong Tiễn (weapon): a jade dart on a short pale ribbon
+  ddDart: {
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, live: true };
+      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 0.42, DD_WIND, 1e9, { c2: DD_JADE, len: 7, add: true });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; kit.glow(x, 1.25, z, DD_JADE, 0.05, 0.55, 0.9, kit.K.STAR, 1); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; kit.glow(x, 1.1, z, DD_WIND, 0.12, 1.1, 0.8, kit.K.GLOW, 1.2); },
+  },
+  // Ai Nga La Tư Chi Nhãn: a jade eye opens on the ground (pale blue rim, wind ticks turning), wind gathers into it and it
+  // bursts; each foe caught keeps a small jade swirl over it that beats with the eye's three ticks
+  ddEye: {
+    zones: ['strike'], ownDisc: true, pal: [DD_JADE, DD_WIND], hitR: 2,
+    skill(kit, e, u) { song(kit, u); kit.glow(u.x + Math.cos(e.a) * 1.2, 1.4, u.z + Math.sin(e.a) * 1.2, DD_JADE, 0.15, 1.3, 0.8, kit.K.STAR, 1.2); return true; },
+    zoneMake(kit, z) {
+      const ring = sigil(kit, z.x, z.z, z.r, DD_RIM, { c2: DD_JADE, n: 0, ticks: 18, inner: 0.35, fill: 0.18, w: 0.07, life: 1e9, rev: 0.12, spin: 2.6 });
+      return { ring, t: 0 };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      if (Math.random() < dt * 40) { const a = Math.random() * 6.283, r = z.r * R(0.9, 1.2); kit.str.emit(z.x + Math.cos(a) * r, 0.5, z.z + Math.sin(a) * r, -Math.cos(a) * 7 - Math.sin(a) * 5, 0.8, -Math.sin(a) * 7 + Math.cos(a) * 5, Math.random() < 0.5 ? DD_JADE : DD_WIND, 0.3, 0.12, 0.08, 0, 0, 1); }
+    },
+    zoneDrop(kit, v) { stop(v.ring); },
+    land(kit, e) {
+      const r = 3;
+      shell(kit, e.x, 0.9, e.z, r, DD_JADE, { c2: DD_WIND, p: 1.3, core: 0.12, bands: 1.4, squash: 0.45, life: 0.55, grow: 0.08, fade: 0.3 });
+      sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 6, m: 1, ticks: 0, inner: 0.5, fill: 0.3, life: 0.6, rev: 0.06, spin: 4 });
+      kit.flash(e.x, 1.4, e.z, DD_JADE, 30, 0.2); kit.kick(e.x, e.z, 0.2);
+      if (kit.match) for (const o of kit.match.units) {
+        if (!o.alive || Math.hypot(o.x - e.x, o.z - e.z) > r + o.radius) continue;
+        const own = kit.match.units.find((q) => q.def.passive && q.def.passive.do === 'ddWind' && q.team !== o.team);
+        if (!own) continue;
+        kit.follow(o, 4.6, (t) => {
+          const k = (t % 1.5) / 1.5, beat = t > 1.4 && k < 0.15;
+          for (let i = 0; i < 6; i++) { const a = i * 1.047 + t * 5; kit.glow(o.x + Math.cos(a) * 0.9, 2.3, o.z + Math.sin(a) * 0.9, i % 2 ? DD_JADE : DD_WIND, 0.05, beat ? 0.55 : 0.32, 0.9, kit.K.STAR, 1); }
+          if (beat && Math.random() < 0.5) kit.ring(o.x, o.z, 1.6, DD_JADE, 0.3);
+        });
+      }
+      return true;
+    },
+  },
+  // Phong Chi Đầu Thương: a thin jade spear on a pale wind ribbon; where it strikes, a jade bubble pops and wind fans out
+  ddSpear: {
+    pal: [DD_JADE, DD_WIND], hitR: 2.2,
+    skill(kit, e, u) { song(kit, u); return true; },
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, a: Math.atan2(s.dz || 0, s.dx || 1), live: true };
+      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 0.9, DD_WIND, 1e9, { c2: DD_JADE, len: 16, add: true });
+      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 0.5, DD_JADE, 1e9, { c2: DD_DEEP, len: 10, up: true });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) {
+      v.x = x; v.z = z;
+      kit.glow(x, 1.3, z, DD_WIND, 0.05, 0.9, 1, kit.K.STAR, 1.1);
+      if (Math.random() < 0.6) kit.str.emit(x, 1.3, z, R(-2, 2), R(-0.5, 0.8), R(-2, 2), DD_JADE, 0.25, 0.08, 0.06, 0, 0, 1);
+      return true;
+    },
+    shotEnd(kit, v, s, x, z) {
+      v.live = false;
+      burst(kit, x, z, 2.4, DD_JADE, DD_WIND, { life: 0.35 });
+      shell(kit, x, 1.1, z, 2.2, DD_JADE, { c2: DD_WIND, p: 1.5, core: 0.1, bands: 1.5, life: 0.4, grow: 0.06, fade: 0.25 });
+      for (let i = 0, n = kit.N(14); i < n; i++) { const a = R(0, 6.283), sp = R(7, 13); kit.str.emit(x, 1.1, z, Math.cos(a) * sp, R(0, 1), Math.sin(a) * sp, i % 2 ? DD_JADE : DD_WIND, 0.3, 0.14, 0.08, 0, 0, 1); }
+    },
+  },
+  // Phong Nha Thần Điện: a jade dome rises round her with a turning wind sigil under it; it beats three times (1, 2.5 and 4 s
+  // after the press): a ring runs out to the edge, wind streaks pour inward to her, the dome flares
+  ddTemple: {
+    pal: [DD_JADE, DD_WIND], hitR: 2,
+    skill(kit, e, u) { song(kit, u); return true; },
+    nova(kit, e, u, s) {
+      const T = s.ddTemple, r = T.r, end = T.delay + T.every * (T.n - 1) + 0.6;
+      kit.ring(e.x, e.z, s.radius, DD_RIM, 0.35);
+      sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 8, m: 3, ticks: 24, inner: 0.62, fill: 0.12, life: end, rev: 0.4, spin: 0.8, w: 0.08, follow: u, fade: 0.4 });
+      const dome = shell(kit, u.x, 0, u.z, r, DD_JADE, { c2: DD_WIND, p: 2.2, core: 0.03, bands: 0.9, dome: true, follow: u, life: end, grow: T.delay, fade: 0.5, alpha: 0.55 });
+      let beat = 0;
+      kit.follow(u, end, (t) => {
+        const at = T.delay + beat * T.every;
+        if (beat < T.n && t >= at) {
+          beat++;
+          kit.ring(u.x, u.z, r, DD_WIND, 0.45); kit.ring(u.x, u.z, r * 0.6, DD_JADE, 0.35);
+          kit.flash(u.x, 1.6, u.z, DD_JADE, beat === 1 ? 45 : 30, 0.25);
+          for (let i = 0, n = kit.N(beat === 1 ? 30 : 20); i < n; i++) { const a = R(0, 6.283), d = r * R(0.85, 1.05), sp = R(10, 16); kit.str.emit(u.x + Math.cos(a) * d, R(0.4, 1.6), u.z + Math.sin(a) * d, -Math.cos(a) * sp, 0, -Math.sin(a) * sp, i % 3 ? DD_JADE : DD_WIND, 0.35, 0.25, 0.1, 0, 0, 1); }
+          if (dome) dome.scale && dome.scale.setScalar(r * 1.04);
+        }
+        if (Math.random() < 0.5) { const a = R(0, 6.283), d = r * R(0.3, 0.95); kit.glow(u.x + Math.cos(a) * d, R(0.5, 2.5), u.z + Math.sin(a) * d, DD_WIND, 0.6, 0.25, 0.9, kit.K.STAR, 0.4, -Math.sin(a) * 2, 0.3, Math.cos(a) * 2); }
+      });
+      return true;
+    },
+  },
+};
+
+
+export const K13 = { ...domdom };
+

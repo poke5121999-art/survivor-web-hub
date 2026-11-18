@@ -4,6 +4,7 @@ import { createMatch, step, visibleTo, weaponRange } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { losClear, solidAt, MAP_ORDER, NHA_ORDER } from '../js/maps.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
+import { oldK13 } from './k13-cases.mjs';   // kit lane K13: the medic checks run on the old Đom Đóm kit (fixture)
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -24,10 +25,11 @@ const rot = (list, k, n) => Array.from({ length: n }, (_, i) => list[(k + i) % l
 const ACT = new Set(['fire', 'beam', 'ray', 'skill', 'turretFire']);
 
 // One bot match with instruments. `mechs`: the roster, team 0 first (tudo: every unit its own team, split by index parity for the colours).
-function play(mode, seed, mechs, diffs = ['hard', 'normal']) {
+function play(mode, seed, mechs, diffs = ['hard', 'normal'], fix = null) {
   const roster = mechs.map((mech, i) => ({ team: mode === 'trum' ? (mech === 'titan' ? 1 : 0) : i % 2, mech, name: mech + i, bot: true, diff: diffs[i % 2] }));
   const pool = mode === 'nha' ? NHA_ORDER : MAP_ORDER;
   const m = createMatch({ seed, mode, map: pool[seed % pool.length], roster });
+  if (fix) fix(m);
   const R = {
     m, error: null, bad: null, nonFinite: 0, ticks: 0, casts: {}, beams: {}, rays: { ally: 0, foe: 0, tower: 0, none: 0 }, planted: {}, alive: {}, towerDmg: {}, near: [],
     idle: {}, landings: [], plantedInRange: 0, plantedTicks: 0, releases: { bot: 0, auto: 0, quick: 0, full: 0 }, hooks: 0, decoyHits: 0, medicGap: [], thinkWorst: 0, thinkSum: 0,
@@ -251,18 +253,21 @@ for (const mode of MODE_LIST) {
 // ---- 3. what each new weapon and role is for ---------------------------------------------------------------------------------------
 section('3 medic');
 {
-  const rs = [...BY.tdm, ...BY.chiem];
+  // Đom Đóm plays the wind kit now (kit lane K13); the medic bot is checked on the old heal-ray kit (OLD_DOMDOM), same matches as section 1
+  const medic = (m) => oldK13(m, 'domdom'), MED = {};
+  for (const mode of ['tdm', 'chiem', 'nha']) MED[mode] = Array.from({ length: RUNS[mode] }, (_, k) => play(mode, k + 1, rot(NEW, k + 1, 6), undefined, medic));
+  const rs = [...MED.tdm, ...MED.chiem];
   const healed = sum(rs, (r) => r.m.units.filter((u) => u.mech === 'domdom').reduce((a, u) => a + u.healed, 0));
   const plays = sum(rs, (r) => r.m.units.filter((u) => u.mech === 'domdom').length);
   console.log(`domdom healed ${healed.toFixed(0)} over ${plays} plays, rays ${JSON.stringify(sum(rs, (r) => r.rays.ally) + ' ally / ' + sum(rs, (r) => r.rays.foe) + ' foe')}`);
   check('3a the medic heals at least 3000 per play on average (tdm and chiem)', healed / plays >= 3000, `${(healed / plays).toFixed(0)}`);
   check('3b at least 40% of medic rays land on allies at 3v3 (200+ ally rays; measured 48%: two allies are often at full health, then the ray hurts a foe)', sum(rs, (r) => r.rays.ally) >= 200 && sum(rs, (r) => r.rays.ally) >= 0.4 * (sum(rs, (r) => r.rays.ally) + sum(rs, (r) => r.rays.foe)), `${sum(rs, (r) => r.rays.ally)} vs ${sum(rs, (r) => r.rays.foe)}`);
-  const gaps = BY.nha.flatMap((r) => r.medicGap).sort((a, b) => a - b);
+  const gaps = MED.nha.flatMap((r) => r.medicGap).sort((a, b) => a - b);
   const med = gaps[gaps.length >> 1] || 0, p90 = gaps[Math.floor(gaps.length * 0.9)] || 0;
   console.log(`nha: medic distance to its nearest ally: median ${med.toFixed(1)} m, 90th percentile ${p90.toFixed(1)} m`);
   check('3c nha: the medic stays with the group (median 8 m or less from the nearest ally, 90% within 22 m; measured 20.4 at 3v3 after the healers got faster)', gaps.length > 100 && med <= 8 && p90 <= 22, `${med.toFixed(1)} / ${p90.toFixed(1)}`);
   // scenario: a hurt ally and no enemy: the ray heals it
-  const m = createMatch({ seed: 3, roster: [{ team: 0, mech: 'domdom', name: 'M', bot: true, diff: 'normal' }, { team: 0, mech: 'trau', name: 'A' }, { team: 1, mech: 'trau', name: 'E' }] });
+  const m = medic(createMatch({ seed: 3, roster: [{ team: 0, mech: 'domdom', name: 'M', bot: true, diff: 'normal' }, { team: 0, mech: 'trau', name: 'A' }, { team: 1, mech: 'trau', name: 'E' }] }));
   put(m.units[0], -5, -1); put(m.units[1], 2, -1); put(m.units[2], 40, 20);
   m.units[1].hp = m.units[1].maxHp * 0.3; m.units[2].alive = false; m.units[2].respawnT = 999;
   const hp0 = m.units[1].hp;

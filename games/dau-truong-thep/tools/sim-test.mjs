@@ -11,6 +11,7 @@ import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-case
 import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
 import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
+import { runK13Cases, oldK13, OLD_DOMDOM } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -141,8 +142,9 @@ for (const key of MECH_ORDER) {
     // orbit devour (tumay ult) needs a chaos orb to send: the pool timer is primed so the first tick grows one before the press
     if (s.mode === 'devour') a.tmAcc = MECHS[key].passive.every;
     let first = -1, second = -1, castTicks = 0;
-    // cdAfter (G1): the cooldown waits for the row's state (a buff's or a transform's dur) before it runs
-    const held = s.cdAfter && (s.do === 'buff' || s.do === 'transform') ? s.dur : 0;
+    // cdAfter (G1): the cooldown stands full while the row's state runs (a buff's or a transform's dur, kit lane K13: domdom's
+    // nova ult with its dur), so the recast comes that much later
+    const held = s.cdAfter ? s.dur || 0 : 0;
     for (let t = 0; t < Math.ceil((s.cd + held + 1.5) / TICK); t++) {
       const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' ? 0 : 1 });
       step(m, ally ? [o, inp(), inp()] : [o, inp()]);
@@ -2163,13 +2165,13 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('lifesteal: hacho heals 18% of each flame hit', hits >= 3 && near(m.units[0].hp, 1000 + 0.18 * FL * hits, 1e-9) && near(m.units[1].hp, 1700 - FL * hits, 1e-9), `hits ${hits} hp ${m.units[0].hp}`);
   }
   {
-    const m = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]);
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
     go(m, 49, () => ({ 0: { fire: true } }));
     check('overheal: 7 ray pulses on a full-hp ally become a shield capped at 300', m.units[1].hp === TRAU.hp && near(m.units[1].shield, 300, 1e-9), `hp ${m.units[1].hp} shield ${m.units[1].shield}`);
-    const h = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]);
+    const h = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
     h.units[1].hp = TRAU.hp - 20;
     go(h, 1, () => ({ 0: { fire: true } }));
-    check('overheal: a ray heal on an ally missing 20 fills the hp and puts the rest into a shield', h.units[1].hp === TRAU.hp && near(h.units[1].shield, MECHS.domdom.weapon.heal - 20, 1e-9), `hp ${h.units[1].hp} shield ${h.units[1].shield}`);
+    check('overheal: a ray heal on an ally missing 20 fills the hp and puts the rest into a shield', h.units[1].hp === TRAU.hp && near(h.units[1].shield, OLD_DOMDOM.weapon.heal - 20, 1e-9), `hp ${h.units[1].hp} shield ${h.units[1].shield}`);
   }
   {
     // two parallel walls 3 m apart: a disc at 45 degrees bounces twice and then dies on the third contact
@@ -2388,33 +2390,33 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('warp: aimed off the map edge it stays on the map and out of solid ground', Math.abs(e.units[0].x) <= e.map.hw - 0.72 && !solidAt(e.map, e.units[0].x, e.units[0].z, 0.72), `x ${e.units[0].x}`);
   }
   {
-    const ally = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]);
+    const ally = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 5, 0]]), 'domdom');
     ally.units[1].hp = 1000;
     const e1 = go(ally, 1, () => ({ 0: { fire: true } }));
-    check('ray: heals a hurt ally on the line by the weapon heal', ally.units[1].hp === 1000 + MECHS.domdom.weapon.heal && only(e1, 'ray')[0].on === 'ally', `hp ${ally.units[1].hp}`);
-    const foe = arena([[R('domdom', 0), 0, 0], [R('ung', 1), 5, 0], [R('trau', 1), 8, 0]]);
+    check('ray: heals a hurt ally on the line by the weapon heal', ally.units[1].hp === 1000 + OLD_DOMDOM.weapon.heal && only(e1, 'ray')[0].on === 'ally', `hp ${ally.units[1].hp}`);
+    const foe = oldK13(arena([[R('domdom', 0), 0, 0], [R('ung', 1), 5, 0], [R('trau', 1), 8, 0]]), 'domdom');
     const e2 = go(foe, 1, () => ({ 0: { fire: true } }));
-    check('ray: hurts the first enemy on the line for the weapon dmg and stops there (the trau behind is untouched)', foe.units[1].hp === 1700 - MECHS.domdom.weapon.dmg && foe.units[2].hp === TRAU.hp && only(e2, 'ray')[0].on === 'foe', `${foe.units.map((u) => u.hp)}`);
-    const tr = arena([[R('domdom', 0), 0, 0], [R('trau', 1), 5, 0]]);
+    check('ray: hurts the first enemy on the line for the weapon dmg and stops there (the trau behind is untouched)', foe.units[1].hp === 1700 - OLD_DOMDOM.weapon.dmg && foe.units[2].hp === TRAU.hp && only(e2, 'ray')[0].on === 'foe', `${foe.units.map((u) => u.hp)}`);
+    const tr = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 1), 5, 0]]), 'domdom');
     go(tr, 1, () => ({ 0: { fire: true } }));
-    check('ray: armour applies to it (trau hp - dmg x (1 - armour))', near(tr.units[1].hp, TRAU.hp - TRAU_HIT(MECHS.domdom.weapon.dmg), 1e-9), `hp ${tr.units[1].hp}`);
-    const wall = arena([[R('domdom', 0), -4, 0], [R('ung', 1), 4, 0]], [[-1, 1, -8, 8]]);
+    check('ray: armour applies to it (trau hp - dmg x (1 - armour))', near(tr.units[1].hp, TRAU.hp - TRAU_HIT(OLD_DOMDOM.weapon.dmg), 1e-9), `hp ${tr.units[1].hp}`);
+    const wall = oldK13(arena([[R('domdom', 0), -4, 0], [R('ung', 1), 4, 0]], [[-1, 1, -8, 8]]), 'domdom');
     const e3 = go(wall, 1, () => ({ 0: { fire: true } }));
     check('ray: a wall stops it (the enemy behind is untouched, the ray ends on nothing short of the wall)', wall.units[1].hp === 1700 && only(e3, 'ray')[0].on === 'none' && only(e3, 'ray')[0].x1 < -0.9, `${JSON.stringify(only(e3, 'ray')[0])}`);
-    const nh = nhaM([solo('trau', 0), solo('domdom', 1)]);
+    const nh = oldK13(nhaM([solo('trau', 0), solo('domdom', 1)]), 'domdom');
     const T = nh.towers[1], S = nh.units[1], p = ringSpot(nh, T, 9, 0.5, true);
     spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
     run(nh, 2, () => [IN, inp({ fire: true, aim: toward(S, T) })]);
-    check('ray: on a tower it deals dmg x towerMul (3600 - that)', near(T.hp, TW.sub - MECHS.domdom.weapon.dmg * MECHS.domdom.towerMul, 1e-9), `hp ${T.hp}`);
+    check('ray: on a tower it deals dmg x towerMul (3600 - that)', near(T.hp, TW.sub - OLD_DOMDOM.weapon.dmg * MECHS.domdom.towerMul, 1e-9), `hp ${T.hp}`);
   }
   {
-    const m = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 5, 0], [R('ung', 1), 25, 15]]);
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 5, 0], [R('ung', 1), 25, 15]]), 'domdom');
     m.units[1].hp = 1700; m.units[2].hp = 2720;
     go(m, 1, () => ({ 0: { s1: true } }));
     const ev = go(m, 30);
     const healed = only(ev, 'heal', (e) => e.id === 1).length;
-    check('drone: heals the most hurt ally within 7 m, 35 per 0.5 s pulse: the trau at 50% (1700) gains it, the one at 80% gains none', healed >= 1 && near(m.units[1].hp, 1700 + MECHS.domdom.skills[0].hps * 0.5 * healed, 1e-9) && m.units[2].hp === 2720, `healed ${healed} hp ${m.units[1].hp} ${m.units[2].hp}`);
-    const d = arena([[R('domdom', 0), 0, 0], [R('ung', 1), 10, 0]]);
+    check('drone: heals the most hurt ally within 7 m, 35 per 0.5 s pulse: the trau at 50% (1700) gains it, the one at 80% gains none', healed >= 1 && near(m.units[1].hp, 1700 + OLD_DOMDOM.skills[0].hps * 0.5 * healed, 1e-9) && m.units[2].hp === 2720, `healed ${healed} hp ${m.units[1].hp} ${m.units[2].hp}`);
+    const d = oldK13(arena([[R('domdom', 0), 0, 0], [R('ung', 1), 10, 0]]), 'domdom');
     go(d, 1, () => ({ 0: { s1: true } }));
     const had = d.zones.some((z) => z.kind === 'drone');
     d.units[0].hp = 10;
@@ -2422,12 +2424,12 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('drone: it is gone the tick its owner dies', had && !d.units[0].alive && !d.zones.some((z) => z.kind === 'drone'), `alive ${d.units[0].alive} zones ${d.zones.map((z) => z.kind)}`);
   }
   {
-    const m = arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 20, 15], [R('ung', 1), 25, -10]]);
+    const m = oldK13(arena([[R('domdom', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 20, 15], [R('ung', 1), 25, -10]]), 'domdom');
     const [, near1, far1] = m.units;
     near1.hp = 1000; near1.slowT = 3; near1.slowF = 0.5; near1.stunT = 2; near1.markT = 4; near1.markBy = 3; near1.markAmp = 0.25;
     far1.hp = 1000; far1.slowT = 3; far1.slowF = 0.5;
     go(m, 1, () => ({ 0: { ult: true } }));
-    check('rally: an ally within 8 m is healed by the row (1000 -> 1000 + heal), cleansed of slow, stun and mark, and hasted 1.25', near1.hp === 1000 + MECHS.domdom.skills[2].heal && near1.slowT === 0 && near1.stunT === 0 && near1.markT === 0 && near(near1.hasteF, 1.25, 1e-9) && near1.hasteT > 2.9, `hp ${near1.hp} slow ${near1.slowT} stun ${near1.stunT} mark ${near1.markT} haste ${near1.hasteF}/${near1.hasteT}`);
+    check('rally: an ally within 8 m is healed by the row (1000 -> 1000 + heal), cleansed of slow, stun and mark, and hasted 1.25', near1.hp === 1000 + OLD_DOMDOM.skills[2].heal && near1.slowT === 0 && near1.stunT === 0 && near1.markT === 0 && near(near1.hasteF, 1.25, 1e-9) && near1.hasteT > 2.9, `hp ${near1.hp} slow ${near1.slowT} stun ${near1.stunT} mark ${near1.markT} haste ${near1.hasteF}/${near1.hasteT}`);
     check('rally: an ally farther than 8 m gets nothing', far1.hp === 1000 && far1.slowT > 2.9, `hp ${far1.hp} slow ${far1.slowT}`);
   }
   {
@@ -5111,6 +5113,8 @@ section('48 Athena ported from the owner\'s clip (p69), kit-remake G5: passive c
 }
 // kit lane K4: tumay and enbac ported from the owner's clips (tools/k4-cases.mjs)
 runK4Cases(check, section);
+// kit lane K13: domdom, duongtien, mucma ported from the owner's clips (tools/k13-cases.mjs)
+runK13Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);
