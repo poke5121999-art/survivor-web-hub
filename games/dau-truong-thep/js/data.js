@@ -777,21 +777,32 @@ export const MECHS = {
         desc: 'Tụ lực 0,3 giây (không bị khống chế) rồi mở kho báu: 40 binh khí bắn liên tục 4 giây theo hướng ngắm, mỗi món 108 sát thương. Trong lúc đó vẫn chạy được, nhanh thêm 40%, nhưng không bắn thường, không dùng chiêu khác.' },
     ],
   },
+  // Doctor Strange: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p66 "63.至尊法师" (tooltips f005-f040, AUDIT-a.md). Attack = one
+  // Ấn Phép bolt (150, was 92 every 0.3 s; now every 0.5 s, same 300 dps): Thời Không Phóng Trục 144% -> 216, the marked shot +100% and a
+  // heal of 150% (225, 10% of max hp), the ward burst 25% -> 38 true, Thời Không Nữu Khúc 163% -> 245 on arrival and 50% -> 75 a pulse,
+  // Ma Pháp Lĩnh Vực 203% -> 305 and 167% -> 250 when he draws on it. Cooldowns 6 / 8 / 20 s in the clip -> 8 / 10 / 40. No MP. The clone
+  // "can be moved by skills" is not ported (decoys are still). G5 (sim.js "kit-remake G5 buomdem"): the ward shield on skill hits and its
+  // burst, reveal on cast, the silence immunity and longer cc, a clone with his current hp, the pulses after the warp, the domain.
   buomdem: {
     name: 'Doctor Strange', role: 'Ảo thuật', roleKey: 'trickster', price: 1700, tint: 0x5a2a8a, hover: true,
-    blurb: 'Mỗi chiêu dùng ra khoác thêm một lớp bùa hộ thân. Tia bùa xuyên thấu, cổng ảo nổ ở chỗ hạ cánh, kết giới đa chiều làm chậm và thiêu cả một vùng.',
+    blurb: 'Chiêu trúng địch là khoác khiên thời không, khiên tan thì nổ làm chậm. Đày kẻ địch sang chiều không gian khác, mở cổng dịch chuyển để lại phân thân, mở lĩnh vực ma pháp rồi bước vào hút sức mạnh.',
     hp: 2350, speed: 6.6, radius: 0.78,
     armor: 0.03, accel: 1.4, turn: 15, towerMul: 1.0,
-    passive: { do: 'meter', name: 'Bùa Hộ Thân', desc: 'Mỗi chiêu dùng ra cộng ngay 180 khiên trong 6 giây, cộng dồn tới 540.',
-      max: 1, gain: { cast: 1 }, spend: { kind: 'shield', amount: 180, cap: 540, dur: 6 } },
-    weapon: { name: 'Ấn Phép', cd: 0.3, dmg: 92, speed: 32, range: 13, r: 0.22, vis: 'pulse' },
+    passive: { do: 'trait', name: 'Chí Tôn Pháp Sư',
+      bdWard: { frac: 0.1, dur: 2, burst: { radius: 3, dmg: 38, slow: 0.25, max: 0.75, slowDur: 1.5 } }, bdReveal: { r: 7, dur: 2 }, bdCc: { mul: 1.25 },
+      desc: 'Mỗi lần chiêu trúng địch khoác khiên bằng 10% máu tối đa trong 2 giây; khiên hết giờ, vỡ hay được làm mới thì nổ quanh mình 38 sát thương chuẩn và làm chậm 25% trong 1,5 giây (cộng dồn tới 75%). Mỗi chiêu dùng ra làm lộ diện kẻ địch trong 7 m suốt 2 giây. Miễn câm lặng, nhưng khống chế khác lên bạn kéo dài thêm 25%.' },
+    weapon: { name: 'Ấn Phép', cd: 0.5, dmg: 150, speed: 32, range: 13, r: 0.24, vis: 'pulse', vsTag: { key: 'bdq', mul: 2, healMax: 0.1, consume: true } },
     skills: [
-      { id: 'tiabua', look: 'dsBolt', name: 'Tia Bùa', cd: 7, do: 'volley', n: 1, dmg: 340, speed: 34, range: 16, r: 0.3, pierce: true, vis: 'lance', icon: 'pierce',
-        desc: 'Bắn một tia bùa xuyên thấu dài 16 m, gây 340 sát thương cho mọi kẻ địch nó đi qua.' },
-      { id: 'congao', look: 'dsPortal', name: 'Cổng Ảo', cd: 11, do: 'warp', dist: 8, land: { radius: 3, dmg: 220, slow: 0.3, slowDur: 1.5 }, icon: 'warp',
-        desc: 'Dịch chuyển tức thì tới con trỏ, xa nhất 8 m, qua được tường. Chỗ hạ cánh nổ 220 sát thương và làm chậm 30% trong 1,5 giây.' },
-      { id: 'ketgioi', look: 'dsRealm', name: 'Kết Giới Đa Chiều', cd: 44, do: 'zone', at: 'target', cast: 14, radius: 6, dur: 5, dps: 190, slow: 0.4, vis: 'blizzard', icon: 'blizzard',
-        desc: 'Mở kết giới ở con trỏ trong 5 giây: địch trong đó bị chậm 40% và mất 190 máu mỗi giây.' },
+      { id: 'phongtruc', look: 'bdBanish', name: 'Thời Không Phóng Trục', cd: 8, do: 'volley', n: 1, dmg: 216, speed: 24, range: 13, r: 0.45, vis: 'pulse', icon: 'pierce',
+        fx: { banish: 1, slow: 0.5, slowDur: 3, tag: { key: 'bdq', dur: 5 } },
+        desc: 'Bắn một quả cầu năng lượng: kẻ trúng chịu 216 sát thương và bị đày sang chiều không gian khác 1 giây (không bị gì chạm tới), trở về thì chậm 50% trong 2 giây. Phát bắn thường kế tiếp của bạn vào nó gây gấp đôi và hồi cho bạn 10% máu tối đa.' },
+      { id: 'thoikhong', look: 'bdPortal', name: 'Thời Không Nữu Khúc', cd: 10, do: 'warp', dist: 9, leave: { hp: 'cur', dur: 5, blast: 0.6, dmg: 0 }, land: { radius: 3, dmg: 245 },
+        bdPulse: { n: 4, every: 0.75, radius: 3, dmg: 75 },
+        next: { window: 5, row: { id: 'truyentong', look: 'bdPortal', name: 'Thời Không Truyền Tống', do: 'warp', dist: 30, to: 'decoy', take: true } }, icon: 'warp',
+        desc: 'Mở cổng dịch chuyển tới con trỏ (xa nhất 9 m), để lại một phân thân mang lượng máu hiện tại ở chỗ cũ. Tới nơi nổ 245 sát thương quanh mình, rồi 3 giây sau cứ 0,75 giây gây thêm 75. Trong 5 giây bấm lại để quay về chỗ phân thân (phân thân bị phá thì không về được).' },
+      { id: 'maphap', look: 'bdRealm', name: 'Ma Pháp Lĩnh Vực', cd: 40, do: 'barrage', n: 1, radius: 0, blast: 4.5, dmg: 305, delay: 1, span: 0, cast: 12, fx: { slow: 0.5, slowDur: 2 },
+        linger: { radius: 4.5, dur: 4, vis: 'bdRealm' }, bdDomain: { dmg: 250, radius: 3.5, fx: { silence: 2 }, amp: 2, of: 'thoikhong' }, icon: 'blizzard',
+        desc: 'Mở lĩnh vực ma pháp ở con trỏ: sau 1 giây kẻ địch trong vùng 4,5 m chịu 305 sát thương và chậm 50% trong 2 giây. Lĩnh vực còn 4 giây: lần đầu bạn bước vào thì hút sức mạnh của nó, nổ quanh mình 250 sát thương và câm lặng địch 2 giây. Địch trong lĩnh vực chịu gấp đôi sát thương từ Thời Không Nữu Khúc.' },
     ],
   },
   // Lạc Long Quân = 敖广 Ngao Quảng: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p71 "68.敖广", tooltips in
@@ -1378,8 +1389,8 @@ export const PERKS = {
   bohung: [perk('Pháo Nặng', 'Pháo Thiên Khải gây 260.', 'weapon', { dmg: 260 }), perk('Chấn Đãng Dài', 'Chấn Đãng Oanh Kích nện dải 8 m, gây 270.', 1, { range: 8, dmg: 270 }), perk('Phi Đạn Lớn', 'Phi Đạn Bạo Phá nổ rộng 3,5 m.', 2, { splash: 3.5 })],
   cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
   gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 170.', 'weapon', { dmg: 170 }), perk('Quai Ly Rộng', 'Thiên Địa Quai Ly xé vùng 4,2 m.', 1, { blast: 4.2, radius: 2.1 }), perk('Kho Báu Vô Tận', 'Vương Chi Tài Bảo xả 48 binh khí trong 4,8 giây.', 2, { burst: { n: 24, gap: 0.2 }, hasteDur: 4.8 })],
-  buomdem: [perk('Tia Dài', 'Tia Bùa gây 420, bay xa 19 m.', 0, { dmg: 420, range: 19 }), perk('Cổng Nổ', 'Cổng Ảo xa 10 m, nổ rộng 3,6 m gây 300.', 1, { dist: 10, land: { radius: 3.6, dmg: 300, slow: 0.3, slowDur: 1.5 } }), perk('Kết Giới Rộng', 'Kết Giới Đa Chiều rộng 7 m, kéo dài 7 giây.', 2, { radius: 7, dur: 7 })],
   laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Long Xung Mạnh', 'Cuồng Long Xung Phong gây 260.', 1, { dmg: 260 }), perk('Thủy Long Lâu', 'Giao Long Xuất Hải kéo dài 10 giây.', 2, { dur: 10 })],
+  buomdem: [perk('Đày Lâu', 'Thời Không Phóng Trục đày kẻ trúng 1,4 giây.', 0, { fx: { banish: 1.4, slow: 0.5, slowDur: 3.4, tag: { key: 'bdq', dur: 5 } } }), perk('Cổng Xa', 'Thời Không Nữu Khúc xa 11 m, tới nơi nổ 300.', 1, { dist: 11, land: { radius: 3, dmg: 300 } }), perk('Lĩnh Vực Rộng', 'Ma Pháp Lĩnh Vực rộng 5,5 m.', 2, { blast: 5.5, linger: { radius: 5.5, dur: 4, vis: 'bdRealm' } })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 175.', 'weapon', { dmg: 175 }), perk('Húc Mạnh', 'Nhận Chân Đầu Chùy rộng 3,4 m, gây 400.', 1, { radius: 3.4, dmg: 400 }), perk('Quạt Rộng', 'Nhận Chân Ẩu Đả mở quạt rộng hơn, dài tới 14 m.', 2, { fan: [0.55, 0.7], charge: { min: 0.3, max: 3, dmg: [474, 948], range: [8, 14], width: [7, 14] } })],

@@ -17,6 +17,7 @@ import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: sect
 import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { runK18Cases, OLD_NHENTHEP, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, old nguma/nhenthep kits kept as fixtures
 import { runK16Cases, oldK16, OLD_LOI } from './k16-cases.mjs';   // kit lane k16: section K16, old kits kept as fixtures
+import { runK12Cases, oldKit as oldKit12 } from './k12-cases.mjs';   // kit lane k12: section 62, old buomdem/cakiem/dieuthuyen kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3262,9 +3263,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(w, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
     check('42zk a shield that breaks goes off at once (the foe took the burst)', b.shieldBurst === null && t.hp < t.maxHp, `t.hp ${t.hp}`);
   }
-  // warp.land (buomdem), warp.behind (quaset), warp.leave (tumay)
+  // warp.land (buomdem, old kit fixture OLD_K12 in k12-cases.mjs), warp.behind (quaset), warp.leave (tumay)
   {
-    const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const m = oldKit12(arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 6, 0]]), 'buomdem'), [a, v] = m.units;
     const ev = go(m, 1, () => ({ 0: { s2: true, tx: 6, tz: 0 } }));
     check('42zl warp.land: the mech arrives on the cursor and the landing blast hits: 220 at the centre, slow 0.3', near(a.x, 6) && near(UNG.hp - v.hp, 220 * UNG_F, 1e-6) && near(v.slowF, 0.3) && only(ev, 'nova', (e) => e.r === 3).length === 1, `x ${a.x} dmg ${UNG.hp - v.hp}`);
   }
@@ -3329,9 +3330,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(m, 1, () => ({ 0: { ult: true } }));
     check('42zx Thang Hoa: radius 0.92 x 1.2, 1.25x damage, armor 0.12 + 0.2', near(a.radius, 0.92 * 1.2) && a.tfDmg === 1.25 && near(armorOf(m, a), 0.32), `${a.radius}`);
   }
-  // meter 'shield' (buomdem): each cast adds 180 (cap 540, 6 s)
+  // meter 'shield' (buomdem, old kit fixture): each cast adds 180 (cap 540, 6 s)
   {
-    const m = arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    const m = oldKit12(arena([[R('buomdem', 0), 0, 0], [R('ung', 1), 12, 0]]), 'buomdem'), a = m.units[0];
     const got = [];
     for (let i = 0; i < 4; i++) { a.cd.s1 = 0; go(m, 1, () => ({ 0: { s1: true, tx: 12, tz: 0 } })); got.push(a.shield); }
     check('42zy Bua Ho Than: 180, 360, 540, then capped at 540', got.join() === '180,360,540,540' && a.meter === 0 && a.shieldT > 5.9, got.join());
@@ -5136,6 +5137,8 @@ runK14Cases(check, section);
 // kit lane k15: hades, hoalong, kiemthan ported from the owner's clips (tools/k15-cases.mjs)
 runK15Cases(check, section);
 runK11Cases(check, section);
+// kit lane k12: buomdem, cakiem, dieuthuyen ported from the owner's clips (tools/k12-cases.mjs)
+runK12Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);

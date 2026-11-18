@@ -136,6 +136,7 @@ function clearStatus(u) {
   k18Clear(u);   // kit lane K18
   k16Clear(u);   // kit lane k16
   opClear(u);   // kit-remake G5 trau
+  bdClear(u);   // kit-remake G5 buomdem
 }
 
 function spawn(m, u, first) {
@@ -439,6 +440,7 @@ function stepUnit(m, u, inp) {
   k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
   k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
   opTick(m, u);   // kit-remake G5 trau: the rage meter cools
+  bdTick(m, u);   // kit-remake G5 buomdem: the ward's end, the warp's pulses, stepping into the domain
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
   hlTick(m, u);   // kit-remake G5 hoalong: lava trail, buff per burning foe
@@ -599,6 +601,7 @@ function stepUnit(m, u, inp) {
     k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
     k13Cast(m, u, s);   // kit lane K13
     if (s.imShield) imRefill(m, u);   // kit-remake G5 tho: the press brings the passive shield back at once
+    bdCast(m, u, s);   // kit-remake G5 buomdem: reveal on every press, the warp's pulses
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
@@ -1503,6 +1506,7 @@ const CAST = {
     const [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
     // leave: a still copy stays where the mech stood and goes off when it is shot down or its time is up
     if (s.leave) addZone(m, u, { kind: 'decoy', x: x0, z: z0, r: u.radius, hp: s.leave.hp, maxHp: s.leave.hp, dur: s.leave.dur, aim: u.aim, speed: 0, blast: s.leave.blast, dmg: s.leave.dmg, fx: s.leave.fx || null, seek: null });
+    if (s.leave && s.leave.hp === 'cur') bdClone(m, u);   // kit-remake G5 buomdem: the copy has his current hp
     // glide (m/s): fly there over everything in a short dash instead of appearing there at once
     if (s.glide) {
       const d = Math.hypot(x - x0, z - z0) || 0.01;
@@ -2110,6 +2114,7 @@ function stepZones(m) {
           haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
         if (L && L.opGuard) opSword(m, owner, L);   // kit-remake G5 trau: the sword field guards its owner and allies
         k4Strike(m, z, owner);   // kit-remake K4: a strike that leaves a chaos orb
+        bdStrike(m, z, owner);   // kit-remake G5 buomdem: the field left is his domain
       }
     } else if (z.kind === 'mine') {
       if (z.delay > 0) z.delay -= dt;
@@ -2324,6 +2329,7 @@ export function applyFx(m, src, o, fx, ctx) {
   if (!o.alive || !fx) return;
   if (fx.chance !== undefined && m.rng() >= fx.chance) return;
   if (fx.pick) fx = fx.pick[Math.floor(m.rng() * fx.pick.length)];
+  if (o.def.passive && o.def.passive.bdCc) fx = bdCcFx(o.def.passive.bdCc, fx);   // kit-remake G5 buomdem: longer cc, no silence
   // kit-remake G2: slowDecay / slowGrow / slowStack go to slowG instead of the plain slow; tag, slowFire, enSteal
   if (!g2Fx(src, o, fx) && fx.slow) { o.slowT = Math.max(o.slowT, fx.slowDur); o.slowF = Math.max(o.slowF, fx.slow); }
   if (fx.weaken) { o.weakenF = o.weakenT > 0 ? Math.min(o.weakenF, fx.weaken.mul) : fx.weaken.mul; o.weakenT = Math.max(o.weakenT, fx.weaken.dur); }
@@ -2402,6 +2408,7 @@ function damage(m, u, amount, src, raw) {
     amount *= k7AimMul(foe, u);   // kit-remake G5 Ưng Nhãn: Aim vs a shielded mech
     amount *= k18Mul(m, foe, u);   // kit lane K18: whirl stacks, armour sense, spin stacks, muted attacker
     if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
+    amount *= bdMul(m, u, foe);   // kit-remake G5 buomdem: his domain doubles one row
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
   const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
@@ -2472,6 +2479,7 @@ function damage(m, u, amount, src, raw) {
   // kit-remake G2: after the hit is fully done (it may hurt again): energy, vsTag payoff, onHurt, a below-hp save
   if (left + absorbed > 0) g2After(m, u, foe, left, kind, vt);
   if (left + absorbed > 0 && !chaining && !reflecting) opHit(m, u, foe);   // kit-remake G5 trau: rage gains, the current-hp blow
+  if (foe && foe.alive && left + absorbed > 0 && curSrc && curSrc !== 'w' && !reflecting && bdP(foe)) bdHit(m, foe);   // kit-remake G5 buomdem: the ward
 }
 
 // stacks (passive): a hit with a source tag adds a mark to the mech it lands on ('skill': only skill hits count, 'any': weapon and skill hits;
@@ -4598,3 +4606,106 @@ function opCharge(m, u, s, aim) {
   m.events.push({ t: 'warp', id: u.id, x0, z0, x, z, ...(s.look ? { skill: s.id } : {}) });
 }
 /* ===== end kit-remake G5 trau ===== */
+
+/* ===== kit-remake G5 buomdem (lane k12; ~/handoff/dtt-ref/kits/AUDIT-a.md "buomdem", clip p66 "63.至尊法师" Doctor Strange).
+   Hooks elsewhere are one line each, marked "kit-remake G5 buomdem", and call into this block.
+   passive bdWard {frac, dur, burst {radius, dmg, slow, max, slowDur}}: each tick one of his skills hurts an enemy, he gets a shield
+     of frac x max hp for dur s (the shared u.shield); when it runs out, breaks or is renewed it bursts round him: dmg true damage
+     and a slow of `slow` stacking up to `max` (hitfx slowStack) for slowDur s on every enemy within radius. Events nova
+     {skill: his first row, wardUp: 1} (r 0) at the grant and nova {skill, ward: 1} at the burst.
+   passive bdReveal {r, dur}: every press (second stages too) reveals the enemies within r for dur s and breaks their stealth.
+   passive bdCc {mul}: hitfx crowd control on him (stun, root, air, slow, loss of control) lasts mul as long; silence never lands.
+   warp row leave.hp 'cur': the copy left behind has the mech's current hp.
+   row bdPulse {n, every, radius, dmg}: after the press, n blows round the caster every `every` s, carrying the row's tag
+     (event nova {skill, k}).
+   barrage row bdDomain {dmg, radius, fx, amp, of}: the linger field its strike leaves is his domain. The first time he stands in
+     it he draws on it: a blow of dmg round himself with fx, tagged with the row (event nova {skill, step: 1}). Enemies inside
+     take x amp from his row `of` (its id).
+   New names (prefix bd): unit bdShT (ward time left), bdShA, bdAt (tick of the last grant), bdPN, bdPT, bdPRow; zone bdDom,
+   bdOn. All host side: the shield is the synced u.shield, the domain a synced field. ===== */
+const bdP = (u) => { const P = u.def && u.def.passive; return P && P.bdWard ? P : null; };
+function bdClear(u) { u.bdShT = 0; u.bdShA = 0; u.bdAt = -1; u.bdPN = 0; u.bdPT = 0; u.bdPRow = null; }
+// the ward shield goes off round him
+function bdBurst(m, u) {
+  const B = u.def.passive.bdWard.burst, fx = { trueDmg: B.dmg, slowStack: { step: B.slow, max: B.max }, slowDur: B.slowDur };
+  u.bdShT = 0; u.bdShA = 0;
+  m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: B.radius, skill: u.def.skills[0].id, ward: 1 });
+  const keep = curSrc;
+  curSrc = null;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive) continue;
+    const rr = B.radius + o.radius * 0.6;
+    if (dist2(o.x, o.z, u.x, u.z) <= rr * rr) applyFx(m, u, o, fx);
+  }
+  curSrc = keep;
+}
+// damage(): one of his skills hurt an enemy (curSrc is a skill tag): renew the ward, bursting the one that runs
+function bdHit(m, u) {
+  if (u.bdAt === m.tick) return;
+  u.bdAt = m.tick;
+  const W = u.def.passive.bdWard;
+  if (u.bdShT > 0) bdBurst(m, u);
+  const a = u.maxHp * W.frac;
+  u.shield = Math.max(u.shield, a); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, W.dur);
+  u.bdShT = W.dur; u.bdShA = a;
+  m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: 0, skill: u.def.skills[0].id, wardUp: 1 });
+}
+// every tick of a living mech with the ward: its end, the pulses after the warp, stepping into his own domain
+function bdTick(m, u) {
+  if (!bdP(u)) return;
+  if (u.bdShT > 0) { u.bdShT -= TICK; if (u.bdShT <= 1e-9 || u.shield <= 0) bdBurst(m, u); }
+  if (u.bdPN > 0) {
+    u.bdPT -= TICK;
+    if (u.bdPT <= 1e-9) {
+      const s = u.bdPRow, P = s.bdPulse;
+      u.bdPN--; u.bdPT += P.every;
+      m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: P.radius, skill: s.id, k: P.n - u.bdPN });
+      curSrc = s.id; areaDamage(m, u, u.x, u.z, P.radius, P.dmg, null, null); curSrc = null;
+      if (!u.alive) return;
+    }
+  }
+  for (const z of m.zones) {
+    if (!z.bdDom || z.bdOn || z.owner !== u.id || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
+    const D = z.bdDom;
+    z.bdOn = true;
+    m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: D.radius, skill: z.bdSrc, step: 1 });
+    curSrc = z.bdSrc; areaDamage(m, u, u.x, u.z, D.radius, D.dmg, D.fx ? { fx: D.fx } : null, null); curSrc = null;
+    break;
+  }
+}
+// every press: reveal round him, and the pulses of a bdPulse row
+function bdCast(m, u, s) {
+  const P = bdP(u);
+  if (!P) return;
+  const V = P.bdReveal;
+  if (V) for (const o of m.units) if (o.team !== u.team && o.alive && dist2(o.x, o.z, u.x, u.z) <= V.r * V.r) { o.revealT = Math.max(o.revealT, V.dur); o.stealthT = 0; }
+  if (s.bdPulse) { u.bdPN = s.bdPulse.n; u.bdPT = s.bdPulse.every; u.bdPRow = s; }
+}
+// CAST.warp: the copy just left behind gets the mech's current hp
+function bdClone(m, u) {
+  const z = m.zones[m.zones.length - 1];
+  if (z && z.kind === 'decoy' && z.owner === u.id) z.hp = z.maxHp = u.hp;
+}
+// stepZones: a strike of a bdDomain row fell; the linger field it left is the domain
+function bdStrike(m, z, owner) {
+  if (!owner || !z.src || !z.linger) return;
+  const s = owner.def.skills.find((r) => r.id === z.src);
+  if (!s || !s.bdDomain) return;
+  for (let i = m.zones.length - 1; i >= 0; i--) { const f = m.zones[i]; if (f.kind === 'field' && f.owner === owner.id && f.x === z.x && f.z === z.z) { f.bdDom = s.bdDomain; f.bdSrc = s.id; break; } }
+}
+// damage(): the row named by a domain's `of` hits x amp on an enemy inside that domain
+function bdMul(m, u, foe) {
+  if (!curSrc || !bdP(foe)) return 1;
+  for (const z of m.zones) if (z.bdDom && z.owner === foe.id && z.bdDom.of === curSrc && dist2(u.x, u.z, z.x, z.z) <= z.r * z.r) return z.bdDom.amp;
+  return 1;
+}
+// applyFx(): bdCc scales the crowd control that lands on him; silence never does
+function bdCcFx(C, fx) {
+  const f = { ...fx };
+  delete f.silence;
+  for (const k of ['root', 'air', 'slowDur', ...LOC_KINDS]) if (k && typeof f[k] === 'number') f[k] *= C.mul;
+  if (typeof f.stun === 'number') f.stun *= C.mul;
+  else if (f.stun) f.stun = { ...f.stun, dur: f.stun.dur * C.mul };
+  return f;
+}
+/* ===== end kit-remake G5 buomdem ===== */
