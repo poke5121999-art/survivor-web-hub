@@ -17,6 +17,7 @@ import { B2 } from './looks-b2.js';
 import { B3 } from './looks-b3.js';
 import { B4 } from './looks-b4.js';
 import { B5 } from './looks-b5.js';
+import { B6 } from './looks-b6.js';
 import { B9 } from './looks-b9.js';
 import { B8 } from './looks-b8.js';
 import { B7 } from './looks-b7.js';
@@ -184,7 +185,7 @@ export const LOOKS = {
   },
 };
 
-Object.assign(LOOKS, B1, B2, B3, B4, B5, B7, B8, B9);
+Object.assign(LOOKS, B1, B2, B3, B4, B5, B6, B7, B8, B9);
 
 // The row of unit u that a look-carrying event names (skills, their second stages, the passive).
 export function lookRow(u, id) {

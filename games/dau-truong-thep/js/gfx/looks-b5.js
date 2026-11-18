@@ -528,3 +528,4 @@ const mangxa = {
 };
 
 export const B5 = { ...quaset, ...tegiac, ...nguma, ...baogam, ...loi, ...mangxa };
+export { zap, forks, ribbonMesh, fillRibbon };

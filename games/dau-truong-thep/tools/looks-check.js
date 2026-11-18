@@ -57,7 +57,7 @@ const similar = (d) => d.ds + COLW * d.dc < SIM;
 
 // The canvas as the player sees it: a JPEG screenshot (kept for the sheet) and its pixels at W x H (decoded by ffmpeg).
 async function frame(page) {
-  const jpg = await page.locator('#view').screenshot({ type: 'jpeg', quality: 85 });
+  const jpg = await page.locator('#view').screenshot({ type: 'jpeg', quality: 85, timeout: 120000 });
   const px = execFileSync('/usr/bin/ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vf', `scale=${W}:${H}:flags=area`, '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], { input: jpg, maxBuffer: 1 << 24 });
   return { jpg, px };
 }
