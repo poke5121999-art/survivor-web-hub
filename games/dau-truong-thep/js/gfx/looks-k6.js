@@ -116,6 +116,19 @@ function boulder() {
   return m;
 }
 
+// ---- Tào Tháo -------------------------------------------------------------------------------------------------------
+const VIO = C(1.35, 0.3, 2.3), VIOW = C(2.2, 1.3, 2.6), RING = C(2.0, 0.3, 1.9), SMOKEV = C(0.13, 0.03, 0.17), BLOOD = C(2.3, 0.2, 0.45);
+
+// demon wings: two fans of dark violet smoke swept back from a unit (a burst of puffs on each side, every frame a few)
+function wings(kit, u, dt, k = 1) {
+  const a = (u.heading ?? u.aim ?? 0) + Math.PI, n = Math.random() < dt * 40 * k ? 2 : 0;
+  for (let i = 0; i < n; i++) {
+    const side = i ? 1 : -1, sp = a + side * R(0.6, 1.4), d = R(0.6, 2.2);
+    kit.ovr.emit(u.x + Math.cos(sp) * d, R(0.8, 2.4), u.z + Math.sin(sp) * d, Math.cos(sp) * 1.6, R(0.4, 1.4), Math.sin(sp) * 1.6, i % 2 ? SMOKEV : C(0.3, 0.06, 0.38), R(0.6, 1.0), R(0.9, 1.5), 1.8, 1.5, 0, 0.8, kit.K.SMOKE);
+  }
+  if (Math.random() < dt * 12 * k) kit.glow(u.x + R(-1, 1), R(0.5, 2), u.z + R(-1, 1), VIO, R(0.4, 0.7), 0.5, 0.9, kit.K.SPARK, 0.3, 0, R(1, 2.5), 0);
+}
+
 export const K6 = {
   // ===== Magneto =====
   // Kim Loại Oanh Tạc: a pale blue target ring, then two steel girders crash in from either side and stand crossed in an X, each
@@ -294,4 +307,90 @@ export const K6 = {
     },
   },
 
+  // ===== Tào Tháo =====
+  // Dục Huyết Kiêu Hùng: the thin magenta ring of its reach and a turning purple vortex under him for the 5 s, violet wisps
+  // whipping round; each foe a pulse cuts flashes violet. The passive's blood rage: a blood-red ring and red motes rising for 3 s.
+  ccAura: {
+    pal: [VIO, VIOW], hitR: 1.8,
+    skill(kit, e, u) { kit.flash(u.x, 1.6, u.z, VIO, 30, 0.2); return true; },
+    zoneMake(kit, z) {
+      const o = kit.match && kit.match.units[z.owner];
+      const ring = sigil(kit, z.x, z.z, z.r, RING, { c2: VIO, n: 0, ticks: 0, inner: 0, fill: 0, w: 0.035, life: 1e9, rev: 0.2, spin: 0, alpha: 1 });
+      const vortex = sigil(kit, z.x, z.z, 1.8, VIO, { c2: SMOKEV, n: 7, m: 3, ticks: 14, inner: 0.45, fill: 0.25, w: 0.08, life: 1e9, rev: 0.2, spin: -3, alpha: 0.95 });
+      return { ring, vortex, o };
+    },
+    zone(kit, v, z, dt) {
+      const x = v.o && v.o.alive ? v.o.x : z.x, zz = v.o && v.o.alive ? v.o.z : z.z;
+      v.ring.position.set(x, 0.15, zz); v.vortex.position.set(x, 0.16, zz);
+      if (v.o && v.o.alive) wings(kit, v.o, dt, 0.6);
+      if (Math.random() < dt * 14) { const a = Math.random() * 6.283, rr = R(1, z.r); kit.str.emit(x + Math.cos(a) * rr, R(0.4, 1.4), zz + Math.sin(a) * rr, -Math.sin(a) * 9, 0, Math.cos(a) * 9, VIO, 0.25, 0.09, 0.05, 0, 0, 1); }
+    },
+    zoneDrop(kit, v) { stop(v.ring); stop(v.vortex); },
+    ev(kit, e, u) {
+      if (e.k !== 'blood' || !u) return;
+      kit.ring(u.x, u.z, 2.4, BLOOD, 0.5);
+      kit.follow(u, 3, (t, dt) => { if (Math.random() < dt * 16) kit.glow(u.x + R(-0.9, 0.9), R(0.4, 1.4), u.z + R(-0.9, 0.9), BLOOD, R(0.5, 0.8), 0.32, 1, kit.K.SPARK, 0.3, 0, R(1.5, 3), 0); });
+    },
+  },
+  // Bá Đạo Chi Thủ: a purple claw: three violet claw strokes gather over the spot while dark smoke swirls in, then rake down
+  // closing on the middle with a violet blast.
+  ccHand: {
+    pal: [VIO, VIOW], hitR: 2.4,
+    zones: ['strike'],
+    skill(kit, e, u) { kit.glow(u.x, 1.8, u.z, VIO, 0.2, 1.6, 0.9, kit.K.GLOW, 1.3); return true; },
+    zoneMake(kit, z) {
+      const r = Math.max(2.4, z.r);
+      const g = sigil(kit, z.x, z.z, r, VIO, { c2: RING, n: 5, m: 2, ticks: 0, inner: 0.7, fill: 0.06, w: 0.05, life: 1e9, rev: 0.15, spin: 2 });
+      kit.puffs(z.x, 0.6, z.z, kit.N(6), SMOKEV, r, -2.5, 0.6, 1.2, 1.4, 0.4, 0.75, kit.K.SMOKE, 1);
+      return { g, r, t: 0 };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      if (Math.random() < dt * 20) { const a = Math.random() * 6.283; kit.str.emit(z.x + Math.cos(a) * v.r * 1.4, R(1, 3), z.z + Math.sin(a) * v.r * 1.4, -Math.cos(a) * 9, -2, -Math.sin(a) * 9, VIO, 0.2, 0.08, 0.05, 0, 0, 1); }
+    },
+    zoneDrop(kit, v) { stop(v.g); },
+    land(kit, e) {
+      const a0 = Math.random() * 6.283;
+      // three claws rake in toward the middle from round the edge, a beat apart, each a thick violet stroke with a black wake
+      for (let i = 0; i < 3; i++) {
+        const a = a0 + i * 2.09;
+        slash(kit, e.x + Math.cos(a) * 2.2, e.z + Math.sin(a) * 2.2, a + Math.PI, 3.8, VIO, { c2: SMOKEV, edge: VIOW, life: 0.6, span: 0.85, w: 0.95, sweep: 0.08, dir: i % 2 ? -1 : 1, arcs: 2, erode: 0.3 });
+      }
+      kit.scorch(e.x, e.z, 2.6, 3, 0.3, VIO);
+      shell(kit, e.x, 0, e.z, 3, VIO, { c2: SMOKEV, dome: true, p: 2.2, core: 0.08, life: 0.55, grow: 0.08, alpha: 0.8 });
+      burst(kit, e.x, e.z, 3.2, VIO, VIOW, { life: 0.3 });
+      kit.ring(e.x, e.z, e.r || 3, RING, 0.4);
+      kit.puffs(e.x, 0.6, e.z, kit.N(8), SMOKEV, 1.6, 2.5, 0.9, 1.3, 2.2, 0.5, 0.75, kit.K.SMOKE, 2);
+      kit.kick(e.x, e.z, 0.5);
+      return true;
+    },
+  },
+  // Hiệp Thiên Tử Lệnh Chư Hầu: a violet-black streak to the prey, then both stand wrapped in purple-black demon wings for the hold,
+  // a violet tether between them pulsing with each cut.
+  ccHold: {
+    pal: [VIO, VIOW], hitR: 1.6,
+    skill(kit, e, u) { kit.flash(u.x, 1.8, u.z, VIO, 40, 0.25); return true; },
+    leap(kit, e, u) {
+      const b = kit.beam(e.x0, e.z0, e.x, e.z, 1.4, VIO, 0.45, 2, 1.2); b.fade = true;
+      const dx = e.x - e.x0, dz = e.z - e.z0, L = Math.hypot(dx, dz) || 1;
+      for (let i = 0; i < kit.N(16); i++) { const t = Math.random(); kit.ovr.emit(e.x0 + dx * t, R(0.6, 2), e.z0 + dz * t, dx / L * 3, R(0.2, 1), dz / L * 3, SMOKEV, R(0.5, 0.9), R(0.9, 1.5), 1.8, 1.5, 0, 0.8, kit.K.SMOKE); }
+      sigil(kit, e.x, e.z, 3.6, VIO, { c2: SMOKEV, n: 7, m: 3, ticks: 14, inner: 0.45, fill: 0.25, w: 0.08, life: 1.2, rev: 0.12, spin: -3 });
+      shell(kit, e.x, 0, e.z, 2.8, SMOKEV, { c2: VIO, dome: true, p: 1.6, core: 0.12, life: 0.9, grow: 0.12, alpha: 0.85 });
+      kit.puffs(e.x, 1, e.z, kit.N(14), SMOKEV, 2.6, 2.5, 1.2, 1.7, 2.2, 0.6, 0.8, kit.K.SMOKE, 2);
+      return true;
+    },
+    ev(kit, e, u) {
+      if (e.k !== 'hold' || !u) return;
+      const o = kit.match.units[e.o], dur = e.dur || 3;
+      if (!o) return;
+      const tie = kit.beam(u.x, u.z, o.x, o.z, 0.7, VIO, 99, 2, 1.2);
+      const g1 = sigil(kit, u.x, u.z, 2, VIO, { c2: SMOKEV, n: 7, m: 3, ticks: 0, inner: 0.4, fill: 0.25, w: 0.07, life: dur, rev: 0.1, spin: -3, follow: u });
+      const g2 = sigil(kit, o.x, o.z, 2, VIO, { c2: SMOKEV, n: 7, m: 3, ticks: 0, inner: 0.4, fill: 0.25, w: 0.07, life: dur, rev: 0.1, spin: 3, follow: o });
+      kit.follow(u, dur, (t, dt) => {
+        kit.aimBeam(tie, u.x, u.z, o.x, o.z, 1.2); tie.u.uA.value = 0.55 + 0.35 * Math.sin(t * 25);
+        wings(kit, u, dt, 1.2); if (o.alive) wings(kit, o, dt, 1.2);
+      }, () => kit.endBeam(tie));
+      return g1 && g2;
+    },
+  },
 };

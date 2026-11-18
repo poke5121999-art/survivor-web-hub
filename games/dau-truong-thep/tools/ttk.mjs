@@ -74,7 +74,7 @@ const SEQ = {
   khidot: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },
   retdo: { d: 6, seq: [['ult', 0], ['s1', 0.3]] },
   nhenthep: { d: 6, seq: [['s2', 0], ['ult', 0.3], ['s1', 0.9]] },
-  taothao: { d: 5, seq: [['ult', 0], ['s1', 0.2], ['s2', 0.5]] },
+  taothao: { d: 5, seq: [['s2', 0], ['ult', 0.4], ['s1', 4]] },   // the hand drags it in; the hold fires R by itself; R again when its cooldown allows
   bongua: { d: 5, seq: [['s1', 0], ['s2', 0.3], ['ult', 0.7]] },
   moclan: { d: 5, seq: [['s1', 0], ['s2', 0.5], ['ult', 1.8]] },
   anduong: { d: 13, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.5], ['s2', 0.7]] },

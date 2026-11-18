@@ -40,6 +40,10 @@ export const PICKUPS = {
 
 // Skill effects are rows interpreted by the registry in sim.js (CAST). `do` picks the primitive.
 // Slots: weapon (left mouse), skills[0] = Q, skills[1] = E, skills[2] = SPACE (ultimate).
+// Tào Tháo's R (Dục Huyết Kiêu Hùng): one row object, also cast free by his passive on a kill (mods.onKill.cast) and by his ult (tthHold.also).
+const TT_R = { id: 'duchuyet', look: 'ccAura', name: 'Dục Huyết Kiêu Hùng', cd: 13, do: 'zone', at: 'self', follow: true, radius: 4.5, dur: 5, dps: 150, tthHeal: 0.02, vis: 'ccAura',
+  self: { on: 'cast', haste: 1.5, dur: 5 }, icon: 'rage',
+  desc: 'Vòng huyết khí 4,5 m bám quanh bạn 5 giây: mỗi 0,5 giây chém mọi kẻ địch trong vòng 75 sát thương, mỗi kẻ trúng hồi cho bạn 2% máu tối đa. Bạn chạy nhanh hơn 50% trong 5 giây.' };
 export const MECHS = {
   trau: {
     name: 'Trâu Sắt', role: 'Trụ', roleKey: 'tank', price: 0, tint: 0x8fa3b5,
@@ -980,21 +984,27 @@ export const MECHS = {
         desc: 'Khóa kẻ địch ở con trỏ (xa nhất 9 m) rồi đu qua đu lại năm lượt: mỗi lượt chém kẻ gần nhất chưa bị chém 240, vô địch suốt chuỗi. Không có ai thì không phóng.' },
     ],
   },
+  // Tào Tháo: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p11 "8.曹操", tooltips read at 2-5 s; AUDIT-c.md). The clip shows
+  // the panel small and blurred, so the numbers the audit marks (?) are best reads, kept as read and in proportion with the clear ones:
+  // R's cooldown 10 s, its 3 s blood-rage window, E's cooldown 6 s and its 183%. Attack = one Ỷ Thiên Kiếm blow (150; was 130 at 0.5 s):
+  // Dục Huyết Kiêu Hùng 50% -> 75 every 0.5 s, Bá Đạo Chi Thủ 183% -> 275, the hold 20% -> 30 every 0.25 s. "Dragged 72" (about a
+  // quarter of a gun's reach) -> 3 m toward the hand. Cooldowns 10 / 6 / 30 s -> 13 / 8 / 55. The free R on a kill is G3 onKill.cast,
+  // the drag is G4 yank. Kit lane K6 fields (sim.js block "kit lane K6"): passive tthBlood, zone tthHeal, leap tthHold.
   taothao: {
     name: 'Tào Tháo', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1900, tint: 0x2a2a3a,
-    blurb: 'Kiếm khí xuyên thấu, hút máu và hạ gục thì hồi máu, chạy nhanh. Liên Trảm chém ba nhát vào một kẻ để hồi sức, Bá Vương khiến cả người cứng cáp hơn.',
+    blurb: 'Gian hùng khát máu: vòng huyết khí quanh mình chém liên tục và hồi máu, bàn tay bá đạo kéo kẻ địch lại gần, rồi lao tới khống chế một kẻ, cả hai cùng đứng yên trong 3 giây và kẻ đó gánh nửa sát thương thay bạn.',
     hp: 3000, speed: 6.1, radius: 0.88,
     armor: 0.10, accel: 1.0, turn: 11, towerMul: 1.2,
-    passive: { do: 'lifesteal', name: 'Gian Hùng', desc: 'Hút 10% sát thương gây ra thành máu. Hạ gục một kẻ thì hồi 12% máu tối đa và chạy nhanh thêm 30% trong 3 giây.',
-      frac: 0.1, mods: { onKill: { heal: 0.12, haste: 1.3, dur: 3 } } },
-    weapon: { name: 'Ỷ Thiên Kiếm', cd: 0.5, dmg: 130, speed: 28, range: 9, r: 0.34, pierce: true, vis: 'wave' },
+    passive: { do: 'trait', name: 'Gian Hùng', look: 'ccAura', tthBlood: { every: 0.3, icd: 15, dur: 3, heal: 0.03 }, mods: { onKill: { cast: TT_R } },
+      desc: 'Mỗi khi đã mất tổng cộng 30% máu tối đa (nhiều nhất một lần mỗi 15 giây), trong 3 giây sau đó mỗi đòn chiêu địch đánh trúng lại hồi cho bạn 3% máu tối đa. Mỗi lần hạ gục, Dục Huyết Kiêu Hùng tự bùng lên miễn phí.' },
+    weapon: { name: 'Ỷ Thiên Kiếm', cd: 0.5, dmg: 150, speed: 28, range: 9, r: 0.34, pierce: true, vis: 'wave' },
     skills: [
-      { id: 'kiemkhi', look: 'ttQi', name: 'Kiếm Khí', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 30, range: 12, r: 0.5, pierce: true, vis: 'wave', icon: 'pierce',
-        desc: 'Chém một luồng kiếm khí xuyên thấu 240 sát thương, tầm 12 m.' },
-      { id: 'lientram', look: 'ttFlurry', name: 'Liên Trảm', cd: 11, do: 'flurry', n: 3, same: true, range: 7, speed: 32, dmg: 160, heal: 0.4, icon: 'swords',
-        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 7 m) rồi lao xuyên qua nó ba lượt, mỗi lượt 160 sát thương và hồi 40% số sát thương đó.' },
-      { id: 'bavuong', look: 'ttDemon', name: 'Bá Vương', cd: 42, do: 'transform', dur: 6, rapid: 1.4, lifesteal: 0.3, ccResist: 0.5, icon: 'rage',
-        desc: 'Trong 6 giây bắn nhanh hơn 40%, hút máu 30% và thời gian bị choáng, làm chậm, giữ chân ngắn đi một nửa.' },
+      TT_R,
+      { id: 'badao', look: 'ccHand', name: 'Bá Đạo Chi Thủ', cd: 8, do: 'barrage', n: 1, cast: 11, radius: 0, blast: 3, delay: 0.3, span: 0, dmg: 275, fx: { slow: 0.5, slowDur: 2, yank: { dist: 3, to: 'centre' } }, icon: 'cage',
+        desc: 'Bàn tay bá đạo chộp xuống chỗ con trỏ (xa nhất 11 m): kẻ địch trong 3 m bị kéo 3 m về phía bàn tay, chịu 275 sát thương và chậm 50% trong 2 giây.' },
+      { id: 'hiepthientu', look: 'ccHold', name: 'Hiệp Thiên Tử Lệnh Chư Hầu', cd: 55, do: 'leap', to: 'foe', pick: 4, cast: 10, flight: 0.3, radius: 0, dmg: 0,
+        tthHold: { dur: 3, every: 0.25, dmg: 30, redirect: 0.5, also: 0 }, icon: 'leap',
+        desc: 'Chọn kẻ địch ở con trỏ (xa nhất 10 m), lao vút tới, cùng lúc bùng Dục Huyết Kiêu Hùng. Tới nơi, bạn và kẻ đó cùng bị khóa 3 giây, không đi, không bắn, không dùng chiêu: mỗi 0,25 giây bạn chém nó 30, một nửa sát thương bạn phải chịu chuyển sang nó, và nó gục lúc này thì tính là bạn hạ. Không chọn được kẻ đang bị khóa.' },
     ],
   },
   // Kirito: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p80 "77.桐人" Đồng Nhân, tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
@@ -1211,7 +1221,7 @@ export const PERKS = {
   khidot: [perk('Gầm Vang', 'Chấn Không Nộ Hống rộng 6 m, gây 300.', 0, { radius: 6, dmg: 300 }), perk('Giẫm Lớn', 'Tử Vong Tiễn Đạp rộng 4,2 m, gây 280.', 1, { radius: 4.2, dmg: 280 }), perk('Nộ Dài', 'Dã Man Chi Nộ kéo dài 10 giây.', 2, { dur: 10 })],
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
   nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],
-  taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 150.', 'weapon', { dmg: 150 }), perk('Bốn Nhát', 'Liên Trảm chém bốn nhát, mỗi nhát 170.', 1, { n: 4, dmg: 170 }), perk('Vương Bền', 'Bá Vương kéo dài 8 giây, hút máu 40%.', 2, { dur: 8, lifesteal: 0.4 })],
+  taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 165.', 'weapon', { dmg: 165 }), perk('Tay Dài', 'Bá Đạo Chi Thủ kéo 4 m, rộng 3,5 m.', 1, { blast: 3.5, fx: { slow: 0.5, slowDur: 2, yank: { dist: 4, to: 'centre' } } }), perk('Khóa Lâu', 'Hiệp Thiên Tử khóa 3,5 giây.', 2, { tthHold: { dur: 3.5, every: 0.25, dmg: 30, redirect: 0.5, also: 0 } })],
   bongua: [perk('Kiếm Nặng', 'Song Kiếm gây 2 x 88.', 'weapon', { dmg: 88 }), perk('Sấm Rộng', 'Lôi Đình Thiên Giáng giáng vòng 4 m, giữ chân 1,5 giây.', 0, { land: { radius: 4, dmg: 191, fx: { root: 1.5 } } }), perk('Mười Tám Nhát', 'Tinh Bạo Khí Lưu Trảm chém mười tám nhát.', 2, { repeat: 18, invuln: 1.8 })],
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],
   anduong: [perk('Cung Nhanh', 'Thần Cung bắn mỗi 0,5 giây.', 'weapon', { cd: 0.5 }), perk('Bảy Mũi Tên', 'Tiễn Vô Hư Phát bắn bảy mũi.', 1, { n: 7 }), perk('Phục Thù Lâu', 'Bách Bộ Xuyên Dương kéo dài 12 giây.', 2, { dur: 12, self: { on: 'cast', dur: 12, guard: 0.25 } })],

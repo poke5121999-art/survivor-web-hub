@@ -126,6 +126,7 @@ function clearStatus(u) {
   adClear(u);   // kit-remake G5 An Dương Vương
   k7Clear(u);   // kit-remake G5 lane K7 (Saitama, Thủy Tinh, Ưng Nhãn)
   k10Clear(u);   // kit lane K10
+  tthClear(u);   // kit-remake G5 Tào Tháo
   sntClear(u);   // kit-remake G5 Sơn Tinh
 }
 
@@ -436,6 +437,7 @@ function stepUnit(m, u, inp) {
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
   k1Tick(m, u, dt);
   adTick(u);   // kit-remake G5 An Dương Vương: crit stacks, kill reward
+  tthTick(m, u, dt);   // kit-remake G5 Tào Tháo
   sntTick(m, u, dt); if (!u.alive) return;   // kit-remake G5 Sơn Tinh
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
@@ -490,6 +492,7 @@ function stepUnit(m, u, inp) {
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
   if (u.locT > 0) inp = locInput(m, u, inp);
+  if (u.tthHT > 0) inp = tthHeld(u);   // kit-remake G5 Tào Tháo: a hold
   const stunned = u.stunT > 0;
   if (stunned) { inp = NO_INPUT; u.cast = null; u.charge = 0; }
   else {
@@ -897,7 +900,7 @@ let curShot = null;
 export const LOC_KINDS = ['', 'confuse', 'fear', 'charm', 'petrify', 'sleep', 'banish', 'disarm', 'lift'];
 const LOC_CONFUSE = 1, LOC_FEAR = 2, LOC_CHARM = 3, LOC_SLEEP = 5, LOC_BANISH = 6, LOC_DISARM = 7;
 // Does the loss of control on u take its skills and weapon? (disarm takes only the weapon)
-export const locked = (u) => u.locT > 0 && u.locK !== LOC_DISARM;
+export const locked = (u) => (u.locT > 0 && u.locK !== LOC_DISARM) || u.tthHT > 0;   // kit-remake G5 Tào Tháo: a hold
 // A longer one replaces what runs; heavy mechs shrug off all but disarm; cc immunity blocks all; transform.ccResist shortens it.
 function applyLoc(m, src, o, fx) {
   for (let k = 1; k < LOC_KINDS.length; k++) {
@@ -1405,9 +1408,10 @@ const CAST = {
     // to: 'foe' | 'ally': fly to the unit under the cursor (pickUnit); nobody there, the skill does not happen.
     let [tx, tz] = aimPoint(u, inp, s.cast);
     if (s.to) {
-      const o = pickUnit(m, u, inp, s, (o) => (s.to === 'foe' ? o.team !== u.team : o.team === u.team));
+      const o = pickUnit(m, u, inp, s, (o) => (s.to === 'foe' ? o.team !== u.team && !(s.tthHold && o.tthHT > 0) : o.team === u.team));
       if (!o) return false;
       tx = o.x; tz = o.z;
+      if (s.tthHold) tthPick(m, u, s, o, inp);   // kit-remake G5 Tào Tháo
     }
     // invuln: untargetable (no damage, no crowd control) from the press until it lands, wind-up included
     if (s.invuln) { const T = (s.windup || 0) + s.flight + 0.1; u.invulnT = Math.max(u.invulnT, T); u.ccT = Math.max(u.ccT, T); }
@@ -1531,6 +1535,7 @@ const CAST = {
     addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
       haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0, drain: s.drain || 0, shield: s.shield || 0, sh: {} });
     if (s.grow || s.ownerHps || s.marks || s.eye) k7Zone(m.zones[m.zones.length - 1], s);   // kit-remake G5 lane K7: Thủy Tinh's vortex, Ưng Nhãn's eye
+    if (s.tthHeal) m.zones[m.zones.length - 1].tthHeal = s.tthHeal;   // kit-remake G5 Tào Tháo
     mgtZone(s, m.zones[m.zones.length - 1]);   // kit-remake G5 Magneto
   },
   dome(m, u, s) {
@@ -2082,6 +2087,7 @@ function stepZones(m) {
           if (z.dps && pulse) {
             const had = u.hp + u.shield;
             curSrc = z.src || null; damage(m, u, z.dps * 0.5, owner); curSrc = null;   // z.src: kit-remake G5 Thủy Tinh (zone marks)
+            if (z.tthHeal && owner.alive) heal(m, owner, owner.maxHp * z.tthHeal, owner);   // kit-remake G5 Tào Tháo
             // drain: the owner gets back that share of what the field took
             if (z.drain && owner.alive) heal(m, owner, Math.min(z.dps * 0.5, had - (u.alive ? u.hp + u.shield : 0)) * z.drain, owner, true);
           }
@@ -2316,6 +2322,7 @@ function damage(m, u, amount, src, raw) {
   trueHit = false;
   lastBase = 0;
   if (!u.alive || u.invulnT > 0 || amount <= 0) return;
+  if (u.tthHO && u.tthHT > 0 && !raw && src && src !== u) amount = tthRedirect(m, u, amount);   // kit-remake G5 Tào Tháo
   lastBase = amount;
   const foe = src && src !== u && !raw ? src : null;
   if (foe && u.blockN > 0 && amount >= 10) { blockHit(m, u); lastBase = 0; return; }
@@ -2369,6 +2376,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && left + absorbed > 0) k10Hit(foe);   // kit lane K10: a sword wave adds a Kirito penetration stack
+  if (foe && left + absorbed > 0) tthHurt(m, u, left + absorbed);   // kit-remake G5 Tào Tháo
   if (foe && left + absorbed > 0) mgtHurt(foe);   // kit-remake G5 Magneto
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
@@ -2443,6 +2451,7 @@ function heal(m, u, amount, src, quiet) {
 }
 
 function kill(m, u, src) {
+  src = tthCredit(m, u, src);   // kit-remake G5 Tào Tháo: a held foe's death is its holder's
   const R = m.rule.respawn;
   u.hp = 0; u.alive = false; u.deaths++; u.respawnT = Math.min(R.max, R.base + R.perMin * m.time / 60);
   const assists = [];
@@ -3663,3 +3672,74 @@ function sntLand(m, u, s, inp) {
 // buff `sntStone: s` (the god's onEnd row): the caster petrifies itself for s (a G3 lock: it holds still and cannot act).
 const sntStone = (m, u, s) => applyLoc(m, u, u, { petrify: s.sntStone });
 /* ===== end kit-remake G5 Sơn Tinh ===== */
+
+/* ===== kit-remake G5 Tào Tháo (kit lane K6, feat/dtt-k6; AUDIT-c.md taothao) ===== */
+// Hooks, one line each, marked "kit-remake G5 Tào Tháo": clearStatus -> tthClear, stepUnit -> tthTick (after k1Tick) and tthHeld (the
+// input of a held mech), locked() reads tthHT, damage -> tthRedirect (top) and tthHurt (after k1Hurt), kill -> tthCredit, CAST.leap ->
+// tthPick (the pick skips a held foe), CAST.zone -> tthHeal on the zone, stepZones field pulse -> the heal. tthHT is in netstate STATUS.
+// passive `tthBlood {every, icd, dur, heal}`: once he has lost `every` of his max hp to enemies (counted while the icd is over), the
+// blood rage runs dur s (tthBT) and the icd icd s (tthBI): meanwhile every enemy skill hit he takes heals him heal x max hp.
+// zone `tthHeal: f` (Dục Huyết Kiêu Hùng): each enemy a pulse of the field hurts heals the owner f of his max hp.
+// leap `tthHold {dur, every, dmg, redirect, also}` (with to: 'foe'): the pick skips a foe someone already holds. At the press the row of
+// slot `also` goes off for free (no cooldown; its press event says then: 1). When the leap lands he and the foe are held dur s
+// (tthHT on both; tthHO = 1 on the holder; tthHW the other's id): neither moves, shoots or casts (tthHeld; locked() is true, so bots
+// and the guest's prediction stand still); every `every` s the holder deals dmg x his damage scale to it (the row's source tag);
+// `redirect` of every blow the holder takes (not raw, not his own) goes to the held foe instead, as the holder's hit; and the held
+// foe's death is the holder's kill (tthCredit). A foe more than 6 m off at the landing, a dead foe or a dead holder ends it.
+function tthClear(u) { u.tthHT = 0; u.tthHW = -1; u.tthHO = 0; u.tthHA = 0; u.tthHP = -1; u.tthRow = null; u.tthBT = 0; u.tthBA = 0; u.tthBI = 0; }
+function tthRelease(u) { u.tthHT = 0; u.tthHW = -1; u.tthHO = 0; u.tthHA = 0; }
+const tthHeld = (u) => ({ ...NO_INPUT, aim: u.aim, tx: u.x, tz: u.z });
+function tthTick(m, u, dt) {
+  if (u.tthBT > 0) u.tthBT = Math.max(0, u.tthBT - dt);
+  if (u.tthBI > 0) u.tthBI = Math.max(0, u.tthBI - dt);
+  if (u.tthHP >= 0 && !u.dash) tthStart(m, u);
+  if (!(u.tthHT > 0)) return;
+  const o = m.units[u.tthHW];
+  if (!u.tthHO) { if (!o || !o.alive || o.tthHW !== u.id || !(o.tthHT > 0)) tthRelease(u); return; }
+  if (!o || !o.alive || o.tthHW !== u.id) { tthRelease(u); return; }
+  const H = u.tthRow.tthHold;
+  u.tthHT = Math.max(0, u.tthHT - dt); o.tthHT = u.tthHT; u.tthHA += dt;
+  while (u.tthHA >= H.every - 1e-9 && o.alive) {
+    u.tthHA -= H.every;
+    curSrc = u.tthRow.id; damage(m, o, H.dmg * dmgScale(u), u); curSrc = null;
+  }
+  if (!(u.tthHT > 0) || !o.alive) { tthRelease(u); if (o.tthHW === u.id) tthRelease(o); }
+}
+function tthPick(m, u, s, o, inp) {
+  u.tthHP = o.id; u.tthRow = s;
+  const i = s.tthHold.also, r = i >= 0 ? u.def.skills[i] : null;
+  if (!r) return;
+  m.events.push({ t: 'skill', id: u.id, slot: i, skill: r.id, x: u.x, z: u.z, a: u.aim, then: 1 });
+  if (CAST[r.do](m, u, r, inp) !== false && r.self && r.self.on !== 'hit') selfBuff(u, r.self);
+}
+function tthStart(m, u) {
+  const o = m.units[u.tthHP], H = u.tthRow && u.tthRow.tthHold;
+  u.tthHP = -1;
+  if (!H || !u.alive || !o.alive || o.tthHT > 0 || dist2(o.x, o.z, u.x, u.z) > 36) return;
+  u.tthHT = o.tthHT = H.dur; u.tthHO = 1; o.tthHO = 0; u.tthHW = o.id; o.tthHW = u.id; u.tthHA = 0;
+  for (const w of [u, o]) { w.cast = null; w.charge = 0; if (!(w.dash && w.dash.fly)) w.dash = null; w.flurry = null; }
+  m.events.push({ t: 'kit', look: u.tthRow.look, k: 'hold', id: u.id, o: o.id, dur: H.dur, x: o.x, z: o.z });
+}
+function tthRedirect(m, u, amount) {
+  const o = m.units[u.tthHW], f = u.tthRow ? u.tthRow.tthHold.redirect : 0;
+  if (!o || !o.alive || !f) return amount;
+  const keep = curSrc;
+  curSrc = null; damage(m, o, amount * f, u); curSrc = keep;
+  return amount * (1 - f);
+}
+function tthCredit(m, u, src) {
+  if (!(u.tthHT > 0) || u.tthHO) return src;
+  const h = m.units[u.tthHW];
+  return h && h.alive && h.team !== u.team && (!src || src === u || src.team === h.team) ? h : src;
+}
+function tthHurt(m, u, amt) {
+  const P = u.def.passive, B = P && P.tthBlood;
+  if (!B || !u.alive) return;
+  if (u.tthBT > 0 && curSrc !== 'w') heal(m, u, u.maxHp * B.heal, u);
+  if (u.tthBI > 0) return;
+  u.tthBA += amt;
+  if (u.tthBA < B.every * u.maxHp - 1e-9) return;
+  u.tthBA = 0; u.tthBI = B.icd; u.tthBT = B.dur;
+  m.events.push({ t: 'kit', look: P.look, k: 'blood', id: u.id, x: u.x, z: u.z });
+}
+/* ===== end kit-remake G5 Tào Tháo ===== */

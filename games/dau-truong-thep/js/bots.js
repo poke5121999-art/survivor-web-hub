@@ -1323,6 +1323,7 @@ const SKILL_AI = {
   zone(c, s) {
     const { u, tgt, td, m } = c;
     if (s.mgtStorm) return mgtBotStorm(c, s);   // kit-remake G5 Magneto
+    if (s.tthHeal) return tthBotAura(c, s);   // kit-remake G5 Tào Tháo
     if (s.cage) return cageSkill(c, s);
     // a healing field set down at the cursor (at target): on the hurt group, not on the enemy
     if (s.hps && s.at === 'target') return healField(c, s);
@@ -2472,3 +2473,12 @@ function mgtBotStorm(c, s) {
   return c.enemies.length >= 2 || near >= 1 || low;
 }
 /* ===== end kit-remake G5 Magneto bots ===== */
+
+/* ===== kit-remake G5 Tào Tháo bots ===== */
+// Dục Huyết Kiêu Hùng follows him and heals per enemy it cuts: worth it with an enemy inside nine tenths of the ring.
+function tthBotAura(c, s) {
+  const { u } = c;
+  for (const e of c.enemies) if (d2(e.x, e.z, u.x, u.z) < (s.radius * 0.9) ** 2) return true;
+  return false;
+}
+/* ===== end kit-remake G5 Tào Tháo bots ===== */

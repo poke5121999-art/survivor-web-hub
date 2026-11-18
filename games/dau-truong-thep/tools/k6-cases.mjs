@@ -118,6 +118,68 @@ export function runK6Cases(check, section) {
     go(m, Math.round(2 / TICK) + 3);
     check('K6-v ... at the end: petrified 1 s and +0.25 armour', a.tfT <= 0 && LOC_KINDS[a.locK] === 'petrify' && a.locT > 0.5 && a.armorF === 0.25 && a.armorT > 0.5, `${a.tfT} ${LOC_KINDS[a.locK]} ${a.locT} ${a.armorF}`);
   }
+
+  // ---- Tào Tháo (taothao), clip p11 ----
+  const TT = MECHS.taothao, [TR, TE, TU] = TT.skills;
+  // Dục Huyết Kiêu Hùng: a 4.5 m field on him for 5 s, 75 per 0.5 s to each foe inside, 2% of his max hp back per foe hit; x1.5 speed 5 s
+  {
+    const m = arena([[R('taothao', 0), 0, 0], [R('thancong', 1), 3, 0], [R('thancong', 1), 8, 0]]), [a, v, f] = m.units;
+    a.hp = a.maxHp - 1000;
+    press(m, 0, 's1');
+    check('K6-w Duc Huyet Kieu Hung: x1.5 speed for 5 s, a field that follows him', a.hasteF === 1.5 && a.hasteT > 4.9 && m.zones.some((z) => z.follow && z.tthHeal === 0.02), `${a.hasteF} ${a.hasteT}`);
+    const h0 = a.hp, ev = go(m, 16);
+    const hv = only(ev, 'hit', (e) => e.id === 1 && e.by === 0), hf = only(ev, 'hit', (e) => e.id === 2);
+    check('K6-x ... the first pulse: 75 on the foe inside, nothing on the one at 8 m, and 2% of his max hp back', hv.length === 1 && near(hv[0].amt, 75 * DF) && hf.length === 0 && near(a.hp - h0, a.maxHp * 0.02, 1e-6), `${hv.map((e) => e.amt)} ${a.hp - h0}`);
+  }
+  // Bá Đạo Chi Thủ: 0.3 s, 3 m: drags the foe 3 m toward the middle, 275 (falloff), slow 50% 2 s
+  {
+    const m = arena([[R('taothao', 0), 0, 0], [R('thancong', 1), 6, 2]]), [a, v] = m.units;
+    const ev = press(m, 0, 's2', { tx: 6, tz: 0 }).concat(go(m, Math.round(0.3 / TICK) + 2));
+    const hit = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('K6-y Ba Dao Chi Thu: 275 x falloff at 2 m, the foe dragged to the middle, slowed 50%', hit.length === 1 && near(hit[0].amt, 275 * fall(2, 3) * DF, 1e-4) && Math.abs(v.z) < 0.3 && v.slowF === 0.5, `${hit.map((e) => e.amt)} z ${v.z} ${v.slowF}`);
+  }
+  // Hiệp Thiên Tử Lệnh Chư Hầu: R goes off at the press; on landing both are held 3 s; 30 every 0.25 s; half his damage taken goes to it
+  {
+    const m = arena([[R('taothao', 0), 0, 0], [R('thancong', 1), 6, 0], [R('hac', 1), 6, 8, -Math.PI / 2], [R('taothao', 0), -4, 0]]), [a, v, h, b] = m.units;
+    const ev0 = press(m, 0, 'ult', { tx: 6, tz: 0 });
+    check('K6-z Hiep Thien Tu: the press fires R for free (its press event, the field, x1.5 speed) and leaps', only(ev0, 'skill', (e) => e.id === 0 && e.slot === 0 && e.then === 1).length === 1 && m.zones.some((z) => z.owner === 0 && z.tthHeal) && a.hasteF === 1.5 && !!a.dash && a.cd.s1 === 0, `${a.hasteF} ${a.cd.s1}`);
+    go(m, Math.round(0.3 / TICK) + 3);
+    check('K6-za ... on landing both are held 3 s (locked), the foe does not move', a.tthHT > 2.8 && v.tthHT > 2.8 && a.tthHO === 1 && v.tthHW === 0 && locked(v) && locked(a), `${a.tthHT} ${v.tthHT}`);
+    const vx = v.x;
+    b.cd.ult = 0; go(m, 1, () => ({ 3: { ult: true, tx: v.x, tz: v.z } }));
+    check('K6-zb ... another Cao Cao cannot pick the held foe (no cast, a 0.4 s lockout)', !b.dash && b.tthHP === -1 && near(b.cd.ult, 0.4, 1e-6), `${b.cd.ult} ${b.tthHP}`);
+    const ev = go(m, 30, () => ({ 1: { mx: -1, fire: true, aim: Math.PI }, 2: { fire: true, aim: -Math.PI / 2, tx: 6, tz: 0 } }));
+    const cuts = only(ev, 'hit', (e) => e.id === 1 && e.by === 0 && near(e.amt, 30 * DF));
+    const onA = only(ev, 'hit', (e) => e.id === 0 && e.by === 2), passed = only(ev, 'hit', (e) => e.id === 1 && e.by === 0 && near(e.amt, MECHS.hac.weapon.dmg * 0.5 * DF));
+    check('K6-zc ... in 1 s: 4 cuts of 30 and the held foe neither moved nor fired', cuts.length === 4 && near(v.x, vx) && !m.shots.some((s) => s.owner === 1), `${cuts.length} ${v.x - vx}`);
+    check('K6-zd ... a blow on him lands at half, and the other half hits the held foe as his', onA.length >= 1 && onA.every((e) => near(e.amt, MECHS.hac.weapon.dmg * 0.5 * (1 - TT.armor))) && passed.length === onA.length, `${onA.map((e) => e.amt)} ${passed.length}`);
+    go(m, Math.round(2.1 / TICK));
+    check('K6-ze ... after 3 s both are free', !(a.tthHT > 0) && !(v.tthHT > 0) && !locked(v) && a.tthHW === -1, `${a.tthHT} ${v.tthHT}`);
+  }
+  // a held foe's death is his kill, and the kill fires R for free (G3 onKill.cast)
+  {
+    const m = arena([[R('taothao', 0), 0, 0], [R('thancong', 1), 6, 0], [R('hac', 0), 6, 8, -Math.PI / 2]]), [a, v, al] = m.units;
+    press(m, 0, 'ult', { tx: 6, tz: 0 }); go(m, Math.round(0.3 / TICK) + 3);
+    for (const z of m.zones.slice()) if (z.owner === 0) z.age = z.dur + 1;
+    go(m, 1);
+    v.hp = 1; a.tthHA = -5;   // the holder's cuts wait: the ally's shot lands the kill
+    const ev = go(m, 20, () => ({ 2: { fire: true, aim: -Math.PI / 2, tx: 6, tz: 0 } }));
+    const d = only(ev, 'death', (e) => e.id === 1);
+    check('K6-zf the held foe dies to an ally\'s shot: the kill is Cao Cao\'s', d.length === 1 && d[0].by === 0 && a.kills === 1 && al.kills === 0, `${JSON.stringify(d)} ${a.kills} ${al.kills}`);
+    check('K6-zg ... and R goes off for free on the kill', only(ev, 'zone', (e) => e.vis === 'ccAura').length === 1, `${only(ev, 'zone').length}`);
+  }
+  // Gian Hùng: after losing 30% of max hp, 3 s in which each enemy skill hit heals 3% of max hp; then 15 s before it can come again
+  {
+    const m = arena([[R('taothao', 0), 0, 0], [R('thancong', 1), 6, 0]]), [a, v] = m.units;
+    for (let i = 0; i < 29; i++) applyFx(m, v, a, { trueDmg: a.maxHp * 0.01 });   // small blows: one big blow would also wound (heals halved)
+    check('K6-zh Gian Hung: 29% lost, nothing yet', !(a.tthBT > 0), `${a.tthBT}`);
+    for (let i = 0; i < 2; i++) applyFx(m, v, a, { trueDmg: a.maxHp * 0.01 });
+    check('K6-zi ... past 30%: the blood rage runs 3 s, icd 15 s', near(a.tthBT, 3) && near(a.tthBI, 15), `${a.tthBT} ${a.tthBI}`);
+    const h = a.hp; applyFx(m, v, a, { trueDmg: 10 });
+    check('K6-zj ... a skill hit of 10 now heals 3% of max hp', near(a.hp - h, a.maxHp * 0.03 - 10, 1e-6), `${a.hp - h}`);
+    go(m, Math.round(3.1 / TICK)); const h2 = a.hp; applyFx(m, v, a, { trueDmg: a.maxHp * 0.31 });
+    check('K6-zk ... after the 3 s no heal, and no new rage inside the 15 s icd', near(h2 - a.hp, a.maxHp * 0.31, 1e-6) && !(a.tthBT > 0), `${h2 - a.hp} ${a.tthBT}`);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

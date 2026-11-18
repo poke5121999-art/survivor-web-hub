@@ -132,8 +132,8 @@ for (const key of MECH_ORDER) {
     if (s.uses) continue;   // uses (skill charges): the next use waits for its gap, not the cooldown; sections 46 and 48 check them
     // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
     const ally = s.to === 'ally';
-    // a flurry needs somebody in reach: the foe stands 4 m away
-    const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : s.do === 'flurry' ? -1 : 9, -1]);
+    // a flurry (and a leap onto a foe) needs somebody in reach: the foe stands 4 m away
+    const m = duel(key, 'ung', [-5, -1], [s.do === 'swap' || s.do === 'mark' ? 4 : s.do === 'flurry' || (s.do === 'leap' && s.to === 'foe') ? -1 : 9, -1]);
     // thrifty (chuottui) rolls m.rng: no refund here, the cooldown is what is being measured
     if (m.units[0].passive === 'thrifty') m.rng = Object.assign(() => 0.99, m.rng);
     if (ally) { m.units.push({ ...createMatch({ seed: 1, roster: [{ team: 0, mech: 'trau', name: 'C' }] }).units[0], id: 2, team: 0, slot: 1 }); put(m.units[2], 4, -1); put(m.units[1], 20, -1); }
@@ -3674,9 +3674,17 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
 
   delete MECHS.oldanduong;
 
+  // The batch-4 Tào Tháo kit is a fixture now: taothao plays the kit ported from clip p11 (section K6).
+  const OLD_TAOTHAO = { passive: { do: 'lifesteal', name: 'Gian Hùng', frac: 0.1, mods: { onKill: { heal: 0.12, haste: 1.3, dur: 3 } } },
+    weapon: { name: 'Ỷ Thiên Kiếm', cd: 0.5, dmg: 130, speed: 28, range: 9, r: 0.34, pierce: true, vis: 'wave' },
+    skills: [{ id: 'kiemkhi', name: 'Kiếm Khí', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 30, range: 12, r: 0.5, pierce: true, vis: 'wave' },
+      { id: 'lientram', name: 'Liên Trảm', cd: 11, do: 'flurry', n: 3, same: true, range: 7, speed: 32, dmg: 160, heal: 0.4 },
+      { id: 'bavuong', name: 'Bá Vương', cd: 42, do: 'transform', dur: 6, rapid: 1.4, lifesteal: 0.3, ccResist: 0.5 }] };
+  const oldTaothao = (u) => { u.def = { ...u.def, ...OLD_TAOTHAO, tfWeapon: {} }; u.passive = 'lifesteal'; return u; };
   // ---- flurry ----
   {
     const m = arena([[R('taothao', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    oldTaothao(a);
     a.hp = a.maxHp - 1000;
     const ev = press(m, 0, 's2', { tx: 3, tz: 0 }).concat(go(m, 60));
     const fl = only(ev, 'flurry'), hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
@@ -3823,6 +3831,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   // ---- mods: onKill.haste, lowHp.steal; ccResist ----
   {
     const m = arena([[R('taothao', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    oldTaothao(a);
     a.hp = a.maxHp - 1000; v.hp = 1;
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 4, tz: 0 } }));
     check('44zv Gian Hung: the kill heals 12% of max hp (360) on top of lifesteal and gives x1.3 haste for 3 s', v.alive === false && a.hp - (a.maxHp - 1000) >= 360 && a.hasteF === 1.3 && a.hasteT > 2.5, `${v.alive} ${a.hp - (a.maxHp - 1000)} ${a.hasteF} ${a.hasteT}`);
@@ -3841,6 +3850,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   {
     const stunAfter = (tf) => {
       const m = arena([[R('taothao', 0), 0, 0], [R('ung', 1), 25, 0]]), [a, v] = m.units;
+      oldTaothao(a);
       if (tf) press(m, 0, 'ult');
       go(m, 3);
       applyFx(m, v, a, { stun: 1.0 });

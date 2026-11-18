@@ -162,61 +162,6 @@ const lubo = {
 // ---- Tào Tháo: violet smoke and magenta, a gold-hilted sword ---------------------------------------------------------
 const TT_VIO = C(1.25, 0.2, 2.1), TT_MAG = C(2.2, 0.3, 1.5), TT_SMOKE = C(0.16, 0.04, 0.22), TT_GOLD = C(2.2, 1.6, 0.6);
 const taothao = {
-  // Kiếm Khí: a thin violet sword-qi stroke with the Ỷ Thiên sword at its heart, trailing dark smoke
-  ttQi: {
-    pal: [TT_VIO, TT_MAG], hitR: 1.8,
-    skill(kit, e, u) { muz(kit, u, e.a, 3.0, TT_VIO, TT_MAG); return true; },
-    shotMake(kit, s, row) {
-      const a = Math.atan2(s.dz, s.dx), life = (row.range || 12) / (row.speed || 30) + 0.1;
-      slash(kit, s.x, s.z, a, 5.2, TT_VIO, { y: 1.3, life, w: 0.75, span: 1.35, travel: row.speed || 30, sweep: 0.05, erode: 0.15, edge: TT_MAG });
-      const g = weapon('sword', 0xe8d27a, TT_MAG); g.scale.setScalar(3.4);
-      return { g, h: held(kit, [g]), a };
-    },
-    shot(kit, v, s, x, y, z) {
-      v.g.position.set(x - s.dx * 2.2, 1.3, z - s.dz * 2.2); v.g.rotation.set(0, -v.a, 0);
-      if (Math.random() < 0.7) kit.puffs(x - s.dx, 1.1, z - s.dz, 1, TT_SMOKE, 0.3, 0.6, 0.7, 0.7, 2.2, 0.3, 0.55, kit.K.SMOKE);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), TT_MAG, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Liên Trảm: each pass leaves a violet X of two thin blade strokes on the victim and a smoke puff; his path is a violet streak
-  ttFlurry: {
-    pal: [TT_VIO, TT_MAG], hit() {},
-    skill(kit, e, u) {
-      kit.puffs(u.x, 0.8, u.z, kit.N(6), TT_SMOKE, 0.8, 2, 0.8, 1.2, 2.2, 0.6, 0.7, kit.K.SMOKE);
-      trail(kit, (t) => (t < 1.2 && u.alive ? [u.x, 1.0, u.z] : null), 1.1, TT_VIO, 1.0, { c2: TT_MAG, len: 20 });
-      return true;
-    },
-    flurry(kit, e) {
-      const a = Math.random() * 3.14;
-      // each stroke a shallow arc of radius 7 whose middle crosses the victim
-      [0.7, -0.7].forEach((d, i) => { const n = a + d - Math.PI / 2; slash(kit, e.x - Math.cos(n) * 10, e.z - Math.sin(n) * 10, n, 10, i ? TT_MAG : TT_VIO, { y: 1.3, dir: i ? -1 : 1, life: 0.45, span: 0.62, w: 1.65, sweep: 0.07 + i * 0.05, edge: TT_MAG }); });
-      cut(kit, e.x, e.z, a, 2.2, TT_VIO, { edge: TT_MAG, sparks: 4 }); kit.puffs(e.x, 1, e.z, kit.N(3), TT_SMOKE, 0.5, 1.5, 0.6, 1, 2, 0.5, 0.6, kit.K.SMOKE);
-      return true;
-    },
-  },
-  // Bá Vương: dark violet smoke wings stream off him, a thin magenta ring of 5 m rides with him and a violet vortex turns at his feet
-  ttDemon: {
-    pal: [TT_VIO, TT_MAG], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const d = row.dur || 6;
-      sigil(kit, u.x, u.z, 5, TT_MAG, { n: 0, ticks: 0, inner: 0, fill: 0.12, w: 0.03, life: d, rev: 0.3, follow: u, spin: 0 });
-      sigil(kit, u.x, u.z, 4.4, TT_SMOKE.clone().multiplyScalar(4), { c2: TT_VIO, n: 5, m: 2, life: d, rev: 0.3, follow: u, spin: 1.2, fill: 0.35, alpha: 0.7 });
-      sigil(kit, u.x, u.z, 1.6, TT_VIO, { c2: TT_MAG, n: 5, m: 2, ticks: 10, life: d, rev: 0.2, follow: u, spin: 3, fill: 0.2, y: 0.18 });
-      kit.puffs(u.x, 1, u.z, kit.N(10), TT_SMOKE, 1.2, 3, 1, 1.4, 2.4, 1, 0.8, kit.K.SMOKE); kit.flash(u.x, 2, u.z, TT_VIO, 40, 0.3);
-      kit.follow(u, d, (t) => {
-        if (t > 0.5 && !(u.tfT > 0)) return;
-        // two smoke wings: puffs thrown sideways and back from the turret line
-        for (const side of [1, -1]) if (Math.random() < 0.9) {
-          const a = u.aim + Math.PI + side * 0.9, s = R(1.5, 3);
-          kit.ovr.emit(u.x + Math.cos(a) * 0.8, R(1.2, 2.2), u.z + Math.sin(a) * 0.8, Math.cos(a) * s, R(0.6, 1.5), Math.sin(a) * s, TT_SMOKE, R(0.7, 1.0), R(1.0, 1.6), 2.6, 1.5, -0.6, 0.7, kit.K.SMOKE);
-          if (Math.random() < 0.4) kit.glow(u.x + Math.cos(a) * 1.2, 1.7, u.z + Math.sin(a) * 1.2, TT_VIO, 0.5, 0.5, 0.8, kit.K.FLAME, 1.4, Math.cos(a) * s, 1, Math.sin(a) * s);
-        }
-      });
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.puffs(e.x, 1, e.z, kit.N(6), TT_SMOKE, 1, 2, 0.8, 1.2, 2, 0.6, 0.6, kit.K.SMOKE); return true; },
-  },
 };
 
 // ---- Hades: ice-blue soul fire, a scythe, a rune circle, a column of rings ------------------------------------------
