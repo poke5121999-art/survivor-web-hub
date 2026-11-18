@@ -16,7 +16,17 @@ export const OLD_DOMDOM = {
     { id: 'vongsang', cd: 44, do: 'rally', radius: 8, heal: 1100, haste: 1.25, dur: 3 },
   ],
 };
-const OLD = { domdom: OLD_DOMDOM };
+// The batch-4 Dương Tiễn (brittle Thiên Nhãn, Tam Tiêm Đao amp, seeking hound, tracking beam).
+export const OLD_DUONGTIEN = {
+  passive: { do: 'brittle', name: 'Thiên Nhãn', mul: 1.25, when: 'low', below: 0.4, reveal: { r: 12, below: 0.4 } },
+  weapon: { name: 'Tam Tiêm', cd: 0.45, dmg: 110, speed: 32, range: 12.5, r: 0.22, vis: 'slug' },
+  skills: [
+    { id: 'tamtiendao', cd: 9, do: 'volley', n: 1, dmg: 260, speed: 36, range: 15, r: 0.3, pierce: true, vis: 'sabot', fx: { amp: { amp: 0.15, dur: 4 } } },
+    { id: 'haothien', cd: 14, do: 'decoy', n: 1, fan: 0, hp: 450, dur: 6, blast: 2.5, dmg: 240, stealth: 0, seek: { speed: 8.5, range: 14 }, fx: { reveal: 4 } },
+    { id: 'thannhan', cd: 45, do: 'beam', windup: 0.8, range: 24, width: 0.9, dmg: 1200, thru: true, track: { cast: 22, pick: 5 } },
+  ],
+};
+const OLD = { domdom: OLD_DOMDOM, duongtien: OLD_DUONGTIEN };
 // Swap the old kit onto every unit of that mech (before the first step).
 export function oldK13(m, mech) {
   const K = OLD[mech];
@@ -48,7 +58,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 const k13 = (ev, kind) => only(ev, 'k13', (e) => e.kind === kind);
 
 export function runK13Cases(check, section) {
-  section('K13 kit lane K13: Đom Đóm (p91 绮翠之心) ported from the owner clips (literal expected values)');
+  section('K13 kit lane K13: Đom Đóm (p91 绮翠之心), Dương Tiễn (p68 二郎神) ported from the owner clips (literal expected values)');
   const DD = MECHS.domdom, UNG = MECHS.ung, TRAU = MECHS.trau;
   // ---- Đom Đóm ----
   {
@@ -121,6 +131,48 @@ export function runK13Cases(check, section) {
     check('k13s third pulse at 4 s: fire x0.5 (capped), slow 50%; no fourth', k13(ev3, 'temple').length === 1 && near(v.sfF, 0.5) && near(v.slowG, 0.5) && a.ddTpN === 0, `${v.sfF} ${v.slowG}`);
     go(m, 31);
     check('k13t the cooldown starts when the temple is gone: under 55 one second after the last pulse', a.cd.ult < 55 && a.cd.ult > 53.5, `${a.cd.ult}`);
+  }
+  // ---- Dương Tiễn ----
+  const DT = MECHS.duongtien;
+  {
+    // Tam Tiêm + passive Trảm Tiên: 150; the foe takes +15% from everyone and heals x0.7 for 2 s; he gets armour and haste 1.3
+    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('k13u Tam Tiêm: 150 a shot; the hit lands amp 0.15 and antiheal 0.7 for 2 s on the foe', v.hp === UNG.hp - 150 && near(v.ampF, 0.15) && near(v.ahF, 0.7) && v.ahT > 1.6, `${v.hp} ${v.ampF} ${v.ahF}`);
+    check('k13v ... and armour +0.15, haste x1.3 for 2 s on him', near(a.armorF, 0.15) && near(a.hasteF, 1.3) && a.hasteT > 1.6, `${a.armorF} ${a.hasteF}`);
+  }
+  {
+    // Trảm Tiên Thần Quyết: 204 round him (falloff at 2 m of 3.5), knock-up 1 s, the tag 'tt' for 3 s; then each hit of his on it
+    // pays +150 true, heals 6% of his max hp and cuts Hao Thiên Xuất Kích's cooldown by 10% (1 s)
+    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    go(m, 6, (i) => ({ 0: { s1: i === 0 } }));
+    const q = 204 * (1 - 0.5 * 2 / 3.5);
+    check('k13w the swing: 204 x 0.714 (falloff) = 145.7, knocked up 1 s, tagged for 3 s', near(UNG.hp - v.hp, q, 1e-6) && v.airT > 0.8 && v.tags['tt@0'] > 2.7, `${UNG.hp - v.hp} ${v.airT} ${JSON.stringify(v.tags)}`);
+    a.hp = 1000; a.cd.s2 = 5; v.stunT = 0; v.airT = 0;
+    const hp0 = v.hp, ev = go(m, 8, (i) => ({ 0: { fire: i === 0 } })), hits = only(ev, 'hit', (e) => e.id === 1);
+    check('k13x a shot on the tagged foe: 150 + 150 true, both x1.15 (the passive amp) = 345', near(hp0 - v.hp, 345, 1e-6) && hits.length === 2, `${hp0 - v.hp} ${hits.map((e) => e.amt)}`);
+    check('k13y ... heals him 6% of 2700 = 162 and cuts Hao Thiên Xuất Kích by 1 s', near(a.hp, 1162, 1e-6) && a.cd.s2 < 5 - 1 + 1e-6 && a.cd.s2 > 3.6, `${a.hp} ${a.cd.s2}`);
+  }
+  {
+    // Hao Thiên Xuất Kích: the hound runs 12 m biting every foe it touches (168); a press inside 0.8 s blinks him to it: 344 round 3 m
+    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 1), 9, 1.5]]), [a, v, w] = m.units;
+    go(m, 14, (i) => ({ 0: { s2: i === 0, aim: 0 } }));
+    check('k13z the hound bites the foe at 4 m for 168 and runs on (pierce)', near(UNG.hp - v.hp, 168, 1e-6) && m.shots.some((s) => s.src === 'haothien'), `${UNG.hp - v.hp}`);
+    const hw = w.hp, ev = go(m, 4, (i) => ({ 0: { s2: i === 1, aim: 0 } })), wp = only(ev, 'warp');
+    check('k13za the recast: he blinks onto the hound (the shot is taken), and the foe 1.5 m from it takes 344 x falloff', wp.length === 1 && a.x > 5.5 && !m.shots.some((s) => s.src === 'haothien') && hw - w.hp > 344 * 0.5 - 1e-6, `${wp.length} ${a.x} ${hw - w.hp}`);
+    check('k13zb the cooldown is the row\'s 10 s from the first press', a.cd.s2 > 9 && a.cd.s2 <= 10, `${a.cd.s2}`);
+  }
+  {
+    // the ult: three stages, each armed by a hit of the one before; 15% of the lost hp back per foe hit
+    const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units;
+    a.hp = 1700;
+    const e1 = go(m, 8, (i) => ({ 0: { ult: i === 0 } }));
+    const s1 = only(e1, 'nova', (e) => e.skill === 'phadiet');
+    check('k13zc Phá Diệt Hoành Tảo: the fan hits, slows 30%, heals 15% of the lost 1000 (150), arms Tuyệt Sát Chi Kích', s1.length === 1 && near(v.slowF, 0.3) && a.hp > 1700 + 149 && a.next && a.next.armed && a.next.row.id === 'tuyetsat' && near(a.cd.ult, 40 - 7 * TICK, 1e-6), `${a.hp} ${a.next && a.next.row.id}`);
+    const e2 = go(m, 10, (i) => ({ 0: { ult: i === 1 } }));
+    check('k13zd the second press: Tuyệt Sát Chi Kích hits and arms Thông Thiên Pháp Nhãn (the cooldown untouched)', only(e2, 'nova', (e) => e.skill === 'tuyetsat').length === 1 && a.next && a.next.armed && a.next.row.id === 'thongthien' && a.cd.ult > 39, `${a.next && a.next.row.id} ${a.cd.ult}`);
+    const hp0 = v.hp, e3 = go(m, 20, (i) => ({ 0: { ult: i === 1, aim: 0 } })), h3 = only(e3, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('k13ze the third press: three eyes; on one foe 225, then x0.5 each (sameDecay): 225 + 112.5 + 56.25 less armour, plus the passive amp', h3.length >= 3 && !a.next && hp0 - v.hp > 300, `${h3.map((e) => e.amt.toFixed(1))} ${hp0 - v.hp}`);
   }
 }
 

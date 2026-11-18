@@ -409,20 +409,38 @@ export const MECHS = {
         desc: 'Khóa một kẻ địch ở con trỏ rồi bay tới giáng xuống: sát thương lớn và choáng 1 giây. Không có ai ở đó thì không phóng.' },
     ],
   },
+  // Dương Tiễn: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p68 "65.二郎神" Nhị Lang Thần, tooltips read at 0-8 s;
+  // AUDIT-a.md). Attack = 150 (lubo, moclan): Tam Tiêm went from 110 per 0.45 s to 150 per 0.6 s (same dps). 136% -> 204, 112% ->
+  // 168, 229% -> 344, 150% -> 225, 100% -> 150. Cooldowns 6 / 8 / 20 s in the clip -> 8 / 10 / 40. The passive's "-30% armour"
+  // and "+30% defence" are on the K1 scale (10% -> 0.05): +15% damage taken (amp) and +0.15 armour. The Q's 3 s mark is the G2
+  // tag 'tt' that his weapon and every other row read (vsTag: +150 true, heal 6% of max hp, Hao Thiên Xuất Kích cooldown -10%).
+  // The hound is a slow piercing shot; the recast is the G4 warp to that shot. The ult is a three-stage `next` chain (kit lane
+  // K13: a second stage may carry its own `next`); the clip's "?0%" slow lost its first digit, 30% is a guess. Kit-remake G5
+  // fields (sim.js block "kit lane K13"): passive dtHunt {fx, self}: every hit of his on an enemy mech, weapon or skill, lands fx
+  // and gives him the self buff.
   duongtien: {
     name: 'Dương Tiễn', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0xc8ccd6,
-    blurb: 'Thiên nhãn nhìn thấu kẻ yếu máu, Hao Thiên Khuyển đuổi cắn, tia thần nhãn bám mục tiêu xuyên tường.',
+    blurb: 'Mỗi đòn trúng xé giáp và chặn hồi máu của địch, mình cứng và nhanh thêm. Trảm Tiên đánh tung rồi đánh dấu, thả Hao Thiên Khuyển rồi lóe tới nó, quét kích hai lần và mở Thiên Nhãn.',
     hp: 2700, speed: 6.4, radius: 0.82,
     armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.2,
-    passive: { do: 'brittle', name: 'Thiên Nhãn', desc: 'Kẻ địch dưới 40% máu trong 12 m bị lộ diện, và chịu thêm 25% sát thương từ bạn.', mul: 1.25, when: 'low', below: 0.4, reveal: { r: 12, below: 0.4 } },
-    weapon: { name: 'Tam Tiêm', cd: 0.45, dmg: 110, speed: 32, range: 12.5, r: 0.22, vis: 'slug' },
+    passive: { do: 'dtHunt', name: 'Trảm Tiên', fx: { amp: { amp: 0.15, dur: 2 }, antiheal: { mul: 0.7, dur: 2 } }, self: { armor: 0.15, haste: 1.3, dur: 2 },
+      desc: 'Mọi đòn (thường hay chiêu) trúng địch khiến nó chịu thêm 15% sát thương từ mọi người và được hồi máu ít hơn 30% trong 2 giây; bạn được thêm giáp và chạy nhanh hơn 30% trong 2 giây.' },
+    weapon: { name: 'Tam Tiêm', cd: 0.6, dmg: 150, speed: 32, range: 12.5, r: 0.24, vis: 'slug', vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } } },
     skills: [
-      { id: 'tamtiendao', look: 'dgBlade', name: 'Tam Tiêm Đao', cd: 9, do: 'volley', n: 1, dmg: 260, speed: 36, range: 15, r: 0.3, pierce: true, vis: 'sabot', fx: { amp: { amp: 0.15, dur: 4 } }, icon: 'pierce',
-        desc: 'Phóng lưỡi tam tiêm xuyên qua địch; kẻ trúng nhận thêm 15% sát thương từ mọi người trong 4 giây.' },
-      { id: 'haothien', look: 'dgHound', name: 'Hao Thiên Khuyển', cd: 14, do: 'decoy', n: 1, fan: 0, hp: 450, dur: 6, blast: 2.5, dmg: 240, stealth: 0, seek: { speed: 8.5, range: 14 }, fx: { reveal: 4 }, icon: 'decoy',
-        desc: 'Thả chó săn đuổi theo địch gần nhất trong 14 m. Chạm là nổ, kẻ trúng bị lộ diện 4 giây.' },
-      { id: 'thannhan', look: 'dgEye', name: 'Thần Nhãn Truy Kích', cd: 45, do: 'beam', windup: 0.8, range: 24, width: 0.9, dmg: 1200, thru: true, track: { cast: 22, pick: 5 }, icon: 'beam',
-        desc: 'Khóa kẻ địch ở con trỏ, lấy đà 0,8 giây rồi bắn tia bám theo nó, xuyên cả tường.' },
+      { id: 'trantien', look: 'dtSlash', name: 'Trảm Tiên Thần Quyết', cd: 8, do: 'nova', windup: 0.15, move: 0.35, radius: 3.5, dmg: 204, fx: { air: 1, tag: { key: 'tt', dur: 3 } }, icon: 'spin',
+        desc: 'Vung kích quanh mình: 204 sát thương vòng 3,5 m, đánh tung kẻ trúng 1 giây. Trong 3 giây, mỗi đòn sau của bạn vào chúng gây thêm 150 sát thương chuẩn, hồi 6% máu tối đa và giảm 10% hồi chiêu Hao Thiên Xuất Kích.' },
+      { id: 'haothien', look: 'dtHound', name: 'Hao Thiên Xuất Kích', cd: 10, do: 'volley', n: 1, dmg: 168, speed: 15, range: 12, r: 0.7, pierce: true, vis: 'wave', icon: 'decoy',
+        vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } },
+        next: { window: 0.8, row: { id: 'haokich', name: 'Hao Thiên Xuất Kích', look: 'dtBlink', do: 'warp', to: 'shot', of: 'haothien', take: true, dist: 13, land: { radius: 3, dmg: 344 },
+          vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } } } },
+        desc: 'Thả Hao Thiên Khuyển chạy thẳng 12 m theo hướng ngắm, cắn 168 mọi kẻ địch nó chạm. Bấm lại trước khi nó tới nơi: lóe tới chỗ con chó, gây 344 sát thương vòng 3 m.' },
+      { id: 'phadiet', look: 'dtSweep', name: 'Phá Diệt Hoành Tảo', cd: 40, do: 'nova', windup: 0.15, move: 0.35, radius: 4.5, arc: 1.2, dmg: 225, slow: 0.3, slowDur: 1.5, healLost: 0.15, icon: 'swords',
+        vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } },
+        next: { window: 3, onHit: true, row: { id: 'tuyetsat', name: 'Tuyệt Sát Chi Kích', look: 'dtSwing', do: 'nova', windup: 0.2, move: 0.35, radius: 4.5, arc: 1.2, dmg: 225, slow: 0.3, slowDur: 1.5, healLost: 0.15,
+          vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } },
+          next: { window: 3, onHit: true, row: { id: 'thongthien', name: 'Thông Thiên Pháp Nhãn', look: 'dtEye', do: 'volley', n: 3, fan: 0.22, dmg: 225, speed: 28, range: 12, r: 0.45, sameDecay: 0.5, healLost: 0.15, vis: 'pulse',
+            vsTag: { key: 'tt', fx: { trueDmg: 150 }, healMax: 0.06, cdCut: { slot: 's2', frac: 0.1 } } } } } },
+        desc: 'Ba nhịp. Phá Diệt Hoành Tảo: quét kích hình quạt 4,5 m, 225 sát thương, chậm 30% trong 1,5 giây. Trúng ai thì trong 3 giây bấm lại: Tuyệt Sát Chi Kích, quét thêm một lần như thế. Trúng ai thì bấm lại lần nữa: Thông Thiên Pháp Nhãn, ba con mắt trời bay ra, mỗi con 225 (trúng cùng một kẻ thì mỗi con sau chỉ còn một nửa). Mỗi kẻ địch trúng mọi nhịp hồi cho bạn 15% máu đã mất.' },
     ],
   },
   // Athena: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p69 "66.雅典娜", tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
@@ -1206,7 +1224,7 @@ export const PERKS = {
   khiphao: [perk('Pháo Đằm', 'Pháo Tép làm chậm hoặc làm yếu với 45% quả.', 'weapon', { fx: { chance: 0.45, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] } }), perk('Bẫy Dày', 'Mìn của Chuồn Lẹ nổ 360.', 1, { onStart: { mine: { trigger: 2, blast: 3, dmg: 360, arm: 0.4, life: 8, fx: { slow: 0.4, slowDur: 1.5 } } } }), perk('Mười Sáu Quả', 'Hội Pháo Hoa dội 16 quả.', 2, { n: 16 })],
   quancong: [perk('Đao Dài', 'Đao Khí bay xa 8 m.', 'weapon', { range: 8 }), perk('Xung Mạnh', 'Xung Phong gây 260 và choáng 0,8 giây.', 0, { dmg: 260, stun: 0.8 }), perk('Án Trảm', 'Trảm Tướng kết liễu dưới 32% máu.', 2, { fx: { execute: 0.32 } })],
   natra: [perk('Vòng Lớn', 'Càn Khôn Quyển gây 260.', 0, { dmg: 260 }), perk('Bánh Xe Dài', 'Phong Hỏa Luân lao xa 11 m.', 1, { dist: 11 }), perk('Giáng Mạnh', 'Thiên Giáng rộng 4 m, gây 760.', 2, { radius: 4, dmg: 760 })],
-  duongtien: [perk('Tiêm Sâu', 'Tam Tiêm Đao làm lộ điểm yếu 22% trong 5 giây.', 0, { fx: { amp: { amp: 0.22, dur: 5 } } }), perk('Khuyển Nhanh', 'Hao Thiên Khuyển chạy nhanh hơn, nổ 320.', 1, { seek: { speed: 10.5, range: 16 }, dmg: 320 }), perk('Mắt Tinh', 'Thần Nhãn Truy Kích gây 1500, lấy đà 0,65 giây.', 2, { dmg: 1500, windup: 0.65 })],
+  duongtien: [perk('Tam Tiêm Nặng', 'Tam Tiêm gây 175.', 'weapon', { dmg: 175 }), perk('Khuyển Xa', 'Hao Thiên Khuyển chạy 15 m.', 1, { range: 15 }), perk('Phá Diệt Rộng', 'Phá Diệt Hoành Tảo quét rộng 5,5 m.', 2, { radius: 5.5 })],
   athena: [perk('Thánh Quang Nặng', 'Chiến Tranh Nghệ Thuật gây 300.', 0, { dmg: 300 }), perk('Thuẫn Dày', 'Thánh Thuẫn Tí Hựu hấp thụ 900 trong 2,5 giây.', 1, { shield: 900, dur: 2.5 }), perk('Bất Hủ Lâu', 'Anh Hùng Bất Hủ kéo dài 4 giây.', 2, { dur: 4, undying: 4 })],
   hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],

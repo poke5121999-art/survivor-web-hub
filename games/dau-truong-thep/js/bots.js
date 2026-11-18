@@ -1844,12 +1844,12 @@ function chooseSkill(c) {
   const p = 1 - Math.pow(1 - Math.min(0.999, D.skill), 1.5 * TICK);
   for (let i = 0; i < 3; i++) {
     // next: an armed second stage is used at once while its target is still in reach (the sim checks the rest)
-    const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.def.skills[i].next.row : null;
+    const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next.row || u.def.skills[i].next.row : null;   // kit lane K13: a later stage of a chain
     if (nx) {
       if (nx.to) { if (g4WarpTo(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit-remake G4: recast to an own object
       const o = m.units[u.next.target];
       // a warp second stage must reach its target; a sweep second stage (nova) must have it inside the blade (any hp: it heals)
-      const reach = nx.dist ?? nx.radius * 0.9, keen = nx.do === 'nova' || c.hpFrac > 0.35;
+      const reach = nx.dist ?? (nx.radius ? nx.radius * 0.9 : nx.range * 0.8), keen = nx.do === 'nova' || c.hpFrac > 0.35;
       if (o && o.alive && hyp(o.x - u.x, o.z - u.z) < reach && keen) { sk.x = o.x; sk.z = o.z; sk.aim = nx.do === 'nova' ? Math.atan2(o.z - u.z, o.x - u.x) : null; sk.mx = null; sk.mz = null; sk.slot = i; return sk; }
       continue;
     }

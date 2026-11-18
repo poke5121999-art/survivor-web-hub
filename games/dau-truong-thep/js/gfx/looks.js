@@ -202,7 +202,7 @@ export function lookRow(u, id) {
   if (!u || !u.def) return null;
   for (const s of u.def.skills) {
     if (s.id === id) return s;
-    if (s.next && s.next.row.id === id) return s.next.row;
+    for (let n = s.next; n; n = n.row.next) if (n.row.id === id) return n.row;   // kit lane K13: every stage of a next chain
     for (let t = s.then; t; t = t.then) if (t.id === id) return t;   // kit lanes k9, K10: follow-up rows (G3 then) with a look
     if (s.bgRe && s.bgRe.id === id) return s.bgRe;   // kit lane k9: Black Panther's second charge
   }

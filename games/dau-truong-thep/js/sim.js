@@ -548,7 +548,7 @@ function stepUnit(m, u, inp) {
     // next: the second stage of a two-stage skill is ready (armed, key pressed afresh): this press casts it, whatever the cooldown says
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
     if (!inp[key] || (!skillReady(u, i) && !re && !nx)) continue;
-    const s = nx ? u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;
+    const s = nx ? nx.row || u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;   // kit lane K13: nx.row, a later stage of a chain
     if (u.rootT > 0 && ROOT_BLOCKS[s.do] && !s.rootOk) continue;   // kit-remake G5 An Dương Vương: rootOk
     m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
     u.stealthT = 0;
@@ -561,7 +561,7 @@ function stepUnit(m, u, inp) {
     // next.onHit: the second stage is armed only once this cast has hit an enemy (see damage); otherwise at once. It exists before
     // the cast runs, so a first stage that hits at once (warp.land) arms it in the same tick.
     const nextWas = u.next;
-    if (s.next) u.next = { slot: i, src: s.id, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
+    if (s.next) u.next = { slot: i, src: s.id, row: s.next.row, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
     // cdCut / self count this press's hits from zero; a cut of this slot by a hit inside the cast waits for its cooldown (pressing)
     if (s.cdCut || s.self) u.hitN[s.id] = 0;
     u.pressing = nx ? -1 : i;
@@ -577,7 +577,7 @@ function stepUnit(m, u, inp) {
     k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
     k13Cast(m, u, s);   // kit lane K13
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
-    if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
+    if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
     if (!u.cast && !u.dash) u.skillAmp = 1;
@@ -693,10 +693,10 @@ function applyCut(u, j, C) {
 function srcSlot(u, src) {
   if (!src || src === 'w') return -1;
   const S = u.def.skills;
-  for (let i = 0; i < S.length; i++) if (S[i].id === src || (S[i].next && S[i].next.row.id === src) || (S[i].then && S[i].then.id === src)) return i;
+  for (let i = 0; i < S.length; i++) if (S[i].id === src || k13Chain(S[i], src) || (S[i].then && S[i].then.id === src)) return i;   // kit lane K13: any stage of a next chain
   return -1;
 }
-const slotRow = (u, i, src) => (u.def.skills[i].id === src ? u.def.skills[i] : u.def.skills[i].next && u.def.skills[i].next.row.id === src ? u.def.skills[i].next.row : u.def.skills[i].then);
+const slotRow = (u, i, src) => (u.def.skills[i].id === src ? u.def.skills[i] : k13Chain(u.def.skills[i], src) || u.def.skills[i].then);   // kit lane K13: any stage of a next chain
 // A skill row of u has just hurt an enemy (left: hp it took): steal, healLost, healMax, self on hit, cdCut on hit.
 function rowHit(m, u, left) {
   const i = srcSlot(u, curSrc);
@@ -3787,6 +3787,12 @@ function k13Hit(m, foe, u) {
   const P = foe.def.passive;
   if (!P || !u.alive || reflecting || !curSrc) return;
   if (P.do === 'ddWind' && curSrc !== 'w') ddErode(m, foe, u);
+  if (P.do === 'dtHunt') dtHunt(m, foe, u, P);
+}
+// The row of a `next` chain (second stage, third, ...) whose id is src; null when none (a stage may carry its own `next`).
+function k13Chain(r, src) {
+  for (let n = r.next; n; n = n.row.next) if (n.row.id === src) return n.row;
+  return null;
 }
 // hitfx ddEye {every, n, lostHp, slow, slowDur}: the victim takes the tick every `every` s, n times (a new eye restarts it)
 function k13Eye(src, o, F) {
@@ -3832,6 +3838,14 @@ function ddPulse(m, u) {
     if (o.alive) ddErode(m, u, o);
   }
   curSrc = keep;
+}
+
+// ---- Dương Tiễn (duongtien), passive dtHunt {fx, self}: every hit of his on an enemy mech (weapon or skill) lands fx on it
+// (no source tag, so it never feeds anything else) and gives him the self buff (G1 selfBuff).
+function dtHunt(m, foe, u, P) {
+  const keep = curSrc;
+  curSrc = null; applyFx(m, foe, u, P.fx); curSrc = keep;
+  selfBuff(foe, P.self);
 }
 
 /* ===== end kit lane K13 ===== */

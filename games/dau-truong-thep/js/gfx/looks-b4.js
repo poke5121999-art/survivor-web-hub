@@ -1,4 +1,4 @@
-// Looks, batch 4: Quan Công, Điêu Thuyền, Na Tra, Cửu Vĩ Hồ, Dương Tiễn, Gilgamesh. Render only (see looks.js for the hooks).
+// Looks, batch 4: Quan Công, Điêu Thuyền, Na Tra, Cửu Vĩ Hồ, Gilgamesh (Dương Tiễn: looks-k13.js). Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   关羽 p5 (Quan Công): jade-yellow crescent slashes, a wide green crescent where the blade lands, a dark crater bursting with
@@ -7,7 +7,6 @@
 //     lotus are ice-blue with pink edges.
 //   哪吒 p64 (Na Tra): golden fire wheels, a red silk sash, a golden spiky star where he lands.
 //   妖狐 p64→p67 (Cửu Vĩ Hồ): crimson fox-fire, an orange crosshair over the decoy, a wave of red flame petals.
-//   二郎神 p68 (Dương Tiễn): cyan crescent guards, a blue diamond third-eye mark over the hunted foe, a cyan bolt.
 //   英雄王 p74 (Gilgamesh): golden ripples open in the air and blades fly out of them, a golden sphere locks the target.
 import * as THREE from '../../vendor/three.module.min.js';
 import { orbPos } from '../sim.js';
@@ -222,68 +221,6 @@ const cuuvi = {
   },
 };
 
-// ---- Dương Tiễn: the third eye, cyan and white -------------------------------------------------------------------------
-const DG_CYAN = C(0.3, 1.8, 2.6), DG_WHITE = C(2.2, 2.5, 2.6), DG_DEEP = C(0.1, 0.4, 1.8);
-const tridentGeo = (() => { const parts = [new THREE.CylinderGeometry(0.06, 0.06, 2.2, 5).rotateZ(Math.PI / 2).translate(-0.6, 0, 0), new THREE.ConeGeometry(0.16, 1.0, 4).rotateZ(-Math.PI / 2).translate(0.9, 0, 0), new THREE.BoxGeometry(0.1, 0.08, 0.9).translate(0.4, 0, 0)]; for (const sd of [-1, 1]) parts.push(new THREE.ConeGeometry(0.11, 0.7, 4).rotateZ(-Math.PI / 2).translate(0.7, 0, sd * 0.42)); return parts.map(keep); })();
-function trident() { const g = new THREE.Group(), m = basic(0xe8fbff, false); for (const p of tridentGeo) g.add(new THREE.Mesh(p, m)); return g; }
-// the third eye: an almond of two arcs round a glowing pupil, standing upright facing the camera
-function eye(kit, x, y, z, r, life) {
-  const s = sigil(kit, x, z, r, DG_CYAN, { c2: DG_WHITE, n: 4, m: 1, ticks: 0, inner: 0.4, life, rev: 0.1, fill: 0.35, y, w: 0.1 }); s.rotation.x = 1.2;
-  const p = shell(kit, x, y, z, r * 0.35, DG_WHITE, { c2: DG_CYAN, inv: 1.2, core: 1, life });
-  return [s, p];
-}
-const duongtien = {
-  // Tam Tiêm Đao: the three-pointed blade itself flies, big and white, a cyan wake behind it
-  dgBlade: {
-    pal: [DG_DEEP, DG_CYAN], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.4, 1.3, u.z + Math.sin(e.a) * 1.4, DG_WHITE, 0.12, 2, 1, kit.K.STAR, 1.3); return true; },
-    shotMake(kit, s) { const g = trident(); g.scale.setScalar(4.6); const v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true, a: Math.atan2(s.dz, s.dx) }; trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 2.8, DG_CYAN, 0.5, { c2: DG_DEEP, len: 14 }); return v; },
-    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.g.position.set(x, 1.25, z); v.g.rotation.set(0, -v.a, 0); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), DG_WHITE, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Hao Thiên Khuyển: the celestial hound runs as a cyan spirit with pricked ears, leaving glowing paw prints; it bites as
-  // four cyan crescents snapping in
-  dgHound: {
-    zones: ['decoy'], pal: [DG_DEEP, DG_CYAN], hitR: 1.8,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const body = shell(kit, z.x, 1.0, z.z, 3, DG_CYAN, { c2: DG_WHITE, inv: 1.1, core: 1, squash: 0.7, life: 1e9 });
-      const ears = new THREE.Group(), m = basic(0xc8f4ff, false); for (const sd of [-1, 1]) { const c = new THREE.Mesh(keep(new THREE.ConeGeometry(0.45, 1.4, 4)), m); c.position.set(0, 0.9, sd * 0.7); ears.add(c); }
-      const v0 = { x: z.x, z: z.z, live: true }; trail(kit, () => (v0.live ? [v0.x, 0.9, v0.z] : null), 2.4, DG_CYAN, 1e9, { c2: DG_DEEP, len: 18 });
-      const halo = sigil(kit, z.x, z.z, 4, DG_CYAN, { c2: DG_WHITE, n: 0, ticks: 8, inner: 0.7, life: 1e9, rev: 0.2, spin: 2, fill: 0.4, w: 0.1 });
-      return { v0, body, ears, halo, h: held(kit, [ears]), px: z.x, pz: z.z, step: 0 };
-    },
-    zone(kit, v, z) {
-      v.body.position.set(z.x, 0.9, z.z); v.ears.position.set(z.x, 1.6, z.z); v.halo.position.x = z.x; v.halo.position.z = z.z; v.v0.x = z.x; v.v0.z = z.z;
-      const d = Math.hypot(z.x - v.px, z.z - v.pz);
-      if (d > 1.1) { const a = Math.atan2(z.z - v.pz, z.x - v.px), sd = v.step++ % 2 ? 1 : -1; const px = z.x - Math.sin(a) * sd * 0.6, pz = z.z + Math.cos(a) * sd * 0.6; sigil(kit, px, pz, 0.7, DG_CYAN, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 2.4, rev: 0.05, alpha: 0.9, w: 0, y: 0.11 }); for (const o of [-0.6, 0, 0.6]) sigil(kit, px + Math.cos(a + o) * 1.0, pz + Math.sin(a + o) * 1.0, 0.3, DG_CYAN, { n: 0, ticks: 0, inner: 0, fill: 1.2, life: 2.4, rev: 0.05, alpha: 0.9, w: 0, y: 0.11 }); v.px = z.x; v.pz = z.z; v.ears.rotation.y = -a; }
-    },
-    zoneDrop(kit, v) { v.h.on = false; v.v0.live = false; stop(v.body); stop(v.halo); },
-    land(kit, e) { sigil(kit, e.x, e.z, 3.6, DG_CYAN, { c2: DG_WHITE, n: 0, ticks: 12, inner: 0.75, life: 1, rev: 0.06, fill: 0.3, w: 0.1 }); for (let i = 0; i < 4; i++) slash(kit, e.x - Math.cos(i * 1.571) * 1.2, e.z - Math.sin(i * 1.571) * 1.2, i * 1.571, 3.6, DG_CYAN, { y: 1.1, life: 0.6, w: 0.5, span: 0.9, sweep: 0.08, erode: 0.3, edge: DG_WHITE, sparks: false, arcs: 1 }); kit.flash(e.x, 1.6, e.z, DG_CYAN, 40, 0.2); return true; },
-  },
-  // Thần Nhãn Truy Kích: the third eye opens over the hunted foe while he aims; the shot is a cyan-white beam with eyes along it
-  dgEye: {
-    pal: [DG_DEEP, DG_CYAN], hitR: 2,
-    skill() { return true; },
-    castMake() { return { objs: null }; },
-    cast(kit, v, u, s, k) {
-      const a = u.cast.aim, L = Math.min(s.range || 24, 12), x = u.x + Math.cos(a) * L, z = u.z + Math.sin(a) * L;
-      if (!v.objs) v.objs = eye(kit, x, 3.4, z, 2.4, (s.windup || 0.8) + 0.3);
-      v.objs.forEach((o) => { o.position.x = x; o.position.z = z; });
-      kit.glow(u.x + Math.cos(a) * 1.4, 1.4, u.z + Math.sin(a) * 1.4, DG_CYAN, 0.1, 1 + 2 * k, 1, kit.K.STAR, 1.2);
-    },
-    beam(kit, e) {
-      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1;
-      const b1 = kit.beam(e.x0, e.z0, e.x1, e.z1, 2.2, DG_CYAN, 0.55, 0, 1.4); b1.fade = true;
-      const b2 = kit.beam(e.x0, e.z0, e.x1, e.z1, 1.0, DG_WHITE, 0.5, 2, 1.45); b2.fade = true;
-      for (let d = 4; d < L; d += 6) eye(kit, e.x0 + dx / L * d, 2.4, e.z0 + dz / L * d, 1.3, 0.6);
-      eye(kit, e.x1, 3, e.z1, 3.2, 0.7); const a0 = Math.atan2(dz, dx); for (const sd of [-1, 1]) slash(kit, e.x0, e.z0, a0 + sd * 1.3, 3.6, DG_CYAN, { y: 1.3, dir: sd, life: 0.5, w: 0.5, span: 1.1, edge: DG_WHITE, sparks: false, arcs: 1 });
-      kit.flash(e.x1, 1.6, e.z1, DG_CYAN, 60, 0.3); kit.kick(e.x0, e.z0, 0.5);
-      return true;
-    },
-  },
-};
-
 // ---- Gilgamesh: the Gate of Babylon, gold ------------------------------------------------------------------------------
 const GG_GOLD = C(2.6, 1.9, 0.35), GG_WHITE = C(2.6, 2.4, 1.8), GG_DEEP = C(0.6, 0.35, 0.02);
 // a golden ripple hanging in the air: concentric rings round a bright core, upright, facing the camera
@@ -332,4 +269,4 @@ const gilgamesh = {
   },
 };
 
-export const B4 = { ...quancong, ...dieuthuyen, ...natra, ...cuuvi, ...duongtien, ...gilgamesh };
+export const B4 = { ...quancong, ...dieuthuyen, ...natra, ...cuuvi, ...gilgamesh };   // Dương Tiễn moved to looks-k13.js (kit lane K13)

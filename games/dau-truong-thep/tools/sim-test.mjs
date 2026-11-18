@@ -11,7 +11,7 @@ import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-case
 import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
 import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
-import { runK13Cases, oldK13, OLD_DOMDOM } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
+import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -2734,7 +2734,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // amp: Tam Tiem Dao makes the target take 15% more from everyone
   {
-    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0], [R('tho', 0), 6, -6, Math.PI / 2]]), v = m.units[1];
+    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0], [R('tho', 0), 6, -6, Math.PI / 2]]), 'duongtien'), v = m.units[1];
     go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 6, tz: 0 } }));
     check('40h amp lands: ampF 0.15, ampT counting down from 4 s', v.ampF === 0.15 && v.ampT > 3 && v.ampT <= 4, `ampF ${v.ampF} ampT ${v.ampT}`);
     const before = v.hp;
@@ -2792,13 +2792,13 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   // brittle.when 'low' and reveal
   {
     const hit = (frac) => {
-      const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0]]);
+      const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 6, 0]]), 'duongtien');
       m.units[1].hp = m.units[1].maxHp * frac;
       return only(go(m, 12, (i) => ({ 0: { fire: i === 0 } })), 'hit')[0].amt;
     };
-    const DT = MECHS.duongtien.weapon.dmg;
+    const DT = OLD_DUONGTIEN.weapon.dmg;
     check(`40r brittle.when low: ${DT} at full hp, ${DT} x 1.25 = ${DT * 1.25} under 40%`, near(hit(1), DT) && near(hit(0.3), DT * 1.25), `${hit(1)} ${hit(0.3)}`);
-    const m = arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 8, 0], [R('ung', 1), 0, 13], [R('ung', 1), 0, -8]]);
+    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('ung', 1), 8, 0], [R('ung', 1), 0, 13], [R('ung', 1), 0, -8]]), 'duongtien');
     for (const u of m.units) if (u.id) u.stealthT = 3;
     m.units[1].hp = m.units[1].maxHp * 0.3; m.units[2].hp = m.units[2].maxHp * 0.3;
     go(m, 1);
@@ -2833,7 +2833,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // decoy.seek
   {
-    const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 6, 6]]), v = m.units[1];
+    const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 6, 6]]), 'duongtien'), v = m.units[1];
     const ev = go(m, 40, (i) => ({ 0: { s2: i === 0 } }));
     const lost = TRAU_HP - v.hp;
     check('40y decoy.seek: the hound runs to the target and bursts on it (104..209 after armour and falloff), reveal 4 s, gone', only(ev, 'explode', (e) => e.why === 'decoy').length === 1 && lost >= 104 && lost <= 209 && v.revealT > 2 && !m.zones.some((z) => z.kind === 'decoy'), `lost ${lost} reveal ${v.revealT}`);
@@ -2841,14 +2841,14 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   // beam.track and thru
   {
     const run = (patch) => {
-      const m = arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 10, 0]], [[4.5, 5.5, -4, 4]]);
+      const m = oldK13(arena([[R('duongtien', 0), 0, 0], [R('trau', 1), 10, 0]], [[4.5, 5.5, -4, 4]]), 'duongtien');
       const a = m.units[0];
       if (patch) a.def = { ...a.def, skills: a.def.skills.map((x, i) => (i === 2 ? { ...x, ...patch } : x)) };
       go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 }, 1: { mz: 1 } }));
       return TRAU_HP - m.units[1].hp;
     };
     const full = run(null);
-    const BD = MECHS.duongtien.skills[2].dmg;
+    const BD = OLD_DUONGTIEN.skills[2].dmg;
     check(`40z beam.track + thru: the beam follows a strafing target through a wall: ${BD} x 0.87 = ${BD * 0.87}`, near(full, BD * (1 - MECHS.trau.armor), 1e-6), `${full}`);
     check('40za without track the beam misses the strafing target', run({ track: null }) === 0);
     check('40zb without thru a wall stops the tracked beam', run({ thru: false }) === 0);
