@@ -15,3 +15,7 @@ time	unit	decision	evidence
 2026-11-18 21:20	bug	rời trạm treo ở 'loading': disposeWorld dispose nhà của trạm hai lần, Rapier panic bị try/catch nuốt, world kẹt borrow ("recursive use of an object"); sửa thứ tự + house.dispose chạy một lần	tools/run.js qua nhà 2
 2026-11-18 21:30	test	harness: quái hạ trước khi chở đồ đã hồi sinh bình thường (chở 56 s > 45 s) -> hạ lại khi vào pha thoát; TEST HOOK testCompletePads chuyển escape ngay khi trang đang dừng	tools/run.js ALL PASS
 2026-11-18 21:50	hud	luật HUD ít chữ: trạm bỏ '/ $0', thiếu tiền = bệ + vòng đỏ (bỏ chuỗi 'Không đủ tiền'), icon xe/mũi tên thoát bị CSS display:flex đè [hidden] nên hiện cả ở trạm -> sửa; run.js đếm chữ HUD ở 5 trạng thái (≤ 6 ký tự) và kiểm từng chỉ báo là đồ hoạ	tools/run.js 66/66 PASS, 04b-station-short.png
+2026-11-18 22:40	foes	lớp menace: mọi quái/boss bật fx (rỉ 0.28, dầu đỏ 0.75, muội 0.5) + creep (giật cục, bẻ đầu, mắt chập chờn, gù); robots/menace.js thêm quầng mắt x1.7, răng/nanh, nước mắt dầu, dáng gù; gunner/headthrower gầy hơn; impostor và đội giữ sạch	robots.js 0 lỗi, max 24.956 tam giác; foes.js ALL PASS
+2026-11-18 22:45	bug	run.js với foes=none bỏ luôn G.foes -> tools/foes.js hỏng; giờ luôn tạo Foes, chỉ bỏ roster	foes.js ALL PASS
+2026-11-18 22:50	tools	foes.js chụp thêm dark-<loài>.png: nhà tắt đèn (setDim 0.02), chỉ đèn pin, quái cách 3 m; robots.js --dark vẫn giữ	ảnh trước/sau 14 loài
+2026-11-18 22:55	known	house3d.js: 8/10 bài 'walk through doors' FAIL cả trên e798cf83 gốc (kẹt ở hành lang sau 1 cửa) -> lỗi có trước, chưa sửa	tools/house3d.js

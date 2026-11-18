@@ -8,15 +8,35 @@ import { makeAnimator } from './robots/anim.js';
 import { CREW_IDS, crewPal, buildCrew } from './robots/crew.js';
 import { FOES } from './robots/foes.js';
 import { BOSSES } from './robots/bosses.js';
+import { MENACE } from './robots/menace.js';
 
 export const ROBOT_IDS = { crew: CREW_IDS.slice(), foe: Object.keys(FOES), boss: Object.keys(BOSSES) };
 export const robotStats = {};
 const cache = new Map();
 
+// Foes and bosses: grime (rust, dark red oil streaks, soot) and the creep motion layer by default, plus the per-kind menace
+// pieces (robots/menace.js). The crew and the impostor (it passes for crew) keep the clean look and steady motion.
+const FOE_FX = { rust: 0.28, oil: 0.75, soot: 0.5, grime: 1 };
+const HALO_K = 1.7;   // menace halos: size multiplier so eyes read at torch range (3 m)
+const FOE_CREEP = { stutter: 0.3, flicker: 0.55, tilt: 0.18, snap: 0.42, snapHz: 0.9, jit: 0.025, hunch: 0.18, crouch: 0.08, lunge: 0.18 };
+const CLEAN = new Set(['impostor']);
+function hostile(d, id) {
+  if (CLEAN.has(id)) return d;
+  return {
+    ...d, fx: d.fx ?? FOE_FX, pal: { hk: 1.35, ...d.pal },
+    build: (B) => {
+      const cfg = d.build(B);
+      const n0 = B.halos.length;
+      const m = MENACE[id] ? MENACE[id](B) || {} : {};
+      for (const h of B.halos.slice(n0)) h.size *= HALO_K;
+      return { ...cfg, creep: { ...FOE_CREEP, ...(m.creep || {}), ...(cfg.creep || {}) } };
+    },
+  };
+}
 function design(kind, id) {
   if (kind === 'crew' && CREW_IDS.includes(id)) return { pal: crewPal(id), build: (B) => buildCrew(B, id) };
-  if (kind === 'foe' && FOES[id]) return FOES[id];
-  if (kind === 'boss' && BOSSES[id]) return BOSSES[id];
+  if (kind === 'foe' && FOES[id]) return hostile(FOES[id], id);
+  if (kind === 'boss' && BOSSES[id]) return hostile(BOSSES[id], id);
   throw new Error(`robot not found: ${kind}/${id}`);
 }
 

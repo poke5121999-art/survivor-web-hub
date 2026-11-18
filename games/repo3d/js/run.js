@@ -138,8 +138,8 @@ export class Runner {
       const house = buildHouse(G, layout, theme);
       G.house = house; G.nav = navFor(layout);
       this.placePlayer(house.spawn);
+      G.foes = new Foes(G, house);   // always there (tests spawn into it); foes=none only skips the roster
       if (this.opts.foes !== 'none') {
-        G.foes = new Foes(G, house);
         const fp = this.opts.foes;
         G.foes.spawnRoster({ kinds: fp && fp !== 'roster' ? fp.split(',') : undefined, sleep: this.opts.foeSleep });
       }

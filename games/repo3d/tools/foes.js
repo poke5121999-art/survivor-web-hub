@@ -234,7 +234,24 @@ async function openPage(br, srv, query) {
       })()`);
       await page.screenshot({ path: path.join(OUT, `chase-${k}.png`) });
     }
-    await page.evaluate('__T.clearFoes()');
+    // the same meeting with the house lights out: only the player's torch, foe 3 m away (how the owner judges menace)
+    for (const k of ['gunner', 'rook', 'banger', 'gnome', 'mimic', 'ghost', 'mummy', 'brat', 'headthrower', 'minelayer', 'gacha', 'hunter', 'angel', 'mirror']) {
+      await page.evaluate(`(() => {
+        const G = __G, T = __T, FS = G.foes, P = G.player;
+        T.clearFoes(); G.house.setDim(0.02);
+        const pr = T.pair(3.0, { noLoot: 3, farFromSpawn: 14 }) || T.pair(3.0, {});
+        T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z, -0.02);
+        P.hp = 100;
+        const f = FS.spawn('${k}', pr.b.x, pr.b.z, { state: 'chase' }); T.face(f, pr.a.x, pr.a.z);
+        f.aware = 1; f.lastSeen = { x: pr.a.x, z: pr.a.z }; f.seen = true;
+        for (let i = 0; i < 20; i++) __sim(1 / 60);
+        f.x = pr.b.x; f.z = pr.b.z; T.face(f, pr.a.x, pr.a.z);
+        __sim(1 / 60);
+        return true;
+      })()`);
+      await page.screenshot({ path: path.join(OUT, `dark-${k}.png`) });
+    }
+    await page.evaluate('__T.clearFoes(); __G.house.setDim(1)');
     const err2 = await page.evaluate('__errors.slice()');
     check(err2.length === 0 && logs.length === 0, 'house 2 screenshots: no console or page errors', JSON.stringify(err2.concat(logs)).slice(0, 400));
     await ctx.close();

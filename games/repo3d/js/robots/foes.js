@@ -7,7 +7,7 @@ const PI = Math.PI;
 
 // ---------- gunner: tall hunched sniper, periscope head with one lens, rifle forearm ----------
 function gunner(B) {
-  const D = crewDims({ thigh: 0.42, shin: 0.42, chestW: 0.3, chestH: 0.26, chestD: 0.19, shX: 0.2, upper: 0.29, fore: 0.27, t: 0.85, at: 0.85, neckY: 0.27 });
+  const D = crewDims({ thigh: 0.42, shin: 0.42, chestW: 0.3, chestH: 0.26, chestD: 0.19, shX: 0.2, upper: 0.29, fore: 0.27, t: 0.68, at: 0.66, neckY: 0.27 });   // gaunt (menace pass)
   rigBiped(B, D);
   B.J.torso.rotation.x = 0.28; B.J.neck.rotation.x = -0.25;
   for (const [S, sg] of SIDES) legParts(B, D, S, sg);
@@ -465,7 +465,7 @@ function sparehead(B, j, p, r = 0.075, s = 1) {
   B.torus(j, 'metal', r * 0.98, r * 0.08, { ax: 'y', p: [p[0], p[1] - r * 0.25, p[2]], ts: 20 });
 }
 function headthrower(B) {
-  const D = crewDims({ chestW: 0.38, chestH: 0.3, t: 1, at: 1.0, upper: 0.29, fore: 0.27 });
+  const D = crewDims({ chestW: 0.34, chestH: 0.3, t: 0.76, at: 0.72, upper: 0.31, fore: 0.29 });   // gaunt, long arms (menace pass)
   rigBiped(B, D);
   for (const [S, sg] of SIDES) { legParts(B, D, S, sg); armParts(B, D, S, sg, { noHand: S === 'R' }); }
   torsoParts(B, D, { noPack: true });
