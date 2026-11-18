@@ -109,6 +109,9 @@ function clearStatus(u) {
   u.form = 0; u.def = formDef(u.def, 0);
   u.meter = 0; u.lastSrc = null; u.hurtAt = -99; u.skillAmp = 1; u.shieldBurst = null; u.blindT = 0; u.blindF = 1; u.blindSpread = 0; u.mmT = 0; u.mmBy = -1;
   u.cast = null; u.dash = null; u.bush = -1; u.kx = 0; u.kz = 0; u.vx = 0; u.vz = 0; u.hitBy = {};
+  // kit-remake G1: uses, i.e. skill charges (spent and the gap left, per slot), antiheal, cdAfter holds, hits per press, cuts waiting for the press's cooldown
+  u.use0 = 0; u.use1 = 0; u.use2 = 0; u.gap0 = 0; u.gap1 = 0; u.gap2 = 0; u.ahT = 0; u.ahF = 1;
+  u.hold = 0; u.holdT = [0, 0, 0]; u.hitN = {}; u.pressing = -1; u.pendCut = null;
 }
 
 function spawn(m, u, first) {
@@ -163,7 +166,7 @@ export const towerOpen = (m, t) => t.alive && (t.kind === 'sub' || !m.towers.som
 
 function hurtTower(m, t, amount, src) {
   if (!t.alive || !src || src.team === t.team) return;
-  amount *= src.def.towerMul ?? 1;
+  amount *= (src.def.towerMul ?? 1) * rowTowerMul(src);
   if (!towerOpen(m, t)) { m.events.push({ t: 'towerBlock', tower: t.id, x: t.x, z: t.z }); return; }
   t.hp -= amount; src.dmg += amount;
   m.events.push({ t: 'towerHit', tower: t.id, by: src.id, x: t.x, z: t.z, amt: amount });
@@ -386,8 +389,17 @@ function stepUnit(m, u, inp) {
 
   // transform.ccResist: a stun, slow or root that landed since last tick lasts only tfCc of what it was given
   if (u.ccPrev) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - u.ccPrev[i]; if (d > 1e-9) u[k] = u.ccPrev[i] + d * u.tfCc; }
-  for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
-  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT', 'airT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  // cdAfter: a held slot's cooldown waits until the row's state is over
+  if (u.hold) for (let i = 0; i < 3; i++) if (u.hold & (1 << i) && !stateOn(u, i)) u.hold &= ~(1 << i);
+  for (const k in u.cd) if (u.cd[k] > 0 && !(u.hold & (HOLD_BIT[k] || 0))) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT', 'airT', 'gap0', 'gap1', 'gap2', 'ahT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  // uses (skill charges): the cooldown is the recharge of one spent use; it starts again while uses are still spent
+  for (let i = 0; i < 3; i++) {
+    const s = u.def.skills[i], k = USE[i];
+    if (!s || !s.uses || !(u[k] > 0) || u.cd[SLOTS[i]] > 0) continue;
+    u[k] = Math.min(u[k], s.uses.n) - 1;
+    if (u[k] > 0) u.cd[SLOTS[i]] = s.cd;
+  }
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
@@ -494,7 +506,7 @@ function stepUnit(m, u, inp) {
     const key = SLOTS[i], rc = u.recast, re = !!rc && rc.slot === i && rc.t > 0;
     // next: the second stage of a two-stage skill is ready (armed, key pressed afresh): this press casts it, whatever the cooldown says
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
-    if (!inp[key] || (u.cd[key] > 0 && !re && !nx)) continue;
+    if (!inp[key] || (!skillReady(u, i) && !re && !nx)) continue;
     const s = nx ? u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;
     if (u.rootT > 0 && ROOT_BLOCKS[s.do]) continue;
     m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
@@ -509,10 +521,17 @@ function stepUnit(m, u, inp) {
     // the cast runs, so a first stage that hits at once (warp.land) arms it in the same tick.
     const nextWas = u.next;
     if (s.next) u.next = { slot: i, src: s.id, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
-    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; if (!nx) u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; if (s.next) u.next = nextWas; continue; }
+    // cdCut / self count this press's hits from zero; a cut of this slot by a hit inside the cast waits for its cooldown (pressing)
+    if (s.cdCut || s.self) u.hitN[s.id] = 0;
+    u.pressing = nx ? -1 : i;
+    if (CAST[s.do](m, u, s, inp) === false) {
+      m.events.length = at; u.pressing = -1; u.pendCut = null;
+      if (!nx) { if (u.def.skills[i].uses) u[GAP[i]] = Math.max(u[GAP[i]], 0.4); else u.cd[key] = 0.4; }
+      u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; if (s.next) u.next = nextWas; continue;
+    }
     // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
-    if (nx) { u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
+    if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
     if (!u.cast && !u.dash) u.skillAmp = 1;
@@ -520,7 +539,14 @@ function stepUnit(m, u, inp) {
       // dash.recast: the skill stays ready for another press inside the window; the cooldown starts after the last one
       if (re) { rc.left--; if (rc.left <= 0) { u.recast = null; u.cd[key] = s.cd; } else { rc.t = s.recast.window; u.cd[key] = 0; } }
       else { u.recast = { slot: i, left: s.recast.n - 1, t: s.recast.window }; u.cd[key] = 0; }
+    } else if (s.uses) {
+      // uses: spend one; the recharge starts now unless one is already running
+      u[USE[i]]++; u[GAP[i]] = s.uses.gap || 0;
+      if (!(u.cd[key] > 0)) u.cd[key] = s.cd;
     } else u.cd[key] = s.cd;
+    // cdAfter: the cooldown stands still while the row's state runs (stateOn); dur seconds for a row without a live state
+    if (s.cdAfter) { u.hold |= 1 << i; u.holdT[i] = s.do === 'transform' || s.do === 'shield' ? 0 : s.dur || 0; }
+    castHooks(u, s, i);
     // thrifty (passive): a cast sometimes gives most of its cooldown back
     if (u.passive === 'thrifty' && !s.recast && m.rng() < u.def.passive.chance) { u.cd[key] *= 1 - u.def.passive.refund; m.events.push({ t: 'thrift', id: u.id, slot: i }); }
     // form (passive) flip: using the slot changes the stance
@@ -552,6 +578,89 @@ const SWEEP_PULSE = 0.2;
 const CC_KEYS = ['stunT', 'slowT', 'rootT'];
 // A rooted mech can still shoot and cast, but not move itself.
 const ROOT_BLOCKS = { dash: 1, blink: 1, leap: 1, warp: 1, recoil: 1, flurry: 1 };
+
+// ---- kit-remake G1 (~/handoff/dtt-ref/kits/MECHANICS.md): uses (charges), cdCut, self, steal/healLost/healMax, towerMul, invuln/unstoppable, cdAfter ----
+const USE = ['use0', 'use1', 'use2'], GAP = ['gap0', 'gap1', 'gap2'], HOLD_BIT = { s1: 1, s2: 2, ult: 4 };
+// dash, leap and flurry read their own `invuln: true` (a dash's is not cc immunity); a number there, and any other row, is the generic one
+const OWN_INVULN = { dash: 1, leap: 1, flurry: 1 };
+
+// Can slot i be cast now? uses {n, gap} (skill charges; `charges` is taken by the wire row): a use is left and the gap since the last one is over; otherwise the cooldown is done.
+export function skillReady(u, i) {
+  const s = u.def.skills[i];
+  if (s && s.uses) return u[USE[i]] < s.uses.n && !(u[GAP[i]] > 0);
+  return !(u.cd[SLOTS[i]] > 0);
+}
+// cdAfter: is the state of slot i's row (or its second stage) still running? holdT counts down dur for rows without a live state.
+function stateOn(u, i) {
+  const s = u.def.skills[i], nx = s.next ? s.next.row : null, d = u.dash;
+  if (u.holdT[i] > 0) { u.holdT[i] -= TICK; return true; }
+  if (u.tfT > 0 && u.tfSlot === i) return true;
+  if (u.next && u.next.slot === i) return true;
+  if (u.cast && (u.cast.skill === s || (nx && u.cast.skill === nx))) return true;
+  if (d && (d.s === s || d.land === s || (nx && (d.s === nx || d.land === nx)))) return true;
+  if (u.flurry && u.flurry.s === s) return true;
+  return s.do === 'shield' && u.shieldT > 0;
+}
+// How long the cast or dash a row has just started runs (a leap: wind-up plus flight), for invuln/unstoppable: true.
+const actTime = (u, s) => (u.cast ? u.cast.t + (s.do === 'leap' ? s.flight : 0) : 0) + (u.dash ? u.dash.left / u.dash.speed : 0) + 0.1;
+// What every successful press does once its cooldown is set: invuln, unstoppable, self (on cast), the cuts that waited, cdCut on cast.
+function castHooks(u, s, i) {
+  if (s.invuln && !(s.invuln === true && OWN_INVULN[s.do])) { const t = s.invuln === true ? actTime(u, s) : s.invuln; u.invulnT = Math.max(u.invulnT, t); u.ccT = Math.max(u.ccT, t); }
+  if (s.unstoppable) u.ccT = Math.max(u.ccT, s.unstoppable === true ? actTime(u, s) : s.unstoppable);
+  if (s.self && s.self.on !== 'hit') selfBuff(u, s.self);
+  const P = u.pendCut;
+  u.pressing = -1; u.pendCut = null;
+  if (P) for (let k = 0; k < P.length; k += 2) applyCut(u, P[k + 1], P[k]);
+  if (s.cdCut && s.cdCut.on === 'cast') cutCd(u, s.cdCut, i);
+}
+// self {on, dur, haste, rapid, armor, guard, cc}: the caster's own buff; a weaker one never replaces a stronger one that still runs
+function selfBuff(u, S) {
+  const d = S.dur ?? 1.5;
+  if (S.haste) { u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, S.haste); u.hasteT = Math.max(u.hasteT, d); }
+  if (S.rapid) { u.rapidF = Math.max(u.rapidT > 0 ? u.rapidF : 1, S.rapid); u.rapidT = Math.max(u.rapidT, d); }
+  if (S.armor) { if (!(u.armorT > 0)) u.reflectF = 0; u.armorF = Math.max(u.armorT > 0 ? u.armorF : 0, S.armor); u.armorT = Math.max(u.armorT, d); }
+  if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, d); }
+  if (S.cc) u.ccT = Math.max(u.ccT, d);
+}
+// cdCut {slot: self|s1|s2|ult|all|other, cut, frac, set}: slot i's row cuts these cooldowns; the slot being pressed this tick waits (pendCut)
+function cutCd(u, C, i) {
+  for (let j = 0; j < 3; j++) {
+    const on = C.slot === 'all' || (C.slot === 'other' ? j !== i : !C.slot || C.slot === 'self' ? j === i : SLOTS[j] === C.slot);
+    if (!on || !u.def.skills[j]) continue;
+    if (u.pressing === j) { if (!u.pendCut) u.pendCut = []; u.pendCut.push(C, j); } else applyCut(u, j, C);
+  }
+}
+function applyCut(u, j, C) {
+  const k = SLOTS[j];
+  if (C.set !== undefined && u.cd[k] > C.set) u.cd[k] = C.set;
+  u.cd[k] = Math.max(0, u.cd[k] - (C.cut || 0) - (C.frac || 0) * u.def.skills[j].cd);
+}
+// The slot whose row (or second stage) a source tag names; -1 for the weapon, an untagged hit, or a tag this unit has no row for.
+function srcSlot(u, src) {
+  if (!src || src === 'w') return -1;
+  const S = u.def.skills;
+  for (let i = 0; i < S.length; i++) if (S[i].id === src || (S[i].next && S[i].next.row.id === src)) return i;
+  return -1;
+}
+const slotRow = (u, i, src) => (u.def.skills[i].id === src ? u.def.skills[i] : u.def.skills[i].next.row);
+// A skill row of u has just hurt an enemy (left: hp it took): steal, healLost, healMax, self on hit, cdCut on hit.
+function rowHit(m, u, left) {
+  const i = srcSlot(u, curSrc);
+  if (i < 0) return;
+  const s = slotRow(u, i, curSrc);
+  if (s.steal && left > 0) heal(m, u, left * s.steal, u, true);
+  // healLost (one after another: each hit heals that share of what is lost by then), healMax (that share of max hp)
+  if (s.healLost || s.healMax) heal(m, u, (u.maxHp - u.hp) * (s.healLost || 0) + u.maxHp * (s.healMax || 0), u);
+  if (!s.cdCut && !s.self) return;
+  const n = u.hitN[s.id] = (u.hitN[s.id] || 0) + 1;
+  if (s.self && s.self.on === 'hit' && n === 1) selfBuff(u, s.self);
+  if (s.cdCut && s.cdCut.on !== 'cast' && (!s.cdCut.max || n <= s.cdCut.max)) cutCd(u, s.cdCut, i);
+}
+// towerMul on the row that hurt the tower, and on a transform row while it runs (once when that row is the source)
+function rowTowerMul(u) {
+  const i = srcSlot(u, curSrc), s = i >= 0 ? slotRow(u, i, curSrc) : null, t = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  return (s && s.towerMul !== undefined ? s.towerMul : 1) * (t && t !== s && t.towerMul !== undefined ? t.towerMul : 1);
+}
 
 // Once-a-tick work of a passive trait. The other passives act where damage, kills and deployables are handled.
 const PASSIVE_TICK = {
@@ -1148,9 +1257,8 @@ const FINISH = {
     const k = (s.repeat || 1) - (c.left || 1), arc = s.arc ? { a: u.aim, half: s.arc } : null;
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius, ...(s.look ? { skill: s.id, k, a: u.aim } : {}) });
     curSrc = s.id;
-    const n = areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
-    // healLost: each enemy the blow lands on heals the caster that share of the hp it has lost (one after another)
-    if (s.healLost && u.alive) for (let i = 0; i < n; i++) heal(m, u, (u.maxHp - u.hp) * s.healLost, u);
+    // healLost (each enemy the blow lands on heals the caster that share of its lost hp) is read in rowHit, like on every skill row
+    areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
     if (s.last && (c.left || 1) <= 1) {
       for (const o of m.units) {
         if (o.team === u.team || !o.alive || o.def.boss) continue;
@@ -1651,6 +1759,14 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.air && !o.def.heavy) { o.stunT = Math.max(o.stunT, fx.air); o.airT = Math.max(o.airT || 0, fx.air); }
   // maxHp: an extra blow worth that share of the victim's max hp (armour applies; bosses are spared); it carries no source tag so it never feeds stacks
   if (fx.maxHp && !o.def.boss) { const keep = curSrc; curSrc = null; damage(m, o, o.maxHp * fx.maxHp, src); curSrc = keep; if (!o.alive) return; }
+  // lostHp / curHp: an extra blow of that share of the victim's lost / current hp (after the hit it rides; bosses spared); trueDmg: flat.
+  // All are true damage (no armour, no guard), credited to src, with no source tag.
+  if (fx.lostHp || fx.curHp || fx.trueDmg) {
+    const amt = (o.def.boss ? 0 : (fx.lostHp || 0) * (o.maxHp - o.hp) + (fx.curHp || 0) * o.hp) + (fx.trueDmg || 0);
+    if (amt > 0) { const keep = curSrc; curSrc = null; trueHit = true; damage(m, o, amt, src); curSrc = keep; if (!o.alive) return; }
+  }
+  // antiheal {mul, dur}: heals it receives are x mul (the strongest cut that still runs wins)
+  if (fx.antiheal) { o.ahF = o.ahT > 0 ? Math.min(o.ahF, fx.antiheal.mul) : fx.antiheal.mul; o.ahT = Math.max(o.ahT, fx.antiheal.dur); }
   if (fx.execute && !o.def.boss && o.hp < o.maxHp * fx.execute) {
     m.events.push({ t: 'execute', id: o.id, by: src.id, x: o.x, z: o.z });
     kill(m, o, src);
@@ -1674,8 +1790,10 @@ function damageProp(m, p, amount, src) {
 }
 
 // raw: the environment (lava, vents, base fire) burns through armour and is nobody's hit.
-let reflecting = false;
+let reflecting = false, trueHit = false;
 function damage(m, u, amount, src, raw) {
+  const isTrue = trueHit;
+  trueHit = false;
   lastBase = 0;
   if (!u.alive || u.invulnT > 0 || amount <= 0) return;
   lastBase = amount;
@@ -1689,9 +1807,10 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
   }
   const preArmor = amount;
-  if (!raw && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
+  // trueHit (hitfx lostHp, curHp, trueDmg): neither armour nor guard cuts it
+  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
   // guard (skill row or stacks self): a cut on top of armour, outside its cap
-  if (u.guardT > 0) amount *= 1 - u.guardF;
+  if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   const blocked = preArmor - amount;
   let left = amount, absorbed = 0, broke = false;
   if (u.shield > 0) {
@@ -1714,6 +1833,8 @@ function damage(m, u, amount, src, raw) {
     const N = foe.def.skills[foe.next.slot].next;
     foe.next.armed = true; foe.next.t = N.window; foe.next.target = u.id;
   }
+  // a skill row's own on-hit fields (steal, healLost, healMax, self on hit, cdCut)
+  if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0);
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -1760,6 +1881,8 @@ function burn(m, u, amount) {
 function heal(m, u, amount, src, quiet) {
   if (!u.alive) return;
   if (u.woundT > 0) amount *= RULES.wound.mul;
+  // hitfx antiheal: what this mech is healed by anyone (itself too) is cut
+  if (u.ahT > 0) amount *= u.ahF;
   // meter spend 'heal': the next heal this mech gives somebody else is stronger
   if (src && src.alive && src.passive === 'meter' && src.def.passive.spend.kind === 'heal' && !(quiet && src === u) && u.hp < u.maxHp && amount > 0 && meterArmed(src)) { amount *= src.def.passive.spend.mul; meterSpent(m, src); }
   const got = Math.min(u.maxHp - u.hp, amount);

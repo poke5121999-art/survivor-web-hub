@@ -237,6 +237,17 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   check('meter value reaches the guest (800.25 / 100 / 3, to the hundredth)', near(g.meter, 800.25, 0.011) && near(t.meter, 100, 0.011) && near(l.meter, 3, 0.011), `${g.meter} ${t.meter} ${l.meter}`);
   check('an armed meter is armed on the mirror (tegiac 100 of 100), a half-full one is not (gilgamesh, luondien 3 of 5)', meterArmed(t) && !meterArmed(g) && !meterArmed(l));
 }
+// kit-remake G1: skill uses spent (charges), the gap between two uses and antiheal reach the guest (its HUD reads them)
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  const [a, b] = m.units;
+  a.use0 = 2; a.use2 = 1; a.gap0 = 0.75; b.ahT = 1.5; b.ahF = 0.5;
+  step(m, [undefined, undefined]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const [ga, gb] = mir.units;
+  check('uses, gap and antiheal reach the guest (2 / 1 spent, gap and antiheal to the hundredth)', ga.use0 === 2 && ga.use2 === 1 && ga.use1 === 0 && near(ga.gap0, a.gap0, 0.011) && near(gb.ahT, b.ahT, 0.011), `${ga.use0} ${ga.use2} ${ga.gap0} ${gb.ahT}`);
+}
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {
   const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'anduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });

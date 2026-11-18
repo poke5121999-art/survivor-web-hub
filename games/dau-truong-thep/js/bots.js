@@ -5,7 +5,7 @@
 // towerGuard() keeps it out of an enemy tower's range unless the group is already there. Mechs do not collide, so every bot keeps its own spacing.
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
-import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate } from './sim.js';
+import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -1809,7 +1809,7 @@ function chooseSkill(c) {
       if (o && o.alive && hyp(o.x - u.x, o.z - u.z) < reach && keen) { sk.x = o.x; sk.z = o.z; sk.aim = nx.do === 'nova' ? Math.atan2(o.z - u.z, o.x - u.x) : null; sk.mx = null; sk.mz = null; sk.slot = i; return sk; }
       continue;
     }
-    if (u.cd[SLOTS[i]] > 0) continue;
+    if (!skillReady(u, i)) continue;   // uses (skill charges): a stored use counts, whatever the recharge says
     const s = u.def.skills[i], fn = SKILL_AI[s.do];
     if (!fn) continue;
     // a tower in reach is a target for the damage skills that fire at a point (rockets, shell barrage, the beam)

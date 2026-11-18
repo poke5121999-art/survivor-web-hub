@@ -3,7 +3,7 @@
 // keeps the inputs it sent after N and walks them again from that spot with the host's own walk(), so the mech answers
 // the stick at once and still ends up where the host says. What the walk cannot know in advance (a knock-back, a dash,
 // a respawn) arrives as a correction, and the picture glides over it instead of jumping.
-import { walk, gripAt, turnRate, weaponRange, bounceDir, weaponOf } from './sim.js';
+import { walk, gripAt, turnRate, weaponRange, bounceDir, weaponOf, skillReady } from './sim.js';
 import { castStatic } from './maps.js';
 import { TICK } from './data.js';
 
@@ -127,7 +127,7 @@ export function createGunner(m, id) {
       if (cd > 0) cd = Math.max(0, cd - TICK * (unit.rapidT > 0 ? rapid : 1));
       // The turret turns at the host's rate, so the look-alike leaves along the barrel the host will fire along.
       aim = turnToward(aim, inp.aim, turnRate(unit) * TICK);
-      const can = unit.alive && free(unit) && !w.charge && !(SKILL_KEYS.some((k) => inp[k] && !(unit.cd[k] > 0)));
+      const can = unit.alive && free(unit) && !w.charge && !(SKILL_KEYS.some((k, i) => inp[k] && skillReady(unit, i)));
       if (inp.fire && cd <= 0 && can) {
         cd = w.cd;
         owed.fire.push({ at: now });

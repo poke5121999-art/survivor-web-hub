@@ -130,6 +130,7 @@ const setVar = (n, k, v) => { if (n['_' + k] !== v) { n['_' + k] = v; n.style.se
 const flag = (n, c, on) => { on = !!on; if (n['_f' + c] !== on) { n['_f' + c] = on; n.classList.toggle(c, on); } };
 const pop = (n, from = 1.45, ms = 320) => { if (n.animate) n.animate([{ transform: `scale(${from})` }, { transform: 'scale(1)' }], { duration: ms, easing: 'cubic-bezier(.2,1.4,.4,1)' }); };
 
+const SKILL_SLOTS = ['s1', 's2', 'ult'];
 const SLOT_DEFS = [
   { k: 'fire', cls: '' },
   { k: 's1', cls: '' },
@@ -1034,11 +1035,13 @@ export function makeUI(G) {
 
       // skills
       for (const d of SLOT_DEFS) {
-        const s = slotEls[d.k], rem = me.cd[d.k];
+        // uses (skill charges): while one is stored the slot is ready (only the gap between two uses counts down) and shows how many are left
+        const si = SKILL_SLOTS.indexOf(d.k), C = si >= 0 && me.def.skills[si] ? me.def.skills[si].uses : null, left = C ? C.n - (me['use' + si] || 0) : 0;
+        const s = slotEls[d.k], rem = C && left > 0 ? me['gap' + si] || 0 : me.cd[d.k];
         setText(s.kbd, hintLabel(d.k));
         const p = Math.round(clamp01(rem / s.total) * 100);
         setVar(s.root, '--p', p + '%');
-        setText(s.t, d.k !== 'fire' && rem > 0.05 ? (rem >= 10 ? String(Math.ceil(rem)) : vn(rem, 1)) : '');
+        setText(s.t, d.k !== 'fire' && rem > 0.05 ? (rem >= 10 ? String(Math.ceil(rem)) : vn(rem, 1)) : C && left > 0 ? '×' + left : '');
         if (s.prev > 0 && rem <= 0 && me.alive && s.root.animate) s.root.animate([{ filter: 'brightness(2.4)', transform: 'scale(1.18)' }, { filter: 'none', transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' });
         if (s.prev > 0 && rem <= 0 && me.alive && d.k === 'ult' && G.input && G.input.haptic) G.input.haptic('ult');
         s.prev = rem;

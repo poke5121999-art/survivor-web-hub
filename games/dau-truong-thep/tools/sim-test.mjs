@@ -1,6 +1,6 @@
 // Node test suite for the simulation and the bots: `node tools/sim-test.mjs`. Exits 1 on any failure.
 import { execFileSync } from 'node:child_process';
-import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, weaponRange, gripAt, applyFx, weaponOf, rampBonus, unitRadius, meterArmed, skillReady } from '../js/sim.js';
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
@@ -3917,6 +3917,201 @@ section('45 Lữ Bố ported from the owner\'s clip (p9): meter castShield/reach
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.airT, u.cd])]);
     };
     check('45x a scripted Lu Bo fight is deterministic', play() === play());
+  }
+}
+
+section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut, self, hitfx lostHp/curHp/trueDmg/antiheal, steal/healLost/healMax, towerMul, invuln/unstoppable, cdAfter (test-only rows, literal expected values)');
+{
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units, mode) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]), ...(mode ? { mode } : {}) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  // the test caster: an Ung with no passive (its own is pierce) and three test-only rows
+  const kit = (u, rows) => { u.def = { ...u.def, passive: null, skills: rows }; u.passive = null; return u; };
+  const shot = (id, extra) => ({ id, do: 'volley', cd: 8, n: 1, dmg: 100, speed: 40, range: 14, r: 0.3, vis: 'rail', ...extra });
+  const nova = (id, extra) => ({ id, do: 'nova', cd: 8, windup: 0.1, radius: 4, dmg: 100, ...extra });
+  const buff = (id, extra) => ({ id, do: 'buff', cd: 12, dur: 2, haste: 1.2, ...extra });
+  const TR = MECHS.trau, TR_F = 1 - TR.armor;
+
+  // ---- charges ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [shot('q', { cd: 6, uses: { n: 2, gap: 1 } }), buff('b'), buff('c')]);
+    const ev1 = press(m, 0, 's1');
+    check('46a charges 2: the first press fires, one use spent, the recharge (6 s) starts, the 1 s gap runs, so it is not ready inside it', only(ev1, 'skill', (e) => e.skill === 'q').length === 1 && a.use0 === 1 && near(a.cd.s1, 6, 1e-9) && near(a.gap0, 1, 1e-9) && !skillReady(a, 0), `${a.use0} ${a.cd.s1} ${a.gap0}`);
+    const ev2 = go(m, 10, () => ({ 0: { s1: true } }));
+    check('46b ... held inside the gap it does not fire again', only(ev2, 'skill', (e) => e.skill === 'q').length === 0 && a.use0 === 1);
+    const ev3 = go(m, 21, () => ({ 0: { s1: true } }));
+    check('46c ... after the gap the second use fires at once (same recharge, now both spent, not ready)', only(ev3, 'skill', (e) => e.skill === 'q').length === 1 && a.use0 === 2 && near(a.cd.s1, 6 - 31 * TICK, 1e-6) && !skillReady(a, 0), `${a.use0} ${a.cd.s1}`);
+    go(m, Math.round(6 / TICK) - 30);
+    check('46d one recharge later a use is back and the next recharge starts at once (6 s, 1 spent)', a.use0 === 1 && near(a.cd.s1, 6, TICK + 1e-6) && skillReady(a, 0), `${a.use0} ${a.cd.s1}`);
+    go(m, Math.round(6 / TICK) + 2);
+    check('46e ... and after another 6 s both uses are back, the cooldown stops at 0', a.use0 === 0 && a.cd.s1 === 0, `${a.use0} ${a.cd.s1}`);
+    a.use0 = 2; a.hp = 10; applyFx(m, m.units[1], a, { execute: 1 });
+    check('46f charges refill on death (clearStatus)', a.use0 === 0 && a.gap0 === 0);
+  }
+  // a targeted charge row that finds nobody costs a 0.4 s gap, not a use and not a recharge
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sw', do: 'swap', cd: 9, pick: 3, cast: 10, slow: 0, slowDur: 0, uses: { n: 2, gap: 0 } }, buff('b'), buff('c')]);
+    press(m, 0, 's1', { tx: 5, tz: 0 });
+    check('46g a charge swap with no target: no use spent, no recharge, a 0.4 s gap', a.use0 === 0 && a.cd.s1 === 0 && near(a.gap0, 0.4, 1e-9), `${a.use0} ${a.cd.s1} ${a.gap0}`);
+  }
+  // ---- cdCut ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), a = kit(m.units[0], [shot('q', { cdCut: { slot: 'self', cut: 2 } }), shot('q2', { cd: 10, cdCut: { slot: 'other', frac: 0.5 } }), buff('c', { cd: 30 })]);
+    press(m, 0, 's1'); go(m, 6);
+    check('46h cdCut self 2: the shot hits, its own cooldown is 8 - 6 ticks - 2', near(a.cd.s1, 8 - 6 * TICK - 2, 1e-6), `${a.cd.s1}`);
+    a.cd.ult = 20; a.cd.s1 = 5;
+    press(m, 0, 's2'); go(m, 6);
+    check('46i cdCut other frac 0.5: s1 (8 s) loses 4 s, ult (30 s) loses 15 s, s2 itself untouched', near(a.cd.s1, 5 - 7 * TICK - 4, 1e-6) && near(a.cd.ult, 20 - 7 * TICK - 15, 1e-6) && near(a.cd.s2, 10 - 6 * TICK, 1e-6), `${a.cd.s1} ${a.cd.ult} ${a.cd.s2}`);
+  }
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 7, 0]]), a = kit(m.units[0], [buff('b'), { id: 'tw', do: 'warp', cd: 10, dist: 8, land: { radius: 3, dmg: 100 }, cdCut: { slot: 'self', cut: 3 } }, buff('c')]);
+    const ev = press(m, 0, 's2', { tx: 6, tz: 0 });
+    check('46j a hit inside the press tick (warp land) cuts the cooldown the press sets: 10 - 3 = 7 at once', only(ev, 'hit', (e) => e.id === 1).length === 1 && near(a.cd.s2, 7, 1e-9), `${a.cd.s2}`);
+  }
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 2, 0], [R('trau', 1), -2, 0], [R('trau', 1), 0, 2]]), a = kit(m.units[0], [nova('n', { cdCut: { slot: 'self', cut: 1, max: 2 } }), buff('b', { cdCut: { slot: 's1', set: 1, on: 'cast' } }), buff('c')]);
+    press(m, 0, 's1'); const ev = go(m, 4);
+    check('46k cdCut max 2: the nova hits three, only two cut 1 s each (8 - 4 ticks - 2)', only(ev, 'hit', (e) => e.id > 0).length === 3 && near(a.cd.s1, 8 - 4 * TICK - 2, 1e-6), `${a.cd.s1}`);
+    press(m, 0, 's2');
+    check('46l cdCut on cast, set 1: casting the buff sets s1 to 1 s (it was above), the buff keeps its own 12 s', near(a.cd.s1, 1, 1e-9) && near(a.cd.s2, 12, 1e-9), `${a.cd.s1} ${a.cd.s2}`);
+  }
+  // ---- self ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0], [R('trau', 1), 4.5, 0]]), a = kit(m.units[0], [shot('q', { pierce: true, self: { on: 'cast', haste: 1.5, dur: 2 } }), shot('q2', { pierce: true, self: { on: 'hit', armor: 0.2, guard: 0.3, cc: true, dur: 1 } }), buff('c')]);
+    press(m, 0, 's1');
+    check('46m self on cast: haste 1.5 for 2 s from the press', near(a.hasteF, 1.5, 1e-9) && near(a.hasteT, 2, 1e-9), `${a.hasteF} ${a.hasteT}`);
+    go(m, 6); a.armorT = 0;
+    const ev0 = press(m, 0, 's2');
+    check('46n self on hit: nothing before the shot lands', a.armorT === 0 && a.guardT === 0 && only(ev0, 'hit').length === 0);
+    const ev = go(m, 5), hits = only(ev, 'hit', (e) => e.id > 0);
+    check('46o ... the first hit gives armor 0.2, guard 0.3 and cc immunity for 1 s, once (the second hit does not refresh it)', hits.length === 2 && near(a.armorF, 0.2, 1e-9) && near(a.guardF, 0.3, 1e-9) && a.ccT > 0 && a.armorT < 1 && a.armorT > 1 - 5 * TICK, `${hits.length} ${a.armorF} ${a.armorT} ${a.guardF} ${a.ccT}`);
+  }
+  // ---- hitfx lostHp / curHp / trueDmg ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0]]), [a, v] = m.units;
+    kit(a, [shot('q', { fx: { lostHp: 0.1 } }), shot('q2', { fx: { curHp: 0.05 } }), shot('e', { fx: { trueDmg: 50 } })]);
+    v.hp = 2000;
+    press(m, 0, 's1'); const ev = go(m, 6), h = only(ev, 'hit', (e) => e.id === 1);
+    const lost = TR.hp - (2000 - 100 * TR_F);
+    check('46p lostHp 0.1: the 100 shot (x armor) then a true blow of 10% of the hp lost by then', h.length === 2 && near(h[0].amt, 100 * TR_F) && near(h[1].amt, 0.1 * lost), `${h.map((e) => e.amt)} ${lost}`);
+    v.hp = 2000; v.guardT = 5; v.guardF = 0.5;
+    press(m, 0, 's2'); const ev2 = go(m, 6), h2 = only(ev2, 'hit', (e) => e.id === 1), cur = 2000 - 100 * TR_F * 0.5;
+    check('46q curHp 0.05 through a 50% guard: the shot is cut by armor and guard, the 5% current-hp blow by neither', h2.length === 2 && near(h2[0].amt, 100 * TR_F * 0.5) && near(h2[1].amt, 0.05 * cur), `${h2.map((e) => e.amt)}`);
+    v.guardT = 0;
+    press(m, 0, 'ult'); const ev3 = go(m, 6), h3 = only(ev3, 'hit', (e) => e.id === 1);
+    check('46r trueDmg 50: a flat 50 that armor does not cut, credited to the shooter', h3.length === 2 && near(h3[1].amt, 50) && h3[1].by === 0, `${h3.map((e) => e.amt)}`);
+  }
+  // ---- steal / healLost / healMax ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 4, 0], [R('trau', 1), 4.5, 0]]), [a] = m.units;
+    kit(a, [shot('q', { dmg: 200, steal: 0.5 }), shot('q2', { pierce: true, healMax: 0.02 }), nova('n', { radius: 6, healLost: 0.1 })]);
+    a.hp = 1000;
+    press(m, 0, 's1'); go(m, 6);
+    check('46s steal 0.5: the caster heals half of the 200 x armor it took', near(a.hp, 1000 + 100 * TR_F, 1e-6), `${a.hp}`);
+    a.hp = 1000;
+    press(m, 0, 's2'); go(m, 6);
+    check('46t healMax 0.02 on a piercing volley: two hits, 2% of max hp each', near(a.hp, 1000 + 2 * 0.02 * a.maxHp, 1e-6), `${a.hp}`);
+    a.hp = 1000;
+    press(m, 0, 'ult'); go(m, 5);
+    let want = 1000; for (let i = 0; i < 2; i++) want += (a.maxHp - want) * 0.1;
+    check('46u healLost 0.1 on a nova (the pilot field, now read per hit for every row): two hits, one after another', near(a.hp, want, 1e-6), `${a.hp} want ${want}`);
+    {
+      const v = m.units[1];
+      applyFx(m, a, v, { antiheal: { mul: 0.5, dur: 2 } });
+      applyFx(m, a, v, { antiheal: { mul: 0.7, dur: 1 } });
+      check('46v antiheal: 0.5 for 2 s; a weaker 0.7 does not replace it', v.ahF === 0.5 && v.ahT === 2);
+      v.hp = 1000; v.woundT = 0; v.healT = 1; v.healRate = 300; go(m, 1);
+      check('46w ... a heal over time of 300/s heals half: 5 per tick', near(v.hp, 1000 + 300 * TICK * 0.5, 1e-6), `${v.hp}`);
+      a.hp = 1000; a.woundT = 0;
+      applyFx(m, v, a, { antiheal: { mul: 0.5, dur: 2 } });
+      a.cd.s1 = 0; press(m, 0, 's1'); go(m, 6);
+      check('46x ... and it cuts the victim\'s own lifesteal too (steal 0.5 -> a quarter)', near(a.hp, 1000 + 100 * TR_F * 0.5, 1e-6), `${a.hp}`);
+      go(m, 61);
+      check('46y antiheal runs out', a.ahT === 0 && v.ahT === 0);
+    }
+  }
+  // ---- towerMul ----
+  {
+    const m = createMatch({ seed: 5, mode: 'nha', roster: [R('ung', 0), R('trau', 1)] }), [a, v] = m.units;
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.hazards.length = 0; for (const p of m.props) p.alive = false; m.crateT = 1e9;
+    const t = m.towers.find((x) => x.team === 1 && x.kind === 'sub');
+    put(a, t.x - 5, t.z); a.aim = 0; put(v, -30, -30);
+    kit(a, [shot('q', { towerMul: 0.5 }), buff('b'), { id: 'tt', do: 'transform', cd: 30, dur: 3, towerMul: 0 }]);
+    const tm = a.def.towerMul ?? 1;
+    let hp = t.hp; press(m, 0, 's1'); go(m, 6);
+    check('46z towerMul 0.5 on a row: the shot takes 100 x def.towerMul x 0.5 off the tower', near(hp - t.hp, 100 * a.dmgMod * tm * 0.5, 1e-6), `${hp - t.hp} ${tm}`);
+    hp = t.hp; a.cd.fire = 0; go(m, 12, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    const wdmg = hp - t.hp;
+    check('46A ... the weapon is untouched by it (a full main shot)', near(wdmg, a.def.weapon.dmg * a.dmgMod * tm, 1e-6), `${wdmg}`);
+    press(m, 0, 'ult'); hp = t.hp; a.cd.fire = 0; go(m, 12, (i) => ({ 0: { fire: i === 0, aim: 0 } }));
+    check('46B a transform with towerMul 0: every tower hit while it runs is worth 0', a.tfT > 0 && t.hp === hp, `${hp - t.hp}`);
+  }
+  // ---- invuln / unstoppable ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    kit(a, [nova('n', { windup: 0.5, invuln: true }), buff('b', { unstoppable: 1.5 }), { id: 'd', do: 'dash', cd: 6, dist: 6, speed: 20, invuln: true }]);
+    press(m, 0, 's1');
+    check('46C invuln true on a nova: untargetable and cc immune for the 0.5 s wind-up + 0.1', near(a.invulnT, 0.6, 1e-9) && near(a.ccT, 0.6, 1e-9), `${a.invulnT} ${a.ccT}`);
+    const ev = go(m, 10, () => ({ 1: { fire: true, aim: Math.PI } }));
+    check('46D ... Ung\'s rail lands on nothing during it', only(ev, 'hit', (e) => e.id === 0).length === 0 && a.hp === a.maxHp, `${a.hp}`);
+    go(m, 40); a.hp = a.maxHp; a.invulnT = 0; v.cd.fire = 99;
+    press(m, 0, 's2');
+    applyFx(m, v, a, { stun: 2, slow: 0.5, slowDur: 2 }); go(m, 1);
+    check('46E unstoppable 1.5 on a buff: cc immune for 1.5 s (a stun and a slow wiped), not invulnerable', near(a.ccT, 1.5 - TICK, 1e-9) && a.stunT === 0 && a.slowT === 0 && a.invulnT === 0, `${a.ccT} ${a.stunT}`);
+    press(m, 0, 'ult');
+    check('46F a dash keeps its own invuln: invulnT for the run, no cc immunity added beyond the buff', near(a.invulnT, 6 / 20 + 0.1, 1e-9) && a.ccT < 1.5, `${a.invulnT} ${a.ccT}`);
+  }
+  // ---- cdAfter ----
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 30, 30]]), a = kit(m.units[0], [{ id: 'sh', do: 'shield', cd: 8, amount: 500, dur: 4, cdAfter: true }, buff('b', { cd: 10, dur: 2, cdAfter: true }), { id: 'tt', do: 'transform', cd: 20, dur: 3, cdAfter: true }]);
+    press(m, 0, 'ult'); press(m, 0, 's2'); go(m, 30);
+    check('46G cdAfter: one second into a 3 s transform and a 2 s buff both cooldowns are still full', a.cd.ult === 20 && a.cd.s2 === 10, `${a.cd.ult} ${a.cd.s2}`);
+    go(m, 60);
+    check('46H ... the buff (2 s) ended a second ago: s2 has run about 1 s; the transform has just ended: ult about full', near(a.cd.s2, 9, 2 * TICK + 1e-9) && near(a.cd.ult, 20, 2 * TICK + 1e-9) && a.tfT === 0, `${a.cd.s2} ${a.cd.ult}`);
+    press(m, 0, 's1'); go(m, 30);
+    check('46I a shield that holds: its cooldown waits', a.cd.s1 === 8 && a.shield === 500, `${a.cd.s1}`);
+    a.shield = 0; a.shieldT = 0; go(m, 30);
+    check('46J ... broken early, the cooldown starts then (8 - 1 s)', near(a.cd.s1, 7, 2 * TICK + 1e-9), `${a.cd.s1}`);
+  }
+  // ---- bots: a charge slot is cast again before its recharge is done ----
+  {
+    let twice = false;
+    for (let k = 0; k < 4 && !twice; k++) {
+      const m = createMatch({ seed: 60 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const a = m.units[0];
+      a.def = { ...a.def, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, cd: 30, uses: { n: 3, gap: 0.5 } } : s)) };
+      let n = 0;
+      for (let i = 0; i < 3600 && !m.over && !twice; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === 0) n++; if (n >= 2 && a.use0 >= 2) twice = true; }
+    }
+    check('46K bots read skillReady: a bot casts a 3-charge slot twice inside one 30 s recharge', twice);
+  }
+  // determinism
+  {
+    const play = () => {
+      const m = arena([[R('ung', 0), 0, 0], [R('trau', 1), 5, 0], [R('trau', 1), 6, 1]]);
+      kit(m.units[0], [shot('q', { cd: 3, uses: { n: 2, gap: 0.3 }, steal: 0.3, fx: { lostHp: 0.05, antiheal: { mul: 0.5, dur: 2 } }, cdCut: { slot: 'other', cut: 0.5 }, self: { on: 'hit', haste: 1.3, dur: 1 } }), nova('n', { invuln: true, healMax: 0.01, cdAfter: true }), { id: 'tt', do: 'transform', cd: 20, dur: 3, cdAfter: true, towerMul: 0 }]);
+      const ev = go(m, 240, (i) => ({ 0: { fire: true, s1: i % 7 === 0, s2: i === 30 || i === 130, ult: i === 60, aim: 0.1 }, 1: { fire: true, aim: Math.PI }, 2: { fire: true, aim: Math.PI } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.cd, u.use0, u.gap0, u.ahT, u.hasteT, u.hold])]);
+    };
+    check('46L a scripted fight with every G1 field is deterministic', play() === play());
   }
 }
 
