@@ -7,7 +7,7 @@
 //     lotus are ice-blue with pink edges.
 //   哪吒 p64 (Na Tra): golden fire wheels, a red silk sash, a golden spiky star where he lands.
 //   妖狐 p64→p67 (Cửu Vĩ Hồ): crimson fox-fire, an orange crosshair over the decoy, a wave of red flame petals.
-//   英雄王 p74 (Gilgamesh): golden ripples open in the air and blades fly out of them, a golden sphere locks the target.
+//   英雄王 p74 (Gilgamesh): his looks moved to looks-k14.js with his ported kit (kit lane k14).
 import * as THREE from '../../vendor/three.module.min.js';
 import { orbPos } from '../sim.js';
 import { C, own, stop, slash, cut, sigil, shell, pillar, trail, spikes, weapon, burst, gate } from './lookkit.js';
@@ -221,52 +221,5 @@ const cuuvi = {
   },
 };
 
-// ---- Gilgamesh: the Gate of Babylon, gold ------------------------------------------------------------------------------
-const GG_GOLD = C(2.6, 1.9, 0.35), GG_WHITE = C(2.6, 2.4, 1.8), GG_DEEP = C(0.6, 0.35, 0.02);
-// a golden ripple hanging in the air: concentric rings round a bright core, upright, facing the camera
-function ripple(kit, x, y, z, r, life) { const s = sigil(kit, x, z, r, GG_GOLD, { c2: GG_WHITE, n: 0, ticks: 12, inner: 0.55, life, rev: 0.12, spin: 2, fill: 0.45, y, w: 0.1 }); s.rotation.x = 1.15; return s; }
-const gilgamesh = {
-  // Phóng Bảo Khí: a golden ripple opens in the air behind him for each blade, and a golden sword flies out of it
-  ggVolley: {
-    pal: [GG_DEEP, GG_GOLD], hitR: 1.8,
-    skill(kit, e, u) { const b = e.a + Math.PI; ripple(kit, u.x + Math.cos(b) * 1.6, 2.6, u.z + Math.sin(b) * 1.6, 2.4, 0.7); return true; },
-    shotMake(kit, s) { const g = weapon('sword', 0xffe9a0, GG_GOLD); g.scale.setScalar(3.4); const v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), x: s.x, z: s.z, live: true }; ripple(kit, s.x - s.dx * 1.5, 2.2, s.z - s.dz * 1.5, 1.6, 0.6); trail(kit, () => (v.live ? [v.x, 1.4, v.z] : null), 1.6, GG_GOLD, 0.4, { c2: GG_DEEP, len: 10 }); return v; },
-    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.g.position.set(x, 1.4, z); v.g.rotation.set(0, -v.a, 0); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), GG_GOLD, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Phong Tỏa: golden ripples open round the target and chains run from each to the centre, crossing over it
-  ggChains: {
-    pal: [GG_DEEP, GG_GOLD], hitR: 1.6,
-    zoneMake(kit, z) {
-      const rs = [], bs = [];
-      // Enkidu: six golden chains shoot in from the rim and wrap the target, each a row of linked rings
-      const links = new THREE.Group(), m = basic(0xffd860, false), tor = keep(new THREE.TorusGeometry(0.42, 0.12, 6, 12));
-      for (let i = 0; i < 6; i++) { const a = i * 1.047; for (let d = 0; d < 14; d++) { const k = d / 13, r = z.r * (1.1 - k * 1.0), l = new THREE.Mesh(tor, m); l.position.set(z.x + Math.cos(a + k * 0.6) * r, 0.6 + k * 1.2, z.z + Math.sin(a + k * 0.6) * r); l.rotation.set(d % 2 ? Math.PI / 2 : 0, -a, 0); links.add(l); } }
-      rs.push(links); own(kit, [links], 1e9, (t) => { links.scale.set(1, Math.min(1, t / 0.25), 1); });
-      const s = sigil(kit, z.x, z.z, z.r * 0.55, GG_GOLD, { c2: GG_WHITE, n: 6, m: 2, ticks: 0, inner: 0, life: 1e9, rev: 0.2, fill: 0.5, w: 0.1 });
-      return { rs, bs, s };
-    },
-    zoneDrop(kit, v) { v.rs.forEach(stop); stop(v.s); },
-  },
-  // Cổng Kho Báu: the sky fills with golden ripples; a sword drops out of each and stands planted in the floor
-  ggGate: {
-    zones: ['strike'], ownDisc: true, pal: [GG_DEEP, GG_GOLD], hitR: 1.6,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const r = ripple(kit, z.x, 7, z.z, 1.8, 1e9); r.rotation.x = 0;
-      const g = weapon('sword', 0xffe9a0, GG_GOLD); g.scale.setScalar(2.4); g.rotation.set(0, 0, -Math.PI / 2);
-      const s = sigil(kit, z.x, z.z, 1.4, GG_GOLD, { n: 0, ticks: 4, inner: 0.5, life: 1e9, rev: 0.1, fill: 0.1, w: 0.06 });
-      return { r, g, s, h: held(kit, [g]) };
-    },
-    zone(kit, v, z) { const k = z.delay / (z.total || 1); v.g.position.set(z.x, 1.4 + 5.6 * k, z.z); },
-    zoneDrop(kit, v) { stop(v.r); stop(v.s); v.h.on = false; },
-    land(kit, e) {
-      const g = weapon('sword', 0xffe9a0, GG_GOLD); g.scale.setScalar(2.4); g.rotation.set(0, 0, -Math.PI / 2);
-      own(kit, [g], 1.2, (t) => { g.position.set(e.x, 1.4 - Math.min(0.6, t * 6), e.z); });
-      kit.ring(e.x, e.z, 2.6, GG_GOLD, 0.35); burst(kit, e.x, e.z, 2.2, GG_DEEP, GG_GOLD); kit.kick(e.x, e.z, 0.3);
-      return true;
-    },
-  },
-};
 
-export const B4 = { ...quancong, ...dieuthuyen, ...natra, ...cuuvi, ...gilgamesh };   // Dương Tiễn moved to looks-k13.js (kit lane K13)
+export const B4 = { ...quancong, ...dieuthuyen, ...natra, ...cuuvi };   // Dương Tiễn moved to looks-k13.js (kit lane K13), Gilgamesh to looks-k14.js (kit lane k14)

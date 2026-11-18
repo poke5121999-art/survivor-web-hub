@@ -1302,6 +1302,7 @@ const CAST = {
   },
   volley(m, u, s, inp) {
     if (s.home) return k4Homing(m, u, s, inp);   // kit-remake K4: enbac's homing volley
+    if (s.ggWind && !ggGo) return k14Wind(u, s);   // kit-remake K14: Gilgamesh's wind-up
     if (s.perTarget || s.sameDecay) u.volTag = { cap: s.perTarget || 0, decay: s.sameDecay || 0, hits: {} };
     fireVolley(m, u, s);
     // haste: a short run after the volley; burst: the volley goes off again burst.n - 1 times, burst.gap apart, while the mech keeps walking
@@ -2948,6 +2949,23 @@ function k4Homing(m, u, s, inp) {
   if (tgt) m.events.push({ t: 'lock', id: u.id, target: tgt.id, x: tgt.x, z: tgt.z, skill: s.id });
 }
 /* ===== end kit-remake K4 ===== */
+
+/* ===== kit-remake K14 (lane k14, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": gilgamesh). Hooks elsewhere are one line each, marked "kit-remake K14", and call into this block.
+   gilgamesh (Gilgamesh, clip p74):
+     volley row `ggWind: s`: the press stands that long first (a cast, `move` x speed, aim free), then the volley (and its burst)
+       goes; the row's G1 `unstoppable` covers the wind-up. FINISH.volley is wrapped here for it.
+   New names carry a prefix (gg = the tank, k14 = the lane): no new unit field (the wind-up is a cast). ===== */
+let ggGo = false;
+
+// ---- Gilgamesh: the wind-up before the volley ----
+function k14Wind(u, s) { u.cast = { skill: s, t: s.ggWind, total: s.ggWind, move: s.move ?? 0.6, lock: false, aim: u.aim, acc: 0, left: 0, ggW: 1 }; }
+const k14Volley = FINISH.volley;
+FINISH.volley = function (m, u, s, c) {
+  if (!c.ggW) return k14Volley(m, u, s, c);
+  ggGo = true; CAST.volley(m, u, s); ggGo = false;
+};
+
+/* ===== end kit-remake K14 ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

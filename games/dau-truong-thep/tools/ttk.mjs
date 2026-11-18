@@ -58,7 +58,7 @@ const SEQ = {
   boica: { d: 14, seq: [['s1', 0], ['ult', 0.2]], fireAt: 0.1 },
   bohung: { d: 5, seq: [['s2', 0], ['s1', 0.3], ['ult', 0.6]] },
   cakiem: { d: 5, seq: [['s2', 0], ['s1', 0.4], ['ult', 0.8]] },
-  gilgamesh: { d: 8, seq: [['s2', 0], ['ult', 0.2], ['s1', 0.5]] },
+  gilgamesh: { d: 8, seq: [['s1', 0], ['s2', 0.1], ['ult', 0.3]] },
   buomdem: { d: 11, seq: [['s2', 0], ['s1', 0.2], ['ult', 0.4]] },
   laclong: { d: 6, seq: [['ult', 0], ['s1', 0.5], ['s2', 0.8]] },
   baogam: { d: 5, seq: [['s2', 0], ['s1', 0.5], ['ult', 1.2]] },

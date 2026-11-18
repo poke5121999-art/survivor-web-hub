@@ -682,21 +682,27 @@ export const MECHS = {
         desc: 'Lấy đà 0,5 giây rồi chém một đường rộng 1,6 m dài 14 m, 1000 sát thương. Kẻ trúng giữa tia bị choáng 1 giây.' },
     ],
   },
+  // Gilgamesh: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p74 "71.英雄王", tooltips at 0-5.5 s, audit AUDIT-b.md).
+  // Attack = one Bảo Khí (150, was 175 per 0.8 s, same dps): Quai Ly 60% -> 90 per 0.3 s, Vương Chi Tài Bảo 72% -> 108 per weapon.
+  // Cooldowns 8 / 8 / 25 s in the clip -> 10 / 10 / 45. Phược Thần Chi Tỏa's shield is 20% of max hp (selfShield), its 100% slow
+  // fades (slowDecay). Quai Ly's ten blows are ten strikes on one spot (each carries the skill tag, so they feed the passive).
+  // The ult winds up 0.3 s unstoppable (ggWind, kit-remake K14), then 20 bursts of 2 weapons, 0.2 s apart, walking at +40%.
   gilgamesh: {
     name: 'Gilgamesh', role: 'Trụ', roleKey: 'tank', price: 1900, tint: 0xd9b23a,
-    blurb: 'Càng chịu đòn càng uy nghi: đủ 1500 máu mất, phát bảo khí kế tiếp nặng hơn và choáng. Giam địch trong lồng vàng, mở cổng kho báu dội mưa vũ khí.',
+    blurb: 'Vua Anh Hùng: năm đòn chiêu liền trên một kẻ thì xích trời trói lại. Khoác khiên xích trời chạy nhanh đánh mạnh, cắm Quai Ly Kiếm xé một vùng, mở Vương Chi Tài Bảo xả bốn mươi binh khí.',
     hp: 2900, speed: 5.3, radius: 0.96,
     armor: 0.15, accel: 0.8, turn: 9, towerMul: 1.4,
-    passive: { do: 'meter', name: 'Vương Uy', desc: 'Mỗi điểm máu mất nạp một điểm uy, đủ 1500 thì bảo khí kế tiếp gây thêm 60% sát thương và choáng 0,6 giây.',
-      max: 1500, gain: { hurt: 1 }, spend: { kind: 'shot', mul: 1.6, stun: 0.6 } },
-    weapon: { name: 'Bảo Khí', cd: 0.8, dmg: 175, speed: 30, range: 12, r: 0.3, vis: 'sabot' },
+    passive: { do: 'stacks', name: 'Phược Thần Chi Tỏa', look: 'ggBind', n: 5, dur: 2, on: 'skill', icd: 3, fx: { lostHp: 0.15, slow: 1, slowDur: 1.5, slowDecay: true },
+      desc: 'Trong 2 giây gây 5 đòn chiêu lên cùng một kẻ địch thì xích trời trói nó: thêm sát thương chuẩn bằng 15% máu nó đã mất, chậm 100% giảm dần trong 1,5 giây. Mỗi kẻ 3 giây mới bị trói lại một lần.' },
+    weapon: { name: 'Bảo Khí', cd: 0.69, dmg: 150, speed: 30, range: 12, r: 0.3, vis: 'sabot' },
     skills: [
-      { id: 'phongbaokhi', look: 'ggVolley', name: 'Phóng Bảo Khí', cd: 8, do: 'volley', n: 3, fan: 0.1, dmg: 160, speed: 32, range: 13, r: 0.3, slow: 0.3, slowDur: 1.5, vis: 'sabot', icon: 'ricochet',
-        desc: 'Phóng ba bảo khí hình quạt, mỗi cái 160 sát thương và làm chậm 30% trong 1,5 giây.' },
-      { id: 'phongtoa', look: 'ggChains', name: 'Phong Tỏa', cd: 15, do: 'zone', at: 'target', cast: 12, radius: 4.5, dur: 3, dps: 60, cage: true, vis: 'cage', icon: 'cage',
-        desc: 'Dựng lồng vàng ở con trỏ trong 3 giây: kẻ địch đang đứng trong đó không ra được, mất 60 máu mỗi giây.' },
-      { id: 'congkhobau', look: 'ggGate', name: 'Cổng Kho Báu', cd: 46, do: 'barrage', n: 10, radius: 6.5, blast: 2.4, dmg: 360, delay: 0.9, span: 1.8, cast: 18, fx: { stun: 0.5, knock: 2 }, icon: 'storm',
-        desc: 'Mở cổng kho báu: mười thanh vũ khí rơi rải trong vùng 6,5 m, mỗi quả 360 sát thương, choáng 0,5 giây và hất văng.' },
+      { id: 'thienchitoa', look: 'ggVault', name: 'Thiên Chi Tỏa', cd: 10, do: 'transform', dur: 4, dmg: 1.15, haste: 1.4, selfShield: { frac: 0.2, dur: 4 }, icon: 'dome',
+        desc: 'Gọi Thiên Chi Tỏa quấn quanh mình 4 giây: khiên bằng 20% máu tối đa, sát thương +15%, chạy nhanh thêm 40%.' },
+      { id: 'quaily', look: 'ggEa', name: 'Thiên Địa Quai Ly', cd: 10, do: 'barrage', n: 10, radius: 1.75, blast: 3.5, dmg: 90, delay: 0.3, span: 3, cast: 12, fx: { slow: 0.3, slowDur: 0.5 }, towerMul: 0.5, icon: 'barrage',
+        desc: 'Cắm Quai Ly Kiếm ở con trỏ (xa nhất 12 m), xé vùng 3,5 m suốt 3 giây: mỗi 0,3 giây 90 sát thương, kẻ trong vùng chậm 30%. Lên trụ chỉ còn một nửa.' },
+      { id: 'vuongchitaibao', look: 'ggTreasury', name: 'Vương Chi Tài Bảo', cd: 45, do: 'volley', n: 2, fan: 0.14, dmg: 108, speed: 34, range: 14, r: 0.32, vis: 'sabot', burst: { n: 20, gap: 0.2 }, move: 1, haste: 1.4, hasteDur: 4,
+        ggWind: 0.3, unstoppable: 0.3, icon: 'storm',
+        desc: 'Tụ lực 0,3 giây (không bị khống chế) rồi mở kho báu: 40 binh khí bắn liên tục 4 giây theo hướng ngắm, mỗi món 108 sát thương. Trong lúc đó vẫn chạy được, nhanh thêm 40%, nhưng không bắn thường, không dùng chiêu khác.' },
     ],
   },
   buomdem: {
@@ -1246,7 +1252,7 @@ export const PERKS = {
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
   bohung: [perk('Pháo Nặng', 'Pháo Thiên Khải gây 260.', 'weapon', { dmg: 260 }), perk('Chấn Đãng Dài', 'Chấn Đãng Oanh Kích nện dải 8 m, gây 270.', 1, { range: 8, dmg: 270 }), perk('Phi Đạn Lớn', 'Phi Đạn Bạo Phá nổ rộng 3,5 m.', 2, { splash: 3.5 })],
   cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
-  gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 210.', 'weapon', { dmg: 210 }), perk('Lồng Vững', 'Phong Tỏa rộng 5,2 m, kéo dài 4 giây, mất 90 máu mỗi giây.', 1, { radius: 5.2, dur: 4, dps: 90 }), perk('Mười Bốn Cổng', 'Cổng Kho Báu dội 14 quả, mỗi quả 400.', 2, { n: 14, dmg: 400 })],
+  gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 170.', 'weapon', { dmg: 170 }), perk('Quai Ly Rộng', 'Thiên Địa Quai Ly xé vùng 4,2 m.', 1, { blast: 4.2, radius: 2.1 }), perk('Kho Báu Vô Tận', 'Vương Chi Tài Bảo xả 48 binh khí trong 4,8 giây.', 2, { burst: { n: 24, gap: 0.2 }, hasteDur: 4.8 })],
   buomdem: [perk('Tia Dài', 'Tia Bùa gây 420, bay xa 19 m.', 0, { dmg: 420, range: 19 }), perk('Cổng Nổ', 'Cổng Ảo xa 10 m, nổ rộng 3,6 m gây 300.', 1, { dist: 10, land: { radius: 3.6, dmg: 300, slow: 0.3, slowDur: 1.5 } }), perk('Kết Giới Rộng', 'Kết Giới Đa Chiều rộng 7 m, kéo dài 7 giây.', 2, { radius: 7, dur: 7 })],
   laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Xoáy Mạnh', 'Xoáy Nước rộng 6 m, làm chậm 50%, đồng đội nhanh thêm 40%.', 1, { radius: 6, slow: 0.5, haste: 1.4 }), perk('Giá Lâm Xa', 'Long Quân Giá Lâm lao xa 18 m, gây 480.', 2, { dist: 18, dmg: 480 })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],

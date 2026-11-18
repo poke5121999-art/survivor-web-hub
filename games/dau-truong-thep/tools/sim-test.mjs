@@ -12,6 +12,7 @@ import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
 import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
+import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3113,9 +3114,9 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 5.5, tz: 0 } }));
     check('42g the three blades hit for 66 x 1.8 = 118.8 each: 356.4', near(UNG.hp - v.hp, 3 * 118.8 * UNG_F, 1e-6) && a.meter === 0, `${UNG.hp - v.hp}`);
   }
-  // meter 'hurt' (gilgamesh shot, laclong shield, baogam nova)
+  // meter 'hurt' (gilgamesh shot (old kit fixture OLD_GILGAMESH in k14-cases.mjs), laclong shield, baogam nova)
   {
-    const m = arena([[R('trau', 0), 0, 0], [R('gilgamesh', 1), 8, 0]]), [t, g] = m.units;
+    const m = oldKit14(arena([[R('trau', 0), 0, 0], [R('gilgamesh', 1), 8, 0]]), 'gilgamesh'), [t, g] = m.units;
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42h gilgamesh: lost blood feeds the meter 1:1 (hp lost = meter)', g.meter > 0 && near(g.meter, g.maxHp - g.hp, 1e-6), `meter ${g.meter} lost ${g.maxHp - g.hp}`);
     g.meter = 1499.5;
@@ -5115,6 +5116,8 @@ section('48 Athena ported from the owner\'s clip (p69), kit-remake G5: passive c
 runK4Cases(check, section);
 // kit lane K13: domdom, duongtien, mucma ported from the owner's clips (tools/k13-cases.mjs)
 runK13Cases(check, section);
+// kit lane k14: gilgamesh, suatrang and chuottui ported from the owner's clips (tools/k14-cases.mjs)
+runK14Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);
