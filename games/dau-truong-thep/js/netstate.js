@@ -6,7 +6,7 @@
 // Static facts (map, mechs, weapon stats) never travel: both ends rebuild them from data.js and maps.js.
 
 import { TICK, MECHS, BOSSES, PICKUPS, formDef } from './data.js';
-import { createMatch, unitRadius } from './sim.js';
+import { createMatch, unitRadius, k16Mirror } from './sim.js';   // k16Mirror: kit lane k16
 
 export const SNAP_TICKS = 1;
 
@@ -90,7 +90,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'sntCT',   // kit-remake G5 Sơn Tinh: the curse left
   'tthHT',   // kit-remake G5 Tào Tháo: the hold left
   'stTie', 'stWarT', 'ctFlyT',   // kit-remake K14: Baymax's chain (ally id + 1), his warrior, Doraemon's flight
-  'nmS', 'nmN', 'nmMT', 'nhCT', 'nhN', 'nhQT'];   // kit lane K18: Ngưu Ma's whirl stacks and mute, Mikasa's combo window, spin stacks, shield
+  'nmS', 'nmN', 'nmMT', 'nhCT', 'nhN', 'nhQT',   // kit lane K18: Ngưu Ma's whirl stacks and mute, Mikasa's combo window, spin stacks, shield
+  'ntsN', 'ntsT'];   // kit lane k16: Natsu's mana stacks and burst (speed and armour, predicted on the guest)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 
@@ -209,6 +210,7 @@ export function applySnapshot(m, snap, dt) {
     let at = 8;
     for (const k of CD) u.cd[k] = r[at++];
     for (const k of STATUS) u[k] = r[at++];
+    k16Mirror(u);   // kit lane k16: a transform patch swaps the rows on the mirror as tfT comes and goes
     u.radius = unitRadius(u);
     u.bush = r[at++];
     const c = r[at++];

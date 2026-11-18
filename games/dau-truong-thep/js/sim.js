@@ -134,6 +134,7 @@ function clearStatus(u) {
   hlClear(u);   // kit-remake G5 hoalong
   ktClear(u);   // kit-remake G5 kiemthan
   k18Clear(u);   // kit lane K18
+  k16Clear(u);   // kit lane k16
 }
 
 function spawn(m, u, first) {
@@ -347,6 +348,7 @@ export function unitSpeed(u) {
   if (u.stance || u.rootT > 0 || u.sirT > 0) return 0;   // sirT: kit-remake G5 Thủy Tinh, sealed in ice
   let s = u.def.speed;
   if (u.hasteT > 0) s *= u.hasteF;
+  s *= k16Speed(u);   // kit lane k16: Natsu's mana stacks and burst
   const low = lowHpMod(u);
   if (low && low.haste) s *= low.haste;
   // kit-remake G2: slowG (a decaying, growing or stacking slow) counts when it slows harder than the plain one
@@ -383,6 +385,7 @@ export function armorOf(m, u) {
     if (dist2(o.x, o.z, u.x, u.z) < P.radius * P.radius) { a += P.armor; break; }
   }
   a += k1Armor(u);
+  a += k16Armor(u);   // kit lane k16: Natsu's mana stacks and burst
   return Math.min(RULES.armorCap, a);
 }
 
@@ -500,6 +503,7 @@ function stepUnit(m, u, inp) {
   k7Tick(m, u);   // kit-remake G5 lane K7: Serious Mode
   k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst, Kirito's penetration stacks
   k18Tick(m, u);   // kit lane K18: Chiến Tiêu, shield into hp, Mikasa's shield and combo window
+  k16Tick(m, u);   // kit lane k16: Natsu's burst timer and Lôi Viêm heal
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -607,6 +611,7 @@ function stepUnit(m, u, inp) {
     if (s.cdAfter) { u.hold |= 1 << i; u.holdT[i] = s.do === 'transform' || s.do === 'shield' ? 0 : s.dur || 0; }
     castHooks(u, s, i);
     k1Cast(m, u, s);
+    k16Cast(m, u, i);   // kit lane k16: Natsu's mana stacks
     if (s.adHeal) heal(m, u, u.maxHp * s.adHeal, u);   // kit-remake G5 An Dương Vương
     k14Cast(m, u);   // kit-remake K14: a cast lands Doraemon's flight
     // thrifty (passive): a cast sometimes gives most of its cooldown back
@@ -1034,10 +1039,11 @@ function tfStart(m, u, s) {
   const Z = s.zone;
   if (Z) addZone(m, u, { kind: 'field', vis: Z.vis, x: u.x, z: u.z, r: Z.radius, dur: s.dur, hps: Z.hps || 0, dps: Z.dps || 0, slow: Z.slow || 0, hide: false, pull: 0, acc: 0,
     haste: 0, blind: null, follow: true, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+  if (Z && Z.ntsBand) m.zones[m.zones.length - 1].ntsBand = Z.ntsBand;   // kit lane k16: Natsu's dragon ring
   if (s.patch) {
     const base = u.tfBase || u.def, P = s.patch;
     u.tfBase = base;
-    u.def = { ...base, skills: base.skills.map((r, i) => (P[SLOTS[i]] && r !== s ? { ...r, ...P[SLOTS[i]] } : r)) };
+    u.def = k16PatchDef(base, s);   // kit lane k16: one cached patched def per (def, row), so the guest's mirror plays the same object
   }
 }
 function tfStack(u, s) {
@@ -2129,7 +2135,7 @@ function stepZones(m) {
           if (z.slow) { u.slowT = Math.max(u.slowT, 0.3); u.slowF = Math.max(u.slowT > 0.3 ? u.slowF : 0, z.slow); }
           if (z.dps && pulse) {
             const had = u.hp + u.shield;
-            curSrc = z.src || null; damage(m, u, z.dps * 0.5, owner); curSrc = null;   // z.src: kit-remake G5 Thủy Tinh (zone marks)
+            curSrc = z.src || null; damage(m, u, z.dps * 0.5 * (z.ntsBand ? k16Band(z, u) : 1), owner); curSrc = null;   // z.src: kit-remake G5 Thủy Tinh (zone marks); ntsBand: kit lane k16
             if (z.tthHeal && owner.alive) heal(m, owner, owner.maxHp * z.tthHeal, owner);   // kit-remake G5 Tào Tháo
             // drain: the owner gets back that share of what the field took
             if (z.drain && owner.alive) heal(m, owner, Math.min(z.dps * 0.5, had - (u.alive ? u.hp + u.shield : 0)) * z.drain, owner, true);
@@ -4396,3 +4402,52 @@ function nhReel(m, u, x, z, o, s) {
 const nhFree = (u) => !!(u.dash && u.dash.nh);
 const nhSlotOk = (u, i) => !u.dash || (nhFree(u) && !!u.def.skills[i].nhCombo);
 /* ===== end kit lane K18 ===== */
+/* ===== kit lane k16 (feat/dtt-k16; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md kynhong, laclong, loi) =====
+   One-line hooks elsewhere are marked "kit lane k16". New state: unit ntsN, ntsT (Natsu). */
+function k16Clear(u) { u.ntsN = 0; u.ntsT = 0; }
+function k16Tick(m, u) {
+  if (u.ntsT > 0) u.ntsT = Math.max(0, u.ntsT - TICK);
+  const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (tf && tf.ntsLost && u.hp < u.maxHp) heal(m, u, (u.maxHp - u.hp) * tf.ntsLost * TICK, u, true);
+}
+// -- kit-remake G5 Natsu: passive `ntsMana {max, haste, armor, cut, burst {dur, haste, armor}}` (every press adds a stack `u.ntsN`, each
+//    x (1 + haste) speed and + armor; a press made with max stacks spends them instead: its own cooldown drops by cut s and the burst runs
+//    `u.ntsT`: speed x (1 + burst.haste x the share left), armour + burst.armor x the share left; event k16 {kind: 'ntsBurst'}),
+//    transform `ntsLost: f` (heals f of the lost hp a second while it runs), transform zone `ntsBand: m` (the outer m of the field is the
+//    dragon ring: its pulses hit x2 there). ntsN and ntsT are in netstate STATUS (speed is predicted on the guest).
+const ntsMana = (u) => (u.def.passive && u.def.passive.ntsMana) || null;
+function k16Cast(m, u, i) {
+  const P = ntsMana(u);
+  if (!P) return;
+  if (u.ntsN < P.max) { u.ntsN++; return; }
+  u.ntsN = 0; u.ntsT = P.burst.dur;
+  const k = SLOTS[i]; u.cd[k] = Math.max(0, u.cd[k] - P.cut);
+  m.events.push({ t: 'k16', kind: 'ntsBurst', id: u.id, x: u.x, z: u.z });
+}
+function k16Speed(u) {
+  const P = ntsMana(u);
+  if (!P) return 1;
+  return (1 + P.haste * u.ntsN) * (u.ntsT > 0 ? 1 + P.burst.haste * u.ntsT / P.burst.dur : 1);
+}
+function k16Armor(u) {
+  const P = ntsMana(u);
+  if (!P) return 0;
+  return P.armor * u.ntsN + (u.ntsT > 0 ? P.burst.armor * u.ntsT / P.burst.dur : 0);
+}
+// -- the G3 transform patch, cached: k16PatchDef(base, s) is the def with s.patch merged into the other rows, one object per (base, s),
+//    so a guest's mirror (k16Mirror, called by netstate as tfT arrives) swaps in the very def the host plays.
+const PATCHED = new WeakMap();
+function k16PatchDef(base, s) {
+  let by = PATCHED.get(base);
+  if (!by) PATCHED.set(base, (by = new Map()));
+  if (!by.has(s)) { const P = s.patch; by.set(s, { ...base, skills: base.skills.map((r, i) => (P[SLOTS[i]] && r !== s ? { ...r, ...P[SLOTS[i]] } : r)) }); }
+  return by.get(s);
+}
+export function k16Mirror(u) {
+  const base = u.tfBase || u.def, s = base.skills.find((r) => r.do === 'transform' && r.patch);
+  if (!s) return;
+  if (u.tfT > 0 && !u.tfBase) { u.tfBase = base; u.def = k16PatchDef(base, s); }
+  else if (!(u.tfT > 0) && u.tfBase) { u.def = u.tfBase; u.tfBase = null; }
+}
+const k16Band = (z, u) => (dist2(u.x, u.z, z.x, z.z) >= (z.r - z.ntsBand) ** 2 ? 2 : 1);
+/* ===== end kit lane k16 ===== */

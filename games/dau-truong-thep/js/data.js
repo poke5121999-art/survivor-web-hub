@@ -552,20 +552,29 @@ export const MECHS = {
         desc: '5 giây hóa hách tử: bá thể (không bị khống chế), không đòn nào lấy quá 5% máu tối đa của bạn, và mỗi giây hồi 10% máu đã mất.' },
     ],
   },
+  // Natsu = 炎龙王 Viêm Long Vương: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p78 "75.炎龙王", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-b.md). Attack = one Hỏa Quyền blow (150; was a 25-a-tick flamethrower with burn, about the same dps):
+  // Hồng Liên Bạo Nhận 176% -> 264 (x1.3 in Lôi Viêm -> 343), Long Thần Hoàng Viêm 128% -> 192 (-> 250), the Lôi Viêm field 75%/s -> 113.
+  // Cooldowns 8 / 6 / 25 s in the clip -> 10 / 8 / 45. "Phòng ngự +10% / +30% / +100%" -> armour +0.03 a stack, +0.1, +0.3 (decaying).
+  // Kit-remake G5 fields (sim.js block "kit lane k16"): passive ntsMana (stacks per cast, the third spent on the next cast for -6 s and a
+  // decaying burst), transform ntsLost (heals that share of the lost hp a second), transform zone ntsBand (the dragon ring at the rim hits x2).
   kynhong: {
     name: 'Natsu', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0xe2401c,
-    blurb: 'Quyền lửa liên hồi đốt cháy cộng dồn, kẻ đang cháy chịu thêm sát thương. Long Hóa phun lửa dài, cứng và nhanh hơn.',
+    blurb: 'Rồng lửa cận chiến: mỗi chiêu tích ma lực cho chạy nhanh và cứng hơn. Lao xoay lưỡi lửa, phun long viêm, rồi bật Lôi Viêm 8 giây: vòng lôi hỏa thiêu quanh mình và hai chiêu kia mạnh hơn.',
     hp: 2800, speed: 6.1, radius: 0.86,
     armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.8,
-    passive: { do: 'brittle', name: 'Lửa Rồng', desc: 'Gây thêm 20% sát thương lên kẻ đang cháy.', mul: 1.2, when: 'burn' },
-    weapon: { name: 'Hỏa Quyền', cd: 0.12, dmg: 25, speed: 22, range: 6.5, spread: 0.14, r: 0.34, pierce: true, vis: 'flame', fx: { burn: { dps: 20, dur: 3, max: 4 } } },
+    passive: { do: 'trait', name: 'Viêm Long Ma Lực', look: 'ntMana', ntsMana: { max: 3, haste: 0.1, armor: 0.03, cut: 6, burst: { dur: 1.5, haste: 1, armor: 0.3 } },
+      desc: 'Mỗi lần dùng chiêu tích 1 lớp ma lực, mỗi lớp chạy nhanh hơn 10% và cứng hơn. Đủ 3 lớp thì chiêu kế tiếp lập tức giảm 6 giây hồi chiêu và bùng ma lực 1,5 giây: chạy nhanh gấp đôi, cứng hơn hẳn, giảm dần.' },
+    weapon: { name: 'Hỏa Quyền', cd: 0.5, dmg: 150, speed: 26, range: 7.5, r: 0.34, vis: 'slug' },
     skills: [
-      { id: 'hoalongkhieu', look: 'kyBreath', name: 'Hỏa Long Khiếu', cd: 8, do: 'volley', n: 5, fan: 0.16, dmg: 100, speed: 24, range: 8, r: 0.4, pierce: true, vis: 'flame', fx: { burn: { dps: 20, dur: 3, max: 4 } }, icon: 'rocket',
-        desc: 'Phun năm luồng lửa hình quạt, xuyên qua địch và thiêu đốt.' },
-      { id: 'hoaquyendot', look: 'kyPunch', name: 'Hỏa Quyền Đột', cd: 10, do: 'dash', dist: 7, speed: 32, dmg: 360, stun: 0.3, knock: 3, stop: true, fx: { burn: { dps: 20, dur: 3, max: 4 } }, icon: 'dash',
-        desc: 'Lao tới và dừng ngay ở kẻ địch đầu tiên, giáng cú đấm lửa 360 sát thương, choáng và thiêu đốt.' },
-      { id: 'longhoa', look: 'kyRing', name: 'Long Hóa', cd: 44, do: 'transform', dur: 5, armor: 0.15, haste: 1.15, weapon: { range: 11, dmg: 36, r: 0.5 }, icon: 'boost',
-        desc: 'Long Hóa 5 giây: thêm 15% giáp, chạy nhanh hơn 15%, hơi thở lửa phun xa 11 m và mạnh hơn.' },
+      { id: 'honglien', look: 'ntBlade', name: 'Hồng Liên Bạo Nhận', cd: 10, do: 'leap', cast: 8, flight: 0.3, radius: 3, dmg: 264, self: { on: 'cast', dur: 3, haste: 1.3, armor: 0.1 }, icon: 'dash',
+        desc: 'Lao tới con trỏ (xa nhất 8 m), tới nơi xoay lưỡi lửa: 264 sát thương lên kẻ địch trong 3 m. 3 giây sau đó chạy nhanh hơn 30% và cứng hơn. Ở Lôi Viêm: vòng 4 m, 343 sát thương, hút 30% sát thương gây ra, thêm sát thương chuẩn 6% máu đã mất.' },
+      { id: 'longthan', look: 'ntBreath', name: 'Long Thần Hoàng Viêm', cd: 8, do: 'beam', windup: 0.35, range: 8, width: 2, dmg: 192, fx: { slow: 0.4, slowDur: 2 }, icon: 'rocket',
+        desc: 'Tụ lực rồi phun một luồng long viêm 8 m về phía trước: 192 sát thương, chậm 40% trong 2 giây. Ở Lôi Viêm: phun thành hình quạt, 250 sát thương, hút 30%, câm lặng 1 giây.' },
+      { id: 'loiviem', look: 'ntDragon', name: 'Lôi Viêm Cuồng Long', cd: 45, do: 'transform', dur: 8, armor: 0.3, ccResist: 0.7, ntsLost: 0.06,
+        zone: { radius: 3.5, dps: 113, vis: 'ntDragon', ntsBand: 1.2 },
+        patch: { s1: { radius: 4, dmg: 343, steal: 0.3, fx: { lostHp: 0.06 } }, s2: { do: 'nova', windup: 0.35, move: 0.12, radius: 8, arc: 0.45, dmg: 250, steal: 0.3, fx: { slow: 0.4, slowDur: 2, silence: 1 } } }, icon: 'boost',
+        desc: 'Bật Lôi Viêm 8 giây: vòng lôi hỏa 3,5 m quanh mình gây 113 sát thương mỗi giây, kẻ chạm vào lôi long ở mép vòng chịu gấp đôi. Nhận ít hơn 30% sát thương, bị khống chế ngắn hơn 30%, mỗi giây hồi 6% máu đã mất; Hồng Liên Bạo Nhận và Long Thần Hoàng Viêm được cường hóa.' },
     ],
   },
   // Ngưu Ma Vương: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p85 "82.牛魔王", tooltips in ~/handoff/dtt-ref/kits/AUDIT-b.md,
@@ -1315,7 +1324,7 @@ export const PERKS = {
   hades: [perk('Đổi Thế Nhanh', 'Hình Thái Chuyển Hoán hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Lưỡi Rộng', 'Minh Vương Lợi Nhận thế Chế Tài chém quạt 7 m.', 1, { radius: 7 }), perk('Lĩnh Vực Rộng', 'Minh Vương Lĩnh Vực rộng 6 m, kéo dài 5 giây.', 2, { hdDomain: { radius: 6, dur: 5, fear: 0.6 } })],
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Săn Xa', 'Cơ Ngạ Bộ Liệp lao xa 9,5 m.', 1, { dist: 9.5 }), perk('Hách Tử Lâu', 'Hách Tử Tiến Hóa kéo dài 6,5 giây.', 2, { dur: 6.5, ccImmune: 6.5 })],
-  kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
+  kynhong: [perk('Quyền Nặng', 'Hỏa Quyền gây 170.', 'weapon', { dmg: 170 }), perk('Long Viêm Dài', 'Long Thần Hoàng Viêm phun xa 10 m, gây 230.', 1, { range: 10, dmg: 230 }), perk('Lôi Viêm Lâu', 'Lôi Viêm Cuồng Long kéo dài 10 giây.', 2, { dur: 10 })],
   nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 215.', 'weapon', { dmg: 215 }), perk('Húc Xa', 'Cuồng Dã Giác Tập lao xa 11 m, gây 320.', 1, { dist: 11, dmg: 320 }), perk('Đoạn Dã Rộng', 'Tàn Phong Đoạn Dã rộng 5,5 m, gây 680.', 2, { width: 5.5, dmg: 680 })],
   sontinh: [perk('Đá Nặng', 'Đá Lăn gây 250.', 'weapon', { dmg: 250 }), perk('Trớ Chú Rộng', 'Đại Địa Trớ Chú rộng 6 m.', 0, { radius: 6 }), perk('Thần Lâu', 'Sơn Thần đứng 15 giây.', 2, { dur: 16 })],
   enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],

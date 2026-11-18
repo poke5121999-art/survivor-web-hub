@@ -3,7 +3,7 @@
 //   万磁之王 p86 (Sam Thép): magenta-red magnetic loops round the targets with a blue sphere inside, a pink orb round himself, a
 //     thin red range ring, steel girders crashing in with a red-white flash.
 //   赛亚 p31 (Bọ Hung): gold flame aura, yellow-white ki blasts, a gold ring on the target, a blue-white sphere crackling.
-//   炎龙王 p78 (Kỳ Nhông): a whirling ring of fire round him, a fan of five fire jets, an orange reticle.
+//   炎龙王 p78 (Kỳ Nhông = Natsu): its looks moved to looks-k16.js with the kit ported from the clip (kit lane k16).
 //   至尊法师 p66 (Bướm Đêm): pink dimension bubbles with a blue rim, orange rune mandalas, a pink bolt.
 //   Mực Ma, Hắc Hổ: no part (梦魇 p83 is shadow clones and a clock, 钢爪 p29 a blue claw streak); built from the descriptions:
 //     a ghost squid of ink and teal light; a black tiger of amber flame, claw marks and blood red.
@@ -30,70 +30,6 @@ function loops(n, r, h, c) {
   return g;
 }
 const samthep = {
-};
-
-// ---- Kỳ Nhông (fire dragon king): a whirling ring of fire, jets of flame, a fist of fire -----------------------------------
-const KY_FIRE = C(2.7, 0.75, 0.08), KY_GOLD = C(2.7, 1.8, 0.35), KY_DARK = C(0.5, 0.24, 0.0);
-// a flat ring of flame round (x, z) turning: flame glows along an arc that sweeps round, thicker on one side (a spiral)
-function fireRing(kit, at, r, life, spin = 7) {
-  let a0 = Math.random() * 6.283;
-  kit.anims.push({ t: 0, step(dt) { this.t += dt; const p = at(this.t); if (!p) return false; a0 += dt * spin;
-    for (let i = 0; i < kit.N(6); i++) { const f = Math.random(), a = a0 + f * 4.4, rr = r * (0.75 + 0.3 * f); kit.glow(p[0] + Math.cos(a) * rr, 0.5 + f * 0.9, p[2] + Math.sin(a) * rr, f > 0.5 ? KY_FIRE : KY_GOLD, 0.25, 0.4 + 0.5 * f, 0.9, kit.K.FLAME, 1.3, -Math.sin(a) * spin * rr * 0.4, 0.8, Math.cos(a) * spin * rr * 0.4); }
-    return this.t < life; }, drop() {} });
-}
-const kynhong = {
-  // Hỏa Long Khiếu: five jets of fire fan out, each a roaring flame ribbon
-  kyBreath: {
-    pal: [KY_DARK, KY_GOLD], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.2, 1.3, u.z + Math.sin(e.a) * 1.2, KY_GOLD, 0.15, 2.4, 1, kit.K.STAR, 1.3); kit.flash(u.x, 1.6, u.z, KY_FIRE, 40, 0.2); muz(kit, u, e.a, 2.0, KY_DARK, KY_GOLD); slash(kit, u.x, u.z, e.a, 7, KY_FIRE, { y: 1.0, life: 0.4, w: 1.6, span: 0.6, wake: 2.4, arcs: 1, edge: KY_GOLD }); return true; },
-    shotMake(kit, s) { const v = { x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 3.4, KY_FIRE, 0.7, { c2: KY_DARK, len: 14 }); v.head = shell(kit, s.x, 1.2, s.z, 1.1, KY_FIRE, { c2: KY_GOLD, inv: 1.2, core: 1, life: 1e9 }); return v; },
-    shot(kit, v, s, x, y, z) {
-      v.x = x; v.z = z; v.head.position.set(x, 1.2, z);
-      kit.glow(x, 1.2, z, KY_FIRE, 0.18, R(0.6, 0.9), 0.5, kit.K.FLAME, 1.4, R(-0.6, 0.6), R(0.3, 1.2), R(-0.6, 0.6));
-      if (Math.random() < 0.4) kit.ovr.emit(x, 1.4, z, R(-0.4, 0.4), 0.8, R(-0.4, 0.4), C(0.18, 0.08, 0.05), 0.7, 0.6, 2.6, 1, -0.6, 0.3, kit.K.SMOKE);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.live = false; stop(v.head); kit.glow(x, 1.1, z, KY_GOLD, 0.25, 1.4, 0.9, kit.K.FLAME, 1.6); },
-  },
-  // Hỏa Quyền Đột: a fist of fire ahead of him as he charges; where it stops, a fire burst and three claw marks burnt in the floor
-  kyPunch: {
-    pal: [KY_FIRE, KY_GOLD], hit() {},
-    skill(kit, e, u, row) {
-      let a = e.a, done = false, fist = null;
-      // the road of fire the fist burns along its whole charge
-      { const L = (row && row.dist) || 7, b = kit.beam(u.x, u.z, u.x + Math.cos(a) * L, u.z + Math.sin(a) * L, 3.4, KY_FIRE, 0.9, 0, 0.35); b.fade = true; }
-      trail(kit, (t) => (t < 0.45 && u.alive ? [u.x, 1.0, u.z] : null), 3.6, KY_FIRE, 1.0, { c2: KY_GOLD, len: 14 });
-      kit.follow(u, 0.6, (t) => {
-        if (done) return;
-        kit.glow(u.x + Math.cos(a) * 1.3, 1.2, u.z + Math.sin(a) * 1.3, KY_GOLD, 0.12, 1.6, 1, kit.K.FLAME, 1.2);
-        if (!fist) fist = shell(kit, u.x, 1.2, u.z, 2, KY_FIRE, { c2: KY_GOLD, inv: 1.2, core: 1, life: 0.45, step: () => { fist.position.set(u.x + Math.cos(a) * 1.8, 1.2, u.z + Math.sin(a) * 1.8); } });
-        kit.glow(u.x + Math.cos(a) * 1.3, 1.2, u.z + Math.sin(a) * 1.3, KY_FIRE, 0.2, 2.2, 0.8, kit.K.FLAME, 1.4);
-        if (t > 0.08 && !u.dash) {
-          done = true; const x = u.x + Math.cos(a) * 1.6, z = u.z + Math.sin(a) * 1.6;
-          burst(kit, x, z, 3.6, KY_DARK, KY_GOLD, { life: 0.6 });
-          for (const o of [-0.6, 0, 0.6]) kit.scorch(x + Math.cos(a + 1.57) * o, z + Math.sin(a + 1.57) * o, 0.9, 3, 1.6, KY_FIRE);
-          kit.sparks(x, 1.2, z, kit.N(16), KY_GOLD, 12, 0.4, 0.07, 0.6, 10, Math.cos(a), Math.sin(a), 0.7); kit.flash(x, 1.6, z, KY_FIRE, 60, 0.25); kit.kick(x, z, 0.6);
-        }
-      });
-      return true;
-    },
-  },
-  // Long Hóa: a whirling spiral ring of fire turns round him for the five seconds, embers rising off it
-  kyRing: {
-    pal: [KY_FIRE, KY_GOLD], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const d = row.dur || 5;
-      // a fire dragon coils up round him: a thick flame ribbon spiralling from the floor to above his head, and a second one
-      // chasing it; fire ring at the floor
-      const live = (t) => u.alive && (t < 0.5 || u.tfT > 0);
-      for (const ph of [0, Math.PI]) trail(kit, (t) => { if (!live(t)) return null; const a = t * 7 + ph, h = 0.4 + ((t * 1.6) % 3.2); return [u.x + Math.cos(a) * 3, h, u.z + Math.sin(a) * 3]; }, 2.6, KY_FIRE, d, { c2: KY_GOLD, len: 22 });
-      // two great wings of fire spread from his back and beat for the five seconds
-      for (const sd of [1, -1]) { const at = () => u.aim + Math.PI + sd * 1.3; kit.follow(u, d, (t) => { if (!live(t)) return; if (Math.random() < 0.5) { const a = at() + Math.sin(t * 6) * 0.25; for (let k = 1; k <= 4; k++) kit.glow(u.x + Math.cos(a) * k * 1.1, 1.4 + k * 0.35, u.z + Math.sin(a) * k * 1.1, k % 2 ? KY_FIRE : KY_GOLD, 0.25, 1.1 - k * 0.12, 0.9, kit.K.FLAME, 1.3); } }); slash(kit, u.x, u.z, u.aim + Math.PI + sd * 1.2, 7.5, KY_FIRE, { y: 1.6, dir: sd, life: 0.9, w: 1.5, span: 0.9, sweep: 0.25, erode: 0.35, wake: 2, edge: KY_GOLD, tilt: sd * 0.5 }); }
-      kit.ring(u.x, u.z, 3.4, KY_GOLD, 0.45); kit.flash(u.x, 2, u.z, KY_FIRE, 60, 0.35); kit.scorch(u.x, u.z, 2.6, 3, 1.6, KY_FIRE);
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.ring(e.x, e.z, 2.6, KY_FIRE, 0.3, 0.6); return true; },
-  },
 };
 
 // ---- Bướm Đêm (Doctor Strange): pink dimensions, orange rune mandalas, a pink bolt ---------------------------------------
@@ -212,4 +148,4 @@ const hacho = {
   },
 };
 
-export const B2 = { ...samthep, ...kynhong, ...buomdem, ...hacho };   // Mực Ma (Kaneki) moved to looks-k13.js (kit lane K13)
+export const B2 = { ...samthep, ...buomdem, ...hacho };   // Mực Ma (Kaneki) moved to looks-k13.js (kit lane K13)

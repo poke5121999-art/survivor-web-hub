@@ -15,6 +15,7 @@ import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs'
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
 import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { runK18Cases, OLD_NHENTHEP, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, old nguma/nhenthep kits kept as fixtures
+import { runK16Cases, oldK16 } from './k16-cases.mjs';   // kit lane k16: section K16, old kits kept as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -2933,7 +2934,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // transform.weapon (kynhong): the weapon row is swapped in for the duration
   {
-    const m = arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]]), a = m.units[0];
+    const m = oldK16(arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]])), a = m.units[0];
     check('41l before: Hoa Quyen reach 6.5, dmg 25', weaponOf(a).range === 6.5 && weaponOf(a).dmg === 25);
     go(m, 1, () => ({ 0: { ult: true } }));
     check('41m during Long Hoa: reach 11, dmg 36, r 0.5, still pierces; weaponRange follows', weaponOf(a).range === 11 && weaponOf(a).dmg === 36 && weaponOf(a).r === 0.5 && weaponOf(a).pierce && weaponRange(a) === 11, JSON.stringify(weaponOf(a)));
@@ -2991,7 +2992,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // burn (hitfx) + brittle.when burn (kynhong)
   {
-    const m = arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]]), [a, v] = m.units;
+    const m = oldK16(arena([[R('kynhong', 0), 0, 0], [R('ung', 1), 9, 0]])), [a, v] = m.units;
     for (let i = 0; i < 5; i++) applyFx(m, a, v, { burn: { dps: 25, dur: 3, max: 4 } });
     check('41za burn stacks to max 4, 3 s, owner remembered, dps 25', v.burnN === 4 && v.burnT === 3 && v.burnBy === a.id && v.burnDps === 25);
     go(m, 30);
@@ -3017,7 +3018,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   // dash.stop (kynhong E): ends on the first mech it hits
   {
     const run = (patch) => {
-      const m = arena([[R('kynhong', 0), 0, 0], [R('trau', 1), 3, 0]]);
+      const m = oldK16(arena([[R('kynhong', 0), 0, 0], [R('trau', 1), 3, 0]]));
       if (patch) m.units[0].def = { ...m.units[0].def, skills: m.units[0].def.skills.map((x, i) => (i === 1 ? { ...x, ...patch } : x)) };
       go(m, 20, (i) => ({ 0: { s2: i === 0 } }));
       return [m.units[0].x, m.units[1]];
@@ -4484,6 +4485,7 @@ runK7Cases(check, section);
 runK10Cases(check, section);   // kit lane K10
 runK6Cases(check, section);   // kit lane K6
 runK18Cases(check, section);   // kit lane K18
+runK16Cases(check, section);   // kit lane k16
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {
