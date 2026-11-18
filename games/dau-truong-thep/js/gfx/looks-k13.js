@@ -50,7 +50,7 @@ const domdom = {
     zones: ['strike'], ownDisc: true, pal: [DD_JADE, DD_WIND], hitR: 2,
     skill(kit, e, u) { song(kit, u); kit.glow(u.x + Math.cos(e.a) * 1.2, 1.4, u.z + Math.sin(e.a) * 1.2, DD_JADE, 0.15, 1.3, 0.8, kit.K.STAR, 1.2); return true; },
     zoneMake(kit, z) {
-      const ring = sigil(kit, z.x, z.z, z.r, DD_RIM, { c2: DD_JADE, n: 0, ticks: 18, inner: 0.35, fill: 0.18, w: 0.07, life: 1e9, rev: 0.12, spin: 2.6 });
+      const ring = sigil(kit, z.x, z.z, z.r, DD_RIM, { c2: DD_JADE, n: 6, m: 1, ticks: 18, inner: 0.35, fill: 0.45, w: 0.12, life: 1e9, rev: 0.12, spin: 2.6 });
       return { ring, t: 0 };
     },
     zone(kit, v, z, dt) {
@@ -60,8 +60,9 @@ const domdom = {
     zoneDrop(kit, v) { stop(v.ring); },
     land(kit, e) {
       const r = 3;
-      shell(kit, e.x, 0.9, e.z, r, DD_JADE, { c2: DD_WIND, p: 1.3, core: 0.12, bands: 1.4, squash: 0.45, life: 0.55, grow: 0.08, fade: 0.3 });
-      sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 6, m: 1, ticks: 0, inner: 0.5, fill: 0.3, life: 0.6, rev: 0.06, spin: 4 });
+      burst(kit, e.x, e.z, r * 1.1, DD_JADE, DD_WIND, { life: 0.5 });
+      shell(kit, e.x, 0.9, e.z, r, DD_JADE, { c2: DD_WIND, p: 1.1, core: 0.35, bands: 1.4, squash: 0.45, life: 0.7, grow: 0.08, fade: 0.3 });
+      sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 6, m: 1, ticks: 12, inner: 0.5, fill: 0.55, life: 0.9, rev: 0.06, spin: 4, w: 0.14 });
       kit.flash(e.x, 1.4, e.z, DD_JADE, 30, 0.2); kit.kick(e.x, e.z, 0.2);
       if (kit.match) for (const o of kit.match.units) {
         if (!o.alive || Math.hypot(o.x - e.x, o.z - e.z) > r + o.radius) continue;
@@ -79,22 +80,23 @@ const domdom = {
   // Phong Chi Đầu Thương: a thin jade spear on a pale wind ribbon; where it strikes, a jade bubble pops and wind fans out
   ddSpear: {
     pal: [DD_JADE, DD_WIND], hitR: 2.2,
-    skill(kit, e, u) { song(kit, u); return true; },
+    skill(kit, e, u) { song(kit, u); slash(kit, u.x, u.z, e.a, 2.8, DD_JADE, { c2: DD_DEEP, edge: DD_WIND, span: 0.8, life: 0.35, w: 1.4, sweep: 0.04 }); return true; },
     shotMake(kit, s) {
       const v = { x: s.x, z: s.z, a: Math.atan2(s.dz || 0, s.dx || 1), live: true };
-      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 0.9, DD_WIND, 1e9, { c2: DD_JADE, len: 16, add: true });
-      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 0.5, DD_JADE, 1e9, { c2: DD_DEEP, len: 10, up: true });
+      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 1.6, DD_JADE, 1e9, { c2: DD_DEEP, len: 20 });
+      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 0.9, DD_WIND, 1e9, { c2: DD_JADE, len: 12, up: true });
+      v.tip = shell(kit, s.x, 1.3, s.z, 1.05, DD_JADE, { c2: DD_WIND, p: 1.0, core: 0.6, life: 1e9 });
       return v;
     },
     shot(kit, v, s, x, y, z) {
-      v.x = x; v.z = z;
-      kit.glow(x, 1.3, z, DD_WIND, 0.05, 0.9, 1, kit.K.STAR, 1.1);
+      v.x = x; v.z = z; v.tip.position.set(x, 1.3, z);
+      kit.glow(x, 1.3, z, DD_WIND, 0.05, 1.2, 1, kit.K.STAR, 1.1);
       if (Math.random() < 0.6) kit.str.emit(x, 1.3, z, R(-2, 2), R(-0.5, 0.8), R(-2, 2), DD_JADE, 0.25, 0.08, 0.06, 0, 0, 1);
       return true;
     },
     shotEnd(kit, v, s, x, z) {
-      v.live = false;
-      burst(kit, x, z, 2.4, DD_JADE, DD_WIND, { life: 0.35 });
+      v.live = false; stop(v.tip);
+      burst(kit, x, z, 2.8, DD_JADE, DD_WIND, { life: 0.4 });
       shell(kit, x, 1.1, z, 2.2, DD_JADE, { c2: DD_WIND, p: 1.5, core: 0.1, bands: 1.5, life: 0.4, grow: 0.06, fade: 0.25 });
       for (let i = 0, n = kit.N(14); i < n; i++) { const a = R(0, 6.283), sp = R(7, 13); kit.str.emit(x, 1.1, z, Math.cos(a) * sp, R(0, 1), Math.sin(a) * sp, i % 2 ? DD_JADE : DD_WIND, 0.3, 0.14, 0.08, 0, 0, 1); }
     },
@@ -103,28 +105,31 @@ const domdom = {
   // after the press): a ring runs out to the edge, wind streaks pour inward to her, the dome flares
   ddTemple: {
     pal: [DD_JADE, DD_WIND], hitR: 2,
-    skill(kit, e, u) { song(kit, u); return true; },
-    nova(kit, e, u, s) {
-      const T = s.ddTemple, r = T.r, end = T.delay + T.every * (T.n - 1) + 0.6;
-      kit.ring(e.x, e.z, s.radius, DD_RIM, 0.35);
-      sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 8, m: 3, ticks: 24, inner: 0.62, fill: 0.12, life: end, rev: 0.4, spin: 0.8, w: 0.08, follow: u, fade: 0.4 });
-      const dome = shell(kit, u.x, 0, u.z, r, DD_JADE, { c2: DD_WIND, p: 2.2, core: 0.03, bands: 0.9, dome: true, follow: u, life: end, grow: T.delay, fade: 0.5, alpha: 0.55 });
-      let beat = 0;
-      kit.follow(u, end, (t) => {
-        const at = T.delay + beat * T.every;
-        if (beat < T.n && t >= at) {
-          beat++;
-          kit.ring(u.x, u.z, r, DD_WIND, 0.45); kit.ring(u.x, u.z, r * 0.6, DD_JADE, 0.35);
-          kit.flash(u.x, 1.6, u.z, DD_JADE, beat === 1 ? 45 : 30, 0.25);
-          for (let i = 0, n = kit.N(beat === 1 ? 30 : 20); i < n; i++) { const a = R(0, 6.283), d = r * R(0.85, 1.05), sp = R(10, 16); kit.str.emit(u.x + Math.cos(a) * d, R(0.4, 1.6), u.z + Math.sin(a) * d, -Math.cos(a) * sp, 0, -Math.sin(a) * sp, i % 3 ? DD_JADE : DD_WIND, 0.35, 0.25, 0.1, 0, 0, 1); }
-          if (dome) dome.scale && dome.scale.setScalar(r * 1.04);
-        }
-        if (Math.random() < 0.5) { const a = R(0, 6.283), d = r * R(0.3, 0.95); kit.glow(u.x + Math.cos(a) * d, R(0.5, 2.5), u.z + Math.sin(a) * d, DD_WIND, 0.6, 0.25, 0.9, kit.K.STAR, 0.4, -Math.sin(a) * 2, 0.3, Math.cos(a) * 2); }
-      });
-      return true;
-    },
+    skill(kit, e, u, s) { song(kit, u); temple(kit, u, s); return true; },
+    nova() { return true; },
   },
 };
+// Phong Nha Thần Điện, drawn from the press: a silence wave, a filled wind sigil and a jade dome round her that beats three
+// times (1, 2.5 and 4 s after the press): a ring runs out to the edge, wind streaks pour inward to her, the dome flares
+function temple(kit, u, s) {
+  const e = { x: u.x, z: u.z }, T = s.ddTemple, r = T.r, end = T.delay + T.every * (T.n - 1) + 0.6;
+  kit.ring(e.x, e.z, s.radius, DD_RIM, 0.35);
+  burst(kit, e.x, e.z, 3.2, DD_JADE, DD_WIND, { life: 0.45 });
+  sigil(kit, e.x, e.z, r, DD_JADE, { c2: DD_WIND, n: 8, m: 3, ticks: 24, inner: 0.62, fill: 0.4, life: end, rev: 0.15, spin: 0.8, w: 0.16, follow: u, fade: 0.4 });
+  const dome = shell(kit, u.x, 0, u.z, r, DD_JADE, { c2: DD_WIND, p: 1.6, core: 0.12, bands: 0.9, dome: true, follow: u, life: end, grow: 0.3, fade: 0.5, alpha: 0.8 });
+  let beat = 0;
+  kit.follow(u, end, (t) => {
+    const at = T.delay + beat * T.every;
+    if (beat < T.n && t >= at) {
+      beat++;
+      kit.ring(u.x, u.z, r, DD_WIND, 0.45); kit.ring(u.x, u.z, r * 0.6, DD_JADE, 0.35);
+      kit.flash(u.x, 1.6, u.z, DD_JADE, beat === 1 ? 45 : 30, 0.25);
+      for (let i = 0, n = kit.N(beat === 1 ? 30 : 20); i < n; i++) { const a = R(0, 6.283), d = r * R(0.85, 1.05), sp = R(10, 16); kit.str.emit(u.x + Math.cos(a) * d, R(0.4, 1.6), u.z + Math.sin(a) * d, -Math.cos(a) * sp, 0, -Math.sin(a) * sp, i % 3 ? DD_JADE : DD_WIND, 0.35, 0.25, 0.1, 0, 0, 1); }
+      if (dome) dome.scale && dome.scale.setScalar(r * 1.04);
+    }
+    if (Math.random() < 0.5) { const a = R(0, 6.283), d = r * R(0.3, 0.95); kit.glow(u.x + Math.cos(a) * d, R(0.5, 2.5), u.z + Math.sin(a) * d, DD_WIND, 0.6, 0.25, 0.9, kit.K.STAR, 0.4, -Math.sin(a) * 2, 0.3, Math.cos(a) * 2); }
+  });
+}
 
 
 // ---- Dương Tiễn: ice blue, white edge, violet-blue diamond eyes -------------------------------------------------------------
@@ -151,8 +156,9 @@ const duongtien = {
     skill() { return true; },
     nova(kit, e, u, s) {
       const a = e.a ?? u.aim, r = s.radius;
-      slash(kit, e.x, e.z, a, r, DT_ICE, { c2: DT_DEEP, edge: DT_WHITE, span: 1.6, life: 0.5, w: r * 0.24, sweep: 0.09, arcs: 2 });
-      slash(kit, e.x, e.z, a + Math.PI, r, DT_ICE, { c2: DT_DEEP, edge: DT_WHITE, span: 1.6, life: 0.5, w: r * 0.24, sweep: 0.12, arcs: 2 });
+      slash(kit, e.x, e.z, a, r, DT_ICE, { c2: DT_DEEP, edge: DT_WHITE, span: 1.6, life: 0.55, w: r * 0.42, sweep: 0.09, arcs: 2 });
+      slash(kit, e.x, e.z, a + Math.PI, r, DT_ICE, { c2: DT_DEEP, edge: DT_WHITE, span: 1.6, life: 0.55, w: r * 0.42, sweep: 0.12, arcs: 2 });
+      burst(kit, e.x, e.z, 2.2, DT_ICE, DT_WHITE, { life: 0.3 });
       kit.ring(e.x, e.z, r, DT_ICE, 0.35);
       kit.flash(e.x, 1.5, e.z, DT_ICE, 35, 0.2); kit.kick(e.x, e.z, 0.25);
       return true;
@@ -161,11 +167,11 @@ const duongtien = {
   // Hao Thiên Xuất Kích: the hound runs as a blue comet, dropping thin rings behind it
   dtHound: {
     pal: [DT_ICE, DT_WHITE], hitR: 1.8,
-    skill() { return true; },
+    skill(kit, e, u) { sigil(kit, u.x, u.z, 3, DT_ICE, { c2: DT_WHITE, n: 4, m: 1, ticks: 8, inner: 0.5, fill: 0.55, life: 0.6, rev: 0.05, spin: 3, w: 0.16 }); return true; },
     shotMake(kit, s) {
       const v = { x: s.x, z: s.z, live: true, drop: 0 };
-      v.ball = shell(kit, s.x, 1.2, s.z, 0.9, DT_ICE, { c2: DT_WHITE, p: 1.2, core: 0.35, life: 1e9 });
-      trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 1.2, DT_ICE, 1e9, { c2: DT_DEEP, len: 14, add: true });
+      v.ball = shell(kit, s.x, 1.2, s.z, 1.8, DT_ICE, { c2: DT_WHITE, p: 1.0, core: 0.6, life: 1e9 });
+      trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 2.6, DT_ICE, 1e9, { c2: DT_DEEP, len: 20 });
       return v;
     },
     shot(kit, v, s, x, y, z) {
@@ -190,7 +196,8 @@ const duongtien = {
   // Phá Diệt Hoành Tảo / Tuyệt Sát Chi Kích: wide blue halberd crescents, the second white-edged and the other way round
   dtSweep: {
     pal: [DT_ICE, DT_WHITE], hitR: 2.2,
-    skill() { return true; },
+    // the press: the blue halberd circle opens round him (the clip's big ring with its crescent)
+    skill(kit, e, u, s) { sigil(kit, u.x, u.z, s.radius * 1.1, DT_ICE, { c2: DT_WHITE, n: 0, ticks: 24, inner: 0.78, fill: 0.55, life: 0.9, rev: 0.08, spin: 2, w: 0.18, follow: u, fade: 0.3 }); return true; },
     nova(kit, e, u, s) { sweep(kit, e, u, s, 1); return true; },
   },
   dtSwing: {
@@ -216,8 +223,9 @@ const duongtien = {
 };
 function sweep(kit, e, u, s, dir) {
   const a = e.a ?? u.aim, r = s.radius, span = s.arc || 1.2, c = dir > 0 ? DT_ICE : DT_WHITE, c2 = dir > 0 ? DT_DEEP : DT_ICE;
-  slash(kit, e.x, e.z, a, r, c, { c2, edge: DT_WHITE, span, dir, life: 0.55, w: r * 0.3, sweep: 0.1, arcs: 3 });
-  slash(kit, e.x, e.z, a, r * 0.62, DT_ICE, { c2: DT_DEEP, span: span * 0.9, dir, life: 0.45, w: r * 0.2, sweep: 0.08, arcs: 0, sparks: false });
+  slash(kit, e.x, e.z, a, r, c, { c2, edge: DT_WHITE, span, dir, life: 0.6, w: r * 0.6, sweep: 0.06, arcs: 3 });
+  slash(kit, e.x, e.z, a, r * 0.62, DT_ICE, { c2: DT_DEEP, span: span * 0.9, dir, life: 0.5, w: r * 0.35, sweep: 0.08, arcs: 0, sparks: false });
+  for (const k of [-0.5, 0.5]) burst(kit, e.x + Math.cos(a + k * span) * r * 0.6, e.z + Math.sin(a + k * span) * r * 0.6, 2.4, c, DT_WHITE, { life: 0.35 });
   for (let i = 0, n = kit.N(18); i < n; i++) { const b = a + R(-span, span), sp = R(9, 16); kit.str.emit(e.x + Math.cos(b) * r * 0.6, R(0.6, 1.5), e.z + Math.sin(b) * r * 0.6, Math.cos(b) * sp, 0, Math.sin(b) * sp, i % 3 ? DT_ICE : DT_WHITE, 0.3, 0.2, 0.12, 0, 0, 1); }
   kit.flash(e.x + Math.cos(a) * 2, 1.4, e.z + Math.sin(a) * 2, DT_ICE, 35, 0.2); kit.kick(e.x, e.z, 0.3);
 }
@@ -231,7 +239,7 @@ function tendril(kit, x, z, a, L, out, life, w) {
     if (t > life) return null;
     const f = Math.min(1, t / out) * (1 - 0.6 * Math.max(0, (t - out) / (life - out))), d = L * f, wig = Math.sin(t * 30 + ph) * 0.35 * f;
     return [x + Math.cos(a) * d - Math.sin(a) * wig, 1.0 + 0.4 * f, z + Math.sin(a) * d + Math.cos(a) * wig];
-  }, w, KN_CYAN, life, { c2: KN_DEEP, len: 14, add: true });
+  }, w, KN_CYAN, life, { c2: KN_DEEP, len: 14 });
 }
 // the hp a press costs: a small dark-red puff at the caster
 function cost(kit, u) { kit.puffs(u.x, 1.0, u.z, kit.N(5), KN_BLOOD, 0.8, 1.2, 0.5, 0.8, 1.6, 0.3, 0.6, kit.K.SMOKE, 2); }
@@ -242,8 +250,10 @@ const mucma = {
     skill(kit, e, u) { cost(kit, u); return true; },
     nova(kit, e, u, s) {
       const a = e.a ?? u.aim, r = s.radius, span = s.arc || 0.7;
-      for (let i = 0; i < 7; i++) tendril(kit, e.x, e.z, a + (i / 6 - 0.5) * 2 * span, r * R(0.85, 1.05), 0.1, 0.45, 0.5);
-      slash(kit, e.x, e.z, a, r * 0.9, KN_CYAN, { c2: KN_DEEP, edge: KN_WHITE, span, life: 0.4, w: r * 0.18, sweep: 0.06, arcs: 2 });
+      for (let i = 0; i < 7; i++) tendril(kit, e.x, e.z, a + (i / 6 - 0.5) * 2 * span, r * R(0.9, 1.1), 0.06, 0.5, 1.6);
+      slash(kit, e.x, e.z, a, r, KN_CYAN, { c2: KN_DEEP, edge: KN_WHITE, span, life: 0.45, w: r * 0.6, sweep: 0.04, arcs: 2 });
+      slash(kit, e.x, e.z, a, r * 0.55, KN_CYAN, { c2: KN_DEEP, span: span * 0.9, life: 0.4, w: r * 0.4, sweep: 0.04, arcs: 0, sparks: false });
+      for (const f of [0.5, 0.9]) burst(kit, e.x + Math.cos(a) * r * f, e.z + Math.sin(a) * r * f, 2.4, KN_CYAN, KN_WHITE, { life: 0.3 });
       kit.flash(e.x + Math.cos(a) * 2, 1.4, e.z + Math.sin(a) * 2, KN_CYAN, 35, 0.2); kit.kick(e.x, e.z, 0.25);
       return true;
     },
@@ -254,7 +264,9 @@ const mucma = {
     skill(kit, e, u, s) {
       cost(kit, u);
       const life = s.dist / s.speed + 0.15;
-      trail(kit, (t) => (t < life && u.alive ? [u.x, 1.1, u.z] : null), 1.6, KN_CYAN, life + 0.3, { c2: KN_DEEP, len: 16, add: true });
+      trail(kit, (t) => (t < life && u.alive ? [u.x, 1.1, u.z] : null), 3, KN_CYAN, life + 0.3, { c2: KN_DEEP, len: 22 });
+      burst(kit, u.x, u.z, 2.2, KN_CYAN, KN_WHITE, { life: 0.35 });
+      trail(kit, (t) => (t < life && u.alive ? [u.x, 1.1, u.z] : null), 1.2, KN_WHITE, life + 0.3, { c2: KN_CYAN, len: 12, up: true });
       kit.follow(u, life, () => { kit.glow(u.x, 1.2, u.z, KN_WHITE, 0.05, 1.3, 0.9, kit.K.STAR, 1); });
       return true;
     },
@@ -270,9 +282,11 @@ const mucma = {
           if (t > dur || !u.alive) return null;
           const back = u.aim + Math.PI + side * (0.5 + 0.25 * up), sw = Math.sin(t * 3 + j) * 0.5, L = 2.2 + 0.4 * up;
           return [u.x + Math.cos(back + sw * 0.3) * L, 1.6 + up * 0.7 + 0.3 * Math.sin(t * 4 + j), u.z + Math.sin(back + sw * 0.3) * L];
-        }, 0.55, KN_CYAN, dur, { c2: KN_DEEP, len: 18, add: true, up: true });
+        }, 1.0, KN_CYAN, dur, { c2: KN_DEEP, len: 18, up: true });
       }
-      shell(kit, u.x, 1.1, u.z, 1.9, KN_CYAN, { c2: KN_WHITE, p: 2.2, core: 0.04, follow: u, life: dur, grow: 0.15, fade: 0.4, alpha: 0.5 });
+      burst(kit, u.x, u.z, 3, KN_CYAN, KN_WHITE, { life: 0.45 });
+      sigil(kit, u.x, u.z, 5, KN_CYAN, { c2: KN_WHITE, n: 4, m: 1, ticks: 8, inner: 0.5, fill: 0.55, life: dur, rev: 0.15, spin: 1.5, w: 0.14, follow: u, fade: 0.4 });
+      shell(kit, u.x, 1.1, u.z, 3.2, KN_CYAN, { c2: KN_WHITE, p: 1.4, core: 0.2, follow: u, life: dur, grow: 0.15, fade: 0.4, alpha: 0.75 });
       kit.flash(u.x, 1.6, u.z, KN_CYAN, 40, 0.3);
       return true;
     },
