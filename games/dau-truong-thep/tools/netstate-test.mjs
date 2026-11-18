@@ -3,6 +3,7 @@
 // Then the guest's prediction of its own mech against the host, with and without delay.
 import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed, LOC_KINDS, locked } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
+import { OLD_DOMDOM } from './k13-cases.mjs';   // kit lane K13: the old drone row (fixture)
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
 import { OLD_ANDUONG } from './k9-cases.mjs';   // kit lane k9: the old An Dương Vương kit as a fixture
 const MODE_ORDER = Object.keys(MODES);   // every sim mode, trum (the Phó bản boss engine) included
@@ -355,6 +356,15 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   // the patched def itself differs from the mirror's (built from the roster key); every other field must match
   const other = t.bad.map((b) => b.replace(/^tick \d+: /, '').split('; ').filter((d) => !d.startsWith('unit0.def')).join('; ')).filter(Boolean);
   check('wire fixture (old Tắc Kè row): the wire zone is mirrored with no other state difference', m.zones.some((z) => z.kind === 'wire') && other.length === 0, other.slice(0, 2).join(' | '));
+}
+// kit lane K13: no tank carries a drone row since Đom Đóm plays the wind kit; mirror the old Ong Thợ row (OLD_DOMDOM) so the drone zone stays covered
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'domdom', name: 'A' }, { team: 1, mech: 'ung', name: 'B' }] }), u = m.units[0];
+  u.def = { ...u.def, skills: [OLD_DOMDOM.skills[0], u.def.skills[1], u.def.skills[2]] };
+  const idle = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  const t = mirrorRun('drone fixture', m, 40, (mm, i) => [{ ...idle, s1: i === 2 }, idle]);
+  const other = t.bad.map((b) => b.replace(/^tick \d+: /, '').split('; ').filter((d) => !d.startsWith('unit0.def')).join('; ')).filter(Boolean);
+  check('drone fixture (old Đom Đóm row): the drone zone is mirrored with no other state difference', m.zones.some((z) => z.kind === 'drone') && other.length === 0, other.slice(0, 2).join(' | '));
 }
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 
