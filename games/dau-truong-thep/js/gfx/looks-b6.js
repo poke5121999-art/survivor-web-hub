@@ -1,4 +1,4 @@
-// Looks, batch 6: Bọ Cạp, Lươn Điện, Nhện Thép, Băng Nha, Kiếm Thần, Ve Sầu. Render only (see looks.js for the hooks).
+// Looks, batch 6: Bọ Cạp, Lươn Điện, Nhện Thép, Băng Nha, Kiếm Thần (Ve Sầu moved to looks-k8.js). Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   毒蝎女王 p52 (Bọ Cạp): magenta-violet sting streaks, a violet swirl round her when she spins, magenta poison bubbles on
@@ -8,7 +8,6 @@
 //     glow on the webbed foe.
 //   冰雪女王 p81 (Băng Nha): white frost arcs flying out, a big ice-blue frost dome with snow swirling, an ice prison.
 //   李白 p65 (Kiếm Thần): red flame swords falling in fire columns, white blades ringing the caster, a red flying sword.
-//   时光女神 p61 (Ve Sầu): a golden winged bar, red clock dials on the marked foes, a blue time coil round an ally (ours keeps gold: one colour plus red).
 import * as THREE from '../../vendor/three.module.min.js';
 import { orbPos } from '../sim.js';
 import { C, own, stop, sigil, shell, pillar, trail, burst } from './lookkit.js';
@@ -451,92 +450,4 @@ const kiemthan = {
   },
 };
 
-// ---- Ve Sầu: a golden cicada, clocks, time ----------------------------------------------------------------------------
-const VS_GOLD = C(2.6, 1.9, 0.45), VS_RED = C(2.6, 0.3, 0.4);
-const cBody = keep(new THREE.SphereGeometry(0.5, 14, 10).scale(1.5, 0.5, 0.65)), cHead = keep(new THREE.SphereGeometry(0.3, 10, 8).scale(0.8, 0.7, 1.3).translate(0.75, 0, 0));
-const wingGeo = (() => { const s = new THREE.Shape(); s.absellipse(1.05, 0, 1.05, 0.34, 0, Math.PI * 2, false, 0); return keep(new THREE.ShapeGeometry(s, 20).rotateX(-Math.PI / 2)); })();
-function cicada() {
-  const g = new THREE.Group(), wm = basic(0xffd27a, false, 0.62), wg = basic(VS_GOLD, true, 0.45), wings = [];
-  for (const [sd, yaw, s] of [[1, 2.5, 1], [-1, -2.5, 1], [1, 2.8, 0.7], [-1, -2.8, 0.7]]) {
-    const piv = new THREE.Group(), yg = new THREE.Group(); yg.rotation.y = yaw;
-    for (const [m, k] of [[wg, 1.15], [wm, 1]]) { const w = new THREE.Mesh(wingGeo, m); w.scale.set(s * k, 1, s * k); yg.add(w); }
-    piv.add(yg); piv.userData.sd = sd; g.add(piv); wings.push(piv);
-  }
-  const bh = new THREE.Mesh(cBody, basic(VS_GOLD, true, 0.6)); bh.scale.setScalar(1.3);
-  g.add(bh, new THREE.Mesh(cBody, basic(0x3a2410, false, 1)), new THREE.Mesh(cHead, basic(0x2a1808, false, 1)));
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(eyeGeo, basic(VS_RED, true, 1)); e.position.set(0.85, 0.12, sd * 0.32); e.scale.setScalar(1.6); g.add(e); }
-  g.userData.wings = wings;
-  return order(g, 7);
-}
-function flap(g, t, amp = 0.5) { for (const p of g.userData.wings) p.rotation.x = p.userData.sd * Math.sin(t) * amp; }
-const tickGeo = keep(new THREE.CircleGeometry(0.045, 12).rotateX(-Math.PI / 2)), longTick = flatShape([[-0.16, 0], [0, 0.07], [0.16, 0], [0, -0.07]]);
-const hourGeo = flatShape([[-0.1, 0], [0, 0.07], [0.5, 0], [0, -0.07]]), minGeo = flatShape([[-0.12, 0], [0, 0.05], [0.82, 0], [0, -0.05]]);
-// a clock face lying flat: dial, rim, twelve ticks, gear teeth round the rim, two hands (userData.hour / min / gear)
-function clock(face, ink, faceA = 0.8) {
-  const g = new THREE.Group(), im = basic(ink, false, 1), gear = new THREE.Group();
-  const dial = new THREE.Mesh(discGeo, basic(face, false, faceA)); g.add(dial);
-  const rim = new THREE.Mesh(annGeo, im); rim.position.y = 0.01; g.add(rim);
-  for (let i = 0; i < 12; i++) { const b = i / 12 * 6.283, t = new THREE.Mesh(i % 3 ? tickGeo : longTick, im); t.position.set(Math.cos(b) * (i % 3 ? 0.76 : 0.72), 0.02, Math.sin(b) * (i % 3 ? 0.76 : 0.72)); t.rotation.y = -b; g.add(t); }
-  g.add(gear);
-  const hour = new THREE.Mesh(hourGeo, im), min = new THREE.Mesh(minGeo, im), cap = new THREE.Mesh(discGeo, im); hour.position.y = 0.03; min.position.y = 0.04; cap.scale.setScalar(0.09); cap.position.y = 0.05;
-  g.add(hour, min, cap); g.userData = { hour, min, gear };
-  return order(g, 5);
-}
-function tickClock(g, t, speed) { g.userData.min.rotation.y = -t * speed; g.userData.hour.rotation.y = -t * speed / 12 - 1; g.userData.gear.rotation.y = t * speed * 0.08; }
-const helixN = 44, VS_AMB = C(2.6, 1.4, 0.3);
-// an amber time coil winding round a unit, turning backwards
-function coil(kit, u, life) {
-  const glow = ribbonMesh(helixN, VS_AMB, true, 0.7), core = ribbonMesh(helixN, C(2.6, 2.3, 1.6), true, 1);
-  own(kit, [glow, core], life, (t) => {
-    if (!u.alive) return false;
-    const pts = [], k = Math.min(1, t / 0.2);
-    for (let i = 0; i < helixN; i++) { const f = i / (helixN - 1), b = -t * 9 + f * 6.283 * 3, rr = 1.5 - 0.4 * f; pts.push([u.x + Math.cos(b) * rr, 0.2 + 3.2 * f * k, u.z + Math.sin(b) * rr]); }
-    fillRibbon(glow, pts, 0.4); fillRibbon(core, pts, 0.12);
-    const a = Math.min(1, (life - t) / 0.3); glow.material.opacity = 0.7 * a; core.material.opacity = a;
-  });
-}
-const vesau = {
-  // Đạn Ấn: a golden cicada flies out with beating wings and a gold wake; the foe it marks gets a red clock dial over it
-  vsCicada: {
-    pal: [VS_RED, VS_GOLD], hitR: 1.6,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.4, 1.3, u.z + Math.sin(e.a) * 1.4, VS_GOLD, 0.12, 1.8, 1, kit.K.STAR, 1.3); return true; },
-    shotMake(kit, s) { const c = cicada(); c.scale.setScalar(2.3); const v = { c, h: held(kit, [c]), x: s.x, z: s.z, live: true, t: 0 }; trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 1.3, VS_GOLD, 0.5, { c2: C(0.6, 0.1, 0.1), len: 14 }); return v; },
-    shot(kit, v, s, x, y, z, dt) { v.t += dt; v.x = x; v.z = z; v.c.position.set(x, 1.4, z); v.c.rotation.y = -Math.atan2(s.dz, s.dx); flap(v.c, v.t * 45, 0.55); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.3, z, kit.N(8), VS_GOLD, 7, 0.3, 0.05, 0.5, 8); },
-    hit(kit, e) {
-      const c = clock(0x6a0a14, 0xffb0b8, 0.95); c.rotation.x = 0.35;
-      own(kit, [c], 1.2, (t) => { c.position.set(e.x, 3.0, e.z); c.scale.setScalar(3.0 * Math.min(1, t / 0.08)); tickClock(c, t, 14); fadeAll(c, Math.min(1, (1.2 - t) / 0.3)); });
-      return true;
-    },
-  },
-  // Vùng Thời Gian: a great golden clock opens on the floor, its hands racing, golden cicada wings beating over its middle
-  vsClock: {
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const c = clock(0x3a2408, 0xffc850, 0.7); c.position.set(z.x, 0.13, z.z);
-      const w = cicada(); w.position.set(z.x, 2.2, z.z); w.rotation.y = -1.57;
-      return { c, w, h: held(kit, [c, w]), t: 0, r: z.r };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const k = Math.min(1, v.t / 0.25), end = Math.min(1, (z.dur - z.age) / 0.3);
-      v.c.scale.setScalar(z.r * k); tickClock(v.c, v.t, 6); fadeAll(v.c, end);
-      v.w.scale.setScalar(2.4 * k); flap(v.w, v.t * 6, 0.45); fadeAll(v.w, end);
-      if (Math.random() < dt * 30) { const b = Math.random() * 6.283, d = z.r * Math.sqrt(Math.random()); kit.glow(z.x + Math.cos(b) * d, 0.3, z.z + Math.sin(b) * d, VS_GOLD, 0.8, 0.35, 1, kit.K.SPARK, 0.3, 0, R(1.5, 3), 0); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; },
-  },
-  // Quay Ngược: a gold clock spins backwards at her feet and an amber time coil winds round every ally it touches
-  vsRewind: {
-    skill() { return true; },
-    rewind(kit, e, u) {
-      const m = kit.match, r = e.r || 8;
-      if (m) for (const a of m.units) if (a.alive && a.team === u.team && Math.hypot(a.x - e.x, a.z - e.z) <= r) coil(kit, a, 1.3);
-      const c = clock(0x3a1a06, 0xffc850, 0.75); c.position.set(e.x, 0.13, e.z);
-      own(kit, [c], 1.4, (t) => { c.scale.setScalar(4.2 * Math.min(1, t / 0.15)); tickClock(c, -t, 18); fadeAll(c, Math.min(1, (1.4 - t) / 0.35)); });
-      kit.flash(e.x, 1.6, e.z, VS_GOLD, 30, 0.3);
-      return true;
-    },
-  },
-};
-
-export const B6 = { ...bocap,...luondien, ...nhenthep, ...bang, ...kiemthan, ...vesau };
+export const B6 = { ...bocap,...luondien, ...nhenthep, ...bang, ...kiemthan };   // vesau's looks moved to looks-k8.js with its ported kit

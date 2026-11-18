@@ -79,7 +79,7 @@ const SEQ = {
   moclan: { d: 5, seq: [['s1', 0], ['s2', 0.5], ['ult', 1.8]] },
   anduong: { d: 15, seq: [['ult', 0], ['s1', 0.5]] },
   chuottui: { d: 9, seq: [['s2', 0]] },
-  vesau: { d: 9, seq: [['s1', 0]] },
+  vesau: { d: 12, seq: [['s2', 0]] },
 };
 // Defender self-sustain: [slot, press while hp fraction is below, once?, target: 'self' | 'foe'].
 const SELF = {

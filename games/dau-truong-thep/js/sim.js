@@ -122,6 +122,7 @@ function clearStatus(u) {
   u.tfBase = null;
   k2Clear(u);   // kit-remake G5 Athena
   k4Clear(u);   // kit-remake K4
+  krClear(u);   // kit-remake G5 Kurumi
 }
 
 function spawn(m, u, first) {
@@ -475,6 +476,7 @@ function stepUnit(m, u, inp) {
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
   g2Tick(m, u);   // kit-remake G2: tags, saves, onHurt cc, energy, slowG, slowFire timers
   k2Tick(m, u);   // kit-remake G5 Athena: the heal when a bless.undying ends
+  krTick(m, u);   // kit-remake G5 Kurumi: a rewind mark snaps hp back when it ends
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -1312,6 +1314,7 @@ const CAST = {
   },
   // rewind: allies in range get back frac of what they have lost since `back` seconds ago
   rewind(m, u, s) {
+    if (s.fwd) return krRewind(m, u, s);   // kit-remake G5 Kurumi: the forward rewind
     for (const o of m.units) {
       if (o.team !== u.team || !o.alive || !o.hpHist.length || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
       const was = o.hpHist[Math.max(0, o.hpHist.length - 1 - Math.round(s.back * 2))], lost = was - o.hp;
@@ -1964,6 +1967,7 @@ function stepShots(m) {
     else if (hitZone) hitZone.hp -= dmg;
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
     if (s.splash && what !== 'dome' && owner && (!s.splashHit || what === 'unit')) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
+    if (what === 'unit' && owner && s.src === 'w') krSplashHeal(m, owner, s);   // kit-remake G5 Kurumi: the burst heals allies
     if (s.hook && s.hook.self && owner && owner.alive && (what === 'wall' || what === 'unit' || what === 'prop' || what === 'tower')) reelSelf(m, owner, s.x, s.z, hitUnit || hitProp || hitTower, s.hook);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
@@ -3128,3 +3132,32 @@ function k1Rally(m, u, s) {
   }
 }
 /* ===== end kit lane K1 ===== */
+/* ===== kit-remake G5 Kurumi (kit lane k8; ~/handoff/dtt-ref/kits/AUDIT-c.md vesau): weapon krHeal, rewind fwd ===== */
+// weapon krHeal: a weapon shot that hits a mech heals every ally of its owner (not the owner) inside the shot's splash radius by krHeal.
+function krSplashHeal(m, owner, s) {
+  const w = weaponOf(owner), r = s.splash || 0;
+  if (!w.krHeal || !r) return;
+  for (const o of m.units) if (o !== owner && o.team === owner.team && o.alive && o.hp < o.maxHp && dist2(o.x, o.z, s.x, s.z) <= r * r) heal(m, o, w.krHeal, owner);
+}
+// rewind fwd: s (the forward rewind): every ally within radius (the caster too) is marked for fwd s with the hp it has now (krHp);
+// meanwhile it takes `guard` less skill damage (G2 guard vs 'skill'); when the mark ends its hp goes back up to krHp (the caster's own
+// share x selfHealMul). Event 'rewind' at the press, 'krBack' when a mark snaps back.
+function krRewind(m, u, s) {
+  for (const o of m.units) {
+    if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
+    o.krT = s.fwd; o.krHp = o.hp; o.krBy = u.id;
+    if (s.guard) g2Guard(o, s.guard, 'skill', s.fwd);
+  }
+  m.events.push({ t: 'rewind', id: u.id, x: u.x, z: u.z, r: s.radius });
+}
+function krClear(u) { u.krT = 0; u.krHp = 0; u.krBy = -1; }
+function krTick(m, u) {
+  if (!(u.krT > 0)) return;
+  u.krT -= TICK;
+  if (u.krT > 1e-9) return;
+  const by = m.units[u.krBy], lost = u.krHp - u.hp;
+  if (lost > 0) heal(m, u, lost * (by === u ? RULES.selfHealMul : 1), by && by.alive ? by : u);
+  m.events.push({ t: 'krBack', id: u.id, x: u.x, z: u.z, amt: Math.max(0, lost) });
+  krClear(u);
+}
+/* ===== end kit-remake G5 Kurumi ===== */

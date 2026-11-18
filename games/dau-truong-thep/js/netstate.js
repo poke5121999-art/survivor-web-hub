@@ -81,7 +81,8 @@ export const F_GUESS = 8;
 const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT',
   'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT',   // kit-remake G2
   'magN', 'magT', 'blockN',   // kit-remake G4: shots fired, reload left, hits the selfShield still turns away
-  'locT', 'locK', 'shotN', 'hsN', 'tfN'];   // kit-remake G3 (the row mask is a list of words, MASK_W bits each: any number of names fits)
+  'locT', 'locK', 'shotN', 'hsN', 'tfN',   // kit-remake G3 (the row mask is a list of words, MASK_W bits each: any number of names fits)
+  'krT'];   // kit-remake G5 Kurumi: the rewind mark
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 

@@ -30,6 +30,7 @@ const ZONE_FIELDS = {
   wire: ['r', 'age', 'delay', 'dur', 'left'],
   orbit: ['r', 'age', 'delay', 'dur', 'mode', 'n', 'live', 'ring', 'spin'],
   portal: ['r', 'age', 'delay', 'dur', 'x2', 'z2'],
+  totem: ['r', 'age', 'delay', 'dur', 'hp', 'maxHp', 'area'],   // kit-remake G4 (Kurumi's Thời Quang Thủ Hộ is the first real row)
 };
 
 // Every difference between the real match and the mirror, as strings.

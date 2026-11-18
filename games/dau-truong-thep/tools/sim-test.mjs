@@ -6,6 +6,7 @@ import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compile
 import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
 import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
+import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3680,9 +3681,21 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44zf a cursor too near (the ends overlap) opens nothing: no zone, 0.4 s lockout', !m.zones.length && only(ev, 'skill').length === 0 && near(a.cd.s1, 0.4, 1e-9));
   }
 
+  // The batch-5 Kurumi kit (meter allyHurt + heal, Vùng Thời Gian, the look-back Quay Ngược) is a fixture now: vesau plays the kit ported
+  // from the owner's clip (tools/k8-cases.mjs), and these rows keep the primitives covered.
+  const OLD_VESAU = {
+    passive: { do: 'meter', max: 1500, gain: { allyHurt: 1, r: 8 }, spend: { kind: 'heal', mul: 1.6 } },
+    weapon: { name: 'Đạn Thời Gian', cd: 0.35, dmg: 128, speed: 32, range: 13, r: 0.22, alt: 0.3, vis: 'bullet' },
+    skills: [
+      { id: 'danan', cd: 7, do: 'volley', n: 1, dmg: 250, speed: 34, range: 14, r: 0.26, vis: 'bullet', fx: { amp: { amp: 0.15, dur: 4 } } },
+      { id: 'vungthoigian', cd: 13, do: 'zone', at: 'target', cast: 10, radius: 4.5, dur: 4, hps: 180, haste: 1.25, vis: 'heal' },
+      { id: 'quayguoc', cd: 50, do: 'rewind', radius: 8, back: 3, frac: 0.8 },
+    ],
+  };
+  const oldVesau = (m) => { for (const u of m.units) if (u.mech === 'vesau') { u.def = { ...u.def, ...OLD_VESAU }; u.passive = 'meter'; } return m; };
   // ---- rewind ----
   {
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('hac', 0), 14, 0], [R('ung', 1), 25, 0]]), [a, t, far] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('hac', 0), 14, 0], [R('ung', 1), 25, 0]])), [a, t, far] = m.units;
     a.hpHist = Array(7).fill(a.maxHp); a.hp = a.maxHp - 500;
     t.hpHist = Array(7).fill(t.maxHp); t.hp = t.maxHp - 1000;
     far.hpHist = Array(7).fill(far.maxHp); far.hp = far.maxHp - 1000;
@@ -3691,7 +3704,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   {
     // the history is sampled each 0.5 s, kept 7 deep, and read from 3 s back
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('ung', 1), 25, 0]]), [a, t] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 3, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
     go(m, 120, (i) => { if (i === 60) t.hp = t.maxHp - 600; return null; });
     check('44zh hpHist holds 7 samples of the last 3 s; the ones before the drop read full, the newest read the drop', t.hpHist.length === 7 && t.hpHist[0] === t.maxHp && t.hpHist[6] === t.maxHp - 600, JSON.stringify(t.hpHist));
     const was = t.hp;
@@ -3788,13 +3801,13 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   // ---- meter allyHurt, meter heal ----
   {
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 10, 0]]), [a, t, v] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 10, 0]])), [a, t, v] = m.units;
     const ev = go(m, 30, () => ({ 2: { fire: true, aim: Math.PI, tx: 4, tz: 0 } }));
     const hurt = only(ev, 'hit', (e) => e.id === 1), self = only(ev, 'hit', (e) => e.id === 0);
     check('44zy Thoi Khac: the blood a friend within 8 m loses fills the meter point for point (and only that: the owner\'s own does not)', hurt.length >= 1 && near(a.meter, sum(hurt, (e) => e.amt), 1e-6) && self.length === 0, `${a.meter} ${sum(hurt, (e) => e.amt)} ${self.length}`);
   }
   {
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 25, 0]]), [a, t] = m.units;
+    const m = oldVesau(arena([[R('vesau', 0), 0, 0], [R('trau', 0), 4, 0], [R('ung', 1), 25, 0]])), [a, t] = m.units;
     a.meter = 1500; t.hp = t.maxHp - 1000;
     press(m, 0, 's2', { tx: 4, tz: 0 }); go(m, 20);
     check('44zz a full meter: the first heal vesau gives another (the zone pulse of 90) is x1.6 = 144, then the meter is empty', near(t.hp, t.maxHp - 1000 + 144, 1e-6) && a.meter === 0, `${t.hp - (t.maxHp - 1000)} ${a.meter}`);
@@ -4397,6 +4410,7 @@ section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.sav
   }
 }
 runK1Cases(check, section);
+runK8Cases(check, section);   // kit lane k8
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

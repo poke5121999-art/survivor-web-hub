@@ -970,21 +970,29 @@ export const MECHS = {
         desc: 'Túi đồ nghề bám theo bạn 5 giây: đồng đội trong 6,5 m hồi 180 máu mỗi giây, chạy nhanh thêm 25%, và có khiên 300 khi bước vào.' },
     ],
   },
+  // Kurumi: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p61 "58.时光女神", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
+  // Attack = 150 (pilot scale). Passive (the Q's 被动): 100 energy, 20 a shot -> a 5-shot magazine, 1 s reload (G4 mag); range +50% (13 -> 19)
+  // and through walls (G2 thruWalls); a hit bursts round the mech for 50% -> 75, growing with the distance flown up to 100% -> 150 (G4
+  // far.ramp x2 at 19 m; our splash is 0.6 x the hit); allies in the burst heal 100% -> 150 (G5 weapon krHeal). Q 75% -> 112 hp/s from a
+  // totem with 50% of her hp (975) that loses its hp over 10 s (G4 totem). E 175% -> 262 + sleep 4 s (G3). Ult: allies in range are marked
+  // 2 s (G5 rewind fwd): 25% less skill damage meanwhile, then their hp goes back to what it was at the press; her fire rate x2.5 for 4 s
+  // (G1 self). "+100 energy for allies" is dropped (pilot rule). Cooldowns 8 / 8 / 30 s in the clip -> 11 / 10 / 50.
   vesau: {
     name: 'Kurumi', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0x3a1a2a,
-    blurb: 'Gom thời gian từ máu đồng đội đã mất để lần hồi máu kế tiếp mạnh hơn. Đạn Ấn đánh dấu, Vùng Thời Gian hồi và tăng tốc, Quay Ngược trả lại máu cả đội vừa mất.',
+    blurb: 'Nữ thần thời gian: súng tầm xa xuyên tường, đạn nổ càng xa càng đau và hồi máu đồng đội trong vụ nổ. Đặt thủ hộ thời quang hồi máu, ru ngủ kẻ địch, đánh dấu cả đội để máu quay về như lúc trước.',
     hp: 1950, speed: 6.8, radius: 0.78,
     armor: 0.04, accel: 1.2, turn: 13, towerMul: 1.8,
-    passive: { do: 'meter', name: 'Thời Khắc', desc: 'Mỗi điểm máu đồng đội trong 8 m mất đi nạp một điểm; đủ 1500 thì lần hồi máu kế tiếp của bạn cho người khác mạnh thêm 60%.',
-      max: 1500, gain: { allyHurt: 1, r: 8 }, spend: { kind: 'heal', mul: 1.6 } },
-    weapon: { name: 'Đạn Thời Gian', cd: 0.35, dmg: 128, speed: 32, range: 13, r: 0.22, alt: 0.3, vis: 'bullet' },
+    passive: { do: 'trait', name: 'Thời Quang Thủ Hộ',
+      desc: 'Băng đạn 5 viên, bắn hết thì nạp lại trong 1 giây. Đạn bay xa 19 m, xuyên vật cản; trúng ai thì nổ quanh kẻ đó, càng bay xa càng đau (tới gấp đôi). Đồng đội đứng trong vụ nổ được hồi 150 máu.' },
+    weapon: { name: 'Đạn Thời Gian', cd: 0.35, dmg: 75, speed: 32, range: 19, r: 0.22, splash: 2.2, splashHit: true, thruWalls: true, far: { ramp: { per: 0.055, max: 2 } },
+      mag: { n: 5, reload: 1 }, krHeal: 150, vis: 'bullet' },
     skills: [
-      { id: 'danan', look: 'vsCicada', name: 'Đạn Ấn', cd: 7, do: 'volley', n: 1, dmg: 250, speed: 34, range: 14, r: 0.26, vis: 'bullet', fx: { amp: { amp: 0.15, dur: 4 } }, icon: 'mark',
-        desc: 'Bắn viên đạn 250 sát thương; kẻ trúng nhận thêm 15% sát thương từ mọi người trong 4 giây.' },
-      { id: 'vungthoigian', look: 'vsClock', name: 'Vùng Thời Gian', cd: 13, do: 'zone', at: 'target', cast: 10, radius: 4.5, dur: 4, hps: 180, haste: 1.25, vis: 'heal', icon: 'heal',
-        desc: 'Mở vùng thời gian ở con trỏ (xa nhất 10 m) 4 giây: đồng đội trong 4,5 m hồi 180 máu mỗi giây và chạy nhanh thêm 25%.' },
-      { id: 'quayguoc', look: 'vsRewind', name: 'Quay Ngược', cd: 50, do: 'rewind', radius: 8, back: 3, frac: 0.8, icon: 'refresh',
-        desc: 'Đồng đội trong 8 m (bạn chỉ nhận một phần) lấy lại 80% số máu đã mất so với 3 giây trước.' },
+      { id: 'thuho', look: 'krGuard', name: 'Thời Quang Thủ Hộ', cd: 11, do: 'totem', cast: 10, radius: 5, hp: 975, decay: 97.5, dur: 10, hps: 112, icon: 'heal',
+        desc: 'Triệu hồi thủ hộ thời gian ở con trỏ (xa nhất 10 m), có 975 máu, đứng yên và mất dần máu trong 10 giây: đồng đội trong 5 m hồi 112 máu mỗi giây. Kẻ địch bắn vỡ được.' },
+      { id: 'cannhieu', look: 'krSleep', name: 'Thời Gian Can Nhiễu', cd: 10, do: 'volley', n: 1, dmg: 262, speed: 30, range: 15, r: 0.3, fx: { sleep: 4 }, vis: 'bullet', icon: 'mark',
+        desc: 'Bắn đạn nhiễu thời gian theo hướng ngắm (xa 15 m): kẻ trúng chịu 262 sát thương và ngủ 4 giây; bị đánh thì tỉnh.' },
+      { id: 'hoito', look: 'krRewind', name: 'Thời Quang Hồi Tố', cd: 50, do: 'rewind', radius: 8, fwd: 2, guard: 0.25, self: { on: 'cast', rapid: 2.5, dur: 4 }, icon: 'refresh',
+        desc: 'Đánh dấu hồi tố lên mọi đồng đội trong 8 m (kể cả bạn) 2 giây: trong lúc đó nhận ít hơn 25% sát thương từ chiêu, hết dấu thì máu quay về như lúc được đánh dấu. Trong 4 giây sau khi dùng, bạn bắn nhanh gấp 2,5 lần.' },
     ],
   },
 };
@@ -1086,7 +1094,7 @@ export const PERKS = {
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],
   anduong: [perk('Nỏ Nhanh', 'Nỏ Nhẹ bắn mỗi 0,26 giây.', 'weapon', { cd: 0.26 }), perk('Đổi Nhanh', 'Đổi Nỏ chỉ mất 0,15 giây.', 1, { setup: 0.15 }), perk('Tia Rộng', 'Nỏ Linh Quang rộng 1,4 m, tầm 30 m.', 2, { width: 1.4, range: 30 })],
   chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 135.', 'weapon', { dmg: 135 }), perk('Robot Dày', 'Robot Quấy 900 máu, mỗi phát 75, kéo dài 12 giây.', 1, { hp: 900, dmg: 75, dur: 12 }), perk('Túi Lớn', 'Túi Đồ Nghề hồi 220 mỗi giây, khiên 450, kéo dài 6 giây.', 2, { hps: 220, shield: 450, dur: 6 })],
-  vesau: [perk('Ấn Sâu', 'Đạn Ấn gây 290, kẻ trúng nhận thêm 20%.', 0, { dmg: 290, fx: { amp: { amp: 0.2, dur: 4 } } }), perk('Vùng Rộng', 'Vùng Thời Gian rộng 5,5 m, kéo dài 5 giây.', 1, { radius: 5.5, dur: 5 }), perk('Ngược Xa', 'Quay Ngược rộng 10 m, trả lại toàn bộ máu mất.', 2, { radius: 10, frac: 1 })],
+  vesau: [perk('Thủ Hộ Bền', 'Thời Quang Thủ Hộ có 1300 máu, hồi 140 máu mỗi giây.', 0, { hp: 1300, decay: 130, hps: 140 }), perk('Ngủ Say', 'Thời Gian Can Nhiễu gây 300, ru ngủ 5 giây.', 1, { dmg: 300, fx: { sleep: 5 } }), perk('Hồi Tố Rộng', 'Thời Quang Hồi Tố rộng 10 m.', 2, { radius: 10 })],
 };
 
 // The row a unit actually plays: the MECHS row with its upgrade levels and unlocked perks applied.

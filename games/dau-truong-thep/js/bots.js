@@ -1552,6 +1552,7 @@ const SKILL_AI = {
   },
   // rewind: the group has lost a lot in the last few seconds and the fight is still on
   rewind(c, s) {
+    if (s.fwd) return krBotRewind(c, s);   // kit-remake G5 Kurumi
     const { u, m } = c;
     if (!c.enemies.length && !c.underFire) return false;
     const back = Math.round(s.back * 2);
@@ -2391,3 +2392,17 @@ function k4BotDevour(c, s) {
   return true;
 }
 /* ===== end kit-remake K4 ===== */
+/* ===== kit-remake G5 Kurumi (kit lane k8) bots ===== */
+// rewind fwd: the mark keeps the hp an ally has now, so it is worth most at the start of a fight: cast when allies in range are being
+// hurt (hurt in the last second) with enemies around, two of them, or one that is already under half hp.
+function krBotRewind(c, s) {
+  const { u, m } = c;
+  if (!c.enemies.length && !c.underFire) return false;
+  let hot = 0, low = 0;
+  for (const a of m.units) {
+    if (a.team !== u.team || !a.alive || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius || a.combatT > 1) continue;
+    hot++; if (a.hp < a.maxHp * 0.5) low++;
+  }
+  return hot >= 2 || low >= 1;
+}
+/* ===== end kit-remake G5 Kurumi bots ===== */
