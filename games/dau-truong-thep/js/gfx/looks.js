@@ -188,8 +188,7 @@ export const LOOKS = {
 };
 
 Object.assign(LOOKS, B1, B2, B3, B4, B5, B6, B7, B8, B9);
-Object.assign(LOOKS, K1);   // kit lane K1
-Object.assign(LOOKS, B1, B2, B3, B4, B5, B6, B7, B8, B9, K2);
+Object.assign(LOOKS, K1, K2);   // kit lanes (bộ chiêu gốc)
 
 // The row of unit u that a look-carrying event names (skills, their second stages, the passive).
 export function lookRow(u, id) {
