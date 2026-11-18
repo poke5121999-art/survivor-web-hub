@@ -1,11 +1,11 @@
-// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý, Hades (Athena moved to looks-k2.js, Sứa Trắng / Baymax to looks-k14.js with their ported kits). Render only (see looks.js for the hooks).
+// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý (Athena moved to looks-k2.js, Hades to looks-k15.js, Sứa Trắng / Baymax to looks-k14.js with their ported kits). Render only (see looks.js for the hooks).
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   吕布 p9: a thrown halberd with a red trident head, a red fire orb round him after every cast, flame spikes and a gold flare
 //     where he blinks in, a thin fiery orange-gold sweep, a red hexagram in a thin blue ring with a gold star at the ult's landing.
 //   曹操 p11: dark violet smoke wings, a thin magenta ring round him, a violet vortex at his feet, a violet claw-slash and violet
 //     crescent sword-qi.
 //   司马懿 p12: Tư Mã Ý's looks moved to looks-k4.js with his ported kit (kit lane K4).
-//   冥王 p72: an ice-blue scythe sweep, a blue column of light with rings, a big blue energy sphere on the targets.
+//   冥王 p72: Hades' looks moved to looks-k15.js with his ported kit (kit lane k15).
 //   Sứa Trắng: Baymax's looks moved to looks-k14.js with his ported kit (kit lane k14).
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, slash, cut, sigil, shell, pillar, trail, strands, weapon, fadeWeapon, spikes, burst, gate } from './lookkit.js';
@@ -164,81 +164,4 @@ const TT_VIO = C(1.25, 0.2, 2.1), TT_MAG = C(2.2, 0.3, 1.5), TT_SMOKE = C(0.16, 
 const taothao = {
 };
 
-// ---- Hades: ice-blue soul fire, a scythe, a rune circle, a column of rings ------------------------------------------
-const HD_ICE = C(0.45, 1.25, 2.6), HD_SOUL = C(0.6, 2.2, 2.3), HD_DEEP = C(0.08, 0.25, 1.1), HD_BONE = 0xcfe2ff;
-const hades = {
-  // Ám Lưu: a ghostly scythe sweeps out of him and a cold soul wisp flies off, a skull-white core in a wavering blue tail
-  hdSouls: {
-    pal: [HD_ICE, HD_SOUL], hitR: 1.8,
-    skill(kit, e, u) {
-      slash(kit, u.x, u.z, e.a, 8.5, HD_ICE, { y: 1.4, life: 0.45, span: 1.45, w: 1.4, sweep: 0.1, edge: HD_SOUL });
-      muz(kit, u, e.a, 3.0, HD_ICE, HD_SOUL);
-      const g = weapon('scythe', HD_BONE, HD_ICE, { opacity: 0.9 }); g.scale.setScalar(3);
-      own(kit, [g], 0.35, (t) => { const a = e.a + 1.2 - t * 6; g.position.set(u.x, 1.6, u.z); g.rotation.set(0, -a, 0); fadeWeapon(g, Math.min(1, (0.35 - t) / 0.15)); });
-      return true;
-    },
-    shotMake(kit, s) {
-      const v = { x: s.x, z: s.z, live: true, t: 0 };
-      trail(kit, () => (v.live ? [v.x, 1.3 + 0.15 * Math.sin(v.t * 30), v.z] : null), 2.6, HD_ICE, 2, { c2: HD_DEEP, len: 18 });
-      shell(kit, s.x, 1.35, s.z, 2.6, HD_SOUL, { c2: HD_ICE, p: 1.2, core: 0.3, life: 1e9, step: (t, m) => (v.live ? (m.position.set(v.x, 1.35, v.z), true) : false) });
-      return v;
-    },
-    shot(kit, v, s, x, y, z, dt) {
-      v.t += dt; const w = Math.sin(v.t * 22) * 0.35; v.x = x - s.dz * w; v.z = z + s.dx * w;
-      kit.glow(v.x, 1.35, v.z, HD_SOUL, 0.08, 0.9, 1, kit.K.STAR, 1);
-      kit.glow(v.x, 1.35, v.z, HD_ICE, 0.12, 1.4, 0.7, kit.K.GLOW, 1.2);
-      if (Math.random() < 0.6) kit.glow(v.x, 1.35, v.z, HD_ICE, 0.4, 0.45, 0.8, kit.K.FLAME, 1.4, 0, 1.2, 0);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.live = false; kit.sparks(x, 1.3, z, kit.N(10), HD_SOUL, 7, 0.35, 0.05, 0.6, 6); kit.ring(x, z, 1.5, HD_ICE, 0.3); },
-  },
-  // Bàn Tay Âm Giới: a blue five-point rune circle spreads where the hand will come; a skeletal hand bursts up out of it and
-  // clenches round whoever stands there
-  hdHand: {
-    pal: [HD_ICE, HD_SOUL],
-    zones: ['strike'],
-    skill() { return true; },
-    zoneMake(kit, z) { return { s: sigil(kit, z.x, z.z, Math.max(2.2, z.r), HD_ICE, { c2: HD_SOUL, n: 5, m: 2, alpha: 1, w: 0.08, life: (z.delay || 0.6) + 1.6, rev: z.delay || 0.6, spin: 1.2, fill: 0.12 }) }; },
-    zone(kit, v, z, dt) { if (Math.random() < dt * 20) { const a = Math.random() * 6.283, d = Math.random() * z.r; kit.glow(z.x + Math.cos(a) * d, 0.2, z.z + Math.sin(a) * d, HD_ICE, 0.5, 0.3, 1, kit.K.SPARK, 1, 0, R(1, 2.5), 0); } },
-    land(kit, e) {
-      const g = weapon('hand', HD_BONE, HD_ICE, { opacity: 0.95 }); g.scale.setScalar(2.8);
-      g.position.set(e.x, -2, e.z); g.rotation.y = Math.random() * 6.283;
-      own(kit, [g], 1.7, (t) => {
-        const up = Math.min(1, t / 0.18), down = t > 1.35 ? (t - 1.35) / 0.35 : 0;
-        g.position.y = -2.4 + 2.6 * up - 2.6 * down;
-        g.scale.set(2.8, 2.8 * (t > 0.3 && t < 1.35 ? 0.82 : 1), 2.8 * (t > 0.3 && t < 1.35 ? 0.7 : 1));
-        if (Math.random() < 0.3) kit.glow(e.x, 1.4, e.z, HD_SOUL, 0.3, 0.8, 0.8, kit.K.FLAME, 1.3, 0, 1.5, 0);
-      });
-      kit.ring(e.x, e.z, 3, HD_ICE, 0.35); kit.chips(e.x, 0.3, e.z, kit.N(10), C(0.25, 0.3, 0.4), 6, 0.8, 0.16);
-      burst(kit, e.x, e.z, 3.4, HD_ICE, HD_SOUL, { life: 0.6 }); sigil(kit, e.x, e.z, 3.4, HD_DEEP.clone().multiplyScalar(2), { c2: HD_ICE, n: 5, m: 2, life: 1.6, rev: 0.05, fill: 0.5, alpha: 0.8 });
-      kit.puffs(e.x, 0.4, e.z, kit.N(6), C(0.5, 0.75, 1), 1.2, 2.5, 0.9, 1, 2.2, 0.4, 0.45, kit.K.DUST);
-      kit.flash(e.x, 1.5, e.z, HD_ICE, 40, 0.25); kit.kick(e.x, e.z, 0.4);
-      return true;
-    },
-  },
-  // Cửa Âm Phủ: a dark gate on the floor, a fast nine-point blue spiral, a column of rings at the centre and a sphere of blue
-  // light; soul streaks are drawn in toward the middle
-  hdGate: {
-    pal: [HD_ICE, HD_SOUL], hitR: 1.8,
-    zoneMake(kit, z) {
-      const mat = new THREE.MeshBasicMaterial({ color: 0x02040c, transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), mat); disc.position.set(z.x, 0.11, z.z); disc.scale.setScalar(z.r * 0.6); disc.renderOrder = 3;
-      const h = held(kit, [disc]);
-      const s = sigil(kit, z.x, z.z, z.r, HD_ICE, { c2: HD_SOUL, n: 0, ticks: 18, inner: 0.55, life: 1e9, rev: 0.3, spin: -2.2, fill: 0.03, w: 0.08 });
-      const p = pillar(kit, z.x, z.z, 2.2, HD_ICE, { c2: HD_SOUL, h: 11, life: 1e9, rings: 4, grow: 0.2 });
-      const posts = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => pillar(kit, z.x + Math.cos(i * 0.785) * z.r * 0.92, z.z + Math.sin(i * 0.785) * z.r * 0.92, 0.5, HD_SOUL, { c2: HD_ICE, h: 6, life: 1e9, rings: 2, grow: 0.25 }));
-      const b = gate(kit, z.x, z.z, z.r * 0.7, HD_ICE, { life: 1e9, grow: 0.3 });
-      return { mat, h, s, p, b, posts, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; v.mat.opacity = 0.3 * Math.min(1, v.t / 0.3, (z.dur - z.age) * 3);
-      for (let i = 0; i < 2; i++) if (Math.random() < 0.8) { const a = Math.random() * 6.283; kit.str.emit(z.x + Math.cos(a) * z.r, R(0.3, 1.6), z.z + Math.sin(a) * z.r, -Math.cos(a) * 9 - Math.sin(a) * 6, 0, -Math.sin(a) * 9 + Math.cos(a) * 6, i ? HD_ICE : HD_SOUL, 0.35, 0.07, 0.06, 0, 0, 1); }
-    },
-    zoneDrop(kit, v, z, ended) {
-      v.h.on = false; stop(v.s); stop(v.p); stop(v.b); v.posts.forEach(stop);
-      if (ended && z) { kit.flash(z.x, 2, z.z, HD_ICE, 50, 0.3); kit.ring(z.x, z.z, z.r, HD_SOUL, 0.35); }
-    },
-  },
-};
-
-export const B1 = { ...lubo, ...taothao, ...hades };
+export const B1 = { ...lubo, ...taothao };

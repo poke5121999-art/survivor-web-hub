@@ -1124,6 +1124,7 @@ const SKILL_AI = {
   },
   nova(c, s) {
     if (s.orbKnock) return k4BotKnock(c, s);   // kit-remake K4: tumay's cone also throws its orbs
+    if (c.u.def.passive && c.u.def.passive.hdSplit) return hdBotNova(c, s);   // kit-remake G5 hades: Lợi Nhận on one foe in reach
     const { u, tgt } = c;
     let n = 0;
     for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
@@ -1536,6 +1537,7 @@ const SKILL_AI = {
   },
   // form: the heavy stance when the enemy is far, the light one when it is close or I am hunted
   form(c, s) {
+    if (s.hdMelee) return hdBotForm(c, s);   // kit-remake G5 hades: ranged -> scythe up close
     const { u, tgt, td } = c;
     if (u.form === 0) return !!tgt && c.los && td > 10.5 && c.near <= 1;
     return !tgt || td < 7 || (c.underFire && c.near >= 1);
@@ -2518,3 +2520,19 @@ function k14BotDoor(c, s) {
   return true;
 }
 /* ===== end kit-remake K14 ===== */
+
+/* ===== kit-remake G5 hades: bot policy for the ported kit (sim.js "kit-remake G5 hades") ===== */
+// Hình Thái Chuyển Hoán: Chế Tài (form 0) switches to the scythe when a foe is close; Thu Cát goes back when nobody is in reach
+function hdBotForm(c, s) {
+  const { u, tgt, td } = c;
+  if (u.form === 0) return !!tgt && c.los && td < 6 && c.hpFrac > 0.3 && c.state !== 'retreat';
+  return !tgt || td > 9 || (c.hpFrac < 0.3 && c.underFire);
+}
+// Minh Vương Lợi Nhận: the fan (Chế Tài) or the ring (Thu Cát) on the target once it is inside 0.85 of the reach
+function hdBotNova(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || td > s.radius * 0.85) return false;
+  c.b.sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); c.b.sk.tol = s.arc ? Math.min(0.3, s.arc * 0.5) : 3;
+  return true;
+}
+/* ===== end kit-remake G5 hades ===== */

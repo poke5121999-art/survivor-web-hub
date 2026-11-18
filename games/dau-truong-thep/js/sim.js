@@ -130,6 +130,7 @@ function clearStatus(u) {
   sntClear(u);   // kit-remake G5 Sơn Tinh
   k13Clear(u);   // kit lane K13
   k14Clear(u);   // kit-remake K14
+  hdClear(u);   // kit-remake G5 hades
 }
 
 function spawn(m, u, first) {
@@ -430,6 +431,7 @@ function stepUnit(m, u, inp) {
   k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
   k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
+  hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
     u.parryT -= dt;
@@ -677,6 +679,7 @@ function selfBuff(u, S) {
   if (S.guard && S.vs) g2Guard(u, S.guard, S.vs, d);   // kit-remake G2: guard vs 'skill' | 'weapon'
   else if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, d); }
   if (S.cc) u.ccT = Math.max(u.ccT, d);
+  if (S.hasteDecay || S.hdCc) hdSelf(u, S, d);   // kit-remake G5 hades
   if (S.shots) shotsArm(u, S);
 }
 // cdCut {slot: self|s1|s2|ult|all|other, cut, frac, set}: slot i's row cuts these cooldowns; the slot being pressed this tick waits (pendCut)
@@ -715,6 +718,7 @@ function rowHit(m, u, left) {
 }
 // towerMul on the row that hurt the tower, and on a transform row while it runs (once when that row is the source)
 function rowTowerMul(u) {
+  if (curSrc === 'w' && weaponOf(u).towerMul !== undefined) return weaponOf(u).towerMul;   // kit-remake G5 hades: the weapon's own tower factor
   const i = srcSlot(u, curSrc), s = i >= 0 ? slotRow(u, i, curSrc) : null, t = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
   return (s && s.towerMul !== undefined ? s.towerMul : 1) * (t && t !== s && t.towerMul !== undefined ? t.towerMul : 1);
 }
@@ -1424,6 +1428,7 @@ const CAST = {
       tx = o.x; tz = o.z;
       if (s.tthHold) tthPick(m, u, s, o, inp);   // kit-remake G5 Tào Tháo
       if (s.stGuard) k14Guard(u, o, s);   // kit-remake K14: Baymax guards the ally until he lands
+      if (s.hdHold) hdHold(u, o, s);   // kit-remake G5 hades: the picked foe is held in place
     }
     // invuln: untargetable (no damage, no crowd control) from the press until it lands, wind-up included
     if (s.invuln) { const T = (s.windup || 0) + s.flight + 0.1; u.invulnT = Math.max(u.invulnT, T); u.ccT = Math.max(u.ccT, T); }
@@ -1588,6 +1593,7 @@ function fireVolley(m, u, s) {
 // form: flip between the two stances; the unit plays the def built for that stance.
 function flipForm(m, u) {
   if (!u.def.formDefs) return;
+  hdFlip(u);   // kit-remake G5 hades: s2 cooldown kept per form
   u.form = u.form ? 0 : 1; u.def = formDef(u.def, u.form);
   m.events.push({ t: 'form', id: u.id, on: u.form, x: u.x, z: u.z });
 }
@@ -1837,6 +1843,7 @@ function stepDash(m, u) {
     u.dash = null; u.vx = d.dx * 2; u.vz = d.dz * 2;
     if (u.flurry) flurryNext(m, u);
     if (d.land) { [u.x, u.z] = landing(m, u, u.x, u.z); m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: d.land.radius, ...(d.land.look ? { skill: d.land.id } : {}) }); curSrc = d.land.id || null; areaDamage(m, u, u.x, u.z, d.land.radius, d.land.dmg, d.land, null); curSrc = null; landShield(m, u, d.land); }
+    if (d.land && d.land.hdDomain) hdRaise(m, u, d.land);   // kit-remake G5 hades: the landing raises the domain
   }
 }
 
@@ -2010,6 +2017,7 @@ function stepShots(m) {
       if (s.fx && owner && hitUnit.alive) applyFx(m, owner, hitUnit, s.fx);
       if (s.hook && !s.hook.self && hitUnit.alive && owner && owner.alive) reel(m, owner, hitUnit, s.hook);
       if (owner) k4ShotHit(m, s, hitUnit, owner);   // kit-remake K4: orb shots, enbac's nth hit
+      if (owner && s.src === 'w') hdShotHit(owner);   // kit-remake G5 hades: weapon hdCut
     } else if (what === 'prop') damageProp(m, hitProp, dmg, owner);
     else if (hitZone) hitZone.hp -= dmg;
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
@@ -2083,6 +2091,7 @@ function stepZones(m) {
     } else if (z.kind === 'field' && z.ctTrap) { done = k14Trap(m, z, owner);   // kit-remake K14: Doraemon's prank trap
     } else if (z.kind === 'field') {
       if (z.follow) { z.x = owner.x; z.z = owner.z; if (!owner.alive) done = true; }
+      if (z.hdDom) hdDomainStep(m, z, owner);   // kit-remake G5 hades
       z.acc += dt;
       const pulse = z.acc >= 0.5;
       if (pulse) z.acc -= 0.5;
@@ -3122,6 +3131,85 @@ function k14Trap(m, z, owner) {
   return false;
 }
 /* ===== end kit-remake K14 ===== */
+/* ===== kit-remake G5 hades (kit lane k15; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": hades, clip p72 "69.冥王").
+   Hooks elsewhere are one line each, marked "kit-remake G5 hades", and call into this block.
+     weapon `hdCut: f`: each weapon hit on a mech cuts the form row's (do 'form') cooldown by f of its full length.
+     weapon `towerMul`: the weapon's own factor on its tower damage (rowTowerMul; the scythe hits towers at half).
+     self `hasteDecay: true`: the haste of that self buff falls linearly to nothing over its dur (shared by the lane: kiemthan too).
+     self `hdCc: f`: for the buff's dur every stun, slow or root that lands lasts f of what it was given (the transform
+       ccResist path: ccPrev + tfCc, only while no transform runs).
+     passive `hdSplit: true` (a form passive): the s2 cooldown is kept per form; u.hdCd2 holds the other form's and runs down too.
+     leap `hdHold: s` (with `to: 'foe'`): the picked foe is rooted s at the press, so it is still there when the leap lands;
+       u.hdLock = its id until the landing.
+     leap `hdDomain {radius, dur, fear}`: the landing (after its blow) raises a field (vis 'hdDomain') for dur s: the owner inside
+       is cc immune; the locked foe out of it is stunned until the field ends (once); any other foe that steps in (it was not
+       inside when the field rose) is feared `fear` s (runs from the owner). Event `hdTether {id, by, x, z, dur}`.
+   New names: unit hdCd2, hdLock, hdCcT, hdCcF, k15HdT, k15HdD, k15HdF; zone hdDom, hdLock, hdFear, hdIn, hdHit. Sync: the domain
+   travels as a field (vis), hasteF / stunT / rootT / locT / cooldowns are in the row already; hdCd2 and hdCcT are host-only
+   (the guest shows the cooldown of the form it plays and gets the cut stuns from the host). ===== */
+function hdClear(u) { u.hdCd2 = 0; u.hdLock = -1; u.hdCcT = 0; u.hdCcF = 1; u.k15HdT = 0; u.k15HdD = 0; u.k15HdF = 1; }
+function hdSelf(u, S, d) {
+  if (S.hasteDecay && S.haste) { u.k15HdF = S.haste; u.k15HdD = u.k15HdT = d; }
+  if (S.hdCc) { u.hdCcT = Math.max(u.hdCcT, d); u.hdCcF = S.hdCc; }
+}
+// stepUnit, after ccPrev is set: the decaying haste, the cc cut, the other form's s2 cooldown
+function hdTick(m, u) {
+  if (u.k15HdT > 0) {
+    u.k15HdT = Math.max(0, u.k15HdT - TICK);
+    if (u.hasteT > 0) u.hasteF = Math.max(1, 1 + (u.k15HdF - 1) * u.k15HdT / u.k15HdD);
+  }
+  if (u.hdCd2 > 0) u.hdCd2 = Math.max(0, u.hdCd2 - TICK);
+  if (u.hdCcT > 0) {
+    u.hdCcT = Math.max(0, u.hdCcT - TICK);
+    if (!(u.tfT > 0)) { u.tfCc = u.hdCcT > 0 ? u.hdCcF : 1; u.ccPrev = u.hdCcT > 0 ? [u.stunT, u.slowT, u.rootT] : null; }
+  }
+}
+// flipForm, before the stance changes
+function hdFlip(u) {
+  const P = u.def.passive;
+  if (!P || !P.hdSplit) return;
+  const t = u.cd.s2; u.cd.s2 = u.hdCd2 || 0; u.hdCd2 = t;
+}
+// stepShots: a weapon shot hurt a mech
+function hdShotHit(u) {
+  const f = weaponOf(u).hdCut;
+  if (!f) return;
+  const j = u.def.skills.findIndex((r) => r.do === 'form');
+  if (j >= 0) applyCut(u, j, { frac: f });
+}
+// CAST.leap with to 'foe': the picked foe is held in place
+function hdHold(u, o, s) {
+  u.hdLock = o.id;
+  if (!(o.ccT > 0) && !o.def.heavy && !o.def.boss) o.rootT = Math.max(o.rootT, s.hdHold);
+}
+// stepDash: the leap landed (its blow is dealt): the domain rises round the caster
+function hdRaise(m, u, s) {
+  const D = s.hdDomain, inside = {};
+  for (const o of m.units) if (o.alive && o.team !== u.team && dist2(o.x, o.z, u.x, u.z) <= D.radius * D.radius) inside[o.id] = 1;
+  addZone(m, u, { kind: 'field', vis: 'hdDomain', x: u.x, z: u.z, r: D.radius, dur: D.dur, hps: 0, dps: 0, slow: 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {}, hdDom: 1, hdLock: u.hdLock, hdFear: D.fear || 0.6, hdIn: inside, hdHit: 0 });
+  u.hdLock = -1;
+}
+// stepZones, a field with hdDom: owner cc immune inside, the locked foe tethered, newcomers feared
+function hdDomainStep(m, z, owner) {
+  if (!owner || !owner.alive) { z.age = z.dur + 1; return; }
+  const rr = z.r * z.r, left = z.dur - z.age;
+  if (dist2(owner.x, owner.z, z.x, z.z) <= rr) owner.ccT = Math.max(owner.ccT, 2 * TICK);
+  for (const o of m.units) {
+    if (!o.alive || o.team === z.team) continue;
+    const inR = dist2(o.x, o.z, z.x, z.z) <= rr;
+    if (o.id === z.hdLock) {
+      if (!inR && !z.hdHit && left > 0 && !(o.ccT > 0) && !o.def.heavy) {
+        z.hdHit = 1; o.stunT = Math.max(o.stunT, left);
+        m.events.push({ t: 'hdTether', id: o.id, by: owner.id, x: o.x, z: o.z, dur: left });
+      }
+      continue;
+    }
+    if (!inR) { delete z.hdIn[o.id]; continue; }
+    if (!z.hdIn[o.id] && !(o.locT > 0)) applyFx(m, owner, o, { fear: z.hdFear });
+  }
+}
+/* ===== end kit-remake G5 hades ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

@@ -48,7 +48,7 @@ const SEQ = {
   natra: { d: 7, seq: [['ult', 0, true], ['s1', 0.7], ['s2', 1.2]], fireAt: 0.7 },
   duongtien: { d: 3, seq: [['s1', 0], ['ult', 0.4], ['s2', 1.0]] },   // kit lane K13: Trảm Tiên marks, then every hit pays +150 (recasts left out)
   athena: { d: 8, seq: [['s1', 0]] },
-  hades: { d: 9, seq: [['s2', 0], ['s1', 0.7], ['ult', 0.2]] },
+  hades: { d: 9, seq: [['ult', 0, true], ['s1', 1.3, true], ['s2', 1.6]] },   // kit lane k15: Giáng Lâm onto it, then the scythe form and its Lợi Nhận
   lubo: { d: 5, seq: [['s1', 0], ['s2', 0.3, true], ['ult', 0.8]] },
   mucma: { d: 5, seq: [['ult', 0], ['s2', 0.3], ['s1', 0.6]] },
   kynhong: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },

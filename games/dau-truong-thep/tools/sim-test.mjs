@@ -13,6 +13,7 @@ import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
+import { runK15Cases, oldKit as oldKit15 } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -2721,7 +2722,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // root: cannot walk, can still shoot, cannot dash
   {
-    const m = arena([[R('hades', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
+    const m = oldKit15(arena([[R('hades', 0), 0, 0], [R('ung', 1), 8, 0]]), 'hades'), v = m.units[1];   // old kit fixture OLD_HADES (k15-cases.mjs)
     go(m, 25, (i) => ({ 0: { s2: i === 0, tx: 8, tz: 0 }, 1: i >= 20 ? { mx: 1 } : {} }));
     check('40e Ban Tay Am Gioi roots the target (rootT 1.4 minus the ticks since the hit), speed 0, x unchanged', v.rootT > 0 && v.rootT <= 1.4 && unitSpeed(v) === 0 && near(v.x, 8, 0.2), `rootT ${v.rootT} x ${v.x}`);
     const r = arena([[R('trau', 0), 0, 0], [R('ung', 1), 8, 0]]);
@@ -2779,7 +2780,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // souls: marks (+10% for 4 s), a kill leaves a field at the death spot
   {
-    const m = arena([[R('hades', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 1.6]]), [h, v, b] = m.units;
+    const m = oldKit15(arena([[R('hades', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 1.6]]), 'hades'), [h, v, b] = m.units;   // old kit fixture OLD_HADES
     go(m, 14, (i) => ({ 0: { fire: i === 0 } }));
     check('40o souls: a hit marks the target (ampF 0.1, ampT up to 4 s)', v.ampF === 0.1 && v.ampT > 3 && v.ampT <= 4 && v.hp === UNG - MECHS.hades.weapon.dmg, `ampF ${v.ampF} hp ${v.hp}`);
     v.hp = 1; v.ampT = 0;
@@ -5118,6 +5119,8 @@ runK4Cases(check, section);
 runK13Cases(check, section);
 // kit lane k14: gilgamesh, suatrang and chuottui ported from the owner's clips (tools/k14-cases.mjs)
 runK14Cases(check, section);
+// kit lane k15: hades, hoalong, kiemthan ported from the owner's clips (tools/k15-cases.mjs)
+runK15Cases(check, section);
 
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);

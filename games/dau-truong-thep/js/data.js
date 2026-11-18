@@ -468,21 +468,31 @@ export const MECHS = {
         desc: 'Ban phúc 3 giây cho đồng đội ở con trỏ (không có ai thì là bạn): máu không thể tụt dưới 1. Hết phúc, kẻ đó hồi máu bằng 30% máu tối đa của bạn.' },
     ],
   },
+  // Hades: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p72 "69.冥王", tooltips read at 0-5.5 s; AUDIT-b.md). Attack = one
+  // Hồn Hỏa shot (115): the scythe 100% -> 115, Lợi Nhận 132% -> 152 (Chế Tài) and 167% -> 192 (Thu Cát), Giáng Lâm 223% -> 256.
+  // Cooldowns 6 / 6 / 30 s in the clip -> 8 / 8 / 55 on our scale. Range 480 -> 13 m (1 m ~ 37 units), the scythe's 168 -> 4.5 m.
+  // "The target deals 30% less to Hades" is a plain weaken (it hits everyone 30% softer for 3 s); the scythe's +150% attack speed
+  // and lifesteal after Thu Cát's Lợi Nhận is rapid x2.5 beside the scythe's own 30% steal. No MP here.
   hades: {
     name: 'Hades', role: 'Khống chế', roleKey: 'control', price: 1400, tint: 0x2b2540,
-    blurb: 'Hồn hỏa làm chậm, bàn tay âm giới trói chân, cửa âm phủ hút cả nhóm. Mỗi mạng hạ được để lại vùng hồn thiêu đốt.',
+    blurb: 'Hai thế: Chế Tài bắn hồn hỏa xa làm địch yếu đi, Thu Cát cầm lưỡi hái chém quạt hút máu. Minh Vương Giáng Lâm biến mất rồi giáng xuống đầu một kẻ địch, dựng lĩnh vực giam nó lại.',
     hp: 2500, speed: 5.9, radius: 0.84,
     armor: 0.08, accel: 0.9, turn: 11, towerMul: 0.8,
-    passive: { do: 'souls', name: 'Thu Hồn', desc: 'Đòn của bạn đánh dấu hồn: kẻ bị đánh dấu nhận thêm 10% sát thương trong 4 giây. Hạ gục hoặc trợ công thì nơi đó nổi vùng hồn gây 180 sát thương mỗi giây trong 3 giây.',
-      mark: { amp: 0.1, dur: 4 }, zone: { radius: 3, dur: 3, dps: 180 } },
-    weapon: { name: 'Hồn Hỏa', cd: 0.4, dmg: 115, speed: 28, range: 13, r: 0.24, vis: 'frost' },
+    passive: { do: 'form', hdSplit: true, name: 'Chế Tài · Thu Cát', desc: 'Hai thế, đổi bằng Hình Thái Chuyển Hoán. Chế Tài: Hồn Hỏa bắn xa 13 m, mỗi phát trúng giảm 15% hồi chiêu Hình Thái Chuyển Hoán và làm mục tiêu gây ít hơn 30% sát thương trong 3 giây. Thu Cát: Lưỡi Hái chém quạt 4,5 m trước mặt, 115 sát thương, hút 30% máu, làm chậm 10% trong 1,5 giây (cộng dồn tới 50%); đánh công trình chỉ bằng nửa.' },
+    forms: [{}, { weapon: { name: 'Lưỡi Hái', cd: 0.55, dmg: 115, speed: 26, range: 4.5, r: 1.0, pierce: true, vis: 'wave', steal: 0.3, towerMul: 0.5, hdCut: 0,
+      fx: { slow: 0.1, slowDur: 1.5, slowStack: { step: 0.1, max: 0.5 } }, vsTag: { key: 'hdMark', mul: 1.5 } },
+      skills: { 0: { self: null }, 1: { windup: 0.15, radius: 3.5, arc: 0, dmg: 192, fx: null, self: { on: 'hit', dur: 5, rapid: 2.5 } } } }],
+    weapon: { name: 'Hồn Hỏa', cd: 0.4, dmg: 115, speed: 28, range: 13, r: 0.24, vis: 'frost', fx: { weaken: { mul: 0.7, dur: 3 } }, hdCut: 0.15 },
     skills: [
-      { id: 'amluu', look: 'hdSouls', name: 'Ám Lưu', cd: 7, do: 'volley', n: 1, dmg: 260, speed: 28, range: 14, r: 0.35, slow: 0.35, slowDur: 1.6, vis: 'frost', icon: 'frost',
-        desc: 'Bắn dòng hồn lạnh, làm chậm 35% trong 1,6 giây.' },
-      { id: 'bantay', look: 'hdHand', name: 'Bàn Tay Âm Giới', cd: 12, do: 'barrage', n: 1, radius: 0, blast: 3, dmg: 200, delay: 0.6, span: 0, cast: 13, fx: { root: 1.4 }, icon: 'cage',
-        desc: 'Một bàn tay trồi lên ở con trỏ sau 0,6 giây, giữ chân kẻ trúng đòn 1,4 giây (vẫn bắn được).' },
-      { id: 'cuaamphu', look: 'hdGate', name: 'Cửa Âm Phủ', cd: 44, do: 'zone', at: 'target', cast: 14, radius: 6, dur: 4, pull: 6, dps: 220, vis: 'magnet', icon: 'magnet',
-        desc: 'Mở cửa âm phủ ở con trỏ trong 4 giây: kéo địch vào tâm và thiêu 220 sát thương mỗi giây.' },
+      { id: 'hinhthai', look: 'hdForm', name: 'Hình Thái Chuyển Hoán', cd: 8, do: 'form', setup: 0.15, move: 0.8, hdMelee: 1,
+        self: { on: 'cast', dur: 3, haste: 2, hasteDecay: true, guard: 0.5, hdCc: 0.5 }, icon: 'swap',
+        desc: 'Đổi thế trong 0,15 giây. Sang thế Thu Cát thì 3 giây kế tiếp chạy nhanh gấp đôi (nhạt dần), nhận ít hơn 50% sát thương và mọi khống chế ngắn đi một nửa.' },
+      { id: 'loinhan', look: 'hdBlade', name: 'Minh Vương Lợi Nhận', cd: 8, do: 'nova', windup: 0.2, move: 0.35, radius: 6, arc: 0.6, dmg: 152,
+        fx: { slow: 0.5, slowDur: 5, slowDecay: true, tag: { key: 'hdMark', dur: 5 } }, icon: 'frost',
+        desc: 'Thế Chế Tài: chém quạt 6 m phía trước, 152 sát thương, làm chậm 50% nhạt dần trong 5 giây; 5 giây đó Lưỡi Hái của bạn đánh nó mạnh thêm 50%. Thế Thu Cát: chém vòng 3,5 m quanh mình, 192 sát thương; trúng ai thì 5 giây Lưỡi Hái đánh nhanh gấp rưỡi. Hồi chiêu tính riêng cho từng thế.' },
+      { id: 'gianglam', look: 'hdDescend', name: 'Minh Vương Giáng Lâm', cd: 55, do: 'leap', to: 'foe', cast: 14, pick: 4, flight: 1, invuln: true, radius: 3.5, dmg: 256,
+        hdHold: 1.5, hdDomain: { radius: 5, dur: 4, fear: 0.6 }, icon: 'magnet',
+        desc: 'Uy hiếp kẻ địch ở con trỏ (trong 14 m): nó bị giam tại chỗ 1,5 giây, bạn biến mất rồi 1 giây sau giáng xuống chỗ nó, 256 sát thương trong 3,5 m (gần tâm đau hơn) và dựng Minh Vương Lĩnh Vực 5 m trong 4 giây. Trong lĩnh vực bạn miễn khống chế; kẻ bị uy hiếp bước ra khỏi lĩnh vực thì bị choáng tới khi lĩnh vực tan; kẻ địch khác bước vào thì hoảng sợ bỏ chạy.' },
     ],
   },
   // Lữ Bố: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p9 "6.吕布", tooltips read at 2-10 s). Attack = one Phương Thiên Kích
@@ -1259,7 +1269,7 @@ export const PERKS = {
   natra: [perk('Vòng Lớn', 'Càn Khôn Quyển gây 260.', 0, { dmg: 260 }), perk('Bánh Xe Dài', 'Phong Hỏa Luân lao xa 11 m.', 1, { dist: 11 }), perk('Giáng Mạnh', 'Thiên Giáng rộng 4 m, gây 760.', 2, { radius: 4, dmg: 760 })],
   duongtien: [perk('Tam Tiêm Nặng', 'Tam Tiêm gây 175.', 'weapon', { dmg: 175 }), perk('Khuyển Xa', 'Hao Thiên Khuyển chạy 15 m.', 1, { range: 15 }), perk('Phá Diệt Rộng', 'Phá Diệt Hoành Tảo quét rộng 5,5 m.', 2, { radius: 5.5 })],
   athena: [perk('Thánh Quang Nặng', 'Chiến Tranh Nghệ Thuật gây 300.', 0, { dmg: 300 }), perk('Thuẫn Dày', 'Thánh Thuẫn Tí Hựu hấp thụ 900 trong 2,5 giây.', 1, { shield: 900, dur: 2.5 }), perk('Bất Hủ Lâu', 'Anh Hùng Bất Hủ kéo dài 4 giây.', 2, { dur: 4, undying: 4 })],
-  hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
+  hades: [perk('Đổi Thế Nhanh', 'Hình Thái Chuyển Hoán hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Lưỡi Rộng', 'Minh Vương Lợi Nhận thế Chế Tài chém quạt 7 m.', 1, { radius: 7 }), perk('Lĩnh Vực Rộng', 'Minh Vương Lĩnh Vực rộng 6 m, kéo dài 5 giây.', 2, { hdDomain: { radius: 6, dur: 5, fear: 0.6 } })],
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Săn Xa', 'Cơ Ngạ Bộ Liệp lao xa 9,5 m.', 1, { dist: 9.5 }), perk('Hách Tử Lâu', 'Hách Tử Tiến Hóa kéo dài 6,5 giây.', 2, { dur: 6.5, ccImmune: 6.5 })],
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
