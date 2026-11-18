@@ -62,47 +62,7 @@ const quancong = {
 
 // Điêu Thuyền: her looks moved to looks-k12.js with the kit ported from the clip (lane k12).
 
-// ---- Na Tra: fire wheels, the golden ring, the red sash -------------------------------------------------------------
-const NT_FIRE = C(2.6, 0.9, 0.1), NT_GOLD = C(2.6, 1.9, 0.4), NT_RED = C(2.5, 0.15, 0.2);
-const wheelTor = keep(new THREE.TorusGeometry(1, 0.12, 6, 28)), wheelSpoke = keep(new THREE.BoxGeometry(2, 0.08, 0.08));
-function wheel() { const g = new THREE.Group(), m = basic(0xffc040, false), ms = basic(0xff7020, false); g.add(new THREE.Mesh(wheelTor, m)); for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(wheelSpoke, ms); s.rotation.z = i * 1.047; g.add(s); } return g; }
-const natra = {
-  // Càn Khôn Quyển: the golden ring flies out flat and spinning, wrapped in fire, and comes back
-  ntRing: {
-    pal: [NT_FIRE, NT_GOLD], hitR: 1.8,
-    skill() { return true; },
-    shotMake(kit, s) { const w = wheel(); w.rotation.x = Math.PI / 2; w.scale.setScalar(3.2); const v = { w, h: held(kit, [w]), x: s.x, z: s.z, live: true }; for (const ph of [0, 2.094, 4.189]) trail(kit, (t) => (v.live ? [v.x + Math.cos(t * 14 + ph) * 2.6, 1.2, v.z + Math.sin(t * 14 + ph) * 2.6] : null), 1.1, NT_FIRE, 0.5, { c2: NT_RED, len: 10 }); return v; },
-    shot(kit, v, s, x, y, z, dt) { v.x = x; v.z = z; v.w.position.set(x, 1.2, z); v.w.rotation.z += (dt || 0.016) * 18; return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), NT_GOLD, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Phong Hỏa Luân: a fire wheel stands at each side of him, spinning, and burns two tracks along the floor
-  ntWheels: {
-    pal: [NT_FIRE, NT_GOLD], hitR: 1.8,
-    skill(kit, e, u) {
-      const a = e.a, ws = [wheel(), wheel()];
-      own(kit, ws, 0.6, (t) => { if (t > 0.45 || !u.alive) return false; ws.forEach((w, i) => { const sd = i ? 1 : -1; w.position.set(u.x - Math.sin(a) * sd * 1.3, 1.1, u.z + Math.cos(a) * sd * 1.3); w.rotation.set(0, -a, t * 30); w.scale.setScalar(1.25); }); if (Math.random() < 0.8) for (const sd of [-1, 1]) kit.scorch(u.x - Math.sin(a) * sd * 1.3, u.z + Math.cos(a) * sd * 1.3, 0.6, 3, 1.4, NT_FIRE); });
-      for (const sd of [-1, 1]) trail(kit, (t) => (t < 0.45 && u.alive ? [u.x - Math.sin(a) * sd * 1.3, 0.5, u.z + Math.cos(a) * sd * 1.3] : null), 1.2, NT_FIRE, 0.8, { c2: NT_RED, len: 18 });
-      return true;
-    },
-  },
-  // Thiên Giáng: he falls from the sky with the red sash streaming in a spiral; he lands in a golden star of spikes
-  ntDescend: {
-    pal: [NT_FIRE, NT_GOLD], hitR: 2.2,
-    skill() { return true; },
-    leap(kit, e, u, row) {
-      const dur = e.dur || 0.55, r = row.radius || 3.2;
-      trail(kit, (t) => (t < dur && u.alive ? [u.x + Math.cos(t * 16) * 1.4, 1.5 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3, u.z + Math.sin(t * 16) * 1.4] : null), 2.4, NT_RED, dur + 0.3, { c2: C(0.6, 0.02, 0.05), len: 22 });
-      { const w = wheel(); w.rotation.x = Math.PI / 2; own(kit, [w], dur + 0.05, (t) => { if (!u.alive) return false; w.position.set(u.x, 0.3 + Math.sin(Math.min(1, t / dur) * Math.PI) * 2.6, u.z); w.rotation.z = t * 20; w.scale.setScalar(3.2); }); }
-      sigil(kit, e.x, e.z, row.radius || 3.2, NT_GOLD, { c2: NT_FIRE, n: 8, m: 3, ticks: 0, inner: 0, life: dur + 0.1, rev: 0.1, spin: 3, fill: 0.3, w: 0.08 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;
-        sigil(kit, u.x, u.z, r * 1.2, NT_GOLD, { c2: NT_FIRE, n: 8, m: 3, ticks: 0, inner: 0, life: 0.9, rev: 0.06, spin: 2, fill: 0.5, w: 0.1 });
-        spikes(kit, u.x, u.z, 8, r * 0.35, 3.4, NT_GOLD, 0.8, { core: 0x5a3000, up: 0.06 });
-        for (const w of [wheel(), wheel()]) { const k = w; k.rotation.x = Math.PI / 2; own(kit, [k], 0.6, (t) => { k.position.set(u.x, 0.4, u.z); k.scale.setScalar(1 + t * 8); k.children.forEach((c) => { c.material.opacity = 1 - t / 0.6; }); }); break; }
-        kit.flash(u.x, 2, u.z, NT_GOLD, 60, 0.3); kit.kick(u.x, u.z, 0.7); return false; }, drop() {} });
-      return true;
-    },
-  },
-};
+// ---- Na Tra moved to looks-k17.js with the kit ported from clip p64 -------------------------------------------------
 
 // a fox tail: a long flame leaf from the root at the origin out along +x, curling at the tip
 const tailGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, 0); s.bezierCurveTo(0.8, 0.5, 1.6, 0.55, 2.2, 0.15); s.quadraticCurveTo(2.5, -0.05, 2.3, -0.25); s.bezierCurveTo(1.6, -0.1, 0.8, -0.25, 0, 0); return keep(new THREE.ShapeGeometry(s, 14).rotateX(-Math.PI / 2)); })();
@@ -167,4 +127,4 @@ const cuuvi = {
 };
 
 
-export const B4 = { ...quancong, ...natra, ...cuuvi };   // Dương Tiễn moved to looks-k13.js (kit lane K13), Gilgamesh to looks-k14.js (kit lane k14)
+export const B4 = { ...quancong, ...cuuvi };   // Dương Tiễn moved to looks-k13.js (kit lane K13), Điêu Thuyền to looks-k12.js (kit lane k12), Na Tra to looks-k17.js (kit lane k17), Gilgamesh to looks-k14.js (kit lane k14)

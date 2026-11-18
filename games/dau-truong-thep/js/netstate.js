@@ -95,7 +95,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'ntsN', 'ntsT',   // kit lane k16: Natsu's mana stacks and burst (speed and armour, predicted on the guest)
   'opRage',   // kit-remake G5 trau: Optimus's rage meter (fire rate, speed and guard follow it)
   'ldN',   // kit-remake G5 Razor: orb stacks
-  'mdWT'];   // kit-remake G5 Medusa: the ward
+  'mdWT',   // kit-remake G5 Medusa: the ward
+  'naN', 'naCcT'];   // kit-remake G5 Na Tra: speed stacks, the cc-halving window
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 

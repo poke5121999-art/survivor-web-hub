@@ -23,7 +23,16 @@ export const OLD_MANGXA = {
     { id: 'longxich', name: 'Lồng Xích', cd: 40, do: 'zone', at: 'self', radius: 5.5, dur: 3.5, dps: 110, cage: true, vis: 'cage' },
   ],
 };
-const OLD = { luondien: OLD_LUONDIEN, mangxa: OLD_MANGXA };
+export const OLD_NATRA = {
+  passive: { do: 'trait', name: 'Liên Hoa Thân', mods: { lowHp: { below: 0.35, haste: 1.25, armor: 0.2 } } },
+  weapon: { name: 'Hỏa Tiêm Thương', cd: 0.3, dmg: 95, speed: 34, range: 11, r: 0.2, vis: 'dart' },
+  skills: [
+    { id: 'cankhon', name: 'Càn Khôn Quyển', cd: 8, do: 'volley', n: 1, dmg: 210, speed: 26, range: 13, r: 0.45, pierce: true, ret: true, slow: 0.35, slowDur: 1.5, vis: 'disc' },
+    { id: 'phonghoaluan', name: 'Phong Hỏa Luân', cd: 10, do: 'dash', dist: 9, speed: 32, dmg: 180, knock: 1.5, stun: 0 },
+    { id: 'thiengiang', name: 'Thiên Giáng', cd: 40, do: 'leap', to: 'foe', cast: 14, pick: 4, flight: 0.55, radius: 3.2, dmg: 620, stun: 1 },
+  ],
+};
+const OLD = { luondien: OLD_LUONDIEN, mangxa: OLD_MANGXA, natra: OLD_NATRA };
 // Every tank of this lane in the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK17(m) {
   for (const u of m.units) {
@@ -195,6 +204,88 @@ export function runK17Cases(check, section) {
     check('K17-y ... 125 energy (150 - 25) runs dry after about 2.5 s; the ward lasts up to 1 s more, then the cooldown runs', a.en < 3 && a.mdWT > 0.5 && a.mdWT <= 1.1 && a.cd.ult === MU.cd, `en ${a.en} ward ${a.mdWT} cd ${a.cd.ult} after ${n}`);
     go(m, 40);
     check('K17-z ... the ward is down after it, the cooldown counts', a.mdWT === 0 && !(a.gvT > 0) && a.cd.ult < MU.cd, `ward ${a.mdWT} gv ${a.gvT} cd ${a.cd.ult}`);
+  }
+  // ---- Na Tra (natra), clip p64 ----
+  const NA = MECHS.natra, [NQ, NE, NU] = NA.skills, NP = NA.passive;
+  // Hỏa Tiêm Thương: one 150 thrust
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 6, 0]]);
+    const b = blows(go(m, 10, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } })), 1, 0);
+    check('K17-na Hoa Tiem Thuong: one thrust of 150', b.length === 1 && near(b[0].amt, 150, 1e-6), `${b.map((e) => e.amt)}`);
+  }
+  // Hỗn Thiên Lăng: 254 and a 1 s wrap on the first, through a wall; 1 s later the foes within 3.5 m of it are wrapped too
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 7, 0], [R('ung', 1), 7, 3], [R('ung', 1), 7, 8]]), [a, v, n2, far] = m.units;
+    m.map.walls.push({ x0: 3, x1: 3.6, z0: -2, z1: 2, h: 2, kind: 'wall' });
+    const ev = go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 7, tz: 0 } }));
+    const b = blows(ev, 1, 0);
+    check('K17-nb Hon Thien Lang: through the wall, 254 on the first foe, wrapped (rooted 1 s); the one beside it not yet', b.length === 1 && near(b[0].amt, NQ.dmg, 1e-6) && v.rootT > 0.7 && !(n2.rootT > 0), `${b.map((e) => e.amt)} root ${v.rootT} ${n2.rootT}`);
+    const ev2 = go(m, 32);
+    const w = only([...ev, ...ev2], 'k17', (e) => e.kind === 'wrap');
+    check('K17-nc ... 1 s later the foe 3 m from it is wrapped too, the one 8 m off is not', n2.rootT > 0.5 && !(far.rootT > 0) && w.length === 2 && w[1].on === n2.id, `${n2.rootT} ${far.rootT} wraps ${w.map((e) => e.on)}`);
+    v.rootT = 0; a.cd.s1 = 0;
+    const b2 = blows(go(m, 12, (i) => ({ 0: { s1: i === 0, tx: 7, tz: 0 } })), 1, 0);
+    check('K17-nd ... wrapped again inside 5 s: hurt, not rooted', b2.length === 1 && !(v.rootT > 0), `${b2.length} root ${v.rootT}`);
+  }
+  // Càn Khôn Quyển: 318 and a decaying 50% slow on the first foe, the ring turns home; caught, the cooldown drops to 1.5 s
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 8, 0]]), [a, v, back] = m.units;
+    const ev = go(m, 40, (i) => ({ 0: { s2: i === 0, tx: 5, tz: 0 } }));
+    const b = blows(ev, 1, 0), c = only(ev, 'k17', (e) => e.kind === 'catch');
+    check('K17-ne Can Khon Quyen: 318 on the first foe, slowed (decaying), the foe behind it untouched', b.length === 1 && near(b[0].amt, NE.dmg, 1e-6) && v.slowG > 0 && back.hp === back.maxHp, `${b.map((e) => e.amt)} slowG ${v.slowG} back ${back.hp}`);
+    check('K17-nf ... the ring came home and was caught: cooldown 1.5 s or less, no shot left', c.length === 1 && a.cd.s2 <= NE.naCatch + 1e-9 && m.shots.length === 0, `catch ${c.length} cd ${a.cd.s2} shots ${m.shots.length}`);
+    const x0 = a.x;
+    go(m, 2, (i) => ({ 0: { s2: i === 1 } }));
+    go(m, 12);
+    check('K17-ng ... pressed again in the 3 s window: Phong Hoa Phi Luan runs 7 m along the aim', near(a.x - x0, NE.next.row.dist, 0.3), `moved ${a.x - x0}`);
+    const k = arena([[R('natra', 0), 0, 0], [R('ung', 1), 0, 9]]), q = k.units[0];
+    go(k, 40, (i) => ({ 0: { s2: i === 0, tx: 12, tz: 0 } }));
+    check('K17-nh ... a ring that hits nobody does not come back: the full 10 s cooldown runs', q.cd.s2 > NE.cd - 40 * TICK - 1e-6 && k.shots.length === 0, `cd ${q.cd.s2}`);
+  }
+  // passive: after a press, skill damage x0.5 and cc half as long for 1.5 s; a stun heals 10% of the lost hp and cuts 10% of each cooldown
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 20, 0]]), a = m.units[0];
+    go(m, 1, () => ({ 0: { s2: true, tx: 5, tz: 0 } }));
+    check('K17-ni Huyen Linh Than Uy: after the press, guard 0.5 vs skill for 1.5 s and the cc-halving window', a.gvT > 1.3 && a.gvK === 'skill' && a.gvF === 0.5 && a.naCcT > 1.3, `gv ${a.gvT} ${a.gvK} ${a.gvF} cc ${a.naCcT}`);
+    a.hp = 1400; a.cd.ult = 20; const cd2 = a.cd.s2;
+    a.stunT = 1; go(m, 1);
+    check('K17-nj ... a 1 s stun then lasts 0.5 s; Hong Lien: +10% of the lost hp, cooldowns cut by 10% of their length', near(a.stunT, 0.5, 0.04) && a.hp > 1400 + 0.1 * 1000 - 1 && near(a.cd.ult, 20 - NU.cd * 0.1 - TICK, 0.01) && a.cd.s2 < cd2 - NE.cd * 0.1 + 1e-6,
+      `stun ${a.stunT} hp ${a.hp} ult ${a.cd.ult}`);
+    a.stunT = 0; go(m, 60);
+    a.stunT = 1; go(m, 1);
+    check('K17-nk ... out of the window a stun lasts in full (and Hong Lien waits its 3 s)', a.stunT > 0.9, `${a.stunT}`);
+  }
+  // passive: each enemy skill hit gives a +10% speed and fire-rate stack for 3 s, up to 5
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('luondien', 1), 8, 0]]), [a, z] = m.units;
+    go(m, 20, (i) => ({ 1: { s2: i === 0, tx: 0, tz: 0 } }));
+    check('K17-nl ... an enemy skill hit: one stack, speed and fire rate x1.1', a.naN === 1 && near(a.hasteF, 1.1, 1e-9) && near(a.rapidF, 1.1, 1e-9) && a.hasteT > 2.4, `n ${a.naN} haste ${a.hasteF} rapid ${a.rapidF}`);
+  }
+  // Tam Đầu Lục Tý: jump to the cursor, 315 x 1.2 on landing, antiheal; max hp x1.2 plus 10% per foe hit; nine-way thrusts; the cooldown waits
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 8, 0], [R('ung', 1), 8.5, 1.5]]), [a, v, w] = m.units;
+    a.hp = 1200;
+    const ev = go(m, 25, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0 } }));
+    const b = [...blows(ev, 1, 0), ...blows(ev, 2, 0)];
+    check('K17-nm Tam Dau Luc Ty: lands at the cursor, both foes hit (315 x 1.2 x falloff), half heals for 3 s', Math.hypot(a.x - 8, a.z) < 2 && b.length === 2 && b.every((e) => e.amt > 315 * 1.2 * 0.5 && e.amt <= 315 * 1.2 + 1e-6) && v.ahT > 2.5 && v.ahF === 0.5, `x ${a.x} ${b.map((e) => e.amt)} ah ${v.ahT}`);
+    check('K17-nn ... max hp 2400 x (1 + 0.2 + 2 x 0.1) = 3360, damage factor 1.2 + 0.2, the ult cooldown held', near(a.maxHp, NA.hp * 1.4, 1e-6) && near(a.tfDmg, 1.4, 1e-9) && a.tfT > 10 && a.cd.ult === NU.cd, `max ${a.maxHp} dmg ${a.tfDmg} cd ${a.cd.ult}`);
+    put(v, 40, 30); put(w, 40, -30); a.cd.fire = 0;
+    go(m, 1, () => ({ 0: { fire: true } }));
+    check('K17-no ... the weapon thrusts nine ways round him, 75 each', m.shots.filter((s) => s.owner === 0).length === 9 && near(m.shots.find((s) => s.owner === 0).dmg, 75 * 1.4, 1e-6), `${m.shots.filter((s) => s.owner === 0).length}`);
+    a.cd.s1 = 0;
+    go(m, 1, () => ({ 0: { s1: true, tx: 14, tz: 0 } }));
+    check('K17-np ... Hon Thien Lang throws three silks in the form', m.shots.filter((s) => s.owner === 0 && s.vis === 'link').length === 3);
+    go(m, 12 * 30);
+    check('K17-nq ... the form ends: max hp back to 2400, the cooldown counts', near(a.maxHp, NA.hp, 1e-9) && a.hp <= a.maxHp && a.cd.ult < NU.cd && !(a.tfT > 0), `max ${a.maxHp} hp ${a.hp} cd ${a.cd.ult}`);
+  }
+  // a death in the form gives the plain max hp back
+  {
+    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 8, 0]]), [a] = m.units;
+    go(m, 25, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0 } }));
+    a.hp = 1; a.invulnT = 0; a.ccT = 0; put(m.units[1], a.x - 5, a.z);
+    m.units[1].cd.fire = 0;
+    for (let i = 0; i < 60 && a.alive; i++) step(m, m.units.map((u, j) => inp({ aim: Math.atan2(a.z - u.z, a.x - u.x), fire: j === 1, tx: a.x, tz: a.z })));
+    check('K17-nr ... dying in the form: max hp is the plain 2400 again', !a.alive && near(a.maxHp, NA.hp, 1e-9), `alive ${a.alive} max ${a.maxHp}`);
   }
 }
 

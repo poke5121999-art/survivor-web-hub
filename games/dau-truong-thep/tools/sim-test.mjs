@@ -139,6 +139,7 @@ for (const key of MECH_ORDER) {
     if (s.recast) continue;   // dash.recast keeps the key ready after the first press: section 41 checks its cooldown
     if (s.uses) continue;   // uses (skill charges): the next use waits for its gap, not the cooldown; sections 46 and 48 check them
     if (s.nhShield) continue;   // kit lane K18: Mikasa's cooldown starts once her shield is gone; K18-x, K18-y and K18-z check it
+    if (s.naCatch) continue;   // kit lane k17 (Na Tra's ring): catching it cuts the cooldown to 1.5 s; section K17 checks it
     // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
     const ally = s.to === 'ally';
     // a flurry (and a leap onto a foe) needs somebody in reach: the foe stands 4 m away; so does a barrage ktLock (kiemthan ult), whose strikes need a foe within its reach
@@ -2785,7 +2786,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // mods.lowHp: Na Tra under 35% hp
   {
-    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 20, 0]]), u = m.units[0];
+    const m = oldK17(arena([[R('natra', 0), 0, 0], [R('ung', 1), 20, 0]])), u = m.units[0];
     const base = [unitSpeed(u), armorOf(m, u)];
     u.hp = u.maxHp * 0.35;
     const edge = [unitSpeed(u), armorOf(m, u)];
@@ -2834,17 +2835,17 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
   }
   // volley.ret: out, back, two hits, gone afterwards
   for (const [key, dmg, slow] of [['natra', 210, 0.35]]) {
-    const m = arena([[R(key, 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    const m = oldK17(arena([[R(key, 0), 0, 0], [R('ung', 1), 6, 0]])), v = m.units[1];
     const ev = go(m, 120, (i) => ({ 0: { s1: i === 0 } }));
     const hits = only(ev, 'hit', (e) => e.id === v.id && e.by === 0);
     check(`40v ${key} volley.ret: the disc hits on the way out and again on the way back (2 x ${dmg}) and is gone`, hits.length === 2 && near(UNG - v.hp, 2 * dmg, 1e-6) && m.shots.length === 0 && (!slow || v.slowF === slow), `hits ${hits.length} hp ${v.hp} shots ${m.shots.length}`);
   }
   // leap.to
   {
-    const m = arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]]), [n, v] = m.units;
+    const m = oldK17(arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]])), [n, v] = m.units;
     go(m, 30, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 } }));
     check('40w leap.to foe: Na Tra lands on the locked target for 620 and stuns it', Math.hypot(n.x - 10, n.z) < 1.5 && near(v.hp, UNG - 620, 1e-6) && v.stunT > 0, `x ${n.x} hp ${v.hp} stun ${v.stunT}`);
-    const k = arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]]);
+    const k = oldK17(arena([[R('natra', 0), 0, 0], [R('ung', 1), 10, 0]]));
     const ev = go(k, 6, (i) => ({ 0: { ult: i === 0, tx: 0, tz: 12 } }));
     check('40x leap.to with no foe under the cursor does not happen (no leap event, short lockout 0.4 s)', only(ev, 'leap').length === 0 && !k.units[0].dash && k.units[0].cd.ult < 0.4 && k.units[0].cd.ult > 0, `cd ${k.units[0].cd.ult}`);
   }

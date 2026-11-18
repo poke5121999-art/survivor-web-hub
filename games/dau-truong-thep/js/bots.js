@@ -1864,6 +1864,7 @@ function chooseSkill(c) {
     if (nx) {
       if (nx.to) { if (g4WarpTo(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit-remake G4: recast to an own object
       if (nx.do === 'barrage') { if (k16BotStrike(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit lane k16: a strike recast (Lạc Long Quân)
+      if (nx.do === 'dash' && !nx.dmg) { if (naBotWheels(c, nx)) { sk.slot = i; return sk; } continue; }   // kit-remake G5 Na Tra: the wheels after the ring
       const o = m.units[u.next.target];
       // a warp second stage must reach its target; a sweep second stage (nova) must have it inside the blade (any hp: it heals)
       const reach = nx.dist ?? (nx.radius ? nx.radius * 0.9 : nx.range * 0.8), keen = nx.do === 'nova' || c.hpFrac > 0.35;
@@ -2701,3 +2702,20 @@ function ldBotStill(u, out) {
   out.mx = 0; out.mz = 0;
 }
 /* ===== end kit-remake G5 Razor bots ===== */
+/* ===== kit-remake G5 Na Tra bots (kit lane k17) ===== */
+// Phong Hỏa Phi Luân (a harmless dash second stage): away from the nearest foe when hurt, else to close on a target out of reach
+function naBotWheels(c, s) {
+  const { u, tgt, td } = c, sk = c.b.sk;
+  sk.mx = null; sk.mz = null; sk.tol = 0.3;
+  if (c.hpFrac < 0.35 && c.enemies.length) {
+    let near = c.enemies[0], nd = 1e9;
+    for (const e of c.enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; near = e; } }
+    if (nd > 8) return false;
+    sk.aim = Math.atan2(u.z - near.z, u.x - near.x); sk.x = u.x + Math.cos(sk.aim) * s.dist; sk.z = u.z + Math.sin(sk.aim) * s.dist;
+    return !solidAt(c.m.map, sk.x, sk.z, u.moveRadius * 0.8);
+  }
+  if (!tgt || !c.los || td < 5 || td > s.dist + 6) return false;
+  sk.aim = Math.atan2(tgt.z - u.z, tgt.x - u.x); sk.x = tgt.x; sk.z = tgt.z;
+  return true;
+}
+/* ===== end kit-remake G5 Na Tra bots ===== */

@@ -140,6 +140,7 @@ function clearStatus(u) {
   ckClear(u);   // kit-remake G5 cakiem
   ldClear(u);   // kit-remake G5 Razor
   mdClear(u);   // kit-remake G5 Medusa
+  naClear(u);   // kit-remake G5 Na Tra
 }
 
 function spawn(m, u, first) {
@@ -513,6 +514,7 @@ function stepUnit(m, u, inp) {
   k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst, Kirito's penetration stacks
   k18Tick(m, u);   // kit lane K18: Chiến Tiêu, shield into hp, Mikasa's shield and combo window
   k16Tick(m, u);   // kit lane k16: Natsu's burst timer and Lôi Viêm heal
+  naTick(m, u);   // kit-remake G5 Na Tra: cc halved after a cast, speed stacks, spreading wraps, the form's max hp
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -612,6 +614,7 @@ function stepUnit(m, u, inp) {
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (u.def.passive && u.def.passive.ldOrb) ldOrbDrop(m, u);   // kit-remake G5 Razor: every press drops a lightning orb
     if (s.mdWard) mdWardOn(m, u, s);   // kit-remake G5 Medusa: the ult's ward
+    if (u.def.passive && u.def.passive.naCc) u.naCcT = u.def.passive.naCc.dur;   // kit-remake G5 Na Tra: cc halved after a cast
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
@@ -1349,6 +1352,7 @@ const CAST = {
     if (s.home) return k4Homing(m, u, s, inp);   // kit-remake K4: enbac's homing volley
     if (s.ggWind && !ggGo) return k14Wind(u, s);   // kit-remake K14: Gilgamesh's wind-up
     if (s.ktSpend) return ktSword(m, u, s);   // kit-remake G5 kiemthan: the energy goes into the sword
+    if (s.naTri && u.tfT > 0) s = naTri(s);   // kit-remake G5 Na Tra: three silks / three rings in the form
     if (s.perTarget || s.sameDecay) u.volTag = { cap: s.perTarget || 0, decay: s.sameDecay || 0, hits: {} };
     fireVolley(m, u, s);
     // haste: a short run after the volley; burst: the volley goes off again burst.n - 1 times, burst.gap apart, while the mech keeps walking
@@ -1420,6 +1424,7 @@ const CAST = {
     tfStart(m, u, s);
     if (s.sntLand) sntLand(m, u, s, inp);   // kit-remake G5 Sơn Tinh
     if (s.stWar) k14War(m, u, s);   // kit-remake K14: Baymax's warrior
+    if (s.naLeap || s.naForm) naPress(m, u, s, inp);   // kit-remake G5 Na Tra: leap into the form, max hp up
   },
   stance(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: 0, lock: false, aim: u.aim }; },
   hook(m, u, s) {
@@ -1972,7 +1977,7 @@ function stepShots(m) {
       // volley.ret on the way home: flies straight at its owner over everything and vanishes on touching it.
       if (!owner || !owner.alive) { m.shots.splice(i, 1); continue; }
       const bx = owner.x - s.x, bz = owner.z - s.z, bd = Math.hypot(bx, bz);
-      if (bd < owner.radius + s.r + 0.1) { m.shots.splice(i, 1); continue; }
+      if (bd < owner.radius + s.r + 0.1) { if (s.naBack) naCatch(m, owner, s); m.shots.splice(i, 1); continue; }   // naBack: kit-remake G5 Na Tra, the ring caught
       s.dx = bx / bd; s.dz = bz / bd; s.left = Math.max(s.left, 1);
     }
     if (s.k4Home !== undefined) k4Steer(m, s);   // kit-remake K4: homing shots
@@ -2063,6 +2068,7 @@ function stepShots(m) {
       if (owner && s.hlCut) hlShotHit(owner, s);   // kit-remake G5 hoalong
     } else if (what === 'prop') damageProp(m, hitProp, dmg, owner);
     else if (hitZone) hitZone.hp -= dmg;
+    if (what === 'unit' && owner && s.src && naTurn(m, s, owner)) continue;   // kit-remake G5 Na Tra: the ring turns home on a hit
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
     if (s.splash && what !== 'dome' && owner && (!s.splashHit || what === 'unit')) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
     if (what === 'unit' && owner && s.src === 'w') krSplashHeal(m, owner, s);   // kit-remake G5 Kurumi: the burst heals allies
@@ -2461,6 +2467,7 @@ function damage(m, u, amount, src, raw) {
   }
   // a skill row's own on-hit fields (steal, healLost, healMax, self on hit, cdCut)
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
+  if (foe && left + absorbed > 0 && !reflecting) naHit(m, foe, u, kind);   // kit-remake G5 Na Tra: wraps, the form's growth, speed stacks
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && left + absorbed > 0) k10Hit(foe);   // kit lane K10: a sword wave adds a Kirito penetration stack
   if (foe && left + absorbed > 0) tthHurt(m, u, left + absorbed);   // kit-remake G5 Tào Tháo
@@ -4862,3 +4869,91 @@ function mdTick(u) {
   else { u.mdRow = null; u.mdAcc = 0; }
 }
 /* ===== end kit-remake G5 Medusa ===== */
+/* ===== kit-remake G5 Na Tra (kit lane k17; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md natra) =====
+   passive `naCc {mul, dur}`: for dur s after every press, a stun, root or loss of control that lands on him lasts mul of what it
+   was given (naCcT; measured once a tick against what was there). Passive `naRamp {step, max, dur}`: each enemy skill hit gives a
+   stack (naN, all gone dur s after the last): speed and fire rate x (1 + step x stacks) for dur s.
+   row `naWrap {delay, r, root, immune}` (volley): the mech it hits is rooted `root` s unless it was wrapped in the last `immune` s
+   (naImm, a match time); `delay` s later every other enemy within r of it is wrapped the same way (naQ on the thrower; event
+   k17 {kind: 'wrap', on}). Row `naRet: true` + `naCatch: s` (volley): a shot of the row that hits a mech turns home at once,
+   harmless (it flies through everything); caught by its thrower it sets that slot's cooldown down to s (event k17 {kind: 'catch'}).
+   transform `naLeap {cast, flight, radius, dmg, fx}`: the press also jumps to the cursor (not when rooted) and lands with that blow,
+   tagged with the row (so its healLost reads per hit); `naForm {hp, per, cap}`: max hp x (1 + hp) while it runs (the hp gained
+   comes with it), and each enemy the landing hurts adds per to max hp and to the damage factor, at most cap in all (naHp0 keeps
+   the plain max hp, back when the form ends or he dies). Row `naTri` (volley): see naTri below. naN and naCcT are in netstate STATUS (maxHp is in every unit row). */
+const NA_CC = ['stunT', 'rootT', 'locT'];
+function naClear(u) {
+  if (u.naHp0 > 0) u.maxHp = u.naHp0;
+  u.naHp0 = 0; u.naK = 0; u.naN = 0; u.naRT = 0; u.naCcT = 0; u.naPrev = [0, 0, 0]; u.naImm = -1; u.naQ = [];
+}
+function naTick(m, u) {
+  const P = u.def.passive;
+  if (u.naCcT > 0 && P && P.naCc) for (let i = 0; i < 3; i++) {
+    const k = NA_CC[i], was = Math.max(0, u.naPrev[i] - TICK);
+    if (u[k] > was + 1e-9) u[k] = was + (u[k] - was) * P.naCc.mul;
+  }
+  for (let i = 0; i < 3; i++) u.naPrev[i] = u[NA_CC[i]];
+  if (u.naCcT > 0) u.naCcT = Math.max(0, u.naCcT - TICK);
+  if (u.naN > 0 && (u.naRT -= TICK) <= 1e-9) { u.naN = 0; u.naRT = 0; }
+  if (u.naHp0 > 0 && !(u.tfT > 0)) { u.maxHp = u.naHp0; u.hp = Math.min(u.hp, u.maxHp); u.naHp0 = 0; u.naK = 0; }
+  for (let k = 0; k < u.naQ.length; k++) {
+    const q = u.naQ[k];
+    if ((q.t -= TICK) > 1e-9) continue;
+    u.naQ.splice(k--, 1);
+    const c = m.units[q.id], x = c.alive ? c.x : q.x, z = c.alive ? c.z : q.z;
+    for (const o of m.units) if (o !== c && o.team !== u.team && o.alive && dist2(o.x, o.z, x, z) <= q.W.r * q.W.r) naWrapOn(m, u, o, q.W);
+  }
+}
+function naWrapOn(m, by, o, W) {
+  if (o.naImm > m.time + 1e-9 || o.ccT > 0 || o.invulnT > 0) return;
+  o.rootT = Math.max(o.rootT, W.root); o.naImm = m.time + W.immune;
+  m.events.push({ t: 'k17', kind: 'wrap', id: by.id, on: o.id, x: o.x, z: o.z });
+}
+// a hit u took from foe: foe's wrap row, foe's form landing, u's own speed stacks
+function naHit(m, foe, u, kind) {
+  const P = u.def.passive && u.def.passive.naRamp;
+  if (P && kind === 'skill' && u.alive && foe) {
+    u.naN = u.naRT > 0 ? Math.min(P.max, u.naN + 1) : 1; u.naRT = P.dur;
+    const f = 1 + P.step * u.naN;
+    u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, f); u.hasteT = Math.max(u.hasteT, P.dur);
+    u.rapidF = Math.max(u.rapidT > 0 ? u.rapidF : 1, f); u.rapidT = Math.max(u.rapidT, P.dur);
+  }
+  if (!foe || !curSrc || curSrc === 'w' || !foe.def.skills) return;
+  const row = g2Row(foe);
+  if (!row || row.id !== curSrc) return;
+  if (row.naWrap && u.alive) {
+    naWrapOn(m, foe, u, row.naWrap);
+    foe.naQ.push({ t: row.naWrap.delay, id: u.id, x: u.x, z: u.z, W: row.naWrap });
+  }
+  const F = row.naForm;
+  if (F && foe.alive && foe.naHp0 > 0 && foe.naK < F.cap - 1e-9) {
+    const add = Math.min(F.per, F.cap - foe.naK);
+    foe.naK += add; foe.maxHp = foe.naHp0 * (1 + F.hp + foe.naK); foe.hp += foe.naHp0 * add; foe.tfDmg += add;
+  }
+}
+function naPress(m, u, s, inp) {
+  const F = s.naForm, L = s.naLeap;
+  if (F) { if (!(u.naHp0 > 0)) u.naHp0 = u.maxHp; u.naK = 0; u.maxHp = u.naHp0 * (1 + F.hp); u.hp = Math.min(u.maxHp, u.hp + u.naHp0 * F.hp); }
+  if (!L || u.rootT > 0) return;
+  const [tx, tz] = aimPoint(u, inp, L.cast);
+  jump(m, u, { ...L, id: s.id, look: s.look }, tx, tz);
+}
+function naTurn(m, s, owner) {
+  if (s.back) return false;
+  const i = srcSlot(owner, s.src), row = i >= 0 ? slotRow(owner, i, s.src) : null;
+  if (!row || !row.naRet) return false;
+  m.events.push({ t: 'impact', vis: s.vis, on: 'unit', x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: 0 });
+  s.back = true; s.over = true; s.pierce = true; s.hit = m.units.map((o) => o.id); s.left = 80; s.naBack = i + 1;
+  s.dmg = 0; s.fx = null; s.slow = 0; s.knock = 0; s.splash = 0; s.vol = null;
+  return true;
+}
+// row `naTri: fields` (volley): while its mech is transformed the press flies as the row with these fields merged in (one cached
+// row per source row, so nothing in the def changes and a guest's mirror plays the same rows)
+function naTri(s) { return s.naTriRow || (s.naTriRow = { ...s, ...s.naTri, naTri: null }); }
+function naCatch(m, u, s) {
+  const i = s.naBack - 1, row = u.def.skills[i], k = SLOTS[i];
+  if (!u.alive || !row || row.naCatch === undefined) return;
+  if (u.cd[k] > row.naCatch) u.cd[k] = row.naCatch;
+  m.events.push({ t: 'k17', kind: 'catch', id: u.id, x: u.x, z: u.z });
+}
+/* ===== end kit-remake G5 Na Tra ===== */

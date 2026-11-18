@@ -1,4 +1,4 @@
-// Looks, kit lane k17: Razor and Medusa (kits ported from the owner's clips, see data.js). Render only (see looks.js for
+// Looks, kit lane k17: Razor, Medusa and Na Tra (kits ported from the owner's clips, see data.js). Render only (see looks.js for
 // the hooks). One main colour and one accent per tank.
 // Razor (bilibili BV1Kp4y1b7i6 p51 "48.电魂", gameplay 33-59 s): electric cyan-blue, accent violet. The lightning orbs are white-blue
 //   plasma balls in a violet ring with a spark inside, lying about the floor; the channel wraps him in a crackling cyan bubble;
@@ -7,8 +7,11 @@
 // Medusa (p42 "39.美杜莎", gameplay 18-30 s): venom lime green, accent pale cyan. Green serpents with dark scales; the gaze is a lime
 //   fan that turns what it catches to grey-green stone; the snake hops from foe to foe; the ult raises three tilted green rings
 //   turning round her like a gyroscope (the ward) and pours small green snakes forward.
+// Na Tra (p64 "61.哪吒", gameplay 35-59 s): fire gold, accent red. The red Hỗn Thiên Lăng sash streams behind its shot and winds
+//   round whoever it wraps; the golden ring spins flat in fire; fire wheels under him for the dash; he lands from the ult in a
+//   golden star of spikes and keeps a gold-orange flame aura with six fiery arms for the form (his thrusts fly nine ways).
 import * as THREE from '../../vendor/three.module.min.js';
-import { C, own, stop, sigil, shell, burst, slash, pillar } from './lookkit.js';
+import { C, own, stop, sigil, shell, burst, slash, trail, spikes, pillar } from './lookkit.js';
 import { zap, forks, ribbonMesh, fillRibbon } from './looks-b5.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
@@ -255,5 +258,96 @@ const medusa = {
   },
 };
 
+// ---- Na Tra ---------------------------------------------------------------------------------------------------------
+const NA_FIRE = C(2.6, 0.9, 0.1), NA_GOLD = C(2.6, 1.9, 0.4), NA_RED = C(2.5, 0.15, 0.2), NA_DRED = C(0.6, 0.02, 0.05);
+const wheelTor = keep(new THREE.TorusGeometry(1, 0.12, 6, 28)), wheelSpoke = keep(new THREE.BoxGeometry(2, 0.08, 0.08));
+function wheel() { const g = new THREE.Group(), m = basic(0xffc040, false), ms = basic(0xff7020, false); g.add(new THREE.Mesh(wheelTor, m)); for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(wheelSpoke, ms); s.rotation.z = i * 1.047; g.add(s); } return g; }
+function held(kit, objs) { const h = { on: true }; own(kit, objs, 1e9, () => h.on); return h; }
+// red silk bands wound round a wrapped mech, turning, for `life` s
+function wrapBands(kit, o, life) {
+  for (let k = 0; k < 3; k++) {
+    const ph = k * 2.094, y0 = 0.5 + k * 0.45;
+    trail(kit, (t) => (t < life - 0.15 && o.alive ? [o.x + Math.cos(t * 9 + ph) * 1.05, y0 + Math.sin(t * 6 + ph) * 0.15, o.z + Math.sin(t * 9 + ph) * 1.05] : null), 0.32, NA_RED, life, { c2: NA_DRED, len: 12, up: true });
+  }
+  sigil(kit, o.x, o.z, 1.5, NA_RED, { c2: NA_GOLD, n: 0, ticks: 8, inner: 0.7, fill: 0.3, w: 0.08, life, rev: 0.1, spin: 3, follow: o });
+}
+const natra = {
+  // the passive's events: a wrap (the first one and the ones it spreads to) winds red silk round the mech; a caught ring flashes gold
+  naLotus: {
+    k17(kit, e) {
+      const o = kit.match && kit.match.units[e.on];
+      if (e.kind === 'wrap' && o) { wrapBands(kit, o, 1.1); kit.flash(o.x, 1.4, o.z, NA_RED, 24, 0.2); }
+      else if (e.kind === 'catch') { kit.glow(e.x, 1.4, e.z, NA_GOLD, 0.2, 2.4, 1, kit.K.STAR, 1.3); kit.ring(e.x, e.z, 1.8, NA_GOLD, 0.3); }
+    },
+  },
+  // Hỗn Thiên Lăng: a long red sash streams behind the shot, rippling, with a gold edge; it slips through walls
+  naSilk: {
+    pal: [NA_RED, NA_GOLD], hitR: 1.6,
+    skill(kit, e, u) {
+      kit.glow(u.x + Math.cos(e.a) * 1.2, 1.2, u.z + Math.sin(e.a) * 1.2, NA_RED, 0.15, 1.8, 1, kit.K.STAR, 1.2);
+      sigil(kit, u.x, u.z, 2.2, NA_RED, { c2: NA_GOLD, n: 0, ticks: 10, inner: 0.6, fill: 0.55, w: 0.1, life: 0.45, rev: 0.06, spin: -4 });
+      return true;
+    },
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, live: true, a: Math.atan2(s.dz, s.dx) };
+      trail(kit, (t) => (v.live ? [v.x - Math.sin(v.a) * Math.sin(t * 22) * 0.35, 1.1 + Math.sin(t * 15) * 0.2, v.z + Math.cos(v.a) * Math.sin(t * 22) * 0.35] : null), 1.8, NA_RED, 9, { c2: NA_DRED, len: 24 });
+      trail(kit, (t) => (v.live ? [v.x, 1.5 + Math.sin(t * 15 + 1) * 0.25, v.z] : null), 1.2, NA_RED, 9, { c2: NA_GOLD, len: 20, up: true });
+      return v;
+    },
+    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.a = Math.atan2(s.dz, s.dx); kit.glow(x, 1.2, z, NA_GOLD, 0.05, 0.9, 0.8, kit.K.GLOW, 1); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; kit.sparks(x, 1.2, z, kit.N(6), NA_RED, 6, 0.3, 0.05, 0.5, 6); },
+  },
+  // Càn Khôn Quyển: the golden ring flies out flat and spinning, wrapped in fire, and turns home when it hits
+  naRing: {
+    pal: [NA_FIRE, NA_GOLD], hitR: 1.8,
+    skill() { return true; },
+    shotMake(kit, s) { const w = wheel(); w.rotation.x = Math.PI / 2; w.scale.setScalar(3.2); const v = { w, h: held(kit, [w]), x: s.x, z: s.z, live: true }; for (const ph of [0, 2.094, 4.189]) trail(kit, (t) => (v.live ? [v.x + Math.cos(t * 14 + ph) * 2.6, 1.2, v.z + Math.sin(t * 14 + ph) * 2.6] : null), 1.1, NA_FIRE, 0.5, { c2: NA_RED, len: 10 }); return v; },
+    shot(kit, v, s, x, y, z, dt) { v.x = x; v.z = z; v.w.position.set(x, 1.2, z); v.w.rotation.z += (dt || 0.016) * 18; return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), NA_GOLD, 7, 0.3, 0.05, 0.5, 8); },
+  },
+  // Phong Hỏa Phi Luân: a fire wheel stands at each side of him, spinning, and burns two tracks along the floor
+  naWheels: {
+    skill(kit, e, u) {
+      const a = e.a, ws = [wheel(), wheel()];
+      own(kit, ws, 0.4, (t) => { if (!u.alive) return false; ws.forEach((w, i) => { const sd = i ? 1 : -1; w.position.set(u.x - Math.sin(a) * sd * 1.6, 1.3, u.z + Math.cos(a) * sd * 1.6); w.rotation.set(0, -a, t * 30); w.scale.setScalar(2.6); }); if (Math.random() < 0.8) for (const sd of [-1, 1]) kit.scorch(u.x - Math.sin(a) * sd * 1.6, u.z + Math.cos(a) * sd * 1.6, 0.8, 3, 1.4, NA_FIRE); });
+      for (const sd of [-1, 1]) trail(kit, (t) => (t < 0.3 && u.alive ? [u.x - Math.sin(a) * sd * 1.6, 0.5, u.z + Math.cos(a) * sd * 1.6] : null), 2.4, NA_FIRE, 0.7, { c2: NA_RED, len: 18 });
+      sigil(kit, u.x, u.z, 2.4, NA_FIRE, { c2: NA_GOLD, n: 0, ticks: 12, inner: 0.6, fill: 0.6, w: 0.1, life: 0.4, rev: 0.05, spin: 6 });
+      kit.ring(u.x, u.z, 2.2, NA_FIRE, 0.3); kit.flash(u.x, 1.2, u.z, NA_FIRE, 30, 0.2);
+      return true;
+    },
+  },
+  // Tam Đầu Lục Tý: he vanishes in a spiral of red sash on a fire wheel, lands in a golden star of spikes; for the form a gold-orange
+  // flame aura stands round him with six golden arms of fire turning about him
+  naForm: {
+    pal: [NA_FIRE, NA_GOLD], hitR: 2.2,
+    skill(kit, e, u, row) {
+      const dur = (row && row.naLeap && row.naLeap.flight) || 0.5;
+      trail(kit, (t) => (t < dur && u.alive ? [u.x + Math.cos(t * 16) * 1.4, 1.5 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3, u.z + Math.sin(t * 16) * 1.4] : null), 2.4, NA_RED, dur + 0.3, { c2: NA_DRED, len: 22 });
+      const w = wheel(); w.rotation.x = Math.PI / 2;
+      own(kit, [w], dur + 0.05, (t) => { if (!u.alive) return false; w.position.set(u.x, 0.3 + Math.sin(Math.min(1, t / dur) * Math.PI) * 2.6, u.z); w.rotation.z = t * 20; w.scale.setScalar(3.2); });
+      pillar(kit, u.x, u.z, 1.6, NA_FIRE, { c2: NA_GOLD, h: 7, life: 0.6, rings: 2 });
+      sigil(kit, u.x, u.z, 3, NA_GOLD, { c2: NA_RED, n: 8, m: 3, ticks: 0, inner: 0, fill: 0.45, w: 0.1, life: 0.6, rev: 0.08, spin: 3 });
+      kit.flash(u.x, 1.6, u.z, NA_GOLD, 30, 0.2);
+      return true;
+    },
+    nova(kit, e, u, row) {
+      const r = e.r || 3.5;
+      sigil(kit, e.x, e.z, r * 1.6, NA_GOLD, { c2: NA_FIRE, n: 8, m: 3, ticks: 0, inner: 0, life: 0.9, rev: 0.06, spin: 2, fill: 0.65, w: 0.12 });
+      pillar(kit, e.x, e.z, 2.2, NA_FIRE, { c2: NA_GOLD, h: 8, life: 0.7, rings: 2 });
+      spikes(kit, e.x, e.z, 8, r * 0.35, 3.4, NA_GOLD, 0.8, { core: 0x5a3000, up: 0.06 });
+      burst(kit, e.x, e.z, 3.6, NA_FIRE, NA_GOLD, { life: 0.35 });
+      const d = (row && row.dur) || 12, on = () => u.tfT > 0;
+      shell(kit, u.x, 1.1, u.z, 1.8, NA_FIRE, { c2: NA_GOLD, p: 2, core: 0.08, bands: 1.4, life: d, grow: 0.2, follow: u, alpha: 0.8, step: () => on() });
+      sigil(kit, u.x, u.z, 2.4, NA_GOLD, { c2: NA_RED, n: 6, m: 2, ticks: 0, inner: 0.6, fill: 0.25, w: 0.07, life: d, rev: 0.2, spin: 1.5, follow: u, alpha: 0.8 });
+      for (let k = 0; k < 6; k++) {
+        const ph = k * 1.047, y = k % 2 ? 1.7 : 1.1;
+        trail(kit, (t) => (t < d && u.alive && on() ? [u.x + Math.cos(t * 3 + ph) * 1.6, y, u.z + Math.sin(t * 3 + ph) * 1.6] : null), 0.45, NA_GOLD, d + 0.3, { c2: NA_FIRE, len: 8, up: true });
+      }
+      kit.flash(e.x, 2, e.z, NA_GOLD, 60, 0.3); kit.kick(e.x, e.z, 0.7);
+      return true;
+    },
+    transform() { return true; },
+  },
+};
 
-export const K17 = { ...razor, ...medusa };
+export const K17 = { ...razor, ...medusa, ...natra };

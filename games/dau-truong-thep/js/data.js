@@ -445,21 +445,36 @@ export const MECHS = {
         desc: 'Chém một nhát quanh mình: kẻ địch trúng đòn mà máu còn dưới 25% bị kết liễu ngay.' },
     ],
   },
+  // Na Tra (哪吒): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p64 "61.哪吒", tooltips in ~/handoff/dtt-ref/kits/AUDIT-b.md).
+  // Attack = one Hỏa Tiêm Thương thrust (150; was 95 at 0.3 s, now 150 at 0.47 s, same dps): Hỗn Thiên Lăng 169% -> 254, Càn Khôn
+  // Quyển 212% -> 318, Tam Đầu Lục Tý 210% -> 315 on landing, its nine-way thrusts 50% -> 75 each. Cooldowns 8 / 8 / 30 s in the clip
+  // -> 10 / 10 / 50 (the ult's counts from the end of the form, cdAfter). Phong Hỏa Phi Luân is Càn Khôn Quyển's second stage (next).
+  // Not ported: the nine-way thrusts' crits and their same-target falloff. Passive guard: G2 mods.onCast guard vs 'skill'; Hồng Liên Hóa
+  // Sinh: G2 mods.onHurt by 'cc'. Kit-remake G5 fields (sim.js block "kit-remake G5 Na Tra"): passive naCc (cc halved after a cast)
+  // and naRamp (speed stacks from skill hits), volley naWrap (the wrap that spreads), naRet + naCatch (the ring turns home on a hit and
+  // catching it cuts the cooldown), volley naTri (three silks, three rings in the form), transform naLeap + naForm (leap into the form, max hp and damage up per enemy hit).
   natra: {
     name: 'Na Tra', role: 'Thọc sườn', roleKey: 'flanker', price: 1500, tint: 0xe8562e,
-    blurb: 'Bánh xe lửa lao nhanh, vòng càn khôn bay đi rồi quay về. Máu xuống thấp thì chạy nhanh, cứng cáp hơn.',
+    blurb: 'Tam thái tử: dùng chiêu xong thì cứng hơn, bị khống chế thì hồi máu và hồi chiêu. Hỗn Thiên Lăng quấn chặt kẻ địch rồi lan sang kẻ đứng gần, Càn Khôn Quyển trúng là bay về tay, bánh xe gió lửa lao đi; tuyệt chiêu hóa Tam Đầu Lục Tý đâm ra chín hướng.',
     hp: 2400, speed: 7.1, radius: 0.76,
     armor: 0.03, accel: 1.5, turn: 16, towerMul: 1.0,
-    passive: { do: 'trait', name: 'Liên Hoa Thân', desc: 'Khi máu dưới 35%, chạy nhanh hơn 25% và thêm 20% giáp.',
-      mods: { lowHp: { below: 0.35, haste: 1.25, armor: 0.2 } } },
-    weapon: { name: 'Hỏa Tiêm Thương', cd: 0.3, dmg: 95, speed: 34, range: 11, r: 0.2, vis: 'dart' },
+    passive: { do: 'trait', name: 'Huyền Linh Thần Uy', look: 'naLotus',
+      mods: { onCast: { dur: 1.5, guard: 0.5, vs: 'skill' }, onHurt: { by: 'cc', icd: 3, heal: 0.1, cdCut: { slot: 'all', frac: 0.1 } } },
+      naCc: { mul: 0.5, dur: 1.5 }, naRamp: { step: 0.1, max: 5, dur: 3 },
+      desc: 'Dùng chiêu xong: 1,5 giây chịu ít hơn 50% sát thương chiêu, bị khống chế thì chỉ chịu một nửa thời gian. Mỗi lần trúng chiêu địch: chạy và bắn nhanh hơn 10% trong 3 giây, tối đa 5 lớp. Hồng Liên Hóa Sinh: bị choáng, giữ chân hay câm lặng thì lập tức hồi 10% máu đã mất và mọi chiêu giảm 10% hồi chiêu, 3 giây một lần.' },
+    weapon: { name: 'Hỏa Tiêm Thương', cd: 0.47, dmg: 150, speed: 34, range: 11, r: 0.22, vis: 'dart' },
     skills: [
-      { id: 'cankhon', look: 'ntRing', name: 'Càn Khôn Quyển', cd: 8, do: 'volley', n: 1, dmg: 210, speed: 26, range: 13, r: 0.45, pierce: true, ret: true, slow: 0.35, slowDur: 1.5, vis: 'disc', icon: 'ricochet',
-        desc: 'Ném vòng càn khôn xuyên qua địch, tới cuối tầm thì quay về tay: trúng được hai lượt, làm chậm.' },
-      { id: 'phonghoaluan', look: 'ntWheels', name: 'Phong Hỏa Luân', cd: 10, do: 'dash', dist: 9, speed: 32, dmg: 180, knock: 1.5, stun: 0, icon: 'dash',
-        desc: 'Đạp bánh xe lửa lao đi theo hướng ngắm, hất văng kẻ chắn đường.' },
-      { id: 'thiengiang', look: 'ntDescend', name: 'Thiên Giáng', cd: 40, do: 'leap', to: 'foe', cast: 14, pick: 4, flight: 0.55, radius: 3.2, dmg: 620, stun: 1, icon: 'leap',
-        desc: 'Khóa một kẻ địch ở con trỏ rồi bay tới giáng xuống: sát thương lớn và choáng 1 giây. Không có ai ở đó thì không phóng.' },
+      { id: 'honthien', look: 'naSilk', name: 'Hỗn Thiên Lăng', cd: 10, do: 'volley', n: 1, dmg: 254, speed: 26, range: 13, r: 0.4, thruWalls: true, vis: 'link',
+        naWrap: { delay: 1, r: 3.5, root: 1, immune: 5 }, naTri: { n: 3, fan: 0.3 }, icon: 'pierce',
+        desc: 'Phóng dải Hỗn Thiên Lăng xuyên tường theo hướng ngắm: kẻ đầu tiên trúng chịu 254 và bị quấn, giữ chân 1 giây; 1 giây sau mọi kẻ địch quanh nó trong 3,5 m cũng bị quấn 1 giây. Kẻ đã bị quấn thì 5 giây sau mới quấn lại được. Ở Tam Đầu Lục Tý phóng ba dải.' },
+      { id: 'cankhon', look: 'naRing', name: 'Càn Khôn Quyển', cd: 10, do: 'volley', n: 1, dmg: 318, speed: 26, range: 12, r: 0.45, thruWalls: true, vis: 'disc',
+        fx: { slow: 0.5, slowDur: 2, slowDecay: true }, naRet: true, naCatch: 1.5, naTri: { n: 3, fan: 0.5, sameDecay: 0.2 }, icon: 'ricochet',
+        next: { window: 3, row: { id: 'phonghoa', look: 'naWheels', name: 'Phong Hỏa Phi Luân', do: 'dash', dist: 7, speed: 34, dmg: 0 } },
+        desc: 'Ném vòng Càn Khôn xuyên tường: kẻ đầu tiên trúng chịu 318, chậm 50% nhạt dần trong 2 giây, và vòng bay về tay; bắt được vòng thì chiêu này chỉ còn 1,5 giây hồi. Bấm lại trong 3 giây: đạp bánh xe gió lửa lao 7 m theo hướng ngắm. Ở Tam Đầu Lục Tý ném ba vòng tỏa ra trước mặt, vòng thứ hai và thứ ba trúng cùng một kẻ chỉ còn 20%.' },
+      { id: 'tamdau', look: 'naForm', name: 'Tam Đầu Lục Tý', cd: 50, do: 'transform', dur: 12, haste: 1.2, dmg: 1.2, heal: 0.4, invuln: true, cdAfter: true, healLost: 0.2,
+        naLeap: { cast: 12, flight: 0.5, radius: 3.5, dmg: 315, fx: { antiheal: { mul: 0.5, dur: 3 } } }, naForm: { hp: 0.2, per: 0.1, cap: 0.3 },
+        weapon: { n: 9, fan: 0.698, dmg: 75, range: 9 }, icon: 'leap',
+        desc: 'Biến mất rồi hiện ra ở con trỏ (xa nhất 12 m) trong hình Tam Đầu Lục Tý 12 giây: lúc hiện ra gây 315 vòng 3,5 m, kẻ trúng chỉ nhận một nửa máu hồi trong 3 giây; mỗi kẻ trúng cho bạn thêm 10% máu tối đa và sát thương (tối đa 30%) và hồi 20% máu đã mất. Trong hình: máu tối đa, sát thương, tốc chạy +20%, hồi ngay 40% máu đã mất, đòn thường đâm ra chín hướng quanh mình, mỗi hướng 75. Hồi chiêu tính từ lúc hết hình.' },
     ],
   },
   // Dương Tiễn: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p68 "65.二郎神" Nhị Lang Thần, tooltips read at 0-8 s;
@@ -1416,7 +1431,7 @@ export const PERKS = {
   hoalong: [perk('Giáp Dày', 'Phá Ngục Viêm Nhận hút 300 sát thương.', 0, { amount: 300 }), perk('Sao Rơi Rộng', 'Viêm Lưu Trụy Tinh giáng rộng 3,6 m.', 1, { radius: 3.6 }), perk('Hơi Nham Rộng', 'Viêm Chi Thẩm Phán nổ rộng 5,8 m.', 2, { nova: { windup: 2, radius: 5.8, dmg: 1088, fx: { hlCore: { dur: 1.5, r: 2.5 } } } })],
   khiphao: [perk('Pháo Đằm', 'Pháo Tép làm chậm hoặc làm yếu với 45% quả.', 'weapon', { fx: { chance: 0.45, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] } }), perk('Bẫy Dày', 'Mìn của Chuồn Lẹ nổ 360.', 1, { onStart: { mine: { trigger: 2, blast: 3, dmg: 360, arm: 0.4, life: 8, fx: { slow: 0.4, slowDur: 1.5 } } } }), perk('Mười Sáu Quả', 'Hội Pháo Hoa dội 16 quả.', 2, { n: 16 })],
   quancong: [perk('Đao Dài', 'Đao Khí bay xa 8 m.', 'weapon', { range: 8 }), perk('Xung Mạnh', 'Xung Phong gây 260 và choáng 0,8 giây.', 0, { dmg: 260, stun: 0.8 }), perk('Án Trảm', 'Trảm Tướng kết liễu dưới 32% máu.', 2, { fx: { execute: 0.32 } })],
-  natra: [perk('Vòng Lớn', 'Càn Khôn Quyển gây 260.', 0, { dmg: 260 }), perk('Bánh Xe Dài', 'Phong Hỏa Luân lao xa 11 m.', 1, { dist: 11 }), perk('Giáng Mạnh', 'Thiên Giáng rộng 4 m, gây 760.', 2, { radius: 4, dmg: 760 })],
+  natra: [perk('Lăng Dài', 'Hỗn Thiên Lăng bay xa 16 m.', 0, { range: 16 }), perk('Vòng Nặng', 'Càn Khôn Quyển gây 380.', 1, { dmg: 380 }), perk('Lục Tý Lâu', 'Tam Đầu Lục Tý kéo dài 15 giây.', 2, { dur: 15 })],
   duongtien: [perk('Tam Tiêm Nặng', 'Tam Tiêm gây 175.', 'weapon', { dmg: 175 }), perk('Khuyển Xa', 'Hao Thiên Khuyển chạy 15 m.', 1, { range: 15 }), perk('Phá Diệt Rộng', 'Phá Diệt Hoành Tảo quét rộng 5,5 m.', 2, { radius: 5.5 })],
   athena: [perk('Thánh Quang Nặng', 'Chiến Tranh Nghệ Thuật gây 300.', 0, { dmg: 300 }), perk('Thuẫn Dày', 'Thánh Thuẫn Tí Hựu hấp thụ 900 trong 2,5 giây.', 1, { shield: 900, dur: 2.5 }), perk('Bất Hủ Lâu', 'Anh Hùng Bất Hủ kéo dài 4 giây.', 2, { dur: 4, undying: 4 })],
   hades: [perk('Đổi Thế Nhanh', 'Hình Thái Chuyển Hoán hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Lưỡi Rộng', 'Minh Vương Lợi Nhận thế Chế Tài chém quạt 7 m.', 1, { radius: 7 }), perk('Lĩnh Vực Rộng', 'Minh Vương Lĩnh Vực rộng 6 m, kéo dài 5 giây.', 2, { hdDomain: { radius: 6, dur: 5, fear: 0.6 } })],
