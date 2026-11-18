@@ -1,7 +1,7 @@
 // Looks, lane b9: Én Bạc, Bói Cá, Rết Đỏ, Bọ Ngựa, Tắc Kè. Render only (see looks.js for the hooks).
 // One main colour and one accent per tank, one strong shape per skill, soft halos instead of hard boxes.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP-b9.md):
-//   15.飞翼 p18 (Én Bạc): a silver swept-wing flier, cyan light darts, a lock bracket ring on the target, an orange ring blast.
+//   15.飞翼 p18 (Én Bạc / Star Lord): looks moved to looks-k4.js with the ported kit (kit lane K4).
 //   18.上尉 p21 (Tắc Kè): round shields of concentric rings with a star thrown and bouncing; ours teal and silver.
 //   77.桐人 p80 (Bọ Ngựa): curved blade arcs curling round the target; ours mantis sickles in jade.
 //   59.金木 p62 (Rết Đỏ, loose): crystal kagune spikes bursting from the mech (cyan in the clip); ours a red centipede.
@@ -94,79 +94,6 @@ function boltPts(a, b, segs, jit) {
   for (let i = 0; i <= segs; i++) { const f = i / segs, e = i === 0 || i === segs ? 0 : 1, j = e * jit * (Math.random() * 2 - 1); pts.push([a[0] + dx * f + sx * j, a[1] + (b[1] - a[1]) * f + e * jit * 0.5 * (Math.random() * 2 - 1), a[2] + dz * f + sz * j]); }
   return pts;
 }
-
-// =====================================================================================================================
-// Én Bạc: a silver swallow, ice-cyan light, orange where the rockets burst (clip 飞翼 p18)
-const EB_CY = C(0.55, 1.7, 2.6), EB_ORG = C(2.6, 1.0, 0.25), EB_SIL = 0xe4ebf4, EB_DEEP = C(0.05, 0.2, 0.45);
-// top-down swallow: pointed head at +x, crescent wings swept back, a deep forked tail
-const swallowGeo = (() => {
-  const s = new THREE.Shape();
-  s.moveTo(1.0, 0); s.quadraticCurveTo(0.72, 0.15, 0.36, 0.17); s.quadraticCurveTo(0.05, 0.78, -0.55, 1.45); s.quadraticCurveTo(-0.22, 0.62, -0.2, 0.22);
-  s.lineTo(-1.2, 0.48); s.quadraticCurveTo(-0.85, 0.12, -0.72, 0); s.quadraticCurveTo(-0.85, -0.12, -1.2, -0.48); s.lineTo(-0.2, -0.22);
-  s.quadraticCurveTo(-0.22, -0.62, -0.55, -1.45); s.quadraticCurveTo(0.05, -0.78, 0.36, -0.17); s.quadraticCurveTo(0.72, -0.15, 1.0, 0);
-  return keep(new THREE.ShapeGeometry(s, 10).rotateX(-Math.PI / 2));
-})();
-const swallow = () => glowed(swallowGeo, EB_SIL, EB_CY);
-// the orange ring blast of a rocket or a strike (clip: a flat fire ring)
-function ebBlast(kit, x, z, r, life = 0.55) {
-  sigil(kit, x, z, r, EB_ORG, { c2: EB_CY, n: 0, ticks: 0, inner: 0.7, fill: 0.32, w: 0.07, life, rev: 0.04, spin: 0, grow: 9 });
-  shell(kit, x, 0.9, z, r * 0.42, EB_ORG, { c2: C(2.6, 2.2, 1.6), inv: 1.4, core: 1, life: 0.28, grow: 0.06 });
-  kit.sparks(x, 1, z, kit.N(10), EB_ORG, 8, 0.35, 0.05, 0.6, 10);
-  kit.scorch(x, z, r * 0.5, 3, 1.1, EB_ORG);
-  kit.flash(x, 1.6, z, EB_ORG, 30, 0.2);
-}
-const enbac = {
-  // Loạt Kép: two small silver swallows dart out on ice-cyan contrails and burst in orange rings
-  ebRocket: {
-    pal: [EB_ORG, EB_CY], hitR: 1.4,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.3, 1.3, u.z + Math.sin(e.a) * 1.3, EB_CY, 0.12, 1.6, 0.8, kit.K.STAR, 1.2); return true; },
-    shotMake(kit, s) {
-      const g = swallow(), v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), x: s.x, z: s.z, live: true, t: 0 };
-      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 0.8, EB_CY, 0.5, { c2: EB_DEEP, len: 14 });
-      return v;
-    },
-    shot(kit, v, s, x, y, z, dt) { v.t += dt || 0.016; v.x = x; v.z = z; v.g.position.set(x, 1.3, z); v.g.rotation.y = -v.a; v.g.scale.set(2.4, 1, 2.4 * (0.82 + 0.18 * Math.sin(v.t * 34))); return true; },
-    // it bursts and the swallow glides on through the blast, fading
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; ebBlast(kit, x, z, 3.2); const g = swallow(), a = v.a; own(kit, [g], 0.35, (t) => { g.position.set(x + Math.cos(a) * 9 * t, 1.5 + 2 * t, z + Math.sin(a) * 9 * t); g.rotation.y = -a; g.scale.setScalar(2.4 + 2 * t); fadeAll(g, 1 - t / 0.35); }); },
-  },
-  // Phản Lực: a big silver swallow spreads over him as he jets off, two ice-cyan contrails from its wing tips
-  ebJet: {
-    pal: [EB_CY, EB_ORG], hitR: 1.4,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a), g = swallow(); let end = -1;
-      own(kit, [g], 0.65, (t) => {
-        if (!u.alive) return false;
-        if (end < 0 && t > 0.05 && !u.dash) end = t;
-        const k = Math.min(1, t / 0.08), f = end < 0 ? 1 : Math.max(0, 1 - (t - end) / 0.35);
-        g.position.set(u.x, 1.7, u.z); g.rotation.y = -a; g.scale.set(2.5 * k, 1, 2.9 * k * (0.9 + 0.1 * Math.sin(t * 30))); fadeAll(g, f);
-      });
-      for (const sd of [-1, 1]) trail(kit, (t) => (t < 0.3 && u.alive && (t < 0.05 || u.dash) ? [u.x - ca * 1.1 - sa * sd * 3.6, 1.6, u.z - sa * 1.1 + ca * sd * 3.6] : null), 0.6, EB_CY, 0.7, { c2: EB_DEEP, len: 16 });
-      // the three shots thrown back as he goes: orange muzzle flashes behind him
-      for (const d of [-0.25, 0, 0.25]) kit.glow(u.x - Math.cos(a + d) * 1.2, 1.2, u.z - Math.sin(a + d) * 1.2, EB_ORG, 0.12, 1.1, 0.9, kit.K.STAR, 1.2);
-      kit.puffs(u.x, 0.5, u.z, kit.N(4), C(0.7, 0.8, 0.9), 0.5, 2.5, 0.6, 0.9, 2, 0.4, 0.4, kit.K.DUST, 3);
-      return true;
-    },
-  },
-  // Mưa Đạn Trời: every spot gets an orange lock bracket ring; a swallow of light dives out of the sky on it and bursts
-  ebRain: {
-    zones: ['strike'], ownDisc: true, pal: [EB_ORG, EB_CY], hitR: 1.4,
-    skill(kit, e, u) { kit.flash(u.x, 2, u.z, EB_CY, 40, 0.3); return true; },
-    zoneMake(kit, z) {
-      const g = swallow(), lance = strip(EB_CY, C(2.4, 2.6, 2.6), { add: true, taper: 1, p: 1.2 });
-      const v = { g, lance, h: held(kit, [g, lance]) };
-      v.s = sigil(kit, z.x, z.z, z.r * 1.4, EB_ORG, { c2: EB_ORG, n: 0, ticks: 4, inner: 0, fill: 0.16, w: 0.07, life: 1e9, rev: 0.06, spin: 2.5 });
-      return v;
-    },
-    zone(kit, v, z) {
-      const k = 1 - z.delay / (z.total || 1), y = 0.6 + 11 * (1 - k) * (1 - k);
-      v.g.position.set(z.x, y, z.z); v.g.rotation.y = 1.2 + z.id; v.g.scale.setScalar(1.8 + 0.8 * k);
-      v.lance.position.set(z.x, y + 0.2, z.z); v.lance.rotation.set(0, 0, Math.PI / 2); v.lance.scale.set(Math.min(7, 13 - y), 1, 1.5);
-      v.s.scale.setScalar(z.r * (1.9 - 0.5 * k));
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.s); },
-    land(kit, e, v, z) { ebBlast(kit, e.x, e.z, ((z && z.r) || 2.2) * 1.4, 0.6); kit.kick(e.x, e.z, 0.25); return true; },
-  },
-};
 
 // =====================================================================================================================
 // Bói Cá: kingfisher azure, its orange breast as the accent; the dive, the watching eye, the lock and the strike
@@ -454,4 +381,4 @@ const bongua = {
 
 // Tắc Kè's looks moved to looks-k1.js with the Captain America kit remake.
 
-export const B9 = { ...enbac, ...boica, ...retdo, ...bongua };
+export const B9 = { ...boica, ...retdo, ...bongua };

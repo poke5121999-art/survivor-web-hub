@@ -501,20 +501,28 @@ export const MECHS = {
         desc: 'Sáu tảng đá rơi thành một hàng dọc theo hướng ngắm, mỗi tảng 480 sát thương, choáng 0,7 giây và hất văng.' },
     ],
   },
+  // Star Lord: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p18 "15.飞翼" (tooltips at 0.5-5.5 s, AUDIT-a.md). Attack = one
+  // Song Thương bolt (150, the passive's faster, harder bullet folded in): every third hit 150% -> 225, Tật Tốc Triệt Thoái 122% -> 183,
+  // Cân Tung Đạo Đạn 60% -> 90 a missile, Lôi Xạ Đại Pháo 445% -> 668. Cooldowns 8 / 6 / 25 s in the clip -> 10 / 8 / 45. The gun fires
+  // every 0.48 s so the third-hit bonus and the missiles keep the old damage per second. No MP. G5 (sim.js "kit-remake K4"): the
+  // third-hit bonus, the missile chance, the backward dash, the homing volley.
   enbac: {
     name: 'Star Lord', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x8a96a8,
-    blurb: 'Song thương nhanh, ghim một mục tiêu thì sát thương tăng dần. Phản lực bắn trả khi lùi, mưa đạn trời dội vừa đi vừa bắn.',
+    blurb: 'Song thương bắn nhanh, phát thứ ba liền vào một mục tiêu nổ thêm, thỉnh thoảng phóng kèm tên lửa đuổi. Vừa bắn vừa lùi, khóa mục tiêu phóng bốn tên lửa, tụ lực bắn pháo laser.',
     hp: 2450, speed: 6.8, radius: 0.8,
     armor: 0.04, accel: 1.3, turn: 14, towerMul: 1.0,
-    passive: { do: 'ramp', name: 'Chốt Mục Tiêu', desc: 'Mỗi phát trúng cùng một mục tiêu tăng 4% sát thương đạn, tối đa 8 lần. Đổi mục tiêu là về lại từ đầu.', on: 'hit', stat: 'dmg', step: 0.04, max: 8, dur: 2, reset: 'switch' },
-    weapon: { name: 'Song Thương', cd: 0.18, dmg: 76, speed: 34, range: 13, spread: 0.04, r: 0.2, alt: 0.4, vis: 'bullet' },
+    passive: { do: 'gunner', name: 'Tật Tốc', look: 'ebMark', nth: 3, bonus: 225, chance: 0.25,
+      missile: { dmg: 90, speed: 22, range: 16, r: 0.24, vis: 'rocket', turn: 5, src: 'cantung' },
+      desc: 'Đạn bay nhanh. Cứ phát thứ ba liền nhau trúng cùng một mục tiêu thì gây thêm 225 sát thương. Mỗi phát bắn có 25% cơ hội phóng kèm một tên lửa đuổi 90 sát thương vào kẻ địch gần hướng ngắm.' },
+    weapon: { name: 'Song Thương', cd: 0.48, dmg: 150, speed: 68, range: 13, spread: 0.04, r: 0.2, alt: 0.4, vis: 'bullet' },
     skills: [
-      { id: 'loatkep', look: 'ebRocket', name: 'Loạt Kép', cd: 6, do: 'volley', n: 2, fan: 0.05, dmg: 210, speed: 34, range: 15, r: 0.24, splash: 1.6, vis: 'rocket', icon: 'rocket',
-        desc: 'Bắn hai quả tên lửa nhỏ nổ lan 1,6 m.' },
-      { id: 'phanluc', look: 'ebJet', name: 'Phản Lực', cd: 10, do: 'dash', dist: 8, speed: 34, dmg: 0, onStart: { volley: { n: 3, fan: 0.25, dmg: 110, speed: 30, range: 10, r: 0.2, vis: 'bullet', back: true } }, icon: 'boost',
-        desc: 'Lao nhanh theo hướng ngắm; lúc bật đi, ba phát đạn bắn ngược về phía sau tỏa hình quạt.' },
-      { id: 'muadan', look: 'ebRain', name: 'Mưa Đạn Trời', cd: 42, do: 'barrage', radius: 4, blast: 2.2, dmg: 180, delay: 0.5, cast: 14, channel: { dur: 3, every: 0.2, move: 0.8 }, icon: 'storm',
-        desc: 'Trong 3 giây vừa đi vừa dội đạn liên tục quanh con trỏ, mỗi 0,2 giây một quả nổ 180 sát thương.' },
+      { id: 'triethoai', look: 'ebRetreat', name: 'Tật Tốc Triệt Thoái', cd: 10, do: 'dash', back: true, dist: 5, speed: 30, dmg: 0,
+        onStart: { volley: { n: 1, dmg: 183, speed: 60, range: 14, r: 0.3, slow: 0.5, slowDur: 2, vis: 'rail' } }, icon: 'recoil',
+        desc: 'Bắn một phát theo hướng ngắm, 183 sát thương và làm chậm 50% trong 2 giây, đồng thời lùi nhanh 5 m về phía sau.' },
+      { id: 'cantung', look: 'ebMissile', name: 'Cân Tung Đạo Đạn', cd: 8, do: 'volley', n: 4, fan: 0.5, dmg: 90, speed: 22, range: 18, r: 0.24, vis: 'rocket', home: { cast: 16, pick: 4, turn: 5 }, icon: 'rocket',
+        desc: 'Khóa kẻ địch gần con trỏ nhất rồi phóng bốn tên lửa đuổi theo nó, mỗi quả 90 sát thương. Không có ai thì tên lửa bay thẳng.' },
+      { id: 'loixa', look: 'ebCannon', name: 'Lôi Xạ Đại Pháo', cd: 45, do: 'beam', windup: 0.5, range: 18, width: 1.6, dmg: 668, icon: 'beam',
+        desc: 'Đứng tụ lực 0,5 giây rồi bắn pháo laser dài 18 m, 668 sát thương mọi kẻ địch trên đường.' },
     ],
   },
   boica: {
@@ -1052,7 +1060,7 @@ export const PERKS = {
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],
   sontinh: [perk('Đá Nặng', 'Đá Lăn gây 300, nổ lan 2,6 m.', 'weapon', { dmg: 300, splash: 2.6 }), perk('Bảy Khối Đá', 'Vách Đá dựng bảy khối.', 0, { n: 7 }), perk('Tám Tảng Non', 'Dời Non rơi tám tảng, mỗi tảng 560.', 2, { n: 8, dmg: 560 })],
-  enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Ba Tên Lửa', 'Loạt Kép bắn ba quả.', 0, { n: 3 }), perk('Mưa Dài', 'Mưa Đạn Trời kéo dài 4 giây.', 2, { channel: { dur: 4, every: 0.2, move: 0.8 } })],
+  enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],
   bohung: [perk('Lõi Nặng', 'Pháo Lõi gây 180.', 'weapon', { dmg: 180 }), perk('Khiên Dội', 'Lá Chắn Nổ nổ rộng 5,5 m, gây 420.', 1, { burst: { radius: 5.5, dmg: 420, knock: 2 } }), perk('Hóa Thân Lớn', 'Thăng Hóa kéo dài 9 giây, to hơn 30%.', 2, { dur: 9, size: 1.3 })],
   cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
