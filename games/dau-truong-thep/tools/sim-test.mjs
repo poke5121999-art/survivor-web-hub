@@ -7,6 +7,7 @@ import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   /
 import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 61, old tumay/enbac kits as fixtures
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
+import { runK9Cases, OLD_ANDUONG } from './k9-cases.mjs';   // kit lane k9: section K9
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3599,9 +3600,12 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
 
   // ---- form ----
+  // The batch-7 An Dương Vương kit (two crossbow stances) is a fixture now (mech key 'oldanduong', registered for this block only):
+  // anduong plays the kit ported from the owner's clip (tools/k9-cases.mjs), and these rows keep the form primitive covered.
+  MECHS.oldanduong = OLD_ANDUONG;
   {
-    const m = arena([[R('anduong', 0), 0, 0], [R('ung', 1), 25, 0]]), a = m.units[0];
-    check('44i An Duong Vuong starts with the light bow: No Nhe, cd 0.3, speed 6', a.form === 0 && weaponOf(a).name === 'Nỏ Nhẹ' && weaponOf(a).dmg === MECHS.anduong.weapon.dmg && near(unitSpeed(a), 6, 1e-9));
+    const m = arena([[R('oldanduong', 0), 0, 0], [R('ung', 1), 25, 0]]), a = m.units[0];
+    check('44i An Duong Vuong starts with the light bow: No Nhe, cd 0.3, speed 6', a.form === 0 && weaponOf(a).name === 'Nỏ Nhẹ' && weaponOf(a).dmg === MECHS.oldanduong.weapon.dmg && near(unitSpeed(a), 6, 1e-9));
     press(m, 0, 's2');
     check('44j Doi No: a 0.3 s set-up first (still light), cd 2', a.cast && a.cast.skill.do === 'form' && a.form === 0 && a.cd.s2 === 2);
     const ev = go(m, 10);
@@ -3609,20 +3613,22 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     a.cd.s1 = 0; press(m, 0, 's1');
     const sh = m.shots.filter((s) => s.owner === 0);
     check('44l Loat Ten with the heavy bow: one pierce arrow of 520, no haste', sh.length === 1 && sh[0].dmg === 520 && sh[0].pierce && a.hasteT === 0, JSON.stringify(sh.map((s) => [s.dmg, s.pierce])));
-    check('44m Nỏ Linh Quang is 2040 with the heavy bow', a.def.skills[2].dmg === 2040 && MECHS.anduong.skills[2].dmg === 1700);
+    check('44m Nỏ Linh Quang is 2040 with the heavy bow', a.def.skills[2].dmg === 2040 && MECHS.oldanduong.skills[2].dmg === 1700);
     a.cd.s2 = 0; press(m, 0, 's2'); go(m, 10);
     a.cd.s1 = 0; press(m, 0, 's1');
-    check('44n back to the light bow: Loat Ten is three darts and a 1.2x run for 1.5 s', a.form === 0 && m.shots.filter((s) => s.owner === 0 && s.dmg === MECHS.anduong.skills[0].dmg).length === 3 && a.hasteF === 1.2 && near(a.hasteT, 1.5, 1e-9), `${a.form} ${a.hasteF} ${a.hasteT}`);
-    const big = buildDef('anduong', [0, 0, 0, 3, 0]), w1 = formDef(big, 1).weapon, w0 = formDef(big, 0).weapon;
+    check('44n back to the light bow: Loat Ten is three darts and a 1.2x run for 1.5 s', a.form === 0 && m.shots.filter((s) => s.owner === 0 && s.dmg === MECHS.oldanduong.skills[0].dmg).length === 3 && a.hasteF === 1.2 && near(a.hasteT, 1.5, 1e-9), `${a.form} ${a.hasteF} ${a.hasteT}`);
+    const big = buildDef('oldanduong', [0, 0, 0, 3, 0]), w1 = formDef(big, 1).weapon, w0 = formDef(big, 0).weapon;
     check('44o garage fire-rate levels act on the other stance too: cd 0.3 / 1.15 and 1.2 / 1.15, range x1.06', near(w0.cd, 0.3 / 1.15, 1e-9) && near(w1.cd, 1.2 / 1.15, 1e-9) && near(w1.range, 21 * 1.06, 1e-9), `${w0.cd} ${w1.cd} ${w1.range}`);
   }
   {
-    const k = arena([[R('anduong', 0), 0, 0], [R('ung', 1), 3, 0]]), [b, e] = k.units;
+    const k = arena([[R('oldanduong', 0), 0, 0], [R('ung', 1), 3, 0]]), [b, e] = k.units;
     press(k, 0, 's2'); go(k, 12);
     const was = b.form; b.hp = 1; b.invulnT = 0;
     go(k, 10, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('44q2 after the death An Duong Vuong is back on the light bow with the stance-0 def', was === 1 && b.deaths === 1 && b.form === 0 && b.def === buildDef('anduong') && b.def.weapon.name === 'Nỏ Nhẹ', `${was} ${b.deaths} ${b.form}`);
+    check('44q2 after the death An Duong Vuong is back on the light bow with the stance-0 def', was === 1 && b.deaths === 1 && b.form === 0 && b.def === buildDef('oldanduong') && b.def.weapon.name === 'Nỏ Nhẹ', `${was} ${b.deaths} ${b.form}`);
   }
+
+  delete MECHS.oldanduong;
 
   // ---- flurry ----
   {
@@ -4411,6 +4417,7 @@ section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.sav
 }
 runK1Cases(check, section);
 runK8Cases(check, section);   // kit lane k8
+runK9Cases(check, section);
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

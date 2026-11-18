@@ -123,6 +123,7 @@ function clearStatus(u) {
   k2Clear(u);   // kit-remake G5 Athena
   k4Clear(u);   // kit-remake K4
   krClear(u);   // kit-remake G5 Kurumi
+  adClear(u);   // kit-remake G5 An Dương Vương
 }
 
 function spawn(m, u, first) {
@@ -430,6 +431,7 @@ function stepUnit(m, u, inp) {
   if (u.skillAmp !== 1 && !u.cast && !u.dash) u.skillAmp = 1;
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
   k1Tick(m, u, dt);
+  adTick(u);   // kit-remake G5 An Dương Vương: crit stacks, kill reward
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
     u.burnT -= dt;
@@ -534,7 +536,7 @@ function stepUnit(m, u, inp) {
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
     if (!inp[key] || (!skillReady(u, i) && !re && !nx)) continue;
     const s = nx ? u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;
-    if (u.rootT > 0 && ROOT_BLOCKS[s.do]) continue;
+    if (u.rootT > 0 && ROOT_BLOCKS[s.do] && !s.rootOk) continue;   // kit-remake G5 An Dương Vương: rootOk
     m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
     u.stealthT = 0;
     // A skill that needs a target and finds none (swap, mark) does not happen: a short lockout instead of the cooldown.
@@ -577,6 +579,7 @@ function stepUnit(m, u, inp) {
     if (s.cdAfter) { u.hold |= 1 << i; u.holdT[i] = s.do === 'transform' || s.do === 'shield' ? 0 : s.dur || 0; }
     castHooks(u, s, i);
     k1Cast(m, u, s);
+    if (s.adHeal) heal(m, u, u.maxHp * s.adHeal, u);   // kit-remake G5 An Dương Vương
     // thrifty (passive): a cast sometimes gives most of its cooldown back
     if (u.passive === 'thrifty' && !s.recast && m.rng() < u.def.passive.chance) { u.cd[key] *= 1 - u.def.passive.refund; m.events.push({ t: 'thrift', id: u.id, slot: i }); }
     // form (passive) flip: using the slot changes the stance
@@ -1211,6 +1214,7 @@ function fireWeapon(m, u, inp) {
   const sw = boost && (boost.patch || boost.reach) ? { ...w, ...boost.patch, ...(boost.reach ? { range: w.range * boost.reach } : {}) } : w;
   for (let i = 0; i < n; i++) spawnShot(m, u, sw, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
   if (u.def.passive && u.def.passive.missile) k4Missile(m, u, base);   // kit-remake K4: enbac's homing missile chance
+  if ((u.def.passive && u.def.passive.crit) || sw.adFall) adShots(m, u, sw, n);   // kit-remake G5 An Dương Vương
   m.events.push({ t: 'fire', id: u.id, vis: sw.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
 }
 
@@ -1924,6 +1928,7 @@ function stepShots(m) {
         if (t > Math.min(best, 1) || s.hit.includes(u.id)) continue;
         s.hit.push(u.id);
         damage(m, u, shotDamage(s, len * t) * volHit(s, u), owner);
+        if (s.adFall) s.dmg *= 1 - s.adFall;   // kit-remake G5 An Dương Vương: pierce falloff
         if (s.cdr) cutCooldowns(owner, s);
         if (u.alive) {
           if (s.knock) { u.kx += s.dx * s.knock * 3; u.kz += s.dz * s.knock * 3; }
@@ -2429,6 +2434,7 @@ function kill(m, u, src) {
 // kill: true for the killing blow, false for an assist. victim: the mech that just died (its x, z are where it fell).
 function takedown(m, o, kill, victim) {
   if (!o.alive) return;
+  if (kill) adKill(m, o);   // kit-remake G5 An Dương Vương
   const P = o.def.passive, K = P && P.mods && P.mods.onKill;
   if (K && (!kill || !K.from || killFrom(o, K.from))) {
     if (kill) onKillMore(m, o, K);
@@ -3161,3 +3167,43 @@ function krTick(m, u) {
   krClear(u);
 }
 /* ===== end kit-remake G5 Kurumi ===== */
+
+/* ===== kit-remake G5 An Dương Vương (kit lane k9; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md anduong) ===== */
+// passive `crit {chance, mul, kill {add, dur, max}}`: every main-weapon arrow rolls m.rng() once as it leaves; under chance (+ add per
+//   kill stack) it is a crit: dmg x mul (event k9 crit). A killing blow adds a stack (adN, up to max) for dur s (adNT, refreshed).
+// row `rootOk: true`: the row can be cast while rooted (dash, blink, leap and the like are blocked by a root otherwise).
+// transform `adHeal: f`: heals f of max hp at the press (hook in the cast loop). transform `adKill {extend, reset, dur, critDmg,
+//   steal}`: a kill while it runs makes the transform, its haste and its guard run `extend` s longer, clears the `reset` slots'
+//   cooldowns, and for `dur` s (adKT) main-weapon crits do x (mul + critDmg) (adKC) and arrows heal steal of what they take (adKS).
+// weapon `adFall: f` (a transform's weapon too): a piercing arrow loses f of its damage at every mech it goes through.
+// adN and adKT are in netstate STATUS (they change the next arrow); adNT, adKC, adKS are host-side.
+function adClear(u) { u.adN = 0; u.adNT = 0; u.adKT = 0; u.adKC = 0; u.adKS = 0; }
+function adTick(u) {
+  if (u.adNT > 0 && (u.adNT -= TICK) <= 1e-9) { u.adNT = 0; u.adN = 0; }
+  if (u.adKT > 0 && (u.adKT -= TICK) <= 1e-9) { u.adKT = 0; u.adKC = 0; u.adKS = 0; }
+}
+// the n arrows fireWeapon has just pushed: falloff, kill-reward lifesteal, the crit roll
+function adShots(m, u, w, n) {
+  const P = u.def.passive, K = P && P.crit;
+  for (let i = m.shots.length - n; i < m.shots.length; i++) {
+    const sh = m.shots[i];
+    if (w.adFall) sh.adFall = w.adFall;
+    if (u.adKT > 0 && u.adKS) sh.steal = Math.max(sh.steal, u.adKS);
+    if (!K || m.rng() >= K.chance + (K.kill ? K.kill.add * u.adN : 0)) continue;
+    sh.dmg *= K.mul + (u.adKT > 0 ? u.adKC : 0); sh.crit = 1;
+    m.events.push({ t: 'k9', kind: 'crit', id: u.id, x: sh.x, z: sh.z, a: Math.atan2(sh.dz, sh.dx) });
+  }
+}
+function adKill(m, o) {
+  const P = o.def.passive, K = P && P.crit && P.crit.kill;
+  if (K) { o.adN = Math.min(K.max, o.adN + 1); o.adNT = K.dur; }
+  const tf = o.tfT > 0 && o.tfSlot >= 0 ? o.def.skills[o.tfSlot] : null, A = tf && tf.adKill;
+  if (!A) return;
+  o.tfT += A.extend;
+  if (o.hasteT > 0) o.hasteT += A.extend;
+  if (o.guardT > 0) o.guardT += A.extend;
+  for (const k of A.reset || []) o.cd[k] = 0;
+  o.adKT = A.dur; o.adKC = A.critDmg || 0; o.adKS = A.steal || 0;
+  m.events.push({ t: 'k9', kind: 'adKill', id: o.id, x: o.x, z: o.z });
+}
+/* ===== end kit-remake G5 An Dương Vương ===== */

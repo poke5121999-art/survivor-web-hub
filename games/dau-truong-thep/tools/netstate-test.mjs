@@ -4,6 +4,7 @@
 import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed, LOC_KINDS, locked } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
+import { OLD_ANDUONG } from './k9-cases.mjs';   // kit lane k9: the old An Dương Vương kit as a fixture
 const MODE_ORDER = Object.keys(MODES);   // every sim mode, trum (the Phó bản boss engine) included
 import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, STATUS_NAMES } from '../js/netstate.js';
 import { createPredictor, createGunner } from '../js/predict.js';
@@ -303,7 +304,8 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
 }
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {
-  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'anduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });
+  MECHS.oldanduong = OLD_ANDUONG;   // the old two-stance kit (tools/k9-cases.mjs): anduong plays its clip kit now
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'oldanduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });
   const mir = createMirror(roster(m));
   const none = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
   step(m, [{ ...none, s2: true }, none, none]);
@@ -312,6 +314,7 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   applySnapshot(mir, decodeSnap(encodeSnap(snap)), TICK);
   check('a form change reaches the guest: the mirror plays the heavy bow (same def object, form 1, Nỏ Nặng)', m.units[0].form === 1 && mir.units[0].form === 1 && mir.units[0].def === m.units[0].def && mir.units[0].def.weapon.name === 'Nỏ Nặng', `${mir.units[0].form}`);
   check('the rewind history stays on the host (no hpHist in a snapshot, none on the mirror)', !JSON.stringify(snap).includes('hpHist') && mir.units.every((u) => !u.hpHist || u.hpHist.length === 0));
+  delete MECHS.oldanduong;
 }
 // Lữ Bố: a second stage in its wind-up (Hoành Tảo, a next.row) travels as its own row, and a knock-up (airT) reaches the guest
 {

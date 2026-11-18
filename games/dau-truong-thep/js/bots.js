@@ -1093,6 +1093,7 @@ const SKILL_AI = {
   dash(c, s) {
     if (s.back) return k4BotBack(c, s);   // kit-remake K4: enbac fires forward while backing off
     const { u, tgt, td, los } = c;
+    if (s.rootOk && !s.dmg && s.cdCut) return adBotRoll(c, s);   // kit-remake G5 An Dương Vương
     // a dash that hurts nobody but leaves a trap behind (onStart): use it to break contact, away from the nearest enemy
     if (s.onStart && !s.dmg) {
       if (!c.enemies.length || !(c.state === 'retreat' || (c.underFire && c.hpFrac < 0.6) || (tgt && td < 5 && c.role.kite))) return false;
@@ -2406,3 +2407,26 @@ function krBotRewind(c, s) {
   return hot >= 2 || low >= 1;
 }
 /* ===== end kit-remake G5 Kurumi bots ===== */
+/* ===== kit-remake G5 An Dương Vương bots (kit lane k9) ===== */
+// Súc Thế Đãi Phát (a harmless roll that clears another slot's cooldown, castable while rooted): roll away from the nearest enemy
+// when rooted or hurt under fire; otherwise roll sideways to dodge while the slot it clears is cooling and the target is in range.
+function adBotRoll(c, s) {
+  const { u, tgt, td, los, m } = c;
+  if (!c.enemies.length) return false;
+  let near = c.enemies[0], nd = 1e9;
+  for (const e of c.enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; near = e; } }
+  const away = Math.atan2(u.z - near.z, u.x - near.x), rest = u.cd[s.cdCut.slot] || 0;
+  let tries;
+  if (u.rootT > 0.3 || (c.underFire && c.hpFrac < 0.6) || nd < 4) tries = [0, 0.6, -0.6, 1.2, -1.2];
+  else if (tgt && los && rest > 2 && td < 14) { const side = (u.id + Math.floor(m.time / 3)) % 2 ? 1 : -1; tries = [side * 1.571, -side * 1.571, side * 1.1, -side * 1.1].map((d) => d + Math.PI); }
+  else return false;
+  for (const da of tries) {
+    const a = away + da, ex = u.x + Math.cos(a) * s.dist, ez = u.z + Math.sin(a) * s.dist;
+    if (solidAt(m.map, ex, ez, u.moveRadius * 0.8) || inFoe(m, u, ex, ez) || lavaSeg(m.map, u.x, u.z, ex, ez, 0.5)) continue;
+    if (!losClear(m.map, u.x, u.z, ex, ez, u.moveRadius * 0.7)) continue;
+    c.b.sk.aim = a; c.b.sk.tol = 0.25;
+    return true;
+  }
+  return false;
+}
+/* ===== end kit-remake G5 An Dương Vương bots ===== */

@@ -3,7 +3,7 @@
 //   Lạc Long Quân  azure water dragon, gold horns           (clip 68.敖广 p71: blue water shell, water jet, blue dragon, water sphere)
 //   Sơn Tinh       moss-green mountain rock, amber cracks    (clip 11.山精 p14: boulder with a gold rim, rock golem, rock-dust cloud)
 //   Thủy Tinh      teal waves, white foam                    (clip 67.海妖 p70: blue spiral whirlpool, standing water walls, splashes)
-//   An Dương Vương the bronze crossbow, orange fire          (clip 3.后羿 p6: fire bow arcs round the archer, flaming arrows with spiral rings)
+//   (An Dương Vương moved to looks-k9.js with the kit ported from clip p6)
 //   Kim Quy        the golden turtle shell, jade light       (no clip: designed from the desc, a carapace of hexagon scutes)
 //   Hồ Ly          white fox masks, rose-pink mist           (no clip: 16.小狸猫 p19 is green rings and a blue ray; designed from the desc)
 // Mapping notes: ~/handoff/dtt-ref/bili/MAP-b7.md.
@@ -404,104 +404,6 @@ const thuytinh = {
   },
 };
 
-// ===== An Dương Vương: the bronze crossbow (nỏ thần), orange fire ======================================================
-const AD_FIRE = C(2.6, 0.85, 0.12), AD_GOLD = C(2.6, 1.9, 0.6), AD_EMBER = C(0.6, 0.12, 0.02), AD_BRONZE = 0x9a6424;
-const xbStock = lay(flat([[-1.9, 0.32], [-1.5, 0.2], [0.95, 0.15], [1.12, 0]]));
-const xbProd = (() => { const s = new THREE.Shape(); s.absarc(0.1, 0, 1.32, -1.15, 1.15, false); s.absarc(0.1, 0, 0.98, 1.15, -1.15, true); return lay(s, 24); })();
-const boltGeo = lay(flat([[1.45, 0], [0.95, 0.15], [0.98, 0.045], [-0.85, 0.045], [-1.05, 0.17], [-1.25, 0.17], [-1.1, 0]]));
-const headGeo = lay(flat([[1.0, 0], [0.0, 0.42], [0.18, 0.12], [-0.6, 0.12], [-0.6, 0]]));
-function crossbow() {
-  const g = new THREE.Group(), halo = new THREE.Mesh(xbProd, basic(AD_FIRE, true, 0.9)); halo.scale.set(1.16, 1, 1.22); halo.position.y = -0.03;
-  g.add(halo, new THREE.Mesh(xbProd, basic(AD_BRONZE, false, 1)), new THREE.Mesh(xbStock, basic(0x5a3414, false, 1)));
-  const str = ribbonMesh(3, AD_GOLD, true, 1), bolt = new THREE.Mesh(boltGeo, basic(0xe8c070, false, 1)), bh = new THREE.Mesh(boltGeo, basic(AD_FIRE, true, 0.6));
-  bh.scale.set(1.05, 1, 1.8); g.add(str, bh, bolt); g.userData.str = str; g.userData.bolt = [bolt, bh];
-  g.traverse((m) => { m.frustumCulled = false; if (m.isMesh) m.renderOrder = 9; });
-  return g;
-}
-// draw the string back to x = d (0.62 relaxed, -0.6 fully drawn), the bolt riding on it
-function draw(g, d) { fillRibbon(g.userData.str, [[0.64, 0.05, 1.21], [d, 0.05, 0], [0.64, 0.05, -1.21]], 0.035); for (const b of g.userData.bolt) b.position.x = d + 0.9; }
-function fireBolt(kit, s, sc) {
-  const g = new THREE.Group(), core = new THREE.Mesh(boltGeo, basic(0xf0c878, false, 1)), h = new THREE.Mesh(boltGeo, basic(AD_FIRE, true, 0.75)); h.scale.set(1.1, 1, 2.2); g.add(h, core); g.scale.setScalar(sc);
-  const v = { g, hold: held(kit, [g]), a: Math.atan2(s.dz, s.dx), x: s.x, z: s.z, live: true };
-  trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 0.4 * sc, AD_FIRE, 0.5, { c2: AD_EMBER, len: 14 });
-  return v;
-}
-// fire rings standing across a path (the clip's spiral of fire round a flying arrow)
-function fireRing(kit, x, z, a, r, life) {
-  const m = new THREE.Mesh(ringGeo, basic(AD_FIRE, true, 0.9)), m2 = new THREE.Mesh(ringGeo, basic(AD_GOLD, true, 0.8));
-  own(kit, [m, m2], life, (t) => { for (const q of [m, m2]) { q.position.set(x, 1.4, z); q.rotation.set(0, -a, 0); } m.scale.setScalar(r * (1 + t * 1.2)); m2.scale.setScalar(r * 0.7 * (1 + t)); const f = 1 - t / life; m.material.opacity = 0.9 * f; m2.material.opacity = 0.8 * f; });
-}
-const XB = new Map();   // the great crossbow of a unit's charging Nỏ Linh Quang, handed from the cast to the beam
-const anduong = {
-  // Loạt Tên: the bronze crossbow appears before him and looses; fire-wrapped bolts streak out
-  adVolley: {
-    pal: [AD_FIRE, AD_GOLD], hitR: 1.6,
-    skill(kit, e, u) {
-      const g = crossbow(), a = e.a;
-      own(kit, [g], 0.5, (t) => { if (!u.alive) return false; g.position.set(u.x + Math.cos(a) * 1.3, 1.8, u.z + Math.sin(a) * 1.3); g.rotation.y = -a; g.scale.setScalar(2.6); draw(g, t < 0.06 ? -0.55 : 0.62); fadeAll(g, Math.min(1, (0.5 - t) / 0.2)); g.userData.bolt.forEach((b) => { b.visible = t < 0.06; }); });
-      kit.glow(u.x + Math.cos(a) * 2.6, 1.8, u.z + Math.sin(a) * 2.6, AD_FIRE, 0.15, 2.2, 1, kit.K.GLOW, 1.2);
-      return true;
-    },
-    shotMake(kit, s) { return fireBolt(kit, s, s.speed > 50 ? 2.6 : 2.0); },
-    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.g.position.set(x, 1.3, z); v.g.rotation.y = -v.a; if (Math.random() < 0.5) kit.glow(x, 1.3, z, AD_FIRE, 0.25, 0.5, 1, kit.K.FLAME, 1.1, 0, R(1, 2), 0); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.hold.on = false; for (let i = 0; i < kit.N(6); i++) kit.glow(x + R(-0.5, 0.5), R(0.6, 1.4), z + R(-0.5, 0.5), AD_FIRE, 0.4, R(0.5, 0.9), 1, kit.K.FLAME, 1.2, 0, R(2, 4), 0); },
-  },
-  // Đổi Nỏ: the crossbow turns over above him and changes size (light to heavy and back) inside a turning ring of fire
-  adSwap: {
-    skill(kit, e, u, row) {
-      const g = crossbow(), heavy = !u.form, setup = row.setup || 0.3, s0 = heavy ? 1.3 : 2.2, s1 = heavy ? 2.2 : 1.3;
-      own(kit, [g], setup + 0.9, (t) => {
-        if (!u.alive) return false;
-        const k = Math.min(1, t / setup), e2 = 1 - (1 - k) ** 3;
-        g.position.set(u.x + Math.cos(u.aim) * 2.8, 2.2, u.z + Math.sin(u.aim) * 2.8); g.rotation.y = -(u.aim + (1 - e2) * Math.PI * 2); g.scale.setScalar((s0 + (s1 - s0) * e2) * 1.25); draw(g, k < 1 ? 0.62 - 1.1 * k : -0.48);
-        fadeAll(g, Math.min(1, (setup + 0.9 - t) / 0.25));
-        const r = g.rotation.y, sc = g.scale.x, cr = Math.cos(r), sr = Math.sin(r);
-        for (let i = 0; i < 4; i++) { const th = R(-1.15, 1.15), lx = (0.1 + 1.32 * Math.cos(th)) * sc, lz = -1.32 * Math.sin(th) * sc; kit.glow(g.position.x + lx * cr + lz * sr, 2.2, g.position.z - lx * sr + lz * cr, i ? AD_FIRE : AD_GOLD, 0.35, R(0.5, 0.9), 1, kit.K.FLAME, 1.2, 0, R(1, 3), 0); }
-      });
-      return true;
-    },
-    form(kit, e) { kit.flash(e.x, 2, e.z, AD_FIRE, 40, 0.25); return true; },
-  },
-  // Nỏ Linh Quang: the great crossbow rises and draws while light gathers on its bolt; loosed, a spirit-light arrow runs the
-  // whole range in a gold streak, fire rings standing along its path
-  adBeam: {
-    pal: [AD_FIRE, AD_GOLD], hitR: 2.2,
-    skill() { return true; },
-    castMake(kit, u) {
-      const g = crossbow(), v = { g, end: -1 }; XB.set(u.id, v);
-      own(kit, [g], 1e9, (t) => {
-        const c = u.cast, k = c ? 1 - c.t / c.total : 1, a = c ? c.aim : u.aim;
-        if (!v.ending) { g.position.set(u.x + Math.cos(a) * 0.6, 2.2, u.z + Math.sin(a) * 0.6); g.rotation.y = -a; g.scale.setScalar(2.2 + 0.6 * Math.min(1, k * 3)); draw(g, 0.62 - 1.2 * k); return u.alive; }
-        if (v.end < 0) v.end = t;
-        draw(g, 0.62); g.userData.bolt.forEach((b) => { b.visible = false; }); const f = 1 - (t - v.end) / 0.45; fadeAll(g, Math.max(0, f)); return f > 0;
-      });
-      return v;
-    },
-    cast(kit, v, u, s, k) {
-      const a = u.cast.aim, x = u.x + Math.cos(a) * (0.6 + 2.6 * 1.1), z = u.z + Math.sin(a) * (0.6 + 2.6 * 1.1);
-      kit.glow(x, 2.2, z, AD_GOLD, 0.08, 0.6 + 1.6 * k, 1, kit.K.STAR, 1.2); kit.glow(x, 2.2, z, AD_FIRE, 0.1, 1.2 + 2 * k, 0.8, kit.K.GLOW, 1.1);
-      if (Math.random() < 0.7) { const b = Math.random() * 6.283, d = R(2, 3.5); kit.str.emit(x + Math.cos(b) * d, 2.2, z + Math.sin(b) * d, -Math.cos(b) * 10, 0, -Math.sin(b) * 10, AD_FIRE, 0.22, 0.08, 0.05, 0, 1, 1); }
-    },
-    castDrop(kit, v) { v.ending = true; },
-    beam(kit, e, u) {
-      const v = XB.get(u.id); if (v) { v.ending = true; XB.delete(u.id); }
-      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1, a = Math.atan2(dz, dx), ux = dx / L, uz = dz / L, w = Math.max(1, e.w || 1);
-      const glow = ribbonMesh(2, AD_FIRE, true, 0.75), core = ribbonMesh(2, AD_GOLD, true, 1), head = new THREE.Group();
-      const hh = new THREE.Mesh(headGeo, basic(AD_FIRE, true, 0.8)), hc = new THREE.Mesh(headGeo, basic(0xffe0a0, false, 1)); hh.scale.set(1.25, 1, 1.4); head.add(hh, hc);
-      own(kit, [glow, core, head], 0.7, (t) => {
-        const d = Math.min(1, t / 0.14) * L, f = Math.min(1, (0.7 - t) / 0.4), p0 = [e.x0, 1.4, e.z0], p1 = [e.x0 + ux * d, 1.4, e.z0 + uz * d];
-        fillRibbon(glow, [p0, p1], w * 0.95 * (0.6 + 0.4 * f)); fillRibbon(core, [[p0[0], 1.45, p0[2]], [p1[0], 1.45, p1[2]]], w * 0.32 * f);
-        glow.material.opacity = 0.75 * f; core.material.opacity = f;
-        head.position.set(p1[0], 1.5, p1[2]); head.rotation.y = -a; head.scale.setScalar(2.2); fadeAll(head, f);
-      });
-      for (let d = 2.5, i = 0; d < L; d += 2.8, i++) { const x = e.x0 + ux * d, z = e.z0 + uz * d; kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < d / L * 0.14) return true; fireRing(kit, x, z, a, 1.3 * w, 0.5); return false; }, drop() {} }); }
-      for (let i = 0; i < kit.N(8); i++) kit.glow(e.x1 + R(-1, 1), R(0.5, 2), e.z1 + R(-1, 1), AD_FIRE, 0.5, R(0.8, 1.3), 1, kit.K.FLAME, 1.2, 0, R(2, 4), 0);
-      kit.flash(e.x0, 2, e.z0, AD_GOLD, 60, 0.3); kit.kick(e.x0, e.z0, 0.8);
-      return true;
-    },
-  },
-};
-
 // ===== Kim Quy: the golden turtle, a carapace of hexagon scutes, jade light ================================================
 const KQ_GOLD = C(2.6, 1.95, 0.45), KQ_JADE = C(0.35, 2.4, 1.2), KQ_SHELL = 0x6a4812;
 const kqOval = keep(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2).scale(1.22, 1, 1)), kqRim = keep(new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2).scale(1.22, 1, 1));
@@ -650,4 +552,4 @@ const holy = {
   },
 };
 
-export const B7 = { ...laclong, ...sontinh, ...thuytinh, ...anduong, ...kimquy, ...holy };
+export const B7 = { ...laclong, ...sontinh, ...thuytinh, ...kimquy, ...holy };

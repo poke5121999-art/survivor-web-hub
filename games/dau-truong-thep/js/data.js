@@ -936,22 +936,30 @@ export const MECHS = {
         desc: 'Đứng tụ lực tối đa 3 giây (được Cân Quắc), bấm lại để chém: một đường kiếm thẳng trước mặt 670 sát thương dài 8 m, tụ đủ thì 1340 dài 16 m, rộng hơn, hất văng mọi kẻ trúng.' },
     ],
   },
+  // An Dương Vương = 后羿 Hậu Nghệ: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p6 "3.后羿", tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
+  // Attack = one Thần Cung arrow (150; the passive's +50% damage and arrow speed are folded in): Tiễn Vô Hư Phát 150% -> 225 an arrow,
+  // at most 225% (338) on one foe a cast (perTarget 2, sameDecay 0.5: 225 + 112.5). Cooldowns 8 / 8 / 30 s in the clip -> 10 / 10 / 50.
+  // The pierce falloff digit is unreadable in the clip: 20% here. Kit-remake G5 fields (sim.js block "kit-remake G5 An Dương Vương"):
+  // passive crit {chance, mul, kill}, row rootOk, transform adHeal / adKill, weapon adFall.
   anduong: {
     name: 'An Dương Vương', role: 'Bắn tỉa', roleKey: 'sniper', price: 1800, tint: 0x8a6a2a,
-    blurb: 'Nỏ thần đổi giữa Nỏ Nhẹ bắn nhanh và Nỏ Nặng bắn xa xuyên thấu. Loạt Tên đổi theo nỏ đang cầm, Nỏ Linh Quang mạnh hơn khi cầm nỏ nặng.',
+    blurb: 'Thần xạ cầm cung lửa: tên bay nhanh, có khi trúng chỗ hiểm. Lộn người né đòn rồi bắn lại ngay năm mũi tên tỏa quạt, nổi cơn phục thù để tên xuyên hàng, hạ được ai thì cơn giận kéo dài.',
     hp: 2100, speed: 6.0, radius: 0.80,
     armor: 0.05, accel: 1.0, turn: 11, towerMul: 1.0,
-    passive: { do: 'form', name: 'Nỏ Thần', desc: 'Có hai thế nỏ, đổi bằng Đổi Nỏ. Nỏ Nặng bắn xa, xuyên thấu và rất đau nhưng chậm, và bạn đi chậm đi 15%.' },
-    forms: [{}, { speed: 0.85, weapon: { name: 'Nỏ Nặng', cd: 1.2, dmg: 360, speed: 56, range: 21, r: 0.22, pierce: true, vis: 'rail' },
-      skills: { 0: { n: 1, fan: 0, dmg: 520, speed: 56, range: 22, r: 0.22, pierce: true, vis: 'rail', haste: 0 }, 2: { dmg: 2040 } } }],
-    weapon: { name: 'Nỏ Nhẹ', cd: 0.3, dmg: 84, speed: 40, range: 15, r: 0.18, vis: 'dart' },
+    passive: { do: 'trait', name: 'Tinh Chuẩn', crit: { chance: 0.25, mul: 1.5, kill: { add: 0.05, dur: 5, max: 5 } },
+      desc: 'Tên của Thần Cung bay nhanh và đau. Mỗi mũi tên thường có 25% trúng chỗ hiểm, gây gấp rưỡi sát thương. Mỗi lần hạ gục thêm 5% cơ hội đó trong 5 giây, cộng dồn tới 5 lần.' },
+    weapon: { name: 'Thần Cung', cd: 0.55, dmg: 150, speed: 60, range: 15, r: 0.2, vis: 'dart' },
     skills: [
-      { id: 'loatten', look: 'adVolley', name: 'Loạt Tên', cd: 8, do: 'volley', n: 3, fan: 0.08, dmg: 110, speed: 40, range: 15, r: 0.18, vis: 'dart', haste: 1.2, hasteDur: 1.5, icon: 'ricochet',
-        desc: 'Nỏ Nhẹ: bắn ba mũi tên 110 và chạy nhanh thêm 20% trong 1,5 giây. Nỏ Nặng: một mũi tên xuyên thấu 520, tầm 22 m.' },
-      { id: 'doinno', look: 'adSwap', name: 'Đổi Nỏ', cd: 2, do: 'form', setup: 0.3, move: 0.6, icon: 'swap',
-        desc: 'Mất 0,3 giây để đổi giữa Nỏ Nhẹ và Nỏ Nặng.' },
-      { id: 'nolinhquang', look: 'adBeam', name: 'Nỏ Linh Quang', cd: 50, do: 'beam', windup: 1.0, range: 28, width: 1.0, dmg: 1700, icon: 'beam',
-        desc: 'Lấy đà 1 giây rồi bắn tia sáng xuyên thấu 1700 sát thương, tầm 28 m; cầm Nỏ Nặng thì mạnh thêm 20%.' },
+      { id: 'sucthe', look: 'adRoll', name: 'Súc Thế Đãi Phát', cd: 10, do: 'dash', dist: 4, speed: 26, dmg: 0, rootOk: true,
+        self: { on: 'cast', dur: 2, haste: 1.5, guard: 0.5, vs: 'skill' }, cdCut: { slot: 's2', set: 0, on: 'cast' }, icon: 'dash',
+        desc: 'Lộn người về phía trước 4 m (dùng được cả khi bị giữ chân): trong 2 giây chạy nhanh hơn 50% và chỉ chịu một nửa sát thương từ chiêu. Tiễn Vô Hư Phát hồi chiêu ngay.' },
+      { id: 'tienvohu', look: 'adFan', name: 'Tiễn Vô Hư Phát', cd: 10, do: 'volley', n: 5, fan: 0.12, dmg: 225, speed: 44, range: 15, r: 0.22, perTarget: 2, sameDecay: 0.5,
+        fx: { slow: 0.5, slowDur: 2, slowDecay: true }, vis: 'dart', icon: 'ricochet',
+        desc: 'Bắn năm mũi tên lửa tỏa quạt, mỗi mũi trúng gây 225 sát thương và làm chậm 50%, nhạt dần trong 2 giây. Một kẻ địch lãnh tối đa 338 sát thương mỗi lần bắn. Không trúng chỗ hiểm.' },
+      { id: 'bachbo', look: 'adFrenzy', name: 'Bách Bộ Xuyên Dương', cd: 50, do: 'transform', dur: 10, haste: 1.25, dmg: 1.25, adHeal: 0.25, towerMul: 0.25,
+        self: { on: 'cast', dur: 10, guard: 0.25 }, weapon: { name: 'Xuyên Dương Tiễn', pierce: true, adFall: 0.2, r: 0.26, vis: 'rail' },
+        adKill: { extend: 5, reset: ['s1'], dur: 5, critDmg: 0.25, steal: 0.25 }, icon: 'rage',
+        desc: 'Hồi ngay 25% máu tối đa rồi nổi Phục Thù Cuồng Nhiệt 10 giây: chạy nhanh hơn 25%, sát thương +25%, chịu ít hơn 25% sát thương, tên xuyên qua mọi kẻ địch (mỗi kẻ xuyên qua tên yếu đi 20%). Hạ gục trong lúc đó: kéo dài thêm 5 giây, Súc Thế Đãi Phát hồi chiêu ngay, và 5 giây chỗ hiểm đau thêm 25%, tên hút 25% máu. Sát thương lên công trình giảm 75%.' },
     ],
   },
   chuottui: {
@@ -1092,7 +1100,7 @@ export const PERKS = {
   taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 150.', 'weapon', { dmg: 150 }), perk('Bốn Nhát', 'Liên Trảm chém bốn nhát, mỗi nhát 170.', 1, { n: 4, dmg: 170 }), perk('Vương Bền', 'Bá Vương kéo dài 8 giây, hút máu 40%.', 2, { dur: 8, lifesteal: 0.4 })],
   bongua: [perk('Liềm Nặng', 'Đao Liềm gây 88.', 'weapon', { dmg: 88 }), perk('Thế Rộng', 'Thế Đỡ giữ 1,3 giây, nổ rộng 4,2 m gây 340, choáng 0,8 giây.', 1, { window: 1.3, riposte: { nova: { radius: 4.2, dmg: 340, stun: 0.8 } } }), perk('Chín Liềm', 'Song Liềm chém chín nhát, mỗi nhát 150.', 2, { n: 9, dmg: 150 })],
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],
-  anduong: [perk('Nỏ Nhanh', 'Nỏ Nhẹ bắn mỗi 0,26 giây.', 'weapon', { cd: 0.26 }), perk('Đổi Nhanh', 'Đổi Nỏ chỉ mất 0,15 giây.', 1, { setup: 0.15 }), perk('Tia Rộng', 'Nỏ Linh Quang rộng 1,4 m, tầm 30 m.', 2, { width: 1.4, range: 30 })],
+  anduong: [perk('Cung Nhanh', 'Thần Cung bắn mỗi 0,5 giây.', 'weapon', { cd: 0.5 }), perk('Bảy Mũi Tên', 'Tiễn Vô Hư Phát bắn bảy mũi.', 1, { n: 7 }), perk('Phục Thù Lâu', 'Bách Bộ Xuyên Dương kéo dài 12 giây.', 2, { dur: 12, self: { on: 'cast', dur: 12, guard: 0.25 } })],
   chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 135.', 'weapon', { dmg: 135 }), perk('Robot Dày', 'Robot Quấy 900 máu, mỗi phát 75, kéo dài 12 giây.', 1, { hp: 900, dmg: 75, dur: 12 }), perk('Túi Lớn', 'Túi Đồ Nghề hồi 220 mỗi giây, khiên 450, kéo dài 6 giây.', 2, { hps: 220, shield: 450, dur: 6 })],
   vesau: [perk('Thủ Hộ Bền', 'Thời Quang Thủ Hộ có 1300 máu, hồi 140 máu mỗi giây.', 0, { hp: 1300, decay: 130, hps: 140 }), perk('Ngủ Say', 'Thời Gian Can Nhiễu gây 300, ru ngủ 5 giây.', 1, { dmg: 300, fx: { sleep: 5 } }), perk('Hồi Tố Rộng', 'Thời Quang Hồi Tố rộng 10 m.', 2, { radius: 10 })],
 };

@@ -82,7 +82,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT',   // kit-remake G2
   'magN', 'magT', 'blockN',   // kit-remake G4: shots fired, reload left, hits the selfShield still turns away
   'locT', 'locK', 'shotN', 'hsN', 'tfN',   // kit-remake G3 (the row mask is a list of words, MASK_W bits each: any number of names fits)
-  'krT'];   // kit-remake G5 Kurumi: the rewind mark
+  'krT',   // kit-remake G5 Kurumi: the rewind mark
+  'adN', 'adKT'];   // kit-remake G5 An Dương Vương: crit stacks, kill reward
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 
