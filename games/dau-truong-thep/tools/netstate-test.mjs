@@ -248,6 +248,17 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   const [ga, gb] = mir.units;
   check('uses, gap and antiheal reach the guest (2 / 1 spent, gap and antiheal to the hundredth)', ga.use0 === 2 && ga.use2 === 1 && ga.use1 === 0 && near(ga.gap0, a.gap0, 0.011) && near(gb.ahT, b.ahT, 0.011), `${ga.use0} ${ga.use2} ${ga.gap0} ${gb.ahT}`);
 }
+// kit-remake G2: slowG, slowFire, tags, energy, save icd and guard vs reach the guest (speed and HUD read them)
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  const [a, b] = m.units;
+  a.en = 37.5; a.svT = 5; a.gvT = 1.25; b.dsT = 1; b.dsD = 2; b.dsF = 0.6; b.sfT = 2; b.tags['x@0'] = 1.5;
+  step(m, [undefined, undefined]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const [ga, gb] = mir.units;
+  check('G2 status reaches the guest (energy, save icd, guard vs, slowG, slowFire, tag time, to the hundredth)', near(ga.en, 37.5, 0.011) && near(ga.svT, a.svT, 0.011) && near(ga.gvT, a.gvT, 0.011) && gb.slowG > 0 && near(gb.slowG, b.slowG, 0.011) && near(gb.sfT, b.sfT, 0.011) && near(gb.tgT, b.tgT, 0.011) && b.tgT > 1.4, `${ga.en} ${gb.slowG} ${b.slowG} ${gb.tgT}`);
+}
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {
   const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'anduong', name: 'A' }, { team: 1, mech: 'trau', name: 'B' }, { team: 0, mech: 'vesau', name: 'C' }] });

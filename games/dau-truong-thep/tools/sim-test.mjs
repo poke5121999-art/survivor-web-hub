@@ -4115,6 +4115,269 @@ section('46 kit-remake G1 primitives (MECHANICS.md): uses (skill charges), cdCut
   }
 }
 
+section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.save, guard vs, mods.onHurt, mods.onCast, energy (en.cost/drain/refund, enSteal), slowDecay/slowGrow/slowStack, slowFire, thruWalls (test-only rows, literal expected values)');
+{
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  // press slot of unit k once, then let n more ticks run (the shot lands); all the events
+  const fire = (m, slot, n = 6, k = 0) => go(m, n + 1, (i) => (i === 0 ? { [k]: { [slot]: true } } : null));
+  const gun = (m, n = 8) => { m.units[0].cd.fire = 0; return go(m, n, (i) => (i === 0 ? { 0: { fire: true } } : null)); };
+  const hitAmt = (ev, id, by = 0) => only(ev, 'hit', (e) => e.id === id && e.by === by).reduce((s, e) => s + e.amt, 0);
+  const firstAmt = (ev, id, by = 0) => (only(ev, 'hit', (e) => e.id === id && e.by === by)[0] || { amt: -1 }).amt;
+  const kit = (u, rows) => { u.def = { ...u.def, passive: null, skills: rows }; u.passive = null; return u; };
+  const withMods = (u, mods) => { u.def = { ...u.def, passive: { ...(u.def.passive || {}), mods } }; return u; };
+  const shot = (id, extra) => ({ id, do: 'volley', cd: 8, n: 1, dmg: 100, speed: 40, range: 14, r: 0.3, vis: 'rail', ...extra });
+  const buff = (id, extra) => ({ id, do: 'buff', cd: 12, dur: 2, haste: 1.2, ...extra });
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const W = RULES.wound;
+  const two = () => { const m = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0]]); kit(m.units[1], [buff('x'), buff('y'), buff('z')]); return m; };
+
+  // ---- hitfx tag + row vsTag ----
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q', { dmg: 10, fx: { tag: { key: 'm', dur: 3 } } }), shot('q2', { vsTag: { key: 'm', mul: 1.5, healMax: 0.1, cdCut: { slot: 's1', cut: 2 }, consume: true, fx: { root: 1 } } }), buff('c')]);
+    const e0 = fire(m, 's2'), A0 = hitAmt(e0, 1);
+    check('47a vsTag on an untagged victim: a plain hit, no payoff', A0 > 0 && only(e0, 'tagPay').length === 0 && v.rootT === 0, `${A0}`);
+    fire(m, 's1');
+    check('47b hitfx tag {m, 3 s}: the victim carries the caster\'s tag m@0 (tgT synced)', v.tags['m@0'] > 3 - 5 * TICK && v.tags['m@0'] < 3 && near(v.tgT, v.tags['m@0'], 1e-9), `${v.tags['m@0']} ${v.tgT}`);
+    a.hp = a.maxHp * 0.5; v.hp = v.maxHp; a.cd.s1 = 5; a.cd.s2 = 0;
+    const hp0 = a.hp, e1 = fire(m, 's2'), A1 = hitAmt(e1, 1);
+    check('47c vsTag pays: x1.5 damage, the tag is consumed, root 1 s, the caster heals 10% max hp, s1 loses 2 s', near(A1, 1.5 * A0, 1e-6) && only(e1, 'tagPay').length === 1 && v.tags['m@0'] === undefined && v.rootT > 1 - 6 * TICK && v.rootT < 1 && near(a.hp, hp0 + 0.1 * a.maxHp, 1e-6) && near(a.cd.s1, 5 - 7 * TICK - 2, 1e-6), `${A1} ${A0} ${v.rootT} ${a.hp - hp0} ${a.cd.s1}`);
+    a.cd.s2 = 0; v.hp = v.maxHp;
+    const e2 = fire(m, 's2');
+    check('47d ... consumed, so the next hit is plain again', near(hitAmt(e2, 1), A0, 1e-6) && only(e2, 'tagPay').length === 0);
+  }
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 0), 0, 1]]), [a, v, b] = m.units;
+    kit(v, [buff('x'), buff('y'), buff('z')]); kit(b, [shot('bq', { dmg: 10, fx: { tag: { key: 'm', dur: 3 } } }), buff('b2'), buff('b3')]);
+    kit(a, [shot('q', { dmg: 10, fx: { tag: { key: 'm', dur: 3 } } }), buff('b'), buff('c')]);
+    a.def = { ...a.def, weapon: { ...a.def.weapon, vsTag: { key: 'm', mul: 2 } } };
+    const g0 = firstAmt(gun(m), 1);
+    v.hp = v.maxHp; b.aim = Math.atan2(0 - 1, 4 - 0);
+    fire(m, 's1', 6, 2); v.hp = v.maxHp;
+    const g1 = firstAmt(gun(m), 1);
+    check('47e a tag is the caster\'s own: an ally\'s tag m@2 does not pay my weapon\'s vsTag', v.tags['m@2'] > 0 && near(g1, g0, 1e-6), `${g0} ${g1}`);
+    fire(m, 's1'); v.hp = v.maxHp;
+    const g2 = firstAmt(gun(m), 1);
+    check('47f a weapon row reads vsTag too: tagged by me, the main shot does x2', g0 > 0 && near(g2, 2 * g0, 1e-6), `${g0} ${g2}`);
+  }
+
+  // ---- mods.save ----
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('big', { dmg: 50000 }), buff('b'), buff('c')]);
+    withMods(v, { save: { fatal: true, icd: 20, heal: 0.3, invuln: 1, resetSlots: ['s1'] } });
+    v.cd.s1 = 7;
+    const ev = fire(m, 's1');
+    check('47g save fatal: the lethal hit leaves 1 hp + 30% max hp (x the wound cut), invuln 1 s, icd 20 s, s1 reset, no death', v.alive && only(ev, 'death').length === 0 && only(ev, 'save', (e) => e.id === 1 && e.by === 1).length === 1 && near(v.hp, 1 + 0.3 * v.maxHp * W.mul, 1e-6) && v.invulnT > 1 - 6 * TICK && v.svT > 20 - 6 * TICK && v.cd.s1 === 0, `${v.hp} ${v.invulnT} ${v.svT} ${v.cd.s1}`);
+    v.invulnT = 0; v.ccT = 0; a.cd.s1 = 0;
+    const ev2 = fire(m, 's1');
+    check('47h ... inside the 20 s icd the next lethal hit kills', !v.alive && only(ev2, 'death', (e) => e.id === 1).length === 1 && only(ev2, 'save').length === 0);
+  }
+  {
+    const m = arena([[R('ung', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 1), 6, 2]]), [a, v, o] = m.units;
+    kit(a, [shot('q'), buff('b'), buff('c')]); kit(v, [buff('x'), buff('y'), buff('z')]); kit(o, [buff('x'), buff('y'), buff('z')]);
+    withMods(o, { save: { below: 0.3, ally: true, r: 6, icd: 10, heal: 0.2, haste: 1.3, dur: 2 } });
+    v.hp = 0.3 * v.maxHp + 1; const hp0 = v.hp, ohp = o.hp;
+    const ev = fire(m, 's1'), L = hitAmt(ev, 1), wm = L >= W.frac * v.maxHp ? W.mul : 1;
+    check('47i save below 30%, ally r 6: an ally dropping under 30% is healed 20% max hp and hasted 1.3 for 2 s; the icd (10 s) is the owner\'s', only(ev, 'save', (e) => e.id === 1 && e.by === 2).length === 1 && near(v.hp, hp0 - L + 0.2 * v.maxHp * wm, 1e-6) && near(v.hasteF, 1.3, 1e-9) && v.hasteT > 2 - 6 * TICK && o.svT > 10 - 6 * TICK && v.svT === 0 && o.hp === ohp, `${v.hp} ${hp0 - L} ${o.svT}`);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('big', { dmg: 50000 }), buff('b'), buff('c')]);
+    withMods(v, { save: { fatal: true, undying: 2, icd: 30 } });
+    const e1 = fire(m, 's1'); a.cd.s1 = 0;
+    const e2 = fire(m, 's1');
+    check('47j save undying 2 s: hp cannot drop under 1 for 2 s (one save, two lethal hits, alive at 1 hp)', v.alive && v.hp === 1 && only([...e1, ...e2], 'save').length === 1 && v.undyT > 2 - 14 * TICK, `${v.hp} ${v.undyT}`);
+    go(m, Math.round(2 / TICK)); a.cd.s1 = 0;
+    const e3 = fire(m, 's1');
+    check('47k ... after it, the icd still runs and the next lethal hit kills', !v.alive && only(e3, 'death', (e) => e.id === 1).length === 1);
+  }
+
+  // ---- guard vs (through mods.onCast) ----
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q'), buff('b'), buff('c')]);
+    withMods(v, { onCast: { guard: 0.5, vs: 'skill', dur: 3 } });
+    const A0 = hitAmt(fire(m, 's1'), 1); v.hp = v.maxHp;
+    const G0 = firstAmt(gun(m), 1); v.hp = v.maxHp;
+    go(m, 1, () => ({ 1: { s1: true } }));
+    check('47l mods.onCast: every press gives the passive\'s self buff (guard 0.5 vs skill, 3 s)', near(v.gvF, 0.5, 1e-9) && v.gvK === 'skill' && near(v.gvT, 3, 1e-9) && v.guardT === 0, `${v.gvF} ${v.gvK} ${v.gvT}`);
+    a.cd.s1 = 0;
+    const A1 = hitAmt(fire(m, 's1'), 1); v.hp = v.maxHp;
+    const G1 = firstAmt(gun(m), 1);
+    check('47m guard vs skill: the skill shot does half, the main shot is untouched', A0 > 0 && near(A1, 0.5 * A0, 1e-6) && G0 > 0 && near(G1, G0, 1e-6), `${A0} ${A1} ${G0} ${G1}`);
+  }
+
+  // ---- mods.onHurt ----
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q'), buff('b'), buff('c')]);
+    withMods(v, { onHurt: { by: 'weapon', icd: 2, self: { haste: 1.4, dur: 1 }, healMax: 0.05 } });
+    v.hp = v.maxHp * 0.5;
+    const e0 = fire(m, 's1');
+    check('47n onHurt by weapon: a skill hit does not trigger it', only(e0, 'onHurt').length === 0 && v.hasteT === 0);
+    const hp0 = v.hp, e1 = gun(m), L = hitAmt(e1, 1);
+    check('47o ... a main-gun hit does: haste 1.4 for 1 s, heal 5% max hp, icd 2 s', only(e1, 'onHurt', (e) => e.id === 1).length === 1 && near(v.hasteF, 1.4, 1e-9) && near(v.hp, hp0 - L + 0.05 * v.maxHp * (L >= W.frac * v.maxHp ? W.mul : 1), 1e-6) && v.ohT > 2 - 8 * TICK && v.ohT < 2, `${v.hp} ${hp0 - L} ${v.ohT}`);
+    const e2 = gun(m);
+    check('47p ... and not again inside the icd', only(e2, 'onHurt').length === 0 && hitAmt(e2, 1) > 0);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q', { dmg: v.maxHp * 0.55 }), buff('b'), buff('c')]);
+    withMods(v, { onHurt: { by: 'any', every: 0.1, cdCut: { slot: 'all', cut: 1 } } });
+    v.cd.s1 = 10; v.cd.s2 = 10; v.cd.ult = 10;
+    const ev = fire(m, 's1'), L = hitAmt(ev, 1), n = Math.floor(L / (0.1 * v.maxHp) + 1e-9);
+    check('47q onHurt every 10% max hp: one hit losing L fires floor(L / 10%) times, each cutting every slot by 1 s; the rest is kept', n >= 2 && only(ev, 'onHurt').length === n && near(v.cd.s1, 10 - 7 * TICK - n, 1e-6) && near(v.cd.ult, 10 - 7 * TICK - n, 1e-6) && near(v.ohAcc, L - n * 0.1 * v.maxHp, 1e-6), `${L / v.maxHp} ${n} ${v.cd.s1} ${v.ohAcc}`);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q'), buff('b'), buff('c')]);
+    withMods(v, { onHurt: { by: 'cc', icd: 0, self: { haste: 1.5, dur: 1 } } });
+    applyFx(m, a, v, { stun: 0.5 });
+    const e1 = go(m, 1);
+    applyFx(m, a, v, { stun: 0.2 });
+    const e2 = go(m, 1);
+    check('47r onHurt by cc: a stun landing fires it on the next tick; a shorter stun that does not lengthen the running one does not', only(e1, 'onHurt').length === 1 && near(v.hasteF, 1.5, 1e-9) && only(e2, 'onHurt').length === 0);
+    withMods(v, { onHurt: { by: 'skill', mark: { key: 'k', dur: 2 } } });
+    fire(m, 's1');
+    check('47s onHurt mark {k, 2 s}: the attacker carries the victim\'s tag k@1', a.tags['k@1'] > 2 - 6 * TICK && a.tags['k@1'] < 2 && a.tgT > 0, `${a.tags['k@1']}`);
+  }
+
+  // ---- energy ----
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q', { en: { cost: 30, refund: 4 } }), buff('b', { en: { cost: 50 } }), buff('c')]);
+    a.def = { ...a.def, energy: { max: 100, regen: 5, start: 40, gain: { weapon: 2, hit: 3, hurt: 1 } } }; a.en = 40;
+    v.def = { ...v.def, energy: { max: 50, start: 0, gain: { hurt: 1 } } }; v.en = 0;
+    check('47t cost: 40 energy cannot pay a 50 cost row (skillReady false), can pay 30', !skillReady(a, 1) && skillReady(a, 0));
+    const ev = fire(m, 's1');
+    check('47u a 30 cost cast: 40 + 7 ticks of regen 5/s - 30, + 3 (skill hit) + 4 (refund); the victim gains 1 per hit taken', only(ev, 'hit', (e) => e.id === 1).length === 1 && near(a.en, 40 + 7 * 5 * TICK - 30 + 3 + 4, 1e-6) && near(v.en, 1, 1e-9), `${a.en} ${v.en}`);
+    a.en = 20; a.cd.s1 = 0;
+    const e2 = go(m, 3, () => ({ 0: { s1: true } }));
+    check('47v ... with 20 energy the 30 cost row does not fire', only(e2, 'skill', (e) => e.id === 0).length === 0 && !skillReady(a, 0));
+    a.en = 0; a.def = { ...a.def, energy: { ...a.def.energy, regen: 0 } };
+    gun(m);
+    check('47w a main-gun hit gives gain.weapon 2', near(a.en, 2, 1e-9), `${a.en}`);
+  }
+  {
+    const m = two(), [a] = m.units;
+    kit(a, [{ id: 'sh', do: 'shield', cd: 20, amount: 500, dur: 10, en: { drain: 20 } }, buff('b'), buff('c')]);
+    a.def = { ...a.def, energy: { max: 100, regen: 0, start: 30 } }; a.en = 30;
+    go(m, 1, () => ({ 0: { s1: true } }));
+    const e1 = go(m, 44);
+    check('47x drain 20/s: the shield (10 s) runs on 30 energy for 1.5 s; at 44 ticks it is still up', a.shieldT > 0 && near(a.en, 30 - 44 * 20 * TICK, 1e-6) && only(e1, 'enOut').length === 0, `${a.en} ${a.shieldT}`);
+    const e2 = go(m, 2);
+    check('47y ... at 45 the energy is out: the shield drops at once (enOut), energy 0', a.shield === 0 && a.shieldT === 0 && a.en === 0 && only(e2, 'enOut', (e) => e.id === 0 && e.slot === 0).length === 1, `${a.en} ${a.shield}`);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    kit(a, [shot('q', { fx: { enSteal: 20 } }), buff('b'), buff('c')]);
+    a.def = { ...a.def, energy: { max: 100, regen: 0 } }; a.en = 10;
+    v.def = { ...v.def, energy: { max: 50, regen: 0 } }; v.en = 50;
+    fire(m, 's1');
+    check('47z hitfx enSteal 20: the victim loses 20 energy, the attacker gains them', near(v.en, 30, 1e-9) && near(a.en, 30, 1e-9), `${v.en} ${a.en}`);
+  }
+  {
+    let ok = false, never = true;
+    for (let k = 0; k < 4 && !ok; k++) {
+      const m = createMatch({ seed: 70 + k, mode: 'tdm', roster: [{ team: 0, mech: 'ung', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B', bot: true, diff: 'hard' }] });
+      const a = m.units[0];
+      a.def = { ...a.def, energy: { max: 100, regen: 0, start: 0 }, skills: a.def.skills.map((s, i) => (i === 0 ? { ...s, en: { cost: 60 } } : s)) }; a.en = 0;
+      let n = 0;
+      for (let i = 0; i < 900 && !m.over; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === 0) n++; }
+      if (n) never = false;
+      a.en = 100;
+      for (let i = 0; i < 3600 && !m.over && !ok; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === 0) ok = near(a.en, 40, 1e-9); }
+    }
+    check('47A bots read the cost through skillReady: no cast of a 60 cost slot at 0 energy for 30 s, a cast once it holds 100 (energy 40 after)', never && ok);
+  }
+
+  // ---- slowDecay / slowGrow / slowStack (slowG), slowFire ----
+  {
+    const m = two(), [a, v] = m.units, sp = v.def.speed;
+    applyFx(m, a, v, { slow: 0.6, slowDur: 2, slowDecay: true });
+    check('47B slowDecay: at once slowG 0.6 and the plain slow is untouched', near(v.slowG, 0.6, 1e-9) && v.slowT === 0);
+    go(m, 30);
+    check('47C ... after 1 s it has fallen linearly to 0.3 and the speed follows', near(v.slowG, 0.6 * (2 - 30 * TICK) / 2, 1e-9) && near(unitSpeed(v), sp * (1 - v.slowG), 1e-9), `${v.slowG} ${unitSpeed(v)}`);
+    applyFx(m, a, v, { slow: 0.2, slowDur: 2, slowDecay: true });
+    const k1 = v.slowG;
+    applyFx(m, a, v, { slow: 0.5, slowDur: 2, slowDecay: true });
+    check('47D a weaker decaying slow does not replace one that slows harder now (0.3 > 0.2); a stronger one does (0.5)', near(k1, 0.3, 1e-9) && near(v.slowG, 0.5, 1e-9), `${k1} ${v.slowG}`);
+    go(m, 61);
+    check('47E ... it is gone after its 2 s', v.slowG === 0 && near(unitSpeed(v), sp, 1e-9));
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    applyFx(m, a, v, { slow: 1, slowDur: 2, slowGrow: true });
+    check('47F slowGrow: starts at 0', v.slowG === 0);
+    go(m, 30);
+    applyFx(m, a, v, { slow: 1, slowDur: 2, slowGrow: true });
+    check('47G ... climbs to 0.5 at 1 s; a second hit does not restart it', near(v.slowG, 0.5, 1e-9), `${v.slowG}`);
+    go(m, 29);
+    check('47H ... and nearly stops the mech at the end (slowG 59/60)', near(v.slowG, 59 / 60, 1e-9) && unitSpeed(v) < v.def.speed * 0.02, `${v.slowG}`);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    for (let i = 0; i < 4; i++) applyFx(m, a, v, { slowDur: 2, slowStack: { step: 0.15, max: 0.45 } });
+    check('47I slowStack {0.15, max 0.45}: four hits make 3 stacks, slowG 0.45 (capped)', v.ssN === 3 && near(v.slowG, 0.45, 1e-9), `${v.ssN} ${v.slowG}`);
+    go(m, 61);
+    check('47J ... 2 s without a hit and the stacks are gone', v.ssN === 0 && v.slowG === 0);
+    applyFx(m, a, v, { slow: 0.6, slowDur: 2, slowDecay: true }); v.ccT = 1; go(m, 1);
+    applyFx(m, a, v, { slowDur: 2, slowStack: { step: 0.15, max: 0.45 } });
+    check('47K cc immunity wipes slowG and refuses new ones', v.slowG === 0 && v.ssN === 0 && v.dsT === 0);
+  }
+  {
+    const m = two(), [a, v] = m.units;
+    applyFx(m, a, v, { slowFire: { mul: 0.5, dur: 3 } });
+    applyFx(m, a, v, { slowFire: { mul: 0.8, dur: 1 } });
+    v.cd.fire = 1;
+    go(m, 10);
+    check('47L slowFire {0.5, 3 s}: the weapon cooldown runs at half speed; a weaker one (0.8) does not replace it', near(v.cd.fire, 1 - 10 * TICK * 0.5, 1e-9) && near(v.sfF, 0.5, 1e-9) && near(v.sfT, 3 - 10 * TICK, 1e-9), `${v.cd.fire} ${v.sfF}`);
+  }
+
+  // ---- thruWalls ----
+  {
+    const m = two(), [a] = m.units, p = m.props[0];
+    kit(a, [shot('q'), shot('q2', { thruWalls: true }), buff('c')]);
+    p.alive = true; p.x = 2; p.z = 0; p.r = 0.6; p.hp = 1e9;
+    const e1 = fire(m, 's1');
+    check('47M a plain shot stops on the prop between', hitAmt(e1, 1) === 0 && only(e1, 'propHit', (e) => e.id === p.id).length === 1);
+    const e2 = fire(m, 's2');
+    check('47N thruWalls: the shot flies over it and hits the mech behind', hitAmt(e2, 1) > 0 && only(e2, 'propHit').length === 0);
+  }
+
+  // determinism
+  {
+    const play = () => {
+      const m = arena([[R('ung', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 6, 1]]), [a, v, o] = m.units;
+      kit(a, [shot('q', { en: { cost: 10 }, fx: { tag: { key: 'm', dur: 2 }, slowDur: 2, slowStack: { step: 0.1, max: 0.3 }, slowFire: { mul: 0.7, dur: 1 }, enSteal: 5 } }), shot('q2', { cd: 3, vsTag: { key: 'm', mul: 1.3, consume: true, fx: { slow: 0.5, slowDur: 1.5, slowDecay: true } }, thruWalls: true }), buff('c', { en: { drain: 5 } })]);
+      a.def = { ...a.def, energy: { max: 100, regen: 4, start: 60, gain: { weapon: 1, hit: 2, hurt: 1 } } }; a.en = 60;
+      for (const u of [v, o]) { u.def = { ...u.def, energy: { max: 50, regen: 1, start: 20 } }; u.en = 20; withMods(u, { save: { below: 0.4, ally: true, r: 5, icd: 4, heal: 0.1 }, onHurt: { by: 'any', every: 0.05, self: { guard: 0.2, vs: 'weapon', dur: 1 } }, onCast: { haste: 1.1, dur: 1 } }); }
+      const ev = go(m, 240, (i) => ({ 0: { fire: true, s1: i % 9 === 0, s2: i % 31 === 0, ult: i === 60, aim: 0.1 }, 1: { fire: true, aim: Math.PI }, 2: { fire: true, aim: Math.PI } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.cd, u.en, u.slowG, u.tgT, u.svT, u.gvT, u.ohAcc, u.sfT])]);
+    };
+    check('47O a scripted fight with every G2 field is deterministic', play() === play());
+  }
+}
+
 // feat/dtt-modes: play kinds (tools/modes-cases.mjs)
 runModeCases(check, section);
 runPveCases(check, section);

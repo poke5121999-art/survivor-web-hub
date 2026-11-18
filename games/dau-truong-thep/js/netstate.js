@@ -76,7 +76,8 @@ function decZoneField(v, type) {
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT',
+  'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT'];   // kit-remake G2 (the row mask has room for 3 more names: TIMER_AT + 4 flag bits must stay under 2^53)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 
 // A cast is sent as the index of its row: 0..2 the skills, 3..5 the second stage (next.row) of skill 0..2.

@@ -112,6 +112,7 @@ function clearStatus(u) {
   // kit-remake G1: uses, i.e. skill charges (spent and the gap left, per slot), antiheal, cdAfter holds, hits per press, cuts waiting for the press's cooldown
   u.use0 = 0; u.use1 = 0; u.use2 = 0; u.gap0 = 0; u.gap1 = 0; u.gap2 = 0; u.ahT = 0; u.ahF = 1;
   u.hold = 0; u.holdT = [0, 0, 0]; u.hitN = {}; u.pressing = -1; u.pendCut = null;
+  g2Clear(u);   // kit-remake G2
 }
 
 function spawn(m, u, first) {
@@ -325,7 +326,9 @@ export function unitSpeed(u) {
   if (u.hasteT > 0) s *= u.hasteF;
   const low = lowHpMod(u);
   if (low && low.haste) s *= low.haste;
-  if (u.slowT > 0) s *= 1 - u.slowF * (u.passive === 'steady' ? 0.5 : 1);
+  // kit-remake G2: slowG (a decaying, growing or stacking slow) counts when it slows harder than the plain one
+  const sl = Math.max(u.slowT > 0 ? u.slowF : 0, u.slowG || 0);
+  if (sl > 0) s *= 1 - sl * (u.passive === 'steady' ? 0.5 : 1);
   if (u.cast) s *= u.cast.move;
   if (u.charge > 0 && !(u.primeT > 0)) s *= weaponOf(u).charge.move;
   return s;
@@ -391,7 +394,7 @@ function stepUnit(m, u, inp) {
   if (u.ccPrev) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - u.ccPrev[i]; if (d > 1e-9) u[k] = u.ccPrev[i] + d * u.tfCc; }
   // cdAfter: a held slot's cooldown waits until the row's state is over
   if (u.hold) for (let i = 0; i < 3; i++) if (u.hold & (1 << i) && !stateOn(u, i)) u.hold &= ~(1 << i);
-  for (const k in u.cd) if (u.cd[k] > 0 && !(u.hold & (HOLD_BIT[k] || 0))) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
+  for (const k in u.cd) if (u.cd[k] > 0 && !(u.hold & (HOLD_BIT[k] || 0))) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) * (u.sfT > 0 ? u.sfF : 1) : 1));
   for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT', 'airT', 'gap0', 'gap1', 'gap2', 'ahT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
   // uses (skill charges): the cooldown is the recharge of one spent use; it starts again while uses are still spent
   for (let i = 0; i < 3; i++) {
@@ -454,6 +457,7 @@ function stepUnit(m, u, inp) {
   if (u.cast && u.cast.skill.guard) { u.guardT = Math.max(u.guardT, 2 * dt); u.guardF = u.cast.skill.guard; u.ccT = Math.max(u.ccT, 2 * dt); }
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
+  g2Tick(m, u);   // kit-remake G2: tags, saves, onHurt cc, energy, slowG, slowFire timers
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -587,6 +591,8 @@ const OWN_INVULN = { dash: 1, leap: 1, flurry: 1 };
 // Can slot i be cast now? uses {n, gap} (skill charges; `charges` is taken by the wire row): a use is left and the gap since the last one is over; otherwise the cooldown is done.
 export function skillReady(u, i) {
   const s = u.def.skills[i];
+  // kit-remake G2 energy: a row with `en.cost` needs that much energy stored (a plain `cost` is the hp price of a buff)
+  if (s && s.en && s.en.cost && !(u.en >= s.en.cost)) return false;
   if (s && s.uses) return u[USE[i]] < s.uses.n && !(u[GAP[i]] > 0);
   return !(u.cd[SLOTS[i]] > 0);
 }
@@ -612,6 +618,7 @@ function castHooks(u, s, i) {
   u.pressing = -1; u.pendCut = null;
   if (P) for (let k = 0; k < P.length; k += 2) applyCut(u, P[k + 1], P[k]);
   if (s.cdCut && s.cdCut.on === 'cast') cutCd(u, s.cdCut, i);
+  g2Cast(u, s, i);   // kit-remake G2: energy cost and drain, mods.onCast
 }
 // self {on, dur, haste, rapid, armor, guard, cc}: the caster's own buff; a weaker one never replaces a stronger one that still runs
 function selfBuff(u, S) {
@@ -619,7 +626,8 @@ function selfBuff(u, S) {
   if (S.haste) { u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, S.haste); u.hasteT = Math.max(u.hasteT, d); }
   if (S.rapid) { u.rapidF = Math.max(u.rapidT > 0 ? u.rapidF : 1, S.rapid); u.rapidT = Math.max(u.rapidT, d); }
   if (S.armor) { if (!(u.armorT > 0)) u.reflectF = 0; u.armorF = Math.max(u.armorT > 0 ? u.armorF : 0, S.armor); u.armorT = Math.max(u.armorT, d); }
-  if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, d); }
+  if (S.guard && S.vs) g2Guard(u, S.guard, S.vs, d);   // kit-remake G2: guard vs 'skill' | 'weapon'
+  else if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, d); }
   if (S.cc) u.ccT = Math.max(u.ccT, d);
 }
 // cdCut {slot: self|s1|s2|ult|all|other, cut, frac, set}: slot i's row cuts these cooldowns; the slot being pressed this tick waits (pendCut)
@@ -660,6 +668,183 @@ function rowHit(m, u, left) {
 function rowTowerMul(u) {
   const i = srcSlot(u, curSrc), s = i >= 0 ? slotRow(u, i, curSrc) : null, t = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
   return (s && s.towerMul !== undefined ? s.towerMul : 1) * (t && t !== s && t.towerMul !== undefined ? t.towerMul : 1);
+}
+
+// ---- kit-remake G2 (~/handoff/dtt-ref/kits/MECHANICS.md): hitfx tag + row vsTag, mods.save, guard vs, mods.onHurt, mods.onCast,
+// energy (def.energy, row en {cost, drain, refund}, hitfx enSteal), hitfx slowDecay/slowGrow/slowStack (slowG), hitfx slowFire, thruWalls ----
+const G2_T = ['svT', 'undyT', 'gvT', 'ohT', 'dsT', 'ssT', 'sfT'], CC_SEEN = ['stunT', 'rootT', 'silenceT'];
+// The kind of hit damage() is handling: 'weapon' (the main gun's tag) or 'skill' (every other enemy hit: skill rows, their untagged extras, fields).
+const hitKind = () => (curSrc === 'w' ? 'weapon' : 'skill');
+const hurtMod = (u) => { const P = u.def.passive; return P && P.mods ? P.mods.onHurt : null; };
+const saveMod = (u) => { const P = u.def.passive; return P && P.mods ? P.mods.save : null; };
+const enAdd = (u, n) => { if (n > 0 && u.def.energy) u.en = Math.min(u.def.energy.max, u.en + n); };
+const dsNow = (o) => (o.dsT > 0 && o.dsD > 0 ? o.dsF * (o.dsK ? 1 - o.dsT / o.dsD : o.dsT / o.dsD) : 0);
+const g2SlowNow = (o) => { o.slowG = Math.max(dsNow(o), o.ssT > 0 ? Math.min(o.ssMax, o.ssN * o.ssF) : 0); };
+
+function g2Clear(u) {
+  u.tags = {}; u.tgT = 0; u.svT = 0; u.undyT = 0; u.gvT = 0; u.gvF = 0; u.gvK = '';
+  u.ohT = 0; u.ohAcc = 0; u.ohCc = [0, 0, 0];
+  const E = u.def.energy;
+  u.en = E ? E.start ?? E.max : 0; u.enDrain = null;
+  u.dsT = 0; u.dsD = 0; u.dsF = 0; u.dsK = 0; u.ssN = 0; u.ssT = 0; u.ssF = 0; u.ssMax = 0; u.slowG = 0; u.sfT = 0; u.sfF = 1;
+}
+// Once a tick, after cc immunity has wiped stuns: timers, tags, slowG, onHurt by 'cc', energy regen and drain.
+function g2Tick(m, u) {
+  for (const k of G2_T) if (u[k] > 0) u[k] = Math.max(0, u[k] - TICK);
+  let tg = 0;
+  for (const k in u.tags) { const t = u.tags[k] - TICK; if (t > 1e-9) { u.tags[k] = t; if (t > tg) tg = t; } else delete u.tags[k]; }
+  u.tgT = tg;
+  if (u.ccT > 0) { u.dsT = 0; u.ssT = 0; }
+  if (!(u.ssT > 0)) u.ssN = 0;
+  g2SlowNow(u);
+  // onHurt by 'cc': a stun, root or silence that landed (or got longer) since the last tick
+  const O = hurtMod(u);
+  if (O && O.by === 'cc' && !(u.ohT > 0) && CC_SEEN.some((k, i) => u[k] > u.ohCc[i] + 1e-9)) onHurtFire(m, u, null, O);
+  for (let i = 0; i < 3; i++) u.ohCc[i] = u[CC_SEEN[i]];
+  const E = u.def.energy;
+  if (!E) return;
+  if (E.regen) enAdd(u, E.regen * TICK);
+  const D = u.enDrain;
+  if (D && !g2StateOn(u, D.s, D.slot)) u.enDrain = null;
+  else if (D) {
+    u.en -= D.rate * TICK;
+    if (u.en <= 1e-9) { u.en = 0; u.enDrain = null; g2EndState(m, u, D.s, D.slot); }
+  }
+}
+// en.drain: does the state the row started still run (its transform, cast, dash, flurry or shield)?
+function g2StateOn(u, s, i) {
+  return (u.tfT > 0 && u.tfSlot === i) || (!!u.cast && u.cast.skill === s) || (!!u.dash && (u.dash.s === s || u.dash.land === s)) || (!!u.flurry && u.flurry.s === s) || (s.do === 'shield' && u.shieldT > 0);
+}
+// en.drain ran the energy dry: the state ends at once (a transform ends, a cast or dash is cut, a shield drops)
+function g2EndState(m, u, s, i) {
+  if (u.tfT > 0 && u.tfSlot === i) endTransform(m, u);
+  if (u.cast && u.cast.skill === s) u.cast = null;
+  if (u.dash && (u.dash.s === s || u.dash.land === s)) u.dash = null;
+  if (u.flurry && u.flurry.s === s) u.flurry = null;
+  if (s.do === 'shield' && u.shieldT > 0) { u.shield = 0; u.shieldT = 0; }
+  m.events.push({ t: 'enOut', id: u.id, slot: i, x: u.x, z: u.z });
+}
+// Every successful press (second stages too): en.cost, en.drain, and the passive's mods.onCast self buff.
+function g2Cast(u, s, i) {
+  const N = s.en;
+  if (N && N.cost) u.en = Math.max(0, u.en - N.cost);
+  if (N && N.drain && u.def.energy) u.enDrain = { s, slot: i, rate: N.drain };
+  const P = u.def.passive, C = P && P.mods && P.mods.onCast;
+  if (C) selfBuff(u, C);
+}
+function g2Guard(u, f, vs, d) {
+  const same = u.gvT > 0 && u.gvK === vs;
+  u.gvF = same ? Math.max(u.gvF, f) : f; u.gvT = same ? Math.max(u.gvT, d) : d; u.gvK = vs;
+}
+// The row behind the hit being handled: the weapon for 'w', the skill row (or its second stage) for a skill tag, else null.
+function g2Row(u) {
+  if (curSrc === 'w') return weaponOf(u);
+  const i = srcSlot(u, curSrc);
+  return i >= 0 ? slotRow(u, i, curSrc) : null;
+}
+// vsTag {key, mul, fx, healMax, cdCut, self, consume}: the row hits a victim carrying the caster's own tag `key`
+function vsTagOf(foe, u) {
+  const r = foe.def && foe.def.skills ? g2Row(foe) : null, V = r && r.vsTag;
+  return V && u.tags && u.tags[V.key + '@' + foe.id] > 0 ? V : null;
+}
+function vsTagPay(m, foe, u, V) {
+  const keep = curSrc, i = curSrc === 'w' ? -1 : srcSlot(foe, curSrc);
+  if (V.consume && u.tags) delete u.tags[V.key + '@' + foe.id];
+  if (V.healMax) heal(m, foe, foe.maxHp * V.healMax, foe);
+  if (V.cdCut) cutCd(foe, V.cdCut, i);
+  if (V.self) selfBuff(foe, V.self);
+  m.events.push({ t: 'tagPay', id: u.id, by: foe.id, key: V.key, x: u.x, z: u.z });
+  // the fx rides with no source tag (it never feeds stacks or pays a tag again)
+  if (V.fx && u.alive) { curSrc = null; applyFx(m, foe, u, V.fx); curSrc = keep; }
+}
+// hitfx fields of G2. Returns true when the fx's slow went to slowG (slowDecay / slowGrow / slowStack), so the plain slow is skipped.
+function g2Fx(src, o, fx) {
+  if (fx.tag && o.tags && src) { const k = fx.tag.key + '@' + src.id; o.tags[k] = Math.max(o.tags[k] || 0, fx.tag.dur); o.tgT = Math.max(o.tgT, o.tags[k]); }
+  // slowFire {mul, dur}: the victim's weapon cooldown runs at x mul (the strongest that still runs wins)
+  if (fx.slowFire) { o.sfF = o.sfT > 0 ? Math.min(o.sfF, fx.slowFire.mul) : fx.slowFire.mul; o.sfT = Math.max(o.sfT, fx.slowFire.dur); }
+  // enSteal: the victim loses that much energy, the attacker gains what was taken
+  if (fx.enSteal && o.def.energy) { const t = Math.min(o.en, fx.enSteal); o.en -= t; if (src && src.def) enAdd(src, t); }
+  const mine = !!(fx.slowStack || fx.slowDecay || fx.slowGrow);
+  if (!mine || o.ccT > 0) return mine;
+  if (fx.slowStack) {
+    // slowStack {step, max}: each hit adds step (up to max) and refreshes slowDur
+    const S = fx.slowStack;
+    o.ssN = o.ssT > 0 ? Math.min(o.ssN + 1, Math.ceil(S.max / S.step - 1e-9)) : 1; o.ssF = S.step; o.ssMax = S.max; o.ssT = fx.slowDur;
+  } else {
+    // slowDecay: slow falls from `slow` to 0 over slowDur; slowGrow: climbs from 0 to `slow` (a growing curse is never restarted;
+    // a decaying one is replaced unless what runs slows harder right now)
+    const K = fx.slowGrow ? 1 : 0;
+    if (o.dsT > 0 && (o.dsK === 1 ? K === 1 : dsNow(o) > fx.slow)) return true;
+    o.dsK = K; o.dsF = fx.slow; o.dsD = o.dsT = fx.slowDur;
+  }
+  g2SlowNow(o);
+  return true;
+}
+// After a hit that landed: energy gains, vsTag payoff, onHurt, a below-hp save. kind: 'weapon' | 'skill'; vt: the vsTag it paid.
+function g2After(m, u, foe, left, kind, vt) {
+  if (foe && foe.alive && foe.def.energy) {
+    const G = foe.def.energy.gain || {}, r = curSrc && curSrc !== 'w' ? g2Row(foe) : null;
+    enAdd(foe, (curSrc === 'w' ? G.weapon || 0 : curSrc ? G.hit || 0 : 0) + (r && r.en && r.en.refund ? r.en.refund : 0));
+  }
+  if (foe && u.alive && u.def.energy) enAdd(u, (u.def.energy.gain || {}).hurt || 0);
+  if (vt && foe && foe.alive) vsTagPay(m, foe, u, vt);
+  if (!u.alive) return;
+  // onHurt {by: 'skill' | 'weapon' | 'any', every, icd}: every qualifying hit, or each time `every` of max hp is lost
+  const O = hurtMod(u);
+  if (O && foe && O.by !== 'cc' && (!O.by || O.by === 'any' || O.by === kind)) {
+    if (O.every) {
+      u.ohAcc += left;
+      const stp = O.every * u.maxHp;
+      while (u.ohAcc >= stp && u.alive) { u.ohAcc -= stp; if (!(u.ohT > 0)) onHurtFire(m, u, foe, O); }
+    } else if (!(u.ohT > 0)) onHurtFire(m, u, foe, O);
+  }
+  if (u.alive && left > 0) { const o = saverFor(m, u, false); if (o) runSave(m, o, u); }
+}
+function onHurtFire(m, u, foe, O) {
+  u.ohT = O.icd || 0;
+  if (O.self) selfBuff(u, O.self);
+  if (O.cdCut) cutCd(u, O.cdCut, -1);
+  const amt = (u.maxHp - u.hp) * (O.heal || 0) + u.maxHp * (O.healMax || 0);
+  if (amt > 0) heal(m, u, amt, u);
+  // mark {key, dur}: the attacker gets this mech's tag (a vsTag row of this mech pays on it)
+  if (O.mark && foe && foe.alive && foe.tags) { const k = O.mark.key + '@' + u.id; foe.tags[k] = Math.max(foe.tags[k] || 0, O.mark.dur); foe.tgT = Math.max(foe.tgT, foe.tags[k]); }
+  m.events.push({ t: 'onHurt', id: u.id, x: u.x, z: u.z });
+}
+// save {fatal | below, icd, ...}: the unit's own save first, then an ally's with `ally: true` inside r (lowest id first)
+function saverFor(m, u, fatal) {
+  if (canSave(u, u, fatal)) return u;
+  for (const o of m.units) if (o !== u && canSave(o, u, fatal)) return o;
+  return null;
+}
+function canSave(o, u, fatal) {
+  const S = saveMod(o);
+  if (!S || !o.alive || o.svT > 0 || !!S.fatal !== fatal) return false;
+  if (o !== u && !(S.ally && o.team === u.team && dist2(o.x, o.z, u.x, u.z) <= (S.r || 6) ** 2)) return false;
+  return fatal || u.hp < u.maxHp * S.below;
+}
+function runSave(m, o, u) {
+  const S = saveMod(o), d = S.dur ?? 2;
+  o.svT = S.icd || 0;
+  if (u.hp <= 0) u.hp = 1;
+  if (S.cleanse) cleanse(u);
+  const amt = u.maxHp * (S.heal || 0) + (u.maxHp - u.hp) * (S.lostHeal || 0);
+  if (amt > 0) heal(m, u, amt, o);
+  if (S.invuln) { u.invulnT = Math.max(u.invulnT, S.invuln); u.ccT = Math.max(u.ccT, S.invuln); }
+  if (S.undying) u.undyT = Math.max(u.undyT, S.undying);
+  if (S.haste || S.guard || S.armor || S.cc) selfBuff(u, { dur: d, haste: S.haste, guard: S.guard, armor: S.armor, cc: S.cc, vs: S.vs });
+  if (S.resetSlots && o === u) for (const k of S.resetSlots) u.cd[k] = 0;
+  m.events.push({ t: 'save', id: u.id, by: o.id, x: u.x, z: u.z });
+}
+// A hit took the last hp: undying holds it at 1, or a fatal save fires.
+function g2Fatal(m, u) {
+  if (u.undyT > 0) { u.hp = 1; return; }
+  const o = saverFor(m, u, true);
+  if (o) runSave(m, o, u);
+}
+// save.cleanse: every harmful timer goes
+function cleanse(u) {
+  u.stunT = 0; u.slowT = 0; u.rootT = 0; u.silenceT = 0; u.airT = 0; u.weakenT = 0; u.blindT = 0; u.burnT = 0; u.burnN = 0; u.ahT = 0;
+  u.dsT = 0; u.ssT = 0; u.ssN = 0; u.slowG = 0; u.sfT = 0;
 }
 
 // Once-a-tick work of a passive trait. The other passives act where damage, kills and deployables are handled.
@@ -772,6 +957,7 @@ function spawnShot(m, u, w, a, side, st, src, boost) {
     color: u.color, dmg: w.dmg * dmgScale(u) * (1 + rampBonus(u, 'dmg')) * (st ? st.dmg : 1) * (boost ? boost.mul : 1), splash: w.splash || 0, knock: w.knock || 0, slow: w.slow || 0, slowDur: w.slowDur || 0, r: w.r, vis: w.vis,
     pierce: !!w.pierce, bounce: w.bounce || 0, hook: w.do === 'hook' ? w : null, far: w.far || null, flown: 0, hit: w.pierce ? [] : null,
     fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null, cdr: boost ? boost.cdr : 0, splashHit: !!w.splashHit,
+    over: !!w.thruWalls,   // kit-remake G2 thruWalls: flies over walls and props (player-built wall zones still stop it)
   });
 }
 
@@ -1742,7 +1928,8 @@ export function applyFx(m, src, o, fx, ctx) {
   if (!o.alive || !fx) return;
   if (fx.chance !== undefined && m.rng() >= fx.chance) return;
   if (fx.pick) fx = fx.pick[Math.floor(m.rng() * fx.pick.length)];
-  if (fx.slow) { o.slowT = Math.max(o.slowT, fx.slowDur); o.slowF = Math.max(o.slowF, fx.slow); }
+  // kit-remake G2: slowDecay / slowGrow / slowStack go to slowG instead of the plain slow; tag, slowFire, enSteal
+  if (!g2Fx(src, o, fx) && fx.slow) { o.slowT = Math.max(o.slowT, fx.slowDur); o.slowF = Math.max(o.slowF, fx.slow); }
   if (fx.weaken) { o.weakenF = o.weakenT > 0 ? Math.min(o.weakenF, fx.weaken.mul) : fx.weaken.mul; o.weakenT = Math.max(o.weakenT, fx.weaken.dur); }
   if (fx.root) o.rootT = Math.max(o.rootT, fx.root);
   if (fx.stun) {
@@ -1806,11 +1993,16 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'brittle') { const P = foe.def.passive; if (P.when === 'low' ? u.hp < u.maxHp * P.below : P.when === 'burn' ? u.burnT > 0 : P.when === 'marked' ? u.markT > 0 || u.ampT > 0 : u.slowT > 0) amount *= P.mul; }
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
   }
+  // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
+  const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
+  if (vt && vt.mul) amount *= vt.mul;
   const preArmor = amount;
   // trueHit (hitfx lostHp, curHp, trueDmg): neither armour nor guard cuts it
   if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
   // guard (skill row or stacks self): a cut on top of armour, outside its cap
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
+  // kit-remake G2 guard vs: a cut of one kind of enemy damage only
+  if (u.gvT > 0 && !isTrue && foe && u.gvK === kind) amount *= 1 - u.gvF;
   const blocked = preArmor - amount;
   let left = amount, absorbed = 0, broke = false;
   if (u.shield > 0) {
@@ -1843,6 +2035,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && foe.passive === 'souls' && u.hp > 0) applyAmp(u, foe.def.passive.mark.amp, foe.def.passive.mark.dur);
   if (foe && foe.alive && foe.passive === 'meter' && left + absorbed > 0 && !chaining) meterHit(m, foe, u);
   if (foe && foe.alive && foe.passive === 'stacks' && left + absorbed > 0 && !chaining && u.hp > 0) stackHit(m, foe, u);
+  if (u.hp <= 0) g2Fatal(m, u);   // kit-remake G2: undying, or a fatal save, keeps it at 1 hp
   if (u.hp <= 0) kill(m, u, src);
   else if (u.markT > 0 && u.markEx && u.hp < u.maxHp * u.markEx) {
     const by = m.units[u.markBy];
@@ -1854,6 +2047,8 @@ function damage(m, u, amount, src, raw) {
     if (u.passive === 'meter' && !u.def.passive.resetOnHurt && left + absorbed > 0) { meterAdd(m, u, 'hurt', left); meterAdd(m, u, 'absorbed', blocked + absorbed); }
     if (broke) popShield(m, u);
   }
+  // kit-remake G2: after the hit is fully done (it may hurt again): energy, vsTag payoff, onHurt, a below-hp save
+  if (left + absorbed > 0) g2After(m, u, foe, left, kind, vt);
 }
 
 // stacks (passive): a hit with a source tag adds a mark to the mech it lands on ('skill': only skill hits count, 'any': weapon and skill hits;

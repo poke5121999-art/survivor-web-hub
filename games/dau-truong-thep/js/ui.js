@@ -286,6 +286,12 @@ export function makeUI(G) {
     c.hidden = true; H.buffs.appendChild(c);
     return { root: c, name: c.querySelector('em'), val: c.querySelector('b'), on: false };
   })();
+  // kit-remake G2 energy (def.energy): the player's own energy, n/max, among the buffs
+  const energyEl = (() => {
+    const c = el('span', 'chip good', `${icon('boost')}<em>Năng lượng</em><b></b>`);
+    c.hidden = true; H.buffs.appendChild(c);
+    return { root: c, val: c.querySelector('b'), on: false };
+  })();
 
   /* ---- per-match state ---- */
   let curMatch = null, myTeam = 0, myColor = 0, S = null, MH = null, T = {};
@@ -1077,6 +1083,9 @@ export function makeUI(G) {
       const MP = me.passive === 'meter' ? me.def.passive : null, mOn = !!MP && me.alive;
       if (mOn !== meterEl.on) { meterEl.on = mOn; meterEl.root.hidden = !mOn; if (mOn) setText(meterEl.name, MP.name); }
       if (mOn) setText(meterEl.val, me.meter >= MP.max ? 'Đầy' : MP.max <= 5 ? `${Math.floor(me.meter)}/${MP.max}` : `${Math.floor(me.meter / MP.max * 100)}%`);
+      const EN = me.def.energy, eOn = !!EN && me.alive;
+      if (eOn !== energyEl.on) { energyEl.on = eOn; energyEl.root.hidden = !eOn; }
+      if (eOn) setText(energyEl.val, `${Math.floor(me.en || 0)}/${EN.max}`);
 
       // respawn overlay
       const dead = !me.alive && !m.over;

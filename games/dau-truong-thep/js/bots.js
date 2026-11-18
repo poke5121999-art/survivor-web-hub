@@ -140,7 +140,8 @@ export function botInput(m, u) {
   let los = false, aimPt = null, aimAng = u.aim;
   if (tgt) {
     aimPt = aimAtPoint(u, tgt, w, D.lead);
-    los = losClear(map, u.x, u.z, aimPt[0], aimPt[1], Math.min(0.2, (w.r || 0.3) * 0.6)) && !wallBlocks(m, u.x, u.z, aimPt[0], aimPt[1], 0.2, u.team);
+    // kit-remake G2: a thruWalls weapon only needs to clear player-built walls
+    los = (w.thruWalls || losClear(map, u.x, u.z, aimPt[0], aimPt[1], Math.min(0.2, (w.r || 0.3) * 0.6))) && !wallBlocks(m, u.x, u.z, aimPt[0], aimPt[1], 0.2, u.team);
     aimX = aimPt[0]; aimZ = aimPt[1];
   }
   // the medic's ray goes to the most hurt ally in reach, whatever the movement plan is about
@@ -609,6 +610,7 @@ function wallBlocks(m, x0, z0, x1, z1, r, team) {
 
 // Can u hit this mech right now with its weapon?
 function lineBlocked(m, u, e, w) {
+  if (w.thruWalls) return wallBlocks(m, u.x, u.z, e.x, e.z, 0.2, u.team);   // kit-remake G2: over walls, not player-built ones
   return !losClear(m.map, u.x, u.z, e.x, e.z, Math.min(0.2, (w.r || 0.3) * 0.6)) || wallBlocks(m, u.x, u.z, e.x, e.z, 0.2, u.team);
 }
 
@@ -616,6 +618,7 @@ function canHit(m, u, e, w, D) {
   const p = aimAtPoint(u, e, w, D.lead);
   if (hyp(p[0] - u.x, p[1] - u.z) - e.radius * 0.5 > w.range) return false;
   if (w.lob) return true;
+  if (w.thruWalls) return !wallBlocks(m, u.x, u.z, p[0], p[1], 0.2, u.team);   // kit-remake G2
   return losClear(m.map, u.x, u.z, p[0], p[1], Math.min(0.2, (w.r || 0.3) * 0.6)) && !wallBlocks(m, u.x, u.z, p[0], p[1], 0.2, u.team);
 }
 
@@ -1134,12 +1137,12 @@ const SKILL_AI = {
       for (const e of c.enemies) if (d2(e.x, e.z, u.x, u.z) < (s.range * 0.45) ** 2) n++;
       return n >= 2 || (n >= 1 && (c.hpFrac < 0.5 || c.underFire));
     }
-    if (!tgt || !los || td > s.range - 1 || td < 2.5) return false;
+    if (!tgt || (!los && !s.thruWalls) || td > s.range - 1 || td < 2.5) return false;
     const p = leadPoint(u, tgt, s.speed, c.D.lead);
     c.b.sk.aim = Math.atan2(p[1] - u.z, p[0] - u.x);
     c.b.sk.tol = Math.min(0.4, Math.max(0.05, (s.fan || 0) * (s.n - 1) / 2 + Math.atan2(tgt.radius + (s.r || 0.3), td) * 0.8));
     c.b.sk.x = p[0]; c.b.sk.z = p[1];
-    return losClear(c.m.map, u.x, u.z, p[0], p[1], 0.3);
+    return !!s.thruWalls || losClear(c.m.map, u.x, u.z, p[0], p[1], 0.3);
   },
   buff(c, s) {
     const { u, tgt, td, w } = c;
