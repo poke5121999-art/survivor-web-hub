@@ -22,7 +22,7 @@
   "use strict";
   if (window.__hubCapture) return;
 
-  var VERSION = "20261118a";
+  var VERSION = "20261118b";
   var HOTKEY = "F9";
   var MAX_LINES = 300, MAX_LINE = 600, MAX_ERRORS = 60, MAX_STATE = 200000, MAX_SIDE = 1600;
   var H2C_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
@@ -799,6 +799,13 @@
       return;
     }
     if (e.key === HOTKEY || e.code === HOTKEY) { e.stopImmediatePropagation(); return; }
+    // Esc khi ngăn đang mở thì đóng ngăn dù focus đang ở đâu: có game giành focus về canvas ngay sau khi ngăn mở
+    // (farmland), Esc lúc ấy rơi vào game và ngăn không đóng.
+    if (!ours && state.open && e.key === "Escape") {
+      e.stopImmediatePropagation();
+      if (e.type === "keydown") { e.preventDefault(); closePanel(); }
+      return;
+    }
     if (!ours) return;
     e.stopImmediatePropagation();
     if (e.type === "keydown" && e.key === "Escape") { e.preventDefault(); closePanel(); }
