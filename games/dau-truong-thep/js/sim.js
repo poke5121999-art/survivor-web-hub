@@ -138,6 +138,7 @@ function clearStatus(u) {
   opClear(u);   // kit-remake G5 trau
   bdClear(u);   // kit-remake G5 buomdem
   ckClear(u);   // kit-remake G5 cakiem
+  ldClear(u);   // kit-remake G5 Razor
 }
 
 function spawn(m, u, first) {
@@ -518,6 +519,7 @@ function stepUnit(m, u, inp) {
   if (u.locT > 0) inp = locInput(m, u, inp);
   if (u.tthHT > 0) inp = tthHeld(u);   // kit-remake G5 Tào Tháo: a hold
   const stunned = u.stunT > 0;
+  ldTick(m, u, inp, stunned);   // kit-remake G5 Razor: the channel (breaks on a move or cc), orb buff stacks
   if (stunned) { inp = NO_INPUT; u.cast = null; u.charge = 0; }
   else {
     // A tracking beam (beam.track) keeps its aim on the target picked at cast time while it winds up.
@@ -606,6 +608,7 @@ function stepUnit(m, u, inp) {
     bdCast(m, u, s);   // kit-remake G5 buomdem: reveal on every press, the warp's pulses
     ckCast(u, s);   // kit-remake G5 cakiem: the parry window opens
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
+    if (u.def.passive && u.def.passive.ldOrb) ldOrbDrop(m, u);   // kit-remake G5 Razor: every press drops a lightning orb
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
@@ -2138,6 +2141,7 @@ function stepZones(m) {
       const pulse = z.acc >= 0.5;
       if (pulse) z.acc -= 0.5;
       if (z.k7) k7ZoneTick(m, z, owner, pulse);   // kit-remake G5 lane K7: growing slow, owner heal (Thủy Tinh), the eye (Ưng Nhãn)
+      if (z.ldOrb && ldOrbStep(m, z, owner)) done = true;   // kit-remake G5 Razor: a lightning orb is picked up
       for (const u of m.units) {
         if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
         if (u.team === z.team) {
@@ -2414,6 +2418,7 @@ function damage(m, u, amount, src, raw) {
     if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
     amount *= bdMul(m, u, foe);   // kit-remake G5 buomdem: his domain doubles one row
     amount *= ckDr(u, foe);   // kit-remake G5 cakiem: a foe carrying his mark hits him for less
+    if (foe.ldN > 0) amount *= ldAmp(foe);   // kit-remake G5 Razor: orb stacks, skill damage only
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
   const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
@@ -4776,3 +4781,61 @@ function dvHit(m, u, left, absorbed) {
   if (s && s.cdCut && s.cdCut.on !== 'cast') cutCd(u, s.cdCut, i);
 }
 /* ===== end kit-remake G5 dieuthuyen ===== */
+
+/* ===== kit-remake G5 Razor (kit lane k17; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md luondien) =====
+   passive `ldOrb {dist, r, dur, arm, max, heal, cdr, en, amp, ampMax, ampDur, haste, hasteDur, confuse}`: every press (second stages
+   too) drops a lightning orb `dist` m behind the aim (a field of vis 'ldOrb', r m, dur s, at most `max` of them, the oldest goes).
+   After `arm` s the first mech to touch it takes it: an ally (or Razor) runs at x haste for hasteDur s, an enemy is confused for
+   `confuse` s; either way Razor heals heal x max hp, every cooldown drops by cdr of its length, he gets `en` energy and one stack
+   (ldN, ampDur s from the last, at most ampMax) of +amp skill damage. Event k17 {kind: 'orb', by, foe}.
+   transform `ldChan {lost, guard}`: a channel. While it runs Razor heals `lost` of his lost hp a second and takes `guard` less skill
+   damage (G2 guard vs 'skill'); moving himself, a dash, a stun or a loss of control ends it at once (event k17 {kind: 'chanEnd'}).
+   ldN is in netstate STATUS; the orbs are fields, mirrored as such. */
+function ldClear(u) { u.ldN = 0; u.ldT = 0; }
+function ldTick(m, u, inp, stunned) {
+  if (u.ldN > 0 && (u.ldT -= TICK) <= 1e-9) { u.ldN = 0; u.ldT = 0; }
+  const s = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null, C = s && s.ldChan;
+  if (!C) return;
+  if (stunned || locked(u) || u.dash || Math.hypot(inp.mx, inp.mz) > 0.2) {
+    endTransform(m, u);
+    m.events.push({ t: 'k17', kind: 'chanEnd', id: u.id, x: u.x, z: u.z });
+    return;
+  }
+  if (u.hp < u.maxHp) heal(m, u, (u.maxHp - u.hp) * C.lost * TICK, u, true);
+  g2Guard(u, C.guard, 'skill', 2 * TICK);
+}
+function ldOrbDrop(m, u) {
+  const O = u.def.passive.ldOrb, a = u.aim + Math.PI + (m.rng() - 0.5) * 2.4;
+  let n = 0, old = -1;
+  for (let i = 0; i < m.zones.length; i++) if (m.zones[i].ldOrb && m.zones[i].owner === u.id) { n++; if (old < 0) old = i; }
+  if (n >= O.max && old >= 0) { const q = m.zones[old]; m.zones.splice(old, 1); m.events.push({ t: 'zoneEnd', id: q.id, kind: q.kind, x: q.x, z: q.z }); }
+  const [x, z] = landing(m, u, u.x + Math.cos(a) * O.dist, u.z + Math.sin(a) * O.dist);
+  addZone(m, u, { kind: 'field', vis: 'ldOrb', x, z, r: O.r, dur: O.dur, hps: 0, dps: 0, slow: 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {}, ldOrb: O });
+}
+function ldOrbStep(m, z, owner) {
+  const O = z.ldOrb;
+  if (z.age < O.arm) return false;
+  for (const o of m.units) {
+    if (!o.alive || o.invulnT > 0 || dist2(o.x, o.z, z.x, z.z) > (z.r + o.radius * 0.5) ** 2) continue;
+    const foe = o.team !== z.team;
+    if (foe && o.def.boss) continue;
+    if (foe) applyFx(m, owner, o, { confuse: O.confuse });
+    else { o.hasteF = Math.max(o.hasteT > 0 ? o.hasteF : 1, O.haste); o.hasteT = Math.max(o.hasteT, O.hasteDur); }
+    if (owner.alive) {
+      heal(m, owner, owner.maxHp * O.heal, owner);
+      for (let j = 0; j < 3; j++) if (owner.def.skills[j]) applyCut(owner, j, { frac: O.cdr });
+      enAdd(owner, O.en);
+      owner.ldN = Math.min(O.ampMax, owner.ldN + 1); owner.ldT = O.ampDur;
+    }
+    m.events.push({ t: 'k17', kind: 'orb', id: owner.id, by: o.id, foe: foe ? 1 : 0, x: z.x, z: z.z });
+    return true;
+  }
+  return false;
+}
+// +amp per stack on Razor's skill hits (not the weapon, not untagged extras)
+function ldAmp(foe) {
+  const O = foe.def.passive && foe.def.passive.ldOrb;
+  return O && curSrc && curSrc !== 'w' ? 1 + O.amp * foe.ldN : 1;
+}
+/* ===== end kit-remake G5 Razor ===== */

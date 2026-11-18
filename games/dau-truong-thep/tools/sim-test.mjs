@@ -18,6 +18,7 @@ import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k1
 import { runK18Cases, OLD_NHENTHEP, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, old nguma/nhenthep kits kept as fixtures
 import { runK16Cases, oldK16, OLD_LOI } from './k16-cases.mjs';   // kit lane k16: section K16, old kits kept as fixtures
 import { runK12Cases, oldKit as oldKit12 } from './k12-cases.mjs';   // kit lane k12: section K12, old buomdem/cakiem/dieuthuyen kits as fixtures
+import { runK17Cases, oldK17 } from './k17-cases.mjs';   // kit lane k17: section K17, old kits kept as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3172,7 +3173,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // spend 'chain' + gain 'weapon' (luondien) and hitfx chain
   {
-    const m = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5], [R('ung', 1), 6, 9]]), [a, v, b, c, far] = m.units;
+    const m = oldK17(arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5], [R('ung', 1), 6, 9]])), [a, v, b, c, far] = m.units;   // the old Razor kit (tools/k17-cases.mjs)
     go(m, 1, () => ({ 0: { fire: true, tx: 6, tz: 0 } }));
     go(m, 10);
     check('42q luondien: one shot that hit -> meter 1 (weapon gain), and v marked for the barrage', a.meter === 1 && v.mmBy === a.id && v.mmT > 3, `meter ${a.meter}`);
@@ -3181,14 +3182,14 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     const ev = go(m, 12, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
     const ch = only(ev, 'chain');
     check('42r an armed meter: the hit chains to the 2 nearest within 6 m (b at 3, c at 3.5), 0.7 x 85 each, not the far one; the meter is spent, then the carrying hit feeds it 1', ch.length === 1 && ch[0].pts.length === 3 && near(UNG.hp - b.hp, 85 * 0.7, 1e-6) && near(UNG.hp - c.hp, 85 * 0.7, 1e-6) && far.hp === far.maxHp && a.meter === 1 && near(UNG.hp - v.hp, 85, 1e-6), `pts ${ch[0] && ch[0].pts.length} b ${UNG.hp - b.hp} far ${far.hp} meter ${a.meter}`);
-    const w = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5]]), x = w.units[0];
+    const w = oldK17(arena([[R('luondien', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 3], [R('ung', 1), 6, -3.5]])), x = w.units[0];
     x.meter = 5;
     const ev2 = go(w, 12, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
     check('42s a chained hit never chains again and does not feed the meter (one chain event, meter 1 from the carrying hit only)', only(ev2, 'chain').length === 1 && x.meter === 1);
   }
   // barrage.seek + fx.chain (luondien U)
   {
-    const m = arena([[R('luondien', 0), 0, 0], [R('ung', 1), 8, 2], [R('ung', 1), 9, -2]]), [a, e1, e2] = m.units;
+    const m = oldK17(arena([[R('luondien', 0), 0, 0], [R('ung', 1), 8, 2], [R('ung', 1), 9, -2]])), [a, e1, e2] = m.units;
     e2.mmBy = a.id; e2.mmT = 3;
     const ev = go(m, 1, () => ({ 0: { ult: true, tx: 8, tz: 0 } }));
     const st = only(ev, 'zone', (z) => z.kind === 'strike');
@@ -4494,6 +4495,7 @@ runK10Cases(check, section);   // kit lane K10
 runK6Cases(check, section);   // kit lane K6
 runK18Cases(check, section);   // kit lane K18
 runK16Cases(check, section);   // kit lane k16
+runK17Cases(check, section);   // kit lane k17
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

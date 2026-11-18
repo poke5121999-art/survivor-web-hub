@@ -874,21 +874,30 @@ export const MECHS = {
         desc: 'Biến mất rồi vồ kẻ địch ở con trỏ (xa nhất 7 m) và những kẻ quanh đó, bảy nhát liền (không bị nhắm trúng): sáu nhát đầu 333, nhát cuối 525 cộng 15% máu đã mất của nó và hất văng. Kẻ trúng chỉ nhận một nửa máu hồi và khiên trong 3 giây.' },
     ],
   },
+  // Razor = 电魂III Điện Hồn: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p51 "48.电魂", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-b.md). Attack = one Roi Điện lash (150; was 85 at 0.25 s, now 150 at 0.44 s, same dps): Lôi Vân Hãm
+  // Tịnh 214% -> 321, Điện Từ Can Nhiễu 200% / 250% -> 300 / 375 (nova grow 1.25). Cooldowns 10 / 6 / 20 s in the clip -> 12 / 8 / 40.
+  // Energy is kept (the kit is built on it): 200 max, +10 per 3 s, +5 per lash that hits; the channel drains 50 a second. "Confused
+  // mechs deal 50% less physical damage" -> weaken 0.5 for the confusion (all damage). The orb's decaying +100% speed for 2 s -> x1.5
+  // for 2 s. Kit-remake G5 fields (sim.js block "kit-remake G5 Razor"): passive ldOrb (every press drops a lightning orb), transform
+  // ldChan (the channelled heal).
   luondien: {
-    name: 'Razor', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x1d4f6b,
-    blurb: 'Roi điện tích dần: đủ năm phát trúng, phát kế tiếp nhảy sang ba mục tiêu. Vùng điện bám người, Sấm Sét ưu tiên kẻ đã dính roi.',
-    hp: 2500, speed: 6.3, radius: 0.8,
-    armor: 0.05, accel: 1.3, turn: 14, towerMul: 1.0,
-    passive: { do: 'meter', name: 'Tích Điện', desc: 'Mỗi phát roi trúng nạp một nấc, đủ 5 nấc thì phát trúng kế tiếp nhảy sang tối đa 3 địch gần đó (trong 6 m), mỗi kẻ chịu 70% sát thương.',
-      max: 5, gain: { weapon: 1 }, spend: { kind: 'chain', n: 3, r: 6, mul: 0.7 } },
-    weapon: { name: 'Roi Điện', cd: 0.25, dmg: 85, speed: 36, range: 12, r: 0.2, vis: 'bullet' },
+    name: 'Razor', role: 'Trụ', roleKey: 'tank', price: 1700, tint: 0x1d4f6b,
+    blurb: 'Điện hồn đỡ đòn: mỗi lần dùng chiêu thả một cầu sét, ai phe mình nhặt cũng chạy nhanh và nạp điện cho bạn, địch nhặt thì bị hỗn loạn. Đứng dẫn điện đổi năng lượng thành máu, gài bẫy mây sét giữ chân, phát sóng điện từ hai nhịp làm cả nhóm địch hỗn loạn.',
+    hp: 2900, speed: 6.0, radius: 0.8,
+    armor: 0.12, accel: 1.2, turn: 13, towerMul: 1.0,
+    energy: { max: 200, regen: 10 / 3, start: 200, gain: { weapon: 5 } },
+    passive: { do: 'trait', name: 'Điện Năng Chuyển Hoán', look: 'ldOrbs',
+      ldOrb: { dist: 2.5, r: 1.1, dur: 8, arm: 0.4, max: 4, heal: 0.05, cdr: 0.05, en: 10, amp: 0.05, ampMax: 10, ampDur: 3, haste: 1.5, hasteDur: 2, confuse: 1 },
+      desc: 'Mỗi lần dùng chiêu, một cầu sét rơi gần bạn. Đồng đội hay chính bạn nhặt thì chạy nhanh 50% trong 2 giây; kẻ địch nhặt thì bị hỗn loạn 1 giây. Cầu nào được nhặt, bạn hồi 5% máu, mọi chiêu giảm 5% hồi chiêu, thêm 10 năng lượng và +5% sát thương chiêu trong 3 giây (tối đa 10 lớp). Năng lượng tối đa 200, hồi 10 mỗi 3 giây, mỗi đòn roi trúng thêm 5.' },
+    weapon: { name: 'Roi Điện', cd: 0.44, dmg: 150, speed: 36, range: 12, r: 0.22, vis: 'bullet' },
     skills: [
-      { id: 'luongdien', look: 'ldEel', name: 'Luồng Điện', cd: 7, do: 'volley', n: 1, dmg: 260, speed: 40, range: 14, r: 0.3, pierce: true, slow: 0.25, slowDur: 1, vis: 'lance', icon: 'pierce',
-        desc: 'Phóng luồng điện xuyên thấu 260 sát thương, làm chậm 25% trong 1 giây.' },
-      { id: 'vungdien', look: 'ldCoil', name: 'Vùng Điện', cd: 13, do: 'zone', at: 'self', follow: true, radius: 4, dur: 4, dps: 180, vis: 'bastion', icon: 'storm',
-        desc: 'Tỏa vùng điện bám theo bạn trong 4 giây: địch trong vòng 4 m mất 180 máu mỗi giây.' },
-      { id: 'samset', look: 'ldStorm', name: 'Sấm Sét', cd: 42, do: 'barrage', n: 8, radius: 5, blast: 2, dmg: 330, delay: 0.4, span: 2, cast: 12, seek: { radius: 9, prefer: 'meterMark' }, fx: { chain: { n: 2, r: 5, mul: 0.5 } }, icon: 'barrage',
-        desc: 'Tám tia sét giáng xuống kẻ địch quanh con trỏ (ưu tiên kẻ vừa dính roi điện, dư thì rải ngẫu nhiên), mỗi tia 330 sát thương và nhảy sang 2 địch gần đó.' },
+      { id: 'diennang', look: 'ldChannel', name: 'Điện Năng Chuyển Hoán', cd: 12, do: 'transform', dur: 4, ldChan: { lost: 0.1, guard: 0.5 }, en: { cost: 10, drain: 50 }, icon: 'shield',
+        desc: 'Đứng dẫn điện đổi năng lượng thành máu (tốn 50 năng lượng mỗi giây, tối đa 4 giây): mỗi giây hồi 10% máu đã mất, chịu ít hơn 50% sát thương chiêu. Tự di chuyển hoặc bị khống chế thì ngắt.' },
+      { id: 'loivan', look: 'ldCloud', name: 'Lôi Vân Hãm Tịnh', cd: 8, do: 'barrage', n: 1, cast: 12, radius: 0, blast: 2.6, delay: 0.45, span: 0, dmg: 321, fx: { root: 1 }, uses: { n: 2, gap: 3 }, icon: 'storm',
+        desc: 'Ném bẫy mây sét tới con trỏ (xa nhất 12 m): 321 sát thương vòng 2,6 m và giữ chân 1 giây. Tích 2 lượt, mỗi lượt cách nhau 3 giây.' },
+      { id: 'dientu', look: 'ldPulse', name: 'Điện Từ Can Nhiễu', cd: 40, do: 'nova', windup: 0.1, repeat: 2, gap: 1, move: 0.6, radius: 5.5, dmg: 300, grow: 1.25, fx: { confuse: 1.5, weaken: { mul: 0.5, dur: 1.5 } }, icon: 'quake',
+        desc: 'Phát sóng điện từ quanh mình (5,5 m): 300 sát thương, kẻ trúng bị hỗn loạn 1,5 giây và gây ít hơn 50% sát thương; 1 giây sau sóng đánh lần nữa 375 và hỗn loạn thêm 1,5 giây.' },
     ],
   },
   // Saitama: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p77 "74.琦玉", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
@@ -1412,7 +1421,7 @@ export const PERKS = {
   cakiem: [perk('Đao Dài', 'Tam Đao chém xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Đỡ Lâu', 'Không Thủ Bạch Nhận đỡ đạn 2,6 giây.', 0, { dur: 2.6 }), perk('Sóng Lớn', 'Tam Thiên Thế Giới gây 560.', 2, { dmg: 560 })],
   buomdem: [perk('Cầu Thời Không', 'Thời Không Phóng Trục gây 280.', 0, { dmg: 280 }), perk('Cổng Xa', 'Thời Không Nữu Khúc xa 11 m, tới nơi nổ 300.', 1, { dist: 11, land: { radius: 3, dmg: 300 } }), perk('Lĩnh Vực Rộng', 'Ma Pháp Lĩnh Vực rộng 5,5 m.', 2, { blast: 5.5, linger: { radius: 5.5, dur: 4, vis: 'bdRealm' } })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
-  luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
+  luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Mây Rộng', 'Lôi Vân Hãm Tịnh nổ rộng 3,2 m.', 1, { blast: 3.2 }), perk('Sóng Rộng', 'Điện Từ Can Nhiễu rộng 6,5 m.', 2, { radius: 6.5 })],
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 175.', 'weapon', { dmg: 175 }), perk('Húc Mạnh', 'Nhận Chân Đầu Chùy rộng 3,4 m, gây 400.', 1, { radius: 3.4, dmg: 400 }), perk('Quạt Rộng', 'Nhận Chân Ẩu Đả mở quạt rộng hơn, dài tới 14 m.', 2, { fan: [0.55, 0.7], charge: { min: 0.3, max: 3, dmg: [474, 948], range: [8, 14], width: [7, 14] } })],
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],
   tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],

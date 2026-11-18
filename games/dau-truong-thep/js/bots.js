@@ -279,6 +279,7 @@ export function botInput(m, u) {
       out.tx = u.x + dx * c - dz * s; out.tz = u.z + dx * s + dz * c;
     }
   } else { out.tx = u.x + Math.cos(aimAng) * 8; out.tz = u.z + Math.sin(aimAng) * 8; }
+  if (u.tfT > 0) ldBotStill(u, out);   // kit-remake G5 Razor: hold still while channelling
   return guard(out, u);
 }
 
@@ -1173,6 +1174,7 @@ const SKILL_AI = {
     return !!tgt && td < w.range + 4 && c.state !== 'grab';
   },
   transform(c, s) {
+    if (s.ldChan) return ldBotChan(c, s);   // kit-remake G5 Razor: the channelled heal
     const { u, tgt, td, w } = c;
     if (u.tfT > 0 || !tgt) return false;
     const reach = (s.weapon && s.weapon.range ? s.weapon.range : w.range) + 2;
@@ -2683,3 +2685,19 @@ function ckBotParry(c, s) {
   return true;
 }
 /* ===== end kit-remake G5 cakiem ===== */
+
+/* ===== kit-remake G5 Razor bots (kit lane k17) ===== */
+// the channel: hurt enough, energy for a good part of it, nobody right on top (walking away would break it)
+function ldBotChan(c, s) {
+  const { u } = c;
+  if (u.tfT > 0 || c.hpFrac > 0.6 || u.en < 80) return false;
+  for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < 3.5) return false;
+  return true;
+}
+// while it runs: stand still (it breaks on a move) until nearly full; the turret still turns and fires
+function ldBotStill(u, out) {
+  const t = u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (!t || !t.ldChan || u.hp >= u.maxHp * 0.95) return;
+  out.mx = 0; out.mz = 0;
+}
+/* ===== end kit-remake G5 Razor bots ===== */
