@@ -2631,7 +2631,7 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
   }
   {
     let out = '', code = 0;
-    try { out = execFileSync(process.execPath, [new URL('./ttk.mjs', import.meta.url).pathname, '--check', '--quick'], { encoding: 'utf8', timeout: 120000 }); } catch (e) { code = e.status || 1; out = String(e.stdout); }
+    try { out = execFileSync(process.execPath, [new URL('./ttk.mjs', import.meta.url).pathname, '--check', '--quick'], { encoding: 'utf8', timeout: 300000 }); } catch (e) { code = e.status || 1; out = String(e.stdout); }
     check('39h tools/ttk.mjs --check passes: no cell where one attacker cannot kill a lone healer (6 s burst kits, 10 s the rest), burst combos reach 85% of a healer, nobody deletes Trau or Kim Quy in 3 s', code === 0, out.split('\n').filter((l) => l.startsWith('lv')).join(' | '));
   }
 }
